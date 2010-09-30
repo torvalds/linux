@@ -33,7 +33,7 @@ MODULE_SUPPORTED_DEVICE("QFT FT1000 Express Cards");
 
 
 void *pFileStart;
-ULONG FileLength;
+size_t FileLength;
 
 #define VENDOR_ID 0x1291   /* Qualcomm vendor id */
 #define PRODUCT_ID 0x11    /* fake product id */
@@ -46,24 +46,7 @@ static struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE (usb, id_table);
 
-extern  struct ft1000_device *pdevobj[MAX_NUM_CARDS+2];
-
-char *getfw (char *fn, int *pimgsz);
-
-int ft1000_close(struct net_device *net);
-void dsp_reload (struct ft1000_device *ft1000dev);
-u16 init_ft1000_netdev(struct ft1000_device *ft1000dev);
-u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf);
-int ft1000_poll(void* dev_id);
-void ft1000_DestroyDevice(struct net_device *dev);
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, u8 highlow);
-u16 ft1000_read_register(struct ft1000_device *ft1000dev, short* Data, u16 nRegIndx);
-BOOLEAN gPollingfailed = FALSE;
-
-void ft1000InitProc(struct net_device *dev);
-void ft1000CleanupProc(FT1000_INFO *info);
-int ft1000_poll_thread(void *arg);
-
+static BOOLEAN gPollingfailed = FALSE;
 int ft1000_poll_thread(void *arg)
 {
     int ret = STATUS_SUCCESS;

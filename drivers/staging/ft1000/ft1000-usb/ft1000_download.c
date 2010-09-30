@@ -133,15 +133,6 @@ typedef struct _DSP_IMAGE_INFO_V6 {
 } DSP_IMAGE_INFO_V6, *PDSP_IMAGE_INFO_V6;
 
 
-u16 ft1000_read_register(struct ft1000_device *ft1000dev, short* Data, u16 nRegIndx);
-u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRegIndx);
-u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, USHORT cnt);
-u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, USHORT cnt);
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, u8 highlow);
-u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT value, u8 highlow);
-u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer);
-u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer);
-
 //---------------------------------------------------------------------------
 // Function:    getfw
 //
@@ -154,7 +145,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
 // Notes:
 //
 //---------------------------------------------------------------------------
-char *getfw (char *fn, int *pimgsz)
+char *getfw (char *fn, size_t *pimgsz)
 {
     struct file *fd;
     mm_segment_t fs = get_fs();
@@ -190,7 +181,7 @@ char *getfw (char *fn, int *pimgsz)
         return NULL;
     }
     pos = 0;
-    if (vfs_read(fd, pfwimg, fwimgsz, &pos) != fwimgsz) {
+    if (vfs_read(fd, (void __user __force*)pfwimg, fwimgsz, &pos) != fwimgsz) {
        vfree(pfwimg);
        DEBUG("FT1000:%s:failed to read firmware image\n",__FUNCTION__);
        filp_close(fd, current->files);
@@ -216,7 +207,7 @@ char *getfw (char *fn, int *pimgsz)
 // Notes:
 //
 //---------------------------------------------------------------------------
-ULONG check_usb_db (struct ft1000_device *ft1000dev)
+static ULONG check_usb_db (struct ft1000_device *ft1000dev)
 {
    int               loopcnt;
    USHORT            temp;
@@ -295,7 +286,7 @@ ULONG check_usb_db (struct ft1000_device *ft1000dev)
 // Notes:
 //
 //---------------------------------------------------------------------------
-USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
+static USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
 {
    USHORT            handshake;
    int               loopcnt;
@@ -406,7 +397,7 @@ USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void put_handshake(struct ft1000_device *ft1000dev,USHORT handshake_value)
+static void put_handshake(struct ft1000_device *ft1000dev,USHORT handshake_value)
 {
     ULONG tempx;
     USHORT tempword;
@@ -442,7 +433,7 @@ void put_handshake(struct ft1000_device *ft1000dev,USHORT handshake_value)
 
 }
 
-USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected_value)
+static USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected_value)
 {
    USHORT            handshake;
    int               loopcnt;
@@ -482,7 +473,7 @@ USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected_value)
    return HANDSHAKE_TIMEOUT_VALUE;
 }
 
-void put_handshake_usb(struct ft1000_device *ft1000dev,USHORT handshake_value)
+static void put_handshake_usb(struct ft1000_device *ft1000dev,USHORT handshake_value)
 {
    int i;
 
@@ -501,7 +492,7 @@ void put_handshake_usb(struct ft1000_device *ft1000dev,USHORT handshake_value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-USHORT get_request_type(struct ft1000_device *ft1000dev)
+static USHORT get_request_type(struct ft1000_device *ft1000dev)
 {
    USHORT   request_type;
    ULONG    status;
@@ -533,7 +524,7 @@ USHORT get_request_type(struct ft1000_device *ft1000dev)
 
 }
 
-USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
+static USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
 {
    USHORT   request_type;
    ULONG    status;
@@ -577,7 +568,7 @@ USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
 // Notes:
 //
 //---------------------------------------------------------------------------
-long get_request_value(struct ft1000_device *ft1000dev)
+static long get_request_value(struct ft1000_device *ft1000dev)
 {
    ULONG     value;
    USHORT   tempword;
@@ -605,7 +596,8 @@ long get_request_value(struct ft1000_device *ft1000dev)
 
 }
 
-long get_request_value_usb(struct ft1000_device *ft1000dev)
+#if 0
+static long get_request_value_usb(struct ft1000_device *ft1000dev)
 {
    ULONG     value;
    USHORT   tempword;
@@ -633,6 +625,7 @@ long get_request_value_usb(struct ft1000_device *ft1000dev)
    return value;
 
 }
+#endif
 
 //---------------------------------------------------------------------------
 // Function:    put_request_value
@@ -647,7 +640,7 @@ long get_request_value_usb(struct ft1000_device *ft1000dev)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
+static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 {
    ULONG    tempx;
    ULONG    status;
@@ -675,7 +668,7 @@ void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 // Notes:
 //
 //---------------------------------------------------------------------------
-USHORT hdr_checksum(PPSEUDO_HDR pHdr)
+static USHORT hdr_checksum(PPSEUDO_HDR pHdr)
 {
    USHORT   *usPtr = (USHORT *)pHdr;
    USHORT   chksum;
@@ -705,7 +698,7 @@ USHORT hdr_checksum(PPSEUDO_HDR pHdr)
 // Notes:
 //
 //---------------------------------------------------------------------------
-ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcFile, long word_length)
+static ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcFile, long word_length)
 {
    ULONG Status = STATUS_SUCCESS;
    USHORT dpram;
@@ -861,7 +854,7 @@ static void usb_dnld_complete (struct urb *urb)
 // Notes:
 //
 //---------------------------------------------------------------------------
-ULONG write_blk_fifo (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcFile, long word_length)
+static ULONG write_blk_fifo (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcFile, long word_length)
 {
    ULONG Status = STATUS_SUCCESS;
    int byte_length;

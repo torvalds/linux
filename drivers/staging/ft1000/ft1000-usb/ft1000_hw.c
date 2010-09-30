@@ -35,24 +35,12 @@
 
 //#define JDEBUG
 
-
-extern void *pFileStart;
-extern ULONG FileLength;
-
-
-extern int numofmsgbuf;
-
-
-int ft1000_poll_thread(void *arg);
-
+static int ft1000_reset(struct net_device *ft1000dev);
+static int ft1000_submit_rx_urb(PFT1000_INFO info);
 static void ft1000_hbchk(u_long data);
-int ft1000_reset(struct net_device *ft1000dev);
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ft1000_open (struct net_device *dev);
-int ft1000_close (struct net_device *dev);
 static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev);
-u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLength);
-int ft1000_submit_rx_urb(PFT1000_INFO info);
 static struct timer_list poll_timer[MAX_NUM_CARDS];
 static int ft1000_chkcard (struct ft1000_device *dev);
 /*
@@ -67,19 +55,9 @@ static const struct net_device_ops ft1000net_ops = {
 //Jim
 
 static u8 tempbuffer[1600];
-int gCardIndex;
+static int gCardIndex;
 
 #define MAX_RCV_LOOP   100
-
-
-extern struct list_head freercvpool;
-extern spinlock_t free_buff_lock;   // lock to arbitrate free buffer list for receive command data
-
-//end of Jim
-
-extern int ft1000_CreateDevice(struct ft1000_device *dev);
-extern PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist);
-extern void ft1000_free_buffer (PDPRAM_BLK pdpram_blk, struct list_head *plist);
 
 
 static int atoi(const char *s)
@@ -207,7 +185,7 @@ static int ft1000_control(struct ft1000_device *ft1000dev,unsigned int pipe,
 //
 //---------------------------------------------------------------------------
 
-u16 ft1000_read_register(struct ft1000_device *ft1000dev, short* Data, u16 nRegIndx)
+u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx)
 {
     u16 ret = STATUS_SUCCESS;
 
@@ -472,20 +450,20 @@ u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT va
 //---------------------------------------------------------------------------
 u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer)
 {
-    UCHAR tempbuffer[16];
+    UCHAR buf[16];
     USHORT pos;
     u16 ret = STATUS_SUCCESS;
 
     //DEBUG("fix_ft1000_read_dpram32: indx: %d  \n", indx);
     pos = (indx / 4)*4;
-    ret = ft1000_read_dpram32(ft1000dev, pos, (PUCHAR)&tempbuffer[0], 16);
+    ret = ft1000_read_dpram32(ft1000dev, pos, buf, 16);
     if (ret == STATUS_SUCCESS)
     {
         pos = (indx % 4)*4;
-        *buffer++ = tempbuffer[pos++];
-        *buffer++ = tempbuffer[pos++];
-        *buffer++ = tempbuffer[pos++];
-        *buffer++ = tempbuffer[pos++];
+        *buffer++ = buf[pos++];
+        *buffer++ = buf[pos++];
+        *buffer++ = buf[pos++];
+        *buffer++ = buf[pos++];
     }
     else
     {
@@ -524,7 +502,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
     USHORT pos1;
     USHORT pos2;
     USHORT i;
-    UCHAR tempbuffer[32];
+    UCHAR buf[32];
     UCHAR resultbuffer[32];
     PUCHAR pdata;
     u16 ret  = STATUS_SUCCESS;
@@ -533,15 +511,15 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
 
     pos1 = (indx / 4)*4;
     pdata = buffer;
-    ret = ft1000_read_dpram32(ft1000dev, pos1, (PUCHAR)&tempbuffer[0], 16);
+    ret = ft1000_read_dpram32(ft1000dev, pos1, buf, 16);
     if (ret == STATUS_SUCCESS)
     {
         pos2 = (indx % 4)*4;
-        tempbuffer[pos2++] = *buffer++;
-        tempbuffer[pos2++] = *buffer++;
-        tempbuffer[pos2++] = *buffer++;
-        tempbuffer[pos2++] = *buffer++;
-        ret = ft1000_write_dpram32(ft1000dev, pos1, (PUCHAR)&tempbuffer[0], 16);
+        buf[pos2++] = *buffer++;
+        buf[pos2++] = *buffer++;
+        buf[pos2++] = *buffer++;
+        buf[pos2++] = *buffer++;
+        ret = ft1000_write_dpram32(ft1000dev, pos1, buf, 16);
     }
     else
     {
@@ -556,7 +534,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
         buffer = pdata;
         for (i=0; i<16; i++)
         {
-            if (tempbuffer[i] != resultbuffer[i]){
+            if (buf[i] != resultbuffer[i]){
 
                 ret = STATUS_FAILURE;
             }
@@ -596,7 +574,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
 //
 //  Returns:    None
 //-----------------------------------------------------------------------
-void card_reset_dsp (struct ft1000_device *ft1000dev, BOOLEAN value)
+static void card_reset_dsp (struct ft1000_device *ft1000dev, BOOLEAN value)
 {
     u16 status = STATUS_SUCCESS;
     USHORT tempword;
@@ -645,7 +623,7 @@ void card_reset_dsp (struct ft1000_device *ft1000dev, BOOLEAN value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void CardSendCommand(struct ft1000_device *ft1000dev, unsigned char *ptempbuffer, int size)
+void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int size)
 {
     unsigned short temp;
     unsigned char *commandbuf;
@@ -1202,7 +1180,7 @@ u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *int
    return STATUS_SUCCESS;
 }
 
-int ft1000_reset(struct net_device *dev)
+static int ft1000_reset(struct net_device *dev)
 {
     ft1000_reset_card(dev);
     return 0;
@@ -1432,7 +1410,7 @@ static inline u16 ft1000_read_fifo_len (struct net_device *dev)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
+static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
 {
     FT1000_INFO *pInfo = netdev_priv(netdev);
     struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
@@ -1658,7 +1636,7 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-int ft1000_copy_up_pkt (struct urb *urb)
+static int ft1000_copy_up_pkt (struct urb *urb)
 {
     PFT1000_INFO info = urb->context;
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
@@ -1774,7 +1752,7 @@ int ft1000_copy_up_pkt (struct urb *urb)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-int ft1000_submit_rx_urb(PFT1000_INFO info)
+static int ft1000_submit_rx_urb(PFT1000_INFO info)
 {
     int result;
     struct ft1000_device *pFt1000Dev = info->pFt1000Dev;
@@ -2102,7 +2080,7 @@ static void ft1000_hbchk(u_long data)
 //          = 1 (successful)
 //
 //---------------------------------------------------------------------------
-BOOLEAN ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int maxsz, u16 *pnxtph) {
+static BOOLEAN ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int maxsz, u16 *pnxtph) {
     u16 size, ret;
     u16 *ppseudohdr;
     int i;
@@ -2175,7 +2153,7 @@ BOOLEAN ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int maxsz, 
 }
 
 
-int ft1000_dsp_prov(void *arg)
+static int ft1000_dsp_prov(void *arg)
 {
     struct ft1000_device *dev = (struct ft1000_device *)arg;
 	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
@@ -2263,7 +2241,7 @@ int ft1000_dsp_prov(void *arg)
 }
 
 
-int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
+static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
     u16 msgtype;
     u16 tempword;
@@ -2281,9 +2259,11 @@ int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
     } convert;
 
 
-    char cmdbuffer[1600];
+    char *cmdbuffer = kmalloc(1600, GFP_KERNEL);
+    if (!cmdbuffer)
+	return STATUS_FAILURE;
 
-    status = ft1000_read_dpram32(dev, 0x200, (PUCHAR)&cmdbuffer[0], size);
+    status = ft1000_read_dpram32(dev, 0x200, cmdbuffer, size);
 
 
     //if (ft1000_receive_cmd(dev, &cmdbuffer[0], MAX_CMD_SQSIZE, &tempword))
@@ -2388,7 +2368,7 @@ int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 		    info->fProvComplete = 0;
 		    status = ft1000_dsp_prov(dev);
 		    if (status != STATUS_SUCCESS)
-		        return status;
+		        goto out;
                 }
                 else {
                     info->fProvComplete = 1;
@@ -2537,8 +2517,11 @@ int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 
     }
 
+    status = STATUS_SUCCESS;
+out:
+    kfree(cmdbuffer);
     DEBUG("return from ft1000_proc_drvmsg\n");
-    return STATUS_SUCCESS;
+    return status;
 }
 
 

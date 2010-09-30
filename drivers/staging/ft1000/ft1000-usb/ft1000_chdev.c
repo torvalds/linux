@@ -41,25 +41,15 @@
 #include "ft1000_usb.h"
 //#include "ft1000_ioctl.h"
 
-void ft1000_DestroyDevice(struct net_device *dev);
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, u8 highlow);
-u16 ft1000_read_register(struct ft1000_device *ft1000dev, short* Data, u16 nRegIndx);
+static int ft1000_flarion_cnt = 0;
 
-extern inline u16 ft1000_asic_read (struct net_device *dev, u16 offset);
-extern inline void ft1000_asic_write (struct net_device *dev, u16 offset, u16 value);
-extern void CardSendCommand(struct ft1000_device *ft1000dev, unsigned short *ptempbuffer, int size);
+//need to looking usage of ft1000Handle
 
 static int ft1000_ChOpen (struct inode *Inode, struct file *File);
 static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait);
 static long ft1000_ChIoctl(struct file *File, unsigned int Command,
                            unsigned long Argument);
 static int ft1000_ChRelease (struct inode *Inode, struct file *File);
-
-static int ft1000_flarion_cnt = 0;
-
-//need to looking usage of ft1000Handle
-
-
 
 // Global pointer to device object
 static struct ft1000_device *pdevobj[MAX_NUM_CARDS + 2];
@@ -326,7 +316,7 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
         info->app_info[i].nRxMsg = 0;
         info->app_info[i].nTxMsgReject = 0;
         info->app_info[i].nRxMsgMiss = 0;
-        info->app_info[i].fileobject = 0;
+        info->app_info[i].fileobject = NULL;
         info->app_info[i].app_id = i+1;
         info->app_info[i].DspBCMsgFlag = 0;
         info->app_info[i].NumOfMsg = 0;
@@ -539,6 +529,7 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
 static long ft1000_ChIoctl (struct file *File, unsigned int Command,
                            unsigned long Argument)
 {
+    void __user *argp = (void __user *)Argument;
     struct net_device *dev;
     PFT1000_INFO info;
     struct ft1000_device *ft1000dev;
@@ -579,7 +570,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
     switch (cmd) {
     case IOCTL_REGISTER_CMD:
             DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_REGISTER called\n");
-            result = get_user(tempword, (unsigned short *)Argument);
+            result = get_user(tempword, (__u16 __user*)argp);
             if (result) {
                 DEBUG("result = %d failed to get_user\n", result);
                 break;
@@ -601,7 +592,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
 
         get_ver_data.drv_ver = FT1000_DRV_VER;
 
-        if (copy_to_user((PIOCTL_GET_VER)Argument, &get_ver_data, sizeof(get_ver_data)) ) {
+        if (copy_to_user(argp, &get_ver_data, sizeof(get_ver_data)) ) {
             DEBUG("FT1000:ft1000_ChIoctl: copy fault occurred\n");
             result = -EFAULT;
             break;
@@ -651,7 +642,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
         do_gettimeofday ( &tv );
         get_stat_data.ConTm = (u32)(tv.tv_sec - info->ConTm);
         DEBUG("Connection Time = %d\n", (int)get_stat_data.ConTm);
-        if (copy_to_user((PIOCTL_GET_DSP_STAT)Argument, &get_stat_data, sizeof(get_stat_data)) ) {
+        if (copy_to_user(argp, &get_stat_data, sizeof(get_stat_data)) ) {
             DEBUG("FT1000:ft1000_ChIoctl: copy fault occurred\n");
             result = -EFAULT;
             break;
@@ -692,7 +683,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
                //DEBUG("FT1000:ft1000_ChIoctl: try to SET_DPRAM \n");
 
                 // Get the length field to see how many bytes to copy
-                result = get_user(msgsz, (unsigned short *)Argument);
+                result = get_user(msgsz, (__u16 __user *)argp);
                 msgsz = ntohs (msgsz);
                 //DEBUG("FT1000:ft1000_ChIoctl: length of message = %d\n", msgsz);
 
@@ -708,7 +699,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
 			break;
 
                 //if ( copy_from_user(&(dpram_command.dpram_blk), (PIOCTL_DPRAM_BLK)Argument, msgsz+2) ) {
-                if ( copy_from_user(&dpram_data, (PIOCTL_DPRAM_BLK)Argument, msgsz+2) ) {
+                if ( copy_from_user(&dpram_data, argp, msgsz+2) ) {
                     DEBUG("FT1000:ft1000_ChIoctl: copy fault occurred\n");
                     result = -EFAULT;
                 }
@@ -852,7 +843,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
             }
 
             result = 0;
-            pioctl_dpram = (PIOCTL_DPRAM_BLK)Argument;
+            pioctl_dpram = argp;
             if (list_empty(&info->app_info[i].app_sqlist) == 0) {
                 //DEBUG("FT1000:ft1000_ChIoctl:Message detected in slow queue\n");
                 spin_lock_irqsave(&free_buff_lock, flags);
@@ -862,7 +853,10 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
                 //DEBUG("FT1000:ft1000_ChIoctl:NumOfMsg for app %d = %d\n", i, info->app_info[i].NumOfMsg);
                 spin_unlock_irqrestore(&free_buff_lock, flags);
                 msglen = ntohs(*(u16 *)pdpram_blk->pbuffer) + PSEUDOSZ;
-                pioctl_dpram->total_len = htons(msglen); /* XXX exploit here */
+                result = get_user(msglen, &pioctl_dpram->total_len);
+		if (result)
+			break;
+		msglen = htons(msglen);
                 //DEBUG("FT1000:ft1000_ChIoctl:msg length = %x\n", msglen);
                 if(copy_to_user (&pioctl_dpram->pseudohdr, pdpram_blk->pbuffer, msglen))
 				{
@@ -935,7 +929,7 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
     // initialize application information
     info->appcnt--;
     DEBUG("ft1000_chdev:%s:appcnt = %d\n", __FUNCTION__, info->appcnt);
-    info->app_info[i].fileobject = 0;
+    info->app_info[i].fileobject = NULL;
 
     return 0;
 }

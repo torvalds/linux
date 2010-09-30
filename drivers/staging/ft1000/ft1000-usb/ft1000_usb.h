@@ -102,7 +102,7 @@ typedef struct _PROV_RECORD {
 
 #define UCHAR               u8
 #define USHORT              u16
-#define ULONG               u32
+#define ULONG               u32 /* WTF ??? */
 #define BOOLEAN             u8
 #define PULONG              u32 *
 #define PUSHORT             u16 *
@@ -152,7 +152,6 @@ typedef struct _PROV_RECORD {
 
 #define CIS_NET_ADDR_OFFSET 0xff0
 
-#define MEM_TAG 'FLRN'
 // MAGNEMITE specific
 
 #define FT1000_REG_MAG_UFDR 		0x0000	// Uplink FIFO Data Register.
@@ -604,6 +603,44 @@ typedef struct _DPRAM_BLK {
     struct list_head list;
     u16 *pbuffer;
 } __attribute__ ((packed)) DPRAM_BLK, *PDPRAM_BLK;
+
+u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx);
+u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRegIndx);
+u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, USHORT cnt);
+u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, USHORT cnt);
+u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, u8 highlow);
+u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT value, u8 highlow);
+u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer);
+u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer);
+
+extern void *pFileStart;
+extern size_t FileLength;
+extern int numofmsgbuf;
+
+int ft1000_close (struct net_device *dev);
+u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLength);
+
+extern struct list_head freercvpool;
+extern spinlock_t free_buff_lock;   // lock to arbitrate free buffer list for receive command data
+
+int ft1000_CreateDevice(struct ft1000_device *dev);
+void ft1000_DestroyDevice(struct net_device *dev);
+extern void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int size);
+
+PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist);
+void ft1000_free_buffer (PDPRAM_BLK pdpram_blk, struct list_head *plist);
+
+char *getfw (char *fn, size_t *pimgsz);
+
+void dsp_reload(struct ft1000_device *ft1000dev);
+u16 init_ft1000_netdev(struct ft1000_device *ft1000dev);
+struct usb_interface;
+u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf);
+int ft1000_poll(void* dev_id);
+
+void ft1000InitProc(struct net_device *dev);
+void ft1000CleanupProc(FT1000_INFO *info);
+
 
 
 #endif

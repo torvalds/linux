@@ -42,7 +42,7 @@ u16 ft1000_read_dpram16 (struct ft1000_device *ft1000dev, USHORT indx,
 			 PUCHAR buffer, u8 highlow);
 
 
-int
+static int
 ft1000ReadProc (char *page, char **start, off_t off, int count, int *eof,
 		void *data)
 {
