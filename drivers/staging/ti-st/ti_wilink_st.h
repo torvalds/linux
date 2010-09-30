@@ -25,7 +25,6 @@
 #ifndef TI_WILINK_ST_H
 #define TI_WILINK_ST_H
 
-#ifdef __KERNEL__
 /**
  * enum kim_gpio_state - Few protocols such as FM have ACTIVE LOW
  *	gpio states for their chip/core enable gpios
@@ -400,5 +399,4 @@ struct gps_event_hdr {
 	u16 plen;
 } __attribute__ ((packed));
 
-#endif /* __KERNEL__ */
 #endif /* TI_WILINK_ST_H */
