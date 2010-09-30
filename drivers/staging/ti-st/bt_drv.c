@@ -24,7 +24,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#include "ti_wilink_st.h"
+#include <linux/ti_wilink_st.h>
 #include "bt_drv.h"
 
 /* Define this macro to get debug msg */

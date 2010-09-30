@@ -36,7 +36,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/hci.h>
 
-#include "ti_wilink_st.h"
+#include <linux/ti_wilink_st.h>
 
 
 static int kim_probe(struct platform_device *pdev);

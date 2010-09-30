@@ -21,7 +21,7 @@
 #define pr_fmt(fmt) "(stll) :" fmt
 #include <linux/skbuff.h>
 #include <linux/module.h>
-#include "ti_wilink_st.h"
+#include <linux/ti_wilink_st.h>
 
 /**********************************************************************/
 /* internal functions */
