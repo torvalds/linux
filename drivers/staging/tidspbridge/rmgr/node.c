@@ -2505,7 +2505,6 @@ static void delete_node(struct node_object *hnode,
 			struct process_context *pr_ctxt)
 {
 	struct node_mgr *hnode_mgr;
-	struct cmm_xlatorobject *xlator;
 	struct bridge_drv_interface *intf_fxns;
 	u32 i;
 	enum node_type node_type;
@@ -2523,7 +2522,7 @@ static void delete_node(struct node_object *hnode,
 	hnode_mgr = hnode->hnode_mgr;
 	if (!hnode_mgr)
 		goto func_end;
-	xlator = hnode->xlator;
+
 	node_type = node_get_type(hnode);
 	if (node_type != NODE_DEVICE) {
 		node_msg_args = hnode->create_args.asa.node_msg_args;
@@ -2619,11 +2618,7 @@ static void delete_node(struct node_object *hnode,
 	hnode->dcd_props.obj_data.node_obj.pstr_i_alg_name = NULL;
 
 	/* Free all SM address translator resources */
-	if (xlator) {
-		(void)cmm_xlator_delete(xlator, true);	/* force free */
-		xlator = NULL;
-	}
-
+	kfree(hnode->xlator);
 	kfree(hnode->nldr_node_obj);
 	hnode->nldr_node_obj = NULL;
 	hnode->hnode_mgr = NULL;

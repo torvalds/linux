@@ -968,23 +968,6 @@ int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 }
 
 /*
- *  ======== cmm_xlator_delete ========
- *  Purpose:
- *      Free the Xlator resources.
- *      VM gets freed later.
- */
-int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool force)
-{
-	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
-
-	DBC_REQUIRE(refs > 0);
-
-	kfree(xlator_obj);
-
-	return 0;
-}
-
-/*
  *  ======== cmm_xlator_alloc_buf ========
  */
 void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,

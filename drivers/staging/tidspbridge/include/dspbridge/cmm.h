@@ -300,25 +300,6 @@ extern int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 				    struct cmm_xlatorattrs *xlator_attrs);
 
 /*
- *  ======== cmm_xlator_delete ========
- *  Purpose:
- *      Delete translator resources
- *  Parameters:
- *      xlator:    handle to translator.
- *      force:     force = TRUE will free XLators SM buffers/dscriptrs.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    Bad translator handle.
- *      -EPERM:      Unable to free translator resources.
- *  Requires:
- *      refs > 0
- *  Ensures:
- *
- */
-extern int cmm_xlator_delete(struct cmm_xlatorobject *xlator,
-				    bool force);
-
-/*
  *  ======== cmm_xlator_free_buf ========
  *  Purpose:
  *      Free SM buffer and descriptor.
