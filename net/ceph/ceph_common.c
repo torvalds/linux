@@ -249,7 +249,7 @@ int ceph_parse_options(struct ceph_options **popt, char *options,
 			continue;
 		err = -EINVAL;
 		token = match_token((char *)c, opt_tokens, argstr);
-		if (token < 0) {
+		if (token < 0 && parse_extra_token) {
 			/* extra? */
 			err = parse_extra_token((char *)c, private);
 			if (err < 0) {
