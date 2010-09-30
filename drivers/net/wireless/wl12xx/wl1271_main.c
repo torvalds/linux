@@ -664,11 +664,6 @@ static int wl1271_setup(struct wl1271 *wl)
 		return -ENOMEM;
 	}
 
-	INIT_WORK(&wl->irq_work, wl1271_irq_work);
-	INIT_WORK(&wl->tx_work, wl1271_tx_work);
-	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
-	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
-
 	return 0;
 }
 
@@ -2487,6 +2482,10 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
+	INIT_WORK(&wl->irq_work, wl1271_irq_work);
+	INIT_WORK(&wl->tx_work, wl1271_tx_work);
+	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
+	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
