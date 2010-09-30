@@ -1007,7 +1007,6 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 	struct etd_priv *etd;
 	int ret;
 	unsigned long flags;
-	int new_ep = 0;
 
 	dev_vdbg(imx21->dev,
 		"enqueue urb=%p ep=%p len=%d "
@@ -1035,7 +1034,6 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 		}
 		ep->hcpriv = ep_priv;
 		ep_priv->ep = ep;
-		new_ep = 1;
 	}
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
