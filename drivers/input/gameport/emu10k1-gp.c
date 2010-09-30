@@ -106,8 +106,9 @@ static void __devexit emu_remove(struct pci_dev *pdev)
 
 	gameport_unregister_port(emu->gameport);
 	release_region(emu->io, emu->size);
-	pci_disable_device(pdev);
 	kfree(emu);
+
+	pci_disable_device(pdev);
 }
 
 static struct pci_driver emu_driver = {
