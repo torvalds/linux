@@ -1826,10 +1826,11 @@ static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
 	}
 }
 
-void i915_gem_reset_lists(struct drm_device *dev)
+void i915_gem_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
+	int i;
 
 	i915_gem_reset_ring_lists(dev_priv, &dev_priv->render_ring);
 	if (HAS_BSD(dev))
@@ -1857,6 +1858,17 @@ void i915_gem_reset_lists(struct drm_device *dev)
 			    list)
 	{
 		obj_priv->base.read_domains &= ~I915_GEM_GPU_DOMAINS;
+	}
+
+	/* The fence registers are invalidated so clear them out */
+	for (i = 0; i < 16; i++) {
+		struct drm_i915_fence_reg *reg;
+
+		reg = &dev_priv->fence_regs[i];
+		if (!reg->obj)
+			continue;
+
+		i915_gem_clear_fence_reg(reg->obj);
 	}
 }
 

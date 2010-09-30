@@ -395,7 +395,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 
 	mutex_lock(&dev->struct_mutex);
 
-	i915_gem_reset_lists(dev);
+	i915_gem_reset(dev);
 
 	/*
 	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
