@@ -216,12 +216,6 @@ static int i2c_device_pm_resume(struct device *dev)
 	else
 		ret = i2c_legacy_resume(dev);
 
-	if (!ret) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
-
 	return ret;
 }
 
