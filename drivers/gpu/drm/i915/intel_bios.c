@@ -129,10 +129,6 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	int i, temp_downclock;
 	struct drm_display_mode *temp_mode;
 
-	/* Defaults if we can't find VBT info */
-	dev_priv->lvds_dither = 0;
-	dev_priv->lvds_vbt = 0;
-
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
 		return;
@@ -140,6 +136,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	dev_priv->lvds_dither = lvds_options->pixel_dither;
 	if (lvds_options->panel_type == 0xff)
 		return;
+
 	panel_type = lvds_options->panel_type;
 
 	lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
@@ -232,8 +229,6 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	struct lvds_dvo_timing *dvo_timing;
 	struct drm_display_mode *panel_fixed_mode;
 
-	dev_priv->sdvo_lvds_vbt_mode = NULL;
-
 	sdvo_lvds_options = find_section(bdb, BDB_SDVO_LVDS_OPTIONS);
 	if (!sdvo_lvds_options)
 		return;
@@ -261,10 +256,6 @@ parse_general_features(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct bdb_general_features *general;
-
-	/* Set sensible defaults in case we can't find the general block */
-	dev_priv->int_tv_support = 1;
-	dev_priv->int_crt_support = 1;
 
 	general = find_section(bdb, BDB_GENERAL_FEATURES);
 	if (general) {
@@ -423,8 +414,6 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	struct bdb_edp *edp;
 
-	dev_priv->edp.bpp = 18;
-
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
 		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp.support) {
@@ -528,6 +517,27 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	return;
 }
 
+static void
+init_vbt_defaults(struct drm_i915_private *dev_priv)
+{
+	dev_priv->crt_ddc_pin = GMBUS_PORT_VGADDC;
+
+	/* LFP panel data */
+	dev_priv->lvds_dither = 1;
+	dev_priv->lvds_vbt = 0;
+
+	/* SDVO panel data */
+	dev_priv->sdvo_lvds_vbt_mode = NULL;
+
+	/* general features */
+	dev_priv->int_tv_support = 1;
+	dev_priv->int_crt_support = 1;
+	dev_priv->lvds_use_ssc = 0;
+
+	/* eDP data */
+	dev_priv->edp.bpp = 18;
+}
+
 /**
  * intel_init_bios - initialize VBIOS settings & find VBT
  * @dev: DRM device
@@ -545,7 +555,7 @@ intel_init_bios(struct drm_device *dev)
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
 
-	dev_priv->crt_ddc_pin = GMBUS_PORT_VGADDC;
+	init_vbt_defaults(dev_priv);
 
 	/* XXX Should this validation be moved to intel_opregion.c? */
 	if (dev_priv->opregion.vbt) {
