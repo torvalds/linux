@@ -199,10 +199,12 @@ void *pktq_pdeq(struct pktq *pq, int prec)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
-	if ((q->head = PKTLINK(p)) == NULL)
+	q->head = PKTLINK(p);
+	if (q->head == NULL)
 		q->tail = NULL;
 
 	q->len--;
@@ -223,7 +225,8 @@ void *pktq_pdeq_tail(struct pktq *pq, int prec)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
 	for (prev = NULL; p != q->tail; p = PKTLINK(p))
@@ -274,7 +277,8 @@ bool pktq_pdel(struct pktq *pq, void *pktbuf, int prec)
 	q = &pq->q[prec];
 
 	if (q->head == pktbuf) {
-		if ((q->head = PKTLINK(pktbuf)) == NULL)
+		q->head = PKTLINK(pktbuf);
+		if (q->head == NULL)
 			q->tail = NULL;
 	} else {
 		for (p = q->head; p && PKTLINK(p) != pktbuf; p = PKTLINK(p))
@@ -325,10 +329,12 @@ void *pktq_deq(struct pktq *pq, int *prec_out)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
-	if ((q->head = PKTLINK(p)) == NULL)
+	q->head = PKTLINK(p);
+	if (q->head == NULL)
 		q->tail = NULL;
 
 	q->len--;
@@ -358,7 +364,8 @@ void *pktq_deq_tail(struct pktq *pq, int *prec_out)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
 	for (prev = NULL; p != q->tail; p = PKTLINK(p))
@@ -456,10 +463,12 @@ void *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
-	if ((q->head = PKTLINK(p)) == NULL)
+	q->head = PKTLINK(p);
+	if (q->head == NULL)
 		q->tail = NULL;
 
 	q->len--;
