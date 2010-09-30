@@ -209,8 +209,8 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid,
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	if ((bcmerror =
-	     bcm_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid))) != 0)
+	bcmerror = bcm_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid));
+	if (bcmerror != 0)
 		goto exit;
 
 	if (plen >= (int)sizeof(int_val))
@@ -400,7 +400,8 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 	/* Set does NOT take qualifiers */
 	ASSERT(!set || (!params && !plen));
 
-	if ((vi = bcm_iovar_lookup(dhd_iovars, name)) == NULL) {
+	vi = bcm_iovar_lookup(dhd_iovars, name);
+	if (vi == NULL) {
 		bcmerror = BCME_UNSUPPORTED;
 		goto exit;
 	}
@@ -1006,7 +1007,8 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	wl_pkt_filter_enable_t enable_parm;
 	wl_pkt_filter_enable_t *pkt_filterp;
 
-	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
+	arg_save = MALLOC(dhd->osh, strlen(arg) + 1);
+	if (!arg_save) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
