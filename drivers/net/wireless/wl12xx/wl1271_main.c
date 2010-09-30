@@ -2459,6 +2459,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
 	int i, ret;
+	unsigned int order;
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
@@ -2517,11 +2518,18 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	wl1271_debugfs_init(wl);
 
+	order = get_order(WL1271_AGGR_BUFFER_SIZE);
+	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
+	if (!wl->aggr_buf) {
+		ret = -ENOMEM;
+		goto err_hw;
+	}
+
 	/* Register platform device */
 	ret = platform_device_register(wl->plat_dev);
 	if (ret) {
 		wl1271_error("couldn't register platform device");
-		goto err_hw;
+		goto err_aggr;
 	}
 	dev_set_drvdata(&wl->plat_dev->dev, wl);
 
@@ -2547,6 +2555,9 @@ err_bt_coex_state:
 err_platform:
 	platform_device_unregister(wl->plat_dev);
 
+err_aggr:
+	free_pages((unsigned long)wl->aggr_buf, order);
+
 err_hw:
 	wl1271_debugfs_exit(wl);
 	kfree(plat_dev);
@@ -2563,6 +2574,8 @@ EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 int wl1271_free_hw(struct wl1271 *wl)
 {
 	platform_device_unregister(wl->plat_dev);
+	free_pages((unsigned long)wl->aggr_buf,
+			get_order(WL1271_AGGR_BUFFER_SIZE));
 	kfree(wl->plat_dev);
 
 	wl1271_debugfs_exit(wl);

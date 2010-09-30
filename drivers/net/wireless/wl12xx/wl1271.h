@@ -130,6 +130,8 @@ enum {
 
 #define ACX_TX_DESCRIPTORS         32
 
+#define WL1271_AGGR_BUFFER_SIZE (4 * PAGE_SIZE)
+
 enum wl1271_state {
 	WL1271_STATE_OFF,
 	WL1271_STATE_ON,
@@ -407,6 +409,9 @@ struct wl1271 {
 
 	/* Rx memory pool address */
 	struct wl1271_rx_mem_pool_addr rx_mem_pool_addr;
+
+	/* Intermediate buffer, used for packet aggregation */
+	u8 *aggr_buf;
 
 	/* The target interrupt mask */
 	struct work_struct irq_work;
