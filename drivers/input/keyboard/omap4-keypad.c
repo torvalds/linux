@@ -54,6 +54,8 @@
 #define OMAP4_DEF_IRQENABLE_EVENTEN	(1 << 0)
 #define OMAP4_DEF_IRQENABLE_LONGKEY	(1 << 1)
 #define OMAP4_DEF_IRQENABLE_TIMEOUTEN	(1 << 2)
+#define OMAP4_DEF_WUP_EVENT_ENA		(1 << 0)
+#define OMAP4_DEF_WUP_LONG_KEY_ENA	(1 << 1)
 #define OMAP4_DEF_CTRL_NOSOFTMODE	(1 << 1)
 #define OMAP4_DEF_CTRLPTVVALUE		(1 << 2)
 #define OMAP4_DEF_CTRLPTV		(1 << 1)
@@ -88,6 +90,8 @@ static void __devinit omap4_keypad_config(struct omap4_keypad *keypad_data)
 			keypad_data->base + OMAP4_KBD_IRQSTATUS);
 	__raw_writel(OMAP4_DEF_IRQENABLE_EVENTEN | OMAP4_DEF_IRQENABLE_LONGKEY,
 			keypad_data->base + OMAP4_KBD_IRQENABLE);
+	__raw_writel(OMAP4_DEF_WUP_EVENT_ENA | OMAP4_DEF_WUP_LONG_KEY_ENA,
+			keypad_data->base + OMAP4_KBD_WAKEUPENABLE);
 }
 
 /* Interrupt handler */
