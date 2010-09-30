@@ -35,7 +35,6 @@
 #include <linux/dmapool.h>
 #include <linux/of_platform.h>
 
-#include <asm/fsldma.h>
 #include "fsldma.h"
 
 static const char msg_ld_oom[] = "No free memory for link descriptor\n";
@@ -719,207 +718,70 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_slave_sg(
 	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
 	enum dma_data_direction direction, unsigned long flags)
 {
-	struct fsldma_chan *chan;
-	struct fsl_desc_sw *first = NULL, *prev = NULL, *new = NULL;
-	struct fsl_dma_slave *slave;
-	size_t copy;
-
-	int i;
-	struct scatterlist *sg;
-	size_t sg_used;
-	size_t hw_used;
-	struct fsl_dma_hw_addr *hw;
-	dma_addr_t dma_dst, dma_src;
-
-	if (!dchan)
-		return NULL;
-
-	if (!dchan->private)
-		return NULL;
-
-	chan = to_fsl_chan(dchan);
-	slave = dchan->private;
-
-	if (list_empty(&slave->addresses))
-		return NULL;
-
-	hw = list_first_entry(&slave->addresses, struct fsl_dma_hw_addr, entry);
-	hw_used = 0;
-
 	/*
-	 * Build the hardware transaction to copy from the scatterlist to
-	 * the hardware, or from the hardware to the scatterlist
+	 * This operation is not supported on the Freescale DMA controller
 	 *
-	 * If you are copying from the hardware to the scatterlist and it
-	 * takes two hardware entries to fill an entire page, then both
-	 * hardware entries will be coalesced into the same page
-	 *
-	 * If you are copying from the scatterlist to the hardware and a
-	 * single page can fill two hardware entries, then the data will
-	 * be read out of the page into the first hardware entry, and so on
+	 * However, we need to provide the function pointer to allow the
+	 * device_control() method to work.
 	 */
-	for_each_sg(sgl, sg, sg_len, i) {
-		sg_used = 0;
-
-		/* Loop until the entire scatterlist entry is used */
-		while (sg_used < sg_dma_len(sg)) {
-
-			/*
-			 * If we've used up the current hardware address/length
-			 * pair, we need to load a new one
-			 *
-			 * This is done in a while loop so that descriptors with
-			 * length == 0 will be skipped
-			 */
-			while (hw_used >= hw->length) {
-
-				/*
-				 * If the current hardware entry is the last
-				 * entry in the list, we're finished
-				 */
-				if (list_is_last(&hw->entry, &slave->addresses))
-					goto finished;
-
-				/* Get the next hardware address/length pair */
-				hw = list_entry(hw->entry.next,
-						struct fsl_dma_hw_addr, entry);
-				hw_used = 0;
-			}
-
-			/* Allocate the link descriptor from DMA pool */
-			new = fsl_dma_alloc_descriptor(chan);
-			if (!new) {
-				dev_err(chan->dev, "No free memory for "
-						       "link descriptor\n");
-				goto fail;
-			}
-#ifdef FSL_DMA_LD_DEBUG
-			dev_dbg(chan->dev, "new link desc alloc %p\n", new);
-#endif
-
-			/*
-			 * Calculate the maximum number of bytes to transfer,
-			 * making sure it is less than the DMA controller limit
-			 */
-			copy = min_t(size_t, sg_dma_len(sg) - sg_used,
-					     hw->length - hw_used);
-			copy = min_t(size_t, copy, FSL_DMA_BCR_MAX_CNT);
-
-			/*
-			 * DMA_FROM_DEVICE
-			 * from the hardware to the scatterlist
-			 *
-			 * DMA_TO_DEVICE
-			 * from the scatterlist to the hardware
-			 */
-			if (direction == DMA_FROM_DEVICE) {
-				dma_src = hw->address + hw_used;
-				dma_dst = sg_dma_address(sg) + sg_used;
-			} else {
-				dma_src = sg_dma_address(sg) + sg_used;
-				dma_dst = hw->address + hw_used;
-			}
-
-			/* Fill in the descriptor */
-			set_desc_cnt(chan, &new->hw, copy);
-			set_desc_src(chan, &new->hw, dma_src);
-			set_desc_dst(chan, &new->hw, dma_dst);
-
-			/*
-			 * If this is not the first descriptor, chain the
-			 * current descriptor after the previous descriptor
-			 */
-			if (!first) {
-				first = new;
-			} else {
-				set_desc_next(chan, &prev->hw,
-					      new->async_tx.phys);
-			}
-
-			new->async_tx.cookie = 0;
-			async_tx_ack(&new->async_tx);
-
-			prev = new;
-			sg_used += copy;
-			hw_used += copy;
-
-			/* Insert the link descriptor into the LD ring */
-			list_add_tail(&new->node, &first->tx_list);
-		}
-	}
-
-finished:
-
-	/* All of the hardware address/length pairs had length == 0 */
-	if (!first || !new)
-		return NULL;
-
-	new->async_tx.flags = flags;
-	new->async_tx.cookie = -EBUSY;
-
-	/* Set End-of-link to the last link descriptor of new list */
-	set_ld_eol(chan, new);
-
-	/* Enable extra controller features */
-	if (chan->set_src_loop_size)
-		chan->set_src_loop_size(chan, slave->src_loop_size);
-
-	if (chan->set_dst_loop_size)
-		chan->set_dst_loop_size(chan, slave->dst_loop_size);
-
-	if (chan->toggle_ext_start)
-		chan->toggle_ext_start(chan, slave->external_start);
-
-	if (chan->toggle_ext_pause)
-		chan->toggle_ext_pause(chan, slave->external_pause);
-
-	if (chan->set_request_count)
-		chan->set_request_count(chan, slave->request_count);
-
-	return &first->async_tx;
-
-fail:
-	/* If first was not set, then we failed to allocate the very first
-	 * descriptor, and we're done */
-	if (!first)
-		return NULL;
-
-	/*
-	 * First is set, so all of the descriptors we allocated have been added
-	 * to first->tx_list, INCLUDING "first" itself. Therefore we
-	 * must traverse the list backwards freeing each descriptor in turn
-	 *
-	 * We're re-using variables for the loop, oh well
-	 */
-	fsldma_free_desc_list_reverse(chan, &first->tx_list);
 	return NULL;
 }
 
 static int fsl_dma_device_control(struct dma_chan *dchan,
 				  enum dma_ctrl_cmd cmd, unsigned long arg)
 {
+	struct dma_slave_config *config;
 	struct fsldma_chan *chan;
 	unsigned long flags;
-
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
+	int size;
 
 	if (!dchan)
 		return -EINVAL;
 
 	chan = to_fsl_chan(dchan);
 
-	/* Halt the DMA engine */
-	dma_halt(chan);
+	switch (cmd) {
+	case DMA_TERMINATE_ALL:
+		/* Halt the DMA engine */
+		dma_halt(chan);
 
-	spin_lock_irqsave(&chan->desc_lock, flags);
+		spin_lock_irqsave(&chan->desc_lock, flags);
 
-	/* Remove and free all of the descriptors in the LD queue */
-	fsldma_free_desc_list(chan, &chan->ld_pending);
-	fsldma_free_desc_list(chan, &chan->ld_running);
+		/* Remove and free all of the descriptors in the LD queue */
+		fsldma_free_desc_list(chan, &chan->ld_pending);
+		fsldma_free_desc_list(chan, &chan->ld_running);
 
-	spin_unlock_irqrestore(&chan->desc_lock, flags);
+		spin_unlock_irqrestore(&chan->desc_lock, flags);
+		return 0;
+
+	case DMA_SLAVE_CONFIG:
+		config = (struct dma_slave_config *)arg;
+
+		/* make sure the channel supports setting burst size */
+		if (!chan->set_request_count)
+			return -ENXIO;
+
+		/* we set the controller burst size depending on direction */
+		if (config->direction == DMA_TO_DEVICE)
+			size = config->dst_addr_width * config->dst_maxburst;
+		else
+			size = config->src_addr_width * config->src_maxburst;
+
+		chan->set_request_count(chan, size);
+		return 0;
+
+	case FSLDMA_EXTERNAL_START:
+
+		/* make sure the channel supports external start */
+		if (!chan->toggle_ext_start)
+			return -ENXIO;
+
+		chan->toggle_ext_start(chan, arg);
+		return 0;
+
+	default:
+		return -ENXIO;
+	}
 
 	return 0;
 }
