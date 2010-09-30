@@ -184,7 +184,7 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
     pft1000info = (FT1000_INFO *) netdev_priv (ft1000dev->net);
 
 //    DEBUG("In probe: pft1000info=%x\n", pft1000info);				// aelias [-] reason: warning: format ???%x??? expects type ???unsigned int???, but argument 2 has type ???struct FT1000_INFO *???
-    DEBUG("In probe: pft1000info=%x\n", (unsigned int)pft1000info);		// aelias [+] reason: up
+    DEBUG("In probe: pft1000info=%p\n", pft1000info);		// aelias [+] reason: up
 
     dsp_reload(ft1000dev);
     gPollingfailed = FALSE;  //mbelian
@@ -245,7 +245,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 
     pft1000info = (PFT1000_INFO)usb_get_intfdata(interface);
 //    DEBUG("In disconnect pft1000info=%x\n", pft1000info);	// aelias [-] reason: warning: format ???%x??? expects type ???unsigned int???, but argument 2 has type ???struct FT1000_INFO *???
-    DEBUG("In disconnect pft1000info=%x\n", (unsigned int) pft1000info);	// aelias [+] reason: up
+    DEBUG("In disconnect pft1000info=%p\n", pft1000info);	// aelias [+] reason: up
 
 
 

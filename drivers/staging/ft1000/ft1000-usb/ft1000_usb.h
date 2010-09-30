@@ -83,7 +83,7 @@ typedef struct _APP_INFO_BLOCK
     u32 nRxMsg;                    // DPRAM msg rcv from dsp with app_id
     u32 nTxMsgReject;              // DPRAM msg rejected due to DSP doorbell set
     u32 nRxMsgMiss;                // DPRAM msg dropped due to overflow
-    u32 fileobject;                // Application's file object
+    struct fown_struct *fileobject;// Application's file object
     u16 app_id;                    // Application id
     int DspBCMsgFlag;
     int NumOfMsg;                   // number of messages queued up

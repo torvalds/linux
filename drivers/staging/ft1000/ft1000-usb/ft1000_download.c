@@ -1356,8 +1356,8 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                     pprov_record->pprov_data = pbuffer;
                     list_add_tail (&pprov_record->list, &pft1000info->prov_list);
                     // Move to next entry if available
-                    pUcFile = (UCHAR *)((UINT)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(PSEUDO_HDR));
-                    if ( (UINT)(pUcFile) - (UINT)(pFileStart) >= (UINT)FileLength) {
+                    pUcFile = (UCHAR *)((unsigned long)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(PSEUDO_HDR));
+                    if ( (unsigned long)(pUcFile) - (unsigned long)(pFileStart) >= (unsigned long)FileLength) {
                        uiState = STATE_DONE_FILE;
                     }
                 }

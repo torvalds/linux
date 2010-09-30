@@ -1350,7 +1350,7 @@ static int ft1000_read_fifo_reg(struct ft1000_device *ft1000dev,unsigned int pip
 
         if(urb->status)
         {
-            printk("ft1000 control message failed (urb addr: %x) with error number: %i\n", (int)urb, (int)status);
+            printk("ft1000 control message failed (urb addr: %p) with error number: %i\n", urb, (int)status);
 
             usb_clear_halt(ft1000dev->dev, usb_rcvctrlpipe(ft1000dev->dev, 0));
             usb_clear_halt(ft1000dev->dev, usb_sndctrlpipe(ft1000dev->dev, 0));
@@ -1390,7 +1390,7 @@ static inline u16 ft1000_read_fifo_len (struct net_device *dev)
 	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev);
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
 //    DEBUG("ft1000_read_fifo_len: enter ft1000dev %x\n", ft1000dev);			//aelias [-] reason: warning: format ???%x??? expects type ???unsigned int???, but argument 2 has type ???struct ft1000_device *???
-    DEBUG("ft1000_read_fifo_len: enter ft1000dev %x\n", (unsigned int)ft1000dev);	//aelias [+] reason: up
+    DEBUG("ft1000_read_fifo_len: enter ft1000dev %p\n", ft1000dev);	//aelias [+] reason: up
     //ft1000_read_register(ft1000dev, &temp, FT1000_REG_MAG_UFSR);
 
     ret = STATUS_SUCCESS;
@@ -1882,7 +1882,7 @@ int ft1000_close(struct net_device *net)
     //usb_kill_urb(ft1000dev->tx_urb);
 
 
-    DEBUG("ft1000_close: pInfo=%x, ft1000dev=%x\n", (int)pInfo, (int)ft1000dev);
+    DEBUG("ft1000_close: pInfo=%p, ft1000dev=%p\n", pInfo, ft1000dev);
     netif_carrier_off(net);//mbelian
     netif_stop_queue(net);
     //DEBUG("ft1000_close: netif_stop_queue called\n");
