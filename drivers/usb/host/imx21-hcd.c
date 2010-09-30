@@ -323,16 +323,23 @@ static void activate_queued_etd(struct imx21 *imx21,
 	etd_writel(imx21, etd_num, 1,
 	    ((dmem_offset + maxpacket) << DW1_YBUFSRTAD) | dmem_offset);
 
+	etd->dmem_offset = dmem_offset;
 	urb_priv->active = 1;
 	activate_etd(imx21, etd_num, etd->dma_handle, dir);
 }
 
-static void free_dmem(struct imx21 *imx21, int offset)
+static void free_dmem(struct imx21 *imx21, struct etd_priv *etd)
 {
 	struct imx21_dmem_area *area;
-	struct etd_priv *etd, *tmp;
+	struct etd_priv *tmp;
 	int found = 0;
+	int offset;
 
+	if (!etd->dmem_size)
+		return;
+	etd->dmem_size = 0;
+
+	offset = etd->dmem_offset;
 	list_for_each_entry(area, &imx21->dmem_list, list) {
 		if (area->offset == offset) {
 			debug_dmem_freed(imx21, area->size);
@@ -734,9 +741,7 @@ static void dequeue_isoc_urb(struct imx21 *imx21,
 				struct etd_priv *etd = imx21->etd + etd_num;
 
 				reset_etd(imx21, etd_num);
-				if (etd->dmem_size)
-					free_dmem(imx21, etd->dmem_offset);
-				etd->dmem_size = 0;
+				free_dmem(imx21, etd);
 			}
 		}
 	}
@@ -761,7 +766,6 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 	int state = urb_priv->state;
 	int etd_num = ep_priv->etd[0];
 	struct etd_priv *etd;
-	int dmem_offset;
 	u32 count;
 	u16 etd_buf_size;
 	u16 maxpacket;
@@ -855,8 +859,8 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 
 	/* allocate x and y buffer space at once */
 	etd->dmem_size = (count > maxpacket) ? maxpacket * 2 : maxpacket;
-	dmem_offset = alloc_dmem(imx21, etd->dmem_size, urb_priv->ep);
-	if (dmem_offset < 0) {
+	etd->dmem_offset = alloc_dmem(imx21, etd->dmem_size, urb_priv->ep);
+	if (etd->dmem_offset < 0) {
 		/* Setup everything we can in HW and update when we get DMEM */
 		etd_writel(imx21, etd_num, 1, (u32)maxpacket << 16);
 
@@ -867,8 +871,8 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 	}
 
 	etd_writel(imx21, etd_num, 1,
-		(((u32) dmem_offset + (u32) maxpacket) << DW1_YBUFSRTAD) |
-		(u32) dmem_offset);
+		(((u32) etd->dmem_offset + (u32) maxpacket) << DW1_YBUFSRTAD) |
+		(u32) etd->dmem_offset);
 
 	urb_priv->active = 1;
 
@@ -886,7 +890,6 @@ static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 	u32 etd_mask = 1 << etd_num;
 	struct urb_priv *urb_priv = urb->hcpriv;
 	int dir;
-	u16 xbufaddr;
 	int cc;
 	u32 bytes_xfrd;
 	int etd_done;
@@ -894,7 +897,6 @@ static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 	disactivate_etd(imx21, etd_num);
 
 	dir = (etd_readl(imx21, etd_num, 0) >> DW0_DIRECT) & 0x3;
-	xbufaddr = etd_readl(imx21, etd_num, 1) & 0xffff;
 	cc = (etd_readl(imx21, etd_num, 2) >> DW2_COMPCODE) & 0xf;
 	bytes_xfrd = etd->len - (etd_readl(imx21, etd_num, 3) & 0x1fffff);
 
@@ -907,7 +909,7 @@ static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 		clear_toggle_bit(imx21, USBH_XFILLSTAT, etd_mask);
 		clear_toggle_bit(imx21, USBH_YFILLSTAT, etd_mask);
 	}
-	free_dmem(imx21, xbufaddr);
+	free_dmem(imx21, etd);
 
 	urb->error_count = 0;
 	if (!(urb->transfer_flags & URB_SHORT_NOT_OK)
@@ -1123,7 +1125,7 @@ static int imx21_hc_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		int etd_num = ep_priv->etd[0];
 		if (etd_num != -1) {
 			disactivate_etd(imx21, etd_num);
-			free_dmem(imx21, etd_readl(imx21, etd_num, 1) & 0xffff);
+			free_dmem(imx21, &imx21->etd[etd_num]);
 			imx21->etd[etd_num].urb = NULL;
 		}
 	}
