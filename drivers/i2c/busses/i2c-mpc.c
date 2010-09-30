@@ -632,6 +632,7 @@ static int __devinit fsl_i2c_probe(struct platform_device *op,
 		dev_err(i2c->dev, "failed to add adapter\n");
 		goto fail_add;
 	}
+	of_i2c_register_devices(&i2c->adap);
 
 	return result;
 

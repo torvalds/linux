@@ -32,7 +32,6 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
-#include <linux/of_i2c.h>
 #include <linux/of_device.h>
 #include <linux/completion.h>
 #include <linux/hardirq.h>
@@ -873,9 +872,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	/* create pre-declared device nodes */
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
-
-	/* Register devices from the device tree */
-	of_i2c_register_devices(adap);
 
 	/* Notify drivers */
 	mutex_lock(&core_lock);
