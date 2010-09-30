@@ -1483,8 +1483,9 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	skb_orphan(skb);
 	nf_reset(skb);
 
-	if (!(dev->flags & IFF_UP) ||
-	    (skb->len > (dev->mtu + dev->hard_header_len))) {
+	if (unlikely(!(dev->flags & IFF_UP) ||
+		     (skb->len > (dev->mtu + dev->hard_header_len)))) {
+		atomic_long_inc(&dev->rx_dropped);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -2548,6 +2549,7 @@ enqueue:
 
 	local_irq_restore(flags);
 
+	atomic_long_inc(&skb->dev->rx_dropped);
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
@@ -2995,6 +2997,7 @@ ncls:
 	if (pt_prev) {
 		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 	} else {
+		atomic_long_inc(&skb->dev->rx_dropped);
 		kfree_skb(skb);
 		/* Jamal, now you will not able to escape explaining
 		 * me how you were going to use this. :-)
@@ -5429,14 +5432,14 @@ struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 
 	if (ops->ndo_get_stats64) {
 		memset(storage, 0, sizeof(*storage));
-		return ops->ndo_get_stats64(dev, storage);
-	}
-	if (ops->ndo_get_stats) {
+		ops->ndo_get_stats64(dev, storage);
+	} else if (ops->ndo_get_stats) {
 		netdev_stats_to_stats64(storage, ops->ndo_get_stats(dev));
-		return storage;
+	} else {
+		netdev_stats_to_stats64(storage, &dev->stats);
+		dev_txq_stats_fold(dev, storage);
 	}
-	netdev_stats_to_stats64(storage, &dev->stats);
-	dev_txq_stats_fold(dev, storage);
+	storage->rx_dropped += atomic_long_read(&dev->rx_dropped);
 	return storage;
 }
 EXPORT_SYMBOL(dev_get_stats);

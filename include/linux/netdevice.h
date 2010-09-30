@@ -884,6 +884,9 @@ struct net_device {
 	int			iflink;
 
 	struct net_device_stats	stats;
+	atomic_long_t		rx_dropped; /* dropped packets by core network
+					     * Do not use this in drivers.
+					     */
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* List of functions to handle Wireless Extensions (instead of ioctl).

@@ -768,8 +768,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
 
-		if (netif_rx(skb) == NET_RX_DROP)
-			t->dev->stats.rx_dropped++;
+		netif_rx(skb);
 
 		rcu_read_unlock();
 		return 0;

@@ -33,6 +33,7 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 	return polling ? netif_receive_skb(skb) : netif_rx(skb);
 
 drop:
+	atomic_long_inc(&skb->dev->rx_dropped);
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 }
@@ -123,6 +124,7 @@ vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 	return dev_gro_receive(napi, skb);
 
 drop:
+	atomic_long_inc(&skb->dev->rx_dropped);
 	return GRO_DROP;
 }
 

@@ -225,16 +225,15 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	if (unlikely(netif_rx(skb) == NET_RX_DROP)) {
-		if (rx_stats)
-			rx_stats->rx_dropped++;
-	}
+	netif_rx(skb);
+
 	rcu_read_unlock();
 	return NET_RX_SUCCESS;
 
 err_unlock:
 	rcu_read_unlock();
 err_free:
+	atomic_long_inc(&dev->rx_dropped);
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
@@ -846,15 +845,13 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 			accum.rx_packets += rxpackets;
 			accum.rx_bytes   += rxbytes;
 			accum.rx_multicast += rxmulticast;
-			/* rx_errors, rx_dropped are ulong, not protected by syncp */
+			/* rx_errors is ulong, not protected by syncp */
 			accum.rx_errors  += p->rx_errors;
-			accum.rx_dropped += p->rx_dropped;
 		}
 		stats->rx_packets = accum.rx_packets;
 		stats->rx_bytes   = accum.rx_bytes;
 		stats->rx_errors  = accum.rx_errors;
 		stats->multicast  = accum.rx_multicast;
-		stats->rx_dropped = accum.rx_dropped;
 	}
 	return stats;
 }

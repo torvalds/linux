@@ -64,7 +64,6 @@ struct pcpu_lstats {
 	u64			packets;
 	u64			bytes;
 	struct u64_stats_sync	syncp;
-	unsigned long		drops;
 };
 
 /*
@@ -90,8 +89,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 		lb_stats->bytes += len;
 		lb_stats->packets++;
 		u64_stats_update_end(&lb_stats->syncp);
-	} else
-		lb_stats->drops++;
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -101,7 +99,6 @@ static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
 {
 	u64 bytes = 0;
 	u64 packets = 0;
-	u64 drops = 0;
 	int i;
 
 	for_each_possible_cpu(i) {
@@ -115,14 +112,11 @@ static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
 			tbytes = lb_stats->bytes;
 			tpackets = lb_stats->packets;
 		} while (u64_stats_fetch_retry(&lb_stats->syncp, start));
-		drops   += lb_stats->drops;
 		bytes   += tbytes;
 		packets += tpackets;
 	}
 	stats->rx_packets = packets;
 	stats->tx_packets = packets;
-	stats->rx_dropped = drops;
-	stats->rx_errors  = drops;
 	stats->rx_bytes   = bytes;
 	stats->tx_bytes   = bytes;
 	return stats;
