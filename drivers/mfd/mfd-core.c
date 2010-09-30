@@ -65,9 +65,11 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].end   = cell->resources[r].end;
 		}
 
-		ret = acpi_check_resource_conflict(res);
-		if (ret)
-			goto fail_res;
+		if (!cell->ignore_resource_conflicts) {
+			ret = acpi_check_resource_conflict(res);
+			if (ret)
+				goto fail_res;
+		}
 	}
 
 	ret = platform_device_add_resources(pdev, res, cell->num_resources);
