@@ -37,6 +37,7 @@
 #include <plat/fb.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
+#include <plat/clock.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define GONI_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -487,6 +488,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
+	&s3c_device_usb_hsotg,
 	&samsung_device_keypad,
 };
 
@@ -511,6 +513,8 @@ static void __init goni_machine_init(void)
 
 	/* KEYPAD */
 	samsung_keypad_set_platdata(&keypad_data);
+
+	clk_xusbxti.rate = 24000000;
 
 	platform_add_devices(goni_devices, ARRAY_SIZE(goni_devices));
 }
