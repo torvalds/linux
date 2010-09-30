@@ -35,7 +35,7 @@
 #include <dspbridge/uuidutil.h>
 
 #include <dspbridge/nldr.h>
-#include <linux/gcd.h>
+#include <linux/lcm.h>
 
 /* Name of section containing dynamic load mem */
 #define DYNMEMSECT  ".dspbridge_mem"
@@ -304,7 +304,6 @@ static void unload_ovly(struct nldr_nodeobject *nldr_node_obj,
 			enum nldr_phase phase);
 static bool find_in_persistent_lib_array(struct nldr_nodeobject *nldr_node_obj,
 					 struct dbll_library_obj *lib);
-static u32 find_lcm(u32 a, u32 b);
 
 /*
  *  ======== nldr_allocate ========
@@ -1637,7 +1636,7 @@ static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 	    (size + nldr_obj->us_dsp_word_size -
 	     1) / nldr_obj->us_dsp_word_size;
 	/* Modify memory 'align' to account for DSP cache line size */
-	align = find_lcm(GEM_CACHE_LINE_SIZE, align);
+	align = lcm(GEM_CACHE_LINE_SIZE, align);
 	dev_dbg(bridge, "%s: memory align to 0x%x\n", __func__, align);
 	if (segmnt_id != -1) {
 		rmm_addr_obj->segid = segmnt_id;
@@ -1878,18 +1877,6 @@ static bool find_in_persistent_lib_array(struct nldr_nodeobject *nldr_node_obj,
 	}
 
 	return false;
-}
-
-/*
- * ================ Find LCM (Least Common Multiplier ===
- */
-static u32 find_lcm(u32 a, u32 b)
-{
-	u32 ret;
-
-	ret = a * b / gcd(a, b);
-
-	return ret;
 }
 
 #ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
