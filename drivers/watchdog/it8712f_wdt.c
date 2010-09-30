@@ -75,15 +75,15 @@ static unsigned short address;
 #define WDT_CONFIG	0x72	/* WDT Register: Configuration */
 #define WDT_TIMEOUT	0x73	/* WDT Register: Timeout Value */
 
-#define WDT_RESET_GAME	0x10
-#define WDT_RESET_KBD	0x20
-#define WDT_RESET_MOUSE	0x40
-#define WDT_RESET_CIR	0x80
+#define WDT_RESET_GAME	0x10	/* Reset timer on read or write to game port */
+#define WDT_RESET_KBD	0x20	/* Reset timer on keyboard interrupt */
+#define WDT_RESET_MOUSE	0x40	/* Reset timer on mouse interrupt */
+#define WDT_RESET_CIR	0x80	/* Reset timer on consumer IR interrupt */
 
 #define WDT_UNIT_SEC	0x80	/* If 0 in MINUTES */
 
-#define WDT_OUT_PWROK	0x10
-#define WDT_OUT_KRST	0x40
+#define WDT_OUT_PWROK	0x10	/* Pulse PWROK on timeout */
+#define WDT_OUT_KRST	0x40	/* Pulse reset on timeout */
 
 static int superio_inb(int reg)
 {
