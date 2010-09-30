@@ -736,7 +736,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	struct gfs2_inode *ip = GFS2_I(odentry->d_inode);
 	struct gfs2_inode *nip = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(odir);
-	struct gfs2_holder ghs[5], r_gh = { .gh_gl = NULL, };
+	struct gfs2_holder ghs[5], r_gh = { .gh_gl = NULL, }, ri_gh;
 	struct gfs2_rgrpd *nrgd;
 	unsigned int num_gh;
 	int dir_rename = 0;
@@ -750,6 +750,9 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			return 0;
 	}
 
+	error = gfs2_rindex_hold(sdp, &ri_gh);
+	if (error)
+		return error;
 
 	if (odip != ndip) {
 		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE,
@@ -879,7 +882,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 		al->al_requested = sdp->sd_max_dirres;
 
-		error = gfs2_inplace_reserve(ndip);
+		error = gfs2_inplace_reserve_ri(ndip);
 		if (error)
 			goto out_gunlock_q;
 
@@ -961,6 +964,7 @@ out_gunlock_r:
 	if (r_gh.gh_gl)
 		gfs2_glock_dq_uninit(&r_gh);
 out:
+	gfs2_glock_dq_uninit(&ri_gh);
 	return error;
 }
 
