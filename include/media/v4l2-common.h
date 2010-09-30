@@ -232,4 +232,14 @@ void v4l_bound_align_image(unsigned int *w, unsigned int wmin,
 			   unsigned int hmax, unsigned int halign,
 			   unsigned int salign);
 int v4l_fill_dv_preset_info(u32 preset, struct v4l2_dv_enum_preset *info);
+
+struct v4l2_discrete_probe {
+	const struct v4l2_frmsize_discrete	*sizes;
+	int					num_sizes;
+};
+
+const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
+		const struct v4l2_discrete_probe *probe,
+		s32 width, s32 height);
+
 #endif /* V4L2_COMMON_H_ */

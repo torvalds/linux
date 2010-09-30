@@ -677,12 +677,13 @@ int v4l_fill_dv_preset_info(u32 preset, struct v4l2_dv_enum_preset *info)
 }
 EXPORT_SYMBOL_GPL(v4l_fill_dv_preset_info);
 
-struct v4l2_frmsize_discrete *v4l2_find_nearest_format(struct v4l2_discrete_probe *probe,
-						       s32 width, s32 height)
+const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
+		const struct v4l2_discrete_probe *probe,
+		s32 width, s32 height)
 {
 	int i;
 	u32 error, min_error = UINT_MAX;
-	struct v4l2_frmsize_discrete *size, *best = NULL;
+	const struct v4l2_frmsize_discrete *size, *best = NULL;
 
 	if (!probe)
 		return best;
