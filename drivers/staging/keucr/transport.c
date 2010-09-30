@@ -760,7 +760,7 @@ int usb_stor_Bulk_reset(struct us_data *us)
 //----- usb_stor_port_reset() ---------------------
 int usb_stor_port_reset(struct us_data *us)
 {
-	int result, rc_lock;
+	int result;
 
 	//printk("transport --- usb_stor_port_reset\n");
 	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
