@@ -1371,6 +1371,8 @@ static void iso_callback(struct urb *urb)
 		ctx->errors += urb->error_count;
 	else if (urb->status != 0)
 		ctx->errors += urb->number_of_packets;
+	else if (urb->actual_length != urb->transfer_buffer_length)
+		ctx->errors++;
 
 	if (urb->status == 0 && ctx->count > (ctx->pending - 1)
 			&& !ctx->submit_error) {
