@@ -1896,6 +1896,28 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	 * The next command will reopen the AT channel automatically.
 	 */
 	if (cb->len == 3 && !memcmp(cb->buf, "+++", 3)) {
+		/* If an HD_RECEIVEATDATA_ACK message remains unhandled
+		 * because of an error, the base never sends another one.
+		 * The response channel is thus effectively blocked.
+		 * Closing and reopening the AT channel does *not* clear
+		 * this condition.
+		 * As a stopgap measure, submit a zero-length AT read
+		 * before closing the AT channel. This has the undocumented
+		 * effect of triggering a new HD_RECEIVEATDATA_ACK message
+		 * from the base if necessary.
+		 * The subsequent AT channel close then discards any pending
+		 * messages.
+		 */
+		spin_lock_irqsave(&cs->lock, flags);
+		if (!(cs->hw.bas->basstate & BS_ATRDPEND)) {
+			kfree(cs->hw.bas->rcvbuf);
+			cs->hw.bas->rcvbuf = NULL;
+			cs->hw.bas->rcvbuf_size = 0;
+			cs->hw.bas->retry_cmd_in = 0;
+			atread_submit(cs, 0);
+		}
+		spin_unlock_irqrestore(&cs->lock, flags);
+
 		rc = req_submit(cs->bcs, HD_CLOSE_ATCHANNEL, 0, BAS_TIMEOUT);
 		if (cb->wake_tasklet)
 			tasklet_schedule(cb->wake_tasklet);
