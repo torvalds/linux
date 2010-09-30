@@ -163,6 +163,7 @@ static struct file_operations usbbcm_fops = {
     .read    =  usbbcm_read,
     .write   =  usbbcm_write,
     .owner   =  THIS_MODULE,
+	.llseek = no_llseek,
 };
 
 static struct usb_class_driver usbbcm_class = {

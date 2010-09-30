@@ -81,10 +81,11 @@ int numofmsgbuf = 0;
 //
 static struct file_operations ft1000fops =
 {
-    unlocked_ioctl:    ft1000_ChIoctl,
-    poll:     ft1000_ChPoll,
-    open:     ft1000_ChOpen,
-    release:  ft1000_ChRelease
+	.unlocked_ioctl	= ft1000_ChIoctl,
+	.poll		= ft1000_ChPoll,
+	.open		= ft1000_ChOpen,
+	.release	= ft1000_ChRelease,
+	.llseek		= no_llseek,
 };
 
 
@@ -470,6 +471,7 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 
     File->private_data = pdevobj[num]->net;
 
+	nonseekable_open(Inode, File);
     return 0;
 }
 

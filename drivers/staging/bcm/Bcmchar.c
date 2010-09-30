@@ -1,3 +1,5 @@
+#include <linux/fs.h>
+
 #include "headers.h"
 /***************************************************************
 * Function	  - bcm_char_open()
@@ -35,6 +37,8 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 
 	/*Start Queuing the control response Packets*/
 	atomic_inc(&Adapter->ApplicationRunning);
+
+	nonseekable_open(inode, filp);
 	return 0;
 }
 static int bcm_char_release(struct inode *inode, struct file *filp)
@@ -2360,6 +2364,7 @@ static struct file_operations bcm_fops = {
     .release  = bcm_char_release,
     .read     = bcm_char_read,
     .unlocked_ioctl    = bcm_char_ioctl,
+	.llseek = no_llseek,
 };
 
 
