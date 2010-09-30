@@ -463,6 +463,17 @@ err:
 	return ret;
 }
 
+/**
+ * irq_get_next_irq - get next allocated irq number
+ * @offset:	where to start the search
+ *
+ * Returns next irq number after offset or nr_irqs if none is found.
+ */
+unsigned int irq_get_next_irq(unsigned int offset)
+{
+	return find_next_bit(allocated_irqs, nr_irqs, offset);
+}
+
 /* Statistics access */
 void clear_kstat_irqs(struct irq_desc *desc)
 {
