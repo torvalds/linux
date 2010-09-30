@@ -406,23 +406,22 @@ static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 	if (error) {
 		dev_info(kp->dbg_dev, "request_irq failed for irq no=%d\n",
 			kp->irq);
-		goto err3;
+		goto err2;
 	}
 
 	/* Enable KP and TO interrupts now. */
 	reg = (u8) ~(KEYP_IMR1_KP | KEYP_IMR1_TO);
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_IMR1)) {
 		error = -EIO;
-		goto err4;
+		goto err3;
 	}
 
 	platform_set_drvdata(pdev, kp);
 	return 0;
 
-err4:
+err3:
 	/* mask all events - we don't care about the result */
 	(void) twl4030_kpwrite_u8(kp, 0xff, KEYP_IMR1);
-err3:
 	free_irq(kp->irq, NULL);
 err2:
 	input_unregister_device(input);
