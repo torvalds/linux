@@ -35,7 +35,6 @@
 #include "vnic_intr.h"
 #include "vnic_stats.h"
 #include "vnic_nic.h"
-#include "vnic_rss.h"
 #include "enic_res.h"
 #include "enic.h"
 
@@ -147,22 +146,6 @@ int enic_set_nic_cfg(struct enic *enic, u8 rss_default_cpu, u8 rss_hash_type,
 	a1 = 0;
 
 	return vnic_dev_cmd(enic->vdev, CMD_NIC_CFG, &a0, &a1, wait);
-}
-
-int enic_set_rss_key(struct enic *enic, dma_addr_t key_pa, u64 len)
-{
-	u64 a0 = (u64)key_pa, a1 = len;
-	int wait = 1000;
-
-	return vnic_dev_cmd(enic->vdev, CMD_RSS_KEY, &a0, &a1, wait);
-}
-
-int enic_set_rss_cpu(struct enic *enic, dma_addr_t cpu_pa, u64 len)
-{
-	u64 a0 = (u64)cpu_pa, a1 = len;
-	int wait = 1000;
-
-	return vnic_dev_cmd(enic->vdev, CMD_RSS_CPU, &a0, &a1, wait);
 }
 
 void enic_free_vnic_resources(struct enic *enic)
