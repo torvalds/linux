@@ -2762,6 +2762,8 @@ struct tg3 {
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
 	u32				rx_copy_thresh;
+	u32				rx_std_ring_mask;
+	u32				rx_jmb_ring_mask;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
 	u32				rx_std_max_post;
