@@ -8,9 +8,7 @@ struct omap4_keypad_platform_data {
 
 	u8 rows;
 	u8 cols;
-
-	u16 irq;
-	void __iomem *base;
 };
 
+extern int omap4_keyboard_init(struct omap4_keypad_platform_data *);
 #endif

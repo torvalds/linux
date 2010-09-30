@@ -148,7 +148,10 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	const struct omap4_keypad_platform_data *pdata;
 	struct omap4_keypad *keypad_data;
 	struct input_dev *input_dev;
+	struct resource *res;
+	resource_size_t size;
 	unsigned int row_shift, max_keys;
+	int irq;
 	int error;
 
 	/* platform data */
@@ -158,12 +161,14 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!pdata->base) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		dev_err(&pdev->dev, "no base address specified\n");
 		return -EINVAL;
 	}
 
-	if (!pdata->irq) {
+	irq = platform_get_irq(pdev, 0);
+	if (!irq) {
 		dev_err(&pdev->dev, "no keyboard irq assigned\n");
 		return -EINVAL;
 	}
@@ -184,9 +189,23 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	keypad_data->base = pdata->base;
-	keypad_data->irq = pdata->irq;
+	size = resource_size(res);
 
+	res = request_mem_region(res->start, size, pdev->name);
+	if (!res) {
+		dev_err(&pdev->dev, "can't request mem region\n");
+		error = -EBUSY;
+		goto err_free_keypad;
+	}
+
+	keypad_data->base = ioremap(res->start, resource_size(res));
+	if (!keypad_data->base) {
+		dev_err(&pdev->dev, "can't ioremap mem resource\n");
+		error = -ENOMEM;
+		goto err_release_mem;
+	}
+
+	keypad_data->irq = irq;
 	keypad_data->row_shift = row_shift;
 	keypad_data->rows = pdata->rows;
 	keypad_data->cols = pdata->cols;
@@ -195,7 +214,7 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	keypad_data->input = input_dev = input_allocate_device();
 	if (!input_dev) {
 		error = -ENOMEM;
-		goto err_free_keypad;
+		goto err_unmap;
 	}
 
 	input_dev->name = pdev->name;
@@ -243,6 +262,10 @@ err_free_irq:
 	free_irq(keypad_data->irq, keypad_data);
 err_free_input:
 	input_free_device(input_dev);
+err_unmap:
+	iounmap(keypad_data->base);
+err_release_mem:
+	release_mem_region(res->start, size);
 err_free_keypad:
 	kfree(keypad_data);
 	return error;
@@ -251,9 +274,16 @@ err_free_keypad:
 static int __devexit omap4_keypad_remove(struct platform_device *pdev)
 {
 	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
+	struct resource *res;
 
 	free_irq(keypad_data->irq, keypad_data);
 	input_unregister_device(keypad_data->input);
+
+	iounmap(keypad_data->base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(res->start, resource_size(res));
+
 	kfree(keypad_data);
 	platform_set_drvdata(pdev, NULL);
 
