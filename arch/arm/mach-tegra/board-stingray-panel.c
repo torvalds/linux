@@ -103,17 +103,17 @@ static struct tegra_dc_mode stingray_panel_modes_p0[] = {
 
 static struct tegra_dc_mode stingray_panel_modes[] = {
 	{
-		.pclk = 62200000,
+		.pclk = 65000000,
 		.h_ref_to_sync = 11,
 		.v_ref_to_sync = 1,
-		.h_sync_width = 42,
+		.h_sync_width = 26,
 		.v_sync_width = 6,
-		.h_back_porch = 43,
-		.v_back_porch = 5,
+		.h_back_porch = 12,
+		.v_back_porch = 3,
 		.h_active = 1280,
 		.v_active = 800,
-		.h_front_porch = 43,
-		.v_front_porch = 5,
+		.h_front_porch = 50,
+		.v_front_porch = 3,
 	},
 };
 
