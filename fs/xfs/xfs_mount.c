@@ -1856,12 +1856,8 @@ xfs_mod_incore_sb(
 	case XFS_SBS_ICOUNT:
 	case XFS_SBS_IFREE:
 	case XFS_SBS_FDBLOCKS:
-		if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-			status = xfs_icsb_modify_counters(mp, field,
-							delta, rsvd);
-			break;
-		}
-		/* FALLTHROUGH */
+		status = xfs_icsb_modify_counters(mp, field, delta, rsvd);
+		break;
 #endif
 	default:
 		spin_lock(&mp->m_sb_lock);
@@ -1910,15 +1906,12 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 		case XFS_SBS_ICOUNT:
 		case XFS_SBS_IFREE:
 		case XFS_SBS_FDBLOCKS:
-			if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-				spin_unlock(&mp->m_sb_lock);
-				status = xfs_icsb_modify_counters(mp,
-							msbp->msb_field,
-							msbp->msb_delta, rsvd);
-				spin_lock(&mp->m_sb_lock);
-				break;
-			}
-			/* FALLTHROUGH */
+			spin_unlock(&mp->m_sb_lock);
+			status = xfs_icsb_modify_counters(mp,
+						msbp->msb_field,
+						msbp->msb_delta, rsvd);
+			spin_lock(&mp->m_sb_lock);
+			break;
 #endif
 		default:
 			status = xfs_mod_incore_sb_unlocked(mp,
@@ -1948,16 +1941,13 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 			case XFS_SBS_ICOUNT:
 			case XFS_SBS_IFREE:
 			case XFS_SBS_FDBLOCKS:
-				if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-					spin_unlock(&mp->m_sb_lock);
-					status = xfs_icsb_modify_counters(mp,
-							msbp->msb_field,
-							-(msbp->msb_delta),
-							rsvd);
-					spin_lock(&mp->m_sb_lock);
-					break;
-				}
-				/* FALLTHROUGH */
+				spin_unlock(&mp->m_sb_lock);
+				status = xfs_icsb_modify_counters(mp,
+						msbp->msb_field,
+						-(msbp->msb_delta),
+						rsvd);
+				spin_lock(&mp->m_sb_lock);
+				break;
 #endif
 			default:
 				status = xfs_mod_incore_sb_unlocked(mp,
