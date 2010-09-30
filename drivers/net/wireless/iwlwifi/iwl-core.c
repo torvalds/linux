@@ -2003,7 +2003,8 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_lock(&priv->mutex);
 
-	if (WARN_ON(!iwl_is_ready_rf(priv))) {
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_WARN(priv, "Try to add interface when device not ready\n");
 		err = -EINVAL;
 		goto out;
 	}
