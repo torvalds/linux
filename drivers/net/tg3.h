@@ -26,6 +26,7 @@
 #define TG3_RX_INTERNAL_RING_SZ_5906	32
 
 #define RX_STD_MAX_SIZE_5705		512
+#define RX_STD_MAX_SIZE_5717		2048
 #define RX_JUMBO_MAX_SIZE		0xdeadbeef /* XXX */
 
 /* First 256 bytes are a mirror of PCI config space. */
@@ -972,6 +973,7 @@
 #define  RCVDBDI_MODE_JUMBOBD_NEEDED	 0x00000004
 #define  RCVDBDI_MODE_FRM_TOO_BIG	 0x00000008
 #define  RCVDBDI_MODE_INV_RING_SZ	 0x00000010
+#define  RCVDBDI_MODE_LRG_RING_SZ	 0x00010000
 #define RCVDBDI_STATUS			0x00002404
 #define  RCVDBDI_STATUS_JUMBOBD_NEEDED	 0x00000004
 #define  RCVDBDI_STATUS_FRM_TOO_BIG	 0x00000008
@@ -2764,6 +2766,7 @@ struct tg3 {
 	u32				rx_copy_thresh;
 	u32				rx_std_ring_mask;
 	u32				rx_jmb_ring_mask;
+	u32				rx_ret_ring_mask;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
 	u32				rx_std_max_post;
