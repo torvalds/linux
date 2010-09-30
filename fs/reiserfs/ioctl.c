@@ -170,6 +170,7 @@ int reiserfs_prepare_write(struct file *f, struct page *page,
 int reiserfs_unpack(struct inode *inode, struct file *filp)
 {
 	int retval = 0;
+	int depth;
 	int index;
 	struct page *page;
 	struct address_space *mapping;
@@ -189,7 +190,7 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	 ** us
 	 */
 	reiserfs_mutex_lock_safe(&inode->i_mutex, inode->i_sb);
-	reiserfs_write_lock(inode->i_sb);
+	depth = reiserfs_write_lock_once(inode->i_sb);
 
 	write_from = inode->i_size & (blocksize - 1);
 	/* if we are on a block boundary, we are already unpacked.  */
@@ -224,6 +225,6 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 
       out:
 	mutex_unlock(&inode->i_mutex);
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock_once(inode->i_sb, depth);
 	return retval;
 }
