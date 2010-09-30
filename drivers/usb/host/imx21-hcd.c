@@ -390,15 +390,19 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb);
 /* Endpoint now idle - release it's ETD(s) or asssign to queued request */
 static void ep_idle(struct imx21 *imx21, struct ep_priv *ep_priv)
 {
-	int etd_num;
 	int i;
 
 	for (i = 0; i < NUM_ISO_ETDS; i++) {
-		etd_num = ep_priv->etd[i];
+		int etd_num = ep_priv->etd[i];
+		struct etd_priv *etd;
 		if (etd_num < 0)
 			continue;
 
+		etd = &imx21->etd[etd_num];
 		ep_priv->etd[i] = -1;
+
+		free_dmem(imx21, etd); /* for isoc */
+
 		if (list_empty(&imx21->queue_for_etd)) {
 			free_etd(imx21, etd_num);
 			continue;
@@ -576,30 +580,43 @@ static struct ep_priv *alloc_isoc_ep(
 	int i;
 
 	ep_priv = kzalloc(sizeof(struct ep_priv), GFP_ATOMIC);
-	if (ep_priv == NULL)
+	if (!ep_priv)
 		return NULL;
 
-	/* Allocate the ETDs */
-	for (i = 0; i < NUM_ISO_ETDS; i++) {
-		ep_priv->etd[i] = alloc_etd(imx21);
-		if (ep_priv->etd[i] < 0) {
-			int j;
-			dev_err(imx21->dev, "isoc: Couldn't allocate etd\n");
-			for (j = 0; j < i; j++)
-				free_etd(imx21, ep_priv->etd[j]);
-			goto alloc_etd_failed;
-		}
-		imx21->etd[ep_priv->etd[i]].ep = ep;
-	}
+	for (i = 0; i < NUM_ISO_ETDS; i++)
+		ep_priv->etd[i] = -1;
 
 	INIT_LIST_HEAD(&ep_priv->td_list);
 	ep_priv->ep = ep;
 	ep->hcpriv = ep_priv;
 	return ep_priv;
+}
+
+static int alloc_isoc_etds(struct imx21 *imx21, struct ep_priv *ep_priv)
+{
+	int i, j;
+	int etd_num;
+
+	/* Allocate the ETDs if required */
+	for (i = 0; i < NUM_ISO_ETDS; i++) {
+		if (ep_priv->etd[i] < 0) {
+			etd_num = alloc_etd(imx21);
+			if (etd_num < 0)
+				goto alloc_etd_failed;
+
+			ep_priv->etd[i] = etd_num;
+			imx21->etd[etd_num].ep = ep_priv->ep;
+		}
+	}
+	return 0;
 
 alloc_etd_failed:
-	kfree(ep_priv);
-	return NULL;
+	dev_err(imx21->dev, "isoc: Couldn't allocate etd\n");
+	for (j = 0; j < i; j++) {
+		free_etd(imx21, ep_priv->etd[j]);
+		ep_priv->etd[j] = -1;
+	}
+	return -ENOMEM;
 }
 
 static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
@@ -638,6 +655,10 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 	} else {
 		ep_priv = ep->hcpriv;
 	}
+
+	ret = alloc_isoc_etds(imx21, ep_priv);
+	if (ret)
+		goto alloc_etd_failed;
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
@@ -718,6 +739,7 @@ alloc_dmem_failed:
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 link_failed:
+alloc_etd_failed:
 alloc_ep_failed:
 	spin_unlock_irqrestore(&imx21->lock, flags);
 	kfree(urb_priv->isoc_td);
