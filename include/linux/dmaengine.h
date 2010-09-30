@@ -494,6 +494,40 @@ struct dma_device {
 	void (*device_issue_pending)(struct dma_chan *chan);
 };
 
+static inline int dmaengine_device_control(struct dma_chan *chan,
+					   enum dma_ctrl_cmd cmd,
+					   unsigned long arg)
+{
+	return chan->device->device_control(chan, cmd, arg);
+}
+
+static inline int dmaengine_slave_config(struct dma_chan *chan,
+					  struct dma_slave_config *config)
+{
+	return dmaengine_device_control(chan, DMA_SLAVE_CONFIG,
+			(unsigned long)config);
+}
+
+static inline int dmaengine_terminate_all(struct dma_chan *chan)
+{
+	return dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
+}
+
+static inline int dmaengine_pause(struct dma_chan *chan)
+{
+	return dmaengine_device_control(chan, DMA_PAUSE, 0);
+}
+
+static inline int dmaengine_resume(struct dma_chan *chan)
+{
+	return dmaengine_device_control(chan, DMA_RESUME, 0);
+}
+
+static inline int dmaengine_submit(struct dma_async_tx_descriptor *desc)
+{
+	return desc->tx_submit(desc);
+}
+
 static inline bool dmaengine_check_align(u8 align, size_t off1, size_t off2, size_t len)
 {
 	size_t mask;
