@@ -548,7 +548,7 @@ static inline bool dma_dev_has_pq_continue(struct dma_device *dma)
 	return (dma->max_pq & DMA_HAS_PQ_CONTINUE) == DMA_HAS_PQ_CONTINUE;
 }
 
-static unsigned short dma_dev_to_maxpq(struct dma_device *dma)
+static inline unsigned short dma_dev_to_maxpq(struct dma_device *dma)
 {
 	return dma->max_pq & ~DMA_HAS_PQ_CONTINUE;
 }
