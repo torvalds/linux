@@ -282,7 +282,9 @@ INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 					USHORT Vcid)			/**<VCID for this packet*/
 {
 	int		status=0;
+#ifdef GDMA_INTERFACE
 	int dontfree = 0;
+#endif
 	BOOLEAN bHeaderSupressionEnabled = FALSE;
 	B_UINT16            uiClassifierRuleID;
 	int QueueIndex = NO_OF_QUEUES + 1;
@@ -423,7 +425,7 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 #endif
 
 	UINT calltransmit = 1;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Entring to wait for signal from the interrupt service thread!Adapter = 0x%x",(unsigned int) Adapter);
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Entring to wait for signal from the interrupt service thread!Adapter = %p",Adapter);
 
 
 	while(1)

@@ -100,7 +100,7 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
     return 0;
 }
 
-static int bcm_char_read(struct file *filp, PCHAR buf, size_t size, loff_t *f_pos)
+static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 {
     PPER_TARANG_DATA pTarang = (PPER_TARANG_DATA)filp->private_data;
 	PMINI_ADAPTER	Adapter = pTarang->Adapter;
@@ -153,8 +153,7 @@ static int bcm_char_read(struct file *filp, PCHAR buf, size_t size, loff_t *f_po
     return PktLen;
 }
 
-static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
-					UINT cmd, ULONG arg)
+static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
     PPER_TARANG_DATA  pTarang = (PPER_TARANG_DATA)filp->private_data;
 	PMINI_ADAPTER 	Adapter = pTarang->Adapter;
@@ -2359,11 +2358,11 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 
 
 static struct file_operations bcm_fops = {
-    .owner    = THIS_MODULE,
-    .open     = bcm_char_open,
-    .release  = bcm_char_release,
-    .read     = bcm_char_read,
-    .unlocked_ioctl    = bcm_char_ioctl,
+	.owner    = THIS_MODULE,
+	.open     = bcm_char_open,
+	.release  = bcm_char_release,
+	.read     = bcm_char_read,
+	.unlocked_ioctl    = bcm_char_ioctl,
 	.llseek = no_llseek,
 };
 

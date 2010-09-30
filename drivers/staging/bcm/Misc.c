@@ -26,7 +26,7 @@ InitAdapter(PMINI_ADAPTER psAdapter)
 {
     int i = 0;
 	INT Status = STATUS_SUCCESS ;
-	BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT,  DBG_LVL_ALL,  "Initialising Adapter = 0x%x",(unsigned int) psAdapter);
+	BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT,  DBG_LVL_ALL,  "Initialising Adapter = %p", psAdapter);
 
 	if(psAdapter == NULL)
 	{

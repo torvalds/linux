@@ -382,7 +382,7 @@ enum eAbortPattern {
 	#define GET_BCM_ADAPTER(net_dev) ({\
     PMINI_ADAPTER __Adapter = NULL;	\
     if (net_dev)    {   \
-         __Adapter = (PMINI_ADAPTER)(*((UINT *)netdev_priv(net_dev)));  \
+         __Adapter = (PMINI_ADAPTER)(*((unsigned long *)netdev_priv(net_dev)));  \
     } \
     else    {   \
          __Adapter = NULL;  \

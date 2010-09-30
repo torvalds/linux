@@ -126,7 +126,7 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 {
 	int result=0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-	int *temp = NULL ;
+	void **temp = NULL; /* actually we're *allocating* the device in alloc_etherdev */
 #endif
 	Adapter->dev = alloc_etherdev(sizeof(PMINI_ADAPTER));
 	if(!Adapter->dev)
@@ -139,7 +139,7 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	Adapter->dev->priv      			= Adapter;
 #else
 	temp = netdev_priv(Adapter->dev);
-	*temp = (UINT)Adapter;
+	*temp = (void *)Adapter;
 #endif
 	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "init adapterptr: %x %x\n", (UINT)Adapter, temp);
 

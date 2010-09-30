@@ -1792,8 +1792,8 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter,PVOID pvBuffer,UINT *p
 				(ULONG)pstAddIndication->psfAuthorizedSet)!= 1)
 		return 0;
 
-	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)
-				ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
+	/* this can't possibly be right */
+	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
 
 	if(pstAddIndicationAlt->u8Type == DSA_REQ)
 	{
@@ -1886,9 +1886,9 @@ static inline stLocalSFAddIndicationAlt
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-u8TID : 0x%X",ntohs(pstAddIndication->u16TID));
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-u8CID : 0x%X",ntohs(pstAddIndication->u16CID));
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-u16VCID : 0x%X",ntohs(pstAddIndication->u16VCID));
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-autorized set loc : 0x%x",ntohl(pstAddIndication->psfAuthorizedSet));
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-admitted set loc : 0x%x",ntohl(pstAddIndication->psfAdmittedSet));
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-Active set loc : 0x%x",ntohl(pstAddIndication->psfActiveSet));
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-autorized set loc : %p",pstAddIndication->psfAuthorizedSet);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-admitted set loc : %p",pstAddIndication->psfAdmittedSet);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "AddIndication-Active set loc : %p",pstAddIndication->psfActiveSet);
 
 	pstAddIndicationDest->u8Type = pstAddIndication->u8Type;
 	pstAddIndicationDest->u8Direction = pstAddIndication->eConnectionDir;

@@ -4,7 +4,7 @@
 #define PHS_INVALID_TABLE_INDEX 0xffffffff
 
 /************************* MACROS **********************************************/
-#define PHS_MEM_TAG '_SHP'
+#define PHS_MEM_TAG "_SHP"
 
 
 

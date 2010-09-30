@@ -241,7 +241,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	psIntfAdapter->interface = intf;
 	usb_set_intfdata(intf, psIntfAdapter);
 
-	BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "psIntfAdapter 0x%x",(unsigned int)psIntfAdapter);
+	BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "psIntfAdapter 0x%p",psIntfAdapter);
 	retval = InterfaceAdapterInit(psIntfAdapter);
 	if(retval)
 	{
@@ -323,7 +323,7 @@ static void usbbcm_disconnect (struct usb_interface *intf)
 		return;
 	}
 	psIntfAdapter = usb_get_intfdata(intf);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "psIntfAdapter 0x%x",(unsigned int)psIntfAdapter);
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "psIntfAdapter 0x%p",psIntfAdapter);
 	if(psIntfAdapter == NULL)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "InterfaceAdapter pointer is NULL");
