@@ -652,7 +652,7 @@ typedef struct _ETH_HEADER_STRUC ETH_HEADER_STRUC, *PETH_HEADER_STRUC;
 
 typedef struct FirmwareInfo
 {
-	PVOID		pvMappedFirmwareAddress;
+	void __user *	pvMappedFirmwareAddress;
 	ULONG		u32FirmwareLength;
 	ULONG		u32StartingAddress;
 }__attribute__((packed)) FIRMWARE_INFO, *PFIRMWARE_INFO;

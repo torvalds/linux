@@ -15,7 +15,7 @@
 * Returns     - None
 **********************************************************************/
 
-VOID UpdateTokenCount(register PMINI_ADAPTER Adapter)
+static VOID UpdateTokenCount(register PMINI_ADAPTER Adapter)
 {
 	ULONG 	liCurrentTime;
 	INT 	i = 0;

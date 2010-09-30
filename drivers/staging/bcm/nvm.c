@@ -12,7 +12,7 @@
 //
 //-----------------------------------------------------------------------------
 
-UCHAR ReadEEPROMStatusRegister( PMINI_ADAPTER Adapter )
+static UCHAR ReadEEPROMStatusRegister( PMINI_ADAPTER Adapter )
 {
 	UCHAR uiData = 0;
 	DWORD dwRetries = MAX_EEPROM_RETRIES*RETRIES_PER_DELAY;
@@ -804,7 +804,7 @@ INT WriteBeceemEEPROM(PMINI_ADAPTER Adapter,UINT uiEEPROMOffset, UINT uiData)
 //-----------------------------------------------------------------------------
 
 
-INT FlashSectorErase(PMINI_ADAPTER Adapter,
+static INT FlashSectorErase(PMINI_ADAPTER Adapter,
 	UINT addr,
 	UINT numOfSectors)
 {
@@ -866,7 +866,7 @@ INT FlashSectorErase(PMINI_ADAPTER Adapter,
 //
 //-----------------------------------------------------------------------------
 
-INT flashByteWrite(
+static INT flashByteWrite(
 	PMINI_ADAPTER Adapter,
 	UINT uiOffset,
 	PVOID pData)
@@ -954,7 +954,7 @@ INT flashByteWrite(
 //
 //-----------------------------------------------------------------------------
 
-INT flashWrite(
+static INT flashWrite(
 	PMINI_ADAPTER Adapter,
 	UINT uiOffset,
 	PVOID pData)
@@ -1038,7 +1038,7 @@ INT flashWrite(
 //		OSAL_STATUS_CODE
 //
 //-----------------------------------------------------------------------------
-INT flashByteWriteStatus(
+static INT flashByteWriteStatus(
 	PMINI_ADAPTER Adapter,
 	UINT uiOffset,
 	PVOID pData)
@@ -1123,7 +1123,7 @@ INT flashByteWriteStatus(
 //
 //-----------------------------------------------------------------------------
 
-INT flashWriteStatus(
+static INT flashWriteStatus(
 	PMINI_ADAPTER Adapter,
 	UINT uiOffset,
 	PVOID pData)
@@ -1201,7 +1201,7 @@ INT flashWriteStatus(
 //
 //-----------------------------------------------------------------------------
 
-VOID BcmRestoreBlockProtectStatus(PMINI_ADAPTER Adapter,ULONG ulWriteStatus)
+static VOID BcmRestoreBlockProtectStatus(PMINI_ADAPTER Adapter,ULONG ulWriteStatus)
 {
 	UINT value;
 	value = (FLASH_CMD_WRITE_ENABLE<< 24);
@@ -1224,7 +1224,7 @@ VOID BcmRestoreBlockProtectStatus(PMINI_ADAPTER Adapter,ULONG ulWriteStatus)
 //		ULONG   - Status value before UnProtect.
 //
 //-----------------------------------------------------------------------------
-ULONG BcmFlashUnProtectBlock(PMINI_ADAPTER Adapter,UINT uiOffset, UINT uiLength)
+static ULONG BcmFlashUnProtectBlock(PMINI_ADAPTER Adapter,UINT uiOffset, UINT uiLength)
 {
 	ULONG ulStatus      = 0;
 	ULONG ulWriteStatus = 0;
@@ -1378,7 +1378,7 @@ INT BeceemFlashBulkWrite(
 	uiSectBoundary	  		= uiSectAlignAddr + Adapter->uiSectorSize;
 
 	//pTempBuff = OsalMemAlloc(MAX_SECTOR_SIZE,'!MVN');
-	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize ,'!MVN');
+	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize ,"!MVN");
 	if(NULL == pTempBuff)
 	{
 		goto BeceemFlashBulkWrite_EXIT;
@@ -1567,7 +1567,7 @@ BeceemFlashBulkWrite_EXIT:
 //
 //-----------------------------------------------------------------------------
 
-INT BeceemFlashBulkWriteStatus(
+static INT BeceemFlashBulkWriteStatus(
 	PMINI_ADAPTER Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
@@ -1602,7 +1602,7 @@ INT BeceemFlashBulkWriteStatus(
 
 
 //	pTempBuff = OsalMemAlloc(MAX_SECTOR_SIZE,'!MVN');
-	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize,'!MVN');
+	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize,"!MVN");
 	if(NULL == pTempBuff)
 	{
 		goto BeceemFlashBulkWriteStatus_EXIT;
@@ -1771,7 +1771,7 @@ BeceemFlashBulkWriteStatus_EXIT:
 
 INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 {
-	PCHAR pBuff = OsalMemAlloc(BUFFER_4K,'3MVN');
+	PCHAR pBuff = OsalMemAlloc(BUFFER_4K,"3MVN");
 	UINT uiEepromSize = 0;
 	UINT uiIndex = 0;
 	UINT uiBytesToCopy = 0;
@@ -1925,7 +1925,7 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-INT BeceemEEPROMReadBackandVerify(
+static INT BeceemEEPROMReadBackandVerify(
 	PMINI_ADAPTER Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
@@ -2000,7 +2000,7 @@ INT BeceemEEPROMReadBackandVerify(
 	return 0;
 }
 
-VOID BcmSwapWord(UINT *ptr1) {
+static VOID BcmSwapWord(UINT *ptr1) {
 
 	UINT  tempval = (UINT)*ptr1;
 	char *ptr2 = (char *)&tempval;
@@ -2025,7 +2025,7 @@ VOID BcmSwapWord(UINT *ptr1) {
 //		OSAL_STATUS_CODE
 //
 //-----------------------------------------------------------------------------
-INT BeceemEEPROMWritePage( PMINI_ADAPTER Adapter, UINT uiData[], UINT uiOffset )
+static INT BeceemEEPROMWritePage( PMINI_ADAPTER Adapter, UINT uiData[], UINT uiOffset )
 {
 	UINT uiRetries = MAX_EEPROM_RETRIES*RETRIES_PER_DELAY;
 	UINT uiStatus = 0;
@@ -2604,7 +2604,7 @@ UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT 
 //		<OSAL_STATUS_CODE>
 //-----------------------------------------------------------------------------
 
-INT BcmInitEEPROMQueues(PMINI_ADAPTER Adapter)
+static INT BcmInitEEPROMQueues(PMINI_ADAPTER Adapter)
 {
 	UINT value = 0;
 	/* CHIP Bug : Clear the Avail bits on the Read queue. The default
@@ -2734,7 +2734,7 @@ VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
 // Returns:
 //		Flash ID
 //-----------------------------------------------------------------------------
-ULONG BcmReadFlashRDID(PMINI_ADAPTER Adapter)
+static ULONG BcmReadFlashRDID(PMINI_ADAPTER Adapter)
 {
 	ULONG ulRDID = 0;
 	UINT value;
@@ -2804,7 +2804,7 @@ INT BcmDeAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	return STATUS_SUCCESS ;
 }
 
-INT	BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo,PMINI_ADAPTER Adapter)
+static INT	BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo,PMINI_ADAPTER Adapter)
 {
 	UINT Index = 0;
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "**********************FLASH2X CS Structure *******************");
@@ -2865,7 +2865,7 @@ INT	BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo,PMINI_ADAPTER Ada
 }
 
 
-INT	ConvertEndianOf2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo)
+static INT	ConvertEndianOf2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo)
 {
 	UINT Index = 0;
 	psFlash2xCSInfo->MagicNumber = ntohl(psFlash2xCSInfo->MagicNumber);
@@ -2921,7 +2921,7 @@ INT	ConvertEndianOf2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo)
 	return STATUS_SUCCESS;
 }
 
-INT	ConvertEndianOfCSStructure(PFLASH_CS_INFO psFlashCSInfo)
+static INT	ConvertEndianOfCSStructure(PFLASH_CS_INFO psFlashCSInfo)
 {
 	//UINT Index = 0;
 	psFlashCSInfo->MagicNumber					 		=ntohl(psFlashCSInfo->MagicNumber);
@@ -2961,7 +2961,7 @@ INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL sectio
  		(Adapter->psFlash2xVendorInfo->VendorSection[section].OffsetFromZeroForSectionStart != UNINIT_PTR_IN_CS) );
 }
 
-VOID UpdateVendorInfo(PMINI_ADAPTER Adapter)
+static VOID UpdateVendorInfo(PMINI_ADAPTER Adapter)
 {
 	B_UINT32 i = 0;
 	UINT uiSizeSection = 0;
@@ -3742,7 +3742,7 @@ B_UINT8 IsOffsetWritable(PMINI_ADAPTER Adapter, UINT uiOffset)
 		return FALSE;
 }
 
-INT BcmDumpFlash2xSectionBitMap(PFLASH2X_BITMAP psFlash2xBitMap)
+static INT BcmDumpFlash2xSectionBitMap(PFLASH2X_BITMAP psFlash2xBitMap)
 {
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "***************Flash 2.x Section Bitmap***************");
@@ -4074,7 +4074,7 @@ Return Value:- Make the priorit highest else return erorr code
 **/
 INT BcmSetActiveSection(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectVal)
 {
-	INT SectImagePriority = 0;
+	unsigned int SectImagePriority = 0;
 	INT Status =STATUS_SUCCESS;
 
 	//DSD_HEADER sDSD = {0};
@@ -5178,7 +5178,7 @@ INT ReadDSDSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd)
 INT ReadDSDPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd)
 {
 	//UINT priOffsetInMap = 0 ;
-	INT uiDSDPri = STATUS_FAILURE;
+	unsigned int uiDSDPri = STATUS_FAILURE;
 	//DSD_HEADER dsdHeader = {0};
 	//priOffsetInMap = (PUCHAR)&(dsdHeader.DSDImagePriority) -(PUCHAR)&dsdHeader;
 	if(IsSectionWritable(Adapter,dsd))
@@ -5260,7 +5260,7 @@ INT ReadISOSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso)
 INT ReadISOPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso)
 {
 
-	INT ISOPri = STATUS_FAILURE;
+	unsigned int ISOPri = STATUS_FAILURE;
 	if(IsSectionWritable(Adapter,iso))
 	{
 		if(ReadISOSignature(Adapter,iso)== ISO_IMAGE_MAGIC_NUMBER)
@@ -5482,7 +5482,7 @@ INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section)
 INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
-	PUCHAR pBuff = 0 ;
+	PUCHAR pBuff = NULL;
 	UINT sig = 0;
 	UINT uiOffset = 0;
 	UINT BlockStatus = 0;
@@ -5555,7 +5555,7 @@ INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
-	PUCHAR pBuff = 0 ;
+	PUCHAR pBuff = NULL;
 	UINT sig = 0;
 	UINT uiOffset = 0;
 

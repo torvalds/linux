@@ -1014,7 +1014,7 @@ static VOID CopyToAdapter( register PMINI_ADAPTER Adapter,		/**<Pointer to the A
 *
 * Returns	  - None
 *************************************************************************/
-VOID DumpCmControlPacket(PVOID pvBuffer)
+static VOID DumpCmControlPacket(PVOID pvBuffer)
 {
 	UINT 					uiLoopIndex;
 	UINT                    nIndex;
@@ -2362,7 +2362,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 	return TRUE;
 }
 
-int get_dsx_sf_data_to_application(PMINI_ADAPTER Adapter, UINT uiSFId, PUCHAR user_buffer)
+int get_dsx_sf_data_to_application(PMINI_ADAPTER Adapter, UINT uiSFId, void __user *user_buffer)
 {
 	int status = 0;
 	struct _packet_info *psSfInfo=NULL;
@@ -2375,8 +2375,8 @@ int get_dsx_sf_data_to_application(PMINI_ADAPTER Adapter, UINT uiSFId, PUCHAR us
 	}
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "status =%d",status);
 	psSfInfo=&Adapter->PackInfo[status];
-	if(psSfInfo->pstSFIndication && copy_to_user((PCHAR)user_buffer,
-		(PCHAR)psSfInfo->pstSFIndication, sizeof(stLocalSFAddIndicationAlt)))
+	if(psSfInfo->pstSFIndication && copy_to_user(user_buffer,
+		psSfInfo->pstSFIndication, sizeof(stLocalSFAddIndicationAlt)))
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "copy to user failed SFID %d, present in queue !!!", uiSFId );
 		status = -EFAULT;

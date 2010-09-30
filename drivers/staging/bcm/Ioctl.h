@@ -18,9 +18,9 @@ typedef struct wrmbuffer
 
 typedef struct ioctlbuffer
 {
-	PVOID	InputBuffer;
+	void __user *InputBuffer;
 	ULONG	InputLength;
-	PVOID	OutputBuffer;
+	void __user *OutputBuffer;
 	ULONG	OutputLength;
 }__attribute__((packed)) IOCTL_BUFFER, *PIOCTL_BUFFER;
 
@@ -209,7 +209,7 @@ typedef struct _DEVICE_DRIVER_INFO
 typedef  struct _NVM_READWRITE
 {
 
-	void *pBuffer;
+	void __user *pBuffer;
 // Data to be written from|read to. Memory should be allocated by the caller.
 
 	uint32_t  uiOffset;
@@ -269,7 +269,7 @@ typedef struct _FLASH2X_READWRITE
 	B_UINT32 offset;		//Offset within Section.
 	B_UINT32 numOfBytes;	//NOB from the offset
 	B_UINT32  bVerify;
-	PVOID pDataBuff;	//Buffer for reading/writing
+	void __user *pDataBuff;	//Buffer for reading/writing
 
 }FLASH2X_READWRITE, *PFLASH2X_READWRITE;
 /*

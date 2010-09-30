@@ -1345,7 +1345,7 @@ BOOLEAN DerefPhsRule(IN B_UINT16  uiClsId,S_CLASSIFIER_TABLE *psaClassifiertable
 	}
 }
 
-void DumpBuffer(PVOID BuffVAddress, int xferSize)
+static void DumpBuffer(PVOID BuffVAddress, int xferSize)
 {
 	int i;
 	int iPrintLength;

@@ -108,8 +108,7 @@ int wrmalt (PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t sSize);
 
 int rdmalt (PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t sSize);
 
-int get_dsx_sf_data_to_application(PMINI_ADAPTER Adapter, UINT uiSFId,
-	PUCHAR user_buffer);
+int get_dsx_sf_data_to_application(PMINI_ADAPTER Adapter, UINT uiSFId, void __user * user_buffer);
 
 void SendLinkDown(PMINI_ADAPTER Adapter);
 

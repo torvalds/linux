@@ -223,7 +223,7 @@ int control_packet_handler  (PMINI_ADAPTER Adapter  /**< pointer to adapter obje
 	return STATUS_SUCCESS;
 }
 
-INT flushAllAppQ()
+INT flushAllAppQ(void)
 {
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PPER_TARANG_DATA	pTarang = NULL;

@@ -22,7 +22,7 @@ int InterfaceFileDownload( PVOID arg,
     while(1)
     {
         oldfs=get_fs(); set_fs(get_ds());
-        len=vfs_read(flp, buff, MAX_TRANSFER_CTRL_BYTE_USB, &pos);
+        len=vfs_read(flp, (void __force __user *)buff, MAX_TRANSFER_CTRL_BYTE_USB, &pos);
         set_fs(oldfs);
         if(len<=0)
         {
@@ -83,7 +83,7 @@ int InterfaceFileReadbackFromChip( PVOID arg,
     while(1)
     {
         oldfs=get_fs(); set_fs(get_ds());
-        len=vfs_read(flp, buff, MAX_TRANSFER_CTRL_BYTE_USB, &pos);
+        len=vfs_read(flp, (void __force __user *)buff, MAX_TRANSFER_CTRL_BYTE_USB, &pos);
         set_fs(oldfs);
         fw_down++;
         if(len<=0)
@@ -381,7 +381,7 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"Failed in allocation memory");
 			return -ENOMEM;
 		}
-		retval = copy_from_user(buff,(PUCHAR)psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
+		retval = copy_from_user(buff,psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
 		if(retval != STATUS_SUCCESS)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "copying buffer from user space failed");

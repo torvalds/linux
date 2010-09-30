@@ -503,6 +503,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 	return Status;
 }
 
+#if 0
 /*****************************************************************
 * Function    - SendStatisticsPointerRequest()
 *
@@ -514,7 +515,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 *
 * Returns     - None.
 *****************************************************************/
-VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter,
+static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter,
 								PLINK_REQUEST	pstStatisticsPtrRequest)
 {
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "======>");
@@ -526,7 +527,7 @@ VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter,
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "<=====");
 	return;
 }
-
+#endif
 
 
 void SendLinkDown(PMINI_ADAPTER Adapter)
@@ -1379,7 +1380,7 @@ int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 		return -ENOENT;
 	}
 	oldfs=get_fs();	set_fs(get_ds());
-	len=vfs_read(flp, buff, BUFFER_1K, &pos);
+	len=vfs_read(flp, (void __user __force *)buff, BUFFER_1K, &pos);
 	set_fs(oldfs);
 
 	if(len != sizeof(STARGETPARAMS))
@@ -1535,7 +1536,9 @@ VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"Using Forced User Choice: %lx\n", psAdapter->ulPowerSaveMode);
 	}
 }
-unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
+
+#if 0
+static unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
 {
 	unsigned char *pucmacaddr = NULL;
 	int status = 0, i=0;
@@ -1575,6 +1578,7 @@ unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
 OUT:
 	return pucmacaddr;
 }
+#endif
 
 #if 0
 INT ReadMacAddressFromEEPROM(PMINI_ADAPTER Adapter)
@@ -1614,7 +1618,7 @@ INT ReadMacAddressFromEEPROM(PMINI_ADAPTER Adapter)
 }
 #endif
 
-void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
+static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
 {
 	UINT uiIndex = 0;
 
@@ -1814,7 +1818,7 @@ exit:
 }
 
 
-VOID HandleShutDownModeWakeup(PMINI_ADAPTER Adapter)
+static VOID HandleShutDownModeWakeup(PMINI_ADAPTER Adapter)
 {
 	int clear_abort_pattern = 0,Status = 0;
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "====>\n");
@@ -1844,7 +1848,7 @@ VOID HandleShutDownModeWakeup(PMINI_ADAPTER Adapter)
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
 }
 
-VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
+static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
 {
 	CONTROL_MESSAGE		stShutdownResponse;
 	UINT NVMAccess = 0,lowPwrAbortMsg = 0;

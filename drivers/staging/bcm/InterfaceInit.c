@@ -68,12 +68,12 @@ static int usbbcm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t usbbcm_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
+static ssize_t usbbcm_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-static ssize_t usbbcm_write(struct file *file, const char *user_buffer, size_t count, loff_t *ppos)
+static ssize_t usbbcm_write(struct file *file, const char __user *user_buffer, size_t count, loff_t *ppos)
 {
 	return 0;
 }
@@ -188,13 +188,11 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	/* Allocate Adapter structure */
-	if((psAdapter = kmalloc(sizeof(MINI_ADAPTER), GFP_KERNEL)) == NULL)
+	if((psAdapter = kzalloc(sizeof(MINI_ADAPTER), GFP_KERNEL)) == NULL)
 	{
-		//BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0, "Out of memory");
+		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0, "Out of memory");
 		return -ENOMEM;
 	}
-
-	memset(psAdapter, 0, sizeof(MINI_ADAPTER));
 
     /* Init default driver debug state */
 
@@ -618,9 +616,9 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 				if((psIntfAdapter->bHighSpeedDevice == FALSE) && bcm_usb_endpoint_is_bulk_out(endpoint))
 				{
 					// Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail.
-					UINT uiData = ntohl(EP2_CFG_INT);
+					UINT _uiData = ntohl(EP2_CFG_INT);
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,"Reverting Bulk to INT as it is FS MODE");
-					BeceemEEPROMBulkWrite(psIntfAdapter->psAdapter,(PUCHAR)&uiData,0x136,4,TRUE);
+					BeceemEEPROMBulkWrite(psIntfAdapter->psAdapter,(PUCHAR)&_uiData,0x136,4,TRUE);
 				}
 			}
 			else
@@ -773,7 +771,8 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 
 	return 0;
 }
-int InterfaceSuspend (struct usb_interface *intf, pm_message_t message)
+
+static int InterfaceSuspend (struct usb_interface *intf, pm_message_t message)
 {
 	PS_INTERFACE_ADAPTER  psIntfAdapter = usb_get_intfdata(intf);
 	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "=================================\n");
@@ -802,7 +801,8 @@ int InterfaceSuspend (struct usb_interface *intf, pm_message_t message)
 
 	return 0;
 }
-int InterfaceResume (struct usb_interface *intf)
+
+static int InterfaceResume (struct usb_interface *intf)
 {
     PS_INTERFACE_ADAPTER  psIntfAdapter = usb_get_intfdata(intf);
 	printk("=================================\n");
@@ -816,12 +816,14 @@ int InterfaceResume (struct usb_interface *intf)
 	InterfaceRx(psIntfAdapter);
 	return 0;
 }
-int InterfacePreReset(struct usb_interface *intf)
+
+static int InterfacePreReset(struct usb_interface *intf)
 {
     printk("====================>");
 	return STATUS_SUCCESS;
 }
-int InterfacePostReset(struct usb_interface *intf)
+
+static int InterfacePostReset(struct usb_interface *intf)
 {
     printk("Do Post chip reset setting here if it is required");
    	return STATUS_SUCCESS;

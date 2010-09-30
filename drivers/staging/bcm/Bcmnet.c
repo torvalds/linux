@@ -111,7 +111,7 @@ static struct net_device_stats *bcm_get_stats(struct net_device *dev)
 Register other driver entry points with the kernel
 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
-struct net_device_ops bcmNetDevOps = {
+static struct net_device_ops bcmNetDevOps = {
     .ndo_open		= bcm_open,
     .ndo_stop 		= bcm_close,
     .ndo_get_stats 	= bcm_get_stats,

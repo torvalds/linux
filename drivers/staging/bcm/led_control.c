@@ -22,7 +22,7 @@ BOOLEAN IsReqGpioIsLedInNVM(PMINI_ADAPTER Adapter, UINT gpios)
 		return TRUE;
 }
 
-INT LED_Blink(PMINI_ADAPTER Adapter, UINT GPIO_Num, UCHAR uiLedIndex, ULONG timeout, INT num_of_time, LedEventInfo_t currdriverstate)
+static INT LED_Blink(PMINI_ADAPTER Adapter, UINT GPIO_Num, UCHAR uiLedIndex, ULONG timeout, INT num_of_time, LedEventInfo_t currdriverstate)
 {
 	int Status = STATUS_SUCCESS;
 	BOOLEAN bInfinite = FALSE;
@@ -69,7 +69,7 @@ INT LED_Blink(PMINI_ADAPTER Adapter, UINT GPIO_Num, UCHAR uiLedIndex, ULONG time
 	return Status;
 }
 
-INT ScaleRateofTransfer(ULONG rate)
+static INT ScaleRateofTransfer(ULONG rate)
 {
 	if(rate <= 3)
 		return rate;
@@ -91,7 +91,7 @@ INT ScaleRateofTransfer(ULONG rate)
 
 
 
-INT LED_Proportional_Blink(PMINI_ADAPTER Adapter, UCHAR GPIO_Num_tx,
+static INT LED_Proportional_Blink(PMINI_ADAPTER Adapter, UCHAR GPIO_Num_tx,
 		UCHAR uiTxLedIndex, UCHAR GPIO_Num_rx, UCHAR uiRxLedIndex, LedEventInfo_t currdriverstate)
 {
 	/* Initial values of TX and RX packets*/
@@ -281,7 +281,7 @@ INT LED_Proportional_Blink(PMINI_ADAPTER Adapter, UCHAR GPIO_Num_tx,
 //  <OSAL_STATUS_CODE>
 //-----------------------------------------------------------------------------
 
-INT ValidateDSDParamsChecksum(
+static INT ValidateDSDParamsChecksum(
 													PMINI_ADAPTER Adapter,
 													ULONG  ulParamOffset,
 													USHORT usParamLen )
@@ -293,7 +293,7 @@ INT ValidateDSDParamsChecksum(
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,"LED Thread:ValidateDSDParamsChecksum: 0x%lx 0x%X",ulParamOffset, usParamLen);
 
-	puBuffer = OsalMemAlloc(usParamLen,'!MEM');
+	puBuffer = OsalMemAlloc(usParamLen,"!MEM");
 	if(!puBuffer)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,"LED Thread: ValidateDSDParamsChecksum Allocation failed");
@@ -362,7 +362,7 @@ exit:
 //  <OSAL_STATUS_CODE>
 //-----------------------------------------------------------------------------
 
-INT ValidateHWParmStructure(PMINI_ADAPTER Adapter, ULONG ulHwParamOffset)
+static INT ValidateHWParmStructure(PMINI_ADAPTER Adapter, ULONG ulHwParamOffset)
 {
 
 	INT Status = STATUS_SUCCESS ;
@@ -383,7 +383,7 @@ INT ValidateHWParmStructure(PMINI_ADAPTER Adapter, ULONG ulHwParamOffset)
 	return Status;
 } /* ValidateHWParmStructure() */
 
-int ReadLEDInformationFromEEPROM(PMINI_ADAPTER Adapter, UCHAR GPIO_Array[])
+static int ReadLEDInformationFromEEPROM(PMINI_ADAPTER Adapter, UCHAR GPIO_Array[])
 {
 	int Status = STATUS_SUCCESS;
 
@@ -493,7 +493,7 @@ int ReadLEDInformationFromEEPROM(PMINI_ADAPTER Adapter, UCHAR GPIO_Array[])
 }
 
 
-int ReadConfigFileStructure(PMINI_ADAPTER Adapter, BOOLEAN *bEnableThread)
+static int ReadConfigFileStructure(PMINI_ADAPTER Adapter, BOOLEAN *bEnableThread)
 {
 	int Status = STATUS_SUCCESS;
 	UCHAR GPIO_Array[NUM_OF_LEDS+1]; /*Array to store GPIO numbers from EEPROM*/
@@ -610,7 +610,7 @@ int ReadConfigFileStructure(PMINI_ADAPTER Adapter, BOOLEAN *bEnableThread)
 //
 //-----------------------------------------------------------------------------
 
-VOID LedGpioInit(PMINI_ADAPTER Adapter)
+static VOID LedGpioInit(PMINI_ADAPTER Adapter)
 {
 	UINT uiResetValue = 0;
 	UINT uiIndex      = 0;
@@ -631,7 +631,7 @@ VOID LedGpioInit(PMINI_ADAPTER Adapter)
 }
 //-----------------------------------------------------------------------------
 
-INT BcmGetGPIOPinInfo(PMINI_ADAPTER Adapter, UCHAR *GPIO_num_tx, UCHAR *GPIO_num_rx ,UCHAR *uiLedTxIndex, UCHAR *uiLedRxIndex,LedEventInfo_t currdriverstate)
+static INT BcmGetGPIOPinInfo(PMINI_ADAPTER Adapter, UCHAR *GPIO_num_tx, UCHAR *GPIO_num_rx ,UCHAR *uiLedTxIndex, UCHAR *uiLedRxIndex,LedEventInfo_t currdriverstate)
 {
 	UINT uiIndex = 0;
 
@@ -676,7 +676,7 @@ INT BcmGetGPIOPinInfo(PMINI_ADAPTER Adapter, UCHAR *GPIO_num_tx, UCHAR *GPIO_num
 	}
 	return STATUS_SUCCESS ;
 }
-VOID LEDControlThread(PMINI_ADAPTER Adapter)
+static VOID LEDControlThread(PMINI_ADAPTER Adapter)
 {
 	UINT uiIndex = 0;
 	UCHAR GPIO_num = 0;

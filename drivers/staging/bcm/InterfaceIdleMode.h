@@ -3,7 +3,7 @@
 
 INT InterfaceIdleModeWakeup(PMINI_ADAPTER Adapter);
 
-INT InterfaceIdleModeRespond(PMINI_ADAPTER Adapter,PINT puiBuffer);
+INT InterfaceIdleModeRespond(PMINI_ADAPTER Adapter, unsigned int *puiBuffer);
 
 VOID InterfaceWriteIdleModeWakePattern(PMINI_ADAPTER Adapter);
 
