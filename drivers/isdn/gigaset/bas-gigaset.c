@@ -1598,13 +1598,13 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
 
 	ret = starturbs(bcs);
 	if (ret < 0) {
+		spin_unlock_irqrestore(&cs->lock, flags);
 		dev_err(cs->dev,
 			"could not start isochronous I/O for channel B%d: %s\n",
 			bcs->channel + 1,
 			ret == -EFAULT ? "null URB" : get_usb_rcmsg(ret));
 		if (ret != -ENODEV)
 			error_hangup(bcs);
-		spin_unlock_irqrestore(&cs->lock, flags);
 		return ret;
 	}
 
@@ -1614,11 +1614,11 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
 		dev_err(cs->dev, "could not open channel B%d\n",
 			bcs->channel + 1);
 		stopurbs(bcs->hw.bas);
-		if (ret != -ENODEV)
-			error_hangup(bcs);
 	}
 
 	spin_unlock_irqrestore(&cs->lock, flags);
+	if (ret < 0 && ret != -ENODEV)
+		error_hangup(bcs);
 	return ret;
 }
 
