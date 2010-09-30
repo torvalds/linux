@@ -1614,7 +1614,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	__le16 buf;
-	int    rc;
 
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
