@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "smsdbg_prn.h"
 #include "smscoreapi.h"
 
+extern volatile bool g_libdownload;
 
 
 static struct _rx_buffer_st *smsspi_handle_unused_bytes_buf(
@@ -342,7 +343,13 @@ void smsspi_common_transfer_msg(struct _spi_dev *dev, struct _spi_msg *txmsg,
 		dev->cb.transfer_data_cb(dev->phy_context,(unsigned char *)txbuf,tx_phy_addr,NULL,NULL,len);
 	} else
 #endif
+
 	{
+	
+//	sms_info("g_libdownload == %d!!!!!!!!!!!!!!!!!\n",g_libdownload);
+	//if(g_libdownload == false)
+		{
+//		sms_info("g_libdownload == false!!!!!!!!!!!!!!!!!\n");
 	len = 0;
 	if (!dev->cb.transfer_data_cb) {
 		sms_err("function called while module is not initialized.\n");
@@ -436,6 +443,8 @@ void smsspi_common_transfer_msg(struct _spi_dev *dev, struct _spi_msg *txmsg,
 
 	dev->cb.free_rx_buf(dev->context, buf);
 }
+}
+
 }
 
 int smsspicommon_init(struct _spi_dev *dev, void *context, void *phy_context,

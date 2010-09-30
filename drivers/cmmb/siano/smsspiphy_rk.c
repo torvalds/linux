@@ -237,7 +237,9 @@ void smsspibus_xfer(void *context, unsigned char *txbuf,
 #if SIANO_HALFDUPLEX
 	if(txbuf)
 	{
-	   //sms_debug("tx_buf:%x,%x,%x,%x,%x,%x", txbuf[0], txbuf[1], txbuf[2], txbuf[3], txbuf[4],txbuf[5]);
+	 //  sms_debug("tx_buf:%x,%x,%x,%x,%x,%x", txbuf[0], txbuf[1], txbuf[2], txbuf[3], txbuf[4],txbuf[5]);
+	    sms_debug("rxbuf 4, 5,6,7,8, 9,10,11=%x,%x,%x,%x",rxbuf[4],rxbuf[5],rxbuf[6],rxbuf[7]);
+       sms_debug(",%x,%x,%x,%x\n",rxbuf[8],rxbuf[9],rxbuf[10],rxbuf[11]);
 	   ret = spi_write(spiphy_dev->Smsdevice, txbuf, len);
 	} else {
 		if ((rxbuf)&&(len != 16))
@@ -254,7 +256,8 @@ void smsspibus_xfer(void *context, unsigned char *txbuf,
         ret = spi_read(spiphy_dev->Smsdevice, rxbuf, len);
 #endif
 
-    //sms_debug("rxbuf 4, 5,8,9=%x,%x,%x,%x\n",rxbuf[4],rxbuf[5],rxbuf[8],rxbuf[9]);
+   //sms_debug("rxbuf 4, 5,6,7,8, 9,10,11=%x,%x,%x,%x",rxbuf[4],rxbuf[5],rxbuf[6],rxbuf[7]);
+     //  sms_debug(",%x,%x,%x,%x\n",rxbuf[8],rxbuf[9],rxbuf[10],rxbuf[11]);
     //printk("len=%x,rxbuf 4, 5,8,9Mlen=%x,%x,%x,%x,%x,%x\n",len,rxbuf[4],rxbuf[5],rxbuf[8],rxbuf[9],rxbuf[13],rxbuf[12]);
 
 }
@@ -312,16 +315,19 @@ static void chip_poweron()
 	gpio_direction_output(CMMB_1186_POWER_DOWN,0);
 
 //	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
-	gpio_direction_output(CMMB_1186_POWER_ENABLE,0);
-	mdelay(100);
+      mdelay(100);
 	gpio_direction_output(CMMB_1186_POWER_ENABLE,1);
-	mdelay(100);
-
+//	gpio_set_value(CMMB_1186_POWER_ENABLE,GPIO_HIGH);
+	mdelay(500);
+//	gpio_set_value(CMMB_1186_POWER_DOWN,GPIO_HIGH);
 	gpio_direction_output(CMMB_1186_POWER_DOWN,1);
-	mdelay(100);
-	gpio_direction_output(CMMB_1186_POWER_RESET,1);
-	mdelay(200);
 
+	mdelay(500);
+//	gpio_set_value(CMMB_1186_POWER_RESET,GPIO_HIGH);
+	gpio_direction_output(CMMB_1186_POWER_RESET,1);
+
+	mdelay(500);
+  
 	printk("cmmb chip_poweron !!!!\n");
 }
 
@@ -348,8 +354,16 @@ static void chip_powerdown()
 //1186 cmmb power down
 #if 1
 //	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
+	gpio_direction_output(CMMB_1186_POWER_RESET,0);
+	
+	mdelay(200);
+	gpio_direction_output(CMMB_1186_POWER_DOWN,0);
+	
 	gpio_direction_output(CMMB_1186_POWER_ENABLE,0);
-	mdelay(300);
+//	gpio_set_value(CMMB_1186_POWER_RESET,GPIO_LOW);
+//	gpio_set_value(CMMB_1186_POWER_DOWN,GPIO_LOW);
+//	gpio_set_value(CMMB_1186_POWER_ENABLE,GPIO_LOW);
+	//mdelay(00);
 //set the CS0 as gpio mode 
 
 //	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,0);
@@ -459,7 +473,9 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
     //root@zyc-desktop:/usr/android_source/android_cmmb_dev/kernel/kernel/drivers/cmmb/siano# 
     //
     //1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
+
     request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,"inno_irq",spiphy_dev);
+
 
     if(ret<0){
         printk("siano 1186 request irq failed !!\n");

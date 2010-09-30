@@ -57,6 +57,7 @@ int sms_debug =0;   //hzb 0526
 // for loopback
 char g_LbResBuf[256]={0};
 //
+volatile bool g_libdownload = false;
 module_param_named(debug, sms_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
@@ -541,7 +542,7 @@ static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 	}
 
 	return wait_for_completion_timeout(completion,
-			msecs_to_jiffies(10000)) ? 0 : -ETIME;//10000
+			msecs_to_jiffies(30000)) ? 0 : -ETIME;//10000
 }
 
 static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
@@ -592,7 +593,10 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		//mdelay(5);
     	}
     }//hzb test 0527
-    
+ //   msleep(200);
+ //   g_libdownload = true;
+	
+	//	msleep(200);
 	while (size && rc >= 0) {
 		struct SmsDataDownload_ST *DataMsg =
 				(struct SmsDataDownload_ST *) msg;
@@ -610,14 +614,35 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 				(coredev->mode	== DEVICE_MODE_NONE))
 			rc = coredev->sendrequest_handler(coredev->context,DataMsg,DataMsg->xMsgHeader.msgLength);
 		else
+			{
+			
+//			complete(&coredev->data_download_done);
+//			msleep(200);
+//			g_libdownload = false;
+			
+//			msleep(200);
 			rc = smscore_sendrequest_and_wait(coredev, DataMsg,DataMsg->xMsgHeader.msgLength,&coredev->data_download_done);
-
+			}
 		payload += payload_size;
 		size -= payload_size;
 		mem_address += payload_size;
-	}
 
+		sms_debug("size=%d \n", size);
+	}
+	
+	sms_info("transfer over!!!!!!!!!!!!!!!!!!\n");
+
+	
+//	complete(&coredev->data_download_done);
+//	msleep(200);
+//	g_libdownload = false;
+//	msleep(200);
+// 加入延时，防止初始化失败，ZYC
+	msleep(2000);
+//printk("firmware is downloaded\n!!!!");
+//msleep(1000);
 	if (rc >= 0) {
+		sms_info("firmware is loaded over 1111111111\n");
 		if (coredev->mode == DEVICE_MODE_NONE) {
 			struct SmsMsgData_ST *TriggerMsg =
 					(struct SmsMsgData_ST *) msg;
@@ -635,16 +660,20 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 
 			smsendian_handle_tx_message((struct SmsMsgHdr_ST *)msg);
 			if (coredev->device_flags & SMS_ROM_NO_RESPONSE) {
+				
+				sms_info("firmware is loaded over , but no response,222222222\n");
 				rc = coredev->sendrequest_handler(coredev->
 					context, TriggerMsg,
 					TriggerMsg->xMsgHeader.msgLength);
-				msleep(100);
+				msleep(300);
 			} else
 				rc = smscore_sendrequest_and_wait(coredev,
 					TriggerMsg,
 					TriggerMsg->xMsgHeader.msgLength,
 					&coredev->trigger_done);
 		} else {
+			sms_info("firmware is loaded over , but mode is none,333333333333\n");
+
 			SMS_INIT_MSG(msg, MSG_SW_RELOAD_EXEC_REQ,
 					sizeof(struct SmsMsgHdr_ST));
 			smsendian_handle_tx_message((struct SmsMsgHdr_ST *)msg);
@@ -654,6 +683,9 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		msleep(500);
 	}
 
+	else
+		sms_info("firmware is not loaded over , it is wrong,4444444444444\n");
+		
 	sms_debug("rc=%d, postload=%p ", rc, coredev->postload_handler);
 
 	kfree(msg);
@@ -763,7 +795,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 		sms_info("waiting for %d buffer(s)",
 				coredev->num_buffers - num_buffers);
-		msleep(100);
+		msleep(300);
 	}
 
 	sms_info("freed %d buffers", num_buffers);
@@ -948,12 +980,14 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 			SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_INIT_DEVICE_REQ,
 					sizeof(struct SmsMsgData_ST));
 			msg->msgData[0] = mode;
-
+			//for test,zyc
+			msleep(200);
+			
 			smsendian_handle_tx_message((struct SmsMsgHdr_ST *)msg);
 			rc = smscore_sendrequest_and_wait(coredev, msg,
 					msg->xMsgHeader.msgLength,
 					&coredev->init_device_done);
-
+			sms_info("send MSG_SMS_INIT_DEVICE_REQ res = %d\n ",rc);
 			kfree(buffer);
 		} else {
 			sms_err("Could not allocate buffer for "
