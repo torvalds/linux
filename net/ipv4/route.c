@@ -2487,6 +2487,7 @@ static int ip_mkroute_output(struct rtable **rp,
 
 /*
  * Major route resolver routine.
+ * called with rcu_read_lock();
  */
 
 static int ip_route_output_slow(struct net *net, struct rtable **rp,
@@ -2505,7 +2506,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			    .iif = net->loopback_dev->ifindex,
 			    .oif = oldflp->oif };
 	struct fib_result res;
-	unsigned flags = 0;
+	unsigned int flags = 0;
 	struct net_device *dev_out = NULL;
 	int free_res = 0;
 	int err;
@@ -2535,7 +2536,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		    (ipv4_is_multicast(oldflp->fl4_dst) ||
 		     oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
-			dev_out = ip_dev_find(net, oldflp->fl4_src);
+			dev_out = __ip_dev_find(net, oldflp->fl4_src, false);
 			if (dev_out == NULL)
 				goto out;
 
@@ -2560,26 +2561,21 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 
 		if (!(oldflp->flags & FLOWI_FLAG_ANYSRC)) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
-			dev_out = ip_dev_find(net, oldflp->fl4_src);
-			if (dev_out == NULL)
+			if (!__ip_dev_find(net, oldflp->fl4_src, false))
 				goto out;
-			dev_put(dev_out);
-			dev_out = NULL;
 		}
 	}
 
 
 	if (oldflp->oif) {
-		dev_out = dev_get_by_index(net, oldflp->oif);
+		dev_out = dev_get_by_index_rcu(net, oldflp->oif);
 		err = -ENODEV;
 		if (dev_out == NULL)
 			goto out;
 
 		/* RACE: Check return value of inet_select_addr instead. */
-		if (rcu_dereference_raw(dev_out->ip_ptr) == NULL) {
-			dev_put(dev_out);
+		if (rcu_dereference(dev_out->ip_ptr) == NULL)
 			goto out;	/* Wrong error code */
-		}
 
 		if (ipv4_is_local_multicast(oldflp->fl4_dst) ||
 		    oldflp->fl4_dst == htonl(0xFFFFFFFF)) {
@@ -2602,10 +2598,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		fl.fl4_dst = fl.fl4_src;
 		if (!fl.fl4_dst)
 			fl.fl4_dst = fl.fl4_src = htonl(INADDR_LOOPBACK);
-		if (dev_out)
-			dev_put(dev_out);
 		dev_out = net->loopback_dev;
-		dev_hold(dev_out);
 		fl.oif = net->loopback_dev->ifindex;
 		res.type = RTN_LOCAL;
 		flags |= RTCF_LOCAL;
@@ -2639,8 +2632,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			res.type = RTN_UNICAST;
 			goto make_route;
 		}
-		if (dev_out)
-			dev_put(dev_out);
 		err = -ENETUNREACH;
 		goto out;
 	}
@@ -2649,10 +2640,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	if (res.type == RTN_LOCAL) {
 		if (!fl.fl4_src)
 			fl.fl4_src = fl.fl4_dst;
-		if (dev_out)
-			dev_put(dev_out);
 		dev_out = net->loopback_dev;
-		dev_hold(dev_out);
 		fl.oif = dev_out->ifindex;
 		if (res.fi)
 			fib_info_put(res.fi);
@@ -2672,28 +2660,23 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	if (!fl.fl4_src)
 		fl.fl4_src = FIB_RES_PREFSRC(res);
 
-	if (dev_out)
-		dev_put(dev_out);
 	dev_out = FIB_RES_DEV(res);
-	dev_hold(dev_out);
 	fl.oif = dev_out->ifindex;
 
 
 make_route:
 	err = ip_mkroute_output(rp, &res, &fl, oldflp, dev_out, flags);
 
-
 	if (free_res)
 		fib_res_put(&res);
-	if (dev_out)
-		dev_put(dev_out);
 out:	return err;
 }
 
 int __ip_route_output_key(struct net *net, struct rtable **rp,
 			  const struct flowi *flp)
 {
-	unsigned hash;
+	unsigned int hash;
+	int res;
 	struct rtable *rth;
 
 	if (!rt_caching(net))
@@ -2724,7 +2707,10 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 	rcu_read_unlock_bh();
 
 slow_output:
-	return ip_route_output_slow(net, rp, flp);
+	rcu_read_lock();
+	res = ip_route_output_slow(net, rp, flp);
+	rcu_read_unlock();
+	return res;
 }
 EXPORT_SYMBOL_GPL(__ip_route_output_key);
 
