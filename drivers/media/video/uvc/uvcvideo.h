@@ -477,6 +477,7 @@ struct uvc_driver {
 
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
+#define UVC_WARN_XU_GET_RES	2
 
 extern unsigned int uvc_clock_param;
 extern unsigned int uvc_no_drop_param;
