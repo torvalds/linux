@@ -51,17 +51,15 @@
 #define OMAP4_KBD_FULLCODE63_32		0x48
 
 /* OMAP4 bit definitions */
-#define OMAP4_DEF_SYSCONFIG_SOFTRST	(1 << 1)
-#define OMAP4_DEF_SYSCONFIG_ENAWKUP	(1 << 2)
 #define OMAP4_DEF_IRQENABLE_EVENTEN	(1 << 0)
 #define OMAP4_DEF_IRQENABLE_LONGKEY	(1 << 1)
 #define OMAP4_DEF_IRQENABLE_TIMEOUTEN	(1 << 2)
 #define OMAP4_DEF_CTRL_NOSOFTMODE	(1 << 1)
 #define OMAP4_DEF_CTRLPTVVALUE		(1 << 2)
 #define OMAP4_DEF_CTRLPTV		(1 << 1)
-#define OMAP4_DEF_IRQDISABLE		0x00
 
 /* OMAP4 values */
+#define OMAP4_VAL_IRQDISABLE		0x00
 #define OMAP4_VAL_DEBOUNCINGTIME	0x07
 #define OMAP4_VAL_FUNCTIONALCFG		0x1E
 
@@ -82,13 +80,11 @@ struct omap4_keypad {
 
 static void __devinit omap4_keypad_config(struct omap4_keypad *keypad_data)
 {
-	__raw_writel(OMAP4_DEF_SYSCONFIG_SOFTRST | OMAP4_DEF_SYSCONFIG_ENAWKUP,
-			keypad_data->base + OMAP4_KBD_SYSCONFIG);
 	__raw_writel(OMAP4_VAL_FUNCTIONALCFG,
 			keypad_data->base + OMAP4_KBD_CTRL);
 	__raw_writel(OMAP4_VAL_DEBOUNCINGTIME,
 			keypad_data->base + OMAP4_KBD_DEBOUNCINGTIME);
-	__raw_writel(OMAP4_DEF_IRQDISABLE,
+	__raw_writel(OMAP4_VAL_IRQDISABLE,
 			keypad_data->base + OMAP4_KBD_IRQSTATUS);
 	__raw_writel(OMAP4_DEF_IRQENABLE_EVENTEN | OMAP4_DEF_IRQENABLE_LONGKEY,
 			keypad_data->base + OMAP4_KBD_IRQENABLE);
@@ -104,11 +100,12 @@ static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
 	u32 *new_state = (u32 *) key_state;
 
 	/* Disable interrupts */
-	__raw_writel(OMAP4_DEF_IRQDISABLE,
+	__raw_writel(OMAP4_VAL_IRQDISABLE,
 		     keypad_data->base + OMAP4_KBD_IRQENABLE);
 
 	*new_state = __raw_readl(keypad_data->base + OMAP4_KBD_FULLCODE31_0);
-	*(new_state + 1) = __raw_readl(keypad_data->base + OMAP4_KBD_FULLCODE63_32);
+	*(new_state + 1) = __raw_readl(keypad_data->base
+						+ OMAP4_KBD_FULLCODE63_32);
 
 	for (row = 0; row < keypad_data->rows; row++) {
 		changed = key_state[row] ^ keypad_data->key_state[row];
