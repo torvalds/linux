@@ -256,7 +256,6 @@ static int __devexit ad5398_remove(struct i2c_client *client)
 
 	regulator_unregister(chip->rdev);
 	kfree(chip);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }
