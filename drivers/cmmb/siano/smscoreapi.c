@@ -593,10 +593,10 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		//mdelay(5);
     	}
     }//hzb test 0527
- //   msleep(200);
- //   g_libdownload = true;
+    msleep(200);
+    g_libdownload = true;
 	
-	//	msleep(200);
+		msleep(200);
 	while (size && rc >= 0) {
 		struct SmsDataDownload_ST *DataMsg =
 				(struct SmsDataDownload_ST *) msg;
@@ -633,10 +633,10 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	sms_info("transfer over!!!!!!!!!!!!!!!!!!\n");
 
 	
-//	complete(&coredev->data_download_done);
-//	msleep(200);
-//	g_libdownload = false;
-//	msleep(200);
+	complete(&coredev->data_download_done);
+	msleep(200);
+	g_libdownload = false;
+	msleep(200);
 // 加入延时，防止初始化失败，ZYC
 	msleep(2000);
 //printk("firmware is downloaded\n!!!!");

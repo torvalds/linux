@@ -347,7 +347,7 @@ void smsspi_common_transfer_msg(struct _spi_dev *dev, struct _spi_msg *txmsg,
 	{
 	
 //	sms_info("g_libdownload == %d!!!!!!!!!!!!!!!!!\n",g_libdownload);
-	//if(g_libdownload == false)
+	if(g_libdownload == false)
 		{
 //		sms_info("g_libdownload == false!!!!!!!!!!!!!!!!!\n");
 	len = 0;
