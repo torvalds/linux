@@ -2214,7 +2214,7 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		memset(chip->oob_poi, 0xff, mtd->oobsize);
 
 	/* Don't allow multipage oob writes with offset */
-	if (ops->ooboffs && (ops->ooboffs + ops->ooblen > oobmaxlen))
+	if (oob && ops->ooboffs && (ops->ooboffs + ops->ooblen > oobmaxlen))
 		return -EINVAL;
 
 	while (1) {
