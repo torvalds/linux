@@ -2158,6 +2158,10 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	 * should be safe and we need to cleanup or else we might
 	 * cause memory corruption through use-after-free.
 	 */
+	if (ret) {
+		i915_gem_clflush_object(obj);
+		obj->read_domains = obj->write_domain = I915_GEM_DOMAIN_CPU;
+	}
 
 	/* release the fence reg _after_ flushing */
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
