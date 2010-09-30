@@ -77,6 +77,7 @@ static int __devinit emu_probe(struct pci_dev *pdev, const struct pci_device_id 
 	if (!emu || !port) {
 		printk(KERN_ERR "emu10k1-gp: Memory allocation failed\n");
 		release_region(ioport, iolen);
+		pci_disable_device(pdev);
 		kfree(emu);
 		gameport_free_port(port);
 		return -ENOMEM;
@@ -105,6 +106,7 @@ static void __devexit emu_remove(struct pci_dev *pdev)
 
 	gameport_unregister_port(emu->gameport);
 	release_region(emu->io, emu->size);
+	pci_disable_device(pdev);
 	kfree(emu);
 }
 
