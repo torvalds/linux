@@ -98,7 +98,7 @@ Who:	Pavel Machek <pavel@ucw.cz>
 ---------------------------
 
 What:	Video4Linux API 1 ioctls and from Video devices.
-When:	July 2009
+When:	kernel 2.6.38
 Files:	include/linux/videodev.h
 Check:	include/linux/videodev.h
 Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
@@ -112,6 +112,21 @@ Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
 	V4L2 calls being translated into compatible internal ioctls.
 	Compatibility ioctls will be provided, for a while, via 
 	v4l1-compat module. 
+Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
+What:	Video4Linux obsolete drivers using V4L1 API
+When:	kernel 2.6.38
+Files:	drivers/staging/cpia/*
+Check:	drivers/staging/cpia/cpia.c
+Why:	There are some drivers still using V4L1 API, despite all efforts we've done
+	to migrate. Those drivers are for obsolete hardware that the old maintainer
+	didn't care (or not have the hardware anymore), and that no other developer
+	could find any hardware to buy. They probably have no practical usage today,
+	and people with such old hardware could probably keep using an older version
+	of the kernel. Those drivers will be moved to staging on 2.6.37 and, if nobody
+	care enough to port and test them with V4L2 API, they'll be removed on 2.6.38.
 Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
