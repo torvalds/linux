@@ -3781,9 +3781,8 @@ W:	http://www.syskonnect.com
 S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
-M:	Petr Vandrovec <vandrove@vc.cvut.cz>
 L:	linux-fbdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
 
@@ -3970,8 +3969,8 @@ S:	Maintained
 F:	drivers/net/natsemi.c
 
 NCP FILESYSTEM
-M:	Petr Vandrovec <vandrove@vc.cvut.cz>
-S:	Maintained
+M:	Petr Vandrovec <petr@vandrovec.name>
+S:	Odd Fixes
 F:	fs/ncpfs/
 
 NCR DUAL 700 SCSI DRIVER (MICROCHANNEL)
