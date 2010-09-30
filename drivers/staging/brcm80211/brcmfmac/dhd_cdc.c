@@ -131,7 +131,8 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	if (buf)
 		memcpy(prot->buf, buf, len);
 
-	if ((ret = dhdcdc_msg(dhd)) < 0) {
+	ret = dhdcdc_msg(dhd);
+	if (ret < 0) {
 		DHD_ERROR(("dhdcdc_query_ioctl: dhdcdc_msg failed w/status "
 			"%d\n", ret));
 		goto done;
@@ -139,7 +140,8 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 
 retry:
 	/* wait for interrupt and get first fragment */
-	if ((ret = dhdcdc_cmplt(dhd, prot->reqid, len)) < 0)
+	ret = dhdcdc_cmplt(dhd, prot->reqid, len);
+	if (ret < 0)
 		goto done;
 
 	flags = ltoh32(msg->flags);
@@ -196,10 +198,12 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	if (buf)
 		memcpy(prot->buf, buf, len);
 
-	if ((ret = dhdcdc_msg(dhd)) < 0)
+	ret = dhdcdc_msg(dhd);
+	if (ret < 0)
 		goto done;
 
-	if ((ret = dhdcdc_cmplt(dhd, prot->reqid, len)) < 0)
+	ret = dhdcdc_cmplt(dhd, prot->reqid, len);
+	if (ret < 0)
 		goto done;
 
 	flags = ltoh32(msg->flags);
@@ -369,7 +373,8 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf)
 
 	h = (struct bdc_header *)PKTDATA(pktbuf);
 
-	if ((*ifidx = BDC_GET_IF_IDX(h)) >= DHD_MAX_IFS) {
+	*ifidx = BDC_GET_IF_IDX(h);
+	if (*ifidx >= DHD_MAX_IFS) {
 		DHD_ERROR(("%s: rx data ifnum out of range (%d)\n",
 			   __func__, *ifidx));
 		return BCME_ERROR;
@@ -402,15 +407,15 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 	dhd_prot_t *cdc;
 
 #ifndef DHD_USE_STATIC_BUF
-	if (!(cdc = (dhd_prot_t *) MALLOC(dhd->osh, sizeof(dhd_prot_t)))) {
+	cdc = (dhd_prot_t *) MALLOC(dhd->osh, sizeof(dhd_prot_t));
+	if (!cdc) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
 #else
-	if (!
-	    (cdc =
-	     (dhd_prot_t *) dhd_os_prealloc(DHD_PREALLOC_PROT,
-					    sizeof(dhd_prot_t)))) {
+	cdc = (dhd_prot_t *) dhd_os_prealloc(DHD_PREALLOC_PROT,
+						sizeof(dhd_prot_t));
+	if (!cdc) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
