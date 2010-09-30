@@ -238,7 +238,7 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	omap4_keypad_config(keypad_data);
 
 	error = request_irq(keypad_data->irq, omap4_keypad_interrupt,
-			     IRQF_TRIGGER_FALLING,
+			     IRQF_TRIGGER_RISING,
 			     "omap4-keypad", keypad_data);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register interrupt\n");
