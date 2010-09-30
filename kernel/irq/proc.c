@@ -297,6 +297,24 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 			 &irq_spurious_proc_fops, (void *)(long)irq);
 }
 
+void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
+{
+	char name [MAX_NAMELEN];
+
+	if (!root_irq_dir || !desc->dir)
+		return;
+#ifdef CONFIG_SMP
+	remove_proc_entry("smp_affinity", desc->dir);
+	remove_proc_entry("affinity_hint", desc->dir);
+	remove_proc_entry("node", desc->dir);
+#endif
+	remove_proc_entry("spurious", desc->dir);
+
+	memset(name, 0, MAX_NAMELEN);
+	sprintf(name, "%u", irq);
+	remove_proc_entry(name, root_irq_dir);
+}
+
 #undef MAX_NAMELEN
 
 void unregister_handler_proc(unsigned int irq, struct irqaction *action)

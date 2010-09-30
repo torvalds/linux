@@ -205,6 +205,8 @@ static void free_desc(unsigned int irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
 
+	unregister_irq_proc(irq, desc);
+
 	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
 	delete_irq_desc(irq);
 	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
