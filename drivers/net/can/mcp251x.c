@@ -816,10 +816,14 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (intf & CANINTF_ERRIF) {
 			/* Handle overflow counters */
 			if (eflag & (EFLG_RX0OVR | EFLG_RX1OVR)) {
-				if (eflag & EFLG_RX0OVR)
+				if (eflag & EFLG_RX0OVR) {
 					net->stats.rx_over_errors++;
-				if (eflag & EFLG_RX1OVR)
+					net->stats.rx_errors++;
+				}
+				if (eflag & EFLG_RX1OVR) {
 					net->stats.rx_over_errors++;
+					net->stats.rx_errors++;
+				}
 				can_id |= CAN_ERR_CRTL;
 				data1 |= CAN_ERR_CRTL_RX_OVERFLOW;
 			}
