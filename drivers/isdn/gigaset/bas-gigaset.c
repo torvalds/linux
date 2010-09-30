@@ -350,7 +350,7 @@ static inline void error_hangup(struct bc_state *bcs)
  * reset Gigaset device because of an unrecoverable error
  * This function may be called from any context, and takes care of
  * scheduling the necessary actions for execution outside of interrupt context.
- * cs->lock must not be held.
+ * cs->hw.bas->lock must not be held.
  * argument:
  *	controller state structure
  */
@@ -358,7 +358,9 @@ static inline void error_reset(struct cardstate *cs)
 {
 	/* reset interrupt pipe to recover (ignore errors) */
 	update_basstate(cs->hw.bas, BS_RESETTING, 0);
-	req_submit(cs->bcs, HD_RESET_INTERRUPT_PIPE, 0, BAS_TIMEOUT);
+	if (req_submit(cs->bcs, HD_RESET_INTERRUPT_PIPE, 0, BAS_TIMEOUT))
+		/* submission failed, escalate to USB port reset */
+		usb_queue_reset_device(cs->hw.bas->interface);
 }
 
 /* check_pending
