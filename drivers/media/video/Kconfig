@@ -822,6 +822,14 @@ config VIDEO_SH_MOBILE_CEU
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
 
+config VIDEO_OMAP1
+	tristate "OMAP1 Camera Interface driver"
+	depends on VIDEO_DEV && ARCH_OMAP1 && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the TI OMAP1 camera interface
+
 config VIDEO_OMAP2
 	tristate "OMAP2 Camera Capture Interface driver"
 	depends on VIDEO_DEV && ARCH_OMAP2
