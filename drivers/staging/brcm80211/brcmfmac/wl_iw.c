@@ -342,7 +342,8 @@ wl_iw_config_commit(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCSIWCOMMIT\n", dev->name));
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid))))
+	error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid));
+	if (error)
 		return error;
 
 	ssid.SSID_len = dtoh32(ssid.SSID_len);
@@ -351,7 +352,8 @@ wl_iw_config_commit(struct net_device *dev,
 		return 0;
 
 	bzero(&bssid, sizeof(struct sockaddr));
-	if ((error = dev_wlc_ioctl(dev, WLC_REASSOC, &bssid, ETHER_ADDR_LEN))) {
+	error = dev_wlc_ioctl(dev, WLC_REASSOC, &bssid, ETHER_ADDR_LEN);
+	if (error) {
 		WL_ERROR(("%s: WLC_REASSOC to %s failed \n", __func__,
 			  ssid.SSID));
 		return error;
@@ -398,7 +400,8 @@ wl_iw_set_freq(struct net_device *dev,
 	}
 	chan = htod32(chan);
 
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_CHANNEL, &chan, sizeof(chan))))
+	error = dev_wlc_ioctl(dev, WLC_SET_CHANNEL, &chan, sizeof(chan));
+	if (error)
 		return error;
 
 	g_wl_iw_params.target_channel = chan;
@@ -414,7 +417,8 @@ wl_iw_get_freq(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWFREQ\n", dev->name));
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci))))
+	error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci));
+	if (error)
 		return error;
 
 	fwrq->m = dtoh32(ci.hw_channel);
@@ -446,8 +450,12 @@ wl_iw_set_mode(struct net_device *dev,
 	infra = htod32(infra);
 	ap = htod32(ap);
 
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_INFRA, &infra, sizeof(infra)))
-	    || (error = dev_wlc_ioctl(dev, WLC_SET_AP, &ap, sizeof(ap))))
+	error = dev_wlc_ioctl(dev, WLC_SET_INFRA, &infra, sizeof(infra));
+	if (error)
+		return error;
+
+	error = dev_wlc_ioctl(dev, WLC_SET_AP, &ap, sizeof(ap));
+	if (error)
 		return error;
 
 	return -EINPROGRESS;
@@ -461,8 +469,12 @@ wl_iw_get_mode(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWMODE\n", dev->name));
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_INFRA, &infra, sizeof(infra)))
-	    || (error = dev_wlc_ioctl(dev, WLC_GET_AP, &ap, sizeof(ap))))
+	error = dev_wlc_ioctl(dev, WLC_GET_INFRA, &infra, sizeof(infra));
+	if (error)
+		return error;
+
+	error = dev_wlc_ioctl(dev, WLC_GET_AP, &ap, sizeof(ap));
+	if (error)
 		return error;
 
 	infra = dtoh32(infra);
@@ -512,9 +524,9 @@ wl_iw_get_range(struct net_device *dev,
 	range->min_nwid = range->max_nwid = 0;
 
 	list->count = htod32(MAXCHANNEL);
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_GET_VALID_CHANNELS, channels,
-			   (MAXCHANNEL + 1) * 4))) {
+	error = dev_wlc_ioctl(dev, WLC_GET_VALID_CHANNELS, channels,
+				(MAXCHANNEL + 1) * 4);
+	if (error) {
 		kfree(channels);
 		return error;
 	}
@@ -543,9 +555,9 @@ wl_iw_get_range(struct net_device *dev,
 	range->avg_qual.noise = 0x100 - 75;
 #endif
 
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_GET_CURR_RATESET, &rateset,
-			   sizeof(rateset)))) {
+	error = dev_wlc_ioctl(dev, WLC_GET_CURR_RATESET, &rateset,
+				sizeof(rateset));
+	if (error) {
 		kfree(channels);
 		return error;
 	}
@@ -582,7 +594,8 @@ wl_iw_get_range(struct net_device *dev,
 		}
 	}
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_PHYTYPE, &i, sizeof(i)))) {
+	error = dev_wlc_ioctl(dev, WLC_GET_PHYTYPE, &i, sizeof(i));
+	if (error) {
 		kfree(channels);
 		return error;
 	}
@@ -788,9 +801,9 @@ wl_iw_set_wap(struct net_device *dev,
 	wl_iw_ch_to_chanspec(g_wl_iw_params.target_channel, &join_params,
 			     &join_params_size);
 
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_SET_SSID, &join_params,
-		 join_params_size))) {
+	error = dev_wlc_ioctl(dev, WLC_SET_SSID, &join_params,
+				join_params_size);
+	if (error) {
 		WL_ERROR(("%s Invalid ioctl data=%d\n", __func__, error));
 	}
 
@@ -881,7 +894,8 @@ wl_iw_get_aplist(struct net_device *dev,
 		return -ENOMEM;
 	memset(list, 0, buflen);
 	list->buflen = htod32(buflen);
-	if ((error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, buflen))) {
+	error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, buflen);
+	if (error) {
 		WL_ERROR(("%d: Scan results error %d\n", __LINE__, error));
 		kfree(list);
 		return error;
@@ -1288,9 +1302,9 @@ wl_iw_set_scan(struct net_device *dev,
 		}
 	}
 #endif				/* WIRELESS_EXT > 17 */
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_SCAN, &g_specific_ssid,
-			   sizeof(g_specific_ssid)))) {
+	error = dev_wlc_ioctl(dev, WLC_SCAN, &g_specific_ssid,
+				sizeof(g_specific_ssid));
+	if (error) {
 		WL_TRACE(("#### Set SCAN for %s failed with %d\n",
 			  g_specific_ssid.SSID, error));
 		g_scan_specified_ssid = 0;
@@ -1441,7 +1455,8 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 		int ptr_len = bi->ie_length;
 
 #ifdef BCMWPA2
-		if ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID))) {
+		ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID);
+		if (ie) {
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = ie->len + 2;
 			event =
@@ -1582,7 +1597,8 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		}
 	}
 
-	if ((ret = (event - extra)) < 0) {
+	ret = event - extra;
+	if (ret < 0) {
 		WL_ERROR(("==> Wrong size\n"));
 		ret = 0;
 	}
@@ -1614,7 +1630,8 @@ wl_iw_get_scan(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci))))
+	error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci));
+	if (error)
 		return error;
 	ci.scan_channel = dtoh32(ci.scan_channel);
 	if (ci.scan_channel)
@@ -1632,7 +1649,8 @@ wl_iw_get_scan(struct net_device *dev,
 
 	memset(list, 0, len);
 	list->buflen = htod32(len);
-	if ((error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, len))) {
+	error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, len);
+	if (error) {
 		WL_ERROR(("%s: %s : Scan_results ERROR %d\n", dev->name,
 			  __func__, error));
 		dwrq->length = len;
@@ -1917,8 +1935,9 @@ wl_iw_set_essid(struct net_device *dev,
 	wl_iw_ch_to_chanspec(g_wl_iw_params.target_channel, &join_params,
 			     &join_params_size);
 
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size)))
+	error = dev_wlc_ioctl(dev, WLC_SET_SSID, &join_params,
+				join_params_size);
+	if (error)
 		WL_ERROR(("Invalid ioctl data=%d\n", error));
 
 	if (g_ssid.SSID_len) {
@@ -1941,7 +1960,8 @@ wl_iw_get_essid(struct net_device *dev,
 	if (!extra)
 		return -EINVAL;
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid)))) {
+	error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid));
+	if (error) {
 		WL_ERROR(("Error getting the SSID\n"));
 		return error;
 	}
@@ -2003,9 +2023,9 @@ wl_iw_set_rate(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCSIWRATE\n", dev->name));
 
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_GET_CURR_RATESET, &rateset,
-			   sizeof(rateset))))
+	error = dev_wlc_ioctl(dev, WLC_GET_CURR_RATESET, &rateset,
+				sizeof(rateset));
+	if (error)
 		return error;
 
 	rateset.count = dtoh32(rateset.count);
@@ -2035,9 +2055,9 @@ wl_iw_set_rate(struct net_device *dev,
 				break;
 		rateset.count = htod32(i);
 
-		if ((error =
-		     dev_wlc_ioctl(dev, WLC_SET_RATESET, &rateset,
-				   sizeof(rateset))))
+		error = dev_wlc_ioctl(dev, WLC_SET_RATESET, &rateset,
+					sizeof(rateset));
+		if (error)
 			return error;
 	}
 
@@ -2052,7 +2072,8 @@ wl_iw_get_rate(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWRATE\n", dev->name));
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_RATE, &rate, sizeof(rate))))
+	error = dev_wlc_ioctl(dev, WLC_GET_RATE, &rate, sizeof(rate));
+	if (error)
 		return error;
 	rate = dtoh32(rate);
 	vwrq->value = rate * 500000;
@@ -2075,7 +2096,8 @@ wl_iw_set_rts(struct net_device *dev,
 	else
 		rts = vwrq->value;
 
-	if ((error = dev_wlc_intvar_set(dev, "rtsthresh", rts)))
+	error = dev_wlc_intvar_set(dev, "rtsthresh", rts);
+	if (error)
 		return error;
 
 	return 0;
@@ -2089,7 +2111,8 @@ wl_iw_get_rts(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWRTS\n", dev->name));
 
-	if ((error = dev_wlc_intvar_get(dev, "rtsthresh", &rts)))
+	error = dev_wlc_intvar_get(dev, "rtsthresh", &rts);
+	if (error)
 		return error;
 
 	vwrq->value = rts;
@@ -2114,7 +2137,8 @@ wl_iw_set_frag(struct net_device *dev,
 	else
 		frag = vwrq->value;
 
-	if ((error = dev_wlc_intvar_set(dev, "fragthresh", frag)))
+	error = dev_wlc_intvar_set(dev, "fragthresh", frag);
+	if (error)
 		return error;
 
 	return 0;
@@ -2128,7 +2152,8 @@ wl_iw_get_frag(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWFRAG\n", dev->name));
 
-	if ((error = dev_wlc_intvar_get(dev, "fragthresh", &fragthreshold)))
+	error = dev_wlc_intvar_get(dev, "fragthresh", &fragthreshold);
+	if (error)
 		return error;
 
 	vwrq->value = fragthreshold;
@@ -2151,8 +2176,8 @@ wl_iw_set_txpow(struct net_device *dev,
 	disable += WL_RADIO_SW_DISABLE << 16;
 
 	disable = htod32(disable);
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_SET_RADIO, &disable, sizeof(disable))))
+	error = dev_wlc_ioctl(dev, WLC_SET_RADIO, &disable, sizeof(disable));
+	if (error)
 		return error;
 
 	if (disable & WL_RADIO_SW_DISABLE)
@@ -2184,9 +2209,12 @@ wl_iw_get_txpow(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWTXPOW\n", dev->name));
 
-	if ((error =
-	     dev_wlc_ioctl(dev, WLC_GET_RADIO, &disable, sizeof(disable)))
-	    || (error = dev_wlc_intvar_get(dev, "qtxpower", &txpwrdbm)))
+	error = dev_wlc_ioctl(dev, WLC_GET_RADIO, &disable, sizeof(disable));
+	if (error)
+		return error;
+
+	error = dev_wlc_intvar_get(dev, "qtxpower", &txpwrdbm);
+	if (error)
 		return error;
 
 	disable = dtoh32(disable);
@@ -2225,9 +2253,9 @@ wl_iw_set_retry(struct net_device *dev,
 		    || !(vwrq->flags & IW_RETRY_MIN)) {
 #endif
 			lrl = htod32(vwrq->value);
-			if ((error =
-			     dev_wlc_ioctl(dev, WLC_SET_LRL, &lrl,
-					   sizeof(lrl))))
+			error = dev_wlc_ioctl(dev, WLC_SET_LRL, &lrl,
+						sizeof(lrl));
+			if (error)
 				return error;
 		}
 #if WIRELESS_EXT > 20
@@ -2240,9 +2268,9 @@ wl_iw_set_retry(struct net_device *dev,
 		    || !(vwrq->flags & IW_RETRY_MAX)) {
 #endif
 			srl = htod32(vwrq->value);
-			if ((error =
-			     dev_wlc_ioctl(dev, WLC_SET_SRL, &srl,
-					   sizeof(srl))))
+			error = dev_wlc_ioctl(dev, WLC_SET_SRL, &srl,
+						sizeof(srl));
+			if (error)
 				return error;
 		}
 	}
@@ -2263,8 +2291,12 @@ wl_iw_get_retry(struct net_device *dev,
 	if ((vwrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME)
 		return -EINVAL;
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_LRL, &lrl, sizeof(lrl))) ||
-	    (error = dev_wlc_ioctl(dev, WLC_GET_SRL, &srl, sizeof(srl))))
+	error = dev_wlc_ioctl(dev, WLC_GET_LRL, &lrl, sizeof(lrl));
+	if (error)
+		return error;
+
+	error = dev_wlc_ioctl(dev, WLC_GET_SRL, &srl, sizeof(srl));
+	if (error)
 		return error;
 
 	lrl = dtoh32(lrl);
@@ -2300,9 +2332,9 @@ wl_iw_set_encode(struct net_device *dev,
 		for (key.index = 0; key.index < DOT11_MAX_DEFAULT_KEYS;
 		     key.index++) {
 			val = htod32(key.index);
-			if ((error =
-			     dev_wlc_ioctl(dev, WLC_GET_KEY_PRIMARY, &val,
-					   sizeof(val))))
+			error = dev_wlc_ioctl(dev, WLC_GET_KEY_PRIMARY, &val,
+						sizeof(val));
+			if (error)
 				return error;
 			val = dtoh32(val);
 			if (val)
@@ -2318,9 +2350,9 @@ wl_iw_set_encode(struct net_device *dev,
 
 	if (!extra || !dwrq->length || (dwrq->flags & IW_ENCODE_NOKEY)) {
 		val = htod32(key.index);
-		if ((error =
-		     dev_wlc_ioctl(dev, WLC_SET_KEY_PRIMARY, &val,
-				   sizeof(val))))
+		error = dev_wlc_ioctl(dev, WLC_SET_KEY_PRIMARY, &val,
+					sizeof(val));
+		if (error)
 			return error;
 	} else {
 		key.len = dwrq->length;
@@ -2349,25 +2381,28 @@ wl_iw_set_encode(struct net_device *dev,
 		}
 
 		swap_key_from_BE(&key);
-		if ((error =
-		     dev_wlc_ioctl(dev, WLC_SET_KEY, &key, sizeof(key))))
+		error = dev_wlc_ioctl(dev, WLC_SET_KEY, &key, sizeof(key));
+		if (error)
 			return error;
 	}
 
 	val = (dwrq->flags & IW_ENCODE_DISABLED) ? 0 : WEP_ENABLED;
 
-	if ((error = dev_wlc_intvar_get(dev, "wsec", &wsec)))
+	error = dev_wlc_intvar_get(dev, "wsec", &wsec);
+	if (error)
 		return error;
 
 	wsec &= ~(WEP_ENABLED);
 	wsec |= val;
 
-	if ((error = dev_wlc_intvar_set(dev, "wsec", wsec)))
+	error = dev_wlc_intvar_set(dev, "wsec", wsec);
+	if (error)
 		return error;
 
 	val = (dwrq->flags & IW_ENCODE_RESTRICTED) ? 1 : 0;
 	val = htod32(val);
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val))))
+	error = dev_wlc_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val));
+	if (error)
 		return error;
 
 	return 0;
@@ -2389,9 +2424,9 @@ wl_iw_get_encode(struct net_device *dev,
 		for (key.index = 0; key.index < DOT11_MAX_DEFAULT_KEYS;
 		     key.index++) {
 			val = key.index;
-			if ((error =
-			     dev_wlc_ioctl(dev, WLC_GET_KEY_PRIMARY, &val,
-					   sizeof(val))))
+			error = dev_wlc_ioctl(dev, WLC_GET_KEY_PRIMARY, &val,
+						sizeof(val));
+			if (error)
 				return error;
 			val = dtoh32(val);
 			if (val)
@@ -2403,8 +2438,12 @@ wl_iw_get_encode(struct net_device *dev,
 	if (key.index >= DOT11_MAX_DEFAULT_KEYS)
 		key.index = 0;
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_WSEC, &wsec, sizeof(wsec))) ||
-	    (error = dev_wlc_ioctl(dev, WLC_GET_AUTH, &auth, sizeof(auth))))
+	error = dev_wlc_ioctl(dev, WLC_GET_WSEC, &wsec, sizeof(wsec));
+	if (error)
+		return error;
+
+	error = dev_wlc_ioctl(dev, WLC_GET_AUTH, &auth, sizeof(auth));
+	if (error)
 		return error;
 
 	swap_key_to_BE(&key);
@@ -2438,7 +2477,8 @@ wl_iw_set_power(struct net_device *dev,
 	pm = vwrq->disabled ? PM_OFF : PM_MAX;
 
 	pm = htod32(pm);
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm))))
+	error = dev_wlc_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm));
+	if (error)
 		return error;
 
 	return 0;
@@ -2453,7 +2493,8 @@ wl_iw_get_power(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWPOWER\n", dev->name));
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_PM, &pm, sizeof(pm))))
+	error = dev_wlc_ioctl(dev, WLC_GET_PM, &pm, sizeof(pm));
+	if (error)
 		return error;
 
 	pm = dtoh32(pm);
@@ -2749,7 +2790,8 @@ wl_iw_set_wpaauth(struct net_device *dev,
 #endif
 		WL_INFORM(("%s: %d: setting wpa_auth to 0x%0x\n", __func__,
 			   __LINE__, val));
-		if ((error = dev_wlc_intvar_set(dev, "wpa_auth", val)))
+		error = dev_wlc_intvar_set(dev, "wpa_auth", val);
+		if (error)
 			return error;
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
@@ -2773,28 +2815,30 @@ wl_iw_set_wpaauth(struct net_device *dev,
 			WL_WSEC(("%s: %s: 'Privacy invoked' TRUE but clearing "
 				"wsec, assuming " "we're a WPS enrollee\n",
 				dev->name, __func__));
-			if ((error =
-			     dev_wlc_intvar_set(dev, "is_WPS_enrollee",
-						TRUE))) {
+			error = dev_wlc_intvar_set(dev, "is_WPS_enrollee",
+							TRUE);
+			if (error) {
 				WL_WSEC(("Failed to set is_WPS_enrollee\n"));
 				return error;
 			}
 		} else if (val) {
-			if ((error =
-			     dev_wlc_intvar_set(dev, "is_WPS_enrollee",
-						FALSE))) {
+			error = dev_wlc_intvar_set(dev, "is_WPS_enrollee",
+							FALSE);
+			if (error) {
 				WL_WSEC(("Failed to clear is_WPS_enrollee\n"));
 				return error;
 			}
 		}
 
-		if ((error = dev_wlc_intvar_set(dev, "wsec", val)))
+		error = dev_wlc_intvar_set(dev, "wsec", val);
+		if (error)
 			return error;
 
 		break;
 
 	case IW_AUTH_KEY_MGMT:
-		if ((error = dev_wlc_intvar_get(dev, "wpa_auth", &val)))
+		error = dev_wlc_intvar_get(dev, "wpa_auth", &val);
+		if (error)
 			return error;
 
 		if (val & (WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED)) {
@@ -2813,7 +2857,8 @@ wl_iw_set_wpaauth(struct net_device *dev,
 #endif
 		WL_INFORM(("%s: %d: setting wpa_auth to %d\n", __func__,
 			   __LINE__, val));
-		if ((error = dev_wlc_intvar_set(dev, "wpa_auth", val)))
+		error = dev_wlc_intvar_set(dev, "wpa_auth", val);
+		if (error)
 			return error;
 
 		break;
@@ -2833,15 +2878,19 @@ wl_iw_set_wpaauth(struct net_device *dev,
 			val = 2;
 		else
 			error = 1;
-		if (!error && (error = dev_wlc_intvar_set(dev, "auth", val)))
-			return error;
+		if (!error) {
+			error = dev_wlc_intvar_set(dev, "auth", val);
+			if (error)
+				return error;
+		}
 		break;
 
 	case IW_AUTH_WPA_ENABLED:
 		if (paramval == 0) {
 			iw->pwsec = 0;
 			iw->gwsec = 0;
-			if ((error = dev_wlc_intvar_get(dev, "wsec", &val)))
+			error = dev_wlc_intvar_get(dev, "wsec", &val);
+			if (error)
 				return error;
 			if (val & (TKIP_ENABLED | AES_ENABLED)) {
 				val &= ~(TKIP_ENABLED | AES_ENABLED);
@@ -2874,31 +2923,33 @@ wl_iw_set_wpaauth(struct net_device *dev,
 
 			if (paramval == 0) {
 				iw->privacy_invoked = FALSE;
-				if ((error =
-				     dev_wlc_intvar_set(dev, "is_WPS_enrollee",
-							FALSE))) {
+				error = dev_wlc_intvar_set(dev,
+						"is_WPS_enrollee", FALSE);
+				if (error) {
 					WL_WSEC(("Failed to clear iovar "
 						"is_WPS_enrollee\n"));
 					return error;
 				}
 			} else {
 				iw->privacy_invoked = TRUE;
-				if ((error =
-				     dev_wlc_intvar_get(dev, "wsec", &wsec)))
+				error = dev_wlc_intvar_get(dev, "wsec", &wsec);
+				if (error)
 					return error;
 
 				if (!(IW_WSEC_ENABLED(wsec))) {
-					if ((error =
-					     dev_wlc_intvar_set(dev,
-						"is_WPS_enrollee", TRUE))) {
+					error = dev_wlc_intvar_set(dev,
+							"is_WPS_enrollee",
+							TRUE);
+					if (error) {
 						WL_WSEC(("Failed to set iovar "
 						"is_WPS_enrollee\n"));
 						return error;
 					}
 				} else {
-					if ((error =
-					     dev_wlc_intvar_set(dev,
-						"is_WPS_enrollee", FALSE))) {
+					error = dev_wlc_intvar_set(dev,
+							"is_WPS_enrollee",
+							FALSE);
+					if (error) {
 						WL_WSEC(("Failed to clear "
 							"is_WPS_enrollee\n"));
 						return error;
@@ -2937,7 +2988,8 @@ wl_iw_get_wpaauth(struct net_device *dev,
 
 	switch (paramid) {
 	case IW_AUTH_WPA_VERSION:
-		if ((error = dev_wlc_intvar_get(dev, "wpa_auth", &val)))
+		error = dev_wlc_intvar_get(dev, "wpa_auth", &val);
+		if (error)
 			return error;
 		if (val & (WPA_AUTH_NONE | WPA_AUTH_DISABLED))
 			paramval = IW_AUTH_WPA_VERSION_DISABLED;
@@ -2969,7 +3021,8 @@ wl_iw_get_wpaauth(struct net_device *dev,
 			paramval = IW_AUTH_CIPHER_NONE;
 		break;
 	case IW_AUTH_KEY_MGMT:
-		if ((error = dev_wlc_intvar_get(dev, "wpa_auth", &val)))
+		error = dev_wlc_intvar_get(dev, "wpa_auth", &val);
+		if (error)
 			return error;
 		if (VAL_PSK(val))
 			paramval = IW_AUTH_KEY_MGMT_PSK;
@@ -2992,7 +3045,8 @@ wl_iw_get_wpaauth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		if ((error = dev_wlc_intvar_get(dev, "auth", &val)))
+		error = dev_wlc_intvar_get(dev, "auth", &val);
+		if (error)
 			return error;
 		if (!val)
 			paramval = IW_AUTH_ALG_OPEN_SYSTEM;
@@ -3000,7 +3054,8 @@ wl_iw_get_wpaauth(struct net_device *dev,
 			paramval = IW_AUTH_ALG_SHARED_KEY;
 		break;
 	case IW_AUTH_WPA_ENABLED:
-		if ((error = dev_wlc_intvar_get(dev, "wpa_auth", &val)))
+		error = dev_wlc_intvar_get(dev, "wpa_auth", &val);
+		if (error)
 			return error;
 		if (val)
 			paramval = TRUE;
@@ -3130,10 +3185,17 @@ int wl_iw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	WL_TRACE(("\n%s, cmd:%x alled via dhd->do_ioctl()entry point\n",
 		  __func__, cmd));
-	if (cmd < SIOCIWFIRST || IW_IOCTL_IDX(cmd) >= ARRAYSIZE(wl_iw_handler)
-	    || !(handler = wl_iw_handler[IW_IOCTL_IDX(cmd)])) {
-		WL_ERROR(("%s: error in cmd=%x : not supported\n", __func__,
-			  cmd));
+	if (cmd < SIOCIWFIRST ||
+		IW_IOCTL_IDX(cmd) >= ARRAYSIZE(wl_iw_handler)) {
+		WL_ERROR(("%s: error in cmd=%x : out of range\n", __func__,
+			cmd));
+		return -EOPNOTSUPP;
+	}
+
+	handler = wl_iw_handler[IW_IOCTL_IDX(cmd)];
+	if (!handler) {
+		WL_ERROR(("%s: error in cmd=%x : not supported\n",
+			__func__, cmd));
 		return -EOPNOTSUPP;
 	}
 
@@ -3203,7 +3265,8 @@ int wl_iw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			__func__, cmd, wrq->u.data.length, max_tokens));
 			return -E2BIG;
 		}
-		if (!(extra = kmalloc(max_tokens * token_size, GFP_KERNEL)))
+		extra = kmalloc(max_tokens * token_size, GFP_KERNEL);
+		if (!extra)
 			return -ENOMEM;
 
 		if (copy_from_user
@@ -3542,17 +3605,17 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 	scb_val_t scb_val;
 
 	phy_noise = 0;
-	if ((res =
-	     dev_wlc_ioctl(dev, WLC_GET_PHY_NOISE, &phy_noise,
-			   sizeof(phy_noise))))
+	res = dev_wlc_ioctl(dev, WLC_GET_PHY_NOISE, &phy_noise,
+				sizeof(phy_noise));
+	if (res)
 		goto done;
 
 	phy_noise = dtoh32(phy_noise);
 	WL_TRACE(("wl_iw_get_wireless_stats phy noise=%d\n", phy_noise));
 
 	bzero(&scb_val, sizeof(scb_val_t));
-	if ((res =
-	     dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t))))
+	res = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t));
+	if (res)
 		goto done;
 
 	rssi = dtoh32(scb_val.val);
