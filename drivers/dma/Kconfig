@@ -195,6 +195,14 @@ config PCH_DMA
 	help
 	  Enable support for the Topcliff PCH DMA engine.
 
+config IMX_SDMA
+	tristate "i.MX SDMA support"
+	depends on ARCH_MX25 || ARCH_MX3 || ARCH_MX5
+	select DMA_ENGINE
+	help
+	  Support the i.MX SDMA engine. This engine is integrated into
+	  Freescale i.MX25/31/35/51 chips.
+
 config DMA_ENGINE
 	bool
 
