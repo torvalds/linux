@@ -724,7 +724,8 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	/* Send down the multicast list first. */
 
 	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETHER_ADDR_LEN);
-	if (!(bufp = buf = MALLOC(dhd->pub.osh, buflen))) {
+	bufp = buf = MALLOC(dhd->pub.osh, buflen);
+	if (!bufp) {
 		DHD_ERROR(("%s: out of memory for mcast_list, cnt %d\n",
 			   dhd_ifname(&dhd->pub, ifidx), cnt));
 		return;
@@ -766,7 +767,8 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	 */
 
 	buflen = sizeof("allmulti") + sizeof(allmulti);
-	if (!(buf = MALLOC(dhd->pub.osh, buflen))) {
+	buf = MALLOC(dhd->pub.osh, buflen);
+	if (!buf) {
 		DHD_ERROR(("%s: out of memory for allmulti\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
 		return;
@@ -876,14 +878,16 @@ static void dhd_op_if(dhd_if_t *ifp)
 			free_netdev(ifp->net);
 		}
 		/* Allocate etherdev, including space for private structure */
-		if (!(ifp->net = alloc_etherdev(sizeof(dhd)))) {
+		ifp->net = alloc_etherdev(sizeof(dhd));
+		if (!ifp->net) {
 			DHD_ERROR(("%s: OOM - alloc_etherdev\n", __func__));
 			ret = -ENOMEM;
 		}
 		if (ret == 0) {
 			strcpy(ifp->net->name, ifp->name);
 			memcpy(netdev_priv(ifp->net), &dhd, sizeof(dhd));
-			if ((err = dhd_net_attach(&dhd->pub, ifp->idx)) != 0) {
+			err = dhd_net_attach(&dhd->pub, ifp->idx);
+			if (err != 0) {
 				DHD_ERROR(("%s: dhd_net_attach failed, "
 					"err %d\n",
 					__func__, err));
@@ -1098,7 +1102,8 @@ static int dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 		dhd->pub.tx_realloc++;
 		skb2 = skb_realloc_headroom(skb, dhd->pub.hdrlen);
 		dev_kfree_skb(skb);
-		if ((skb = skb2) == NULL) {
+		skb = skb2;
+		if (skb == NULL) {
 			DHD_ERROR(("%s: skb_realloc_headroom failed\n",
 				   dhd_ifname(&dhd->pub, ifidx)));
 			ret = -ENOMEM;
@@ -1107,7 +1112,8 @@ static int dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 	}
 
 	/* Convert to packet */
-	if (!(pktbuf = PKTFRMNATIVE(dhd->pub.osh, skb))) {
+	pktbuf = PKTFRMNATIVE(dhd->pub.osh, skb);
+	if (!pktbuf) {
 		DHD_ERROR(("%s: PKTFRMNATIVE failed\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
 		dev_kfree_skb_any(skb);
@@ -1437,8 +1443,8 @@ static int dhd_toe_get(dhd_info_t *dhd, int ifidx, uint32 *toe_ol)
 	ioc.set = FALSE;
 
 	strcpy(buf, "toe_ol");
-	if ((ret =
-	     dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len)) < 0) {
+	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	if (ret < 0) {
 		/* Check for older dongle image that doesn't support toe_ol */
 		if (ret == -EIO) {
 			DHD_ERROR(("%s: toe not supported by device\n",
@@ -1475,8 +1481,8 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, uint32 toe_ol)
 	strcpy(buf, "toe_ol");
 	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(uint32));
 
-	if ((ret =
-	     dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len)) < 0) {
+	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	if (ret < 0) {
 		DHD_ERROR(("%s: could not set toe_ol: ret=%d\n",
 			   dhd_ifname(&dhd->pub, ifidx), ret));
 		return ret;
@@ -1489,8 +1495,8 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, uint32 toe_ol)
 	strcpy(buf, "toe");
 	memcpy(&buf[sizeof("toe")], &toe, sizeof(uint32));
 
-	if ((ret =
-	     dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len)) < 0) {
+	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	if (ret < 0) {
 		DHD_ERROR(("%s: could not set toe: ret=%d\n",
 			   dhd_ifname(&dhd->pub, ifidx), ret));
 		return ret;
@@ -1571,7 +1577,8 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 		/* Get toe offload components from dongle */
 	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_GTXCSUM:
-		if ((ret = dhd_toe_get(dhd, 0, &toe_cmpnt)) < 0)
+		ret = dhd_toe_get(dhd, 0, &toe_cmpnt);
+		if (ret < 0)
 			return ret;
 
 		csum_dir =
@@ -1591,7 +1598,8 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 			return -EFAULT;
 
 		/* Read the current settings, update and write back */
-		if ((ret = dhd_toe_get(dhd, 0, &toe_cmpnt)) < 0)
+		ret = dhd_toe_get(dhd, 0, &toe_cmpnt);
+		if (ret < 0)
 			return ret;
 
 		csum_dir =
@@ -1602,7 +1610,8 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 		else
 			toe_cmpnt &= ~csum_dir;
 
-		if ((ret = dhd_toe_set(dhd, 0, toe_cmpnt)) < 0)
+		ret = dhd_toe_set(dhd, 0, toe_cmpnt);
+		if (ret < 0)
 			return ret;
 
 		/* If setting TX checksum mode, tell Linux the new mode */
@@ -1674,7 +1683,8 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		   } else {
 		 */
 		{
-			if (!(buf = (char *)MALLOC(dhd->pub.osh, buflen))) {
+			buf = (char *)MALLOC(dhd->pub.osh, buflen);
+			if (!buf) {
 				bcmerror = -BCME_NOMEM;
 				goto done;
 			}
@@ -1788,7 +1798,8 @@ static int dhd_open(struct net_device *net)
 	if (ifidx == 0) {	/* do it only for primary eth0 */
 
 		/* try to bring up bus */
-		if ((ret = dhd_bus_start(&dhd->pub)) != 0) {
+		ret = dhd_bus_start(&dhd->pub);
+		if (ret != 0) {
 			DHD_ERROR(("%s: failed with code %d\n", __func__, ret));
 			return -1;
 		}
@@ -1904,13 +1915,15 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		strcpy(nv_path, nvram_path);
 
 	/* Allocate etherdev, including space for private structure */
-	if (!(net = alloc_etherdev(sizeof(dhd)))) {
+	net = alloc_etherdev(sizeof(dhd));
+	if (!net) {
 		DHD_ERROR(("%s: OOM - alloc_etherdev\n", __func__));
 		goto fail;
 	}
 
 	/* Allocate primary dhd_info */
-	if (!(dhd = MALLOC(osh, sizeof(dhd_info_t)))) {
+	dhd = MALLOC(osh, sizeof(dhd_info_t));
+	if (!dhd) {
 		DHD_ERROR(("%s: OOM - alloc dhd_info\n", __func__));
 		goto fail;
 	}
@@ -2096,7 +2109,8 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
 
 	/* Bring up the bus */
-	if ((ret = dhd_bus_init(&dhd->pub, TRUE)) != 0) {
+	ret = dhd_bus_init(&dhd->pub, TRUE);
+	if (ret != 0) {
 		DHD_ERROR(("%s, dhd_bus_init failed %d\n", __func__, ret));
 		return ret;
 	}
@@ -2156,7 +2170,8 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 #endif				/* EMBEDDED_PLATFORM */
 
 	/* Bus is ready, do any protocol initialization */
-	if ((ret = dhd_prot_init(&dhd->pub)) < 0)
+	ret = dhd_prot_init(&dhd->pub);
+	if (ret < 0)
 		return ret;
 
 	return 0;
