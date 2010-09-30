@@ -188,6 +188,31 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_gem_object_info(struct seq_file *m, void* data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(m, "%u objects\n", dev_priv->mm.object_count);
+	seq_printf(m, "%zu object bytes\n", dev_priv->mm.object_memory);
+	seq_printf(m, "%u pinned\n", dev_priv->mm.pin_count);
+	seq_printf(m, "%zu pin bytes\n", dev_priv->mm.pin_memory);
+	seq_printf(m, "%u objects in gtt\n", dev_priv->mm.gtt_count);
+	seq_printf(m, "%zu gtt bytes\n", dev_priv->mm.gtt_memory);
+	seq_printf(m, "%zu gtt total\n", dev_priv->mm.gtt_total);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+
 static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -994,6 +1019,7 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 
 static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0, 0},
+	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_render_active", i915_gem_object_list_info, 0, (void *) RENDER_LIST},
 	{"i915_gem_bsd_active", i915_gem_object_list_info, 0, (void *) BSD_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},

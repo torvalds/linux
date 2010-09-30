@@ -55,7 +55,6 @@ static struct drm_info_list drm_proc_list[] = {
 	{"queues", drm_queues_info, 0},
 	{"bufs", drm_bufs_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
-	{"gem_objects", drm_gem_object_info, DRIVER_GEM},
 #if DRM_DEBUG_CODE
 	{"vma", drm_vma_info, 0},
 #endif

@@ -642,6 +642,15 @@ typedef struct drm_i915_private {
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 
 		uint32_t flush_rings;
+
+		/* accounting, useful for userland debugging */
+		size_t object_memory;
+		size_t pin_memory;
+		size_t gtt_memory;
+		size_t gtt_total;
+		u32 object_count;
+		u32 pin_count;
+		u32 gtt_count;
 	} mm;
 	struct sdvo_device_mapping sdvo_mappings[2];
 	/* indicate whether the LVDS_BORDER should be enabled or not */

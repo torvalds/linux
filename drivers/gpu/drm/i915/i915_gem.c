@@ -68,6 +68,49 @@ i915_gem_object_put_pages(struct drm_gem_object *obj);
 static LIST_HEAD(shrink_list);
 static DEFINE_SPINLOCK(shrink_list_lock);
 
+/* some bookkeeping */
+static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
+				  size_t size)
+{
+	dev_priv->mm.object_count++;
+	dev_priv->mm.object_memory += size;
+}
+
+static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
+				     size_t size)
+{
+	dev_priv->mm.object_count--;
+	dev_priv->mm.object_memory -= size;
+}
+
+static void i915_gem_info_add_gtt(struct drm_i915_private *dev_priv,
+				  size_t size)
+{
+	dev_priv->mm.gtt_count++;
+	dev_priv->mm.gtt_memory += size;
+}
+
+static void i915_gem_info_remove_gtt(struct drm_i915_private *dev_priv,
+				     size_t size)
+{
+	dev_priv->mm.gtt_count--;
+	dev_priv->mm.gtt_memory -= size;
+}
+
+static void i915_gem_info_add_pin(struct drm_i915_private *dev_priv,
+				  size_t size)
+{
+	dev_priv->mm.pin_count++;
+	dev_priv->mm.pin_memory += size;
+}
+
+static void i915_gem_info_remove_pin(struct drm_i915_private *dev_priv,
+				     size_t size)
+{
+	dev_priv->mm.pin_count--;
+	dev_priv->mm.pin_memory -= size;
+}
+
 int
 i915_gem_check_is_wedged(struct drm_device *dev)
 {
@@ -128,7 +171,8 @@ i915_gem_object_is_inactive(struct drm_i915_gem_object *obj_priv)
 		obj_priv->pin_count == 0;
 }
 
-int i915_gem_do_init(struct drm_device *dev, unsigned long start,
+int i915_gem_do_init(struct drm_device *dev,
+		     unsigned long start,
 		     unsigned long end)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -142,7 +186,7 @@ int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 	drm_mm_init(&dev_priv->mm.gtt_space, start,
 		    end - start);
 
-	dev->gtt_total = (uint32_t) (end - start);
+	dev_priv->mm.gtt_total = end - start;
 
 	return 0;
 }
@@ -165,14 +209,16 @@ int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_get_aperture *args = data;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
-	args->aper_size = dev->gtt_total;
-	args->aper_available_size = (args->aper_size -
-				     atomic_read(&dev->pin_memory));
+	mutex_lock(&dev->struct_mutex);
+	args->aper_size = dev_priv->mm.gtt_total;
+	args->aper_available_size = args->aper_size - dev_priv->mm.pin_memory;
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2084,6 +2130,7 @@ int
 i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret = 0;
 
@@ -2116,24 +2163,17 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
 
-	if (obj_priv->agp_mem != NULL) {
-		drm_unbind_agp(obj_priv->agp_mem);
-		drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
-		obj_priv->agp_mem = NULL;
-	}
+	drm_unbind_agp(obj_priv->agp_mem);
+	drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
 
 	i915_gem_object_put_pages(obj);
 	BUG_ON(obj_priv->pages_refcount);
 
-	if (obj_priv->gtt_space) {
-		atomic_dec(&dev->gtt_count);
-		atomic_sub(obj->size, &dev->gtt_memory);
-
-		drm_mm_put_block(obj_priv->gtt_space);
-		obj_priv->gtt_space = NULL;
-	}
-
+	i915_gem_info_remove_gtt(dev_priv, obj->size);
 	list_del_init(&obj_priv->list);
+
+	drm_mm_put_block(obj_priv->gtt_space);
+	obj_priv->gtt_space = NULL;
 
 	if (i915_gem_object_is_purgeable(obj_priv))
 		i915_gem_object_truncate(obj);
@@ -2619,7 +2659,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	/* If the object is bigger than the entire aperture, reject it early
 	 * before evicting everything in a vain attempt to find space.
 	 */
-	if (obj->size > dev->gtt_total) {
+	if (obj->size > dev_priv->mm.gtt_total) {
 		DRM_ERROR("Attempting to bind an object larger than the aperture\n");
 		return -E2BIG;
 	}
@@ -2688,11 +2728,10 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 
 		goto search_free;
 	}
-	atomic_inc(&dev->gtt_count);
-	atomic_add(obj->size, &dev->gtt_memory);
 
 	/* keep track of bounds object by adding it to the inactive list */
 	list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
+	i915_gem_info_add_gtt(dev_priv, obj->size);
 
 	/* Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
@@ -3779,15 +3818,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 					  pinned+1, args->buffer_count,
 					  total_size, num_fences,
 					  ret);
-				DRM_ERROR("%d objects [%d pinned], "
-					  "%d object bytes [%d pinned], "
-					  "%d/%d gtt bytes\n",
-					  atomic_read(&dev->object_count),
-					  atomic_read(&dev->pin_count),
-					  atomic_read(&dev->object_memory),
-					  atomic_read(&dev->pin_memory),
-					  atomic_read(&dev->gtt_memory),
-					  dev->gtt_total);
+				DRM_ERROR("%u objects [%u pinned, %u GTT], "
+					  "%zu object bytes [%zu pinned], "
+					  "%zu /%zu gtt bytes\n",
+					  dev_priv->mm.object_count,
+					  dev_priv->mm.pin_count,
+					  dev_priv->mm.gtt_count,
+					  dev_priv->mm.object_memory,
+					  dev_priv->mm.pin_memory,
+					  dev_priv->mm.gtt_memory,
+					  dev_priv->mm.gtt_total);
 			}
 			goto err;
 		}
@@ -4119,8 +4159,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	 * remove it from the inactive list
 	 */
 	if (obj_priv->pin_count == 1) {
-		atomic_inc(&dev->pin_count);
-		atomic_add(obj->size, &dev->pin_memory);
+		i915_gem_info_add_pin(dev_priv, obj->size);
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->list,
 				       &dev_priv->mm.pinned_list);
@@ -4150,8 +4189,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->list,
 				       &dev_priv->mm.inactive_list);
-		atomic_dec(&dev->pin_count);
-		atomic_sub(obj->size, &dev->pin_memory);
+		i915_gem_info_remove_pin(dev_priv, obj->size);
 	}
 	WARN_ON(i915_verify_lists(dev));
 }
@@ -4378,6 +4416,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 					      size_t size)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
@@ -4388,6 +4427,8 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 		kfree(obj);
 		return NULL;
 	}
+
+	i915_gem_info_add_obj(dev_priv, size);
 
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
@@ -4429,6 +4470,7 @@ static void i915_gem_free_object_tail(struct drm_gem_object *obj)
 		i915_gem_free_mmap_offset(obj);
 
 	drm_gem_object_release(obj);
+	i915_gem_info_remove_obj(dev_priv, obj->size);
 
 	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
