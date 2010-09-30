@@ -636,6 +636,9 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	wl1271_info("Hardware recovery in progress.");
 
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		ieee80211_connection_loss(wl->vif);
+
 	/* reboot the chipset */
 	__wl1271_op_remove_interface(wl);
 	ieee80211_restart_hw(wl->hw);
