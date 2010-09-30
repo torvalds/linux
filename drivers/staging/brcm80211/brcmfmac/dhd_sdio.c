@@ -1241,7 +1241,8 @@ int dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 
 	/* Add alignment padding (optional for ctl frames) */
 	if (dhd_alignctl) {
-		if ((doff = ((uintptr) frame % DHD_SDALIGN))) {
+		doff = ((uintptr) frame % DHD_SDALIGN);
+		if (doff) {
 			frame -= doff;
 			len += doff;
 			msglen += doff;
@@ -1758,9 +1759,8 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 
 	/* Read last word in memory to determine address of
 			 sdpcm_shared structure */
-	if ((rv =
-	     dhdsdio_membytes(bus, FALSE, bus->ramsize - 4, (uint8 *)&addr,
-			      4)) < 0)
+	rv = dhdsdio_membytes(bus, FALSE, bus->ramsize - 4, (uint8 *)&addr, 4);
+	if (rv < 0)
 		return rv;
 
 	addr = ltoh32(addr);
@@ -1831,13 +1831,15 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 		}
 	}
 
-	if ((str = MALLOC(bus->dhd->osh, maxstrlen)) == NULL) {
+	str = MALLOC(bus->dhd->osh, maxstrlen);
+	if (str == NULL) {
 		DHD_ERROR(("%s: MALLOC(%d) failed\n", __func__, maxstrlen));
 		bcmerror = BCME_NOMEM;
 		goto done;
 	}
 
-	if ((bcmerror = dhdsdio_readshared(bus, &sdpcm_shared)) < 0)
+	bcmerror = dhdsdio_readshared(bus, &sdpcm_shared);
+	if (bcmerror < 0)
 		goto done;
 
 	bcm_binit(&strbuf, data, size);
@@ -1869,10 +1871,10 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 			bcm_bprintf(&strbuf, "Dongle assert");
 			if (sdpcm_shared.assert_exp_addr != 0) {
 				str[0] = '\0';
-				if ((bcmerror = dhdsdio_membytes(bus, FALSE,
-					 sdpcm_shared.assert_exp_addr,
-					 (uint8 *) str,
-					 maxstrlen)) < 0)
+				bcmerror = dhdsdio_membytes(bus, FALSE,
+						sdpcm_shared.assert_exp_addr,
+						(uint8 *) str, maxstrlen);
+				if (bcmerror < 0)
 					goto done;
 
 				str[maxstrlen - 1] = '\0';
@@ -1881,10 +1883,10 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 
 			if (sdpcm_shared.assert_file_addr != 0) {
 				str[0] = '\0';
-				if ((bcmerror = dhdsdio_membytes(bus, FALSE,
-					 sdpcm_shared.assert_file_addr,
-					 (uint8 *) str,
-					 maxstrlen)) < 0)
+				bcmerror = dhdsdio_membytes(bus, FALSE,
+						sdpcm_shared.assert_file_addr,
+						(uint8 *) str, maxstrlen);
+				if (bcmerror < 0)
 					goto done;
 
 				str[maxstrlen - 1] = '\0';
@@ -1896,10 +1898,10 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 		}
 
 		if (sdpcm_shared.flags & SDPCM_SHARED_TRAP) {
-			if ((bcmerror = dhdsdio_membytes(bus, FALSE,
-				 sdpcm_shared.trap_addr,
-				 (uint8 *)&tr,
-				 sizeof(trap_t))) < 0)
+			bcmerror = dhdsdio_membytes(bus, FALSE,
+					sdpcm_shared.trap_addr, (uint8 *)&tr,
+					sizeof(trap_t));
+			if (bcmerror < 0)
 				goto done;
 
 			bcm_bprintf(&strbuf,
@@ -1994,15 +1996,16 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 
 	/* Read console log struct */
 	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, log);
-	if ((rv =
-	     dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&c->log,
-			      sizeof(c->log))) < 0)
+	rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&c->log,
+				sizeof(c->log));
+	if (rv < 0)
 		return rv;
 
 	/* Allocate console buffer (one time only) */
 	if (c->buf == NULL) {
 		c->bufsize = ltoh32(c->log.buf_size);
-		if ((c->buf = MALLOC(bus->dhd->osh, c->bufsize)) == NULL)
+		c->buf = MALLOC(bus->dhd->osh, c->bufsize);
+		if (c->buf == NULL)
 			return BCME_NOMEM;
 	}
 
@@ -4654,9 +4657,10 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 
 		/* Allocate an appropriate-sized packet */
 		len = bus->pktgen_len;
-		if (!(pkt = PKTGET(osh,
-			    (len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN +
-			     DHD_SDALIGN), TRUE))) {
+		pkt = PKTGET(osh,
+			(len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN),
+			TRUE);
+		if (!pkt) {
 			DHD_ERROR(("%s: PKTGET failed!\n", __func__));
 			break;
 		}
@@ -4733,10 +4737,9 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 	osl_t *osh = bus->dhd->osh;
 
 	/* Allocate the packet */
-	if (!
-	    (pkt =
-	     PKTGET(osh, SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN,
-		    TRUE))) {
+	pkt = PKTGET(osh, SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN,
+			TRUE);
+	if (!pkt) {
 		DHD_ERROR(("%s: PKTGET failed!\n", __func__));
 		return;
 	}
@@ -4979,29 +4982,28 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, uchar *msg, uint msglen)
 	/* Zero cbuf_index */
 	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, cbuf_idx);
 	val = htol32(0);
-	if ((rv =
-	     dhdsdio_membytes(bus, TRUE, addr, (uint8 *)&val,
-			      sizeof(val))) < 0)
+	rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)&val, sizeof(val));
+	if (rv < 0)
 		goto done;
 
 	/* Write message into cbuf */
 	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, cbuf);
-	if ((rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)msg, msglen)) < 0)
+	rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)msg, msglen);
+	if (rv < 0)
 		goto done;
 
 	/* Write length into vcons_in */
 	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, vcons_in);
 	val = htol32(msglen);
-	if ((rv =
-	     dhdsdio_membytes(bus, TRUE, addr, (uint8 *)&val,
-			      sizeof(val))) < 0)
+	rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)&val, sizeof(val));
+	if (rv < 0)
 		goto done;
 
 	/* Bump dongle by sending an empty event pkt.
 	 * sdpcm_sendup (RX) checks for virtual console input.
 	 */
-	if (((pkt = PKTGET(bus->dhd->osh, 4 + SDPCM_RESERVE, TRUE)) != NULL) &&
-	    bus->clkstate == CLK_AVAIL)
+	pkt = PKTGET(bus->dhd->osh, 4 + SDPCM_RESERVE, TRUE);
+	if ((pkt != NULL) && bus->clkstate == CLK_AVAIL)
 		dhdsdio_txpkt(bus, pkt, SDPCM_EVENT_CHANNEL, TRUE);
 
 done:
@@ -5197,7 +5199,8 @@ static void *dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no,
 	DHD_INFO(("%s: completed!!\n", __func__));
 
 	/* if firmware path present try to download and bring up bus */
-	if ((ret = dhd_bus_start(bus->dhd)) != 0) {
+	ret = dhd_bus_start(bus->dhd);
+	if (ret != 0) {
 		if (ret == BCME_NOTUP) {
 			DHD_ERROR(("%s: dongle is not responding\n", __func__));
 			goto fail;
@@ -5271,16 +5274,17 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 		OSL_DELAY(65);
 
 		for (fn = 0; fn <= numfn; fn++) {
-			if (!(cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT))) {
+			cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT);
+			if (!cis[fn]) {
 				DHD_INFO(("dhdsdio_probe: fn %d cis malloc "
 					"failed\n", fn));
 				break;
 			}
 			bzero(cis[fn], SBSDIO_CIS_SIZE_LIMIT);
 
-			if ((err =
-			     bcmsdh_cis_read(sdh, fn, cis[fn],
-					     SBSDIO_CIS_SIZE_LIMIT))) {
+			err = bcmsdh_cis_read(sdh, fn, cis[fn],
+						SBSDIO_CIS_SIZE_LIMIT);
+			if (err) {
 				DHD_INFO(("dhdsdio_probe: fn %d cis read "
 					"err %d\n", fn, err));
 				MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
@@ -5343,10 +5347,14 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 	}
 
 	/* ...but normally deal with the SDPCMDEV core */
-	if (!(bus->regs = si_setcore(bus->sih, PCMCIA_CORE_ID, 0)) &&
-	    !(bus->regs = si_setcore(bus->sih, SDIOD_CORE_ID, 0))) {
-		DHD_ERROR(("%s: failed to find SDIODEV core!\n", __func__));
-		goto fail;
+	bus->regs = si_setcore(bus->sih, PCMCIA_CORE_ID, 0);
+	if (!bus->regs) {
+		bus->regs = si_setcore(bus->sih, SDIOD_CORE_ID, 0);
+		if (!bus->regs) {
+			DHD_ERROR(("%s: failed to find SDIODEV core!\n",
+					__func__));
+			goto fail;
+		}
 	}
 	bus->sdpcmrev = si_corerev(bus->sih);
 
@@ -5360,7 +5368,8 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 
 	/* Set the poll and/or interrupt flags */
 	bus->intr = (bool) dhd_intr;
-	if ((bus->poll = (bool) dhd_poll))
+	bus->poll = (bool) dhd_poll;
+	if (bus->poll)
 		bus->pollrate = 1;
 
 	return TRUE;
