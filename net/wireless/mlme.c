@@ -876,21 +876,53 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC) {
-		/* Verify that we are associated with the destination AP */
+		int err = 0;
+
 		wdev_lock(wdev);
 
-		if (!wdev->current_bss ||
-		    memcmp(wdev->current_bss->pub.bssid, mgmt->bssid,
-			   ETH_ALEN) != 0 ||
-		    ((wdev->iftype == NL80211_IFTYPE_STATION ||
-		      wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
-		     memcmp(wdev->current_bss->pub.bssid, mgmt->da,
-			    ETH_ALEN) != 0)) {
-			wdev_unlock(wdev);
-			return -ENOTCONN;
-		}
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_P2P_CLIENT:
+			if (!wdev->current_bss) {
+				err = -ENOTCONN;
+				break;
+			}
 
+			if (memcmp(wdev->current_bss->pub.bssid,
+				   mgmt->bssid, ETH_ALEN)) {
+				err = -ENOTCONN;
+				break;
+			}
+
+			/*
+			 * check for IBSS DA must be done by driver as
+			 * cfg80211 doesn't track the stations
+			 */
+			if (wdev->iftype == NL80211_IFTYPE_ADHOC)
+				break;
+
+			/* for station, check that DA is the AP */
+			if (memcmp(wdev->current_bss->pub.bssid,
+				   mgmt->da, ETH_ALEN)) {
+				err = -ENOTCONN;
+				break;
+			}
+			break;
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+		case NL80211_IFTYPE_AP_VLAN:
+			if (memcmp(mgmt->bssid, dev->dev_addr, ETH_ALEN))
+				err = -EINVAL;
+			break;
+		default:
+			err = -EOPNOTSUPP;
+			break;
+		}
 		wdev_unlock(wdev);
+
+		if (err)
+			return err;
 	}
 
 	if (memcmp(mgmt->sa, dev->dev_addr, ETH_ALEN) != 0)
