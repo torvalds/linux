@@ -40,13 +40,14 @@ struct ideapad_private {
 
 static struct {
 	char *name;
+	int cfgbit;
 	int type;
 } ideapad_rfk_data[] = {
-	/* camera has no rfkill */
-	{ "ideapad_wlan",	RFKILL_TYPE_WLAN },
-	{ "ideapad_bluetooth",	RFKILL_TYPE_BLUETOOTH },
-	{ "ideapad_3g",		RFKILL_TYPE_WWAN },
-	{ "ideapad_killsw",	RFKILL_TYPE_WLAN }
+	{ "ideapad_camera",	19, NUM_RFKILL_TYPES },
+	{ "ideapad_wlan",	18, RFKILL_TYPE_WLAN },
+	{ "ideapad_bluetooth",	16, RFKILL_TYPE_BLUETOOTH },
+	{ "ideapad_3g",		17, RFKILL_TYPE_WWAN },
+	{ "ideapad_killsw",	0, RFKILL_TYPE_WLAN }
 };
 
 /*
@@ -157,32 +158,6 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 	return -1;
 }
 /* the above is ACPI helpers */
-
-static int ideapad_dev_exists(int device)
-{
-	acpi_status status;
-	union acpi_object in_param;
-	struct acpi_object_list input = { 1, &in_param };
-	struct acpi_buffer output;
-	union acpi_object out_obj;
-
-	output.length = sizeof(out_obj);
-	output.pointer = &out_obj;
-
-	in_param.type = ACPI_TYPE_INTEGER;
-	in_param.integer.value = device + 1;
-
-	status = acpi_evaluate_object(NULL, "\\_SB_.DECN", &input, &output);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_WARNING "IdeaPAD \\_SB_.DECN method failed %d. Is this an IdeaPAD?\n", status);
-		return -ENODEV;
-	}
-	if (out_obj.type != ACPI_TYPE_INTEGER) {
-		printk(KERN_WARNING "IdeaPAD \\_SB_.DECN method returned unexpected type\n");
-		return -ENODEV;
-	}
-	return out_obj.integer.value;
-}
 
 static int ideapad_dev_get_state(int device)
 {
@@ -334,9 +309,10 @@ static int ideapad_acpi_add(struct acpi_device *adevice)
 		return -ENODEV;
 
 	for (i = IDEAPAD_DEV_CAMERA; i < IDEAPAD_DEV_KILLSW; i++) {
-		devs_present[i] = ideapad_dev_exists(i);
-		if (devs_present[i] < 0)
-			return devs_present[i];
+		if (test_bit(ideapad_rfk_data[i].cfgbit, (unsigned long *)&cfg))
+			devs_present[i] = 1;
+		else
+			devs_present[i] = 0;
 	}
 
 	/* The hardware switch is always present */
