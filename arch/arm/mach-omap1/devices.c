@@ -232,3 +232,30 @@ static int __init omap1_init_devices(void)
 }
 arch_initcall(omap1_init_devices);
 
+#if defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
+
+static struct resource wdt_resources[] = {
+	{
+		.start		= 0xfffeb000,
+		.end		= 0xfffeb07F,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device omap_wdt_device = {
+	.name	   = "omap_wdt",
+	.id	     = -1,
+	.num_resources	= ARRAY_SIZE(wdt_resources),
+	.resource	= wdt_resources,
+};
+
+static int __init omap_init_wdt(void)
+{
+	if (!cpu_is_omap16xx())
+		return;
+
+	platform_device_register(&omap_wdt_device);
+	return 0;
+}
+subsys_initcall(omap_init_wdt);
+#endif
