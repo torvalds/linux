@@ -41,6 +41,14 @@ void gic_cpu_init(unsigned int gic_nr, void __iomem *base);
 void gic_cpu_exit(unsigned int gic_nr);
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
 void gic_raise_softirq(const struct cpumask *mask, unsigned int irq);
+
+void gic_ack_irq(unsigned int irq);
+void gic_mask_irq(unsigned int irq);
+void gic_unmask_irq(unsigned int irq);
+int gic_set_type(unsigned int irq, unsigned int type);
+#ifdef CONFIG_SMP
+int gic_set_cpu(unsigned int irq, const struct cpumask *mask_val);
+#endif
 #endif
 
 #endif
