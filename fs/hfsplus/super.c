@@ -33,11 +33,11 @@ struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
 	if (!(inode->i_state & I_NEW))
 		return inode;
 
-	INIT_LIST_HEAD(&HFSPLUS_I(inode).open_dir_list);
-	mutex_init(&HFSPLUS_I(inode).extents_lock);
-	HFSPLUS_I(inode).flags = 0;
-	HFSPLUS_I(inode).rsrc_inode = NULL;
-	atomic_set(&HFSPLUS_I(inode).opencnt, 0);
+	INIT_LIST_HEAD(&HFSPLUS_I(inode)->open_dir_list);
+	mutex_init(&HFSPLUS_I(inode)->extents_lock);
+	HFSPLUS_I(inode)->flags = 0;
+	HFSPLUS_I(inode)->rsrc_inode = NULL;
+	atomic_set(&HFSPLUS_I(inode)->opencnt, 0);
 
 	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID) {
 	read_inode:
@@ -151,8 +151,8 @@ static void hfsplus_evict_inode(struct inode *inode)
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
 	if (HFSPLUS_IS_RSRC(inode)) {
-		HFSPLUS_I(HFSPLUS_I(inode).rsrc_inode).rsrc_inode = NULL;
-		iput(HFSPLUS_I(inode).rsrc_inode);
+		HFSPLUS_I(HFSPLUS_I(inode)->rsrc_inode)->rsrc_inode = NULL;
+		iput(HFSPLUS_I(inode)->rsrc_inode);
 	}
 }
 
@@ -491,7 +491,7 @@ static struct inode *hfsplus_alloc_inode(struct super_block *sb)
 
 static void hfsplus_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(hfsplus_inode_cachep, &HFSPLUS_I(inode));
+	kmem_cache_free(hfsplus_inode_cachep, HFSPLUS_I(inode));
 }
 
 #define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_inode_info)

@@ -23,13 +23,14 @@
 static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	unsigned int flags = 0;
 
-	if (HFSPLUS_I(inode).rootflags & HFSPLUS_FLG_IMMUTABLE)
+	if (hip->rootflags & HFSPLUS_FLG_IMMUTABLE)
 		flags |= FS_IMMUTABLE_FL;
-	if (HFSPLUS_I(inode).rootflags & HFSPLUS_FLG_APPEND)
+	if (hip->rootflags & HFSPLUS_FLG_APPEND)
 		flags |= FS_APPEND_FL;
-	if (HFSPLUS_I(inode).userflags & HFSPLUS_FLG_NODUMP)
+	if (hip->userflags & HFSPLUS_FLG_NODUMP)
 		flags |= FS_NODUMP_FL;
 
 	return put_user(flags, user_flags);
@@ -38,6 +39,7 @@ static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	unsigned int flags;
 	int err = 0;
 
@@ -58,7 +60,7 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	mutex_lock(&inode->i_mutex);
 
 	if (flags & (FS_IMMUTABLE_FL|FS_APPEND_FL) ||
-	    HFSPLUS_I(inode).rootflags & (HFSPLUS_FLG_IMMUTABLE|HFSPLUS_FLG_APPEND)) {
+	    hip->rootflags & (HFSPLUS_FLG_IMMUTABLE|HFSPLUS_FLG_APPEND)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
 			err = -EPERM;
 			goto out_unlock_inode;
@@ -72,22 +74,22 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	}
 	if (flags & FS_IMMUTABLE_FL) {
 		inode->i_flags |= S_IMMUTABLE;
-		HFSPLUS_I(inode).rootflags |= HFSPLUS_FLG_IMMUTABLE;
+		hip->rootflags |= HFSPLUS_FLG_IMMUTABLE;
 	} else {
 		inode->i_flags &= ~S_IMMUTABLE;
-		HFSPLUS_I(inode).rootflags &= ~HFSPLUS_FLG_IMMUTABLE;
+		hip->rootflags &= ~HFSPLUS_FLG_IMMUTABLE;
 	}
 	if (flags & FS_APPEND_FL) {
 		inode->i_flags |= S_APPEND;
-		HFSPLUS_I(inode).rootflags |= HFSPLUS_FLG_APPEND;
+		hip->rootflags |= HFSPLUS_FLG_APPEND;
 	} else {
 		inode->i_flags &= ~S_APPEND;
-		HFSPLUS_I(inode).rootflags &= ~HFSPLUS_FLG_APPEND;
+		hip->rootflags &= ~HFSPLUS_FLG_APPEND;
 	}
 	if (flags & FS_NODUMP_FL)
-		HFSPLUS_I(inode).userflags |= HFSPLUS_FLG_NODUMP;
+		hip->userflags |= HFSPLUS_FLG_NODUMP;
 	else
-		HFSPLUS_I(inode).userflags &= ~HFSPLUS_FLG_NODUMP;
+		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);

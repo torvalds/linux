@@ -68,8 +68,8 @@ again:
 		cnid = be32_to_cpu(entry.file.id);
 		if (entry.file.user_info.fdType == cpu_to_be32(HFSP_HARDLINK_TYPE) &&
 		    entry.file.user_info.fdCreator == cpu_to_be32(HFSP_HFSPLUS_CREATOR) &&
-		    (entry.file.create_date == HFSPLUS_I(HFSPLUS_SB(sb)->hidden_dir).create_date ||
-		     entry.file.create_date == HFSPLUS_I(sb->s_root->d_inode).create_date) &&
+		    (entry.file.create_date == HFSPLUS_I(HFSPLUS_SB(sb)->hidden_dir)->create_date ||
+		     entry.file.create_date == HFSPLUS_I(sb->s_root->d_inode)->create_date) &&
 		    HFSPLUS_SB(sb)->hidden_dir) {
 			struct qstr str;
 			char name[32];
@@ -102,7 +102,7 @@ again:
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 	if (S_ISREG(inode->i_mode))
-		HFSPLUS_I(inode).dev = linkid;
+		HFSPLUS_I(inode)->dev = linkid;
 out:
 	d_add(dentry, inode);
 	return NULL;
@@ -219,7 +219,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		}
 		filp->private_data = rd;
 		rd->file = filp;
-		list_add(&rd->list, &HFSPLUS_I(inode).open_dir_list);
+		list_add(&rd->list, &HFSPLUS_I(inode)->open_dir_list);
 	}
 	memcpy(&rd->key, fd.key, sizeof(struct hfsplus_cat_key));
 out:
@@ -287,7 +287,7 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 			if (res != -EEXIST)
 				return res;
 		}
-		HFSPLUS_I(inode).dev = id;
+		HFSPLUS_I(inode)->dev = id;
 		cnid = sbi->next_cnid++;
 		src_dentry->d_fsdata = (void *)(unsigned long)cnid;
 		res = hfsplus_create_cat(cnid, src_dir, &src_dentry->d_name, inode);
@@ -326,7 +326,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 
 	cnid = (u32)(unsigned long)dentry->d_fsdata;
 	if (inode->i_ino == cnid &&
-	    atomic_read(&HFSPLUS_I(inode).opencnt)) {
+	    atomic_read(&HFSPLUS_I(inode)->opencnt)) {
 		str.name = name;
 		str.len = sprintf(name, "temp%lu", inode->i_ino);
 		res = hfsplus_rename_cat(inode->i_ino,
@@ -347,7 +347,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 	if (!inode->i_nlink) {
 		if (inode->i_ino != cnid) {
 			sbi->file_count--;
-			if (!atomic_read(&HFSPLUS_I(inode).opencnt)) {
+			if (!atomic_read(&HFSPLUS_I(inode)->opencnt)) {
 				res = hfsplus_delete_cat(inode->i_ino,
 							 sbi->hidden_dir,
 							 NULL);

@@ -187,8 +187,8 @@ struct hfsplus_inode_info {
 #define HFSPLUS_FLG_EXT_DIRTY	0x0002
 #define HFSPLUS_FLG_EXT_NEW	0x0004
 
-#define HFSPLUS_IS_DATA(inode)   (!(HFSPLUS_I(inode).flags & HFSPLUS_FLG_RSRC))
-#define HFSPLUS_IS_RSRC(inode)   (HFSPLUS_I(inode).flags & HFSPLUS_FLG_RSRC)
+#define HFSPLUS_IS_DATA(inode)   (!(HFSPLUS_I(inode)->flags & HFSPLUS_FLG_RSRC))
+#define HFSPLUS_IS_RSRC(inode)   (HFSPLUS_I(inode)->flags & HFSPLUS_FLG_RSRC)
 
 struct hfs_find_data {
 	/* filled by caller */
@@ -379,13 +379,11 @@ static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
-/*
+
 static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 {
 	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
 }
-*/
-#define HFSPLUS_I(inode)	(*list_entry(inode, struct hfsplus_inode_info, vfs_inode))
 
 #if 1
 #define hfsplus_kmap(p)		({ struct page *__p = (p); kmap(__p); })

@@ -192,17 +192,18 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 
 	while (!tree->free_nodes) {
 		struct inode *inode = tree->inode;
+		struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 		u32 count;
 		int res;
 
 		res = hfsplus_file_extend(inode);
 		if (res)
 			return ERR_PTR(res);
-		HFSPLUS_I(inode).phys_size = inode->i_size =
-				(loff_t)HFSPLUS_I(inode).alloc_blocks <<
+		hip->phys_size = inode->i_size =
+			(loff_t)hip->alloc_blocks <<
 				HFSPLUS_SB(tree->sb)->alloc_blksz_shift;
-		HFSPLUS_I(inode).fs_blocks = HFSPLUS_I(inode).alloc_blocks <<
-					     HFSPLUS_SB(tree->sb)->fs_shift;
+		hip->fs_blocks =
+			hip->alloc_blocks << HFSPLUS_SB(tree->sb)->fs_shift;
 		inode_set_bytes(inode, inode->i_size);
 		count = inode->i_size >> tree->node_size_shift;
 		tree->free_nodes = count - tree->node_count;

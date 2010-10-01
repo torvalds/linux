@@ -77,8 +77,8 @@ static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
 		perms->rootflags |= HFSPLUS_FLG_APPEND;
 	else
 		perms->rootflags &= ~HFSPLUS_FLG_APPEND;
-	HFSPLUS_I(inode).rootflags = perms->rootflags;
-	HFSPLUS_I(inode).userflags = perms->userflags;
+	HFSPLUS_I(inode)->rootflags = perms->rootflags;
+	HFSPLUS_I(inode)->userflags = perms->userflags;
 	perms->mode = cpu_to_be16(inode->i_mode);
 	perms->owner = cpu_to_be32(inode->i_uid);
 	perms->group = cpu_to_be32(inode->i_gid);
@@ -95,7 +95,7 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 		memset(folder, 0, sizeof(*folder));
 		folder->type = cpu_to_be16(HFSPLUS_FOLDER);
 		folder->id = cpu_to_be32(inode->i_ino);
-		HFSPLUS_I(inode).create_date =
+		HFSPLUS_I(inode)->create_date =
 			folder->create_date =
 			folder->content_mod_date =
 			folder->attribute_mod_date =
@@ -113,7 +113,7 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 		file->type = cpu_to_be16(HFSPLUS_FILE);
 		file->flags = cpu_to_be16(HFSPLUS_FILE_THREAD_EXISTS);
 		file->id = cpu_to_be32(cnid);
-		HFSPLUS_I(inode).create_date =
+		HFSPLUS_I(inode)->create_date =
 			file->create_date =
 			file->content_mod_date =
 			file->attribute_mod_date =
@@ -133,8 +133,8 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 			file->user_info.fdType = cpu_to_be32(HFSP_HARDLINK_TYPE);
 			file->user_info.fdCreator = cpu_to_be32(HFSP_HFSPLUS_CREATOR);
 			file->user_info.fdFlags = cpu_to_be16(0x100);
-			file->create_date = HFSPLUS_I(sbi->hidden_dir).create_date;
-			file->permissions.dev = cpu_to_be32(HFSPLUS_I(inode).dev);
+			file->create_date = HFSPLUS_I(sbi->hidden_dir)->create_date;
+			file->permissions.dev = cpu_to_be32(HFSPLUS_I(inode)->dev);
 		}
 		return sizeof(*file);
 	}
@@ -279,7 +279,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 		hfsplus_free_fork(sb, cnid, &fork, HFSPLUS_TYPE_RSRC);
 	}
 
-	list_for_each(pos, &HFSPLUS_I(dir).open_dir_list) {
+	list_for_each(pos, &HFSPLUS_I(dir)->open_dir_list) {
 		struct hfsplus_readdir_data *rd =
 			list_entry(pos, struct hfsplus_readdir_data, list);
 		if (fd.tree->keycmp(fd.search_key, (void *)&rd->key) < 0)
