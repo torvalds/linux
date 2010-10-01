@@ -48,8 +48,6 @@ ENTRY(stext)
 	movs	r8, r5				@ invalid machine (r5=0)?
 	beq	__error_a			@ yes, error 'a'
 
-	ldr	r13, __switch_data		@ address to jump to after
-						@ the initialization is done
 	adr	lr, BSYM(__after_proc_init)	@ return (PIC) address
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
@@ -87,8 +85,7 @@ __after_proc_init:
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
 #endif /* CONFIG_CPU_CP15 */
 
-	mov	r3, r13
-	mov	pc, r3				@ clear the BSS and jump
+	b	__mmap_switched			@ clear the BSS and jump
 						@ to start_kernel
 ENDPROC(__after_proc_init)
 	.ltorg
