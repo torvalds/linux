@@ -488,6 +488,8 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
+	struct ath_wiphy *aphy = sc->pri_wiphy;
+	struct ieee80211_channel *chan = aphy->hw->conf.channel;
 	char buf[512];
 	unsigned int len = 0;
 	int i;
@@ -498,7 +500,8 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 			"primary: %s (%s chan=%d ht=%d)\n",
 			wiphy_name(sc->pri_wiphy->hw->wiphy),
 			ath_wiphy_state_str(sc->pri_wiphy->state),
-			sc->pri_wiphy->chan_idx, sc->pri_wiphy->chan_is_ht);
+			ieee80211_frequency_to_channel(chan->center_freq),
+			aphy->chan_is_ht);
 
 	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
@@ -545,11 +548,13 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
 		if (aphy == NULL)
 			continue;
+		chan = aphy->hw->conf.channel;
 		len += snprintf(buf + len, sizeof(buf) - len,
-				"secondary: %s (%s chan=%d ht=%d)\n",
-				wiphy_name(aphy->hw->wiphy),
-				ath_wiphy_state_str(aphy->state),
-				aphy->chan_idx, aphy->chan_is_ht);
+			"secondary: %s (%s chan=%d ht=%d)\n",
+			wiphy_name(aphy->hw->wiphy),
+			ath_wiphy_state_str(aphy->state),
+			ieee80211_frequency_to_channel(chan->center_freq),
+			aphy->chan_is_ht);
 	}
 	if (len > sizeof(buf))
 		len = sizeof(buf);
