@@ -663,7 +663,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op,
 #endif
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
-	const uint *chips_no;
+	const __be32 *chips_no;
 	int resettime = 0;
 	int retval = 0;
 	int rev, len;
@@ -806,7 +806,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op,
 	}
 
 	/* Detect NAND chips */
-	if (nand_scan(mtd, *chips_no)) {
+	if (nand_scan(mtd, be32_to_cpup(chips_no))) {
 		dev_err(dev, "NAND Flash not found !\n");
 		devm_free_irq(dev, prv->irq, mtd);
 		retval = -ENXIO;
