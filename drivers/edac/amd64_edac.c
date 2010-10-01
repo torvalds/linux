@@ -2035,42 +2035,27 @@ void amd64_decode_bus_error(int node_id, struct mce *m, u32 nbcfg)
 }
 
 /*
- * Input:
- *	1) struct amd64_pvt which contains pvt->dram_f2_ctl pointer
- *	2) AMD Family index value
- *
- * Ouput:
- *	Upon return of 0, the following filled in:
- *
- *		struct pvt->addr_f1_ctl
- *		struct pvt->misc_f3_ctl
- *
- *	Filled in with related device funcitions of 'dram_f2_ctl'
- *	These devices are "reserved" via the pci_get_device()
- *
- *	Upon return of 1 (error status):
- *
- *		Nothing reserved
+ * Use pvt->dram_f2_ctl which contains the F2 CPU PCI device to get the related
+ * F1 (AddrMap) and F3 (Misc) devices. Return negative value on error.
  */
-static int amd64_reserve_mc_sibling_devices(struct amd64_pvt *pvt, int mc_idx)
+static int amd64_reserve_mc_sibling_devices(struct amd64_pvt *pvt, u16 f1_id,
+					    u16 f3_id)
 {
-	const struct amd64_family_type *amd64_dev = &amd64_family_types[mc_idx];
-
 	/* Reserve the ADDRESS MAP Device */
 	pvt->addr_f1_ctl = pci_get_related_function(pvt->dram_f2_ctl->vendor,
-						    amd64_dev->addr_f1_ctl,
+						    f1_id,
 						    pvt->dram_f2_ctl);
 
 	if (!pvt->addr_f1_ctl) {
 		amd64_printk(KERN_ERR, "error address map device not found: "
 			     "vendor %x device 0x%x (broken BIOS?)\n",
-			     PCI_VENDOR_ID_AMD, amd64_dev->addr_f1_ctl);
-		return 1;
+			     PCI_VENDOR_ID_AMD, f1_id);
+		return -ENODEV;
 	}
 
 	/* Reserve the MISC Device */
 	pvt->misc_f3_ctl = pci_get_related_function(pvt->dram_f2_ctl->vendor,
-						    amd64_dev->misc_f3_ctl,
+						    f3_id,
 						    pvt->dram_f2_ctl);
 
 	if (!pvt->misc_f3_ctl) {
@@ -2079,8 +2064,8 @@ static int amd64_reserve_mc_sibling_devices(struct amd64_pvt *pvt, int mc_idx)
 
 		amd64_printk(KERN_ERR, "error miscellaneous device not found: "
 			     "vendor %x device 0x%x (broken BIOS?)\n",
-			     PCI_VENDOR_ID_AMD, amd64_dev->misc_f3_ctl);
-		return 1;
+			     PCI_VENDOR_ID_AMD, f3_id);
+		return -ENODEV;
 	}
 
 	debugf1("    Addr Map device PCI Bus ID:\t%s\n",
@@ -2646,12 +2631,9 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	if (!fam_type)
 		goto err_free;
 
-	/*
-	 * We have the dram_f2_ctl device as an argument, now go reserve its
-	 * sibling devices from the PCI system.
-	 */
 	ret = -ENODEV;
-	err = amd64_reserve_mc_sibling_devices(pvt, mc_type_index);
+	err = amd64_reserve_mc_sibling_devices(pvt, fam_type->addr_f1_ctl,
+					       fam_type->misc_f3_ctl);
 	if (err)
 		goto err_free;
 
