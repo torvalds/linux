@@ -158,28 +158,36 @@ struct hfsplus_sb_info {
 
 
 struct hfsplus_inode_info {
-	struct mutex extents_lock;
-	u32 clump_blocks, alloc_blocks;
-	sector_t fs_blocks;
-	/* Allocation extents from catalog record or volume header */
-	hfsplus_extent_rec first_extents;
-	u32 first_blocks;
-	hfsplus_extent_rec cached_extents;
-	u32 cached_start, cached_blocks;
 	atomic_t opencnt;
 
-	struct inode *rsrc_inode;
+	/*
+	 * Extent allocation information, protected by extents_lock.
+	 */
+	u32 first_blocks;
+	u32 clump_blocks;
+	u32 alloc_blocks;
+	u32 cached_start;
+	u32 cached_blocks;
+	hfsplus_extent_rec first_extents;
+	hfsplus_extent_rec cached_extents;
 	unsigned long flags;
+	struct mutex extents_lock;
 
+	/*
+	 * Immutable data.
+	 */
+	struct inode *rsrc_inode;
 	__be32 create_date;
-	/* Device number in hfsplus_permissions in catalog */
 	u32 dev;
-	/* BSD system and user file flags */
-	u8 rootflags;
-	u8 userflags;
 
+	/*
+	 * Protected by i_mutex.
+	 */
+	sector_t fs_blocks;
+	u8 rootflags, userflags;	/* BSD system and user file flags */
 	struct list_head open_dir_list;
 	loff_t phys_size;
+
 	struct inode vfs_inode;
 };
 

@@ -88,6 +88,8 @@ static void __hfsplus_ext_write_extent(struct inode *inode, struct hfs_find_data
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	int res;
 
+	WARN_ON(!mutex_is_locked(&hip->extents_lock));
+
 	hfsplus_ext_build_key(fd->search_key, inode->i_ino, hip->cached_start,
 			      HFSPLUS_IS_RSRC(inode) ?
 				HFSPLUS_TYPE_RSRC : HFSPLUS_TYPE_DATA);
@@ -108,7 +110,7 @@ static void __hfsplus_ext_write_extent(struct inode *inode, struct hfs_find_data
 	}
 }
 
-void hfsplus_ext_write_extent(struct inode *inode)
+static void hfsplus_ext_write_extent_locked(struct inode *inode)
 {
 	if (HFSPLUS_I(inode)->flags & HFSPLUS_FLG_EXT_DIRTY) {
 		struct hfs_find_data fd;
@@ -117,6 +119,13 @@ void hfsplus_ext_write_extent(struct inode *inode)
 		__hfsplus_ext_write_extent(inode, &fd);
 		hfs_find_exit(&fd);
 	}
+}
+
+void hfsplus_ext_write_extent(struct inode *inode)
+{
+	mutex_lock(&HFSPLUS_I(inode)->extents_lock);
+	hfsplus_ext_write_extent_locked(inode);
+	mutex_unlock(&HFSPLUS_I(inode)->extents_lock);
 }
 
 static inline int __hfsplus_ext_read_extent(struct hfs_find_data *fd,
@@ -143,6 +152,8 @@ static inline int __hfsplus_ext_cache_extent(struct hfs_find_data *fd, struct in
 {
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	int res;
+
+	WARN_ON(!mutex_is_locked(&hip->extents_lock));
 
 	if (hip->flags & HFSPLUS_FLG_EXT_DIRTY)
 		__hfsplus_ext_write_extent(inode, fd);
@@ -433,7 +444,7 @@ out:
 
 insert_extent:
 	dprint(DBG_EXTENT, "insert new extent\n");
-	hfsplus_ext_write_extent(inode);
+	hfsplus_ext_write_extent_locked(inode);
 
 	memset(hip->cached_extents, 0, sizeof(hfsplus_extent_rec));
 	hip->cached_extents[0].start_block = cpu_to_be32(start);
