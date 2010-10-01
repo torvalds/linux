@@ -606,8 +606,6 @@ int __carl9170_exec_cmd(struct ar9170 *ar, struct carl9170_cmd *cmd,
 		AR9170_USB_EP_CMD), cmd, cmd->hdr.len + 4,
 		carl9170_usb_cmd_complete, ar, 1);
 
-	urb->transfer_flags |= URB_ZERO_PACKET;
-
 	if (free_buf)
 		urb->transfer_flags |= URB_FREE_BUFFER;
 

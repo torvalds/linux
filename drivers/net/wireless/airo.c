@@ -217,7 +217,6 @@ static const char *statsLabels[] = {
    (no spaces) list of rates (up to 8). */
 
 static int rates[8];
-static int basic_rate;
 static char *ssids[3];
 
 static int io[4];
@@ -250,7 +249,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340/350");
 module_param_array(io, int, NULL, 0);
 module_param_array(irq, int, NULL, 0);
-module_param(basic_rate, int, 0);
 module_param_array(rates, int, NULL, 0);
 module_param_array(ssids, charp, NULL, 0);
 module_param(auto_wep, int, 0);
@@ -3881,15 +3879,6 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 			memset(ai->config.rates,0,sizeof(ai->config.rates));
 			for( i = 0; i < 8 && rates[i]; i++ ) {
 				ai->config.rates[i] = rates[i];
-			}
-		}
-		if ( basic_rate > 0 ) {
-			for( i = 0; i < 8; i++ ) {
-				if ( ai->config.rates[i] == basic_rate ||
-				     !ai->config.rates ) {
-					ai->config.rates[i] = basic_rate | 0x80;
-					break;
-				}
 			}
 		}
 		set_bit (FLAG_COMMIT, &ai->flags);

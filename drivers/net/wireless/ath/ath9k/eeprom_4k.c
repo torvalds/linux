@@ -333,7 +333,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 
 		if (i == 0) {
-			if (AR_SREV_9280_10_OR_LATER(ah))
+			if (AR_SREV_9280_20_OR_LATER(ah))
 				ss = (int16_t)(0 - (minPwrT4[i] / 2));
 			else
 				ss = 0;
@@ -761,7 +761,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 
 	regulatory->max_power_level = ratesArray[i];
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
 			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
 	}
@@ -909,9 +909,6 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
 	REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
 		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
-
-	if (AR_SREV_9285_11(ah))
-		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
 }
 
 /*
@@ -1108,9 +1105,6 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 					  db2[4]);
 	}
 
-
-	if (AR_SREV_9285_11(ah))
-		REG_WRITE(ah, AR9285_AN_TOP4, AR9285_AN_TOP4_DEFAULT);
 
 	REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
 		      pModal->switchSettling);

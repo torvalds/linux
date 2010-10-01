@@ -118,7 +118,7 @@ static void ar5008_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 	if (!AR_SREV_5416(ah) || synth_freq >= 3000)
 		return;
 
-	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
+	BUG_ON(AR_SREV_9280_20_OR_LATER(ah));
 
 	if (synth_freq < 2412)
 		new_bias = 0;
@@ -454,7 +454,7 @@ static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
+	BUG_ON(AR_SREV_9280_20_OR_LATER(ah));
 
 	ATH_ALLOC_BANK(ah->analogBank0Data, ah->iniBank0.ia_rows);
 	ATH_ALLOC_BANK(ah->analogBank1Data, ah->iniBank1.ia_rows);
@@ -484,7 +484,7 @@ static void ar5008_hw_rf_free_ext_banks(struct ath_hw *ah)
 		bank = NULL; \
 	} while (0);
 
-	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
+	BUG_ON(AR_SREV_9280_20_OR_LATER(ah));
 
 	ATH_FREE_BANK(ah->analogBank0Data);
 	ATH_FREE_BANK(ah->analogBank1Data);
@@ -525,7 +525,7 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 	 * for single chip devices, that is AR9280 or anything
 	 * after that.
 	 */
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		return true;
 
 	/* Setup rf parameters */
@@ -663,20 +663,20 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 	 */
 	REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		val = REG_READ(ah, AR_PCU_MISC_MODE2);
 
 		if (!AR_SREV_9271(ah))
 			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
-		if (AR_SREV_9287_10_OR_LATER(ah))
+		if (AR_SREV_9287_11_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
 		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 	}
 
 	if (!AR_SREV_5416_20_OR_LATER(ah) ||
-	    AR_SREV_9280_10_OR_LATER(ah))
+	    AR_SREV_9280_20_OR_LATER(ah))
 		return;
 	/*
 	 * Disable BB clock gating
@@ -701,7 +701,7 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 	u32 phymode;
 	u32 enableDacFifo = 0;
 
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9285_12_OR_LATER(ah))
 		enableDacFifo = (REG_READ(ah, AR_PHY_TURBO) &
 					 AR_PHY_FC_ENABLE_DAC_FIFO);
 
@@ -820,11 +820,11 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	REGWRITE_BUFFER_FLUSH(ah);
 	DISABLE_REGWRITE_BUFFER(ah);
 
-	if (AR_SREV_9280(ah) || AR_SREV_9287_10_OR_LATER(ah))
+	if (AR_SREV_9280(ah) || AR_SREV_9287_11_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
 
 	if (AR_SREV_9280(ah) || AR_SREV_9285_12_OR_LATER(ah) ||
-	    AR_SREV_9287_10_OR_LATER(ah))
+	    AR_SREV_9287_11_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
 	if (AR_SREV_9271_10(ah))
@@ -900,7 +900,7 @@ static void ar5008_hw_set_rfmode(struct ath_hw *ah, struct ath9k_channel *chan)
 	rfMode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan))
 		? AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
 
-	if (!AR_SREV_9280_10_OR_LATER(ah))
+	if (!AR_SREV_9280_20_OR_LATER(ah))
 		rfMode |= (IS_CHAN_5GHZ(chan)) ?
 			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
 

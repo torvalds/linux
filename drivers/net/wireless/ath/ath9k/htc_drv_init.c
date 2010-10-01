@@ -561,6 +561,9 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 		common->keymax = ATH_KEYMAX;
 	}
 
+	if (priv->ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
+
 	/*
 	 * Reset the key cache since some parts do not
 	 * reset the contents on initial power up.

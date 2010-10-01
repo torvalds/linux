@@ -223,7 +223,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 	}
 
 	/* Enable fixup for AR_AN_TOP2 if necessary */
-	if (AR_SREV_9280_10_OR_LATER(ah) &&
+	if (AR_SREV_9280_20_OR_LATER(ah) &&
 	    (eep->baseEepHeader.version & 0xff) > 0x0a &&
 	    eep->baseEepHeader.pwdclkind == 0)
 		ah->need_an_top2_fixup = 1;
@@ -317,7 +317,7 @@ static void ath9k_hw_def_set_gain(struct ath_hw *ah,
 	if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_3) {
 		txRxAttenLocal = pModal->txRxAttenCh[i];
 
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
+		if (AR_SREV_9280_20_OR_LATER(ah)) {
 			REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
 			      AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
 			      pModal->bswMargin[i]);
@@ -344,7 +344,7 @@ static void ath9k_hw_def_set_gain(struct ath_hw *ah,
 		}
 	}
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		REG_RMW_FIELD(ah,
 		      AR_PHY_RXGAIN + regChainOffset,
 		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
@@ -408,7 +408,7 @@ static void ath9k_hw_def_set_board_values(struct ath_hw *ah,
 					      regChainOffset, i);
 	}
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		if (IS_CHAN_2GHZ(chan)) {
 			ath9k_hw_analog_shift_rmw(ah, AR_AN_RF2G1_CH0,
 						  AR_AN_RF2G1_CH0_OB,
@@ -461,7 +461,7 @@ static void ath9k_hw_def_set_board_values(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_ADC,
 		      pModal->adcDesiredSize);
 
-	if (!AR_SREV_9280_10_OR_LATER(ah))
+	if (!AR_SREV_9280_20_OR_LATER(ah))
 		REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ,
 			      AR_PHY_DESIRED_SZ_PGA,
 			      pModal->pgaDesiredSize);
@@ -478,7 +478,7 @@ static void ath9k_hw_def_set_board_values(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_A2_RX_ON,
 		      pModal->txEndToRxOn);
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_CCA, AR9280_PHY_CCA_THRESH62,
 			      pModal->thresh62);
 		REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0,
@@ -696,7 +696,7 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 
 		if (i == 0) {
-			if (AR_SREV_9280_10_OR_LATER(ah))
+			if (AR_SREV_9280_20_OR_LATER(ah))
 				ss = (int16_t)(0 - (minPwrT4[i] / 2));
 			else
 				ss = 0;
@@ -1291,7 +1291,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 			ratesArray[i] = AR5416_MAX_RATE_POWER;
 	}
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++) {
 			int8_t pwr_table_offset;
 
@@ -1395,7 +1395,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 	else if (IS_CHAN_HT20(chan))
 		i = rateHt20_0;
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		regulatory->max_power_level =
 			ratesArray[i] + AR5416_PWR_TABLE_OFFSET_DB * 2;
 	else

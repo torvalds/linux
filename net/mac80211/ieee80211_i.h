@@ -159,13 +159,37 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 #define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
 #define RX_QUEUED		((__force ieee80211_rx_result) 3u)
 
-#define IEEE80211_RX_IN_SCAN		BIT(0)
-/* frame is destined to interface currently processed (incl. multicast frames) */
-#define IEEE80211_RX_RA_MATCH		BIT(1)
-#define IEEE80211_RX_AMSDU		BIT(2)
-#define IEEE80211_RX_FRAGMENTED		BIT(3)
-#define IEEE80211_MALFORMED_ACTION_FRM	BIT(4)
-/* only add flags here that do not change with subframes of an aMPDU */
+/**
+ * enum ieee80211_packet_rx_flags - packet RX flags
+ * @IEEE80211_RX_RA_MATCH: frame is destined to interface currently processed
+ *	(incl. multicast frames)
+ * @IEEE80211_RX_IN_SCAN: received while scanning
+ * @IEEE80211_RX_FRAGMENTED: fragmented frame
+ * @IEEE80211_RX_AMSDU: a-MSDU packet
+ * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
+ *
+ * These are per-frame flags that are attached to a frame in the
+ * @rx_flags field of &struct ieee80211_rx_status.
+ */
+enum ieee80211_packet_rx_flags {
+	IEEE80211_RX_IN_SCAN			= BIT(0),
+	IEEE80211_RX_RA_MATCH			= BIT(1),
+	IEEE80211_RX_FRAGMENTED			= BIT(2),
+	IEEE80211_RX_AMSDU			= BIT(3),
+	IEEE80211_RX_MALFORMED_ACTION_FRM	= BIT(4),
+};
+
+/**
+ * enum ieee80211_rx_flags - RX data flags
+ *
+ * @IEEE80211_RX_CMNTR: received on cooked monitor already
+ *
+ * These flags are used across handling multiple interfaces
+ * for a single frame.
+ */
+enum ieee80211_rx_flags {
+	IEEE80211_RX_CMNTR		= BIT(0),
+};
 
 struct ieee80211_rx_data {
 	struct sk_buff *skb;
@@ -564,6 +588,7 @@ struct ieee80211_sub_if_data {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *dir;
+		struct dentry *subdir_stations;
 		struct dentry *default_key;
 		struct dentry *default_mgmt_key;
 	} debugfs;
@@ -899,7 +924,6 @@ struct ieee80211_local {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
 		struct dentry *rcdir;
-		struct dentry *stations;
 		struct dentry *keys;
 	} debugfs;
 #endif
@@ -1256,7 +1280,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 const u8 *key, u8 key_len, u8 key_idx);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     const u8 *ie, size_t ie_len,
-			     enum ieee80211_band band);
+			     enum ieee80211_band band, u32 rate_mask,
+			     u8 channel);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len);

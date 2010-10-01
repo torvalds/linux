@@ -244,7 +244,7 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 
 			/* Force channel idle high */
 			AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW_5211,
-					AR5K_DIAG_SW_CHANEL_IDLE_HIGH);
+					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 
 			/* Wait a while and disable mechanism */
 			udelay(200);
@@ -261,7 +261,7 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 			} while (--i && pending);
 
 			AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW_5211,
-					AR5K_DIAG_SW_CHANEL_IDLE_HIGH);
+					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 		}
 
 		/* Clear register */
