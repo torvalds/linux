@@ -87,3 +87,15 @@ config ARCH_SPARSEMEM_ENABLE
 config CAVIUM_OCTEON_HELPER
 	def_bool y
 	depends on OCTEON_ETHERNET || PCI
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	def_bool y
+	depends on CPU_CAVIUM_OCTEON
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH
