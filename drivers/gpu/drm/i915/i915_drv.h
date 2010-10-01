@@ -643,9 +643,13 @@ typedef struct drm_i915_private {
 		size_t object_memory;
 		size_t pin_memory;
 		size_t gtt_memory;
+		size_t gtt_mappable_memory;
+		size_t mappable_gtt_used;
+		size_t mappable_gtt_total;
 		size_t gtt_total;
 		u32 object_count;
 		u32 pin_count;
+		u32 gtt_mappable_count;
 		u32 gtt_count;
 	} mm;
 	struct sdvo_device_mapping sdvo_mappings[2];
@@ -774,6 +778,14 @@ struct drm_i915_gem_object {
 	 * bits with absolutely no headroom. So use 4 bits. */
 	unsigned int pin_count : 4;
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
+
+	/**
+	 * Whether the current gtt mapping needs to be mappable (and isn't just
+	 * mappable by accident). Track pin and fault separate for a more
+	 * accurate mappable working set.
+	 */
+	unsigned int fault_mappable : 1;
+	unsigned int pin_mappable : 1;
 
 	/** AGP memory structure for our GTT binding. */
 	DRM_AGP_MEM *agp_mem;

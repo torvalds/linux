@@ -131,6 +131,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	if (obj->gtt_space != NULL)
 		seq_printf(m, " (gtt_offset: %08x)", obj->gtt_offset);
+	if (obj->pin_mappable || obj->fault_mappable)
+		seq_printf(m, " (mappable)");
 	if (obj->ring != NULL)
 		seq_printf(m, " (%s)", obj->ring->name);
 }
@@ -207,6 +209,10 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_printf(m, "%zu object bytes\n", dev_priv->mm.object_memory);
 	seq_printf(m, "%u pinned\n", dev_priv->mm.pin_count);
 	seq_printf(m, "%zu pin bytes\n", dev_priv->mm.pin_memory);
+	seq_printf(m, "%u mappable objects in gtt\n", dev_priv->mm.gtt_mappable_count);
+	seq_printf(m, "%zu mappable gtt bytes\n", dev_priv->mm.gtt_mappable_memory);
+	seq_printf(m, "%zu mappable gtt used bytes\n", dev_priv->mm.mappable_gtt_used);
+	seq_printf(m, "%zu mappable gtt total\n", dev_priv->mm.mappable_gtt_total);
 	seq_printf(m, "%u objects in gtt\n", dev_priv->mm.gtt_count);
 	seq_printf(m, "%zu gtt bytes\n", dev_priv->mm.gtt_memory);
 	seq_printf(m, "%zu gtt total\n", dev_priv->mm.gtt_total);

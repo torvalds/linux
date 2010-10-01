@@ -84,31 +84,83 @@ static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 }
 
 static void i915_gem_info_add_gtt(struct drm_i915_private *dev_priv,
-				  size_t size)
+				  struct drm_gem_object *obj)
 {
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	dev_priv->mm.gtt_count++;
-	dev_priv->mm.gtt_memory += size;
+	dev_priv->mm.gtt_memory += obj->size;
+	if (obj_priv->gtt_offset < dev_priv->mm.gtt_mappable_end) {
+		dev_priv->mm.mappable_gtt_used +=
+			min_t(size_t, obj->size,
+			      dev_priv->mm.gtt_mappable_end
+					- obj_priv->gtt_offset);
+	}
 }
 
 static void i915_gem_info_remove_gtt(struct drm_i915_private *dev_priv,
-				     size_t size)
+				     struct drm_gem_object *obj)
 {
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	dev_priv->mm.gtt_count--;
-	dev_priv->mm.gtt_memory -= size;
+	dev_priv->mm.gtt_memory -= obj->size;
+	if (obj_priv->gtt_offset < dev_priv->mm.gtt_mappable_end) {
+		dev_priv->mm.mappable_gtt_used -=
+			min_t(size_t, obj->size,
+			      dev_priv->mm.gtt_mappable_end
+					- obj_priv->gtt_offset);
+	}
+}
+
+/**
+ * Update the mappable working set counters. Call _only_ when there is a change
+ * in one of (pin|fault)_mappable and update *_mappable _before_ calling.
+ * @mappable: new state the changed mappable flag (either pin_ or fault_).
+ */
+static void
+i915_gem_info_update_mappable(struct drm_i915_private *dev_priv,
+			      struct drm_gem_object *obj,
+			      bool mappable)
+{
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+
+	if (mappable) {
+		if (obj_priv->pin_mappable && obj_priv->fault_mappable)
+			/* Combined state was already mappable. */
+			return;
+		dev_priv->mm.gtt_mappable_count++;
+		dev_priv->mm.gtt_mappable_memory += obj->size;
+	} else {
+		if (obj_priv->pin_mappable || obj_priv->fault_mappable)
+			/* Combined state still mappable. */
+			return;
+		dev_priv->mm.gtt_mappable_count--;
+		dev_priv->mm.gtt_mappable_memory -= obj->size;
+	}
 }
 
 static void i915_gem_info_add_pin(struct drm_i915_private *dev_priv,
-				  size_t size)
+				  struct drm_gem_object *obj,
+				  bool mappable)
 {
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	dev_priv->mm.pin_count++;
-	dev_priv->mm.pin_memory += size;
+	dev_priv->mm.pin_memory += obj->size;
+	if (mappable) {
+		obj_priv->pin_mappable = true;
+		i915_gem_info_update_mappable(dev_priv, obj, true);
+	}
 }
 
 static void i915_gem_info_remove_pin(struct drm_i915_private *dev_priv,
-				     size_t size)
+				     struct drm_gem_object *obj)
 {
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	dev_priv->mm.pin_count--;
-	dev_priv->mm.pin_memory -= size;
+	dev_priv->mm.pin_memory -= obj->size;
+	if (obj_priv->pin_mappable) {
+		obj_priv->pin_mappable = false;
+		i915_gem_info_update_mappable(dev_priv, obj, false);
+	}
 }
 
 int
@@ -188,6 +240,7 @@ int i915_gem_do_init(struct drm_device *dev,
 		    end - start);
 
 	dev_priv->mm.gtt_total = end - start;
+	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
 
 	return 0;
@@ -1266,6 +1319,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Now bind it into the GTT if needed */
 	mutex_lock(&dev->struct_mutex);
+	BUG_ON(obj_priv->pin_count && !obj_priv->pin_mappable);
 	if (!i915_gem_object_cpu_accessible(obj_priv))
 		i915_gem_object_unbind(obj);
 
@@ -1277,6 +1331,11 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = i915_gem_object_set_to_gtt_domain(obj, write);
 		if (ret)
 			goto unlock;
+	}
+
+	if (!obj_priv->fault_mappable) {
+		obj_priv->fault_mappable = true;
+		i915_gem_info_update_mappable(dev_priv, obj, true);
 	}
 
 	/* Need a new fence register? */
@@ -1396,11 +1455,17 @@ void
 i915_gem_release_mmap(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (dev->dev_mapping)
 		unmap_mapping_range(dev->dev_mapping,
 				    obj_priv->mmap_offset, obj->size, 1);
+
+	if (obj_priv->fault_mappable) {
+		obj_priv->fault_mappable = false;
+		i915_gem_info_update_mappable(dev_priv, obj, false);
+	}
 }
 
 static void
@@ -2177,7 +2242,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	i915_gem_object_put_pages(obj);
 	BUG_ON(obj_priv->pages_refcount);
 
-	i915_gem_info_remove_gtt(dev_priv, obj->size);
+	i915_gem_info_remove_gtt(dev_priv, obj);
 	list_del_init(&obj_priv->mm_list);
 
 	drm_mm_put_block(obj_priv->gtt_space);
@@ -2763,9 +2828,11 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 		goto search_free;
 	}
 
+	obj_priv->gtt_offset = obj_priv->gtt_space->start;
+
 	/* keep track of bounds object by adding it to the inactive list */
 	list_add_tail(&obj_priv->mm_list, &dev_priv->mm.inactive_list);
-	i915_gem_info_add_gtt(dev_priv, obj->size);
+	i915_gem_info_add_gtt(dev_priv, obj);
 
 	/* Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
@@ -2774,7 +2841,6 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 	BUG_ON(obj->read_domains & I915_GEM_GPU_DOMAINS);
 	BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
-	obj_priv->gtt_offset = obj_priv->gtt_space->start;
 	trace_i915_gem_object_bind(obj, obj_priv->gtt_offset, mappable);
 
 	return 0;
@@ -4107,11 +4173,12 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
 	 * remove it from the inactive list
 	 */
 	if (obj_priv->pin_count == 1) {
-		i915_gem_info_add_pin(dev_priv, obj->size);
+		i915_gem_info_add_pin(dev_priv, obj, mappable);
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->mm_list,
 				       &dev_priv->mm.pinned_list);
 	}
+	BUG_ON(!obj_priv->pin_mappable && mappable);
 
 	WARN_ON(i915_verify_lists(dev));
 	return 0;
@@ -4137,7 +4204,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->mm_list,
 				       &dev_priv->mm.inactive_list);
-		i915_gem_info_remove_pin(dev_priv, obj->size);
+		i915_gem_info_remove_pin(dev_priv, obj);
 	}
 	WARN_ON(i915_verify_lists(dev));
 }
