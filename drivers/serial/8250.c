@@ -1722,12 +1722,6 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 	mutex_unlock(&hash_mutex);
 }
 
-/* Base timer interval for polling */
-static inline int poll_timeout(int timeout)
-{
-	return timeout > 6 ? (timeout / 2 - 2) : 1;
-}
-
 /*
  * This function is used to handle ports that do not have an
  * interrupt.  This doesn't work very well for 16450's, but gives
@@ -1742,7 +1736,7 @@ static void serial8250_timeout(unsigned long data)
 	iir = serial_in(up, UART_IIR);
 	if (!(iir & UART_IIR_NO_INT))
 		serial8250_handle_port(up);
-	mod_timer(&up->timer, jiffies + poll_timeout(up->port.timeout));
+	mod_timer(&up->timer, jiffies + uart_poll_timeout(&up->port));
 }
 
 static void serial8250_backup_timeout(unsigned long data)
@@ -1787,7 +1781,7 @@ static void serial8250_backup_timeout(unsigned long data)
 
 	/* Standard timer interval plus 0.2s to keep the port running */
 	mod_timer(&up->timer,
-		jiffies + poll_timeout(up->port.timeout) + HZ / 5);
+		jiffies + uart_poll_timeout(&up->port) + HZ / 5);
 }
 
 static unsigned int serial8250_tx_empty(struct uart_port *port)
@@ -2071,7 +2065,7 @@ static int serial8250_startup(struct uart_port *port)
 		up->timer.function = serial8250_backup_timeout;
 		up->timer.data = (unsigned long)up;
 		mod_timer(&up->timer, jiffies +
-			  poll_timeout(up->port.timeout) + HZ / 5);
+			uart_poll_timeout(port) + HZ / 5);
 	}
 
 	/*
@@ -2081,7 +2075,7 @@ static int serial8250_startup(struct uart_port *port)
 	 */
 	if (!is_real_interrupt(up->port.irq)) {
 		up->timer.data = (unsigned long)up;
-		mod_timer(&up->timer, jiffies + poll_timeout(up->port.timeout));
+		mod_timer(&up->timer, jiffies + uart_poll_timeout(port));
 	} else {
 		retval = serial_link_irq_chain(up);
 		if (retval)
