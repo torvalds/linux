@@ -461,7 +461,7 @@ static int __init altera_uart_console_setup(struct console *co, char *options)
 	if (co->index < 0 || co->index >= CONFIG_SERIAL_ALTERA_UART_MAXPORTS)
 		return -EINVAL;
 	port = &altera_uart_ports[co->index].port;
-	if (port->membase == 0)
+	if (!port->membase)
 		return -ENODEV;
 
 	if (options)
