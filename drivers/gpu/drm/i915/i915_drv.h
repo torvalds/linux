@@ -699,6 +699,8 @@ typedef struct drm_i915_private {
 	struct drm_mm_node *compressed_fb;
 	struct drm_mm_node *compressed_llb;
 
+	unsigned long last_gpu_reset;
+
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
 } drm_i915_private_t;

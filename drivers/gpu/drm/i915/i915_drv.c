@@ -383,6 +383,11 @@ static int i965_do_reset(struct drm_device *dev, u8 flags)
 {
 	u8 gdrst;
 
+	/*
+	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
+	 * well as the reset bit (GR/bit 0).  Setting the GR bit
+	 * triggers the reset; when done, the hardware will clear it.
+	 */
 	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
 	pci_write_config_byte(dev->pdev, I965_GDRST, gdrst | flags | 0x1);
 
@@ -427,13 +432,10 @@ int i915_reset(struct drm_device *dev, u8 flags)
 
 	i915_gem_reset(dev);
 
-	/*
-	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
-	 * well as the reset bit (GR/bit 0).  Setting the GR bit
-	 * triggers the reset; when done, the hardware will clear it.
-	 */
 	ret = -ENODEV;
-	switch (INTEL_INFO(dev)->gen) {
+	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
+		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
+	} else switch (INTEL_INFO(dev)->gen) {
 	case 5:
 		ret = ironlake_do_reset(dev, flags);
 		break;
@@ -444,6 +446,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 		ret = i8xx_do_reset(dev, flags);
 		break;
 	}
+	dev_priv->last_gpu_reset = get_seconds();
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
