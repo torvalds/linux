@@ -1046,13 +1046,12 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 	if (err)
 		return err;
 
-	if ((boot_cpu_data.x86_model >> 4) >= K8_REV_F) {
+	if (pvt->ext_model >= K8_REV_F)
 		/* RevF (NPT) and later */
 		flag = pvt->dclr0 & F10_WIDTH_128;
-	} else {
+	else
 		/* RevE and earlier */
 		flag = pvt->dclr0 & REVE_WIDTH_128;
-	}
 
 	/* not used */
 	pvt->dclr1 = 0;
