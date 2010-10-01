@@ -570,7 +570,7 @@ config SH_CLK_CPG
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
-		      !CPU_SUBTYPE_SH7786 && !CPU_SUBTYPE_SH7757
+		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
