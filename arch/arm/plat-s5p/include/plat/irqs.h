@@ -94,4 +94,13 @@
 						((irq) - S5P_EINT_BASE1) : \
 						((irq) + 16 - S5P_EINT_BASE2))
 
+/* Typically only a few gpio chips require gpio interrupt support.
+   To avoid memory waste irq descriptors are allocated only for
+   S5P_GPIOINT_GROUP_COUNT chips, each with total number of
+   S5P_GPIOINT_GROUP_SIZE pins/irqs. Each GPIOINT group can be assiged
+   to any gpio chip with the s5p_register_gpio_interrupt() function */
+#define S5P_GPIOINT_GROUP_COUNT 4
+#define S5P_GPIOINT_GROUP_SIZE	8
+#define S5P_GPIOINT_COUNT	(S5P_GPIOINT_GROUP_COUNT * S5P_GPIOINT_GROUP_SIZE)
+
 #endif /* __ASM_PLAT_S5P_IRQS_H */

@@ -32,6 +32,11 @@ config S5P_EXT_INT
 	  Use the external interrupts (other than GPIO interrupts.)
 	  Note: Do not choose this for S5P6440 and S5P6450.
 
+config S5P_GPIO_INT
+	bool
+	help
+	  Common code for the GPIO interrupts (other than external interrupts.)
+
 config S5P_DEV_FIMC0
 	bool
 	help

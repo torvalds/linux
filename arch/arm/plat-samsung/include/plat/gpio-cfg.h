@@ -169,4 +169,22 @@ extern s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin);
 */
 extern int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr);
 
+/**
+ * s5p_register_gpio_interrupt() - register interrupt support for a gpio group
+ * @pin: The pin number from the group to be registered
+ *
+ * This function registers gpio interrupt support for the group that the
+ * specified pin belongs to.
+ *
+ * The total number of gpio pins is quite large ob s5p series. Registering
+ * irq support for all of them would be a resource waste. Because of that the
+ * interrupt support for standard gpio pins is registered dynamically.
+ *
+ * It will return the irq number of the interrupt that has been registered
+ * or -ENOMEM if no more gpio interrupts can be registered. It is allowed
+ * to call this function more than once for the same gpio group (the group
+ * will be registered only once).
+ */
+extern int s5p_register_gpio_interrupt(int pin);
+
 #endif /* __PLAT_GPIO_CFG_H */

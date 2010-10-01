@@ -43,6 +43,8 @@ struct s3c_gpio_cfg;
  * struct s3c_gpio_chip - wrapper for specific implementation of gpio
  * @chip: The chip structure to be exported via gpiolib.
  * @base: The base pointer to the gpio configuration registers.
+ * @group: The group register number for gpio interrupt support.
+ * @irq_base: The base irq number.
  * @config: special function and pull-resistor control information.
  * @lock: Lock for exclusive access to this gpio bank.
  * @pm_save: Save information for suspend/resume support.
@@ -63,6 +65,8 @@ struct s3c_gpio_chip {
 	struct s3c_gpio_cfg	*config;
 	struct s3c_gpio_pm	*pm;
 	void __iomem		*base;
+	int			irq_base;
+	int			group;
 	spinlock_t		 lock;
 #ifdef CONFIG_PM
 	u32			pm_save[4];
