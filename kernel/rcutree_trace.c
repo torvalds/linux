@@ -300,7 +300,7 @@ static const struct file_operations rcu_pending_fops = {
 
 static struct dentry *rcudir;
 
-static int __init rcuclassic_trace_init(void)
+static int __init rcutree_trace_init(void)
 {
 	struct dentry *retval;
 
@@ -337,14 +337,14 @@ free_out:
 	return 1;
 }
 
-static void __exit rcuclassic_trace_cleanup(void)
+static void __exit rcutree_trace_cleanup(void)
 {
 	debugfs_remove_recursive(rcudir);
 }
 
 
-module_init(rcuclassic_trace_init);
-module_exit(rcuclassic_trace_cleanup);
+module_init(rcutree_trace_init);
+module_exit(rcutree_trace_cleanup);
 
 MODULE_AUTHOR("Paul E. McKenney");
 MODULE_DESCRIPTION("Read-Copy Update tracing for hierarchical implementation");
