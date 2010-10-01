@@ -37,18 +37,19 @@
 struct ideapad_private {
 	acpi_handle handle;
 	struct rfkill *rfk[5];
-};
+} *ideapad_priv;
 
 static struct {
 	char *name;
 	int cfgbit;
+	int opcode;
 	int type;
 } ideapad_rfk_data[] = {
-	{ "ideapad_camera",	19, NUM_RFKILL_TYPES },
-	{ "ideapad_wlan",	18, RFKILL_TYPE_WLAN },
-	{ "ideapad_bluetooth",	16, RFKILL_TYPE_BLUETOOTH },
-	{ "ideapad_3g",		17, RFKILL_TYPE_WWAN },
-	{ "ideapad_killsw",	0, RFKILL_TYPE_WLAN }
+	{ "ideapad_camera",	19, 0x1E, NUM_RFKILL_TYPES },
+	{ "ideapad_wlan",	18, 0x15, RFKILL_TYPE_WLAN },
+	{ "ideapad_bluetooth",	16, 0x17, RFKILL_TYPE_BLUETOOTH },
+	{ "ideapad_3g",		17, 0x20, RFKILL_TYPE_WWAN },
+	{ "ideapad_killsw",	0,  0,    RFKILL_TYPE_WLAN }
 };
 
 /*
@@ -160,24 +161,6 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 }
 /* the above is ACPI helpers */
 
-static int ideapad_dev_set_state(int device, int state)
-{
-	acpi_status status;
-	union acpi_object in_params[2];
-	struct acpi_object_list input = { 2, in_params };
-
-	in_params[0].type = ACPI_TYPE_INTEGER;
-	in_params[0].integer.value = device + 1;
-	in_params[1].type = ACPI_TYPE_INTEGER;
-	in_params[1].integer.value = state;
-
-	status = acpi_evaluate_object(NULL, "\\_SB_.SECN", &input, NULL);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_WARNING "IdeaPAD \\_SB_.SECN method failed %d\n", status);
-		return -ENODEV;
-	}
-	return 0;
-}
 static ssize_t show_ideapad_cam(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -217,7 +200,10 @@ static int ideapad_rfk_set(void *data, bool blocked)
 
 	if (device == IDEAPAD_DEV_KILLSW)
 		return -EINVAL;
-	return ideapad_dev_set_state(device, !blocked);
+
+	return write_ec_cmd(ideapad_priv->handle,
+			    ideapad_rfk_data[device].opcode,
+			    !blocked);
 }
 
 static struct rfkill_ops ideapad_rfk_ops = {
@@ -318,6 +304,7 @@ static int ideapad_acpi_add(struct acpi_device *adevice)
 
 	priv->handle = adevice->handle;
 	dev_set_drvdata(&adevice->dev, priv);
+	ideapad_priv = priv;
 	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++) {
 		if (!devs_present[i])
 			continue;
