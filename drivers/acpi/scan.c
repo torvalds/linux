@@ -26,6 +26,9 @@ extern struct acpi_device *acpi_root;
 
 #define ACPI_IS_ROOT_DEVICE(device)    (!(device)->parent)
 
+/* Should be const */
+static char* dummy_hid = "device";
+
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 DEFINE_MUTEX(acpi_device_lock);
@@ -48,6 +51,9 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int len;
 	int count;
 	struct acpi_hardware_id *id;
+
+	if (list_empty(&acpi_dev->pnp.ids))
+		return 0;
 
 	len = snprintf(modalias, size, "acpi:");
 	size -= len;
@@ -202,13 +208,15 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
-	result = device_create_file(&dev->dev, &dev_attr_hid);
-	if (result)
-		goto end;
+	if (!list_empty(&dev->pnp.ids)) {
+		result = device_create_file(&dev->dev, &dev_attr_hid);
+		if (result)
+			goto end;
 
-	result = device_create_file(&dev->dev, &dev_attr_modalias);
-	if (result)
-		goto end;
+		result = device_create_file(&dev->dev, &dev_attr_modalias);
+		if (result)
+			goto end;
+	}
 
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
@@ -315,6 +323,9 @@ static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	int len;
+
+	if (list_empty(&acpi_dev->pnp.ids))
+		return 0;
 
 	if (add_uevent_var(env, "MODALIAS="))
 		return -ENOMEM;
@@ -1014,6 +1025,9 @@ char *acpi_device_hid(struct acpi_device *device)
 {
 	struct acpi_hardware_id *hid;
 
+	if (list_empty(&device->pnp.ids))
+		return dummy_hid;
+
 	hid = list_first_entry(&device->pnp.ids, struct acpi_hardware_id, list);
 	return hid->id;
 }
@@ -1142,16 +1156,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 		acpi_add_id(device, ACPI_BUTTON_HID_SLEEPF);
 		break;
 	}
-
-	/*
-	 * We build acpi_devices for some objects that don't have _HID or _CID,
-	 * e.g., PCI bridges and slots.  Drivers can't bind to these objects,
-	 * but we do use them indirectly by traversing the acpi_device tree.
-	 * This generic ID isn't useful for driver binding, but it provides
-	 * the useful property that "every acpi_device has an ID."
-	 */
-	if (list_empty(&device->pnp.ids))
-		acpi_add_id(device, "device");
 }
 
 static int acpi_device_set_context(struct acpi_device *device)
