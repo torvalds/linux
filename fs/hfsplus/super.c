@@ -160,6 +160,7 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 
 	dprint(DBG_SUPER, "hfsplus_write_super\n");
 
+	mutex_lock(&sbi->vh_mutex);
 	mutex_lock(&sbi->alloc_mutex);
 	sb->s_dirt = 0;
 
@@ -194,6 +195,7 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 		sbi->flags &= ~HFSPLUS_SB_WRITEBACKUP;
 	}
 	mutex_unlock(&sbi->alloc_mutex);
+	mutex_unlock(&sbi->vh_mutex);
 	return 0;
 }
 
@@ -319,6 +321,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_fs_info = sbi;
 	mutex_init(&sbi->alloc_mutex);
+	mutex_init(&sbi->vh_mutex);
 	hfsplus_fill_defaults(sbi);
 	if (!hfsplus_parse_options(data, sbi)) {
 		printk(KERN_ERR "hfs: unable to parse mount options\n");
@@ -453,9 +456,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (!sbi->hidden_dir) {
 		printk(KERN_DEBUG "hfs: create hidden dir...\n");
+
+		mutex_lock(&sbi->vh_mutex);
 		sbi->hidden_dir = hfsplus_new_inode(sb, S_IFDIR);
 		hfsplus_create_cat(sbi->hidden_dir->i_ino, sb->s_root->d_inode,
 				   &str, sbi->hidden_dir);
+		mutex_unlock(&sbi->vh_mutex);
+
 		mark_inode_dirty(sbi->hidden_dir);
 	}
 out:

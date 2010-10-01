@@ -116,23 +116,26 @@ struct hfsplus_sb_info {
 	struct inode *hidden_dir;
 	struct nls_table *nls;
 
-	/* synchronize block allocations */
-	struct mutex alloc_mutex;
-
 	/* Runtime variables */
 	u32 blockoffset;
 	u32 sect_count;
 	int fs_shift;
 
-	/* Stuff in host order from Vol Header */
+	/* immutable data from the volume header */
 	u32 alloc_blksz;
 	int alloc_blksz_shift;
 	u32 total_blocks;
+	u32 data_clump_blocks, rsrc_clump_blocks;
+
+	/* mutable data from the volume header, protected by alloc_mutex */
 	u32 free_blocks;
+	struct mutex alloc_mutex;
+
+	/* mutable data from the volume header, protected by vh_mutex */
 	u32 next_cnid;
 	u32 file_count;
 	u32 folder_count;
-	u32 data_clump_blocks, rsrc_clump_blocks;
+	struct mutex vh_mutex;
 
 	/* Config options */
 	u32 creator;
