@@ -75,6 +75,30 @@ struct lis3lv02d lis3_dev = {
 
 EXPORT_SYMBOL_GPL(lis3_dev);
 
+/* just like param_set_int() but does sanity-check so that it won't point
+ * over the axis array size
+ */
+static int param_set_axis(const char *val, const struct kernel_param *kp)
+{
+	int ret = param_set_int(val, kp);
+	if (!ret) {
+		int val = *(int *)kp->arg;
+		if (val < 0)
+			val = -val;
+		if (!val || val > 3)
+			return -EINVAL;
+	}
+	return ret;
+}
+
+static struct kernel_param_ops param_ops_axis = {
+	.set = param_set_axis,
+	.get = param_get_int,
+};
+
+module_param_array_named(axes, lis3_dev.ac.as_array, axis, NULL, 0644);
+MODULE_PARM_DESC(axes, "Axis-mapping for x,y,z directions");
+
 static s16 lis3lv02d_read_8(struct lis3lv02d *lis3, int reg)
 {
 	s8 lo;

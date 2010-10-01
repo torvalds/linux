@@ -223,10 +223,11 @@ enum lis3lv02d_click_src_8b {
 	CLICK_IA	= 0x40,
 };
 
-struct axis_conversion {
-	s8	x;
-	s8	y;
-	s8	z;
+union axis_conversion {
+	struct {
+		int x, y, z;
+	};
+	int as_array[3];
 };
 
 struct lis3lv02d {
@@ -249,7 +250,7 @@ struct lis3lv02d {
 	struct input_polled_dev	*idev;     /* input device */
 	struct platform_device	*pdev;     /* platform device */
 	atomic_t		count;     /* interrupt count after last read */
-	struct axis_conversion	ac;        /* hw -> logical axis */
+	union axis_conversion	ac;        /* hw -> logical axis */
 	int			mapped_btns[3];
 
 	u32			irq;       /* IRQ number */

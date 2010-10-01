@@ -61,9 +61,8 @@ static int lis3_i2c_init(struct lis3lv02d *lis3)
 }
 
 /* Default axis mapping but it can be overwritten by platform data */
-static struct axis_conversion lis3lv02d_axis_map = { LIS3_DEV_X,
-						     LIS3_DEV_Y,
-						     LIS3_DEV_Z };
+static union axis_conversion lis3lv02d_axis_map =
+	{ .as_array = { LIS3_DEV_X, LIS3_DEV_Y, LIS3_DEV_Z } };
 
 static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
