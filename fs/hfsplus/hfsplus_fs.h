@@ -116,6 +116,9 @@ struct hfsplus_sb_info {
 	struct inode *hidden_dir;
 	struct nls_table *nls;
 
+	/* synchronize block allocations */
+	struct mutex alloc_mutex;
+
 	/* Runtime variables */
 	u32 blockoffset;
 	u32 sect_count;
