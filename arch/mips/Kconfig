@@ -691,6 +691,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SWAP_IO_SPACE
 	select HW_HAS_PCI
 	select ARCH_SUPPORTS_MSI
+	select ZONE_DMA32
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
