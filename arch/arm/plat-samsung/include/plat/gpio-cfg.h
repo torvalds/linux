@@ -172,6 +172,12 @@ extern s3c_gpio_pull_t s3c_gpio_getpull(unsigned int pin);
 extern int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
 				 unsigned int cfg, s3c_gpio_pull_t pull);
 
+static inline int s3c_gpio_cfgrange_nopull(unsigned int pin, unsigned int size,
+					   unsigned int cfg)
+{
+	return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_NONE);
+}
+
 /* Define values for the drvstr available for each gpio pin.
  *
  * These values control the value of the output signal driver strength,
