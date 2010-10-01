@@ -43,14 +43,14 @@ extern void irq_set_thread_affinity(struct irq_desc *desc);
 /* Inline functions for support of irq chips on slow busses */
 static inline void chip_bus_lock(unsigned int irq, struct irq_desc *desc)
 {
-	if (unlikely(desc->chip->bus_lock))
-		desc->chip->bus_lock(irq);
+	if (unlikely(desc->irq_data.chip->bus_lock))
+		desc->irq_data.chip->bus_lock(irq);
 }
 
 static inline void chip_bus_sync_unlock(unsigned int irq, struct irq_desc *desc)
 {
-	if (unlikely(desc->chip->bus_sync_unlock))
-		desc->chip->bus_sync_unlock(irq);
+	if (unlikely(desc->irq_data.chip->bus_sync_unlock))
+		desc->irq_data.chip->bus_sync_unlock(irq);
 }
 
 /*
@@ -67,8 +67,8 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 		irq, desc, desc->depth, desc->irq_count, desc->irqs_unhandled);
 	printk("->handle_irq():  %p, ", desc->handle_irq);
 	print_symbol("%s\n", (unsigned long)desc->handle_irq);
-	printk("->chip(): %p, ", desc->chip);
-	print_symbol("%s\n", (unsigned long)desc->chip);
+	printk("->irq_data.chip(): %p, ", desc->irq_data.chip);
+	print_symbol("%s\n", (unsigned long)desc->irq_data.chip);
 	printk("->action(): %p\n", desc->action);
 	if (desc->action) {
 		printk("->action->handler(): %p, ", desc->action->handler);

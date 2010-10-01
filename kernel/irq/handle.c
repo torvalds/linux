@@ -105,7 +105,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int node)
 	raw_spin_lock_init(&desc->lock);
 	desc->irq_data.irq = irq;
 #ifdef CONFIG_SMP
-	desc->node = node;
+	desc->irq_data.node = node;
 #endif
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	init_kstat_irqs(desc, node, nr_cpu_ids);
@@ -185,7 +185,7 @@ int __init early_irq_init(void)
 		desc[i].irq_data.irq = i;
 		desc[i].irq_data.chip = &no_irq_chip;
 #ifdef CONFIG_SMP
-		desc[i].node = node;
+		desc[i].irq_data.node = node;
 #endif
 		desc[i].kstat_irqs = kstat_irqs_legacy + i * nr_cpu_ids;
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
@@ -456,20 +456,20 @@ unsigned int __do_IRQ(unsigned int irq)
 		/*
 		 * No locking required for CPU-local interrupts:
 		 */
-		if (desc->chip->ack)
-			desc->chip->ack(irq);
+		if (desc->irq_data.chip->ack)
+			desc->irq_data.chip->ack(irq);
 		if (likely(!(desc->status & IRQ_DISABLED))) {
 			action_ret = handle_IRQ_event(irq, desc->action);
 			if (!noirqdebug)
 				note_interrupt(irq, desc, action_ret);
 		}
-		desc->chip->end(irq);
+		desc->irq_data.chip->end(irq);
 		return 1;
 	}
 
 	raw_spin_lock(&desc->lock);
-	if (desc->chip->ack)
-		desc->chip->ack(irq);
+	if (desc->irq_data.chip->ack)
+		desc->irq_data.chip->ack(irq);
 	/*
 	 * REPLAY is when Linux resends an IRQ that was dropped earlier
 	 * WAITING is used by probe to mark irqs that are being tested
@@ -529,7 +529,7 @@ out:
 	 * The ->end() handler has to deal with interrupts which got
 	 * disabled while the handler was running.
 	 */
-	desc->chip->end(irq);
+	desc->irq_data.chip->end(irq);
 	raw_spin_unlock(&desc->lock);
 
 	return 1;

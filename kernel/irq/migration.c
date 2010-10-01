@@ -24,7 +24,7 @@ void move_masked_irq(int irq)
 	if (unlikely(cpumask_empty(desc->pending_mask)))
 		return;
 
-	if (!desc->chip->set_affinity)
+	if (!desc->irq_data.chip->set_affinity)
 		return;
 
 	assert_raw_spin_locked(&desc->lock);
@@ -43,8 +43,8 @@ void move_masked_irq(int irq)
 	 */
 	if (likely(cpumask_any_and(desc->pending_mask, cpu_online_mask)
 		   < nr_cpu_ids))
-		if (!desc->chip->set_affinity(irq, desc->pending_mask)) {
-			cpumask_copy(desc->affinity, desc->pending_mask);
+		if (!desc->irq_data.chip->set_affinity(irq, desc->pending_mask)) {
+			cpumask_copy(desc->irq_data.affinity, desc->pending_mask);
 			irq_set_thread_affinity(desc);
 		}
 
@@ -61,8 +61,8 @@ void move_native_irq(int irq)
 	if (unlikely(desc->status & IRQ_DISABLED))
 		return;
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->mask(irq);
 	move_masked_irq(irq);
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->unmask(irq);
 }
 

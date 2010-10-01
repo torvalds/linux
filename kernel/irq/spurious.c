@@ -78,8 +78,8 @@ static int try_one_irq(int irq, struct irq_desc *desc)
 	 * If we did actual work for the real IRQ line we must let the
 	 * IRQ controller clean up too
 	 */
-	if (work && desc->chip && desc->chip->end)
-		desc->chip->end(irq);
+	if (work && desc->irq_data.chip && desc->irq_data.chip->end)
+		desc->irq_data.chip->end(irq);
 	raw_spin_unlock(&desc->lock);
 
 	return ok;
@@ -254,7 +254,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		printk(KERN_EMERG "Disabling IRQ #%d\n", irq);
 		desc->status |= IRQ_DISABLED | IRQ_SPURIOUS_DISABLED;
 		desc->depth++;
-		desc->chip->disable(irq);
+		desc->irq_data.chip->disable(irq);
 
 		mod_timer(&poll_spurious_irq_timer,
 			  jiffies + POLL_SPURIOUS_IRQ_INTERVAL);

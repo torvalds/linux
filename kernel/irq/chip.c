@@ -32,18 +32,18 @@ static void dynamic_irq_init_x(unsigned int irq, bool keep_chip_data)
 	/* Ensure we don't have left over values from a previous use of this irq */
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->status = IRQ_DISABLED;
-	desc->chip = &no_irq_chip;
+	desc->irq_data.chip = &no_irq_chip;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
-	desc->msi_desc = NULL;
-	desc->handler_data = NULL;
+	desc->irq_data.msi_desc = NULL;
+	desc->irq_data.handler_data = NULL;
 	if (!keep_chip_data)
-		desc->chip_data = NULL;
+		desc->irq_data.chip_data = NULL;
 	desc->action = NULL;
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
 #ifdef CONFIG_SMP
-	cpumask_setall(desc->affinity);
+	cpumask_setall(desc->irq_data.affinity);
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_clear(desc->pending_mask);
 #endif
@@ -64,7 +64,7 @@ void dynamic_irq_init(unsigned int irq)
  *	dynamic_irq_init_keep_chip_data - initialize a dynamically allocated irq
  *	@irq:	irq number to initialize
  *
- *	does not set irq_to_desc(irq)->chip_data to NULL
+ *	does not set irq_to_desc(irq)->irq_data.chip_data to NULL
  */
 void dynamic_irq_init_keep_chip_data(unsigned int irq)
 {
@@ -88,12 +88,12 @@ static void dynamic_irq_cleanup_x(unsigned int irq, bool keep_chip_data)
 			irq);
 		return;
 	}
-	desc->msi_desc = NULL;
-	desc->handler_data = NULL;
+	desc->irq_data.msi_desc = NULL;
+	desc->irq_data.handler_data = NULL;
 	if (!keep_chip_data)
-		desc->chip_data = NULL;
+		desc->irq_data.chip_data = NULL;
 	desc->handle_irq = handle_bad_irq;
-	desc->chip = &no_irq_chip;
+	desc->irq_data.chip = &no_irq_chip;
 	desc->name = NULL;
 	clear_kstat_irqs(desc);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
@@ -112,7 +112,7 @@ void dynamic_irq_cleanup(unsigned int irq)
  *	dynamic_irq_cleanup_keep_chip_data - cleanup a dynamically allocated irq
  *	@irq:	irq number to initialize
  *
- *	does not set irq_to_desc(irq)->chip_data to NULL
+ *	does not set irq_to_desc(irq)->irq_data.chip_data to NULL
  */
 void dynamic_irq_cleanup_keep_chip_data(unsigned int irq)
 {
@@ -140,7 +140,7 @@ int set_irq_chip(unsigned int irq, struct irq_chip *chip)
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	irq_chip_set_defaults(chip);
-	desc->chip = chip;
+	desc->irq_data.chip = chip;
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	return 0;
@@ -193,7 +193,7 @@ int set_irq_data(unsigned int irq, void *data)
 	}
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->handler_data = data;
+	desc->irq_data.handler_data = data;
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
@@ -218,7 +218,7 @@ int set_irq_msi(unsigned int irq, struct msi_desc *entry)
 	}
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->msi_desc = entry;
+	desc->irq_data.msi_desc = entry;
 	if (entry)
 		entry->irq = irq;
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
@@ -243,13 +243,13 @@ int set_irq_chip_data(unsigned int irq, void *data)
 		return -EINVAL;
 	}
 
-	if (!desc->chip) {
+	if (!desc->irq_data.chip) {
 		printk(KERN_ERR "BUG: bad set_irq_chip_data(IRQ#%d)\n", irq);
 		return -EINVAL;
 	}
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->chip_data = data;
+	desc->irq_data.chip_data = data;
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	return 0;
@@ -291,7 +291,7 @@ static void default_enable(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->unmask(irq);
 	desc->status &= ~IRQ_MASKED;
 }
 
@@ -309,7 +309,7 @@ static unsigned int default_startup(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc->chip->enable(irq);
+	desc->irq_data.chip->enable(irq);
 	return 0;
 }
 
@@ -320,7 +320,7 @@ static void default_shutdown(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->mask(irq);
 	desc->status |= IRQ_MASKED;
 }
 
@@ -350,28 +350,28 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 
 static inline void mask_ack_irq(struct irq_desc *desc, int irq)
 {
-	if (desc->chip->mask_ack)
-		desc->chip->mask_ack(irq);
+	if (desc->irq_data.chip->mask_ack)
+		desc->irq_data.chip->mask_ack(irq);
 	else {
-		desc->chip->mask(irq);
-		if (desc->chip->ack)
-			desc->chip->ack(irq);
+		desc->irq_data.chip->mask(irq);
+		if (desc->irq_data.chip->ack)
+			desc->irq_data.chip->ack(irq);
 	}
 	desc->status |= IRQ_MASKED;
 }
 
 static inline void mask_irq(struct irq_desc *desc, int irq)
 {
-	if (desc->chip->mask) {
-		desc->chip->mask(irq);
+	if (desc->irq_data.chip->mask) {
+		desc->irq_data.chip->mask(irq);
 		desc->status |= IRQ_MASKED;
 	}
 }
 
 static inline void unmask_irq(struct irq_desc *desc, int irq)
 {
-	if (desc->chip->unmask) {
-		desc->chip->unmask(irq);
+	if (desc->irq_data.chip->unmask) {
+		desc->irq_data.chip->unmask(irq);
 		desc->status &= ~IRQ_MASKED;
 	}
 }
@@ -552,7 +552,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 out:
-	desc->chip->eoi(irq);
+	desc->irq_data.chip->eoi(irq);
 
 	raw_spin_unlock(&desc->lock);
 }
@@ -594,8 +594,8 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	/* Start handling the irq */
-	if (desc->chip->ack)
-		desc->chip->ack(irq);
+	if (desc->irq_data.chip->ack)
+		desc->irq_data.chip->ack(irq);
 
 	/* Mark the IRQ currently in progress.*/
 	desc->status |= IRQ_INPROGRESS;
@@ -648,15 +648,15 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 
 	kstat_incr_irqs_this_cpu(irq, desc);
 
-	if (desc->chip->ack)
-		desc->chip->ack(irq);
+	if (desc->irq_data.chip->ack)
+		desc->irq_data.chip->ack(irq);
 
 	action_ret = handle_IRQ_event(irq, desc->action);
 	if (!noirqdebug)
 		note_interrupt(irq, desc, action_ret);
 
-	if (desc->chip->eoi)
-		desc->chip->eoi(irq);
+	if (desc->irq_data.chip->eoi)
+		desc->irq_data.chip->eoi(irq);
 }
 
 void
@@ -674,7 +674,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 
 	if (!handle)
 		handle = handle_bad_irq;
-	else if (desc->chip == &no_irq_chip) {
+	else if (desc->irq_data.chip == &no_irq_chip) {
 		printk(KERN_WARNING "Trying to install %sinterrupt handler "
 		       "for IRQ%d\n", is_chained ? "chained " : "", irq);
 		/*
@@ -684,7 +684,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		 * prevent us to setup the interrupt at all. Switch it to
 		 * dummy_irq_chip for easy transition.
 		 */
-		desc->chip = &dummy_irq_chip;
+		desc->irq_data.chip = &dummy_irq_chip;
 	}
 
 	chip_bus_lock(irq, desc);
@@ -692,7 +692,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 
 	/* Uninstall? */
 	if (handle == handle_bad_irq) {
-		if (desc->chip != &no_irq_chip)
+		if (desc->irq_data.chip != &no_irq_chip)
 			mask_ack_irq(desc, irq);
 		desc->status |= IRQ_DISABLED;
 		desc->depth = 1;
@@ -704,7 +704,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->status &= ~IRQ_DISABLED;
 		desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE;
 		desc->depth = 0;
-		desc->chip->startup(irq);
+		desc->irq_data.chip->startup(irq);
 	}
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	chip_bus_sync_unlock(irq, desc);

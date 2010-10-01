@@ -475,12 +475,12 @@ static inline bool alloc_desc_masks(struct irq_desc *desc, int node,
 		gfp = GFP_NOWAIT;
 
 #ifdef CONFIG_CPUMASK_OFFSTACK
-	if (!alloc_cpumask_var_node(&desc->affinity, gfp, node))
+	if (!alloc_cpumask_var_node(&desc->irq_data.affinity, gfp, node))
 		return false;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (!alloc_cpumask_var_node(&desc->pending_mask, gfp, node)) {
-		free_cpumask_var(desc->affinity);
+		free_cpumask_var(desc->irq_data.affinity);
 		return false;
 	}
 #endif
@@ -490,7 +490,7 @@ static inline bool alloc_desc_masks(struct irq_desc *desc, int node,
 
 static inline void init_desc_masks(struct irq_desc *desc)
 {
-	cpumask_setall(desc->affinity);
+	cpumask_setall(desc->irq_data.affinity);
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_clear(desc->pending_mask);
 #endif
@@ -510,7 +510,7 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 					struct irq_desc *new_desc)
 {
 #ifdef CONFIG_CPUMASK_OFFSTACK
-	cpumask_copy(new_desc->affinity, old_desc->affinity);
+	cpumask_copy(new_desc->irq_data.affinity, old_desc->irq_data.affinity);
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_copy(new_desc->pending_mask, old_desc->pending_mask);
@@ -521,7 +521,7 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 static inline void free_desc_masks(struct irq_desc *old_desc,
 				   struct irq_desc *new_desc)
 {
-	free_cpumask_var(old_desc->affinity);
+	free_cpumask_var(old_desc->irq_data.affinity);
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	free_cpumask_var(old_desc->pending_mask);

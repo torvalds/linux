@@ -44,7 +44,7 @@ static bool init_copy_one_irq_desc(int irq, struct irq_desc *old_desc,
 		return false;
 	}
 	raw_spin_lock_init(&desc->lock);
-	desc->node = node;
+	desc->irq_data.node = node;
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	init_copy_kstat_irqs(old_desc, desc, node, nr_cpu_ids);
 	init_copy_desc_masks(old_desc, desc);
@@ -66,7 +66,7 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	unsigned int irq;
 	unsigned long flags;
 
-	irq = old_desc->irq;
+	irq = old_desc->irq_data.irq;
 
 	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
 
@@ -109,10 +109,10 @@ out_unlock:
 struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 {
 	/* those static or target node is -1, do not move them */
-	if (desc->irq < NR_IRQS_LEGACY || node == -1)
+	if (desc->irq_data.irq < NR_IRQS_LEGACY || node == -1)
 		return desc;
 
-	if (desc->node != node)
+	if (desc->irq_data.node != node)
 		desc = __real_move_irq_desc(desc, node);
 
 	return desc;
