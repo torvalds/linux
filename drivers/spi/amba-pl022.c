@@ -1597,58 +1597,58 @@ static int verify_controller_parameters(struct pl022 *pl022,
 {
 	if ((chip_info->iface < SSP_INTERFACE_MOTOROLA_SPI)
 	    || (chip_info->iface > SSP_INTERFACE_UNIDIRECTIONAL)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"interface is configured incorrectly\n");
 		return -EINVAL;
 	}
 	if ((chip_info->iface == SSP_INTERFACE_UNIDIRECTIONAL) &&
 	    (!pl022->vendor->unidir)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"unidirectional mode not supported in this "
 			"hardware version\n");
 		return -EINVAL;
 	}
 	if ((chip_info->hierarchy != SSP_MASTER)
 	    && (chip_info->hierarchy != SSP_SLAVE)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"hierarchy is configured incorrectly\n");
 		return -EINVAL;
 	}
 	if (((chip_info->clk_freq).cpsdvsr < CPSDVR_MIN)
 	    || ((chip_info->clk_freq).cpsdvsr > CPSDVR_MAX)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"cpsdvsr is configured incorrectly\n");
 		return -EINVAL;
 	}
 	if ((chip_info->com_mode != INTERRUPT_TRANSFER)
 	    && (chip_info->com_mode != DMA_TRANSFER)
 	    && (chip_info->com_mode != POLLING_TRANSFER)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"Communication mode is configured incorrectly\n");
 		return -EINVAL;
 	}
 	if ((chip_info->rx_lev_trig < SSP_RX_1_OR_MORE_ELEM)
 	    || (chip_info->rx_lev_trig > SSP_RX_32_OR_MORE_ELEM)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"RX FIFO Trigger Level is configured incorrectly\n");
 		return -EINVAL;
 	}
 	if ((chip_info->tx_lev_trig < SSP_TX_1_OR_MORE_EMPTY_LOC)
 	    || (chip_info->tx_lev_trig > SSP_TX_32_OR_MORE_EMPTY_LOC)) {
-		dev_err(chip_info->dev,
+		dev_err(&pl022->adev->dev,
 			"TX FIFO Trigger Level is configured incorrectly\n");
 		return -EINVAL;
 	}
 	if (chip_info->iface == SSP_INTERFACE_NATIONAL_MICROWIRE) {
 		if ((chip_info->ctrl_len < SSP_BITS_4)
 		    || (chip_info->ctrl_len > SSP_BITS_32)) {
-			dev_err(chip_info->dev,
+			dev_err(&pl022->adev->dev,
 				"CTRL LEN is configured incorrectly\n");
 			return -EINVAL;
 		}
 		if ((chip_info->wait_state != SSP_MWIRE_WAIT_ZERO)
 		    && (chip_info->wait_state != SSP_MWIRE_WAIT_ONE)) {
-			dev_err(chip_info->dev,
+			dev_err(&pl022->adev->dev,
 				"Wait State is configured incorrectly\n");
 			return -EINVAL;
 		}
@@ -1658,13 +1658,13 @@ static int verify_controller_parameters(struct pl022 *pl022,
 			     SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
 			    && (chip_info->duplex !=
 				SSP_MICROWIRE_CHANNEL_HALF_DUPLEX)) {
-				dev_err(chip_info->dev,
+				dev_err(&pl022->adev->dev,
 					"Microwire duplex mode is configured incorrectly\n");
 				return -EINVAL;
 			}
 		} else {
 			if (chip_info->duplex != SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
-				dev_err(chip_info->dev,
+				dev_err(&pl022->adev->dev,
 					"Microwire half duplex mode requested,"
 					" but this is only available in the"
 					" ST version of PL022\n");
@@ -1672,7 +1672,7 @@ static int verify_controller_parameters(struct pl022 *pl022,
 		}
 	}
 	if (chip_info->cs_control == NULL) {
-		dev_warn(chip_info->dev,
+		dev_warn(&pl022->adev->dev,
 			"Chip Select Function is NULL for this chip\n");
 		chip_info->cs_control = null_cs_control;
 	}
@@ -1851,9 +1851,6 @@ static int pl022_setup(struct spi_device *spi)
 		dev_dbg(&spi->dev,
 			"using user supplied controller_data settings\n");
 	}
-
-	/* Pointer back to the SPI device */
-	chip_info->dev = &spi->dev;
 
 	/*
 	 * We can override with custom divisors, else we use the board

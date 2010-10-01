@@ -276,7 +276,6 @@ struct pl022_ssp_controller {
  * @dma_config: DMA configuration for SSP controller and peripheral
  */
 struct pl022_config_chip {
-	struct device *dev;
 	enum ssp_interface iface;
 	enum ssp_hierarchy hierarchy;
 	bool slave_tx_disable;
