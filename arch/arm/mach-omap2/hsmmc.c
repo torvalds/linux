@@ -303,6 +303,9 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		else
 			mmc->slots[0].features |= HSMMC_HAS_PBIAS;
 
+		if (cpu_is_omap44xx() && (omap_rev() > OMAP4430_REV_ES1_0))
+			mmc->slots[0].features |= HSMMC_HAS_UPDATED_RESET;
+
 		switch (c->mmc) {
 		case 1:
 			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {

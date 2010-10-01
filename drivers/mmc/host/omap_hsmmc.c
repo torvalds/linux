@@ -982,6 +982,17 @@ static inline void omap_hsmmc_reset_controller_fsm(struct omap_hsmmc_host *host,
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 			 OMAP_HSMMC_READ(host->base, SYSCTL) | bit);
 
+	/*
+	 * OMAP4 ES2 and greater has an updated reset logic.
+	 * Monitor a 0->1 transition first
+	 */
+	if (mmc_slot(host).features & HSMMC_HAS_UPDATED_RESET) {
+		while ((!(OMAP_HSMMC_READ(host, SYSCTL) & bit))
+					&& (i++ < limit))
+			cpu_relax();
+	}
+	i = 0;
+
 	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & bit) &&
 		(i++ < limit))
 		cpu_relax();
