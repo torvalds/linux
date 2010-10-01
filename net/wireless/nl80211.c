@@ -603,6 +603,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		NLA_PUT_U32(msg, i, NL80211_CMD_SET_WIPHY_NETNS);
 	}
 	CMD(set_channel, SET_CHANNEL);
+	CMD(set_wds_peer, SET_WDS_PEER);
 
 #undef CMD
 
@@ -832,6 +833,53 @@ static int nl80211_set_channel(struct sk_buff *skb, struct genl_info *info)
 
 	return result;
 }
+
+static int nl80211_set_wds_peer(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+	struct net_device *dev;
+	u8 *bssid;
+	int err;
+
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	rtnl_lock();
+
+	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
+	if (err)
+		goto unlock_rtnl;
+
+	wdev = dev->ieee80211_ptr;
+
+	if (netif_running(dev)) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (!rdev->ops->set_wds_peer) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (wdev->iftype != NL80211_IFTYPE_WDS) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	err = rdev->ops->set_wds_peer(wdev->wiphy, dev, bssid);
+
+out:
+	cfg80211_unlock_rdev(rdev);
+	dev_put(dev);
+unlock_rtnl:
+	rtnl_unlock();
+
+	return err;
+}
+
 
 static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 {
@@ -5470,6 +5518,12 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_CHANNEL,
 		.doit = nl80211_set_channel,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_WDS_PEER,
+		.doit = nl80211_set_wds_peer,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
