@@ -78,7 +78,7 @@ struct sih {
 	u8	irq_lines;		/* number of supported irq lines */
 
 	/* SIR ignored -- set interrupt, for testing only */
-	struct irq_data {
+	struct sih_irq_data {
 		u8	isr_offset;
 		u8	imr_offset;
 	} mask[2];
