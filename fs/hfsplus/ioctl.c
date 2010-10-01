@@ -26,7 +26,6 @@ long hfsplus_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	unsigned int flags;
 
-	lock_kernel();
 	switch (cmd) {
 	case HFSPLUS_IOC_EXT2_GETFLAGS:
 		flags = 0;
@@ -39,6 +38,8 @@ long hfsplus_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return put_user(flags, (int __user *)arg);
 	case HFSPLUS_IOC_EXT2_SETFLAGS: {
 		int err = 0;
+
+		lock_kernel();
 		err = mnt_want_write(filp->f_path.mnt);
 		if (err) {
 			unlock_kernel();
@@ -93,7 +94,6 @@ setflags_out:
 		return err;
 	}
 	default:
-		unlock_kernel();
 		return -ENOTTY;
 	}
 }
