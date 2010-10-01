@@ -71,6 +71,9 @@ struct omap_mmc_platform_data {
 
 	u64 dma_mask;
 
+	/* Register offset deviation */
+	u16 reg_offset;
+
 	struct omap_mmc_slot_data {
 
 		/* 4/8 wires and any additional host capabilities
