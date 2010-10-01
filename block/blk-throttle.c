@@ -87,7 +87,7 @@ struct throtl_data
 	unsigned int nr_queued[2];
 
 	/*
-	 * number of total undestroyed groups (excluding root group)
+	 * number of total undestroyed groups
 	 */
 	unsigned int nr_undestroyed_grps;
 
@@ -940,7 +940,17 @@ int blk_throtl_init(struct request_queue *q)
 	/* Practically unlimited BW */
 	tg->bps[0] = tg->bps[1] = -1;
 	tg->iops[0] = tg->iops[1] = -1;
-	atomic_set(&tg->ref, 1);
+
+	/*
+	 * Set root group reference to 2. One reference will be dropped when
+	 * all groups on tg_list are being deleted during queue exit. Other
+	 * reference will remain there as we don't want to delete this group
+	 * as it is statically allocated and gets destroyed when throtl_data
+	 * goes away.
+	 */
+	atomic_set(&tg->ref, 2);
+	hlist_add_head(&tg->tg_node, &td->tg_list);
+	td->nr_undestroyed_grps++;
 
 	INIT_DELAYED_WORK(&td->throtl_work, blk_throtl_work);
 
@@ -966,10 +976,9 @@ void blk_throtl_exit(struct request_queue *q)
 
 	spin_lock_irq(q->queue_lock);
 	throtl_release_tgs(td);
-	blkiocg_del_blkio_group(&td->root_tg.blkg);
 
 	/* If there are other groups */
-	if (td->nr_undestroyed_grps >= 1)
+	if (td->nr_undestroyed_grps > 0)
 		wait = true;
 
 	spin_unlock_irq(q->queue_lock);
