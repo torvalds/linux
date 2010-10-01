@@ -81,4 +81,10 @@ static inline int octeon_has_saa(void)
 	return id >= 0x000d0300;
 }
 
+/*
+ * The last 256MB are reserved for device to device mappings and the
+ * BAR1 hole.
+ */
+#define MAX_DMA32_PFN (((1ULL << 32) - (1ULL << 28)) >> PAGE_SHIFT)
+
 #endif
