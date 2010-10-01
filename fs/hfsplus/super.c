@@ -162,7 +162,7 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 
 	dprint(DBG_SUPER, "hfsplus_write_super\n");
 
-	lock_super(sb);
+	mutex_lock(&HFSPLUS_SB(sb).alloc_mutex);
 	sb->s_dirt = 0;
 
 	vhdr->free_blocks = cpu_to_be32(HFSPLUS_SB(sb).free_blocks);
@@ -195,7 +195,7 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 		}
 		HFSPLUS_SB(sb).flags &= ~HFSPLUS_SB_WRITEBACKUP;
 	}
-	unlock_super(sb);
+	mutex_unlock(&HFSPLUS_SB(sb).alloc_mutex);
 	return 0;
 }
 
