@@ -373,7 +373,6 @@ static inline int get_node_id(struct pci_dev *pdev)
 enum amd64_chipset_families {
 	K8_CPUS = 0,
 	F10_CPUS,
-	F11_CPUS,
 };
 
 /* Error injection control structure */
@@ -556,7 +555,6 @@ static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
  */
 #define K8_MIN_SCRUB_RATE_BITS	0x0
 #define F10_MIN_SCRUB_RATE_BITS	0x5
-#define F11_MIN_SCRUB_RATE_BITS	0x6
 
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);

@@ -172,9 +172,6 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bandwidth)
 	case 0x10:
 		min_scrubrate = F10_MIN_SCRUB_RATE_BITS;
 		break;
-	case 0x11:
-		min_scrubrate = F11_MIN_SCRUB_RATE_BITS;
-		break;
 
 	default:
 		amd64_printk(KERN_ERR, "Unsupported family!\n");
@@ -803,9 +800,7 @@ static u16 extract_syndrome(struct err_regs *err)
 
 static void amd64_cpu_display_info(struct amd64_pvt *pvt)
 {
-	if (boot_cpu_data.x86 == 0x11)
-		edac_printk(KERN_DEBUG, EDAC_MC, "F11h CPU detected\n");
-	else if (boot_cpu_data.x86 == 0x10)
+	if (boot_cpu_data.x86 == 0x10)
 		edac_printk(KERN_DEBUG, EDAC_MC, "F10h CPU detected\n");
 	else if (boot_cpu_data.x86 == 0xf)
 		edac_printk(KERN_DEBUG, EDAC_MC, "%s detected\n",
@@ -965,14 +960,8 @@ static void amd64_set_dct_base_and_mask(struct amd64_pvt *pvt)
 		pvt->dcsm_mask		= REV_F_F1Xh_DCSM_MASK_BITS;
 		pvt->dcs_mask_notused	= REV_F_F1Xh_DCS_NOTUSED_BITS;
 		pvt->dcs_shift		= REV_F_F1Xh_DCS_SHIFT;
-
-		if (boot_cpu_data.x86 == 0x11) {
-			pvt->cs_count = 4;
-			pvt->num_dcsm = 2;
-		} else {
-			pvt->cs_count = 8;
-			pvt->num_dcsm = 4;
-		}
+		pvt->cs_count		= 8;
+		pvt->num_dcsm		= 4;
 	}
 }
 
@@ -1744,17 +1733,6 @@ static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 	}
 }
 
-/*
- * There currently are 3 types type of MC devices for AMD Athlon/Opterons
- * (as per PCI DEVICE_IDs):
- *
- * Family K8: That is the Athlon64 and Opteron CPUs. They all have the same PCI
- * DEVICE ID, even though there is differences between the different Revisions
- * (CG,D,E,F).
- *
- * Family F10h and F11h.
- *
- */
 static struct amd64_family_type amd64_family_types[] = {
 	[K8_CPUS] = {
 		.ctl_name = "RevF",
@@ -1772,19 +1750,6 @@ static struct amd64_family_type amd64_family_types[] = {
 		.ctl_name = "Family 10h",
 		.addr_f1_ctl = PCI_DEVICE_ID_AMD_10H_NB_MAP,
 		.misc_f3_ctl = PCI_DEVICE_ID_AMD_10H_NB_MISC,
-		.ops = {
-			.early_channel_count	= f10_early_channel_count,
-			.get_error_address	= f10_get_error_address,
-			.read_dram_base_limit	= f10_read_dram_base_limit,
-			.read_dram_ctl_register	= f10_read_dram_ctl_register,
-			.map_sysaddr_to_csrow	= f10_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f10_dbam_to_chip_select,
-		}
-	},
-	[F11_CPUS] = {
-		.ctl_name = "Family 11h",
-		.addr_f1_ctl = PCI_DEVICE_ID_AMD_11H_NB_MAP,
-		.misc_f3_ctl = PCI_DEVICE_ID_AMD_11H_NB_MISC,
 		.ops = {
 			.early_channel_count	= f10_early_channel_count,
 			.get_error_address	= f10_get_error_address,
@@ -2861,15 +2826,6 @@ static const struct pci_device_id amd64_pci_table[] __devinitdata = {
 		.class		= 0,
 		.class_mask	= 0,
 		.driver_data	= F10_CPUS
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_11H_NB_DRAM,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-		.driver_data	= F11_CPUS
 	},
 	{0, }
 };
