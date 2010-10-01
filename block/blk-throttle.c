@@ -439,8 +439,7 @@ static bool tg_with_in_iops_limit(struct throtl_data *td, struct throtl_grp *tg,
 
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, throtl_slice);
 
-	io_allowed = (tg->iops[rw] * jiffies_to_msecs(jiffy_elapsed_rnd))
-				/ MSEC_PER_SEC;
+	io_allowed = (tg->iops[rw] * jiffy_elapsed_rnd) / HZ;
 
 	if (tg->io_disp[rw] + 1 <= io_allowed) {
 		if (wait)
@@ -476,8 +475,8 @@ static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
 
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, throtl_slice);
 
-	tmp = tg->bps[rw] * jiffies_to_msecs(jiffy_elapsed_rnd);
-	do_div(tmp, MSEC_PER_SEC);
+	tmp = tg->bps[rw] * jiffy_elapsed_rnd;
+	do_div(tmp, HZ);
 	bytes_allowed = tmp;
 
 	if (tg->bytes_disp[rw] + bio->bi_size <= bytes_allowed) {
