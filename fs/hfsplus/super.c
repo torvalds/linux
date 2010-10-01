@@ -89,63 +89,57 @@ struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
 	return inode;
 }
 
+static int hfsplus_system_write_inode(struct inode *inode)
+{
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	struct hfsplus_vh *vhdr = sbi->s_vhdr;
+	struct hfsplus_fork_raw *fork;
+	struct hfs_btree *tree = NULL;
+
+	switch (inode->i_ino) {
+	case HFSPLUS_EXT_CNID:
+		fork = &vhdr->ext_file;
+		tree = sbi->ext_tree;
+		break;
+	case HFSPLUS_CAT_CNID:
+		fork = &vhdr->cat_file;
+		tree = sbi->cat_tree;
+		break;
+	case HFSPLUS_ALLOC_CNID:
+		fork = &vhdr->alloc_file;
+		break;
+	case HFSPLUS_START_CNID:
+		fork = &vhdr->start_file;
+		break;
+	case HFSPLUS_ATTR_CNID:
+		fork = &vhdr->attr_file;
+		tree = sbi->attr_tree;
+	default:
+		return -EIO;
+	}
+
+	if (fork->total_size != cpu_to_be64(inode->i_size)) {
+		sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
+		inode->i_sb->s_dirt = 1;
+	}
+	hfsplus_inode_write_fork(inode, fork);
+	if (tree)
+		hfs_btree_write(tree);
+	return 0;
+}
+
 static int hfsplus_write_inode(struct inode *inode,
 		struct writeback_control *wbc)
 {
-	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
-	struct hfsplus_vh *vhdr;
-	int ret = 0;
-
 	dprint(DBG_INODE, "hfsplus_write_inode: %lu\n", inode->i_ino);
+
 	hfsplus_ext_write_extent(inode);
-	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID) {
+
+	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID ||
+	    inode->i_ino == HFSPLUS_ROOT_CNID)
 		return hfsplus_cat_write_inode(inode);
-	}
-	vhdr = sbi->s_vhdr;
-	switch (inode->i_ino) {
-	case HFSPLUS_ROOT_CNID:
-		ret = hfsplus_cat_write_inode(inode);
-		break;
-	case HFSPLUS_EXT_CNID:
-		if (vhdr->ext_file.total_size != cpu_to_be64(inode->i_size)) {
-			sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
-			inode->i_sb->s_dirt = 1;
-		}
-		hfsplus_inode_write_fork(inode, &vhdr->ext_file);
-		hfs_btree_write(sbi->ext_tree);
-		break;
-	case HFSPLUS_CAT_CNID:
-		if (vhdr->cat_file.total_size != cpu_to_be64(inode->i_size)) {
-			sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
-			inode->i_sb->s_dirt = 1;
-		}
-		hfsplus_inode_write_fork(inode, &vhdr->cat_file);
-		hfs_btree_write(sbi->cat_tree);
-		break;
-	case HFSPLUS_ALLOC_CNID:
-		if (vhdr->alloc_file.total_size != cpu_to_be64(inode->i_size)) {
-			sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
-			inode->i_sb->s_dirt = 1;
-		}
-		hfsplus_inode_write_fork(inode, &vhdr->alloc_file);
-		break;
-	case HFSPLUS_START_CNID:
-		if (vhdr->start_file.total_size != cpu_to_be64(inode->i_size)) {
-			sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
-			inode->i_sb->s_dirt = 1;
-		}
-		hfsplus_inode_write_fork(inode, &vhdr->start_file);
-		break;
-	case HFSPLUS_ATTR_CNID:
-		if (vhdr->attr_file.total_size != cpu_to_be64(inode->i_size)) {
-			sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
-			inode->i_sb->s_dirt = 1;
-		}
-		hfsplus_inode_write_fork(inode, &vhdr->attr_file);
-		hfs_btree_write(sbi->attr_tree);
-		break;
-	}
-	return ret;
+	else
+		return hfsplus_system_write_inode(inode);
 }
 
 static void hfsplus_evict_inode(struct inode *inode)
