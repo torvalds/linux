@@ -1433,6 +1433,7 @@ static bool
 ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
 {
 	sc->stats.rx_all_count++;
+	sc->stats.rx_bytes_count += rs->rs_datalen;
 
 	if (unlikely(rs->rs_status)) {
 		if (rs->rs_status & AR5K_RXERR_CRC)
@@ -1611,6 +1612,7 @@ ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
 	int i;
 
 	sc->stats.tx_all_count++;
+	sc->stats.tx_bytes_count += skb->len;
 	info = IEEE80211_SKB_CB(skb);
 
 	ieee80211_tx_info_clear_status(info);
