@@ -35,6 +35,7 @@
 #define IDEAPAD_DEV_KILLSW	4
 
 struct ideapad_private {
+	acpi_handle handle;
 	struct rfkill *rfk[5];
 };
 
@@ -207,24 +208,28 @@ static ssize_t show_ideapad_cam(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	int state = ideapad_dev_get_state(IDEAPAD_DEV_CAMERA);
-	if (state < 0)
-		return state;
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	acpi_handle handle = priv->handle;
+	unsigned long result;
 
-	return sprintf(buf, "%d\n", state);
+	if (read_ec_data(handle, 0x1D, &result))
+		return sprintf(buf, "-1\n");
+	return sprintf(buf, "%lu\n", result);
 }
 
 static ssize_t store_ideapad_cam(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	acpi_handle handle = priv->handle;
 	int ret, state;
 
 	if (!count)
 		return 0;
 	if (sscanf(buf, "%i", &state) != 1)
 		return -EINVAL;
-	ret = ideapad_dev_set_state(IDEAPAD_DEV_CAMERA, !!state);
+	ret = write_ec_cmd(handle, 0x1E, state);
 	if (ret < 0)
 		return ret;
 	return count;
@@ -330,6 +335,7 @@ static int ideapad_acpi_add(struct acpi_device *adevice)
 		}
 	}
 
+	priv->handle = adevice->handle;
 	dev_set_drvdata(&adevice->dev, priv);
 	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++) {
 		if (!devs_present[i])
