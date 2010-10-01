@@ -22,7 +22,7 @@
 #include <net/gre.h>
 
 
-const struct gre_protocol *gre_proto[GREPROTO_MAX] __read_mostly;
+static const struct gre_protocol *gre_proto[GREPROTO_MAX] __read_mostly;
 static DEFINE_SPINLOCK(gre_proto_lock);
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version)
