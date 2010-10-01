@@ -3997,7 +3997,7 @@ static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->snapshot_pressed != state) {
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, state);
 		input_sync(gspca_dev->input_dev);
 #endif
@@ -4598,7 +4598,7 @@ static const struct sd_desc sd_desc = {
 	.querymenu = sd_querymenu,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.other_input = 1,
 #endif
 };
