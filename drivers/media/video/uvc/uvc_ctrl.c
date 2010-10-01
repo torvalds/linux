@@ -1164,6 +1164,45 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
  * Dynamic controls
  */
 
+static void uvc_ctrl_fixup_xu_info(struct uvc_device *dev,
+	const struct uvc_control *ctrl, struct uvc_control_info *info)
+{
+	struct uvc_ctrl_fixup {
+		struct usb_device_id id;
+		u8 entity;
+		u8 selector;
+		u8 flags;
+	};
+
+	static const struct uvc_ctrl_fixup fixups[] = {
+		{ { USB_DEVICE(0x046d, 0x08c2) }, 9, 1,
+			UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
+			UVC_CONTROL_GET_DEF | UVC_CONTROL_SET_CUR |
+			UVC_CONTROL_AUTO_UPDATE },
+		{ { USB_DEVICE(0x046d, 0x08cc) }, 9, 1,
+			UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
+			UVC_CONTROL_GET_DEF | UVC_CONTROL_SET_CUR |
+			UVC_CONTROL_AUTO_UPDATE },
+		{ { USB_DEVICE(0x046d, 0x0994) }, 9, 1,
+			UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
+			UVC_CONTROL_GET_DEF | UVC_CONTROL_SET_CUR |
+			UVC_CONTROL_AUTO_UPDATE },
+	};
+
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(fixups); ++i) {
+		if (!usb_match_one_id(dev->intf, &fixups[i].id))
+			continue;
+
+		if (fixups[i].entity == ctrl->entity->id &&
+		    fixups[i].selector == info->selector) {
+			info->flags = fixups[i].flags;
+			return;
+		}
+	}
+}
+
 /*
  * Query control information (size and flags) for XU controls.
  */
@@ -1210,6 +1249,8 @@ static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
 		    | (data[0] & UVC_CONTROL_CAP_SET ? UVC_CONTROL_SET_CUR : 0)
 		    | (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
 		       UVC_CONTROL_AUTO_UPDATE : 0);
+
+	uvc_ctrl_fixup_xu_info(dev, ctrl, info);
 
 	uvc_trace(UVC_TRACE_CONTROL, "XU control %pUl/%u queried: len %u, "
 		  "flags { get %u set %u auto %u }.\n",
