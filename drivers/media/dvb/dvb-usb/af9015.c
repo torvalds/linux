@@ -966,9 +966,11 @@ error:
 		err("eeprom read failed:%d", ret);
 
 	/* AverMedia AVerTV Volar Black HD (A850) device have bad EEPROM
-	   content :-( Override some wrong values here. */
+	   content :-( Override some wrong values here. Ditto for the
+	   AVerTV Red HD+ (A850T) device. */
 	if (le16_to_cpu(udev->descriptor.idVendor) == USB_VID_AVERMEDIA &&
-	    le16_to_cpu(udev->descriptor.idProduct) == USB_PID_AVERMEDIA_A850) {
+	    ((le16_to_cpu(udev->descriptor.idProduct) == USB_PID_AVERMEDIA_A850) ||
+	     (le16_to_cpu(udev->descriptor.idProduct) == USB_PID_AVERMEDIA_A850T))) {
 		deb_info("%s: AverMedia A850: overriding config\n", __func__);
 		/* disable dual mode */
 		af9015_config.dual_mode = 0;
@@ -1299,6 +1301,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_T_STICK_RC)},
 	{USB_DEVICE(USB_VID_TERRATEC,
 		USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
+/* 35 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1361,7 +1364,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 11, /* check max from dvb-usb.h */
+		.num_device_descs = 12, /* check max from dvb-usb.h */
 		.devices = {
 			{
 				.name = "Afatech AF9015 DVB-T USB2.0 stick",
@@ -1421,6 +1424,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "TerraTec Cinergy T Stick Dual RC",
 				.cold_ids = {&af9015_usb_table[34], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "AverMedia AVerTV Red HD+ (A850T)",
+				.cold_ids = {&af9015_usb_table[35], NULL},
 				.warm_ids = {NULL},
 			},
 		}
