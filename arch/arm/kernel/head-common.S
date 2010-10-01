@@ -145,45 +145,14 @@ ENDPROC(__error)
 
 
 /*
- * Read processor ID register (CP#15, CR0), and look up in the linker-built
- * supported processor list.  Note that we can't use the absolute addresses
- * for the __proc_info lists since we aren't running with the MMU on
- * (and therefore, we are not in the correct address space).  We have to
- * calculate the offset.
- *
- *	r9 = cpuid
- * Returns:
- *	r3, r4, r6 corrupted
- *	r5 = proc_info pointer in physical address space
- *	r9 = cpuid (preserved)
- */
-__lookup_processor_type:
-	adr	r3, 3f
-	ldmia	r3, {r5 - r7}
-	add	r3, r3, #8
-	sub	r3, r3, r7			@ get offset between virt&phys
-	add	r5, r5, r3			@ convert virt addresses to
-	add	r6, r6, r3			@ physical address space
-1:	ldmia	r5, {r3, r4}			@ value, mask
-	and	r4, r4, r9			@ mask wanted bits
-	teq	r3, r4
-	beq	2f
-	add	r5, r5, #PROC_INFO_SZ		@ sizeof(proc_info_list)
-	cmp	r5, r6
-	blo	1b
-	mov	r5, #0				@ unknown processor
-2:	mov	pc, lr
-ENDPROC(__lookup_processor_type)
-
-/*
- * This provides a C-API version of the above function.
+ * This provides a C-API version of __lookup_processor_type
  */
 ENTRY(lookup_processor_type)
-	stmfd	sp!, {r4 - r7, r9, lr}
+	stmfd	sp!, {r4 - r6, r9, lr}
 	mov	r9, r0
 	bl	__lookup_processor_type
 	mov	r0, r5
-	ldmfd	sp!, {r4 - r7, r9, pc}
+	ldmfd	sp!, {r4 - r6, r9, pc}
 ENDPROC(lookup_processor_type)
 
 /*
@@ -191,8 +160,6 @@ ENDPROC(lookup_processor_type)
  * more information about the __proc_info and __arch_info structures.
  */
 	.align	2
-3:	.long	__proc_info_begin
-	.long	__proc_info_end
 4:	.long	.
 	.long	__arch_info_begin
 	.long	__arch_info_end
@@ -265,3 +232,45 @@ __vet_atags:
 1:	mov	r2, #0
 	mov	pc, lr
 ENDPROC(__vet_atags)
+
+/*
+ * Read processor ID register (CP#15, CR0), and look up in the linker-built
+ * supported processor list.  Note that we can't use the absolute addresses
+ * for the __proc_info lists since we aren't running with the MMU on
+ * (and therefore, we are not in the correct address space).  We have to
+ * calculate the offset.
+ *
+ *	r9 = cpuid
+ * Returns:
+ *	r3, r4, r6 corrupted
+ *	r5 = proc_info pointer in physical address space
+ *	r9 = cpuid (preserved)
+ */
+	__CPUINIT
+__lookup_processor_type:
+	adr	r3, __lookup_processor_type_data
+	ldmia	r3, {r4 - r6}
+	sub	r3, r3, r4			@ get offset between virt&phys
+	add	r5, r5, r3			@ convert virt addresses to
+	add	r6, r6, r3			@ physical address space
+1:	ldmia	r5, {r3, r4}			@ value, mask
+	and	r4, r4, r9			@ mask wanted bits
+	teq	r3, r4
+	beq	2f
+	add	r5, r5, #PROC_INFO_SZ		@ sizeof(proc_info_list)
+	cmp	r5, r6
+	blo	1b
+	mov	r5, #0				@ unknown processor
+2:	mov	pc, lr
+ENDPROC(__lookup_processor_type)
+
+/*
+ * Look in <asm/procinfo.h> for information about the __proc_info structure.
+ */
+	.align	2
+	.type	__lookup_processor_type_data, %object
+__lookup_processor_type_data:
+	.long	.
+	.long	__proc_info_begin
+	.long	__proc_info_end
+	.size	__lookup_processor_type_data, . - __lookup_processor_type_data

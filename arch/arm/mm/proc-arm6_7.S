@@ -238,7 +238,7 @@ ENTRY(cpu_arm7_reset)
 		mcr	p15, 0, r1, c1, c0, 0		@ turn off MMU etc
 		mov	pc, r0
 
-		__INIT
+		__CPUINIT
 
 		.type	__arm6_setup, #function
 __arm6_setup:	mov	r0, #0

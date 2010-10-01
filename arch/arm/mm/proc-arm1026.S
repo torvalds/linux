@@ -384,7 +384,7 @@ ENTRY(cpu_arm1026_set_pte_ext)
 	mov	pc, lr
 
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm1026_setup, #function
 __arm1026_setup:

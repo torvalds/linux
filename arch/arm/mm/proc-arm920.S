@@ -375,7 +375,7 @@ ENTRY(cpu_arm920_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm920_setup, #function
 __arm920_setup:

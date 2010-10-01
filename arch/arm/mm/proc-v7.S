@@ -169,7 +169,7 @@ cpu_v7_name:
 	.ascii	"ARMv7 Processor"
 	.align
 
-	__INIT
+	__CPUINIT
 
 /*
  *	__v7_setup
@@ -297,6 +297,8 @@ v7_crval:
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
 
+	__INITDATA
+
 	.type	v7_processor_functions, #object
 ENTRY(v7_processor_functions)
 	.word	v7_early_abort
@@ -309,6 +311,8 @@ ENTRY(v7_processor_functions)
 	.word	cpu_v7_switch_mm
 	.word	cpu_v7_set_pte_ext
 	.size	v7_processor_functions, . - v7_processor_functions
+
+	.section ".rodata"
 
 	.type	cpu_arch_name, #object
 cpu_arch_name:
