@@ -169,9 +169,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	spin_lock_init(&modem->write.busy_lock);
 	init_usb_anchor(&modem->write.in_flight);
 	init_usb_anchor(&modem->write.delayed);
-	/* The * 20 calculation is from Motorola's original driver, I do not
-	 * know the reasoning */
-	modem->write.buffer_sz = le16_to_cpu(epwrite->wMaxPacketSize) * 20;
+	modem->write.buffer_sz = le16_to_cpu(epwrite->wMaxPacketSize) * 4;
 	for (i = 0; i < POOL_SZ; i++) {
 		struct urb *u = usb_alloc_urb(0, GFP_KERNEL);
 		if (!u)
@@ -193,9 +191,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	INIT_WORK(&modem->read.work, mdm6600_read_bulk_work);
 	init_usb_anchor(&modem->read.in_flight);
 	init_usb_anchor(&modem->read.pending);
-	/* The * 2 calculation is from Motorola's original driver, I do not
-	 * know the reasoning */
-	modem->read.buffer_sz = le16_to_cpu(epread->wMaxPacketSize) * 2;
+	modem->read.buffer_sz = le16_to_cpu(epread->wMaxPacketSize) * 4;
 	for (i = 0; i < POOL_SZ; i++) {
 		struct urb *u = usb_alloc_urb(0, GFP_KERNEL);
 		if (!u)
