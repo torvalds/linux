@@ -364,31 +364,29 @@ static int hfsplus_rmdir(struct inode *dir, struct dentry *dentry)
 static int hfsplus_symlink(struct inode *dir, struct dentry *dentry,
 			   const char *symname)
 {
-	struct super_block *sb;
 	struct inode *inode;
 	int res;
 
-	sb = dir->i_sb;
-	inode = hfsplus_new_inode(sb, S_IFLNK | S_IRWXUGO);
+	inode = hfsplus_new_inode(dir->i_sb, S_IFLNK | S_IRWXUGO);
 	if (!inode)
 		return -ENOSPC;
 
 	res = page_symlink(inode, symname, strlen(symname) + 1);
-	if (res) {
-		inode->i_nlink = 0;
-		hfsplus_delete_inode(inode);
-		iput(inode);
-		return res;
-	}
+	if (res)
+		goto out_err;
 
-	mark_inode_dirty(inode);
 	res = hfsplus_create_cat(inode->i_ino, dir, &dentry->d_name, inode);
+	if (res)
+		goto out_err;
 
-	if (!res) {
-		hfsplus_instantiate(dentry, inode, inode->i_ino);
-		mark_inode_dirty(inode);
-	}
+	hfsplus_instantiate(dentry, inode, inode->i_ino);
+	mark_inode_dirty(inode);
+	return 0;
 
+out_err:
+	inode->i_nlink = 0;
+	hfsplus_delete_inode(inode);
+	iput(inode);
 	return res;
 }
 
