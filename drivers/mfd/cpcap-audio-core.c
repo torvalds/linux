@@ -548,9 +548,6 @@ static void cpcap_audio_configure_codec(struct cpcap_audio_state *state,
 		if (state->microphone != CPCAP_AUDIO_IN_NONE) {
 			codec_changes.value |= CPCAP_BIT_MIC1_CDC_EN;
 			codec_changes.value |= CPCAP_BIT_MIC2_CDC_EN;
-			codec_changes.value |= CPCAP_BIT_CDC_SR2;
-			codec_changes.value |= CPCAP_BIT_CDC_SR1;
-			codec_changes.value |= CPCAP_BIT_CDC_SR0;
 		}
 #else
 		if (state->microphone != CPCAP_AUDIO_IN_AUX_INTERNAL &&
@@ -584,7 +581,9 @@ static void cpcap_audio_configure_codec(struct cpcap_audio_state *state,
 		cdai_changes.value |= CPCAP_BIT_CLK_IN_SEL;
 
 	cdai_changes.value |= CPCAP_BIT_CDC_PLL_SEL | CPCAP_BIT_CLK_INV;
+#if 0
 	cdai_changes.value |= CPCAP_BIT_DIG_AUD_IN;
+#endif
 
 	/* Setting I2S mode */
 	cdai_changes.value |= CPCAP_BIT_CDC_DIG_AUD_FS0 |

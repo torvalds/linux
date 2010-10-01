@@ -65,4 +65,9 @@ struct cpcap_audio_stream {
 
 #define CPCAP_AUDIO_IN_GET_VOLUME  _IOR(CPCAP_AUDIO_MAGIC, 7, unsigned int *)
 
+#define CPCAP_AUDIO_OUT_GET_RATE   _IOR(CPCAP_AUDIO_MAGIC, 8, unsigned int *)
+#define CPCAP_AUDIO_OUT_SET_RATE   _IOW(CPCAP_AUDIO_MAGIC, 9, unsigned int *)
+#define CPCAP_AUDIO_IN_GET_RATE   _IOR(CPCAP_AUDIO_MAGIC, 10, unsigned int *)
+#define CPCAP_AUDIO_IN_SET_RATE   _IOW(CPCAP_AUDIO_MAGIC, 11, unsigned int *)
+
 #endif/*_CPCAP_AUDIO_H*/

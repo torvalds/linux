@@ -41,6 +41,8 @@ static struct cpcap_audio_stream current_output = {
 static struct cpcap_audio_stream current_input = {
 	.id	= CPCAP_AUDIO_IN_MIC1,
 };
+static int codec_rate;
+static int stdac_rate;
 
 static int cpcap_audio_ctl_open(struct inode *inode, struct file *file)
 {
@@ -159,12 +161,56 @@ static void tegra_setup_audio_in_headset_on(void)
 	cpcap_audio_set_audio_state(pdata->state);
 }
 
+static int rate_to_cpcap_codec_rate(int rate)
+{
+	return
+	    rate == 8000  ? CPCAP_AUDIO_CODEC_RATE_8000_HZ :
+	    rate == 11025 ? CPCAP_AUDIO_CODEC_RATE_11025_HZ :
+	    rate == 12000 ? CPCAP_AUDIO_CODEC_RATE_12000_HZ :
+	    rate == 16000 ? CPCAP_AUDIO_CODEC_RATE_16000_HZ :
+	    rate == 22050 ? CPCAP_AUDIO_CODEC_RATE_22050_HZ :
+	    rate == 24000 ? CPCAP_AUDIO_CODEC_RATE_24000_HZ :
+	    rate == 32000 ? CPCAP_AUDIO_CODEC_RATE_32000_HZ :
+	    rate == 44100 ? CPCAP_AUDIO_CODEC_RATE_44100_HZ :
+	    rate == 48000 ? CPCAP_AUDIO_CODEC_RATE_48000_HZ :
+	    /*default*/     CPCAP_AUDIO_CODEC_RATE_8000_HZ;
+}
+
+static int rate_to_cpcap_stdac_rate(int rate)
+{
+	return
+	    rate == 8000  ? CPCAP_AUDIO_STDAC_RATE_8000_HZ :
+	    rate == 11025 ? CPCAP_AUDIO_STDAC_RATE_11025_HZ :
+	    rate == 12000 ? CPCAP_AUDIO_STDAC_RATE_12000_HZ :
+	    rate == 16000 ? CPCAP_AUDIO_STDAC_RATE_16000_HZ :
+	    rate == 22050 ? CPCAP_AUDIO_STDAC_RATE_22050_HZ :
+	    rate == 24000 ? CPCAP_AUDIO_STDAC_RATE_24000_HZ :
+	    rate == 32000 ? CPCAP_AUDIO_STDAC_RATE_32000_HZ :
+	    rate == 44100 ? CPCAP_AUDIO_STDAC_RATE_44100_HZ :
+	    rate == 48000 ? CPCAP_AUDIO_STDAC_RATE_48000_HZ :
+	    /*default*/     CPCAP_AUDIO_STDAC_RATE_44100_HZ;
+}
+
+static void tegra_setup_audio_out_rate(int rate)
+{
+	pdata->state->stdac_rate = rate_to_cpcap_stdac_rate(rate);
+	stdac_rate = rate;
+	cpcap_audio_set_audio_state(pdata->state);
+}
+
+static void tegra_setup_audio_in_rate(int rate)
+{
+	pdata->state->codec_rate = rate_to_cpcap_codec_rate(rate);
+	codec_rate = rate;
+	cpcap_audio_set_audio_state(pdata->state);
+}
+
 static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
 	int rc = 0;
 	struct cpcap_audio_stream in, out;
-
+	int rate;
 	mutex_lock(&cpcap_lock);
 
 	switch (cmd) {
@@ -192,7 +238,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET:
 			pr_info("%s: setting output path to headset\n",
-					__func__);;
+					__func__);
 			if (out.on)
 				tegra_setup_audio_out_headset_on();
 			else
@@ -246,14 +292,12 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 			goto done;
 		}
-
 		if (in.id > CPCAP_AUDIO_IN_MAX) {
 			pr_err("%s: invalid audio input selector %d\n",
 				__func__, in.id);
 			rc = -EINVAL;
 			goto done;
 		}
-
 		switch (in.id) {
 		case CPCAP_AUDIO_IN_MIC1:
 			if (in.on) {
@@ -336,6 +380,40 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 			goto done;
 		}
+		break;
+	case CPCAP_AUDIO_OUT_GET_RATE:
+		if (copy_to_user((void __user *)arg, &stdac_rate,
+					sizeof(int))) {
+			rc = -EFAULT;
+			goto done;
+		}
+		break;
+	case CPCAP_AUDIO_OUT_SET_RATE:
+		rate = (int)arg;
+		if (rate < 8000 || rate > 48000) {
+			pr_err("%s: invalid rate %d\n",	__func__, rate);
+			rc = -EFAULT;
+			goto done;
+		}
+		pr_info("%s: setting output rate to %dHz\n", __func__, rate);
+		tegra_setup_audio_out_rate(rate);
+		break;
+	case CPCAP_AUDIO_IN_GET_RATE:
+		if (copy_to_user((void __user *)arg, &codec_rate,
+					sizeof(int))) {
+			rc = -EFAULT;
+			goto done;
+		}
+		break;
+	case CPCAP_AUDIO_IN_SET_RATE:
+		rate = (int)arg;
+		if (rate < 8000 || rate > 48000) {
+			pr_err("%s: invalid in rate %d\n", __func__, rate);
+			rc = -EFAULT;
+			goto done;
+		}
+		pr_info("%s: setting input rate to %dHz\n", __func__, rate);
+		tegra_setup_audio_in_rate(rate);
 		break;
 	}
 
