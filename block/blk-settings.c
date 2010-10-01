@@ -214,14 +214,16 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 	 */
 	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
+	q->limits.bounce_pfn = max_low_pfn;
 #else
 	if (b_pfn < blk_max_low_pfn)
 		dma = 1;
-#endif
 	q->limits.bounce_pfn = b_pfn;
+#endif
 	if (dma) {
 		init_emergency_isa_pool();
 		q->bounce_gfp = GFP_NOIO | GFP_DMA;
+		q->limits.bounce_pfn = b_pfn;
 	}
 }
 EXPORT_SYMBOL(blk_queue_bounce_limit);
