@@ -144,6 +144,7 @@ static void rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 {
 	struct rcu_head *next, *list;
 	unsigned long flags;
+	RCU_TRACE(int cb_count = 0);
 
 	/* If no RCU callbacks ready to invoke, just return. */
 	if (&rcp->rcucblist == rcp->donetail)
@@ -169,7 +170,9 @@ static void rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		list->func(list);
 		local_bh_enable();
 		list = next;
+		RCU_TRACE(cb_count++);
 	}
+	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count));
 }
 
 /*
@@ -252,6 +255,7 @@ static void __call_rcu(struct rcu_head *head,
 	local_irq_save(flags);
 	*rcp->curtail = head;
 	rcp->curtail = &head->next;
+	RCU_TRACE(rcp->qlen++);
 	local_irq_restore(flags);
 }
 
