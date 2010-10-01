@@ -1086,7 +1086,9 @@ static struct i2c_driver Ctp_it7250_driver = {
 	},
 	.id_table 	= Ctp_it7250_id,
 	.probe	= Ctp_it7250_probe,
-	 .remove     =  Ctp_it7250_remove,
+	.remove     =  Ctp_it7250_remove,
+	.suspend = Ctp_it7250_suspend,
+	.resume = Ctp_it7250_resume,
 };
 
 static int __init Ctp_it7250_init(void)
