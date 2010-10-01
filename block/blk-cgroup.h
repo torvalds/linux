@@ -186,16 +186,17 @@ extern unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg,
 				     dev_t dev);
 
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
-typedef void (blkio_update_group_weight_fn) (struct blkio_group *blkg,
-						unsigned int weight);
-typedef void (blkio_update_group_read_bps_fn) (struct blkio_group *blkg,
-						u64 read_bps);
-typedef void (blkio_update_group_write_bps_fn) (struct blkio_group *blkg,
-						u64 write_bps);
-typedef void (blkio_update_group_read_iops_fn) (struct blkio_group *blkg,
-						unsigned int read_iops);
-typedef void (blkio_update_group_write_iops_fn) (struct blkio_group *blkg,
-						unsigned int write_iops);
+
+typedef void (blkio_update_group_weight_fn) (void *key,
+			struct blkio_group *blkg, unsigned int weight);
+typedef void (blkio_update_group_read_bps_fn) (void * key,
+			struct blkio_group *blkg, u64 read_bps);
+typedef void (blkio_update_group_write_bps_fn) (void *key,
+			struct blkio_group *blkg, u64 write_bps);
+typedef void (blkio_update_group_read_iops_fn) (void *key,
+			struct blkio_group *blkg, unsigned int read_iops);
+typedef void (blkio_update_group_write_iops_fn) (void *key,
+			struct blkio_group *blkg, unsigned int write_iops);
 
 struct blkio_policy_ops {
 	blkio_unlink_group_fn *blkio_unlink_group_fn;

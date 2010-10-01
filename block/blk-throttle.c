@@ -70,6 +70,9 @@ struct throtl_grp {
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
+
+	/* Some throttle limits got updated for the group */
+	bool limits_changed;
 };
 
 struct throtl_data
@@ -93,6 +96,8 @@ struct throtl_data
 
 	/* Work for dispatching throttled bios */
 	struct delayed_work throtl_work;
+
+	atomic_t limits_changed;
 };
 
 enum tg_state_flags {
@@ -592,15 +597,6 @@ static void tg_update_disptime(struct throtl_data *td, struct throtl_grp *tg)
 	min_wait = min(read_wait, write_wait);
 	disptime = jiffies + min_wait;
 
-	/*
-	 * If group is already on active tree, then update dispatch time
-	 * only if it is lesser than existing dispatch time. Otherwise
-	 * always update the dispatch time
-	 */
-
-	if (throtl_tg_on_rr(tg) && time_before(disptime, tg->disptime))
-		return;
-
 	/* Update dispatch time */
 	throtl_dequeue_tg(td, tg);
 	tg->disptime = disptime;
@@ -691,6 +687,46 @@ static int throtl_select_dispatch(struct throtl_data *td, struct bio_list *bl)
 	return nr_disp;
 }
 
+static void throtl_process_limit_change(struct throtl_data *td)
+{
+	struct throtl_grp *tg;
+	struct hlist_node *pos, *n;
+
+	/*
+	 * Make sure atomic_inc() effects from
+	 * throtl_update_blkio_group_read_bps(), group of functions are
+	 * visible.
+	 * Is this required or smp_mb__after_atomic_inc() was suffcient
+	 * after the atomic_inc().
+	 */
+	smp_rmb();
+	if (!atomic_read(&td->limits_changed))
+		return;
+
+	throtl_log(td, "limit changed =%d", atomic_read(&td->limits_changed));
+
+	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
+		/*
+		 * Do I need an smp_rmb() here to make sure tg->limits_changed
+		 * update is visible. I am relying on smp_rmb() at the
+		 * beginning of function and not putting a new one here.
+		 */
+
+		if (throtl_tg_on_rr(tg) && tg->limits_changed) {
+			throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
+				" riops=%u wiops=%u", tg->bps[READ],
+				tg->bps[WRITE], tg->iops[READ],
+				tg->iops[WRITE]);
+			tg_update_disptime(td, tg);
+			tg->limits_changed = false;
+		}
+	}
+
+	smp_mb__before_atomic_dec();
+	atomic_dec(&td->limits_changed);
+	smp_mb__after_atomic_dec();
+}
+
 /* Dispatch throttled bios. Should be called without queue lock held. */
 static int throtl_dispatch(struct request_queue *q)
 {
@@ -700,6 +736,8 @@ static int throtl_dispatch(struct request_queue *q)
 	struct bio *bio;
 
 	spin_lock_irq(q->queue_lock);
+
+	throtl_process_limit_change(td);
 
 	if (!total_nr_queued(td))
 		goto out;
@@ -821,28 +859,74 @@ void throtl_unlink_blkio_group(void *key, struct blkio_group *blkg)
 	spin_unlock_irqrestore(td->queue->queue_lock, flags);
 }
 
-static void throtl_update_blkio_group_read_bps (struct blkio_group *blkg,
-			u64 read_bps)
+/*
+ * For all update functions, key should be a valid pointer because these
+ * update functions are called under blkcg_lock, that means, blkg is
+ * valid and in turn key is valid. queue exit path can not race becuase
+ * of blkcg_lock
+ *
+ * Can not take queue lock in update functions as queue lock under blkcg_lock
+ * is not allowed. Under other paths we take blkcg_lock under queue_lock.
+ */
+static void throtl_update_blkio_group_read_bps(void *key,
+				struct blkio_group *blkg, u64 read_bps)
 {
+	struct throtl_data *td = key;
+
 	tg_of_blkg(blkg)->bps[READ] = read_bps;
+	/* Make sure read_bps is updated before setting limits_changed */
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
+
+	/* Make sure tg->limits_changed is updated before td->limits_changed */
+	smp_mb__before_atomic_inc();
+	atomic_inc(&td->limits_changed);
+	smp_mb__after_atomic_inc();
+
+	/* Schedule a work now to process the limit change */
+	throtl_schedule_delayed_work(td->queue, 0);
 }
 
-static void throtl_update_blkio_group_write_bps (struct blkio_group *blkg,
-			u64 write_bps)
+static void throtl_update_blkio_group_write_bps(void *key,
+				struct blkio_group *blkg, u64 write_bps)
 {
+	struct throtl_data *td = key;
+
 	tg_of_blkg(blkg)->bps[WRITE] = write_bps;
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
+	smp_mb__before_atomic_inc();
+	atomic_inc(&td->limits_changed);
+	smp_mb__after_atomic_inc();
+	throtl_schedule_delayed_work(td->queue, 0);
 }
 
-static void throtl_update_blkio_group_read_iops (struct blkio_group *blkg,
-			unsigned int read_iops)
+static void throtl_update_blkio_group_read_iops(void *key,
+			struct blkio_group *blkg, unsigned int read_iops)
 {
+	struct throtl_data *td = key;
+
 	tg_of_blkg(blkg)->iops[READ] = read_iops;
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
+	smp_mb__before_atomic_inc();
+	atomic_inc(&td->limits_changed);
+	smp_mb__after_atomic_inc();
+	throtl_schedule_delayed_work(td->queue, 0);
 }
 
-static void throtl_update_blkio_group_write_iops (struct blkio_group *blkg,
-			unsigned int write_iops)
+static void throtl_update_blkio_group_write_iops(void *key,
+			struct blkio_group *blkg, unsigned int write_iops)
 {
+	struct throtl_data *td = key;
+
 	tg_of_blkg(blkg)->iops[WRITE] = write_iops;
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
+	smp_mb__before_atomic_inc();
+	atomic_inc(&td->limits_changed);
+	smp_mb__after_atomic_inc();
+	throtl_schedule_delayed_work(td->queue, 0);
 }
 
 void throtl_shutdown_timer_wq(struct request_queue *q)
@@ -886,8 +970,14 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 		/*
 		 * There is already another bio queued in same dir. No
 		 * need to update dispatch time.
+		 * Still update the disptime if rate limits on this group
+		 * were changed.
 		 */
-		update_disptime = false;
+		if (!tg->limits_changed)
+			update_disptime = false;
+		else
+			tg->limits_changed = false;
+
 		goto queue_bio;
 	}
 
@@ -929,6 +1019,7 @@ int blk_throtl_init(struct request_queue *q)
 
 	INIT_HLIST_HEAD(&td->tg_list);
 	td->tg_service_tree = THROTL_RB_ROOT;
+	atomic_set(&td->limits_changed, 0);
 
 	/* Init root group */
 	tg = &td->root_tg;
@@ -996,6 +1087,13 @@ void blk_throtl_exit(struct request_queue *q)
 	 */
 	if (wait)
 		synchronize_rcu();
+
+	/*
+	 * Just being safe to make sure after previous flush if some body did
+	 * update limits through cgroup and another work got queued, cancel
+	 * it.
+	 */
+	throtl_shutdown_timer_wq(q);
 	throtl_td_free(td);
 }
 

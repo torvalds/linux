@@ -124,7 +124,8 @@ blkio_update_group_weight(struct blkio_group *blkg, unsigned int weight)
 		if (blkiop->plid != blkg->plid)
 			continue;
 		if (blkiop->ops.blkio_update_group_weight_fn)
-			blkiop->ops.blkio_update_group_weight_fn(blkg, weight);
+			blkiop->ops.blkio_update_group_weight_fn(blkg->key,
+							blkg, weight);
 	}
 }
 
@@ -141,11 +142,13 @@ static inline void blkio_update_group_bps(struct blkio_group *blkg, u64 bps,
 
 		if (fileid == BLKIO_THROTL_read_bps_device
 		    && blkiop->ops.blkio_update_group_read_bps_fn)
-			blkiop->ops.blkio_update_group_read_bps_fn(blkg, bps);
+			blkiop->ops.blkio_update_group_read_bps_fn(blkg->key,
+								blkg, bps);
 
 		if (fileid == BLKIO_THROTL_write_bps_device
 		    && blkiop->ops.blkio_update_group_write_bps_fn)
-			blkiop->ops.blkio_update_group_write_bps_fn(blkg, bps);
+			blkiop->ops.blkio_update_group_write_bps_fn(blkg->key,
+								blkg, bps);
 	}
 }
 
@@ -162,11 +165,13 @@ static inline void blkio_update_group_iops(struct blkio_group *blkg,
 
 		if (fileid == BLKIO_THROTL_read_iops_device
 		    && blkiop->ops.blkio_update_group_read_iops_fn)
-			blkiop->ops.blkio_update_group_read_iops_fn(blkg, iops);
+			blkiop->ops.blkio_update_group_read_iops_fn(blkg->key,
+								blkg, iops);
 
 		if (fileid == BLKIO_THROTL_write_iops_device
 		    && blkiop->ops.blkio_update_group_write_iops_fn)
-			blkiop->ops.blkio_update_group_write_iops_fn(blkg,iops);
+			blkiop->ops.blkio_update_group_write_iops_fn(blkg->key,
+								blkg,iops);
 	}
 }
 
