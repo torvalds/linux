@@ -396,7 +396,6 @@ static void i915_error_work_func(struct work_struct *work)
 	char *reset_event[] = { "RESET=1", NULL };
 	char *reset_done_event[] = { "ERROR=0", NULL };
 
-	DRM_DEBUG_DRIVER("generating error event\n");
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
@@ -574,8 +573,10 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
+	DRM_DEBUG_DRIVER("generating error event\n");
+
 	error->seqno =
-	       	dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring);
+		dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	error->pipeastat = I915_READ(PIPEASTAT);
