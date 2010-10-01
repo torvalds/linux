@@ -20,7 +20,7 @@
 __switch_data:
 	.long	__mmap_switched
 	.long	__data_loc			@ r4
-	.long	_data				@ r5
+	.long	_sdata				@ r5
 	.long	__bss_start			@ r6
 	.long	_end				@ r7
 	.long	processor_id			@ r4

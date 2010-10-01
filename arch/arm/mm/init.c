@@ -277,7 +277,7 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 
 	/* Register the kernel text, kernel data and initrd with memblock. */
 #ifdef CONFIG_XIP_KERNEL
-	memblock_reserve(__pa(_data), _end - _data);
+	memblock_reserve(__pa(_sdata), _end - _sdata);
 #else
 	memblock_reserve(__pa(_stext), _end - _stext);
 #endif
@@ -545,7 +545,7 @@ void __init mem_init(void)
 
 			MLK_ROUNDUP(__init_begin, __init_end),
 			MLK_ROUNDUP(_text, _etext),
-			MLK_ROUNDUP(_data, _edata));
+			MLK_ROUNDUP(_sdata, _edata));
 
 #undef MLK
 #undef MLM

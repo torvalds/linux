@@ -491,7 +491,7 @@ request_standard_resources(struct meminfo *mi, struct machine_desc *mdesc)
 
 	kernel_code.start   = virt_to_phys(_text);
 	kernel_code.end     = virt_to_phys(_etext - 1);
-	kernel_data.start   = virt_to_phys(_data);
+	kernel_data.start   = virt_to_phys(_sdata);
 	kernel_data.end     = virt_to_phys(_end - 1);
 
 	for (i = 0; i < mi->nr_banks; i++) {
