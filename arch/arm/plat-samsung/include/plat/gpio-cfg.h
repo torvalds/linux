@@ -108,6 +108,19 @@ extern int s3c_gpio_cfgpin(unsigned int pin, unsigned int to);
  */
 extern unsigned s3c_gpio_getcfg(unsigned int pin);
 
+/**
+ * s3c_gpio_cfgpin_range() - Change the GPIO function for configuring pin range
+ * @start: The pin number to start at
+ * @nr: The number of pins to configure from @start.
+ * @cfg: The configuration for the pin's function
+ *
+ * Call s3c_gpio_cfgpin() for the @nr pins starting at @start.
+ *
+ * @sa s3c_gpio_cfgpin.
+ */
+extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
+				 unsigned int cfg);
+
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
  * These values control the state of the weak pull-{up,down} resistors
