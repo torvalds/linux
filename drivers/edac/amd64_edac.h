@@ -461,6 +461,9 @@ struct amd64_pvt {
 	/* MC Type Index value: socket F vs Family 10h */
 	u32 mc_type_index;
 
+	/* DCT per-family scrubrate setting */
+	u32 min_scrubrate;
+
 	/* misc settings */
 	struct flags {
 		unsigned long cf8_extcfg:1;

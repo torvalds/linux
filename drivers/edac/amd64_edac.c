@@ -117,8 +117,7 @@ struct scrubrate scrubrates[] = {
  * scan the scrub rate mapping table for a close or matching bandwidth value to
  * issue. If requested is too big, then use last maximum value found.
  */
-static int amd64_search_set_scrub_rate(struct pci_dev *ctl, u32 new_bw,
-				       u32 min_scrubrate)
+static int __amd64_set_scrub_rate(struct pci_dev *ctl, u32 new_bw, u32 min_rate)
 {
 	u32 scrubval;
 	int i;
@@ -134,7 +133,7 @@ static int amd64_search_set_scrub_rate(struct pci_dev *ctl, u32 new_bw,
 		 * skip scrub rates which aren't recommended
 		 * (see F10 BKDG, F3x58)
 		 */
-		if (scrubrates[i].scrubval < min_scrubrate)
+		if (scrubrates[i].scrubval < min_rate)
 			continue;
 
 		if (scrubrates[i].bandwidth <= new_bw)
@@ -160,25 +159,11 @@ static int amd64_search_set_scrub_rate(struct pci_dev *ctl, u32 new_bw,
 	return 0;
 }
 
-static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bandwidth)
+static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u32 min_scrubrate = 0x0;
 
-	switch (boot_cpu_data.x86) {
-	case 0xf:
-		min_scrubrate = K8_MIN_SCRUB_RATE_BITS;
-		break;
-	case 0x10:
-		min_scrubrate = F10_MIN_SCRUB_RATE_BITS;
-		break;
-
-	default:
-		amd64_printk(KERN_ERR, "Unsupported family!\n");
-		return -EINVAL;
-	}
-	return amd64_search_set_scrub_rate(pvt->misc_f3_ctl, bandwidth,
-					   min_scrubrate);
+	return __amd64_set_scrub_rate(pvt->misc_f3_ctl, bw, pvt->min_scrubrate);
 }
 
 static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
@@ -2607,6 +2592,23 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 	mci->get_sdram_scrub_rate = amd64_get_scrub_rate;
 }
 
+static int amd64_per_family_init(struct amd64_pvt *pvt)
+{
+	switch (boot_cpu_data.x86) {
+	case 0xf:
+		pvt->min_scrubrate = K8_MIN_SCRUB_RATE_BITS;
+		break;
+	case 0x10:
+		pvt->min_scrubrate = F10_MIN_SCRUB_RATE_BITS;
+		break;
+
+	default:
+		amd64_printk(KERN_ERR, "Unsupported family!\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /*
  * Init stuff for this DRAM Controller device.
  *
@@ -2636,6 +2638,10 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	pvt->ext_model		= boot_cpu_data.x86_model >> 4;
 	pvt->mc_type_index	= mc_type_index;
 	pvt->ops		= family_ops(mc_type_index);
+
+	ret = -EINVAL;
+	if (amd64_per_family_init(pvt))
+		goto err_free;
 
 	/*
 	 * We have the dram_f2_ctl device as an argument, now go reserve its
