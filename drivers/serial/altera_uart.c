@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/console.h>
@@ -76,6 +77,7 @@
  */
 struct altera_uart {
 	struct uart_port port;
+	struct timer_list tmr;
 	unsigned int sigs;	/* Local copy of line sigs */
 	unsigned short imr;	/* Local IMR mirror */
 };
@@ -168,6 +170,7 @@ static void altera_uart_set_termios(struct uart_port *port,
 	tty_termios_encode_baud_rate(termios, baud, baud);
 
 	spin_lock_irqsave(&port->lock, flags);
+	uart_update_timeout(port, termios->c_cflag, baud);
 	writel(baudclk, port->membase + ALTERA_UART_DIVISOR_REG);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -268,6 +271,15 @@ static irqreturn_t altera_uart_interrupt(int irq, void *data)
 	return IRQ_RETVAL(isr);
 }
 
+static void altera_uart_timer(unsigned long data)
+{
+	struct uart_port *port = (void *)data;
+	struct altera_uart *pp = container_of(port, struct altera_uart, port);
+
+	altera_uart_interrupt(0, port);
+	mod_timer(&pp->tmr, jiffies + uart_poll_timeout(port));
+}
+
 static void altera_uart_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_ALTERA_UART;
@@ -283,6 +295,12 @@ static int altera_uart_startup(struct uart_port *port)
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 	unsigned long flags;
 	int ret;
+
+	if (!port->irq) {
+		setup_timer(&pp->tmr, altera_uart_timer, (unsigned long)port);
+		mod_timer(&pp->tmr, jiffies + uart_poll_timeout(port));
+		return 0;
+	}
 
 	ret = request_irq(port->irq, altera_uart_interrupt, IRQF_DISABLED,
 			DRV_NAME, port);
@@ -316,7 +334,10 @@ static void altera_uart_shutdown(struct uart_port *port)
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	free_irq(port->irq, port);
+	if (port->irq)
+		free_irq(port->irq, port);
+	else
+		del_timer_sync(&pp->tmr);
 }
 
 static const char *altera_uart_type(struct uart_port *port)
