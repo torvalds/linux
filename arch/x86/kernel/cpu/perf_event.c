@@ -1152,7 +1152,6 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 	struct perf_sample_data data;
 	struct cpu_hw_events *cpuc;
 	struct perf_event *event;
-	struct hw_perf_event *hwc;
 	int idx, handled = 0;
 	u64 val;
 
@@ -1173,7 +1172,6 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 		}
 
 		event = cpuc->events[idx];
-		hwc = &event->hw;
 
 		val = x86_perf_event_update(event);
 		if (val & (1ULL << (x86_pmu.cntval_bits - 1)))
