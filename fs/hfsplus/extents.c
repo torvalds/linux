@@ -108,7 +108,7 @@ void hfsplus_ext_write_extent(struct inode *inode)
 	if (HFSPLUS_I(inode).flags & HFSPLUS_FLG_EXT_DIRTY) {
 		struct hfs_find_data fd;
 
-		hfs_find_init(HFSPLUS_SB(inode->i_sb).ext_tree, &fd);
+		hfs_find_init(HFSPLUS_SB(inode->i_sb)->ext_tree, &fd);
 		__hfsplus_ext_write_extent(inode, &fd);
 		hfs_find_exit(&fd);
 	}
@@ -162,7 +162,7 @@ static int hfsplus_ext_read_extent(struct inode *inode, u32 block)
 	    block < HFSPLUS_I(inode).cached_start + HFSPLUS_I(inode).cached_blocks)
 		return 0;
 
-	hfs_find_init(HFSPLUS_SB(inode->i_sb).ext_tree, &fd);
+	hfs_find_init(HFSPLUS_SB(inode->i_sb)->ext_tree, &fd);
 	res = __hfsplus_ext_cache_extent(&fd, inode, block);
 	hfs_find_exit(&fd);
 	return res;
@@ -172,16 +172,15 @@ static int hfsplus_ext_read_extent(struct inode *inode, u32 block)
 int hfsplus_get_block(struct inode *inode, sector_t iblock,
 		      struct buffer_head *bh_result, int create)
 {
-	struct super_block *sb;
+	struct super_block *sb = inode->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	int res = -EIO;
 	u32 ablock, dblock, mask;
 	int shift;
 
-	sb = inode->i_sb;
-
 	/* Convert inode block to disk allocation block */
-	shift = HFSPLUS_SB(sb).alloc_blksz_shift - sb->s_blocksize_bits;
-	ablock = iblock >> HFSPLUS_SB(sb).fs_shift;
+	shift = sbi->alloc_blksz_shift - sb->s_blocksize_bits;
+	ablock = iblock >> sbi->fs_shift;
 
 	if (iblock >= HFSPLUS_I(inode).fs_blocks) {
 		if (iblock > HFSPLUS_I(inode).fs_blocks || !create)
@@ -215,8 +214,8 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 
 done:
 	dprint(DBG_EXTENT, "get_block(%lu): %llu - %u\n", inode->i_ino, (long long)iblock, dblock);
-	mask = (1 << HFSPLUS_SB(sb).fs_shift) - 1;
-	map_bh(bh_result, sb, (dblock << HFSPLUS_SB(sb).fs_shift) + HFSPLUS_SB(sb).blockoffset + (iblock & mask));
+	mask = (1 << sbi->fs_shift) - 1;
+	map_bh(bh_result, sb, (dblock << sbi->fs_shift) + sbi->blockoffset + (iblock & mask));
 	if (create) {
 		set_buffer_new(bh_result);
 		HFSPLUS_I(inode).phys_size += sb->s_blocksize;
@@ -327,7 +326,7 @@ int hfsplus_free_fork(struct super_block *sb, u32 cnid, struct hfsplus_fork_raw 
 	if (total_blocks == blocks)
 		return 0;
 
-	hfs_find_init(HFSPLUS_SB(sb).ext_tree, &fd);
+	hfs_find_init(HFSPLUS_SB(sb)->ext_tree, &fd);
 	do {
 		res = __hfsplus_ext_read_extent(&fd, ext_entry, cnid,
 						total_blocks, type);
@@ -348,13 +347,16 @@ int hfsplus_free_fork(struct super_block *sb, u32 cnid, struct hfsplus_fork_raw 
 int hfsplus_file_extend(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	u32 start, len, goal;
 	int res;
 
-	if (HFSPLUS_SB(sb).alloc_file->i_size * 8 < HFSPLUS_SB(sb).total_blocks - HFSPLUS_SB(sb).free_blocks + 8) {
+	if (sbi->alloc_file->i_size * 8 <
+	    sbi->total_blocks - sbi->free_blocks + 8) {
 		// extend alloc file
-		printk(KERN_ERR "hfs: extend alloc file! (%Lu,%u,%u)\n", HFSPLUS_SB(sb).alloc_file->i_size * 8,
-			HFSPLUS_SB(sb).total_blocks, HFSPLUS_SB(sb).free_blocks);
+		printk(KERN_ERR "hfs: extend alloc file! (%Lu,%u,%u)\n",
+				sbi->alloc_file->i_size * 8,
+				sbi->total_blocks, sbi->free_blocks);
 		return -ENOSPC;
 	}
 
@@ -369,8 +371,8 @@ int hfsplus_file_extend(struct inode *inode)
 	}
 
 	len = HFSPLUS_I(inode).clump_blocks;
-	start = hfsplus_block_allocate(sb, HFSPLUS_SB(sb).total_blocks, goal, &len);
-	if (start >= HFSPLUS_SB(sb).total_blocks) {
+	start = hfsplus_block_allocate(sb, sbi->total_blocks, goal, &len);
+	if (start >= sbi->total_blocks) {
 		start = hfsplus_block_allocate(sb, goal, 0, &len);
 		if (start >= goal) {
 			res = -ENOSPC;
@@ -463,13 +465,14 @@ void hfsplus_file_truncate(struct inode *inode)
 	} else if (inode->i_size == HFSPLUS_I(inode).phys_size)
 		return;
 
-	blk_cnt = (inode->i_size + HFSPLUS_SB(sb).alloc_blksz - 1) >> HFSPLUS_SB(sb).alloc_blksz_shift;
+	blk_cnt = (inode->i_size + HFSPLUS_SB(sb)->alloc_blksz - 1) >>
+			HFSPLUS_SB(sb)->alloc_blksz_shift;
 	alloc_cnt = HFSPLUS_I(inode).alloc_blocks;
 	if (blk_cnt == alloc_cnt)
 		goto out;
 
 	mutex_lock(&HFSPLUS_I(inode).extents_lock);
-	hfs_find_init(HFSPLUS_SB(sb).ext_tree, &fd);
+	hfs_find_init(HFSPLUS_SB(sb)->ext_tree, &fd);
 	while (1) {
 		if (alloc_cnt == HFSPLUS_I(inode).first_blocks) {
 			hfsplus_free_extents(sb, HFSPLUS_I(inode).first_extents,

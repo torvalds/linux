@@ -171,7 +171,7 @@ done:
 
 int hfsplus_show_options(struct seq_file *seq, struct vfsmount *mnt)
 {
-	struct hfsplus_sb_info *sbi = &HFSPLUS_SB(mnt->mnt_sb);
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(mnt->mnt_sb);
 
 	if (sbi->creator != HFSPLUS_DEF_CR_TYPE)
 		seq_printf(seq, ",creator=%.4s", (char *)&sbi->creator);

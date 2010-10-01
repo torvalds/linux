@@ -375,17 +375,16 @@ int hfsplus_read_wrapper(struct super_block *);
 int hfs_part_find(struct super_block *, sector_t *, sector_t *);
 
 /* access macros */
-/*
 static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
+/*
 static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 {
 	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
 }
 */
-#define HFSPLUS_SB(super)	(*(struct hfsplus_sb_info *)(super)->s_fs_info)
 #define HFSPLUS_I(inode)	(*list_entry(inode, struct hfsplus_inode_info, vfs_inode))
 
 #if 1

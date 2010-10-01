@@ -39,7 +39,7 @@ static struct dentry *hfsplus_lookup(struct inode *dir, struct dentry *dentry,
 
 	dentry->d_op = &hfsplus_dentry_operations;
 	dentry->d_fsdata = NULL;
-	hfs_find_init(HFSPLUS_SB(sb).cat_tree, &fd);
+	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino, &dentry->d_name);
 again:
 	err = hfs_brec_read(&fd, &entry, sizeof(entry));
@@ -68,9 +68,9 @@ again:
 		cnid = be32_to_cpu(entry.file.id);
 		if (entry.file.user_info.fdType == cpu_to_be32(HFSP_HARDLINK_TYPE) &&
 		    entry.file.user_info.fdCreator == cpu_to_be32(HFSP_HFSPLUS_CREATOR) &&
-		    (entry.file.create_date == HFSPLUS_I(HFSPLUS_SB(sb).hidden_dir).create_date ||
+		    (entry.file.create_date == HFSPLUS_I(HFSPLUS_SB(sb)->hidden_dir).create_date ||
 		     entry.file.create_date == HFSPLUS_I(sb->s_root->d_inode).create_date) &&
-		    HFSPLUS_SB(sb).hidden_dir) {
+		    HFSPLUS_SB(sb)->hidden_dir) {
 			struct qstr str;
 			char name[32];
 
@@ -86,7 +86,8 @@ again:
 				linkid = be32_to_cpu(entry.file.permissions.dev);
 				str.len = sprintf(name, "iNode%d", linkid);
 				str.name = name;
-				hfsplus_cat_build_key(sb, fd.search_key, HFSPLUS_SB(sb).hidden_dir->i_ino, &str);
+				hfsplus_cat_build_key(sb, fd.search_key,
+					HFSPLUS_SB(sb)->hidden_dir->i_ino, &str);
 				goto again;
 			}
 		} else if (!dentry->d_fsdata)
@@ -124,7 +125,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (filp->f_pos >= inode->i_size)
 		return 0;
 
-	hfs_find_init(HFSPLUS_SB(sb).cat_tree, &fd);
+	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	hfsplus_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
 	err = hfs_brec_find(&fd);
 	if (err)
@@ -180,8 +181,9 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				err = -EIO;
 				goto out;
 			}
-			if (HFSPLUS_SB(sb).hidden_dir &&
-			    HFSPLUS_SB(sb).hidden_dir->i_ino == be32_to_cpu(entry.folder.id))
+			if (HFSPLUS_SB(sb)->hidden_dir &&
+			    HFSPLUS_SB(sb)->hidden_dir->i_ino ==
+					be32_to_cpu(entry.folder.id))
 				goto next;
 			if (filldir(dirent, strbuf, len, filp->f_pos,
 				    be32_to_cpu(entry.folder.id), DT_DIR))
@@ -260,7 +262,7 @@ static int hfsplus_create(struct inode *dir, struct dentry *dentry, int mode,
 static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 			struct dentry *dst_dentry)
 {
-	struct super_block *sb = dst_dir->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dst_dir->i_sb);
 	struct inode *inode = src_dentry->d_inode;
 	struct inode *src_dir = src_dentry->d_parent->d_inode;
 	struct qstr str;
@@ -279,22 +281,22 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 			str.len = sprintf(name, "iNode%d", id);
 			res = hfsplus_rename_cat(inode->i_ino,
 						 src_dir, &src_dentry->d_name,
-						 HFSPLUS_SB(sb).hidden_dir, &str);
+						 sbi->hidden_dir, &str);
 			if (!res)
 				break;
 			if (res != -EEXIST)
 				return res;
 		}
 		HFSPLUS_I(inode).dev = id;
-		cnid = HFSPLUS_SB(sb).next_cnid++;
+		cnid = sbi->next_cnid++;
 		src_dentry->d_fsdata = (void *)(unsigned long)cnid;
 		res = hfsplus_create_cat(cnid, src_dir, &src_dentry->d_name, inode);
 		if (res)
 			/* panic? */
 			return res;
-		HFSPLUS_SB(sb).file_count++;
+		sbi->file_count++;
 	}
-	cnid = HFSPLUS_SB(sb).next_cnid++;
+	cnid = sbi->next_cnid++;
 	res = hfsplus_create_cat(cnid, dst_dir, &dst_dentry->d_name, inode);
 	if (res)
 		return res;
@@ -304,15 +306,15 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 	atomic_inc(&inode->i_count);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	HFSPLUS_SB(sb).file_count++;
-	sb->s_dirt = 1;
+	sbi->file_count++;
+	dst_dir->i_sb->s_dirt = 1;
 
 	return 0;
 }
 
 static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct super_block *sb = dir->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
 	struct inode *inode = dentry->d_inode;
 	struct qstr str;
 	char name[32];
@@ -329,7 +331,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 		str.len = sprintf(name, "temp%lu", inode->i_ino);
 		res = hfsplus_rename_cat(inode->i_ino,
 					 dir, &dentry->d_name,
-					 HFSPLUS_SB(sb).hidden_dir, &str);
+					 sbi->hidden_dir, &str);
 		if (!res)
 			inode->i_flags |= S_DEAD;
 		return res;
@@ -344,10 +346,10 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 		clear_nlink(inode);
 	if (!inode->i_nlink) {
 		if (inode->i_ino != cnid) {
-			HFSPLUS_SB(sb).file_count--;
+			sbi->file_count--;
 			if (!atomic_read(&HFSPLUS_I(inode).opencnt)) {
 				res = hfsplus_delete_cat(inode->i_ino,
-							 HFSPLUS_SB(sb).hidden_dir,
+							 sbi->hidden_dir,
 							 NULL);
 				if (!res)
 					hfsplus_delete_inode(inode);
@@ -356,7 +358,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 		} else
 			hfsplus_delete_inode(inode);
 	} else
-		HFSPLUS_SB(sb).file_count--;
+		sbi->file_count--;
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 

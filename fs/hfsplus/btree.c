@@ -61,12 +61,12 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	if (id == HFSPLUS_EXT_CNID) {
 		tree->keycmp = hfsplus_ext_cmp_key;
 	} else if (id == HFSPLUS_CAT_CNID) {
-		if ((HFSPLUS_SB(sb).flags & HFSPLUS_SB_HFSX) &&
+		if ((HFSPLUS_SB(sb)->flags & HFSPLUS_SB_HFSX) &&
 		    (head->key_type == HFSPLUS_KEY_BINARY))
 			tree->keycmp = hfsplus_cat_bin_cmp_key;
 		else {
 			tree->keycmp = hfsplus_cat_case_cmp_key;
-			HFSPLUS_SB(sb).flags |= HFSPLUS_SB_CASEFOLD;
+			HFSPLUS_SB(sb)->flags |= HFSPLUS_SB_CASEFOLD;
 		}
 	} else {
 		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
@@ -200,9 +200,9 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 			return ERR_PTR(res);
 		HFSPLUS_I(inode).phys_size = inode->i_size =
 				(loff_t)HFSPLUS_I(inode).alloc_blocks <<
-				HFSPLUS_SB(tree->sb).alloc_blksz_shift;
+				HFSPLUS_SB(tree->sb)->alloc_blksz_shift;
 		HFSPLUS_I(inode).fs_blocks = HFSPLUS_I(inode).alloc_blocks <<
-					     HFSPLUS_SB(tree->sb).fs_shift;
+					     HFSPLUS_SB(tree->sb)->fs_shift;
 		inode_set_bytes(inode, inode->i_size);
 		count = inode->i_size >> tree->node_size_shift;
 		tree->free_nodes = count - tree->node_count;

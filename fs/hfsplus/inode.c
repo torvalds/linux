@@ -62,13 +62,13 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 
 	switch (inode->i_ino) {
 	case HFSPLUS_EXT_CNID:
-		tree = HFSPLUS_SB(sb).ext_tree;
+		tree = HFSPLUS_SB(sb)->ext_tree;
 		break;
 	case HFSPLUS_CAT_CNID:
-		tree = HFSPLUS_SB(sb).cat_tree;
+		tree = HFSPLUS_SB(sb)->cat_tree;
 		break;
 	case HFSPLUS_ATTR_CNID:
-		tree = HFSPLUS_SB(sb).attr_tree;
+		tree = HFSPLUS_SB(sb)->attr_tree;
 		break;
 	default:
 		BUG();
@@ -190,7 +190,7 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	mutex_init(&HFSPLUS_I(inode).extents_lock);
 	HFSPLUS_I(inode).flags = HFSPLUS_FLG_RSRC;
 
-	hfs_find_init(HFSPLUS_SB(sb).cat_tree, &fd);
+	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	err = hfsplus_find_cat(sb, dir->i_ino, &fd);
 	if (!err)
 		err = hfsplus_cat_read_inode(inode, &fd);
@@ -202,7 +202,7 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	HFSPLUS_I(inode).rsrc_inode = dir;
 	HFSPLUS_I(dir).rsrc_inode = inode;
 	igrab(dir);
-	hlist_add_head(&inode->i_hash, &HFSPLUS_SB(sb).rsrc_inodes);
+	hlist_add_head(&inode->i_hash, &HFSPLUS_SB(sb)->rsrc_inodes);
 	mark_inode_dirty(inode);
 out:
 	d_add(dentry, inode);
@@ -211,26 +211,24 @@ out:
 
 static void hfsplus_get_perms(struct inode *inode, struct hfsplus_perm *perms, int dir)
 {
-	struct super_block *sb = inode->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
 	u16 mode;
 
 	mode = be16_to_cpu(perms->mode);
 
 	inode->i_uid = be32_to_cpu(perms->owner);
 	if (!inode->i_uid && !mode)
-		inode->i_uid = HFSPLUS_SB(sb).uid;
+		inode->i_uid = sbi->uid;
 
 	inode->i_gid = be32_to_cpu(perms->group);
 	if (!inode->i_gid && !mode)
-		inode->i_gid = HFSPLUS_SB(sb).gid;
+		inode->i_gid = sbi->gid;
 
 	if (dir) {
-		mode = mode ? (mode & S_IALLUGO) :
-			(S_IRWXUGO & ~(HFSPLUS_SB(sb).umask));
+		mode = mode ? (mode & S_IALLUGO) : (S_IRWXUGO & ~(sbi->umask));
 		mode |= S_IFDIR;
 	} else if (!mode)
-		mode = S_IFREG | ((S_IRUGO|S_IWUGO) &
-			~(HFSPLUS_SB(sb).umask));
+		mode = S_IFREG | ((S_IRUGO|S_IWUGO) & ~(sbi->umask));
 	inode->i_mode = mode;
 
 	HFSPLUS_I(inode).rootflags = perms->rootflags;
@@ -282,7 +280,8 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 		mutex_lock(&inode->i_mutex);
 		hfsplus_file_truncate(inode);
 		if (inode->i_flags & S_DEAD) {
-			hfsplus_delete_cat(inode->i_ino, HFSPLUS_SB(sb).hidden_dir, NULL);
+			hfsplus_delete_cat(inode->i_ino,
+					   HFSPLUS_SB(sb)->hidden_dir, NULL);
 			hfsplus_delete_inode(inode);
 		}
 		mutex_unlock(&inode->i_mutex);
@@ -361,11 +360,13 @@ static const struct file_operations hfsplus_file_operations = {
 
 struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 {
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct inode *inode = new_inode(sb);
+
 	if (!inode)
 		return NULL;
 
-	inode->i_ino = HFSPLUS_SB(sb).next_cnid++;
+	inode->i_ino = sbi->next_cnid++;
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
@@ -386,22 +387,22 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	HFSPLUS_I(inode).rsrc_inode = NULL;
 	if (S_ISDIR(inode->i_mode)) {
 		inode->i_size = 2;
-		HFSPLUS_SB(sb).folder_count++;
+		sbi->folder_count++;
 		inode->i_op = &hfsplus_dir_inode_operations;
 		inode->i_fop = &hfsplus_dir_operations;
 	} else if (S_ISREG(inode->i_mode)) {
-		HFSPLUS_SB(sb).file_count++;
+		sbi->file_count++;
 		inode->i_op = &hfsplus_file_inode_operations;
 		inode->i_fop = &hfsplus_file_operations;
 		inode->i_mapping->a_ops = &hfsplus_aops;
-		HFSPLUS_I(inode).clump_blocks = HFSPLUS_SB(sb).data_clump_blocks;
+		HFSPLUS_I(inode).clump_blocks = sbi->data_clump_blocks;
 	} else if (S_ISLNK(inode->i_mode)) {
-		HFSPLUS_SB(sb).file_count++;
+		sbi->file_count++;
 		inode->i_op = &page_symlink_inode_operations;
 		inode->i_mapping->a_ops = &hfsplus_aops;
 		HFSPLUS_I(inode).clump_blocks = 1;
 	} else
-		HFSPLUS_SB(sb).file_count++;
+		sbi->file_count++;
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 	sb->s_dirt = 1;
@@ -414,11 +415,11 @@ void hfsplus_delete_inode(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 
 	if (S_ISDIR(inode->i_mode)) {
-		HFSPLUS_SB(sb).folder_count--;
+		HFSPLUS_SB(sb)->folder_count--;
 		sb->s_dirt = 1;
 		return;
 	}
-	HFSPLUS_SB(sb).file_count--;
+	HFSPLUS_SB(sb)->file_count--;
 	if (S_ISREG(inode->i_mode)) {
 		if (!inode->i_nlink) {
 			inode->i_size = 0;
@@ -434,6 +435,7 @@ void hfsplus_delete_inode(struct inode *inode)
 void hfsplus_inode_read_fork(struct inode *inode, struct hfsplus_fork_raw *fork)
 {
 	struct super_block *sb = inode->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	u32 count;
 	int i;
 
@@ -450,10 +452,13 @@ void hfsplus_inode_read_fork(struct inode *inode, struct hfsplus_fork_raw *fork)
 	inode->i_size = HFSPLUS_I(inode).phys_size = be64_to_cpu(fork->total_size);
 	HFSPLUS_I(inode).fs_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 	inode_set_bytes(inode, HFSPLUS_I(inode).fs_blocks << sb->s_blocksize_bits);
-	HFSPLUS_I(inode).clump_blocks = be32_to_cpu(fork->clump_size) >> HFSPLUS_SB(sb).alloc_blksz_shift;
-	if (!HFSPLUS_I(inode).clump_blocks)
-		HFSPLUS_I(inode).clump_blocks = HFSPLUS_IS_RSRC(inode) ? HFSPLUS_SB(sb).rsrc_clump_blocks :
-				HFSPLUS_SB(sb).data_clump_blocks;
+	HFSPLUS_I(inode).clump_blocks =
+		be32_to_cpu(fork->clump_size) >> sbi->alloc_blksz_shift;
+	if (!HFSPLUS_I(inode).clump_blocks) {
+		HFSPLUS_I(inode).clump_blocks = HFSPLUS_IS_RSRC(inode) ?
+			sbi->rsrc_clump_blocks :
+			sbi->data_clump_blocks;
+	}
 }
 
 void hfsplus_inode_write_fork(struct inode *inode, struct hfsplus_fork_raw *fork)
@@ -538,7 +543,7 @@ int hfsplus_cat_write_inode(struct inode *inode)
 	if (!main_inode->i_nlink)
 		return 0;
 
-	if (hfs_find_init(HFSPLUS_SB(main_inode->i_sb).cat_tree, &fd))
+	if (hfs_find_init(HFSPLUS_SB(main_inode->i_sb)->cat_tree, &fd))
 		/* panic? */
 		return -EIO;
 

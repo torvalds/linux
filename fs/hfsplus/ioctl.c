@@ -126,7 +126,7 @@ int hfsplus_setxattr(struct dentry *dentry, const char *name,
 	if (!S_ISREG(inode->i_mode) || HFSPLUS_IS_RSRC(inode))
 		return -EOPNOTSUPP;
 
-	res = hfs_find_init(HFSPLUS_SB(inode->i_sb).cat_tree, &fd);
+	res = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
 	if (res)
 		return res;
 	res = hfsplus_find_cat(inode->i_sb, inode->i_ino, &fd);
@@ -169,7 +169,7 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 		return -EOPNOTSUPP;
 
 	if (size) {
-		res = hfs_find_init(HFSPLUS_SB(inode->i_sb).cat_tree, &fd);
+		res = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
 		if (res)
 			return res;
 		res = hfsplus_find_cat(inode->i_sb, inode->i_ino, &fd);
