@@ -27,5 +27,7 @@
 #define NET_IP_ALIGN	0
 #define NET_SKB_PAD	L1_CACHE_BYTES
 
+#define CONSISTENT_DMA_SIZE	(14 * SZ_1M)
+
 #endif
 
