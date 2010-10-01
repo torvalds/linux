@@ -533,6 +533,8 @@ static struct twl4030_codec_data omap3pandora_codec_data = {
 	.audio = &omap3pandora_audio_data,
 };
 
+static struct twl4030_bci_platform_data pandora_bci_data;
+
 static struct twl4030_platform_data omap3pandora_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -548,6 +550,7 @@ static struct twl4030_platform_data omap3pandora_twldata = {
 	.vaux4		= &pandora_vaux4,
 	.vsim		= &pandora_vsim,
 	.keypad		= &pandora_kp_data,
+	.bci		= &pandora_bci_data,
 };
 
 static struct i2c_board_info __initdata omap3pandora_i2c_boardinfo[] = {
