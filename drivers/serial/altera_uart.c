@@ -421,7 +421,7 @@ int __init early_altera_uart_setup(struct altera_uart_platform_uart *platp)
 		port->iotype = SERIAL_IO_MEM;
 		port->irq = platp[i].irq;
 		port->uartclk = platp[i].uartclk;
-		port->flags = ASYNC_BOOT_AUTOCONF;
+		port->flags = UPF_BOOT_AUTOCONF;
 		port->ops = &altera_uart_ops;
 		port->private_data = platp;
 	}
@@ -551,7 +551,7 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	port->iotype = SERIAL_IO_MEM;
 	port->uartclk = platp->uartclk;
 	port->ops = &altera_uart_ops;
-	port->flags = ASYNC_BOOT_AUTOCONF;
+	port->flags = UPF_BOOT_AUTOCONF;
 	port->private_data = platp;
 
 	uart_add_one_port(&altera_uart_driver, port);
