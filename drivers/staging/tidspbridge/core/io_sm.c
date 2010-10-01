@@ -291,6 +291,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	struct cod_manager *cod_man;
 	struct chnl_mgr *hchnl_mgr;
 	struct msg_mgr *hmsg_mgr;
+	struct iommu *mmu;
 	u32 ul_shm_base;
 	u32 ul_shm_base_offset;
 	u32 ul_shm_limit;
@@ -313,7 +314,6 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	struct bridge_ioctl_extproc ae_proc[BRDIOCTL_NUMOFMMUTLB];
 	struct cfg_hostres *host_res;
 	struct bridge_dev_context *pbridge_context;
-	u32 map_attrs;
 	u32 shm0_end;
 	u32 ul_dyn_ext_base;
 	u32 ul_seg1_size = 0;
@@ -337,6 +337,20 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 		goto func_end;
 	}
+	mmu = pbridge_context->dsp_mmu;
+
+	if (mmu)
+		iommu_put(mmu);
+	mmu = iommu_get("iva2");
+
+	if (IS_ERR_OR_NULL(mmu)) {
+		dev_err(bridge, "iommu_get failed!\n");
+		pbridge_context->dsp_mmu = NULL;
+		status = -EFAULT;
+		goto func_end;
+	}
+	pbridge_context->dsp_mmu = mmu;
+
 	status = dev_get_cod_mgr(hio_mgr->hdev_obj, &cod_man);
 	if (!cod_man) {
 		status = -EFAULT;
@@ -476,55 +490,16 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	gpp_va_curr = ul_gpp_va;
 	num_bytes = ul_seg1_size;
 
-	/*
-	 * Try to fit into TLB entries. If not possible, push them to page
-	 * tables. It is quite possible that if sections are not on
-	 * bigger page boundary, we may end up making several small pages.
-	 * So, push them onto page tables, if that is the case.
-	 */
-	map_attrs = 0x00000000;
-	map_attrs = DSP_MAPLITTLEENDIAN;
-	map_attrs |= DSP_MAPPHYSICALADDR;
-	map_attrs |= DSP_MAPELEMSIZE32;
-	map_attrs |= DSP_MAPDONOTLOCK;
-
-	while (num_bytes) {
-		/*
-		 * To find the max. page size with which both PA & VA are
-		 * aligned.
-		 */
-		all_bits = pa_curr | va_curr;
-		dev_dbg(bridge, "all_bits %x, pa_curr %x, va_curr %x, "
-			"num_bytes %x\n", all_bits, pa_curr, va_curr,
-			num_bytes);
-		for (i = 0; i < 4; i++) {
-			if ((num_bytes >= page_size[i]) && ((all_bits &
-							     (page_size[i] -
-							      1)) == 0)) {
-				status =
-				    hio_mgr->intf_fxns->
-				    pfn_brd_mem_map(hio_mgr->hbridge_context,
-						    pa_curr, va_curr,
-						    page_size[i], map_attrs,
-						    NULL);
-				if (status)
-					goto func_end;
-				pa_curr += page_size[i];
-				va_curr += page_size[i];
-				gpp_va_curr += page_size[i];
-				num_bytes -= page_size[i];
-				/*
-				 * Don't try smaller sizes. Hopefully we have
-				 * reached an address aligned to a bigger page
-				 * size.
-				 */
-				break;
-			}
-		}
+	va_curr = iommu_kmap(mmu, va_curr, pa_curr, num_bytes,
+					IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
+	if (IS_ERR_VALUE(va_curr)) {
+		status = (int)va_curr;
+		goto func_end;
 	}
-	pa_curr += ul_pad_size;
-	va_curr += ul_pad_size;
-	gpp_va_curr += ul_pad_size;
+
+	pa_curr += ul_pad_size + num_bytes;
+	va_curr += ul_pad_size + num_bytes;
+	gpp_va_curr += ul_pad_size + num_bytes;
 
 	/* Configure the TLB entries for the next cacheable segment */
 	num_bytes = ul_seg_size;
@@ -566,22 +541,6 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 					ae_proc[ndx].ul_dsp_va *
 					hio_mgr->word_size, page_size[i]);
 				ndx++;
-			} else {
-				status =
-				    hio_mgr->intf_fxns->
-				    pfn_brd_mem_map(hio_mgr->hbridge_context,
-						    pa_curr, va_curr,
-						    page_size[i], map_attrs,
-						    NULL);
-				dev_dbg(bridge,
-					"shm MMU PTE entry PA %x"
-					" VA %x DSP_VA %x Size %x\n",
-					ae_proc[ndx].ul_gpp_pa,
-					ae_proc[ndx].ul_gpp_va,
-					ae_proc[ndx].ul_dsp_va *
-					hio_mgr->word_size, page_size[i]);
-				if (status)
-					goto func_end;
 			}
 			pa_curr += page_size[i];
 			va_curr += page_size[i];
@@ -634,37 +593,29 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 					"DSP_VA 0x%x\n", ae_proc[ndx].ul_gpp_pa,
 					ae_proc[ndx].ul_dsp_va);
 				ndx++;
-			} else {
-				status = hio_mgr->intf_fxns->pfn_brd_mem_map
-				    (hio_mgr->hbridge_context,
-				     hio_mgr->ext_proc_info.ty_tlb[i].
-				     ul_gpp_phys,
-				     hio_mgr->ext_proc_info.ty_tlb[i].
-				     ul_dsp_virt, 0x100000, map_attrs,
-				     NULL);
 			}
 		}
 		if (status)
 			goto func_end;
 	}
 
-	map_attrs = 0x00000000;
-	map_attrs = DSP_MAPLITTLEENDIAN;
-	map_attrs |= DSP_MAPPHYSICALADDR;
-	map_attrs |= DSP_MAPELEMSIZE32;
-	map_attrs |= DSP_MAPDONOTLOCK;
-
 	/* Map the L4 peripherals */
 	i = 0;
 	while (l4_peripheral_table[i].phys_addr) {
-		status = hio_mgr->intf_fxns->pfn_brd_mem_map
-		    (hio_mgr->hbridge_context, l4_peripheral_table[i].phys_addr,
-		     l4_peripheral_table[i].dsp_virt_addr, HW_PAGE_SIZE4KB,
-		     map_attrs, NULL);
-		if (status)
-			goto func_end;
+		status = iommu_kmap(mmu, l4_peripheral_table[i].
+			dsp_virt_addr, l4_peripheral_table[i].phys_addr,
+			PAGE_SIZE, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
+		if (IS_ERR_VALUE(status))
+			break;
 		i++;
 	}
+	if (IS_ERR_VALUE(status)) {
+		while (i--)
+			iommu_kunmap(mmu, l4_peripheral_table[i].
+						dsp_virt_addr);
+		goto func_end;
+	}
+	status = 0;
 
 	for (i = ndx; i < BRDIOCTL_NUMOFMMUTLB; i++) {
 		ae_proc[i].ul_dsp_va = 0;

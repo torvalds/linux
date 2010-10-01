@@ -201,7 +201,7 @@ typedef int(*fxn_brd_memmap) (struct bridge_dev_context
  */
 typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
 				       * dev_ctxt,
-				       u32 virt_addr, u32 ul_num_bytes);
+				       u32 da);
 
 /*
  *  ======== bridge_brd_stop ========

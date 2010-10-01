@@ -23,6 +23,8 @@
 #include <plat/clockdomain.h>
 #include <mach-omap2/prm-regbits-34xx.h>
 #include <mach-omap2/cm-regbits-34xx.h>
+#include <plat/iommu.h>
+#include <plat/iovmm.h>
 #include <dspbridge/devdefs.h>
 #include <hw_defs.h>
 #include <dspbridge/dspioctl.h>	/* for bridge_ioctl_extproc defn */
@@ -328,7 +330,7 @@ struct bridge_dev_context {
 	u32 dw_internal_size;	/* Internal memory size */
 
 	struct omap_mbox *mbox;		/* Mail box handle */
-
+	struct iommu *dsp_mmu;      /* iommu for iva2 handler */
 	struct cfg_hostres *resources;	/* Host Resources */
 
 	/*

@@ -115,12 +115,6 @@ int bridge_deh_create(struct deh_mgr **ret_deh,
 	/* Fill in context structure */
 	deh->hbridge_context = hbridge_context;
 
-	/* Install ISR function for DSP MMU fault */
-	status = request_irq(INT_DSP_MMU_IRQ, mmu_fault_isr, 0,
-			"DspBridge\tiommu fault", deh);
-	if (status < 0)
-		goto err;
-
 	*ret_deh = deh;
 	return 0;
 
@@ -140,8 +134,6 @@ int bridge_deh_destroy(struct deh_mgr *deh)
 		ntfy_delete(deh->ntfy_obj);
 		kfree(deh->ntfy_obj);
 	}
-	/* Disable DSP MMU fault */
-	free_irq(INT_DSP_MMU_IRQ, deh);
 
 	/* Free DPC object */
 	tasklet_kill(&deh->dpc_tasklet);

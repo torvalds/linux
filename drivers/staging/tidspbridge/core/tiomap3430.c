@@ -100,7 +100,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 				  u32 ul_num_bytes, u32 ul_map_attr,
 				  struct page **mapped_pages);
 static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
-				     u32 virt_addr, u32 ul_num_bytes);
+				     u32 da);
 static int bridge_dev_create(struct bridge_dev_context
 					**dev_cntxt,
 					struct dev_object *hdev_obj,
@@ -108,6 +108,8 @@ static int bridge_dev_create(struct bridge_dev_context
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
 				  u32 dw_cmd, void *pargs);
 static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt);
+static int get_io_pages(struct mm_struct *mm, u32 uva, unsigned pages,
+						struct page **usr_pgs);
 static u32 user_va2_pa(struct mm_struct *mm, u32 address);
 static int pte_update(struct bridge_dev_context *dev_ctxt, u32 pa,
 			     u32 va, u32 size,
@@ -357,6 +359,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
+	struct iommu *mmu;
 	u32 dw_sync_addr = 0;
 	u32 ul_shm_base;	/* Gpp Phys SM base addr(byte) */
 	u32 ul_shm_base_virt;	/* Dsp Virt SM base addr */
@@ -376,6 +379,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	struct dspbridge_platform_data *pdata =
 				omap_dspbridge_dev->dev.platform_data;
 
+	mmu = dev_context->dsp_mmu;
 	/* The device context contains all the mmu setup info from when the
 	 * last dsp base image was loaded. The first entry is always
 	 * SHMMEM base. */
@@ -426,29 +430,10 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		}
 	}
 	if (!status) {
-		/* Reset and Unreset the RST2, so that BOOTADDR is copied to
-		 * IVA2 SYSC register */
-		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK,
-			OMAP3430_RST2_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
-		udelay(100);
-		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK, 0,
-					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
-		udelay(100);
-
-		/* Disbale the DSP MMU */
-		hw_mmu_disable(resources->dw_dmmu_base);
-		/* Disable TWL */
-		hw_mmu_twl_disable(resources->dw_dmmu_base);
-
 		/* Only make TLB entry if both addresses are non-zero */
 		for (entry_ndx = 0; entry_ndx < BRDIOCTL_NUMOFMMUTLB;
 		     entry_ndx++) {
 			struct bridge_ioctl_extproc *e = &dev_context->atlb_entry[entry_ndx];
-			struct hw_mmu_map_attrs_t map_attrs = {
-				.endianism = e->endianism,
-				.element_size = e->elem_size,
-				.mixed_size = e->mixed_mode,
-			};
 
 			if (!e->ul_gpp_pa || !e->ul_dsp_va)
 				continue;
@@ -460,13 +445,8 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 					e->ul_dsp_va,
 					e->ul_size);
 
-			hw_mmu_tlb_add(dev_context->dw_dsp_mmu_base,
-					e->ul_gpp_pa,
-					e->ul_dsp_va,
-					e->ul_size,
-					itmp_entry_ndx,
-					&map_attrs, 1, 1);
-
+			iommu_kmap(mmu, e->ul_dsp_va, e->ul_gpp_pa, e->ul_size,
+				IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
 			itmp_entry_ndx++;
 		}
 	}
@@ -474,29 +454,13 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	/* Lock the above TLB entries and get the BIOS and load monitor timer
 	 * information */
 	if (!status) {
-		hw_mmu_num_locked_set(resources->dw_dmmu_base, itmp_entry_ndx);
-		hw_mmu_victim_num_set(resources->dw_dmmu_base, itmp_entry_ndx);
-		hw_mmu_ttb_set(resources->dw_dmmu_base,
-			       dev_context->pt_attrs->l1_base_pa);
-		hw_mmu_twl_enable(resources->dw_dmmu_base);
-		/* Enable the SmartIdle and AutoIdle bit for MMU_SYSCONFIG */
-
-		temp = __raw_readl((resources->dw_dmmu_base) + 0x10);
-		temp = (temp & 0xFFFFFFEF) | 0x11;
-		__raw_writel(temp, (resources->dw_dmmu_base) + 0x10);
-
-		/* Let the DSP MMU run */
-		hw_mmu_enable(resources->dw_dmmu_base);
-
 		/* Enable the BIOS clock */
 		(void)dev_get_symbol(dev_context->hdev_obj,
 				     BRIDGEINIT_BIOSGPTIMER, &ul_bios_gp_timer);
 		(void)dev_get_symbol(dev_context->hdev_obj,
 				     BRIDGEINIT_LOADMON_GPTIMER,
 				     &ul_load_monitor_timer);
-	}
 
-	if (!status) {
 		if (ul_load_monitor_timer != 0xFFFF) {
 			clk_cmd = (BPWR_ENABLE_CLOCK << MBX_PM_CLK_CMDSHIFT) |
 			    ul_load_monitor_timer;
@@ -505,9 +469,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 			dev_dbg(bridge, "Not able to get the symbol for Load "
 				"Monitor Timer\n");
 		}
-	}
 
-	if (!status) {
 		if (ul_bios_gp_timer != 0xFFFF) {
 			clk_cmd = (BPWR_ENABLE_CLOCK << MBX_PM_CLK_CMDSHIFT) |
 			    ul_bios_gp_timer;
@@ -516,9 +478,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 			dev_dbg(bridge,
 				"Not able to get the symbol for BIOS Timer\n");
 		}
-	}
 
-	if (!status) {
 		/* Set the DSP clock rate */
 		(void)dev_get_symbol(dev_context->hdev_obj,
 				     "_BRIDGEINIT_DSP_FREQ", &ul_dsp_clk_addr);
@@ -571,9 +531,6 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 		/* Let DSP go */
 		dev_dbg(bridge, "%s Unreset\n", __func__);
-		/* Enable DSP MMU Interrupts */
-		hw_mmu_event_enable(resources->dw_dmmu_base,
-				    HW_MMU_ALL_INTERRUPTS);
 		/* release the RST1, DSP starts executing now .. */
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST1_IVA2_MASK, 0,
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -674,6 +631,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 		omap_mbox_put(dev_context->mbox);
 		dev_context->mbox = NULL;
 	}
+	if (dev_context->dsp_mmu)
+		dev_context->dsp_mmu = (iommu_put(dev_context->dsp_mmu), NULL);
 	/* Reset IVA2 clocks*/
 	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK | OMAP3430_RST2_IVA2_MASK |
 			OMAP3430_RST3_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -1122,217 +1081,81 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
  *
  *  TODO: Disable MMU while updating the page tables (but that'll stall DSP)
  */
-static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
-				  u32 ul_mpu_addr, u32 virt_addr,
-				  u32 ul_num_bytes, u32 ul_map_attr,
-				  struct page **mapped_pages)
+static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctx,
+			u32 uva, u32 da, u32 size, u32 attr,
+			struct page **usr_pgs)
+
 {
-	u32 attrs;
-	int status = 0;
-	struct bridge_dev_context *dev_context = dev_ctxt;
-	struct hw_mmu_map_attrs_t hw_attrs;
+	int res, w;
+	unsigned pages, i;
+	struct iommu *mmu = dev_ctx->dsp_mmu;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	u32 write = 0;
-	u32 num_usr_pgs = 0;
-	struct page *mapped_page, *pg;
-	s32 pg_num;
-	u32 va = virt_addr;
-	struct task_struct *curr_task = current;
-	u32 pg_i = 0;
-	u32 mpu_addr, pa;
+	struct sg_table *sgt;
+	struct scatterlist *sg;
 
-	dev_dbg(bridge,
-		"%s hDevCtxt %p, pa %x, va %x, size %x, ul_map_attr %x\n",
-		__func__, dev_ctxt, ul_mpu_addr, virt_addr, ul_num_bytes,
-		ul_map_attr);
-	if (ul_num_bytes == 0)
+	if (!size || !usr_pgs)
 		return -EINVAL;
 
-	if (ul_map_attr & DSP_MAP_DIR_MASK) {
-		attrs = ul_map_attr;
-	} else {
-		/* Assign default attributes */
-		attrs = ul_map_attr | (DSP_MAPVIRTUALADDR | DSP_MAPELEMSIZE16);
-	}
-	/* Take mapping properties */
-	if (attrs & DSP_MAPBIGENDIAN)
-		hw_attrs.endianism = HW_BIG_ENDIAN;
-	else
-		hw_attrs.endianism = HW_LITTLE_ENDIAN;
+	pages = size / PG_SIZE4K;
 
-	hw_attrs.mixed_size = (enum hw_mmu_mixed_size_t)
-	    ((attrs & DSP_MAPMIXEDELEMSIZE) >> 2);
-	/* Ignore element_size if mixed_size is enabled */
-	if (hw_attrs.mixed_size == 0) {
-		if (attrs & DSP_MAPELEMSIZE8) {
-			/* Size is 8 bit */
-			hw_attrs.element_size = HW_ELEM_SIZE8BIT;
-		} else if (attrs & DSP_MAPELEMSIZE16) {
-			/* Size is 16 bit */
-			hw_attrs.element_size = HW_ELEM_SIZE16BIT;
-		} else if (attrs & DSP_MAPELEMSIZE32) {
-			/* Size is 32 bit */
-			hw_attrs.element_size = HW_ELEM_SIZE32BIT;
-		} else if (attrs & DSP_MAPELEMSIZE64) {
-			/* Size is 64 bit */
-			hw_attrs.element_size = HW_ELEM_SIZE64BIT;
-		} else {
-			/*
-			 * Mixedsize isn't enabled, so size can't be
-			 * zero here
-			 */
-			return -EINVAL;
-		}
-	}
-	if (attrs & DSP_MAPDONOTLOCK)
-		hw_attrs.donotlockmpupage = 1;
-	else
-		hw_attrs.donotlockmpupage = 0;
-
-	if (attrs & DSP_MAPVMALLOCADDR) {
-		return mem_map_vmalloc(dev_ctxt, ul_mpu_addr, virt_addr,
-				       ul_num_bytes, &hw_attrs);
-	}
-	/*
-	 * Do OS-specific user-va to pa translation.
-	 * Combine physically contiguous regions to reduce TLBs.
-	 * Pass the translated pa to pte_update.
-	 */
-	if ((attrs & DSP_MAPPHYSICALADDR)) {
-		status = pte_update(dev_context, ul_mpu_addr, virt_addr,
-				    ul_num_bytes, &hw_attrs);
-		goto func_cont;
-	}
-
-	/*
-	 * Important Note: ul_mpu_addr is mapped from user application process
-	 * to current process - it must lie completely within the current
-	 * virtual memory address space in order to be of use to us here!
-	 */
 	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, ul_mpu_addr);
-	if (vma)
-		dev_dbg(bridge,
-			"VMAfor UserBuf: ul_mpu_addr=%x, ul_num_bytes=%x, "
-			"vm_start=%lx, vm_end=%lx, vm_flags=%lx\n", ul_mpu_addr,
-			ul_num_bytes, vma->vm_start, vma->vm_end,
-			vma->vm_flags);
-
-	/*
-	 * It is observed that under some circumstances, the user buffer is
-	 * spread across several VMAs. So loop through and check if the entire
-	 * user buffer is covered
-	 */
-	while ((vma) && (ul_mpu_addr + ul_num_bytes > vma->vm_end)) {
-		/* jump to the next VMA region */
+	vma = find_vma(mm, uva);
+	while (vma && (uva + size > vma->vm_end))
 		vma = find_vma(mm, vma->vm_end + 1);
-		dev_dbg(bridge,
-			"VMA for UserBuf ul_mpu_addr=%x ul_num_bytes=%x, "
-			"vm_start=%lx, vm_end=%lx, vm_flags=%lx\n", ul_mpu_addr,
-			ul_num_bytes, vma->vm_start, vma->vm_end,
-			vma->vm_flags);
-	}
+
 	if (!vma) {
 		pr_err("%s: Failed to get VMA region for 0x%x (%d)\n",
-		       __func__, ul_mpu_addr, ul_num_bytes);
-		status = -EINVAL;
+						__func__, uva, size);
 		up_read(&mm->mmap_sem);
-		goto func_cont;
+		return -EINVAL;
 	}
+	if (vma->vm_flags & (VM_WRITE | VM_MAYWRITE))
+		w = 1;
 
-	if (vma->vm_flags & VM_IO) {
-		num_usr_pgs = ul_num_bytes / PG_SIZE4K;
-		mpu_addr = ul_mpu_addr;
-
-		/* Get the physical addresses for user buffer */
-		for (pg_i = 0; pg_i < num_usr_pgs; pg_i++) {
-			pa = user_va2_pa(mm, mpu_addr);
-			if (!pa) {
-				status = -EPERM;
-				pr_err("DSPBRIDGE: VM_IO mapping physical"
-				       "address is invalid\n");
-				break;
-			}
-			if (pfn_valid(__phys_to_pfn(pa))) {
-				pg = PHYS_TO_PAGE(pa);
-				get_page(pg);
-				if (page_count(pg) < 1) {
-					pr_err("Bad page in VM_IO buffer\n");
-					bad_page_dump(pa, pg);
-				}
-			}
-			status = pte_set(dev_context->pt_attrs, pa,
-					 va, HW_PAGE_SIZE4KB, &hw_attrs);
-			if (status)
-				break;
-
-			va += HW_PAGE_SIZE4KB;
-			mpu_addr += HW_PAGE_SIZE4KB;
-			pa += HW_PAGE_SIZE4KB;
-		}
-	} else {
-		num_usr_pgs = ul_num_bytes / PG_SIZE4K;
-		if (vma->vm_flags & (VM_WRITE | VM_MAYWRITE))
-			write = 1;
-
-		for (pg_i = 0; pg_i < num_usr_pgs; pg_i++) {
-			pg_num = get_user_pages(curr_task, mm, ul_mpu_addr, 1,
-						write, 1, &mapped_page, NULL);
-			if (pg_num > 0) {
-				if (page_count(mapped_page) < 1) {
-					pr_err("Bad page count after doing"
-					       "get_user_pages on"
-					       "user buffer\n");
-					bad_page_dump(page_to_phys(mapped_page),
-						      mapped_page);
-				}
-				status = pte_set(dev_context->pt_attrs,
-						 page_to_phys(mapped_page), va,
-						 HW_PAGE_SIZE4KB, &hw_attrs);
-				if (status)
-					break;
-
-				if (mapped_pages)
-					mapped_pages[pg_i] = mapped_page;
-
-				va += HW_PAGE_SIZE4KB;
-				ul_mpu_addr += HW_PAGE_SIZE4KB;
-			} else {
-				pr_err("DSPBRIDGE: get_user_pages FAILED,"
-				       "MPU addr = 0x%x,"
-				       "vma->vm_flags = 0x%lx,"
-				       "get_user_pages Err"
-				       "Value = %d, Buffer"
-				       "size=0x%x\n", ul_mpu_addr,
-				       vma->vm_flags, pg_num, ul_num_bytes);
-				status = -EPERM;
-				break;
-			}
-		}
-	}
+	if (vma->vm_flags & VM_IO)
+		i = get_io_pages(mm, uva, pages, usr_pgs);
+	else
+		i = get_user_pages(current, mm, uva, pages, w, 1,
+							usr_pgs, NULL);
 	up_read(&mm->mmap_sem);
-func_cont:
-	if (status) {
-		/*
-		 * Roll out the mapped pages incase it failed in middle of
-		 * mapping
-		 */
-		if (pg_i) {
-			bridge_brd_mem_un_map(dev_context, virt_addr,
-					   (pg_i * PG_SIZE4K));
-		}
-		status = -EPERM;
+
+	if (i < 0)
+		return i;
+
+	if (i < pages) {
+		res = -EFAULT;
+		goto err_pages;
 	}
-	/*
-	 * In any case, flush the TLB
-	 * This is called from here instead from pte_update to avoid unnecessary
-	 * repetition while mapping non-contiguous physical regions of a virtual
-	 * region
-	 */
-	flush_all(dev_context);
-	dev_dbg(bridge, "%s status %x\n", __func__, status);
-	return status;
+
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt) {
+		res = -ENOMEM;
+		goto err_pages;
+	}
+
+	res = sg_alloc_table(sgt, pages, GFP_KERNEL);
+
+	if (res < 0)
+		goto err_sg;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, i)
+		sg_set_page(sg, usr_pgs[i], PAGE_SIZE, 0);
+
+	da = iommu_vmap(mmu, da, sgt, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
+
+	if (!IS_ERR_VALUE(da))
+		return 0;
+	res = (int)da;
+
+	sg_free_table(sgt);
+err_sg:
+	kfree(sgt);
+	i = pages;
+err_pages:
+	while (i--)
+		put_page(usr_pgs[i]);
+	return res;
 }
 
 /*
@@ -1343,194 +1166,43 @@ func_cont:
  *      So, instead of looking up the PTE address for every 4K block,
  *      we clear consecutive PTEs until we unmap all the bytes
  */
-static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
-				     u32 virt_addr, u32 ul_num_bytes)
+static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctx, u32 da)
 {
-	u32 l1_base_va;
-	u32 l2_base_va;
-	u32 l2_base_pa;
-	u32 l2_page_num;
-	u32 pte_val;
-	u32 pte_size;
-	u32 pte_count;
-	u32 pte_addr_l1;
-	u32 pte_addr_l2 = 0;
-	u32 rem_bytes;
-	u32 rem_bytes_l2;
-	u32 va_curr;
-	struct page *pg = NULL;
-	int status = 0;
-	struct bridge_dev_context *dev_context = dev_ctxt;
-	struct pg_table_attrs *pt = dev_context->pt_attrs;
-	u32 temp;
-	u32 paddr;
-	u32 numof4k_pages = 0;
+	unsigned i;
+	struct sg_table *sgt;
+	struct scatterlist *sg;
 
-	va_curr = virt_addr;
-	rem_bytes = ul_num_bytes;
-	rem_bytes_l2 = 0;
-	l1_base_va = pt->l1_base_va;
-	pte_addr_l1 = hw_mmu_pte_addr_l1(l1_base_va, va_curr);
-	dev_dbg(bridge, "%s dev_ctxt %p, va %x, NumBytes %x l1_base_va %x, "
-		"pte_addr_l1 %x\n", __func__, dev_ctxt, virt_addr,
-		ul_num_bytes, l1_base_va, pte_addr_l1);
+	sgt = iommu_vunmap(dev_ctx->dsp_mmu, da);
+	if (!sgt)
+		return -EFAULT;
 
-	while (rem_bytes && !status) {
-		u32 va_curr_orig = va_curr;
-		/* Find whether the L1 PTE points to a valid L2 PT */
-		pte_addr_l1 = hw_mmu_pte_addr_l1(l1_base_va, va_curr);
-		pte_val = *(u32 *) pte_addr_l1;
-		pte_size = hw_mmu_pte_size_l1(pte_val);
+	for_each_sg(sgt->sgl, sg, sgt->nents, i)
+		put_page(sg_page(sg));
+	sg_free_table(sgt);
+	kfree(sgt);
 
-		if (pte_size != HW_MMU_COARSE_PAGE_SIZE)
-			goto skip_coarse_page;
+	return 0;
+}
 
-		/*
-		 * Get the L2 PA from the L1 PTE, and find
-		 * corresponding L2 VA
-		 */
-		l2_base_pa = hw_mmu_pte_coarse_l1(pte_val);
-		l2_base_va = l2_base_pa - pt->l2_base_pa + pt->l2_base_va;
-		l2_page_num =
-		    (l2_base_pa - pt->l2_base_pa) / HW_MMU_COARSE_PAGE_SIZE;
-		/*
-		 * Find the L2 PTE address from which we will start
-		 * clearing, the number of PTEs to be cleared on this
-		 * page, and the size of VA space that needs to be
-		 * cleared on this L2 page
-		 */
-		pte_addr_l2 = hw_mmu_pte_addr_l2(l2_base_va, va_curr);
-		pte_count = pte_addr_l2 & (HW_MMU_COARSE_PAGE_SIZE - 1);
-		pte_count = (HW_MMU_COARSE_PAGE_SIZE - pte_count) / sizeof(u32);
-		if (rem_bytes < (pte_count * PG_SIZE4K))
-			pte_count = rem_bytes / PG_SIZE4K;
-		rem_bytes_l2 = pte_count * PG_SIZE4K;
 
-		/*
-		 * Unmap the VA space on this L2 PT. A quicker way
-		 * would be to clear pte_count entries starting from
-		 * pte_addr_l2. However, below code checks that we don't
-		 * clear invalid entries or less than 64KB for a 64KB
-		 * entry. Similar checking is done for L1 PTEs too
-		 * below
-		 */
-		while (rem_bytes_l2 && !status) {
-			pte_val = *(u32 *) pte_addr_l2;
-			pte_size = hw_mmu_pte_size_l2(pte_val);
-			/* va_curr aligned to pte_size? */
-			if (pte_size == 0 || rem_bytes_l2 < pte_size ||
-			    va_curr & (pte_size - 1)) {
-				status = -EPERM;
-				break;
-			}
+static int get_io_pages(struct mm_struct *mm, u32 uva, unsigned pages,
+						struct page **usr_pgs)
+{
+	u32 pa;
+	int i;
+	struct page *pg;
 
-			/* Collect Physical addresses from VA */
-			paddr = (pte_val & ~(pte_size - 1));
-			if (pte_size == HW_PAGE_SIZE64KB)
-				numof4k_pages = 16;
-			else
-				numof4k_pages = 1;
-			temp = 0;
-			while (temp++ < numof4k_pages) {
-				if (!pfn_valid(__phys_to_pfn(paddr))) {
-					paddr += HW_PAGE_SIZE4KB;
-					continue;
-				}
-				pg = PHYS_TO_PAGE(paddr);
-				if (page_count(pg) < 1) {
-					pr_info("DSPBRIDGE: UNMAP function: "
-						"COUNT 0 FOR PA 0x%x, size = "
-						"0x%x\n", paddr, ul_num_bytes);
-					bad_page_dump(paddr, pg);
-				} else {
-					set_page_dirty(pg);
-					page_cache_release(pg);
-				}
-				paddr += HW_PAGE_SIZE4KB;
-			}
-			if (hw_mmu_pte_clear(pte_addr_l2, va_curr, pte_size)) {
-				status = -EPERM;
-				goto EXIT_LOOP;
-			}
+	for (i = 0; i < pages; i++) {
+		pa = user_va2_pa(mm, uva);
 
-			status = 0;
-			rem_bytes_l2 -= pte_size;
-			va_curr += pte_size;
-			pte_addr_l2 += (pte_size >> 12) * sizeof(u32);
-		}
-		spin_lock(&pt->pg_lock);
-		if (rem_bytes_l2 == 0) {
-			pt->pg_info[l2_page_num].num_entries -= pte_count;
-			if (pt->pg_info[l2_page_num].num_entries == 0) {
-				/*
-				 * Clear the L1 PTE pointing to the L2 PT
-				 */
-				if (!hw_mmu_pte_clear(l1_base_va, va_curr_orig,
-						     HW_MMU_COARSE_PAGE_SIZE))
-					status = 0;
-				else {
-					status = -EPERM;
-					spin_unlock(&pt->pg_lock);
-					goto EXIT_LOOP;
-				}
-			}
-			rem_bytes -= pte_count * PG_SIZE4K;
-		} else
-			status = -EPERM;
-
-		spin_unlock(&pt->pg_lock);
-		continue;
-skip_coarse_page:
-		/* va_curr aligned to pte_size? */
-		/* pte_size = 1 MB or 16 MB */
-		if (pte_size == 0 || rem_bytes < pte_size ||
-		    va_curr & (pte_size - 1)) {
-			status = -EPERM;
+		if (!pfn_valid(__phys_to_pfn(pa)))
 			break;
-		}
 
-		if (pte_size == HW_PAGE_SIZE1MB)
-			numof4k_pages = 256;
-		else
-			numof4k_pages = 4096;
-		temp = 0;
-		/* Collect Physical addresses from VA */
-		paddr = (pte_val & ~(pte_size - 1));
-		while (temp++ < numof4k_pages) {
-			if (pfn_valid(__phys_to_pfn(paddr))) {
-				pg = PHYS_TO_PAGE(paddr);
-				if (page_count(pg) < 1) {
-					pr_info("DSPBRIDGE: UNMAP function: "
-						"COUNT 0 FOR PA 0x%x, size = "
-						"0x%x\n", paddr, ul_num_bytes);
-					bad_page_dump(paddr, pg);
-				} else {
-					set_page_dirty(pg);
-					page_cache_release(pg);
-				}
-			}
-			paddr += HW_PAGE_SIZE4KB;
-		}
-		if (!hw_mmu_pte_clear(l1_base_va, va_curr, pte_size)) {
-			status = 0;
-			rem_bytes -= pte_size;
-			va_curr += pte_size;
-		} else {
-			status = -EPERM;
-			goto EXIT_LOOP;
-		}
+		pg = PHYS_TO_PAGE(pa);
+		usr_pgs[i] = pg;
+		get_page(pg);
 	}
-	/*
-	 * It is better to flush the TLB here, so that any stale old entries
-	 * get flushed
-	 */
-EXIT_LOOP:
-	flush_all(dev_context);
-	dev_dbg(bridge,
-		"%s: va_curr %x, pte_addr_l1 %x pte_addr_l2 %x rem_bytes %x,"
-		" rem_bytes_l2 %x status %x\n", __func__, va_curr, pte_addr_l1,
-		pte_addr_l2, rem_bytes, rem_bytes_l2, status);
-	return status;
+	return i;
 }
 
 /*

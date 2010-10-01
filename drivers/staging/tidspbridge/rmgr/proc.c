@@ -1723,7 +1723,7 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	/* Remove mapping from the page tables. */
 	if (!status) {
 		status = (*p_proc_object->intf_fxns->pfn_brd_mem_un_map)
-		    (p_proc_object->hbridge_context, va_align, size_align);
+		    (p_proc_object->hbridge_context, va_align);
 	}
 
 	mutex_unlock(&proc_lock);
