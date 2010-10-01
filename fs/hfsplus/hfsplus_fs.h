@@ -150,11 +150,11 @@ struct hfsplus_sb_info {
 	unsigned long flags;
 };
 
-#define HFSPLUS_SB_WRITEBACKUP	0x0001
-#define HFSPLUS_SB_NODECOMPOSE	0x0002
-#define HFSPLUS_SB_FORCE	0x0004
-#define HFSPLUS_SB_HFSX		0x0008
-#define HFSPLUS_SB_CASEFOLD	0x0010
+#define HFSPLUS_SB_WRITEBACKUP	0
+#define HFSPLUS_SB_NODECOMPOSE	1
+#define HFSPLUS_SB_FORCE	2
+#define HFSPLUS_SB_HFSX		3
+#define HFSPLUS_SB_CASEFOLD	4
 
 
 struct hfsplus_inode_info {

@@ -119,7 +119,7 @@ static int hfsplus_system_write_inode(struct inode *inode)
 	}
 
 	if (fork->total_size != cpu_to_be64(inode->i_size)) {
-		sbi->flags |= HFSPLUS_SB_WRITEBACKUP;
+		set_bit(HFSPLUS_SB_WRITEBACKUP, &sbi->flags);
 		inode->i_sb->s_dirt = 1;
 	}
 	hfsplus_inode_write_fork(inode, fork);
@@ -170,7 +170,7 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 	vhdr->file_count = cpu_to_be32(sbi->file_count);
 
 	mark_buffer_dirty(sbi->s_vhbh);
-	if (sbi->flags & HFSPLUS_SB_WRITEBACKUP) {
+	if (test_and_clear_bit(HFSPLUS_SB_WRITEBACKUP, &sbi->flags)) {
 		if (sbi->sect_count) {
 			struct buffer_head *bh;
 			u32 block, offset;
@@ -192,7 +192,6 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 					printk(KERN_WARNING "hfs: backup not found!\n");
 			}
 		}
-		sbi->flags &= ~HFSPLUS_SB_WRITEBACKUP;
 	}
 	mutex_unlock(&sbi->alloc_mutex);
 	mutex_unlock(&sbi->vh_mutex);
@@ -276,7 +275,7 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 			       "running fsck.hfsplus is recommended.  leaving read-only.\n");
 			sb->s_flags |= MS_RDONLY;
 			*flags |= MS_RDONLY;
-		} else if (sbi.flags & HFSPLUS_SB_FORCE) {
+		} else if (test_bit(HFSPLUS_SB_FORCE, &sbi.flags)) {
 			/* nothing */
 		} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 			printk(KERN_WARNING "hfs: filesystem is marked locked, leaving read-only.\n");
@@ -376,7 +375,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_WARNING "hfs: Filesystem was not cleanly unmounted, "
 		       "running fsck.hfsplus is recommended.  mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
-	} else if (sbi->flags & HFSPLUS_SB_FORCE) {
+	} else if (test_and_clear_bit(HFSPLUS_SB_FORCE, &sbi->flags)) {
 		/* nothing */
 	} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 		printk(KERN_WARNING "hfs: Filesystem is marked locked, mounting read-only.\n");
@@ -386,7 +385,6 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		       "use the force option at your own risk, mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
 	}
-	sbi->flags &= ~HFSPLUS_SB_FORCE;
 
 	/* Load metadata objects (B*Trees) */
 	sbi->ext_tree = hfs_btree_open(sb, HFSPLUS_EXT_CNID);

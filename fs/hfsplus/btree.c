@@ -61,12 +61,12 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	if (id == HFSPLUS_EXT_CNID) {
 		tree->keycmp = hfsplus_ext_cmp_key;
 	} else if (id == HFSPLUS_CAT_CNID) {
-		if ((HFSPLUS_SB(sb)->flags & HFSPLUS_SB_HFSX) &&
+		if (test_bit(HFSPLUS_SB_HFSX, &HFSPLUS_SB(sb)->flags) &&
 		    (head->key_type == HFSPLUS_KEY_BINARY))
 			tree->keycmp = hfsplus_cat_bin_cmp_key;
 		else {
 			tree->keycmp = hfsplus_cat_case_cmp_key;
-			HFSPLUS_SB(sb)->flags |= HFSPLUS_SB_CASEFOLD;
+			set_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
 		}
 	} else {
 		printk(KERN_ERR "hfs: unknown B*Tree requested\n");

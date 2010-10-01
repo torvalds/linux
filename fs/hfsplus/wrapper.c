@@ -123,7 +123,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		if (vhdr->signature == cpu_to_be16(HFSPLUS_VOLHEAD_SIG))
 			break;
 		if (vhdr->signature == cpu_to_be16(HFSPLUS_VOLHEAD_SIGX)) {
-			sbi->flags |= HFSPLUS_SB_HFSX;
+			set_bit(HFSPLUS_SB_HFSX, &sbi->flags);
 			break;
 		}
 		brelse(bh);
@@ -169,10 +169,14 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		return -EIO;
 
 	/* should still be the same... */
-	if (vhdr->signature != (sbi->flags & HFSPLUS_SB_HFSX ?
-				cpu_to_be16(HFSPLUS_VOLHEAD_SIGX) :
-				cpu_to_be16(HFSPLUS_VOLHEAD_SIG)))
-		goto error;
+	if (test_bit(HFSPLUS_SB_HFSX, &sbi->flags)) {
+		if (vhdr->signature != cpu_to_be16(HFSPLUS_VOLHEAD_SIGX))
+			goto error;
+	} else {
+		if (vhdr->signature != cpu_to_be16(HFSPLUS_VOLHEAD_SIG))
+			goto error;
+	}
+
 	sbi->s_vhbh = bh;
 	sbi->s_vhdr = vhdr;
 

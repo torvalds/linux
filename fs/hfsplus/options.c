@@ -143,13 +143,13 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 			kfree(p);
 			break;
 		case opt_decompose:
-			sbi->flags &= ~HFSPLUS_SB_NODECOMPOSE;
+			clear_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
 			break;
 		case opt_nodecompose:
-			sbi->flags |= HFSPLUS_SB_NODECOMPOSE;
+			set_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
 			break;
 		case opt_force:
-			sbi->flags |= HFSPLUS_SB_FORCE;
+			set_bit(HFSPLUS_SB_FORCE, &sbi->flags);
 			break;
 		default:
 			return 0;
@@ -184,7 +184,7 @@ int hfsplus_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",session=%u", sbi->session);
 	if (sbi->nls)
 		seq_printf(seq, ",nls=%s", sbi->nls->charset);
-	if (sbi->flags & HFSPLUS_SB_NODECOMPOSE)
+	if (test_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags))
 		seq_printf(seq, ",nodecompose");
 	return 0;
 }
