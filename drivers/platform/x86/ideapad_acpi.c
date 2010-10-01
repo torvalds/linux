@@ -160,32 +160,6 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 }
 /* the above is ACPI helpers */
 
-static int ideapad_dev_get_state(int device)
-{
-	acpi_status status;
-	union acpi_object in_param;
-	struct acpi_object_list input = { 1, &in_param };
-	struct acpi_buffer output;
-	union acpi_object out_obj;
-
-	output.length = sizeof(out_obj);
-	output.pointer = &out_obj;
-
-	in_param.type = ACPI_TYPE_INTEGER;
-	in_param.integer.value = device + 1;
-
-	status = acpi_evaluate_object(NULL, "\\_SB_.GECN", &input, &output);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_WARNING "IdeaPAD \\_SB_.GECN method failed %d\n", status);
-		return -ENODEV;
-	}
-	if (out_obj.type != ACPI_TYPE_INTEGER) {
-		printk(KERN_WARNING "IdeaPAD \\_SB_.GECN method returned unexpected type\n");
-		return -ENODEV;
-	}
-	return out_obj.integer.value;
-}
-
 static int ideapad_dev_set_state(int device, int state)
 {
 	acpi_status status;
@@ -253,31 +227,38 @@ static struct rfkill_ops ideapad_rfk_ops = {
 static void ideapad_sync_rfk_state(struct acpi_device *adevice)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
-	int hw_blocked = !ideapad_dev_get_state(IDEAPAD_DEV_KILLSW);
+	acpi_handle handle = priv->handle;
+	unsigned long hw_blocked;
 	int i;
 
-	rfkill_set_hw_state(priv->rfk[IDEAPAD_DEV_KILLSW], hw_blocked);
-	for (i = IDEAPAD_DEV_WLAN; i < IDEAPAD_DEV_KILLSW; i++)
+	if (read_ec_data(handle, 0x23, &hw_blocked))
+		return;
+	hw_blocked = !hw_blocked;
+
+	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++)
 		if (priv->rfk[i])
 			rfkill_set_hw_state(priv->rfk[i], hw_blocked);
-	if (hw_blocked)
-		return;
-
-	for (i = IDEAPAD_DEV_WLAN; i < IDEAPAD_DEV_KILLSW; i++)
-		if (priv->rfk[i])
-			rfkill_set_sw_state(priv->rfk[i], !ideapad_dev_get_state(i));
 }
 
 static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int ret;
+	unsigned long sw_blocked;
 
-	priv->rfk[dev] = rfkill_alloc(ideapad_rfk_data[dev-1].name, &adevice->dev,
-				      ideapad_rfk_data[dev-1].type, &ideapad_rfk_ops,
+	priv->rfk[dev] = rfkill_alloc(ideapad_rfk_data[dev].name, &adevice->dev,
+				      ideapad_rfk_data[dev].type, &ideapad_rfk_ops,
 				      (void *)(long)dev);
 	if (!priv->rfk[dev])
 		return -ENOMEM;
+
+	if (read_ec_data(ideapad_priv->handle, ideapad_rfk_data[dev].opcode-1,
+			 &sw_blocked)) {
+		rfkill_init_sw_state(priv->rfk[dev], 0);
+	} else {
+		sw_blocked = !sw_blocked;
+		rfkill_init_sw_state(priv->rfk[dev], sw_blocked);
+	}
 
 	ret = rfkill_register(priv->rfk[dev]);
 	if (ret) {
