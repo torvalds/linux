@@ -115,6 +115,12 @@
 #define twl_has_codec()	false
 #endif
 
+#if defined(CONFIG_CHARGER_TWL4030) || defined(CONFIG_CHARGER_TWL4030_MODULE)
+#define twl_has_bci()	true
+#else
+#define twl_has_bci()	false
+#endif
+
 /* Triton Core internal information (BEGIN) */
 
 /* Last - for index max*/
@@ -822,6 +828,17 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 
 		child = add_regulator(TWL6030_REG_VAUX3_6030, pdata->vaux3);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	if (twl_has_bci() && pdata->bci &&
+			!(features & (TPS_SUBSET | TWL5031))) {
+		child = add_child(3, "twl4030_bci",
+				pdata->bci, sizeof(*pdata->bci), false,
+				/* irq0 = CHG_PRES, irq1 = BCI */
+				pdata->irq_base + BCI_PRES_INTR_OFFSET,
+				pdata->irq_base + BCI_INTR_OFFSET);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
