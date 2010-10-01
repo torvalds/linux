@@ -1498,6 +1498,9 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	unsigned long long lba;
 	unsigned sector_size;
 
+	if (sdp->no_read_capacity_16)
+		return -EINVAL;
+
 	do {
 		memset(cmd, 0, 16);
 		cmd[0] = SERVICE_ACTION_IN;
@@ -1625,6 +1628,15 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 
 	sector_size = get_unaligned_be32(&buffer[4]);
 	lba = get_unaligned_be32(&buffer[0]);
+
+	if (sdp->no_read_capacity_16 && (lba == 0xffffffff)) {
+		/* Some buggy (usb cardreader) devices return an lba of
+		   0xffffffff when the want to report a size of 0 (with
+		   which they really mean no media is present) */
+		sdkp->capacity = 0;
+		sdkp->hw_sector_size = sector_size;
+		return sector_size;
+	}
 
 	if ((sizeof(sdkp->capacity) == 4) && (lba == 0xffffffff)) {
 		sd_printk(KERN_ERR, sdkp, "Too big for this kernel. Use a "
