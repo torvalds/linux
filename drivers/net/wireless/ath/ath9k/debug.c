@@ -701,6 +701,8 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("DESC CFG Error:  ", desc_cfg_err);
 	PR("DATA Underrun:   ", data_underrun);
 	PR("DELIM Underrun:  ", delim_underrun);
+	PR("TX-Pkts-All:     ", tx_pkts_all);
+	PR("TX-Bytes-All:    ", tx_bytes_all);
 
 	if (len > size)
 		len = size;
@@ -714,6 +716,9 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 		       struct ath_buf *bf, struct ath_tx_status *ts)
 {
+	TX_STAT_INC(txq->axq_qnum, tx_pkts_all);
+	sc->debug.stats.txstats[txq->axq_qnum].tx_bytes_all += bf->bf_mpdu->len;
+
 	if (bf_isampdu(bf)) {
 		if (bf_isxretried(bf))
 			TX_STAT_INC(txq->axq_qnum, a_xretries);
@@ -808,6 +813,13 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
 	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
 
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "RX-Pkts-All",
+			sc->debug.stats.rxstats.rx_pkts_all);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "RX-Bytes-All",
+			sc->debug.stats.rxstats.rx_bytes_all);
+
 	if (len > size)
 		len = size;
 
@@ -825,6 +837,9 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 
 	u32 phyerr;
+
+	RX_STAT_INC(rx_pkts_all);
+	sc->debug.stats.rxstats.rx_bytes_all += rs->rs_datalen;
 
 	if (rs->rs_status & ATH9K_RXERR_CRC)
 		RX_STAT_INC(crc_err);
