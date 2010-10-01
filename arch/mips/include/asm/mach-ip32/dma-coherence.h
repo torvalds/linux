@@ -37,7 +37,8 @@ static inline dma_addr_t plat_map_dma_mem(struct device *dev, void *addr,
 	return pa;
 }
 
-static inline dma_addr_t plat_map_dma_mem_page(struct device *dev, struct page *page)
+static inline dma_addr_t plat_map_dma_mem_page(struct device *dev,
+	struct page *page)
 {
 	dma_addr_t pa;
 
