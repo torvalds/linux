@@ -386,9 +386,7 @@ struct amd64_pvt {
 	struct low_ops *ops;
 
 	/* pci_device handles which we utilize */
-	struct pci_dev *addr_f1_ctl;
-	struct pci_dev *dram_f2_ctl;
-	struct pci_dev *misc_f3_ctl;
+	struct pci_dev *F1, *F2, *F3;
 
 	int mc_node_id;		/* MC index of this MC node */
 	int ext_model;		/* extended model value of this node */
@@ -518,8 +516,7 @@ struct low_ops {
 
 struct amd64_family_type {
 	const char *ctl_name;
-	u16 addr_f1_ctl;
-	u16 misc_f3_ctl;
+	u16 f1_id, f3_id;
 	struct low_ops ops;
 };
 
