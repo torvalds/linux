@@ -211,16 +211,6 @@ static inline void clear_io_bits(void __iomem *addr, u32 bits)
 	iowrite32(v, addr);
 }
 
-static void davinci_spi_set_dma_req(const struct spi_device *spi, int enable)
-{
-	struct davinci_spi *davinci_spi = spi_master_get_devdata(spi->master);
-
-	if (enable)
-		set_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
-	else
-		clear_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
-}
-
 /*
  * Interface to control the chip select signal
  */
@@ -414,8 +404,6 @@ static void davinci_spi_dma_rx_callback(unsigned lch, u16 ch_status, void *data)
 		edma_clean_channel(davinci_spi_dma->dma_rx_channel);
 
 	complete(&davinci_spi_dma->dma_rx_completion);
-	/* We must disable the DMA RX request */
-	davinci_spi_set_dma_req(spi, 0);
 }
 
 static void davinci_spi_dma_tx_callback(unsigned lch, u16 ch_status, void *data)
@@ -433,8 +421,6 @@ static void davinci_spi_dma_tx_callback(unsigned lch, u16 ch_status, void *data)
 		edma_clean_channel(davinci_spi_dma->dma_tx_channel);
 
 	complete(&davinci_spi_dma->dma_tx_completion);
-	/* We must disable the DMA TX request */
-	davinci_spi_set_dma_req(spi, 0);
 }
 
 static int davinci_spi_request_dma(struct spi_device *spi)
@@ -831,7 +817,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 
 	edma_start(davinci_spi_dma->dma_rx_channel);
 	edma_start(davinci_spi_dma->dma_tx_channel);
-	davinci_spi_set_dma_req(spi, 1);
+	set_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
 
 	wait_for_completion_interruptible(&davinci_spi_dma->dma_tx_completion);
 	wait_for_completion_interruptible(&davinci_spi_dma->dma_rx_completion);
@@ -840,6 +826,8 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 		dma_unmap_single(NULL, t->tx_dma, count, DMA_TO_DEVICE);
 
 	dma_unmap_single(NULL, t->rx_dma, rx_buf_count, DMA_FROM_DEVICE);
+
+	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
 
 	/*
 	 * Check for bit error, desync error,parity error,timeout error and
