@@ -204,7 +204,15 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	hip->rsrc_inode = dir;
 	HFSPLUS_I(dir)->rsrc_inode = inode;
 	igrab(dir);
-	hlist_add_head(&inode->i_hash, &HFSPLUS_SB(sb)->rsrc_inodes);
+
+	/*
+	 * __mark_inode_dirty expects inodes to be hashed.  Since we don't
+	 * want resource fork inodes in the regular inode space, we make them
+	 * appear hashed, but do not put on any lists.  hlist_del()
+	 * will work fine and require no locking.
+	 */
+	inode->i_hash.pprev = &inode->i_hash.next;
+
 	mark_inode_dirty(inode);
 out:
 	d_add(dentry, inode);

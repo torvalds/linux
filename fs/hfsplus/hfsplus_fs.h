@@ -145,8 +145,6 @@ struct hfsplus_sb_info {
 	int part, session;
 
 	unsigned long flags;
-
-	struct hlist_head rsrc_inodes;
 };
 
 #define HFSPLUS_SB_WRITEBACKUP	0x0001

@@ -318,7 +318,6 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
-	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
 	mutex_init(&sbi->alloc_mutex);
 	hfsplus_fill_defaults(sbi);
 	if (!hfsplus_parse_options(data, sbi)) {
