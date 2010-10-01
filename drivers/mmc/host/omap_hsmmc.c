@@ -364,6 +364,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 {
 	struct regulator *reg;
 	int ret = 0;
+	int ocr_value = 0;
 
 	switch (host->id) {
 	case OMAP_MMC1_DEVID:
@@ -396,6 +397,17 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 		}
 	} else {
 		host->vcc = reg;
+		ocr_value = mmc_regulator_get_ocrmask(reg);
+		if (!mmc_slot(host).ocr_mask) {
+			mmc_slot(host).ocr_mask = ocr_value;
+		} else {
+			if (!(mmc_slot(host).ocr_mask & ocr_value)) {
+				pr_err("MMC%d ocrmask %x is not supported\n",
+					host->id, mmc_slot(host).ocr_mask);
+				mmc_slot(host).ocr_mask = 0;
+				return -EINVAL;
+			}
+		}
 		mmc_slot(host).ocr_mask = mmc_regulator_get_ocrmask(reg);
 
 		/* Allow an aux regulator */
