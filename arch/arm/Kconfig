@@ -145,6 +145,9 @@ config ARCH_HAS_CPUFREQ
 	  and that the relevant menu configurations are displayed for
 	  it.
 
+config ARCH_HAS_CPU_IDLE_WAIT
+       def_bool y
+
 config GENERIC_HWEIGHT
 	bool
 	default y
