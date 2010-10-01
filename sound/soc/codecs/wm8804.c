@@ -669,7 +669,7 @@ static struct snd_soc_dai_ops wm8804_dai_ops = {
 			SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_driver wm8804_dai = {
-	.name = "wm8804-s/pdif",
+	.name = "wm8804-spdif",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
