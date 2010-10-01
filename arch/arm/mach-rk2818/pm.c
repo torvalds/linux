@@ -13,6 +13,7 @@
 #include <mach/gpio.h>
 #include <mach/rk2818-socpm.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/consumer.h> 
 
 extern void rockchip_timer_clocksource_suspend_resume(int suspend);
 extern int rockchip_timer_clocksource_irq_checkandclear(void);
@@ -169,7 +170,7 @@ void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
 	tcm_udelay(100, 24); //DRVDelayUs(100); 延时一下比较安全，保证退出后稳定
 }
 
-#if 0
+#if 1
 static void __tcmlocalfunc noinline tcm_printch(char byte)
 {
 	unsigned int timeout;
@@ -541,6 +542,50 @@ static void rk2818_pm_reg_print(unsigned int *pm_save_reg,unsigned int *pm_ch_re
 
 #endif
 
+static void pmu_suspend(void)
+{
+	struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
+	struct regulator *lilo2;
+	
+	ldo1 = regulator_get(NULL, "ldo1");
+	regulator_disable(ldo1);
+	ldo2 = regulator_get(NULL, "ldo2");
+	regulator_disable(ldo2);
+	ldo4 = regulator_get(NULL, "ldo4");
+	regulator_disable(ldo4);
+	ldo5 = regulator_get(NULL, "ldo5");
+	regulator_disable(ldo5);
+	lilo2 = regulator_get(NULL, "lilo2");
+	regulator_disable(lilo2);
+}
+
+static void pmu_resume(void)
+{
+	struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
+	struct regulator *lilo2;
+	int tmp = 0;
+
+	ldo1 = regulator_get(NULL, "ldo1");
+	regulator_enable(ldo1);
+	tmp = regulator_get_voltage(ldo1);
+
+	ldo2 = regulator_get(NULL, "ldo2");
+	regulator_enable(ldo2);
+	tmp = regulator_get_voltage(ldo2);
+
+	ldo4 = regulator_get(NULL, "ldo4");
+	regulator_enable(ldo4);
+	tmp = regulator_get_voltage(ldo4);
+
+	ldo5 = regulator_get(NULL, "ldo5");
+	regulator_enable(ldo5);
+	tmp = regulator_get_voltage(ldo5);
+
+	lilo2 = regulator_get(NULL, "lilo2");
+	regulator_enable(lilo2);
+	tmp = regulator_get_voltage(lilo2);
+}
+
 static int __tcmfunc rk2818_tcm_idle(void)
 {
        //rk2818_define_value;
@@ -652,6 +697,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	printk(KERN_DEBUG "before core halt\n");
 
+	pmu_suspend( );
 	clk_set_rate(arm_clk, 24000000);
 	dump_register();
 
@@ -675,7 +721,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	rockchip_timer_clocksource_suspend_resume(0);
 #endif
-
+	pmu_resume( );
 	dump_register();
 	clk_set_rate(arm_clk, arm_rate);
 	//rk2818_socpm_print();

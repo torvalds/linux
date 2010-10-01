@@ -33,6 +33,7 @@ REVISION 0.01
 #include <linux/regulator/rk2818_lp8725.h>
 #include <mach/gpio.h>
 #include <linux/delay.h>
+#include <mach/iomux.h>
 
 //add by robert for reboot notifier
 #include <linux/notifier.h>
@@ -53,7 +54,7 @@ REVISION 0.01
 #define DBG_INFO(x...)
 #endif
 
-
+//#define PM_CONTROL
 
 
 struct lp8725 {
@@ -768,7 +769,7 @@ static int lp8725_set_init(void)
 	int tmp = 0;
 	struct regulator *ldo1,*ldo2,*ldo3,*ldo4,*ldo5;
 	struct regulator *lilo1,*lilo2;
-	struct regulator *buck1,*buck2;
+	struct regulator *buck1,*buck1_v2,*buck2;
 
 	DBG_INFO("***run in %s %d ",__FUNCTION__,__LINE__);
 
@@ -834,6 +835,15 @@ static int lp8725_set_init(void)
 //	regulator_set_voltage(buck1,1200000,1200000);
 	tmp = regulator_get_voltage(buck1);
 	DBG_INFO("***regulator_set_init: buck1 vcc =%d\n",tmp);
+
+	#ifdef PM_CONTROL
+	DBG_INFO("***buck1 v2 init\n");
+	buck1_v2 = regulator_get(NULL, "vdd12_v2");// dvs 0
+	regulator_enable(buck1_v2);
+	regulator_set_voltage(buck1_v2,1000000,1000000);//1300000
+	tmp = regulator_get_voltage(buck1_v2);
+	DBG_INFO("***regulator_set_init: buck1 v2 =%d\n",tmp);
+	#endif
 
 	/*init buck2*/
 	DBG_INFO("***buck2 vcc init\n");
@@ -910,6 +920,13 @@ static int __devinit lp8725_i2c_probe(struct i2c_client *i2c, const struct i2c_d
 	} else
 		dev_warn(lp8725->dev, "No platform init data supplied\n");
 
+	//DVS pin control, make sure it is high level at start.
+	#ifdef PM_CONTROL
+	rk2818_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
+	ret=gpio_request(RK2818_PIN_PC2,NULL);
+	gpio_direction_output(RK2818_PIN_PC2,1);
+	gpio_set_value(RK2818_PIN_PC2,1);
+	#endif
 	lp8725_set_init();
 
 	return 0;

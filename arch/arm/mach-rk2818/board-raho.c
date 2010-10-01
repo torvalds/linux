@@ -706,7 +706,7 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
-	.mode       = I2C_MODE_IRQ, //I2C_MODE_POLL
+	.mode       = I2C_MODE_POLL, //I2C_MODE_POLL
 	.io_init = rk2818_i2c1_io_init,
 };
 

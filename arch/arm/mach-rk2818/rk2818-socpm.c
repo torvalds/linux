@@ -463,7 +463,7 @@ void __tcmfunc rk2818_socpm_suspend_first(void)
 	rk2818_soc_pm.general->reg_ctrbit=0;
 	rk2818_soc_pm.gpio0->reg_ctrbit=0x6db;
 	rk2818_soc_pm.gpio1->reg_ctrbit=0x6db;
-	
+	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,0);
 	//rk2818_soc_pm.save_reg[0]=rk2818_ddr_reg[82];
 	//rk2818_ddr_reg[82]=rk2818_ddr_reg[82]&(~(0xffff))&(~(0xf<<20));
 	
@@ -476,8 +476,9 @@ void __tcmfunc rk2818_socpm_suspend_first(void)
 void __tcmfunc rk2818_socpm_resume_first(void)
 {
 	//unsigned int *rk2818_ddr_reg=(unsigned int *)RK2818_SDRAMC_BASE;
-		if(rk2818_soc_pm.resume_vol)
-			rk2818_soc_pm.resume_vol();
+	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,1);
+	if(rk2818_soc_pm.resume_vol)
+		rk2818_soc_pm.resume_vol();
 
 }
 
