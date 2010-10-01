@@ -175,12 +175,6 @@ ampdu_info_t *BCMATTACHFN(wlc_ampdu_attach) (wlc_info_t *wlc)
 	int i;
 
 	/* some code depends on packed structures */
-	ASSERT(sizeof(struct dot11_bar) == DOT11_BAR_LEN);
-	ASSERT(sizeof(struct dot11_ba) == DOT11_BA_LEN + DOT11_BA_BITMAP_LEN);
-	ASSERT(sizeof(struct dot11_ctl_header) == DOT11_CTL_HDR_LEN);
-	ASSERT(sizeof(struct dot11_addba_req) == DOT11_ADDBA_REQ_LEN);
-	ASSERT(sizeof(struct dot11_addba_resp) == DOT11_ADDBA_RESP_LEN);
-	ASSERT(sizeof(struct dot11_delba) == DOT11_DELBA_LEN);
 	ASSERT(DOT11_MAXNUMFRAGS == NBITS(uint16));
 	ASSERT(ISPOWEROF2(AMPDU_TX_BA_MAX_WSIZE));
 	ASSERT(ISPOWEROF2(AMPDU_RX_BA_MAX_WSIZE));
