@@ -815,6 +815,7 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 	case 0x0e:
 		/* CX23887-15Z */
 		dev->hwrevision = 0xc0;
+		break;
 	case 0x0f:
 		/* CX23887-14Z */
 		dev->hwrevision = 0xb1;
