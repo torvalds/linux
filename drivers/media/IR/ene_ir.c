@@ -960,7 +960,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
 
 	if (!input_dev || !ir_props || !dev)
-		goto error;
+		goto error1;
 
 	/* validate resources */
 	error = -ENODEV;
@@ -1056,7 +1056,7 @@ error:
 		free_irq(dev->irq, dev);
 	if (dev && dev->hw_io >= 0)
 		release_region(dev->hw_io, ENE_IO_SIZE);
-
+error1:
 	input_free_device(input_dev);
 	kfree(ir_props);
 	kfree(dev);
