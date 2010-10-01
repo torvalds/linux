@@ -31,7 +31,6 @@ struct davinci_spi_platform_data {
 	u8	num_chipselect;
 	u8	clk_internal;
 	u8	intr_line;
-	u8	use_dma;
 	u8	*chip_sel;
 	bool	cshold_bug;
 };
