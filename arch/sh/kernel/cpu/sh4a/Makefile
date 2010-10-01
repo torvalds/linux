@@ -8,13 +8,13 @@ obj-$(CONFIG_CPU_SUBTYPE_SH7763)	+= setup-sh7763.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7770)	+= setup-sh7770.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7780)	+= setup-sh7780.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7785)	+= setup-sh7785.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7786)	+= setup-sh7786.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7786)	+= setup-sh7786.o intc-shx3.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7343)	+= setup-sh7343.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7722)	+= setup-sh7722.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7723)	+= setup-sh7723.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7724)	+= setup-sh7724.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7366)	+= setup-sh7366.o
-obj-$(CONFIG_CPU_SUBTYPE_SHX3)		+= setup-shx3.o
+obj-$(CONFIG_CPU_SUBTYPE_SHX3)		+= setup-shx3.o intc-shx3.o
 
 # SMP setup
 smp-$(CONFIG_CPU_SHX3)			:= smp-shx3.o

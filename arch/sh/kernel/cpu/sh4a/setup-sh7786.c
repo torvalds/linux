@@ -756,8 +756,6 @@ static struct intc_vect vectors[] __initdata = {
 
 #define INTDISTCR0	0xfe4100b0
 #define INTDISTCR1	0xfe4100b4
-#define INTACK		0xfe4100b8
-#define INTACKCLR	0xfe4100bc
 #define INT2DISTCR0	0xfe410900
 #define INT2DISTCR1	0xfe410904
 #define INT2DISTCR2	0xfe410908
@@ -920,19 +918,6 @@ static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7786-irl4567", vectors_irl4567,
 #define INTC_INTMSK2	INTMSK2
 #define INTC_INTMSKCLR1	CnINTMSKCLR1
 #define INTC_INTMSKCLR2	INTMSKCLR2
-#define INTC_USERIMASK	0xfe411000
-
-#ifdef CONFIG_INTC_BALANCING
-unsigned int irq_lookup(unsigned int irq)
-{
-	return __raw_readl(INTACK) & 1 ? irq : NO_IRQ_IGNORE;
-}
-
-void irq_finish(unsigned int irq)
-{
-	__raw_writel(irq2evt(irq), INTACKCLR);
-}
-#endif
 
 void __init plat_irq_setup(void)
 {
@@ -947,7 +932,6 @@ void __init plat_irq_setup(void)
 	__raw_writel(__raw_readl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
 
 	register_intc_controller(&intc_desc);
-	register_intc_userimask(INTC_USERIMASK);
 }
 
 void __init plat_irq_setup_pins(int mode)
