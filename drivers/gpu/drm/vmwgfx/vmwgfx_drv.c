@@ -148,7 +148,6 @@ static struct pci_device_id vmw_pci_id_list[] = {
 	{0, 0, 0}
 };
 
-static char *vmw_devname = "vmwgfx";
 static int enable_fbdev;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
@@ -407,9 +406,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			 "running the device in SVGA mode yet.\n");
 	}
 
-	if (!dev->devname)
-		dev->devname = vmw_devname;
-
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
 		ret = drm_irq_install(dev);
 		if (unlikely(ret != 0)) {
@@ -466,8 +462,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		drm_irq_uninstall(dev_priv->dev);
-	if (dev->devname == vmw_devname)
-		dev->devname = NULL;
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
