@@ -237,28 +237,6 @@ static int hfsplus_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hfsplus_create(struct inode *dir, struct dentry *dentry, int mode,
-			  struct nameidata *nd)
-{
-	struct inode *inode;
-	int res;
-
-	inode = hfsplus_new_inode(dir->i_sb, mode);
-	if (!inode)
-		return -ENOSPC;
-
-	res = hfsplus_create_cat(inode->i_ino, dir, &dentry->d_name, inode);
-	if (res) {
-		inode->i_nlink = 0;
-		hfsplus_delete_inode(inode);
-		iput(inode);
-		return res;
-	}
-	hfsplus_instantiate(dentry, inode, inode->i_ino);
-	mark_inode_dirty(inode);
-	return 0;
-}
-
 static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 			struct dentry *dst_dentry)
 {
@@ -365,27 +343,6 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 	return res;
 }
 
-static int hfsplus_mkdir(struct inode *dir, struct dentry *dentry, int mode)
-{
-	struct inode *inode;
-	int res;
-
-	inode = hfsplus_new_inode(dir->i_sb, S_IFDIR | mode);
-	if (!inode)
-		return -ENOSPC;
-
-	res = hfsplus_create_cat(inode->i_ino, dir, &dentry->d_name, inode);
-	if (res) {
-		inode->i_nlink = 0;
-		hfsplus_delete_inode(inode);
-		iput(inode);
-		return res;
-	}
-	hfsplus_instantiate(dentry, inode, inode->i_ino);
-	mark_inode_dirty(inode);
-	return 0;
-}
-
 static int hfsplus_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode;
@@ -438,12 +395,10 @@ static int hfsplus_symlink(struct inode *dir, struct dentry *dentry,
 static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 			 int mode, dev_t rdev)
 {
-	struct super_block *sb;
 	struct inode *inode;
 	int res;
 
-	sb = dir->i_sb;
-	inode = hfsplus_new_inode(sb, mode);
+	inode = hfsplus_new_inode(dir->i_sb, mode);
 	if (!inode)
 		return -ENOSPC;
 
@@ -454,11 +409,24 @@ static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 		iput(inode);
 		return res;
 	}
-	init_special_inode(inode, mode, rdev);
+
+	if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISFIFO(mode) || S_ISSOCK(mode))
+		init_special_inode(inode, mode, rdev);
+
 	hfsplus_instantiate(dentry, inode, inode->i_ino);
 	mark_inode_dirty(inode);
-
 	return 0;
+}
+
+static int hfsplus_create(struct inode *dir, struct dentry *dentry, int mode,
+			  struct nameidata *nd)
+{
+	return hfsplus_mknod(dir, dentry, mode, 0);
+}
+
+static int hfsplus_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+{
+	return hfsplus_mknod(dir, dentry, mode | S_IFDIR, 0);
 }
 
 static int hfsplus_rename(struct inode *old_dir, struct dentry *old_dentry,
