@@ -369,6 +369,7 @@ struct ieee80211_if_managed {
 
 	unsigned int flags;
 
+	bool beacon_crc_valid;
 	u32 beacon_crc;
 
 	enum {
