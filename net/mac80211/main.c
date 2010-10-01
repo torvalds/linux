@@ -295,7 +295,17 @@ static void ieee80211_restart_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, restart_work);
 
+	/* wait for scan work complete */
+	flush_workqueue(local->workqueue);
+
+	mutex_lock(&local->mtx);
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+		"%s called with hardware scan in progress\n", __func__);
+	mutex_unlock(&local->mtx);
+
 	rtnl_lock();
+	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)))
+		ieee80211_scan_cancel(local);
 	ieee80211_reconfig(local);
 	rtnl_unlock();
 }
@@ -305,15 +315,6 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	trace_api_restart_hw(local);
-
-	/* wait for scan work complete */
-	flush_workqueue(local->workqueue);
-
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
-		"%s called with hardware scan in progress\n", __func__);
-
-	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)))
-		ieee80211_scan_cancel(local);
 
 	/* use this reason, ieee80211_reconfig will unblock it */
 	ieee80211_stop_queues_by_reason(hw,
