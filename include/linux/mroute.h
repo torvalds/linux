@@ -213,6 +213,7 @@ struct mfc_cache {
 			unsigned char ttls[MAXVIFS];	/* TTL thresholds		*/
 		} res;
 	} mfc_un;
+	struct rcu_head	rcu;
 };
 
 #define MFC_STATIC		1
