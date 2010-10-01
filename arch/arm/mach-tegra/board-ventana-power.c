@@ -86,8 +86,7 @@ static void set_charge(int flags)
 		gpio_set_value(charge_disable, 0);
 	else if (!flags)
 		gpio_set_value(charge_disable, 1);
-	else
-		BUG();
+	/* USB charging not supported on Ventana */
 }
 
 static struct resource ventana_pda_resources[] = {
