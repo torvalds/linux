@@ -23,15 +23,9 @@
 
 extern void s3c64xx_fb_gpio_setup_24bpp(void)
 {
-	unsigned int gpio;
+	s3c_gpio_cfgall_range(S3C64XX_GPI(0), 16,
+			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
 
-	for (gpio = S3C64XX_GPI(0); gpio <= S3C64XX_GPI(15); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-	}
-
-	for (gpio = S3C64XX_GPJ(0); gpio <= S3C64XX_GPJ(11); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-	}
+	s3c_gpio_cfgall_range(S3C64XX_GPJ(0), 12,
+			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
 }
