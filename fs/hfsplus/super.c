@@ -20,40 +20,11 @@ static void hfsplus_destroy_inode(struct inode *inode);
 
 #include "hfsplus_fs.h"
 
-struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
+static int hfsplus_system_read_inode(struct inode *inode)
 {
-	struct hfs_find_data fd;
-	struct hfsplus_vh *vhdr;
-	struct inode *inode;
-	long err = -EIO;
+	struct hfsplus_vh *vhdr = HFSPLUS_SB(inode->i_sb)->s_vhdr;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
-
-	INIT_LIST_HEAD(&HFSPLUS_I(inode)->open_dir_list);
-	mutex_init(&HFSPLUS_I(inode)->extents_lock);
-	HFSPLUS_I(inode)->flags = 0;
-	HFSPLUS_I(inode)->rsrc_inode = NULL;
-	atomic_set(&HFSPLUS_I(inode)->opencnt, 0);
-
-	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID) {
-	read_inode:
-		hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
-		err = hfsplus_find_cat(inode->i_sb, inode->i_ino, &fd);
-		if (!err)
-			err = hfsplus_cat_read_inode(inode, &fd);
-		hfs_find_exit(&fd);
-		if (err)
-			goto bad_inode;
-		goto done;
-	}
-	vhdr = HFSPLUS_SB(inode->i_sb)->s_vhdr;
-	switch(inode->i_ino) {
-	case HFSPLUS_ROOT_CNID:
-		goto read_inode;
+	switch (inode->i_ino) {
 	case HFSPLUS_EXT_CNID:
 		hfsplus_inode_read_fork(inode, &vhdr->ext_file);
 		inode->i_mapping->a_ops = &hfsplus_btree_aops;
@@ -74,16 +45,48 @@ struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
 		inode->i_mapping->a_ops = &hfsplus_btree_aops;
 		break;
 	default:
-		goto bad_inode;
+		return -EIO;
 	}
 
-done:
+	return 0;
+}
+
+struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
+{
+	struct hfs_find_data fd;
+	struct inode *inode;
+	int err;
+
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
+	INIT_LIST_HEAD(&HFSPLUS_I(inode)->open_dir_list);
+	mutex_init(&HFSPLUS_I(inode)->extents_lock);
+	HFSPLUS_I(inode)->flags = 0;
+	HFSPLUS_I(inode)->rsrc_inode = NULL;
+	atomic_set(&HFSPLUS_I(inode)->opencnt, 0);
+
+	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID ||
+	    inode->i_ino == HFSPLUS_ROOT_CNID) {
+		hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
+		err = hfsplus_find_cat(inode->i_sb, inode->i_ino, &fd);
+		if (!err)
+			err = hfsplus_cat_read_inode(inode, &fd);
+		hfs_find_exit(&fd);
+	} else {
+		err = hfsplus_system_read_inode(inode);
+	}
+
+	if (err) {
+		iget_failed(inode);
+		return ERR_PTR(err);
+	}
+
 	unlock_new_inode(inode);
 	return inode;
-
-bad_inode:
-	iget_failed(inode);
-	return ERR_PTR(err);
 }
 
 static int hfsplus_write_inode(struct inode *inode,
