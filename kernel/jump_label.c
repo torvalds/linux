@@ -168,7 +168,8 @@ void jump_label_update(unsigned long key, enum jump_label_type type)
 			count = e_module->nr_entries;
 			iter = e_module->table;
 			while (count--) {
-				if (kernel_text_address(iter->code))
+				if (iter->key &&
+						kernel_text_address(iter->code))
 					arch_jump_label_transform(iter, type);
 				iter++;
 			}
@@ -366,6 +367,39 @@ static void remove_jump_label_module(struct module *mod)
 	}
 }
 
+static void remove_jump_label_module_init(struct module *mod)
+{
+	struct hlist_head *head;
+	struct hlist_node *node, *node_next, *module_node, *module_node_next;
+	struct jump_label_entry *e;
+	struct jump_label_module_entry *e_module;
+	struct jump_entry *iter;
+	int i, count;
+
+	/* if the module doesn't have jump label entries, just return */
+	if (!mod->num_jump_entries)
+		return;
+
+	for (i = 0; i < JUMP_LABEL_TABLE_SIZE; i++) {
+		head = &jump_label_table[i];
+		hlist_for_each_entry_safe(e, node, node_next, head, hlist) {
+			hlist_for_each_entry_safe(e_module, module_node,
+						  module_node_next,
+						  &(e->modules), hlist) {
+				if (e_module->mod != mod)
+					continue;
+				count = e_module->nr_entries;
+				iter = e_module->table;
+				while (count--) {
+					if (within_module_init(iter->code, mod))
+						iter->key = 0;
+					iter++;
+				}
+			}
+		}
+	}
+}
+
 static int
 jump_label_module_notify(struct notifier_block *self, unsigned long val,
 			 void *data)
@@ -384,6 +418,11 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 	case MODULE_STATE_GOING:
 		mutex_lock(&jump_label_mutex);
 		remove_jump_label_module(mod);
+		mutex_unlock(&jump_label_mutex);
+		break;
+	case MODULE_STATE_LIVE:
+		mutex_lock(&jump_label_mutex);
+		remove_jump_label_module_init(mod);
 		mutex_unlock(&jump_label_mutex);
 		break;
 	}
