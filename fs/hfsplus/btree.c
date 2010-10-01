@@ -30,7 +30,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	if (!tree)
 		return NULL;
 
-	init_MUTEX(&tree->tree_lock);
+	mutex_init(&tree->tree_lock);
 	spin_lock_init(&tree->hash_lock);
 	tree->sb = sb;
 	tree->cnid = id;
