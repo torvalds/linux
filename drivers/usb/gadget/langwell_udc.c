@@ -3391,6 +3391,11 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* save PCI state */
 	pci_save_state(pdev);
 
+	spin_lock_irq(&dev->lock);
+	/* stop all usb activities */
+	stop_activity(dev, dev->driver);
+	spin_unlock_irq(&dev->lock);
+
 	/* free dTD dma_pool and dQH */
 	if (dev->dtd_pool)
 		dma_pool_destroy(dev->dtd_pool);
