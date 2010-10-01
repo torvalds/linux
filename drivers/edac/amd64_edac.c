@@ -2573,11 +2573,13 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 	switch (fam) {
 	case 0xf:
 		fam_type		= &amd64_family_types[K8_CPUS];
+		pvt->ops		= &amd64_family_types[K8_CPUS].ops;
 		pvt->ctl_name		= fam_type->ctl_name;
 		pvt->min_scrubrate	= K8_MIN_SCRUB_RATE_BITS;
 		break;
 	case 0x10:
 		fam_type		= &amd64_family_types[F10_CPUS];
+		pvt->ops		= &amd64_family_types[F10_CPUS].ops;
 		pvt->ctl_name		= fam_type->ctl_name;
 		pvt->min_scrubrate	= F10_MIN_SCRUB_RATE_BITS;
 		break;
@@ -2586,6 +2588,8 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 		amd64_printk(KERN_ERR, "Unsupported family!\n");
 		return NULL;
 	}
+
+	pvt->ext_model = boot_cpu_data.x86_model >> 4;
 
 	amd64_printk(KERN_INFO, "%s %s detected.\n", pvt->ctl_name,
 		     (fam == 0xf ?
@@ -2607,8 +2611,7 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
  * later come back in a finish-setup function to perform that final
  * initialization. See also amd64_init_2nd_stage() for that.
  */
-static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
-				    int mc_type_index)
+static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl)
 {
 	struct amd64_pvt *pvt = NULL;
 	struct amd64_family_type *fam_type = NULL;
@@ -2619,12 +2622,8 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	if (!pvt)
 		goto err_exit;
 
-	pvt->mc_node_id = get_node_id(dram_f2_ctl);
-
-	pvt->dram_f2_ctl	= dram_f2_ctl;
-	pvt->ext_model		= boot_cpu_data.x86_model >> 4;
-	pvt->mc_type_index	= mc_type_index;
-	pvt->ops		= family_ops(mc_type_index);
+	pvt->mc_node_id	 = get_node_id(dram_f2_ctl);
+	pvt->dram_f2_ctl = dram_f2_ctl;
 
 	ret = -EINVAL;
 	fam_type = amd64_per_family_init(pvt);
@@ -2743,20 +2742,22 @@ err_exit:
 
 
 static int __devinit amd64_init_one_instance(struct pci_dev *pdev,
-				 const struct pci_device_id *mc_type)
+					     const struct pci_device_id *mc_type)
 {
 	int ret = 0;
 
 	debugf0("(MC node=%d)\n", get_node_id(pdev));
 
 	ret = pci_enable_device(pdev);
-	if (ret < 0)
-		ret = -EIO;
-	else
-		ret = amd64_probe_one_instance(pdev, mc_type->driver_data);
-
-	if (ret < 0)
+	if (ret < 0) {
 		debugf0("ret=%d\n", ret);
+		return -EIO;
+	}
+
+	ret = amd64_probe_one_instance(pdev);
+	if (ret < 0)
+		amd64_printk(KERN_ERR, "Error probing instance: %d\n",
+					get_node_id(pdev));
 
 	return ret;
 }
@@ -2805,7 +2806,6 @@ static const struct pci_device_id amd64_pci_table[] __devinitdata = {
 		.subdevice	= PCI_ANY_ID,
 		.class		= 0,
 		.class_mask	= 0,
-		.driver_data	= K8_CPUS
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_AMD,
@@ -2814,7 +2814,6 @@ static const struct pci_device_id amd64_pci_table[] __devinitdata = {
 		.subdevice	= PCI_ANY_ID,
 		.class		= 0,
 		.class_mask	= 0,
-		.driver_data	= F10_CPUS
 	},
 	{0, }
 };

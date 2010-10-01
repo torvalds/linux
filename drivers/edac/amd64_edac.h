@@ -383,6 +383,8 @@ struct error_injection {
 };
 
 struct amd64_pvt {
+	struct low_ops *ops;
+
 	/* pci_device handles which we utilize */
 	struct pci_dev *addr_f1_ctl;
 	struct pci_dev *dram_f2_ctl;
@@ -390,9 +392,6 @@ struct amd64_pvt {
 
 	int mc_node_id;		/* MC index of this MC node */
 	int ext_model;		/* extended model value of this node */
-
-	struct low_ops *ops;	/* pointer to per PCI Device ID func table */
-
 	int channel_count;
 
 	/* Raw registers */
@@ -457,9 +456,6 @@ struct amd64_pvt {
 	/* Save old hw registers' values before we modified them */
 	u32 nbctl_mcgctl_saved;		/* When true, following 2 are valid */
 	u32 old_nbctl;
-
-	/* MC Type Index value: socket F vs Family 10h */
-	u32 mc_type_index;
 
 	/* DCT per-family scrubrate setting */
 	u32 min_scrubrate;
@@ -526,13 +522,6 @@ struct amd64_family_type {
 	u16 misc_f3_ctl;
 	struct low_ops ops;
 };
-
-static struct amd64_family_type amd64_family_types[];
-
-static inline struct low_ops *family_ops(int index)
-{
-	return &amd64_family_types[index].ops;
-}
 
 static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
 					   u32 *val, const char *func)
