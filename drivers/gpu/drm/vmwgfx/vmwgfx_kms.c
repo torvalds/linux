@@ -996,3 +996,8 @@ out_unlock:
 	ttm_read_unlock(&vmaster->lock);
 	return ret;
 }
+
+u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
+{
+	return 0;
+}

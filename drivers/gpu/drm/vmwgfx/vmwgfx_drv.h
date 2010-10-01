@@ -518,6 +518,7 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 			unsigned bbp, unsigned depth);
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /**
  * Overlay control - vmwgfx_overlay.c

@@ -374,17 +374,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev->dev_private = dev_priv;
 
-	if (!dev->devname)
-		dev->devname = vmw_devname;
-
-	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
-		ret = drm_irq_install(dev);
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("Failed installing irq: %d\n", ret);
-			goto out_no_irq;
-		}
-	}
-
 	ret = pci_request_regions(dev->pdev, "vmwgfx probe");
 	dev_priv->stealth = (ret != 0);
 	if (dev_priv->stealth) {
@@ -400,7 +389,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			goto out_no_device;
 		}
 	}
-	vmw_kms_init(dev_priv);
+	ret = vmw_kms_init(dev_priv);
+	if (unlikely(ret != 0))
+		goto out_no_kms;
 	vmw_overlay_init(dev_priv);
 	if (dev_priv->enable_fb) {
 		ret = vmw_3d_resource_inc(dev_priv);
@@ -416,24 +407,37 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			 "running the device in SVGA mode yet.\n");
 	}
 
+	if (!dev->devname)
+		dev->devname = vmw_devname;
+
+	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
+		ret = drm_irq_install(dev);
+		if (unlikely(ret != 0)) {
+			DRM_ERROR("Failed installing irq: %d\n", ret);
+			goto out_no_irq;
+		}
+	}
+
 	dev_priv->pm_nb.notifier_call = vmwgfx_pm_notifier;
 	register_pm_notifier(&dev_priv->pm_nb);
 
 	return 0;
 
+out_no_irq:
+	if (dev_priv->enable_fb) {
+		vmw_fb_close(dev_priv);
+		vmw_kms_restore_vga(dev_priv);
+		vmw_3d_resource_dec(dev_priv);
+	}
 out_no_fifo:
 	vmw_overlay_close(dev_priv);
 	vmw_kms_close(dev_priv);
+out_no_kms:
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else
 		pci_release_regions(dev->pdev);
 out_no_device:
-	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		drm_irq_uninstall(dev_priv->dev);
-	if (dev->devname == vmw_devname)
-		dev->devname = NULL;
-out_no_irq:
 	ttm_object_device_release(&dev_priv->tdev);
 out_err4:
 	iounmap(dev_priv->mmio_virt);
@@ -460,6 +464,10 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	unregister_pm_notifier(&dev_priv->pm_nb);
 
+	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
+		drm_irq_uninstall(dev_priv->dev);
+	if (dev->devname == vmw_devname)
+		dev->devname = NULL;
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
@@ -472,10 +480,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 	else
 		pci_release_regions(dev->pdev);
 
-	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		drm_irq_uninstall(dev_priv->dev);
-	if (dev->devname == vmw_devname)
-		dev->devname = NULL;
 	ttm_object_device_release(&dev_priv->tdev);
 	iounmap(dev_priv->mmio_virt);
 	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
@@ -798,6 +802,7 @@ static struct drm_driver driver = {
 	.irq_postinstall = vmw_irq_postinstall,
 	.irq_uninstall = vmw_irq_uninstall,
 	.irq_handler = vmw_irq_handler,
+	.get_vblank_counter = vmw_get_vblank_counter,
 	.reclaim_buffers_locked = NULL,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
