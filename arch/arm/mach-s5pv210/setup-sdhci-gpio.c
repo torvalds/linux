@@ -28,8 +28,7 @@ void s5pv210_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 	struct s3c_sdhci_platdata *pdata = dev->dev.platform_data;
 
 	/* Set all the necessary GPG0/GPG1 pins to special-function 2 */
-	s3c_gpio_cfgall_range(S5PV210_GPG0(0), 2,
-			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(S5PV210_GPG0(0), 2, S3C_GPIO_SFN(2));
 
 	switch (width) {
 	case 8:
@@ -93,12 +92,10 @@ void s5pv210_setup_sdhci3_cfg_gpio(struct platform_device *dev, int width)
 	struct s3c_sdhci_platdata *pdata = dev->dev.platform_data;
 
 	/* Set all the necessary GPG3[0:1] pins to special-function 2 */
-	s3c_gpio_cfgall_range(S5PV210_GPG3(0), 2,
-			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(S5PV210_GPG3(0), 2, S3C_GPIO_SFN(2));
 
 	/* Data pin GPG3[3:6] to special-function 2 */
-	s3c_gpio_cfgall_range(S5PV210_GPG3(3), 4,
-			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(S5PV210_GPG3(3), 4, S3C_GPIO_SFN(2));
 
 	if (pdata->cd_type == S3C_SDHCI_CD_INTERNAL) {
 		s3c_gpio_setpull(S5PV210_GPG3(2), S3C_GPIO_PULL_UP);

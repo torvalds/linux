@@ -17,7 +17,7 @@
 
 static void s5pv210_ide_cfg_gpios(unsigned int base, unsigned int nr)
 {
-	s3c_gpio_cfgall_range(base, nr, S3C_GPIO_SFN(4), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(base, nr, S3C_GPIO_SFN(4));
 
 	for (; nr > 0; nr--, base++)
 		s5p_gpio_set_drvstr(base, S5P_GPIO_DRVSTR_LV4);
