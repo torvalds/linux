@@ -2013,13 +2013,14 @@ static void qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	qeth_l3_set_multicast_list(card->dev);
 }
 
-static inline __u16 qeth_l3_rebuild_skb(struct qeth_card *card,
-			struct sk_buff *skb, struct qeth_hdr *hdr)
+static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
+			struct sk_buff *skb, struct qeth_hdr *hdr,
+			unsigned short *vlan_id)
 {
-	unsigned short vlan_id = 0;
 	__be16 prot;
 	struct iphdr *ip_hdr;
 	unsigned char tg_addr[MAX_ADDR_LEN];
+	int is_vlan = 0;
 
 	if (!(hdr->hdr.l3.flags & QETH_HDR_PASSTHRU)) {
 		prot = htons((hdr->hdr.l3.flags & QETH_HDR_IPV6)? ETH_P_IPV6 :
@@ -2082,8 +2083,9 @@ static inline __u16 qeth_l3_rebuild_skb(struct qeth_card *card,
 
 	if (hdr->hdr.l3.ext_flags &
 	    (QETH_HDR_EXT_VLAN_FRAME | QETH_HDR_EXT_INCLUDE_VLAN_TAG)) {
-		vlan_id = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME)?
+		*vlan_id = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME) ?
 		 hdr->hdr.l3.vlan_id : *((u16 *)&hdr->hdr.l3.dest_addr[12]);
+		is_vlan = 1;
 	}
 
 	switch (card->options.checksum_type) {
@@ -2104,7 +2106,7 @@ static inline __u16 qeth_l3_rebuild_skb(struct qeth_card *card,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
-	return vlan_id;
+	return is_vlan;
 }
 
 static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
@@ -2114,6 +2116,7 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 	struct sk_buff *skb;
 	struct qeth_hdr *hdr;
 	__u16 vlan_tag = 0;
+	int is_vlan;
 	unsigned int len;
 
 	*done = 0;
@@ -2129,16 +2132,12 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 		skb->dev = card->dev;
 		switch (hdr->hdr.l3.id) {
 		case QETH_HEADER_TYPE_LAYER3:
-			vlan_tag = qeth_l3_rebuild_skb(card, skb, hdr);
+			is_vlan = qeth_l3_rebuild_skb(card, skb, hdr,
+						      &vlan_tag);
 			len = skb->len;
-			if (vlan_tag && !card->options.sniffer)
-				if (card->vlangrp)
-					vlan_gro_receive(&card->napi,
-						card->vlangrp, vlan_tag, skb);
-				else {
-					dev_kfree_skb_any(skb);
-					continue;
-				}
+			if (is_vlan && !card->options.sniffer)
+				vlan_gro_receive(&card->napi, card->vlangrp,
+					vlan_tag, skb);
 			else
 				napi_gro_receive(&card->napi, skb);
 			break;

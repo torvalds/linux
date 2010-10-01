@@ -310,6 +310,8 @@ static void qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	struct qeth_vlan_vid *id;
 
 	QETH_CARD_TEXT_(card, 4, "aid:%d", vid);
+	if (!vid)
+		return;
 	if (card->info.type == QETH_CARD_TYPE_OSM) {
 		QETH_CARD_TEXT(card, 3, "aidOSM");
 		return;
