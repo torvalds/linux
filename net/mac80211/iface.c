@@ -24,6 +24,7 @@
 #include "led.h"
 #include "driver-ops.h"
 #include "wme.h"
+#include "rate.h"
 
 /**
  * DOC: Interface list locking
@@ -311,6 +312,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			/* STA has been freed */
 			goto err_del_interface;
 		}
+
+		rate_control_rate_init(sta);
 	}
 
 	/*
