@@ -417,6 +417,8 @@ static void via_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 			tf->lbam,
 			tf->lbah);
 	}
+
+	ata_wait_idle(ap);
 }
 
 static int via_port_start(struct ata_port *ap)

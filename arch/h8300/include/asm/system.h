@@ -3,6 +3,8 @@
 
 #include <linux/linkage.h>
 
+struct pt_regs;
+
 /*
  * switch_to(n) should switch tasks to task ptr, first checking that
  * ptr isn't the current task, in which case it does nothing.  This
@@ -155,6 +157,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #define arch_align_stack(x) (x)
 
-void die(char *str, struct pt_regs *fp, unsigned long err);
+extern void die(const char *str, struct pt_regs *fp, unsigned long err);
 
 #endif /* _H8300_SYSTEM_H */

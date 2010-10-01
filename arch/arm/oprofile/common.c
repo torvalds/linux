@@ -102,6 +102,7 @@ static int op_create_counter(int cpu, int event)
 	if (IS_ERR(pevent)) {
 		ret = PTR_ERR(pevent);
 	} else if (pevent->state != PERF_EVENT_STATE_ACTIVE) {
+		perf_event_release_kernel(pevent);
 		pr_warning("oprofile: failed to enable event %d "
 				"on CPU %d\n", event, cpu);
 		ret = -EBUSY;

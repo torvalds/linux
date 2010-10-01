@@ -139,6 +139,8 @@ nv50_instmem_init(struct drm_device *dev)
 	chan->file_priv = (struct drm_file *)-2;
 	dev_priv->fifos[0] = dev_priv->fifos[127] = chan;
 
+	INIT_LIST_HEAD(&chan->ramht_refs);
+
 	/* Channel's PRAMIN object + heap */
 	ret = nouveau_gpuobj_new_fake(dev, 0, c_offset, c_size, 0,
 							NULL, &chan->ramin);

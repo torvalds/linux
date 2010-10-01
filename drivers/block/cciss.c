@@ -297,6 +297,8 @@ static void enqueue_cmd_and_start_io(ctlr_info_t *h,
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
 	h->Qdepth++;
+	if (h->Qdepth > h->maxQsinceinit)
+		h->maxQsinceinit = h->Qdepth;
 	start_io(h);
 	spin_unlock_irqrestore(&h->lock, flags);
 }
@@ -4519,6 +4521,12 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	misc_fw_support = readl(&cfgtable->misc_fw_support);
 	use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
 
+	/* The doorbell reset seems to cause lockups on some Smart
+	 * Arrays (e.g. P410, P410i, maybe others).  Until this is
+	 * fixed or at least isolated, avoid the doorbell reset.
+	 */
+	use_doorbell = 0;
+
 	rc = cciss_controller_hard_reset(pdev, vaddr, use_doorbell);
 	if (rc)
 		goto unmap_cfgtable;
@@ -4712,6 +4720,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	h->scatter_list = kmalloc(h->max_commands *
 						sizeof(struct scatterlist *),
 						GFP_KERNEL);
+	if (!h->scatter_list)
+		goto clean4;
+
 	for (k = 0; k < h->nr_cmds; k++) {
 		h->scatter_list[k] = kmalloc(sizeof(struct scatterlist) *
 							h->maxsgentries,
@@ -4781,7 +4792,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 clean4:
 	kfree(h->cmd_pool_bits);
 	/* Free up sg elements */
-	for (k = 0; k < h->nr_cmds; k++)
+	for (k-- ; k >= 0; k--)
 		kfree(h->scatter_list[k]);
 	kfree(h->scatter_list);
 	cciss_free_sg_chain_blocks(h->cmd_sg_list, h->nr_cmds);

@@ -308,7 +308,6 @@ static int emc1403_probe(struct i2c_client *client,
 	res = sysfs_create_group(&client->dev.kobj, &m_thermal_gr);
 	if (res) {
 		dev_warn(&client->dev, "create group failed\n");
-		hwmon_device_unregister(data->hwmon_dev);
 		goto thermal_error1;
 	}
 	data->hwmon_dev = hwmon_device_register(&client->dev);
