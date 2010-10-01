@@ -783,19 +783,6 @@ static u16 extract_syndrome(struct err_regs *err)
 	return ((err->nbsh >> 15) & 0xff) | ((err->nbsl >> 16) & 0xff00);
 }
 
-static void amd64_cpu_display_info(struct amd64_pvt *pvt)
-{
-	if (boot_cpu_data.x86 == 0x10)
-		edac_printk(KERN_DEBUG, EDAC_MC, "F10h CPU detected\n");
-	else if (boot_cpu_data.x86 == 0xf)
-		edac_printk(KERN_DEBUG, EDAC_MC, "%s detected\n",
-			(pvt->ext_model >= K8_REV_F) ?
-			"Rev F or later" : "Rev E or earlier");
-	else
-		/* we'll hardly ever ever get here */
-		edac_printk(KERN_ERR, EDAC_MC, "Unknown cpu!\n");
-}
-
 /*
  * Determine if the DIMMs have ECC enabled. ECC is enabled ONLY if all the DIMMs
  * are ECC capable.
@@ -1719,7 +1706,7 @@ static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 
 static struct amd64_family_type amd64_family_types[] = {
 	[K8_CPUS] = {
-		.ctl_name = "RevF",
+		.ctl_name = "K8",
 		.addr_f1_ctl = PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP,
 		.misc_f3_ctl = PCI_DEVICE_ID_AMD_K8_NB_MISC,
 		.ops = {
@@ -1731,7 +1718,7 @@ static struct amd64_family_type amd64_family_types[] = {
 		}
 	},
 	[F10_CPUS] = {
-		.ctl_name = "Family 10h",
+		.ctl_name = "F10h",
 		.addr_f1_ctl = PCI_DEVICE_ID_AMD_10H_NB_MAP,
 		.misc_f3_ctl = PCI_DEVICE_ID_AMD_10H_NB_MISC,
 		.ops = {
@@ -2136,8 +2123,6 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 		debugf0("  TOP_MEM2: 0x%016llx\n", pvt->top_mem2);
 	} else
 		debugf0("  TOP_MEM2 disabled.\n");
-
-	amd64_cpu_display_info(pvt);
 
 	amd64_read_pci_cfg(pvt->misc_f3_ctl, K8_NBCAP, &pvt->nbcap);
 
@@ -2583,7 +2568,7 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 	mci->edac_cap		= amd64_determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
 	mci->mod_ver		= EDAC_AMD64_VERSION;
-	mci->ctl_name		= get_amd_family_name(pvt->mc_type_index);
+	mci->ctl_name		= pvt->ctl_name;
 	mci->dev_name		= pci_name(pvt->dram_f2_ctl);
 	mci->ctl_page_to_phys	= NULL;
 
@@ -2592,21 +2577,37 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 	mci->get_sdram_scrub_rate = amd64_get_scrub_rate;
 }
 
-static int amd64_per_family_init(struct amd64_pvt *pvt)
+/*
+ * returns a pointer to the family descriptor on success, NULL otherwise.
+ */
+static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 {
-	switch (boot_cpu_data.x86) {
+	u8 fam = boot_cpu_data.x86;
+	struct amd64_family_type *fam_type = NULL;
+
+	switch (fam) {
 	case 0xf:
-		pvt->min_scrubrate = K8_MIN_SCRUB_RATE_BITS;
+		fam_type		= &amd64_family_types[K8_CPUS];
+		pvt->ctl_name		= fam_type->ctl_name;
+		pvt->min_scrubrate	= K8_MIN_SCRUB_RATE_BITS;
 		break;
 	case 0x10:
-		pvt->min_scrubrate = F10_MIN_SCRUB_RATE_BITS;
+		fam_type		= &amd64_family_types[F10_CPUS];
+		pvt->ctl_name		= fam_type->ctl_name;
+		pvt->min_scrubrate	= F10_MIN_SCRUB_RATE_BITS;
 		break;
 
 	default:
 		amd64_printk(KERN_ERR, "Unsupported family!\n");
-		return -EINVAL;
+		return NULL;
 	}
-	return 0;
+
+	amd64_printk(KERN_INFO, "%s %s detected.\n", pvt->ctl_name,
+		     (fam == 0xf ?
+				(pvt->ext_model >= K8_REV_F  ? "revF or later"
+							     : "revE or earlier")
+				 : ""));
+	return fam_type;
 }
 
 /*
@@ -2625,6 +2626,7 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 				    int mc_type_index)
 {
 	struct amd64_pvt *pvt = NULL;
+	struct amd64_family_type *fam_type = NULL;
 	int err = 0, ret;
 
 	ret = -ENOMEM;
@@ -2640,7 +2642,8 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	pvt->ops		= family_ops(mc_type_index);
 
 	ret = -EINVAL;
-	if (amd64_per_family_init(pvt))
+	fam_type = amd64_per_family_init(pvt);
+	if (!fam_type)
 		goto err_free;
 
 	/*
@@ -2762,8 +2765,7 @@ static int __devinit amd64_init_one_instance(struct pci_dev *pdev,
 {
 	int ret = 0;
 
-	debugf0("(MC node=%d,mc_type='%s')\n", get_node_id(pdev),
-		get_amd_family_name(mc_type->driver_data));
+	debugf0("(MC node=%d)\n", get_node_id(pdev));
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0)

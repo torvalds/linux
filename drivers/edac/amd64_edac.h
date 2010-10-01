@@ -464,6 +464,9 @@ struct amd64_pvt {
 	/* DCT per-family scrubrate setting */
 	u32 min_scrubrate;
 
+	/* family name this instance is running on */
+	const char *ctl_name;
+
 	/* misc settings */
 	struct flags {
 		unsigned long cf8_extcfg:1;
@@ -525,11 +528,6 @@ struct amd64_family_type {
 };
 
 static struct amd64_family_type amd64_family_types[];
-
-static inline const char *get_amd_family_name(int index)
-{
-	return amd64_family_types[index].ctl_name;
-}
 
 static inline struct low_ops *family_ops(int index)
 {
