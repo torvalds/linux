@@ -1411,13 +1411,14 @@ static void blkiocg_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 		/*
 		 * This blkio_group is being unlinked as associated cgroup is
 		 * going away. Let all the IO controlling policies know about
-		 * this event. Currently this is static call to one io
-		 * controlling policy. Once we have more policies in place, we
-		 * need some dynamic registration of callback function.
+		 * this event.
 		 */
 		spin_lock(&blkio_list_lock);
-		list_for_each_entry(blkiop, &blkio_list, list)
+		list_for_each_entry(blkiop, &blkio_list, list) {
+			if (blkiop->plid != blkg->plid)
+				continue;
 			blkiop->ops.blkio_unlink_group_fn(key, blkg);
+		}
 		spin_unlock(&blkio_list_lock);
 	} while (1);
 
