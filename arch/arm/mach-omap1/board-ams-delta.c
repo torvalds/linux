@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 
@@ -222,11 +223,30 @@ static struct i2c_board_info ams_delta_camera_board_info[] = {
 	},
 };
 
+#ifdef CONFIG_LEDS_TRIGGERS
+DEFINE_LED_TRIGGER(ams_delta_camera_led_trigger);
+
+static int ams_delta_camera_power(struct device *dev, int power)
+{
+	/*
+	 * turn on camera LED
+	 */
+	if (power)
+		led_trigger_event(ams_delta_camera_led_trigger, LED_FULL);
+	else
+		led_trigger_event(ams_delta_camera_led_trigger, LED_OFF);
+	return 0;
+}
+#else
+#define ams_delta_camera_power	NULL
+#endif
+
 static struct soc_camera_link __initdata ams_delta_iclink = {
 	.bus_id         = 0,	/* OMAP1 SoC camera bus */
 	.i2c_adapter_id = 1,
 	.board_info     = &ams_delta_camera_board_info[0],
 	.module_name    = "ov6650",
+	.power		= ams_delta_camera_power,
 };
 
 static struct platform_device ams_delta_camera_device = {
@@ -281,6 +301,10 @@ static void __init ams_delta_init(void)
 
 	omap1_usb_init(&ams_delta_usb_config);
 	omap1_set_camera_info(&ams_delta_camera_platform_data);
+#ifdef CONFIG_LEDS_TRIGGERS
+	led_trigger_register_simple("ams_delta_camera",
+			&ams_delta_camera_led_trigger);
+#endif
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
 #ifdef CONFIG_AMS_DELTA_FIQ
