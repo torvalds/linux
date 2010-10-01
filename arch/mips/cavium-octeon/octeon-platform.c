@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -301,6 +302,10 @@ static int __init octeon_mgmt_device_init(void)
 			ret = -ENOMEM;
 			goto out;
 		}
+		/* No DMA restrictions */
+		pd->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+		pd->dev.dma_mask = &pd->dev.coherent_dma_mask;
+
 		switch (port) {
 		case 0:
 			mgmt_port_resource.start = OCTEON_IRQ_MII0;
