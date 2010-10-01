@@ -319,6 +319,8 @@
 #define OMAP34XX_DMA_USIM_TX		79	/* S_DMA_78 */
 #define OMAP34XX_DMA_USIM_RX		80	/* S_DMA_79 */
 
+#define OMAP36XX_DMA_UART4_TX		81	/* S_DMA_80 */
+#define OMAP36XX_DMA_UART4_RX		82	/* S_DMA_81 */
 /*----------------------------------------------------------------------------*/
 
 #define OMAP1_DMA_TOUT_IRQ		(1 << 0)

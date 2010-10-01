@@ -67,7 +67,6 @@ void omap2_set_globals_tap(struct omap_globals *);
 void omap2_set_globals_sdrc(struct omap_globals *);
 void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
-void omap2_set_globals_uart(struct omap_globals *);
 
 void omap3_map_io(void);
 
