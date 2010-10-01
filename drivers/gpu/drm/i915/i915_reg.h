@@ -216,6 +216,16 @@
 #define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
 #define   PIPE_CONTROL_STALL_EN	(1<<1) /* in addr word, Ironlake+ only */
 
+
+/*
+ * Reset registers
+ */
+#define DEBUG_RESET_I830		0x6070
+#define  DEBUG_RESET_FULL		(1<<7)
+#define  DEBUG_RESET_RENDER		(1<<8)
+#define  DEBUG_RESET_DISPLAY		(1<<9)
+
+
 /*
  * Fence registers
  */
@@ -763,6 +773,7 @@
 #define   DPLLA_TEST_M_BYPASS		(1 << 2)
 #define   DPLLA_INPUT_BUFFER_ENABLE	(1 << 0)
 #define D_STATE		0x6104
+#define  DSTATE_GFX_RESET_I830			(1<<6)
 #define  DSTATE_PLL_D3_OFF			(1<<3)
 #define  DSTATE_GFX_CLOCK_GATING		(1<<1)
 #define  DSTATE_DOT_CLOCK_GATING		(1<<0)
