@@ -725,6 +725,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	struct davinci_spi_platform_data *pdata;
 	void *rx_buf;
 	struct device *sdev;
+	struct edmacc_param param;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
@@ -773,14 +774,15 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 		}
 	}
 
-	edma_set_transfer_params(davinci_spi_dma->dma_tx_channel,
-					data_type, count, 1, 0, ASYNC);
-	edma_set_dest(davinci_spi_dma->dma_tx_channel, tx_reg, INCR, W8BIT);
-	edma_set_src(davinci_spi_dma->dma_tx_channel,
-			t->tx_buf ? t->tx_dma : tx_reg, INCR, W8BIT);
-	edma_set_src_index(davinci_spi_dma->dma_tx_channel,
-			t->tx_buf ? data_type : 0, 0);
-	edma_set_dest_index(davinci_spi_dma->dma_tx_channel, 0, 0);
+	param.opt = TCINTEN | EDMA_TCC(davinci_spi_dma->dma_tx_channel);
+	param.src = t->tx_buf ? t->tx_dma : tx_reg;
+	param.a_b_cnt = count << 16 | data_type;
+	param.dst = tx_reg;
+	param.src_dst_bidx = t->tx_buf ? data_type : 0;
+	param.link_bcntrld = 0xffff;
+	param.src_dst_cidx = 0;
+	param.ccnt = 1;
+	edma_write_slot(davinci_spi_dma->dma_tx_channel, &param);
 
 	/*
 	 * Receive DMA setup
@@ -812,13 +814,15 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 		return -ENOMEM;
 	}
 
-	edma_set_transfer_params(davinci_spi_dma->dma_rx_channel, data_type,
-							count, 1, 0, ASYNC);
-	edma_set_src(davinci_spi_dma->dma_rx_channel, rx_reg, INCR, W8BIT);
-	edma_set_dest(davinci_spi_dma->dma_rx_channel, t->rx_dma, INCR, W8BIT);
-	edma_set_src_index(davinci_spi_dma->dma_rx_channel, 0, 0);
-	edma_set_dest_index(davinci_spi_dma->dma_rx_channel,
-						t->rx_buf ? data_type : 0, 0);
+	param.opt = TCINTEN | EDMA_TCC(davinci_spi_dma->dma_rx_channel);
+	param.src = rx_reg;
+	param.a_b_cnt = count << 16 | data_type;
+	param.dst = t->rx_dma;
+	param.src_dst_bidx = (t->rx_buf ? data_type : 0) << 16;
+	param.link_bcntrld = 0xffff;
+	param.src_dst_cidx = 0;
+	param.ccnt = 1;
+	edma_write_slot(davinci_spi_dma->dma_rx_channel, &param);
 
 	if (pdata->cshold_bug) {
 		u16 spidat1 = ioread16(davinci_spi->base + SPIDAT1 + 2);
