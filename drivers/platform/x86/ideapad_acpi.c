@@ -326,9 +326,12 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
 static int ideapad_acpi_add(struct acpi_device *adevice)
 {
-	int i;
+	int i, cfg;
 	int devs_present[5];
 	struct ideapad_private *priv;
+
+	if (read_method_int(adevice->handle, "_CFG", &cfg))
+		return -ENODEV;
 
 	for (i = IDEAPAD_DEV_CAMERA; i < IDEAPAD_DEV_KILLSW; i++) {
 		devs_present[i] = ideapad_dev_exists(i);
