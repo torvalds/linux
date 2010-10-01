@@ -2820,38 +2820,52 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	int sof, avg_lum;
 
-	sof = len - 64;
-	if (sof >= 0 && data[sof] == 0xff && data[sof + 1] == 0xd9) {
+	/* the image ends on a 64 bytes block starting with
+	 *	ff d9 ff ff 00 c4 c4 96
+	 * and followed by various information including luminosity */
+	/* this block may be splitted between two packets */
+	/* a new image always starts in a new packet */
+	switch (gspca_dev->last_packet_type) {
+	case DISCARD_PACKET:		/* restart image building */
+		sof = len - 64;
+		if (sof >= 0 && data[sof] == 0xff && data[sof + 1] == 0xd9)
+			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+		return;
+	case LAST_PACKET:		/* put the JPEG 422 header */
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
+				sd->jpeg_hdr, JPEG_HDR_SZ);
+		break;
+	}
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 
-		/* end of frame */
-		gspca_frame_add(gspca_dev, LAST_PACKET,
-				data, sof + 2);
-		if (sd->ag_cnt < 0)
-			return;
+	data = gspca_dev->image;
+	if (data == NULL)
+		return;
+	sof = gspca_dev->image_len - 64;
+	if (data[sof] != 0xff
+	 || data[sof + 1] != 0xd9)
+		return;
+
+	/* end of image found - remove the trailing data */
+	gspca_dev->image_len = sof + 2;
+	gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+	if (sd->ag_cnt < 0)
+		return;
 /* w1 w2 w3 */
 /* w4 w5 w6 */
 /* w7 w8 */
 /* w4 */
-		avg_lum = ((data[sof + 29] << 8) | data[sof + 30]) >> 6;
+	avg_lum = ((data[sof + 29] << 8) | data[sof + 30]) >> 6;
 /* w6 */
-		avg_lum += ((data[sof + 33] << 8) | data[sof + 34]) >> 6;
+	avg_lum += ((data[sof + 33] << 8) | data[sof + 34]) >> 6;
 /* w2 */
-		avg_lum += ((data[sof + 25] << 8) | data[sof + 26]) >> 6;
+	avg_lum += ((data[sof + 25] << 8) | data[sof + 26]) >> 6;
 /* w8 */
-		avg_lum += ((data[sof + 37] << 8) | data[sof + 38]) >> 6;
+	avg_lum += ((data[sof + 37] << 8) | data[sof + 38]) >> 6;
 /* w5 */
-		avg_lum += ((data[sof + 31] << 8) | data[sof + 32]) >> 4;
-		avg_lum >>= 4;
-		atomic_set(&sd->avg_lum, avg_lum);
-		return;
-	}
-	if (gspca_dev->last_packet_type == LAST_PACKET) {
-
-		/* put the JPEG 422 header */
-		gspca_frame_add(gspca_dev, FIRST_PACKET,
-			sd->jpeg_hdr, JPEG_HDR_SZ);
-	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+	avg_lum += ((data[sof + 31] << 8) | data[sof + 32]) >> 4;
+	avg_lum >>= 4;
+	atomic_set(&sd->avg_lum, avg_lum);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
