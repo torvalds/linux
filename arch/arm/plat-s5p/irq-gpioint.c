@@ -234,6 +234,7 @@ int __init s5p_register_gpio_interrupt(int pin)
 	/* register gpio group */
 	ret = s5p_gpioint_add(my_chip);
 	if (ret == 0) {
+		my_chip->chip.to_irq = samsung_gpiolib_to_irq;
 		printk(KERN_INFO "Registered interrupt support for gpio group %d.\n",
 		       group);
 		return my_chip->irq_base + offset;

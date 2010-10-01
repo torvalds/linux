@@ -122,6 +122,17 @@ extern void samsung_gpiolib_add_4bit2_chips(struct s3c_gpio_chip *chip,
 extern void samsung_gpiolib_add_4bit(struct s3c_gpio_chip *chip);
 extern void samsung_gpiolib_add_4bit2(struct s3c_gpio_chip *chip);
 
+
+/**
+ * samsung_gpiolib_to_irq - convert gpio pin to irq number
+ * @chip: The gpio chip that the pin belongs to.
+ * @offset: The offset of the pin in the chip.
+ *
+ * This helper returns the irq number calculated from the chip->irq_base and
+ * the provided offset.
+ */
+extern int samsung_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset);
+
 /* exported for core SoC support to change */
 extern struct s3c_gpio_cfg s3c24xx_gpiocfg_default;
 

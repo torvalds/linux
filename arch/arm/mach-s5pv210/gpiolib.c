@@ -224,34 +224,42 @@ static struct s3c_gpio_chip s5pv210_gpio_4bit[] = {
 	}, {
 		.base	= (S5P_VA_GPIO + 0xC00),
 		.config	= &gpio_cfg_noint,
+		.irq_base = IRQ_EINT(0),
 		.chip	= {
 			.base	= S5PV210_GPH0(0),
 			.ngpio	= S5PV210_GPIO_H0_NR,
 			.label	= "GPH0",
+			.to_irq = samsung_gpiolib_to_irq,
 		},
 	}, {
 		.base	= (S5P_VA_GPIO + 0xC20),
 		.config	= &gpio_cfg_noint,
+		.irq_base = IRQ_EINT(8),
 		.chip	= {
 			.base	= S5PV210_GPH1(0),
 			.ngpio	= S5PV210_GPIO_H1_NR,
 			.label	= "GPH1",
+			.to_irq = samsung_gpiolib_to_irq,
 		},
 	}, {
 		.base	= (S5P_VA_GPIO + 0xC40),
 		.config	= &gpio_cfg_noint,
+		.irq_base = IRQ_EINT(16),
 		.chip	= {
 			.base	= S5PV210_GPH2(0),
 			.ngpio	= S5PV210_GPIO_H2_NR,
 			.label	= "GPH2",
+			.to_irq = samsung_gpiolib_to_irq,
 		},
 	}, {
 		.base	= (S5P_VA_GPIO + 0xC60),
 		.config	= &gpio_cfg_noint,
+		.irq_base = IRQ_EINT(24),
 		.chip	= {
 			.base	= S5PV210_GPH3(0),
 			.ngpio	= S5PV210_GPIO_H3_NR,
 			.label	= "GPH3",
+			.to_irq = samsung_gpiolib_to_irq,
 		},
 	},
 };
