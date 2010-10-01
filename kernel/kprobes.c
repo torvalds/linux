@@ -1146,13 +1146,16 @@ int __kprobes register_kprobe(struct kprobe *p)
 		return ret;
 
 	preempt_disable();
+	jump_label_lock();
 	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr) ||
 	    ftrace_text_reserved(p->addr, p->addr) ||
 	    jump_label_text_reserved(p->addr, p->addr)) {
 		preempt_enable();
+		jump_label_unlock();
 		return -EINVAL;
 	}
+	jump_label_unlock();
 
 	/* User can pass only KPROBE_FLAG_DISABLED to register_kprobe */
 	p->flags &= KPROBE_FLAG_DISABLED;
@@ -1187,6 +1190,8 @@ int __kprobes register_kprobe(struct kprobe *p)
 	INIT_LIST_HEAD(&p->list);
 	mutex_lock(&kprobe_mutex);
 
+	jump_label_lock(); /* needed to call jump_label_text_reserved() */
+
 	get_online_cpus();	/* For avoiding text_mutex deadlock. */
 	mutex_lock(&text_mutex);
 
@@ -1214,6 +1219,7 @@ int __kprobes register_kprobe(struct kprobe *p)
 out:
 	mutex_unlock(&text_mutex);
 	put_online_cpus();
+	jump_label_unlock();
 	mutex_unlock(&kprobe_mutex);
 
 	if (probed_mod)

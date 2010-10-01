@@ -39,6 +39,16 @@ struct jump_label_module_entry {
 	struct module *mod;
 };
 
+void jump_label_lock(void)
+{
+	mutex_lock(&jump_label_mutex);
+}
+
+void jump_label_unlock(void)
+{
+	mutex_unlock(&jump_label_mutex);
+}
+
 static int jump_label_cmp(const void *a, const void *b)
 {
 	const struct jump_entry *jea = a;
@@ -152,7 +162,7 @@ void jump_label_update(unsigned long key, enum jump_label_type type)
 	struct jump_label_module_entry *e_module;
 	int count;
 
-	mutex_lock(&jump_label_mutex);
+	jump_label_lock();
 	entry = get_jump_label_entry((jump_label_t)key);
 	if (entry) {
 		count = entry->nr_entries;
@@ -175,7 +185,7 @@ void jump_label_update(unsigned long key, enum jump_label_type type)
 			}
 		}
 	}
-	mutex_unlock(&jump_label_mutex);
+	jump_label_unlock();
 }
 
 static int addr_conflict(struct jump_entry *entry, void *start, void *end)
@@ -232,6 +242,7 @@ out:
  * overlaps with any of the jump label patch addresses. Code
  * that wants to modify kernel text should first verify that
  * it does not overlap with any of the jump label addresses.
+ * Caller must hold jump_label_mutex.
  *
  * returns 1 if there is an overlap, 0 otherwise
  */
@@ -242,7 +253,6 @@ int jump_label_text_reserved(void *start, void *end)
 	struct jump_entry *iter_stop = __start___jump_table;
 	int conflict = 0;
 
-	mutex_lock(&jump_label_mutex);
 	iter = iter_start;
 	while (iter < iter_stop) {
 		if (addr_conflict(iter, start, end)) {
@@ -257,7 +267,6 @@ int jump_label_text_reserved(void *start, void *end)
 	conflict = module_conflict(start, end);
 #endif
 out:
-	mutex_unlock(&jump_label_mutex);
 	return conflict;
 }
 
@@ -268,7 +277,7 @@ static __init int init_jump_label(void)
 	struct jump_entry *iter_stop = __stop___jump_table;
 	struct jump_entry *iter;
 
-	mutex_lock(&jump_label_mutex);
+	jump_label_lock();
 	ret = build_jump_label_hashtable(__start___jump_table,
 					 __stop___jump_table);
 	iter = iter_start;
@@ -276,7 +285,7 @@ static __init int init_jump_label(void)
 		arch_jump_label_text_poke_early(iter->code);
 		iter++;
 	}
-	mutex_unlock(&jump_label_mutex);
+	jump_label_unlock();
 	return ret;
 }
 early_initcall(init_jump_label);
@@ -409,21 +418,21 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 
 	switch (val) {
 	case MODULE_STATE_COMING:
-		mutex_lock(&jump_label_mutex);
+		jump_label_lock();
 		ret = add_jump_label_module(mod);
 		if (ret)
 			remove_jump_label_module(mod);
-		mutex_unlock(&jump_label_mutex);
+		jump_label_unlock();
 		break;
 	case MODULE_STATE_GOING:
-		mutex_lock(&jump_label_mutex);
+		jump_label_lock();
 		remove_jump_label_module(mod);
-		mutex_unlock(&jump_label_mutex);
+		jump_label_unlock();
 		break;
 	case MODULE_STATE_LIVE:
-		mutex_lock(&jump_label_mutex);
+		jump_label_lock();
 		remove_jump_label_module_init(mod);
-		mutex_unlock(&jump_label_mutex);
+		jump_label_unlock();
 		break;
 	}
 	return ret;
