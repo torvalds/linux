@@ -60,7 +60,9 @@
 	US_FLAG(BAD_SENSE,	0x00020000)			\
 		/* Bad Sense (never more than 18 bytes) */	\
 	US_FLAG(NO_READ_DISC_INFO,	0x00040000)		\
-		/* cannot handle READ_DISC_INFO */
+		/* cannot handle READ_DISC_INFO */		\
+	US_FLAG(NO_READ_CAPACITY_16,	0x00080000)		\
+		/* cannot handle READ_CAPACITY_16 */
 
 #define US_FLAG(name, value)	US_FL_##name = value ,
 enum { US_DO_ALL_FLAGS };
