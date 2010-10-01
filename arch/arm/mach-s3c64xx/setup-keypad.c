@@ -15,20 +15,11 @@
 
 void samsung_keypad_cfg_gpio(unsigned int rows, unsigned int cols)
 {
-	unsigned int gpio;
-	unsigned int end;
-
 	/* Set all the necessary GPK pins to special-function 3: KP_ROW[x] */
-	end = S3C64XX_GPK(8 + rows);
-	for (gpio = S3C64XX_GPK(8); gpio < end; gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-	}
+	s3c_gpio_cfgall_range(S3C64XX_GPK(8), 8 + rows,
+			      S3C_GPIO_SFN(3), S3C_GPIO_PULL_NONE);
 
 	/* Set all the necessary GPL pins to special-function 3: KP_COL[x] */
-	end = S3C64XX_GPL(0 + cols);
-	for (gpio = S3C64XX_GPL(0); gpio < end; gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-	}
+	s3c_gpio_cfgall_range(S3C64XX_GPL(0), cols,
+			      S3C_GPIO_SFN(3), S3C_GPIO_PULL_NONE);
 }
