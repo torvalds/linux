@@ -19,7 +19,7 @@
 
 static void s5pc100_ide_cfg_gpios(unsigned int base, unsigned int nr)
 {
-	s3c_gpio_cfgall_range(base, nr, S3C_GPIO_SFN(4), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(base, nr, S3C_GPIO_SFN(4));
 
 	for (; nr > 0; nr--, base++)
 		s5p_gpio_set_drvstr(base, S5P_GPIO_DRVSTR_LV4);
@@ -49,8 +49,7 @@ void s5pc100_ide_setup_gpio(void)
 	s3c_gpio_cfgpin_range(S5PC100_GPK0(6), 2, S3C_GPIO_SFN(0));
 
 	/* CF_OE, CF_WE */
-	s3c_gpio_cfgall_range(S5PC100_GPK1(6), 8,
-			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(S5PC100_GPK1(6), 8, S3C_GPIO_SFN(2));
 
 	/* CF_CD */
 	s3c_gpio_cfgpin(S5PC100_GPK3(5), S3C_GPIO_SFN(2));

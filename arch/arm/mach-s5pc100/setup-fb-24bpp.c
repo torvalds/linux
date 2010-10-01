@@ -24,7 +24,7 @@
 
 static void s5pc100_fb_setgpios(unsigned int base, unsigned int nr)
 {
-	s3c_gpio_cfgall_range(base, nr, S3C_GPIO_SFN(2), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgrange_nopull(base, nr, S3C_GPIO_SFN(2));
 }
 
 void s5pc100_fb_gpio_setup_24bpp(void)
