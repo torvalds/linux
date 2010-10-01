@@ -52,6 +52,10 @@ static struct {
 	{ "ideapad_killsw",	0,  0,    RFKILL_TYPE_WLAN }
 };
 
+static bool no_bt_rfkill;
+module_param(no_bt_rfkill, bool, 0444);
+MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
+
 /*
  * ACPI Helpers
  */
@@ -231,6 +235,14 @@ static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int ret;
 	unsigned long sw_blocked;
+
+	if (no_bt_rfkill &&
+	    (ideapad_rfk_data[dev].type == RFKILL_TYPE_BLUETOOTH)) {
+		/* Force to enable bluetooth when no_bt_rfkill=1 */
+		write_ec_cmd(ideapad_priv->handle,
+			     ideapad_rfk_data[dev].opcode, 1);
+		return 0;
+	}
 
 	priv->rfk[dev] = rfkill_alloc(ideapad_rfk_data[dev].name, &adevice->dev,
 				      ideapad_rfk_data[dev].type, &ideapad_rfk_ops,
