@@ -20,6 +20,9 @@ enum blkio_policy_id {
 	BLKIO_POLICY_THROTL,		/* Throttling */
 };
 
+/* Max limits for throttle policy */
+#define THROTL_IOPS_MAX		UINT_MAX
+
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 
 #ifndef CONFIG_BLK_CGROUP

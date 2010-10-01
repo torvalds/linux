@@ -656,10 +656,10 @@ static int blkio_policy_parse_and_set(char *buf,
 {
 	char *s[4], *p, *major_s = NULL, *minor_s = NULL;
 	int ret;
-	unsigned long major, minor, temp, iops;
+	unsigned long major, minor, temp;
 	int i = 0;
 	dev_t dev;
-	u64 bps;
+	u64 bps, iops;
 
 	memset(s, 0, sizeof(s));
 
@@ -731,13 +731,16 @@ static int blkio_policy_parse_and_set(char *buf,
 			break;
 		case BLKIO_THROTL_read_iops_device:
 		case BLKIO_THROTL_write_iops_device:
-			ret = strict_strtoul(s[1], 10, &iops);
+			ret = strict_strtoull(s[1], 10, &iops);
 			if (ret)
+				return -EINVAL;
+
+			if (iops > THROTL_IOPS_MAX)
 				return -EINVAL;
 
 			newpn->plid = plid;
 			newpn->fileid = fileid;
-			newpn->val.iops = iops;
+			newpn->val.iops = (unsigned int)iops;
 			break;
 		}
 		break;
