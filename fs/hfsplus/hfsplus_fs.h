@@ -129,7 +129,6 @@ struct hfsplus_sb_info {
 	int alloc_blksz_shift;
 	u32 total_blocks;
 	u32 free_blocks;
-	u32 next_alloc;
 	u32 next_cnid;
 	u32 file_count;
 	u32 folder_count;

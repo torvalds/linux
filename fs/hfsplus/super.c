@@ -164,7 +164,6 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 	sb->s_dirt = 0;
 
 	vhdr->free_blocks = cpu_to_be32(sbi->free_blocks);
-	vhdr->next_alloc = cpu_to_be32(sbi->next_alloc);
 	vhdr->next_cnid = cpu_to_be32(sbi->next_cnid);
 	vhdr->folder_count = cpu_to_be32(sbi->folder_count);
 	vhdr->file_count = cpu_to_be32(sbi->file_count);
@@ -355,7 +354,6 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	sbi->total_blocks = be32_to_cpu(vhdr->total_blocks);
 	sbi->free_blocks = be32_to_cpu(vhdr->free_blocks);
-	sbi->next_alloc = be32_to_cpu(vhdr->next_alloc);
 	sbi->next_cnid = be32_to_cpu(vhdr->next_cnid);
 	sbi->file_count = be32_to_cpu(vhdr->file_count);
 	sbi->folder_count = be32_to_cpu(vhdr->folder_count);
