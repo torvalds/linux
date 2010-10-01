@@ -162,6 +162,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	unsigned int xfer = 0;
 	unsigned int si;
 
+	/* If the device fell off, no sense in issuing commands */
+	if (dev->gone)
+		return AC_ERR_SYSTEM;
+
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
 		return AC_ERR_SYSTEM;
