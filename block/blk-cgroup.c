@@ -1242,6 +1242,59 @@ struct cftype blkio_files[] = {
 		.write_u64 = blkiocg_file_write_u64,
 	},
 	{
+		.name = "time",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_time),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "sectors",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_sectors),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "io_service_bytes",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_io_service_bytes),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "io_serviced",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_io_serviced),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "io_service_time",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_io_service_time),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "io_wait_time",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_io_wait_time),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "io_merged",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_io_merged),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "io_queued",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_io_queued),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "reset_stats",
+		.write_u64 = blkiocg_reset_stats,
+	},
+#ifdef CONFIG_BLK_DEV_THROTTLING
+	{
 		.name = "throttle.read_bps_device",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_read_bps_device),
@@ -1277,33 +1330,9 @@ struct cftype blkio_files[] = {
 		.max_write_len = 256,
 	},
 	{
-		.name = "time",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_time),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "sectors",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_sectors),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "io_service_bytes",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_io_service_bytes),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
 		.name = "throttle.io_service_bytes",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_io_service_bytes),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "io_serviced",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_io_serviced),
 		.read_map = blkiocg_file_read_map,
 	},
 	{
@@ -1312,34 +1341,8 @@ struct cftype blkio_files[] = {
 				BLKIO_THROTL_io_serviced),
 		.read_map = blkiocg_file_read_map,
 	},
-	{
-		.name = "io_service_time",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_io_service_time),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "io_wait_time",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_io_wait_time),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "io_merged",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_io_merged),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "io_queued",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_io_queued),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
-		.name = "reset_stats",
-		.write_u64 = blkiocg_reset_stats,
-	},
+#endif /* CONFIG_BLK_DEV_THROTTLING */
+
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	{
 		.name = "avg_queue_size",
