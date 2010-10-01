@@ -42,6 +42,16 @@ extern int irq_select_affinity_usr(unsigned int irq);
 
 extern void irq_set_thread_affinity(struct irq_desc *desc);
 
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
+static inline void irq_end(unsigned int irq, struct irq_desc *desc)
+{
+	if (desc->irq_data.chip && desc->irq_data.chip->end)
+		desc->irq_data.chip->end(irq);
+}
+#else
+static inline void irq_end(unsigned int irq, struct irq_desc *desc) { }
+#endif
+
 /* Inline functions for support of irq chips on slow busses */
 static inline void chip_bus_lock(struct irq_desc *desc)
 {

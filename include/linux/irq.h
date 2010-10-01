@@ -155,6 +155,7 @@ struct irq_data {
  */
 struct irq_chip {
 	const char	*name;
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 	unsigned int	(*startup)(unsigned int irq);
 	void		(*shutdown)(unsigned int irq);
 	void		(*enable)(unsigned int irq);
@@ -175,7 +176,7 @@ struct irq_chip {
 
 	void		(*bus_lock)(unsigned int irq);
 	void		(*bus_sync_unlock)(unsigned int irq);
-
+#endif
 	unsigned int	(*irq_startup)(struct irq_data *data);
 	void		(*irq_shutdown)(struct irq_data *data);
 	void		(*irq_enable)(struct irq_data *data);
@@ -225,6 +226,9 @@ struct irq_2_iommu;
  */
 struct irq_desc {
 
+#ifdef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
+	struct irq_data		irq_data;
+#else
 	/*
 	 * This union will go away, once we fixed the direct access to
 	 * irq_desc all over the place. The direct fields are a 1:1
@@ -247,6 +251,8 @@ struct irq_desc {
 #endif
 		};
 	};
+#endif
+
 	struct timer_rand_state *timer_rand_state;
 	unsigned int            *kstat_irqs;
 	irq_flow_handler_t	handle_irq;

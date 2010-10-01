@@ -309,7 +309,12 @@ static unsigned int noop_ret(struct irq_data *data)
 	return 0;
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 static void compat_noop(unsigned int irq) { }
+#define END_INIT .end = compat_noop
+#else
+#define END_INIT
+#endif
 
 /*
  * Generic no controller implementation
@@ -321,7 +326,7 @@ struct irq_chip no_irq_chip = {
 	.irq_enable	= noop,
 	.irq_disable	= noop,
 	.irq_ack	= ack_bad,
-	.end		= compat_noop,
+	END_INIT
 };
 
 /*
@@ -337,7 +342,7 @@ struct irq_chip dummy_irq_chip = {
 	.irq_ack	= noop,
 	.irq_mask	= noop,
 	.irq_unmask	= noop,
-	.end		= compat_noop,
+	END_INIT
 };
 
 /*

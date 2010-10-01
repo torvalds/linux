@@ -324,6 +324,7 @@ static void default_shutdown(struct irq_data *data)
 	desc->status |= IRQ_MASKED;
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 /* Temporary migration helpers */
 static void compat_irq_mask(struct irq_data *data)
 {
@@ -400,12 +401,14 @@ static void compat_bus_sync_unlock(struct irq_data *data)
 {
 	data->chip->bus_sync_unlock(data->irq);
 }
+#endif
 
 /*
  * Fixup enable/disable function pointers
  */
 void irq_chip_set_defaults(struct irq_chip *chip)
 {
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 	/*
 	 * Compat fixup functions need to be before we set the
 	 * defaults for enable/disable/startup/shutdown
@@ -418,7 +421,7 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_shutdown = compat_irq_shutdown;
 	if (chip->startup)
 		chip->irq_startup = compat_irq_startup;
-
+#endif
 	/*
 	 * The real defaults
 	 */
@@ -437,6 +440,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 	if (!chip->irq_shutdown)
 		chip->irq_shutdown = chip->irq_disable != default_disable ?
 			chip->irq_disable : default_shutdown;
+
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 	if (!chip->end)
 		chip->end = dummy_irq_chip.end;
 
@@ -465,6 +470,7 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_set_wake = compat_irq_set_wake;
 	if (chip->retrigger)
 		chip->irq_retrigger = compat_irq_retrigger;
+#endif
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc)

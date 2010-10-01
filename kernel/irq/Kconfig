@@ -12,6 +12,10 @@ config GENERIC_HARDIRQS
 config GENERIC_HARDIRQS_NO__DO_IRQ
        def_bool y
 
+# Select this to disable the deprecated stuff
+config GENERIC_HARDIRQS_NO_DEPRECATED
+       def_bool n
+
 # Options selectable by the architecture code
 config HAVE_SPARSE_IRQ
        def_bool n
