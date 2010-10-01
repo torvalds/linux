@@ -39,6 +39,13 @@ struct gic_chip_data {
 	unsigned int irq_offset;
 	void __iomem *dist_base;
 	void __iomem *cpu_base;
+#ifdef CONFIG_PM
+	u32 saved_enable[DIV_ROUND_UP(1020, 32)];
+	u32 saved_conf[DIV_ROUND_UP(1020, 16)];
+	u32 saved_pri[DIV_ROUND_UP(1020, 4)];
+	u32 saved_target[DIV_ROUND_UP(1020, 4)];
+#endif
+	unsigned int max_irq;
 };
 
 #ifndef MAX_GIC_NR
@@ -221,20 +228,14 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 	set_irq_chained_handler(irq, gic_handle_cascade_irq);
 }
 
-void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
-			  unsigned int irq_start)
+static unsigned int _gic_dist_init(unsigned int gic_nr)
 {
 	unsigned int max_irq, i;
+	void __iomem *base = gic_data[gic_nr].dist_base;
 	u32 cpumask = 1 << smp_processor_id();
-
-	if (gic_nr >= MAX_GIC_NR)
-		BUG();
 
 	cpumask |= cpumask << 8;
 	cpumask |= cpumask << 16;
-
-	gic_data[gic_nr].dist_base = base;
-	gic_data[gic_nr].irq_offset = (irq_start - 1) & ~31;
 
 	writel(0, base + GIC_DIST_CTRL);
 
@@ -276,6 +277,96 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 	for (i = 0; i < max_irq; i += 32)
 		writel(0xffffffff, base + GIC_DIST_ENABLE_CLEAR + i * 4 / 32);
 
+	return max_irq;
+}
+
+static void _gic_dist_exit(unsigned int gic_nr)
+{
+	writel(0, gic_data[gic_nr].dist_base + GIC_DIST_CTRL);
+}
+
+#ifdef CONFIG_PM
+void gic_dist_save(unsigned int gic_nr)
+{
+	unsigned int max_irq = gic_data[gic_nr].max_irq;
+	void __iomem *dist_base = gic_data[gic_nr].dist_base;
+	int i;
+
+	if (gic_nr >= MAX_GIC_NR)
+		BUG();
+
+	_gic_dist_exit(gic_nr);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 16); i++)
+		gic_data[gic_nr].saved_conf[i] =
+			readl(dist_base + GIC_DIST_CONFIG + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 4); i++)
+		gic_data[gic_nr].saved_pri[i] =
+			readl(dist_base + GIC_DIST_PRI + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 4); i++)
+		gic_data[gic_nr].saved_target[i] =
+			readl(dist_base + GIC_DIST_TARGET + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 32); i++)
+		gic_data[gic_nr].saved_enable[i] =
+			readl(dist_base + GIC_DIST_ENABLE_SET + i * 4);
+}
+
+void gic_dist_restore(unsigned int gic_nr)
+{
+	unsigned int max_irq;
+	unsigned int i;
+	void __iomem *dist_base;
+	void __iomem *cpu_base;
+
+	if (gic_nr >= MAX_GIC_NR)
+		BUG();
+
+	_gic_dist_init(gic_nr);
+
+	max_irq = gic_data[gic_nr].max_irq;
+	dist_base = gic_data[gic_nr].dist_base;
+	cpu_base = gic_data[gic_nr].cpu_base;
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 16); i++)
+		writel(gic_data[gic_nr].saved_conf[i],
+			dist_base + GIC_DIST_CONFIG + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 4); i++)
+		writel(gic_data[gic_nr].saved_pri[i],
+			dist_base + GIC_DIST_PRI + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 4); i++)
+		writel(gic_data[gic_nr].saved_target[i],
+			dist_base + GIC_DIST_TARGET + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(max_irq, 32); i++)
+		writel(gic_data[gic_nr].saved_enable[i],
+			dist_base + GIC_DIST_ENABLE_SET + i * 4);
+
+	writel(1, dist_base + GIC_DIST_CTRL);
+	writel(0xf0, cpu_base + GIC_CPU_PRIMASK);
+	writel(1, cpu_base + GIC_CPU_CTRL);
+}
+#endif
+
+void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
+			  unsigned int irq_start)
+{
+	unsigned int max_irq;
+	unsigned int i;
+
+	if (gic_nr >= MAX_GIC_NR)
+		BUG();
+
+	gic_data[gic_nr].dist_base = base;
+	gic_data[gic_nr].irq_offset = (irq_start - 1) & ~31;
+
+	max_irq = _gic_dist_init(gic_nr);
+	gic_data[gic_nr].max_irq = max_irq;
+
 	/*
 	 * Setup the Linux IRQ subsystem.
 	 */
@@ -289,6 +380,14 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 	writel(1, base + GIC_DIST_CTRL);
 }
 
+void gic_dist_exit(unsigned int gic_nr)
+{
+	if (gic_nr >= MAX_GIC_NR)
+		BUG();
+
+	_gic_dist_exit(gic_nr);
+}
+
 void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 {
 	if (gic_nr >= MAX_GIC_NR)
@@ -298,6 +397,14 @@ void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 
 	writel(0xf0, base + GIC_CPU_PRIMASK);
 	writel(1, base + GIC_CPU_CTRL);
+}
+
+void gic_cpu_exit(unsigned int gic_nr)
+{
+	if (gic_nr >= MAX_GIC_NR)
+		BUG();
+
+	writel(0, gic_data[gic_nr].cpu_base + GIC_CPU_CTRL);
 }
 
 #ifdef CONFIG_SMP
