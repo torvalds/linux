@@ -36,22 +36,3 @@ config RPCSEC_GSS_KRB5
 	  Kerberos support should be installed.
 
 	  If unsure, say Y.
-
-config RPCSEC_GSS_SPKM3
-	tristate "Secure RPC: SPKM3 mechanism (EXPERIMENTAL)"
-	depends on SUNRPC && EXPERIMENTAL
-	select SUNRPC_GSS
-	select CRYPTO
-	select CRYPTO_MD5
-	select CRYPTO_DES
-	select CRYPTO_CAST5
-	select CRYPTO_CBC
-	help
-	  Choose Y here to enable Secure RPC using the SPKM3 public key
-	  GSS-API mechanism (RFC 2025).
-
-	  Secure RPC calls with SPKM3 require an auxiliary userspace
-	  daemon which may be found in the Linux nfs-utils package
-	  available from http://linux-nfs.org/.
-
-	  If unsure, say N.
