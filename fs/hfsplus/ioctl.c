@@ -17,7 +17,6 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/xattr.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include "hfsplus_fs.h"
 
@@ -42,10 +41,9 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	unsigned int flags;
 	int err = 0;
 
-	lock_kernel();
 	err = mnt_want_write(file->f_path.mnt);
 	if (err)
-		goto out_unlock_kernel;
+		goto out;
 
 	if (!is_owner_or_cap(inode)) {
 		err = -EACCES;
@@ -57,18 +55,20 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 		goto out_drop_write;
 	}
 
+	mutex_lock(&inode->i_mutex);
+
 	if (flags & (FS_IMMUTABLE_FL|FS_APPEND_FL) ||
 	    HFSPLUS_I(inode).rootflags & (HFSPLUS_FLG_IMMUTABLE|HFSPLUS_FLG_APPEND)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
 			err = -EPERM;
-			goto out_drop_write;
+			goto out_unlock_inode;
 		}
 	}
 
 	/* don't silently ignore unsupported ext2 flags */
 	if (flags & ~(FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NODUMP_FL)) {
 		err = -EOPNOTSUPP;
-		goto out_drop_write;
+		goto out_unlock_inode;
 	}
 	if (flags & FS_IMMUTABLE_FL) {
 		inode->i_flags |= S_IMMUTABLE;
@@ -92,10 +92,11 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 
+out_unlock_inode:
+	mutex_lock(&inode->i_mutex);
 out_drop_write:
 	mnt_drop_write(file->f_path.mnt);
-out_unlock_kernel:
-	unlock_kernel();
+out:
 	return err;
 }
 
