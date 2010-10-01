@@ -274,10 +274,6 @@ static int wlc_iovar_rangecheck(wlc_info_t *wlc, uint32 val,
 				const bcm_iovar_t *vi);
 static uint8 wlc_local_constraint_qdbm(wlc_info_t *wlc);
 
-#if defined(BCMDBG)
-static void wlc_print_dot11hdr(uint8 *buf, int len);
-#endif
-
 /* send and receive */
 static wlc_txq_info_t *wlc_txq_alloc(wlc_info_t *wlc, osl_t *osh);
 static void wlc_txq_free(wlc_info_t *wlc, osl_t *osh, wlc_txq_info_t *qi);
@@ -332,7 +328,6 @@ static uint wlc_down_del_timer(wlc_info_t *wlc);
 static void wlc_ofdm_rateset_war(wlc_info_t *wlc);
 static int _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len,
 		      struct wlc_if *wlcif);
-char *print_fk(uint16 fk);
 
 #if defined(BCMDBG)
 void wlc_get_rcmta(wlc_info_t *wlc, int idx, struct ether_addr *addr)
@@ -4909,44 +4904,6 @@ wlc_iovar_rangecheck(wlc_info_t *wlc, uint32 val, const bcm_iovar_t *vi)
 	return err;
 }
 
-#if defined(BCMDBG)
-static const struct wlc_id_name_entry dot11_ie_names[] = {
-	{DOT11_MNG_SSID_ID, "SSID"},
-	{DOT11_MNG_RATES_ID, "Rates"},
-	{DOT11_MNG_FH_PARMS_ID, "FH Parms"},
-	{DOT11_MNG_DS_PARMS_ID, "DS Parms"},
-	{DOT11_MNG_CF_PARMS_ID, "CF Parms"},
-	{DOT11_MNG_TIM_ID, "TIM"},
-	{DOT11_MNG_IBSS_PARMS_ID, "IBSS Parms"},
-	{DOT11_MNG_COUNTRY_ID, "Country"},
-	{DOT11_MNG_HOPPING_PARMS_ID, "Hopping Parms"},
-	{DOT11_MNG_HOPPING_TABLE_ID, "Hopping Table"},
-	{DOT11_MNG_REQUEST_ID, "Request"},
-	{DOT11_MNG_QBSS_LOAD_ID, "QBSS LOAD"},
-	{DOT11_MNG_CHALLENGE_ID, "Challenge"},
-	{DOT11_MNG_PWR_CONSTRAINT_ID, "Pwr Constraint"},
-	{DOT11_MNG_PWR_CAP_ID, "Pwr Capability"},
-	{DOT11_MNG_TPC_REQUEST_ID, "TPC Request"},
-	{DOT11_MNG_TPC_REPORT_ID, "TPC Report"},
-	{DOT11_MNG_SUPP_CHANNELS_ID, "Supported Channels"},
-	{DOT11_MNG_CHANNEL_SWITCH_ID, "Channel Switch"},
-	{DOT11_MNG_MEASURE_REQUEST_ID, "Measure Request"},
-	{DOT11_MNG_MEASURE_REPORT_ID, "Measure Report"},
-	{DOT11_MNG_QUIET_ID, "Quiet"},
-	{DOT11_MNG_IBSS_DFS_ID, "IBSS DFS"},
-	{DOT11_MNG_ERP_ID, "ERP Info"},
-	{DOT11_MNG_TS_DELAY_ID, "TS Delay"},
-	{DOT11_MNG_HT_CAP, "HT Capability"},
-	{DOT11_MNG_NONERP_ID, "Legacy ERP Info"},
-	{DOT11_MNG_RSN_ID, "RSN"},
-	{DOT11_MNG_EXT_RATES_ID, "Ext Rates"},
-	{DOT11_MNG_HT_ADD, "HT Additional"},
-	{DOT11_MNG_EXT_CHANNEL_OFFSET, "Ext Channel Offset"},
-	{DOT11_MNG_VS_ID, "Vendor Specific"},
-	{0, NULL}
-};
-#endif				/* defined(BCMDBG) */
-
 #ifdef BCMDBG
 static const char *supr_reason[] = {
 	"None", "PMQ Entry", "Flush request",
@@ -5101,230 +5058,6 @@ bool wlc_chipmatch(uint16 vendor, uint16 device)
 }
 
 #if defined(BCMDBG)
-static const char *errstr = "802.11 Header INCOMPLETE\n";
-static const char *fillstr = "------------";
-static void wlc_print_dot11hdr(uint8 *buf, int len)
-{
-	char hexbuf[(2 * D11B_PHY_HDR_LEN) + 1];
-
-	if (len == 0) {
-		printf("802.11 Header MISSING\n");
-		return;
-	}
-
-	if (len < D11B_PHY_HDR_LEN) {
-		bcm_format_hex(hexbuf, buf, len);
-		strncpy(hexbuf + (2 * len), fillstr,
-			2 * (D11B_PHY_HDR_LEN - len));
-		hexbuf[sizeof(hexbuf) - 1] = '\0';
-	} else {
-		bcm_format_hex(hexbuf, buf, D11B_PHY_HDR_LEN);
-	}
-
-	printf("PLCPHdr: %s ", hexbuf);
-	if (len < D11B_PHY_HDR_LEN) {
-		printf("%s\n", errstr);
-		return;
-	}
-
-	len -= D11B_PHY_HDR_LEN;
-	buf += D11B_PHY_HDR_LEN;
-
-	wlc_print_dot11_mac_hdr(buf, len);
-}
-
-void wlc_print_dot11_mac_hdr(uint8 *buf, int len)
-{
-	char hexbuf[(2 * D11B_PHY_HDR_LEN) + 1];
-	char a1[(2 * ETHER_ADDR_LEN) + 1], a2[(2 * ETHER_ADDR_LEN) + 1];
-	char a3[(2 * ETHER_ADDR_LEN) + 1];
-	char flagstr[64];
-	uint16 fc, kind, toDS, fromDS;
-	uint16 v;
-	int fill_len = 0;
-	static const bcm_bit_desc_t fc_flags[] = {
-		{FC_TODS, "ToDS"},
-		{FC_FROMDS, "FromDS"},
-		{FC_MOREFRAG, "MoreFrag"},
-		{FC_RETRY, "Retry"},
-		{FC_PM, "PM"},
-		{FC_MOREDATA, "MoreData"},
-		{FC_WEP, "WEP"},
-		{FC_ORDER, "Order"},
-		{0, NULL}
-	};
-
-	if (len < 2) {
-		printf("FC: ------ ");
-		printf("%s\n", errstr);
-		return;
-	}
-
-	fc = buf[0] | (buf[1] << 8);
-	kind = fc & FC_KIND_MASK;
-	toDS = (fc & FC_TODS) != 0;
-	fromDS = (fc & FC_FROMDS) != 0;
-
-	bcm_format_flags(fc_flags, fc, flagstr, 64);
-
-	printf("FC: 0x%04x ", fc);
-	if (flagstr[0] != '\0')
-		printf("(%s) ", flagstr);
-
-	len -= 2;
-	buf += 2;
-
-	if (len < 2) {
-		printf("Dur/AID: ----- ");
-		printf("%s\n", errstr);
-		return;
-	}
-
-	v = buf[0] | (buf[1] << 8);
-	if (kind == FC_PS_POLL) {
-		printf("AID: 0x%04x", v);
-	} else {
-		printf("Dur: 0x%04x", v);
-	}
-	printf("\n");
-	len -= 2;
-	buf += 2;
-
-	strncpy(a1, fillstr, sizeof(a1));
-	strncpy(a2, fillstr, sizeof(a2));
-	strncpy(a3, fillstr, sizeof(a3));
-
-	if (len < ETHER_ADDR_LEN) {
-		bcm_format_hex(a1, buf, len);
-		strncpy(a1 + (2 * len), fillstr, 2 * (ETHER_ADDR_LEN - len));
-	} else if (len < 2 * ETHER_ADDR_LEN) {
-		bcm_format_hex(a1, buf, ETHER_ADDR_LEN);
-		bcm_format_hex(a2, buf + ETHER_ADDR_LEN, len - ETHER_ADDR_LEN);
-		fill_len = len - ETHER_ADDR_LEN;
-		strncpy(a2 + (2 * fill_len), fillstr,
-			2 * (ETHER_ADDR_LEN - fill_len));
-	} else if (len < 3 * ETHER_ADDR_LEN) {
-		bcm_format_hex(a1, buf, ETHER_ADDR_LEN);
-		bcm_format_hex(a2, buf + ETHER_ADDR_LEN, ETHER_ADDR_LEN);
-		bcm_format_hex(a3, buf + (2 * ETHER_ADDR_LEN),
-			       len - (2 * ETHER_ADDR_LEN));
-		fill_len = len - (2 * ETHER_ADDR_LEN);
-		strncpy(a3 + (2 * fill_len), fillstr,
-			2 * (ETHER_ADDR_LEN - fill_len));
-	} else {
-		bcm_format_hex(a1, buf, ETHER_ADDR_LEN);
-		bcm_format_hex(a2, buf + ETHER_ADDR_LEN, ETHER_ADDR_LEN);
-		bcm_format_hex(a3, buf + (2 * ETHER_ADDR_LEN), ETHER_ADDR_LEN);
-	}
-
-	if (kind == FC_RTS) {
-		printf("RA: %s ", a1);
-		printf("TA: %s ", a2);
-		if (len < 2 * ETHER_ADDR_LEN)
-			printf("%s ", errstr);
-	} else if (kind == FC_CTS || kind == FC_ACK) {
-		printf("RA: %s ", a1);
-		if (len < ETHER_ADDR_LEN)
-			printf("%s ", errstr);
-	} else if (kind == FC_PS_POLL) {
-		printf("BSSID: %s", a1);
-		printf("TA: %s ", a2);
-		if (len < 2 * ETHER_ADDR_LEN)
-			printf("%s ", errstr);
-	} else if (kind == FC_CF_END || kind == FC_CF_END_ACK) {
-		printf("RA: %s ", a1);
-		printf("BSSID: %s ", a2);
-		if (len < 2 * ETHER_ADDR_LEN)
-			printf("%s ", errstr);
-	} else if (FC_TYPE(fc) == FC_TYPE_DATA) {
-		if (!toDS) {
-			printf("DA: %s ", a1);
-			if (!fromDS) {
-				printf("SA: %s ", a2);
-				printf("BSSID: %s ", a3);
-			} else {
-				printf("BSSID: %s ", a2);
-				printf("SA: %s ", a3);
-			}
-		} else if (!fromDS) {
-			printf("BSSID: %s ", a1);
-			printf("SA: %s ", a2);
-			printf("DA: %s ", a3);
-		} else {
-			printf("RA: %s ", a1);
-			printf("TA: %s ", a2);
-			printf("DA: %s ", a3);
-		}
-		if (len < 3 * ETHER_ADDR_LEN) {
-			printf("%s ", errstr);
-		} else if (len < 20) {
-			printf("SeqCtl: ------ ");
-			printf("%s ", errstr);
-		} else {
-			len -= 3 * ETHER_ADDR_LEN;
-			buf += 3 * ETHER_ADDR_LEN;
-			v = buf[0] | (buf[1] << 8);
-			printf("SeqCtl: 0x%04x ", v);
-			len -= 2;
-			buf += 2;
-		}
-	} else if (FC_TYPE(fc) == FC_TYPE_MNG) {
-		printf("DA: %s ", a1);
-		printf("SA: %s ", a2);
-		printf("BSSID: %s ", a3);
-		if (len < 3 * ETHER_ADDR_LEN) {
-			printf("%s ", errstr);
-		} else if (len < 20) {
-			printf("SeqCtl: ------ ");
-			printf("%s ", errstr);
-		} else {
-			len -= 3 * ETHER_ADDR_LEN;
-			buf += 3 * ETHER_ADDR_LEN;
-			v = buf[0] | (buf[1] << 8);
-			printf("SeqCtl: 0x%04x ", v);
-			len -= 2;
-			buf += 2;
-		}
-	}
-
-	if ((FC_TYPE(fc) == FC_TYPE_DATA) && toDS && fromDS) {
-
-		if (len < ETHER_ADDR_LEN) {
-			bcm_format_hex(hexbuf, buf, len);
-			strncpy(hexbuf + (2 * len), fillstr,
-				2 * (ETHER_ADDR_LEN - len));
-		} else {
-			bcm_format_hex(hexbuf, buf, ETHER_ADDR_LEN);
-		}
-
-		printf("SA: %s ", hexbuf);
-
-		if (len < ETHER_ADDR_LEN) {
-			printf("%s ", errstr);
-		} else {
-			len -= ETHER_ADDR_LEN;
-			buf += ETHER_ADDR_LEN;
-		}
-	}
-
-	if ((FC_TYPE(fc) == FC_TYPE_DATA) && (kind == FC_QOS_DATA)) {
-		if (len < 2) {
-			printf("QoS: ------");
-			printf("%s ", errstr);
-		} else {
-			v = buf[0] | (buf[1] << 8);
-			printf("QoS: 0x%04x ", v);
-			len -= 2;
-			buf += 2;
-		}
-	}
-
-	printf("\n");
-	return;
-}
-#endif				/* defined(BCMDBG) */
-
-#if defined(BCMDBG)
 void wlc_print_txdesc(d11txh_t *txh)
 {
 	uint16 mtcl = ltoh16(txh->MacTxControlLow);
@@ -5406,10 +5139,6 @@ void wlc_print_txdesc(d11txh_t *txh)
 	printf("RTS Frame: %s", hexbuf);
 	printf("\n");
 
-	if (mtcl & TXC_SENDRTS) {
-		wlc_print_dot11_mac_hdr((uint8 *) &rts,
-					sizeof(txh->rts_frame));
-	}
 }
 #endif				/* defined(BCMDBG) */
 
@@ -5448,26 +5177,6 @@ void wlc_print_rxh(d11rxhdr_t *rxh)
 	printf("RxMACStatus:     %x %s\n", macstatus1, flagstr);
 	printf("RXMACaggtype: %x\n", (macstatus2 & RXS_AGGTYPE_MASK));
 	printf("RxTSFTime:       %04x\n", rxh->RxTSFTime);
-}
-
-void
-wlc_print_hdrs(wlc_info_t *wlc, const char *prefix, uint8 *frame,
-	       d11txh_t *txh, d11rxhdr_t *rxh, uint len)
-{
-	ASSERT(!(txh && rxh));
-
-	printf("\nwl%d: %s:\n", wlc->pub->unit, prefix);
-
-	if (txh) {
-		wlc_print_txdesc(txh);
-	} else if (rxh) {
-		wlc_print_rxh(rxh);
-	}
-
-	if (len > 0) {
-		ASSERT(frame != NULL);
-		wlc_print_dot11hdr(frame, len);
-	}
 }
 #endif				/* defined(BCMDBG) */
 
@@ -7452,95 +7161,6 @@ prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, void *p,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 		WL_ERROR(("%s:  RX_FLAG_FAILED_FCS_CRC\n", __func__));
 	}
-}
-
-char *print_fk(uint16 fk)
-{
-	char *str;
-	switch (fk) {
-	case FC_ASSOC_REQ:
-		str = "FC_ASSOC_REQ";
-		break;
-	case FC_ASSOC_RESP:
-		str = "FC_ASSOC_RESP";
-		break;
-	case FC_REASSOC_REQ:
-		str = "FC_REASSOC_REQ";
-		break;
-	case FC_REASSOC_RESP:
-		str = "FC_REASSOC_RESP";
-		break;
-	case FC_PROBE_REQ:
-		str = "FC_PROBE_REQ";
-		break;
-	case FC_PROBE_RESP:
-		str = "FC_PROBE_RESP";
-		break;
-	case FC_BEACON:
-		str = "FC_BEACON";
-		break;
-	case FC_DISASSOC:
-		str = "FC_DISASSOC";
-		break;
-	case FC_AUTH:
-		str = "FC_AUTH";
-		break;
-	case FC_DEAUTH:
-		str = "FC_DEAUTH";
-		break;
-	case FC_ACTION:
-		str = "FC_ACTION";
-		break;
-	case FC_ACTION_NOACK:
-		str = "FC_ACTION_NOACK";
-		break;
-	case FC_CTL_WRAPPER:
-		str = "FC_CTL_WRAPPER";
-		break;
-	case FC_BLOCKACK_REQ:
-		str = "FC_BLOCKACK_REQ";
-		break;
-	case FC_BLOCKACK:
-		str = "FC_BLOCKACK";
-		break;
-	case FC_PS_POLL:
-		str = "FC_PS_POLL";
-		break;
-	case FC_RTS:
-		str = "FC_RTS";
-		break;
-	case FC_CTS:
-		str = "FC_CTS";
-		break;
-	case FC_ACK:
-		str = "FC_ACK";
-		break;
-	case FC_CF_END:
-		str = "FC_CF_END";
-		break;
-	case FC_CF_END_ACK:
-		str = "FC_CF_END_ACK";
-		break;
-	case FC_DATA:
-		str = "FC_DATA";
-		break;
-	case FC_NULL_DATA:
-		str = "FC_NULL_DATA";
-		break;
-	case FC_DATA_CF_ACK:
-		str = "FC_DATA_CF_ACK";
-		break;
-	case FC_QOS_DATA:
-		str = "FC_QOS_DATA";
-		break;
-	case FC_QOS_NULL:
-		str = "FC_QOS_NULL";
-		break;
-	default:
-		str = "Unknown!!";
-		break;
-	}
-	return str;
 }
 
 static void
