@@ -19,6 +19,8 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 
+#include <media/soc_camera.h>
+
 #include <asm/serial.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -32,6 +34,7 @@
 #include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>
+#include <mach/camera.h>
 
 #include <mach/ams-delta-fiq.h>
 
@@ -213,10 +216,37 @@ static struct platform_device ams_delta_led_device = {
 	.id	= -1
 };
 
+static struct i2c_board_info ams_delta_camera_board_info[] = {
+	{
+		I2C_BOARD_INFO("ov6650", 0x60),
+	},
+};
+
+static struct soc_camera_link __initdata ams_delta_iclink = {
+	.bus_id         = 0,	/* OMAP1 SoC camera bus */
+	.i2c_adapter_id = 1,
+	.board_info     = &ams_delta_camera_board_info[0],
+	.module_name    = "ov6650",
+};
+
+static struct platform_device ams_delta_camera_device = {
+	.name   = "soc-camera-pdrv",
+	.id     = 0,
+	.dev    = {
+		.platform_data = &ams_delta_iclink,
+	},
+};
+
+static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
+	.camexclk_khz	= 12000,	/* default 12MHz clock, no extra DPLL */
+	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
+};
+
 static struct platform_device *ams_delta_devices[] __initdata = {
 	&ams_delta_kp_device,
 	&ams_delta_lcd_device,
 	&ams_delta_led_device,
+	&ams_delta_camera_device,
 };
 
 static void __init ams_delta_init(void)
@@ -224,6 +254,20 @@ static void __init ams_delta_init(void)
 	/* mux pins for uarts */
 	omap_cfg_reg(UART1_TX);
 	omap_cfg_reg(UART1_RTS);
+
+	/* parallel camera interface */
+	omap_cfg_reg(H19_1610_CAM_EXCLK);
+	omap_cfg_reg(J15_1610_CAM_LCLK);
+	omap_cfg_reg(L18_1610_CAM_VS);
+	omap_cfg_reg(L15_1610_CAM_HS);
+	omap_cfg_reg(L19_1610_CAM_D0);
+	omap_cfg_reg(K14_1610_CAM_D1);
+	omap_cfg_reg(K15_1610_CAM_D2);
+	omap_cfg_reg(K19_1610_CAM_D3);
+	omap_cfg_reg(K18_1610_CAM_D4);
+	omap_cfg_reg(J14_1610_CAM_D5);
+	omap_cfg_reg(J19_1610_CAM_D6);
+	omap_cfg_reg(J18_1610_CAM_D7);
 
 	iotable_init(ams_delta_io_desc, ARRAY_SIZE(ams_delta_io_desc));
 
@@ -236,6 +280,7 @@ static void __init ams_delta_init(void)
 	ams_delta_latch2_write(~0, 0);
 
 	omap1_usb_init(&ams_delta_usb_config);
+	omap1_set_camera_info(&ams_delta_camera_platform_data);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
 #ifdef CONFIG_AMS_DELTA_FIQ
