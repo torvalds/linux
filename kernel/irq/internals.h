@@ -4,6 +4,8 @@
 
 extern int noirqdebug;
 
+#define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
+
 /* Set default functions for irq_chip structures: */
 extern void irq_chip_set_defaults(struct irq_chip *chip);
 

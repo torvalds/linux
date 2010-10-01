@@ -291,7 +291,15 @@ void clear_kstat_irqs(struct irq_desc *desc)
  * What should we do if we get a hw irq event on an illegal vector?
  * Each architecture has to answer this themself.
  */
-static void ack_bad(unsigned int irq)
+static void ack_bad(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_data_to_desc(data);
+
+	print_irq_desc(data->irq, desc);
+	ack_bad_irq(data->irq);
+}
+
+static void compat_ack_bad(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
@@ -302,11 +310,16 @@ static void ack_bad(unsigned int irq)
 /*
  * NOP functions
  */
-static void noop(unsigned int irq)
+static void noop(struct irq_data *data) { }
+
+static unsigned int noop_ret(struct irq_data *data)
 {
+	return 0;
 }
 
-static unsigned int noop_ret(unsigned int irq)
+static void compat_noop(unsigned int irq) { }
+
+static unsigned int compat_noop_ret(unsigned int irq)
 {
 	return 0;
 }
@@ -316,12 +329,17 @@ static unsigned int noop_ret(unsigned int irq)
  */
 struct irq_chip no_irq_chip = {
 	.name		= "none",
-	.startup	= noop_ret,
-	.shutdown	= noop,
-	.enable		= noop,
-	.disable	= noop,
-	.ack		= ack_bad,
-	.end		= noop,
+	.irq_startup	= noop_ret,
+	.irq_shutdown	= noop,
+	.irq_enable	= noop,
+	.irq_disable	= noop,
+	.irq_ack	= ack_bad,
+	.startup	= compat_noop_ret,
+	.shutdown	= compat_noop,
+	.enable		= compat_noop,
+	.disable	= compat_noop,
+	.ack		= compat_ack_bad,
+	.end		= compat_noop,
 };
 
 /*
@@ -330,14 +348,21 @@ struct irq_chip no_irq_chip = {
  */
 struct irq_chip dummy_irq_chip = {
 	.name		= "dummy",
-	.startup	= noop_ret,
-	.shutdown	= noop,
-	.enable		= noop,
-	.disable	= noop,
-	.ack		= noop,
-	.mask		= noop,
-	.unmask		= noop,
-	.end		= noop,
+	.irq_startup	= noop_ret,
+	.irq_shutdown	= noop,
+	.irq_enable	= noop,
+	.irq_disable	= noop,
+	.irq_ack	= noop,
+	.irq_mask	= noop,
+	.irq_unmask	= noop,
+	.startup	= compat_noop_ret,
+	.shutdown	= compat_noop,
+	.enable		= compat_noop,
+	.disable	= compat_noop,
+	.ack		= compat_noop,
+	.mask		= compat_noop,
+	.unmask		= compat_noop,
+	.end		= compat_noop,
 };
 
 /*
