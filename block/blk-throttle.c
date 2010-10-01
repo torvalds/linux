@@ -378,7 +378,8 @@ throtl_slice_used(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 static inline void
 throtl_trim_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 {
-	unsigned long nr_slices, bytes_trim, time_elapsed, io_trim;
+	unsigned long nr_slices, time_elapsed, io_trim;
+	u64 bytes_trim, tmp;
 
 	BUG_ON(time_before(tg->slice_end[rw], tg->slice_start[rw]));
 
@@ -396,8 +397,10 @@ throtl_trim_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 
 	if (!nr_slices)
 		return;
+	tmp = tg->bps[rw] * throtl_slice * nr_slices;
+	do_div(tmp, HZ);
+	bytes_trim = tmp;
 
-	bytes_trim = (tg->bps[rw] * throtl_slice * nr_slices)/HZ;
 	io_trim = (tg->iops[rw] * throtl_slice * nr_slices)/HZ;
 
 	if (!bytes_trim && !io_trim)
@@ -415,7 +418,7 @@ throtl_trim_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 
 	tg->slice_start[rw] += nr_slices * throtl_slice;
 
-	throtl_log_tg(td, tg, "[%c] trim slice nr=%lu bytes=%lu io=%lu"
+	throtl_log_tg(td, tg, "[%c] trim slice nr=%lu bytes=%llu io=%lu"
 			" start=%lu end=%lu jiffies=%lu",
 			rw == READ ? 'R' : 'W', nr_slices, bytes_trim, io_trim,
 			tg->slice_start[rw], tg->slice_end[rw], jiffies);
@@ -462,7 +465,7 @@ static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
 		struct bio *bio, unsigned long *wait)
 {
 	bool rw = bio_data_dir(bio);
-	u64 bytes_allowed, extra_bytes;
+	u64 bytes_allowed, extra_bytes, tmp;
 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
 
 	jiffy_elapsed = jiffy_elapsed_rnd = jiffies - tg->slice_start[rw];
@@ -473,8 +476,9 @@ static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
 
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, throtl_slice);
 
-	bytes_allowed = (tg->bps[rw] * jiffies_to_msecs(jiffy_elapsed_rnd))
-				/ MSEC_PER_SEC;
+	tmp = tg->bps[rw] * jiffies_to_msecs(jiffy_elapsed_rnd);
+	do_div(tmp, MSEC_PER_SEC);
+	bytes_allowed = tmp;
 
 	if (tg->bytes_disp[rw] + bio->bi_size <= bytes_allowed) {
 		if (wait)
