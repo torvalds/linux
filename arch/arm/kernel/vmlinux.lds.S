@@ -109,8 +109,6 @@ SECTIONS
 
 	RO_DATA(PAGE_SIZE)
 
-	_etext = .;			/* End of text and rodata section */
-
 #ifdef CONFIG_ARM_UNWIND
 	/*
 	 * Stack unwinding tables
@@ -127,6 +125,8 @@ SECTIONS
 		__stop_unwind_tab = .;
 	}
 #endif
+
+	_etext = .;			/* End of text and rodata section */
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
