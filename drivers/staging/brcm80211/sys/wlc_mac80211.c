@@ -1788,22 +1788,14 @@ void *BCMATTACHFN(wlc_attach) (void *wl, uint16 vendor, uint16 device,
 	ASSERT(sizeof(cck_phy_hdr_t) == D11_PHY_HDR_LEN);
 	ASSERT(sizeof(d11txh_t) == D11_TXH_LEN);
 	ASSERT(sizeof(d11rxhdr_t) == RXHDR_LEN);
-	ASSERT(sizeof(struct dot11_llc_snap_header) == DOT11_LLC_SNAP_HDR_LEN);
 	ASSERT(sizeof(struct dot11_header) == DOT11_A4_HDR_LEN);
 	ASSERT(sizeof(struct dot11_rts_frame) == DOT11_RTS_LEN);
-	ASSERT(sizeof(struct dot11_cts_frame) == DOT11_CTS_LEN);
-	ASSERT(sizeof(struct dot11_ack_frame) == DOT11_ACK_LEN);
-	ASSERT(sizeof(struct dot11_ps_poll_frame) == DOT11_PS_POLL_LEN);
-	ASSERT(sizeof(struct dot11_cf_end_frame) == DOT11_CS_END_LEN);
 	ASSERT(sizeof(struct dot11_management_header) == DOT11_MGMT_HDR_LEN);
-	ASSERT(sizeof(struct dot11_auth) == DOT11_AUTH_FIXED_LEN);
 	ASSERT(sizeof(struct dot11_bcn_prb) == DOT11_BCN_PRB_LEN);
 	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
-	ASSERT(sizeof(ht_add_ie_t) == HT_ADD_IE_LEN);
 	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
 	ASSERT(OFFSETOF(wl_scan_params_t, channel_list) ==
 	       WL_SCAN_PARAMS_FIXED_SIZE);
-	ASSERT(TKIP_MIC_SIZE == (2 * sizeof(uint32)));
 	ASSERT(ISALIGNED(OFFSETOF(wsec_key_t, data), sizeof(uint32)));
 	ASSERT(ISPOWEROF2(MA_WINDOW_SZ));
 
