@@ -222,8 +222,8 @@ config SONYPI_COMPAT
 	  ---help---
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
 
-config IDEAPAD_ACPI
-	tristate "Lenovo IdeaPad ACPI Laptop Extras"
+config IDEAPAD_LAPTOP
+	tristate "Lenovo IdeaPad Laptop Extras"
 	depends on ACPI
 	depends on RFKILL
 	help
