@@ -108,7 +108,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "NHM-C3",
 		.desc = "MWAIT 0x10",
 		.driver_data = (void *) 0x10,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 20,
 		.power_usage = 500,
 		.target_residency = 80,
@@ -117,7 +117,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "NHM-C6",
 		.desc = "MWAIT 0x20",
 		.driver_data = (void *) 0x20,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 350,
 		.target_residency = 800,
@@ -149,7 +149,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "ATM-C4",
 		.desc = "MWAIT 0x30",
 		.driver_data = (void *) 0x30,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 100,
 		.power_usage = 250,
 		.target_residency = 400,
@@ -159,7 +159,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "ATM-C6",
 		.desc = "MWAIT 0x40",
 		.driver_data = (void *) 0x40,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 150,
 		.target_residency = 800,
@@ -184,6 +184,16 @@ static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state)
 	cstate = (((eax) >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) + 1;
 
 	local_irq_disable();
+
+	/*
+	 * If the state flag indicates that the TLB will be flushed or if this
+	 * is the deepest c-state supported, do a voluntary leave mm to avoid
+	 * costly and mostly unnecessary wakeups for flushing the user TLB's
+	 * associated with the active mm.
+	 */
+	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED ||
+	    (&dev->states[dev->state_count - 1] == state))
+		leave_mm(cpu);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
