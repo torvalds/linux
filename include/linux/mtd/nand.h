@@ -223,6 +223,8 @@ typedef enum {
  * the OOB area.
  */
 #define NAND_USE_FLASH_BBT_NO_OOB	0x00100000
+/* Create an empty BBT with no vendor information if the BBT is available */
+#define NAND_CREATE_EMPTY_BBT		0x00200000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */

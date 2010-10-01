@@ -84,7 +84,7 @@ struct nand_bbt_descr {
 #define NAND_BBT_PERCHIP	0x00000080
 /* bbt has a version counter at offset veroffs */
 #define NAND_BBT_VERSION	0x00000100
-/* Create a bbt if none axists */
+/* Create a bbt if none exists */
 #define NAND_BBT_CREATE		0x00000200
 /* Search good / bad pattern through all pages of a block */
 #define NAND_BBT_SCANALLPAGES	0x00000400
