@@ -52,11 +52,20 @@ struct framerates {
 	int nrates;
 };
 
+/* control definition */
+struct gspca_ctrl {
+	s16 val;	/* current value */
+	s16 def;	/* default value */
+	s16 min, max;	/* minimum and maximum values */
+};
+
 /* device information - set at probe time */
 struct cam {
 	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	const struct framerates *mode_framerates; /* must have size nmode,
 						   * just like cam_mode */
+	struct gspca_ctrl *ctrls;	/* control table - size nctrls */
+					/* may be NULL */
 	u32 bulk_size;		/* buffer size when image transfer by bulk */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
 	u8 nmodes;		/* size of cam_mode */
@@ -99,6 +108,7 @@ struct ctrl {
 	struct v4l2_queryctrl qctrl;
 	int (*set)(struct gspca_dev *, __s32);
 	int (*get)(struct gspca_dev *, __s32 *);
+	cam_v_op set_control;
 };
 
 /* subdriver description */
@@ -106,7 +116,7 @@ struct sd_desc {
 /* information */
 	const char *name;	/* sub-driver name */
 /* controls */
-	const struct ctrl *ctrls;
+	const struct ctrl *ctrls;	/* static control definition */
 	int nctrls;
 /* mandatory operations */
 	cam_cf_op config;	/* called on probe */

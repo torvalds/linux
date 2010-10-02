@@ -878,6 +878,7 @@ out:
 
 static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 {
+	struct gspca_ctrl *ctrl;
 	int i;
 
 	i = gspca_dev->cam.nmodes - 1;	/* take the highest mode */
@@ -885,6 +886,16 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 	gspca_dev->width = gspca_dev->cam.cam_mode[i].width;
 	gspca_dev->height = gspca_dev->cam.cam_mode[i].height;
 	gspca_dev->pixfmt = gspca_dev->cam.cam_mode[i].pixelformat;
+
+	/* set the current control values to their default values
+	 * which may have changed in sd_init() */
+	ctrl = gspca_dev->cam.ctrls;
+	if (ctrl != NULL) {
+		for (i = 0;
+		     i < gspca_dev->sd_desc->nctrls;
+		     i++, ctrl++)
+			ctrl->val = ctrl->def;
+	}
 }
 
 static int wxh_to_mode(struct gspca_dev *gspca_dev,
@@ -1308,7 +1319,7 @@ out:
 	return ret;
 }
 
-static const struct ctrl *get_ctrl(struct gspca_dev *gspca_dev,
+static int get_ctrl(struct gspca_dev *gspca_dev,
 				   int id)
 {
 	const struct ctrl *ctrls;
@@ -1320,9 +1331,9 @@ static const struct ctrl *get_ctrl(struct gspca_dev *gspca_dev,
 		if (gspca_dev->ctrl_dis & (1 << i))
 			continue;
 		if (id == ctrls->qctrl.id)
-			return ctrls;
+			return i;
 	}
-	return NULL;
+	return -1;
 }
 
 static int vidioc_queryctrl(struct file *file, void *priv,
@@ -1330,34 +1341,40 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 	const struct ctrl *ctrls;
-	int i;
+	struct gspca_ctrl *gspca_ctrl;
+	int i, idx;
 	u32 id;
 
-	ctrls = NULL;
 	id = q_ctrl->id;
 	if (id & V4L2_CTRL_FLAG_NEXT_CTRL) {
 		id &= V4L2_CTRL_ID_MASK;
 		id++;
+		idx = -1;
 		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
 			if (gspca_dev->ctrl_dis & (1 << i))
 				continue;
 			if (gspca_dev->sd_desc->ctrls[i].qctrl.id < id)
 				continue;
-			if (ctrls && gspca_dev->sd_desc->ctrls[i].qctrl.id
-					    > ctrls->qctrl.id)
+			if (idx >= 0
+			 && gspca_dev->sd_desc->ctrls[i].qctrl.id
+					> gspca_dev->sd_desc->ctrls[idx].qctrl.id)
 				continue;
-			ctrls = &gspca_dev->sd_desc->ctrls[i];
+			idx = i;
 		}
-		if (ctrls == NULL)
-			return -EINVAL;
 	} else {
-		ctrls = get_ctrl(gspca_dev, id);
-		if (ctrls == NULL)
-			return -EINVAL;
-		i = ctrls - gspca_dev->sd_desc->ctrls;
+		idx = get_ctrl(gspca_dev, id);
 	}
-	memcpy(q_ctrl, ctrls, sizeof *q_ctrl);
-	if (gspca_dev->ctrl_inac & (1 << i))
+	if (idx < 0)
+		return -EINVAL;
+	ctrls = &gspca_dev->sd_desc->ctrls[idx];
+	memcpy(q_ctrl, &ctrls->qctrl, sizeof *q_ctrl);
+	if (gspca_dev->cam.ctrls != NULL) {
+		gspca_ctrl = &gspca_dev->cam.ctrls[idx];
+		q_ctrl->default_value = gspca_ctrl->def;
+		q_ctrl->minimum = gspca_ctrl->min;
+		q_ctrl->maximum = gspca_ctrl->max;
+	}
+	if (gspca_dev->ctrl_inac & (1 << idx))
 		q_ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 	return 0;
 }
@@ -1367,23 +1384,46 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 	const struct ctrl *ctrls;
-	int ret;
+	struct gspca_ctrl *gspca_ctrl;
+	int idx, ret;
 
-	ctrls = get_ctrl(gspca_dev, ctrl->id);
-	if (ctrls == NULL)
+	idx = get_ctrl(gspca_dev, ctrl->id);
+	if (idx < 0)
 		return -EINVAL;
-
-	if (ctrl->value < ctrls->qctrl.minimum
-	    || ctrl->value > ctrls->qctrl.maximum)
-		return -ERANGE;
+	if (gspca_dev->ctrl_inac & (1 << idx))
+		return -EINVAL;
+	ctrls = &gspca_dev->sd_desc->ctrls[idx];
+	if (gspca_dev->cam.ctrls != NULL) {
+		gspca_ctrl = &gspca_dev->cam.ctrls[idx];
+		if (ctrl->value < gspca_ctrl->min
+		    || ctrl->value > gspca_ctrl->max)
+			return -ERANGE;
+	} else {
+		gspca_ctrl = NULL;
+		if (ctrl->value < ctrls->qctrl.minimum
+		    || ctrl->value > ctrls->qctrl.maximum)
+			return -ERANGE;
+	}
 	PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
-	gspca_dev->usb_err = 0;
-	if (gspca_dev->present)
-		ret = ctrls->set(gspca_dev, ctrl->value);
-	else
+	if (!gspca_dev->present) {
 		ret = -ENODEV;
+		goto out;
+	}
+	gspca_dev->usb_err = 0;
+	if (ctrls->set != NULL) {
+		ret = ctrls->set(gspca_dev, ctrl->value);
+		goto out;
+	}
+	if (gspca_ctrl != NULL) {
+		gspca_ctrl->val = ctrl->value;
+		if (ctrls->set_control != NULL
+		 && gspca_dev->streaming)
+			ctrls->set_control(gspca_dev);
+	}
+	ret = gspca_dev->usb_err;
+out:
 	mutex_unlock(&gspca_dev->usb_lock);
 	return ret;
 }
@@ -1393,19 +1433,28 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 	const struct ctrl *ctrls;
-	int ret;
+	int idx, ret;
 
-	ctrls = get_ctrl(gspca_dev, ctrl->id);
-	if (ctrls == NULL)
+	idx = get_ctrl(gspca_dev, ctrl->id);
+	if (idx < 0)
 		return -EINVAL;
+	ctrls = &gspca_dev->sd_desc->ctrls[idx];
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
-	gspca_dev->usb_err = 0;
-	if (gspca_dev->present)
-		ret = ctrls->get(gspca_dev, &ctrl->value);
-	else
+	if (!gspca_dev->present) {
 		ret = -ENODEV;
+		goto out;
+	}
+	gspca_dev->usb_err = 0;
+	if (ctrls->get != NULL) {
+		ret = ctrls->get(gspca_dev, &ctrl->value);
+		goto out;
+	}
+	if (gspca_dev->cam.ctrls != NULL)
+		ctrl->value = gspca_dev->cam.ctrls[idx].val;
+	ret = 0;
+out:
 	mutex_unlock(&gspca_dev->usb_lock);
 	return ret;
 }
@@ -2125,6 +2174,22 @@ static struct video_device gspca_template = {
 	.release = gspca_release,
 };
 
+/* initialize the controls */
+static void ctrls_init(struct gspca_dev *gspca_dev)
+{
+	struct gspca_ctrl *ctrl;
+	int i;
+
+	for (i = 0, ctrl = gspca_dev->cam.ctrls;
+	     i < gspca_dev->sd_desc->nctrls;
+	     i++, ctrl++) {
+		ctrl->def = gspca_dev->sd_desc->ctrls[i].qctrl.default_value;
+		ctrl->val = ctrl->def;
+		ctrl->min = gspca_dev->sd_desc->ctrls[i].qctrl.minimum;
+		ctrl->max = gspca_dev->sd_desc->ctrls[i].qctrl.maximum;
+	}
+}
+
 /*
  * probe and create a new gspca device
  *
@@ -2186,6 +2251,8 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	ret = sd_desc->config(gspca_dev, id);
 	if (ret < 0)
 		goto out;
+	if (gspca_dev->cam.ctrls != NULL)
+		ctrls_init(gspca_dev);
 	ret = sd_desc->init(gspca_dev);
 	if (ret < 0)
 		goto out;
