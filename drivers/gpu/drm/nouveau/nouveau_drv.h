@@ -1473,6 +1473,7 @@ nv_match_device(struct drm_device *dev, unsigned device,
 #define NV_SW_SEMAPHORE_OFFSET                                       0x00000064
 #define NV_SW_SEMAPHORE_ACQUIRE                                      0x00000068
 #define NV_SW_SEMAPHORE_RELEASE                                      0x0000006c
+#define NV_SW_YIELD                                                  0x00000080
 #define NV_SW_DMA_VBLSEM                                             0x0000018c
 #define NV_SW_VBLSEM_OFFSET                                          0x00000400
 #define NV_SW_VBLSEM_RELEASE_VALUE                                   0x00000404

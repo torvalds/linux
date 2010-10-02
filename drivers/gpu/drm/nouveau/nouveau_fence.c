@@ -308,20 +308,53 @@ emit_semaphore(struct nouveau_channel *chan, int method,
 {
 	struct drm_nouveau_private *dev_priv = sema->dev->dev_private;
 	struct nouveau_fence *fence;
+	bool smart = (dev_priv->card_type >= NV_50);
 	int ret;
 
-	ret = RING_SPACE(chan, dev_priv->card_type >= NV_50 ? 6 : 4);
+	ret = RING_SPACE(chan, smart ? 8 : 4);
 	if (ret)
 		return ret;
 
-	if (dev_priv->card_type >= NV_50) {
+	if (smart) {
 		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
 		OUT_RING(chan, NvSema);
 	}
 	BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 1);
 	OUT_RING(chan, sema->mem->start);
+
+	if (smart && method == NV_SW_SEMAPHORE_ACQUIRE) {
+		/*
+		 * NV50 tries to be too smart and context-switch
+		 * between semaphores instead of doing a "first come,
+		 * first served" strategy like previous cards
+		 * do.
+		 *
+		 * That's bad because the ACQUIRE latency can get as
+		 * large as the PFIFO context time slice in the
+		 * typical DRI2 case where you have several
+		 * outstanding semaphores at the same moment.
+		 *
+		 * If we're going to ACQUIRE, force the card to
+		 * context switch before, just in case the matching
+		 * RELEASE is already scheduled to be executed in
+		 * another channel.
+		 */
+		BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
+		OUT_RING(chan, 0);
+	}
+
 	BEGIN_RING(chan, NvSubSw, method, 1);
 	OUT_RING(chan, 1);
+
+	if (smart && method == NV_SW_SEMAPHORE_RELEASE) {
+		/*
+		 * Force the card to context switch, there may be
+		 * another channel waiting for the semaphore we just
+		 * released.
+		 */
+		BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
+		OUT_RING(chan, 0);
+	}
 
 	/* Delay semaphore destruction until its work is done */
 	ret = nouveau_fence_new(chan, &fence, true);
@@ -355,14 +388,13 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 		return nouveau_fence_wait(fence, NULL, false, false);
 	}
 
-	/* Signal the semaphore from chan */
-	ret = emit_semaphore(chan, NV_SW_SEMAPHORE_RELEASE, sema);
+	/* Make wchan wait until it gets signalled */
+	ret = emit_semaphore(wchan, NV_SW_SEMAPHORE_ACQUIRE, sema);
 	if (ret)
 		goto out;
 
-	/* Make wchan wait until it gets signalled */
-	ret = emit_semaphore(wchan, NV_SW_SEMAPHORE_ACQUIRE, sema);
-
+	/* Signal the semaphore from chan */
+	ret = emit_semaphore(chan, NV_SW_SEMAPHORE_RELEASE, sema);
 out:
 	kref_put(&sema->ref, free_semaphore);
 	return ret;
