@@ -634,9 +634,11 @@ static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
 void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u16 mcs, real_mcs;
+	int aggr, ampdu;
 	__le32 *txwi;
 
 	/*
@@ -645,8 +647,33 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
 	txdesc.flags = 0;
 	txwi = rt2800_drv_get_txwi(entry);
 	rt2x00_desc_read(txwi, 0, &word);
+
 	mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
+	ampdu = rt2x00_get_field32(word, TXWI_W0_AMPDU);
+
 	real_mcs = rt2x00_get_field32(status, TX_STA_FIFO_MCS);
+	aggr = rt2x00_get_field32(status, TX_STA_FIFO_TX_AGGRE);
+
+	/*
+	 * If a frame was meant to be sent as a single non-aggregated MPDU
+	 * but ended up in an aggregate the used tx rate doesn't correlate
+	 * with the one specified in the TXWI as the whole aggregate is sent
+	 * with the same rate.
+	 *
+	 * For example: two frames are sent to rt2x00, the first one sets
+	 * AMPDU=1 and requests MCS7 whereas the second frame sets AMDPU=0
+	 * and requests MCS15. If the hw aggregates both frames into one
+	 * AMDPU the tx status for both frames will contain MCS7 although
+	 * the frame was sent successfully.
+	 *
+	 * Hence, replace the requested rate with the real tx rate to not
+	 * confuse the rate control algortihm by providing clearly wrong
+	 * data.
+	 */
+	if (aggr == 1 && ampdu == 0 && real_mcs != mcs) {
+		skbdesc->tx_rate_idx = real_mcs;
+		mcs = real_mcs;
+	}
 
 	/*
 	 * Ralink has a retry mechanism using a global fallback
