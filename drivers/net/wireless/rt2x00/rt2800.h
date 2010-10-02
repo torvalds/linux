@@ -710,8 +710,14 @@
 
 /*
  * TBTT_SYNC_CFG:
+ * BCN_AIFSN: Beacon AIFSN after TBTT interrupt in slots
+ * BCN_CWMIN: Beacon CWMin after TBTT interrupt in slots
  */
 #define TBTT_SYNC_CFG			0x1118
+#define TBTT_SYNC_CFG_TBTT_ADJUST	FIELD32(0x000000ff)
+#define TBTT_SYNC_CFG_BCN_EXP_WIN	FIELD32(0x0000ff00)
+#define TBTT_SYNC_CFG_BCN_AIFSN		FIELD32(0x000f0000)
+#define TBTT_SYNC_CFG_BCN_CWMIN		FIELD32(0x00f00000)
 
 /*
  * TSF_TIMER_DW0: Local lsb TSF timer, read-only
