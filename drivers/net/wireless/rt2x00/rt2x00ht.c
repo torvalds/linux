@@ -60,9 +60,10 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 		 * when using more then one tx stream (>MCS7).
 		 */
 		if (tx_info->control.sta && txdesc->mcs > 7 &&
-		    (tx_info->control.sta->ht_cap.cap &
-		     (WLAN_HT_CAP_SM_PS_DYNAMIC <<
-		      IEEE80211_HT_CAP_SM_PS_SHIFT)))
+		    ((tx_info->control.sta->ht_cap.cap &
+		      IEEE80211_HT_CAP_SM_PS) >>
+		     IEEE80211_HT_CAP_SM_PS_SHIFT) ==
+		    WLAN_HT_CAP_SM_PS_DYNAMIC)
 			__set_bit(ENTRY_TXD_HT_MIMO_PS, &txdesc->flags);
 	} else {
 		txdesc->mcs = rt2x00_get_rate_mcs(hwrate->mcs);
