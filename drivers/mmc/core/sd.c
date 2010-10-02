@@ -722,12 +722,16 @@ static int mmc_sd_resume(struct mmc_host *host)
 	return err;
 }
 
-static void mmc_sd_power_restore(struct mmc_host *host)
+static int mmc_sd_power_restore(struct mmc_host *host)
 {
+	int ret;
+
 	host->card->state &= ~MMC_STATE_HIGHSPEED;
 	mmc_claim_host(host);
-	mmc_sd_init_card(host, host->ocr, host->card);
+	ret = mmc_sd_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
+
+	return ret;
 }
 
 static const struct mmc_bus_ops mmc_sd_ops = {
