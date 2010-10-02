@@ -1377,6 +1377,17 @@ int reserve_irq_vector(unsigned int irq)
 	return ret;
 }
 
+void reserve_intc_vectors(struct intc_vect *vectors, unsigned int nr_vecs)
+{
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	for (i = 0; i < nr_vecs; i++)
+		__set_bit(evt2irq(vectors[i].vect), intc_irq_map);
+	spin_unlock_irqrestore(&vector_lock, flags);
+}
+
 void reserve_irq_legacy(void)
 {
 	unsigned long flags;

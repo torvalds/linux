@@ -129,8 +129,22 @@ static struct platform_device *x3proto_devices[] __initdata = {
 	&m66592_usb_peripheral_device,
 };
 
+static void __init x3proto_init_irq(void)
+{
+	plat_irq_setup_pins(IRQ_MODE_IRL3210);
+
+	/* Set ICR0.LVLMODE */
+	__raw_writel(__raw_readl(0xfe410000) | (1 << 21), 0xfe410000);
+}
+
 static int __init x3proto_devices_setup(void)
 {
+	/*
+	 * IRLs are only needed for ILSEL mappings, so flip over the INTC
+	 * pins at a later point to enable the GPIOs to settle.
+	 */
+	x3proto_init_irq();
+
 	r8a66597_usb_host_resources[1].start =
 		r8a66597_usb_host_resources[1].end = ilsel_enable(ILSEL_USBH_I);
 
@@ -145,14 +159,6 @@ static int __init x3proto_devices_setup(void)
 }
 device_initcall(x3proto_devices_setup);
 
-static void __init x3proto_init_irq(void)
-{
-	plat_irq_setup_pins(IRQ_MODE_IRL3210);
-
-	/* Set ICR0.LVLMODE */
-	__raw_writel(__raw_readl(0xfe410000) | (1 << 21), 0xfe410000);
-}
-
 static void __init x3proto_setup(char **cmdline_p)
 {
 	register_smp_ops(&shx3_smp_ops);
@@ -161,5 +167,4 @@ static void __init x3proto_setup(char **cmdline_p)
 static struct sh_machine_vector mv_x3proto __initmv = {
 	.mv_name		= "x3proto",
 	.mv_setup		= x3proto_setup,
-	.mv_init_irq		= x3proto_init_irq,
 };

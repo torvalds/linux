@@ -478,6 +478,9 @@ void __init plat_irq_setup_pins(int mode)
 
 void __init plat_irq_setup(void)
 {
+	reserve_intc_vectors(vectors_irq, ARRAY_SIZE(vectors_irq));
+	reserve_intc_vectors(vectors_irl, ARRAY_SIZE(vectors_irl));
+
 	register_intc_controller(&intc_desc);
 }
 

@@ -106,6 +106,7 @@ struct intc_desc symbol __initdata = {					\
 }
 
 int __init register_intc_controller(struct intc_desc *desc);
+void reserve_intc_vectors(struct intc_vect *vectors, unsigned int nr_vecs);
 int intc_set_priority(unsigned int irq, unsigned int prio);
 
 #ifdef CONFIG_INTC_USERIMASK
