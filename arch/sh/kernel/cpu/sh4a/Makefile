@@ -40,6 +40,7 @@ pinmux-$(CONFIG_CPU_SUBTYPE_SH7724)	:= pinmux-sh7724.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7757)	:= pinmux-sh7757.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7785)	:= pinmux-sh7785.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7786)	:= pinmux-sh7786.o
+pinmux-$(CONFIG_CPU_SUBTYPE_SHX3)	:= pinmux-shx3.o
 
 obj-y					+= $(clock-y)
 obj-$(CONFIG_SMP)			+= $(smp-y)
