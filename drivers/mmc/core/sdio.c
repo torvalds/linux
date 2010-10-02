@@ -10,6 +10,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -706,6 +707,18 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	if (err)
 		goto err;
 	card = host->card;
+
+	/*
+	 * Let runtime PM core know our card is active
+	 */
+	err = pm_runtime_set_active(&card->dev);
+	if (err)
+		goto remove;
+
+	/*
+	 * Enable runtime PM for this card
+	 */
+	pm_runtime_enable(&card->dev);
 
 	/*
 	 * The number of functions on the card is encoded inside
