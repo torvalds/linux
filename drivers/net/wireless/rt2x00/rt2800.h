@@ -747,14 +747,19 @@
 #define INT_TIMER_EN_GP_TIMER		FIELD32(0x00000002)
 
 /*
- * CH_IDLE_STA: channel idle time
+ * CH_IDLE_STA: channel idle time (in us)
  */
 #define CH_IDLE_STA			0x1130
 
 /*
- * CH_BUSY_STA: channel busy time
+ * CH_BUSY_STA: channel busy time on primary channel (in us)
  */
 #define CH_BUSY_STA			0x1134
+
+/*
+ * CH_BUSY_STA_SEC: channel busy time on secondary channel in HT40 mode (in us)
+ */
+#define CH_BUSY_STA_SEC			0x1138
 
 /*
  * MAC_STATUS_CFG:
