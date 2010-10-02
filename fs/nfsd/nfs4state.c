@@ -1487,6 +1487,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	struct nfs4_client *conf, *unconf;
 	struct nfsd4_session *new;
 	struct nfsd4_clid_slot *cs_slot = NULL;
+	bool confirm_me = false;
 	int status = 0;
 
 	nfs4_lock_state();
@@ -1509,7 +1510,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 				cs_slot->sl_seqid, cr_ses->seqid);
 			goto out;
 		}
-		cs_slot->sl_seqid++;
 	} else if (unconf) {
 		if (!same_creds(&unconf->cl_cred, &rqstp->rq_cred) ||
 		    !rpc_cmp_addr(sa, (struct sockaddr *) &unconf->cl_addr)) {
@@ -1525,8 +1525,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			goto out;
 		}
 
-		cs_slot->sl_seqid++; /* from 0 to 1 */
-		move_to_confirmed(unconf);
+		confirm_me = true;
 		conf = unconf;
 	} else {
 		status = nfserr_stale_clientid;
@@ -1546,10 +1545,13 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	status = nfs_ok;
 	memcpy(cr_ses->sessionid.data, new->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
+	cs_slot->sl_seqid++;
 	cr_ses->seqid = cs_slot->sl_seqid;
 
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
+	if (confirm_me)
+		move_to_confirmed(conf);
 out:
 	nfs4_unlock_state();
 	dprintk("%s returns %d\n", __func__, ntohl(status));
