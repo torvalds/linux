@@ -89,6 +89,9 @@ static struct pad_desc eukrea_mbimxsd_pads[] = {
 	MX25_PAD_KPP_COL2__AUD5_TXC,
 	MX25_PAD_KPP_COL1__AUD5_RXD,
 	MX25_PAD_KPP_COL0__AUD5_TXD,
+	/* CAN */
+	MX25_PAD_GPIO_D__CAN2_RX,
+	MX25_PAD_GPIO_C__CAN2_TX,
 };
 
 #define GPIO_LED1	83
@@ -240,6 +243,9 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 	imx25_add_imx_uart1(&uart_pdata);
 	mxc_register_device(&mx25_fb_device, &eukrea_mximxsd_fb_pdata);
 	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
+
+	imx25_add_flexcan1(NULL);
+	imx25_add_esdhc0(NULL);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);
