@@ -4842,49 +4842,56 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 		args->bc_attrs.max_reqs);
 }
 
-static int _verify_channel_attr(char *chan, char *attr_name, u32 sent, u32 rcvd)
+static int nfs4_verify_fore_channel_attrs(struct nfs41_create_session_args *args, struct nfs4_session *session)
 {
-	if (rcvd <= sent)
-		return 0;
-	printk(KERN_WARNING "%s: Session INVALID: %s channel %s increased. "
-		"sent=%u rcvd=%u\n", __func__, chan, attr_name, sent, rcvd);
-	return -EINVAL;
+	struct nfs4_channel_attrs *sent = &args->fc_attrs;
+	struct nfs4_channel_attrs *rcvd = &session->fc_attrs;
+
+	if (rcvd->headerpadsz > sent->headerpadsz)
+		return -EINVAL;
+	if (rcvd->max_resp_sz > sent->max_resp_sz)
+		return -EINVAL;
+	/*
+	 * Our requested max_ops is the minimum we need; we're not
+	 * prepared to break up compounds into smaller pieces than that.
+	 * So, no point even trying to continue if the server won't
+	 * cooperate:
+	 */
+	if (rcvd->max_ops < sent->max_ops)
+		return -EINVAL;
+	if (rcvd->max_reqs == 0)
+		return -EINVAL;
+	return 0;
 }
 
-#define _verify_fore_channel_attr(_name_) \
-	_verify_channel_attr("fore", #_name_, \
-			     args->fc_attrs._name_, \
-			     session->fc_attrs._name_)
+static int nfs4_verify_back_channel_attrs(struct nfs41_create_session_args *args, struct nfs4_session *session)
+{
+	struct nfs4_channel_attrs *sent = &args->bc_attrs;
+	struct nfs4_channel_attrs *rcvd = &session->bc_attrs;
 
-#define _verify_back_channel_attr(_name_) \
-	_verify_channel_attr("back", #_name_, \
-			     args->bc_attrs._name_, \
-			     session->bc_attrs._name_)
+	if (rcvd->max_rqst_sz > sent->max_rqst_sz)
+		return -EINVAL;
+	if (rcvd->max_resp_sz < sent->max_resp_sz)
+		return -EINVAL;
+	if (rcvd->max_resp_sz_cached > sent->max_resp_sz_cached)
+		return -EINVAL;
+	/* These would render the backchannel useless: */
+	if (rcvd->max_ops  == 0)
+		return -EINVAL;
+	if (rcvd->max_reqs == 0)
+		return -EINVAL;
+	return 0;
+}
 
-/*
- * The server is not allowed to increase the fore channel header pad size,
- * maximum response size, or maximum number of operations.
- *
- * The back channel attributes are only negotiatied down: We send what the
- * (back channel) server insists upon.
- */
 static int nfs4_verify_channel_attrs(struct nfs41_create_session_args *args,
 				     struct nfs4_session *session)
 {
-	int ret = 0;
+	int ret;
 
-	ret |= _verify_fore_channel_attr(headerpadsz);
-	ret |= _verify_fore_channel_attr(max_resp_sz);
-	ret |= _verify_fore_channel_attr(max_ops);
-
-	ret |= _verify_back_channel_attr(headerpadsz);
-	ret |= _verify_back_channel_attr(max_rqst_sz);
-	ret |= _verify_back_channel_attr(max_resp_sz);
-	ret |= _verify_back_channel_attr(max_resp_sz_cached);
-	ret |= _verify_back_channel_attr(max_ops);
-	ret |= _verify_back_channel_attr(max_reqs);
-
-	return ret;
+	ret = nfs4_verify_fore_channel_attrs(args, session);
+	if (ret)
+		return ret;
+	return nfs4_verify_back_channel_attrs(args, session);
 }
 
 static int _nfs4_proc_create_session(struct nfs_client *clp)
