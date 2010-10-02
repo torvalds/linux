@@ -3046,7 +3046,11 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 	if (STALE_STATEID(stateid)) 
 		goto out;
 
-	status = nfserr_bad_stateid;
+	/*
+	 * We assume that any stateid that has the current boot time,
+	 * but that we can't find, is expired:
+	 */
+	status = nfserr_expired;
 	if (is_delegation_stateid(stateid)) {
 		dp = find_delegation_stateid(ino, stateid);
 		if (!dp)
@@ -3066,6 +3070,7 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		stp = find_stateid(stateid, flags);
 		if (!stp)
 			goto out;
+		status = nfserr_bad_stateid;
 		if (nfs4_check_fh(current_fh, stp))
 			goto out;
 		if (!stp->st_stateowner->so_confirmed)
@@ -3140,8 +3145,9 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 		 * a replayed close:
 		 */
 		sop = search_close_lru(stateid->si_stateownerid, flags);
+		/* It's not stale; let's assume it's expired: */
 		if (sop == NULL)
-			return nfserr_bad_stateid;
+			return nfserr_expired;
 		*sopp = sop;
 		goto check_replay;
 	}
@@ -3406,6 +3412,7 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	status = nfserr_bad_stateid;
 	if (!is_delegation_stateid(stateid))
 		goto out;
+	status = nfserr_expired;
 	dp = find_delegation_stateid(inode, stateid);
 	if (!dp)
 		goto out;
