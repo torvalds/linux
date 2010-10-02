@@ -3152,7 +3152,7 @@ deinit_card(struct idt77252_dev *card)
 }
 
 
-static int __devinit
+static void __devinit
 init_sram(struct idt77252_dev *card)
 {
 	int i;
@@ -3298,7 +3298,6 @@ init_sram(struct idt77252_dev *card)
 	       SAR_REG_RXFD);
 
 	IPRINTK("%s: SRAM initialization complete.\n", card->name);
-	return 0;
 }
 
 static int __devinit
@@ -3410,8 +3409,7 @@ init_card(struct atm_dev *dev)
 
 	writel(readl(SAR_REG_CFG) | conf, SAR_REG_CFG);
 
-	if (init_sram(card) < 0)
-		return -1;
+	init_sram(card);
 
 /********************************************************************/
 /*  A L L O C   R A M   A N D   S E T   V A R I O U S   T H I N G S */
