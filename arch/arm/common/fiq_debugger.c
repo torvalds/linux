@@ -44,6 +44,10 @@
 #include "fiq_debugger_ringbuf.h"
 
 #define DEBUG_MAX 64
+#define MAX_UNHANDLED_FIQ_COUNT 1000000
+
+#define THREAD_INFO(sp) ((struct thread_info *) \
+		((unsigned long)(sp) & ~(THREAD_SIZE - 1)))
 
 struct fiq_debugger_state {
 	struct fiq_glue_handler handler;
@@ -70,6 +74,9 @@ struct fiq_debugger_state {
 	bool uart_clk_enabled;
 	struct wake_lock debugger_wake_lock;
 	bool console_enable;
+	int current_cpu;
+	atomic_t unhandled_fiq_count;
+	bool in_fiq;
 
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 	struct console console;
@@ -388,8 +395,7 @@ void dump_stacktrace(struct fiq_debugger_state *state,
 		struct pt_regs * const regs, unsigned int depth, void *ssp)
 {
 	struct frame_tail *tail;
-	struct thread_info *real_thread_info = (struct thread_info *)
-				((unsigned long)ssp & ~(THREAD_SIZE - 1));
+	struct thread_info *real_thread_info = THREAD_INFO(ssp);
 	struct stacktrace_state sts;
 
 	sts.depth = depth;
@@ -449,6 +455,15 @@ static void debug_exec(struct fiq_debugger_state *state,
 	} else if (!strcmp(cmd, "console")) {
 		state->console_enable = true;
 		debug_printf(state, "console mode\n");
+	} else if (!strcmp(cmd, "cpu")) {
+		debug_printf(state, "cpu %d\n", state->current_cpu);
+	} else if (!strncmp(cmd, "cpu ", 4)) {
+		unsigned long cpu = 0;
+		if (strict_strtoul(cmd + 4, 10, &cpu) == 0)
+			state->current_cpu = cpu;
+		else
+			debug_printf(state, "invalid cpu\n");
+		debug_printf(state, "cpu %d\n", state->current_cpu);
 	} else {
 		if (state->debug_busy) {
 			debug_printf(state,
@@ -552,6 +567,26 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 	int c;
 	static int last_c;
 	int count = 0;
+	unsigned int this_cpu = THREAD_INFO(svc_sp)->cpu;
+
+	if (this_cpu != state->current_cpu) {
+		if (state->in_fiq)
+			return;
+
+		if (atomic_inc_return(&state->unhandled_fiq_count) !=
+					MAX_UNHANDLED_FIQ_COUNT)
+			return;
+
+		debug_printf(state, "fiq_debugger: cpu %d not responding, "
+			"reverting to cpu %d\n", state->current_cpu,
+			this_cpu);
+
+		atomic_set(&state->unhandled_fiq_count, 0);
+		state->current_cpu = this_cpu;
+		return;
+	}
+
+	state->in_fiq = true;
 
 	while ((c = debug_getc(state)) != FIQ_DEBUGGER_NO_CHAR) {
 		count++;
@@ -606,6 +641,9 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 	/* poke sleep timer if necessary */
 	if (state->debug_enable && !state->no_sleep)
 		debug_force_irq(state);
+
+	atomic_set(&state->unhandled_fiq_count, 0);
+	state->in_fiq = false;
 }
 
 static void debug_resume(struct fiq_glue_handler *h)
