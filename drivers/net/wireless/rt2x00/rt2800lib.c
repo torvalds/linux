@@ -1031,8 +1031,12 @@ int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 		 * 1 pairwise key is possible per AID, this means that the AID
 		 * equals our hw_key_idx. Make sure the WCID starts _after_ the
 		 * last possible shared key entry.
+		 *
+		 * Since parts of the pairwise key table might be shared with
+		 * the beacon frame buffers 6 & 7 we should only write into the
+		 * first 222 entries.
 		 */
-		if (crypto->aid > (256 - 32))
+		if (crypto->aid > (222 - 32))
 			return -ENOSPC;
 
 		key->hw_key_idx = 32 + crypto->aid;

@@ -1435,6 +1435,24 @@
 
 /*
  * Security key table memory.
+ *
+ * The pairwise key table shares some memory with the beacon frame
+ * buffers 6 and 7. That basically means that when beacon 6 & 7
+ * are used we should only use the reduced pairwise key table which
+ * has a maximum of 222 entries.
+ *
+ * ---------------------------------------------
+ * |0x4000 | Pairwise Key   | Reduced Pairwise |
+ * |       | Table          | Key Table        |
+ * |       | Size: 256 * 32 | Size: 222 * 32   |
+ * |0x5BC0 |                |-------------------
+ * |       |                | Beacon 6         |
+ * |0x5DC0 |                |-------------------
+ * |       |                | Beacon 7         |
+ * |0x5FC0 |                |-------------------
+ * |0x5FFF |                |
+ * --------------------------
+ *
  * MAC_WCID_BASE: 8-bytes (use only 6 bytes) * 256 entry
  * PAIRWISE_KEY_TABLE_BASE: 32-byte * 256 entry
  * MAC_IVEIV_TABLE_BASE: 8-byte * 256-entry
@@ -1584,7 +1602,8 @@ struct mac_iveiv_entry {
  * 2. Extract memory from FCE table for BCN 4~5
  * 3. Extract memory from Pair-wise key table for BCN 6~7
  *    It occupied those memory of wcid 238~253 for BCN 6
- *    and wcid 222~237 for BCN 7
+ *    and wcid 222~237 for BCN 7 (see Security key table memory
+ *    for more info).
  *
  * IMPORTANT NOTE: Not sure why legacy driver does this,
  * but HW_BEACON_BASE7 is 0x0200 bytes below HW_BEACON_BASE6.
