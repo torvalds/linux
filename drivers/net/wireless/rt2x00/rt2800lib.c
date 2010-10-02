@@ -630,15 +630,63 @@ static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	return true;
 }
 
+void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct txdone_entry_desc txdesc;
+	u32 word;
+	u16 mcs, real_mcs;
+	__le32 *txwi;
+
+	/*
+	 * Obtain the status about this packet.
+	 */
+	txdesc.flags = 0;
+	txwi = rt2800_drv_get_txwi(entry);
+	rt2x00_desc_read(txwi, 0, &word);
+	mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
+	real_mcs = rt2x00_get_field32(status, TX_STA_FIFO_MCS);
+
+	/*
+	 * Ralink has a retry mechanism using a global fallback
+	 * table. We setup this fallback table to try the immediate
+	 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
+	 * always contains the MCS used for the last transmission, be
+	 * it successful or not.
+	 */
+	if (rt2x00_get_field32(status, TX_STA_FIFO_TX_SUCCESS)) {
+		/*
+		 * Transmission succeeded. The number of retries is
+		 * mcs - real_mcs
+		 */
+		__set_bit(TXDONE_SUCCESS, &txdesc.flags);
+		txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
+	} else {
+		/*
+		 * Transmission failed. The number of retries is
+		 * always 7 in this case (for a total number of 8
+		 * frames sent).
+		 */
+		__set_bit(TXDONE_FAILURE, &txdesc.flags);
+		txdesc.retry = rt2x00dev->long_retry;
+	}
+
+	/*
+	 * the frame was retried at least once
+	 * -> hw used fallback rates
+	 */
+	if (txdesc.retry)
+		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
+
+	rt2x00lib_txdone(entry, &txdesc);
+}
+EXPORT_SYMBOL_GPL(rt2800_txdone_entry);
+
 void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
-	__le32 *txwi;
-	struct txdone_entry_desc txdesc;
-	u32 word;
 	u32 reg;
-	u16 mcs, real_mcs;
 	u8 pid;
 	int i;
 
@@ -673,7 +721,6 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		 * order. We first check that the queue is not empty.
 		 */
 		entry = NULL;
-		txwi = NULL;
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 			if (rt2800_txdone_entry_check(entry, reg))
@@ -683,48 +730,7 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		if (!entry || rt2x00queue_empty(queue))
 			break;
 
-
-		/*
-		 * Obtain the status about this packet.
-		 */
-		txdesc.flags = 0;
-		txwi = rt2800_drv_get_txwi(entry);
-		rt2x00_desc_read(txwi, 0, &word);
-		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
-		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
-
-		/*
-		 * Ralink has a retry mechanism using a global fallback
-		 * table. We setup this fallback table to try the immediate
-		 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
-		 * always contains the MCS used for the last transmission, be
-		 * it successful or not.
-		 */
-		if (rt2x00_get_field32(reg, TX_STA_FIFO_TX_SUCCESS)) {
-			/*
-			 * Transmission succeeded. The number of retries is
-			 * mcs - real_mcs
-			 */
-			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
-			txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
-		} else {
-			/*
-			 * Transmission failed. The number of retries is
-			 * always 7 in this case (for a total number of 8
-			 * frames sent).
-			 */
-			__set_bit(TXDONE_FAILURE, &txdesc.flags);
-			txdesc.retry = rt2x00dev->long_retry;
-		}
-
-		/*
-		 * the frame was retried at least once
-		 * -> hw used fallback rates
-		 */
-		if (txdesc.retry)
-			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
-
-		rt2x00lib_txdone(entry, &txdesc);
+		rt2800_txdone_entry(entry, reg);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone);
