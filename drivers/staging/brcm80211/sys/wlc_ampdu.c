@@ -22,16 +22,13 @@
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmendian.h>
-#include <proto/802.11.h>
 #include <wlioctl.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
-#include <wlc_bsscfg.h>
 #include <wlc_mac80211.h>
 #include <wlc_phy_hal.h>
 #include <wlc_antsel.h>

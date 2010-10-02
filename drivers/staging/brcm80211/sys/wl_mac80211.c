@@ -19,42 +19,22 @@
 #include <typedefs.h>
 #include <linuxver.h>
 #include <osl.h>
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/delay.h>
 #include <linux/string.h>
-#include <linux/ethtool.h>
-#include <linux/completion.h>
 #include <linux/pci_ids.h>
 #define WLC_MAXBSSCFG		1	/* single BSS configs */
 
-#include <asm/system.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/pgtable.h>
-#include <asm/uaccess.h>
-#include <asm/unaligned.h>
 #include <wlc_cfg.h>
 #include <net/mac80211.h>
 #include <epivers.h>
 #ifndef WLC_HIGH_ONLY
 #include <phy_version.h>
 #endif
-#include <bcmendian.h>
 #include <bcmutils.h>
 #include <pcicfg.h>
 #include <wlioctl.h>
 #include <wlc_key.h>
-#include <proto/802.1d.h>	/* NUMPRIO & BE */
-#include <linux/proc_fs.h>
-#include <linux/vmalloc.h>
 #include <wlc_channel.h>
 #include <wlc_pub.h>
 #include <wlc_scb.h>

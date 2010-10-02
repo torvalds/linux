@@ -25,17 +25,12 @@
 #include <bcmwifi.h>
 #include <siutils.h>
 #include <bcmendian.h>
-#include <proto/802.1d.h>
-#include <proto/802.11.h>
 #include <proto/wpa.h>
-#include <hndsoc.h>
-#include <sbchipc.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>
 #include <wlioctl.h>
 #include <epivers.h>
 #include <bcmwpa.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <hndpmu.h>

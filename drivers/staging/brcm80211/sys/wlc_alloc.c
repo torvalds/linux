@@ -16,22 +16,15 @@
 
 #include <wlc_cfg.h>
 #include <typedefs.h>
-#include <bcmdefs.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linuxver.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <proto/802.11.h>
-#include <proto/wpa.h>
 #include <wlioctl.h>
-#include <bcmwpa.h>
-#include <d11.h>
-#include <wlc_rate.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
-#include <wlc_bsscfg.h>
 #include <wlc_mac80211.h>
 #include <wlc_alloc.h>
 

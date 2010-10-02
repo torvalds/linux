@@ -19,24 +19,18 @@
 #ifdef WLANTSEL
 
 #include <typedefs.h>
-#include <qmath.h>
 #include <linux/kernel.h>
 #include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <wlioctl.h>
-#include <wlc_phy_radio.h>
-#include <bitfuncs.h>
 
-#include <proto/802.11.h>
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_key.h>
 #include <wlc_pub.h>
-#include <wlc_bsscfg.h>
 #include <wl_dbg.h>
 #include <wlc_mac80211.h>
 #include <wlc_bmac.h>

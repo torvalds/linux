@@ -19,9 +19,7 @@
 #include <linuxver.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <wlioctl.h>
-#include <wl_dbg.h>
 #include <wlc_cfg.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
