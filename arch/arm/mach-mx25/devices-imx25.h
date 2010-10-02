@@ -44,3 +44,8 @@ extern const struct imx_spi_imx_data imx25_spi_imx_data[] __initconst;
 #define imx25_add_spi_imx0(pdata)	imx25_add_spi_imx(0, pdata)
 #define imx25_add_spi_imx1(pdata)	imx25_add_spi_imx(1, pdata)
 #define imx25_add_spi_imx2(pdata)	imx25_add_spi_imx(2, pdata)
+
+#define imx25_add_esdhc0(pdata)	\
+	imx_add_esdhc(0, MX25_ESDHC1_BASE_ADDR, SZ_16K, MX25_INT_MMC_SDHC1, pdata)
+#define imx25_add_esdhc1(pdata)	\
+	imx_add_esdhc(1, MX25_ESDHC2_BASE_ADDR, SZ_16K, MX25_INT_MMC_SDHC2, pdata)
