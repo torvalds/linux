@@ -483,7 +483,8 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 			   txdesc->key_idx : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
 			   txdesc->length);
-	rt2x00_set_field32(&word, TXWI_W1_PACKETID, txdesc->qid + 1);
+	rt2x00_set_field32(&word, TXWI_W1_PACKETID_QUEUE, txdesc->qid);
+	rt2x00_set_field32(&word, TXWI_W1_PACKETID_ENTRY, (entry->entry_idx % 3) + 1);
 	rt2x00_desc_write(txwi, 1, word);
 
 	/*
@@ -708,7 +709,7 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		 * Skip this entry when it contains an invalid
 		 * queue identication number.
 		 */
-		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE) - 1;
+		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
 		if (pid >= QID_RX)
 			continue;
 

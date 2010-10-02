@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
 	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
@@ -1353,6 +1354,9 @@
  * PID_TYPE: The PID latched from the PID field in the TXWI, can be used
  *           to match a frame with its tx result (even though the PID is
  *           only 4 bits wide).
+ * PID_QUEUE: Part of PID_TYPE, this is the queue index number (0-3)
+ * PID_ENTRY: Part of PID_TYPE, this is the queue entry index number (1-3)
+ *            This identification number is calculated by ((idx % 3) + 1).
  * TX_SUCCESS: Indicates tx success (1) or failure (0)
  * TX_AGGRE: Indicates if the frame was part of an aggregate (1) or not (0)
  * TX_ACK_REQUIRED: Indicates if the frame needed to get ack'ed (1) or not (0)
@@ -1364,6 +1368,8 @@
 #define TX_STA_FIFO			0x1718
 #define TX_STA_FIFO_VALID		FIELD32(0x00000001)
 #define TX_STA_FIFO_PID_TYPE		FIELD32(0x0000001e)
+#define TX_STA_FIFO_PID_QUEUE		FIELD32(0x00000006)
+#define TX_STA_FIFO_PID_ENTRY		FIELD32(0x00000018)
 #define TX_STA_FIFO_TX_SUCCESS		FIELD32(0x00000020)
 #define TX_STA_FIFO_TX_AGGRE		FIELD32(0x00000040)
 #define TX_STA_FIFO_TX_ACK_REQUIRED	FIELD32(0x00000080)
@@ -2024,6 +2030,10 @@ struct mac_iveiv_entry {
  *           frame was processed. If multiple frames are aggregated together
  *           (AMPDU==1) the reported tx status will always contain the packet
  *           id of the first frame. 0: Don't report tx status for this frame.
+ * PACKETID_QUEUE: Part of PACKETID, This is the queue index (0-3)
+ * PACKETID_ENTRY: Part of PACKETID, THis is the queue entry index (1-3)
+ *                 This identification number is calculated by ((idx % 3) + 1).
+ *		   The (+1) is required to prevent PACKETID to become 0.
  */
 #define TXWI_W1_ACK			FIELD32(0x00000001)
 #define TXWI_W1_NSEQ			FIELD32(0x00000002)
@@ -2031,6 +2041,8 @@ struct mac_iveiv_entry {
 #define TXWI_W1_WIRELESS_CLI_ID		FIELD32(0x0000ff00)
 #define TXWI_W1_MPDU_TOTAL_BYTE_COUNT	FIELD32(0x0fff0000)
 #define TXWI_W1_PACKETID		FIELD32(0xf0000000)
+#define TXWI_W1_PACKETID_QUEUE		FIELD32(0x30000000)
+#define TXWI_W1_PACKETID_ENTRY		FIELD32(0xc0000000)
 
 /*
  * Word2
