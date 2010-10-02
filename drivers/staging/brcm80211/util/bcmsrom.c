@@ -18,6 +18,8 @@
 #include <bcmdefs.h>
 #include <osl.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
+#include <linuxver.h>
 #include <stdarg.h>
 #include <bcmutils.h>
 #include <hndsoc.h>

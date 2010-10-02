@@ -15,6 +15,10 @@
  */
 
 #include <wlc_cfg.h>
+#include <typedefs.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linuxver.h>
 #include <osl.h>
 #include <siutils.h>
 #include <sbchipc.h>

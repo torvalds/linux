@@ -20,6 +20,8 @@
 
 #include <typedefs.h>
 #include <qmath.h>
+#include <linux/kernel.h>
+#include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

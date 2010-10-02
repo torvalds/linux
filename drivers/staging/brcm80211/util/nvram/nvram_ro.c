@@ -16,6 +16,7 @@
 
 #include <typedefs.h>
 #include <bcmdefs.h>
+#include <linux/string.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>

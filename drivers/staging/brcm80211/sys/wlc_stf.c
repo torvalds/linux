@@ -16,6 +16,8 @@
 
 #include <wlc_cfg.h>
 #include <typedefs.h>
+#include <linux/kernel.h>
+#include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

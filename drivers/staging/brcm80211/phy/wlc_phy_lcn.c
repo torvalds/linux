@@ -17,6 +17,9 @@
 #include <wlc_cfg.h>
 #include <qmath.h>
 #include <osl.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linuxver.h>
 #include <siutils.h>
 #include <bitfuncs.h>
 #include <hndpmu.h>

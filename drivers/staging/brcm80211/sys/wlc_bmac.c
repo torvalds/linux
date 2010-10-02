@@ -20,6 +20,7 @@
 
 #include <wlc_cfg.h>
 #include <typedefs.h>
+#include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <linux/kernel.h>

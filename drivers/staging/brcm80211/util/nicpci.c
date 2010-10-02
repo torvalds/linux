@@ -15,6 +15,8 @@
  */
 
 #include <typedefs.h>
+#include <linux/string.h>
+#include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

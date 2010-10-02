@@ -17,7 +17,9 @@
 #ifndef _linux_osl_h_
 #define _linux_osl_h_
 
+#ifdef BRCM_FULLMAC
 #include <typedefs.h>
+#endif
 
 /* Linux Kernel: File Operations: start */
 extern void *osl_os_open_image(char *filename);
@@ -150,7 +152,9 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 
 /* register access macros */
 #if defined(BCMSDIO)
+#ifdef BRCM_FULLMAC
 #include <bcmsdh.h>
+#endif
 #define OSL_WRITE_REG(osh, r, v) (bcmsdh_reg_write(NULL, (uintptr)(r), sizeof(*(r)), (v)))
 #define OSL_READ_REG(osh, r) (bcmsdh_reg_read(NULL, (uintptr)(r), sizeof(*(r))))
 #endif
@@ -173,8 +177,10 @@ extern int osl_error(int bcmerror);
 
 #define OSL_SYSUPTIME()		((uint32)jiffies * (1000 / HZ))
 #define	printf(fmt, args...)	printk(fmt , ## args)
+#ifdef BRCM_FULLMAC
 #include <linux/kernel.h>	/* for vsn/printf's */
 #include <linux/string.h>	/* for mem*, str* */
+#endif
 /* bcopy's: Linux kernel doesn't provide these (anymore) */
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 #define	bcmp(b1, b2, len)	memcmp((b1), (b2), (len))
@@ -320,7 +326,9 @@ extern int osl_error(int bcmerror);
 #define	W_SM(r, v)		(*(r) = (v))
 #define	BZERO_SM(r, len)	memset((r), '\0', (len))
 
+#ifdef BRCM_FULLMAC
 #include <linuxver.h>		/* use current 2.4.x calling conventions */
+#endif
 
 /* packet primitives */
 #define	PKTGET(osh, len, send)		osl_pktget((osh), (len))

@@ -20,6 +20,8 @@
 #include <osl.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
+#include <linuxver.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>
