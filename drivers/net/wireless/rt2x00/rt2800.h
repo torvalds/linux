@@ -1982,7 +1982,8 @@ struct mac_iveiv_entry {
  * FRAG: 1 To inform TKIP engine this is a fragment.
  * MIMO_PS: The remote peer is in dynamic MIMO-PS mode
  * TX_OP: 0:HT TXOP rule , 1:PIFS TX ,2:Backoff, 3:sifs
- * BW: Channel bandwidth 20MHz or 40 MHz
+ * BW: Channel bandwidth 0:20MHz, 1:40 MHz (for legacy rates this will
+ *     duplicate the frame to both channels).
  * STBC: 1: STBC support MCS =0-7, 2,3 : RESERVED
  * AMPDU: 1: this frame is eligible for AMPDU aggregation, the hw will
  *        aggregate consecutive frames with the same RA and QoS TID.

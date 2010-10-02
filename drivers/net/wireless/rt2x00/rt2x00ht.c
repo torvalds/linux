@@ -85,7 +85,13 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 		txdesc->rate_mode = RATE_MODE_HT_MIX;
 	if (txrate->flags & IEEE80211_TX_RC_GREEN_FIELD)
 		txdesc->rate_mode = RATE_MODE_HT_GREENFIELD;
-	if (txrate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+
+	/*
+	 * Set 40Mhz mode if necessary (for legacy rates this will
+	 * duplicate the frame to both channels).
+	 */
+	if (txrate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH ||
+	    txrate->flags & IEEE80211_TX_RC_DUP_DATA)
 		__set_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags);
 	if (txrate->flags & IEEE80211_TX_RC_SHORT_GI)
 		__set_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags);
