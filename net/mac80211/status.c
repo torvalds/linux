@@ -176,7 +176,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		/* the HW cannot have attempted that rate */
-		if (i >= hw->max_rates) {
+		if (i >= hw->max_report_rates) {
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
 		} else if (info->status.rates[i].idx >= 0) {

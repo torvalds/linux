@@ -1109,7 +1109,10 @@ enum ieee80211_hw_flags {
  * @sta_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_sta.
  *
- * @max_rates: maximum number of alternate rate retry stages
+ * @max_rates: maximum number of alternate rate retry stages the hw
+ *	can handle.
+ * @max_report_rates: maximum number of alternate rate retry stages
+ *	the hw can report back.
  * @max_rate_tries: maximum number of tries for each stage
  *
  * @napi_weight: weight used for NAPI polling.  You must specify an
@@ -1131,6 +1134,7 @@ struct ieee80211_hw {
 	u16 max_listen_interval;
 	s8 max_signal;
 	u8 max_rates;
+	u8 max_report_rates;
 	u8 max_rate_tries;
 };
 
