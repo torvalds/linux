@@ -3454,7 +3454,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 		if (ret != 0) {
 			drm_gem_object_unreference(target_obj);
 			i915_gem_object_unpin(obj);
-			return -EINVAL;
+			return ret;
 		}
 
 		/* Map the page containing the relocation we're going to
