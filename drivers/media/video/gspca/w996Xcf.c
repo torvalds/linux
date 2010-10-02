@@ -437,7 +437,7 @@ static int w9968cf_set_crop_window(struct sd *sd)
 	if (sd->sensor == SEN_OV7620) {
 		/* Sigh, this is dependend on the clock / framerate changes
 		   made by the frequency control, sick. */
-		if (sd->freq == 1) {
+		if (sd->ctrls[FREQ].val == 1) {
 			start_cropx = 277;
 			start_cropy = 37;
 		} else {
