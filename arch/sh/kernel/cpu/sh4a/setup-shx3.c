@@ -12,7 +12,9 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/sh_timer.h>
+#include <cpu/shx3.h>
 #include <asm/mmzone.h>
 
 /*
@@ -440,11 +442,33 @@ static DECLARE_INTC_DESC(intc_desc_irl, "shx3-irl", vectors_irl, groups,
 
 void __init plat_irq_setup_pins(int mode)
 {
+	int ret = 0;
+
 	switch (mode) {
 	case IRQ_MODE_IRQ:
+		ret |= gpio_request(GPIO_FN_IRQ3, intc_desc_irq.name);
+		ret |= gpio_request(GPIO_FN_IRQ2, intc_desc_irq.name);
+		ret |= gpio_request(GPIO_FN_IRQ1, intc_desc_irq.name);
+		ret |= gpio_request(GPIO_FN_IRQ0, intc_desc_irq.name);
+
+		if (unlikely(ret)) {
+			pr_err("Failed to set IRQ mode\n");
+			return;
+		}
+
 		register_intc_controller(&intc_desc_irq);
 		break;
 	case IRQ_MODE_IRL3210:
+		ret |= gpio_request(GPIO_FN_IRL3, intc_desc_irl.name);
+		ret |= gpio_request(GPIO_FN_IRL2, intc_desc_irl.name);
+		ret |= gpio_request(GPIO_FN_IRL1, intc_desc_irl.name);
+		ret |= gpio_request(GPIO_FN_IRL0, intc_desc_irl.name);
+
+		if (unlikely(ret)) {
+			pr_err("Failed to set IRL mode\n");
+			return;
+		}
+
 		register_intc_controller(&intc_desc_irl);
 		break;
 	default:
