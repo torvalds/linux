@@ -1510,7 +1510,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		if (status) {
 			/* an unconfirmed replay returns misordered */
 			status = nfserr_seq_misordered;
-			goto out_cache;
+			goto out;
 		}
 
 		cs_slot->sl_seqid++; /* from 0 to 1 */
@@ -1549,7 +1549,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	       NFS4_MAX_SESSIONID_LEN);
 	cr_ses->seqid = cs_slot->sl_seqid;
 
-out_cache:
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
 out:
