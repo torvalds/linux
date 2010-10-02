@@ -1718,7 +1718,7 @@ debug:
 
 	c->page->inuse++;
 	c->page->freelist = get_freepointer(s, object);
-	c->node = -1;
+	c->node = NUMA_NO_NODE;
 	goto unlock_out;
 }
 
@@ -1895,7 +1895,7 @@ static __always_inline void slab_free(struct kmem_cache *s,
 
 	slab_free_hook_irq(s, x);
 
-	if (likely(page == c->page && c->node >= 0)) {
+	if (likely(page == c->page && c->node != NUMA_NO_NODE)) {
 		set_freepointer(s, object, c->freelist);
 		c->freelist = object;
 		stat(s, FREE_FASTPATH);
