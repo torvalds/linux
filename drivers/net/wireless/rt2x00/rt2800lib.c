@@ -1169,6 +1169,102 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 }
 EXPORT_SYMBOL_GPL(rt2800_config_intf);
 
+static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
+				    struct rt2x00lib_erp *erp)
+{
+	bool any_sta_nongf = !!(erp->ht_opmode &
+				IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	u8 protection = erp->ht_opmode & IEEE80211_HT_OP_MODE_PROTECTION;
+	u8 mm20_mode, mm40_mode, gf20_mode, gf40_mode;
+	u16 mm20_rate, mm40_rate, gf20_rate, gf40_rate;
+	u32 reg;
+
+	/* default protection rate for HT20: OFDM 24M */
+	mm20_rate = gf20_rate = 0x4004;
+
+	/* default protection rate for HT40: duplicate OFDM 24M */
+	mm40_rate = gf40_rate = 0x4084;
+
+	switch (protection) {
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONE:
+		/*
+		 * All STAs in this BSS are HT20/40 but there might be
+		 * STAs not supporting greenfield mode.
+		 * => Disable protection for HT transmissions.
+		 */
+		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 0;
+
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
+		/*
+		 * All STAs in this BSS are HT20 or HT20/40 but there
+		 * might be STAs not supporting greenfield mode.
+		 * => Protect all HT40 transmissions.
+		 */
+		mm20_mode = gf20_mode = 0;
+		mm40_mode = gf40_mode = 2;
+
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+		/*
+		 * Nonmember protection:
+		 * According to 802.11n we _should_ protect all
+		 * HT transmissions (but we don't have to).
+		 *
+		 * But if cts_protection is enabled we _shall_ protect
+		 * all HT transmissions using a CCK rate.
+		 *
+		 * And if any station is non GF we _shall_ protect
+		 * GF transmissions.
+		 *
+		 * We decide to protect everything
+		 * -> fall through to mixed mode.
+		 */
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+		/*
+		 * Legacy STAs are present
+		 * => Protect all HT transmissions.
+		 */
+		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 2;
+
+		/*
+		 * If erp protection is needed we have to protect HT
+		 * transmissions with CCK 11M long preamble.
+		 */
+		if (erp->cts_protection) {
+			/* don't duplicate RTS/CTS in CCK mode */
+			mm20_rate = mm40_rate = 0x0003;
+			gf20_rate = gf40_rate = 0x0003;
+		}
+		break;
+	};
+
+	/* check for STAs not supporting greenfield mode */
+	if (any_sta_nongf)
+		gf20_mode = gf40_mode = 2;
+
+	/* Update HT protection config */
+	rt2800_register_read(rt2x00dev, MM20_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, MM20_PROT_CFG_PROTECT_RATE, mm20_rate);
+	rt2x00_set_field32(&reg, MM20_PROT_CFG_PROTECT_CTRL, mm20_mode);
+	rt2800_register_write(rt2x00dev, MM20_PROT_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, MM40_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_RATE, mm40_rate);
+	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_CTRL, mm40_mode);
+	rt2800_register_write(rt2x00dev, MM40_PROT_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, GF20_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, GF20_PROT_CFG_PROTECT_RATE, gf20_rate);
+	rt2x00_set_field32(&reg, GF20_PROT_CFG_PROTECT_CTRL, gf20_mode);
+	rt2800_register_write(rt2x00dev, GF20_PROT_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, GF40_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, GF40_PROT_CFG_PROTECT_RATE, gf40_rate);
+	rt2x00_set_field32(&reg, GF40_PROT_CFG_PROTECT_CTRL, gf40_mode);
+	rt2800_register_write(rt2x00dev, GF40_PROT_CFG, reg);
+}
+
 void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
 		       u32 changed)
 {
@@ -1213,6 +1309,9 @@ void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
 				   erp->beacon_int * 16);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 	}
+
+	if (changed & BSS_CHANGED_HT)
+		rt2800_config_ht_opmode(rt2x00dev, erp);
 }
 EXPORT_SYMBOL_GPL(rt2800_config_erp);
 

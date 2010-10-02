@@ -458,6 +458,7 @@ struct rt2x00lib_erp {
 	short eifs;
 
 	u16 beacon_int;
+	u16 ht_opmode;
 };
 
 /*
