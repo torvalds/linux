@@ -28,6 +28,7 @@
 #include <plat/cpu.h>
 #include <plat/ata.h>
 #include <plat/iic.h>
+#include <plat/pm.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC110_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -110,6 +111,8 @@ static void __init smdkc110_map_io(void)
 
 static void __init smdkc110_machine_init(void)
 {
+	s3c_pm_init();
+
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_i2c2_set_platdata(NULL);

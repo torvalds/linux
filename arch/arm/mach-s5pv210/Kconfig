@@ -13,6 +13,7 @@ config CPU_S5PV210
 	bool
 	select S3C_PL330_DMA
 	select S5P_EXT_INT
+	select S5PV210_PM if PM
 	help
 	  Enable S5PV210 CPU support
 
@@ -151,5 +152,10 @@ config MACH_TORBRECK
 	  Machine support for aESOP Torbreck
 
 endmenu
+
+config S5PV210_PM
+	bool
+	help
+	  Power Management code common to S5PV210
 
 endif

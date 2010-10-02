@@ -95,7 +95,7 @@
 /* Registers related to power management */
 #define S5P_PWR_CFG		S5P_CLKREG(0xC000)
 #define S5P_EINT_WAKEUP_MASK	S5P_CLKREG(0xC004)
-#define S5P_WAKEUP_MASK 	S5P_CLKREG(0xC008)
+#define S5P_WAKEUP_MASK		S5P_CLKREG(0xC008)
 #define S5P_PWR_MODE		S5P_CLKREG(0xC00C)
 #define S5P_NORMAL_CFG		S5P_CLKREG(0xC010)
 #define S5P_IDLE_CFG		S5P_CLKREG(0xC020)
@@ -159,8 +159,11 @@
 #define S5P_SLEEP_CFG_USBOSC_EN		(1 << 1)
 
 /* OTHERS Resgister */
+#define S5P_OTHERS_RET_IO		(1 << 31)
+#define S5P_OTHERS_RET_CF		(1 << 30)
+#define S5P_OTHERS_RET_MMC		(1 << 29)
+#define S5P_OTHERS_RET_UART		(1 << 28)
 #define S5P_OTHERS_USB_SIG_MASK		(1 << 16)
-#define S5P_OTHERS_MIPI_DPHY_EN		(1 << 28)
 
 /* MIPI */
 #define S5P_MIPI_DPHY_EN		(3)
