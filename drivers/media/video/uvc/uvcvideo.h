@@ -57,7 +57,7 @@ struct uvc_xu_control_mapping {
 
 	__u8 size;
 	__u8 offset;
-	enum v4l2_ctrl_type v4l2_type;
+	__u32 v4l2_type;
 	__u32 data_type;
 
 	struct uvc_menu_info __user *menu_info;
@@ -73,11 +73,20 @@ struct uvc_xu_control {
 	__u8 __user *data;
 };
 
+struct uvc_xu_control_query {
+	__u8 unit;
+	__u8 selector;
+	__u8 query;
+	__u16 size;
+	__u8 __user *data;
+};
+
 #define UVCIOC_CTRL_ADD		_IOW('U', 1, struct uvc_xu_control_info)
 #define UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
 #define UVCIOC_CTRL_MAP		_IOWR('U', 2, struct uvc_xu_control_mapping)
 #define UVCIOC_CTRL_GET		_IOWR('U', 3, struct uvc_xu_control)
 #define UVCIOC_CTRL_SET		_IOW('U', 4, struct uvc_xu_control)
+#define UVCIOC_CTRL_QUERY	_IOWR('U', 5, struct uvc_xu_control_query)
 
 #ifdef __KERNEL__
 
@@ -638,7 +647,7 @@ extern int uvc_ctrl_set(struct uvc_video_chain *chain,
 		struct v4l2_ext_control *xctrl);
 
 extern int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
-		struct uvc_xu_control *ctrl, int set);
+		struct uvc_xu_control_query *xqry);
 
 /* Utility functions */
 extern void uvc_simplify_fraction(uint32_t *numerator, uint32_t *denominator,

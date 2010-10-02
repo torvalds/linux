@@ -1344,32 +1344,33 @@ static int uvc_ctrl_init_xu_ctrl(struct uvc_device *dev,
 }
 
 int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
-	struct uvc_xu_control *xctrl, int set)
+	struct uvc_xu_control_query *xqry)
 {
 	struct uvc_entity *entity;
-	struct uvc_control *ctrl = NULL;
+	struct uvc_control *ctrl;
 	unsigned int i, found = 0;
-	int restore = 0;
-	__u8 *data;
+	__u32 reqflags;
+	__u16 size;
+	__u8 *data = NULL;
 	int ret;
 
 	/* Find the extension unit. */
 	list_for_each_entry(entity, &chain->entities, chain) {
 		if (UVC_ENTITY_TYPE(entity) == UVC_VC_EXTENSION_UNIT &&
-		    entity->id == xctrl->unit)
+		    entity->id == xqry->unit)
 			break;
 	}
 
-	if (entity->id != xctrl->unit) {
+	if (entity->id != xqry->unit) {
 		uvc_trace(UVC_TRACE_CONTROL, "Extension unit %u not found.\n",
-			xctrl->unit);
-		return -EINVAL;
+			xqry->unit);
+		return -ENOENT;
 	}
 
 	/* Find the control and perform delayed initialization if needed. */
 	for (i = 0; i < entity->ncontrols; ++i) {
 		ctrl = &entity->controls[i];
-		if (ctrl->index == xctrl->selector - 1) {
+		if (ctrl->index == xqry->selector - 1) {
 			found = 1;
 			break;
 		}
@@ -1377,8 +1378,8 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 
 	if (!found) {
 		uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u not found.\n",
-			entity->extension.guidExtensionCode, xctrl->selector);
-		return -EINVAL;
+			entity->extension.guidExtensionCode, xqry->selector);
+		return -ENOENT;
 	}
 
 	if (mutex_lock_interruptible(&chain->ctrl_mutex))
@@ -1390,43 +1391,72 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		goto done;
 	}
 
-	/* Validate control data size. */
-	if (ctrl->info.size != xctrl->size) {
+	/* Validate the required buffer size and flags for the request */
+	reqflags = 0;
+	size = ctrl->info.size;
+
+	switch (xqry->query) {
+	case UVC_GET_CUR:
+		reqflags = UVC_CONTROL_GET_CUR;
+		break;
+	case UVC_GET_MIN:
+		reqflags = UVC_CONTROL_GET_MIN;
+		break;
+	case UVC_GET_MAX:
+		reqflags = UVC_CONTROL_GET_MAX;
+		break;
+	case UVC_GET_DEF:
+		reqflags = UVC_CONTROL_GET_DEF;
+		break;
+	case UVC_GET_RES:
+		reqflags = UVC_CONTROL_GET_RES;
+		break;
+	case UVC_SET_CUR:
+		reqflags = UVC_CONTROL_SET_CUR;
+		break;
+	case UVC_GET_LEN:
+		size = 2;
+		break;
+	case UVC_GET_INFO:
+		size = 1;
+		break;
+	default:
 		ret = -EINVAL;
 		goto done;
 	}
 
-	if ((set && !(ctrl->info.flags & UVC_CONTROL_SET_CUR)) ||
-	    (!set && !(ctrl->info.flags & UVC_CONTROL_GET_CUR))) {
-		ret = -EINVAL;
+	if (size != xqry->size) {
+		ret = -ENOBUFS;
 		goto done;
 	}
 
-	memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
-	       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-	       ctrl->info.size);
-	data = uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT);
-	restore = set;
+	if (reqflags && !(ctrl->info.flags & reqflags)) {
+		ret = -EBADRQC;
+		goto done;
+	}
 
-	if (set && copy_from_user(data, xctrl->data, xctrl->size)) {
+	data = kmalloc(size, GFP_KERNEL);
+	if (data == NULL) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	if (xqry->query == UVC_SET_CUR &&
+	    copy_from_user(data, xqry->data, size)) {
 		ret = -EFAULT;
 		goto done;
 	}
 
-	ret = uvc_query_ctrl(chain->dev, set ? UVC_SET_CUR : UVC_GET_CUR,
-			     xctrl->unit, chain->dev->intfnum, xctrl->selector,
-			     data, xctrl->size);
+	ret = uvc_query_ctrl(chain->dev, xqry->query, xqry->unit,
+			     chain->dev->intfnum, xqry->selector, data, size);
 	if (ret < 0)
 		goto done;
 
-	if (!set && copy_to_user(xctrl->data, data, xctrl->size))
+	if (xqry->query != UVC_SET_CUR &&
+	    copy_to_user(xqry->data, data, size))
 		ret = -EFAULT;
 done:
-	if (ret && restore)
-		memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-		       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
-		       xctrl->size);
-
+	kfree(data);
 	mutex_unlock(&chain->ctrl_mutex);
 	return ret;
 }

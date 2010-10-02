@@ -1029,10 +1029,23 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 					  cmd == UVCIOC_CTRL_MAP_OLD);
 
 	case UVCIOC_CTRL_GET:
-		return uvc_xu_ctrl_query(chain, arg, 0);
-
 	case UVCIOC_CTRL_SET:
-		return uvc_xu_ctrl_query(chain, arg, 1);
+	{
+		struct uvc_xu_control *xctrl = arg;
+		struct uvc_xu_control_query xqry = {
+			.unit		= xctrl->unit,
+			.selector	= xctrl->selector,
+			.query		= cmd == UVCIOC_CTRL_GET
+					? UVC_GET_CUR : UVC_SET_CUR,
+			.size		= xctrl->size,
+			.data		= xctrl->data,
+		};
+
+		return uvc_xu_ctrl_query(chain, &xqry);
+	}
+
+	case UVCIOC_CTRL_QUERY:
+		return uvc_xu_ctrl_query(chain, arg);
 
 	default:
 		uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n", cmd);
