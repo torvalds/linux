@@ -1705,8 +1705,10 @@ int __init musb_gadget_setup(struct musb *musb)
 	musb_platform_try_idle(musb, 0);
 
 	status = device_register(&musb->g.dev);
-	if (status != 0)
+	if (status != 0) {
+		put_device(&musb->g.dev);
 		the_gadget = NULL;
+	}
 	return status;
 }
 
