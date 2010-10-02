@@ -28,12 +28,6 @@
 #define GPIOINT_MASK_OFFSET		0x900
 #define GPIOINT_PEND_OFFSET		0xA00
 
-#define GPIOINT_LEVEL_LOW		0x0
-#define GPIOINT_LEVEL_HIGH		0x1
-#define GPIOINT_EDGE_FALLING		0x2
-#define GPIOINT_EDGE_RISING		0x3
-#define GPIOINT_EDGE_BOTH		0x4
-
 static struct s3c_gpio_chip *irq_chips[S5P_GPIOINT_GROUP_MAXNR];
 
 static int s5p_gpioint_get_group(unsigned int irq)
@@ -118,19 +112,19 @@ static int s5p_gpioint_set_type(unsigned int irq, unsigned int type)
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
-		type = GPIOINT_EDGE_RISING;
+		type = S5P_IRQ_TYPE_EDGE_RISING;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		type = GPIOINT_EDGE_FALLING;
+		type = S5P_IRQ_TYPE_EDGE_FALLING;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		type = GPIOINT_EDGE_BOTH;
+		type = S5P_IRQ_TYPE_EDGE_BOTH;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
-		type = GPIOINT_LEVEL_HIGH;
+		type = S5P_IRQ_TYPE_LEVEL_HIGH;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		type = GPIOINT_LEVEL_LOW;
+		type = S5P_IRQ_TYPE_LEVEL_LOW;
 		break;
 	case IRQ_TYPE_NONE:
 	default:
