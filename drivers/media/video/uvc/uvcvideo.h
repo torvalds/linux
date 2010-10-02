@@ -392,7 +392,6 @@ struct uvc_video_queue {
 
 	void *mem;
 	unsigned int flags;
-	__u32 sequence;
 
 	unsigned int count;
 	unsigned int buf_size;
@@ -458,6 +457,7 @@ struct uvc_streaming {
 	dma_addr_t urb_dma[UVC_URBS];
 	unsigned int urb_size;
 
+	__u32 sequence;
 	__u8 last_fid;
 };
 

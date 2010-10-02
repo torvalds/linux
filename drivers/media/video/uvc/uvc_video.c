@@ -427,6 +427,12 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 
 	fid = data[1] & UVC_STREAM_FID;
 
+	/* Increase the sequence number regardless of any buffer states, so
+	 * that discontinuous sequence numbers always indicate lost frames.
+	 */
+	if (stream->last_fid != fid)
+		stream->sequence++;
+
 	/* Store the payload FID bit and return immediately when the buffer is
 	 * NULL.
 	 */
@@ -460,6 +466,7 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 		else
 			ktime_get_real_ts(&ts);
 
+		buf->buf.sequence = stream->sequence;
 		buf->buf.timestamp.tv_sec = ts.tv_sec;
 		buf->buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 
@@ -721,6 +728,7 @@ static void uvc_video_encode_bulk(struct urb *urb, struct uvc_streaming *stream,
 		if (buf->buf.bytesused == stream->queue.buf_used) {
 			stream->queue.buf_used = 0;
 			buf->state = UVC_BUF_STATE_READY;
+			buf->buf.sequence = ++stream->sequence;
 			uvc_queue_next_buffer(&stream->queue, buf);
 			stream->last_fid ^= UVC_STREAM_FID;
 		}
@@ -979,6 +987,7 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 	unsigned int i;
 	int ret;
 
+	stream->sequence = -1;
 	stream->last_fid = -1;
 	stream->bulk.header_size = 0;
 	stream->bulk.skip_payload = 0;
