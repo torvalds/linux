@@ -34,6 +34,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 
+#include <mach/clk.h>
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/pinmux.h>
@@ -75,7 +76,7 @@ static __initdata struct tegra_clk_init_table ventana_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartd",	"pll_p",	216000000,	true},
 	{ "pll_m",	"clk_m",	600000000,	true},
-	{ "emc",	"pll_m",	600000000,	true},
+	{ "pwm",	"clk_32k",	32768,		false},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -214,6 +215,7 @@ static void __init tegra_ventana_init(void)
 	ventana_regulator_init();
 	ventana_touch_init();
 	ventana_keys_init();
+	ventana_panel_init();
 }
 
 MACHINE_START(VENTANA, "ventana")
