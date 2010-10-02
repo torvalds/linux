@@ -3452,8 +3452,12 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 	case IEEE80211_AMPDU_RX_STOP:
-		/* we don't support RX aggregation yet */
-		ret = -ENOTSUPP;
+		/*
+		 * The hw itself takes care of setting up BlockAck mechanisms.
+		 * So, we only have to allow mac80211 to nagotiate a BlockAck
+		 * agreement. Once that is done, the hw will BlockAck incoming
+		 * AMPDUs without further setup.
+		 */
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
