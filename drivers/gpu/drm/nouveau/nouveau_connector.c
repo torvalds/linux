@@ -641,11 +641,28 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static unsigned
+get_tmds_link_bandwidth(struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
+	struct dcb_entry *dcb = nv_connector->detected_encoder->dcb;
+
+	if (dcb->location != DCB_LOC_ON_CHIP ||
+	    dev_priv->chipset >= 0x46)
+		return 165000;
+	else if (dev_priv->chipset >= 0x40)
+		return 155000;
+	else if (dev_priv->chipset >= 0x18)
+		return 135000;
+	else
+		return 112000;
+}
+
 static int
 nouveau_connector_mode_valid(struct drm_connector *connector,
 			     struct drm_display_mode *mode)
 {
-	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
@@ -663,11 +680,9 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		max_clock = 400000;
 		break;
 	case OUTPUT_TMDS:
-		if ((dev_priv->card_type >= NV_50 && !nouveau_duallink) ||
-		    !nv_encoder->dcb->duallink_possible)
-			max_clock = 165000;
-		else
-			max_clock = 330000;
+		max_clock = get_tmds_link_bandwidth(connector);
+		if (nouveau_duallink && nv_encoder->dcb->duallink_possible)
+			max_clock *= 2;
 		break;
 	case OUTPUT_ANALOG:
 		max_clock = nv_encoder->dcb->crtconf.maxfreq;
