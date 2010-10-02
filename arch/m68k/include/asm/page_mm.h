@@ -80,7 +80,7 @@ static inline unsigned long ___pa(void *vaddr)
 		: "0" (vaddr), "i" (m68k_fixup_memoffset));
 	return paddr;
 }
-#define __pa(vaddr)	___pa((void *)(vaddr))
+#define __pa(vaddr)	___pa((void *)(long)(vaddr))
 static inline void *__va(unsigned long paddr)
 {
 	void *vaddr;
