@@ -863,9 +863,15 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	unsigned int i;
 	int ret;
 
+	ret = mutex_lock_interruptible(&chain->ctrl_mutex);
+	if (ret < 0)
+		return -ERESTARTSYS;
+
 	ctrl = uvc_find_control(chain, v4l2_ctrl->id, &mapping);
-	if (ctrl == NULL)
-		return -EINVAL;
+	if (ctrl == NULL) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	memset(v4l2_ctrl, 0, sizeof *v4l2_ctrl);
 	v4l2_ctrl->id = mapping->id;
@@ -881,7 +887,7 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	if (!ctrl->cached) {
 		ret = uvc_ctrl_populate_cache(chain, ctrl);
 		if (ret < 0)
-			return ret;
+			goto done;
 	}
 
 	if (ctrl->info.flags & UVC_CONTROL_GET_DEF) {
@@ -903,19 +909,19 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 			}
 		}
 
-		return 0;
+		goto done;
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 1;
 		v4l2_ctrl->step = 1;
-		return 0;
+		goto done;
 
 	case V4L2_CTRL_TYPE_BUTTON:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 0;
 		v4l2_ctrl->step = 0;
-		return 0;
+		goto done;
 
 	default:
 		break;
@@ -933,7 +939,9 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES,
 				  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
 
-	return 0;
+done:
+	mutex_unlock(&chain->ctrl_mutex);
+	return ret;
 }
 
 
@@ -1295,6 +1303,7 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	struct uvc_entity *entity;
 	struct uvc_control *ctrl = NULL;
 	unsigned int i, found = 0;
+	int restore = 0;
 	__u8 *data;
 	int ret;
 
@@ -1326,44 +1335,48 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		return -EINVAL;
 	}
 
-	ret = uvc_ctrl_init_xu_ctrl(chain->dev, ctrl);
-	if (ret < 0)
-		return -ENOENT;
-
-	/* Validate control data size. */
-	if (ctrl->info.size != xctrl->size)
-		return -EINVAL;
-
-	if ((set && !(ctrl->info.flags & UVC_CONTROL_SET_CUR)) ||
-	    (!set && !(ctrl->info.flags & UVC_CONTROL_GET_CUR)))
-		return -EINVAL;
-
 	if (mutex_lock_interruptible(&chain->ctrl_mutex))
 		return -ERESTARTSYS;
 
+	ret = uvc_ctrl_init_xu_ctrl(chain->dev, ctrl);
+	if (ret < 0) {
+		ret = -ENOENT;
+		goto done;
+	}
+
+	/* Validate control data size. */
+	if (ctrl->info.size != xctrl->size) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	if ((set && !(ctrl->info.flags & UVC_CONTROL_SET_CUR)) ||
+	    (!set && !(ctrl->info.flags & UVC_CONTROL_GET_CUR))) {
+		ret = -EINVAL;
+		goto done;
+	}
+
 	memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
 	       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-	       xctrl->size);
+	       ctrl->info.size);
 	data = uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT);
+	restore = set;
 
 	if (set && copy_from_user(data, xctrl->data, xctrl->size)) {
 		ret = -EFAULT;
-		goto out;
+		goto done;
 	}
 
 	ret = uvc_query_ctrl(chain->dev, set ? UVC_SET_CUR : UVC_GET_CUR,
 			     xctrl->unit, chain->dev->intfnum, xctrl->selector,
 			     data, xctrl->size);
 	if (ret < 0)
-		goto out;
+		goto done;
 
-	if (!set && copy_to_user(xctrl->data, data, xctrl->size)) {
+	if (!set && copy_to_user(xctrl->data, data, xctrl->size))
 		ret = -EFAULT;
-		goto out;
-	}
-
-out:
-	if (ret)
+done:
+	if (ret && restore)
 		memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
 		       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
 		       xctrl->size);

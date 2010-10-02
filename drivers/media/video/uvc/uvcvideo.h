@@ -413,7 +413,7 @@ struct uvc_video_chain {
 	struct uvc_entity *processing;		/* Processing unit */
 	struct uvc_entity *selector;		/* Selector unit */
 
-	struct mutex ctrl_mutex;
+	struct mutex ctrl_mutex;		/* Protects ctrl.info */
 };
 
 struct uvc_streaming {
