@@ -37,7 +37,7 @@
 #define CMD_PADDING	0xff
 
 #define YUREX_BUF_SIZE		8
-#define YUREX_WRITE_TIMEOUT	(HZ)
+#define YUREX_WRITE_TIMEOUT	(HZ*2)
 
 /* table of devices that work with this driver */
 static struct usb_device_id yurex_table[] = {
@@ -83,7 +83,7 @@ static void yurex_control_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		err("%s - control failed: %d¥n", __func__, status);
+		err("%s - control failed: %d\n", __func__, status);
 		wake_up_interruptible(&dev->waitq);
 		return;
 	}
@@ -97,6 +97,16 @@ static void yurex_delete(struct kref *kref)
 	dbg("yurex_delete");
 
 	usb_put_dev(dev->udev);
+	if (dev->cntl_urb) {
+		usb_kill_urb(dev->cntl_urb);
+		if (dev->cntl_req)
+			usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
+				dev->cntl_req, dev->cntl_urb->setup_dma);
+		if (dev->cntl_buffer)
+			usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
+				dev->cntl_buffer, dev->cntl_urb->transfer_dma);
+		usb_free_urb(dev->cntl_urb);
+	}
 	if (dev->urb) {
 		usb_kill_urb(dev->urb);
 		if (dev->int_buffer)
@@ -253,7 +263,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 			     usb_sndctrlpipe(dev->udev, 0),
 			     (void *)dev->cntl_req, dev->cntl_buffer,
 			     YUREX_BUF_SIZE, yurex_control_callback, dev);
-	dev->cntl_urb->transfer_flags	|= URB_NO_TRANSFER_DMA_MAP;
+	dev->cntl_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 
 	/* allocate interrupt URB */
@@ -276,6 +286,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 			 usb_rcvintpipe(dev->udev, dev->int_in_endpointAddr),
 			 dev->int_buffer, YUREX_BUF_SIZE, yurex_interrupt,
 			 dev, 1);
+	dev->cntl_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(dev->urb, GFP_KERNEL)) {
 		retval = -EIO;
 		err("Could not submitting URB");
@@ -296,7 +307,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	dev->bbu = -1;
 
 	dev_info(&interface->dev,
-		 "USB Yurex device now attached to Yurex-%d¥n",
+		 "USB YUREX device now attached to Yurex #%d\n",
 		 interface->minor);
 
 	return 0;
@@ -331,7 +342,7 @@ static void yurex_disconnect(struct usb_interface *interface)
 	/* decrement our usage count */
 	kref_put(&dev->kref, yurex_delete);
 
-	dev_info(&interface->dev, "USB Yurex #%d now disconnected", minor);
+	dev_info(&interface->dev, "USB YUREX #%d now disconnected\n", minor);
 }
 
 static struct usb_driver yurex_driver = {
@@ -417,7 +428,7 @@ static ssize_t yurex_read(struct file *file, char *buffer, size_t count, loff_t 
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
-	bytes_read = snprintf(in_buffer, 20, "%lld¥n", dev->bbu);
+	bytes_read = snprintf(in_buffer, 20, "%lld\n", dev->bbu);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	if (*ppos < bytes_read) {
