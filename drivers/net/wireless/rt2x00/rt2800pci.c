@@ -241,6 +241,7 @@ static void rt2800pci_clear_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
@@ -251,6 +252,13 @@ static void rt2800pci_clear_entry(struct queue_entry *entry)
 		rt2x00_desc_read(entry_priv->desc, 1, &word);
 		rt2x00_set_field32(&word, RXD_W1_DMA_DONE, 0);
 		rt2x00_desc_write(entry_priv->desc, 1, word);
+
+		/*
+		 * Set RX IDX in register to inform hardware that we have
+		 * handled this entry and it is available for reuse again.
+		 */
+		rt2800_register_write(rt2x00dev, RX_CRX_IDX,
+				      entry->entry_idx);
 	} else {
 		rt2x00_desc_read(entry_priv->desc, 1, &word);
 		rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 1);
@@ -599,7 +607,6 @@ static void rt2800pci_kill_tx_queue(struct data_queue *queue)
 static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *rxd = entry_priv->desc;
 	u32 word;
@@ -641,12 +648,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	 * Process the RXWI structure that is at the start of the buffer.
 	 */
 	rt2800_process_rxwi(entry, rxdesc);
-
-	/*
-	 * Set RX IDX in register to inform hardware that we have handled
-	 * this entry and it is available for reuse again.
-	 */
-	rt2800_register_write(rt2x00dev, RX_CRX_IDX, entry->entry_idx);
 }
 
 /*
