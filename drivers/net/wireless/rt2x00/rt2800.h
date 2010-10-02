@@ -2003,7 +2003,13 @@ struct mac_iveiv_entry {
  *     duplicate the frame to both channels).
  * STBC: 1: STBC support MCS =0-7, 2,3 : RESERVED
  * AMPDU: 1: this frame is eligible for AMPDU aggregation, the hw will
- *        aggregate consecutive frames with the same RA and QoS TID.
+ *        aggregate consecutive frames with the same RA and QoS TID. If
+ *        a frame A with the same RA and QoS TID but AMPDU=0 is queued
+ *        directly after a frame B with AMPDU=1, frame A might still
+ *        get aggregated into the AMPDU started by frame B. So, setting
+ *        AMPDU to 0 does _not_ necessarily mean the frame is sent as
+ *        MPDU, it can still end up in an AMPDU if the previous frame
+ *        was tagged as AMPDU.
  */
 #define TXWI_W0_FRAG			FIELD32(0x00000001)
 #define TXWI_W0_MIMO_PS			FIELD32(0x00000002)
