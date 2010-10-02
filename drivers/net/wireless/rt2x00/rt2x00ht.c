@@ -73,9 +73,11 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 
 
 	/*
-	 * Convert flags
+	 * This frame is eligible for an AMPDU, however, don't aggregate
+	 * frames that are intended to probe a specific tx rate.
 	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU)
+	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU &&
+	    !(tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
 		__set_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags);
 
 	/*
