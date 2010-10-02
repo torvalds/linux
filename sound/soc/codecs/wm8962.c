@@ -1733,6 +1733,31 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 }
 #endif
 
+static void wm8962_set_gpio_mode(struct snd_soc_codec *codec, int gpio)
+{
+	int mask = 0;
+	int val = 0;
+
+	/* Some of the GPIOs are behind MFP configuration and need to
+	 * be put into GPIO mode. */
+	switch (gpio) {
+	case 2:
+		mask = WM8962_CLKOUT2_SEL_MASK;
+		val = 1 << WM8962_CLKOUT2_SEL_SHIFT;
+		break;
+	case 3:
+		mask = WM8962_CLKOUT3_SEL_MASK;
+		val = 1 << WM8962_CLKOUT3_SEL_SHIFT;
+		break;
+	default:
+		break;
+	}
+
+	if (mask)
+		snd_soc_update_bits(codec, WM8962_ANALOGUE_CLOCKING1,
+				    mask, val);
+}
+
 #ifdef CONFIG_GPIOLIB
 static inline struct wm8962_priv *gpio_to_wm8962(struct gpio_chip *chip)
 {
@@ -1743,8 +1768,6 @@ static int wm8962_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct wm8962_priv *wm8962 = gpio_to_wm8962(chip);
 	struct snd_soc_codec *codec = wm8962->codec;
-	int mask = 0;
-	int val;
 
 	/* The WM8962 GPIOs aren't linearly numbered.  For simplicity
 	 * we export linear numbers and error out if the unsupported
@@ -1752,13 +1775,7 @@ static int wm8962_gpio_request(struct gpio_chip *chip, unsigned offset)
 	 */
 	switch (offset + 1) {
 	case 2:
-		mask = WM8962_CLKOUT2_SEL_MASK;
-		val = 1 << WM8962_CLKOUT2_SEL_SHIFT;
-		break;
 	case 3:
-		mask = WM8962_CLKOUT3_SEL_MASK;
-		val = 1 << WM8962_CLKOUT3_SEL_SHIFT;
-		break;
 	case 5:
 	case 6:
 		break;
@@ -1766,10 +1783,7 @@ static int wm8962_gpio_request(struct gpio_chip *chip, unsigned offset)
 		return -EINVAL;
 	}
 
-	/* Some of the GPIOs are behind MFP configuration */
-	if (mask)
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_CLOCKING1,
-				    mask, val);
+	wm8962_set_gpio_mode(codec, offset + 1);
 
 	return 0;
 }
@@ -1943,9 +1957,11 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	if (pdata) {
 		/* Apply static configuration for GPIOs */
 		for (i = 0; i < ARRAY_SIZE(pdata->gpio_init); i++)
-			if (pdata->gpio_init[i])
+			if (pdata->gpio_init[i]) {
+				wm8962_set_gpio_mode(codec, i + 1);
 				snd_soc_write(codec, 0x200 + i,
 					      pdata->gpio_init[i] & 0xffff);
+			}
 
 		/* Put the speakers into mono mode? */
 		if (pdata->spk_mono)
