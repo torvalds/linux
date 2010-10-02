@@ -6,6 +6,7 @@
 #include <linux/if_link.h>
 #include <linux/if_addr.h>
 #include <linux/neighbour.h>
+#include <linux/netdevice.h>
 
 /* rtnetlink families. Values up to 127 are reserved for real address
  * families, values above 128 may be used arbitrarily.
@@ -768,6 +769,13 @@ extern int lockdep_rtnl_is_held(void);
  */
 #define rtnl_dereference(p)					\
 	rcu_dereference_check(p, lockdep_rtnl_is_held())
+
+static inline struct netdev_queue *dev_ingress_queue(struct net_device *dev)
+{
+	return rtnl_dereference(dev->ingress_queue);
+}
+
+extern struct netdev_queue *dev_ingress_queue_create(struct net_device *dev);
 
 extern void rtnetlink_init(void);
 extern void __rtnl_unlock(void);

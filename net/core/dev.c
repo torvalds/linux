@@ -2702,11 +2702,10 @@ EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
  * the ingress scheduler, you just cant add policies on ingress.
  *
  */
-static int ing_filter(struct sk_buff *skb)
+static int ing_filter(struct sk_buff *skb, struct netdev_queue *rxq)
 {
 	struct net_device *dev = skb->dev;
 	u32 ttl = G_TC_RTTL(skb->tc_verd);
-	struct netdev_queue *rxq;
 	int result = TC_ACT_OK;
 	struct Qdisc *q;
 
@@ -2719,8 +2718,6 @@ static int ing_filter(struct sk_buff *skb)
 
 	skb->tc_verd = SET_TC_RTTL(skb->tc_verd, ttl);
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
-
-	rxq = &dev->ingress_queue;
 
 	q = rxq->qdisc;
 	if (q != &noop_qdisc) {
@@ -2737,7 +2734,9 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 					 struct packet_type **pt_prev,
 					 int *ret, struct net_device *orig_dev)
 {
-	if (skb->dev->ingress_queue.qdisc == &noop_qdisc)
+	struct netdev_queue *rxq = rcu_dereference(skb->dev->ingress_queue);
+
+	if (!rxq || rxq->qdisc == &noop_qdisc)
 		goto out;
 
 	if (*pt_prev) {
@@ -2745,7 +2744,7 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 		*pt_prev = NULL;
 	}
 
-	switch (ing_filter(skb)) {
+	switch (ing_filter(skb, rxq)) {
 	case TC_ACT_SHOT:
 	case TC_ACT_STOLEN:
 		kfree_skb(skb);
@@ -4940,7 +4939,6 @@ static void __netdev_init_queue_locks_one(struct net_device *dev,
 static void netdev_init_queue_locks(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, __netdev_init_queue_locks_one, NULL);
-	__netdev_init_queue_locks_one(dev, &dev->ingress_queue, NULL);
 }
 
 unsigned long netdev_fix_features(unsigned long features, const char *name)
@@ -5452,9 +5450,27 @@ static void netdev_init_one_queue(struct net_device *dev,
 
 static void netdev_init_queues(struct net_device *dev)
 {
-	netdev_init_one_queue(dev, &dev->ingress_queue, NULL);
 	netdev_for_each_tx_queue(dev, netdev_init_one_queue, NULL);
 	spin_lock_init(&dev->tx_global_lock);
+}
+
+struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
+{
+	struct netdev_queue *queue = dev_ingress_queue(dev);
+
+#ifdef CONFIG_NET_CLS_ACT
+	if (queue)
+		return queue;
+	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	if (!queue)
+		return NULL;
+	netdev_init_one_queue(dev, queue, NULL);
+	__netdev_init_queue_locks_one(dev, queue, NULL);
+	queue->qdisc = &noop_qdisc;
+	queue->qdisc_sleeping = &noop_qdisc;
+	rcu_assign_pointer(dev->ingress_queue, queue);
+#endif
+	return queue;
 }
 
 /**
@@ -5558,6 +5574,8 @@ void free_netdev(struct net_device *dev)
 	release_net(dev_net(dev));
 
 	kfree(dev->_tx);
+
+	kfree(rcu_dereference_raw(dev->ingress_queue));
 
 	/* Flush device addresses */
 	dev_addr_flush(dev);
