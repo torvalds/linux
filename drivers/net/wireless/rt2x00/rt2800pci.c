@@ -660,6 +660,63 @@ static void rt2800pci_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt2800_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
+static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+	u32 status;
+	u8 qid;
+
+	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
+		/* Now remove the tx status from the FIFO */
+		if (kfifo_out(&rt2x00dev->txstatus_fifo, &status,
+			      sizeof(status)) != sizeof(status)) {
+			WARN_ON(1);
+			break;
+		}
+
+		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_TYPE) - 1;
+		if (qid >= QID_RX) {
+			/*
+			 * Unknown queue, this shouldn't happen. Just drop
+			 * this tx status.
+			 */
+			WARNING(rt2x00dev, "Got TX status report with "
+					   "unexpected pid %u, dropping", qid);
+			break;
+		}
+
+		queue = rt2x00queue_get_queue(rt2x00dev, qid);
+		if (unlikely(queue == NULL)) {
+			/*
+			 * The queue is NULL, this shouldn't happen. Stop
+			 * processing here and drop the tx status
+			 */
+			WARNING(rt2x00dev, "Got TX status for an unavailable "
+					   "queue %u, dropping", qid);
+			break;
+		}
+
+		if (rt2x00queue_empty(queue)) {
+			/*
+			 * The queue is empty. Stop processing here
+			 * and drop the tx status.
+			 */
+			WARNING(rt2x00dev, "Got TX status for an empty "
+					   "queue %u, dropping", qid);
+			break;
+		}
+
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+		rt2800_txdone_entry(entry, status);
+	}
+}
+
+static void rt2800pci_txstatus_tasklet(unsigned long data)
+{
+	rt2800pci_txdone((struct rt2x00_dev *)data);
+}
+
 static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
@@ -684,13 +741,7 @@ static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
 		rt2x00pci_rxdone(rt2x00dev);
 
 	/*
-	 * 4 - Tx done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
-		rt2800_txdone(rt2x00dev);
-
-	/*
-	 * 5 - Auto wakeup interrupt.
+	 * 4 - Auto wakeup interrupt.
 	 */
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
 		rt2800pci_wakeup(rt2x00dev);
@@ -702,10 +753,58 @@ static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
+{
+	u32 status;
+	int i;
+
+	/*
+	 * The TX_FIFO_STATUS interrupt needs special care. We should
+	 * read TX_STA_FIFO but we should do it immediately as otherwise
+	 * the register can overflow and we would lose status reports.
+	 *
+	 * Hence, read the TX_STA_FIFO register and copy all tx status
+	 * reports into a kernel FIFO which is handled in the txstatus
+	 * tasklet. We use a tasklet to process the tx status reports
+	 * because we can schedule the tasklet multiple times (when the
+	 * interrupt fires again during tx status processing).
+	 *
+	 * Furthermore we don't disable the TX_FIFO_STATUS
+	 * interrupt here but leave it enabled so that the TX_STA_FIFO
+	 * can also be read while the interrupt thread gets executed.
+	 *
+	 * Since we have only one producer and one consumer we don't
+	 * need to lock the kfifo.
+	 */
+	for (i = 0; i < TX_ENTRIES; i++) {
+		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &status);
+
+		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
+			break;
+
+		if (kfifo_is_full(&rt2x00dev->txstatus_fifo)) {
+			WARNING(rt2x00dev, "TX status FIFO overrun,"
+				" drop tx status report.\n");
+			break;
+		}
+
+		if (kfifo_in(&rt2x00dev->txstatus_fifo, &status,
+			     sizeof(status)) != sizeof(status)) {
+			WARNING(rt2x00dev, "TX status FIFO overrun,"
+				"drop tx status report.\n");
+			break;
+		}
+	}
+
+	/* Schedule the tasklet for processing the tx status. */
+	tasklet_schedule(&rt2x00dev->txstatus_tasklet);
+}
+
 static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
 	u32 reg;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	/* Read status and ACK all interrupts */
 	rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
@@ -717,15 +816,38 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
-	/* Store irqvalue for use in the interrupt thread. */
-	rt2x00dev->irqvalue[0] = reg;
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
+		rt2800pci_txstatus_interrupt(rt2x00dev);
 
-	/* Disable interrupts, will be enabled again in the interrupt thread. */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-					      STATE_RADIO_IRQ_OFF_ISR);
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT) ||
+	    rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT) ||
+	    rt2x00_get_field32(reg, INT_SOURCE_CSR_RX_DONE) ||
+	    rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP)) {
+		/*
+		 * All other interrupts are handled in the interrupt thread.
+		 * Store irqvalue for use in the interrupt thread.
+		 */
+		rt2x00dev->irqvalue[0] = reg;
 
+		/*
+		 * Disable interrupts, will be enabled again in the
+		 * interrupt thread.
+		*/
+		rt2x00dev->ops->lib->set_device_state(rt2x00dev,
+						      STATE_RADIO_IRQ_OFF_ISR);
 
-	return IRQ_WAKE_THREAD;
+		/*
+		 * Leave the TX_FIFO_STATUS interrupt enabled to not lose any
+		 * tx status reports.
+		 */
+		rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+		rt2x00_set_field32(&reg, INT_MASK_CSR_TX_FIFO_STATUS, 1);
+		rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
+
+		ret = IRQ_WAKE_THREAD;
+	}
+
+	return ret;
 }
 
 /*
@@ -788,6 +910,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
@@ -837,6 +960,7 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.irq_handler		= rt2800pci_interrupt,
 	.irq_handler_thread	= rt2800pci_interrupt_thread,
+	.txstatus_tasklet       = rt2800pci_txstatus_tasklet,
 	.probe_hw		= rt2800pci_probe_hw,
 	.get_firmware_name	= rt2800pci_get_firmware_name,
 	.check_firmware		= rt2800_check_firmware,

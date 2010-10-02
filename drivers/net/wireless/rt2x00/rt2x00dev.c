@@ -813,6 +813,30 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_ALIGN_SIZE;
 
 	/*
+	 * Allocate tx status FIFO for driver use.
+	 */
+	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags) &&
+	    rt2x00dev->ops->lib->txstatus_tasklet) {
+		/*
+		 * Allocate txstatus fifo and tasklet, we use a size of 512
+		 * for the kfifo which is big enough to store 512/4=128 tx
+		 * status reports. In the worst case (tx status for all tx
+		 * queues gets reported before we've got a chance to handle
+		 * them) 24*4=384 tx status reports need to be cached.
+		 */
+		status = kfifo_alloc(&rt2x00dev->txstatus_fifo, 512,
+				     GFP_KERNEL);
+		if (status)
+			return status;
+
+		/* tasklet for processing the tx status reports. */
+		tasklet_init(&rt2x00dev->txstatus_tasklet,
+			     rt2x00dev->ops->lib->txstatus_tasklet,
+			     (unsigned long)rt2x00dev);
+
+	}
+
+	/*
 	 * Register HW.
 	 */
 	status = ieee80211_register_hw(rt2x00dev->hw);
@@ -1026,6 +1050,16 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	cancel_work_sync(&rt2x00dev->intf_work);
 	cancel_work_sync(&rt2x00dev->rxdone_work);
 	cancel_work_sync(&rt2x00dev->txdone_work);
+
+	/*
+	 * Free the tx status fifo.
+	 */
+	kfifo_free(&rt2x00dev->txstatus_fifo);
+
+	/*
+	 * Kill the tx status tasklet.
+	 */
+	tasklet_kill(&rt2x00dev->txstatus_tasklet);
 
 	/*
 	 * Uninitialize device.
