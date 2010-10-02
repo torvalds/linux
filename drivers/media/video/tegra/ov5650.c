@@ -178,7 +178,7 @@ static struct ov5650_reg mode_2592x1944[] = {
 	{0x4801, 0x0f}, /* MIPI control01 pg 125 */
 	{0x300e, 0x0c}, /* SC_MIPI_SC_CTRL0 pg 73 */
 	{0x4803, 0x50}, /* MIPI CTRL3 pg 91 */
-	{0x4800, 0x14}, /* MIPI CTRl0 idle and short line pg 89 */
+	{0x4800, 0x34}, /* MIPI CTRl0 idle and short line pg 89 */
 	{OV5650_TABLE_END, 0x0000}
 };
 
@@ -231,7 +231,7 @@ static struct ov5650_reg mode_1296x972[] = {
 	{0x4801, 0x0f}, /* MIPI control01 pg 125 */
 	{0x300e, 0x0c}, /* SC_MIPI_SC_CTRL0 pg 73 */
 	{0x4803, 0x50}, /* MIPI CTRL3 pg 91 */
-	{0x4800, 0x04}, /* MIPI CTRl0 idle and short line pg 89 */
+	{0x4800, 0x34}, /* MIPI CTRl0 idle and short line pg 89 */
 	{OV5650_TABLE_END, 0x0000}
 };
 
@@ -285,7 +285,7 @@ static struct ov5650_reg mode_1920x1088[] = {
 	{0x4801, 0x0f}, /* MIPI control01 pg 125 */
 	{0x300e, 0x0c}, /* SC_MIPI_SC_CTRL0 pg 73 */
 	{0x4803, 0x50}, /* MIPI CTRL3 pg 91 */
-	{0x4800, 0x14}, /* MIPI CTRl0 idle and short line pg 89 */
+	{0x4800, 0x34}, /* MIPI CTRl0 idle and short line pg 89 */
 	{OV5650_TABLE_END, 0x0000}
 };
 
