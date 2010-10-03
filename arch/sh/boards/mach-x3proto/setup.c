@@ -18,7 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/m66592.h>
-#include <asm/ilsel.h>
+#include <mach/ilsel.h>
 #include <asm/smp-ops.h>
 
 static struct resource heartbeat_resources[] = {

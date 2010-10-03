@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/bitmap.h>
 #include <linux/io.h>
-#include <asm/ilsel.h>
+#include <mach/ilsel.h>
 
 /*
  * ILSEL is split across:
