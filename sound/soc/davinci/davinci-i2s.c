@@ -574,10 +574,6 @@ static int davinci_i2s_prepare(struct snd_pcm_substream *substream,
 	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	davinci_mcbsp_stop(dev, playback);
-	if ((dev->pcr & DAVINCI_MCBSP_PCR_FSXM) == 0) {
-		/* codec is master */
-		davinci_mcbsp_start(dev, substream);
-	}
 	return 0;
 }
 
@@ -587,8 +583,6 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	int ret = 0;
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	if ((dev->pcr & DAVINCI_MCBSP_PCR_FSXM) == 0)
-		return 0;	/* return if codec is master */
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
