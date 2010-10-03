@@ -43,10 +43,6 @@ struct mb86a20s_state {
 	const struct mb86a20s_config *config;
 
 	struct dvb_frontend frontend;
-
-
-
-
 };
 
 struct regdata {
@@ -175,7 +171,7 @@ static struct regdata mb86a20s_init[] = {
 	{ 0x45, 0x04 },
 	{ 0x48, 0x04 },
 	{ 0x50, 0xd5 },
-	{ 0x51, 0x01 },
+	{ 0x51, 0x01 },		/* Serial */
 	{ 0x50, 0xd6 },
 	{ 0x51, 0x1f },
 	{ 0x50, 0xd2 },
@@ -376,6 +372,7 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc;
+	u8  regD5 = 1;
 
 	dprintk("\n");
 
@@ -383,6 +380,17 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 	rc = mb86a20s_writeregdata(state, mb86a20s_init);
 	if (rc < 0)
 		return rc;
+
+	if (!state->config->is_serial) {
+		regD5 &= ~1;
+
+		rc = mb86a20s_writereg(state, 0x50, 0xd5);
+		if (rc < 0)
+			return rc;
+		rc = mb86a20s_writereg(state, 0x51, regD5);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }

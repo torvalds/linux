@@ -26,6 +26,7 @@
 
 struct mb86a20s_config {
 	u8 demod_address;
+	bool is_serial;
 };
 
 #if defined(CONFIG_DVB_MB86A20S) || (defined(CONFIG_DVB_MB86A20S_MODULE) \

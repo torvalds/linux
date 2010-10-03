@@ -143,6 +143,7 @@ static struct tda18271_config hcw_tda18271_config = {
 
 static const struct mb86a20s_config pv_mb86a20s_config = {
 	.demod_address = 0x10,
+	.is_serial = true,
 };
 
 static struct tda18271_config pv_tda18271_config = {
