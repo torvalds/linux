@@ -138,6 +138,15 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 			bandwidth /= 8;
 		bandwidth += 12;
 
+		/* The bandwidth estimate is too low for many cameras. Don't use
+		 * maximum packet sizes lower than 1024 bytes to try and work
+		 * around the problem. According to measurements done on two
+		 * different camera models, the value is high enough to get most
+		 * resolutions working while not preventing two simultaneous
+		 * VGA streams at 15 fps.
+		 */
+		bandwidth = max_t(u32, bandwidth, 1024);
+
 		ctrl->dwMaxPayloadTransferSize = bandwidth;
 	}
 }
