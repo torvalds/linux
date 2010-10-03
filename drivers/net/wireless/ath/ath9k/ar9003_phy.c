@@ -1005,14 +1005,12 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 
 	ath_print(common, ATH_DBG_ANI,
 		  "ANI parameters: SI=%d, ofdmWS=%s FS=%d "
-		  "MRCcck=%s listenTime=%d CC=%d listen=%d "
+		  "MRCcck=%s listenTime=%d "
 		  "ofdmErrs=%d cckErrs=%d\n",
 		  aniState->spurImmunityLevel,
 		  !aniState->ofdmWeakSigDetectOff ? "on" : "off",
 		  aniState->firstepLevel,
 		  !aniState->mrcCCKOff ? "on" : "off",
-		  aniState->listenTime,
-		  aniState->cycleCount,
 		  aniState->listenTime,
 		  aniState->ofdmPhyErrCount,
 		  aniState->cckPhyErrCount);
@@ -1116,8 +1114,6 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL_NEW;
 	aniState->ofdmWeakSigDetectOff = !ATH9K_ANI_USE_OFDM_WEAK_SIG;
 	aniState->mrcCCKOff = !ATH9K_ANI_ENABLE_MRC_CCK;
-
-	aniState->cycleCount = 0;
 }
 
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
@@ -1232,7 +1228,7 @@ void ar9003_hw_bb_watchdog_read(struct ath_hw *ah)
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 rxc_pcnt = 0, rxf_pcnt = 0, txf_pcnt = 0, status;
+	u32 status;
 
 	if (likely(!(common->debug_mask & ATH_DBG_RESET)))
 		return;
@@ -1261,11 +1257,13 @@ void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 		  "** BB mode: BB_gen_controls=0x%08x **\n",
 		  REG_READ(ah, AR_PHY_GEN_CTRL));
 
-	if (ath9k_hw_GetMibCycleCountsPct(ah, &rxc_pcnt, &rxf_pcnt, &txf_pcnt))
+	ath9k_hw_update_cycle_counters(ah);
+#define PCT(_field) (ah->cc_delta._field * 100 / ah->cc_delta.cycles)
+	if (ah->cc_delta.cycles)
 		ath_print(common, ATH_DBG_RESET,
 			  "** BB busy times: rx_clear=%d%%, "
 			  "rx_frame=%d%%, tx_frame=%d%% **\n",
-			  rxc_pcnt, rxf_pcnt, txf_pcnt);
+			  PCT(rx_clear), PCT(rx_frame), PCT(tx_frame));
 
 	ath_print(common, ATH_DBG_RESET,
 		  "==== BB update: done ====\n\n");

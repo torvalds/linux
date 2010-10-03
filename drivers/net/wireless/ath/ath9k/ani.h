@@ -93,6 +93,13 @@ struct ath9k_mib_stats {
 	u32 beacons;
 };
 
+struct ath_cycle_counters {
+	u32 cycles;
+	u32 rx_frame;
+	u32 rx_clear;
+	u32 tx_frame;
+};
+
 /* INI default values for ANI registers */
 struct ath9k_ani_default {
 	u16 m1ThreshLow;
@@ -130,9 +137,6 @@ struct ar5416AniState {
 	int32_t rssiThrLow;
 	int32_t rssiThrHigh;
 	u32 noiseFloor;
-	u32 txFrameCount;
-	u32 rxFrameCount;
-	u32 cycleCount;
 	u32 ofdmPhyErrCount;
 	u32 cckPhyErrCount;
 	u32 ofdmPhyErrBase;
@@ -166,8 +170,7 @@ struct ar5416Stats {
 
 void ath9k_enable_mib_counters(struct ath_hw *ah);
 void ath9k_hw_disable_mib_counters(struct ath_hw *ah);
-u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah, u32 *rxc_pcnt,
-				  u32 *rxf_pcnt, u32 *txf_pcnt);
+void ath9k_hw_update_cycle_counters(struct ath_hw *ah);
 void ath9k_hw_ani_setup(struct ath_hw *ah);
 void ath9k_hw_ani_init(struct ath_hw *ah);
 int ath9k_hw_get_ani_channel_idx(struct ath_hw *ah,

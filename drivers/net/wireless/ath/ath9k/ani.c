@@ -549,47 +549,15 @@ static u8 ath9k_hw_chan_2_clockrate_mhz(struct ath_hw *ah)
 
 static int32_t ath9k_hw_ani_get_listen_time(struct ath_hw *ah)
 {
-	struct ar5416AniState *aniState;
-	struct ath_common *common = ath9k_hw_common(ah);
-	u32 txFrameCount, rxFrameCount, cycleCount;
-	int32_t listenTime;
+	int32_t listen_time;
+	int32_t clock_rate;
 
-	txFrameCount = REG_READ(ah, AR_TFCNT);
-	rxFrameCount = REG_READ(ah, AR_RFCNT);
-	cycleCount = REG_READ(ah, AR_CCCNT);
+	ath9k_hw_update_cycle_counters(ah);
+	clock_rate = ath9k_hw_chan_2_clockrate_mhz(ah) * 1000;
+	listen_time = ah->listen_time / clock_rate;
+	ah->listen_time = 0;
 
-	aniState = ah->curani;
-	if (aniState->cycleCount == 0 || aniState->cycleCount > cycleCount) {
-		listenTime = 0;
-		ah->stats.ast_ani_lzero++;
-		ath_print(common, ATH_DBG_ANI,
-			  "1st call: aniState->cycleCount=%d\n",
-			  aniState->cycleCount);
-	} else {
-		int32_t ccdelta = cycleCount - aniState->cycleCount;
-		int32_t rfdelta = rxFrameCount - aniState->rxFrameCount;
-		int32_t tfdelta = txFrameCount - aniState->txFrameCount;
-		int32_t clock_rate;
-
-		/*
-		 * convert HW counter values to ms using mode
-		 * specifix clock rate
-		 */
-		clock_rate = ath9k_hw_chan_2_clockrate_mhz(ah) * 1000;;
-
-		listenTime = (ccdelta - rfdelta - tfdelta) / clock_rate;
-
-		ath_print(common, ATH_DBG_ANI,
-			  "cyclecount=%d, rfcount=%d, "
-			  "tfcount=%d, listenTime=%d CLOCK_RATE=%d\n",
-			  ccdelta, rfdelta, tfdelta, listenTime, clock_rate);
-	}
-
-	aniState->cycleCount = cycleCount;
-	aniState->txFrameCount = txFrameCount;
-	aniState->rxFrameCount = rxFrameCount;
-
-	return listenTime;
+	return listen_time;
 }
 
 static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
@@ -1041,45 +1009,52 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable_mib_counters);
 
-u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah,
-				  u32 *rxc_pcnt,
-				  u32 *rxf_pcnt,
-				  u32 *txf_pcnt)
+void ath9k_hw_update_cycle_counters(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
-	static u32 cycles, rx_clear, rx_frame, tx_frame;
-	u32 good = 1;
+	struct ath_cycle_counters cc;
+	bool clear;
 
-	u32 rc = REG_READ(ah, AR_RCCNT);
-	u32 rf = REG_READ(ah, AR_RFCNT);
-	u32 tf = REG_READ(ah, AR_TFCNT);
-	u32 cc = REG_READ(ah, AR_CCCNT);
+	memcpy(&cc, &ah->cc, sizeof(cc));
 
-	if (cycles == 0 || cycles > cc) {
-		ath_print(common, ATH_DBG_ANI,
-			  "cycle counter wrap. ExtBusy = 0\n");
-		good = 0;
-	} else {
-		u32 cc_d = cc - cycles;
-		u32 rc_d = rc - rx_clear;
-		u32 rf_d = rf - rx_frame;
-		u32 tf_d = tf - tx_frame;
+	/* freeze counters */
+	REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
 
-		if (cc_d != 0) {
-			*rxc_pcnt = rc_d * 100 / cc_d;
-			*rxf_pcnt = rf_d * 100 / cc_d;
-			*txf_pcnt = tf_d * 100 / cc_d;
-		} else {
-			good = 0;
-		}
+	ah->cc.cycles = REG_READ(ah, AR_CCCNT);
+	if (ah->cc.cycles < cc.cycles) {
+		clear = true;
+		goto skip;
 	}
 
-	cycles = cc;
-	rx_frame = rf;
-	rx_clear = rc;
-	tx_frame = tf;
+	ah->cc.rx_clear = REG_READ(ah, AR_RCCNT);
+	ah->cc.rx_frame = REG_READ(ah, AR_RFCNT);
+	ah->cc.tx_frame = REG_READ(ah, AR_TFCNT);
 
-	return good;
+	/* prevent wraparound */
+	if (ah->cc.cycles & BIT(31))
+		clear = true;
+
+#define CC_DELTA(_field, _reg) ah->cc_delta._field += ah->cc._field - cc._field
+	CC_DELTA(cycles, AR_CCCNT);
+	CC_DELTA(rx_frame, AR_RFCNT);
+	CC_DELTA(rx_clear, AR_RCCNT);
+	CC_DELTA(tx_frame, AR_TFCNT);
+#undef CC_DELTA
+
+	ah->listen_time += (ah->cc.cycles - cc.cycles) -
+		 ((ah->cc.rx_frame - cc.rx_frame) +
+		  (ah->cc.tx_frame - cc.tx_frame));
+
+skip:
+	if (clear) {
+		REG_WRITE(ah, AR_CCCNT, 0);
+		REG_WRITE(ah, AR_RFCNT, 0);
+		REG_WRITE(ah, AR_RCCNT, 0);
+		REG_WRITE(ah, AR_TFCNT, 0);
+		memset(&ah->cc, 0, sizeof(ah->cc));
+	}
+
+	/* unfreeze counters */
+	REG_WRITE(ah, AR_MIBC, 0);
 }
 
 /*

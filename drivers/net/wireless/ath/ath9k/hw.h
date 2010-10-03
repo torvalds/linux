@@ -765,6 +765,8 @@ struct ath_hw {
 	int coarse_low[5];
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
+	struct ath_cycle_counters cc, cc_delta;
+	int32_t listen_time;
 
 	/* Bluetooth coexistance */
 	struct ath_btcoex_hw btcoex_hw;
