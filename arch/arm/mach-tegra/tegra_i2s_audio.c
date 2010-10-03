@@ -40,6 +40,7 @@
 #include <linux/io.h>
 #include <linux/ktime.h>
 #include <linux/sysfs.h>
+#include <linux/pm_qos_params.h>
 
 #include <linux/tegra_audio.h>
 
@@ -81,6 +82,8 @@ struct audio_stream {
 	spinlock_t dma_req_lock; /* guards dma_has_it */
 	int dma_has_it;
 	struct tegra_dma_req dma_req;
+
+	struct pm_qos_request_list *pm_qos;
 };
 
 struct i2s_pio_stats {
@@ -527,6 +530,8 @@ static int start_playback(struct audio_stream *aos)
 	pr_debug("%s: starting playback\n", __func__);
 	rc = sound_ops->start_playback(aos);
 	spin_unlock_irqrestore(&aos->dma_req_lock, flags);
+	if (!rc)
+		pm_qos_update_request(aos->pm_qos, 0);
 	return rc;
 }
 
@@ -542,6 +547,8 @@ static int start_recording_if_necessary(struct audio_stream *ais)
 		rc = sound_ops->start_recording(ais);
 	}
 	spin_unlock_irqrestore(&ais->dma_req_lock, flags);
+	if (!rc)
+		pm_qos_update_request(ais->pm_qos, 0);
 	return rc;
 }
 
@@ -554,6 +561,7 @@ static bool stop_playback_if_necessary(struct audio_stream *aos)
 		if (aos->active)
 			aos->errors++;
 		spin_unlock_irqrestore(&aos->dma_req_lock, flags);
+		pm_qos_update_request(aos->pm_qos, PM_QOS_DEFAULT_VALUE);
 		return true;
 	}
 	spin_unlock_irqrestore(&aos->dma_req_lock, flags);
@@ -582,6 +590,7 @@ static bool stop_recording(struct audio_stream *ais)
 	rc = wait_for_completion_interruptible(
 			&ais->stop_completion);
 	pr_debug("%s: done: %d\n", __func__, rc);
+	pm_qos_update_request(ais->pm_qos, PM_QOS_DEFAULT_VALUE);
 	return true;
 }
 
@@ -2174,6 +2183,24 @@ static int tegra_audio_probe(struct platform_device *pdev)
 			PCM_IN_BUFFER_PADDING);
 	if (rc < 0)
 		return rc;
+
+	state->in.pm_qos = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
+				PM_QOS_DEFAULT_VALUE);
+	if (!state->in.pm_qos) {
+		dev_err(&pdev->dev,
+			"%s: could not register pm_qos handle for input\n",
+			__func__);
+		return -EIO;
+	}
+
+	state->out.pm_qos = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
+				PM_QOS_DEFAULT_VALUE);
+	if (!state->out.pm_qos) {
+		dev_err(&pdev->dev,
+			"%s: could not register pm_qos handle for output\n",
+			__func__);
+		return -EIO;
+	}
 
 	if (request_irq(state->irq, i2s_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {
