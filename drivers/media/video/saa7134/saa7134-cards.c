@@ -5179,12 +5179,23 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG] = {
 		.name           = "Kworld PCI SBTVD/ISDB-T Full-Seg Hybrid",
 		.audio_clock    = 0x00187de7,
+#if 0
+	/*
+	 * FIXME: Analog mode doesn't work, if digital is enabled. The proper
+	 * fix is to use tda8290 driver, but Kworld seems to use an
+	 * unsupported version of tda8295.
+	 */
 		.tuner_type     = TUNER_NXP_TDA18271,	/* TUNER_PHILIPS_TDA8290 */
-		.radio_type     = UNSET,
 		.tuner_addr     = 0x60,
+#else
+		.tuner_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+#endif
+		.radio_type     = UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.gpiomask       = 0x8e054000,
 		.mpeg           = SAA7134_MPEG_DVB,
+		.ts_type	= SAA7134_MPEG_TS_PARALLEL,
 		.inputs = { {
 			.name   = name_tv,
 			.vmux   = 1,
@@ -7623,16 +7634,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 			{0x45, 0x97},
 			{0x45, 0xc1},
 		};
-
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x0000);
-		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0000);
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x0000);
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x4000);
-		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0000);
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x4000);
-		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x4000);
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x4000);
-		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0000);
 		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x4000);
 		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x4000);
 
