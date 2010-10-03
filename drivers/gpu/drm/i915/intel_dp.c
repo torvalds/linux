@@ -933,6 +933,7 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 
 	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
 		ironlake_edp_backlight_on(dev);
+	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
 }
 
 static void
