@@ -991,6 +991,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     FT1000_INFO *pInfo = NULL;
     PDPRAM_BLK pdpram_blk;
     int i;
+	struct list_head *cur, *tmp;
 
 	gCardIndex=0; //mbelian
 
@@ -1026,7 +1027,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
         }
         else {
             printk(KERN_ERR "ft1000: Invalid device name\n");
-            kfree(netdev);
+	    free_netdev(netdev);
             return STATUS_FAILURE;
         }
     }
@@ -1099,8 +1100,14 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
         for (i=0; i<NUM_OF_FREE_BUFFERS; i++) {
             // Get memory for DPRAM_DATA link list
             pdpram_blk = kmalloc ( sizeof(DPRAM_BLK), GFP_KERNEL );
+	    if (pdpram_blk == NULL)
+		goto err_free;
             // Get a block of memory to store command data
             pdpram_blk->pbuffer = kmalloc ( MAX_CMD_SQSIZE, GFP_KERNEL );
+	    if (pdpram_blk->pbuffer == NULL) {
+		kfree(pdpram_blk);
+		goto err_free;
+	    }
             // link provisioning data
             list_add_tail (&pdpram_blk->list, &freercvpool);
         }
@@ -1109,6 +1116,15 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 
     return STATUS_SUCCESS;
 
+
+err_free:
+	list_for_each_safe(cur, tmp, &pdpram_blk->list) {
+		pdpram_blk = list_entry(cur, DPRAM_BLK, list);
+		list_del(&pdpram_blk->list);
+		kfree(pdpram_blk->pbuffer);
+		kfree(pdpram_blk);
+	}
+	return STATUS_FAILURE;
 }
 
 
@@ -1265,7 +1281,8 @@ static int ft1000_read_fifo_reg(struct ft1000_device *ft1000dev,unsigned int pip
 
     if(!urb || !dr)
     {
-        if(urb) kfree(urb);
+	kfree(dr);
+	usb_free_urb(urb);
         spin_unlock(&ft1000dev->device_lock);
         return -ENOMEM;
     }
