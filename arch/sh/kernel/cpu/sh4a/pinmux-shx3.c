@@ -146,7 +146,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t shx3_pinmux_data[] __initdata = {
+static pinmux_enum_t shx3_pinmux_data[] = {
 
 	/* PA GPIO */
 	PINMUX_DATA(PA7_DATA, PA7_IN, PA7_OUT, PA7_IN_PU),
@@ -305,7 +305,7 @@ static pinmux_enum_t shx3_pinmux_data[] __initdata = {
 	PINMUX_DATA(IRQOUT_MARK,	PH0_FN),
 };
 
-static struct pinmux_gpio shx3_pinmux_gpios[] __initdata = {
+static struct pinmux_gpio shx3_pinmux_gpios[] = {
 	/* PA */
 	PINMUX_GPIO(GPIO_PA7, PA7_DATA),
 	PINMUX_GPIO(GPIO_PA6, PA6_DATA),
@@ -449,7 +449,7 @@ static struct pinmux_gpio shx3_pinmux_gpios[] __initdata = {
 	PINMUX_GPIO(GPIO_FN_IRQOUT,	IRQOUT_MARK),
 };
 
-static struct pinmux_cfg_reg shx3_pinmux_config_regs[] __initdata = {
+static struct pinmux_cfg_reg shx3_pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("PABCR", 0xffc70000, 32, 2) {
 		PA7_FN, PA7_OUT, PA7_IN, PA7_IN_PU,
 		PA6_FN, PA6_OUT, PA6_IN, PA6_IN_PU,
@@ -525,7 +525,7 @@ static struct pinmux_cfg_reg shx3_pinmux_config_regs[] __initdata = {
 	{ },
 };
 
-static struct pinmux_data_reg shx3_pinmux_data_regs[] __initdata = {
+static struct pinmux_data_reg shx3_pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PABDR", 0xffc70010, 32) {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		PA7_DATA, PA6_DATA, PA5_DATA, PA4_DATA,
@@ -561,7 +561,7 @@ static struct pinmux_data_reg shx3_pinmux_data_regs[] __initdata = {
 	{ },
 };
 
-static struct pinmux_info shx3_pinmux_info __initdata = {
+static struct pinmux_info shx3_pinmux_info = {
 	.name		= "shx3_pfc",
 	.reserved_id	= PINMUX_RESERVED,
 	.data		= { PINMUX_DATA_BEGIN,	   PINMUX_DATA_END },
