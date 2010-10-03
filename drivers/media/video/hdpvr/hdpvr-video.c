@@ -157,6 +157,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 				  mem, dev->bulk_in_size,
 				  hdpvr_read_bulk_callback, buf);
 
+		buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		buf->status = BUFSTAT_AVAILABLE;
 		list_add_tail(&buf->buff_list, &dev->free_buff_list);
 	}
