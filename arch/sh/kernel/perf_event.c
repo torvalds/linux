@@ -59,6 +59,15 @@ static inline int sh_pmu_initialized(void)
 	return !!sh_pmu;
 }
 
+const char *perf_pmu_name(void)
+{
+	if (!sh_pmu)
+		return NULL;
+
+	return sh_pmu->name;
+}
+EXPORT_SYMBOL_GPL(perf_pmu_name);
+
 int perf_num_counters(void)
 {
 	if (!sh_pmu)
