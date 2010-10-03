@@ -536,11 +536,6 @@ extern int wlc_bmac_up_finish(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_down_prep(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw);
 
-extern int wlc_nin_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
-			 struct wlc_if *wlcif);
-extern bool wlc_nin_process_sendup(struct wlc_info *wlc, void *p);
-void wlc_nin_create_iapp_ind(struct wlc_info *wlc, void *p, int len);
-
 extern uint32 wlc_reg_read(struct wlc_info *wlc, void *r, uint size);
 extern void wlc_reg_write(struct wlc_info *wlc, void *r, uint32 v, uint size);
 extern void wlc_corereset(struct wlc_info *wlc, uint32 flags);
@@ -550,15 +545,8 @@ extern uint16 wlc_mhf_get(struct wlc_info *wlc, uint8 idx, int bands);
 extern uint32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
 extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset);
 extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
-extern void wlc_join_attempt(struct wlc_bsscfg *cfg);
-extern void wlc_join_bss_start(struct wlc_bsscfg *cfg);
-extern void wlc_join_BSS(struct wlc_bsscfg *cfg, wlc_bss_info_t *bi);
 
 /* wlc_phy.c helper functions */
-extern bool wlc_scan_inprog(struct wlc_info *wlc);
-extern bool wlc_associnprog(struct wlc_info *wlc);
-extern bool wlc_scan_inprog(struct wlc_info *wlc);
-extern void *wlc_cur_phy(struct wlc_info *wlc);
 extern void wlc_set_ps_ctrl(struct wlc_info *wlc);
 extern void wlc_mctrl(struct wlc_info *wlc, uint32 mask, uint32 val);
 extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
