@@ -743,7 +743,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	return (void __user *)((usp - frame_size) & -8UL);
 }
 
-static void setup_frame (int sig, struct k_sigaction *ka,
+static int setup_frame (int sig, struct k_sigaction *ka,
 			 sigset_t *set, struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
@@ -813,14 +813,14 @@ adjust_stack:
 		tregs->pc = regs->pc;
 		tregs->sr = regs->sr;
 	}
-	return;
+	return err;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
 	goto adjust_stack;
 }
 
-static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 			    sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
@@ -901,7 +901,7 @@ adjust_stack:
 		tregs->pc = regs->pc;
 		tregs->sr = regs->sr;
 	}
-	return;
+	return err;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
@@ -963,6 +963,7 @@ static void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
+	int err;
 	/* are we from a system call? */
 	if (regs->orig_d0 >= 0)
 		/* If so, check system call restarting.. */
@@ -970,9 +971,12 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		err = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		err = setup_frame(sig, ka, oldset, regs);
+
+	if (err)
+		return;
 
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NODEFER))
@@ -983,6 +987,8 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		regs->sr &= ~0x8000;
 		send_sig(SIGTRAP, current, 1);
 	}
+
+	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 /*
@@ -1008,7 +1014,6 @@ asmlinkage void do_signal(struct pt_regs *regs)
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &ka, &info, oldset, regs);
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		return;
 	}
 
