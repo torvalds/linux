@@ -2374,7 +2374,7 @@ static int mmu_check_root(struct kvm_vcpu *vcpu, gfn_t root_gfn)
 static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
-	int i;
+	unsigned i;
 
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		spin_lock(&vcpu->kvm->mmu_lock);
