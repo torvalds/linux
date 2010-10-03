@@ -721,7 +721,7 @@ static void __exit marvell_exit(void)
 module_init(marvell_init);
 module_exit(marvell_exit);
 
-static struct mdio_device_id marvell_tbl[] = {
+static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ 0x01410c60, 0xfffffff0 },
 	{ 0x01410c90, 0xfffffff0 },
 	{ 0x01410cc0, 0xfffffff0 },

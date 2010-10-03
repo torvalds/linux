@@ -159,7 +159,7 @@ static void __exit cicada_exit(void)
 module_init(cicada_init);
 module_exit(cicada_exit);
 
-static struct mdio_device_id cicada_tbl[] = {
+static struct mdio_device_id __maybe_unused cicada_tbl[] = {
 	{ 0x000fc410, 0x000ffff0 },
 	{ 0x000fc440, 0x000fffc0 },
 	{ }
