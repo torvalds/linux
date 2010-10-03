@@ -376,6 +376,9 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 
 	dprintk("\n");
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
 	/* Initialize the frontend */
 	rc = mb86a20s_writeregdata(state, mb86a20s_init);
 	if (rc < 0)
@@ -392,6 +395,9 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 			return rc;
 	}
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
 	return 0;
 }
 
@@ -402,6 +408,9 @@ static int mb86a20s_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	u8	 val;
 
 	dprintk("\n");
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	/* Does a binary search to get RF strength */
 	rf_max = 0xfff;
@@ -426,6 +435,9 @@ static int mb86a20s_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 	dprintk("signal strength = %d\n", *strength);
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
 	return 0;
 }
 
@@ -437,7 +449,11 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	dprintk("\n");
 	*status = 0;
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
 	val = mb86a20s_readreg(state, 0x0a) & 0xf;
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	if (val >= 2)
 		*status |= FE_HAS_SIGNAL;
@@ -467,8 +483,15 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe,
 
 	dprintk("\n");
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	fe->ops.tuner_ops.set_params(fe, p);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
 	rc = mb86a20s_writeregdata(state, mb86a20s_reset_reception);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	return rc;
 }
