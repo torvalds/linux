@@ -93,7 +93,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignmen
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
-	struct drm_i915_gem_object *obj_priv, *tmp_obj_priv;
+	struct drm_i915_gem_object *obj_priv;
 	struct list_head *render_iter, *bsd_iter;
 	int ret = 0;
 
@@ -175,36 +175,34 @@ i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignmen
 	return -ENOSPC;
 
 found:
+	/* drm_mm doesn't allow any other other operations while
+	 * scanning, therefore store to be evicted objects on a
+	 * temporary list. */
 	INIT_LIST_HEAD(&eviction_list);
-	list_for_each_entry_safe(obj_priv, tmp_obj_priv,
-				 &unwind_list, evict_list) {
+	while (!list_empty(&unwind_list)) {
+		obj_priv = list_first_entry(&unwind_list,
+					    struct drm_i915_gem_object,
+					    evict_list);
 		if (drm_mm_scan_remove_block(obj_priv->gtt_space)) {
-			/* drm_mm doesn't allow any other other operations while
-			 * scanning, therefore store to be evicted objects on a
-			 * temporary list. */
 			list_move(&obj_priv->evict_list, &eviction_list);
-		} else
-			drm_gem_object_unreference(&obj_priv->base);
-	}
-
-	/* Unbinding will emit any required flushes */
-	list_for_each_entry_safe(obj_priv, tmp_obj_priv,
-				 &eviction_list, evict_list) {
-		ret = i915_gem_object_unbind(&obj_priv->base);
-		if (ret)
-			return ret;
-
+			continue;
+		}
+		list_del(&obj_priv->evict_list);
 		drm_gem_object_unreference(&obj_priv->base);
 	}
 
-	/* The just created free hole should be on the top of the free stack
-	 * maintained by drm_mm, so this BUG_ON actually executes in O(1).
-	 * Furthermore all accessed data has just recently been used, so it
-	 * should be really fast, too. */
-	BUG_ON(!drm_mm_search_free(&dev_priv->mm.gtt_space, min_size,
-				   alignment, 0));
+	/* Unbinding will emit any required flushes */
+	while (!list_empty(&eviction_list)) {
+		obj_priv = list_first_entry(&eviction_list,
+					    struct drm_i915_gem_object,
+					    evict_list);
+		if (ret == 0)
+			ret = i915_gem_object_unbind(&obj_priv->base);
+		list_del(&obj_priv->evict_list);
+		drm_gem_object_unreference(&obj_priv->base);
+	}
 
-	return 0;
+	return ret;
 }
 
 int

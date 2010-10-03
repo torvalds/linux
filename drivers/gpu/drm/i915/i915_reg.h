@@ -2105,7 +2105,7 @@
 
 /* Pipe A */
 #define PIPEADSL		0x70000
-#define   DSL_LINEMASK	       	0x00000fff
+#define   DSL_LINEMASK		0x00000fff
 #define PIPEACONF		0x70008
 #define   PIPECONF_ENABLE	(1<<31)
 #define   PIPECONF_DISABLE	0
@@ -2162,13 +2162,14 @@
 #define   PIPE_START_VBLANK_INTERRUPT_STATUS	(1UL<<2) /* 965 or later */
 #define   PIPE_VBLANK_INTERRUPT_STATUS		(1UL<<1)
 #define   PIPE_OVERLAY_UPDATED_STATUS		(1UL<<0)
-#define   PIPE_BPC_MASK 			(7 << 5) /* Ironlake */
+#define   PIPE_BPC_MASK				(7 << 5) /* Ironlake */
 #define   PIPE_8BPC				(0 << 5)
 #define   PIPE_10BPC				(1 << 5)
 #define   PIPE_6BPC				(2 << 5)
 #define   PIPE_12BPC				(3 << 5)
 
 #define PIPECONF(pipe) _PIPE(pipe, PIPEACONF, PIPEBCONF)
+#define PIPEDSL(pipe)  _PIPE(pipe, PIPEADSL, PIPEBDSL)
 
 #define DSPARB			0x70030
 #define   DSPARB_CSTART_MASK	(0x7f << 7)

@@ -1186,25 +1186,22 @@ intel_channel_eq_ok(struct intel_dp *intel_dp)
 static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint32_t dp_reg_value,
-			uint8_t dp_train_pat,
-			bool first)
+			uint8_t dp_train_pat)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
 	int ret;
 
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
 	POSTING_READ(intel_dp->output_reg);
-	if (first)
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	intel_dp_aux_native_write_1(intel_dp,
 				    DP_TRAINING_PATTERN_SET,
 				    dp_train_pat);
 
 	ret = intel_dp_aux_native_write(intel_dp,
-					DP_TRAINING_LANE0_SET, intel_dp->train_set, 4);
+					DP_TRAINING_LANE0_SET,
+					intel_dp->train_set, 4);
 	if (ret != 4)
 		return false;
 
@@ -1216,13 +1213,19 @@ static void
 intel_dp_start_link_train(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
 	int i;
 	uint8_t voltage;
 	bool clock_recovery = false;
-	bool first = true;
 	int tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
+
+	/* Enable output, wait for it to become active */
+	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
+	POSTING_READ(intel_dp->output_reg);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	/* Write the link configuration data */
 	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
@@ -1255,9 +1258,8 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			reg = DP | DP_LINK_TRAIN_PAT_1;
 
 		if (!intel_dp_set_link_train(intel_dp, reg,
-					     DP_TRAINING_PATTERN_1, first))
+					     DP_TRAINING_PATTERN_1))
 			break;
-		first = false;
 		/* Set training pattern 1 */
 
 		udelay(100);
@@ -1324,8 +1326,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 
 		/* channel eq pattern */
 		if (!intel_dp_set_link_train(intel_dp, reg,
-					     DP_TRAINING_PATTERN_2,
-					     false))
+					     DP_TRAINING_PATTERN_2))
 			break;
 
 		udelay(400);

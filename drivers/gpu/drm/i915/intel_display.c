@@ -1017,8 +1017,8 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
-/**
- * intel_wait_for_vblank_off - wait for vblank after disabling a pipe
+/*
+ * intel_wait_for_pipe_off - wait for pipe to turn off
  * @dev: drm device
  * @pipe: pipe to wait for
  *
@@ -1026,26 +1026,39 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
  * spinning on the vblank interrupt status bit, since we won't actually
  * see an interrupt when the pipe is disabled.
  *
- * So this function waits for the display line value to settle (it
- * usually ends up stopping at the start of the next frame).
+ * On Gen4 and above:
+ *   wait for the pipe register state bit to turn off
+ *
+ * Otherwise:
+ *   wait for the display line value to settle (it usually
+ *   ends up stopping at the start of the next frame).
+ *
  */
-void intel_wait_for_vblank_off(struct drm_device *dev, int pipe)
+void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipedsl_reg = (pipe == 0 ? PIPEADSL : PIPEBDSL);
-	unsigned long timeout = jiffies + msecs_to_jiffies(100);
-	u32 last_line, line;
 
-	/* Wait for the display line to settle */
-	line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
-	do {
-		last_line = line;
-		MSLEEP(5);
-		line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
-	} while (line != last_line && time_after(timeout, jiffies));
+	if (INTEL_INFO(dev)->gen >= 4) {
+		int reg = PIPECONF(pipe);
 
-	if (line != last_line)
-		DRM_DEBUG_KMS("vblank wait timed out\n");
+		/* Wait for the Pipe State to go off */
+		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0,
+			     100))
+			DRM_DEBUG_KMS("pipe_off wait timed out\n");
+	} else {
+		u32 last_line;
+		int reg = PIPEDSL(pipe);
+		unsigned long timeout = jiffies + msecs_to_jiffies(100);
+
+		/* Wait for the display line to settle */
+		do {
+			last_line = I915_READ(reg) & DSL_LINEMASK;
+			mdelay(5);
+		} while (((I915_READ(reg) & DSL_LINEMASK) != last_line) &&
+			 time_after(timeout, jiffies));
+		if (time_after(jiffies, timeout))
+			DRM_DEBUG_KMS("pipe_off wait timed out\n");
+	}
 }
 
 static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
@@ -2406,7 +2419,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 		/* Wait for vblank for the disable to take effect */
 		if (IS_GEN2(dev))
-			intel_wait_for_vblank_off(dev, pipe);
+			intel_wait_for_vblank(dev, pipe);
 	}
 
 	/* Don't disable pipe A or pipe A PLLs if needed */
@@ -2419,9 +2432,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	if (temp & PIPECONF_ENABLE) {
 		I915_WRITE(reg, temp & ~PIPECONF_ENABLE);
 
-		/* Wait for vblank for the disable to take effect. */
+		/* Wait for the pipe to turn off */
 		POSTING_READ(reg);
-		intel_wait_for_vblank_off(dev, pipe);
+		intel_wait_for_pipe_off(dev, pipe);
 	}
 
 	reg = DPLL(pipe);
