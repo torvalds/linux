@@ -250,9 +250,13 @@ static inline void isa_delay(void)
 #define outb(val,port)     ((void)0)
 #define outb_p(val,port)   ((void)0)
 #define inw(port)          0xffff
+#define inw_p(port)        0xffff
 #define outw(val,port)     ((void)0)
+#define outw_p(val,port)   ((void)0)
 #define inl(port)          0xffffffffUL
+#define inl_p(port)        0xffffffffUL
 #define outl(val,port)     ((void)0)
+#define outl_p(val,port)   ((void)0)
 
 #define insb(port,buf,nr)  ((void)0)
 #define outsb(port,buf,nr) ((void)0)
