@@ -978,6 +978,11 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (!(ka->sa.sa_flags & SA_NODEFER))
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
+
+	if (test_thread_flag(TIF_DELAYED_TRACE)) {
+		regs->sr &= ~0x8000;
+		send_sig(SIGTRAP, current, 1);
+	}
 }
 
 /*
@@ -985,7 +990,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage int do_signal(struct pt_regs *regs)
+asmlinkage void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	struct k_sigaction ka;
@@ -1004,7 +1009,7 @@ asmlinkage int do_signal(struct pt_regs *regs)
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &ka, &info, oldset, regs);
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		return 1;
+		return;
 	}
 
 	/* Did we come from a system call? */
@@ -1017,6 +1022,4 @@ asmlinkage int do_signal(struct pt_regs *regs)
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
-
-	return 0;
 }

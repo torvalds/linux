@@ -178,11 +178,7 @@ do_signal_return:
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	tstl	%d0
-	jeq	resume_userspace
-	| when single stepping into handler stop at the first insn
-	btst	#6,%curptr@(TASK_INFO+TINFO_FLAGS+2)
-	jeq	resume_userspace
+	jbra	resume_userspace
 
 do_delayed_trace:
 	bclr	#7,%sp@(PT_OFF_SR)	| clear trace bit in SR
