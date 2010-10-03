@@ -535,8 +535,6 @@ struct ath_hw_private_ops {
 	bool (*macversion_supported)(u32 macversion);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
-	bool (*iscal_supported)(struct ath_hw *ah,
-				enum ath9k_cal_types calType);
 
 	/* PHY ops */
 	int (*rf_set_freq)(struct ath_hw *ah,
@@ -689,7 +687,7 @@ struct ath_hw {
 	u32 atim_window;
 
 	/* Calibration */
-	enum ath9k_cal_types supp_cals;
+	u32 supp_cals;
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;

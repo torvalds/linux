@@ -58,13 +58,6 @@ struct ar5416IniArray {
 		}							\
 	} while (0)
 
-enum ath9k_cal_types {
-	ADC_GAIN_CAL = 0x2,
-	ADC_DC_CAL = 0x4,
-	IQ_MISMATCH_CAL = 0x8,
-	TEMP_COMP_CAL = 0x10,
-};
-
 enum ath9k_cal_state {
 	CAL_INACTIVE,
 	CAL_WAITING,
@@ -79,7 +72,7 @@ enum ath9k_cal_state {
 #define PER_MAX_LOG_COUNT  10
 
 struct ath9k_percal_data {
-	enum ath9k_cal_types calType;
+	u32 calType;
 	u32 calNumSamples;
 	u32 calCountMax;
 	void (*calCollect) (struct ath_hw *);

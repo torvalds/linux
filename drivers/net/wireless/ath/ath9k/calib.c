@@ -186,7 +186,7 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 		return true;
 	}
 
-	if (!ath9k_hw_iscal_supported(ah, currCal->calData->calType))
+	if (!(ah->supp_cals & currCal->calData->calType))
 		return true;
 
 	ath_print(common, ATH_DBG_CALIBRATE,
