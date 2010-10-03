@@ -561,10 +561,8 @@ static int sh_gpio_get_value(struct pinmux_info *gpioc, unsigned gpio)
 	struct pinmux_data_reg *dr = NULL;
 	int bit = 0;
 
-	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0) {
-		BUG();
-		return 0;
-	}
+	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
+		return -EINVAL;
 
 	return gpio_read_reg(dr->reg, dr->reg_width, 1, bit);
 }
