@@ -148,14 +148,14 @@ const static struct fb_videomode lcdc_720p_modes[] = {
 	{
 		.name		= "LB070WV1",
 		.sync		= 0, /* hsync and vsync are active low */
-		.xres		= 1280;
-		.yres		= 720;
-		.left_margin	= 220;
-		.right_margin	= 110;
-		.hsync_len	= 40;
-		.upper_margin	= 20;
-		.lower_margin	= 5;
-		.vsync_len	= 5;
+		.xres		= 1280,
+		.yres		= 720,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 40,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
 	},
 };
 
@@ -163,14 +163,14 @@ const static struct fb_videomode lcdc_vga_modes[] = {
 	{
 		.name		= "LB070WV1",
 		.sync		= 0, /* hsync and vsync are active low */
-		.xres		= 640;
-		.yres		= 480;
-		.left_margin	= 105;
-		.right_margin	= 50;
-		.hsync_len	= 96;
-		.upper_margin	= 33;
-		.lower_margin	= 10;
-		.vsync_len	= 2;
+		.xres		= 640,
+		.yres		= 480,
+		.left_margin	= 105,
+		.right_margin	= 50,
+		.hsync_len	= 96,
+		.upper_margin	= 33,
+		.lower_margin	= 10,
+		.vsync_len	= 2,
 	},
 };
 
