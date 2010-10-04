@@ -18,7 +18,6 @@
 	.align	2
 	.type	__switch_data, %object
 __switch_data:
-	.long	__mmap_switched
 	.long	__data_loc			@ r4
 	.long	_data				@ r5
 	.long	__bss_start			@ r6
@@ -39,7 +38,7 @@ __switch_data:
  *  r9  = processor ID
  */
 __mmap_switched:
-	adr	r3, __switch_data + 4
+	adr	r3, __switch_data
 
 	ldmia	r3!, {r4, r5, r6, r7}
 	cmp	r4, r5				@ Copy data segment if needed
