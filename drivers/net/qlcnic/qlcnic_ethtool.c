@@ -343,7 +343,7 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring;
 	u32 *regs_buff = p;
-	int ring, i = 0;
+	int ring, i = 0, j = 0;
 
 	memset(p, 0, qlcnic_get_regs_len(dev));
 	regs->version = (QLCNIC_ETHTOOL_REGS_VER << 24) |
@@ -352,8 +352,8 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	regs_buff[0] = (0xcafe0000 | (QLCNIC_DEV_INFO_SIZE & 0xffff));
 	regs_buff[1] = QLCNIC_MGMT_API_VERSION;
 
-	for (i = QLCNIC_DEV_INFO_SIZE + 1; diag_registers[i] != -1; i++)
-		regs_buff[i] = QLCRD32(adapter, diag_registers[i]);
+	for (i = QLCNIC_DEV_INFO_SIZE + 1; diag_registers[j] != -1; j++, i++)
+		regs_buff[i] = QLCRD32(adapter, diag_registers[j]);
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return;
