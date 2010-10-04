@@ -817,8 +817,13 @@ static void dma_tasklet2(unsigned long data)
 static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 {
 	struct middma_device *mid = data;
-	u32 status;
+	u32 tfr_status, err_status;
 	int call_tasklet = 0;
+
+	tfr_status = ioread32(mid->dma_base + RAW_TFR);
+	err_status = ioread32(mid->dma_base + RAW_ERR);
+	if (!tfr_status && !err_status)
+		return IRQ_NONE;
 
 	/*DMA Interrupt*/
 	pr_debug("MDMA:Got an interrupt on irq %d\n", irq);
@@ -827,19 +832,17 @@ static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 		return -EINVAL;
 	}
 
-	status = ioread32(mid->dma_base + RAW_TFR);
-	pr_debug("MDMA: Status %x, Mask %x\n", status, mid->intr_mask);
-	status &= mid->intr_mask;
-	if (status) {
+	pr_debug("MDMA: Status %x, Mask %x\n", tfr_status, mid->intr_mask);
+	tfr_status &= mid->intr_mask;
+	if (tfr_status) {
 		/*need to disable intr*/
-		iowrite32((status << 8), mid->dma_base + MASK_TFR);
-		pr_debug("MDMA: Calling tasklet %x\n", status);
+		iowrite32((tfr_status << 8), mid->dma_base + MASK_TFR);
+		pr_debug("MDMA: Calling tasklet %x\n", tfr_status);
 		call_tasklet = 1;
 	}
-	status = ioread32(mid->dma_base + RAW_ERR);
-	status &= mid->intr_mask;
-	if (status) {
-		iowrite32(MASK_INTR_REG(status), mid->dma_base + MASK_ERR);
+	err_status &= mid->intr_mask;
+	if (err_status) {
+		iowrite32(MASK_INTR_REG(err_status), mid->dma_base + MASK_ERR);
 		call_tasklet = 1;
 	}
 	if (call_tasklet)
