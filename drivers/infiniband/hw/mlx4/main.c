@@ -272,14 +272,32 @@ out:
 static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 				 struct ib_device_modify *props)
 {
+	struct mlx4_cmd_mailbox *mailbox;
+
 	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
 		return -EOPNOTSUPP;
 
-	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		spin_lock(&to_mdev(ibdev)->sm_lock);
-		memcpy(ibdev->node_desc, props->node_desc, 64);
-		spin_unlock(&to_mdev(ibdev)->sm_lock);
-	}
+	if (!(mask & IB_DEVICE_MODIFY_NODE_DESC))
+		return 0;
+
+	spin_lock(&to_mdev(ibdev)->sm_lock);
+	memcpy(ibdev->node_desc, props->node_desc, 64);
+	spin_unlock(&to_mdev(ibdev)->sm_lock);
+
+	/*
+	 * If possible, pass node desc to FW, so it can generate
+	 * a 144 trap.  If cmd fails, just ignore.
+	 */
+	mailbox = mlx4_alloc_cmd_mailbox(to_mdev(ibdev)->dev);
+	if (IS_ERR(mailbox))
+		return 0;
+
+	memset(mailbox->buf, 0, 256);
+	memcpy(mailbox->buf, props->node_desc, 64);
+	mlx4_cmd(to_mdev(ibdev)->dev, mailbox->dma, 1, 0,
+		 MLX4_CMD_SET_NODE, MLX4_CMD_TIME_CLASS_A);
+
+	mlx4_free_cmd_mailbox(to_mdev(ibdev)->dev, mailbox);
 
 	return 0;
 }
