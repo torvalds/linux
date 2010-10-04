@@ -54,45 +54,22 @@ struct irq_2_iommu {
 };
 
 #ifdef CONFIG_GENERIC_HARDIRQS
-static struct irq_2_iommu *get_one_free_irq_2_iommu(int node)
-{
-	struct irq_2_iommu *iommu;
-
-	iommu = kzalloc_node(sizeof(*iommu), GFP_ATOMIC, node);
-	printk(KERN_DEBUG "alloc irq_2_iommu on node %d\n", node);
-
-	return iommu;
-}
-
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	if (WARN_ON_ONCE(!desc))
-		return NULL;
-
-	return desc->irq_2_iommu;
+	return get_irq_iommu(irq);
 }
 
 static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 {
-	struct irq_desc *desc;
-	struct irq_2_iommu *irq_iommu;
+	struct irq_data *data = irq_get_irq_data(irq);
 
-	desc = irq_to_desc(irq);
-	if (!desc) {
-		printk(KERN_INFO "can not get irq_desc for %d\n", irq);
-		return NULL;
-	}
+	if (WARN_ONCE(data->irq_2_iommu,
+		      KERN_DEBUG "irq_2_iommu!=NULL irq %u\n", irq))
+		return data->irq_2_iommu;
 
-	irq_iommu = desc->irq_2_iommu;
-
-	if (!irq_iommu)
-		desc->irq_2_iommu = get_one_free_irq_2_iommu(irq_node(irq));
-
-	return desc->irq_2_iommu;
+	data->irq_2_iommu = kzalloc_node(sizeof(*data->irq_2_iommu),
+					 GFP_ATOMIC, data->node);
+	return data->irq_2_iommu;
 }
 
 static void irq_2_iommu_free(unsigned int irq)
