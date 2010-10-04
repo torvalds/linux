@@ -713,7 +713,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		 * it will clear whatever condition caused
 		 * the interrupt.
 		 */
-		ath9k_hw_procmibevent(ah);
+		ath9k_hw_proc_mib_event(ah);
 		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
 

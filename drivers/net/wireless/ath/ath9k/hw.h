@@ -575,8 +575,6 @@ struct ath_hw_private_ops {
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
  *
- * @ani_proc_mib_event: process MIB events, this would happen upon specific ANI
- *	thresholds being reached or having overflowed.
  * @ani_monitor: called periodically by the core driver to collect
  *	MIB stats and adjust ANI if specific thresholds have been reached.
  */
@@ -620,7 +618,6 @@ struct ath_hw_ops {
 	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
 				       u32 vmf);
 
-	void (*ani_proc_mib_event)(struct ath_hw *ah);
 	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
@@ -980,6 +977,7 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
  * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
  */
 extern int modparam_force_new_ani;
+void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
 void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
 

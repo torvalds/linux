@@ -128,11 +128,6 @@ static inline void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set11n_virtualmorefrag(ah, ds, vmf);
 }
 
-static inline void ath9k_hw_procmibevent(struct ath_hw *ah)
-{
-	ath9k_hw_ops(ah)->ani_proc_mib_event(ah);
-}
-
 static inline void ath9k_hw_ani_monitor(struct ath_hw *ah,
 					struct ath9k_channel *chan)
 {
