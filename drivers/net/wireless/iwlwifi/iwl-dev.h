@@ -1383,8 +1383,6 @@ struct iwl_priv {
 
 	enum nl80211_iftype iw_mode;
 
-	struct sk_buff *ibss_beacon;
-
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
 
@@ -1496,8 +1494,10 @@ struct iwl_priv {
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
+
 	struct work_struct beacon_update;
 	struct iwl_rxon_context *beacon_ctx;
+	struct sk_buff *beacon_skb;
 
 	struct work_struct tt_work;
 	struct work_struct ct_enter;

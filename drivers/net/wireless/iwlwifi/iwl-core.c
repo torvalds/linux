@@ -1552,10 +1552,10 @@ static void iwlcore_beacon_update(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
 
-	priv->ibss_beacon = skb;
+	priv->beacon_skb = skb;
 
 	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
 	priv->timestamp = le64_to_cpu(timestamp);
@@ -1610,8 +1610,8 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_AP) {
-		dev_kfree_skb(priv->ibss_beacon);
-		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
+		dev_kfree_skb(priv->beacon_skb);
+		priv->beacon_skb = ieee80211_beacon_get(hw, vif);
 	}
 
 	if (changes & BSS_CHANGED_BEACON_INT && vif->type == NL80211_IFTYPE_AP)
@@ -2060,10 +2060,10 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* new association get rid of ibss beacon skb */
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
 
-	priv->ibss_beacon = NULL;
+	priv->beacon_skb = NULL;
 
 	priv->timestamp = 0;
 

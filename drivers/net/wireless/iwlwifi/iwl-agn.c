@@ -317,15 +317,15 @@ static u32 iwl_fill_beacon_frame(struct iwl_priv *priv,
 					  struct ieee80211_hdr *hdr,
 					  int left)
 {
-	if (!priv->ibss_beacon)
+	if (!priv->beacon_skb)
 		return 0;
 
-	if (priv->ibss_beacon->len > left)
+	if (priv->beacon_skb->len > left)
 		return 0;
 
-	memcpy(hdr, priv->ibss_beacon->data, priv->ibss_beacon->len);
+	memcpy(hdr, priv->beacon_skb->data, priv->beacon_skb->len);
 
-	return priv->ibss_beacon->len;
+	return priv->beacon_skb->len;
 }
 
 /* Parse the beacon frame to find the TIM element and set tim_idx & tim_size */
@@ -653,10 +653,10 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	}
 
 	/* new beacon skb is allocated every time; dispose previous.*/
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
 
-	priv->ibss_beacon = beacon;
+	priv->beacon_skb = beacon;
 
 	iwl_send_beacon_cmd(priv);
  out:
@@ -2993,9 +2993,9 @@ static void __iwl_down(struct iwl_priv *priv)
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
-	priv->ibss_beacon = NULL;
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
+	priv->beacon_skb = NULL;
 
 	/* clear out any free frames */
 	iwl_clear_free_frames(priv);
@@ -4131,7 +4131,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	priv->ibss_beacon = NULL;
+	priv->beacon_skb = NULL;
 
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
@@ -4645,8 +4645,8 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	iwl_free_isr_ict(priv);
 
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
 
 	ieee80211_free_hw(priv->hw);
 }
