@@ -187,13 +187,13 @@ struct intel_mid_dma_chan {
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
-	struct intel_mid_dma_slave	*slave;
 	unsigned int		descs_allocated;
 	struct middma_device	*dma;
 	bool			busy;
 	bool			in_use;
 	u32			raw_tfr;
 	u32			raw_block;
+	struct intel_mid_dma_slave *mid_slave;
 };
 
 static inline struct intel_mid_dma_chan *to_intel_mid_dma_chan(
@@ -264,7 +264,7 @@ struct intel_mid_dma_desc {
 	dma_addr_t			next;
 	enum dma_data_direction		dirn;
 	enum dma_status			status;
-	enum intel_mid_dma_width	width; /*width of DMA txn*/
+	enum dma_slave_buswidth		width; /*width of DMA txn*/
 	enum intel_mid_dma_mode		cfg_mode; /*mode configuration*/
 
 };
@@ -288,6 +288,13 @@ static inline struct intel_mid_dma_desc *to_intel_mid_dma_desc
 {
 	return container_of(txd, struct intel_mid_dma_desc, txd);
 }
+
+static inline struct intel_mid_dma_slave *to_intel_mid_dma_slave
+		(struct dma_slave_config *slave)
+{
+	return container_of(slave, struct intel_mid_dma_slave, dma_slave);
+}
+
 
 int dma_resume(struct pci_dev *pci);
 
