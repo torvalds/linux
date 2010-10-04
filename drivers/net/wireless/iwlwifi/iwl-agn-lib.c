@@ -1447,34 +1447,34 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		if (priv->cfg->bt_params &&
 		    priv->cfg->bt_params->advanced_bt_coexist)
 			scan->tx_cmd.tx_flags |= TX_CMD_FLG_IGNORE_BT;
-		scan->good_CRC_th = IWL_GOOD_CRC_TH_DISABLED;
 		break;
 	case IEEE80211_BAND_5GHZ:
 		rate = IWL_RATE_6M_PLCP;
-		/*
-		 * If active scanning is requested but a certain channel is
-		 * marked passive, we can do active scanning if we detect
-		 * transmissions.
-		 *
-		 * There is an issue with some firmware versions that triggers
-		 * a sysassert on a "good CRC threshold" of zero (== disabled),
-		 * on a radar channel even though this means that we should NOT
-		 * send probes.
-		 *
-		 * The "good CRC threshold" is the number of frames that we
-		 * need to receive during our dwell time on a channel before
-		 * sending out probes -- setting this to a huge value will
-		 * mean we never reach it, but at the same time work around
-		 * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
-		 * here instead of IWL_GOOD_CRC_TH_DISABLED.
-		 */
-		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
-						IWL_GOOD_CRC_TH_NEVER;
 		break;
 	default:
 		IWL_WARN(priv, "Invalid scan band\n");
 		return -EIO;
 	}
+
+	/*
+	 * If active scanning is requested but a certain channel is
+	 * marked passive, we can do active scanning if we detect
+	 * transmissions.
+	 *
+	 * There is an issue with some firmware versions that triggers
+	 * a sysassert on a "good CRC threshold" of zero (== disabled),
+	 * on a radar channel even though this means that we should NOT
+	 * send probes.
+	 *
+	 * The "good CRC threshold" is the number of frames that we
+	 * need to receive during our dwell time on a channel before
+	 * sending out probes -- setting this to a huge value will
+	 * mean we never reach it, but at the same time work around
+	 * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
+	 * here instead of IWL_GOOD_CRC_TH_DISABLED.
+	 */
+	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+					IWL_GOOD_CRC_TH_NEVER;
 
 	band = priv->scan_band;
 

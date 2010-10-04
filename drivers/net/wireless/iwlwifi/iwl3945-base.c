@@ -2938,24 +2938,24 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate = IWL_RATE_1M_PLCP;
-		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
 		break;
 	case IEEE80211_BAND_5GHZ:
 		scan->tx_cmd.rate = IWL_RATE_6M_PLCP;
-		/*
-		 * If active scaning is requested but a certain channel
-		 * is marked passive, we can do active scanning if we
-		 * detect transmissions.
-		 */
-		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
-						IWL_GOOD_CRC_TH_DISABLED;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	default:
 		IWL_WARN(priv, "Invalid scan band\n");
 		return -EIO;
 	}
+
+	/*
+	 * If active scaning is requested but a certain channel
+	 * is marked passive, we can do active scanning if we
+	 * detect transmissions.
+	 */
+	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+					IWL_GOOD_CRC_TH_DISABLED;
 
 	if (!priv->is_internal_short_scan) {
 		scan->tx_cmd.len = cpu_to_le16(
