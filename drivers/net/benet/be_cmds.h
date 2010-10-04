@@ -147,6 +147,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 
+#define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
 #define OPCODE_ETH_GET_STATISTICS			4
@@ -409,7 +410,7 @@ struct be_cmd_req_eth_rx_create {
 struct be_cmd_resp_eth_rx_create {
 	struct be_cmd_resp_hdr hdr;
 	u16 id;
-	u8 cpu_id;
+	u8 rss_id;
 	u8 rsvd0;
 } __packed;
 
@@ -739,9 +740,10 @@ struct be_cmd_resp_modify_eq_delay {
 } __packed;
 
 /******************** Get FW Config *******************/
+#define BE_FUNCTION_CAPS_RSS			0x2
 struct be_cmd_req_query_fw_cfg {
 	struct be_cmd_req_hdr hdr;
-	u32 rsvd[30];
+	u32 rsvd[31];
 };
 
 struct be_cmd_resp_query_fw_cfg {
@@ -751,6 +753,26 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 phys_port;
 	u32 function_mode;
 	u32 rsvd[26];
+	u32 function_caps;
+};
+
+/******************** RSS Config *******************/
+/* RSS types */
+#define RSS_ENABLE_NONE				0x0
+#define RSS_ENABLE_IPV4				0x1
+#define RSS_ENABLE_TCP_IPV4			0x2
+#define RSS_ENABLE_IPV6				0x4
+#define RSS_ENABLE_TCP_IPV6			0x8
+
+struct be_cmd_req_rss_config {
+	struct be_cmd_req_hdr hdr;
+	u32 if_id;
+	u16 enable_rss;
+	u16 cpu_table_size_log2;
+	u32 hash[10];
+	u8 cpu_table[128];
+	u8 flush;
+	u8 rsvd0[3];
 };
 
 /******************** Port Beacon ***************************/
@@ -937,7 +959,7 @@ extern int be_cmd_txq_create(struct be_adapter *adapter,
 extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
 			u16 frag_size, u16 max_frame_size, u32 if_id,
-			u32 rss);
+			u32 rss, u8 *rss_id);
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_link_status_query(struct be_adapter *adapter,
@@ -960,8 +982,10 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
 extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
-			u32 *port_num, u32 *cap);
+			u32 *port_num, u32 *function_mode, u32 *function_caps);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
+extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
+			u16 table_size);
 extern int be_process_mcc(struct be_adapter *adapter, int *status);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);

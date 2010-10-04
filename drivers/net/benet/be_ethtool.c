@@ -26,14 +26,16 @@ struct be_ethtool_stat {
 	int offset;
 };
 
-enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT, ERXSTAT};
+enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT};
 #define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
 					offsetof(_struct, field)
 #define NETSTAT_INFO(field) 	#field, NETSTAT,\
 					FIELDINFO(struct net_device_stats,\
 						field)
-#define DRVSTAT_INFO(field) 	#field, DRVSTAT,\
-					FIELDINFO(struct be_drvr_stats, field)
+#define DRVSTAT_TX_INFO(field)	#field, DRVSTAT_TX,\
+					FIELDINFO(struct be_tx_stats, field)
+#define DRVSTAT_RX_INFO(field)	#field, DRVSTAT_RX,\
+					FIELDINFO(struct be_rx_stats, field)
 #define MISCSTAT_INFO(field) 	#field, MISCSTAT,\
 					FIELDINFO(struct be_rxf_stats, field)
 #define PORTSTAT_INFO(field) 	#field, PORTSTAT,\
@@ -51,21 +53,12 @@ static const struct be_ethtool_stat et_stats[] = {
 	{NETSTAT_INFO(tx_errors)},
 	{NETSTAT_INFO(rx_dropped)},
 	{NETSTAT_INFO(tx_dropped)},
-	{DRVSTAT_INFO(be_tx_reqs)},
-	{DRVSTAT_INFO(be_tx_stops)},
-	{DRVSTAT_INFO(be_fwd_reqs)},
-	{DRVSTAT_INFO(be_tx_wrbs)},
-	{DRVSTAT_INFO(be_rx_polls)},
-	{DRVSTAT_INFO(be_tx_events)},
-	{DRVSTAT_INFO(be_rx_events)},
-	{DRVSTAT_INFO(be_tx_compl)},
-	{DRVSTAT_INFO(be_rx_compl)},
-	{DRVSTAT_INFO(be_rx_mcast_pkt)},
-	{DRVSTAT_INFO(be_ethrx_post_fail)},
-	{DRVSTAT_INFO(be_802_3_dropped_frames)},
-	{DRVSTAT_INFO(be_802_3_malformed_frames)},
-	{DRVSTAT_INFO(be_tx_rate)},
-	{DRVSTAT_INFO(be_rx_rate)},
+	{DRVSTAT_TX_INFO(be_tx_rate)},
+	{DRVSTAT_TX_INFO(be_tx_reqs)},
+	{DRVSTAT_TX_INFO(be_tx_wrbs)},
+	{DRVSTAT_TX_INFO(be_tx_stops)},
+	{DRVSTAT_TX_INFO(be_tx_events)},
+	{DRVSTAT_TX_INFO(be_tx_compl)},
 	{PORTSTAT_INFO(rx_unicast_frames)},
 	{PORTSTAT_INFO(rx_multicast_frames)},
 	{PORTSTAT_INFO(rx_broadcast_frames)},
@@ -106,10 +99,23 @@ static const struct be_ethtool_stat et_stats[] = {
 	{MISCSTAT_INFO(rx_drops_too_many_frags)},
 	{MISCSTAT_INFO(rx_drops_invalid_ring)},
 	{MISCSTAT_INFO(forwarded_packets)},
-	{MISCSTAT_INFO(rx_drops_mtu)},
-	{ERXSTAT_INFO(rx_drops_no_fragments)},
+	{MISCSTAT_INFO(rx_drops_mtu)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
+
+/* Stats related to multi RX queues */
+static const struct be_ethtool_stat et_rx_stats[] = {
+	{DRVSTAT_RX_INFO(rx_bytes)},
+	{DRVSTAT_RX_INFO(rx_pkts)},
+	{DRVSTAT_RX_INFO(rx_rate)},
+	{DRVSTAT_RX_INFO(rx_polls)},
+	{DRVSTAT_RX_INFO(rx_events)},
+	{DRVSTAT_RX_INFO(rx_compl)},
+	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
+	{DRVSTAT_RX_INFO(rx_post_fail)},
+	{ERXSTAT_INFO(rx_drops_no_fragments)}
+};
+#define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
 
 static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"MAC Loopback test",
@@ -143,7 +149,7 @@ static int
 be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *rx_eq = &adapter->rx_eq;
+	struct be_eq_obj *rx_eq = &adapter->rx_obj[0].rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 
 	coalesce->rx_coalesce_usecs = rx_eq->cur_eqd;
@@ -167,25 +173,49 @@ static int
 be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *rx_eq = &adapter->rx_eq;
+	struct be_rx_obj *rxo;
+	struct be_eq_obj *rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	u32 tx_max, tx_min, tx_cur;
 	u32 rx_max, rx_min, rx_cur;
-	int status = 0;
+	int status = 0, i;
 
 	if (coalesce->use_adaptive_tx_coalesce == 1)
 		return -EINVAL;
 
-	/* if AIC is being turned on now, start with an EQD of 0 */
-	if (rx_eq->enable_aic == 0 &&
-		coalesce->use_adaptive_rx_coalesce == 1) {
-		rx_eq->cur_eqd = 0;
-	}
-	rx_eq->enable_aic = coalesce->use_adaptive_rx_coalesce;
+	for_all_rx_queues(adapter, rxo, i) {
+		rx_eq = &rxo->rx_eq;
 
-	rx_max = coalesce->rx_coalesce_usecs_high;
-	rx_min = coalesce->rx_coalesce_usecs_low;
-	rx_cur = coalesce->rx_coalesce_usecs;
+		if (!rx_eq->enable_aic && coalesce->use_adaptive_rx_coalesce)
+			rx_eq->cur_eqd = 0;
+		rx_eq->enable_aic = coalesce->use_adaptive_rx_coalesce;
+
+		rx_max = coalesce->rx_coalesce_usecs_high;
+		rx_min = coalesce->rx_coalesce_usecs_low;
+		rx_cur = coalesce->rx_coalesce_usecs;
+
+		if (rx_eq->enable_aic) {
+			if (rx_max > BE_MAX_EQD)
+				rx_max = BE_MAX_EQD;
+			if (rx_min > rx_max)
+				rx_min = rx_max;
+			rx_eq->max_eqd = rx_max;
+			rx_eq->min_eqd = rx_min;
+			if (rx_eq->cur_eqd > rx_max)
+				rx_eq->cur_eqd = rx_max;
+			if (rx_eq->cur_eqd < rx_min)
+				rx_eq->cur_eqd = rx_min;
+		} else {
+			if (rx_cur > BE_MAX_EQD)
+				rx_cur = BE_MAX_EQD;
+			if (rx_eq->cur_eqd != rx_cur) {
+				status = be_cmd_modify_eqd(adapter, rx_eq->q.id,
+						rx_cur);
+				if (!status)
+					rx_eq->cur_eqd = rx_cur;
+			}
+		}
+	}
 
 	tx_max = coalesce->tx_coalesce_usecs_high;
 	tx_min = coalesce->tx_coalesce_usecs_low;
@@ -199,27 +229,6 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 			tx_eq->cur_eqd = tx_cur;
 	}
 
-	if (rx_eq->enable_aic) {
-		if (rx_max > BE_MAX_EQD)
-			rx_max = BE_MAX_EQD;
-		if (rx_min > rx_max)
-			rx_min = rx_max;
-		rx_eq->max_eqd = rx_max;
-		rx_eq->min_eqd = rx_min;
-		if (rx_eq->cur_eqd > rx_max)
-			rx_eq->cur_eqd = rx_max;
-		if (rx_eq->cur_eqd < rx_min)
-			rx_eq->cur_eqd = rx_min;
-	} else {
-		if (rx_cur > BE_MAX_EQD)
-			rx_cur = BE_MAX_EQD;
-		if (rx_eq->cur_eqd != rx_cur) {
-			status = be_cmd_modify_eqd(adapter, rx_eq->q.id,
-					rx_cur);
-			if (!status)
-				rx_eq->cur_eqd = rx_cur;
-		}
-	}
 	return 0;
 }
 
@@ -247,32 +256,25 @@ be_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_drvr_stats *drvr_stats = &adapter->stats.drvr_stats;
-	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats.cmd.va);
-	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
-	struct be_port_rxf_stats *port_stats =
-			&rxf_stats->port[adapter->port_num];
-	struct net_device_stats *net_stats = &netdev->stats;
+	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats_cmd.va);
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
+	struct be_rx_obj *rxo;
 	void *p = NULL;
-	int i;
+	int i, j;
 
 	for (i = 0; i < ETHTOOL_STATS_NUM; i++) {
 		switch (et_stats[i].type) {
 		case NETSTAT:
-			p = net_stats;
+			p = &netdev->stats;
 			break;
-		case DRVSTAT:
-			p = drvr_stats;
+		case DRVSTAT_TX:
+			p = &adapter->tx_stats;
 			break;
 		case PORTSTAT:
-			p = port_stats;
+			p = &hw_stats->rxf.port[adapter->port_num];
 			break;
 		case MISCSTAT:
-			p = rxf_stats;
-			break;
-		case ERXSTAT: /* Currently only one ERX stat is provided */
-			p = (u32 *)erx_stats + adapter->rx_obj.q.id;
+			p = &hw_stats->rxf;
 			break;
 		}
 
@@ -280,18 +282,43 @@ be_get_ethtool_stats(struct net_device *netdev,
 		data[i] = (et_stats[i].size == sizeof(u64)) ?
 				*(u64 *)p: *(u32 *)p;
 	}
+
+	for_all_rx_queues(adapter, rxo, j) {
+		for (i = 0; i < ETHTOOL_RXSTATS_NUM; i++) {
+			switch (et_rx_stats[i].type) {
+			case DRVSTAT_RX:
+				p = (u8 *)&rxo->stats + et_rx_stats[i].offset;
+				break;
+			case ERXSTAT:
+				p = (u32 *)erx_stats + rxo->q.id;
+				break;
+			}
+			data[ETHTOOL_STATS_NUM + j * ETHTOOL_RXSTATS_NUM + i] =
+				(et_rx_stats[i].size == sizeof(u64)) ?
+					*(u64 *)p: *(u32 *)p;
+		}
+	}
 }
 
 static void
 be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 		uint8_t *data)
 {
-	int i;
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int i, j;
+
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < ETHTOOL_STATS_NUM; i++) {
 			memcpy(data, et_stats[i].desc, ETH_GSTRING_LEN);
 			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < adapter->num_rx_qs; i++) {
+			for (j = 0; j < ETHTOOL_RXSTATS_NUM; j++) {
+				sprintf(data, "rxq%d: %s", i,
+					et_rx_stats[j].desc);
+				data += ETH_GSTRING_LEN;
+			}
 		}
 		break;
 	case ETH_SS_TEST:
@@ -305,11 +332,14 @@ be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 
 static int be_get_sset_count(struct net_device *netdev, int stringset)
 {
+	struct be_adapter *adapter = netdev_priv(netdev);
+
 	switch (stringset) {
 	case ETH_SS_TEST:
 		return ETHTOOL_TESTS_NUM;
 	case ETH_SS_STATS:
-		return ETHTOOL_STATS_NUM;
+		return ETHTOOL_STATS_NUM +
+			adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM;
 	default:
 		return -EINVAL;
 	}
@@ -424,10 +454,10 @@ be_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	ring->rx_max_pending = adapter->rx_obj.q.len;
+	ring->rx_max_pending = adapter->rx_obj[0].q.len;
 	ring->tx_max_pending = adapter->tx_obj.q.len;
 
-	ring->rx_pending = atomic_read(&adapter->rx_obj.q.used);
+	ring->rx_pending = atomic_read(&adapter->rx_obj[0].q.used);
 	ring->tx_pending = atomic_read(&adapter->tx_obj.q.used);
 }
 

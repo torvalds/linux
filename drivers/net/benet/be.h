@@ -78,6 +78,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MCC_Q_LEN		128	/* total size not to exceed 8 pages */
 #define MCC_CQ_LEN		256
 
+#define MAX_RSS_QS		4	/* BE limit is 4 queues/port */
+#define BE_MAX_MSIX_VECTORS	(MAX_RSS_QS + 1 + 1)/* RSS qs + 1 def Rx + Tx */
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST 		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
@@ -157,10 +159,9 @@ struct be_mcc_obj {
 	bool rearm_cq;
 };
 
-struct be_drvr_stats {
+struct be_tx_stats {
 	u32 be_tx_reqs;		/* number of TX requests initiated */
 	u32 be_tx_stops;	/* number of times TX Q was stopped */
-	u32 be_fwd_reqs;	/* number of send reqs through forwarding i/f */
 	u32 be_tx_wrbs;		/* number of tx WRBs used */
 	u32 be_tx_events;	/* number of tx completion events  */
 	u32 be_tx_compl;	/* number of tx completion entries processed */
@@ -169,35 +170,6 @@ struct be_drvr_stats {
 	u64 be_tx_bytes_prev;
 	u64 be_tx_pkts;
 	u32 be_tx_rate;
-
-	u32 cache_barrier[16];
-
-	u32 be_ethrx_post_fail;/* number of ethrx buffer alloc failures */
-	u32 be_rx_polls;	/* number of times NAPI called poll function */
-	u32 be_rx_events;	/* number of ucast rx completion events  */
-	u32 be_rx_compl;	/* number of rx completion entries processed */
-	ulong be_rx_jiffies;
-	u64 be_rx_bytes;
-	u64 be_rx_bytes_prev;
-	u64 be_rx_pkts;
-	u32 be_rx_rate;
-	u32 be_rx_mcast_pkt;
-	/* number of non ether type II frames dropped where
-	 * frame len > length field of Mac Hdr */
-	u32 be_802_3_dropped_frames;
-	/* number of non ether type II frames malformed where
-	 * in frame len < length field of Mac Hdr */
-	u32 be_802_3_malformed_frames;
-	u32 be_rxcp_err;	/* Num rx completion entries w/ err set. */
-	ulong rx_fps_jiffies;	/* jiffies at last FPS calc */
-	u32 be_rx_frags;
-	u32 be_prev_rx_frags;
-	u32 be_rx_fps;		/* Rx frags per second */
-};
-
-struct be_stats_obj {
-	struct be_drvr_stats drvr_stats;
-	struct be_dma_mem cmd;
 };
 
 struct be_tx_obj {
@@ -215,10 +187,34 @@ struct be_rx_page_info {
 	bool last_page_user;
 };
 
+struct be_rx_stats {
+	u32 rx_post_fail;/* number of ethrx buffer alloc failures */
+	u32 rx_polls;	/* number of times NAPI called poll function */
+	u32 rx_events;	/* number of ucast rx completion events  */
+	u32 rx_compl;	/* number of rx completion entries processed */
+	ulong rx_jiffies;
+	u64 rx_bytes;
+	u64 rx_bytes_prev;
+	u64 rx_pkts;
+	u32 rx_rate;
+	u32 rx_mcast_pkts;
+	u32 rxcp_err;	/* Num rx completion entries w/ err set. */
+	ulong rx_fps_jiffies;	/* jiffies at last FPS calc */
+	u32 rx_frags;
+	u32 prev_rx_frags;
+	u32 rx_fps;		/* Rx frags per second */
+};
+
 struct be_rx_obj {
+	struct be_adapter *adapter;
 	struct be_queue_info q;
 	struct be_queue_info cq;
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
+	struct be_eq_obj rx_eq;
+	struct be_rx_stats stats;
+	u8 rss_id;
+	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
+	u32 cache_line_barrier[16];
 };
 
 struct be_vf_cfg {
@@ -229,7 +225,6 @@ struct be_vf_cfg {
 	u32 vf_tx_rate;
 };
 
-#define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
 #define BE_INVALID_PMAC_ID		0xffffffff
 struct be_adapter {
 	struct pci_dev *pdev;
@@ -249,21 +244,21 @@ struct be_adapter {
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
-	struct msix_entry msix_entries[BE_NUM_MSIX_VECTORS];
+	struct msix_entry msix_entries[BE_MAX_MSIX_VECTORS];
 	bool msix_enabled;
 	bool isr_registered;
 
 	/* TX Rings */
 	struct be_eq_obj tx_eq;
 	struct be_tx_obj tx_obj;
+	struct be_tx_stats tx_stats;
 
 	u32 cache_line_break[8];
 
 	/* Rx rings */
-	struct be_eq_obj rx_eq;
-	struct be_rx_obj rx_obj;
+	struct be_rx_obj rx_obj[MAX_RSS_QS + 1]; /* one default non-rss Q */
+	u32 num_rx_qs;
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
-	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
 
 	struct vlan_group *vlan_grp;
 	u16 vlans_added;
@@ -271,7 +266,7 @@ struct be_adapter {
 	u8 vlan_tag[VLAN_GROUP_ARRAY_LEN];
 	struct be_dma_mem mc_cmd_mem;
 
-	struct be_stats_obj stats;
+	struct be_dma_mem stats_cmd;
 	/* Work queue used to perform periodic tasks like getting statistics */
 	struct delayed_work work;
 
@@ -287,6 +282,7 @@ struct be_adapter {
 	bool promiscuous;
 	bool wol;
 	u32 function_mode;
+	u32 function_caps;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool ue_detected;
@@ -313,9 +309,19 @@ struct be_adapter {
 
 extern const struct ethtool_ops be_ethtool_ops;
 
-#define drvr_stats(adapter)		(&adapter->stats.drvr_stats)
+#define tx_stats(adapter)		(&adapter->tx_stats)
+#define rx_stats(rxo)			(&rxo->stats)
 
 #define BE_SET_NETDEV_OPS(netdev, ops)	(netdev->netdev_ops = ops)
+
+#define for_all_rx_queues(adapter, rxo, i)				\
+	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;	\
+		i++, rxo++)
+
+/* Just skip the first default non-rss queue */
+#define for_all_rss_queues(adapter, rxo, i)				\
+	for (i = 0, rxo = &adapter->rx_obj[i+1]; i < (adapter->num_rx_qs - 1);\
+		i++, rxo++)
 
 #define PAGE_SHIFT_4K		12
 #define PAGE_SIZE_4K		(1 << PAGE_SHIFT_4K)

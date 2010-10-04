@@ -71,7 +71,7 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	if (compl_status == MCC_STATUS_SUCCESS) {
 		if (compl->tag0 == OPCODE_ETH_GET_STATISTICS) {
 			struct be_cmd_resp_get_stats *resp =
-						adapter->stats.cmd.va;
+						adapter->stats_cmd.va;
 			be_dws_le_to_cpu(&resp->hw_stats,
 						sizeof(resp->hw_stats));
 			netdev_stats_update(adapter);
@@ -754,7 +754,7 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 /* Uses mbox */
 int be_cmd_rxq_create(struct be_adapter *adapter,
 		struct be_queue_info *rxq, u16 cq_id, u16 frag_size,
-		u16 max_frame_size, u32 if_id, u32 rss)
+		u16 max_frame_size, u32 if_id, u32 rss, u8 *rss_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_eth_rx_create *req;
@@ -785,6 +785,7 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 		struct be_cmd_resp_eth_rx_create *resp = embedded_payload(wrb);
 		rxq->id = le16_to_cpu(resp->id);
 		rxq->created = true;
+		*rss_id = resp->rss_id;
 	}
 
 	spin_unlock(&adapter->mbox_lock);
@@ -1259,7 +1260,8 @@ err:
 }
 
 /* Uses mbox */
-int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *mode)
+int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
+		u32 *mode, u32 *caps)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_query_fw_cfg *req;
@@ -1281,6 +1283,7 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *mode)
 		struct be_cmd_resp_query_fw_cfg *resp = embedded_payload(wrb);
 		*port_num = le32_to_cpu(resp->phys_port);
 		*mode = le32_to_cpu(resp->function_mode);
+		*caps = le32_to_cpu(resp->function_caps);
 	}
 
 	spin_unlock(&adapter->mbox_lock);
@@ -1304,6 +1307,37 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 
 	be_cmd_hdr_prepare(req, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_FUNCTION_RESET, sizeof(*req));
+
+	status = be_mbox_notify_wait(adapter);
+
+	spin_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_rss_config *req;
+	u32 myhash[10];
+	int status;
+
+	spin_lock(&adapter->mbox_lock);
+
+	wrb = wrb_from_mbox(adapter);
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+		OPCODE_ETH_RSS_CONFIG);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
+		OPCODE_ETH_RSS_CONFIG, sizeof(*req));
+
+	req->if_id = cpu_to_le32(adapter->if_handle);
+	req->enable_rss = cpu_to_le16(RSS_ENABLE_TCP_IPV4 | RSS_ENABLE_IPV4);
+	req->cpu_table_size_log2 = cpu_to_le16(fls(table_size) - 1);
+	memcpy(req->cpu_table, rsstable, table_size);
+	memcpy(req->hash, myhash, sizeof(myhash));
+	be_dws_cpu_to_le(req->hash, sizeof(req->hash));
 
 	status = be_mbox_notify_wait(adapter);
 
