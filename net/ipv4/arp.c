@@ -127,7 +127,7 @@ EXPORT_SYMBOL(clip_tbl_hook);
 /*
  *	Interface to generic neighbour cache.
  */
-static u32 arp_hash(const void *pkey, const struct net_device *dev);
+static u32 arp_hash(const void *pkey, const struct net_device *dev, __u32 rnd);
 static int arp_constructor(struct neighbour *neigh);
 static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb);
 static void arp_error_report(struct neighbour *neigh, struct sk_buff *skb);
@@ -225,9 +225,11 @@ int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 }
 
 
-static u32 arp_hash(const void *pkey, const struct net_device *dev)
+static u32 arp_hash(const void *pkey,
+		    const struct net_device *dev,
+		    __u32 hash_rnd)
 {
-	return jhash_2words(*(u32 *)pkey, dev->ifindex, arp_tbl.hash_rnd);
+	return jhash_2words(*(u32 *)pkey, dev->ifindex, hash_rnd);
 }
 
 static int arp_constructor(struct neighbour *neigh)

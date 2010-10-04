@@ -138,13 +138,22 @@ struct pneigh_entry {
  *	neighbour table manipulation
  */
 
+struct neigh_hash_table {
+	struct neighbour	**hash_buckets;
+	unsigned int		hash_mask;
+	__u32			hash_rnd;
+	struct rcu_head		rcu;
+};
+
 
 struct neigh_table {
 	struct neigh_table	*next;
 	int			family;
 	int			entry_size;
 	int			key_len;
-	__u32			(*hash)(const void *pkey, const struct net_device *);
+	__u32			(*hash)(const void *pkey,
+					const struct net_device *dev,
+					__u32 hash_rnd);
 	int			(*constructor)(struct neighbour *);
 	int			(*pconstructor)(struct pneigh_entry *);
 	void			(*pdestructor)(struct pneigh_entry *);
@@ -165,9 +174,7 @@ struct neigh_table {
 	unsigned long		last_rand;
 	struct kmem_cache	*kmem_cachep;
 	struct neigh_statistics	__percpu *stats;
-	struct neighbour	**hash_buckets;
-	unsigned int		hash_mask;
-	__u32			hash_rnd;
+	struct neigh_hash_table __rcu *nht;
 	struct pneigh_entry	**phash_buckets;
 };
 
@@ -237,6 +244,7 @@ extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_en
 struct neigh_seq_state {
 	struct seq_net_private p;
 	struct neigh_table *tbl;
+	struct neigh_hash_table *nht;
 	void *(*neigh_sub_iter)(struct neigh_seq_state *state,
 				struct neighbour *n, loff_t *pos);
 	unsigned int bucket;
