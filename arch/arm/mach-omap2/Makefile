@@ -102,6 +102,10 @@ obj-y					+= $(iommu-m) $(iommu-y)
 i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
 obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 
+ifneq ($(CONFIG_TIDSPBRIDGE),)
+obj-y					+= dsp.o
+endif
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o

@@ -37,6 +37,7 @@
 #include <plat/fpga.h>
 #include <plat/serial.h>
 #include <plat/vram.h>
+#include <plat/dsp.h>
 
 #include <plat/clock.h>
 
@@ -87,6 +88,7 @@ void __init omap_reserve(void)
 {
 	omapfb_reserve_sdram_memblock();
 	omap_vram_reserve_sdram_memblock();
+	omap_dsp_reserve_sdram_memblock();
 }
 
 /*
