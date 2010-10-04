@@ -1531,6 +1531,7 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct net_device *dev = NULL;
 	int err = -EINVAL;
 
+	ASSERT_RTNL();
 	if (nlmsg_len(nlh) < sizeof(*ndm))
 		goto out;
 
@@ -1540,7 +1541,7 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex) {
-		dev = dev_get_by_index(net, ndm->ndm_ifindex);
+		dev = __dev_get_by_index(net, ndm->ndm_ifindex);
 		if (dev == NULL) {
 			err = -ENODEV;
 			goto out;
@@ -1556,34 +1557,31 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		read_unlock(&neigh_tbl_lock);
 
 		if (nla_len(dst_attr) < tbl->key_len)
-			goto out_dev_put;
+			goto out;
 
 		if (ndm->ndm_flags & NTF_PROXY) {
 			err = pneigh_delete(tbl, net, nla_data(dst_attr), dev);
-			goto out_dev_put;
+			goto out;
 		}
 
 		if (dev == NULL)
-			goto out_dev_put;
+			goto out;
 
 		neigh = neigh_lookup(tbl, nla_data(dst_attr), dev);
 		if (neigh == NULL) {
 			err = -ENOENT;
-			goto out_dev_put;
+			goto out;
 		}
 
 		err = neigh_update(neigh, NULL, NUD_FAILED,
 				   NEIGH_UPDATE_F_OVERRIDE |
 				   NEIGH_UPDATE_F_ADMIN);
 		neigh_release(neigh);
-		goto out_dev_put;
+		goto out;
 	}
 	read_unlock(&neigh_tbl_lock);
 	err = -EAFNOSUPPORT;
 
-out_dev_put:
-	if (dev)
-		dev_put(dev);
 out:
 	return err;
 }
@@ -1597,6 +1595,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct net_device *dev = NULL;
 	int err;
 
+	ASSERT_RTNL();
 	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
 	if (err < 0)
 		goto out;
@@ -1607,14 +1606,14 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex) {
-		dev = dev_get_by_index(net, ndm->ndm_ifindex);
+		dev = __dev_get_by_index(net, ndm->ndm_ifindex);
 		if (dev == NULL) {
 			err = -ENODEV;
 			goto out;
 		}
 
 		if (tb[NDA_LLADDR] && nla_len(tb[NDA_LLADDR]) < dev->addr_len)
-			goto out_dev_put;
+			goto out;
 	}
 
 	read_lock(&neigh_tbl_lock);
@@ -1628,7 +1627,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		read_unlock(&neigh_tbl_lock);
 
 		if (nla_len(tb[NDA_DST]) < tbl->key_len)
-			goto out_dev_put;
+			goto out;
 		dst = nla_data(tb[NDA_DST]);
 		lladdr = tb[NDA_LLADDR] ? nla_data(tb[NDA_LLADDR]) : NULL;
 
@@ -1641,29 +1640,29 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 				pn->flags = ndm->ndm_flags;
 				err = 0;
 			}
-			goto out_dev_put;
+			goto out;
 		}
 
 		if (dev == NULL)
-			goto out_dev_put;
+			goto out;
 
 		neigh = neigh_lookup(tbl, dst, dev);
 		if (neigh == NULL) {
 			if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 				err = -ENOENT;
-				goto out_dev_put;
+				goto out;
 			}
 
 			neigh = __neigh_lookup_errno(tbl, dst, dev);
 			if (IS_ERR(neigh)) {
 				err = PTR_ERR(neigh);
-				goto out_dev_put;
+				goto out;
 			}
 		} else {
 			if (nlh->nlmsg_flags & NLM_F_EXCL) {
 				err = -EEXIST;
 				neigh_release(neigh);
-				goto out_dev_put;
+				goto out;
 			}
 
 			if (!(nlh->nlmsg_flags & NLM_F_REPLACE))
@@ -1676,15 +1675,11 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		} else
 			err = neigh_update(neigh, lladdr, ndm->ndm_state, flags);
 		neigh_release(neigh);
-		goto out_dev_put;
+		goto out;
 	}
 
 	read_unlock(&neigh_tbl_lock);
 	err = -EAFNOSUPPORT;
-
-out_dev_put:
-	if (dev)
-		dev_put(dev);
 out:
 	return err;
 }
