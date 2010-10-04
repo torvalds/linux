@@ -103,12 +103,6 @@ static const struct ani_cck_level_entry cck_level_table[] = {
 #define ATH9K_ANI_CCK_DEF_LEVEL \
 	2 /* default level - matches the INI settings */
 
-/* Private to ani.c */
-static void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
-{
-	ath9k_hw_private_ops(ah)->ani_lower_immunity(ah);
-}
-
 static bool use_new_ani(struct ath_hw *ah)
 {
 	return AR_SREV_9300_20_OR_LATER(ah) || modparam_force_new_ani;
@@ -164,9 +158,6 @@ static void ath9k_hw_ani_ofdm_err_trigger_old(struct ath_hw *ah)
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ar5416AniState *aniState;
 	int32_t rssi;
-
-	if (!DO_ANI(ah))
-		return;
 
 	aniState = &ah->curchan->ani;
 
@@ -236,9 +227,6 @@ static void ath9k_hw_ani_cck_err_trigger_old(struct ath_hw *ah)
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ar5416AniState *aniState;
 	int32_t rssi;
-
-	if (!DO_ANI(ah))
-		return;
 
 	aniState = &ah->curchan->ani;
 	if (aniState->noiseImmunityLevel < HAL_NOISE_IMMUNE_MAX) {
@@ -317,12 +305,17 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel)
 	}
 }
 
-static void ath9k_hw_ani_ofdm_err_trigger_new(struct ath_hw *ah)
+static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 
 	if (!DO_ANI(ah))
 		return;
+
+	if (!use_new_ani(ah)) {
+		ath9k_hw_ani_ofdm_err_trigger_old(ah);
+		return;
+	}
 
 	aniState = &ah->curchan->ani;
 
@@ -374,12 +367,17 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel)
 				     entry_cck->mrc_cck_on);
 }
 
-static void ath9k_hw_ani_cck_err_trigger_new(struct ath_hw *ah)
+static void ath9k_hw_ani_cck_err_trigger(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 
 	if (!DO_ANI(ah))
 		return;
+
+	if (!use_new_ani(ah)) {
+		ath9k_hw_ani_cck_err_trigger_old(ah);
+		return;
+	}
 
 	aniState = &ah->curchan->ani;
 
@@ -444,11 +442,16 @@ static void ath9k_hw_ani_lower_immunity_old(struct ath_hw *ah)
  * only lower either OFDM or CCK errors per turn
  * we lower the other one next time
  */
-static void ath9k_hw_ani_lower_immunity_new(struct ath_hw *ah)
+static void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 
 	aniState = &ah->curchan->ani;
+
+	if (!use_new_ani(ah)) {
+		ath9k_hw_ani_lower_immunity_old(ah);
+		return;
+	}
 
 	/* lower OFDM noise immunity */
 	if (aniState->ofdmNoiseImmunityLevel > 0 &&
@@ -573,7 +576,7 @@ static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
  * This routine should be called for every hardware reset and for
  * every channel change.
  */
-static void ath9k_ani_reset_new(struct ath_hw *ah, bool is_scanning)
+void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 {
 	struct ar5416AniState *aniState = &ah->curchan->ani;
 	struct ath9k_channel *chan = ah->curchan;
@@ -581,6 +584,9 @@ static void ath9k_ani_reset_new(struct ath_hw *ah, bool is_scanning)
 
 	if (!DO_ANI(ah))
 		return;
+
+	if (!use_new_ani(ah))
+		return ath9k_ani_reset_old(ah, is_scanning);
 
 	BUG_ON(aniState == NULL);
 	ah->stats.ast_ani_reset++;
@@ -745,12 +751,12 @@ static void ath9k_hw_ani_monitor_old(struct ath_hw *ah,
 	} else if (aniState->listenTime > ah->aniperiod) {
 		if (aniState->ofdmPhyErrCount > aniState->listenTime *
 		    ah->config.ofdm_trig_high / 1000) {
-			ath9k_hw_ani_ofdm_err_trigger_old(ah);
+			ath9k_hw_ani_ofdm_err_trigger(ah);
 			ath9k_ani_restart(ah);
 		} else if (aniState->cckPhyErrCount >
 			   aniState->listenTime * ah->config.cck_trig_high /
 			   1000) {
-			ath9k_hw_ani_cck_err_trigger_old(ah);
+			ath9k_hw_ani_cck_err_trigger(ah);
 			ath9k_ani_restart(ah);
 		}
 	}
@@ -814,23 +820,23 @@ static void ath9k_hw_ani_monitor_new(struct ath_hw *ah,
 		     aniState->ofdmsTurn)) {
 			ath_print(common, ATH_DBG_ANI,
 				  "2 listenTime=%d OFDM:%d errs=%d/s(>%d) -> "
-				  "ath9k_hw_ani_ofdm_err_trigger_new()\n",
+				  "ath9k_hw_ani_ofdm_err_trigger()\n",
 				  aniState->listenTime,
 				  aniState->ofdmNoiseImmunityLevel,
 				  ofdmPhyErrRate,
 				  ah->config.ofdm_trig_high);
-			ath9k_hw_ani_ofdm_err_trigger_new(ah);
+			ath9k_hw_ani_ofdm_err_trigger(ah);
 			ath9k_ani_restart(ah);
 			aniState->ofdmsTurn = false;
 		} else if (cckPhyErrRate > ah->config.cck_trig_high) {
 			ath_print(common, ATH_DBG_ANI,
 				 "3 listenTime=%d CCK:%d errs=%d/s(>%d) -> "
-				 "ath9k_hw_ani_cck_err_trigger_new()\n",
+				 "ath9k_hw_ani_cck_err_trigger()\n",
 				 aniState->listenTime,
 				 aniState->cckNoiseImmunityLevel,
 				 cckPhyErrRate,
 				 ah->config.cck_trig_high);
-			ath9k_hw_ani_cck_err_trigger_new(ah);
+			ath9k_hw_ani_cck_err_trigger(ah);
 			ath9k_ani_restart(ah);
 			aniState->ofdmsTurn = true;
 		}
@@ -1062,11 +1068,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah)
 {
-	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
-
-	priv_ops->ani_reset = ath9k_ani_reset_old;
-	priv_ops->ani_lower_immunity = ath9k_hw_ani_lower_immunity_old;
 
 	ops->ani_monitor = ath9k_hw_ani_monitor_old;
 
@@ -1075,11 +1077,7 @@ void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah)
 
 void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah)
 {
-	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
-
-	priv_ops->ani_reset = ath9k_ani_reset_new;
-	priv_ops->ani_lower_immunity = ath9k_hw_ani_lower_immunity_new;
 
 	ops->ani_monitor = ath9k_hw_ani_monitor_new;
 

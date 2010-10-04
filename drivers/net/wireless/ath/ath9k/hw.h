@@ -509,14 +509,6 @@ struct ath_hw_antcomb_conf {
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
  *
- * @ani_reset: reset ANI parameters to default values
- * @ani_lower_immunity: lower the noise immunity level. The level controls
- *	the power-based packet detection on hardware. If a power jump is
- *	detected the adapter takes it as an indication that a packet has
- *	arrived. The level ranges from 0-5. Each level corresponds to a
- *	few dB more of noise immunity. If you have a strong time-varying
- *	interference that is causing false detections (OFDM timing errors or
- *	CCK timing errors) the level can be increased.
  * @ani_cache_ini_regs: cache the values for ANI from the initial
  *	register settings through the register initialization.
  */
@@ -561,8 +553,6 @@ struct ath_hw_private_ops {
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 
 	/* ANI */
-	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
-	void (*ani_lower_immunity)(struct ath_hw *ah);
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
 };
 
@@ -977,6 +967,7 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
  * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
  */
 extern int modparam_force_new_ani;
+void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
 void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
