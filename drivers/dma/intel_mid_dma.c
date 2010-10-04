@@ -872,7 +872,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 {
 	struct middma_device *dma = pci_get_drvdata(pdev);
 	int err, i;
-	unsigned int irq_level;
 
 	/* DMA coherent memory pool for DMA descriptor allocations */
 	dma->dma_pool = pci_pool_create("intel_mid_dma_desc_pool", pdev,
@@ -960,7 +959,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 
 	/*register irq */
 	if (dma->pimr_mask) {
-		irq_level = IRQF_SHARED;
 		pr_debug("MDMA:Requesting irq shared for DMAC1\n");
 		err = request_irq(pdev->irq, intel_mid_dma_interrupt1,
 			IRQF_SHARED, "INTEL_MID_DMAC1", dma);
@@ -968,10 +966,9 @@ static int mid_setup_dma(struct pci_dev *pdev)
 			goto err_irq;
 	} else {
 		dma->intr_mask = 0x03;
-		irq_level = 0;
 		pr_debug("MDMA:Requesting irq for DMAC2\n");
 		err = request_irq(pdev->irq, intel_mid_dma_interrupt2,
-			0, "INTEL_MID_DMAC2", dma);
+			IRQF_SHARED, "INTEL_MID_DMAC2", dma);
 		if (0 != err)
 			goto err_irq;
 	}
