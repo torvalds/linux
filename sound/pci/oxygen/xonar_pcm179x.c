@@ -132,6 +132,18 @@
  * GPIO 5 <- 0
  */
 
+/*
+ * Xonar HDAV1.3 Slim
+ * ------------------
+ *
+ * CMI8788:
+ *
+ * GPIO 1 -> enable output
+ *
+ * TXD -> HDMI controller
+ * RXD <- HDMI controller
+ */
+
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -1101,6 +1113,9 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 		chip->model.resume = xonar_stx_resume;
 		chip->model.set_dac_params = set_pcm1796_params;
 		break;
+	case 0x835e:
+		snd_printk(KERN_ERR "the HDAV1.3 Slim is not supported\n");
+		return -ENODEV;
 	default:
 		return -EINVAL;
 	}
