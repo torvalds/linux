@@ -451,7 +451,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 
 	priv->net->stats.rx_packets++;
 	priv->net->stats.rx_bytes += frame->can_dlc;
-	netif_rx(skb);
+	netif_rx_ni(skb);
 }
 
 static void mcp251x_hw_sleep(struct spi_device *spi)
@@ -676,7 +676,7 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 	if (skb) {
 		frame->can_id = can_id;
 		frame->data[1] = data1;
-		netif_rx(skb);
+		netif_rx_ni(skb);
 	} else {
 		dev_err(&net->dev,
 			"cannot allocate error skb\n");
