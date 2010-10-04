@@ -1754,12 +1754,12 @@ out:
  * We need to preserve the port number so the reply cache on the server can
  * find our cached RPC replies when we get around to reconnecting.
  */
-static void xs_abort_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
+static void xs_abort_connection(struct sock_xprt *transport)
 {
 	int result;
 	struct sockaddr any;
 
-	dprintk("RPC:       disconnecting xprt %p to reuse port\n", xprt);
+	dprintk("RPC:       disconnecting xprt %p to reuse port\n", transport);
 
 	/*
 	 * Disconnect the transport socket by doing a connect operation
@@ -1769,13 +1769,13 @@ static void xs_abort_connection(struct rpc_xprt *xprt, struct sock_xprt *transpo
 	any.sa_family = AF_UNSPEC;
 	result = kernel_connect(transport->sock, &any, sizeof(any), 0);
 	if (!result)
-		xs_sock_mark_closed(xprt);
+		xs_sock_mark_closed(&transport->xprt);
 	else
 		dprintk("RPC:       AF_UNSPEC connect return code %d\n",
 				result);
 }
 
-static void xs_tcp_reuse_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
+static void xs_tcp_reuse_connection(struct sock_xprt *transport)
 {
 	unsigned int state = transport->inet->sk_state;
 
@@ -1798,7 +1798,7 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt, struct sock_xprt *tra
 				"sk_shutdown set to %d\n",
 				__func__, transport->inet->sk_shutdown);
 	}
-	xs_abort_connection(xprt, transport);
+	xs_abort_connection(transport);
 }
 
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
@@ -1875,7 +1875,7 @@ static void xs_tcp_setup_socket(struct sock_xprt *transport,
 		abort_and_exit = test_and_clear_bit(XPRT_CONNECTION_ABORT,
 				&xprt->state);
 		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt, transport);
+		xs_tcp_reuse_connection(transport);
 
 		if (abort_and_exit)
 			goto out_eagain;
