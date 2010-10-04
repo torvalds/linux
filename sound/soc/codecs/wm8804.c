@@ -643,6 +643,14 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 		goto err_reg_enable;
 	}
 
+	ret = snd_soc_read(codec, WM8804_DEVREV);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to read device revision: %d\n",
+			ret);
+		goto err_reg_enable;
+	}
+	dev_info(codec->dev, "revision %c\n", ret + 'A');
+
 	ret = wm8804_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
