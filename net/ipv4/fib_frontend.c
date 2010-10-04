@@ -225,30 +225,33 @@ EXPORT_SYMBOL(inet_addr_type);
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
-       return __inet_dev_addr_type(net, dev, addr);
+	return __inet_dev_addr_type(net, dev, addr);
 }
 EXPORT_SYMBOL(inet_dev_addr_type);
 
 /* Given (packet source, input interface) and optional (dst, oif, tos):
-   - (main) check, that source is valid i.e. not broadcast or our local
-     address.
-   - figure out what "logical" interface this packet arrived
-     and calculate "specific destination" address.
-   - check, that packet arrived from expected physical interface.
+ * - (main) check, that source is valid i.e. not broadcast or our local
+ *   address.
+ * - figure out what "logical" interface this packet arrived
+ *   and calculate "specific destination" address.
+ * - check, that packet arrived from expected physical interface.
  */
-
 int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			struct net_device *dev, __be32 *spec_dst,
 			u32 *itag, u32 mark)
 {
 	struct in_device *in_dev;
-	struct flowi fl = { .nl_u = { .ip4_u =
-				      { .daddr = src,
-					.saddr = dst,
-					.tos = tos } },
-			    .mark = mark,
-			    .iif = oif };
-
+	struct flowi fl = {
+		.nl_u = {
+			.ip4_u = {
+				.daddr = src,
+				.saddr = dst,
+				.tos = tos
+			}
+		},
+		.mark = mark,
+		.iif = oif
+	};
 	struct fib_result res;
 	int no_addr, rpf, accept_local;
 	bool dev_match;
@@ -477,9 +480,9 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
 }
 
 /*
- *	Handle IP routing ioctl calls. These are used to manipulate the routing tables
+ * Handle IP routing ioctl calls.
+ * These are used to manipulate the routing tables
  */
-
 int ip_rt_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 {
 	struct fib_config cfg;
@@ -523,7 +526,7 @@ int ip_rt_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	return -EINVAL;
 }
 
-const struct nla_policy rtm_ipv4_policy[RTA_MAX+1] = {
+const struct nla_policy rtm_ipv4_policy[RTA_MAX + 1] = {
 	[RTA_DST]		= { .type = NLA_U32 },
 	[RTA_SRC]		= { .type = NLA_U32 },
 	[RTA_IIF]		= { .type = NLA_U32 },
@@ -537,7 +540,7 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX+1] = {
 };
 
 static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
-			    struct nlmsghdr *nlh, struct fib_config *cfg)
+			     struct nlmsghdr *nlh, struct fib_config *cfg)
 {
 	struct nlattr *attr;
 	int err, remaining;
@@ -692,12 +695,11 @@ out:
 }
 
 /* Prepare and feed intra-kernel routing request.
-   Really, it should be netlink message, but :-( netlink
-   can be not configured, so that we feed it directly
-   to fib engine. It is legal, because all events occur
-   only when netlink is already locked.
+ * Really, it should be netlink message, but :-( netlink
+ * can be not configured, so that we feed it directly
+ * to fib engine. It is legal, because all events occur
+ * only when netlink is already locked.
  */
-
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct net *net = dev_net(ifa->ifa_dev->dev);
@@ -743,9 +745,9 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	struct in_ifaddr *prim = ifa;
 	__be32 mask = ifa->ifa_mask;
 	__be32 addr = ifa->ifa_local;
-	__be32 prefix = ifa->ifa_address&mask;
+	__be32 prefix = ifa->ifa_address & mask;
 
-	if (ifa->ifa_flags&IFA_F_SECONDARY) {
+	if (ifa->ifa_flags & IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
 		if (prim == NULL) {
 			printk(KERN_WARNING "fib_add_ifaddr: bug: prim == NULL\n");
@@ -755,22 +757,24 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 
 	fib_magic(RTM_NEWROUTE, RTN_LOCAL, addr, 32, prim);
 
-	if (!(dev->flags&IFF_UP))
+	if (!(dev->flags & IFF_UP))
 		return;
 
 	/* Add broadcast address, if it is explicitly assigned. */
 	if (ifa->ifa_broadcast && ifa->ifa_broadcast != htonl(0xFFFFFFFF))
 		fib_magic(RTM_NEWROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
 
-	if (!ipv4_is_zeronet(prefix) && !(ifa->ifa_flags&IFA_F_SECONDARY) &&
+	if (!ipv4_is_zeronet(prefix) && !(ifa->ifa_flags & IFA_F_SECONDARY) &&
 	    (prefix != addr || ifa->ifa_prefixlen < 32)) {
-		fib_magic(RTM_NEWROUTE, dev->flags&IFF_LOOPBACK ? RTN_LOCAL :
-			  RTN_UNICAST, prefix, ifa->ifa_prefixlen, prim);
+		fib_magic(RTM_NEWROUTE,
+			  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
+			  prefix, ifa->ifa_prefixlen, prim);
 
 		/* Add network specific broadcasts, when it takes a sense */
 		if (ifa->ifa_prefixlen < 31) {
 			fib_magic(RTM_NEWROUTE, RTN_BROADCAST, prefix, 32, prim);
-			fib_magic(RTM_NEWROUTE, RTN_BROADCAST, prefix|~mask, 32, prim);
+			fib_magic(RTM_NEWROUTE, RTN_BROADCAST, prefix | ~mask,
+				  32, prim);
 		}
 	}
 }
@@ -781,17 +785,18 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 	struct net_device *dev = in_dev->dev;
 	struct in_ifaddr *ifa1;
 	struct in_ifaddr *prim = ifa;
-	__be32 brd = ifa->ifa_address|~ifa->ifa_mask;
-	__be32 any = ifa->ifa_address&ifa->ifa_mask;
+	__be32 brd = ifa->ifa_address | ~ifa->ifa_mask;
+	__be32 any = ifa->ifa_address & ifa->ifa_mask;
 #define LOCAL_OK	1
 #define BRD_OK		2
 #define BRD0_OK		4
 #define BRD1_OK		8
 	unsigned ok = 0;
 
-	if (!(ifa->ifa_flags&IFA_F_SECONDARY))
-		fib_magic(RTM_DELROUTE, dev->flags&IFF_LOOPBACK ? RTN_LOCAL :
-			  RTN_UNICAST, any, ifa->ifa_prefixlen, prim);
+	if (!(ifa->ifa_flags & IFA_F_SECONDARY))
+		fib_magic(RTM_DELROUTE,
+			  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
+			  any, ifa->ifa_prefixlen, prim);
 	else {
 		prim = inet_ifa_byprefix(in_dev, any, ifa->ifa_mask);
 		if (prim == NULL) {
@@ -801,9 +806,9 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 	}
 
 	/* Deletion is more complicated than add.
-	   We should take care of not to delete too much :-)
-
-	   Scan address list to be sure that addresses are really gone.
+	 * We should take care of not to delete too much :-)
+	 *
+	 * Scan address list to be sure that addresses are really gone.
 	 */
 
 	for (ifa1 = in_dev->ifa_list; ifa1; ifa1 = ifa1->ifa_next) {
@@ -817,23 +822,23 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 			ok |= BRD0_OK;
 	}
 
-	if (!(ok&BRD_OK))
+	if (!(ok & BRD_OK))
 		fib_magic(RTM_DELROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
-	if (!(ok&BRD1_OK))
+	if (!(ok & BRD1_OK))
 		fib_magic(RTM_DELROUTE, RTN_BROADCAST, brd, 32, prim);
-	if (!(ok&BRD0_OK))
+	if (!(ok & BRD0_OK))
 		fib_magic(RTM_DELROUTE, RTN_BROADCAST, any, 32, prim);
-	if (!(ok&LOCAL_OK)) {
+	if (!(ok & LOCAL_OK)) {
 		fib_magic(RTM_DELROUTE, RTN_LOCAL, ifa->ifa_local, 32, prim);
 
 		/* Check, that this local address finally disappeared. */
 		if (inet_addr_type(dev_net(dev), ifa->ifa_local) != RTN_LOCAL) {
 			/* And the last, but not the least thing.
-			   We must flush stray FIB entries.
-
-			   First of all, we scan fib_info list searching
-			   for stray nexthop entries, then ignite fib_flush.
-			*/
+			 * We must flush stray FIB entries.
+			 *
+			 * First of all, we scan fib_info list searching
+			 * for stray nexthop entries, then ignite fib_flush.
+			 */
 			if (fib_sync_down_addr(dev_net(dev), ifa->ifa_local))
 				fib_flush(dev_net(dev));
 		}
@@ -844,14 +849,20 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 #undef BRD1_OK
 }
 
-static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
+static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 {
 
 	struct fib_result       res;
-	struct flowi            fl = { .mark = frn->fl_mark,
-				       .nl_u = { .ip4_u = { .daddr = frn->fl_addr,
-							    .tos = frn->fl_tos,
-							    .scope = frn->fl_scope } } };
+	struct flowi            fl = {
+		.mark = frn->fl_mark,
+		.nl_u = {
+			.ip4_u = {
+				.daddr = frn->fl_addr,
+				.tos = frn->fl_tos,
+				.scope = frn->fl_scope
+			}
+		}
+	};
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	res.r = NULL;
@@ -899,8 +910,8 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	nl_fib_lookup(frn, tb);
 
-	pid = NETLINK_CB(skb).pid;       /* pid of sending process */
-	NETLINK_CB(skb).pid = 0;         /* from kernel */
+	pid = NETLINK_CB(skb).pid;      /* pid of sending process */
+	NETLINK_CB(skb).pid = 0;        /* from kernel */
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(net->ipv4.fibnl, skb, pid, MSG_DONTWAIT);
 }
@@ -947,7 +958,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		fib_del_ifaddr(ifa);
 		if (ifa->ifa_dev->ifa_list == NULL) {
 			/* Last address was deleted from this interface.
-			   Disable IP.
+			 * Disable IP.
 			 */
 			fib_disable_ip(dev, 1, 0);
 		} else {

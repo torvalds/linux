@@ -6,7 +6,7 @@
  *		IPv4 Forwarding Information Base: policy rules.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- * 		Thomas Graf <tgraf@suug.ch>
+ *		Thomas Graf <tgraf@suug.ch>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -14,7 +14,7 @@
  *		2 of the License, or (at your option) any later version.
  *
  * Fixes:
- * 		Rani Assaf	:	local_rule cannot be deleted
+ *		Rani Assaf	:	local_rule cannot be deleted
  *		Marc Boucher	:	routing by fwmark
  */
 
@@ -32,8 +32,7 @@
 #include <net/ip_fib.h>
 #include <net/fib_rules.h>
 
-struct fib4_rule
-{
+struct fib4_rule {
 	struct fib_rule		common;
 	u8			dst_len;
 	u8			src_len;
@@ -91,7 +90,8 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto errout;
 	}
 
-	if ((tbl = fib_get_table(rule->fr_net, rule->table)) == NULL)
+	tbl = fib_get_table(rule->fr_net, rule->table);
+	if (!tbl)
 		goto errout;
 
 	err = fib_table_lookup(tbl, flp, (struct fib_result *) arg->result);
