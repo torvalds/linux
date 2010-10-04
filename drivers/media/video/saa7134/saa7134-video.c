@@ -1871,9 +1871,12 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 			else
 				fixup = V4L2_STD_SECAM;
 		}
-		for (i = 0; i < TVNORMS; i++)
+		for (i = 0; i < TVNORMS; i++) {
 			if (fixup == tvnorms[i].id)
 				break;
+		}
+		if (i == TVNORMS)
+			return -EINVAL;
 	}
 
 	*id = tvnorms[i].id;
@@ -1997,9 +2000,12 @@ static int saa7134_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 	memset(t, 0, sizeof(*t));
-	for (n = 0; n < SAA7134_INPUT_MAX; n++)
+	for (n = 0; n < SAA7134_INPUT_MAX; n++) {
 		if (card_in(dev, n).tv)
 			break;
+	}
+	if (n == SAA7134_INPUT_MAX)
+		return -EINVAL;
 	if (NULL != card_in(dev, n).name) {
 		strcpy(t->name, "Television");
 		t->type = V4L2_TUNER_ANALOG_TV;
