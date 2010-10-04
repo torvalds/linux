@@ -1851,12 +1851,12 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
-		struct sock_xprt *transport,
+static void xs_tcp_setup_socket(struct sock_xprt *transport,
 		struct socket *(*create_sock)(struct rpc_xprt *,
 			struct sock_xprt *))
 {
 	struct socket *sock = transport->sock;
+	struct rpc_xprt *xprt = &transport->xprt;
 	int status = -EIO;
 
 	if (xprt->shutdown)
@@ -1958,9 +1958,8 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
 
-	xs_tcp_setup_socket(xprt, transport, xs_create_tcp_sock4);
+	xs_tcp_setup_socket(transport, xs_create_tcp_sock4);
 }
 
 static struct socket *xs_create_tcp_sock6(struct rpc_xprt *xprt,
@@ -1997,9 +1996,8 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
 
-	xs_tcp_setup_socket(xprt, transport, xs_create_tcp_sock6);
+	xs_tcp_setup_socket(transport, xs_create_tcp_sock6);
 }
 
 /**
