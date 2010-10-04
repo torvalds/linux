@@ -26,7 +26,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
-#include <linux/mfd/tps6507x.h>
 #include <linux/input/tps6507x-ts.h>
 
 #include <asm/mach-types.h>
