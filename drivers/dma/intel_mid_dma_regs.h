@@ -29,7 +29,7 @@
 #include <linux/dmapool.h>
 #include <linux/pci_ids.h>
 
-#define INTEL_MID_DMA_DRIVER_VERSION "1.0.5"
+#define INTEL_MID_DMA_DRIVER_VERSION "1.0.6"
 
 #define	REG_BIT0		0x00000001
 #define	REG_BIT8		0x00000100
@@ -152,6 +152,7 @@ union intel_mid_dma_cfg_hi {
 	u32	cfg_hi;
 };
 
+
 /**
  * struct intel_mid_dma_chan - internal mid representation of a DMA channel
  * @chan: dma_chan strcture represetation for mid chan
@@ -166,6 +167,7 @@ union intel_mid_dma_cfg_hi {
  * @slave: dma slave struture
  * @descs_allocated: total number of decsiptors allocated
  * @dma: dma device struture pointer
+ * @busy: bool representing if ch is busy (active txn) or not
  * @in_use: bool representing if ch is in use or not
  */
 struct intel_mid_dma_chan {
@@ -181,6 +183,7 @@ struct intel_mid_dma_chan {
 	struct intel_mid_dma_slave	*slave;
 	unsigned int		descs_allocated;
 	struct middma_device	*dma;
+	bool			busy;
 	bool			in_use;
 };
 
@@ -190,6 +193,10 @@ static inline struct intel_mid_dma_chan *to_intel_mid_dma_chan(
 	return container_of(chan, struct intel_mid_dma_chan, chan);
 }
 
+enum intel_mid_dma_state {
+	RUNNING = 0,
+	SUSPENDED,
+};
 /**
  * struct middma_device - internal representation of a DMA device
  * @pdev: PCI device
@@ -205,6 +212,7 @@ static inline struct intel_mid_dma_chan *to_intel_mid_dma_chan(
  * @max_chan: max number of chs supported (from drv_data)
  * @block_size: Block size of DMA transfer supported (from drv_data)
  * @pimr_mask: MMIO register addr for periphral interrupt (from drv_data)
+ * @state: dma PM device state
  */
 struct middma_device {
 	struct pci_dev		*pdev;
@@ -220,6 +228,7 @@ struct middma_device {
 	int			max_chan;
 	int			block_size;
 	unsigned int		pimr_mask;
+	enum intel_mid_dma_state state;
 };
 
 static inline struct middma_device *to_middma_device(struct dma_device *common)
@@ -257,4 +266,7 @@ static inline struct intel_mid_dma_desc *to_intel_mid_dma_desc
 {
 	return container_of(txd, struct intel_mid_dma_desc, txd);
 }
+
+int dma_resume(struct pci_dev *pci);
+
 #endif /*__INTEL_MID_DMAC_REGS_H__*/
