@@ -242,7 +242,7 @@ int tegra_dma_dequeue_req(struct tegra_dma_channel *ch,
 	if (status & STA_BUSY)
 		req->bytes_transferred -= to_transfer;
 
-	/* In continous transfer mode, DMA only tracks the count of the
+	/* In continuous transfer mode, DMA only tracks the count of the
 	 * half DMA buffer. So, if the DMA already finished half the DMA
 	 * then add the half buffer to the completed count.
 	 *
@@ -250,7 +250,7 @@ int tegra_dma_dequeue_req(struct tegra_dma_channel *ch,
 	 *	dequue happens at the same time as the DMA just moved to
 	 *	the new buffer and SW didn't yet received the interrupt?
 	 */
-	if (ch->mode & TEGRA_DMA_MODE_CONTINOUS)
+	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS)
 		if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL)
 			req->bytes_transferred += req_transfer_count;
 
