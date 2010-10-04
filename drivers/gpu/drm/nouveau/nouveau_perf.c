@@ -173,7 +173,7 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x40:
 #define subent(n) entry[perf[2] + ((n) * perf[3])]
 			perflvl->fanspeed = 0; /*XXX*/
-			perflvl->voltage = 0; /*XXX: entry[2] */;
+			perflvl->voltage = entry[2];
 			perflvl->core = (ROM16(subent(0)) & 0xfff) * 1000;
 			perflvl->shader = (ROM16(subent(1)) & 0xfff) * 1000;
 			perflvl->memory = (ROM16(subent(2)) & 0xfff) * 1000;
