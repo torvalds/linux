@@ -91,7 +91,6 @@ obj-$(CONFIG_NFSD)		+= nfsd/
 obj-$(CONFIG_LOCKD)		+= lockd/
 obj-$(CONFIG_NLS)		+= nls/
 obj-$(CONFIG_SYSV_FS)		+= sysv/
-obj-$(CONFIG_SMB_FS)		+= smbfs/
 obj-$(CONFIG_CIFS)		+= cifs/
 obj-$(CONFIG_NCP_FS)		+= ncpfs/
 obj-$(CONFIG_HPFS_FS)		+= hpfs/

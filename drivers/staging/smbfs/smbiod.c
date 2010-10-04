@@ -20,13 +20,12 @@
 #include <linux/kthread.h>
 #include <net/ip.h>
 
-#include <linux/smb_fs.h>
-#include <linux/smbno.h>
-#include <linux/smb_mount.h>
-
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
+#include "smb_fs.h"
+#include "smbno.h"
+#include "smb_mount.h"
 #include "smb_debug.h"
 #include "request.h"
 #include "proto.h"

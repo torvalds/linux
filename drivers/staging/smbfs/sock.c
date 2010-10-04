@@ -22,13 +22,12 @@
 #include <net/tcp_states.h>
 #include <net/ip.h>
 
-#include <linux/smb_fs.h>
-#include <linux/smb.h>
-#include <linux/smbno.h>
-
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
+#include "smb_fs.h"
+#include "smb.h"
+#include "smbno.h"
 #include "smb_debug.h"
 #include "proto.h"
 #include "request.h"

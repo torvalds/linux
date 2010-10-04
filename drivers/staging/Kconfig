@@ -149,6 +149,8 @@ source "drivers/staging/msm/Kconfig"
 
 source "drivers/staging/lirc/Kconfig"
 
+source "drivers/staging/smbfs/Kconfig"
+
 source "drivers/staging/easycap/Kconfig"
 
 source "drivers/staging/solo6x10/Kconfig"

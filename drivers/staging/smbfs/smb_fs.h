@@ -9,7 +9,7 @@
 #ifndef _LINUX_SMB_FS_H
 #define _LINUX_SMB_FS_H
 
-#include <linux/smb.h>
+#include "smb.h"
 
 /*
  * ioctl commands
@@ -22,13 +22,13 @@
 
 
 #ifdef __KERNEL__
-#include <linux/smb_fs_i.h>
-#include <linux/smb_fs_sb.h>
+#include "smb_fs_i.h"
+#include "smb_fs_sb.h"
+#include "smb_mount.h"
 
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
-#include <linux/smb_mount.h>
 #include <linux/jiffies.h>
 #include <asm/unaligned.h>
 

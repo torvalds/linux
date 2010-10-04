@@ -19,9 +19,8 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#include <linux/smbno.h>
-#include <linux/smb_fs.h>
-
+#include "smbno.h"
+#include "smb_fs.h"
 #include "smb_debug.h"
 #include "proto.h"
 

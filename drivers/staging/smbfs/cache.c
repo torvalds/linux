@@ -13,12 +13,12 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/smb_fs.h>
 #include <linux/pagemap.h>
 #include <linux/net.h>
 
 #include <asm/page.h>
 
+#include "smb_fs.h"
 #include "smb_debug.h"
 #include "proto.h"
 

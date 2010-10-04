@@ -46,7 +46,6 @@
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
-#include <linux/smb_fs.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/rtc.h>
@@ -557,25 +556,6 @@ static int mt_ioctl_trans(unsigned int fd, unsigned int cmd, void __user *argp)
 }
 
 #endif /* CONFIG_BLOCK */
-
-static int do_smb_getmountuid(unsigned int fd, unsigned int cmd,
-			compat_uid_t __user *argp)
-{
-	mm_segment_t old_fs = get_fs();
-	__kernel_uid_t kuid;
-	int err;
-
-	cmd = SMB_IOC_GETMOUNTUID;
-
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long)&kuid);
-	set_fs(old_fs);
-
-	if (err >= 0)
-		err = put_user(kuid, argp);
-
-	return err;
-}
 
 /* Bluetooth ioctls */
 #define HCIUARTSETPROTO		_IOW('U', 200, int)
@@ -1265,8 +1245,6 @@ COMPATIBLE_IOCTL(OSS_GETVERSION)
 /* Raw devices */
 COMPATIBLE_IOCTL(RAW_SETBIND)
 COMPATIBLE_IOCTL(RAW_GETBIND)
-/* SMB ioctls which do not need any translations */
-COMPATIBLE_IOCTL(SMB_IOC_NEWCONN)
 /* Watchdog */
 COMPATIBLE_IOCTL(WDIOC_GETSUPPORT)
 COMPATIBLE_IOCTL(WDIOC_GETSTATUS)
@@ -1528,10 +1506,6 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 	case RAW_GETBIND:
 		return raw_ioctl(fd, cmd, argp);
 #endif
-	/* One SMB ioctl needs translations. */
-#define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)
-	case SMB_IOC_GETMOUNTUID_32:
-		return do_smb_getmountuid(fd, cmd, argp);
 	/* Serial */
 	case TIOCGSERIAL:
 	case TIOCSSERIAL:

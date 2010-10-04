@@ -29,8 +29,6 @@
 #include <linux/vfs.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
-#include <linux/smb.h>
-#include <linux/smb_mount.h>
 #include <linux/ncp_mount.h>
 #include <linux/nfs4_mount.h>
 #include <linux/syscalls.h>
@@ -745,30 +743,6 @@ static void *do_ncp_super_data_conv(void *raw_data)
 	return raw_data;
 }
 
-struct compat_smb_mount_data {
-	compat_int_t version;
-	__compat_uid_t mounted_uid;
-	__compat_uid_t uid;
-	__compat_gid_t gid;
-	compat_mode_t file_mode;
-	compat_mode_t dir_mode;
-};
-
-static void *do_smb_super_data_conv(void *raw_data)
-{
-	struct smb_mount_data *s = raw_data;
-	struct compat_smb_mount_data *c_s = raw_data;
-
-	if (c_s->version != SMB_MOUNT_OLDVERSION)
-		goto out;
-	s->dir_mode = c_s->dir_mode;
-	s->file_mode = c_s->file_mode;
-	s->gid = c_s->gid;
-	s->uid = c_s->uid;
-	s->mounted_uid = c_s->mounted_uid;
- out:
-	return raw_data;
-}
 
 struct compat_nfs_string {
 	compat_uint_t len;
@@ -835,7 +809,6 @@ static int do_nfs4_super_data_conv(void *raw_data)
 	return 0;
 }
 
-#define SMBFS_NAME      "smbfs"
 #define NCPFS_NAME      "ncpfs"
 #define NFS4_NAME	"nfs4"
 
@@ -870,9 +843,7 @@ asmlinkage long compat_sys_mount(const char __user * dev_name,
 	retval = -EINVAL;
 
 	if (kernel_type && data_page) {
-		if (!strcmp(kernel_type, SMBFS_NAME)) {
-			do_smb_super_data_conv((void *)data_page);
-		} else if (!strcmp(kernel_type, NCPFS_NAME)) {
+		if (!strcmp(kernel_type, NCPFS_NAME)) {
 			do_ncp_super_data_conv((void *)data_page);
 		} else if (!strcmp(kernel_type, NFS4_NAME)) {
 			if (do_nfs4_super_data_conv((void *) data_page))

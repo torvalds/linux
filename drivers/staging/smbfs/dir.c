@@ -15,9 +15,9 @@
 #include <linux/net.h>
 #include <linux/sched.h>
 
-#include <linux/smb_fs.h>
-#include <linux/smb_mount.h>
-#include <linux/smbno.h>
+#include "smb_fs.h"
+#include "smb_mount.h"
+#include "smbno.h"
 
 #include "smb_debug.h"
 #include "proto.h"

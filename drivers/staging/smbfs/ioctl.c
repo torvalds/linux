@@ -16,11 +16,10 @@
 #include <linux/smp_lock.h>
 #include <linux/net.h>
 
-#include <linux/smb_fs.h>
-#include <linux/smb_mount.h>
-
 #include <asm/uaccess.h>
 
+#include "smb_fs.h"
+#include "smb_mount.h"
 #include "proto.h"
 
 long

@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/backing-dev.h>
-#include <linux/smb.h>
+#include "smb.h"
 
 /*
  * Upper limit on the total number of active smb_request structs.
