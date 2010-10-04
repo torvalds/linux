@@ -708,7 +708,7 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 		.private_value = ((codec) << 24) | ((stereo) << 16) | (index), \
 	}
 
-static DECLARE_TLV_DB_SCALE(monitor_db_scale, -1000, 1000, 0);
+static DECLARE_TLV_DB_SCALE(monitor_db_scale, -600, 600, 0);
 static DECLARE_TLV_DB_SCALE(ac97_db_scale, -3450, 150, 0);
 static DECLARE_TLV_DB_SCALE(ac97_rec_db_scale, 0, 150, 0);
 
