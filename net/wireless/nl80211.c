@@ -411,9 +411,6 @@ static int nl80211_key_allowed(struct wireless_dev *wdev)
 {
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (!netif_running(wdev->netdev))
-		return -ENETDOWN;
-
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -2083,11 +2080,6 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (!netif_running(dev)) {
-		err = -ENETDOWN;
-		goto out;
-	}
-
 	err = rdev->ops->add_station(&rdev->wiphy, dev, mac_addr, &params);
 
  out:
@@ -2301,9 +2293,6 @@ static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	return rdev->ops->change_mpath(&rdev->wiphy, dev, dst, next_hop);
 }
 
@@ -2328,9 +2317,6 @@ static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	return rdev->ops->add_mpath(&rdev->wiphy, dev, dst, next_hop);
 }
@@ -2823,9 +2809,6 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->scan)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	if (rdev->scan_req)
 		return -EBUSY;
 
@@ -3296,9 +3279,6 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 	chan = ieee80211_get_channel(&rdev->wiphy,
 		nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
@@ -3429,9 +3409,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
 	chan = ieee80211_get_channel(&rdev->wiphy,
@@ -3493,9 +3470,6 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
 	reason_code = nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
@@ -3539,9 +3513,6 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
@@ -3595,9 +3566,6 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	wiphy = &rdev->wiphy;
 
@@ -3672,9 +3640,6 @@ static int nl80211_leave_ibss(struct sk_buff *skb, struct genl_info *info)
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	return cfg80211_leave_ibss(rdev, dev, false);
 }
@@ -3826,9 +3791,6 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	wiphy = &rdev->wiphy;
 
 	if (info->attrs[NL80211_ATTR_MAC])
@@ -3880,9 +3842,6 @@ static int nl80211_disconnect(struct sk_buff *skb, struct genl_info *info)
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	return cfg80211_disconnect(rdev, dev, reason, true);
 }
@@ -3998,9 +3957,6 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 	if (!rdev->ops->remain_on_channel)
 		return -EOPNOTSUPP;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
 		channel_type = nla_get_u32(
 			info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
@@ -4059,9 +4015,6 @@ static int nl80211_cancel_remain_on_channel(struct sk_buff *skb,
 
 	if (!rdev->ops->cancel_remain_on_channel)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	cookie = nla_get_u64(info->attrs[NL80211_ATTR_COOKIE]);
 
@@ -4206,9 +4159,6 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
 		return -EOPNOTSUPP;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
 		channel_type = nla_get_u32(
@@ -4398,6 +4348,9 @@ out:
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
+#define NL80211_FLAG_CHECK_NETDEV_UP	0x08
+#define NL80211_FLAG_NEED_NETDEV_UP	(NL80211_FLAG_NEED_NETDEV |\
+					 NL80211_FLAG_CHECK_NETDEV_UP)
 
 static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			    struct genl_info *info)
@@ -4424,6 +4377,12 @@ static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			if (rtnl)
 				rtnl_unlock();
 			return err;
+		}
+		if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP &&
+		    !netif_running(dev)) {
+			if (rtnl)
+				rtnl_unlock();
+			return -ENETDOWN;
 		}
 		info->user_ptr[0] = rdev;
 		info->user_ptr[1] = dev;
@@ -4504,7 +4463,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_set_key,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4512,7 +4471,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_new_key,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4520,7 +4479,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_del_key,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4568,7 +4527,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_new_station,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4585,7 +4544,7 @@ static struct genl_ops nl80211_ops[] = {
 		.dumpit = nl80211_dump_mpath,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4593,7 +4552,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_set_mpath,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4601,7 +4560,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_new_mpath,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4659,7 +4618,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_trigger_scan,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4672,7 +4631,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_authenticate,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4680,7 +4639,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_associate,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4688,7 +4647,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_deauthenticate,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4696,7 +4655,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_disassociate,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4704,7 +4663,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_join_ibss,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4712,7 +4671,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_leave_ibss,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 #ifdef CONFIG_NL80211_TESTMODE
@@ -4730,7 +4689,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_connect,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4738,7 +4697,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_disconnect,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4783,7 +4742,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_remain_on_channel,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4791,7 +4750,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_cancel_remain_on_channel,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4815,7 +4774,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_tx_mgmt,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
