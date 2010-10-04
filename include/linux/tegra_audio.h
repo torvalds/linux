@@ -52,11 +52,16 @@ struct tegra_audio_buf_config {
 #define TEGRA_AUDIO_OUT_GET_BUF_CONFIG	_IOR(TEGRA_AUDIO_MAGIC, 7, \
 			struct tegra_audio_buf_config *)
 
+struct tegra_audio_error_counts {
+	unsigned late_dma;
+	unsigned full_empty; /* empty for playback, full for recording */
+};
+
 #define TEGRA_AUDIO_IN_GET_ERROR_COUNT	_IOR(TEGRA_AUDIO_MAGIC, 8, \
-			unsigned *)
+			struct tegra_audio_error_counts *)
 
 #define TEGRA_AUDIO_OUT_GET_ERROR_COUNT	_IOR(TEGRA_AUDIO_MAGIC, 9, \
-			unsigned *)
+			struct tegra_audio_error_counts *)
 
 struct tegra_audio_out_preload {
 	void *data;
