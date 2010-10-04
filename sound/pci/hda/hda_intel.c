@@ -2315,14 +2315,6 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 		return fix;
 	}
 
-	/* Check VIA/ATI HD Audio Controller exist */
-	switch (chip->driver_type) {
-	case AZX_DRIVER_VIA:
-	case AZX_DRIVER_ATI:
-		/* Use link position directly, avoid any transfer problem. */
-		return POS_FIX_VIACOMBO;
-	}
-
 	q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
 	if (q) {
 		printk(KERN_INFO
@@ -2331,6 +2323,15 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 		       q->value, q->subvendor, q->subdevice);
 		return q->value;
 	}
+
+	/* Check VIA/ATI HD Audio Controller exist */
+	switch (chip->driver_type) {
+	case AZX_DRIVER_VIA:
+	case AZX_DRIVER_ATI:
+		/* Use link position directly, avoid any transfer problem. */
+		return POS_FIX_VIACOMBO;
+	}
+
 	return POS_FIX_AUTO;
 }
 
