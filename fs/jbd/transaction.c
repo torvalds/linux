@@ -293,9 +293,7 @@ handle_t *journal_start(journal_t *journal, int nblocks)
 		jbd_free_handle(handle);
 		current->journal_info = NULL;
 		handle = ERR_PTR(err);
-		goto out;
 	}
-out:
 	return handle;
 }
 
