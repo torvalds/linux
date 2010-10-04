@@ -581,15 +581,15 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 	enum intel_mid_dma_width width = 0;
 
 	pr_debug("MDMA: Prep for memcpy\n");
-	WARN_ON(!chan);
+	BUG_ON(!chan);
 	if (!len)
 		return NULL;
 
 	mids = chan->private;
-	WARN_ON(!mids);
+	BUG_ON(!mids);
 
 	midc = to_intel_mid_dma_chan(chan);
-	WARN_ON(!midc);
+	BUG_ON(!midc);
 
 	pr_debug("MDMA:called for DMA %x CH %d Length %zu\n",
 				midc->dma->pci_id, midc->ch_id, len);
