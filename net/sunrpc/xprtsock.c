@@ -1591,6 +1591,14 @@ static inline void xs_reclassify_socket6(struct socket *sock)
 	sock_lock_init_class_and_name(sk, "slock-AF_INET6-RPC",
 		&xs_slock_key[1], "sk_lock-AF_INET6-RPC", &xs_key[1]);
 }
+
+static inline void xs_reclassify_socket(int family, struct socket *sock)
+{
+	if (family == PF_INET)
+		xs_reclassify_socket4(sock);
+	else
+		xs_reclassify_socket6(sock);
+}
 #else
 static inline void xs_reclassify_socket4(struct socket *sock)
 {
@@ -1599,22 +1607,26 @@ static inline void xs_reclassify_socket4(struct socket *sock)
 static inline void xs_reclassify_socket6(struct socket *sock)
 {
 }
+
+static inline void xs_reclassify_socket(int family, struct socket *sock)
+{
+}
 #endif
 
-static struct socket *xs_create_sock4(struct rpc_xprt *xprt,
-		struct sock_xprt *transport, int type, int protocol)
+static struct socket *xs_create_sock(struct rpc_xprt *xprt,
+		struct sock_xprt *transport, int family, int type, int protocol)
 {
 	struct socket *sock;
 	int err;
 
-	err = __sock_create(xprt->xprt_net, PF_INET, type, protocol, &sock, 1);
+	err = __sock_create(xprt->xprt_net, family, type, protocol, &sock, 1);
 	if (err < 0) {
 		dprintk("RPC:       can't create %d transport socket (%d).\n",
 				protocol, -err);
 		goto out;
 	}
-	transport->srcaddr.ss_family = AF_INET;
-	xs_reclassify_socket4(sock);
+	transport->srcaddr.ss_family = family;
+	xs_reclassify_socket(family, sock);
 
 	if (xs_bind(transport, sock)) {
 		sock_release(sock);
@@ -1626,29 +1638,16 @@ out:
 	return ERR_PTR(err);
 }
 
+static struct socket *xs_create_sock4(struct rpc_xprt *xprt,
+		struct sock_xprt *transport, int type, int protocol)
+{
+	return xs_create_sock(xprt, transport, PF_INET, type, protocol);
+}
+
 static struct socket *xs_create_sock6(struct rpc_xprt *xprt,
 		struct sock_xprt *transport, int type, int protocol)
 {
-	struct socket *sock;
-	int err;
-
-	err = __sock_create(xprt->xprt_net, PF_INET6, type, protocol, &sock, 1);
-	if (err < 0) {
-		dprintk("RPC:       can't create %d transport socket (%d).\n",
-				protocol, -err);
-		goto out;
-	}
-	transport->srcaddr.ss_family = AF_INET6;
-	xs_reclassify_socket6(sock);
-
-	if (xs_bind(transport, sock)) {
-		sock_release(sock);
-		goto out;
-	}
-
-	return sock;
-out:
-	return ERR_PTR(err);
+	return xs_create_sock(xprt, transport, PF_INET6, type, protocol);
 }
 
 static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
