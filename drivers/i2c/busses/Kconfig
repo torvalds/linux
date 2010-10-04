@@ -95,9 +95,9 @@ config I2C_I801
 	    ESB2
 	    ICH8
 	    ICH9
-	    Tolapai
+	    EP80579 (Tolapai)
 	    ICH10
-	    3400/5 Series (PCH)
+	    5/3400 Series (PCH)
 	    Cougar Point (PCH)
 
 	  This driver can also be built as a module.  If so, the module
