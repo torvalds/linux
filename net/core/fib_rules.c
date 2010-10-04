@@ -144,7 +144,7 @@ fib_rules_register(const struct fib_rules_ops *tmpl, struct net *net)
 }
 EXPORT_SYMBOL_GPL(fib_rules_register);
 
-void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
+static void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 {
 	struct fib_rule *rule, *tmp;
 
@@ -153,7 +153,6 @@ void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 		fib_rule_put(rule);
 	}
 }
-EXPORT_SYMBOL_GPL(fib_rules_cleanup_ops);
 
 static void fib_rules_put_rcu(struct rcu_head *head)
 {
