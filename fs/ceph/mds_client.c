@@ -2374,6 +2374,8 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 						num_fcntl_locks,
 						num_flock_locks);
 		unlock_kernel();
+	} else {
+		err = ceph_pagelist_append(pagelist, &rec, reclen);
 	}
 
 out_free:

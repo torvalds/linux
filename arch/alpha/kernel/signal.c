@@ -41,46 +41,20 @@ static void do_signal(struct pt_regs *, struct switch_stack *,
 /*
  * The OSF/1 sigprocmask calling sequence is different from the
  * C sigprocmask() sequence..
- *
- * how:
- * 1 - SIG_BLOCK
- * 2 - SIG_UNBLOCK
- * 3 - SIG_SETMASK
- *
- * We change the range to -1 .. 1 in order to let gcc easily
- * use the conditional move instructions.
- *
- * Note that we don't need to acquire the kernel lock for SMP
- * operation, as all of this is local to this thread.
  */
-SYSCALL_DEFINE3(osf_sigprocmask, int, how, unsigned long, newmask,
-		struct pt_regs *, regs)
+SYSCALL_DEFINE2(osf_sigprocmask, int, how, unsigned long, newmask)
 {
-	unsigned long oldmask = -EINVAL;
+	sigset_t oldmask;
+	sigset_t mask;
+	unsigned long res;
 
-	if ((unsigned long)how-1 <= 2) {
-		long sign = how-2;		/* -1 .. 1 */
-		unsigned long block, unblock;
-
-		newmask &= _BLOCKABLE;
-		spin_lock_irq(&current->sighand->siglock);
-		oldmask = current->blocked.sig[0];
-
-		unblock = oldmask & ~newmask;
-		block = oldmask | newmask;
-		if (!sign)
-			block = unblock;
-		if (sign <= 0)
-			newmask = block;
-		if (_NSIG_WORDS > 1 && sign > 0)
-			sigemptyset(&current->blocked);
-		current->blocked.sig[0] = newmask;
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-
-		regs->r0 = 0;		/* special no error return */
+	siginitset(&mask, newmask & ~_BLOCKABLE);
+	res = sigprocmask(how, &mask, &oldmask);
+	if (!res) {
+		force_successful_syscall_return();
+		res = oldmask.sig[0];
 	}
-	return oldmask;
+	return res;
 }
 
 SYSCALL_DEFINE3(osf_sigaction, int, sig,
@@ -94,9 +68,9 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags))
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 		new_ka.ka_restorer = NULL;
 	}
@@ -106,9 +80,9 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags))
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -144,8 +118,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int
-do_sigsuspend(old_sigset_t mask, struct pt_regs *regs, struct switch_stack *sw)
+SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
 {
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
@@ -153,41 +126,6 @@ do_sigsuspend(old_sigset_t mask, struct pt_regs *regs, struct switch_stack *sw)
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-
-	/* Indicate EINTR on return from any possible signal handler,
-	   which will not come back through here, but via sigreturn.  */
-	regs->r0 = EINTR;
-	regs->r19 = 1;
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
-}
-
-asmlinkage int
-do_rt_sigsuspend(sigset_t __user *uset, size_t sigsetsize,
-		 struct pt_regs *regs, struct switch_stack *sw)
-{
-	sigset_t set;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-	if (copy_from_user(&set, uset, sizeof(set)))
-		return -EFAULT;
-
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	/* Indicate EINTR on return from any possible signal handler,
-	   which will not come back through here, but via sigreturn.  */
-	regs->r0 = EINTR;
-	regs->r19 = 1;
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
@@ -238,6 +176,8 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 {
 	unsigned long usp;
 	long i, err = __get_user(regs->pc, &sc->sc_pc);
+
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	sw->r26 = (unsigned long) ret_from_sys_call;
 
@@ -591,7 +531,6 @@ syscall_restart(unsigned long r0, unsigned long r19,
 		regs->pc -= 4;
 		break;
 	case ERESTART_RESTARTBLOCK:
-		current_thread_info()->restart_block.fn = do_no_restart_syscall;
 		regs->r0 = EINTR;
 		break;
 	}

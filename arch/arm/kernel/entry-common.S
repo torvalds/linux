@@ -48,6 +48,8 @@ work_pending:
 	beq	no_work_pending
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
+	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
+	movne	why, #0				@ prevent further restarts
 	bl	do_notify_resume
 	b	ret_slow_syscall		@ Check work again
 
@@ -293,7 +295,6 @@ ENTRY(vector_swi)
 
 	get_thread_info tsk
 	adr	tbl, sys_call_table		@ load syscall table pointer
-	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
 
 #if defined(CONFIG_OABI_COMPAT)
 	/*
@@ -310,8 +311,20 @@ ENTRY(vector_swi)
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
 
+	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
-	tst	ip, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
+
+#ifdef CONFIG_SECCOMP
+	tst	r10, #_TIF_SECCOMP
+	beq	1f
+	mov	r0, scno
+	bl	__secure_computing	
+	add	r0, sp, #S_R0 + S_OFF		@ pointer to regs
+	ldmia	r0, {r0 - r3}			@ have to reload r0 - r3
+1:
+#endif
+
+	tst	r10, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
