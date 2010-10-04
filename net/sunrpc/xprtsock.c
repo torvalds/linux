@@ -1660,37 +1660,22 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	xs_udp_do_set_buffer_size(xprt);
 }
 
-/**
- * xs_udp_connect_worker4 - set up a UDP socket
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_udp_connect_worker4(struct work_struct *work)
+static void xs_udp_setup_socket(struct sock_xprt *transport,
+		struct socket *(*create_sock)(struct rpc_xprt *,
+			struct sock_xprt *))
 {
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
-	int err, status = -EIO;
+	int status = -EIO;
 
 	if (xprt->shutdown)
 		goto out;
 
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
-
-	err = __sock_create(xprt->xprt_net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
-	if (err < 0) {
-		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
+	sock = create_sock(xprt, transport);
+	if (IS_ERR(sock))
 		goto out;
-	}
-	xs_reclassify_socket4(sock);
-
-	if (xs_bind4(transport, sock)) {
-		sock_release(sock);
-		goto out;
-	}
 
 	dprintk("RPC:       worker connecting xprt %p via %s to "
 				"%s (port %s)\n", xprt,
@@ -1706,24 +1691,55 @@ out:
 }
 
 /**
+ * xs_udp_connect_worker4 - set up a UDP socket
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+
+static struct socket *xs_create_udp_sock4(struct rpc_xprt *xprt,
+		struct sock_xprt *transport)
+{
+	struct socket *sock;
+	int err;
+
+	err = __sock_create(xprt->xprt_net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
+	if (err < 0) {
+		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
+		goto out;
+	}
+	xs_reclassify_socket4(sock);
+
+	if (xs_bind4(transport, sock)) {
+		sock_release(sock);
+		goto out;
+	}
+
+	return sock;
+out:
+	return ERR_PTR(err);
+}
+
+static void xs_udp_connect_worker4(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+
+	xs_udp_setup_socket(transport, xs_create_udp_sock4);
+}
+
+/**
  * xs_udp_connect_worker6 - set up a UDP socket
  * @work: RPC transport to connect
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_udp_connect_worker6(struct work_struct *work)
+
+static struct socket *xs_create_udp_sock6(struct rpc_xprt *xprt,
+		struct sock_xprt *transport)
 {
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
-	int err, status = -EIO;
-
-	if (xprt->shutdown)
-		goto out;
-
-	/* Start by resetting any existing state */
-	xs_reset_transport(transport);
+	struct socket *sock;
+	int err;
 
 	err = __sock_create(xprt->xprt_net, PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
 	if (err < 0) {
@@ -1737,17 +1753,17 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 		goto out;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p via %s to "
-				"%s (port %s)\n", xprt,
-			xprt->address_strings[RPC_DISPLAY_PROTO],
-			xprt->address_strings[RPC_DISPLAY_ADDR],
-			xprt->address_strings[RPC_DISPLAY_PORT]);
-
-	xs_udp_finish_connecting(xprt, sock);
-	status = 0;
+	return sock;
 out:
-	xprt_clear_connecting(xprt);
-	xprt_wake_pending_tasks(xprt, status);
+	return ERR_PTR(err);
+}
+
+static void xs_udp_connect_worker6(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+
+	xs_udp_setup_socket(transport, xs_create_udp_sock6);
 }
 
 /*
