@@ -314,9 +314,11 @@ static void iwl_free_frame(struct iwl_priv *priv, struct iwl_frame *frame)
 }
 
 static u32 iwl_fill_beacon_frame(struct iwl_priv *priv,
-					  struct ieee80211_hdr *hdr,
-					  int left)
+				 struct ieee80211_hdr *hdr,
+				 int left)
 {
+	lockdep_assert_held(&priv->mutex);
+
 	if (!priv->beacon_skb)
 		return 0;
 
@@ -330,8 +332,8 @@ static u32 iwl_fill_beacon_frame(struct iwl_priv *priv,
 
 /* Parse the beacon frame to find the TIM element and set tim_idx & tim_size */
 static void iwl_set_beacon_tim(struct iwl_priv *priv,
-		struct iwl_tx_beacon_cmd *tx_beacon_cmd,
-		u8 *beacon, u32 frame_size)
+			       struct iwl_tx_beacon_cmd *tx_beacon_cmd,
+			       u8 *beacon, u32 frame_size)
 {
 	u16 tim_idx;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)beacon;
@@ -393,7 +395,7 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 
 	/* Set up TX beacon command fields */
 	iwl_set_beacon_tim(priv, tx_beacon_cmd, (u8 *)tx_beacon_cmd->frame,
-			frame_size);
+			   frame_size);
 
 	/* Set up packet rate and flags */
 	rate = iwl_rate_get_lowest_plcp(priv, priv->beacon_ctx);
@@ -648,13 +650,12 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
 	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif);
 	if (!beacon) {
-		IWL_ERR(priv, "update beacon failed\n");
+		IWL_ERR(priv, "update beacon failed -- keeping old\n");
 		goto out;
 	}
 
 	/* new beacon skb is allocated every time; dispose previous.*/
-	if (priv->beacon_skb)
-		dev_kfree_skb(priv->beacon_skb);
+	dev_kfree_skb(priv->beacon_skb);
 
 	priv->beacon_skb = beacon;
 
@@ -2993,8 +2994,7 @@ static void __iwl_down(struct iwl_priv *priv)
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
-	if (priv->beacon_skb)
-		dev_kfree_skb(priv->beacon_skb);
+	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
 
 	/* clear out any free frames */
@@ -4131,8 +4131,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	priv->beacon_skb = NULL;
-
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
@@ -4645,8 +4643,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	iwl_free_isr_ict(priv);
 
-	if (priv->beacon_skb)
-		dev_kfree_skb(priv->beacon_skb);
+	dev_kfree_skb(priv->beacon_skb);
 
 	ieee80211_free_hw(priv->hw);
 }
