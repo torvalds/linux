@@ -179,7 +179,7 @@ static u32 cop_ier[NUM_ICTLRS];
 static u32 cpu_ier[NUM_ICTLRS];
 static u32 cpu_iep[NUM_ICTLRS];
 
-void tegra_irq_suspend(void)
+void tegra_legacy_irq_suspend(void)
 {
 	unsigned long flags;
 	int i;
@@ -195,7 +195,7 @@ void tegra_irq_suspend(void)
 	local_irq_restore(flags);
 }
 
-void tegra_irq_resume(void)
+void tegra_legacy_irq_resume(void)
 {
 	unsigned long flags;
 	int i;

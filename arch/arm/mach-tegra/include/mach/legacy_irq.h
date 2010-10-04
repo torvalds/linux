@@ -31,5 +31,6 @@ int tegra_legacy_irq_set_wake(int irq, int enable);
 void tegra_legacy_irq_set_lp1_wake_mask(void);
 void tegra_legacy_irq_restore_mask(void);
 void tegra_init_legacy_irq(void);
-
+void tegra_legacy_irq_suspend(void);
+void tegra_legacy_irq_resume(void);
 #endif
