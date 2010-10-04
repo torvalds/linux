@@ -220,12 +220,12 @@ config LOGITECH_FF
 	  force feedback.
 
 config LOGIRUMBLEPAD2_FF
-	bool "Logitech Rumblepad 2 force feedback support"
+	bool "Logitech RumblePad/Rumblepad 2 force feedback support"
 	depends on HID_LOGITECH
 	select INPUT_FF_MEMLESS
 	help
 	  Say Y here if you want to enable force feedback support for Logitech
-	  Rumblepad 2 devices.
+	  RumblePad and Rumblepad 2 devices.
 
 config LOGIG940_FF
 	bool "Logitech Flight System G940 force feedback support"
