@@ -5616,8 +5616,13 @@ SYSCALL_DEFINE5(perf_event_open,
 		}
 	}
 
-	if (pid != -1)
+	if (pid != -1) {
 		task = find_lively_task_by_vpid(pid);
+		if (IS_ERR(task)) {
+			err = PTR_ERR(task);
+			goto err_group_fd;
+		}
+	}
 
 	/*
 	 * Get the target context (task or percpu):
