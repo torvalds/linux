@@ -308,6 +308,8 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 }
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
+
+static inline bool pm_check_wakeup_events(void) { return true; }
 #endif /* !CONFIG_PM_SLEEP */
 
 extern struct mutex pm_mutex;
