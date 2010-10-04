@@ -1631,6 +1631,30 @@ static inline void xs_reclassify_socket6(struct socket *sock)
 }
 #endif
 
+static struct socket *xs_create_sock4(struct rpc_xprt *xprt,
+		struct sock_xprt *transport, int type, int protocol)
+{
+	struct socket *sock;
+	int err;
+
+	err = __sock_create(xprt->xprt_net, PF_INET, type, protocol, &sock, 1);
+	if (err < 0) {
+		dprintk("RPC:       can't create %d transport socket (%d).\n",
+				protocol, -err);
+		goto out;
+	}
+	xs_reclassify_socket4(sock);
+
+	if (xs_bind4(transport, sock)) {
+		sock_release(sock);
+		goto out;
+	}
+
+	return sock;
+out:
+	return ERR_PTR(err);
+}
+
 static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -1700,24 +1724,7 @@ out:
 static struct socket *xs_create_udp_sock4(struct rpc_xprt *xprt,
 		struct sock_xprt *transport)
 {
-	struct socket *sock;
-	int err;
-
-	err = __sock_create(xprt->xprt_net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
-	if (err < 0) {
-		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
-		goto out;
-	}
-	xs_reclassify_socket4(sock);
-
-	if (xs_bind4(transport, sock)) {
-		sock_release(sock);
-		goto out;
-	}
-
-	return sock;
-out:
-	return ERR_PTR(err);
+	return xs_create_sock4(xprt, transport, SOCK_DGRAM, IPPROTO_UDP);
 }
 
 static void xs_udp_connect_worker4(struct work_struct *work)
@@ -1943,25 +1950,7 @@ out:
 static struct socket *xs_create_tcp_sock4(struct rpc_xprt *xprt,
 		struct sock_xprt *transport)
 {
-	struct socket *sock;
-	int err;
-
-	/* start from scratch */
-	err = __sock_create(xprt->xprt_net, PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock, 1);
-	if (err < 0) {
-		dprintk("RPC:       can't create TCP transport socket (%d).\n",
-				-err);
-		goto out_err;
-	}
-	xs_reclassify_socket4(sock);
-
-	if (xs_bind4(transport, sock) < 0) {
-		sock_release(sock);
-		goto out_err;
-	}
-	return sock;
-out_err:
-	return ERR_PTR(-EIO);
+	return xs_create_sock4(xprt, transport, SOCK_STREAM, IPPROTO_TCP);
 }
 
 /**
