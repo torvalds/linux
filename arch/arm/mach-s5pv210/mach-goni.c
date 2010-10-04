@@ -39,6 +39,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
+#include <plat/iic.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/clock.h>
@@ -196,6 +197,27 @@ static struct samsung_keypad_platdata keypad_data __initdata = {
 	.rows		= 3,
 	.cols		= 3,
 };
+
+/* Radio */
+static struct i2c_board_info i2c1_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("si470x", 0x10),
+	},
+};
+
+static void __init goni_radio_init(void)
+{
+	int gpio;
+
+	gpio = S5PV210_GPJ2(4);			/* XMSMDATA_4 */
+	gpio_request(gpio, "FM_INT");
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	i2c1_devs[0].irq = gpio_to_irq(gpio);
+
+	gpio = S5PV210_GPJ2(5);			/* XMSMDATA_5 */
+	gpio_request(gpio, "FM_RST");
+	gpio_direction_output(gpio, 1);
+}
 
 /* MAX8998 regulators */
 #if defined(CONFIG_REGULATOR_MAX8998) || defined(CONFIG_REGULATOR_MAX8998_MODULE)
@@ -587,6 +609,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_usb_hsotg,
 	&samsung_device_keypad,
+	&s3c_device_i2c1,
 };
 
 static void __init goni_map_io(void)
@@ -598,6 +621,13 @@ static void __init goni_map_io(void)
 
 static void __init goni_machine_init(void)
 {
+	/* Radio: call before I2C 1 registeration */
+	goni_radio_init();
+
+	/* I2C1 */
+	s3c_i2c1_set_platdata(NULL);
+	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
+
 	/* PMIC */
 	goni_pmic_init();
 	i2c_register_board_info(AP_I2C_GPIO_PMIC_BUS_4, i2c_gpio_pmic_devs,
