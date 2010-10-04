@@ -1667,8 +1667,10 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	xs_udp_do_set_buffer_size(xprt);
 }
 
-static void xs_udp_setup_socket(struct sock_xprt *transport, int family)
+static void xs_udp_setup_socket(struct work_struct *work)
 {
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
 	int status = -EIO;
@@ -1678,7 +1680,8 @@ static void xs_udp_setup_socket(struct sock_xprt *transport, int family)
 
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
-	sock = xs_create_sock(xprt, transport, family, SOCK_DGRAM, IPPROTO_UDP);
+	sock = xs_create_sock(xprt, transport,
+			xs_addr(xprt)->sa_family, SOCK_DGRAM, IPPROTO_UDP);
 	if (IS_ERR(sock))
 		goto out;
 
@@ -1693,36 +1696,6 @@ static void xs_udp_setup_socket(struct sock_xprt *transport, int family)
 out:
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
-}
-
-/**
- * xs_udp_connect_worker4 - set up a UDP socket
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-
-static void xs_udp_connect_worker4(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-
-	xs_udp_setup_socket(transport, PF_INET);
-}
-
-/**
- * xs_udp_connect_worker6 - set up a UDP socket
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-
-static void xs_udp_connect_worker6(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-
-	xs_udp_setup_socket(transport, PF_INET6);
 }
 
 /*
@@ -2229,7 +2202,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_udp_connect_worker4);
+					xs_udp_setup_socket);
 		xs_format_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP);
 		break;
 	case AF_INET6:
@@ -2237,7 +2210,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_udp_connect_worker6);
+					xs_udp_setup_socket);
 		xs_format_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP6);
 		break;
 	default:
