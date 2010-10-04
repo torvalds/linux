@@ -3617,8 +3617,8 @@ SCTP_STATIC int sctp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			amount = skb->len;
 		}
 		rc = put_user(amount, (int __user *)arg);
-	}
 		break;
+	}
 	default:
 		rc = -ENOIOCTLCMD;
 		break;
