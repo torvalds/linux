@@ -739,7 +739,7 @@ static int loopback_active_get(struct snd_kcontrol *kcontrol,
 {
 	struct loopback *loopback = snd_kcontrol_chip(kcontrol);
 	struct loopback_cable *cable = loopback->cables
-				[kcontrol->id.subdevice][kcontrol->id.device];
+			[kcontrol->id.subdevice][kcontrol->id.device ^ 1];
 	unsigned int val = 0;
 
 	if (cable != NULL)
