@@ -2106,6 +2106,7 @@ int i915_driver_unload(struct drm_device *dev)
 	acpi_video_unregister();
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		intel_fbdev_fini(dev);
 		intel_modeset_cleanup(dev);
 
 		/*

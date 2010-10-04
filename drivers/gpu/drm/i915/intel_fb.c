@@ -206,8 +206,8 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intel_fb_find_or_create_single,
 };
 
-static int intel_fbdev_destroy(struct drm_device *dev,
-			       struct intel_fbdev *ifbdev)
+static void intel_fbdev_destroy(struct drm_device *dev,
+				struct intel_fbdev *ifbdev)
 {
 	struct fb_info *info;
 	struct intel_framebuffer *ifb = &ifbdev->ifb;
@@ -225,9 +225,7 @@ static int intel_fbdev_destroy(struct drm_device *dev,
 
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj)
-		drm_gem_object_unreference(ifb->obj);
-
-	return 0;
+		drm_gem_object_unreference_unlocked(ifb->obj);
 }
 
 int intel_fbdev_init(struct drm_device *dev)

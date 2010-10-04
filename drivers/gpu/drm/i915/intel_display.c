@@ -6130,8 +6130,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	drm_kms_helper_poll_fini(dev);
 	mutex_lock(&dev->struct_mutex);
 
-	intel_fbdev_fini(dev);
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
 		if (!crtc->fb)
