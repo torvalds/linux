@@ -8,7 +8,7 @@
 #include <linux/range.h>
 
 /* Check for already reserved areas */
-static inline bool __init bad_addr_size(u64 *addrp, u64 *sizep, u64 align)
+static bool __init check_with_memblock_reserved_size(u64 *addrp, u64 *sizep, u64 align)
 {
 	struct memblock_region *r;
 	u64 addr = *addrp, last;
@@ -30,7 +30,7 @@ again:
 			goto again;
 		}
 		if (last <= (r->base + r->size) && addr >= r->base) {
-			(*sizep)++;
+			*sizep = 0;
 			return false;
 		}
 	}
@@ -39,29 +39,6 @@ again:
 		*sizep = size;
 	}
 	return changed;
-}
-
-static u64 __init __memblock_x86_find_in_range_size(u64 ei_start, u64 ei_last, u64 start,
-			 u64 *sizep, u64 align)
-{
-	u64 addr, last;
-
-	addr = round_up(ei_start, align);
-	if (addr < start)
-		addr = round_up(start, align);
-	if (addr >= ei_last)
-		goto out;
-	*sizep = ei_last - addr;
-	while (bad_addr_size(&addr, sizep, align) && addr + *sizep <= ei_last)
-		;
-	last = addr + *sizep;
-	if (last > ei_last)
-		goto out;
-
-	return addr;
-
-out:
-	return MEMBLOCK_ERROR;
 }
 
 /*
@@ -76,10 +53,16 @@ u64 __init memblock_x86_find_in_range_size(u64 start, u64 *sizep, u64 align)
 		u64 ei_last = ei_start + r->size;
 		u64 addr;
 
-		addr = __memblock_x86_find_in_range_size(ei_start, ei_last, start,
-					 sizep, align);
+		addr = round_up(ei_start, align);
+		if (addr < start)
+			addr = round_up(start, align);
+		if (addr >= ei_last)
+			continue;
+		*sizep = ei_last - addr;
+		while (check_with_memblock_reserved_size(&addr, sizep, align))
+			;
 
-		if (addr != MEMBLOCK_ERROR)
+		if (*sizep)
 			return addr;
 	}
 
