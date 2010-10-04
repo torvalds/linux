@@ -818,6 +818,8 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 			goto free;
 	}
 
+	slots = chip->num_slots;	/* Quirk may have changed this */
+
 	for (i = 0;i < slots;i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar + i);
 		if (IS_ERR(slot)) {
