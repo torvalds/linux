@@ -6127,9 +6127,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
 
+	drm_kms_helper_poll_fini(dev);
 	mutex_lock(&dev->struct_mutex);
 
-	drm_kms_helper_poll_fini(dev);
 	intel_fbdev_fini(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
