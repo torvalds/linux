@@ -27,7 +27,6 @@
 #include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/cache.h>
-#include <linux/smp_lock.h>
 
 static struct vfsmount *rpc_mount __read_mostly;
 static int rpc_mount_count;
@@ -309,38 +308,31 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 	return mask;
 }
 
-static int
-rpc_pipe_ioctl_unlocked(struct file *filp, unsigned int cmd, unsigned long arg)
+static long
+rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct rpc_inode *rpci = RPC_I(filp->f_path.dentry->d_inode);
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct rpc_inode *rpci = RPC_I(inode);
 	int len;
 
 	switch (cmd) {
 	case FIONREAD:
-		if (rpci->ops == NULL)
+		spin_lock(&inode->i_lock);
+		if (rpci->ops == NULL) {
+			spin_unlock(&inode->i_lock);
 			return -EPIPE;
+		}
 		len = rpci->pipelen;
 		if (filp->private_data) {
 			struct rpc_pipe_msg *msg;
 			msg = (struct rpc_pipe_msg *)filp->private_data;
 			len += msg->len - msg->copied;
 		}
+		spin_unlock(&inode->i_lock);
 		return put_user(len, (int __user *)arg);
 	default:
 		return -EINVAL;
 	}
-}
-
-static long
-rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	long ret;
-
-	lock_kernel();
-	ret = rpc_pipe_ioctl_unlocked(filp, cmd, arg);
-	unlock_kernel();
-
-	return ret;
 }
 
 static const struct file_operations rpc_pipe_fops = {

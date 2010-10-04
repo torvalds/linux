@@ -28,7 +28,6 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <asm/ioctls.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/cache.h>
@@ -1348,15 +1347,10 @@ static unsigned int cache_poll_procfs(struct file *filp, poll_table *wait)
 static long cache_ioctl_procfs(struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
-	long ret;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cache_detail *cd = PDE(inode)->data;
 
-	lock_kernel();
-	ret = cache_ioctl(inode, filp, cmd, arg, cd);
-	unlock_kernel();
-
-	return ret;
+	return cache_ioctl(inode, filp, cmd, arg, cd);
 }
 
 static int cache_open_procfs(struct inode *inode, struct file *filp)
@@ -1555,13 +1549,8 @@ static long cache_ioctl_pipefs(struct file *filp,
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct cache_detail *cd = RPC_I(inode)->private;
-	long ret;
 
-	lock_kernel();
-	ret = cache_ioctl(inode, filp, cmd, arg, cd);
-	unlock_kernel();
-
-	return ret;
+	return cache_ioctl(inode, filp, cmd, arg, cd);
 }
 
 static int cache_open_pipefs(struct inode *inode, struct file *filp)
