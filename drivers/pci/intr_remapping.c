@@ -95,6 +95,15 @@ static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 	return desc->irq_2_iommu;
 }
 
+static void irq_2_iommu_free(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+	struct irq_2_iommu *p = d->irq_2_iommu;
+
+	d->irq_2_iommu = NULL;
+	kfree(p);
+}
+
 #else /* !CONFIG_SPARSE_IRQ */
 
 static struct irq_2_iommu irq_2_iommuX[NR_IRQS];
@@ -110,6 +119,9 @@ static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 {
 	return irq_2_iommu(irq);
 }
+
+static void irq_2_iommu_free(unsigned int irq) { }
+
 #endif
 
 static DEFINE_SPINLOCK(irq_2_ir_lock);
@@ -439,6 +451,8 @@ int free_irte(int irq)
 	irq_iommu->irte_mask = 0;
 
 	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+
+	irq_2_iommu_free(irq);
 
 	return rc;
 }
