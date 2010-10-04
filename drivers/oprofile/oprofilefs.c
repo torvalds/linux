@@ -91,16 +91,20 @@ static ssize_t ulong_read_file(struct file *file, char __user *buf, size_t count
 
 static ssize_t ulong_write_file(struct file *file, char const __user *buf, size_t count, loff_t *offset)
 {
-	unsigned long *value = file->private_data;
+	unsigned long value;
 	int retval;
 
 	if (*offset)
 		return -EINVAL;
 
-	retval = oprofilefs_ulong_from_user(value, buf, count);
-
+	retval = oprofilefs_ulong_from_user(&value, buf, count);
 	if (retval)
 		return retval;
+
+	retval = oprofile_set_ulong(file->private_data, value);
+	if (retval)
+		return retval;
+
 	return count;
 }
 

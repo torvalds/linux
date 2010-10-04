@@ -225,26 +225,17 @@ post_sync:
 	mutex_unlock(&start_mutex);
 }
 
-int oprofile_set_backtrace(unsigned long val)
+int oprofile_set_ulong(unsigned long *addr, unsigned long val)
 {
-	int err = 0;
+	int err = -EBUSY;
 
 	mutex_lock(&start_mutex);
-
-	if (oprofile_started) {
-		err = -EBUSY;
-		goto out;
+	if (!oprofile_started) {
+		*addr = val;
+		err = 0;
 	}
-
-	if (!oprofile_ops.backtrace) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	oprofile_backtrace_depth = val;
-
-out:
 	mutex_unlock(&start_mutex);
+
 	return err;
 }
 
