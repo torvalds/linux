@@ -681,6 +681,7 @@ static struct mdm_ctrl_platform_data mdm_ctrl_platform_data = {
 		TEGRA_GPIO_PZ1, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_bp_resin"},
 	.gpios[MDM_CTRL_GPIO_BP_PWRON]    = {
 		TEGRA_GPIO_PS6, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_bp_pwr_on"},
+	.cmd_gpios = {TEGRA_GPIO_PQ5, TEGRA_GPIO_PS5},
 };
 
 static struct platform_device mdm_ctrl_platform_device = {
