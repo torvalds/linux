@@ -395,7 +395,7 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 	codec = dai->codec;
 	if (!freq_in || !freq_out) {
 		/* disable the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0);
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
 		return 0;
 	} else {
 		int ret;
@@ -406,7 +406,7 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 			return ret;
 
 		/* power down the PLL before reprogramming it */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0);
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
 
 		if (!freq_in || !freq_out)
 			return 0;
@@ -423,7 +423,7 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 		snd_soc_write(codec, WM8804_PLL3, pll_div.k >> 16);
 
 		/* power up the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0);
 	}
 
 	return 0;
