@@ -119,8 +119,6 @@ extern int alloc_irte(struct intel_iommu *iommu, int irq, u16 count);
 extern int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index,
    			u16 sub_handle);
 extern int map_irq_to_irte_handle(int irq, u16 *sub_handle);
-extern int clear_irte_irq(int irq, struct intel_iommu *iommu, u16 index);
-extern int flush_irte(int irq);
 extern int free_irte(int irq);
 
 extern int irq_remapped(int irq);
