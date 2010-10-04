@@ -1028,13 +1028,6 @@ static const struct snd_kcontrol_new lc_controls[] = {
 				LC_CONTROL_ALC, wm8776_ngth_db_scale),
 };
 
-static int xonar_ds_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strncmp(template->name, "CD Capture ", 11))
-		return 1; /* no CD input */
-	return 0;
-}
-
 static int xonar_ds_mixer_init(struct oxygen *chip)
 {
 	struct xonar_wm87x6 *data = chip->model_data;
@@ -1074,7 +1067,6 @@ static const struct oxygen_model model_xonar_ds = {
 	.longname = "Asus Virtuoso 66",
 	.chip = "AV200",
 	.init = xonar_ds_init,
-	.control_filter = xonar_ds_control_filter,
 	.mixer_init = xonar_ds_mixer_init,
 	.cleanup = xonar_ds_cleanup,
 	.suspend = xonar_ds_suspend,

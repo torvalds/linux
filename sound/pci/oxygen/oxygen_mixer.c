@@ -972,6 +972,9 @@ static int add_controls(struct oxygen *chip,
 		if (!strcmp(template.name, "Stereo Upmixing") &&
 		    chip->model.dac_channels == 2)
 			continue;
+		if (!strncmp(template.name, "CD Capture ", 11) &&
+		    !(chip->model.device_config & AC97_CD_INPUT))
+			continue;
 		if (!strcmp(template.name, "Master Playback Volume") &&
 		    chip->model.dac_tlv) {
 			template.tlv.p = chip->model.dac_tlv;

@@ -34,6 +34,7 @@
      /* CAPTURE_3_FROM_I2S_3		not implemented */
 #define MIDI_OUTPUT		0x0800
 #define MIDI_INPUT		0x1000
+#define AC97_CD_INPUT		0x2000
 
 enum {
 	CONTROL_SPDIF_PCM,

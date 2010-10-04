@@ -367,13 +367,6 @@ static void xonar_d1_line_mic_ac97_switch(struct oxygen *chip,
 
 static const DECLARE_TLV_DB_SCALE(cs4362a_db_scale, -6000, 100, 0);
 
-static int xonar_d1_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strncmp(template->name, "CD Capture ", 11))
-		return 1; /* no CD input */
-	return 0;
-}
-
 static int xonar_d1_mixer_init(struct oxygen *chip)
 {
 	int err;
@@ -391,7 +384,6 @@ static const struct oxygen_model model_xonar_d1 = {
 	.longname = "Asus Virtuoso 100",
 	.chip = "AV200",
 	.init = xonar_d1_init,
-	.control_filter = xonar_d1_control_filter,
 	.mixer_init = xonar_d1_mixer_init,
 	.cleanup = xonar_d1_cleanup,
 	.suspend = xonar_d1_suspend,

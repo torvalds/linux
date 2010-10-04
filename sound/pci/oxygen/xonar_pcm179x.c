@@ -915,13 +915,6 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
-static int xonar_st_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strncmp(template->name, "CD Capture ", 11))
-		return 1; /* no CD input */
-	return 0;
-}
-
 static int add_pcm1796_controls(struct oxygen *chip)
 {
 	int err;
@@ -991,7 +984,8 @@ static const struct oxygen_model model_xonar_d2 = {
 			 CAPTURE_0_FROM_I2S_2 |
 			 CAPTURE_1_FROM_SPDIF |
 			 MIDI_OUTPUT |
-			 MIDI_INPUT,
+			 MIDI_INPUT |
+			 AC97_CD_INPUT,
 	.dac_channels = 8,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
@@ -1037,7 +1031,6 @@ static const struct oxygen_model model_xonar_st = {
 	.longname = "Asus Virtuoso 100",
 	.chip = "AV200",
 	.init = xonar_st_init,
-	.control_filter = xonar_st_control_filter,
 	.mixer_init = xonar_st_mixer_init,
 	.cleanup = xonar_st_cleanup,
 	.suspend = xonar_st_suspend,

@@ -505,7 +505,8 @@ static const struct oxygen_model model_generic = {
 			 PLAYBACK_2_TO_AC97_1 |
 			 CAPTURE_0_FROM_I2S_1 |
 			 CAPTURE_1_FROM_SPDIF |
-			 CAPTURE_2_FROM_AC97_1,
+			 CAPTURE_2_FROM_AC97_1 |
+			 AC97_CD_INPUT,
 	.dac_channels = 8,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,
