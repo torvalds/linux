@@ -19,6 +19,8 @@
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 
+#include <plat/dsp.h>
+
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 #include <dspbridge/drv.h>
@@ -56,8 +58,8 @@ int handle_constraints_set(struct bridge_dev_context *dev_context,
 {
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 *constraint_val;
-	struct dspbridge_platform_data *pdata =
-	    omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	constraint_val = (u32 *) (pargs);
 	/* Read the target value requested by DSP */
@@ -85,8 +87,8 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 	u32 opplevel;
 	struct io_mgr *hio_mgr;
 #endif
-	struct dspbridge_platform_data *pdata =
-	    omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
 						OMAP_POWERSTATEST_MASK;
@@ -154,8 +156,8 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 #endif /* CONFIG_TIDSPBRIDGE_NTFY_PWRERR */
 	u16 timeout = PWRSTST_TIMEOUT / 10;
 	u32 pwr_state, target_pwr_state;
-	struct dspbridge_platform_data *pdata =
-				omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	/* Check if sleep code is valid */
 	if ((dw_cmd != PWR_DEEPSLEEP) && (dw_cmd != PWR_EMERGENCYDEEPSLEEP))

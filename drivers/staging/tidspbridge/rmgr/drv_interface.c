@@ -18,6 +18,8 @@
 
 /*  ----------------------------------- Host OS */
 
+#include <plat/dsp.h>
+
 #include <dspbridge/host_os.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
@@ -169,7 +171,7 @@ const struct omap_opp vdd1_rate_table_bridge[] = {
 #endif
 #endif
 
-struct dspbridge_platform_data *omap_dspbridge_pdata;
+struct omap_dsp_platform_data *omap_dspbridge_pdata;
 
 u32 vdd1_dsp_freq[6][4] = {
 	{0, 0, 0, 0},
@@ -216,8 +218,8 @@ void bridge_recover_schedule(void)
 static int dspbridge_scale_notification(struct notifier_block *op,
 		unsigned long val, void *ptr)
 {
-	struct dspbridge_platform_data *pdata =
-					omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	if (CPUFREQ_POSTCHANGE == val && pdata->dsp_get_opp)
 		pwr_pm_post_scale(PRCM_VDD1, pdata->dsp_get_opp());
@@ -240,7 +242,7 @@ static struct notifier_block iva_clk_notifier = {
  */
 static int omap3_bridge_startup(struct platform_device *pdev)
 {
-	struct dspbridge_platform_data *pdata = pdev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata = pdev->dev.platform_data;
 	struct drv_data *drv_datap = NULL;
 	u32 phys_membase, phys_memsize;
 	int err;
