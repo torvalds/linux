@@ -1693,6 +1693,18 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 	spin_unlock(&rds_ring->lock);
 }
 
+static void dump_skb(struct sk_buff *skb)
+{
+	int i;
+	unsigned char *data = skb->data;
+
+	for (i = 0; i < skb->len; i++) {
+		printk("%02x ", data[i]);
+		if ((i & 0x0f) == 8)
+			printk("\n");
+	}
+}
+
 static struct qlcnic_rx_buffer *
 qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_sds_ring *sds_ring,
@@ -1723,13 +1735,18 @@ qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	skb_put(skb, rds_ring->skb_size);
+	if (length > rds_ring->skb_size)
+		skb_put(skb, rds_ring->skb_size);
+	else
+		skb_put(skb, length);
 
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
 	if (!qlcnic_check_loopback_buff(skb->data))
 		adapter->diag_cnt++;
+	else
+		dump_skb(skb);
 
 	dev_kfree_skb_any(skb);
 	adapter->stats.rx_pkts++;

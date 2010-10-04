@@ -636,6 +636,8 @@ static int qlcnic_get_sset_count(struct net_device *dev, int sset)
 }
 
 #define QLC_ILB_PKT_SIZE 64
+#define QLC_NUM_ILB_PKT	16
+#define QLC_ILB_MAX_RCV_LOOP 10
 
 static void qlcnic_create_loopback_buff(unsigned char *data)
 {
@@ -657,24 +659,34 @@ static int qlcnic_do_ilb_test(struct qlcnic_adapter *adapter)
 	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring = &recv_ctx->sds_rings[0];
 	struct sk_buff *skb;
-	int i;
+	int i, loop, cnt = 0;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < QLC_NUM_ILB_PKT; i++) {
 		skb = dev_alloc_skb(QLC_ILB_PKT_SIZE);
 		qlcnic_create_loopback_buff(skb->data);
 		skb_put(skb, QLC_ILB_PKT_SIZE);
 
 		adapter->diag_cnt = 0;
-
 		qlcnic_xmit_frame(skb, adapter->netdev);
 
-		msleep(5);
-
-		qlcnic_process_rcv_ring_diag(sds_ring);
+		loop = 0;
+		do {
+			msleep(1);
+			qlcnic_process_rcv_ring_diag(sds_ring);
+		} while (loop++ < QLC_ILB_MAX_RCV_LOOP &&
+			 !adapter->diag_cnt);
 
 		dev_kfree_skb_any(skb);
+
 		if (!adapter->diag_cnt)
-			return -1;
+			dev_warn(&adapter->pdev->dev, "ILB Test: %dth packet"
+				" not recevied\n", i + 1);
+		else
+			cnt++;
+	}
+	if (cnt != i) {
+		dev_warn(&adapter->pdev->dev, "ILB Test failed\n");
+		return -1;
 	}
 	return 0;
 }
