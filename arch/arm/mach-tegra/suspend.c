@@ -44,6 +44,7 @@
 #include <asm/tlbflush.h>
 
 #include <mach/iomap.h>
+#include <mach/iovmm.h>
 #include <mach/irqs.h>
 #include <mach/legacy_irq.h>
 #include <mach/suspend.h>
@@ -387,11 +388,12 @@ static void tegra_suspend_dram(bool do_lp0)
 static int tegra_suspend_prepare_late(void)
 {
 	disable_irq(INT_SYS_STATS_MON);
-	return 0;
+	return tegra_iovmm_suspend();
 }
 
 static void tegra_suspend_wake(void)
 {
+	tegra_iovmm_resume();
 	enable_irq(INT_SYS_STATS_MON);
 }
 
