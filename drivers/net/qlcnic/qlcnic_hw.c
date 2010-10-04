@@ -758,9 +758,9 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int rc = 0;
 
-	if (mtu > P3_MAX_MTU) {
-		dev_err(&adapter->netdev->dev, "mtu > %d bytes unsupported\n",
-						P3_MAX_MTU);
+	if (mtu < P3_MIN_MTU || mtu > P3_MAX_MTU) {
+		dev_err(&adapter->netdev->dev, "%d bytes < mtu < %d bytes"
+			" not supported\n", P3_MAX_MTU, P3_MIN_MTU);
 		return -EINVAL;
 	}
 

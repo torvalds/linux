@@ -95,6 +95,7 @@
 #define FIRST_PAGE_GROUP_END	0x100000
 
 #define P3_MAX_MTU                     (9600)
+#define P3_MIN_MTU                     (68)
 #define QLCNIC_MAX_ETHERHDR                32 /* This contains some padding */
 
 #define QLCNIC_P3_RX_BUF_MAX_LEN         (QLCNIC_MAX_ETHERHDR + ETH_DATA_LEN)
