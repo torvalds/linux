@@ -276,8 +276,6 @@ static inline int ipv6_addr_is_ll_all_routers(const struct in6_addr *addr)
 		(addr->s6_addr32[3] ^ htonl(0x00000002))) == 0;
 }
 
-extern int __ipv6_isatap_ifid(u8 *eui, __be32 addr);
-
 static inline int ipv6_addr_is_isatap(const struct in6_addr *addr)
 {
 	return (addr->s6_addr32[2] | htonl(0x02000000)) == htonl(0x02005EFE);

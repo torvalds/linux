@@ -1544,7 +1544,7 @@ static int addrconf_ifid_infiniband(u8 *eui, struct net_device *dev)
 	return 0;
 }
 
-int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
+static int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
 {
 	if (addr == 0)
 		return -1;
@@ -1560,7 +1560,6 @@ int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
 	memcpy(eui + 4, &addr, 4);
 	return 0;
 }
-EXPORT_SYMBOL(__ipv6_isatap_ifid);
 
 static int addrconf_ifid_sit(u8 *eui, struct net_device *dev)
 {
