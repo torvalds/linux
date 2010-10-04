@@ -1524,7 +1524,7 @@ static unsigned short xs_get_srcport(struct sock_xprt *transport)
 	return port;
 }
 
-static unsigned short xs_next_srcport(struct sock_xprt *transport, struct socket *sock, unsigned short port)
+static unsigned short xs_next_srcport(struct sock_xprt *transport, unsigned short port)
 {
 	if (transport->srcport != 0)
 		transport->srcport = 0;
@@ -1558,7 +1558,7 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 			break;
 		}
 		last = port;
-		port = xs_next_srcport(transport, sock, port);
+		port = xs_next_srcport(transport, port);
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
@@ -1591,7 +1591,7 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 			break;
 		}
 		last = port;
-		port = xs_next_srcport(transport, sock, port);
+		port = xs_next_srcport(transport, port);
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
