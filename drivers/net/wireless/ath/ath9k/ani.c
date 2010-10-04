@@ -109,6 +109,11 @@ static void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->ani_lower_immunity(ah);
 }
 
+static bool use_new_ani(struct ath_hw *ah)
+{
+	return AR_SREV_9300_20_OR_LATER(ah) || modparam_force_new_ani;
+}
+
 int ath9k_hw_get_ani_channel_idx(struct ath_hw *ah,
 				 struct ath9k_channel *chan)
 {
@@ -1178,7 +1183,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 	memset(ah->ani, 0, sizeof(ah->ani));
 	for (i = 0; i < ARRAY_SIZE(ah->ani); i++) {
-		if (AR_SREV_9300_20_OR_LATER(ah) || modparam_force_new_ani) {
+		if (use_new_ani(ah)) {
 			ah->ani[i].ofdmTrigHigh = ATH9K_ANI_OFDM_TRIG_HIGH_NEW;
 			ah->ani[i].ofdmTrigLow = ATH9K_ANI_OFDM_TRIG_LOW_NEW;
 
@@ -1230,7 +1235,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	 * since we expect some ongoing maintenance on the tables, let's sanity
 	 * check here default level should not modify INI setting.
 	 */
-	if (AR_SREV_9300_20_OR_LATER(ah) || modparam_force_new_ani) {
+	if (use_new_ani(ah)) {
 		const struct ani_ofdm_level_entry *entry_ofdm;
 		const struct ani_cck_level_entry *entry_cck;
 
