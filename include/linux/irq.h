@@ -215,15 +215,9 @@ extern void remove_irq(unsigned int irq, struct irqaction *act);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
-#ifdef CONFIG_SMP
-# ifdef CONFIG_GENERIC_PENDING_IRQ
+#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_PENDING_IRQ)
 void move_native_irq(int irq);
 void move_masked_irq(int irq);
-# else
-static inline void move_irq(int irq) { }
-static inline void move_native_irq(int irq) { }
-static inline void move_masked_irq(int irq) { }
-# endif
 #else
 static inline void move_native_irq(int irq) { }
 static inline void move_masked_irq(int irq) { }
