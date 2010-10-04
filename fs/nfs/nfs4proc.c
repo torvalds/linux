@@ -255,9 +255,6 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			nfs4_state_mark_reclaim_nograce(clp, state);
 			goto do_state_recovery;
 		case -NFS4ERR_STALE_STATEID:
-			if (state == NULL)
-				break;
-			nfs4_state_mark_reclaim_reboot(clp, state);
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_EXPIRED:
 			goto do_state_recovery;
@@ -3414,9 +3411,6 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			nfs4_state_mark_reclaim_nograce(clp, state);
 			goto do_state_recovery;
 		case -NFS4ERR_STALE_STATEID:
-			if (state == NULL)
-				break;
-			nfs4_state_mark_reclaim_reboot(clp, state);
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_EXPIRED:
 			goto do_state_recovery;
