@@ -3469,8 +3469,10 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 
 		r = 0;
+		local_irq_disable();
 		now_ns = get_kernel_ns();
 		delta = user_ns.clock - now_ns;
+		local_irq_enable();
 		kvm->arch.kvmclock_offset = delta;
 		break;
 	}
@@ -3478,8 +3480,10 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
 
+		local_irq_disable();
 		now_ns = get_kernel_ns();
 		user_ns.clock = kvm->arch.kvmclock_offset + now_ns;
+		local_irq_enable();
 		user_ns.flags = 0;
 
 		r = -EFAULT;
