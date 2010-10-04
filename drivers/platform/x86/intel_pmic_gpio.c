@@ -142,16 +142,16 @@ static int pmic_gpio_direction_output(struct gpio_chip *chip,
 
 	if (offset < 8)/* it is GPIO */
 		rc = intel_scu_ipc_update_register(GPIO0 + offset,
-				GPIO_DRV | GPIO_DOU | GPIO_DIR,
-				GPIO_DRV | (value ? GPIO_DOU : 0));
+				GPIO_DRV | (value ? GPIO_DOU : 0),
+				GPIO_DRV | GPIO_DOU | GPIO_DIR);
 	else if (offset < 16)/* it is GPOSW */
 		rc = intel_scu_ipc_update_register(GPOSWCTL0 + offset - 8,
-				GPOSW_DRV | GPOSW_DOU | GPOSW_RDRV,
-				GPOSW_DRV | (value ? GPOSW_DOU : 0));
+				GPOSW_DRV | (value ? GPOSW_DOU : 0),
+				GPOSW_DRV | GPOSW_DOU | GPOSW_RDRV);
 	else if (offset > 15 && offset < 24)/* it is GPO */
 		rc = intel_scu_ipc_update_register(GPO,
-				1 << (offset - 16),
-				value ? 1 << (offset - 16) : 0);
+				value ? 1 << (offset - 16) : 0,
+				1 << (offset - 16));
 	else {
 		printk(KERN_ERR
 			"%s: invalid PMIC GPIO pin %d!\n", __func__, offset);
@@ -179,16 +179,16 @@ static void pmic_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	if (offset < 8)/* it is GPIO */
 		intel_scu_ipc_update_register(GPIO0 + offset,
-			GPIO_DRV | GPIO_DOU,
-			GPIO_DRV | (value ? GPIO_DOU : 0));
+			GPIO_DRV | (value ? GPIO_DOU : 0),
+			GPIO_DRV | GPIO_DOU);
 	else if (offset < 16)/* it is GPOSW */
 		intel_scu_ipc_update_register(GPOSWCTL0 + offset - 8,
-			GPOSW_DRV | GPOSW_DOU | GPOSW_RDRV,
-			GPOSW_DRV | (value ? GPOSW_DOU : 0));
+			GPOSW_DRV | (value ? GPOSW_DOU : 0),
+			GPOSW_DRV | GPOSW_DOU | GPOSW_RDRV);
 	else if (offset > 15 && offset < 24) /* it is GPO */
 		intel_scu_ipc_update_register(GPO,
-			1 << (offset - 16),
-			value ? 1 << (offset - 16) : 0);
+			value ? 1 << (offset - 16) : 0,
+			1 << (offset - 16));
 }
 
 static int pmic_irq_type(unsigned irq, unsigned type)
