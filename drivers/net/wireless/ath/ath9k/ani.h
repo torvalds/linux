@@ -19,7 +19,7 @@
 
 #define HAL_PROCESS_ANI           0x00000001
 
-#define DO_ANI(ah) (((ah)->proc_phyerr & HAL_PROCESS_ANI))
+#define DO_ANI(ah) (((ah)->proc_phyerr & HAL_PROCESS_ANI) && ah->curchan)
 
 #define BEACON_RSSI(ahp) (ahp->stats.avgbrssi)
 
@@ -130,17 +130,11 @@ struct ar5416AniState {
 	u8 ofdmWeakSigDetectOff;
 	u8 cckWeakSigThreshold;
 	u32 listenTime;
-	u32 ofdmTrigHigh;
-	u32 ofdmTrigLow;
-	int32_t cckTrigHigh;
-	int32_t cckTrigLow;
 	int32_t rssiThrLow;
 	int32_t rssiThrHigh;
 	u32 noiseFloor;
 	u32 ofdmPhyErrCount;
 	u32 cckPhyErrCount;
-	u32 ofdmPhyErrBase;
-	u32 cckPhyErrBase;
 	int16_t pktRssi[2];
 	int16_t ofdmErrRssi[2];
 	int16_t cckErrRssi[2];

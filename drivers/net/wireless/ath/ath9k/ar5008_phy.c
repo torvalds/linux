@@ -1048,7 +1048,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 				      enum ath9k_ani_cmd cmd,
 				      int param)
 {
-	struct ar5416AniState *aniState = ah->curani;
+	struct ar5416AniState *aniState = &ah->curchan->ani;
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	switch (cmd & ah->ani_function) {
@@ -1231,9 +1231,9 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				      enum ath9k_ani_cmd cmd,
 				      int param)
 {
-	struct ar5416AniState *aniState = ah->curani;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
+	struct ar5416AniState *aniState = &chan->ani;
 	s32 value, value2;
 
 	switch (cmd & ah->ani_function) {
@@ -1518,16 +1518,12 @@ static void ar5008_hw_do_getnf(struct ath_hw *ah,
  */
 static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 {
-	struct ar5416AniState *aniState;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
+	struct ar5416AniState *aniState = &chan->ani;
 	struct ath9k_ani_default *iniDef;
-	int index;
 	u32 val;
 
-	index = ath9k_hw_get_ani_channel_idx(ah, chan);
-	aniState = &ah->ani[index];
-	ah->curani = aniState;
 	iniDef = &aniState->iniDef;
 
 	ath_print(common, ATH_DBG_ANI,

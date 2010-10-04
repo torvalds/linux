@@ -346,6 +346,7 @@ struct ath9k_hw_cal_data {
 
 struct ath9k_channel {
 	struct ieee80211_channel *chan;
+	struct ar5416AniState ani;
 	u16 channel;
 	u32 channelFlags;
 	u32 chanmode;
@@ -752,8 +753,6 @@ struct ath_hw {
 	/* ANI */
 	u32 proc_phyerr;
 	u32 aniperiod;
-	struct ar5416AniState *curani;
-	struct ar5416AniState ani[255];
 	int totalSizeDesired[5];
 	int coarse_high[5];
 	int coarse_low[5];

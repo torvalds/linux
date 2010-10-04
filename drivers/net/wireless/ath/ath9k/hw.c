@@ -370,10 +370,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.pcie_clock_req = 0;
 	ah->config.pcie_waen = 0;
 	ah->config.analog_shiftreg = 1;
-	ah->config.ofdm_trig_low = 200;
-	ah->config.ofdm_trig_high = 500;
-	ah->config.cck_trig_high = 200;
-	ah->config.cck_trig_low = 100;
 	ah->config.enable_ani = true;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
