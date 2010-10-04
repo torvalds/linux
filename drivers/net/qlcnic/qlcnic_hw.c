@@ -375,10 +375,11 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 
 static int
 qlcnic_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
-				u16 vlan_id, unsigned op)
+				__le16 vlan_id, unsigned op)
 {
 	struct qlcnic_nic_req req;
 	struct qlcnic_mac_req *mac_req;
+	struct qlcnic_vlan_req *vlan_req;
 	u64 word;
 
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
@@ -391,7 +392,8 @@ qlcnic_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	mac_req->op = op;
 	memcpy(mac_req->mac_addr, addr, 6);
 
-	req.words[1] = cpu_to_le64(vlan_id);
+	vlan_req = (struct qlcnic_vlan_req *)&req.words[1];
+	vlan_req->vlan_id = vlan_id;
 
 	return qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }

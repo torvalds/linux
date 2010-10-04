@@ -898,6 +898,11 @@ struct qlcnic_mac_req {
 	u8 mac_addr[6];
 };
 
+struct qlcnic_vlan_req {
+	__le16 vlan_id;
+	__le16 rsvd[3];
+};
+
 struct qlcnic_ipaddr {
 	__be32 ipv4;
 	__be32 ipv6[4];
@@ -940,7 +945,7 @@ struct qlcnic_ipaddr {
 struct qlcnic_filter {
 	struct hlist_node fnode;
 	u8 faddr[ETH_ALEN];
-	u16 vlan_id;
+	__le16 vlan_id;
 	unsigned long ftime;
 };
 

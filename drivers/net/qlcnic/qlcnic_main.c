@@ -28,6 +28,7 @@
 
 #include "qlcnic.h"
 
+#include <linux/swab.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
 #include <net/ip.h>
@@ -1834,11 +1835,12 @@ static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter)
 }
 
 static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
-		u64 uaddr, u16 vlan_id, struct qlcnic_host_tx_ring *tx_ring)
+		u64 uaddr, __le16 vlan_id, struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct cmd_desc_type0 *hwdesc;
 	struct qlcnic_nic_req *req;
 	struct qlcnic_mac_req *mac_req;
+	struct qlcnic_vlan_req *vlan_req;
 	u32 producer;
 	u64 word;
 
@@ -1856,7 +1858,8 @@ static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
 	mac_req->op = vlan_id ? QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_ADD;
 	memcpy(mac_req->mac_addr, &uaddr, ETH_ALEN);
 
-	req->words[1] = cpu_to_le64(vlan_id);
+	vlan_req = (struct qlcnic_vlan_req *)&req->words[1];
+	vlan_req->vlan_id = vlan_id;
 
 	tx_ring->producer = get_next_index(producer, tx_ring->num_desc);
 }
@@ -1875,7 +1878,7 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
 	u64 src_addr = 0;
-	u16 vlan_id = 0;
+	__le16 vlan_id = 0;
 	u8 hindex;
 
 	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
@@ -1928,7 +1931,8 @@ qlcnic_tso_check(struct net_device *netdev,
 	struct vlan_ethhdr *vh;
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	u32 producer = tx_ring->producer;
-	int vlan_oob = first_desc->flags_opcode & cpu_to_le16(FLAGS_VLAN_OOB);
+	__le16 vlan_oob = first_desc->flags_opcode &
+				cpu_to_le16(FLAGS_VLAN_OOB);
 
 	if (*(skb->data) & BIT_0) {
 		flags |= BIT_0;
@@ -1999,7 +2003,8 @@ qlcnic_tso_check(struct net_device *netdev,
 		vh = (struct vlan_ethhdr *)((char *)hwdesc + 2);
 		skb_copy_from_linear_data(skb, vh, 12);
 		vh->h_vlan_proto = htons(ETH_P_8021Q);
-		vh->h_vlan_TCI = htons(first_desc->vlan_TCI);
+		vh->h_vlan_TCI = (__be16)swab16((u16)first_desc->vlan_TCI);
+
 		skb_copy_from_linear_data_offset(skb, 12,
 				(char *)vh + 16, copy_len - 16);
 
