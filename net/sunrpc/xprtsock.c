@@ -1826,8 +1826,10 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_tcp_setup_socket(struct sock_xprt *transport, int family)
+static void xs_tcp_setup_socket(struct work_struct *work)
 {
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
 	struct socket *sock = transport->sock;
 	struct rpc_xprt *xprt = &transport->xprt;
 	int status = -EIO;
@@ -1837,7 +1839,8 @@ static void xs_tcp_setup_socket(struct sock_xprt *transport, int family)
 
 	if (!sock) {
 		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
-		sock = xs_create_sock(xprt, transport, family, SOCK_STREAM, IPPROTO_TCP);
+		sock = xs_create_sock(xprt, transport,
+				xs_addr(xprt)->sa_family, SOCK_STREAM, IPPROTO_TCP);
 		if (IS_ERR(sock)) {
 			status = PTR_ERR(sock);
 			goto out;
@@ -1895,34 +1898,6 @@ out_eagain:
 out:
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
-}
-
-/**
- * xs_tcp_connect_worker4 - connect a TCP socket to a remote endpoint
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_tcp_connect_worker4(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-
-	xs_tcp_setup_socket(transport, PF_INET);
-}
-
-/**
- * xs_tcp_connect_worker6 - connect a TCP socket to a remote endpoint
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_tcp_connect_worker6(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-
-	xs_tcp_setup_socket(transport, PF_INET6);
 }
 
 /**
@@ -2328,7 +2303,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_tcp_connect_worker4);
+					xs_tcp_setup_socket);
 		xs_format_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP);
 		break;
 	case AF_INET6:
@@ -2336,7 +2311,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_tcp_connect_worker6);
+					xs_tcp_setup_socket);
 		xs_format_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP6);
 		break;
 	default:
