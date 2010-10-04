@@ -374,7 +374,6 @@ static void xonar_st_init_common(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
-	data->generic.anti_pop_delay = 100;
 	data->generic.output_enable_bit = GPIO_ST_OUTPUT_ENABLE;
 	data->dacs = chip->model.private_data ? 4 : 1;
 	data->hp_gain_offset = 2*-18;
@@ -420,6 +419,7 @@ static void xonar_st_init(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
+	data->generic.anti_pop_delay = 100;
 	data->has_cs2000 = 1;
 	data->cs2000_fun_cfg_1 = CS2000_REF_CLK_DIV_1;
 
@@ -440,6 +440,7 @@ static void xonar_stx_init(struct oxygen *chip)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	xonar_st_init_i2c(chip);
+	data->generic.anti_pop_delay = 800;
 	data->generic.ext_power_reg = OXYGEN_GPI_DATA;
 	data->generic.ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->generic.ext_power_bit = GPI_EXT_POWER;
