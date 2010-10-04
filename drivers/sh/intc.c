@@ -35,6 +35,7 @@
 #include <linux/seq_file.h>
 #include <linux/radix-tree.h>
 #include <linux/mutex.h>
+#include <linux/rcupdate.h>
 #include <asm/sizes.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
@@ -64,11 +65,19 @@ struct intc_map_entry {
 	struct intc_desc_int *desc;
 };
 
+struct intc_subgroup_entry {
+	unsigned int pirq;
+	intc_enum enum_id;
+	unsigned long handle;
+};
+
 struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
 	struct radix_tree_root tree;
 	pm_message_t state;
+	spinlock_t lock;
+	unsigned int index;
 	unsigned long *reg;
 #ifdef CONFIG_SMP
 	unsigned long *smp;
@@ -84,6 +93,7 @@ struct intc_desc_int {
 };
 
 static LIST_HEAD(intc_list);
+static unsigned int nr_intc_controllers;
 
 /*
  * The intc_irq_map provides a global map of bound IRQ vectors for a
@@ -99,7 +109,7 @@ static LIST_HEAD(intc_list);
 static DECLARE_BITMAP(intc_irq_map, NR_IRQS);
 static struct intc_map_entry intc_irq_xlate[NR_IRQS];
 static DEFINE_SPINLOCK(vector_lock);
-static DEFINE_MUTEX(irq_xlate_mutex);
+static DEFINE_SPINLOCK(xlate_lock);
 
 #ifdef CONFIG_SMP
 #define IS_SMP(x) x.smp
@@ -118,10 +128,37 @@ static unsigned long ack_handle[NR_IRQS];
 static unsigned long dist_handle[NR_IRQS];
 #endif
 
+struct intc_virq_list {
+	unsigned int irq;
+	struct intc_virq_list *next;
+};
+
+#define for_each_virq(entry, head) \
+	for (entry = head; entry; entry = entry->next)
+
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
 	struct irq_chip *chip = get_irq_chip(irq);
+
 	return container_of(chip, struct intc_desc_int, chip);
+}
+
+static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
+{
+	generic_handle_irq((unsigned int)get_irq_data(irq));
+}
+
+static inline void activate_irq(int irq)
+{
+#ifdef CONFIG_ARM
+	/* ARM requires an extra step to clear IRQ_NOREQUEST, which it
+	 * sets on behalf of every irq_chip.  Also sets IRQ_NOPROBE.
+	 */
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	/* same effect on other architectures */
+	set_irq_noprobe(irq);
+#endif
 }
 
 static unsigned long intc_phys_to_virt(struct intc_desc_int *d,
@@ -177,56 +214,103 @@ static inline unsigned int set_field(unsigned int value,
 	return value;
 }
 
-static void write_8(unsigned long addr, unsigned long h, unsigned long data)
+static inline unsigned long get_field(unsigned int value, unsigned int handle)
+{
+	unsigned int width = _INTC_WIDTH(handle);
+	unsigned int shift = _INTC_SHIFT(handle);
+	unsigned int mask = ((1 << width) - 1) << shift;
+
+	return (value & mask) >> shift;
+}
+
+static unsigned long test_8(unsigned long addr, unsigned long h,
+			    unsigned long ignore)
+{
+	return get_field(__raw_readb(addr), h);
+}
+
+static unsigned long test_16(unsigned long addr, unsigned long h,
+			     unsigned long ignore)
+{
+	return get_field(__raw_readw(addr), h);
+}
+
+static unsigned long test_32(unsigned long addr, unsigned long h,
+			     unsigned long ignore)
+{
+	return get_field(__raw_readl(addr), h);
+}
+
+static unsigned long write_8(unsigned long addr, unsigned long h,
+			     unsigned long data)
 {
 	__raw_writeb(set_field(0, data, h), addr);
 	(void)__raw_readb(addr);	/* Defeat write posting */
+	return 0;
 }
 
-static void write_16(unsigned long addr, unsigned long h, unsigned long data)
+static unsigned long write_16(unsigned long addr, unsigned long h,
+			      unsigned long data)
 {
 	__raw_writew(set_field(0, data, h), addr);
 	(void)__raw_readw(addr);	/* Defeat write posting */
+	return 0;
 }
 
-static void write_32(unsigned long addr, unsigned long h, unsigned long data)
+static unsigned long write_32(unsigned long addr, unsigned long h,
+			      unsigned long data)
 {
 	__raw_writel(set_field(0, data, h), addr);
 	(void)__raw_readl(addr);	/* Defeat write posting */
+	return 0;
 }
 
-static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
+static unsigned long modify_8(unsigned long addr, unsigned long h,
+			      unsigned long data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writeb(set_field(__raw_readb(addr), data, h), addr);
 	(void)__raw_readb(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
+	return 0;
 }
 
-static void modify_16(unsigned long addr, unsigned long h, unsigned long data)
+static unsigned long modify_16(unsigned long addr, unsigned long h,
+			       unsigned long data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writew(set_field(__raw_readw(addr), data, h), addr);
 	(void)__raw_readw(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
+	return 0;
 }
 
-static void modify_32(unsigned long addr, unsigned long h, unsigned long data)
+static unsigned long modify_32(unsigned long addr, unsigned long h,
+			       unsigned long data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writel(set_field(__raw_readl(addr), data, h), addr);
 	(void)__raw_readl(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
+	return 0;
 }
 
-enum {	REG_FN_ERR = 0, REG_FN_WRITE_BASE = 1, REG_FN_MODIFY_BASE = 5 };
+enum {
+	REG_FN_ERR = 0,
+	REG_FN_TEST_BASE = 1,
+	REG_FN_WRITE_BASE = 5,
+	REG_FN_MODIFY_BASE = 9
+};
 
-static void (*intc_reg_fns[])(unsigned long addr,
-			      unsigned long h,
-			      unsigned long data) = {
+static unsigned long (*intc_reg_fns[])(unsigned long addr,
+				       unsigned long h,
+				       unsigned long data) = {
+	[REG_FN_TEST_BASE + 0] = test_8,
+	[REG_FN_TEST_BASE + 1] = test_16,
+	[REG_FN_TEST_BASE + 3] = test_32,
 	[REG_FN_WRITE_BASE + 0] = write_8,
 	[REG_FN_WRITE_BASE + 1] = write_16,
 	[REG_FN_WRITE_BASE + 3] = write_32,
@@ -242,42 +326,42 @@ enum {	MODE_ENABLE_REG = 0, /* Bit(s) set -> interrupt enabled */
 	MODE_PCLR_REG,       /* Above plus all bits set to disable interrupt */
 };
 
-static void intc_mode_field(unsigned long addr,
-			    unsigned long handle,
-			    void (*fn)(unsigned long,
-				       unsigned long,
-				       unsigned long),
-			    unsigned int irq)
+static unsigned long intc_mode_field(unsigned long addr,
+				     unsigned long handle,
+				     unsigned long (*fn)(unsigned long,
+						unsigned long,
+						unsigned long),
+				     unsigned int irq)
 {
-	fn(addr, handle, ((1 << _INTC_WIDTH(handle)) - 1));
+	return fn(addr, handle, ((1 << _INTC_WIDTH(handle)) - 1));
 }
 
-static void intc_mode_zero(unsigned long addr,
-			   unsigned long handle,
-			   void (*fn)(unsigned long,
-				       unsigned long,
-				       unsigned long),
-			   unsigned int irq)
+static unsigned long intc_mode_zero(unsigned long addr,
+				    unsigned long handle,
+				    unsigned long (*fn)(unsigned long,
+					       unsigned long,
+					       unsigned long),
+				    unsigned int irq)
 {
-	fn(addr, handle, 0);
+	return fn(addr, handle, 0);
 }
 
-static void intc_mode_prio(unsigned long addr,
-			   unsigned long handle,
-			   void (*fn)(unsigned long,
-				       unsigned long,
-				       unsigned long),
-			   unsigned int irq)
+static unsigned long intc_mode_prio(unsigned long addr,
+				    unsigned long handle,
+				    unsigned long (*fn)(unsigned long,
+					       unsigned long,
+					       unsigned long),
+				    unsigned int irq)
 {
-	fn(addr, handle, intc_prio_level[irq]);
+	return fn(addr, handle, intc_prio_level[irq]);
 }
 
-static void (*intc_enable_fns[])(unsigned long addr,
-				 unsigned long handle,
-				 void (*fn)(unsigned long,
-					    unsigned long,
-					    unsigned long),
-				 unsigned int irq) = {
+static unsigned long (*intc_enable_fns[])(unsigned long addr,
+					  unsigned long handle,
+					  unsigned long (*fn)(unsigned long,
+						    unsigned long,
+						    unsigned long),
+					  unsigned int irq) = {
 	[MODE_ENABLE_REG] = intc_mode_field,
 	[MODE_MASK_REG] = intc_mode_zero,
 	[MODE_DUAL_REG] = intc_mode_field,
@@ -285,9 +369,9 @@ static void (*intc_enable_fns[])(unsigned long addr,
 	[MODE_PCLR_REG] = intc_mode_prio,
 };
 
-static void (*intc_disable_fns[])(unsigned long addr,
+static unsigned long (*intc_disable_fns[])(unsigned long addr,
 				  unsigned long handle,
-				  void (*fn)(unsigned long,
+				  unsigned long (*fn)(unsigned long,
 					     unsigned long,
 					     unsigned long),
 				  unsigned int irq) = {
@@ -421,12 +505,13 @@ static void intc_disable(unsigned int irq)
 	}
 }
 
-static void (*intc_enable_noprio_fns[])(unsigned long addr,
-					unsigned long handle,
-					void (*fn)(unsigned long,
-						   unsigned long,
-						   unsigned long),
-					unsigned int irq) = {
+static unsigned long
+(*intc_enable_noprio_fns[])(unsigned long addr,
+			    unsigned long handle,
+			    unsigned long (*fn)(unsigned long,
+					unsigned long,
+					unsigned long),
+			    unsigned int irq) = {
 	[MODE_ENABLE_REG] = intc_mode_field,
 	[MODE_MASK_REG] = intc_mode_zero,
 	[MODE_DUAL_REG] = intc_mode_field,
@@ -439,8 +524,9 @@ static void intc_enable_disable(struct intc_desc_int *d,
 {
 	unsigned long addr;
 	unsigned int cpu;
-	void (*fn)(unsigned long, unsigned long,
-		   void (*)(unsigned long, unsigned long, unsigned long),
+	unsigned long (*fn)(unsigned long, unsigned long,
+		   unsigned long (*)(unsigned long, unsigned long,
+				     unsigned long),
 		   unsigned int);
 
 	if (do_enable) {
@@ -861,6 +947,186 @@ unsigned int intc_irq_lookup(const char *chipname, intc_enum enum_id)
 }
 EXPORT_SYMBOL_GPL(intc_irq_lookup);
 
+static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
+{
+	struct intc_virq_list **last, *entry;
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	/* scan for duplicates */
+	last = (struct intc_virq_list **)&desc->handler_data;
+	for_each_virq(entry, desc->handler_data) {
+		if (entry->irq == virq)
+			return 0;
+		last = &entry->next;
+	}
+
+	entry = kzalloc(sizeof(struct intc_virq_list), GFP_ATOMIC);
+	if (!entry) {
+		pr_err("can't allocate VIRQ mapping for %d\n", virq);
+		return -ENOMEM;
+	}
+
+	entry->irq = virq;
+
+	*last = entry;
+
+	return 0;
+}
+
+static void intc_virq_handler(unsigned int irq, struct irq_desc *desc)
+{
+	struct intc_virq_list *entry, *vlist = get_irq_data(irq);
+	struct intc_desc_int *d = get_intc_desc(irq);
+
+	desc->chip->mask_ack(irq);
+
+	for_each_virq(entry, vlist) {
+		unsigned long addr, handle;
+
+		handle = (unsigned long)get_irq_data(entry->irq);
+		addr = INTC_REG(d, _INTC_ADDR_E(handle), 0);
+
+		if (intc_reg_fns[_INTC_FN(handle)](addr, handle, 0))
+			generic_handle_irq(entry->irq);
+	}
+
+	desc->chip->unmask(irq);
+}
+
+static unsigned long __init intc_subgroup_data(struct intc_subgroup *subgroup,
+					       struct intc_desc_int *d,
+					       unsigned int index)
+{
+	unsigned int fn = REG_FN_TEST_BASE + (subgroup->reg_width >> 3) - 1;
+
+	return _INTC_MK(fn, MODE_ENABLE_REG, intc_get_reg(d, subgroup->reg),
+			0, 1, (subgroup->reg_width - 1) - index);
+}
+
+#define INTC_TAG_VIRQ_NEEDS_ALLOC	0
+
+static void __init intc_subgroup_init_one(struct intc_desc *desc,
+					  struct intc_desc_int *d,
+					  struct intc_subgroup *subgroup)
+{
+	struct intc_map_entry *mapped;
+	unsigned int pirq;
+	unsigned long flags;
+	int i;
+
+	mapped = radix_tree_lookup(&d->tree, subgroup->parent_id);
+	if (!mapped) {
+		WARN_ON(1);
+		return;
+	}
+
+	pirq = mapped - intc_irq_xlate;
+
+	spin_lock_irqsave(&d->lock, flags);
+
+	for (i = 0; i < ARRAY_SIZE(subgroup->enum_ids); i++) {
+		struct intc_subgroup_entry *entry;
+		int err;
+
+		if (!subgroup->enum_ids[i])
+			continue;
+
+		entry = kmalloc(sizeof(*entry), GFP_NOWAIT);
+		if (!entry)
+			break;
+
+		entry->pirq = pirq;
+		entry->enum_id = subgroup->enum_ids[i];
+		entry->handle = intc_subgroup_data(subgroup, d, i);
+
+		err = radix_tree_insert(&d->tree, entry->enum_id, entry);
+		if (unlikely(err < 0))
+			break;
+
+		radix_tree_tag_set(&d->tree, entry->enum_id,
+				   INTC_TAG_VIRQ_NEEDS_ALLOC);
+	}
+
+	spin_unlock_irqrestore(&d->lock, flags);
+}
+
+static void __init intc_subgroup_init(struct intc_desc *desc,
+				      struct intc_desc_int *d)
+{
+	int i;
+
+	if (!desc->hw.subgroups)
+		return;
+
+	for (i = 0; i < desc->hw.nr_subgroups; i++)
+		intc_subgroup_init_one(desc, d, desc->hw.subgroups + i);
+}
+
+static void __init intc_subgroup_map(struct intc_desc_int *d)
+{
+	struct intc_subgroup_entry *entries[32];
+	unsigned long flags;
+	unsigned int nr_found;
+	int i;
+
+	spin_lock_irqsave(&d->lock, flags);
+
+restart:
+	nr_found = radix_tree_gang_lookup_tag_slot(&d->tree,
+			(void ***)entries, 0, ARRAY_SIZE(entries),
+			INTC_TAG_VIRQ_NEEDS_ALLOC);
+
+	for (i = 0; i < nr_found; i++) {
+		struct intc_subgroup_entry *entry;
+		int irq;
+
+		entry = radix_tree_deref_slot((void **)entries[i]);
+		if (unlikely(!entry))
+			continue;
+		if (unlikely(entry == RADIX_TREE_RETRY))
+			goto restart;
+
+		irq = create_irq();
+		if (unlikely(irq < 0)) {
+			pr_err("no more free IRQs, bailing..\n");
+			break;
+		}
+
+		pr_info("Setting up a chained VIRQ from %d -> %d\n",
+			irq, entry->pirq);
+
+		spin_lock(&xlate_lock);
+		intc_irq_xlate[irq].desc = d;
+		intc_irq_xlate[irq].enum_id = entry->enum_id;
+		spin_unlock(&xlate_lock);
+
+		set_irq_chip_and_handler_name(irq, get_irq_chip(entry->pirq),
+					      handle_simple_irq, "virq");
+		set_irq_chip_data(irq, get_irq_chip_data(entry->pirq));
+
+		set_irq_data(irq, (void *)entry->handle);
+
+		set_irq_chained_handler(entry->pirq, intc_virq_handler);
+		add_virq_to_pirq(entry->pirq, irq);
+
+		radix_tree_tag_clear(&d->tree, entry->enum_id,
+				     INTC_TAG_VIRQ_NEEDS_ALLOC);
+		radix_tree_replace_slot((void **)entries[i],
+					&intc_irq_xlate[irq]);
+	}
+
+	spin_unlock_irqrestore(&d->lock, flags);
+}
+
+void __init intc_finalize(void)
+{
+	struct intc_desc_int *d;
+
+	list_for_each_entry(d, &intc_list, list)
+		if (radix_tree_tagged(&d->tree, INTC_TAG_VIRQ_NEEDS_ALLOC))
+			intc_subgroup_map(d);
+}
+
 static void __init intc_register_irq(struct intc_desc *desc,
 				     struct intc_desc_int *d,
 				     intc_enum enum_id,
@@ -868,6 +1134,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 {
 	struct intc_handle_int *hp;
 	unsigned int data[2], primary;
+	unsigned long flags;
 
 	/*
 	 * Register the IRQ position with the global IRQ map, then insert
@@ -875,9 +1142,9 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	 */
 	set_bit(irq, intc_irq_map);
 
-	mutex_lock(&irq_xlate_mutex);
+	spin_lock_irqsave(&xlate_lock, flags);
 	radix_tree_insert(&d->tree, enum_id, &intc_irq_xlate[irq]);
-	mutex_unlock(&irq_xlate_mutex);
+	spin_unlock_irqrestore(&xlate_lock, flags);
 
 	/*
 	 * Prefer single interrupt source bitmap over other combinations:
@@ -957,9 +1224,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 		dist_handle[irq] = intc_dist_data(desc, d, enum_id);
 #endif
 
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
-#endif
+	activate_irq(irq);
 }
 
 static unsigned int __init save_reg(struct intc_desc_int *d,
@@ -980,11 +1245,6 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 	return 0;
 }
 
-static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
-{
-	generic_handle_irq((unsigned int)get_irq_data(irq));
-}
-
 int __init register_intc_controller(struct intc_desc *desc)
 {
 	unsigned int i, k, smp;
@@ -1000,7 +1260,11 @@ int __init register_intc_controller(struct intc_desc *desc)
 		goto err0;
 
 	INIT_LIST_HEAD(&d->list);
-	list_add(&d->list, &intc_list);
+	list_add_tail(&d->list, &intc_list);
+
+	spin_lock_init(&d->lock);
+
+	d->index = nr_intc_controllers;
 
 	if (desc->num_resources) {
 		d->nr_windows = desc->num_resources;
@@ -1029,6 +1293,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg += hw->prio_regs ? hw->nr_prio_regs * 2 : 0;
 	d->nr_reg += hw->sense_regs ? hw->nr_sense_regs : 0;
 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
+	d->nr_reg += hw->subgroups ? hw->nr_subgroups : 0;
 
 	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
 	if (!d->reg)
@@ -1075,6 +1340,11 @@ int __init register_intc_controller(struct intc_desc *desc)
 			k += save_reg(d, k, hw->sense_regs[i].reg, 0);
 	}
 
+	if (hw->subgroups)
+		for (i = 0; i < hw->nr_subgroups; i++)
+			if (hw->subgroups[i].reg)
+				k+= save_reg(d, k, hw->subgroups[i].reg, 0);
+
 	d->chip.name = desc->name;
 	d->chip.mask = intc_disable;
 	d->chip.unmask = intc_enable;
@@ -1109,6 +1379,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	for (i = 0; i < hw->nr_vectors; i++) {
 		struct intc_vect *vect = hw->vectors + i;
 		unsigned int irq = evt2irq(vect->vect);
+		unsigned long flags;
 		struct irq_desc *irq_desc;
 
 		if (!vect->enum_id)
@@ -1120,8 +1391,10 @@ int __init register_intc_controller(struct intc_desc *desc)
 			continue;
 		}
 
+		spin_lock_irqsave(&xlate_lock, flags);
 		intc_irq_xlate[irq].enum_id = vect->enum_id;
 		intc_irq_xlate[irq].desc = d;
+		spin_unlock_irqrestore(&xlate_lock, flags);
 
 		intc_register_irq(desc, d, vect->enum_id, irq);
 
@@ -1152,9 +1425,13 @@ int __init register_intc_controller(struct intc_desc *desc)
 		}
 	}
 
+	intc_subgroup_init(desc, d);
+
 	/* enable bits matching force_enable after registering irqs */
 	if (desc->force_enable)
 		intc_enable_disable_enum(desc, d, desc->force_enable, 1);
+
+	nr_intc_controllers++;
 
 	return 0;
 err5:
@@ -1353,7 +1630,6 @@ static int __init register_intc_sysdevs(void)
 {
 	struct intc_desc_int *d;
 	int error;
-	int id = 0;
 
 	error = sysdev_class_register(&intc_sysdev_class);
 #ifdef CONFIG_INTC_USERIMASK
@@ -1363,7 +1639,7 @@ static int __init register_intc_sysdevs(void)
 #endif
 	if (!error) {
 		list_for_each_entry(d, &intc_list, list) {
-			d->sysdev.id = id;
+			d->sysdev.id = d->index;
 			d->sysdev.cls = &intc_sysdev_class;
 			error = sysdev_register(&d->sysdev);
 			if (error == 0)
@@ -1371,8 +1647,6 @@ static int __init register_intc_sysdevs(void)
 							   &attr_name);
 			if (error)
 				break;
-
-			id++;
 		}
 	}
 
@@ -1422,9 +1696,7 @@ out_unlock:
 
 	if (irq > 0) {
 		dynamic_irq_init(irq);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
-#endif
+		activate_irq(irq);
 	}
 
 	return irq;
