@@ -29,17 +29,21 @@
 #include <linux/dmapool.h>
 #include <linux/pci_ids.h>
 
-#define INTEL_MID_DMA_DRIVER_VERSION "1.0.6"
+#define INTEL_MID_DMA_DRIVER_VERSION "1.1.0"
 
 #define	REG_BIT0		0x00000001
 #define	REG_BIT8		0x00000100
-
+#define INT_MASK_WE		0x8
+#define CLEAR_DONE		0xFFFFEFFF
 #define UNMASK_INTR_REG(chan_num) \
 	((REG_BIT0 << chan_num) | (REG_BIT8 << chan_num))
 #define MASK_INTR_REG(chan_num) (REG_BIT8 << chan_num)
 
 #define ENABLE_CHANNEL(chan_num) \
 	((REG_BIT0 << chan_num) | (REG_BIT8 << chan_num))
+
+#define DISABLE_CHANNEL(chan_num) \
+	(REG_BIT8 << chan_num)
 
 #define DESCS_PER_CHANNEL	16
 /*DMA Registers*/
@@ -50,6 +54,7 @@
 /*CH X REG = (DMA_CH_SIZE)*CH_NO + REG*/
 #define SAR			0x00 /* Source Address Register*/
 #define DAR			0x08 /* Destination Address Register*/
+#define LLP			0x10 /* Linked List Pointer Register*/
 #define CTL_LOW			0x18 /* Control Register*/
 #define CTL_HIGH		0x1C /* Control Register*/
 #define CFG_LOW			0x40 /* Configuration Register Low*/
@@ -112,8 +117,8 @@ union intel_mid_dma_ctl_lo {
 union intel_mid_dma_ctl_hi {
 	struct {
 		u32	block_ts:12;	/*block transfer size*/
-					/*configured by DMAC*/
-		u32	reser:20;
+		u32	done:1;		/*Done - updated by DMAC*/
+		u32	reser:19;	/*configured by DMAC*/
 	} ctlx;
 	u32	ctl_hi;
 
@@ -169,6 +174,8 @@ union intel_mid_dma_cfg_hi {
  * @dma: dma device struture pointer
  * @busy: bool representing if ch is busy (active txn) or not
  * @in_use: bool representing if ch is in use or not
+ * @raw_tfr: raw trf interrupt recieved
+ * @raw_block: raw block interrupt recieved
  */
 struct intel_mid_dma_chan {
 	struct dma_chan		chan;
@@ -185,6 +192,8 @@ struct intel_mid_dma_chan {
 	struct middma_device	*dma;
 	bool			busy;
 	bool			in_use;
+	u32			raw_tfr;
+	u32			raw_block;
 };
 
 static inline struct intel_mid_dma_chan *to_intel_mid_dma_chan(
@@ -247,6 +256,11 @@ struct intel_mid_dma_desc {
 	u32				cfg_lo;
 	u32				ctl_lo;
 	u32				ctl_hi;
+	struct pci_pool			*lli_pool;
+	struct intel_mid_dma_lli	*lli;
+	dma_addr_t			lli_phys;
+	unsigned int			lli_length;
+	unsigned int			current_lli;
 	dma_addr_t			next;
 	enum dma_data_direction		dirn;
 	enum dma_status			status;
@@ -254,6 +268,14 @@ struct intel_mid_dma_desc {
 	enum intel_mid_dma_mode		cfg_mode; /*mode configuration*/
 
 };
+
+struct intel_mid_dma_lli {
+	dma_addr_t			sar;
+	dma_addr_t			dar;
+	dma_addr_t			llp;
+	u32				ctl_lo;
+	u32				ctl_hi;
+} __attribute__ ((packed));
 
 static inline int test_ch_en(void __iomem *dma, u32 ch_no)
 {

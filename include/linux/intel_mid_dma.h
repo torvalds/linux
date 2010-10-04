@@ -27,6 +27,7 @@
 
 #include <linux/dmaengine.h>
 
+#define DMA_PREP_CIRCULAR_LIST		(1 << 10)
 /*DMA transaction width, src and dstn width would be same
 The DMA length must be width aligned,
 for 32 bit width the length must be 32 bit (4bytes) aligned only*/
@@ -69,6 +70,7 @@ enum intel_mid_dma_msize {
  * @cfg_mode: DMA data transfer mode (per-per/mem-per/mem-mem)
  * @src_msize: Source DMA burst size
  * @dst_msize: Dst DMA burst size
+ * @per_addr: Periphral address
  * @device_instance: DMA peripheral device instance, we can have multiple
  *		peripheral device connected to single DMAC
  */
@@ -80,6 +82,7 @@ struct intel_mid_dma_slave {
 	enum intel_mid_dma_mode		cfg_mode; /*mode configuration*/
 	enum intel_mid_dma_msize	src_msize; /*size if src burst*/
 	enum intel_mid_dma_msize	dst_msize; /*size of dst burst*/
+	dma_addr_t			per_addr; /*Peripheral address*/
 	unsigned int		device_instance; /*0, 1 for periphral instance*/
 };
 
