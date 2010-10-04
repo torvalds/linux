@@ -24,8 +24,11 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 
 	if (vlan_dev)
 		skb->dev = vlan_dev;
-	else if (vlan_id)
-		goto drop;
+	else if (vlan_id) {
+		if (!(skb->dev->flags & IFF_PROMISC))
+			goto drop;
+		skb->pkt_type = PACKET_OTHERHOST;
+	}
 
 	return polling ? netif_receive_skb(skb) : netif_rx(skb);
 
@@ -101,8 +104,11 @@ vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 
 	if (vlan_dev)
 		skb->dev = vlan_dev;
-	else if (vlan_id)
-		goto drop;
+	else if (vlan_id) {
+		if (!(skb->dev->flags & IFF_PROMISC))
+			goto drop;
+		skb->pkt_type = PACKET_OTHERHOST;
+	}
 
 	for (p = napi->gro_list; p; p = p->next) {
 		unsigned long diffs;

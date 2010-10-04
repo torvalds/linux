@@ -223,7 +223,7 @@ config NET_IPGRE_DEMUX
 
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
-	depends on NET_IPGRE_DEMUX
+	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -419,7 +419,7 @@ config INET_XFRM_MODE_BEET
 	  If unsure, say Y.
 
 config INET_LRO
-	bool "Large Receive Offload (ipv4/tcp)"
+	tristate "Large Receive Offload (ipv4/tcp)"
 	default y
 	---help---
 	  Support for Large Receive Offload (ipv4/tcp).
