@@ -116,6 +116,7 @@
 struct davinci_spi_dma {
 	int			dma_tx_channel;
 	int			dma_rx_channel;
+	int			dummy_param_slot;
 	enum dma_event_q	eventq;
 
 	struct completion	dma_tx_completion;
@@ -697,6 +698,8 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	param.src_dst_cidx = 0;
 	param.ccnt = 1;
 	edma_write_slot(davinci_spi_dma->dma_tx_channel, &param);
+	edma_link(davinci_spi_dma->dma_tx_channel,
+			davinci_spi_dma->dummy_param_slot);
 
 	/*
 	 * Receive DMA setup
@@ -779,19 +782,37 @@ static int davinci_spi_request_dma(struct davinci_spi_dma *davinci_spi_dma)
 				davinci_spi_dma->eventq);
 	if (r < 0) {
 		pr_err("Unable to request DMA channel for SPI RX\n");
-		return -EAGAIN;
+		r = -EAGAIN;
+		goto rx_dma_failed;
 	}
 
 	r = edma_alloc_channel(davinci_spi_dma->dma_tx_channel,
 				davinci_spi_dma_tx_callback, davinci_spi_dma,
 				davinci_spi_dma->eventq);
 	if (r < 0) {
-		edma_free_channel(davinci_spi_dma->dma_rx_channel);
 		pr_err("Unable to request DMA channel for SPI TX\n");
-		return -EAGAIN;
+		r = -EAGAIN;
+		goto tx_dma_failed;
 	}
 
+	r = edma_alloc_slot(EDMA_CTLR(davinci_spi_dma->dma_tx_channel),
+		EDMA_SLOT_ANY);
+	if (r < 0) {
+		pr_err("Unable to request SPI TX DMA param slot\n");
+		r = -EAGAIN;
+		goto param_failed;
+	}
+	davinci_spi_dma->dummy_param_slot = r;
+	edma_link(davinci_spi_dma->dummy_param_slot,
+		davinci_spi_dma->dummy_param_slot);
+
 	return 0;
+param_failed:
+	edma_free_channel(davinci_spi_dma->dma_tx_channel);
+tx_dma_failed:
+	edma_free_channel(davinci_spi_dma->dma_rx_channel);
+rx_dma_failed:
+	return r;
 }
 
 /**
@@ -970,6 +991,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 free_dma:
 	edma_free_channel(davinci_spi->dma_channels.dma_tx_channel);
 	edma_free_channel(davinci_spi->dma_channels.dma_rx_channel);
+	edma_free_slot(davinci_spi->dma_channels.dummy_param_slot);
 free_clk:
 	clk_disable(davinci_spi->clk);
 	clk_put(davinci_spi->clk);
