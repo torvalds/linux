@@ -572,11 +572,6 @@ void ar9002_hw_attach_ops(struct ath_hw *ah)
 
 	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
-
-	if (modparam_force_new_ani)
-		ath9k_hw_attach_ani_ops_new(ah);
-	else
-		ath9k_hw_attach_ani_ops_old(ah);
 }
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)

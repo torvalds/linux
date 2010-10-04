@@ -564,9 +564,6 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
- *
- * @ani_monitor: called periodically by the core driver to collect
- *	MIB stats and adjust ANI if specific thresholds have been reached.
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -607,8 +604,6 @@ struct ath_hw_ops {
 				     u32 burstDuration);
 	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
 				       u32 vmf);
-
-	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
 struct ath_nf_limits {
@@ -969,8 +964,7 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
 extern int modparam_force_new_ani;
 void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_proc_mib_event(struct ath_hw *ah);
-void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
-void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
+void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

@@ -128,12 +128,6 @@ static inline void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set11n_virtualmorefrag(ah, ds, vmf);
 }
 
-static inline void ath9k_hw_ani_monitor(struct ath_hw *ah,
-					struct ath9k_channel *chan)
-{
-	ath9k_hw_ops(ah)->ani_monitor(ah, chan);
-}
-
 /* Private hardware call ops */
 
 /* PHY ops */
