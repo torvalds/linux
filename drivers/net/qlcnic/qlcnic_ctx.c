@@ -1016,7 +1016,14 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 	if (adapter->npars == NULL)
 		return -EIO;
 
-	memset(esw_stats, 0, sizeof(struct __qlcnic_esw_statistics));
+	memset(esw_stats, 0, sizeof(u64));
+	esw_stats->unicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->multicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->broadcast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->dropped_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->errors = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->local_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->numbytes = QLCNIC_ESW_STATS_NOT_AVAIL;
 	esw_stats->context_id = eswitch;
 
 	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
@@ -1029,14 +1036,20 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 
 		esw_stats->size = port_stats.size;
 		esw_stats->version = port_stats.version;
-		esw_stats->unicast_frames += port_stats.unicast_frames;
-		esw_stats->multicast_frames += port_stats.multicast_frames;
-		esw_stats->broadcast_frames += port_stats.broadcast_frames;
-		esw_stats->dropped_frames += port_stats.dropped_frames;
-		esw_stats->errors += port_stats.errors;
-		esw_stats->local_frames += port_stats.local_frames;
-		esw_stats->numbytes += port_stats.numbytes;
-
+		QLCNIC_ADD_ESW_STATS(esw_stats->unicast_frames,
+						port_stats.unicast_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->multicast_frames,
+						port_stats.multicast_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->broadcast_frames,
+						port_stats.broadcast_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->dropped_frames,
+						port_stats.dropped_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->errors,
+						port_stats.errors);
+		QLCNIC_ADD_ESW_STATS(esw_stats->local_frames,
+						port_stats.local_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->numbytes,
+						port_stats.numbytes);
 		ret = 0;
 	}
 	return ret;

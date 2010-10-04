@@ -1169,6 +1169,18 @@ struct qlcnic_esw_func_cfg {
 #define QLCNIC_STATS_ESWITCH		2
 #define QLCNIC_QUERY_RX_COUNTER		0
 #define QLCNIC_QUERY_TX_COUNTER		1
+#define QLCNIC_ESW_STATS_NOT_AVAIL	0xffffffffffffffffULL
+
+#define QLCNIC_ADD_ESW_STATS(VAL1, VAL2)\
+do {	\
+	if (((VAL1) == QLCNIC_ESW_STATS_NOT_AVAIL) && \
+	    ((VAL2) != QLCNIC_ESW_STATS_NOT_AVAIL)) \
+		(VAL1) = (VAL2); \
+	else if (((VAL1) != QLCNIC_ESW_STATS_NOT_AVAIL) && \
+		 ((VAL2) != QLCNIC_ESW_STATS_NOT_AVAIL)) \
+			(VAL1) += (VAL2); \
+} while (0)
+
 struct __qlcnic_esw_statistics {
 	__le16 context_id;
 	__le16 version;
