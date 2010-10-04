@@ -303,6 +303,13 @@ __secondary_data:
  * Setup common bits before finally enabling the MMU.  Essentially
  * this is just loading the page table pointer and domain access
  * registers.
+ *
+ *  r0  = cp#15 control register
+ *  r1  = machine ID
+ *  r2  = atags pointer
+ *  r4  = page table pointer
+ *  r9  = processor ID
+ *  r13 = *virtual* address to jump to upon completion
  */
 __enable_mmu:
 #ifdef CONFIG_ALIGNMENT_TRAP
@@ -335,6 +342,9 @@ ENDPROC(__enable_mmu)
  * mailing list archives BEFORE sending another post to the list.
  *
  *  r0  = cp#15 control register
+ *  r1  = machine ID
+ *  r2  = atags pointer
+ *  r9  = processor ID
  *  r13 = *virtual* address to jump to upon completion
  *
  * other registers depend on the function called upon completion
