@@ -46,11 +46,6 @@ char qlcnic_driver_name[] = "qlcnic";
 static const char qlcnic_driver_string[] = "QLogic 1/10 GbE "
 	"Converged/Intelligent Ethernet Driver v" QLCNIC_LINUX_VERSIONID;
 
-static int port_mode = QLCNIC_PORT_MODE_AUTO_NEG;
-
-/* Default to restricted 1G auto-neg mode */
-static int wol_port_mode = 5;
-
 static int qlcnic_mac_learn;
 module_param(qlcnic_mac_learn, int, 0644);
 MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
@@ -262,40 +257,6 @@ qlcnic_napi_disable(struct qlcnic_adapter *adapter)
 static void qlcnic_clear_stats(struct qlcnic_adapter *adapter)
 {
 	memset(&adapter->stats, 0, sizeof(adapter->stats));
-}
-
-static void qlcnic_set_port_mode(struct qlcnic_adapter *adapter)
-{
-	u32 val, data;
-
-	val = adapter->ahw.board_type;
-	if ((val == QLCNIC_BRDTYPE_P3_HMEZ) ||
-		(val == QLCNIC_BRDTYPE_P3_XG_LOM)) {
-		if (port_mode == QLCNIC_PORT_MODE_802_3_AP) {
-			data = QLCNIC_PORT_MODE_802_3_AP;
-			QLCWR32(adapter, QLCNIC_PORT_MODE_ADDR, data);
-		} else if (port_mode == QLCNIC_PORT_MODE_XG) {
-			data = QLCNIC_PORT_MODE_XG;
-			QLCWR32(adapter, QLCNIC_PORT_MODE_ADDR, data);
-		} else if (port_mode == QLCNIC_PORT_MODE_AUTO_NEG_1G) {
-			data = QLCNIC_PORT_MODE_AUTO_NEG_1G;
-			QLCWR32(adapter, QLCNIC_PORT_MODE_ADDR, data);
-		} else if (port_mode == QLCNIC_PORT_MODE_AUTO_NEG_XG) {
-			data = QLCNIC_PORT_MODE_AUTO_NEG_XG;
-			QLCWR32(adapter, QLCNIC_PORT_MODE_ADDR, data);
-		} else {
-			data = QLCNIC_PORT_MODE_AUTO_NEG;
-			QLCWR32(adapter, QLCNIC_PORT_MODE_ADDR, data);
-		}
-
-		if ((wol_port_mode != QLCNIC_PORT_MODE_802_3_AP) &&
-			(wol_port_mode != QLCNIC_PORT_MODE_XG) &&
-			(wol_port_mode != QLCNIC_PORT_MODE_AUTO_NEG_1G) &&
-			(wol_port_mode != QLCNIC_PORT_MODE_AUTO_NEG_XG)) {
-			wol_port_mode = QLCNIC_PORT_MODE_AUTO_NEG;
-		}
-		QLCWR32(adapter, QLCNIC_WOL_PORT_MODE, wol_port_mode);
-	}
 }
 
 static void qlcnic_set_msix_bit(struct pci_dev *pdev, int enable)
@@ -1032,7 +993,6 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 	err = qlcnic_pinit_from_rom(adapter);
 	if (err)
 		goto err_out;
-	qlcnic_set_port_mode(adapter);
 
 	err = qlcnic_load_firmware(adapter);
 	if (err)
