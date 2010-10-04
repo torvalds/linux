@@ -793,15 +793,20 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		/* receive buffer 0 */
 		if (intf & CANINTF_RX0IF) {
 			mcp251x_hw_rx(spi, 0);
-			/* Free one buffer ASAP */
-			mcp251x_write_bits(spi, CANINTF, intf & CANINTF_RX0IF,
-					   0x00);
+			/*
+			 * Free one buffer ASAP
+			 * (The MCP2515 does this automatically.)
+			 */
+			if (mcp251x_is_2510(spi))
+				mcp251x_write_bits(spi, CANINTF, CANINTF_RX0IF, 0x00);
 		}
 
 		/* receive buffer 1 */
 		if (intf & CANINTF_RX1IF) {
 			mcp251x_hw_rx(spi, 1);
-			clear_intf |= CANINTF_RX1IF;
+			/* the MCP2515 does this automatically */
+			if (mcp251x_is_2510(spi))
+				clear_intf |= CANINTF_RX1IF;
 		}
 
 		/* any error or tx interrupt we need to clear? */
