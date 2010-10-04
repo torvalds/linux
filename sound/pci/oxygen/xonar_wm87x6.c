@@ -1071,7 +1071,7 @@ static int xonar_ds_mixer_init(struct oxygen *chip)
 
 static const struct oxygen_model model_xonar_ds = {
 	.shortname = "Xonar DS",
-	.longname = "Asus Virtuoso 200",
+	.longname = "Asus Virtuoso 66",
 	.chip = "AV200",
 	.init = xonar_ds_init,
 	.control_filter = xonar_ds_control_filter,
