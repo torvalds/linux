@@ -368,7 +368,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	if (!phyd)
 		return;
 
-	local->debugfs.stations = debugfs_create_dir("stations", phyd);
 	local->debugfs.keys = debugfs_create_dir("keys", phyd);
 
 	DEBUGFS_ADD(frequency);

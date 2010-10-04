@@ -569,7 +569,7 @@ void ar9002_hw_attach_ops(struct ath_hw *ah)
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
 	ar5008_hw_attach_phy_ops(ah);
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
 
 	ar9002_hw_attach_calib_ops(ah);

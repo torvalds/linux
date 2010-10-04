@@ -321,6 +321,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_LDPC: tells the driver to use LDPC for this frame
  * @IEEE80211_TX_CTL_STBC: Enables Space-Time Block Coding (STBC) for this
  *	frame and selects the maximum number of streams that it can use.
+ *
+ * Note: If you have to add new flags to the enumeration, then don't
+ *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -349,6 +352,19 @@ enum mac80211_tx_control_flags {
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
+
+/*
+ * This definition is used as a mask to clear all temporary flags, which are
+ * set by the tx handlers for each transmission attempt by the mac80211 stack.
+ */
+#define IEEE80211_TX_TEMPORARY_FLAGS (IEEE80211_TX_CTL_NO_ACK |		      \
+	IEEE80211_TX_CTL_CLEAR_PS_FILT | IEEE80211_TX_CTL_FIRST_FRAGMENT |    \
+	IEEE80211_TX_CTL_SEND_AFTER_DTIM | IEEE80211_TX_CTL_AMPDU |	      \
+	IEEE80211_TX_STAT_TX_FILTERED |	IEEE80211_TX_STAT_ACK |		      \
+	IEEE80211_TX_STAT_AMPDU | IEEE80211_TX_STAT_AMPDU_NO_BACK |	      \
+	IEEE80211_TX_CTL_RATE_CTRL_PROBE | IEEE80211_TX_CTL_PSPOLL_RESPONSE | \
+	IEEE80211_TX_CTL_MORE_FRAMES | IEEE80211_TX_CTL_LDPC |		      \
+	IEEE80211_TX_CTL_STBC)
 
 /**
  * enum mac80211_rate_control_flags - per-rate flags set by the
@@ -565,9 +581,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
  * @RX_FLAG_SHORT_GI: Short guard interval was used
- * @RX_FLAG_INTERNAL_CMTR: set internally after frame was reported
- *	on cooked monitor to avoid double-reporting it for multiple
- *	virtual interfaces
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -581,7 +594,6 @@ enum mac80211_rx_flags {
 	RX_FLAG_HT		= 1<<9,
 	RX_FLAG_40MHZ		= 1<<10,
 	RX_FLAG_SHORT_GI	= 1<<11,
-	RX_FLAG_INTERNAL_CMTR	= 1<<12,
 };
 
 /**
@@ -602,6 +614,7 @@ enum mac80211_rx_flags {
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
  * @flag: %RX_FLAG_*
+ * @rx_flags: internal RX flags for mac80211
  */
 struct ieee80211_rx_status {
 	u64 mactime;
@@ -611,6 +624,7 @@ struct ieee80211_rx_status {
 	int antenna;
 	int rate_idx;
 	int flag;
+	unsigned int rx_flags;
 };
 
 /**
@@ -2416,25 +2430,28 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 					 const u8 *addr);
 
 /**
- * ieee80211_find_sta_by_hw - find a station on hardware
+ * ieee80211_find_sta_by_ifaddr - find a station on hardware
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @addr: station's address
+ * @addr: remote station's address
+ * @localaddr: local address (vif->sdata->vif.addr). Use NULL for 'any'.
  *
  * This function must be called under RCU lock and the
  * resulting pointer is only valid under RCU lock as well.
  *
- * NOTE: This function should not be used! When mac80211 is converted
- *	 internally to properly keep track of stations on multiple
- *	 virtual interfaces, it will not always know which station to
- *	 return here since a single address might be used by multiple
- *	 logical stations (e.g. consider a station connecting to another
- *	 BSSID on the same AP hardware without disconnecting first).
+ * NOTE: You may pass NULL for localaddr, but then you will just get
+ *      the first STA that matches the remote address 'addr'.
+ *      We can have multiple STA associated with multiple
+ *      logical stations (e.g. consider a station connecting to another
+ *      BSSID on the same AP hardware without disconnecting first).
+ *      In this case, the result of this method with localaddr NULL
+ *      is not reliable.
  *
- * DO NOT USE THIS FUNCTION.
+ * DO NOT USE THIS FUNCTION with localaddr NULL if at all possible.
  */
-struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
-					       const u8 *addr);
+struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
+					       const u8 *addr,
+					       const u8 *localaddr);
 
 /**
  * ieee80211_sta_block_awake - block station from waking up

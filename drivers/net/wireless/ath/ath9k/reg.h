@@ -819,49 +819,23 @@
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9160_11))
 #define AR_SREV_9280(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280))
-#define AR_SREV_9280_10_OR_LATER(_ah) \
+#define AR_SREV_9280_20_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9280))
 #define AR_SREV_9280_20(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280) && \
-		((_ah)->hw_version.macRev >= AR_SREV_REVISION_9280_20))
-#define AR_SREV_9280_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9280) || \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280) && \
-	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9280_20)))
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280))
 
 #define AR_SREV_9285(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9285))
-#define AR_SREV_9285_10_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9285))
-#define AR_SREV_9285_11(_ah) \
-	(AR_SREV_9285(ah) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9285_11))
-#define AR_SREV_9285_11_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9285) || \
-	 (AR_SREV_9285(ah) && ((_ah)->hw_version.macRev >= \
-			       AR_SREV_REVISION_9285_11)))
-#define AR_SREV_9285_12(_ah) \
-	(AR_SREV_9285(ah) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9285_12))
 #define AR_SREV_9285_12_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9285) || \
-	 (AR_SREV_9285(ah) && ((_ah)->hw_version.macRev >= \
-			       AR_SREV_REVISION_9285_12)))
+	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9285))
 
 #define AR_SREV_9287(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287))
-#define AR_SREV_9287_10_OR_LATER(_ah) \
+#define AR_SREV_9287_11_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9287))
-#define AR_SREV_9287_10(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_10))
 #define AR_SREV_9287_11(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_11))
-#define AR_SREV_9287_11_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
-	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
-	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_11)))
 #define AR_SREV_9287_12(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_12))

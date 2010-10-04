@@ -895,26 +895,34 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     const u8 *ie, size_t ie_len,
-			     enum ieee80211_band band)
+			     enum ieee80211_band band, u32 rate_mask,
+			     u8 channel)
 {
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 	size_t offset = 0, noffset;
 	int supp_rates_len, i;
+	u8 rates[32];
+	int num_rates;
+	int ext_rates_len;
 
 	sband = local->hw.wiphy->bands[band];
 
 	pos = buffer;
 
-	supp_rates_len = min_t(int, sband->n_bitrates, 8);
+	num_rates = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((BIT(i) & rate_mask) == 0)
+			continue; /* skip rate */
+		rates[num_rates++] = (u8) (sband->bitrates[i].bitrate / 5);
+	}
+
+	supp_rates_len = min_t(int, num_rates, 8);
 
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos++ = supp_rates_len;
-
-	for (i = 0; i < supp_rates_len; i++) {
-		int rate = sband->bitrates[i].bitrate;
-		*pos++ = (u8) (rate / 5);
-	}
+	memcpy(pos, rates, supp_rates_len);
+	pos += supp_rates_len;
 
 	/* insert "request information" if in custom IEs */
 	if (ie && ie_len) {
@@ -932,14 +940,18 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		offset = noffset;
 	}
 
-	if (sband->n_bitrates > i) {
+	ext_rates_len = num_rates - supp_rates_len;
+	if (ext_rates_len > 0) {
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = sband->n_bitrates - i;
+		*pos++ = ext_rates_len;
+		memcpy(pos, rates + supp_rates_len, ext_rates_len);
+		pos += ext_rates_len;
+	}
 
-		for (; i < sband->n_bitrates; i++) {
-			int rate = sband->bitrates[i].bitrate;
-			*pos++ = (u8) (rate / 5);
-		}
+	if (channel && sband->band == IEEE80211_BAND_2GHZ) {
+		*pos++ = WLAN_EID_DS_PARAMS;
+		*pos++ = 1;
+		*pos++ = channel;
 	}
 
 	/* insert custom IEs that go before HT */
@@ -1008,6 +1020,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	struct ieee80211_mgmt *mgmt;
 	size_t buf_len;
 	u8 *buf;
+	u8 chan;
 
 	/* FIXME: come up with a proper value */
 	buf = kmalloc(200 + ie_len, GFP_KERNEL);
@@ -1017,8 +1030,14 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		return;
 	}
 
+	chan = ieee80211_frequency_to_channel(
+		local->hw.conf.channel->center_freq);
+
 	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
-					   local->hw.conf.channel->band);
+					   local->hw.conf.channel->band,
+					   sdata->rc_rateidx_mask
+					   [local->hw.conf.channel->band],
+					   chan);
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,

@@ -110,7 +110,8 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		chan = scan_chan;
 		channel_type = NL80211_CHAN_NO_HT;
 		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
-	} else if (local->tmp_channel) {
+	} else if (local->tmp_channel &&
+		   local->oper_channel != local->tmp_channel) {
 		chan = scan_chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
 		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;

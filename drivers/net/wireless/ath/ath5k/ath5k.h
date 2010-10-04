@@ -1041,7 +1041,6 @@ struct ath5k_hw {
 #define ah_modes		ah_capabilities.cap_mode
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
 
-	u32			ah_atim_window;
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
 
@@ -1196,6 +1195,7 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah);
 void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
 void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
 void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
+bool ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval);
 /* ACK bit rate */
 void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 /* Clock rate related functions */

@@ -242,7 +242,8 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 	local->hw_scan_req->n_channels = n_chans;
 
 	ielen = ieee80211_build_preq_ies(local, (u8 *)local->hw_scan_req->ie,
-					 req->ie, req->ie_len, band);
+					 req->ie, req->ie_len, band, (u32) -1,
+					 0);
 	local->hw_scan_req->ie_len = ielen;
 
 	return true;

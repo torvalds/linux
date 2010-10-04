@@ -454,8 +454,8 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if ((AR_SREV_9280_10_OR_LATER(sc->sc_ah) ||
-	    AR_SREV_9285_10_OR_LATER(sc->sc_ah)) &&
+	if ((AR_SREV_9280_20_OR_LATER(sc->sc_ah) ||
+	    AR_SREV_9285_12_OR_LATER(sc->sc_ah)) &&
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_AP) &&
 	    (sc->rx.rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
@@ -977,7 +977,11 @@ static void ath9k_process_rssi(struct ath_common *common,
 	 * at least one sdata of a wiphy on mac80211 but with ath9k virtual
 	 * wiphy you'd have to iterate over every wiphy and each sdata.
 	 */
-	sta = ieee80211_find_sta_by_hw(hw, hdr->addr2);
+	if (is_multicast_ether_addr(hdr->addr1))
+		sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr2, NULL);
+	else
+		sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr2, hdr->addr1);
+
 	if (sta) {
 		an = (struct ath_node *) sta->drv_priv;
 		if (rx_stats->rs_rssi != ATH9K_RSSI_BAD &&

@@ -565,7 +565,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_cal_settings(ah);
 
 	ah->ani_function = ATH9K_ANI_ALL;
-	if (AR_SREV_9280_10_OR_LATER(ah) && !AR_SREV_9300_20_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
@@ -1190,7 +1190,7 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 	int count = 50;
 	u32 reg;
 
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9285_12_OR_LATER(ah))
 		return true;
 
 	do {
@@ -1312,7 +1312,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (tsf)
 		ath9k_hw_settsf64(ah, tsf);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
 	if (!AR_SREV_9300_20_OR_LATER(ah))
@@ -1787,7 +1787,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	regulatory->current_rd = eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_1);
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9285_12_OR_LATER(ah))
 		eeval |= AR9285_RDEXT_DEFAULT;
 	regulatory->current_rd_ext = eeval;
 
@@ -1857,8 +1857,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		/* Use rx_chainmask from EEPROM. */
 		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 
-	if (!(AR_SREV_9280(ah) && (ah->hw_version.macRev == 0)))
-		ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
+	ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
 
 	pCap->low_2ghz_chan = 2312;
 	pCap->high_2ghz_chan = 2732;
@@ -1894,9 +1893,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->num_gpio_pins = AR9271_NUM_GPIO;
 	else if (AR_DEVID_7010(ah))
 		pCap->num_gpio_pins = AR7010_NUM_GPIO;
-	else if (AR_SREV_9285_10_OR_LATER(ah))
+	else if (AR_SREV_9285_12_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
-	else if (AR_SREV_9280_10_OR_LATER(ah))
+	else if (AR_SREV_9280_20_OR_LATER(ah))
 		pCap->num_gpio_pins = AR928X_NUM_GPIO;
 	else
 		pCap->num_gpio_pins = AR_NUM_GPIO;
@@ -1953,7 +1952,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->num_antcfg_2ghz =
 		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
 
-	if (AR_SREV_9280_10_OR_LATER(ah) &&
+	if (AR_SREV_9280_20_OR_LATER(ah) &&
 	    ath9k_hw_btcoex_supported(ah)) {
 		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO;
 		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO;
@@ -1990,7 +1989,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_RAC_SUPPORTED;
 
-	if (AR_SREV_9287_10_OR_LATER(ah) || AR_SREV_9271(ah))
+	if (AR_SREV_9287_11_OR_LATER(ah) || AR_SREV_9271(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_SGI_20;
 
 	if (AR_SREV_9285(ah))
@@ -2074,11 +2073,11 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 		return MS_REG_READ(AR9300, gpio) != 0;
 	else if (AR_SREV_9271(ah))
 		return MS_REG_READ(AR9271, gpio) != 0;
-	else if (AR_SREV_9287_10_OR_LATER(ah))
+	else if (AR_SREV_9287_11_OR_LATER(ah))
 		return MS_REG_READ(AR9287, gpio) != 0;
-	else if (AR_SREV_9285_10_OR_LATER(ah))
+	else if (AR_SREV_9285_12_OR_LATER(ah))
 		return MS_REG_READ(AR9285, gpio) != 0;
-	else if (AR_SREV_9280_10_OR_LATER(ah))
+	else if (AR_SREV_9280_20_OR_LATER(ah))
 		return MS_REG_READ(AR928X, gpio) != 0;
 	else
 		return MS_REG_READ(AR, gpio) != 0;
@@ -2575,7 +2574,7 @@ void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len)
 	int used;
 
 	/* chipsets >= AR9280 are single-chip */
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		used = snprintf(hw_name, len,
 			       "Atheros AR%s Rev:%x",
 			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
