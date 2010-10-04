@@ -1276,36 +1276,27 @@ bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
 	return false;
 }
 
-static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
-							  radeon_encoder
-							  *encoder,
-							  int id)
+bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
+				      struct radeon_atom_ss *ss,
+				      int id)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, PPLL_SS_Info);
-	uint16_t data_offset;
+	uint16_t data_offset, size;
 	struct _ATOM_SPREAD_SPECTRUM_INFO *ss_info;
 	uint8_t frev, crev;
-	struct radeon_atom_ss *ss = NULL;
-	int i;
+	int i, num_indices;
 
-	if (id > ATOM_MAX_SS_ENTRY)
-		return NULL;
-
-	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+	memset(ss, 0, sizeof(struct radeon_atom_ss));
+	if (atom_parse_data_header(mode_info->atom_context, index, &size,
 				   &frev, &crev, &data_offset)) {
 		ss_info =
 			(struct _ATOM_SPREAD_SPECTRUM_INFO *)(mode_info->atom_context->bios + data_offset);
 
-		ss =
-		    kzalloc(sizeof(struct radeon_atom_ss), GFP_KERNEL);
+		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+			sizeof(ATOM_SPREAD_SPECTRUM_ASSIGNMENT);
 
-		if (!ss)
-			return NULL;
-
-		for (i = 0; i < ATOM_MAX_SS_ENTRY; i++) {
+		for (i = 0; i < num_indices; i++) {
 			if (ss_info->asSS_Info[i].ucSS_Id == id) {
 				ss->percentage =
 					le16_to_cpu(ss_info->asSS_Info[i].usSpreadSpectrumPercentage);
@@ -1314,11 +1305,88 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 				ss->delay = ss_info->asSS_Info[i].ucSS_Delay;
 				ss->range = ss_info->asSS_Info[i].ucSS_Range;
 				ss->refdiv = ss_info->asSS_Info[i].ucRecommendedRef_Div;
-				break;
+				return true;
 			}
 		}
 	}
-	return ss;
+	return false;
+}
+
+union asic_ss_info {
+	struct _ATOM_ASIC_INTERNAL_SS_INFO info;
+	struct _ATOM_ASIC_INTERNAL_SS_INFO_V2 info_2;
+	struct _ATOM_ASIC_INTERNAL_SS_INFO_V3 info_3;
+};
+
+bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
+				      struct radeon_atom_ss *ss,
+				      int id, u32 clock)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
+	uint16_t data_offset, size;
+	union asic_ss_info *ss_info;
+	uint8_t frev, crev;
+	int i, num_indices;
+
+	memset(ss, 0, sizeof(struct radeon_atom_ss));
+	if (atom_parse_data_header(mode_info->atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+
+		ss_info =
+			(union asic_ss_info *)(mode_info->atom_context->bios + data_offset);
+
+		switch (frev) {
+		case 1:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_ASIC_SS_ASSIGNMENT);
+
+			for (i = 0; i < num_indices; i++) {
+				if ((ss_info->info.asSpreadSpectrum[i].ucClockIndication == id) &&
+				    (clock <= ss_info->info.asSpreadSpectrum[i].ulTargetClockRange)) {
+					ss->percentage =
+						le16_to_cpu(ss_info->info.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
+					ss->type = ss_info->info.asSpreadSpectrum[i].ucSpreadSpectrumMode;
+					ss->rate = le16_to_cpu(ss_info->info.asSpreadSpectrum[i].usSpreadRateInKhz);
+					return true;
+				}
+			}
+			break;
+		case 2:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_ASIC_SS_ASSIGNMENT_V2);
+			for (i = 0; i < num_indices; i++) {
+				if ((ss_info->info_2.asSpreadSpectrum[i].ucClockIndication == id) &&
+				    (clock <= ss_info->info_2.asSpreadSpectrum[i].ulTargetClockRange)) {
+					ss->percentage =
+						le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
+					ss->type = ss_info->info_2.asSpreadSpectrum[i].ucSpreadSpectrumMode;
+					ss->rate = le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					return true;
+				}
+			}
+			break;
+		case 3:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_ASIC_SS_ASSIGNMENT_V3);
+			for (i = 0; i < num_indices; i++) {
+				if ((ss_info->info_3.asSpreadSpectrum[i].ucClockIndication == id) &&
+				    (clock <= ss_info->info_3.asSpreadSpectrum[i].ulTargetClockRange)) {
+					ss->percentage =
+						le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
+					ss->type = ss_info->info_3.asSpreadSpectrum[i].ucSpreadSpectrumMode;
+					ss->rate = le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					return true;
+				}
+			}
+			break;
+		default:
+			DRM_ERROR("Unsupported ASIC_InternalSS_Info table: %d %d\n", frev, crev);
+			break;
+		}
+
+	}
+	return false;
 }
 
 union lvds_info {
@@ -1370,7 +1438,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
 		lvds->panel_pwr_delay =
 		    le16_to_cpu(lvds_info->info.usOffDelayInMs);
-		lvds->lvds_misc = lvds_info->info.ucLVDS_Misc;
+		lvds->lcd_misc = lvds_info->info.ucLVDS_Misc;
 
 		misc = le16_to_cpu(lvds_info->info.sLCDTiming.susModeMiscInfo.usAccess);
 		if (misc & ATOM_VSYNC_POLARITY)
@@ -1387,7 +1455,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		/* set crtc values */
 		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
 
-		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
+		lvds->lcd_ss_id = lvds_info->info.ucSS_Id;
 
 		encoder->native_mode = lvds->native_mode;
 

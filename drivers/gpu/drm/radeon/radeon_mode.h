@@ -324,21 +324,24 @@ struct radeon_encoder_ext_tmds {
 struct radeon_atom_ss {
 	uint16_t percentage;
 	uint8_t type;
-	uint8_t step;
+	uint16_t step;
 	uint8_t delay;
 	uint8_t range;
 	uint8_t refdiv;
+	/* asic_ss */
+	uint16_t rate;
+	uint16_t amount;
 };
 
 struct radeon_encoder_atom_dig {
 	bool linkb;
 	/* atom dig */
 	bool coherent_mode;
-	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB */
-	/* atom lvds */
-	uint32_t lvds_misc;
+	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB, etc. */
+	/* atom lvds/edp */
+	uint32_t lcd_misc;
 	uint16_t panel_pwr_delay;
-	struct radeon_atom_ss *ss;
+	uint32_t lcd_ss_id;
 	/* panel mode */
 	struct drm_display_mode native_mode;
 };
@@ -479,6 +482,13 @@ extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
 extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
+
+extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
+					     struct radeon_atom_ss *ss,
+					     int id);
+extern bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
+					     struct radeon_atom_ss *ss,
+					     int id, u32 clock);
 
 extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint64_t freq,
