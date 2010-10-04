@@ -898,6 +898,11 @@ struct qlcnic_mac_req {
 	u8 mac_addr[6];
 };
 
+struct qlcnic_ipaddr {
+	__be32 ipv4;
+	__be32 ipv6[4];
+};
+
 #define QLCNIC_MSI_ENABLED		0x02
 #define QLCNIC_MSIX_ENABLED		0x04
 #define QLCNIC_LRO_ENABLED		0x08
@@ -1286,7 +1291,7 @@ void qlcnic_free_mac_list(struct qlcnic_adapter *adapter);
 int qlcnic_nic_set_promisc(struct qlcnic_adapter *adapter, u32);
 int qlcnic_config_intr_coalesce(struct qlcnic_adapter *adapter);
 int qlcnic_config_rss(struct qlcnic_adapter *adapter, int enable);
-int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, u32 ip, int cmd);
+int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip, int cmd);
 int qlcnic_linkevent_request(struct qlcnic_adapter *adapter, int enable);
 void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup);
 

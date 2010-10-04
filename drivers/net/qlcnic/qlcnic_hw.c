@@ -676,9 +676,10 @@ int qlcnic_config_rss(struct qlcnic_adapter *adapter, int enable)
 	return rv;
 }
 
-int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, u32 ip, int cmd)
+int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip, int cmd)
 {
 	struct qlcnic_nic_req req;
+	struct qlcnic_ipaddr *ipa;
 	u64 word;
 	int rv;
 
@@ -689,7 +690,8 @@ int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, u32 ip, int cmd)
 	req.req_hdr = cpu_to_le64(word);
 
 	req.words[0] = cpu_to_le64(cmd);
-	req.words[1] = cpu_to_le64(ip);
+	ipa = (struct qlcnic_ipaddr *)&req.words[1];
+	ipa->ipv4 = ip;
 
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
