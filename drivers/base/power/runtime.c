@@ -153,7 +153,6 @@ static int rpm_check_suspend_allowed(struct device *dev)
 	return retval;
 }
 
-
 /**
  * rpm_idle - Notify device bus type if the device can be suspended.
  * @dev: Device to notify the bus type about.
@@ -167,8 +166,8 @@ static int rpm_check_suspend_allowed(struct device *dev)
  * This function must be called under dev->power.lock with interrupts disabled.
  */
 static int rpm_idle(struct device *dev, int rpmflags)
-	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
+	int (*callback)(struct device *);
 	int retval;
 
 	retval = rpm_check_suspend_allowed(dev);
@@ -214,23 +213,19 @@ static int rpm_idle(struct device *dev, int rpmflags)
 
 	dev->power.idle_notification = true;
 
-	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_idle) {
+	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_idle)
+		callback = dev->bus->pm->runtime_idle;
+	else if (dev->type && dev->type->pm && dev->type->pm->runtime_idle)
+		callback = dev->type->pm->runtime_idle;
+	else if (dev->class && dev->class->pm)
+		callback = dev->class->pm->runtime_idle;
+	else
+		callback = NULL;
+
+	if (callback) {
 		spin_unlock_irq(&dev->power.lock);
 
-		dev->bus->pm->runtime_idle(dev);
-
-		spin_lock_irq(&dev->power.lock);
-	} else if (dev->type && dev->type->pm && dev->type->pm->runtime_idle) {
-		spin_unlock_irq(&dev->power.lock);
-
-		dev->type->pm->runtime_idle(dev);
-
-		spin_lock_irq(&dev->power.lock);
-	} else if (dev->class && dev->class->pm
-	    && dev->class->pm->runtime_idle) {
-		spin_unlock_irq(&dev->power.lock);
-
-		dev->class->pm->runtime_idle(dev);
+		callback(dev);
 
 		spin_lock_irq(&dev->power.lock);
 	}
@@ -239,6 +234,29 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	wake_up_all(&dev->power.wait_queue);
 
  out:
+	return retval;
+}
+
+/**
+ * rpm_callback - Run a given runtime PM callback for a given device.
+ * @cb: Runtime PM callback to run.
+ * @dev: Device to run the callback for.
+ */
+static int rpm_callback(int (*cb)(struct device *), struct device *dev)
+	__releases(&dev->power.lock) __acquires(&dev->power.lock)
+{
+	int retval;
+
+	if (!cb)
+		return -ENOSYS;
+
+	spin_unlock_irq(&dev->power.lock);
+
+	retval = cb(dev);
+
+	spin_lock_irq(&dev->power.lock);
+	dev->power.runtime_error = retval;
+
 	return retval;
 }
 
@@ -261,6 +279,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 static int rpm_suspend(struct device *dev, int rpmflags)
 	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
+	int (*callback)(struct device *);
 	struct device *parent = NULL;
 	bool notify = false;
 	int retval;
@@ -351,33 +370,16 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
 	__update_runtime_status(dev, RPM_SUSPENDING);
 
-	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend) {
-		spin_unlock_irq(&dev->power.lock);
+	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend)
+		callback = dev->bus->pm->runtime_suspend;
+	else if (dev->type && dev->type->pm && dev->type->pm->runtime_suspend)
+		callback = dev->type->pm->runtime_suspend;
+	else if (dev->class && dev->class->pm)
+		callback = dev->class->pm->runtime_suspend;
+	else
+		callback = NULL;
 
-		retval = dev->bus->pm->runtime_suspend(dev);
-
-		spin_lock_irq(&dev->power.lock);
-		dev->power.runtime_error = retval;
-	} else if (dev->type && dev->type->pm
-	    && dev->type->pm->runtime_suspend) {
-		spin_unlock_irq(&dev->power.lock);
-
-		retval = dev->type->pm->runtime_suspend(dev);
-
-		spin_lock_irq(&dev->power.lock);
-		dev->power.runtime_error = retval;
-	} else if (dev->class && dev->class->pm
-	    && dev->class->pm->runtime_suspend) {
-		spin_unlock_irq(&dev->power.lock);
-
-		retval = dev->class->pm->runtime_suspend(dev);
-
-		spin_lock_irq(&dev->power.lock);
-		dev->power.runtime_error = retval;
-	} else {
-		retval = -ENOSYS;
-	}
-
+	retval = rpm_callback(callback, dev);
 	if (retval) {
 		__update_runtime_status(dev, RPM_ACTIVE);
 		dev->power.deferred_resume = 0;
@@ -443,6 +445,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 static int rpm_resume(struct device *dev, int rpmflags)
 	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
+	int (*callback)(struct device *);
 	struct device *parent = NULL;
 	int retval = 0;
 
@@ -563,33 +566,16 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	__update_runtime_status(dev, RPM_RESUMING);
 
-	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_resume) {
-		spin_unlock_irq(&dev->power.lock);
+	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_resume)
+		callback = dev->bus->pm->runtime_resume;
+	else if (dev->type && dev->type->pm && dev->type->pm->runtime_resume)
+		callback = dev->type->pm->runtime_resume;
+	else if (dev->class && dev->class->pm)
+		callback = dev->class->pm->runtime_resume;
+	else
+		callback = NULL;
 
-		retval = dev->bus->pm->runtime_resume(dev);
-
-		spin_lock_irq(&dev->power.lock);
-		dev->power.runtime_error = retval;
-	} else if (dev->type && dev->type->pm
-	    && dev->type->pm->runtime_resume) {
-		spin_unlock_irq(&dev->power.lock);
-
-		retval = dev->type->pm->runtime_resume(dev);
-
-		spin_lock_irq(&dev->power.lock);
-		dev->power.runtime_error = retval;
-	} else if (dev->class && dev->class->pm
-	    && dev->class->pm->runtime_resume) {
-		spin_unlock_irq(&dev->power.lock);
-
-		retval = dev->class->pm->runtime_resume(dev);
-
-		spin_lock_irq(&dev->power.lock);
-		dev->power.runtime_error = retval;
-	} else {
-		retval = -ENOSYS;
-	}
-
+	retval = rpm_callback(callback, dev);
 	if (retval) {
 		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_cancel_pending(dev);
