@@ -29,7 +29,7 @@
 
 #include "power.h"
 
-#define SWSUSP_SIG	"S1SUSPEND"
+#define HIBERNATE_SIG	"LINHIB0001"
 
 /*
  *	The swap map is a data structure used for keeping track of each page
@@ -195,7 +195,7 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 	if (!memcmp("SWAP-SPACE",swsusp_header->sig, 10) ||
 	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
-		memcpy(swsusp_header->sig,SWSUSP_SIG, 10);
+		memcpy(swsusp_header->sig, HIBERNATE_SIG, 10);
 		swsusp_header->image = handle->first_sector;
 		swsusp_header->flags = flags;
 		error = hib_bio_write_page(swsusp_resume_block,
@@ -916,7 +916,7 @@ int swsusp_check(void)
 		if (error)
 			goto put;
 
-		if (!memcmp(SWSUSP_SIG, swsusp_header->sig, 10)) {
+		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
 			/* Reset swap signature now */
 			error = hib_bio_write_page(swsusp_resume_block,
