@@ -70,7 +70,7 @@ void xen_hvm_evtchn_do_upcall(void);
 /* Allocate an irq for a physical interrupt, given a gsi.  "Legacy"
  * GSIs are identity mapped; others are dynamically allocated as
  * usual. */
-int xen_allocate_pirq(unsigned gsi, char *name);
+int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
 
 /* Return vector allocated to pirq */
 int xen_vector_from_irq(unsigned pirq);

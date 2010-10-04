@@ -97,6 +97,7 @@ struct irq_info
 	} u;
 };
 #define PIRQ_NEEDS_EOI	(1 << 0)
+#define PIRQ_SHAREABLE	(1 << 1)
 
 static struct irq_info *irq_info;
 
@@ -445,6 +446,7 @@ static unsigned int startup_pirq(unsigned int irq)
 	struct evtchn_bind_pirq bind_pirq;
 	struct irq_info *info = info_for_irq(irq);
 	int evtchn = evtchn_from_irq(irq);
+	int rc;
 
 	BUG_ON(info->type != IRQT_PIRQ);
 
@@ -453,8 +455,10 @@ static unsigned int startup_pirq(unsigned int irq)
 
 	bind_pirq.pirq = irq;
 	/* NB. We are happy to share unless we are probing. */
-	bind_pirq.flags = probing_irq(irq) ? 0 : BIND_PIRQ__WILL_SHARE;
-	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq) != 0) {
+	bind_pirq.flags = info->u.pirq.flags & PIRQ_SHAREABLE ?
+					BIND_PIRQ__WILL_SHARE : 0;
+	rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq);
+	if (rc != 0) {
 		if (!probing_irq(irq))
 			printk(KERN_INFO "Failed to obtain physical IRQ %d\n",
 			       irq);
@@ -564,7 +568,7 @@ static int find_irq_by_gsi(unsigned gsi)
  * event channel until the irq actually started up.  Return an
  * existing irq if we've already got one for the gsi.
  */
-int xen_allocate_pirq(unsigned gsi, char *name)
+int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
 {
 	int irq;
 	struct physdev_irq irq_op;
@@ -596,6 +600,7 @@ int xen_allocate_pirq(unsigned gsi, char *name)
 	}
 
 	irq_info[irq] = mk_pirq_info(0, gsi, irq_op.vector);
+	irq_info[irq].u.pirq.flags |= shareable ? PIRQ_SHAREABLE : 0;
 
 out:
 	spin_unlock(&irq_mapping_update_lock);
