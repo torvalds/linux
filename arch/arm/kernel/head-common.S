@@ -24,21 +24,6 @@
  * and hope for the best (useful if bootloader fails to pass a proper
  * machine ID for example).
  */
-__error_p:
-#ifdef CONFIG_DEBUG_LL
-	adr	r0, str_p1
-	bl	printascii
-	mov	r0, r9
-	bl	printhex8
-	adr	r0, str_p2
-	bl	printascii
-	b	__error
-str_p1:	.asciz	"\nError: unrecognized/unsupported processor variant (0x"
-str_p2:	.asciz	").\n"
-	.align
-#endif
-ENDPROC(__error_p)
-
 __error_a:
 #ifdef CONFIG_DEBUG_LL
 	mov	r4, r1				@ preserve machine ID
@@ -75,25 +60,6 @@ str_a2:	.asciz	").\n\nAvailable machine support:\n\nID (hex)\tNAME\n"
 str_a3:	.asciz	"\nPlease check your kernel config and/or bootloader.\n"
 	.align
 #endif
-
-__error:
-#ifdef CONFIG_ARCH_RPC
-/*
- * Turn the screen red on a error - RiscPC only.
- */
-	mov	r0, #0x02000000
-	mov	r3, #0x11
-	orr	r3, r3, r3, lsl #8
-	orr	r3, r3, r3, lsl #16
-	str	r3, [r0], #4
-	str	r3, [r0], #4
-	str	r3, [r0], #4
-	str	r3, [r0], #4
-#endif
-1:	mov	r0, r0
-	b	1b
-ENDPROC(__error)
-
 
 /*
  * Look in <asm/procinfo.h> and arch/arm/kernel/arch.[ch] for
@@ -275,3 +241,36 @@ __lookup_processor_type_data:
 	.long	__proc_info_begin
 	.long	__proc_info_end
 	.size	__lookup_processor_type_data, . - __lookup_processor_type_data
+
+__error_p:
+#ifdef CONFIG_DEBUG_LL
+	adr	r0, str_p1
+	bl	printascii
+	mov	r0, r9
+	bl	printhex8
+	adr	r0, str_p2
+	bl	printascii
+	b	__error
+str_p1:	.asciz	"\nError: unrecognized/unsupported processor variant (0x"
+str_p2:	.asciz	").\n"
+	.align
+#endif
+ENDPROC(__error_p)
+
+__error:
+#ifdef CONFIG_ARCH_RPC
+/*
+ * Turn the screen red on a error - RiscPC only.
+ */
+	mov	r0, #0x02000000
+	mov	r3, #0x11
+	orr	r3, r3, r3, lsl #8
+	orr	r3, r3, r3, lsl #16
+	str	r3, [r0], #4
+	str	r3, [r0], #4
+	str	r3, [r0], #4
+	str	r3, [r0], #4
+#endif
+1:	mov	r0, r0
+	b	1b
+ENDPROC(__error)
