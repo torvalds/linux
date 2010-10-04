@@ -43,10 +43,11 @@ struct dst_entry {
 	short			error;
 	short			obsolete;
 	int			flags;
-#define DST_HOST		1
-#define DST_NOXFRM		2
-#define DST_NOPOLICY		4
-#define DST_NOHASH		8
+#define DST_HOST		0x0001
+#define DST_NOXFRM		0x0002
+#define DST_NOPOLICY		0x0004
+#define DST_NOHASH		0x0008
+#define DST_NOCACHE		0x0010
 	unsigned long		expires;
 
 	unsigned short		header_len;	/* more space at head required */

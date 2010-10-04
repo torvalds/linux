@@ -1107,6 +1107,7 @@ restart:
 		 * on the route gc list.
 		 */
 
+		rt->dst.flags |= DST_NOCACHE;
 		if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {
 			int err = arp_bind_neighbour(&rt->dst);
 			if (err) {

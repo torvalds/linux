@@ -1210,7 +1210,9 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
 		struct net_device *dev = neigh->dev;
-		if (dev->header_ops->cache && !dst->hh) {
+		if (dev->header_ops->cache &&
+		    !dst->hh &&
+		    !(dst->flags & DST_NOCACHE)) {
 			write_lock_bh(&neigh->lock);
 			if (!dst->hh)
 				neigh_hh_init(neigh, dst, dst->ops->protocol);
