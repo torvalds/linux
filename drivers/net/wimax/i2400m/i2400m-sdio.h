@@ -140,7 +140,6 @@ void i2400ms_init(struct i2400ms *i2400ms)
 
 extern int i2400ms_rx_setup(struct i2400ms *);
 extern void i2400ms_rx_release(struct i2400ms *);
-extern ssize_t __i2400ms_rx_get_size(struct i2400ms *);
 
 extern int i2400ms_tx_setup(struct i2400ms *);
 extern void i2400ms_tx_release(struct i2400ms *);

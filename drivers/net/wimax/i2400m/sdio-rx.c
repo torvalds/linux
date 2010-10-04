@@ -87,7 +87,7 @@ static const __le32 i2400m_ACK_BARKER[4] = {
  *
  * sdio_readl() doesn't work.
  */
-ssize_t __i2400ms_rx_get_size(struct i2400ms *i2400ms)
+static ssize_t __i2400ms_rx_get_size(struct i2400ms *i2400ms)
 {
 	int ret, cnt, val;
 	ssize_t rx_size;
