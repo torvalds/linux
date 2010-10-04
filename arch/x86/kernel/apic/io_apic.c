@@ -364,7 +364,7 @@ __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
 }
 
-void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
+static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
@@ -1259,10 +1259,10 @@ static void ioapic_register_intr(unsigned int irq, unsigned long trigger)
 					      handle_edge_irq, "edge");
 }
 
-int setup_ioapic_entry(int apic_id, int irq,
-		       struct IO_APIC_route_entry *entry,
-		       unsigned int destination, int trigger,
-		       int polarity, int vector, int pin)
+static int setup_ioapic_entry(int apic_id, int irq,
+			      struct IO_APIC_route_entry *entry,
+			      unsigned int destination, int trigger,
+			      int polarity, int vector, int pin)
 {
 	/*
 	 * add it to the IO-APIC irq-routing table:
