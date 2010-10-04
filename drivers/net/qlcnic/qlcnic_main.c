@@ -521,9 +521,9 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		pfn = pci_info[i].id;
 		if (pfn > QLCNIC_MAX_PCI_FUNC)
 			return QL_STATUS_INVALID_PARAM;
-		adapter->npars[pfn].active = pci_info[i].active;
-		adapter->npars[pfn].type = pci_info[i].type;
-		adapter->npars[pfn].phy_port = pci_info[i].default_port;
+		adapter->npars[pfn].active = (u8)pci_info[i].active;
+		adapter->npars[pfn].type = (u8)pci_info[i].type;
+		adapter->npars[pfn].phy_port = (u8)pci_info[i].default_port;
 		adapter->npars[pfn].min_bw = pci_info[i].tx_min_bw;
 		adapter->npars[pfn].max_bw = pci_info[i].tx_max_bw;
 	}
@@ -723,7 +723,7 @@ qlcnic_initialize_nic(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
-	adapter->physical_port = nic_info.phys_port;
+	adapter->physical_port = (u8)nic_info.phys_port;
 	adapter->switch_mode = nic_info.switch_mode;
 	adapter->max_tx_ques = nic_info.max_tx_ques;
 	adapter->max_rx_ques = nic_info.max_rx_ques;
@@ -3762,7 +3762,7 @@ qlcnic_sysfs_read_npar_config(struct file *file, struct kobject *kobj,
 			return ret;
 
 		np_cfg[i].pci_func = i;
-		np_cfg[i].op_mode = nic_info.op_mode;
+		np_cfg[i].op_mode = (u8)nic_info.op_mode;
 		np_cfg[i].port_num = nic_info.phys_port;
 		np_cfg[i].fw_capab = nic_info.capabilities;
 		np_cfg[i].min_bw = nic_info.min_tx_bw ;

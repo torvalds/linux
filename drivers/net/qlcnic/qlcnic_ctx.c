@@ -742,15 +742,15 @@ int qlcnic_get_pci_info(struct qlcnic_adapter *adapter,
 
 	if (err == QLCNIC_RCODE_SUCCESS) {
 		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++, npar++, pci_info++) {
-			pci_info->id = le32_to_cpu(npar->id);
-			pci_info->active = le32_to_cpu(npar->active);
-			pci_info->type = le32_to_cpu(npar->type);
+			pci_info->id = le16_to_cpu(npar->id);
+			pci_info->active = le16_to_cpu(npar->active);
+			pci_info->type = le16_to_cpu(npar->type);
 			pci_info->default_port =
-				le32_to_cpu(npar->default_port);
+				le16_to_cpu(npar->default_port);
 			pci_info->tx_min_bw =
-				le32_to_cpu(npar->tx_min_bw);
+				le16_to_cpu(npar->tx_min_bw);
 			pci_info->tx_max_bw =
-				le32_to_cpu(npar->tx_max_bw);
+				le16_to_cpu(npar->tx_max_bw);
 			memcpy(pci_info->mac, npar->mac, ETH_ALEN);
 		}
 	} else {
