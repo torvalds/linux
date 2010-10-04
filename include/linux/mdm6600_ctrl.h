@@ -48,7 +48,13 @@ struct mdm_ctrl_gpio {
 	char *name;
 };
 
+struct mdm_command_gpios {
+	unsigned int cmd1;
+	unsigned int cmd2;
+};
+
 struct mdm_ctrl_platform_data {
 	struct mdm_ctrl_gpio gpios[MDM_CTRL_NUM_GPIOS];
+	struct mdm_command_gpios cmd_gpios;
 };
 #endif /* __LINUX_MDM_CTRL_H__ */
