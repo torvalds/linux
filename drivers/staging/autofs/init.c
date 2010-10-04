@@ -1,6 +1,6 @@
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
- * linux/fs/autofs/init.c
+ * drivers/staging/autofs/init.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  *

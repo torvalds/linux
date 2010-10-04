@@ -1,6 +1,6 @@
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
- * linux/fs/autofs/waitq.c
+ * drivers/staging/autofs/waitq.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  *

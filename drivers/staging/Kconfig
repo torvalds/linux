@@ -87,6 +87,8 @@ source "drivers/staging/dream/Kconfig"
 
 source "drivers/staging/pohmelfs/Kconfig"
 
+source "drivers/staging/autofs/Kconfig"
+
 source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/line6/Kconfig"

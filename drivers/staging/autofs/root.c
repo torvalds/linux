@@ -1,6 +1,6 @@
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
- * linux/fs/autofs/root.c
+ * drivers/staging/autofs/root.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  *

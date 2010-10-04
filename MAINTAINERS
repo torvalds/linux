@@ -3314,8 +3314,8 @@ F:	Documentation/kdump/
 KERNEL AUTOMOUNTER (AUTOFS)
 M:	"H. Peter Anvin" <hpa@zytor.com>
 L:	autofs@linux.kernel.org
-S:	Odd Fixes
-F:	fs/autofs/
+S:	Obsolete
+F:	drivers/staging/autofs/
 
 KERNEL AUTOMOUNTER v4 (AUTOFS4)
 M:	Ian Kent <raven@themaw.net>

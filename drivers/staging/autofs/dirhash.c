@@ -1,6 +1,6 @@
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
- * linux/fs/autofs/dirhash.c
+ * drivers/staging/autofs/dirhash.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  *

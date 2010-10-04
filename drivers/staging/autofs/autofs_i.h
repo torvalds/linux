@@ -1,6 +1,6 @@
 /* -*- linux-c -*- ------------------------------------------------------- *
  *   
- * linux/fs/autofs/autofs_i.h
+ * drivers/staging/autofs/autofs_i.h
  *
  *   Copyright 1997-1998 Transmeta Corporation - All Rights Reserved
  *
