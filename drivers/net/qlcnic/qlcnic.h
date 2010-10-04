@@ -1323,19 +1323,12 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 
 /* Management functions */
-int qlcnic_set_mac_address(struct qlcnic_adapter *, u8*);
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);
 int qlcnic_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
 int qlcnic_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info*);
-int qlcnic_reset_partition(struct qlcnic_adapter *, u8);
 
 /*  eSwitch management functions */
-int qlcnic_get_eswitch_capabilities(struct qlcnic_adapter *, u8,
-				struct qlcnic_eswitch *);
-int qlcnic_get_eswitch_status(struct qlcnic_adapter *, u8,
-				struct qlcnic_eswitch *);
-int qlcnic_toggle_eswitch(struct qlcnic_adapter *, u8, u8);
 int qlcnic_config_switch_port(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
 int qlcnic_get_eswitch_port_config(struct qlcnic_adapter *,
