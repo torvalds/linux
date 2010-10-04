@@ -24,6 +24,7 @@
  * and hope for the best (useful if bootloader fails to pass a proper
  * machine ID for example).
  */
+	__HEAD
 __error_a:
 #ifdef CONFIG_DEBUG_LL
 	mov	r4, r1				@ preserve machine ID
@@ -33,7 +34,7 @@ __error_a:
 	bl	printhex8
 	adr	r0, str_a2
 	bl	printascii
-	adr	r3, 4f
+	adr	r3, __lookup_machine_type_data
 	ldmia	r3, {r4, r5, r6}		@ get machine desc list
 	sub	r4, r3, r4			@ get offset between virt&phys
 	add	r5, r5, r4			@ convert virt addresses to
@@ -62,15 +63,6 @@ str_a3:	.asciz	"\nPlease check your kernel config and/or bootloader.\n"
 #endif
 
 /*
- * Look in <asm/procinfo.h> and arch/arm/kernel/arch.[ch] for
- * more information about the __proc_info and __arch_info structures.
- */
-	.align	2
-4:	.long	.
-	.long	__arch_info_begin
-	.long	__arch_info_end
-
-/*
  * Lookup machine architecture in the linker-build list of architectures.
  * Note that we can't use the absolute addresses for the __arch_info
  * lists since we aren't running with the MMU on (and therefore, we are
@@ -82,7 +74,7 @@ str_a3:	.asciz	"\nPlease check your kernel config and/or bootloader.\n"
  *  r5 = mach_info pointer in physical address space
  */
 __lookup_machine_type:
-	adr	r3, 4b
+	adr	r3, __lookup_machine_type_data
 	ldmia	r3, {r4, r5, r6}
 	sub	r3, r3, r4			@ get offset between virt&phys
 	add	r5, r5, r3			@ convert virt addresses to
@@ -96,6 +88,18 @@ __lookup_machine_type:
 	mov	r5, #0				@ unknown machine
 2:	mov	pc, lr
 ENDPROC(__lookup_machine_type)
+
+/*
+ * Look in arch/arm/kernel/arch.[ch] for information about the
+ * __arch_info structures.
+ */
+	.align	2
+	.type	__lookup_machine_type_data, %object
+__lookup_machine_type_data:
+	.long	.
+	.long	__arch_info_begin
+	.long	__arch_info_end
+	.size	__lookup_machine_type_data, . - __lookup_machine_type_data
 
 /* Determine validity of the r2 atags pointer.  The heuristic requires
  * that the pointer be aligned, in the first 16k of physical RAM and
