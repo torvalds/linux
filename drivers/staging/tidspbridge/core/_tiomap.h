@@ -330,7 +330,6 @@ struct bridge_dev_context {
 	 */
 	u32 dw_dsp_ext_base_addr;	/* See the comment above */
 	u32 dw_api_reg_base;	/* API mem map'd registers */
-	void __iomem *dw_dsp_mmu_base;	/* DSP MMU Mapped registers */
 	u32 dw_api_clk_base;	/* CLK Registers */
 	u32 dw_dsp_clk_m2_base;	/* DSP Clock Module m2 */
 	u32 dw_public_rhea;	/* Pub Rhea */
@@ -356,7 +355,6 @@ struct bridge_dev_context {
 
 	/* TC Settings */
 	bool tc_word_swap_on;	/* Traffic Controller Word Swap */
-	struct pg_table_attrs *pt_attrs;
 	u32 dsp_per_clks;
 };
 
