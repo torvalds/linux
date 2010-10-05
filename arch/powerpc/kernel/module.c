@@ -65,10 +65,6 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const Elf_Shdr *sect;
 	int err;
 
-	err = module_bug_finalize(hdr, sechdrs, me);
-	if (err)
-		return err;
-
 	/* Apply feature fixups */
 	sect = find_section(hdr, sechdrs, "__ftr_fixup");
 	if (sect != NULL)
@@ -101,5 +97,4 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
-	module_bug_cleanup(mod);
 }
