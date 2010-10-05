@@ -888,6 +888,7 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 		pr->queue_stopped = 0;
 	}
 	spin_unlock_irqrestore(&pr->netif_queue, flags);
+	wake_up(&pr->port->swqe_avail_wq);
 
 	return cqe;
 }
@@ -2652,6 +2653,8 @@ static int ehea_open(struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
+	init_waitqueue_head(&port->swqe_avail_wq);
+
 	mutex_unlock(&port->port_lock);
 
 	return ret;
@@ -2724,13 +2727,15 @@ static void ehea_flush_sq(struct ehea_port *port)
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		struct ehea_port_res *pr = &port->port_res[i];
 		int swqe_max = pr->sq_skba_size - 2 - pr->swqe_ll_count;
-		int k = 0;
-		while (atomic_read(&pr->swqe_avail) < swqe_max) {
-			msleep(5);
-			if (++k == 20) {
-				ehea_error("WARNING: sq not flushed completely");
-				break;
-			}
+		int ret;
+
+		ret = wait_event_timeout(port->swqe_avail_wq,
+			 atomic_read(&pr->swqe_avail) >= swqe_max,
+			 msecs_to_jiffies(100));
+
+		if (!ret) {
+			ehea_error("WARNING: sq not flushed completely");
+			break;
 		}
 	}
 }
