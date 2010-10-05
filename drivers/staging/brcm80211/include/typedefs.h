@@ -58,10 +58,6 @@ typedef unsigned long ulong;
 
 /* define [u]int8/16/32/64, uintptr */
 
-#ifndef TYPEDEF_UINT8
-typedef unsigned char uint8;
-#endif
-
 #ifndef TYPEDEF_UINT16
 typedef unsigned short uint16;
 #endif
@@ -110,7 +106,6 @@ typedef signed int int32;
 #undef TYPEDEF_USHORT
 #undef TYPEDEF_UINT
 #undef TYPEDEF_ULONG
-#undef TYPEDEF_UINT8
 #undef TYPEDEF_UINT16
 #undef TYPEDEF_UINT32
 #undef TYPEDEF_UINTPTR
