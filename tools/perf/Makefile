@@ -1035,7 +1035,7 @@ builtin-revert.o wt-status.o: wt-status.h
 # we compile into subdirectories. if the target directory is not the source directory, they might not exists. So
 # we depend the various files onto their directories.
 DIRECTORY_DEPS = $(LIB_OBJS) $(BUILTIN_OBJS) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
-$(DIRECTORY_DEPS): $(sort $(dir $(DIRECTORY_DEPS)))
+$(DIRECTORY_DEPS): | $(sort $(dir $(DIRECTORY_DEPS)))
 # In the second step, we make a rule to actually create these directories
 $(sort $(dir $(DIRECTORY_DEPS))):
 	$(QUIET_MKDIR)$(MKDIR) -p $@ 2>/dev/null
