@@ -2592,8 +2592,8 @@ wl_iw_set_encodeext(struct net_device *dev,
 		}
 
 		if (iwe->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-			uchar *ivptr;
-			ivptr = (uchar *) iwe->rx_seq;
+			unsigned char *ivptr;
+			ivptr = (unsigned char *) iwe->rx_seq;
 			key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
 			    (ivptr[3] << 8) | ivptr[2];
 			key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];

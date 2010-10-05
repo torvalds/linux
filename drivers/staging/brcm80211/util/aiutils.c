@@ -514,7 +514,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 						     SI_CORE_SIZE);
 			ASSERT(GOODREGS(sii->regs[coreidx]));
 		}
-		r = (uint32 *) ((uchar *) sii->regs[coreidx] + regoff);
+		r = (uint32 *) ((unsigned char *) sii->regs[coreidx] + regoff);
 	} else if (BUSTYPE(sih->bustype) == PCI_BUS) {
 		/* If pci/pcie, we can get at pci/pcie regs and on newer cores to chipc */
 
@@ -549,7 +549,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 		origidx = si_coreidx(&sii->pub);
 
 		/* switch core */
-		r = (uint32 *) ((uchar *) ai_setcoreidx(&sii->pub, coreidx) +
+		r = (uint32 *) ((unsigned char *) ai_setcoreidx(&sii->pub, coreidx) +
 				regoff);
 	}
 	ASSERT(r != NULL);

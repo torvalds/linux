@@ -383,7 +383,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 
 	ASSERT(GOODREGS(regs));
 
-	bzero((uchar *) sii, sizeof(si_info_t));
+	bzero((unsigned char *) sii, sizeof(si_info_t));
 
 	savewin = 0;
 
@@ -518,7 +518,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 
 	ASSERT(GOODREGS(regs));
 
-	bzero((uchar *) sii, sizeof(si_info_t));
+	bzero((unsigned char *) sii, sizeof(si_info_t));
 
 	savewin = 0;
 
@@ -913,7 +913,7 @@ uint si_corelist(si_t *sih, uint coreid[])
 
 	sii = SI_INFO(sih);
 
-	bcopy((uchar *) sii->coreid, (uchar *) coreid,
+	bcopy((unsigned char *) sii->coreid, (unsigned char *) coreid,
 	      (sii->numcores * sizeof(uint)));
 	return sii->numcores;
 }

@@ -164,7 +164,7 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 		origidx = si_coreidx(&sii->pub);
 
 		/* switch core */
-		r = (uint32 *) ((uchar *) sb_setcoreidx(&sii->pub, coreidx) +
+		r = (uint32 *) ((unsigned char *) sb_setcoreidx(&sii->pub, coreidx) +
 				regoff);
 	}
 	ASSERT(r != NULL);

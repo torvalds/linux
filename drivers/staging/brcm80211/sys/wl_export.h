@@ -45,7 +45,7 @@ extern void wl_add_timer(struct wl_info *wl, struct wl_timer *timer, uint ms,
 			 int periodic);
 extern bool wl_del_timer(struct wl_info *wl, struct wl_timer *timer);
 
-extern uint wl_buf_to_pktcopy(osl_t *osh, void *p, uchar *buf, int len,
+extern uint wl_buf_to_pktcopy(osl_t *osh, void *p, unsigned char *buf, int len,
 			      uint offset);
 extern void *wl_get_pktbuffer(osl_t *osh, int len);
 extern int wl_set_pktlen(osl_t *osh, void *p, int len);

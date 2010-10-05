@@ -41,15 +41,15 @@ extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp);
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.
  */
-extern int dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen);
-extern int dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen);
+extern int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
+extern int dhd_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
 
 /* Watchdog timer function */
 extern bool dhd_bus_watchdog(dhd_pub_t *dhd);
 
 #ifdef DHD_DEBUG
 /* Device console input function */
-extern int dhd_bus_console_in(dhd_pub_t *dhd, uchar *msg, uint msglen);
+extern int dhd_bus_console_in(dhd_pub_t *dhd, unsigned char *msg, uint msglen);
 #endif				/* DHD_DEBUG */
 
 /* Deferred processing for the bus, return TRUE requests reschedule */

@@ -526,7 +526,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	uint i, status, reason;
 	bool group = FALSE, flush_txq = FALSE, link = FALSE;
 	char *auth_str, *event_name;
-	uchar *buf;
+	unsigned char *buf;
 	char err_msg[256], eabuf[ETHER_ADDR_STR_LEN];
 	static struct {
 		uint event;
@@ -599,12 +599,12 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	datalen = ntoh32(event->datalen);
 	/* debug dump of event messages */
 	sprintf(eabuf, "%02x:%02x:%02x:%02x:%02x:%02x",
-		(uchar) event->addr.octet[0] & 0xff,
-		(uchar) event->addr.octet[1] & 0xff,
-		(uchar) event->addr.octet[2] & 0xff,
-		(uchar) event->addr.octet[3] & 0xff,
-		(uchar) event->addr.octet[4] & 0xff,
-		(uchar) event->addr.octet[5] & 0xff);
+		(unsigned char) event->addr.octet[0] & 0xff,
+		(unsigned char) event->addr.octet[1] & 0xff,
+		(unsigned char) event->addr.octet[2] & 0xff,
+		(unsigned char) event->addr.octet[3] & 0xff,
+		(unsigned char) event->addr.octet[4] & 0xff,
+		(unsigned char) event->addr.octet[5] & 0xff);
 
 	event_name = "UNKNOWN";
 	for (i = 0; i < ARRAYSIZE(event_names); i++) {
@@ -755,7 +755,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			uint32 nblost;
 			char *s, *p;
 
-			buf = (uchar *) event_data;
+			buf = (unsigned char *) event_data;
 			memcpy(&hdr, buf, MSGTRACE_HDRLEN);
 
 			if (hdr.version != MSGTRACE_VERSION) {
@@ -819,7 +819,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 	/* show any appended data */
 	if (datalen) {
-		buf = (uchar *) event_data;
+		buf = (unsigned char *) event_data;
 		DHD_EVENT((" data (%d) : ", datalen));
 		for (i = 0; i < datalen; i++)
 			DHD_EVENT((" 0x%02x ", *buf++));
@@ -1507,7 +1507,7 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 	wl_scan_results_t *results;
 	wl_bss_info_t UNALIGNED *bi, *bi_new, *bi_next;
 
-	uchar *s_addr = addr;
+	unsigned char *s_addr = addr;
 
 	dhd_iscan_lock();
 	DHD_ISCAN(("%s: BSS to remove %X:%X:%X:%X:%X:%X\n",
@@ -1818,7 +1818,7 @@ int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 
 /* Function to execute combined scan */
 int
-dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, uchar scan_fr)
+dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char scan_fr)
 {
 	int err = -1;
 	char iovbuf[128];

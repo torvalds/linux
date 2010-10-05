@@ -190,9 +190,9 @@ extern "C" {
 /* externs */
 /* packet */
 	extern uint pktcopy(osl_t *osh, void *p, uint offset, int len,
-			    uchar *buf);
+			    unsigned char *buf);
 	extern uint pktfrombuf(osl_t *osh, void *p, uint offset, int len,
-			       uchar *buf);
+			       unsigned char *buf);
 	extern uint pkttotlen(osl_t *osh, void *p);
 	extern void *pktlast(osl_t *osh, void *p);
 	extern uint pktsegcnt(osl_t *osh, void *p);
@@ -284,7 +284,7 @@ extern "C" {
 	extern int bcm_iovar_lencheck(const bcm_iovar_t *table, void *arg,
 				      int len, bool set);
 #if defined(BCMDBG)
-	extern int bcm_format_ssid(char *buf, const uchar ssid[],
+	extern int bcm_format_ssid(char *buf, const unsigned char ssid[],
 				   uint ssid_len);
 #endif
 
@@ -565,7 +565,7 @@ extern "C" {
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
 	extern char *bcm_brev_str(uint32 brev, char *buf);
 	extern void printbig(char *buf);
-	extern void prhex(const char *msg, uchar *buf, uint len);
+	extern void prhex(const char *msg, unsigned char *buf, uint len);
 
 /* IE parsing */
 	extern bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen);
@@ -598,9 +598,9 @@ extern "C" {
 
 	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
 	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
-	extern void bcm_inc_bytes(uchar *num, int num_bytes, u8 amount);
-	extern int bcm_cmp_bytes(uchar *arg1, uchar *arg2, u8 nbytes);
-	extern void bcm_print_bytes(char *name, const uchar *cdata, int len);
+	extern void bcm_inc_bytes(unsigned char *num, int num_bytes, u8 amount);
+	extern int bcm_cmp_bytes(unsigned char *arg1, unsigned char *arg2, u8 nbytes);
+	extern void bcm_print_bytes(char *name, const unsigned char *cdata, int len);
 
 	typedef uint32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
 					   uint32 offset);

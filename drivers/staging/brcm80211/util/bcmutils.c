@@ -38,7 +38,7 @@ static int vars_len = -1;
 #endif				/* WLC_LOW */
 
 /* copy a pkt buffer chain into a buffer */
-uint pktcopy(osl_t *osh, void *p, uint offset, int len, uchar *buf)
+uint pktcopy(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
 {
 	uint n, ret = 0;
 
@@ -69,7 +69,7 @@ uint pktcopy(osl_t *osh, void *p, uint offset, int len, uchar *buf)
 }
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, uchar *buf)
+uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
 {
 	uint n, ret = 0;
 
@@ -1131,7 +1131,7 @@ int bcm_format_hex(char *str, const void *bytes, int len)
 #endif				/* defined(BCMDBG) */
 
 /* pretty hex print a contiguous buffer */
-void prhex(const char *msg, uchar *buf, uint nbytes)
+void prhex(const char *msg, unsigned char *buf, uint nbytes)
 {
 	char line[128], *p;
 	int len = sizeof(line);
@@ -1419,7 +1419,7 @@ int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 	return r;
 }
 
-void bcm_inc_bytes(uchar *num, int num_bytes, u8 amount)
+void bcm_inc_bytes(unsigned char *num, int num_bytes, u8 amount)
 {
 	int i;
 
@@ -1431,7 +1431,7 @@ void bcm_inc_bytes(uchar *num, int num_bytes, u8 amount)
 	}
 }
 
-int bcm_cmp_bytes(uchar *arg1, uchar *arg2, u8 nbytes)
+int bcm_cmp_bytes(unsigned char *arg1, unsigned char *arg2, u8 nbytes)
 {
 	int i;
 
@@ -1442,7 +1442,7 @@ int bcm_cmp_bytes(uchar *arg1, uchar *arg2, u8 nbytes)
 	return 0;
 }
 
-void bcm_print_bytes(char *name, const uchar *data, int len)
+void bcm_print_bytes(char *name, const unsigned char *data, int len)
 {
 	int i;
 	int per_line = 0;
@@ -1461,7 +1461,7 @@ void bcm_print_bytes(char *name, const uchar *data, int len)
 
 #if defined(BCMDBG)
 #define SSID_FMT_BUF_LEN	((4 * DOT11_MAX_SSID_LEN) + 1)
-int bcm_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
+int bcm_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len)
 {
 	uint i, c;
 	char *p = buf;
@@ -1475,7 +1475,7 @@ int bcm_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
 		if (c == '\\') {
 			*p++ = '\\';
 			*p++ = '\\';
-		} else if (isprint((uchar) c)) {
+		} else if (isprint((unsigned char) c)) {
 			*p++ = (char)c;
 		} else {
 			p += snprintf(p, (endp - p), "\\x%02X", c);

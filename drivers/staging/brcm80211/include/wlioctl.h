@@ -152,7 +152,7 @@ typedef struct wl_bss_info {
 
 typedef struct wlc_ssid {
 	uint32 SSID_len;
-	uchar SSID[32];
+	unsigned char SSID[32];
 } wlc_ssid_t;
 
 typedef struct chan_scandata {

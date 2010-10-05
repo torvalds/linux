@@ -129,11 +129,11 @@ extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
 extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid,
-		       uchar scan_fr);
+		       unsigned char scan_fr);
 extern int dhd_pno_get_status(dhd_pub_t *dhd);
 extern int dhd_dev_pno_reset(struct net_device *dev);
 extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t *ssids_local,
-			   int nssid, uchar scan_fr);
+			   int nssid, unsigned char scan_fr);
 extern int dhd_dev_pno_enable(struct net_device *dev, int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
 

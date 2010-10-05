@@ -75,7 +75,7 @@ static int dhdcdc_msg(dhd_pub_t *dhd)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return dhd_bus_txctl(dhd->bus, (uchar *)&prot->msg, len);
+	return dhd_bus_txctl(dhd->bus, (unsigned char *)&prot->msg, len);
 }
 
 static int dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
@@ -87,7 +87,7 @@ static int dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 
 	do {
 		ret =
-		    dhd_bus_rxctl(dhd->bus, (uchar *)&prot->msg,
+		    dhd_bus_rxctl(dhd->bus, (unsigned char *)&prot->msg,
 				  len + sizeof(cdc_ioctl_t));
 		if (ret < 0)
 			break;

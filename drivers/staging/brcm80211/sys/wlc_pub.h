@@ -603,7 +603,7 @@ extern void wlc_ps_off(struct wlc_info *wlc, struct scb *scb, bool discard);
 extern bool wlc_radio_monitor_stop(struct wlc_info *wlc);
 
 #if defined(BCMDBG)
-extern int wlc_format_ssid(char *buf, const uchar ssid[], uint ssid_len);
+extern int wlc_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len);
 #endif
 
 extern void wlc_pmkid_build_cand_list(struct wlc_bsscfg *cfg, bool check_SSID);

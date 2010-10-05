@@ -3527,12 +3527,12 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		if (r->size == sizeof(uint32))
 			r->val =
 			    R_REG(osh,
-				  (uint32 *) ((uchar *) (uintptr) regs +
+				  (uint32 *) ((unsigned char *) (uintptr) regs +
 					      r->byteoff));
 		else if (r->size == sizeof(uint16))
 			r->val =
 			    R_REG(osh,
-				  (uint16 *) ((uchar *) (uintptr) regs +
+				  (uint16 *) ((unsigned char *) (uintptr) regs +
 					      r->byteoff));
 		else
 			bcmerror = BCME_BADADDR;
@@ -3562,11 +3562,11 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		}
 		if (r->size == sizeof(uint32))
 			W_REG(osh,
-			      (uint32 *) ((uchar *) (uintptr) regs +
+			      (uint32 *) ((unsigned char *) (uintptr) regs +
 					  r->byteoff), r->val);
 		else if (r->size == sizeof(uint16))
 			W_REG(osh,
-			      (uint16 *) ((uchar *) (uintptr) regs +
+			      (uint16 *) ((unsigned char *) (uintptr) regs +
 					  r->byteoff), r->val);
 		else
 			bcmerror = BCME_BADADDR;
@@ -4105,7 +4105,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 	case WLC_GET_PHYLIST:
 		{
-			uchar *cp = arg;
+			unsigned char *cp = arg;
 			if (len < 3) {
 				bcmerror = BCME_BUFTOOSHORT;
 				break;
@@ -5081,7 +5081,7 @@ void wlc_print_txdesc(d11txh_t *txh)
 	char hexbuf[256];
 
 	/* add plcp header along with txh descriptor */
-	prhex("Raw TxDesc + plcp header", (uchar *) txh, sizeof(d11txh_t) + 48);
+	prhex("Raw TxDesc + plcp header", (unsigned char *) txh, sizeof(d11txh_t) + 48);
 
 	printf("TxCtlLow: %04x ", mtcl);
 	printf("TxCtlHigh: %04x ", mtch);
@@ -5153,7 +5153,7 @@ void wlc_print_rxh(d11rxhdr_t *rxh)
 		{0, NULL}
 	};
 
-	prhex("Raw RxDesc", (uchar *) rxh, sizeof(d11rxhdr_t));
+	prhex("Raw RxDesc", (unsigned char *) rxh, sizeof(d11rxhdr_t));
 
 	bcm_format_flags(macstat_flags, macstatus1, flagstr, 64);
 
@@ -5170,7 +5170,7 @@ void wlc_print_rxh(d11rxhdr_t *rxh)
 #endif				/* defined(BCMDBG) */
 
 #if defined(BCMDBG)
-int wlc_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
+int wlc_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len)
 {
 	uint i, c;
 	char *p = buf;
@@ -5184,7 +5184,7 @@ int wlc_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
 		if (c == '\\') {
 			*p++ = '\\';
 			*p++ = '\\';
-		} else if (isprint((uchar) c)) {
+		} else if (isprint((unsigned char) c)) {
 			*p++ = (char)c;
 		} else {
 			p += snprintf(p, (endp - p), "\\x%02X", c);
@@ -7051,7 +7051,7 @@ prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, void *p,
 	int preamble;
 	int channel;
 	ratespec_t rspec;
-	uchar *plcp;
+	unsigned char *plcp;
 
 	wlc_read_tsf(wlc, &tsf_l, &tsf_h);	/* mactime */
 	rx_status->mactime = tsf_h;

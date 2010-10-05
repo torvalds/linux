@@ -384,7 +384,7 @@ extern void dhd_vif_add(struct dhd_info *dhd, int ifidx, char *name);
 extern void dhd_vif_del(struct dhd_info *dhd, int ifidx);
 
 extern void dhd_event(struct dhd_info *dhd, char *evpkt, int evlen, int ifidx);
-extern void dhd_vif_sendup(struct dhd_info *dhd, int ifidx, uchar * cp,
+extern void dhd_vif_sendup(struct dhd_info *dhd, int ifidx, unsigned char * cp,
 			   int len);
 
 /* Send packet to dongle via data channel */

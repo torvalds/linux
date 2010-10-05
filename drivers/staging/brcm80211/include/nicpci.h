@@ -46,7 +46,7 @@
 struct sbpcieregs;
 
 extern u8 pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id,
-					 uchar *buf, uint32 *buflen);
+					 unsigned char *buf, uint32 *buflen);
 extern uint pcie_readreg(osl_t *osh, struct sbpcieregs *pcieregs,
 			 uint addrtype, uint offset);
 extern uint pcie_writereg(osl_t *osh, struct sbpcieregs *pcieregs,

@@ -1664,7 +1664,7 @@ static bool dma32_txsuspendedidle(dma_info_t *di)
 static int dma32_txfast(dma_info_t *di, void *p0, bool commit)
 {
 	void *p, *next;
-	uchar *data;
+	unsigned char *data;
 	uint len;
 	uint16 txout;
 	uint32 flags = 0;
@@ -2315,7 +2315,7 @@ static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
 static int BCMFASTPATH dma64_txfast(dma_info_t *di, void *p0, bool commit)
 {
 	void *p, *next;
-	uchar *data;
+	unsigned char *data;
 	uint len;
 	uint16 txout;
 	uint32 flags = 0;

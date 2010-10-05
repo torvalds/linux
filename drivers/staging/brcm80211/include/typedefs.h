@@ -38,11 +38,7 @@ typedef unsigned long long int uintptr;
  * Default Typedefs
  */
 
-/* define uchar, ushort, uint, ulong */
-
-#ifndef TYPEDEF_UCHAR
-typedef unsigned char uchar;
-#endif
+/* define ushort, uint, ulong */
 
 #ifndef TYPEDEF_USHORT
 typedef unsigned short ushort;
@@ -98,7 +94,6 @@ typedef signed int int32;
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-#undef TYPEDEF_UCHAR
 #undef TYPEDEF_USHORT
 #undef TYPEDEF_UINT
 #undef TYPEDEF_ULONG

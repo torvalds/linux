@@ -36,11 +36,11 @@ extern CONST dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_extlna_2G_rev2[];
 extern CONST dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_extlna_5G_rev2[];
 
 typedef struct {
-	uchar gm;
-	uchar pga;
-	uchar pad;
-	uchar dac;
-	uchar bb_mult;
+	unsigned char gm;
+	unsigned char pga;
+	unsigned char pad;
+	unsigned char dac;
+	unsigned char bb_mult;
 } lcnphy_tx_gain_tbl_entry;
 
 extern CONST lcnphy_tx_gain_tbl_entry dot11lcnphy_2GHz_gaintable_rev0[];

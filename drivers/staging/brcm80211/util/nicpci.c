@@ -153,7 +153,7 @@ void pcicore_deinit(void *pch)
 /* return cap_offset if requested capability exists in the PCI config space */
 /* Note that it's caller's responsibility to make sure it's a pci bus */
 u8
-pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id, uchar *buf,
+pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id, unsigned char *buf,
 			    uint32 *buflen)
 {
 	u8 cap_id;

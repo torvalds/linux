@@ -1219,7 +1219,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 	return cnt;
 }
 
-int dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
+int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 {
 	u8 *frame;
 	uint16 len;
@@ -1374,7 +1374,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	return ret ? -EIO : 0;
 }
 
-int dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
+int dhd_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 {
 	int timeleft;
 	uint rxlen = 0;
@@ -4954,7 +4954,7 @@ extern bool dhd_bus_watchdog(dhd_pub_t *dhdp)
 }
 
 #ifdef DHD_DEBUG
-extern int dhd_bus_console_in(dhd_pub_t *dhdp, uchar *msg, uint msglen)
+extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 {
 	dhd_bus_t *bus = dhdp->bus;
 	uint32 addr, val;
