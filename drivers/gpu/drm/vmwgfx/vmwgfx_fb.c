@@ -212,6 +212,9 @@ static void vmw_fb_dirty_flush(struct vmw_fb_par *par)
 		SVGAFifoCmdUpdate body;
 	} *cmd;
 
+	if (vmw_priv->suspended)
+		return;
+
 	spin_lock_irqsave(&par->dirty.lock, flags);
 	if (!par->dirty.active) {
 		spin_unlock_irqrestore(&par->dirty.lock, flags);
