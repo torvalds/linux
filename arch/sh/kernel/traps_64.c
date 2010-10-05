@@ -50,7 +50,7 @@ asmlinkage void do_##name(unsigned long error_code, struct pt_regs *regs) \
 	do_unhandled_exception(trapnr, signr, str, __stringify(name), error_code, regs, current); \
 }
 
-spinlock_t die_lock;
+static DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
