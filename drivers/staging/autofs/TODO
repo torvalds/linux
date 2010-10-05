@@ -1,5 +1,8 @@
-- Work to help people to migrate to autofs4.
-- This filesystem will be removed in the 2.6.38 kernel release.
+autofs version 3 is on its way out of the kernel,
+It has been replaced by autofs4 several years ago.
 
-Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
-Cc: H. Peter Anvin <hpa@zytor.com> and Arnd Bergmann <arnd@arndb.de>
+The autofs3 code uses the big kernel lock which
+is getting deprecated.
+
+Users that find autofs3 to work but not autofs4
+should talk to Ian Kent <raven@themaw.net>.
