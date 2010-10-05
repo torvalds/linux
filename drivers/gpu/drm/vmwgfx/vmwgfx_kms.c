@@ -1025,6 +1025,9 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 	vmw_priv->num_displays = vmw_read(vmw_priv,
 					  SVGA_REG_NUM_GUEST_DISPLAYS);
 
+	if (vmw_priv->num_displays == 0)
+		vmw_priv->num_displays = 1;
+
 	for (i = 0; i < vmw_priv->num_displays; ++i) {
 		save = &vmw_priv->vga_save[i];
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, i);
