@@ -28,10 +28,6 @@
 typedef unsigned long long int uintptr;
 #endif
 
-#if defined(_NEED_SIZE_T_)
-typedef long unsigned int size_t;
-#endif
-
 #define TYPEDEF_UINT
 #define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
