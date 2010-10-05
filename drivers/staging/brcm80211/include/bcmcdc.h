@@ -90,9 +90,9 @@ typedef struct cdc_ioctl {
 	((idx) << BDC_FLAG2_IF_SHIFT)))
 
 struct bdc_header {
-	uint8 flags;		/* Flags */
-	uint8 priority;		/* 802.1d Priority 0:2 bits, 4:7 flow
+	u8 flags;		/* Flags */
+	u8 priority;		/* 802.1d Priority 0:2 bits, 4:7 flow
 				 control info for usb */
-	uint8 flags2;
-	uint8 rssi;
+	u8 flags2;
+	u8 rssi;
 };

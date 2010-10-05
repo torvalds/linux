@@ -80,36 +80,36 @@
 
 /* SW frame header */
 #define SDPCM_SEQUENCE_MASK		0x000000ff	/* Sequence Number Mask */
-#define SDPCM_PACKET_SEQUENCE(p) (((uint8 *)p)[0] & 0xff)	/* p starts w/SW Header */
+#define SDPCM_PACKET_SEQUENCE(p) (((u8 *)p)[0] & 0xff)	/* p starts w/SW Header */
 
 #define SDPCM_CHANNEL_MASK		0x00000f00	/* Channel Number Mask */
 #define SDPCM_CHANNEL_SHIFT		8	/* Channel Number Shift */
-#define SDPCM_PACKET_CHANNEL(p) (((uint8 *)p)[1] & 0x0f)	/* p starts w/SW Header */
+#define SDPCM_PACKET_CHANNEL(p) (((u8 *)p)[1] & 0x0f)	/* p starts w/SW Header */
 
 #define SDPCM_FLAGS_MASK		0x0000f000	/* Mask of flag bits */
 #define SDPCM_FLAGS_SHIFT		12	/* Flag bits shift */
-#define SDPCM_PACKET_FLAGS(p) ((((uint8 *)p)[1] & 0xf0) >> 4)	/* p starts w/SW Header */
+#define SDPCM_PACKET_FLAGS(p) ((((u8 *)p)[1] & 0xf0) >> 4)	/* p starts w/SW Header */
 
 /* Next Read Len: lookahead length of next frame, in 16-byte units (rounded up) */
 #define SDPCM_NEXTLEN_MASK		0x00ff0000	/* Next Read Len Mask */
 #define SDPCM_NEXTLEN_SHIFT		16	/* Next Read Len Shift */
-#define SDPCM_NEXTLEN_VALUE(p) ((((uint8 *)p)[2] & 0xff) << 4)	/* p starts w/SW Header */
+#define SDPCM_NEXTLEN_VALUE(p) ((((u8 *)p)[2] & 0xff) << 4)	/* p starts w/SW Header */
 #define SDPCM_NEXTLEN_OFFSET		2
 
 /* Data Offset from SOF (HW Tag, SW Tag, Pad) */
 #define SDPCM_DOFFSET_OFFSET		3	/* Data Offset */
-#define SDPCM_DOFFSET_VALUE(p) 		(((uint8 *)p)[SDPCM_DOFFSET_OFFSET] & 0xff)
+#define SDPCM_DOFFSET_VALUE(p) 		(((u8 *)p)[SDPCM_DOFFSET_OFFSET] & 0xff)
 #define SDPCM_DOFFSET_MASK		0xff000000
 #define SDPCM_DOFFSET_SHIFT		24
 
 #define SDPCM_FCMASK_OFFSET		4	/* Flow control */
-#define SDPCM_FCMASK_VALUE(p)		(((uint8 *)p)[SDPCM_FCMASK_OFFSET] & 0xff)
+#define SDPCM_FCMASK_VALUE(p)		(((u8 *)p)[SDPCM_FCMASK_OFFSET] & 0xff)
 #define SDPCM_WINDOW_OFFSET		5	/* Credit based fc */
-#define SDPCM_WINDOW_VALUE(p)		(((uint8 *)p)[SDPCM_WINDOW_OFFSET] & 0xff)
+#define SDPCM_WINDOW_VALUE(p)		(((u8 *)p)[SDPCM_WINDOW_OFFSET] & 0xff)
 #define SDPCM_VERSION_OFFSET		6	/* Version # */
-#define SDPCM_VERSION_VALUE(p)		(((uint8 *)p)[SDPCM_VERSION_OFFSET] & 0xff)
+#define SDPCM_VERSION_VALUE(p)		(((u8 *)p)[SDPCM_VERSION_OFFSET] & 0xff)
 #define SDPCM_UNUSED_OFFSET		7	/* Spare */
-#define SDPCM_UNUSED_VALUE(p)		(((uint8 *)p)[SDPCM_UNUSED_OFFSET] & 0xff)
+#define SDPCM_UNUSED_VALUE(p)		(((u8 *)p)[SDPCM_UNUSED_OFFSET] & 0xff)
 
 #define SDPCM_SWHEADER_LEN	8	/* SW header is 64 bits */
 
@@ -131,7 +131,7 @@
 /* For GLOM_CHANNEL frames, use a flag to indicate descriptor frame */
 #define SDPCM_GLOMDESC_FLAG	(SDPCM_FLAG_GLOMDESC << SDPCM_FLAGS_SHIFT)
 
-#define SDPCM_GLOMDESC(p)	(((uint8 *)p)[1] & 0x80)
+#define SDPCM_GLOMDESC(p)	(((u8 *)p)[1] & 0x80)
 
 /* For TEST_CHANNEL packets, define another 4-byte header */
 #define SDPCM_TEST_HDRLEN	4	/* Generally: Cmd(1), Ext(1), Len(2);
@@ -146,7 +146,7 @@
 #define SDPCM_TEST_SEND		0x05	/* Receiver sets send mode. Ext is boolean on/off */
 
 /* Handy macro for filling in datagen packets with a pattern */
-#define SDPCM_TEST_FILL(byteno, id)	((uint8)(id + byteno))
+#define SDPCM_TEST_FILL(byteno, id)	((u8)(id + byteno))
 
 /*
  * Software counters (first part matches hardware counters)

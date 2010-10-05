@@ -39,8 +39,8 @@
 typedef BWL_PRE_PACKED_STRUCT struct bcmeth_hdr {
 	uint16 subtype;
 	uint16 length;
-	uint8 version;
-	uint8 oui[3];
+	u8 version;
+	u8 oui[3];
 	uint16 usr_subtype;
 } BWL_POST_PACKED_STRUCT bcmeth_hdr_t;
 

@@ -357,11 +357,11 @@
 #define SROM9_REV_CRC		219
 
 typedef struct {
-	uint8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */
-	uint8 extpagain;	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
-	uint8 pdetrange;	/* support 32 combinations of different Pdet dynamic ranges */
-	uint8 triso;		/* TR switch isolation */
-	uint8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
+	u8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */
+	u8 extpagain;	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
+	u8 pdetrange;	/* support 32 combinations of different Pdet dynamic ranges */
+	u8 triso;		/* TR switch isolation */
+	u8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
 } srom_fem_t;
 
 #endif				/* _bcmsrom_fmt_h_ */

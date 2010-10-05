@@ -170,24 +170,24 @@ typedef volatile struct {
 	uint32 PAD[70];
 
 	/* UARTs */
-	uint8 uart0data;	/* 0x300 */
-	uint8 uart0imr;
-	uint8 uart0fcr;
-	uint8 uart0lcr;
-	uint8 uart0mcr;
-	uint8 uart0lsr;
-	uint8 uart0msr;
-	uint8 uart0scratch;
-	uint8 PAD[248];		/* corerev >= 1 */
+	u8 uart0data;	/* 0x300 */
+	u8 uart0imr;
+	u8 uart0fcr;
+	u8 uart0lcr;
+	u8 uart0mcr;
+	u8 uart0lsr;
+	u8 uart0msr;
+	u8 uart0scratch;
+	u8 PAD[248];		/* corerev >= 1 */
 
-	uint8 uart1data;	/* 0x400 */
-	uint8 uart1imr;
-	uint8 uart1fcr;
-	uint8 uart1lcr;
-	uint8 uart1mcr;
-	uint8 uart1lsr;
-	uint8 uart1msr;
-	uint8 uart1scratch;
+	u8 uart1data;	/* 0x400 */
+	u8 uart1imr;
+	u8 uart1fcr;
+	u8 uart1lcr;
+	u8 uart1mcr;
+	u8 uart1lsr;
+	u8 uart1msr;
+	u8 uart1scratch;
 	uint32 PAD[126];
 
 	/* PMU registers (corerev >= 20) */

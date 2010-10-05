@@ -32,8 +32,8 @@
 #define VLAN_TPID		0x8100
 
 struct ethervlan_header {
-	uint8 ether_dhost[ETHER_ADDR_LEN];
-	uint8 ether_shost[ETHER_ADDR_LEN];
+	u8 ether_dhost[ETHER_ADDR_LEN];
+	u8 ether_shost[ETHER_ADDR_LEN];
 	uint16 vlan_type;
 	uint16 vlan_tag;
 	uint16 ether_type;

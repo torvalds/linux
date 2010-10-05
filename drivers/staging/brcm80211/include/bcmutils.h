@@ -231,7 +231,7 @@ extern "C" {
 /* variable access */
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
-	extern int getintvararray(char *vars, const char *name, uint8 index);
+	extern int getintvararray(char *vars, const char *name, u8 index);
 	extern uint getgpiopin(char *vars, char *pin_name, uint def_pin);
 #ifdef BCMDBG
 	extern void prpkt(const char *msg, osl_t *osh, void *p0);
@@ -305,7 +305,7 @@ extern "C" {
 	"void", \
 	"bool", \
 	"int8", \
-	"uint8", \
+	"u8", \
 	"int16", \
 	"uint16", \
 	"int32", \
@@ -458,10 +458,10 @@ extern "C" {
 #ifndef NBBY			/* the BSD family defines NBBY */
 #define	NBBY	8		/* 8 bits per byte */
 #endif				/* #ifndef NBBY */
-#define	setbit(a, i)	(((uint8 *)a)[(i)/NBBY] |= 1<<((i)%NBBY))
-#define	clrbit(a, i)	(((uint8 *)a)[(i)/NBBY] &= ~(1<<((i)%NBBY)))
-#define	isset(a, i)	(((const uint8 *)a)[(i)/NBBY] & (1<<((i)%NBBY)))
-#define	isclr(a, i)	((((const uint8 *)a)[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
+#define	setbit(a, i)	(((u8 *)a)[(i)/NBBY] |= 1<<((i)%NBBY))
+#define	clrbit(a, i)	(((u8 *)a)[(i)/NBBY] &= ~(1<<((i)%NBBY)))
+#define	isset(a, i)	(((const u8 *)a)[(i)/NBBY] & (1<<((i)%NBBY)))
+#define	isclr(a, i)	((((const u8 *)a)[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
 #endif				/* setbit */
 
 #define	NBITS(type)	(sizeof(type) * 8)
@@ -505,9 +505,9 @@ extern "C" {
 
 /* tag_ID/length/value_buffer tuple */
 	typedef struct bcm_tlv {
-		uint8 id;
-		uint8 len;
-		uint8 data[1];
+		u8 id;
+		u8 len;
+		u8 data[1];
 	} bcm_tlv_t;
 
 /* Check that bcm_tlv_t fits into the given buflen */
@@ -519,7 +519,7 @@ extern "C" {
 /* crypto utility function */
 /* 128-bit xor: *dst = *src1 xor *src2. dst1, src1 and src2 may have any alignment */
 	static inline void
-	 xor_128bit_block(const uint8 *src1, const uint8 *src2, uint8 *dst) {
+	 xor_128bit_block(const u8 *src1, const u8 *src2, u8 *dst) {
 		if (
 #ifdef __i386__
 			   1 ||
@@ -550,8 +550,8 @@ extern "C" {
 
 /* externs */
 /* crc */
-	extern uint8 BCMROMFN(hndcrc8) (uint8 *p, uint nbytes, uint8 crc);
-	extern uint16 BCMROMFN(hndcrc16) (uint8 *p, uint nbytes, uint16 crc);
+	extern u8 BCMROMFN(hndcrc8) (u8 *p, uint nbytes, u8 crc);
+	extern uint16 BCMROMFN(hndcrc16) (u8 *p, uint nbytes, uint16 crc);
 /* format/print */
 #if defined(BCMDBG)
 	extern int bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags,
@@ -586,8 +586,8 @@ extern "C" {
 #define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
 /* power conversion */
-	extern uint16 BCMROMFN(bcm_qdbm_to_mw) (uint8 qdbm);
-	extern uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw);
+	extern uint16 BCMROMFN(bcm_qdbm_to_mw) (u8 qdbm);
+	extern u8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw);
 
 /* generic datastruct to help dump routines */
 	struct fielddesc {
@@ -598,8 +598,8 @@ extern "C" {
 
 	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
 	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
-	extern void bcm_inc_bytes(uchar *num, int num_bytes, uint8 amount);
-	extern int bcm_cmp_bytes(uchar *arg1, uchar *arg2, uint8 nbytes);
+	extern void bcm_inc_bytes(uchar *num, int num_bytes, u8 amount);
+	extern int bcm_cmp_bytes(uchar *arg1, uchar *arg2, u8 nbytes);
 	extern void bcm_print_bytes(char *name, const uchar *cdata, int len);
 
 	typedef uint32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
@@ -610,7 +610,7 @@ extern "C" {
 
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);
-	extern uint BCMROMFN(bcm_bitcount) (uint8 *bitmap, uint bytelength);
+	extern uint BCMROMFN(bcm_bitcount) (u8 *bitmap, uint bytelength);
 
 #ifdef __cplusplus
 }

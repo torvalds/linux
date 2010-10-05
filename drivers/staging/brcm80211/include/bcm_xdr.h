@@ -25,9 +25,9 @@
  *
  */
 typedef struct {
-	uint8 *buf;		/* pointer to current position in origbuf */
+	u8 *buf;		/* pointer to current position in origbuf */
 	uint size;		/* current (residual) size in bytes */
-	uint8 *origbuf;		/* unmodified pointer to orignal buffer */
+	u8 *origbuf;		/* unmodified pointer to orignal buffer */
 	uint origsize;		/* unmodified orignal buffer size in bytes */
 } bcm_xdr_buf_t;
 
@@ -47,8 +47,8 @@ int bcm_xdr_unpack_opaque_varlen(bcm_xdr_buf_t *b, uint *plen, void **pdata);
 int bcm_xdr_pack_string(bcm_xdr_buf_t *b, char *str);
 int bcm_xdr_unpack_string(bcm_xdr_buf_t *b, uint *plen, char **pstr);
 
-int bcm_xdr_pack_uint8_vec(bcm_xdr_buf_t *, uint8 *vec, uint32 elems);
-int bcm_xdr_unpack_uint8_vec(bcm_xdr_buf_t *, uint8 *vec, uint32 elems);
+int bcm_xdr_pack_u8_vec(bcm_xdr_buf_t *, u8 *vec, uint32 elems);
+int bcm_xdr_unpack_u8_vec(bcm_xdr_buf_t *, u8 *vec, uint32 elems);
 int bcm_xdr_pack_uint16_vec(bcm_xdr_buf_t *b, uint len, void *vec);
 int bcm_xdr_unpack_uint16_vec(bcm_xdr_buf_t *b, uint len, void *vec);
 int bcm_xdr_pack_uint32_vec(bcm_xdr_buf_t *b, uint len, void *vec);

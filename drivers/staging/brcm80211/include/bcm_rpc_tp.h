@@ -106,16 +106,16 @@ extern void bcm_rpc_tp_txflowctl(rpc_tp_info_t *rpcb, bool state, int prio);
 extern void bcm_rpc_tp_txflowctlcb_init(rpc_tp_info_t *rpc_th, void *ctx,
 					rpc_txflowctl_cb_t cb);
 extern void bcm_rpc_tp_txflowctlcb_deinit(rpc_tp_info_t *rpc_th);
-extern void bcm_rpc_tp_txq_wm_set(rpc_tp_info_t *rpc_th, uint8 hiwm,
-				  uint8 lowm);
-extern void bcm_rpc_tp_txq_wm_get(rpc_tp_info_t *rpc_th, uint8 *hiwm,
-				  uint8 *lowm);
+extern void bcm_rpc_tp_txq_wm_set(rpc_tp_info_t *rpc_th, u8 hiwm,
+				  u8 lowm);
+extern void bcm_rpc_tp_txq_wm_get(rpc_tp_info_t *rpc_th, u8 *hiwm,
+				  u8 *lowm);
 #endif				/* WLC_LOW */
 
 extern void bcm_rpc_tp_agg_set(rpc_tp_info_t *rpcb, uint32 reason, bool set);
-extern void bcm_rpc_tp_agg_limit_set(rpc_tp_info_t *rpc_th, uint8 sf,
+extern void bcm_rpc_tp_agg_limit_set(rpc_tp_info_t *rpc_th, u8 sf,
 				     uint16 bytes);
-extern void bcm_rpc_tp_agg_limit_get(rpc_tp_info_t *rpc_th, uint8 *sf,
+extern void bcm_rpc_tp_agg_limit_get(rpc_tp_info_t *rpc_th, u8 *sf,
 				     uint16 *bytes);
 
 #define BCM_RPC_TP_MSG_LEVEL_MASK	0x00ff
@@ -131,7 +131,7 @@ extern void bcm_rpc_tp_agg_limit_get(rpc_tp_info_t *rpc_th, uint8 *sf,
 #define RPC_TP_MSG_HOST_AGG_VAL		0x0004	/* DNGL TP agg msg */
 #define RPC_TP_MSG_HOST_DEA_VAL		0x0008	/* DNGL TP deag msg */
 
-extern void bcm_rpc_tp_msglevel_set(rpc_tp_info_t *rpc_th, uint8 msglevel,
+extern void bcm_rpc_tp_msglevel_set(rpc_tp_info_t *rpc_th, u8 msglevel,
 				    bool high_low);
 
 #endif				/* _bcm_rpc_tp_h_ */

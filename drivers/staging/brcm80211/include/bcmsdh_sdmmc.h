@@ -67,7 +67,7 @@ struct sdioh_info {
 	bool use_client_ints;	/* If this is false, make sure to restore */
 	int sd_mode;		/* SD1/SD4/SPI */
 	int client_block_size[SDIOD_MAX_IOFUNCS];	/* Blocksize */
-	uint8 num_funcs;	/* Supported funcs on client */
+	u8 num_funcs;	/* Supported funcs on client */
 	uint32 com_cis_ptr;
 	uint32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	uint max_dma_len;

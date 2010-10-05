@@ -46,15 +46,15 @@ typedef struct wl_bss_info_107 {
 	struct ether_addr BSSID;
 	uint16 beacon_period;	/* units are Kusec */
 	uint16 capability;	/* Capability information */
-	uint8 SSID_len;
-	uint8 SSID[32];
+	u8 SSID_len;
+	u8 SSID[32];
 	struct {
 		uint count;	/* # rates in this set */
-		uint8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
+		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
-	uint8 channel;		/* Channel no. */
+	u8 channel;		/* Channel no. */
 	uint16 atim_window;	/* units are Kusec */
-	uint8 dtim_period;	/* DTIM period */
+	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	int8 phy_noise;		/* noise (in dBm) */
 	uint32 ie_length;	/* byte length of Information Elements */
@@ -79,25 +79,25 @@ typedef struct wl_bss_info_108 {
 	struct ether_addr BSSID;
 	uint16 beacon_period;	/* units are Kusec */
 	uint16 capability;	/* Capability information */
-	uint8 SSID_len;
-	uint8 SSID[32];
+	u8 SSID_len;
+	u8 SSID[32];
 	struct {
 		uint count;	/* # rates in this set */
-		uint8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
+		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
 	chanspec_t chanspec;	/* chanspec for bss */
 	uint16 atim_window;	/* units are Kusec */
-	uint8 dtim_period;	/* DTIM period */
+	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	int8 phy_noise;		/* noise (in dBm) */
 
-	uint8 n_cap;		/* BSS is 802.11N Capable */
+	u8 n_cap;		/* BSS is 802.11N Capable */
 	uint32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
-	uint8 ctl_ch;		/* 802.11N BSS control channel number */
+	u8 ctl_ch;		/* 802.11N BSS control channel number */
 	uint32 reserved32[1];	/* Reserved for expansion of BSS properties */
-	uint8 flags;		/* flags */
-	uint8 reserved[3];	/* Reserved for expansion of BSS properties */
-	uint8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
+	u8 flags;		/* flags */
+	u8 reserved[3];	/* Reserved for expansion of BSS properties */
+	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
 	uint16 ie_offset;	/* offset at which IEs start, from beginning */
 	uint32 ie_length;	/* byte length of Information Elements */
@@ -123,25 +123,25 @@ typedef struct wl_bss_info {
 	struct ether_addr BSSID;
 	uint16 beacon_period;	/* units are Kusec */
 	uint16 capability;	/* Capability information */
-	uint8 SSID_len;
-	uint8 SSID[32];
+	u8 SSID_len;
+	u8 SSID[32];
 	struct {
 		uint count;	/* # rates in this set */
-		uint8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
+		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
 	chanspec_t chanspec;	/* chanspec for bss */
 	uint16 atim_window;	/* units are Kusec */
-	uint8 dtim_period;	/* DTIM period */
+	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	int8 phy_noise;		/* noise (in dBm) */
 
-	uint8 n_cap;		/* BSS is 802.11N Capable */
+	u8 n_cap;		/* BSS is 802.11N Capable */
 	uint32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
-	uint8 ctl_ch;		/* 802.11N BSS control channel number */
+	u8 ctl_ch;		/* 802.11N BSS control channel number */
 	uint32 reserved32[1];	/* Reserved for expansion of BSS properties */
-	uint8 flags;		/* flags */
-	uint8 reserved[3];	/* Reserved for expansion of BSS properties */
-	uint8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
+	u8 flags;		/* flags */
+	u8 reserved[3];	/* Reserved for expansion of BSS properties */
+	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
 	uint16 ie_offset;	/* offset at which IEs start, from beginning */
 	uint32 ie_length;	/* byte length of Information Elements */
@@ -156,8 +156,8 @@ typedef struct wlc_ssid {
 } wlc_ssid_t;
 
 typedef struct chan_scandata {
-	uint8 txpower;
-	uint8 pad;
+	u8 txpower;
+	u8 pad;
 	chanspec_t channel;	/* Channel num, bw, ctrl_sb and band */
 	uint32 channel_mintime;
 	uint32 channel_maxtime;
@@ -204,7 +204,7 @@ typedef struct wl_scan_params {
 	int8 bss_type;		/* default: any,
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
 				 */
-	uint8 scan_type;	/* flags, 0 use default */
+	u8 scan_type;	/* flags, 0 use default */
 	int32 nprobes;		/* -1 use default, number of probes per channel */
 	int32 active_time;	/* -1 use default, dwell time per channel for
 				 * active scanning
@@ -313,13 +313,13 @@ typedef struct wl_probe_params {
 #define WL_NUMRATES		16	/* max # of rates in a rateset */
 typedef struct wl_rateset {
 	uint32 count;		/* # rates in this set */
-	uint8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
+	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 } wl_rateset_t;
 
 typedef struct wl_rateset_args {
 	uint32 count;		/* # rates in this set */
-	uint8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
-	uint8 mcs[MCSSET_LEN];	/* supported mcs index bit map */
+	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
+	u8 mcs[MCSSET_LEN];	/* supported mcs index bit map */
 } wl_rateset_args_t;
 
 /* uint32 list */
@@ -386,8 +386,8 @@ typedef struct wl_join_params {
 #define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
 
 typedef struct {
-	uint8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
-	uint8 num_antcfg;	/* number of available antenna configurations */
+	u8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
+	u8 num_antcfg;	/* number of available antenna configurations */
 } wlc_antselcfg_t;
 
 #define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
@@ -425,7 +425,7 @@ typedef struct {
 
 typedef struct {
 	chanspec_t chanspec;	/* Which channel? */
-	uint8 num_secs;		/* How many secs worth of data */
+	u8 num_secs;		/* How many secs worth of data */
 	cca_congest_t secs[1];	/* Data */
 } cca_congest_channel_req_t;
 
@@ -501,13 +501,13 @@ typedef struct wl_rm_rep_elt {
 	uint32 tsf_l;		/* TSF low 32-bits */
 	uint32 dur;		/* TUs */
 	uint32 len;		/* byte length of data block */
-	uint8 data[1];		/* variable length data block */
+	u8 data[1];		/* variable length data block */
 } wl_rm_rep_elt_t;
 #define WL_RM_REP_ELT_FIXED_LEN	24	/* length excluding data block */
 
 #define WL_RPI_REP_BIN_NUM 8
 typedef struct wl_rm_rpi_rep {
-	uint8 rpi[WL_RPI_REP_BIN_NUM];
+	u8 rpi[WL_RPI_REP_BIN_NUM];
 	int8 rpi_max[WL_RPI_REP_BIN_NUM];
 } wl_rm_rpi_rep_t;
 
@@ -541,7 +541,7 @@ typedef struct wl_rm_rep {
 typedef struct wl_wsec_key {
 	uint32 index;		/* key index */
 	uint32 len;		/* key length */
-	uint8 data[DOT11_MAX_KEY_SIZE];	/* key data */
+	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */
 	uint32 pad_1[18];
 	uint32 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
 	uint32 flags;		/* misc flags */
@@ -568,7 +568,7 @@ typedef struct wl_wsec_key {
 typedef struct {
 	ushort key_len;		/* octets in key material */
 	ushort flags;		/* key handling qualification */
-	uint8 key[WSEC_MAX_PSK_LEN];	/* PMK material */
+	u8 key[WSEC_MAX_PSK_LEN];	/* PMK material */
 } wsec_pmk_t;
 
 /* wireless security bitvec */
@@ -598,7 +598,7 @@ typedef struct {
 
 typedef struct _pmkid {
 	struct ether_addr BSSID;
-	uint8 PMKID[WPA2_PMKID_LEN];
+	u8 PMKID[WPA2_PMKID_LEN];
 } pmkid_t;
 
 typedef struct _pmkid_list {
@@ -608,7 +608,7 @@ typedef struct _pmkid_list {
 
 typedef struct _pmkid_cand {
 	struct ether_addr BSSID;
-	uint8 preauth;
+	u8 preauth;
 } pmkid_cand_t;
 
 typedef struct _pmkid_cand_list {
@@ -619,7 +619,7 @@ typedef struct _pmkid_cand_list {
 typedef struct wl_led_info {
 	uint32 index;		/* led index */
 	uint32 behavior;
-	uint8 activehi;
+	u8 activehi;
 } wl_led_info_t;
 
 /* flags */
@@ -669,10 +669,10 @@ typedef struct {
 
 /* Per-AC retry parameters */
 struct wme_tx_params_s {
-	uint8 short_retry;
-	uint8 short_fallback;
-	uint8 long_retry;
-	uint8 long_fallback;
+	u8 short_retry;
+	u8 short_fallback;
+	u8 long_retry;
+	u8 long_fallback;
 	uint16 max_rate;	/* In units of 512 Kbps */
 };
 
@@ -694,7 +694,7 @@ typedef struct wme_tx_params_s wme_tx_params_t;
 /* Used to get specific link/ac parameters */
 typedef struct {
 	int ac;
-	uint8 val;
+	u8 val;
 	struct ether_addr ea;
 } link_val_t;
 
@@ -776,7 +776,7 @@ typedef struct wl_ioctl {
 	uint cmd;		/* common ioctl definition */
 	void *buf;		/* pointer to user buffer */
 	uint len;		/* length of user buffer */
-	uint8 set;		/* get or set request (optional) */
+	u8 set;		/* get or set request (optional) */
 	uint used;		/* bytes read or written (optional) */
 	uint needed;		/* bytes needed (optional) */
 } wl_ioctl_t;
@@ -830,8 +830,8 @@ typedef struct wl_txfifo_sz {
 /* Max supported IOV name size in bytes, + 1 for nul termination */
 #define WLC_IOV_NAME_LEN 30
 typedef struct wlc_iov_trx_s {
-	uint8 module;
-	uint8 type;
+	u8 module;
+	u8 type;
 	char name[WLC_IOV_NAME_LEN];
 } wlc_iov_trx_t;
 
@@ -1379,19 +1379,19 @@ typedef struct {
 #define NUM_PWRCTRL_RATES 12
 
 typedef struct {
-	uint8 txpwr_band_max[NUM_PWRCTRL_RATES];	/* User set target */
-	uint8 txpwr_limit[NUM_PWRCTRL_RATES];	/* reg and local power limit */
-	uint8 txpwr_local_max;	/* local max according to the AP */
-	uint8 txpwr_local_constraint;	/* local constraint according to the AP */
-	uint8 txpwr_chan_reg_max;	/* Regulatory max for this channel */
-	uint8 txpwr_target[2][NUM_PWRCTRL_RATES];	/* Latest target for 2.4 and 5 Ghz */
-	uint8 txpwr_est_Pout[2];	/* Latest estimate for 2.4 and 5 Ghz */
-	uint8 txpwr_opo[NUM_PWRCTRL_RATES];	/* On G phy, OFDM power offset */
-	uint8 txpwr_bphy_cck_max[NUM_PWRCTRL_RATES];	/* Max CCK power for this band (SROM) */
-	uint8 txpwr_bphy_ofdm_max;	/* Max OFDM power for this band (SROM) */
-	uint8 txpwr_aphy_max[NUM_PWRCTRL_RATES];	/* Max power for A band (SROM) */
+	u8 txpwr_band_max[NUM_PWRCTRL_RATES];	/* User set target */
+	u8 txpwr_limit[NUM_PWRCTRL_RATES];	/* reg and local power limit */
+	u8 txpwr_local_max;	/* local max according to the AP */
+	u8 txpwr_local_constraint;	/* local constraint according to the AP */
+	u8 txpwr_chan_reg_max;	/* Regulatory max for this channel */
+	u8 txpwr_target[2][NUM_PWRCTRL_RATES];	/* Latest target for 2.4 and 5 Ghz */
+	u8 txpwr_est_Pout[2];	/* Latest estimate for 2.4 and 5 Ghz */
+	u8 txpwr_opo[NUM_PWRCTRL_RATES];	/* On G phy, OFDM power offset */
+	u8 txpwr_bphy_cck_max[NUM_PWRCTRL_RATES];	/* Max CCK power for this band (SROM) */
+	u8 txpwr_bphy_ofdm_max;	/* Max OFDM power for this band (SROM) */
+	u8 txpwr_aphy_max[NUM_PWRCTRL_RATES];	/* Max power for A band (SROM) */
 	int8 txpwr_antgain[2];	/* Ant gain for each band - from SROM */
-	uint8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
+	u8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
 } tx_power_legacy_t;
 
 #define WL_TX_POWER_RATES_LEGACY	45
@@ -1404,18 +1404,18 @@ typedef struct {
 	uint32 flags;
 	chanspec_t chanspec;	/* txpwr report for this channel */
 	chanspec_t local_chanspec;	/* channel on which we are associated */
-	uint8 local_max;	/* local max according to the AP */
-	uint8 local_constraint;	/* local constraint according to the AP */
+	u8 local_max;	/* local max according to the AP */
+	u8 local_constraint;	/* local constraint according to the AP */
 	int8 antgain[2];	/* Ant gain for each band - from SROM */
-	uint8 rf_cores;		/* count of RF Cores being reported */
-	uint8 est_Pout[4];	/* Latest tx power out estimate per RF
+	u8 rf_cores;		/* count of RF Cores being reported */
+	u8 est_Pout[4];	/* Latest tx power out estimate per RF
 				 * chain without adjustment
 				 */
-	uint8 est_Pout_cck;	/* Latest CCK tx power out estimate */
-	uint8 user_limit[WL_TX_POWER_RATES_LEGACY];	/* User limit */
-	uint8 reg_limit[WL_TX_POWER_RATES_LEGACY];	/* Regulatory power limit */
-	uint8 board_limit[WL_TX_POWER_RATES_LEGACY];	/* Max power board can support (SROM) */
-	uint8 target[WL_TX_POWER_RATES_LEGACY];	/* Latest target power */
+	u8 est_Pout_cck;	/* Latest CCK tx power out estimate */
+	u8 user_limit[WL_TX_POWER_RATES_LEGACY];	/* User limit */
+	u8 reg_limit[WL_TX_POWER_RATES_LEGACY];	/* Regulatory power limit */
+	u8 board_limit[WL_TX_POWER_RATES_LEGACY];	/* Max power board can support (SROM) */
+	u8 target[WL_TX_POWER_RATES_LEGACY];	/* Latest target power */
 } tx_power_legacy2_t;
 
 #define WL_TX_POWER_RATES	       101
@@ -1452,26 +1452,26 @@ typedef struct {
 	uint32 flags;
 	chanspec_t chanspec;	/* txpwr report for this channel */
 	chanspec_t local_chanspec;	/* channel on which we are associated */
-	uint8 local_max;	/* local max according to the AP */
-	uint8 local_constraint;	/* local constraint according to the AP */
+	u8 local_max;	/* local max according to the AP */
+	u8 local_constraint;	/* local constraint according to the AP */
 	int8 antgain[2];	/* Ant gain for each band - from SROM */
-	uint8 rf_cores;		/* count of RF Cores being reported */
-	uint8 est_Pout[4];	/* Latest tx power out estimate per RF chain */
-	uint8 est_Pout_act[4];	/* Latest tx power out estimate per RF chain
+	u8 rf_cores;		/* count of RF Cores being reported */
+	u8 est_Pout[4];	/* Latest tx power out estimate per RF chain */
+	u8 est_Pout_act[4];	/* Latest tx power out estimate per RF chain
 				 * without adjustment
 				 */
-	uint8 est_Pout_cck;	/* Latest CCK tx power out estimate */
-	uint8 tx_power_max[4];	/* Maximum target power among all rates */
-	uint8 tx_power_max_rate_ind[4];	/* Index of the rate with the max target power */
-	uint8 user_limit[WL_TX_POWER_RATES];	/* User limit */
-	uint8 reg_limit[WL_TX_POWER_RATES];	/* Regulatory power limit */
-	uint8 board_limit[WL_TX_POWER_RATES];	/* Max power board can support (SROM) */
-	uint8 target[WL_TX_POWER_RATES];	/* Latest target power */
+	u8 est_Pout_cck;	/* Latest CCK tx power out estimate */
+	u8 tx_power_max[4];	/* Maximum target power among all rates */
+	u8 tx_power_max_rate_ind[4];	/* Index of the rate with the max target power */
+	u8 user_limit[WL_TX_POWER_RATES];	/* User limit */
+	u8 reg_limit[WL_TX_POWER_RATES];	/* Regulatory power limit */
+	u8 board_limit[WL_TX_POWER_RATES];	/* Max power board can support (SROM) */
+	u8 target[WL_TX_POWER_RATES];	/* Latest target power */
 } tx_power_t;
 
 typedef struct tx_inst_power {
-	uint8 txpwr_est_Pout[2];	/* Latest estimate for 2.4 and 5 Ghz */
-	uint8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
+	u8 txpwr_est_Pout[2];	/* Latest estimate for 2.4 and 5 Ghz */
+	u8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
 } tx_inst_power_t;
 
 /* Message levels */
@@ -1485,7 +1485,7 @@ typedef struct tx_inst_power {
 #define WL_NUMCHANSPECS		100
 
 struct tsinfo_arg {
-	uint8 octets[3];
+	u8 octets[3];
 };
 
 #define	NFIFO			6	/* # tx/rx fifopairs */
@@ -1834,19 +1834,19 @@ typedef struct wlc_ba_cnt {
 
 /* structure for per-tid ampdu control */
 struct ampdu_tid_control {
-	uint8 tid;		/* tid */
-	uint8 enable;		/* enable/disable */
+	u8 tid;		/* tid */
+	u8 enable;		/* enable/disable */
 };
 
 /* structure for identifying ea/tid for sending addba/delba */
 struct ampdu_ea_tid {
 	struct ether_addr ea;	/* Station address */
-	uint8 tid;		/* tid */
+	u8 tid;		/* tid */
 };
 /* structure for identifying retry/tid for retry_limit_tid/rr_retry_limit_tid */
 struct ampdu_retry_tid {
-	uint8 tid;		/* tid */
-	uint8 retry;		/* retry value */
+	u8 tid;		/* tid */
+	u8 retry;		/* retry value */
 };
 
 /* structure for addts arguments */
@@ -1878,7 +1878,7 @@ typedef struct tspec_arg {
 	uint min_phy_rate;	/* Minimum PHY Rate (bps) */
 	uint16 surplus_bw;	/* Surplus Bandwidth Allowance (range 1.0 to 8.0) */
 	uint16 medium_time;	/* Medium Time (32 us/s periods) */
-	uint8 dialog_token;	/* dialog token */
+	u8 dialog_token;	/* dialog token */
 } tspec_arg_t;
 
 /* tspec arg for desired station */
@@ -1934,7 +1934,7 @@ typedef struct wl_pkt_filter_pattern {
 				 * Offset '0' is the first byte of the ethernet header.
 				 */
 	uint32 size_bytes;	/* Size of the pattern.  Bitmask must be the same size. */
-	uint8 mask_and_pattern[1];	/* Variable length mask and pattern data.  mask starts
+	u8 mask_and_pattern[1];	/* Variable length mask and pattern data.  mask starts
 					 * at offset 0.  Pattern immediately follows mask.
 					 */
 } wl_pkt_filter_pattern_t;
@@ -1978,7 +1978,7 @@ typedef struct wl_pkteng {
 	uint32 delay;		/* Inter-packet delay */
 	uint32 nframes;		/* Number of frames */
 	uint32 length;		/* Packet length */
-	uint8 seqno;		/* Enable/disable sequence no. */
+	u8 seqno;		/* Enable/disable sequence no. */
 	struct ether_addr dest;	/* Destination address */
 	struct ether_addr src;	/* Source address */
 } wl_pkteng_t;

@@ -75,8 +75,8 @@ extern int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
  *   data: data byte to write
  *   err:  pointer to error code (or NULL)
  */
-extern uint8 bcmsdh_cfg_read(void *sdh, uint func, uint32 addr, int *err);
-extern void bcmsdh_cfg_write(void *sdh, uint func, uint32 addr, uint8 data,
+extern u8 bcmsdh_cfg_read(void *sdh, uint func, uint32 addr, int *err);
+extern void bcmsdh_cfg_write(void *sdh, uint func, uint32 addr, u8 data,
 			     int *err);
 
 /* Read/Write 4bytes from/to cfg space */
@@ -92,7 +92,7 @@ extern void bcmsdh_cfg_write_word(void *sdh, uint fnc_num, uint32 addr,
  * Internally, this routine uses the values from the cis base regs (0x9-0xB)
  * to form an SDIO-space address to read the data from.
  */
-extern int bcmsdh_cis_read(void *sdh, uint func, uint8 *cis, uint length);
+extern int bcmsdh_cis_read(void *sdh, uint func, u8 *cis, uint length);
 
 /* Synchronous access to device (client) core registers via CMD53 to F1.
  *   addr: backplane address (i.e. >= regsva from attach)
@@ -119,10 +119,10 @@ extern bool bcmsdh_regfail(void *sdh);
  */
 typedef void (*bcmsdh_cmplt_fn_t) (void *handle, int status, bool sync_waiting);
 extern int bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
-			   uint8 *buf, uint nbytes, void *pkt,
+			   u8 *buf, uint nbytes, void *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
 extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
-			   uint8 *buf, uint nbytes, void *pkt,
+			   u8 *buf, uint nbytes, void *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
 
 /* Flags bits */
@@ -140,7 +140,7 @@ extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-extern int bcmsdh_rwdata(void *sdh, uint rw, uint32 addr, uint8 *buf,
+extern int bcmsdh_rwdata(void *sdh, uint rw, uint32 addr, u8 *buf,
 			 uint nbytes);
 
 /* Issue an abort to the specified function */

@@ -75,11 +75,11 @@
 			WPA_CIPHER_NONE)
 
 /* Look for a WPA IE; return it's address if found, NULL otherwise */
-extern wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (uint8 *parse, uint len);
+extern wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (u8 *parse, uint len);
 
 /* Check whether the given IE looks like WFA IE with the specific type. */
-extern bool bcm_is_wfa_ie(uint8 *ie, uint8 **tlvs, uint *tlvs_len,
-			  uint8 type);
+extern bool bcm_is_wfa_ie(u8 *ie, u8 **tlvs, uint *tlvs_len,
+			  u8 type);
 /* Check whether pointed-to IE looks like WPA. */
 #define bcm_is_wpa_ie(ie, tlvs, len)	bcm_is_wfa_ie(ie, tlvs, len, WFA_OUI_TYPE_WPA)
 

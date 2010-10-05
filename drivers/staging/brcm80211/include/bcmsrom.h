@@ -29,6 +29,6 @@ extern int srom_read(si_t *sih, uint bus, void *curmap, osl_t *osh,
 /* parse standard PCMCIA cis, normally used by SB/PCMCIA/SDIO/SPI/OTP
  *   and extract from it into name=value pairs
  */
-extern int srom_parsecis(osl_t *osh, uint8 **pcis, uint ciscnt,
+extern int srom_parsecis(osl_t *osh, u8 **pcis, uint ciscnt,
 			 char **vars, uint *count);
 #endif				/* _bcmsrom_h_ */

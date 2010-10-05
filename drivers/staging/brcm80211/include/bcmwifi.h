@@ -31,7 +31,7 @@ typedef uint16 chanspec_t;
 #define WLC_MAX_2G_CHANNEL		CH_MAX_2G_CHANNEL	/* legacy define */
 #define	MAXCHANNEL		224	/* max # supported channels. The max channel no is 216,
 					 * this is that + 1 rounded up to a multiple of NBBY (8).
-					 * DO NOT MAKE it > 255: channels are uint8's all over
+					 * DO NOT MAKE it > 255: channels are u8's all over
 					 */
 
 #define WL_CHANSPEC_CHAN_MASK		0x00ff
@@ -74,7 +74,7 @@ typedef uint16 chanspec_t;
 					((channel) | (ctlsb) | WL_CHANSPEC_BW_40 | \
 					((channel) <= CH_MAX_2G_CHANNEL ? WL_CHANSPEC_BAND_2G : \
 					WL_CHANSPEC_BAND_5G))
-#define CHSPEC_CHANNEL(chspec)	((uint8)((chspec) & WL_CHANSPEC_CHAN_MASK))
+#define CHSPEC_CHANNEL(chspec)	((u8)((chspec) & WL_CHANSPEC_CHAN_MASK))
 #define CHSPEC_BAND(chspec)	((chspec) & WL_CHANSPEC_BAND_MASK)
 
 #ifdef WL11N_20MHZONLY
@@ -156,7 +156,7 @@ extern bool wf_chspec_malformed(chanspec_t chanspec);
  * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
  * sideband depending on the chanspec selected
  */
-extern uint8 wf_chspec_ctlchan(chanspec_t chspec);
+extern u8 wf_chspec_ctlchan(chanspec_t chspec);
 
 /*
  * This function returns the chanspec that control traffic is being sent on, for legacy

@@ -135,7 +135,7 @@ typedef void *(*exec_cb_t) (struct exec_parms *args);
 /* Client callbacks registered during dbus_attach() */
 typedef struct dbus_callbacks {
 	void (*send_complete) (void *cbarg, void *info, int status);
-	void (*recv_buf) (void *cbarg, uint8 *buf, int len);
+	void (*recv_buf) (void *cbarg, u8 *buf, int len);
 	void (*recv_pkt) (void *cbarg, void *pkt);
 	void (*txflowcontrol) (void *cbarg, bool onoff);
 	void (*errhandler) (void *cbarg, int err);
@@ -162,8 +162,8 @@ typedef struct {
 	int (*send_irb) (void *bus, struct dbus_irb_tx *txirb);
 	int (*recv_irb) (void *bus, struct dbus_irb_rx *rxirb);
 	int (*cancel_irb) (void *bus, struct dbus_irb_tx *txirb);
-	int (*send_ctl) (void *bus, uint8 *buf, int len);
-	int (*recv_ctl) (void *bus, uint8 *buf, int len);
+	int (*send_ctl) (void *bus, u8 *buf, int len);
+	int (*recv_ctl) (void *bus, u8 *buf, int len);
 	int (*get_stats) (void *bus, dbus_stats_t *stats);
 	int (*get_attrib) (void *bus, dbus_attrib_t *attrib);
 
@@ -186,7 +186,7 @@ typedef struct {
 
 	 bool(*device_exists) (void *bus);
 	 bool(*dlneeded) (void *bus);
-	int (*dlstart) (void *bus, uint8 *fw, int len);
+	int (*dlstart) (void *bus, u8 *fw, int len);
 	int (*dlrun) (void *bus);
 	 bool(*recv_needed) (void *bus);
 
@@ -245,11 +245,11 @@ extern int dbus_stop(const dbus_pub_t *pub);
 extern int dbus_shutdown(const dbus_pub_t *pub);
 extern void dbus_flowctrl_rx(const dbus_pub_t *pub, bool on);
 
-extern int dbus_send_buf(const dbus_pub_t *pub, uint8 *buf, int len,
+extern int dbus_send_buf(const dbus_pub_t *pub, u8 *buf, int len,
 			 void *info);
 extern int dbus_send_pkt(const dbus_pub_t *pub, void *pkt, void *info);
-extern int dbus_send_ctl(const dbus_pub_t *pub, uint8 *buf, int len);
-extern int dbus_recv_ctl(const dbus_pub_t *pub, uint8 *buf, int len);
+extern int dbus_send_ctl(const dbus_pub_t *pub, u8 *buf, int len);
+extern int dbus_recv_ctl(const dbus_pub_t *pub, u8 *buf, int len);
 
 extern int dbus_get_stats(const dbus_pub_t *pub, dbus_stats_t *stats);
 extern int dbus_get_attrib(const dbus_pub_t *pub, dbus_attrib_t *attrib);
@@ -281,7 +281,7 @@ typedef struct dbus_irb {
 
 typedef struct dbus_irb_rx {
 	struct dbus_irb irb;	/* Must be first */
-	uint8 *buf;
+	u8 *buf;
 	int buf_len;
 	int actual_len;
 	void *pkt;
@@ -291,7 +291,7 @@ typedef struct dbus_irb_rx {
 
 typedef struct dbus_irb_tx {
 	struct dbus_irb irb;	/* Must be first */
-	uint8 *buf;
+	u8 *buf;
 	int len;
 	void *pkt;
 	int retry_count;

@@ -107,25 +107,25 @@ typedef struct _pci_config_regs {
 	uint16 device;
 	uint16 command;
 	uint16 status;
-	uint8 rev_id;
-	uint8 prog_if;
-	uint8 sub_class;
-	uint8 base_class;
-	uint8 cache_line_size;
-	uint8 latency_timer;
-	uint8 header_type;
-	uint8 bist;
+	u8 rev_id;
+	u8 prog_if;
+	u8 sub_class;
+	u8 base_class;
+	u8 cache_line_size;
+	u8 latency_timer;
+	u8 header_type;
+	u8 bist;
 	uint32 base[PCI_BAR_MAX];
 	uint32 cardbus_cis;
 	uint16 subsys_vendor;
 	uint16 subsys_id;
 	uint32 baserom;
 	uint32 rsvd_a[PCR_RSVDA_MAX];
-	uint8 int_line;
-	uint8 int_pin;
-	uint8 min_gnt;
-	uint8 max_lat;
-	uint8 dev_dep[192];
+	u8 int_line;
+	u8 int_pin;
+	u8 min_gnt;
+	u8 max_lat;
+	u8 dev_dep[192];
 } pci_config_regs;
 
 #define	SZPCR		(sizeof (pci_config_regs))
@@ -335,21 +335,21 @@ typedef struct _ppb_config_regs {
 	uint16 device;
 	uint16 command;
 	uint16 status;
-	uint8 rev_id;
-	uint8 prog_if;
-	uint8 sub_class;
-	uint8 base_class;
-	uint8 cache_line_size;
-	uint8 latency_timer;
-	uint8 header_type;
-	uint8 bist;
+	u8 rev_id;
+	u8 prog_if;
+	u8 sub_class;
+	u8 base_class;
+	u8 cache_line_size;
+	u8 latency_timer;
+	u8 header_type;
+	u8 bist;
 	uint32 rsvd_a[PPB_RSVDA_MAX];
-	uint8 prim_bus;
-	uint8 sec_bus;
-	uint8 sub_bus;
-	uint8 sec_lat;
-	uint8 io_base;
-	uint8 io_lim;
+	u8 prim_bus;
+	u8 sec_bus;
+	u8 sub_bus;
+	u8 sec_lat;
+	u8 io_base;
+	u8 io_lim;
 	uint16 sec_status;
 	uint16 mem_base;
 	uint16 mem_lim;
@@ -362,14 +362,14 @@ typedef struct _ppb_config_regs {
 	uint16 subsys_vendor;
 	uint16 subsys_id;
 	uint32 rsvd_b;
-	uint8 rsvd_c;
-	uint8 int_pin;
+	u8 rsvd_c;
+	u8 int_pin;
 	uint16 bridge_ctrl;
-	uint8 chip_ctrl;
-	uint8 diag_ctrl;
+	u8 chip_ctrl;
+	u8 diag_ctrl;
 	uint16 arb_ctrl;
 	uint32 rsvd_d[PPB_RSVDD_MAX];
-	uint8 dev_dep[192];
+	u8 dev_dep[192];
 } ppb_config_regs;
 
 /* PCI CAPABILITY DEFINES */
@@ -382,8 +382,8 @@ typedef struct _ppb_config_regs {
  * Valid for PCI and PCIE configurations
  */
 typedef struct _pciconfig_cap_msi {
-	uint8 capID;
-	uint8 nextptr;
+	u8 capID;
+	u8 nextptr;
 	uint16 msgctrl;
 	uint32 msgaddr;
 } pciconfig_cap_msi;
@@ -392,12 +392,12 @@ typedef struct _pciconfig_cap_msi {
  * Valid for PCI and PCIE configurations
  */
 typedef struct _pciconfig_cap_pwrmgmt {
-	uint8 capID;
-	uint8 nextptr;
+	u8 capID;
+	u8 nextptr;
 	uint16 pme_cap;
 	uint16 pme_sts_ctrl;
-	uint8 pme_bridge_ext;
-	uint8 data;
+	u8 pme_bridge_ext;
+	u8 data;
 } pciconfig_cap_pwrmgmt;
 
 #define PME_CAP_PM_STATES (0x1f << 27)	/* Bits 31:27 states that can generate PME */
@@ -407,8 +407,8 @@ typedef struct _pciconfig_cap_pwrmgmt {
 
 /* Data structure to define the PCIE capability */
 typedef struct _pciconfig_cap_pcie {
-	uint8 capID;
-	uint8 nextptr;
+	u8 capID;
+	u8 nextptr;
 	uint16 pcie_cap;
 	uint32 dev_cap;
 	uint16 dev_ctrl;

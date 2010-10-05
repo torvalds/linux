@@ -21,31 +21,31 @@
 
 /* CCCR structure for function 0 */
 typedef volatile struct {
-	uint8 cccr_sdio_rev;	/* RO, cccr and sdio revision */
-	uint8 sd_rev;		/* RO, sd spec revision */
-	uint8 io_en;		/* I/O enable */
-	uint8 io_rdy;		/* I/O ready reg */
-	uint8 intr_ctl;		/* Master and per function interrupt enable control */
-	uint8 intr_status;	/* RO, interrupt pending status */
-	uint8 io_abort;		/* read/write abort or reset all functions */
-	uint8 bus_inter;	/* bus interface control */
-	uint8 capability;	/* RO, card capability */
+	u8 cccr_sdio_rev;	/* RO, cccr and sdio revision */
+	u8 sd_rev;		/* RO, sd spec revision */
+	u8 io_en;		/* I/O enable */
+	u8 io_rdy;		/* I/O ready reg */
+	u8 intr_ctl;		/* Master and per function interrupt enable control */
+	u8 intr_status;	/* RO, interrupt pending status */
+	u8 io_abort;		/* read/write abort or reset all functions */
+	u8 bus_inter;	/* bus interface control */
+	u8 capability;	/* RO, card capability */
 
-	uint8 cis_base_low;	/* 0x9 RO, common CIS base address, LSB */
-	uint8 cis_base_mid;
-	uint8 cis_base_high;	/* 0xB RO, common CIS base address, MSB */
+	u8 cis_base_low;	/* 0x9 RO, common CIS base address, LSB */
+	u8 cis_base_mid;
+	u8 cis_base_high;	/* 0xB RO, common CIS base address, MSB */
 
 	/* suspend/resume registers */
-	uint8 bus_suspend;	/* 0xC */
-	uint8 func_select;	/* 0xD */
-	uint8 exec_flag;	/* 0xE */
-	uint8 ready_flag;	/* 0xF */
+	u8 bus_suspend;	/* 0xC */
+	u8 func_select;	/* 0xD */
+	u8 exec_flag;	/* 0xE */
+	u8 ready_flag;	/* 0xF */
 
-	uint8 fn0_blk_size[2];	/* 0x10(LSB), 0x11(MSB) */
+	u8 fn0_blk_size[2];	/* 0x10(LSB), 0x11(MSB) */
 
-	uint8 power_control;	/* 0x12 (SDIO version 1.10) */
+	u8 power_control;	/* 0x12 (SDIO version 1.10) */
 
-	uint8 speed_control;	/* 0x13 */
+	u8 speed_control;	/* 0x13 */
 } sdio_regs_t;
 
 /* SDIO Device CCCR offsets */
@@ -134,20 +134,20 @@ typedef volatile struct {
 
 /* FBR structure for function 1-7, FBR addresses and register offsets */
 typedef volatile struct {
-	uint8 devctr;		/* device interface, CSA control */
-	uint8 ext_dev;		/* extended standard I/O device type code */
-	uint8 pwr_sel;		/* power selection support */
-	uint8 PAD[6];		/* reserved */
+	u8 devctr;		/* device interface, CSA control */
+	u8 ext_dev;		/* extended standard I/O device type code */
+	u8 pwr_sel;		/* power selection support */
+	u8 PAD[6];		/* reserved */
 
-	uint8 cis_low;		/* CIS LSB */
-	uint8 cis_mid;
-	uint8 cis_high;		/* CIS MSB */
-	uint8 csa_low;		/* code storage area, LSB */
-	uint8 csa_mid;
-	uint8 csa_high;		/* code storage area, MSB */
-	uint8 csa_dat_win;	/* data access window to function */
+	u8 cis_low;		/* CIS LSB */
+	u8 cis_mid;
+	u8 cis_high;		/* CIS MSB */
+	u8 csa_low;		/* code storage area, LSB */
+	u8 csa_mid;
+	u8 csa_high;		/* code storage area, MSB */
+	u8 csa_dat_win;	/* data access window to function */
 
-	uint8 fnx_blk_size[2];	/* block size, little endian */
+	u8 fnx_blk_size[2];	/* block size, little endian */
 } sdio_fbr_t;
 
 /* Maximum number of I/O funcs */

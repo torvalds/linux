@@ -105,16 +105,16 @@
 #define _NTOH32_UA(cp)	(((cp)[0] << 24) | ((cp)[1] << 16) | ((cp)[2] << 8) | (cp)[3])
 
 #define ltoh_ua(ptr) \
-	(sizeof(*(ptr)) == sizeof(uint8) ? *(const uint8 *)(ptr) : \
-	 sizeof(*(ptr)) == sizeof(uint16) ? _LTOH16_UA((const uint8 *)(ptr)) : \
-	 sizeof(*(ptr)) == sizeof(uint32) ? _LTOH32_UA((const uint8 *)(ptr)) : \
-	 *(uint8 *)0)
+	(sizeof(*(ptr)) == sizeof(u8) ? *(const u8 *)(ptr) : \
+	 sizeof(*(ptr)) == sizeof(uint16) ? _LTOH16_UA((const u8 *)(ptr)) : \
+	 sizeof(*(ptr)) == sizeof(uint32) ? _LTOH32_UA((const u8 *)(ptr)) : \
+	 *(u8 *)0)
 
 #define ntoh_ua(ptr) \
-	(sizeof(*(ptr)) == sizeof(uint8) ? *(const uint8 *)(ptr) : \
-	 sizeof(*(ptr)) == sizeof(uint16) ? _NTOH16_UA((const uint8 *)(ptr)) : \
-	 sizeof(*(ptr)) == sizeof(uint32) ? _NTOH32_UA((const uint8 *)(ptr)) : \
-	 *(uint8 *)0)
+	(sizeof(*(ptr)) == sizeof(u8) ? *(const u8 *)(ptr) : \
+	 sizeof(*(ptr)) == sizeof(uint16) ? _NTOH16_UA((const u8 *)(ptr)) : \
+	 sizeof(*(ptr)) == sizeof(uint32) ? _NTOH32_UA((const u8 *)(ptr)) : \
+	 *(u8 *)0)
 
 #ifdef __GNUC__
 
@@ -148,14 +148,14 @@
 
 #define htol16_ua_store(val, bytes) ({ \
 	uint16 _val = (val); \
-	uint8 *_bytes = (uint8 *)(bytes); \
+	u8 *_bytes = (u8 *)(bytes); \
 	_bytes[0] = _val & 0xff; \
 	_bytes[1] = _val >> 8; \
 })
 
 #define htol32_ua_store(val, bytes) ({ \
 	uint32 _val = (val); \
-	uint8 *_bytes = (uint8 *)(bytes); \
+	u8 *_bytes = (u8 *)(bytes); \
 	_bytes[0] = _val & 0xff; \
 	_bytes[1] = (_val >> 8) & 0xff; \
 	_bytes[2] = (_val >> 16) & 0xff; \
@@ -164,14 +164,14 @@
 
 #define hton16_ua_store(val, bytes) ({ \
 	uint16 _val = (val); \
-	uint8 *_bytes = (uint8 *)(bytes); \
+	u8 *_bytes = (u8 *)(bytes); \
 	_bytes[0] = _val >> 8; \
 	_bytes[1] = _val & 0xff; \
 })
 
 #define hton32_ua_store(val, bytes) ({ \
 	uint32 _val = (val); \
-	uint8 *_bytes = (uint8 *)(bytes); \
+	u8 *_bytes = (u8 *)(bytes); \
 	_bytes[0] = _val >> 24; \
 	_bytes[1] = (_val >> 16) & 0xff; \
 	_bytes[2] = (_val >> 8) & 0xff; \
@@ -179,22 +179,22 @@
 })
 
 #define ltoh16_ua(bytes) ({ \
-	const uint8 *_bytes = (const uint8 *)(bytes); \
+	const u8 *_bytes = (const u8 *)(bytes); \
 	_LTOH16_UA(_bytes); \
 })
 
 #define ltoh32_ua(bytes) ({ \
-	const uint8 *_bytes = (const uint8 *)(bytes); \
+	const u8 *_bytes = (const u8 *)(bytes); \
 	_LTOH32_UA(_bytes); \
 })
 
 #define ntoh16_ua(bytes) ({ \
-	const uint8 *_bytes = (const uint8 *)(bytes); \
+	const u8 *_bytes = (const u8 *)(bytes); \
 	_NTOH16_UA(_bytes); \
 })
 
 #define ntoh32_ua(bytes) ({ \
-	const uint8 *_bytes = (const uint8 *)(bytes); \
+	const u8 *_bytes = (const u8 *)(bytes); \
 	_NTOH32_UA(_bytes); \
 })
 
@@ -232,7 +232,7 @@ static inline void bcmswap16_buf(uint16 *buf, uint len)
 /*
  * Store 16-bit value to unaligned little-endian byte array.
  */
-static inline void htol16_ua_store(uint16 val, uint8 *bytes)
+static inline void htol16_ua_store(uint16 val, u8 *bytes)
 {
 	bytes[0] = val & 0xff;
 	bytes[1] = val >> 8;
@@ -241,7 +241,7 @@ static inline void htol16_ua_store(uint16 val, uint8 *bytes)
 /*
  * Store 32-bit value to unaligned little-endian byte array.
  */
-static inline void htol32_ua_store(uint32 val, uint8 *bytes)
+static inline void htol32_ua_store(uint32 val, u8 *bytes)
 {
 	bytes[0] = val & 0xff;
 	bytes[1] = (val >> 8) & 0xff;
@@ -252,7 +252,7 @@ static inline void htol32_ua_store(uint32 val, uint8 *bytes)
 /*
  * Store 16-bit value to unaligned network-(big-)endian byte array.
  */
-static inline void hton16_ua_store(uint16 val, uint8 *bytes)
+static inline void hton16_ua_store(uint16 val, u8 *bytes)
 {
 	bytes[0] = val >> 8;
 	bytes[1] = val & 0xff;
@@ -261,7 +261,7 @@ static inline void hton16_ua_store(uint16 val, uint8 *bytes)
 /*
  * Store 32-bit value to unaligned network-(big-)endian byte array.
  */
-static inline void hton32_ua_store(uint32 val, uint8 *bytes)
+static inline void hton32_ua_store(uint32 val, u8 *bytes)
 {
 	bytes[0] = val >> 24;
 	bytes[1] = (val >> 16) & 0xff;
@@ -274,7 +274,7 @@ static inline void hton32_ua_store(uint32 val, uint8 *bytes)
  */
 static inline uint16 ltoh16_ua(const void *bytes)
 {
-	return _LTOH16_UA((const uint8 *)bytes);
+	return _LTOH16_UA((const u8 *)bytes);
 }
 
 /*
@@ -282,7 +282,7 @@ static inline uint16 ltoh16_ua(const void *bytes)
  */
 static inline uint32 ltoh32_ua(const void *bytes)
 {
-	return _LTOH32_UA((const uint8 *)bytes);
+	return _LTOH32_UA((const u8 *)bytes);
 }
 
 /*
@@ -290,7 +290,7 @@ static inline uint32 ltoh32_ua(const void *bytes)
  */
 static inline uint16 ntoh16_ua(const void *bytes)
 {
-	return _NTOH16_UA((const uint8 *)bytes);
+	return _NTOH16_UA((const u8 *)bytes);
 }
 
 /*
@@ -298,7 +298,7 @@ static inline uint16 ntoh16_ua(const void *bytes)
  */
 static inline uint32 ntoh32_ua(const void *bytes)
 {
-	return _NTOH32_UA((const uint8 *)bytes);
+	return _NTOH32_UA((const u8 *)bytes);
 }
 
 #endif				/* !__GNUC__ */

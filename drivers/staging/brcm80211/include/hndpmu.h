@@ -43,13 +43,13 @@ extern uint32 si_pmu_alp_clock(si_t *sih, osl_t *osh);
 extern uint32 si_pmu_ilp_clock(si_t *sih, osl_t *osh);
 
 extern void si_pmu_set_switcher_voltage(si_t *sih, osl_t *osh,
-					uint8 bb_voltage, uint8 rf_voltage);
-extern void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, uint8 ldo,
-				   uint8 voltage);
+					u8 bb_voltage, u8 rf_voltage);
+extern void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo,
+				   u8 voltage);
 extern uint16 si_pmu_fast_pwrup_delay(si_t *sih, osl_t *osh);
 extern void si_pmu_rcal(si_t *sih, osl_t *osh);
 extern void si_pmu_pllupd(si_t *sih);
-extern void si_pmu_spuravoid(si_t *sih, osl_t *osh, uint8 spuravoid);
+extern void si_pmu_spuravoid(si_t *sih, osl_t *osh, u8 spuravoid);
 
 extern bool si_pmu_is_otp_powered(si_t *sih, osl_t *osh);
 extern uint32 si_pmu_measure_alpclk(si_t *sih, osl_t *osh);

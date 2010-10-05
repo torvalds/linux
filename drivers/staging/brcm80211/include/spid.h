@@ -23,12 +23,12 @@
  */
 
 typedef volatile struct {
-	uint8 config;		/* 0x00, len, endian, clock, speed, polarity, wakeup */
-	uint8 response_delay;	/* 0x01, read response delay in bytes (corerev < 3) */
-	uint8 status_enable;	/* 0x02, status-enable, intr with status, response_delay
+	u8 config;		/* 0x00, len, endian, clock, speed, polarity, wakeup */
+	u8 response_delay;	/* 0x01, read response delay in bytes (corerev < 3) */
+	u8 status_enable;	/* 0x02, status-enable, intr with status, response_delay
 				 * function selection, command/data error check
 				 */
-	uint8 reset_bp;		/* 0x03, reset on wlan/bt backplane reset (corerev >= 1) */
+	u8 reset_bp;		/* 0x03, reset on wlan/bt backplane reset (corerev >= 1) */
 	uint16 intr_reg;	/* 0x04, Intr status register */
 	uint16 intr_en_reg;	/* 0x06, Intr mask register */
 	uint32 status_reg;	/* 0x08, RO, Status bits of last spi transfer */
@@ -37,10 +37,10 @@ typedef volatile struct {
 	uint16 f3_info_reg;	/* 0x10, RO, enabled, ready for data transfer, blocksize */
 	uint32 test_read;	/* 0x14, RO 0xfeedbead signature */
 	uint32 test_rw;		/* 0x18, RW */
-	uint8 resp_delay_f0;	/* 0x1c, read resp delay bytes for F0 (corerev >= 3) */
-	uint8 resp_delay_f1;	/* 0x1d, read resp delay bytes for F1 (corerev >= 3) */
-	uint8 resp_delay_f2;	/* 0x1e, read resp delay bytes for F2 (corerev >= 3) */
-	uint8 resp_delay_f3;	/* 0x1f, read resp delay bytes for F3 (corerev >= 3) */
+	u8 resp_delay_f0;	/* 0x1c, read resp delay bytes for F0 (corerev >= 3) */
+	u8 resp_delay_f1;	/* 0x1d, read resp delay bytes for F1 (corerev >= 3) */
+	u8 resp_delay_f2;	/* 0x1e, read resp delay bytes for F2 (corerev >= 3) */
+	u8 resp_delay_f3;	/* 0x1f, read resp delay bytes for F3 (corerev >= 3) */
 } spi_regs_t;
 
 /* SPI device register offsets */

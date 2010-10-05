@@ -26,8 +26,8 @@
 
 /* Message trace header */
 typedef BWL_PRE_PACKED_STRUCT struct msgtrace_hdr {
-	uint8 version;
-	uint8 spare;
+	u8 version;
+	u8 spare;
 	uint16 len;		/* Len of the trace */
 	uint32 seqnum;		/* Sequence number of message. Useful
 				 * if the messsage has been lost
@@ -54,8 +54,8 @@ typedef BWL_PRE_PACKED_STRUCT struct msgtrace_hdr {
  */
 extern bool msgtrace_hbus_trace;
 
-typedef void (*msgtrace_func_send_t) (void *hdl1, void *hdl2, uint8 *hdr,
-				      uint16 hdrlen, uint8 *buf,
+typedef void (*msgtrace_func_send_t) (void *hdl1, void *hdl2, u8 *hdr,
+				      uint16 hdrlen, u8 *buf,
 				      uint16 buflen);
 
 extern void msgtrace_sent(void);

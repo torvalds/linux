@@ -45,34 +45,34 @@
 	((foo) >= ETHER_MIN_LEN && (foo) <= ETHER_MAX_LEN)
 
 #define ETHER_FILL_MCAST_ADDR_FROM_IP(ea, mgrp_ip) {		\
-		((uint8 *)ea)[0] = 0x01;			\
-		((uint8 *)ea)[1] = 0x00;			\
-		((uint8 *)ea)[2] = 0x5e;			\
-		((uint8 *)ea)[3] = ((mgrp_ip) >> 16) & 0x7f;	\
-		((uint8 *)ea)[4] = ((mgrp_ip) >>  8) & 0xff;	\
-		((uint8 *)ea)[5] = ((mgrp_ip) >>  0) & 0xff;	\
+		((u8 *)ea)[0] = 0x01;			\
+		((u8 *)ea)[1] = 0x00;			\
+		((u8 *)ea)[2] = 0x5e;			\
+		((u8 *)ea)[3] = ((mgrp_ip) >> 16) & 0x7f;	\
+		((u8 *)ea)[4] = ((mgrp_ip) >>  8) & 0xff;	\
+		((u8 *)ea)[5] = ((mgrp_ip) >>  0) & 0xff;	\
 }
 
 BWL_PRE_PACKED_STRUCT struct ether_header {
-	uint8 ether_dhost[ETHER_ADDR_LEN];
-	uint8 ether_shost[ETHER_ADDR_LEN];
+	u8 ether_dhost[ETHER_ADDR_LEN];
+	u8 ether_shost[ETHER_ADDR_LEN];
 	uint16 ether_type;
 } BWL_POST_PACKED_STRUCT;
 
 BWL_PRE_PACKED_STRUCT struct ether_addr {
-	uint8 octet[ETHER_ADDR_LEN];
+	u8 octet[ETHER_ADDR_LEN];
 } BWL_POST_PACKED_STRUCT;
 
-#define ETHER_SET_LOCALADDR(ea)	(((uint8 *)(ea))[0] = (((uint8 *)(ea))[0] | 2))
-#define ETHER_IS_LOCALADDR(ea) 	(((uint8 *)(ea))[0] & 2)
-#define ETHER_CLR_LOCALADDR(ea)	(((uint8 *)(ea))[0] = \
-	(((uint8 *)(ea))[0] & 0xd))
-#define ETHER_TOGGLE_LOCALADDR(ea)	(((uint8 *)(ea))[0] = \
-	(((uint8 *)(ea))[0] ^ 2))
+#define ETHER_SET_LOCALADDR(ea)	(((u8 *)(ea))[0] = (((u8 *)(ea))[0] | 2))
+#define ETHER_IS_LOCALADDR(ea) 	(((u8 *)(ea))[0] & 2)
+#define ETHER_CLR_LOCALADDR(ea)	(((u8 *)(ea))[0] = \
+	(((u8 *)(ea))[0] & 0xd))
+#define ETHER_TOGGLE_LOCALADDR(ea)	(((u8 *)(ea))[0] = \
+	(((u8 *)(ea))[0] ^ 2))
 
-#define ETHER_SET_UNICAST(ea)	(((uint8 *)(ea))[0] = (((uint8 *)(ea))[0] & ~1))
+#define ETHER_SET_UNICAST(ea)	(((u8 *)(ea))[0] = (((u8 *)(ea))[0] & ~1))
 
-#define ETHER_ISMULTI(ea) (((const uint8 *)(ea))[0] & 1)
+#define ETHER_ISMULTI(ea) (((const u8 *)(ea))[0] & 1)
 
 #define	ether_cmp(a, b)	(!(((short *)a)[0] == ((short *)b)[0]) | \
 			 !(((short *)a)[1] == ((short *)b)[1]) | \
@@ -86,18 +86,18 @@ BWL_PRE_PACKED_STRUCT struct ether_addr {
 static const struct ether_addr ether_bcast = { {255, 255, 255, 255, 255, 255} };
 static const struct ether_addr ether_null = { {0, 0, 0, 0, 0, 0} };
 
-#define ETHER_ISBCAST(ea)	((((uint8 *)(ea))[0] &		\
-	((uint8 *)(ea))[1] &		\
-	((uint8 *)(ea))[2] &		\
-	((uint8 *)(ea))[3] &		\
-	((uint8 *)(ea))[4] &		\
-	((uint8 *)(ea))[5]) == 0xff)
-#define ETHER_ISNULLADDR(ea)	((((uint8 *)(ea))[0] |		\
-	((uint8 *)(ea))[1] |		\
-	((uint8 *)(ea))[2] |		\
-	((uint8 *)(ea))[3] |		\
-	((uint8 *)(ea))[4] |		\
-	((uint8 *)(ea))[5]) == 0)
+#define ETHER_ISBCAST(ea)	((((u8 *)(ea))[0] &		\
+	((u8 *)(ea))[1] &		\
+	((u8 *)(ea))[2] &		\
+	((u8 *)(ea))[3] &		\
+	((u8 *)(ea))[4] &		\
+	((u8 *)(ea))[5]) == 0xff)
+#define ETHER_ISNULLADDR(ea)	((((u8 *)(ea))[0] |		\
+	((u8 *)(ea))[1] |		\
+	((u8 *)(ea))[2] |		\
+	((u8 *)(ea))[3] |		\
+	((u8 *)(ea))[4] |		\
+	((u8 *)(ea))[5]) == 0)
 
 #define ETHER_MOVE_HDR(d, s) \
 do { \

@@ -368,49 +368,49 @@ static __inline char *_wlc_rpc_id_lookup(const struct name_entry *tbl, int _id)
 
 #define wlc_rpc_txpwr_limits(b, txpwr, op, err)	\
 	do {											\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->cck, WLC_NUM_RATES_CCK);		\
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->cck, WLC_NUM_RATES_CCK);		\
 		ASSERT(!(err));									\
 												\
 		/* 20 MHz Legacy OFDM rates with SISO transmission */				\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->ofdm, WLC_NUM_RATES_OFDM);	\
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->ofdm, WLC_NUM_RATES_OFDM);	\
 		ASSERT(!(err));									\
 												\
 		/* 20 MHz Legacy OFDM rates with CDD transmission */				\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->ofdm_cdd, WLC_NUM_RATES_OFDM);   \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->ofdm_cdd, WLC_NUM_RATES_OFDM);   \
 		ASSERT(!(err));									\
 												\
 		/* 40 MHz Legacy OFDM rates with SISO transmission */				\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->ofdm_40_siso, WLC_NUM_RATES_OFDM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->ofdm_40_siso, WLC_NUM_RATES_OFDM); \
 		ASSERT(!(err));									\
 												\
 		/* 40 MHz Legacy OFDM rates with CDD transmission */				\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->ofdm_40_cdd, WLC_NUM_RATES_OFDM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->ofdm_40_cdd, WLC_NUM_RATES_OFDM); \
 		ASSERT(!(err));									\
 												\
 		/* 20MHz MCS rates SISO/CDD/STBC/SDM */							 \
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_20_siso, WLC_NUM_RATES_MCS_1_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_20_siso, WLC_NUM_RATES_MCS_1_STREAM); \
 		ASSERT(!(err));									\
 												\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_20_cdd, WLC_NUM_RATES_MCS_1_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_20_cdd, WLC_NUM_RATES_MCS_1_STREAM); \
 		ASSERT(!(err));									\
 												\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_20_stbc, WLC_NUM_RATES_MCS_1_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_20_stbc, WLC_NUM_RATES_MCS_1_STREAM); \
 		ASSERT(!(err));									\
 												\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_20_mimo, WLC_NUM_RATES_MCS_2_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_20_mimo, WLC_NUM_RATES_MCS_2_STREAM); \
 		ASSERT(!(err));									\
 												\
 		/* 40MHz MCS rates SISO/CDD/STBC/SDM */							 \
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_40_siso, WLC_NUM_RATES_MCS_1_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_40_siso, WLC_NUM_RATES_MCS_1_STREAM); \
 		ASSERT(!(err));									\
 												\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_40_cdd, WLC_NUM_RATES_MCS_1_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_40_cdd, WLC_NUM_RATES_MCS_1_STREAM); \
 		ASSERT(!(err));									\
 												\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_40_stbc, WLC_NUM_RATES_MCS_1_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_40_stbc, WLC_NUM_RATES_MCS_1_STREAM); \
 		ASSERT(!(err));									\
 												\
-		(err) = bcm_xdr_##op##_uint8_vec((b), (txpwr)->mcs_40_mimo, WLC_NUM_RATES_MCS_2_STREAM); \
+		(err) = bcm_xdr_##op##_u8_vec((b), (txpwr)->mcs_40_mimo, WLC_NUM_RATES_MCS_2_STREAM); \
 		ASSERT(!(err));									\
 	} while (0)
 

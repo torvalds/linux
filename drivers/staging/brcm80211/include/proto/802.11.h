@@ -98,25 +98,25 @@ BWL_PRE_PACKED_STRUCT struct dot11_bcn_prb {
 #define AC_VO			3
 #define AC_COUNT		4
 
-typedef uint8 ac_bitmap_t;
+typedef u8 ac_bitmap_t;
 
 #define AC_BITMAP_ALL		0xf
 #define AC_BITMAP_TST(ab, ac)	(((ab) & (1 << (ac))) != 0)
 
 BWL_PRE_PACKED_STRUCT struct edcf_acparam {
-	uint8 ACI;
-	uint8 ECW;
+	u8 ACI;
+	u8 ECW;
 	uint16 TXOP;
 } BWL_POST_PACKED_STRUCT;
 typedef struct edcf_acparam edcf_acparam_t;
 
 BWL_PRE_PACKED_STRUCT struct wme_param_ie {
-	uint8 oui[3];
-	uint8 type;
-	uint8 subtype;
-	uint8 version;
-	uint8 qosinfo;
-	uint8 rsvd;
+	u8 oui[3];
+	u8 type;
+	u8 subtype;
+	u8 version;
+	u8 qosinfo;
+	u8 rsvd;
 	edcf_acparam_t acparam[AC_COUNT];
 } BWL_POST_PACKED_STRUCT;
 typedef struct wme_param_ie wme_param_ie_t;
@@ -256,11 +256,11 @@ typedef struct d11cnt {
 
 BWL_PRE_PACKED_STRUCT struct ht_cap_ie {
 	uint16 cap;
-	uint8 params;
-	uint8 supp_mcs[MCSSET_LEN];
+	u8 params;
+	u8 supp_mcs[MCSSET_LEN];
 	uint16 ext_htcap;
 	uint32 txbf_cap;
-	uint8 as_cap;
+	u8 as_cap;
 } BWL_POST_PACKED_STRUCT;
 typedef struct ht_cap_ie ht_cap_ie_t;
 

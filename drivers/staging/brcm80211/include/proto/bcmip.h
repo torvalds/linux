@@ -27,24 +27,24 @@
 #define IP_VER_6		6
 
 #define IP_VER(ip_body) \
-	((((uint8 *)(ip_body))[IP_VER_OFFSET] & IP_VER_MASK) >> IP_VER_SHIFT)
+	((((u8 *)(ip_body))[IP_VER_OFFSET] & IP_VER_MASK) >> IP_VER_SHIFT)
 
 #define IPV4_TOS_OFFSET		1
 
 #define IPV4_ADDR_LEN		4
 
-#define	IPV4_TOS(ipv4_body)	(((uint8 *)(ipv4_body))[IPV4_TOS_OFFSET])
+#define	IPV4_TOS(ipv4_body)	(((u8 *)(ipv4_body))[IPV4_TOS_OFFSET])
 
 #define	IPV4_TOS_PREC_MASK	0xe0
 #define	IPV4_TOS_PREC_SHIFT	5
 
 BWL_PRE_PACKED_STRUCT struct ipv4_addr {
-	uint8 addr[IPV4_ADDR_LEN];
+	u8 addr[IPV4_ADDR_LEN];
 } BWL_POST_PACKED_STRUCT;
 
 #define IPV6_TRAFFIC_CLASS(ipv6_body) \
-	(((((uint8 *)(ipv6_body))[0] & 0x0f) << 4) | \
-	 ((((uint8 *)(ipv6_body))[1] & 0xf0) >> 4))
+	(((((u8 *)(ipv6_body))[0] & 0x0f) << 4) | \
+	 ((((u8 *)(ipv6_body))[1] & 0xf0) >> 4))
 
 #ifndef IP_TOS
 #define IP_TOS(ip_body) \

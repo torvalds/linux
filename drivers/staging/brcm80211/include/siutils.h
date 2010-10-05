@@ -185,25 +185,25 @@ extern uint32 si_gpiotimerval(si_t *sih, uint32 mask, uint32 val);
 extern bool si_deviceremoved(si_t *sih);
 extern uint32 si_socram_size(si_t *sih);
 extern uint32 si_socdevram_size(si_t *sih);
-extern void si_socdevram(si_t *sih, bool set, uint8 *ennable,
-			 uint8 *protect);
+extern void si_socdevram(si_t *sih, bool set, u8 *ennable,
+			 u8 *protect);
 extern bool si_socdevram_pkg(si_t *sih);
 
 extern void si_watchdog(si_t *sih, uint ticks);
 extern void si_watchdog_ms(si_t *sih, uint32 ms);
 extern void *si_gpiosetcore(si_t *sih);
 extern uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val,
-			     uint8 priority);
-extern uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, uint8 priority);
-extern uint32 si_gpioout(si_t *sih, uint32 mask, uint32 val, uint8 priority);
+			     u8 priority);
+extern uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, u8 priority);
+extern uint32 si_gpioout(si_t *sih, uint32 mask, uint32 val, u8 priority);
 extern uint32 si_gpioin(si_t *sih);
 extern uint32 si_gpiointpolarity(si_t *sih, uint32 mask, uint32 val,
-				 uint8 priority);
+				 u8 priority);
 extern uint32 si_gpiointmask(si_t *sih, uint32 mask, uint32 val,
-			     uint8 priority);
+			     u8 priority);
 extern uint32 si_gpioled(si_t *sih, uint32 mask, uint32 val);
-extern uint32 si_gpioreserve(si_t *sih, uint32 gpio_num, uint8 priority);
-extern uint32 si_gpiorelease(si_t *sih, uint32 gpio_num, uint8 priority);
+extern uint32 si_gpioreserve(si_t *sih, uint32 gpio_num, u8 priority);
+extern uint32 si_gpiorelease(si_t *sih, uint32 gpio_num, u8 priority);
 extern uint32 si_gpiopull(si_t *sih, bool updown, uint32 mask, uint32 val);
 extern uint32 si_gpioevent(si_t *sih, uint regtype, uint32 mask, uint32 val);
 extern uint32 si_gpio_int_enable(si_t *sih, bool enable);
@@ -233,7 +233,7 @@ extern uint16 si_d11_devid(si_t *sih);
 #define si_eci_init(sih) (0)
 #define si_eci_notify_bt(sih, type, val)  (0)
 #define si_seci(sih) 0
-static inline void *si_seci_init(si_t *sih, uint8 use_seci)
+static inline void *si_seci_init(si_t *sih, u8 use_seci)
 {
 	return NULL;
 }
@@ -394,13 +394,13 @@ extern int si_devpath(si_t *sih, char *path, int size);
 extern char *si_getdevpathvar(si_t *sih, const char *name);
 extern int si_getdevpathintvar(si_t *sih, const char *name);
 
-extern uint8 si_pcieclkreq(si_t *sih, uint32 mask, uint32 val);
+extern u8 si_pcieclkreq(si_t *sih, uint32 mask, uint32 val);
 extern uint32 si_pcielcreg(si_t *sih, uint32 mask, uint32 val);
 extern void si_war42780_clkreq(si_t *sih, bool clkreq);
 extern void si_pci_sleep(si_t *sih);
 extern void si_pci_down(si_t *sih);
 extern void si_pci_up(si_t *sih);
-extern void si_pcie_war_ovr_update(si_t *sih, uint8 aspm);
+extern void si_pcie_war_ovr_update(si_t *sih, u8 aspm);
 extern void si_pcie_extendL1timer(si_t *sih, bool extend);
 extern int si_pci_fixcfg(si_t *sih);
 extern void si_chippkg_set(si_t *sih, uint);

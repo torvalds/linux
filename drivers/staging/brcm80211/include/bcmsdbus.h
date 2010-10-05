@@ -67,7 +67,7 @@ extern int sdioh_release_host_and_unlock(sdioh_info_t *si);
 
 /* read or write one byte using cmd52 */
 extern SDIOH_API_RC sdioh_request_byte(sdioh_info_t *si, uint rw, uint fnc,
-				       uint addr, uint8 *byte);
+				       uint addr, u8 *byte);
 
 /* read or write 2/4 bytes using cmd53 */
 extern SDIOH_API_RC sdioh_request_word(sdioh_info_t *si, uint cmd_type,
@@ -78,17 +78,17 @@ extern SDIOH_API_RC sdioh_request_word(sdioh_info_t *si, uint cmd_type,
 extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma,
 					 uint fix_inc, uint rw, uint fnc_num,
 					 uint32 addr, uint regwidth,
-					 uint32 buflen, uint8 *buffer,
+					 uint32 buflen, u8 *buffer,
 					 void *pkt);
 
 /* get cis data */
-extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, uint8 *cis,
+extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, u8 *cis,
 				   uint32 length);
 
 extern SDIOH_API_RC sdioh_cfg_read(sdioh_info_t *si, uint fuc, uint32 addr,
-				   uint8 *data);
+				   u8 *data);
 extern SDIOH_API_RC sdioh_cfg_write(sdioh_info_t *si, uint fuc, uint32 addr,
-				    uint8 *data);
+				    u8 *data);
 
 /* query number of io functions */
 extern uint sdioh_query_iofnum(sdioh_info_t *si);

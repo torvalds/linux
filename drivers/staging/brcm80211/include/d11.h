@@ -633,9 +633,9 @@ typedef volatile struct _d11regs {
 /* 802.11a PLCP header def */
 typedef struct ofdm_phy_hdr ofdm_phy_hdr_t;
 BWL_PRE_PACKED_STRUCT struct ofdm_phy_hdr {
-	uint8 rlpt[3];		/* rate, length, parity, tail */
+	u8 rlpt[3];		/* rate, length, parity, tail */
 	uint16 service;
-	uint8 pad;
+	u8 pad;
 } BWL_POST_PACKED_STRUCT;
 
 #define	D11A_PHY_HDR_GRATE(phdr)	((phdr)->rlpt[0] & 0x0f)
@@ -668,8 +668,8 @@ BWL_PRE_PACKED_STRUCT struct ofdm_phy_hdr {
 /* 802.11b PLCP header def */
 typedef struct cck_phy_hdr cck_phy_hdr_t;
 BWL_PRE_PACKED_STRUCT struct cck_phy_hdr {
-	uint8 signal;
-	uint8 service;
+	u8 signal;
+	u8 service;
 	uint16 length;
 	uint16 crc;
 } BWL_POST_PACKED_STRUCT;
@@ -725,12 +725,12 @@ BWL_PRE_PACKED_STRUCT struct d11txh {
 	uint16 PhyTxControlWord_1_FbrRts;	/* 0x8 */
 	uint16 MainRates;	/* 0x9 */
 	uint16 XtraFrameTypes;	/* 0xa */
-	uint8 IV[16];		/* 0x0b - 0x12 */
-	uint8 TxFrameRA[6];	/* 0x13 - 0x15 */
+	u8 IV[16];		/* 0x0b - 0x12 */
+	u8 TxFrameRA[6];	/* 0x13 - 0x15 */
 	uint16 TxFesTimeFallback;	/* 0x16 */
-	uint8 RTSPLCPFallback[6];	/* 0x17 - 0x19 */
+	u8 RTSPLCPFallback[6];	/* 0x17 - 0x19 */
 	uint16 RTSDurFallback;	/* 0x1a */
-	uint8 FragPLCPFallback[6];	/* 0x1b - 1d */
+	u8 FragPLCPFallback[6];	/* 0x1b - 1d */
 	uint16 FragDurFallback;	/* 0x1e */
 	uint16 MModeLen;	/* 0x1f */
 	uint16 MModeFbrLen;	/* 0x20 */
@@ -745,7 +745,7 @@ BWL_PRE_PACKED_STRUCT struct d11txh {
 	uint16 MaxABytes_MRT;	/* 0x29 corerev >=16 */
 	uint16 MaxABytes_FBR;	/* 0x2a corerev >=16 */
 	uint16 MinMBytes;	/* 0x2b corerev >=16 */
-	uint8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
+	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct dot11_rts_frame rts_frame;	/* 0x2f - 0x36 */
 	uint16 PAD;		/* 0x37 */
 } BWL_POST_PACKED_STRUCT;

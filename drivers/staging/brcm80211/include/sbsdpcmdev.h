@@ -87,10 +87,10 @@ typedef volatile struct {
 	uint32 PAD[3];
 
 	/* PCMCIA frame control */
-	uint8 pcmciaframectrl;	/* pcmciaFrameCtrl, 0x060, rev8   */
-	uint8 PAD[3];
-	uint8 pcmciawatermark;	/* pcmciaWaterMark, 0x064, rev8   */
-	uint8 PAD[155];
+	u8 pcmciaframectrl;	/* pcmciaFrameCtrl, 0x060, rev8   */
+	u8 PAD[3];
+	u8 pcmciawatermark;	/* pcmciaWaterMark, 0x064, rev8   */
+	u8 PAD[155];
 
 	/* interrupt batching control */
 	uint32 intrcvlazy;	/* IntRcvLazy, 0x100, rev8 */

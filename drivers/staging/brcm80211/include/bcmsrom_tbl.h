@@ -499,8 +499,8 @@ static const povars_t povars[] = {
 };
 
 typedef struct {
-	uint8 tag;		/* Broadcom subtag name */
-	uint8 len;		/* Length field of the tuple, note that it includes the
+	u8 tag;		/* Broadcom subtag name */
+	u8 len;		/* Length field of the tuple, note that it includes the
 				 * subtag name (1 byte): 1 + tuple content length
 				 */
 	const char *params;

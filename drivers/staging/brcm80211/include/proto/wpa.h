@@ -37,13 +37,13 @@
 #define WPA2_PMKID_LEN	16
 
 typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 tag;
-	uint8 length;
-	uint8 oui[3];
-	uint8 oui_type;
+	u8 tag;
+	u8 length;
+	u8 oui[3];
+	u8 oui_type;
 	BWL_PRE_PACKED_STRUCT struct {
-		uint8 low;
-		uint8 high;
+		u8 low;
+		u8 high;
 	} BWL_POST_PACKED_STRUCT version;
 } BWL_POST_PACKED_STRUCT wpa_ie_fixed_t;
 #define WPA_IE_OUITYPE_LEN	4
@@ -51,35 +51,35 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 #define WPA_IE_TAG_FIXED_LEN	6
 
 typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 tag;
-	uint8 length;
+	u8 tag;
+	u8 length;
 	BWL_PRE_PACKED_STRUCT struct {
-		uint8 low;
-		uint8 high;
+		u8 low;
+		u8 high;
 	} BWL_POST_PACKED_STRUCT version;
 } BWL_POST_PACKED_STRUCT wpa_rsn_ie_fixed_t;
 #define WPA_RSN_IE_FIXED_LEN	4
 #define WPA_RSN_IE_TAG_FIXED_LEN	2
-typedef uint8 wpa_pmkid_t[WPA2_PMKID_LEN];
+typedef u8 wpa_pmkid_t[WPA2_PMKID_LEN];
 
 typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 oui[3];
-	uint8 type;
+	u8 oui[3];
+	u8 type;
 } BWL_POST_PACKED_STRUCT wpa_suite_t, wpa_suite_mcast_t;
 #define WPA_SUITE_LEN	4
 
 typedef BWL_PRE_PACKED_STRUCT struct {
 	BWL_PRE_PACKED_STRUCT struct {
-		uint8 low;
-		uint8 high;
+		u8 low;
+		u8 high;
 	} BWL_POST_PACKED_STRUCT count;
 	wpa_suite_t list[1];
 } BWL_POST_PACKED_STRUCT wpa_suite_ucast_t, wpa_suite_auth_key_mgmt_t;
 #define WPA_IE_SUITE_COUNT_LEN	2
 typedef BWL_PRE_PACKED_STRUCT struct {
 	BWL_PRE_PACKED_STRUCT struct {
-		uint8 low;
-		uint8 high;
+		u8 low;
+		u8 high;
 	} BWL_POST_PACKED_STRUCT count;
 	wpa_pmkid_t list[1];
 } BWL_POST_PACKED_STRUCT wpa_pmkid_list_t;
