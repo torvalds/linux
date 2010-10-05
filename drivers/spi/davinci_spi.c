@@ -118,9 +118,6 @@ struct davinci_spi_dma {
 	int			dma_rx_channel;
 	int			dummy_param_slot;
 	enum dma_event_q	eventq;
-
-	struct completion	dma_tx_completion;
-	struct completion	dma_rx_completion;
 };
 
 /* SPI Controller driver's private data. */
@@ -386,32 +383,6 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	return 0;
 }
 
-static void davinci_spi_dma_rx_callback(unsigned lch, u16 ch_status, void *data)
-{
-	struct davinci_spi *davinci_spi = data;
-	struct davinci_spi_dma *davinci_spi_dma = &davinci_spi->dma_channels;
-
-	edma_stop(davinci_spi_dma->dma_rx_channel);
-
-	if (ch_status == DMA_COMPLETE)
-		davinci_spi->rcount = 0;
-
-	complete(&davinci_spi_dma->dma_rx_completion);
-}
-
-static void davinci_spi_dma_tx_callback(unsigned lch, u16 ch_status, void *data)
-{
-	struct davinci_spi *davinci_spi = data;
-	struct davinci_spi_dma *davinci_spi_dma = &davinci_spi->dma_channels;
-
-	edma_stop(davinci_spi_dma->dma_tx_channel);
-
-	if (ch_status == DMA_COMPLETE)
-		davinci_spi->wcount = 0;
-
-	complete(&davinci_spi_dma->dma_tx_completion);
-}
-
 /**
  * davinci_spi_setup - This functions will set default transfer method
  * @spi: spi device on which data transfer to be done
@@ -630,6 +601,25 @@ static irqreturn_t davinci_spi_irq(s32 irq, void *context_data)
 	return IRQ_HANDLED;
 }
 
+static void davinci_spi_dma_callback(unsigned lch, u16 status, void *data)
+{
+	struct davinci_spi *davinci_spi = data;
+	struct davinci_spi_dma *davinci_spi_dma = &davinci_spi->dma_channels;
+
+	edma_stop(lch);
+
+	if (status == DMA_COMPLETE) {
+		if (lch == davinci_spi_dma->dma_rx_channel)
+			davinci_spi->rcount = 0;
+		if (lch == davinci_spi_dma->dma_tx_channel)
+			davinci_spi->wcount = 0;
+	}
+
+	if ((!davinci_spi->wcount && !davinci_spi->rcount) ||
+	    (status != DMA_COMPLETE))
+		complete(&davinci_spi->done);
+}
+
 static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *davinci_spi;
@@ -660,8 +650,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	davinci_spi->wcount = t->len / data_type;
 	davinci_spi->rcount = davinci_spi->wcount;
 
-	init_completion(&davinci_spi_dma->dma_rx_completion);
-	init_completion(&davinci_spi_dma->dma_tx_completion);
+	INIT_COMPLETION(davinci_spi->done);
 
 	/* disable all interrupts for dma transfers */
 	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
@@ -752,8 +741,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	edma_start(davinci_spi_dma->dma_tx_channel);
 	set_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
 
-	wait_for_completion_interruptible(&davinci_spi_dma->dma_tx_completion);
-	wait_for_completion_interruptible(&davinci_spi_dma->dma_rx_completion);
+	wait_for_completion_interruptible(&davinci_spi->done);
 
 	if (t->tx_buf)
 		dma_unmap_single(NULL, t->tx_dma, davinci_spi->wcount,
@@ -787,7 +775,7 @@ static int davinci_spi_request_dma(struct davinci_spi *davinci_spi)
 	struct davinci_spi_dma *davinci_spi_dma = &davinci_spi->dma_channels;
 
 	r = edma_alloc_channel(davinci_spi_dma->dma_rx_channel,
-				davinci_spi_dma_rx_callback, davinci_spi,
+				davinci_spi_dma_callback, davinci_spi,
 				davinci_spi_dma->eventq);
 	if (r < 0) {
 		pr_err("Unable to request DMA channel for SPI RX\n");
@@ -796,7 +784,7 @@ static int davinci_spi_request_dma(struct davinci_spi *davinci_spi)
 	}
 
 	r = edma_alloc_channel(davinci_spi_dma->dma_tx_channel,
-				davinci_spi_dma_tx_callback, davinci_spi,
+				davinci_spi_dma_callback, davinci_spi,
 				davinci_spi_dma->eventq);
 	if (r < 0) {
 		pr_err("Unable to request DMA channel for SPI TX\n");
