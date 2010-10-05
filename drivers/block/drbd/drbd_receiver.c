@@ -970,9 +970,10 @@ static int drbd_recv_header(struct drbd_conf *mdev, enum drbd_packets *cmd, unsi
 		*cmd = be16_to_cpu(h->h95.command);
 		*packet_size = be32_to_cpu(h->h95.length);
 	} else {
-		dev_err(DEV, "magic?? on data m: 0x%lx c: %d l: %d\n",
-		    (long)be32_to_cpu(h->h80.magic),
-		    h->h80.command, h->h80.length);
+		dev_err(DEV, "magic?? on data m: 0x%08x c: %d l: %d\n",
+		    be32_to_cpu(h->h80.magic),
+		    be16_to_cpu(h->h80.command),
+		    be16_to_cpu(h->h80.length));
 		return FALSE;
 	}
 	mdev->last_received = jiffies;
@@ -3421,7 +3422,7 @@ recv_bm_rle_bits(struct drbd_conf *mdev,
 	u64 tmp;
 	unsigned long s = c->bit_offset;
 	unsigned long e;
-	int len = p->head.length - (sizeof(*p) - sizeof(p->head));
+	int len = be16_to_cpu(p->head.length) - (sizeof(*p) - sizeof(p->head));
 	int toggle = DCBP_get_start(p);
 	int have;
 	int bits;
@@ -3570,8 +3571,8 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 			memcpy(p, h, sizeof(*h));
 			if (drbd_recv(mdev, p->head.payload, data_size) != data_size)
 				goto out;
-			if (p->head.length <= (sizeof(*p) - sizeof(p->head))) {
-				dev_err(DEV, "ReportCBitmap packet too small (l:%u)\n", p->head.length);
+			if (data_size <= (sizeof(*p) - sizeof(p->head))) {
+				dev_err(DEV, "ReportCBitmap packet too small (l:%u)\n", data_size);
 				return FAILED;
 			}
 			ret = decode_bitmap_c(mdev, p, &c);
@@ -4582,17 +4583,19 @@ int drbd_asender(struct drbd_thread *thi)
 
 		if (received == expect && cmd == NULL) {
 			if (unlikely(h->magic != BE_DRBD_MAGIC)) {
-				dev_err(DEV, "magic?? on meta m: 0x%lx c: %d l: %d\n",
-				    (long)be32_to_cpu(h->magic),
-				    h->command, h->length);
+				dev_err(DEV, "magic?? on meta m: 0x%08x c: %d l: %d\n",
+				    be32_to_cpu(h->magic),
+				    be16_to_cpu(h->command),
+				    be16_to_cpu(h->length));
 				goto reconnect;
 			}
 			cmd = get_asender_cmd(be16_to_cpu(h->command));
 			len = be16_to_cpu(h->length);
 			if (unlikely(cmd == NULL)) {
-				dev_err(DEV, "unknown command?? on meta m: 0x%lx c: %d l: %d\n",
-				    (long)be32_to_cpu(h->magic),
-				    h->command, h->length);
+				dev_err(DEV, "unknown command?? on meta m: 0x%08x c: %d l: %d\n",
+				    be32_to_cpu(h->magic),
+				    be16_to_cpu(h->command),
+				    be16_to_cpu(h->length));
 				goto disconnect;
 			}
 			expect = cmd->pkt_size;
