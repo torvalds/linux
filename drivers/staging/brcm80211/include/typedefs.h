@@ -96,10 +96,6 @@ typedef signed int int32;
 #define TRUE	1		/* TRUE */
 #endif
 
-#ifndef NULL
-#define	NULL	0
-#endif
-
 #ifndef OFF
 #define	OFF	0
 #endif
