@@ -2366,15 +2366,10 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 		goto out_err;
 	}
 
-	if (xprt_bound(xprt))
-		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
-				xprt->address_strings[RPC_DISPLAY_ADDR],
-				xprt->address_strings[RPC_DISPLAY_PORT],
-				xprt->address_strings[RPC_DISPLAY_PROTO]);
-	else
-		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
-				xprt->address_strings[RPC_DISPLAY_ADDR],
-				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT],
+			xprt->address_strings[RPC_DISPLAY_PROTO]);
 
 	/*
 	 * Since we don't want connections for the backchannel, we set
