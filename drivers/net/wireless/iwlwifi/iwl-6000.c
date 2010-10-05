@@ -51,7 +51,7 @@
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
-#define IWL6050_UCODE_API_MAX 4
+#define IWL6050_UCODE_API_MAX 5
 #define IWL6000G2_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
@@ -83,13 +83,22 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
-/* Indicate calibration version to uCode. */
-static void iwl6000_set_calib_version(struct iwl_priv *priv)
+static void iwl6050_additional_nic_config(struct iwl_priv *priv)
 {
-	if (priv->cfg->need_dc_calib &&
-	    (priv->cfg->ops->lib->eeprom_ops.calib_version(priv) >= 6))
+	/* Indicate calibration version to uCode. */
+	if (priv->cfg->ops->lib->eeprom_ops.calib_version(priv) >= 6)
 		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+}
+
+static void iwl6050g2_additional_nic_config(struct iwl_priv *priv)
+{
+	/* Indicate calibration version to uCode. */
+	if (priv->cfg->ops->lib->eeprom_ops.calib_version(priv) >= 6)
+		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+	iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+		    CSR_GP_DRIVER_REG_BIT_6050_1x2);
 }
 
 /* NIC configuration for 6000 series */
@@ -117,9 +126,11 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 		iwl_write32(priv, CSR_GP_DRIVER_REG,
 			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 	}
-	/* else do nothing, uCode configured */
-	if (priv->cfg->ops->lib->temp_ops.set_calib_version)
-		priv->cfg->ops->lib->temp_ops.set_calib_version(priv);
+	/* do additional nic configuration if needed */
+	if (priv->cfg->ops->nic &&
+		priv->cfg->ops->nic->additional_nic_config) {
+			priv->cfg->ops->nic->additional_nic_config(priv);
+	}
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
@@ -188,7 +199,7 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_TX_IQ)		|
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
-		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_DC);
+		priv->hw_params.calib_rt_cfg |= BIT(IWL_CALIB_CFG_DC_IDX);
 
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
@@ -320,7 +331,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
-		.set_calib_version = iwl6000_set_calib_version,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -396,7 +406,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
-		.set_calib_version = iwl6000_set_calib_version,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -419,11 +428,35 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 	}
 };
 
+static struct iwl_nic_ops iwl6050_nic_ops = {
+	.additional_nic_config = &iwl6050_additional_nic_config,
+};
+
+static struct iwl_nic_ops iwl6050g2_nic_ops = {
+	.additional_nic_config = &iwl6050g2_additional_nic_config,
+};
+
 static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+};
+
+static const struct iwl_ops iwl6050_ops = {
+	.lib = &iwl6000_lib,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
+	.led = &iwlagn_led_ops,
+	.nic = &iwl6050_nic_ops,
+};
+
+static const struct iwl_ops iwl6050g2_ops = {
+	.lib = &iwl6000_lib,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
+	.led = &iwlagn_led_ops,
+	.nic = &iwl6050g2_nic_ops,
 };
 
 static const struct iwl_ops iwl6000g2b_ops = {
@@ -909,7 +942,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
+	.ops = &iwl6050_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
@@ -947,7 +980,7 @@ struct iwl_cfg iwl6050g2_bgn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
+	.ops = &iwl6050g2_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050G2_TX_POWER_VERSION,
@@ -985,7 +1018,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6000_ops,
+	.ops = &iwl6050_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,

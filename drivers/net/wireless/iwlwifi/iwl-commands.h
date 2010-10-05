@@ -3800,6 +3800,21 @@ enum {
 
 #define IWL_CALIB_INIT_CFG_ALL	cpu_to_le32(0xffffffff)
 
+/* This enum defines the bitmap of various calibrations to enable in both
+ * init ucode and runtime ucode through CALIBRATION_CFG_CMD.
+ */
+enum iwl_ucode_calib_cfg {
+	IWL_CALIB_CFG_RX_BB_IDX,
+	IWL_CALIB_CFG_DC_IDX,
+	IWL_CALIB_CFG_TX_IQ_IDX,
+	IWL_CALIB_CFG_RX_IQ_IDX,
+	IWL_CALIB_CFG_NOISE_IDX,
+	IWL_CALIB_CFG_CRYSTAL_IDX,
+	IWL_CALIB_CFG_TEMPERATURE_IDX,
+	IWL_CALIB_CFG_PAPD_IDX,
+};
+
+
 struct iwl_calib_cfg_elmnt_s {
 	__le32 is_enable;
 	__le32 start;

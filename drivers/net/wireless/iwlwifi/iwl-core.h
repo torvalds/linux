@@ -137,7 +137,6 @@ struct iwl_debugfs_ops {
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 	void (*set_ct_kill)(struct iwl_priv *priv);
-	void (*set_calib_version)(struct iwl_priv *priv);
 };
 
 struct iwl_tt_ops {
@@ -233,11 +232,17 @@ struct iwl_led_ops {
 	int (*off)(struct iwl_priv *priv);
 };
 
+/* NIC specific ops */
+struct iwl_nic_ops {
+	void (*additional_nic_config)(struct iwl_priv *priv);
+};
+
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_led_ops *led;
+	const struct iwl_nic_ops *nic;
 };
 
 struct iwl_mod_params {
