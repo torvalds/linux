@@ -39,15 +39,12 @@ void tegra_fiq_enable(int irq)
 	val &= ~8; /* pass FIQs through */
 	val |= 2; /* enableNS */
 	writel(val, base + GIC_CPU_CTRL);
+	tegra_legacy_select_fiq(irq, true);
 	tegra_legacy_unmask_irq(irq);
 }
 
 void tegra_fiq_disable(int irq)
 {
 	tegra_legacy_mask_irq(irq);
-}
-
-void tegra_fiq_select(int irq, int on)
-{
-	tegra_legacy_select_fiq(irq, !!on);
+	tegra_legacy_select_fiq(irq, false);
 }
