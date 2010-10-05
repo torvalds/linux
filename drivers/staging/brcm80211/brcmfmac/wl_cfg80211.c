@@ -157,12 +157,12 @@ static void wl_clear_sdio_func(void);
 /*
 ** ioctl utilites
 */
-static int32 wl_dev_bufvar_get(struct net_device *dev, int8 *name, int8 *buf,
+static int32 wl_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 			       int32 buf_len);
-static __used int32 wl_dev_bufvar_set(struct net_device *dev, int8 *name,
-				      int8 *buf, int32 len);
-static int32 wl_dev_intvar_set(struct net_device *dev, int8 *name, int32 val);
-static int32 wl_dev_intvar_get(struct net_device *dev, int8 *name,
+static __used int32 wl_dev_bufvar_set(struct net_device *dev, s8 *name,
+				      s8 *buf, int32 len);
+static int32 wl_dev_intvar_set(struct net_device *dev, s8 *name, int32 val);
+static int32 wl_dev_intvar_get(struct net_device *dev, s8 *name,
 			       int32 *retval);
 static int32 wl_dev_ioctl(struct net_device *dev, uint32 cmd, void *arg,
 			  uint32 len);
@@ -276,7 +276,7 @@ static int32 wl_dongle_scantime(struct net_device *ndev, int32 scan_assoc_time,
 				int32 scan_unassoc_time);
 static int32 wl_dongle_offload(struct net_device *ndev, int32 arpoe,
 			       int32 arp_ol);
-static int32 wl_pattern_atoh(int8 *src, int8 *dst);
+static int32 wl_pattern_atoh(s8 *src, s8 *dst);
 static int32 wl_dongle_filter(struct net_device *ndev, uint32 filter_mode);
 static int32 wl_update_wiphybands(struct wl_priv *wl);
 #endif				/* !EMBEDDED_PLATFORM */
@@ -289,10 +289,10 @@ static void wl_iscan_timer(ulong data);
 static void wl_term_iscan(struct wl_priv *wl);
 static int32 wl_init_iscan(struct wl_priv *wl);
 static int32 wl_iscan_thread(void *data);
-static int32 wl_dev_iovar_setbuf(struct net_device *dev, int8 *iovar,
+static int32 wl_dev_iovar_setbuf(struct net_device *dev, s8 *iovar,
 				 void *param, int32 paramlen, void *bufptr,
 				 int32 buflen);
-static int32 wl_dev_iovar_getbuf(struct net_device *dev, int8 *iovar,
+static int32 wl_dev_iovar_getbuf(struct net_device *dev, s8 *iovar,
 				 void *param, int32 paramlen, void *bufptr,
 				 int32 buflen);
 static int32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid,
@@ -350,7 +350,7 @@ extern int dhd_wait_pend8021x(struct net_device *dev);
 
 #if (WL_DBG_LEVEL > 0)
 #define WL_DBG_ESTR_MAX	32
-static int8 wl_dbg_estr[][WL_DBG_ESTR_MAX] = {
+static s8 wl_dbg_estr[][WL_DBG_ESTR_MAX] = {
 	"SET_SSID", "JOIN", "START", "AUTH", "AUTH_IND",
 	"DEAUTH", "DEAUTH_IND", "ASSOC", "ASSOC_IND", "REASSOC",
 	"REASSOC_IND", "DISASSOC", "DISASSOC_IND", "QUIET_START", "QUIET_END",
@@ -656,7 +656,7 @@ static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
 }
 
 static int32
-wl_dev_iovar_setbuf(struct net_device *dev, int8 * iovar, void *param,
+wl_dev_iovar_setbuf(struct net_device *dev, s8 * iovar, void *param,
 		    int32 paramlen, void *bufptr, int32 buflen)
 {
 	int32 iolen;
@@ -668,7 +668,7 @@ wl_dev_iovar_setbuf(struct net_device *dev, int8 * iovar, void *param,
 }
 
 static int32
-wl_dev_iovar_getbuf(struct net_device *dev, int8 * iovar, void *param,
+wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 		    int32 paramlen, void *bufptr, int32 buflen)
 {
 	int32 iolen;
@@ -868,9 +868,9 @@ wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	return err;
 }
 
-static int32 wl_dev_intvar_set(struct net_device *dev, int8 *name, int32 val)
+static int32 wl_dev_intvar_set(struct net_device *dev, s8 *name, int32 val)
 {
-	int8 buf[WLC_IOCTL_SMLEN];
+	s8 buf[WLC_IOCTL_SMLEN];
 	uint32 len;
 	int32 err = 0;
 
@@ -886,10 +886,10 @@ static int32 wl_dev_intvar_set(struct net_device *dev, int8 *name, int32 val)
 }
 
 static int32
-wl_dev_intvar_get(struct net_device *dev, int8 *name, int32 *retval)
+wl_dev_intvar_get(struct net_device *dev, s8 *name, int32 *retval)
 {
 	union {
-		int8 buf[WLC_IOCTL_SMLEN];
+		s8 buf[WLC_IOCTL_SMLEN];
 		int32 val;
 	} var;
 	uint32 len;
@@ -1966,7 +1966,7 @@ static __used int32
 wl_update_pmklist(struct net_device *dev, struct wl_pmk_list *pmk_list,
 		  int32 err)
 {
-	int8 eabuf[ETHER_ADDR_STR_LEN];
+	s8 eabuf[ETHER_ADDR_STR_LEN];
 	int i, j;
 
 	memset(eabuf, 0, ETHER_ADDR_STR_LEN);
@@ -1993,7 +1993,7 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_pmksa *pmksa)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	int8 eabuf[ETHER_ADDR_STR_LEN];
+	s8 eabuf[ETHER_ADDR_STR_LEN];
 	int32 err = 0;
 	int i;
 
@@ -2033,7 +2033,7 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_pmksa *pmksa)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	int8 eabuf[ETHER_ADDR_STR_LEN];
+	s8 eabuf[ETHER_ADDR_STR_LEN];
 	struct _pmkid_list pmkid;
 	int32 err = 0;
 	int i;
@@ -2339,7 +2339,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 	if (wl_is_linkup(wl, e)) {
 		wl_link_up(wl);
 		if (wl_is_ibssmode(wl)) {
-			cfg80211_ibss_joined(ndev, (int8 *)&e->addr,
+			cfg80211_ibss_joined(ndev, (s8 *)&e->addr,
 					     GFP_KERNEL);
 			WL_DBG(("joined in IBSS network\n"));
 		} else {
@@ -2375,7 +2375,7 @@ wl_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
 }
 
 static __used int32
-wl_dev_bufvar_set(struct net_device *dev, int8 *name, int8 *buf, int32 len)
+wl_dev_bufvar_set(struct net_device *dev, s8 *name, s8 *buf, int32 len)
 {
 	struct wl_priv *wl = ndev_to_wl(dev);
 	uint32 buflen;
@@ -2387,7 +2387,7 @@ wl_dev_bufvar_set(struct net_device *dev, int8 *name, int8 *buf, int32 len)
 }
 
 static int32
-wl_dev_bufvar_get(struct net_device *dev, int8 *name, int8 *buf,
+wl_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 		  int32 buf_len)
 {
 	struct wl_priv *wl = ndev_to_wl(dev);
@@ -2473,7 +2473,7 @@ static int32 wl_update_bss_info(struct wl_priv *wl)
 
 	ssid = (struct wlc_ssid *)wl_read_prof(wl, WL_PROF_SSID);
 	bss =
-	    cfg80211_get_bss(wl_to_wiphy(wl), NULL, (int8 *)&wl->bssid,
+	    cfg80211_get_bss(wl_to_wiphy(wl), NULL, (s8 *)&wl->bssid,
 			     ssid->SSID, ssid->SSID_len, WLAN_CAPABILITY_ESS,
 			     WLAN_CAPABILITY_ESS);
 
@@ -3155,8 +3155,8 @@ wl_cfg80211_event(struct net_device *ndev, const wl_event_msg_t * e, void *data)
 	uint32 event_type = ntoh32(e->event_type);
 	struct wl_priv *wl = ndev_to_wl(ndev);
 #if (WL_DBG_LEVEL > 0)
-	int8 *estr = (event_type <= sizeof(wl_dbg_estr) / WL_DBG_ESTR_MAX - 1) ?
-	    wl_dbg_estr[event_type] : (int8 *) "Unknown";
+	s8 *estr = (event_type <= sizeof(wl_dbg_estr) / WL_DBG_ESTR_MAX - 1) ?
+	    wl_dbg_estr[event_type] : (s8 *) "Unknown";
 #endif				/* (WL_DBG_LEVEL > 0) */
 	WL_DBG(("event_type (%d):" "WLC_E_" "%s\n", event_type, estr));
 	if (likely(!wl_enq_event(wl, event_type, e, data)))
@@ -3318,7 +3318,7 @@ static int32 wl_dongle_power(struct net_device *ndev, uint32 power_mode)
 static int32
 wl_dongle_glom(struct net_device *ndev, uint32 glom, uint32 dongle_align)
 {
-	int8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
+	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
 						 '\0' + bitvec  */
 	int32 err = 0;
 
@@ -3344,7 +3344,7 @@ dongle_glom_out:
 static int32
 wl_dongle_roam(struct net_device *ndev, uint32 roamvar, uint32 bcn_timeout)
 {
-	int8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
+	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
 						 '\0' + bitvec  */
 	int32 err = 0;
 
@@ -3375,9 +3375,9 @@ dongle_rom_out:
 static int32 wl_dongle_eventmsg(struct net_device *ndev)
 {
 
-	int8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
+	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
 						 '\0' + bitvec  */
-	int8 eventmask[WL_EVENTING_MASK_LEN];
+	s8 eventmask[WL_EVENTING_MASK_LEN];
 	int32 err = 0;
 
 	/* Setup event_msgs */
@@ -3455,7 +3455,7 @@ dongle_scantime_out:
 static int32
 wl_dongle_offload(struct net_device *ndev, int32 arpoe, int32 arp_ol)
 {
-	int8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
+	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
 							 '\0' + bitvec  */
 	int32 err = 0;
 
@@ -3483,7 +3483,7 @@ dongle_offload_out:
 	return err;
 }
 
-static int32 wl_pattern_atoh(int8 *src, int8 *dst)
+static int32 wl_pattern_atoh(s8 *src, s8 *dst)
 {
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
 	int i;
@@ -3508,16 +3508,16 @@ static int32 wl_pattern_atoh(int8 *src, int8 *dst)
 
 static int32 wl_dongle_filter(struct net_device *ndev, uint32 filter_mode)
 {
-	int8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
+	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
 							 '\0' + bitvec  */
-	const int8 *str;
+	const s8 *str;
 	struct wl_pkt_filter pkt_filter;
 	struct wl_pkt_filter *pkt_filterp;
 	int32 buf_len;
 	int32 str_len;
 	uint32 mask_size;
 	uint32 pattern_size;
-	int8 buf[256];
+	s8 buf[256];
 	int32 err = 0;
 
 /* add a default packet filter pattern */
@@ -3653,7 +3653,7 @@ static int32 wl_update_wiphybands(struct wl_priv *wl)
 {
 	struct wiphy *wiphy;
 	int32 phy_list;
-	int8 phy;
+	s8 phy;
 	int32 err = 0;
 
 	if (unlikely
@@ -3925,7 +3925,7 @@ static void *wl_get_drvdata(struct wl_dev *dev)
 	return dev->driver_data;
 }
 
-int32 wl_cfg80211_read_fw(int8 *buf, uint32 size)
+int32 wl_cfg80211_read_fw(s8 *buf, uint32 size)
 {
 	const struct firmware *fw_entry;
 	struct wl_priv *wl;
@@ -3951,7 +3951,7 @@ void wl_cfg80211_release_fw(void)
 	wl->fw->ptr = 0;
 }
 
-void *wl_cfg80211_request_fw(int8 *file_name)
+void *wl_cfg80211_request_fw(s8 *file_name)
 {
 	struct wl_priv *wl;
 	const struct firmware *fw_entry = NULL;
@@ -4001,7 +4001,7 @@ req_fw_out:
 	return (void *)fw_entry->data;
 }
 
-int8 *wl_cfg80211_get_fwname(void)
+s8 *wl_cfg80211_get_fwname(void)
 {
 	struct wl_priv *wl;
 
@@ -4010,7 +4010,7 @@ int8 *wl_cfg80211_get_fwname(void)
 	return wl->fw->fw_name;
 }
 
-int8 *wl_cfg80211_get_nvramname(void)
+s8 *wl_cfg80211_get_nvramname(void)
 {
 	struct wl_priv *wl;
 

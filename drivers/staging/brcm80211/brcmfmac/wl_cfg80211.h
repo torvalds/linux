@@ -203,7 +203,7 @@ struct wl_event_q {
 	struct list_head eq_list;
 	uint32 etype;
 	wl_event_msg_t emsg;
-	int8 edata[1];
+	s8 edata[1];
 };
 
 /* security information with currently associated ap */
@@ -219,7 +219,7 @@ struct wl_security {
 struct wl_ibss {
 	u8 beacon_interval;	/* in millisecond */
 	u8 atim;		/* in millisecond */
-	int8 join_only;
+	s8 join_only;
 	u8 band;
 	u8 channel;
 };
@@ -252,8 +252,8 @@ struct wl_iscan_ctrl {
 	struct completion exited;
 	struct wl_iscan_eloop el;
 	void *data;
-	int8 ioctl_buf[WLC_IOCTL_SMLEN];
-	int8 scan_buf[WL_ISCAN_BUF_MAX];
+	s8 ioctl_buf[WLC_IOCTL_SMLEN];
+	s8 scan_buf[WL_ISCAN_BUF_MAX];
 };
 
 /* association inform */
@@ -269,8 +269,8 @@ struct wl_fw_ctrl {
 	const struct firmware *fw_entry;
 	ulong status;
 	uint32 ptr;
-	int8 fw_name[WL_FILE_NAME_MAX];
-	int8 nvram_name[WL_FILE_NAME_MAX];
+	s8 fw_name[WL_FILE_NAME_MAX];
+	s8 nvram_name[WL_FILE_NAME_MAX];
 };
 
 /* assoc ie length */
@@ -370,14 +370,14 @@ extern int32 wl_cfg80211_up(void);	/* dongle up */
 extern int32 wl_cfg80211_down(void);	/* dongle down */
 extern void wl_cfg80211_dbg_level(uint32 level);	/* set dongle
 							 debugging level */
-extern void *wl_cfg80211_request_fw(int8 *file_name);	/* request fw /nvram
+extern void *wl_cfg80211_request_fw(s8 *file_name);	/* request fw /nvram
 							 downloading */
-extern int32 wl_cfg80211_read_fw(int8 *buf, uint32 size);	/* read fw
+extern int32 wl_cfg80211_read_fw(s8 *buf, uint32 size);	/* read fw
 								 image */
 extern void wl_cfg80211_release_fw(void);	/* release fw */
-extern int8 *wl_cfg80211_get_fwname(void);	/* get firmware name for
+extern s8 *wl_cfg80211_get_fwname(void);	/* get firmware name for
 						 the dongle */
-extern int8 *wl_cfg80211_get_nvramname(void);	/* get nvram name for
+extern s8 *wl_cfg80211_get_nvramname(void);	/* get nvram name for
 						 the dongle */
 
 #endif				/* _wl_cfg80211_h_ */

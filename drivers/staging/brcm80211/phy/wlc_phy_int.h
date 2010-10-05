@@ -408,8 +408,8 @@ typedef struct {
 } aci_save_gphy_t;
 
 typedef struct _lo_complex_t {
-	int8 i;
-	int8 q;
+	s8 i;
+	s8 q;
 } lo_complex_abgphy_info_t;
 
 typedef struct _nphy_iq_comp {
@@ -420,9 +420,9 @@ typedef struct _nphy_iq_comp {
 } nphy_iq_comp_t;
 
 typedef struct _nphy_txpwrindex {
-	int8 index;
-	int8 index_internal;
-	int8 index_internal_save;
+	s8 index;
+	s8 index_internal;
+	s8 index_internal_save;
 	uint16 AfectrlOverride;
 	uint16 AfeCtrlDacGain;
 	uint16 rad_gain;
@@ -444,15 +444,15 @@ typedef struct {
 } txiqcal_cache_t;
 
 typedef struct _nphy_pwrctrl {
-	int8 max_pwr_2g;
-	int8 idle_targ_2g;
+	s8 max_pwr_2g;
+	s8 idle_targ_2g;
 	int16 pwrdet_2g_a1;
 	int16 pwrdet_2g_b0;
 	int16 pwrdet_2g_b1;
-	int8 max_pwr_5gm;
-	int8 idle_targ_5gm;
-	int8 max_pwr_5gh;
-	int8 max_pwr_5gl;
+	s8 max_pwr_5gm;
+	s8 idle_targ_5gm;
+	s8 max_pwr_5gh;
+	s8 max_pwr_5gl;
 	int16 pwrdet_5gm_a1;
 	int16 pwrdet_5gm_b0;
 	int16 pwrdet_5gm_b1;
@@ -462,11 +462,11 @@ typedef struct _nphy_pwrctrl {
 	int16 pwrdet_5gh_a1;
 	int16 pwrdet_5gh_b0;
 	int16 pwrdet_5gh_b1;
-	int8 idle_targ_5gl;
-	int8 idle_targ_5gh;
-	int8 idle_tssi_2g;
-	int8 idle_tssi_5g;
-	int8 idle_tssi;
+	s8 idle_targ_5gl;
+	s8 idle_targ_5gh;
+	s8 idle_tssi_2g;
+	s8 idle_tssi_5g;
+	s8 idle_tssi;
 	int16 a1;
 	int16 b0;
 	int16 b1;
@@ -551,7 +551,7 @@ struct shared_phy {
 	uint slow_timer;
 	uint glacial_timer;
 	u8 rx_antdiv;
-	int8 phy_noise_window[MA_WINDOW_SZ];
+	s8 phy_noise_window[MA_WINDOW_SZ];
 	uint phy_noise_index;
 	u8 hw_phytxchain;
 	u8 hw_phyrxchain;
@@ -650,7 +650,7 @@ struct phy_info {
 	u8 tx_srom_max_rate_5g_mid[TXP_NUM_RATES];
 	u8 tx_srom_max_rate_5g_hi[TXP_NUM_RATES];
 	u8 tx_user_target[TXP_NUM_RATES];
-	int8 tx_power_offset[TXP_NUM_RATES];
+	s8 tx_power_offset[TXP_NUM_RATES];
 	u8 tx_power_target[TXP_NUM_RATES];
 
 	srom_fem_t srom_fem2g;
@@ -660,19 +660,19 @@ struct phy_info {
 	u8 tx_power_max_rate_ind;
 	bool hwpwrctrl;
 	u8 nphy_txpwrctrl;
-	int8 nphy_txrx_chain;
+	s8 nphy_txrx_chain;
 	bool phy_5g_pwrgain;
 
 	uint16 phy_wreg;
 	uint16 phy_wreg_limit;
 
-	int8 n_preamble_override;
+	s8 n_preamble_override;
 	u8 antswitch;
 	u8 aa2g, aa5g;
 
-	int8 idle_tssi[CH_5G_GROUP];
-	int8 target_idle_tssi;
-	int8 txpwr_est_Pout;
+	s8 idle_tssi[CH_5G_GROUP];
+	s8 target_idle_tssi;
+	s8 txpwr_est_Pout;
 	u8 tx_power_min;
 	u8 txpwr_limit[TXP_NUM_RATES];
 	u8 txpwr_env_limit[TXP_NUM_RATES];
@@ -707,16 +707,16 @@ struct phy_info {
 	bool phy_fixed_noise;
 	uint32 xtalfreq;
 	u8 pdiv;
-	int8 carrier_suppr_disable;
+	s8 carrier_suppr_disable;
 
 	bool phy_bphy_evm;
 	bool phy_bphy_rfcs;
-	int8 phy_scraminit;
+	s8 phy_scraminit;
 	u8 phy_gpiosel;
 
 	int16 phy_txcore_disable_temp;
 	int16 phy_txcore_enable_temp;
-	int8 phy_tempsense_offset;
+	s8 phy_tempsense_offset;
 	bool phy_txcore_heatedup;
 
 	uint16 radiopwr;
@@ -726,7 +726,7 @@ struct phy_info {
 	uint16 mintxbias;
 	uint16 mintxmag;
 	lo_complex_abgphy_info_t gphy_locomp_iq[STATIC_NUM_RF][STATIC_NUM_BB];
-	int8 stats_11b_txpower[STATIC_NUM_RF][STATIC_NUM_BB];
+	s8 stats_11b_txpower[STATIC_NUM_RF][STATIC_NUM_BB];
 	uint16 gain_table[TX_GAIN_TABLE_LENGTH];
 	bool loopback_gain;
 	int16 max_lpback_gain_hdB;
@@ -740,7 +740,7 @@ struct phy_info {
 	int min_rssi;
 	int max_rssi;
 
-	int8 txpwridx;
+	s8 txpwridx;
 	u8 min_txpower;
 
 	u8 a_band_high_disable;
@@ -760,10 +760,10 @@ struct phy_info {
 	uint txmag_len;
 	bool txmag_enable;
 
-	int8 *a_tssi_to_dbm;
-	int8 *m_tssi_to_dbm;
-	int8 *l_tssi_to_dbm;
-	int8 *h_tssi_to_dbm;
+	s8 *a_tssi_to_dbm;
+	s8 *m_tssi_to_dbm;
+	s8 *l_tssi_to_dbm;
+	s8 *h_tssi_to_dbm;
 	u8 *hwtxpwr;
 
 	uint16 freqtrack_saved_regs[2];
@@ -780,7 +780,7 @@ struct phy_info {
 	u8 phy_aa2g;
 
 	bool nphy_tableloaded;
-	int8 nphy_rssisel;
+	s8 nphy_rssisel;
 	uint32 nphy_bb_mult_save;
 	uint16 nphy_txiqlocal_bestc[11];
 	bool nphy_txiqlocal_coeffsvalid;
@@ -907,7 +907,7 @@ struct phy_info {
 
 	uint16 nphy_fineclockgatecontrol;
 
-	int8 rx2tx_biasentry;
+	s8 rx2tx_biasentry;
 
 	uint16 crsminpwr0;
 	uint16 crsminpwrl0;
@@ -932,7 +932,7 @@ struct phy_info {
 	uint tbl_save_offset;
 
 	u8 txpwrctrl;
-	int8 txpwrindex[PHY_CORE_MAX];
+	s8 txpwrindex[PHY_CORE_MAX];
 
 	u8 phycal_tempdelta;
 	uint32 mcs20_po;
@@ -1026,7 +1026,7 @@ extern void wlc_phy_txpower_update_shm(phy_info_t *pi);
 extern void wlc_phy_cordic(fixed theta, cint32 *val);
 extern u8 wlc_phy_nbits(int32 value);
 extern uint32 wlc_phy_sqrt_int(uint32 value);
-extern void wlc_phy_compute_dB(uint32 *cmplx_pwr, int8 *p_dB, u8 core);
+extern void wlc_phy_compute_dB(uint32 *cmplx_pwr, s8 *p_dB, u8 core);
 
 extern uint wlc_phy_init_radio_regs_allbands(phy_info_t *pi,
 					     radio_20xx_regs_t *radioregs);
@@ -1062,7 +1062,7 @@ extern int wlc_phy_chanspec_freq2bandrange_lpssn(uint);
 extern int wlc_phy_chanspec_bandrange_get(phy_info_t *, chanspec_t);
 
 extern void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t *pi, uint16 mode);
-extern int8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t *pi);
+extern s8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t *pi);
 
 extern void wlc_phy_txpower_recalc_target_nphy(phy_info_t *pi);
 extern void wlc_lcnphy_txpower_recalc_target(phy_info_t *pi);
@@ -1086,8 +1086,8 @@ extern void wlc_phy_mcs_to_ofdm_powers_nphy(u8 *power,
 
 extern uint16 wlc_lcnphy_tempsense(phy_info_t *pi, bool mode);
 extern int16 wlc_lcnphy_tempsense_new(phy_info_t *pi, bool mode);
-extern int8 wlc_lcnphy_tempsense_degree(phy_info_t *pi, bool mode);
-extern int8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode);
+extern s8 wlc_lcnphy_tempsense_degree(phy_info_t *pi, bool mode);
+extern s8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode);
 extern void wlc_phy_carrier_suppress_lcnphy(phy_info_t *pi);
 extern void wlc_lcnphy_crsuprs(phy_info_t *pi, int channel);
 extern void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode);
@@ -1122,8 +1122,8 @@ extern void wlc_lcnphy_deaf_mode(phy_info_t *pi, bool mode);
 extern bool wlc_phy_tpc_isenabled_lcnphy(phy_info_t *pi);
 extern void wlc_lcnphy_tx_pwr_update_npt(phy_info_t *pi);
 extern int32 wlc_lcnphy_tssi2dbm(int32 tssi, int32 a1, int32 b0, int32 b1);
-extern void wlc_lcnphy_get_tssi(phy_info_t *pi, int8 *ofdm_pwr,
-				int8 *cck_pwr);
+extern void wlc_lcnphy_get_tssi(phy_info_t *pi, s8 *ofdm_pwr,
+				s8 *cck_pwr);
 extern void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi);
 
 extern int32 wlc_lcnphy_rx_signal_power(phy_info_t *pi, int32 gain_index);
@@ -1198,7 +1198,7 @@ extern int wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 extern int wlc_phy_cal_rxiq_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 				 u8 type, bool d);
 extern void wlc_phy_txpwr_index_nphy(phy_info_t *pi, u8 core_mask,
-				     int8 txpwrindex, bool res);
+				     s8 txpwrindex, bool res);
 extern void wlc_phy_rssisel_nphy(phy_info_t *pi, u8 core, u8 rssi_type);
 extern int wlc_phy_poll_rssi_nphy(phy_info_t *pi, u8 rssi_type,
 				  int32 *rssi_buf, u8 nsamps);
@@ -1220,9 +1220,9 @@ extern int wlc_phy_rssi_compute_nphy(phy_info_t *pi, wlc_d11rxhdr_t *wlc_rxh);
 
 extern void wlc_phy_nphy_tkip_rifs_war(phy_info_t *pi, u8 rifs);
 
-void wlc_phy_get_pwrdet_offsets(phy_info_t *pi, int8 *cckoffset,
-				int8 *ofdmoffset);
-extern int8 wlc_phy_upd_rssi_offset(phy_info_t *pi, int8 rssi,
+void wlc_phy_get_pwrdet_offsets(phy_info_t *pi, s8 *cckoffset,
+				s8 *ofdmoffset);
+extern s8 wlc_phy_upd_rssi_offset(phy_info_t *pi, s8 rssi,
 				    chanspec_t chanspec);
 
 extern bool wlc_phy_n_txpower_ipa_ison(phy_info_t *pih);

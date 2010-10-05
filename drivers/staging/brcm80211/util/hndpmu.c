@@ -298,7 +298,7 @@ typedef struct {
 /* Change resource dependancies masks */
 typedef struct {
 	uint32 res_mask;	/* resources (chip specific) */
-	int8 action;		/* action */
+	s8 action;		/* action */
 	uint32 depend_mask;	/* changes to the dependancies mask */
 	 bool(*filter) (si_t *sih);	/* action is taken when filter is NULL or return TRUE */
 } pmu_res_depend_t;

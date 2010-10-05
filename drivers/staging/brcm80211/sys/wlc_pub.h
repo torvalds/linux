@@ -58,7 +58,7 @@
 #define WLC_SNR_INVALID		0	/* invalid SNR value */
 
 /* a large TX Power as an init value to factor out of MIN() calculations,
- * keep low enough to fit in an int8, units are .25 dBm
+ * keep low enough to fit in an s8, units are .25 dBm
  */
 #define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
@@ -174,10 +174,10 @@ typedef struct wlc_bss_info {
 	uint16 beacon_period;	/* units are Kusec */
 	uint16 atim_window;	/* units are Kusec */
 	chanspec_t chanspec;	/* Channel num, bw, ctrl_sb and band */
-	int8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
+	s8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
 	wlc_rateset_t rateset;	/* supported rates */
 	u8 dtim_period;	/* DTIM period */
-	int8 phy_noise;		/* noise right after tx (in dBm) */
+	s8 phy_noise;		/* noise right after tx (in dBm) */
 	uint16 capability;	/* Capability information */
 	struct dot11_bcn_prb *bcn_prb;	/* beacon/probe response frame (ioctl na) */
 	uint16 bcn_prb_len;	/* beacon/probe response frame length (ioctl na) */
@@ -288,7 +288,7 @@ typedef struct wlc_pub {
 	u8 _n_enab;		/* bitmap of 11N + HT support */
 	bool _n_reqd;		/* N support required for clients */
 
-	int8 _coex;		/* 20/40 MHz BSS Management AUTO, ENAB, DISABLE */
+	s8 _coex;		/* 20/40 MHz BSS Management AUTO, ENAB, DISABLE */
 	bool _priofc;		/* Priority-based flowcontrol */
 
 	struct ether_addr cur_etheraddr;	/* our local ethernet address */
@@ -552,8 +552,8 @@ extern void wlc_mctrl(struct wlc_info *wlc, uint32 mask, uint32 val);
 extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
 
 /* ioctl */
-extern int wlc_iovar_getint8(struct wlc_info *wlc, const char *name,
-			     int8 *arg);
+extern int wlc_iovar_gets8(struct wlc_info *wlc, const char *name,
+			     s8 *arg);
 extern int wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg,
 			   int len, bool set);
 
@@ -578,7 +578,7 @@ static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 static inline int wlc_iovar_getu8(struct wlc_info *wlc, const char *name,
 				     u8 *arg)
 {
-	return wlc_iovar_getint8(wlc, name, (int8 *) arg);
+	return wlc_iovar_gets8(wlc, name, (s8 *) arg);
 }
 
 static inline int wlc_iovar_setuint(struct wlc_info *wlc, const char *name,

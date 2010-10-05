@@ -311,7 +311,7 @@ static uint wlc_calc_ba_time(wlc_info_t *wlc, ratespec_t rate,
 static void wlc_update_mimo_band_bwcap(wlc_info_t *wlc, u8 bwcap);
 static void wlc_ht_update_sgi_rx(wlc_info_t *wlc, int val);
 void wlc_ht_mimops_cap_update(wlc_info_t *wlc, u8 mimops_mode);
-static void wlc_ht_update_ldpc(wlc_info_t *wlc, int8 val);
+static void wlc_ht_update_ldpc(wlc_info_t *wlc, s8 val);
 static void wlc_war16165(wlc_info_t *wlc, bool tx);
 
 static void wlc_process_eventq(void *arg);
@@ -1179,31 +1179,31 @@ void wlc_protection_upd(wlc_info_t *wlc, uint idx, int val)
 		wlc->protection->_g = (bool) val;
 		break;
 	case WLC_PROT_G_OVR:
-		wlc->protection->g_override = (int8) val;
+		wlc->protection->g_override = (s8) val;
 		break;
 	case WLC_PROT_G_USER:
 		wlc->protection->gmode_user = (u8) val;
 		break;
 	case WLC_PROT_OVERLAP:
-		wlc->protection->overlap = (int8) val;
+		wlc->protection->overlap = (s8) val;
 		break;
 	case WLC_PROT_N_USER:
-		wlc->protection->nmode_user = (int8) val;
+		wlc->protection->nmode_user = (s8) val;
 		break;
 	case WLC_PROT_N_CFG:
-		wlc->protection->n_cfg = (int8) val;
+		wlc->protection->n_cfg = (s8) val;
 		break;
 	case WLC_PROT_N_CFG_OVR:
-		wlc->protection->n_cfg_override = (int8) val;
+		wlc->protection->n_cfg_override = (s8) val;
 		break;
 	case WLC_PROT_N_NONGF:
 		wlc->protection->nongf = (bool) val;
 		break;
 	case WLC_PROT_N_NONGF_OVR:
-		wlc->protection->nongf_override = (int8) val;
+		wlc->protection->nongf_override = (s8) val;
 		break;
 	case WLC_PROT_N_PAM_OVR:
-		wlc->protection->n_pam_override = (int8) val;
+		wlc->protection->n_pam_override = (s8) val;
 		break;
 	case WLC_PROT_N_OBSS:
 		wlc->protection->n_obss = (bool) val;
@@ -1228,7 +1228,7 @@ static void wlc_ht_update_sgi_rx(wlc_info_t *wlc, int val)
 	}
 }
 
-static void wlc_ht_update_ldpc(wlc_info_t *wlc, int8 val)
+static void wlc_ht_update_ldpc(wlc_info_t *wlc, s8 val)
 {
 	wlc->stf->ldpc = val;
 
@@ -1706,7 +1706,7 @@ static bool wlc_state_bmac_sync(wlc_info_t *wlc)
 
 	wlc->machwcap = state_bmac.machwcap;
 	wlc_protection_upd(wlc, WLC_PROT_N_PAM_OVR,
-			   (int8) state_bmac.preamble_ovr);
+			   (s8) state_bmac.preamble_ovr);
 
 	return TRUE;
 }
@@ -2085,7 +2085,7 @@ static void BCMNMIATTACHFN(wlc_attach_antgain_init) (wlc_info_t *wlc)
 		WL_ERROR(("wl%d: %s: Invalid antennas available in srom, using 2dB\n", unit, __func__));
 		wlc->band->antgain = 8;
 	} else {
-		int8 gain, fract;
+		s8 gain, fract;
 		/* Older sroms specified gain in whole dbm only.  In order
 		 * be able to specify qdbm granularity and remain backward compatible
 		 * the whole dbms are now encoded in only low 6 bits and remaining qdbms
@@ -2116,9 +2116,9 @@ static bool BCMATTACHFN(wlc_attach_stf_ant_init) (wlc_info_t *wlc)
 	bandtype = wlc->band->bandtype;
 
 	/* get antennas available */
-	aa = (int8) getintvar(vars, (BAND_5G(bandtype) ? "aa5g" : "aa2g"));
+	aa = (s8) getintvar(vars, (BAND_5G(bandtype) ? "aa5g" : "aa2g"));
 	if (aa == 0)
-		aa = (int8) getintvar(vars,
+		aa = (s8) getintvar(vars,
 				      (BAND_5G(bandtype) ? "aa1" : "aa0"));
 	if ((aa < 1) || (aa > 15)) {
 		WL_ERROR(("wl%d: %s: Invalid antennas available in srom (0x%x), using 3.\n", unit, __func__, aa));
@@ -2137,7 +2137,7 @@ static bool BCMATTACHFN(wlc_attach_stf_ant_init) (wlc_info_t *wlc)
 
 	/* Compute Antenna Gain */
 	wlc->band->antgain =
-	    (int8) getintvar(vars, (BAND_5G(bandtype) ? "ag1" : "ag0"));
+	    (s8) getintvar(vars, (BAND_5G(bandtype) ? "ag1" : "ag0"));
 	wlc_attach_antgain_init(wlc);
 
 	return TRUE;
@@ -2962,7 +2962,7 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 	uint i;
 	wlc_rateset_t rs;
 	/* Default to 54g Auto */
-	int8 shortslot = WLC_SHORTSLOT_AUTO;	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
+	s8 shortslot = WLC_SHORTSLOT_AUTO;	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	bool shortslot_restrict = FALSE;	/* Restrict association to stations that support shortslot
 						 */
 	bool ignore_bcns = TRUE;	/* Ignore legacy beacons on the same channel */
@@ -3578,11 +3578,11 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_SET_TXANT:
-		bcmerror = wlc_stf_ant_txant_validate(wlc, (int8) val);
+		bcmerror = wlc_stf_ant_txant_validate(wlc, (s8) val);
 		if (bcmerror < 0)
 			break;
 
-		wlc->stf->txant = (int8) val;
+		wlc->stf->txant = (s8) val;
 
 		/* if down, we are done */
 		if (!wlc->pub->up)
@@ -4137,7 +4137,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			break;
 		}
 
-		wlc->shortslot_override = (int8) val;
+		wlc->shortslot_override = (s8) val;
 
 		/* shortslot is an 11g feature, so no more work if we are
 		 * currently on the 5G band
@@ -4211,7 +4211,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			break;
 		}
 
-		wlc_protection_upd(wlc, WLC_PROT_OVERLAP, (int8) val);
+		wlc_protection_upd(wlc, WLC_PROT_OVERLAP, (s8) val);
 
 		/* Current g_protection will sync up to the specified control alg in watchdog
 		 * if the driver is up and associated.
@@ -4230,7 +4230,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			break;
 		}
 
-		wlc_protection_upd(wlc, WLC_PROT_G_OVR, (int8) val);
+		wlc_protection_upd(wlc, WLC_PROT_G_OVR, (s8) val);
 
 		break;
 
@@ -4381,13 +4381,13 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			if (cmd == WLC_GET_VAR) {
 				bcmerror =
 				    wlc_iovar_op(wlc, arg,
-						 (void *)((int8 *) arg + i),
+						 (void *)((s8 *) arg + i),
 						 len - i, arg, len, IOV_GET,
 						 wlcif);
 			} else
 				bcmerror =
 				    wlc_iovar_op(wlc, arg, NULL, 0,
-						 (void *)((int8 *) arg + i),
+						 (void *)((s8 *) arg + i),
 						 len - i, IOV_SET, wlcif);
 
 			break;
@@ -4500,8 +4500,8 @@ int wlc_iovar_setint(wlc_info_t *wlc, const char *name, int arg)
 			    IOV_SET, NULL);
 }
 
-/* simplified int8 get interface for common WLC_GET_VAR ioctl handler */
-int wlc_iovar_getint8(wlc_info_t *wlc, const char *name, int8 *arg)
+/* simplified s8 get interface for common WLC_GET_VAR ioctl handler */
+int wlc_iovar_gets8(wlc_info_t *wlc, const char *name, s8 *arg)
 {
 	int iovar_int;
 	int err;
@@ -4510,7 +4510,7 @@ int wlc_iovar_getint8(wlc_info_t *wlc, const char *name, int8 *arg)
 	    wlc_iovar_op(wlc, name, NULL, 0, &iovar_int, sizeof(iovar_int),
 			 IOV_GET, NULL);
 	if (!err)
-		*arg = (int8) iovar_int;
+		*arg = (s8) iovar_int;
 
 	return err;
 }
@@ -5456,7 +5456,7 @@ bcmc_fid_generate(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg, d11txh_t *txh)
 }
 
 void BCMFASTPATH
-wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit, int8 txpktpend)
+wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit, s8 txpktpend)
 {
 	uint16 frameid = INVALIDFID;
 	d11txh_t *txh;
@@ -6925,7 +6925,7 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, uint32 frm_tx2)
 }
 
 void BCMFASTPATH
-wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, int8 txpktpend)
+wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, s8 txpktpend)
 {
 	TXPKTPENDDEC(wlc, fifo, txpktpend);
 	WL_TRACE(("wlc_txfifo_complete, pktpend dec %d to %d\n", txpktpend,

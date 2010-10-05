@@ -56,7 +56,7 @@ struct wlc_bsscfg {
 	bool _ap;		/* is this configuration an AP */
 	struct wlc_if *wlcif;	/* virtual interface, NULL for primary bsscfg */
 	void *sup;		/* pointer to supplicant state */
-	int8 sup_type;		/* type of supplicant */
+	s8 sup_type;		/* type of supplicant */
 	bool sup_enable_wpa;	/* supplicant WPA on/off */
 	void *authenticator;	/* pointer to authenticator state */
 	bool sup_auth_pending;	/* flag for auth timeout */
@@ -64,7 +64,7 @@ struct wlc_bsscfg {
 	u8 SSID_len;		/* the length of SSID */
 	u8 SSID[DOT11_MAX_SSID_LEN];	/* SSID string */
 	struct scb *bcmc_scb[MAXBANDS];	/* one bcmc_scb per band */
-	int8 _idx;		/* the index of this bsscfg,
+	s8 _idx;		/* the index of this bsscfg,
 				 * assigned at wlc_bsscfg_alloc()
 				 */
 	/* MAC filter */

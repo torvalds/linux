@@ -57,8 +57,8 @@ typedef struct {
 	uint32 valid_channels;
 	u8 radar_channels;	/* List of radar sensitive channels */
 	u8 restricted_channels;	/* List of channels used only if APs are detected */
-	int8 maxpwr[WLC_MAXPWR_TBL_SIZE];	/* Max tx pwr in qdBm for each sub-band */
-	int8 pub_maxpwr[BAND_5G_PWR_LVLS];	/* Country IE advertised max tx pwr in dBm
+	s8 maxpwr[WLC_MAXPWR_TBL_SIZE];	/* Max tx pwr in qdBm for each sub-band */
+	s8 pub_maxpwr[BAND_5G_PWR_LVLS];	/* Country IE advertised max tx pwr in dBm
 						 * per sub-band
 						 */
 	u8 flags;
@@ -82,8 +82,8 @@ typedef struct {
  * by sub-band for 5 GHz limits using CHANNEL_POWER_IDX_5G(channel)
  */
 typedef struct {
-	int8 maxpwr20[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 20 MHz power limits, qdBm units */
-	int8 maxpwr40[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 40 MHz power limits, qdBm units */
+	s8 maxpwr20[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 20 MHz power limits, qdBm units */
+	s8 maxpwr40[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 40 MHz power limits, qdBm units */
 	u8 flags;
 } locale_mimo_info_t;
 

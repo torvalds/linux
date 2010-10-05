@@ -492,7 +492,7 @@ wl_iw_get_range(struct net_device *dev,
 	struct iw_range *range = (struct iw_range *)extra;
 	wl_uint32_list_t *list;
 	wl_rateset_t rateset;
-	int8 *channels;
+	s8 *channels;
 	int error, i, k;
 	uint sf, ch;
 

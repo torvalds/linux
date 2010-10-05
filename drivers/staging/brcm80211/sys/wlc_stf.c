@@ -42,7 +42,7 @@
 #define WLC_STF_SS_STBC_RX(wlc) (WLCISNPHY(wlc->band) && \
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))
 
-static int8 wlc_stf_stbc_rx_get(wlc_info_t *wlc);
+static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc);
 static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, int32 int_val);
 static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 val);
 static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val);
@@ -149,7 +149,7 @@ wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, uint16 *ss_algo_channel,
 		setbit(ss_algo_channel, PHY_TXC1_MODE_STBC);
 }
 
-static int8 wlc_stf_stbc_rx_get(wlc_info_t *wlc)
+static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc)
 {
 	return (wlc->ht_cap.cap & HT_CAP_RX_STBC_MASK) >> HT_CAP_RX_STBC_SHIFT;
 }
@@ -169,8 +169,8 @@ static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, int32 int_val)
 	else
 		wlc->ht_cap.cap |= HT_CAP_TX_STBC;
 
-	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = (int8) int_val;
-	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = (int8) int_val;
+	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = (s8) int_val;
+	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = (s8) int_val;
 
 	return TRUE;
 }
@@ -236,7 +236,7 @@ static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val)
 
 	WL_TRACE(("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val));
 
-	wlc->stf->spatial_policy = (int8) val;
+	wlc->stf->spatial_policy = (s8) val;
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++) {
 		core_mask = (val == MAX_SPATIAL_EXPANSION) ?
 		    wlc->stf->txchain : txcore_default[i];
@@ -431,7 +431,7 @@ void BCMATTACHFN(wlc_stf_detach) (wlc_info_t *wlc)
 {
 }
 
-int wlc_stf_ant_txant_validate(wlc_info_t *wlc, int8 val)
+int wlc_stf_ant_txant_validate(wlc_info_t *wlc, s8 val)
 {
 	int bcmerror = BCME_OK;
 
@@ -458,7 +458,7 @@ int wlc_stf_ant_txant_validate(wlc_info_t *wlc, int8 val)
 	}
 
 	if (bcmerror == BCME_OK)
-		wlc->stf->txant = (int8) val;
+		wlc->stf->txant = (s8) val;
 
 	return bcmerror;
 
@@ -480,9 +480,9 @@ int wlc_stf_ant_txant_validate(wlc_info_t *wlc, int8 val)
 */
 static void _wlc_stf_phy_txant_upd(wlc_info_t *wlc)
 {
-	int8 txant;
+	s8 txant;
 
-	txant = (int8) wlc->stf->txant;
+	txant = (s8) wlc->stf->txant;
 	ASSERT(txant == ANT_TX_FORCE_0 || txant == ANT_TX_FORCE_1
 	       || txant == ANT_TX_LAST_RX);
 

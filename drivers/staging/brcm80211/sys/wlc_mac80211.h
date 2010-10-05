@@ -230,15 +230,15 @@ extern const u8 prio2fifo[];
 
 typedef struct wlc_protection {
 	bool _g;		/* use g spec protection, driver internal */
-	int8 g_override;	/* override for use of g spec protection */
+	s8 g_override;	/* override for use of g spec protection */
 	u8 gmode_user;	/* user config gmode, operating band->gmode is different */
-	int8 overlap;		/* Overlap BSS/IBSS protection for both 11g and 11n */
-	int8 nmode_user;	/* user config nmode, operating pub->nmode is different */
-	int8 n_cfg;		/* use OFDM protection on MIMO frames */
-	int8 n_cfg_override;	/* override for use of N protection */
+	s8 overlap;		/* Overlap BSS/IBSS protection for both 11g and 11n */
+	s8 nmode_user;	/* user config nmode, operating pub->nmode is different */
+	s8 n_cfg;		/* use OFDM protection on MIMO frames */
+	s8 n_cfg_override;	/* override for use of N protection */
 	bool nongf;		/* non-GF present protection */
-	int8 nongf_override;	/* override for use of GF protection */
-	int8 n_pam_override;	/* override for preamble: MM or GF */
+	s8 nongf_override;	/* override for use of GF protection */
+	s8 n_pam_override;	/* override for preamble: MM or GF */
 	bool n_obss;		/* indicated OBSS Non-HT STA present */
 
 	uint longpre_detect_timeout;	/* #sec until long preamble bcns gone */
@@ -266,7 +266,7 @@ typedef struct wlc_stf {
 	u8 rxstreams;	/* number of rxchains being used */
 
 	u8 ant_rx_ovr;	/* rx antenna override */
-	int8 txant;		/* userTx antenna setting */
+	s8 txant;		/* userTx antenna setting */
 	uint16 phytxant;	/* phyTx antenna setting in txheader */
 
 	u8 ss_opmode;	/* singlestream Operational mode, 0:siso; 1:cdd */
@@ -277,9 +277,9 @@ typedef struct wlc_stf {
 
 	u8 rxchain_restore_delay;	/* delay time to restore default rxchain */
 
-	int8 ldpc;		/* AUTO/ON/OFF ldpc cap supported */
+	s8 ldpc;		/* AUTO/ON/OFF ldpc cap supported */
 	u8 txcore[MAX_STREAMS_SUPPORTED + 1];	/* bitmap of selected core for each Nsts */
-	int8 spatial_policy;
+	s8 spatial_policy;
 } wlc_stf_t;
 
 #define WLC_STF_SS_STBC_TX(wlc, scb) \
@@ -346,11 +346,11 @@ typedef struct wlcband {
 	ratespec_t rspec_override;	/* 802.11 rate override */
 	ratespec_t mrspec_override;	/* multicast rate override */
 	u8 band_stf_ss_mode;	/* Configured STF type, 0:siso; 1:cdd */
-	int8 band_stf_stbc_tx;	/* STBC TX 0:off; 1:force on; -1:auto */
+	s8 band_stf_stbc_tx;	/* STBC TX 0:off; 1:force on; -1:auto */
 	wlc_rateset_t hw_rateset;	/* rates supported by chip (phy-specific) */
 	u8 basic_rate[WLC_MAXRATE + 1];	/* basic rates indexed by rate */
 	bool mimo_cap_40;	/* 40 MHz cap enabled on this band */
-	int8 antgain;		/* antenna gain from srom */
+	s8 antgain;		/* antenna gain from srom */
 
 	uint16 CWmin;		/* The minimum size of contention window, in unit of aSlotTime */
 	uint16 CWmax;		/* The maximum size of contention window, in unit of aSlotTime */
@@ -577,7 +577,7 @@ struct wlc_info {
 	uint qvalid;		/* DirFrmQValid and BcMcFrmQValid */
 
 	/* Regulatory power limits */
-	int8 txpwr_local_max;	/* regulatory local txpwr max */
+	s8 txpwr_local_max;	/* regulatory local txpwr max */
 	u8 txpwr_local_constraint;	/* local power contraint in dB */
 
 #ifdef WLC_HIGH_ONLY
@@ -638,7 +638,7 @@ struct wlc_info {
 	/* driver feature */
 	bool _rifs;		/* enable per-packet rifs */
 	int32 rifs_advert;	/* RIFS mode advertisement */
-	int8 sgi_tx;		/* sgi tx */
+	s8 sgi_tx;		/* sgi tx */
 	bool wet;		/* true if wireless ethernet bridging mode */
 
 	/* AP-STA synchronization, power save */
@@ -707,11 +707,11 @@ struct wlc_info {
 
 	u8 mimoft;		/* SIGN or 11N */
 	u8 mimo_band_bwcap;	/* bw cap per band type */
-	int8 txburst_limit_override;	/* tx burst limit override */
+	s8 txburst_limit_override;	/* tx burst limit override */
 	uint16 txburst_limit;	/* tx burst limit value */
-	int8 cck_40txbw;	/* 11N, cck tx b/w override when in 40MHZ mode */
-	int8 ofdm_40txbw;	/* 11N, ofdm tx b/w override when in 40MHZ mode */
-	int8 mimo_40txbw;	/* 11N, mimo tx b/w override when in 40MHZ mode */
+	s8 cck_40txbw;	/* 11N, cck tx b/w override when in 40MHZ mode */
+	s8 ofdm_40txbw;	/* 11N, ofdm tx b/w override when in 40MHZ mode */
+	s8 mimo_40txbw;	/* 11N, mimo tx b/w override when in 40MHZ mode */
 	ht_cap_ie_t ht_cap;	/* HT CAP IE being advertised by this node */
 
 	uint seckeys;		/* 54 key table shm address */
@@ -762,15 +762,15 @@ struct wlc_info {
 	/* network config */
 	bool shortpreamble;	/* currently operating with CCK ShortPreambles */
 	bool shortslot;		/* currently using 11g ShortSlot timing */
-	int8 barker_preamble;	/* current Barker Preamble Mode */
-	int8 shortslot_override;	/* 11g ShortSlot override */
+	s8 barker_preamble;	/* current Barker Preamble Mode */
+	s8 shortslot_override;	/* 11g ShortSlot override */
 	bool include_legacy_erp;	/* include Legacy ERP info elt ID 47 as well as g ID 42 */
 	bool barker_overlap_control;	/* TRUE: be aware of overlapping BSSs for barker */
 	bool ignore_bcns;	/* override: ignore non shortslot bcns in a 11g network */
 	bool legacy_probe;	/* restricts probe requests to CCK rates */
 
 	wlc_protection_t *protection;
-	int8 PLCPHdr_override;	/* 802.11b Preamble Type override */
+	s8 PLCPHdr_override;	/* 802.11b Preamble Type override */
 
 	wlc_stf_t *stf;
 
@@ -876,8 +876,8 @@ extern void wlc_bmac_rpc_watchdog(wlc_info_t *wlc);
 extern void wlc_recv(wlc_info_t *wlc, void *p);
 extern bool wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, uint32 frm_tx2);
 extern void wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit,
-		       int8 txpktpend);
-extern void wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, int8 txpktpend);
+		       s8 txpktpend);
+extern void wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, s8 txpktpend);
 extern void wlc_info_init(wlc_info_t *wlc, int unit);
 extern void wlc_print_txstatus(tx_status_t *txs);
 extern int wlc_xmtfifo_sz_get(wlc_info_t *wlc, uint fifo, uint *blocks);

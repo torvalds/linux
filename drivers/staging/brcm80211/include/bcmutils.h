@@ -304,7 +304,7 @@ extern "C" {
 #define BCM_IOV_TYPE_INIT { \
 	"void", \
 	"bool", \
-	"int8", \
+	"s8", \
 	"u8", \
 	"int16", \
 	"uint16", \

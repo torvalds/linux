@@ -463,7 +463,7 @@ static const uint32 lcnphy_23bitgaincode_table[] = {
 	0x04464f,
 };
 
-static const int8 lcnphy_gain_table[] = {
+static const s8 lcnphy_gain_table[] = {
 	-16,
 	-13,
 	10,
@@ -503,7 +503,7 @@ static const int8 lcnphy_gain_table[] = {
 	92,
 };
 
-static const int8 lcnphy_gain_index_offset_for_rssi[] = {
+static const s8 lcnphy_gain_index_offset_for_rssi[] = {
 	7,
 	7,
 	7,
@@ -972,7 +972,7 @@ uint16
 #define wlc_radio_2064_rcal_done(pi) (0 != (read_radio_reg(pi, RADIO_2064_REG05C) & 0x20))
 #define tempsense_done(pi) (0x8000 == (read_phy_reg(pi, 0x476) & 0x8000))
 
-#define LCNPHY_IQLOCC_READ(val) ((u8)(-(int8)(((val) & 0xf0) >> 4) + (int8)((val) & 0x0f)))
+#define LCNPHY_IQLOCC_READ(val) ((u8)(-(s8)(((val) & 0xf0) >> 4) + (s8)((val) & 0x0f)))
 #define FIXED_TXPWR 78
 #define LCNPHY_TEMPSENSE(val) ((int16)((val > 255) ? (val - 512) : val))
 
@@ -1124,16 +1124,16 @@ static int wlc_lcnphy_calc_floor(int16 coeff_x, int type)
 	return k;
 }
 
-int8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t *pi)
+s8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t *pi)
 {
-	int8 index;
+	s8 index;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
 	if (txpwrctrl_off(pi))
 		index = pi_lcn->lcnphy_current_index;
 	else if (wlc_lcnphy_tssi_based_pwr_ctrl_enabled(pi))
 		index =
-		    (int8) (wlc_lcnphy_get_current_tx_pwr_idx_if_pwrctrl_on(pi)
+		    (s8) (wlc_lcnphy_get_current_tx_pwr_idx_if_pwrctrl_on(pi)
 			    / 2);
 	else
 		index = pi_lcn->lcnphy_current_index;
@@ -1643,7 +1643,7 @@ void wlc_lcnphy_txpower_recalc_target(phy_info_t *pi)
 	}
 }
 
-static void wlc_lcnphy_set_tx_pwr_soft_ctrl(phy_info_t *pi, int8 index)
+static void wlc_lcnphy_set_tx_pwr_soft_ctrl(phy_info_t *pi, s8 index)
 {
 	uint32 cck_offset[4] = { 22, 22, 22, 22 };
 	uint32 ofdm_offset, reg_offset_cck;
@@ -1696,9 +1696,9 @@ static void wlc_lcnphy_set_tx_pwr_soft_ctrl(phy_info_t *pi, int8 index)
 
 }
 
-static int8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t *pi)
+static s8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t *pi)
 {
-	int8 index, delta_brd, delta_temp, new_index, tempcorrx;
+	s8 index, delta_brd, delta_temp, new_index, tempcorrx;
 	int16 manp, meas_temp, temp_diff;
 	bool neg = 0;
 	uint16 temp;
@@ -1733,7 +1733,7 @@ static int8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t *pi)
 		temp_diff = -temp_diff;
 	}
 
-	delta_temp = (int8) wlc_lcnphy_qdiv_roundup((uint32) (temp_diff * 192),
+	delta_temp = (s8) wlc_lcnphy_qdiv_roundup((uint32) (temp_diff * 192),
 						    (uint32) (pi_lcn->
 							      lcnphy_tempsense_slope
 							      * 10), 0);
@@ -1744,9 +1744,9 @@ static int8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t *pi)
 	    && LCNREV_IS(pi->pubpi.phy_rev, 0))
 		delta_temp = 0;
 	if (pi_lcn->lcnphy_tempcorrx > 31)
-		tempcorrx = (int8) (pi_lcn->lcnphy_tempcorrx - 64);
+		tempcorrx = (s8) (pi_lcn->lcnphy_tempcorrx - 64);
 	else
-		tempcorrx = (int8) pi_lcn->lcnphy_tempcorrx;
+		tempcorrx = (s8) pi_lcn->lcnphy_tempcorrx;
 	if (LCNREV_IS(pi->pubpi.phy_rev, 1))
 		tempcorrx = 4;
 	new_index =
@@ -1777,7 +1777,7 @@ static uint16 wlc_lcnphy_set_tx_pwr_ctrl_mode(phy_info_t *pi, uint16 mode)
 void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t *pi, uint16 mode)
 {
 	uint16 old_mode = wlc_lcnphy_get_tx_pwr_ctrl(pi);
-	int8 index;
+	s8 index;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
 	ASSERT((LCNPHY_TX_PWR_CTRL_OFF == mode) ||
@@ -1824,7 +1824,7 @@ void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t *pi, uint16 mode)
 		if (mode == LCNPHY_TX_PWR_CTRL_TEMPBASED) {
 			index = wlc_lcnphy_tempcompensated_txpwrctrl(pi);
 			wlc_lcnphy_set_tx_pwr_soft_ctrl(pi, index);
-			pi_lcn->lcnphy_current_index = (int8)
+			pi_lcn->lcnphy_current_index = (s8)
 			    ((read_phy_reg(pi, 0x4a9) & 0xFF) / 2);
 		}
 	}
@@ -2159,7 +2159,7 @@ static void wlc_lcnphy_vbat_temp_sense_setup(phy_info_t *pi, u8 mode)
 	u8 save_reg007, save_reg0FF, save_reg11F, save_reg005, save_reg025,
 	    save_reg112;
 	uint16 values_to_save[14];
-	int8 index;
+	s8 index;
 	int i;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 	OSL_DELAY(999);
@@ -2461,7 +2461,7 @@ void wlc_lcnphy_set_tx_pwr_by_index(phy_info_t *pi, int index)
 
 	ASSERT(index <= LCNPHY_MAX_TX_POWER_INDEX);
 
-	pi_lcn->lcnphy_tx_power_idx_override = (int8) index;
+	pi_lcn->lcnphy_tx_power_idx_override = (s8) index;
 	pi_lcn->lcnphy_current_index = (u8) index;
 
 	tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
@@ -2905,7 +2905,7 @@ static void wlc_lcnphy_txpwrtbl_iqlo_cal(phy_info_t *pi)
 	}
 
 	wlc_lcnphy_get_radio_loft(pi, &ei0, &eq0, &fi0, &fq0);
-	if ((ABS((int8) fi0) == 15) && (ABS((int8) fq0) == 15)) {
+	if ((ABS((s8) fi0) == 15) && (ABS((s8) fq0) == 15)) {
 		if (CHSPEC_IS5G(pi->radio_chanspec)) {
 			target_gains.gm_gain = 255;
 			target_gains.pga_gain = 255;
@@ -3081,16 +3081,16 @@ uint16 wlc_lcnphy_tempsense(phy_info_t *pi, bool mode)
 	return (uint16) avg;
 }
 
-int8 wlc_lcnphy_tempsense_degree(phy_info_t *pi, bool mode)
+s8 wlc_lcnphy_tempsense_degree(phy_info_t *pi, bool mode)
 {
 	int32 degree = wlc_lcnphy_tempsense_new(pi, mode);
 	degree =
 	    ((degree << 10) + LCN_TEMPSENSE_OFFSET + (LCN_TEMPSENSE_DEN >> 1))
 	    / LCN_TEMPSENSE_DEN;
-	return (int8) degree;
+	return (s8) degree;
 }
 
-int8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode)
+s8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode)
 {
 	uint16 vbatsenseval;
 	int32 avg = 0;
@@ -3123,7 +3123,7 @@ int8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode)
 		if (!suspend)
 			wlapi_enable_mac(pi->sh->physhim);
 	}
-	return (int8) avg;
+	return (s8) avg;
 }
 
 static void wlc_lcnphy_afe_clk_init(phy_info_t *pi, u8 mode)
@@ -3453,7 +3453,7 @@ static void wlc_lcnphy_temp_adj(phy_info_t *pi)
 static void wlc_lcnphy_glacial_timer_based_cal(phy_info_t *pi)
 {
 	bool suspend;
-	int8 index;
+	s8 index;
 	uint16 SAVE_pwrctrl = wlc_lcnphy_get_tx_pwr_ctrl(pi);
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 	suspend =
@@ -3481,7 +3481,7 @@ static void wlc_lcnphy_periodic_cal(phy_info_t *pi)
 	const lcnphy_rx_iqcomp_t *rx_iqcomp;
 	int rx_iqcomp_sz;
 	uint16 SAVE_pwrctrl = wlc_lcnphy_get_tx_pwr_ctrl(pi);
-	int8 index;
+	s8 index;
 	phytbl_info_t tab;
 	int32 a1, b0, b1;
 	int32 tssi, pwr, maxtargetpwr, mintargetpwr;
@@ -3589,14 +3589,14 @@ void wlc_lcnphy_calib_modes(phy_info_t *pi, uint mode)
 	}
 }
 
-void wlc_lcnphy_get_tssi(phy_info_t *pi, int8 *ofdm_pwr, int8 *cck_pwr)
+void wlc_lcnphy_get_tssi(phy_info_t *pi, s8 *ofdm_pwr, s8 *cck_pwr)
 {
-	int8 cck_offset;
+	s8 cck_offset;
 	uint16 status;
 	status = (read_phy_reg(pi, 0x4ab));
 	if (wlc_lcnphy_tssi_based_pwr_ctrl_enabled(pi) &&
 	    (status  & (0x1 << 15))) {
-		*ofdm_pwr = (int8) (((read_phy_reg(pi, 0x4ab) & (0x1ff << 0))
+		*ofdm_pwr = (s8) (((read_phy_reg(pi, 0x4ab) & (0x1ff << 0))
 				     >> 0) >> 1);
 
 		if (wlc_phy_tpc_isenabled_lcnphy(pi))
@@ -3677,7 +3677,7 @@ wlc_lcnphy_pktengtx(wlc_phy_t *ppi, wl_pkteng_t *pkteng, u8 rate,
 
 void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi)
 {
-	int8 index;
+	s8 index;
 	uint16 index2;
 	phy_info_t *pi = (phy_info_t *) ppi;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -3687,7 +3687,7 @@ void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi)
 		index2 = (uint16) (index * 2);
 		mod_phy_reg(pi, 0x4a9, (0x1ff << 0), (index2) << 0);
 
-		pi_lcn->lcnphy_current_index = (int8)
+		pi_lcn->lcnphy_current_index = (s8)
 		    ((read_phy_reg(pi, 0x4a9) & 0xFF) / 2);
 	}
 }
@@ -4517,7 +4517,7 @@ static void wlc_lcnphy_agc_temp_init(phy_info_t *pi)
 			& (0xff << 0));
 	if (temp > 127)
 		temp -= 256;
-	pi_lcn->lcnphy_input_pwr_offset_db = (int8) temp;
+	pi_lcn->lcnphy_input_pwr_offset_db = (s8) temp;
 
 	pi_lcn->lcnphy_Med_Low_Gain_db = (read_phy_reg(pi, 0x424)
 					  & (0xff << 8))
@@ -4728,7 +4728,7 @@ static void wlc_lcnphy_rc_cal(phy_info_t *pi)
 
 static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_lcnphy) (phy_info_t *pi)
 {
-	int8 txpwr = 0;
+	s8 txpwr = 0;
 	int i;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
@@ -4763,7 +4763,7 @@ static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_lcnphy) (phy_info_t *pi)
 			    pi_lcn->lcnphy_rssi_gs;
 		}
 
-		txpwr = (int8) PHY_GETINTVAR(pi, "maxp2ga0");
+		txpwr = (s8) PHY_GETINTVAR(pi, "maxp2ga0");
 		pi->tx_srom_max_2g = txpwr;
 
 		for (i = 0; i < PWRTBL_NUM_COEFF; i++) {

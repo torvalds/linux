@@ -200,7 +200,7 @@ extern void wlc_bmac_copyfrom_vars(wlc_hw_info_t *wlc_hw, char **buf,
 				   uint *len);
 
 extern void wlc_bmac_process_ps_switch(wlc_hw_info_t *wlc,
-				       struct ether_addr *ea, int8 ps_on);
+				       struct ether_addr *ea, s8 ps_on);
 extern void wlc_bmac_hw_etheraddr(wlc_hw_info_t *wlc_hw,
 				  struct ether_addr *ea);
 extern void wlc_bmac_set_hw_etheraddr(wlc_hw_info_t *wlc_hw,

@@ -1331,11 +1331,11 @@ typedef struct wlc_d11rxhdr wlc_d11rxhdr_t;
 BWL_PRE_PACKED_STRUCT struct wlc_d11rxhdr {
 	d11rxhdr_t rxhdr;
 	uint32 tsf_l;		/* TSF_L reading */
-	int8 rssi;		/* computed instanteneous rssi in BMAC */
-	int8 rxpwr0;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
-	int8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
-	int8 do_rssi_ma;	/* do per-pkt sampling for per-antenna ma in HIGH */
-	int8 rxpwr[WL_RSSI_ANT_MAX];	/* rssi for supported antennas */
+	s8 rssi;		/* computed instanteneous rssi in BMAC */
+	s8 rxpwr0;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
+	s8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
+	s8 do_rssi_ma;	/* do per-pkt sampling for per-antenna ma in HIGH */
+	s8 rxpwr[WL_RSSI_ANT_MAX];	/* rssi for supported antennas */
 } BWL_POST_PACKED_STRUCT;
 
 /* PhyRxStatus_0: */

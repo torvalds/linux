@@ -224,7 +224,7 @@ extern void wlc_phy_stf_chain_set(wlc_phy_t *pih, u8 txchain,
 extern void wlc_phy_stf_chain_get(wlc_phy_t *pih, u8 *txchain,
 				  u8 *rxchain);
 extern u8 wlc_phy_stf_chain_active_get(wlc_phy_t *pih);
-extern int8 wlc_phy_stf_ssmode_get(wlc_phy_t *pih, chanspec_t chanspec);
+extern s8 wlc_phy_stf_ssmode_get(wlc_phy_t *pih, chanspec_t chanspec);
 extern void wlc_phy_ldpc_override_set(wlc_phy_t *ppi, bool val);
 
 extern void wlc_phy_cal_perical(wlc_phy_t *ppi, u8 reason);
@@ -257,7 +257,7 @@ extern void wlc_phy_freqtrack_end(wlc_phy_t *ppi);
 
 extern const u8 *wlc_phy_get_ofdm_rate_lookup(void);
 
-extern int8 wlc_phy_get_tx_power_offset_by_mcs(wlc_phy_t *ppi,
+extern s8 wlc_phy_get_tx_power_offset_by_mcs(wlc_phy_t *ppi,
 					       u8 mcs_offset);
-extern int8 wlc_phy_get_tx_power_offset(wlc_phy_t *ppi, u8 tbl_offset);
+extern s8 wlc_phy_get_tx_power_offset(wlc_phy_t *ppi, u8 tbl_offset);
 #endif				/* _wlc_phy_h_ */

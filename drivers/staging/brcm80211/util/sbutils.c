@@ -36,7 +36,7 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx);
 
 #define	SET_SBREG(sii, r, mask, val)	\
 		W_SBREG((sii), (r), ((R_SBREG((sii), (r)) & ~(mask)) | (val)))
-#define	REGS2SB(va)	(sbconfig_t *) ((int8 *)(va) + SBCONFIGOFF)
+#define	REGS2SB(va)	(sbconfig_t *) ((s8 *)(va) + SBCONFIGOFF)
 
 /* sonicsrev */
 #define	SONICS_2_2	(SBIDL_RV_2_2 >> SBIDL_RV_SHIFT)

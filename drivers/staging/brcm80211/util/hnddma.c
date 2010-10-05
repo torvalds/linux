@@ -705,23 +705,23 @@ static void _dma_detach(dma_info_t *di)
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 		if (di->txd64)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((int8 *) (uintptr) di->txd64 -
+					    ((s8 *) (uintptr) di->txd64 -
 					     di->txdalign), di->txdalloc,
 					    (di->txdpaorig), &di->tx_dmah);
 		if (di->rxd64)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((int8 *) (uintptr) di->rxd64 -
+					    ((s8 *) (uintptr) di->rxd64 -
 					     di->rxdalign), di->rxdalloc,
 					    (di->rxdpaorig), &di->rx_dmah);
 	} else if (DMA32_ENAB(di)) {
 		if (di->txd32)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((int8 *) (uintptr) di->txd32 -
+					    ((s8 *) (uintptr) di->txd32 -
 					     di->txdalign), di->txdalloc,
 					    (di->txdpaorig), &di->tx_dmah);
 		if (di->rxd32)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((int8 *) (uintptr) di->rxd32 -
+					    ((s8 *) (uintptr) di->rxd32 -
 					     di->rxdalign), di->rxdalloc,
 					    (di->rxdpaorig), &di->rx_dmah);
 	} else
@@ -1545,7 +1545,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(PHYSADDRHI(di->txdpaorig) == 0);
 		di->txd32 = (dma32dd_t *) ROUNDUP((uintptr) va, align);
 		di->txdalign =
-		    (uint) ((int8 *) (uintptr) di->txd32 - (int8 *) va);
+		    (uint) ((s8 *) (uintptr) di->txd32 - (s8 *) va);
 
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
@@ -1566,7 +1566,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(PHYSADDRHI(di->rxdpaorig) == 0);
 		di->rxd32 = (dma32dd_t *) ROUNDUP((uintptr) va, align);
 		di->rxdalign =
-		    (uint) ((int8 *) (uintptr) di->rxd32 - (int8 *) va);
+		    (uint) ((s8 *) (uintptr) di->rxd32 - (s8 *) va);
 
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);
@@ -2111,7 +2111,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		align = (1 << align_bits);
 		di->txd64 = (dma64dd_t *) ROUNDUP((uintptr) va, align);
 		di->txdalign =
-		    (uint) ((int8 *) (uintptr) di->txd64 - (int8 *) va);
+		    (uint) ((s8 *) (uintptr) di->txd64 - (s8 *) va);
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
 		/* Make sure that alignment didn't overflow */
@@ -2130,7 +2130,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		align = (1 << align_bits);
 		di->rxd64 = (dma64dd_t *) ROUNDUP((uintptr) va, align);
 		di->rxdalign =
-		    (uint) ((int8 *) (uintptr) di->rxd64 - (int8 *) va);
+		    (uint) ((s8 *) (uintptr) di->rxd64 - (s8 *) va);
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);
 		/* Make sure that alignment didn't overflow */

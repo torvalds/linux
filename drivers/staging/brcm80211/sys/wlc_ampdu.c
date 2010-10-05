@@ -112,7 +112,7 @@ struct ampdu_info {
 	/* per-tid mpdu transmit retry limit at regular rate */
 	u8 rr_retry_limit_tid[AMPDU_MAX_SCB_TID];
 	u8 mpdu_density;	/* min mpdu spacing (0-7) ==> 2^(x-1)/8 usec */
-	int8 max_pdu;		/* max pdus allowed in ampdu */
+	s8 max_pdu;		/* max pdus allowed in ampdu */
 	u8 dur;		/* max duration of an ampdu (in msec) */
 	u8 txpkt_weight;	/* weight of ampdu in txfifo; reduces rate lag */
 	u8 rx_factor;	/* maximum rx ampdu factor (0-3) ==> 2^(13+x) bytes */

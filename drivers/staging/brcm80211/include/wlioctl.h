@@ -56,7 +56,7 @@ typedef struct wl_bss_info_107 {
 	uint16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
-	int8 phy_noise;		/* noise (in dBm) */
+	s8 phy_noise;		/* noise (in dBm) */
 	uint32 ie_length;	/* byte length of Information Elements */
 	/* variable length Information Elements */
 } wl_bss_info_107_t;
@@ -89,7 +89,7 @@ typedef struct wl_bss_info_108 {
 	uint16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
-	int8 phy_noise;		/* noise (in dBm) */
+	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
 	uint32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
@@ -133,7 +133,7 @@ typedef struct wl_bss_info {
 	uint16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
-	int8 phy_noise;		/* noise (in dBm) */
+	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
 	uint32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
@@ -176,10 +176,10 @@ typedef enum wl_scan_type {
 #define WL_BSS_FLAGS_RSSI_ONCHANNEL     0x04	/* rssi info was received on channel (vs offchannel) */
 
 typedef struct wl_extdscan_params {
-	int8 nprobes;		/* 0, passive, otherwise active */
-	int8 split_scan;	/* split scan */
-	int8 band;		/* band */
-	int8 pad;
+	s8 nprobes;		/* 0, passive, otherwise active */
+	s8 split_scan;	/* split scan */
+	s8 band;		/* band */
+	s8 pad;
 	wlc_ssid_t ssid[WLC_EXTDSCAN_MAX_SSID];	/* ssid list */
 	uint32 tx_rate;		/* in 500ksec units */
 	wl_scan_type_t scan_type;	/* enum */
@@ -201,7 +201,7 @@ typedef struct wl_extdscan_params {
 typedef struct wl_scan_params {
 	wlc_ssid_t ssid;	/* default: {0, ""} */
 	struct ether_addr bssid;	/* default: bcast */
-	int8 bss_type;		/* default: any,
+	s8 bss_type;		/* default: any,
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
 				 */
 	u8 scan_type;	/* flags, 0 use default */
@@ -474,8 +474,8 @@ typedef struct wl_country_list {
 #define WL_RM_FLAG_REFUSED	(1<<3)
 
 typedef struct wl_rm_req_elt {
-	int8 type;
-	int8 flags;
+	s8 type;
+	s8 flags;
 	chanspec_t chanspec;
 	uint32 token;		/* token for this measurement */
 	uint32 tsf_h;		/* TSF high 32-bits of Measurement start time */
@@ -493,8 +493,8 @@ typedef struct wl_rm_req {
 #define WL_RM_REQ_FIXED_LEN	OFFSETOF(wl_rm_req_t, req)
 
 typedef struct wl_rm_rep_elt {
-	int8 type;
-	int8 flags;
+	s8 type;
+	s8 flags;
 	chanspec_t chanspec;
 	uint32 token;		/* token for this measurement */
 	uint32 tsf_h;		/* TSF high 32-bits of Measurement start time */
@@ -508,7 +508,7 @@ typedef struct wl_rm_rep_elt {
 #define WL_RPI_REP_BIN_NUM 8
 typedef struct wl_rm_rpi_rep {
 	u8 rpi[WL_RPI_REP_BIN_NUM];
-	int8 rpi_max[WL_RPI_REP_BIN_NUM];
+	s8 rpi_max[WL_RPI_REP_BIN_NUM];
 } wl_rm_rpi_rep_t;
 
 typedef struct wl_rm_rep {
@@ -1213,7 +1213,7 @@ typedef struct wl_po {
 } wl_po_t;
 
 /* a large TX Power as an init value to factor out of MIN() calculations,
- * keep low enough to fit in an int8, units are .25 dBm
+ * keep low enough to fit in an s8, units are .25 dBm
  */
 #define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
@@ -1373,7 +1373,7 @@ typedef struct wl_po {
 typedef struct {
 	uint32 version;		/* version field */
 	uint32 count;		/* number of valid antenna rssi */
-	int8 rssi_ant[WL_RSSI_ANT_MAX];	/* rssi per antenna */
+	s8 rssi_ant[WL_RSSI_ANT_MAX];	/* rssi per antenna */
 } wl_rssi_ant_t;
 
 #define NUM_PWRCTRL_RATES 12
@@ -1390,7 +1390,7 @@ typedef struct {
 	u8 txpwr_bphy_cck_max[NUM_PWRCTRL_RATES];	/* Max CCK power for this band (SROM) */
 	u8 txpwr_bphy_ofdm_max;	/* Max OFDM power for this band (SROM) */
 	u8 txpwr_aphy_max[NUM_PWRCTRL_RATES];	/* Max power for A band (SROM) */
-	int8 txpwr_antgain[2];	/* Ant gain for each band - from SROM */
+	s8 txpwr_antgain[2];	/* Ant gain for each band - from SROM */
 	u8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
 } tx_power_legacy_t;
 
@@ -1406,7 +1406,7 @@ typedef struct {
 	chanspec_t local_chanspec;	/* channel on which we are associated */
 	u8 local_max;	/* local max according to the AP */
 	u8 local_constraint;	/* local constraint according to the AP */
-	int8 antgain[2];	/* Ant gain for each band - from SROM */
+	s8 antgain[2];	/* Ant gain for each band - from SROM */
 	u8 rf_cores;		/* count of RF Cores being reported */
 	u8 est_Pout[4];	/* Latest tx power out estimate per RF
 				 * chain without adjustment
@@ -1454,7 +1454,7 @@ typedef struct {
 	chanspec_t local_chanspec;	/* channel on which we are associated */
 	u8 local_max;	/* local max according to the AP */
 	u8 local_constraint;	/* local constraint according to the AP */
-	int8 antgain[2];	/* Ant gain for each band - from SROM */
+	s8 antgain[2];	/* Ant gain for each band - from SROM */
 	u8 rf_cores;		/* count of RF Cores being reported */
 	u8 est_Pout[4];	/* Latest tx power out estimate per RF chain */
 	u8 est_Pout_act[4];	/* Latest tx power out estimate per RF chain

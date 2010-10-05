@@ -130,10 +130,10 @@ static uint32 wlc_phy_get_radio_ver(phy_info_t *pi);
 static void wlc_phy_timercb_phycal(void *arg);
 
 static bool wlc_phy_noise_calc_phy(phy_info_t *pi, uint32 *cmplx_pwr,
-				   int8 *pwr_ant);
+				   s8 *pwr_ant);
 
 static void wlc_phy_cal_perical_mphase_schedule(phy_info_t *pi, uint delay);
-static void wlc_phy_noise_cb(phy_info_t *pi, u8 channel, int8 noise_dbm);
+static void wlc_phy_noise_cb(phy_info_t *pi, u8 channel, s8 noise_dbm);
 static void wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason,
 					 u8 ch);
 
@@ -141,11 +141,11 @@ static void wlc_phy_txpower_reg_limit_calc(phy_info_t *pi,
 					   struct txpwr_limits *tp, chanspec_t);
 static bool wlc_phy_cal_txpower_recalc_sw(phy_info_t *pi);
 
-static int8 wlc_user_txpwr_antport_to_rfport(phy_info_t *pi, uint chan,
+static s8 wlc_user_txpwr_antport_to_rfport(phy_info_t *pi, uint chan,
 					     uint32 band, u8 rate);
 static void wlc_phy_upd_env_txpwr_rate_limits(phy_info_t *pi, uint32 band);
-static int8 wlc_phy_env_measure_vbat(phy_info_t *pi);
-static int8 wlc_phy_env_measure_temperature(phy_info_t *pi);
+static s8 wlc_phy_env_measure_vbat(phy_info_t *pi);
+static s8 wlc_phy_env_measure_temperature(phy_info_t *pi);
 
 char *phy_getvar(phy_info_t *pi, const char *name)
 {
@@ -2412,8 +2412,8 @@ wlc_phy_txpower_get_current(wlc_phy_t *ppi, tx_power_t *power, uint channel)
 				power->flags &=
 				    ~(WL_TX_POWER_F_HW | WL_TX_POWER_F_ENABLED);
 
-			wlc_lcnphy_get_tssi(pi, (int8 *) &power->est_Pout[0],
-					    (int8 *) &power->est_Pout_cck);
+			wlc_lcnphy_get_tssi(pi, (s8 *) &power->est_Pout[0],
+					    (s8 *) &power->est_Pout_cck);
 		}
 		wlc_phyreg_exit(ppi);
 	}
@@ -2504,9 +2504,9 @@ void wlc_phy_ant_rxdiv_set(wlc_phy_t *ppi, u8 val)
 }
 
 static bool
-wlc_phy_noise_calc_phy(phy_info_t *pi, uint32 *cmplx_pwr, int8 *pwr_ant)
+wlc_phy_noise_calc_phy(phy_info_t *pi, uint32 *cmplx_pwr, s8 *pwr_ant)
 {
-	int8 cmplx_pwr_dbm[PHY_CORE_MAX];
+	s8 cmplx_pwr_dbm[PHY_CORE_MAX];
 	u8 i;
 
 	bzero((u8 *) cmplx_pwr_dbm, sizeof(cmplx_pwr_dbm));
@@ -2515,10 +2515,10 @@ wlc_phy_noise_calc_phy(phy_info_t *pi, uint32 *cmplx_pwr, int8 *pwr_ant)
 
 	for (i = 0; i < pi->pubpi.phy_corenum; i++) {
 		if (NREV_GE(pi->pubpi.phy_rev, 3))
-			cmplx_pwr_dbm[i] += (int8) PHY_NOISE_OFFSETFACT_4322;
+			cmplx_pwr_dbm[i] += (s8) PHY_NOISE_OFFSETFACT_4322;
 		else
 
-			cmplx_pwr_dbm[i] += (int8) (16 - (15) * 3 - 70);
+			cmplx_pwr_dbm[i] += (s8) (16 - (15) * 3 - 70);
 	}
 
 	for (i = 0; i < pi->pubpi.phy_corenum; i++) {
@@ -2534,7 +2534,7 @@ static void
 wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason, u8 ch)
 {
 	phy_info_t *pi = (phy_info_t *) pih;
-	int8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
+	s8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
 	bool sampling_in_progress = (pi->phynoise_state != 0);
 	bool wait_for_intr = TRUE;
 
@@ -2598,7 +2598,7 @@ wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason, u8 ch)
 		} else {
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 			wlc_lcnphy_deaf_mode(pi, (bool) 0);
-			noise_dbm = (int8) wlc_lcnphy_rx_signal_power(pi, 20);
+			noise_dbm = (s8) wlc_lcnphy_rx_signal_power(pi, 20);
 			wlc_lcnphy_deaf_mode(pi, (bool) 1);
 			wlapi_enable_mac(pi->sh->physhim);
 			wait_for_intr = FALSE;
@@ -2617,7 +2617,7 @@ wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason, u8 ch)
 		} else {
 			phy_iq_est_t est[PHY_CORE_MAX];
 			uint32 cmplx_pwr[PHY_CORE_MAX];
-			int8 noise_dbm_ant[PHY_CORE_MAX];
+			s8 noise_dbm_ant[PHY_CORE_MAX];
 			uint16 log_num_samps, num_samps, classif_state = 0;
 			u8 wait_time = 32;
 			u8 wait_crs = 0;
@@ -2675,7 +2675,7 @@ void wlc_phy_noise_sample_request_external(wlc_phy_t *pih)
 	wlc_phy_noise_sample_request(pih, PHY_NOISE_SAMPLE_EXTERNAL, channel);
 }
 
-static void wlc_phy_noise_cb(phy_info_t *pi, u8 channel, int8 noise_dbm)
+static void wlc_phy_noise_cb(phy_info_t *pi, u8 channel, s8 noise_dbm)
 {
 	if (!pi->phynoise_state)
 		return;
@@ -2696,13 +2696,13 @@ static void wlc_phy_noise_cb(phy_info_t *pi, u8 channel, int8 noise_dbm)
 
 }
 
-static int8 wlc_phy_noise_read_shmem(phy_info_t *pi)
+static s8 wlc_phy_noise_read_shmem(phy_info_t *pi)
 {
 	uint32 cmplx_pwr[PHY_CORE_MAX];
-	int8 noise_dbm_ant[PHY_CORE_MAX];
+	s8 noise_dbm_ant[PHY_CORE_MAX];
 	uint16 lo, hi;
 	uint32 cmplx_pwr_tot = 0;
-	int8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
+	s8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
 	u8 idx, core;
 
 	ASSERT(pi->pubpi.phy_corenum <= PHY_CORE_MAX);
@@ -2743,7 +2743,7 @@ void wlc_phy_noise_sample_intr(wlc_phy_t *pih)
 	phy_info_t *pi = (phy_info_t *) pih;
 	uint16 jssi_aux;
 	u8 channel = 0;
-	int8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
+	s8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
 
 	if (ISLCNPHY(pi)) {
 		uint32 cmplx_pwr, cmplx_pwr0, cmplx_pwr1;
@@ -2774,10 +2774,10 @@ void wlc_phy_noise_sample_intr(wlc_phy_t *pih)
 			if (pwr_offset_dB > 127)
 				pwr_offset_dB -= 256;
 
-			noise_dbm += (int8) (pwr_offset_dB - 30);
+			noise_dbm += (s8) (pwr_offset_dB - 30);
 
 			gain_dB = (status_0 & 0x1ff);
-			noise_dbm -= (int8) (gain_dB);
+			noise_dbm -= (s8) (gain_dB);
 		} else {
 			noise_dbm = PHY_NOISE_FIXED_VAL_LCNPHY;
 		}
@@ -2795,7 +2795,7 @@ void wlc_phy_noise_sample_intr(wlc_phy_t *pih)
 
 }
 
-int8 lcnphy_gain_index_offset_for_pkt_rssi[] = {
+s8 lcnphy_gain_index_offset_for_pkt_rssi[] = {
 	8,
 	8,
 	8,
@@ -2836,7 +2836,7 @@ int8 lcnphy_gain_index_offset_for_pkt_rssi[] = {
 	0
 };
 
-void wlc_phy_compute_dB(uint32 *cmplx_pwr, int8 *p_cmplx_pwr_dB, u8 core)
+void wlc_phy_compute_dB(uint32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 {
 	u8 shift_ct, lsb, msb, secondmsb, i;
 	uint32 tmp;
@@ -2852,7 +2852,7 @@ void wlc_phy_compute_dB(uint32 *cmplx_pwr, int8 *p_cmplx_pwr_dB, u8 core)
 				msb = shift_ct;
 		}
 		secondmsb = (u8) ((cmplx_pwr[i] >> (msb - 1)) & 1);
-		p_cmplx_pwr_dB[i] = (int8) (3 * msb + 2 * secondmsb);
+		p_cmplx_pwr_dB[i] = (s8) (3 * msb + 2 * secondmsb);
 	}
 }
 
@@ -2905,7 +2905,7 @@ void BCMFASTPATH wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
 	}
 
  end:
-	wlc_rxhdr->rssi = (int8) rssi;
+	wlc_rxhdr->rssi = (s8) rssi;
 }
 
 void wlc_phy_freqtrack_start(wlc_phy_t *pih)
@@ -3004,7 +3004,7 @@ void wlc_phy_BSSinit(wlc_phy_t *pih, bool bonlyap, int rssi)
 	uint k;
 
 	for (i = 0; i < MA_WINDOW_SZ; i++) {
-		pi->sh->phy_noise_window[i] = (int8) (rssi & 0xff);
+		pi->sh->phy_noise_window[i] = (s8) (rssi & 0xff);
 	}
 	if (ISLCNPHY(pi)) {
 		for (i = 0; i < MA_WINDOW_SZ; i++)
@@ -3301,7 +3301,7 @@ u8 wlc_phy_stf_chain_active_get(wlc_phy_t *pih)
 	return active_bitmap;
 }
 
-int8 wlc_phy_stf_ssmode_get(wlc_phy_t *pih, chanspec_t chanspec)
+s8 wlc_phy_stf_ssmode_get(wlc_phy_t *pih, chanspec_t chanspec)
 {
 	phy_info_t *pi = (phy_info_t *) pih;
 	u8 siso_mcs_id, cdd_mcs_id;
@@ -3362,18 +3362,18 @@ void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode)
 	}
 }
 
-static int8
+static s8
 wlc_user_txpwr_antport_to_rfport(phy_info_t *pi, uint chan, uint32 band,
 				 u8 rate)
 {
-	int8 offset = 0;
+	s8 offset = 0;
 
 	if (!pi->user_txpwr_at_rfport)
 		return offset;
 	return offset;
 }
 
-static int8 wlc_phy_env_measure_vbat(phy_info_t *pi)
+static s8 wlc_phy_env_measure_vbat(phy_info_t *pi)
 {
 	if (ISLCNPHY(pi))
 		return wlc_lcnphy_vbatsense(pi, 0);
@@ -3381,7 +3381,7 @@ static int8 wlc_phy_env_measure_vbat(phy_info_t *pi)
 		return 0;
 }
 
-static int8 wlc_phy_env_measure_temperature(phy_info_t *pi)
+static s8 wlc_phy_env_measure_temperature(phy_info_t *pi)
 {
 	if (ISLCNPHY(pi))
 		return wlc_lcnphy_tempsense_degree(pi, 0);
@@ -3392,7 +3392,7 @@ static int8 wlc_phy_env_measure_temperature(phy_info_t *pi)
 static void wlc_phy_upd_env_txpwr_rate_limits(phy_info_t *pi, uint32 band)
 {
 	u8 i;
-	int8 temp, vbat;
+	s8 temp, vbat;
 
 	for (i = 0; i < TXP_NUM_RATES; i++)
 		pi->txpwr_env_limit[i] = WLC_TXPWR_MAX;
@@ -3408,7 +3408,7 @@ void wlc_phy_ldpc_override_set(wlc_phy_t *ppi, bool ldpc)
 }
 
 void
-wlc_phy_get_pwrdet_offsets(phy_info_t *pi, int8 *cckoffset, int8 *ofdmoffset)
+wlc_phy_get_pwrdet_offsets(phy_info_t *pi, s8 *cckoffset, s8 *ofdmoffset)
 {
 	*cckoffset = 0;
 	*ofdmoffset = 0;
@@ -3441,7 +3441,7 @@ uint32 wlc_phy_qdiv_roundup(uint32 dividend, uint32 divisor, u8 precision)
 	return quotient;
 }
 
-int8 wlc_phy_upd_rssi_offset(phy_info_t *pi, int8 rssi, chanspec_t chanspec)
+s8 wlc_phy_upd_rssi_offset(phy_info_t *pi, s8 rssi, chanspec_t chanspec)
 {
 
 	return rssi;

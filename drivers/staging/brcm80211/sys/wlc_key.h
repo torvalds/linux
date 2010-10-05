@@ -95,8 +95,8 @@ typedef struct wsec_key {
 	uint16 flags;		/* misc flags */
 	u8 algo_hw;		/* cache for hw register */
 	u8 aes_mode;		/* cache for hw register */
-	int8 iv_len;		/* IV length */
-	int8 icv_len;		/* ICV length */
+	s8 iv_len;		/* IV length */
+	s8 icv_len;		/* ICV length */
 	uint32 len;		/* key length..don't move this var */
 	/* data is 4byte aligned */
 	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */

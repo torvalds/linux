@@ -66,7 +66,7 @@ struct phy_info_lcnphy {
 	uint16 lcnphy_tssi_npt;
 
 	uint16 lcnphy_target_tx_freq;
-	int8 lcnphy_tx_power_idx_override;
+	s8 lcnphy_tx_power_idx_override;
 	uint16 lcnphy_noise_samples;
 
 	uint32 lcnphy_papdRxGnIdx;
@@ -80,11 +80,11 @@ struct phy_info_lcnphy {
 	int16 lcnphy_dsssgainidxtableoffset;
 	uint32 lcnphy_tr_R_gain_val;
 	uint32 lcnphy_tr_T_gain_val;
-	int8 lcnphy_input_pwr_offset_db;
+	s8 lcnphy_input_pwr_offset_db;
 	uint16 lcnphy_Med_Low_Gain_db;
 	uint16 lcnphy_Very_Low_Gain_db;
-	int8 lcnphy_lastsensed_temperature;
-	int8 lcnphy_pkteng_rssi_slope;
+	s8 lcnphy_lastsensed_temperature;
+	s8 lcnphy_pkteng_rssi_slope;
 	u8 lcnphy_saved_tx_user_target[TXP_NUM_RATES];
 	u8 lcnphy_volt_winner;
 	u8 lcnphy_volt_low;
@@ -94,7 +94,7 @@ struct phy_info_lcnphy {
 	u8 lcnphy_cck;
 	u8 lcnphy_psat_2pt3_detected;
 	int32 lcnphy_lowest_Re_div_Im;
-	int8 lcnphy_final_papd_cal_idx;
+	s8 lcnphy_final_papd_cal_idx;
 	uint16 lcnphy_extstxctrl4;
 	uint16 lcnphy_extstxctrl0;
 	uint16 lcnphy_extstxctrl1;
@@ -116,6 +116,6 @@ struct phy_info_lcnphy {
 
 	u8 lcnphy_aci_stat;
 	uint lcnphy_aci_start_time;
-	int8 lcnphy_tx_power_offset[TXP_NUM_RATES];
+	s8 lcnphy_tx_power_offset[TXP_NUM_RATES];
 };
 #endif				/* _wlc_phy_lcn_h_ */
