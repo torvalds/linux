@@ -74,6 +74,34 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 		WARN_ON(1);
 	}
 
+	/*
+	 * As per Errata i520, in some cases, user will not be able to
+	 * access DDR memory after warm-reset.
+	 * This situation occurs while the warm-reset happens during a read
+	 * access to DDR memory. In that particular condition, DDR memory
+	 * does not respond to a corrupted read command due to the warm
+	 * reset occurrence but SDRC is waiting for read completion.
+	 * SDRC is not sensitive to the warm reset, but the interconnect is
+	 * reset on the fly, thus causing a misalignment between SDRC logic,
+	 * interconnect logic and DDR memory state.
+	 * WORKAROUND:
+	 * Steps to perform before a Warm reset is trigged:
+	 * 1. enable self-refresh on idle request
+	 * 2. put SDRC in idle
+	 * 3. wait until SDRC goes to idle
+	 * 4. generate SW reset (Global SW reset)
+	 *
+	 * Steps to be performed after warm reset occurs (in bootloader):
+	 * if HW warm reset is the source, apply below steps before any
+	 * accesses to SDRAM:
+	 * 1. Reset SMS and SDRC and wait till reset is complete
+	 * 2. Re-initialize SMS, SDRC and memory
+	 *
+	 * NOTE: Above work around is required only if arch reset is implemented
+	 * using Global SW reset(GLOBAL_SW_RST). DPLL3 reset does not need
+	 * the WA since it resets SDRC as well as part of cold reset.
+	 */
+
 	/* XXX should be moved to some OMAP2/3 specific code */
 	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
 				   OMAP2_RM_RSTCTRL);
