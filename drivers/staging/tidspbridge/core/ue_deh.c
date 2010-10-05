@@ -31,32 +31,6 @@
 #include <dspbridge/drv.h>
 #include <dspbridge/wdt.h>
 
-#define MMU_CNTL_TWL_EN		(1 << 2)
-
-static void mmu_fault_dpc(unsigned long data)
-{
-	struct deh_mgr *deh = (void *)data;
-
-	if (!deh)
-		return;
-
-	bridge_deh_notify(deh, DSP_MMUFAULT, 0);
-}
-
-int mmu_fault_isr(struct iommu *mmu)
-{
-	struct deh_mgr *dm;
-
-	dev_get_deh_mgr(dev_get_first(), &dm);
-
-	if (!dm)
-		return -EPERM;
-
-	iommu_write_reg(mmu, 0, MMU_IRQENABLE);
-	tasklet_schedule(&dm->dpc_tasklet);
-	return 0;
-}
-
 int bridge_deh_create(struct deh_mgr **ret_deh,
 		struct dev_object *hdev_obj)
 {
@@ -84,9 +58,6 @@ int bridge_deh_create(struct deh_mgr **ret_deh,
 	}
 	ntfy_init(deh->ntfy_obj);
 
-	/* Create a MMUfault DPC */
-	tasklet_init(&deh->dpc_tasklet, mmu_fault_dpc, (u32) deh);
-
 	/* Fill in context structure */
 	deh->hbridge_context = hbridge_context;
 
@@ -110,9 +81,6 @@ int bridge_deh_destroy(struct deh_mgr *deh)
 		kfree(deh->ntfy_obj);
 	}
 
-	/* Free DPC object */
-	tasklet_kill(&deh->dpc_tasklet);
-
 	/* Deallocate the DEH manager object */
 	kfree(deh);
 
@@ -133,51 +101,6 @@ int bridge_deh_register_notify(struct deh_mgr *deh, u32 event_mask,
 		return ntfy_unregister(deh->ntfy_obj, hnotification);
 }
 
-#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
-static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
-{
-	void *dummy_addr;
-	u32 fa, tmp;
-	struct iotlb_entry e;
-	struct iommu *mmu = dev_context->dsp_mmu;
-	dummy_addr = (void *)__get_free_page(GFP_ATOMIC);
-
-	/*
-	 * Before acking the MMU fault, let's make sure MMU can only
-	 * access entry #0. Then add a new entry so that the DSP OS
-	 * can continue in order to dump the stack.
-	 */
-	tmp = iommu_read_reg(mmu, MMU_CNTL);
-	tmp &= ~MMU_CNTL_TWL_EN;
-	iommu_write_reg(mmu, tmp, MMU_CNTL);
-	fa = iommu_read_reg(mmu, MMU_FAULT_AD);
-	e.da = fa & PAGE_MASK;
-	e.pa = virt_to_phys(dummy_addr);
-	e.valid = 1;
-	e.prsvd = 1;
-	e.pgsz = IOVMF_PGSZ_4K & MMU_CAM_PGSZ_MASK;
-	e.endian = MMU_RAM_ENDIAN_LITTLE;
-	e.elsz = MMU_RAM_ELSZ_32;
-	e.mixed = 0;
-
-	load_iotlb_entry(dev_context->dsp_mmu, &e);
-
-	dsp_clk_enable(DSP_CLK_GPT8);
-
-	dsp_gpt_wait_overflow(DSP_CLK_GPT8, 0xfffffffe);
-
-	/* Clear MMU interrupt */
-	tmp = iommu_read_reg(mmu, MMU_IRQSTATUS);
-	iommu_write_reg(mmu, tmp, MMU_IRQSTATUS);
-
-	dump_dsp_stack(dev_context);
-	dsp_clk_disable(DSP_CLK_GPT8);
-
-	iopgtable_clear_entry(mmu, fa);
-	free_page((unsigned long)dummy_addr);
-}
-#endif
-
 static inline const char *event_to_string(int event)
 {
 	switch (event) {
@@ -193,7 +116,6 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 {
 	struct bridge_dev_context *dev_context;
 	const char *str = event_to_string(event);
-	u32 fa;
 
 	if (!deh)
 		return;
@@ -211,13 +133,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 #endif
 		break;
 	case DSP_MMUFAULT:
-		fa = iommu_read_reg(dev_context->dsp_mmu, MMU_FAULT_AD);
-		dev_err(bridge, "%s: %s, addr=0x%x", __func__, str, fa);
-#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
-		print_dsp_trace_buffer(dev_context);
-		dump_dl_modules(dev_context);
-		mmu_fault_print_stack(dev_context);
-#endif
+		dev_err(bridge, "%s: %s, addr=0x%x", __func__, str, info);
 		break;
 	default:
 		dev_err(bridge, "%s: %s", __func__, str);

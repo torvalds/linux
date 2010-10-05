@@ -27,9 +27,6 @@
 struct deh_mgr {
 	struct bridge_dev_context *hbridge_context;	/* Bridge context. */
 	struct ntfy_object *ntfy_obj;	/* NTFY object */
-
-	/* MMU Fault DPC */
-	struct tasklet_struct dpc_tasklet;
 };
 
 int mmu_fault_isr(struct iommu *mmu);

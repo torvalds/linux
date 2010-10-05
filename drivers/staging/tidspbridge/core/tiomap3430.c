@@ -54,7 +54,6 @@
 #include "_tiomap.h"
 #include "_tiomap_pwr.h"
 #include "tiomap_io.h"
-#include "_deh.h"
 
 /* Offset in shared mem to write to in order to synchronize start with DSP */
 #define SHMSYNCOFFSET 4		/* GPP byte offset */
@@ -69,7 +68,6 @@
 #define MMU_SMALL_PAGE_MASK      0xFFFFF000
 #define OMAP3_IVA2_BOOTADDR_MASK 0xFFFFFC00
 #define PAGES_II_LVL_TABLE   512
-#define PHYS_TO_PAGE(phys)      pfn_to_page((phys) >> PAGE_SHIFT)
 
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt);
@@ -354,17 +352,16 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 		mmu = dev_context->dsp_mmu;
 		if (mmu)
-			iommu_put(mmu);
-		mmu = iommu_get("iva2");
+			dsp_mmu_exit(mmu);
+		mmu = dsp_mmu_init();
 		if (IS_ERR(mmu)) {
-			dev_err(bridge, "iommu_get failed!\n");
+			dev_err(bridge, "dsp_mmu_init failed!\n");
 			dev_context->dsp_mmu = NULL;
 			status = (int)mmu;
 		}
 	}
 	if (!status) {
 		dev_context->dsp_mmu = mmu;
-		mmu->isr = mmu_fault_isr;
 		sm_sg = &dev_context->sh_s;
 		sg0_da = iommu_kmap(mmu, sm_sg->seg0_da, sm_sg->seg0_pa,
 			sm_sg->seg0_size, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
@@ -620,7 +617,7 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 		}
 		iommu_kunmap(dev_context->dsp_mmu, dev_context->sh_s.seg0_da);
 		iommu_kunmap(dev_context->dsp_mmu, dev_context->sh_s.seg1_da);
-		iommu_put(dev_context->dsp_mmu);
+		dsp_mmu_exit(dev_context->dsp_mmu);
 		dev_context->dsp_mmu = NULL;
 	}
 	/* Reset IVA IOMMU*/
@@ -932,173 +929,6 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 		host_buff = host_buff + ul_bytes;
 	}
 	return status;
-}
-
-/*
- *  ======== user_va2_pa ========
- *  Purpose:
- *      This function walks through the page tables to convert a userland
- *      virtual address to physical address
- */
-static u32 user_va2_pa(struct mm_struct *mm, u32 address)
-{
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *ptep, pte;
-
-	pgd = pgd_offset(mm, address);
-	if (!(pgd_none(*pgd) || pgd_bad(*pgd))) {
-		pmd = pmd_offset(pgd, address);
-		if (!(pmd_none(*pmd) || pmd_bad(*pmd))) {
-			ptep = pte_offset_map(pmd, address);
-			if (ptep) {
-				pte = *ptep;
-				if (pte_present(pte))
-					return pte & PAGE_MASK;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/**
- * get_io_pages() - pin and get pages of io user's buffer.
- * @mm:		mm_struct Pointer of the process.
- * @uva:		Virtual user space address.
- * @pages	Pages to be pined.
- * @usr_pgs	struct page array pointer where the user pages will be stored
- *
- */
-static int get_io_pages(struct mm_struct *mm, u32 uva, unsigned pages,
-						struct page **usr_pgs)
-{
-	u32 pa;
-	int i;
-	struct page *pg;
-
-	for (i = 0; i < pages; i++) {
-		pa = user_va2_pa(mm, uva);
-
-		if (!pfn_valid(__phys_to_pfn(pa)))
-			break;
-
-		pg = PHYS_TO_PAGE(pa);
-		usr_pgs[i] = pg;
-		get_page(pg);
-	}
-	return i;
-}
-
-/**
- * user_to_dsp_map() - maps user to dsp virtual address
- * @mmu:	Pointer to iommu handle.
- * @uva:		Virtual user space address.
- * @da		DSP address
- * @size		Buffer size to map.
- * @usr_pgs	struct page array pointer where the user pages will be stored
- *
- * This function maps a user space buffer into DSP virtual address.
- *
- */
-u32 user_to_dsp_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
-				struct page **usr_pgs)
-{
-	int res, w;
-	unsigned pages, i;
-	struct vm_area_struct *vma;
-	struct mm_struct *mm = current->mm;
-	struct sg_table *sgt;
-	struct scatterlist *sg;
-
-	if (!size || !usr_pgs)
-		return -EINVAL;
-
-	pages = size / PG_SIZE4K;
-
-	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, uva);
-	while (vma && (uva + size > vma->vm_end))
-		vma = find_vma(mm, vma->vm_end + 1);
-
-	if (!vma) {
-		pr_err("%s: Failed to get VMA region for 0x%x (%d)\n",
-						__func__, uva, size);
-		up_read(&mm->mmap_sem);
-		return -EINVAL;
-	}
-	if (vma->vm_flags & (VM_WRITE | VM_MAYWRITE))
-		w = 1;
-
-	if (vma->vm_flags & VM_IO)
-		i = get_io_pages(mm, uva, pages, usr_pgs);
-	else
-		i = get_user_pages(current, mm, uva, pages, w, 1,
-							usr_pgs, NULL);
-	up_read(&mm->mmap_sem);
-
-	if (i < 0)
-		return i;
-
-	if (i < pages) {
-		res = -EFAULT;
-		goto err_pages;
-	}
-
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	if (!sgt) {
-		res = -ENOMEM;
-		goto err_pages;
-	}
-
-	res = sg_alloc_table(sgt, pages, GFP_KERNEL);
-
-	if (res < 0)
-		goto err_sg;
-
-	for_each_sg(sgt->sgl, sg, sgt->nents, i)
-		sg_set_page(sg, usr_pgs[i], PAGE_SIZE, 0);
-
-	da = iommu_vmap(mmu, da, sgt, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
-
-	if (!IS_ERR_VALUE(da))
-		return da;
-	res = (int)da;
-
-	sg_free_table(sgt);
-err_sg:
-	kfree(sgt);
-	i = pages;
-err_pages:
-	while (i--)
-		put_page(usr_pgs[i]);
-	return res;
-}
-
-/**
- * user_to_dsp_unmap() - unmaps DSP virtual buffer.
- * @mmu:	Pointer to iommu handle.
- * @da		DSP address
- *
- * This function unmaps a user space buffer into DSP virtual address.
- *
- */
-int user_to_dsp_unmap(struct iommu *mmu, u32 da)
-{
-	unsigned i;
-	struct sg_table *sgt;
-	struct scatterlist *sg;
-
-	sgt = iommu_vunmap(mmu, da);
-	if (!sgt)
-		return -EFAULT;
-
-	for_each_sg(sgt->sgl, sg, sgt->nents, i)
-		put_page(sg_page(sg));
-	sg_free_table(sgt);
-	kfree(sgt);
-
-	return 0;
 }
 
 /*
