@@ -126,7 +126,7 @@ static int set_fbmem_region_type(struct omapfb_mem_region *rg, int mem_type,
 	 * type = 0 && paddr = 0, a default don't care case maps to
 	 * the SDRAM type.
 	 */
-	if (rg->type || (!rg->type && !rg->paddr))
+	if (rg->type || !rg->paddr)
 		return 0;
 	if (ranges_overlap(rg->paddr, rg->size, mem_start, mem_size)) {
 		rg->type = mem_type;
