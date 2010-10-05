@@ -17,10 +17,7 @@
 #ifndef _bcmip_h_
 #define _bcmip_h_
 
-#ifndef _TYPEDEFS_H_
 #include <typedefs.h>
-#endif
-
 #include <packed_section_start.h>
 
 #define IP_VER_OFFSET		0x0

@@ -17,9 +17,7 @@
 #ifndef _NET_ETHERNET_H_
 #define _NET_ETHERNET_H_
 
-#ifndef _TYPEDEFS_H_
 #include "typedefs.h"
-#endif
 #include <packed_section_start.h>
 
 #define	ETHER_ADDR_LEN		6

@@ -17,10 +17,7 @@
 #ifndef _BCMETH_H_
 #define _BCMETH_H_
 
-#ifndef _TYPEDEFS_H_
 #include <typedefs.h>
-#endif
-
 #include <packed_section_start.h>
 
 #define	BCMILCP_SUBTYPE_RATE		1

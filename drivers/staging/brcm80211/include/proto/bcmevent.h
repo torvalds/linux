@@ -17,10 +17,7 @@
 #ifndef _BCMEVENT_H_
 #define _BCMEVENT_H_
 
-#ifndef _TYPEDEFS_H_
 #include <typedefs.h>
-#endif
-
 #include <packed_section_start.h>
 
 #define BCM_EVENT_MSG_VERSION		1

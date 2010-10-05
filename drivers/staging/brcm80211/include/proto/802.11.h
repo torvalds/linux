@@ -17,12 +17,8 @@
 #ifndef _802_11_H_
 #define _802_11_H_
 
-#ifndef _TYPEDEFS_H_
 #include <typedefs.h>
-#endif
-
 #include <proto/wpa.h>
-
 #include <packed_section_start.h>
 
 #define DOT11_A3_HDR_LEN		24
