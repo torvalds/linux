@@ -942,3 +942,7 @@ module_exit(vmwgfx_exit);
 MODULE_AUTHOR("VMware Inc. and others");
 MODULE_DESCRIPTION("Standalone drm driver for the VMware SVGA device");
 MODULE_LICENSE("GPL and additional rights");
+MODULE_VERSION(__stringify(VMWGFX_DRIVER_MAJOR) "."
+	       __stringify(VMWGFX_DRIVER_MINOR) "."
+	       __stringify(VMWGFX_DRIVER_PATCHLEVEL) "."
+	       "0");
