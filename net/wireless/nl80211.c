@@ -93,6 +93,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_KEY_CIPHER] = { .type = NLA_U32 },
 	[NL80211_ATTR_KEY_DEFAULT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_KEY_SEQ] = { .type = NLA_BINARY, .len = 8 },
+	[NL80211_ATTR_KEY_TYPE] = { .type = NLA_U32 },
 
 	[NL80211_ATTR_BEACON_INTERVAL] = { .type = NLA_U32 },
 	[NL80211_ATTR_DTIM_PERIOD] = { .type = NLA_U32 },
@@ -168,7 +169,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_FRAME_TYPE] = { .type = NLA_U16 },
 };
 
-/* policy for the attributes */
+/* policy for the key attributes */
 static const struct nla_policy nl80211_key_policy[NL80211_KEY_MAX + 1] = {
 	[NL80211_KEY_DATA] = { .type = NLA_BINARY, .len = WLAN_MAX_KEY_LEN },
 	[NL80211_KEY_IDX] = { .type = NLA_U8 },
@@ -176,6 +177,7 @@ static const struct nla_policy nl80211_key_policy[NL80211_KEY_MAX + 1] = {
 	[NL80211_KEY_SEQ] = { .type = NLA_BINARY, .len = 8 },
 	[NL80211_KEY_DEFAULT] = { .type = NLA_FLAG },
 	[NL80211_KEY_DEFAULT_MGMT] = { .type = NLA_FLAG },
+	[NL80211_KEY_TYPE] = { .type = NLA_U32 },
 };
 
 /* ifidx get helper */
@@ -306,6 +308,7 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 struct key_parse {
 	struct key_params p;
 	int idx;
+	int type;
 	bool def, defmgmt;
 };
 
@@ -336,6 +339,12 @@ static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
 	if (tb[NL80211_KEY_CIPHER])
 		k->p.cipher = nla_get_u32(tb[NL80211_KEY_CIPHER]);
 
+	if (tb[NL80211_KEY_TYPE]) {
+		k->type = nla_get_u32(tb[NL80211_KEY_TYPE]);
+		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -360,6 +369,12 @@ static int nl80211_parse_key_old(struct genl_info *info, struct key_parse *k)
 	k->def = !!info->attrs[NL80211_ATTR_KEY_DEFAULT];
 	k->defmgmt = !!info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT];
 
+	if (info->attrs[NL80211_ATTR_KEY_TYPE]) {
+		k->type = nla_get_u32(info->attrs[NL80211_ATTR_KEY_TYPE]);
+		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -369,6 +384,7 @@ static int nl80211_parse_key(struct genl_info *info, struct key_parse *k)
 
 	memset(k, 0, sizeof(*k));
 	k->idx = -1;
+	k->type = -1;
 
 	if (info->attrs[NL80211_ATTR_KEY])
 		err = nl80211_parse_key_new(info->attrs[NL80211_ATTR_KEY], k);
@@ -433,7 +449,7 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 		} else if (parse.defmgmt)
 			goto error;
 		err = cfg80211_validate_key_settings(rdev, &parse.p,
-						     parse.idx, NULL);
+						     parse.idx, false, NULL);
 		if (err)
 			goto error;
 		result->params[parse.idx].cipher = parse.p.cipher;
@@ -515,6 +531,9 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		   dev->wiphy.max_scan_ssids);
 	NLA_PUT_U16(msg, NL80211_ATTR_MAX_SCAN_IE_LEN,
 		    dev->wiphy.max_scan_ie_len);
+
+	if (dev->wiphy.flags & WIPHY_FLAG_IBSS_RSN)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_SUPPORT_IBSS_RSN);
 
 	NLA_PUT(msg, NL80211_ATTR_CIPHER_SUITES,
 		sizeof(u32) * dev->wiphy.n_cipher_suites,
@@ -1446,7 +1465,8 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	int err;
 	struct net_device *dev = info->user_ptr[1];
 	u8 key_idx = 0;
-	u8 *mac_addr = NULL;
+	const u8 *mac_addr = NULL;
+	bool pairwise;
 	struct get_key_cookie cookie = {
 		.error = 0,
 	};
@@ -1461,6 +1481,17 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	pairwise = !!mac_addr;
+	if (info->attrs[NL80211_ATTR_KEY_TYPE]) {
+		u32 kt = nla_get_u32(info->attrs[NL80211_ATTR_KEY_TYPE]);
+		if (kt >= NUM_NL80211_KEYTYPES)
+			return -EINVAL;
+		if (kt != NL80211_KEYTYPE_GROUP &&
+		    kt != NL80211_KEYTYPE_PAIRWISE)
+			return -EINVAL;
+		pairwise = kt == NL80211_KEYTYPE_PAIRWISE;
+	}
 
 	if (!rdev->ops->get_key)
 		return -EOPNOTSUPP;
@@ -1482,8 +1513,12 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	if (mac_addr)
 		NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
 
-	err = rdev->ops->get_key(&rdev->wiphy, dev, key_idx, mac_addr,
-				&cookie, get_key_callback);
+	if (pairwise && mac_addr &&
+	    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+		return -ENOENT;
+
+	err = rdev->ops->get_key(&rdev->wiphy, dev, key_idx, pairwise,
+				 mac_addr, &cookie, get_key_callback);
 
 	if (err)
 		goto free_msg;
@@ -1553,7 +1588,7 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	int err;
 	struct net_device *dev = info->user_ptr[1];
 	struct key_parse key;
-	u8 *mac_addr = NULL;
+	const u8 *mac_addr = NULL;
 
 	err = nl80211_parse_key(info, &key);
 	if (err)
@@ -1565,16 +1600,31 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
+	if (key.type == -1) {
+		if (mac_addr)
+			key.type = NL80211_KEYTYPE_PAIRWISE;
+		else
+			key.type = NL80211_KEYTYPE_GROUP;
+	}
+
+	/* for now */
+	if (key.type != NL80211_KEYTYPE_PAIRWISE &&
+	    key.type != NL80211_KEYTYPE_GROUP)
+		return -EINVAL;
+
 	if (!rdev->ops->add_key)
 		return -EOPNOTSUPP;
 
-	if (cfg80211_validate_key_settings(rdev, &key.p, key.idx, mac_addr))
+	if (cfg80211_validate_key_settings(rdev, &key.p, key.idx,
+					   key.type == NL80211_KEYTYPE_PAIRWISE,
+					   mac_addr))
 		return -EINVAL;
 
 	wdev_lock(dev->ieee80211_ptr);
 	err = nl80211_key_allowed(dev->ieee80211_ptr);
 	if (!err)
 		err = rdev->ops->add_key(&rdev->wiphy, dev, key.idx,
+					 key.type == NL80211_KEYTYPE_PAIRWISE,
 					 mac_addr, &key.p);
 	wdev_unlock(dev->ieee80211_ptr);
 
@@ -1596,13 +1646,32 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
+	if (key.type == -1) {
+		if (mac_addr)
+			key.type = NL80211_KEYTYPE_PAIRWISE;
+		else
+			key.type = NL80211_KEYTYPE_GROUP;
+	}
+
+	/* for now */
+	if (key.type != NL80211_KEYTYPE_PAIRWISE &&
+	    key.type != NL80211_KEYTYPE_GROUP)
+		return -EINVAL;
+
 	if (!rdev->ops->del_key)
 		return -EOPNOTSUPP;
 
 	wdev_lock(dev->ieee80211_ptr);
 	err = nl80211_key_allowed(dev->ieee80211_ptr);
+
+	if (key.type == NL80211_KEYTYPE_PAIRWISE && mac_addr &&
+	    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+		err = -ENOENT;
+
 	if (!err)
-		err = rdev->ops->del_key(&rdev->wiphy, dev, key.idx, mac_addr);
+		err = rdev->ops->del_key(&rdev->wiphy, dev, key.idx,
+					 key.type == NL80211_KEYTYPE_PAIRWISE,
+					 mac_addr);
 
 #ifdef CONFIG_CFG80211_WEXT
 	if (!err) {
@@ -3212,6 +3281,8 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		return err;
 
 	if (key.idx >= 0) {
+		if (key.type != -1 && key.type != NL80211_KEYTYPE_GROUP)
+			return -EINVAL;
 		if (!key.p.key || !key.p.key_len)
 			return -EINVAL;
 		if ((key.p.cipher != WLAN_CIPHER_SUITE_WEP40 ||

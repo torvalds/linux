@@ -616,7 +616,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata;
 	struct sk_buff *skb;
 	unsigned long flags;
-	int ret;
+	int ret, i;
 
 	might_sleep();
 
@@ -644,10 +644,10 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	if (ret)
 		return ret;
 
-	if (sta->key) {
-		ieee80211_key_free(local, sta->key);
-		WARN_ON(sta->key);
-	}
+	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
+		ieee80211_key_free(local, sta->gtk[i]);
+	if (sta->ptk)
+		ieee80211_key_free(local, sta->ptk);
 
 	sta->dead = true;
 

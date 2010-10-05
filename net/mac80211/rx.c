@@ -846,7 +846,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	int keyidx;
 	int hdrlen;
 	ieee80211_rx_result result = RX_DROP_UNUSABLE;
-	struct ieee80211_key *stakey = NULL;
+	struct ieee80211_key *sta_ptk = NULL;
 	int mmie_keyidx = -1;
 	__le16 fc;
 
@@ -888,15 +888,15 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	rx->key = NULL;
 
 	if (rx->sta)
-		stakey = rcu_dereference(rx->sta->key);
+		sta_ptk = rcu_dereference(rx->sta->ptk);
 
 	fc = hdr->frame_control;
 
 	if (!ieee80211_has_protected(fc))
 		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
 
-	if (!is_multicast_ether_addr(hdr->addr1) && stakey) {
-		rx->key = stakey;
+	if (!is_multicast_ether_addr(hdr->addr1) && sta_ptk) {
+		rx->key = sta_ptk;
 		if ((status->flag & RX_FLAG_DECRYPTED) &&
 		    (status->flag & RX_FLAG_IV_STRIPPED))
 			return RX_CONTINUE;
@@ -912,7 +912,10 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
 		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
 			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
-		rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
+		if (rx->sta)
+			rx->key = rcu_dereference(rx->sta->gtk[mmie_keyidx]);
+		if (!rx->key)
+			rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
 	} else if (!ieee80211_has_protected(fc)) {
 		/*
 		 * The frame was not protected, so skip decryption. However, we
@@ -955,17 +958,25 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		skb_copy_bits(rx->skb, hdrlen + 3, &keyid, 1);
 		keyidx = keyid >> 6;
 
-		rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
+		/* check per-station GTK first, if multicast packet */
+		if (is_multicast_ether_addr(hdr->addr1) && rx->sta)
+			rx->key = rcu_dereference(rx->sta->gtk[keyidx]);
 
-		/*
-		 * RSNA-protected unicast frames should always be sent with
-		 * pairwise or station-to-station keys, but for WEP we allow
-		 * using a key index as well.
-		 */
-		if (rx->key && rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP40 &&
-		    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP104 &&
-		    !is_multicast_ether_addr(hdr->addr1))
-			rx->key = NULL;
+		/* if not found, try default key */
+		if (!rx->key) {
+			rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
+
+			/*
+			 * RSNA-protected unicast frames should always be
+			 * sent with pairwise or station-to-station keys,
+			 * but for WEP we allow using a key index as well.
+			 */
+			if (rx->key &&
+			    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP40 &&
+			    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP104 &&
+			    !is_multicast_ether_addr(hdr->addr1))
+				rx->key = NULL;
+		}
 	}
 
 	if (rx->key) {

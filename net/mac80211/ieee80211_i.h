@@ -549,8 +549,6 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
 
-#define NUM_DEFAULT_KEYS 4
-#define NUM_DEFAULT_MGMT_KEYS 2
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
 	struct ieee80211_key *default_key;
 	struct ieee80211_key *default_mgmt_key;

@@ -1041,6 +1041,13 @@ enum ieee80211_tkip_key_type {
  * @IEEE80211_HW_NEED_DTIM_PERIOD:
  *	This device needs to know the DTIM period for the BSS before
  *	associating.
+ *
+ * @IEEE80211_HW_SUPPORTS_PER_STA_GTK: The device's crypto engine supports
+ *	per-station GTKs as used by IBSS RSN or during fast transition. If
+ *	the device doesn't support per-station GTKs, but can be asked not
+ *	to decrypt group addressed frames, then IBSS RSN support is still
+ *	possible but software crypto will be used. Advertise the wiphy flag
+ *	only in that case.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1064,6 +1071,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
 	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
+	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 };
 
 /**
@@ -2581,6 +2589,22 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
  */
 void ieee80211_request_smps(struct ieee80211_vif *vif,
 			    enum ieee80211_smps_mode smps_mode);
+
+/**
+ * ieee80211_key_removed - disable hw acceleration for key
+ * @key_conf: The key hw acceleration should be disabled for
+ *
+ * This allows drivers to indicate that the given key has been
+ * removed from hardware acceleration, due to a new key that
+ * was added. Don't use this if the key can continue to be used
+ * for TX, if the key restriction is on RX only it is permitted
+ * to keep the key for TX only and not call this function.
+ *
+ * Due to locking constraints, it may only be called during
+ * @set_key. This function must be allowed to sleep, and the
+ * key it tries to disable may still be used until it returns.
+ */
+void ieee80211_key_removed(struct ieee80211_key_conf *key_conf);
 
 /* Rate control API */
 
