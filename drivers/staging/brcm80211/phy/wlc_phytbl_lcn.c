@@ -450,7 +450,7 @@ CONST uint16 dot11lcn_aux_gain_idx_tbl_2G[] = {
 	0x0000
 };
 
-CONST uint8 dot11lcn_gain_val_tbl_2G[] = {
+CONST u8 dot11lcn_gain_val_tbl_2G[] = {
 	0xfc,
 	0x02,
 	0x08,
@@ -915,7 +915,7 @@ CONST uint16 dot11lcn_aux_gain_idx_tbl_extlna_2G[] = {
 	0x0000
 };
 
-CONST uint8 dot11lcn_gain_val_tbl_extlna_2G[] = {
+CONST u8 dot11lcn_gain_val_tbl_extlna_2G[] = {
 	0xfc,
 	0x02,
 	0x08,
@@ -2131,7 +2131,7 @@ CONST uint16 dot11lcn_sw_ctrl_tbl_rev0[] = {
 	0x0002,
 };
 
-CONST uint8 dot11lcn_nf_table_rev0[] = {
+CONST u8 dot11lcn_nf_table_rev0[] = {
 	0x5f,
 	0x36,
 	0x29,
@@ -2150,7 +2150,7 @@ CONST uint8 dot11lcn_nf_table_rev0[] = {
 	0x1f,
 };
 
-CONST uint8 dot11lcn_gain_val_tbl_rev0[] = {
+CONST u8 dot11lcn_gain_val_tbl_rev0[] = {
 	0x09,
 	0x0f,
 	0x14,
@@ -2213,7 +2213,7 @@ CONST uint8 dot11lcn_gain_val_tbl_rev0[] = {
 	0x00,
 };
 
-CONST uint8 dot11lcn_spur_tbl_rev0[] = {
+CONST u8 dot11lcn_spur_tbl_rev0[] = {
 	0x01,
 	0x01,
 	0x01,

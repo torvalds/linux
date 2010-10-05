@@ -94,28 +94,28 @@
 #define WLC_NUM_RATES_MCS_3_STREAM  8
 #define WLC_NUM_RATES_MCS_4_STREAM  8
 typedef struct txpwr_limits {
-	uint8 cck[WLC_NUM_RATES_CCK];
-	uint8 ofdm[WLC_NUM_RATES_OFDM];
+	u8 cck[WLC_NUM_RATES_CCK];
+	u8 ofdm[WLC_NUM_RATES_OFDM];
 
-	uint8 ofdm_cdd[WLC_NUM_RATES_OFDM];
+	u8 ofdm_cdd[WLC_NUM_RATES_OFDM];
 
-	uint8 ofdm_40_siso[WLC_NUM_RATES_OFDM];
-	uint8 ofdm_40_cdd[WLC_NUM_RATES_OFDM];
+	u8 ofdm_40_siso[WLC_NUM_RATES_OFDM];
+	u8 ofdm_40_cdd[WLC_NUM_RATES_OFDM];
 
-	uint8 mcs_20_siso[WLC_NUM_RATES_MCS_1_STREAM];
-	uint8 mcs_20_cdd[WLC_NUM_RATES_MCS_1_STREAM];
-	uint8 mcs_20_stbc[WLC_NUM_RATES_MCS_1_STREAM];
-	uint8 mcs_20_mimo[WLC_NUM_RATES_MCS_2_STREAM];
+	u8 mcs_20_siso[WLC_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_20_cdd[WLC_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_20_stbc[WLC_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_20_mimo[WLC_NUM_RATES_MCS_2_STREAM];
 
-	uint8 mcs_40_siso[WLC_NUM_RATES_MCS_1_STREAM];
-	uint8 mcs_40_cdd[WLC_NUM_RATES_MCS_1_STREAM];
-	uint8 mcs_40_stbc[WLC_NUM_RATES_MCS_1_STREAM];
-	uint8 mcs_40_mimo[WLC_NUM_RATES_MCS_2_STREAM];
-	uint8 mcs32;
+	u8 mcs_40_siso[WLC_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_40_cdd[WLC_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_40_stbc[WLC_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_40_mimo[WLC_NUM_RATES_MCS_2_STREAM];
+	u8 mcs32;
 } txpwr_limits_t;
 
 typedef struct {
-	uint8 vec[MAXCHANNEL / NBBY];
+	u8 vec[MAXCHANNEL / NBBY];
 } chanvec_t;
 
 struct rpc_info;
@@ -201,9 +201,9 @@ extern void wlc_phy_chanspec_band_validch(wlc_phy_t *ppi, uint band,
 extern chanspec_t wlc_phy_chanspec_band_firstch(wlc_phy_t *ppi, uint band);
 
 extern void wlc_phy_txpower_sromlimit(wlc_phy_t *ppi, uint chan,
-				      uint8 *_min_, uint8 *_max_, int rate);
+				      u8 *_min_, u8 *_max_, int rate);
 extern void wlc_phy_txpower_sromlimit_max_get(wlc_phy_t *ppi, uint chan,
-					      uint8 *_max_, uint8 *_min_);
+					      u8 *_max_, u8 *_min_);
 extern void wlc_phy_txpower_boardlimit_band(wlc_phy_t *ppi, uint band, int32 *,
 					    int32 *, uint32 *);
 extern void wlc_phy_txpower_limit_set(wlc_phy_t *ppi, struct txpwr_limits *,
@@ -213,39 +213,39 @@ extern int wlc_phy_txpower_set(wlc_phy_t *ppi, uint qdbm, bool override);
 extern void wlc_phy_txpower_target_set(wlc_phy_t *ppi, struct txpwr_limits *);
 extern bool wlc_phy_txpower_hw_ctrl_get(wlc_phy_t *ppi);
 extern void wlc_phy_txpower_hw_ctrl_set(wlc_phy_t *ppi, bool hwpwrctrl);
-extern uint8 wlc_phy_txpower_get_target_min(wlc_phy_t *ppi);
-extern uint8 wlc_phy_txpower_get_target_max(wlc_phy_t *ppi);
+extern u8 wlc_phy_txpower_get_target_min(wlc_phy_t *ppi);
+extern u8 wlc_phy_txpower_get_target_max(wlc_phy_t *ppi);
 extern bool wlc_phy_txpower_ipa_ison(wlc_phy_t *pih);
 
-extern void wlc_phy_stf_chain_init(wlc_phy_t *pih, uint8 txchain,
-				   uint8 rxchain);
-extern void wlc_phy_stf_chain_set(wlc_phy_t *pih, uint8 txchain,
-				  uint8 rxchain);
-extern void wlc_phy_stf_chain_get(wlc_phy_t *pih, uint8 *txchain,
-				  uint8 *rxchain);
-extern uint8 wlc_phy_stf_chain_active_get(wlc_phy_t *pih);
+extern void wlc_phy_stf_chain_init(wlc_phy_t *pih, u8 txchain,
+				   u8 rxchain);
+extern void wlc_phy_stf_chain_set(wlc_phy_t *pih, u8 txchain,
+				  u8 rxchain);
+extern void wlc_phy_stf_chain_get(wlc_phy_t *pih, u8 *txchain,
+				  u8 *rxchain);
+extern u8 wlc_phy_stf_chain_active_get(wlc_phy_t *pih);
 extern int8 wlc_phy_stf_ssmode_get(wlc_phy_t *pih, chanspec_t chanspec);
 extern void wlc_phy_ldpc_override_set(wlc_phy_t *ppi, bool val);
 
-extern void wlc_phy_cal_perical(wlc_phy_t *ppi, uint8 reason);
+extern void wlc_phy_cal_perical(wlc_phy_t *ppi, u8 reason);
 extern void wlc_phy_noise_sample_request_external(wlc_phy_t *ppi);
 extern void wlc_phy_edcrs_lock(wlc_phy_t *pih, bool lock);
 extern void wlc_phy_cal_papd_recal(wlc_phy_t *ppi);
 
-extern void wlc_phy_ant_rxdiv_set(wlc_phy_t *ppi, uint8 val);
-extern bool wlc_phy_ant_rxdiv_get(wlc_phy_t *ppi, uint8 *pval);
+extern void wlc_phy_ant_rxdiv_set(wlc_phy_t *ppi, u8 val);
+extern bool wlc_phy_ant_rxdiv_get(wlc_phy_t *ppi, u8 *pval);
 extern void wlc_phy_clear_tssi(wlc_phy_t *ppi);
 extern void wlc_phy_hold_upd(wlc_phy_t *ppi, mbool id, bool val);
 extern void wlc_phy_mute_upd(wlc_phy_t *ppi, bool val, mbool flags);
 
-extern void wlc_phy_antsel_type_set(wlc_phy_t *ppi, uint8 antsel_type);
+extern void wlc_phy_antsel_type_set(wlc_phy_t *ppi, u8 antsel_type);
 
 extern void wlc_phy_txpower_get_current(wlc_phy_t *ppi, tx_power_t *power,
 					uint channel);
 
 extern void wlc_phy_initcal_enable(wlc_phy_t *pih, bool initcal);
 extern bool wlc_phy_test_ison(wlc_phy_t *ppi);
-extern void wlc_phy_txpwr_percent_set(wlc_phy_t *ppi, uint8 txpwr_percent);
+extern void wlc_phy_txpwr_percent_set(wlc_phy_t *ppi, u8 txpwr_percent);
 extern void wlc_phy_ofdm_rateset_war(wlc_phy_t *pih, bool war);
 extern void wlc_phy_bf_preempt_enable(wlc_phy_t *pih, bool bf_preempt);
 extern void wlc_phy_machwcap_set(wlc_phy_t *ppi, uint32 machwcap);
@@ -255,9 +255,9 @@ extern void wlc_phy_runbist_config(wlc_phy_t *ppi, bool start_end);
 extern void wlc_phy_freqtrack_start(wlc_phy_t *ppi);
 extern void wlc_phy_freqtrack_end(wlc_phy_t *ppi);
 
-extern const uint8 *wlc_phy_get_ofdm_rate_lookup(void);
+extern const u8 *wlc_phy_get_ofdm_rate_lookup(void);
 
 extern int8 wlc_phy_get_tx_power_offset_by_mcs(wlc_phy_t *ppi,
-					       uint8 mcs_offset);
-extern int8 wlc_phy_get_tx_power_offset(wlc_phy_t *ppi, uint8 tbl_offset);
+					       u8 mcs_offset);
+extern int8 wlc_phy_get_tx_power_offset(wlc_phy_t *ppi, u8 tbl_offset);
 #endif				/* _wlc_phy_h_ */

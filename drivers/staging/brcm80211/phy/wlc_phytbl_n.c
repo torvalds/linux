@@ -854,7 +854,7 @@ CONST uint32 frame_struct_rev0[] = {
 	0x00000000,
 };
 
-CONST uint8 frame_lut_rev0[] = {
+CONST u8 frame_lut_rev0[] = {
 	0x02,
 	0x04,
 	0x14,
@@ -2607,7 +2607,7 @@ CONST uint32 chanest_tbl_rev0[] = {
 	0x10101010,
 };
 
-CONST uint8 mcs_tbl_rev0[] = {
+CONST u8 mcs_tbl_rev0[] = {
 	0x00,
 	0x08,
 	0x0a,
@@ -3256,7 +3256,7 @@ CONST uint32 noise_var_tbl1_rev0[] = {
 	0x0000014d,
 };
 
-CONST uint8 est_pwr_lut_core0_rev0[] = {
+CONST u8 est_pwr_lut_core0_rev0[] = {
 	0x50,
 	0x4f,
 	0x4e,
@@ -3323,7 +3323,7 @@ CONST uint8 est_pwr_lut_core0_rev0[] = {
 	0x11,
 };
 
-CONST uint8 est_pwr_lut_core1_rev0[] = {
+CONST u8 est_pwr_lut_core1_rev0[] = {
 	0x50,
 	0x4f,
 	0x4e,
@@ -3390,7 +3390,7 @@ CONST uint8 est_pwr_lut_core1_rev0[] = {
 	0x11,
 };
 
-CONST uint8 adj_pwr_lut_core0_rev0[] = {
+CONST u8 adj_pwr_lut_core0_rev0[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -3521,7 +3521,7 @@ CONST uint8 adj_pwr_lut_core0_rev0[] = {
 	0x00,
 };
 
-CONST uint8 adj_pwr_lut_core1_rev0[] = {
+CONST u8 adj_pwr_lut_core1_rev0[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -7616,7 +7616,7 @@ CONST uint32 chanest_tbl_rev3[] = {
 	0x10101010,
 };
 
-CONST uint8 frame_lut_rev3[] = {
+CONST u8 frame_lut_rev3[] = {
 	0x02,
 	0x04,
 	0x14,
@@ -7651,7 +7651,7 @@ CONST uint8 frame_lut_rev3[] = {
 	0x2a,
 };
 
-CONST uint8 est_pwr_lut_core0_rev3[] = {
+CONST u8 est_pwr_lut_core0_rev3[] = {
 	0x55,
 	0x54,
 	0x54,
@@ -7718,7 +7718,7 @@ CONST uint8 est_pwr_lut_core0_rev3[] = {
 	0xfd,
 };
 
-CONST uint8 est_pwr_lut_core1_rev3[] = {
+CONST u8 est_pwr_lut_core1_rev3[] = {
 	0x55,
 	0x54,
 	0x54,
@@ -7785,7 +7785,7 @@ CONST uint8 est_pwr_lut_core1_rev3[] = {
 	0xfd,
 };
 
-CONST uint8 adj_pwr_lut_core0_rev3[] = {
+CONST u8 adj_pwr_lut_core0_rev3[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -7916,7 +7916,7 @@ CONST uint8 adj_pwr_lut_core0_rev3[] = {
 	0x00,
 };
 
-CONST uint8 adj_pwr_lut_core1_rev3[] = {
+CONST u8 adj_pwr_lut_core1_rev3[] = {
 	0x00,
 	0x00,
 	0x00,
