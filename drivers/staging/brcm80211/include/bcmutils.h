@@ -151,12 +151,16 @@ extern "C" {
 	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
 		bool dir, ifpkt_cb_t fn, int arg);
 #endif
+#ifdef BRCM_FULLMAC
 /* Remove a specified packet from its queue */
 	extern bool pktq_pdel(struct pktq *pq, void *p, int prec);
+#endif /* BRCM_FULLMAC */
 
 /* operations on a set of precedences in packet queue */
 
+#ifdef BRCM_FULLMAC
 	extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
+#endif /* BRCM_FULLMAC */
 	extern void *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 
 /* operations on packet queue as a whole */
@@ -176,9 +180,11 @@ extern "C" {
 
 	extern void pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
+#ifdef BRCM_FULLMAC
 	extern void *pktq_deq(struct pktq *pq, int *prec_out);
 	extern void *pktq_deq_tail(struct pktq *pq, int *prec_out);
 	extern void *pktq_peek(struct pktq *pq, int *prec_out);
+#endif /* BRCM_FULLMAC */
 	extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
 #ifdef BRCM_FULLMAC
 	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir);
@@ -189,13 +195,15 @@ extern "C" {
 
 /* externs */
 /* packet */
+#ifdef BRCM_FULLMAC
 	extern uint pktcopy(osl_t *osh, void *p, uint offset, int len,
 			    unsigned char *buf);
 	extern uint pktfrombuf(osl_t *osh, void *p, uint offset, int len,
 			       unsigned char *buf);
-	extern uint pkttotlen(osl_t *osh, void *p);
 	extern void *pktlast(osl_t *osh, void *p);
 	extern uint pktsegcnt(osl_t *osh, void *p);
+#endif /* BRCM_FULLMAC */
+	extern uint pkttotlen(osl_t *osh, void *p);
 
 /* Get priority from a packet and pass it back in scb (or equiv) */
 	extern uint pktsetprio(void *pkt, bool update_vtag);
@@ -226,13 +234,17 @@ extern "C" {
 	struct ipv4_addr;
 	extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
+#ifdef BRCM_FULLMAC
 /* delay */
 	extern void bcm_mdelay(uint ms);
+#endif
 /* variable access */
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
+#ifdef BRCM_FULLMAC
 	extern int getintvararray(char *vars, const char *name, u8 index);
 	extern uint getgpiopin(char *vars, char *pin_name, uint def_pin);
+#endif
 #ifdef BCMDBG
 	extern void prpkt(const char *msg, osl_t *osh, void *p0);
 #endif				/* BCMDBG */
@@ -246,8 +258,10 @@ extern "C" {
 #define bcmprinttslogs()
 #define bcmprinttstamp(us)
 
+#ifdef BRCM_FULLLMAC
 	extern char *bcm_nvram_vars(uint *length);
 	extern int bcm_nvram_cache(void *sih);
+#endif
 
 /* Support for sharing code across in-driver iovar implementations.
  * The intent is that a driver use this structure to map iovar names
@@ -279,14 +293,18 @@ extern "C" {
 
 /* flags are per-driver based on driver attributes */
 
+#ifdef BRCM_FULLMAC
 	extern const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table,
 						   const char *name);
+#endif
 	extern int bcm_iovar_lencheck(const bcm_iovar_t *table, void *arg,
 				      int len, bool set);
+#ifdef BRCM_FULLMAC
 #if defined(BCMDBG)
 	extern int bcm_format_ssid(char *buf, const unsigned char ssid[],
 				   uint ssid_len);
 #endif
+#endif /* BRCM_FULLMAC */
 
 /* Base type definitions */
 #define IOVT_VOID	0	/* no value (implictly set only) */
@@ -558,25 +576,32 @@ extern "C" {
 				    char *buf, int len);
 	extern int bcm_format_hex(char *str, const void *bytes, int len);
 #endif
+#ifdef BRCM_FULLMAC
 #ifdef BCMDBG
 	extern void deadbeef(void *p, uint len);
 #endif
 	extern const char *bcm_crypto_algo_name(uint algo);
+#endif /* BRCM_FULLMAC */
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
+#ifdef BRCM_FULLMAC
 	extern char *bcm_brev_str(uint32 brev, char *buf);
 	extern void printbig(char *buf);
+#endif /* BRCM_FULLMAC */
 	extern void prhex(const char *msg, unsigned char *buf, uint len);
 
+#ifdef BRCM_FULLMAC
 /* IE parsing */
 	extern bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen);
-	extern bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen,
-						    uint key);
 	extern bcm_tlv_t *BCMROMFN(bcm_parse_ordered_tlvs) (void *buf,
 							    int buflen,
 							    uint key);
-
+#endif
+	extern bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen,
+						    uint key);
+#ifdef BRCM_FULLMAC
 /* bcmerror */
 	extern const char *bcmerrorstr(int bcmerror);
+#endif
 
 /* multi-bool data type: set of bools, mbool is true if any is set */
 	typedef uint32 mbool;
@@ -585,9 +610,11 @@ extern "C" {
 #define mboolisset(mb, bit)		(((mb) & (bit)) != 0)	/* TRUE if one bool is set */
 #define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
+#ifdef BRCM_FULLMAC
 /* power conversion */
 	extern uint16 BCMROMFN(bcm_qdbm_to_mw) (u8 qdbm);
 	extern u8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw);
+#endif
 
 /* generic datastruct to help dump routines */
 	struct fielddesc {
@@ -596,20 +623,24 @@ extern "C" {
 		uint32 len;
 	};
 
+#ifdef BRCM_FULLMAC
 	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
 	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
 	extern void bcm_inc_bytes(unsigned char *num, int num_bytes, u8 amount);
 	extern int bcm_cmp_bytes(unsigned char *arg1, unsigned char *arg2, u8 nbytes);
 	extern void bcm_print_bytes(char *name, const unsigned char *cdata, int len);
+#endif
 
 	typedef uint32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
 					   uint32 offset);
+#ifdef BRCM_FULLMAC
 	extern uint bcmdumpfields(bcmutl_rdreg_rtn func_ptr, void *arg0,
 				  uint arg1, struct fielddesc *str, char *buf,
 				  uint32 bufsize);
 
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);
+#endif
 	extern uint BCMROMFN(bcm_bitcount) (u8 *bitmap, uint bytelength);
 
 #ifdef __cplusplus
