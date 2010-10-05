@@ -392,6 +392,7 @@ out_unlock:
 
 
 int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
+				  struct drm_file *file_priv,
 				  unsigned flags, unsigned color,
 				  struct drm_clip_rect *clips,
 				  unsigned num_clips)
@@ -583,6 +584,7 @@ void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 }
 
 int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
+				 struct drm_file *file_priv,
 				 unsigned flags, unsigned color,
 				 struct drm_clip_rect *clips,
 				 unsigned num_clips)

@@ -221,7 +221,8 @@ struct drm_framebuffer_funcs {
 	 * the semantics and arguments have a one to one mapping
 	 * on this function.
 	 */
-	int (*dirty)(struct drm_framebuffer *framebuffer, unsigned flags,
+	int (*dirty)(struct drm_framebuffer *framebuffer,
+		     struct drm_file *file_priv, unsigned flags,
 		     unsigned color, struct drm_clip_rect *clips,
 		     unsigned num_clips);
 };
