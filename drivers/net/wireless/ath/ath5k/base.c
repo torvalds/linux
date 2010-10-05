@@ -1711,7 +1711,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		}
 	}
 	spin_unlock(&txq->lock);
-	if (txq->txq_len < ATH5K_TXQ_LEN_LOW)
+	if (txq->txq_len < ATH5K_TXQ_LEN_LOW && txq->qnum < 4)
 		ieee80211_wake_queue(sc->hw, txq->qnum);
 }
 
