@@ -94,6 +94,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
 		wl1271_error("command execute failure %d", status);
+		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 		ret = -EIO;
 	}
 
@@ -170,6 +171,39 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	return ret;
 }
 
+int wl1271_cmd_ext_radio_parms(struct wl1271 *wl)
+{
+	struct wl1271_ext_radio_parms_cmd *ext_radio_parms;
+	struct conf_rf_settings *rf = &wl->conf.rf;
+	int ret;
+
+	if (!wl->nvs)
+		return -ENODEV;
+
+	ext_radio_parms = kzalloc(sizeof(*ext_radio_parms), GFP_KERNEL);
+	if (!ext_radio_parms)
+		return -ENOMEM;
+
+	ext_radio_parms->test.id = TEST_CMD_INI_FILE_RF_EXTENDED_PARAM;
+
+	memcpy(ext_radio_parms->tx_per_channel_power_compensation_2,
+	       rf->tx_per_channel_power_compensation_2,
+	       CONF_TX_PWR_COMPENSATION_LEN_2);
+	memcpy(ext_radio_parms->tx_per_channel_power_compensation_5,
+	       rf->tx_per_channel_power_compensation_5,
+	       CONF_TX_PWR_COMPENSATION_LEN_5);
+
+	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_EXT_RADIO_PARAM: ",
+		    ext_radio_parms, sizeof(*ext_radio_parms));
+
+	ret = wl1271_cmd_test(wl, ext_radio_parms, sizeof(*ext_radio_parms), 0);
+	if (ret < 0)
+		wl1271_warning("TEST_CMD_INI_FILE_RF_EXTENDED_PARAM failed");
+
+	kfree(ext_radio_parms);
+	return ret;
+}
+
 /*
  * Poll the mailbox event field until any of the bits in the mask is set or a
  * timeout occurs (WL1271_EVENT_TIMEOUT in msecs)
@@ -182,8 +216,10 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 	timeout = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
 	do {
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout)) {
+			ieee80211_queue_work(wl->hw, &wl->recovery_work);
 			return -ETIMEDOUT;
+		}
 
 		msleep(1);
 
@@ -390,17 +426,10 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
-
-	/* FIXME: this should be in ps.c */
-	ret = wl1271_acx_wake_up_conditions(wl);
-	if (ret < 0) {
-		wl1271_error("couldn't set wake up conditions");
-		goto out;
-	}
 
 	wl1271_debug(DEBUG_CMD, "cmd set ps mode");
 
@@ -412,9 +441,9 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 
 	ps_params->ps_mode = ps_mode;
 	ps_params->send_null_data = send;
-	ps_params->retries = 5;
-	ps_params->hang_over_period = 1;
-	ps_params->null_data_rate = cpu_to_le32(wl->basic_rate_set);
+	ps_params->retries = wl->conf.conn.psm_entry_nullfunc_retries;
+	ps_params->hang_over_period = wl->conf.conn.psm_entry_hangover_period;
+	ps_params->null_data_rate = cpu_to_le32(rates);
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
 			      sizeof(*ps_params), 0);
@@ -425,41 +454,6 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 
 out:
 	kfree(ps_params);
-	return ret;
-}
-
-int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
-			   size_t len)
-{
-	struct cmd_read_write_memory *cmd;
-	int ret = 0;
-
-	wl1271_debug(DEBUG_CMD, "cmd read memory");
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	WARN_ON(len > MAX_READ_SIZE);
-	len = min_t(size_t, len, MAX_READ_SIZE);
-
-	cmd->addr = cpu_to_le32(addr);
-	cmd->size = cpu_to_le32(len);
-
-	ret = wl1271_cmd_send(wl, CMD_READ_MEMORY, cmd, sizeof(*cmd),
-			      sizeof(*cmd));
-	if (ret < 0) {
-		wl1271_error("read memory command failed: %d", ret);
-		goto out;
-	}
-
-	/* the read command got in */
-	memcpy(answer, cmd->value, len);
-
-out:
-	kfree(cmd);
 	return ret;
 }
 
@@ -523,7 +517,7 @@ int wl1271_cmd_build_null_data(struct wl1271 *wl)
 	}
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0,
-				      WL1271_RATE_AUTOMATIC);
+				      wl->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -546,7 +540,7 @@ int wl1271_cmd_build_klv_null_data(struct wl1271 *wl)
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
 				      CMD_TEMPL_KLV_IDX_NULL_DATA,
-				      WL1271_RATE_AUTOMATIC);
+				      wl->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -623,7 +617,7 @@ int wl1271_build_qos_null_data(struct wl1271 *wl)
 
 	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
 				       sizeof(template), 0,
-				       WL1271_RATE_AUTOMATIC);
+				       wl->basic_rate);
 }
 
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)
@@ -739,6 +733,34 @@ int wl1271_cmd_disconnect(struct wl1271 *wl)
 	ret = wl1271_cmd_wait_for_event(wl, DISCONNECT_EVENT_COMPLETE_ID);
 	if (ret < 0)
 		wl1271_error("cmd disconnect event completion error");
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl1271_cmd_set_sta_state(struct wl1271 *wl)
+{
+	struct wl1271_cmd_set_sta_state *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd set sta state");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->state = WL1271_CMD_STA_STATE_CONNECTED;
+
+	ret = wl1271_cmd_send(wl, CMD_SET_STA_STATE, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send set STA state command");
+		goto out_free;
+	}
 
 out_free:
 	kfree(cmd);

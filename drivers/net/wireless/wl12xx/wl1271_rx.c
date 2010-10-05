@@ -74,7 +74,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	}
 }
 
-static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
+static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 {
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
@@ -87,16 +87,16 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	 * workaround this by not retrieving them at all.
 	 */
 	if (unlikely(wl->state == WL1271_STATE_PLT))
-		return;
+		return -EINVAL;
 
 	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
-		return;
+		return -ENOMEM;
 	}
 
 	buf = skb_put(skb, length);
-	wl1271_read(wl, WL1271_SLV_MEM_DATA, buf, length, true);
+	memcpy(buf, data, length);
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) buf;
@@ -116,6 +116,8 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	skb_trim(skb, skb->len - desc->pad_len);
 
 	ieee80211_rx_ni(wl->hw, skb);
+
+	return 0;
 }
 
 void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
@@ -124,31 +126,60 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 	u32 buf_size;
 	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
+	u32 rx_counter;
 	u32 mem_block;
+	u32 pkt_length;
+	u32 pkt_offset;
 
 	while (drv_rx_counter != fw_rx_counter) {
-		mem_block = wl1271_rx_get_mem_block(status, drv_rx_counter);
-		buf_size = wl1271_rx_get_buf_size(status, drv_rx_counter);
+		buf_size = 0;
+		rx_counter = drv_rx_counter;
+		while (rx_counter != fw_rx_counter) {
+			pkt_length = wl1271_rx_get_buf_size(status, rx_counter);
+			if (buf_size + pkt_length > WL1271_AGGR_BUFFER_SIZE)
+				break;
+			buf_size += pkt_length;
+			rx_counter++;
+			rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+		}
 
 		if (buf_size == 0) {
 			wl1271_warning("received empty data");
 			break;
 		}
 
+		/*
+		 * Choose the block we want to read
+		 * For aggregated packets, only the first memory block should
+		 * be retrieved. The FW takes care of the rest.
+		 */
+		mem_block = wl1271_rx_get_mem_block(status, drv_rx_counter);
 		wl->rx_mem_pool_addr.addr = (mem_block << 8) +
 			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
 		wl->rx_mem_pool_addr.addr_extra =
 			wl->rx_mem_pool_addr.addr + 4;
-
-		/* Choose the block we want to read */
 		wl1271_write(wl, WL1271_SLV_REG_DATA, &wl->rx_mem_pool_addr,
-			     sizeof(wl->rx_mem_pool_addr), false);
+				sizeof(wl->rx_mem_pool_addr), false);
 
-		wl1271_rx_handle_data(wl, buf_size);
+		/* Read all available packets at once */
+		wl1271_read(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
+				buf_size, true);
 
-		wl->rx_counter++;
-		drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
+		/* Split data into separate packets */
+		pkt_offset = 0;
+		while (pkt_offset < buf_size) {
+			pkt_length = wl1271_rx_get_buf_size(status,
+					drv_rx_counter);
+			if (wl1271_rx_handle_data(wl,
+					wl->aggr_buf + pkt_offset,
+					pkt_length) < 0)
+				break;
+			wl->rx_counter++;
+			drv_rx_counter++;
+			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+			pkt_offset += pkt_length;
+		}
 	}
-
-	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
+	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS,
+			cpu_to_le32(wl->rx_counter));
 }

@@ -39,6 +39,9 @@ void wl1271_elp_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
 	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
 	    (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
 	     !test_bit(WL1271_FLAG_IDLE, &wl->flags)))
@@ -61,7 +64,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	    test_bit(WL1271_FLAG_IDLE, &wl->flags)) {
 		cancel_delayed_work(&wl->elp_work);
 		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
-					msecs_to_jiffies(ELP_ENTRY_DELAY));
+					     msecs_to_jiffies(ELP_ENTRY_DELAY));
 	}
 }
 
@@ -96,6 +99,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 			&compl, msecs_to_jiffies(WL1271_WAKEUP_TIMEOUT));
 		if (ret == 0) {
 			wl1271_error("ELP wakeup timeout!");
+			ieee80211_queue_work(wl->hw, &wl->recovery_work);
 			ret = -ETIMEDOUT;
 			goto err;
 		} else if (ret < 0) {
@@ -121,7 +125,7 @@ out:
 }
 
 int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
-		       bool send)
+		       u32 rates, bool send)
 {
 	int ret;
 
@@ -129,7 +133,14 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_POWER_SAVE_MODE:
 		wl1271_debug(DEBUG_PSM, "entering psm");
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE, send);
+		ret = wl1271_acx_wake_up_conditions(wl);
+		if (ret < 0) {
+			wl1271_error("couldn't set wake up conditions");
+			return ret;
+		}
+
+		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE,
+					 rates, send);
 		if (ret < 0)
 			return ret;
 
@@ -152,7 +163,8 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE, send);
+		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE,
+					 rates, send);
 		if (ret < 0)
 			return ret;
 
