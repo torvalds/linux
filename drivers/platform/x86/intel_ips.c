@@ -715,7 +715,8 @@ static void update_turbo_limits(struct ips_driver *ips)
 	u32 hts = thm_readl(THM_HTS);
 
 	ips->cpu_turbo_enabled = !(hts & HTS_PCTD_DIS);
-	ips->gpu_turbo_enabled = !(hts & HTS_GTD_DIS);
+	if (ips->gpu_busy)
+		ips->gpu_turbo_enabled = !(hts & HTS_GTD_DIS);
 	ips->core_power_limit = thm_readw(THM_MPCPC);
 	ips->mch_power_limit = thm_readw(THM_MMGPC);
 	ips->mcp_temp_limit = thm_readw(THM_PTL);
@@ -1185,7 +1186,8 @@ static irqreturn_t ips_irq_handler(int irq, void *arg)
 				STS_GPL_SHIFT;
 			/* ignore EC CPU vs GPU pref */
 			ips->cpu_turbo_enabled = !(sts & STS_PCTD_DIS);
-			ips->gpu_turbo_enabled = !(sts & STS_GTD_DIS);
+			if (ips->gpu_busy)
+				ips->gpu_turbo_enabled = !(sts & STS_GTD_DIS);
 			ips->mcp_temp_limit = (sts & STS_PTL_MASK) >>
 				STS_PTL_SHIFT;
 			ips->mcp_power_limit = (tc1 & STS_PPL_MASK) >>
