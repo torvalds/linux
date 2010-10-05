@@ -144,6 +144,13 @@ static int vmw_fb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
+	if (!vmw_kms_validate_mode_vram(vmw_priv,
+					info->fix.line_length,
+					var->yoffset + var->yres)) {
+		DRM_ERROR("Requested geom can not fit in framebuffer\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

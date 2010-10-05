@@ -522,6 +522,9 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
+bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
+				uint32_t pitch,
+				uint32_t height);
 u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /**
