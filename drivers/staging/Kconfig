@@ -171,5 +171,7 @@ source "drivers/staging/bcm/Kconfig"
 
 source "drivers/staging/ft1000/Kconfig"
 
+source "drivers/staging/intel_sst/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
