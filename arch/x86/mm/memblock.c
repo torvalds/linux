@@ -156,7 +156,8 @@ static int __init count_early_node_map(int nodeid)
 	return data.nr;
 }
 
-int __init get_free_all_memory_range(struct range **rangep, int nodeid)
+int __init __get_free_all_memory_range(struct range **rangep, int nodeid,
+			 unsigned long start_pfn, unsigned long end_pfn)
 {
 	int count;
 	struct range *range;
@@ -172,14 +173,24 @@ int __init get_free_all_memory_range(struct range **rangep, int nodeid)
 	 * at first
 	 */
 	nr_range = add_from_early_node_map(range, count, nr_range, nodeid);
-#ifdef CONFIG_X86_32
-	subtract_range(range, count, max_low_pfn, -1ULL);
-#endif
+	subtract_range(range, count, 0, start_pfn);
+	subtract_range(range, count, end_pfn, -1ULL);
+
 	memblock_x86_subtract_reserved(range, count);
 	nr_range = clean_sort_range(range, count);
 
 	*rangep = range;
 	return nr_range;
+}
+
+int __init get_free_all_memory_range(struct range **rangep, int nodeid)
+{
+	unsigned long end_pfn = -1UL;
+
+#ifdef CONFIG_X86_32
+	end_pfn = max_low_pfn;
+#endif
+	return __get_free_all_memory_range(rangep, nodeid, 0, end_pfn);
 }
 
 static u64 __init __memblock_x86_memory_in_range(u64 addr, u64 limit, bool get_free)

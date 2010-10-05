@@ -423,49 +423,28 @@ static void __init add_one_highpage_init(struct page *page)
 	totalhigh_pages++;
 }
 
-struct add_highpages_data {
-	unsigned long start_pfn;
-	unsigned long end_pfn;
-};
-
-static int __init add_highpages_work_fn(unsigned long start_pfn,
-					 unsigned long end_pfn, void *datax)
+void __init add_highpages_with_active_regions(int nid,
+			 unsigned long start_pfn, unsigned long end_pfn)
 {
-	int node_pfn;
-	struct page *page;
-	unsigned long final_start_pfn, final_end_pfn;
-	struct add_highpages_data *data;
+	struct range *range;
+	int nr_range;
+	int i;
 
-	data = (struct add_highpages_data *)datax;
+	nr_range = __get_free_all_memory_range(&range, nid, start_pfn, end_pfn);
 
-	final_start_pfn = max(start_pfn, data->start_pfn);
-	final_end_pfn = min(end_pfn, data->end_pfn);
-	if (final_start_pfn >= final_end_pfn)
-		return 0;
+	for (i = 0; i < nr_range; i++) {
+		struct page *page;
+		int node_pfn;
 
-	for (node_pfn = final_start_pfn; node_pfn < final_end_pfn;
-	     node_pfn++) {
-		if (!pfn_valid(node_pfn))
-			continue;
-		page = pfn_to_page(node_pfn);
-		add_one_highpage_init(page);
+		for (node_pfn = range[i].start; node_pfn < range[i].end;
+		     node_pfn++) {
+			if (!pfn_valid(node_pfn))
+				continue;
+			page = pfn_to_page(node_pfn);
+			add_one_highpage_init(page);
+		}
 	}
-
-	return 0;
-
 }
-
-void __init add_highpages_with_active_regions(int nid, unsigned long start_pfn,
-					      unsigned long end_pfn)
-{
-	struct add_highpages_data data;
-
-	data.start_pfn = start_pfn;
-	data.end_pfn = end_pfn;
-
-	work_with_active_regions(nid, add_highpages_work_fn, &data);
-}
-
 #else
 static inline void permanent_kmaps_init(pgd_t *pgd_base)
 {
