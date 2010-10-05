@@ -32,7 +32,6 @@ typedef unsigned long long int uintptr;
 #define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
 #include <linux/version.h>
-#define TYPEDEF_BOOL
 
 /* Do not support the (u)int64 types with strict ansi for GNU C */
 #if defined(__GNUC__) && defined(__STRICT_ANSI__)
@@ -45,9 +44,6 @@ typedef unsigned long long int uintptr;
 /*
  * Default Typedefs
  */
-#ifndef TYPEDEF_BOOL
-typedef /* @abstract@ */ unsigned char bool;
-#endif
 
 /* define uchar, ushort, uint, ulong */
 
@@ -130,7 +126,6 @@ typedef signed long long int64;
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-#undef TYPEDEF_BOOL
 #undef TYPEDEF_UCHAR
 #undef TYPEDEF_USHORT
 #undef TYPEDEF_UINT
