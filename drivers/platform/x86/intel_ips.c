@@ -715,8 +715,15 @@ static void update_turbo_limits(struct ips_driver *ips)
 	u32 hts = thm_readl(THM_HTS);
 
 	ips->cpu_turbo_enabled = !(hts & HTS_PCTD_DIS);
+	/* 
+	 * Disable turbo for now, until we can figure out why the power figures
+	 * are wrong
+	 */
+	ips->cpu_turbo_enabled = false;
+
 	if (ips->gpu_busy)
 		ips->gpu_turbo_enabled = !(hts & HTS_GTD_DIS);
+
 	ips->core_power_limit = thm_readw(THM_MPCPC);
 	ips->mch_power_limit = thm_readw(THM_MMGPC);
 	ips->mcp_temp_limit = thm_readw(THM_PTL);
@@ -895,7 +902,7 @@ static u32 get_cpu_power(struct ips_driver *ips, u32 *last, int period)
 	ret = (ret * 1000) / 65535;
 	*last = val;
 
-	return ret;
+	return 0;
 }
 
 static const u16 temp_decay_factor = 2;
@@ -1186,6 +1193,11 @@ static irqreturn_t ips_irq_handler(int irq, void *arg)
 				STS_GPL_SHIFT;
 			/* ignore EC CPU vs GPU pref */
 			ips->cpu_turbo_enabled = !(sts & STS_PCTD_DIS);
+			/* 
+			 * Disable turbo for now, until we can figure
+			 * out why the power figures are wrong
+			 */
+			ips->cpu_turbo_enabled = false;
 			if (ips->gpu_busy)
 				ips->gpu_turbo_enabled = !(sts & STS_GTD_DIS);
 			ips->mcp_temp_limit = (sts & STS_PTL_MASK) >>
@@ -1573,8 +1585,8 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Save turbo limits & ratios */
 	rdmsrl(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
 
-	ips_enable_cpu_turbo(ips);
-	ips->cpu_turbo_enabled = true;
+	ips_disable_cpu_turbo(ips);
+	ips->cpu_turbo_enabled = false;
 
 	/* Create thermal adjust thread */
 	ips->adjust = kthread_create(ips_adjust, ips, "ips-adjust");
