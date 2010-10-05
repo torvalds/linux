@@ -135,8 +135,9 @@ void __init check_for_initrd(void)
 		goto disable;
 	}
 
-	if (unlikely(start < PAGE_OFFSET)) {
-		pr_err("initrd start < PAGE_OFFSET\n");
+	if (unlikely(start < __MEMORY_START)) {
+		pr_err("initrd start (%08lx) < __MEMORY_START(%x)\n",
+			start, __MEMORY_START);
 		goto disable;
 	}
 
@@ -157,7 +158,7 @@ void __init check_for_initrd(void)
 	/*
 	 * Address sanitization
 	 */
-	initrd_start = (unsigned long)__va(__pa(start));
+	initrd_start = (unsigned long)__va(start);
 	initrd_end = initrd_start + INITRD_SIZE;
 
 	memblock_reserve(__pa(initrd_start), INITRD_SIZE);
