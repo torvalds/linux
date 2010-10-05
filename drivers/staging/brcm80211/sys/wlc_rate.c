@@ -31,7 +31,7 @@
 #include <wlc_pub.h>
 
 /* Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate value */
-const uint8 rate_info[WLC_MAXRATE + 1] = {
+const u8 rate_info[WLC_MAXRATE + 1] = {
 	/*  0     1     2     3     4     5     6     7     8     9 */
 /*   0 */ 0x00, 0x00, 0x0a, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00,
 /*  10 */ 0x00, 0x37, 0x8b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x00,
@@ -154,7 +154,7 @@ const mcs_info_t mcs_table[MCS_TABLE_SIZE] = {
  */
 typedef struct legacy_phycfg {
 	uint32 rate_ofdm;	/* ofdm mac rate */
-	uint8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
+	u8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
 } legacy_phycfg_t;
 
 #define LEGACY_PHYCFG_TABLE_SIZE	12	/* Number of legacy_rate_cfg entries in the table */
@@ -278,7 +278,7 @@ static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 	return FALSE;
 }
 
-void wlc_rateset_mcs_upd(wlc_rateset_t *rs, uint8 txstreams)
+void wlc_rateset_mcs_upd(wlc_rateset_t *rs, u8 txstreams)
 {
 	int i;
 	for (i = txstreams; i < MAX_STREAMS_SUPPORTED; i++)
@@ -291,10 +291,10 @@ void wlc_rateset_mcs_upd(wlc_rateset_t *rs, uint8 txstreams)
 bool
 wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 				   const wlc_rateset_t *hw_rs,
-				   bool check_brate, uint8 txstreams)
+				   bool check_brate, u8 txstreams)
 {
-	uint8 rateset[WLC_MAXRATE + 1];
-	uint8 r;
+	u8 rateset[WLC_MAXRATE + 1];
+	u8 r;
 	uint count;
 	uint i;
 
@@ -332,7 +332,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 }
 
 /* caluclate the rate of a rx'd frame and return it as a ratespec */
-ratespec_t BCMFASTPATH wlc_compute_rspec(d11rxhdr_t *rxh, uint8 *plcp)
+ratespec_t BCMFASTPATH wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 {
 	int phy_type;
 	ratespec_t rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
@@ -395,7 +395,7 @@ void wlc_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
  */
 void
 wlc_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
-		   uint8 rates, uint xmask, bool mcsallow)
+		   u8 rates, uint xmask, bool mcsallow)
 {
 	uint i;
 	uint r;
@@ -427,7 +427,7 @@ wlc_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
 void
 wlc_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 		    uint phy_type, int bandtype, bool cck_only, uint rate_mask,
-		    bool mcsallow, uint8 bw, uint8 txstreams)
+		    bool mcsallow, u8 bw, u8 txstreams)
 {
 	const wlc_rateset_t *rs_dflt;
 	wlc_rateset_t rs_sel;
@@ -484,14 +484,14 @@ void wlc_rateset_mcs_clear(wlc_rateset_t *rateset)
 		rateset->mcs[i] = 0;
 }
 
-void wlc_rateset_mcs_build(wlc_rateset_t *rateset, uint8 txstreams)
+void wlc_rateset_mcs_build(wlc_rateset_t *rateset, u8 txstreams)
 {
 	bcopy(&cck_ofdm_mimo_rates.mcs[0], &rateset->mcs[0], MCSSET_LEN);
 	wlc_rateset_mcs_upd(rateset, txstreams);
 }
 
 /* Based on bandwidth passed, allow/disallow MCS 32 in the rateset */
-void wlc_rateset_bw_mcs_filter(wlc_rateset_t *rateset, uint8 bw)
+void wlc_rateset_bw_mcs_filter(wlc_rateset_t *rateset, u8 bw)
 {
 	if (bw == WLC_40_MHZ)
 		setbit(rateset->mcs, 32);

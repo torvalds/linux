@@ -19,15 +19,15 @@
 
 #include <proto/802.1d.h>
 
-extern bool wlc_aggregatable(wlc_info_t *wlc, uint8 tid);
+extern bool wlc_aggregatable(wlc_info_t *wlc, u8 tid);
 
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
 /* structure to store per-tid state for the ampdu initiator */
 typedef struct scb_ampdu_tid_ini {
 	uint32 magic;
-	uint8 tx_in_transit;	/* number of pending mpdus in transit in driver */
-	uint8 tid;		/* initiator tid for easy lookup */
-	uint8 txretry[AMPDU_TX_BA_MAX_WSIZE];	/* tx retry count; indexed by seq modulo */
+	u8 tx_in_transit;	/* number of pending mpdus in transit in driver */
+	u8 tid;		/* initiator tid for easy lookup */
+	u8 txretry[AMPDU_TX_BA_MAX_WSIZE];	/* tx retry count; indexed by seq modulo */
 	struct scb *scb;	/* backptr for easy lookup */
 } scb_ampdu_tid_ini_t;
 
@@ -35,9 +35,9 @@ typedef struct scb_ampdu_tid_ini {
 
 typedef struct scb_ampdu {
 	struct scb *scb;	/* back pointer for easy reference */
-	uint8 mpdu_density;	/* mpdu density */
-	uint8 max_pdu;		/* max pdus allowed in ampdu */
-	uint8 release;		/* # of mpdus released at a time */
+	u8 mpdu_density;	/* mpdu density */
+	u8 max_pdu;		/* max pdus allowed in ampdu */
+	u8 release;		/* # of mpdus released at a time */
 	uint16 min_len;		/* min mpdu len to support the density */
 	uint32 max_rxlen;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
 	struct pktq txq;	/* sdu transmit queue pending aggregation */
@@ -57,7 +57,7 @@ struct scb {
 	uint32 magic;
 	uint32 flags;		/* various bit flags as defined below */
 	uint32 flags2;		/* various bit flags2 as defined below */
-	uint8 state;		/* current state bitfield of auth/assoc process */
+	u8 state;		/* current state bitfield of auth/assoc process */
 	struct ether_addr ea;	/* station address */
 	void *fragbuf[NUMPRIO];	/* defragmentation buffer per prio */
 	uint fragresid[NUMPRIO];	/* #bytes unused in frag buffer per prio */

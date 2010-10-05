@@ -61,8 +61,8 @@ struct wlc_bsscfg {
 	void *authenticator;	/* pointer to authenticator state */
 	bool sup_auth_pending;	/* flag for auth timeout */
 #endif
-	uint8 SSID_len;		/* the length of SSID */
-	uint8 SSID[DOT11_MAX_SSID_LEN];	/* SSID string */
+	u8 SSID_len;		/* the length of SSID */
+	u8 SSID[DOT11_MAX_SSID_LEN];	/* SSID string */
 	struct scb *bcmc_scb[MAXBANDS];	/* one bcmc_scb per band */
 	int8 _idx;		/* the index of this bsscfg,
 				 * assigned at wlc_bsscfg_alloc()
@@ -99,7 +99,7 @@ struct wlc_bsscfg {
 
 	uint32 flags;		/* WLC_BSSCFG flags; see below */
 
-	uint8 *bcn;		/* AP beacon */
+	u8 *bcn;		/* AP beacon */
 	uint bcn_len;		/* AP beacon length */
 	bool ar_disassoc;	/* disassociated in associated recreation */
 

@@ -172,7 +172,7 @@ const bcm_iovar_t wlc_iovars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
-const uint8 prio2fifo[NUMPRIO] = {
+const u8 prio2fifo[NUMPRIO] = {
 	TX_AC_BE_FIFO,		/* 0    BE      AC_BE   Best Effort */
 	TX_AC_BK_FIFO,		/* 1    BK      AC_BK   Background */
 	TX_AC_BK_FIFO,		/* 2    --      AC_BK   Background */
@@ -198,7 +198,7 @@ const uint8 prio2fifo[NUMPRIO] = {
 #define	_WLC_PREC_NC		14	/* NC - Network Control */
 
 /* 802.1D Priority to precedence queue mapping */
-const uint8 wlc_prio2prec_map[] = {
+const u8 wlc_prio2prec_map[] = {
 	_WLC_PREC_BE,		/* 0 BE - Best-effort */
 	_WLC_PREC_BK,		/* 1 BK - Background */
 	_WLC_PREC_NONE,		/* 2 None = - */
@@ -219,10 +219,10 @@ const uint8 wlc_prio2prec_map[] = {
 	(wlc)->fifo2prec_map[(fifo)]))
 
 /* TX FIFO number to WME/802.1E Access Category */
-const uint8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
+const u8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
 
 /* WME/802.1E Access Category to TX FIFO number */
-static const uint8 wme_ac2fifo[] = { 1, 0, 2, 3 };
+static const u8 wme_ac2fifo[] = { 1, 0, 2, 3 };
 
 static bool in_send_q = FALSE;
 
@@ -235,7 +235,7 @@ static const char *fifo_names[] = {
 const char *aci_names[] = { "AC_BE", "AC_BK", "AC_VI", "AC_VO" };
 #endif
 
-static const uint8 acbitmap2maxprio[] = {
+static const u8 acbitmap2maxprio[] = {
 	PRIO_8021D_BE, PRIO_8021D_BE, PRIO_8021D_BK, PRIO_8021D_BK,
 	PRIO_8021D_VI, PRIO_8021D_VI, PRIO_8021D_VI, PRIO_8021D_VI,
 	PRIO_8021D_VO, PRIO_8021D_VO, PRIO_8021D_VO, PRIO_8021D_VO,
@@ -269,7 +269,7 @@ static void wlc_watchdog_by_timer(void *arg);
 static int wlc_set_rateset(wlc_info_t *wlc, wlc_rateset_t *rs_arg);
 static int wlc_iovar_rangecheck(wlc_info_t *wlc, uint32 val,
 				const bcm_iovar_t *vi);
-static uint8 wlc_local_constraint_qdbm(wlc_info_t *wlc);
+static u8 wlc_local_constraint_qdbm(wlc_info_t *wlc);
 
 /* send and receive */
 static wlc_txq_info_t *wlc_txq_alloc(wlc_info_t *wlc, osl_t *osh);
@@ -279,19 +279,19 @@ static void wlc_txflowcontrol_signal(wlc_info_t *wlc, wlc_txq_info_t *qi,
 static void wlc_txflowcontrol_reset(wlc_info_t *wlc);
 static uint16 wlc_compute_airtime(wlc_info_t *wlc, ratespec_t rspec,
 				  uint length);
-static void wlc_compute_cck_plcp(ratespec_t rate, uint length, uint8 *plcp);
-static void wlc_compute_ofdm_plcp(ratespec_t rate, uint length, uint8 *plcp);
-static void wlc_compute_mimo_plcp(ratespec_t rate, uint length, uint8 *plcp);
+static void wlc_compute_cck_plcp(ratespec_t rate, uint length, u8 *plcp);
+static void wlc_compute_ofdm_plcp(ratespec_t rate, uint length, u8 *plcp);
+static void wlc_compute_mimo_plcp(ratespec_t rate, uint length, u8 *plcp);
 static uint16 wlc_compute_frame_dur(wlc_info_t *wlc, ratespec_t rate,
-				    uint8 preamble_type, uint next_frag_len);
+				    u8 preamble_type, uint next_frag_len);
 static void wlc_recvctl(wlc_info_t *wlc, osl_t *osh, d11rxhdr_t *rxh,
 			void *p);
 static uint wlc_calc_frame_len(wlc_info_t *wlc, ratespec_t rate,
-			       uint8 preamble_type, uint dur);
+			       u8 preamble_type, uint dur);
 static uint wlc_calc_ack_time(wlc_info_t *wlc, ratespec_t rate,
-			      uint8 preamble_type);
+			      u8 preamble_type);
 static uint wlc_calc_cts_time(wlc_info_t *wlc, ratespec_t rate,
-			      uint8 preamble_type);
+			      u8 preamble_type);
 /* interrupt, up/down, band */
 static void wlc_setband(wlc_info_t *wlc, uint bandunit);
 static chanspec_t wlc_init_chanspec(wlc_info_t *wlc);
@@ -307,10 +307,10 @@ static void wlc_radio_upd(wlc_info_t *wlc);
 
 /* scan, association, BSS */
 static uint wlc_calc_ba_time(wlc_info_t *wlc, ratespec_t rate,
-			     uint8 preamble_type);
-static void wlc_update_mimo_band_bwcap(wlc_info_t *wlc, uint8 bwcap);
+			     u8 preamble_type);
+static void wlc_update_mimo_band_bwcap(wlc_info_t *wlc, u8 bwcap);
 static void wlc_ht_update_sgi_rx(wlc_info_t *wlc, int val);
-void wlc_ht_mimops_cap_update(wlc_info_t *wlc, uint8 mimops_mode);
+void wlc_ht_mimops_cap_update(wlc_info_t *wlc, u8 mimops_mode);
 static void wlc_ht_update_ldpc(wlc_info_t *wlc, int8 val);
 static void wlc_war16165(wlc_info_t *wlc, bool tx);
 
@@ -342,15 +342,15 @@ void wlc_get_rcmta(wlc_info_t *wlc, int idx, struct ether_addr *addr)
 	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
 	(void)R_REG(osh, &regs->objaddr);
 	v32 = R_REG(osh, &regs->objdata);
-	addr->octet[0] = (uint8) v32;
-	addr->octet[1] = (uint8) (v32 >> 8);
-	addr->octet[2] = (uint8) (v32 >> 16);
-	addr->octet[3] = (uint8) (v32 >> 24);
+	addr->octet[0] = (u8) v32;
+	addr->octet[1] = (u8) (v32 >> 8);
+	addr->octet[2] = (u8) (v32 >> 16);
+	addr->octet[3] = (u8) (v32 >> 24);
 	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | ((idx * 2) + 1)));
 	(void)R_REG(osh, &regs->objaddr);
 	v32 = R_REG(osh, (volatile uint16 *)(uintptr) & regs->objdata);
-	addr->octet[4] = (uint8) v32;
-	addr->octet[5] = (uint8) (v32 >> 8);
+	addr->octet[4] = (u8) v32;
+	addr->octet[5] = (u8) (v32 >> 8);
 }
 #endif				/* defined(BCMDBG) */
 
@@ -490,7 +490,7 @@ void BCMINITFN(wlc_init) (wlc_info_t *wlc)
 	/* update beacon listen interval */
 	wlc_bcn_li_upd(wlc);
 	wlc->bcn_wait_prd =
-	    (uint8) (wlc_bmac_read_shm(wlc->hw, M_NOSLPZNATDTIM) >> 10);
+	    (u8) (wlc_bmac_read_shm(wlc->hw, M_NOSLPZNATDTIM) >> 10);
 	ASSERT(wlc->bcn_wait_prd > 0);
 
 	/* the world is new again, so is our reported rate */
@@ -787,9 +787,9 @@ void wlc_switch_shortslot(wlc_info_t *wlc, bool shortslot)
 	wlc_bmac_set_shortslot(wlc->hw, shortslot);
 }
 
-static uint8 wlc_local_constraint_qdbm(wlc_info_t *wlc)
+static u8 wlc_local_constraint_qdbm(wlc_info_t *wlc)
 {
-	uint8 local;
+	u8 local;
 	int16 local_max;
 
 	local = WLC_TXPWR_MAX;
@@ -805,7 +805,7 @@ static uint8 wlc_local_constraint_qdbm(wlc_info_t *wlc)
 		    (wlc->txpwr_local_max -
 		     wlc->txpwr_local_constraint) * WLC_TXPWR_DB_FACTOR;
 		if (local_max > 0 && local_max < WLC_TXPWR_MAX)
-			return (uint8) local_max;
+			return (u8) local_max;
 		if (local_max < 0)
 			return 0;
 	}
@@ -932,7 +932,7 @@ static int wlc_get_current_txpwr(wlc_info_t *wlc, void *pwr, uint len)
 	 */
 	wlc_phy_txpower_get(wlc->band->pi, &qdbm, &override);
 	for (r = 0; r < WL_TX_POWER_RATES; r++) {
-		power.user_limit[r] = (uint8) qdbm;
+		power.user_limit[r] = (u8) qdbm;
 	}
 
 	power.local_max = wlc->txpwr_local_max * WLC_TXPWR_DB_FACTOR;
@@ -1182,7 +1182,7 @@ void wlc_protection_upd(wlc_info_t *wlc, uint idx, int val)
 		wlc->protection->g_override = (int8) val;
 		break;
 	case WLC_PROT_G_USER:
-		wlc->protection->gmode_user = (uint8) val;
+		wlc->protection->gmode_user = (u8) val;
 		break;
 	case WLC_PROT_OVERLAP:
 		wlc->protection->overlap = (int8) val;
@@ -1673,7 +1673,7 @@ void BCMATTACHFN(wlc_info_init) (wlc_info_t *wlc, int unit)
 	/* init the 4 static WEP default keys */
 	for (i = 0; i < WSEC_MAX_DEFAULT_KEYS; i++) {
 		wlc->wsec_keys[i] = wlc->wsec_def_keys[i];
-		wlc->wsec_keys[i]->idx = (uint8) i;
+		wlc->wsec_keys[i]->idx = (u8) i;
 	}
 
 	wlc->_regulatory_domain = FALSE;	/* 802.11d */
@@ -2197,7 +2197,7 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 
 	wlc->pub->boardrev = (uint16) revinfo.boardrev;
 	wlc->pub->corerev = revinfo.corerev;
-	wlc->pub->sromrev = (uint8) revinfo.sromrev;
+	wlc->pub->sromrev = (u8) revinfo.sromrev;
 	wlc->pub->sih->chiprev = revinfo.chiprev;
 	wlc->pub->sih->chip = revinfo.chip;
 	wlc->pub->sih->chippkg = revinfo.chippkg;
@@ -2225,7 +2225,7 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 		bandunit = revinfo.band[idx].bandunit;
 		bandtype = revinfo.band[idx].bandtype;
 		wlc->bandstate[bandunit]->radiorev =
-		    (uint8) revinfo.band[idx].radiorev;
+		    (u8) revinfo.band[idx].radiorev;
 		wlc->bandstate[bandunit]->phytype =
 		    (uint16) revinfo.band[idx].phytype;
 		wlc->bandstate[bandunit]->phyrev =
@@ -2956,7 +2956,7 @@ uint BCMUNINITFN(wlc_down) (wlc_info_t *wlc)
 }
 
 /* Set the current gmode configuration */
-int wlc_set_gmode(wlc_info_t *wlc, uint8 gmode, bool config)
+int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 {
 	int ret = 0;
 	uint i;
@@ -3245,7 +3245,7 @@ int wlc_get(wlc_info_t *wlc, int cmd, int *arg)
 
 static void wlc_ofdm_rateset_war(wlc_info_t *wlc)
 {
-	uint8 r;
+	u8 r;
 	bool war = FALSE;
 
 	if (wlc->cfg->associated)
@@ -3430,7 +3430,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			break;
 		}
 
-		*pval = wlc_bmac_mhf_get(wlc->hw, (uint8) val, WLC_BAND_AUTO);
+		*pval = wlc_bmac_mhf_get(wlc->hw, (u8) val, WLC_BAND_AUTO);
 		break;
 
 	case WLC_SET_UCFLAGS:
@@ -3455,7 +3455,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			break;
 		}
 
-		wlc_mhf(wlc, (uint8) i, 0xffff, (uint16) (val >> NBITS(uint16)),
+		wlc_mhf(wlc, (u8) i, 0xffff, (uint16) (val >> NBITS(uint16)),
 			WLC_BAND_AUTO);
 		break;
 
@@ -3598,7 +3598,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_GET_ANTDIV:{
-			uint8 phy_antdiv;
+			u8 phy_antdiv;
 
 			/* return configured value if core is down */
 			if (!wlc->pub->up) {
@@ -3624,8 +3624,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		if (val == -1)
 			val = ANT_RX_DIV_DEF;
 
-		wlc->stf->ant_rx_ovr = (uint8) val;
-		wlc_phy_ant_rxdiv_set(wlc->band->pi, (uint8) val);
+		wlc->stf->ant_rx_ovr = (u8) val;
+		wlc_phy_ant_rxdiv_set(wlc->band->pi, (u8) val);
 		break;
 
 	case WLC_GET_RX_ANT:{	/* get latest used rx antenna */
@@ -3844,7 +3844,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			key = WSEC_KEY(wlc, val);
 			if ((val >= 0) && (val < WLC_MAX_WSEC_KEYS(wlc)) &&
 				(key != NULL)) {
-				uint8 seq[DOT11_WPA_KEY_RSC_LEN];
+				u8 seq[DOT11_WPA_KEY_RSC_LEN];
 				uint16 lo;
 				uint32 hi;
 				/* group keys in WPA-NONE (IBSS only, AES and TKIP) use a global TXIV */
@@ -3977,7 +3977,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		/* range [1, 0xff] */
 		if (val >= DOT11_MIN_DTIM_PERIOD
 		    && val <= DOT11_MAX_DTIM_PERIOD) {
-			wlc->default_bss->dtim_period = (uint8) val;
+			wlc->default_bss->dtim_period = (u8) val;
 		} else
 			bcmerror = BCME_RANGE;
 		break;
@@ -3989,7 +3989,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 	case WLC_SET_PM:
 		if ((val >= PM_OFF) && (val <= PM_MAX)) {
-			wlc->PM = (uint8) val;
+			wlc->PM = (u8) val;
 			if (wlc->pub->up) {
 			}
 			/* Change watchdog driver to align watchdog with tbtt if possible */
@@ -4188,7 +4188,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 	case WLC_SET_GMODE:
 		if (!wlc->pub->associated)
-			bcmerror = wlc_set_gmode(wlc, (uint8) val, TRUE);
+			bcmerror = wlc_set_gmode(wlc, (u8) val, TRUE);
 		else {
 			bcmerror = BCME_ASSOCIATED;
 			break;
@@ -4802,12 +4802,12 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
 		   not internal or test.
 		 */
 	case IOV_SVAL(IOV_QTXPOWER):{
-			uint8 qdbm;
+			u8 qdbm;
 			bool override;
 
 			/* Remove override bit and clip to max qdbm value */
 			qdbm =
-			    (uint8) MIN((int_val & ~WL_TXPWR_OVERRIDE), 0xff);
+			    (u8) MIN((int_val & ~WL_TXPWR_OVERRIDE), 0xff);
 			/* Extract override setting */
 			override = (int_val & WL_TXPWR_OVERRIDE) ? TRUE : FALSE;
 			err =
@@ -4830,7 +4830,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
 		break;
 
 	case IOV_SVAL(IOV_BCN_LI_BCN):
-		wlc->bcn_li_bcn = (uint8) int_val;
+		wlc->bcn_li_bcn = (u8) int_val;
 		if (wlc->pub->up)
 			wlc_bcn_li_upd(wlc);
 		break;
@@ -5060,12 +5060,12 @@ void wlc_print_txdesc(d11txh_t *txh)
 	uint16 ptcw_1_FbrRts = ltoh16(txh->PhyTxControlWord_1_FbrRts);
 	uint16 mainrates = ltoh16(txh->MainRates);
 	uint16 xtraft = ltoh16(txh->XtraFrameTypes);
-	uint8 *iv = txh->IV;
-	uint8 *ra = txh->TxFrameRA;
+	u8 *iv = txh->IV;
+	u8 *ra = txh->TxFrameRA;
 	uint16 tfestfb = ltoh16(txh->TxFesTimeFallback);
-	uint8 *rtspfb = txh->RTSPLCPFallback;
+	u8 *rtspfb = txh->RTSPLCPFallback;
 	uint16 rtsdfb = ltoh16(txh->RTSDurFallback);
-	uint8 *fragpfb = txh->FragPLCPFallback;
+	u8 *fragpfb = txh->FragPLCPFallback;
 	uint16 fragdfb = ltoh16(txh->FragDurFallback);
 	uint16 mmodelen = ltoh16(txh->MModeLen);
 	uint16 mmodefbrlen = ltoh16(txh->MModeFbrLen);
@@ -5076,7 +5076,7 @@ void wlc_print_txdesc(d11txh_t *txh)
 	uint16 mabyte_f = ltoh16(txh->MaxABytes_FBR);
 	uint16 mmbyte = ltoh16(txh->MinMBytes);
 
-	uint8 *rtsph = txh->RTSPhyHeader;
+	u8 *rtsph = txh->RTSPhyHeader;
 	struct dot11_rts_frame rts = txh->rts_frame;
 	char hexbuf[256];
 
@@ -5124,7 +5124,7 @@ void wlc_print_txdesc(d11txh_t *txh)
 
 	bcm_format_hex(hexbuf, rtsph, sizeof(txh->RTSPhyHeader));
 	printf("RTS PLCP: %s ", hexbuf);
-	bcm_format_hex(hexbuf, (uint8 *) &rts, sizeof(txh->rts_frame));
+	bcm_format_hex(hexbuf, (u8 *) &rts, sizeof(txh->rts_frame));
 	printf("RTS Frame: %s", hexbuf);
 	printf("\n");
 
@@ -5197,7 +5197,7 @@ int wlc_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
 }
 #endif				/* defined(BCMDBG) */
 
-uint16 wlc_rate_shm_offset(wlc_info_t *wlc, uint8 rate)
+uint16 wlc_rate_shm_offset(wlc_info_t *wlc, u8 rate)
 {
 	return wlc_bmac_rate_shm_offset(wlc->hw, rate);
 }
@@ -5334,7 +5334,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, void *sdu, uint prec)
 bool BCMFASTPATH
 wlc_sendpkt_mac80211(wlc_info_t *wlc, void *sdu, struct ieee80211_hw *hw)
 {
-	uint8 prio;
+	u8 prio;
 	uint fifo;
 	void *pkt;
 	struct scb *scb = &global_scb;
@@ -5548,7 +5548,7 @@ wlc_compute_airtime(wlc_info_t *wlc, ratespec_t rspec, uint length)
 }
 
 void BCMFASTPATH
-wlc_compute_plcp(wlc_info_t *wlc, ratespec_t rspec, uint length, uint8 *plcp)
+wlc_compute_plcp(wlc_info_t *wlc, ratespec_t rspec, uint length, u8 *plcp)
 {
 	if (IS_MCS(rspec)) {
 		wlc_compute_mimo_plcp(rspec, length, plcp);
@@ -5561,9 +5561,9 @@ wlc_compute_plcp(wlc_info_t *wlc, ratespec_t rspec, uint length, uint8 *plcp)
 }
 
 /* Rate: 802.11 rate code, length: PSDU length in octets */
-static void wlc_compute_mimo_plcp(ratespec_t rspec, uint length, uint8 *plcp)
+static void wlc_compute_mimo_plcp(ratespec_t rspec, uint length, u8 *plcp)
 {
-	uint8 mcs = (uint8) (rspec & RSPEC_RATE_MASK);
+	u8 mcs = (u8) (rspec & RSPEC_RATE_MASK);
 	ASSERT(IS_MCS(rspec));
 	plcp[0] = mcs;
 	if (RSPEC_IS40MHZ(rspec) || (mcs == 32))
@@ -5577,9 +5577,9 @@ static void wlc_compute_mimo_plcp(ratespec_t rspec, uint length, uint8 *plcp)
 
 /* Rate: 802.11 rate code, length: PSDU length in octets */
 static void BCMFASTPATH
-wlc_compute_ofdm_plcp(ratespec_t rspec, uint32 length, uint8 *plcp)
+wlc_compute_ofdm_plcp(ratespec_t rspec, uint32 length, u8 *plcp)
 {
-	uint8 rate_signal;
+	u8 rate_signal;
 	uint32 tmp = 0;
 	int rate = RSPEC2RATE(rspec);
 
@@ -5607,10 +5607,10 @@ wlc_compute_ofdm_plcp(ratespec_t rspec, uint32 length, uint8 *plcp)
  * Broken out for PRQ.
  */
 
-static void wlc_cck_plcp_set(int rate_500, uint length, uint8 *plcp)
+static void wlc_cck_plcp_set(int rate_500, uint length, u8 *plcp)
 {
 	uint16 usec = 0;
-	uint8 le = 0;
+	u8 le = 0;
 
 	switch (rate_500) {
 	case WLC_RATE_1M:
@@ -5642,7 +5642,7 @@ static void wlc_cck_plcp_set(int rate_500, uint length, uint8 *plcp)
 	/* PLCP signal byte */
 	plcp[0] = rate_500 * 5;	/* r (500kbps) * 5 == r (100kbps) */
 	/* PLCP service byte */
-	plcp[1] = (uint8) (le | D11B_PLCP_SIGNAL_LOCKED);
+	plcp[1] = (u8) (le | D11B_PLCP_SIGNAL_LOCKED);
 	/* PLCP length uint16, little endian */
 	plcp[2] = usec & 0xff;
 	plcp[3] = (usec >> 8) & 0xff;
@@ -5652,7 +5652,7 @@ static void wlc_cck_plcp_set(int rate_500, uint length, uint8 *plcp)
 }
 
 /* Rate: 802.11 rate code, length: PSDU length in octets */
-static void wlc_compute_cck_plcp(ratespec_t rspec, uint length, uint8 *plcp)
+static void wlc_compute_cck_plcp(ratespec_t rspec, uint length, u8 *plcp)
 {
 	int rate = RSPEC2RATE(rspec);
 
@@ -5672,7 +5672,7 @@ static void wlc_compute_cck_plcp(ratespec_t rspec, uint length, uint8 *plcp)
  * preamble_type	use short/GF or long/MM PLCP header
  */
 static uint16 BCMFASTPATH
-wlc_compute_frame_dur(wlc_info_t *wlc, ratespec_t rate, uint8 preamble_type,
+wlc_compute_frame_dur(wlc_info_t *wlc, ratespec_t rate, u8 preamble_type,
 		      uint next_frag_len)
 {
 	uint16 dur, sifs;
@@ -5707,8 +5707,8 @@ wlc_compute_frame_dur(wlc_info_t *wlc, ratespec_t rate, uint8 preamble_type,
  */
 uint16 BCMFASTPATH
 wlc_compute_rtscts_dur(wlc_info_t *wlc, bool cts_only, ratespec_t rts_rate,
-		       ratespec_t frame_rate, uint8 rts_preamble_type,
-		       uint8 frame_preamble_type, uint frame_len, bool ba)
+		       ratespec_t frame_rate, u8 rts_preamble_type,
+		       u8 frame_preamble_type, uint frame_len, bool ba)
 {
 	uint16 dur, sifs;
 
@@ -5885,7 +5885,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 {
 	struct dot11_header *h;
 	d11txh_t *txh;
-	uint8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
+	u8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
 	osl_t *osh;
 	int len, phylen, rts_phylen;
 	uint16 fc, type, frameid, mch, phyctl, xfts, mainrates;
@@ -5896,9 +5896,9 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	bool use_cts = FALSE;
 	bool use_rifs = FALSE;
 	bool short_preamble[2] = { FALSE, FALSE };
-	uint8 preamble_type[2] = { WLC_LONG_PREAMBLE, WLC_LONG_PREAMBLE };
-	uint8 rts_preamble_type[2] = { WLC_LONG_PREAMBLE, WLC_LONG_PREAMBLE };
-	uint8 *rts_plcp, rts_plcp_fallback[D11_PHY_HDR_LEN];
+	u8 preamble_type[2] = { WLC_LONG_PREAMBLE, WLC_LONG_PREAMBLE };
+	u8 rts_preamble_type[2] = { WLC_LONG_PREAMBLE, WLC_LONG_PREAMBLE };
+	u8 *rts_plcp, rts_plcp_fallback[D11_PHY_HDR_LEN];
 	struct dot11_rts_frame *rts = NULL;
 	bool qos;
 	uint ac;
@@ -5907,8 +5907,8 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	uint16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 #ifdef WLANTSEL
 #define ANTCFG_NONE 0xFF
-	uint8 antcfg = ANTCFG_NONE;
-	uint8 fbantcfg = ANTCFG_NONE;
+	u8 antcfg = ANTCFG_NONE;
+	u8 fbantcfg = ANTCFG_NONE;
 #endif
 	uint phyctl1_stf = 0;
 	uint16 durid = 0;
@@ -5917,7 +5917,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *tx_info;
 	bool is_mcs[2];
 	uint16 mimo_txbw;
-	uint8 mimo_preamble_type;
+	u8 mimo_preamble_type;
 
 	frameid = 0;
 
@@ -6072,7 +6072,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 				/* For SISO MCS use STBC if possible */
 				if (IS_MCS(rspec[k])
 				    && WLC_STF_SS_STBC_TX(wlc, scb)) {
-					uint8 stc;
+					u8 stc;
 
 					ASSERT(WLC_STBC_CAP_PHY(wlc));
 					stc = 1;	/* Nss for single stream is always 1 */
@@ -6819,13 +6819,13 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, uint32 frm_tx2)
 		goto fatal;
 
 	tx_info = IEEE80211_SKB_CB(p);
-	h = (struct dot11_header *)((uint8 *) (txh + 1) + D11_PHY_HDR_LEN);
+	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	fc = ltoh16(h->fc);
 
 	scb = (struct scb *)tx_info->control.sta->drv_priv;
 
 	if (N_ENAB(wlc->pub)) {
-		uint8 *plcp = (uint8 *) (txh + 1);
+		u8 *plcp = (u8 *) (txh + 1);
 		if (PLCP3_ISSGI(plcp[3]))
 			WLCNTINCR(wlc->pub->_cnt->txmpdu_sgi);
 		if (PLCP3_ISSTBC(plcp[3]))
@@ -7355,7 +7355,7 @@ wlc_calc_lsig_len(wlc_info_t *wlc, ratespec_t ratespec, uint mac_len)
 
 /* calculate frame duration of a given rate and length, return time in usec unit */
 uint BCMFASTPATH
-wlc_calc_frame_time(wlc_info_t *wlc, ratespec_t ratespec, uint8 preamble_type,
+wlc_calc_frame_time(wlc_info_t *wlc, ratespec_t ratespec, u8 preamble_type,
 		    uint mac_len)
 {
 	uint nsyms, dur = 0, Ndps, kNdps;
@@ -7425,7 +7425,7 @@ wlc_calc_frame_time(wlc_info_t *wlc, ratespec_t ratespec, uint8 preamble_type,
 
 /* The opposite of wlc_calc_frame_time */
 static uint
-wlc_calc_frame_len(wlc_info_t *wlc, ratespec_t ratespec, uint8 preamble_type,
+wlc_calc_frame_len(wlc_info_t *wlc, ratespec_t ratespec, u8 preamble_type,
 		   uint dur)
 {
 	uint nsyms, mac_len, Ndps, kNdps;
@@ -7471,7 +7471,7 @@ wlc_calc_frame_len(wlc_info_t *wlc, ratespec_t ratespec, uint8 preamble_type,
 }
 
 static uint
-wlc_calc_ba_time(wlc_info_t *wlc, ratespec_t rspec, uint8 preamble_type)
+wlc_calc_ba_time(wlc_info_t *wlc, ratespec_t rspec, u8 preamble_type)
 {
 	WL_TRACE(("wl%d: wlc_calc_ba_time: rspec 0x%x, preamble_type %d\n",
 		  wlc->pub->unit, rspec, preamble_type));
@@ -7488,7 +7488,7 @@ wlc_calc_ba_time(wlc_info_t *wlc, ratespec_t rspec, uint8 preamble_type)
 }
 
 static uint BCMFASTPATH
-wlc_calc_ack_time(wlc_info_t *wlc, ratespec_t rspec, uint8 preamble_type)
+wlc_calc_ack_time(wlc_info_t *wlc, ratespec_t rspec, u8 preamble_type)
 {
 	uint dur = 0;
 
@@ -7508,7 +7508,7 @@ wlc_calc_ack_time(wlc_info_t *wlc, ratespec_t rspec, uint8 preamble_type)
 }
 
 static uint
-wlc_calc_cts_time(wlc_info_t *wlc, ratespec_t rspec, uint8 preamble_type)
+wlc_calc_cts_time(wlc_info_t *wlc, ratespec_t rspec, u8 preamble_type)
 {
 	WL_TRACE(("wl%d: wlc_calc_cts_time: ratespec 0x%x, preamble_type %d\n",
 		  wlc->pub->unit, rspec, preamble_type));
@@ -7518,11 +7518,11 @@ wlc_calc_cts_time(wlc_info_t *wlc, ratespec_t rspec, uint8 preamble_type)
 /* derive wlc->band->basic_rate[] table from 'rateset' */
 void wlc_rate_lookup_init(wlc_info_t *wlc, wlc_rateset_t *rateset)
 {
-	uint8 rate;
-	uint8 mandatory;
-	uint8 cck_basic = 0;
-	uint8 ofdm_basic = 0;
-	uint8 *br = wlc->band->basic_rate;
+	u8 rate;
+	u8 mandatory;
+	u8 cck_basic = 0;
+	u8 ofdm_basic = 0;
+	u8 *br = wlc->band->basic_rate;
 	uint i;
 
 	/* incoming rates are in 500kbps units as in 802.11 Supported Rates */
@@ -7605,10 +7605,10 @@ void wlc_rate_lookup_init(wlc_info_t *wlc, wlc_rateset_t *rateset)
 	}
 }
 
-static void wlc_write_rate_shm(wlc_info_t *wlc, uint8 rate, uint8 basic_rate)
+static void wlc_write_rate_shm(wlc_info_t *wlc, u8 rate, u8 basic_rate)
 {
-	uint8 phy_rate, index;
-	uint8 basic_phy_rate, basic_index;
+	u8 phy_rate, index;
+	u8 basic_phy_rate, basic_index;
 	uint16 dir_table, basic_table;
 	uint16 basic_ptr;
 
@@ -7659,7 +7659,7 @@ void wlc_set_ratetable(wlc_info_t *wlc)
 {
 	const wlc_rateset_t *rs_dflt;
 	wlc_rateset_t rs;
-	uint8 rate, basic_rate;
+	u8 rate, basic_rate;
 	uint i;
 
 	rs_dflt = wlc_rateset_get_hwrs(wlc);
@@ -7724,7 +7724,7 @@ bool wlc_valid_rate(wlc_info_t *wlc, ratespec_t rspec, int band, bool verbose)
 	return FALSE;
 }
 
-static void wlc_update_mimo_band_bwcap(wlc_info_t *wlc, uint8 bwcap)
+static void wlc_update_mimo_band_bwcap(wlc_info_t *wlc, u8 bwcap)
 {
 	uint i;
 	wlcband_t *band;
@@ -7755,9 +7755,9 @@ void wlc_mod_prb_rsp_rate_table(wlc_info_t *wlc, uint frame_len)
 {
 	const wlc_rateset_t *rs_dflt;
 	wlc_rateset_t rs;
-	uint8 rate;
+	u8 rate;
 	uint16 entry_ptr;
-	uint8 plcp[D11_PHY_HDR_LEN];
+	u8 plcp[D11_PHY_HDR_LEN];
 	uint16 dur, sifs;
 	uint i;
 
@@ -7869,7 +7869,7 @@ wlc_bcn_prb_template(wlc_info_t *wlc, uint type, ratespec_t bcn_rspec,
 		/* fill in PLCP */
 		wlc_compute_plcp(wlc, bcn_rspec,
 				 (DOT11_MAC_HDR_LEN + body_len + DOT11_FCS_LEN),
-				 (uint8 *) plcp);
+				 (u8 *) plcp);
 
 	}
 	/* "Regular" and 16 MBSS but not for 4 MBSS */
@@ -7976,9 +7976,9 @@ void wlc_update_beacon(wlc_info_t *wlc)
 /* Write ssid into shared memory */
 void wlc_shm_ssid_upd(wlc_info_t *wlc, wlc_bsscfg_t *cfg)
 {
-	uint8 *ssidptr = cfg->SSID;
+	u8 *ssidptr = cfg->SSID;
 	uint16 base = M_SSID;
-	uint8 ssidbuf[DOT11_MAX_SSID_LEN];
+	u8 ssidbuf[DOT11_MAX_SSID_LEN];
 
 	/* padding the ssid with zero and copy it into shm */
 	bzero(ssidbuf, DOT11_MAX_SSID_LEN);
@@ -8058,7 +8058,7 @@ int wlc_prep_pdu(wlc_info_t *wlc, void *pdu, uint *fifop)
 	ASSERT(pdu);
 	txh = (d11txh_t *) PKTDATA(pdu);
 	ASSERT(txh);
-	h = (struct dot11_header *)((uint8 *) (txh + 1) + D11_PHY_HDR_LEN);
+	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	ASSERT(h);
 	fc = ltoh16(h->fc);
 
@@ -8211,8 +8211,8 @@ wlc_uint64_sub(uint32 *a_high, uint32 *a_low, uint32 b_high, uint32 b_low)
 static ratespec_t
 mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band, uint32 int_val)
 {
-	uint8 stf = (int_val & NRATE_STF_MASK) >> NRATE_STF_SHIFT;
-	uint8 rate = int_val & NRATE_RATE_MASK;
+	u8 stf = (int_val & NRATE_STF_MASK) >> NRATE_STF_SHIFT;
+	u8 rate = int_val & NRATE_RATE_MASK;
 	ratespec_t rspec;
 	bool ismcs = ((int_val & NRATE_MCS_INUSE) == NRATE_MCS_INUSE);
 	bool issgi = ((int_val & NRATE_SGI_MASK) >> NRATE_SGI_SHIFT);
@@ -8296,7 +8296,7 @@ mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band, uint32 int_val)
 		rspec |= RSPEC_MIMORATE;
 		/* For STBC populate the STC field of the ratespec */
 		if (stf == PHY_TXC1_MODE_STBC) {
-			uint8 stc;
+			u8 stc;
 			stc = 1;	/* Nss for single stream is always 1 */
 			rspec |= (stc << RSPEC_STC_SHIFT);
 		}
@@ -8350,13 +8350,13 @@ wlc_duty_cycle_set(wlc_info_t *wlc, int duty_cycle, bool isOFDM,
 }
 
 void
-wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, uint8 rate,
+wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, u8 rate,
 	     struct ether_addr *sa, uint32 wait_delay)
 {
 	bool suspend;
 	uint16 val = M_PKTENG_MODE_TX;
 	volatile uint16 frame_cnt_check;
-	uint8 counter = 0;
+	u8 counter = 0;
 
 	wlc_bmac_set_deaf(wlc->hw, TRUE);
 
@@ -8484,12 +8484,12 @@ void wlc_corereset(wlc_info_t *wlc, uint32 flags)
 	wlc_bmac_corereset(wlc->hw, flags);
 }
 
-void wlc_mhf(wlc_info_t *wlc, uint8 idx, uint16 mask, uint16 val, int bands)
+void wlc_mhf(wlc_info_t *wlc, u8 idx, uint16 mask, uint16 val, int bands)
 {
 	wlc_bmac_mhf(wlc->hw, idx, mask, val, bands);
 }
 
-uint16 wlc_mhf_get(wlc_info_t *wlc, uint8 idx, int bands)
+uint16 wlc_mhf_get(wlc_info_t *wlc, u8 idx, int bands)
 {
 	return wlc_bmac_mhf_get(wlc->hw, idx, bands);
 }
@@ -8558,7 +8558,7 @@ void wlc_reset_bmac_done(wlc_info_t *wlc)
 #endif
 }
 
-void wlc_ht_mimops_cap_update(wlc_info_t *wlc, uint8 mimops_mode)
+void wlc_ht_mimops_cap_update(wlc_info_t *wlc, u8 mimops_mode)
 {
 	wlc->ht_cap.cap &= ~HT_CAP_MIMO_PS_MASK;
 	wlc->ht_cap.cap |= (mimops_mode << HT_CAP_MIMO_PS_SHIFT);

@@ -39,12 +39,12 @@ extern int wlc_eventq_test_ind(wlc_eventq_t *eq, int et);
 extern int wlc_eventq_set_ind(wlc_eventq_t *eq, uint et, bool on);
 extern void wlc_eventq_flush(wlc_eventq_t *eq);
 extern void wlc_assign_event_msg(wlc_info_t *wlc, wl_event_msg_t *msg,
-				 const wlc_event_t *e, uint8 *data,
+				 const wlc_event_t *e, u8 *data,
 				 uint32 len);
 
 #ifdef MSGTRACE
 extern void wlc_event_sendup_trace(struct wlc_info *wlc, hndrte_dev_t *bus,
-				   uint8 *hdr, uint16 hdrlen, uint8 *buf,
+				   u8 *hdr, uint16 hdrlen, u8 *buf,
 				   uint16 buflen);
 #endif
 

@@ -138,7 +138,7 @@ uint16 wlapi_bmac_read_shm(wlc_phy_shim_info_t *physhim, uint offset)
 }
 
 void
-wlapi_bmac_mhf(wlc_phy_shim_info_t *physhim, uint8 idx, uint16 mask,
+wlapi_bmac_mhf(wlc_phy_shim_info_t *physhim, u8 idx, uint16 mask,
 	       uint16 val, int bands)
 {
 	wlc_bmac_mhf(physhim->wlc_hw, idx, mask, val, bands);
@@ -154,7 +154,7 @@ void wlapi_suspend_mac_and_wait(wlc_phy_shim_info_t *physhim)
 	wlc_suspend_mac_and_wait(physhim->wlc);
 }
 
-void wlapi_switch_macfreq(wlc_phy_shim_info_t *physhim, uint8 spurmode)
+void wlapi_switch_macfreq(wlc_phy_shim_info_t *physhim, u8 spurmode)
 {
 	wlc_bmac_switch_macfreq(physhim->wlc_hw, spurmode);
 }
@@ -222,7 +222,7 @@ wlapi_bmac_write_template_ram(wlc_phy_shim_info_t *physhim, int offset,
 	wlc_bmac_write_template_ram(physhim->wlc_hw, offset, len, buf);
 }
 
-uint16 wlapi_bmac_rate_shm_offset(wlc_phy_shim_info_t *physhim, uint8 rate)
+uint16 wlapi_bmac_rate_shm_offset(wlc_phy_shim_info_t *physhim, u8 rate)
 {
 	return wlc_bmac_rate_shm_offset(physhim->wlc_hw, rate);
 }
@@ -247,7 +247,7 @@ wlapi_copyto_objmem(wlc_phy_shim_info_t *physhim, uint offset, const void *buf,
 
 void
 wlapi_bmac_pktengtx(wlc_phy_shim_info_t *physhim, wl_pkteng_t *pkteng,
-		    uint8 rate, struct ether_addr *sa, uint32 wait_delay)
+		    u8 rate, struct ether_addr *sa, uint32 wait_delay)
 {
 	wlc_pktengtx(physhim->wlc, pkteng, rate, sa, wait_delay);
 }

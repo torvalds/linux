@@ -44,7 +44,7 @@
 
 static int8 wlc_stf_stbc_rx_get(wlc_info_t *wlc);
 static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, int32 int_val);
-static int wlc_stf_txcore_set(wlc_info_t *wlc, uint8 Nsts, uint8 val);
+static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 val);
 static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val);
 static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val);
 
@@ -55,7 +55,7 @@ static uint16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec);
 #define NSTS_2	2
 #define NSTS_3	3
 #define NSTS_4	4
-const uint8 txcore_default[5] = {
+const u8 txcore_default[5] = {
 	(0),			/* bitmap of the core enabled */
 	(0x01),			/* For Nsts = 1, enable core 1 */
 	(0x03),			/* For Nsts = 2, enable core 1 & 2 */
@@ -112,7 +112,7 @@ wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, uint16 *ss_algo_channel,
 			    chanspec_t chanspec)
 {
 	tx_power_t power;
-	uint8 siso_mcs_id, cdd_mcs_id, stbc_mcs_id;
+	u8 siso_mcs_id, cdd_mcs_id, stbc_mcs_id;
 
 	/* Clear previous settings */
 	*ss_algo_channel = 0;
@@ -192,7 +192,7 @@ bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, int32 int_val)
 	return TRUE;
 }
 
-static int wlc_stf_txcore_set(wlc_info_t *wlc, uint8 Nsts, uint8 core_mask)
+static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 core_mask)
 {
 	WL_TRACE(("wl%d: %s: Nsts %d core_mask %x\n",
 		  wlc->pub->unit, __func__, Nsts, core_mask));
@@ -232,7 +232,7 @@ static int wlc_stf_txcore_set(wlc_info_t *wlc, uint8 Nsts, uint8 core_mask)
 static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val)
 {
 	int i;
-	uint8 core_mask = 0;
+	u8 core_mask = 0;
 
 	WL_TRACE(("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val));
 
@@ -240,15 +240,15 @@ static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val)
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++) {
 		core_mask = (val == MAX_SPATIAL_EXPANSION) ?
 		    wlc->stf->txchain : txcore_default[i];
-		wlc_stf_txcore_set(wlc, (uint8) i, core_mask);
+		wlc_stf_txcore_set(wlc, (u8) i, core_mask);
 	}
 	return BCME_OK;
 }
 
 int wlc_stf_txchain_set(wlc_info_t *wlc, int32 int_val, bool force)
 {
-	uint8 txchain = (uint8) int_val;
-	uint8 txstreams;
+	u8 txchain = (u8) int_val;
+	u8 txstreams;
 	uint i;
 
 	if (wlc->stf->txchain == txchain)
@@ -259,7 +259,7 @@ int wlc_stf_txchain_set(wlc_info_t *wlc, int32 int_val, bool force)
 		return BCME_RANGE;
 
 	/* if nrate override is configured to be non-SISO STF mode, reject reducing txchain to 1 */
-	txstreams = (uint8) WLC_BITSCNT(txchain);
+	txstreams = (u8) WLC_BITSCNT(txchain);
 	if (txstreams > MAX_STREAMS_SUPPORTED)
 		return BCME_RANGE;
 
@@ -300,17 +300,17 @@ int wlc_stf_txchain_set(wlc_info_t *wlc, int32 int_val, bool force)
 			      wlc->stf->rxchain);
 
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++)
-		wlc_stf_txcore_set(wlc, (uint8) i, txcore_default[i]);
+		wlc_stf_txcore_set(wlc, (u8) i, txcore_default[i]);
 
 	return BCME_OK;
 }
 
 int wlc_stf_rxchain_set(wlc_info_t *wlc, int32 int_val)
 {
-	uint8 rxchain_cnt;
-	uint8 rxchain = (uint8) int_val;
-	uint8 mimops_mode;
-	uint8 old_rxchain, old_rxchain_cnt;
+	u8 rxchain_cnt;
+	u8 rxchain = (u8) int_val;
+	u8 mimops_mode;
+	u8 old_rxchain, old_rxchain_cnt;
 
 	if (wlc->stf->rxchain == rxchain)
 		return BCME_OK;
@@ -319,7 +319,7 @@ int wlc_stf_rxchain_set(wlc_info_t *wlc, int32 int_val)
 	    || !(rxchain & wlc->stf->hw_rxchain))
 		return BCME_RANGE;
 
-	rxchain_cnt = (uint8) WLC_BITSCNT(rxchain);
+	rxchain_cnt = (u8) WLC_BITSCNT(rxchain);
 	if (WLC_STF_SS_STBC_RX(wlc)) {
 		if ((rxchain_cnt == 1)
 		    && (wlc_stf_stbc_rx_get(wlc) != HT_CAP_RX_STBC_NO))
@@ -372,8 +372,8 @@ int wlc_stf_rxchain_set(wlc_info_t *wlc, int32 int_val)
 int wlc_stf_ss_update(wlc_info_t *wlc, wlcband_t *band)
 {
 	int ret_code = 0;
-	uint8 prev_stf_ss;
-	uint8 upd_stf_ss;
+	u8 prev_stf_ss;
+	u8 upd_stf_ss;
 
 	prev_stf_ss = wlc->stf->ss_opmode;
 
@@ -527,8 +527,8 @@ void wlc_stf_phy_txant_upd(wlc_info_t *wlc)
 void BCMATTACHFN(wlc_stf_phy_chain_calc) (wlc_info_t *wlc)
 {
 	/* get available rx/tx chains */
-	wlc->stf->hw_txchain = (uint8) getintvar(wlc->pub->vars, "txchain");
-	wlc->stf->hw_rxchain = (uint8) getintvar(wlc->pub->vars, "rxchain");
+	wlc->stf->hw_txchain = (u8) getintvar(wlc->pub->vars, "txchain");
+	wlc->stf->hw_rxchain = (u8) getintvar(wlc->pub->vars, "rxchain");
 
 	/* these parameter are intended to be used for all PHY types */
 	if (wlc->stf->hw_txchain == 0 || wlc->stf->hw_txchain == 0xf) {
@@ -540,7 +540,7 @@ void BCMATTACHFN(wlc_stf_phy_chain_calc) (wlc_info_t *wlc)
 	}
 
 	wlc->stf->txchain = wlc->stf->hw_txchain;
-	wlc->stf->txstreams = (uint8) WLC_BITSCNT(wlc->stf->hw_txchain);
+	wlc->stf->txstreams = (u8) WLC_BITSCNT(wlc->stf->hw_txchain);
 
 	if (wlc->stf->hw_rxchain == 0 || wlc->stf->hw_rxchain == 0xf) {
 		if (WLCISNPHY(wlc->band)) {
@@ -551,7 +551,7 @@ void BCMATTACHFN(wlc_stf_phy_chain_calc) (wlc_info_t *wlc)
 	}
 
 	wlc->stf->rxchain = wlc->stf->hw_rxchain;
-	wlc->stf->rxstreams = (uint8) WLC_BITSCNT(wlc->stf->hw_rxchain);
+	wlc->stf->rxstreams = (u8) WLC_BITSCNT(wlc->stf->hw_rxchain);
 
 	/* initialize the txcore table */
 	bcopy(txcore_default, wlc->stf->txcore, sizeof(wlc->stf->txcore));

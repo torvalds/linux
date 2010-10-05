@@ -167,7 +167,7 @@ static void wlc_bmac_setband(wlc_hw_info_t *wlc_hw, uint bandunit,
 static void wlc_bmac_update_slot_timing(wlc_hw_info_t *wlc_hw, bool shortslot);
 static void wlc_upd_ofdm_pctl1_table(wlc_hw_info_t *wlc_hw);
 static uint16 wlc_bmac_ofdm_ratetable_offset(wlc_hw_info_t *wlc_hw,
-					     uint8 rate);
+					     u8 rate);
 
 /* === Low Level functions === */
 
@@ -828,7 +828,7 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 		err = 15;
 		goto fail;
 	}
-	wlc_hw->sromrev = (uint8) getintvar(vars, "sromrev");
+	wlc_hw->sromrev = (u8) getintvar(vars, "sromrev");
 	wlc_hw->boardflags = (uint32) getintvar(vars, "boardflags");
 	wlc_hw->boardflags2 = (uint32) getintvar(vars, "boardflags2");
 
@@ -1488,7 +1488,7 @@ BCMINITFN(wlc_mhfdef) (wlc_info_t *wlc, uint16 *mhfs, uint16 mhf2_init)
  *                   WLC_BAND_ALL  <--- All bands
  */
 void
-wlc_bmac_mhf(wlc_hw_info_t *wlc_hw, uint8 idx, uint16 mask, uint16 val,
+wlc_bmac_mhf(wlc_hw_info_t *wlc_hw, u8 idx, uint16 mask, uint16 val,
 	     int bands)
 {
 	uint16 save;
@@ -1542,7 +1542,7 @@ wlc_bmac_mhf(wlc_hw_info_t *wlc_hw, uint8 idx, uint16 mask, uint16 val,
 	}
 }
 
-uint16 wlc_bmac_mhf_get(wlc_hw_info_t *wlc_hw, uint8 idx, int bands)
+uint16 wlc_bmac_mhf_get(wlc_hw_info_t *wlc_hw, u8 idx, int bands)
 {
 	wlc_hwband_t *band;
 	ASSERT(idx < MHFMAX);
@@ -1570,7 +1570,7 @@ uint16 wlc_bmac_mhf_get(wlc_hw_info_t *wlc_hw, uint8 idx, int bands)
 
 static void wlc_write_mhf(wlc_hw_info_t *wlc_hw, uint16 *mhfs)
 {
-	uint8 idx;
+	u8 idx;
 	uint16 addr[] = {
 		M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
 		M_HOST_FLAGS5
@@ -1802,7 +1802,7 @@ wlc_bmac_write_template_ram(wlc_hw_info_t *wlc_hw, int offset, int len,
 	be_bit = (R_REG(osh, &regs->maccontrol) & MCTL_BIGEND) != 0;
 
 	while (len > 0) {
-		bcopy((uint8 *) buf, &word, sizeof(uint32));
+		bcopy((u8 *) buf, &word, sizeof(uint32));
 
 		if (be_bit)
 			word = hton32(word);
@@ -1811,7 +1811,7 @@ wlc_bmac_write_template_ram(wlc_hw_info_t *wlc_hw, int offset, int len,
 
 		W_REG(osh, &regs->tplatewrdata, word);
 
-		buf = (uint8 *) buf + sizeof(uint32);
+		buf = (u8 *) buf + sizeof(uint32);
 		len -= sizeof(uint32);
 	}
 }
@@ -2688,7 +2688,7 @@ static void BCMINITFN(wlc_coreinit) (wlc_info_t *wlc)
  *  - 559241 = 0x88889 => tsf_clk_frac_h = 0x8, tsf_clk_frac_l = 0x8889
  */
 
-void wlc_bmac_switch_macfreq(wlc_hw_info_t *wlc_hw, uint8 spurmode)
+void wlc_bmac_switch_macfreq(wlc_hw_info_t *wlc_hw, u8 spurmode)
 {
 	d11regs_t *regs;
 	osl_t *osh;
@@ -2838,12 +2838,12 @@ static void wlc_write_inits(wlc_hw_info_t *wlc_hw, const d11init_t *inits)
 {
 	int i;
 	osl_t *osh;
-	volatile uint8 *base;
+	volatile u8 *base;
 
 	WL_TRACE(("wl%d: wlc_write_inits\n", wlc_hw->unit));
 
 	osh = wlc_hw->osh;
-	base = (volatile uint8 *)wlc_hw->regs;
+	base = (volatile u8 *)wlc_hw->regs;
 
 	for (i = 0; inits[i].addr != 0xffff; i++) {
 		ASSERT((inits[i].size == 2) || (inits[i].size == 4));
@@ -2891,7 +2891,7 @@ uint16 wlc_bmac_get_txant(wlc_hw_info_t *wlc_hw)
 	return (uint16) wlc_hw->wlc->stf->txant;
 }
 
-void wlc_bmac_antsel_type_set(wlc_hw_info_t *wlc_hw, uint8 antsel_type)
+void wlc_bmac_antsel_type_set(wlc_hw_info_t *wlc_hw, u8 antsel_type)
 {
 	wlc_hw->antsel_type = antsel_type;
 
@@ -3117,7 +3117,7 @@ bool wlc_bmac_tx_fifo_suspended(wlc_hw_info_t *wlc_hw, uint tx_fifo)
 
 void wlc_bmac_tx_fifo_suspend(wlc_hw_info_t *wlc_hw, uint tx_fifo)
 {
-	uint8 fifo = 1 << tx_fifo;
+	u8 fifo = 1 << tx_fifo;
 
 	/* Two clients of this code, 11h Quiet period and scanning. */
 
@@ -3582,8 +3582,8 @@ void wlc_bmac_ifsctl_edcrs_set(wlc_hw_info_t *wlc_hw, bool abie, bool isht)
 
 static void wlc_upd_ofdm_pctl1_table(wlc_hw_info_t *wlc_hw)
 {
-	uint8 rate;
-	uint8 rates[8] = {
+	u8 rate;
+	u8 rates[8] = {
 		WLC_RATE_6M, WLC_RATE_9M, WLC_RATE_12M, WLC_RATE_18M,
 		WLC_RATE_24M, WLC_RATE_36M, WLC_RATE_48M, WLC_RATE_54M
 	};
@@ -3614,13 +3614,13 @@ static void wlc_upd_ofdm_pctl1_table(wlc_hw_info_t *wlc_hw)
 	}
 }
 
-static uint16 wlc_bmac_ofdm_ratetable_offset(wlc_hw_info_t *wlc_hw, uint8 rate)
+static uint16 wlc_bmac_ofdm_ratetable_offset(wlc_hw_info_t *wlc_hw, u8 rate)
 {
 	uint i;
-	uint8 plcp_rate = 0;
+	u8 plcp_rate = 0;
 	struct plcp_signal_rate_lookup {
-		uint8 rate;
-		uint8 signal_rate;
+		u8 rate;
+		u8 signal_rate;
 	};
 	/* OFDM RATE sub-field of PLCP SIGNAL field, per 802.11 sec 17.3.4.1 */
 	const struct plcp_signal_rate_lookup rate_lookup[] = {
@@ -3647,7 +3647,7 @@ static uint16 wlc_bmac_ofdm_ratetable_offset(wlc_hw_info_t *wlc_hw, uint8 rate)
 	return 2 * wlc_bmac_read_shm(wlc_hw, M_RT_DIRMAP_A + (plcp_rate * 2));
 }
 
-void wlc_bmac_band_stf_ss_set(wlc_hw_info_t *wlc_hw, uint8 stf_mode)
+void wlc_bmac_band_stf_ss_set(wlc_hw_info_t *wlc_hw, u8 stf_mode)
 {
 	wlc_hw->hw_stf_ss_opmode = stf_mode;
 
@@ -3984,7 +3984,7 @@ wlc_bmac_copyto_objmem(wlc_hw_info_t *wlc_hw, uint offset, const void *buf,
 		       int len, uint32 sel)
 {
 	uint16 v;
-	const uint8 *p = (const uint8 *)buf;
+	const u8 *p = (const u8 *)buf;
 	int i;
 
 	/* offset and len need to be even */
@@ -4010,7 +4010,7 @@ wlc_bmac_copyfrom_objmem(wlc_hw_info_t *wlc_hw, uint offset, void *buf,
 			 int len, uint32 sel)
 {
 	uint16 v;
-	uint8 *p = (uint8 *) buf;
+	u8 *p = (u8 *) buf;
 	int i;
 
 	/* offset and len need to be even */
@@ -4178,10 +4178,10 @@ bool wlc_bmac_radio_hw(wlc_hw_info_t *wlc_hw, bool enable)
 	return TRUE;
 }
 
-uint16 wlc_bmac_rate_shm_offset(wlc_hw_info_t *wlc_hw, uint8 rate)
+uint16 wlc_bmac_rate_shm_offset(wlc_hw_info_t *wlc_hw, u8 rate)
 {
 	uint16 table_ptr;
-	uint8 phy_rate, index;
+	u8 phy_rate, index;
 
 	/* get the phy specific rate encoding for the PLCP SIGNAL field */
 	/* XXX4321 fixup needed ? */
@@ -4202,7 +4202,7 @@ uint16 wlc_bmac_rate_shm_offset(wlc_hw_info_t *wlc_hw, uint8 rate)
 	return 2 * wlc_bmac_read_shm(wlc_hw, table_ptr + (index * 2));
 }
 
-void wlc_bmac_set_txpwr_percent(wlc_hw_info_t *wlc_hw, uint8 val)
+void wlc_bmac_set_txpwr_percent(wlc_hw_info_t *wlc_hw, u8 val)
 {
 	wlc_phy_txpwr_percent_set(wlc_hw->band->pi, val);
 }

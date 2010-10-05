@@ -17,7 +17,7 @@
 #ifndef _WLC_RATE_H_
 #define _WLC_RATE_H_
 
-extern const uint8 rate_info[];
+extern const u8 rate_info[];
 extern const struct wlc_rateset cck_ofdm_mimo_rates;
 extern const struct wlc_rateset ofdm_mimo_rates;
 extern const struct wlc_rateset cck_ofdm_rates;
@@ -32,8 +32,8 @@ typedef struct mcs_info {
 	uint32 phy_rate_40;	/* phy rate in kbps [40Mhz] */
 	uint32 phy_rate_20_sgi;	/* phy rate in kbps [20Mhz] with SGI */
 	uint32 phy_rate_40_sgi;	/* phy rate in kbps [40Mhz] with SGI */
-	uint8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
-	uint8 leg_ofdm;		/* matching legacy ofdm rate in 500bkps */
+	u8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
+	u8 leg_ofdm;		/* matching legacy ofdm rate in 500bkps */
 } mcs_info_t;
 
 #define WLC_MAXMCS	32	/* max valid mcs index */
@@ -129,7 +129,7 @@ typedef uint32 ratespec_t;
 	(PHY_TXC1_MODE_SDM << RSPEC_STF_SHIFT)))
 
 /* Convert encoded rate value in plcp header to numerical rates in 500 KHz increments */
-extern const uint8 ofdm_rate_lookup[];
+extern const u8 ofdm_rate_lookup[];
 #define OFDM_PHY2MAC_RATE(rlpt)		(ofdm_rate_lookup[rlpt & 0x7])
 #define CCK_PHY2MAC_RATE(signal)	(signal/5)
 
@@ -145,26 +145,26 @@ struct wlc_rateset;
 extern bool wlc_rate_hwrs_filter_sort_validate(struct wlc_rateset *rs,
 					       const struct wlc_rateset *hw_rs,
 					       bool check_brate,
-					       uint8 txstreams);
+					       u8 txstreams);
 /* copy rateset src to dst as-is (no masking or sorting) */
 extern void wlc_rateset_copy(const struct wlc_rateset *src,
 			     struct wlc_rateset *dst);
 
 /* would be nice to have these documented ... */
-extern ratespec_t wlc_compute_rspec(d11rxhdr_t *rxh, uint8 *plcp);
+extern ratespec_t wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp);
 
 extern void wlc_rateset_filter(struct wlc_rateset *src, struct wlc_rateset *dst,
-			       bool basic_only, uint8 rates, uint xmask,
+			       bool basic_only, u8 rates, uint xmask,
 			       bool mcsallow);
 extern void wlc_rateset_default(struct wlc_rateset *rs_tgt,
 				const struct wlc_rateset *rs_hw, uint phy_type,
 				int bandtype, bool cck_only, uint rate_mask,
-				bool mcsallow, uint8 bw, uint8 txstreams);
+				bool mcsallow, u8 bw, u8 txstreams);
 extern int16 wlc_rate_legacy_phyctl(uint rate);
 
-extern void wlc_rateset_mcs_upd(struct wlc_rateset *rs, uint8 txstreams);
+extern void wlc_rateset_mcs_upd(struct wlc_rateset *rs, u8 txstreams);
 extern void wlc_rateset_mcs_clear(struct wlc_rateset *rateset);
-extern void wlc_rateset_mcs_build(struct wlc_rateset *rateset, uint8 txstreams);
-extern void wlc_rateset_bw_mcs_filter(struct wlc_rateset *rateset, uint8 bw);
+extern void wlc_rateset_mcs_build(struct wlc_rateset *rateset, u8 txstreams);
+extern void wlc_rateset_bw_mcs_filter(struct wlc_rateset *rateset, u8 bw);
 
 #endif				/* _WLC_RATE_H_ */

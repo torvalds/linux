@@ -60,8 +60,8 @@
 
 /* static functions */
 static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel);
-static uint8 wlc_antsel_id2antcfg(antsel_info_t *asi, uint8 id);
-static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, uint8 ant_cfg);
+static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id);
+static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg);
 static void wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
 				bool auto_sel);
 
@@ -72,7 +72,7 @@ const uint16 mimo_2x4_div_antselpat_tbl[] = {
 	0, 0, 0, 0		/* n.a.              */
 };
 
-const uint8 mimo_2x4_div_antselid_tbl[16] = {
+const u8 mimo_2x4_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 2, 3, 0,
 	0, 0, 1, 0, 0, 0, 0, 0	/* pat to antselid */
 };
@@ -84,7 +84,7 @@ const uint16 mimo_2x3_div_antselpat_tbl[] = {
 	16, 16, 16, 16		/* n.a.              */
 };
 
-const uint8 mimo_2x3_div_antselid_tbl[16] = {
+const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 1, 2, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
@@ -106,7 +106,7 @@ antsel_info_t *BCMNMIATTACHFN(wlc_antsel_attach) (wlc_info_t *wlc, osl_t *osh,
 	asi->pub = pub;
 	asi->antsel_type = ANTSEL_NA;
 	asi->antsel_avail = FALSE;
-	asi->antsel_antswitch = (uint8) getintvar(asi->pub->vars, "antswitch");
+	asi->antsel_antswitch = (u8) getintvar(asi->pub->vars, "antswitch");
 
 	if ((asi->pub->sromrev >= 4) && (asi->antsel_antswitch != 0)) {
 		switch (asi->antsel_antswitch) {
@@ -176,7 +176,7 @@ wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
 		    bool auto_sel)
 {
 	if (asi->antsel_type == ANTSEL_2x3) {
-		uint8 antcfg_def = ANT_SELCFG_DEF_2x3 |
+		u8 antcfg_def = ANT_SELCFG_DEF_2x3 |
 		    ((asi->antsel_avail && auto_sel) ? ANT_SELCFG_AUTO : 0);
 		antsel->ant_config[ANT_SELCFG_TX_DEF] = antcfg_def;
 		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = antcfg_def;
@@ -204,10 +204,10 @@ wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
 
 void BCMFASTPATH
 wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
-		      uint8 antselid, uint8 fbantselid, uint8 *antcfg,
-		      uint8 *fbantcfg)
+		      u8 antselid, u8 fbantselid, u8 *antcfg,
+		      u8 *fbantcfg)
 {
-	uint8 ant;
+	u8 ant;
 
 	/* if use default, assign it and return */
 	if (usedef) {
@@ -235,9 +235,9 @@ wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
 }
 
 /* boardlevel antenna selection: convert mimo_antsel (ucode interface) to id */
-uint8 wlc_antsel_antsel2id(antsel_info_t *asi, uint16 antsel)
+u8 wlc_antsel_antsel2id(antsel_info_t *asi, uint16 antsel)
 {
-	uint8 antselid = 0;
+	u8 antselid = 0;
 
 	if (asi->antsel_type == ANTSEL_2x4) {
 		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
@@ -254,9 +254,9 @@ uint8 wlc_antsel_antsel2id(antsel_info_t *asi, uint16 antsel)
 }
 
 /* boardlevel antenna selection: convert id to ant_cfg */
-static uint8 wlc_antsel_id2antcfg(antsel_info_t *asi, uint8 id)
+static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id)
 {
-	uint8 antcfg = ANT_SELCFG_DEF_2x2;
+	u8 antcfg = ANT_SELCFG_DEF_2x2;
 
 	if (asi->antsel_type == ANTSEL_2x4) {
 		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
@@ -273,9 +273,9 @@ static uint8 wlc_antsel_id2antcfg(antsel_info_t *asi, uint8 id)
 }
 
 /* boardlevel antenna selection: convert ant_cfg to mimo_antsel (ucode interface) */
-static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, uint8 ant_cfg)
+static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg)
 {
-	uint8 idx = WLC_ANTIDX_11N(WLC_ANTSEL_11N(ant_cfg));
+	u8 idx = WLC_ANTIDX_11N(WLC_ANTSEL_11N(ant_cfg));
 	uint16 mimo_antsel = 0;
 
 	if (asi->antsel_type == ANTSEL_2x4) {
@@ -296,7 +296,7 @@ static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, uint8 ant_cfg)
 static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel)
 {
 	wlc_info_t *wlc = asi->wlc;
-	uint8 ant_cfg;
+	u8 ant_cfg;
 	uint16 mimo_antsel;
 
 	ASSERT(asi->antsel_type != ANTSEL_NA);

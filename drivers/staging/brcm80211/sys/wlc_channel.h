@@ -55,13 +55,13 @@ struct wlc_info;
 /* locale channel and power info. */
 typedef struct {
 	uint32 valid_channels;
-	uint8 radar_channels;	/* List of radar sensitive channels */
-	uint8 restricted_channels;	/* List of channels used only if APs are detected */
+	u8 radar_channels;	/* List of radar sensitive channels */
+	u8 restricted_channels;	/* List of channels used only if APs are detected */
 	int8 maxpwr[WLC_MAXPWR_TBL_SIZE];	/* Max tx pwr in qdBm for each sub-band */
 	int8 pub_maxpwr[BAND_5G_PWR_LVLS];	/* Country IE advertised max tx pwr in dBm
 						 * per sub-band
 						 */
-	uint8 flags;
+	u8 flags;
 } locale_info_t;
 
 /* bits for locale_info flags */
@@ -84,7 +84,7 @@ typedef struct {
 typedef struct {
 	int8 maxpwr20[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 20 MHz power limits, qdBm units */
 	int8 maxpwr40[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 40 MHz power limits, qdBm units */
-	uint8 flags;
+	u8 flags;
 } locale_mimo_info_t;
 
 extern const chanvec_t chanvec_all_2G;
@@ -94,10 +94,10 @@ extern const chanvec_t chanvec_all_5G;
  * Country names and abbreviations with locale defined from ISO 3166
  */
 struct country_info {
-	const uint8 locale_2G;	/* 2.4G band locale */
-	const uint8 locale_5G;	/* 5G band locale */
-	const uint8 locale_mimo_2G;	/* 2.4G mimo info */
-	const uint8 locale_mimo_5G;	/* 5G mimo info */
+	const u8 locale_2G;	/* 2.4G band locale */
+	const u8 locale_5G;	/* 5G band locale */
+	const u8 locale_mimo_2G;	/* 2.4G mimo info */
+	const u8 locale_mimo_5G;	/* 5G mimo info */
 };
 
 typedef struct country_info country_info_t;
@@ -113,8 +113,8 @@ extern int wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 				   const char *ccode, int regrev);
 
 extern const char *wlc_channel_country_abbrev(wlc_cm_info_t *wlc_cm);
-extern uint8 wlc_channel_locale_flags(wlc_cm_info_t *wlc_cm);
-extern uint8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm,
+extern u8 wlc_channel_locale_flags(wlc_cm_info_t *wlc_cm);
+extern u8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm,
 					      uint bandunit);
 
 extern void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm);
@@ -139,19 +139,19 @@ extern void wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm,
 				   struct txpwr_limits *txpwr);
 extern void wlc_channel_set_chanspec(wlc_cm_info_t *wlc_cm,
 				     chanspec_t chanspec,
-				     uint8 local_constraint_qdbm);
+				     u8 local_constraint_qdbm);
 extern int wlc_channel_set_txpower_limit(wlc_cm_info_t *wlc_cm,
-					 uint8 local_constraint_qdbm);
+					 u8 local_constraint_qdbm);
 
 extern const country_info_t *wlc_country_lookup(struct wlc_info *wlc,
 						const char *ccode);
 extern void wlc_locale_get_channels(const locale_info_t *locale,
 				    chanvec_t *valid_channels);
-extern const locale_info_t *wlc_get_locale_2g(uint8 locale_idx);
-extern const locale_info_t *wlc_get_locale_5g(uint8 locale_idx);
+extern const locale_info_t *wlc_get_locale_2g(u8 locale_idx);
+extern const locale_info_t *wlc_get_locale_5g(u8 locale_idx);
 extern bool wlc_japan(struct wlc_info *wlc);
 
-extern uint8 wlc_get_regclass(wlc_cm_info_t *wlc_cm, chanspec_t chanspec);
+extern u8 wlc_get_regclass(wlc_cm_info_t *wlc_cm, chanspec_t chanspec);
 extern bool wlc_channel_get_chanvec(struct wlc_info *wlc,
 				    const char *country_abbrev, int bandtype,
 				    chanvec_t *channels);

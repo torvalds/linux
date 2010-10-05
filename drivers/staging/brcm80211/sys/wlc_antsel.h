@@ -22,7 +22,7 @@ extern antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 extern void wlc_antsel_detach(antsel_info_t *asi);
 extern void wlc_antsel_init(antsel_info_t *asi);
 extern void wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
-				  uint8 id, uint8 fbid, uint8 *antcfg,
-				  uint8 *fbantcfg);
-extern uint8 wlc_antsel_antsel2id(antsel_info_t *asi, uint16 antsel);
+				  u8 id, u8 fbid, u8 *antcfg,
+				  u8 *fbantcfg);
+extern u8 wlc_antsel_antsel2id(antsel_info_t *asi, uint16 antsel);
 #endif				/* _wlc_antsel_h_ */

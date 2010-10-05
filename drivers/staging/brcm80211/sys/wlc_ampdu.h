@@ -29,7 +29,7 @@ extern void wlc_ampdu_reset(ampdu_info_t *ampdu);
 extern void wlc_ampdu_macaddr_upd(wlc_info_t *wlc);
 extern void wlc_ampdu_shm_upd(ampdu_info_t *ampdu);
 
-extern uint8 wlc_ampdu_null_delim_cnt(ampdu_info_t *ampdu, struct scb *scb,
+extern u8 wlc_ampdu_null_delim_cnt(ampdu_info_t *ampdu, struct scb *scb,
 				      ratespec_t rspec, int phylen);
 extern void scb_ampdu_cleanup(ampdu_info_t *ampdu, struct scb *scb);
 #ifdef WLC_HIGH_ONLY

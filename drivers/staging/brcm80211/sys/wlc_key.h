@@ -88,25 +88,25 @@ typedef struct wsec_iv {
 
 typedef struct wsec_key {
 	struct ether_addr ea;	/* per station */
-	uint8 idx;		/* key index in wsec_keys array */
-	uint8 id;		/* key ID [0-3] */
-	uint8 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
-	uint8 rcmta;		/* rcmta entry index, same as idx by default */
+	u8 idx;		/* key index in wsec_keys array */
+	u8 id;		/* key ID [0-3] */
+	u8 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
+	u8 rcmta;		/* rcmta entry index, same as idx by default */
 	uint16 flags;		/* misc flags */
-	uint8 algo_hw;		/* cache for hw register */
-	uint8 aes_mode;		/* cache for hw register */
+	u8 algo_hw;		/* cache for hw register */
+	u8 aes_mode;		/* cache for hw register */
 	int8 iv_len;		/* IV length */
 	int8 icv_len;		/* ICV length */
 	uint32 len;		/* key length..don't move this var */
 	/* data is 4byte aligned */
-	uint8 data[DOT11_MAX_KEY_SIZE];	/* key data */
+	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */
 	wsec_iv_t rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
 	wsec_iv_t txiv;		/* Tx IV */
 
 } wsec_key_t;
 
 typedef struct {
-	uint8 vec[ROUNDUP(WSEC_MAX_KEYS, NBBY) / NBBY];	/* bitvec of wsec_key indexes */
+	u8 vec[ROUNDUP(WSEC_MAX_KEYS, NBBY) / NBBY];	/* bitvec of wsec_key indexes */
 } wsec_key_vec_t;
 
 /* For use with wsec_key_t.flags */

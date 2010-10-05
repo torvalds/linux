@@ -773,7 +773,7 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 
 	ulong base_addr;
 	struct ieee80211_hw *hw;
-	uint8 perm[ETH_ALEN];
+	u8 perm[ETH_ALEN];
 
 	unit = wl_found + instance_base;
 	err = 0;
@@ -2285,7 +2285,7 @@ char *wl_firmwares[WL_MAX_FW] = {
 int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, uint32 idx)
 {
 	int i, entry;
-	const uint8 *pdata;
+	const u8 *pdata;
 	struct wl_fw_hdr *hdr;
 	for (i = 0; i < wl->fw.fw_cnt; i++) {
 		hdr = (struct wl_fw_hdr *)wl->fw.fw_hdr[i]->data;
@@ -2311,7 +2311,7 @@ int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, uint32 idx)
 int wl_ucode_init_uint(wl_info_t *wl, uint32 *data, uint32 idx)
 {
 	int i, entry;
-	const uint8 *pdata;
+	const u8 *pdata;
 	struct wl_fw_hdr *hdr;
 	for (i = 0; i < wl->fw.fw_cnt; i++) {
 		hdr = (struct wl_fw_hdr *)wl->fw.fw_hdr[i]->data;
