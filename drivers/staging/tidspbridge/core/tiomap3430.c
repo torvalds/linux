@@ -58,6 +58,7 @@
 #include "_tiomap.h"
 #include "_tiomap_pwr.h"
 #include "tiomap_io.h"
+#include "_deh.h"
 
 /* Offset in shared mem to write to in order to synchronize start with DSP */
 #define SHMSYNCOFFSET 4		/* GPP byte offset */
@@ -367,6 +368,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	}
 	if (!status) {
 		dev_context->dsp_mmu = mmu;
+		mmu->isr = mmu_fault_isr;
 		sm_sg = &dev_context->sh_s;
 		sg0_da = iommu_kmap(mmu, sm_sg->seg0_da, sm_sg->seg0_pa,
 			sm_sg->seg0_size, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
