@@ -774,7 +774,9 @@ out_unlock_set:
 	raw_local_irq_restore(flags);
 
 	if (!subclass || force)
-		lock->class_cache = class;
+		lock->class_cache[0] = class;
+	else if (subclass < NR_LOCKDEP_CACHING_CLASSES)
+		lock->class_cache[subclass] = class;
 
 	if (DEBUG_LOCKS_WARN_ON(class->subclass != subclass))
 		return NULL;
@@ -2679,7 +2681,11 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
-	lock->class_cache = NULL;
+	int i;
+
+	for (i = 0; i < NR_LOCKDEP_CACHING_CLASSES; i++)
+		lock->class_cache[i] = NULL;
+
 #ifdef CONFIG_LOCK_STAT
 	lock->cpu = raw_smp_processor_id();
 #endif
@@ -2750,10 +2756,10 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (lock->key == &__lockdep_no_validate__)
 		check = 1;
 
-	if (!subclass)
-		class = lock->class_cache;
+	if (subclass < NR_LOCKDEP_CACHING_CLASSES)
+		class = lock->class_cache[subclass];
 	/*
-	 * Not cached yet or subclass?
+	 * Not cached?
 	 */
 	if (unlikely(!class)) {
 		class = register_lock_class(lock, subclass, 0);
@@ -2918,7 +2924,7 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 		return 1;
 
 	if (hlock->references) {
-		struct lock_class *class = lock->class_cache;
+		struct lock_class *class = lock->class_cache[0];
 
 		if (!class)
 			class = look_up_lock_class(lock, 0);
@@ -3559,7 +3565,12 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 		if (list_empty(head))
 			continue;
 		list_for_each_entry_safe(class, next, head, hash_entry) {
-			if (unlikely(class == lock->class_cache)) {
+			int match = 0;
+
+			for (j = 0; j < NR_LOCKDEP_CACHING_CLASSES; j++)
+				match |= class == lock->class_cache[j];
+
+			if (unlikely(match)) {
 				if (debug_locks_off_graph_unlock())
 					WARN_ON(1);
 				goto out_restore;
