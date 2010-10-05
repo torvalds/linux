@@ -55,10 +55,10 @@ static bool si_pmu_res_depfltr_npaldo(si_t *sih);
 static uint32 si_pmu_res_deps(si_t *sih, osl_t *osh, chipcregs_t *cc,
 			      uint32 rsrcs, bool all);
 static uint si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
-			      uint8 rsrc);
+			      u8 rsrc);
 static void si_pmu_res_masks(si_t *sih, uint32 * pmin, uint32 * pmax);
 static void si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc,
-				       osl_t *osh, uint8 spuravoid);
+				       osl_t *osh, u8 spuravoid);
 
 static void si_pmu_set_4330_plldivs(si_t *sih);
 
@@ -105,7 +105,7 @@ void si_pmu_pllupd(si_t *sih)
 /* Setup switcher voltage */
 void
 BCMATTACHFN(si_pmu_set_switcher_voltage) (si_t *sih, osl_t *osh,
-					  uint8 bb_voltage, uint8 rf_voltage) {
+					  u8 bb_voltage, u8 rf_voltage) {
 	chipcregs_t *cc;
 	uint origidx;
 
@@ -127,10 +127,10 @@ BCMATTACHFN(si_pmu_set_switcher_voltage) (si_t *sih, osl_t *osh,
 }
 
 void
-BCMATTACHFN(si_pmu_set_ldo_voltage) (si_t *sih, osl_t *osh, uint8 ldo,
-				     uint8 voltage) {
-	uint8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
-	uint8 addr = 0;
+BCMATTACHFN(si_pmu_set_ldo_voltage) (si_t *sih, osl_t *osh, u8 ldo,
+				     u8 voltage) {
+	u8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
+	u8 addr = 0;
 
 	ASSERT(sih->cccaps & CC_CAP_PMU);
 
@@ -291,7 +291,7 @@ uint32 BCMATTACHFN(si_pmu_force_ilp) (si_t *sih, osl_t *osh, bool force)
 
 /* Setup resource up/down timers */
 typedef struct {
-	uint8 resnum;
+	u8 resnum;
 	uint16 updown;
 } pmu_res_updown_t;
 
@@ -873,8 +873,8 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 /* setup pll and query clock speed */
 typedef struct {
 	uint16 freq;
-	uint8 xf;
-	uint8 wbint;
+	u8 xf;
+	u8 wbint;
 	uint32 wbfrac;
 } pmu0_xtaltab0_t;
 
@@ -903,10 +903,10 @@ static const pmu0_xtaltab0_t BCMINITDATA(pmu0_xtaltab0)[] = {
 /* setup pll and query clock speed */
 typedef struct {
 	uint16 fref;
-	uint8 xf;
-	uint8 p1div;
-	uint8 p2div;
-	uint8 ndiv_int;
+	u8 xf;
+	u8 p1div;
+	u8 p2div;
+	u8 ndiv_int;
 	uint32 ndiv_frac;
 } pmu1_xtaltab0_t;
 
@@ -1212,7 +1212,7 @@ BCMATTACHFN(si_pmu1_pllinit0) (si_t *sih, osl_t *osh, chipcregs_t *cc,
 	const pmu1_xtaltab0_t *xt;
 	uint32 tmp;
 	uint32 buf_strength = 0;
-	uint8 ndiv_mode = 1;
+	u8 ndiv_mode = 1;
 
 	/* Use h/w default PLL config */
 	if (xtal == 0) {
@@ -1868,8 +1868,8 @@ uint32 BCMINITFN(si_pmu_ilp_clock) (si_t *sih, osl_t *osh)
 
 /* SDIO Pad drive strength to select value mappings */
 typedef struct {
-	uint8 strength;		/* Pad Drive Strength in mA */
-	uint8 sel;		/* Chip-specific select value */
+	u8 strength;		/* Pad Drive Strength in mA */
+	u8 sel;		/* Chip-specific select value */
 } sdiod_drive_str_t;
 
 /* SDIO Drive Strength to sel value table for PMU Rev 1 */
@@ -2013,7 +2013,7 @@ void BCMATTACHFN(si_pmu_init) (si_t *sih, osl_t *osh)
 /* Return up time in ILP cycles for the given resource. */
 static uint
 BCMINITFN(si_pmu_res_uptime) (si_t *sih, osl_t *osh, chipcregs_t *cc,
-			      uint8 rsrc) {
+			      u8 rsrc) {
 	uint32 deps;
 	uint up, i, dup, dmax;
 	uint32 min_mask = 0, max_mask = 0;
@@ -2037,7 +2037,7 @@ BCMINITFN(si_pmu_res_uptime) (si_t *sih, osl_t *osh, chipcregs_t *cc,
 	for (i = 0; i <= PMURES_MAX_RESNUM; i++) {
 		if (!(deps & PMURES_BIT(i)))
 			continue;
-		dup = si_pmu_res_uptime(sih, osh, cc, (uint8) i);
+		dup = si_pmu_res_uptime(sih, osh, cc, (u8) i);
 		if (dmax < dup)
 			dmax = dup;
 	}
@@ -2153,7 +2153,7 @@ void si_pmu_rcal(si_t *sih, osl_t *osh)
 
 	switch (CHIPID(sih->chip)) {
 	case BCM4329_CHIP_ID:{
-			uint8 rcal_code;
+			u8 rcal_code;
 			uint32 val;
 
 			/* Kick RCal */
@@ -2172,7 +2172,7 @@ void si_pmu_rcal(si_t *sih, osl_t *osh)
 
 			/* Drop the LSB to convert from 5 bit code to 4 bit code */
 			rcal_code =
-			    (uint8) (R_REG(osh, &cc->chipstatus) >> 5) & 0x0f;
+			    (u8) (R_REG(osh, &cc->chipstatus) >> 5) & 0x0f;
 
 			PMU_MSG(("RCal completed, status 0x%x, code 0x%x\n",
 				 R_REG(osh, &cc->chipstatus), rcal_code));
@@ -2222,7 +2222,7 @@ void si_pmu_rcal(si_t *sih, osl_t *osh)
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_spuravoid(si_t *sih, osl_t *osh, uint8 spuravoid)
+void si_pmu_spuravoid(si_t *sih, osl_t *osh, u8 spuravoid)
 {
 	chipcregs_t *cc;
 	uint origidx, intr_val;
@@ -2260,12 +2260,12 @@ void si_pmu_spuravoid(si_t *sih, osl_t *osh, uint8 spuravoid)
 
 static void
 si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, osl_t *osh,
-			   uint8 spuravoid)
+			   u8 spuravoid)
 {
 	uint32 tmp = 0;
-	uint8 phypll_offset = 0;
-	uint8 bcm5357_bcm43236_p1div[] = { 0x1, 0x5, 0x5 };
-	uint8 bcm5357_bcm43236_ndiv[] = { 0x30, 0xf6, 0xfc };
+	u8 phypll_offset = 0;
+	u8 bcm5357_bcm43236_p1div[] = { 0x1, 0x5, 0x5 };
+	u8 bcm5357_bcm43236_ndiv[] = { 0x30, 0xf6, 0xfc };
 
 	switch (CHIPID(sih->chip)) {
 	case BCM5357_CHIP_ID:

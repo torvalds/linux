@@ -468,12 +468,12 @@ void *osl_pktdup(osl_t *osh, void *skb)
 }
 
 #ifdef BCMSDIO
-uint8 osl_readb(osl_t *osh, volatile uint8 *r)
+u8 osl_readb(osl_t *osh, volatile u8 *r)
 {
 	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
 	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
 
-	return (uint8) ((rreg) (ctx, (void *)r, sizeof(uint8)));
+	return (u8) ((rreg) (ctx, (void *)r, sizeof(u8)));
 }
 
 uint16 osl_readw(osl_t *osh, volatile uint16 *r)
@@ -492,12 +492,12 @@ uint32 osl_readl(osl_t *osh, volatile uint32 *r)
 	return (uint32) ((rreg) (ctx, (void *)r, sizeof(uint32)));
 }
 
-void osl_writeb(osl_t *osh, volatile uint8 *r, uint8 v)
+void osl_writeb(osl_t *osh, volatile u8 *r, u8 v)
 {
 	osl_wreg_fn_t wreg = ((osl_pubinfo_t *) osh)->wreg_fn;
 	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
 
-	((wreg) (ctx, (void *)r, v, sizeof(uint8)));
+	((wreg) (ctx, (void *)r, v, sizeof(u8)));
 }
 
 void osl_writew(osl_t *osh, volatile uint16 *r, uint16 v)

@@ -50,8 +50,8 @@
 
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
 	(((sih->cccaps & CC_CAP_SROM) == 0) ? NULL : \
-	 ((uint8 *)curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP)) : \
-	((uint8 *)curmap + PCI_BAR0_SPROM_OFFSET))
+	 ((u8 *)curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP)) : \
+	((u8 *)curmap + PCI_BAR0_SPROM_OFFSET))
 
 #if defined(BCMDBG)
 #define WRITE_ENABLE_DELAY	500	/* 500 ms after write enable/disable toggle */
@@ -70,14 +70,14 @@ extern uint _varsz;
 
 static int initvars_srom_si(si_t *sih, osl_t *osh, void *curmap, char **vars,
 			    uint *count);
-static void _initvars_srom_pci(uint8 sromrev, uint16 *srom, uint off,
+static void _initvars_srom_pci(u8 sromrev, uint16 *srom, uint off,
 			       varbuf_t *b);
 static int initvars_srom_pci(si_t *sih, void *curmap, char **vars,
 			     uint *count);
 static int initvars_flash_si(si_t *sih, char **vars, uint *count);
 #ifdef BCMSDIO
 static int initvars_cis_sdio(osl_t *osh, char **vars, uint *count);
-static int sprom_cmd_sdio(osl_t *osh, uint8 cmd);
+static int sprom_cmd_sdio(osl_t *osh, u8 cmd);
 static int sprom_read_sdio(osl_t *osh, uint16 addr, uint16 *data);
 #endif				/* BCMSDIO */
 static int sprom_read_pci(osl_t *osh, si_t *sih, uint16 *sprom, uint wordoff,
@@ -373,19 +373,19 @@ static const char BCMATTACHDATA(vstr_macaddr)[] = "macaddr=%s";
 static const char BCMATTACHDATA(vstr_usbepnum)[] = "usbepnum=0x%x";
 static const char BCMATTACHDATA(vstr_end)[] = "END\0";
 
-uint8 patch_pair;
+u8 patch_pair;
 
 /* For dongle HW, accept partial calibration parameters */
 #define BCMDONGLECASE(n)
 
 int
-BCMATTACHFN(srom_parsecis) (osl_t *osh, uint8 *pcis[], uint ciscnt,
+BCMATTACHFN(srom_parsecis) (osl_t *osh, u8 *pcis[], uint ciscnt,
 			    char **vars, uint *count)
 {
 	char eabuf[32];
 	char *base;
 	varbuf_t b;
-	uint8 *cis, tup, tlen, sromrev = 1;
+	u8 *cis, tup, tlen, sromrev = 1;
 	int i, j;
 	bool ag_init = FALSE;
 	uint32 w32;
@@ -464,7 +464,7 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, uint8 *pcis[], uint ciscnt,
 				case CISTPL_FID_SDIO:
 #ifdef BCMSDIO
 					if (cis[i] == 0) {
-						uint8 spd = cis[i + 3];
+						u8 spd = cis[i + 3];
 						static int base[] = {
 							-1, 10, 12, 13, 15, 20,
 							    25, 30,
@@ -1337,7 +1337,7 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, uint8 *pcis[], uint ciscnt,
 				case HNBU_SROM3SWRGN:
 					if (tlen >= 73) {
 						uint16 srom[35];
-						uint8 srev = cis[i + 1 + 70];
+						u8 srev = cis[i + 1 + 70];
 						ASSERT(srev == 3);
 						/* make tuple value 16-bit aligned and parse it */
 						bcopy(&cis[i + 1], srom,
@@ -1462,7 +1462,7 @@ sprom_read_pci(osl_t *osh, si_t *sih, uint16 *sprom, uint wordoff,
 			if ((sih->cccaps & CC_CAP_SROM) == 0)
 				return 1;
 
-			ccregs = (void *)((uint8 *) sprom - CC_SROM_OTP);
+			ccregs = (void *)((u8 *) sprom - CC_SROM_OTP);
 			buf[i] =
 			    srom_cc_cmd(sih, osh, ccregs, SRC_OP_READ,
 					wordoff + i, 0);
@@ -1494,7 +1494,7 @@ sprom_read_pci(osl_t *osh, si_t *sih, uint16 *sprom, uint wordoff,
 
 		/* fixup the endianness so crc8 will pass */
 		htol16_buf(buf, nwords * 2);
-		if (hndcrc8((uint8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
+		if (hndcrc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
 		    CRC8_GOOD_VALUE) {
 			/* DBG only pci always read srom4 first, then srom8/9 */
 			/* BS_ERROR(("%s: bad crc\n", __func__)); */
@@ -1509,7 +1509,7 @@ sprom_read_pci(osl_t *osh, si_t *sih, uint16 *sprom, uint wordoff,
 #if defined(BCMNVRAMR)
 static int otp_read_pci(osl_t *osh, si_t *sih, uint16 *buf, uint bufsz)
 {
-	uint8 *otp;
+	u8 *otp;
 	uint sz = OTP_SZ_MAX / 2;	/* size in words */
 	int err = 0;
 
@@ -1542,7 +1542,7 @@ static int otp_read_pci(osl_t *osh, si_t *sih, uint16 *buf, uint bufsz)
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
-	if (hndcrc8((uint8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
+	if (hndcrc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
 	    CRC8_GOOD_VALUE) {
 		BS_ERROR(("%s: bad crc\n", __func__));
 		err = 1;
@@ -1705,7 +1705,7 @@ static bool mask_valid(uint16 mask)
 #endif				/* BCMDBG */
 
 static void
-BCMATTACHFN(_initvars_srom_pci) (uint8 sromrev, uint16 *srom, uint off,
+BCMATTACHFN(_initvars_srom_pci) (u8 sromrev, uint16 *srom, uint off,
 				 varbuf_t *b) {
 	uint16 w;
 	uint32 val;
@@ -1857,7 +1857,7 @@ static int
 BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 				uint *count) {
 	uint16 *srom, *sromwindow;
-	uint8 sromrev = 0;
+	u8 sromrev = 0;
 	uint32 sr;
 	varbuf_t b;
 	char *vp, *base = NULL;
@@ -1927,7 +1927,7 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 
 		value = si_getdevpathvar(sih, "sromrev");
 		if (value) {
-			sromrev = (uint8) simple_strtoul(value, NULL, 0);
+			sromrev = (u8) simple_strtoul(value, NULL, 0);
 			flash = TRUE;
 			goto varscont;
 		}
@@ -2005,7 +2005,7 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 static int
 BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count)
 {
-	uint8 *cis[SBSDIO_NUM_FUNCTION + 1];
+	u8 *cis[SBSDIO_NUM_FUNCTION + 1];
 	uint fn, numfn;
 	int rc = 0;
 
@@ -2039,9 +2039,9 @@ BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count)
 }
 
 /* set SDIO sprom command register */
-static int BCMATTACHFN(sprom_cmd_sdio) (osl_t *osh, uint8 cmd)
+static int BCMATTACHFN(sprom_cmd_sdio) (osl_t *osh, u8 cmd)
 {
-	uint8 status = 0;
+	u8 status = 0;
 	uint wait_cnt = 1000;
 
 	/* write sprom command register */
@@ -2061,10 +2061,10 @@ static int BCMATTACHFN(sprom_cmd_sdio) (osl_t *osh, uint8 cmd)
 /* read a word from the SDIO srom */
 static int sprom_read_sdio(osl_t *osh, uint16 addr, uint16 *data)
 {
-	uint8 addr_l, addr_h, data_l, data_h;
+	u8 addr_l, addr_h, data_l, data_h;
 
-	addr_l = (uint8) ((addr * 2) & 0xff);
-	addr_h = (uint8) (((addr * 2) >> 8) & 0xff);
+	addr_l = (u8) ((addr * 2) & 0xff);
+	addr_h = (u8) (((addr * 2) >> 8) & 0xff);
 
 	/* set address */
 	bcmsdh_cfg_write(NULL, SDIO_FUNC_1, SBSDIO_SPROM_ADDR_HIGH, addr_h,

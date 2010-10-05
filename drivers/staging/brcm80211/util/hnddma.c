@@ -222,7 +222,7 @@ static uintptr _dma_getvar(dma_info_t *di, const char *name);
 static void _dma_counterreset(dma_info_t *di);
 static void _dma_fifoloopbackenable(dma_info_t *di);
 static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags);
-static uint8 dma_align_sizetobits(uint size);
+static u8 dma_align_sizetobits(uint size);
 static void *dma_ringalloc(osl_t *osh, uint32 boundary, uint size,
 			   uint16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah);
@@ -458,7 +458,7 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 		di->rxbufsize = (uint16) rxbufsize;
 
 	di->nrxpost = (uint16) nrxpost;
-	di->rxoffset = (uint8) rxoffset;
+	di->rxoffset = (u8) rxoffset;
 
 	/*
 	 * figure out the DMA physical address offset for dd and data
@@ -1388,9 +1388,9 @@ void dma_txpioloopback(osl_t *osh, dma32regs_t *regs)
 }
 
 static
-uint8 dma_align_sizetobits(uint size)
+u8 dma_align_sizetobits(uint size)
 {
-	uint8 bitpos = 0;
+	u8 bitpos = 0;
 	ASSERT(size);
 	ASSERT(!(size & (size - 1)));
 	while (size >>= 1) {

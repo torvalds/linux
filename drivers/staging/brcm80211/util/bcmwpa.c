@@ -24,7 +24,7 @@
 /* Is this body of this tlvs entry a WFA entry? If
  * not update the tlvs buffer pointer/length.
  */
-bool bcm_is_wfa_ie(uint8 *ie, uint8 **tlvs, uint *tlvs_len, uint8 type)
+bool bcm_is_wfa_ie(u8 *ie, u8 **tlvs, uint *tlvs_len, u8 type)
 {
 	/* If the contents match the WFA_OUI and type */
 	if ((ie[TLV_LEN_OFF] > (WFA_OUI_LEN + 1)) &&
@@ -43,12 +43,12 @@ bool bcm_is_wfa_ie(uint8 *ie, uint8 **tlvs, uint *tlvs_len, uint8 type)
 	return FALSE;
 }
 
-wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (uint8 * parse, uint len)
+wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (u8 * parse, uint len)
 {
 	bcm_tlv_t *ie;
 
 	while ((ie = bcm_parse_tlvs(parse, len, DOT11_MNG_VS_ID))) {
-		if (bcm_is_wpa_ie((uint8 *) ie, &parse, &len)) {
+		if (bcm_is_wpa_ie((u8 *) ie, &parse, &len)) {
 			return (wpa_ie_fixed_t *) ie;
 		}
 	}

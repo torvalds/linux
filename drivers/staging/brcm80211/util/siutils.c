@@ -69,7 +69,7 @@ static char *si_devpathvar(si_t *sih, char *var, int len, const char *name);
 static bool _si_clkctl_cc(si_info_t *sii, uint mode);
 static bool si_ispcie(si_info_t *sii);
 static uint BCMINITFN(socram_banksize) (si_info_t *sii, sbsocramregs_t *r,
-					uint8 idx, uint8 mtype);
+					u8 idx, u8 mtype);
 
 /* global variable to indicate reservation/release of gpio's */
 static uint32 si_gpioreservation;
@@ -127,14 +127,14 @@ BCMATTACHFN(si_buscore_prep) (si_info_t *sii, uint bustype, uint devid,
 #if defined(BCMSDIO)
 	if (BUSTYPE(bustype) == SDIO_BUS) {
 		int err;
-		uint8 clkset;
+		u8 clkset;
 
 		/* Try forcing SDIO core to do ALPAvail request only */
 		clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_ALP_AVAIL_REQ;
 		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR,
 				 clkset, &err);
 		if (!err) {
-			uint8 clkval;
+			u8 clkval;
 
 			/* If register supported, wait for ALPAvail and then force ALP */
 			clkval =
@@ -1914,7 +1914,7 @@ si_pcieserdesreg(si_t *sih, uint32 mdioslave, uint32 offset, uint32 mask,
 /* return TRUE if PCIE capability exists in the pci config space */
 static __used bool si_ispcie(si_info_t *sii)
 {
-	uint8 cap_ptr;
+	u8 cap_ptr;
 
 	if (BUSTYPE(sii->pub.bustype) != PCI_BUS)
 		return FALSE;
@@ -2012,7 +2012,7 @@ bool BCMATTACHFN(si_pci_war16165) (si_t *sih)
  * but are in systems that still want the benefits of ASPM
  * Note that this should be done AFTER si_doattach
  */
-void si_pcie_war_ovr_update(si_t *sih, uint8 aspm)
+void si_pcie_war_ovr_update(si_t *sih, u8 aspm)
 {
 	si_info_t *sii;
 
@@ -2142,7 +2142,7 @@ void BCMATTACHFN(si_pci_setup) (si_t *sih, uint coremask)
 	}
 }
 
-uint8 si_pcieclkreq(si_t *sih, uint32 mask, uint32 val)
+u8 si_pcieclkreq(si_t *sih, uint32 mask, uint32 val)
 {
 	si_info_t *sii;
 
@@ -2229,7 +2229,7 @@ void *si_gpiosetcore(si_t *sih)
 }
 
 /* mask&set gpiocontrol bits */
-uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val, uint8 priority)
+uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val, u8 priority)
 {
 	uint regoff;
 
@@ -2250,7 +2250,7 @@ uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val, uint8 priority)
 }
 
 /* mask&set gpio output enable bits */
-uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, uint8 priority)
+uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, u8 priority)
 {
 	uint regoff;
 
@@ -2271,7 +2271,7 @@ uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, uint8 priority)
 }
 
 /* mask&set gpio output bits */
-uint32 si_gpioout(si_t *sih, uint32 mask, uint32 val, uint8 priority)
+uint32 si_gpioout(si_t *sih, uint32 mask, uint32 val, u8 priority)
 {
 	uint regoff;
 
@@ -2292,7 +2292,7 @@ uint32 si_gpioout(si_t *sih, uint32 mask, uint32 val, uint8 priority)
 }
 
 /* reserve one gpio */
-uint32 si_gpioreserve(si_t *sih, uint32 gpio_bitmask, uint8 priority)
+uint32 si_gpioreserve(si_t *sih, uint32 gpio_bitmask, u8 priority)
 {
 	si_info_t *sii;
 
@@ -2327,7 +2327,7 @@ uint32 si_gpioreserve(si_t *sih, uint32 gpio_bitmask, uint8 priority)
  * persists till some one overwrites it
  */
 
-uint32 si_gpiorelease(si_t *sih, uint32 gpio_bitmask, uint8 priority)
+uint32 si_gpiorelease(si_t *sih, uint32 gpio_bitmask, u8 priority)
 {
 	si_info_t *sii;
 
@@ -2371,7 +2371,7 @@ uint32 si_gpioin(si_t *sih)
 }
 
 /* mask&set gpio interrupt polarity bits */
-uint32 si_gpiointpolarity(si_t *sih, uint32 mask, uint32 val, uint8 priority)
+uint32 si_gpiointpolarity(si_t *sih, uint32 mask, uint32 val, u8 priority)
 {
 	si_info_t *sii;
 	uint regoff;
@@ -2391,7 +2391,7 @@ uint32 si_gpiointpolarity(si_t *sih, uint32 mask, uint32 val, uint8 priority)
 }
 
 /* mask&set gpio interrupt mask bits */
-uint32 si_gpiointmask(si_t *sih, uint32 mask, uint32 val, uint8 priority)
+uint32 si_gpiointmask(si_t *sih, uint32 mask, uint32 val, u8 priority)
 {
 	si_info_t *sii;
 	uint regoff;
@@ -2573,8 +2573,8 @@ uint32 si_gpio_int_enable(si_t *sih, bool enable)
 
 /* Return the size of the specified SOCRAM bank */
 static uint
-socram_banksize(si_info_t *sii, sbsocramregs_t *regs, uint8 index,
-		uint8 mem_type)
+socram_banksize(si_info_t *sii, sbsocramregs_t *regs, u8 index,
+		u8 mem_type)
 {
 	uint banksize, bankinfo;
 	uint bankidx = index | (mem_type << SOCRAM_BANKIDX_MEMTYPE_SHIFT);
@@ -2588,7 +2588,7 @@ socram_banksize(si_info_t *sii, sbsocramregs_t *regs, uint8 index,
 	return banksize;
 }
 
-void si_socdevram(si_t *sih, bool set, uint8 *enable, uint8 *protect)
+void si_socdevram(si_t *sih, bool set, u8 *enable, u8 *protect)
 {
 	si_info_t *sii;
 	uint origidx;
@@ -2619,8 +2619,8 @@ void si_socdevram(si_t *sih, bool set, uint8 *enable, uint8 *protect)
 	corerev = si_corerev(sih);
 	if (corerev >= 10) {
 		uint32 extcinfo;
-		uint8 nb;
-		uint8 i;
+		u8 nb;
+		u8 i;
 		uint32 bankidx, bankinfo;
 
 		extcinfo = R_REG(sii->osh, &regs->extracoreinfo);
@@ -2702,8 +2702,8 @@ uint32 si_socdevram_size(si_t *sih)
 	corerev = si_corerev(sih);
 	if (corerev >= 10) {
 		uint32 extcinfo;
-		uint8 nb;
-		uint8 i;
+		u8 nb;
+		u8 i;
 
 		extcinfo = R_REG(sii->osh, &regs->extracoreinfo);
 		nb = (((extcinfo & SOCRAM_DEVRAMBANK_MASK) >>
@@ -2772,7 +2772,7 @@ uint32 si_socram_size(si_t *sih)
 		if (lss != 0)
 			memsize += (1 << ((lss - 1) + SR_BSZ_BASE));
 	} else {
-		uint8 i;
+		u8 i;
 		uint nb = (coreinfo & SRCI_SRNB_MASK) >> SRCI_SRNB_SHIFT;
 		for (i = 0; i < nb; i++)
 			memsize +=
@@ -2979,7 +2979,7 @@ int si_cis_source(si_t *sih)
 	case BCM43235_CHIP_ID:
 	case BCM43236_CHIP_ID:
 	case BCM43238_CHIP_ID:{
-			uint8 strap =
+			u8 strap =
 			    (sih->
 			     chipst & CST4322_SPROM_OTP_SEL_MASK) >>
 			    CST4322_SPROM_OTP_SEL_SHIFT;

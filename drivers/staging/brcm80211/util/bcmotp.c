@@ -808,7 +808,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 			/* Bad length, try to find another chunk anyway */
 			rsz = 6;
 		}
-		if (hndcrc16((uint8 *) &rawotp[i], rsz,
+		if (hndcrc16((u8 *) &rawotp[i], rsz,
 			     CRC16_INIT_VALUE) == CRC16_GOOD_VALUE) {
 			/* Good crc, copy the vars */
 			gchunks++;

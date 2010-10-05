@@ -37,12 +37,12 @@ typedef struct {
 
 	si_t *sih;		/* System interconnect handle */
 	osl_t *osh;		/* OSL handle */
-	uint8 pciecap_lcreg_offset;	/* PCIE capability LCreg offset in the config space */
+	u8 pciecap_lcreg_offset;	/* PCIE capability LCreg offset in the config space */
 	bool pcie_pr42767;
-	uint8 pcie_polarity;
-	uint8 pcie_war_aspm_ovr;	/* Override ASPM/Clkreq settings */
+	u8 pcie_polarity;
+	u8 pcie_war_aspm_ovr;	/* Override ASPM/Clkreq settings */
 
-	uint8 pmecap_offset;	/* PM Capability offset in the config space */
+	u8 pmecap_offset;	/* PM Capability offset in the config space */
 	bool pmecap;		/* Capable of generating PME */
 } pcicore_info_t;
 
@@ -128,7 +128,7 @@ void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
 	pi->osh = osh;
 
 	if (sih->buscoretype == PCIE_CORE_ID) {
-		uint8 cap_ptr;
+		u8 cap_ptr;
 		pi->regs.pcieregs = (sbpcieregs_t *) regs;
 		cap_ptr =
 		    pcicore_find_pci_capability(pi->osh, PCI_CAP_PCIECAP_ID,
@@ -152,14 +152,14 @@ void pcicore_deinit(void *pch)
 
 /* return cap_offset if requested capability exists in the PCI config space */
 /* Note that it's caller's responsibility to make sure it's a pci bus */
-uint8
-pcicore_find_pci_capability(osl_t *osh, uint8 req_cap_id, uchar *buf,
+u8
+pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id, uchar *buf,
 			    uint32 *buflen)
 {
-	uint8 cap_id;
-	uint8 cap_ptr = 0;
+	u8 cap_id;
+	u8 cap_ptr = 0;
 	uint32 bufsize;
-	uint8 byte_val;
+	u8 byte_val;
 
 	/* check for Header type 0 */
 	byte_val = read_pci_cfg_byte(PCI_CFG_HDR);
@@ -191,7 +191,7 @@ pcicore_find_pci_capability(osl_t *osh, uint8 req_cap_id, uchar *buf,
 	}
 	/* found the caller requested capability */
 	if ((buf != NULL) && (buflen != NULL)) {
-		uint8 cap_data;
+		u8 cap_data;
 
 		bufsize = *buflen;
 		if (!bufsize)
@@ -367,11 +367,11 @@ pcie_mdiowrite(pcicore_info_t *pi, uint physmedia, uint regaddr, uint val)
 }
 
 /* ***** Support functions ***** */
-uint8 pcie_clkreq(void *pch, uint32 mask, uint32 val)
+u8 pcie_clkreq(void *pch, uint32 mask, uint32 val)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	uint32 reg_val;
-	uint8 offset;
+	u8 offset;
 
 	offset = pi->pciecap_lcreg_offset;
 	if (!offset)
@@ -623,7 +623,7 @@ static void pcie_war_pci_setup(pcicore_info_t *pi)
 		pcie_misc_config_fixup(pi);
 }
 
-void pcie_war_ovr_aspm_update(void *pch, uint8 aspm)
+void pcie_war_ovr_aspm_update(void *pch, u8 aspm)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 
@@ -724,7 +724,7 @@ void pcicore_down(void *pch, int state)
 /* Just uses PCI config accesses to find out, when needed before sb_attach is done */
 bool pcicore_pmecap_fast(osl_t *osh)
 {
-	uint8 cap_ptr;
+	u8 cap_ptr;
 	uint32 pmecap;
 
 	cap_ptr =
@@ -744,7 +744,7 @@ bool pcicore_pmecap_fast(osl_t *osh)
  */
 static bool pcicore_pmecap(pcicore_info_t *pi)
 {
-	uint8 cap_ptr;
+	u8 cap_ptr;
 	uint32 pmecap;
 
 	if (!pi->pmecap_offset) {
@@ -827,7 +827,7 @@ void pcicore_pmeclr(void *pch)
 uint32 pcie_lcreg(void *pch, uint32 mask, uint32 val)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
-	uint8 offset;
+	u8 offset;
 
 	offset = pi->pciecap_lcreg_offset;
 	if (!offset)

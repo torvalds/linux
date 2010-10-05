@@ -180,9 +180,9 @@ bool wf_chspec_malformed(chanspec_t chanspec)
  * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
  * sideband depending on the chanspec selected
  */
-uint8 wf_chspec_ctlchan(chanspec_t chspec)
+u8 wf_chspec_ctlchan(chanspec_t chspec)
 {
-	uint8 ctl_chan;
+	u8 ctl_chan;
 
 	/* Is there a sideband ? */
 	if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_NONE) {
@@ -210,7 +210,7 @@ uint8 wf_chspec_ctlchan(chanspec_t chspec)
 chanspec_t wf_chspec_ctlchspec(chanspec_t chspec)
 {
 	chanspec_t ctl_chspec = 0;
-	uint8 channel;
+	u8 channel;
 
 	ASSERT(!wf_chspec_malformed(chspec));
 
