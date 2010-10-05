@@ -56,7 +56,6 @@
 /*  ----------------------------------- This */
 #include <dspbridge/nodepriv.h>
 #include <dspbridge/node.h>
-#include <dspbridge/dmm.h>
 
 /* Static/Dynamic Loader includes */
 #include <dspbridge/dbll.h>
@@ -317,10 +316,6 @@ int node_allocate(struct proc_object *hprocessor,
 	u32 mapped_addr = 0;
 	u32 map_attrs = 0x0;
 	struct dsp_processorstate proc_state;
-#ifdef DSP_DMM_DEBUG
-	struct dmm_object *dmm_mgr;
-	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-#endif
 
 	void *node_res;
 
@@ -429,16 +424,6 @@ int node_allocate(struct proc_object *hprocessor,
 	}
 	if (status)
 		goto func_cont;
-
-#ifdef DSP_DMM_DEBUG
-	status = dmm_get_handle(p_proc_object, &dmm_mgr);
-	if (!dmm_mgr) {
-		status = DSP_EHANDLE;
-		goto func_cont;
-	}
-
-	dmm_mem_map_dump(dmm_mgr);
-#endif
 
 	map_attrs |= DSP_MAPLITTLEENDIAN;
 	map_attrs |= DSP_MAPELEMSIZE32;
@@ -2499,11 +2484,7 @@ static void delete_node(struct node_object *hnode,
 	struct stream_chnl stream;
 	struct node_msgargs node_msg_args;
 	struct node_taskargs task_arg_obj;
-#ifdef DSP_DMM_DEBUG
-	struct dmm_object *dmm_mgr;
-	struct proc_object *p_proc_object =
-	    (struct proc_object *)hnode->hprocessor;
-#endif
+
 	int status;
 	if (!hnode)
 		goto func_end;
@@ -2564,13 +2545,6 @@ static void delete_node(struct node_object *hnode,
 			status = proc_un_map(hnode->hprocessor, (void *)
 					     task_arg_obj.udsp_heap_addr,
 					     pr_ctxt);
-#ifdef DSP_DMM_DEBUG
-			status = dmm_get_handle(p_proc_object, &dmm_mgr);
-			if (dmm_mgr)
-				dmm_mem_map_dump(dmm_mgr);
-			else
-				status = DSP_EHANDLE;
-#endif
 		}
 	}
 	if (node_type != NODE_MESSAGE) {

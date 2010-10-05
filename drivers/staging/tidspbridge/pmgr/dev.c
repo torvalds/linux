@@ -34,7 +34,6 @@
 #include <dspbridge/cod.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/proc.h>
-#include <dspbridge/dmm.h>
 
 /*  ----------------------------------- Resource Manager */
 #include <dspbridge/mgr.h>
@@ -75,7 +74,6 @@ struct dev_object {
 	struct msg_mgr *hmsg_mgr;	/* Message manager. */
 	struct io_mgr *hio_mgr;	/* IO manager (CHNL, msg_ctrl) */
 	struct cmm_object *hcmm_mgr;	/* SM memory manager. */
-	struct dmm_object *dmm_mgr;	/* Dynamic memory manager. */
 	struct ldr_module *module_obj;	/* Bridge Module handle. */
 	u32 word_size;		/* DSP word size: quick access. */
 	struct drv_object *hdrv_obj;	/* Driver Object */
@@ -250,9 +248,6 @@ int dev_create_device(struct dev_object **device_obj,
 			/* Instantiate the DEH module */
 			status = bridge_deh_create(&dev_obj->hdeh_mgr, dev_obj);
 		}
-		/* Create DMM mgr . */
-		status = dmm_create(&dev_obj->dmm_mgr,
-				    (struct dev_object *)dev_obj, NULL);
 	}
 	/* Add the new DEV_Object to the global list: */
 	if (!status) {
@@ -278,8 +273,6 @@ leave:
 			kfree(dev_obj->proc_list);
 			if (dev_obj->cod_mgr)
 				cod_delete(dev_obj->cod_mgr);
-			if (dev_obj->dmm_mgr)
-				dmm_destroy(dev_obj->dmm_mgr);
 			kfree(dev_obj);
 		}
 
@@ -389,11 +382,6 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 			dev_obj->hcmm_mgr = NULL;
 		}
 
-		if (dev_obj->dmm_mgr) {
-			dmm_destroy(dev_obj->dmm_mgr);
-			dev_obj->dmm_mgr = NULL;
-		}
-
 		/* Call the driver's bridge_dev_destroy() function: */
 		/* Require of DevDestroy */
 		if (dev_obj->hbridge_context) {
@@ -464,32 +452,6 @@ int dev_get_cmm_mgr(struct dev_object *hdev_obj,
 
 	if (hdev_obj) {
 		*mgr = dev_obj->hcmm_mgr;
-	} else {
-		*mgr = NULL;
-		status = -EFAULT;
-	}
-
-	DBC_ENSURE(!status || (mgr != NULL && *mgr == NULL));
-	return status;
-}
-
-/*
- *  ======== dev_get_dmm_mgr ========
- *  Purpose:
- *      Retrieve the handle to the dynamic memory manager created for this
- *      device.
- */
-int dev_get_dmm_mgr(struct dev_object *hdev_obj,
-			   struct dmm_object **mgr)
-{
-	int status = 0;
-	struct dev_object *dev_obj = hdev_obj;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(mgr != NULL);
-
-	if (hdev_obj) {
-		*mgr = dev_obj->dmm_mgr;
 	} else {
 		*mgr = NULL;
 		status = -EFAULT;
@@ -751,10 +713,8 @@ void dev_exit(void)
 
 	refs--;
 
-	if (refs == 0) {
+	if (refs == 0)
 		cmm_exit();
-		dmm_exit();
-	}
 
 	DBC_ENSURE(refs >= 0);
 }
@@ -766,25 +726,12 @@ void dev_exit(void)
  */
 bool dev_init(void)
 {
-	bool cmm_ret, dmm_ret, ret = true;
+	bool ret = true;
 
 	DBC_REQUIRE(refs >= 0);
 
-	if (refs == 0) {
-		cmm_ret = cmm_init();
-		dmm_ret = dmm_init();
-
-		ret = cmm_ret && dmm_ret;
-
-		if (!ret) {
-			if (cmm_ret)
-				cmm_exit();
-
-			if (dmm_ret)
-				dmm_exit();
-
-		}
-	}
+	if (refs == 0)
+		ret = cmm_init();
 
 	if (ret)
 		refs++;

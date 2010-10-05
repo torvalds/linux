@@ -108,12 +108,6 @@ struct dmm_map_object {
 	struct bridge_dma_map_info dma_info;
 };
 
-/* Used for DMM reserved memory accounting */
-struct dmm_rsv_object {
-	struct list_head link;
-	u32 dsp_reserved_addr;
-};
-
 /* New structure (member of process context) abstracts DMM resource info */
 struct dspheap_res_object {
 	s32 heap_allocated;	/* DMM status */

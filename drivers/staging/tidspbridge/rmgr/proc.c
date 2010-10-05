@@ -39,7 +39,6 @@
 #include <dspbridge/cod.h>
 #include <dspbridge/dev.h>
 #include <dspbridge/procpriv.h>
-#include <dspbridge/dmm.h>
 
 /*  ----------------------------------- Resource Manager */
 #include <dspbridge/mgr.h>
@@ -1078,7 +1077,6 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	s32 cnew_envp;		/* "  " in new_envp[] */
 	s32 nproc_id = 0;	/* Anticipate MP version. */
 	struct dcd_manager *hdcd_handle;
-	struct dmm_object *dmm_mgr;
 	u32 dw_ext_end;
 	u32 proc_id;
 	int brd_state;
@@ -1269,25 +1267,6 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			if (!status)
 				status = cod_get_sym_value(cod_mgr, EXTEND,
 							   &dw_ext_end);
-
-			/* Reset DMM structs and add an initial free chunk */
-			if (!status) {
-				status =
-				    dev_get_dmm_mgr(p_proc_object->hdev_obj,
-						    &dmm_mgr);
-				if (dmm_mgr) {
-					/* Set dw_ext_end to DMM START u8
-					 * address */
-					dw_ext_end =
-					    (dw_ext_end + 1) * DSPWORDSIZE;
-					/* DMM memory is from EXT_END */
-					status = dmm_create_tables(dmm_mgr,
-								   dw_ext_end,
-								   DMMPOOLSIZE);
-				} else {
-					status = -EFAULT;
-				}
-			}
 		}
 	}
 	/* Restore the original argv[0] */
@@ -1390,7 +1369,6 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 		map_obj->dsp_addr = (va_align |
 					((u32)pmpu_addr & (PG_SIZE4K - 1)));
 		*pp_map_addr = (void *)map_obj->dsp_addr;
-		pr_err("%s: mapped address %x\n", __func__, *pp_map_addr);
 	} else {
 		remove_mapping_information(pr_ctxt, va_align);
 	}
@@ -1633,7 +1611,6 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
 	u32 va_align;
-	u32 size_align;
 
 	va_align = PG_ALIGN_LOW((u32) map_addr, PG_SIZE4K);
 	if (!p_proc_object) {

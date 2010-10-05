@@ -47,7 +47,6 @@
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/dev.h>
 #include <dspbridge/dspapi.h>
-#include <dspbridge/dmm.h>
 #include <dspbridge/wdt.h>
 
 /*  ----------------------------------- Local */
