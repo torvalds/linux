@@ -454,6 +454,6 @@ struct wl1271_cmd_set_sta_state {
 
 	u8 state;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* __WL1271_CMD_H__ */
