@@ -87,14 +87,22 @@ static __cacheline_aligned_in_smp	unsigned long max_sequence;
 
 #ifdef CONFIG_FUNCTION_TRACER
 /*
- * irqsoff uses its own tracer function to keep the overhead down:
+ * Prologue for the preempt and irqs off function tracers.
+ *
+ * Returns 1 if it is OK to continue, and data->disabled is
+ *            incremented.
+ *         0 if the trace is to be ignored, and data->disabled
+ *            is kept the same.
+ *
+ * Note, this function is also used outside this ifdef but
+ *  inside the #ifdef of the function graph tracer below.
+ *  This is OK, since the function graph tracer is
+ *  dependent on the function tracer.
  */
-static void
-irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
+static int func_prolog_dec(struct trace_array *tr,
+			   struct trace_array_cpu **data,
+			   unsigned long *flags)
 {
-	struct trace_array *tr = irqsoff_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
 	long disabled;
 	int cpu;
 
@@ -106,18 +114,38 @@ irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
 	 */
 	cpu = raw_smp_processor_id();
 	if (likely(!per_cpu(tracing_cpu, cpu)))
-		return;
+		return 0;
 
-	local_save_flags(flags);
+	local_save_flags(*flags);
 	/* slight chance to get a false positive on tracing_cpu */
-	if (!irqs_disabled_flags(flags))
-		return;
+	if (!irqs_disabled_flags(*flags))
+		return 0;
 
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
+	*data = tr->data[cpu];
+	disabled = atomic_inc_return(&(*data)->disabled);
 
 	if (likely(disabled == 1))
-		trace_function(tr, ip, parent_ip, flags, preempt_count());
+		return 1;
+
+	atomic_dec(&(*data)->disabled);
+
+	return 0;
+}
+
+/*
+ * irqsoff uses its own tracer function to keep the overhead down:
+ */
+static void
+irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct trace_array *tr = irqsoff_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+
+	if (!func_prolog_dec(tr, &data, &flags))
+		return;
+
+	trace_function(tr, ip, parent_ip, flags, preempt_count());
 
 	atomic_dec(&data->disabled);
 }
@@ -155,30 +183,16 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace)
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
 	int ret;
-	int cpu;
 	int pc;
 
-	cpu = raw_smp_processor_id();
-	if (likely(!per_cpu(tracing_cpu, cpu)))
+	if (!func_prolog_dec(tr, &data, &flags))
 		return 0;
 
-	local_save_flags(flags);
-	/* slight chance to get a false positive on tracing_cpu */
-	if (!irqs_disabled_flags(flags))
-		return 0;
-
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		ret = __trace_graph_entry(tr, trace, flags, pc);
-	} else
-		ret = 0;
-
+	pc = preempt_count();
+	ret = __trace_graph_entry(tr, trace, flags, pc);
 	atomic_dec(&data->disabled);
+
 	return ret;
 }
 
@@ -187,27 +201,13 @@ static void irqsoff_graph_return(struct ftrace_graph_ret *trace)
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
-	int cpu;
 	int pc;
 
-	cpu = raw_smp_processor_id();
-	if (likely(!per_cpu(tracing_cpu, cpu)))
+	if (!func_prolog_dec(tr, &data, &flags))
 		return;
 
-	local_save_flags(flags);
-	/* slight chance to get a false positive on tracing_cpu */
-	if (!irqs_disabled_flags(flags))
-		return;
-
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		__trace_graph_return(tr, trace, flags, pc);
-	}
-
+	pc = preempt_count();
+	__trace_graph_return(tr, trace, flags, pc);
 	atomic_dec(&data->disabled);
 }
 
