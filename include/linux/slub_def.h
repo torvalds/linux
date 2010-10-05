@@ -87,7 +87,7 @@ struct kmem_cache {
 	unsigned long min_partial;
 	const char *name;	/* Name (only for display!) */
 	struct list_head list;	/* List of slab caches */
-#ifdef CONFIG_SLUB_DEBUG
+#ifdef CONFIG_SYSFS
 	struct kobject kobj;	/* For sysfs */
 #endif
 
