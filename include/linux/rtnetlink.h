@@ -755,20 +755,22 @@ extern int lockdep_rtnl_is_held(void);
  * @p: The pointer to read, prior to dereferencing
  *
  * Do an rcu_dereference(p), but check caller either holds rcu_read_lock()
- * or RTNL
+ * or RTNL. Note : Please prefer rtnl_dereference() or rcu_dereference()
  */
 #define rcu_dereference_rtnl(p)					\
 	rcu_dereference_check(p, rcu_read_lock_held() ||	\
 				 lockdep_rtnl_is_held())
 
 /**
- * rtnl_dereference - rcu_dereference with debug checking
+ * rtnl_dereference - fetch RCU pointer when updates are prevented by RTNL
  * @p: The pointer to read, prior to dereferencing
  *
- * Do an rcu_dereference(p), but check caller holds RTNL
+ * Return the value of the specified RCU-protected pointer, but omit
+ * both the smp_read_barrier_depends() and the ACCESS_ONCE(), because
+ * caller holds RTNL.
  */
 #define rtnl_dereference(p)					\
-	rcu_dereference_check(p, lockdep_rtnl_is_held())
+	rcu_dereference_protected(p, lockdep_rtnl_is_held())
 
 static inline struct netdev_queue *dev_ingress_queue(struct net_device *dev)
 {
