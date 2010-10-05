@@ -220,10 +220,9 @@ static int ip_map_parse(struct cache_detail *cd,
 	switch (address.sa.sa_family) {
 	case AF_INET:
 		/* Form a mapped IPv4 address in sin6 */
-		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
-		sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-		sin6.sin6_addr.s6_addr32[3] = address.s4.sin_addr.s_addr;
+		ipv6_addr_set_v4mapped(address.s4.sin_addr.s_addr,
+				&sin6.sin6_addr);
 		break;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
