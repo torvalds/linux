@@ -38,6 +38,9 @@ enum {
 	/* module tvaudio: reserved range 50-99 */
 	V4L2_IDENT_TVAUDIO = 50,	/* A tvaudio chip, unknown which it is exactly */
 
+	/* Sony IMX074 */
+	V4L2_IDENT_IMX074 = 74,
+
 	/* module saa7110: just ident 100 */
 	V4L2_IDENT_SAA7110 = 100,
 
