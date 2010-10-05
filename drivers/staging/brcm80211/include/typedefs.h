@@ -32,13 +32,6 @@ typedef unsigned long long int uintptr;
 #define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
 #include <linux/version.h>
-
-/* Do not support the (u)int64 types with strict ansi for GNU C */
-#if defined(__GNUC__) && defined(__STRICT_ANSI__)
-#define TYPEDEF_INT64
-#define TYPEDEF_UINT64
-#endif
-
 #include <linux/types.h>
 
 /*
