@@ -997,6 +997,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 
 	/* gcwq determined, get cwq and queue */
 	cwq = get_cwq(gcwq->cpu, wq);
+	trace_workqueue_queue_work(cpu, cwq, work);
 
 	BUG_ON(!list_empty(&work->entry));
 
@@ -1004,6 +1005,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	work_flags = work_color_to_flags(cwq->work_color);
 
 	if (likely(cwq->nr_active < cwq->max_active)) {
+		trace_workqueue_activate_work(work);
 		cwq->nr_active++;
 		worklist = gcwq_determine_ins_pos(gcwq, cwq);
 	} else {
@@ -1679,6 +1681,7 @@ static void cwq_activate_first_delayed(struct cpu_workqueue_struct *cwq)
 						    struct work_struct, entry);
 	struct list_head *pos = gcwq_determine_ins_pos(cwq->gcwq, cwq);
 
+	trace_workqueue_activate_work(work);
 	move_linked_works(work, pos, NULL);
 	__clear_bit(WORK_STRUCT_DELAYED_BIT, work_data_bits(work));
 	cwq->nr_active++;
