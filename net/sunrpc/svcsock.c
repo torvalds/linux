@@ -1261,19 +1261,13 @@ void svc_sock_update_bufs(struct svc_serv *serv)
 	 * The number of server threads has changed. Update
 	 * rcvbuf and sndbuf accordingly on all sockets
 	 */
-	struct list_head *le;
+	struct svc_sock *svsk;
 
 	spin_lock_bh(&serv->sv_lock);
-	list_for_each(le, &serv->sv_permsocks) {
-		struct svc_sock *svsk =
-			list_entry(le, struct svc_sock, sk_xprt.xpt_list);
+	list_for_each_entry(svsk, &serv->sv_permsocks, sk_xprt.xpt_list)
 		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
-	}
-	list_for_each(le, &serv->sv_tempsocks) {
-		struct svc_sock *svsk =
-			list_entry(le, struct svc_sock, sk_xprt.xpt_list);
+	list_for_each_entry(svsk, &serv->sv_tempsocks, sk_xprt.xpt_list)
 		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
-	}
 	spin_unlock_bh(&serv->sv_lock);
 }
 EXPORT_SYMBOL_GPL(svc_sock_update_bufs);

@@ -755,13 +755,11 @@ static void xprt_connect_status(struct rpc_task *task)
  */
 struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 {
-	struct list_head *pos;
+	struct rpc_rqst *entry;
 
-	list_for_each(pos, &xprt->recv) {
-		struct rpc_rqst *entry = list_entry(pos, struct rpc_rqst, rq_list);
+	list_for_each_entry(entry, &xprt->recv, rq_list)
 		if (entry->rq_xid == xid)
 			return entry;
-	}
 
 	dprintk("RPC:       xprt_lookup_rqst did not find xid %08x\n",
 			ntohl(xid));

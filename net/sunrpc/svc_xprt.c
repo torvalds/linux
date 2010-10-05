@@ -100,16 +100,14 @@ EXPORT_SYMBOL_GPL(svc_unreg_xprt_class);
  */
 int svc_print_xprts(char *buf, int maxlen)
 {
-	struct list_head *le;
+	struct svc_xprt_class *xcl;
 	char tmpstr[80];
 	int len = 0;
 	buf[0] = '\0';
 
 	spin_lock(&svc_xprt_class_lock);
-	list_for_each(le, &svc_xprt_class_list) {
+	list_for_each_entry(xcl, &svc_xprt_class_list, xcl_list) {
 		int slen;
-		struct svc_xprt_class *xcl =
-			list_entry(le, struct svc_xprt_class, xcl_list);
 
 		sprintf(tmpstr, "%s %d\n", xcl->xcl_name, xcl->xcl_max_payload);
 		slen = strlen(tmpstr);
