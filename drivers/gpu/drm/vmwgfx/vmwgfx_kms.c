@@ -332,18 +332,55 @@ struct vmw_framebuffer_surface {
 	struct delayed_work d_work;
 	struct mutex work_lock;
 	bool present_fs;
+	struct list_head head;
+	struct drm_master *master;
 };
+
+/**
+ * vmw_kms_idle_workqueues - Flush workqueues on this master
+ *
+ * @vmaster - Pointer identifying the master, for the surfaces of which
+ * we idle the dirty work queues.
+ *
+ * This function should be called with the ttm lock held in exclusive mode
+ * to idle all dirty work queues before the fifo is taken down.
+ *
+ * The work task may actually requeue itself, but after the flush returns we're
+ * sure that there's nothing to present, since the ttm lock is held in
+ * exclusive mode, so the fifo will never get used.
+ */
+
+void vmw_kms_idle_workqueues(struct vmw_master *vmaster)
+{
+	struct vmw_framebuffer_surface *entry;
+
+	mutex_lock(&vmaster->fb_surf_mutex);
+	list_for_each_entry(entry, &vmaster->fb_surf, head) {
+		if (cancel_delayed_work_sync(&entry->d_work))
+			(void) entry->d_work.work.func(&entry->d_work.work);
+
+		(void) cancel_delayed_work_sync(&entry->d_work);
+	}
+	mutex_unlock(&vmaster->fb_surf_mutex);
+}
 
 void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 {
-	struct vmw_framebuffer_surface *vfb =
+	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
+	struct vmw_master *vmaster = vmw_master(vfbs->master);
 
-	cancel_delayed_work_sync(&vfb->d_work);
+
+	mutex_lock(&vmaster->fb_surf_mutex);
+	list_del(&vfbs->head);
+	mutex_unlock(&vmaster->fb_surf_mutex);
+
+	cancel_delayed_work_sync(&vfbs->d_work);
+	drm_master_put(&vfbs->master);
 	drm_framebuffer_cleanup(framebuffer);
-	vmw_surface_unreference(&vfb->surface);
+	vmw_surface_unreference(&vfbs->surface);
 
-	kfree(framebuffer);
+	kfree(vfbs);
 }
 
 static void vmw_framebuffer_present_fs_callback(struct work_struct *work)
@@ -362,6 +399,12 @@ static void vmw_framebuffer_present_fs_callback(struct work_struct *work)
 		SVGA3dCopyRect cr;
 	} *cmd;
 
+	/**
+	 * Strictly we should take the ttm_lock in read mode before accessing
+	 * the fifo, to make sure the fifo is present and up. However,
+	 * instead we flush all workqueues under the ttm lock in exclusive mode
+	 * before taking down the fifo.
+	 */
 	mutex_lock(&vfbs->work_lock);
 	if (!vfbs->present_fs)
 		goto out_unlock;
@@ -398,18 +441,27 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				  unsigned num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
 	struct vmw_surface *surf = vfbs->surface;
 	struct drm_clip_rect norect;
 	SVGA3dCopyRect *cr;
 	int i, inc = 1;
+	int ret;
 
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdPresent body;
 		SVGA3dCopyRect cr;
 	} *cmd;
+
+	if (unlikely(vfbs->master != file_priv->master))
+		return -EINVAL;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
 
 	if (!num_clips ||
 	    !(dev_priv->fifo.capabilities &
@@ -426,6 +478,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 			 */
 			vmw_framebuffer_present_fs_callback(&vfbs->d_work.work);
 		}
+		ttm_read_unlock(&vmaster->lock);
 		return 0;
 	}
 
@@ -443,6 +496,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) + (num_clips - 1) * sizeof(cmd->cr));
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Fifo reserve failed.\n");
+		ttm_read_unlock(&vmaster->lock);
 		return -ENOMEM;
 	}
 
@@ -462,7 +516,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd) + (num_clips - 1) * sizeof(cmd->cr));
-
+	ttm_read_unlock(&vmaster->lock);
 	return 0;
 }
 
@@ -473,6 +527,7 @@ static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 };
 
 static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
+					   struct drm_file *file_priv,
 					   struct vmw_surface *surface,
 					   struct vmw_framebuffer **out,
 					   const struct drm_mode_fb_cmd
@@ -482,6 +537,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_surface *vfbs;
 	enum SVGA3dSurfaceFormat format;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
 	/*
@@ -546,8 +602,14 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	vfbs->base.pin = &vmw_surface_dmabuf_pin;
 	vfbs->base.unpin = &vmw_surface_dmabuf_unpin;
 	vfbs->surface = surface;
+	vfbs->master = drm_master_get(file_priv->master);
 	mutex_init(&vfbs->work_lock);
+
+	mutex_lock(&vmaster->fb_surf_mutex);
 	INIT_DELAYED_WORK(&vfbs->d_work, &vmw_framebuffer_present_fs_callback);
+	list_add_tail(&vfbs->head, &vmaster->fb_surf);
+	mutex_unlock(&vmaster->fb_surf_mutex);
+
 	*out = &vfbs->base;
 
 	return 0;
@@ -590,12 +652,18 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 				 unsigned num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct drm_clip_rect norect;
+	int ret;
 	struct {
 		uint32_t header;
 		SVGAFifoCmdUpdate body;
 	} *cmd;
 	int i, increment = 1;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
 
 	if (!num_clips) {
 		num_clips = 1;
@@ -611,6 +679,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) * num_clips);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Fifo reserve failed.\n");
+		ttm_read_unlock(&vmaster->lock);
 		return -ENOMEM;
 	}
 
@@ -623,6 +692,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd) * num_clips);
+	ttm_read_unlock(&vmaster->lock);
 
 	return 0;
 }
@@ -795,8 +865,8 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (!surface->scanout)
 		goto err_not_scanout;
 
-	ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
-					      mode_cmd);
+	ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv, surface,
+					      &vfb, mode_cmd);
 
 	/* vmw_user_surface_lookup takes one ref so does new_fb */
 	vmw_surface_unreference(&surface);

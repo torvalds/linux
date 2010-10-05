@@ -597,6 +597,8 @@ static void vmw_lastclose(struct drm_device *dev)
 static void vmw_master_init(struct vmw_master *vmaster)
 {
 	ttm_lock_init(&vmaster->lock);
+	INIT_LIST_HEAD(&vmaster->fb_surf);
+	mutex_init(&vmaster->fb_surf_mutex);
 }
 
 static int vmw_master_create(struct drm_device *dev,
@@ -608,7 +610,7 @@ static int vmw_master_create(struct drm_device *dev,
 	if (unlikely(vmaster == NULL))
 		return -ENOMEM;
 
-	ttm_lock_init(&vmaster->lock);
+	vmw_master_init(vmaster);
 	ttm_lock_set_kill(&vmaster->lock, true, SIGTERM);
 	master->driver_priv = vmaster;
 
@@ -699,6 +701,7 @@ static void vmw_master_drop(struct drm_device *dev,
 
 	vmw_fp->locked_master = drm_master_get(file_priv->master);
 	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
+	vmw_kms_idle_workqueues(vmaster);
 
 	if (unlikely((ret != 0))) {
 		DRM_ERROR("Unable to lock TTM at VT switch.\n");
