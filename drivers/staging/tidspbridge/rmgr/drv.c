@@ -743,7 +743,6 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	host_res->dw_sys_ctrl_base = ioremap(OMAP_SYSC_BASE, OMAP_SYSC_SIZE);
 	dev_dbg(bridge, "dw_mem_base[0] 0x%x\n", host_res->dw_mem_base[0]);
 	dev_dbg(bridge, "dw_mem_base[3] 0x%x\n", host_res->dw_mem_base[3]);
-	dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
 
 	/* for 24xx base port is not mapping the mamory for DSP
 	 * internal memory TODO Do a ioremap here */
@@ -797,8 +796,6 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 							 OMAP_PER_PRM_SIZE);
 		host_res->dw_core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
 							  OMAP_CORE_PRM_SIZE);
-		host_res->dw_dmmu_base = ioremap(OMAP_DMMU_BASE,
-						 OMAP_DMMU_SIZE);
 
 		dev_dbg(bridge, "dw_mem_base[0] 0x%x\n",
 			host_res->dw_mem_base[0]);
@@ -810,7 +807,6 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 			host_res->dw_mem_base[3]);
 		dev_dbg(bridge, "dw_mem_base[4] 0x%x\n",
 			host_res->dw_mem_base[4]);
-		dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
 
 		shm_size = drv_datap->shm_size;
 		if (shm_size >= 0x10000) {

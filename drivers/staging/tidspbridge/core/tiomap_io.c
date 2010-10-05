@@ -393,7 +393,6 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 		omap_dspbridge_dev->dev.platform_data;
 	struct cfg_hostres *resources = dev_context->resources;
 	int status = 0;
-	u32 temp;
 
 	if (!dev_context->mbox)
 		return 0;
@@ -437,7 +436,7 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 		omap_mbox_restore_ctx(dev_context->mbox);
 
 		/* Access MMU SYS CONFIG register to generate a short wakeup */
-		temp = readl(resources->dw_dmmu_base + 0x10);
+		iommu_read_reg(dev_context->dsp_mmu, MMU_SYSCONFIG);
 
 		dev_context->dw_brd_state = BRD_RUNNING;
 	} else if (dev_context->dw_brd_state == BRD_RETENTION) {
