@@ -383,4 +383,28 @@ extern s32 dsp_debug;
  */
 int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val);
 
+/**
+ * user_to_dsp_map() - maps user to dsp virtual address
+ * @mmu:	Pointer to iommu handle.
+ * @uva:		Virtual user space address.
+ * @da		DSP address
+ * @size		Buffer size to map.
+ * @usr_pgs	struct page array pointer where the user pages will be stored
+ *
+ * This function maps a user space buffer into DSP virtual address.
+ *
+ */
+u32 user_to_dsp_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
+						struct page **usr_pgs);
+
+/**
+ * user_to_dsp_unmap() - unmaps DSP virtual buffer.
+ * @mmu:	Pointer to iommu handle.
+ * @da		DSP address
+ *
+ * This function unmaps a user space buffer into DSP virtual address.
+ *
+ */
+int user_to_dsp_unmap(struct iommu *mmu, u32 da);
+
 #endif /* _TIOMAP_ */

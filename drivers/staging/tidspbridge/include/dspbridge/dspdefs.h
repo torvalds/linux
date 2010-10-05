@@ -162,48 +162,6 @@ typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
 				       u32 mem_type);
 
 /*
- *  ======== bridge_brd_mem_map ========
- *  Purpose:
- *      Map a MPU memory region to a DSP/IVA memory space
- *  Parameters:
- *      dev_ctxt:    Handle to Bridge driver defined device info.
- *      ul_mpu_addr:      MPU memory region start address.
- *      virt_addr:      DSP/IVA memory region u8 address.
- *      ul_num_bytes:     Number of bytes to map.
- *      map_attrs:       Mapping attributes (e.g. endianness).
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Other, unspecified error.
- *  Requires:
- *      dev_ctxt != NULL;
- *  Ensures:
- */
-typedef int(*fxn_brd_memmap) (struct bridge_dev_context
-				     * dev_ctxt, u32 ul_mpu_addr,
-				     u32 virt_addr, u32 ul_num_bytes,
-				     u32 map_attr,
-				     struct page **mapped_pages);
-
-/*
- *  ======== bridge_brd_mem_un_map ========
- *  Purpose:
- *      UnMap an MPU memory region from DSP/IVA memory space
- *  Parameters:
- *      dev_ctxt:    Handle to Bridge driver defined device info.
- *      virt_addr:      DSP/IVA memory region u8 address.
- *      ul_num_bytes:     Number of bytes to unmap.
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Other, unspecified error.
- *  Requires:
- *      dev_ctxt != NULL;
- *  Ensures:
- */
-typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
-				       * dev_ctxt,
-				       u32 da);
-
-/*
  *  ======== bridge_brd_stop ========
  *  Purpose:
  *      Bring board to the BRD_STOPPED state.
@@ -993,8 +951,6 @@ struct bridge_drv_interface {
 	fxn_brd_setstate pfn_brd_set_state;	/* Sets the Board State */
 	fxn_brd_memcopy pfn_brd_mem_copy;	/* Copies DSP Memory */
 	fxn_brd_memwrite pfn_brd_mem_write;	/* Write DSP Memory w/o halt */
-	fxn_brd_memmap pfn_brd_mem_map;	/* Maps MPU mem to DSP mem */
-	fxn_brd_memunmap pfn_brd_mem_un_map;	/* Unmaps MPU mem to DSP mem */
 	fxn_chnl_create pfn_chnl_create;	/* Create channel manager. */
 	fxn_chnl_destroy pfn_chnl_destroy;	/* Destroy channel manager. */
 	fxn_chnl_open pfn_chnl_open;	/* Create a new channel. */

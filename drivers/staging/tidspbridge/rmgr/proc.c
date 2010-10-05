@@ -52,6 +52,7 @@
 #include <dspbridge/msg.h>
 #include <dspbridge/dspioctl.h>
 #include <dspbridge/drv.h>
+#include <_tiomap.h>
 
 /*  ----------------------------------- This */
 #include <dspbridge/proc.h>
@@ -1357,7 +1358,6 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
 	struct dmm_map_object *map_obj;
-	u32 tmp_addr = 0;
 
 #ifdef CONFIG_TIDSPBRIDGE_CACHE_LINE_CHECK
 	if ((ul_map_attr & BUFMODE_MASK) != RBUF) {
@@ -1390,24 +1390,27 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 
 	/* Add mapping to the page tables. */
 	if (!status) {
-
-		/* Mapped address = MSB of VA | LSB of PA */
-		tmp_addr = (va_align | ((u32) pmpu_addr & (PG_SIZE4K - 1)));
 		/* mapped memory resource tracking */
-		map_obj = add_mapping_info(pr_ctxt, pa_align, tmp_addr,
+		map_obj = add_mapping_info(pr_ctxt, pa_align, va_align,
 						size_align);
-		if (!map_obj)
+		if (!map_obj) {
 			status = -ENOMEM;
-		else
-			status = (*p_proc_object->intf_fxns->pfn_brd_mem_map)
-			    (p_proc_object->hbridge_context, pa_align, va_align,
-			     size_align, ul_map_attr, map_obj->pages);
+		} else {
+			va_align = user_to_dsp_map(
+				p_proc_object->hbridge_context->dsp_mmu,
+				pa_align, va_align, size_align,
+				map_obj->pages);
+			if (IS_ERR_VALUE(va_align))
+				status = (int)va_align;
+		}
 	}
 	if (!status) {
 		/* Mapped address = MSB of VA | LSB of PA */
-		*pp_map_addr = (void *) tmp_addr;
+		map_obj->dsp_addr = (va_align |
+					((u32)pmpu_addr & (PG_SIZE4K - 1)));
+		*pp_map_addr = (void *)map_obj->dsp_addr;
 	} else {
-		remove_mapping_information(pr_ctxt, tmp_addr, size_align);
+		remove_mapping_information(pr_ctxt, va_align, size_align);
 		dmm_un_map_memory(dmm_mgr, va_align, &size_align);
 	}
 	mutex_unlock(&proc_lock);
@@ -1721,10 +1724,9 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	 */
 	status = dmm_un_map_memory(dmm_mgr, (u32) va_align, &size_align);
 	/* Remove mapping from the page tables. */
-	if (!status) {
-		status = (*p_proc_object->intf_fxns->pfn_brd_mem_un_map)
-		    (p_proc_object->hbridge_context, va_align);
-	}
+	if (!status)
+		status = user_to_dsp_unmap(
+			p_proc_object->hbridge_context->dsp_mmu, va_align);
 
 	mutex_unlock(&proc_lock);
 	if (status)

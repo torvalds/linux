@@ -97,12 +97,6 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 				    u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 mem_type);
-static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
-				  u32 ul_mpu_addr, u32 virt_addr,
-				  u32 ul_num_bytes, u32 ul_map_attr,
-				  struct page **mapped_pages);
-static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
-				     u32 da);
 static int bridge_dev_create(struct bridge_dev_context
 					**dev_cntxt,
 					struct dev_object *hdev_obj,
@@ -110,9 +104,6 @@ static int bridge_dev_create(struct bridge_dev_context
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
 				  u32 dw_cmd, void *pargs);
 static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt);
-static int get_io_pages(struct mm_struct *mm, u32 uva, unsigned pages,
-						struct page **usr_pgs);
-static u32 user_va2_pa(struct mm_struct *mm, u32 address);
 static int pte_update(struct bridge_dev_context *dev_ctxt, u32 pa,
 			     u32 va, u32 size,
 			     struct hw_mmu_map_attrs_t *map_attrs);
@@ -182,8 +173,6 @@ static struct bridge_drv_interface drv_interface_fxns = {
 	bridge_brd_set_state,
 	bridge_brd_mem_copy,
 	bridge_brd_mem_write,
-	bridge_brd_mem_map,
-	bridge_brd_mem_un_map,
 	/* The following CHNL functions are provided by chnl_io.lib: */
 	bridge_chnl_create,
 	bridge_chnl_destroy,
@@ -1154,22 +1143,77 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 }
 
 /*
- *  ======== bridge_brd_mem_map ========
- *      This function maps MPU buffer to the DSP address space. It performs
- *  linear to physical address translation if required. It translates each
- *  page since linear addresses can be physically non-contiguous
- *  All address & size arguments are assumed to be page aligned (in proc.c)
- *
- *  TODO: Disable MMU while updating the page tables (but that'll stall DSP)
+ *  ======== user_va2_pa ========
+ *  Purpose:
+ *      This function walks through the page tables to convert a userland
+ *      virtual address to physical address
  */
-static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctx,
-			u32 uva, u32 da, u32 size, u32 attr,
-			struct page **usr_pgs)
+static u32 user_va2_pa(struct mm_struct *mm, u32 address)
+{
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
 
+	pgd = pgd_offset(mm, address);
+	if (!(pgd_none(*pgd) || pgd_bad(*pgd))) {
+		pmd = pmd_offset(pgd, address);
+		if (!(pmd_none(*pmd) || pmd_bad(*pmd))) {
+			ptep = pte_offset_map(pmd, address);
+			if (ptep) {
+				pte = *ptep;
+				if (pte_present(pte))
+					return pte & PAGE_MASK;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * get_io_pages() - pin and get pages of io user's buffer.
+ * @mm:		mm_struct Pointer of the process.
+ * @uva:		Virtual user space address.
+ * @pages	Pages to be pined.
+ * @usr_pgs	struct page array pointer where the user pages will be stored
+ *
+ */
+static int get_io_pages(struct mm_struct *mm, u32 uva, unsigned pages,
+						struct page **usr_pgs)
+{
+	u32 pa;
+	int i;
+	struct page *pg;
+
+	for (i = 0; i < pages; i++) {
+		pa = user_va2_pa(mm, uva);
+
+		if (!pfn_valid(__phys_to_pfn(pa)))
+			break;
+
+		pg = PHYS_TO_PAGE(pa);
+		usr_pgs[i] = pg;
+		get_page(pg);
+	}
+	return i;
+}
+
+/**
+ * user_to_dsp_map() - maps user to dsp virtual address
+ * @mmu:	Pointer to iommu handle.
+ * @uva:		Virtual user space address.
+ * @da		DSP address
+ * @size		Buffer size to map.
+ * @usr_pgs	struct page array pointer where the user pages will be stored
+ *
+ * This function maps a user space buffer into DSP virtual address.
+ *
+ */
+u32 user_to_dsp_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
+				struct page **usr_pgs)
 {
 	int res, w;
 	unsigned pages, i;
-	struct iommu *mmu = dev_ctx->dsp_mmu;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	struct sg_table *sgt;
@@ -1226,7 +1270,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctx,
 	da = iommu_vmap(mmu, da, sgt, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_32);
 
 	if (!IS_ERR_VALUE(da))
-		return 0;
+		return da;
 	res = (int)da;
 
 	sg_free_table(sgt);
@@ -1239,21 +1283,21 @@ err_pages:
 	return res;
 }
 
-/*
- *  ======== bridge_brd_mem_un_map ========
- *      Invalidate the PTEs for the DSP VA block to be unmapped.
+/**
+ * user_to_dsp_unmap() - unmaps DSP virtual buffer.
+ * @mmu:	Pointer to iommu handle.
+ * @da		DSP address
  *
- *      PTEs of a mapped memory block are contiguous in any page table
- *      So, instead of looking up the PTE address for every 4K block,
- *      we clear consecutive PTEs until we unmap all the bytes
+ * This function unmaps a user space buffer into DSP virtual address.
+ *
  */
-static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctx, u32 da)
+int user_to_dsp_unmap(struct iommu *mmu, u32 da)
 {
 	unsigned i;
 	struct sg_table *sgt;
 	struct scatterlist *sg;
 
-	sgt = iommu_vunmap(dev_ctx->dsp_mmu, da);
+	sgt = iommu_vunmap(mmu, da);
 	if (!sgt)
 		return -EFAULT;
 
@@ -1261,55 +1305,6 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctx, u32 da)
 		put_page(sg_page(sg));
 	sg_free_table(sgt);
 	kfree(sgt);
-
-	return 0;
-}
-
-
-static int get_io_pages(struct mm_struct *mm, u32 uva, unsigned pages,
-						struct page **usr_pgs)
-{
-	u32 pa;
-	int i;
-	struct page *pg;
-
-	for (i = 0; i < pages; i++) {
-		pa = user_va2_pa(mm, uva);
-
-		if (!pfn_valid(__phys_to_pfn(pa)))
-			break;
-
-		pg = PHYS_TO_PAGE(pa);
-		usr_pgs[i] = pg;
-		get_page(pg);
-	}
-	return i;
-}
-
-/*
- *  ======== user_va2_pa ========
- *  Purpose:
- *      This function walks through the page tables to convert a userland
- *      virtual address to physical address
- */
-static u32 user_va2_pa(struct mm_struct *mm, u32 address)
-{
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *ptep, pte;
-
-	pgd = pgd_offset(mm, address);
-	if (!(pgd_none(*pgd) || pgd_bad(*pgd))) {
-		pmd = pmd_offset(pgd, address);
-		if (!(pmd_none(*pmd) || pmd_bad(*pmd))) {
-			ptep = pte_offset_map(pmd, address);
-			if (ptep) {
-				pte = *ptep;
-				if (pte_present(pte))
-					return pte & PAGE_MASK;
-			}
-		}
-	}
 
 	return 0;
 }

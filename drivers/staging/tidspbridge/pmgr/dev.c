@@ -1118,8 +1118,6 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 		STORE_FXN(fxn_brd_setstate, pfn_brd_set_state);
 		STORE_FXN(fxn_brd_memcopy, pfn_brd_mem_copy);
 		STORE_FXN(fxn_brd_memwrite, pfn_brd_mem_write);
-		STORE_FXN(fxn_brd_memmap, pfn_brd_mem_map);
-		STORE_FXN(fxn_brd_memunmap, pfn_brd_mem_un_map);
 		STORE_FXN(fxn_chnl_create, pfn_chnl_create);
 		STORE_FXN(fxn_chnl_destroy, pfn_chnl_destroy);
 		STORE_FXN(fxn_chnl_open, pfn_chnl_open);
