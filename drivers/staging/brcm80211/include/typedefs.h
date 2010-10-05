@@ -202,9 +202,6 @@ typedef float64 float_t;
 #undef TYPEDEF_FLOAT64
 #undef TYPEDEF_FLOAT_T
 
-/* Suppress unused parameter warning */
-#define UNUSED_PARAMETER(x) (void)(x)
-
 /*
  * Including the bcmdefs.h here, to make sure everyone including typedefs.h
  * gets this automatically
