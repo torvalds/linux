@@ -31,7 +31,6 @@ typedef unsigned long long int uintptr;
 #define TYPEDEF_UINT
 #define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
-#include <linux/version.h>
 #include <linux/types.h>
 
 /*
