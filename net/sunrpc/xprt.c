@@ -199,8 +199,6 @@ int xprt_reserve_xprt(struct rpc_task *task)
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
 		if (task == xprt->snd_task)
 			return 1;
-		if (task == NULL)
-			return 0;
 		goto out_sleep;
 	}
 	xprt->snd_task = task;
