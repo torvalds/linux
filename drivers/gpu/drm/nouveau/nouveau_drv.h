@@ -166,6 +166,8 @@ struct nouveau_channel {
 	struct drm_device *dev;
 	int id;
 
+	struct mutex mutex;
+
 	/* owner of this fifo */
 	struct drm_file *file_priv;
 	/* mapping of the fifo itself */

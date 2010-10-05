@@ -145,6 +145,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	chan->file_priv = file_priv;
 	chan->vram_handle = vram_handle;
 	chan->gart_handle = tt_handle;
+	mutex_init(&chan->mutex);
 
 	NV_INFO(dev, "Allocating FIFO number %d\n", channel);
 

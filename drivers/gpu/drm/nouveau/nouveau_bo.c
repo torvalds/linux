@@ -683,17 +683,24 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	int ret;
 
 	chan = nvbo->channel;
-	if (!chan || nvbo->no_vm)
+	if (!chan || nvbo->no_vm) {
 		chan = dev_priv->channel;
+		mutex_lock(&chan->mutex);
+	}
 
 	if (dev_priv->card_type < NV_50)
 		ret = nv04_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
 	else
 		ret = nv50_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
-	if (ret)
-		return ret;
+	if (ret == 0) {
+		ret = nouveau_bo_move_accel_cleanup(chan, nvbo, evict,
+						    no_wait_reserve,
+						    no_wait_gpu, new_mem);
+	}
 
-	return nouveau_bo_move_accel_cleanup(chan, nvbo, evict, no_wait_reserve, no_wait_gpu, new_mem);
+	if (chan == dev_priv->channel)
+		mutex_unlock(&chan->mutex);
+	return ret;
 }
 
 static int
