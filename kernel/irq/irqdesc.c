@@ -95,7 +95,7 @@ static DECLARE_BITMAP(allocated_irqs, NR_IRQS);
 
 #ifdef CONFIG_SPARSE_IRQ
 
-static RADIX_TREE(irq_desc_tree, GFP_ATOMIC);
+static RADIX_TREE(irq_desc_tree, GFP_KERNEL);
 
 static void irq_insert_desc(unsigned int irq, struct irq_desc *desc)
 {
@@ -126,9 +126,8 @@ static inline void free_masks(struct irq_desc *desc) { }
 
 static struct irq_desc *alloc_desc(int irq, int node)
 {
-	/* Temporary hack until we can switch to GFP_KERNEL */
-	gfp_t gfp = gfp_allowed_mask == GFP_BOOT_MASK ? GFP_NOWAIT : GFP_ATOMIC;
 	struct irq_desc *desc;
+	gfp_t gfp = GFP_KERNEL;
 
 	desc = kzalloc_node(sizeof(*desc), gfp, node);
 	if (!desc)
