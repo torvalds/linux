@@ -315,8 +315,8 @@
  *	channel for the specified amount of time. This can be used to do
  *	off-channel operations like transmit a Public Action frame and wait for
  *	a response while being associated to an AP on another channel.
- *	%NL80211_ATTR_WIPHY or %NL80211_ATTR_IFINDEX is used to specify which
- *	radio is used. %NL80211_ATTR_WIPHY_FREQ is used to specify the
+ *	%NL80211_ATTR_IFINDEX is used to specify which interface (and thus
+ *	radio) is used. %NL80211_ATTR_WIPHY_FREQ is used to specify the
  *	frequency for the operation and %NL80211_ATTR_WIPHY_CHANNEL_TYPE may be
  *	optionally used to specify additional channel parameters.
  *	%NL80211_ATTR_DURATION is used to specify the duration in milliseconds
