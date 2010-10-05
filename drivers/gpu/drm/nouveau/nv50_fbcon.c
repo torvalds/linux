@@ -4,26 +4,18 @@
 #include "nouveau_ramht.h"
 #include "nouveau_fbcon.h"
 
-void
+int
 nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
+	int ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return;
-
-	if (!(info->flags & FBINFO_HWACCEL_DISABLED) &&
-	     RING_SPACE(chan, rect->rop == ROP_COPY ? 7 : 11)) {
-		nouveau_fbcon_gpu_lockup(info);
-	}
-
-	if (info->flags & FBINFO_HWACCEL_DISABLED) {
-		cfb_fillrect(info, rect);
-		return;
-	}
+	ret = RING_SPACE(chan, rect->rop == ROP_COPY ? 7 : 11);
+	if (ret)
+		return ret;
 
 	if (rect->rop != ROP_COPY) {
 		BEGIN_RING(chan, NvSub2D, 0x02ac, 1);
@@ -45,27 +37,21 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		OUT_RING(chan, 3);
 	}
 	FIRE_RING(chan);
+	return 0;
 }
 
-void
+int
 nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
+	int ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return;
-
-	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 12)) {
-		nouveau_fbcon_gpu_lockup(info);
-	}
-
-	if (info->flags & FBINFO_HWACCEL_DISABLED) {
-		cfb_copyarea(info, region);
-		return;
-	}
+	ret = RING_SPACE(chan, 12);
+	if (ret)
+		return ret;
 
 	BEGIN_RING(chan, NvSub2D, 0x0110, 1);
 	OUT_RING(chan, 0);
@@ -80,9 +66,10 @@ nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	OUT_RING(chan, 0);
 	OUT_RING(chan, region->sy);
 	FIRE_RING(chan);
+	return 0;
 }
 
-void
+int
 nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
@@ -92,23 +79,14 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	uint32_t width, dwords, *data = (uint32_t *)image->data;
 	uint32_t mask = ~(~0 >> (32 - info->var.bits_per_pixel));
 	uint32_t *palette = info->pseudo_palette;
+	int ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return;
+	if (image->depth != 1)
+		return -ENODEV;
 
-	if (image->depth != 1) {
-		cfb_imageblit(info, image);
-		return;
-	}
-
-	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 11)) {
-		nouveau_fbcon_gpu_lockup(info);
-	}
-
-	if (info->flags & FBINFO_HWACCEL_DISABLED) {
-		cfb_imageblit(info, image);
-		return;
-	}
+	ret = RING_SPACE(chan, 11);
+	if (ret)
+		return ret;
 
 	width = ALIGN(image->width, 32);
 	dwords = (width * image->height) >> 5;
@@ -134,11 +112,9 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	while (dwords) {
 		int push = dwords > 2047 ? 2047 : dwords;
 
-		if (RING_SPACE(chan, push + 1)) {
-			nouveau_fbcon_gpu_lockup(info);
-			cfb_imageblit(info, image);
-			return;
-		}
+		ret = RING_SPACE(chan, push + 1);
+		if (ret)
+			return ret;
 
 		dwords -= push;
 
@@ -148,6 +124,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 
 	FIRE_RING(chan);
+	return 0;
 }
 
 int

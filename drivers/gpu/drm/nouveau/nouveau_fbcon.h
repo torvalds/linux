@@ -40,13 +40,13 @@ struct nouveau_fbdev {
 
 void nouveau_fbcon_restore(void);
 
-void nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
-void nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
-void nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
+int nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
+int nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+int nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
 int nv04_fbcon_accel_init(struct fb_info *info);
-void nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
-void nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
-void nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
+int nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+int nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
+int nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
 int nv50_fbcon_accel_init(struct fb_info *info);
 
 void nouveau_fbcon_gpu_lockup(struct fb_info *info);
