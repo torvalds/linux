@@ -57,6 +57,7 @@ int fib_lookup(struct net *net, struct flowi *flp, struct fib_result *res)
 {
 	struct fib_lookup_arg arg = {
 		.result = res,
+		.flags = FIB_LOOKUP_NOREF,
 	};
 	int err;
 
@@ -94,7 +95,7 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 	if (!tbl)
 		goto errout;
 
-	err = fib_table_lookup(tbl, flp, (struct fib_result *) arg->result);
+	err = fib_table_lookup(tbl, flp, (struct fib_result *) arg->result, arg->flags);
 	if (err > 0)
 		err = -EAGAIN;
 errout:

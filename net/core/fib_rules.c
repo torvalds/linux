@@ -225,7 +225,8 @@ jumped:
 			err = ops->action(rule, fl, flags, arg);
 
 		if (err != -EAGAIN) {
-			if (likely(atomic_inc_not_zero(&rule->refcnt))) {
+			if ((arg->flags & FIB_LOOKUP_NOREF) ||
+			    likely(atomic_inc_not_zero(&rule->refcnt))) {
 				arg->rule = rule;
 				goto out;
 			}

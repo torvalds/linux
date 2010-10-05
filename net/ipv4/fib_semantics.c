@@ -148,6 +148,13 @@ static const struct
 
 /* Release a nexthop info record */
 
+static void free_fib_info_rcu(struct rcu_head *head)
+{
+	struct fib_info *fi = container_of(head, struct fib_info, rcu);
+
+	kfree(fi);
+}
+
 void free_fib_info(struct fib_info *fi)
 {
 	if (fi->fib_dead == 0) {
@@ -161,7 +168,7 @@ void free_fib_info(struct fib_info *fi)
 	} endfor_nexthops(fi);
 	fib_info_cnt--;
 	release_net(fi->fib_net);
-	kfree(fi);
+	call_rcu(&fi->rcu, free_fib_info_rcu);
 }
 
 void fib_release_info(struct fib_info *fi)
@@ -553,6 +560,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			nh->nh_scope = RT_SCOPE_LINK;
 			return 0;
 		}
+		rcu_read_lock();
 		{
 			struct flowi fl = {
 				.nl_u = {
@@ -568,8 +576,10 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			if (fl.fl4_scope < RT_SCOPE_LINK)
 				fl.fl4_scope = RT_SCOPE_LINK;
 			err = fib_lookup(net, &fl, &res);
-			if (err)
+			if (err) {
+				rcu_read_unlock();
 				return err;
+			}
 		}
 		err = -EINVAL;
 		if (res.type != RTN_UNICAST && res.type != RTN_LOCAL)
@@ -585,7 +595,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			goto out;
 		err = 0;
 out:
-		fib_res_put(&res);
+		rcu_read_unlock();
 		return err;
 	} else {
 		struct in_device *in_dev;
@@ -879,7 +889,7 @@ failure:
 
 /* Note! fib_semantic_match intentionally uses  RCU list functions. */
 int fib_semantic_match(struct list_head *head, const struct flowi *flp,
-		       struct fib_result *res, int prefixlen)
+		       struct fib_result *res, int prefixlen, int fib_flags)
 {
 	struct fib_alias *fa;
 	int nh_sel = 0;
@@ -943,7 +953,8 @@ out_fill_res:
 	res->type = fa->fa_type;
 	res->scope = fa->fa_scope;
 	res->fi = fa->fa_info;
-	atomic_inc(&res->fi->fib_clntref);
+	if (!(fib_flags & FIB_LOOKUP_NOREF))
+		atomic_inc(&res->fi->fib_clntref);
 	return 0;
 }
 

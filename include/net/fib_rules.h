@@ -31,6 +31,8 @@ struct fib_lookup_arg {
 	void			*lookup_ptr;
 	void			*result;
 	struct fib_rule		*rule;
+	int			flags;
+#define FIB_LOOKUP_NOREF	1
 };
 
 struct fib_rules_ops {

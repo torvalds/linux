@@ -1342,7 +1342,7 @@ err:
 /* should be called with rcu_read_lock */
 static int check_leaf(struct trie *t, struct leaf *l,
 		      t_key key,  const struct flowi *flp,
-		      struct fib_result *res)
+		      struct fib_result *res, int fib_flags)
 {
 	struct leaf_info *li;
 	struct hlist_head *hhead = &l->list;
@@ -1356,7 +1356,7 @@ static int check_leaf(struct trie *t, struct leaf *l,
 		if (l->key != (key & ntohl(mask)))
 			continue;
 
-		err = fib_semantic_match(&li->falh, flp, res, plen);
+		err = fib_semantic_match(&li->falh, flp, res, plen, fib_flags);
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 		if (err <= 0)
@@ -1372,7 +1372,7 @@ static int check_leaf(struct trie *t, struct leaf *l,
 }
 
 int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
-		     struct fib_result *res)
+		     struct fib_result *res, int fib_flags)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	int ret;
@@ -1399,7 +1399,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 
 	/* Just a leaf? */
 	if (IS_LEAF(n)) {
-		ret = check_leaf(t, (struct leaf *)n, key, flp, res);
+		ret = check_leaf(t, (struct leaf *)n, key, flp, res, fib_flags);
 		goto found;
 	}
 
@@ -1424,7 +1424,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 		}
 
 		if (IS_LEAF(n)) {
-			ret = check_leaf(t, (struct leaf *)n, key, flp, res);
+			ret = check_leaf(t, (struct leaf *)n, key, flp, res, fib_flags);
 			if (ret > 0)
 				goto backtrace;
 			goto found;

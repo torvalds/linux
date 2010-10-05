@@ -1773,12 +1773,15 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 
 	if (rt->fl.iif == 0)
 		src = rt->rt_src;
-	else if (fib_lookup(dev_net(rt->dst.dev), &rt->fl, &res) == 0) {
-		src = FIB_RES_PREFSRC(res);
-		fib_res_put(&res);
-	} else
-		src = inet_select_addr(rt->dst.dev, rt->rt_gateway,
+	else {
+		rcu_read_lock();
+		if (fib_lookup(dev_net(rt->dst.dev), &rt->fl, &res) == 0)
+			src = FIB_RES_PREFSRC(res);
+		else
+			src = inet_select_addr(rt->dst.dev, rt->rt_gateway,
 					RT_SCOPE_UNIVERSE);
+		rcu_read_unlock();
+	}
 	memcpy(addr, &src, 4);
 }
 
@@ -2081,6 +2084,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
  *	Such approach solves two big problems:
  *	1. Not simplex devices are handled properly.
  *	2. IP spoofing attempts are filtered with 100% of guarantee.
+ *	called with rcu_read_lock()
  */
 
 static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
@@ -2102,7 +2106,6 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	unsigned	hash;
 	__be32		spec_dst;
 	int		err = -EINVAL;
-	int		free_res = 0;
 	struct net    * net = dev_net(dev);
 
 	/* IP on this device is disabled. */
@@ -2134,12 +2137,12 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/*
 	 *	Now we are ready to route packet.
 	 */
-	if ((err = fib_lookup(net, &fl, &res)) != 0) {
+	err = fib_lookup(net, &fl, &res);
+	if (err != 0) {
 		if (!IN_DEV_FORWARD(in_dev))
 			goto e_hostunreach;
 		goto no_route;
 	}
-	free_res = 1;
 
 	RT_CACHE_STAT_INC(in_slow_tot);
 
@@ -2148,8 +2151,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	if (res.type == RTN_LOCAL) {
 		err = fib_validate_source(saddr, daddr, tos,
-					     net->loopback_dev->ifindex,
-					     dev, &spec_dst, &itag, skb->mark);
+					  net->loopback_dev->ifindex,
+					  dev, &spec_dst, &itag, skb->mark);
 		if (err < 0)
 			goto martian_source_keep_err;
 		if (err)
@@ -2164,9 +2167,6 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto martian_destination;
 
 	err = ip_mkroute_input(skb, &res, &fl, in_dev, daddr, saddr, tos);
-done:
-	if (free_res)
-		fib_res_put(&res);
 out:	return err;
 
 brd_input:
@@ -2226,7 +2226,7 @@ local_input:
 	rth->rt_type	= res.type;
 	hash = rt_hash(daddr, saddr, fl.iif, rt_genid(net));
 	err = rt_intern_hash(hash, rth, NULL, skb, fl.iif);
-	goto done;
+	goto out;
 
 no_route:
 	RT_CACHE_STAT_INC(in_no_route);
@@ -2249,21 +2249,21 @@ martian_destination:
 
 e_hostunreach:
 	err = -EHOSTUNREACH;
-	goto done;
+	goto out;
 
 e_inval:
 	err = -EINVAL;
-	goto done;
+	goto out;
 
 e_nobufs:
 	err = -ENOBUFS;
-	goto done;
+	goto out;
 
 martian_source:
 	err = -EINVAL;
 martian_source_keep_err:
 	ip_handle_martian_source(dev, in_dev, skb, daddr, saddr);
-	goto done;
+	goto out;
 }
 
 int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
@@ -2349,6 +2349,7 @@ skip_cache:
 }
 EXPORT_SYMBOL(ip_route_input_common);
 
+/* called with rcu_read_lock() */
 static int __mkroute_output(struct rtable **result,
 			    struct fib_result *res,
 			    const struct flowi *fl,
@@ -2373,18 +2374,13 @@ static int __mkroute_output(struct rtable **result,
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev_out);
-	if (!in_dev) {
-		rcu_read_unlock();
+	if (!in_dev)
 		return -EINVAL;
-	}
+
 	if (res->type == RTN_BROADCAST) {
 		flags |= RTCF_BROADCAST | RTCF_LOCAL;
-		if (res->fi) {
-			fib_info_put(res->fi);
-			res->fi = NULL;
-		}
+		res->fi = NULL;
 	} else if (res->type == RTN_MULTICAST) {
 		flags |= RTCF_MULTICAST | RTCF_LOCAL;
 		if (!ip_check_mc(in_dev, oldflp->fl4_dst, oldflp->fl4_src,
@@ -2394,10 +2390,8 @@ static int __mkroute_output(struct rtable **result,
 		 * default one, but do not gateway in this case.
 		 * Yes, it is hack.
 		 */
-		if (res->fi && res->prefixlen < 4) {
-			fib_info_put(res->fi);
+		if (res->fi && res->prefixlen < 4)
 			res->fi = NULL;
-		}
 	}
 
 
@@ -2467,6 +2461,7 @@ static int __mkroute_output(struct rtable **result,
 	return 0;
 }
 
+/* called with rcu_read_lock() */
 static int ip_mkroute_output(struct rtable **rp,
 			     struct fib_result *res,
 			     const struct flowi *fl,
@@ -2509,7 +2504,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	struct fib_result res;
 	unsigned int flags = 0;
 	struct net_device *dev_out = NULL;
-	int free_res = 0;
 	int err;
 
 
@@ -2636,15 +2630,12 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		err = -ENETUNREACH;
 		goto out;
 	}
-	free_res = 1;
 
 	if (res.type == RTN_LOCAL) {
 		if (!fl.fl4_src)
 			fl.fl4_src = fl.fl4_dst;
 		dev_out = net->loopback_dev;
 		fl.oif = dev_out->ifindex;
-		if (res.fi)
-			fib_info_put(res.fi);
 		res.fi = NULL;
 		flags |= RTCF_LOCAL;
 		goto make_route;
@@ -2668,8 +2659,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 make_route:
 	err = ip_mkroute_output(rp, &res, &fl, oldflp, dev_out, flags);
 
-	if (free_res)
-		fib_res_put(&res);
 out:	return err;
 }
 

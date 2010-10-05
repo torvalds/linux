@@ -244,7 +244,8 @@ fn_new_zone(struct fn_hash *table, int z)
 }
 
 int fib_table_lookup(struct fib_table *tb,
-		     const struct flowi *flp, struct fib_result *res)
+		     const struct flowi *flp, struct fib_result *res,
+		     int fib_flags)
 {
 	int err;
 	struct fn_zone *fz;
@@ -264,7 +265,7 @@ int fib_table_lookup(struct fib_table *tb,
 
 			err = fib_semantic_match(&f->fn_alias,
 						 flp, res,
-						 fz->fz_order);
+						 fz->fz_order, fib_flags);
 			if (err <= 0)
 				goto out;
 		}

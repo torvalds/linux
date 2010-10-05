@@ -168,8 +168,11 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 	struct fib_result res = { 0 };
 	struct net_device *dev = NULL;
 
-	if (fib_lookup(net, &fl, &res))
+	rcu_read_lock();
+	if (fib_lookup(net, &fl, &res)) {
+		rcu_read_unlock();
 		return NULL;
+	}
 	if (res.type != RTN_LOCAL)
 		goto out;
 	dev = FIB_RES_DEV(res);
@@ -177,7 +180,7 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 	if (dev && devref)
 		dev_hold(dev);
 out:
-	fib_res_put(&res);
+	rcu_read_unlock();
 	return dev;
 }
 EXPORT_SYMBOL(__ip_dev_find);
@@ -207,11 +210,12 @@ static inline unsigned __inet_dev_addr_type(struct net *net,
 	local_table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (local_table) {
 		ret = RTN_UNICAST;
-		if (!fib_table_lookup(local_table, &fl, &res)) {
+		rcu_read_lock();
+		if (!fib_table_lookup(local_table, &fl, &res, FIB_LOOKUP_NOREF)) {
 			if (!dev || dev == res.fi->fib_dev)
 				ret = res.type;
-			fib_res_put(&res);
 		}
+		rcu_read_unlock();
 	}
 	return ret;
 }
@@ -235,6 +239,7 @@ EXPORT_SYMBOL(inet_dev_addr_type);
  * - figure out what "logical" interface this packet arrived
  *   and calculate "specific destination" address.
  * - check, that packet arrived from expected physical interface.
+ * called with rcu_read_lock()
  */
 int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			struct net_device *dev, __be32 *spec_dst,
@@ -259,7 +264,6 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	struct net *net;
 
 	no_addr = rpf = accept_local = 0;
-	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		no_addr = in_dev->ifa_list == NULL;
@@ -268,7 +272,6 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 		if (mark && !IN_DEV_SRC_VMARK(in_dev))
 			fl.mark = 0;
 	}
-	rcu_read_unlock();
 
 	if (in_dev == NULL)
 		goto e_inval;
@@ -278,7 +281,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 		goto last_resort;
 	if (res.type != RTN_UNICAST) {
 		if (res.type != RTN_LOCAL || !accept_local)
-			goto e_inval_res;
+			goto e_inval;
 	}
 	*spec_dst = FIB_RES_PREFSRC(res);
 	fib_combine_itag(itag, &res);
@@ -299,10 +302,8 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 #endif
 	if (dev_match) {
 		ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
-		fib_res_put(&res);
 		return ret;
 	}
-	fib_res_put(&res);
 	if (no_addr)
 		goto last_resort;
 	if (rpf == 1)
@@ -315,7 +316,6 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			*spec_dst = FIB_RES_PREFSRC(res);
 			ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
 		}
-		fib_res_put(&res);
 	}
 	return ret;
 
@@ -326,8 +326,6 @@ last_resort:
 	*itag = 0;
 	return 0;
 
-e_inval_res:
-	fib_res_put(&res);
 e_inval:
 	return -EINVAL;
 e_rpf:
@@ -873,15 +871,16 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		local_bh_disable();
 
 		frn->tb_id = tb->tb_id;
-		frn->err = fib_table_lookup(tb, &fl, &res);
+		rcu_read_lock();
+		frn->err = fib_table_lookup(tb, &fl, &res, FIB_LOOKUP_NOREF);
 
 		if (!frn->err) {
 			frn->prefixlen = res.prefixlen;
 			frn->nh_sel = res.nh_sel;
 			frn->type = res.type;
 			frn->scope = res.scope;
-			fib_res_put(&res);
 		}
+		rcu_read_unlock();
 		local_bh_enable();
 	}
 }
