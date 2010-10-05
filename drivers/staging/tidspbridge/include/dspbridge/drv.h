@@ -165,10 +165,6 @@ struct process_context {
 	struct list_head dmm_map_list;
 	spinlock_t dmm_map_lock;
 
-	/* DMM reserved memory resources */
-	struct list_head dmm_rsv_list;
-	spinlock_t dmm_rsv_lock;
-
 	/* DSP Heap resources */
 	struct dspheap_res_object *pdspheap_list;
 

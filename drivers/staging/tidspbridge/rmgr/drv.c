@@ -146,7 +146,6 @@ int drv_remove_all_dmm_res_elements(void *process_ctxt)
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct dmm_map_object *temp_map, *map_obj;
-	struct dmm_rsv_object *temp_rsv, *rsv_obj;
 
 	/* Free DMM mapped memory resources */
 	list_for_each_entry_safe(map_obj, temp_map, &ctxt->dmm_map_list, link) {
@@ -154,16 +153,6 @@ int drv_remove_all_dmm_res_elements(void *process_ctxt)
 				     (void *)map_obj->dsp_addr, ctxt);
 		if (status)
 			pr_err("%s: proc_un_map failed!"
-			       " status = 0x%xn", __func__, status);
-	}
-
-	/* Free DMM reserved memory resources */
-	list_for_each_entry_safe(rsv_obj, temp_rsv, &ctxt->dmm_rsv_list, link) {
-		status = proc_un_reserve_memory(ctxt->hprocessor, (void *)
-						rsv_obj->dsp_reserved_addr,
-						ctxt);
-		if (status)
-			pr_err("%s: proc_un_reserve_memory failed!"
 			       " status = 0x%xn", __func__, status);
 	}
 	return status;

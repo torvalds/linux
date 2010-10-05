@@ -1515,7 +1515,6 @@ int proc_reserve_memory(void *hprocessor, u32 ul_size,
 	struct dmm_object *dmm_mgr;
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-	struct dmm_rsv_object *rsv_obj;
 
 	if (!p_proc_object) {
 		status = -EFAULT;
@@ -1529,22 +1528,6 @@ int proc_reserve_memory(void *hprocessor, u32 ul_size,
 	}
 
 	status = dmm_reserve_memory(dmm_mgr, ul_size, (u32 *) pp_rsv_addr);
-	if (status != 0)
-		goto func_end;
-
-	/*
-	 * A successful reserve should be followed by insertion of rsv_obj
-	 * into dmm_rsv_list, so that reserved memory resource tracking
-	 * remains uptodate
-	 */
-	rsv_obj = kmalloc(sizeof(struct dmm_rsv_object), GFP_KERNEL);
-	if (rsv_obj) {
-		rsv_obj->dsp_reserved_addr = (u32) *pp_rsv_addr;
-		spin_lock(&pr_ctxt->dmm_rsv_lock);
-		list_add(&rsv_obj->link, &pr_ctxt->dmm_rsv_list);
-		spin_unlock(&pr_ctxt->dmm_rsv_lock);
-	}
-
 func_end:
 	dev_dbg(bridge, "%s: hprocessor: 0x%p ul_size: 0x%x pp_rsv_addr: 0x%p "
 		"status 0x%x\n", __func__, hprocessor,
@@ -1756,7 +1739,6 @@ int proc_un_reserve_memory(void *hprocessor, void *prsv_addr,
 	struct dmm_object *dmm_mgr;
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-	struct dmm_rsv_object *rsv_obj;
 
 	if (!p_proc_object) {
 		status = -EFAULT;
@@ -1770,24 +1752,6 @@ int proc_un_reserve_memory(void *hprocessor, void *prsv_addr,
 	}
 
 	status = dmm_un_reserve_memory(dmm_mgr, (u32) prsv_addr);
-	if (status != 0)
-		goto func_end;
-
-	/*
-	 * A successful unreserve should be followed by removal of rsv_obj
-	 * from dmm_rsv_list, so that reserved memory resource tracking
-	 * remains uptodate
-	 */
-	spin_lock(&pr_ctxt->dmm_rsv_lock);
-	list_for_each_entry(rsv_obj, &pr_ctxt->dmm_rsv_list, link) {
-		if (rsv_obj->dsp_reserved_addr == (u32) prsv_addr) {
-			list_del(&rsv_obj->link);
-			kfree(rsv_obj);
-			break;
-		}
-	}
-	spin_unlock(&pr_ctxt->dmm_rsv_lock);
-
 func_end:
 	dev_dbg(bridge, "%s: hprocessor: 0x%p prsv_addr: 0x%p status: 0x%x\n",
 		__func__, hprocessor, prsv_addr, status);
