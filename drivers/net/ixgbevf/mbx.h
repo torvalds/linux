@@ -95,6 +95,4 @@
 /* forward declaration of the HW struct */
 struct ixgbe_hw;
 
-s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *);
-
 #endif /* _IXGBE_MBX_H_ */
