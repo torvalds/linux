@@ -40,7 +40,6 @@
 #include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
 #include <mach/mxc_ehci.h>
-#include <mach/ulpi.h>
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
@@ -134,17 +133,12 @@ static void __init eukrea_cpuimx25_init(void)
 				ARRAY_SIZE(eukrea_cpuimx25_i2c_devices));
 	imx25_add_imx_i2c0(&eukrea_cpuimx25_i2c0_data);
 
-#if defined(CONFIG_USB_ULPI)
-	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
+	if (otg_mode_host)
 		mxc_register_device(&mxc_otg, &otg_pdata);
-	}
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
-#endif
-	if (!otg_mode_host)
+	else
 		mxc_register_device(&otg_udc_device, &otg_device_pdata);
+
+	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD
 	eukrea_mbimxsd25_baseboard_init();
