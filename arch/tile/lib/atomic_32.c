@@ -300,7 +300,7 @@ void __init __init_atomic_per_cpu(void)
 #else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 	/* Validate power-of-two and "bigger than cpus" assumption */
-	BUG_ON(ATOMIC_HASH_SIZE & (ATOMIC_HASH_SIZE-1));
+	BUILD_BUG_ON(ATOMIC_HASH_SIZE & (ATOMIC_HASH_SIZE-1));
 	BUG_ON(ATOMIC_HASH_SIZE < nr_cpu_ids);
 
 	/*
@@ -314,17 +314,17 @@ void __init __init_atomic_per_cpu(void)
 	BUG_ON((unsigned long)atomic_locks % PAGE_SIZE != 0);
 
 	/* The locks must all fit on one page. */
-	BUG_ON(ATOMIC_HASH_SIZE * sizeof(int) > PAGE_SIZE);
+	BUILD_BUG_ON(ATOMIC_HASH_SIZE * sizeof(int) > PAGE_SIZE);
 
 	/*
 	 * We use the page offset of the atomic value's address as
 	 * an index into atomic_locks, excluding the low 3 bits.
 	 * That should not produce more indices than ATOMIC_HASH_SIZE.
 	 */
-	BUG_ON((PAGE_SIZE >> 3) > ATOMIC_HASH_SIZE);
+	BUILD_BUG_ON((PAGE_SIZE >> 3) > ATOMIC_HASH_SIZE);
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 	/* The futex code makes this assumption, so we validate it here. */
-	BUG_ON(sizeof(atomic_t) != sizeof(int));
+	BUILD_BUG_ON(sizeof(atomic_t) != sizeof(int));
 }
