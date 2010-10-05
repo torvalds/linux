@@ -41,7 +41,9 @@ struct serio {
 	int (*start)(struct serio *);
 	void (*stop)(struct serio *);
 
-	struct serio *parent, *child;
+	struct serio *parent;
+	struct list_head child_node;	/* Entry in parent->children list */
+	struct list_head children;
 	unsigned int depth;		/* level of nesting in serio hierarchy */
 
 	struct serio_driver *drv;	/* accessed from interrupt, must be protected by serio->lock and serio->sem */
