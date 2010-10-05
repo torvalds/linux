@@ -566,8 +566,8 @@ typedef struct wl_wsec_key {
 
 /* receptacle for WLC_SET_WSEC_PMK parameter */
 typedef struct {
-	ushort key_len;		/* octets in key material */
-	ushort flags;		/* key handling qualification */
+	unsigned short key_len;		/* octets in key material */
+	unsigned short flags;		/* key handling qualification */
 	u8 key[WSEC_MAX_PSK_LEN];	/* PMK material */
 } wsec_pmk_t;
 

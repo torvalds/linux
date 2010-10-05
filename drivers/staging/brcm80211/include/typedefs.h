@@ -31,7 +31,6 @@ typedef unsigned long long int uintptr;
 #endif
 
 #define TYPEDEF_UINT
-#define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
 
 /*
@@ -39,10 +38,6 @@ typedef unsigned long long int uintptr;
  */
 
 /* define ushort, uint, ulong */
-
-#ifndef TYPEDEF_USHORT
-typedef unsigned short ushort;
-#endif
 
 #ifndef TYPEDEF_UINT
 typedef unsigned int uint;
@@ -94,7 +89,6 @@ typedef signed int int32;
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-#undef TYPEDEF_USHORT
 #undef TYPEDEF_UINT
 #undef TYPEDEF_ULONG
 #undef TYPEDEF_UINT16

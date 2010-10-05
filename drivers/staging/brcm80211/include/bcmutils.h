@@ -212,7 +212,7 @@ extern "C" {
 	extern char *BCMROMFN(bcmstrcat) (char *dest, const char *src);
 	extern char *BCMROMFN(bcmstrncat) (char *dest, const char *src,
 					   uint size);
-	extern ulong wchar2ascii(char *abuf, ushort *wbuf, ushort wbuflen,
+	extern ulong wchar2ascii(char *abuf, unsigned short *wbuf, unsigned short wbuflen,
 				 ulong abuflen);
 	char *bcmstrtok(char **string, const char *delimiters, char *tokdelim);
 	int bcmstricmp(const char *s1, const char *s2);

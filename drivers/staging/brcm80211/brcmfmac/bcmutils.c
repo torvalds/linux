@@ -807,16 +807,16 @@ int bcm_ether_atoe(char *p, struct ether_addr *ea)
  * parameter order is like strncpy, but returns count
  * of bytes copied. Minimum bytes copied is null char(1)/wchar(2)
  */
-ulong wchar2ascii(char *abuf, ushort * wbuf, ushort wbuflen, ulong abuflen)
+ulong wchar2ascii(char *abuf, unsigned short * wbuf, unsigned short wbuflen, ulong abuflen)
 {
 	ulong copyct = 1;
-	ushort i;
+	unsigned short i;
 
 	if (abuflen == 0)
 		return 0;
 
 	/* wbuflen is in bytes */
-	wbuflen /= sizeof(ushort);
+	wbuflen /= sizeof(unsigned short);
 
 	for (i = 0; i < wbuflen; ++i) {
 		if (--abuflen == 0)
