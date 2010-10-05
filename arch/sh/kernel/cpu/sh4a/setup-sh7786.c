@@ -629,33 +629,10 @@ static void __init sh7786_usb_setup(void)
 	}
 }
 
-static int __init sh7786_devices_setup(void)
-{
-	int ret;
-
-	sh7786_usb_setup();
-
-	ret = platform_add_devices(sh7786_early_devices,
-				   ARRAY_SIZE(sh7786_early_devices));
-	if (unlikely(ret != 0))
-		return ret;
-
-	return platform_add_devices(sh7786_devices,
-				    ARRAY_SIZE(sh7786_devices));
-}
-arch_initcall(sh7786_devices_setup);
-
-void __init plat_early_device_setup(void)
-{
-	early_platform_add_devices(sh7786_early_devices,
-				   ARRAY_SIZE(sh7786_early_devices));
-}
-
 enum {
 	UNUSED = 0,
 
 	/* interrupt sources */
-
 	IRL0_LLLL, IRL0_LLLH, IRL0_LLHL, IRL0_LLHH,
 	IRL0_LHLL, IRL0_LHLH, IRL0_LHHL, IRL0_LHHH,
 	IRL0_HLLL, IRL0_HLLH, IRL0_HLHL, IRL0_HLHH,
@@ -693,9 +670,12 @@ enum {
 	Thermal,
 	INTICI0, INTICI1, INTICI2, INTICI3,
 	INTICI4, INTICI5, INTICI6, INTICI7,
+
+	/* Muxed sub-events */
+	TXI1, BRI1, RXI1, ERI1,
 };
 
-static struct intc_vect vectors[] __initdata = {
+static struct intc_vect sh7786_vectors[] __initdata = {
 	INTC_VECT(WDT, 0x3e0),
 	INTC_VECT(TMU0_0, 0x400), INTC_VECT(TMU0_1, 0x420),
 	INTC_VECT(TMU0_2, 0x440), INTC_VECT(TMU0_3, 0x460),
@@ -761,7 +741,7 @@ static struct intc_vect vectors[] __initdata = {
 #define INT2DISTCR2	0xfe410908
 #define INT2DISTCR3	0xfe41090c
 
-static struct intc_mask_reg mask_registers[] __initdata = {
+static struct intc_mask_reg sh7786_mask_registers[] __initdata = {
 	{ CnINTMSK0, CnINTMSKCLR0, 32,
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 },
 	    INTC_SMP_BALANCING(INTDISTCR0) },
@@ -805,7 +785,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	    0, 0, 0, 0, 0, 0, 0, 0 }, INTC_SMP_BALANCING(INT2DISTCR3) },
 };
 
-static struct intc_prio_reg prio_registers[] __initdata = {
+static struct intc_prio_reg sh7786_prio_registers[] __initdata = {
 	{ 0xfe410010, 0, 32, 4, /* INTPRI */   { IRQ0, IRQ1, IRQ2, IRQ3,
 						 IRQ4, IRQ5, IRQ6, IRQ7 } },
 	{ 0xfe410800, 0, 32, 8, /* INT2PRI0 */ { 0, 0, 0, WDT } },
@@ -849,11 +829,27 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	    INTICI3, INTICI2, INTICI1, INTICI0 }, INTC_SMP(4, 2) },
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7786", vectors, NULL,
-			 mask_registers, prio_registers, NULL);
+static struct intc_subgroup sh7786_subgroups[] __initdata = {
+	{ 0xfe410c20, 32, SCIF1,
+	  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TXI1, BRI1, RXI1, ERI1 } },
+};
+
+static struct intc_desc sh7786_intc_desc __initdata = {
+	.name		= "sh7786",
+	.hw		= {
+		.vectors	= sh7786_vectors,
+		.nr_vectors	= ARRAY_SIZE(sh7786_vectors),
+		.mask_regs	= sh7786_mask_registers,
+		.nr_mask_regs	= ARRAY_SIZE(sh7786_mask_registers),
+		.subgroups	= sh7786_subgroups,
+		.nr_subgroups	= ARRAY_SIZE(sh7786_subgroups),
+		.prio_regs	= sh7786_prio_registers,
+		.nr_prio_regs	= ARRAY_SIZE(sh7786_prio_registers),
+	},
+};
 
 /* Support for external interrupt pins in IRQ mode */
-
 static struct intc_vect vectors_irq0123[] __initdata = {
 	INTC_VECT(IRQ0, 0x200), INTC_VECT(IRQ1, 0x240),
 	INTC_VECT(IRQ2, 0x280), INTC_VECT(IRQ3, 0x2c0),
@@ -864,23 +860,25 @@ static struct intc_vect vectors_irq4567[] __initdata = {
 	INTC_VECT(IRQ6, 0x380), INTC_VECT(IRQ7, 0x3c0),
 };
 
-static struct intc_sense_reg sense_registers[] __initdata = {
+static struct intc_sense_reg sh7786_sense_registers[] __initdata = {
 	{ 0xfe41001c, 32, 2, /* ICR1 */   { IRQ0, IRQ1, IRQ2, IRQ3,
 					    IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static struct intc_mask_reg ack_registers[] __initdata = {
+static struct intc_mask_reg sh7786_ack_registers[] __initdata = {
 	{ 0xfe410024, 0, 32, /* INTREQ */
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
 static DECLARE_INTC_DESC_ACK(intc_desc_irq0123, "sh7786-irq0123",
-			     vectors_irq0123, NULL, mask_registers,
-			     prio_registers, sense_registers, ack_registers);
+			     vectors_irq0123, NULL, sh7786_mask_registers,
+			     sh7786_prio_registers, sh7786_sense_registers,
+			     sh7786_ack_registers);
 
 static DECLARE_INTC_DESC_ACK(intc_desc_irq4567, "sh7786-irq4567",
-			     vectors_irq4567, NULL, mask_registers,
-			     prio_registers, sense_registers, ack_registers);
+			     vectors_irq4567, NULL, sh7786_mask_registers,
+			     sh7786_prio_registers, sh7786_sense_registers,
+			     sh7786_ack_registers);
 
 /* External interrupt pins in IRL mode */
 
@@ -907,10 +905,10 @@ static struct intc_vect vectors_irl4567[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_irl0123, "sh7786-irl0123", vectors_irl0123,
-			 NULL, mask_registers, NULL, NULL);
+			 NULL, sh7786_mask_registers, NULL, NULL);
 
 static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7786-irl4567", vectors_irl4567,
-			 NULL, mask_registers, NULL, NULL);
+			 NULL, sh7786_mask_registers, NULL, NULL);
 
 #define INTC_ICR0	0xfe410000
 #define INTC_INTMSK0	CnINTMSK0
@@ -931,7 +929,7 @@ void __init plat_irq_setup(void)
 	/* select IRL mode for IRL3-0 + IRL7-4 */
 	__raw_writel(__raw_readl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
 
-	register_intc_controller(&intc_desc);
+	register_intc_controller(&sh7786_intc_desc);
 }
 
 void __init plat_irq_setup_pins(int mode)
@@ -974,4 +972,40 @@ void __init plat_irq_setup_pins(int mode)
 
 void __init plat_mem_setup(void)
 {
+}
+
+static int __init sh7786_devices_setup(void)
+{
+	int ret, irq;
+
+	sh7786_usb_setup();
+
+	/*
+	 * De-mux SCIF1 IRQs if possible
+	 */
+	irq = intc_irq_lookup(sh7786_intc_desc.name, TXI1);
+	if (irq > 0) {
+		scif1_platform_data.irqs[SCIx_TXI_IRQ] = irq;
+		scif1_platform_data.irqs[SCIx_ERI_IRQ] =
+			intc_irq_lookup(sh7786_intc_desc.name, ERI1);
+		scif1_platform_data.irqs[SCIx_BRI_IRQ] =
+			intc_irq_lookup(sh7786_intc_desc.name, BRI1);
+		scif1_platform_data.irqs[SCIx_RXI_IRQ] =
+			intc_irq_lookup(sh7786_intc_desc.name, RXI1);
+	}
+
+	ret = platform_add_devices(sh7786_early_devices,
+				   ARRAY_SIZE(sh7786_early_devices));
+	if (unlikely(ret != 0))
+		return ret;
+
+	return platform_add_devices(sh7786_devices,
+				    ARRAY_SIZE(sh7786_devices));
+}
+arch_initcall(sh7786_devices_setup);
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7786_early_devices,
+				   ARRAY_SIZE(sh7786_early_devices));
 }
