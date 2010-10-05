@@ -19,7 +19,7 @@
 #include <wlc_phy_int.h>
 #include <wlc_phytbl_n.h>
 
-CONST uint32 frame_struct_rev0[] = {
+const uint32 frame_struct_rev0[] = {
 	0x08004a04,
 	0x00100000,
 	0x01000a05,
@@ -854,7 +854,7 @@ CONST uint32 frame_struct_rev0[] = {
 	0x00000000,
 };
 
-CONST u8 frame_lut_rev0[] = {
+const u8 frame_lut_rev0[] = {
 	0x02,
 	0x04,
 	0x14,
@@ -889,7 +889,7 @@ CONST u8 frame_lut_rev0[] = {
 	0x2a,
 };
 
-CONST uint32 tmap_tbl_rev0[] = {
+const uint32 tmap_tbl_rev0[] = {
 	0x8a88aa80,
 	0x8aaaaa8a,
 	0x8a8a8aa8,
@@ -1340,7 +1340,7 @@ CONST uint32 tmap_tbl_rev0[] = {
 	0x00000000,
 };
 
-CONST uint32 tdtrn_tbl_rev0[] = {
+const uint32 tdtrn_tbl_rev0[] = {
 	0x061c061c,
 	0x0050ee68,
 	0xf592fe36,
@@ -2047,7 +2047,7 @@ CONST uint32 tdtrn_tbl_rev0[] = {
 	0x00f006be,
 };
 
-CONST uint32 intlv_tbl_rev0[] = {
+const uint32 intlv_tbl_rev0[] = {
 	0x00802070,
 	0x0671188d,
 	0x0a60192c,
@@ -2057,7 +2057,7 @@ CONST uint32 intlv_tbl_rev0[] = {
 	0x00000070,
 };
 
-CONST uint16 pilot_tbl_rev0[] = {
+const uint16 pilot_tbl_rev0[] = {
 	0xff08,
 	0xff08,
 	0xff08,
@@ -2148,7 +2148,7 @@ CONST uint16 pilot_tbl_rev0[] = {
 	0xffff,
 };
 
-CONST uint32 pltlut_tbl_rev0[] = {
+const uint32 pltlut_tbl_rev0[] = {
 	0x76540123,
 	0x62407351,
 	0x76543201,
@@ -2157,7 +2157,7 @@ CONST uint32 pltlut_tbl_rev0[] = {
 	0x76430521,
 };
 
-CONST uint32 tdi_tbl20_ant0_rev0[] = {
+const uint32 tdi_tbl20_ant0_rev0[] = {
 	0x00091226,
 	0x000a1429,
 	0x000b56ad,
@@ -2215,7 +2215,7 @@ CONST uint32 tdi_tbl20_ant0_rev0[] = {
 	0x00000000,
 };
 
-CONST uint32 tdi_tbl20_ant1_rev0[] = {
+const uint32 tdi_tbl20_ant1_rev0[] = {
 	0x00014b26,
 	0x00028d29,
 	0x000393ad,
@@ -2273,7 +2273,7 @@ CONST uint32 tdi_tbl20_ant1_rev0[] = {
 	0x00000000,
 };
 
-CONST uint32 tdi_tbl40_ant0_rev0[] = {
+const uint32 tdi_tbl40_ant0_rev0[] = {
 	0x0011a346,
 	0x00136ccf,
 	0x0014f5d9,
@@ -2386,7 +2386,7 @@ CONST uint32 tdi_tbl40_ant0_rev0[] = {
 	0x00000000,
 };
 
-CONST uint32 tdi_tbl40_ant1_rev0[] = {
+const uint32 tdi_tbl40_ant1_rev0[] = {
 	0x001edb36,
 	0x000129ca,
 	0x0002b353,
@@ -2499,7 +2499,7 @@ CONST uint32 tdi_tbl40_ant1_rev0[] = {
 	0x00000000,
 };
 
-CONST uint16 bdi_tbl_rev0[] = {
+const uint16 bdi_tbl_rev0[] = {
 	0x0070,
 	0x0126,
 	0x012c,
@@ -2508,7 +2508,7 @@ CONST uint16 bdi_tbl_rev0[] = {
 	0x04d2,
 };
 
-CONST uint32 chanest_tbl_rev0[] = {
+const uint32 chanest_tbl_rev0[] = {
 	0x44444444,
 	0x44444444,
 	0x44444444,
@@ -2607,7 +2607,7 @@ CONST uint32 chanest_tbl_rev0[] = {
 	0x10101010,
 };
 
-CONST u8 mcs_tbl_rev0[] = {
+const u8 mcs_tbl_rev0[] = {
 	0x00,
 	0x08,
 	0x0a,
@@ -2738,7 +2738,7 @@ CONST u8 mcs_tbl_rev0[] = {
 	0x00,
 };
 
-CONST uint32 noise_var_tbl0_rev0[] = {
+const uint32 noise_var_tbl0_rev0[] = {
 	0x020c020c,
 	0x0000014d,
 	0x020c020c,
@@ -2997,7 +2997,7 @@ CONST uint32 noise_var_tbl0_rev0[] = {
 	0x0000014d,
 };
 
-CONST uint32 noise_var_tbl1_rev0[] = {
+const uint32 noise_var_tbl1_rev0[] = {
 	0x020c020c,
 	0x0000014d,
 	0x020c020c,
@@ -3256,7 +3256,7 @@ CONST uint32 noise_var_tbl1_rev0[] = {
 	0x0000014d,
 };
 
-CONST u8 est_pwr_lut_core0_rev0[] = {
+const u8 est_pwr_lut_core0_rev0[] = {
 	0x50,
 	0x4f,
 	0x4e,
@@ -3323,7 +3323,7 @@ CONST u8 est_pwr_lut_core0_rev0[] = {
 	0x11,
 };
 
-CONST u8 est_pwr_lut_core1_rev0[] = {
+const u8 est_pwr_lut_core1_rev0[] = {
 	0x50,
 	0x4f,
 	0x4e,
@@ -3390,7 +3390,7 @@ CONST u8 est_pwr_lut_core1_rev0[] = {
 	0x11,
 };
 
-CONST u8 adj_pwr_lut_core0_rev0[] = {
+const u8 adj_pwr_lut_core0_rev0[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -3521,7 +3521,7 @@ CONST u8 adj_pwr_lut_core0_rev0[] = {
 	0x00,
 };
 
-CONST u8 adj_pwr_lut_core1_rev0[] = {
+const u8 adj_pwr_lut_core1_rev0[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -3652,7 +3652,7 @@ CONST u8 adj_pwr_lut_core1_rev0[] = {
 	0x00,
 };
 
-CONST uint32 gainctrl_lut_core0_rev0[] = {
+const uint32 gainctrl_lut_core0_rev0[] = {
 	0x03cc2b44,
 	0x03cc2b42,
 	0x03cc2b40,
@@ -3783,7 +3783,7 @@ CONST uint32 gainctrl_lut_core0_rev0[] = {
 	0x00002b00,
 };
 
-CONST uint32 gainctrl_lut_core1_rev0[] = {
+const uint32 gainctrl_lut_core1_rev0[] = {
 	0x03cc2b44,
 	0x03cc2b42,
 	0x03cc2b40,
@@ -3914,7 +3914,7 @@ CONST uint32 gainctrl_lut_core1_rev0[] = {
 	0x00002b00,
 };
 
-CONST uint32 iq_lut_core0_rev0[] = {
+const uint32 iq_lut_core0_rev0[] = {
 	0x0000007f,
 	0x0000007f,
 	0x0000007f,
@@ -4045,7 +4045,7 @@ CONST uint32 iq_lut_core0_rev0[] = {
 	0x0000007f,
 };
 
-CONST uint32 iq_lut_core1_rev0[] = {
+const uint32 iq_lut_core1_rev0[] = {
 	0x0000007f,
 	0x0000007f,
 	0x0000007f,
@@ -4176,7 +4176,7 @@ CONST uint32 iq_lut_core1_rev0[] = {
 	0x0000007f,
 };
 
-CONST uint16 loft_lut_core0_rev0[] = {
+const uint16 loft_lut_core0_rev0[] = {
 	0x0000,
 	0x0101,
 	0x0002,
@@ -4307,7 +4307,7 @@ CONST uint16 loft_lut_core0_rev0[] = {
 	0x0103,
 };
 
-CONST uint16 loft_lut_core1_rev0[] = {
+const uint16 loft_lut_core1_rev0[] = {
 	0x0000,
 	0x0101,
 	0x0002,
@@ -4438,7 +4438,7 @@ CONST uint16 loft_lut_core1_rev0[] = {
 	0x0103,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev0_volatile[] = {
+const mimophytbl_info_t mimophytbl_info_rev0_volatile[] = {
 	{&bdi_tbl_rev0, sizeof(bdi_tbl_rev0) / sizeof(bdi_tbl_rev0[0]), 21, 0,
 	 16}
 	,
@@ -4486,7 +4486,7 @@ CONST mimophytbl_info_t mimophytbl_info_rev0_volatile[] = {
 	,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev0[] = {
+const mimophytbl_info_t mimophytbl_info_rev0[] = {
 	{&frame_struct_rev0,
 	 sizeof(frame_struct_rev0) / sizeof(frame_struct_rev0[0]), 10, 0, 32}
 	,
@@ -4536,13 +4536,13 @@ CONST mimophytbl_info_t mimophytbl_info_rev0[] = {
 	,
 };
 
-CONST uint32 mimophytbl_info_sz_rev0 =
+const uint32 mimophytbl_info_sz_rev0 =
     sizeof(mimophytbl_info_rev0) / sizeof(mimophytbl_info_rev0[0]);
-CONST uint32 mimophytbl_info_sz_rev0_volatile =
+const uint32 mimophytbl_info_sz_rev0_volatile =
     sizeof(mimophytbl_info_rev0_volatile) /
     sizeof(mimophytbl_info_rev0_volatile[0]);
 
-CONST uint16 ant_swctrl_tbl_rev3[] = {
+const uint16 ant_swctrl_tbl_rev3[] = {
 	0x0082,
 	0x0082,
 	0x0211,
@@ -4577,7 +4577,7 @@ CONST uint16 ant_swctrl_tbl_rev3[] = {
 	0x0000,
 };
 
-CONST uint16 ant_swctrl_tbl_rev3_1[] = {
+const uint16 ant_swctrl_tbl_rev3_1[] = {
 	0x0022,
 	0x0022,
 	0x0011,
@@ -4612,7 +4612,7 @@ CONST uint16 ant_swctrl_tbl_rev3_1[] = {
 	0x0000,
 };
 
-CONST uint16 ant_swctrl_tbl_rev3_2[] = {
+const uint16 ant_swctrl_tbl_rev3_2[] = {
 	0x0088,
 	0x0088,
 	0x0044,
@@ -4647,7 +4647,7 @@ CONST uint16 ant_swctrl_tbl_rev3_2[] = {
 	0x0000,
 };
 
-CONST uint16 ant_swctrl_tbl_rev3_3[] = {
+const uint16 ant_swctrl_tbl_rev3_3[] = {
 	0x022,
 	0x022,
 	0x011,
@@ -4682,7 +4682,7 @@ CONST uint16 ant_swctrl_tbl_rev3_3[] = {
 	0x3cc
 };
 
-CONST uint32 frame_struct_rev3[] = {
+const uint32 frame_struct_rev3[] = {
 	0x08004a04,
 	0x00100000,
 	0x01000a05,
@@ -5517,7 +5517,7 @@ CONST uint32 frame_struct_rev3[] = {
 	0x00000000,
 };
 
-CONST uint16 pilot_tbl_rev3[] = {
+const uint16 pilot_tbl_rev3[] = {
 	0xff08,
 	0xff08,
 	0xff08,
@@ -5608,7 +5608,7 @@ CONST uint16 pilot_tbl_rev3[] = {
 	0xffff,
 };
 
-CONST uint32 tmap_tbl_rev3[] = {
+const uint32 tmap_tbl_rev3[] = {
 	0x8a88aa80,
 	0x8aaaaa8a,
 	0x8a8a8aa8,
@@ -6059,7 +6059,7 @@ CONST uint32 tmap_tbl_rev3[] = {
 	0x00000000,
 };
 
-CONST uint32 intlv_tbl_rev3[] = {
+const uint32 intlv_tbl_rev3[] = {
 	0x00802070,
 	0x0671188d,
 	0x0a60192c,
@@ -6069,7 +6069,7 @@ CONST uint32 intlv_tbl_rev3[] = {
 	0x00000070,
 };
 
-CONST uint32 tdtrn_tbl_rev3[] = {
+const uint32 tdtrn_tbl_rev3[] = {
 	0x061c061c,
 	0x0050ee68,
 	0xf592fe36,
@@ -6776,7 +6776,7 @@ CONST uint32 tdtrn_tbl_rev3[] = {
 	0x00f006be,
 };
 
-CONST uint32 noise_var_tbl_rev3[] = {
+const uint32 noise_var_tbl_rev3[] = {
 	0x02110211,
 	0x0000014d,
 	0x02110211,
@@ -7035,7 +7035,7 @@ CONST uint32 noise_var_tbl_rev3[] = {
 	0x0000014d,
 };
 
-CONST uint16 mcs_tbl_rev3[] = {
+const uint16 mcs_tbl_rev3[] = {
 	0x0000,
 	0x0008,
 	0x000a,
@@ -7166,7 +7166,7 @@ CONST uint16 mcs_tbl_rev3[] = {
 	0x0007,
 };
 
-CONST uint32 tdi_tbl20_ant0_rev3[] = {
+const uint32 tdi_tbl20_ant0_rev3[] = {
 	0x00091226,
 	0x000a1429,
 	0x000b56ad,
@@ -7224,7 +7224,7 @@ CONST uint32 tdi_tbl20_ant0_rev3[] = {
 	0x00000000,
 };
 
-CONST uint32 tdi_tbl20_ant1_rev3[] = {
+const uint32 tdi_tbl20_ant1_rev3[] = {
 	0x00014b26,
 	0x00028d29,
 	0x000393ad,
@@ -7282,7 +7282,7 @@ CONST uint32 tdi_tbl20_ant1_rev3[] = {
 	0x00000000,
 };
 
-CONST uint32 tdi_tbl40_ant0_rev3[] = {
+const uint32 tdi_tbl40_ant0_rev3[] = {
 	0x0011a346,
 	0x00136ccf,
 	0x0014f5d9,
@@ -7395,7 +7395,7 @@ CONST uint32 tdi_tbl40_ant0_rev3[] = {
 	0x00000000,
 };
 
-CONST uint32 tdi_tbl40_ant1_rev3[] = {
+const uint32 tdi_tbl40_ant1_rev3[] = {
 	0x001edb36,
 	0x000129ca,
 	0x0002b353,
@@ -7508,7 +7508,7 @@ CONST uint32 tdi_tbl40_ant1_rev3[] = {
 	0x00000000,
 };
 
-CONST uint32 pltlut_tbl_rev3[] = {
+const uint32 pltlut_tbl_rev3[] = {
 	0x76540213,
 	0x62407351,
 	0x76543210,
@@ -7517,7 +7517,7 @@ CONST uint32 pltlut_tbl_rev3[] = {
 	0x76430521,
 };
 
-CONST uint32 chanest_tbl_rev3[] = {
+const uint32 chanest_tbl_rev3[] = {
 	0x44444444,
 	0x44444444,
 	0x44444444,
@@ -7616,7 +7616,7 @@ CONST uint32 chanest_tbl_rev3[] = {
 	0x10101010,
 };
 
-CONST u8 frame_lut_rev3[] = {
+const u8 frame_lut_rev3[] = {
 	0x02,
 	0x04,
 	0x14,
@@ -7651,7 +7651,7 @@ CONST u8 frame_lut_rev3[] = {
 	0x2a,
 };
 
-CONST u8 est_pwr_lut_core0_rev3[] = {
+const u8 est_pwr_lut_core0_rev3[] = {
 	0x55,
 	0x54,
 	0x54,
@@ -7718,7 +7718,7 @@ CONST u8 est_pwr_lut_core0_rev3[] = {
 	0xfd,
 };
 
-CONST u8 est_pwr_lut_core1_rev3[] = {
+const u8 est_pwr_lut_core1_rev3[] = {
 	0x55,
 	0x54,
 	0x54,
@@ -7785,7 +7785,7 @@ CONST u8 est_pwr_lut_core1_rev3[] = {
 	0xfd,
 };
 
-CONST u8 adj_pwr_lut_core0_rev3[] = {
+const u8 adj_pwr_lut_core0_rev3[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -7916,7 +7916,7 @@ CONST u8 adj_pwr_lut_core0_rev3[] = {
 	0x00,
 };
 
-CONST u8 adj_pwr_lut_core1_rev3[] = {
+const u8 adj_pwr_lut_core1_rev3[] = {
 	0x00,
 	0x00,
 	0x00,
@@ -8047,7 +8047,7 @@ CONST u8 adj_pwr_lut_core1_rev3[] = {
 	0x00,
 };
 
-CONST uint32 gainctrl_lut_core0_rev3[] = {
+const uint32 gainctrl_lut_core0_rev3[] = {
 	0x5bf70044,
 	0x5bf70042,
 	0x5bf70040,
@@ -8178,7 +8178,7 @@ CONST uint32 gainctrl_lut_core0_rev3[] = {
 	0x5b07001c,
 };
 
-CONST uint32 gainctrl_lut_core1_rev3[] = {
+const uint32 gainctrl_lut_core1_rev3[] = {
 	0x5bf70044,
 	0x5bf70042,
 	0x5bf70040,
@@ -8309,7 +8309,7 @@ CONST uint32 gainctrl_lut_core1_rev3[] = {
 	0x5b07001c,
 };
 
-CONST uint32 iq_lut_core0_rev3[] = {
+const uint32 iq_lut_core0_rev3[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -8440,7 +8440,7 @@ CONST uint32 iq_lut_core0_rev3[] = {
 	0x00000000,
 };
 
-CONST uint32 iq_lut_core1_rev3[] = {
+const uint32 iq_lut_core1_rev3[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -8571,7 +8571,7 @@ CONST uint32 iq_lut_core1_rev3[] = {
 	0x00000000,
 };
 
-CONST uint16 loft_lut_core0_rev3[] = {
+const uint16 loft_lut_core0_rev3[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -8702,7 +8702,7 @@ CONST uint16 loft_lut_core0_rev3[] = {
 	0x0000,
 };
 
-CONST uint16 loft_lut_core1_rev3[] = {
+const uint16 loft_lut_core1_rev3[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -8833,7 +8833,7 @@ CONST uint16 loft_lut_core1_rev3[] = {
 	0x0000,
 };
 
-CONST uint16 papd_comp_rfpwr_tbl_core0_rev3[] = {
+const uint16 papd_comp_rfpwr_tbl_core0_rev3[] = {
 	0x0036,
 	0x0036,
 	0x0036,
@@ -8964,7 +8964,7 @@ CONST uint16 papd_comp_rfpwr_tbl_core0_rev3[] = {
 	0x01d6,
 };
 
-CONST uint16 papd_comp_rfpwr_tbl_core1_rev3[] = {
+const uint16 papd_comp_rfpwr_tbl_core1_rev3[] = {
 	0x0036,
 	0x0036,
 	0x0036,
@@ -9095,7 +9095,7 @@ CONST uint16 papd_comp_rfpwr_tbl_core1_rev3[] = {
 	0x01d6,
 };
 
-CONST uint32 papd_comp_epsilon_tbl_core0_rev3[] = {
+const uint32 papd_comp_epsilon_tbl_core0_rev3[] = {
 	0x00000000,
 	0x00001fa0,
 	0x00019f78,
@@ -9162,7 +9162,7 @@ CONST uint32 papd_comp_epsilon_tbl_core0_rev3[] = {
 	0x03e38ffe,
 };
 
-CONST uint32 papd_cal_scalars_tbl_core0_rev3[] = {
+const uint32 papd_cal_scalars_tbl_core0_rev3[] = {
 	0x05af005a,
 	0x0571005e,
 	0x05040066,
@@ -9229,7 +9229,7 @@ CONST uint32 papd_cal_scalars_tbl_core0_rev3[] = {
 	0x002606a4,
 };
 
-CONST uint32 papd_comp_epsilon_tbl_core1_rev3[] = {
+const uint32 papd_comp_epsilon_tbl_core1_rev3[] = {
 	0x00000000,
 	0x00001fa0,
 	0x00019f78,
@@ -9296,7 +9296,7 @@ CONST uint32 papd_comp_epsilon_tbl_core1_rev3[] = {
 	0x03e38ffe,
 };
 
-CONST uint32 papd_cal_scalars_tbl_core1_rev3[] = {
+const uint32 papd_cal_scalars_tbl_core1_rev3[] = {
 	0x05af005a,
 	0x0571005e,
 	0x05040066,
@@ -9363,34 +9363,34 @@ CONST uint32 papd_cal_scalars_tbl_core1_rev3[] = {
 	0x002606a4,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev3_volatile[] = {
+const mimophytbl_info_t mimophytbl_info_rev3_volatile[] = {
 	{&ant_swctrl_tbl_rev3,
 	 sizeof(ant_swctrl_tbl_rev3) / sizeof(ant_swctrl_tbl_rev3[0]), 9, 0, 16}
 	,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev3_volatile1[] = {
+const mimophytbl_info_t mimophytbl_info_rev3_volatile1[] = {
 	{&ant_swctrl_tbl_rev3_1,
 	 sizeof(ant_swctrl_tbl_rev3_1) / sizeof(ant_swctrl_tbl_rev3_1[0]), 9, 0,
 	 16}
 	,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev3_volatile2[] = {
+const mimophytbl_info_t mimophytbl_info_rev3_volatile2[] = {
 	{&ant_swctrl_tbl_rev3_2,
 	 sizeof(ant_swctrl_tbl_rev3_2) / sizeof(ant_swctrl_tbl_rev3_2[0]), 9, 0,
 	 16}
 	,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev3_volatile3[] = {
+const mimophytbl_info_t mimophytbl_info_rev3_volatile3[] = {
 	{&ant_swctrl_tbl_rev3_3,
 	 sizeof(ant_swctrl_tbl_rev3_3) / sizeof(ant_swctrl_tbl_rev3_3[0]), 9, 0,
 	 16}
 	,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev3[] = {
+const mimophytbl_info_t mimophytbl_info_rev3[] = {
 	{&frame_struct_rev3,
 	 sizeof(frame_struct_rev3) / sizeof(frame_struct_rev3[0]), 10, 0, 32}
 	,
@@ -9476,22 +9476,22 @@ CONST mimophytbl_info_t mimophytbl_info_rev3[] = {
 	 16}
 };
 
-CONST uint32 mimophytbl_info_sz_rev3 =
+const uint32 mimophytbl_info_sz_rev3 =
     sizeof(mimophytbl_info_rev3) / sizeof(mimophytbl_info_rev3[0]);
-CONST uint32 mimophytbl_info_sz_rev3_volatile =
+const uint32 mimophytbl_info_sz_rev3_volatile =
     sizeof(mimophytbl_info_rev3_volatile) /
     sizeof(mimophytbl_info_rev3_volatile[0]);
-CONST uint32 mimophytbl_info_sz_rev3_volatile1 =
+const uint32 mimophytbl_info_sz_rev3_volatile1 =
     sizeof(mimophytbl_info_rev3_volatile1) /
     sizeof(mimophytbl_info_rev3_volatile1[0]);
-CONST uint32 mimophytbl_info_sz_rev3_volatile2 =
+const uint32 mimophytbl_info_sz_rev3_volatile2 =
     sizeof(mimophytbl_info_rev3_volatile2) /
     sizeof(mimophytbl_info_rev3_volatile2[0]);
-CONST uint32 mimophytbl_info_sz_rev3_volatile3 =
+const uint32 mimophytbl_info_sz_rev3_volatile3 =
     sizeof(mimophytbl_info_rev3_volatile3) /
     sizeof(mimophytbl_info_rev3_volatile3[0]);
 
-CONST uint32 tmap_tbl_rev7[] = {
+const uint32 tmap_tbl_rev7[] = {
 	0x8a88aa80,
 	0x8aaaaa8a,
 	0x8a8a8aa8,
@@ -9942,7 +9942,7 @@ CONST uint32 tmap_tbl_rev7[] = {
 	0x00000000,
 };
 
-CONST uint32 noise_var_tbl_rev7[] = {
+const uint32 noise_var_tbl_rev7[] = {
 	0x020c020c,
 	0x0000014d,
 	0x020c020c,
@@ -10201,7 +10201,7 @@ CONST uint32 noise_var_tbl_rev7[] = {
 	0x0000014d,
 };
 
-CONST uint32 papd_comp_epsilon_tbl_core0_rev7[] = {
+const uint32 papd_comp_epsilon_tbl_core0_rev7[] = {
 	0x00000000,
 	0x00000000,
 	0x00016023,
@@ -10268,7 +10268,7 @@ CONST uint32 papd_comp_epsilon_tbl_core0_rev7[] = {
 	0x0156cfff,
 };
 
-CONST uint32 papd_cal_scalars_tbl_core0_rev7[] = {
+const uint32 papd_cal_scalars_tbl_core0_rev7[] = {
 	0x0b5e002d,
 	0x0ae2002f,
 	0x0a3b0032,
@@ -10335,7 +10335,7 @@ CONST uint32 papd_cal_scalars_tbl_core0_rev7[] = {
 	0x004e068c,
 };
 
-CONST uint32 papd_comp_epsilon_tbl_core1_rev7[] = {
+const uint32 papd_comp_epsilon_tbl_core1_rev7[] = {
 	0x00000000,
 	0x00000000,
 	0x00016023,
@@ -10402,7 +10402,7 @@ CONST uint32 papd_comp_epsilon_tbl_core1_rev7[] = {
 	0x0156cfff,
 };
 
-CONST uint32 papd_cal_scalars_tbl_core1_rev7[] = {
+const uint32 papd_cal_scalars_tbl_core1_rev7[] = {
 	0x0b5e002d,
 	0x0ae2002f,
 	0x0a3b0032,
@@ -10469,7 +10469,7 @@ CONST uint32 papd_cal_scalars_tbl_core1_rev7[] = {
 	0x004e068c,
 };
 
-CONST mimophytbl_info_t mimophytbl_info_rev7[] = {
+const mimophytbl_info_t mimophytbl_info_rev7[] = {
 	{&frame_struct_rev3,
 	 sizeof(frame_struct_rev3) / sizeof(frame_struct_rev3[0]), 10, 0, 32}
 	,
@@ -10580,10 +10580,10 @@ CONST mimophytbl_info_t mimophytbl_info_rev7[] = {
 	,
 };
 
-CONST uint32 mimophytbl_info_sz_rev7 =
+const uint32 mimophytbl_info_sz_rev7 =
     sizeof(mimophytbl_info_rev7) / sizeof(mimophytbl_info_rev7[0]);
 
-CONST mimophytbl_info_t mimophytbl_info_rev16[] = {
+const mimophytbl_info_t mimophytbl_info_rev16[] = {
 	{&noise_var_tbl_rev7,
 	 sizeof(noise_var_tbl_rev7) / sizeof(noise_var_tbl_rev7[0]), 16, 0, 32}
 	,
@@ -10627,5 +10627,5 @@ CONST mimophytbl_info_t mimophytbl_info_rev16[] = {
 	,
 };
 
-CONST uint32 mimophytbl_info_sz_rev16 =
+const uint32 mimophytbl_info_sz_rev16 =
     sizeof(mimophytbl_info_rev16) / sizeof(mimophytbl_info_rev16[0]);

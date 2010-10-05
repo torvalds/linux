@@ -544,11 +544,11 @@ static const s8 lcnphy_gain_index_offset_for_rssi[] = {
 	-2
 };
 
-extern CONST u8 spur_tbl_rev0[];
-extern CONST uint32 dot11lcnphytbl_rx_gain_info_sz_rev1;
-extern CONST dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_rev1[];
-extern CONST dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_bt_epa;
-extern CONST dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_bt_epa_p250;
+extern const u8 spur_tbl_rev0[];
+extern const uint32 dot11lcnphytbl_rx_gain_info_sz_rev1;
+extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_rev1[];
+extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_bt_epa;
+extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_bt_epa_p250;
 
 typedef struct _chan_info_2064_lcnphy {
 	uint chan;
@@ -1049,7 +1049,7 @@ void wlc_lcnphy_read_table(phy_info_t *pi, phytbl_info_t *pti)
 
 static void
 wlc_lcnphy_common_read_table(phy_info_t *pi, uint32 tbl_id,
-			     CONST void *tbl_ptr, uint32 tbl_len,
+			     const void *tbl_ptr, uint32 tbl_len,
 			     uint32 tbl_width, uint32 tbl_offset)
 {
 	phytbl_info_t tab;
@@ -1063,7 +1063,7 @@ wlc_lcnphy_common_read_table(phy_info_t *pi, uint32 tbl_id,
 
 static void
 wlc_lcnphy_common_write_table(phy_info_t *pi, uint32 tbl_id,
-			      CONST void *tbl_ptr, uint32 tbl_len,
+			      const void *tbl_ptr, uint32 tbl_len,
 			      uint32 tbl_width, uint32 tbl_offset)
 {
 
@@ -1975,13 +1975,13 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	write_phy_reg(pi, 0x93d, 0xc0);
 
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
-				      (CONST void *)
+				      (const void *)
 				      lcnphy_iqcal_loft_gainladder,
 				      ARRAYSIZE(lcnphy_iqcal_loft_gainladder),
 				      16, 0);
 
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
-				      (CONST void *)lcnphy_iqcal_ir_gainladder,
+				      (const void *)lcnphy_iqcal_ir_gainladder,
 				      ARRAYSIZE(lcnphy_iqcal_ir_gainladder), 16,
 				      32);
 

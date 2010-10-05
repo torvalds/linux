@@ -56,7 +56,6 @@
 #define BCMOVERLAY1DATA(_sym)	_sym
 #define BCMOVERLAY1FN(_fn)	_fn
 #define BCMOVERLAYERRFN(_fn)	_fn
-#define CONST	const
 #ifdef mips
 #define BCMFASTPATH		__attribute__ ((__section__(".text.fastpath")))
 #else
