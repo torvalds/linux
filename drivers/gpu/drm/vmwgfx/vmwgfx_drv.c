@@ -751,14 +751,39 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 		 * Buffer contents is moved to swappable memory.
 		 */
 		ttm_bo_swapout_all(&dev_priv->bdev);
+
+		/**
+		 * Release 3d reference held by fbdev and potentially
+		 * stop fifo.
+		 */
+		dev_priv->suspended = true;
+		if (dev_priv->enable_fb)
+			vmw_3d_resource_dec(dev_priv);
+
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
+	case PM_POST_RESTORE:
+		if (!dev_priv->suspended) {
+			printk(KERN_WARNING
+			       "[%s] Driver is not suspended at resume"
+			       " point.\n", VMWGFX_DRIVER_NAME);
+
+			break;
+		}
+
+		/**
+		 * Reclaim 3d reference held by fbdev and potentially
+		 * start fifo.
+		 */
+		if (dev_priv->enable_fb)
+			vmw_3d_resource_inc(dev_priv);
+
+		dev_priv->suspended = false;
 		ttm_suspend_unlock(&vmaster->lock);
+
 		break;
 	case PM_RESTORE_PREPARE:
-		break;
-	case PM_POST_RESTORE:
 		break;
 	default:
 		break;
@@ -772,6 +797,15 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 
 int vmw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	if (dev_priv->num_3d_resources != 0) {
+		DRM_INFO("Can't suspend or hibernate "
+			 "while 3D resources are active.\n");
+		return -EBUSY;
+	}
+
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
