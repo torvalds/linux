@@ -1433,6 +1433,21 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 			q_vector->eitr = adapter->rx_eitr_param;
 
 		ixgbe_write_eitr(q_vector);
+		/* If Flow Director is enabled, set interrupt affinity */
+		if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+		    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+			/*
+			 * Allocate the affinity_hint cpumask, assign the mask
+			 * for this vector, and set our affinity_hint for
+			 * this irq.
+			 */
+			if (!alloc_cpumask_var(&q_vector->affinity_mask,
+			                       GFP_KERNEL))
+				return;
+			cpumask_set_cpu(v_idx, q_vector->affinity_mask);
+			irq_set_affinity_hint(adapter->msix_entries[v_idx].vector,
+			                      q_vector->affinity_mask);
+		}
 	}
 
 	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
@@ -3816,6 +3831,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	u32 rxctrl;
 	u32 txdctl;
 	int i, j;
+	int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
 	/* signal that we are down to the interrupt handler */
 	set_bit(__IXGBE_DOWN, &adapter->state);
@@ -3853,6 +3869,15 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	ixgbe_irq_disable(adapter);
 
 	ixgbe_napi_disable_all(adapter);
+
+	/* Cleanup the affinity_hint CPU mask memory and callback */
+	for (i = 0; i < num_q_vectors; i++) {
+		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
+		/* clear the affinity_mask in the IRQ descriptor */
+		irq_set_affinity_hint(adapter->msix_entries[i]. vector, NULL);
+		/* release the CPU mask memory */
+		free_cpumask_var(q_vector->affinity_mask);
+	}
 
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
 	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
