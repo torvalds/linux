@@ -508,7 +508,6 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 			}
 
 			REGWRITE_BUFFER_FLUSH(ah);
-			DISABLE_REGWRITE_BUFFER(ah);
 		}
 	}
 
@@ -840,7 +839,6 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	}
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ath9k_hw_4k_set_addac(struct ath_hw *ah,

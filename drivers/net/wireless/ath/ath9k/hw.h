@@ -70,19 +70,13 @@
 
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
-		if (AR_SREV_9271(_ah))					\
+		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
 			ath9k_hw_common(_ah)->ops->enable_write_buffer((_ah)); \
-	} while (0)
-
-#define DISABLE_REGWRITE_BUFFER(_ah)					\
-	do {								\
-		if (AR_SREV_9271(_ah))					\
-			ath9k_hw_common(_ah)->ops->disable_write_buffer((_ah)); \
 	} while (0)
 
 #define REGWRITE_BUFFER_FLUSH(_ah)					\
 	do {								\
-		if (AR_SREV_9271(_ah))					\
+		if (ath9k_hw_common(_ah)->ops->write_flush)		\
 			ath9k_hw_common(_ah)->ops->write_flush((_ah));	\
 	} while (0)
 

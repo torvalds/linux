@@ -102,14 +102,12 @@ enum ath_cipher {
  * @read: Register read
  * @write: Register write
  * @enable_write_buffer: Enable multiple register writes
- * @disable_write_buffer: Disable multiple register writes
- * @write_flush: Flush buffered register writes
+ * @write_flush: flush buffered register writes and disable buffering
  */
 struct ath_ops {
 	unsigned int (*read)(void *, u32 reg_offset);
 	void (*write)(void *, u32 val, u32 reg_offset);
 	void (*enable_write_buffer)(void *);
-	void (*disable_write_buffer)(void *);
 	void (*write_flush) (void *);
 };
 
