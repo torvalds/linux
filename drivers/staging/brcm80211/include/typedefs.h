@@ -70,10 +70,6 @@ typedef unsigned short uint16;
 typedef unsigned int uint32;
 #endif
 
-#ifndef TYPEDEF_UINT64
-typedef unsigned long long uint64;
-#endif
-
 #ifndef TYPEDEF_UINTPTR
 typedef unsigned int uintptr;
 #endif
@@ -89,11 +85,6 @@ typedef signed short int16;
 #ifndef TYPEDEF_INT32
 typedef signed int int32;
 #endif
-
-#ifndef TYPEDEF_INT64
-typedef signed long long int64;
-#endif
-
 
 /* define macro values */
 
@@ -126,12 +117,10 @@ typedef signed long long int64;
 #undef TYPEDEF_UINT8
 #undef TYPEDEF_UINT16
 #undef TYPEDEF_UINT32
-#undef TYPEDEF_UINT64
 #undef TYPEDEF_UINTPTR
 #undef TYPEDEF_INT8
 #undef TYPEDEF_INT16
 #undef TYPEDEF_INT32
-#undef TYPEDEF_INT64
 #undef TYPEDEF_FLOAT32
 #undef TYPEDEF_FLOAT64
 #undef TYPEDEF_FLOAT_T
