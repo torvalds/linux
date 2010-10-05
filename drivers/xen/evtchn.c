@@ -99,7 +99,7 @@ static inline void set_port_enabled(unsigned port, bool enabled)
 		port_user[port] &= ~1;
 }
 
-irqreturn_t evtchn_interrupt(int irq, void *data)
+static irqreturn_t evtchn_interrupt(int irq, void *data)
 {
 	unsigned int port = (unsigned long)data;
 	struct per_user_data *u;
