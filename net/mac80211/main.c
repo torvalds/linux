@@ -333,7 +333,7 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local, recalc_smps);
 
 	mutex_lock(&local->iflist_mtx);
-	ieee80211_recalc_smps(local, NULL);
+	ieee80211_recalc_smps(local);
 	mutex_unlock(&local->iflist_mtx);
 }
 

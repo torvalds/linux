@@ -913,7 +913,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&local->iflist_mtx);
 	ieee80211_recalc_ps(local, -1);
-	ieee80211_recalc_smps(local, sdata);
+	ieee80211_recalc_smps(local);
 	mutex_unlock(&local->iflist_mtx);
 
 	netif_tx_start_all_queues(sdata->dev);

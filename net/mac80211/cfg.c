@@ -1394,7 +1394,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	if (!sdata->u.mgd.associated ||
 	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT) {
 		mutex_lock(&sdata->local->iflist_mtx);
-		ieee80211_recalc_smps(sdata->local, sdata);
+		ieee80211_recalc_smps(sdata->local);
 		mutex_unlock(&sdata->local->iflist_mtx);
 		return 0;
 	}

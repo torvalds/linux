@@ -1297,8 +1297,7 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    enum ieee80211_band band);
 int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 			     enum ieee80211_smps_mode smps_mode);
-void ieee80211_recalc_smps(struct ieee80211_local *local,
-			   struct ieee80211_sub_if_data *forsdata);
+void ieee80211_recalc_smps(struct ieee80211_local *local);
 
 size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 			  const u8 *ids, int n_ids, size_t offset);

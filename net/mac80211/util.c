@@ -1297,15 +1297,11 @@ static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
 }
 
 /* must hold iflist_mtx */
-void ieee80211_recalc_smps(struct ieee80211_local *local,
-			   struct ieee80211_sub_if_data *forsdata)
+void ieee80211_recalc_smps(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
 	int count = 0;
-
-	if (forsdata)
-		lockdep_assert_held(&forsdata->u.mgd.mtx);
 
 	lockdep_assert_held(&local->iflist_mtx);
 
@@ -1324,18 +1320,8 @@ void ieee80211_recalc_smps(struct ieee80211_local *local,
 			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			goto set;
-		if (sdata != forsdata) {
-			/*
-			 * This nested is ok -- we are holding the iflist_mtx
-			 * so can't get here twice or so. But it's required
-			 * since normally we acquire it first and then the
-			 * iflist_mtx.
-			 */
-			mutex_lock_nested(&sdata->u.mgd.mtx, SINGLE_DEPTH_NESTING);
-			count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
-			mutex_unlock(&sdata->u.mgd.mtx);
-		} else
-			count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
+
+		count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
 
 		if (count > 1) {
 			smps_mode = IEEE80211_SMPS_OFF;
