@@ -421,7 +421,7 @@ static void fifo_set(struct fifo_buffer *fb, int value)
 	int i;
 
 	for (i = 0; i < fb->size; i++)
-		fb->values[i] += value;
+		fb->values[i] = value;
 }
 
 static int fifo_push(struct fifo_buffer *fb, int value)
