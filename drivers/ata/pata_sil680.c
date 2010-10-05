@@ -202,8 +202,8 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-void sil680_sff_exec_command(struct ata_port *ap,
-					const struct ata_taskfile *tf)
+static void sil680_sff_exec_command(struct ata_port *ap,
+				    const struct ata_taskfile *tf)
 {
 	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 	iowrite8(tf->command, ap->ioaddr.command_addr);
