@@ -105,10 +105,14 @@ out:
 static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file->f_path.dentry->d_inode);
-	/* FIXME: What stops hidraw_table going NULL */
-	struct hid_device *dev = hidraw_table[minor]->hid;
+	struct hid_device *dev;
 	__u8 *buf;
 	int ret = 0;
+
+	if (!hidraw_table[minor])
+		return -ENODEV;
+
+	dev = hidraw_table[minor]->hid;
 
 	if (!dev->hid_output_raw_report)
 		return -ENODEV;
