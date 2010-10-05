@@ -30,6 +30,7 @@
 #include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/ratelimit.h>
+#include <linux/acpi.h>
 
 #include <asm/delay.h>
 #include <asm/intrinsics.h>
@@ -650,6 +651,9 @@ ia64_native_register_ipi(void)
 void __init
 init_IRQ (void)
 {
+#ifdef CONFIG_ACPI
+	acpi_boot_init();
+#endif
 	ia64_register_ipi();
 	register_percpu_irq(IA64_SPURIOUS_INT_VECTOR, NULL);
 #ifdef CONFIG_SMP
