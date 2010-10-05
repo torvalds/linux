@@ -1867,15 +1867,17 @@ static void wait_for_xmitr(struct uart_8250_port *up, int bits)
 	unsigned int status, tmout = 10000;
 
 	/* Wait up to 10ms for the character(s) to be sent. */
-	do {
+	for (;;) {
 		status = serial_in(up, UART_LSR);
 
 		up->lsr_saved_flags |= status & LSR_SAVE_FLAGS;
 
+		if ((status & bits) == bits)
+			break;
 		if (--tmout == 0)
 			break;
 		udelay(1);
-	} while ((status & bits) != bits);
+	}
 
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {
