@@ -1534,23 +1534,18 @@ static unsigned short xs_next_srcport(struct sock_xprt *transport, unsigned shor
 		return xprt_max_resvport;
 	return --port;
 }
-
-static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
+static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 {
-	struct sockaddr_in myaddr = {
-		.sin_family = AF_INET,
-	};
-	struct sockaddr_in *sa;
+	struct sockaddr_storage myaddr;
 	int err, nloop = 0;
 	unsigned short port = xs_get_srcport(transport);
 	unsigned short last;
 
-	sa = (struct sockaddr_in *)&transport->srcaddr;
-	myaddr.sin_addr = sa->sin_addr;
+	memcpy(&myaddr, &transport->srcaddr, transport->xprt.addrlen);
 	do {
-		myaddr.sin_port = htons(port);
-		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
-						sizeof(myaddr));
+		rpc_set_port((struct sockaddr *)&myaddr, port);
+		err = kernel_bind(sock, (struct sockaddr *)&myaddr,
+				transport->xprt.addrlen);
 		if (port == 0)
 			break;
 		if (err == 0) {
@@ -1562,43 +1557,18 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       %s %pI4:%u: %s (%d)\n",
-			__func__, &myaddr.sin_addr,
-			port, err ? "failed" : "ok", err);
+
+	if (myaddr.ss_family == PF_INET)
+		dprintk("RPC:       %s %pI4:%u: %s (%d)\n", __func__,
+				&((struct sockaddr_in *)&myaddr)->sin_addr,
+				port, err ? "failed" : "ok", err);
+	else
+		dprintk("RPC:       %s %pI6:%u: %s (%d)\n", __func__,
+				&((struct sockaddr_in6 *)&myaddr)->sin6_addr,
+				port, err ? "failed" : "ok", err);
 	return err;
 }
 
-static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
-{
-	struct sockaddr_in6 myaddr = {
-		.sin6_family = AF_INET6,
-	};
-	struct sockaddr_in6 *sa;
-	int err, nloop = 0;
-	unsigned short port = xs_get_srcport(transport);
-	unsigned short last;
-
-	sa = (struct sockaddr_in6 *)&transport->srcaddr;
-	myaddr.sin6_addr = sa->sin6_addr;
-	do {
-		myaddr.sin6_port = htons(port);
-		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
-						sizeof(myaddr));
-		if (port == 0)
-			break;
-		if (err == 0) {
-			transport->srcport = port;
-			break;
-		}
-		last = port;
-		port = xs_next_srcport(transport, port);
-		if (port > last)
-			nloop++;
-	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       xs_bind6 %pI6:%u: %s (%d)\n",
-		&myaddr.sin6_addr, port, err ? "failed" : "ok", err);
-	return err;
-}
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key xs_key[2];
@@ -1643,9 +1613,10 @@ static struct socket *xs_create_sock4(struct rpc_xprt *xprt,
 				protocol, -err);
 		goto out;
 	}
+	transport->srcaddr.ss_family = AF_INET;
 	xs_reclassify_socket4(sock);
 
-	if (xs_bind4(transport, sock)) {
+	if (xs_bind(transport, sock)) {
 		sock_release(sock);
 		goto out;
 	}
@@ -1667,9 +1638,10 @@ static struct socket *xs_create_sock6(struct rpc_xprt *xprt,
 				protocol, -err);
 		goto out;
 	}
+	transport->srcaddr.ss_family = AF_INET6;
 	xs_reclassify_socket6(sock);
 
-	if (xs_bind6(transport, sock)) {
+	if (xs_bind(transport, sock)) {
 		sock_release(sock);
 		goto out;
 	}
