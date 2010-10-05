@@ -1484,7 +1484,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&sc->mutex);
 }
 
-void ath9k_enable_ps(struct ath_softc *sc)
+static void ath9k_enable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
@@ -1551,20 +1551,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_pm_lock, flags);
-		if (conf->flags & IEEE80211_CONF_PS) {
-			sc->ps_flags |= PS_ENABLED;
-			/*
-			 * At this point we know hardware has received an ACK
-			 * of a previously sent null data frame.
-			 */
-			if ((sc->ps_flags & PS_NULLFUNC_COMPLETED)) {
-				sc->ps_flags &= ~PS_NULLFUNC_COMPLETED;
-				ath9k_enable_ps(sc);
-                        }
-		} else {
+		if (conf->flags & IEEE80211_CONF_PS)
+			ath9k_enable_ps(sc);
+		else {
 			sc->ps_enabled = false;
-			sc->ps_flags &= ~(PS_ENABLED |
-					  PS_NULLFUNC_COMPLETED);
 			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
