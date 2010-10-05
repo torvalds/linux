@@ -358,6 +358,9 @@ static bool k8_nb_mce(u16 ec, u8 xec)
 
 	case 0x0:
 	case 0x8:
+		if (boot_cpu_data.x86 == 0x11)
+			return false;
+
 		pr_cont("DRAM ECC error detected on the NB.\n");
 		break;
 
@@ -487,7 +490,8 @@ EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
 
 static void amd_decode_fr_mce(struct mce *m)
 {
-	if (boot_cpu_data.x86 == 0xf)
+	if (boot_cpu_data.x86 == 0xf ||
+	    boot_cpu_data.x86 == 0x11)
 		goto wrong_fr_mce;
 
 	/* we have only one error signature so match all fields at once. */
@@ -601,8 +605,7 @@ static int __init mce_amd_init(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return 0;
 
-	if (boot_cpu_data.x86 != 0xf &&
-	    boot_cpu_data.x86 != 0x10 &&
+	if ((boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11) &&
 	    (boot_cpu_data.x86 != 0x14 || boot_cpu_data.x86_model > 0xf))
 		return 0;
 
@@ -619,6 +622,12 @@ static int __init mce_amd_init(void)
 
 	case 0x10:
 		fam_ops->dc_mce = f10h_dc_mce;
+		fam_ops->ic_mce = k8_ic_mce;
+		fam_ops->nb_mce = f10h_nb_mce;
+		break;
+
+	case 0x11:
+		fam_ops->dc_mce = k8_dc_mce;
 		fam_ops->ic_mce = k8_ic_mce;
 		fam_ops->nb_mce = f10h_nb_mce;
 		break;
