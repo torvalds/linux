@@ -927,19 +927,35 @@ static unsigned int __init intc_sense_data(struct intc_desc *desc,
 	return 0;
 }
 
-unsigned int intc_irq_lookup(const char *chipname, intc_enum enum_id)
+#define INTC_TAG_VIRQ_NEEDS_ALLOC	0
+
+int intc_irq_lookup(const char *chipname, intc_enum enum_id)
 {
 	struct intc_map_entry *ptr;
 	struct intc_desc_int *d;
-	unsigned int irq = 0;
+	int irq = -1;
 
 	list_for_each_entry(d, &intc_list, list) {
-		if (strcmp(d->chip.name, chipname) == 0) {
-			ptr = radix_tree_lookup(&d->tree, enum_id);
-			if (ptr) {
-				irq = ptr - intc_irq_xlate;
-				break;
-			}
+		int tagged;
+
+		if (strcmp(d->chip.name, chipname) != 0)
+			continue;
+
+		/*
+		 * Catch early lookups for subgroup VIRQs that have not
+		 * yet been allocated an IRQ. This already includes a
+		 * fast-path out if the tree is untagged, so there is no
+		 * need to explicitly test the root tree.
+		 */
+		tagged = radix_tree_tag_get(&d->tree, enum_id,
+					    INTC_TAG_VIRQ_NEEDS_ALLOC);
+		if (unlikely(tagged))
+			break;
+
+		ptr = radix_tree_lookup(&d->tree, enum_id);
+		if (ptr) {
+			irq = ptr - intc_irq_xlate;
+			break;
 		}
 	}
 
@@ -1002,8 +1018,6 @@ static unsigned long __init intc_subgroup_data(struct intc_subgroup *subgroup,
 	return _INTC_MK(fn, MODE_ENABLE_REG, intc_get_reg(d, subgroup->reg),
 			0, 1, (subgroup->reg_width - 1) - index);
 }
-
-#define INTC_TAG_VIRQ_NEEDS_ALLOC	0
 
 static void __init intc_subgroup_init_one(struct intc_desc *desc,
 					  struct intc_desc_int *d,
