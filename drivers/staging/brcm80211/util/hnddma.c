@@ -273,7 +273,7 @@ static bool dma64_rxstopped(dma_info_t *di);
 static bool dma64_rxenabled(dma_info_t *di);
 static bool _dma64_addrext(osl_t *osh, dma64regs_t *dma64regs);
 
-STATIC inline uint32 parity32(uint32 data);
+static inline uint32 parity32(uint32 data);
 
 const di_fcn_t dma64proc = {
 	(di_detach_t) _dma_detach,
@@ -612,7 +612,7 @@ dma32_dd_upd(dma_info_t *di, dma32dd_t *ddring, dmaaddr_t pa, uint outidx,
 }
 
 /* Check for odd number of 1's */
-STATIC inline uint32 parity32(uint32 data)
+static inline uint32 parity32(uint32 data)
 {
 	data ^= data >> 16;
 	data ^= data >> 8;

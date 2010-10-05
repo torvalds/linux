@@ -1049,7 +1049,7 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
  * ****************************************************************************
  */
 
-STATIC const u8 crc8_table[256] = {
+static const u8 crc8_table[256] = {
 	0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
 	0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
 	0x94, 0x63, 0x2D, 0xDA, 0xB1, 0x46, 0x08, 0xFF,
@@ -1170,7 +1170,7 @@ uint16 hndcrc16(u8 *pdata,	/* pointer to array of data to process */
 	return crc;
 }
 
-STATIC const uint32 crc32_table[256] = {
+static const uint32 crc32_table[256] = {
 	0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA,
 	0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
 	0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988,

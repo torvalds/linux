@@ -67,7 +67,6 @@
 #define BCMROMDAT_NAME(_data)	_data
 #define BCMROMFN(_fn)		_fn
 #define BCMROMFN_NAME(_fn)	_fn
-#define STATIC	static
 #define BCMROMDAT_ARYSIZ(data)	ARRAYSIZE(data)
 #define BCMROMDAT_SIZEOF(data)	sizeof(data)
 #define BCMROMDAT_APATCH(data)
