@@ -865,6 +865,21 @@ static void bond_mc_del(struct bonding *bond, void *addr)
 }
 
 
+static void __bond_resend_igmp_join_requests(struct net_device *dev)
+{
+	struct in_device *in_dev;
+	struct ip_mc_list *im;
+
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dev);
+	if (in_dev) {
+		for (im = in_dev->mc_list; im; im = im->next)
+			ip_mc_rejoin_group(im);
+	}
+
+	rcu_read_unlock();
+}
+
 /*
  * Retrieve the list of registered multicast addresses for the bonding
  * device and retransmit an IGMP JOIN request to the current active
@@ -872,17 +887,32 @@ static void bond_mc_del(struct bonding *bond, void *addr)
  */
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
-	struct in_device *in_dev;
-	struct ip_mc_list *im;
+	struct net_device *vlan_dev;
+	struct vlan_entry *vlan;
 
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(bond->dev);
-	if (in_dev) {
-		for (im = in_dev->mc_list; im; im = im->next)
-			ip_mc_rejoin_group(im);
+	read_lock(&bond->lock);
+
+	/* rejoin all groups on bond device */
+	__bond_resend_igmp_join_requests(bond->dev);
+
+	/* rejoin all groups on vlan devices */
+	if (bond->vlgrp) {
+		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+			vlan_dev = vlan_group_get_device(bond->vlgrp,
+							 vlan->vlan_id);
+			if (vlan_dev)
+				__bond_resend_igmp_join_requests(vlan_dev);
+		}
 	}
 
-	rcu_read_unlock();
+	read_unlock(&bond->lock);
+}
+
+void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
+{
+	struct bonding *bond = container_of(work, struct bonding,
+							mcast_work.work);
+	bond_resend_igmp_join_requests(bond);
 }
 
 /*
@@ -944,7 +974,6 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 
 		netdev_for_each_mc_addr(ha, bond->dev)
 			dev_mc_add(new_active->dev, ha->addr);
-		bond_resend_igmp_join_requests(bond);
 	}
 }
 
@@ -1180,9 +1209,11 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		}
 	}
 
-	/* resend IGMP joins since all were sent on curr_active_slave */
-	if (bond->params.mode == BOND_MODE_ROUNDROBIN) {
-		bond_resend_igmp_join_requests(bond);
+	/* resend IGMP joins since active slave has changed or
+	 * all were sent on curr_active_slave */
+	if ((USES_PRIMARY(bond->params.mode) && new_active) ||
+	    bond->params.mode == BOND_MODE_ROUNDROBIN) {
+		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
 	}
 }
 
@@ -3744,6 +3775,8 @@ static int bond_open(struct net_device *bond_dev)
 
 	bond->kill_timers = 0;
 
+	INIT_DELAYED_WORK(&bond->mcast_work, bond_resend_igmp_join_requests_delayed);
+
 	if (bond_is_lb(bond)) {
 		/* bond_alb_initialize must be called before the timer
 		 * is started.
@@ -3828,6 +3861,8 @@ static int bond_close(struct net_device *bond_dev)
 		break;
 	}
 
+	if (delayed_work_pending(&bond->mcast_work))
+		cancel_delayed_work(&bond->mcast_work);
 
 	if (bond_is_lb(bond)) {
 		/* Must be called only after all
@@ -4703,6 +4738,9 @@ static void bond_work_cancel_all(struct bonding *bond)
 	if (bond->params.mode == BOND_MODE_8023AD &&
 	    delayed_work_pending(&bond->ad_work))
 		cancel_delayed_work(&bond->ad_work);
+
+	if (delayed_work_pending(&bond->mcast_work))
+		cancel_delayed_work(&bond->mcast_work);
 }
 
 /*
