@@ -679,15 +679,12 @@ static int nfsd4_register_conn(struct nfsd4_conn *conn)
 	return register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
 }
 
-static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses, u32 dir)
 {
 	struct nfsd4_conn *conn;
-	u32 flags = NFS4_CDFC4_FORE;
 	int ret;
 
-	if (ses->se_flags & SESSION4_BACK_CHAN)
-		flags |= NFS4_CDFC4_BACK;
-	conn = alloc_conn(rqstp, flags);
+	conn = alloc_conn(rqstp, dir);
 	if (!conn)
 		return nfserr_jukebox;
 	nfsd4_hash_conn(conn, ses);
@@ -698,6 +695,17 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 	return nfs_ok;
 }
 
+static __be32 nfsd4_new_conn_from_crses(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+{
+	u32 dir = NFS4_CDFC4_FORE;
+
+	if (ses->se_flags & SESSION4_BACK_CHAN)
+		dir |= NFS4_CDFC4_BACK;
+
+	return nfsd4_new_conn(rqstp, ses, dir);
+}
+
+/* must be called under client_lock */
 static void nfsd4_del_conns(struct nfsd4_session *s)
 {
 	struct nfs4_client *clp = s->se_client;
@@ -776,7 +784,7 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 	spin_unlock(&clp->cl_lock);
 	spin_unlock(&client_lock);
 
-	status = nfsd4_new_conn(rqstp, new);
+	status = nfsd4_new_conn_from_crses(rqstp, new);
 	/* whoops: benny points out, status is ignored! (err, or bogus) */
 	if (status) {
 		free_session(&new->se_ref);
@@ -1595,6 +1603,45 @@ static bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
 	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
 
 	return argp->opcnt == resp->opcnt;
+}
+
+static __be32 nfsd4_map_bcts_dir(u32 *dir)
+{
+	switch (*dir) {
+	case NFS4_CDFC4_FORE:
+	case NFS4_CDFC4_BACK:
+		return nfs_ok;
+	case NFS4_CDFC4_FORE_OR_BOTH:
+	case NFS4_CDFC4_BACK_OR_BOTH:
+		*dir = NFS4_CDFC4_BOTH;
+		return nfs_ok;
+	};
+	return nfserr_inval;
+}
+
+__be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
+		     struct nfsd4_compound_state *cstate,
+		     struct nfsd4_bind_conn_to_session *bcts)
+{
+	__be32 status;
+
+	if (!nfsd4_last_compound_op(rqstp))
+		return nfserr_not_only_op;
+	spin_lock(&client_lock);
+	cstate->session = find_in_sessionid_hashtbl(&bcts->sessionid);
+	/* Sorta weird: we only need the refcnt'ing because new_conn acquires
+	 * client_lock iself: */
+	if (cstate->session) {
+		nfsd4_get_session(cstate->session);
+		atomic_inc(&cstate->session->se_client->cl_refcount);
+	}
+	spin_unlock(&client_lock);
+	if (!cstate->session)
+		return nfserr_badsession;
+
+	status = nfsd4_map_bcts_dir(&bcts->dir);
+	nfsd4_new_conn(rqstp, cstate->session, bcts->dir);
+	return nfs_ok;
 }
 
 static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)

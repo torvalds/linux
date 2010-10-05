@@ -421,6 +421,21 @@ nfsd4_decode_access(struct nfsd4_compoundargs *argp, struct nfsd4_access *access
 	DECODE_TAIL;
 }
 
+static __be32 nfsd4_decode_bind_conn_to_session(struct nfsd4_compoundargs *argp, struct nfsd4_bind_conn_to_session *bcts)
+{
+	DECODE_HEAD;
+	u32 dummy;
+
+	READ_BUF(NFS4_MAX_SESSIONID_LEN + 8);
+	COPYMEM(bcts->sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	READ32(bcts->dir);
+	/* XXX: Perhaps Tom Tucker could help us figure out how we
+	 * should be using ctsa_use_conn_in_rdma_mode: */
+	READ32(dummy);
+
+	DECODE_TAIL;
+}
+
 static __be32
 nfsd4_decode_close(struct nfsd4_compoundargs *argp, struct nfsd4_close *close)
 {
@@ -1359,7 +1374,7 @@ static nfsd4_dec nfsd41_dec_ops[] = {
 
 	/* new operations for NFSv4.1 */
 	[OP_BACKCHANNEL_CTL]	= (nfsd4_dec)nfsd4_decode_notsupp,
-	[OP_BIND_CONN_TO_SESSION]= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_BIND_CONN_TO_SESSION]= (nfsd4_dec)nfsd4_decode_bind_conn_to_session,
 	[OP_EXCHANGE_ID]	= (nfsd4_dec)nfsd4_decode_exchange_id,
 	[OP_CREATE_SESSION]	= (nfsd4_dec)nfsd4_decode_create_session,
 	[OP_DESTROY_SESSION]	= (nfsd4_dec)nfsd4_decode_destroy_session,
@@ -2383,6 +2398,21 @@ nfsd4_encode_access(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 	return nfserr;
 }
 
+static __be32 nfsd4_encode_bind_conn_to_session(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_bind_conn_to_session *bcts)
+{
+	__be32 *p;
+
+	if (!nfserr) {
+		RESERVE_SPACE(NFS4_MAX_SESSIONID_LEN + 8);
+		WRITEMEM(bcts->sessionid.data, NFS4_MAX_SESSIONID_LEN);
+		WRITE32(bcts->dir);
+		/* XXX: ? */
+		WRITE32(0);
+		ADJUST_ARGS();
+	}
+	return nfserr;
+}
+
 static __be32
 nfsd4_encode_close(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_close *close)
 {
@@ -3174,7 +3204,7 @@ static nfsd4_enc nfsd4_enc_ops[] = {
 
 	/* NFSv4.1 operations */
 	[OP_BACKCHANNEL_CTL]	= (nfsd4_enc)nfsd4_encode_noop,
-	[OP_BIND_CONN_TO_SESSION] = (nfsd4_enc)nfsd4_encode_noop,
+	[OP_BIND_CONN_TO_SESSION] = (nfsd4_enc)nfsd4_encode_bind_conn_to_session,
 	[OP_EXCHANGE_ID]	= (nfsd4_enc)nfsd4_encode_exchange_id,
 	[OP_CREATE_SESSION]	= (nfsd4_enc)nfsd4_encode_create_session,
 	[OP_DESTROY_SESSION]	= (nfsd4_enc)nfsd4_encode_destroy_session,

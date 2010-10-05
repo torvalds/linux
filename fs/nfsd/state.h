@@ -148,6 +148,11 @@ struct nfsd4_create_session {
 	u32				gid;
 };
 
+struct nfsd4_bind_conn_to_session {
+	struct nfs4_sessionid		sessionid;
+	u32				dir;
+};
+
 /* The single slot clientid cache structure */
 struct nfsd4_clid_slot {
 	u32				sl_seqid;

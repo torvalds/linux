@@ -1004,8 +1004,8 @@ static const char *nfsd4_op_name(unsigned opnum);
  * Also note, enforced elsewhere:
  *	- SEQUENCE other than as first op results in
  *	  NFS4ERR_SEQUENCE_POS. (Enforced in nfsd4_sequence().)
- *	- BIND_CONN_TO_SESSION must be the only op in its compound
- *	  (Will be enforced in nfsd4_bind_conn_to_session().)
+ *	- BIND_CONN_TO_SESSION must be the only op in its compound.
+ *	  (Enforced in nfsd4_bind_conn_to_session().)
  *	- DESTROY_SESSION must be the final operation in a compound, if
  *	  sessionid's in SEQUENCE and DESTROY_SESSION are the same.
  *	  (Enforced in nfsd4_destroy_session().)
@@ -1325,6 +1325,11 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_exchange_id,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_EXCHANGE_ID",
+	},
+	[OP_BIND_CONN_TO_SESSION] = {
+		.op_func = (nfsd4op_func)nfsd4_bind_conn_to_session,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_name = "OP_BIND_CONN_TO_SESSION",
 	},
 	[OP_CREATE_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_create_session,
