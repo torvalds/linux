@@ -267,7 +267,7 @@ struct wl_connect_info {
 /* firmware /nvram downloading controller */
 struct wl_fw_ctrl {
 	const struct firmware *fw_entry;
-	ulong status;
+	unsigned long status;
 	uint32 ptr;
 	s8 fw_name[WL_FILE_NAME_MAX];
 	s8 nvram_name[WL_FILE_NAME_MAX];
@@ -316,7 +316,7 @@ struct wl_priv {
 				 downloading */
 	struct wl_pmk_list *pmk_list;	/* wpa2 pmk list */
 	int32 event_pid;	/* pid of main event handler thread */
-	ulong status;		/* current dongle status */
+	unsigned long status;		/* current dongle status */
 	void *pub;
 	uint32 channel;		/* current channel */
 	bool iscan_on;		/* iscan on/off switch */

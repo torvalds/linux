@@ -157,7 +157,7 @@ int bcmsdh_probe(struct device *dev)
 {
 	osl_t *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
-	ulong regs = 0;
+	unsigned long regs = 0;
 	bcmsdh_info_t *sdh = NULL;
 #if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
 	struct platform_device *pdev;
@@ -354,7 +354,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	osl_t *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
-	ulong regs;
+	unsigned long regs;
 	bcmsdh_info_t *sdh = NULL;
 	int rc;
 

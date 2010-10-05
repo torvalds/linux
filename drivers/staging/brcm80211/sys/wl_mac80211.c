@@ -69,7 +69,7 @@ void wlc_mac_bcn_promisc_change(wlc_info_t *wlc, bool promisc);
 void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
 		       const struct ether_addr *addr);
 
-static void wl_timer(ulong data);
+static void wl_timer(unsigned long data);
 static void _wl_timer(wl_timer_t *t);
 
 #ifdef WLC_HIGH_ONLY
@@ -144,7 +144,7 @@ static void wl_release_fw(wl_info_t *wl);
 static int wl_start(struct sk_buff *skb, wl_info_t *wl);
 static int wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw,
 			struct sk_buff *skb);
-static void wl_dpc(ulong data);
+static void wl_dpc(unsigned long data);
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
@@ -764,14 +764,14 @@ static int wl_set_hint(wl_info_t *wl, char *abbrev)
  * a warning that this function is defined but not used if we declare
  * it as static.
  */
-static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
+static wl_info_t *wl_attach(uint16 vendor, uint16 device, unsigned long regs,
 			    uint bustype, void *btparam, uint irq)
 {
 	wl_info_t *wl;
 	osl_t *osh;
 	int unit, err;
 
-	ulong base_addr;
+	unsigned long base_addr;
 	struct ieee80211_hw *hw;
 	u8 perm[ETH_ALEN];
 
@@ -813,7 +813,7 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 	atomic_set(&wl->callbacks, 0);
 
 	/* setup the bottom half handler */
-	tasklet_init(&wl->tasklet, wl_dpc, (ulong) wl);
+	tasklet_init(&wl->tasklet, wl_dpc, (unsigned long) wl);
 
 #ifdef WLC_HIGH_ONLY
 	wl->rpc_th = bcm_rpc_tp_attach(osh, NULL);
@@ -987,7 +987,7 @@ static void *wl_dbus_probe_cb(void *arg, const char *desc, uint32 bustype,
 	wl_info_t *wl;
 	WL_ERROR(("%s:\n", __func__));
 
-	wl = wl_attach(BCM_DNGL_VID, BCM_DNGL_BDC_PID, (ulong) NULL, RPC_BUS,
+	wl = wl_attach(BCM_DNGL_VID, BCM_DNGL_BDC_PID, (unsigned long) NULL, RPC_BUS,
 		NULL, 0);
 	if (!wl) {
 		WL_ERROR(("%s: wl_attach failed\n", __func__));
@@ -1817,7 +1817,7 @@ irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 #endif				/* WLC_LOW */
 }
 
-static void BCMFASTPATH wl_dpc(ulong data)
+static void BCMFASTPATH wl_dpc(unsigned long data)
 {
 #ifdef WLC_LOW
 	wl_info_t *wl;
@@ -1882,7 +1882,7 @@ void wl_event(wl_info_t *wl, char *ifname, wlc_event_t *e)
 	}
 }
 
-static void wl_timer(ulong data)
+static void wl_timer(unsigned long data)
 {
 #ifndef WLC_HIGH_ONLY
 	_wl_timer((wl_timer_t *) data);
@@ -1927,7 +1927,7 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 	bzero(t, sizeof(wl_timer_t));
 
 	init_timer(&t->timer);
-	t->timer.data = (ulong) t;
+	t->timer.data = (unsigned long) t;
 	t->timer.function = wl_timer;
 	t->wl = wl;
 	t->fn = fn;
@@ -2069,7 +2069,7 @@ static void wl_rpc_down(void *wlh)
 static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 {
 
-	ulong flags;
+	unsigned long flags;
 
 	skb->prev = NULL;
 
@@ -2103,7 +2103,7 @@ static void wl_start_txqwork(struct wl_task *task)
 {
 	wl_info_t *wl = (wl_info_t *) task->context;
 	struct sk_buff *skb;
-	ulong flags;
+	unsigned long flags;
 	uint count = 0;
 
 	WL_TRACE(("wl%d: wl_start_txqwork\n", wl->pub->unit));
@@ -2183,7 +2183,7 @@ static void wl_rpcq_dispatch(struct wl_task *task)
 {
 	wl_info_t *wl = (wl_info_t *) task->context;
 	rpc_buf_t *buf;
-	ulong flags;
+	unsigned long flags;
 
 	/* First remove an entry then go for execution */
 	RPCQ_LOCK(wl, flags);
@@ -2212,7 +2212,7 @@ static void wl_rpcq_dispatch(struct wl_task *task)
 
 static void wl_rpcq_add(wl_info_t *wl, rpc_buf_t *buf)
 {
-	ulong flags;
+	unsigned long flags;
 
 	bcm_rpc_buf_next_set(wl->rpc_th, buf, NULL);
 

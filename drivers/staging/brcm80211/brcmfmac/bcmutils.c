@@ -530,9 +530,9 @@ const unsigned char bcm_ctype[] = {
 	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L	/* 240-255 */
 };
 
-ulong bcm_strtoul(char *cp, char **endp, uint base)
+unsigned long bcm_strtoul(char *cp, char **endp, uint base)
 {
-	ulong result, last_result = 0, value;
+	unsigned long result, last_result = 0, value;
 	bool minus;
 
 	minus = FALSE;
@@ -572,13 +572,13 @@ ulong bcm_strtoul(char *cp, char **endp, uint base)
 		result = result * base + value;
 		/* Detected overflow */
 		if (result < last_result && !minus)
-			return (ulong)-1;
+			return (unsigned long)-1;
 		last_result = result;
 		cp++;
 	}
 
 	if (minus)
-		result = (ulong) (-(long)result);
+		result = (unsigned long) (-(long)result);
 
 	if (endp)
 		*endp = (char *)cp;
@@ -807,9 +807,9 @@ int bcm_ether_atoe(char *p, struct ether_addr *ea)
  * parameter order is like strncpy, but returns count
  * of bytes copied. Minimum bytes copied is null char(1)/wchar(2)
  */
-ulong wchar2ascii(char *abuf, unsigned short * wbuf, unsigned short wbuflen, ulong abuflen)
+unsigned long wchar2ascii(char *abuf, unsigned short * wbuf, unsigned short wbuflen, unsigned long abuflen)
 {
-	ulong copyct = 1;
+	unsigned long copyct = 1;
 	unsigned short i;
 
 	if (abuflen == 0)
@@ -1246,7 +1246,7 @@ uint32 hndcrc32(u8 *pdata,	/* pointer to array of data to process */
 	u8 *pend;
 #ifdef __mips__
 	u8 tmp[4];
-	ulong *tptr = (ulong *) tmp;
+	unsigned long *tptr = (unsigned long *) tmp;
 
 	/* in case the beginning of the buffer isn't aligned */
 	pend = (u8 *) ((uint) (pdata + 3) & 0xfffffffc);
@@ -1257,8 +1257,8 @@ uint32 hndcrc32(u8 *pdata,	/* pointer to array of data to process */
 	/* handle bulk of data as 32-bit words */
 	pend = pdata + (nbytes & 0xfffffffc);
 	while (pdata < pend) {
-		*tptr = *(ulong *) pdata;
-		pdata += sizeof(ulong *);
+		*tptr = *(unsigned long *) pdata;
+		pdata += sizeof(unsigned long *);
 		CRC_INNER_LOOP(32, crc, tmp[0]);
 		CRC_INNER_LOOP(32, crc, tmp[1]);
 		CRC_INNER_LOOP(32, crc, tmp[2]);

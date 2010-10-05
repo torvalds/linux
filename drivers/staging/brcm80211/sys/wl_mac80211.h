@@ -81,7 +81,7 @@ struct wl_info {
 	struct tasklet_struct tasklet;	/* dpc tasklet */
 #ifdef BCMSDIO
 	bcmsdh_info_t *sdh;	/* pointer to sdio bus handler */
-	ulong flags;		/* current irq flags */
+	unsigned long flags;		/* current irq flags */
 #endif				/* BCMSDIO */
 	bool resched;		/* dpc needs to be and is rescheduled */
 #ifdef LINUXSTA_PS

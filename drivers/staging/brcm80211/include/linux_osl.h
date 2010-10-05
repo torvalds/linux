@@ -121,7 +121,7 @@ extern uint osl_malloc_failed(osl_t *osh);
 #define	DMA_CONSISTENT_ALIGN	PAGE_SIZE
 #define	DMA_ALLOC_CONSISTENT(osh, size, pap, dmah, alignbits) \
 	osl_dma_alloc_consistent((osh), (size), (pap))
-extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, ulong *pap);
+extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap);
 #else
 /* allocate/free shared (dma-able) consistent memory */
 #define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
@@ -129,11 +129,11 @@ extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, ulong *pap);
 	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
 extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align,
-				      uint *tot, ulong *pap);
+				      uint *tot, unsigned long *pap);
 #endif
 #define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
 	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
-extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, ulong pa);
+extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa);
 
 /* map/unmap direction */
 #define	DMA_TX	1		/* TX direction for DMA */

@@ -352,7 +352,7 @@ uint osl_dma_consistent_align(void)
 }
 
 void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
-			       uint *alloced, ulong *pap)
+			       uint *alloced, unsigned long *pap)
 {
 	uint16 align = (1 << align_bits);
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
@@ -364,7 +364,7 @@ void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
 	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
 }
 
-void osl_dma_free_consistent(osl_t *osh, void *va, uint size, ulong pa)
+void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa)
 {
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 

@@ -174,7 +174,7 @@ void sdioh_sdmmc_osfree(sdioh_info_t *sd)
 /* Interrupt enable/disable */
 SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
 {
-	ulong flags;
+	unsigned long flags;
 	struct sdos_info *sdos;
 
 	sd_trace(("%s: %s\n", __func__, enable ? "Enabling" : "Disabling"));

@@ -143,7 +143,7 @@ typedef struct iscan_info {
 	int iscan_ex_param_size;
 } iscan_info_t;
 iscan_info_t *g_iscan = NULL;
-static void wl_iw_timerfunc(ulong data);
+static void wl_iw_timerfunc(unsigned long data);
 static void wl_iw_set_event_mask(struct net_device *dev);
 static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action);
 #endif				/* defined(WL_IW_USE_ISCAN) */
@@ -1070,7 +1070,7 @@ static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action)
 	return err;
 }
 
-static void wl_iw_timerfunc(ulong data)
+static void wl_iw_timerfunc(unsigned long data)
 {
 	iscan_info_t *iscan = (iscan_info_t *) data;
 	if (iscan) {
@@ -3731,7 +3731,7 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 
 	iscan->timer_ms = 3000;
 	init_timer(&iscan->timer);
-	iscan->timer.data = (ulong) iscan;
+	iscan->timer.data = (unsigned long) iscan;
 	iscan->timer.function = wl_iw_timerfunc;
 
 	sema_init(&iscan->sysioc_sem, 0);

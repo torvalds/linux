@@ -105,33 +105,33 @@ typedef struct dhd_pub {
 
 	/* Dongle media info */
 	bool iswl;		/* Dongle-resident driver is wl */
-	ulong drv_version;	/* Version of dongle-resident driver */
+	unsigned long drv_version;	/* Version of dongle-resident driver */
 	struct ether_addr mac;	/* MAC address obtained from dongle */
 	dngl_stats_t dstats;	/* Stats for dongle-based data */
 
 	/* Additional stats for the bus level */
-	ulong tx_packets;	/* Data packets sent to dongle */
-	ulong tx_multicast;	/* Multicast data packets sent to dongle */
-	ulong tx_errors;	/* Errors in sending data to dongle */
-	ulong tx_ctlpkts;	/* Control packets sent to dongle */
-	ulong tx_ctlerrs;	/* Errors sending control frames to dongle */
-	ulong rx_packets;	/* Packets sent up the network interface */
-	ulong rx_multicast;	/* Multicast packets sent up the network
+	unsigned long tx_packets;	/* Data packets sent to dongle */
+	unsigned long tx_multicast;	/* Multicast data packets sent to dongle */
+	unsigned long tx_errors;	/* Errors in sending data to dongle */
+	unsigned long tx_ctlpkts;	/* Control packets sent to dongle */
+	unsigned long tx_ctlerrs;	/* Errors sending control frames to dongle */
+	unsigned long rx_packets;	/* Packets sent up the network interface */
+	unsigned long rx_multicast;	/* Multicast packets sent up the network
 					 interface */
-	ulong rx_errors;	/* Errors processing rx data packets */
-	ulong rx_ctlpkts;	/* Control frames processed from dongle */
-	ulong rx_ctlerrs;	/* Errors in processing rx control frames */
-	ulong rx_dropped;	/* Packets dropped locally (no memory) */
-	ulong rx_flushed;	/* Packets flushed due to
+	unsigned long rx_errors;	/* Errors processing rx data packets */
+	unsigned long rx_ctlpkts;	/* Control frames processed from dongle */
+	unsigned long rx_ctlerrs;	/* Errors in processing rx control frames */
+	unsigned long rx_dropped;	/* Packets dropped locally (no memory) */
+	unsigned long rx_flushed;	/* Packets flushed due to
 				unscheduled sendup thread */
-	ulong wd_dpc_sched;	/* Number of times dhd dpc scheduled by
+	unsigned long wd_dpc_sched;	/* Number of times dhd dpc scheduled by
 					 watchdog timer */
 
-	ulong rx_readahead_cnt;	/* Number of packets where header read-ahead
+	unsigned long rx_readahead_cnt;	/* Number of packets where header read-ahead
 					 was used. */
-	ulong tx_realloc;	/* Number of tx packets we had to realloc for
+	unsigned long tx_realloc;	/* Number of tx packets we had to realloc for
 					 headroom */
-	ulong fc_packets;	/* Number of flow control pkts recvd */
+	unsigned long fc_packets;	/* Number of flow control pkts recvd */
 
 	/* Last error return */
 	int bcmerror;

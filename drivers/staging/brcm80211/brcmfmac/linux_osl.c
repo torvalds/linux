@@ -482,14 +482,14 @@ uint osl_malloc_failed(osl_t *osh)
 	return osh->failed;
 }
 
-void *osl_dma_alloc_consistent(osl_t *osh, uint size, ulong *pap)
+void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap)
 {
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 
 	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
 }
 
-void osl_dma_free_consistent(osl_t *osh, void *va, uint size, ulong pa)
+void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa)
 {
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 
