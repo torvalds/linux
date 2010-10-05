@@ -1,7 +1,7 @@
 #
 # Makefile for the SuperH specific drivers.
 #
-obj-y	:= clk.o intc.o
+obj-y	:= clk.o intc/
 
 obj-$(CONFIG_SUPERHYWAY)	+= superhyway/
 obj-$(CONFIG_MAPLE)		+= maple/
