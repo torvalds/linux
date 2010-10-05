@@ -615,6 +615,22 @@ config INTEL_IPS
 	  functionality.  If in doubt, say Y here; it will only load on
 	  supported platforms.
 
+config IBM_RTL
+	tristate "Device driver to enable PRTL support"
+	depends on X86 && PCI
+	---help---
+	 Enable support for IBM Premium Real Time Mode (PRTM).
+	 This module will allow you the enter and exit PRTM in the BIOS via
+	 sysfs on platforms that support this feature.  System in PRTM will
+	 not receive CPU-generated SMIs for recoverable errors.  Use of this
+	 feature without proper support may void your hardware warranty.
+
+	 If the proper BIOS support is found the driver will load and create
+	 /sys/devices/system/ibm_rtl/.  The "state" variable will indicate
+	 whether or not the BIOS is in PRTM.
+	 state = 0 (BIOS SMIs on)
+	 state = 1 (BIOS SMIs off)
+
 config XO1_RFKILL
 	tristate "OLPC XO-1 software RF kill switch"
 	depends on OLPC
