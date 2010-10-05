@@ -35,10 +35,6 @@
 #include <dspbridge/drv.h>
 #include <dspbridge/sync.h>
 
-/* ------------------------------------ Hardware Abstraction Layer */
-#include <hw_defs.h>
-#include <hw_mmu.h>
-
 /*  ----------------------------------- Link Driver */
 #include <dspbridge/dspdefs.h>
 #include <dspbridge/dspchnl.h>

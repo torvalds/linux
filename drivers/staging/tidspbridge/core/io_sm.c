@@ -39,10 +39,6 @@
 #include <dspbridge/ntfy.h>
 #include <dspbridge/sync.h>
 
-/* Hardware Abstraction Layer */
-#include <hw_defs.h>
-#include <hw_mmu.h>
-
 /* Bridge Driver */
 #include <dspbridge/dspdeh.h>
 #include <dspbridge/dspio.h>

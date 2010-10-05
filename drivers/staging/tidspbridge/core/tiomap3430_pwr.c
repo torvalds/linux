@@ -31,10 +31,6 @@
 #include <dspbridge/dev.h>
 #include <dspbridge/iodefs.h>
 
-/* ------------------------------------ Hardware Abstraction Layer */
-#include <hw_defs.h>
-#include <hw_mmu.h>
-
 #include <dspbridge/pwr_sh.h>
 
 /*  ----------------------------------- Bridge Driver */

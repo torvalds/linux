@@ -26,7 +26,6 @@
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 #include <dspbridge/devdefs.h>
-#include <hw_defs.h>
 #include <dspbridge/dspioctl.h>	/* for bridge_ioctl_extproc defn */
 #include <dspbridge/sync.h>
 #include <dspbridge/clk.h>

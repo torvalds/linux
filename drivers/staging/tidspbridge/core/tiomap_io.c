@@ -143,7 +143,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 				    ul_shm_base_virt - ul_tlb_base_virt;
 				ul_shm_offset_virt +=
 				    PG_ALIGN_HIGH(ul_ext_end - ul_dyn_ext_base +
-						  1, HW_PAGE_SIZE64KB);
+						  1, PAGE_SIZE * 16);
 				dw_ext_prog_virt_mem -= ul_shm_offset_virt;
 				dw_ext_prog_virt_mem +=
 				    (ul_ext_base - ul_dyn_ext_base);
