@@ -1070,6 +1070,26 @@ struct conf_scan_settings {
 
 };
 
+/* these are number of channels on the band divided by two, rounded up */
+#define CONF_TX_PWR_COMPENSATION_LEN_2 7
+#define CONF_TX_PWR_COMPENSATION_LEN_5 18
+
+struct conf_rf_settings {
+	/*
+	 * Per channel power compensation for 2.4GHz
+	 *
+	 * Range: s8
+	 */
+	u8 tx_per_channel_power_compensation_2[CONF_TX_PWR_COMPENSATION_LEN_2];
+
+	/*
+	 * Per channel power compensation for 5GHz
+	 *
+	 * Range: s8
+	 */
+	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1079,6 +1099,7 @@ struct conf_drv_settings {
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;
 	struct conf_scan_settings scan;
+	struct conf_rf_settings rf;
 };
 
 #endif

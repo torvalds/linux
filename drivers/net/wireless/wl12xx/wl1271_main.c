@@ -242,6 +242,16 @@ static struct conf_drv_settings default_conf = {
 		.max_dwell_time_passive       = 60000,
 		.num_probe_reqs               = 2,
 	},
+	.rf = {
+		.tx_per_channel_power_compensation_2 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+		.tx_per_channel_power_compensation_5 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+	},
 };
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl);
@@ -354,6 +364,10 @@ static int wl1271_plt_init(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_cmd_radio_parms(wl);
+	if (ret < 0)
+		return ret;
+
+	ret = wl1271_cmd_ext_radio_parms(wl);
 	if (ret < 0)
 		return ret;
 

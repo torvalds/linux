@@ -33,6 +33,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		    size_t res_len);
 int wl1271_cmd_general_parms(struct wl1271 *wl);
 int wl1271_cmd_radio_parms(struct wl1271 *wl);
+int wl1271_cmd_ext_radio_parms(struct wl1271 *wl);
 int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type);
 int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
@@ -324,13 +325,14 @@ enum wl1271_channel_tune_bands {
 	WL1271_CHANNEL_TUNE_BAND_4_9
 };
 
-#define WL1271_PD_REFERENCE_POINT_BAND_B_G 0
+#define WL1271_PD_REFERENCE_POINT_BAND_B_G  0
 
-#define TEST_CMD_P2G_CAL                   0x02
-#define TEST_CMD_CHANNEL_TUNE              0x0d
-#define TEST_CMD_UPDATE_PD_REFERENCE_POINT 0x1d
-#define TEST_CMD_INI_FILE_RADIO_PARAM      0x19
-#define TEST_CMD_INI_FILE_GENERAL_PARAM    0x1E
+#define TEST_CMD_P2G_CAL                    0x02
+#define TEST_CMD_CHANNEL_TUNE               0x0d
+#define TEST_CMD_UPDATE_PD_REFERENCE_POINT  0x1d
+#define TEST_CMD_INI_FILE_RADIO_PARAM       0x19
+#define TEST_CMD_INI_FILE_GENERAL_PARAM     0x1E
+#define TEST_CMD_INI_FILE_RF_EXTENDED_PARAM 0x26
 
 struct wl1271_general_parms_cmd {
 	struct wl1271_cmd_header header;
@@ -361,6 +363,16 @@ struct wl1271_radio_parms_cmd {
 	u8 padding2;
 	struct wl1271_ini_fem_params_5 dyn_params_5;
 	u8 padding3[2];
+} __packed;
+
+struct wl1271_ext_radio_parms_cmd {
+	struct wl1271_cmd_header header;
+
+	struct wl1271_cmd_test_header test;
+
+	u8 tx_per_channel_power_compensation_2[CONF_TX_PWR_COMPENSATION_LEN_2];
+	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
+	u8 padding[3];
 } __packed;
 
 struct wl1271_cmd_cal_channel_tune {

@@ -222,6 +222,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	ret = wl1271_cmd_ext_radio_parms(wl);
+	if (ret < 0)
+		return ret;
+
 	/* Template settings */
 	ret = wl1271_init_templates_config(wl);
 	if (ret < 0)
