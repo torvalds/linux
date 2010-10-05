@@ -143,7 +143,7 @@
 #define DRBD_C_DELAY_TARGET_DEF 10
 
 #define DRBD_C_FILL_TARGET_MIN 0
-#define DRBD_C_FILL_TARGET_MAX 100000
+#define DRBD_C_FILL_TARGET_MAX (1<<20) /* 500MByte in sec */
 #define DRBD_C_FILL_TARGET_DEF 0 /* By default disabled -> controlled by delay_target */
 
 #define DRBD_C_MAX_RATE_MIN     250 /* kByte/sec */

@@ -348,7 +348,7 @@ struct p_header80 {
 struct p_header95 {
 	u16	  magic;	/* use DRBD_MAGIC_BIG here */
 	u16	  command;
-	u32	  length;
+	u32	  length;	/* Use only 24 bits of that. Ignore the highest 8 bit. */
 	u8	  payload[0];
 } __packed;
 
