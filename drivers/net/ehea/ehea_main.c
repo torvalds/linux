@@ -786,6 +786,7 @@ static void reset_sq_restart_flag(struct ehea_port *port)
 		struct ehea_port_res *pr = &port->port_res[i];
 		pr->sq_restart_flag = 0;
 	}
+	wake_up(&port->restart_wq);
 }
 
 static void check_sqs(struct ehea_port *port)
@@ -796,6 +797,7 @@ static void check_sqs(struct ehea_port *port)
 
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		struct ehea_port_res *pr = &port->port_res[i];
+		int ret;
 		k = 0;
 		swqe = ehea_get_swqe(pr->qp, &swqe_index);
 		memset(swqe, 0, SWQE_HEADER_SIZE);
@@ -809,13 +811,14 @@ static void check_sqs(struct ehea_port *port)
 
 		ehea_post_swqe(pr->qp, swqe);
 
-		while (pr->sq_restart_flag == 0) {
-			msleep(5);
-			if (++k == 100) {
-				ehea_error("HW/SW queues out of sync");
-				ehea_schedule_port_reset(pr->port);
-				return;
-			}
+		ret = wait_event_timeout(port->restart_wq,
+					 pr->sq_restart_flag == 0,
+					 msecs_to_jiffies(100));
+
+		if (!ret) {
+			ehea_error("HW/SW queues out of sync");
+			ehea_schedule_port_reset(pr->port);
+			return;
 		}
 	}
 }
@@ -2654,6 +2657,7 @@ static int ehea_open(struct net_device *dev)
 	}
 
 	init_waitqueue_head(&port->swqe_avail_wq);
+	init_waitqueue_head(&port->restart_wq);
 
 	mutex_unlock(&port->port_lock);
 

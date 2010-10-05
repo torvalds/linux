@@ -492,6 +492,7 @@ struct ehea_port {
 	u8 autoneg;
 	u8 num_def_qps;
 	wait_queue_head_t swqe_avail_wq;
+	wait_queue_head_t restart_wq;
 };
 
 struct port_res_cfg {
