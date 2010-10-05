@@ -615,4 +615,12 @@ config INTEL_IPS
 	  functionality.  If in doubt, say Y here; it will only load on
 	  supported platforms.
 
+config XO1_RFKILL
+	tristate "OLPC XO-1 software RF kill switch"
+	depends on OLPC
+	depends on RFKILL
+	---help---
+	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
+	  laptop.
+
 endif # X86_PLATFORM_DEVICES
