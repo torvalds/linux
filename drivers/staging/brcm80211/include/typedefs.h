@@ -109,31 +109,6 @@ typedef signed int int32;
 typedef signed long long int64;
 #endif
 
-/* define float32/64, float_t */
-
-#ifndef TYPEDEF_FLOAT32
-typedef float float32;
-#endif
-
-#ifndef TYPEDEF_FLOAT64
-typedef double float64;
-#endif
-
-/*
- * abstracted floating point type allows for compile time selection of
- * single or double precision arithmetic.  Compiling with -DFLOAT32
- * selects single precision; the default is double precision.
- */
-
-#ifndef TYPEDEF_FLOAT_T
-
-#if defined(FLOAT32)
-typedef float32 float_t;
-#else				/* default to double precision floating point */
-typedef float64 float_t;
-#endif
-
-#endif				/* TYPEDEF_FLOAT_T */
 
 /* define macro values */
 
