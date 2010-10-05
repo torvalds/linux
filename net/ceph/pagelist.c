@@ -37,6 +37,7 @@ static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
 	} else {
 		page = list_first_entry(&pl->free_list, struct page, lru);
 		list_del(&page->lru);
+		--pl->num_pages_free;
 	}
 	if (!page)
 		return -ENOMEM;
