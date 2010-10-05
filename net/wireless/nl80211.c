@@ -4418,6 +4418,8 @@ static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 		}
 		if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP &&
 		    !netif_running(dev)) {
+			cfg80211_unlock_rdev(rdev);
+			dev_put(dev);
 			if (rtnl)
 				rtnl_unlock();
 			return -ENETDOWN;
