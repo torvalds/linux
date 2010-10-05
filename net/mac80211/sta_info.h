@@ -79,6 +79,7 @@ enum ieee80211_sta_info_flags {
  * @dialog_token: dialog token for aggregation session
  * @state: session state (see above)
  * @stop_initiator: initiator of a session stop
+ * @tx_stop: TX DelBA frame when stopping
  *
  * This structure is protected by RCU and the per-station
  * spinlock. Assignments to the array holding it must hold
@@ -95,6 +96,7 @@ struct tid_ampdu_tx {
 	unsigned long state;
 	u8 dialog_token;
 	u8 stop_initiator;
+	bool tx_stop;
 };
 
 /**
