@@ -20,7 +20,6 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <linux/device.h>
 #include <linux/clk.h>
 
 #include <mach/mfp.h>
