@@ -28,7 +28,7 @@
 #include "bna.h"
 #include "cna.h"
 
-DEFINE_MUTEX(bnad_fwimg_mutex);
+static DEFINE_MUTEX(bnad_fwimg_mutex);
 
 /*
  * Module params
@@ -46,7 +46,7 @@ MODULE_PARM_DESC(bnad_ioc_auto_recover, "Enable / Disable auto recovery");
  */
 u32 bnad_rxqs_per_cq = 2;
 
-const u8 bnad_bcast_addr[] =  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static const u8 bnad_bcast_addr[] =  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 /*
  * Local MACROS
@@ -687,7 +687,7 @@ bnad_enable_mbox_irq(struct bnad *bnad)
  * Called with bnad->bna_lock held b'cos of
  * bnad->cfg_flags access.
  */
-void
+static void
 bnad_disable_mbox_irq(struct bnad *bnad)
 {
 	int irq = BNAD_GET_MBOX_IRQ(bnad);
@@ -956,11 +956,6 @@ bnad_cb_stats_get(struct bnad *bnad, enum bna_cb_status status,
 		  jiffies + msecs_to_jiffies(BNAD_STATS_TIMER_FREQ));
 }
 
-void
-bnad_cb_stats_clr(struct bnad *bnad)
-{
-}
-
 /* Resource allocation, free functions */
 
 static void
@@ -1111,8 +1106,10 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 	}
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
+
 	if (bnad->cfg_flags & BNAD_CF_MSIX)
 		disable_irq_nosync(irq);
+
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	return 0;
 }
@@ -2243,7 +2240,6 @@ static void
 bnad_enable_msix(struct bnad *bnad)
 {
 	int i, ret;
-	u32 tot_msix_num;
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -2256,18 +2252,16 @@ bnad_enable_msix(struct bnad *bnad)
 	if (bnad->msix_table)
 		return;
 
-	tot_msix_num = bnad->msix_num + bnad->msix_diag_num;
-
 	bnad->msix_table =
-		kcalloc(tot_msix_num, sizeof(struct msix_entry), GFP_KERNEL);
+		kcalloc(bnad->msix_num, sizeof(struct msix_entry), GFP_KERNEL);
 
 	if (!bnad->msix_table)
 		goto intx_mode;
 
-	for (i = 0; i < tot_msix_num; i++)
+	for (i = 0; i < bnad->msix_num; i++)
 		bnad->msix_table[i].entry = i;
 
-	ret = pci_enable_msix(bnad->pcidev, bnad->msix_table, tot_msix_num);
+	ret = pci_enable_msix(bnad->pcidev, bnad->msix_table, bnad->msix_num);
 	if (ret > 0) {
 		/* Not enough MSI-X vectors. */
 
@@ -2280,12 +2274,11 @@ bnad_enable_msix(struct bnad *bnad)
 			+ (bnad->num_rx
 			* bnad->num_rxp_per_rx) +
 			 BNAD_MAILBOX_MSIX_VECTORS;
-		tot_msix_num = bnad->msix_num + bnad->msix_diag_num;
 
 		/* Try once more with adjusted numbers */
 		/* If this fails, fall back to INTx */
 		ret = pci_enable_msix(bnad->pcidev, bnad->msix_table,
-				      tot_msix_num);
+				      bnad->msix_num);
 		if (ret)
 			goto intx_mode;
 
@@ -2298,7 +2291,6 @@ intx_mode:
 	kfree(bnad->msix_table);
 	bnad->msix_table = NULL;
 	bnad->msix_num = 0;
-	bnad->msix_diag_num = 0;
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bnad->cfg_flags &= ~BNAD_CF_MSIX;
 	bnad_q_num_init(bnad);
@@ -2946,7 +2938,6 @@ bnad_init(struct bnad *bnad,
 	bnad->msix_num = (bnad->num_tx * bnad->num_txq_per_tx) +
 		(bnad->num_rx * bnad->num_rxp_per_rx) +
 			 BNAD_MAILBOX_MSIX_VECTORS;
-	bnad->msix_diag_num = 2;	/* 1 for Tx, 1 for Rx */
 
 	bnad->txq_depth = BNAD_TXQ_DEPTH;
 	bnad->rxq_depth = BNAD_RXQ_DEPTH;
@@ -3217,7 +3208,7 @@ bnad_pci_remove(struct pci_dev *pdev)
 	free_netdev(netdev);
 }
 
-const struct pci_device_id bnad_pci_id_table[] = {
+static const struct pci_device_id bnad_pci_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_BROCADE,
 			PCI_DEVICE_ID_BROCADE_CT),

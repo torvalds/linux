@@ -65,7 +65,7 @@
 			(!list_empty(&((__ioc)->mbox_mod.cmd_q)) || \
 			readl((__ioc)->ioc_regs.hfn_mbox_cmd))
 
-bool bfa_nw_auto_recover = true;
+static bool bfa_nw_auto_recover = true;
 
 /*
  * forward declarations
@@ -1274,12 +1274,6 @@ void
 bfa_nw_ioc_auto_recover(bool auto_recover)
 {
 	bfa_nw_auto_recover = auto_recover;
-}
-
-bool
-bfa_nw_ioc_is_operational(struct bfa_ioc *ioc)
-{
-	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_op);
 }
 
 static void

@@ -248,7 +248,6 @@ struct bnad {
 	u64		mmio_len;
 
 	u32		msix_num;
-	u32		msix_diag_num;
 	struct msix_entry	*msix_table;
 
 	struct mutex		conf_mutex;

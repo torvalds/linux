@@ -34,7 +34,7 @@ static void bfa_ioc_ct_notify_hbfail(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc);
 static enum bfa_status bfa_ioc_ct_pll_init(void __iomem *rb, bool fcmode);
 
-struct bfa_ioc_hwif nw_hwif_ct;
+static struct bfa_ioc_hwif nw_hwif_ct;
 
 /**
  * Called from bfa_ioc_attach() to map asic specific calls.

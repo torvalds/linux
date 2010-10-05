@@ -1282,7 +1282,6 @@ struct bna_chip_regs_offset {
 	u32 fn_int_mask;
 	u32 msix_idx;
 };
-extern const struct bna_chip_regs_offset reg_offset[];
 
 struct bna_chip_regs {
 	void __iomem *page_addr;

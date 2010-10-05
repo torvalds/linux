@@ -271,7 +271,6 @@ void bfa_nw_ioc_enable(struct bfa_ioc *ioc);
 void bfa_nw_ioc_disable(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
-bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
 void bfa_nw_ioc_hbfail_register(struct bfa_ioc *ioc,

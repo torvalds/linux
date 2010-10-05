@@ -77,7 +77,7 @@ typedef void (*bfa_fsm_t)(void *fsm, int event);
 	((_fsm)->fsm == (bfa_fsm_t)(_state))
 
 static inline int
-bfa_sm_to_state(struct bfa_sm_table *smt, bfa_sm_t sm)
+bfa_sm_to_state(const struct bfa_sm_table *smt, bfa_sm_t sm)
 {
 	int	i = 0;
 

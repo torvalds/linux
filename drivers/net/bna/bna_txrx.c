@@ -195,7 +195,7 @@ bna_ib_mod_uninit(struct bna_ib_mod *ib_mod)
 	ib_mod->bna = NULL;
 }
 
-struct bna_ib *
+static struct bna_ib *
 bna_ib_get(struct bna_ib_mod *ib_mod,
 		enum bna_intr_type intr_type,
 		int vector)
@@ -240,7 +240,7 @@ bna_ib_get(struct bna_ib_mod *ib_mod,
 	return ib;
 }
 
-void
+static void
 bna_ib_put(struct bna_ib_mod *ib_mod, struct bna_ib *ib)
 {
 	bna_intr_put(ib_mod, ib->intr);
@@ -255,7 +255,7 @@ bna_ib_put(struct bna_ib_mod *ib_mod, struct bna_ib *ib)
 }
 
 /* Returns index offset - starting from 0 */
-int
+static int
 bna_ib_reserve_idx(struct bna_ib *ib)
 {
 	struct bna_ib_mod *ib_mod = &ib->bna->ib_mod;
@@ -309,7 +309,7 @@ bna_ib_reserve_idx(struct bna_ib *ib)
 	return idx;
 }
 
-void
+static void
 bna_ib_release_idx(struct bna_ib *ib, int idx)
 {
 	struct bna_ib_mod *ib_mod = &ib->bna->ib_mod;
@@ -356,7 +356,7 @@ bna_ib_release_idx(struct bna_ib *ib, int idx)
 	}
 }
 
-int
+static int
 bna_ib_config(struct bna_ib *ib, struct bna_ib_config *ib_config)
 {
 	if (ib->start_count)
@@ -374,7 +374,7 @@ bna_ib_config(struct bna_ib *ib, struct bna_ib_config *ib_config)
 	return 0;
 }
 
-void
+static void
 bna_ib_start(struct bna_ib *ib)
 {
 	struct bna_ib_blk_mem ib_cfg;
@@ -450,7 +450,7 @@ bna_ib_start(struct bna_ib *ib)
 	}
 }
 
-void
+static void
 bna_ib_stop(struct bna_ib *ib)
 {
 	u32 intx_mask;
@@ -468,7 +468,7 @@ bna_ib_stop(struct bna_ib *ib)
 	}
 }
 
-void
+static void
 bna_ib_fail(struct bna_ib *ib)
 {
 	ib->start_count = 0;
@@ -1394,7 +1394,7 @@ rxf_reset_packet_filter(struct bna_rxf *rxf)
 	rxf_reset_packet_filter_allmulti(rxf);
 }
 
-void
+static void
 bna_rxf_init(struct bna_rxf *rxf,
 		struct bna_rx *rx,
 		struct bna_rx_config *q_config)
@@ -1444,7 +1444,7 @@ bna_rxf_init(struct bna_rxf *rxf,
 	bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
 }
 
-void
+static void
 bna_rxf_uninit(struct bna_rxf *rxf)
 {
 	struct bna_mac *mac;
@@ -1476,7 +1476,18 @@ bna_rxf_uninit(struct bna_rxf *rxf)
 	rxf->rx = NULL;
 }
 
-void
+static void
+bna_rx_cb_rxf_started(struct bna_rx *rx, enum bna_cb_status status)
+{
+	bfa_fsm_send_event(rx, RX_E_RXF_STARTED);
+	if (rx->rxf.rxf_id < 32)
+		rx->bna->rx_mod.rxf_bmap[0] |= ((u32)1 << rx->rxf.rxf_id);
+	else
+		rx->bna->rx_mod.rxf_bmap[1] |= ((u32)
+				1 << (rx->rxf.rxf_id - 32));
+}
+
+static void
 bna_rxf_start(struct bna_rxf *rxf)
 {
 	rxf->start_cbfn = bna_rx_cb_rxf_started;
@@ -1485,7 +1496,18 @@ bna_rxf_start(struct bna_rxf *rxf)
 	bfa_fsm_send_event(rxf, RXF_E_START);
 }
 
-void
+static void
+bna_rx_cb_rxf_stopped(struct bna_rx *rx, enum bna_cb_status status)
+{
+	bfa_fsm_send_event(rx, RX_E_RXF_STOPPED);
+	if (rx->rxf.rxf_id < 32)
+		rx->bna->rx_mod.rxf_bmap[0] &= ~(u32)1 << rx->rxf.rxf_id;
+	else
+		rx->bna->rx_mod.rxf_bmap[1] &= ~(u32)
+				1 << (rx->rxf.rxf_id - 32);
+}
+
+static void
 bna_rxf_stop(struct bna_rxf *rxf)
 {
 	rxf->stop_cbfn = bna_rx_cb_rxf_stopped;
@@ -1493,7 +1515,7 @@ bna_rxf_stop(struct bna_rxf *rxf)
 	bfa_fsm_send_event(rxf, RXF_E_STOP);
 }
 
-void
+static void
 bna_rxf_fail(struct bna_rxf *rxf)
 {
 	rxf->rxf_flags |= BNA_RXF_FL_FAILED;
@@ -1573,43 +1595,6 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 	bfa_fsm_send_event(rxf, RXF_E_CAM_FLTR_MOD);
 
 	return BNA_CB_SUCCESS;
-}
-
-enum bna_cb_status
-bna_rx_mcast_del(struct bna_rx *rx, u8 *addr,
-		 void (*cbfn)(struct bnad *, struct bna_rx *,
-			      enum bna_cb_status))
-{
-	struct bna_rxf *rxf = &rx->rxf;
-	struct list_head *qe;
-	struct bna_mac *mac;
-
-	list_for_each(qe, &rxf->mcast_pending_add_q) {
-		mac = (struct bna_mac *)qe;
-		if (BNA_MAC_IS_EQUAL(mac->addr, addr)) {
-			list_del(qe);
-			bfa_q_qe_init(qe);
-			bna_mcam_mod_mac_put(&rxf->rx->bna->mcam_mod, mac);
-			if (cbfn)
-				(*cbfn)(rx->bna->bnad, rx, BNA_CB_SUCCESS);
-			return BNA_CB_SUCCESS;
-		}
-	}
-
-	list_for_each(qe, &rxf->mcast_active_q) {
-		mac = (struct bna_mac *)qe;
-		if (BNA_MAC_IS_EQUAL(mac->addr, addr)) {
-			list_del(qe);
-			bfa_q_qe_init(qe);
-			list_add_tail(qe, &rxf->mcast_pending_del_q);
-			rxf->cam_fltr_cbfn = cbfn;
-			rxf->cam_fltr_cbarg = rx->bna->bnad;
-			bfa_fsm_send_event(rxf, RXF_E_CAM_FLTR_MOD);
-			return BNA_CB_SUCCESS;
-		}
-	}
-
-	return BNA_CB_INVALID_MAC;
 }
 
 enum bna_cb_status
@@ -1862,7 +1847,7 @@ bfa_fsm_state_decl(bna_rx, rxf_stop_wait,
 bfa_fsm_state_decl(bna_rx, rxq_stop_wait,
 	struct bna_rx, enum bna_rx_event);
 
-static struct bfa_sm_table rx_sm_table[] = {
+static const struct bfa_sm_table rx_sm_table[] = {
 	{BFA_SM(bna_rx_sm_stopped), BNA_RX_STOPPED},
 	{BFA_SM(bna_rx_sm_rxf_start_wait), BNA_RX_RXF_START_WAIT},
 	{BFA_SM(bna_rx_sm_started), BNA_RX_STARTED},
@@ -2247,7 +2232,7 @@ bna_rit_create(struct bna_rx *rx)
 	}
 }
 
-int
+static int
 _rx_can_satisfy(struct bna_rx_mod *rx_mod,
 		struct bna_rx_config *rx_cfg)
 {
@@ -2272,7 +2257,7 @@ _rx_can_satisfy(struct bna_rx_mod *rx_mod,
 	return 1;
 }
 
-struct bna_rxq *
+static struct bna_rxq *
 _get_free_rxq(struct bna_rx_mod *rx_mod)
 {
 	struct bna_rxq *rxq = NULL;
@@ -2286,7 +2271,7 @@ _get_free_rxq(struct bna_rx_mod *rx_mod)
 	return rxq;
 }
 
-void
+static void
 _put_free_rxq(struct bna_rx_mod *rx_mod, struct bna_rxq *rxq)
 {
 	bfa_q_qe_init(&rxq->qe);
@@ -2294,7 +2279,7 @@ _put_free_rxq(struct bna_rx_mod *rx_mod, struct bna_rxq *rxq)
 	rx_mod->rxq_free_count++;
 }
 
-struct bna_rxp *
+static struct bna_rxp *
 _get_free_rxp(struct bna_rx_mod *rx_mod)
 {
 	struct list_head	*qe = NULL;
@@ -2310,7 +2295,7 @@ _get_free_rxp(struct bna_rx_mod *rx_mod)
 	return rxp;
 }
 
-void
+static void
 _put_free_rxp(struct bna_rx_mod *rx_mod, struct bna_rxp *rxp)
 {
 	bfa_q_qe_init(&rxp->qe);
@@ -2318,7 +2303,7 @@ _put_free_rxp(struct bna_rx_mod *rx_mod, struct bna_rxp *rxp)
 	rx_mod->rxp_free_count++;
 }
 
-struct bna_rx *
+static struct bna_rx *
 _get_free_rx(struct bna_rx_mod *rx_mod)
 {
 	struct list_head	*qe = NULL;
@@ -2336,7 +2321,7 @@ _get_free_rx(struct bna_rx_mod *rx_mod)
 	return rx;
 }
 
-void
+static void
 _put_free_rx(struct bna_rx_mod *rx_mod, struct bna_rx *rx)
 {
 	bfa_q_qe_init(&rx->qe);
@@ -2344,7 +2329,7 @@ _put_free_rx(struct bna_rx_mod *rx_mod, struct bna_rx *rx)
 	rx_mod->rx_free_count++;
 }
 
-void
+static void
 _rx_init(struct bna_rx *rx, struct bna *bna)
 {
 	rx->bna = bna;
@@ -2360,7 +2345,7 @@ _rx_init(struct bna_rx *rx, struct bna *bna)
 	rx->stop_cbarg = NULL;
 }
 
-void
+static void
 _rxp_add_rxqs(struct bna_rxp *rxp,
 		struct bna_rxq *q0,
 		struct bna_rxq *q1)
@@ -2383,7 +2368,7 @@ _rxp_add_rxqs(struct bna_rxp *rxp,
 	}
 }
 
-void
+static void
 _rxq_qpt_init(struct bna_rxq *rxq,
 		struct bna_rxp *rxp,
 		u32 page_count,
@@ -2412,7 +2397,7 @@ _rxq_qpt_init(struct bna_rxq *rxq,
 	}
 }
 
-void
+static void
 _rxp_cqpt_setup(struct bna_rxp *rxp,
 		u32 page_count,
 		u32 page_size,
@@ -2441,13 +2426,13 @@ _rxp_cqpt_setup(struct bna_rxp *rxp,
 	}
 }
 
-void
+static void
 _rx_add_rxp(struct bna_rx *rx, struct bna_rxp *rxp)
 {
 	list_add_tail(&rxp->qe, &rx->rxp_q);
 }
 
-void
+static void
 _init_rxmod_queues(struct bna_rx_mod *rx_mod)
 {
 	INIT_LIST_HEAD(&rx_mod->rx_free_q);
@@ -2460,7 +2445,7 @@ _init_rxmod_queues(struct bna_rx_mod *rx_mod)
 	rx_mod->rxp_free_count = 0;
 }
 
-void
+static void
 _rx_ctor(struct bna_rx *rx, int id)
 {
 	bfa_q_qe_init(&rx->qe);
@@ -2492,7 +2477,7 @@ bna_rx_cb_rxq_stopped_all(void *arg)
 	bfa_fsm_send_event(rx, RX_E_RXQ_STOPPED);
 }
 
-void
+static void
 bna_rx_mod_cb_rx_stopped(void *arg, struct bna_rx *rx,
 			 enum bna_cb_status status)
 {
@@ -2501,7 +2486,7 @@ bna_rx_mod_cb_rx_stopped(void *arg, struct bna_rx *rx,
 	bfa_wc_down(&rx_mod->rx_stop_wc);
 }
 
-void
+static void
 bna_rx_mod_cb_rx_stopped_all(void *arg)
 {
 	struct bna_rx_mod *rx_mod = (struct bna_rx_mod *)arg;
@@ -2511,7 +2496,7 @@ bna_rx_mod_cb_rx_stopped_all(void *arg)
 	rx_mod->stop_cbfn = NULL;
 }
 
-void
+static void
 bna_rx_start(struct bna_rx *rx)
 {
 	rx->rx_flags |= BNA_RX_F_PORT_ENABLED;
@@ -2519,7 +2504,7 @@ bna_rx_start(struct bna_rx *rx)
 		bfa_fsm_send_event(rx, RX_E_START);
 }
 
-void
+static void
 bna_rx_stop(struct bna_rx *rx)
 {
 	rx->rx_flags &= ~BNA_RX_F_PORT_ENABLED;
@@ -2532,35 +2517,13 @@ bna_rx_stop(struct bna_rx *rx)
 	}
 }
 
-void
+static void
 bna_rx_fail(struct bna_rx *rx)
 {
 	/* Indicate port is not enabled, and failed */
 	rx->rx_flags &= ~BNA_RX_F_PORT_ENABLED;
 	rx->rx_flags |= BNA_RX_F_PORT_FAILED;
 	bfa_fsm_send_event(rx, RX_E_FAIL);
-}
-
-void
-bna_rx_cb_rxf_started(struct bna_rx *rx, enum bna_cb_status status)
-{
-	bfa_fsm_send_event(rx, RX_E_RXF_STARTED);
-	if (rx->rxf.rxf_id < 32)
-		rx->bna->rx_mod.rxf_bmap[0] |= ((u32)1 << rx->rxf.rxf_id);
-	else
-		rx->bna->rx_mod.rxf_bmap[1] |= ((u32)
-				1 << (rx->rxf.rxf_id - 32));
-}
-
-void
-bna_rx_cb_rxf_stopped(struct bna_rx *rx, enum bna_cb_status status)
-{
-	bfa_fsm_send_event(rx, RX_E_RXF_STOPPED);
-	if (rx->rxf.rxf_id < 32)
-		rx->bna->rx_mod.rxf_bmap[0] &= ~(u32)1 << rx->rxf.rxf_id;
-	else
-		rx->bna->rx_mod.rxf_bmap[1] &= ~(u32)
-				1 << (rx->rxf.rxf_id - 32);
 }
 
 void
@@ -3731,7 +3694,7 @@ bna_tx_fail(struct bna_tx *tx)
 	bfa_fsm_send_event(tx, TX_E_FAIL);
 }
 
-void
+static void
 bna_tx_prio_changed(struct bna_tx *tx, int prio)
 {
 	struct bna_txq *txq;

@@ -19,8 +19,7 @@
 #include "bfi_ll.h"
 #include "bna_types.h"
 
-extern u32 bna_dim_vector[][BNA_BIAS_T_MAX];
-extern u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
+extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 
 /**
  *
@@ -344,9 +343,6 @@ do {									\
  * BNA
  */
 
-/* Internal APIs */
-void bna_adv_res_req(struct bna_res_info *res_info);
-
 /* APIs for BNAD */
 void bna_res_req(struct bna_res_info *res_info);
 void bna_init(struct bna *bna, struct bnad *bnad,
@@ -354,7 +350,6 @@ void bna_init(struct bna *bna, struct bnad *bnad,
 			struct bna_res_info *res_info);
 void bna_uninit(struct bna *bna);
 void bna_stats_get(struct bna *bna);
-void bna_stats_clr(struct bna *bna);
 void bna_get_perm_mac(struct bna *bna, u8 *mac);
 
 /* APIs for Rx */
@@ -376,18 +371,6 @@ void bna_rit_mod_seg_put(struct bna_rit_mod *rit_mod,
  * DEVICE
  */
 
-/* Interanl APIs */
-void bna_adv_device_init(struct bna_device *device, struct bna *bna,
-			struct bna_res_info *res_info);
-
-/* APIs for BNA */
-void bna_device_init(struct bna_device *device, struct bna *bna,
-		     struct bna_res_info *res_info);
-void bna_device_uninit(struct bna_device *device);
-void bna_device_cb_port_stopped(void *arg, enum bna_cb_status status);
-int bna_device_status_get(struct bna_device *device);
-int bna_device_state_get(struct bna_device *device);
-
 /* APIs for BNAD */
 void bna_device_enable(struct bna_device *device);
 void bna_device_disable(struct bna_device *device,
@@ -397,12 +380,6 @@ void bna_device_disable(struct bna_device *device,
  * MBOX
  */
 
-/* APIs for DEVICE */
-void bna_mbox_mod_init(struct bna_mbox_mod *mbox_mod, struct bna *bna);
-void bna_mbox_mod_uninit(struct bna_mbox_mod *mbox_mod);
-void bna_mbox_mod_start(struct bna_mbox_mod *mbox_mod);
-void bna_mbox_mod_stop(struct bna_mbox_mod *mbox_mod);
-
 /* APIs for PORT, TX, RX */
 void bna_mbox_handler(struct bna *bna, u32 intr_status);
 void bna_mbox_send(struct bna *bna, struct bna_mbox_qe *mbox_qe);
@@ -410,17 +387,6 @@ void bna_mbox_send(struct bna *bna, struct bna_mbox_qe *mbox_qe);
 /**
  * PORT
  */
-
-/* APIs for BNA */
-void bna_port_init(struct bna_port *port, struct bna *bna);
-void bna_port_uninit(struct bna_port *port);
-int bna_port_state_get(struct bna_port *port);
-int bna_llport_state_get(struct bna_llport *llport);
-
-/* APIs for DEVICE */
-void bna_port_start(struct bna_port *port);
-void bna_port_stop(struct bna_port *port);
-void bna_port_fail(struct bna_port *port);
 
 /* API for RX */
 int bna_port_mtu_get(struct bna_port *port);
@@ -437,23 +403,12 @@ void bna_port_pause_config(struct bna_port *port,
 void bna_port_mtu_set(struct bna_port *port, int mtu,
 		      void (*cbfn)(struct bnad *, enum bna_cb_status));
 void bna_port_mac_get(struct bna_port *port, mac_t *mac);
-void bna_port_type_set(struct bna_port *port, enum bna_port_type type);
-void bna_port_linkcbfn_set(struct bna_port *port,
-			   void (*linkcbfn)(struct bnad *,
-					    enum bna_link_status));
-void bna_port_admin_up(struct bna_port *port);
-void bna_port_admin_down(struct bna_port *port);
 
 /* Callbacks for TX, RX */
 void bna_port_cb_tx_stopped(struct bna_port *port,
 			    enum bna_cb_status status);
 void bna_port_cb_rx_stopped(struct bna_port *port,
 			    enum bna_cb_status status);
-
-/* Callbacks for MBOX */
-void bna_port_cb_link_up(struct bna_port *port, struct bfi_ll_aen *aen,
-			 int status);
-void bna_port_cb_link_down(struct bna_port *port, int status);
 
 /**
  * IB
@@ -464,24 +419,9 @@ void bna_ib_mod_init(struct bna_ib_mod *ib_mod, struct bna *bna,
 		     struct bna_res_info *res_info);
 void bna_ib_mod_uninit(struct bna_ib_mod *ib_mod);
 
-/* APIs for TX, RX */
-struct bna_ib *bna_ib_get(struct bna_ib_mod *ib_mod,
-			    enum bna_intr_type intr_type, int vector);
-void bna_ib_put(struct bna_ib_mod *ib_mod, struct bna_ib *ib);
-int bna_ib_reserve_idx(struct bna_ib *ib);
-void bna_ib_release_idx(struct bna_ib *ib, int idx);
-int bna_ib_config(struct bna_ib *ib, struct bna_ib_config *ib_config);
-void bna_ib_start(struct bna_ib *ib);
-void bna_ib_stop(struct bna_ib *ib);
-void bna_ib_fail(struct bna_ib *ib);
-void bna_ib_coalescing_timeo_set(struct bna_ib *ib, u8 coalescing_timeo);
-
 /**
  * TX MODULE AND TX
  */
-
-/* Internal APIs */
-void bna_tx_prio_changed(struct bna_tx *tx, int prio);
 
 /* APIs for BNA */
 void bna_tx_mod_init(struct bna_tx_mod *tx_mod, struct bna *bna,
@@ -508,10 +448,6 @@ void bna_tx_enable(struct bna_tx *tx);
 void bna_tx_disable(struct bna_tx *tx, enum bna_cleanup_type type,
 		    void (*cbfn)(void *, struct bna_tx *,
 				 enum bna_cb_status));
-enum bna_cb_status
-bna_tx_prio_set(struct bna_tx *tx, int prio,
-		void (*cbfn)(struct bnad *, struct bna_tx *,
-			     enum bna_cb_status));
 void bna_tx_coalescing_timeo_set(struct bna_tx *tx, int coalescing_timeo);
 
 /**
@@ -564,18 +500,10 @@ void bna_rx_disable(struct bna_rx *rx, enum bna_cleanup_type type,
 		    void (*cbfn)(void *, struct bna_rx *,
 				 enum bna_cb_status));
 void bna_rx_coalescing_timeo_set(struct bna_rx *rx, int coalescing_timeo);
-void bna_rx_dim_reconfig(struct bna *bna, u32 vector[][BNA_BIAS_T_MAX]);
+void bna_rx_dim_reconfig(struct bna *bna, const u32 vector[][BNA_BIAS_T_MAX]);
 void bna_rx_dim_update(struct bna_ccb *ccb);
 enum bna_cb_status
 bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *,
-			      enum bna_cb_status));
-enum bna_cb_status
-bna_rx_ucast_add(struct bna_rx *rx, u8* ucmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *,
-			      enum bna_cb_status));
-enum bna_cb_status
-bna_rx_ucast_del(struct bna_rx *rx, u8 *ucmac,
 		 void (*cbfn)(struct bnad *, struct bna_rx *,
 			      enum bna_cb_status));
 enum bna_cb_status
@@ -583,16 +511,9 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *mcmac,
 		 void (*cbfn)(struct bnad *, struct bna_rx *,
 			      enum bna_cb_status));
 enum bna_cb_status
-bna_rx_mcast_del(struct bna_rx *rx, u8 *mcmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *,
-			      enum bna_cb_status));
-enum bna_cb_status
 bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mcmac,
 		     void (*cbfn)(struct bnad *, struct bna_rx *,
 				  enum bna_cb_status));
-void bna_rx_mcast_delall(struct bna_rx *rx,
-			 void (*cbfn)(struct bnad *, struct bna_rx *,
-				      enum bna_cb_status));
 enum bna_cb_status
 bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 		enum bna_rxmode bitmask,
@@ -601,36 +522,12 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 void bna_rx_vlan_add(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlan_del(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlanfilter_enable(struct bna_rx *rx);
-void bna_rx_vlanfilter_disable(struct bna_rx *rx);
-void bna_rx_rss_enable(struct bna_rx *rx);
-void bna_rx_rss_disable(struct bna_rx *rx);
-void bna_rx_rss_reconfig(struct bna_rx *rx, struct bna_rxf_rss *rss_config);
-void bna_rx_rss_rit_set(struct bna_rx *rx, unsigned int *vectors,
-			int nvectors);
 void bna_rx_hds_enable(struct bna_rx *rx, struct bna_rxf_hds *hds_config,
 		       void (*cbfn)(struct bnad *, struct bna_rx *,
 				    enum bna_cb_status));
 void bna_rx_hds_disable(struct bna_rx *rx,
 			void (*cbfn)(struct bnad *, struct bna_rx *,
 				     enum bna_cb_status));
-void bna_rx_receive_pause(struct bna_rx *rx,
-			  void (*cbfn)(struct bnad *, struct bna_rx *,
-				       enum bna_cb_status));
-void bna_rx_receive_resume(struct bna_rx *rx,
-			   void (*cbfn)(struct bnad *, struct bna_rx *,
-					enum bna_cb_status));
-
-/* RxF APIs for RX */
-void bna_rxf_start(struct bna_rxf *rxf);
-void bna_rxf_stop(struct bna_rxf *rxf);
-void bna_rxf_fail(struct bna_rxf *rxf);
-void bna_rxf_init(struct bna_rxf *rxf, struct bna_rx *rx,
-		  struct bna_rx_config *q_config);
-void bna_rxf_uninit(struct bna_rxf *rxf);
-
-/* Callback from RXF to RX */
-void bna_rx_cb_rxf_stopped(struct bna_rx *rx, enum bna_cb_status);
-void bna_rx_cb_rxf_started(struct bna_rx *rx, enum bna_cb_status);
 
 /**
  * BNAD
@@ -639,7 +536,6 @@ void bna_rx_cb_rxf_started(struct bna_rx *rx, enum bna_cb_status);
 /* Callbacks for BNA */
 void bnad_cb_stats_get(struct bnad *bnad, enum bna_cb_status status,
 		       struct bna_stats *stats);
-void bnad_cb_stats_clr(struct bnad *bnad);
 
 /* Callbacks for DEVICE */
 void bnad_cb_device_enabled(struct bnad *bnad, enum bna_cb_status status);
