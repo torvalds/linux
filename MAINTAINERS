@@ -2604,10 +2604,10 @@ F:	drivers/net/greth*
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 M:	Frank Seidel <frank@f-seidel.de>
-L:	lm-sensors@lm-sensors.org
+L:	platform-driver-x86@vger.kernel.org
 W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 S:	Maintained
-F:	drivers/hwmon/hdaps.c
+F:	drivers/platform/x86/hdaps.c
 
 HWPOISON MEMORY FAILURE HANDLING
 M:	Andi Kleen <andi@firstfloor.org>

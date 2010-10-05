@@ -1,5 +1,5 @@
 /*
- * drivers/hwmon/hdaps.c - driver for IBM's Hard Drive Active Protection System
+ * hdaps.c - driver for IBM's Hard Drive Active Protection System
  *
  * Copyright (C) 2005 Robert Love <rml@novell.com>
  * Copyright (C) 2005 Jesper Juhl <jesper.juhl@gmail.com>
