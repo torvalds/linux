@@ -101,7 +101,7 @@ typedef struct dhd_pub {
 	uint hdrlen;		/* Total DHD header length (proto + bus) */
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	uint rxsz;		/* Rx buffer size bus module should use */
-	uint8 wme_dp;		/* wme discard priority */
+	u8 wme_dp;		/* wme discard priority */
 
 	/* Dongle media info */
 	bool iswl;		/* Dongle-resident driver is wl */
@@ -153,7 +153,7 @@ typedef struct dhd_pub {
 	char *pktfilter[100];
 	int pktfilter_count;
 
-	uint8 country_code[WLC_CNTRY_BUF_SZ];
+	u8 country_code[WLC_CNTRY_BUF_SZ];
 	char eventmask[WL_EVENTING_MASK_LEN];
 
 #if defined(CONFIG_HAS_WAKELOCK)
@@ -277,10 +277,10 @@ static inline void WAKE_LOCK_DESTROY(dhd_pub_t *dhdp, int index)
 }
 
 typedef struct dhd_if_event {
-	uint8 ifidx;
-	uint8 action;
-	uint8 flags;
-	uint8 bssidx;
+	u8 ifidx;
+	u8 action;
+	u8 flags;
+	u8 bssidx;
 } dhd_if_event_t;
 
 /*
@@ -348,7 +348,7 @@ extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t *pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t *pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t *pub);
 #ifdef DHD_DEBUG
-extern int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size);
+extern int write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 #endif				/* DHD_DEBUG */
 #if defined(OOB_INTR_ONLY)
 extern int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr);
@@ -369,7 +369,7 @@ extern void dhd_timeout_start(dhd_timeout_t *tmo, uint usec);
 extern int dhd_timeout_expired(dhd_timeout_t *tmo);
 
 extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
-extern uint8 *dhd_bssidx2bssid(dhd_pub_t *dhd, int idx);
+extern u8 *dhd_bssidx2bssid(dhd_pub_t *dhd, int idx);
 extern int wl_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
 			 wl_event_msg_t *, void **data_ptr);
 extern void wl_event_to_host_order(wl_event_msg_t *evt);
@@ -377,7 +377,7 @@ extern void wl_event_to_host_order(wl_event_msg_t *evt);
 extern void dhd_common_init(void);
 
 extern int dhd_add_if(struct dhd_info *dhd, int ifidx, void *handle,
-		      char *name, uint8 *mac_addr, uint32 flags, uint8 bssidx);
+		      char *name, u8 *mac_addr, uint32 flags, u8 bssidx);
 extern void dhd_del_if(struct dhd_info *dhd, int ifidx);
 
 extern void dhd_vif_add(struct dhd_info *dhd, int ifidx, char *name);
@@ -393,7 +393,7 @@ extern int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pkt);
 /* Send event to host */
 extern void dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event,
 			     void *data);
-extern int dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag);
+extern int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag);
 extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int dhd_bus_start(dhd_pub_t *dhdp);
 

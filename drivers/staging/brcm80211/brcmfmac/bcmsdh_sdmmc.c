@@ -73,7 +73,7 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 {
 	int err_ret;
 	uint32 fbraddr;
-	uint8 func;
+	u8 func;
 
 	sd_trace(("%s\n", __func__));
 
@@ -204,7 +204,7 @@ extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd)
 
 extern SDIOH_API_RC sdioh_enable_func_intr(void)
 {
-	uint8 reg;
+	u8 reg;
 	int err;
 
 	if (gInstance->func[0]) {
@@ -238,7 +238,7 @@ extern SDIOH_API_RC sdioh_enable_func_intr(void)
 
 extern SDIOH_API_RC sdioh_disable_func_intr(void)
 {
-	uint8 reg;
+	u8 reg;
 	int err;
 
 	if (gInstance->func[0]) {
@@ -649,7 +649,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	case IOV_GVAL(IOV_DEVREG):
 		{
 			sdreg_t *sd_ptr = (sdreg_t *) params;
-			uint8 data = 0;
+			u8 data = 0;
 
 			if (sdioh_cfg_read
 			    (si, sd_ptr->func, sd_ptr->offset, &data)) {
@@ -665,7 +665,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	case IOV_SVAL(IOV_DEVREG):
 		{
 			sdreg_t *sd_ptr = (sdreg_t *) params;
-			uint8 data = (uint8) sd_ptr->value;
+			u8 data = (u8) sd_ptr->value;
 
 			if (sdioh_cfg_write
 			    (si, sd_ptr->func, sd_ptr->offset, &data)) {
@@ -689,7 +689,7 @@ exit:
 SDIOH_API_RC sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 {
 	SDIOH_API_RC status;
-	uint8 data;
+	u8 data;
 
 	if (enable)
 		data = 3;	/* enable hw oob interrupt */
@@ -703,7 +703,7 @@ SDIOH_API_RC sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 #endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
 extern SDIOH_API_RC
-sdioh_cfg_read(sdioh_info_t *sd, uint fnc_num, uint32 addr, uint8 *data)
+sdioh_cfg_read(sdioh_info_t *sd, uint fnc_num, uint32 addr, u8 *data)
 {
 	SDIOH_API_RC status;
 	/* No lock needed since sdioh_request_byte does locking */
@@ -712,7 +712,7 @@ sdioh_cfg_read(sdioh_info_t *sd, uint fnc_num, uint32 addr, uint8 *data)
 }
 
 extern SDIOH_API_RC
-sdioh_cfg_write(sdioh_info_t *sd, uint fnc_num, uint32 addr, uint8 *data)
+sdioh_cfg_write(sdioh_info_t *sd, uint fnc_num, uint32 addr, u8 *data)
 {
 	/* No lock needed since sdioh_request_byte does locking */
 	SDIOH_API_RC status;
@@ -725,13 +725,13 @@ static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr)
 	/* read 24 bits and return valid 17 bit addr */
 	int i;
 	uint32 scratch, regdata;
-	uint8 *ptr = (uint8 *)&scratch;
+	u8 *ptr = (u8 *)&scratch;
 	for (i = 0; i < 3; i++) {
 		if ((sdioh_sdmmc_card_regread(sd, 0, regaddr, 1, &regdata)) !=
 		    SUCCESS)
 			sd_err(("%s: Can't read!\n", __func__));
 
-		*ptr++ = (uint8) regdata;
+		*ptr++ = (u8) regdata;
 		regaddr++;
 	}
 
@@ -742,12 +742,12 @@ static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr)
 }
 
 extern SDIOH_API_RC
-sdioh_cis_read(sdioh_info_t *sd, uint func, uint8 *cisd, uint32 length)
+sdioh_cis_read(sdioh_info_t *sd, uint func, u8 *cisd, uint32 length)
 {
 	uint32 count;
 	int offset;
 	uint32 foo;
-	uint8 *cis = cisd;
+	u8 *cis = cisd;
 
 	sd_trace(("%s: Func = %d\n", __func__, func));
 
@@ -768,7 +768,7 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, uint8 *cisd, uint32 length)
 			return SDIOH_API_RC_FAIL;
 		}
 
-		*cis = (uint8) (foo & 0xff);
+		*cis = (u8) (foo & 0xff);
 		cis++;
 	}
 
@@ -777,7 +777,7 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, uint8 *cisd, uint32 length)
 
 extern SDIOH_API_RC
 sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr,
-		   uint8 *byte)
+		   u8 *byte)
 {
 	int err_ret;
 
@@ -967,19 +967,19 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((uint8 *) PKTDATA(pnext)),
+						   ((u8 *) PKTDATA(pnext)),
 						   pkt_len);
 		} else if (write) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((uint8 *) PKTDATA(pnext)),
+						   ((u8 *) PKTDATA(pnext)),
 						   pkt_len);
 		} else if (fifo) {
 			err_ret = sdio_readsb(gInstance->func[func],
-					      ((uint8 *) PKTDATA(pnext)),
+					      ((u8 *) PKTDATA(pnext)),
 					      addr, pkt_len);
 		} else {
 			err_ret = sdio_memcpy_fromio(gInstance->func[func],
-						     ((uint8 *) PKTDATA(pnext)),
+						     ((u8 *) PKTDATA(pnext)),
 						     addr, pkt_len);
 		}
 
@@ -1026,7 +1026,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 extern SDIOH_API_RC
 sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		     uint func, uint addr, uint reg_width, uint buflen_u,
-		     uint8 *buffer, void *pkt)
+		     u8 *buffer, void *pkt)
 {
 	SDIOH_API_RC Status;
 	void *mypkt = NULL;
@@ -1160,7 +1160,7 @@ sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr,
 {
 
 	if ((func == 0) || (regsize == 1)) {
-		uint8 temp = 0;
+		u8 temp = 0;
 
 		sdioh_request_byte(sd, SDIOH_READ, func, regaddr, &temp);
 		*data = temp;
@@ -1226,7 +1226,7 @@ sdioh_sdmmc_card_regwrite(sdioh_info_t *sd, int func, uint32 regaddr,
 {
 
 	if ((func == 0) || (regsize == 1)) {
-		uint8 temp;
+		u8 temp;
 
 		temp = data & 0xff;
 		sdioh_request_byte(sd, SDIOH_READ, func, regaddr, &temp);

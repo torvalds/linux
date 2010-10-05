@@ -53,9 +53,9 @@ extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
 typedef struct dhd_prot {
 	uint16 reqid;
-	uint8 pending;
+	u8 pending;
 	uint32 lastcmd;
-	uint8 bus_header[BUS_HEADER_LEN];
+	u8 bus_header[BUS_HEADER_LEN];
 	cdc_ioctl_t msg;
 	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 } dhd_prot_t;
@@ -285,7 +285,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 		slen = strlen("wme_dp") + 1;
 		if (len >= (int)(slen + sizeof(int)))
 			bcopy(((char *)buf + slen), &val, sizeof(int));
-		dhd->wme_dp = (uint8) ltoh32(val);
+		dhd->wme_dp = (u8) ltoh32(val);
 	}
 
 	prot->pending = FALSE;
@@ -334,7 +334,7 @@ void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, uint8 * fcbits)
+bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 * fcbits)
 {
 #ifdef BDC
 	struct bdc_header *h;

@@ -184,7 +184,7 @@ struct wl_cfg80211_bss_info {
 	uint16 channel;
 	int16 rssi;
 	uint16 frame_len;
-	uint8 frame_buf[1];
+	u8 frame_buf[1];
 };
 
 /* basic structure of scan request */
@@ -195,7 +195,7 @@ struct wl_scan_req {
 /* basic structure of information element */
 struct wl_ie {
 	uint16 offset;
-	uint8 buf[WL_TLV_INFO_MAX];
+	u8 buf[WL_TLV_INFO_MAX];
 };
 
 /* event queue for cfg80211 main event */
@@ -217,18 +217,18 @@ struct wl_security {
 
 /* ibss information for currently joined ibss network */
 struct wl_ibss {
-	uint8 beacon_interval;	/* in millisecond */
-	uint8 atim;		/* in millisecond */
+	u8 beacon_interval;	/* in millisecond */
+	u8 atim;		/* in millisecond */
 	int8 join_only;
-	uint8 band;
-	uint8 channel;
+	u8 band;
+	u8 channel;
 };
 
 /* dongle profile */
 struct wl_profile {
 	uint32 mode;
 	struct wlc_ssid ssid;
-	uint8 bssid[ETHER_ADDR_LEN];
+	u8 bssid[ETHER_ADDR_LEN];
 	struct wl_security sec;
 	struct wl_ibss ibss;
 	int32 band;
@@ -258,9 +258,9 @@ struct wl_iscan_ctrl {
 
 /* association inform */
 struct wl_connect_info {
-	uint8 *req_ie;
+	u8 *req_ie;
 	int32 req_ie_len;
-	uint8 *resp_ie;
+	u8 *resp_ie;
 	int32 resp_ie_len;
 };
 
@@ -329,9 +329,9 @@ struct wl_priv {
 	bool dongle_up;		/* indicate whether dongle up or not */
 	bool roam_on;		/* on/off switch for dongle self-roaming */
 	bool scan_tried;	/* indicates if first scan attempted */
-	uint8 *ioctl_buf;	/* ioctl buffer */
-	uint8 *extra_buf;	/* maily to grab assoc information */
-	uint8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
+	u8 *ioctl_buf;	/* ioctl buffer */
+	u8 *extra_buf;	/* maily to grab assoc information */
+	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
 };
 
 #define wl_to_dev(w) (wiphy_dev(wl->wdev->wiphy))

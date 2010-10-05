@@ -158,7 +158,7 @@ void *pktq_penq(struct pktq *pq, int prec, void *p)
 	pq->len++;
 
 	if (pq->hi_prec < prec)
-		pq->hi_prec = (uint8) prec;
+		pq->hi_prec = (u8) prec;
 
 	return p;
 }
@@ -185,7 +185,7 @@ void *pktq_penq_head(struct pktq *pq, int prec, void *p)
 	pq->len++;
 
 	if (pq->hi_prec < prec)
-		pq->hi_prec = (uint8) prec;
+		pq->hi_prec = (u8) prec;
 
 	return p;
 }
@@ -878,11 +878,11 @@ uint pktsetprio(void *pkt, bool update_vtag)
 {
 	struct ether_header *eh;
 	struct ethervlan_header *evh;
-	uint8 *pktdata;
+	u8 *pktdata;
 	int priority = 0;
 	int rc = 0;
 
-	pktdata = (uint8 *) PKTDATA(pkt);
+	pktdata = (u8 *) PKTDATA(pkt);
 	ASSERT(ISALIGNED((uintptr) pktdata, sizeof(uint16)));
 
 	eh = (struct ether_header *)pktdata;
@@ -897,9 +897,9 @@ uint pktsetprio(void *pkt, bool update_vtag)
 		vlan_prio = (int)(vlan_tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
 
 		if (ntoh16(evh->ether_type) == ETHER_TYPE_IP) {
-			uint8 *ip_body =
+			u8 *ip_body =
 			    pktdata + sizeof(struct ethervlan_header);
-			uint8 tos_tc = IP_TOS(ip_body);
+			u8 tos_tc = IP_TOS(ip_body);
 			dscp_prio = (int)(tos_tc >> IPV4_TOS_PREC_SHIFT);
 		}
 
@@ -925,8 +925,8 @@ uint pktsetprio(void *pkt, bool update_vtag)
 			rc |= PKTPRIO_UPD;
 		}
 	} else if (ntoh16(eh->ether_type) == ETHER_TYPE_IP) {
-		uint8 *ip_body = pktdata + sizeof(struct ether_header);
-		uint8 tos_tc = IP_TOS(ip_body);
+		u8 *ip_body = pktdata + sizeof(struct ether_header);
+		u8 tos_tc = IP_TOS(ip_body);
 		priority = (int)(tos_tc >> IPV4_TOS_PREC_SHIFT);
 		rc |= PKTPRIO_DSCP;
 	}
@@ -1049,7 +1049,7 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
  * ****************************************************************************
  */
 
-STATIC const uint8 crc8_table[256] = {
+STATIC const u8 crc8_table[256] = {
 	0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
 	0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
 	0x94, 0x63, 0x2D, 0xDA, 0xB1, 0x46, 0x08, 0xFF,
@@ -1087,14 +1087,14 @@ STATIC const uint8 crc8_table[256] = {
 #define CRC_INNER_LOOP(n, c, x) \
 	(c) = ((c) >> 8) ^ crc##n##_table[((c) ^ (x)) & 0xff]
 
-uint8 hndcrc8(uint8 *pdata,	/* pointer to array of data to process */
+u8 hndcrc8(u8 *pdata,	/* pointer to array of data to process */
 	      uint nbytes,	/* number of input data bytes to process */
-	      uint8 crc		/* either CRC8_INIT_VALUE or previous
+	      u8 crc		/* either CRC8_INIT_VALUE or previous
 					 return value */
     )
 {
 	/* hard code the crc loop instead of using CRC_INNER_LOOP macro
-	 * to avoid the undefined and unnecessary (uint8 >> 8) operation.
+	 * to avoid the undefined and unnecessary (u8 >> 8) operation.
 	*/
 	while (nbytes-- > 0)
 		crc = crc8_table[(crc ^ *pdata++) & 0xff];
@@ -1159,7 +1159,7 @@ static const uint16 crc16_table[256] = {
 	0x7BC7, 0x6A4E, 0x58D5, 0x495C, 0x3DE3, 0x2C6A, 0x1EF1, 0x0F78
 };
 
-uint16 hndcrc16(uint8 *pdata,	/* pointer to array of data to process */
+uint16 hndcrc16(u8 *pdata,	/* pointer to array of data to process */
 		uint nbytes,	/* number of input data bytes to process */
 		uint16 crc	/* either CRC16_INIT_VALUE or previous
 				 return value */
@@ -1237,19 +1237,19 @@ STATIC const uint32 crc32_table[256] = {
 	0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D
 };
 
-uint32 hndcrc32(uint8 *pdata,	/* pointer to array of data to process */
+uint32 hndcrc32(u8 *pdata,	/* pointer to array of data to process */
 		uint nbytes,	/* number of input data bytes to process */
 		uint32 crc	/* either CRC32_INIT_VALUE or previous
 					 return value */
 )
 {
-	uint8 *pend;
+	u8 *pend;
 #ifdef __mips__
-	uint8 tmp[4];
+	u8 tmp[4];
 	ulong *tptr = (ulong *) tmp;
 
 	/* in case the beginning of the buffer isn't aligned */
-	pend = (uint8 *) ((uint) (pdata + 3) & 0xfffffffc);
+	pend = (u8 *) ((uint) (pdata + 3) & 0xfffffffc);
 	nbytes -= (pend - pdata);
 	while (pdata < pend)
 		CRC_INNER_LOOP(32, crc, *pdata++);
@@ -1286,7 +1286,7 @@ uint32 hndcrc32(uint8 *pdata,	/* pointer to array of data to process */
 void testcrc32(void)
 {
 	uint j, k, l;
-	uint8 *buf;
+	u8 *buf;
 	uint len[CNBUFS];
 	uint32 crcr;
 	uint32 crc32tv[CNBUFS] = {
@@ -1365,7 +1365,7 @@ bcm_tlv_t *bcm_parse_tlvs(void *buf, int buflen, uint key)
 		if ((elt->id == key) && (totlen >= (len + 2)))
 			return elt;
 
-		elt = (bcm_tlv_t *) ((uint8 *) elt + (len + 2));
+		elt = (bcm_tlv_t *) ((u8 *) elt + (len + 2));
 		totlen -= (len + 2);
 	}
 
@@ -1399,7 +1399,7 @@ bcm_tlv_t *bcm_parse_ordered_tlvs(void *buf, int buflen, uint key)
 		if ((id == key) && (totlen >= (len + 2)))
 			return elt;
 
-		elt = (bcm_tlv_t *) ((uint8 *) elt + (len + 2));
+		elt = (bcm_tlv_t *) ((u8 *) elt + (len + 2));
 		totlen -= (len + 2);
 	}
 	return NULL;
@@ -1463,7 +1463,7 @@ int bcm_format_hex(char *str, const void *bytes, int len)
 {
 	int i;
 	char *p = str;
-	const uint8 *src = (const uint8 *)bytes;
+	const u8 *src = (const u8 *)bytes;
 
 	for (i = 0; i < len; i++) {
 		p += sprintf(p, "%02X", *src);
@@ -1613,7 +1613,7 @@ static const uint16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
 /* 185: */ 42170, 44668, 47315, 50119, 53088, 56234, 59566, 63096
 };
 
-uint16 bcm_qdbm_to_mw(uint8 qdbm)
+uint16 bcm_qdbm_to_mw(u8 qdbm)
 {
 	uint factor = 1;
 	int idx = qdbm - QDBM_OFFSET;
@@ -1637,9 +1637,9 @@ uint16 bcm_qdbm_to_mw(uint8 qdbm)
 	return (nqdBm_to_mW_map[idx] + factor / 2) / factor;
 }
 
-uint8 bcm_mw_to_qdbm(uint16 mw)
+u8 bcm_mw_to_qdbm(uint16 mw)
 {
-	uint8 qdbm;
+	u8 qdbm;
 	int offset;
 	uint mw_uint = mw;
 	uint boundary;
@@ -1663,15 +1663,15 @@ uint8 bcm_mw_to_qdbm(uint16 mw)
 			break;
 	}
 
-	qdbm += (uint8) offset;
+	qdbm += (u8) offset;
 
 	return qdbm;
 }
 
-uint bcm_bitcount(uint8 *bitmap, uint length)
+uint bcm_bitcount(u8 *bitmap, uint length)
 {
 	uint bitcount = 0, i;
-	uint8 tmp;
+	u8 tmp;
 	for (i = 0; i < length; i++) {
 		tmp = bitmap[i];
 		while (tmp) {
@@ -1716,7 +1716,7 @@ int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 	return r;
 }
 
-void bcm_inc_bytes(uchar *num, int num_bytes, uint8 amount)
+void bcm_inc_bytes(uchar *num, int num_bytes, u8 amount)
 {
 	int i;
 
@@ -1728,7 +1728,7 @@ void bcm_inc_bytes(uchar *num, int num_bytes, uint8 amount)
 	}
 }
 
-int bcm_cmp_bytes(uchar *arg1, uchar *arg2, uint8 nbytes)
+int bcm_cmp_bytes(uchar *arg1, uchar *arg2, u8 nbytes)
 {
 	int i;
 

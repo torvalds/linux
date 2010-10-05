@@ -181,14 +181,14 @@ int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	return BCME_UNSUPPORTED;
 }
 
-uint8 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
+u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	int32 retry = 0;
 #endif
-	uint8 data = 0;
+	u8 data = 0;
 
 	if (!bcmsdh)
 		bcmsdh = l_bcmsdh;
@@ -202,7 +202,7 @@ uint8 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 #endif
 		status =
 		    sdioh_cfg_read(bcmsdh->sdioh, fnc_num, addr,
-				   (uint8 *) &data);
+				   (u8 *) &data);
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	} while (!SDIOH_API_SUCCESS(status)
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
@@ -210,14 +210,14 @@ uint8 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 	if (err)
 		*err = (SDIOH_API_SUCCESS(status) ? 0 : BCME_SDIO_ERROR);
 
-	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, uint8data = 0x%x\n",
+	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
 
 	return data;
 }
 
 void
-bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, uint8 data, int *err)
+bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, u8 data, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -237,7 +237,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, uint8 data, int *err)
 #endif
 		status =
 		    sdioh_cfg_write(bcmsdh->sdioh, fnc_num, addr,
-				    (uint8 *) &data);
+				    (u8 *) &data);
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	} while (!SDIOH_API_SUCCESS(status)
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
@@ -245,7 +245,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, uint8 data, int *err)
 	if (err)
 		*err = SDIOH_API_SUCCESS(status) ? 0 : BCME_SDIO_ERROR;
 
-	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, uint8data = 0x%x\n",
+	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
 }
 
@@ -296,13 +296,13 @@ bcmsdh_cfg_write_word(void *sdh, uint fnc_num, uint32 addr, uint32 data,
 		     __func__, fnc_num, addr, data));
 }
 
-int bcmsdh_cis_read(void *sdh, uint func, uint8 * cis, uint length)
+int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 
-	uint8 *tmp_buf, *tmp_ptr;
-	uint8 *ptr;
+	u8 *tmp_buf, *tmp_ptr;
+	u8 *ptr;
 	bool ascii = func & ~0xf;
 	func &= 0x7;
 
@@ -318,7 +318,7 @@ int bcmsdh_cis_read(void *sdh, uint func, uint8 * cis, uint length)
 	if (ascii) {
 		/* Move binary bits to tmp and format them
 			 into the provided buffer. */
-		tmp_buf = (uint8 *) MALLOC(bcmsdh->osh, length);
+		tmp_buf = (u8 *) MALLOC(bcmsdh->osh, length);
 		if (tmp_buf == NULL) {
 			BCMSDH_ERROR(("%s: out of memory\n", __func__));
 			return BCME_NOMEM;
@@ -388,7 +388,7 @@ uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 	/* if ok, return appropriately masked word */
 	if (SDIOH_API_SUCCESS(status)) {
 		switch (size) {
-		case sizeof(uint8):
+		case sizeof(u8):
 			return word & 0xff;
 		case sizeof(uint16):
 			return word & 0xffff;
@@ -452,7 +452,7 @@ bool bcmsdh_regfail(void *sdh)
 
 int
 bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
-		uint8 *buf, uint nbytes, void *pkt,
+		u8 *buf, uint nbytes, void *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
@@ -497,7 +497,7 @@ bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
 
 int
 bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
-		uint8 *buf, uint nbytes, void *pkt,
+		u8 *buf, uint nbytes, void *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
@@ -540,7 +540,7 @@ bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
 	return SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR;
 }
 
-int bcmsdh_rwdata(void *sdh, uint rw, uint32 addr, uint8 *buf, uint nbytes)
+int bcmsdh_rwdata(void *sdh, uint rw, uint32 addr, u8 *buf, uint nbytes)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;

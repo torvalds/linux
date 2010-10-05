@@ -212,7 +212,7 @@ typedef struct dhd_if {
 	int idx;		/* iface idx in dongle */
 	int state;		/* interface state */
 	uint subunit;		/* subunit */
-	uint8 mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
+	u8 mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
 	bool attached;		/* Delayed attachment when unset */
 	bool txflowcontrol;	/* Per interface flow control indicator */
 	char name[IFNAMSIZ + 1];	/* linux interface name */
@@ -1042,7 +1042,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 
 	/* Update multicast statistic */
 	if (PKTLEN(pktbuf) >= ETHER_ADDR_LEN) {
-		uint8 *pktdata = (uint8 *) PKTDATA(pktbuf);
+		u8 *pktdata = (u8 *) PKTDATA(pktbuf);
 		struct ether_header *eh = (struct ether_header *)pktdata;
 
 		if (ETHER_ISMULTI(eh->ether_dhost))
@@ -1849,7 +1849,7 @@ void dhd_osl_detach(osl_t *osh)
 
 int
 dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
-	   uint8 *mac_addr, uint32 flags, uint8 bssidx)
+	   u8 *mac_addr, uint32 flags, u8 bssidx)
 {
 	dhd_if_t *ifp;
 
@@ -2224,7 +2224,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
 	struct net_device *net;
-	uint8 temp_addr[ETHER_ADDR_LEN] = {
+	u8 temp_addr[ETHER_ADDR_LEN] = {
 		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
 
 	DHD_TRACE(("%s: ifidx %d\n", __func__, ifidx));
@@ -2795,7 +2795,7 @@ void dhd_wait_event_wakeup(dhd_pub_t *dhd)
 	return;
 }
 
-int dhd_dev_reset(struct net_device *dev, uint8 flag)
+int dhd_dev_reset(struct net_device *dev, u8 flag)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
@@ -2942,7 +2942,7 @@ int dhd_wait_pend8021x(struct net_device *dev)
 }
 
 #ifdef DHD_DEBUG
-int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size)
+int write_to_file(dhd_pub_t *dhd, u8 *buf, int size)
 {
 	int ret = 0;
 	struct file *fp;

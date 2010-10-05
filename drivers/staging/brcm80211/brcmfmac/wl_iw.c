@@ -499,7 +499,7 @@ wl_iw_get_range(struct net_device *dev,
 	int phytype;
 	int bw_cap = 0, sgi_tx = 0, nmode = 0;
 	channel_info_t ci;
-	uint8 nrate_list2copy = 0;
+	u8 nrate_list2copy = 0;
 	uint16 nrate_list[4][8] = { {13, 26, 39, 52, 78, 104, 117, 130},
 	{14, 29, 43, 58, 87, 116, 130, 144},
 	{27, 54, 81, 108, 162, 216, 243, 270},
@@ -1407,10 +1407,10 @@ wl_iw_iscan_set_scan(struct net_device *dev,
 #endif				/* WL_IW_USE_ISCAN */
 
 #if WIRELESS_EXT > 17
-static bool ie_is_wpa_ie(uint8 **wpaie, uint8 **tlvs, int *tlvs_len)
+static bool ie_is_wpa_ie(u8 **wpaie, u8 **tlvs, int *tlvs_len)
 {
 
-	uint8 *ie = *wpaie;
+	u8 *ie = *wpaie;
 
 	if ((ie[1] >= 6) &&
 	    !bcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x01"), 4)) {
@@ -1423,10 +1423,10 @@ static bool ie_is_wpa_ie(uint8 **wpaie, uint8 **tlvs, int *tlvs_len)
 	return FALSE;
 }
 
-static bool ie_is_wps_ie(uint8 **wpsie, uint8 **tlvs, int *tlvs_len)
+static bool ie_is_wps_ie(u8 **wpsie, u8 **tlvs, int *tlvs_len)
 {
 
-	uint8 *ie = *wpsie;
+	u8 *ie = *wpsie;
 
 	if ((ie[1] >= 4) &&
 	    !bcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x04"), 4)) {
@@ -1451,7 +1451,7 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 	event = *event_p;
 	if (bi->ie_length) {
 		bcm_tlv_t *ie;
-		uint8 *ptr = ((uint8 *) bi) + sizeof(wl_bss_info_t);
+		u8 *ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 		int ptr_len = bi->ie_length;
 
 #ifdef BCMWPA2
@@ -1463,11 +1463,11 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 			    IWE_STREAM_ADD_POINT(info, event, end, &iwe,
 						 (char *)ie);
 		}
-		ptr = ((uint8 *) bi) + sizeof(wl_bss_info_t);
+		ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 #endif
 
 		while ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_WPA_ID))) {
-			if (ie_is_wps_ie(((uint8 **)&ie), &ptr, &ptr_len)) {
+			if (ie_is_wps_ie(((u8 **)&ie), &ptr, &ptr_len)) {
 				iwe.cmd = IWEVGENIE;
 				iwe.u.data.length = ie->len + 2;
 				event =
@@ -1477,10 +1477,10 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 			}
 		}
 
-		ptr = ((uint8 *) bi) + sizeof(wl_bss_info_t);
+		ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 		ptr_len = bi->ie_length;
 		while ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_WPA_ID))) {
-			if (ie_is_wpa_ie(((uint8 **)&ie), &ptr, &ptr_len)) {
+			if (ie_is_wpa_ie(((u8 **)&ie), &ptr, &ptr_len)) {
 				iwe.cmd = IWEVGENIE;
 				iwe.u.data.length = ie->len + 2;
 				event =
@@ -1743,7 +1743,7 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 	iscan_info_t *iscan = g_iscan;
 	iscan_buf_t *p_buf;
 	uint32 counter = 0;
-	uint8 channel;
+	u8 channel;
 
 	WL_TRACE(("%s %s buflen_from_user %d:\n", dev->name, __func__,
 		  dwrq->length));
@@ -2205,7 +2205,7 @@ wl_iw_get_txpow(struct net_device *dev,
 		struct iw_param *vwrq, char *extra)
 {
 	int error, disable, txpwrdbm;
-	uint8 result;
+	u8 result;
 
 	WL_TRACE(("%s: SIOCGIWTXPOW\n", dev->name));
 
@@ -2218,7 +2218,7 @@ wl_iw_get_txpow(struct net_device *dev,
 		return error;
 
 	disable = dtoh32(disable);
-	result = (uint8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
+	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
 	vwrq->value = (int32) bcm_qdbm_to_mw(result);
 	vwrq->fixed = 0;
 	vwrq->disabled =
@@ -2585,7 +2585,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 		bcopy((void *)iwe->key, key.data, iwe->key_len);
 
 		if (iwe->alg == IW_ENCODE_ALG_TKIP) {
-			uint8 keybuf[8];
+			u8 keybuf[8];
 			bcopy(&key.data[24], keybuf, sizeof(keybuf));
 			bcopy(&key.data[16], &key.data[24], sizeof(keybuf));
 			bcopy(keybuf, &key.data[16], sizeof(keybuf));
@@ -3508,7 +3508,7 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 				cmd = IWEVPMKIDCAND;
 				pmkcandlist = data;
 				count =
-				    ntoh32_ua((uint8 *) &
+				    ntoh32_ua((u8 *) &
 					      pmkcandlist->npmkid_cand);
 				ASSERT(count >= 0);
 				wrqu.data.length = sizeof(struct iw_pmkid_cand);

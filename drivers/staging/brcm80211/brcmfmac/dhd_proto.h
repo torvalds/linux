@@ -46,7 +46,7 @@ extern int dhd_prot_init(dhd_pub_t *dhdp);
 /* Stop protocol: sync w/dongle state. */
 extern void dhd_prot_stop(dhd_pub_t *dhdp);
 
-extern bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, uint8 *fcbits);
+extern bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 *fcbits);
 
 /* Add any protocol-specific data header.
  * Caller must reserve prot_hdrlen prepend space.

@@ -73,14 +73,14 @@ static int32 wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 static int32 wl_cfg80211_leave_ibss(struct wiphy *wiphy,
 				    struct net_device *dev);
 static int32 wl_cfg80211_get_station(struct wiphy *wiphy,
-				     struct net_device *dev, uint8 *mac,
+				     struct net_device *dev, u8 *mac,
 				     struct station_info *sinfo);
 static int32 wl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 					struct net_device *dev, bool enabled,
 					int32 timeout);
 static int32 wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 					  struct net_device *dev,
-					  const uint8 *addr,
+					  const u8 *addr,
 					  const struct cfg80211_bitrate_mask
 					  *mask);
 static int wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
@@ -93,21 +93,21 @@ static int32 wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 static int32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, int32 *dbm);
 static int32 wl_cfg80211_config_default_key(struct wiphy *wiphy,
 					    struct net_device *dev,
-					    uint8 key_idx);
+					    u8 key_idx);
 static int32 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
-				 uint8 key_idx, const uint8 *mac_addr,
+				 u8 key_idx, const u8 *mac_addr,
 				 struct key_params *params);
 static int32 wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
-				 uint8 key_idx, const uint8 *mac_addr);
+				 u8 key_idx, const u8 *mac_addr);
 static int32 wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
-				 uint8 key_idx, const uint8 *mac_addr,
+				 u8 key_idx, const u8 *mac_addr,
 				 void *cookie, void (*callback) (void *cookie,
 								 struct
 								 key_params *
 								 params));
 static int32 wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 						 struct net_device *dev,
-						 uint8 key_idx);
+						 u8 key_idx);
 static int32 wl_cfg80211_resume(struct wiphy *wiphy);
 static int32 wl_cfg80211_suspend(struct wiphy *wiphy);
 static int32 wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
@@ -201,9 +201,9 @@ static int32 wl_get_assoc_ies(struct wl_priv *wl);
 ** information element utilities
 */
 static void wl_rst_ie(struct wl_priv *wl);
-static int32 wl_add_ie(struct wl_priv *wl, uint8 t, uint8 l, uint8 *v);
-static int32 wl_mrg_ie(struct wl_priv *wl, uint8 *ie_stream, uint16 ie_size);
-static int32 wl_cp_ie(struct wl_priv *wl, uint8 *dst, uint16 dst_size);
+static int32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v);
+static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, uint16 ie_size);
+static int32 wl_cp_ie(struct wl_priv *wl, u8 *dst, uint16 dst_size);
 static uint32 wl_get_ielen(struct wl_priv *wl);
 
 static int32 wl_mode_to_nl80211_iftype(int32 mode);
@@ -217,7 +217,7 @@ static int32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi);
 static int32 wl_update_bss_info(struct wl_priv *wl);
 
 static int32 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
-			   uint8 key_idx, const uint8 *mac_addr,
+			   u8 key_idx, const u8 *mac_addr,
 			   struct key_params *params);
 
 /*
@@ -264,7 +264,7 @@ static void wl_init_conf(struct wl_conf *conf);
 */
 #ifndef EMBEDDED_PLATFORM
 static int32 wl_dongle_mode(struct net_device *ndev, int32 iftype);
-static int32 wl_dongle_country(struct net_device *ndev, uint8 ccode);
+static int32 wl_dongle_country(struct net_device *ndev, u8 ccode);
 static int32 wl_dongle_up(struct net_device *ndev, uint32 up);
 static int32 wl_dongle_power(struct net_device *ndev, uint32 power_mode);
 static int32 wl_dongle_glom(struct net_device *ndev, uint32 glom,
@@ -1451,7 +1451,7 @@ static int32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, int32 *dbm)
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	struct net_device *ndev = wl_to_ndev(wl);
 	int32 txpwrdbm;
-	uint8 result;
+	u8 result;
 	int32 err = 0;
 
 	CHECK_SYS_UP();
@@ -1459,7 +1459,7 @@ static int32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, int32 *dbm)
 		WL_ERR(("error (%d)\n", err));
 		return err;
 	}
-	result = (uint8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
+	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
 	*dbm = (int32) bcm_qdbm_to_mw(result);
 
 	return err;
@@ -1467,7 +1467,7 @@ static int32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, int32 *dbm)
 
 static int32
 wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
-			       uint8 key_idx)
+			       u8 key_idx)
 {
 	uint32 index;
 	int32 wsec;
@@ -1496,7 +1496,7 @@ wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 
 static int32
 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
-	      uint8 key_idx, const uint8 *mac_addr, struct key_params *params)
+	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
 	struct wl_wsec_key key;
 	int32 err = 0;
@@ -1528,7 +1528,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 		memcpy(key.data, params->key, key.len);
 
 		if (params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-			uint8 keybuf[8];
+			u8 keybuf[8];
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
 			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
 			memcpy(&key.data[16], keybuf, sizeof(keybuf));
@@ -1537,8 +1537,8 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 		/* if IW_ENCODE_EXT_RX_SEQ_VALID set */
 		if (params->seq && params->seq_len == 6) {
 			/* rx iv */
-			uint8 *ivptr;
-			ivptr = (uint8 *) params->seq;
+			u8 *ivptr;
+			ivptr = (u8 *) params->seq;
 			key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
 			    (ivptr[3] << 8) | ivptr[2];
 			key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];
@@ -1585,7 +1585,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 
 static int32
 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
-		    uint8 key_idx, const uint8 *mac_addr,
+		    u8 key_idx, const u8 *mac_addr,
 		    struct key_params *params)
 {
 	struct wl_wsec_key key;
@@ -1668,7 +1668,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 static int32
 wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
-		    uint8 key_idx, const uint8 *mac_addr)
+		    u8 key_idx, const u8 *mac_addr)
 {
 	struct wl_wsec_key key;
 	int32 err = 0;
@@ -1722,7 +1722,7 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 
 static int32
 wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
-		    uint8 key_idx, const uint8 *mac_addr, void *cookie,
+		    u8 key_idx, const u8 *mac_addr, void *cookie,
 		    void (*callback) (void *cookie, struct key_params * params))
 {
 	struct key_params params;
@@ -1739,7 +1739,7 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	key.index = key_idx;
 	swap_key_to_BE(&key);
 	memset(&params, 0, sizeof(params));
-	params.key_len = (uint8) MIN(DOT11_MAX_KEY_SIZE, key.len);
+	params.key_len = (u8) MIN(DOT11_MAX_KEY_SIZE, key.len);
 	memcpy(params.key, key.data, params.key_len);
 
 	if (unlikely
@@ -1778,7 +1778,7 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 static int32
 wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
-				    struct net_device *dev, uint8 key_idx)
+				    struct net_device *dev, u8 key_idx)
 {
 	WL_INFO(("Not supported\n"));
 	CHECK_SYS_UP();
@@ -1787,7 +1787,7 @@ wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 
 static int32
 wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
-			uint8 *mac, struct station_info *sinfo)
+			u8 *mac, struct station_info *sinfo)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	scb_val_t scb_val;
@@ -1880,7 +1880,7 @@ static __used uint32 wl_find_msb(uint16 bit16)
 
 static int32
 wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
-			     const uint8 *addr,
+			     const u8 *addr,
 			     const struct cfg80211_bitrate_mask *mask)
 {
 	struct wl_rateset rateset;
@@ -2241,7 +2241,7 @@ static int32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 		return err;
 	}
 	notif_bss_info =
-	    kzalloc(sizeof(*notif_bss_info) + sizeof(*mgmt) - sizeof(uint8) +
+	    kzalloc(sizeof(*notif_bss_info) + sizeof(*mgmt) - sizeof(u8) +
 		    WL_BSS_INFO_MAX, GFP_KERNEL);
 	if (unlikely(!notif_bss_info)) {
 		WL_ERR(("notif_bss_info alloc failed\n"));
@@ -2266,7 +2266,7 @@ static int32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	wl_add_ie(wl, WLAN_EID_SSID, bi->SSID_len, bi->SSID);
 	wl_add_ie(wl, WLAN_EID_SUPP_RATES, bi->rateset.count,
 		  bi->rateset.rates);
-	wl_mrg_ie(wl, ((uint8 *) bi) + bi->ie_offset, bi->ie_length);
+	wl_mrg_ie(wl, ((u8 *) bi) + bi->ie_offset, bi->ie_length);
 	wl_cp_ie(wl, mgmt->u.probe_resp.variable, WL_BSS_INFO_MAX -
 		 offsetof(struct wl_cfg80211_bss_info, frame_buf));
 	notif_bss_info->frame_len =
@@ -2519,7 +2519,7 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
 	wl_update_bss_info(wl);
 	cfg80211_roamed(ndev,
-			(uint8 *)&wl->bssid,
+			(u8 *)&wl->bssid,
 			conn_info->req_ie, conn_info->req_ie_len,
 			conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
 	WL_DBG(("Report roaming result\n"));
@@ -2541,7 +2541,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 	wl_update_bss_info(wl);
 	if (test_and_clear_bit(WL_STATUS_CONNECTING, &wl->status)) {
 		cfg80211_connect_result(ndev,
-					(uint8 *)&wl->bssid,
+					(u8 *)&wl->bssid,
 					conn_info->req_ie,
 					conn_info->req_ie_len,
 					conn_info->resp_ie,
@@ -2550,7 +2550,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 		WL_DBG(("Report connect result\n"));
 	} else {
 		cfg80211_roamed(ndev,
-				(uint8 *)&wl->bssid,
+				(u8 *)&wl->bssid,
 				conn_info->req_ie, conn_info->req_ie_len,
 				conn_info->resp_ie, conn_info->resp_ie_len,
 				GFP_KERNEL);
@@ -2574,7 +2574,7 @@ wl_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
 	else
 		key_type = NL80211_KEYTYPE_PAIRWISE;
 
-	cfg80211_michael_mic_failure(ndev, (uint8 *)&e->addr, key_type, -1,
+	cfg80211_michael_mic_failure(ndev, (u8 *)&e->addr, key_type, -1,
 				     NULL, GFP_KERNEL);
 	rtnl_unlock();
 
@@ -3285,7 +3285,7 @@ static int32 wl_dongle_mode(struct net_device *ndev, int32 iftype)
 }
 
 #ifndef EMBEDDED_PLATFORM
-static int32 wl_dongle_country(struct net_device *ndev, uint8 ccode)
+static int32 wl_dongle_country(struct net_device *ndev, u8 ccode)
 {
 
 	int32 err = 0;
@@ -3500,7 +3500,7 @@ static int32 wl_pattern_atoh(int8 *src, int8 *dst)
 		char num[3];
 		strncpy(num, src, 2);
 		num[2] = '\0';
-		dst[i] = (uint8) strtoul(num, NULL, 16);
+		dst[i] = (u8) strtoul(num, NULL, 16);
 		src += 2;
 	}
 	return i;
@@ -3819,7 +3819,7 @@ static void wl_rst_ie(struct wl_priv *wl)
 	ie->offset = 0;
 }
 
-static int32 wl_add_ie(struct wl_priv *wl, uint8 t, uint8 l, uint8 *v)
+static int32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v)
 {
 	struct wl_ie *ie = wl_to_ie(wl);
 	int32 err = 0;
@@ -3836,7 +3836,7 @@ static int32 wl_add_ie(struct wl_priv *wl, uint8 t, uint8 l, uint8 *v)
 	return err;
 }
 
-static int32 wl_mrg_ie(struct wl_priv *wl, uint8 *ie_stream, uint16 ie_size)
+static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, uint16 ie_size)
 {
 	struct wl_ie *ie = wl_to_ie(wl);
 	int32 err = 0;
@@ -3851,7 +3851,7 @@ static int32 wl_mrg_ie(struct wl_priv *wl, uint8 *ie_stream, uint16 ie_size)
 	return err;
 }
 
-static int32 wl_cp_ie(struct wl_priv *wl, uint8 *dst, uint16 dst_size)
+static int32 wl_cp_ie(struct wl_priv *wl, u8 *dst, uint16 dst_size)
 {
 	struct wl_ie *ie = wl_to_ie(wl);
 	int32 err = 0;

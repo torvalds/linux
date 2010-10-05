@@ -986,7 +986,7 @@ static int wl_pattern_atoh(char *src, char *dst)
 		char num[3];
 		strncpy(num, src, 2);
 		num[2] = '\0';
-		dst[i] = (uint8) strtoul(num, NULL, 16);
+		dst[i] = (u8) strtoul(num, NULL, 16);
 		src += 2;
 	}
 	return i;
