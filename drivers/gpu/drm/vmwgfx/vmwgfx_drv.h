@@ -39,9 +39,9 @@
 #include "ttm/ttm_execbuf_util.h"
 #include "ttm/ttm_module.h"
 
-#define VMWGFX_DRIVER_DATE "20100723"
+#define VMWGFX_DRIVER_DATE "20100927"
 #define VMWGFX_DRIVER_MAJOR 1
-#define VMWGFX_DRIVER_MINOR 3
+#define VMWGFX_DRIVER_MINOR 4
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
