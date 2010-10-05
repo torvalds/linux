@@ -471,15 +471,54 @@ static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 	.create_handle = vmw_framebuffer_create_handle,
 };
 
-int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
-				    struct vmw_surface *surface,
-				    struct vmw_framebuffer **out,
-				    unsigned width, unsigned height)
+static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
+					   struct vmw_surface *surface,
+					   struct vmw_framebuffer **out,
+					   const struct drm_mode_fb_cmd
+					   *mode_cmd)
 
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_surface *vfbs;
+	enum SVGA3dSurfaceFormat format;
 	int ret;
+
+	/*
+	 * Sanity checks.
+	 */
+
+	if (unlikely(surface->mip_levels[0] != 1 ||
+		     surface->num_sizes != 1 ||
+		     surface->sizes[0].width < mode_cmd->width ||
+		     surface->sizes[0].height < mode_cmd->height ||
+		     surface->sizes[0].depth != 1)) {
+		DRM_ERROR("Incompatible surface dimensions "
+			  "for requested mode.\n");
+		return -EINVAL;
+	}
+
+	switch (mode_cmd->depth) {
+	case 32:
+		format = SVGA3D_A8R8G8B8;
+		break;
+	case 24:
+		format = SVGA3D_X8R8G8B8;
+		break;
+	case 16:
+		format = SVGA3D_R5G6B5;
+		break;
+	case 15:
+		format = SVGA3D_A1R5G5B5;
+		break;
+	default:
+		DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
+		return -EINVAL;
+	}
+
+	if (unlikely(format != surface->format)) {
+		DRM_ERROR("Invalid surface format for requested mode.\n");
+		return -EINVAL;
+	}
 
 	vfbs = kzalloc(sizeof(*vfbs), GFP_KERNEL);
 	if (!vfbs) {
@@ -498,11 +537,11 @@ int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	}
 
 	/* XXX get the first 3 from the surface info */
-	vfbs->base.base.bits_per_pixel = 32;
-	vfbs->base.base.pitch = width * 32 / 4;
-	vfbs->base.base.depth = 24;
-	vfbs->base.base.width = width;
-	vfbs->base.base.height = height;
+	vfbs->base.base.bits_per_pixel = mode_cmd->bpp;
+	vfbs->base.base.pitch = mode_cmd->pitch;
+	vfbs->base.base.depth = mode_cmd->depth;
+	vfbs->base.base.width = mode_cmd->width;
+	vfbs->base.base.height = mode_cmd->height;
 	vfbs->base.pin = &vmw_surface_dmabuf_pin;
 	vfbs->base.unpin = &vmw_surface_dmabuf_unpin;
 	vfbs->surface = surface;
@@ -659,15 +698,24 @@ static int vmw_framebuffer_dmabuf_unpin(struct vmw_framebuffer *vfb)
 	return vmw_dmabuf_from_vram(dev_priv, vfbd->buffer);
 }
 
-int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
-				   struct vmw_dma_buffer *dmabuf,
-				   struct vmw_framebuffer **out,
-				   unsigned width, unsigned height)
+static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
+					  struct vmw_dma_buffer *dmabuf,
+					  struct vmw_framebuffer **out,
+					  const struct drm_mode_fb_cmd
+					  *mode_cmd)
 
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_dmabuf *vfbd;
+	unsigned int requested_size;
 	int ret;
+
+	requested_size = mode_cmd->height * mode_cmd->pitch;
+	if (unlikely(requested_size > dmabuf->base.num_pages * PAGE_SIZE)) {
+		DRM_ERROR("Screen buffer object size is too small "
+			  "for requested mode.\n");
+		return -EINVAL;
+	}
 
 	vfbd = kzalloc(sizeof(*vfbd), GFP_KERNEL);
 	if (!vfbd) {
@@ -685,12 +733,11 @@ int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err3;
 	}
 
-	/* XXX get the first 3 from the surface info */
-	vfbd->base.base.bits_per_pixel = 32;
-	vfbd->base.base.pitch = width * vfbd->base.base.bits_per_pixel / 8;
-	vfbd->base.base.depth = 24;
-	vfbd->base.base.width = width;
-	vfbd->base.base.height = height;
+	vfbd->base.base.bits_per_pixel = mode_cmd->bpp;
+	vfbd->base.base.pitch = mode_cmd->pitch;
+	vfbd->base.base.depth = mode_cmd->depth;
+	vfbd->base.base.width = mode_cmd->width;
+	vfbd->base.base.height = mode_cmd->height;
 	vfbd->base.pin = vmw_framebuffer_dmabuf_pin;
 	vfbd->base.unpin = vmw_framebuffer_dmabuf_unpin;
 	vfbd->buffer = dmabuf;
@@ -719,7 +766,24 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_framebuffer *vfb = NULL;
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *bo = NULL;
+	unsigned int required_size;
 	int ret;
+
+	/**
+	 * This code should be conditioned on Screen Objects not being used.
+	 * If screen objects are used, we can allocate a GMR to hold the
+	 * requested framebuffer.
+	 */
+
+	required_size = mode_cmd->pitch * mode_cmd->height;
+	if (unlikely(required_size > dev_priv->vram_size)) {
+		DRM_ERROR("VRAM size is too small for requested mode.\n");
+		return NULL;
+	}
+
+	/**
+	 * End conditioned code.
+	 */
 
 	ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
 					     mode_cmd->handle, &surface);
@@ -730,7 +794,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 		goto err_not_scanout;
 
 	ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
-					      mode_cmd->width, mode_cmd->height);
+					      mode_cmd);
 
 	/* vmw_user_surface_lookup takes one ref so does new_fb */
 	vmw_surface_unreference(&surface);
@@ -751,7 +815,7 @@ try_dmabuf:
 	}
 
 	ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
-					     mode_cmd->width, mode_cmd->height);
+					     mode_cmd);
 
 	/* vmw_user_dmabuf_lookup takes one ref so does new_fb */
 	vmw_dmabuf_unreference(&bo);
