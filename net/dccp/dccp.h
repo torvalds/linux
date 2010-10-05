@@ -246,7 +246,6 @@ static inline void dccp_clear_xmit_timers(struct sock *sk)
 extern unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu);
 
 extern const char *dccp_packet_name(const int type);
-extern const char *dccp_state_name(const int state);
 
 extern void dccp_set_state(struct sock *sk, const int state);
 extern void dccp_done(struct sock *sk);
@@ -449,7 +448,6 @@ extern int dccp_insert_options_rsk(struct dccp_request_sock*, struct sk_buff*);
 extern int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed);
 extern u32 dccp_timestamp(void);
 extern void dccp_timestamping_init(void);
-extern int dccp_insert_option_timestamp(struct sk_buff *skb);
 extern int dccp_insert_option(struct sk_buff *skb, unsigned char option,
 			      const void *value, unsigned char len);
 

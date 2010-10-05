@@ -369,7 +369,7 @@ int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed_time)
 
 EXPORT_SYMBOL_GPL(dccp_insert_option_elapsed_time);
 
-int dccp_insert_option_timestamp(struct sk_buff *skb)
+static int dccp_insert_option_timestamp(struct sk_buff *skb)
 {
 	__be32 now = htonl(dccp_timestamp());
 	/* yes this will overflow but that is the point as we want a
@@ -377,8 +377,6 @@ int dccp_insert_option_timestamp(struct sk_buff *skb)
 
 	return dccp_insert_option(skb, DCCPO_TIMESTAMP, &now, sizeof(now));
 }
-
-EXPORT_SYMBOL_GPL(dccp_insert_option_timestamp);
 
 static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
 					     struct dccp_request_sock *dreq,
