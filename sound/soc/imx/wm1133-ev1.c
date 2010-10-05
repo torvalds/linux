@@ -243,7 +243,7 @@ static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link wm1133_ev1_dai = {
 	.name = "WM1133-EV1",
 	.stream_name = "Audio",
-	.cpu_dai_name = "imx-ssi-dai.0",
+	.cpu_dai_name = "imx-ssi.0",
 	.codec_dai_name = "wm8350-hifi",
 	.platform_name = "imx-fiq-pcm-audio.0",
 	.codec_name = "wm8350-codec.0-0x1a",

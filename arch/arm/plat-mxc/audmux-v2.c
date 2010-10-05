@@ -45,9 +45,9 @@ static const char *audmux_port_string(int port)
 {
 	switch (port) {
 	case MX31_AUDMUX_PORT1_SSI0:
-		return "imx-ssi-dai.0";
+		return "imx-ssi.0";
 	case MX31_AUDMUX_PORT2_SSI1:
-		return "imx-ssi-dai.1";
+		return "imx-ssi.1";
 	case MX31_AUDMUX_PORT3_SSI_PINS_3:
 		return "SSI3";
 	case MX31_AUDMUX_PORT4_SSI_PINS_4:

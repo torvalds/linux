@@ -390,36 +390,41 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 			  int source, unsigned int freq_in,
 			  unsigned int freq_out)
 {
-	int ret;
 	struct snd_soc_codec *codec;
-	struct pll_div pll_div = { 0 };
 
 	codec = dai->codec;
-	if (freq_in && freq_out) {
+	if (!freq_in || !freq_out) {
+		/* disable the PLL */
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
+		return 0;
+	} else {
+		int ret;
+		struct pll_div pll_div;
+
 		ret = pll_factors(&pll_div, freq_out, freq_in);
 		if (ret)
 			return ret;
+
+		/* power down the PLL before reprogramming it */
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
+
+		if (!freq_in || !freq_out)
+			return 0;
+
+		/* set PLLN and PRESCALE */
+		snd_soc_update_bits(codec, WM8804_PLL4, 0xf | 0x10,
+				    pll_div.n | (pll_div.prescale << 4));
+		/* set mclkdiv and freqmode */
+		snd_soc_update_bits(codec, WM8804_PLL5, 0x3 | 0x8,
+				    pll_div.freqmode | (pll_div.mclkdiv << 3));
+		/* set PLLK */
+		snd_soc_write(codec, WM8804_PLL1, pll_div.k & 0xff);
+		snd_soc_write(codec, WM8804_PLL2, (pll_div.k >> 8) & 0xff);
+		snd_soc_write(codec, WM8804_PLL3, pll_div.k >> 16);
+
+		/* power up the PLL */
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0);
 	}
-
-	/* power down the PLL before reprogramming it */
-	snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0);
-
-	if (!freq_in || !freq_out)
-		return 0;
-
-	/* set PLLN and PRESCALE */
-	snd_soc_update_bits(codec, WM8804_PLL4, 0xf | 0x10,
-			    pll_div.n | (pll_div.prescale << 4));
-	/* set mclkdiv and freqmode */
-	snd_soc_update_bits(codec, WM8804_PLL5, 0x3 | 0x8,
-			    pll_div.freqmode | (pll_div.mclkdiv << 3));
-	/* set PLLK */
-	snd_soc_write(codec, WM8804_PLL1, pll_div.k & 0xff);
-	snd_soc_write(codec, WM8804_PLL2, (pll_div.k >> 8) & 0xff);
-	snd_soc_write(codec, WM8804_PLL3, pll_div.k >> 16);
-
-	/* power up the PLL */
-	snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
 
 	return 0;
 }
@@ -669,7 +674,7 @@ static struct snd_soc_dai_ops wm8804_dai_ops = {
 			SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_driver wm8804_dai = {
-	.name = "wm8804-s/pdif",
+	.name = "wm8804-spdif",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,

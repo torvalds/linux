@@ -15,6 +15,7 @@
 #define WM8962_GPIO_SET 0x10000
 
 struct wm8962_pdata {
+	int gpio_base;
 	u32 gpio_init[WM8962_MAX_GPIO];
 
 	/* Setup for microphone detection, raw value to be written to

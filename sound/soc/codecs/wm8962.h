@@ -14,6 +14,7 @@
 #define _WM8962_H
 
 #include <asm/types.h>
+#include <sound/soc.h>
 
 #define WM8962_SYSCLK_MCLK 1
 #define WM8962_SYSCLK_FLL  2
@@ -181,6 +182,7 @@
 #define WM8962_EQ39                             0x175
 #define WM8962_EQ40                             0x176
 #define WM8962_EQ41                             0x177
+#define WM8962_GPIO_BASE			0x200
 #define WM8962_GPIO_2                           0x201
 #define WM8962_GPIO_3                           0x202
 #define WM8962_GPIO_5                           0x204
@@ -3783,5 +3785,7 @@ struct wm8962_reg_access {
 
 extern
 const struct wm8962_reg_access wm8962_reg_access[WM8962_MAX_REGISTER + 1];
+
+int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
 
 #endif
