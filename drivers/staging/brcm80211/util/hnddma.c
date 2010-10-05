@@ -273,7 +273,7 @@ static bool dma64_rxstopped(dma_info_t *di);
 static bool dma64_rxenabled(dma_info_t *di);
 static bool _dma64_addrext(osl_t *osh, dma64regs_t *dma64regs);
 
-STATIC INLINE uint32 parity32(uint32 data);
+STATIC inline uint32 parity32(uint32 data);
 
 const di_fcn_t dma64proc = {
 	(di_detach_t) _dma_detach,
@@ -586,7 +586,7 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 }
 
 /* init the tx or rx descriptor */
-static INLINE void
+static inline void
 dma32_dd_upd(dma_info_t *di, dma32dd_t *ddring, dmaaddr_t pa, uint outidx,
 	     uint32 *flags, uint32 bufcount)
 {
@@ -612,7 +612,7 @@ dma32_dd_upd(dma_info_t *di, dma32dd_t *ddring, dmaaddr_t pa, uint outidx,
 }
 
 /* Check for odd number of 1's */
-STATIC INLINE uint32 parity32(uint32 data)
+STATIC inline uint32 parity32(uint32 data)
 {
 	data ^= data >> 16;
 	data ^= data >> 8;
@@ -625,7 +625,7 @@ STATIC INLINE uint32 parity32(uint32 data)
 
 #define DMA64_DD_PARITY(dd)  parity32((dd)->addrlow ^ (dd)->addrhigh ^ (dd)->ctrl1 ^ (dd)->ctrl2)
 
-static INLINE void
+static inline void
 dma64_dd_upd(dma_info_t *di, dma64dd_t *ddring, dmaaddr_t pa, uint outidx,
 	     uint32 *flags, uint32 bufcount)
 {

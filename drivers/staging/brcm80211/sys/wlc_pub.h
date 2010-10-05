@@ -569,19 +569,19 @@ extern uint16 wlc_rate_shm_offset(struct wlc_info *wlc, uint8 rate);
 extern uint32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
 extern uint32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
 
-static INLINE int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
+static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 				    uint *arg)
 {
 	return wlc_iovar_getint(wlc, name, (int *)arg);
 }
 
-static INLINE int wlc_iovar_getuint8(struct wlc_info *wlc, const char *name,
+static inline int wlc_iovar_getuint8(struct wlc_info *wlc, const char *name,
 				     uint8 *arg)
 {
 	return wlc_iovar_getint8(wlc, name, (int8 *) arg);
 }
 
-static INLINE int wlc_iovar_setuint(struct wlc_info *wlc, const char *name,
+static inline int wlc_iovar_setuint(struct wlc_info *wlc, const char *name,
 				    uint arg)
 {
 	return wlc_iovar_setint(wlc, name, (int)arg);

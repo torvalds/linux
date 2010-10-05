@@ -20,7 +20,7 @@
 #include <typedefs.h>
 
 /* local prototypes */
-static INLINE uint32 find_msbit(uint32 x);
+static inline uint32 find_msbit(uint32 x);
 
 /*
  * find_msbit: returns index of most significant set bit in x, with index
@@ -35,7 +35,7 @@ static INLINE uint32 find_msbit(uint32 x);
  * model 2, stepping 12, "Pentium 75 - 200"), so we use the generic
  * implementation instead.
  */
-static INLINE uint32 find_msbit(uint32 x)
+static inline uint32 find_msbit(uint32 x)
 {
 	uint msbit;
  __asm__("bsrl %1,%0" : "=r"(msbit)
@@ -55,7 +55,7 @@ static INLINE uint32 find_msbit(uint32 x)
 #define DB_POW_MASK2	0x0000000c
 #define DB_POW_MASK1	0x00000002
 
-static INLINE uint32 find_msbit(uint32 x)
+static inline uint32 find_msbit(uint32 x)
 {
 	uint32 temp_x = x;
 	uint msbit = 0;

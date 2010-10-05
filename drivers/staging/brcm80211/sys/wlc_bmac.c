@@ -3174,7 +3174,7 @@ void wlc_bmac_tx_fifo_resume(wlc_hw_info_t *wlc_hw, uint tx_fifo)
  *   0 if the interrupt is not for us, or we are in some special cases;
  *   device interrupt status bits otherwise.
  */
-static INLINE uint32 wlc_intstatus(wlc_info_t *wlc, bool in_isr)
+static inline uint32 wlc_intstatus(wlc_info_t *wlc, bool in_isr)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;

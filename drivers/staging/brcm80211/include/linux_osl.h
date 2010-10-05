@@ -361,7 +361,7 @@ extern void *osl_pktdup(osl_t *osh, void *skb);
 extern void *osl_pktget_static(osl_t *osh, uint len);
 extern void osl_pktfree_static(osl_t *osh, void *skb, bool send);
 
-static INLINE void *
+static inline void *
 osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
@@ -377,7 +377,7 @@ osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
 #define PKTFRMNATIVE(osh, skb)	\
 	osl_pkt_frmnative(((osl_pubinfo_t *)osh), (struct sk_buff*)(skb))
 
-static INLINE struct sk_buff *
+static inline struct sk_buff *
 osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 {
 	struct sk_buff *nskb;

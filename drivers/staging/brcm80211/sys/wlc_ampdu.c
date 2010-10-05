@@ -158,7 +158,7 @@ static void wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 					  uint32 frmtxstatus,
 					  uint32 frmtxstatus2);
 
-static INLINE uint16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
+static inline uint16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
 {
 	d11txh_t *txh;
 	struct dot11_header *h;

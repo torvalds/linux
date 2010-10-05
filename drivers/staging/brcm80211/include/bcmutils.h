@@ -518,7 +518,7 @@ extern "C" {
 
 /* crypto utility function */
 /* 128-bit xor: *dst = *src1 xor *src2. dst1, src1 and src2 may have any alignment */
-	static INLINE void
+	static inline void
 	 xor_128bit_block(const uint8 *src1, const uint8 *src2, uint8 *dst) {
 		if (
 #ifdef __i386__

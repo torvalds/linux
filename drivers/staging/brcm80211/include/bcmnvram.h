@@ -91,7 +91,7 @@ extern int BCMINITFN(nvram_resetgpio_init) (void *sih);
  * @return	TRUE if variable is defined and its value is string equal
  *		to match or FALSE otherwise
  */
-static INLINE int nvram_match(char *name, char *match)
+static inline int nvram_match(char *name, char *match)
 {
 	const char *value = nvram_get(name);
 	return value && !strcmp(value, match);
@@ -104,7 +104,7 @@ static INLINE int nvram_match(char *name, char *match)
  * @return	TRUE if variable is defined and its value is not string
  *		equal to invmatch or FALSE otherwise
  */
-static INLINE int nvram_invmatch(char *name, char *invmatch)
+static inline int nvram_invmatch(char *name, char *invmatch)
 {
 	const char *value = nvram_get(name);
 	return value && strcmp(value, invmatch);

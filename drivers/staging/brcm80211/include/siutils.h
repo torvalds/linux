@@ -233,7 +233,7 @@ extern uint16 si_d11_devid(si_t *sih);
 #define si_eci_init(sih) (0)
 #define si_eci_notify_bt(sih, type, val)  (0)
 #define si_seci(sih) 0
-static INLINE void *si_seci_init(si_t *sih, uint8 use_seci)
+static inline void *si_seci_init(si_t *sih, uint8 use_seci)
 {
 	return NULL;
 }

@@ -420,7 +420,7 @@ typedef struct wlc_rpc_ctx {
 	wlc_hw_info_t *wlc_hw;
 } wlc_rpc_ctx_t;
 
-static INLINE rpc_buf_t *wlc_rpc_buf_alloc(rpc_info_t *rpc, bcm_xdr_buf_t *b,
+static inline rpc_buf_t *wlc_rpc_buf_alloc(rpc_info_t *rpc, bcm_xdr_buf_t *b,
 					   uint len, wlc_rpc_id_t rpc_id)
 {
 	rpc_buf_t *rpc_buf;
@@ -496,7 +496,7 @@ typedef struct wlc_rpc_txstatus {
 	uint32 ackphyrxsh_phyerr;
 } wlc_rpc_txstatus_t;
 
-static INLINE
+static inline
     void txstatus2rpc_txstatus(tx_status_t *txstatus,
 			       wlc_rpc_txstatus_t *rpc_txstatus)
 {
@@ -509,7 +509,7 @@ static INLINE
 	    (txstatus->ackphyrxsh << 16) | txstatus->phyerr;
 }
 
-static INLINE
+static inline
     void rpc_txstatus2txstatus(wlc_rpc_txstatus_t *rpc_txstatus,
 			       tx_status_t *txstatus)
 {

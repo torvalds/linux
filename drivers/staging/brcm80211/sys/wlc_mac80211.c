@@ -5441,7 +5441,7 @@ void BCMFASTPATH wlc_send_q(wlc_info_t *wlc, wlc_txq_info_t *qi)
  * Generate frame ID for a BCMC packet.  The frag field is not used
  * for MC frames so is used as part of the sequence number.
  */
-static INLINE uint16
+static inline uint16
 bcmc_fid_generate(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg, d11txh_t *txh)
 {
 	uint16 frameid;

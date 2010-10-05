@@ -159,30 +159,10 @@ typedef float64 float_t;
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-/* define PTRSZ, INLINE */
-
+/* define PTRSZ */
 #ifndef PTRSZ
 #define	PTRSZ	sizeof(char *)
 #endif
-
-/* Detect compiler type. */
-#if defined(__GNUC__)
-#define BWL_COMPILER_GNU
-#elif defined(__CC_ARM) && __CC_ARM
-#define BWL_COMPILER_ARMCC
-#else
-#error "Unknown compiler!"
-#endif
-
-#ifndef INLINE
-#if defined(BWL_COMPILER_GNU)
-#define INLINE __inline__
-#elif defined(BWL_COMPILER_ARMCC)
-#define INLINE	__inline
-#else
-#define INLINE
-#endif
-#endif				/* INLINE */
 
 #undef TYPEDEF_BOOL
 #undef TYPEDEF_UCHAR
