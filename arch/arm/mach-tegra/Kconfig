@@ -66,6 +66,13 @@ config TEGRA_PWM
 	help
 	  Enable support for the Tegra PWM controller(s).
 
+config TEGRA_FIQ_DEBUGGER
+	bool "Enable the FIQ serial debugger on Tegra"
+	default y
+	select FIQ_DEBUGGER
+	help
+	  Enables the FIQ serial debugger on Tegra"
+
 endif
 
 config TEGRA_IOVMM_GART
