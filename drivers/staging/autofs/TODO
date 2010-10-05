@@ -1,0 +1,8 @@
+- step up and maintain this filesystem to ensure that it continues to
+  work.  There are lots of reported autofs3 bugs, and it uses the BKL,
+  which is going away.
+  If this does not happen, the will be removed in the 2.6.38 kernel
+  release.
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+Cc: H. Peter Anvin <hpa@zytor.com> and Arnd Bergmann <arnd@arndb.de>
