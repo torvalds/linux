@@ -308,6 +308,18 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 
 #define CLEAR_BIT_INDEX(reg, index)   (reg &= ~(1 << (index)))
 
+struct shm_segs {
+	u32 seg0_da;
+	u32 seg0_pa;
+	u32 seg0_va;
+	u32 seg0_size;
+	u32 seg1_da;
+	u32 seg1_pa;
+	u32 seg1_va;
+	u32 seg1_size;
+};
+
+
 /* This Bridge driver's device context: */
 struct bridge_dev_context {
 	struct dev_object *hdev_obj;	/* Handle to Bridge device object. */
@@ -331,6 +343,7 @@ struct bridge_dev_context {
 
 	struct omap_mbox *mbox;		/* Mail box handle */
 	struct iommu *dsp_mmu;      /* iommu for iva2 handler */
+	struct shm_segs sh_s;
 	struct cfg_hostres *resources;	/* Host Resources */
 
 	/*

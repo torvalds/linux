@@ -134,10 +134,9 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 
 		if (!status) {
 			ul_tlb_base_virt =
-			    dev_context->atlb_entry[0].ul_dsp_va * DSPWORDSIZE;
+			    dev_context->sh_s.seg0_da * DSPWORDSIZE;
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
-			dw_ext_prog_virt_mem =
-			    dev_context->atlb_entry[0].ul_gpp_va;
+			dw_ext_prog_virt_mem = dev_context->sh_s.seg0_va;
 
 			if (!trace_read) {
 				ul_shm_offset_virt =
@@ -318,8 +317,9 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			ret = -EPERM;
 
 		if (!ret) {
-			ul_tlb_base_virt =
-			    dev_context->atlb_entry[0].ul_dsp_va * DSPWORDSIZE;
+			ul_tlb_base_virt = dev_context->sh_s.seg0_da *
+								DSPWORDSIZE;
+
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 
 			if (symbols_reloaded) {
@@ -337,7 +337,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			    ul_shm_base_virt - ul_tlb_base_virt;
 			if (trace_load) {
 				dw_ext_prog_virt_mem =
-				    dev_context->atlb_entry[0].ul_gpp_va;
+					dev_context->sh_s.seg0_va;
 			} else {
 				dw_ext_prog_virt_mem = host_res->dw_mem_base[1];
 				dw_ext_prog_virt_mem +=
