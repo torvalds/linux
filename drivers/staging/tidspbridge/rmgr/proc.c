@@ -152,34 +152,21 @@ static struct dmm_map_object *add_mapping_info(struct process_context *pr_ctxt,
 	return map_obj;
 }
 
-static int match_exact_map_obj(struct dmm_map_object *map_obj,
-					u32 dsp_addr, u32 size)
-{
-	if (map_obj->dsp_addr == dsp_addr && map_obj->size != size)
-		pr_err("%s: addr match (0x%x), size don't (0x%x != 0x%x)\n",
-				__func__, dsp_addr, map_obj->size, size);
-
-	return map_obj->dsp_addr == dsp_addr &&
-		map_obj->size == size;
-}
-
 static void remove_mapping_information(struct process_context *pr_ctxt,
-						u32 dsp_addr, u32 size)
+						u32 dsp_addr)
 {
 	struct dmm_map_object *map_obj;
 
-	pr_debug("%s: looking for virt 0x%x size 0x%x\n", __func__,
-							dsp_addr, size);
+	pr_debug("%s: looking for virt 0x%x\n", __func__, dsp_addr);
 
 	spin_lock(&pr_ctxt->dmm_map_lock);
 	list_for_each_entry(map_obj, &pr_ctxt->dmm_map_list, link) {
-		pr_debug("%s: candidate: mpu_addr 0x%x virt 0x%x size 0x%x\n",
+		pr_debug("%s: candidate: mpu_addr 0x%x virt 0x%x\n",
 							__func__,
 							map_obj->mpu_addr,
-							map_obj->dsp_addr,
-							map_obj->size);
+							map_obj->dsp_addr);
 
-		if (match_exact_map_obj(map_obj, dsp_addr, size)) {
+		if (map_obj->dsp_addr == dsp_addr) {
 			pr_debug("%s: match, deleting map info\n", __func__);
 			list_del(&map_obj->link);
 			kfree(map_obj->dma_info.sg);
@@ -1353,7 +1340,6 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 {
 	u32 va_align;
 	u32 pa_align;
-	struct dmm_object *dmm_mgr;
 	u32 size_align;
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
@@ -1382,11 +1368,6 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 	}
 	/* Critical section */
 	mutex_lock(&proc_lock);
-	dmm_get_handle(p_proc_object, &dmm_mgr);
-	if (dmm_mgr)
-		status = dmm_map_memory(dmm_mgr, va_align, size_align);
-	else
-		status = -EFAULT;
 
 	/* Add mapping to the page tables. */
 	if (!status) {
@@ -1409,9 +1390,9 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 		map_obj->dsp_addr = (va_align |
 					((u32)pmpu_addr & (PG_SIZE4K - 1)));
 		*pp_map_addr = (void *)map_obj->dsp_addr;
+		pr_err("%s: mapped address %x\n", __func__, *pp_map_addr);
 	} else {
-		remove_mapping_information(pr_ctxt, va_align, size_align);
-		dmm_un_map_memory(dmm_mgr, va_align, &size_align);
+		remove_mapping_information(pr_ctxt, va_align);
 	}
 	mutex_unlock(&proc_lock);
 
@@ -1500,38 +1481,6 @@ int proc_register_notify(void *hprocessor, u32 event_mask,
 		}
 	}
 func_end:
-	return status;
-}
-
-/*
- *  ======== proc_reserve_memory ========
- *  Purpose:
- *      Reserve a virtually contiguous region of DSP address space.
- */
-int proc_reserve_memory(void *hprocessor, u32 ul_size,
-			       void **pp_rsv_addr,
-			       struct process_context *pr_ctxt)
-{
-	struct dmm_object *dmm_mgr;
-	int status = 0;
-	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-
-	if (!p_proc_object) {
-		status = -EFAULT;
-		goto func_end;
-	}
-
-	status = dmm_get_handle(p_proc_object, &dmm_mgr);
-	if (!dmm_mgr) {
-		status = -EFAULT;
-		goto func_end;
-	}
-
-	status = dmm_reserve_memory(dmm_mgr, ul_size, (u32 *) pp_rsv_addr);
-func_end:
-	dev_dbg(bridge, "%s: hprocessor: 0x%p ul_size: 0x%x pp_rsv_addr: 0x%p "
-		"status 0x%x\n", __func__, hprocessor,
-		ul_size, pp_rsv_addr, status);
 	return status;
 }
 
@@ -1683,7 +1632,6 @@ int proc_un_map(void *hprocessor, void *map_addr,
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-	struct dmm_object *dmm_mgr;
 	u32 va_align;
 	u32 size_align;
 
@@ -1693,23 +1641,11 @@ int proc_un_map(void *hprocessor, void *map_addr,
 		goto func_end;
 	}
 
-	status = dmm_get_handle(hprocessor, &dmm_mgr);
-	if (!dmm_mgr) {
-		status = -EFAULT;
-		goto func_end;
-	}
-
 	/* Critical section */
 	mutex_lock(&proc_lock);
-	/*
-	 * Update DMM structures. Get the size to unmap.
-	 * This function returns error if the VA is not mapped
-	 */
-	status = dmm_un_map_memory(dmm_mgr, (u32) va_align, &size_align);
 	/* Remove mapping from the page tables. */
-	if (!status)
-		status = user_to_dsp_unmap(
-			p_proc_object->hbridge_context->dsp_mmu, va_align);
+	status = user_to_dsp_unmap(p_proc_object->hbridge_context->dsp_mmu,
+								va_align);
 
 	mutex_unlock(&proc_lock);
 	if (status)
@@ -1720,41 +1656,11 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	 * from dmm_map_list, so that mapped memory resource tracking
 	 * remains uptodate
 	 */
-	remove_mapping_information(pr_ctxt, (u32) map_addr, size_align);
+	remove_mapping_information(pr_ctxt, (u32) map_addr);
 
 func_end:
 	dev_dbg(bridge, "%s: hprocessor: 0x%p map_addr: 0x%p status: 0x%x\n",
 		__func__, hprocessor, map_addr, status);
-	return status;
-}
-
-/*
- *  ======== proc_un_reserve_memory ========
- *  Purpose:
- *      Frees a previously reserved region of DSP address space.
- */
-int proc_un_reserve_memory(void *hprocessor, void *prsv_addr,
-				  struct process_context *pr_ctxt)
-{
-	struct dmm_object *dmm_mgr;
-	int status = 0;
-	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-
-	if (!p_proc_object) {
-		status = -EFAULT;
-		goto func_end;
-	}
-
-	status = dmm_get_handle(p_proc_object, &dmm_mgr);
-	if (!dmm_mgr) {
-		status = -EFAULT;
-		goto func_end;
-	}
-
-	status = dmm_un_reserve_memory(dmm_mgr, (u32) prsv_addr);
-func_end:
-	dev_dbg(bridge, "%s: hprocessor: 0x%p prsv_addr: 0x%p status: 0x%x\n",
-		__func__, hprocessor, prsv_addr, status);
 	return status;
 }
 

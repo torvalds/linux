@@ -989,27 +989,10 @@ u32 procwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== procwrap_reserve_memory ========
  */
-u32 procwrap_reserve_memory(union trapped_args *args, void *pr_ctxt)
+u32 __deprecated procwrap_reserve_memory(union trapped_args *args,
+							void *pr_ctxt)
 {
-	int status;
-	void *prsv_addr;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
-
-	if ((args->args_proc_rsvmem.ul_size <= 0) ||
-	    (args->args_proc_rsvmem.ul_size & (PG_SIZE4K - 1)) != 0)
-		return -EINVAL;
-
-	status = proc_reserve_memory(hprocessor,
-				     args->args_proc_rsvmem.ul_size, &prsv_addr,
-				     pr_ctxt);
-	if (!status) {
-		if (put_user(prsv_addr, args->args_proc_rsvmem.pp_rsv_addr)) {
-			status = -EINVAL;
-			proc_un_reserve_memory(args->args_proc_rsvmem.
-					       hprocessor, prsv_addr, pr_ctxt);
-		}
-	}
-	return status;
+	return 0;
 }
 
 /*
@@ -1038,15 +1021,10 @@ u32 procwrap_un_map(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== procwrap_un_reserve_memory ========
  */
-u32 procwrap_un_reserve_memory(union trapped_args *args, void *pr_ctxt)
+u32 __deprecated procwrap_un_reserve_memory(union trapped_args *args,
+							void *pr_ctxt)
 {
-	int status;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
-
-	status = proc_un_reserve_memory(hprocessor,
-					args->args_proc_unrsvmem.prsv_addr,
-					pr_ctxt);
-	return status;
+	return 0;
 }
 
 /*

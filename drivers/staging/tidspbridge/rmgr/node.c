@@ -430,17 +430,6 @@ int node_allocate(struct proc_object *hprocessor,
 	if (status)
 		goto func_cont;
 
-	status = proc_reserve_memory(hprocessor,
-				     pnode->create_args.asa.task_arg_obj.
-				     heap_size + PAGE_SIZE,
-				     (void **)&(pnode->create_args.asa.
-					task_arg_obj.udsp_heap_res_addr),
-				     pr_ctxt);
-	if (status) {
-		pr_err("%s: Failed to reserve memory for heap: 0x%x\n",
-		       __func__, status);
-		goto func_cont;
-	}
 #ifdef DSP_DMM_DEBUG
 	status = dmm_get_handle(p_proc_object, &dmm_mgr);
 	if (!dmm_mgr) {
@@ -456,8 +445,7 @@ int node_allocate(struct proc_object *hprocessor,
 	map_attrs |= DSP_MAPVIRTUALADDR;
 	status = proc_map(hprocessor, (void *)attr_in->pgpp_virt_addr,
 			  pnode->create_args.asa.task_arg_obj.heap_size,
-			  (void *)pnode->create_args.asa.task_arg_obj.
-			  udsp_heap_res_addr, (void **)&mapped_addr, map_attrs,
+			  NULL, (void **)&mapped_addr, map_attrs,
 			  pr_ctxt);
 	if (status)
 		pr_err("%s: Failed to map memory for Heap: 0x%x\n",
@@ -2576,12 +2564,6 @@ static void delete_node(struct node_object *hnode,
 			status = proc_un_map(hnode->hprocessor, (void *)
 					     task_arg_obj.udsp_heap_addr,
 					     pr_ctxt);
-
-			status = proc_un_reserve_memory(hnode->hprocessor,
-							(void *)
-							task_arg_obj.
-							udsp_heap_res_addr,
-							pr_ctxt);
 #ifdef DSP_DMM_DEBUG
 			status = dmm_get_handle(p_proc_object, &dmm_mgr);
 			if (dmm_mgr)
