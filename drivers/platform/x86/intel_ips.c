@@ -1391,9 +1391,10 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 	tdp = turbo_power & TURBO_TDP_MASK;
 
 	/* Sanity check TDP against CPU */
-	if (limits->mcp_power_limit != (tdp / 8) * 1000) {
-		dev_warn(&ips->dev->dev, "Warning: CPU TDP doesn't match expected value (found %d, expected %d)\n",
-			 tdp / 8, limits->mcp_power_limit / 1000);
+	if (limits->core_power_limit != (tdp / 8) * 1000) {
+		dev_info(&ips->dev->dev, "CPU TDP doesn't match expected value (found %d, expected %d)\n",
+			 tdp / 8, limits->core_power_limit / 1000);
+		limits->core_power_limit = (tdp / 8) * 1000;
 	}
 
 out:
