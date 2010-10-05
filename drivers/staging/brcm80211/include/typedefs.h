@@ -134,11 +134,6 @@ typedef signed long long int64;
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-/* define PTRSZ */
-#ifndef PTRSZ
-#define	PTRSZ	sizeof(char *)
-#endif
-
 #undef TYPEDEF_BOOL
 #undef TYPEDEF_UCHAR
 #undef TYPEDEF_USHORT
