@@ -657,9 +657,10 @@ static int tegra_dc_hdmi_setup_audio(struct tegra_dc *dc)
 	tegra_hdmi_writel(hdmi, audio_n, HDMI_NV_PDISP_AUDIO_N);
 
 	tegra_hdmi_writel(hdmi, ACR_SUBPACK_N(config->n) | ACR_ENABLE,
-			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW);
-	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config->n),
 			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH);
+
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config->cts),
+			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW);
 
 	tegra_hdmi_writel(hdmi, SPARE_HW_CTS | SPARE_FORCE_SW_CTS |
 			  SPARE_CTS_RESET_VAL(1),
