@@ -56,6 +56,54 @@ static struct tracer_flags tracer_flags = {
 #define is_graph() (tracer_flags.val & TRACE_DISPLAY_GRAPH)
 
 #ifdef CONFIG_FUNCTION_TRACER
+
+/*
+ * Prologue for the wakeup function tracers.
+ *
+ * Returns 1 if it is OK to continue, and preemption
+ *            is disabled and data->disabled is incremented.
+ *         0 if the trace is to be ignored, and preemption
+ *            is not disabled and data->disabled is
+ *            kept the same.
+ *
+ * Note, this function is also used outside this ifdef but
+ *  inside the #ifdef of the function graph tracer below.
+ *  This is OK, since the function graph tracer is
+ *  dependent on the function tracer.
+ */
+static int
+func_prolog_preempt_disable(struct trace_array *tr,
+			    struct trace_array_cpu **data,
+			    int *pc)
+{
+	long disabled;
+	int cpu;
+
+	if (likely(!wakeup_task))
+		return 0;
+
+	*pc = preempt_count();
+	preempt_disable_notrace();
+
+	cpu = raw_smp_processor_id();
+	if (cpu != wakeup_current_cpu)
+		goto out_enable;
+
+	*data = tr->data[cpu];
+	disabled = atomic_inc_return(&(*data)->disabled);
+	if (unlikely(disabled != 1))
+		goto out;
+
+	return 1;
+
+out:
+	atomic_dec(&(*data)->disabled);
+
+out_enable:
+	preempt_enable_notrace();
+	return 0;
+}
+
 /*
  * wakeup uses its own tracer function to keep the overhead down:
  */
@@ -65,34 +113,16 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
-	int cpu;
 	int pc;
 
-	if (likely(!wakeup_task))
+	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return;
 
-	pc = preempt_count();
-	preempt_disable_notrace();
-
-	cpu = raw_smp_processor_id();
-	if (cpu != wakeup_current_cpu)
-		goto out_enable;
-
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-	if (unlikely(disabled != 1))
-		goto out;
-
 	local_irq_save(flags);
-
 	trace_function(tr, ip, parent_ip, flags, pc);
-
 	local_irq_restore(flags);
 
- out:
 	atomic_dec(&data->disabled);
- out_enable:
 	preempt_enable_notrace();
 }
 
@@ -154,32 +184,16 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
-	int cpu, pc, ret = 0;
+	int pc, ret = 0;
 
-	if (likely(!wakeup_task))
+	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return 0;
-
-	pc = preempt_count();
-	preempt_disable_notrace();
-
-	cpu = raw_smp_processor_id();
-	if (cpu != wakeup_current_cpu)
-		goto out_enable;
-
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-	if (unlikely(disabled != 1))
-		goto out;
 
 	local_save_flags(flags);
 	ret = __trace_graph_entry(tr, trace, flags, pc);
-
-out:
 	atomic_dec(&data->disabled);
-
-out_enable:
 	preempt_enable_notrace();
+
 	return ret;
 }
 
@@ -188,31 +202,15 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace)
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
-	int cpu, pc;
+	int pc;
 
-	if (likely(!wakeup_task))
+	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return;
-
-	pc = preempt_count();
-	preempt_disable_notrace();
-
-	cpu = raw_smp_processor_id();
-	if (cpu != wakeup_current_cpu)
-		goto out_enable;
-
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-	if (unlikely(disabled != 1))
-		goto out;
 
 	local_save_flags(flags);
 	__trace_graph_return(tr, trace, flags, pc);
-
-out:
 	atomic_dec(&data->disabled);
 
-out_enable:
 	preempt_enable_notrace();
 	return;
 }
