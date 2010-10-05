@@ -17,6 +17,8 @@
 #ifndef _TYPEDEFS_H_
 #define _TYPEDEFS_H_
 
+#include <linux/types.h>
+
 /*
  * Infer the compile environment based on preprocessor symbols and pragmas.
  * Override type definitions as needed, and include configuration-dependent
@@ -31,7 +33,6 @@ typedef unsigned long long int uintptr;
 #define TYPEDEF_UINT
 #define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
-#include <linux/types.h>
 
 /*
  * Default Typedefs
