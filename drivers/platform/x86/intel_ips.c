@@ -415,7 +415,7 @@ static void ips_cpu_lower(struct ips_driver *ips)
 	new_limit = cur_limit - 8; /* 1W decrease */
 
 	/* Clamp to SKU TDP limit */
-	if (((new_limit * 10) / 8) < (ips->orig_turbo_limit & TURBO_TDP_MASK))
+	if (new_limit  < (ips->orig_turbo_limit & TURBO_TDP_MASK))
 		new_limit = ips->orig_turbo_limit & TURBO_TDP_MASK;
 
 	thm_writew(THM_MPCPC, (new_limit * 10) / 8);
