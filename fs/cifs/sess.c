@@ -739,9 +739,6 @@ ssetup_ntlmssp_authenticate:
 		pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
 		/*	cpu_to_le16(LM2_SESS_KEY_SIZE); */
 
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(sizeof(struct ntlmv2_resp));
-
 		/* calculate session key */
 		rc = setup_ntlmv2_rsp(ses, v2_sess_key, nls_cp);
 		if (rc) {
@@ -753,6 +750,11 @@ ssetup_ntlmssp_authenticate:
 				sizeof(struct ntlmv2_resp));
 		bcc_ptr += sizeof(struct ntlmv2_resp);
 		kfree(v2_sess_key);
+		/* set case sensitive password length after tilen may get
+		 * assigned, tilen is 0 otherwise.
+		 */
+		pSMB->req_no_secext.CaseSensitivePasswordLength =
+			cpu_to_le16(sizeof(struct ntlmv2_resp) + ses->tilen);
 		if (ses->tilen > 0) {
 			memcpy(bcc_ptr, ses->tiblob, ses->tilen);
 			bcc_ptr += ses->tilen;
@@ -761,6 +763,7 @@ ssetup_ntlmssp_authenticate:
 			ses->tiblob = NULL;
 			ses->tilen = 0;
 		}
+
 		if (ses->capabilities & CAP_UNICODE) {
 			if (iov[0].iov_len % 2) {
 				*bcc_ptr = 0;
