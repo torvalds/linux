@@ -244,6 +244,10 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 
 	mutex_lock(&minors_lock);
 	dev = hidraw_table[minor];
+	if (!dev) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	switch (cmd) {
 		case HIDIOCGRDESCSIZE:
@@ -317,6 +321,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 
 		ret = -ENOTTY;
 	}
+out:
 	mutex_unlock(&minors_lock);
 	return ret;
 }
