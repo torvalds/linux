@@ -1745,7 +1745,8 @@ static void goku_remove(struct pci_dev *pdev)
 				pci_resource_len (pdev, 0));
 	if (dev->enabled)
 		pci_disable_device(pdev);
-	device_unregister(&dev->gadget.dev);
+	if (dev->registered)
+		device_unregister(&dev->gadget.dev);
 
 	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
@@ -1775,7 +1776,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!pdev->irq) {
 		printk(KERN_ERR "Check PCI %s IRQ setup!\n", pci_name(pdev));
 		retval = -ENODEV;
-		goto done;
+		goto err;
 	}
 
 	/* alloc, and start init */
@@ -1783,7 +1784,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (dev == NULL){
 		pr_debug("enomem %s\n", pci_name(pdev));
 		retval = -ENOMEM;
-		goto done;
+		goto err;
 	}
 
 	spin_lock_init(&dev->lock);
@@ -1801,7 +1802,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	retval = pci_enable_device(pdev);
 	if (retval < 0) {
 		DBG(dev, "can't enable, %d\n", retval);
-		goto done;
+		goto err;
 	}
 	dev->enabled = 1;
 
@@ -1810,7 +1811,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!request_mem_region(resource, len, driver_name)) {
 		DBG(dev, "controller already in use\n");
 		retval = -EBUSY;
-		goto done;
+		goto err;
 	}
 	dev->got_region = 1;
 
@@ -1818,7 +1819,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (base == NULL) {
 		DBG(dev, "can't map memory\n");
 		retval = -EFAULT;
-		goto done;
+		goto err;
 	}
 	dev->regs = (struct goku_udc_regs __iomem *) base;
 
@@ -1834,7 +1835,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			driver_name, dev) != 0) {
 		DBG(dev, "request interrupt %d failed\n", pdev->irq);
 		retval = -EBUSY;
-		goto done;
+		goto err;
 	}
 	dev->got_irq = 1;
 	if (use_dma)
@@ -1845,13 +1846,16 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	create_proc_read_entry(proc_node_name, 0, NULL, udc_proc_read, dev);
 #endif
 
-	/* done */
 	the_controller = dev;
 	retval = device_register(&dev->gadget.dev);
-	if (retval == 0)
-		return 0;
+	if (retval) {
+		put_device(&dev->gadget.dev);
+		goto err;
+	}
+	dev->registered = 1;
+	return 0;
 
-done:
+err:
 	if (dev)
 		goku_remove (pdev);
 	return retval;
