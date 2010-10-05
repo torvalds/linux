@@ -42,9 +42,6 @@
 #include <linux/lockdep.h>
 #include <linux/idr.h>
 
-#define CREATE_TRACE_POINTS
-#include <trace/events/workqueue.h>
-
 #include "workqueue_sched.h"
 
 enum {
@@ -256,6 +253,9 @@ EXPORT_SYMBOL_GPL(system_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
 EXPORT_SYMBOL_GPL(system_unbound_wq);
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/workqueue.h>
 
 #define for_each_busy_worker(worker, i, pos, gcwq)			\
 	for (i = 0; i < BUSY_WORKER_HASH_SIZE; i++)			\
