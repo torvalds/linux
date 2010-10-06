@@ -12,7 +12,6 @@ obj-y                                   += powergate.o
 obj-y					+= suspend.o
 obj-y					+= fuse.o
 obj-y					+= tegra_i2s_audio.o
-obj-y					+= tegra_spdif_audio.o
 obj-$(CONFIG_USB_SUPPORT)               += usb_phy.o
 obj-$(CONFIG_FIQ)                       += fiq.o
 obj-$(CONFIG_TEGRA_PWM)                 += pwm.o
