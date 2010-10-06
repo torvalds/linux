@@ -100,6 +100,7 @@ struct smb_vol {
 	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
 	bool fsc:1;	/* enable fscache */
 	bool mfsymlinks:1; /* use Minshall+French Symlinks */
+	bool multiuser:1;
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -1347,6 +1348,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->fsc = true;
 		} else if (strnicmp(data, "mfsymlinks", 10) == 0) {
 			vol->mfsymlinks = true;
+		} else if (strnicmp(data, "multiuser", 8) == 0) {
+			vol->multiuser = true;
 		} else
 			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
 						data);
@@ -1378,6 +1381,13 @@ cifs_parse_mount_options(char *options, const char *devname,
 			return 1;
 		}
 	}
+
+	if (vol->multiuser && !(vol->secFlg & CIFSSEC_MAY_KRB5)) {
+		cERROR(1, "Multiuser mounts currently require krb5 "
+			  "authentication!");
+		return 1;
+	}
+
 	if (vol->UNCip == NULL)
 		vol->UNCip = &vol->UNC[2];
 
@@ -2563,6 +2573,9 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
 	if (pvolume_info->fsc)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_FSCACHE;
+	if (pvolume_info->multiuser)
+		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
+					    CIFS_MOUNT_NO_PERM);
 	if (pvolume_info->direct_io) {
 		cFYI(1, "mounting share using direct i/o");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
