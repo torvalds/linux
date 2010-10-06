@@ -33,6 +33,27 @@
 #define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognise osh */
 #define BCM_MEM_FILENAME_LEN 	24	/* Mem. filename length */
 
+#ifdef DHD_USE_STATIC_BUF
+#define MAX_STATIC_BUF_NUM 16
+#define STATIC_BUF_SIZE	(PAGE_SIZE*2)
+#define STATIC_BUF_TOTAL_LEN (MAX_STATIC_BUF_NUM*STATIC_BUF_SIZE)
+typedef struct bcm_static_buf {
+	struct semaphore static_sem;
+	unsigned char *buf_ptr;
+	unsigned char buf_use[MAX_STATIC_BUF_NUM];
+} bcm_static_buf_t;
+
+static bcm_static_buf_t *bcm_static_buf = 0;
+
+#define MAX_STATIC_PKT_NUM 8
+typedef struct bcm_static_pkt {
+	struct sk_buff *skb_4k[MAX_STATIC_PKT_NUM];
+	struct sk_buff *skb_8k[MAX_STATIC_PKT_NUM];
+	struct semaphore osl_pkt_sem;
+	unsigned char pkt_use[MAX_STATIC_PKT_NUM * 2];
+} bcm_static_pkt_t;
+static bcm_static_pkt_t *bcm_static_skb = 0;
+#endif				/* DHD_USE_STATIC_BUF */
 typedef struct bcm_mem_link {
 	struct bcm_mem_link *prev;
 	struct bcm_mem_link *next;
@@ -143,6 +164,7 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 	switch (bustype) {
 	case PCI_BUS:
 	case SI_BUS:
+	case PCMCIA_BUS:
 		osh->pub.mmbus = TRUE;
 		break;
 	case JTAG_BUS:
@@ -157,7 +179,40 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 		break;
 	}
 
-#ifdef BCMDBG
+#ifdef DHD_USE_STATIC_BUF
+
+	if (!bcm_static_buf) {
+		if (!(bcm_static_buf =
+		     (bcm_static_buf_t *) dhd_os_prealloc(3,
+			  STATIC_BUF_SIZE + STATIC_BUF_TOTAL_LEN))) {
+			printk(KERN_ERR "can not alloc static buf!\n");
+		} else
+			printk(KERN_ERR "alloc static buf at %x!\n",
+			       (unsigned int)bcm_static_buf);
+
+		init_MUTEX(&bcm_static_buf->static_sem);
+
+		bcm_static_buf->buf_ptr =
+		    (unsigned char *)bcm_static_buf + STATIC_BUF_SIZE;
+
+	}
+
+	if (!bcm_static_skb) {
+		int i;
+		void *skb_buff_ptr = 0;
+		bcm_static_skb =
+		    (bcm_static_pkt_t *) ((char *)bcm_static_buf + 2048);
+		skb_buff_ptr = dhd_os_prealloc(4, 0);
+
+		bcopy(skb_buff_ptr, bcm_static_skb,
+		      sizeof(struct sk_buff *) * 16);
+		for (i = 0; i < MAX_STATIC_PKT_NUM * 2; i++)
+			bcm_static_skb->pkt_use[i] = 0;
+
+		init_MUTEX(&bcm_static_skb->osl_pkt_sem);
+	}
+#endif				/* DHD_USE_STATIC_BUF */
+#if defined(BCMDBG) && !defined(BRCM_FULLMAC)
 	if (pkttag) {
 		struct sk_buff *skb;
 		ASSERT(OSL_PKTTAG_SZ <= sizeof(skb->cb));
@@ -171,6 +226,13 @@ void osl_detach(osl_t *osh)
 	if (osh == NULL)
 		return;
 
+#ifdef DHD_USE_STATIC_BUF
+	if (bcm_static_buf)
+		bcm_static_buf = 0;
+
+	if (bcm_static_skb)
+		bcm_static_skb = 0;
+#endif
 	ASSERT(osh->magic == OS_HANDLE_MAGIC);
 	kfree(osh);
 }
@@ -225,6 +287,72 @@ void BCMFASTPATH osl_pktfree(osl_t *osh, void *p, bool send)
 	}
 }
 
+#ifdef DHD_USE_STATIC_BUF
+void *osl_pktget_static(osl_t *osh, uint len)
+{
+	int i = 0;
+	struct sk_buff *skb;
+
+	if (len > (PAGE_SIZE * 2)) {
+		printk(KERN_ERR "Do we really need this big skb??\n");
+		return osl_pktget(osh, len);
+	}
+
+	down(&bcm_static_skb->osl_pkt_sem);
+	if (len <= PAGE_SIZE) {
+		for (i = 0; i < MAX_STATIC_PKT_NUM; i++) {
+			if (bcm_static_skb->pkt_use[i] == 0)
+				break;
+		}
+
+		if (i != MAX_STATIC_PKT_NUM) {
+			bcm_static_skb->pkt_use[i] = 1;
+			up(&bcm_static_skb->osl_pkt_sem);
+
+			skb = bcm_static_skb->skb_4k[i];
+			skb->tail = skb->data + len;
+			skb->len = len;
+
+			return skb;
+		}
+	}
+
+	for (i = 0; i < MAX_STATIC_PKT_NUM; i++) {
+		if (bcm_static_skb->pkt_use[i + MAX_STATIC_PKT_NUM] == 0)
+			break;
+	}
+
+	if (i != MAX_STATIC_PKT_NUM) {
+		bcm_static_skb->pkt_use[i + MAX_STATIC_PKT_NUM] = 1;
+		up(&bcm_static_skb->osl_pkt_sem);
+		skb = bcm_static_skb->skb_8k[i];
+		skb->tail = skb->data + len;
+		skb->len = len;
+
+		return skb;
+	}
+
+	up(&bcm_static_skb->osl_pkt_sem);
+	printk(KERN_ERR "all static pkt in use!\n");
+	return osl_pktget(osh, len);
+}
+
+void osl_pktfree_static(osl_t *osh, void *p, bool send)
+{
+	int i;
+
+	for (i = 0; i < MAX_STATIC_PKT_NUM * 2; i++) {
+		if (p == bcm_static_skb->skb_4k[i]) {
+			down(&bcm_static_skb->osl_pkt_sem);
+			bcm_static_skb->pkt_use[i] = 0;
+			up(&bcm_static_skb->osl_pkt_sem);
+
+			return;
+		}
+	}
+	return osl_pktfree(osh, p, send);
+}
+#endif				/* DHD_USE_STATIC_BUF */
 uint32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 {
 	uint val = 0;
@@ -267,7 +395,7 @@ void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 			break;
 	} while (retry--);
 
-#ifdef BCMDBG
+#if defined(BCMDBG) && !defined(BRCM_FULLMAC)
 	if (retry < PCI_CFG_RETRY)
 		printk("PCI CONFIG WRITE access to %d required %d retries\n",
 		       offset, (PCI_CFG_RETRY - retry));
@@ -313,6 +441,35 @@ void *osl_malloc(osl_t *osh, uint size)
 	if (osh)
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 
+#ifdef DHD_USE_STATIC_BUF
+		if (bcm_static_buf) {
+			int i = 0;
+			if ((size >= PAGE_SIZE) && (size <= STATIC_BUF_SIZE)) {
+				down(&bcm_static_buf->static_sem);
+				for (i = 0; i < MAX_STATIC_BUF_NUM; i++) {
+					if (bcm_static_buf->buf_use[i] == 0)
+						break;
+				}
+				if (i == MAX_STATIC_BUF_NUM) {
+					up(&bcm_static_buf->static_sem);
+					printk(KERN_ERR "all static buff in use!\n");
+					goto original;
+				}
+				bcm_static_buf->buf_use[i] = 1;
+				up(&bcm_static_buf->static_sem);
+
+				bzero(bcm_static_buf->buf_ptr + STATIC_BUF_SIZE * i,
+					  size);
+				if (osh)
+					osh->malloced += size;
+
+				return (void *)(bcm_static_buf->buf_ptr +
+						 STATIC_BUF_SIZE * i);
+			}
+		}
+	original:
+#endif				/* DHD_USE_STATIC_BUF */
+
 	addr = kmalloc(size, GFP_ATOMIC);
 	if (addr == NULL) {
 		if (osh)
@@ -327,6 +484,28 @@ void *osl_malloc(osl_t *osh, uint size)
 
 void osl_mfree(osl_t *osh, void *addr, uint size)
 {
+#ifdef DHD_USE_STATIC_BUF
+	if (bcm_static_buf) {
+		if ((addr > (void *)bcm_static_buf) && ((unsigned char *)addr
+				<= ((unsigned char *)
+				    bcm_static_buf +
+				    STATIC_BUF_TOTAL_LEN))) {
+			int buf_idx = 0;
+			buf_idx =
+			    ((unsigned char *)addr -
+			     bcm_static_buf->buf_ptr) / STATIC_BUF_SIZE;
+			down(&bcm_static_buf->static_sem);
+			bcm_static_buf->buf_use[buf_idx] = 0;
+			up(&bcm_static_buf->static_sem);
+
+			if (osh) {
+				ASSERT(osh->magic == OS_HANDLE_MAGIC);
+				osh->malloced -= size;
+			}
+			return;
+		}
+	}
+#endif				/* DHD_USE_STATIC_BUF */
 	if (osh) {
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 		osh->malloced -= size;
@@ -351,6 +530,14 @@ uint osl_dma_consistent_align(void)
 	return PAGE_SIZE;
 }
 
+#ifdef BRCM_FULLMAC
+void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap)
+{
+	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
+
+	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
+}
+#else /* !BRCM_FULLMAC */
 void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
 			       uint *alloced, unsigned long *pap)
 {
@@ -363,6 +550,7 @@ void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
 
 	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
 }
+#endif /* BRCM_FULLMAC */
 
 void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa)
 {
@@ -411,22 +599,22 @@ void osl_assert(char *exp, char *file, int line)
 	/* Print assert message and give it time to be written to /var/log/messages */
 	if (!in_interrupt()) {
 		const int delay = 3;
-		printk("%s", tempbuf);
-		printk("panic in %d seconds\n", delay);
+		printk(KERN_ERR "%s", tempbuf);
+		printk(KERN_ERR "panic in %d seconds\n", delay);
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(delay * HZ);
 	}
 
 	switch (g_assert_type) {
 	case 0:
-		panic("%s", tempbuf);
+		panic(KERN_ERR "%s", tempbuf);
 		break;
 	case 1:
-		printk("%s", tempbuf);
+		printk(KERN_ERR "%s", tempbuf);
 		BUG();
 		break;
 	case 2:
-		printk("%s", tempbuf);
+		printk(KERN_ERR "%s", tempbuf);
 		break;
 	default:
 		break;
@@ -467,7 +655,7 @@ void *osl_pktdup(osl_t *osh, void *skb)
 	return p;
 }
 
-#ifdef BCMSDIO
+#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 u8 osl_readb(osl_t *osh, volatile u8 *r)
 {
 	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
