@@ -249,7 +249,7 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 		((struct sockaddr_in6 *)srvaddr)->sin6_port = htons(RPCBIND_PORT);
 		break;
 	default:
-		return NULL;
+		return ERR_PTR(-EAFNOSUPPORT);
 	}
 
 	return rpc_create(&args);
