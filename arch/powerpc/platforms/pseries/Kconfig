@@ -33,6 +33,16 @@ config PSERIES_MSI
        depends on PCI_MSI && EEH
        default y
 
+config PSERIES_ENERGY
+	tristate "pSeries energy management capabilities driver"
+	depends on PPC_PSERIES
+	default y
+	help
+	  Provides interface to platform energy management capabilities
+	  on supported PSERIES platforms.
+	  Provides: /sys/devices/system/cpu/pseries_(de)activation_hint_list
+	  and /sys/devices/system/cpu/cpuN/pseries_(de)activation_hint
+
 config SCANLOG
 	tristate "Scanlog dump interface"
 	depends on RTAS_PROC && PPC_PSERIES
