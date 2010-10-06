@@ -651,27 +651,25 @@ void ieee80211_scan_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local, scan_work.work);
 	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 	unsigned long next_delay = 0;
-
-	if (test_and_clear_bit(SCAN_COMPLETED, &local->scanning)) {
-		bool aborted;
-
-		aborted = test_and_clear_bit(SCAN_ABORTED, &local->scanning);
-		__ieee80211_scan_completed(&local->hw, aborted);
-		return;
-	}
+	bool aborted;
 
 	mutex_lock(&local->mtx);
-	if (!sdata || !local->scan_req) {
-		mutex_unlock(&local->mtx);
-		return;
+
+	if (test_and_clear_bit(SCAN_COMPLETED, &local->scanning)) {
+		aborted = test_and_clear_bit(SCAN_ABORTED, &local->scanning);
+		goto out_complete;
 	}
+
+	if (!sdata || !local->scan_req)
+		goto out;
 
 	if (local->hw_scan_req) {
 		int rc = drv_hw_scan(local, sdata, local->hw_scan_req);
-		mutex_unlock(&local->mtx);
-		if (rc)
-			__ieee80211_scan_completed(&local->hw, true);
-		return;
+		if (rc) {
+			aborted = true;
+			goto out_complete;
+		} else
+			goto out;
 	}
 
 	if (local->scan_req && !local->scanning) {
@@ -682,22 +680,22 @@ void ieee80211_scan_work(struct work_struct *work)
 		local->scan_sdata = NULL;
 
 		rc = __ieee80211_start_scan(sdata, req);
-		mutex_unlock(&local->mtx);
-
-		if (rc)
-			__ieee80211_scan_completed(&local->hw, true);
-		return;
+		if (rc) {
+			aborted = true;
+			goto out_complete;
+		} else
+			goto out;
 	}
-
-	mutex_unlock(&local->mtx);
 
 	/*
 	 * Avoid re-scheduling when the sdata is going away.
 	 */
 	if (!ieee80211_sdata_running(sdata)) {
-		__ieee80211_scan_completed(&local->hw, true);
-		return;
+		aborted = true;
+		goto out_complete;
 	}
+
+	mutex_unlock(&local->mtx);
 
 	/*
 	 * as long as no delay is required advance immediately
@@ -725,6 +723,15 @@ void ieee80211_scan_work(struct work_struct *work)
 	} while (next_delay == 0);
 
 	ieee80211_queue_delayed_work(&local->hw, &local->scan_work, next_delay);
+	return;
+
+out_complete:
+	mutex_unlock(&local->mtx);
+	__ieee80211_scan_completed(&local->hw, aborted);
+	return;
+
+out:
+	mutex_unlock(&local->mtx);
 }
 
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
