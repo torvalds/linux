@@ -1363,7 +1363,7 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 
 #ifdef SIMPLE_ISCAN
 uint iscan_thread_id;
-iscan_buf_t *iscan_chain = 0;
+iscan_buf_t *iscan_chain;
 
 iscan_buf_t *dhd_iscan_allocate_buf(dhd_pub_t *dhd, iscan_buf_t **iscanbuf)
 {

@@ -123,7 +123,7 @@ static int16 linuxbcmerrormap[] = { 0,
 };
 
 /* Global ASSERT type flag */
-uint32 g_assert_type = 0;
+uint32 g_assert_type;
 
 int osl_error(int bcmerror)
 {

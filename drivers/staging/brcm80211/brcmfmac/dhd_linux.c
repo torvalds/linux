@@ -286,7 +286,7 @@ module_param(dhd_watchdog_ms, uint, 0);
 
 #ifdef DHD_DEBUG
 /* Console poll interval */
-uint dhd_console_ms = 0;
+uint dhd_console_ms;
 module_param(dhd_console_ms, uint, 0);
 #endif				/* DHD_DEBUG */
 
@@ -304,7 +304,7 @@ uint dhd_pkt_filter_enable = TRUE;
 module_param(dhd_pkt_filter_enable, uint, 0);
 
 /*  Pkt filter init setup */
-uint dhd_pkt_filter_init = 0;
+uint dhd_pkt_filter_init;
 module_param(dhd_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
@@ -325,7 +325,7 @@ module_param(dhd_dongle_memsize, int, 0);
 
 /* Contorl fw roaming */
 #ifdef CUSTOMER_HW2
-uint dhd_roam = 0;
+uint dhd_roam;
 #else
 uint dhd_roam = 1;
 #endif
@@ -382,11 +382,11 @@ module_param(dhd_deferred_tx, uint, 0);
 
 #ifdef SDTEST
 /* Echo packet generator (pkts/s) */
-uint dhd_pktgen = 0;
+uint dhd_pktgen;
 module_param(dhd_pktgen, uint, 0);
 
 /* Echo packet len (0 => sawtooth, max 2040) */
-uint dhd_pktgen_len = 0;
+uint dhd_pktgen_len;
 module_param(dhd_pktgen_len, uint, 0);
 #endif
 

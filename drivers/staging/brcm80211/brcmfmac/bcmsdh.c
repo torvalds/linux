@@ -43,7 +43,7 @@ struct bcmsdh_info {
 	uint32 sbwad;		/* Save backplane window address */
 };
 /* local copy of bcm sd handler */
-bcmsdh_info_t *l_bcmsdh = NULL;
+bcmsdh_info_t *l_bcmsdh;
 
 #if defined(OOB_INTR_ONLY) && defined(HW_OOB)
 extern int sdioh_enable_hw_oob_intr(void *sdioh, bool enable);
