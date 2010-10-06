@@ -595,7 +595,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 				skb_reserve(new_skb, pad);
 				skb_put(new_skb, len);
 
-				bnx2x_reuse_rx_skb(fp, skb, bd_cons, bd_prod);
+				bnx2x_reuse_rx_skb(fp, bd_cons, bd_prod);
 
 				skb = new_skb;
 
@@ -614,7 +614,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 				   "of alloc failure\n");
 				fp->eth_q_stats.rx_skb_alloc_failed++;
 reuse_rx:
-				bnx2x_reuse_rx_skb(fp, skb, bd_cons, bd_prod);
+				bnx2x_reuse_rx_skb(fp, bd_cons, bd_prod);
 				goto next_rx;
 			}
 

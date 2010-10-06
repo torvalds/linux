@@ -696,7 +696,7 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
  * so there is no need to check for dma_mapping_error().
  */
 static inline void bnx2x_reuse_rx_skb(struct bnx2x_fastpath *fp,
-			       struct sk_buff *skb, u16 cons, u16 prod)
+				      u16 cons, u16 prod)
 {
 	struct bnx2x *bp = fp->bp;
 	struct sw_rx_bd *cons_rx_buf = &fp->rx_buf_ring[cons];
