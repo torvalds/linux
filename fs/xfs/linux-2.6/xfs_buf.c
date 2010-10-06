@@ -652,8 +652,7 @@ void
 xfs_buf_readahead(
 	xfs_buftarg_t		*target,
 	xfs_off_t		ioff,
-	size_t			isize,
-	xfs_buf_flags_t		flags)
+	size_t			isize)
 {
 	struct backing_dev_info *bdi;
 
@@ -661,8 +660,8 @@ xfs_buf_readahead(
 	if (bdi_read_congested(bdi))
 		return;
 
-	flags |= (XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
-	xfs_buf_read(target, ioff, isize, flags);
+	xfs_buf_read(target, ioff, isize,
+		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD|XBF_DONT_BLOCK);
 }
 
 /*
@@ -691,7 +690,7 @@ xfs_buf_read_uncached(
 	XFS_BUF_BUSY(bp);
 
 	xfsbdstrat(mp, bp);
-	error = xfs_iowait(bp);
+	error = xfs_buf_iowait(bp);
 	if (error || bp->b_error) {
 		xfs_buf_relse(bp);
 		return NULL;
@@ -1073,7 +1072,7 @@ xfs_bdwrite(
 
 /*
  * Called when we want to stop a buffer from getting written or read.
- * We attach the EIO error, muck with its flags, and call biodone
+ * We attach the EIO error, muck with its flags, and call xfs_buf_ioend
  * so that the proper iodone callbacks get called.
  */
 STATIC int
@@ -1090,21 +1089,21 @@ xfs_bioerror(
 	XFS_BUF_ERROR(bp, EIO);
 
 	/*
-	 * We're calling biodone, so delete XBF_DONE flag.
+	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
 	 */
 	XFS_BUF_UNREAD(bp);
 	XFS_BUF_UNDELAYWRITE(bp);
 	XFS_BUF_UNDONE(bp);
 	XFS_BUF_STALE(bp);
 
-	xfs_biodone(bp);
+	xfs_buf_ioend(bp, 0);
 
 	return EIO;
 }
 
 /*
  * Same as xfs_bioerror, except that we are releasing the buffer
- * here ourselves, and avoiding the biodone call.
+ * here ourselves, and avoiding the xfs_buf_ioend call.
  * This is meant for userdata errors; metadata bufs come with
  * iodone functions attached, so that we can track down errors.
  */
@@ -1938,7 +1937,7 @@ xfs_flush_buftarg(
 			bp = list_first_entry(&wait_list, struct xfs_buf, b_list);
 
 			list_del_init(&bp->b_list);
-			xfs_iowait(bp);
+			xfs_buf_iowait(bp);
 			xfs_buf_relse(bp);
 		}
 	}

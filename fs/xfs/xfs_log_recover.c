@@ -168,7 +168,7 @@ xlog_bread_noalign(
 	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	xfsbdstrat(log->l_mp, bp);
-	error = xfs_iowait(bp);
+	error = xfs_buf_iowait(bp);
 	if (error)
 		xfs_ioerror_alert("xlog_bread", log->l_mp,
 				  bp, XFS_BUF_ADDR(bp));
@@ -328,7 +328,7 @@ xlog_recover_iodone(
 					SHUTDOWN_META_IO_ERROR);
 	}
 	XFS_BUF_CLR_IODONE_FUNC(bp);
-	xfs_biodone(bp);
+	xfs_buf_ioend(bp, 0);
 }
 
 /*
@@ -3816,7 +3816,7 @@ xlog_do_recover(
 	XFS_BUF_READ(bp);
 	XFS_BUF_UNASYNC(bp);
 	xfsbdstrat(log->l_mp, bp);
-	error = xfs_iowait(bp);
+	error = xfs_buf_iowait(bp);
 	if (error) {
 		xfs_ioerror_alert("xlog_do_recover",
 				  log->l_mp, bp, XFS_BUF_ADDR(bp));

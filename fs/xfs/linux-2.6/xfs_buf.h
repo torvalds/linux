@@ -218,8 +218,7 @@ extern xfs_buf_t *xfs_buf_get_empty(size_t, xfs_buftarg_t *);
 extern xfs_buf_t *xfs_buf_get_uncached(struct xfs_buftarg *, size_t, int);
 extern int xfs_buf_associate_memory(xfs_buf_t *, void *, size_t);
 extern void xfs_buf_hold(xfs_buf_t *);
-extern void xfs_buf_readahead(xfs_buftarg_t *, xfs_off_t, size_t,
-				xfs_buf_flags_t);
+extern void xfs_buf_readahead(xfs_buftarg_t *, xfs_off_t, size_t);
 struct xfs_buf *xfs_buf_read_uncached(struct xfs_mount *mp,
 				struct xfs_buftarg *target,
 				xfs_daddr_t daddr, size_t length, int flags);
@@ -247,6 +246,8 @@ extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
+#define xfs_buf_zero(bp, off, len) \
+	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
 
 static inline int xfs_buf_geterror(xfs_buf_t *bp)
 {
@@ -358,21 +359,6 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 		xfs_buf_unlock(bp);
 	xfs_buf_rele(bp);
 }
-
-#define xfs_biodone(bp)		xfs_buf_ioend(bp, 0)
-
-#define xfs_biomove(bp, off, len, data, rw) \
-	    xfs_buf_iomove((bp), (off), (len), (data), \
-		((rw) == XBF_WRITE) ? XBRW_WRITE : XBRW_READ)
-
-#define xfs_biozero(bp, off, len) \
-	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
-
-#define xfs_iowait(bp)	xfs_buf_iowait(bp)
-
-#define xfs_baread(target, rablkno, ralen)  \
-	xfs_buf_readahead((target), (rablkno), (ralen), XBF_DONT_BLOCK)
-
 
 /*
  *	Handling of buftargs.

@@ -644,7 +644,7 @@ xfs_barrier_test(
 	XFS_BUF_ORDERED(sbp);
 
 	xfsbdstrat(mp, sbp);
-	error = xfs_iowait(sbp);
+	error = xfs_buf_iowait(sbp);
 
 	/*
 	 * Clear all the flags we set and possible error state in the

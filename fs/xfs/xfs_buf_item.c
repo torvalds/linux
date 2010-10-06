@@ -973,7 +973,7 @@ xfs_buf_iodone_callbacks(
 			xfs_buf_do_callbacks(bp, lip);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
-			xfs_biodone(bp);
+			xfs_buf_ioend(bp, 0);
 			return;
 		}
 
@@ -1032,7 +1032,7 @@ xfs_buf_iodone_callbacks(
 	xfs_buf_do_callbacks(bp, lip);
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
-	xfs_biodone(bp);
+	xfs_buf_ioend(bp, 0);
 }
 
 /*
