@@ -597,6 +597,8 @@ static void vmw_lastclose(struct drm_device *dev)
 static void vmw_master_init(struct vmw_master *vmaster)
 {
 	ttm_lock_init(&vmaster->lock);
+	INIT_LIST_HEAD(&vmaster->fb_surf);
+	mutex_init(&vmaster->fb_surf_mutex);
 }
 
 static int vmw_master_create(struct drm_device *dev,
@@ -608,7 +610,7 @@ static int vmw_master_create(struct drm_device *dev,
 	if (unlikely(vmaster == NULL))
 		return -ENOMEM;
 
-	ttm_lock_init(&vmaster->lock);
+	vmw_master_init(vmaster);
 	ttm_lock_set_kill(&vmaster->lock, true, SIGTERM);
 	master->driver_priv = vmaster;
 
@@ -699,6 +701,7 @@ static void vmw_master_drop(struct drm_device *dev,
 
 	vmw_fp->locked_master = drm_master_get(file_priv->master);
 	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
+	vmw_kms_idle_workqueues(vmaster);
 
 	if (unlikely((ret != 0))) {
 		DRM_ERROR("Unable to lock TTM at VT switch.\n");
@@ -751,14 +754,15 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 		 * Buffer contents is moved to swappable memory.
 		 */
 		ttm_bo_swapout_all(&dev_priv->bdev);
+
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
+	case PM_POST_RESTORE:
 		ttm_suspend_unlock(&vmaster->lock);
+
 		break;
 	case PM_RESTORE_PREPARE:
-		break;
-	case PM_POST_RESTORE:
 		break;
 	default:
 		break;
@@ -770,20 +774,97 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
  * These might not be needed with the virtual SVGA device.
  */
 
-int vmw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int vmw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	if (dev_priv->num_3d_resources != 0) {
+		DRM_INFO("Can't suspend or hibernate "
+			 "while 3D resources are active.\n");
+		return -EBUSY;
+	}
+
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 	return 0;
 }
 
-int vmw_pci_resume(struct pci_dev *pdev)
+static int vmw_pci_resume(struct pci_dev *pdev)
 {
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	return pci_enable_device(pdev);
 }
+
+static int vmw_pm_suspend(struct device *kdev)
+{
+	struct pci_dev *pdev = to_pci_dev(kdev);
+	struct pm_message dummy;
+
+	dummy.event = 0;
+
+	return vmw_pci_suspend(pdev, dummy);
+}
+
+static int vmw_pm_resume(struct device *kdev)
+{
+	struct pci_dev *pdev = to_pci_dev(kdev);
+
+	return vmw_pci_resume(pdev);
+}
+
+static int vmw_pm_prepare(struct device *kdev)
+{
+	struct pci_dev *pdev = to_pci_dev(kdev);
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	/**
+	 * Release 3d reference held by fbdev and potentially
+	 * stop fifo.
+	 */
+	dev_priv->suspended = true;
+	if (dev_priv->enable_fb)
+		vmw_3d_resource_dec(dev_priv);
+
+	if (dev_priv->num_3d_resources != 0) {
+
+		DRM_INFO("Can't suspend or hibernate "
+			 "while 3D resources are active.\n");
+
+		if (dev_priv->enable_fb)
+			vmw_3d_resource_inc(dev_priv);
+		dev_priv->suspended = false;
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static void vmw_pm_complete(struct device *kdev)
+{
+	struct pci_dev *pdev = to_pci_dev(kdev);
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	/**
+	 * Reclaim 3d reference held by fbdev and potentially
+	 * start fifo.
+	 */
+	if (dev_priv->enable_fb)
+		vmw_3d_resource_inc(dev_priv);
+
+	dev_priv->suspended = false;
+}
+
+static const struct dev_pm_ops vmw_pm_ops = {
+	.prepare = vmw_pm_prepare,
+	.complete = vmw_pm_complete,
+	.suspend = vmw_pm_suspend,
+	.resume = vmw_pm_resume,
+};
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
@@ -818,15 +899,16 @@ static struct drm_driver driver = {
 #if defined(CONFIG_COMPAT)
 		 .compat_ioctl = drm_compat_ioctl,
 #endif
-		 },
+	},
 	.pci_driver = {
-		       .name = VMWGFX_DRIVER_NAME,
-		       .id_table = vmw_pci_id_list,
-		       .probe = vmw_probe,
-		       .remove = vmw_remove,
-		       .suspend = vmw_pci_suspend,
-		       .resume = vmw_pci_resume
-		       },
+		 .name = VMWGFX_DRIVER_NAME,
+		 .id_table = vmw_pci_id_list,
+		 .probe = vmw_probe,
+		 .remove = vmw_remove,
+		 .driver = {
+			 .pm = &vmw_pm_ops
+		 }
+	 },
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
 	.date = VMWGFX_DRIVER_DATE,
@@ -860,3 +942,7 @@ module_exit(vmwgfx_exit);
 MODULE_AUTHOR("VMware Inc. and others");
 MODULE_DESCRIPTION("Standalone drm driver for the VMware SVGA device");
 MODULE_LICENSE("GPL and additional rights");
+MODULE_VERSION(__stringify(VMWGFX_DRIVER_MAJOR) "."
+	       __stringify(VMWGFX_DRIVER_MINOR) "."
+	       __stringify(VMWGFX_DRIVER_PATCHLEVEL) "."
+	       "0");

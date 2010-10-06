@@ -39,9 +39,9 @@
 #include "ttm/ttm_execbuf_util.h"
 #include "ttm/ttm_module.h"
 
-#define VMWGFX_DRIVER_DATE "20100209"
+#define VMWGFX_DRIVER_DATE "20100927"
 #define VMWGFX_DRIVER_MAJOR 1
-#define VMWGFX_DRIVER_MINOR 2
+#define VMWGFX_DRIVER_MINOR 4
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -151,6 +151,8 @@ struct vmw_overlay;
 
 struct vmw_master {
 	struct ttm_lock lock;
+	struct mutex fb_surf_mutex;
+	struct list_head fb_surf;
 };
 
 struct vmw_vga_topology_state {
@@ -286,6 +288,7 @@ struct vmw_private {
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
+	bool suspended;
 
 	struct mutex release_mutex;
 	uint32_t num_3d_resources;
@@ -518,6 +521,10 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 			unsigned bbp, unsigned depth);
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
+bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
+				uint32_t pitch,
+				uint32_t height);
 u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /**
