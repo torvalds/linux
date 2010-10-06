@@ -597,7 +597,7 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 		return;
 
 	dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(sw_buf, mapping),
-		       SGE_PAGE_SIZE*PAGES_PER_SGE, PCI_DMA_FROMDEVICE);
+		       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
 	__free_pages(page, PAGES_PER_SGE_SHIFT);
 
 	sw_buf->page = NULL;

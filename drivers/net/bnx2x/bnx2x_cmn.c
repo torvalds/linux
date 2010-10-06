@@ -54,7 +54,7 @@ static u16 bnx2x_free_tx_pkt(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	DP(BNX2X_MSG_OFF, "free bd_idx %d\n", bd_idx);
 	tx_start_bd = &fp->tx_desc_ring[bd_idx].start_bd;
 	dma_unmap_single(&bp->pdev->dev, BD_UNMAP_ADDR(tx_start_bd),
-			 BD_UNMAP_LEN(tx_start_bd), PCI_DMA_TODEVICE);
+			 BD_UNMAP_LEN(tx_start_bd), DMA_TO_DEVICE);
 
 	nbd = le16_to_cpu(tx_start_bd->nbd) - 1;
 #ifdef BNX2X_STOP_ON_ERROR
