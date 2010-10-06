@@ -27,14 +27,14 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/mmc/sdio_func.h>
 #include <linux/random.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 
-#include <asm/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/uaccess.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
 
@@ -184,6 +184,8 @@ MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
 MODULE_LICENSE("Dual BSD/GPL");
+
+#define DRV_MODULE_NAME "brcmfmac"
 
 /* Linux wireless extension support */
 #if defined(CONFIG_WIRELESS_EXT)
@@ -1511,8 +1513,10 @@ static void dhd_ethtool_get_drvinfo(struct net_device *net,
 {
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
 
-	sprintf(info->driver, "wl");
+	sprintf(info->driver, DRV_MODULE_NAME);
 	sprintf(info->version, "%lu", dhd->pub.drv_version);
+	sprintf(info->fw_version, "%s", wl_cfg80211_get_fwname());
+	sprintf(info->bus_info, "%s", dev_name(&wl_cfg80211_get_sdio_func()->dev));
 }
 
 struct ethtool_ops dhd_ethtool_ops = {

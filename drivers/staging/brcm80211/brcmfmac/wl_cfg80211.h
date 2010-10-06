@@ -366,6 +366,7 @@ extern void wl_cfg80211_detach(void);
 extern void wl_cfg80211_event(struct net_device *ndev, const wl_event_msg_t *e,
 			      void *data);
 extern void wl_cfg80211_sdio_func(void *func);	/* set sdio function info */
+extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function info */
 extern int32 wl_cfg80211_up(void);	/* dongle up */
 extern int32 wl_cfg80211_down(void);	/* dongle down */
 extern void wl_cfg80211_dbg_level(uint32 level);	/* set dongle

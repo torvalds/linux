@@ -151,7 +151,7 @@ static int32 wl_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
 /*
 ** register/deregister sdio function
 */
-static struct sdio_func *wl_sdio_func(void);
+struct sdio_func *wl_cfg80211_get_sdio_func(void);
 static void wl_clear_sdio_func(void);
 
 /*
@@ -754,7 +754,6 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	struct wl_priv *wl = ndev_to_wl(ndev);
 	struct cfg80211_ssid *ssids;
 	struct wl_scan_req *sr = wl_to_sr(wl);
-	uint32 n_ssids;
 	bool iscan_req;
 	bool spec_scan;
 	int32 err = 0;
@@ -773,8 +772,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	spec_scan = FALSE;
 	if (request) {		/* scan bss */
 		ssids = request->ssids;
-		n_ssids = min(request->n_ssids, WL_NUM_SCAN_MAX);
-		if (wl->iscan_on && n_ssids && !ssids->ssid_len) {	/* for
+		if (wl->iscan_on && (!ssids || !ssids->ssid_len)) {	/* for
 							 * specific scan,
 							 * ssids->ssid_len has
 							 * non-zero(ssid string)
@@ -788,7 +786,6 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	} else {		/* scan in ibss */
 		/* we don't do iscan in ibss */
 		ssids = this_ssid;
-		n_ssids = 1;
 	}
 	wl->scan_request = request;
 	set_bit(WL_STATUS_SCANNING, &wl->status);
@@ -798,24 +795,18 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		else
 			goto scan_out;
 	} else {
-		WL_DBG(("n_ssid (%d), ssid \"%s\", ssid_len (%d)\n",
-			n_ssids, ssids->ssid, ssids->ssid_len));
+		WL_DBG(("ssid \"%s\", ssid_len (%d)\n",
+			ssids->ssid, ssids->ssid_len));
 		memset(&sr->ssid, 0, sizeof(sr->ssid));
-		if (n_ssids) {
-			sr->ssid.SSID_len =
+		sr->ssid.SSID_len =
 			    MIN(sizeof(sr->ssid.SSID), ssids->ssid_len);
-			if (sr->ssid.SSID_len) {
-				memcpy(sr->ssid.SSID, ssids->ssid,
-				       sr->ssid.SSID_len);
-				sr->ssid.SSID_len = htod32(sr->ssid.SSID_len);
-				WL_DBG(("Specific scan ssid=\"%s\" len=%d\n",
+		if (sr->ssid.SSID_len) {
+			memcpy(sr->ssid.SSID, ssids->ssid, sr->ssid.SSID_len);
+			sr->ssid.SSID_len = htod32(sr->ssid.SSID_len);
+			WL_DBG(("Specific scan ssid=\"%s\" len=%d\n",
 					sr->ssid.SSID, sr->ssid.SSID_len));
-				spec_scan = TRUE;
-			} else {
-				WL_DBG(("Broadcast scan\n"));
-			}
+			spec_scan = TRUE;
 		} else {
-			/* broadcast scan */
 			WL_DBG(("Broadcast scan\n"));
 		}
 		WL_DBG(("sr->ssid.SSID_len (%d)\n", sr->ssid.SSID_len));
@@ -3078,8 +3069,8 @@ int32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		WL_ERR(("wl_cfg80211_dev is invalid\n"));
 		return -ENOMEM;
 	}
-	WL_DBG(("func %p\n", wl_sdio_func()));
-	wdev = wl_alloc_wdev(sizeof(struct wl_iface), &wl_sdio_func()->dev);
+	WL_DBG(("func %p\n", wl_cfg80211_get_sdio_func()));
+	wdev = wl_alloc_wdev(sizeof(struct wl_iface), &wl_cfg80211_get_sdio_func()->dev);
 	if (unlikely(IS_ERR(wdev)))
 		return -ENOMEM;
 
@@ -3242,7 +3233,7 @@ static void wl_clear_sdio_func(void)
 	cfg80211_sdio_func = NULL;
 }
 
-static struct sdio_func *wl_sdio_func(void)
+struct sdio_func *wl_cfg80211_get_sdio_func(void)
 {
 	return cfg80211_sdio_func;
 }
@@ -3964,7 +3955,7 @@ void *wl_cfg80211_request_fw(s8 *file_name)
 		if (unlikely
 		    (err =
 		     request_firmware(&wl->fw->fw_entry, file_name,
-				      &wl_sdio_func()->dev))) {
+				      &wl_cfg80211_get_sdio_func()->dev))) {
 			WL_ERR(("Could not download fw (%d)\n", err));
 			goto req_fw_out;
 		}
@@ -3978,7 +3969,7 @@ void *wl_cfg80211_request_fw(s8 *file_name)
 		if (unlikely
 		    (err =
 		     request_firmware(&wl->fw->fw_entry, file_name,
-				      &wl_sdio_func()->dev))) {
+				      &wl_cfg80211_get_sdio_func()->dev))) {
 			WL_ERR(("Could not download nvram (%d)\n", err));
 			goto req_fw_out;
 		}
