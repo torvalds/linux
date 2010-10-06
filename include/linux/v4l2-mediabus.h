@@ -63,16 +63,17 @@ enum v4l2_mbus_pixelcode {
  * struct v4l2_mbus_framefmt - frame format on the media bus
  * @width:	frame width
  * @height:	frame height
- * @code:	data format code
- * @field:	used interlacing type
- * @colorspace:	colorspace of the data
+ * @code:	data format code (from enum v4l2_mbus_pixelcode)
+ * @field:	used interlacing type (from enum v4l2_field)
+ * @colorspace:	colorspace of the data (from enum v4l2_colorspace)
  */
 struct v4l2_mbus_framefmt {
-	__u32				width;
-	__u32				height;
-	__u32				code;
-	enum v4l2_field			field;
-	enum v4l2_colorspace		colorspace;
+	__u32			width;
+	__u32			height;
+	__u32			code;
+	__u32			field;
+	__u32			colorspace;
+	__u32			reserved[7];
 };
 
 #endif
