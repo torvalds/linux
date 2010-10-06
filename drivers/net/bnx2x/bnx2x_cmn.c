@@ -745,7 +745,7 @@ void bnx2x_link_report(struct bnx2x *bp)
 		netdev_info(bp->dev, "NIC Link is Up, ");
 
 		line_speed = bp->link_vars.line_speed;
-		if (IS_E1HMF(bp)) {
+		if (IS_MF(bp)) {
 			u16 vn_max_rate;
 
 			vn_max_rate =

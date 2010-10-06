@@ -253,7 +253,7 @@ static void bnx2x_stats_pmf_update(struct bnx2x *bp)
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 
 	/* sanity */
-	if (!IS_E1HMF(bp) || !bp->port.pmf || !bp->port.port_stx) {
+	if (!IS_MF(bp) || !bp->port.pmf || !bp->port.port_stx) {
 		BNX2X_ERR("BUG!\n");
 		return;
 	}
@@ -1284,7 +1284,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 
 static void bnx2x_func_stats_base_init(struct bnx2x *bp)
 {
-	int vn, vn_max = IS_E1HMF(bp) ? E1HVN_MAX : E1VN_MAX;
+	int vn, vn_max = IS_MF(bp) ? E1HVN_MAX : E1VN_MAX;
 	int port = BP_PORT(bp);
 	int func;
 	u32 func_stx;

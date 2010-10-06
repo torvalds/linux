@@ -933,9 +933,9 @@ struct bnx2x {
 	u32			vn_weight_sum;
 
 	u32			mf_config;
-	u16			e1hov;
-	u8			e1hmf;
-#define IS_E1HMF(bp)			(bp->e1hmf != 0)
+	u16			mf_ov;
+	u8			mf_mode;
+#define IS_MF(bp)			(bp->mf_mode != 0)
 
 	u8			wol;
 
@@ -1127,7 +1127,7 @@ struct bnx2x {
 #define RSS_IPV6_CAP		0x0004
 #define RSS_IPV6_TCP_CAP	0x0008
 
-#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/E1HVN_MAX) \
+#define BNX2X_MAX_QUEUES(bp)	(IS_MF(bp) ? (MAX_CONTEXT/E1HVN_MAX) \
 					      : MAX_CONTEXT)
 #define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
 #define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)

@@ -41,7 +41,7 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	    (bp->link_vars.link_up)) {
 		cmd->speed = bp->link_vars.line_speed;
 		cmd->duplex = bp->link_vars.duplex;
-		if (IS_E1HMF(bp)) {
+		if (IS_MF(bp)) {
 			u16 vn_max_rate;
 
 			vn_max_rate =
@@ -89,7 +89,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
 
-	if (IS_E1HMF(bp))
+	if (IS_MF(bp))
 		return 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_cmd: cmd %d\n"
@@ -1027,7 +1027,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 cfg_idx = bnx2x_get_link_cfg_idx(bp);
-	if (IS_E1HMF(bp))
+	if (IS_MF(bp))
 		return 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_pauseparam: cmd %d\n"
@@ -1616,7 +1616,7 @@ static void bnx2x_self_test(struct net_device *dev,
 		return;
 
 	/* offline tests are not supported in MF mode */
-	if (IS_E1HMF(bp))
+	if (IS_MF(bp))
 		etest->flags &= ~ETH_TEST_FL_OFFLINE;
 	is_serdes = (bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
 
@@ -1808,8 +1808,8 @@ static const struct {
 #define IS_PORT_STAT(i) \
 	((bnx2x_stats_arr[i].flags & STATS_FLAGS_BOTH) == STATS_FLAGS_PORT)
 #define IS_FUNC_STAT(i)		(bnx2x_stats_arr[i].flags & STATS_FLAGS_FUNC)
-#define IS_E1HMF_MODE_STAT(bp) \
-			(IS_E1HMF(bp) && !(bp->msg_enable & BNX2X_MSG_STATS))
+#define IS_MF_MODE_STAT(bp) \
+			(IS_MF(bp) && !(bp->msg_enable & BNX2X_MSG_STATS))
 
 static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 {
@@ -1820,10 +1820,10 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 	case ETH_SS_STATS:
 		if (is_multi(bp)) {
 			num_stats = BNX2X_NUM_Q_STATS * bp->num_queues;
-			if (!IS_E1HMF_MODE_STAT(bp))
+			if (!IS_MF_MODE_STAT(bp))
 				num_stats += BNX2X_NUM_STATS;
 		} else {
-			if (IS_E1HMF_MODE_STAT(bp)) {
+			if (IS_MF_MODE_STAT(bp)) {
 				num_stats = 0;
 				for (i = 0; i < BNX2X_NUM_STATS; i++)
 					if (IS_FUNC_STAT(i))
@@ -1856,14 +1856,14 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 						bnx2x_q_stats_arr[j].string, i);
 				k += BNX2X_NUM_Q_STATS;
 			}
-			if (IS_E1HMF_MODE_STAT(bp))
+			if (IS_MF_MODE_STAT(bp))
 				break;
 			for (j = 0; j < BNX2X_NUM_STATS; j++)
 				strcpy(buf + (k + j)*ETH_GSTRING_LEN,
 				       bnx2x_stats_arr[j].string);
 		} else {
 			for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
-				if (IS_E1HMF_MODE_STAT(bp) && IS_PORT_STAT(i))
+				if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
 					continue;
 				strcpy(buf + j*ETH_GSTRING_LEN,
 				       bnx2x_stats_arr[i].string);
@@ -1907,7 +1907,7 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 			}
 			k += BNX2X_NUM_Q_STATS;
 		}
-		if (IS_E1HMF_MODE_STAT(bp))
+		if (IS_MF_MODE_STAT(bp))
 			return;
 		hw_stats = (u32 *)&bp->eth_stats;
 		for (j = 0; j < BNX2X_NUM_STATS; j++) {
@@ -1928,7 +1928,7 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 	} else {
 		hw_stats = (u32 *)&bp->eth_stats;
 		for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
-			if (IS_E1HMF_MODE_STAT(bp) && IS_PORT_STAT(i))
+			if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
 				continue;
 			if (bnx2x_stats_arr[i].size == 0) {
 				/* skip this counter */

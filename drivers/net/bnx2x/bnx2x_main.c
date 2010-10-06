@@ -1013,7 +1013,7 @@ void bnx2x_int_enable(struct bnx2x *bp)
 
 	if (CHIP_IS_E1H(bp)) {
 		/* init leading/trailing edge */
-		if (IS_E1HMF(bp)) {
+		if (IS_MF(bp)) {
 			val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
 			if (bp->port.pmf)
 				/* enable nig and gpio3 attention */
@@ -1792,7 +1792,7 @@ static int bnx2x_get_cmng_fns_mode(struct bnx2x *bp)
 {
 	if (CHIP_REV_IS_SLOW(bp))
 		return CMNG_FNS_NONE;
-	if (IS_E1HMF(bp))
+	if (IS_MF(bp))
 		return CMNG_FNS_MINMAX;
 
 	return CMNG_FNS_NONE;
@@ -1906,7 +1906,7 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 	if (prev_link_status != bp->link_vars.link_status)
 		bnx2x_link_report(bp);
 
-	if (IS_E1HMF(bp)) {
+	if (IS_MF(bp)) {
 		int port = BP_PORT(bp);
 		int func;
 		int vn;
@@ -2160,7 +2160,7 @@ static inline u16 bnx2x_get_cl_flags(struct bnx2x *bp,
 	/* calculate queue flags */
 	flags |= QUEUE_FLG_CACHE_ALIGN;
 	flags |= QUEUE_FLG_HC;
-	flags |= IS_E1HMF(bp) ? QUEUE_FLG_OV : 0;
+	flags |= IS_MF(bp) ? QUEUE_FLG_OV : 0;
 
 #ifdef BCM_VLAN
 	flags |= QUEUE_FLG_VLAN;
@@ -2262,7 +2262,7 @@ void bnx2x_pf_init(struct bnx2x *bp)
 
 	/* pf specific setups */
 	if (!CHIP_IS_E1(bp))
-		storm_memset_ov(bp, bp->e1hov, BP_FUNC(bp));
+		storm_memset_ov(bp, bp->mf_ov, BP_FUNC(bp));
 
 	/* function setup flags */
 	flags = (FUNC_FLG_STATS | FUNC_FLG_LEADING | FUNC_FLG_SPQ);
@@ -3855,13 +3855,13 @@ static void bnx2x_init_internal_common(struct bnx2x *bp)
 		/* xstorm needs to know whether to add  ovlan to packets or not,
 		 * in switch-independent we'll write 0 to here... */
 		REG_WR8(bp, BAR_XSTRORM_INTMEM + XSTORM_FUNCTION_MODE_OFFSET,
-			bp->e1hmf);
+			bp->mf_mode);
 		REG_WR8(bp, BAR_TSTRORM_INTMEM + TSTORM_FUNCTION_MODE_OFFSET,
-			bp->e1hmf);
+			bp->mf_mode);
 		REG_WR8(bp, BAR_CSTRORM_INTMEM + CSTORM_FUNCTION_MODE_OFFSET,
-			bp->e1hmf);
+			bp->mf_mode);
 		REG_WR8(bp, BAR_USTRORM_INTMEM + USTORM_FUNCTION_MODE_OFFSET,
-			bp->e1hmf);
+			bp->mf_mode);
 	}
 
 	/* Zero this manually as its initialization is
@@ -4418,7 +4418,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 
 	bnx2x_init_block(bp, MISC_BLOCK, COMMON_STAGE);
 	if (CHIP_IS_E1H(bp))
-		REG_WR(bp, MISC_REG_E1HMF_MODE, IS_E1HMF(bp));
+		REG_WR(bp, MISC_REG_E1HMF_MODE, IS_MF(bp));
 
 	REG_WR(bp, MISC_REG_LCPLL_CTRL_REG_2, 0x100);
 	msleep(30);
@@ -4518,7 +4518,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 	REG_WR(bp, PRS_REG_NIC_MODE, 1);
 #endif
 	if (CHIP_IS_E1H(bp))
-		REG_WR(bp, PRS_REG_E1HOV_MODE, IS_E1HMF(bp));
+		REG_WR(bp, PRS_REG_E1HOV_MODE, IS_MF(bp));
 
 	bnx2x_init_block(bp, TSDM_BLOCK, COMMON_STAGE);
 	bnx2x_init_block(bp, CSDM_BLOCK, COMMON_STAGE);
@@ -4596,8 +4596,8 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 
 	bnx2x_init_block(bp, NIG_BLOCK, COMMON_STAGE);
 	if (CHIP_IS_E1H(bp)) {
-		REG_WR(bp, NIG_REG_LLH_MF_MODE, IS_E1HMF(bp));
-		REG_WR(bp, NIG_REG_LLH_E1HOV_MODE, IS_E1HMF(bp));
+		REG_WR(bp, NIG_REG_LLH_MF_MODE, IS_MF(bp));
+		REG_WR(bp, NIG_REG_LLH_E1HOV_MODE, IS_MF(bp));
 	}
 
 	if (CHIP_REV_IS_SLOW(bp))
@@ -4692,7 +4692,7 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 		low = 0;
 		high = 513;
 	} else {
-		if (IS_E1HMF(bp))
+		if (IS_MF(bp))
 			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
 		else if (bp->dev->mtu > 4096) {
 			if (bp->flags & ONE_PORT_FLAG)
@@ -4758,7 +4758,7 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	 *  - MF mode: bit 3 is masked. bits 0-2 are in use as in SF
 	 *             bits 4-7 are used for "per vn group attention" */
 	REG_WR(bp, MISC_REG_AEU_MASK_ATTN_FUNC_0 + port*4,
-	       (IS_E1HMF(bp) ? 0xF7 : 0x7));
+	       (IS_MF(bp) ? 0xF7 : 0x7));
 
 	bnx2x_init_block(bp, PXPCS_BLOCK, init_stage);
 	bnx2x_init_block(bp, EMAC0_BLOCK, init_stage);
@@ -4771,9 +4771,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	REG_WR(bp, NIG_REG_XGXS_SERDES0_MODE_SEL + port*4, 1);
 
 	if (CHIP_IS_E1H(bp)) {
-		/* 0x2 disable e1hov, 0x1 enable */
+		/* 0x2 disable mf_ov, 0x1 enable */
 		REG_WR(bp, NIG_REG_LLH0_BRB1_DRV_MASK_MF + port*4,
-		       (IS_E1HMF(bp) ? 0x1 : 0x2));
+		       (IS_MF(bp) ? 0x1 : 0x2));
 
 		{
 			REG_WR(bp, NIG_REG_LLFC_ENABLE_0 + port*4, 0);
@@ -4883,9 +4883,9 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, CFC_BLOCK, FUNC0_STAGE + func);
 
-	if (IS_E1HMF(bp)) {
+	if (IS_MF(bp)) {
 		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
-		REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + port*8, bp->e1hov);
+		REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + port*8, bp->mf_ov);
 	}
 
 	bnx2x_init_block(bp, MISC_AEU_BLOCK, FUNC0_STAGE + func);
@@ -7189,8 +7189,8 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	bp->igu_base_sb = 0;
 	bp->igu_sb_cnt = min_t(u8, FP_SB_MAX_E1x, bp->l2_cid_count);
 
-	bp->e1hov = 0;
-	bp->e1hmf = 0;
+	bp->mf_ov = 0;
+	bp->mf_mode = 0;
 	if (CHIP_IS_E1H(bp) && !BP_NOMCP(bp)) {
 
 		bp->common.mf_cfg_base = bp->common.shmem_base +
@@ -7202,19 +7202,19 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		val = (MF_CFG_RD(bp, func_mf_config[FUNC_0].e1hov_tag) &
 		       FUNC_MF_CFG_E1HOV_TAG_MASK);
 		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT)
-			bp->e1hmf = 1;
+			bp->mf_mode = 1;
 		BNX2X_DEV_INFO("%s function mode\n",
-			       IS_E1HMF(bp) ? "multi" : "single");
+			       IS_MF(bp) ? "multi" : "single");
 
-		if (IS_E1HMF(bp)) {
+		if (IS_MF(bp)) {
 			val = (MF_CFG_RD(bp, func_mf_config[func].
 								e1hov_tag) &
 			       FUNC_MF_CFG_E1HOV_TAG_MASK);
 			if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
-				bp->e1hov = val;
+				bp->mf_ov = val;
 				BNX2X_DEV_INFO("E1HOV for func %d is %d "
 					       "(0x%04x)\n",
-					       func, bp->e1hov, bp->e1hov);
+					       func, bp->mf_ov, bp->mf_ov);
 			} else {
 				BNX2X_ERROR("No valid E1HOV for func %d,"
 					    "  aborting\n", func);
@@ -7230,7 +7230,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	}
 
 	/* adjust igu_sb_cnt to MF */
-	if (IS_E1HMF(bp))
+	if (IS_MF(bp))
 		bp->igu_sb_cnt /= E1HVN_MAX;
 
 	if (!BP_NOMCP(bp)) {
@@ -7241,7 +7241,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
 	}
 
-	if (IS_E1HMF(bp)) {
+	if (IS_MF(bp)) {
 		val2 = MF_CFG_RD(bp, func_mf_config[func].mac_upper);
 		val = MF_CFG_RD(bp,  func_mf_config[func].mac_lower);
 		if ((val2 != FUNC_MF_CFG_UPPERMAC_DEFAULT) &&
