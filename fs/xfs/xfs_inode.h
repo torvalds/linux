@@ -212,7 +212,6 @@ typedef struct xfs_icdinode {
 #ifdef __KERNEL__
 
 struct bhv_desc;
-struct cred;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
@@ -456,8 +455,8 @@ void		xfs_inode_free(struct xfs_inode *ip);
  * xfs_inode.c prototypes.
  */
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, mode_t,
-			   xfs_nlink_t, xfs_dev_t, cred_t *, xfs_prid_t,
-			   int, struct xfs_buf **, boolean_t *, xfs_inode_t **);
+			   xfs_nlink_t, xfs_dev_t, xfs_prid_t, int,
+			   struct xfs_buf **, boolean_t *, xfs_inode_t **);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);

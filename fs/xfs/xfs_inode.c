@@ -982,7 +982,6 @@ xfs_ialloc(
 	mode_t		mode,
 	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
-	cred_t		*cr,
 	xfs_prid_t	prid,
 	int		okalloc,
 	xfs_buf_t	**ialloc_context,

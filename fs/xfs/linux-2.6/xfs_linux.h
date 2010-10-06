@@ -71,6 +71,7 @@
 #include <linux/random.h>
 #include <linux/ctype.h>
 #include <linux/writeback.h>
+#include <linux/capability.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -79,7 +80,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include <xfs_cred.h>
 #include <xfs_vnode.h>
 #include <xfs_stats.h>
 #include <xfs_sysctl.h>

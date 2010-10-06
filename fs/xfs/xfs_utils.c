@@ -56,7 +56,6 @@ xfs_dir_ialloc(
 	mode_t		mode,
 	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
-	cred_t		*credp,
 	prid_t		prid,		/* project id */
 	int		okalloc,	/* ok to allocate new space */
 	xfs_inode_t	**ipp,		/* pointer to inode; it will be
@@ -93,7 +92,7 @@ xfs_dir_ialloc(
 	 * transaction commit so that no other process can steal
 	 * the inode(s) that we've just allocated.
 	 */
-	code = xfs_ialloc(tp, dp, mode, nlink, rdev, credp, prid, okalloc,
+	code = xfs_ialloc(tp, dp, mode, nlink, rdev, prid, okalloc,
 			  &ialloc_context, &call_again, &ip);
 
 	/*
@@ -197,7 +196,7 @@ xfs_dir_ialloc(
 		 * other allocations in this allocation group,
 		 * this call should always succeed.
 		 */
-		code = xfs_ialloc(tp, dp, mode, nlink, rdev, credp, prid,
+		code = xfs_ialloc(tp, dp, mode, nlink, rdev, prid,
 				  okalloc, &ialloc_context, &call_again, &ip);
 
 		/*

@@ -53,7 +53,6 @@ typedef struct xfs_trans_reservations {
 
 #include "xfs_sync.h"
 
-struct cred;
 struct log;
 struct xfs_mount_args;
 struct xfs_inode;

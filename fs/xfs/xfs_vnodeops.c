@@ -1256,8 +1256,7 @@ xfs_create(
 	struct xfs_name		*name,
 	mode_t			mode,
 	xfs_dev_t		rdev,
-	xfs_inode_t		**ipp,
-	cred_t			*credp)
+	xfs_inode_t		**ipp)
 {
 	int			is_dir = S_ISDIR(mode);
 	struct xfs_mount	*mp = dp->i_mount;
@@ -1363,7 +1362,7 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev, credp,
+	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev,
 			       prid, resblks > 0, &ip, &committed);
 	if (error) {
 		if (error == ENOSPC)
@@ -1936,8 +1935,7 @@ xfs_symlink(
 	struct xfs_name		*link_name,
 	const char		*target_path,
 	mode_t			mode,
-	xfs_inode_t		**ipp,
-	cred_t			*credp)
+	xfs_inode_t		**ipp)
 {
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t		*tp;
@@ -2049,8 +2047,8 @@ xfs_symlink(
 	/*
 	 * Allocate an inode for the symlink.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT),
-			       1, 0, credp, prid, resblks > 0, &ip, NULL);
+	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT), 1, 0,
+			       prid, resblks > 0, &ip, NULL);
 	if (error) {
 		if (error == ENOSPC)
 			goto error_return;

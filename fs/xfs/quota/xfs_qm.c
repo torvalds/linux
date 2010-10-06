@@ -55,8 +55,6 @@ uint		ndquot;
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
 
-static cred_t	xfs_zerocr;
-
 STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
 STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
 
@@ -1224,8 +1222,8 @@ xfs_qm_qino_alloc(
 		return error;
 	}
 
-	if ((error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0,
-				   &xfs_zerocr, 0, 1, ip, &committed))) {
+	error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, 1, ip, &committed);
+	if (error) {
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT);
 		return error;
@@ -2143,7 +2141,7 @@ xfs_qm_write_sb_changes(
 
 
 /*
- * Given an inode, a uid and gid (from cred_t) make sure that we have
+ * Given an inode, a uid, gid and prid make sure that we have
  * allocated relevant dquot(s) on disk, and that we won't exceed inode
  * quotas by creating this file.
  * This also attaches dquot(s) to the given inode after locking it,
