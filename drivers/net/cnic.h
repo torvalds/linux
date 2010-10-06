@@ -335,9 +335,7 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_ISCSI_GLB_BUF_SIZE	64
 #define BNX2X_ISCSI_PBL_NOT_CACHED	0xff
 #define BNX2X_ISCSI_PDU_HEADER_NOT_CACHED	0xff
-#define BNX2X_HW_CID(x, func)		((x) | (((func) % PORT_MAX) << 23) | \
-					 (((func) >> 1) << 17))
-#define BNX2X_SW_CID(x)			(x & 0x1ffff)
+
 #define BNX2X_CHIP_NUM_57711		0x164f
 #define BNX2X_CHIP_NUM_57711E		0x1650
 #define BNX2X_CHIP_NUM(x)		(x >> 16)
@@ -371,6 +369,11 @@ struct bnx2x_bd_chain_next {
 #define CNIC_PORT(cp)			((cp)->func % PORT_MAX)
 #define CNIC_FUNC(cp)			((cp)->func)
 #define CNIC_E1HVN(cp)			((cp)->func >> 1)
+
+#define BNX2X_HW_CID(cp, x)		(((CNIC_FUNC(cp) % PORT_MAX) << 23) | \
+					 (CNIC_E1HVN(cp) << 17) | (x))
+
+#define BNX2X_SW_CID(x)			(x & 0x1ffff)
 
 #endif
 

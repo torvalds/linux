@@ -1209,7 +1209,7 @@ static int cnic_submit_kwqe_16(struct cnic_dev *dev, u32 cmd, u32 cid,
 
 	kwqe.hdr.conn_and_cmd_data =
 		cpu_to_le32(((cmd << SPE_HDR_CMD_ID_SHIFT) |
-			     BNX2X_HW_CID(cid, cp->func)));
+			     BNX2X_HW_CID(cp, cid)));
 	kwqe.hdr.type = cpu_to_le16(type);
 	kwqe.hdr.reserved = 0;
 	kwqe.data.phy_address.lo = cpu_to_le32(l5_data->phy_address.lo);
@@ -1461,7 +1461,7 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 	struct cnic_context *ctx = &cp->ctx_tbl[req1->iscsi_conn_id];
 	struct cnic_iscsi *iscsi = ctx->proto.iscsi;
 	u32 cid = ctx->cid;
-	u32 hw_cid = BNX2X_HW_CID(cid, cp->func);
+	u32 hw_cid = BNX2X_HW_CID(cp, cid);
 	struct iscsi_context *ictx;
 	struct regpair context_addr;
 	int i, j, n = 2, n_max;
@@ -1673,8 +1673,7 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 	}
 
 	kcqe.completion_status = ISCSI_KCQE_COMPLETION_STATUS_SUCCESS;
-	kcqe.iscsi_conn_context_id = BNX2X_HW_CID(cp->ctx_tbl[l5_cid].cid,
-						  cp->func);
+	kcqe.iscsi_conn_context_id = BNX2X_HW_CID(cp, cp->ctx_tbl[l5_cid].cid);
 
 done:
 	cqes[0] = (struct kcqe *) &kcqe;
@@ -3885,7 +3884,6 @@ static void cnic_init_bnx2x_tx_ring(struct cnic_dev *dev)
 	struct eth_context *context;
 	struct regpair context_addr;
 	dma_addr_t buf_map;
-	int func = CNIC_FUNC(cp);
 	int port = CNIC_PORT(cp);
 	int i;
 	int cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
@@ -3931,7 +3929,7 @@ static void cnic_init_bnx2x_tx_ring(struct cnic_dev *dev)
 				XSTORM_ETH_ST_CONTEXT_STATISTICS_ENABLE;
 
 	context->xstorm_ag_context.cdu_reserved =
-		CDU_RSRVD_VALUE_TYPE_A(BNX2X_HW_CID(BNX2X_ISCSI_L2_CID, func),
+		CDU_RSRVD_VALUE_TYPE_A(BNX2X_HW_CID(cp, BNX2X_ISCSI_L2_CID),
 					CDU_REGION_NUMBER_XCM_AG,
 					ETH_CONNECTION_TYPE);
 
@@ -3959,7 +3957,6 @@ static void cnic_init_bnx2x_rx_ring(struct cnic_dev *dev)
 	struct regpair context_addr;
 	int i;
 	int port = CNIC_PORT(cp);
-	int func = CNIC_FUNC(cp);
 	int cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
 	u32 val;
 	struct tstorm_eth_client_config tstorm_client = {0};
@@ -3998,7 +3995,7 @@ static void cnic_init_bnx2x_rx_ring(struct cnic_dev *dev)
 						cp->l2_single_buf_size;
 
 	context->ustorm_ag_context.cdu_usage =
-		CDU_RSRVD_VALUE_TYPE_A(BNX2X_HW_CID(BNX2X_ISCSI_L2_CID, func),
+		CDU_RSRVD_VALUE_TYPE_A(BNX2X_HW_CID(cp, BNX2X_ISCSI_L2_CID),
 					CDU_REGION_NUMBER_UCM_AG,
 					ETH_CONNECTION_TYPE);
 
