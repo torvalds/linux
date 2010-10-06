@@ -2406,6 +2406,8 @@ static void bond_miimon_commit(struct bonding *bond)
 				slave->state = BOND_STATE_BACKUP;
 			}
 
+			bond_update_speed_duplex(slave);
+
 			pr_info("%s: link status definitely up for interface %s, %d Mbps %s duplex.\n",
 				bond->dev->name, slave->dev->name,
 				slave->speed, slave->duplex ? "full" : "half");
