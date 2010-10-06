@@ -787,6 +787,13 @@ rx_dma_failed:
 /**
  * davinci_spi_probe - probe function for SPI Master Controller
  * @pdev: platform_device structure which contains plateform specific data
+ *
+ * According to Linux Device Model this function will be invoked by Linux
+ * with platform_device struct which contains the device specific info.
+ * This function will map the SPI controller's memory, register IRQ,
+ * Reset SPI controller and setting its registers to default value.
+ * It will invoke spi_bitbang_start to create work queue so that client driver
+ * can register transfer method to work queue.
  */
 static int davinci_spi_probe(struct platform_device *pdev)
 {
