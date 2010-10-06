@@ -133,7 +133,7 @@ struct irq_pin_list {
 
 static struct irq_pin_list *alloc_irq_pin_list(int node)
 {
-	return kzalloc_node(sizeof(struct irq_pin_list), GFP_ATOMIC, node);
+	return kzalloc_node(sizeof(struct irq_pin_list), GFP_KERNEL, node);
 }
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
@@ -162,8 +162,8 @@ int __init arch_early_irq_init(void)
 
 	for (i = 0; i < count; i++) {
 		set_irq_chip_data(i, &cfg[i]);
-		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
-		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
+		zalloc_cpumask_var_node(&cfg[i].domain, GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_KERNEL, node);
 		/*
 		 * For legacy IRQ's, start with assigning irq0 to irq15 to
 		 * IRQ0_VECTOR to IRQ15_VECTOR on cpu 0.
@@ -187,12 +187,12 @@ static struct irq_cfg *alloc_irq_cfg(unsigned int irq, int node)
 {
 	struct irq_cfg *cfg;
 
-	cfg = kzalloc_node(sizeof(*cfg), GFP_ATOMIC, node);
+	cfg = kzalloc_node(sizeof(*cfg), GFP_KERNEL, node);
 	if (!cfg)
 		return NULL;
-	if (!zalloc_cpumask_var_node(&cfg->domain, GFP_ATOMIC, node))
+	if (!zalloc_cpumask_var_node(&cfg->domain, GFP_KERNEL, node))
 		goto out_cfg;
-	if (!zalloc_cpumask_var_node(&cfg->old_domain, GFP_ATOMIC, node))
+	if (!zalloc_cpumask_var_node(&cfg->old_domain, GFP_KERNEL, node))
 		goto out_domain;
 	return cfg;
 out_domain:
@@ -595,14 +595,14 @@ struct IO_APIC_route_entry **alloc_ioapic_entries(void)
 	struct IO_APIC_route_entry **ioapic_entries;
 
 	ioapic_entries = kzalloc(sizeof(*ioapic_entries) * nr_ioapics,
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!ioapic_entries)
 		return 0;
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
 		ioapic_entries[apic] =
 			kzalloc(sizeof(struct IO_APIC_route_entry) *
-				nr_ioapic_registers[apic], GFP_ATOMIC);
+				nr_ioapic_registers[apic], GFP_KERNEL);
 		if (!ioapic_entries[apic])
 			goto nomem;
 	}
