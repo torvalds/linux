@@ -107,9 +107,12 @@ static wlc_ssid_t g_specific_ssid;
 
 static wlc_ssid_t g_ssid;
 
-#define DAEMONIZE(a) daemonize(a); \
-	allow_signal(SIGKILL); \
-	allow_signal(SIGTERM);
+#define DAEMONIZE(a) \
+	do { \
+		daemonize(a); \
+		allow_signal(SIGKILL); \
+		allow_signal(SIGTERM); \
+	} while (0);
 
 #if defined(WL_IW_USE_ISCAN)
 #define ISCAN_STATE_IDLE   0

@@ -337,9 +337,12 @@ uint dhd_radio_up = 1;
 char iface_name[IFNAMSIZ];
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
-#define DAEMONIZE(a) daemonize(a); \
-	allow_signal(SIGKILL); \
-	allow_signal(SIGTERM);
+#define DAEMONIZE(a) \
+	do { \
+		daemonize(a); \
+		allow_signal(SIGKILL); \
+		allow_signal(SIGTERM); \
+	} while (0);
 
 #define BLOCKABLE()	(!in_atomic())
 
