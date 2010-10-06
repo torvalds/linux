@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2009 Texas Instruments.
+ * Copyright (C) 2010 EF Johnson Technologies
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
