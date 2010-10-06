@@ -175,10 +175,10 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	switch (resp->result) {
 	case SMP_RESP_PHY_VACANT:
 		phy->phy_state = PHY_VACANT;
-		return;
+		break;
 	default:
 		phy->phy_state = PHY_NOT_PRESENT;
-		return;
+		break;
 	case SMP_RESP_FUNC_ACC:
 		phy->phy_state = PHY_EMPTY; /* do not know yet */
 		break;
@@ -209,7 +209,10 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->phy->negotiated_linkrate = phy->linkrate;
 
 	if (!rediscover)
-		sas_phy_add(phy->phy);
+		if (sas_phy_add(phy->phy)) {
+			sas_phy_free(phy->phy);
+			return;
+		}
 
 	SAS_DPRINTK("ex %016llx phy%02d:%c attached: %016llx\n",
 		    SAS_ADDR(dev->sas_addr), phy->phy_id,
