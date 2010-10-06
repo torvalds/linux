@@ -2202,13 +2202,14 @@ static int cnic_l2_completion(struct cnic_local *cp)
 
 static void cnic_chk_pkt_rings(struct cnic_local *cp)
 {
-	u16 rx_cons = *cp->rx_cons_ptr;
-	u16 tx_cons = *cp->tx_cons_ptr;
+	u16 rx_cons, tx_cons;
 	int comp = 0;
 
-	if (!test_bit(CNIC_F_CNIC_UP, &cp->dev->flags))
+	if (!test_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags))
 		return;
 
+	rx_cons = *cp->rx_cons_ptr;
+	tx_cons = *cp->tx_cons_ptr;
 	if (cp->tx_cons != tx_cons || cp->rx_cons != rx_cons) {
 		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
 			comp = cnic_l2_completion(cp);
@@ -4202,17 +4203,20 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	if (ret)
 		return ret;
 
-	cnic_init_bnx2x_tx_ring(dev);
-	cnic_init_bnx2x_rx_ring(dev);
-
 	return 0;
 }
 
 static void cnic_init_rings(struct cnic_dev *dev)
 {
+	struct cnic_local *cp = dev->cnic_priv;
+
+	if (test_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags))
+		return;
+
 	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
 		cnic_init_bnx2_tx_ring(dev);
 		cnic_init_bnx2_rx_ring(dev);
+		set_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
 		struct cnic_local *cp = dev->cnic_priv;
 		u32 cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
@@ -4235,6 +4239,8 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		cnic_init_bnx2x_tx_ring(dev);
 		cnic_init_bnx2x_rx_ring(dev);
 
+		set_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);
+
 		l5_data.phy_address.lo = cli;
 		l5_data.phy_address.hi = 0;
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_CLIENT_SETUP,
@@ -4254,6 +4260,11 @@ static void cnic_init_rings(struct cnic_dev *dev)
 
 static void cnic_shutdown_rings(struct cnic_dev *dev)
 {
+	struct cnic_local *cp = dev->cnic_priv;
+
+	if (!test_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags))
+		return;
+
 	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
 		cnic_shutdown_bnx2_rx_ring(dev);
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
@@ -4286,6 +4297,7 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 			(1 << SPE_HDR_COMMON_RAMROD_SHIFT), &l5_data);
 		msleep(10);
 	}
+	clear_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);
 }
 
 static int cnic_register_netdev(struct cnic_dev *dev)

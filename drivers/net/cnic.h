@@ -192,6 +192,7 @@ struct cnic_local {
 	unsigned long cnic_local_flags;
 #define	CNIC_LCL_FL_KWQ_INIT		0x0
 #define	CNIC_LCL_FL_L2_WAIT		0x1
+#define	CNIC_LCL_FL_RINGS_INITED	0x2
 
 	struct cnic_dev *dev;
 
