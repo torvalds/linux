@@ -24,6 +24,17 @@ config S5PV310_SETUP_I2C2
 	help
 	  Common setup code for i2c bus 2.
 
+config S5PV310_SETUP_SDHCI
+	bool
+	select S5PV310_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for S5PV310 based SDHCI systems.
+
+config S5PV310_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
 # machine support
 
 menu "S5PC210 Machines"
@@ -33,6 +44,11 @@ config MACH_SMDKC210
 	select CPU_S5PV310
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S5PV310_SETUP_SDHCI
 	help
 	  Machine support for Samsung SMDKC210
 	  S5PC210(MCP) is one of package option of S5PV310
@@ -53,8 +69,31 @@ config MACH_SMDKV310
 	select CPU_S5PV310
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S5PV310_SETUP_SDHCI
 	help
 	  Machine support for Samsung SMDKV310
+
+endmenu
+
+comment "Configuration for HSMMC bus width"
+
+menu "Use 8-bit bus width"
+
+config S5PV310_SDHCI_CH0_8BIT
+	bool "Channel 0 with 8-bit bus"
+	help
+	  Support HSMMC Channel 0 8-bit bus.
+	  If selected, Channel 1 is disabled.
+
+config S5PV310_SDHCI_CH2_8BIT
+	bool "Channel 2 with 8-bit bus"
+	help
+	  Support HSMMC Channel 2 8-bit bus.
+	  If selected, Channel 3 is disabled.
 
 endmenu
 
