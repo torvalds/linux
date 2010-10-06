@@ -18,9 +18,9 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 
-#define CMD_COREB_START		2
-#define CMD_COREB_STOP		3
-#define CMD_COREB_RESET		4
+#define CMD_COREB_START		_IO('b', 0)
+#define CMD_COREB_STOP		_IO('b', 1)
+#define CMD_COREB_RESET		_IO('b', 2)
 
 static long
 coreb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
