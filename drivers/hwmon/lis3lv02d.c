@@ -277,7 +277,7 @@ static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
 	wake_up_interruptible(&lis3_dev.misc_wait);
 	kill_fasync(&lis3_dev.async_queue, SIGIO, POLL_IN);
 out:
-	if (lis3_dev.whoami == WAI_8B && lis3_dev.idev &&
+	if (lis3_dev.pdata && lis3_dev.whoami == WAI_8B && lis3_dev.idev &&
 	    lis3_dev.idev->input->users)
 		return IRQ_WAKE_THREAD;
 	return IRQ_HANDLED;
@@ -718,7 +718,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	 * io-apic is not configurable (and generates a warning) but I keep it
 	 * in case of support for other hardware.
 	 */
-	if (dev->whoami == WAI_8B)
+	if (dev->pdata && dev->whoami == WAI_8B)
 		thread_fn = lis302dl_interrupt_thread1_8b;
 	else
 		thread_fn = NULL;

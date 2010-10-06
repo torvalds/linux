@@ -612,7 +612,7 @@ struct drm_gem_object {
 	struct kref refcount;
 
 	/** Handle count of this object. Each handle also holds a reference */
-	struct kref handlecount;
+	atomic_t handle_count; /* number of handles on this object */
 
 	/** Related drm device */
 	struct drm_device *dev;
@@ -1151,6 +1151,7 @@ extern int drm_release(struct inode *inode, struct file *filp);
 extern int drm_mmap(struct file *filp, struct vm_area_struct *vma);
 extern int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
 extern void drm_vm_open_locked(struct vm_area_struct *vma);
+extern void drm_vm_close_locked(struct vm_area_struct *vma);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
@@ -1411,12 +1412,11 @@ int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
-void drm_gem_object_free_unlocked(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size);
-void drm_gem_object_handle_free(struct kref *kref);
+void drm_gem_object_handle_free(struct drm_gem_object *obj);
 void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -1439,8 +1439,12 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 {
-	if (obj != NULL)
-		kref_put(&obj->refcount, drm_gem_object_free_unlocked);
+	if (obj != NULL) {
+		struct drm_device *dev = obj->dev;
+		mutex_lock(&dev->struct_mutex);
+		kref_put(&obj->refcount, drm_gem_object_free);
+		mutex_unlock(&dev->struct_mutex);
+	}
 }
 
 int drm_gem_handle_create(struct drm_file *file_priv,
@@ -1451,7 +1455,7 @@ static inline void
 drm_gem_object_handle_reference(struct drm_gem_object *obj)
 {
 	drm_gem_object_reference(obj);
-	kref_get(&obj->handlecount);
+	atomic_inc(&obj->handle_count);
 }
 
 static inline void
@@ -1460,12 +1464,15 @@ drm_gem_object_handle_unreference(struct drm_gem_object *obj)
 	if (obj == NULL)
 		return;
 
+	if (atomic_read(&obj->handle_count) == 0)
+		return;
 	/*
 	 * Must bump handle count first as this may be the last
 	 * ref, in which case the object would disappear before we
 	 * checked for a name
 	 */
-	kref_put(&obj->handlecount, drm_gem_object_handle_free);
+	if (atomic_dec_and_test(&obj->handle_count))
+		drm_gem_object_handle_free(obj);
 	drm_gem_object_unreference(obj);
 }
 
@@ -1475,12 +1482,17 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	if (obj == NULL)
 		return;
 
+	if (atomic_read(&obj->handle_count) == 0)
+		return;
+
 	/*
 	* Must bump handle count first as this may be the last
 	* ref, in which case the object would disappear before we
 	* checked for a name
 	*/
-	kref_put(&obj->handlecount, drm_gem_object_handle_free);
+
+	if (atomic_dec_and_test(&obj->handle_count))
+		drm_gem_object_handle_free(obj);
 	drm_gem_object_unreference_unlocked(obj);
 }
 
