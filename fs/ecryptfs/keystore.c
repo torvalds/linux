@@ -459,6 +459,15 @@ ecryptfs_find_auth_tok_for_sig(
 	if (ecryptfs_find_global_auth_tok_for_sig(&global_auth_tok,
 						  mount_crypt_stat, sig)) {
 
+		/* if the flag ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY is set in the
+		 * mount_crypt_stat structure, we prevent to use auth toks that
+		 * are not inserted through the ecryptfs_add_global_auth_tok
+		 * function.
+		 */
+		if (mount_crypt_stat->flags
+				& ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY)
+			return -EINVAL;
+
 		rc = ecryptfs_keyring_auth_tok_for_sig(auth_tok_key, auth_tok,
 						       sig);
 	} else
