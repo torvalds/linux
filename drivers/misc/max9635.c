@@ -214,7 +214,6 @@ static int max9635_read_adj_als(struct max9635_data *als_data)
 {
 	int ret;
 	int lux = 0;
-	u8 buf[2] = { MAX9635_ALS_DATA_H, 0 };
 	u8 low_buf = MAX9635_ALS_DATA_L;
 	u8 high_buf = MAX9635_ALS_DATA_H;
 	u8 exponent;
@@ -241,40 +240,18 @@ static int max9635_read_adj_als(struct max9635_data *als_data)
 		pr_info("exp = 0x%X, mant = 0x%X, lux = %d\n",
 			exponent, mantissa, lux);
 
-	/* lux can be in the range of 0 to 208896, per maxim */
-	if (lux == 0)
-		lux += 1;
-	if (lux == 208896)
-		lux -= 1;
-
-	buf[0] = (AUTO_INCREMENT | MAX9635_ALS_THRESH_L);
-	buf[1] = lux - 1;
-	ret = max9635_write_reg(als_data, buf, 1);
-	if (ret != 0) {
-		pr_err("%s:Unable to write reg: %d\n", __func__, buf[0]);
-		return -1;
-	}
-	if (max9635_debug & 1)
-		pr_err("lower threshold = %d\n", buf[1]);
-
-	buf[0] = (AUTO_INCREMENT | MAX9635_ALS_THRESH_H);
-	buf[1] = lux + 1;
-	ret = max9635_write_reg(als_data, buf, 1);
-	if (ret != 0) {
-		pr_err("%s:Unable to write reg: %d\n", __func__, buf[0]);
-		return -1;
-	}
-	if (max9635_debug & 1)
-		pr_err("upper threshold = %d\n", buf[1]);
+	/* TODO: temporary lens coefficient adjustment, final
+		 calculation pending on shipping lens profile. */
+	if (lux < 200)
+		lux = lux * als_data->als_pdata->lens_coeff_l;
+	else
+		lux = lux * als_data->als_pdata->lens_coeff_h;
 
 	if (max9635_debug & 1)
 		pr_info("%s:Reporting LUX %d\n", __func__, lux);
 	return lux;
 }
 
-/* TO DO: Do we need to read the interrupt to clear the bit?
-Spec indicates that a read needs to be done to confirm it was this
-IC but does not indicate whether it is mandatory */
 static int max9635_report_input(struct max9635_data *als_data)
 {
 	int ret = 0;
@@ -283,7 +260,7 @@ static int max9635_report_input(struct max9635_data *als_data)
 
 	lux_val = max9635_read_adj_als(als_data);
 	if (lux_val >= 0) {
-		input_event(als_data->idev, EV_LED, LED_MISC, lux_val);
+		input_event(als_data->idev, EV_MSC, MSC_RAW, lux_val);
 		input_sync(als_data->idev);
 	}
 
@@ -513,7 +490,6 @@ static int max9635_probe(struct i2c_client *client,
 
 	als_data->idev->name = "max9635_als";
 	input_set_capability(als_data->idev, EV_MSC, MSC_RAW);
-	input_set_capability(als_data->idev, EV_LED, LED_MISC);
 
 	error = misc_register(&max9635_misc_device);
 	if (error < 0) {
