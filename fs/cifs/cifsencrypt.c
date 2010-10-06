@@ -328,13 +328,16 @@ find_domain_name(struct cifsSesInfo *ses)
 			if (!attrsize)
 				break;
 			if (!ses->domainName) {
+				struct nls_table *default_nls;
 				ses->domainName =
 					kmalloc(attrsize + 1, GFP_KERNEL);
 				if (!ses->domainName)
 						return -ENOMEM;
+				default_nls = load_nls_default();
 				cifs_from_ucs2(ses->domainName,
 					(__le16 *)blobptr, attrsize, attrsize,
-					load_nls_default(), false);
+					default_nls, false);
+				unload_nls(default_nls);
 				break;
 			}
 		}
