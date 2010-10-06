@@ -48,6 +48,8 @@ typedef struct cyasdevice {
 		cy_as_device_handle			dev_handle;
 		/* Handle to the HAL */
 		cy_as_hal_device_tag			hal_tag;
+		spinlock_t	  common_lock;
+		unsigned long flags;
 } cyasdevice;
 
 /* global ptr to astoria device */
@@ -125,6 +127,20 @@ static void cy_misc_callback(cy_as_device_handle h,
 	break;
 	}
 }
+
+void cy_as_acquire_common_lock()
+{
+	spin_lock_irqsave(&cy_as_device_controller->common_lock,
+		cy_as_device_controller->flags);
+}
+EXPORT_SYMBOL(cy_as_acquire_common_lock);
+
+void cy_as_release_common_lock()
+{
+	spin_unlock_irqrestore(&cy_as_device_controller->common_lock,
+		cy_as_device_controller->flags);
+}
+EXPORT_SYMBOL(cy_as_release_common_lock);
 
 /* reset astoria and reinit all regs */
  #define PNAND_REG_CFG_INIT_VAL 0x0000
@@ -330,6 +346,8 @@ static int cyasdevice_initialize(void)
 		"major=%d minor=%d build=%d,\n_media types supported:%s\n",
 		((ver_data.is_debug_mode) ? "debug" : "release"),
 		ver_data.major, ver_data.minor, ver_data.build, str);
+
+	spin_lock_init(&cy_as_dev->common_lock);
 
 	/* done now */
 	cy_as_device_controller = cy_as_dev;
