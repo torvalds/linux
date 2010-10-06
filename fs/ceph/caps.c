@@ -2774,15 +2774,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		if (op == CEPH_CAP_OP_IMPORT)
 			__queue_cap_release(session, vino.ino, cap_id,
 					    mseq, seq);
-
-		/*
-		 * send any full release message to try to move things
-		 * along for the mds (who clearly thinks we still have this
-		 * cap).
-		 */
-		ceph_add_cap_releases(mdsc, session);
-		ceph_send_cap_releases(mdsc, session);
-		goto done;
+		goto flush_cap_releases;
 	}
 
 	/* these will work even if we don't have a cap yet */
@@ -2810,7 +2802,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		dout(" no cap on %p ino %llx.%llx from mds%d\n",
 		     inode, ceph_ino(inode), ceph_snap(inode), mds);
 		spin_unlock(&inode->i_lock);
-		goto done;
+		goto flush_cap_releases;
 	}
 
 	/* note that each of these drops i_lock for us */
@@ -2833,6 +2825,17 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		pr_err("ceph_handle_caps: unknown cap op %d %s\n", op,
 		       ceph_cap_op_name(op));
 	}
+
+	goto done;
+
+flush_cap_releases:
+	/*
+	 * send any full release message to try to move things
+	 * along for the mds (who clearly thinks we still have this
+	 * cap).
+	 */
+	ceph_add_cap_releases(mdsc, session);
+	ceph_send_cap_releases(mdsc, session);
 
 done:
 	mutex_unlock(&session->s_mutex);
