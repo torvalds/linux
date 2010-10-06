@@ -2636,7 +2636,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	return base;
 
 failure:
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_disable(clk);
 		clk_put(clk);
 	}
