@@ -41,6 +41,7 @@ struct davinci_spi_config {
 	u8	parity_enable;
 #define SPI_IO_TYPE_INTR	0
 #define SPI_IO_TYPE_POLL	1
+#define SPI_IO_TYPE_DMA		2
 	u8	io_type;
 	u8	timer_disable;
 	u8	c2tdelay;

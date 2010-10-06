@@ -500,6 +500,25 @@ out:
 	return errors;
 }
 
+static void davinci_spi_dma_callback(unsigned lch, u16 status, void *data)
+{
+	struct davinci_spi *davinci_spi = data;
+	struct davinci_spi_dma *davinci_spi_dma = &davinci_spi->dma_channels;
+
+	edma_stop(lch);
+
+	if (status == DMA_COMPLETE) {
+		if (lch == davinci_spi_dma->dma_rx_channel)
+			davinci_spi->rcount = 0;
+		if (lch == davinci_spi_dma->dma_tx_channel)
+			davinci_spi->wcount = 0;
+	}
+
+	if ((!davinci_spi->wcount && !davinci_spi->rcount) ||
+	    (status != DMA_COMPLETE))
+		complete(&davinci_spi->done);
+}
+
 /**
  * davinci_spi_bufs - functions which will handle transfer data
  * @spi: spi device on which data transfer to be done
@@ -509,25 +528,30 @@ out:
  * of SPI controller and then wait until the completion will be marked
  * by the IRQ Handler.
  */
-static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
+static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *davinci_spi;
-	int ret;
+	int data_type, ret;
 	u32 tx_data, data1_reg_val;
 	u32 errors = 0;
 	struct davinci_spi_config *spicfg;
 	struct davinci_spi_platform_data *pdata;
+	unsigned uninitialized_var(rx_buf_count);
+	struct device *sdev;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
 	spicfg = (struct davinci_spi_config *)spi->controller_data;
 	if (!spicfg)
 		spicfg = &davinci_spi_default_cfg;
+	sdev = davinci_spi->bitbang.master->dev.parent;
+
+	/* convert len to words based on bits_per_word */
+	data_type = davinci_spi->bytes_per_word[spi->chip_select];
 
 	davinci_spi->tx = t->tx_buf;
 	davinci_spi->rx = t->rx_buf;
-	davinci_spi->wcount = t->len /
-				davinci_spi->bytes_per_word[spi->chip_select];
+	davinci_spi->wcount = t->len / data_type;
 	davinci_spi->rcount = davinci_spi->wcount;
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
@@ -535,20 +559,117 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	/* Enable SPI */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
 
-	if (spicfg->io_type == SPI_IO_TYPE_INTR) {
+	INIT_COMPLETION(davinci_spi->done);
+
+	if (spicfg->io_type == SPI_IO_TYPE_INTR)
 		set_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKINT);
-		INIT_COMPLETION(davinci_spi->done);
+
+	if (spicfg->io_type != SPI_IO_TYPE_DMA) {
+		/* start the transfer */
+		davinci_spi->wcount--;
+		tx_data = davinci_spi->get_tx(davinci_spi);
+		data1_reg_val &= 0xFFFF0000;
+		data1_reg_val |= tx_data & 0xFFFF;
+		iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
+	} else {
+		struct davinci_spi_dma *davinci_spi_dma;
+		unsigned long tx_reg, rx_reg;
+		struct edmacc_param param;
+		void *rx_buf;
+
+		davinci_spi_dma = &davinci_spi->dma_channels;
+
+		tx_reg = (unsigned long)davinci_spi->pbase + SPIDAT1;
+		rx_reg = (unsigned long)davinci_spi->pbase + SPIBUF;
+
+		/*
+		 * Transmit DMA setup
+		 *
+		 * If there is transmit data, map the transmit buffer, set it
+		 * as the source of data and set the source B index to data
+		 * size. If there is no transmit data, set the transmit register
+		 * as the source of data, and set the source B index to zero.
+		 *
+		 * The destination is always the transmit register itself. And
+		 * the destination never increments.
+		 */
+
+		if (t->tx_buf) {
+			t->tx_dma = dma_map_single(&spi->dev, (void *)t->tx_buf,
+					davinci_spi->wcount, DMA_TO_DEVICE);
+			if (dma_mapping_error(&spi->dev, t->tx_dma)) {
+				dev_dbg(sdev, "Unable to DMA map %d bytes"
+						"TX buffer\n",
+						davinci_spi->wcount);
+				return -ENOMEM;
+			}
+		}
+
+		param.opt = TCINTEN | EDMA_TCC(davinci_spi_dma->dma_tx_channel);
+		param.src = t->tx_buf ? t->tx_dma : tx_reg;
+		param.a_b_cnt = davinci_spi->wcount << 16 | data_type;
+		param.dst = tx_reg;
+		param.src_dst_bidx = t->tx_buf ? data_type : 0;
+		param.link_bcntrld = 0xffff;
+		param.src_dst_cidx = 0;
+		param.ccnt = 1;
+		edma_write_slot(davinci_spi_dma->dma_tx_channel, &param);
+		edma_link(davinci_spi_dma->dma_tx_channel,
+				davinci_spi_dma->dummy_param_slot);
+
+		/*
+		 * Receive DMA setup
+		 *
+		 * If there is receive buffer, use it to receive data. If there
+		 * is none provided, use a temporary receive buffer. Set the
+		 * destination B index to 0 so effectively only one byte is used
+		 * in the temporary buffer (address does not increment).
+		 *
+		 * The source of receive data is the receive data register. The
+		 * source address never increments.
+		 */
+
+		if (t->rx_buf) {
+			rx_buf = t->rx_buf;
+			rx_buf_count = davinci_spi->rcount;
+		} else {
+			rx_buf = davinci_spi->rx_tmp_buf;
+			rx_buf_count = sizeof(davinci_spi->rx_tmp_buf);
+		}
+
+		t->rx_dma = dma_map_single(&spi->dev, rx_buf, rx_buf_count,
+							DMA_FROM_DEVICE);
+		if (dma_mapping_error(&spi->dev, t->rx_dma)) {
+			dev_dbg(sdev, "Couldn't DMA map a %d bytes RX buffer\n",
+								rx_buf_count);
+			if (t->tx_buf)
+				dma_unmap_single(NULL, t->tx_dma,
+						davinci_spi->wcount,
+						DMA_TO_DEVICE);
+			return -ENOMEM;
+		}
+
+		param.opt = TCINTEN | EDMA_TCC(davinci_spi_dma->dma_rx_channel);
+		param.src = rx_reg;
+		param.a_b_cnt = davinci_spi->rcount << 16 | data_type;
+		param.dst = t->rx_dma;
+		param.src_dst_bidx = (t->rx_buf ? data_type : 0) << 16;
+		param.link_bcntrld = 0xffff;
+		param.src_dst_cidx = 0;
+		param.ccnt = 1;
+		edma_write_slot(davinci_spi_dma->dma_rx_channel, &param);
+
+		if (pdata->cshold_bug)
+			iowrite16(data1_reg_val >> 16,
+					davinci_spi->base + SPIDAT1 + 2);
+
+		edma_start(davinci_spi_dma->dma_rx_channel);
+		edma_start(davinci_spi_dma->dma_tx_channel);
+		set_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
 	}
 
-	/* start the transfer */
-	davinci_spi->wcount--;
-	tx_data = davinci_spi->get_tx(davinci_spi);
-	data1_reg_val &= 0xFFFF0000;
-	data1_reg_val |= tx_data & 0xFFFF;
-	iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
-
 	/* Wait for the transfer to complete */
-	if (spicfg->io_type == SPI_IO_TYPE_INTR) {
+	if (spicfg->io_type != SPI_IO_TYPE_POLL) {
 		wait_for_completion_interruptible(&(davinci_spi->done));
 	} else {
 		while (davinci_spi->rcount > 0 || davinci_spi->wcount > 0) {
@@ -560,6 +681,17 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
+	if (spicfg->io_type == SPI_IO_TYPE_DMA) {
+
+		if (t->tx_buf)
+			dma_unmap_single(NULL, t->tx_dma, davinci_spi->wcount,
+								DMA_TO_DEVICE);
+
+		dma_unmap_single(NULL, t->rx_dma, rx_buf_count,
+							DMA_FROM_DEVICE);
+
+		clear_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
+	}
 
 	/*
 	 * Check for bit error, desync error,parity error,timeout error and
@@ -570,6 +702,11 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 		WARN(!ret, "%s: error reported but no error found!\n",
 							dev_name(&spi->dev));
 		return ret;
+	}
+
+	if (davinci_spi->rcount != 0 || davinci_spi->wcount != 0) {
+		dev_err(sdev, "SPI data transfer error\n");
+		return -EIO;
 	}
 
 	return t->len;
@@ -599,174 +736,6 @@ static irqreturn_t davinci_spi_irq(s32 irq, void *context_data)
 		complete(&davinci_spi->done);
 
 	return IRQ_HANDLED;
-}
-
-static void davinci_spi_dma_callback(unsigned lch, u16 status, void *data)
-{
-	struct davinci_spi *davinci_spi = data;
-	struct davinci_spi_dma *davinci_spi_dma = &davinci_spi->dma_channels;
-
-	edma_stop(lch);
-
-	if (status == DMA_COMPLETE) {
-		if (lch == davinci_spi_dma->dma_rx_channel)
-			davinci_spi->rcount = 0;
-		if (lch == davinci_spi_dma->dma_tx_channel)
-			davinci_spi->wcount = 0;
-	}
-
-	if ((!davinci_spi->wcount && !davinci_spi->rcount) ||
-	    (status != DMA_COMPLETE))
-		complete(&davinci_spi->done);
-}
-
-static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
-{
-	struct davinci_spi *davinci_spi;
-	int int_status = 0;
-	unsigned rx_buf_count;
-	struct davinci_spi_dma *davinci_spi_dma;
-	int data_type, ret;
-	unsigned long tx_reg, rx_reg;
-	struct davinci_spi_platform_data *pdata;
-	void *rx_buf;
-	struct device *sdev;
-	struct edmacc_param param;
-
-	davinci_spi = spi_master_get_devdata(spi->master);
-	pdata = davinci_spi->pdata;
-	sdev = davinci_spi->bitbang.master->dev.parent;
-
-	davinci_spi_dma = &davinci_spi->dma_channels;
-
-	/* convert len to words based on bits_per_word */
-	data_type = davinci_spi->bytes_per_word[spi->chip_select];
-
-	tx_reg = (unsigned long)davinci_spi->pbase + SPIDAT1;
-	rx_reg = (unsigned long)davinci_spi->pbase + SPIBUF;
-
-	davinci_spi->tx = t->tx_buf;
-	davinci_spi->rx = t->rx_buf;
-	davinci_spi->wcount = t->len / data_type;
-	davinci_spi->rcount = davinci_spi->wcount;
-
-	INIT_COMPLETION(davinci_spi->done);
-
-	/* disable all interrupts for dma transfers */
-	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
-	/* Enable SPI */
-	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
-
-	/*
-	 * Transmit DMA setup
-	 *
-	 * If there is transmit data, map the transmit buffer, set it as the
-	 * source of data and set the source B index to data size.
-	 * If there is no transmit data, set the transmit register as the
-	 * source of data, and set the source B index to zero.
-	 *
-	 * The destination is always the transmit register itself. And the
-	 * destination never increments.
-	 */
-
-	if (t->tx_buf) {
-		t->tx_dma = dma_map_single(&spi->dev, (void *)t->tx_buf,
-					davinci_spi->wcount, DMA_TO_DEVICE);
-		if (dma_mapping_error(&spi->dev, t->tx_dma)) {
-			dev_dbg(sdev, "Unable to DMA map %d bytes TX buffer\n",
-							davinci_spi->wcount);
-			return -ENOMEM;
-		}
-	}
-
-	param.opt = TCINTEN | EDMA_TCC(davinci_spi_dma->dma_tx_channel);
-	param.src = t->tx_buf ? t->tx_dma : tx_reg;
-	param.a_b_cnt = davinci_spi->wcount << 16 | data_type;
-	param.dst = tx_reg;
-	param.src_dst_bidx = t->tx_buf ? data_type : 0;
-	param.link_bcntrld = 0xffff;
-	param.src_dst_cidx = 0;
-	param.ccnt = 1;
-	edma_write_slot(davinci_spi_dma->dma_tx_channel, &param);
-	edma_link(davinci_spi_dma->dma_tx_channel,
-			davinci_spi_dma->dummy_param_slot);
-
-	/*
-	 * Receive DMA setup
-	 *
-	 * If there is receive buffer, use it to receive data. If there
-	 * is none provided, use a temporary receive buffer. Set the
-	 * destination B index to 0 so effectively only one byte is used
-	 * in the temporary buffer (address does not increment).
-	 *
-	 * The source of receive data is the receive data register. The
-	 * source address never increments.
-	 */
-
-	if (t->rx_buf) {
-		rx_buf = t->rx_buf;
-		rx_buf_count = davinci_spi->rcount;
-	} else {
-		rx_buf = davinci_spi->rx_tmp_buf;
-		rx_buf_count = sizeof(davinci_spi->rx_tmp_buf);
-	}
-
-	t->rx_dma = dma_map_single(&spi->dev, rx_buf, rx_buf_count,
-							DMA_FROM_DEVICE);
-	if (dma_mapping_error(&spi->dev, t->rx_dma)) {
-		dev_dbg(sdev, "Couldn't DMA map a %d bytes RX buffer\n",
-								rx_buf_count);
-		if (t->tx_buf)
-			dma_unmap_single(NULL, t->tx_dma, davinci_spi->wcount,
-								DMA_TO_DEVICE);
-		return -ENOMEM;
-	}
-
-	param.opt = TCINTEN | EDMA_TCC(davinci_spi_dma->dma_rx_channel);
-	param.src = rx_reg;
-	param.a_b_cnt = davinci_spi->rcount << 16 | data_type;
-	param.dst = t->rx_dma;
-	param.src_dst_bidx = (t->rx_buf ? data_type : 0) << 16;
-	param.link_bcntrld = 0xffff;
-	param.src_dst_cidx = 0;
-	param.ccnt = 1;
-	edma_write_slot(davinci_spi_dma->dma_rx_channel, &param);
-
-	if (pdata->cshold_bug) {
-		u16 spidat1 = ioread16(davinci_spi->base + SPIDAT1 + 2);
-		iowrite16(spidat1, davinci_spi->base + SPIDAT1 + 2);
-	}
-
-	edma_start(davinci_spi_dma->dma_rx_channel);
-	edma_start(davinci_spi_dma->dma_tx_channel);
-	set_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
-
-	wait_for_completion_interruptible(&davinci_spi->done);
-
-	if (t->tx_buf)
-		dma_unmap_single(NULL, t->tx_dma, davinci_spi->wcount,
-								DMA_TO_DEVICE);
-
-	dma_unmap_single(NULL, t->rx_dma, rx_buf_count, DMA_FROM_DEVICE);
-
-	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
-
-	/*
-	 * Check for bit error, desync error,parity error,timeout error and
-	 * receive overflow errors
-	 */
-	int_status = ioread32(davinci_spi->base + SPIFLG);
-
-	ret = davinci_spi_check_error(davinci_spi, int_status);
-	if (ret != 0)
-		return ret;
-
-	if (davinci_spi->rcount != 0 || davinci_spi->wcount != 0) {
-		dev_err(sdev, "SPI data transfer error\n");
-		return -EIO;
-	}
-
-	return t->len;
 }
 
 static int davinci_spi_request_dma(struct davinci_spi *davinci_spi)
@@ -918,7 +887,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (r)
 		dma_eventq = r->start;
 
-	davinci_spi->bitbang.txrx_bufs = davinci_spi_bufs_pio;
+	davinci_spi->bitbang.txrx_bufs = davinci_spi_bufs;
 	if (dma_rx_chan != SPI_NO_RESOURCE &&
 	    dma_tx_chan != SPI_NO_RESOURCE &&
 	    dma_eventq != SPI_NO_RESOURCE) {
@@ -930,10 +899,9 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		if (ret)
 			goto free_clk;
 
-		davinci_spi->bitbang.txrx_bufs = davinci_spi_bufs_dma;
-		dev_info(&pdev->dev, "DaVinci SPI driver in EDMA mode\n"
-				"Using RX channel = %d , TX channel = %d and "
-				"event queue = %d", dma_rx_chan, dma_tx_chan,
+		dev_info(&pdev->dev, "DMA: supported\n");
+		dev_info(&pdev->dev, "DMA: RX channel: %d, TX channel: %d, "
+				"event queue: %d\n", dma_rx_chan, dma_tx_chan,
 				dma_eventq);
 	}
 
