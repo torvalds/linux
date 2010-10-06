@@ -110,11 +110,13 @@ struct smb_vol {
 	struct nls_table *local_nls;
 };
 
+/* FIXME: should these be tunable? */
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
-
+#define TLINK_IDLE_EXPIRE	(600 * HZ)
 
 static int ipv4_connect(struct TCP_Server_Info *server);
 static int ipv6_connect(struct TCP_Server_Info *server);
+static void cifs_prune_tlinks(struct work_struct *work);
 
 /*
  * cifs tcp session reconnection
@@ -2494,6 +2496,8 @@ convert_delimiter(char *path, char delim)
 static void setup_cifs_sb(struct smb_vol *pvolume_info,
 			  struct cifs_sb_info *cifs_sb)
 {
+	INIT_DELAYED_WORK(&cifs_sb->prune_tlinks, cifs_prune_tlinks);
+
 	if (pvolume_info->rsize > CIFSMaxBufSize) {
 		cERROR(1, "rsize %d too large, using MaxBufSize",
 			pvolume_info->rsize);
@@ -2899,6 +2903,9 @@ remote_path_check:
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 	radix_tree_preload_end();
 
+	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
+				TLINK_IDLE_EXPIRE);
+
 mount_fail_check:
 	/* on error free sesinfo and tcon struct if needed */
 	if (rc) {
@@ -3089,6 +3096,8 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	char *tmp;
 	struct tcon_link *tlink[8];
 	unsigned long index = 0;
+
+	cancel_delayed_work_sync(&cifs_sb->prune_tlinks);
 
 	do {
 		spin_lock(&cifs_sb->tlink_tree_lock);
@@ -3362,4 +3371,51 @@ wait_for_construction:
 	}
 
 	return tlink;
+}
+
+/*
+ * periodic workqueue job that scans tcon_tree for a superblock and closes
+ * out tcons.
+ */
+static void
+cifs_prune_tlinks(struct work_struct *work)
+{
+	struct cifs_sb_info *cifs_sb = container_of(work, struct cifs_sb_info,
+						    prune_tlinks.work);
+	struct tcon_link *tlink[8];
+	unsigned long now = jiffies;
+	unsigned long index = 0;
+	int i, ret;
+
+	do {
+		spin_lock(&cifs_sb->tlink_tree_lock);
+		ret = radix_tree_gang_lookup(&cifs_sb->tlink_tree,
+					     (void **)tlink, index,
+					     ARRAY_SIZE(tlink));
+		/* increment index for next pass */
+		if (ret > 0)
+			index = tlink[ret - 1]->tl_index + 1;
+		for (i = 0; i < ret; i++) {
+			if (test_bit(TCON_LINK_MASTER, &tlink[i]->tl_flags) ||
+			    atomic_read(&tlink[i]->tl_count) != 0 ||
+			    time_after(tlink[i]->tl_time + TLINK_IDLE_EXPIRE,
+				       now)) {
+				tlink[i] = NULL;
+				continue;
+			}
+			cifs_get_tlink(tlink[i]);
+			clear_bit(TCON_LINK_IN_TREE, &tlink[i]->tl_flags);
+			radix_tree_delete(&cifs_sb->tlink_tree,
+					  tlink[i]->tl_index);
+		}
+		spin_unlock(&cifs_sb->tlink_tree_lock);
+
+		for (i = 0; i < ret; i++) {
+			if (tlink[i] != NULL)
+				cifs_put_tlink(tlink[i]);
+		}
+	} while (ret != 0);
+
+	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
+				TLINK_IDLE_EXPIRE);
 }

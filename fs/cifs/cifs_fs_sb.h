@@ -59,5 +59,6 @@ struct cifs_sb_info {
 	char   *mountdata; /* mount options received at mount time */
 #endif
 	struct backing_dev_info bdi;
+	struct delayed_work prune_tlinks;
 };
 #endif				/* _CIFS_FS_SB_H */
