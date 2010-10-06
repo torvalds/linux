@@ -752,6 +752,12 @@ void __init memblock_analyze(void)
 
 void __init memblock_init(void)
 {
+	static int init_done __initdata = 0;
+
+	if (init_done)
+		return;
+	init_done = 1;
+
 	/* Hookup the initial arrays */
 	memblock.memory.regions	= memblock_memory_init_regions;
 	memblock.memory.max		= INIT_MEMBLOCK_REGIONS;
