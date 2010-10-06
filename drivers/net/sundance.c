@@ -97,16 +97,9 @@ static char *media[MAX_UNITS];
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
-#ifndef _COMPAT_WITH_OLD_KERNEL
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#else
-#include "crc32.h"
-#include "ethtool.h"
-#include "mii.h"
-#include "compat.h"
-#endif
 
 /* These identify the driver base version and may not be removed. */
 static const char version[] __devinitconst =
