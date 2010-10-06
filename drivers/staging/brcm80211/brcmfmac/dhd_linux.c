@@ -58,8 +58,8 @@ struct semaphore wifi_control_sem;
 
 struct dhd_bus *g_bus;
 
-static struct wifi_platform_data *wifi_control_data = NULL;
-static struct resource *wifi_irqres = NULL;
+static struct wifi_platform_data *wifi_control_data;
+static struct resource *wifi_irqres;
 
 int wifi_get_irq_number(unsigned long *irq_flags_ptr)
 {
@@ -2542,7 +2542,7 @@ int dhd_os_ioctl_resp_wake(dhd_pub_t *pub)
 void dhd_os_wd_timer(void *bus, uint wdtick)
 {
 	dhd_pub_t *pub = bus;
-	static uint save_dhd_watchdog_ms = 0;
+	static uint save_dhd_watchdog_ms;
 	dhd_info_t *dhd = (dhd_info_t *) pub->info;
 
 	/* don't start the wd until fw is loaded */

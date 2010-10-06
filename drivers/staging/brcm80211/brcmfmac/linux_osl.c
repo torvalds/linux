@@ -42,7 +42,7 @@ typedef struct bcm_static_buf {
 	unsigned char buf_use[MAX_STATIC_BUF_NUM];
 } bcm_static_buf_t;
 
-static bcm_static_buf_t *bcm_static_buf = 0;
+static bcm_static_buf_t *bcm_static_buf;
 
 #define MAX_STATIC_PKT_NUM 8
 typedef struct bcm_static_pkt {
@@ -51,7 +51,7 @@ typedef struct bcm_static_pkt {
 	struct semaphore osl_pkt_sem;
 	unsigned char pkt_use[MAX_STATIC_PKT_NUM * 2];
 } bcm_static_pkt_t;
-static bcm_static_pkt_t *bcm_static_skb = 0;
+static bcm_static_pkt_t *bcm_static_skb;
 #endif				/* DHD_USE_STATIC_BUF */
 
 typedef struct bcm_mem_link {

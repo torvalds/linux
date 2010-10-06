@@ -750,7 +750,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 	case WLC_E_TRACE:
 		{
-			static uint32 seqnum_prev = 0;
+			static uint32 seqnum_prev;
 			msgtrace_hdr_t hdr;
 			uint32 nblost;
 			char *s, *p;

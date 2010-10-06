@@ -60,7 +60,7 @@ int sdio_function_init(void);
 void sdio_function_cleanup(void);
 
 /* module param defaults */
-static int clockoverride = 0;
+static int clockoverride;
 
 module_param(clockoverride, int, 0644);
 MODULE_PARM_DESC(clockoverride, "SDIO card clock override");

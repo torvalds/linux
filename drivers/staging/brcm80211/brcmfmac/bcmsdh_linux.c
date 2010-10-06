@@ -70,7 +70,7 @@ struct bcmsdh_hc {
 	spinlock_t irq_lock;
 #endif
 };
-static bcmsdh_hc_t *sdhcinfo = NULL;
+static bcmsdh_hc_t *sdhcinfo;
 
 /* driver info, initialized when bcmsdh_register is called */
 static bcmsdh_driver_t drvinfo = { NULL, NULL };
