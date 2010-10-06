@@ -151,7 +151,7 @@ int dhd_custom_get_mac_address(unsigned char *buf)
 	/* EXAMPLE code */
 	{
 		struct ether_addr ea_example = {
-			{0x00, 0x11, 0x22, 0x33, 0x44, 0xFF}};
+			{0x00, 0x11, 0x22, 0x33, 0x44, 0xFF} };
 		bcopy((char *)&ea_example, buf, sizeof(struct ether_addr));
 	}
 #endif				/* EXAMPLE_GET_MAC */

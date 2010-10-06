@@ -1421,7 +1421,7 @@ int dhd_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	else
 		bus->dhd->rx_ctlerrs++;
 
-	return rxlen ? (int)rxlen:-ETIMEDOUT;
+	return rxlen ? (int)rxlen : -ETIMEDOUT;
 }
 
 /* IOVar table */
@@ -3969,7 +3969,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		/* Validate check bytes */
-		if ((uint16) ~ (len ^ check)) {
+		if ((uint16) ~(len ^ check)) {
 			DHD_ERROR(("%s: HW hdr err: len/check 0x%04x/0x%04x\n",
 				__func__, len, check));
 			bus->rx_badhdr++;

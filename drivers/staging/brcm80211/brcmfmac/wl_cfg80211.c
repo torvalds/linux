@@ -2635,7 +2635,7 @@ static void wl_init_conf(struct wl_conf *conf)
 	conf->rts_threshold = (uint32)-1;
 	conf->retry_short = (uint32)-1;
 	conf->retry_long = (uint32)-1;
-	conf->tx_power =-1;
+	conf->tx_power = -1;
 }
 
 static void wl_init_prof(struct wl_profile *prof)

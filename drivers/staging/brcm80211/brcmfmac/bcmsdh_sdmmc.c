@@ -985,7 +985,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 		if (err_ret) {
 			sd_err(("%s: %s FAILED %p[%d], addr=0x%05x, pkt_len=%d,"
-				 "ERR=0x%08x\n", __func__, (write) ? "TX":"RX",
+				 "ERR=0x%08x\n", __func__,
+				 (write) ? "TX" : "RX",
 				 pnext, SGCount, addr, pkt_len, err_ret));
 		} else {
 			sd_trace(("%s: %s xfr'd %p[%d], addr=0x%05x, len=%d\n",
