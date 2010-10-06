@@ -268,6 +268,7 @@ static void rv770_mc_program(struct radeon_device *rdev)
 void r700_cp_stop(struct radeon_device *rdev)
 {
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
+	WREG32(SCRATCH_UMSK, 0);
 }
 
 static int rv770_cp_load_microcode(struct radeon_device *rdev)
@@ -1028,19 +1029,12 @@ static int rv770_startup(struct radeon_device *rdev)
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
-	/* pin copy shader into vram */
-	if (rdev->r600_blit.shader_obj) {
-		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-				&rdev->r600_blit.shader_gpu_addr);
-		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-		if (r) {
-			DRM_ERROR("failed to pin blit object %d\n", r);
-			return r;
-		}
-	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -1059,8 +1053,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_cp_resume(rdev);
 	if (r)
 		return r;
-	/* write back buffer are not vital so don't worry about failure */
-	r600_wb_enable(rdev);
+
 	return 0;
 }
 
@@ -1106,7 +1099,7 @@ int rv770_suspend(struct radeon_device *rdev)
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
 	r600_irq_suspend(rdev);
-	r600_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
 	if (rdev->r600_blit.shader_obj) {
@@ -1201,8 +1194,8 @@ int rv770_init(struct radeon_device *rdev)
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		r700_cp_fini(rdev);
-		r600_wb_fini(rdev);
 		r600_irq_fini(rdev);
+		radeon_wb_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
@@ -1234,8 +1227,8 @@ void rv770_fini(struct radeon_device *rdev)
 {
 	r600_blit_fini(rdev);
 	r700_cp_fini(rdev);
-	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
+	radeon_wb_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	rv770_vram_scratch_fini(rdev);

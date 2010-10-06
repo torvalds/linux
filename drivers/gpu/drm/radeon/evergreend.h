@@ -802,6 +802,11 @@
 #define SQ_ALU_CONST_CACHE_LS_14			0x28f78
 #define SQ_ALU_CONST_CACHE_LS_15			0x28f7c
 
+#define PA_SC_SCREEN_SCISSOR_TL                         0x28030
+#define PA_SC_GENERIC_SCISSOR_TL                        0x28240
+#define PA_SC_WINDOW_SCISSOR_TL                         0x28204
+#define VGT_PRIMITIVE_TYPE                              0x8958
+
 #define DB_DEPTH_CONTROL				0x28800
 #define DB_DEPTH_VIEW					0x28008
 #define DB_HTILE_DATA_BASE				0x28014

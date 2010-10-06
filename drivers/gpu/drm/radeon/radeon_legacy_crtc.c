@@ -744,15 +744,6 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		pll = &rdev->clock.p1pll;
 
 	pll->flags = RADEON_PLL_LEGACY;
-	if (radeon_new_pll == 1)
-		pll->algo = PLL_ALGO_NEW;
-	else
-		pll->algo = PLL_ALGO_LEGACY;
-
-	if (mode->clock > 200000) /* range limits??? */
-		pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
-	else
-		pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {

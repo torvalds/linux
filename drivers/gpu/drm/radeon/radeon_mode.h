@@ -139,22 +139,10 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_NO_ODD_POST_DIV      (1 << 1)
 #define RADEON_PLL_USE_REF_DIV          (1 << 2)
 #define RADEON_PLL_LEGACY               (1 << 3)
-#define RADEON_PLL_PREFER_LOW_REF_DIV   (1 << 4)
-#define RADEON_PLL_PREFER_HIGH_REF_DIV  (1 << 5)
-#define RADEON_PLL_PREFER_LOW_FB_DIV    (1 << 6)
-#define RADEON_PLL_PREFER_HIGH_FB_DIV   (1 << 7)
-#define RADEON_PLL_PREFER_LOW_POST_DIV  (1 << 8)
-#define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
-#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
-#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
-#define RADEON_PLL_USE_POST_DIV         (1 << 12)
-#define RADEON_PLL_IS_LCD               (1 << 13)
-
-/* pll algo */
-enum radeon_pll_algo {
-	PLL_ALGO_LEGACY,
-	PLL_ALGO_NEW
-};
+#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 4)
+#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 5)
+#define RADEON_PLL_USE_POST_DIV         (1 << 6)
+#define RADEON_PLL_IS_LCD               (1 << 7)
 
 struct radeon_pll {
 	/* reference frequency */
@@ -188,8 +176,6 @@ struct radeon_pll {
 
 	/* pll id */
 	uint32_t id;
-	/* pll algo */
-	enum radeon_pll_algo algo;
 };
 
 struct radeon_i2c_chan {
@@ -241,6 +227,8 @@ struct radeon_mode_info {
 	struct drm_property *tmds_pll_property;
 	/* underscan */
 	struct drm_property *underscan_property;
+	struct drm_property *underscan_hborder_property;
+	struct drm_property *underscan_vborder_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 
@@ -337,22 +325,24 @@ struct radeon_encoder_ext_tmds {
 struct radeon_atom_ss {
 	uint16_t percentage;
 	uint8_t type;
-	uint8_t step;
+	uint16_t step;
 	uint8_t delay;
 	uint8_t range;
 	uint8_t refdiv;
+	/* asic_ss */
+	uint16_t rate;
+	uint16_t amount;
 };
 
 struct radeon_encoder_atom_dig {
 	bool linkb;
 	/* atom dig */
 	bool coherent_mode;
-	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB */
-	/* atom lvds */
-	uint32_t lvds_misc;
+	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB, etc. */
+	/* atom lvds/edp */
+	uint32_t lcd_misc;
 	uint16_t panel_pwr_delay;
-	enum radeon_pll_algo pll_algo;
-	struct radeon_atom_ss *ss;
+	uint32_t lcd_ss_id;
 	/* panel mode */
 	struct drm_display_mode native_mode;
 };
@@ -371,6 +361,8 @@ struct radeon_encoder {
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
 	enum radeon_underscan_type underscan_type;
+	uint32_t underscan_hborder;
+	uint32_t underscan_vborder;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int audio_polling_active;
@@ -437,6 +429,11 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+/* radeon_get_crtc_scanoutpos() return flags */
+#define RADEON_SCANOUTPOS_VALID        (1 << 0)
+#define RADEON_SCANOUTPOS_INVBL        (1 << 1)
+#define RADEON_SCANOUTPOS_ACCURATE     (1 << 2)
+
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
@@ -492,6 +489,13 @@ extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
 extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
 
+extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
+					     struct radeon_atom_ss *ss,
+					     int id);
+extern bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
+					     struct radeon_atom_ss *ss,
+					     int id, u32 clock);
+
 extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint64_t freq,
 			       uint32_t *dot_clock_p,
@@ -542,6 +546,8 @@ extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 				  uint32_t height);
 extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
+
+extern int radeon_get_crtc_scanoutpos(struct radeon_device *rdev, int crtc, int *vpos, int *hpos);
 
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
