@@ -157,7 +157,23 @@ nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int
+nouveau_debugfs_evict_vram(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_nouveau_private *dev_priv = node->minor->dev->dev_private;
+	int ret;
+
+	ret = ttm_bo_evict_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
+	if (ret)
+		seq_printf(m, "failed: %d", ret);
+	else
+		seq_printf(m, "succeeded\n");
+	return 0;
+}
+
 static struct drm_info_list nouveau_debugfs_list[] = {
+	{ "evict_vram", nouveau_debugfs_evict_vram, 0, NULL },
 	{ "chipset", nouveau_debugfs_chipset_info, 0, NULL },
 	{ "memory", nouveau_debugfs_memory_info, 0, NULL },
 	{ "vbios.rom", nouveau_debugfs_vbios_image, 0, NULL },

@@ -22,69 +22,34 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
+#ifndef __NOUVEAU_RAMHT_H__
+#define __NOUVEAU_RAMHT_H__
 
-#include "nouveau_drv.h"
+struct nouveau_ramht_entry {
+	struct list_head head;
+	struct nouveau_channel *channel;
+	struct nouveau_gpuobj *gpuobj;
+	u32 handle;
+};
 
-void
-nvc0_fifo_disable(struct drm_device *dev)
-{
-}
+struct nouveau_ramht {
+	struct drm_device *dev;
+	struct kref refcount;
+	spinlock_t lock;
+	struct nouveau_gpuobj *gpuobj;
+	struct list_head entries;
+	int bits;
+};
 
-void
-nvc0_fifo_enable(struct drm_device *dev)
-{
-}
+extern int  nouveau_ramht_new(struct drm_device *, struct nouveau_gpuobj *,
+			      struct nouveau_ramht **);
+extern void nouveau_ramht_ref(struct nouveau_ramht *, struct nouveau_ramht **,
+			      struct nouveau_channel *unref_channel);
 
-bool
-nvc0_fifo_reassign(struct drm_device *dev, bool enable)
-{
-	return false;
-}
+extern int  nouveau_ramht_insert(struct nouveau_channel *, u32 handle,
+				 struct nouveau_gpuobj *);
+extern void nouveau_ramht_remove(struct nouveau_channel *, u32 handle);
+extern struct nouveau_gpuobj *
+nouveau_ramht_find(struct nouveau_channel *chan, u32 handle);
 
-bool
-nvc0_fifo_cache_pull(struct drm_device *dev, bool enable)
-{
-	return false;
-}
-
-int
-nvc0_fifo_channel_id(struct drm_device *dev)
-{
-	return 127;
-}
-
-int
-nvc0_fifo_create_context(struct nouveau_channel *chan)
-{
-	return 0;
-}
-
-void
-nvc0_fifo_destroy_context(struct nouveau_channel *chan)
-{
-}
-
-int
-nvc0_fifo_load_context(struct nouveau_channel *chan)
-{
-	return 0;
-}
-
-int
-nvc0_fifo_unload_context(struct drm_device *dev)
-{
-	return 0;
-}
-
-void
-nvc0_fifo_takedown(struct drm_device *dev)
-{
-}
-
-int
-nvc0_fifo_init(struct drm_device *dev)
-{
-	return 0;
-}
-
+#endif

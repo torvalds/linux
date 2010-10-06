@@ -612,6 +612,7 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 {
 	struct ttm_buffer_object *bo = &vmw_bo->base;
 	struct ttm_placement ne_placement = vmw_vram_ne_placement;
+	struct drm_mm_node *mm_node;
 	int ret = 0;
 
 	ne_placement.lpfn = bo->num_pages;
@@ -625,8 +626,9 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 	if (unlikely(ret != 0))
 		goto err_unlock;
 
+	mm_node = bo->mem.mm_node;
 	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    bo->mem.mm_node->start < bo->num_pages)
+	    mm_node->start < bo->num_pages)
 		(void) ttm_bo_validate(bo, &vmw_sys_placement, false,
 				       false, false);
 

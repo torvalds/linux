@@ -23,68 +23,59 @@
  */
 
 #include "drmP.h"
-
 #include "nouveau_drv.h"
+#include "nouveau_hw.h"
+#include "nouveau_pm.h"
 
-void
-nvc0_fifo_disable(struct drm_device *dev)
-{
-}
-
-void
-nvc0_fifo_enable(struct drm_device *dev)
-{
-}
-
-bool
-nvc0_fifo_reassign(struct drm_device *dev, bool enable)
-{
-	return false;
-}
-
-bool
-nvc0_fifo_cache_pull(struct drm_device *dev, bool enable)
-{
-	return false;
-}
+struct nv04_pm_state {
+	struct pll_lims pll;
+	struct nouveau_pll_vals calc;
+};
 
 int
-nvc0_fifo_channel_id(struct drm_device *dev)
+nv04_pm_clock_get(struct drm_device *dev, u32 id)
 {
-	return 127;
+	return nouveau_hw_get_clock(dev, id);
 }
 
-int
-nvc0_fifo_create_context(struct nouveau_channel *chan)
+void *
+nv04_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
+		  u32 id, int khz)
 {
-	return 0;
-}
+	struct nv04_pm_state *state;
+	int ret;
 
-void
-nvc0_fifo_destroy_context(struct nouveau_channel *chan)
-{
-}
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
 
-int
-nvc0_fifo_load_context(struct nouveau_channel *chan)
-{
-	return 0;
-}
+	ret = get_pll_limits(dev, id, &state->pll);
+	if (ret) {
+		kfree(state);
+		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
+	}
 
-int
-nvc0_fifo_unload_context(struct drm_device *dev)
-{
-	return 0;
+	ret = nouveau_calc_pll_mnp(dev, &state->pll, khz, &state->calc);
+	if (!ret) {
+		kfree(state);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return state;
 }
 
 void
-nvc0_fifo_takedown(struct drm_device *dev)
+nv04_pm_clock_set(struct drm_device *dev, void *pre_state)
 {
-}
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv04_pm_state *state = pre_state;
+	u32 reg = state->pll.reg;
 
-int
-nvc0_fifo_init(struct drm_device *dev)
-{
-	return 0;
+	/* thank the insane nouveau_hw_setpll() interface for this */
+	if (dev_priv->card_type >= NV_40)
+		reg += 4;
+
+	nouveau_hw_setpll(dev, reg, &state->calc);
+	kfree(state);
 }
 

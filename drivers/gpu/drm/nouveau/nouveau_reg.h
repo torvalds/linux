@@ -551,6 +551,8 @@
 #define NV10_PFIFO_CACHE1_DMA_SUBROUTINE                   0x0000324C
 #define NV03_PFIFO_CACHE1_PULL0                            0x00003240
 #define NV04_PFIFO_CACHE1_PULL0                            0x00003250
+#    define NV04_PFIFO_CACHE1_PULL0_HASH_FAILED            0x00000010
+#    define NV04_PFIFO_CACHE1_PULL0_HASH_BUSY              0x00001000
 #define NV03_PFIFO_CACHE1_PULL1                            0x00003250
 #define NV04_PFIFO_CACHE1_PULL1                            0x00003254
 #define NV04_PFIFO_CACHE1_HASH                             0x00003258
@@ -785,15 +787,12 @@
 #define NV50_PDISPLAY_DAC_MODE_CTRL_C(i)                (0x00610b5c + (i) * 0x8)
 #define NV50_PDISPLAY_SOR_MODE_CTRL_P(i)                (0x00610b70 + (i) * 0x8)
 #define NV50_PDISPLAY_SOR_MODE_CTRL_C(i)                (0x00610b74 + (i) * 0x8)
+#define NV50_PDISPLAY_EXT_MODE_CTRL_P(i)                (0x00610b80 + (i) * 0x8)
+#define NV50_PDISPLAY_EXT_MODE_CTRL_C(i)                (0x00610b84 + (i) * 0x8)
 #define NV50_PDISPLAY_DAC_MODE_CTRL2_P(i)               (0x00610bdc + (i) * 0x8)
 #define NV50_PDISPLAY_DAC_MODE_CTRL2_C(i)               (0x00610be0 + (i) * 0x8)
-
 #define NV90_PDISPLAY_SOR_MODE_CTRL_P(i)                (0x00610794 + (i) * 0x8)
 #define NV90_PDISPLAY_SOR_MODE_CTRL_C(i)                (0x00610798 + (i) * 0x8)
-#define NV90_PDISPLAY_DAC_MODE_CTRL_P(i)                (0x00610b58 + (i) * 0x8)
-#define NV90_PDISPLAY_DAC_MODE_CTRL_C(i)                (0x00610b5c + (i) * 0x8)
-#define NV90_PDISPLAY_DAC_MODE_CTRL2_P(i)               (0x00610b80 + (i) * 0x8)
-#define NV90_PDISPLAY_DAC_MODE_CTRL2_C(i)               (0x00610b84 + (i) * 0x8)
 
 #define NV50_PDISPLAY_CRTC_CLK                                       0x00614000
 #define NV50_PDISPLAY_CRTC_CLK_CTRL1(i)                 ((i) * 0x800 + 0x614100)

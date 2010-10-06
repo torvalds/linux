@@ -203,7 +203,22 @@ struct ttm_tt {
  * It's set up by the ttm_bo_driver::init_mem_type method.
  */
 
+struct ttm_mem_type_manager;
+
+struct ttm_mem_type_manager_func {
+	int  (*init)(struct ttm_mem_type_manager *man, unsigned long p_size);
+	int  (*takedown)(struct ttm_mem_type_manager *man);
+	int  (*get_node)(struct ttm_mem_type_manager *man,
+			 struct ttm_buffer_object *bo,
+			 struct ttm_placement *placement,
+			 struct ttm_mem_reg *mem);
+	void (*put_node)(struct ttm_mem_type_manager *man,
+			 struct ttm_mem_reg *mem);
+	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
+};
+
 struct ttm_mem_type_manager {
+	struct ttm_bo_device *bdev;
 
 	/*
 	 * No protection. Constant from start.
@@ -222,8 +237,8 @@ struct ttm_mem_type_manager {
 	 * TODO: Consider one lru_lock per ttm_mem_type_manager.
 	 * Plays ill with list removal, though.
 	 */
-
-	struct drm_mm manager;
+	const struct ttm_mem_type_manager_func *func;
+	void *priv;
 	struct list_head lru;
 };
 
@@ -649,6 +664,10 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				struct ttm_mem_reg *mem,
 				bool interruptible,
 				bool no_wait_reserve, bool no_wait_gpu);
+
+extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
+			   struct ttm_mem_reg *mem);
+
 /**
  * ttm_bo_wait_for_cpu
  *
@@ -890,6 +909,8 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * setting up a PTE with the caching model indicated by @c_state.
  */
 extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
+
+extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
 #if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define TTM_HAS_AGP

@@ -48,14 +48,14 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 						  dev_priv->gart_info.aper_size,
 						  NV_DMA_ACCESS_RO, &pushbuf,
 						  NULL);
-		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
+		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	} else
 	if (dev_priv->card_type != NV_04) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
 					     dev_priv->fb_available_size,
 					     NV_DMA_ACCESS_RO,
 					     NV_DMA_TARGET_VIDMEM, &pushbuf);
-		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
+		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	} else {
 		/* NV04 cmdbuf hack, from original ddx.. not sure of it's
 		 * exact reason for existing :)  PCI access to cmdbuf in
@@ -67,17 +67,11 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 					     dev_priv->fb_available_size,
 					     NV_DMA_ACCESS_RO,
 					     NV_DMA_TARGET_PCI, &pushbuf);
-		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
+		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	}
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, 0, pushbuf, &chan->pushbuf);
-	if (ret) {
-		NV_ERROR(dev, "Error referencing pushbuf ctxdma: %d\n", ret);
-		if (pushbuf != dev_priv->gart_info.sg_ctxdma)
-			nouveau_gpuobj_del(dev, &pushbuf);
-		return ret;
-	}
-
+	nouveau_gpuobj_ref(pushbuf, &chan->pushbuf);
+	nouveau_gpuobj_ref(NULL, &pushbuf);
 	return 0;
 }
 
@@ -229,7 +223,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	ret = nouveau_dma_init(chan);
 	if (!ret)
-		ret = nouveau_fence_init(chan);
+		ret = nouveau_fence_channel_init(chan);
 	if (ret) {
 		nouveau_channel_free(chan);
 		return ret;
@@ -276,7 +270,7 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	 * above attempts at idling were OK, but if we failed this'll tell TTM
 	 * we're done with the buffers.
 	 */
-	nouveau_fence_fini(chan);
+	nouveau_fence_channel_fini(chan);
 
 	/* This will prevent pfifo from switching channels. */
 	pfifo->reassign(dev, false);
@@ -308,8 +302,9 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Release the channel's resources */
-	nouveau_gpuobj_ref_del(dev, &chan->pushbuf);
+	nouveau_gpuobj_ref(NULL, &chan->pushbuf);
 	if (chan->pushbuf_bo) {
+		nouveau_bo_unmap(chan->pushbuf_bo);
 		nouveau_bo_unpin(chan->pushbuf_bo);
 		nouveau_bo_ref(NULL, &chan->pushbuf_bo);
 	}

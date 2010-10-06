@@ -27,8 +27,9 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_ramht.h"
 
-#define NV10_RAMFC(c) (dev_priv->ramfc_offset + ((c) * NV10_RAMFC__SIZE))
+#define NV10_RAMFC(c) (dev_priv->ramfc->pinst + ((c) * NV10_RAMFC__SIZE))
 #define NV10_RAMFC__SIZE ((dev_priv->chipset) >= 0x17 ? 64 : 32)
 
 int
@@ -48,7 +49,7 @@ nv10_fifo_create_context(struct nouveau_channel *chan)
 
 	ret = nouveau_gpuobj_new_fake(dev, NV10_RAMFC(chan->id), ~0,
 				      NV10_RAMFC__SIZE, NVOBJ_FLAG_ZERO_ALLOC |
-				      NVOBJ_FLAG_ZERO_FREE, NULL, &chan->ramfc);
+				      NVOBJ_FLAG_ZERO_FREE, &chan->ramfc);
 	if (ret)
 		return ret;
 
@@ -57,7 +58,7 @@ nv10_fifo_create_context(struct nouveau_channel *chan)
 	 */
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
 	nv_wi32(dev, fc +  4, chan->pushbuf_base);
-	nv_wi32(dev, fc + 12, chan->pushbuf->instance >> 4);
+	nv_wi32(dev, fc + 12, chan->pushbuf->pinst >> 4);
 	nv_wi32(dev, fc + 20, NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			      NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			      NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
@@ -80,7 +81,7 @@ nv10_fifo_destroy_context(struct nouveau_channel *chan)
 	nv_wr32(dev, NV04_PFIFO_MODE,
 			nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
 
-	nouveau_gpuobj_ref_del(dev, &chan->ramfc);
+	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 
 static void
@@ -202,14 +203,14 @@ nv10_fifo_init_ramxx(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	nv_wr32(dev, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
-				       ((dev_priv->ramht_bits - 9) << 16) |
-				       (dev_priv->ramht_offset >> 8));
-	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro_offset>>8);
+				       ((dev_priv->ramht->bits - 9) << 16) |
+				       (dev_priv->ramht->gpuobj->pinst >> 8));
+	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro->pinst >> 8);
 
 	if (dev_priv->chipset < 0x17) {
-		nv_wr32(dev, NV03_PFIFO_RAMFC, dev_priv->ramfc_offset >> 8);
+		nv_wr32(dev, NV03_PFIFO_RAMFC, dev_priv->ramfc->pinst >> 8);
 	} else {
-		nv_wr32(dev, NV03_PFIFO_RAMFC, (dev_priv->ramfc_offset >> 8) |
+		nv_wr32(dev, NV03_PFIFO_RAMFC, (dev_priv->ramfc->pinst >> 8) |
 					       (1 << 16) /* 64 Bytes entry*/);
 		/* XXX nvidia blob set bit 18, 21,23 for nv20 & nv30 */
 	}
