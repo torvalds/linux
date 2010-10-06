@@ -358,7 +358,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 #endif
 
 		prefetch(skb);
-		prefetch(((char *)(skb)) + 128);
+		prefetch(((char *)(skb)) + L1_CACHE_BYTES);
 
 #ifdef BNX2X_STOP_ON_ERROR
 		if (pad + len > bp->rx_buf_size) {
@@ -561,7 +561,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 					dma_unmap_addr(rx_buf, mapping),
 						   pad + RX_COPY_THRESH,
 						   DMA_FROM_DEVICE);
-			prefetch(((char *)(skb)) + 128);
+			prefetch(((char *)(skb)) + L1_CACHE_BYTES);
 
 			/* is this an error packet? */
 			if (unlikely(cqe_fp_flags & ETH_RX_ERROR_FALGS)) {
