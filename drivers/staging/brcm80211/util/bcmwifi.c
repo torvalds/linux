@@ -302,6 +302,22 @@ int wf_mhz2channel(uint freq, uint start_factor)
  *
  * Reference 802.11 REVma, section 17.3.8.3, and 802.11B section 18.4.6.2
  */
+#ifdef BRCM_FULLMAC
+int wf_channel2mhz(uint ch, uint start_factor)
+{
+	int freq;
+
+	if ((start_factor == WF_CHAN_FACTOR_2_4_G && (ch < 1 || ch > 14)) ||
+	(ch <= 200))
+		freq = -1;
+	if ((start_factor == WF_CHAN_FACTOR_2_4_G) && (ch == 14))
+		freq = 2484;
+	else
+		freq = ch * 5 + start_factor / 2;
+
+	return freq;
+}
+#else /* !BRCM_FULLMAC */
 int wf_channel2mhz(uint ch, uint start_factor)
 {
 	int freq;
@@ -316,3 +332,4 @@ int wf_channel2mhz(uint ch, uint start_factor)
 
 	return freq;
 }
+#endif /* BRCM_FULLMAC */
