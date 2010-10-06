@@ -307,6 +307,11 @@ static inline struct hstate *page_hstate(struct page *page)
 	return size_to_hstate(PAGE_SIZE << compound_order(page));
 }
 
+static inline unsigned hstate_index_to_shift(unsigned index)
+{
+	return hstates[index].order + PAGE_SHIFT;
+}
+
 #else
 struct hstate {};
 #define alloc_huge_page_node(h, nid) NULL
@@ -324,6 +329,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
 {
 	return 1;
 }
+#define hstate_index_to_shift(index) 0
 #endif
 
 #endif /* _LINUX_HUGETLB_H */

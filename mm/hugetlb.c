@@ -2589,7 +2589,8 @@ retry:
 		 * So we need to block hugepage fault by PG_hwpoison bit check.
 		 */
 		if (unlikely(PageHWPoison(page))) {
-			ret = VM_FAULT_HWPOISON;
+			ret = VM_FAULT_HWPOISON | 
+			      VM_FAULT_SET_HINDEX(h - hstates);
 			goto backout_unlocked;
 		}
 		page_dup_rmap(page);
@@ -2656,7 +2657,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			migration_entry_wait(mm, (pmd_t *)ptep, address);
 			return 0;
 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
-			return VM_FAULT_HWPOISON;
+			return VM_FAULT_HWPOISON_LARGE | 
+			       VM_FAULT_SET_HINDEX(h - hstates);
 	}
 
 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
