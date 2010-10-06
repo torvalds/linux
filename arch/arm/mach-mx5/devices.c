@@ -17,25 +17,6 @@
 #include <mach/imx-uart.h>
 #include <mach/irqs.h>
 
-static struct resource mxc_fec_resources[] = {
-	{
-		.start	= MX51_MXC_FEC_BASE_ADDR,
-		.end	= MX51_MXC_FEC_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MX51_MXC_INT_FEC,
-		.end	= MX51_MXC_INT_FEC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_fec_device = {
-	.name = "fec",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_fec_resources),
-	.resource = mxc_fec_resources,
-};
-
 static struct resource mxc_hsi2c_resources[] = {
 	{
 		.start = MX51_HSI2C_DMA_BASE_ADDR,

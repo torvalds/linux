@@ -314,27 +314,6 @@ struct platform_device mxc_fb_device = {
 	},
 };
 
-#ifdef CONFIG_MACH_MX27
-static struct resource mxc_fec_resources[] = {
-	{
-		.start = MX27_FEC_BASE_ADDR,
-		.end = MX27_FEC_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX27_INT_FEC,
-		.end = MX27_INT_FEC,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_fec_device = {
-	.name = "fec",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_fec_resources),
-	.resource = mxc_fec_resources,
-};
-#endif
-
 static struct resource mxc_pwm_resources[] = {
 	{
 		.start = MX2x_PWM_BASE_ADDR,

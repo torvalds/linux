@@ -74,7 +74,6 @@ static const struct mxc_nand_platform_data mx35pdk_nand_board_info __initconst =
 };
 
 static struct platform_device *devices[] __initdata = {
-	&mxc_fec_device,
 	&mx35pdk_flash,
 };
 
@@ -131,6 +130,7 @@ static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx35pdk_pads, ARRAY_SIZE(mx35pdk_pads));
 
+	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);

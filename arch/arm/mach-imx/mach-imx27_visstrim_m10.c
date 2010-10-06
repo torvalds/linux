@@ -185,7 +185,6 @@ static struct platform_device visstrim_m10_nor_mtd_device = {
 static struct platform_device *platform_devices[] __initdata = {
 	&visstrim_gpio_keys_device,
 	&visstrim_m10_nor_mtd_device,
-	&mxc_fec_device,
 };
 
 /* Visstrim_M10 uses UART0 as console */
@@ -240,6 +239,7 @@ static void __init visstrim_m10_board_init(void)
 	imx27_add_imx_i2c(1, &visstrim_m10_i2c_data);
 	mxc_register_device(&mxc_sdhc_device0, &visstrim_m10_sdhc_pdata);
 	mxc_register_device(&mxc_otg_host, &visstrim_m10_usbotg_pdata);
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 

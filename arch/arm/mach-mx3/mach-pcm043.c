@@ -140,7 +140,6 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
-	&mxc_fec_device,
 	&imx_wdt_device0,
 };
 
@@ -363,6 +362,7 @@ static void __init mxc_board_init(void)
 			MXC_AUDMUX_V2_PTCR_TCLKDIR, /* clock is output */
 			MXC_AUDMUX_V2_PDCR_RXDSEL(3));
 
+	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);

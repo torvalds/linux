@@ -231,10 +231,6 @@ static struct imxmmc_platform_data sdhc1_pdata = {
 	.exit = mxt_td60_sdhc1_exit,
 };
 
-static struct platform_device *platform_devices[] __initdata = {
-	&mxc_fec_device,
-};
-
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -259,8 +255,7 @@ static void __init mxt_td60_board_init(void)
 	imx27_add_imx_i2c(1, &mxt_td60_i2c1_data);
 	mxc_register_device(&mxc_fb_device, &mxt_td60_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
-
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_fec(NULL);
 }
 
 static void __init mxt_td60_timer_init(void)

@@ -281,27 +281,6 @@ struct platform_device mxc_usbh2 = {
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 
-#if defined(CONFIG_ARCH_MX35)
-static struct resource mxc_fec_resources[] = {
-	{
-		.start	= MXC_FEC_BASE_ADDR,
-		.end	= MXC_FEC_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MXC_INT_FEC,
-		.end	= MXC_INT_FEC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_fec_device = {
-	.name = "fec",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_fec_resources),
-	.resource = mxc_fec_resources,
-};
-#endif
-
 static struct resource imx_wdt_resources[] = {
 	{
 		.flags = IORESOURCE_MEM,

@@ -9,6 +9,10 @@
 #include <mach/mx35.h>
 #include <mach/devices-common.h>
 
+extern const struct imx_fec_data imx35_fec_data __initconst;
+#define imx35_add_fec(pdata)	\
+	imx_add_fec(&imx35_fec_data, pdata)
+
 #define imx35_add_flexcan0(pdata)	\
 	imx_add_flexcan(0, MX35_CAN1_BASE_ADDR, SZ_16K, MX35_INT_CAN1, pdata)
 #define imx35_add_flexcan1(pdata)	\

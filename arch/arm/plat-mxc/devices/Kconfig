@@ -1,6 +1,10 @@
 config IMX_HAVE_PLATFORM_ESDHC
 	bool
 
+config IMX_HAVE_PLATFORM_FEC
+	bool
+	default y if ARCH_MX25 || SOC_IMX27 || ARCH_MX35 || ARCH_MX51
+
 config IMX_HAVE_PLATFORM_FLEXCAN
 	select HAVE_CAN_FLEXCAN
 	bool

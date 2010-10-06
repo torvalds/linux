@@ -46,10 +46,6 @@
 #define	MX51_USB_PLL_DIV_19_2_MHZ	0x01
 #define	MX51_USB_PLL_DIV_24_MHZ	0x02
 
-static struct platform_device *devices[] __initdata = {
-	&mxc_fec_device,
-};
-
 static struct pad_desc mx51babbage_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
@@ -290,7 +286,7 @@ static void __init mxc_board_init(void)
 					ARRAY_SIZE(mx51babbage_pads));
 	mxc_init_imx_uart();
 	babbage_fec_reset();
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx51_add_fec(NULL);
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);

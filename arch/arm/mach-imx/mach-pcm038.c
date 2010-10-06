@@ -173,7 +173,6 @@ pcm038_nand_board_info __initconst = {
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&mxc_w1_master_device,
-	&mxc_fec_device,
 	&pcm038_sram_mtd_device,
 	&mxc_wdt,
 };
@@ -325,6 +324,7 @@ static void __init pcm038_init(void)
 
 	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD

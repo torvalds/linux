@@ -58,16 +58,12 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct platform_device *platform_devices[] __initdata = {
-	&mxc_fec_device,
-};
-
 static void __init mx27lite_init(void)
 {
 	mxc_gpio_setup_multiple_pins(mx27lite_pins, ARRAY_SIZE(mx27lite_pins),
 		"imx27lite");
 	imx27_add_imx_uart0(&uart_pdata);
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_fec(NULL);
 }
 
 static void __init mx27lite_timer_init(void)

@@ -108,7 +108,6 @@ static struct platform_device serial_device = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-	&mxc_fec_device,
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 	&serial_device,
 #endif
@@ -253,6 +252,7 @@ static void __init eukrea_cpuimx51_init(void)
 	gpio_direction_input(CPUIMX51_QUARTD_GPIO);
 	gpio_free(CPUIMX51_QUARTD_GPIO);
 
+	imx51_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx51_add_imx_i2c(1, &eukrea_cpuimx51_i2c_data);
