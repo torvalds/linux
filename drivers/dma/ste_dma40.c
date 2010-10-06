@@ -2449,9 +2449,11 @@ static int __init d40_phy_res_init(struct d40_base *base)
 
 	/* Mark disabled channels as occupied */
 	for (i = 0; base->plat_data->disabled_channels[i] != -1; i++) {
-			base->phy_res[i].allocated_src = D40_ALLOC_PHY;
-			base->phy_res[i].allocated_dst = D40_ALLOC_PHY;
-			num_phy_chans_avail--;
+		int chan = base->plat_data->disabled_channels[i];
+
+		base->phy_res[chan].allocated_src = D40_ALLOC_PHY;
+		base->phy_res[chan].allocated_dst = D40_ALLOC_PHY;
+		num_phy_chans_avail--;
 	}
 
 	dev_info(base->dev, "%d of %d physical DMA channels available\n",
