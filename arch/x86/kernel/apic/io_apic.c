@@ -185,19 +185,18 @@ static struct irq_cfg *get_one_free_irq_cfg(int node)
 	struct irq_cfg *cfg;
 
 	cfg = kzalloc_node(sizeof(*cfg), GFP_ATOMIC, node);
-	if (cfg) {
-		if (!zalloc_cpumask_var_node(&cfg->domain, GFP_ATOMIC, node)) {
-			kfree(cfg);
-			cfg = NULL;
-		} else if (!zalloc_cpumask_var_node(&cfg->old_domain,
-							  GFP_ATOMIC, node)) {
-			free_cpumask_var(cfg->domain);
-			kfree(cfg);
-			cfg = NULL;
-		}
-	}
-
+	if (!cfg)
+		return NULL;
+	if (!zalloc_cpumask_var_node(&cfg->domain, GFP_ATOMIC, node))
+		goto out_cfg;
+	if (!zalloc_cpumask_var_node(&cfg->old_domain, GFP_ATOMIC, node))
+		goto out_domain;
 	return cfg;
+out_domain:
+	free_cpumask_var(cfg->domain);
+out_cfg:
+	kfree(cfg);
+	return NULL;
 }
 
 int arch_init_chip_data(struct irq_desc *desc, int node)
