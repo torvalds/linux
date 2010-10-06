@@ -1819,11 +1819,11 @@ find_next_matching_auth_tok:
 			rc = -EINVAL;
 			goto out_wipe_list;
 		}
-		ecryptfs_find_auth_tok_for_sig(&auth_tok_key,
+		rc = ecryptfs_find_auth_tok_for_sig(&auth_tok_key,
 					       &matching_auth_tok,
 					       crypt_stat->mount_crypt_stat,
 					       candidate_auth_tok_sig);
-		if (matching_auth_tok) {
+		if (!rc) {
 			found_auth_tok = 1;
 			goto found_matching_auth_tok;
 		}
