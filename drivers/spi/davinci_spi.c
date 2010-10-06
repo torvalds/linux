@@ -49,7 +49,6 @@
 #define SPIFMT_WDELAY_SHIFT	24
 #define SPIFMT_PRESCALE_SHIFT	8
 
-
 /* SPIPC0 */
 #define SPIPC0_DIFUN_MASK	BIT(11)		/* MISO */
 #define SPIPC0_DOFUN_MASK	BIT(10)		/* MOSI */
@@ -67,6 +66,7 @@
 /* SPIGCR1 */
 #define SPIGCR1_CLKMOD_MASK	BIT(1)
 #define SPIGCR1_MASTER_MASK     BIT(0)
+#define SPIGCR1_POWERDOWN_MASK	BIT(8)
 #define SPIGCR1_LOOPBACK_MASK	BIT(16)
 #define SPIGCR1_SPIENA_MASK	BIT(24)
 
@@ -556,7 +556,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
-	/* Enable SPI */
+	clear_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
 
 	INIT_COMPLETION(davinci_spi->done);
@@ -692,6 +692,9 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		clear_io_bits(davinci_spi->base + SPIINT, SPIINT_DMA_REQ_EN);
 	}
+
+	clear_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
+	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
 
 	/*
 	 * Check for bit error, desync error,parity error,timeout error and
@@ -937,6 +940,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	/* master mode default */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_CLKMOD_MASK);
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_MASTER_MASK);
+	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
 
 	ret = spi_bitbang_start(&davinci_spi->bitbang);
 	if (ret)
