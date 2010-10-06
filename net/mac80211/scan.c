@@ -791,7 +791,8 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
  */
 void ieee80211_scan_cancel(struct ieee80211_local *local)
 {
-	bool abortscan, finish;
+	bool abortscan;
+	bool finish = false;
 
 	/*
 	 * We are only canceling software scan, or deferred scan that was not
@@ -818,7 +819,7 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	if (abortscan) {
 		/* The scan is canceled, but stop work from being pending */
 		cancel_delayed_work_sync(&local->scan_work);
-		if (finish)
-			__ieee80211_scan_completed_finish(&local->hw, false);
 	}
+	if (finish)
+		__ieee80211_scan_completed_finish(&local->hw, false);
 }
