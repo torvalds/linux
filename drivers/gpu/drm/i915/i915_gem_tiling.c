@@ -98,7 +98,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (!IS_I9XX(dev)) {
+	} else if (IS_GEN2(dev)) {
 		/* As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
@@ -190,19 +190,19 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (!IS_I9XX(dev) ||
+	if (IS_GEN2(dev) ||
 	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
 		tile_width = 128;
 	else
 		tile_width = 512;
 
 	/* check maximum stride & object size */
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		/* i965 stores the end address of the gtt mapping in the fence
 		 * reg, so dont bother to check the size */
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (IS_GEN3(dev) || IS_GEN2(dev)) {
+	} else {
 		if (stride > 8192)
 			return false;
 
@@ -216,7 +216,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	}
 
 	/* 965+ just needs multiples of tile width */
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		if (stride & (tile_width - 1))
 			return false;
 		return true;
@@ -244,16 +244,18 @@ i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (!IS_I965G(dev)) {
-		if (obj_priv->gtt_offset & (obj->size - 1))
+	if (INTEL_INFO(dev)->gen >= 4)
+		return true;
+
+	if (obj_priv->gtt_offset & (obj->size - 1))
+		return false;
+
+	if (IS_GEN3(dev)) {
+		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
 			return false;
-		if (IS_I9XX(dev)) {
-			if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
-				return false;
-		} else {
-			if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
-				return false;
-		}
+	} else {
+		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
+			return false;
 	}
 
 	return true;
@@ -271,7 +273,11 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	int ret = 0;
+	int ret;
+
+	ret = i915_gem_check_is_wedged(dev);
+	if (ret)
+		return ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
@@ -328,7 +334,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		if (!i915_gem_object_fence_offset_ok(obj, args->tiling_mode))
 			ret = i915_gem_object_unbind(obj);
 		else if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-			ret = i915_gem_object_put_fence_reg(obj);
+			ret = i915_gem_object_put_fence_reg(obj, true);
 		else
 			i915_gem_release_mmap(obj);
 
@@ -399,16 +405,14 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
  * bit 17 of its physical address and therefore being interpreted differently
  * by the GPU.
  */
-static int
+static void
 i915_gem_swizzle_page(struct page *page)
 {
+	char temp[64];
 	char *vaddr;
 	int i;
-	char temp[64];
 
 	vaddr = kmap(page);
-	if (vaddr == NULL)
-		return -ENOMEM;
 
 	for (i = 0; i < PAGE_SIZE; i += 128) {
 		memcpy(temp, &vaddr[i], 64);
@@ -417,8 +421,6 @@ i915_gem_swizzle_page(struct page *page)
 	}
 
 	kunmap(page);
-
-	return 0;
 }
 
 void
@@ -440,11 +442,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj)
 		char new_bit_17 = page_to_phys(obj_priv->pages[i]) >> 17;
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj_priv->bit_17) != 0)) {
-			int ret = i915_gem_swizzle_page(obj_priv->pages[i]);
-			if (ret != 0) {
-				DRM_ERROR("Failed to swizzle page\n");
-				return;
-			}
+			i915_gem_swizzle_page(obj_priv->pages[i]);
 			set_page_dirty(obj_priv->pages[i]);
 		}
 	}

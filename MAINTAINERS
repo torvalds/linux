@@ -2051,6 +2051,15 @@ S:	Maintained
 F:	drivers/gpu/drm/
 F:	include/drm/
 
+INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
+M:	Chris Wilson <chris@chris-wilson.co.uk>
+L:	intel-gfx@lists.freedesktop.org
+L:	dri-devel@lists.freedesktop.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ickle/drm-intel.git
+S:	Supported
+F:	drivers/gpu/drm/i915
+F:	include/drm/i915*
+
 DSCC4 DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org

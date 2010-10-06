@@ -12,9 +12,6 @@
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
-#include <linux/intel-gtt.h>
-
-#include "intel-gtt.c"
 
 int intel_agp_enabled;
 EXPORT_SYMBOL(intel_agp_enabled);
@@ -703,178 +700,36 @@ static const struct agp_bridge_driver intel_7505_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static int find_gmch(u16 device)
-{
-	struct pci_dev *gmch_device;
-
-	gmch_device = pci_get_device(PCI_VENDOR_ID_INTEL, device, NULL);
-	if (gmch_device && PCI_FUNC(gmch_device->devfn) != 0) {
-		gmch_device = pci_get_device(PCI_VENDOR_ID_INTEL,
-					     device, gmch_device);
-	}
-
-	if (!gmch_device)
-		return 0;
-
-	intel_private.pcidev = gmch_device;
-	return 1;
-}
-
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
  * driver and gmch_driver must be non-null, and find_gmch will determine
  * which one should be used if a gmch_chip_id is present.
  */
-static const struct intel_driver_description {
+static const struct intel_agp_driver_description {
 	unsigned int chip_id;
-	unsigned int gmch_chip_id;
 	char *name;
 	const struct agp_bridge_driver *driver;
-	const struct agp_bridge_driver *gmch_driver;
 } intel_agp_chipsets[] = {
-	{ PCI_DEVICE_ID_INTEL_82443LX_0, 0, "440LX", &intel_generic_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82443BX_0, 0, "440BX", &intel_generic_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82443GX_0, 0, "440GX", &intel_generic_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82810_MC1, PCI_DEVICE_ID_INTEL_82810_IG1, "i810",
-		NULL, &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82810_MC3, PCI_DEVICE_ID_INTEL_82810_IG3, "i810",
-		NULL, &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82810E_MC, PCI_DEVICE_ID_INTEL_82810E_IG, "i810",
-		NULL, &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82815_MC, PCI_DEVICE_ID_INTEL_82815_CGC, "i815",
-		&intel_815_driver, &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82820_HB, 0, "i820", &intel_820_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82820_UP_HB, 0, "i820", &intel_820_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82830_HB, PCI_DEVICE_ID_INTEL_82830_CGC, "830M",
-		&intel_830mp_driver, &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82840_HB, 0, "i840", &intel_840_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82845_HB, 0, "845G", &intel_845_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82845G_HB, PCI_DEVICE_ID_INTEL_82845G_IG, "830M",
-		&intel_845_driver, &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82850_HB, 0, "i850", &intel_850_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82854_HB, PCI_DEVICE_ID_INTEL_82854_IG, "854",
-		&intel_845_driver, &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82855PM_HB, 0, "855PM", &intel_845_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82855GM_HB, PCI_DEVICE_ID_INTEL_82855GM_IG, "855GM",
-		&intel_845_driver, &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82860_HB, 0, "i860", &intel_860_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_82865_HB, PCI_DEVICE_ID_INTEL_82865_IG, "865",
-		&intel_845_driver, &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82875_HB, 0, "i875", &intel_845_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_E7221_HB, PCI_DEVICE_ID_INTEL_E7221_IG, "E7221 (i915)",
-		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82915G_HB, PCI_DEVICE_ID_INTEL_82915G_IG, "915G",
-		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82915GM_HB, PCI_DEVICE_ID_INTEL_82915GM_IG, "915GM",
-		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945G_HB, PCI_DEVICE_ID_INTEL_82945G_IG, "945G",
-		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945GM_HB, PCI_DEVICE_ID_INTEL_82945GM_IG, "945GM",
-		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945GME_HB, PCI_DEVICE_ID_INTEL_82945GME_IG, "945GME",
-		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82946GZ_HB, PCI_DEVICE_ID_INTEL_82946GZ_IG, "946GZ",
-		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82G35_HB, PCI_DEVICE_ID_INTEL_82G35_IG, "G35",
-		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965Q_HB, PCI_DEVICE_ID_INTEL_82965Q_IG, "965Q",
-		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965G_HB, PCI_DEVICE_ID_INTEL_82965G_IG, "965G",
-		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965GM_HB, PCI_DEVICE_ID_INTEL_82965GM_IG, "965GM",
-		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965GME_HB, PCI_DEVICE_ID_INTEL_82965GME_IG, "965GME/GLE",
-		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_7505_0, 0, "E7505", &intel_7505_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_7205_0, 0, "E7205", &intel_7505_driver, NULL },
-	{ PCI_DEVICE_ID_INTEL_G33_HB, PCI_DEVICE_ID_INTEL_G33_IG, "G33",
-		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_Q35_HB, PCI_DEVICE_ID_INTEL_Q35_IG, "Q35",
-		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, "Q33",
-		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, "GMA3150",
-		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_PINEVIEW_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_IG, "GMA3150",
-		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG,
-	    "GM45", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_EAGLELAKE_HB, PCI_DEVICE_ID_INTEL_EAGLELAKE_IG,
-	    "Eaglelake", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_Q45_HB, PCI_DEVICE_ID_INTEL_Q45_IG,
-	    "Q45/Q43", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG,
-	    "G45/G43", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_B43_HB, PCI_DEVICE_ID_INTEL_B43_IG,
-	    "B43", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_B43_1_HB, PCI_DEVICE_ID_INTEL_B43_1_IG,
-	    "B43", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_G41_HB, PCI_DEVICE_ID_INTEL_G41_IG,
-	    "G41", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG,
-	    "HD Graphics", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
-	    "HD Graphics", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
-	    "HD Graphics", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
-	    "HD Graphics", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT1_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_PLUS_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT1_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_PLUS_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG,
-	    "Sandybridge", NULL, &intel_gen6_driver },
-	{ 0, 0, NULL, NULL, NULL }
+	{ PCI_DEVICE_ID_INTEL_82443LX_0, "440LX", &intel_generic_driver },
+	{ PCI_DEVICE_ID_INTEL_82443BX_0, "440BX", &intel_generic_driver },
+	{ PCI_DEVICE_ID_INTEL_82443GX_0, "440GX", &intel_generic_driver },
+	{ PCI_DEVICE_ID_INTEL_82815_MC, "i815", &intel_815_driver },
+	{ PCI_DEVICE_ID_INTEL_82820_HB, "i820", &intel_820_driver },
+	{ PCI_DEVICE_ID_INTEL_82820_UP_HB, "i820", &intel_820_driver },
+	{ PCI_DEVICE_ID_INTEL_82830_HB, "830M", &intel_830mp_driver },
+	{ PCI_DEVICE_ID_INTEL_82840_HB, "i840", &intel_840_driver },
+	{ PCI_DEVICE_ID_INTEL_82845_HB, "845G", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82845G_HB, "830M", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82850_HB, "i850", &intel_850_driver },
+	{ PCI_DEVICE_ID_INTEL_82854_HB, "854", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82855PM_HB, "855PM", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82855GM_HB, "855GM", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82860_HB, "i860", &intel_860_driver },
+	{ PCI_DEVICE_ID_INTEL_82865_HB, "865", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82875_HB, "i875", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_7505_0, "E7505", &intel_7505_driver },
+	{ PCI_DEVICE_ID_INTEL_7205_0, "E7205", &intel_7505_driver },
+	{ 0, NULL, NULL }
 };
-
-static int __devinit intel_gmch_probe(struct pci_dev *pdev,
-				      struct agp_bridge_data *bridge)
-{
-	int i, mask;
-
-	bridge->driver = NULL;
-
-	for (i = 0; intel_agp_chipsets[i].name != NULL; i++) {
-		if ((intel_agp_chipsets[i].gmch_chip_id != 0) &&
-			find_gmch(intel_agp_chipsets[i].gmch_chip_id)) {
-			bridge->driver =
-				intel_agp_chipsets[i].gmch_driver;
-			break;
-		}
-	}
-
-	if (!bridge->driver)
-		return 0;
-
-	bridge->dev_private_data = &intel_private;
-	bridge->dev = pdev;
-
-	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_agp_chipsets[i].name);
-
-	if (bridge->driver->mask_memory == intel_gen6_mask_memory)
-		mask = 40;
-	else if (bridge->driver->mask_memory == intel_i965_mask_memory)
-		mask = 36;
-	else
-		mask = 32;
-
-	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
-		dev_err(&intel_private.pcidev->dev,
-			"set gfx device dma mask %d-bit failed!\n", mask);
-	else
-		pci_set_consistent_dma_mask(intel_private.pcidev,
-					    DMA_BIT_MASK(mask));
-
-	return 1;
-}
 
 static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
@@ -905,18 +760,10 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		}
 	}
 
-	if (intel_agp_chipsets[i].name == NULL) {
+	if (!bridge->driver) {
 		if (cap_ptr)
 			dev_warn(&pdev->dev, "unsupported Intel chipset [%04x/%04x]\n",
 				 pdev->vendor, pdev->device);
-		agp_put_bridge(bridge);
-		return -ENODEV;
-	}
-
-	if (!bridge->driver) {
-		if (cap_ptr)
-			dev_warn(&pdev->dev, "can't find bridge device (chip_id: %04x)\n",
-			    	 intel_agp_chipsets[i].gmch_chip_id);
 		agp_put_bridge(bridge);
 		return -ENODEV;
 	}
@@ -972,8 +819,7 @@ static void __devexit agp_intel_remove(struct pci_dev *pdev)
 
 	agp_remove_bridge(bridge);
 
-	if (intel_private.pcidev)
-		pci_dev_put(intel_private.pcidev);
+	intel_gmch_remove(pdev);
 
 	agp_put_bridge(bridge);
 }

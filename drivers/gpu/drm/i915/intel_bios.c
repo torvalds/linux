@@ -129,10 +129,6 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	int i, temp_downclock;
 	struct drm_display_mode *temp_mode;
 
-	/* Defaults if we can't find VBT info */
-	dev_priv->lvds_dither = 0;
-	dev_priv->lvds_vbt = 0;
-
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
 		return;
@@ -140,6 +136,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	dev_priv->lvds_dither = lvds_options->pixel_dither;
 	if (lvds_options->panel_type == 0xff)
 		return;
+
 	panel_type = lvds_options->panel_type;
 
 	lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
@@ -169,6 +166,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 			((unsigned char *)entry + dvo_timing_offset);
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	if (!panel_fixed_mode)
+		return;
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
@@ -230,8 +229,6 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	struct lvds_dvo_timing *dvo_timing;
 	struct drm_display_mode *panel_fixed_mode;
 
-	dev_priv->sdvo_lvds_vbt_mode = NULL;
-
 	sdvo_lvds_options = find_section(bdb, BDB_SDVO_LVDS_OPTIONS);
 	if (!sdvo_lvds_options)
 		return;
@@ -260,10 +257,6 @@ parse_general_features(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct bdb_general_features *general;
 
-	/* Set sensible defaults in case we can't find the general block */
-	dev_priv->int_tv_support = 1;
-	dev_priv->int_crt_support = 1;
-
 	general = find_section(bdb, BDB_GENERAL_FEATURES);
 	if (general) {
 		dev_priv->int_tv_support = general->int_tv_support;
@@ -289,14 +282,6 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 			  struct bdb_header *bdb)
 {
 	struct bdb_general_definitions *general;
-	const int crt_bus_map_table[] = {
-		GPIOB,
-		GPIOA,
-		GPIOC,
-		GPIOD,
-		GPIOE,
-		GPIOF,
-	};
 
 	general = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (general) {
@@ -304,10 +289,8 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		if (block_size >= sizeof(*general)) {
 			int bus_pin = general->crt_ddc_gmbus_pin;
 			DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
-			if ((bus_pin >= 1) && (bus_pin <= 6)) {
-				dev_priv->crt_ddc_bus =
-					crt_bus_map_table[bus_pin-1];
-			}
+			if (bus_pin >= 1 && bus_pin <= 6)
+				dev_priv->crt_ddc_pin = bus_pin;
 		} else {
 			DRM_DEBUG_KMS("BDB_GD too small (%d). Invalid.\n",
 				  block_size);
@@ -317,7 +300,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 
 static void
 parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
-		       struct bdb_header *bdb)
+			  struct bdb_header *bdb)
 {
 	struct sdvo_device_mapping *p_mapping;
 	struct bdb_general_definitions *p_defs;
@@ -327,7 +310,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found\n");
+		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -377,7 +360,16 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			p_mapping->slave_addr = p_child->slave_addr;
 			p_mapping->dvo_wiring = p_child->dvo_wiring;
 			p_mapping->ddc_pin = p_child->ddc_pin;
+			p_mapping->i2c_pin = p_child->i2c_pin;
+			p_mapping->i2c_speed = p_child->i2c_speed;
 			p_mapping->initialized = 1;
+			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d, i2c_speed=%d\n",
+				      p_mapping->dvo_port,
+				      p_mapping->slave_addr,
+				      p_mapping->dvo_wiring,
+				      p_mapping->ddc_pin,
+				      p_mapping->i2c_pin,
+				      p_mapping->i2c_speed);
 		} else {
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
@@ -409,14 +401,11 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	if (!driver)
 		return;
 
-	if (driver && SUPPORTS_EDP(dev) &&
-	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP) {
-		dev_priv->edp_support = 1;
-	} else {
-		dev_priv->edp_support = 0;
-	}
+	if (SUPPORTS_EDP(dev) &&
+	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+		dev_priv->edp.support = 1;
 
-	if (driver && driver->dual_frequency)
+	if (driver->dual_frequency)
 		dev_priv->render_reclock_avail = true;
 }
 
@@ -427,26 +416,40 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
-		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp_support) {
+		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp.support) {
 			DRM_DEBUG_KMS("No eDP BDB found but eDP panel "
-				      "supported, assume 18bpp panel color "
-				      "depth.\n");
-			dev_priv->edp_bpp = 18;
+				      "supported, assume %dbpp panel color "
+				      "depth.\n",
+				      dev_priv->edp.bpp);
 		}
 		return;
 	}
 
 	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
 	case EDP_18BPP:
-		dev_priv->edp_bpp = 18;
+		dev_priv->edp.bpp = 18;
 		break;
 	case EDP_24BPP:
-		dev_priv->edp_bpp = 24;
+		dev_priv->edp.bpp = 24;
 		break;
 	case EDP_30BPP:
-		dev_priv->edp_bpp = 30;
+		dev_priv->edp.bpp = 30;
 		break;
 	}
+
+	dev_priv->edp.rate = edp->link_params[panel_type].rate;
+	dev_priv->edp.lanes = edp->link_params[panel_type].lanes;
+	dev_priv->edp.preemphasis = edp->link_params[panel_type].preemphasis;
+	dev_priv->edp.vswing = edp->link_params[panel_type].vswing;
+
+	DRM_DEBUG_KMS("eDP vBIOS settings: bpp=%d, rate=%d, lanes=%d, preemphasis=%d, vswing=%d\n",
+		      dev_priv->edp.bpp,
+		      dev_priv->edp.rate,
+		      dev_priv->edp.lanes,
+		      dev_priv->edp.preemphasis,
+		      dev_priv->edp.vswing);
+
+	dev_priv->edp.initialized = true;
 }
 
 static void
@@ -460,7 +463,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found\n");
+		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -513,17 +516,34 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	}
 	return;
 }
+
+static void
+init_vbt_defaults(struct drm_i915_private *dev_priv)
+{
+	dev_priv->crt_ddc_pin = GMBUS_PORT_VGADDC;
+
+	/* LFP panel data */
+	dev_priv->lvds_dither = 1;
+	dev_priv->lvds_vbt = 0;
+
+	/* SDVO panel data */
+	dev_priv->sdvo_lvds_vbt_mode = NULL;
+
+	/* general features */
+	dev_priv->int_tv_support = 1;
+	dev_priv->int_crt_support = 1;
+	dev_priv->lvds_use_ssc = 0;
+
+	/* eDP data */
+	dev_priv->edp.bpp = 18;
+}
+
 /**
  * intel_init_bios - initialize VBIOS settings & find VBT
  * @dev: DRM device
  *
  * Loads the Video BIOS and checks that the VBT exists.  Sets scratch registers
  * to appropriate values.
- *
- * VBT existence is a sanity check that is relied on by other i830_bios.c code.
- * Note that it would be better to use a BIOS call to get the VBT, as BIOSes may
- * feed an updated VBT back through that, compared to what we'll fetch using
- * this method of groping around in the BIOS data.
  *
  * Returns 0 on success, nonzero on failure.
  */
@@ -532,31 +552,47 @@ intel_init_bios(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	struct vbt_header *vbt = NULL;
-	struct bdb_header *bdb;
-	u8 __iomem *bios;
-	size_t size;
-	int i;
+	struct bdb_header *bdb = NULL;
+	u8 __iomem *bios = NULL;
 
-	bios = pci_map_rom(pdev, &size);
-	if (!bios)
-		return -1;
+	init_vbt_defaults(dev_priv);
 
-	/* Scour memory looking for the VBT signature */
-	for (i = 0; i + 4 < size; i++) {
-		if (!memcmp(bios + i, "$VBT", 4)) {
-			vbt = (struct vbt_header *)(bios + i);
-			break;
+	/* XXX Should this validation be moved to intel_opregion.c? */
+	if (dev_priv->opregion.vbt) {
+		struct vbt_header *vbt = dev_priv->opregion.vbt;
+		if (memcmp(vbt->signature, "$VBT", 4) == 0) {
+			DRM_DEBUG_DRIVER("Using VBT from OpRegion: %20s\n",
+					 vbt->signature);
+			bdb = (struct bdb_header *)((char *)vbt + vbt->bdb_offset);
+		} else
+			dev_priv->opregion.vbt = NULL;
+	}
+
+	if (bdb == NULL) {
+		struct vbt_header *vbt = NULL;
+		size_t size;
+		int i;
+
+		bios = pci_map_rom(pdev, &size);
+		if (!bios)
+			return -1;
+
+		/* Scour memory looking for the VBT signature */
+		for (i = 0; i + 4 < size; i++) {
+			if (!memcmp(bios + i, "$VBT", 4)) {
+				vbt = (struct vbt_header *)(bios + i);
+				break;
+			}
 		}
-	}
 
-	if (!vbt) {
-		DRM_ERROR("VBT signature missing\n");
-		pci_unmap_rom(pdev, bios);
-		return -1;
-	}
+		if (!vbt) {
+			DRM_ERROR("VBT signature missing\n");
+			pci_unmap_rom(pdev, bios);
+			return -1;
+		}
 
-	bdb = (struct bdb_header *)(bios + i + vbt->bdb_offset);
+		bdb = (struct bdb_header *)(bios + i + vbt->bdb_offset);
+	}
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
@@ -568,7 +604,8 @@ intel_init_bios(struct drm_device *dev)
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 
-	pci_unmap_rom(pdev, bios);
+	if (bios)
+		pci_unmap_rom(pdev, bios);
 
 	return 0;
 }
