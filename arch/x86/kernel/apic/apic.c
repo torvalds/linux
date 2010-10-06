@@ -390,9 +390,6 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
  * necessarily a BIOS bug.
  */
 
-#define APIC_EILVT_LVTOFF_MCE 0
-#define APIC_EILVT_LVTOFF_IBS 1
-
 static atomic_t eilvt_offsets[APIC_EILVT_NR_MAX];
 
 static inline int eilvt_entry_is_changeable(unsigned int old, unsigned int new)
@@ -426,7 +423,7 @@ static unsigned int reserve_eilvt_offset(int offset, unsigned int new)
  * enables the vector. See also the BKDGs.
  */
 
-static int setup_APIC_eilvt(u8 offset, u8 vector, u8 msg_type, u8 mask)
+int setup_APIC_eilvt(u8 offset, u8 vector, u8 msg_type, u8 mask)
 {
 	unsigned long reg = APIC_EILVTn(offset);
 	unsigned int new, old, reserved;
@@ -454,19 +451,7 @@ static int setup_APIC_eilvt(u8 offset, u8 vector, u8 msg_type, u8 mask)
 
 	return 0;
 }
-
-u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask)
-{
-	setup_APIC_eilvt(APIC_EILVT_LVTOFF_MCE, vector, msg_type, mask);
-	return APIC_EILVT_LVTOFF_MCE;
-}
-
-u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask)
-{
-	setup_APIC_eilvt(APIC_EILVT_LVTOFF_IBS, vector, msg_type, mask);
-	return APIC_EILVT_LVTOFF_IBS;
-}
-EXPORT_SYMBOL_GPL(setup_APIC_eilvt_ibs);
+EXPORT_SYMBOL_GPL(setup_APIC_eilvt);
 
 /*
  * Program the next event, relative to now
