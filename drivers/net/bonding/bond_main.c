@@ -2406,8 +2406,9 @@ static void bond_miimon_commit(struct bonding *bond)
 				slave->state = BOND_STATE_BACKUP;
 			}
 
-			pr_info("%s: link status definitely up for interface %s.\n",
-				bond->dev->name, slave->dev->name);
+			pr_info("%s: link status definitely up for interface %s, %d Mbps %s duplex.\n",
+				bond->dev->name, slave->dev->name,
+				slave->speed, slave->duplex ? "full" : "half");
 
 			/* notify ad that the link status has changed */
 			if (bond->params.mode == BOND_MODE_8023AD)
