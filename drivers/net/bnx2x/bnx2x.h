@@ -1053,15 +1053,8 @@ struct bnx2x {
 #ifdef BCM_CNIC
 	u32			cnic_flags;
 #define BNX2X_CNIC_FLAG_MAC_SET		1
-
-	void			*t1;
-	dma_addr_t		t1_mapping;
 	void			*t2;
 	dma_addr_t		t2_mapping;
-	void			*timers;
-	dma_addr_t		timers_mapping;
-	void			*qm;
-	dma_addr_t		qm_mapping;
 	struct cnic_ops		*cnic_ops;
 	void			*cnic_data;
 	u32			cnic_tag;
