@@ -1001,7 +1001,10 @@ static int __exit davinci_spi_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver davinci_spi_driver = {
-	.driver.name = "spi_davinci",
+	.driver = {
+		.name = "spi_davinci",
+		.owner = THIS_MODULE,
+	},
 	.remove = __exit_p(davinci_spi_remove),
 };
 
