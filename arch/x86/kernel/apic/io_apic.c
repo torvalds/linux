@@ -199,6 +199,13 @@ out_cfg:
 	return NULL;
 }
 
+static void free_irq_cfg(struct irq_cfg *cfg)
+{
+	free_cpumask_var(cfg->domain);
+	free_cpumask_var(cfg->old_domain);
+	kfree(cfg);
+}
+
 int arch_init_chip_data(struct irq_desc *desc, int node)
 {
 	struct irq_cfg *cfg;
@@ -299,13 +306,6 @@ void arch_init_copy_chip_data(struct irq_desc *old_desc,
 	init_copy_irq_2_pin(old_cfg, cfg, node);
 }
 
-static void free_irq_cfg(struct irq_cfg *cfg)
-{
-	free_cpumask_var(cfg->domain);
-	free_cpumask_var(cfg->old_domain);
-	kfree(cfg);
-}
-
 void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 {
 	struct irq_cfg *old_cfg, *cfg;
@@ -325,12 +325,52 @@ void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 /* end for move_irq_desc */
 
 #else
+
 struct irq_cfg *irq_cfg(unsigned int irq)
 {
 	return irq < nr_irqs ? irq_cfgx + irq : NULL;
 }
 
+static struct irq_cfg *get_one_free_irq_cfg(unsigned int irq, int node)
+{
+	return irq_cfgx + irq;
+}
+
+static inline void free_irq_cfg(struct irq_cfg *cfg) { }
+
 #endif
+
+static struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node)
+{
+	int res = irq_alloc_desc_at(at, node);
+	struct irq_cfg *cfg;
+
+	if (res < 0) {
+		if (res != -EEXIST)
+			return NULL;
+		cfg = get_irq_chip_data(at);
+		if (cfg)
+			return cfg;
+	}
+
+	cfg = get_one_free_irq_cfg(node);
+	if (cfg)
+		set_irq_chip_data(at, cfg);
+	else
+		irq_free_desc(at);
+	return cfg;
+}
+
+static int alloc_irq_from(unsigned int from, int node)
+{
+	return irq_alloc_desc_from(from, node);
+}
+
+static void free_irq_at(unsigned int at, struct irq_cfg *cfg)
+{
+	free_irq_cfg(cfg);
+	irq_free_desc(at);
+}
 
 struct io_apic {
 	unsigned int index;
