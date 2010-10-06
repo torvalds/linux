@@ -403,7 +403,7 @@ int cyasblkdev_media_changed(struct gendisk *gd)
 	}
 
 	/* return media change state "1" yes, 0 no */
-	return 1;
+	return 0;
 }
 
 /*  this one called by kernel to give us a chence
@@ -1111,7 +1111,8 @@ static int cyasblkdev_add_disks(int bus_num,
 		 * public partition beginning */
 		if (vfat_search) {
 			bd->user_disk_0_first_sector =
-				cyasblkdev_get_vfat_offset(0,
+				cyasblkdev_get_vfat_offset(
+					bd->user_disk_0_bus_num,
 					bd->user_disk_0_unit_no);
 		} else {
 			bd->user_disk_0_first_sector = 0;
@@ -1244,7 +1245,8 @@ static int cyasblkdev_add_disks(int bus_num,
 		if (vfat_search) {
 			bd->user_disk_1_first_sector =
 				cyasblkdev_get_vfat_offset(
-					1, bd->user_disk_1_unit_no);
+					bd->user_disk_1_bus_num,
+					bd->user_disk_1_unit_no);
 		} else {
 			bd->user_disk_1_first_sector
 				= 0;
@@ -1256,8 +1258,8 @@ static int cyasblkdev_add_disks(int bus_num,
 	if (lcl_unit_no > 0) {
 		if (bd->system_disk == NULL) {
 			bd->system_disk =
-				alloc_disk(CYASBLKDEV_MINOR_2
-					<< CYASBLKDEV_SHIFT);
+				alloc_disk(8);
+
 			if (bd->system_disk == NULL) {
 				kfree(bd);
 				bd = ERR_PTR(-ENOMEM);
@@ -1423,8 +1425,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 			if (bd->user_disk_0 == NULL) {
 
 				bd->user_disk_0 =
-					alloc_disk(CYASBLKDEV_MINOR_0
-						<< CYASBLKDEV_SHIFT);
+					alloc_disk(8);
 				if (bd->user_disk_0 == NULL) {
 					kfree(bd);
 					bd = ERR_PTR(-ENOMEM);
@@ -1443,8 +1444,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 		if (total_media_count == 2) {
 			if (bd->user_disk_1 == NULL) {
 				bd->user_disk_1 =
-					alloc_disk(CYASBLKDEV_MINOR_1
-						<< CYASBLKDEV_SHIFT);
+					alloc_disk(8);
 				if (bd->user_disk_1 == NULL) {
 					kfree(bd);
 					bd = ERR_PTR(-ENOMEM);
