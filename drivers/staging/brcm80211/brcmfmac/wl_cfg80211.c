@@ -142,7 +142,8 @@ static int32 wl_notify_roaming_status(struct wl_priv *wl,
 static int32 wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 				   const wl_event_msg_t *e, void *data);
 static int32 wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
-				 const wl_event_msg_t *e, void *data);
+				 const wl_event_msg_t *e, void *data,
+				bool completed);
 static int32 wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 				 const wl_event_msg_t *e, void *data);
 static int32 wl_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
@@ -251,6 +252,7 @@ static bool wl_is_ibssstarter(struct wl_priv *wl);
 */
 static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e);
 static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e);
+static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e);
 static void wl_link_up(struct wl_priv *wl);
 static void wl_link_down(struct wl_priv *wl);
 static int32 wl_dongle_mode(struct net_device *ndev, int32 iftype);
@@ -2266,8 +2268,10 @@ static int32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	freq = ieee80211_channel_to_frequency(notif_bss_info->channel);
 	channel = ieee80211_get_channel(wiphy, freq);
 
-	WL_DBG(("SSID : \"%s\", rssi (%d), capability : 0x04%x\n", bi->SSID,
-		notif_bss_info->rssi, mgmt->u.probe_resp.capab_info));
+	WL_DBG(("SSID : \"%s\", rssi %d, channel %d, capability : 0x04%x\n",
+		bi->SSID,
+		notif_bss_info->rssi, notif_bss_info->channel,
+		mgmt->u.probe_resp.capab_info));
 
 	signal = notif_bss_info->rssi * 100;
 	if (unlikely(!cfg80211_inform_bss_frame(wiphy, channel, mgmt,
@@ -2320,6 +2324,19 @@ static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 	return FALSE;
 }
 
+static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e)
+{
+	uint32 event = ntoh32(e->event_type);
+	uint32 status = ntoh32(e->status);
+
+	if (event == WLC_E_SET_SSID || event == WLC_E_LINK) {
+		if (status == WLC_E_STATUS_NO_NETWORKS)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
 static int32
 wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 			 const wl_event_msg_t *e, void *data)
@@ -2334,7 +2351,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 					     GFP_KERNEL);
 			WL_DBG(("joined in IBSS network\n"));
 		} else {
-			wl_bss_connect_done(wl, ndev, e, data);
+			wl_bss_connect_done(wl, ndev, e, data, TRUE);
 			WL_DBG(("joined in BSS network \"%s\"\n",
 				((struct wlc_ssid *)
 				 wl_read_prof(wl, WL_PROF_SSID))->SSID));
@@ -2346,6 +2363,8 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 		clear_bit(WL_STATUS_CONNECTED, &wl->status);
 		wl_link_down(wl);
 		wl_init_prof(wl->profile);
+	} else if (wl_is_nonetwork(wl, e)) {
+		wl_bss_connect_done(wl, ndev, e, data, FALSE);
 	}
 
 	return err;
@@ -2522,7 +2541,7 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 
 static int32
 wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
-		    const wl_event_msg_t *e, void *data)
+		    const wl_event_msg_t *e, void *data, bool completed)
 {
 	struct wl_connect_info *conn_info = wl_to_conn(wl);
 	int32 err = 0;
@@ -2537,8 +2556,10 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 					conn_info->req_ie_len,
 					conn_info->resp_ie,
 					conn_info->resp_ie_len,
-					WLAN_STATUS_SUCCESS, GFP_KERNEL);
-		WL_DBG(("Report connect result\n"));
+					completed ? WLAN_STATUS_SUCCESS : WLAN_STATUS_AUTH_TIMEOUT,
+					GFP_KERNEL);
+		WL_DBG(("Report connect result - connection %s\n",
+			completed ? "succeeded" : "failed"));
 	} else {
 		cfg80211_roamed(ndev,
 				(u8 *)&wl->bssid,
@@ -2655,6 +2676,7 @@ static void wl_init_eloop_handler(struct wl_event_loop *el)
 	el->handler[WLC_E_REASSOC_IND] = wl_notify_connect_status;
 	el->handler[WLC_E_ROAM] = wl_notify_roaming_status;
 	el->handler[WLC_E_MIC_ERROR] = wl_notify_mic_status;
+	el->handler[WLC_E_SET_SSID] = wl_notify_connect_status;
 }
 
 static int32 wl_init_priv_mem(struct wl_priv *wl)
@@ -3790,7 +3812,13 @@ wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e, void *data,
 
 void wl_cfg80211_dbg_level(uint32 level)
 {
-	wl_dbg_level = level;
+	/*
+	* prohibit to change debug level
+	* by insmod parameter.
+	* eventually debug level will be configured
+	* in compile time by using CONFIG_XXX
+	*/
+	/* wl_dbg_level = level; */
 }
 
 static bool wl_is_ibssmode(struct wl_priv *wl)
