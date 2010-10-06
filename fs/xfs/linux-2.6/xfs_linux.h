@@ -86,7 +86,6 @@
 #include <xfs_iops.h>
 #include <xfs_aops.h>
 #include <xfs_super.h>
-#include <xfs_globals.h>
 #include <xfs_buf.h>
 
 /*
