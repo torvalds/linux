@@ -602,6 +602,14 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 
 static inline void setup_syscall_restart(struct pt_regs *regs)
 {
+	if (regs->ARM_ORIG_r0 == -ERESTARTNOHAND ||
+	    regs->ARM_ORIG_r0 == -ERESTARTSYS ||
+	    regs->ARM_ORIG_r0 == -ERESTARTNOINTR ||
+	    regs->ARM_ORIG_r0 == -ERESTART_RESTARTBLOCK) {
+		/* the syscall cannot be safely restarted, return -EINTR instead */
+		regs->ARM_r0 = -EINTR;
+		return;
+	}
 	regs->ARM_r0 = regs->ARM_ORIG_r0;
 	regs->ARM_pc -= thumb_mode(regs) ? 2 : 4;
 }
@@ -734,6 +742,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	 */
 	if (syscall) {
 		if (regs->ARM_r0 == -ERESTART_RESTARTBLOCK) {
+			regs->ARM_r0 = -EAGAIN; /* prevent multiple restarts */
 			if (thumb_mode(regs)) {
 				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
 				regs->ARM_pc -= 2;

@@ -57,6 +57,10 @@ void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
 
 #define __LOG_BUF_LEN	(1 << CONFIG_LOG_BUF_SHIFT)
 
+#ifdef        CONFIG_DEBUG_LL
+extern void printascii(char *);
+#endif
+
 /* printk's without a loglevel use this.. */
 #define DEFAULT_MESSAGE_LOGLEVEL 4 /* KERN_WARNING */
 
@@ -261,6 +265,68 @@ static inline void boot_delay_msec(void)
 }
 #endif
 
+/*
+ * Return the number of unread characters in the log buffer.
+ */
+static int log_buf_get_len(void)
+{
+	return logged_chars;
+}
+
+/*
+ * Clears the ring-buffer
+ */
+void log_buf_clear(void)
+{
+	logged_chars = 0;
+}
+
+/*
+ * Copy a range of characters from the log buffer.
+ */
+int log_buf_copy(char *dest, int idx, int len)
+{
+	int ret, max;
+	bool took_lock = false;
+
+	if (!oops_in_progress) {
+		spin_lock_irq(&logbuf_lock);
+		took_lock = true;
+	}
+
+	max = log_buf_get_len();
+	if (idx < 0 || idx >= max) {
+		ret = -1;
+	} else {
+		if (len > max - idx)
+			len = max - idx;
+		ret = len;
+		idx += (log_end - max);
+		while (len-- > 0)
+			dest[len] = LOG_BUF(idx + len);
+	}
+
+	if (took_lock)
+		spin_unlock_irq(&logbuf_lock);
+
+	return ret;
+}
+
+/*
+ * Commands to do_syslog:
+ *
+ * 	0 -- Close the log.  Currently a NOP.
+ * 	1 -- Open the log. Currently a NOP.
+ * 	2 -- Read from the log.
+ * 	3 -- Read all messages remaining in the ring buffer.
+ * 	4 -- Read and clear all messages remaining in the ring buffer
+ * 	5 -- Clear ring buffer.
+ * 	6 -- Disable printk's to console
+ * 	7 -- Enable printk's to console
+ *	8 -- Set level of messages printed to console
+ *	9 -- Return number of unread characters in the log buffer
+ *     10 -- Return size of the log buffer
+ */
 int do_syslog(int type, char __user *buf, int len, bool from_file)
 {
 	unsigned i, j, limit, count;
@@ -736,6 +802,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	printed_len += vscnprintf(printk_buf + printed_len,
 				  sizeof(printk_buf) - printed_len, fmt, args);
 
+#ifdef	CONFIG_DEBUG_LL
+	printascii(printk_buf);
+#endif
 
 	p = printk_buf;
 

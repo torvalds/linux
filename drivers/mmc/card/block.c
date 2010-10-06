@@ -87,11 +87,7 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
-		int devmaj = MAJOR(disk_devt(md->disk));
-		int devidx = MINOR(disk_devt(md->disk)) >> MMC_SHIFT;
-
-		if (!devmaj)
-			devidx = md->disk->first_minor >> MMC_SHIFT;
+		int devidx = md->disk->first_minor >> MMC_SHIFT;
 
 		blk_cleanup_queue(md->queue.queue);
 
@@ -426,6 +422,8 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				continue;
 			}
 			status = get_card_status(card, req);
+		} else if (disable_multi == 1) {
+			disable_multi = 0;
 		}
 
 		if (brq.cmd.error) {
@@ -544,8 +542,21 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 	return 0;
 }
 
+static int
+mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card);
+
 static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	struct mmc_blk_data *md = mq->data;
+	struct mmc_card *card = md->queue.card;
+
+	if (mmc_bus_needs_resume(card->host)) {
+		mmc_resume_bus(card->host);
+		mmc_blk_set_blksize(md, card);
+	}
+#endif
+
 	if (req->cmd_flags & REQ_DISCARD) {
 		if (req->cmd_flags & REQ_SECURE)
 			return mmc_blk_issue_secdiscard_rq(mq, req);
@@ -607,6 +618,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	md->disk->private_data = md;
 	md->disk->queue = md->queue.queue;
 	md->disk->driverfs_dev = &card->dev;
+	md->disk->flags = GENHD_FL_EXT_DEVT;
 
 	/*
 	 * As discussed on lkml, GENHD_FL_REMOVABLE should:
@@ -667,7 +679,7 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 
 	if (err) {
 		printk(KERN_ERR "%s: unable to set block size to %d: %d\n",
-			md->disk->disk_name, cmd.arg, err);
+                       md->disk->disk_name, cmd.arg, err);
 		return -EINVAL;
 	}
 
@@ -702,6 +714,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 		cap_str, md->read_only ? "(ro)" : "");
 
 	mmc_set_drvdata(card, md);
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	mmc_set_bus_resume_policy(card->host, 1);
+#endif
 	add_disk(md->disk);
 	return 0;
 
@@ -726,6 +741,9 @@ static void mmc_blk_remove(struct mmc_card *card)
 		mmc_blk_put(md);
 	}
 	mmc_set_drvdata(card, NULL);
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	mmc_set_bus_resume_policy(card->host, 0);
+#endif
 }
 
 #ifdef CONFIG_PM
@@ -744,7 +762,9 @@ static int mmc_blk_resume(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	if (md) {
+#ifndef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 		mmc_blk_set_blksize(md, card);
+#endif
 		mmc_queue_resume(&md->queue);
 	}
 	return 0;

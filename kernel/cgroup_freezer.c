@@ -172,6 +172,14 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 {
 	struct freezer *freezer;
 
+	if ((current != task) && (!capable(CAP_SYS_ADMIN))) {
+		const struct cred *cred = current_cred(), *tcred;
+
+		tcred = __task_cred(task);
+		if (cred->euid != tcred->uid && cred->euid != tcred->suid)
+			return -EPERM;
+	}
+
 	/*
 	 * Anything frozen can't move or be moved to/from.
 	 *

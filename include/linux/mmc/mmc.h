@@ -267,6 +267,7 @@ struct _mmc_csd {
 #define EXT_CSD_SEC_ERASE_MULT		230	/* RO */
 #define EXT_CSD_SEC_FEATURE_SUPPORT	231	/* RO */
 #define EXT_CSD_TRIM_MULT		232	/* RO */
+#define EXT_CSD_BOOT_SIZE_MULTI		226	/* RO */
 
 /*
  * EXT_CSD field definitions

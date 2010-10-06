@@ -29,6 +29,10 @@
 #include <linux/securebits.h>
 #include <linux/syslog.h>
 
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+#include <linux/android_aid.h>
+#endif
+
 /*
  * If a non-root user executes a setuid-root binary in
  * !secure(SECURE_NOROOT) mode, then we raise capabilities.
@@ -83,6 +87,12 @@ EXPORT_SYMBOL(cap_netlink_recv);
 int cap_capable(struct task_struct *tsk, const struct cred *cred, int cap,
 		int audit)
 {
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
+		return 0;
+	if (cap == CAP_NET_ADMIN && in_egroup_p(AID_NET_ADMIN))
+		return 0;
+#endif
 	return cap_raised(cred->cap_effective, cap) ? 0 : -EPERM;
 }
 

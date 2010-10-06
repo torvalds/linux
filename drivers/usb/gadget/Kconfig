@@ -837,6 +837,54 @@ config USB_G_PRINTER
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
 
+config USB_ANDROID
+	boolean "Android Gadget"
+	depends on SWITCH
+	help
+	  The Android gadget driver supports multiple USB functions.
+	  The functions can be configured via a board file and may be
+	  enabled and disabled dynamically.
+
+config USB_ANDROID_ACM
+	boolean "Android gadget ACM serial function"
+	depends on USB_ANDROID
+	help
+	  Provides ACM serial function for android gadget driver.
+
+config USB_ANDROID_ADB
+	boolean "Android gadget adb function"
+	depends on USB_ANDROID
+	help
+	  Provides adb function for android gadget driver.
+
+config USB_ANDROID_MASS_STORAGE
+	boolean "Android gadget mass storage function"
+	depends on USB_ANDROID && SWITCH
+	help
+	  Provides USB mass storage function for android gadget driver.
+
+config USB_ANDROID_MTP
+	boolean "Android MTP function"
+	depends on USB_ANDROID
+	help
+	  Provides Media Transfer Protocol (MTP) support for android gadget driver.
+
+config USB_ANDROID_RNDIS
+	boolean "Android gadget RNDIS ethernet function"
+	depends on USB_ANDROID
+	help
+	  Provides RNDIS ethernet function for android gadget driver.
+
+config USB_ANDROID_RNDIS_WCEIS
+        boolean "Use Windows Internet Sharing Class/SubClass/Protocol"
+        depends on USB_ANDROID_RNDIS
+        help
+         Causes the driver to look like a Windows-compatible Internet
+         Sharing device, so Windows auto-detects it.
+
+         If you enable this option, the device is no longer CDC ethernet
+         compatible.
+
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
 	depends on NET
