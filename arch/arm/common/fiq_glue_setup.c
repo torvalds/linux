@@ -23,7 +23,7 @@ extern void fiq_glue_setup(void *func, void *data, void *sp);
 static struct fiq_handler fiq_debbuger_fiq_handler = {
 	.name = "fiq_glue",
 };
-static __percpu void *fiq_stack;
+DEFINE_PER_CPU(void *, fiq_stack);
 static struct fiq_glue_handler *current_handler;
 static DEFINE_MUTEX(fiq_glue_lock);
 
@@ -31,12 +31,13 @@ static void fiq_glue_setup_helper(void *info)
 {
 	struct fiq_glue_handler *handler = info;
 	fiq_glue_setup(handler->fiq, handler,
-		__this_cpu_ptr(fiq_stack) + THREAD_START_SP);
+		__get_cpu_var(fiq_stack) + THREAD_START_SP);
 }
 
 int fiq_glue_register_handler(struct fiq_glue_handler *handler)
 {
 	int ret;
+	int cpu;
 
 	if (!handler || !handler->fiq)
 		return -EINVAL;
@@ -47,10 +48,14 @@ int fiq_glue_register_handler(struct fiq_glue_handler *handler)
 		goto err_busy;
 	}
 
-	fiq_stack = __alloc_percpu(THREAD_SIZE, L1_CACHE_BYTES);
-	if (WARN_ON(!fiq_stack)) {
-		ret = -ENOMEM;
-		goto err_alloc_fiq_stack;
+	for_each_possible_cpu(cpu) {
+		void *stack;
+		stack = (void *)__get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+		if (WARN_ON(!stack)) {
+			ret = -ENOMEM;
+			goto err_alloc_fiq_stack;
+		}
+		per_cpu(fiq_stack, cpu) = stack;
 	}
 
 	ret = claim_fiq(&fiq_debbuger_fiq_handler);
@@ -61,12 +66,15 @@ int fiq_glue_register_handler(struct fiq_glue_handler *handler)
 	on_each_cpu(fiq_glue_setup_helper, handler, true);
 	set_fiq_handler(&fiq_glue, &fiq_glue_end - &fiq_glue);
 
+	mutex_unlock(&fiq_glue_lock);
+	return 0;
+
 err_claim_fiq:
-	if (ret) {
-		free_percpu(fiq_stack);
-		fiq_stack = NULL;
-	}
 err_alloc_fiq_stack:
+	for_each_possible_cpu(cpu) {
+		__free_pages(per_cpu(fiq_stack, cpu), THREAD_SIZE_ORDER);
+		per_cpu(fiq_stack, cpu) = NULL;
+	}
 err_busy:
 	mutex_unlock(&fiq_glue_lock);
 	return ret;
@@ -85,7 +93,7 @@ void fiq_glue_resume(void)
 	if (!current_handler)
 		return;
 	fiq_glue_setup(current_handler->fiq, current_handler,
-			__this_cpu_ptr(fiq_stack) + THREAD_START_SP);
+		__get_cpu_var(fiq_stack) + THREAD_START_SP);
 	if (current_handler->resume)
 		current_handler->resume(current_handler);
 }
