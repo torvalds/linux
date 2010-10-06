@@ -56,8 +56,8 @@ static const struct snd_pcm_hardware oxygen_stereo_hardware = {
 	.channels_max = 2,
 	.buffer_bytes_max = BUFFER_BYTES_MAX,
 	.period_bytes_min = PERIOD_BYTES_MIN,
-	.period_bytes_max = BUFFER_BYTES_MAX / 2,
-	.periods_min = 2,
+	.period_bytes_max = BUFFER_BYTES_MAX,
+	.periods_min = 1,
 	.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
 };
 static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
@@ -82,8 +82,8 @@ static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
 	.channels_max = 8,
 	.buffer_bytes_max = BUFFER_BYTES_MAX_MULTICH,
 	.period_bytes_min = PERIOD_BYTES_MIN,
-	.period_bytes_max = BUFFER_BYTES_MAX_MULTICH / 2,
-	.periods_min = 2,
+	.period_bytes_max = BUFFER_BYTES_MAX_MULTICH,
+	.periods_min = 1,
 	.periods_max = BUFFER_BYTES_MAX_MULTICH / PERIOD_BYTES_MIN,
 };
 static const struct snd_pcm_hardware oxygen_ac97_hardware = {
@@ -100,8 +100,8 @@ static const struct snd_pcm_hardware oxygen_ac97_hardware = {
 	.channels_max = 2,
 	.buffer_bytes_max = BUFFER_BYTES_MAX,
 	.period_bytes_min = PERIOD_BYTES_MIN,
-	.period_bytes_max = BUFFER_BYTES_MAX / 2,
-	.periods_min = 2,
+	.period_bytes_max = BUFFER_BYTES_MAX,
+	.periods_min = 1,
 	.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
 };
 
