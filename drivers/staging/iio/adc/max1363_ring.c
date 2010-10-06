@@ -31,7 +31,6 @@
 int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
-	unsigned long numvals;
 	int count = 0, ret;
 	u8 *ring_data;
 	if (!(st->current_mode->modemask & mask)) {
