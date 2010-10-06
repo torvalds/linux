@@ -269,9 +269,9 @@ static bool __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 		return false;
 
 	if (was_hw_scan && !aborted && ieee80211_prep_hw_scan(local)) {
-		ieee80211_queue_delayed_work(&local->hw,
-					     &local->scan_work, 0);
-		return false;
+		int rc = drv_hw_scan(local, local->scan_sdata, local->hw_scan_req);
+		if (rc == 0)
+			return false;
 	}
 
 	kfree(local->hw_scan_req);
@@ -655,15 +655,6 @@ void ieee80211_scan_work(struct work_struct *work)
 
 	if (!sdata || !local->scan_req)
 		goto out;
-
-	if (local->hw_scan_req) {
-		int rc = drv_hw_scan(local, sdata, local->hw_scan_req);
-		if (rc) {
-			aborted = true;
-			goto out_complete;
-		} else
-			goto out;
-	}
 
 	if (local->scan_req && !local->scanning) {
 		struct cfg80211_scan_request *req = local->scan_req;
