@@ -15,11 +15,6 @@
 
 struct vhost_device;
 
-enum {
-	/* Enough place for all fragments, head, and virtio net header. */
-	VHOST_NET_MAX_SG = MAX_SKB_FRAGS + 2,
-};
-
 struct vhost_work;
 typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 
@@ -93,12 +88,15 @@ struct vhost_virtqueue {
 	bool log_used;
 	u64 log_addr;
 
-	struct iovec indirect[VHOST_NET_MAX_SG];
-	struct iovec iov[VHOST_NET_MAX_SG];
-	struct iovec hdr[VHOST_NET_MAX_SG];
+	struct iovec iov[UIO_MAXIOV];
+	/* hdr is used to store the virtio header.
+	 * Since each iovec has >= 1 byte length, we never need more than
+	 * header length entries to store the header. */
+	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
+	struct iovec *indirect;
 	size_t vhost_hlen;
 	size_t sock_hlen;
-	struct vring_used_elem heads[VHOST_NET_MAX_SG];
+	struct vring_used_elem *heads;
 	/* We use a kind of RCU to access private pointer.
 	 * All readers access it from worker, which makes it possible to
 	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
@@ -109,7 +107,7 @@ struct vhost_virtqueue {
 	void *private_data;
 	/* Log write descriptors */
 	void __user *log_base;
-	struct vhost_log log[VHOST_NET_MAX_SG];
+	struct vhost_log *log;
 };
 
 struct vhost_dev {
