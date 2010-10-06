@@ -33,6 +33,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_hw.h"
 #include "nvreg.h"
+#include "nouveau_fbcon.h"
 
 static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -769,8 +770,9 @@ nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b, uint32_t start,
 }
 
 static int
-nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-			struct drm_framebuffer *old_fb)
+nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
+			   struct drm_framebuffer *passed_fb,
+			   int x, int y, bool atomic)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -781,13 +783,26 @@ nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	int arb_burst, arb_lwm;
 	int ret;
 
-	ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM);
-	if (ret)
-		return ret;
+	/* If atomic, we want to switch to the fb we were passed, so
+	 * now we update pointers to do that.  (We don't pin; just
+	 * assume we're already pinned and update the base address.)
+	 */
+	if (atomic) {
+		drm_fb = passed_fb;
+		fb = nouveau_framebuffer(passed_fb);
+	}
+	else {
+		/* If not atomic, we can go ahead and pin, and unpin the
+		 * old fb we were passed.
+		 */
+		ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM);
+		if (ret)
+			return ret;
 
-	if (old_fb) {
-		struct nouveau_framebuffer *ofb = nouveau_framebuffer(old_fb);
-		nouveau_bo_unpin(ofb->nvbo);
+		if (passed_fb) {
+			struct nouveau_framebuffer *ofb = nouveau_framebuffer(passed_fb);
+			nouveau_bo_unpin(ofb->nvbo);
+		}
 	}
 
 	nv_crtc->fb.offset = fb->nvbo->bo.offset;
@@ -833,6 +848,29 @@ nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	return 0;
+}
+
+static int
+nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+			struct drm_framebuffer *old_fb)
+{
+	return nv04_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
+}
+
+static int
+nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       int x, int y, int enter)
+{
+	struct drm_nouveau_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
+
+	if (enter)
+		nouveau_fbcon_save_disable_accel(dev);
+	else
+		nouveau_fbcon_restore_accel(dev);
+
+	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }
 
 static void nv04_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
@@ -963,6 +1001,7 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.mode_fixup = nv_crtc_mode_fixup,
 	.mode_set = nv_crtc_mode_set,
 	.mode_set_base = nv04_crtc_mode_set_base,
+	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,
 	.load_lut = nv_crtc_gamma_load,
 };
 

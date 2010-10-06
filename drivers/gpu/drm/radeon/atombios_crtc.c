@@ -854,13 +854,15 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 
 }
 
-static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
-				   struct drm_framebuffer *old_fb)
+static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
+				      struct drm_framebuffer *fb,
+				      int x, int y, int atomic)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_framebuffer *radeon_fb;
+	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
 	uint64_t fb_location;
@@ -868,28 +870,43 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	int r;
 
 	/* no fb bound */
-	if (!crtc->fb) {
+	if (!atomic && !crtc->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
-	radeon_fb = to_radeon_framebuffer(crtc->fb);
+	if (atomic) {
+		radeon_fb = to_radeon_framebuffer(fb);
+		target_fb = fb;
+	}
+	else {
+		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		target_fb = crtc->fb;
+	}
 
-	/* Pin framebuffer & get tilling informations */
+	/* If atomic, assume fb object is pinned & idle & fenced and
+	 * just update base pointers
+	 */
 	obj = radeon_fb->obj;
 	rbo = obj->driver_private;
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
-	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
-	if (unlikely(r != 0)) {
-		radeon_bo_unreserve(rbo);
-		return -EINVAL;
+
+	if (atomic)
+		fb_location = radeon_bo_gpu_offset(rbo);
+	else {
+		r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
+		if (unlikely(r != 0)) {
+			radeon_bo_unreserve(rbo);
+			return -EINVAL;
+		}
 	}
+
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (target_fb->bits_per_pixel) {
 	case 8:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_8BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_INDEXED));
@@ -909,7 +926,7 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen depth %d\n",
-			  crtc->fb->bits_per_pixel);
+			  target_fb->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -955,10 +972,10 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_X_START + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_Y_START + radeon_crtc->crtc_offset, 0);
-	WREG32(EVERGREEN_GRPH_X_END + radeon_crtc->crtc_offset, crtc->fb->width);
-	WREG32(EVERGREEN_GRPH_Y_END + radeon_crtc->crtc_offset, crtc->fb->height);
+	WREG32(EVERGREEN_GRPH_X_END + radeon_crtc->crtc_offset, target_fb->width);
+	WREG32(EVERGREEN_GRPH_Y_END + radeon_crtc->crtc_offset, target_fb->height);
 
-	fb_pitch_pixels = crtc->fb->pitch / (crtc->fb->bits_per_pixel / 8);
+	fb_pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
 	WREG32(EVERGREEN_GRPH_PITCH + radeon_crtc->crtc_offset, fb_pitch_pixels);
 	WREG32(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
@@ -977,8 +994,8 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	else
 		WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
 
-	if (old_fb && old_fb != crtc->fb) {
-		radeon_fb = to_radeon_framebuffer(old_fb);
+	if (!atomic && fb && fb != crtc->fb) {
+		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = radeon_fb->obj->driver_private;
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
@@ -993,8 +1010,9 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
-			       struct drm_framebuffer *old_fb)
+static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
+				  struct drm_framebuffer *fb,
+				  int x, int y, int atomic)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -1002,33 +1020,48 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	struct radeon_framebuffer *radeon_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
+	struct drm_framebuffer *target_fb;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	int r;
 
 	/* no fb bound */
-	if (!crtc->fb) {
+	if (!atomic && !crtc->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
-	radeon_fb = to_radeon_framebuffer(crtc->fb);
+	if (atomic) {
+		radeon_fb = to_radeon_framebuffer(fb);
+		target_fb = fb;
+	}
+	else {
+		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		target_fb = crtc->fb;
+	}
 
-	/* Pin framebuffer & get tilling informations */
 	obj = radeon_fb->obj;
 	rbo = obj->driver_private;
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
-	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
-	if (unlikely(r != 0)) {
-		radeon_bo_unreserve(rbo);
-		return -EINVAL;
+
+	/* If atomic, assume fb object is pinned & idle & fenced and
+	 * just update base pointers
+	 */
+	if (atomic)
+		fb_location = radeon_bo_gpu_offset(rbo);
+	else {
+		r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
+		if (unlikely(r != 0)) {
+			radeon_bo_unreserve(rbo);
+			return -EINVAL;
+		}
 	}
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (target_fb->bits_per_pixel) {
 	case 8:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
@@ -1052,7 +1085,7 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen depth %d\n",
-			  crtc->fb->bits_per_pixel);
+			  target_fb->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -1093,10 +1126,10 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
-	WREG32(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, crtc->fb->width);
-	WREG32(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, crtc->fb->height);
+	WREG32(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, target_fb->width);
+	WREG32(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, target_fb->height);
 
-	fb_pitch_pixels = crtc->fb->pitch / (crtc->fb->bits_per_pixel / 8);
+	fb_pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
 	WREG32(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset, fb_pitch_pixels);
 	WREG32(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
@@ -1115,8 +1148,8 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	else
 		WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
 
-	if (old_fb && old_fb != crtc->fb) {
-		radeon_fb = to_radeon_framebuffer(old_fb);
+	if (!atomic && fb && fb != crtc->fb) {
+		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = radeon_fb->obj->driver_private;
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
@@ -1138,11 +1171,26 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (ASIC_IS_DCE4(rdev))
-		return evergreen_crtc_set_base(crtc, x, y, old_fb);
+		return evergreen_crtc_do_set_base(crtc, old_fb, x, y, 0);
 	else if (ASIC_IS_AVIVO(rdev))
-		return avivo_crtc_set_base(crtc, x, y, old_fb);
+		return avivo_crtc_do_set_base(crtc, old_fb, x, y, 0);
 	else
-		return radeon_crtc_set_base(crtc, x, y, old_fb);
+		return radeon_crtc_do_set_base(crtc, old_fb, x, y, 0);
+}
+
+int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
+                                  struct drm_framebuffer *fb,
+                                  int x, int y, int enter)
+{
+       struct drm_device *dev = crtc->dev;
+       struct radeon_device *rdev = dev->dev_private;
+
+	if (ASIC_IS_DCE4(rdev))
+		return evergreen_crtc_do_set_base(crtc, fb, x, y, 1);
+	else if (ASIC_IS_AVIVO(rdev))
+		return avivo_crtc_do_set_base(crtc, fb, x, y, 1);
+	else
+		return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
 }
 
 /* properly set additional regs when using atombios */
@@ -1311,6 +1359,7 @@ static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.mode_fixup = atombios_crtc_mode_fixup,
 	.mode_set = atombios_crtc_mode_set,
 	.mode_set_base = atombios_crtc_set_base,
+	.mode_set_base_atomic = atombios_crtc_set_base_atomic,
 	.prepare = atombios_crtc_prepare,
 	.commit = atombios_crtc_commit,
 	.load_lut = radeon_crtc_load_lut,

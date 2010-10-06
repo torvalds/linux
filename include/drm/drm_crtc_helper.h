@@ -61,7 +61,8 @@ struct drm_crtc_helper_funcs {
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
 	int (*mode_set_base_atomic)(struct drm_crtc *crtc,
-				    struct drm_framebuffer *fb, int x, int y);
+				    struct drm_framebuffer *fb, int x, int y,
+				    int is_enter);
 
 	/* reload the current crtc LUT */
 	void (*load_lut)(struct drm_crtc *crtc);

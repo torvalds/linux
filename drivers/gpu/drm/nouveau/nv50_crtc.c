@@ -487,8 +487,9 @@ nv50_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
 }
 
 static int
-nv50_crtc_do_mode_set_base(struct drm_crtc *crtc, int x, int y,
-			   struct drm_framebuffer *old_fb, bool update)
+nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
+			   struct drm_framebuffer *passed_fb,
+			   int x, int y, bool update, bool atomic)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = nv_crtc->base.dev;
@@ -499,6 +500,28 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	int ret, format;
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
+
+	/* If atomic, we want to switch to the fb we were passed, so
+	 * now we update pointers to do that.  (We don't pin; just
+	 * assume we're already pinned and update the base address.)
+	 */
+	if (atomic) {
+		drm_fb = passed_fb;
+		fb = nouveau_framebuffer(passed_fb);
+	}
+	else {
+		/* If not atomic, we can go ahead and pin, and unpin the
+		 * old fb we were passed.
+		 */
+		ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM);
+		if (ret)
+			return ret;
+
+		if (passed_fb) {
+			struct nouveau_framebuffer *ofb = nouveau_framebuffer(passed_fb);
+			nouveau_bo_unpin(ofb->nvbo);
+		}
+	}
 
 	switch (drm_fb->depth) {
 	case  8:
@@ -520,15 +543,6 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	default:
 		 NV_ERROR(dev, "unknown depth %d\n", drm_fb->depth);
 		 return -EINVAL;
-	}
-
-	ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM);
-	if (ret)
-		return ret;
-
-	if (old_fb) {
-		struct nouveau_framebuffer *ofb = nouveau_framebuffer(old_fb);
-		nouveau_bo_unpin(ofb->nvbo);
 	}
 
 	nv_crtc->fb.offset = fb->nvbo->bo.offset - dev_priv->vm_vram_base;
@@ -681,14 +695,22 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	nv_crtc->set_dither(nv_crtc, nv_connector->use_dithering, false);
 	nv_crtc->set_scale(nv_crtc, nv_connector->scaling_mode, false);
 
-	return nv50_crtc_do_mode_set_base(crtc, x, y, old_fb, false);
+	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false, false);
 }
 
 static int
 nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			struct drm_framebuffer *old_fb)
 {
-	return nv50_crtc_do_mode_set_base(crtc, x, y, old_fb, true);
+	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, true, false);
+}
+
+static int
+nv50_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       int x, int y, int enter)
+{
+	return nv50_crtc_do_mode_set_base(crtc, fb, x, y, true, true);
 }
 
 static const struct drm_crtc_helper_funcs nv50_crtc_helper_funcs = {
@@ -698,6 +720,7 @@ static const struct drm_crtc_helper_funcs nv50_crtc_helper_funcs = {
 	.mode_fixup = nv50_crtc_mode_fixup,
 	.mode_set = nv50_crtc_mode_set,
 	.mode_set_base = nv50_crtc_mode_set_base,
+	.mode_set_base_atomic = nv50_crtc_mode_set_base_atomic,
 	.load_lut = nv50_crtc_lut_load,
 };
 
