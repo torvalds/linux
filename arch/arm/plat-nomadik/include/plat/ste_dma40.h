@@ -162,6 +162,8 @@ struct stedma40_platform_data {
 	int				 disabled_channels[STEDMA40_MAX_PHYS];
 };
 
+#ifdef CONFIG_STE_DMA40
+
 /**
  * stedma40_filter() - Provides stedma40_chan_cfg to the
  * ste_dma40 dma driver via the dmaengine framework.
@@ -222,5 +224,22 @@ dma_async_tx_descriptor *stedma40_slave_mem(struct dma_chan *chan,
 	return chan->device->device_prep_slave_sg(chan, &sg, 1,
 						  direction, flags);
 }
+
+#else
+static inline bool stedma40_filter(struct dma_chan *chan, void *data)
+{
+	return false;
+}
+
+static inline struct
+dma_async_tx_descriptor *stedma40_slave_mem(struct dma_chan *chan,
+					    dma_addr_t addr,
+					    unsigned int size,
+					    enum dma_data_direction direction,
+					    unsigned long flags)
+{
+	return NULL;
+}
+#endif
 
 #endif
