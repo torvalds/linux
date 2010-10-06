@@ -793,24 +793,39 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+/*
+ * Only call this function when a scan can't be queued -- under RTNL.
+ */
 void ieee80211_scan_cancel(struct ieee80211_local *local)
 {
-	bool abortscan;
-	bool finish = false;
-
-	cancel_delayed_work_sync(&local->scan_work);
+	bool abortscan, finish;
 
 	/*
-	 * Only call this function when a scan can't be
-	 * queued -- mostly at suspend under RTNL.
+	 * We are only canceling software scan, or deferred scan that was not
+	 * yet really started (see __ieee80211_start_scan ).
+	 *
+	 * Regarding hardware scan:
+	 * - we can not call  __ieee80211_scan_completed() as when
+	 *   SCAN_HW_SCANNING bit is set this function change
+	 *   local->hw_scan_req to operate on 5G band, what race with
+	 *   driver which can use local->hw_scan_req
+	 *
+	 * - we can not cancel scan_work since driver can schedule it
+	 *   by ieee80211_scan_completed(..., true) to finish scan
+	 *
+	 * Hence low lever driver is responsible for canceling HW scan.
 	 */
+
 	mutex_lock(&local->mtx);
-	abortscan = test_bit(SCAN_SW_SCANNING, &local->scanning) ||
-		    (!local->scanning && local->scan_req);
+	abortscan = local->scan_req && !test_bit(SCAN_HW_SCANNING, &local->scanning);
 	if (abortscan)
 		finish = __ieee80211_scan_completed(&local->hw, true, false);
 	mutex_unlock(&local->mtx);
 
-	if (finish)
-		__ieee80211_scan_completed_finish(&local->hw, false);
+	if (abortscan) {
+		/* The scan is canceled, but stop work from being pending */
+		cancel_delayed_work_sync(&local->scan_work);
+		if (finish)
+			__ieee80211_scan_completed_finish(&local->hw, false);
+	}
 }

@@ -307,8 +307,7 @@ static void ieee80211_restart_work(struct work_struct *work)
 	mutex_unlock(&local->mtx);
 
 	rtnl_lock();
-	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)))
-		ieee80211_scan_cancel(local);
+	ieee80211_scan_cancel(local);
 	ieee80211_reconfig(local);
 	rtnl_unlock();
 }
