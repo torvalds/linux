@@ -41,7 +41,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "common.h"
 

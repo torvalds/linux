@@ -22,7 +22,7 @@
 #include <mach/clkdev.h>
 #include <mach/motherboard.h>
 
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "core.h"
 

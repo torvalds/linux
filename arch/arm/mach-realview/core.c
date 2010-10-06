@@ -50,7 +50,7 @@
 #include <mach/clkdev.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "core.h"
 

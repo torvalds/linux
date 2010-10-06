@@ -21,7 +21,7 @@
 #include <mach/clkdev.h>
 #include <mach/ct-ca9x4.h>
 
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
