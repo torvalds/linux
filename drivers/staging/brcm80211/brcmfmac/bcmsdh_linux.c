@@ -190,11 +190,13 @@ int bcmsdh_probe(struct device *dev)
 	}
 #endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
-	if (!(osh = osl_attach(dev, PCI_BUS, FALSE))) {
+	osh = osl_attach(dev, PCI_BUS, FALSE);
+	if (!osh) {
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
 	}
-	if (!(sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t)))) {
+	sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t));
+	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory, allocated %d bytes\n",
 			  __func__, MALLOCED(osh)));
 		goto err;
@@ -205,14 +207,14 @@ int bcmsdh_probe(struct device *dev)
 	sdhc->dev = (void *)dev;
 
 #ifdef BCMLXSDMMC
-	if (!(sdh = bcmsdh_attach(osh, (void *)0,
-		 (void **)&regs, irq))) {
+	sdh = bcmsdh_attach(osh, (void *)0, (void **)&regs, irq);
+	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
 #else
-	if (!(sdh = bcmsdh_attach(osh, (void *)r->start,
-		 (void **)&regs, irq))) {
+	sdh = bcmsdh_attach(osh, (void *)r->start, (void **)&regs, irq);
+	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
@@ -232,9 +234,9 @@ int bcmsdh_probe(struct device *dev)
 	vendevid = bcmsdh_query_device(sdh);
 
 	/* try to attach to the target device */
-	if (!(sdhc->ch = drvinfo.attach((vendevid >> 16),
-					(vendevid & 0xFFFF), 0, 0, 0, 0,
-					(void *)regs, NULL, sdh))) {
+	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
+				0, 0, 0, 0, (void *)regs, NULL, sdh);
+	if (!sdhc->ch) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;
 	}
@@ -386,7 +388,8 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		SDLX_MSG(("%s: Disabling TI FlashMedia Controller.\n",
 			  __func__));
-		if (!(osh = osl_attach(pdev, PCI_BUS, FALSE))) {
+		osh = osl_attach(pdev, PCI_BUS, FALSE);
+		if (!osh) {
 			SDLX_MSG(("%s: osl_attach failed\n", __func__));
 			goto err;
 		}
@@ -420,11 +423,13 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 
 	/* allocate SDIO Host Controller state info */
-	if (!(osh = osl_attach(pdev, PCI_BUS, FALSE))) {
+	osh = osl_attach(pdev, PCI_BUS, FALSE);
+	if (!osh) {
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
 	}
-	if (!(sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t)))) {
+	sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t));
+	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory, allocated %d bytes\n",
 			  __func__, MALLOCED(osh)));
 		goto err;
@@ -441,10 +446,9 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		SDLX_MSG(("%s: Cannot enable PCI device\n", __func__));
 		goto err;
 	}
-	if (!
-	    (sdh =
-	     bcmsdh_attach(osh, (void *)(uintptr) pci_resource_start(pdev, 0),
-			   (void **)&regs, pdev->irq))) {
+	sdh = bcmsdh_attach(osh, (void *)(uintptr) pci_resource_start(pdev, 0),
+			(void **)&regs, pdev->irq);
+	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
@@ -452,9 +456,10 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sdhc->sdh = sdh;
 
 	/* try to attach to the target device */
-	if (!(sdhc->ch = drvinfo.attach(VENDOR_BROADCOM, /* pdev->vendor, */
-					bcmsdh_query_device(sdh) & 0xFFFF, 0, 0,
-					0, 0, (void *)regs, NULL, sdh))) {
+	sdhc->ch = drvinfo.attach(VENDOR_BROADCOM, /* pdev->vendor, */
+				bcmsdh_query_device(sdh) & 0xFFFF, 0, 0, 0, 0,
+				(void *)regs, NULL, sdh);
+	if (!sdhc->ch) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;
 	}
@@ -531,7 +536,8 @@ int bcmsdh_register(bcmsdh_driver_t *driver)
 #endif				/* defined(BCMPLATFORM_BUS) */
 
 #if !defined(BCMPLATFORM_BUS) && !defined(BCMLXSDMMC)
-	if (!(error = pci_register_driver(&bcmsdh_pci_driver)))
+	error = pci_register_driver(&bcmsdh_pci_driver);
+	if (!error)
 		return 0;
 
 	SDLX_MSG(("%s: pci_module_init failed 0x%x\n", __func__, error));

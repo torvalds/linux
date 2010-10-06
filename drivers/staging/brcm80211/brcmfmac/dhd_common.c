@@ -1079,14 +1079,16 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	char *arg_save = 0, *arg_org = 0;
 #define BUF_SIZE		2048
 
-	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
+	arg_save = MALLOC(dhd->osh, strlen(arg) + 1);
+	if (!arg_save) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
 
 	arg_org = arg_save;
 
-	if (!(buf = MALLOC(dhd->osh, BUF_SIZE))) {
+	buf = MALLOC(dhd->osh, BUF_SIZE);
+	if (!buf) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
@@ -1764,15 +1766,14 @@ int dhd_pno_clean(dhd_pub_t *dhd)
 	/* Disable pfn */
 	iov_len =
 	    bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf, sizeof(iovbuf));
-	if ((ret =
-	     dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
-			      sizeof(iovbuf))) >= 0) {
+	ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	if (ret >= 0) {
 		/* clear pfn */
 		iov_len = bcm_mkiovar("pfnclear", 0, 0, iovbuf, sizeof(iovbuf));
 		if (iov_len) {
-			if ((ret =
-			     dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
-					      iov_len)) < 0) {
+			ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+					iov_len);
+			if (ret < 0) {
 				DHD_ERROR(("%s failed code %d\n", __func__,
 					   ret));
 			}
@@ -1797,12 +1798,12 @@ int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 	}
 
 	/* Enable/disable PNO */
-	if ((ret =
-	     bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
-			 sizeof(iovbuf))) > 0) {
-		if ((ret =
-		     dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
-				      sizeof(iovbuf))) < 0) {
+	ret = bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
+			sizeof(iovbuf));
+	if (ret > 0) {
+		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+				sizeof(iovbuf));
+		if (ret < 0) {
 			DHD_ERROR(("%s failed for error=%d\n", __func__, ret));
 			return ret;
 		} else {
@@ -1854,7 +1855,8 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 #endif				/* PNO_DUMP */
 
 	/* clean up everything */
-	if ((err = dhd_pno_clean(dhd)) < 0) {
+	err = dhd_pno_clean(dhd);
+	if (err < 0) {
 		DHD_ERROR(("%s failed error=%d\n", __func__, err));
 		return err;
 	}
@@ -1886,13 +1888,12 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 		       ssids_local[i].SSID_len);
 		pfn_element.ssid.SSID_len = ssids_local[i].SSID_len;
 
-		if ((err =
-		     bcm_mkiovar("pfn_add", (char *)&pfn_element,
-				 sizeof(pfn_element), iovbuf,
-				 sizeof(iovbuf))) > 0) {
-			if ((err =
-			     dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
-					      sizeof(iovbuf))) < 0) {
+		err = bcm_mkiovar("pfn_add", (char *)&pfn_element,
+				sizeof(pfn_element), iovbuf, sizeof(iovbuf));
+		if (err > 0) {
+			err = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+					sizeof(iovbuf));
+			if (err < 0) {
 				DHD_ERROR(("%s failed for i=%d error=%d\n",
 					   __func__, i, err));
 				return err;

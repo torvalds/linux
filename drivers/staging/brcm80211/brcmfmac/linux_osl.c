@@ -175,9 +175,9 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 #ifdef DHD_USE_STATIC_BUF
 
 	if (!bcm_static_buf) {
-		if (!(bcm_static_buf =
-		     (bcm_static_buf_t *) dhd_os_prealloc(3,
-			  STATIC_BUF_SIZE + STATIC_BUF_TOTAL_LEN))) {
+		bcm_static_buf = (bcm_static_buf_t *) dhd_os_prealloc(3,
+					STATIC_BUF_SIZE + STATIC_BUF_TOTAL_LEN);
+		if (!bcm_static_buf) {
 			printk(KERN_ERR "can not alloc static buf!\n");
 		} else
 			printk(KERN_ERR "alloc static buf at %x!\n",
@@ -228,7 +228,8 @@ void *osl_pktget(osl_t *osh, uint len)
 {
 	struct sk_buff *skb;
 
-	if ((skb = dev_alloc_skb(len))) {
+	skb = dev_alloc_skb(len);
+	if (skb) {
 		skb_put(skb, len);
 		skb->priority = 0;
 
@@ -428,7 +429,8 @@ void *osl_malloc(osl_t *osh, uint size)
 original:
 #endif				/* DHD_USE_STATIC_BUF */
 
-	if ((addr = kmalloc(size, GFP_ATOMIC)) == NULL) {
+	addr = kmalloc(size, GFP_ATOMIC);
+	if (addr == NULL) {
 		if (osh)
 			osh->failed++;
 		return NULL;
@@ -577,7 +579,8 @@ void *osl_pktdup(osl_t *osh, void *skb)
 {
 	void *p;
 
-	if ((p = skb_clone((struct sk_buff *)skb, GFP_ATOMIC)) == NULL)
+	p = skb_clone((struct sk_buff *)skb, GFP_ATOMIC);
+	if (p == NULL)
 		return NULL;
 
 	if (osh->pub.pkttag)
