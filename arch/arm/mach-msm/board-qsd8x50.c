@@ -76,6 +76,7 @@ module_init(msm_init_smc91x);
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
+	&msm_device_smd,
 };
 
 static void __init qsd8x50_map_io(void)
