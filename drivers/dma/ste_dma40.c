@@ -2246,14 +2246,25 @@ static void d40_set_runtime_config(struct dma_chan *chan,
 		return;
 	}
 
-	if (config_maxburst >= 16)
-		psize = STEDMA40_PSIZE_LOG_16;
-	else if (config_maxburst >= 8)
-		psize = STEDMA40_PSIZE_LOG_8;
-	else if (config_maxburst >= 4)
-		psize = STEDMA40_PSIZE_LOG_4;
-	else
-		psize = STEDMA40_PSIZE_LOG_1;
+	if (d40c->log_num != D40_PHY_CHAN) {
+		if (config_maxburst >= 16)
+			psize = STEDMA40_PSIZE_LOG_16;
+		else if (config_maxburst >= 8)
+			psize = STEDMA40_PSIZE_LOG_8;
+		else if (config_maxburst >= 4)
+			psize = STEDMA40_PSIZE_LOG_4;
+		else
+			psize = STEDMA40_PSIZE_LOG_1;
+	} else {
+		if (config_maxburst >= 16)
+			psize = STEDMA40_PSIZE_PHY_16;
+		else if (config_maxburst >= 8)
+			psize = STEDMA40_PSIZE_PHY_8;
+		else if (config_maxburst >= 4)
+			psize = STEDMA40_PSIZE_PHY_4;
+		else
+			psize = STEDMA40_PSIZE_PHY_1;
+	}
 
 	/* Set up all the endpoint configs */
 	cfg->src_info.data_width = addr_width;
@@ -2264,6 +2275,13 @@ static void d40_set_runtime_config(struct dma_chan *chan,
 	cfg->dst_info.psize = psize;
 	cfg->dst_info.endianess = STEDMA40_LITTLE_ENDIAN;
 	cfg->dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL;
+
+	/* Fill in register values */
+	if (d40c->log_num != D40_PHY_CHAN)
+		d40_log_cfg(cfg, &d40c->log_def.lcsp1, &d40c->log_def.lcsp3);
+	else
+		d40_phy_cfg(cfg, &d40c->src_def_cfg,
+			    &d40c->dst_def_cfg, false);
 
 	/* These settings will take precedence later */
 	d40c->runtime_addr = config_addr;
