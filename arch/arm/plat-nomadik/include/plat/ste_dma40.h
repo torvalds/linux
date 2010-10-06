@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson SA 2007-2010
- * Author: Per Friden <per.friden@stericsson.com> for ST-Ericsson
+ * Author: Per Forlin <per.forlin@stericsson.com> for ST-Ericsson
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
  */
@@ -123,10 +123,6 @@ struct stedma40_half_channel_info {
  * @dst_dev_type: Dst device type
  * @src_info: Parameters for dst half channel
  * @dst_info: Parameters for dst half channel
- * @pre_transfer_data: Data to be passed on to the pre_transfer() function.
- * @pre_transfer: Callback used if needed before preparation of transfer.
- * Only called if device is set. size of bytes to transfer
- * (in case of multiple element transfer size is size of the first element).
  *
  *
  * This structure has to be filled by the client drivers.
@@ -140,10 +136,6 @@ struct stedma40_chan_cfg {
 	int					 dst_dev_type;
 	struct stedma40_half_channel_info	 src_info;
 	struct stedma40_half_channel_info	 dst_info;
-	void					*pre_transfer_data;
-	int (*pre_transfer)			(struct dma_chan *chan,
-						 void *data,
-						 int size);
 };
 
 /**
@@ -169,20 +161,6 @@ struct stedma40_platform_data {
 	struct stedma40_chan_cfg	*memcpy_conf_log;
 	int				 disabled_channels[STEDMA40_MAX_PHYS];
 };
-
-/**
- * setdma40_set_psize() - Used for changing the package size of an
- * already configured dma channel.
- *
- * @chan: dmaengine handle
- * @src_psize: new package side for src. (STEDMA40_PSIZE*)
- * @src_psize: new package side for dst. (STEDMA40_PSIZE*)
- *
- * returns 0 on ok, otherwise negative error number.
- */
-int stedma40_set_psize(struct dma_chan *chan,
-		       int src_psize,
-		       int dst_psize);
 
 /**
  * stedma40_filter() - Provides stedma40_chan_cfg to the

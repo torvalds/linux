@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson SA 2007-2010
- * Author: Per Friden <per.friden@stericsson.com> for ST-Ericsson
+ * Author: Per Forlin <per.forlin@stericsson.com> for ST-Ericsson
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
  */
@@ -1593,51 +1593,6 @@ static u32 stedma40_residue(struct dma_chan *chan)
 	return bytes_left;
 }
 
-/* Public DMA functions in addition to the DMA engine framework */
-
-int stedma40_set_psize(struct dma_chan *chan,
-		       int src_psize,
-		       int dst_psize)
-{
-	struct d40_chan *d40c =
-		container_of(chan, struct d40_chan, chan);
-	unsigned long flags;
-
-	spin_lock_irqsave(&d40c->lock, flags);
-
-	if (d40c->log_num != D40_PHY_CHAN) {
-		d40c->log_def.lcsp1 &= ~D40_MEM_LCSP1_SCFG_PSIZE_MASK;
-		d40c->log_def.lcsp3 &= ~D40_MEM_LCSP1_SCFG_PSIZE_MASK;
-		d40c->log_def.lcsp1 |= src_psize <<
-			D40_MEM_LCSP1_SCFG_PSIZE_POS;
-		d40c->log_def.lcsp3 |= dst_psize <<
-			D40_MEM_LCSP1_SCFG_PSIZE_POS;
-		goto out;
-	}
-
-	if (src_psize == STEDMA40_PSIZE_PHY_1)
-		d40c->src_def_cfg &= ~(1 << D40_SREG_CFG_PHY_PEN_POS);
-	else {
-		d40c->src_def_cfg |= 1 << D40_SREG_CFG_PHY_PEN_POS;
-		d40c->src_def_cfg &= ~(STEDMA40_PSIZE_PHY_16 <<
-				       D40_SREG_CFG_PSIZE_POS);
-		d40c->src_def_cfg |= src_psize << D40_SREG_CFG_PSIZE_POS;
-	}
-
-	if (dst_psize == STEDMA40_PSIZE_PHY_1)
-		d40c->dst_def_cfg &= ~(1 << D40_SREG_CFG_PHY_PEN_POS);
-	else {
-		d40c->dst_def_cfg |= 1 << D40_SREG_CFG_PHY_PEN_POS;
-		d40c->dst_def_cfg &= ~(STEDMA40_PSIZE_PHY_16 <<
-				       D40_SREG_CFG_PSIZE_POS);
-		d40c->dst_def_cfg |= dst_psize << D40_SREG_CFG_PSIZE_POS;
-	}
-out:
-	spin_unlock_irqrestore(&d40c->lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(stedma40_set_psize);
-
 struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 						   struct scatterlist *sgl_dst,
 						   struct scatterlist *sgl_src,
@@ -2074,11 +2029,6 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 			"[%s] Cannot prepare unallocated channel\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-
-	if (d40c->dma_cfg.pre_transfer)
-		d40c->dma_cfg.pre_transfer(chan,
-					   d40c->dma_cfg.pre_transfer_data,
-					   sg_dma_len(sgl));
 
 	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
