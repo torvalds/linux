@@ -1411,9 +1411,10 @@ xfs_trans_item_committed(
  */
 STATIC void
 xfs_trans_committed(
-	struct xfs_trans	*tp,
+	void			*arg,
 	int			abortflag)
 {
+	struct xfs_trans	*tp = arg;
 	struct xfs_log_item_desc *lidp, *next;
 
 	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
@@ -1543,7 +1544,7 @@ xfs_trans_commit_iclog(
 	 * running in simulation mode (the log is explicitly turned
 	 * off).
 	 */
-	tp->t_logcb.cb_func = (void(*)(void*, int))xfs_trans_committed;
+	tp->t_logcb.cb_func = xfs_trans_committed;
 	tp->t_logcb.cb_arg = tp;
 
 	/*
