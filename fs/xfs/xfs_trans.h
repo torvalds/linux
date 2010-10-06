@@ -399,8 +399,6 @@ typedef struct xfs_trans {
 						 * transaction. */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
 	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
-	xfs_trans_callback_t	t_callback;	/* transaction callback */
-	void			*t_callarg;	/* callback arg */
 	unsigned int		t_flags;	/* misc flags */
 	int64_t			t_icount_delta;	/* superblock icount change */
 	int64_t			t_ifree_delta;	/* superblock ifree change */

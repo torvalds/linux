@@ -1416,10 +1416,6 @@ xfs_trans_committed(
 {
 	struct xfs_log_item_desc *lidp, *next;
 
-	/* Call the transaction's completion callback if there is one. */
-	if (tp->t_callback != NULL)
-		tp->t_callback(tp, tp->t_callarg);
-
 	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
 		xfs_trans_item_committed(lidp->lid_item, tp->t_lsn, abortflag);
 		xfs_trans_free_item_desc(lidp);
