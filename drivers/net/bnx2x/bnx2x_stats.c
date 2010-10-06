@@ -1339,6 +1339,7 @@ void bnx2x_stats_init(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	int mb_idx = BP_FW_MB_IDX(bp);
 	int i;
+	struct eth_stats_query *stats = bnx2x_sp(bp, fw_stats);
 
 	bp->stats_pending = 0;
 	bp->executer_idx = 0;
@@ -1378,6 +1379,18 @@ void bnx2x_stats_init(struct bnx2x *bp)
 		memset(&fp->old_xclient, 0,
 		       sizeof(struct xstorm_per_client_stats));
 		memset(&fp->eth_q_stats, 0, sizeof(struct bnx2x_eth_q_stats));
+	}
+
+	for_each_queue(bp, i) {
+		/* Set initial stats counter in the stats ramrod data to -1 */
+		int cl_id = bp->fp[i].cl_id;
+
+		stats->xstorm_common.client_statistics[cl_id].
+			stats_counter = 0xffff;
+		stats->ustorm_common.client_statistics[cl_id].
+			stats_counter = 0xffff;
+		stats->tstorm_common.client_statistics[cl_id].
+			stats_counter = 0xffff;
 	}
 
 	memset(&bp->dev->stats, 0, sizeof(struct net_device_stats));
