@@ -29,28 +29,26 @@
 
 int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
 {
-	unsigned long numvals;
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int count = 0, ret;
 	u16 *ring_data;
-	if (!(st->indio_dev->ring->scan_mask & mask)) {
+	if (!(ring->scan_mask & mask)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	numvals = st->indio_dev->ring->scan_count;
 
-	ring_data = kmalloc(numvals*2, GFP_KERNEL);
+	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ret = st->indio_dev->ring->access.read_last(st->indio_dev->ring,
-						(u8 *) ring_data);
+	ret = ring->access.read_last(ring, (u8 *) ring_data);
 	if (ret)
 		goto error_free_ring_data;
 	/* Need a count of channels prior to this one */
 	mask >>= 1;
 	while (mask) {
-		if (mask & st->indio_dev->ring->scan_mask)
+		if (mask & ring->scan_mask)
 			count++;
 		mask >>= 1;
 	}
