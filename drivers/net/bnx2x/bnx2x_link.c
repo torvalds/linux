@@ -28,7 +28,7 @@
 
 /********************************************************/
 #define ETH_HLEN			14
-#define ETH_OVREHEAD		(ETH_HLEN + 8)/* 8 for CRC + VLAN*/
+#define ETH_OVREHEAD		(ETH_HLEN + 8 + 8)/* 16 for CRC + VLAN + LLC */
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
@@ -4066,6 +4066,7 @@ static u8 bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
 			  "verification\n");
 		return -EINVAL;
 	}
+
 	fw_cmd_param = FW_PARAM_SET(phy->addr, phy->type, phy->mdio_ctrl);
 	fw_resp = bnx2x_fw_command(bp, cmd, fw_cmd_param);
 	if (fw_resp == FW_MSG_CODE_VRFY_OPT_MDL_SUCCESS) {

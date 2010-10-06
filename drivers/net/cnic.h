@@ -12,6 +12,13 @@
 #ifndef CNIC_H
 #define CNIC_H
 
+#define HC_INDEX_ISCSI_EQ_CONS			6
+
+#define HC_INDEX_FCOE_EQ_CONS			3
+
+#define HC_SP_INDEX_ETH_ISCSI_CQ_CONS		5
+#define HC_SP_INDEX_ETH_ISCSI_RX_CQ_CONS	1
+
 #define KWQ_PAGE_CNT	4
 #define KCQ_PAGE_CNT	16
 
@@ -179,6 +186,14 @@ struct kcq_info {
 	u32		io_addr;
 };
 
+struct iro {
+	u32 base;
+	u16 m1;
+	u16 m2;
+	u16 m3;
+	u16 size;
+};
+
 struct cnic_local {
 
 	spinlock_t cnic_ulp_lock;
@@ -213,6 +228,9 @@ struct cnic_local {
 	u16		rx_cons;
 	u16		tx_cons;
 
+	struct iro		*iro_arr;
+#define IRO (((struct cnic_local *) dev->cnic_priv)->iro_arr)
+
 	struct cnic_dma		kwq_info;
 	struct kwqe		**kwq;
 
@@ -231,12 +249,16 @@ struct cnic_local {
 	union {
 		void				*gen;
 		struct status_block_msix	*bnx2;
-		struct host_status_block	*bnx2x;
+		struct host_hc_status_block_e1x	*bnx2x_e1x;
+		/* index values - which counter to update */
+		#define SM_RX_ID		0
+		#define SM_TX_ID		1
 	} status_blk;
 
-	struct host_def_status_block	*bnx2x_def_status_blk;
+	struct host_sp_status_block	*bnx2x_def_status_blk;
 
 	u32				status_blk_num;
+	u32				bnx2x_igu_sb_id;
 	u32				int_num;
 	u32				last_status_idx;
 	struct tasklet_struct		cnic_irq_task;
@@ -358,24 +380,33 @@ struct bnx2x_bd_chain_next {
 		(BNX2X_MAX_RCQ_DESC_CNT - 1)) ?				\
 		((x) + 2) : ((x) + 1)
 
-#define BNX2X_DEF_SB_ID			16
+#define BNX2X_DEF_SB_ID			HC_SP_SB_ID
 
-#define BNX2X_ISCSI_RX_SB_INDEX_NUM					\
-		((HC_INDEX_DEF_U_ETH_ISCSI_RX_CQ_CONS << \
-		  USTORM_ETH_ST_CONTEXT_CONFIG_CQE_SB_INDEX_NUMBER_SHIFT) & \
-		 USTORM_ETH_ST_CONTEXT_CONFIG_CQE_SB_INDEX_NUMBER)
+#define BNX2X_SHMEM_MF_BLK_OFFSET	0x7e4
 
 #define BNX2X_SHMEM_ADDR(base, field)	(base + \
 					 offsetof(struct shmem_region, field))
 
-#define CNIC_PORT(cp)			((cp)->func % PORT_MAX)
-#define CNIC_FUNC(cp)			((cp)->func)
-#define CNIC_E1HVN(cp)			((cp)->func >> 1)
+#define BNX2X_SHMEM2_ADDR(base, field)	(base + \
+					 offsetof(struct shmem2_region, field))
 
-#define BNX2X_HW_CID(cp, x)		(((CNIC_FUNC(cp) % PORT_MAX) << 23) | \
+#define BNX2X_SHMEM2_HAS(base, field)				\
+		((base) &&					\
+		 (CNIC_RD(dev, BNX2X_SHMEM2_ADDR(base, size)) >	\
+		  offsetof(struct shmem2_region, field)))
+
+#define CNIC_PORT(cp)			((cp)->pfid & 1)
+#define CNIC_FUNC(cp)			((cp)->func)
+#define CNIC_E1HVN(cp)			((cp)->pfid >> 1)
+
+#define BNX2X_HW_CID(cp, x)		((CNIC_PORT(cp) << 23) | \
 					 (CNIC_E1HVN(cp) << 17) | (x))
 
 #define BNX2X_SW_CID(x)			(x & 0x1ffff)
 
+#define BNX2X_CL_QZONE_ID(cp, cli)					\
+		(cli + (CNIC_PORT(cp) * ETH_MAX_RX_CLIENTS_E1H))
+
+#define TCP_TSTORM_OOO_DROP_AND_PROC_ACK	(0<<4)
 #endif
 

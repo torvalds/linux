@@ -153,7 +153,7 @@ static inline long bnx2x_hilo(u32 *hiref)
 static void bnx2x_storm_stats_post(struct bnx2x *bp)
 {
 	if (!bp->stats_pending) {
-		struct eth_query_ramrod_data ramrod_data = {0};
+		struct common_query_ramrod_data ramrod_data = {0};
 		int i, rc;
 
 		spin_lock_bh(&bp->stats_lock);
@@ -163,9 +163,9 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 		for_each_queue(bp, i)
 			ramrod_data.ctr_id_vector |= (1 << bp->fp[i].cl_id);
 
-		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_STAT_QUERY, 0,
+		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STAT_QUERY, 0,
 				   ((u32 *)&ramrod_data)[1],
-				   ((u32 *)&ramrod_data)[0], 0);
+				   ((u32 *)&ramrod_data)[0], 1);
 		if (rc == 0) {
 			/* stats ramrod has it's own slot on the spq */
 			bp->spq_left++;
@@ -398,9 +398,9 @@ static void bnx2x_port_stats_init(struct bnx2x *bp)
 				     BIGMAC_REGISTER_RX_STAT_GR64) >> 2;
 		dmae->src_addr_hi = 0;
 		dmae->dst_addr_lo = U64_LO(bnx2x_sp_mapping(bp, mac_stats) +
-				offsetof(struct bmac_stats, rx_stat_gr64_lo));
+				offsetof(struct bmac1_stats, rx_stat_gr64_lo));
 		dmae->dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, mac_stats) +
-				offsetof(struct bmac_stats, rx_stat_gr64_lo));
+				offsetof(struct bmac1_stats, rx_stat_gr64_lo));
 		dmae->len = (8 + BIGMAC_REGISTER_RX_STAT_GRIPJ -
 			     BIGMAC_REGISTER_RX_STAT_GR64) >> 2;
 		dmae->comp_addr_lo = dmae_reg_go_c[loader_idx] >> 2;
@@ -571,7 +571,7 @@ static void bnx2x_stats_restart(struct bnx2x *bp)
 
 static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 {
-	struct bmac_stats *new = bnx2x_sp(bp, mac_stats.bmac_stats);
+	struct bmac1_stats *new = bnx2x_sp(bp, mac_stats.bmac1_stats);
 	struct host_port_stats *pstats = bnx2x_sp(bp, port_stats);
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
 	struct {

@@ -148,5 +148,46 @@ union init_op {
 	struct raw_op		raw;
 };
 
+#define INITOP_SET		0	/* set the HW directly */
+#define INITOP_CLEAR		1	/* clear the HW directly */
+#define INITOP_INIT		2	/* set the init-value array */
+
+/****************************************************************************
+* ILT management
+****************************************************************************/
+struct ilt_line {
+	dma_addr_t page_mapping;
+	void *page;
+	u32 size;
+};
+
+struct ilt_client_info {
+	u32 page_size;
+	u16 start;
+	u16 end;
+	u16 client_num;
+	u16 flags;
+#define ILT_CLIENT_SKIP_INIT	0x1
+#define ILT_CLIENT_SKIP_MEM	0x2
+};
+
+struct bnx2x_ilt {
+	u32 start_line;
+	struct ilt_line		*lines;
+	struct ilt_client_info	clients[4];
+#define ILT_CLIENT_CDU	0
+#define ILT_CLIENT_QM	1
+#define ILT_CLIENT_SRC	2
+#define ILT_CLIENT_TM	3
+};
+
+/****************************************************************************
+* SRC configuration
+****************************************************************************/
+struct src_ent {
+	u8 opaque[56];
+	u64 next;
+};
+
 #endif /* BNX2X_INIT_H */
 

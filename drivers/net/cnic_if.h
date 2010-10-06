@@ -138,6 +138,7 @@ struct cnic_irq {
 	unsigned int	vector;
 	void		*status_blk;
 	u32		status_blk_num;
+	u32		status_blk_num2;
 	u32		irq_flags;
 #define CNIC_IRQ_FL_MSIX		0x00000001
 };
@@ -152,6 +153,7 @@ struct cnic_eth_dev {
 	struct pci_dev	*pdev;
 	void __iomem	*io_base;
 	void __iomem	*io_base2;
+	void		*iro_arr;
 
 	u32		ctx_tbl_offset;
 	u32		ctx_tbl_len;

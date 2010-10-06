@@ -1343,7 +1343,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	u16 pkt_prod, bd_prod;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_start_bd *tx_start_bd;
-	struct eth_tx_parse_bd *pbd = NULL;
+	struct eth_tx_parse_bd_e1x *pbd_e1x = NULL;
 	dma_addr_t mapping;
 	union eth_rx_cqe *cqe;
 	u8 cqe_fp_flags;
@@ -1399,16 +1399,20 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	tx_start_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
 	tx_start_bd->nbd = cpu_to_le16(2); /* start + pbd */
 	tx_start_bd->nbytes = cpu_to_le16(skb_headlen(skb));
-	tx_start_bd->vlan = cpu_to_le16(pkt_prod);
+	tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
-	tx_start_bd->general_data = ((UNICAST_ADDRESS <<
-				ETH_TX_START_BD_ETH_ADDR_TYPE_SHIFT) | 1);
+	SET_FLAG(tx_start_bd->general_data,
+		 ETH_TX_START_BD_ETH_ADDR_TYPE,
+		 UNICAST_ADDRESS);
+	SET_FLAG(tx_start_bd->general_data,
+		 ETH_TX_START_BD_HDR_NBDS,
+		 1);
 
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
-	pbd = &fp_tx->tx_desc_ring[bd_prod].parse_bd;
+	pbd_e1x = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e1x;
 
-	memset(pbd, 0, sizeof(struct eth_tx_parse_bd));
+	memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
 
 	wmb();
 
@@ -1578,9 +1582,9 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 
 	bp->set_mac_pending++;
 	smp_wmb();
-	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
+	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_SET_MAC, 0,
 			   U64_HI(bnx2x_sp_mapping(bp, mac_config)),
-			   U64_LO(bnx2x_sp_mapping(bp, mac_config)), 0);
+			   U64_LO(bnx2x_sp_mapping(bp, mac_config)), 1);
 	if (rc == 0) {
 		for (i = 0; i < 10; i++) {
 			if (!bp->set_mac_pending)
