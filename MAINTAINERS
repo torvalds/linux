@@ -3331,6 +3331,12 @@ F:	fs/jbd*/
 F:	include/linux/ext*jbd*.h
 F:	include/linux/jbd*.h
 
+JSM Neo PCI based serial card
+M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+L:	linux-serial@vger.kernel.org
+S:	Maintained
+F:	drivers/serial/jsm/
+
 K8TEMP HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
 L:	lm-sensors@lm-sensors.org
