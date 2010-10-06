@@ -42,6 +42,7 @@ void
 nv50_fb_vm_trap(struct drm_device *dev, int display, const char *name)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 	u32 trap[6], idx, chinst;
 	int i, ch;
 
@@ -60,8 +61,10 @@ nv50_fb_vm_trap(struct drm_device *dev, int display, const char *name)
 		return;
 
 	chinst = (trap[2] << 16) | trap[1];
+
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	for (ch = 0; ch < dev_priv->engine.fifo.channels; ch++) {
-		struct nouveau_channel *chan = dev_priv->fifos[ch];
+		struct nouveau_channel *chan = dev_priv->channels.ptr[ch];
 
 		if (!chan || !chan->ramin)
 			continue;
@@ -69,6 +72,7 @@ nv50_fb_vm_trap(struct drm_device *dev, int display, const char *name)
 		if (chinst == chan->ramin->vinst >> 12)
 			break;
 	}
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 
 	NV_INFO(dev, "%s - VM: Trapped %s at %02x%04x%04x status %08x "
 		     "channel %d (0x%08x)\n",

@@ -44,7 +44,8 @@ nv50_fifo_playlist_update(struct drm_device *dev)
 
 	/* We never schedule channel 0 or 127 */
 	for (i = 1, nr = 0; i < 127; i++) {
-		if (dev_priv->fifos[i] && dev_priv->fifos[i]->ramfc) {
+		if (dev_priv->channels.ptr[i] &&
+		    dev_priv->channels.ptr[i]->ramfc) {
 			nv_wo32(cur, (nr * 4), i);
 			nr++;
 		}
@@ -60,7 +61,7 @@ static void
 nv50_fifo_channel_enable(struct drm_device *dev, int channel)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = dev_priv->fifos[channel];
+	struct nouveau_channel *chan = dev_priv->channels.ptr[channel];
 	uint32_t inst;
 
 	NV_DEBUG(dev, "ch%d\n", channel);
@@ -118,7 +119,7 @@ nv50_fifo_init_context_table(struct drm_device *dev)
 	NV_DEBUG(dev, "\n");
 
 	for (i = 0; i < NV50_PFIFO_CTX_TABLE__SIZE; i++) {
-		if (dev_priv->fifos[i])
+		if (dev_priv->channels.ptr[i])
 			nv50_fifo_channel_enable(dev, i);
 		else
 			nv50_fifo_channel_disable(dev, i);
@@ -392,7 +393,7 @@ nv50_fifo_unload_context(struct drm_device *dev)
 	if (chid < 1 || chid >= dev_priv->engine.fifo.channels - 1)
 		return 0;
 
-	chan = dev_priv->fifos[chid];
+	chan = dev_priv->channels.ptr[chid];
 	if (!chan) {
 		NV_ERROR(dev, "Inactive channel on PFIFO: %d\n", chid);
 		return -EINVAL;

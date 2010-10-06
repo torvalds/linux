@@ -190,7 +190,7 @@ nv50_graph_channel(struct drm_device *dev)
 	inst = (inst & NV50_PGRAPH_CTXCTL_CUR_INSTANCE) << 12;
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->fifos[i];
+		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
 
 		if (chan && chan->ramin && chan->ramin->vinst == inst)
 			return chan;

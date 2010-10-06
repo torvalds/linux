@@ -876,8 +876,6 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 	struct nouveau_channel *chan;
 	int ret;
 
-	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(init->channel, file_priv, chan);
-
 	if (init->handle == ~0)
 		return -EINVAL;
 
@@ -893,8 +891,14 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 		return -EPERM;
 	}
 
-	if (nouveau_ramht_find(chan, init->handle))
-		return -EEXIST;
+	chan = nouveau_channel_get(dev, file_priv, init->channel);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+
+	if (nouveau_ramht_find(chan, init->handle)) {
+		ret = -EEXIST;
+		goto out;
+	}
 
 	if (!grc->software)
 		ret = nouveau_gpuobj_gr_new(chan, grc->id, &gr);
@@ -903,7 +907,7 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 	if (ret) {
 		NV_ERROR(dev, "Error creating object: %d (%d/0x%08x)\n",
 			 ret, init->channel, init->handle);
-		return ret;
+		goto out;
 	}
 
 	ret = nouveau_ramht_insert(chan, init->handle, gr);
@@ -911,10 +915,11 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 	if (ret) {
 		NV_ERROR(dev, "Error referencing object: %d (%d/0x%08x)\n",
 			 ret, init->channel, init->handle);
-		return ret;
 	}
 
-	return 0;
+out:
+	nouveau_channel_put(&chan);
+	return ret;
 }
 
 int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
@@ -923,15 +928,20 @@ int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
 	struct drm_nouveau_gpuobj_free *objfree = data;
 	struct nouveau_gpuobj *gpuobj;
 	struct nouveau_channel *chan;
+	int ret = -ENOENT;
 
-	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(objfree->channel, file_priv, chan);
+	chan = nouveau_channel_get(dev, file_priv, objfree->channel);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
 
 	gpuobj = nouveau_ramht_find(chan, objfree->handle);
-	if (!gpuobj)
-		return -ENOENT;
+	if (gpuobj) {
+		nouveau_ramht_remove(chan, objfree->handle);
+		ret = 0;
+	}
 
-	nouveau_ramht_remove(chan, objfree->handle);
-	return 0;
+	nouveau_channel_put(&chan);
+	return ret;
 }
 
 u32

@@ -516,11 +516,11 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		goto out_err;
 
+	mutex_unlock(&dev_priv->channel->mutex);
 	return 0;
 
 out_err:
-	nouveau_channel_free(dev_priv->channel);
-	dev_priv->channel = NULL;
+	nouveau_channel_put(&dev_priv->channel);
 	return ret;
 }
 
@@ -567,6 +567,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out;
 	engine = &dev_priv->engine;
+	spin_lock_init(&dev_priv->channels.lock);
 	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Make the CRTCs and I2C buses accessible */
@@ -713,8 +714,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	if (!engine->graph.accel_blocked) {
 		nouveau_fence_fini(dev);
-		nouveau_channel_free(dev_priv->channel);
-		dev_priv->channel = NULL;
+		nouveau_channel_put(&dev_priv->channel);
 	}
 
 	if (!nouveau_noaccel) {

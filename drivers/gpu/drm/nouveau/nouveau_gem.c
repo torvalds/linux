@@ -146,11 +146,6 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	if (unlikely(dev_priv->ttm.bdev.dev_mapping == NULL))
 		dev_priv->ttm.bdev.dev_mapping = dev_priv->dev->dev_mapping;
 
-	if (req->channel_hint) {
-		NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(req->channel_hint,
-						     file_priv, chan);
-	}
-
 	if (req->info.domain & NOUVEAU_GEM_DOMAIN_VRAM)
 		flags |= TTM_PL_FLAG_VRAM;
 	if (req->info.domain & NOUVEAU_GEM_DOMAIN_GART)
@@ -161,10 +156,18 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	if (!nouveau_gem_tile_flags_valid(dev, req->info.tile_flags))
 		return -EINVAL;
 
+	if (req->channel_hint) {
+		chan = nouveau_channel_get(dev, file_priv, req->channel_hint);
+		if (IS_ERR(chan))
+			return PTR_ERR(chan);
+	}
+
 	ret = nouveau_gem_new(dev, chan, req->info.size, req->align, flags,
 			      req->info.tile_mode, req->info.tile_flags, false,
 			      (req->info.domain & NOUVEAU_GEM_DOMAIN_MAPPABLE),
 			      &nvbo);
+	if (chan)
+		nouveau_channel_put(&chan);
 	if (ret)
 		return ret;
 
@@ -341,9 +344,7 @@ retry:
 				return -EINVAL;
 			}
 
-			mutex_unlock(&drm_global_mutex);
 			ret = ttm_bo_wait_cpu(&nvbo->bo, false);
-			mutex_lock(&drm_global_mutex);
 			if (ret) {
 				NV_ERROR(dev, "fail wait_cpu\n");
 				return ret;
@@ -585,7 +586,9 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	struct nouveau_fence *fence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
-	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(req->channel, file_priv, chan);
+	chan = nouveau_channel_get(dev, file_priv, req->channel);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
 
 	req->vram_available = dev_priv->fb_aper_free;
 	req->gart_available = dev_priv->gart_info.aper_free;
@@ -595,28 +598,34 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (unlikely(req->nr_push > NOUVEAU_GEM_MAX_PUSH)) {
 		NV_ERROR(dev, "pushbuf push count exceeds limit: %d max %d\n",
 			 req->nr_push, NOUVEAU_GEM_MAX_PUSH);
+		nouveau_channel_put(&chan);
 		return -EINVAL;
 	}
 
 	if (unlikely(req->nr_buffers > NOUVEAU_GEM_MAX_BUFFERS)) {
 		NV_ERROR(dev, "pushbuf bo count exceeds limit: %d max %d\n",
 			 req->nr_buffers, NOUVEAU_GEM_MAX_BUFFERS);
+		nouveau_channel_put(&chan);
 		return -EINVAL;
 	}
 
 	if (unlikely(req->nr_relocs > NOUVEAU_GEM_MAX_RELOCS)) {
 		NV_ERROR(dev, "pushbuf reloc count exceeds limit: %d max %d\n",
 			 req->nr_relocs, NOUVEAU_GEM_MAX_RELOCS);
+		nouveau_channel_put(&chan);
 		return -EINVAL;
 	}
 
 	push = u_memcpya(req->push, req->nr_push, sizeof(*push));
-	if (IS_ERR(push))
+	if (IS_ERR(push)) {
+		nouveau_channel_put(&chan);
 		return PTR_ERR(push);
+	}
 
 	bo = u_memcpya(req->buffers, req->nr_buffers, sizeof(*bo));
 	if (IS_ERR(bo)) {
 		kfree(push);
+		nouveau_channel_put(&chan);
 		return PTR_ERR(bo);
 	}
 
@@ -750,6 +759,7 @@ out_next:
 		req->suffix1 = 0x00000000;
 	}
 
+	nouveau_channel_put(&chan);
 	return ret;
 }
 

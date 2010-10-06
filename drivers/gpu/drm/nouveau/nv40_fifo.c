@@ -301,7 +301,7 @@ nv40_fifo_init(struct drm_device *dev)
 	pfifo->reassign(dev, true);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		if (dev_priv->fifos[i]) {
+		if (dev_priv->channels.ptr[i]) {
 			uint32_t mode = nv_rd32(dev, NV04_PFIFO_MODE);
 			nv_wr32(dev, NV04_PFIFO_MODE, mode | (1 << i));
 		}

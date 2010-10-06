@@ -357,7 +357,7 @@ nv04_graph_channel(struct drm_device *dev)
 	if (chid >= dev_priv->engine.fifo.channels)
 		return NULL;
 
-	return dev_priv->fifos[chid];
+	return dev_priv->channels.ptr[chid];
 }
 
 void
@@ -376,7 +376,7 @@ nv04_graph_context_switch(struct drm_device *dev)
 
 	/* Load context for next channel */
 	chid = dev_priv->engine.fifo.channel_id(dev);
-	chan = dev_priv->fifos[chid];
+	chan = dev_priv->channels.ptr[chid];
 	if (chan)
 		nv04_graph_load_context(chan);
 

@@ -208,7 +208,7 @@ nv04_fifo_unload_context(struct drm_device *dev)
 	if (chid < 0 || chid >= dev_priv->engine.fifo.channels)
 		return 0;
 
-	chan = dev_priv->fifos[chid];
+	chan = dev_priv->channels.ptr[chid];
 	if (!chan) {
 		NV_ERROR(dev, "Inactive channel on PFIFO: %d\n", chid);
 		return -EINVAL;
@@ -289,7 +289,7 @@ nv04_fifo_init(struct drm_device *dev)
 	pfifo->reassign(dev, true);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		if (dev_priv->fifos[i]) {
+		if (dev_priv->channels.ptr[i]) {
 			uint32_t mode = nv_rd32(dev, NV04_PFIFO_MODE);
 			nv_wr32(dev, NV04_PFIFO_MODE, mode | (1 << i));
 		}

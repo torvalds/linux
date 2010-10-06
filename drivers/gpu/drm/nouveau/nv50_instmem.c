@@ -131,10 +131,10 @@ nv50_instmem_init(struct drm_device *dev)
 	}
 
 	/* we need a channel to plug into the hw to control the BARs */
-	ret = nv50_channel_new(dev, 128*1024, &dev_priv->fifos[0]);
+	ret = nv50_channel_new(dev, 128*1024, &dev_priv->channels.ptr[0]);
 	if (ret)
 		return ret;
-	chan = dev_priv->fifos[127] = dev_priv->fifos[0];
+	chan = dev_priv->channels.ptr[127] = dev_priv->channels.ptr[0];
 
 	/* allocate page table for PRAMIN BAR */
 	ret = nouveau_gpuobj_new(dev, chan, (dev_priv->ramin_size >> 12) * 8,
@@ -240,7 +240,7 @@ nv50_instmem_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_instmem_priv *priv = dev_priv->engine.instmem.priv;
-	struct nouveau_channel *chan = dev_priv->fifos[0];
+	struct nouveau_channel *chan = dev_priv->channels.ptr[0];
 	int i;
 
 	NV_DEBUG(dev, "\n");
@@ -264,8 +264,8 @@ nv50_instmem_takedown(struct drm_device *dev)
 			nouveau_gpuobj_ref(NULL, &chan->vm_vram_pt[i]);
 		dev_priv->vm_vram_pt_nr = 0;
 
-		nv50_channel_del(&dev_priv->fifos[0]);
-		dev_priv->fifos[127] = NULL;
+		nv50_channel_del(&dev_priv->channels.ptr[0]);
+		dev_priv->channels.ptr[127] = NULL;
 	}
 
 	dev_priv->engine.instmem.priv = NULL;
@@ -276,7 +276,7 @@ int
 nv50_instmem_suspend(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = dev_priv->fifos[0];
+	struct nouveau_channel *chan = dev_priv->channels.ptr[0];
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	int i;
 
@@ -294,7 +294,7 @@ nv50_instmem_resume(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_instmem_priv *priv = dev_priv->engine.instmem.priv;
-	struct nouveau_channel *chan = dev_priv->fifos[0];
+	struct nouveau_channel *chan = dev_priv->channels.ptr[0];
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	int i;
 

@@ -802,7 +802,7 @@ nv10_graph_context_switch(struct drm_device *dev)
 
 	/* Load context for next channel */
 	chid = (nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR) >> 20) & 0x1f;
-	chan = dev_priv->fifos[chid];
+	chan = dev_priv->channels.ptr[chid];
 	if (chan && chan->pgraph_ctx)
 		nv10_graph_load_context(chan);
 
@@ -833,7 +833,7 @@ nv10_graph_channel(struct drm_device *dev)
 	if (chid >= dev_priv->engine.fifo.channels)
 		return NULL;
 
-	return dev_priv->fifos[chid];
+	return dev_priv->channels.ptr[chid];
 }
 
 int nv10_graph_create_context(struct nouveau_channel *chan)

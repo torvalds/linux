@@ -42,7 +42,7 @@ nv40_graph_channel(struct drm_device *dev)
 	inst = (inst & NV40_PGRAPH_CTXCTL_CUR_INSTANCE) << 4;
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->fifos[i];
+		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
 
 		if (chan && chan->ramin_grctx &&
 		    chan->ramin_grctx->pinst == inst)

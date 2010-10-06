@@ -113,15 +113,17 @@ nouveau_fifo_swmthd(struct drm_device *dev, u32 chid, u32 addr, u32 data)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_gpuobj *obj;
+	unsigned long flags;
 	const int subc = (addr >> 13) & 0x7;
 	const int mthd = addr & 0x1ffc;
 	bool handled = false;
 	u32 engine;
 
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	if (likely(chid >= 0 && chid < dev_priv->engine.fifo.channels))
-		chan = dev_priv->fifos[chid];
+		chan = dev_priv->channels.ptr[chid];
 	if (unlikely(!chan))
-		return false;
+		goto out;
 
 	switch (mthd) {
 	case 0x0000: /* bind object to subchannel */
@@ -146,6 +148,8 @@ nouveau_fifo_swmthd(struct drm_device *dev, u32 chid, u32 addr, u32 data)
 		break;
 	}
 
+out:
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 	return handled;
 }
 
@@ -398,6 +402,8 @@ static int
 nouveau_graph_chid_from_grctx(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan;
+	unsigned long flags;
 	uint32_t inst;
 	int i;
 
@@ -407,27 +413,29 @@ nouveau_graph_chid_from_grctx(struct drm_device *dev)
 	if (dev_priv->card_type < NV_50) {
 		inst = (nv_rd32(dev, 0x40032c) & 0xfffff) << 4;
 
+		spin_lock_irqsave(&dev_priv->channels.lock, flags);
 		for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-			struct nouveau_channel *chan = dev_priv->fifos[i];
-
+			chan = dev_priv->channels.ptr[i];
 			if (!chan || !chan->ramin_grctx)
 				continue;
 
 			if (inst == chan->ramin_grctx->pinst)
 				break;
 		}
+		spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 	} else {
 		inst = (nv_rd32(dev, 0x40032c) & 0xfffff) << 12;
 
+		spin_lock_irqsave(&dev_priv->channels.lock, flags);
 		for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-			struct nouveau_channel *chan = dev_priv->fifos[i];
-
+			chan = dev_priv->channels.ptr[i];
 			if (!chan || !chan->ramin)
 				continue;
 
 			if (inst == chan->ramin->vinst)
 				break;
 		}
+		spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 	}
 
 
@@ -449,7 +457,8 @@ nouveau_graph_trapped_channel(struct drm_device *dev, int *channel_ret)
 	else
 		channel = nouveau_graph_chid_from_grctx(dev);
 
-	if (channel >= engine->fifo.channels || !dev_priv->fifos[channel]) {
+	if (channel >= engine->fifo.channels ||
+	    !dev_priv->channels.ptr[channel]) {
 		NV_ERROR(dev, "AIII, invalid/inactive channel id %d\n", channel);
 		return -EINVAL;
 	}
@@ -532,14 +541,19 @@ nouveau_pgraph_intr_swmthd(struct drm_device *dev,
 			   struct nouveau_pgraph_trap *trap)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	int ret = -EINVAL;
 
-	if (trap->channel < 0 ||
-	    trap->channel >= dev_priv->engine.fifo.channels ||
-	    !dev_priv->fifos[trap->channel])
-		return -ENODEV;
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	if (trap->channel > 0 &&
+	    trap->channel < dev_priv->engine.fifo.channels &&
+	    dev_priv->channels.ptr[trap->channel]) {
+		ret = nouveau_call_method(dev_priv->channels.ptr[trap->channel],
+					  trap->class, trap->mthd, trap->data);
+	}
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 
-	return nouveau_call_method(dev_priv->fifos[trap->channel],
-				   trap->class, trap->mthd, trap->data);
+	return ret;
 }
 
 static inline void

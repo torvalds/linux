@@ -185,11 +185,11 @@ nouveau_ioctl_notifier_alloc(struct drm_device *dev, void *data,
 	struct nouveau_channel *chan;
 	int ret;
 
-	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(na->channel, file_priv, chan);
+	chan = nouveau_channel_get(dev, file_priv, na->channel);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
 
 	ret = nouveau_notifier_alloc(chan, na->handle, na->size, &na->offset);
-	if (ret)
-		return ret;
-
-	return 0;
+	nouveau_channel_put(&chan);
+	return ret;
 }

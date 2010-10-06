@@ -166,6 +166,7 @@ struct nouveau_channel {
 	struct drm_device *dev;
 	int id;
 
+	atomic_t refcount;
 	struct mutex mutex;
 
 	/* owner of this fifo */
@@ -607,8 +608,10 @@ struct drm_nouveau_private {
 		struct nouveau_bo *bo;
 	} fence;
 
-	int fifo_alloc_count;
-	struct nouveau_channel *fifos[NOUVEAU_MAX_CHANNEL_NR];
+	struct {
+		spinlock_t lock;
+		struct nouveau_channel *ptr[NOUVEAU_MAX_CHANNEL_NR];
+	} channels;
 
 	struct nouveau_engine engine;
 	struct nouveau_channel *channel;
@@ -721,16 +724,6 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 	return 0;
 }
 
-#define NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(id, cl, ch) do {    \
-	struct drm_nouveau_private *nv = dev->dev_private;       \
-	if (!nouveau_channel_owner(dev, (cl), (id))) {           \
-		NV_ERROR(dev, "pid %d doesn't own channel %d\n", \
-			 DRM_CURRENTPID, (id));                  \
-		return -EPERM;                                   \
-	}                                                        \
-	(ch) = nv->fifos[(id)];                                  \
-} while (0)
-
 /* nouveau_drv.c */
 extern int nouveau_agpmode;
 extern int nouveau_duallink;
@@ -805,13 +798,13 @@ extern int  nouveau_ioctl_notifier_free(struct drm_device *, void *data,
 extern struct drm_ioctl_desc nouveau_ioctls[];
 extern int nouveau_max_ioctl;
 extern void nouveau_channel_cleanup(struct drm_device *, struct drm_file *);
-extern int  nouveau_channel_owner(struct drm_device *, struct drm_file *,
-				  int channel);
 extern int  nouveau_channel_alloc(struct drm_device *dev,
 				  struct nouveau_channel **chan,
 				  struct drm_file *file_priv,
 				  uint32_t fb_ctxdma, uint32_t tt_ctxdma);
-extern void nouveau_channel_free(struct nouveau_channel *);
+extern struct nouveau_channel *
+nouveau_channel_get(struct drm_device *, struct drm_file *, int id);
+extern void nouveau_channel_put(struct nouveau_channel **);
 
 /* nouveau_object.c */
 extern int  nouveau_gpuobj_early_init(struct drm_device *);
