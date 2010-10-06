@@ -43,7 +43,7 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
         &msm_device_uart2,
 #endif
-
+	&msm_device_smd,
 };
 
 static void __init msm7x30_init_irq(void)
