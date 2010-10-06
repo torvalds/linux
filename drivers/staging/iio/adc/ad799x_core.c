@@ -65,13 +65,13 @@ static int ad799x_i2c_read8(struct ad799x_state *st, u8 reg, u8 *data)
 	struct i2c_client *client = st->client;
 	int ret = 0;
 
-	ret = i2c_smbus_read_word_data(client, reg);
+	ret = i2c_smbus_read_byte_data(client, reg);
 	if (ret < 0) {
 		dev_err(&client->dev, "I2C read error\n");
 		return ret;
 	}
 
-	*data = ret;
+	*data = (u8)ret;
 
 	return 0;
 }
@@ -182,11 +182,10 @@ static ssize_t ad799x_read_single_channel(struct device *dev,
 	mask = 1 << this_attr->address;
 	/* If ring buffer capture is occuring, query the buffer */
 	if (iio_ring_enabled(dev_info)) {
-		data = ad799x_single_channel_from_ring(st, mask);
-		if (data < 0) {
-			ret = data;
+		data = ret = ad799x_single_channel_from_ring(st, mask);
+		if (ret < 0)
 			goto error_ret;
-		}
+		ret = 0;
 	} else {
 		switch (st->id) {
 		case ad7991:
