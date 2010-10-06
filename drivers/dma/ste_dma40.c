@@ -1728,6 +1728,8 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 
 	return &d40d->txd;
 err:
+	if (d40d)
+		d40_desc_free(d40c, d40d);
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return NULL;
 }
@@ -1939,8 +1941,9 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 err_fill_lli:
 	dev_err(&d40c->chan.dev->device,
 		"[%s] Failed filling in PHY LLI\n", __func__);
-	d40_pool_lli_free(d40d);
 err:
+	if (d40d)
+		d40_desc_free(d40c, d40d);
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return NULL;
 }
@@ -2079,10 +2082,9 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 
 	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
-	spin_unlock_irqrestore(&d40c->lock, flags);
 
 	if (d40d == NULL)
-		return NULL;
+		goto err;
 
 	if (d40c->log_num != D40_PHY_CHAN)
 		err = d40_prep_slave_sg_log(d40d, d40c, sgl, sg_len,
@@ -2095,7 +2097,7 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 			"[%s] Failed to prepare %s slave sg job: %d\n",
 			__func__,
 			d40c->log_num != D40_PHY_CHAN ? "log" : "phy", err);
-		return NULL;
+		goto err;
 	}
 
 	d40d->txd.flags = dma_flags;
@@ -2104,7 +2106,14 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 
 	d40d->txd.tx_submit = d40_tx_submit;
 
+	spin_unlock_irqrestore(&d40c->lock, flags);
 	return &d40d->txd;
+
+err:
+	if (d40d)
+		d40_desc_free(d40c, d40d);
+	spin_unlock_irqrestore(&d40c->lock, flags);
+	return NULL;
 }
 
 static enum dma_status d40_tx_status(struct dma_chan *chan,
