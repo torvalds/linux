@@ -61,22 +61,25 @@ static inline cpumask_t cpu_online_cores_map(void)
 	return cpu_thread_mask_to_cores(cpu_online_map);
 }
 
-static inline int cpu_thread_to_core(int cpu)
-{
-	return cpu >> threads_shift;
-}
+#ifdef CONFIG_SMP
+int cpu_core_index_of_thread(int cpu);
+int cpu_first_thread_of_core(int core);
+#else
+static inline int cpu_core_index_of_thread(int cpu) { return cpu; }
+static inline int cpu_first_thread_of_core(int core) { return core; }
+#endif
 
 static inline int cpu_thread_in_core(int cpu)
 {
 	return cpu & (threads_per_core - 1);
 }
 
-static inline int cpu_first_thread_in_core(int cpu)
+static inline int cpu_first_thread_sibling(int cpu)
 {
 	return cpu & ~(threads_per_core - 1);
 }
 
-static inline int cpu_last_thread_in_core(int cpu)
+static inline int cpu_last_thread_sibling(int cpu)
 {
 	return cpu | (threads_per_core - 1);
 }
