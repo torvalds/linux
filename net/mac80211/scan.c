@@ -665,6 +665,8 @@ void ieee80211_scan_work(struct work_struct *work)
 
 		rc = __ieee80211_start_scan(sdata, req);
 		if (rc) {
+			/* need to complete scan in cfg80211 */
+			local->scan_req = req;
 			aborted = true;
 			goto out_complete;
 		} else
