@@ -166,11 +166,8 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STAT_QUERY, 0,
 				   ((u32 *)&ramrod_data)[1],
 				   ((u32 *)&ramrod_data)[0], 1);
-		if (rc == 0) {
-			/* stats ramrod has it's own slot on the spq */
-			bp->spq_left++;
+		if (rc == 0)
 			bp->stats_pending = 1;
-		}
 
 		spin_unlock_bh(&bp->stats_lock);
 	}

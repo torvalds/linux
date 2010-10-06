@@ -860,7 +860,7 @@ struct bnx2x {
 	struct eth_spe		*spq_prod_bd;
 	struct eth_spe		*spq_last_bd;
 	__le16			*dsb_sp_prod;
-	u16			spq_left; /* serialize spq */
+	atomic_t		spq_left; /* serialize spq */
 	/* used to synchronize spq accesses */
 	spinlock_t		spq_lock;
 

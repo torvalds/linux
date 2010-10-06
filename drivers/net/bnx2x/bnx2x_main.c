@@ -1161,8 +1161,8 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp,
 		break;
 	}
 
-	bp->spq_left++;
-
+	smp_mb__before_atomic_inc();
+	atomic_inc(&bp->spq_left);
 	/* push the change in fp->state and towards the memory */
 	smp_wmb();
 
@@ -2432,7 +2432,7 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 
 	spin_lock_bh(&bp->spq_lock);
 
-	if (!bp->spq_left) {
+	if (!atomic_read(&bp->spq_left)) {
 		BNX2X_ERR("BUG! SPQ ring full!\n");
 		spin_unlock_bh(&bp->spq_lock);
 		bnx2x_panic();
@@ -2472,7 +2472,7 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 		 * somewhere between the spin_lock and spin_unlock. Thus no
 		 * more explict memory barrier is needed.
 		 */
-		bp->spq_left--;
+		atomic_dec(&bp->spq_left);
 
 	DP(BNX2X_MSG_SP/*NETIF_MSG_TIMER*/,
 	   "SPQE[%x] (%x:%x)  command %d  hw_cid %x  data (%x:%x) "
@@ -2480,7 +2480,7 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 	   bp->spq_prod_idx, (u32)U64_HI(bp->spq_mapping),
 	   (u32)(U64_LO(bp->spq_mapping) +
 	   (void *)bp->spq_prod_bd - (void *)bp->spq), command,
-	   HW_CID(bp, cid), data_hi, data_lo, type, bp->spq_left);
+	   HW_CID(bp, cid), data_hi, data_lo, type, atomic_read(&bp->spq_left));
 
 	bnx2x_sp_prod_update(bp);
 	spin_unlock_bh(&bp->spq_lock);
@@ -3290,7 +3290,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	sw_prod = bp->eq_prod;
 
 	DP(BNX2X_MSG_SP, "EQ:  hw_cons %u  sw_cons %u bp->spq_left %u\n",
-			hw_cons, sw_cons, bp->spq_left);
+			hw_cons, sw_cons, atomic_read(&bp->spq_left));
 
 	for (; sw_cons != hw_cons;
 	      sw_prod = NEXT_EQ_IDX(sw_prod), sw_cons = NEXT_EQ_IDX(sw_cons)) {
@@ -3360,7 +3360,8 @@ next_spqe:
 		spqe_cnt++;
 	} /* for */
 
-	bp->spq_left++;
+	smp_mb__before_atomic_inc();
+	atomic_add(spqe_cnt, &bp->spq_left);
 
 	bp->eq_cons = sw_cons;
 	bp->eq_prod = sw_prod;
@@ -3737,8 +3738,8 @@ void bnx2x_update_coalesce(struct bnx2x *bp)
 static void bnx2x_init_sp_ring(struct bnx2x *bp)
 {
 	spin_lock_init(&bp->spq_lock);
+	atomic_set(&bp->spq_left, MAX_SPQ_PENDING);
 
-	bp->spq_left = MAX_SPQ_PENDING;
 	bp->spq_prod_idx = 0;
 	bp->dsb_sp_prod = BNX2X_SP_DSB_INDEX;
 	bp->spq_prod_bd = bp->spq;
