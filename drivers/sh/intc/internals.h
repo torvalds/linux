@@ -143,10 +143,11 @@ void intc_balancing_disable(unsigned int irq);
 void intc_set_dist_handle(unsigned int irq, struct intc_desc *desc,
 			  struct intc_desc_int *d, intc_enum id);
 #else
-void intc_balancing_enable(unsigned int irq) { }
-void intc_balancing_disable(unsigned int irq) { }
-void intc_set_dist_handle(unsigned int irq, struct intc_desc *desc,
-			  struct intc_desc_int *d, intc_enum id) { }
+static inline void intc_balancing_enable(unsigned int irq) { }
+static inline void intc_balancing_disable(unsigned int irq) { }
+static inline void
+intc_set_dist_handle(unsigned int irq, struct intc_desc *desc,
+		     struct intc_desc_int *d, intc_enum id) { }
 #endif
 
 /* chip.c */
