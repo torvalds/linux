@@ -1198,3 +1198,23 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc)
 	return ret;
 }
 EXPORT_SYMBOL(sync_inode);
+
+/**
+ * sync_inode - write an inode to disk
+ * @inode: the inode to sync
+ * @wait: wait for I/O to complete.
+ *
+ * Write an inode to disk and adjust it's dirty state after completion.
+ *
+ * Note: only writes the actual inode, no associated data or other metadata.
+ */
+int sync_inode_metadata(struct inode *inode, int wait)
+{
+	struct writeback_control wbc = {
+		.sync_mode = wait ? WB_SYNC_ALL : WB_SYNC_NONE,
+		.nr_to_write = 0, /* metadata-only */
+	};
+
+	return sync_inode(inode, &wbc);
+}
+EXPORT_SYMBOL(sync_inode_metadata);

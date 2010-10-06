@@ -882,12 +882,8 @@ static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 static int pohmelfs_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0,	/* sys_fsync did this */
-	};
 
-	return sync_inode(inode, &wbc);
+	return sync_inode_metadata(inode, 1);
 }
 
 ssize_t pohmelfs_write(struct file *file, const char __user *buf,
