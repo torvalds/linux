@@ -4296,9 +4296,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
 	if (cfg->mod_params->disable_hw_scan) {
-		if (iwl_debug_level & IWL_DL_INFO)
-			dev_printk(KERN_DEBUG, &(pdev->dev),
-				   "Disabling hw_scan\n");
+		dev_printk(KERN_DEBUG, &(pdev->dev),
+			"sw scan support is deprecated\n");
 		iwl_hw_ops.hw_scan = NULL;
 	}
 
@@ -4905,7 +4904,8 @@ module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 module_param_named(
 	disable_hw_scan, iwlagn_mod_params.disable_hw_scan, int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
+MODULE_PARM_DESC(disable_hw_scan,
+		 "disable hardware scanning (default 0) (deprecated)");
 
 module_param_named(ucode_alternative, iwlagn_wanted_ucode_alternative, int,
 		   S_IRUGO);
