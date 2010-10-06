@@ -73,8 +73,6 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 						u16 value, u8 core, bool off);
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
-static int b43_nphy_op_switch_channel(struct b43_wldev *dev,
-				      unsigned int new_channel);
 
 static inline bool b43_empty_chanspec(struct b43_chanspec *chanspec)
 {
@@ -224,7 +222,7 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 	if (i)
 		b43err(dev->wl, "radio post init timeout\n");
 	b43_radio_mask(dev, B2055_CAL_LPOCTL, 0xFF7F);
-	b43_nphy_op_switch_channel(dev, dev->phy.channel);
+	b43_switch_channel(dev, dev->phy.channel);
 	b43_radio_write(dev, B2055_C1_RX_BB_LPF, 0x9);
 	b43_radio_write(dev, B2055_C2_RX_BB_LPF, 0x9);
 	b43_radio_write(dev, B2055_C1_RX_BB_MIDACHP, 0x83);
@@ -3352,12 +3350,6 @@ static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
 
 	b43_chantab_phy_upload(dev, e);
 
-	tmp = chanspec.channel;
-	if (chanspec.b_freq == 1)
-		tmp |= 0x0100;
-	if (chanspec.b_width == 3)
-		tmp |= 0x0200;
-	b43_shm_write16(dev, B43_SHM_SHARED, 0xA0, tmp);
 
 	if (nphy->radio_chanspec.channel == 14) {
 		b43_nphy_classifier(dev, 2, 0);
@@ -3559,7 +3551,7 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 	} else {
 		if (dev->phy.rev >= 3) {
 			b43_radio_init2056(dev);
-			b43_nphy_op_switch_channel(dev, dev->phy.channel);
+			b43_switch_channel(dev, dev->phy.channel);
 		} else {
 			b43_radio_init2055(dev);
 		}
