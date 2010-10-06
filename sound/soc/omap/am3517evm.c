@@ -157,10 +157,8 @@ static int __init am3517evm_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_omap3517evm()) {
-		pr_err("Not OMAP3517 / AM3517 EVM!\n");
+	if (!machine_is_omap3517evm())
 		return -ENODEV;
-	}
 	pr_info("OMAP3517 / AM3517 EVM SoC init\n");
 
 	am3517evm_snd_device = platform_device_alloc("soc-audio", -1);
