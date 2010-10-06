@@ -25,7 +25,6 @@
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
 
-
 static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -963,6 +962,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 
 	return rc;
 }
+
 static int bnx2x_get_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
@@ -1288,6 +1288,7 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 			save_val = REG_RD(bp, offset);
 
 			REG_WR(bp, offset, (wr_val & mask));
+
 			val = REG_RD(bp, offset);
 
 			/* Restore the original register's value */
@@ -1471,6 +1472,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
+
 	pbd_e1x = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e1x;
 	pbd_e2 = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e2;
 
@@ -1714,6 +1716,7 @@ static void bnx2x_self_test(struct net_device *dev,
 			buf[1] = 1;
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
+
 		buf[2] = bnx2x_test_loopback(bp, link_up);
 		if (buf[2] != 0)
 			etest->flags |= ETH_TEST_FL_FAILED;

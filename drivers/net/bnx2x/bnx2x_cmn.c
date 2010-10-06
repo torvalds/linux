@@ -15,7 +15,6 @@
  *
  */
 
-
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
@@ -136,7 +135,6 @@ int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 	 */
 	smp_mb();
 
-	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
 		/* Taking tx_lock() is needed to prevent reenabling the queue
 		 * while it's empty. This could have happen if rx_action() gets
@@ -623,6 +621,7 @@ reuse_rx:
 			bnx2x_set_skb_rxhash(bp, cqe, skb);
 
 			skb_checksum_none_assert(skb);
+
 			if (bp->rx_csum) {
 				if (likely(BNX2X_RX_CSUM_OK(cqe)))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -703,7 +702,6 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 
 	return IRQ_HANDLED;
 }
-
 
 /* HW Lock for shared dual port PHYs */
 void bnx2x_acquire_phy_lock(struct bnx2x *bp)
@@ -916,6 +914,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 		}
 	}
 }
+
 static void bnx2x_free_tx_skbs(struct bnx2x *bp)
 {
 	int i;
@@ -1185,6 +1184,7 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 	case ETH_RSS_MODE_REGULAR:
 		bp->num_queues = bnx2x_calc_num_queues(bp);
 		break;
+
 	default:
 		bp->num_queues = 1;
 		break;
@@ -1354,6 +1354,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Enable Timer scan */
 	REG_WR(bp, TM_REG_EN_LINEAR0_TIMER + BP_PORT(bp)*4, 1);
 #endif
+
 	for_each_nondefault_queue(bp, i) {
 		rc = bnx2x_setup_client(bp, &bp->fp[i], 0);
 		if (rc)
@@ -1473,11 +1474,13 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Stop Tx */
 	bnx2x_tx_disable(bp);
+
 	del_timer_sync(&bp->timer);
+
 	SHMEM_WR(bp, func_mb[BP_FW_MB_IDX(bp)].drv_pulse_mb,
 		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
-	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
+	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
 	/* Cleanup the chip if needed */
 	if (unload_mode != UNLOAD_RECOVERY)
@@ -1514,6 +1517,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	return 0;
 }
+
 int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 {
 	u16 pmcsr;
@@ -1560,12 +1564,9 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 	return 0;
 }
 
-
-
 /*
  * net_device service functions
  */
-
 int bnx2x_poll(struct napi_struct *napi, int budget)
 {
 	int work_done = 0;
@@ -1595,19 +1596,19 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 		/* Fall out from the NAPI loop if needed */
 		if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
 			bnx2x_update_fpsb_idx(fp);
-		/* bnx2x_has_rx_work() reads the status block,
-		 * thus we need to ensure that status block indices
-		 * have been actually read (bnx2x_update_fpsb_idx)
-		 * prior to this check (bnx2x_has_rx_work) so that
-		 * we won't write the "newer" value of the status block
-		 * to IGU (if there was a DMA right after
-		 * bnx2x_has_rx_work and if there is no rmb, the memory
-		 * reading (bnx2x_update_fpsb_idx) may be postponed
-		 * to right before bnx2x_ack_sb). In this case there
-		 * will never be another interrupt until there is
-		 * another update of the status block, while there
-		 * is still unhandled work.
-		 */
+			/* bnx2x_has_rx_work() reads the status block,
+			 * thus we need to ensure that status block indices
+			 * have been actually read (bnx2x_update_fpsb_idx)
+			 * prior to this check (bnx2x_has_rx_work) so that
+			 * we won't write the "newer" value of the status block
+			 * to IGU (if there was a DMA right after
+			 * bnx2x_has_rx_work and if there is no rmb, the memory
+			 * reading (bnx2x_update_fpsb_idx) may be postponed
+			 * to right before bnx2x_ack_sb). In this case there
+			 * will never be another interrupt until there is
+			 * another update of the status block, while there
+			 * is still unhandled work.
+			 */
 			rmb();
 
 			if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
@@ -1625,7 +1626,6 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 
 	return work_done;
 }
-
 
 /* we split the first BD into headers and data BDs
  * to ease the pain of our fellow microcode engineers
@@ -1842,6 +1842,7 @@ static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
 
 	pbd->global_data |= ETH_TX_PARSE_BD_E1X_PSEUDO_CS_WITHOUT_LEN;
 }
+
 /**
  *
  * @param skb
@@ -1914,6 +1915,7 @@ static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 
 	return hlen;
 }
+
 /* called with netif_tx_lock
  * bnx2x_tx_int() runs without netif_tx_lock unless it needs to call
  * netif_wake_queue()
@@ -2003,13 +2005,11 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_start_bd = &fp->tx_desc_ring[bd_prod].start_bd;
 
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
-	SET_FLAG(tx_start_bd->general_data,
-		  ETH_TX_START_BD_ETH_ADDR_TYPE,
-		  mac_type);
+	SET_FLAG(tx_start_bd->general_data, ETH_TX_START_BD_ETH_ADDR_TYPE,
+		 mac_type);
+
 	/* header nbd */
-	SET_FLAG(tx_start_bd->general_data,
-		  ETH_TX_START_BD_HDR_NBDS,
-		  1);
+	SET_FLAG(tx_start_bd->general_data, ETH_TX_START_BD_HDR_NBDS, 1);
 
 	/* remember the first BD of the packet */
 	tx_buf->first_bd = fp->tx_bd_prod;
@@ -2065,9 +2065,11 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	}
 
+	/* Map skb linear data for DMA */
 	mapping = dma_map_single(&bp->pdev->dev, skb->data,
 				 skb_headlen(skb), DMA_TO_DEVICE);
 
+	/* Setup the data pointer of the first BD of the packet */
 	tx_start_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 	tx_start_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
 	nbd = skb_shinfo(skb)->nr_frags + 2; /* start_bd + pbd + frags */
@@ -2101,6 +2103,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	tx_data_bd = (struct eth_tx_bd *)tx_start_bd;
 
+	/* Handle fragmented skb */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -2165,6 +2168,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	fp->tx_db.data.prod += nbd;
 	barrier();
+
 	DOORBELL(bp, fp->cid, fp->tx_db.raw);
 
 	mmiowb();
@@ -2187,6 +2191,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return NETDEV_TX_OK;
 }
+
 /* called with rtnl_lock */
 int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 {
@@ -2319,6 +2324,7 @@ void bnx2x_vlan_rx_register(struct net_device *dev,
 }
 
 #endif
+
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);

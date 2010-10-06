@@ -14,8 +14,8 @@
  * Statistics and Link management by Yitchak Gertner
  *
  */
- #include "bnx2x_cmn.h"
- #include "bnx2x_stats.h"
+#include "bnx2x_cmn.h"
+#include "bnx2x_stats.h"
 
 /* Statistics */
 

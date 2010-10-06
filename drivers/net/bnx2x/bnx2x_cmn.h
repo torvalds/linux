@@ -64,6 +64,15 @@ u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes);
 void bnx2x__link_status_update(struct bnx2x *bp);
 
 /**
+ * Report link status to upper layer
+ *
+ * @param bp
+ *
+ * @return int
+ */
+void bnx2x_link_report(struct bnx2x *bp);
+
+/**
  * MSI-X slowpath interrupt handler
  *
  * @param irq
@@ -234,7 +243,7 @@ int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource);
 
 /**
  * Configure eth MAC address in the HW according to the value in
- * netdev->dev_addr for 57711
+ * netdev->dev_addr.
  *
  * @param bp driver handle
  * @param set
@@ -270,10 +279,11 @@ void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 			  u8 vf_valid, int fw_sb_id, int igu_sb_id);
 
 /**
- * Reconfigure FW/HW according to dev->flags rx mode
+ * Set MAC filtering configurations.
+ *
+ * @remarks called with netif_tx_lock from dev_mcast.c
  *
  * @param dev net_device
- *
  */
 void bnx2x_set_rx_mode(struct net_device *dev);
 
@@ -295,17 +305,17 @@ void bnx2x_disable_close_the_gate(struct bnx2x *bp);
  * Perform statistics handling according to event
  *
  * @param bp driver handle
- * @param even tbnx2x_stats_event
+ * @param event bnx2x_stats_event
  */
 void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event);
 
 /**
- * Handle sp events
+ * Handle ramrods completion
  *
  * @param fp fastpath handle for the event
  * @param rr_cqe eth_rx_cqe
  */
-void bnx2x_sp_event(struct bnx2x_fastpath *fp,  union eth_rx_cqe *rr_cqe);
+void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe);
 
 /**
  * Init/halt function before/after sending
@@ -325,6 +335,46 @@ int bnx2x_func_stop(struct bnx2x *bp);
  * @param bp
  */
 void bnx2x_ilt_set_info(struct bnx2x *bp);
+
+/**
+ * Set power state to the requested value. Currently only D0 and
+ * D3hot are supported.
+ *
+ * @param bp
+ * @param state D0 or D3hot
+ *
+ * @return int
+ */
+int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state);
+
+/* dev_close main block */
+int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode);
+
+/* dev_open main block */
+int bnx2x_nic_load(struct bnx2x *bp, int load_mode);
+
+/* hard_xmit callback */
+netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev);
+
+int bnx2x_change_mac_addr(struct net_device *dev, void *p);
+
+/* NAPI poll Rx part */
+int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget);
+
+/* NAPI poll Tx part */
+int bnx2x_tx_int(struct bnx2x_fastpath *fp);
+
+/* suspend/resume callbacks */
+int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
+int bnx2x_resume(struct pci_dev *pdev);
+
+/* Release IRQ vectors */
+void bnx2x_free_irq(struct bnx2x *bp);
+
+void bnx2x_init_rx_rings(struct bnx2x *bp);
+void bnx2x_free_skbs(struct bnx2x *bp);
+void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw);
+void bnx2x_netif_start(struct bnx2x *bp);
 
 /**
  * Fill msix_table, request vectors, update num_queues according
@@ -362,6 +412,51 @@ int bnx2x_setup_irqs(struct bnx2x *bp);
  * @return int
  */
 int bnx2x_poll(struct napi_struct *napi, int budget);
+
+/**
+ * Allocate/release memories outsize main driver structure
+ *
+ * @param bp
+ *
+ * @return int
+ */
+int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp);
+void bnx2x_free_mem_bp(struct bnx2x *bp);
+
+/**
+ * Change mtu netdev callback
+ *
+ * @param dev
+ * @param new_mtu
+ *
+ * @return int
+ */
+int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
+
+/**
+ * tx timeout netdev callback
+ *
+ * @param dev
+ * @param new_mtu
+ *
+ * @return int
+ */
+void bnx2x_tx_timeout(struct net_device *dev);
+
+#ifdef BCM_VLAN
+/**
+ * vlan rx register netdev callback
+ *
+ * @param dev
+ * @param new_mtu
+ *
+ * @return int
+ */
+void bnx2x_vlan_rx_register(struct net_device *dev,
+				   struct vlan_group *vlgrp);
+
+#endif
+
 static inline void bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
 {
 	barrier(); /* status block is written to by the chip */
@@ -558,9 +653,6 @@ static inline u16 bnx2x_ack_int(struct bnx2x *bp)
 		return bnx2x_igu_ack_int(bp);
 }
 
-/*
- * fast path service functions
- */
 static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
 {
 	/* Tell compiler that consumer and producer can change */
@@ -611,6 +703,7 @@ static inline int bnx2x_has_rx_work(struct bnx2x_fastpath *fp)
 		rx_cons_sb++;
 	return (fp->rx_comp_cons != rx_cons_sb);
 }
+
 /**
  * disables tx from stack point of view
  *
@@ -731,6 +824,7 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 
 	return 0;
 }
+
 static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 				     struct bnx2x_fastpath *fp, u16 index)
 {
@@ -782,6 +876,7 @@ static inline void bnx2x_reuse_rx_skb(struct bnx2x_fastpath *fp,
 			   dma_unmap_addr(cons_rx_buf, mapping));
 	*prod_bd = *cons_bd;
 }
+
 static inline void bnx2x_free_rx_sge_range(struct bnx2x *bp,
 					   struct bnx2x_fastpath *fp, int last)
 {
@@ -846,6 +941,7 @@ static inline void bnx2x_init_tx_rings(struct bnx2x *bp)
 		fp->tx_pkt = 0;
 	}
 }
+
 static inline void bnx2x_set_next_page_rx_bd(struct bnx2x_fastpath *fp)
 {
 	int i;
@@ -931,39 +1027,10 @@ static inline void storm_memset_cmng(struct bnx2x *bp,
 
 	__storm_memset_struct(bp, addr, size, (u32 *)cmng);
 }
+
 /* HW Lock for shared dual port PHYs */
 void bnx2x_acquire_phy_lock(struct bnx2x *bp);
 void bnx2x_release_phy_lock(struct bnx2x *bp);
-
-void bnx2x_link_report(struct bnx2x *bp);
-int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget);
-int bnx2x_tx_int(struct bnx2x_fastpath *fp);
-void bnx2x_init_rx_rings(struct bnx2x *bp);
-netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev);
-
-int bnx2x_change_mac_addr(struct net_device *dev, void *p);
-void bnx2x_tx_timeout(struct net_device *dev);
-void bnx2x_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp);
-void bnx2x_netif_start(struct bnx2x *bp);
-void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw);
-void bnx2x_free_irq(struct bnx2x *bp);
-int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
-int bnx2x_resume(struct pci_dev *pdev);
-void bnx2x_free_skbs(struct bnx2x *bp);
-int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
-int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode);
-int bnx2x_nic_load(struct bnx2x *bp, int load_mode);
-int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state);
-
-/**
- * Allocate/release memories outsize main driver structure
- *
- * @param bp
- *
- * @return int
- */
-int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp);
-void bnx2x_free_mem_bp(struct bnx2x *bp);
 
 #define BNX2X_FW_IP_HDR_ALIGN_PAD	2 /* FW places hdr with this padding */
 

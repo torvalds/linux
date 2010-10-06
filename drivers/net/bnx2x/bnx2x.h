@@ -180,13 +180,14 @@ void bnx2x_panic_dump(struct bnx2x *bp);
 #define SHMEM2_WR(bp, field, val)	REG_WR(bp, SHMEM2_ADDR(bp, field), val)
 #define MF_CFG_ADDR(bp, field)		(bp->common.mf_cfg_base + \
 					 offsetof(struct mf_cfg, field))
-#define MF2_CFG_ADDR(bp, field)	(bp->common.mf2_cfg_base + \
+#define MF2_CFG_ADDR(bp, field)		(bp->common.mf2_cfg_base + \
 					 offsetof(struct mf2_cfg, field))
 
 #define MF_CFG_RD(bp, field)		REG_RD(bp, MF_CFG_ADDR(bp, field))
 #define MF_CFG_WR(bp, field, val)	REG_WR(bp,\
 					       MF_CFG_ADDR(bp, field), (val))
 #define MF2_CFG_RD(bp, field)		REG_RD(bp, MF2_CFG_ADDR(bp, field))
+
 #define SHMEM2_HAS(bp, field)		((bp)->common.shmem2_base &&	\
 					 (SHMEM2_RD((bp), size) >	\
 					 offsetof(struct shmem2_region, field)))
@@ -310,7 +311,7 @@ struct bnx2x_fastpath {
 
 #define BNX2X_NAPI_WEIGHT       128
 	struct napi_struct	napi;
-	union host_hc_status_block status_blk;
+	union host_hc_status_block	status_blk;
 	/* chip independed shortcuts into sb structure */
 	__le16			*sb_index_values;
 	__le16			*sb_running_index;
@@ -349,8 +350,8 @@ struct bnx2x_fastpath {
 #define BNX2X_FP_STATE_TERMINATING	0xd0000
 #define BNX2X_FP_STATE_TERMINATED	0xe0000
 
-	u8			index;	/* number in fp array */
-	u8			cl_id;	/* eth client id */
+	u8			index;		/* number in fp array */
+	u8			cl_id;		/* eth client id */
 	u8			cl_qzone_id;
 	u8			fw_sb_id;	/* status block number in FW */
 	u8			igu_sb_id;	/* status block number in HW */
@@ -374,8 +375,6 @@ struct bnx2x_fastpath {
 	/* The last maximal completed SGE */
 	u16			last_max_sge;
 	__le16			*rx_cons_sb;
-
-
 
 	unsigned long		tx_pkt,
 				rx_pkt,
@@ -977,7 +976,7 @@ struct bnx2x {
 	u32			mf2_config[E2_FUNC_MAX];
 	u16			mf_ov;
 	u8			mf_mode;
-#define IS_MF(bp)			(bp->mf_mode != 0)
+#define IS_MF(bp)		(bp->mf_mode != 0)
 
 	u8			wol;
 
@@ -1302,21 +1301,35 @@ struct bnx2x_func_init_params {
 			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
 
 
+#define WAIT_RAMROD_POLL	0x01
+#define WAIT_RAMROD_COMMON	0x02
+int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
+			     int *state_p, int flags);
+
+/* dmae */
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32);
+void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+			       u32 addr, u32 len);
+void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae, int idx);
+u32 bnx2x_dmae_opcode_add_comp(u32 opcode, u8 comp_type);
+u32 bnx2x_dmae_opcode_clr_src_reset(u32 opcode);
+u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
+		      bool with_comp, u8 comp_type);
+
 int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param);
 void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
-void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
-			       u32 addr, u32 len);
+
 void bnx2x_calc_fc_adv(struct bnx2x *bp);
 int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 		  u32 data_hi, u32 data_lo, int common);
 void bnx2x_update_coalesce(struct bnx2x *bp);
 int bnx2x_get_link_cfg_idx(struct bnx2x *bp);
+
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
 {
@@ -1333,6 +1346,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 	return val;
 }
+
 #define BNX2X_ILT_ZALLOC(x, y, size) \
 	do { \
 		x = pci_alloc_consistent(bp->pdev, size, y); \
@@ -1353,6 +1367,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 #define ILT_NUM_PAGE_ENTRIES	(3072)
 /* In 57710/11 we use whole table since we have 8 func
+ * In 57712 we have only 4 func, but use same size per func, then only half of
+ * the table in use
  */
 #define ILT_PER_FUNC		(ILT_NUM_PAGE_ENTRIES/8)
 
@@ -1366,14 +1382,13 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define ONCHIP_ADDR1(x)		((u32)(((u64)x >> 12) & 0xFFFFFFFF))
 #define ONCHIP_ADDR2(x)		((u32)((1 << 20) | ((u64)x >> 44)))
 
-
 /* load/unload mode */
 #define LOAD_NORMAL			0
 #define LOAD_OPEN			1
 #define LOAD_DIAG			2
 #define UNLOAD_NORMAL			0
 #define UNLOAD_CLOSE			1
-#define UNLOAD_RECOVERY                 2
+#define UNLOAD_RECOVERY			2
 
 
 /* DMAE command defines */
@@ -1446,7 +1461,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 					 BP_E1HVN(bp))
 #define PMF_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 E1HVN_MAX)
-
 
 /* PCIE link and speed */
 #define PCICFG_LINK_WIDTH		0x1f00000
@@ -1596,6 +1610,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_SP_DSB_INDEX \
 		(&bp->def_status_blk->sp_sb.\
 					index_values[HC_SP_INDEX_ETH_DEF_CONS])
+
 #define SET_FLAG(value, mask, flag) \
 	do {\
 		(value) &= ~(mask);\
@@ -1630,6 +1645,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #ifndef ETH_MAX_RX_CLIENTS_E2
 #define ETH_MAX_RX_CLIENTS_E2		ETH_MAX_RX_CLIENTS_E1H
 #endif
+
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
@@ -1649,20 +1665,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 BNX2X_EXTERN int load_count[2][3]; /* per path: 0-common, 1-port0, 2-port1 */
 
-/* MISC_REG_RESET_REG - this is here for the hsi to work don't touch */
-
 extern void bnx2x_set_ethtool_ops(struct net_device *netdev);
 
-void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae, int idx);
-u32 bnx2x_dmae_opcode_add_comp(u32 opcode, u8 comp_type);
-u32 bnx2x_dmae_opcode_clr_src_reset(u32 opcode);
-u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
-		      bool with_comp, u8 comp_type);
-
-
-#define WAIT_RAMROD_POLL	0x01
-#define WAIT_RAMROD_COMMON	0x02
-
-int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
-			     int *state_p, int flags);
 #endif /* bnx2x.h */
