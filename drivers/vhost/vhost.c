@@ -15,6 +15,7 @@
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
 #include <linux/mm.h>
+#include <linux/mmu_context.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
@@ -177,6 +178,8 @@ static int vhost_worker(void *data)
 	struct vhost_work *work = NULL;
 	unsigned uninitialized_var(seq);
 
+	use_mm(dev->mm);
+
 	for (;;) {
 		/* mb paired w/ kthread_stop */
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -191,7 +194,7 @@ static int vhost_worker(void *data)
 		if (kthread_should_stop()) {
 			spin_unlock_irq(&dev->work_lock);
 			__set_current_state(TASK_RUNNING);
-			return 0;
+			break;
 		}
 		if (!list_empty(&dev->work_list)) {
 			work = list_first_entry(&dev->work_list,
@@ -209,6 +212,8 @@ static int vhost_worker(void *data)
 			schedule();
 
 	}
+	unuse_mm(dev->mm);
+	return 0;
 }
 
 /* Helper to allocate iovec buffers for all vqs. */
