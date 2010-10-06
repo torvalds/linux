@@ -53,11 +53,13 @@
 #define IWL6000_UCODE_API_MAX 4
 #define IWL6050_UCODE_API_MAX 5
 #define IWL6000G2_UCODE_API_MAX 5
+#define IWL130_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
 #define IWL6050_UCODE_API_MIN 4
 #define IWL6000G2_UCODE_API_MIN 4
+#define IWL130_UCODE_API_MIN 5
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
@@ -75,6 +77,9 @@
 #define _IWL6000G2B_MODULE_FIRMWARE(api) IWL6000G2B_FW_PRE #api ".ucode"
 #define IWL6000G2B_MODULE_FIRMWARE(api) _IWL6000G2B_MODULE_FIRMWARE(api)
 
+#define IWL130_FW_PRE "iwlwifi-130-"
+#define _IWL100_MODULE_FIRMWARE(api) IWL130_FW_PRE #api ".ucode"
+#define IWL100_MODULE_FIRMWARE(api) _IWL130_MODULE_FIRMWARE(api)
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -808,6 +813,45 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+};
+
+struct iwl_cfg iwl130_bgn_cfg = {
+	.name = "Intel(R) 130 Series 1x1 BGN",
+	.fw_name_pre = IWL6000G2B_FW_PRE,
+	.ucode_api_max = IWL130_UCODE_API_MAX,
+	.ucode_api_min = IWL130_UCODE_API_MIN,
+	.sku = IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_A,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.ht_params = &iwl6000_ht_params,
+	.need_dc_calib = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+};
+
+struct iwl_cfg iwl130_bg_cfg = {
+	.name = "Intel(R) 130 Series 1x2 BG",
+	.fw_name_pre = IWL6000G2B_FW_PRE,
+	.ucode_api_max = IWL130_UCODE_API_MAX,
+	.ucode_api_min = IWL130_UCODE_API_MIN,
+	.sku = IWL_SKU_G,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_A,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.need_dc_calib = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

@@ -4822,11 +4822,21 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0084, 0x1216, iwl1000_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0084, 0x1316, iwl1000_bg_cfg)},
 
+/* 100 Series WiFi */
 	{IWL_PCI_DEVICE(0x08AE, 0x1005, iwl100_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x08AF, 0x1015, iwl100_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x08AE, 0x1025, iwl100_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x08AE, 0x1007, iwl100_bg_cfg)},
 	{IWL_PCI_DEVICE(0x08AE, 0x1017, iwl100_bg_cfg)},
+
+/* 130 Series WiFi */
+	{IWL_PCI_DEVICE(0x0896, 0x5005, iwl130_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5007, iwl130_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0897, 0x5015, iwl130_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0897, 0x5017, iwl130_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5025, iwl130_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5027, iwl130_bg_cfg)},
+
 #endif /* CONFIG_IWL5000 */
 
 	{0}
