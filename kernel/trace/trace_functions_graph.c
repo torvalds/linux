@@ -287,7 +287,6 @@ trace_graph_function(struct trace_array *tr,
 		unsigned long ip, unsigned long parent_ip,
 		unsigned long flags, int pc)
 {
-	__trace_graph_function(tr, parent_ip, flags, pc);
 	__trace_graph_function(tr, ip, flags, pc);
 }
 
