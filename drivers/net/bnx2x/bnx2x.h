@@ -308,6 +308,7 @@ union host_hc_status_block {
 
 struct bnx2x_fastpath {
 
+#define BNX2X_NAPI_WEIGHT       128
 	struct napi_struct	napi;
 	union host_hc_status_block status_blk;
 	/* chip independed shortcuts into sb structure */
@@ -920,8 +921,10 @@ struct bnx2x {
 #define USING_DAC_FLAG			0x10
 #define USING_MSIX_FLAG			0x20
 #define USING_MSI_FLAG			0x40
+
 #define TPA_ENABLE_FLAG			0x80
 #define NO_MCP_FLAG			0x100
+#define DISABLE_MSI_FLAG		0x200
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
 #define HW_VLAN_TX_FLAG			0x400
 #define HW_VLAN_RX_FLAG			0x800

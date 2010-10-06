@@ -90,7 +90,7 @@ module_param(multi_mode, int, 0);
 MODULE_PARM_DESC(multi_mode, " Multi queue mode "
 			     "(0 Disable; 1 Enable (default))");
 
-static int num_queues;
+int num_queues;
 module_param(num_queues, int, 0);
 MODULE_PARM_DESC(num_queues, " Number of queues for multi_mode=1"
 				" (default is as a number of CPUs)");
@@ -6409,28 +6409,57 @@ int bnx2x_setup_fw_client(struct bnx2x *bp,
 	return rc;
 }
 
-void bnx2x_set_num_queues_msix(struct bnx2x *bp)
+/**
+ * Configure interrupt mode according to current configuration.
+ * In case of MSI-X it will also try to enable MSI-X.
+ *
+ * @param bp
+ *
+ * @return int
+ */
+static int __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 {
+	int rc = 0;
 
-	switch (bp->multi_mode) {
-	case ETH_RSS_MODE_DISABLED:
+	switch (bp->int_mode) {
+	case INT_MODE_MSI:
+		bnx2x_enable_msi(bp);
+		/* falling through... */
+	case INT_MODE_INTx:
 		bp->num_queues = 1;
+		DP(NETIF_MSG_IFUP, "set number of queues to 1\n");
 		break;
-
-	case ETH_RSS_MODE_REGULAR:
-		if (num_queues)
-			bp->num_queues = min_t(u32, num_queues,
-						  BNX2X_MAX_QUEUES(bp));
-		else
-			bp->num_queues = min_t(u32, num_online_cpus(),
-						  BNX2X_MAX_QUEUES(bp));
-		break;
-
-
 	default:
-		bp->num_queues = 1;
+		/* Set number of queues according to bp->multi_mode value */
+		bnx2x_set_num_queues(bp);
+
+		DP(NETIF_MSG_IFUP, "set number of queues to %d\n",
+		   bp->num_queues);
+
+		/* if we can't use MSI-X we only need one fp,
+		 * so try to enable MSI-X with the requested number of fp's
+		 * and fallback to MSI or legacy INTx with one fp
+		 */
+		rc = bnx2x_enable_msix(bp);
+		if (rc) {
+			/* failed to enable MSI-X */
+			if (bp->multi_mode)
+				DP(NETIF_MSG_IFUP,
+					  "Multi requested but failed to "
+					  "enable MSI-X (%d), "
+					  "set number of queues to %d\n",
+				   bp->num_queues,
+				   1);
+			bp->num_queues = 1;
+
+			if (!(bp->flags & DISABLE_MSI_FLAG))
+				bnx2x_enable_msi(bp);
+		}
+
 		break;
 	}
+
+	return rc;
 }
 
 void bnx2x_ilt_set_info(struct bnx2x *bp)
@@ -6881,7 +6910,7 @@ unload_error:
 	bnx2x_netif_stop(bp, 1);
 
 	/* Release IRQs */
-	bnx2x_free_irq(bp, false);
+	bnx2x_free_irq(bp);
 
 	/* Reset the chip */
 	bnx2x_reset_chip(bp, reset_code);
@@ -9024,7 +9053,16 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		goto init_one_exit;
 	}
 
+	/* Configure interupt mode: try to enable MSI-X/MSI if
+	 * needed, set bp->num_queues appropriately.
+	 */
+	bnx2x_set_int_mode(bp);
+
+	/* Add all NAPI objects */
+	bnx2x_add_all_napi(bp);
+
 	bnx2x_get_pcie_width_speed(bp, &pcie_width, &pcie_speed);
+
 	netdev_info(dev, "%s (%c%d) PCI-E x%d %s found at mem %lx,"
 	       " IRQ %d, ", board_info[ent->driver_data].name,
 	       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
@@ -9068,6 +9106,11 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
+	/* Delete all NAPI objects */
+	bnx2x_del_all_napi(bp);
+
+	/* Disable MSI/MSI-X */
+	bnx2x_disable_msi(bp);
 	/* Make sure RESET task is not scheduled before continuing */
 	cancel_delayed_work_sync(&bp->reset_task);
 
@@ -9104,15 +9147,14 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	DP(BNX2X_MSG_STATS, "stats_state - DISABLED\n");
 
 	/* Release IRQs */
-	bnx2x_free_irq(bp, false);
+	bnx2x_free_irq(bp);
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
 
 	for_each_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
-	for_each_queue(bp, i)
-		netif_napi_del(&bnx2x_fp(bp, i, napi));
+
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;

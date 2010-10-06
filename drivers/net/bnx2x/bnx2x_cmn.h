@@ -23,6 +23,7 @@
 
 #include "bnx2x.h"
 
+extern int num_queues;
 
 /*********************** Interfaces ****************************
  *  Functions that need to be implemented by each driver version
@@ -193,12 +194,12 @@ int bnx2x_stop_fw_client(struct bnx2x *bp,
 			 struct bnx2x_client_ramrod_params *p);
 
 /**
- * Set number of quueus according to mode
+ * Set number of queues according to mode
  *
  * @param bp
  *
  */
-void bnx2x_set_num_queues_msix(struct bnx2x *bp);
+void bnx2x_set_num_queues(struct bnx2x *bp);
 
 /**
  * Cleanup chip internals:
@@ -325,6 +326,42 @@ int bnx2x_func_stop(struct bnx2x *bp);
  */
 void bnx2x_ilt_set_info(struct bnx2x *bp);
 
+/**
+ * Fill msix_table, request vectors, update num_queues according
+ * to number of available vectors
+ *
+ * @param bp
+ *
+ * @return int
+ */
+int bnx2x_enable_msix(struct bnx2x *bp);
+
+/**
+ * Request msi mode from OS, updated internals accordingly
+ *
+ * @param bp
+ *
+ * @return int
+ */
+int bnx2x_enable_msi(struct bnx2x *bp);
+
+/**
+ * Request IRQ vectors from OS.
+ *
+ * @param bp
+ *
+ * @return int
+ */
+int bnx2x_setup_irqs(struct bnx2x *bp);
+/**
+ * NAPI callback
+ *
+ * @param napi
+ * @param budget
+ *
+ * @return int
+ */
+int bnx2x_poll(struct napi_struct *napi, int budget);
 static inline void bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
 {
 	barrier(); /* status block is written to by the chip */
@@ -605,9 +642,41 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 	sge->addr_lo = 0;
 }
 
+static inline void bnx2x_add_all_napi(struct bnx2x *bp)
+{
+	int i;
 
+	/* Add NAPI objects */
+	for_each_queue(bp, i)
+		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
+			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
+}
 
+static inline void bnx2x_del_all_napi(struct bnx2x *bp)
+{
+	int i;
 
+	for_each_queue(bp, i)
+		netif_napi_del(&bnx2x_fp(bp, i, napi));
+}
+
+static inline void bnx2x_disable_msi(struct bnx2x *bp)
+{
+	if (bp->flags & USING_MSIX_FLAG) {
+		pci_disable_msix(bp->pdev);
+		bp->flags &= ~USING_MSIX_FLAG;
+	} else if (bp->flags & USING_MSI_FLAG) {
+		pci_disable_msi(bp->pdev);
+		bp->flags &= ~USING_MSI_FLAG;
+	}
+}
+
+static inline int bnx2x_calc_num_queues(struct bnx2x *bp)
+{
+	return  num_queues ?
+		 min_t(int, num_queues, BNX2X_MAX_QUEUES(bp)) :
+		 min_t(int, num_online_cpus(), BNX2X_MAX_QUEUES(bp));
+}
 
 static inline void bnx2x_clear_sge_mask_next_elems(struct bnx2x_fastpath *fp)
 {
@@ -877,7 +946,7 @@ void bnx2x_tx_timeout(struct net_device *dev);
 void bnx2x_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp);
 void bnx2x_netif_start(struct bnx2x *bp);
 void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw);
-void bnx2x_free_irq(struct bnx2x *bp, bool disable_only);
+void bnx2x_free_irq(struct bnx2x *bp);
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
 int bnx2x_resume(struct pci_dev *pdev);
 void bnx2x_free_skbs(struct bnx2x *bp);
