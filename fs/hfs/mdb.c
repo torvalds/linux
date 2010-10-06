@@ -220,7 +220,7 @@ int hfs_mdb_get(struct super_block *sb)
 		mdb->drLsMod = hfs_mtime();
 
 		mark_buffer_dirty(HFS_SB(sb)->mdb_bh);
-		hfs_buffer_sync(HFS_SB(sb)->mdb_bh);
+		sync_dirty_buffer(HFS_SB(sb)->mdb_bh);
 	}
 
 	return 0;
@@ -287,7 +287,7 @@ void hfs_mdb_commit(struct super_block *sb)
 		HFS_SB(sb)->alt_mdb->drAtrb |= cpu_to_be16(HFS_SB_ATTRIB_UNMNT);
 		HFS_SB(sb)->alt_mdb->drAtrb &= cpu_to_be16(~HFS_SB_ATTRIB_INCNSTNT);
 		mark_buffer_dirty(HFS_SB(sb)->alt_mdb_bh);
-		hfs_buffer_sync(HFS_SB(sb)->alt_mdb_bh);
+		sync_dirty_buffer(HFS_SB(sb)->alt_mdb_bh);
 	}
 
 	if (test_and_clear_bit(HFS_FLG_BITMAP_DIRTY, &HFS_SB(sb)->flags)) {

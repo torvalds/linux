@@ -254,17 +254,6 @@ static inline void hfs_bitmap_dirty(struct super_block *sb)
 	sb->s_dirt = 1;
 }
 
-static inline void hfs_buffer_sync(struct buffer_head *bh)
-{
-	while (buffer_locked(bh)) {
-		wait_on_buffer(bh);
-	}
-	if (buffer_dirty(bh)) {
-		ll_rw_block(WRITE, 1, &bh);
-		wait_on_buffer(bh);
-	}
-}
-
 #define sb_bread512(sb, sec, data) ({			\
 	struct buffer_head *__bh;			\
 	sector_t __block;				\
