@@ -2256,13 +2256,15 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (pieces.init_evtlog_size)
 		priv->_agn.init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
 	else
-		priv->_agn.init_evtlog_size = priv->cfg->max_event_log_size;
+		priv->_agn.init_evtlog_size =
+			priv->cfg->base_params->max_event_log_size;
 	priv->_agn.init_errlog_ptr = pieces.init_errlog_ptr;
 	priv->_agn.inst_evtlog_ptr = pieces.inst_evtlog_ptr;
 	if (pieces.inst_evtlog_size)
 		priv->_agn.inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
 	else
-		priv->_agn.inst_evtlog_size = priv->cfg->max_event_log_size;
+		priv->_agn.inst_evtlog_size =
+			priv->cfg->base_params->max_event_log_size;
 	priv->_agn.inst_errlog_ptr = pieces.inst_errlog_ptr;
 
 	if (ucode_capa.pan) {
@@ -2732,7 +2734,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
 
-	if (priv->cfg->support_ct_kill_exit) {
+	if (priv->cfg->base_params->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
@@ -2776,9 +2778,7 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 
 	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));
 	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
-	calib_cfg_cmd.ucd_calib_cfg.once.start = cfg;
-	calib_cfg_cmd.ucd_calib_cfg.once.send_res = 0;
-	calib_cfg_cmd.ucd_calib_cfg.flags = 0;
+	calib_cfg_cmd.ucd_calib_cfg.once.start = cpu_to_le32(cfg);
 
 	return iwl_send_cmd(priv, &cmd);
 }
@@ -2831,13 +2831,15 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		/* Enable timer to monitor the driver queues */
 		mod_timer(&priv->monitor_recover,
 			jiffies +
-			msecs_to_jiffies(priv->cfg->monitor_recover_period));
+			msecs_to_jiffies(
+			  priv->cfg->base_params->monitor_recover_period));
 	}
 
 	if (iwl_is_rfkill(priv))
 		return;
 
-	if (priv->cfg->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
@@ -2877,7 +2879,8 @@ static void iwl_alive_start(struct iwl_priv *priv)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 	}
 
-	if (!priv->cfg->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    !priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 	}
@@ -2930,7 +2933,11 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	/* reset BT coex data */
 	priv->bt_status = 0;
-	priv->bt_traffic_load = priv->cfg->bt_init_traffic_load;
+	if (priv->cfg->bt_params)
+		priv->bt_traffic_load =
+			 priv->cfg->bt_params->bt_init_traffic_load;
+	else
+		priv->bt_traffic_load = 0;
 	priv->bt_sco_active = false;
 	priv->bt_full_concurrent = false;
 	priv->bt_ci_compliance = 0;
@@ -3224,7 +3231,8 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		if (priv->cfg->bt_statistics) {
+		if (priv->cfg->bt_params &&
+		    priv->cfg->bt_params->bt_statistics) {
 			iwl_chain_noise_calibration(priv,
 					(void *)&priv->_agn.statistics_bt);
 			iwl_sensitivity_calibration(priv,
@@ -3423,7 +3431,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_NEED_DTIM_PERIOD |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
-	if (!priv->cfg->broken_powersave)
+	if (!priv->cfg->base_params->broken_powersave)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
@@ -3748,7 +3756,8 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			ret = 0;
-		if (priv->cfg->use_rts_for_aggregation) {
+		if (priv->cfg->ht_params &&
+		    priv->cfg->ht_params->use_rts_for_aggregation) {
 			struct iwl_station_priv *sta_priv =
 				(void *) sta->drv_priv;
 			/*
@@ -3762,7 +3771,8 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		if (priv->cfg->use_rts_for_aggregation) {
+		if (priv->cfg->ht_params &&
+		    priv->cfg->ht_params->use_rts_for_aggregation) {
 			struct iwl_station_priv *sta_priv =
 				(void *) sta->drv_priv;
 
@@ -4080,7 +4090,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 			priv->cfg->ops->lib->recover_from_tx_stall;
 	}
 
-	if (!priv->cfg->use_isr_legacy)
+	if (!priv->cfg->base_params->use_isr_legacy)
 		tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 			iwl_irq_tasklet, (unsigned long)priv);
 	else
@@ -4165,7 +4175,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	iwl_init_scan_params(priv);
 
 	/* init bt coex */
-	if (priv->cfg->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;

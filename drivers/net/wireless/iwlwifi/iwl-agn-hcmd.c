@@ -137,7 +137,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			continue;
 		}
 
-		delta_g = (priv->cfg->chain_noise_scale *
+		delta_g = (priv->cfg->base_params->chain_noise_scale *
 			((s32)average_noise[default_chain] -
 			(s32)average_noise[i])) / 1500;
 
@@ -222,7 +222,8 @@ static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
 		return;
 	}
 
-	if (priv->cfg->use_rts_for_aggregation &&
+	if (priv->cfg->ht_params &&
+	    priv->cfg->ht_params->use_rts_for_aggregation &&
 	    info->flags & IEEE80211_TX_CTL_AMPDU) {
 		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
 		return;

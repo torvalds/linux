@@ -631,7 +631,8 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		rx_info = &(((struct iwl_bt_notif_statistics *)resp)->
 			      rx.general.common);
 		ofdm = &(((struct iwl_bt_notif_statistics *)resp)->rx.ofdm);
@@ -786,7 +787,8 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		rx_info = &(((struct iwl_bt_notif_statistics *)stat_resp)->
 			      rx.general.common);
 	} else {
@@ -801,7 +803,8 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 
 	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(ctx->staging.channel);
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		stat_band24 = !!(((struct iwl_bt_notif_statistics *)
 				 stat_resp)->flag &
 				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
@@ -861,16 +864,17 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	/* If this is the "chain_noise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
 	 * 2)  Differential gain (using silence noise) to balance receivers */
-	if (data->beacon_count != priv->cfg->chain_noise_num_beacons)
+	if (data->beacon_count !=
+		priv->cfg->base_params->chain_noise_num_beacons)
 		return;
 
 	/* Analyze signal for disconnected antenna */
-	average_sig[0] =
-		(data->chain_signal_a) / priv->cfg->chain_noise_num_beacons;
-	average_sig[1] =
-		(data->chain_signal_b) / priv->cfg->chain_noise_num_beacons;
-	average_sig[2] =
-		(data->chain_signal_c) / priv->cfg->chain_noise_num_beacons;
+	average_sig[0] = data->chain_signal_a /
+			 priv->cfg->base_params->chain_noise_num_beacons;
+	average_sig[1] = data->chain_signal_b /
+			 priv->cfg->base_params->chain_noise_num_beacons;
+	average_sig[2] = data->chain_signal_c /
+			 priv->cfg->base_params->chain_noise_num_beacons;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -920,7 +924,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	 * To be safe, simply mask out any chains that we know
 	 * are not on the device.
 	 */
-	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		active_chains &= first_antenna(priv->hw_params.valid_rx_ant);
 	} else
@@ -967,12 +973,12 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 			active_chains);
 
 	/* Analyze noise for rx balance */
-	average_noise[0] =
-		((data->chain_noise_a) / priv->cfg->chain_noise_num_beacons);
-	average_noise[1] =
-		((data->chain_noise_b) / priv->cfg->chain_noise_num_beacons);
-	average_noise[2] =
-		((data->chain_noise_c) / priv->cfg->chain_noise_num_beacons);
+	average_noise[0] = data->chain_noise_a /
+			   priv->cfg->base_params->chain_noise_num_beacons;
+	average_noise[1] = data->chain_noise_b /
+			   priv->cfg->base_params->chain_noise_num_beacons;
+	average_noise[2] = data->chain_noise_c /
+			   priv->cfg->base_params->chain_noise_num_beacons;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!(data->disconn_array[i]) &&

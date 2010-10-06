@@ -422,7 +422,8 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 		 * notification again.
 		 */
 		if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
-		    priv->cfg->advanced_bt_coexist) {
+		    priv->cfg->bt_params &&
+		    priv->cfg->bt_params->advanced_bt_coexist) {
 			IWL_WARN(priv, "receive reply tx with bt_kill\n");
 		}
 		iwlagn_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
@@ -589,7 +590,7 @@ const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
 					   size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
-	BUG_ON(address >= priv->cfg->eeprom_size);
+	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
 	return &priv->eeprom[address];
 }
 
@@ -637,7 +638,7 @@ int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
 
-	if (!priv->cfg->use_isr_legacy)
+	if (!priv->cfg->base_params->use_isr_legacy)
 		rb_timeout = RX_RB_TIMEOUT;
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
@@ -1424,7 +1425,8 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		 * Internal scans are passive, so we can indiscriminately set
 		 * the BT ignore flag on 2.4 GHz since it applies to TX only.
 		 */
-		if (priv->cfg->advanced_bt_coexist)
+		if (priv->cfg->bt_params &&
+		    priv->cfg->bt_params->advanced_bt_coexist)
 			scan->tx_cmd.tx_flags |= TX_CMD_FLG_IGNORE_BT;
 		scan->good_CRC_th = IWL_GOOD_CRC_TH_DISABLED;
 		break;
@@ -1463,10 +1465,12 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (priv->cfg->scan_tx_antennas[band])
 		scan_tx_antennas = priv->cfg->scan_tx_antennas[band];
 
-	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
-		scan_tx_antennas =
-			first_antenna(priv->cfg->scan_tx_antennas[band]);
+		scan_tx_antennas = first_antenna(
+			priv->cfg->scan_tx_antennas[band]);
 	}
 
 	priv->scan_tx_ant[band] = iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band],
@@ -1487,7 +1491,9 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		rx_ant = first_antenna(active_chains);
 	}
-	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		rx_ant = first_antenna(rx_ant);
 	}
@@ -1777,7 +1783,10 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(bt_cmd.bt3_lookup_table));
 
-	bt_cmd.prio_boost = priv->cfg->bt_prio_boost;
+	if (priv->cfg->bt_params)
+		bt_cmd.prio_boost = priv->cfg->bt_params->bt_prio_boost;
+	else
+		bt_cmd.prio_boost = 0;
 	bt_cmd.kill_ack_mask = priv->kill_ack_mask;
 	bt_cmd.kill_cts_mask = priv->kill_cts_mask;
 	bt_cmd.valid = priv->bt_valid;

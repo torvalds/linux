@@ -356,7 +356,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	const u8 *ptr;
 	char *buf;
 	u16 eeprom_ver;
-	size_t eeprom_len = priv->cfg->eeprom_size;
+	size_t eeprom_len = priv->cfg->base_params->eeprom_size;
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
@@ -872,7 +872,7 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	char *buf;
 	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(priv->cfg->num_of_queues * 32 * 8) + 400;
+		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
@@ -971,7 +971,8 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	int pos = 0;
 	int cnt;
 	int ret;
-	const size_t bufsz = sizeof(char) * 64 * priv->cfg->num_of_queues;
+	const size_t bufsz = sizeof(char) * 64 *
+				priv->cfg->base_params->num_of_queues;
 
 	if (!priv->txq) {
 		IWL_ERR(priv, "txq not ready\n");
@@ -1415,7 +1416,7 @@ static ssize_t iwl_dbgfs_plcp_delta_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%u\n",
-			priv->cfg->plcp_delta_threshold);
+			priv->cfg->base_params->plcp_delta_threshold);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1437,10 +1438,10 @@ static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
 		return -EINVAL;
 	if ((plcp < IWL_MAX_PLCP_ERR_THRESHOLD_MIN) ||
 		(plcp > IWL_MAX_PLCP_ERR_THRESHOLD_MAX))
-		priv->cfg->plcp_delta_threshold =
+		priv->cfg->base_params->plcp_delta_threshold =
 			IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE;
 	else
-		priv->cfg->plcp_delta_threshold = plcp;
+		priv->cfg->base_params->plcp_delta_threshold = plcp;
 	return count;
 }
 
@@ -1550,13 +1551,14 @@ static ssize_t iwl_dbgfs_monitor_period_write(struct file *file,
 	if (sscanf(buf, "%d", &period) != 1)
 		return -EINVAL;
 	if (period < 0 || period > IWL_MAX_MONITORING_PERIOD)
-		priv->cfg->monitor_recover_period = IWL_DEF_MONITORING_PERIOD;
+		priv->cfg->base_params->monitor_recover_period =
+			IWL_DEF_MONITORING_PERIOD;
 	else
-		priv->cfg->monitor_recover_period = period;
+		priv->cfg->base_params->monitor_recover_period = period;
 
-	if (priv->cfg->monitor_recover_period)
+	if (priv->cfg->base_params->monitor_recover_period)
 		mod_timer(&priv->monitor_recover, jiffies + msecs_to_jiffies(
-			  priv->cfg->monitor_recover_period));
+			  priv->cfg->base_params->monitor_recover_period));
 	else
 		del_timer_sync(&priv->monitor_recover);
 	return count;
@@ -1614,9 +1616,14 @@ static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,
 	char buf[40];
 	const size_t bufsz = sizeof(buf);
 
-	pos += scnprintf(buf + pos, bufsz - pos, "use %s for aggregation\n",
-			 (priv->cfg->use_rts_for_aggregation) ? "rts/cts" :
-			 "cts-to-self");
+	if (priv->cfg->ht_params)
+		pos += scnprintf(buf + pos, bufsz - pos,
+			 "use %s for aggregation\n",
+			 (priv->cfg->ht_params->use_rts_for_aggregation) ?
+				"rts/cts" : "cts-to-self");
+	else
+		pos += scnprintf(buf + pos, bufsz - pos, "N/A");
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -1629,6 +1636,9 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	int buf_size;
 	int rts;
 
+	if (!priv->cfg->ht_params)
+		return -EINVAL;
+
 	memset(buf, 0, sizeof(buf));
 	buf_size = min(count, sizeof(buf) -  1);
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -1636,9 +1646,9 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	if (sscanf(buf, "%d", &rts) != 1)
 		return -EINVAL;
 	if (rts)
-		priv->cfg->use_rts_for_aggregation = true;
+		priv->cfg->ht_params->use_rts_for_aggregation = true;
 	else
-		priv->cfg->use_rts_for_aggregation = false;
+		priv->cfg->ht_params->use_rts_for_aggregation = false;
 	return count;
 }
 
@@ -1716,7 +1726,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(led, dir_data, S_IRUSR);
-	if (!priv->cfg->broken_powersave) {
+	if (!priv->cfg->base_params->broken_powersave) {
 		DEBUGFS_ADD_FILE(sleep_level_override, dir_data,
 				 S_IWUSR | S_IRUSR);
 		DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
@@ -1743,27 +1753,27 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
 
-	if (priv->cfg->sensitivity_calib_by_driver)
+	if (priv->cfg->base_params->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	if (priv->cfg->chain_noise_calib_by_driver)
+	if (priv->cfg->base_params->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	if (priv->cfg->ucode_tracing)
+	if (priv->cfg->base_params->ucode_tracing)
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
-	if (priv->cfg->bt_statistics)
+	if (priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics)
 		DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(monitor_period, dir_debug, S_IWUSR);
-	if (priv->cfg->advanced_bt_coexist)
+	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
-	if (priv->cfg->sensitivity_calib_by_driver)
+	if (priv->cfg->base_params->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &priv->disable_sens_cal);
-	if (priv->cfg->chain_noise_calib_by_driver)
+	if (priv->cfg->base_params->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &priv->disable_chain_noise_cal);
-	if (priv->cfg->tx_power_by_driver)
+	if (priv->cfg->base_params->tx_power_by_driver)
 		DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf,
 				&priv->disable_tx_power_cal);
 	return 0;

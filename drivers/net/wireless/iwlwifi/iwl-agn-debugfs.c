@@ -39,7 +39,8 @@ static int iwl_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
 	int p = 0;
 	u32 flag;
 
-	if (priv->cfg->bt_statistics)
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics)
 		flag = le32_to_cpu(priv->_agn.statistics_bt.flag);
 	else
 		flag = le32_to_cpu(priv->_agn.statistics.flag);
@@ -88,7 +89,8 @@ ssize_t iwl_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	 * the last statistics notification from uCode
 	 * might not reflect the current uCode activity
 	 */
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		ofdm = &priv->_agn.statistics_bt.rx.ofdm;
 		cck = &priv->_agn.statistics_bt.rx.cck;
 		general = &priv->_agn.statistics_bt.rx.general.common;
@@ -534,7 +536,8 @@ ssize_t iwl_ucode_tx_stats_read(struct file *file,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		tx = &priv->_agn.statistics_bt.tx;
 		accum_tx = &priv->_agn.accum_statistics_bt.tx;
 		delta_tx = &priv->_agn.delta_statistics_bt.tx;
@@ -734,7 +737,8 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		general = &priv->_agn.statistics_bt.general.common;
 		dbg = &priv->_agn.statistics_bt.general.common.dbg;
 		div = &priv->_agn.statistics_bt.general.common.div;

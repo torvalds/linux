@@ -232,7 +232,8 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 
 	ht_info->ht_supported = true;
 
-	if (priv->cfg->ht_greenfield_support)
+	if (priv->cfg->ht_params &&
+	    priv->cfg->ht_params->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
@@ -247,11 +248,11 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
 	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
-	if (priv->cfg->ampdu_factor)
-		ht_info->ampdu_factor = priv->cfg->ampdu_factor;
+	if (priv->cfg->bt_params && priv->cfg->bt_params->ampdu_factor)
+		ht_info->ampdu_factor = priv->cfg->bt_params->ampdu_factor;
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
-	if (priv->cfg->ampdu_density)
-		ht_info->ampdu_density = priv->cfg->ampdu_density;
+	if (priv->cfg->bt_params && priv->cfg->bt_params->ampdu_density)
+		ht_info->ampdu_density = priv->cfg->bt_params->ampdu_density;
 
 	ht_info->mcs.rx_mask[0] = 0xFF;
 	if (rx_chains_num >= 2)
@@ -850,8 +851,10 @@ EXPORT_SYMBOL(iwl_set_rxon_ht);
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	if (priv->cfg->advanced_bt_coexist && (priv->bt_full_concurrent ||
-	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    (priv->bt_full_concurrent ||
+	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
 		 * only use chain 'A' in bt high traffic load or
 		 * full concurrency mode
@@ -919,8 +922,10 @@ void iwl_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		active_chains = priv->hw_params.valid_rx_ant;
 
-	if (priv->cfg->advanced_bt_coexist && (priv->bt_full_concurrent ||
-	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    (priv->bt_full_concurrent ||
+	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
 		 * only use chain 'A' in bt high traffic load or
 		 * full concurrency mode
@@ -1362,7 +1367,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	 * If not (unlikely), enable L0S, so there is at least some
 	 *    power savings, even without L1.
 	 */
-	if (priv->cfg->set_l0s) {
+	if (priv->cfg->base_params->set_l0s) {
 		lctl = iwl_pcie_link_ctl(priv);
 		if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
 					PCI_CFG_LINK_CTRL_VAL_L1_EN) {
@@ -1379,8 +1384,9 @@ int iwl_apm_init(struct iwl_priv *priv)
 	}
 
 	/* Configure analog phase-lock-loop before activating to D0A */
-	if (priv->cfg->pll_cfg_val)
-		iwl_set_bit(priv, CSR_ANA_PLL_CFG, priv->cfg->pll_cfg_val);
+	if (priv->cfg->base_params->pll_cfg_val)
+		iwl_set_bit(priv, CSR_ANA_PLL_CFG,
+			    priv->cfg->base_params->pll_cfg_val);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
@@ -1411,7 +1417,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	 * do not disable clocks.  This preserves any hardware bits already
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
-	if (priv->cfg->use_bsm)
+	if (priv->cfg->base_params->use_bsm)
 		iwl_write_prph(priv, APMG_CLK_EN_REG,
 			APMG_CLK_VAL_DMA_CLK_RQT | APMG_CLK_VAL_BSM_CLK_RQT);
 	else
@@ -2054,7 +2060,8 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out_err;
 	}
 
-	if (priv->cfg->advanced_bt_coexist &&
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * pretend to have high BT traffic as long as we
@@ -2317,7 +2324,8 @@ int iwl_alloc_txq_mem(struct iwl_priv *priv)
 {
 	if (!priv->txq)
 		priv->txq = kzalloc(
-			sizeof(struct iwl_tx_queue) * priv->cfg->num_of_queues,
+			sizeof(struct iwl_tx_queue) *
+				priv->cfg->base_params->num_of_queues,
 			GFP_KERNEL);
 	if (!priv->txq) {
 		IWL_ERR(priv, "Not enough memory for txq\n");
@@ -2828,33 +2836,34 @@ static int iwl_check_stuck_queue(struct iwl_priv *priv, int cnt)
 	txq = &priv->txq[cnt];
 	q = &txq->q;
 	/* queue is empty, skip */
-	if (q->read_ptr != q->write_ptr) {
-		if (q->read_ptr == q->last_read_ptr) {
-			/* a queue has not been read from last time */
-			if (q->repeat_same_read_ptr > MAX_REPEAT) {
-				IWL_ERR(priv,
-					"queue %d stuck %d time. Fw reload.\n",
-					q->id, q->repeat_same_read_ptr);
-				q->repeat_same_read_ptr = 0;
-				iwl_force_reset(priv, IWL_FW_RESET, false);
-			} else {
-				q->repeat_same_read_ptr++;
-				IWL_DEBUG_RADIO(priv,
-						"queue %d, not read %d time\n",
-						q->id,
-						q->repeat_same_read_ptr);
-				if (!priv->cfg->advanced_bt_coexist) {
-					mod_timer(&priv->monitor_recover,
-						jiffies + msecs_to_jiffies(
-						IWL_ONE_HUNDRED_MSECS));
-					return 1;
-				}
-			}
-			return 0;
-		} else {
-			q->last_read_ptr = q->read_ptr;
+	if (q->read_ptr == q->write_ptr)
+		return 0;
+
+	if (q->read_ptr == q->last_read_ptr) {
+		/* a queue has not been read from last time */
+		if (q->repeat_same_read_ptr > MAX_REPEAT) {
+			IWL_ERR(priv,
+				"queue %d stuck %d time. Fw reload.\n",
+				q->id, q->repeat_same_read_ptr);
 			q->repeat_same_read_ptr = 0;
+			iwl_force_reset(priv, IWL_FW_RESET, false);
+		} else {
+			q->repeat_same_read_ptr++;
+			IWL_DEBUG_RADIO(priv,
+					"queue %d, not read %d time\n",
+					q->id,
+					q->repeat_same_read_ptr);
+			if (priv->cfg->bt_params &&
+			    !priv->cfg->bt_params->advanced_bt_coexist) {
+				mod_timer(&priv->monitor_recover,
+					jiffies + msecs_to_jiffies(
+					IWL_ONE_HUNDRED_MSECS));
+				return 1;
+			}
 		}
+	} else {
+		q->last_read_ptr = q->read_ptr;
+		q->repeat_same_read_ptr = 0;
 	}
 	return 0;
 }
@@ -2881,13 +2890,13 @@ void iwl_bg_monitor_recover(unsigned long data)
 				return;
 		}
 	}
-	if (priv->cfg->monitor_recover_period) {
+	if (priv->cfg->base_params->monitor_recover_period) {
 		/*
 		 * Reschedule the timer to occur in
-		 * priv->cfg->monitor_recover_period
+		 * priv->cfg->base_params->monitor_recover_period
 		 */
 		mod_timer(&priv->monitor_recover, jiffies + msecs_to_jiffies(
-			  priv->cfg->monitor_recover_period));
+			  priv->cfg->base_params->monitor_recover_period));
 	}
 }
 EXPORT_SYMBOL(iwl_bg_monitor_recover);

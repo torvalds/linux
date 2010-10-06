@@ -406,7 +406,7 @@ static bool iwl3945_good_plcp_health(struct iwl_priv *priv,
 	unsigned int plcp_msec;
 	unsigned long plcp_received_jiffies;
 
-	if (priv->cfg->plcp_delta_threshold ==
+	if (priv->cfg->base_params->plcp_delta_threshold ==
 	    IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
 		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
 		return rc;
@@ -432,7 +432,7 @@ static bool iwl3945_good_plcp_health(struct iwl_priv *priv,
 
 		if ((combined_plcp_delta > 0) &&
 			((combined_plcp_delta * 100) / plcp_msec) >
-			priv->cfg->plcp_delta_threshold) {
+			priv->cfg->base_params->plcp_delta_threshold) {
 			/*
 			 * if plcp_err exceed the threshold, the following
 			 * data is printed in csv format:
@@ -444,7 +444,7 @@ static bool iwl3945_good_plcp_health(struct iwl_priv *priv,
 			 */
 			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
 				"%u, %d, %u mSecs\n",
-				priv->cfg->plcp_delta_threshold,
+				priv->cfg->base_params->plcp_delta_threshold,
 				le32_to_cpu(current_stat.rx.ofdm.plcp_err),
 				combined_plcp_delta, plcp_msec);
 			/*
@@ -2421,7 +2421,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	/* Assign number of Usable TX queues */
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 
 	priv->hw_params.tfd_size = sizeof(struct iwl3945_tfd);
 	priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_3K);
@@ -2722,22 +2722,12 @@ static const struct iwl_ops iwl3945_ops = {
 	.led = &iwl3945_led_ops,
 };
 
-static struct iwl_cfg iwl3945_bg_cfg = {
-	.name = "3945BG",
-	.fw_name_pre = IWL3945_FW_PRE,
-	.ucode_api_max = IWL3945_UCODE_API_MAX,
-	.ucode_api_min = IWL3945_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
+static struct iwl_base_params iwl3945_base_params = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
-	.ops = &iwl3945_ops,
-	.num_of_queues = IWL39_NUM_QUEUES,
-	.mod_params = &iwl3945_mod_params,
 	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
 	.set_l0s = false,
 	.use_bsm = true,
 	.use_isr_legacy = true,
-	.ht_greenfield_support = false,
 	.led_compensation = 64,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
@@ -2746,25 +2736,28 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.tx_power_by_driver = true,
 };
 
+static struct iwl_cfg iwl3945_bg_cfg = {
+	.name = "3945BG",
+	.fw_name_pre = IWL3945_FW_PRE,
+	.ucode_api_max = IWL3945_UCODE_API_MAX,
+	.ucode_api_min = IWL3945_UCODE_API_MIN,
+	.sku = IWL_SKU_G,
+	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
+	.ops = &iwl3945_ops,
+	.mod_params = &iwl3945_mod_params,
+	.base_params = &iwl3945_base_params,
+};
+
 static struct iwl_cfg iwl3945_abg_cfg = {
 	.name = "3945ABG",
 	.fw_name_pre = IWL3945_FW_PRE,
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
-	.num_of_queues = IWL39_NUM_QUEUES,
 	.mod_params = &iwl3945_mod_params,
-	.use_isr_legacy = true,
-	.ht_greenfield_support = false,
-	.led_compensation = 64,
-	.broken_powersave = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.tx_power_by_driver = true,
+	.base_params = &iwl3945_base_params,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {
