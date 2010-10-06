@@ -78,8 +78,8 @@
 #define IWL6000G2B_MODULE_FIRMWARE(api) _IWL6000G2B_MODULE_FIRMWARE(api)
 
 #define IWL130_FW_PRE "iwlwifi-130-"
-#define _IWL100_MODULE_FIRMWARE(api) IWL130_FW_PRE #api ".ucode"
-#define IWL100_MODULE_FIRMWARE(api) _IWL130_MODULE_FIRMWARE(api)
+#define _IWL130_MODULE_FIRMWARE(api) IWL130_FW_PRE #api ".ucode"
+#define IWL130_MODULE_FIRMWARE(api) _IWL130_MODULE_FIRMWARE(api)
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
