@@ -576,7 +576,7 @@ xfs_max_file_offset(
 
 	/* Figure out maximum filesize, on Linux this can depend on
 	 * the filesystem blocksize (on 32 bit platforms).
-	 * __block_prepare_write does this in an [unsigned] long...
+	 * __block_write_begin does this in an [unsigned] long...
 	 *      page->index << (PAGE_CACHE_SHIFT - bbits)
 	 * So, for page sized blocks (4K on 32 bit platforms),
 	 * this wraps at around 8Tb (hence MAX_LFS_FILESIZE which is

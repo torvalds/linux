@@ -165,7 +165,7 @@ int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	 * ocfs2 never allocates in this function - the only time we
 	 * need to use BH_New is when we're extending i_size on a file
 	 * system which doesn't support holes, in which case BH_New
-	 * allows block_prepare_write() to zero.
+	 * allows __block_write_begin() to zero.
 	 *
 	 * If we see this on a sparse file system, then a truncate has
 	 * raced us and removed the cluster. In this case, we clear
@@ -403,21 +403,6 @@ static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 	ret = block_write_full_page(page, ocfs2_get_block, wbc);
 
 	mlog_exit(ret);
-
-	return ret;
-}
-
-/*
- * This is called from ocfs2_write_zero_page() which has handled it's
- * own cluster locking and has ensured allocation exists for those
- * blocks to be written.
- */
-int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
-			       unsigned from, unsigned to)
-{
-	int ret;
-
-	ret = block_prepare_write(page, from, to, ocfs2_get_block);
 
 	return ret;
 }
@@ -732,7 +717,7 @@ static int ocfs2_should_read_blk(struct inode *inode, struct page *page,
 }
 
 /*
- * Some of this taken from block_prepare_write(). We already have our
+ * Some of this taken from __block_write_begin(). We already have our
  * mapping by now though, and the entire write will be allocating or
  * it won't, so not much need to use BH_New.
  *

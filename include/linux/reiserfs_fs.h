@@ -2072,6 +2072,8 @@ void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode);
 void i_attrs_to_sd_attrs(struct inode *inode, __u16 * sd_attrs);
 int reiserfs_setattr(struct dentry *dentry, struct iattr *attr);
 
+int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len);
+
 /* namei.c */
 void set_de_name_and_namelen(struct reiserfs_dir_entry *de);
 int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,

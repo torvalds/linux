@@ -1538,10 +1538,10 @@ static int do_journal_get_write_access(handle_t *handle,
 	if (!buffer_mapped(bh) || buffer_freed(bh))
 		return 0;
 	/*
-	 * __block_prepare_write() could have dirtied some buffers. Clean
+	 * __block_write_begin() could have dirtied some buffers. Clean
 	 * the dirty bit as jbd2_journal_get_write_access() could complain
 	 * otherwise about fs integrity issues. Setting of the dirty bit
-	 * by __block_prepare_write() isn't a real problem here as we clear
+	 * by __block_write_begin() isn't a real problem here as we clear
 	 * the bit before releasing a page lock and thus writeback cannot
 	 * ever write the buffer.
 	 */
@@ -2550,8 +2550,7 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		if (buffer_delay(bh))
 			return 0; /* Not sure this could or should happen */
 		/*
-		 * XXX: __block_prepare_write() unmaps passed block,
-		 * is it OK?
+		 * XXX: __block_write_begin() unmaps passed block, is it OK?
 		 */
 		ret = ext4_da_reserve_space(inode, iblock);
 		if (ret)
@@ -2583,7 +2582,7 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 /*
  * This function is used as a standard get_block_t calback function
  * when there is no desire to allocate any blocks.  It is used as a
- * callback function for block_prepare_write() and block_write_full_page().
+ * callback function for block_write_begin() and block_write_full_page().
  * These functions should only try to map a single block at a time.
  *
  * Since this function doesn't do block allocations even if the caller
@@ -2743,7 +2742,7 @@ static int ext4_writepage(struct page *page,
 		 * all are mapped and non delay. We don't want to
 		 * do block allocation here.
 		 */
-		ret = block_prepare_write(page, 0, len,
+		ret = __block_write_begin(page, 0, len,
 					  noalloc_get_block_write);
 		if (!ret) {
 			page_bufs = page_buffers(page);

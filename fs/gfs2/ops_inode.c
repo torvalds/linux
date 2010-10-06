@@ -1294,7 +1294,7 @@ static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 	int error;
 
 	if (!page_has_buffers(page)) {
-		error = block_prepare_write(page, from, to, gfs2_block_map);
+		error = __block_write_begin(page, from, to - from, gfs2_block_map);
 		if (unlikely(error))
 			return error;
 
@@ -1313,7 +1313,7 @@ static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 		next += bh->b_size;
 		if (buffer_mapped(bh)) {
 			if (end) {
-				error = block_prepare_write(page, start, end,
+				error = __block_write_begin(page, start, end - start,
 							    gfs2_block_map);
 				if (unlikely(error))
 					return error;
@@ -1328,7 +1328,7 @@ static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 	} while (next < to);
 
 	if (end) {
-		error = block_prepare_write(page, start, end, gfs2_block_map);
+		error = __block_write_begin(page, start, end - start, gfs2_block_map);
 		if (unlikely(error))
 			return error;
 		empty_write_end(page, start, end);
