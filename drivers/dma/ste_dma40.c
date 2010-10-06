@@ -419,24 +419,29 @@ static void d40_desc_remove(struct d40_desc *d40d)
 
 static struct d40_desc *d40_desc_get(struct d40_chan *d40c)
 {
-	struct d40_desc *d;
-	struct d40_desc *_d;
+	struct d40_desc *desc = NULL;
 
 	if (!list_empty(&d40c->client)) {
+		struct d40_desc *d;
+		struct d40_desc *_d;
+
 		list_for_each_entry_safe(d, _d, &d40c->client, node)
 			if (async_tx_test_ack(&d->txd)) {
 				d40_pool_lli_free(d);
 				d40_desc_remove(d);
+				desc = d;
+				memset(desc, 0, sizeof(*desc));
 				break;
 			}
-	} else {
-		d = kmem_cache_alloc(d40c->base->desc_slab, GFP_NOWAIT);
-		if (d != NULL) {
-			memset(d, 0, sizeof(struct d40_desc));
-			INIT_LIST_HEAD(&d->node);
-		}
 	}
-	return d;
+
+	if (!desc)
+		desc = kmem_cache_zalloc(d40c->base->desc_slab, GFP_NOWAIT);
+
+	if (desc)
+		INIT_LIST_HEAD(&desc->node);
+
+	return desc;
 }
 
 static void d40_desc_free(struct d40_chan *d40c, struct d40_desc *d40d)
