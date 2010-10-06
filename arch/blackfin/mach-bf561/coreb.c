@@ -73,3 +73,4 @@ module_exit(bf561_coreb_exit);
 
 MODULE_AUTHOR("Bas Vermeulen <bvermeul@blackstar.xs4all.nl>");
 MODULE_DESCRIPTION("BF561 Core B Support");
+MODULE_LICENSE("GPL");
