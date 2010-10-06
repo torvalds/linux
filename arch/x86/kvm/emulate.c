@@ -9,7 +9,7 @@
  * privileged instructions:
  *
  * Copyright (C) 2006 Qumranet
- * Copyright 2010 Red Hat, Inc. and/or its affilates.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  *   Avi Kivity <avi@qumranet.com>
  *   Yaniv Kamay <yaniv@qumranet.com>
