@@ -118,12 +118,12 @@ static const struct mxc_nand_platform_data
 	.flash_bbt	= 1,
 };
 
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data __maybe_unused otg_pdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static struct mxc_usbh_platform_data __maybe_unused usbh1_pdata = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
