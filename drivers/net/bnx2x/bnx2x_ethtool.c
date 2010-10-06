@@ -41,18 +41,18 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	    (bp->link_vars.link_up)) {
 		cmd->speed = bp->link_vars.line_speed;
 		cmd->duplex = bp->link_vars.duplex;
-		if (IS_MF(bp)) {
-			u16 vn_max_rate;
-
-			vn_max_rate =
-				((bp->mf_config & FUNC_MF_CFG_MAX_BW_MASK) >>
-				FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
-			if (vn_max_rate < cmd->speed)
-				cmd->speed = vn_max_rate;
-		}
 	} else {
+
 		cmd->speed = bp->link_params.req_line_speed[cfg_idx];
 		cmd->duplex = bp->link_params.req_duplex[cfg_idx];
+	}
+	if (IS_MF(bp)) {
+		u16 vn_max_rate = ((bp->mf_config[BP_VN(bp)] &
+			FUNC_MF_CFG_MAX_BW_MASK) >> FUNC_MF_CFG_MAX_BW_SHIFT) *
+			100;
+
+		if (vn_max_rate < cmd->speed)
+			cmd->speed = vn_max_rate;
 	}
 
 	if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
@@ -298,6 +298,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 #define IS_E1_ONLINE(info)	(((info) & RI_E1_ONLINE) == RI_E1_ONLINE)
 #define IS_E1H_ONLINE(info)	(((info) & RI_E1H_ONLINE) == RI_E1H_ONLINE)
+#define IS_E2_ONLINE(info)	(((info) & RI_E2_ONLINE) == RI_E2_ONLINE)
 
 static int bnx2x_get_regs_len(struct net_device *dev)
 {
@@ -315,7 +316,7 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 				regdump_len += wreg_addrs_e1[i].size *
 					(1 + wreg_addrs_e1[i].read_regs_count);
 
-	} else { /* E1H */
+	} else if (CHIP_IS_E1H(bp)) {
 		for (i = 0; i < REGS_COUNT; i++)
 			if (IS_E1H_ONLINE(reg_addrs[i].info))
 				regdump_len += reg_addrs[i].size;
@@ -324,11 +325,37 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 			if (IS_E1H_ONLINE(wreg_addrs_e1h[i].info))
 				regdump_len += wreg_addrs_e1h[i].size *
 					(1 + wreg_addrs_e1h[i].read_regs_count);
+	} else if (CHIP_IS_E2(bp)) {
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E2_ONLINE(reg_addrs[i].info))
+				regdump_len += reg_addrs[i].size;
+
+		for (i = 0; i < WREGS_COUNT_E2; i++)
+			if (IS_E2_ONLINE(wreg_addrs_e2[i].info))
+				regdump_len += wreg_addrs_e2[i].size *
+					(1 + wreg_addrs_e2[i].read_regs_count);
 	}
 	regdump_len *= 4;
 	regdump_len += sizeof(struct dump_hdr);
 
 	return regdump_len;
+}
+
+static inline void bnx2x_read_pages_regs_e2(struct bnx2x *bp, u32 *p)
+{
+	u32 i, j, k, n;
+
+	for (i = 0; i < PAGE_MODE_VALUES_E2; i++) {
+		for (j = 0; j < PAGE_WRITE_REGS_E2; j++) {
+			REG_WR(bp, page_write_regs_e2[j], page_vals_e2[i]);
+			for (k = 0; k < PAGE_READ_REGS_E2; k++)
+				if (IS_E2_ONLINE(page_read_regs_e2[k].info))
+					for (n = 0; n <
+					      page_read_regs_e2[k].size; n++)
+						*p++ = REG_RD(bp,
+					page_read_regs_e2[k].addr + n*4);
+		}
+	}
 }
 
 static void bnx2x_get_regs(struct net_device *dev,
@@ -350,7 +377,14 @@ static void bnx2x_get_regs(struct net_device *dev,
 	dump_hdr.tstorm_waitp = REG_RD(bp, TSTORM_WAITP_ADDR);
 	dump_hdr.ustorm_waitp = REG_RD(bp, USTORM_WAITP_ADDR);
 	dump_hdr.cstorm_waitp = REG_RD(bp, CSTORM_WAITP_ADDR);
-	dump_hdr.info = CHIP_IS_E1(bp) ? RI_E1_ONLINE : RI_E1H_ONLINE;
+
+	if (CHIP_IS_E1(bp))
+		dump_hdr.info = RI_E1_ONLINE;
+	else if (CHIP_IS_E1H(bp))
+		dump_hdr.info = RI_E1H_ONLINE;
+	else if (CHIP_IS_E2(bp))
+		dump_hdr.info = RI_E2_ONLINE |
+		(BP_PATH(bp) ? RI_PATH1_DUMP : RI_PATH0_DUMP);
 
 	memcpy(p, &dump_hdr, sizeof(struct dump_hdr));
 	p += dump_hdr.hdr_size + 1;
@@ -362,16 +396,25 @@ static void bnx2x_get_regs(struct net_device *dev,
 					*p++ = REG_RD(bp,
 						      reg_addrs[i].addr + j*4);
 
-	} else { /* E1H */
+	} else if (CHIP_IS_E1H(bp)) {
 		for (i = 0; i < REGS_COUNT; i++)
 			if (IS_E1H_ONLINE(reg_addrs[i].info))
 				for (j = 0; j < reg_addrs[i].size; j++)
 					*p++ = REG_RD(bp,
 						      reg_addrs[i].addr + j*4);
+
+	} else if (CHIP_IS_E2(bp)) {
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E2_ONLINE(reg_addrs[i].info))
+				for (j = 0; j < reg_addrs[i].size; j++)
+					*p++ = REG_RD(bp,
+					      reg_addrs[i].addr + j*4);
+
+		bnx2x_read_pages_regs_e2(bp, p);
 	}
 }
 
-#define PHY_FW_VER_LEN			10
+#define PHY_FW_VER_LEN			20
 
 static void bnx2x_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
@@ -474,7 +517,7 @@ static u32 bnx2x_get_link(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	if (bp->flags & MF_FUNC_DIS)
+	if (bp->flags & MF_FUNC_DIS || (bp->state != BNX2X_STATE_OPEN))
 		return 0;
 
 	return bp->link_vars.link_up;
@@ -1235,6 +1278,9 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 
 		for (i = 0; reg_tbl[i].offset0 != 0xffffffff; i++) {
 			u32 offset, mask, save_val, val;
+			if (CHIP_IS_E2(bp) &&
+			    reg_tbl[i].offset0 == HC_REG_AGG_INT_0)
+				continue;
 
 			offset = reg_tbl[i].offset0 + port*reg_tbl[i].offset1;
 			mask = reg_tbl[i].mask;
@@ -1286,19 +1332,32 @@ static int bnx2x_test_memory(struct bnx2x *bp)
 		u32 offset;
 		u32 e1_mask;
 		u32 e1h_mask;
+		u32 e2_mask;
 	} prty_tbl[] = {
-		{ "CCM_PRTY_STS",  CCM_REG_CCM_PRTY_STS,   0x3ffc0, 0 },
-		{ "CFC_PRTY_STS",  CFC_REG_CFC_PRTY_STS,   0x2,     0x2 },
-		{ "DMAE_PRTY_STS", DMAE_REG_DMAE_PRTY_STS, 0,       0 },
-		{ "TCM_PRTY_STS",  TCM_REG_TCM_PRTY_STS,   0x3ffc0, 0 },
-		{ "UCM_PRTY_STS",  UCM_REG_UCM_PRTY_STS,   0x3ffc0, 0 },
-		{ "XCM_PRTY_STS",  XCM_REG_XCM_PRTY_STS,   0x3ffc1, 0 },
+		{ "CCM_PRTY_STS",  CCM_REG_CCM_PRTY_STS,   0x3ffc0, 0,   0 },
+		{ "CFC_PRTY_STS",  CFC_REG_CFC_PRTY_STS,   0x2,     0x2, 0 },
+		{ "DMAE_PRTY_STS", DMAE_REG_DMAE_PRTY_STS, 0,       0,   0 },
+		{ "TCM_PRTY_STS",  TCM_REG_TCM_PRTY_STS,   0x3ffc0, 0,   0 },
+		{ "UCM_PRTY_STS",  UCM_REG_UCM_PRTY_STS,   0x3ffc0, 0,   0 },
+		{ "XCM_PRTY_STS",  XCM_REG_XCM_PRTY_STS,   0x3ffc1, 0,   0 },
 
-		{ NULL, 0xffffffff, 0, 0 }
+		{ NULL, 0xffffffff, 0, 0, 0 }
 	};
 
 	if (!netif_running(bp->dev))
 		return rc;
+
+	/* pre-Check the parity status */
+	for (i = 0; prty_tbl[i].offset != 0xffffffff; i++) {
+		val = REG_RD(bp, prty_tbl[i].offset);
+		if ((CHIP_IS_E1(bp) && (val & ~(prty_tbl[i].e1_mask))) ||
+		    (CHIP_IS_E1H(bp) && (val & ~(prty_tbl[i].e1h_mask))) ||
+		    (CHIP_IS_E2(bp) && (val & ~(prty_tbl[i].e2_mask)))) {
+			DP(NETIF_MSG_HW,
+			   "%s is 0x%x\n", prty_tbl[i].name, val);
+			goto test_mem_exit;
+		}
+	}
 
 	/* Go through all the memories */
 	for (i = 0; mem_tbl[i].offset != 0xffffffff; i++)
@@ -1309,7 +1368,8 @@ static int bnx2x_test_memory(struct bnx2x *bp)
 	for (i = 0; prty_tbl[i].offset != 0xffffffff; i++) {
 		val = REG_RD(bp, prty_tbl[i].offset);
 		if ((CHIP_IS_E1(bp) && (val & ~(prty_tbl[i].e1_mask))) ||
-		    (CHIP_IS_E1H(bp) && (val & ~(prty_tbl[i].e1h_mask)))) {
+		    (CHIP_IS_E1H(bp) && (val & ~(prty_tbl[i].e1h_mask))) ||
+		    (CHIP_IS_E2(bp) && (val & ~(prty_tbl[i].e2_mask)))) {
 			DP(NETIF_MSG_HW,
 			   "%s is 0x%x\n", prty_tbl[i].name, val);
 			goto test_mem_exit;
@@ -1324,7 +1384,7 @@ test_mem_exit:
 
 static void bnx2x_wait_for_link(struct bnx2x *bp, u8 link_up, u8 is_serdes)
 {
-	int cnt = 1000;
+	int cnt = 1400;
 
 	if (link_up)
 		while (bnx2x_link_test(bp, is_serdes) && cnt--)
@@ -1343,7 +1403,8 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	u16 pkt_prod, bd_prod;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_start_bd *tx_start_bd;
-	struct eth_tx_parse_bd_e1x *pbd_e1x = NULL;
+	struct eth_tx_parse_bd_e1x  *pbd_e1x = NULL;
+	struct eth_tx_parse_bd_e2  *pbd_e2 = NULL;
 	dma_addr_t mapping;
 	union eth_rx_cqe *cqe;
 	u8 cqe_fp_flags;
@@ -1411,7 +1472,9 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 	pbd_e1x = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e1x;
+	pbd_e2 = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e2;
 
+	memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
 	memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
 
 	wmb();
@@ -1430,6 +1493,13 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	tx_idx = le16_to_cpu(*fp_tx->tx_cons_sb);
 	if (tx_idx != tx_start_idx + num_pkts)
 		goto test_loopback_exit;
+
+	/* Unlike HC IGU won't generate an interrupt for status block
+	 * updates that have been performed while interrupts were
+	 * disabled.
+	 */
+	if (bp->common.int_block == INT_BLOCK_IGU)
+		bnx2x_tx_int(fp_tx);
 
 	rx_idx = le16_to_cpu(*fp_rx->rx_cons_sb);
 	if (rx_idx != rx_start_idx + num_pkts)
@@ -1573,8 +1643,7 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 
 	config->hdr.length = 0;
 	if (CHIP_IS_E1(bp))
-		/* use last unicast entries */
-		config->hdr.offset = (BP_PORT(bp) ? 63 : 31);
+		config->hdr.offset = (BP_PORT(bp) ? 32 : 0);
 	else
 		config->hdr.offset = BP_FUNC(bp);
 	config->hdr.client_id = bp->fp->cl_id;

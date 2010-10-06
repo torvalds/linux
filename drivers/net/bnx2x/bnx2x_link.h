@@ -22,7 +22,8 @@
 /***********************************************************/
 /*                         Defines                         */
 /***********************************************************/
-#define DEFAULT_PHY_DEV_ADDR 3
+#define DEFAULT_PHY_DEV_ADDR	3
+#define E2_DEFAULT_PHY_DEV_ADDR	5
 
 
 
@@ -315,7 +316,8 @@ u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars,
 		   u8 is_serdes);
 
 /* One-time initialization for external phy after power up */
-u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base, u32 shmem2_base);
+u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
+			 u32 shmem2_base_path[], u32 chip_id);
 
 /* Reset the external PHY using GPIO */
 void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);

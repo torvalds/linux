@@ -97,6 +97,9 @@
 #define MISC_AEU_BLOCK		35
 #define PGLUE_B_BLOCK		36
 #define IGU_BLOCK		37
+#define ATC_BLOCK		38
+#define QM_4PORT_BLOCK		39
+#define XSEM_4PORT_BLOCK		40
 
 
 /* Returns the index of start or end of a specific block stage in ops array*/

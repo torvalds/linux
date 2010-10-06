@@ -377,9 +377,60 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 	return 0;
 }
 
+static void bnx2x_update_bmac2(struct link_params *params,
+			       struct link_vars *vars,
+			       u8 is_lb)
+{
+	/*
+	 * Set rx control: Strip CRC and enable BigMAC to relay
+	 * control packets to the system as well
+	 */
+	u32 wb_data[2];
+	struct bnx2x *bp = params->bp;
+	u32 bmac_addr = params->port ? NIG_REG_INGRESS_BMAC1_MEM :
+		NIG_REG_INGRESS_BMAC0_MEM;
+	u32 val = 0x14;
+
+	if (vars->flow_ctrl & BNX2X_FLOW_CTRL_RX)
+		/* Enable BigMAC to react on received Pause packets */
+		val |= (1<<5);
+	wb_data[0] = val;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_CONTROL,
+			wb_data, 2);
+	udelay(30);
+
+	/* Tx control */
+	val = 0xc0;
+	if (vars->flow_ctrl & BNX2X_FLOW_CTRL_TX)
+		val |= 0x800000;
+	wb_data[0] = val;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_CONTROL,
+			wb_data, 2);
+
+	val = 0x8000;
+	wb_data[0] = val;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_PAUSE_CONTROL,
+			wb_data, 2);
+
+	/* mac control */
+	val = 0x3; /* Enable RX and TX */
+	if (is_lb) {
+		val |= 0x4; /* Local loopback */
+		DP(NETIF_MSG_LINK, "enable bmac loopback\n");
+	}
+
+	wb_data[0] = val;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_BMAC_CONTROL,
+			wb_data, 2);
+}
 
 
-static u8 bnx2x_bmac_enable(struct link_params *params, struct link_vars *vars,
+static u8 bnx2x_bmac1_enable(struct link_params *params,
+			     struct link_vars *vars,
 			  u8 is_lb)
 {
 	struct bnx2x *bp = params->bp;
@@ -389,17 +440,7 @@ static u8 bnx2x_bmac_enable(struct link_params *params, struct link_vars *vars,
 	u32 wb_data[2];
 	u32 val;
 
-	DP(NETIF_MSG_LINK, "Enabling BigMAC\n");
-	/* reset and unreset the BigMac */
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
-	       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
-	msleep(1);
-
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
-	       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
-
-	/* enable access for bmac registers */
-	REG_WR(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4, 0x1);
+	DP(NETIF_MSG_LINK, "Enabling BigMAC1\n");
 
 	/* XGXS control */
 	wb_data[0] = 0x3c;
@@ -479,6 +520,103 @@ static u8 bnx2x_bmac_enable(struct link_params *params, struct link_vars *vars,
 			    wb_data, 2);
 	}
 
+
+	return 0;
+}
+
+static u8 bnx2x_bmac2_enable(struct link_params *params,
+			     struct link_vars *vars,
+			     u8 is_lb)
+{
+	struct bnx2x *bp = params->bp;
+	u8 port = params->port;
+	u32 bmac_addr = port ? NIG_REG_INGRESS_BMAC1_MEM :
+			       NIG_REG_INGRESS_BMAC0_MEM;
+	u32 wb_data[2];
+
+	DP(NETIF_MSG_LINK, "Enabling BigMAC2\n");
+
+	wb_data[0] = 0;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_BMAC_CONTROL,
+			wb_data, 2);
+	udelay(30);
+
+	/* XGXS control: Reset phy HW, MDIO registers, PHY PLL and BMAC */
+	wb_data[0] = 0x3c;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr +
+			BIGMAC2_REGISTER_BMAC_XGXS_CONTROL,
+			wb_data, 2);
+
+	udelay(30);
+
+	/* tx MAC SA */
+	wb_data[0] = ((params->mac_addr[2] << 24) |
+		       (params->mac_addr[3] << 16) |
+		       (params->mac_addr[4] << 8) |
+			params->mac_addr[5]);
+	wb_data[1] = ((params->mac_addr[0] << 8) |
+			params->mac_addr[1]);
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_SOURCE_ADDR,
+			wb_data, 2);
+
+	udelay(30);
+
+	/* Configure SAFC */
+	wb_data[0] = 0x1000200;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_LLFC_MSG_FLDS,
+			wb_data, 2);
+	udelay(30);
+
+	/* set rx mtu */
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_MAX_SIZE,
+			wb_data, 2);
+	udelay(30);
+
+	/* set tx mtu */
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_MAX_SIZE,
+			wb_data, 2);
+	udelay(30);
+	/* set cnt max size */
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD - 2;
+	wb_data[1] = 0;
+	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_CNT_MAX_SIZE,
+			wb_data, 2);
+	udelay(30);
+	bnx2x_update_bmac2(params, vars, is_lb);
+
+	return 0;
+}
+
+u8 bnx2x_bmac_enable(struct link_params *params,
+			    struct link_vars *vars,
+			    u8 is_lb)
+{
+	u8 rc, port = params->port;
+	struct bnx2x *bp = params->bp;
+	u32 val;
+	/* reset and unreset the BigMac */
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
+		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
+	udelay(10);
+
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
+		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
+
+	/* enable access for bmac registers */
+	REG_WR(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4, 0x1);
+
+	/* Enable BMAC according to BMAC type*/
+	if (CHIP_IS_E2(bp))
+		rc = bnx2x_bmac2_enable(params, vars, is_lb);
+	else
+		rc = bnx2x_bmac1_enable(params, vars, is_lb);
 	REG_WR(bp, NIG_REG_XGXS_SERDES0_MODE_SEL + port*4, 0x1);
 	REG_WR(bp, NIG_REG_XGXS_LANE_SEL_P0 + port*4, 0x0);
 	REG_WR(bp, NIG_REG_EGRESS_EMAC0_PORT + port*4, 0x0);
@@ -493,7 +631,7 @@ static u8 bnx2x_bmac_enable(struct link_params *params, struct link_vars *vars,
 	REG_WR(bp, NIG_REG_BMAC0_OUT_EN + port*4, 0x1);
 
 	vars->mac_type = MAC_TYPE_BMAC;
-	return 0;
+	return rc;
 }
 
 
@@ -519,13 +657,25 @@ static void bnx2x_bmac_rx_disable(struct bnx2x *bp, u8 port)
 			(MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port) &&
 	    nig_bmac_enable) {
 
-		/* Clear Rx Enable bit in BMAC_CONTROL register */
-		REG_RD_DMAE(bp, bmac_addr + BIGMAC_REGISTER_BMAC_CONTROL,
-			    wb_data, 2);
-		wb_data[0] &= ~BMAC_CONTROL_RX_ENABLE;
-		REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_BMAC_CONTROL,
-			    wb_data, 2);
-
+		if (CHIP_IS_E2(bp)) {
+			/* Clear Rx Enable bit in BMAC_CONTROL register */
+			REG_RD_DMAE(bp, bmac_addr +
+					BIGMAC2_REGISTER_BMAC_CONTROL,
+					wb_data, 2);
+			wb_data[0] &= ~BMAC_CONTROL_RX_ENABLE;
+			REG_WR_DMAE(bp, bmac_addr +
+					BIGMAC2_REGISTER_BMAC_CONTROL,
+					wb_data, 2);
+		} else {
+			/* Clear Rx Enable bit in BMAC_CONTROL register */
+			REG_RD_DMAE(bp, bmac_addr +
+					BIGMAC_REGISTER_BMAC_CONTROL,
+					wb_data, 2);
+			wb_data[0] &= ~BMAC_CONTROL_RX_ENABLE;
+			REG_WR_DMAE(bp, bmac_addr +
+					BIGMAC_REGISTER_BMAC_CONTROL,
+					wb_data, 2);
+		}
 		msleep(1);
 	}
 }
@@ -821,23 +971,31 @@ u8 bnx2x_phy_write(struct link_params *params, u8 phy_addr,
 	return -EINVAL;
 }
 
-static void bnx2x_set_aer_mmd(struct link_params *params,
-			      struct bnx2x_phy *phy)
+static void bnx2x_set_aer_mmd_xgxs(struct link_params *params,
+				   struct bnx2x_phy *phy)
 {
-	struct bnx2x *bp = params->bp;
 	u32 ser_lane;
-	u16 offset;
-
+	u16 offset, aer_val;
+	struct bnx2x *bp = params->bp;
 	ser_lane = ((params->lane_config &
 		     PORT_HW_CFG_LANE_SWAP_CFG_MASTER_MASK) >>
 		     PORT_HW_CFG_LANE_SWAP_CFG_MASTER_SHIFT);
 
-	offset = (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) ?
-		(phy->addr + ser_lane) : 0;
-
+	offset = phy->addr + ser_lane;
+	if (CHIP_IS_E2(bp))
+		aer_val = 0x2800 + offset - 1;
+	else
+		aer_val = 0x3800 + offset;
 	CL45_WR_OVER_CL22(bp, phy,
-			      MDIO_REG_BANK_AER_BLOCK,
-			      MDIO_AER_BLOCK_AER_REG, 0x3800 + offset);
+				MDIO_REG_BANK_AER_BLOCK,
+				MDIO_AER_BLOCK_AER_REG, aer_val);
+}
+static void bnx2x_set_aer_mmd_serdes(struct bnx2x *bp,
+				     struct bnx2x_phy *phy)
+{
+	CL45_WR_OVER_CL22(bp, phy,
+				MDIO_REG_BANK_AER_BLOCK,
+				MDIO_AER_BLOCK_AER_REG, 0x3800);
 }
 
 /******************************************************************/
@@ -2046,12 +2204,12 @@ static u8 bnx2x_init_serdes(struct bnx2x_phy *phy,
 	u8 rc;
 	vars->phy_flags |= PHY_SGMII_FLAG;
 	bnx2x_calc_ieee_aneg_adv(phy, params, &vars->ieee_fc);
-	bnx2x_set_aer_mmd(params, phy);
+	bnx2x_set_aer_mmd_serdes(params->bp, phy);
 	rc = bnx2x_reset_unicore(params, phy, 1);
 	/* reset the SerDes and wait for reset bit return low */
 	if (rc != 0)
 		return rc;
-	bnx2x_set_aer_mmd(params, phy);
+	bnx2x_set_aer_mmd_serdes(params->bp, phy);
 
 	return rc;
 }
@@ -2076,7 +2234,7 @@ static u8 bnx2x_init_xgxs(struct bnx2x_phy *phy,
 		vars->phy_flags &= ~PHY_SGMII_FLAG;
 
 	bnx2x_calc_ieee_aneg_adv(phy, params, &vars->ieee_fc);
-	bnx2x_set_aer_mmd(params, phy);
+	bnx2x_set_aer_mmd_xgxs(params, phy);
 	bnx2x_set_master_ln(params, phy);
 
 	rc = bnx2x_reset_unicore(params, phy, 0);
@@ -2084,7 +2242,7 @@ static u8 bnx2x_init_xgxs(struct bnx2x_phy *phy,
 	if (rc != 0)
 		return rc;
 
-	bnx2x_set_aer_mmd(params, phy);
+	bnx2x_set_aer_mmd_xgxs(params, phy);
 
 	/* setting the masterLn_def again after the reset */
 	bnx2x_set_master_ln(params, phy);
@@ -2358,7 +2516,7 @@ static void bnx2x_set_xgxs_loopback(struct bnx2x_phy *phy,
 			       0x6041);
 		msleep(200);
 		/* set aer mmd back */
-		bnx2x_set_aer_mmd(params, phy);
+		bnx2x_set_aer_mmd_xgxs(params, phy);
 
 		/* and md_devad */
 		REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_DEVAD + port*0x18,
@@ -2721,7 +2879,10 @@ static void bnx2x_common_ext_link_reset(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u8 gpio_port;
 	/* HW reset */
-	gpio_port = params->port;
+	if (CHIP_IS_E2(bp))
+		gpio_port = BP_PATH(bp);
+	else
+		gpio_port = params->port;
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
 			    MISC_REGISTERS_GPIO_OUTPUT_LOW,
 			    gpio_port);
@@ -2799,8 +2960,9 @@ static u8 bnx2x_update_link_up(struct link_params *params,
 	}
 
 	/* PBF - link up */
-	rc |= bnx2x_pbf_update(params, vars->flow_ctrl,
-			      vars->line_speed);
+	if (!(CHIP_IS_E2(bp)))
+		rc |= bnx2x_pbf_update(params, vars->flow_ctrl,
+				       vars->line_speed);
 
 	/* disable drain */
 	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + port*4, 0);
@@ -3443,7 +3605,10 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 	u8 gpio_port;
 	DP(NETIF_MSG_LINK, "Init 8073\n");
 
-	gpio_port = params->port;
+	if (CHIP_IS_E2(bp))
+		gpio_port = BP_PATH(bp);
+	else
+		gpio_port = params->port;
 	/* Restore normal power mode*/
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
 			    MISC_REGISTERS_GPIO_OUTPUT_HIGH, gpio_port);
@@ -3680,7 +3845,10 @@ static void bnx2x_8073_link_reset(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u8 gpio_port;
-	gpio_port = params->port;
+	if (CHIP_IS_E2(bp))
+		gpio_port = BP_PATH(bp);
+	else
+		gpio_port = params->port;
 	DP(NETIF_MSG_LINK, "Setting 8073 port %d into low power mode\n",
 	   gpio_port);
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
@@ -6371,7 +6539,10 @@ static u8 bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 	phy->mdio_ctrl = bnx2x_get_emac_base(bp,
 					    SHARED_HW_CFG_MDC_MDIO_ACCESS1_BOTH,
 					    port);
-	phy->def_md_devad = DEFAULT_PHY_DEV_ADDR;
+	if (CHIP_IS_E2(bp))
+		phy->def_md_devad = E2_DEFAULT_PHY_DEV_ADDR;
+	else
+		phy->def_md_devad = DEFAULT_PHY_DEV_ADDR;
 
 	DP(NETIF_MSG_LINK, "Internal phy port=%d, addr=0x%x, mdio_ctl=0x%x\n",
 		   port, phy->addr, phy->mdio_ctrl);
@@ -6742,7 +6913,9 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 		}
 
 		bnx2x_emac_enable(params, vars, 0);
-		bnx2x_pbf_update(params, vars->flow_ctrl, vars->line_speed);
+		if (!(CHIP_IS_E2(bp)))
+			bnx2x_pbf_update(params, vars->flow_ctrl,
+					 vars->line_speed);
 		/* disable drain */
 		REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 
@@ -6932,18 +7105,34 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 /****************************************************************************/
 /*				Common function				    */
 /****************************************************************************/
-static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base, u32 shmem2_base, u8 phy_index)
+static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
+				     u32 shmem_base_path[],
+				     u32 shmem2_base_path[], u8 phy_index,
+				     u32 chip_id)
 {
 	struct bnx2x_phy phy[PORT_MAX];
 	struct bnx2x_phy *phy_blk[PORT_MAX];
 	u16 val;
 	s8 port;
+	s8 port_of_path = 0;
 
 	/* PART1 - Reset both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
+		u32 shmem_base, shmem2_base;
+		/* In E2, same phy is using for port0 of the two paths */
+		if (CHIP_IS_E2(bp)) {
+			shmem_base = shmem_base_path[port];
+			shmem2_base = shmem2_base_path[port];
+			port_of_path = 0;
+		} else {
+			shmem_base = shmem_base_path[0];
+			shmem2_base = shmem2_base_path[0];
+			port_of_path = port;
+		}
+
 		/* Extract the ext phy address for the port */
 		if (bnx2x_populate_phy(bp, phy_index, shmem_base, shmem2_base,
-				       port, &phy[port]) !=
+				       port_of_path, &phy[port]) !=
 		    0) {
 			DP(NETIF_MSG_LINK, "populate_phy failed\n");
 			return -EINVAL;
@@ -6981,9 +7170,15 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base, u32 shmem
 	/* PART2 - Download firmware to both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
 		u16 fw_ver1;
+		if (CHIP_IS_E2(bp))
+			port_of_path = 0;
+		else
+			port_of_path = port;
 
+		DP(NETIF_MSG_LINK, "Loading spirom for phy address 0x%x\n",
+			   phy_blk[port]->addr);
 		bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
-						  port);
+						  port_of_path);
 
 		bnx2x_cl45_read(bp, phy_blk[port],
 			      MDIO_PMA_DEVAD,
@@ -7039,9 +7234,10 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base, u32 shmem
 	}
 	return 0;
 }
-
-static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base,
-				     u32 shmem2_base, u8 phy_index)
+static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp,
+				     u32 shmem_base_path[],
+				     u32 shmem2_base_path[], u8 phy_index,
+				     u32 chip_id)
 {
 	u32 val;
 	s8 port;
@@ -7056,6 +7252,16 @@ static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base,
 	bnx2x_ext_phy_hw_reset(bp, 1);
 	msleep(5);
 	for (port = 0; port < PORT_MAX; port++) {
+		u32 shmem_base, shmem2_base;
+
+		/* In E2, same phy is using for port0 of the two paths */
+		if (CHIP_IS_E2(bp)) {
+			shmem_base = shmem_base_path[port];
+			shmem2_base = shmem2_base_path[port];
+		} else {
+			shmem_base = shmem_base_path[0];
+			shmem2_base = shmem2_base_path[0];
+		}
 		/* Extract the ext phy address for the port */
 		if (bnx2x_populate_phy(bp, phy_index, shmem_base, shmem2_base,
 				       port, &phy) !=
@@ -7077,14 +7283,16 @@ static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base,
 
 	return 0;
 }
-static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp, u32 shmem_base,
-				     u32 shmem2_base, u8 phy_index)
+static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp,
+				     u32 shmem_base_path[],
+				     u32 shmem2_base_path[], u8 phy_index,
+				     u32 chip_id)
 {
 	s8 port;
 	u32 swap_val, swap_override;
 	struct bnx2x_phy phy[PORT_MAX];
 	struct bnx2x_phy *phy_blk[PORT_MAX];
-	DP(NETIF_MSG_LINK, "Executing BCM8727 common init\n");
+	s8 port_of_path;
 	swap_val = REG_RD(bp,  NIG_REG_PORT_SWAP);
 	swap_override = REG_RD(bp,  NIG_REG_STRAP_OVERRIDE);
 
@@ -7099,19 +7307,33 @@ static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp, u32 shmem_base,
 
 	/* PART1 - Reset both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
+		u32 shmem_base, shmem2_base;
+
+		/* In E2, same phy is using for port0 of the two paths */
+		if (CHIP_IS_E2(bp)) {
+			shmem_base = shmem_base_path[port];
+			shmem2_base = shmem2_base_path[port];
+			port_of_path = 0;
+		} else {
+			shmem_base = shmem_base_path[0];
+			shmem2_base = shmem2_base_path[0];
+			port_of_path = port;
+		}
+
 		/* Extract the ext phy address for the port */
 		if (bnx2x_populate_phy(bp, phy_index, shmem_base, shmem2_base,
-				       port, &phy[port]) !=
+				       port_of_path, &phy[port]) !=
 				       0) {
 			DP(NETIF_MSG_LINK, "populate phy failed\n");
 			return -EINVAL;
 		}
 		/* disable attentions */
-		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 + port*4,
-			     (NIG_MASK_XGXS0_LINK_STATUS |
-			      NIG_MASK_XGXS0_LINK10G |
-			      NIG_MASK_SERDES0_LINK_STATUS |
-			      NIG_MASK_MI_INT));
+		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+			       port_of_path*4,
+			       (NIG_MASK_XGXS0_LINK_STATUS |
+				NIG_MASK_XGXS0_LINK10G |
+				NIG_MASK_SERDES0_LINK_STATUS |
+				NIG_MASK_MI_INT));
 
 
 		/* Reset the phy */
@@ -7133,9 +7355,14 @@ static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp, u32 shmem_base,
 	/* PART2 - Download firmware to both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
 		u16 fw_ver1;
-
+		 if (CHIP_IS_E2(bp))
+			port_of_path = 0;
+		else
+			port_of_path = port;
+		DP(NETIF_MSG_LINK, "Loading spirom for phy address 0x%x\n",
+			   phy_blk[port]->addr);
 		bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
-						  port);
+						  port_of_path);
 		bnx2x_cl45_read(bp, phy_blk[port],
 			      MDIO_PMA_DEVAD,
 			      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
@@ -7151,29 +7378,32 @@ static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp, u32 shmem_base,
 	return 0;
 }
 
-static u8 bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base,
-				    u32 shmem2_base, u8 phy_index,
-				    u32 ext_phy_type)
+static u8 bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
+				    u32 shmem2_base_path[], u8 phy_index,
+				    u32 ext_phy_type, u32 chip_id)
 {
 	u8 rc = 0;
 
 	switch (ext_phy_type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-		rc = bnx2x_8073_common_init_phy(bp, shmem_base,
-						shmem2_base, phy_index);
+		rc = bnx2x_8073_common_init_phy(bp, shmem_base_path,
+						shmem2_base_path,
+						phy_index, chip_id);
 		break;
 
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC:
-		rc = bnx2x_8727_common_init_phy(bp, shmem_base,
-						shmem2_base, phy_index);
+		rc = bnx2x_8727_common_init_phy(bp, shmem_base_path,
+						shmem2_base_path,
+						phy_index, chip_id);
 		break;
 
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 		/* GPIO1 affects both ports, so there's need to pull
 		it for single port alone */
-		rc = bnx2x_8726_common_init_phy(bp, shmem_base,
-						shmem2_base, phy_index);
+		rc = bnx2x_8726_common_init_phy(bp, shmem_base_path,
+						shmem2_base_path,
+						phy_index, chip_id);
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
 		rc = -EINVAL;
@@ -7188,8 +7418,8 @@ static u8 bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base,
 	return rc;
 }
 
-u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base,
-			 u32 shmem2_base)
+u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
+			 u32 shmem2_base_path[], u32 chip_id)
 {
 	u8 rc = 0;
 	u8 phy_index;
@@ -7203,12 +7433,13 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base,
 	for (phy_index = EXT_PHY1; phy_index < MAX_PHYS;
 	      phy_index++) {
 		ext_phy_config = bnx2x_get_ext_phy_config(bp,
-							  shmem_base,
+							  shmem_base_path[0],
 							  phy_index, 0);
 		ext_phy_type = XGXS_EXT_PHY_TYPE(ext_phy_config);
-		rc |= bnx2x_ext_phy_common_init(bp, shmem_base,
-						shmem2_base,
-						phy_index, ext_phy_type);
+		rc |= bnx2x_ext_phy_common_init(bp, shmem_base_path,
+						shmem2_base_path,
+						phy_index, ext_phy_type,
+						chip_id);
 	}
 	return rc;
 }

@@ -663,6 +663,7 @@ struct shm_dev_info {						    /* size */
 #define FUNC_7				7
 #define E1_FUNC_MAX			2
 #define E1H_FUNC_MAX			8
+#define E2_FUNC_MAX	    4	/* per path */
 
 #define VN_0				0
 #define VN_1				1
@@ -821,6 +822,9 @@ struct drv_func_mb {
 #define FW_MSG_CODE_DRV_LOAD_COMMON			0x10100000
 #define FW_MSG_CODE_DRV_LOAD_PORT			0x10110000
 #define FW_MSG_CODE_DRV_LOAD_FUNCTION			0x10120000
+	/* Load common chip is supported from bc 6.0.0	*/
+#define REQ_BC_VER_4_DRV_LOAD_COMMON_CHIP	0x00060000
+#define FW_MSG_CODE_DRV_LOAD_COMMON_CHIP	0x10130000
 #define FW_MSG_CODE_DRV_LOAD_REFUSED			0x10200000
 #define FW_MSG_CODE_DRV_LOAD_DONE			0x11100000
 #define FW_MSG_CODE_DRV_UNLOAD_COMMON			0x20100000
@@ -1026,7 +1030,17 @@ struct shmem_region {			       /*   SharedMem Offset (size) */
 
 }; /* 57710 = 0x6dc | 57711 = 0x7E4 | 57712 = 0x734 */
 
+struct fw_flr_ack {
+	u32	pf_ack;
+	u32	vf_ack[1];
+	u32	iov_dis_ack;
+};
 
+struct fw_flr_mb {
+	u32	aggint;
+	u32	opgen_addr;
+	struct	fw_flr_ack ack;
+};
 
 
 struct shmem2_region {
@@ -1046,7 +1060,20 @@ struct shmem2_region {
 	 * For backwards compatibility, if the mf_cfg_addr does not exist
 	 * (the size filed is smaller than 0xc) the mf_cfg resides at the
 	 * end of struct shmem_region
+     */
+	u32	mf_cfg_addr;
+#define SHMEM_MF_CFG_ADDR_NONE			    0x00000000
+
+	struct fw_flr_mb flr_mb;
+	u32	reserved[3];
+	/*
+	 * The other shmemX_base_addr holds the other path's shmem address
+	 * required for example in case of common phy init, or for path1 to know
+	 * the address of mcp debug trace which is located in offset from shmem
+	 * of path0
 	 */
+	u32 other_shmem_base_addr;
+	u32 other_shmem2_base_addr;
 };
 
 
@@ -1206,10 +1233,126 @@ struct bmac1_stats {
     u32     rx_stat_gripj_hi;
 };
 
+struct bmac2_stats {
+	u32	tx_stat_gtpk_lo; /* gtpok */
+	u32	tx_stat_gtpk_hi; /* gtpok */
+	u32	tx_stat_gtxpf_lo; /* gtpf */
+	u32	tx_stat_gtxpf_hi; /* gtpf */
+	u32	tx_stat_gtpp_lo; /* NEW BMAC2 */
+	u32	tx_stat_gtpp_hi; /* NEW BMAC2 */
+	u32	tx_stat_gtfcs_lo;
+	u32	tx_stat_gtfcs_hi;
+	u32	tx_stat_gtuca_lo; /* NEW BMAC2 */
+	u32	tx_stat_gtuca_hi; /* NEW BMAC2 */
+	u32	tx_stat_gtmca_lo;
+	u32	tx_stat_gtmca_hi;
+	u32	tx_stat_gtbca_lo;
+	u32	tx_stat_gtbca_hi;
+	u32	tx_stat_gtovr_lo;
+	u32	tx_stat_gtovr_hi;
+	u32	tx_stat_gtfrg_lo;
+	u32	tx_stat_gtfrg_hi;
+	u32	tx_stat_gtpkt1_lo; /* gtpkt */
+	u32	tx_stat_gtpkt1_hi; /* gtpkt */
+	u32	tx_stat_gt64_lo;
+	u32	tx_stat_gt64_hi;
+	u32	tx_stat_gt127_lo;
+	u32	tx_stat_gt127_hi;
+	u32	tx_stat_gt255_lo;
+	u32	tx_stat_gt255_hi;
+	u32	tx_stat_gt511_lo;
+	u32	tx_stat_gt511_hi;
+	u32	tx_stat_gt1023_lo;
+	u32	tx_stat_gt1023_hi;
+	u32	tx_stat_gt1518_lo;
+	u32	tx_stat_gt1518_hi;
+	u32	tx_stat_gt2047_lo;
+	u32	tx_stat_gt2047_hi;
+	u32	tx_stat_gt4095_lo;
+	u32	tx_stat_gt4095_hi;
+	u32	tx_stat_gt9216_lo;
+	u32	tx_stat_gt9216_hi;
+	u32	tx_stat_gt16383_lo;
+	u32	tx_stat_gt16383_hi;
+	u32	tx_stat_gtmax_lo;
+	u32	tx_stat_gtmax_hi;
+	u32	tx_stat_gtufl_lo;
+	u32	tx_stat_gtufl_hi;
+	u32	tx_stat_gterr_lo;
+	u32	tx_stat_gterr_hi;
+	u32	tx_stat_gtbyt_lo;
+	u32	tx_stat_gtbyt_hi;
+
+	u32	rx_stat_gr64_lo;
+	u32	rx_stat_gr64_hi;
+	u32	rx_stat_gr127_lo;
+	u32	rx_stat_gr127_hi;
+	u32	rx_stat_gr255_lo;
+	u32	rx_stat_gr255_hi;
+	u32	rx_stat_gr511_lo;
+	u32	rx_stat_gr511_hi;
+	u32	rx_stat_gr1023_lo;
+	u32	rx_stat_gr1023_hi;
+	u32	rx_stat_gr1518_lo;
+	u32	rx_stat_gr1518_hi;
+	u32	rx_stat_gr2047_lo;
+	u32	rx_stat_gr2047_hi;
+	u32	rx_stat_gr4095_lo;
+	u32	rx_stat_gr4095_hi;
+	u32	rx_stat_gr9216_lo;
+	u32	rx_stat_gr9216_hi;
+	u32	rx_stat_gr16383_lo;
+	u32	rx_stat_gr16383_hi;
+	u32	rx_stat_grmax_lo;
+	u32	rx_stat_grmax_hi;
+	u32	rx_stat_grpkt_lo;
+	u32	rx_stat_grpkt_hi;
+	u32	rx_stat_grfcs_lo;
+	u32	rx_stat_grfcs_hi;
+	u32	rx_stat_gruca_lo;
+	u32	rx_stat_gruca_hi;
+	u32	rx_stat_grmca_lo;
+	u32	rx_stat_grmca_hi;
+	u32	rx_stat_grbca_lo;
+	u32	rx_stat_grbca_hi;
+	u32	rx_stat_grxpf_lo; /* grpf */
+	u32	rx_stat_grxpf_hi; /* grpf */
+	u32	rx_stat_grpp_lo;
+	u32	rx_stat_grpp_hi;
+	u32	rx_stat_grxuo_lo; /* gruo */
+	u32	rx_stat_grxuo_hi; /* gruo */
+	u32	rx_stat_grjbr_lo;
+	u32	rx_stat_grjbr_hi;
+	u32	rx_stat_grovr_lo;
+	u32	rx_stat_grovr_hi;
+	u32	rx_stat_grxcf_lo; /* grcf */
+	u32	rx_stat_grxcf_hi; /* grcf */
+	u32	rx_stat_grflr_lo;
+	u32	rx_stat_grflr_hi;
+	u32	rx_stat_grpok_lo;
+	u32	rx_stat_grpok_hi;
+	u32	rx_stat_grmeg_lo;
+	u32	rx_stat_grmeg_hi;
+	u32	rx_stat_grmeb_lo;
+	u32	rx_stat_grmeb_hi;
+	u32	rx_stat_grbyt_lo;
+	u32	rx_stat_grbyt_hi;
+	u32	rx_stat_grund_lo;
+	u32	rx_stat_grund_hi;
+	u32	rx_stat_grfrg_lo;
+	u32	rx_stat_grfrg_hi;
+	u32	rx_stat_grerb_lo; /* grerrbyt */
+	u32	rx_stat_grerb_hi; /* grerrbyt */
+	u32	rx_stat_grfre_lo; /* grfrerr */
+	u32	rx_stat_grfre_hi; /* grfrerr */
+	u32	rx_stat_gripj_lo;
+	u32	rx_stat_gripj_hi;
+};
 
 union mac_stats {
-	struct emac_stats	emac_stats;
-	struct bmac1_stats	bmac1_stats;
+	struct emac_stats	 emac_stats;
+	struct bmac1_stats	 bmac1_stats;
+	struct bmac2_stats	 bmac2_stats;
 };
 
 
@@ -1594,6 +1737,24 @@ union igu_consprod_reg {
 
 
 /*
+ * Control register for the IGU command register
+ */
+struct igu_ctrl_reg {
+	u32 ctrl_data;
+#define IGU_CTRL_REG_ADDRESS (0xFFF<<0)
+#define IGU_CTRL_REG_ADDRESS_SHIFT 0
+#define IGU_CTRL_REG_FID (0x7F<<12)
+#define IGU_CTRL_REG_FID_SHIFT 12
+#define IGU_CTRL_REG_RESERVED (0x1<<19)
+#define IGU_CTRL_REG_RESERVED_SHIFT 19
+#define IGU_CTRL_REG_TYPE (0x1<<20)
+#define IGU_CTRL_REG_TYPE_SHIFT 20
+#define IGU_CTRL_REG_UNUSED (0x7FF<<21)
+#define IGU_CTRL_REG_UNUSED_SHIFT 21
+};
+
+
+/*
  * Parser parsing flags field
  */
 struct parsing_flags {
@@ -1924,6 +2085,27 @@ struct eth_tx_parse_bd_e1x {
 };
 
 /*
+ * Tx parsing BD structure for ETH E2
+ */
+struct eth_tx_parse_bd_e2 {
+	__le16 dst_mac_addr_lo;
+	__le16 dst_mac_addr_mid;
+	__le16 dst_mac_addr_hi;
+	__le16 src_mac_addr_lo;
+	__le16 src_mac_addr_mid;
+	__le16 src_mac_addr_hi;
+	__le32 parsing_data;
+#define ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W (0x1FFF<<0)
+#define ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W_SHIFT 0
+#define ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW (0xF<<13)
+#define ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW_SHIFT 13
+#define ETH_TX_PARSE_BD_E2_LSO_MSS (0x3FFF<<17)
+#define ETH_TX_PARSE_BD_E2_LSO_MSS_SHIFT 17
+#define ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR (0x1<<31)
+#define ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR_SHIFT 31
+};
+
+/*
  * The last BD in the BD memory will hold a pointer to the next BD memory
  */
 struct eth_tx_next_bd {
@@ -1939,6 +2121,7 @@ union eth_tx_bd_types {
 	struct eth_tx_start_bd start_bd;
 	struct eth_tx_bd reg_bd;
 	struct eth_tx_parse_bd_e1x parse_bd_e1x;
+	struct eth_tx_parse_bd_e2 parse_bd_e2;
 	struct eth_tx_next_bd next_bd;
 };
 

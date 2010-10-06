@@ -18,7 +18,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
-#include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <linux/firmware.h>
 #include "bnx2x_cmn.h"
@@ -118,16 +118,10 @@ int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 
 		pkt_cons = TX_BD(sw_cons);
 
-		/* prefetch(bp->tx_buf_ring[pkt_cons].skb); */
+		DP(NETIF_MSG_TX_DONE, "queue[%d]: hw_cons %u  sw_cons %u "
+				      " pkt_cons %u\n",
+		   fp->index, hw_cons, sw_cons, pkt_cons);
 
-		DP(NETIF_MSG_TX_DONE, "hw_cons %u  sw_cons %u  pkt_cons %u\n",
-		   hw_cons, sw_cons, pkt_cons);
-
-/*		if (NEXT_TX_IDX(sw_cons) != hw_cons) {
-			rmb();
-			prefetch(fp->tx_buf_ring[NEXT_TX_IDX(sw_cons)].skb);
-		}
-*/
 		bd_cons = bnx2x_free_tx_pkt(bp, fp, pkt_cons);
 		sw_cons++;
 	}
@@ -749,8 +743,9 @@ void bnx2x_link_report(struct bnx2x *bp)
 			u16 vn_max_rate;
 
 			vn_max_rate =
-				((bp->mf_config & FUNC_MF_CFG_MAX_BW_MASK) >>
-				 FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
+				((bp->mf_config[BP_VN(bp)] &
+				  FUNC_MF_CFG_MAX_BW_MASK) >>
+						FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
 			if (vn_max_rate < line_speed)
 				line_speed = vn_max_rate;
 		}
@@ -912,14 +907,15 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 		if (j != 0)
 			continue;
 
-		REG_WR(bp, BAR_USTRORM_INTMEM +
-		       USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func),
-		       U64_LO(fp->rx_comp_mapping));
-		REG_WR(bp, BAR_USTRORM_INTMEM +
-		       USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func) + 4,
-		       U64_HI(fp->rx_comp_mapping));
+		if (!CHIP_IS_E2(bp)) {
+			REG_WR(bp, BAR_USTRORM_INTMEM +
+			       USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func),
+			       U64_LO(fp->rx_comp_mapping));
+			REG_WR(bp, BAR_USTRORM_INTMEM +
+			       USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func) + 4,
+			       U64_HI(fp->rx_comp_mapping));
+		}
 	}
-
 }
 static void bnx2x_free_tx_skbs(struct bnx2x *bp)
 {
@@ -1308,23 +1304,27 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 
 	} else {
+		int path = BP_PATH(bp);
 		int port = BP_PORT(bp);
 
-		DP(NETIF_MSG_IFUP, "NO MCP - load counts      %d, %d, %d\n",
-		   load_count[0], load_count[1], load_count[2]);
-		load_count[0]++;
-		load_count[1 + port]++;
-		DP(NETIF_MSG_IFUP, "NO MCP - new load counts  %d, %d, %d\n",
-		   load_count[0], load_count[1], load_count[2]);
-		if (load_count[0] == 1)
+		DP(NETIF_MSG_IFUP, "NO MCP - load counts[%d]      %d, %d, %d\n",
+		   path, load_count[path][0], load_count[path][1],
+		   load_count[path][2]);
+		load_count[path][0]++;
+		load_count[path][1 + port]++;
+		DP(NETIF_MSG_IFUP, "NO MCP - new load counts[%d]  %d, %d, %d\n",
+		   path, load_count[path][0], load_count[path][1],
+		   load_count[path][2]);
+		if (load_count[path][0] == 1)
 			load_code = FW_MSG_CODE_DRV_LOAD_COMMON;
-		else if (load_count[1 + port] == 1)
+		else if (load_count[path][1 + port] == 1)
 			load_code = FW_MSG_CODE_DRV_LOAD_PORT;
 		else
 			load_code = FW_MSG_CODE_DRV_LOAD_FUNCTION;
 	}
 
 	if ((load_code == FW_MSG_CODE_DRV_LOAD_COMMON) ||
+	    (load_code == FW_MSG_CODE_DRV_LOAD_COMMON_CHIP) ||
 	    (load_code == FW_MSG_CODE_DRV_LOAD_PORT))
 		bp->port.pmf = 1;
 	else
@@ -1349,7 +1349,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Setup NIC internals and enable interrupts */
 	bnx2x_nic_init(bp, load_code);
 
-	if ((load_code == FW_MSG_CODE_DRV_LOAD_COMMON) &&
+	if (((load_code == FW_MSG_CODE_DRV_LOAD_COMMON) ||
+	    (load_code == FW_MSG_CODE_DRV_LOAD_COMMON_CHIP)) &&
 	    (bp->common.shmem2_base))
 		SHMEM2_WR(bp, dcc_support,
 			  (SHMEM_DCC_SUPPORT_DISABLE_ENABLE_PF_TLV |
@@ -1389,11 +1390,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 #endif
 	}
 
-	if (CHIP_IS_E1H(bp))
-		if (bp->mf_config & FUNC_MF_CFG_FUNC_DISABLED) {
-			DP(NETIF_MSG_IFUP, "mf_cfg function disabled\n");
-			bp->flags |= MF_FUNC_DIS;
-		}
+	if (!CHIP_IS_E1(bp) &&
+	    (bp->mf_config[BP_VN(bp)] & FUNC_MF_CFG_FUNC_DISABLED)) {
+		DP(NETIF_MSG_IFUP, "mf_cfg function disabled\n");
+		bp->flags |= MF_FUNC_DIS;
+	}
 
 #ifdef BCM_CNIC
 	/* Enable Timer scan */
@@ -1527,8 +1528,10 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 	bnx2x_set_storm_rx_mode(bp);
 
+	/* Stop Tx */
+	bnx2x_tx_disable(bp);
 	del_timer_sync(&bp->timer);
-	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
+	SHMEM_WR(bp, func_mb[BP_FW_MB_IDX(bp)].drv_pulse_mb,
 		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
@@ -1855,6 +1858,120 @@ exit_lbl:
 }
 #endif
 
+static inline void bnx2x_set_pbd_gso_e2(struct sk_buff *skb,
+				     struct eth_tx_parse_bd_e2 *pbd,
+				     u32 xmit_type)
+{
+	pbd->parsing_data |= cpu_to_le16(skb_shinfo(skb)->gso_size) <<
+		ETH_TX_PARSE_BD_E2_LSO_MSS_SHIFT;
+	if ((xmit_type & XMIT_GSO_V6) &&
+	    (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPV6))
+		pbd->parsing_data |= ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR;
+}
+
+/**
+ * Update PBD in GSO case.
+ *
+ * @param skb
+ * @param tx_start_bd
+ * @param pbd
+ * @param xmit_type
+ */
+static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
+				     struct eth_tx_parse_bd_e1x *pbd,
+				     u32 xmit_type)
+{
+	pbd->lso_mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+	pbd->tcp_send_seq = swab32(tcp_hdr(skb)->seq);
+	pbd->tcp_flags = pbd_tcp_flags(skb);
+
+	if (xmit_type & XMIT_GSO_V4) {
+		pbd->ip_id = swab16(ip_hdr(skb)->id);
+		pbd->tcp_pseudo_csum =
+			swab16(~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						  ip_hdr(skb)->daddr,
+						  0, IPPROTO_TCP, 0));
+
+	} else
+		pbd->tcp_pseudo_csum =
+			swab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						&ipv6_hdr(skb)->daddr,
+						0, IPPROTO_TCP, 0));
+
+	pbd->global_data |= ETH_TX_PARSE_BD_E1X_PSEUDO_CS_WITHOUT_LEN;
+}
+/**
+ *
+ * @param skb
+ * @param tx_start_bd
+ * @param pbd_e2
+ * @param xmit_type
+ *
+ * @return header len
+ */
+static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
+	struct eth_tx_parse_bd_e2 *pbd,
+	u32 xmit_type)
+{
+	pbd->parsing_data |= cpu_to_le16(tcp_hdrlen(skb)/4) <<
+		ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW_SHIFT;
+
+	pbd->parsing_data |= cpu_to_le16(((unsigned char *)tcp_hdr(skb) -
+					  skb->data) / 2) <<
+		ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W_SHIFT;
+
+	return skb_transport_header(skb) + tcp_hdrlen(skb) - skb->data;
+}
+
+/**
+ *
+ * @param skb
+ * @param tx_start_bd
+ * @param pbd
+ * @param xmit_type
+ *
+ * @return Header length
+ */
+static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
+	struct eth_tx_parse_bd_e1x *pbd,
+	u32 xmit_type)
+{
+	u8 hlen = (skb_network_header(skb) - skb->data) / 2;
+
+	/* for now NS flag is not used in Linux */
+	pbd->global_data =
+		(hlen | ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
+			 ETH_TX_PARSE_BD_E1X_LLC_SNAP_EN_SHIFT));
+
+	pbd->ip_hlen_w = (skb_transport_header(skb) -
+			skb_network_header(skb)) / 2;
+
+	hlen += pbd->ip_hlen_w + tcp_hdrlen(skb) / 2;
+
+	pbd->total_hlen_w = cpu_to_le16(hlen);
+	hlen = hlen*2;
+
+	if (xmit_type & XMIT_CSUM_TCP) {
+		pbd->tcp_pseudo_csum = swab16(tcp_hdr(skb)->check);
+
+	} else {
+		s8 fix = SKB_CS_OFF(skb); /* signed! */
+
+		DP(NETIF_MSG_TX_QUEUED,
+		   "hlen %d  fix %d  csum before fix %x\n",
+		   le16_to_cpu(pbd->total_hlen_w), fix, SKB_CS(skb));
+
+		/* HW bug: fixup the CSUM */
+		pbd->tcp_pseudo_csum =
+			bnx2x_csum_fix(skb_transport_header(skb),
+				       SKB_CS(skb), fix);
+
+		DP(NETIF_MSG_TX_QUEUED, "csum after fix %x\n",
+		   pbd->tcp_pseudo_csum);
+	}
+
+	return hlen;
+}
 /* called with netif_tx_lock
  * bnx2x_tx_int() runs without netif_tx_lock unless it needs to call
  * netif_wake_queue()
@@ -1868,6 +1985,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct eth_tx_start_bd *tx_start_bd;
 	struct eth_tx_bd *tx_data_bd, *total_pkt_bd = NULL;
 	struct eth_tx_parse_bd_e1x *pbd_e1x = NULL;
+	struct eth_tx_parse_bd_e2 *pbd_e2 = NULL;
 	u16 pkt_prod, bd_prod;
 	int nbd, fp_index;
 	dma_addr_t mapping;
@@ -1895,9 +2013,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	DP(NETIF_MSG_TX_QUEUED, "SKB: summed %x  protocol %x  protocol(%x,%x)"
-	   "  gso type %x  xmit_type %x\n",
-	   skb->ip_summed, skb->protocol, ipv6_hdr(skb)->nexthdr,
+	DP(NETIF_MSG_TX_QUEUED, "queue[%d]: SKB: summed %x  protocol %x  "
+				"protocol(%x,%x) gso type %x  xmit_type %x\n",
+	   fp_index, skb->ip_summed, skb->protocol, ipv6_hdr(skb)->nexthdr,
 	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type);
 
 	eth = (struct ethhdr *)skb->data;
@@ -1988,44 +2106,21 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tx_start_bd->bd_flags.as_bitfield |=
 						ETH_TX_BD_FLAGS_IS_UDP;
 	}
-	pbd_e1x = &fp->tx_desc_ring[bd_prod].parse_bd_e1x;
-	memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
-	/* Set PBD in checksum offload case */
-	if (xmit_type & XMIT_CSUM) {
-		hlen = (skb_network_header(skb) - skb->data) / 2;
 
-		/* for now NS flag is not used in Linux */
-		pbd_e1x->global_data =
-			(hlen | ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
-			 ETH_TX_PARSE_BD_E1X_LLC_SNAP_EN_SHIFT));
+	if (CHIP_IS_E2(bp)) {
+		pbd_e2 = &fp->tx_desc_ring[bd_prod].parse_bd_e2;
+		memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
+		/* Set PBD in checksum offload case */
+		if (xmit_type & XMIT_CSUM)
+			hlen = bnx2x_set_pbd_csum_e2(bp,
+						     skb, pbd_e2, xmit_type);
+	} else {
+		pbd_e1x = &fp->tx_desc_ring[bd_prod].parse_bd_e1x;
+		memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
+		/* Set PBD in checksum offload case */
+		if (xmit_type & XMIT_CSUM)
+			hlen = bnx2x_set_pbd_csum(bp, skb, pbd_e1x, xmit_type);
 
-		pbd_e1x->ip_hlen_w = (skb_transport_header(skb) -
-				skb_network_header(skb)) / 2;
-
-		hlen += pbd_e1x->ip_hlen_w + tcp_hdrlen(skb) / 2;
-
-		pbd_e1x->total_hlen_w = cpu_to_le16(hlen);
-		hlen = hlen*2;
-
-		if (xmit_type & XMIT_CSUM_TCP) {
-			pbd_e1x->tcp_pseudo_csum = swab16(tcp_hdr(skb)->check);
-
-		} else {
-			s8 fix = SKB_CS_OFF(skb); /* signed! */
-
-			DP(NETIF_MSG_TX_QUEUED,
-			   "hlen %d  fix %d  csum before fix %x\n",
-			   le16_to_cpu(pbd_e1x->total_hlen_w),
-			   fix, SKB_CS(skb));
-
-			/* HW bug: fixup the CSUM */
-			pbd_e1x->tcp_pseudo_csum =
-				bnx2x_csum_fix(skb_transport_header(skb),
-					       SKB_CS(skb), fix);
-
-			DP(NETIF_MSG_TX_QUEUED, "csum after fix %x\n",
-			   pbd_e1x->tcp_pseudo_csum);
-		}
 	}
 
 	mapping = dma_map_single(&bp->pdev->dev, skb->data,
@@ -2057,26 +2152,10 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(skb_headlen(skb) > hlen))
 			bd_prod = bnx2x_tx_split(bp, fp, tx_buf, &tx_start_bd,
 						 hlen, bd_prod, ++nbd);
-
-		pbd_e1x->lso_mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
-		pbd_e1x->tcp_send_seq = swab32(tcp_hdr(skb)->seq);
-		pbd_e1x->tcp_flags = pbd_tcp_flags(skb);
-
-		if (xmit_type & XMIT_GSO_V4) {
-			pbd_e1x->ip_id = swab16(ip_hdr(skb)->id);
-			pbd_e1x->tcp_pseudo_csum =
-				swab16(~csum_tcpudp_magic(ip_hdr(skb)->saddr,
-							  ip_hdr(skb)->daddr,
-							  0, IPPROTO_TCP, 0));
-
-		} else
-			pbd_e1x->tcp_pseudo_csum =
-				swab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-							&ipv6_hdr(skb)->daddr,
-							0, IPPROTO_TCP, 0));
-
-		pbd_e1x->global_data |=
-				ETH_TX_PARSE_BD_E1X_PSEUDO_CS_WITHOUT_LEN;
+		if (CHIP_IS_E2(bp))
+			bnx2x_set_pbd_gso_e2(skb, pbd_e2, xmit_type);
+		else
+			bnx2x_set_pbd_gso(skb, pbd_e1x, xmit_type);
 	}
 	tx_data_bd = (struct eth_tx_bd *)tx_start_bd;
 
@@ -2124,7 +2203,13 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		   pbd_e1x->ip_id, pbd_e1x->lso_mss, pbd_e1x->tcp_flags,
 		   pbd_e1x->tcp_pseudo_csum, pbd_e1x->tcp_send_seq,
 		    le16_to_cpu(pbd_e1x->total_hlen_w));
-
+	if (pbd_e2)
+		DP(NETIF_MSG_TX_QUEUED,
+		   "PBD (E2) @%p  dst %x %x %x src %x %x %x parsing_data %x\n",
+		   pbd_e2, pbd_e2->dst_mac_addr_hi, pbd_e2->dst_mac_addr_mid,
+		   pbd_e2->dst_mac_addr_lo, pbd_e2->src_mac_addr_hi,
+		   pbd_e2->src_mac_addr_mid, pbd_e2->src_mac_addr_lo,
+		   pbd_e2->parsing_data);
 	DP(NETIF_MSG_TX_QUEUED, "doorbell: nbd %d  bd %u\n", nbd, bd_prod);
 
 	/*
@@ -2327,6 +2412,8 @@ int bnx2x_resume(struct pci_dev *pdev)
 	bnx2x_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 
+	/* Since the chip was reset, clear the FW sequence number */
+	bp->fw_seq = 0;
 	rc = bnx2x_nic_load(bp, LOAD_OPEN);
 
 	rtnl_unlock();

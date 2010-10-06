@@ -366,10 +366,77 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 	   fp->index, bd_prod, rx_comp_prod, rx_sge_prod);
 }
 
+static inline void bnx2x_igu_ack_sb_gen(struct bnx2x *bp, u8 igu_sb_id,
+					u8 segment, u16 index, u8 op,
+					u8 update, u32 igu_addr)
+{
+	struct igu_regular cmd_data = {0};
+
+	cmd_data.sb_id_and_flags =
+			((index << IGU_REGULAR_SB_INDEX_SHIFT) |
+			 (segment << IGU_REGULAR_SEGMENT_ACCESS_SHIFT) |
+			 (update << IGU_REGULAR_BUPDATE_SHIFT) |
+			 (op << IGU_REGULAR_ENABLE_INT_SHIFT));
+
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU addr 0x%x\n",
+	   cmd_data.sb_id_and_flags, igu_addr);
+	REG_WR(bp, igu_addr, cmd_data.sb_id_and_flags);
+
+	/* Make sure that ACK is written */
+	mmiowb();
+	barrier();
+}
+
+static inline void bnx2x_igu_clear_sb_gen(struct bnx2x *bp,
+					  u8 idu_sb_id, bool is_Pf)
+{
+	u32 data, ctl, cnt = 100;
+	u32 igu_addr_data = IGU_REG_COMMAND_REG_32LSB_DATA;
+	u32 igu_addr_ctl = IGU_REG_COMMAND_REG_CTRL;
+	u32 igu_addr_ack = IGU_REG_CSTORM_TYPE_0_SB_CLEANUP + (idu_sb_id/32)*4;
+	u32 sb_bit =  1 << (idu_sb_id%32);
+	u32 func_encode = BP_FUNC(bp) |
+			((is_Pf == true ? 1 : 0) << IGU_FID_ENCODE_IS_PF_SHIFT);
+	u32 addr_encode = IGU_CMD_E2_PROD_UPD_BASE + idu_sb_id;
+
+	/* Not supported in BC mode */
+	if (CHIP_INT_MODE_IS_BC(bp))
+		return;
+
+	data = (IGU_USE_REGISTER_cstorm_type_0_sb_cleanup
+			<< IGU_REGULAR_CLEANUP_TYPE_SHIFT)	|
+		IGU_REGULAR_CLEANUP_SET				|
+		IGU_REGULAR_BCLEANUP;
+
+	ctl = addr_encode << IGU_CTRL_REG_ADDRESS_SHIFT		|
+	      func_encode << IGU_CTRL_REG_FID_SHIFT		|
+	      IGU_CTRL_CMD_TYPE_WR << IGU_CTRL_REG_TYPE_SHIFT;
+
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
+			 data, igu_addr_data);
+	REG_WR(bp, igu_addr_data, data);
+	mmiowb();
+	barrier();
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
+			  ctl, igu_addr_ctl);
+	REG_WR(bp, igu_addr_ctl, ctl);
+	mmiowb();
+	barrier();
+
+	/* wait for clean up to finish */
+	while (!(REG_RD(bp, igu_addr_ack) & sb_bit) && --cnt)
+		msleep(20);
 
 
-static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 sb_id,
-				u8 storm, u16 index, u8 op, u8 update)
+	if (!(REG_RD(bp, igu_addr_ack) & sb_bit)) {
+		DP(NETIF_MSG_HW, "Unable to finish IGU cleanup: "
+			  "idu_sb_id %d offset %d bit %d (cnt %d)\n",
+			  idu_sb_id, idu_sb_id/32, idu_sb_id%32, cnt);
+	}
+}
+
+static inline void bnx2x_hc_ack_sb(struct bnx2x *bp, u8 sb_id,
+				   u8 storm, u16 index, u8 op, u8 update)
 {
 	u32 hc_addr = (HC_REG_COMMAND_REG + BP_PORT(bp)*32 +
 		       COMMAND_REG_INT_ACK);
@@ -390,7 +457,37 @@ static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 sb_id,
 	mmiowb();
 	barrier();
 }
-static inline u16 bnx2x_ack_int(struct bnx2x *bp)
+
+static inline void bnx2x_igu_ack_sb(struct bnx2x *bp, u8 igu_sb_id, u8 segment,
+		      u16 index, u8 op, u8 update)
+{
+	u32 igu_addr = BAR_IGU_INTMEM + (IGU_CMD_INT_ACK_BASE + igu_sb_id)*8;
+
+	bnx2x_igu_ack_sb_gen(bp, igu_sb_id, segment, index, op, update,
+			     igu_addr);
+}
+
+static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 igu_sb_id, u8 storm,
+				u16 index, u8 op, u8 update)
+{
+	if (bp->common.int_block == INT_BLOCK_HC)
+		bnx2x_hc_ack_sb(bp, igu_sb_id, storm, index, op, update);
+	else {
+		u8 segment;
+
+		if (CHIP_INT_MODE_IS_BC(bp))
+			segment = storm;
+		else if (igu_sb_id != bp->igu_dsb_id)
+			segment = IGU_SEG_ACCESS_DEF;
+		else if (storm == ATTENTION_ID)
+			segment = IGU_SEG_ACCESS_ATTN;
+		else
+			segment = IGU_SEG_ACCESS_DEF;
+		bnx2x_igu_ack_sb(bp, igu_sb_id, segment, index, op, update);
+	}
+}
+
+static inline u16 bnx2x_hc_ack_int(struct bnx2x *bp)
 {
 	u32 hc_addr = (HC_REG_COMMAND_REG + BP_PORT(bp)*32 +
 		       COMMAND_REG_SIMD_MASK);
@@ -399,13 +496,34 @@ static inline u16 bnx2x_ack_int(struct bnx2x *bp)
 	DP(BNX2X_MSG_OFF, "read 0x%08x from HC addr 0x%x\n",
 	   result, hc_addr);
 
+	barrier();
 	return result;
+}
+
+static inline u16 bnx2x_igu_ack_int(struct bnx2x *bp)
+{
+	u32 igu_addr = (BAR_IGU_INTMEM + IGU_REG_SISR_MDPC_WMASK_LSB_UPPER*8);
+	u32 result = REG_RD(bp, igu_addr);
+
+	DP(NETIF_MSG_HW, "read 0x%08x from IGU addr 0x%x\n",
+	   result, igu_addr);
+
+	barrier();
+	return result;
+}
+
+static inline u16 bnx2x_ack_int(struct bnx2x *bp)
+{
+	barrier();
+	if (bp->common.int_block == INT_BLOCK_HC)
+		return bnx2x_hc_ack_int(bp);
+	else
+		return bnx2x_igu_ack_int(bp);
 }
 
 /*
  * fast path service functions
  */
-
 static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
 {
 	/* Tell compiler that consumer and producer can change */
@@ -456,6 +574,17 @@ static inline int bnx2x_has_rx_work(struct bnx2x_fastpath *fp)
 		rx_cons_sb++;
 	return (fp->rx_comp_cons != rx_cons_sb);
 }
+/**
+ * disables tx from stack point of view
+ *
+ * @param bp
+ */
+static inline void bnx2x_tx_disable(struct bnx2x *bp)
+{
+	netif_tx_disable(bp->dev);
+	netif_carrier_off(bp->dev);
+}
+
 static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 				     struct bnx2x_fastpath *fp, u16 index)
 {

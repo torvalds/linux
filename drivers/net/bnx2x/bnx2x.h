@@ -180,10 +180,16 @@ void bnx2x_panic_dump(struct bnx2x *bp);
 #define SHMEM2_WR(bp, field, val)	REG_WR(bp, SHMEM2_ADDR(bp, field), val)
 #define MF_CFG_ADDR(bp, field)		(bp->common.mf_cfg_base + \
 					 offsetof(struct mf_cfg, field))
+#define MF2_CFG_ADDR(bp, field)	(bp->common.mf2_cfg_base + \
+					 offsetof(struct mf2_cfg, field))
 
 #define MF_CFG_RD(bp, field)		REG_RD(bp, MF_CFG_ADDR(bp, field))
 #define MF_CFG_WR(bp, field, val)	REG_WR(bp,\
 					       MF_CFG_ADDR(bp, field), (val))
+#define MF2_CFG_RD(bp, field)		REG_RD(bp, MF2_CFG_ADDR(bp, field))
+#define SHMEM2_HAS(bp, field)		((bp)->common.shmem2_base &&	\
+					 (SHMEM2_RD((bp), size) >	\
+					 offsetof(struct shmem2_region, field)))
 
 #define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
 #define EMAC_WR(bp, reg, val)		REG_WR(bp, emac_base + reg, val)
@@ -296,6 +302,8 @@ union db_prod {
 union host_hc_status_block {
 	/* pointer to fp status block e1x */
 	struct host_hc_status_block_e1x *e1x_sb;
+	/* pointer to fp status block e2 */
+	struct host_hc_status_block_e2  *e2_sb;
 };
 
 struct bnx2x_fastpath {
@@ -564,12 +572,19 @@ struct bnx2x_common {
 #define CHIP_NUM_57710			0x164e
 #define CHIP_NUM_57711			0x164f
 #define CHIP_NUM_57711E			0x1650
+#define CHIP_NUM_57712			0x1662
+#define CHIP_NUM_57712E			0x1663
 #define CHIP_IS_E1(bp)			(CHIP_NUM(bp) == CHIP_NUM_57710)
 #define CHIP_IS_57711(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711)
 #define CHIP_IS_57711E(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711E)
+#define CHIP_IS_57712(bp)		(CHIP_NUM(bp) == CHIP_NUM_57712)
+#define CHIP_IS_57712E(bp)		(CHIP_NUM(bp) == CHIP_NUM_57712E)
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
 					 CHIP_IS_57711E(bp))
-#define IS_E1H_OFFSET			CHIP_IS_E1H(bp)
+#define CHIP_IS_E2(bp)			(CHIP_IS_57712(bp) || \
+					 CHIP_IS_57712E(bp))
+#define CHIP_IS_E1x(bp)			(CHIP_IS_E1((bp)) || CHIP_IS_E1H((bp)))
+#define IS_E1H_OFFSET			(CHIP_IS_E1H(bp) || CHIP_IS_E2(bp))
 
 #define CHIP_REV(bp)			(bp->common.chip_id & 0x0000f000)
 #define CHIP_REV_Ax			0x00000000
@@ -596,6 +611,7 @@ struct bnx2x_common {
 	u32			shmem_base;
 	u32			shmem2_base;
 	u32			mf_cfg_base;
+	u32			mf2_cfg_base;
 
 	u32			hw_config;
 
@@ -603,10 +619,25 @@ struct bnx2x_common {
 
 	u8			int_block;
 #define INT_BLOCK_HC			0
+#define INT_BLOCK_IGU			1
+#define INT_BLOCK_MODE_NORMAL		0
+#define INT_BLOCK_MODE_BW_COMP		2
+#define CHIP_INT_MODE_IS_NBC(bp)		\
+			(CHIP_IS_E2(bp) &&	\
+			!((bp)->common.int_block & INT_BLOCK_MODE_BW_COMP))
+#define CHIP_INT_MODE_IS_BC(bp) (!CHIP_INT_MODE_IS_NBC(bp))
+
 	u8			chip_port_mode;
+#define CHIP_4_PORT_MODE			0x0
+#define CHIP_2_PORT_MODE			0x1
 #define CHIP_PORT_MODE_NONE			0x2
+#define CHIP_MODE(bp)			(bp->common.chip_port_mode)
+#define CHIP_MODE_IS_4_PORT(bp) (CHIP_MODE(bp) == CHIP_4_PORT_MODE)
 };
 
+/* IGU MSIX STATISTICS on 57712: 64 for VFs; 4 for PFs; 4 for Attentions */
+#define BNX2X_IGU_STAS_MSG_VF_CNT 64
+#define BNX2X_IGU_STAS_MSG_PF_CNT 4
 
 /* end of common */
 
@@ -670,7 +701,7 @@ enum {
  */
 
 #define FP_SB_MAX_E1x		16	/* fast-path interrupt contexts E1x */
-#define MAX_CONTEXT		FP_SB_MAX_E1x
+#define FP_SB_MAX_E2		16	/* fast-path interrupt contexts E2 */
 
 /*
  * cid_cnt paramter below refers to the value returned by
@@ -754,7 +785,7 @@ struct bnx2x_slowpath {
 #define MAX_DYNAMIC_ATTN_GRPS		8
 
 struct attn_route {
-	u32	sig[4];
+	u32	sig[5];
 };
 
 struct iro {
@@ -896,13 +927,20 @@ struct bnx2x {
 #define HW_VLAN_RX_FLAG			0x800
 #define MF_FUNC_DIS			0x1000
 
-	int			func;
+	int			pf_num;	/* absolute PF number */
+	int			pfid;	/* per-path PF number */
 	int			base_fw_ndsb;
-
-#define BP_PORT(bp)			(bp->func % PORT_MAX)
-#define BP_FUNC(bp)			(bp->func)
-#define BP_E1HVN(bp)			(bp->func >> 1)
+#define BP_PATH(bp)			(!CHIP_IS_E2(bp) ? \
+						0 : (bp->pf_num & 1))
+#define BP_PORT(bp)			(bp->pfid & 1)
+#define BP_FUNC(bp)			(bp->pfid)
+#define BP_ABS_FUNC(bp)			(bp->pf_num)
+#define BP_E1HVN(bp)			(bp->pfid >> 1)
+#define BP_VN(bp)			(CHIP_MODE_IS_4_PORT(bp) ? \
+						0 : BP_E1HVN(bp))
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
+#define BP_FW_MB_IDX(bp)		(BP_PORT(bp) +\
+					 BP_VN(bp) * (CHIP_IS_E1x(bp) ? 2  : 1))
 
 #ifdef BCM_CNIC
 #define BCM_CNIC_CID_START		16
@@ -932,7 +970,8 @@ struct bnx2x {
 	struct cmng_struct_per_port cmng;
 	u32			vn_weight_sum;
 
-	u32			mf_config;
+	u32			mf_config[E1HVN_MAX];
+	u32			mf2_config[E2_FUNC_MAX];
 	u16			mf_ov;
 	u8			mf_mode;
 #define IS_MF(bp)			(bp->mf_mode != 0)
@@ -1127,11 +1166,11 @@ struct bnx2x {
 #define RSS_IPV6_CAP		0x0004
 #define RSS_IPV6_TCP_CAP	0x0008
 
-#define BNX2X_MAX_QUEUES(bp)	(IS_MF(bp) ? (MAX_CONTEXT/E1HVN_MAX) \
-					      : MAX_CONTEXT)
 #define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
 #define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
 
+#define BNX2X_MAX_QUEUES(bp)	(bp->igu_sb_cnt - CNIC_CONTEXT_USE)
+#define is_eth_multi(bp)	(BNX2X_NUM_ETH_QUEUES(bp) > 1)
 
 #define RSS_IPV4_CAP_MASK						\
 	TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY
@@ -1342,14 +1381,40 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 
 /* DMAE command defines */
-#define DMAE_CMD_SRC_PCI		0
-#define DMAE_CMD_SRC_GRC		DMAE_COMMAND_SRC
+#define DMAE_TIMEOUT			-1
+#define DMAE_PCI_ERROR			-2	/* E2 and onward */
+#define DMAE_NOT_RDY			-3
+#define DMAE_PCI_ERR_FLAG		0x80000000
 
-#define DMAE_CMD_DST_PCI		(1 << DMAE_COMMAND_DST_SHIFT)
-#define DMAE_CMD_DST_GRC		(2 << DMAE_COMMAND_DST_SHIFT)
+#define DMAE_SRC_PCI			0
+#define DMAE_SRC_GRC			1
 
-#define DMAE_CMD_C_DST_PCI		0
-#define DMAE_CMD_C_DST_GRC		(1 << DMAE_COMMAND_C_DST_SHIFT)
+#define DMAE_DST_NONE			0
+#define DMAE_DST_PCI			1
+#define DMAE_DST_GRC			2
+
+#define DMAE_COMP_PCI			0
+#define DMAE_COMP_GRC			1
+
+/* E2 and onward - PCI error handling in the completion */
+
+#define DMAE_COMP_REGULAR		0
+#define DMAE_COM_SET_ERR		1
+
+#define DMAE_CMD_SRC_PCI		(DMAE_SRC_PCI << \
+						DMAE_COMMAND_SRC_SHIFT)
+#define DMAE_CMD_SRC_GRC		(DMAE_SRC_GRC << \
+						DMAE_COMMAND_SRC_SHIFT)
+
+#define DMAE_CMD_DST_PCI		(DMAE_DST_PCI << \
+						DMAE_COMMAND_DST_SHIFT)
+#define DMAE_CMD_DST_GRC		(DMAE_DST_GRC << \
+						DMAE_COMMAND_DST_SHIFT)
+
+#define DMAE_CMD_C_DST_PCI		(DMAE_COMP_PCI << \
+						DMAE_COMMAND_C_DST_SHIFT)
+#define DMAE_CMD_C_DST_GRC		(DMAE_COMP_GRC << \
+						DMAE_COMMAND_C_DST_SHIFT)
 
 #define DMAE_CMD_C_ENABLE		DMAE_COMMAND_C_TYPE_ENABLE
 
@@ -1365,10 +1430,20 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define DMAE_CMD_DST_RESET		DMAE_COMMAND_DST_RESET
 #define DMAE_CMD_E1HVN_SHIFT		DMAE_COMMAND_E1HVN_SHIFT
 
+#define DMAE_SRC_PF			0
+#define DMAE_SRC_VF			1
+
+#define DMAE_DST_PF			0
+#define DMAE_DST_VF			1
+
+#define DMAE_C_SRC			0
+#define DMAE_C_DST			1
+
 #define DMAE_LEN32_RD_MAX		0x80
 #define DMAE_LEN32_WR_MAX(bp)		(CHIP_IS_E1(bp) ? 0x400 : 0x2000)
 
-#define DMAE_COMP_VAL			0xe0d0d0ae
+#define DMAE_COMP_VAL			0x60d0d0ae /* E2 and on - upper bit
+							indicates eror */
 
 #define MAX_DMAE_C_PER_PORT		8
 #define INIT_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
@@ -1534,6 +1609,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define GET_FLAG(value, mask) \
 	(((value) &= (mask)) >> (mask##_SHIFT))
 
+#define GET_FIELD(value, fname) \
+	(((value) & (fname##_MASK)) >> (fname##_SHIFT))
+
 #define CAM_IS_INVALID(x) \
 	(GET_FLAG(x.flags, \
 	MAC_CONFIGURATION_ENTRY_ACTION_TYPE) == \
@@ -1553,6 +1631,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PXP2_REG_PXP2_INT_STS		PXP2_REG_PXP2_INT_STS_0
 #endif
 
+#ifndef ETH_MAX_RX_CLIENTS_E2
+#define ETH_MAX_RX_CLIENTS_E2		ETH_MAX_RX_CLIENTS_E1H
+#endif
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
@@ -1570,13 +1651,18 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_EXTERN extern
 #endif
 
-BNX2X_EXTERN int load_count[3]; /* 0-common, 1-port0, 2-port1 */
+BNX2X_EXTERN int load_count[2][3]; /* per path: 0-common, 1-port0, 2-port1 */
 
 /* MISC_REG_RESET_REG - this is here for the hsi to work don't touch */
 
 extern void bnx2x_set_ethtool_ops(struct net_device *netdev);
 
 void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae, int idx);
+u32 bnx2x_dmae_opcode_add_comp(u32 opcode, u8 comp_type);
+u32 bnx2x_dmae_opcode_clr_src_reset(u32 opcode);
+u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
+		      bool with_comp, u8 comp_type);
+
 
 #define WAIT_RAMROD_POLL	0x01
 #define WAIT_RAMROD_COMMON	0x02

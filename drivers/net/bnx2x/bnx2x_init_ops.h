@@ -486,18 +486,30 @@ static void bnx2x_init_pxp_arb(struct bnx2x *bp, int r_order, int w_order)
 	REG_WR(bp, PXP2_REG_RQ_RD_MBS0, r_order);
 	REG_WR(bp, PXP2_REG_RQ_RD_MBS1, r_order);
 
-	if (r_order == MAX_RD_ORD)
+	if ((CHIP_IS_E1(bp) || CHIP_IS_E1H(bp)) && (r_order == MAX_RD_ORD))
 		REG_WR(bp, PXP2_REG_RQ_PDR_LIMIT, 0xe00);
 
-	REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
+	if (CHIP_IS_E2(bp))
+		REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x8 << w_order));
+	else
+		REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
 
-	if (CHIP_IS_E1H(bp)) {
+	if (CHIP_IS_E1H(bp) || CHIP_IS_E2(bp)) {
 		/*    MPS      w_order     optimal TH      presently TH
 		 *    128         0             0               2
 		 *    256         1             1               3
 		 *    >=512       2             2               3
 		 */
-		val = ((w_order == 0) ? 2 : 3);
+		/* DMAE is special */
+		if (CHIP_IS_E2(bp)) {
+			/* E2 can use optimal TH */
+			val = w_order;
+			REG_WR(bp, PXP2_REG_WR_DMAE_MPS, val);
+		} else {
+			val = ((w_order == 0) ? 2 : 3);
+			REG_WR(bp, PXP2_REG_WR_DMAE_MPS, 2);
+		}
+
 		REG_WR(bp, PXP2_REG_WR_HC_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_USDM_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_CSDM_MPS, val);
@@ -507,9 +519,15 @@ static void bnx2x_init_pxp_arb(struct bnx2x *bp, int r_order, int w_order)
 		REG_WR(bp, PXP2_REG_WR_TM_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_SRC_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_DBG_MPS, val);
-		REG_WR(bp, PXP2_REG_WR_DMAE_MPS, 2); /* DMAE is special */
 		REG_WR(bp, PXP2_REG_WR_CDU_MPS, val);
 	}
+
+	/* Validate number of tags suppoted by device */
+#define PCIE_REG_PCIER_TL_HDR_FC_ST		0x2980
+	val = REG_RD(bp, PCIE_REG_PCIER_TL_HDR_FC_ST);
+	val &= 0xFF;
+	if (val <= 0x20)
+		REG_WR(bp, PXP2_REG_PGL_TAGS_LIMIT, 0x20);
 }
 
 /****************************************************************************
