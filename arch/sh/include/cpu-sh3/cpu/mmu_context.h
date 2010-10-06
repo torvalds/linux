@@ -16,6 +16,7 @@
 #define MMU_TEA		0xFFFFFFFC	/* TLB Exception Address */
 
 #define MMUCR		0xFFFFFFE0	/* MMU Control Register */
+#define MMUCR_TI	(1 << 2)	/* TLB flush bit */
 
 #define MMU_TLB_ADDRESS_ARRAY	0xF2000000
 #define MMU_PAGE_ASSOC_BIT	0x80
