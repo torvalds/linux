@@ -242,14 +242,14 @@ static int cnic_in_use(struct cnic_sock *csk)
 	return test_bit(SK_F_INUSE, &csk->flags);
 }
 
-static void cnic_kwq_completion(struct cnic_dev *dev, u32 count)
+static void cnic_spq_completion(struct cnic_dev *dev, int cmd, u32 count)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_eth_dev *ethdev = cp->ethdev;
 	struct drv_ctl_info info;
 
-	info.cmd = DRV_CTL_COMPLETION_CMD;
-	info.data.comp.comp_count = count;
+	info.cmd = cmd;
+	info.data.credit.credit_count = count;
 	ethdev->drv_ctl(dev->netdev, &info);
 }
 
@@ -2069,7 +2069,7 @@ static int cnic_submit_bnx2x_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
 static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	int i, j;
+	int i, j, comp = 0;
 
 	i = 0;
 	j = 1;
@@ -2080,7 +2080,7 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 		u32 kcqe_layer = kcqe_op_flag & KCQE_FLAGS_LAYER_MASK;
 
 		if (unlikely(kcqe_op_flag & KCQE_RAMROD_COMPLETION))
-			cnic_kwq_completion(dev, 1);
+			comp++;
 
 		while (j < num_cqes) {
 			u32 next_op = cp->completed_kcq[i + j]->kcqe_op_flag;
@@ -2089,7 +2089,7 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 				break;
 
 			if (unlikely(next_op & KCQE_RAMROD_COMPLETION))
-				cnic_kwq_completion(dev, 1);
+				comp++;
 			j++;
 		}
 
@@ -2119,6 +2119,8 @@ end:
 		i += j;
 		j = 1;
 	}
+	if (unlikely(comp))
+		cnic_spq_completion(dev, DRV_CTL_RET_L5_SPQ_CREDIT_CMD, comp);
 }
 
 static u16 cnic_bnx2_next_idx(u16 idx)
@@ -4246,7 +4248,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
 			netdev_err(dev->netdev,
 				"iSCSI CLIENT_SETUP did not complete\n");
-		cnic_kwq_completion(dev, 1);
+		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 		cnic_ring_ctl(dev, BNX2X_ISCSI_L2_CID, cli, 1);
 	}
 }
@@ -4283,7 +4285,7 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
 			netdev_err(dev->netdev,
 				"iSCSI CLIENT_HALT did not complete\n");
-		cnic_kwq_completion(dev, 1);
+		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 
 		memset(&l5_data, 0, sizeof(l5_data));
 		type = (NONE_CONNECTION_TYPE << SPE_HDR_CONN_TYPE_SHIFT)

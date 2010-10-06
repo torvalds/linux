@@ -6462,6 +6462,12 @@ static int __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 	return rc;
 }
 
+/* must be called prioir to any HW initializations */
+static inline u16 bnx2x_cid_ilt_lines(struct bnx2x *bp)
+{
+	return L2_ILT_LINES(bp);
+}
+
 void bnx2x_ilt_set_info(struct bnx2x *bp)
 {
 	struct ilt_client_info *ilt_client;
@@ -9347,18 +9353,52 @@ static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 #endif
 
 	spin_lock_bh(&bp->spq_lock);
+	BUG_ON(bp->cnic_spq_pending < count);
 	bp->cnic_spq_pending -= count;
 
-	for (; bp->cnic_spq_pending < bp->cnic_eth_dev.max_kwqe_pending;
-	     bp->cnic_spq_pending++) {
 
-		if (!bp->cnic_kwq_pending)
+	for (; bp->cnic_kwq_pending; bp->cnic_kwq_pending--) {
+		u16 type =  (le16_to_cpu(bp->cnic_kwq_cons->hdr.type)
+				& SPE_HDR_CONN_TYPE) >>
+				SPE_HDR_CONN_TYPE_SHIFT;
+
+		/* Set validation for iSCSI L2 client before sending SETUP
+		 *  ramrod
+		 */
+		if (type == ETH_CONNECTION_TYPE) {
+			u8 cmd = (le32_to_cpu(bp->cnic_kwq_cons->
+					     hdr.conn_and_cmd_data) >>
+				SPE_HDR_CMD_ID_SHIFT) & 0xff;
+
+			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP)
+				bnx2x_set_ctx_validation(&bp->context.
+						vcxt[BNX2X_ISCSI_ETH_CID].eth,
+					HW_CID(bp, BNX2X_ISCSI_ETH_CID));
+		}
+
+		/* There may be not more than 8 L2 and COMMON SPEs and not more
+		 * than 8 L5 SPEs in the air.
+		 */
+		if ((type == NONE_CONNECTION_TYPE) ||
+		    (type == ETH_CONNECTION_TYPE)) {
+			if (!atomic_read(&bp->spq_left))
+				break;
+			else
+				atomic_dec(&bp->spq_left);
+		} else if (type == ISCSI_CONNECTION_TYPE) {
+			if (bp->cnic_spq_pending >=
+			    bp->cnic_eth_dev.max_kwqe_pending)
+				break;
+			else
+				bp->cnic_spq_pending++;
+		} else {
+			BNX2X_ERR("Unknown SPE type: %d\n", type);
+			bnx2x_panic();
 			break;
+		}
 
 		spe = bnx2x_sp_get_next(bp);
 		*spe = *bp->cnic_kwq_cons;
-
-		bp->cnic_kwq_pending--;
 
 		DP(NETIF_MSG_TIMER, "pending on SPQ %d, on KWQ %d count %d\n",
 		   bp->cnic_spq_pending, bp->cnic_kwq_pending, count);
@@ -9464,7 +9504,7 @@ static void bnx2x_cnic_cfc_comp(struct bnx2x *bp, int cid)
 	ctl.data.comp.cid = cid;
 
 	bnx2x_cnic_ctl_send_bh(bp, &ctl);
-	bnx2x_cnic_sp_post(bp, 1);
+	bnx2x_cnic_sp_post(bp, 0);
 }
 
 static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
@@ -9481,8 +9521,8 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 		break;
 	}
 
-	case DRV_CTL_COMPLETION_CMD: {
-		int count = ctl->data.comp.comp_count;
+	case DRV_CTL_RET_L5_SPQ_CREDIT_CMD: {
+		int count = ctl->data.credit.credit_count;
 
 		bnx2x_cnic_sp_post(bp, count);
 		break;
@@ -9526,6 +9566,14 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 
 		/* Unset iSCSI L2 MAC */
 		bnx2x_set_iscsi_eth_mac_addr(bp, 0);
+		break;
+	}
+	case DRV_CTL_RET_L2_SPQ_CREDIT_CMD: {
+		int count = ctl->data.credit.credit_count;
+
+		smp_mb__before_atomic_inc();
+		atomic_add(count, &bp->spq_left);
+		smp_mb__after_atomic_inc();
 		break;
 	}
 
@@ -9592,13 +9640,8 @@ static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 	cp->drv_state = CNIC_DRV_STATE_REGD;
 	cp->iro_arr = bp->iro_arr;
 
-	bnx2x_init_sb(bp, bp->cnic_sb_mapping,
-		      BNX2X_VF_ID_INVALID, false,
-		      CNIC_SB_ID(bp), CNIC_IGU_SB_ID(bp));
-
 	bnx2x_setup_cnic_irq_info(bp);
-	bnx2x_set_iscsi_eth_mac_addr(bp, 1);
-	bp->cnic_flags |= BNX2X_CNIC_FLAG_MAC_SET;
+
 	rcu_assign_pointer(bp->cnic_ops, ops);
 
 	return 0;
@@ -9636,14 +9679,23 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	cp->io_base2 = bp->doorbells;
 	cp->max_kwqe_pending = 8;
 	cp->ctx_blk_size = CDU_ILT_PAGE_SZ;
-	cp->ctx_tbl_offset = FUNC_ILT_BASE(BP_FUNC(bp)) + 1;
+	cp->ctx_tbl_offset = FUNC_ILT_BASE(BP_FUNC(bp)) +
+			     bnx2x_cid_ilt_lines(bp);
 	cp->ctx_tbl_len = CNIC_ILT_LINES;
-	cp->starting_cid = BCM_CNIC_CID_START;
+	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
 	cp->drv_submit_kwqes_16 = bnx2x_cnic_sp_queue;
 	cp->drv_ctl = bnx2x_drv_ctl;
 	cp->drv_register_cnic = bnx2x_register_cnic;
 	cp->drv_unregister_cnic = bnx2x_unregister_cnic;
+	cp->iscsi_l2_client_id = BNX2X_ISCSI_ETH_CL_ID;
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID;
 
+	DP(BNX2X_MSG_SP, "page_size %d, tbl_offset %d, tbl_lines %d, "
+			 "starting cid %d\n",
+	   cp->ctx_blk_size,
+	   cp->ctx_tbl_offset,
+	   cp->ctx_tbl_len,
+	   cp->starting_cid);
 	return cp;
 }
 EXPORT_SYMBOL(bnx2x_cnic_probe);

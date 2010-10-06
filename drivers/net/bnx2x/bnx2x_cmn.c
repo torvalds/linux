@@ -1369,19 +1369,6 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	bnx2x_set_eth_mac(bp, 1);
 
-#ifdef BCM_CNIC
-	/* Set iSCSI L2 MAC */
-	mutex_lock(&bp->cnic_mutex);
-	if (bp->cnic_eth_dev.drv_state & CNIC_DRV_STATE_REGD) {
-		bnx2x_set_iscsi_eth_mac_addr(bp, 1);
-		bp->cnic_flags |= BNX2X_CNIC_FLAG_MAC_SET;
-		bnx2x_init_sb(bp, bp->cnic_sb_mapping,
-			      BNX2X_VF_ID_INVALID, false,
-			      CNIC_SB_ID(bp), CNIC_IGU_SB_ID(bp));
-	}
-	mutex_unlock(&bp->cnic_mutex);
-#endif
-
 	if (bp->port.pmf)
 		bnx2x_initial_phy_init(bp, load_mode);
 
