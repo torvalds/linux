@@ -1630,7 +1630,7 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packets cmd, un
 
 		ok = drbd_drain_block(mdev, data_size);
 
-		drbd_send_ack_dp(mdev, P_NEG_ACK, p);
+		drbd_send_ack_dp(mdev, P_NEG_ACK, p, data_size);
 	}
 
 	atomic_add(data_size >> 9, &mdev->rs_sect_in);
@@ -1787,7 +1787,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 			mdev->peer_seq++;
 		spin_unlock(&mdev->peer_seq_lock);
 
-		drbd_send_ack_dp(mdev, P_NEG_ACK, p);
+		drbd_send_ack_dp(mdev, P_NEG_ACK, p, data_size);
 		atomic_inc(&mdev->current_epoch->epoch_size);
 		return drbd_drain_block(mdev, data_size);
 	}

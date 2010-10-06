@@ -1230,7 +1230,7 @@ extern int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packets cmd,
 			struct p_block_req *rp);
 extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
-			struct p_data *dp);
+			struct p_data *dp, int data_size);
 extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packets cmd,
 			    sector_t sector, int blksize, u64 block_id);
 extern int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,

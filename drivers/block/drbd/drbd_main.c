@@ -2193,13 +2193,14 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 	return ok;
 }
 
+/* dp->sector and dp->block_id already/still in network byte order,
+ * data_size is payload size according to dp->head,
+ * and may need to be corrected for digest size. */
 int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
-		     struct p_data *dp)
+		     struct p_data *dp, int data_size)
 {
-	const int header_size = sizeof(struct p_data)
-			      - sizeof(struct p_header80);
-	int data_size  = ((struct p_header80 *)dp)->length - header_size;
-
+	data_size -= (mdev->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
+		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
 	return _drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
 			      dp->block_id);
 }
