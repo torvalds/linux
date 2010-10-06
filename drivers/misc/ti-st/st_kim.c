@@ -2,7 +2,8 @@
  *  Shared Transport Line discipline driver Core
  *	Init Manager module responsible for GPIO control
  *	and firmware download
- *  Copyright (C) 2009 Texas Instruments
+ *  Copyright (C) 2009-2010 Texas Instruments
+ *  Author: Pavan Savoy <pavan_savoy@ti.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
