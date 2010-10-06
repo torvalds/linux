@@ -927,14 +927,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Clock internal */
-	if (davinci_spi->pdata->clk_internal)
-		set_io_bits(davinci_spi->base + SPIGCR1,
-				SPIGCR1_CLKMOD_MASK);
-	else
-		clear_io_bits(davinci_spi->base + SPIGCR1,
-				SPIGCR1_CLKMOD_MASK);
-
 	if (pdata->intr_line)
 		iowrite32(SPI_INTLVL_1, davinci_spi->base + SPILVL);
 	else
@@ -943,6 +935,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	iowrite32(CS_DEFAULT, davinci_spi->base + SPIDEF);
 
 	/* master mode default */
+	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_CLKMOD_MASK);
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_MASTER_MASK);
 
 	ret = spi_bitbang_start(&davinci_spi->bitbang);
