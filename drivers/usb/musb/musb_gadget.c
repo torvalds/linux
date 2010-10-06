@@ -829,6 +829,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		DBG(3, "packet waiting for %s%s request\n",
 				musb_ep->desc ? "" : "inactive ",
 				musb_ep->end_point.name);
+	return;
 }
 
 /* ------------------------------------------------------------ */
