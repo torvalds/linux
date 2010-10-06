@@ -555,7 +555,7 @@ void __init omap_vram_reserve_sdram_memblock(void)
 
 	if (paddr) {
 		if ((paddr & ~PAGE_MASK) ||
-		    !memblock_region_is_memory(paddr, size)) {
+		    !memblock_is_region_memory(paddr, size)) {
 			pr_err("Illegal SDRAM region for VRAM\n");
 			return;
 		}
