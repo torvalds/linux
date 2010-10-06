@@ -342,7 +342,7 @@ module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 		daemonize(a); \
 		allow_signal(SIGKILL); \
 		allow_signal(SIGTERM); \
-	} while (0);
+	} while (0)
 
 #define BLOCKABLE()	(!in_atomic())
 

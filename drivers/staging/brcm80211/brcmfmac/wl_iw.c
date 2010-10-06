@@ -112,7 +112,7 @@ static wlc_ssid_t g_ssid;
 		daemonize(a); \
 		allow_signal(SIGKILL); \
 		allow_signal(SIGTERM); \
-	} while (0);
+	} while (0)
 
 #if defined(WL_IW_USE_ISCAN)
 #define ISCAN_STATE_IDLE   0
