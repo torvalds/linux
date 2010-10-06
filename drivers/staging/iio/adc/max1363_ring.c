@@ -38,9 +38,8 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	numvals = hweight_long(st->current_mode->modemask);
 
-	ring_data = kmalloc(numvals*2, GFP_KERNEL);
+	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
