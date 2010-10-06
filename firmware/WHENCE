@@ -679,8 +679,8 @@ Found in hex form in kernel source.
 
 Driver: bnx2x: Broadcom Everest
 
-File: bnx2x-e1-5.2.13.0.fw
-File: bnx2x-e1h-5.2.13.0.fw
+File: bnx2x/bnx2x-e1-5.2.13.0.fw
+File: bnx2x/bnx2x-e1h-5.2.13.0.fw
 
 License:
   Copyright (c) 2007-2010 Broadcom Corporation
