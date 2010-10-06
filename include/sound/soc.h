@@ -385,7 +385,7 @@ struct snd_soc_jack_gpio {
 	int invert;
 	int debounce_time;
 	struct snd_soc_jack *jack;
-	struct work_struct work;
+	struct delayed_work work;
 
 	int (*jack_status_check)(void);
 };
