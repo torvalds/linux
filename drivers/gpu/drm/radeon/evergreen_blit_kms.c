@@ -611,8 +611,8 @@ void evergreen_kms_blit_copy(struct radeon_device *rdev,
 			int src_x = src_gpu_addr & 255;
 			int dst_x = dst_gpu_addr & 255;
 			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255;
-			dst_gpu_addr = dst_gpu_addr & ~255;
+			src_gpu_addr = src_gpu_addr & ~255ULL;
+			dst_gpu_addr = dst_gpu_addr & ~255ULL;
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
@@ -695,8 +695,8 @@ void evergreen_kms_blit_copy(struct radeon_device *rdev,
 			int src_x = (src_gpu_addr & 255);
 			int dst_x = (dst_gpu_addr & 255);
 			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255;
-			dst_gpu_addr = dst_gpu_addr & ~255;
+			src_gpu_addr = src_gpu_addr & ~255ULL;
+			dst_gpu_addr = dst_gpu_addr & ~255ULL;
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
