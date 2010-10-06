@@ -317,42 +317,36 @@ struct cifsTconInfo {
  * "get" on the container.
  */
 struct tcon_link {
-	spinlock_t		tl_lock;
-	u32			tl_count;
-	u64			tl_time;
+	unsigned long		tl_index;
+	unsigned long		tl_flags;
+#define TCON_LINK_MASTER	0
+#define TCON_LINK_PENDING	1
+#define TCON_LINK_IN_TREE	2
+	unsigned long		tl_time;
+	atomic_t		tl_count;
 	struct cifsTconInfo	*tl_tcon;
 };
 
-static inline struct tcon_link *
-cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
-{
-	return (struct tcon_link *)cifs_sb->ptcon;
-}
+extern struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
 
 static inline struct cifsTconInfo *
 tlink_tcon(struct tcon_link *tlink)
 {
-	return (struct cifsTconInfo *)tlink;
+	return tlink->tl_tcon;
 }
 
-static inline void
-cifs_put_tlink(struct tcon_link *tlink)
-{
-	return;
-}
+extern void cifs_put_tlink(struct tcon_link *tlink);
 
 static inline struct tcon_link *
 cifs_get_tlink(struct tcon_link *tlink)
 {
+	if (tlink && !IS_ERR(tlink))
+		atomic_inc(&tlink->tl_count);
 	return tlink;
 }
 
 /* This function is always expected to succeed */
-static inline struct cifsTconInfo *
-cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb)
-{
-	return cifs_sb->ptcon;
-}
+extern struct cifsTconInfo *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
 
 /*
  * This info hangs off the cifsFileInfo structure, pointed to by llist.

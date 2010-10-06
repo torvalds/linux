@@ -15,6 +15,8 @@
  *   the GNU Lesser General Public License for more details.
  *
  */
+#include <linux/radix-tree.h>
+
 #ifndef _CIFS_FS_SB_H
 #define _CIFS_FS_SB_H
 
@@ -40,8 +42,9 @@
 #define CIFS_MOUNT_MULTIUSER	0x20000 /* multiuser mount */
 
 struct cifs_sb_info {
-	struct cifsTconInfo *ptcon;	/* primary mount */
-	struct list_head nested_tcon_q;
+	struct radix_tree_root tlink_tree;
+#define CIFS_TLINK_MASTER_TAG		0	/* is "master" (mount) tcon */
+	spinlock_t tlink_tree_lock;
 	struct nls_table *local_nls;
 	unsigned int rsize;
 	unsigned int wsize;
