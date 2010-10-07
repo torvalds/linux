@@ -797,6 +797,8 @@ fire_callbacks:
 
 		/* first on the list generates a callback */
 		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {
+			mlog(ML_HEARTBEAT, "o2hb: Add node %d to live nodes "
+			     "bitmap\n", slot->ds_node_num);
 			set_bit(slot->ds_node_num, o2hb_live_node_bitmap);
 
 			o2hb_queue_node_event(&event, O2HB_NODE_UP_CB, node,
@@ -845,6 +847,8 @@ fire_callbacks:
 		/* last off the live_slot generates a callback */
 		list_del_init(&slot->ds_live_item);
 		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {
+			mlog(ML_HEARTBEAT, "o2hb: Remove node %d from live "
+			     "nodes bitmap\n", slot->ds_node_num);
 			clear_bit(slot->ds_node_num, o2hb_live_node_bitmap);
 
 			/* node can be null */
