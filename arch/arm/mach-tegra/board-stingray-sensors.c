@@ -216,9 +216,11 @@ static void stingray_kxtf9_init(void)
 
 struct max9635_platform_data stingray_max9635_pdata = {
 	.configure = 0x80,
-	.threshold_timer = 0x14,
-	.def_low_threshold = 0x00,
-	.def_high_threshold = 0x01,
+	.threshold_timer = 0x19,
+	.def_low_threshold = 0xFE,
+	.def_high_threshold = 0xFF,
+	.lens_coeff_h = 7,
+	.lens_coeff_l = 10,
 };
 
 static int stingray_max9635_init(void)
