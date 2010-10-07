@@ -448,6 +448,7 @@ struct addr_ctrl_blk {
 #define	 FWOPT_SESSION_MODE		  0x0040
 #define	 FWOPT_INITIATOR_MODE		  0x0020
 #define	 FWOPT_TARGET_MODE		  0x0010
+#define	 FWOPT_ENABLE_CRBDB		  0x8000
 
 	uint16_t exec_throttle;	/* 04-05 */
 	uint8_t zio_count;	/* 06 */

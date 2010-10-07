@@ -202,19 +202,11 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 void qla4_8xxx_queue_iocb(struct scsi_qla_host *ha)
 {
 	uint32_t dbval = 0;
-	unsigned long wtime;
 
 	dbval = 0x14 | (ha->func_num << 5);
 	dbval = dbval | (0 << 8) | (ha->request_in << 16);
-	writel(dbval, (unsigned long __iomem *)ha->nx_db_wr_ptr);
-	wmb();
 
-	wtime = jiffies + (2 * HZ);
-	while (readl((void __iomem *)ha->nx_db_rd_ptr) != dbval &&
-	    !time_after_eq(jiffies, wtime)) {
-		writel(dbval, (unsigned long __iomem *)ha->nx_db_wr_ptr);
-		wmb();
-	}
+	qla4_8xxx_wr_32(ha, ha->nx_db_wr_ptr, ha->request_in);
 }
 
 /**

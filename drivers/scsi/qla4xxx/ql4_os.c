@@ -571,10 +571,6 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 		if (ha->nx_pcibase)
 			iounmap(
 			    (struct device_reg_82xx __iomem *)ha->nx_pcibase);
-
-		if (ha->nx_db_wr_ptr)
-			iounmap(
-			    (struct device_reg_82xx __iomem *)ha->nx_db_wr_ptr);
 	} else if (ha->reg)
 		iounmap(ha->reg);
 	pci_release_regions(ha->pdev);
@@ -1476,24 +1472,10 @@ int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 	db_base = pci_resource_start(pdev, 4);  /* doorbell is on bar 4 */
 	db_len = pci_resource_len(pdev, 4);
 
-	/* mapping of doorbell write pointer */
-	ha->nx_db_wr_ptr = (unsigned long)ioremap(db_base +
-	    (ha->pdev->devfn << 12), 4);
-	if (!ha->nx_db_wr_ptr) {
-		printk(KERN_ERR
-		    "cannot remap MMIO doorbell-write (%s), aborting\n",
-		    pci_name(pdev));
-		goto iospace_error_exit;
-	}
-	/* mapping of doorbell read pointer */
-	ha->nx_db_rd_ptr = (uint8_t *) ha->nx_pcibase + (512 * 1024) +
-	    (ha->pdev->devfn * 8);
-	if (!ha->nx_db_rd_ptr)
-		printk(KERN_ERR
-		    "cannot remap MMIO doorbell-read (%s), aborting\n",
-		    pci_name(pdev));
-	return 0;
+	ha->nx_db_wr_ptr = (ha->pdev->devfn == 4 ? QLA82XX_CAM_RAM_DB1 :
+	    QLA82XX_CAM_RAM_DB2);
 
+	return 0;
 iospace_error_exit:
 	return -ENOMEM;
 }
