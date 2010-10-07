@@ -96,8 +96,6 @@ int octeon_is_pci_host(void)
  */
 uint64_t octeon_get_clock_rate(void)
 {
-	if (octeon_is_simulation())
-		octeon_bootinfo->eclock_hz = 6000000;
 	return octeon_bootinfo->eclock_hz;
 }
 EXPORT_SYMBOL(octeon_get_clock_rate);
