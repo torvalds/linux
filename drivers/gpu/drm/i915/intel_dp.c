@@ -775,7 +775,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	if (intel_crtc->pipe == 1 && !HAS_PCH_CPT(dev))
 		intel_dp->DP |= DP_PIPEB_SELECT;
 
-	if (is_edp(intel_dp)) {
+	if (is_edp(intel_dp) && !is_pch_edp(intel_dp)) {
 		/* don't miss out required setting for eDP */
 		intel_dp->DP |= DP_PLL_ENABLE;
 		if (adjusted_mode->clock < 200000)
