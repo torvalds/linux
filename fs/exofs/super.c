@@ -390,6 +390,23 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 	return 0;
 }
 
+static unsigned __ra_pages(struct exofs_layout *layout)
+{
+	const unsigned _MIN_RA = 32; /* min 128K read-ahead */
+	unsigned ra_pages = layout->group_width * layout->stripe_unit /
+				PAGE_SIZE;
+	unsigned max_io_pages = exofs_max_io_pages(layout, ~0);
+
+	ra_pages *= 2; /* two stripes */
+	if (ra_pages < _MIN_RA)
+		ra_pages = roundup(_MIN_RA, ra_pages / 2);
+
+	if (ra_pages > max_io_pages)
+		ra_pages = max_io_pages;
+
+	return ra_pages;
+}
+
 /* @odi is valid only as long as @fscb_dev is valid */
 static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 			     struct osd_dev_info *odi)
@@ -623,6 +640,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* set up operation vectors */
+	sbi->bdi.ra_pages = __ra_pages(&sbi->layout);
 	sb->s_bdi = &sbi->bdi;
 	sb->s_fs_info = sbi;
 	sb->s_op = &exofs_sops;

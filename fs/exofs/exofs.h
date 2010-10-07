@@ -256,6 +256,8 @@ static inline int exofs_oi_read(struct exofs_i_info *oi,
 }
 
 /* inode.c               */
+unsigned exofs_max_io_pages(struct exofs_layout *layout,
+			    unsigned expected_pages);
 int exofs_setattr(struct dentry *, struct iattr *);
 int exofs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
