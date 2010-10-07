@@ -305,8 +305,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto cifs_create_out;
 	}
 
 	if (oplockEnabled)
@@ -365,9 +364,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 
 	buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 	if (buf == NULL) {
-		kfree(full_path);
-		FreeXid(xid);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto cifs_create_out;
 	}
 
 	/*
@@ -496,6 +494,11 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
+	int oplock = 0;
+	u16 fileHandle;
+	FILE_ALL_INFO *buf = NULL;
+	unsigned int bytes_written;
+	struct win_dev *pdev;
 
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
@@ -506,9 +509,12 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	pTcon = cifs_sb->tcon;
 
 	full_path = build_path_from_dentry(direntry);
-	if (full_path == NULL)
+	if (full_path == NULL) {
 		rc = -ENOMEM;
-	else if (pTcon->unix_ext) {
+		goto mknod_out;
+	}
+
+	if (pTcon->unix_ext) {
 		struct cifs_unix_set_info_args args = {
 			.mode	= mode & ~current_umask(),
 			.ctime	= NO_CHANGE_64,
@@ -527,87 +533,78 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 					    cifs_sb->local_nls,
 					    cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc)
+			goto mknod_out;
 
-		if (!rc) {
-			rc = cifs_get_inode_info_unix(&newinode, full_path,
+		rc = cifs_get_inode_info_unix(&newinode, full_path,
 						inode->i_sb, xid);
-			if (pTcon->nocase)
-				direntry->d_op = &cifs_ci_dentry_ops;
-			else
-				direntry->d_op = &cifs_dentry_ops;
-			if (rc == 0)
-				d_instantiate(direntry, newinode);
-		}
-	} else {
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
-			int oplock = 0;
-			u16 fileHandle;
-			FILE_ALL_INFO *buf;
+		if (pTcon->nocase)
+			direntry->d_op = &cifs_ci_dentry_ops;
+		else
+			direntry->d_op = &cifs_dentry_ops;
 
-			cFYI(1, "sfu compat create special file");
-
-			buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
-			if (buf == NULL) {
-				kfree(full_path);
-				rc = -ENOMEM;
-				FreeXid(xid);
-				return rc;
-			}
-
-			rc = CIFSSMBOpen(xid, pTcon, full_path,
-					 FILE_CREATE, /* fail if exists */
-					 GENERIC_WRITE /* BB would
-					  WRITE_OWNER | WRITE_DAC be better? */,
-					 /* Create a file and set the
-					    file attribute to SYSTEM */
-					 CREATE_NOT_DIR | CREATE_OPTION_SPECIAL,
-					 &fileHandle, &oplock, buf,
-					 cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-					    CIFS_MOUNT_MAP_SPECIAL_CHR);
-
-			/* BB FIXME - add handling for backlevel servers
-			   which need legacy open and check for all
-			   calls to SMBOpen for fallback to SMBLeagcyOpen */
-			if (!rc) {
-				/* BB Do not bother to decode buf since no
-				   local inode yet to put timestamps in,
-				   but we can reuse it safely */
-				unsigned int bytes_written;
-				struct win_dev *pdev;
-				pdev = (struct win_dev *)buf;
-				if (S_ISCHR(mode)) {
-					memcpy(pdev->type, "IntxCHR", 8);
-					pdev->major =
-					      cpu_to_le64(MAJOR(device_number));
-					pdev->minor =
-					      cpu_to_le64(MINOR(device_number));
-					rc = CIFSSMBWrite(xid, pTcon,
-						fileHandle,
-						sizeof(struct win_dev),
-						0, &bytes_written, (char *)pdev,
-						NULL, 0);
-				} else if (S_ISBLK(mode)) {
-					memcpy(pdev->type, "IntxBLK", 8);
-					pdev->major =
-					      cpu_to_le64(MAJOR(device_number));
-					pdev->minor =
-					      cpu_to_le64(MINOR(device_number));
-					rc = CIFSSMBWrite(xid, pTcon,
-						fileHandle,
-						sizeof(struct win_dev),
-						0, &bytes_written, (char *)pdev,
-						NULL, 0);
-				} /* else if(S_ISFIFO */
-				CIFSSMBClose(xid, pTcon, fileHandle);
-				d_drop(direntry);
-			}
-			kfree(buf);
-			/* add code here to set EAs */
-		}
+		if (rc == 0)
+			d_instantiate(direntry, newinode);
+		goto mknod_out;
 	}
 
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
+		goto mknod_out;
+
+
+	cFYI(1, "sfu compat create special file");
+
+	buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
+	if (buf == NULL) {
+		kfree(full_path);
+		rc = -ENOMEM;
+		FreeXid(xid);
+		return rc;
+	}
+
+	/* FIXME: would WRITE_OWNER | WRITE_DAC be better? */
+	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_CREATE,
+			 GENERIC_WRITE, CREATE_NOT_DIR | CREATE_OPTION_SPECIAL,
+			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc)
+		goto mknod_out;
+
+	/* BB Do not bother to decode buf since no local inode yet to put
+	 * timestamps in, but we can reuse it safely */
+
+	pdev = (struct win_dev *)buf;
+	if (S_ISCHR(mode)) {
+		memcpy(pdev->type, "IntxCHR", 8);
+		pdev->major =
+		      cpu_to_le64(MAJOR(device_number));
+		pdev->minor =
+		      cpu_to_le64(MINOR(device_number));
+		rc = CIFSSMBWrite(xid, pTcon,
+			fileHandle,
+			sizeof(struct win_dev),
+			0, &bytes_written, (char *)pdev,
+			NULL, 0);
+	} else if (S_ISBLK(mode)) {
+		memcpy(pdev->type, "IntxBLK", 8);
+		pdev->major =
+		      cpu_to_le64(MAJOR(device_number));
+		pdev->minor =
+		      cpu_to_le64(MINOR(device_number));
+		rc = CIFSSMBWrite(xid, pTcon,
+			fileHandle,
+			sizeof(struct win_dev),
+			0, &bytes_written, (char *)pdev,
+			NULL, 0);
+	} /* else if (S_ISFIFO) */
+	CIFSSMBClose(xid, pTcon, fileHandle);
+	d_drop(direntry);
+
+	/* FIXME: add code here to set EAs */
+
+mknod_out:
 	kfree(full_path);
+	kfree(buf);
 	FreeXid(xid);
 	return rc;
 }

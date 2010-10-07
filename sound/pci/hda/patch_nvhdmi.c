@@ -326,13 +326,6 @@ static int nvhdmi_dig_playback_pcm_prepare_8ch(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
-static int nvhdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
-					   struct hda_codec *codec,
-					   struct snd_pcm_substream *substream)
-{
-	return 0;
-}
-
 static int nvhdmi_dig_playback_pcm_prepare_2ch(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
 					unsigned int stream_tag,
@@ -350,7 +343,6 @@ static struct hda_pcm_stream nvhdmi_pcm_digital_playback_8ch_89 = {
 	.ops = {
 		.open = hdmi_pcm_open,
 		.prepare = nvhdmi_dig_playback_pcm_prepare_8ch_89,
-		.cleanup = nvhdmi_playback_pcm_cleanup,
 	},
 };
 

@@ -834,7 +834,7 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 						xid, NULL);
 
 	if (!inode)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(rc);
 
 #ifdef CONFIG_CIFS_FSCACHE
 	/* populate tcon->resource_id */

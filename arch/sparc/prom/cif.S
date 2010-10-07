@@ -9,18 +9,18 @@
 #include <asm/thread_info.h>
 
 	.text
-	.globl	prom_cif_interface
-prom_cif_interface:
-	sethi	%hi(p1275buf), %o0
-	or	%o0, %lo(p1275buf), %o0
-	ldx	[%o0 + 0x010], %o1	! prom_cif_stack
-	save	%o1, -192, %sp
-	ldx	[%i0 + 0x008], %l2	! prom_cif_handler
+	.globl	prom_cif_direct
+prom_cif_direct:
+	sethi	%hi(p1275buf), %o1
+	or	%o1, %lo(p1275buf), %o1
+	ldx	[%o1 + 0x0010], %o2	! prom_cif_stack
+	save	%o2, -192, %sp
+	ldx	[%i1 + 0x0008], %l2	! prom_cif_handler
 	mov	%g4, %l0
 	mov	%g5, %l1
 	mov	%g6, %l3
 	call	%l2
-	 add	%i0, 0x018, %o0		! prom_args
+	 mov	%i0, %o0		! prom_args
 	mov	%l0, %g4
 	mov	%l1, %g5
 	mov	%l3, %g6

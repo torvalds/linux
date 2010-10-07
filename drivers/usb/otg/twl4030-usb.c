@@ -550,6 +550,7 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	struct twl4030_usb_data *pdata = pdev->dev.platform_data;
 	struct twl4030_usb	*twl;
 	int			status, err;
+	u8			pwr;
 
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform_data not available\n");
@@ -568,7 +569,10 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	twl->otg.set_peripheral	= twl4030_set_peripheral;
 	twl->otg.set_suspend	= twl4030_set_suspend;
 	twl->usb_mode		= pdata->usb_mode;
-	twl->asleep		= 1;
+
+	pwr = twl4030_usb_read(twl, PHY_PWR_CTRL);
+
+	twl->asleep		= (pwr & PHY_PWR_PHYPWD);
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);

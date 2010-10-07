@@ -97,6 +97,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 {
 	pte_t pte = huge_ptep_get(ptep);
 
+	mm->context.flush_mm = 1;
 	pmd_clear((pmd_t *) ptep);
 	return pte;
 }
@@ -167,7 +168,8 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 ({									\
 	pte_t __pte = huge_ptep_get(__ptep);				\
 	if (pte_write(__pte)) {						\
-		if (atomic_read(&(__mm)->mm_users) > 1 ||		\
+		(__mm)->context.flush_mm = 1;				\
+		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
 		    (__mm) != current->active_mm)			\
 			huge_ptep_invalidate(__mm, __addr, __ptep);	\
 		set_huge_pte_at(__mm, __addr, __ptep,			\

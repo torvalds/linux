@@ -500,7 +500,7 @@ static struct miscdevice ecryptfs_miscdev = {
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_init_ecryptfs_miscdev(void)
+int __init ecryptfs_init_ecryptfs_miscdev(void)
 {
 	int rc;
 

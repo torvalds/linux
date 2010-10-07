@@ -184,7 +184,7 @@ static void pci_dma_dev_setup_iseries(struct pci_dev *pdev)
 
 	BUG_ON(lsn == NULL);
 
-	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+	tbl = kzalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
 	iommu_table_getparms_iSeries(pdn->busno, *lsn, 0, tbl);
 

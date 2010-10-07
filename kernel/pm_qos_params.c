@@ -212,15 +212,17 @@ EXPORT_SYMBOL_GPL(pm_qos_request_active);
 
 /**
  * pm_qos_add_request - inserts new qos request into the list
- * @pm_qos_class: identifies which list of qos request to us
+ * @dep: pointer to a preallocated handle
+ * @pm_qos_class: identifies which list of qos request to use
  * @value: defines the qos request
  *
  * This function inserts a new entry in the pm_qos_class list of requested qos
  * performance characteristics.  It recomputes the aggregate QoS expectations
- * for the pm_qos_class of parameters, and returns the pm_qos_request list
- * element as a handle for use in updating and removal.  Call needs to save
- * this handle for later use.
+ * for the pm_qos_class of parameters and initializes the pm_qos_request_list
+ * handle.  Caller needs to save this handle for later use in updates and
+ * removal.
  */
+
 void pm_qos_add_request(struct pm_qos_request_list *dep,
 			int pm_qos_class, s32 value)
 {
@@ -348,7 +350,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 
 	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
 	if (pm_qos_class >= 0) {
-		struct pm_qos_request_list *req = kzalloc(GFP_KERNEL, sizeof(*req));
+               struct pm_qos_request_list *req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
 			return -ENOMEM;
 

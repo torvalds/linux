@@ -113,8 +113,6 @@ source "drivers/staging/vme/Kconfig"
 
 source "drivers/staging/memrar/Kconfig"
 
-source "drivers/staging/sep/Kconfig"
-
 source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/zram/Kconfig"

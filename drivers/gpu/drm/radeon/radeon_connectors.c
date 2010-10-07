@@ -977,27 +977,29 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
-	u8 sink_type;
 
 	if (radeon_connector->edid) {
 		kfree(radeon_connector->edid);
 		radeon_connector->edid = NULL;
 	}
 
-	sink_type = radeon_dp_getsinktype(radeon_connector);
-	if ((sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-	    (sink_type == CONNECTOR_OBJECT_ID_eDP)) {
-		if (radeon_dp_getdpcd(radeon_connector)) {
-			radeon_dig_connector->dp_sink_type = sink_type;
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		/* eDP is always DP */
+		radeon_dig_connector->dp_sink_type = CONNECTOR_OBJECT_ID_DISPLAYPORT;
+		if (radeon_dp_getdpcd(radeon_connector))
 			ret = connector_status_connected;
-		}
 	} else {
-		if (radeon_ddc_probe(radeon_connector)) {
-			radeon_dig_connector->dp_sink_type = sink_type;
-			ret = connector_status_connected;
+		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
+		if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+			if (radeon_dp_getdpcd(radeon_connector))
+				ret = connector_status_connected;
+		} else {
+			if (radeon_ddc_probe(radeon_connector))
+				ret = connector_status_connected;
 		}
 	}
 
+	radeon_connector_update_scratch_regs(connector, ret);
 	return ret;
 }
 
@@ -1037,7 +1039,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  uint32_t supported_device,
 			  int connector_type,
 			  struct radeon_i2c_bus_rec *i2c_bus,
-			  bool linkb,
 			  uint32_t igp_lane_info,
 			  uint16_t connector_object_id,
 			  struct radeon_hpd *hpd,
@@ -1050,8 +1051,14 @@ radeon_add_atom_connector(struct drm_device *dev,
 	uint32_t subpixel_order = SubPixelNone;
 	bool shared_ddc = false;
 
-	/* fixme - tv/cv/din */
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+		return;
+
+	/* if the user selected tv=0 don't try and add the connector */
+	if (((connector_type == DRM_MODE_CONNECTOR_SVIDEO) ||
+	     (connector_type == DRM_MODE_CONNECTOR_Composite) ||
+	     (connector_type == DRM_MODE_CONNECTOR_9PinDIN)) &&
+	    (radeon_tv == 0))
 		return;
 
 	/* see if we already added it */
@@ -1128,7 +1135,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
 		if (!radeon_dig_connector)
 			goto failed;
-		radeon_dig_connector->linkb = linkb;
 		radeon_dig_connector->igp_lane_info = igp_lane_info;
 		radeon_connector->con_priv = radeon_dig_connector;
 		drm_connector_init(dev, &radeon_connector->base, &radeon_dvi_connector_funcs, connector_type);
@@ -1158,7 +1164,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
 		if (!radeon_dig_connector)
 			goto failed;
-		radeon_dig_connector->linkb = linkb;
 		radeon_dig_connector->igp_lane_info = igp_lane_info;
 		radeon_connector->con_priv = radeon_dig_connector;
 		drm_connector_init(dev, &radeon_connector->base, &radeon_dvi_connector_funcs, connector_type);
@@ -1182,7 +1187,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
 		if (!radeon_dig_connector)
 			goto failed;
-		radeon_dig_connector->linkb = linkb;
 		radeon_dig_connector->igp_lane_info = igp_lane_info;
 		radeon_connector->con_priv = radeon_dig_connector;
 		drm_connector_init(dev, &radeon_connector->base, &radeon_dp_connector_funcs, connector_type);
@@ -1211,25 +1215,22 @@ radeon_add_atom_connector(struct drm_device *dev,
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_9PinDIN:
-		if (radeon_tv == 1) {
-			drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
-			drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
-			radeon_connector->dac_load_detect = true;
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.load_detect_property,
-						      1);
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.tv_std_property,
-						      radeon_atombios_get_tv_info(rdev));
-			/* no HPD on analog connectors */
-			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
-		}
+		drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
+		drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
+		radeon_connector->dac_load_detect = true;
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.load_detect_property,
+					      1);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.tv_std_property,
+					      radeon_atombios_get_tv_info(rdev));
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
 		if (!radeon_dig_connector)
 			goto failed;
-		radeon_dig_connector->linkb = linkb;
 		radeon_dig_connector->igp_lane_info = igp_lane_info;
 		radeon_connector->con_priv = radeon_dig_connector;
 		drm_connector_init(dev, &radeon_connector->base, &radeon_lvds_connector_funcs, connector_type);
@@ -1275,8 +1276,14 @@ radeon_add_legacy_connector(struct drm_device *dev,
 	struct radeon_connector *radeon_connector;
 	uint32_t subpixel_order = SubPixelNone;
 
-	/* fixme - tv/cv/din */
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+		return;
+
+	/* if the user selected tv=0 don't try and add the connector */
+	if (((connector_type == DRM_MODE_CONNECTOR_SVIDEO) ||
+	     (connector_type == DRM_MODE_CONNECTOR_Composite) ||
+	     (connector_type == DRM_MODE_CONNECTOR_9PinDIN)) &&
+	    (radeon_tv == 0))
 		return;
 
 	/* see if we already added it */
@@ -1350,26 +1357,24 @@ radeon_add_legacy_connector(struct drm_device *dev,
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_9PinDIN:
-		if (radeon_tv == 1) {
-			drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
-			drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
-			radeon_connector->dac_load_detect = true;
-			/* RS400,RC410,RS480 chipset seems to report a lot
-			 * of false positive on load detect, we haven't yet
-			 * found a way to make load detect reliable on those
-			 * chipset, thus just disable it for TV.
-			 */
-			if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480)
-				radeon_connector->dac_load_detect = false;
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.load_detect_property,
-						      radeon_connector->dac_load_detect);
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.tv_std_property,
-						      radeon_combios_get_tv_info(rdev));
-			/* no HPD on analog connectors */
-			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
-		}
+		drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
+		drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
+		radeon_connector->dac_load_detect = true;
+		/* RS400,RC410,RS480 chipset seems to report a lot
+		 * of false positive on load detect, we haven't yet
+		 * found a way to make load detect reliable on those
+		 * chipset, thus just disable it for TV.
+		 */
+		if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480)
+			radeon_connector->dac_load_detect = false;
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.load_detect_property,
+					      radeon_connector->dac_load_detect);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.tv_std_property,
+					      radeon_combios_get_tv_info(rdev));
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_lvds_connector_funcs, connector_type);

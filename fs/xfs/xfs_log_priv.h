@@ -422,6 +422,7 @@ struct xfs_cil {
 	struct rw_semaphore	xc_ctx_lock;
 	struct list_head	xc_committing;
 	sv_t			xc_commit_wait;
+	xfs_lsn_t		xc_current_sequence;
 };
 
 /*
@@ -562,8 +563,16 @@ int	xlog_cil_init(struct log *log);
 void	xlog_cil_init_post_recovery(struct log *log);
 void	xlog_cil_destroy(struct log *log);
 
-int	xlog_cil_push(struct log *log, int push_now);
-xfs_lsn_t xlog_cil_push_lsn(struct log *log, xfs_lsn_t push_sequence);
+/*
+ * CIL force routines
+ */
+xfs_lsn_t xlog_cil_force_lsn(struct log *log, xfs_lsn_t sequence);
+
+static inline void
+xlog_cil_force(struct log *log)
+{
+	xlog_cil_force_lsn(log, log->l_cilp->xc_current_sequence);
+}
 
 /*
  * Unmount record type is used as a pseudo transaction type for the ticket.

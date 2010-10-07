@@ -125,7 +125,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	if (fw_version)
 		wiphy_info(priv->hw->wiphy,
-			   "fw rev %s - softmac protocol %x.%x\n",
+			   "FW rev %s - Softmac protocol %x.%x\n",
 			   fw_version, priv->fw_var >> 8, priv->fw_var & 0xff);
 
 	if (priv->fw_var < 0x500)

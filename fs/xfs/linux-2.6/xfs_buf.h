@@ -137,7 +137,6 @@ typedef struct xfs_buftarg {
 	size_t			bt_smask;
 
 	/* per device buffer hash table */
-	uint			bt_hashmask;
 	uint			bt_hashshift;
 	xfs_bufhash_t		*bt_hash;
 

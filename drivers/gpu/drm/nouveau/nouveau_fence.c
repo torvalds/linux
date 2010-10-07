@@ -64,16 +64,17 @@ nouveau_fence_update(struct nouveau_channel *chan)
 	struct nouveau_fence *fence;
 	uint32_t sequence;
 
+	spin_lock(&chan->fence.lock);
+
 	if (USE_REFCNT)
 		sequence = nvchan_rd32(chan, 0x48);
 	else
 		sequence = atomic_read(&chan->fence.last_sequence_irq);
 
 	if (chan->fence.sequence_ack == sequence)
-		return;
+		goto out;
 	chan->fence.sequence_ack = sequence;
 
-	spin_lock(&chan->fence.lock);
 	list_for_each_safe(entry, tmp, &chan->fence.pending) {
 		fence = list_entry(entry, struct nouveau_fence, entry);
 
@@ -85,6 +86,7 @@ nouveau_fence_update(struct nouveau_channel *chan)
 		if (sequence == chan->fence.sequence_ack)
 			break;
 	}
+out:
 	spin_unlock(&chan->fence.lock);
 }
 

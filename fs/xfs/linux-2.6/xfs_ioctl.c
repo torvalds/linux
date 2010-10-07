@@ -907,6 +907,13 @@ xfs_ioctl_setattr(
 		return XFS_ERROR(EIO);
 
 	/*
+	 * Disallow 32bit project ids because on-disk structure
+	 * is 16bit only.
+	 */
+	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1))
+		return XFS_ERROR(EINVAL);
+
+	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
 	 * before we start any other transactions. Trying to do this later
 	 * is messy. We don't care to take a readlock to look at the ids

@@ -928,6 +928,16 @@ config SMC91X
 	  The module will be called smc91x.  If you want to compile it as a
 	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
 
+config PXA168_ETH
+	tristate "Marvell pxa168 ethernet support"
+	depends on CPU_PXA168
+	select PHYLIB
+	help
+	  This driver supports the pxa168 Ethernet ports.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called pxa168_eth.
+
 config NET_NETX
 	tristate "NetX Ethernet support"
 	select MII

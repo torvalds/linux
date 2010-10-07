@@ -104,7 +104,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 	int i;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_i2c_chan *i2c;
+		struct nouveau_i2c_chan *i2c = NULL;
 		struct nouveau_encoder *nv_encoder;
 		struct drm_mode_object *obj;
 		int id;
@@ -117,7 +117,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		if (!obj)
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
-		i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
+
+		if (nv_encoder->dcb->i2c_index < 0xf)
+			i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 
 		if (i2c && nouveau_probe_i2c_addr(i2c, 0x50)) {
 			*pnv_encoder = nv_encoder;
