@@ -7,6 +7,7 @@
 
 EXTRA_CFLAGS	:= -Idrivers/scsi
 
+obj-$(CONFIG_USB_UAS)		+= uas.o
 obj-$(CONFIG_USB_STORAGE)	+= usb-storage.o
 
 usb-storage-obj-$(CONFIG_USB_STORAGE_DEBUG)	+= debug.o

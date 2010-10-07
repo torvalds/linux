@@ -5934,6 +5934,14 @@ S:	Maintained
 F:	Documentation/usb/acm.txt
 F:	drivers/usb/class/cdc-acm.*
 
+USB ATTACHED SCSI
+M:	Matthew Wilcox <willy@linux.intel.com>
+M:	Sarah Sharp <sarah.a.sharp@linux.intel.com>
+L:	linux-usb@vger.kernel.org
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/usb/storage/uas.c
+
 USB BLOCK DRIVER (UB ub)
 M:	Pete Zaitcev <zaitcev@redhat.com>
 L:	linux-usb@vger.kernel.org
