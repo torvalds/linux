@@ -935,11 +935,14 @@ int qla4xxx_soft_reset(struct scsi_qla_host *ha)
 {
 	uint32_t max_wait_time;
 	unsigned long flags = 0;
-	int status = QLA_ERROR;
+	int status;
 	uint32_t ctrl_status;
 
-	qla4xxx_hw_reset(ha);
+	status = qla4xxx_hw_reset(ha);
+	if (status != QLA_SUCCESS)
+		return status;
 
+	status = QLA_ERROR;
 	/* Wait until the Network Reset Intr bit is cleared */
 	max_wait_time = RESET_INTR_TOV;
 	do {
