@@ -48,19 +48,19 @@ static int nvhost_debug_handle_cmd(struct seq_file *s, u32 val, int *count)
 		}
 
 	case 0x1:
-		seq_printf(s, "INCR(offset=%03x, [", val >> 16 & 0x3ff);
+		seq_printf(s, "INCR(offset=%03x, [", val >> 16 & 0xfff);
 		*count = val & 0xffff;
 		return NVHOST_DBG_STATE_DATA;
 
 	case 0x2:
-		seq_printf(s, "NOMINCR(offset=%03x, [", val >> 16 & 0x3ff);
+		seq_printf(s, "NONINCR(offset=%03x, [", val >> 16 & 0xfff);
 		*count = val & 0xffff;
 		return NVHOST_DBG_STATE_DATA;
 
 	case 0x3:
 		mask = val & 0xffff;
 		seq_printf(s, "MASK(offset=%03x, mask=%03x, [",
-			   val >> 16 & 0x3ff, mask);
+			   val >> 16 & 0xfff, mask);
 		*count = hweight16(mask);
 		return NVHOST_DBG_STATE_DATA;
 
