@@ -1459,6 +1459,12 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 exit_init_online:
 	set_bit(AF_ONLINE, &ha->flags);
 exit_init_hba:
+	if (is_qla8022(ha) && (status == QLA_ERROR)) {
+		/* Since interrupts are registered in start_firmware for
+		 * 82xx, release them here if initialize_adapter fails */
+		qla4xxx_free_irqs(ha);
+	}
+
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
 	    status == QLA_ERROR ? "FAILED" : "SUCCEDED"));
 	return status;
