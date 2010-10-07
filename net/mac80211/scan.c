@@ -681,8 +681,6 @@ void ieee80211_scan_work(struct work_struct *work)
 		goto out_complete;
 	}
 
-	mutex_unlock(&local->mtx);
-
 	/*
 	 * as long as no delay is required advance immediately
 	 * without scheduling a new work
@@ -713,6 +711,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	} while (next_delay == 0);
 
 	ieee80211_queue_delayed_work(&local->hw, &local->scan_work, next_delay);
+	mutex_unlock(&local->mtx);
 	return;
 
 out_complete:
