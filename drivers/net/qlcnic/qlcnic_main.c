@@ -46,6 +46,7 @@ char qlcnic_driver_name[] = "qlcnic";
 static const char qlcnic_driver_string[] = "QLogic 1/10 GbE "
 	"Converged/Intelligent Ethernet Driver v" QLCNIC_LINUX_VERSIONID;
 
+static struct workqueue_struct *qlcnic_wq;
 static int qlcnic_mac_learn;
 module_param(qlcnic_mac_learn, int, 0644);
 MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
@@ -2886,7 +2887,8 @@ qlcnic_schedule_work(struct qlcnic_adapter *adapter,
 		return;
 
 	INIT_DELAYED_WORK(&adapter->fw_work, func);
-	schedule_delayed_work(&adapter->fw_work, round_jiffies_relative(delay));
+	queue_delayed_work(qlcnic_wq, &adapter->fw_work,
+					round_jiffies_relative(delay));
 }
 
 static void
@@ -4163,6 +4165,12 @@ static int __init qlcnic_init_module(void)
 
 	printk(KERN_INFO "%s\n", qlcnic_driver_string);
 
+	qlcnic_wq = create_singlethread_workqueue("qlcnic");
+	if (qlcnic_wq == NULL) {
+		printk(KERN_ERR "qlcnic: cannot create workqueue\n");
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_INET
 	register_netdevice_notifier(&qlcnic_netdev_cb);
 	register_inetaddr_notifier(&qlcnic_inetaddr_cb);
@@ -4174,6 +4182,7 @@ static int __init qlcnic_init_module(void)
 		unregister_inetaddr_notifier(&qlcnic_inetaddr_cb);
 		unregister_netdevice_notifier(&qlcnic_netdev_cb);
 #endif
+		destroy_workqueue(qlcnic_wq);
 	}
 
 	return ret;
@@ -4190,6 +4199,7 @@ static void __exit qlcnic_exit_module(void)
 	unregister_inetaddr_notifier(&qlcnic_inetaddr_cb);
 	unregister_netdevice_notifier(&qlcnic_netdev_cb);
 #endif
+	destroy_workqueue(qlcnic_wq);
 }
 
 module_exit(qlcnic_exit_module);
