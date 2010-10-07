@@ -2726,6 +2726,9 @@
 #define FDI_RXB_CHICKEN         0xc2010
 #define  FDI_RX_PHASE_SYNC_POINTER_ENABLE       (1)
 
+#define SOUTH_DSPCLK_GATE_D	0xc2020
+#define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
+
 /* CPU: FDI_TX */
 #define FDI_TXA_CTL             0x60100
 #define FDI_TXB_CTL             0x61100
