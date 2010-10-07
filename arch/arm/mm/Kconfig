@@ -834,3 +834,12 @@ config ARCH_HAS_BARRIERS
 	help
 	  This option allows the use of custom mandatory barriers
 	  included via the mach/barriers.h file.
+
+config ARCH_LOWMEM_IN_PTES
+	bool
+	help
+	  This option will map the kernel direct-mapped lowmem region
+	  using page table mappings rather than section mappings.
+
+config ARCH_USES_PG_UNCACHED
+	bool
