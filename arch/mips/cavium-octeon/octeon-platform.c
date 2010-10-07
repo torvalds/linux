@@ -199,7 +199,7 @@ static int __init octeon_i2c_device_init(void)
 		num_ports = 1;
 
 	for (port = 0; port < num_ports; port++) {
-		octeon_i2c_data[port].sys_freq = octeon_get_clock_rate();
+		octeon_i2c_data[port].sys_freq = octeon_get_io_clock_rate();
 		/*FIXME: should be examined. At the moment is set for 100Khz */
 		octeon_i2c_data[port].i2c_freq = 100000;
 
