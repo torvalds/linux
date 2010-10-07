@@ -3,11 +3,11 @@
 #include <linux/bitmap.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/irq.h>
 
 #include <asm/io.h>
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
-#include <asm/irq.h>
 #include <linux/hardirq.h>
 #include <asm-generic/bitops/find.h>
 

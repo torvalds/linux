@@ -13,6 +13,7 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/tty.h>
+#include <linux/irq.h>
 
 #include <asm/time.h>
 

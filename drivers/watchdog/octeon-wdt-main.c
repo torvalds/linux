@@ -64,6 +64,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/fs.h>
+#include <linux/irq.h>
 
 #include <asm/mipsregs.h>
 #include <asm/uasm.h>

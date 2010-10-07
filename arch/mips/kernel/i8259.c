@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
+#include <linux/irq.h>
 
 #include <asm/i8259.h>
 #include <asm/io.h>

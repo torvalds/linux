@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/pm.h>
+#include <linux/irq.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
