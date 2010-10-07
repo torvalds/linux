@@ -5024,7 +5024,6 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 			return -ENOMEM;
 		}
 		dev->_rx = rx;
-		atomic_set(&rx->count, count);
 
 		/*
 		 * Set a pointer to first element in the array which holds the
