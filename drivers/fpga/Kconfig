@@ -83,6 +83,11 @@ if SPI_FPGA_DPRAM
 	Say "yes" to enable debug messaging in spi to dpram drivers.
 endif
 
+config SPI_FPGA_FW
+	tristate "spi fpga firmware online"
+	depends on SPI && SPIM_RK2818
+	help
+	load fpga firmware online.
 endif
 
 endif

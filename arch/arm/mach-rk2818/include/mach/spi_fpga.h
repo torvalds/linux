@@ -566,4 +566,8 @@ extern int spi_dpram_register(struct spi_fpga_port *port);
 extern int spi_dpram_unregister(struct spi_fpga_port *port);
 #endif
 
+#if defined(CONFIG_SPI_FPGA_FW)
+extern int __init fpga_dl_fw(void);
+#endif
+
 #endif

@@ -2142,6 +2142,11 @@ static void __init machine_rk2818_board_init(void)
 	(pm_set_suspendvol) rk2818_pm_set_vol,(pm_resume_vol) rk2818_pm_resume_vol);
 	rk2818_power_on();
 	pm_power_off = rk2818_power_off;
+	
+#ifdef CONFIG_SPI_FPGA_FW
+	fpga_dl_fw();
+#endif
+
 #ifdef CONFIG_I2C0_RK2818
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));
