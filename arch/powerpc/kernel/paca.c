@@ -108,7 +108,7 @@ static void free_lppacas(void)
 
 #else
 
-static inline void allocate_lppacas(int, unsigned long) { }
+static inline void allocate_lppacas(int nr_cpus, unsigned long limit) { }
 static inline void free_lppacas(void) { }
 
 #endif /* CONFIG_PPC_BOOK3S */
