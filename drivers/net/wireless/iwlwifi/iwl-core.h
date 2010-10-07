@@ -255,20 +255,12 @@ struct iwl_mod_params {
 	int restart_fw;		/* def: 1 = restart firmware */
 };
 
-/**
- * struct iwl_cfg
- * @fw_name_pre: Firmware filename prefix. The api version and extension
- * 	(.ucode) will be added to filename before loading from disk. The
- * 	filename is constructed as fw_name_pre<api>.ucode.
- * @ucode_api_max: Highest version of uCode API supported by driver.
- * @ucode_api_min: Lowest version of uCode API supported by driver.
- * @pa_type: used by 6000 series only to identify the type of Power Amplifier
+/*
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
  * @led_compensation: compensate on the led on/off time per HW according
  *	to the deviation to achieve the desired led frequency.
  *	The detail algorithm is described in iwl-led.c
- * @use_rts_for_aggregation: use rts/cts protection for HT traffic
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
  * @adv_thermal_throttle: support advance thermal throttle
  * @support_ct_kill_exit: support ct kill exit condition
@@ -286,66 +278,21 @@ struct iwl_mod_params {
  *	sensitivity calibration operation
  * @chain_noise_calib_by_driver: driver has the capability to perform
  *	chain noise calibration operation
- * @scan_antennas: available antenna for scan operation
- * @advanced_bt_coexist: support advanced bt coexist
- * @bt_init_traffic_load: specify initial bt traffic load
- * @bt_prio_boost: default bt priority boost value
- * @need_dc_calib: need to perform init dc calibration
- * @bt_statistics: use BT version of statistics notification
- * @agg_time_limit: maximum number of uSec in aggregation
- * @ampdu_factor: Maximum A-MPDU length factor
- * @ampdu_density: Minimum A-MPDU spacing
- *
- * We enable the driver to be backward compatible wrt API version. The
- * driver specifies which APIs it supports (with @ucode_api_max being the
- * highest and @ucode_api_min the lowest). Firmware will only be loaded if
- * it has a supported API version. The firmware's API version will be
- * stored in @iwl_priv, enabling the driver to make runtime changes based
- * on firmware version used.
- *
- * For example,
- * if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
- * 	Driver interacts with Firmware API version >= 2.
- * } else {
- * 	Driver interacts with Firmware API version 1.
- * }
- *
- * The ideal usage of this infrastructure is to treat a new ucode API
- * release as a new hardware revision. That is, through utilizing the
- * iwl_hcmd_utils_ops etc. we accommodate different command structures
- * and flows between hardware versions (4965/5000) as well as their API
- * versions.
- *
- */
-struct iwl_cfg {
-	const char *name;
-	const char *fw_name_pre;
-	const unsigned int ucode_api_max;
-	const unsigned int ucode_api_min;
-	unsigned int sku;
+*/
+struct iwl_base_params {
 	int eeprom_size;
-	u16  eeprom_ver;
-	u16  eeprom_calib_ver;
 	int num_of_queues;	/* def: HW dependent */
 	int num_of_ampdu_queues;/* def: HW dependent */
-	const struct iwl_ops *ops;
-	const struct iwl_mod_params *mod_params;
-	u8   valid_tx_ant;
-	u8   valid_rx_ant;
-
 	/* for iwl_apm_init() */
 	u32 pll_cfg_val;
 	bool set_l0s;
 	bool use_bsm;
 
 	bool use_isr_legacy;
-	enum iwl_pa_type pa_type;
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
-	const bool ht_greenfield_support;
 	u16 led_compensation;
 	const bool broken_powersave;
-	bool use_rts_for_aggregation;
 	int chain_noise_num_beacons;
 	const bool supports_idle;
 	bool adv_thermal_throttle;
@@ -361,16 +308,88 @@ struct iwl_cfg {
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
-	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
-	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
+};
+/*
+ * @advanced_bt_coexist: support advanced bt coexist
+ * @bt_init_traffic_load: specify initial bt traffic load
+ * @bt_prio_boost: default bt priority boost value
+ * @bt_statistics: use BT version of statistics notification
+ * @agg_time_limit: maximum number of uSec in aggregation
+ * @ampdu_factor: Maximum A-MPDU length factor
+ * @ampdu_density: Minimum A-MPDU spacing
+*/
+struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
 	u8 bt_prio_boost;
-	const bool need_dc_calib;
 	const bool bt_statistics;
 	u16 agg_time_limit;
 	u8 ampdu_factor;
 	u8 ampdu_density;
+};
+/*
+ * @use_rts_for_aggregation: use rts/cts protection for HT traffic
+*/
+struct iwl_ht_params {
+	const bool ht_greenfield_support; /* if used set to true */
+	bool use_rts_for_aggregation;
+};
+
+/**
+ * struct iwl_cfg
+ * @fw_name_pre: Firmware filename prefix. The api version and extension
+ *	(.ucode) will be added to filename before loading from disk. The
+ *	filename is constructed as fw_name_pre<api>.ucode.
+ * @ucode_api_max: Highest version of uCode API supported by driver.
+ * @ucode_api_min: Lowest version of uCode API supported by driver.
+ * @pa_type: used by 6000 series only to identify the type of Power Amplifier
+ * @need_dc_calib: need to perform init dc calibration
+ * @scan_antennas: available antenna for scan operation
+ *
+ * We enable the driver to be backward compatible wrt API version. The
+ * driver specifies which APIs it supports (with @ucode_api_max being the
+ * highest and @ucode_api_min the lowest). Firmware will only be loaded if
+ * it has a supported API version. The firmware's API version will be
+ * stored in @iwl_priv, enabling the driver to make runtime changes based
+ * on firmware version used.
+ *
+ * For example,
+ * if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
+ *	Driver interacts with Firmware API version >= 2.
+ * } else {
+ *	Driver interacts with Firmware API version 1.
+ * }
+ *
+ * The ideal usage of this infrastructure is to treat a new ucode API
+ * release as a new hardware revision. That is, through utilizing the
+ * iwl_hcmd_utils_ops etc. we accommodate different command structures
+ * and flows between hardware versions (4965/5000) as well as their API
+ * versions.
+ *
+ */
+struct iwl_cfg {
+	/* params specific to an individual device within a device family */
+	const char *name;
+	const char *fw_name_pre;
+	const unsigned int ucode_api_max;
+	const unsigned int ucode_api_min;
+	u8   valid_tx_ant;
+	u8   valid_rx_ant;
+	unsigned int sku;
+	u16  eeprom_ver;
+	u16  eeprom_calib_ver;
+	const struct iwl_ops *ops;
+	/* module based parameters which can be set from modprobe cmd */
+	const struct iwl_mod_params *mod_params;
+	/* params not likely to change within a device family */
+	struct iwl_base_params *base_params;
+	/* params likely to change within a device family */
+	struct iwl_ht_params *ht_params;
+	struct iwl_bt_params *bt_params;
+	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
+	const bool need_dc_calib;	  /* if used set to true */
+	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
+	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 };
 
 /***************************

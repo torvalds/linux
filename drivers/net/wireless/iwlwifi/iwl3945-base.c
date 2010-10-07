@@ -1581,16 +1581,16 @@ int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
 	next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
 
-	if (capacity > priv->cfg->max_event_log_size) {
+	if (capacity > priv->cfg->base_params->max_event_log_size) {
 		IWL_ERR(priv, "Log capacity %d is bogus, limit to %d entries\n",
-			capacity, priv->cfg->max_event_log_size);
-		capacity = priv->cfg->max_event_log_size;
+			capacity, priv->cfg->base_params->max_event_log_size);
+		capacity = priv->cfg->base_params->max_event_log_size;
 	}
 
-	if (next_entry > priv->cfg->max_event_log_size) {
+	if (next_entry > priv->cfg->base_params->max_event_log_size) {
 		IWL_ERR(priv, "Log write index %d is bogus, limit to %d\n",
-			next_entry, priv->cfg->max_event_log_size);
-		next_entry = priv->cfg->max_event_log_size;
+			next_entry, priv->cfg->base_params->max_event_log_size);
+		next_entry = priv->cfg->base_params->max_event_log_size;
 	}
 
 	size = num_wraps ? capacity : next_entry;
@@ -2519,7 +2519,8 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 		/* Enable timer to monitor the driver queues */
 		mod_timer(&priv->monitor_recover,
 			jiffies +
-			msecs_to_jiffies(priv->cfg->monitor_recover_period));
+			msecs_to_jiffies(
+			  priv->cfg->base_params->monitor_recover_period));
 	}
 
 	if (iwl_is_rfkill(priv))
@@ -3881,7 +3882,7 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
-	if (!priv->cfg->broken_powersave)
+	if (!priv->cfg->base_params->broken_powersave)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
@@ -3966,7 +3967,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * "the hard way", rather than using device's scan.
 	 */
 	if (iwl3945_mod_params.disable_hw_scan) {
-		IWL_DEBUG_INFO(priv, "Disabling hw_scan\n");
+		IWL_ERR(priv, "sw scan support is deprecated\n");
 		iwl3945_hw_ops.hw_scan = NULL;
 	}
 
@@ -4291,7 +4292,8 @@ MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan,
 		   int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
+MODULE_PARM_DESC(disable_hw_scan,
+		 "disable hardware scanning (default 0) (deprecated)");
 module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart3945, "restart firmware in case of error");
 

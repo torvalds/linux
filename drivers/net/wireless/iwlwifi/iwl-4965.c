@@ -647,13 +647,13 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWL49_NUM_QUEUES)
-		priv->cfg->num_of_queues =
+		priv->cfg->base_params->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->num_of_queues *
+			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwl4965_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
@@ -1724,13 +1724,13 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWL49_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -1792,13 +1792,13 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	int ret;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWL49_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -2302,26 +2302,14 @@ static const struct iwl_ops iwl4965_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-struct iwl_cfg iwl4965_agn_cfg = {
-	.name = "Intel(R) Wireless WiFi Link 4965AGN",
-	.fw_name_pre = IWL4965_FW_PRE,
-	.ucode_api_max = IWL4965_UCODE_API_MAX,
-	.ucode_api_min = IWL4965_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+static struct iwl_base_params iwl4965_base_params = {
 	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
-	.ops = &iwl4965_ops,
 	.num_of_queues = IWL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = true,
 	.use_isr_legacy = true,
-	.ht_greenfield_support = false,
 	.broken_powersave = true,
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
@@ -2333,6 +2321,21 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+};
+
+struct iwl_cfg iwl4965_agn_cfg = {
+	.name = "Intel(R) Wireless WiFi Link 4965AGN",
+	.fw_name_pre = IWL4965_FW_PRE,
+	.ucode_api_max = IWL4965_UCODE_API_MAX,
+	.ucode_api_min = IWL4965_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_ABC,
+	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
+	.ops = &iwl4965_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl4965_base_params,
 	/*
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.
