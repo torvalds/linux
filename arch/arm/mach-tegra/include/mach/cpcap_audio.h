@@ -230,6 +230,7 @@ struct cpcap_audio_platform_data {
 	struct cpcap_audio_state *state;
 	int speaker_gpio;
 	int headset_gpio;
+	void (*bluetooth_bypass)(bool);
 };
 
 int cpcap_audio_init(struct cpcap_audio_state *state, const char *regulator);

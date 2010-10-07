@@ -70,4 +70,6 @@ struct cpcap_audio_stream {
 #define CPCAP_AUDIO_IN_GET_RATE   _IOR(CPCAP_AUDIO_MAGIC, 10, unsigned int *)
 #define CPCAP_AUDIO_IN_SET_RATE   _IOW(CPCAP_AUDIO_MAGIC, 11, unsigned int *)
 
+#define CPCAP_AUDIO_SET_BLUETOOTH_BYPASS _IOW(CPCAP_AUDIO_MAGIC, 12, unsigned int)
+
 #endif/*_CPCAP_AUDIO_H*/

@@ -415,6 +415,12 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		pr_info("%s: setting input rate to %dHz\n", __func__, rate);
 		tegra_setup_audio_in_rate(rate);
 		break;
+	case CPCAP_AUDIO_SET_BLUETOOTH_BYPASS:
+		if (pdata->bluetooth_bypass)
+			pdata->bluetooth_bypass((bool)arg);
+		else
+			pr_err("%s: no bluetooth bypass handler\n", __func__);
+		break;
 	}
 
 done:
