@@ -1755,11 +1755,21 @@ check_inval:
 int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct kstat *stat)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
+	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
 	int err = cifs_revalidate_dentry(dentry);
+
 	if (!err) {
 		generic_fillattr(dentry->d_inode, stat);
 		stat->blksize = CIFS_MAX_MSGSIZE;
 		stat->ino = CIFS_I(dentry->d_inode)->uniqueid;
+		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER) &&
+		    !tcon->unix_ext) {
+			if (!cifs_sb->mnt_uid)
+				stat->uid = current_fsuid();
+			if (!cifs_sb->mnt_uid)
+				stat->gid = current_fsgid();
+		}
 	}
 	return err;
 }
