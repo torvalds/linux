@@ -2396,12 +2396,10 @@ static int __mkroute_output(struct rtable **result,
 
 
 	rth = dst_alloc(&ipv4_dst_ops);
-	if (!rth) {
-		rcu_read_unlock();
+	if (!rth)
 		return -ENOBUFS;
-	}
+
 	in_dev_hold(in_dev);
-	rcu_read_unlock();
 	rth->idev = in_dev;
 
 	atomic_set(&rth->dst.__refcnt, 1);
