@@ -77,7 +77,19 @@ static struct o2hb_callback *hbcall_from_type(enum o2hb_callback_type type);
 
 #define O2HB_DEFAULT_BLOCK_BITS       9
 
+enum o2hb_heartbeat_modes {
+	O2HB_HEARTBEAT_LOCAL		= 0,
+	O2HB_HEARTBEAT_GLOBAL,
+	O2HB_HEARTBEAT_NUM_MODES,
+};
+
+char *o2hb_heartbeat_mode_desc[O2HB_HEARTBEAT_NUM_MODES] = {
+		"local",	/* O2HB_HEARTBEAT_LOCAL */
+		"global",	/* O2HB_HEARTBEAT_GLOBAL */
+};
+
 unsigned int o2hb_dead_threshold = O2HB_DEFAULT_DEAD_THRESHOLD;
+unsigned int o2hb_heartbeat_mode = O2HB_HEARTBEAT_LOCAL;
 
 /* Only sets a new threshold if there are no active regions.
  *
@@ -92,6 +104,22 @@ static void o2hb_dead_threshold_set(unsigned int threshold)
 			o2hb_dead_threshold = threshold;
 		spin_unlock(&o2hb_live_lock);
 	}
+}
+
+static int o2hb_global_hearbeat_mode_set(unsigned int hb_mode)
+{
+	int ret = -1;
+
+	if (hb_mode < O2HB_HEARTBEAT_NUM_MODES) {
+		spin_lock(&o2hb_live_lock);
+		if (list_empty(&o2hb_all_regions)) {
+			o2hb_heartbeat_mode = hb_mode;
+			ret = 0;
+		}
+		spin_unlock(&o2hb_live_lock);
+	}
+
+	return ret;
 }
 
 struct o2hb_node_event {
@@ -1688,6 +1716,41 @@ static ssize_t o2hb_heartbeat_group_threshold_store(struct o2hb_heartbeat_group 
 	return count;
 }
 
+static
+ssize_t o2hb_heartbeat_group_mode_show(struct o2hb_heartbeat_group *group,
+				       char *page)
+{
+	return sprintf(page, "%s\n",
+		       o2hb_heartbeat_mode_desc[o2hb_heartbeat_mode]);
+}
+
+static
+ssize_t o2hb_heartbeat_group_mode_store(struct o2hb_heartbeat_group *group,
+					const char *page, size_t count)
+{
+	unsigned int i;
+	int ret;
+	size_t len;
+
+	len = (page[count - 1] == '\n') ? count - 1 : count;
+	if (!len)
+		return -EINVAL;
+
+	for (i = 0; i < O2HB_HEARTBEAT_NUM_MODES; ++i) {
+		if (strnicmp(page, o2hb_heartbeat_mode_desc[i], len))
+			continue;
+
+		ret = o2hb_global_hearbeat_mode_set(i);
+		if (!ret)
+			printk(KERN_NOTICE "ocfs2: Heartbeat mode set to %s\n",
+			       o2hb_heartbeat_mode_desc[i]);
+		return count;
+	}
+
+	return -EINVAL;
+
+}
+
 static struct o2hb_heartbeat_group_attribute o2hb_heartbeat_group_attr_threshold = {
 	.attr	= { .ca_owner = THIS_MODULE,
 		    .ca_name = "dead_threshold",
@@ -1696,8 +1759,17 @@ static struct o2hb_heartbeat_group_attribute o2hb_heartbeat_group_attr_threshold
 	.store	= o2hb_heartbeat_group_threshold_store,
 };
 
+static struct o2hb_heartbeat_group_attribute o2hb_heartbeat_group_attr_mode = {
+	.attr   = { .ca_owner = THIS_MODULE,
+		.ca_name = "mode",
+		.ca_mode = S_IRUGO | S_IWUSR },
+	.show   = o2hb_heartbeat_group_mode_show,
+	.store  = o2hb_heartbeat_group_mode_store,
+};
+
 static struct configfs_attribute *o2hb_heartbeat_group_attrs[] = {
 	&o2hb_heartbeat_group_attr_threshold.attr,
+	&o2hb_heartbeat_group_attr_mode.attr,
 	NULL,
 };
 
