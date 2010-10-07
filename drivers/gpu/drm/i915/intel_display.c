@@ -4140,27 +4140,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		if (has_edp_encoder && !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
-		} else {
-			/* enable FDI RX PLL too */
-			reg = FDI_RX_CTL(pipe);
-			temp = I915_READ(reg);
-			I915_WRITE(reg, temp | FDI_RX_PLL_ENABLE);
-
-			POSTING_READ(reg);
-			udelay(200);
-
-			/* enable FDI TX PLL too */
-			reg = FDI_TX_CTL(pipe);
-			temp = I915_READ(reg);
-			I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
-
-			/* enable FDI RX PCDCLK */
-			reg = FDI_RX_CTL(pipe);
-			temp = I915_READ(reg);
-			I915_WRITE(reg, temp | FDI_PCDCLK);
-
-			POSTING_READ(reg);
-			udelay(200);
 		}
 	}
 
