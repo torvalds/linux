@@ -23,7 +23,7 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *,
 static inline struct jffs2_inode_cache *
 first_inode_chain(int *i, struct jffs2_sb_info *c)
 {
-	for (; *i < INOCACHE_HASHSIZE; (*i)++) {
+	for (; *i < c->inocache_hashsize; (*i)++) {
 		if (c->inocache_list[*i])
 			return c->inocache_list[*i];
 	}
