@@ -1001,56 +1001,25 @@ int saa7164_vbi_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 static int fops_open(struct file *file)
 {
-	struct saa7164_dev *h, *dev = NULL;
-	struct saa7164_port *port = NULL;
-	struct saa7164_port *porte = NULL;
-	struct saa7164_port *portf = NULL;
+	struct saa7164_dev *dev;
+	struct saa7164_port *port;
 	struct saa7164_vbi_fh *fh;
-	struct list_head *list;
-	int minor = video_devdata(file)->minor;
+
+	port = (struct saa7164_port *)video_get_drvdata(video_devdata(file));
+	if (!port)
+		return -ENODEV;
+
+	dev = port->dev;
 
 	dprintk(DBGLVL_VBI, "%s()\n", __func__);
 
-	/* TODO: Really, the BKL? - remove this */
-	lock_kernel();
-	list_for_each(list, &saa7164_devlist) {
-		h = list_entry(list, struct saa7164_dev, devlist);
-
-		porte = &h->ports[SAA7164_PORT_VBI1];
-		portf = &h->ports[SAA7164_PORT_VBI2];
-
-		if (porte->v4l_device &&
-		    porte->v4l_device->minor == minor) {
-			dev = h;
-			port = porte;
-			break;
-		}
-
-		if (portf->v4l_device &&
-		    portf->v4l_device->minor == minor) {
-			dev = h;
-			port = portf;
-			break;
-		}
-
-	}
-
-	if (port == NULL) {
-		unlock_kernel();
-		return -ENODEV;
-	}
-
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (NULL == fh)
 		return -ENOMEM;
-	}
 
 	file->private_data = fh;
 	fh->port = port;
-
-	unlock_kernel();
 
 	return 0;
 }
@@ -1363,6 +1332,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 		goto failed;
 	}
 
+	video_set_drvdata(port->v4l_device, port);
 	result = video_register_device(port->v4l_device,
 		VFL_TYPE_VBI, -1);
 	if (result < 0) {
