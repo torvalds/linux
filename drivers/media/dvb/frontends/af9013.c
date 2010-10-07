@@ -42,6 +42,8 @@ struct af9013_state {
 
 	struct af9013_config config;
 
+	/* tuner/demod RF and IF AGC limits used for signal strength calc */
+	u8 signal_strength_en, rf_50, rf_80, if_50, if_80;
 	u16 signal_strength;
 	u32 ber;
 	u32 ucblocks;
@@ -963,45 +965,31 @@ static int af9013_update_signal_strength(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	int ret;
-	u8 tmp0;
-	u8 rf_gain, rf_50, rf_80, if_gain, if_50, if_80;
+	u8 rf_gain, if_gain;
 	int signal_strength;
 
 	deb_info("%s\n", __func__);
 
-	state->signal_strength = 0;
-
-	ret = af9013_read_reg_bits(state, 0x9bee, 0, 1, &tmp0);
-	if (ret)
-		goto error;
-	if (tmp0) {
-		ret = af9013_read_reg(state, 0x9bbd, &rf_50);
-		if (ret)
-			goto error;
-		ret = af9013_read_reg(state, 0x9bd0, &rf_80);
-		if (ret)
-			goto error;
-		ret = af9013_read_reg(state, 0x9be2, &if_50);
-		if (ret)
-			goto error;
-		ret = af9013_read_reg(state, 0x9be4, &if_80);
-		if (ret)
-			goto error;
+	if (state->signal_strength_en) {
 		ret = af9013_read_reg(state, 0xd07c, &rf_gain);
 		if (ret)
 			goto error;
 		ret = af9013_read_reg(state, 0xd07d, &if_gain);
 		if (ret)
 			goto error;
-		signal_strength = (0xffff / (9 * (rf_50 + if_50) - \
-			11 * (rf_80 + if_80))) * (10 * (rf_gain + if_gain) - \
-			11 * (rf_80 + if_80));
+		signal_strength = (0xffff / \
+			(9 * (state->rf_50 + state->if_50) - \
+			11 * (state->rf_80 + state->if_80))) * \
+			(10 * (rf_gain + if_gain) - \
+			11 * (state->rf_80 + state->if_80));
 		if (signal_strength < 0)
 			signal_strength = 0;
 		else if (signal_strength > 0xffff)
 			signal_strength = 0xffff;
 
 		state->signal_strength = signal_strength;
+	} else {
+		state->signal_strength = 0;
 	}
 
 error:
@@ -1305,6 +1293,27 @@ static int af9013_init(struct dvb_frontend *fe)
 	ret = af9013_lock_led(state, 1);
 	if (ret)
 		goto error;
+
+	/* read values needed for signal strength calculation */
+	ret = af9013_read_reg_bits(state, 0x9bee, 0, 1,
+		&state->signal_strength_en);
+	if (ret)
+		goto error;
+
+	if (state->signal_strength_en) {
+		ret = af9013_read_reg(state, 0x9bbd, &state->rf_50);
+		if (ret)
+			goto error;
+		ret = af9013_read_reg(state, 0x9bd0, &state->rf_80);
+		if (ret)
+			goto error;
+		ret = af9013_read_reg(state, 0x9be2, &state->if_50);
+		if (ret)
+			goto error;
+		ret = af9013_read_reg(state, 0x9be4, &state->if_80);
+		if (ret)
+			goto error;
+	}
 
 error:
 	return ret;
