@@ -1313,6 +1313,8 @@ int qlcnic_set_ilb_mode(struct qlcnic_adapter *adapter);
 void qlcnic_fetch_mac(struct qlcnic_adapter *, u32, u32, u8, u8 *);
 
 /* Functions from qlcnic_main.c */
+int qlcnic_request_quiscent_mode(struct qlcnic_adapter *adapter);
+void qlcnic_clear_quiscent_mode(struct qlcnic_adapter *adapter);
 int qlcnic_reset_context(struct qlcnic_adapter *);
 u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd);

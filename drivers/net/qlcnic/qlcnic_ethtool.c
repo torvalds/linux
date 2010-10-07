@@ -706,6 +706,11 @@ static int qlcnic_loopback_test(struct net_device *netdev)
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
 
+	if (qlcnic_request_quiscent_mode(adapter)) {
+		clear_bit(__QLCNIC_RESETTING, &adapter->state);
+		return -EIO;
+	}
+
 	ret = qlcnic_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
 	if (ret)
 		goto clear_it;
@@ -722,6 +727,7 @@ done:
 	qlcnic_diag_free_res(netdev, max_sds_rings);
 
 clear_it:
+	qlcnic_clear_quiscent_mode(adapter);
 	adapter->max_sds_rings = max_sds_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return ret;
