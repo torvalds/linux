@@ -134,7 +134,7 @@ static int bfin_target(struct cpufreq_policy *poli,
 
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 		if (cpu == CPUFREQ_CPU) {
-			local_irq_save_hw(flags);
+			flags = hard_local_irq_save();
 			plldiv = (bfin_read_PLL_DIV() & SSEL) |
 						dpm_state_table[index].csel;
 			bfin_write_PLL_DIV(plldiv);
@@ -155,7 +155,7 @@ static int bfin_target(struct cpufreq_policy *poli,
 				loops_per_jiffy = cpufreq_scale(lpj_ref,
 						lpj_ref_freq, freqs.new);
 			}
-			local_irq_restore_hw(flags);
+			hard_local_irq_restore(flags);
 		}
 		/* TODO: just test case for cycles clock source, remove later */
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);

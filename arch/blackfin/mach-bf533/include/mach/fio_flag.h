@@ -15,10 +15,10 @@
 static inline void bfin_write_FIO_FLAG_##name(unsigned short val) \
 { \
 	unsigned long flags; \
-	local_irq_save_hw(flags); \
+	flags = hard_local_irq_save(); \
 	bfin_write16(FIO_FLAG_##name, val); \
 	bfin_read_CHIPID(); \
-	local_irq_restore_hw(flags); \
+	hard_local_irq_restore(flags); \
 }
 BFIN_WRITE_FIO_FLAG(D)
 BFIN_WRITE_FIO_FLAG(C)
@@ -30,10 +30,10 @@ static inline u16 bfin_read_FIO_FLAG_##name(void) \
 { \
 	unsigned long flags; \
 	u16 ret; \
-	local_irq_save_hw(flags); \
+	flags = hard_local_irq_save(); \
 	ret = bfin_read16(FIO_FLAG_##name); \
 	bfin_read_CHIPID(); \
-	local_irq_restore_hw(flags); \
+	hard_local_irq_restore(flags); \
 	return ret; \
 }
 BFIN_READ_FIO_FLAG(D)

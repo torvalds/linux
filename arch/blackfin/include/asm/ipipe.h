@@ -49,7 +49,7 @@
 #define prepare_arch_switch(next)		\
 do {						\
 	ipipe_schedule_notify(current, next);	\
-	local_irq_disable_hw();			\
+	hard_local_irq_disable();			\
 } while (0)
 
 #define task_hijacked(p)						\
@@ -57,7 +57,7 @@ do {						\
 		int __x__ = __ipipe_root_domain_p;			\
 		__clear_bit(IPIPE_SYNC_FLAG, &ipipe_root_cpudom_var(status)); \
 		if (__x__)						\
-			local_irq_enable_hw();				\
+			hard_local_irq_enable();				\
 		!__x__;							\
 	})
 
@@ -167,7 +167,7 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 #define __ipipe_run_isr(ipd, irq)					\
 	do {								\
 		if (!__ipipe_pipeline_head_p(ipd))			\
-			local_irq_enable_hw();				\
+			hard_local_irq_enable();				\
 		if (ipd == ipipe_root_domain) {				\
 			if (unlikely(ipipe_virtual_irq_p(irq))) {	\
 				irq_enter();				\
@@ -183,7 +183,7 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 			__ipipe_run_irqtail();				\
 			__set_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
 		}							\
-		local_irq_disable_hw();					\
+		hard_local_irq_disable();					\
 	} while (0)
 
 #define __ipipe_syscall_watched_p(p, sc)	\

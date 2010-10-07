@@ -18,7 +18,7 @@ static __inline__ void bfin_write_PLL_CTL(unsigned int val)
 	if (val == bfin_read_PLL_CTL())
 		return;
 
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	/* Enable the PLL Wakeup bit in SIC IWR */
 	iwr0 = bfin_read32(SIC_IWR0);
 	iwr1 = bfin_read32(SIC_IWR1);
@@ -35,7 +35,7 @@ static __inline__ void bfin_write_PLL_CTL(unsigned int val)
 	bfin_write32(SIC_IWR0, iwr0);
 	bfin_write32(SIC_IWR1, iwr1);
 	bfin_write32(SIC_IWR2, iwr2);
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 }
 
 /* Writing to VR_CTL initiates a PLL relock sequence. */
@@ -46,7 +46,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 	if (val == bfin_read_VR_CTL())
 		return;
 
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	/* Enable the PLL Wakeup bit in SIC IWR */
 	iwr0 = bfin_read32(SIC_IWR0);
 	iwr1 = bfin_read32(SIC_IWR1);
@@ -63,7 +63,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 	bfin_write32(SIC_IWR0, iwr0);
 	bfin_write32(SIC_IWR1, iwr1);
 	bfin_write32(SIC_IWR2, iwr2);
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 }
 
 #endif /* _MACH_PLL_H */
