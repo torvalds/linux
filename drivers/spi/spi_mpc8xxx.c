@@ -408,11 +408,17 @@ static void mpc8xxx_spi_cpm_bufs_start(struct mpc8xxx_spi *mspi)
 
 	xfer_ofs = mspi->xfer_in_progress->len - mspi->count;
 
-	out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma + xfer_ofs);
+	if (mspi->rx_dma == mspi->dma_dummy_rx)
+		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma);
+	else
+		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma + xfer_ofs);
 	out_be16(&rx_bd->cbd_datlen, 0);
 	out_be16(&rx_bd->cbd_sc, BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP);
 
-	out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma + xfer_ofs);
+	if (mspi->tx_dma == mspi->dma_dummy_tx)
+		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma);
+	else
+		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma + xfer_ofs);
 	out_be16(&tx_bd->cbd_datlen, xfer_len);
 	out_be16(&tx_bd->cbd_sc, BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP |
 				 BD_SC_LAST);

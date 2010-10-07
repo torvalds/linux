@@ -215,8 +215,7 @@ static int wm831x_gp_ldo_set_mode(struct regulator_dev *rdev,
 
 	case REGULATOR_MODE_IDLE:
 		ret = wm831x_set_bits(wm831x, ctrl_reg,
-				      WM831X_LDO1_LP_MODE,
-				      WM831X_LDO1_LP_MODE);
+				      WM831X_LDO1_LP_MODE, 0);
 		if (ret < 0)
 			return ret;
 
@@ -225,10 +224,12 @@ static int wm831x_gp_ldo_set_mode(struct regulator_dev *rdev,
 				      WM831X_LDO1_ON_MODE);
 		if (ret < 0)
 			return ret;
+		break;
 
 	case REGULATOR_MODE_STANDBY:
 		ret = wm831x_set_bits(wm831x, ctrl_reg,
-				      WM831X_LDO1_LP_MODE, 0);
+				      WM831X_LDO1_LP_MODE,
+				      WM831X_LDO1_LP_MODE);
 		if (ret < 0)
 			return ret;
 

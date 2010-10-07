@@ -1485,6 +1485,11 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			/* PowerMac8,1 ? */
 			/* imac g5 isight */
 			rdev->mode_info.connector_table = CT_IMAC_G5_ISIGHT;
+		} else if ((rdev->pdev->device == 0x4a48) &&
+			   (rdev->pdev->subsystem_vendor == 0x1002) &&
+			   (rdev->pdev->subsystem_device == 0x4a48)) {
+			/* Mac X800 */
+			rdev->mode_info.connector_table = CT_MAC_X800;
 		} else
 #endif /* CONFIG_PPC_PMAC */
 #ifdef CONFIG_PPC64
@@ -1959,6 +1964,48 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		radeon_add_legacy_connector(dev, 1, ATOM_DEVICE_CRT2_SUPPORT,
 					    DRM_MODE_CONNECTOR_VGA, &ddc_i2c,
 					    CONNECTOR_OBJECT_ID_VGA,
+					    &hpd);
+		break;
+	case CT_MAC_X800:
+		DRM_INFO("Connector Table: %d (mac x800)\n",
+			 rdev->mode_info.connector_table);
+		/* DVI - primary dac, internal tmds */
+		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
+		hpd.hpd = RADEON_HPD_1; /* ??? */
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								  ATOM_DEVICE_DFP1_SUPPORT,
+								  0),
+					  ATOM_DEVICE_DFP1_SUPPORT);
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								  ATOM_DEVICE_CRT1_SUPPORT,
+								  1),
+					  ATOM_DEVICE_CRT1_SUPPORT);
+		radeon_add_legacy_connector(dev, 0,
+					    ATOM_DEVICE_DFP1_SUPPORT |
+					    ATOM_DEVICE_CRT1_SUPPORT,
+					    DRM_MODE_CONNECTOR_DVII, &ddc_i2c,
+					    CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I,
+					    &hpd);
+		/* DVI - tv dac, dvo */
+		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
+		hpd.hpd = RADEON_HPD_2; /* ??? */
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								  ATOM_DEVICE_DFP2_SUPPORT,
+								  0),
+					  ATOM_DEVICE_DFP2_SUPPORT);
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								  ATOM_DEVICE_CRT2_SUPPORT,
+								  2),
+					  ATOM_DEVICE_CRT2_SUPPORT);
+		radeon_add_legacy_connector(dev, 1,
+					    ATOM_DEVICE_DFP2_SUPPORT |
+					    ATOM_DEVICE_CRT2_SUPPORT,
+					    DRM_MODE_CONNECTOR_DVII, &ddc_i2c,
+					    CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I,
 					    &hpd);
 		break;
 	default:

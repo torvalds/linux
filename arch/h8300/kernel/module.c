@@ -112,10 +112,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
-	return module_bug_finalize(hdr, sechdrs, me);
+	return 0;
 }
 
 void module_arch_cleanup(struct module *mod)
 {
-	module_bug_cleanup(mod);
 }

@@ -2960,7 +2960,7 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		if (map_end & (PAGE_CACHE_SIZE - 1))
 			to = map_end & (PAGE_CACHE_SIZE - 1);
 
-		page = grab_cache_page(mapping, page_index);
+		page = find_or_create_page(mapping, page_index, GFP_NOFS);
 
 		/*
 		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
@@ -3179,7 +3179,8 @@ static int ocfs2_cow_sync_writeback(struct super_block *sb,
 		if (map_end > end)
 			map_end = end;
 
-		page = grab_cache_page(context->inode->i_mapping, page_index);
+		page = find_or_create_page(context->inode->i_mapping,
+					   page_index, GFP_NOFS);
 		BUG_ON(!page);
 
 		wait_on_page_writeback(page);
@@ -4200,8 +4201,9 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 		goto out;
 	}
 
-	mutex_lock(&new_inode->i_mutex);
-	ret = ocfs2_inode_lock(new_inode, &new_bh, 1);
+	mutex_lock_nested(&new_inode->i_mutex, I_MUTEX_CHILD);
+	ret = ocfs2_inode_lock_nested(new_inode, &new_bh, 1,
+				      OI_LS_REFLINK_TARGET);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_unlock;

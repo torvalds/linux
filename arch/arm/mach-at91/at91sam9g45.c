@@ -121,8 +121,8 @@ static struct clk ssc1_clk = {
 	.pmc_mask	= 1 << AT91SAM9G45_ID_SSC1,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
-static struct clk tcb_clk = {
-	.name		= "tcb_clk",
+static struct clk tcb0_clk = {
+	.name		= "tcb0_clk",
 	.pmc_mask	= 1 << AT91SAM9G45_ID_TCB,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -192,6 +192,14 @@ static struct clk ohci_clk = {
 	.parent		= &uhphs_clk,
 };
 
+/* One additional fake clock for second TC block */
+static struct clk tcb1_clk = {
+	.name		= "tcb1_clk",
+	.pmc_mask	= 0,
+	.type		= CLK_TYPE_PERIPHERAL,
+	.parent		= &tcb0_clk,
+};
+
 static struct clk *periph_clocks[] __initdata = {
 	&pioA_clk,
 	&pioB_clk,
@@ -208,7 +216,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&spi1_clk,
 	&ssc0_clk,
 	&ssc1_clk,
-	&tcb_clk,
+	&tcb0_clk,
 	&pwm_clk,
 	&tsc_clk,
 	&dma_clk,
@@ -221,6 +229,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&mmc1_clk,
 	// irq0
 	&ohci_clk,
+	&tcb1_clk,
 };
 
 /*
