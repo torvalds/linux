@@ -151,7 +151,8 @@ static ssize_t max1363_show_precision_u(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = ring->indio_dev;
 	struct max1363_state *st = iio_dev_get_devdata(dev_info);
 	return sprintf(buf, "u%d/16\n", st->chip_info->bits);
 }
@@ -160,7 +161,8 @@ static ssize_t max1363_show_precision_s(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = ring->indio_dev;
 	struct max1363_state *st = iio_dev_get_devdata(dev_info);
 	return sprintf(buf, "s%d/16\n", st->chip_info->bits);
 }
