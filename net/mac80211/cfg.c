@@ -1363,7 +1363,7 @@ static int ieee80211_get_tx_power(struct wiphy *wiphy, int *dbm)
 }
 
 static int ieee80211_set_wds_peer(struct wiphy *wiphy, struct net_device *dev,
-				  u8 *addr)
+				  const u8 *addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
