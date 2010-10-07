@@ -1311,6 +1311,9 @@ fec_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_mii_init;
 
+	/* Carrier starts down, phylib will bring it up */
+	netif_carrier_off(ndev);
+
 	ret = register_netdev(ndev);
 	if (ret)
 		goto failed_register;
