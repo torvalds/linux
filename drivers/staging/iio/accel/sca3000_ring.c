@@ -138,7 +138,8 @@ static ssize_t sca3000_show_ring_bpse(struct device *dev,
 {
 	int len = 0, ret;
 	u8 *rx;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
 	struct sca3000_state *st = indio_dev->dev_data;
 
 	mutex_lock(&st->lock);
@@ -168,7 +169,8 @@ static ssize_t sca3000_store_ring_bpse(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
 	struct sca3000_state *st = indio_dev->dev_data;
 	int ret;
 	u8 *rx;
