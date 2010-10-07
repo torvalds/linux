@@ -4994,8 +4994,9 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	obj_priv = to_intel_bo(work->pending_flip_obj);
 
 	/* Initial scanout buffer will have a 0 pending flip count */
-	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
-	    atomic_dec_and_test(&obj_priv->pending_flip))
+	atomic_clear_mask(1 << intel_crtc->plane,
+			  &obj_priv->pending_flip.counter);
+	if (atomic_read(&obj_priv->pending_flip) == 0)
 		wake_up(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 
@@ -5092,7 +5093,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup_objs;
 
 	obj_priv = to_intel_bo(obj);
-	atomic_inc(&obj_priv->pending_flip);
+	atomic_add(1 << intel_crtc->plane, &obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {

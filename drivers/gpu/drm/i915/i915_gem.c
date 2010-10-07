@@ -3647,41 +3647,6 @@ i915_gem_check_execbuffer (struct drm_i915_gem_execbuffer2 *exec,
 }
 
 static int
-i915_gem_wait_for_pending_flip(struct drm_device *dev,
-			       struct drm_gem_object **object_list,
-			       int count)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv;
-	DEFINE_WAIT(wait);
-	int i, ret = 0;
-
-	for (;;) {
-		prepare_to_wait(&dev_priv->pending_flip_queue,
-				&wait, TASK_INTERRUPTIBLE);
-		for (i = 0; i < count; i++) {
-			obj_priv = to_intel_bo(object_list[i]);
-			if (atomic_read(&obj_priv->pending_flip) > 0)
-				break;
-		}
-		if (i == count)
-			break;
-
-		if (!signal_pending(current)) {
-			mutex_unlock(&dev->struct_mutex);
-			schedule();
-			mutex_lock(&dev->struct_mutex);
-			continue;
-		}
-		ret = -ERESTARTSYS;
-		break;
-	}
-	finish_wait(&dev_priv->pending_flip_queue, &wait);
-
-	return ret;
-}
-
-static int
 i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv,
 		       struct drm_i915_gem_execbuffer2 *args,
@@ -3773,7 +3738,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Look up object handles */
-	flips = 0;
 	for (i = 0; i < args->buffer_count; i++) {
 		object_list[i] = drm_gem_object_lookup(dev, file_priv,
 						       exec_list[i].handle);
@@ -3796,14 +3760,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 		}
 		obj_priv->in_execbuffer = true;
-		flips += atomic_read(&obj_priv->pending_flip);
-	}
-
-	if (flips > 0) {
-		ret = i915_gem_wait_for_pending_flip(dev, object_list,
-						     args->buffer_count);
-		if (ret)
-			goto err;
 	}
 
 	/* Pin and relocate */
@@ -3943,9 +3899,38 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			      ~0);
 #endif
 
+	/* Check for any pending flips. As we only maintain a flip queue depth
+	 * of 1, we can simply insert a WAIT for the next display flip prior
+	 * to executing the batch and avoid stalling the CPU.
+	 */
+	flips = 0;
+	for (i = 0; i < args->buffer_count; i++) {
+		if (object_list[i]->write_domain)
+			flips |= atomic_read(&to_intel_bo(object_list[i])->pending_flip);
+	}
+	if (flips) {
+		int plane, flip_mask;
+
+		for (plane = 0; flips >> plane; plane++) {
+			if (((flips >> plane) & 1) == 0)
+				continue;
+
+			if (plane)
+				flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+			else
+				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+
+			intel_ring_begin(dev, ring, 2);
+			intel_ring_emit(dev, ring,
+					MI_WAIT_FOR_EVENT | flip_mask);
+			intel_ring_emit(dev, ring, MI_NOOP);
+			intel_ring_advance(dev, ring);
+		}
+	}
+
 	/* Exec the batchbuffer */
 	ret = ring->dispatch_gem_execbuffer(dev, ring, args,
-			cliprects, exec_offset);
+					    cliprects, exec_offset);
 	if (ret) {
 		DRM_ERROR("dispatch failed %d\n", ret);
 		goto err;
