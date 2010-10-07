@@ -1305,7 +1305,7 @@ int sdio_reset_comm(struct mmc_card *card)
 	if (mmc_host_is_spi(host)) {
 		err = mmc_spi_set_crc(host, use_spi_crc);
 		if (err)
-		goto err;
+			goto err;
 	}
 
 	if (!mmc_host_is_spi(host)) {
@@ -1324,27 +1324,22 @@ int sdio_reset_comm(struct mmc_card *card)
 	 * Switch to high-speed (if supported).
 	 */
 	err = sdio_enable_hs(card);
-	if (err)
+	if (err > 0)
+		mmc_sd_go_highspeed(card);
+	else if (err)
 		goto err;
 
 	/*
 	 * Change to the card's maximum speed.
 	 */
-	if (mmc_card_highspeed(card)) {
-		/*
-		 * The SDIO specification doesn't mention how
-		 * the CIS transfer speed register relates to
-		 * high-speed, but it seems that 50 MHz is
-		 * mandatory.
-		 */
-		mmc_set_clock(host, 50000000);
-	} else {
-		mmc_set_clock(host, card->cis.max_dtr);
-	}
+	mmc_set_clock(host, mmc_sdio_get_max_clock(card));
 
-	err = sdio_enable_wide(card);
-	if (err)
+	err = sdio_enable_4bit_bus(card);
+	if (err > 0)
+		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+	else if (err)
 		goto err;
+
 	mmc_release_host(host);
 	return 0;
 err:
