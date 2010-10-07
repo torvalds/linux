@@ -1015,7 +1015,8 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *norm)
 	struct tm6000_fh   *fh=priv;
 	struct tm6000_core *dev = fh->dev;
 
-	rc=tm6000_set_standard (dev, norm);
+	rc = tm6000_set_standard(dev, norm);
+	rc = tm6000_init_analog_mode(dev);
 
 	fh->width  = dev->width;
 	fh->height = dev->height;
@@ -1292,9 +1293,10 @@ static int tm6000_open(struct file *file)
 				"active=%d\n",list_empty(&dev->vidq.active));
 
 	/* initialize hardware on analog mode */
-	if (dev->mode!=TM6000_MODE_ANALOG) {
-		rc=tm6000_init_analog_mode (dev);
-		if (rc<0)
+//	if (dev->mode!=TM6000_MODE_ANALOG) {
+//		rc = tm6000_set_standard(dev, dev->norm);
+		rc += tm6000_init_analog_mode(dev);
+		if (rc < 0)
 			return rc;
 
 		/* Put all controls at a sane state */
@@ -1302,7 +1304,7 @@ static int tm6000_open(struct file *file)
 			qctl_regs[i] =tm6000_qctrl[i].default_value;
 
 		dev->mode=TM6000_MODE_ANALOG;
-	}
+//	}
 
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &tm6000_video_qops,
 			NULL, &dev->slock,

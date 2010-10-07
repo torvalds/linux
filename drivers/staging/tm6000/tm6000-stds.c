@@ -28,8 +28,22 @@ struct tm6000_reg_settings {
 	unsigned char value;
 };
 
+enum tm6000_audio_std {
+	BG_NICAM,
+	BTSC,
+	BG_A2,
+	DK_NICAM,
+	EIAJ,
+	FM_RADIO,
+	I_NICAM,
+	KOREA_A2,
+	L_NICAM,
+};
+
 struct tm6000_std_tv_settings {
 	v4l2_std_id id;
+	enum tm6000_audio_std audio_default_std;
+
 	struct tm6000_reg_settings sif[12];
 	struct tm6000_reg_settings nosif[12];
 	struct tm6000_reg_settings common[26];
@@ -37,12 +51,14 @@ struct tm6000_std_tv_settings {
 
 struct tm6000_std_settings {
 	v4l2_std_id id;
+	enum tm6000_audio_std audio_default_std;
 	struct tm6000_reg_settings common[37];
 };
 
 static struct tm6000_std_tv_settings tv_stds[] = {
 	{
 		.id = V4L2_STD_PAL_M,
+		.audio_default_std = BTSC,
 		.sif = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf2},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf8},
@@ -96,12 +112,13 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 
 			{TM6010_REQ07_R04_LUMA_HAGC_CONTROL, 0xdc},
 			{TM6010_REQ07_R0D_CHROMA_KILL_LEVEL, 0x07},
-			{TM6010_REQ08_R05_A_STANDARD_MOD, 0x21}, /* FIXME */
 			{TM6010_REQ07_R3F_RESET, 0x00},
+
 			{0, 0, 0},
 		},
 	}, {
 		.id = V4L2_STD_PAL_Nc,
+		.audio_default_std = BTSC,
 		.sif = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf2},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf8},
@@ -161,6 +178,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_PAL,
+		.audio_default_std = BG_A2,
 		.sif = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf2},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf8},
@@ -220,6 +238,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_SECAM,
+		.audio_default_std = BG_NICAM,
 		.sif = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf2},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf8},
@@ -278,6 +297,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_NTSC,
+		.audio_default_std = BTSC,
 		.sif = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf2},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf8},
@@ -341,6 +361,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 static struct tm6000_std_settings composite_stds[] = {
 	{
 		.id = V4L2_STD_PAL_M,
+		.audio_default_std = BTSC,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf4},
@@ -383,6 +404,7 @@ static struct tm6000_std_settings composite_stds[] = {
 		},
 	 }, {
 		.id = V4L2_STD_PAL_Nc,
+		.audio_default_std = BTSC,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf4},
@@ -425,6 +447,7 @@ static struct tm6000_std_settings composite_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_PAL,
+		.audio_default_std = BG_A2,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf4},
@@ -467,6 +490,7 @@ static struct tm6000_std_settings composite_stds[] = {
 		},
 	 }, {
 		.id = V4L2_STD_SECAM,
+		.audio_default_std = BG_NICAM,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf4},
@@ -508,6 +532,7 @@ static struct tm6000_std_settings composite_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_NTSC,
+		.audio_default_std = BTSC,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf4},
@@ -554,6 +579,7 @@ static struct tm6000_std_settings composite_stds[] = {
 static struct tm6000_std_settings svideo_stds[] = {
 	{
 		.id = V4L2_STD_PAL_M,
+		.audio_default_std = BTSC,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xfc},
@@ -596,6 +622,7 @@ static struct tm6000_std_settings svideo_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_PAL_Nc,
+		.audio_default_std = BTSC,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xfc},
@@ -638,6 +665,7 @@ static struct tm6000_std_settings svideo_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_PAL,
+		.audio_default_std = BG_A2,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xfc},
@@ -680,6 +708,7 @@ static struct tm6000_std_settings svideo_stds[] = {
 		},
 	 }, {
 		.id = V4L2_STD_SECAM,
+		.audio_default_std = BG_NICAM,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xfc},
@@ -721,6 +750,7 @@ static struct tm6000_std_settings svideo_stds[] = {
 		},
 	}, {
 		.id = V4L2_STD_NTSC,
+		.audio_default_std = BTSC,
 		.common = {
 			{TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xf0},
 			{TM6010_REQ08_RE3_ADC_IN1_SEL, 0xfc},
@@ -764,6 +794,136 @@ static struct tm6000_std_settings svideo_stds[] = {
 		},
 	},
 };
+
+
+static int tm6000_set_audio_std(struct tm6000_core *dev,
+				enum tm6000_audio_std std)
+{
+	switch (std) {
+	case BG_NICAM:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x11);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case BTSC:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x02);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R0E_A_MONO_THRES1, 0xf0);
+		tm6000_set_reg(dev, TM6010_REQ08_R0F_A_MONO_THRES2, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ08_R10_A_MUTE_THRES1, 0xc0);
+		tm6000_set_reg(dev, TM6010_REQ08_R11_A_MUTE_THRES2, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case BG_A2:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x05);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R0E_A_MONO_THRES1, 0xf0);
+		tm6000_set_reg(dev, TM6010_REQ08_R0F_A_MONO_THRES2, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ08_R10_A_MUTE_THRES1, 0xc0);
+		tm6000_set_reg(dev, TM6010_REQ08_R11_A_MUTE_THRES2, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case DK_NICAM:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R0C_A_ASD_THRES2, 0x0a);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case EIAJ:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x03);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case FM_RADIO:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x0c);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x10);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case I_NICAM:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R0C_A_ASD_THRES2, 0x0a);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case KOREA_A2:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R0E_A_MONO_THRES1, 0xf0);
+		tm6000_set_reg(dev, TM6010_REQ08_R0F_A_MONO_THRES2, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ08_R10_A_MUTE_THRES1, 0xc0);
+		tm6000_set_reg(dev, TM6010_REQ08_R11_A_MUTE_THRES2, 0xf0);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	case L_NICAM:
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x02);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x0a);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x08);
+		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
+		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
+		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		break;
+	}
+	return 0;
+}
 
 void tm6000_get_std_res(struct tm6000_core *dev)
 {
@@ -825,6 +985,8 @@ static int tm6000_set_tv(struct tm6000_core *dev, int pos)
 	rc = tm6000_load_std(dev, tv_stds[pos].common,
 			     sizeof(tv_stds[pos].common));
 
+	tm6000_set_audio_std(dev, tv_stds[pos].audio_default_std);
+
 	return rc;
 }
 
@@ -850,6 +1012,8 @@ int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id * norm)
 				rc = tm6000_load_std(dev, svideo_stds[i].common,
 						     sizeof(svideo_stds[i].
 							    common));
+				tm6000_set_audio_std(dev, svideo_stds[i].audio_default_std);
+
 				goto ret;
 			}
 		}
@@ -861,6 +1025,7 @@ int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id * norm)
 						     composite_stds[i].common,
 						     sizeof(composite_stds[i].
 							    common));
+				tm6000_set_audio_std(dev, composite_stds[i].audio_default_std);
 				goto ret;
 			}
 		}
