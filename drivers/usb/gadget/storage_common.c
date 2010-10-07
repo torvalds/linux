@@ -54,6 +54,7 @@
 
 
 #include <asm/unaligned.h>
+#include <linux/usb/storage.h>
 
 
 /*
@@ -155,19 +156,6 @@
 /* SCSI device types */
 #define TYPE_DISK	0x00
 #define TYPE_CDROM	0x05
-
-/* USB protocol value = the transport method */
-#define USB_PR_CBI	0x00		/* Control/Bulk/Interrupt */
-#define USB_PR_CB	0x01		/* Control/Bulk w/o interrupt */
-#define USB_PR_BULK	0x50		/* Bulk-only */
-
-/* USB subclass value = the protocol encapsulation */
-#define USB_SC_RBC	0x01		/* Reduced Block Commands (flash) */
-#define USB_SC_8020	0x02		/* SFF-8020i, MMC-2, ATAPI (CD-ROM) */
-#define USB_SC_QIC	0x03		/* QIC-157 (tape) */
-#define USB_SC_UFI	0x04		/* UFI (floppy) */
-#define USB_SC_8070	0x05		/* SFF-8070i (removable) */
-#define USB_SC_SCSI	0x06		/* Transparent SCSI */
 
 /* Bulk-only data structures */
 
