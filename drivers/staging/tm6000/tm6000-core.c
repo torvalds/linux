@@ -188,6 +188,8 @@ void tm6000_set_fourcc_format(struct tm6000_core *dev)
 
 int tm6000_init_analog_mode(struct tm6000_core *dev)
 {
+	struct v4l2_frequency f;
+
 	if (dev->dev_type == TM6010) {
 		int val;
 
@@ -324,8 +326,16 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 
 	/* Tuner firmware can now be loaded */
 
-	/*FIXME: Hack!!! */
-	struct v4l2_frequency f;
+	/*
+	 * FIXME: This is a hack! xc3028 "sleeps" when no channel is detected
+	 * for more than a few seconds. Not sure why, as this behavior does
+	 * not happen on other devices with xc3028. So, I suspect that it
+	 * is yet another bug at tm6000. After start sleeping, decoding 
+	 * doesn't start automatically. Instead, it requires some
+	 * I2C commands to wake it up. As we want to have image at the
+	 * beginning, we needed to add this hack. The better would be to
+	 * discover some way to make tm6000 to wake up without this hack.
+	 */
 	mutex_lock(&dev->lock);
 	f.frequency = dev->freq;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
