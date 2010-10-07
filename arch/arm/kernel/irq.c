@@ -35,6 +35,7 @@
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
+#include <linux/ftrace.h>
 
 #include <asm/system.h>
 #include <asm/mach/irq.h>
@@ -105,7 +106,8 @@ unlock:
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */
-asmlinkage void __exception asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
+asmlinkage void __exception_irq_entry
+asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
