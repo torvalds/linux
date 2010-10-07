@@ -116,8 +116,8 @@ static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
 			goto nopage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
-		sg_set_page(&sglist[i], pages[i], min((unsigned)PAGE_SIZE, size), 0);
-		size -= min((unsigned)PAGE_SIZE, size);
+		sg_set_page(&sglist[i], pages[i], min_t(size_t, PAGE_SIZE, size), 0);
+		size -= min_t(size_t, PAGE_SIZE, size);
 	}
 	return sglist;
 
