@@ -55,13 +55,7 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 #define __devexit_p(x)	x
 #endif
 
-#define pci_module_init pci_register_driver
-
 #define netif_down(dev)
-
-/* Power management related macro & routines */
-#define	PCI_SAVE_STATE(a, b)	pci_save_state(a)
-#define	PCI_RESTORE_STATE(a, b)	pci_restore_state(a)
 
 /* suspend args */
 #define DRV_SUSPEND_STATE_TYPE pm_message_t

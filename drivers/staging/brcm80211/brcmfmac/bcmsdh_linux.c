@@ -540,7 +540,7 @@ int bcmsdh_register(bcmsdh_driver_t *driver)
 	if (!error)
 		return 0;
 
-	SDLX_MSG(("%s: pci_module_init failed 0x%x\n", __func__, error));
+	SDLX_MSG(("%s: pci_register_driver failed 0x%x\n", __func__, error));
 #endif				/* BCMPLATFORM_BUS */
 
 	return error;

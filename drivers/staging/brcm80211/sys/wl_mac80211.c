@@ -1377,7 +1377,7 @@ static int wl_suspend(struct pci_dev *pdev, DRV_SUSPEND_STATE_TYPE state)
 	wl_down(wl);
 	wl->pub->hw_up = FALSE;
 	WL_UNLOCK(wl);
-	PCI_SAVE_STATE(pdev, wl->pci_psstate);
+	pci_save_state(pdev, wl->pci_psstate);
 	pci_disable_device(pdev);
 	return pci_set_power_state(pdev, PCI_D3hot);
 }
@@ -1401,7 +1401,7 @@ static int wl_resume(struct pci_dev *pdev)
 	if (err)
 		return err;
 
-	PCI_RESTORE_STATE(pdev, wl->pci_psstate);
+	pci_restore_state(pdev, wl->pci_psstate);
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1498,7 +1498,7 @@ static int __init wl_module_init(void)
 #endif				/* BCMDBG */
 
 #ifndef BCMSDIO
-	error = pci_module_init(&wl_pci_driver);
+	error = pci_register_driver(&wl_pci_driver);
 	if (!error)
 		return 0;
 
