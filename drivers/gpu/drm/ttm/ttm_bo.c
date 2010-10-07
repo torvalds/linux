@@ -442,6 +442,43 @@ out_err:
 }
 
 /**
+ * Call bo::reserved and with the lru lock held.
+ * Will release GPU memory type usage on destruction.
+ * This is the place to put in driver specific hooks.
+ * Will release the bo::reserved lock and the
+ * lru lock on exit.
+ */
+
+static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
+{
+	struct ttm_bo_global *glob = bo->glob;
+
+	if (bo->ttm) {
+
+		/**
+		 * Release the lru_lock, since we don't want to have
+		 * an atomic requirement on ttm_tt[unbind|destroy].
+		 */
+
+		spin_unlock(&glob->lru_lock);
+		ttm_tt_unbind(bo->ttm);
+		ttm_tt_destroy(bo->ttm);
+		bo->ttm = NULL;
+		spin_lock(&glob->lru_lock);
+	}
+
+	if (bo->mem.mm_node) {
+		drm_mm_put_block(bo->mem.mm_node);
+		bo->mem.mm_node = NULL;
+	}
+
+	atomic_set(&bo->reserved, 0);
+	wake_up_all(&bo->event_queue);
+	spin_unlock(&glob->lru_lock);
+}
+
+
+/**
  * If bo idle, remove from delayed- and lru lists, and unref.
  * If not idle, and already on delayed list, do nothing.
  * If not idle, and not on delayed list, put on delayed list,
@@ -456,6 +493,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 	int ret;
 
 	spin_lock(&bo->lock);
+retry:
 	(void) ttm_bo_wait(bo, false, false, !remove_all);
 
 	if (!bo->sync_obj) {
@@ -464,31 +502,52 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 		spin_unlock(&bo->lock);
 
 		spin_lock(&glob->lru_lock);
-		put_count = ttm_bo_del_from_lru(bo);
+		ret = ttm_bo_reserve_locked(bo, false, !remove_all, false, 0);
 
-		ret = ttm_bo_reserve_locked(bo, false, false, false, 0);
-		BUG_ON(ret);
-		if (bo->ttm)
-			ttm_tt_unbind(bo->ttm);
+		/**
+		 * Someone else has the object reserved. Bail and retry.
+		 */
+
+		if (unlikely(ret == -EBUSY)) {
+			spin_unlock(&glob->lru_lock);
+			spin_lock(&bo->lock);
+			goto requeue;
+		}
+
+		/**
+		 * We can re-check for sync object without taking
+		 * the bo::lock since setting the sync object requires
+		 * also bo::reserved. A busy object at this point may
+		 * be caused by another thread starting an accelerated
+		 * eviction.
+		 */
+
+		if (unlikely(bo->sync_obj)) {
+			atomic_set(&bo->reserved, 0);
+			wake_up_all(&bo->event_queue);
+			spin_unlock(&glob->lru_lock);
+			spin_lock(&bo->lock);
+			if (remove_all)
+				goto retry;
+			else
+				goto requeue;
+		}
+
+		put_count = ttm_bo_del_from_lru(bo);
 
 		if (!list_empty(&bo->ddestroy)) {
 			list_del_init(&bo->ddestroy);
 			++put_count;
 		}
-		if (bo->mem.mm_node) {
-			drm_mm_put_block(bo->mem.mm_node);
-			bo->mem.mm_node = NULL;
-		}
-		spin_unlock(&glob->lru_lock);
 
-		atomic_set(&bo->reserved, 0);
+		ttm_bo_cleanup_memtype_use(bo);
 
 		while (put_count--)
 			kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
 		return 0;
 	}
-
+requeue:
 	spin_lock(&glob->lru_lock);
 	if (list_empty(&bo->ddestroy)) {
 		void *sync_obj = bo->sync_obj;
