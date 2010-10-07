@@ -3260,6 +3260,40 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	os = ns = mdev->state;
 	spin_unlock_irq(&mdev->req_lock);
 
+	/* peer says his disk is uptodate, while we think it is inconsistent,
+	 * and this happens while we think we have a sync going on. */
+	if (os.pdsk == D_INCONSISTENT && real_peer_disk == D_UP_TO_DATE &&
+	    os.conn > C_CONNECTED && os.disk == D_UP_TO_DATE) {
+		/* If we are (becoming) SyncSource, but peer is still in sync
+		 * preparation, ignore its uptodate-ness to avoid flapping, it
+		 * will change to inconsistent once the peer reaches active
+		 * syncing states.
+		 * It may have changed syncer-paused flags, however, so we
+		 * cannot ignore this completely. */
+		if (peer_state.conn > C_CONNECTED &&
+		    peer_state.conn < C_SYNC_SOURCE)
+			real_peer_disk = D_INCONSISTENT;
+
+		/* if peer_state changes to connected at the same time,
+		 * it explicitly notifies us that it finished resync.
+		 * Maybe we should finish it up, too? */
+		else if (os.conn >= C_SYNC_SOURCE &&
+			 peer_state.conn == C_CONNECTED) {
+			if (drbd_bm_total_weight(mdev) <= mdev->rs_failed)
+				drbd_resync_finished(mdev);
+			return TRUE;
+		}
+	}
+
+	/* peer says his disk is inconsistent, while we think it is uptodate,
+	 * and this happens while the peer still thinks we have a sync going on,
+	 * but we think we are already done with the sync.
+	 * We ignore this to avoid flapping pdsk.
+	 * This should not happen, if the peer is a recent version of drbd. */
+	if (os.pdsk == D_UP_TO_DATE && real_peer_disk == D_INCONSISTENT &&
+	    os.conn == C_CONNECTED && peer_state.conn > C_SYNC_SOURCE)
+		real_peer_disk = D_UP_TO_DATE;
+
 	if (ns.conn == C_WF_REPORT_PARAMS)
 		ns.conn = C_CONNECTED;
 
