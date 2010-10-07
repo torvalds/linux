@@ -1918,7 +1918,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	struct hcp_ehea_port_cb7 *cb7;
 	u64 hret;
 
-	if ((enable && port->promisc) || (!enable && !port->promisc))
+	if (enable == port->promisc)
 		return;
 
 	cb7 = (void *)get_zeroed_page(GFP_ATOMIC);
