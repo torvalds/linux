@@ -910,6 +910,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct the_nilfs *nilfs;
 	struct nilfs_sb_info *sbi;
 	struct nilfs_root *fsroot;
+	struct backing_dev_info *bdi;
 	__u64 cno;
 	int err;
 
@@ -948,7 +949,9 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_export_op = &nilfs_export_ops;
 	sb->s_root = NULL;
 	sb->s_time_gran = 1;
-	sb->s_bdi = nilfs->ns_bdi;
+
+	bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+	sb->s_bdi = bdi ? : &default_backing_dev_info;
 
 	err = load_nilfs(nilfs, sbi);
 	if (err)

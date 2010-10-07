@@ -47,7 +47,6 @@ enum {
  * struct the_nilfs - struct to supervise multiple nilfs mount points
  * @ns_flags: flags
  * @ns_bdev: block device
- * @ns_bdi: backing dev info
  * @ns_sem: semaphore for shared states
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
@@ -90,7 +89,6 @@ struct the_nilfs {
 	unsigned long		ns_flags;
 
 	struct block_device    *ns_bdev;
-	struct backing_dev_info *ns_bdi;
 	struct rw_semaphore	ns_sem;
 
 	/*

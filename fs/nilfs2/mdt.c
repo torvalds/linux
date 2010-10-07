@@ -457,7 +457,7 @@ int nilfs_mdt_setup_shadow_map(struct inode *inode,
 			       struct nilfs_shadow_map *shadow)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
-	struct backing_dev_info *bdi = NILFS_I_NILFS(inode)->ns_bdi;
+	struct backing_dev_info *bdi = inode->i_sb->s_bdi;
 
 	INIT_LIST_HEAD(&shadow->frozen_buffers);
 	nilfs_mapping_init_once(&shadow->frozen_data);

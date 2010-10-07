@@ -535,7 +535,6 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 {
 	struct super_block *sb = sbi->s_super;
 	struct nilfs_super_block *sbp;
-	struct backing_dev_info *bdi;
 	int blocksize;
 	int err;
 
@@ -597,9 +596,6 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	sb->s_maxbytes = nilfs_max_size(sb->s_blocksize_bits);
 
 	nilfs->ns_mount_state = le16_to_cpu(sbp->s_state);
-
-	bdi = nilfs->ns_bdev->bd_inode->i_mapping->backing_dev_info;
-	nilfs->ns_bdi = bdi ? : &default_backing_dev_info;
 
 	err = nilfs_store_log_cursor(nilfs, sbp);
 	if (err)
