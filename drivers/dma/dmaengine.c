@@ -706,7 +706,7 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(!device->dev);
 
 	/* note: this only matters in the
-	 * CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH=y case
+	 * CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH=n case
 	 */
 	if (device_has_all_tx_types(device))
 		dma_cap_set(DMA_ASYNC_TX, device->cap_mask);
@@ -980,7 +980,7 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan)
 {
 	tx->chan = chan;
-	#ifndef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+	#ifdef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	spin_lock_init(&tx->lock);
 	#endif
 }

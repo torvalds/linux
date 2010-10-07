@@ -321,14 +321,14 @@ struct dma_async_tx_descriptor {
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
 	void *callback_param;
-#ifndef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+#ifdef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	struct dma_async_tx_descriptor *next;
 	struct dma_async_tx_descriptor *parent;
 	spinlock_t lock;
 #endif
 };
 
-#ifdef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+#ifndef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
 static inline void txd_lock(struct dma_async_tx_descriptor *txd)
 {
 }
@@ -656,11 +656,11 @@ static inline void net_dmaengine_put(void)
 #ifdef CONFIG_ASYNC_TX_DMA
 #define async_dmaengine_get()	dmaengine_get()
 #define async_dmaengine_put()	dmaengine_put()
-#ifdef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+#ifndef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
 #define async_dma_find_channel(type) dma_find_channel(DMA_ASYNC_TX)
 #else
 #define async_dma_find_channel(type) dma_find_channel(type)
-#endif /* CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH */
+#endif /* CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH */
 #else
 static inline void async_dmaengine_get(void)
 {
