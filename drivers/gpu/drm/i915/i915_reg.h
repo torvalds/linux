@@ -2782,6 +2782,7 @@
 #define FDI_RXA_CHICKEN         0xc200c
 #define FDI_RXB_CHICKEN         0xc2010
 #define  FDI_RX_PHASE_SYNC_POINTER_ENABLE       (1)
+#define FDI_RX_CHICKEN(pipe) _PIPE(pipe, FDI_RXA_CHICKEN, FDI_RXB_CHICKEN)
 
 /* CPU: FDI_TX */
 #define FDI_TXA_CTL             0x60100

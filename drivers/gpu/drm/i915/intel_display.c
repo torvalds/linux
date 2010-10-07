@@ -1714,6 +1714,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(150);
 
+	/* Ironlake workaround, enable clock pointer after FDI enable*/
+	I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_ENABLE);
+
 	reg = FDI_RX_IIR(pipe);
 	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(reg);
@@ -2191,6 +2194,11 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	POSTING_READ(reg);
 	udelay(100);
+
+	/* Ironlake workaround, disable clock pointer after downing FDI */
+	I915_WRITE(FDI_RX_CHICKEN(pipe),
+		   I915_READ(FDI_RX_CHICKEN(pipe) &
+			     ~FDI_RX_PHASE_SYNC_POINTER_ENABLE));
 
 	/* still set train pattern 1 */
 	reg = FDI_TX_CTL(pipe);
