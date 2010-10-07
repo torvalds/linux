@@ -3625,7 +3625,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			      refclk / 1000);
 	} else if (!IS_GEN2(dev)) {
 		refclk = 96000;
-		if (HAS_PCH_SPLIT(dev))
+		if (HAS_PCH_SPLIT(dev) &&
+		    (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)))
 			refclk = 120000; /* 120Mhz refclk */
 	} else {
 		refclk = 48000;
