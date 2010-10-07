@@ -403,6 +403,7 @@ struct station_parameters {
  * @STATION_INFO_TX_PACKETS: @tx_packets filled
  * @STATION_INFO_TX_RETRIES: @tx_retries filled
  * @STATION_INFO_TX_FAILED: @tx_failed filled
+ * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -417,6 +418,7 @@ enum station_info_flags {
 	STATION_INFO_TX_PACKETS		= 1<<9,
 	STATION_INFO_TX_RETRIES		= 1<<10,
 	STATION_INFO_TX_FAILED		= 1<<11,
+	STATION_INFO_RX_DROP_MISC	= 1<<12,
 };
 
 /**
@@ -468,6 +470,7 @@ struct rate_info {
  * @tx_packets: packets transmitted to this station
  * @tx_retries: cumulative retry counts
  * @tx_failed: number of failed transmissions (retries exceeded, no ACK)
+ * @rx_dropped_misc:  Dropped for un-specified reason.
  * @generation: generation number for nl80211 dumps.
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
@@ -487,6 +490,7 @@ struct station_info {
 	u32 tx_packets;
 	u32 tx_retries;
 	u32 tx_failed;
+	u32 rx_dropped_misc;
 
 	int generation;
 };
