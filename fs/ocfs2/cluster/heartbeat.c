@@ -1476,6 +1476,10 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	else
 		ret = -EIO;
 
+	if (hb_task && o2hb_global_heartbeat_active())
+		printk(KERN_NOTICE "o2hb: Heartbeat started on region %s\n",
+		       config_item_name(&reg->hr_item));
+
 out:
 	if (filp)
 		fput(filp);
@@ -1659,6 +1663,9 @@ static void o2hb_heartbeat_group_drop_item(struct config_group *group,
 		wake_up(&o2hb_steady_queue);
 	}
 
+	if (o2hb_global_heartbeat_active())
+		printk(KERN_NOTICE "o2hb: Heartbeat stopped on region %s\n",
+		       config_item_name(&reg->hr_item));
 	config_item_put(item);
 }
 
@@ -1745,7 +1752,7 @@ ssize_t o2hb_heartbeat_group_mode_store(struct o2hb_heartbeat_group *group,
 
 		ret = o2hb_global_hearbeat_mode_set(i);
 		if (!ret)
-			printk(KERN_NOTICE "ocfs2: Heartbeat mode set to %s\n",
+			printk(KERN_NOTICE "o2hb: Heartbeat mode set to %s\n",
 			       o2hb_heartbeat_mode_desc[i]);
 		return count;
 	}
