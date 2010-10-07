@@ -90,9 +90,6 @@ typedef signed int int32;
 #undef TYPEDEF_UINTPTR
 #undef TYPEDEF_INT16
 #undef TYPEDEF_INT32
-#undef TYPEDEF_FLOAT32
-#undef TYPEDEF_FLOAT64
-#undef TYPEDEF_FLOAT_T
 
 /*
  * Including the bcmdefs.h here, to make sure everyone including typedefs.h
