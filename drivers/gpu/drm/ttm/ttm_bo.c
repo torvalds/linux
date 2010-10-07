@@ -464,9 +464,7 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 		spin_lock(&glob->lru_lock);
 	}
 
-	if (bo->mem.mm_node) {
-		ttm_bo_mem_put(bo, &bo->mem);
-	}
+	ttm_bo_mem_put_locked(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
 	wake_up_all(&bo->event_queue);
@@ -790,6 +788,15 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
 		(*man->func->put_node)(man, mem);
 }
 EXPORT_SYMBOL(ttm_bo_mem_put);
+
+void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
+{
+	struct ttm_mem_type_manager *man = &bo->bdev->man[mem->mem_type];
+
+	if (mem->mm_node)
+		(*man->func->put_node_locked)(man, mem);
+}
+EXPORT_SYMBOL(ttm_bo_mem_put_locked);
 
 /**
  * Repeatedly evict memory from the LRU for @mem_type until we create enough

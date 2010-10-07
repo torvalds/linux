@@ -214,6 +214,8 @@ struct ttm_mem_type_manager_func {
 			 struct ttm_mem_reg *mem);
 	void (*put_node)(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem);
+	void (*put_node_locked)(struct ttm_mem_type_manager *man,
+				struct ttm_mem_reg *mem);
 	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
 };
 
@@ -667,6 +669,8 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
+extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
+				  struct ttm_mem_reg *mem);
 
 /**
  * ttm_bo_wait_for_cpu
