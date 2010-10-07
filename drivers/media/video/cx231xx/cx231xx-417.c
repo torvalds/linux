@@ -1053,16 +1053,15 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	/*download the firmware by ep5-out*/
 
 	for (frame = 0; frame < (int)(CX231xx_FIRM_IMAGE_SIZE*20/_buffer_size);
-		frame++) {
+	     frame++) {
 		for (i = 0; i < _buffer_size; i++) {
-			*(p_buffer+i) =
-			(u8)(*(p_fw+(frame*128*8+(i++/4))) & 0x000000FF);
-			*(p_buffer+i) =
-			(u8)((*(p_fw+(frame*128*8+(i++/4))) & 0x0000FF00)>>8);
-			*(p_buffer+i) =
-			(u8)((*(p_fw+(frame*128*8+(i++/4))) & 0x00FF0000)>>16);
-			*(p_buffer+i) =
-			(u8)((*(p_fw+(frame*128*8+(i/4))) & 0xFF000000)>>24);
+			*(p_buffer + i) = (u8)(*(p_fw + (frame * 128 * 8 + (i / 4))) & 0x000000FF);
+			i++;
+			*(p_buffer + i) = (u8)((*(p_fw + (frame * 128 * 8 + (i / 4))) & 0x0000FF00) >> 8);
+			i++;
+			*(p_buffer + i) = (u8)((*(p_fw + (frame * 128 * 8 + (i / 4))) & 0x00FF0000) >> 16);
+			i++;
+			*(p_buffer + i) = (u8)((*(p_fw + (frame * 128 * 8 + (i / 4))) & 0xFF000000) >> 24);
 		}
 		cx231xx_ep5_bulkout(dev, p_buffer, _buffer_size);
 	}
