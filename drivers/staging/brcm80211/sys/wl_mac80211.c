@@ -831,7 +831,7 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, unsigned long regs,
 	}
 
 	/* init tx work queue for wl_start/send pkt; no need to destroy workitem  */
-	MY_INIT_WORK(&wl->txq_task.work, (work_func_t) wl_start_txqwork);
+	INIT_WORK(&wl->txq_task.work, (work_func_t) wl_start_txqwork);
 	wl->txq_task.context = wl;
 #endif				/* WLC_HIGH_ONLY */
 
@@ -1670,7 +1670,7 @@ wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
 		return -ENOMEM;
 	}
 
-	MY_INIT_WORK(&task->work, (work_func_t) fn);
+	INIT_WORK(&task->work, (work_func_t) fn);
 	task->context = context;
 
 	if (!schedule_work(&task->work)) {
