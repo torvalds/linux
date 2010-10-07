@@ -1081,21 +1081,6 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 	return 0;
 }
 
-static int qla4_8xxx_check_for_bad_spd(struct scsi_qla_host *ha)
-{
-	u32 val = 0;
-	val = qla4_8xxx_rd_32(ha, BOOT_LOADER_DIMM_STATUS) ;
-	val &= QLA82XX_BOOT_LOADER_MN_ISSUE;
-	if (val & QLA82XX_PEG_TUNE_MN_SPD_ZEROED) {
-		printk("Memory DIMM SPD not programmed.  Assumed valid.\n");
-		return 1;
-	} else if (val) {
-		printk("Memory DIMM type incorrect.  Info:%08X.\n", val);
-		return 2;
-	}
-	return 0;
-}
-
 static int
 qla4_8xxx_load_from_flash(struct scsi_qla_host *ha, uint32_t image_start)
 {
@@ -1379,8 +1364,6 @@ static int qla4_8xxx_cmdpeg_ready(struct scsi_qla_host *ha, int pegtune_val)
 			schedule_timeout(500);
 
 		} while (--retries);
-
-		qla4_8xxx_check_for_bad_spd(ha);
 
 		if (!retries) {
 			pegtune_val = qla4_8xxx_rd_32(ha,
