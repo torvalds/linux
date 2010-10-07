@@ -43,7 +43,7 @@
 #define CX231xx_FIRM_IMAGE_SIZE 376836
 #define CX231xx_FIRM_IMAGE_NAME "v4l-cx23885-enc.fw"
 
-/* for polaris ITVC*/
+/* for polaris ITVC */
 #define ITVC_WRITE_DIR          0x03FDFC00
 #define ITVC_READ_DIR            0x0001FC00
 
@@ -66,8 +66,7 @@
 
 #define  MCI_REGISTER_MODE              0x70
 
-/*Read and write modes
- for polaris ITVC*/
+/* Read and write modes for polaris ITVC */
 #define  MCI_MODE_REGISTER_READ         0x000
 #define  MCI_MODE_REGISTER_WRITE        0x100
 #define  MCI_MODE_MEMORY_READ           0x000
@@ -250,20 +249,22 @@ enum cx231xx_mute_video_shift {
 #define IVTV_REG_VPU (0x9058)
 #define IVTV_REG_APU (0xA064)
 
-/**** Bit definitions for MC417_RWD and MC417_OEN registers  ***
-  bits 31-16
-+-----------+
-| Reserved  |
-+-----------+
-  bit 15  bit 14  bit 13 bit 12  bit 11  bit 10  bit 9   bit 8
-+-------+-------+-------+-------+-------+-------+-------+-------+
-| MIWR# | MIRD# | MICS# |MIRDY# |MIADDR3|MIADDR2|MIADDR1|MIADDR0|
-+-------+-------+-------+-------+-------+-------+-------+-------+
- bit 7   bit 6   bit 5   bit 4   bit 3   bit 2   bit 1   bit 0
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|MIDATA7|MIDATA6|MIDATA5|MIDATA4|MIDATA3|MIDATA2|MIDATA1|MIDATA0|
-+-------+-------+-------+-------+-------+-------+-------+-------+
-***/
+/*
+ * Bit definitions for MC417_RWD and MC417_OEN registers
+ *
+ * bits 31-16
+ *+-----------+
+ *| Reserved  |
+ *|+-----------+
+ *|  bit 15  bit 14  bit 13 bit 12  bit 11  bit 10  bit 9   bit 8
+ *|+-------+-------+-------+-------+-------+-------+-------+-------+
+ *|| MIWR# | MIRD# | MICS# |MIRDY# |MIADDR3|MIADDR2|MIADDR1|MIADDR0|
+ *|+-------+-------+-------+-------+-------+-------+-------+-------+
+ *| bit 7   bit 6   bit 5   bit 4   bit 3   bit 2   bit 1   bit 0
+ *|+-------+-------+-------+-------+-------+-------+-------+-------+
+ *||MIDATA7|MIDATA6|MIDATA5|MIDATA4|MIDATA3|MIDATA2|MIDATA1|MIDATA0|
+ *|+-------+-------+-------+-------+-------+-------+-------+-------+
+ */
 #define MC417_MIWR	0x8000
 #define MC417_MIRD	0x4000
 #define MC417_MICS	0x2000
@@ -272,12 +273,12 @@ enum cx231xx_mute_video_shift {
 #define MC417_MIDATA	0x00FF
 
 
-/*** Bit definitions for MC417_CTL register ****
- bits 31-6   bits 5-4   bit 3    bits 2-1       Bit 0
-+--------+-------------+--------+--------------+------------+
-|Reserved|MC417_SPD_CTL|Reserved|MC417_GPIO_SEL|UART_GPIO_EN|
-+--------+-------------+--------+--------------+------------+
-***/
+/* Bit definitions for MC417_CTL register ****
+ *bits 31-6   bits 5-4   bit 3    bits 2-1       Bit 0
+ *+--------+-------------+--------+--------------+------------+
+ *|Reserved|MC417_SPD_CTL|Reserved|MC417_GPIO_SEL|UART_GPIO_EN|
+ *+--------+-------------+--------+--------------+------------+
+ */
 #define MC417_SPD_CTL(x)	(((x) << 4) & 0x00000030)
 #define MC417_GPIO_SEL(x)	(((x) << 1) & 0x00000006)
 #define MC417_UART_GPIO_EN	0x00000001
@@ -320,299 +321,294 @@ int getITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 *pValue)
 }
 int waitForMciComplete(struct cx231xx *dev)
 {
-    u32 gpio;
-    u32 gpio_driection = 0;
-    u8 count = 0;
-    getITVCReg(dev, gpio_driection, &gpio);
-
-    while (!(gpio&0x020000)) {
-	msleep(10);
-
+	u32 gpio;
+	u32 gpio_driection = 0;
+	u8 count = 0;
 	getITVCReg(dev, gpio_driection, &gpio);
 
-	if (count++ > 100) {
-		dprintk(3, "ERROR: Timeout - gpio=%x\n", gpio);
-		return -1;
+	while (!(gpio&0x020000)) {
+		msleep(10);
+
+		getITVCReg(dev, gpio_driection, &gpio);
+
+		if (count++ > 100) {
+			dprintk(3, "ERROR: Timeout - gpio=%x\n", gpio);
+			return -1;
+		}
 	}
-    }
 	return 0;
 }
+
 int mc417_register_write(struct cx231xx *dev, u16 address, u32 value)
 {
-    u32 temp;
+	u32 temp;
 	int status = 0;
 
-    temp = 0x82|MCI_REGISTER_DATA_BYTE0|((value&0x000000FF)<<8);
-    temp = temp<<10;
-    status = setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = 0x82|MCI_REGISTER_DATA_BYTE0|((value&0x000000FF)<<8);
+	temp = temp<<10;
+	status = setITVCReg(dev, ITVC_WRITE_DIR, temp);
 	if (status < 0)
 		return status;
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write data byte 1;*/
-    temp = 0x82|MCI_REGISTER_DATA_BYTE1|(value&0x0000FF00);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write data byte 1;*/
+	temp = 0x82|MCI_REGISTER_DATA_BYTE1|(value&0x0000FF00);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write data byte 2;*/
-    temp = 0x82|MCI_REGISTER_DATA_BYTE2|((value&0x00FF0000)>>8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write data byte 2;*/
+	temp = 0x82|MCI_REGISTER_DATA_BYTE2|((value&0x00FF0000)>>8);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write data byte 3;*/
-    temp = 0x82|MCI_REGISTER_DATA_BYTE3|((value&0xFF000000)>>16);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write data byte 3;*/
+	temp = 0x82|MCI_REGISTER_DATA_BYTE3|((value&0xFF000000)>>16);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write address byte 0;*/
-    temp = 0x82|MCI_REGISTER_ADDRESS_BYTE0|((address&0x000000FF)<<8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write address byte 0;*/
+	temp = 0x82|MCI_REGISTER_ADDRESS_BYTE0|((address&0x000000FF)<<8);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write address byte 1;*/
-    temp = 0x82|MCI_REGISTER_ADDRESS_BYTE1|(address&0x0000FF00);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write address byte 1;*/
+	temp = 0x82|MCI_REGISTER_ADDRESS_BYTE1|(address&0x0000FF00);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*Write that the mode is write.*/
-    temp = 0x82 | MCI_REGISTER_MODE | MCI_MODE_REGISTER_WRITE;
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*Write that the mode is write.*/
+	temp = 0x82 | MCI_REGISTER_MODE | MCI_MODE_REGISTER_WRITE;
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    return waitForMciComplete(dev);
-
+	return waitForMciComplete(dev);
 }
-
 
 int mc417_register_read(struct cx231xx *dev, u16 address, u32 *value)
 {
-    /*write address byte 0;*/
-    u32 temp;
-    u32 return_value = 0;
+	/*write address byte 0;*/
+	u32 temp;
+	u32 return_value = 0;
 	int ret = 0;
 
-    temp = 0x82|MCI_REGISTER_ADDRESS_BYTE0|((address&0x00FF)<<8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = 0x82 | MCI_REGISTER_ADDRESS_BYTE0 | ((address & 0x00FF) << 8);
+	temp = temp << 10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp | ((0x05) << 10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write address byte 1;*/
-    temp = 0x82|MCI_REGISTER_ADDRESS_BYTE1|(address&0xFF00);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write address byte 1;*/
+	temp = 0x82 | MCI_REGISTER_ADDRESS_BYTE1 | (address & 0xFF00);
+	temp = temp << 10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp | ((0x05) << 10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write that the mode is read;*/
-    temp = 0x82 | MCI_REGISTER_MODE | MCI_MODE_REGISTER_READ;
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write that the mode is read;*/
+	temp = 0x82 | MCI_REGISTER_MODE | MCI_MODE_REGISTER_READ;
+	temp = temp << 10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp | ((0x05) << 10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*wait for the MIRDY line to be asserted ,
-		signalling that the read is done;*/
-    ret = waitForMciComplete(dev);
+	/*wait for the MIRDY line to be asserted ,
+	signalling that the read is done;*/
+	ret = waitForMciComplete(dev);
 
+	/*switch the DATA- GPIO to input mode;*/
 
-    /*switch the DATA- GPIO to input mode;*/
+	/*Read data byte 0;*/
+	temp = (0x82 | MCI_REGISTER_DATA_BYTE0) << 10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81 | MCI_REGISTER_DATA_BYTE0) << 10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp & 0x03FC0000) >> 18);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87 << 10));
 
-    /*Read data byte 0;*/
-    temp = (0x82|MCI_REGISTER_DATA_BYTE0)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_REGISTER_DATA_BYTE0)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)>>18);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/* Read data byte 1;*/
+	temp = (0x82 | MCI_REGISTER_DATA_BYTE1) << 10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81 | MCI_REGISTER_DATA_BYTE1) << 10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
 
-    /* Read data byte 1;*/
-    temp = (0x82|MCI_REGISTER_DATA_BYTE1)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_REGISTER_DATA_BYTE1)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp & 0x03FC0000) >> 10);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87 << 10));
 
-    return_value |= ((temp&0x03FC0000)>>10);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/*Read data byte 2;*/
+	temp = (0x82 | MCI_REGISTER_DATA_BYTE2) << 10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81 | MCI_REGISTER_DATA_BYTE2) << 10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp & 0x03FC0000) >> 2);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87 << 10));
 
-    /*Read data byte 2;*/
-    temp = (0x82|MCI_REGISTER_DATA_BYTE2)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_REGISTER_DATA_BYTE2)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)>>2);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
-
-    /*Read data byte 3;*/
-    temp = (0x82|MCI_REGISTER_DATA_BYTE3)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_REGISTER_DATA_BYTE3)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)<<6);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/*Read data byte 3;*/
+	temp = (0x82 | MCI_REGISTER_DATA_BYTE3) << 10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81 | MCI_REGISTER_DATA_BYTE3) << 10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp & 0x03FC0000) << 6);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87 << 10));
 
 	*value  = return_value;
 
 
-    return ret;
+	return ret;
 }
 
 int mc417_memory_write(struct cx231xx *dev, u32 address, u32 value)
 {
+	/*write data byte 0;*/
 
-    /*write data byte 0;*/
-
-    u32 temp;
+	u32 temp;
 	int ret = 0;
 
-    temp = 0x82|MCI_MEMORY_DATA_BYTE0|((value&0x000000FF)<<8);
-    temp = temp<<10;
-    ret = setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = 0x82 | MCI_MEMORY_DATA_BYTE0|((value & 0x000000FF) << 8);
+	temp = temp << 10;
+	ret = setITVCReg(dev, ITVC_WRITE_DIR, temp);
 	if (ret < 0)
 		return ret;
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp | ((0x05) << 10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write data byte 1;*/
-    temp = 0x82|MCI_MEMORY_DATA_BYTE1|(value&0x0000FF00);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write data byte 1;*/
+	temp = 0x82 | MCI_MEMORY_DATA_BYTE1 | (value & 0x0000FF00);
+	temp = temp << 10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp | ((0x05) << 10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write data byte 2;*/
-    temp = 0x82|MCI_MEMORY_DATA_BYTE2|((value&0x00FF0000)>>8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write data byte 2;*/
+	temp = 0x82|MCI_MEMORY_DATA_BYTE2|((value&0x00FF0000)>>8);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write data byte 3;*/
-    temp = 0x82|MCI_MEMORY_DATA_BYTE3|((value&0xFF000000)>>16);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write data byte 3;*/
+	temp = 0x82|MCI_MEMORY_DATA_BYTE3|((value&0xFF000000)>>16);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /* write address byte 2;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE2 | MCI_MODE_MEMORY_WRITE |
+	/* write address byte 2;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE2 | MCI_MODE_MEMORY_WRITE |
 		((address & 0x003F0000)>>8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /* write address byte 1;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE1 | (address & 0xFF00);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/* write address byte 1;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE1 | (address & 0xFF00);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /* write address byte 0;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE0|((address & 0x00FF)<<8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/* write address byte 0;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE0|((address & 0x00FF)<<8);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*wait for MIRDY line;*/
-    waitForMciComplete(dev);
+	/*wait for MIRDY line;*/
+	waitForMciComplete(dev);
 
-return 0;
-
+	return 0;
 }
 
 int mc417_memory_read(struct cx231xx *dev, u32 address, u32 *value)
 {
-
-    u32 temp = 0;
-    u32 return_value = 0;
+	u32 temp = 0;
+	u32 return_value = 0;
 	int ret = 0;
 
-    /*write address byte 2;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE2 | MCI_MODE_MEMORY_READ |
+	/*write address byte 2;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE2 | MCI_MODE_MEMORY_READ |
 		((address & 0x003F0000)>>8);
-    temp = temp<<10;
-    ret = setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp<<10;
+	ret = setITVCReg(dev, ITVC_WRITE_DIR, temp);
 	if (ret < 0)
 		return ret;
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write address byte 1*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE1 | (address & 0xFF00);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write address byte 1*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE1 | (address & 0xFF00);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*write address byte 0*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE0 | ((address & 0x00FF)<<8);
-    temp = temp<<10;
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
-    temp = temp|((0x05)<<10);
-    setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	/*write address byte 0*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE0 | ((address & 0x00FF)<<8);
+	temp = temp<<10;
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
+	temp = temp|((0x05)<<10);
+	setITVCReg(dev, ITVC_WRITE_DIR, temp);
 
-    /*Wait for MIRDY line*/
-    ret = waitForMciComplete(dev);
+	/*Wait for MIRDY line*/
+	ret = waitForMciComplete(dev);
 
 
-    /*Read data byte 3;*/
-     temp = (0x82|MCI_MEMORY_DATA_BYTE3)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_MEMORY_DATA_BYTE3)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)<<6);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/*Read data byte 3;*/
+	temp = (0x82|MCI_MEMORY_DATA_BYTE3)<<10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81|MCI_MEMORY_DATA_BYTE3)<<10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp&0x03FC0000)<<6);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
 
-    /*Read data byte 2;*/
-    temp = (0x82|MCI_MEMORY_DATA_BYTE2)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_MEMORY_DATA_BYTE2)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)>>2);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/*Read data byte 2;*/
+	temp = (0x82|MCI_MEMORY_DATA_BYTE2)<<10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81|MCI_MEMORY_DATA_BYTE2)<<10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp&0x03FC0000)>>2);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
 
-    /* Read data byte 1;*/
-    temp = (0x82|MCI_MEMORY_DATA_BYTE1)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_MEMORY_DATA_BYTE1)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)>>10);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/* Read data byte 1;*/
+	temp = (0x82|MCI_MEMORY_DATA_BYTE1)<<10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81|MCI_MEMORY_DATA_BYTE1)<<10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp&0x03FC0000)>>10);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
 
-    /*Read data byte 0;*/
-    temp = (0x82|MCI_MEMORY_DATA_BYTE0)<<10;
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    temp = ((0x81|MCI_MEMORY_DATA_BYTE0)<<10);
-    setITVCReg(dev, ITVC_READ_DIR, temp);
-    getITVCReg(dev, ITVC_READ_DIR, &temp);
-    return_value |= ((temp&0x03FC0000)>>18);
-    setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
+	/*Read data byte 0;*/
+	temp = (0x82|MCI_MEMORY_DATA_BYTE0)<<10;
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	temp = ((0x81|MCI_MEMORY_DATA_BYTE0)<<10);
+	setITVCReg(dev, ITVC_READ_DIR, temp);
+	getITVCReg(dev, ITVC_READ_DIR, &temp);
+	return_value |= ((temp&0x03FC0000)>>18);
+	setITVCReg(dev, ITVC_READ_DIR, (0x87<<10));
 
 	*value  = return_value;
-    return ret;
+	return ret;
 }
 
 void mc417_gpio_set(struct cx231xx *dev, u32 mask)
@@ -884,74 +880,73 @@ void mciWriteMemoryToGPIO(struct cx231xx *dev, u32 address, u32 value,
 	u32 temp = 0;
 	int i = 0;
 
-    temp = 0x82|MCI_MEMORY_DATA_BYTE0|((value&0x000000FF)<<8);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    /*write data byte 1;*/
-    temp = 0x82|MCI_MEMORY_DATA_BYTE1|(value&0x0000FF00);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    /*write data byte 2;*/
-    temp = 0x82|MCI_MEMORY_DATA_BYTE2|((value&0x00FF0000)>>8);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    /*write data byte 3;*/
-    temp = 0x82|MCI_MEMORY_DATA_BYTE3|((value&0xFF000000)>>16);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    /* write address byte 2;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE2 | MCI_MODE_MEMORY_WRITE |
-	((address & 0x003F0000)>>8);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    /* write address byte 1;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE1 | (address & 0xFF00);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    /* write address byte 0;*/
-    temp = 0x82|MCI_MEMORY_ADDRESS_BYTE0|((address & 0x00FF)<<8);
-    temp = temp<<10;
-    *p_fw_image = temp;
-    p_fw_image++;
-    temp = temp|((0x05)<<10);
-    *p_fw_image = temp;
-    p_fw_image++;
-
-    for (i = 0; i < 6; i++) {
-	*p_fw_image = 0xFFFFFFFF;
+	temp = 0x82|MCI_MEMORY_DATA_BYTE0|((value&0x000000FF)<<8);
+	temp = temp<<10;
+	*p_fw_image = temp;
 	p_fw_image++;
-	}
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
 
+	/*write data byte 1;*/
+	temp = 0x82|MCI_MEMORY_DATA_BYTE1|(value&0x0000FF00);
+	temp = temp<<10;
+	*p_fw_image = temp;
+	p_fw_image++;
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
+
+	/*write data byte 2;*/
+	temp = 0x82|MCI_MEMORY_DATA_BYTE2|((value&0x00FF0000)>>8);
+	temp = temp<<10;
+	*p_fw_image = temp;
+	p_fw_image++;
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
+
+	/*write data byte 3;*/
+	temp = 0x82|MCI_MEMORY_DATA_BYTE3|((value&0xFF000000)>>16);
+	temp = temp<<10;
+	*p_fw_image = temp;
+	p_fw_image++;
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
+
+	/* write address byte 2;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE2 | MCI_MODE_MEMORY_WRITE |
+		((address & 0x003F0000)>>8);
+	temp = temp<<10;
+	*p_fw_image = temp;
+	p_fw_image++;
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
+
+	/* write address byte 1;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE1 | (address & 0xFF00);
+	temp = temp<<10;
+	*p_fw_image = temp;
+	p_fw_image++;
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
+
+	/* write address byte 0;*/
+	temp = 0x82|MCI_MEMORY_ADDRESS_BYTE0|((address & 0x00FF)<<8);
+	temp = temp<<10;
+	*p_fw_image = temp;
+	p_fw_image++;
+	temp = temp|((0x05)<<10);
+	*p_fw_image = temp;
+	p_fw_image++;
+
+	for (i = 0; i < 6; i++) {
+		*p_fw_image = 0xFFFFFFFF;
+		p_fw_image++;
+	}
 }
 
 
@@ -1055,7 +1050,7 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 		p_fw_data += 1;
 	}
 
-/*download the firmware by ep5-out*/
+	/*download the firmware by ep5-out*/
 
 	for (frame = 0; frame < (int)(CX231xx_FIRM_IMAGE_SIZE*20/_buffer_size);
 		frame++) {
@@ -2112,7 +2107,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_enumaudio	 = vidioc_enumaudio,
-	.vidioc_g_audio 	 = vidioc_g_audio,
+	.vidioc_g_audio		 = vidioc_g_audio,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
 	.vidioc_g_tuner		 = vidioc_g_tuner,

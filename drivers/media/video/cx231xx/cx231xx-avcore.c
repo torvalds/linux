@@ -55,7 +55,7 @@
 *******************************************************************************/
 /******************************************************************************
  *                    VERVE REGISTER                                          *
-	* 								      *
+ *									      *
  ******************************************************************************/
 static int verve_write_byte(struct cx231xx *dev, u8 saddr, u8 data)
 {
@@ -936,11 +936,11 @@ void cx231xx_enable656(struct cx231xx *dev)
 {
 	u8 temp = 0;
 	int status;
-    /*enable TS1 data[0:7] as output to export 656*/
+	/*enable TS1 data[0:7] as output to export 656*/
 
 	status = vid_blk_write_byte(dev, TS1_PIN_CTL0, 0xFF);
 
-    /*enable TS1 clock as output to export 656*/
+	/*enable TS1 clock as output to export 656*/
 
 	status = vid_blk_read_byte(dev, TS1_PIN_CTL1, &temp);
 	temp = temp|0x04;
@@ -1344,13 +1344,13 @@ void cx231xx_dump_HH_reg(struct cx231xx *dev)
 		i = i+3;
 	}
 
-   status = vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
-   cx231xx_info("AFE_CTRL_C2HH_SRC_CTRL=0x%x\n", value);
-   vid_blk_write_word(dev, AFE_CTRL_C2HH_SRC_CTRL, 0x4485D390);
-   status = vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
-   cx231xx_info("AFE_CTRL_C2HH_SRC_CTRL=0x%x\n", value);
-
+	status = vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
+	cx231xx_info("AFE_CTRL_C2HH_SRC_CTRL=0x%x\n", value);
+	vid_blk_write_word(dev, AFE_CTRL_C2HH_SRC_CTRL, 0x4485D390);
+	status = vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
+	cx231xx_info("AFE_CTRL_C2HH_SRC_CTRL=0x%x\n", value);
 }
+
 void cx231xx_dump_SC_reg(struct cx231xx *dev)
 {
 	u8 value[4] = { 0, 0, 0, 0 };
@@ -1455,12 +1455,12 @@ void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev)
 
 
 /*
-     config colibri to lo-if mode
+	config colibri to lo-if mode
 
-     FIXME: ntf_mode = 2'b00 by default. But set 0x1 would reduce
-	 the diff IF input by half,
+	FIXME: ntf_mode = 2'b00 by default. But set 0x1 would reduce
+		the diff IF input by half,
 
-	    for low-if agc defect
+		for low-if agc defect
 */
 
 	status = afe_read_byte(dev, ADC_NTF_PRECLMP_EN_CH3, &value);
@@ -1535,10 +1535,9 @@ void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 
 u32 cx231xx_Get_Colibri_CarrierOffset(u32 mode, u32 standerd)
 {
-    u32 colibri_carrier_offset = 0;
+	u32 colibri_carrier_offset = 0;
 
-
-    if (mode == TUNER_MODE_FM_RADIO) {
+	if (mode == TUNER_MODE_FM_RADIO) {
 		colibri_carrier_offset = 1100000;
 	} else if (standerd & (V4L2_STD_NTSC | V4L2_STD_NTSC_M_JP)) {
 		colibri_carrier_offset = 4832000;  /*4.83MHz	*/
@@ -1549,74 +1548,70 @@ u32 cx231xx_Get_Colibri_CarrierOffset(u32 mode, u32 standerd)
 		colibri_carrier_offset = 2100000;  /*2.10MHz	*/
 	}
 
-
-    return colibri_carrier_offset;
+	return colibri_carrier_offset;
 }
 
 void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 		 u8 spectral_invert, u32 mode)
 {
-
-    unsigned long pll_freq_word;
-    int status = 0;
-    u32 dif_misc_ctrl_value = 0;
-    u64 pll_freq_u64 = 0;
-    u32 i = 0;
-
+	unsigned long pll_freq_word;
+	int status = 0;
+	u32 dif_misc_ctrl_value = 0;
+	u64 pll_freq_u64 = 0;
+	u32 i = 0;
 
 	cx231xx_info("if_freq=%d;spectral_invert=0x%x;mode=0x%x\n",
 			 if_freq, spectral_invert, mode);
 
 
-    if (mode == TUNER_MODE_FM_RADIO) {
-	pll_freq_word = 0x905A1CAC;
-	status = vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
+	if (mode == TUNER_MODE_FM_RADIO) {
+		pll_freq_word = 0x905A1CAC;
+		status = vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
-    } else /*KSPROPERTY_TUNER_MODE_TV*/{
-       /* Calculate the PLL frequency word based on the adjusted if_freq*/
-	pll_freq_word = if_freq;
-	pll_freq_u64 = (u64)pll_freq_word << 28L;
-	do_div(pll_freq_u64, 50000000);
-	pll_freq_word = (u32)pll_freq_u64;
-	/*pll_freq_word = 0x3463497;*/
-	status = vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
+	} else /*KSPROPERTY_TUNER_MODE_TV*/{
+		/* Calculate the PLL frequency word based on the adjusted if_freq*/
+		pll_freq_word = if_freq;
+		pll_freq_u64 = (u64)pll_freq_word << 28L;
+		do_div(pll_freq_u64, 50000000);
+		pll_freq_word = (u32)pll_freq_u64;
+		/*pll_freq_word = 0x3463497;*/
+		status = vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
-    if (spectral_invert) {
-	if_freq -= 400000;
-	/* Enable Spectral Invert*/
-	status = vid_blk_read_word(dev, DIF_MISC_CTRL,
-				 &dif_misc_ctrl_value);
-	dif_misc_ctrl_value = dif_misc_ctrl_value | 0x00200000;
-	status = vid_blk_write_word(dev, DIF_MISC_CTRL,
-				 dif_misc_ctrl_value);
-    } else {
-	if_freq += 400000;
-	/* Disable Spectral Invert*/
-	status = vid_blk_read_word(dev, DIF_MISC_CTRL,
-				 &dif_misc_ctrl_value);
-	dif_misc_ctrl_value = dif_misc_ctrl_value & 0xFFDFFFFF;
-	status = vid_blk_write_word(dev, DIF_MISC_CTRL,
-				 dif_misc_ctrl_value);
-    }
+	if (spectral_invert) {
+		if_freq -= 400000;
+		/* Enable Spectral Invert*/
+		status = vid_blk_read_word(dev, DIF_MISC_CTRL,
+					&dif_misc_ctrl_value);
+		dif_misc_ctrl_value = dif_misc_ctrl_value | 0x00200000;
+		status = vid_blk_write_word(dev, DIF_MISC_CTRL,
+					dif_misc_ctrl_value);
+	} else {
+		if_freq += 400000;
+		/* Disable Spectral Invert*/
+		status = vid_blk_read_word(dev, DIF_MISC_CTRL,
+					&dif_misc_ctrl_value);
+		dif_misc_ctrl_value = dif_misc_ctrl_value & 0xFFDFFFFF;
+		status = vid_blk_write_word(dev, DIF_MISC_CTRL,
+					dif_misc_ctrl_value);
+	}
 
 	if_freq = (if_freq/100000)*100000;
 
-    if (if_freq < 3000000)
-	if_freq = 3000000;
+	if (if_freq < 3000000)
+		if_freq = 3000000;
 
-    if (if_freq > 16000000)
-	if_freq = 16000000;
-    }
-
-    cx231xx_info("Enter IF=%zd\n",
-		 sizeof(Dif_set_array)/sizeof(struct dif_settings));
-    for (i = 0; i < sizeof(Dif_set_array)/sizeof(struct dif_settings); i++) {
-	if (Dif_set_array[i].if_freq == if_freq) {
-		status = vid_blk_write_word(dev,
-		 Dif_set_array[i].register_address, Dif_set_array[i].value);
+	if (if_freq > 16000000)
+		if_freq = 16000000;
 	}
-    }
 
+	cx231xx_info("Enter IF=%zd\n",
+			sizeof(Dif_set_array)/sizeof(struct dif_settings));
+	for (i = 0; i < sizeof(Dif_set_array)/sizeof(struct dif_settings); i++) {
+		if (Dif_set_array[i].if_freq == if_freq) {
+			status = vid_blk_write_word(dev,
+			Dif_set_array[i].register_address, Dif_set_array[i].value);
+		}
+	}
 }
 
 /******************************************************************************
@@ -2122,8 +2117,8 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 {
 	int status = 0;
 	u32 dwval;
-   cx231xx_info("cx231xx_tuner_post_channel_change  dev->tuner_type =0%d\n",
-			 dev->tuner_type);
+	cx231xx_info("cx231xx_tuner_post_channel_change  dev->tuner_type =0%d\n",
+		     dev->tuner_type);
 	/* Set the RF and IF k_agc values to 4 for PAL/NTSC and 8 for
 	 * SECAM L/B/D standards */
 	status = vid_blk_read_word(dev, DIF_AGC_IF_REF, &dwval);
