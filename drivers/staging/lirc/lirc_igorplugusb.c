@@ -390,7 +390,7 @@ static int usb_remote_probe(struct usb_interface *intf,
 	devnum = dev->devnum;
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
-	dprintk(DRIVER_NAME "[%d]: bytes_in_key=%lu maxp=%d\n",
+	dprintk(DRIVER_NAME "[%d]: bytes_in_key=%zu maxp=%d\n",
 		devnum, CODE_LENGTH, maxp);
 
 
