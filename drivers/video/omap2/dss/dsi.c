@@ -960,6 +960,7 @@ static inline void dsi_enable_pll_clock(bool enable)
 static void _dsi_print_reset_status(void)
 {
 	u32 l;
+	int b0, b1, b2;
 
 	if (!dss_debug)
 		return;
@@ -977,9 +978,21 @@ static void _dsi_print_reset_status(void)
 	l = dsi_read_reg(DSI_COMPLEXIO_CFG1);
 	printk("CIO (%d) ", FLD_GET(l, 29, 29));
 
+	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC)) {
+		b0 = 28;
+		b1 = 27;
+		b2 = 26;
+	} else {
+		b0 = 24;
+		b1 = 25;
+		b2 = 26;
+	}
+
 	l = dsi_read_reg(DSI_DSIPHY_CFG5);
-	printk("PHY (%x, %d, %d, %d)\n",
-			FLD_GET(l, 28, 26),
+	printk("PHY (%x%x%x, %d, %d, %d)\n",
+			FLD_GET(l, b0, b0),
+			FLD_GET(l, b1, b1),
+			FLD_GET(l, b2, b2),
 			FLD_GET(l, 29, 29),
 			FLD_GET(l, 30, 30),
 			FLD_GET(l, 31, 31));
