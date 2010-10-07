@@ -71,7 +71,7 @@ int memcpy_real(void *dest, void *src, size_t count)
 
 	if (!count)
 		return 0;
-	flags = __raw_local_irq_stnsm(0xf8UL);
+	flags = __arch_local_irq_stnsm(0xf8UL);
 	asm volatile (
 		"0:	mvcle	%1,%2,0x0\n"
 		"1:	jo	0b\n"
@@ -82,6 +82,6 @@ int memcpy_real(void *dest, void *src, size_t count)
 		  "+d" (_len2), "=m" (*((long *) dest))
 		: "m" (*((long *) src))
 		: "cc", "memory");
-	__raw_local_irq_ssm(flags);
+	arch_local_irq_restore(flags);
 	return rc;
 }

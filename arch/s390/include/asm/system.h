@@ -399,7 +399,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 static inline void
 __set_psw_mask(unsigned long mask)
 {
-	__load_psw_mask(mask | (__raw_local_irq_stosm(0x00) & ~(-1UL >> 8)));
+	__load_psw_mask(mask | (arch_local_save_flags() & ~(-1UL >> 8)));
 }
 
 #define local_mcck_enable()  __set_psw_mask(psw_kernel_bits)

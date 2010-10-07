@@ -15,6 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/err.h>
 #include <linux/fs.h>
+#include <linux/irq.h>
 #include <asm/dma.h>
 #include <asm/trace.h>
 #include <asm/fixed_code.h>

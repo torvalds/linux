@@ -28,7 +28,7 @@
  *			M68K		  COLDFIRE
  */
 
-#define ALLOWINT 0xf8ff
+#define ALLOWINT (~0x700)
 
 #ifdef __ASSEMBLY__
 

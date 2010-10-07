@@ -50,7 +50,6 @@ EXPORT_SYMBOL(empty_zero_page);
  */
 void __init paging_init(void)
 {
-	static const int ssm_mask = 0x04000000L;
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long pgd_type;
 
@@ -72,7 +71,7 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	__raw_local_irq_ssm(ssm_mask);
+	arch_local_irq_restore(4UL << (BITS_PER_LONG - 8));
 
 	atomic_set(&init_mm.context.attach_count, 1);
 

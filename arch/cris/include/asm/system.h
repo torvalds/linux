@@ -1,6 +1,7 @@
 #ifndef __ASM_CRIS_SYSTEM_H
 #define __ASM_CRIS_SYSTEM_H
 
+#include <linux/irqflags.h>
 #include <arch/system.h>
 
 /* the switch_to macro calls resume, an asm function in entry.S which does the actual

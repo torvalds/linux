@@ -218,16 +218,4 @@ static inline void hard_local_irq_restore(unsigned long flags)
 
 
 #endif /* !CONFIG_IPIPE */
-
-/*
- * Raw interface to linux/irqflags.h.
- */
-#define raw_local_save_flags(flags)	do { (flags) = arch_local_save_flags(); } while (0)
-#define raw_local_irq_save(flags)	do { (flags) = arch_local_irq_save(); } while (0)
-#define raw_local_irq_restore(flags)	arch_local_irq_restore(flags)
-#define raw_local_irq_enable()		arch_local_irq_enable()
-#define raw_local_irq_disable()		arch_local_irq_disable()
-#define raw_irqs_disabled_flags(flags)	arch_irqs_disabled_flags(flags)
-#define raw_irqs_disabled()		arch_irqs_disabled()
-
 #endif

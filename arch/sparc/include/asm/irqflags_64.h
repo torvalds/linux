@@ -5,7 +5,7 @@
  *
  * This file gets included from lowlevel asm headers too, to provide
  * wrapped versions of the local_irq_*() APIs, based on the
- * raw_local_irq_*() functions from the lowlevel headers.
+ * arch_local_irq_*() functions from the lowlevel headers.
  */
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
@@ -14,7 +14,7 @@
 
 #ifndef __ASSEMBLY__
 
-static inline unsigned long __raw_local_save_flags(void)
+static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
 
@@ -26,10 +26,7 @@ static inline unsigned long __raw_local_save_flags(void)
 	return flags;
 }
 
-#define raw_local_save_flags(flags) \
-		do { (flags) = __raw_local_save_flags(); } while (0)
-
-static inline void raw_local_irq_restore(unsigned long flags)
+static inline void arch_local_irq_restore(unsigned long flags)
 {
 	__asm__ __volatile__(
 		"wrpr	%0, %%pil"
@@ -39,7 +36,7 @@ static inline void raw_local_irq_restore(unsigned long flags)
 	);
 }
 
-static inline void raw_local_irq_disable(void)
+static inline void arch_local_irq_disable(void)
 {
 	__asm__ __volatile__(
 		"wrpr	%0, %%pil"
@@ -49,7 +46,7 @@ static inline void raw_local_irq_disable(void)
 	);
 }
 
-static inline void raw_local_irq_enable(void)
+static inline void arch_local_irq_enable(void)
 {
 	__asm__ __volatile__(
 		"wrpr	0, %%pil"
@@ -59,22 +56,17 @@ static inline void raw_local_irq_enable(void)
 	);
 }
 
-static inline int raw_irqs_disabled_flags(unsigned long flags)
+static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return (flags > 0);
 }
 
-static inline int raw_irqs_disabled(void)
+static inline int arch_irqs_disabled(void)
 {
-	unsigned long flags = __raw_local_save_flags();
-
-	return raw_irqs_disabled_flags(flags);
+	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-/*
- * For spinlocks, etc:
- */
-static inline unsigned long __raw_local_irq_save(void)
+static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags, tmp;
 
@@ -99,9 +91,6 @@ static inline unsigned long __raw_local_irq_save(void)
 
 	return flags;
 }
-
-#define raw_local_irq_save(flags) \
-		do { (flags) = __raw_local_irq_save(); } while (0)
 
 #endif /* (__ASSEMBLY__) */
 
