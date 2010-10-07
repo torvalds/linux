@@ -1359,7 +1359,7 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 #ifdef LINUXSTA_PS
-static int wl_suspend(struct pci_dev *pdev, DRV_SUSPEND_STATE_TYPE state)
+static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	wl_info_t *wl;
 	struct ieee80211_hw *hw;

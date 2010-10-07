@@ -39,9 +39,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 
-/* suspend args */
-#define DRV_SUSPEND_STATE_TYPE pm_message_t
-
 #define CHECKSUM_HW	CHECKSUM_PARTIAL
 
 #include <linux/time.h>
