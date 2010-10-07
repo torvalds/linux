@@ -3850,7 +3850,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			}
 			dpll |= DPLL_DVO_HIGH_SPEED;
 		}
-		if (is_dp)
+		if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
 			dpll |= DPLL_DVO_HIGH_SPEED;
 
 		/* compute bitmask from p1 value */
