@@ -212,6 +212,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 extern bool intel_pch_has_edp(struct drm_crtc *crtc);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
+extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,

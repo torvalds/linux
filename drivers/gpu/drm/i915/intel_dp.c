@@ -95,6 +95,25 @@ static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 			    struct intel_dp, base);
 }
 
+/**
+ * intel_encoder_is_pch_edp - is the given encoder a PCH attached eDP?
+ * @encoder: DRM encoder
+ *
+ * Return true if @encoder corresponds to a PCH attached eDP panel.  Needed
+ * by intel_display.c.
+ */
+bool intel_encoder_is_pch_edp(struct drm_encoder *encoder)
+{
+	struct intel_dp *intel_dp;
+
+	if (!encoder)
+		return false;
+
+	intel_dp = enc_to_intel_dp(encoder);
+
+	return is_pch_edp(intel_dp);
+}
+
 static void intel_dp_start_link_train(struct intel_dp *intel_dp);
 static void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 static void intel_dp_link_down(struct intel_dp *intel_dp);
