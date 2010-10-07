@@ -32,7 +32,7 @@ struct tm6000_std_tv_settings {
 	v4l2_std_id id;
 	struct tm6000_reg_settings sif[12];
 	struct tm6000_reg_settings nosif[12];
-	struct tm6000_reg_settings common[25];
+	struct tm6000_reg_settings common[26];
 };
 
 struct tm6000_std_settings {
