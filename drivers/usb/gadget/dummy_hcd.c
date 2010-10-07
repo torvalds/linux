@@ -874,6 +874,8 @@ static int dummy_udc_probe (struct platform_device *pdev)
 	struct dummy	*dum = the_controller;
 	int		rc;
 
+	usb_get_hcd(dummy_to_hcd(dum));
+
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
 	dum->gadget.is_dualspeed = 1;
@@ -885,10 +887,10 @@ static int dummy_udc_probe (struct platform_device *pdev)
 	dum->gadget.dev.parent = &pdev->dev;
 	dum->gadget.dev.release = dummy_gadget_release;
 	rc = device_register (&dum->gadget.dev);
-	if (rc < 0)
+	if (rc < 0) {
+		put_device(&dum->gadget.dev);
 		return rc;
-
-	usb_get_hcd (dummy_to_hcd (dum));
+	}
 
 	platform_set_drvdata (pdev, dum);
 	rc = device_create_file (&dum->gadget.dev, &dev_attr_function);
