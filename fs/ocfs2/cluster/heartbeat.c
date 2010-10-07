@@ -174,6 +174,9 @@ struct o2hb_region {
 	struct block_device	*hr_bdev;
 	struct o2hb_disk_slot	*hr_slots;
 
+	/* live node map of this region */
+	unsigned long		hr_live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+
 	/* let the person setting up hb wait for it to return until it
 	 * has reached a 'steady' state.  This will be fixed when we have
 	 * a more complete api that doesn't lead to this sort of fragility. */
@@ -688,6 +691,8 @@ fire_callbacks:
 		mlog(ML_HEARTBEAT, "Node %d (id 0x%llx) joined my region\n",
 		     slot->ds_node_num, (long long)slot->ds_last_generation);
 
+		set_bit(slot->ds_node_num, reg->hr_live_node_bitmap);
+
 		/* first on the list generates a callback */
 		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {
 			set_bit(slot->ds_node_num, o2hb_live_node_bitmap);
@@ -732,6 +737,8 @@ fire_callbacks:
 	if (slot->ds_equal_samples >= o2hb_dead_threshold || gen_changed) {
 		mlog(ML_HEARTBEAT, "Node %d left my region\n",
 		     slot->ds_node_num);
+
+		clear_bit(slot->ds_node_num, reg->hr_live_node_bitmap);
 
 		/* last off the live_slot generates a callback */
 		list_del_init(&slot->ds_live_item);
