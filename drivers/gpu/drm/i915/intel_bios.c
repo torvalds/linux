@@ -24,6 +24,7 @@
  *    Eric Anholt <eric@anholt.net>
  *
  */
+#include <drm/drm_dp_helper.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -413,6 +414,8 @@ static void
 parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	struct bdb_edp *edp;
+	struct edp_power_seq *edp_pps;
+	struct edp_link_params *edp_link_params;
 
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
@@ -437,19 +440,54 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 		break;
 	}
 
-	dev_priv->edp.rate = edp->link_params[panel_type].rate;
-	dev_priv->edp.lanes = edp->link_params[panel_type].lanes;
-	dev_priv->edp.preemphasis = edp->link_params[panel_type].preemphasis;
-	dev_priv->edp.vswing = edp->link_params[panel_type].vswing;
+	/* Get the eDP sequencing and link info */
+	edp_pps = &edp->power_seqs[panel_type];
+	edp_link_params = &edp->link_params[panel_type];
 
-	DRM_DEBUG_KMS("eDP vBIOS settings: bpp=%d, rate=%d, lanes=%d, preemphasis=%d, vswing=%d\n",
-		      dev_priv->edp.bpp,
-		      dev_priv->edp.rate,
-		      dev_priv->edp.lanes,
-		      dev_priv->edp.preemphasis,
-		      dev_priv->edp.vswing);
+	dev_priv->edp.pps = *edp_pps;
 
-	dev_priv->edp.initialized = true;
+	dev_priv->edp.rate = edp_link_params->rate ? DP_LINK_BW_2_7 :
+		DP_LINK_BW_1_62;
+	switch (edp_link_params->lanes) {
+	case 0:
+		dev_priv->edp.lanes = 1;
+		break;
+	case 1:
+		dev_priv->edp.lanes = 2;
+		break;
+	case 3:
+	default:
+		dev_priv->edp.lanes = 4;
+		break;
+	}
+	switch (edp_link_params->preemphasis) {
+	case 0:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_0;
+		break;
+	case 1:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_3_5;
+		break;
+	case 2:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_6;
+		break;
+	case 3:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_9_5;
+		break;
+	}
+	switch (edp_link_params->vswing) {
+	case 0:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_400;
+		break;
+	case 1:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_600;
+		break;
+	case 2:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_800;
+		break;
+	case 3:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_1200;
+		break;
+	}
 }
 
 static void
