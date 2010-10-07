@@ -522,6 +522,12 @@ int w_make_resync_request(struct drbd_conf *mdev,
 		dev_err(DEV, "%s in w_make_resync_request\n",
 			drbd_conn_str(mdev->state.conn));
 
+	if (mdev->rs_total == 0) {
+		/* empty resync? */
+		drbd_resync_finished(mdev);
+		return 1;
+	}
+
 	if (!get_ldev(mdev)) {
 		/* Since we only need to access mdev->rsync a
 		   get_ldev_if_state(mdev,D_FAILED) would be sufficient, but
@@ -768,6 +774,14 @@ static int w_resync_finished(struct drbd_conf *mdev, struct drbd_work *w, int ca
 	return 1;
 }
 
+static void ping_peer(struct drbd_conf *mdev)
+{
+	clear_bit(GOT_PING_ACK, &mdev->flags);
+	request_ping(mdev);
+	wait_event(mdev->misc_wait,
+		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
+}
+
 int drbd_resync_finished(struct drbd_conf *mdev)
 {
 	unsigned long db, dt, dbdt;
@@ -806,6 +820,8 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 
 	if (!get_ldev(mdev))
 		goto out;
+
+	ping_peer(mdev);
 
 	spin_lock_irq(&mdev->req_lock);
 	os = mdev->state;
@@ -1420,14 +1436,6 @@ int drbd_alter_sa(struct drbd_conf *mdev, int na)
 	return retcode;
 }
 
-static void ping_peer(struct drbd_conf *mdev)
-{
-	clear_bit(GOT_PING_ACK, &mdev->flags);
-	request_ping(mdev);
-	wait_event(mdev->misc_wait,
-		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
-}
-
 /**
  * drbd_start_resync() - Start the resync process
  * @mdev:	DRBD device.
@@ -1527,9 +1535,21 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		     (unsigned long) mdev->rs_total << (BM_BLOCK_SHIFT-10),
 		     (unsigned long) mdev->rs_total);
 
-		if (mdev->rs_total == 0) {
-			/* Peer still reachable? Beware of failing before-resync-target handlers! */
-			ping_peer(mdev);
+		if (mdev->agreed_pro_version < 95 && mdev->rs_total == 0) {
+			/* This still has a race (about when exactly the peers
+			 * detect connection loss) that can lead to a full sync
+			 * on next handshake. In 8.3.9 we fixed this with explicit
+			 * resync-finished notifications, but the fix
+			 * introduces a protocol change.  Sleeping for some
+			 * time longer than the ping interval + timeout on the
+			 * SyncSource, to give the SyncTarget the chance to
+			 * detect connection loss, then waiting for a ping
+			 * response (implicit in drbd_resync_finished) reduces
+			 * the race considerably, but does not solve it. */
+			if (side == C_SYNC_SOURCE)
+				schedule_timeout_interruptible(
+					mdev->net_conf->ping_int * HZ +
+					mdev->net_conf->ping_timeo*HZ/9);
 			drbd_resync_finished(mdev);
 		}
 

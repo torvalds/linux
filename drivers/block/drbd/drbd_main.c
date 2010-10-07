@@ -1426,6 +1426,11 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	    (os.user_isp && !ns.user_isp))
 		resume_next_sg(mdev);
 
+	/* sync target done with resync.  Explicitly notify peer, even though
+	 * it should (at least for non-empty resyncs) already know itself. */
+	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
+		drbd_send_state(mdev);
+
 	/* free tl_hash if we Got thawed and are C_STANDALONE */
 	if (ns.conn == C_STANDALONE && !is_susp(ns) && mdev->tl_hash)
 		drbd_free_tl_hash(mdev);
