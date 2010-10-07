@@ -319,7 +319,7 @@ static void ir_timer_keyup(unsigned long cookie)
 	 * a keyup event might follow immediately after the keydown.
 	 */
 	spin_lock_irqsave(&ir->keylock, flags);
-	if (time_is_after_eq_jiffies(ir->keyup_jiffies))
+	if (time_is_before_eq_jiffies(ir->keyup_jiffies))
 		ir_keyup(ir);
 	spin_unlock_irqrestore(&ir->keylock, flags);
 }
@@ -509,6 +509,13 @@ int __ir_input_register(struct input_dev *input_dev,
 		   driver_name, rc_tab->name,
 		   (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_IR_RAW) ?
 			" in raw mode" : "");
+
+	/*
+	 * Default delay of 250ms is too short for some protocols, expecially
+	 * since the timeout is currently set to 250ms. Increase it to 500ms,
+	 * to avoid wrong repetition of the keycodes.
+	 */
+	input_dev->rep[REP_DELAY] = 500;
 
 	return 0;
 

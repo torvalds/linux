@@ -2357,8 +2357,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    (data[33] << 10);
 		avg_lum >>= 9;
 		atomic_set(&sd->avg_lum, avg_lum);
-		gspca_frame_add(gspca_dev, LAST_PACKET,
-				data, len);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		return;
 	}
 	if (gspca_dev->last_packet_type == LAST_PACKET) {

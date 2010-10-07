@@ -378,6 +378,9 @@ static void mx25_camera_frame_done(struct mx2_camera_dev *pcdev, int fb,
 
 	spin_lock_irqsave(&pcdev->lock, flags);
 
+	if (*fb_active == NULL)
+		goto out;
+
 	vb = &(*fb_active)->vb;
 	dev_dbg(pcdev->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
@@ -402,6 +405,7 @@ static void mx25_camera_frame_done(struct mx2_camera_dev *pcdev, int fb,
 
 	*fb_active = buf;
 
+out:
 	spin_unlock_irqrestore(&pcdev->lock, flags);
 }
 
