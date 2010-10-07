@@ -171,6 +171,10 @@ enum {
 	MLX4_NUM_FEXCH          = 64 * 1024,
 };
 
+enum {
+	MLX4_MAX_FAST_REG_PAGES = 511,
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;
