@@ -1727,6 +1727,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			memcpy(ctx->staging.bssid_addr,
 			       bss_conf->bssid, ETH_ALEN);
 			memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
+			iwl_led_associate(priv);
 			iwlcore_config_ap(priv, vif);
 		} else
 			iwl_set_no_assoc(priv, vif);
