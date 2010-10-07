@@ -105,7 +105,7 @@ static ssize_t iio_ring_rip_outer(struct file *filp, char __user *buf,
 		return -EINVAL;
 	copied = rb->access.rip_lots(rb, count, &data, &dead_offset);
 
-	if (copied < 0) {
+	if (copied <= 0) {
 		ret = copied;
 		goto error_ret;
 	}
