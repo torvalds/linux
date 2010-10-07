@@ -839,8 +839,11 @@ qla4_8xxx_rom_lock(struct scsi_qla_host *ha)
 		done = qla4_8xxx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= qla4_8xxx_rom_lock_timeout)
+		if (timeout >= qla4_8xxx_rom_lock_timeout) {
+			ql4_printk(KERN_WARNING, ha,
+			    "%s: Failed to acquire rom lock", __func__);
 			return -1;
+		}
 
 		timeout++;
 
@@ -1550,6 +1553,21 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 	return rval;
 }
 
+static void qla4_8xxx_rom_lock_recovery(struct scsi_qla_host *ha)
+{
+	if (qla4_8xxx_rom_lock(ha)) {
+		/* Someone else is holding the lock. */
+		dev_info(&ha->pdev->dev, "Resetting rom_lock\n");
+	}
+
+	/*
+	 * Either we got the lock, or someone
+	 * else died while holding it.
+	 * In either case, unlock.
+	 */
+	qla4_8xxx_rom_unlock(ha);
+}
+
 /**
  * qla4_8xxx_device_bootstrap - Initialize device, set DEV_READY, start fw
  * @ha: pointer to adapter structure
@@ -1559,11 +1577,12 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 static int
 qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
-	int rval, i, timeout;
+	int rval = QLA_ERROR;
+	int i, timeout;
 	uint32_t old_count, count;
+	int need_reset = 0, peg_stuck = 1;
 
-	if (qla4_8xxx_need_reset(ha))
-		goto dev_initialize;
+	need_reset = qla4_8xxx_need_reset(ha);
 
 	old_count = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 
@@ -1572,12 +1591,30 @@ qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 		if (timeout) {
 			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			   QLA82XX_DEV_FAILED);
-			return QLA_ERROR;
+			return rval;
 		}
 
 		count = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 		if (count != old_count)
+			peg_stuck = 0;
+	}
+
+	if (need_reset) {
+		/* We are trying to perform a recovery here. */
+		if (peg_stuck)
+			qla4_8xxx_rom_lock_recovery(ha);
+		goto dev_initialize;
+	} else  {
+		/* Start of day for this ha context. */
+		if (peg_stuck) {
+			/* Either we are the first or recovery in progress. */
+			qla4_8xxx_rom_lock_recovery(ha);
+			goto dev_initialize;
+		} else {
+			/* Firmware already running. */
+			rval = QLA_SUCCESS;
 			goto dev_ready;
+		}
 	}
 
 dev_initialize:
@@ -1603,7 +1640,7 @@ dev_ready:
 	ql4_printk(KERN_INFO, ha, "HW State: READY\n");
 	qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_READY);
 
-	return QLA_SUCCESS;
+	return rval;
 }
 
 /**
