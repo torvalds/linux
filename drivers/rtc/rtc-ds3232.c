@@ -268,7 +268,6 @@ out_irq:
 		free_irq(client->irq, client);
 
 out_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(ds3232);
 	return ret;
 }
@@ -287,7 +286,6 @@ static int __devexit ds3232_remove(struct i2c_client *client)
 	}
 
 	rtc_device_unregister(ds3232->rtc);
-	i2c_set_clientdata(client, NULL);
 	kfree(ds3232);
 	return 0;
 }
