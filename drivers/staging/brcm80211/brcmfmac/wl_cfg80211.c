@@ -1334,7 +1334,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		WL_DBG(("channel (%d), center_req (%d)\n", wl->channel,
 			chan->center_freq));
 	}
-	WL_DBG(("ie (%p), ie_len (%d)\n", sme->ie, sme->ie_len));
+	WL_DBG(("ie (%p), ie_len (%zd)\n", sme->ie, sme->ie_len));
 	err = wl_set_wpa_version(dev, sme);
 	if (unlikely(err))
 		return err;
@@ -4031,7 +4031,7 @@ void *wl_cfg80211_request_fw(s8 *file_name)
 		set_bit(WL_FW_LOADING_DONE, &wl->fw->status);
 		fw_entry = wl->fw->fw_entry;
 		if (fw_entry) {
-			WL_DBG(("fw size (%d), data (%p)\n", fw_entry->size,
+			WL_DBG(("fw size (%zd), data (%p)\n", fw_entry->size,
 				fw_entry->data));
 		}
 	} else if (!test_bit(WL_NVRAM_LOADING_DONE, &wl->fw->status)) {
@@ -4044,7 +4044,7 @@ void *wl_cfg80211_request_fw(s8 *file_name)
 		set_bit(WL_NVRAM_LOADING_DONE, &wl->fw->status);
 		fw_entry = wl->fw->fw_entry;
 		if (fw_entry) {
-			WL_DBG(("nvram size (%d), data (%p)\n", fw_entry->size,
+			WL_DBG(("nvram size (%zd), data (%p)\n", fw_entry->size,
 				fw_entry->data));
 		}
 	} else {
