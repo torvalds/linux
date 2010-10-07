@@ -2006,6 +2006,7 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 	unsigned int id = cmd->device->id;
 	unsigned int lun = cmd->device->lun;
 	unsigned long serial = cmd->serial_number;
+	unsigned long flags;
 	struct srb *srb = NULL;
 	int ret = SUCCESS;
 	int wait = 0;
@@ -2014,12 +2015,14 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 	    "scsi%ld:%d:%d: Abort command issued cmd=%p, pid=%ld\n",
 	    ha->host_no, id, lun, cmd, serial);
 
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	srb = (struct srb *) CMD_SP(cmd);
-
-	if (!srb)
+	if (!srb) {
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return SUCCESS;
-
+	}
 	kref_get(&srb->srb_ref);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (qla4xxx_abort_task(ha, srb) != QLA_SUCCESS) {
 		DEBUG3(printk("scsi%ld:%d:%d: Abort_task mbx failed.\n",
