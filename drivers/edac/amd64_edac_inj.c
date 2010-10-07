@@ -23,9 +23,7 @@ static ssize_t amd64_inject_section_store(struct mem_ctl_info *mci,
 	if (ret != -EINVAL) {
 
 		if (value > 3) {
-			amd64_printk(KERN_WARNING,
-				     "%s: invalid section 0x%lx\n",
-				     __func__, value);
+			amd64_warn("%s: invalid section 0x%lx\n", __func__, value);
 			return -EINVAL;
 		}
 
@@ -58,9 +56,7 @@ static ssize_t amd64_inject_word_store(struct mem_ctl_info *mci,
 	if (ret != -EINVAL) {
 
 		if (value > 8) {
-			amd64_printk(KERN_WARNING,
-				     "%s: invalid word 0x%lx\n",
-				     __func__, value);
+			amd64_warn("%s: invalid word 0x%lx\n", __func__, value);
 			return -EINVAL;
 		}
 
@@ -92,9 +88,8 @@ static ssize_t amd64_inject_ecc_vector_store(struct mem_ctl_info *mci,
 	if (ret != -EINVAL) {
 
 		if (value & 0xFFFF0000) {
-			amd64_printk(KERN_WARNING,
-				     "%s: invalid EccVector: 0x%lx\n",
-				     __func__, value);
+			amd64_warn("%s: invalid EccVector: 0x%lx\n",
+				   __func__, value);
 			return -EINVAL;
 		}
 

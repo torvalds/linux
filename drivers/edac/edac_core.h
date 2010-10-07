@@ -68,9 +68,10 @@
 #define EDAC_PCI "PCI"
 #define EDAC_DEBUG "DEBUG"
 
+extern const char *edac_mem_types[];
+
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
-extern const char *edac_mem_types[];
 
 #define edac_debug_printk(level, fmt, arg...)                           \
 	do {                                                            \

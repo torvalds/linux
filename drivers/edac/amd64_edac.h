@@ -74,11 +74,26 @@
 #include "edac_core.h"
 #include "mce_amd.h"
 
-#define amd64_printk(level, fmt, arg...) \
-	edac_printk(level, "amd64", fmt, ##arg)
+#define amd64_debug(fmt, arg...) \
+	edac_printk(KERN_DEBUG, "amd64", fmt, ##arg)
 
-#define amd64_mc_printk(mci, level, fmt, arg...) \
-	edac_mc_chipset_printk(mci, level, "amd64", fmt, ##arg)
+#define amd64_info(fmt, arg...) \
+	edac_printk(KERN_INFO, "amd64", fmt, ##arg)
+
+#define amd64_notice(fmt, arg...) \
+	edac_printk(KERN_NOTICE, "amd64", fmt, ##arg)
+
+#define amd64_warn(fmt, arg...) \
+	edac_printk(KERN_WARNING, "amd64", fmt, ##arg)
+
+#define amd64_err(fmt, arg...) \
+	edac_printk(KERN_ERR, "amd64", fmt, ##arg)
+
+#define amd64_mc_warn(mci, fmt, arg...) \
+	edac_mc_chipset_printk(mci, KERN_WARNING, "amd64", fmt, ##arg)
+
+#define amd64_mc_err(mci, fmt, arg...) \
+	edac_mc_chipset_printk(mci, KERN_ERR, "amd64", fmt, ##arg)
 
 /*
  * Throughout the comments in this code, the following terms are used:
@@ -129,7 +144,7 @@
  *         sections 3.5.4 and 3.5.5 for more information.
  */
 
-#define EDAC_AMD64_VERSION		" Ver: 3.3.0 " __DATE__
+#define EDAC_AMD64_VERSION		"v3.3.0"
 #define EDAC_MOD_STR			"amd64_edac"
 
 #define EDAC_MAX_NUMNODES		8
@@ -527,8 +542,8 @@ static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
 
 	err = pci_read_config_dword(pdev, offset, val);
 	if (err)
-		amd64_printk(KERN_WARNING, "%s: error reading F%dx%x.\n",
-			     func, PCI_FUNC(pdev->devfn), offset);
+		amd64_warn("%s: error reading F%dx%x.\n",
+			   func, PCI_FUNC(pdev->devfn), offset);
 
 	return err;
 }
