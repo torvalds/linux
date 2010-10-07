@@ -1966,8 +1966,6 @@ static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha)
 
 		if (adapter_up(ha))
 			return QLA_SUCCESS;
-		else if (ha->retry_reset_ha_cnt == 0)
-			return QLA_ERROR;
 
 		msleep(2000);
 	}
