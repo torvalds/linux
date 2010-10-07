@@ -385,6 +385,8 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
 	if (WARN_ON_ONCE(frame_size > MAX_MPDU_SIZE))
 		return 0;
+	if (!frame_size)
+		return 0;
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
