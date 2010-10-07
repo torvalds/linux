@@ -172,7 +172,7 @@ void chn_cb_negotiate(void *context)
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
-	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+	vmbus_recvpacket(channel, buf, buflen, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		icmsghdrp = (struct icmsg_hdr *)&buf[
@@ -183,7 +183,7 @@ void chn_cb_negotiate(void *context)
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
 			| ICMSGHDRFLAG_RESPONSE;
 
-		VmbusChannelSendPacket(channel, buf,
+		vmbus_sendpacket(channel, buf,
 				       recvlen, requestid,
 				       VmbusPacketTypeDataInBand, 0);
 	}
@@ -249,7 +249,7 @@ struct vmbus_channel *AllocVmbusChannel(void)
 
 	init_timer(&channel->poll_timer);
 	channel->poll_timer.data = (unsigned long)channel;
-	channel->poll_timer.function = VmbusChannelOnTimer;
+	channel->poll_timer.function = vmbus_ontimer;
 
 	channel->ControlWQ = create_workqueue("hv_vmbus_ctl");
 	if (!channel->ControlWQ) {
@@ -392,7 +392,7 @@ static void VmbusChannelProcessOffer(void *context)
 			if (memcmp(&newChannel->OfferMsg.Offer.InterfaceType,
 				   &hv_cb_utils[cnt].data,
 				   sizeof(struct hv_guid)) == 0 &&
-				VmbusChannelOpen(newChannel, 2 * PAGE_SIZE,
+				vmbus_open(newChannel, 2 * PAGE_SIZE,
 						 2 * PAGE_SIZE, NULL, 0,
 						 hv_cb_utils[cnt].callback,
 						 newChannel) == 0) {

@@ -31,21 +31,21 @@ static int IVmbusChannelOpen(struct hv_device *device, u32 SendBufferSize,
 			     void (*ChannelCallback)(void *context),
 			     void *Context)
 {
-	return VmbusChannelOpen(device->context, SendBufferSize,
+	return vmbus_open(device->context, SendBufferSize,
 				RecvRingBufferSize, UserData, UserDataLen,
 				ChannelCallback, Context);
 }
 
 static void IVmbusChannelClose(struct hv_device *device)
 {
-	VmbusChannelClose(device->context);
+	vmbus_close(device->context);
 }
 
 static int IVmbusChannelSendPacket(struct hv_device *device, const void *Buffer,
 				   u32 BufferLen, u64 RequestId, u32 Type,
 				   u32 Flags)
 {
-	return VmbusChannelSendPacket(device->context, Buffer, BufferLen,
+	return vmbus_sendpacket(device->context, Buffer, BufferLen,
 				      RequestId, Type, Flags);
 }
 
@@ -54,7 +54,7 @@ static int IVmbusChannelSendPacketPageBuffer(struct hv_device *device,
 				u32 PageCount, void *Buffer,
 				u32 BufferLen, u64 RequestId)
 {
-	return VmbusChannelSendPacketPageBuffer(device->context, PageBuffers,
+	return vmbus_sendpacket_pagebuffer(device->context, PageBuffers,
 						PageCount, Buffer, BufferLen,
 						RequestId);
 }
@@ -63,7 +63,7 @@ static int IVmbusChannelSendPacketMultiPageBuffer(struct hv_device *device,
 				struct hv_multipage_buffer *MultiPageBuffer,
 				void *Buffer, u32 BufferLen, u64 RequestId)
 {
-	return VmbusChannelSendPacketMultiPageBuffer(device->context,
+	return vmbus_sendpacket_multipagebuffer(device->context,
 						     MultiPageBuffer, Buffer,
 						     BufferLen, RequestId);
 }
@@ -72,7 +72,7 @@ static int IVmbusChannelRecvPacket(struct hv_device *device, void *Buffer,
 				   u32 BufferLen, u32 *BufferActualLen,
 				   u64 *RequestId)
 {
-	return VmbusChannelRecvPacket(device->context, Buffer, BufferLen,
+	return vmbus_recvpacket(device->context, Buffer, BufferLen,
 				      BufferActualLen, RequestId);
 }
 
@@ -80,20 +80,20 @@ static int IVmbusChannelRecvPacketRaw(struct hv_device *device, void *Buffer,
 				      u32 BufferLen, u32 *BufferActualLen,
 				      u64 *RequestId)
 {
-	return VmbusChannelRecvPacketRaw(device->context, Buffer, BufferLen,
+	return vmbus_recvpacket_raw(device->context, Buffer, BufferLen,
 					 BufferActualLen, RequestId);
 }
 
 static int IVmbusChannelEstablishGpadl(struct hv_device *device, void *Buffer,
 				       u32 BufferLen, u32 *GpadlHandle)
 {
-	return VmbusChannelEstablishGpadl(device->context, Buffer, BufferLen,
+	return vmbus_establish_gpadl(device->context, Buffer, BufferLen,
 					  GpadlHandle);
 }
 
 static int IVmbusChannelTeardownGpadl(struct hv_device *device, u32 GpadlHandle)
 {
-	return VmbusChannelTeardownGpadl(device->context, GpadlHandle);
+	return vmbus_teardown_gpadl(device->context, GpadlHandle);
 
 }
 
@@ -105,7 +105,7 @@ void GetChannelInfo(struct hv_device *device, struct hv_device_info *info)
 	if (!device->context)
 		return;
 
-	VmbusChannelGetDebugInfo(device->context, &debugInfo);
+	vmbus_get_debug_info(device->context, &debugInfo);
 
 	info->ChannelId = debugInfo.RelId;
 	info->ChannelState = debugInfo.State;

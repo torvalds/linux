@@ -27,13 +27,13 @@
 #include "vmbus_private.h"
 
 /* Internal routines */
-static int VmbusChannelCreateGpadlHeader(
+static int create_gpadl_header(
 	void *kbuffer,	/* must be phys and virt contiguous */
 	u32 size,	/* page-size multiple */
 	struct vmbus_channel_msginfo **msginfo,
 	u32 *messagecount);
-static void DumpVmbusChannel(struct vmbus_channel *channel);
-static void VmbusChannelSetEvent(struct vmbus_channel *channel);
+static void dump_vmbus_channel(struct vmbus_channel *channel);
+static void vmbus_setevent(struct vmbus_channel *channel);
 
 
 #if 0
@@ -67,10 +67,10 @@ static void DumpMonitorPage(struct hv_monitor_page *MonitorPage)
 #endif
 
 /*
- * VmbusChannelSetEvent - Trigger an event notification on the specified
+ * vmbus_setevent- Trigger an event notification on the specified
  * channel.
  */
-static void VmbusChannelSetEvent(struct vmbus_channel *channel)
+static void vmbus_setevent(struct vmbus_channel *channel)
 {
 	struct hv_monitor_page *monitorpage;
 
@@ -115,9 +115,9 @@ static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 
 #endif
 /*
- * VmbusChannelGetDebugInfo -Retrieve various channel debug info
+ * vmbus_get_debug_info -Retrieve various channel debug info
  */
-void VmbusChannelGetDebugInfo(struct vmbus_channel *channel,
+void vmbus_get_debug_info(struct vmbus_channel *channel,
 			      struct vmbus_channel_debug_info *debuginfo)
 {
 	struct hv_monitor_page *monitorpage;
@@ -160,9 +160,9 @@ void VmbusChannelGetDebugInfo(struct vmbus_channel *channel,
 }
 
 /*
- * VmbusChannelOpen - Open the specified channel.
+ * vmbus_open - Open the specified channel.
  */
-int VmbusChannelOpen(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
+int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		     u32 recv_ringbuffer_size, void *userdata, u32 userdatalen,
 		     void (*onchannelcallback)(void *context), void *context)
 {
@@ -212,7 +212,7 @@ int VmbusChannelOpen(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	newchannel->RingBufferGpadlHandle = 0;
 
-	ret = VmbusChannelEstablishGpadl(newchannel,
+	ret = vmbus_establish_gpadl(newchannel,
 					 newchannel->Outbound.RingBuffer,
 					 send_ringbuffer_size +
 					 recv_ringbuffer_size,
@@ -307,10 +307,10 @@ errorout:
 }
 
 /*
- * DumpGpadlBody - Dump the gpadl body message to the console for
+ * dump_gpadl_body - Dump the gpadl body message to the console for
  * debugging purposes.
  */
-static void DumpGpadlBody(struct vmbus_channel_gpadl_body *gpadl, u32 len)
+static void dump_gpadl_body(struct vmbus_channel_gpadl_body *gpadl, u32 len)
 {
 	int i;
 	int pfncount;
@@ -325,10 +325,10 @@ static void DumpGpadlBody(struct vmbus_channel_gpadl_body *gpadl, u32 len)
 }
 
 /*
- * DumpGpadlHeader - Dump the gpadl header message to the console for
+ * dump_gpadl_header - Dump the gpadl header message to the console for
  * debugging purposes.
  */
-static void DumpGpadlHeader(struct vmbus_channel_gpadl_header *gpadl)
+static void dump_gpadl_header(struct vmbus_channel_gpadl_header *gpadl)
 {
 	int i, j;
 	int pagecount;
@@ -351,9 +351,9 @@ static void DumpGpadlHeader(struct vmbus_channel_gpadl_header *gpadl)
 }
 
 /*
- * VmbusChannelCreateGpadlHeader - Creates a gpadl for the specified buffer
+ * create_gpadl_header - Creates a gpadl for the specified buffer
  */
-static int VmbusChannelCreateGpadlHeader(void *kbuffer, u32 size,
+static int create_gpadl_header(void *kbuffer, u32 size,
 					 struct vmbus_channel_msginfo **msginfo,
 					 u32 *messagecount)
 {
@@ -479,14 +479,14 @@ nomem:
 }
 
 /*
- * VmbusChannelEstablishGpadl - Estabish a GPADL for the specified buffer
+ * vmbus_establish_gpadl - Estabish a GPADL for the specified buffer
  *
  * @channel: a channel
  * @kbuffer: from kmalloc
  * @size: page-size multiple
  * @gpadl_handle: some funky thing
  */
-int VmbusChannelEstablishGpadl(struct vmbus_channel *channel, void *kbuffer,
+int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 			       u32 size, u32 *gpadl_handle)
 {
 	struct vmbus_channel_gpadl_header *gpadlmsg;
@@ -503,7 +503,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *channel, void *kbuffer,
 	next_gpadl_handle = atomic_read(&gVmbusConnection.NextGpadlHandle);
 	atomic_inc(&gVmbusConnection.NextGpadlHandle);
 
-	ret = VmbusChannelCreateGpadlHeader(kbuffer, size, &msginfo, &msgcount);
+	ret = create_gpadl_header(kbuffer, size, &msginfo, &msgcount);
 	if (ret)
 		return ret;
 
@@ -518,7 +518,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *channel, void *kbuffer,
 	gpadlmsg->ChildRelId = channel->OfferMsg.ChildRelId;
 	gpadlmsg->Gpadl = next_gpadl_handle;
 
-	DumpGpadlHeader(gpadlmsg);
+	dump_gpadl_header(gpadlmsg);
 
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	list_add_tail(&msginfo->MsgListEntry,
@@ -554,7 +554,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *channel, void *kbuffer,
 				   submsginfo->MessageSize -
 				   sizeof(*submsginfo));
 
-			DumpGpadlBody(gpadl_body, submsginfo->MessageSize -
+			dump_gpadl_body(gpadl_body, submsginfo->MessageSize -
 				      sizeof(*submsginfo));
 			ret = VmbusPostMessage(gpadl_body,
 					       submsginfo->MessageSize -
@@ -586,9 +586,9 @@ Cleanup:
 }
 
 /*
- * VmbusChannelTeardownGpadl -Teardown the specified GPADL handle
+ * vmbus_teardown_gpadl -Teardown the specified GPADL handle
  */
-int VmbusChannelTeardownGpadl(struct vmbus_channel *channel, u32 gpadl_handle)
+int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 {
 	struct vmbus_channel_gpadl_teardown *msg;
 	struct vmbus_channel_msginfo *info;
@@ -639,9 +639,9 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 }
 
 /*
- * VmbusChannelClose - Close the specified channel
+ * vmbus_close - Close the specified channel
  */
-void VmbusChannelClose(struct vmbus_channel *channel)
+void vmbus_close(struct vmbus_channel *channel)
 {
 	struct vmbus_channel_close_channel *msg;
 	struct vmbus_channel_msginfo *info;
@@ -674,7 +674,7 @@ void VmbusChannelClose(struct vmbus_channel *channel)
 
 	/* Tear down the gpadl for the channel's ring buffer */
 	if (channel->RingBufferGpadlHandle)
-		VmbusChannelTeardownGpadl(channel,
+		vmbus_teardown_gpadl(channel,
 					  channel->RingBufferGpadlHandle);
 
 	/* TODO: Send a msg to release the childRelId */
@@ -703,7 +703,7 @@ void VmbusChannelClose(struct vmbus_channel *channel)
 }
 
 /**
- * VmbusChannelSendPacket() - Send the specified buffer on the given channel
+ * vmbus_sendpacket() - Send the specified buffer on the given channel
  * @channel: Pointer to vmbus_channel structure.
  * @buffer: Pointer to the buffer you want to receive the data into.
  * @bufferlen: Maximum size of what the the buffer will hold
@@ -716,7 +716,7 @@ void VmbusChannelClose(struct vmbus_channel *channel)
  *
  * Mainly used by Hyper-V drivers.
  */
-int VmbusChannelSendPacket(struct vmbus_channel *channel, const void *buffer,
+int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 			   u32 bufferlen, u64 requestid,
 			   enum vmbus_packet_type type, u32 flags)
 {
@@ -730,7 +730,7 @@ int VmbusChannelSendPacket(struct vmbus_channel *channel, const void *buffer,
 	DPRINT_DBG(VMBUS, "channel %p buffer %p len %d",
 		   channel, buffer, bufferlen);
 
-	DumpVmbusChannel(channel);
+	dump_vmbus_channel(channel);
 
 	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
@@ -752,17 +752,17 @@ int VmbusChannelSendPacket(struct vmbus_channel *channel, const void *buffer,
 
 	/* TODO: We should determine if this is optional */
 	if (ret == 0 && !GetRingBufferInterruptMask(&channel->Outbound))
-		VmbusChannelSetEvent(channel);
+		vmbus_setevent(channel);
 
 	return ret;
 }
-EXPORT_SYMBOL(VmbusChannelSendPacket);
+EXPORT_SYMBOL(vmbus_sendpacket);
 
 /*
- * VmbusChannelSendPacketPageBuffer - Send a range of single-page buffer
+ * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
  * packets using a GPADL Direct packet type.
  */
-int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *channel,
+int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 				     struct hv_page_buffer pagebuffers[],
 				     u32 pagecount, void *buffer, u32 bufferlen,
 				     u64 requestid)
@@ -779,7 +779,7 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *channel,
 	if (pagecount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
 
-	DumpVmbusChannel(channel);
+	dump_vmbus_channel(channel);
 
 	/*
 	 * Adjust the size down since vmbus_channel_packet_page_buffer is the
@@ -817,16 +817,16 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *channel,
 
 	/* TODO: We should determine if this is optional */
 	if (ret == 0 && !GetRingBufferInterruptMask(&channel->Outbound))
-		VmbusChannelSetEvent(channel);
+		vmbus_setevent(channel);
 
 	return ret;
 }
 
 /*
- * VmbusChannelSendPacketMultiPageBuffer - Send a multi-page buffer packet
+ * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
  * using a GPADL Direct packet type.
  */
-int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *channel,
+int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 				struct hv_multipage_buffer *multi_pagebuffer,
 				void *buffer, u32 bufferlen, u64 requestid)
 {
@@ -840,7 +840,7 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *channel,
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->Offset,
 					 multi_pagebuffer->Length);
 
-	DumpVmbusChannel(channel);
+	dump_vmbus_channel(channel);
 
 	DPRINT_DBG(VMBUS, "data buffer - offset %u len %u pfn count %u",
 		multi_pagebuffer->Offset,
@@ -885,14 +885,14 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *channel,
 
 	/* TODO: We should determine if this is optional */
 	if (ret == 0 && !GetRingBufferInterruptMask(&channel->Outbound))
-		VmbusChannelSetEvent(channel);
+		vmbus_setevent(channel);
 
 	return ret;
 }
 
 
 /**
- * VmbusChannelRecvPacket() - Retrieve the user packet on the specified channel
+ * vmbus_recvpacket() - Retrieve the user packet on the specified channel
  * @channel: Pointer to vmbus_channel structure.
  * @buffer: Pointer to the buffer you want to receive the data into.
  * @bufferlen: Maximum size of what the the buffer will hold
@@ -904,7 +904,7 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *channel,
  *
  * Mainly used by Hyper-V drivers.
  */
-int VmbusChannelRecvPacket(struct vmbus_channel *channel, void *buffer,
+int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 			u32 bufferlen, u32 *buffer_actual_len, u64 *requestid)
 {
 	struct vmpacket_descriptor desc;
@@ -958,12 +958,12 @@ int VmbusChannelRecvPacket(struct vmbus_channel *channel, void *buffer,
 
 	return 0;
 }
-EXPORT_SYMBOL(VmbusChannelRecvPacket);
+EXPORT_SYMBOL(vmbus_recvpacket);
 
 /*
- * VmbusChannelRecvPacketRaw - Retrieve the raw packet on the specified channel
+ * vmbus_recvpacket_raw - Retrieve the raw packet on the specified channel
  */
-int VmbusChannelRecvPacketRaw(struct vmbus_channel *channel, void *buffer,
+int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 			      u32 bufferlen, u32 *buffer_actual_len,
 			      u64 *requestid)
 {
@@ -1017,11 +1017,11 @@ int VmbusChannelRecvPacketRaw(struct vmbus_channel *channel, void *buffer,
 }
 
 /*
- * VmbusChannelOnChannelEvent - Channel event callback
+ * vmbus_onchannel_event - Channel event callback
  */
-void VmbusChannelOnChannelEvent(struct vmbus_channel *channel)
+void vmbus_onchannel_event(struct vmbus_channel *channel)
 {
-	DumpVmbusChannel(channel);
+	dump_vmbus_channel(channel);
 	/* ASSERT(Channel->OnChannelCallback); */
 
 	channel->OnChannelCallback(channel->ChannelCallbackContext);
@@ -1030,9 +1030,9 @@ void VmbusChannelOnChannelEvent(struct vmbus_channel *channel)
 }
 
 /*
- * VmbusChannelOnTimer - Timer event callback
+ * vmbus_ontimer - Timer event callback
  */
-void VmbusChannelOnTimer(unsigned long data)
+void vmbus_ontimer(unsigned long data)
 {
 	struct vmbus_channel *channel = (struct vmbus_channel *)data;
 
@@ -1041,9 +1041,9 @@ void VmbusChannelOnTimer(unsigned long data)
 }
 
 /*
- * DumpVmbusChannel - Dump vmbus channel info to the console
+ * dump_vmbus_channel- Dump vmbus channel info to the console
  */
-static void DumpVmbusChannel(struct vmbus_channel *channel)
+static void dump_vmbus_channel(struct vmbus_channel *channel)
 {
 	DPRINT_DBG(VMBUS, "Channel (%d)", channel->OfferMsg.ChildRelId);
 	DumpRingInfo(&channel->Outbound, "Outbound ");
