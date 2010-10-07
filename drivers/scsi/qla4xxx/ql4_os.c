@@ -690,7 +690,9 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 			qla4xxx_wake_dpc(ha);
 			qla4xxx_mailbox_premature_completion(ha);
 		}
-	}
+	} else
+		ha->seconds_since_last_heartbeat = 0;
+
 	ha->fw_heartbeat_counter = fw_heartbeat_counter;
 }
 
