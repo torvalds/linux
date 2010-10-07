@@ -39,24 +39,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 
-#ifndef __exit
-#define __exit
-#endif
-#ifndef __devexit
-#define __devexit
-#endif
-#ifndef __devinit
-#define __devinit	__init
-#endif
-#ifndef __devinitdata
-#define __devinitdata
-#endif
-#ifndef __devexit_p
-#define __devexit_p(x)	x
-#endif
-
-#define netif_down(dev)
-
 /* suspend args */
 #define DRV_SUSPEND_STATE_TYPE pm_message_t
 
