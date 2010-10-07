@@ -2041,7 +2041,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	if ((temp & PIPECONF_ENABLE) == 0) {
 		I915_WRITE(reg, temp | PIPECONF_ENABLE);
 		POSTING_READ(reg);
-		udelay(100);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
 	/* configure and enable CPU plane */
@@ -2131,7 +2131,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	temp |= I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK;
 	I915_WRITE(reg, temp | TRANS_ENABLE);
 	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
-		DRM_ERROR("failed to enable transcoder\n");
+		DRM_ERROR("failed to enable transcoder %d\n", pipe);
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
@@ -2171,9 +2171,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	temp = I915_READ(reg);
 	if (temp & PIPECONF_ENABLE) {
 		I915_WRITE(reg, temp & ~PIPECONF_ENABLE);
+		POSTING_READ(reg);
 		/* wait for cpu pipe off, pipe state */
-		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0, 50))
-			DRM_ERROR("failed to turn off cpu pipe\n");
+		intel_wait_for_pipe_off(dev, intel_crtc->pipe);
 	}
 
 	/* Disable PF */
