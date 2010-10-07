@@ -850,7 +850,7 @@ static int __init acpi_processor_init(void)
 		printk(KERN_DEBUG "ACPI: %s registered with cpuidle\n",
 			acpi_idle_driver.name);
 	} else {
-		printk(KERN_DEBUG "ACPI: acpi_idle yielding to %s",
+		printk(KERN_DEBUG "ACPI: acpi_idle yielding to %s\n",
 			cpuidle_get_driver()->name);
 	}
 

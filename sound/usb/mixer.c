@@ -2175,7 +2175,15 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	}
 
 	host_iface = &usb_ifnum_to_if(chip->dev, ctrlif)->altsetting[0];
-	mixer->protocol = get_iface_desc(host_iface)->bInterfaceProtocol;
+	switch (get_iface_desc(host_iface)->bInterfaceProtocol) {
+	case UAC_VERSION_1:
+	default:
+		mixer->protocol = UAC_VERSION_1;
+		break;
+	case UAC_VERSION_2:
+		mixer->protocol = UAC_VERSION_2;
+		break;
+	}
 
 	if ((err = snd_usb_mixer_controls(mixer)) < 0 ||
 	    (err = snd_usb_mixer_status_create(mixer)) < 0)

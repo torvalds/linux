@@ -1093,6 +1093,10 @@ struct file_lock {
 
 #include <linux/fcntl.h>
 
+/* temporary stubs for BKL removal */
+#define lock_flocks() lock_kernel()
+#define unlock_flocks() unlock_kernel()
+
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
 #ifdef CONFIG_FILE_LOCKING
