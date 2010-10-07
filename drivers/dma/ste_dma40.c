@@ -1903,6 +1903,18 @@ err:
 	return NULL;
 }
 
+static struct dma_async_tx_descriptor *
+d40_prep_sg(struct dma_chan *chan,
+	    struct scatterlist *dst_sg, unsigned int dst_nents,
+	    struct scatterlist *src_sg, unsigned int src_nents,
+	    unsigned long dma_flags)
+{
+	if (dst_nents != src_nents)
+		return NULL;
+
+	return stedma40_memcpy_sg(chan, dst_sg, src_sg, dst_nents, dma_flags);
+}
+
 static int d40_prep_slave_sg_log(struct d40_desc *d40d,
 				 struct d40_chan *d40c,
 				 struct scatterlist *sgl,
@@ -2325,6 +2337,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	base->dma_slave.device_alloc_chan_resources = d40_alloc_chan_resources;
 	base->dma_slave.device_free_chan_resources = d40_free_chan_resources;
 	base->dma_slave.device_prep_dma_memcpy = d40_prep_memcpy;
+	base->dma_slave.device_prep_dma_sg = d40_prep_sg;
 	base->dma_slave.device_prep_slave_sg = d40_prep_slave_sg;
 	base->dma_slave.device_tx_status = d40_tx_status;
 	base->dma_slave.device_issue_pending = d40_issue_pending;
@@ -2345,10 +2358,12 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	dma_cap_zero(base->dma_memcpy.cap_mask);
 	dma_cap_set(DMA_MEMCPY, base->dma_memcpy.cap_mask);
+	dma_cap_set(DMA_SG, base->dma_slave.cap_mask);
 
 	base->dma_memcpy.device_alloc_chan_resources = d40_alloc_chan_resources;
 	base->dma_memcpy.device_free_chan_resources = d40_free_chan_resources;
 	base->dma_memcpy.device_prep_dma_memcpy = d40_prep_memcpy;
+	base->dma_slave.device_prep_dma_sg = d40_prep_sg;
 	base->dma_memcpy.device_prep_slave_sg = d40_prep_slave_sg;
 	base->dma_memcpy.device_tx_status = d40_tx_status;
 	base->dma_memcpy.device_issue_pending = d40_issue_pending;
@@ -2375,10 +2390,12 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	dma_cap_zero(base->dma_both.cap_mask);
 	dma_cap_set(DMA_SLAVE, base->dma_both.cap_mask);
 	dma_cap_set(DMA_MEMCPY, base->dma_both.cap_mask);
+	dma_cap_set(DMA_SG, base->dma_slave.cap_mask);
 
 	base->dma_both.device_alloc_chan_resources = d40_alloc_chan_resources;
 	base->dma_both.device_free_chan_resources = d40_free_chan_resources;
 	base->dma_both.device_prep_dma_memcpy = d40_prep_memcpy;
+	base->dma_slave.device_prep_dma_sg = d40_prep_sg;
 	base->dma_both.device_prep_slave_sg = d40_prep_slave_sg;
 	base->dma_both.device_tx_status = d40_tx_status;
 	base->dma_both.device_issue_pending = d40_issue_pending;
