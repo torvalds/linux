@@ -91,7 +91,7 @@ struct neigh_statistics {
 #define NEIGH_CACHE_STAT_INC(tbl, field) this_cpu_inc((tbl)->stats->field)
 
 struct neighbour {
-	struct neighbour	*next;
+	struct neighbour __rcu	*next;
 	struct neigh_table	*tbl;
 	struct neigh_parms	*parms;
 	struct net_device	*dev;
@@ -111,6 +111,7 @@ struct neighbour {
 	struct sk_buff_head	arp_queue;
 	struct timer_list	timer;
 	const struct neigh_ops	*ops;
+	struct rcu_head		rcu;
 	u8			primary_key[0];
 };
 
@@ -139,7 +140,7 @@ struct pneigh_entry {
  */
 
 struct neigh_hash_table {
-	struct neighbour	**hash_buckets;
+	struct neighbour __rcu	**hash_buckets;
 	unsigned int		hash_mask;
 	__u32			hash_rnd;
 	struct rcu_head		rcu;
