@@ -113,7 +113,7 @@ static int slave_alloc (struct scsi_device *sdev)
 	 * Let the scanning code know if this target merely sets
 	 * Peripheral Device Type to 0x1f to indicate no LUN.
 	 */
-	if (us->subclass == US_SC_UFI)
+	if (us->subclass == USB_SC_UFI)
 		sdev->sdev_target->pdt_1f_for_no_lun = 1;
 
 	return 0;
@@ -176,7 +176,7 @@ static int slave_configure(struct scsi_device *sdev)
 		/* Disk-type devices use MODE SENSE(6) if the protocol
 		 * (SubClass) is Transparent SCSI, otherwise they use
 		 * MODE SENSE(10). */
-		if (us->subclass != US_SC_SCSI && us->subclass != US_SC_CYP_ATACB)
+		if (us->subclass != USB_SC_SCSI && us->subclass != USB_SC_CYP_ATACB)
 			sdev->use_10_for_ms = 1;
 
 		/* Many disks only accept MODE SENSE transfer lengths of
@@ -245,7 +245,7 @@ static int slave_configure(struct scsi_device *sdev)
 		 * capacity will be decremented or is correct. */
 		if (!(us->fflags & (US_FL_FIX_CAPACITY | US_FL_CAPACITY_OK |
 					US_FL_SCM_MULT_TARG)) &&
-				us->protocol == US_PR_BULK)
+				us->protocol == USB_PR_BULK)
 			us->use_last_sector_hacks = 1;
 	} else {
 
@@ -261,7 +261,7 @@ static int slave_configure(struct scsi_device *sdev)
 	 * scsi_level == 0 (UNKNOWN).  Hence such devices must necessarily
 	 * be single-LUN.
 	 */
-	if ((us->protocol == US_PR_CB || us->protocol == US_PR_CBI) &&
+	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_CBI) &&
 			sdev->scsi_level == SCSI_UNKNOWN)
 		us->max_lun = 0;
 

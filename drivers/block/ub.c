@@ -396,7 +396,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum);
 #else
 
 static const struct usb_device_id ub_usb_ids[] = {
-	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, US_SC_SCSI, US_PR_BULK) },
+	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_BULK) },
 	{ }
 };
 
