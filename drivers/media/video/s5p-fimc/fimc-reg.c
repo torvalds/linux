@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/map.h>
+#include <media/s3c_fimc.h>
 
 #include "fimc-core.h"
 
@@ -176,6 +177,15 @@ static void fimc_hw_set_out_dma_size(struct fimc_ctx *ctx)
 	cfg = S5P_ORIG_SIZE_HOR(frame->f_width);
 	cfg |= S5P_ORIG_SIZE_VER(frame->f_height);
 	writel(cfg, dev->regs + S5P_ORGOSIZE);
+
+	/* Select color space conversion equation (HD/SD size).*/
+	cfg = readl(dev->regs + S5P_CIGCTRL);
+	if (frame->f_width >= 1280) /* HD */
+		cfg |= S5P_CIGCTRL_CSC_ITU601_709;
+	else	/* SD */
+		cfg &= ~S5P_CIGCTRL_CSC_ITU601_709;
+	writel(cfg, dev->regs + S5P_CIGCTRL);
+
 }
 
 void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
@@ -231,19 +241,12 @@ static void fimc_hw_en_autoload(struct fimc_dev *dev, int enable)
 
 void fimc_hw_en_lastirq(struct fimc_dev *dev, int enable)
 {
-	unsigned long flags;
-	u32 cfg;
-
-	spin_lock_irqsave(&dev->slock, flags);
-
-	cfg = readl(dev->regs + S5P_CIOCTRL);
+	u32 cfg = readl(dev->regs + S5P_CIOCTRL);
 	if (enable)
 		cfg |= S5P_CIOCTRL_LASTIRQ_ENABLE;
 	else
 		cfg &= ~S5P_CIOCTRL_LASTIRQ_ENABLE;
 	writel(cfg, dev->regs + S5P_CIOCTRL);
-
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 static void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
@@ -325,14 +328,18 @@ void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 void fimc_hw_en_capture(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	u32 cfg;
 
-	cfg = readl(dev->regs + S5P_CIIMGCPT);
-	/* One shot mode for output DMA or freerun for FIFO. */
-	if (ctx->out_path == FIMC_DMA)
-		cfg |= S5P_CIIMGCPT_CPT_FREN_ENABLE;
-	else
-		cfg &= ~S5P_CIIMGCPT_CPT_FREN_ENABLE;
+	u32 cfg = readl(dev->regs + S5P_CIIMGCPT);
+
+	if (ctx->out_path == FIMC_DMA) {
+		/* one shot mode */
+		cfg |= S5P_CIIMGCPT_CPT_FREN_ENABLE | S5P_CIIMGCPT_IMGCPTEN;
+	} else {
+		/* Continous frame capture mode (freerun). */
+		cfg &= ~(S5P_CIIMGCPT_CPT_FREN_ENABLE |
+			 S5P_CIIMGCPT_CPT_FRMOD_CNT);
+		cfg |= S5P_CIIMGCPT_IMGCPTEN;
+	}
 
 	if (ctx->scaler.enabled)
 		cfg |= S5P_CIIMGCPT_IMGCPTEN_SC;
@@ -522,4 +529,140 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 		dbg("dst_buf[%d]: 0x%X, cb: 0x%X, cr: 0x%X",
 		    i, paddr->y, paddr->cb, paddr->cr);
 	} while (index == -1 && ++i < FIMC_MAX_OUT_BUFS);
+}
+
+int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
+				struct s3c_fimc_isp_info *cam)
+{
+	u32 cfg = readl(fimc->regs + S5P_CIGCTRL);
+
+	cfg &= ~(S5P_CIGCTRL_INVPOLPCLK | S5P_CIGCTRL_INVPOLVSYNC |
+		 S5P_CIGCTRL_INVPOLHREF | S5P_CIGCTRL_INVPOLHSYNC);
+
+	if (cam->flags & FIMC_CLK_INV_PCLK)
+		cfg |= S5P_CIGCTRL_INVPOLPCLK;
+
+	if (cam->flags & FIMC_CLK_INV_VSYNC)
+		cfg |= S5P_CIGCTRL_INVPOLVSYNC;
+
+	if (cam->flags & FIMC_CLK_INV_HREF)
+		cfg |= S5P_CIGCTRL_INVPOLHREF;
+
+	if (cam->flags & FIMC_CLK_INV_HSYNC)
+		cfg |= S5P_CIGCTRL_INVPOLHSYNC;
+
+	writel(cfg, fimc->regs + S5P_CIGCTRL);
+
+	return 0;
+}
+
+int fimc_hw_set_camera_source(struct fimc_dev *fimc,
+			      struct s3c_fimc_isp_info *cam)
+{
+	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
+	u32 cfg = 0;
+
+	if (cam->bus_type == FIMC_ITU_601 || cam->bus_type == FIMC_ITU_656) {
+
+		switch (fimc->vid_cap.fmt.code) {
+		case V4L2_MBUS_FMT_YUYV8_2X8:
+			cfg = S5P_CISRCFMT_ORDER422_YCBYCR;
+			break;
+		case V4L2_MBUS_FMT_YVYU8_2X8:
+			cfg = S5P_CISRCFMT_ORDER422_YCRYCB;
+			break;
+		case V4L2_MBUS_FMT_VYUY8_2X8:
+			cfg = S5P_CISRCFMT_ORDER422_CRYCBY;
+			break;
+		case V4L2_MBUS_FMT_UYVY8_2X8:
+			cfg = S5P_CISRCFMT_ORDER422_CBYCRY;
+			break;
+		default:
+			err("camera image format not supported: %d",
+			    fimc->vid_cap.fmt.code);
+			return -EINVAL;
+		}
+
+		if (cam->bus_type == FIMC_ITU_601) {
+			if (cam->bus_width == 8) {
+				cfg |= S5P_CISRCFMT_ITU601_8BIT;
+			} else if (cam->bus_width == 16) {
+				cfg |= S5P_CISRCFMT_ITU601_16BIT;
+			} else {
+				err("invalid bus width: %d", cam->bus_width);
+				return -EINVAL;
+			}
+		} /* else defaults to ITU-R BT.656 8-bit */
+	}
+
+	cfg |= S5P_CISRCFMT_HSIZE(f->o_width) | S5P_CISRCFMT_VSIZE(f->o_height);
+	writel(cfg, fimc->regs + S5P_CISRCFMT);
+	return 0;
+}
+
+
+int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
+{
+	u32 hoff2, voff2;
+
+	u32 cfg = readl(fimc->regs + S5P_CIWDOFST);
+
+	cfg &= ~(S5P_CIWDOFST_HOROFF_MASK | S5P_CIWDOFST_VEROFF_MASK);
+	cfg |=  S5P_CIWDOFST_OFF_EN |
+		S5P_CIWDOFST_HOROFF(f->offs_h) |
+		S5P_CIWDOFST_VEROFF(f->offs_v);
+
+	writel(cfg, fimc->regs + S5P_CIWDOFST);
+
+	/* See CIWDOFSTn register description in the datasheet for details. */
+	hoff2 = f->o_width - f->width - f->offs_h;
+	voff2 = f->o_height - f->height - f->offs_v;
+	cfg = S5P_CIWDOFST2_HOROFF(hoff2) | S5P_CIWDOFST2_VEROFF(voff2);
+
+	writel(cfg, fimc->regs + S5P_CIWDOFST2);
+	return 0;
+}
+
+int fimc_hw_set_camera_type(struct fimc_dev *fimc,
+			    struct s3c_fimc_isp_info *cam)
+{
+	u32 cfg, tmp;
+	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
+
+	cfg = readl(fimc->regs + S5P_CIGCTRL);
+
+	/* Select ITU B interface, disable Writeback path and test pattern. */
+	cfg &= ~(S5P_CIGCTRL_TESTPAT_MASK | S5P_CIGCTRL_SELCAM_ITU_A |
+		S5P_CIGCTRL_SELCAM_MIPI | S5P_CIGCTRL_CAMIF_SELWB |
+		S5P_CIGCTRL_SELCAM_MIPI_A);
+
+	if (cam->bus_type == FIMC_MIPI_CSI2) {
+		cfg |= S5P_CIGCTRL_SELCAM_MIPI;
+
+		if (cam->mux_id == 0)
+			cfg |= S5P_CIGCTRL_SELCAM_MIPI_A;
+
+		/* TODO: add remaining supported formats. */
+		if (vid_cap->fmt.code == V4L2_MBUS_FMT_VYUY8_2X8) {
+			tmp = S5P_CSIIMGFMT_YCBCR422_8BIT;
+		} else {
+			err("camera image format not supported: %d",
+			    vid_cap->fmt.code);
+			return -EINVAL;
+		}
+		writel(tmp | (0x1 << 8), fimc->regs + S5P_CSIIMGFMT);
+
+	} else if (cam->bus_type == FIMC_ITU_601 ||
+		  cam->bus_type == FIMC_ITU_656) {
+		if (cam->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
+			cfg |= S5P_CIGCTRL_SELCAM_ITU_A;
+	} else if (cam->bus_type == FIMC_LCD_WB) {
+		cfg |= S5P_CIGCTRL_CAMIF_SELWB;
+	} else {
+		err("invalid camera bus type selected\n");
+		return -EINVAL;
+	}
+	writel(cfg, fimc->regs + S5P_CIGCTRL);
+
+	return 0;
 }
