@@ -1798,13 +1798,13 @@ out:
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 {
 	struct cgroupfs_root *root;
-	struct cgroup *cur_cg;
 	int retval = 0;
 
 	cgroup_lock();
 	for_each_active_root(root) {
-		cur_cg = task_cgroup_from_root(from, root);
-		retval = cgroup_attach_task(cur_cg, tsk);
+		struct cgroup *from_cg = task_cgroup_from_root(from, root);
+
+		retval = cgroup_attach_task(from_cg, tsk);
 		if (retval)
 			break;
 	}

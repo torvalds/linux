@@ -81,7 +81,7 @@ static int ns2_led_get_mode(struct ns2_led_data *led_dat,
 	int cmd_level;
 	int slow_level;
 
-	read_lock(&led_dat->rw_lock);
+	read_lock_irq(&led_dat->rw_lock);
 
 	cmd_level = gpio_get_value(led_dat->cmd);
 	slow_level = gpio_get_value(led_dat->slow);
@@ -95,7 +95,7 @@ static int ns2_led_get_mode(struct ns2_led_data *led_dat,
 		}
 	}
 
-	read_unlock(&led_dat->rw_lock);
+	read_unlock_irq(&led_dat->rw_lock);
 
 	return ret;
 }
@@ -104,8 +104,9 @@ static void ns2_led_set_mode(struct ns2_led_data *led_dat,
 			     enum ns2_led_modes mode)
 {
 	int i;
+	unsigned long flags;
 
-	write_lock(&led_dat->rw_lock);
+	write_lock_irqsave(&led_dat->rw_lock, flags);
 
 	for (i = 0; i < ARRAY_SIZE(ns2_led_modval); i++) {
 		if (mode == ns2_led_modval[i].mode) {
@@ -116,7 +117,7 @@ static void ns2_led_set_mode(struct ns2_led_data *led_dat,
 		}
 	}
 
-	write_unlock(&led_dat->rw_lock);
+	write_unlock_irqrestore(&led_dat->rw_lock, flags);
 }
 
 static void ns2_led_set(struct led_classdev *led_cdev,

@@ -712,7 +712,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 	if (!ptep)
 		goto out;
 
-	if (pte_write(*ptep)) {
+	if (pte_write(*ptep) || pte_dirty(*ptep)) {
 		pte_t entry;
 
 		swapped = PageSwapCache(page);
@@ -735,7 +735,9 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 			set_pte_at(mm, addr, ptep, entry);
 			goto out_unlock;
 		}
-		entry = pte_wrprotect(entry);
+		if (pte_dirty(entry))
+			set_page_dirty(page);
+		entry = pte_mkclean(pte_wrprotect(entry));
 		set_pte_at_notify(mm, addr, ptep, entry);
 	}
 	*orig_pte = *ptep;
@@ -1504,8 +1506,6 @@ struct page *ksm_does_need_to_copy(struct page *page,
 {
 	struct page *new_page;
 
-	unlock_page(page);	/* any racers will COW it, not modify it */
-
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 	if (new_page) {
 		copy_user_highpage(new_page, page, address, vma);
@@ -1521,7 +1521,6 @@ struct page *ksm_does_need_to_copy(struct page *page,
 			add_page_to_unevictable_list(new_page);
 	}
 
-	page_cache_release(page);
 	return new_page;
 }
 

@@ -1013,8 +1013,8 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
-/**
- * intel_wait_for_vblank_off - wait for vblank after disabling a pipe
+/*
+ * intel_wait_for_pipe_off - wait for pipe to turn off
  * @dev: drm device
  * @pipe: pipe to wait for
  *
@@ -1022,25 +1022,39 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
  * spinning on the vblank interrupt status bit, since we won't actually
  * see an interrupt when the pipe is disabled.
  *
- * So this function waits for the display line value to settle (it
- * usually ends up stopping at the start of the next frame).
+ * On Gen4 and above:
+ *   wait for the pipe register state bit to turn off
+ *
+ * Otherwise:
+ *   wait for the display line value to settle (it usually
+ *   ends up stopping at the start of the next frame).
+ *  
  */
-void intel_wait_for_vblank_off(struct drm_device *dev, int pipe)
+static void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipedsl_reg = (pipe == 0 ? PIPEADSL : PIPEBDSL);
-	unsigned long timeout = jiffies + msecs_to_jiffies(100);
-	u32 last_line;
 
-	/* Wait for the display line to settle */
-	do {
-		last_line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
-		mdelay(5);
-	} while (((I915_READ(pipedsl_reg) & DSL_LINEMASK) != last_line) &&
-		 time_after(timeout, jiffies));
+	if (INTEL_INFO(dev)->gen >= 4) {
+		int pipeconf_reg = (pipe == 0 ? PIPEACONF : PIPEBCONF);
 
-	if (time_after(jiffies, timeout))
-		DRM_DEBUG_KMS("vblank wait timed out\n");
+		/* Wait for the Pipe State to go off */
+		if (wait_for((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) == 0,
+			     100, 0))
+			DRM_DEBUG_KMS("pipe_off wait timed out\n");
+	} else {
+		u32 last_line;
+		int pipedsl_reg = (pipe == 0 ? PIPEADSL : PIPEBDSL);
+		unsigned long timeout = jiffies + msecs_to_jiffies(100);
+
+		/* Wait for the display line to settle */
+		do {
+			last_line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
+			mdelay(5);
+		} while (((I915_READ(pipedsl_reg) & DSL_LINEMASK) != last_line) &&
+			 time_after(timeout, jiffies));
+		if (time_after(jiffies, timeout))
+			DRM_DEBUG_KMS("pipe_off wait timed out\n");
+	}
 }
 
 /* Parameters have changed, update FBC info */
@@ -2328,13 +2342,13 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(dspbase_reg);
 		}
 
-		/* Wait for vblank for the disable to take effect */
-		intel_wait_for_vblank_off(dev, pipe);
-
 		/* Don't disable pipe A or pipe A PLLs if needed */
 		if (pipeconf_reg == PIPEACONF &&
-		    (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+		    (dev_priv->quirks & QUIRK_PIPEA_FORCE)) {
+			/* Wait for vblank for the disable to take effect */
+			intel_wait_for_vblank(dev, pipe);
 			goto skip_pipe_off;
+		}
 
 		/* Next, disable display pipes */
 		temp = I915_READ(pipeconf_reg);
@@ -2343,8 +2357,8 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(pipeconf_reg);
 		}
 
-		/* Wait for vblank for the disable to take effect. */
-		intel_wait_for_vblank_off(dev, pipe);
+		/* Wait for the pipe to turn off */
+		intel_wait_for_pipe_off(dev, pipe);
 
 		temp = I915_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -2463,11 +2477,19 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
+
 	if (HAS_PCH_SPLIT(dev)) {
 		/* FDI link clock is fixed at 2.7G */
 		if (mode->clock * 3 > IRONLAKE_FDI_FREQ * 4)
 			return false;
 	}
+
+	/* XXX some encoders set the crtcinfo, others don't.
+	 * Obviously we need some form of conflict resolution here...
+	 */
+	if (adjusted_mode->crtc_htotal == 0)
+		drm_mode_set_crtcinfo(adjusted_mode, 0);
+
 	return true;
 }
 
@@ -2767,14 +2789,8 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	/* Don't promote wm_size to unsigned... */
 	if (wm_size > (long)wm->max_wm)
 		wm_size = wm->max_wm;
-	if (wm_size <= 0) {
+	if (wm_size <= 0)
 		wm_size = wm->default_wm;
-		DRM_ERROR("Insufficient FIFO for plane, expect flickering:"
-			  " entries required = %ld, available = %lu.\n",
-			  entries_required + wm->guard_size,
-			  wm->fifo_size);
-	}
-
 	return wm_size;
 }
 
@@ -3388,8 +3404,7 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		reg_value = I915_READ(WM1_LP_ILK);
 		reg_value &= ~(WM1_LP_LATENCY_MASK | WM1_LP_SR_MASK |
 			       WM1_LP_CURSOR_MASK);
-		reg_value |= WM1_LP_SR_EN |
-			     (ilk_sr_latency << WM1_LP_LATENCY_SHIFT) |
+		reg_value |= (ilk_sr_latency << WM1_LP_LATENCY_SHIFT) |
 			     (sr_wm << WM1_LP_SR_SHIFT) | cursor_wm;
 
 		I915_WRITE(WM1_LP_ILK, reg_value);
@@ -5675,6 +5690,9 @@ void intel_init_clock_gating(struct drm_device *dev)
 			I915_WRITE(DISP_ARB_CTL,
 					(I915_READ(DISP_ARB_CTL) |
 						DISP_FBC_WM_DIS));
+		I915_WRITE(WM3_LP_ILK, 0);
+		I915_WRITE(WM2_LP_ILK, 0);
+		I915_WRITE(WM1_LP_ILK, 0);
 		}
 		/*
 		 * Based on the document from hardware guys the following bits
@@ -5696,8 +5714,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 				   ILK_DPFC_DIS2 |
 				   ILK_CLK_FBC);
 		}
-		if (IS_GEN6(dev))
-			return;
+		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
 		I915_WRITE(RENCLK_GATE_D1, 0);
@@ -5758,11 +5775,9 @@ void intel_init_clock_gating(struct drm_device *dev)
 				OUT_RING(MI_FLUSH);
 				ADVANCE_LP_RING();
 			}
-		} else {
+		} else
 			DRM_DEBUG_KMS("Failed to allocate render context."
-				      "Disable RC6\n");
-			return;
-		}
+				       "Disable RC6\n");
 	}
 
 	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {

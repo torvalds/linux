@@ -511,6 +511,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (!sig)
 		save_r2 = (unsigned int)regs->gpr[2];
 	err = restore_general_regs(regs, sr);
+	regs->trap = 0;
 	err |= __get_user(msr, &sr->mc_gregs[PT_MSR]);
 	if (!sig)
 		regs->gpr[2] = (unsigned long) save_r2;
@@ -884,7 +885,6 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
-	regs->trap = 0;
 	return 1;
 
 badframe:
@@ -1228,7 +1228,6 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
-	regs->trap = 0;
 
 	return 1;
 

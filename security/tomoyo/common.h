@@ -689,9 +689,6 @@ struct tomoyo_profile {
 
 /********** Function prototypes. **********/
 
-extern asmlinkage long sys_getpid(void);
-extern asmlinkage long sys_getppid(void);
-
 /* Check whether the given string starts with the given keyword. */
 bool tomoyo_str_starts(char **src, const char *find);
 /* Get tomoyo_realpath() of current process. */

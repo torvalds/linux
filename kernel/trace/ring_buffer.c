@@ -2985,13 +2985,11 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 
 static void rb_advance_iter(struct ring_buffer_iter *iter)
 {
-	struct ring_buffer *buffer;
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
 	unsigned length;
 
 	cpu_buffer = iter->cpu_buffer;
-	buffer = cpu_buffer->buffer;
 
 	/*
 	 * Check if we are at the end of the buffer.
