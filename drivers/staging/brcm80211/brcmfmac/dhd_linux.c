@@ -1787,7 +1787,6 @@ static int dhd_stop(struct net_device *net)
 		__func__));
 #endif				/* !defined(IGNORE_ETH0_DOWN) */
 
-	OLD_MOD_DEC_USE_COUNT;
 	return 0;
 }
 
@@ -1836,7 +1835,6 @@ static int dhd_open(struct net_device *net)
 	}
 #endif
 
-	OLD_MOD_INC_USE_COUNT;
 	return ret;
 }
 

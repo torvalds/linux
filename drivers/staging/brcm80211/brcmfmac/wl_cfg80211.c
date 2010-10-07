@@ -3129,7 +3129,6 @@ int32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 	ci = (struct wl_iface *)wl_to_ci(wl);
 	ci->wl = wl;
 	ndev->ieee80211_ptr = wdev;
-	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
 	err = wl_init_priv(wl);
 	if (unlikely(err)) {

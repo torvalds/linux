@@ -63,23 +63,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 #define	PCI_SAVE_STATE(a, b)	pci_save_state(a)
 #define	PCI_RESTORE_STATE(a, b)	pci_restore_state(a)
 
-/* Module refcount handled internally in 2.6.x */
-#ifndef SET_MODULE_OWNER
-#define SET_MODULE_OWNER(dev)		do {} while (0)
-#endif
-#ifndef MOD_INC_USE_COUNT
-#define MOD_INC_USE_COUNT			do {} while (0)
-#endif
-#ifndef MOD_DEC_USE_COUNT
-#define MOD_DEC_USE_COUNT			do {} while (0)
-#endif
-#define OLD_MOD_INC_USE_COUNT		MOD_INC_USE_COUNT
-#define OLD_MOD_DEC_USE_COUNT		MOD_DEC_USE_COUNT
-
-#ifndef SET_NETDEV_DEV
-#define SET_NETDEV_DEV(net, pdev)	do {} while (0)
-#endif
-
 #ifndef HAVE_FREE_NETDEV
 #define free_netdev(dev)		kfree(dev)
 #endif
