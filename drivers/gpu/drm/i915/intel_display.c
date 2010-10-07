@@ -932,10 +932,6 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
 
-	/* return directly when it is eDP */
-	if (HAS_eDP)
-		return true;
-
 	if (target < 200000) {
 		clock.n = 1;
 		clock.p1 = 2;
@@ -1763,6 +1759,28 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 		DRM_ERROR("FDI train 2 fail!\n");
 
 	DRM_DEBUG_KMS("FDI train done\n");
+
+	/* enable normal train */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
+	I915_WRITE(reg, temp);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
+	} else {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_NONE;
+	}
+	I915_WRITE(reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
+
+	/* wait one idle pattern time */
+	POSTING_READ(reg);
+	udelay(1000);
 }
 
 static const int const snb_b_fdi_train_param [] = {
@@ -2064,28 +2082,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VTOTAL(pipe), I915_READ(VTOTAL(pipe)));
 	I915_WRITE(TRANS_VBLANK(pipe), I915_READ(VBLANK(pipe)));
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
-
-	/* enable normal train */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
-	I915_WRITE(reg, temp);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
-		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
-	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_NONE;
-	}
-	I915_WRITE(reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
-
-	/* wait one idle pattern time */
-	POSTING_READ(reg);
-	udelay(100);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
@@ -3683,16 +3679,16 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* FDI link */
 	if (HAS_PCH_SPLIT(dev)) {
 		int lane = 0, link_bw, bpp;
-		/* eDP doesn't require FDI link, so just set DP M/N
+		/* CPU eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
-		if (has_edp_encoder) {
+		if (has_edp_encoder && !intel_encoder_is_pch_edp(&encoder->base)) {
 			target_clock = mode->clock;
 			intel_edp_link_config(has_edp_encoder,
 					      &lane, &link_bw);
 		} else {
-			/* DP over FDI requires target mode clock
+			/* [e]DP over FDI requires target mode clock
 			   instead of link clock */
-			if (is_dp)
+			if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
 				target_clock = mode->clock;
 			else
 				target_clock = adjusted_mode->clock;
@@ -3932,7 +3928,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		dpll_reg = DPLL(pipe);
 	}
 
-	if (!has_edp_encoder) {
+	/* PCH eDP needs FDI, but CPU eDP does not */
+	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 
@@ -4009,9 +4006,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (is_dp)
+	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
-	else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev)) {
 		/* For non-DP output, clear any trans DP clock recovery setting.*/
 		if (pipe == 0) {
 			I915_WRITE(TRANSA_DATA_M1, 0);
@@ -4026,7 +4023,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!has_edp_encoder) {
+	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll);
 
@@ -4120,7 +4117,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
 		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
 
-		if (has_edp_encoder) {
+		if (has_edp_encoder && !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 		} else {
 			/* enable FDI RX PLL too */
