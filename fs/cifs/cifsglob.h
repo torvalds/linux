@@ -517,16 +517,16 @@ struct oplock_q_entry {
 
 /* for pending dnotify requests */
 struct dir_notify_req {
-       struct list_head lhead;
-       __le16 Pid;
-       __le16 PidHigh;
-       __u16 Mid;
-       __u16 Tid;
-       __u16 Uid;
-       __u16 netfid;
-       __u32 filter; /* CompletionFilter (for multishot) */
-       int multishot;
-       struct file *pfile;
+	struct list_head lhead;
+	__le16 Pid;
+	__le16 PidHigh;
+	__u16 Mid;
+	__u16 Tid;
+	__u16 Uid;
+	__u16 netfid;
+	__u32 filter; /* CompletionFilter (for multishot) */
+	int multishot;
+	struct file *pfile;
 };
 
 struct dfs_info3_param {
