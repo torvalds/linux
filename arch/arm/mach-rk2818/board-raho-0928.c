@@ -690,7 +690,7 @@ static int rk2818_rtc_io_deinit(void)
 }
 
 static struct rk2818_rtc_platform_data rtc_data = {
-	.irq_type = GPIO_HIGH,//irq type
+	.irq_type = GPIO_LOW,//irq type
 	.io_init = rk2818_rtc_io_init,
 	.io_deinit = rk2818_rtc_io_deinit,
 };
@@ -1399,13 +1399,13 @@ static struct rk2818_spi_chip cmb_spi_chip = {
  
  *****************************************************************************************/
 
-#define CMMB_1186_SPIIRQ RK2818_PIN_PA6
+#define CMMB_1186_SPIIRQ RK2818_PIN_PA1
 
 static struct cmmb_io_def_s cmmb_io = {
 	.cmmb_pw_en = FPGA_PIO4_03,
 	.cmmb_pw_dwn = FPGA_PIO2_09,
 	.cmmb_pw_rst = FPGA_PIO2_06,
-	.cmmb_irq = RK2818_PIN_PA6
+	.cmmb_irq = CMMB_1186_SPIIRQ
 };
 
 static struct spi_board_info board_spi_devices[] = {
@@ -1445,7 +1445,6 @@ static struct spi_board_info board_spi_devices[] = {
 		.chip_select	= 0,                                  
 		.max_speed_hz	= 12*1000*1000,         
 		.bus_num	= 0,
-		//.irq		= RK2818_PIN_PA6,
 		.irq		=CMMB_1186_SPIIRQ,
 		.controller_data = &cmb_spi_chip,
 		.platform_data = &cmmb_io,
@@ -1467,6 +1466,10 @@ static struct spi_board_info board_spi_devices[] = {
 #define LCD_TXD_MUX_MODE     1
 #define LCD_CLK_MUX_MODE     1
 #define LCD_CS_MUX_MODE      0
+
+#define LCD_RESET_PIN RK2818_PIN_PC3
+#define LCD_RESET_IOMUX_NAME GPIOC_LCDC24BIT_SEL_NAME
+#define LCD_RESET_IOMUX_VALUE 0
 //#endif
 static int rk2818_lcd_io_init(void)
 {
@@ -1527,6 +1530,29 @@ static int rk2818_lcd_io_deinit(void)
     rk2818_mux_api_mode_resume(LCD_CLK_MUX_NAME);
     
     return ret;
+}
+
+static int rk2818_lcd_reset(void)
+{
+	int ret;
+    rk2818_mux_api_set(LCD_RESET_IOMUX_NAME, LCD_RESET_IOMUX_VALUE);
+	ret = gpio_request(LCD_RESET_PIN, "lcd reset");
+	if(ret != 0)
+	{
+		gpio_free(LCD_RESET_PIN);
+		rk2818_mux_api_mode_resume(LCD_RESET_IOMUX_NAME);
+		printk(">>>>>> lcd gpio_request err \n ");
+		return -1;
+	} 
+	gpio_set_value(LCD_RESET_PIN, GPIO_LOW);
+	gpio_direction_output(LCD_RESET_PIN, GPIO_LOW); 
+	mdelay(3);
+	gpio_set_value(LCD_RESET_PIN, GPIO_HIGH);
+	gpio_direction_output(LCD_RESET_PIN, GPIO_HIGH); 
+	
+	printk(">>>>>> lcd reset  ok \n ");					 
+	
+	return 0;
 }
 
 struct rk2818lcd_info rk2818_lcd_info = {
@@ -1896,6 +1922,7 @@ struct usb_mass_storage_platform_data mass_storage_pdata = {
 };
 
 
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BT
         &raho_rfkill,
@@ -2105,7 +2132,7 @@ void __tcmfunc rk2818_soc_general_reg_suspend(void)
 		rk2818_socpm_set_gpio(RK2818_PIN_PB3,0,0);//uart0 rts pin
 
 		rk2818_socpm_set_gpio(RK2818_PIN_PF7,0,0);//uart0 dtr pin
-		rk2818_socpm_set_gpio(RK2818_PIN_PE0,0,0);//uart0 dsr pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PC5,0,0);//uart0 dsr pin
 
 		
 	#endif
@@ -2181,11 +2208,9 @@ static void __init machine_rk2818_board_init(void)
 	(pm_set_suspendvol) rk2818_pm_set_vol,(pm_resume_vol) rk2818_pm_resume_vol);
 	rk2818_power_on();
 	pm_power_off = rk2818_power_off;
-	
 #ifdef CONFIG_SPI_FPGA_FW
 	fpga_dl_fw();
 #endif
-
 #ifdef CONFIG_I2C0_RK2818
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));
@@ -2202,6 +2227,11 @@ static void __init machine_rk2818_board_init(void)
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+
+    rk2818_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, 0);
+    rk2818_mux_api_set(GPIOA1_HOSTDATA17_SEL_NAME, IOMUXB_GPIO0_A1);
+	
+	rk2818_lcd_reset();
 }
 
 static void __init machine_rk2818_mapio(void)

@@ -24,6 +24,13 @@ config MACH_RAHO
         help
           Support for the ROCKCHIP Board For raho Phone.
 
+config MACH_RAHO_0928
+                        depends on ARCH_RK2818
+        default n
+        bool "ROCKCHIP Board For raho 0928"
+        help
+          Support for the ROCKCHIP Board For raho 0928 Phone.
+
 config MACH_RK2818INFO
 			depends on ARCH_RK2818
         default n

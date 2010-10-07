@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <mach/gpio.h>
+#include <mach/board.h>
 #include "rtc-s35392a.h"
 
 #define RTC_RATE	100 * 1000
@@ -766,6 +767,7 @@ static void s35392a_wakeup_irq(int irq, void *dev_id)
 static int s35392a_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	struct rk2818_rtc_platform_data *pdata = client->dev.platform_data;
 	int err;
 	unsigned int i;
 	struct s35392a *s35392a;
@@ -834,15 +836,28 @@ static int s35392a_probe(struct i2c_client *client,
 		goto exit_dummy;
 	}
 
-	gpio_pull_updown(client->irq,GPIOPullDown);
+	if (pdata && (pdata->irq_type == GPIO_LOW)) {
+		gpio_pull_updown(client->irq,GPIOPullUp);
 
-	client->irq = gpio_to_irq(client->irq);
-	
-	if(err = request_irq(client->irq, s35392a_wakeup_irq,IRQF_TRIGGER_HIGH,NULL,s35392a) <0)	
-	{
-		printk("unable to request rtc irq\n");
-		goto exit_dummy;
-	}	
+		client->irq = gpio_to_irq(client->irq);
+
+		if(err = request_irq(client->irq, s35392a_wakeup_irq,IRQF_TRIGGER_LOW,NULL,s35392a) <0)	
+		{
+			printk("unable to request rtc irq\n");
+			goto exit_dummy;
+		}	
+	}
+	else {
+		gpio_pull_updown(client->irq,GPIOPullDown);
+
+		client->irq = gpio_to_irq(client->irq);
+
+		if(err = request_irq(client->irq, s35392a_wakeup_irq,IRQF_TRIGGER_HIGH,NULL,s35392a) <0)	
+		{
+			printk("unable to request rtc irq\n");
+			goto exit_dummy;
+		}	
+	}
 	
 	INIT_WORK(&s35392a->work, s35392a_work_func);
 	

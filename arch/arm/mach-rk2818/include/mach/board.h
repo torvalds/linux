@@ -214,6 +214,13 @@ struct rk2818_spi_platform_data {
 	u16 num_chipselect;
 };
 
+/*rtc*/
+struct rk2818_rtc_platform_data {
+	u8 irq_type;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
 //ROCKCHIP AD KEY CODE ,for demo board
 //      key		--->	EV	
 #define AD2KEY1                 114   ///VOLUME_DOWN
