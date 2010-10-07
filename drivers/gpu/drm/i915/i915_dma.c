@@ -1244,6 +1244,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	if (ret)
 		goto cleanup_ringbuffer;
 
+	intel_register_dsm_handler();
+
 	ret = vga_switcheroo_register_client(dev->pdev,
 					     i915_switcheroo_set_state,
 					     i915_switcheroo_can_switch);

@@ -1136,6 +1136,15 @@ static inline void intel_opregion_gse_intr(struct drm_device *dev) { return; }
 static inline void intel_opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
 
+/* intel_acpi.c */
+#ifdef CONFIG_ACPI
+extern void intel_register_dsm_handler(void);
+extern void intel_unregister_dsm_handler(void);
+#else
+static inline void intel_register_dsm_handler(void) { return; }
+static inline void intel_unregister_dsm_handler(void) { return; }
+#endif /* CONFIG_ACPI */
+
 /* modesetting */
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
