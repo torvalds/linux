@@ -754,9 +754,9 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int rc = 0;
 
-	if (mtu < P3_MIN_MTU || mtu > P3_MAX_MTU) {
+	if (mtu < P3P_MIN_MTU || mtu > P3P_MAX_MTU) {
 		dev_err(&adapter->netdev->dev, "%d bytes < mtu < %d bytes"
-			" not supported\n", P3_MAX_MTU, P3_MIN_MTU);
+			" not supported\n", P3P_MAX_MTU, P3P_MIN_MTU);
 		return -EINVAL;
 	}
 
@@ -1161,31 +1161,31 @@ int qlcnic_get_board_info(struct qlcnic_adapter *adapter)
 
 	adapter->ahw.board_type = board_type;
 
-	if (board_type == QLCNIC_BRDTYPE_P3_4_GB_MM) {
+	if (board_type == QLCNIC_BRDTYPE_P3P_4_GB_MM) {
 		u32 gpio = QLCRD32(adapter, QLCNIC_ROMUSB_GLB_PAD_GPIO_I);
 		if ((gpio & 0x8000) == 0)
-			board_type = QLCNIC_BRDTYPE_P3_10G_TP;
+			board_type = QLCNIC_BRDTYPE_P3P_10G_TP;
 	}
 
 	switch (board_type) {
-	case QLCNIC_BRDTYPE_P3_HMEZ:
-	case QLCNIC_BRDTYPE_P3_XG_LOM:
-	case QLCNIC_BRDTYPE_P3_10G_CX4:
-	case QLCNIC_BRDTYPE_P3_10G_CX4_LP:
-	case QLCNIC_BRDTYPE_P3_IMEZ:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_PLUS:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_CT:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_QT:
-	case QLCNIC_BRDTYPE_P3_10G_XFP:
-	case QLCNIC_BRDTYPE_P3_10000_BASE_T:
+	case QLCNIC_BRDTYPE_P3P_HMEZ:
+	case QLCNIC_BRDTYPE_P3P_XG_LOM:
+	case QLCNIC_BRDTYPE_P3P_10G_CX4:
+	case QLCNIC_BRDTYPE_P3P_10G_CX4_LP:
+	case QLCNIC_BRDTYPE_P3P_IMEZ:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_PLUS:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_CT:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_QT:
+	case QLCNIC_BRDTYPE_P3P_10G_XFP:
+	case QLCNIC_BRDTYPE_P3P_10000_BASE_T:
 		adapter->ahw.port_type = QLCNIC_XGBE;
 		break;
-	case QLCNIC_BRDTYPE_P3_REF_QG:
-	case QLCNIC_BRDTYPE_P3_4_GB:
-	case QLCNIC_BRDTYPE_P3_4_GB_MM:
+	case QLCNIC_BRDTYPE_P3P_REF_QG:
+	case QLCNIC_BRDTYPE_P3P_4_GB:
+	case QLCNIC_BRDTYPE_P3P_4_GB_MM:
 		adapter->ahw.port_type = QLCNIC_GBE;
 		break;
-	case QLCNIC_BRDTYPE_P3_10G_TP:
+	case QLCNIC_BRDTYPE_P3P_10G_TP:
 		adapter->ahw.port_type = (adapter->portnum < 2) ?
 			QLCNIC_XGBE : QLCNIC_GBE;
 		break;

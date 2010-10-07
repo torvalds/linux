@@ -259,14 +259,14 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		switch (ring) {
 		case RCV_RING_NORMAL:
 			rds_ring->num_desc = adapter->num_rxd;
-			rds_ring->dma_size = QLCNIC_P3_RX_BUF_MAX_LEN;
+			rds_ring->dma_size = QLCNIC_P3P_RX_BUF_MAX_LEN;
 			rds_ring->skb_size = rds_ring->dma_size + NET_IP_ALIGN;
 			break;
 
 		case RCV_RING_JUMBO:
 			rds_ring->num_desc = adapter->num_jumbo_rxd;
 			rds_ring->dma_size =
-				QLCNIC_P3_RX_JUMBO_BUF_MAX_LEN;
+				QLCNIC_P3P_RX_JUMBO_BUF_MAX_LEN;
 
 			if (adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
 				rds_ring->dma_size += QLCNIC_LRO_BUFFER_EXTRA;

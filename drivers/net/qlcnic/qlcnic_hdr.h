@@ -556,18 +556,18 @@ enum {
 #define XG_LINK_UP	0x10
 #define XG_LINK_DOWN	0x20
 
-#define XG_LINK_UP_P3	0x01
-#define XG_LINK_DOWN_P3	0x02
-#define XG_LINK_STATE_P3_MASK 0xf
-#define XG_LINK_STATE_P3(pcifn, val) \
-	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3_MASK)
+#define XG_LINK_UP_P3P	0x01
+#define XG_LINK_DOWN_P3P	0x02
+#define XG_LINK_STATE_P3P_MASK 0xf
+#define XG_LINK_STATE_P3P(pcifn, val) \
+	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3P_MASK)
 
-#define P3_LINK_SPEED_MHZ	100
-#define P3_LINK_SPEED_MASK	0xff
-#define P3_LINK_SPEED_REG(pcifn)	\
+#define P3P_LINK_SPEED_MHZ	100
+#define P3P_LINK_SPEED_MASK	0xff
+#define P3P_LINK_SPEED_REG(pcifn)	\
 	(CRB_PF_LINK_SPEED_1 + (((pcifn) / 4) * 4))
-#define P3_LINK_SPEED_VAL(pcifn, reg)	\
-	(((reg) >> (8 * ((pcifn) & 0x3))) & P3_LINK_SPEED_MASK)
+#define P3P_LINK_SPEED_VAL(pcifn, reg)	\
+	(((reg) >> (8 * ((pcifn) & 0x3))) & P3P_LINK_SPEED_MASK)
 
 #define QLCNIC_CAM_RAM_BASE	(QLCNIC_CRB_CAM + 0x02000)
 #define QLCNIC_CAM_RAM(reg)	(QLCNIC_CAM_RAM_BASE + (reg))
@@ -592,7 +592,7 @@ enum {
 #define CRB_CMDPEG_STATE		(QLCNIC_REG(0x50))
 #define CRB_RCVPEG_STATE		(QLCNIC_REG(0x13c))
 
-#define CRB_XG_STATE_P3 		(QLCNIC_REG(0x98))
+#define CRB_XG_STATE_P3P		(QLCNIC_REG(0x98))
 #define CRB_PF_LINK_SPEED_1		(QLCNIC_REG(0xe8))
 #define CRB_PF_LINK_SPEED_2		(QLCNIC_REG(0xec))
 

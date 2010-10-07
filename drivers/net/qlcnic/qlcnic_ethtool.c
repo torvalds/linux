@@ -96,7 +96,7 @@ static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 static const u32 diag_registers[] = {
 	CRB_CMDPEG_STATE,
 	CRB_RCVPEG_STATE,
-	CRB_XG_STATE_P3,
+	CRB_XG_STATE_P3P,
 	CRB_FW_CAPABILITIES_1,
 	ISR_INT_STATE_REG,
 	QLCNIC_CRB_DRV_ACTIVE,
@@ -189,9 +189,9 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			goto skip;
 		}
 
-		val = QLCRD32(adapter, P3_LINK_SPEED_REG(pcifn));
-		ecmd->speed = P3_LINK_SPEED_MHZ *
-			P3_LINK_SPEED_VAL(pcifn, val);
+		val = QLCRD32(adapter, P3P_LINK_SPEED_REG(pcifn));
+		ecmd->speed = P3P_LINK_SPEED_MHZ *
+			P3P_LINK_SPEED_VAL(pcifn, val);
 		ecmd->duplex = DUPLEX_FULL;
 		ecmd->autoneg = AUTONEG_DISABLE;
 	} else
@@ -202,42 +202,42 @@ skip:
 	ecmd->transceiver = XCVR_EXTERNAL;
 
 	switch (adapter->ahw.board_type) {
-	case QLCNIC_BRDTYPE_P3_REF_QG:
-	case QLCNIC_BRDTYPE_P3_4_GB:
-	case QLCNIC_BRDTYPE_P3_4_GB_MM:
+	case QLCNIC_BRDTYPE_P3P_REF_QG:
+	case QLCNIC_BRDTYPE_P3P_4_GB:
+	case QLCNIC_BRDTYPE_P3P_4_GB_MM:
 
 		ecmd->supported |= SUPPORTED_Autoneg;
 		ecmd->advertising |= ADVERTISED_Autoneg;
-	case QLCNIC_BRDTYPE_P3_10G_CX4:
-	case QLCNIC_BRDTYPE_P3_10G_CX4_LP:
-	case QLCNIC_BRDTYPE_P3_10000_BASE_T:
+	case QLCNIC_BRDTYPE_P3P_10G_CX4:
+	case QLCNIC_BRDTYPE_P3P_10G_CX4_LP:
+	case QLCNIC_BRDTYPE_P3P_10000_BASE_T:
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->port = PORT_TP;
 		ecmd->autoneg =  adapter->link_autoneg;
 		break;
-	case QLCNIC_BRDTYPE_P3_IMEZ:
-	case QLCNIC_BRDTYPE_P3_XG_LOM:
-	case QLCNIC_BRDTYPE_P3_HMEZ:
+	case QLCNIC_BRDTYPE_P3P_IMEZ:
+	case QLCNIC_BRDTYPE_P3P_XG_LOM:
+	case QLCNIC_BRDTYPE_P3P_HMEZ:
 		ecmd->supported |= SUPPORTED_MII;
 		ecmd->advertising |= ADVERTISED_MII;
 		ecmd->port = PORT_MII;
 		ecmd->autoneg = AUTONEG_DISABLE;
 		break;
-	case QLCNIC_BRDTYPE_P3_10G_SFP_PLUS:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_CT:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_QT:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_PLUS:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_CT:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_QT:
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->supported |= SUPPORTED_TP;
 		check_sfp_module = netif_running(dev) &&
 			adapter->has_link_events;
-	case QLCNIC_BRDTYPE_P3_10G_XFP:
+	case QLCNIC_BRDTYPE_P3P_10G_XFP:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;
 		ecmd->port = PORT_FIBRE;
 		ecmd->autoneg = AUTONEG_DISABLE;
 		break;
-	case QLCNIC_BRDTYPE_P3_10G_TP:
+	case QLCNIC_BRDTYPE_P3P_10G_TP:
 		if (adapter->ahw.port_type == QLCNIC_XGBE) {
 			ecmd->autoneg = AUTONEG_DISABLE;
 			ecmd->supported |= (SUPPORTED_FIBRE | SUPPORTED_TP);
@@ -381,9 +381,9 @@ static u32 qlcnic_test_link(struct net_device *dev)
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	u32 val;
 
-	val = QLCRD32(adapter, CRB_XG_STATE_P3);
-	val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
-	return (val == XG_LINK_UP_P3) ? 0 : 1;
+	val = QLCRD32(adapter, CRB_XG_STATE_P3P);
+	val = XG_LINK_STATE_P3P(adapter->ahw.pci_func, val);
+	return (val == XG_LINK_UP_P3P) ? 0 : 1;
 }
 
 static int
