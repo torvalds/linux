@@ -286,7 +286,20 @@ static struct platform_device cpcap_audio_device = {
 	},
 };
 
+/* This is the CPCAP Stereo DAC interface. */
 static struct tegra_audio_platform_data tegra_audio_pdata = {
+	.master		= false,
+	.dma_on		= true,  /* use dma by default */
+	.i2s_clk_rate	= 240000000,
+	.dap_clk	= "clk_dev1",
+	.audio_sync_clk = "audio_2x",
+	.mode		= I2S_BIT_FORMAT_I2S,
+	.fifo_fmt	= I2S_FIFO_16_LSB,
+	.bit_size	= I2S_BIT_SIZE_16,
+};
+
+/* Connected to CPCAP CODEC - Switchable to Bluetooth Audio. */
+static struct tegra_audio_platform_data tegra_audio2_pdata = {
 	.master		= false,
 	.dma_on		= true,  /* use dma by default */
 	.i2s_clk_rate	= 240000000,
@@ -628,6 +641,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&ram_console_device,
 	&tegra_camera,
 	&tegra_i2s_device1,
+	&tegra_i2s_device2,
 	&mdm6600_modem,
 };
 
@@ -916,6 +930,7 @@ static void init_das(void)
 	das_writel((!master)<<31, APB_MISC_DAS_DAP_CTRL_SEL_0);
 	das_writel(0, APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0);
 
+	master = tegra_audio2_pdata.master;
 	/* DAC2 -> DAP2 */
 	das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
 	das_writel(1<<28 | 1<<24 | 1,
@@ -1021,6 +1036,7 @@ static void __init tegra_stingray_init(void)
 
 	init_das();
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
+	tegra_i2s_device2.dev.platform_data = &tegra_audio2_pdata;
 	cpcap_device_register(&cpcap_audio_device);
 
 	tegra_ehci1_device.dev.platform_data = &tegra_ehci_pdata[0];
