@@ -97,7 +97,6 @@ static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
 	}
-	drm_gem_object_handle_unreference(gobj);
 	drm_gem_object_unreference_unlocked(gobj);
 }
 
