@@ -1812,41 +1812,7 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
 }
 
 
-//zyc
-static void request_cmmb_gpio(void)
-{
-	int ret;
-	ret = gpio_request(CMMB_1186_POWER_RESET, NULL);
-	if (ret) {
-	printk("%s:failed to request CMMB_1186_POWER_RESET\n",__FUNCTION__);
-	//return ret;
-	}
 
-	ret = gpio_request(CMMB_1186_POWER_DOWN, NULL);
-	if (ret) {
-	printk("%s:failed to request CMMB_1186_POWER_DOWN\n",__FUNCTION__);
-	//return ret;
-	}
-	
-
-	ret = gpio_request(CMMB_1186_POWER_ENABLE, NULL);
-	if (ret) {
-	printk("%s:failed to request CMMB_1186_POWER_ENABLE\n",__FUNCTION__);
-	//return ret;
-	}
-	printk("leave the request_cmmb_gpio\n");
-
-}
-
-static void release_cmmb_gpio(void)
-{
-	gpio_free(CMMB_1186_POWER_RESET);
-	gpio_free(CMMB_1186_POWER_DOWN);
-	gpio_free(CMMB_1186_POWER_ENABLE);
-	printk("leave the release_cmmb_gpio\n");
-
-
-}
 
 static int __init smscore_module_init(void)
 {
@@ -1864,7 +1830,7 @@ static int __init smscore_module_init(void)
 //request the gpio used by cmmb
 	//request_cmmb_gpio();
 	/* Register sub system adapter objects */
-	request_cmmb_gpio();
+//	request_cmmb_gpio();
 
 #ifdef SMS_NET_SUBSYS
 	/* NET Register */
@@ -2005,7 +1971,7 @@ static void __exit smscore_module_exit(void)
 	}
 	kmutex_unlock(&g_smscore_registrylock);
 	
-	release_cmmb_gpio();
+//	release_cmmb_gpio();
 
 	sms_debug("");
 }

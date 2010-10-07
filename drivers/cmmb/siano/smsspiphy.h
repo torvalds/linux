@@ -27,7 +27,7 @@ void smsspibus_xfer(void *context, unsigned char *txbuf,
 		    unsigned long rxbuf_phy_addr, int len);
 void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 		     void *intr_context);
-void smsspiphy_deinit(void *context);
+int smsspiphy_deinit(void *context);
 void smschipreset(void *context);
 void WriteFWtoStellar(void *pSpiPhy, unsigned char *pFW, unsigned long Len);
 void prepareForFWDnl(void *pSpiPhy);
@@ -35,4 +35,11 @@ void fwDnlComplete(void *context, int App);
 void smsspibus_ssp_suspend(void* context );
 int  smsspibus_ssp_resume(void* context);
 
+ struct cmmb_io_def_s
+{
+	unsigned int cmmb_pw_en;
+	unsigned int cmmb_pw_dwn;
+	unsigned int cmmb_pw_rst;
+	unsigned int cmmb_irq;
+};
 #endif /* __SMS_SPI_PHY_H__ */

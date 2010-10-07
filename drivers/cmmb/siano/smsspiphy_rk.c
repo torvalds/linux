@@ -42,11 +42,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/notifier.h>
 
 #include <mach/iomux.h>
-
+#include "smsspiphy.h"
+//#include <mach/cmmb_io.h>
 //#define CMMB_1186_SPIIRQ RK2818_PIN_PE1  //This Pin is SDK Board GPIOPortE_Pin1 
 //#define CMMB_1186_PWR_EN   GPIOPortH_Pin7//This Pin is SDK Board GPIOPortE_Pin1 
 
-
+#if 0
+//define the gpio used 
+#define CMMB_1186_SPIIRQ		 RK2818_PIN_PA6  //This Pin is SDK Board GPIOPortA_Pin6 
+#define CMMB_1186_POWER_DOWN	 FPGA_PIO2_09 
+#define CMMB_1186_POWER_ENABLE	 FPGA_PIO4_03
+#define CMMB_1186_POWER_RESET	 FPGA_PIO2_06
+#endif
 
 /*! macro to align the divider to the proper offset in the register bits */
 #define CLOCK_DIVIDER(i)((i-1)<<8)	/* 1-4096 */
@@ -66,7 +73,7 @@ static volatile int     dma_len = 0 ;
 static volatile int     tx_len  = 0 ;
 
 static struct ssp_dev*  panic_sspdev = NULL ;
-
+static struct cmmb_io_def_s* cmmb_io_ctrl =NULL;
 
 extern void smscore_panic_print(void);
 extern void spilog_panic_print(void) ;
@@ -310,25 +317,28 @@ static void chip_poweron()
 //1186 cmmb power on
 //set the SPI CS mode , zyc
 	//rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,1);
+	if(cmmb_io_ctrl)
+	{
 
-	gpio_direction_output(CMMB_1186_POWER_RESET,0);
-	gpio_direction_output(CMMB_1186_POWER_DOWN,0);
+		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_rst,0);
+		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_dwn,0);
 
-//	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
-      mdelay(100);
-	gpio_direction_output(CMMB_1186_POWER_ENABLE,1);
-//	gpio_set_value(CMMB_1186_POWER_ENABLE,GPIO_HIGH);
-	mdelay(500);
-//	gpio_set_value(CMMB_1186_POWER_DOWN,GPIO_HIGH);
-	gpio_direction_output(CMMB_1186_POWER_DOWN,1);
+	//	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
+	      mdelay(100);
+		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_en,1);
+	//	gpio_set_value(CMMB_1186_POWER_ENABLE,GPIO_HIGH);
+		mdelay(500);
+	//	gpio_set_value(CMMB_1186_POWER_DOWN,GPIO_HIGH);
+		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_dwn,1);
 
-	mdelay(500);
-//	gpio_set_value(CMMB_1186_POWER_RESET,GPIO_HIGH);
-	gpio_direction_output(CMMB_1186_POWER_RESET,1);
+		mdelay(500);
+	//	gpio_set_value(CMMB_1186_POWER_RESET,GPIO_HIGH);
+		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_rst,1);
 
-	mdelay(500);
-  
-	printk("cmmb chip_poweron !!!!\n");
+		mdelay(500);
+	  
+		printk("cmmb chip_poweron !!!!\n");
+		}
 }
 
 static void chip_powerdown()
@@ -354,12 +364,14 @@ static void chip_powerdown()
 //1186 cmmb power down
 #if 1
 //	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
-	gpio_direction_output(CMMB_1186_POWER_RESET,0);
+if(cmmb_io_ctrl)
+{
+	gpio_direction_output(cmmb_io_ctrl->cmmb_pw_rst,0);
 	
 	mdelay(200);
-	gpio_direction_output(CMMB_1186_POWER_DOWN,0);
+	gpio_direction_output(cmmb_io_ctrl->cmmb_pw_dwn,0);
 	
-	gpio_direction_output(CMMB_1186_POWER_ENABLE,0);
+	gpio_direction_output(cmmb_io_ctrl->cmmb_pw_en,0);
 //	gpio_set_value(CMMB_1186_POWER_RESET,GPIO_LOW);
 //	gpio_set_value(CMMB_1186_POWER_DOWN,GPIO_LOW);
 //	gpio_set_value(CMMB_1186_POWER_ENABLE,GPIO_LOW);
@@ -370,6 +382,7 @@ static void chip_powerdown()
 //	gpio_direction_output(GPIOB4_SPI0CS0_MMC0D4_NAME,0);
 
 	printk("cmmb chip_powerdown !!!!\n");
+}
 
 #endif
 //for test
@@ -401,8 +414,98 @@ int smsspibus_ssp_resume(void* context)
     }
     return 0 ;
 fail1:
-	  free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), NULL);
+	  free_irq(gpio_to_irq(cmmb_io_ctrl->cmmb_irq), NULL);
     return -1 ;
+}
+
+//zyc
+static void request_cmmb_gpio()
+{
+#if 0
+	int ret;
+	ret = gpio_request(CMMB_1186_POWER_RESET, NULL);
+	if (ret) {
+	printk("%s:failed to request CMMB_1186_POWER_RESET\n",__FUNCTION__);
+	//return ret;
+	}
+
+	ret = gpio_request(CMMB_1186_POWER_DOWN, NULL);
+	if (ret) {
+	printk("%s:failed to request CMMB_1186_POWER_DOWN\n",__FUNCTION__);
+	//return ret;
+	}
+	
+
+	ret = gpio_request(CMMB_1186_POWER_ENABLE, NULL);
+	if (ret) {
+	printk("%s:failed to request CMMB_1186_POWER_ENABLE\n",__FUNCTION__);
+	//return ret;
+	}
+
+	rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
+   	ret = gpio_request(CMMB_1186_SPIIRQ,"cmmb irq");
+	if (ret) {
+		//dev_err(&pdev->dev, "failed to request play key gpio\n");
+		//goto free_gpio;
+		printk("gpio request error\n");
+	}
+
+    //ret = request_gpio_irq(CMMB_1186_SPIIRQ, spibus_interrupt, GPIOEdgelRising, spiphy_dev);//
+    gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
+	printk("leave the request_cmmb_gpio\n");
+	#endif
+
+		int ret;
+	
+	if(cmmb_io_ctrl)
+		{
+			ret = gpio_request(cmmb_io_ctrl->cmmb_pw_rst, NULL);
+			if (ret) {
+			printk("%s:failed to request CMMB_1186_POWER_RESET\n",__FUNCTION__);
+			//return ret;
+			}
+
+			ret = gpio_request(cmmb_io_ctrl->cmmb_pw_dwn, NULL);
+			if (ret) {
+			printk("%s:failed to request CMMB_1186_POWER_DOWN\n",__FUNCTION__);
+			//return ret;
+			}
+			
+
+			ret = gpio_request(cmmb_io_ctrl->cmmb_pw_en, NULL);
+			if (ret) {
+			printk("%s:failed to request CMMB_1186_POWER_ENABLE\n",__FUNCTION__);
+			//return ret;
+			}
+
+			rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
+		   	ret = gpio_request(cmmb_io_ctrl->cmmb_irq,"cmmb irq");
+			if (ret) {
+				//dev_err(&pdev->dev, "failed to request play key gpio\n");
+				//goto free_gpio;
+				printk("gpio request error\n");
+			}
+
+		    //ret = request_gpio_irq(CMMB_1186_SPIIRQ, spibus_interrupt, GPIOEdgelRising, spiphy_dev);//
+		    gpio_pull_updown(cmmb_io_ctrl->cmmb_irq,GPIOPullUp);
+			printk("leave the request_cmmb_gpio\n");
+		}
+
+}
+
+static void release_cmmb_gpio()
+{
+	if(cmmb_io_ctrl)
+		{
+		gpio_free(cmmb_io_ctrl->cmmb_pw_rst);
+		gpio_free(cmmb_io_ctrl->cmmb_pw_dwn);
+		gpio_free(cmmb_io_ctrl->cmmb_pw_en);
+		gpio_free(cmmb_io_ctrl->cmmb_irq);
+		cmmb_io_ctrl = NULL;
+		printk("leave the release_cmmb_gpio\n");
+		}
+
+
 }
 
 void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
@@ -412,6 +515,7 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 	struct spiphy_dev_s *spiphy_dev;
 	u32 mode = 0, flags = 0, psp_flags = 0, speed = 0;
 	int error;
+	cmmb_io_ctrl = ((struct spi_device*)context)->dev.platform_data;
 
     sms_debug("smsspiphy_init\n");
     
@@ -422,6 +526,8 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
         return NULL;
 	}
 	
+	request_cmmb_gpio();
+	
 	chip_powerdown();
 	spiphy_dev->interruptHandler = smsspi_interruptHandler;
 	spiphy_dev->intr_context = intr_context;
@@ -429,7 +535,8 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
     
     //gpio_pull_updown(CMMB_1186_SPIIRQ, IRQT_FALLING);
     //设置CMMB 中断脚IOMUX	
-    
+ //申请GPIO放到   request_cmmb_gpio
+ #if 0
 	rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
    	error = gpio_request(CMMB_1186_SPIIRQ,"cmmb irq");
 	if (error) {
@@ -437,8 +544,11 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 		//goto free_gpio;
 		printk("gpio request error\n");
 	}
+
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, spibus_interrupt, GPIOEdgelRising, spiphy_dev);//
     gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
+#endif
+
     //ret = request_gpio_irq(CMMB_-rwxrwxrwx 1 root root     8 2010-09-20 17:43 built-in.o
     //-rwxrwxrwx 1 root root  6927 2010-09-19 10:42 compat.h
     //-rwxrwxrwx 1 root root  1748 2010-09-21 15:06 Kconfig
@@ -474,7 +584,7 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
     //
     //1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
 
-    request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,"inno_irq",spiphy_dev);
+    request_irq(gpio_to_irq(cmmb_io_ctrl->cmmb_irq),spibus_interrupt,IRQF_TRIGGER_RISING,"inno_irq",spiphy_dev);
 
 
     if(ret<0){
@@ -491,7 +601,7 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 	return spiphy_dev;
     
 fail1:
-	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), spiphy_dev);
+	free_irq(gpio_to_irq(cmmb_io_ctrl->cmmb_irq), spiphy_dev);
 	return 0;
 }
 
@@ -507,8 +617,10 @@ int smsspiphy_deinit(void *context)
 						 &sms_panic_notifier);
         chip_powerdown();
 	sms_info("exiting\n");
-	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), spiphy_dev);
-	gpio_free(CMMB_1186_SPIIRQ);
+	free_irq(gpio_to_irq(cmmb_io_ctrl->cmmb_irq), spiphy_dev);
+//	gpio_free(CMMB_1186_SPIIRQ);
+	release_cmmb_gpio();
+
 	return 0;
 }
 

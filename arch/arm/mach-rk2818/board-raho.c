@@ -64,6 +64,7 @@
 #include <mach/rk2818-socpm.h>
 #include <asm/tcm.h>
 
+#include "../../../drivers/cmmb/siano/smsspiphy.h"
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
  * -------------------------------------------------------------------- */
@@ -1371,6 +1372,20 @@ static struct rk2818_spi_chip cmb_spi_chip = {
 	.transfer_mode = RK2818_SPI_FULL_DUPLEX,
 };
 
+/*****************************************************************************************
+ * CMMB IO CONFIG
+ 
+ *****************************************************************************************/
+
+#define CMMB_1186_SPIIRQ RK2818_PIN_PA6
+
+static struct cmmb_io_def_s cmmb_io = {
+	.cmmb_pw_en = FPGA_PIO4_03,
+	.cmmb_pw_dwn = FPGA_PIO2_09,
+	.cmmb_pw_rst = FPGA_PIO2_06,
+	.cmmb_irq = RK2818_PIN_PA6
+};
+
 static struct spi_board_info board_spi_devices[] = {
 #if defined(CONFIG_SPI_FPGA)
 	{	/* fpga ice65l08xx */
@@ -1408,8 +1423,10 @@ static struct spi_board_info board_spi_devices[] = {
 		.chip_select	= 0,                                  
 		.max_speed_hz	= 12*1000*1000,         
 		.bus_num	= 0,
-		.irq		= RK2818_PIN_PA6,
+		//.irq		= RK2818_PIN_PA6,
+		.irq		=CMMB_1186_SPIIRQ,
 		.controller_data = &cmb_spi_chip,
+		.platform_data = &cmmb_io,
 	},
 #endif
 }; 

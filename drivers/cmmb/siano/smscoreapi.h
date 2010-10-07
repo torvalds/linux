@@ -544,9 +544,5 @@ extern int sms_debug;
 #define sms_debug(fmt, arg...) \
 	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
 
-//define the gpio used 
-#define CMMB_1186_SPIIRQ         RK2818_PIN_PA6  //This Pin is SDK Board GPIOPortA_Pin6 
-#define CMMB_1186_POWER_DOWN     FPGA_PIO2_09 
-#define CMMB_1186_POWER_ENABLE   FPGA_PIO4_03
-#define CMMB_1186_POWER_RESET    FPGA_PIO2_06
+
 #endif /* __SMS_CORE_API_H__ */
