@@ -810,7 +810,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 /* ----------------------------------------------------------- */
 /* saa7134-input.c                                             */
 
-#if defined(CONFIG_VIDEO_SAA7134_RC) || (defined(CONFIG_VIDEO_SAA7134_RC_MODULE) && defined(MODULE))
+#if defined(CONFIG_VIDEO_SAA7134_RC)
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
