@@ -672,8 +672,10 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		intel_dp = enc_to_intel_dp(encoder);
 		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT) {
 			lane_count = intel_dp->lane_count;
-			if (is_pch_edp(intel_dp))
-				bpp = dev_priv->edp.bpp;
+			break;
+		} else if (is_edp(intel_dp)) {
+			lane_count = dev_priv->edp.lanes;
+			bpp = dev_priv->edp.bpp;
 			break;
 		}
 	}
