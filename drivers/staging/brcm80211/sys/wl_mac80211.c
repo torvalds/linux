@@ -135,6 +135,7 @@ struct ieee80211_tkip_data {
 };
 
 #ifndef WLC_HIGH_ONLY
+#define WL_DEV_IF(dev)		((wl_if_t *)netdev_priv(dev))
 #define	WL_INFO(dev)		((wl_info_t *)(WL_DEV_IF(dev)->wl))	/* points to wl */
 static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev);
 static void wl_release_fw(wl_info_t *wl);

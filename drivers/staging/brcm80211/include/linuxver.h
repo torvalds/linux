@@ -17,11 +17,8 @@
 #ifndef _linuxver_h_
 #define _linuxver_h_
 
-#include <linux/version.h>
 #include <linux/module.h>
-
 #include <linux/slab.h>
-
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -29,17 +26,14 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
-#undef IP_TOS
-#include <asm/io.h>
-
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
-
-#define CHECKSUM_HW	CHECKSUM_PARTIAL
-
 #include <linux/time.h>
 #include <linux/wait.h>
+
+#undef IP_TOS
+#include <asm/io.h>
 
 #define KILL_PROC(nr, sig) \
 	do { \
@@ -50,7 +44,5 @@
 		if (tsk) \
 			send_sig(sig, tsk, 1); \
 	} while (0)
-
-#define WL_DEV_IF(dev)          ((wl_if_t *)netdev_priv(dev))
 
 #endif				/* _linuxver_h_ */

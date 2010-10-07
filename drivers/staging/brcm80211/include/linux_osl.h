@@ -404,7 +404,7 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 #define	PKTSETLINK(skb, x)		(((struct sk_buff *)(skb))->prev = (struct sk_buff*)(x))
 #define	PKTPRIO(skb)			(((struct sk_buff *)(skb))->priority)
 #define	PKTSETPRIO(skb, x)		(((struct sk_buff *)(skb))->priority = (x))
-#define PKTSUMNEEDED(skb)		(((struct sk_buff *)(skb))->ip_summed == CHECKSUM_HW)
+#define PKTSUMNEEDED(skb)		(((struct sk_buff *)(skb))->ip_summed == CHECKSUM_PARTIAL)
 #define PKTSETSUMGOOD(skb, x)		(((struct sk_buff *)(skb))->ip_summed = \
 						((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
 /* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because skb->ip_summed is overloaded */
