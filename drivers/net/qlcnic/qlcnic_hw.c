@@ -582,9 +582,6 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	u64 word;
 	int rv;
 
-	if ((adapter->flags & QLCNIC_LRO_ENABLED) == enable)
-		return 0;
-
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
 
 	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
@@ -598,8 +595,6 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
 			"Could not send configure hw lro request\n");
-
-	adapter->flags ^= QLCNIC_LRO_ENABLED;
 
 	return rv;
 }

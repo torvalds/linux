@@ -865,7 +865,7 @@ static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
 		return 0;
 	}
 
-	if (adapter->flags & QLCNIC_LRO_ENABLED) {
+	if (dev->features & NETIF_F_LRO) {
 		if (qlcnic_config_hw_lro(adapter, QLCNIC_LRO_DISABLED))
 			return -EIO;
 
@@ -1062,7 +1062,7 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 		return -EINVAL;
 	}
 
-	if ((data & ETH_FLAG_LRO) && (adapter->flags & QLCNIC_LRO_ENABLED))
+	if ((data & ETH_FLAG_LRO) && (netdev->features & NETIF_F_LRO))
 		return 0;
 
 	if (data & ETH_FLAG_LRO) {
