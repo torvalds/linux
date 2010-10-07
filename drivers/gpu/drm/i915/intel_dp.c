@@ -788,10 +788,11 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 }
 
 /* Returns true if the panel was already on when called */
-static bool ironlake_edp_panel_on (struct drm_device *dev)
+static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 {
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp;
+	u32 pp, idle_on_mask = PP_ON | PP_SEQUENCE_STATE_ON_IDLE;
 
 	if (I915_READ(PCH_PP_STATUS) & PP_ON)
 		return true;
@@ -803,19 +804,20 @@ static bool ironlake_edp_panel_on (struct drm_device *dev)
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
 
-	pp |= POWER_TARGET_ON;
+	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
 
 	/* Ouch. We need to wait here for some panels, like Dell e6510
 	 * https://bugs.freedesktop.org/show_bug.cgi?id=29278i
 	 */
 	msleep(300);
 
-	if (wait_for(I915_READ(PCH_PP_STATUS) & PP_ON, 5000))
+	if (wait_for((I915_READ(PCH_PP_STATUS) & idle_on_mask) == idle_on_mask,
+		     5000))
 		DRM_ERROR("panel on wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
 
-	pp &= ~(PANEL_UNLOCK_REGS);
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -826,7 +828,8 @@ static bool ironlake_edp_panel_on (struct drm_device *dev)
 static void ironlake_edp_panel_off (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp;
+	u32 pp, idle_off_mask = PP_ON | PP_SEQUENCE_MASK |
+		PP_CYCLE_DELAY_ACTIVE | PP_SEQUENCE_STATE_MASK;
 
 	pp = I915_READ(PCH_PP_CONTROL);
 
@@ -837,12 +840,12 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 
 	pp &= ~POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
 
-	if (wait_for((I915_READ(PCH_PP_STATUS) & PP_ON) == 0, 5000))
+	if (wait_for((I915_READ(PCH_PP_STATUS) & idle_off_mask) == 0, 5000))
 		DRM_ERROR("panel off wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
 
-	/* Make sure VDD is enabled so DP AUX will work */
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -853,36 +856,19 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	msleep(300);
 }
 
-static void ironlake_edp_panel_vdd_on(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp;
-
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp |= EDP_FORCE_VDD;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
-	msleep(300);
-}
-
-static void ironlake_edp_panel_vdd_off(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp;
-
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp &= ~EDP_FORCE_VDD;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
-	msleep(300);
-}
-
 static void ironlake_edp_backlight_on (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
 	DRM_DEBUG_KMS("\n");
+	/*
+	 * If we enable the backlight right away following a panel power
+	 * on, we may see slight flicker as the panel syncs with the eDP
+	 * link.  So delay a bit to make sure the image is solid before
+	 * allowing it to appear.
+	 */
+	msleep(300);
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp |= EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
@@ -932,10 +918,12 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (is_edp(intel_dp)) {
-		ironlake_edp_panel_off(dev);
 		ironlake_edp_backlight_off(dev);
-		ironlake_edp_panel_vdd_on(dev);
-		ironlake_edp_pll_on(encoder);
+		ironlake_edp_panel_on(intel_dp);
+		if (!is_pch_edp(intel_dp))
+			ironlake_edp_pll_on(encoder);
+		else
+			ironlake_edp_pll_off(encoder);
 	}
 	if (dp_reg & DP_PORT_EN)
 		intel_dp_link_down(intel_dp);
@@ -949,7 +937,7 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 	intel_dp_start_link_train(intel_dp);
 
 	if (is_edp(intel_dp))
-		ironlake_edp_panel_on(dev);
+		ironlake_edp_panel_on(intel_dp);
 
 	intel_dp_complete_link_train(intel_dp);
 
@@ -966,19 +954,19 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		if (is_edp(intel_dp)) {
+		if (is_edp(intel_dp))
 			ironlake_edp_backlight_off(dev);
-			ironlake_edp_panel_off(dev);
-		}
 		if (dp_reg & DP_PORT_EN)
 			intel_dp_link_down(intel_dp);
 		if (is_edp(intel_dp))
+			ironlake_edp_panel_off(dev);
+		if (is_edp(intel_dp) && !is_pch_edp(intel_dp))
 			ironlake_edp_pll_off(encoder);
 	} else {
 		if (!(dp_reg & DP_PORT_EN)) {
-			intel_dp_start_link_train(intel_dp);
 			if (is_edp(intel_dp))
-				ironlake_edp_panel_on(dev);
+				ironlake_edp_panel_on(intel_dp);
+			intel_dp_start_link_train(intel_dp);
 			intel_dp_complete_link_train(intel_dp);
 			if (is_edp(intel_dp))
 				ironlake_edp_backlight_on(dev);
@@ -1445,9 +1433,10 @@ ironlake_dp_detect(struct drm_connector *connector)
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	enum drm_connector_status status;
 
-	/* Panel needs power for AUX to work */
+	/* Can't disconnect eDP */
 	if (is_edp(intel_dp))
-		ironlake_edp_panel_vdd_on(connector->dev);
+		return connector_status_connected;
+
 	status = connector_status_disconnected;
 	if (intel_dp_aux_native_read(intel_dp,
 				     0x000, intel_dp->dpcd,
@@ -1458,8 +1447,6 @@ ironlake_dp_detect(struct drm_connector *connector)
 	}
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
 		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
-	if (is_edp(intel_dp))
-		ironlake_edp_panel_vdd_off(connector->dev);
 	return status;
 }
 

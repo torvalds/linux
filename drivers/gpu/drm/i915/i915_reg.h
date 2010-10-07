@@ -1373,6 +1373,9 @@
 #define   PP_SEQUENCE_ON	(1 << 28)
 #define   PP_SEQUENCE_OFF	(2 << 28)
 #define   PP_SEQUENCE_MASK	0x30000000
+#define   PP_CYCLE_DELAY_ACTIVE	(1 << 27)
+#define   PP_SEQUENCE_STATE_ON_IDLE (1 << 3)
+#define   PP_SEQUENCE_STATE_MASK 0x0000000f
 #define PP_CONTROL	0x61204
 #define   POWER_TARGET_ON	(1 << 0)
 #define PP_ON_DELAYS	0x61208
