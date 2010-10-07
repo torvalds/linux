@@ -38,7 +38,7 @@
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
-static int cache_defer_req(struct cache_req *req, struct cache_head *item);
+static void cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
 
 static void cache_init(struct cache_head *h)
@@ -269,7 +269,8 @@ int cache_check(struct cache_detail *detail,
 	}
 
 	if (rv == -EAGAIN) {
-		if (cache_defer_req(rqstp, h) < 0) {
+		cache_defer_req(rqstp, h);
+		if (!test_bit(CACHE_PENDING, &h->flags)) {
 			/* Request is not deferred */
 			rv = cache_is_valid(detail, h);
 			if (rv == -EAGAIN)
@@ -525,7 +526,7 @@ static void __hash_deferred_req(struct cache_deferred_req *dreq, struct cache_he
 	hlist_add_head(&dreq->hash, &cache_defer_hash[hash]);
 }
 
-static int setup_deferral(struct cache_deferred_req *dreq, struct cache_head *item)
+static void setup_deferral(struct cache_deferred_req *dreq, struct cache_head *item)
 {
 	struct cache_deferred_req *discard;
 
@@ -547,13 +548,6 @@ static int setup_deferral(struct cache_deferred_req *dreq, struct cache_head *it
 	if (discard)
 		/* there was one too many */
 		discard->revisit(discard, 1);
-
-	if (!test_bit(CACHE_PENDING, &item->flags)) {
-		/* must have just been validated... */
-		cache_revisit_request(item);
-		return -EAGAIN;
-	}
-	return 0;
 }
 
 struct thread_deferred_req {
@@ -568,18 +562,17 @@ static void cache_restart_thread(struct cache_deferred_req *dreq, int too_many)
 	complete(&dr->completion);
 }
 
-static int cache_wait_req(struct cache_req *req, struct cache_head *item)
+static void cache_wait_req(struct cache_req *req, struct cache_head *item)
 {
 	struct thread_deferred_req sleeper;
 	struct cache_deferred_req *dreq = &sleeper.handle;
-	int ret;
 
 	sleeper.completion = COMPLETION_INITIALIZER_ONSTACK(sleeper.completion);
 	dreq->revisit = cache_restart_thread;
 
-	ret = setup_deferral(dreq, item);
+	setup_deferral(dreq, item);
 
-	if (ret ||
+	if (!test_bit(CACHE_PENDING, &item->flags) ||
 	    wait_for_completion_interruptible_timeout(
 		    &sleeper.completion, req->thread_wait) <= 0) {
 		/* The completion wasn't completed, so we need
@@ -599,41 +592,34 @@ static int cache_wait_req(struct cache_req *req, struct cache_head *item)
 			wait_for_completion(&sleeper.completion);
 		}
 	}
-	if (test_bit(CACHE_PENDING, &item->flags)) {
-		/* item is still pending, try request
-		 * deferral
-		 */
-		return -ETIMEDOUT;
-	}
-	/* only return success if we actually deferred the
-	 * request.  In this case we waited until it was
-	 * answered so no deferral has happened - rather
-	 * an answer already exists.
-	 */
-	return -EEXIST;
 }
 
-static int cache_defer_req(struct cache_req *req, struct cache_head *item)
+static void cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
-	int ret;
 
-	if (cache_defer_cnt >= DFR_MAX) {
+	if (cache_defer_cnt >= DFR_MAX)
 		/* too much in the cache, randomly drop this one,
 		 * or continue and drop the oldest
 		 */
 		if (net_random()&1)
-			return -ENOMEM;
-	}
+			return;
+
+
 	if (req->thread_wait) {
-		ret = cache_wait_req(req, item);
-		if (ret != -ETIMEDOUT)
-			return ret;
+		cache_wait_req(req, item);
+		if (!test_bit(CACHE_PENDING, &item->flags))
+			return;
 	}
 	dreq = req->defer(req);
 	if (dreq == NULL)
-		return -ENOMEM;
-	return setup_deferral(dreq, item);
+		return;
+	setup_deferral(dreq, item);
+	if (!test_bit(CACHE_PENDING, &item->flags))
+		/* Bit could have been cleared before we managed to
+		 * set up the deferral, so need to revisit just in case
+		 */
+		cache_revisit_request(item);
 }
 
 static void cache_revisit_request(struct cache_head *item)
