@@ -249,12 +249,14 @@ static struct cpcap_audio_state stingray_cpcap_audio_state = {
 };
 
 /* CPCAP is i2s master; tegra_audio_pdata.master == false */
+static void init_dac2(bool bluetooth);
 static struct cpcap_audio_platform_data cpcap_audio_pdata = {
 	.master = true,
 	.regulator = "vaudio",
 	.state = &stingray_cpcap_audio_state,
 	.speaker_gpio = TEGRA_GPIO_PR3,
 	.headset_gpio = -1,
+	.bluetooth_bypass = init_dac2,
 };
 
 static struct platform_device cpcap_audio_device = {
@@ -881,19 +883,28 @@ static inline void das_writel(unsigned long value, unsigned long offset)
 #define APB_MISC_DAS_DAP_CTRL_SEL_0             0xc00
 #define APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0   0xc40
 
-static void init_das(void)
+static void init_dac1(void)
 {
 	bool master = tegra_audio_pdata.master;
-
 	/* DAC1 -> DAP1 */
 	das_writel((!master)<<31, APB_MISC_DAS_DAP_CTRL_SEL_0);
 	das_writel(0, APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0);
+}
 
-	master = tegra_audio2_pdata.master;
-	/* DAC2 -> DAP2 */
-	das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
-	das_writel(1<<28 | 1<<24 | 1,
-			APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
+static void init_dac2(bool bluetooth)
+{
+	bool master = tegra_audio2_pdata.master;
+	if (!bluetooth) {
+		/* DAC2 -> DAP2 for CPCAP CODEC */
+		das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
+		das_writel(1<<28 | 1<<24 | 1,
+				APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
+	} else {
+		/* DAC2 -> DAP4 for Bluetooth Voice */
+		das_writel((!master)<<31 | 19, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
+		das_writel(3<<28 | 3<<24 | 3,
+				APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
+	}
 }
 
 static void __init tegra_stingray_init(void)
@@ -988,7 +999,8 @@ static void __init tegra_stingray_init(void)
 	tegra_serial_debug_init(TEGRA_UARTB_BASE, INT_UARTB,
 				clk, INT_QUAD_RES_31, -1);
 
-	init_das();
+	init_dac1();
+	init_dac2(false);
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
 	tegra_i2s_device2.dev.platform_data = &tegra_audio2_pdata;
 	cpcap_device_register(&cpcap_audio_device);
