@@ -2252,6 +2252,8 @@ qla4xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		qla4xxx_mailbox_premature_completion(ha);
 		qla4xxx_free_irqs(ha);
 		pci_disable_device(pdev);
+		/* Return back all IOs */
+		qla4xxx_abort_active_cmds(ha, DID_RESET << 16);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		set_bit(AF_EEH_BUSY, &ha->flags);
@@ -2275,17 +2277,13 @@ qla4xxx_pci_mmio_enabled(struct pci_dev *pdev)
 	if (!is_aer_supported(ha))
 		return PCI_ERS_RESULT_NONE;
 
-	if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
-		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: firmware hang  -- "
-		    "mmio_enabled\n", ha->host_no, __func__);
-		return PCI_ERS_RESULT_NEED_RESET;
-	} else
-		return PCI_ERS_RESULT_RECOVERED;
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
-uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
+static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 {
 	uint32_t rval = QLA_ERROR;
+	uint32_t ret = 0;
 	int fn;
 	struct pci_dev *other_pdev = NULL;
 
@@ -2297,7 +2295,6 @@ uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		clear_bit(AF_ONLINE, &ha->flags);
 		qla4xxx_mark_all_devices_missing(ha);
 		qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
-		qla4xxx_abort_active_cmds(ha, DID_RESET << 16);
 	}
 
 	fn = PCI_FUNC(ha->pdev->devfn);
@@ -2360,7 +2357,16 @@ uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 			/* Clear driver state register */
 			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DRV_STATE, 0);
 			qla4_8xxx_set_drv_active(ha);
-			ha->isp_ops->enable_intrs(ha);
+			ret = qla4xxx_request_irqs(ha);
+			if (ret) {
+				ql4_printk(KERN_WARNING, ha, "Failed to "
+				    "reserve interrupt %d already in use.\n",
+				    ha->pdev->irq);
+				rval = QLA_ERROR;
+			} else {
+				ha->isp_ops->enable_intrs(ha);
+				rval = QLA_SUCCESS;
+			}
 		}
 		qla4_8xxx_idc_unlock(ha);
 	} else {
@@ -2372,8 +2378,18 @@ uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 			clear_bit(AF_FW_RECOVERY, &ha->flags);
 			rval = qla4xxx_initialize_adapter(ha,
 			    PRESERVE_DDB_LIST);
-			if (rval == QLA_SUCCESS)
-				ha->isp_ops->enable_intrs(ha);
+			if (rval == QLA_SUCCESS) {
+				ret = qla4xxx_request_irqs(ha);
+				if (ret) {
+					ql4_printk(KERN_WARNING, ha, "Failed to"
+					    " reserve interrupt %d already in"
+					    " use.\n", ha->pdev->irq);
+					rval = QLA_ERROR;
+				} else {
+					ha->isp_ops->enable_intrs(ha);
+					rval = QLA_SUCCESS;
+				}
+			}
 			qla4_8xxx_idc_lock(ha);
 			qla4_8xxx_set_drv_active(ha);
 			qla4_8xxx_idc_unlock(ha);
@@ -2415,12 +2431,7 @@ qla4xxx_pci_slot_reset(struct pci_dev *pdev)
 		goto exit_slot_reset;
 	}
 
-	ret = qla4xxx_request_irqs(ha);
-	if (ret) {
-		ql4_printk(KERN_WARNING, ha, "Failed to reserve interrupt %d"
-		    " already in use.\n", pdev->irq);
-		goto exit_slot_reset;
-	}
+	ha->isp_ops->disable_intrs(ha);
 
 	if (is_qla8022(ha)) {
 		if (qla4_8xxx_error_recovery(ha) == QLA_SUCCESS) {
