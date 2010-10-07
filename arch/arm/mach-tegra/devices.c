@@ -468,8 +468,8 @@ static struct resource i2s_resource2[] = {
 		.flags	= IORESOURCE_IRQ
 	},
 	[1] = {
-		.start	= TEGRA_DMA_REQ_SEL_I2S_2,
-		.end	= TEGRA_DMA_REQ_SEL_I2S_2,
+		.start	= TEGRA_DMA_REQ_SEL_I2S2_1,
+		.end	= TEGRA_DMA_REQ_SEL_I2S2_1,
 		.flags	= IORESOURCE_DMA
 	},
 	[2] = {
