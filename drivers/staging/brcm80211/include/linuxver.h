@@ -63,10 +63,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 #define	PCI_SAVE_STATE(a, b)	pci_save_state(a)
 #define	PCI_RESTORE_STATE(a, b)	pci_restore_state(a)
 
-#ifndef HAVE_FREE_NETDEV
-#define free_netdev(dev)		kfree(dev)
-#endif
-
 /* suspend args */
 #define DRV_SUSPEND_STATE_TYPE pm_message_t
 
