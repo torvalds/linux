@@ -179,6 +179,7 @@ static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 #define IOCB_TOV_MARGIN			10
 #define RELOGIN_TOV			18
 #define ISNS_DEREG_TOV			5
+#define HBA_ONLINE_TOV			30
 
 #define MAX_RESET_HA_RETRIES		2
 

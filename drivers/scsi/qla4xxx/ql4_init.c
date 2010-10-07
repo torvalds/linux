@@ -1207,8 +1207,8 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 			break;
 
 		DEBUG2(printk(KERN_INFO "scsi%ld: %s: Waiting for boot "
-			      "firmware to complete... ctrl_sts=0x%x\n",
-			      ha->host_no, __func__, ctrl_status));
+		    "firmware to complete... ctrl_sts=0x%x, remaining=%ld\n",
+		    ha->host_no, __func__, ctrl_status, max_wait_time));
 
 		msleep_interruptible(250);
 	} while (!time_after_eq(jiffies, max_wait_time));

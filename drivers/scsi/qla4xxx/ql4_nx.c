@@ -1540,10 +1540,12 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 	ql4_printk(KERN_INFO, ha,
 	    "FW: Attempting to load firmware from flash...\n");
 	rval = qla4_8xxx_start_firmware(ha, ha->hw.flt_region_fw);
-	if (rval == QLA_SUCCESS)
-		return rval;
 
-	ql4_printk(KERN_ERR, ha, "FW: Load firmware from flash FAILED...\n");
+	if (rval != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "FW: Load firmware from flash"
+		    " FAILED...\n");
+		return rval;
+	}
 
 	return rval;
 }
@@ -1764,20 +1766,9 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	int retval;
 	retval = qla4_8xxx_device_state_handler(ha);
 
-	if (retval == QLA_SUCCESS &&
-	    !test_bit(AF_INIT_DONE, &ha->flags)) {
+	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
-		if (retval != QLA_SUCCESS) {
-			ql4_printk(KERN_WARNING, ha,
-			    "Failed to reserve interrupt %d already in use.\n",
-			    ha->pdev->irq);
-		} else {
-			set_bit(AF_IRQ_ATTACHED, &ha->flags);
-			ha->host->irq = ha->pdev->irq;
-			ql4_printk(KERN_INFO, ha, "%s: irq %d attached\n",
-			    __func__, ha->pdev->irq);
-		}
-	}
+
 	return retval;
 }
 

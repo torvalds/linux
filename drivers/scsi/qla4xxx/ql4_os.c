@@ -167,8 +167,6 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 			      "of (%d) secs exhausted, marking device DEAD.\n",
 			      ha->host_no, __func__, ddb_entry->fw_ddb_index,
 			      QL4_SESS_RECOVERY_TMO));
-
-		qla4xxx_wake_dpc(ha);
 	}
 }
 
@@ -1960,7 +1958,7 @@ static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha)
 {
 	unsigned long wait_online;
 
-	wait_online = jiffies + (30 * HZ);
+	wait_online = jiffies + (HBA_ONLINE_TOV * HZ);
 	while (time_before(jiffies, wait_online)) {
 
 		if (adapter_up(ha))
