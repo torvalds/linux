@@ -447,6 +447,7 @@ enum {
 	DLM_BEGIN_RECO_MSG,	 /* 517 */
 	DLM_FINALIZE_RECO_MSG,	 /* 518 */
 	DLM_QUERY_REGION,	 /* 519 */
+	DLM_QUERY_NODEINFO,	 /* 520 */
 };
 
 struct dlm_reco_node_data
@@ -735,6 +736,22 @@ struct dlm_query_region {
 	u8 pad1;
 	u8 qr_domain[O2NM_MAX_NAME_LEN];
 	u8 qr_regions[O2HB_MAX_REGION_NAME_LEN * O2NM_MAX_REGIONS];
+};
+
+struct dlm_node_info {
+	u8 ni_nodenum;
+	u8 pad1;
+	u16 ni_ipv4_port;
+	u32 ni_ipv4_address;
+};
+
+struct dlm_query_nodeinfo {
+	u8 qn_nodenum;
+	u8 qn_numnodes;
+	u8 qn_namelen;
+	u8 pad1;
+	u8 qn_domain[O2NM_MAX_NAME_LEN];
+	struct dlm_node_info qn_nodes[O2NM_MAX_NODES];
 };
 
 struct dlm_exit_domain
