@@ -132,69 +132,6 @@ typedef struct _DSP_IMAGE_INFO_V6 {
    unsigned short    pad1;
 } DSP_IMAGE_INFO_V6, *PDSP_IMAGE_INFO_V6;
 
-
-//---------------------------------------------------------------------------
-// Function:    getfw
-//
-// Parameters:  char *fn - input DSP image file name
-//              int  *pimgsz - output DSP image file size
-// Returns:     DSP image buffer
-//
-// Description: Read the DSP image file into a char buffer
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-char *getfw (char *fn, size_t *pimgsz)
-{
-    struct file *fd;
-    mm_segment_t fs = get_fs();
-    loff_t pos;
-    char *pfwimg;
-    int fwimgsz;
-
-    set_fs(get_ds());
-
-    fd = filp_open(fn, 0, 0);
-    if ( IS_ERR(fd) )
-    {
-       DEBUG("FT1000:%s:can not open dsp image\n", __FUNCTION__);
-       set_fs(fs);
-       return NULL;
-    }
-
-    fwimgsz = i_size_read(fd->f_dentry->d_inode);
-    *pimgsz = fwimgsz;
-
-    if (fwimgsz <= 0)
-    {
-       DEBUG("FT1000:%s:invalid file size\n", __FUNCTION__);
-       filp_close(fd, current->files);
-       set_fs(fs);
-       return NULL;
-    }
-    pfwimg = (char*)vmalloc ( fwimgsz );
-    if (pfwimg == NULL) {
-        DEBUG("FT1000:%s:can not allocate memory for dsp image\n", __FUNCTION__);
-        filp_close(fd, current->files);
-        set_fs(fs);
-        return NULL;
-    }
-    pos = 0;
-    if (vfs_read(fd, (void __user __force*)pfwimg, fwimgsz, &pos) != fwimgsz) {
-       vfree(pfwimg);
-       DEBUG("FT1000:%s:failed to read firmware image\n",__FUNCTION__);
-       filp_close(fd, current->files);
-       set_fs(fs);
-       return NULL;
-    }
-
-    filp_close(fd, current->files);
-    set_fs(fs);
-
-    return pfwimg;
-}
-
 //---------------------------------------------------------------------------
 // Function:    check_usb_db
 //

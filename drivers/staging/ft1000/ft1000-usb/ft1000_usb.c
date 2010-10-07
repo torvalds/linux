@@ -13,6 +13,7 @@
 #include <linux/usb.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/firmware.h>
 #include "ft1000_usb.h"
 
 //#include <linux/sched.h>
@@ -88,10 +89,12 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
     struct usb_endpoint_descriptor *endpoint;
     struct usb_device *dev;
     unsigned numaltsetting;
-    int i;
+	int i, ret = 0, size;
 
     struct ft1000_device *ft1000dev;
     FT1000_INFO *pft1000info;
+	const struct firmware *dsp_fw;
+
 
     if(!(ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL)))
     {
@@ -149,14 +152,24 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 
     DEBUG("bulk_in=%d, bulk_out=%d\n", ft1000dev->bulk_in_endpointAddr, ft1000dev->bulk_out_endpointAddr);
 
-    //read DSP image
-    pFileStart = (void*)getfw("/etc/flarion/ft3000.img", &FileLength);
+	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
+	if (ret < 0) {
+		printk(KERN_ERR "Error request_firmware().\n");
+		goto err_fw;
+	}
 
-    if (pFileStart == NULL )
-    {
-        DEBUG ("ft1000_probe: Read DSP image failed\n");
-        return 0;
-    }
+	size = max_t(uint, dsp_fw->size, 4096);
+	pFileStart = kmalloc(size, GFP_KERNEL);
+
+	if (!pFileStart) {
+		release_firmware(dsp_fw);
+		ret = -ENOMEM;
+		goto err_fw;
+	}
+
+	memcpy(pFileStart, dsp_fw->data, dsp_fw->size);
+	FileLength = dsp_fw->size;
+	release_firmware(dsp_fw);
 
     //for ( i=0; i< MAX_NUM_CARDS+2; i++)
     //    pdevobj[i] = NULL;
@@ -206,6 +219,10 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 		ft1000InitProc(ft1000dev->net);// +mbelian
 
        return 0;
+
+err_fw:
+	kfree(ft1000dev);
+	return ret;
 }
 
 //---------------------------------------------------------------------------
@@ -262,7 +279,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 
 		kfree(pft1000info->pFt1000Dev); //+mbelian
     }
-
+	kfree(pFileStart);
     //terminate other kernel threads
     //in multiple instances case, first find the device
     //in the link list
