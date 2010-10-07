@@ -356,8 +356,18 @@ void octeon_user_io_init(void)
 	cvmmemctl.s.wbfltime = 0;
 	/* R/W If set, do not put Istream in the L2 cache. */
 	cvmmemctl.s.istrnol2 = 0;
-	/* R/W The write buffer threshold. */
-	cvmmemctl.s.wbthresh = 10;
+
+	/*
+	 * R/W The write buffer threshold. As per erratum Core-14752
+	 * for CN63XX, a sc/scd might fail if the write buffer is
+	 * full.  Lowering WBTHRESH greatly lowers the chances of the
+	 * write buffer ever being full and triggering the erratum.
+	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+		cvmmemctl.s.wbthresh = 4;
+	else
+		cvmmemctl.s.wbthresh = 10;
+
 	/* R/W If set, CVMSEG is available for loads/stores in
 	 * kernel/debug mode. */
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
@@ -375,13 +385,12 @@ void octeon_user_io_init(void)
 	 * is max legal value. */
 	cvmmemctl.s.lmemsz = CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE;
 
+	write_c0_cvmmemctl(cvmmemctl.u64);
 
 	if (smp_processor_id() == 0)
 		pr_notice("CVMSEG size: %d cache lines (%d bytes)\n",
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
-
-	write_c0_cvmmemctl(cvmmemctl.u64);
 
 	/* Move the performance counter interrupts to IRQ 6 */
 	cvmctl = read_c0_cvmctl();
@@ -758,6 +767,31 @@ EXPORT_SYMBOL(prom_putchar);
 
 void prom_free_prom_memory(void)
 {
+	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X)) {
+		/* Check for presence of Core-14449 fix.  */
+		u32 insn;
+		u32 *foo;
+
+		foo = &insn;
+
+		asm volatile("# before" : : : "memory");
+		prefetch(foo);
+		asm volatile(
+			".set push\n\t"
+			".set noreorder\n\t"
+			"bal 1f\n\t"
+			"nop\n"
+			"1:\tlw %0,-12($31)\n\t"
+			".set pop\n\t"
+			: "=r" (insn) : : "$31", "memory");
+
+		if ((insn >> 26) != 0x33)
+			panic("No PREF instruction at Core-14449 probe point.\n");
+
+		if (((insn >> 16) & 0x1f) != 28)
+			panic("Core-14449 WAR not in place (%04x).\n"
+			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).\n", insn);
+	}
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 	cvmx_interrupt_rsl_enable();
 
