@@ -2001,8 +2001,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
-	     || HAS_eDP || intel_pch_has_edp(crtc))) {
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
@@ -3717,7 +3716,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
-		} else if (has_edp_encoder || (is_dp && intel_pch_has_edp(crtc))) {
+		} else if (has_edp_encoder) {
 			switch (dev_priv->edp.bpp/3) {
 			case 8:
 				temp |= PIPE_8BPC;

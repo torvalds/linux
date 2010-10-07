@@ -648,25 +648,6 @@ intel_dp_compute_m_n(int bpp,
 	intel_reduce_ratio(&m_n->link_m, &m_n->link_n);
 }
 
-bool intel_pch_has_edp(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_encoder *encoder;
-
-	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct intel_dp *intel_dp;
-
-		if (encoder->crtc != crtc)
-			continue;
-
-		intel_dp = enc_to_intel_dp(encoder);
-		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT)
-			return intel_dp->is_pch_edp;
-	}
-	return false;
-}
-
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
