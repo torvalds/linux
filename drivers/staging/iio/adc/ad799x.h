@@ -13,7 +13,7 @@
 #define  _AD799X_H_
 
 #define AD799X_CHANNEL_SHIFT			4
-
+#define AD799X_STORAGEBITS			16
 /*
  * AD7991, AD7995 and AD7999 defines
  */
@@ -97,6 +97,8 @@ struct ad799x_state;
 struct ad799x_chip_info {
 	u8				num_inputs;
 	u8				bits;
+	u8				storagebits;
+	char				sign;
 	u16				int_vref_mv;
 	bool				monitor_mode;
 	u16				default_config;

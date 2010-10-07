@@ -53,7 +53,7 @@ int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
 		mask >>= 1;
 	}
 
-	ret = be16_to_cpu(ring_data[count]) & 0xFFF;
+	ret = be16_to_cpu(ring_data[count]);
 
 error_free_ring_data:
 	kfree(ring_data);

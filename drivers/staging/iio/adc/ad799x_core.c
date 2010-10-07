@@ -123,17 +123,18 @@ static AD799X_SCAN_EL(5);
 static AD799X_SCAN_EL(6);
 static AD799X_SCAN_EL(7);
 
-static ssize_t ad799x_show_precision(struct device *dev,
+static ssize_t ad799x_show_type(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
-	return sprintf(buf, "%d\n", st->chip_info->bits);
-}
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
+	struct ad799x_state *st = indio_dev->dev_data;
 
-static IIO_DEVICE_ATTR(in_precision, S_IRUGO, ad799x_show_precision,
-		       NULL, 0);
+	return sprintf(buf, "%c%d/%d\n", st->chip_info->sign,
+		       st->chip_info->bits, AD799X_STORAGEBITS);
+}
+static IIO_DEVICE_ATTR(in_type, S_IRUGO, ad799x_show_type, NULL, 0);
 
 static int ad7991_5_9_set_scan_mode(struct ad799x_state *st, unsigned mask)
 {
@@ -211,11 +212,11 @@ static ssize_t ad799x_read_single_channel(struct device *dev,
 		if (ret < 0)
 			goto error_ret;
 
-		data = rxbuf[0] & 0xFFF;
+		data = rxbuf[0];
 	}
 
 	/* Pretty print the result */
-	len = sprintf(buf, "%u\n", data);
+	len = sprintf(buf, "%u\n", data & ((1 << (st->chip_info->bits)) - 1));
 
 error_ret:
 	mutex_unlock(&dev_info->mlock);
@@ -473,7 +474,7 @@ static struct attribute *ad7991_5_9_3_4_scan_el_attrs[] = {
 	&iio_const_attr_in2_index.dev_attr.attr,
 	&iio_scan_el_in3.dev_attr.attr,
 	&iio_const_attr_in3_index.dev_attr.attr,
-	&iio_dev_attr_in_precision.dev_attr.attr,
+	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };
 
@@ -499,7 +500,7 @@ static struct attribute *ad7992_scan_el_attrs[] = {
 	&iio_const_attr_in0_index.dev_attr.attr,
 	&iio_scan_el_in1.dev_attr.attr,
 	&iio_const_attr_in1_index.dev_attr.attr,
-	&iio_dev_attr_in_precision.dev_attr.attr,
+	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };
 
@@ -543,7 +544,7 @@ static struct attribute *ad7997_8_scan_el_attrs[] = {
 	&iio_const_attr_in6_index.dev_attr.attr,
 	&iio_scan_el_in7.dev_attr.attr,
 	&iio_const_attr_in7_index.dev_attr.attr,
-	&iio_dev_attr_in_precision.dev_attr.attr,
+	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };
 
@@ -671,6 +672,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7991] = {
 		.num_inputs = 4,
 		.bits = 12,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 4096,
 		.dev_attrs = &ad7991_5_9_3_4_dev_attr_group,
 		.scan_attrs = &ad7991_5_9_3_4_scan_el_group,
@@ -679,6 +681,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7995] = {
 		.num_inputs = 4,
 		.bits = 10,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 1024,
 		.dev_attrs = &ad7991_5_9_3_4_dev_attr_group,
 		.scan_attrs = &ad7991_5_9_3_4_scan_el_group,
@@ -687,6 +690,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7999] = {
 		.num_inputs = 4,
 		.bits = 10,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 1024,
 		.dev_attrs = &ad7991_5_9_3_4_dev_attr_group,
 		.scan_attrs = &ad7991_5_9_3_4_scan_el_group,
@@ -695,6 +699,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7992] = {
 		.num_inputs = 2,
 		.bits = 12,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 4096,
 		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
@@ -706,6 +711,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7993] = {
 		.num_inputs = 4,
 		.bits = 10,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 1024,
 		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
@@ -717,6 +723,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7994] = {
 		.num_inputs = 4,
 		.bits = 12,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 4096,
 		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
@@ -728,6 +735,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7997] = {
 		.num_inputs = 8,
 		.bits = 10,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 1024,
 		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
@@ -739,6 +747,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7998] = {
 		.num_inputs = 8,
 		.bits = 12,
+		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 		.int_vref_mv = 4096,
 		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
