@@ -179,6 +179,18 @@ config P4080_DS
 
 endif # PPC32
 
+config P5020_DS
+	bool "Freescale P5020 DS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select MPC8xxx_GPIO
+	select HAS_RAPIDIO
+	help
+	  This option enables support for the P5020 DS board
+
 endif # FSL_SOC_BOOKE
 
 config TQM85xx
