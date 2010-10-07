@@ -487,6 +487,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_SYSTEM_ERROR:
 			/* Log Mailbox registers */
 			ql4_printk(KERN_INFO, ha, "%s: System Err\n", __func__);
+			qla4xxx_dump_registers(ha);
+
 			if (ql4xdontresethba) {
 				DEBUG2(printk("scsi%ld: %s:Don't Reset HBA\n",
 				    ha->host_no, __func__));
