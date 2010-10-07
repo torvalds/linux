@@ -1623,6 +1623,9 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	if (reg == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	if (strlen(name) > O2HB_MAX_REGION_NAME_LEN)
+		return ERR_PTR(-ENAMETOOLONG);
+
 	config_item_init_type_name(&reg->hr_item, name, &o2hb_region_type);
 
 	spin_lock(&o2hb_live_lock);
@@ -2035,3 +2038,34 @@ void o2hb_stop_all_regions(void)
 	spin_unlock(&o2hb_live_lock);
 }
 EXPORT_SYMBOL_GPL(o2hb_stop_all_regions);
+
+int o2hb_get_all_regions(char *region_uuids, u8 max_regions)
+{
+	struct o2hb_region *reg;
+	int numregs = 0;
+	char *p;
+
+	spin_lock(&o2hb_live_lock);
+
+	p = region_uuids;
+	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		mlog(0, "Region: %s\n", config_item_name(&reg->hr_item));
+		if (numregs < max_regions) {
+			memcpy(p, config_item_name(&reg->hr_item),
+			       O2HB_MAX_REGION_NAME_LEN);
+			p += O2HB_MAX_REGION_NAME_LEN;
+		}
+		numregs++;
+	}
+
+	spin_unlock(&o2hb_live_lock);
+
+	return numregs;
+}
+EXPORT_SYMBOL_GPL(o2hb_get_all_regions);
+
+int o2hb_global_heartbeat_active(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(o2hb_global_heartbeat_active);
