@@ -77,7 +77,6 @@ struct cpuinfo {
 	u32 num_rd_brk;
 	u32 num_wr_brk;
 	u32 cpu_clock_freq; /* store real freq of cpu */
-	u32 freq_div_hz; /* store freq/HZ */
 
 	/* FPGA family */
 	u32 fpga_family_code;
