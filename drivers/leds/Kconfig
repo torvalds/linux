@@ -311,6 +311,15 @@ config LEDS_NS2
 	  Network Space v2 board (and parents). This include Internet Space v2,
 	  Network Space (Max) v2 and d2 Network v2 boards.
 
+config LEDS_NETXBIG
+	tristate "LED support for Big Network series LEDs"
+	depends on MACH_NET2BIG_V2 || MACH_NET5BIG_V2
+	default y
+	help
+	  This option enable support for LEDs found on the LaCie 2Big
+	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
+	  controlled through a GPIO extension bus.
+
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
 	help
