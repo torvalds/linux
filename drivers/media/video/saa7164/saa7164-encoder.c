@@ -708,7 +708,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE     |
-		V4L2_CAP_STREAMING     |
 		0;
 
 	cap->capabilities |= V4L2_CAP_TUNER;
