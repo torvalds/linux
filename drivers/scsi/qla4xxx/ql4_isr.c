@@ -72,7 +72,7 @@ qla4xxx_status_cont_entry(struct scsi_qla_host *ha,
 {
 	struct srb *srb = ha->status_srb;
 	struct scsi_cmnd *cmd;
-	uint8_t sense_len;
+	uint16_t sense_len;
 
 	if (srb == NULL)
 		return;
