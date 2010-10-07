@@ -350,6 +350,7 @@ typedef struct drm_i915_private {
 		int bpp;
 		struct edp_power_seq pps;
 	} edp;
+	bool no_aux_handshake;
 
 	struct notifier_block lid_notifier;
 

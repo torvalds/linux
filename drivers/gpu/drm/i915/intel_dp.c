@@ -1724,6 +1724,26 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
+	/* Cache some DPCD data in the eDP case */
+	if (is_edp(intel_dp)) {
+		int ret;
+		bool was_on;
+
+		was_on = ironlake_edp_panel_on(intel_dp);
+		ret = intel_dp_aux_native_read(intel_dp, DP_DPCD_REV,
+					       intel_dp->dpcd,
+					       sizeof(intel_dp->dpcd));
+		if (ret == sizeof(intel_dp->dpcd)) {
+			if (intel_dp->dpcd[0] >= 0x11)
+				dev_priv->no_aux_handshake = intel_dp->dpcd[3] &
+					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
+		} else {
+			DRM_ERROR("failed to retrieve link info\n");
+		}
+		if (!was_on)
+			ironlake_edp_panel_off(dev);
+	}
+
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
 	if (is_edp(intel_dp)) {
