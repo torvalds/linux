@@ -442,7 +442,8 @@ void qlcnic_set_multi(struct net_device *netdev)
 	qlcnic_nic_add_mac(adapter, bcast_addr);
 
 	if (netdev->flags & IFF_PROMISC) {
-		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
+			mode = VPORT_MISS_MODE_ACCEPT_ALL;
 		goto send_fw_cmd;
 	}
 

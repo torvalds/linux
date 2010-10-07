@@ -920,6 +920,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_TAGGING_ENABLED		0x100
 #define QLCNIC_MACSPOOF			0x200
 #define QLCNIC_MAC_OVERRIDE_DISABLED	0x400
+#define QLCNIC_PROMISC_DISABLED		0x800
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 

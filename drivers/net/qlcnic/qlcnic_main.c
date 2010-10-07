@@ -718,14 +718,17 @@ static void
 qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
-	adapter->flags &= ~QLCNIC_MACSPOOF;
-	adapter->flags &= ~QLCNIC_MAC_OVERRIDE_DISABLED;
+	adapter->flags &= ~(QLCNIC_MACSPOOF | QLCNIC_MAC_OVERRIDE_DISABLED |
+				QLCNIC_PROMISC_DISABLED);
 
 	if (esw_cfg->mac_anti_spoof)
 		adapter->flags |= QLCNIC_MACSPOOF;
 
 	if (!esw_cfg->mac_override)
 		adapter->flags |= QLCNIC_MAC_OVERRIDE_DISABLED;
+
+	if (!esw_cfg->promisc_mode)
+		adapter->flags |= QLCNIC_PROMISC_DISABLED;
 
 	qlcnic_set_netdev_features(adapter, esw_cfg);
 }
@@ -845,6 +848,7 @@ qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
 		esw_cfg.pci_func = i;
 		esw_cfg.offload_flags = BIT_0;
 		esw_cfg.mac_override = BIT_0;
+		esw_cfg.promisc_mode = BIT_0;
 		if (adapter->capabilities  & QLCNIC_FW_CAPABILITY_TSO)
 			esw_cfg.offload_flags |= (BIT_1 | BIT_2);
 		if (qlcnic_config_switch_port(adapter, &esw_cfg))
@@ -3571,6 +3575,7 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 						QLCNIC_NON_PRIV_FUNC) {
 				esw_cfg[i].mac_anti_spoof = 0;
 				esw_cfg[i].mac_override = 1;
+				esw_cfg[i].promisc_mode = 1;
 			}
 			break;
 		case QLCNIC_ADD_VLAN:
