@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/usb/android_composite.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -48,6 +49,7 @@
 #include "board-ventana.h"
 #include "devices.h"
 #include "gpio-names.h"
+#include "fuse.h"
 
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
@@ -77,6 +79,43 @@ static __initdata struct tegra_clk_init_table ventana_clk_init_table[] = {
 	{ "pll_m",	"clk_m",	600000000,	true},
 	{ "emc",	"pll_m",	600000000,	true},
 	{ NULL,		NULL,		0,		0},
+};
+
+static char *usb_functions[] = { "mtp" };
+static char *usb_functions_adb[] = { "mtp", "adb" };
+
+static struct android_usb_product usb_products[] = {
+	{
+		.product_id     = 0x7102,
+		.num_functions  = ARRAY_SIZE(usb_functions),
+		.functions      = usb_functions,
+	},
+	{
+		.product_id     = 0x7100,
+		.num_functions  = ARRAY_SIZE(usb_functions_adb),
+		.functions      = usb_functions_adb,
+	},
+};
+
+/* standard android USB platform data */
+static struct android_usb_platform_data andusb_plat = {
+	.vendor_id              = 0x0955,
+	.product_id             = 0x7100,
+	.manufacturer_name      = "NVIDIA",
+	.product_name           = "Ventana",
+	.serial_number          = NULL,
+	.num_products = ARRAY_SIZE(usb_products),
+	.products = usb_products,
+	.num_functions = ARRAY_SIZE(usb_functions_adb),
+	.functions = usb_functions_adb,
+};
+
+static struct platform_device androidusb_device = {
+	.name   = "android_usb",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &andusb_plat,
+	},
 };
 
 static struct tegra_i2c_platform_data ventana_i2c1_platform_data = {
@@ -164,6 +203,7 @@ static struct platform_device ventana_keys_device = {
 
 static struct platform_device *ventana_devices[] __initdata = {
 	&tegra_otg_device,
+	&androidusb_device,
 	&debug_uart,
 	&pmu_device,
 	&tegra_udc_device,
@@ -203,12 +243,16 @@ static int __init ventana_touch_init(void)
 
 static void __init tegra_ventana_init(void)
 {
-	tegra_common_init();
+	char serial[20];
 
+	tegra_common_init();
 	tegra_clk_init_from_table(ventana_clk_init_table);
 	ventana_pinmux_init();
 
+	snprintf(serial, sizeof(serial), "%llx", tegra_chip_uid());
+	andusb_plat.serial_number = kstrdup(serial, GFP_KERNEL);
 	platform_add_devices(ventana_devices, ARRAY_SIZE(ventana_devices));
+
 	ventana_sdhci_init();
 	ventana_i2c_init();
 	ventana_regulator_init();
