@@ -5746,6 +5746,13 @@ void intel_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
 
 		/*
+		 * On Ibex Peak and Cougar Point, we need to disable clock
+		 * gating for the panel power sequencer or it will fail to
+		 * start up when no ports are active.
+		 */
+		I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+
+		/*
 		 * According to the spec the following bits should be set in
 		 * order to enable memory self-refresh
 		 * The bit 22/21 of 0x42004

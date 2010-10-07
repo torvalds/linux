@@ -2784,6 +2784,9 @@
 #define  FDI_RX_PHASE_SYNC_POINTER_ENABLE       (1)
 #define FDI_RX_CHICKEN(pipe) _PIPE(pipe, FDI_RXA_CHICKEN, FDI_RXB_CHICKEN)
 
+#define SOUTH_DSPCLK_GATE_D	0xc2020
+#define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
+
 /* CPU: FDI_TX */
 #define FDI_TXA_CTL             0x60100
 #define FDI_TXB_CTL             0x61100
