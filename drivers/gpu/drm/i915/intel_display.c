@@ -3796,13 +3796,25 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 				POSTING_READ(PCH_DREF_CONTROL);
 				udelay(200);
+			}
+			temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
-				temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+			/* Enable CPU source on CPU attached eDP */
+			if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+				if (dev_priv->lvds_use_ssc)
+					temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+				else
+					temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 			} else {
-				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				/* Enable SSC on PCH eDP if needed */
+				if (dev_priv->lvds_use_ssc) {
+					DRM_ERROR("enabling SSC on PCH\n");
+					temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
+				}
 			}
 			I915_WRITE(PCH_DREF_CONTROL, temp);
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
 		}
 	}
 
