@@ -66,7 +66,6 @@
 #include <mach-omap2/omap3-opp.h>
 #endif
 
-#define BRIDGE_NAME "C6410"
 /*  ----------------------------------- Globals */
 #define DRIVER_NAME  "DspBridge"
 #define DSPBRIDGE_VERSION	"0.3"
@@ -465,7 +464,7 @@ static int BRIDGE_RESUME(struct platform_device *pdev)
 
 static struct platform_driver bridge_driver = {
 	.driver = {
-		   .name = BRIDGE_NAME,
+		   .name = "omap-dsp",
 		   },
 	.probe = omap34_xx_bridge_probe,
 	.remove = __devexit_p(omap34_xx_bridge_remove),
