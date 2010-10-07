@@ -33,9 +33,6 @@
 #include <asm/io.h>
 
 #include <linux/workqueue.h>
-
-typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
-
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 
