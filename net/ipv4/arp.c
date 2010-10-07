@@ -502,10 +502,8 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 
 	if (n) {
 		n->used = jiffies;
-		if (n->nud_state&NUD_VALID || neigh_event_send(n, skb) == 0) {
-			read_lock_bh(&n->lock);
-			memcpy(haddr, n->ha, dev->addr_len);
-			read_unlock_bh(&n->lock);
+		if (n->nud_state & NUD_VALID || neigh_event_send(n, skb) == 0) {
+			neigh_ha_snapshot(haddr, n, dev);
 			neigh_release(n);
 			return 0;
 		}

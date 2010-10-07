@@ -105,6 +105,7 @@ struct neighbour {
 	atomic_t		refcnt;
 	atomic_t		probes;
 	rwlock_t		lock;
+	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 	struct hh_cache		*hh;
 	int			(*output)(struct sk_buff *skb);
@@ -302,7 +303,10 @@ static inline void neigh_confirm(struct neighbour *neigh)
 
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
-	neigh->used = jiffies;
+	unsigned long now = ACCESS_ONCE(jiffies);
+	
+	if (neigh->used != now)
+		neigh->used = now;
 	if (!(neigh->nud_state&(NUD_CONNECTED|NUD_DELAY|NUD_PROBE)))
 		return __neigh_event_send(neigh, skb);
 	return 0;
@@ -373,4 +377,14 @@ struct neighbour_cb {
 
 #define NEIGH_CB(skb)	((struct neighbour_cb *)(skb)->cb)
 
+static inline void neigh_ha_snapshot(char *dst, const struct neighbour *n,
+				     const struct net_device *dev)
+{
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&n->ha_lock);
+		memcpy(dst, n->ha, dev->addr_len);
+	} while (read_seqretry(&n->ha_lock, seq));
+}
 #endif

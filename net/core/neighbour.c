@@ -294,6 +294,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 
 	skb_queue_head_init(&n->arp_queue);
 	rwlock_init(&n->lock);
+	seqlock_init(&n->ha_lock);
 	n->updated	  = n->used = now;
 	n->nud_state	  = NUD_NONE;
 	n->output	  = neigh_blackhole;
@@ -1015,7 +1016,7 @@ out_unlock_bh:
 }
 EXPORT_SYMBOL(__neigh_event_send);
 
-static void neigh_update_hhs(struct neighbour *neigh)
+static void neigh_update_hhs(const struct neighbour *neigh)
 {
 	struct hh_cache *hh;
 	void (*update)(struct hh_cache*, const struct net_device*, const unsigned char *)
@@ -1151,7 +1152,9 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 	}
 
 	if (lladdr != neigh->ha) {
+		write_seqlock(&neigh->ha_lock);
 		memcpy(&neigh->ha, lladdr, dev->addr_len);
+		write_sequnlock(&neigh->ha_lock);
 		neigh_update_hhs(neigh);
 		if (!(new & NUD_CONNECTED))
 			neigh->confirmed = jiffies -
@@ -1214,6 +1217,7 @@ static inline bool neigh_hh_lookup(struct neighbour *n, struct dst_entry *dst,
 {
 	struct hh_cache *hh;
 
+	smp_rmb(); /* paired with smp_wmb() in neigh_hh_init() */
 	for (hh = n->hh; hh; hh = hh->hh_next) {
 		if (hh->hh_type == protocol) {
 			atomic_inc(&hh->hh_refcnt);
@@ -1248,8 +1252,8 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 		kfree(hh);
 		return;
 	}
-	read_unlock(&n->lock);
-	write_lock(&n->lock);
+
+	write_lock_bh(&n->lock);
 
 	/* must check if another thread already did the insert */
 	if (neigh_hh_lookup(n, dst, protocol)) {
@@ -1263,13 +1267,13 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 		hh->hh_output = n->ops->output;
 
 	hh->hh_next = n->hh;
+	smp_wmb(); /* paired with smp_rmb() in neigh_hh_lookup() */
 	n->hh	    = hh;
 
 	if (unlikely(cmpxchg(&dst->hh, NULL, hh) != NULL))
 		hh_cache_put(hh);
 end:
-	write_unlock(&n->lock);
-	read_lock(&n->lock);
+	write_unlock_bh(&n->lock);
 }
 
 /* This function can be used in contexts, where only old dev_queue_xmit
@@ -1308,16 +1312,18 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
 		struct net_device *dev = neigh->dev;
+		unsigned int seq;
 
-		read_lock_bh(&neigh->lock);
 		if (dev->header_ops->cache &&
 		    !dst->hh &&
 		    !(dst->flags & DST_NOCACHE))
 			neigh_hh_init(neigh, dst, dst->ops->protocol);
 
-		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
-				      neigh->ha, NULL, skb->len);
-		read_unlock_bh(&neigh->lock);
+		do {
+			seq = read_seqbegin(&neigh->ha_lock);
+			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+					      neigh->ha, NULL, skb->len);
+		} while (read_seqretry(&neigh->ha_lock, seq));
 
 		if (err >= 0)
 			rc = neigh->ops->queue_xmit(skb);
@@ -1344,13 +1350,16 @@ int neigh_connected_output(struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
+	unsigned int seq;
 
 	__skb_pull(skb, skb_network_offset(skb));
 
-	read_lock_bh(&neigh->lock);
-	err = dev_hard_header(skb, dev, ntohs(skb->protocol),
-			      neigh->ha, NULL, skb->len);
-	read_unlock_bh(&neigh->lock);
+	do {
+		seq = read_seqbegin(&neigh->ha_lock);
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+				      neigh->ha, NULL, skb->len);
+	} while (read_seqretry(&neigh->ha_lock, seq));
+
 	if (err >= 0)
 		err = neigh->ops->queue_xmit(skb);
 	else {
@@ -2148,10 +2157,14 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 
 	read_lock_bh(&neigh->lock);
 	ndm->ndm_state	 = neigh->nud_state;
-	if ((neigh->nud_state & NUD_VALID) &&
-	    nla_put(skb, NDA_LLADDR, neigh->dev->addr_len, neigh->ha) < 0) {
-		read_unlock_bh(&neigh->lock);
-		goto nla_put_failure;
+	if (neigh->nud_state & NUD_VALID) {
+		char haddr[MAX_ADDR_LEN];
+
+		neigh_ha_snapshot(haddr, neigh, neigh->dev);
+		if (nla_put(skb, NDA_LLADDR, neigh->dev->addr_len, haddr) < 0) {
+			read_unlock_bh(&neigh->lock);
+			goto nla_put_failure;
+		}
 	}
 
 	ci.ndm_used	 = jiffies_to_clock_t(now - neigh->used);
