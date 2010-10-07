@@ -37,6 +37,8 @@
 #include "devices-imx51.h"
 #include "devices.h"
 
+#define	MX51_USB_PLL_DIV_24_MHZ	0x01
+
 static struct pad_desc mx51efikamx_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
@@ -63,10 +65,38 @@ static inline void mxc_init_imx_uart(void)
 }
 #endif /* SERIAL_IMX */
 
+/* This function is board specific as the bit mask for the plldiv will also
+ * be different for other Freescale SoCs, thus a common bitmask is not
+ * possible and cannot get place in /plat-mxc/ehci.c.
+ */
+static int initialize_otg_port(struct platform_device *pdev)
+{
+	u32 v;
+	void __iomem *usb_base;
+	void __iomem *usbother_base;
+	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usbother_base = (void __iomem *)(usb_base + MX5_USBOTHER_REGS_OFFSET);
+
+	/* Set the PHY clock to 19.2MHz */
+	v = __raw_readl(usbother_base + MXC_USB_PHY_CTR_FUNC2_OFFSET);
+	v &= ~MX5_USB_UTMI_PHYCTRL1_PLLDIV_MASK;
+	v |= MX51_USB_PLL_DIV_24_MHZ;
+	__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC2_OFFSET);
+	iounmap(usb_base);
+	return 0;
+}
+
+static struct mxc_usbh_platform_data dr_utmi_config = {
+	.init   = initialize_otg_port,
+	.portsc = MXC_EHCI_UTMI_16BIT,
+	.flags  = MXC_EHCI_INTERNAL_PHY,
+};
+
 static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
 					ARRAY_SIZE(mx51efikamx_pads));
+	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
 	mxc_init_imx_uart();
 }
 
