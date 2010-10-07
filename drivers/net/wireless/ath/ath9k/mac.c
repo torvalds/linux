@@ -491,8 +491,6 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	REG_WRITE(ah, AR_DMISC(q),
 		  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
 
-	REGWRITE_BUFFER_FLUSH(ah);
-
 	if (qi->tqi_cbrPeriod) {
 		REG_WRITE(ah, AR_QCBRCFG(q),
 			  SM(qi->tqi_cbrPeriod, AR_Q_CBRCFG_INTERVAL) |
@@ -507,8 +505,6 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
 			  AR_Q_RDYTIMECFG_EN);
 	}
-
-	REGWRITE_BUFFER_FLUSH(ah);
 
 	REG_WRITE(ah, AR_DCHNTIME(q),
 		  SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
