@@ -65,8 +65,10 @@ static DECLARE_WAIT_QUEUE_HEAD(o2hb_steady_queue);
 /*
  * In global heartbeat, we maintain a series of region bitmaps.
  * 	- o2hb_region_bitmap allows us to limit the region number to max region.
+ * 	- o2hb_live_region_bitmap tracks live regions (seen steady iterations).
  */
 static unsigned long o2hb_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
+static unsigned long o2hb_live_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
 
 #define O2HB_DB_TYPE_LIVENODES		0
 struct o2hb_debug_buf {
@@ -1135,6 +1137,7 @@ int o2hb_init(void)
 
 	memset(o2hb_live_node_bitmap, 0, sizeof(o2hb_live_node_bitmap));
 	memset(o2hb_region_bitmap, 0, sizeof(o2hb_region_bitmap));
+	memset(o2hb_live_region_bitmap, 0, sizeof(o2hb_live_region_bitmap));
 
 	return o2hb_debug_init();
 }
@@ -1563,6 +1566,8 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	/* Ok, we were woken.  Make sure it wasn't by drop_item() */
 	spin_lock(&o2hb_live_lock);
 	hb_task = reg->hr_task;
+	if (o2hb_global_heartbeat_active())
+		set_bit(reg->hr_region_num, o2hb_live_region_bitmap);
 	spin_unlock(&o2hb_live_lock);
 
 	if (hb_task)
@@ -1751,8 +1756,10 @@ static void o2hb_heartbeat_group_drop_item(struct config_group *group,
 
 	/* stop the thread when the user removes the region dir */
 	spin_lock(&o2hb_live_lock);
-	if (o2hb_global_heartbeat_active())
+	if (o2hb_global_heartbeat_active()) {
 		clear_bit(reg->hr_region_num, o2hb_region_bitmap);
+		clear_bit(reg->hr_region_num, o2hb_live_region_bitmap);
+	}
 	hb_task = reg->hr_task;
 	reg->hr_task = NULL;
 	spin_unlock(&o2hb_live_lock);
