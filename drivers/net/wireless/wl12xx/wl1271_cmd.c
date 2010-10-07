@@ -108,6 +108,8 @@ out:
 int wl1271_cmd_general_parms(struct wl1271 *wl)
 {
 	struct wl1271_general_parms_cmd *gen_parms;
+	struct wl1271_ini_general_params *gp = &wl->nvs->general_params;
+	bool answer = false;
 	int ret;
 
 	if (!wl->nvs)
@@ -119,13 +121,24 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
-	memcpy(&gen_parms->general_params, &wl->nvs->general_params,
-	       sizeof(struct wl1271_ini_general_params));
+	memcpy(&gen_parms->general_params, gp, sizeof(*gp));
 
-	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
-	if (ret < 0)
+	if (gp->tx_bip_fem_auto_detect)
+		answer = true;
+
+	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
+	if (ret < 0) {
 		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");
+		goto out;
+	}
 
+	gp->tx_bip_fem_manufacturer =
+		gen_parms->general_params.tx_bip_fem_manufacturer;
+
+	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
+		     answer ? "auto" : "manual", gp->tx_bip_fem_manufacturer);
+
+out:
 	kfree(gen_parms);
 	return ret;
 }
