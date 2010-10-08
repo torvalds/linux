@@ -18,15 +18,8 @@
 #ifndef __ASM_ARCH_TEGRA_FIQ_H
 #define __ASM_ARCH_TEGRA_FIQ_H
 
-/* change an interrupt to be an FIQ instead of an IRQ */
-void tegra_fiq_select(int n, int on);
-
 /* enable/disable an interrupt that is an FIQ (safe from FIQ context?) */
 void tegra_fiq_enable(int n);
 void tegra_fiq_disable(int n);
-
-/* install an FIQ handler */
-int tegra_fiq_set_handler(void (*func)(void *data, void *regs, void *svc_sp),
-		void *data);
 
 #endif

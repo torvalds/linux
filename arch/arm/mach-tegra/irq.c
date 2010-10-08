@@ -202,9 +202,21 @@ static int tegra_set_type(unsigned int irq, unsigned int flow_type)
 	return 0;
 }
 
+static void tegra_ack(unsigned int irq)
+{
+	tegra_legacy_force_irq_clr(irq);
+	gic_ack_irq(irq);
+}
+
+static int tegra_retrigger(unsigned int irq)
+{
+	tegra_legacy_force_irq_set(irq);
+	return 1;
+}
+
 static struct irq_chip tegra_irq = {
 	.name		= "PPI",
-	.ack		= gic_ack_irq,
+	.ack		= tegra_ack,
 	.mask		= tegra_mask,
 	.unmask		= tegra_unmask,
 	.set_wake	= tegra_set_wake,
@@ -212,6 +224,7 @@ static struct irq_chip tegra_irq = {
 #ifdef CONFIG_SMP
 	.set_affinity	= gic_set_cpu,
 #endif
+	.retrigger	= tegra_retrigger,
 };
 
 void __init tegra_init_irq(void)
