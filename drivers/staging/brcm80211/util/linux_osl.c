@@ -613,7 +613,7 @@ void osl_delay(uint usec)
 	uint d;
 
 	while (usec > 0) {
-		d = MIN(usec, 1000);
+		d = min(usec, (uint)1000);
 		udelay(d);
 		usec -= d;
 	}

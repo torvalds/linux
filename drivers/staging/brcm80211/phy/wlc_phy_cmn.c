@@ -1775,7 +1775,7 @@ wlc_phy_txpower_sromlimit_max_get(wlc_phy_t *ppi, uint chan, u8 *max_txpwr,
 		maxtxpwr = (maxtxpwr > 6) ? (maxtxpwr - 6) : 0;
 
 		tx_pwr_max = MAX(tx_pwr_max, maxtxpwr);
-		tx_pwr_min = MIN(tx_pwr_min, maxtxpwr);
+		tx_pwr_min = min(tx_pwr_min, maxtxpwr);
 	}
 	*max_txpwr = tx_pwr_max;
 	*min_txpwr = tx_pwr_min;
@@ -1873,14 +1873,14 @@ void wlc_phy_txpower_recalc_target(phy_info_t *pi)
 			wlc_phy_txpower_sromlimit((wlc_phy_t *) pi, target_chan,
 						  &mintxpwr, &maxtxpwr, rate);
 
-			maxtxpwr = MIN(maxtxpwr, pi->txpwr_limit[rate]);
+			maxtxpwr = min(maxtxpwr, pi->txpwr_limit[rate]);
 
 			maxtxpwr =
 			    (maxtxpwr > pactrl) ? (maxtxpwr - pactrl) : 0;
 
 			maxtxpwr = (maxtxpwr > 6) ? (maxtxpwr - 6) : 0;
 
-			maxtxpwr = MIN(maxtxpwr, tx_pwr_target[rate]);
+			maxtxpwr = min(maxtxpwr, tx_pwr_target[rate]);
 
 			if (pi->txpwr_percent <= 100)
 				maxtxpwr = (maxtxpwr * pi->txpwr_percent) / 100;
@@ -1889,13 +1889,13 @@ void wlc_phy_txpower_recalc_target(phy_info_t *pi)
 		}
 
 		tx_pwr_target[rate] =
-		    MIN(tx_pwr_target[rate], pi->txpwr_env_limit[rate]);
+		    min(tx_pwr_target[rate], pi->txpwr_env_limit[rate]);
 
 		if (tx_pwr_target[rate] > tx_pwr_max)
 			tx_pwr_max_rate_ind = rate;
 
 		tx_pwr_max = MAX(tx_pwr_max, tx_pwr_target[rate]);
-		tx_pwr_min = MIN(tx_pwr_min, tx_pwr_target[rate]);
+		tx_pwr_min = min(tx_pwr_min, tx_pwr_target[rate]);
 	}
 
 	bzero(pi->tx_power_offset, sizeof(pi->tx_power_offset));
@@ -1978,7 +1978,7 @@ wlc_phy_txpower_reg_limit_calc(phy_info_t *pi, struct txpwr_limits *txpwr,
 			for (rate1 = rate_start_index, rate2 = 0;
 			     rate2 < WLC_NUM_RATES_OFDM; rate1++, rate2++)
 				pi->txpwr_limit[rate1] =
-				    MIN(txpwr_ptr2[rate2],
+				    min(txpwr_ptr2[rate2],
 					tmp_txpwr_limit[rate2]);
 		}
 
@@ -2021,7 +2021,7 @@ wlc_phy_txpower_reg_limit_calc(phy_info_t *pi, struct txpwr_limits *txpwr,
 			     rate2 < WLC_NUM_RATES_MCS_1_STREAM;
 			     rate1++, rate2++)
 				pi->txpwr_limit[rate1] =
-				    MIN(txpwr_ptr2[rate2],
+				    min(txpwr_ptr2[rate2],
 					tmp_txpwr_limit[rate2]);
 		}
 
@@ -2066,7 +2066,7 @@ wlc_phy_txpower_reg_limit_calc(phy_info_t *pi, struct txpwr_limits *txpwr,
 		pi->txpwr_limit[WL_TX_POWER_MCS_32] = txpwr->mcs32;
 
 		pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST] =
-		    MIN(pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST],
+		    min(pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST],
 			pi->txpwr_limit[WL_TX_POWER_MCS_32]);
 		pi->txpwr_limit[WL_TX_POWER_MCS_32] =
 		    pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST];

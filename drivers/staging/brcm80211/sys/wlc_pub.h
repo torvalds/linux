@@ -57,7 +57,7 @@
 
 #define WLC_SNR_INVALID		0	/* invalid SNR value */
 
-/* a large TX Power as an init value to factor out of MIN() calculations,
+/* a large TX Power as an init value to factor out of min() calculations,
  * keep low enough to fit in an s8, units are .25 dBm
  */
 #define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
@@ -456,7 +456,7 @@ extern const u8 wlc_prio2prec_map[];
 /* This maps priority to one precedence higher - Used by PS-Poll response packets to
  * simulate enqueue-at-head operation, but still maintain the order on the queue
  */
-#define WLC_PRIO_TO_HI_PREC(pri)	MIN(WLC_PRIO_TO_PREC(pri) + 1, WLC_PREC_COUNT - 1)
+#define WLC_PRIO_TO_HI_PREC(pri)	min(WLC_PRIO_TO_PREC(pri) + 1, WLC_PREC_COUNT - 1)
 
 extern const u8 wme_fifo2ac[];
 #define WME_PRIO2AC(prio)	wme_fifo2ac[prio2fifo[(prio)]]

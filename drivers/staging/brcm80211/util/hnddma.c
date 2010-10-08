@@ -1011,7 +1011,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 #endif				/* defined(__mips__) */
 
 	/* set actual length */
-	pkt_len = MIN((di->rxoffset + len), di->rxbufsize);
+	pkt_len = min((di->rxoffset + len), di->rxbufsize);
 	PKTSETLEN(head, pkt_len);
 	resid = len - (di->rxbufsize - di->rxoffset);
 
@@ -1020,7 +1020,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 		tail = head;
 		while ((resid > 0) && (p = _dma_getnextrxp(di, FALSE))) {
 			PKTSETNEXT(tail, p);
-			pkt_len = MIN(resid, (int)di->rxbufsize);
+			pkt_len = min(resid, (int)di->rxbufsize);
 			PKTSETLEN(p, pkt_len);
 
 			tail = p;

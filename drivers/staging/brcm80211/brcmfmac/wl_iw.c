@@ -701,7 +701,7 @@ wl_iw_set_spy(struct net_device *dev,
 	if (!extra)
 		return -EINVAL;
 
-	iw->spy_num = MIN(ARRAYSIZE(iw->spy_addr), dwrq->length);
+	iw->spy_num = min(ARRAYSIZE(iw->spy_addr), dwrq->length);
 	for (i = 0; i < iw->spy_num; i++)
 		memcpy(&iw->spy_addr[i], addr[i].sa_data, ETHER_ADDR_LEN);
 	memset(iw->spy_qual, 0, sizeof(iw->spy_qual));
@@ -1291,7 +1291,7 @@ wl_iw_set_scan(struct net_device *dev,
 				return -EBUSY;
 			} else {
 				g_specific_ssid.SSID_len =
-				    MIN(sizeof(g_specific_ssid.SSID),
+				    min(sizeof(g_specific_ssid.SSID),
 					req->essid_len);
 				memcpy(g_specific_ssid.SSID, req->essid,
 				       g_specific_ssid.SSID_len);
@@ -1389,7 +1389,7 @@ wl_iw_iscan_set_scan(struct net_device *dev,
 	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			struct iw_scan_req *req = (struct iw_scan_req *)extra;
-			ssid.SSID_len = MIN(sizeof(ssid.SSID), req->essid_len);
+			ssid.SSID_len = min(sizeof(ssid.SSID), req->essid_len);
 			memcpy(ssid.SSID, req->essid, ssid.SSID_len);
 			ssid.SSID_len = htod32(ssid.SSID_len);
 		} else {
@@ -1918,9 +1918,9 @@ wl_iw_set_essid(struct net_device *dev,
 
 	if (dwrq->length && extra) {
 #if WIRELESS_EXT > 20
-		g_ssid.SSID_len = MIN(sizeof(g_ssid.SSID), dwrq->length);
+		g_ssid.SSID_len = min(sizeof(g_ssid.SSID), dwrq->length);
 #else
-		g_ssid.SSID_len = MIN(sizeof(g_ssid.SSID), dwrq->length - 1);
+		g_ssid.SSID_len = min(sizeof(g_ssid.SSID), dwrq->length - 1);
 #endif
 		memcpy(g_ssid.SSID, extra, g_ssid.SSID_len);
 	} else {
@@ -2453,7 +2453,7 @@ wl_iw_get_encode(struct net_device *dev,
 
 	wsec = dtoh32(wsec);
 	auth = dtoh32(auth);
-	dwrq->length = MIN(DOT11_MAX_KEY_SIZE, key.len);
+	dwrq->length = min(DOT11_MAX_KEY_SIZE, key.len);
 
 	dwrq->flags = key.index + 1;
 	if (!(wsec & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED)))

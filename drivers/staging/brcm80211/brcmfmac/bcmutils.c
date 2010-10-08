@@ -61,7 +61,7 @@ uint pktcopy(osl_t *osh, void *p, uint offset, int len, unsigned char * buf)
 
 	/* copy the data */
 	for (; p && len; p = PKTNEXT(p)) {
-		n = MIN((uint) PKTLEN(p) - offset, (uint) len);
+		n = min((uint) PKTLEN(p) - offset, (uint) len);
 		bcopy(PKTDATA(p) + offset, buf, n);
 		buf += n;
 		len -= n;
@@ -89,7 +89,7 @@ uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
 
 	/* copy the data */
 	for (; p && len; p = PKTNEXT(p)) {
-		n = MIN((uint) PKTLEN(p) - offset, (uint) len);
+		n = min((uint) PKTLEN(p) - offset, (uint) len);
 		bcopy(buf, PKTDATA(p) + offset, n);
 		buf += n;
 		len -= n;

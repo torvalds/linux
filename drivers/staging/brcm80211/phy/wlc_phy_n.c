@@ -21357,7 +21357,7 @@ static void wlc_phy_rssi_cal_nphy_rev2(phy_info_t *pi, u8 rssi_type)
 		    || (rssi_type == NPHY_RSSI_SEL_W2)) {
 			for (ctr = 0; ctr < 2; ctr++) {
 				poll_miniq[vcm][ctr] =
-				    MIN(poll_results[vcm][ctr * 2 + 0],
+				    min(poll_results[vcm][ctr * 2 + 0],
 					poll_results[vcm][ctr * 2 + 1]);
 			}
 		}
@@ -25492,7 +25492,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 						      (lna2 << 2) | lna1), 0x3,
 						     0);
 	} else {
-		hpvga = (u16) MAX(MIN(((int)hpvga) + delta_pwr, 10), 0);
+		hpvga = (u16) MAX(min(((int)hpvga) + delta_pwr, 10), 0);
 		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 12),
 					     ((hpvga << 12) | (lpf_biq1 << 10) |
 					      (lpf_biq0 << 8) | (mix_tia_gain <<
@@ -25877,8 +25877,8 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 						 TXLPF_IDAC_4, txlpf_idac);
 			}
 
-			rxlpf_rccal_hpc = MAX(MIN(rxlpf_rccal_hpc, 31), 0);
-			txlpf_rccal_lpc = MAX(MIN(txlpf_rccal_lpc, 31), 0);
+			rxlpf_rccal_hpc = MAX(min(rxlpf_rccal_hpc, 31), 0);
+			txlpf_rccal_lpc = MAX(min(txlpf_rccal_lpc, 31), 0);
 
 			write_radio_reg(pi, (RADIO_2056_RX_RXLPF_RCCAL_HPC |
 					     ((rx_core ==
@@ -26060,7 +26060,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 
 				hpf_change = desired_log2_pwr - actual_log2_pwr;
 				curr_hpf += hpf_change;
-				curr_hpf = MAX(MIN(curr_hpf, 10), 0);
+				curr_hpf = MAX(min(curr_hpf, 10), 0);
 				if (use_hpf_num == 1) {
 					curr_hpf1 = curr_hpf;
 				} else {
@@ -26745,8 +26745,8 @@ wlc_phy_a1_nphy(phy_info_t *pi, u8 core, u32 winsz, u32 start,
 		u32 phy_a1, phy_a2;
 		s32 phy_a3, phy_a4, phy_a5, phy_a6, phy_a7;
 
-		phy_a1 = end - MIN(end, (winsz >> 1));
-		phy_a2 = MIN(NPHY_PAPD_EPS_TBL_SIZE - 1, end + (winsz >> 1));
+		phy_a1 = end - min(end, (winsz >> 1));
+		phy_a2 = min(NPHY_PAPD_EPS_TBL_SIZE - 1, end + (winsz >> 1));
 		phy_a3 = phy_a2 - phy_a1 + 1;
 		phy_a6 = 0;
 		phy_a7 = 0;
@@ -27754,7 +27754,7 @@ void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
 		switch (band_num) {
 		case 0:
 
-			tmp_max_pwr = MIN(pi->nphy_pwrctrl_info[0].max_pwr_2g,
+			tmp_max_pwr = min(pi->nphy_pwrctrl_info[0].max_pwr_2g,
 					  pi->nphy_pwrctrl_info[1].max_pwr_2g);
 
 			pwr_offsets1[0] = pi->cck2gpo;
@@ -27778,7 +27778,7 @@ void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
 			break;
 		case 1:
 
-			tmp_max_pwr = MIN(pi->nphy_pwrctrl_info[0].max_pwr_5gm,
+			tmp_max_pwr = min(pi->nphy_pwrctrl_info[0].max_pwr_5gm,
 					  pi->nphy_pwrctrl_info[1].max_pwr_5gm);
 
 			pwr_offsets1[0] = (u16) (pi->ofdm5gpo & 0xffff);
@@ -27795,7 +27795,7 @@ void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
 			break;
 		case 2:
 
-			tmp_max_pwr = MIN(pi->nphy_pwrctrl_info[0].max_pwr_5gl,
+			tmp_max_pwr = min(pi->nphy_pwrctrl_info[0].max_pwr_5gl,
 					  pi->nphy_pwrctrl_info[1].max_pwr_5gl);
 
 			pwr_offsets1[0] = (u16) (pi->ofdm5glpo & 0xffff);
@@ -27812,7 +27812,7 @@ void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
 			break;
 		case 3:
 
-			tmp_max_pwr = MIN(pi->nphy_pwrctrl_info[0].max_pwr_5gh,
+			tmp_max_pwr = min(pi->nphy_pwrctrl_info[0].max_pwr_5gh,
 					  pi->nphy_pwrctrl_info[1].max_pwr_5gh);
 
 			pwr_offsets1[0] = (u16) (pi->ofdm5ghpo & 0xffff);

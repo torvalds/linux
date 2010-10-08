@@ -804,7 +804,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			ssids->ssid, ssids->ssid_len));
 		memset(&sr->ssid, 0, sizeof(sr->ssid));
 		sr->ssid.SSID_len =
-			    MIN(sizeof(sr->ssid.SSID), ssids->ssid_len);
+			    min(sizeof(sr->ssid.SSID), ssids->ssid_len);
 		if (sr->ssid.SSID_len) {
 			memcpy(sr->ssid.SSID, ssids->ssid, sr->ssid.SSID_len);
 			sr->ssid.SSID_len = htod32(sr->ssid.SSID_len);
@@ -1361,7 +1361,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	 **  If SSID is zero join based on BSSID only
 	 */
 	memset(&ssid, 0, sizeof(ssid));
-	ssid.SSID_len = MIN(sizeof(ssid.SSID), sme->ssid_len);
+	ssid.SSID_len = min(sizeof(ssid.SSID), sme->ssid_len);
 	memcpy(ssid.SSID, sme->ssid, ssid.SSID_len);
 	ssid.SSID_len = htod32(ssid.SSID_len);
 	wl_update_prof(wl, NULL, &ssid, WL_PROF_SSID);
@@ -1754,7 +1754,7 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	key.index = key_idx;
 	swap_key_to_BE(&key);
 	memset(&params, 0, sizeof(params));
-	params.key_len = (u8) MIN(DOT11_MAX_KEY_SIZE, key.len);
+	params.key_len = (u8) min(DOT11_MAX_KEY_SIZE, key.len);
 	memcpy(params.key, key.data, params.key_len);
 
 	err = wl_dev_ioctl(dev, WLC_GET_WSEC, &wsec, sizeof(wsec));

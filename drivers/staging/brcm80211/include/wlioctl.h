@@ -1212,7 +1212,7 @@ typedef struct wl_po {
 	u16 mcspo[8];
 } wl_po_t;
 
-/* a large TX Power as an init value to factor out of MIN() calculations,
+/* a large TX Power as an init value to factor out of min() calculations,
  * keep low enough to fit in an s8, units are .25 dBm
  */
 #define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */

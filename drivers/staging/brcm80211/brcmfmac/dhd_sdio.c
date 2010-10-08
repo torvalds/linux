@@ -979,7 +979,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	      (DHD_DATA_ON() && (chan != SDPCM_CONTROL_CHANNEL))))) {
 		prhex("Tx Frame", frame, len);
 	} else if (DHD_HDRS_ON()) {
-		prhex("TxHdr", frame, MIN(len, 16));
+		prhex("TxHdr", frame, min(len, 16));
 	}
 #endif
 
@@ -1312,7 +1312,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		if (DHD_BYTES_ON() && DHD_CTL_ON())
 			prhex("Tx Frame", frame, len);
 		else if (DHD_HDRS_ON())
-			prhex("TxHdr", frame, MIN(len, 16));
+			prhex("TxHdr", frame, min(len, 16));
 #endif
 
 		do {
@@ -1390,7 +1390,7 @@ int dhd_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	dhd_os_sdlock(bus->dhd);
 	rxlen = bus->rxlen;
-	bcopy(bus->rxctl, msg, MIN(msglen, rxlen));
+	bcopy(bus->rxctl, msg, min(msglen, rxlen));
 	bus->rxlen = 0;
 	dhd_os_sdunlock(bus->dhd);
 
@@ -1681,7 +1681,7 @@ static int dhdsdio_pktgen_set(dhd_bus_t *bus, u8 *arg)
 
 	bus->pktgen_tick = bus->pktgen_ptick = 0;
 	bus->pktgen_len = MAX(bus->pktgen_len, bus->pktgen_minlen);
-	bus->pktgen_len = MIN(bus->pktgen_len, bus->pktgen_maxlen);
+	bus->pktgen_len = min(bus->pktgen_len, bus->pktgen_maxlen);
 
 	/* Clear counts for a new pktgen (mode change, or was stopped) */
 	if (bus->pktgen_count && (!oldcnt || oldmode != bus->pktgen_mode))
@@ -1737,7 +1737,7 @@ dhdsdio_membytes(dhd_bus_t *bus, bool write, u32 address, u8 *data,
 				break;
 			}
 			sdaddr = 0;
-			dsize = MIN(SBSDIO_SB_OFT_ADDR_LIMIT, size);
+			dsize = min(SBSDIO_SB_OFT_ADDR_LIMIT, size);
 		}
 	}
 
@@ -1954,7 +1954,7 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus)
 	printf("Dump dongle memory");
 	databuf = buf;
 	while (size) {
-		read_size = MIN(MEMBLOCK, size);
+		read_size = min(MEMBLOCK, size);
 		ret = dhdsdio_membytes(bus, FALSE, start, databuf, read_size);
 		if (ret) {
 			printf("%s: Error membytes %d\n", __func__, ret);
@@ -2781,7 +2781,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 					  bus->blocksize));
 			}
 		}
-		bus->roundup = MIN(max_roundup, bus->blocksize);
+		bus->roundup = min(max_roundup, bus->blocksize);
 
 		if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
 			bus->activity = FALSE;
@@ -3355,7 +3355,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 #ifdef DHD_DEBUG
 		if (DHD_GLOM_ON()) {
 			prhex("SUPERFRAME", PKTDATA(pfirst),
-			      MIN(PKTLEN(pfirst), 48));
+			      min(PKTLEN(pfirst), 48));
 		}
 #endif
 
@@ -3559,7 +3559,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				PKTLEN(pfirst), PKTNEXT(pfirst),
 				PKTLINK(pfirst)));
 				prhex("", (u8 *) PKTDATA(pfirst),
-				      MIN(PKTLEN(pfirst), 32));
+				      min(PKTLEN(pfirst), 32));
 			}
 #endif				/* DHD_DEBUG */
 		}
@@ -4432,7 +4432,7 @@ bool dhdsdio_dpc(dhd_bus_t *bus)
 		framecnt = dhdsdio_readframes(bus, rxlimit, &rxdone);
 		if (rxdone || bus->rxskip)
 			intstatus &= ~I_HMB_FRAME_IND;
-		rxlimit -= MIN(framecnt, rxlimit);
+		rxlimit -= min(framecnt, rxlimit);
 	}
 
 	/* Keep still-pending events for next scheduling */
@@ -4503,7 +4503,7 @@ clkwait:
 	else if ((bus->clkstate == CLK_AVAIL) && !bus->fcstate &&
 		 pktq_mlen(&bus->txq, ~bus->flowcontrol) && txlimit
 		 && DATAOK(bus)) {
-		framecnt = rxdone ? txlimit : MIN(txlimit, dhd_txminmax);
+		framecnt = rxdone ? txlimit : min(txlimit, dhd_txminmax);
 		framecnt = dhdsdio_sendfromq(bus, framecnt);
 		txlimit -= framecnt;
 	}
@@ -4605,7 +4605,7 @@ static void dhdsdio_pktgen_init(dhd_bus_t *bus)
 {
 	/* Default to specified length, or full range */
 	if (dhd_pktgen_len) {
-		bus->pktgen_maxlen = MIN(dhd_pktgen_len, MAX_PKTGEN_LEN);
+		bus->pktgen_maxlen = min(dhd_pktgen_len, MAX_PKTGEN_LEN);
 		bus->pktgen_minlen = bus->pktgen_maxlen;
 	} else {
 		bus->pktgen_maxlen = MAX_PKTGEN_LEN;
@@ -5498,7 +5498,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 		DHD_INFO(("%s: Initial value for %s is %d\n",
 			  __func__, "sd_blocksize", bus->blocksize));
 	}
-	bus->roundup = MIN(max_roundup, bus->blocksize);
+	bus->roundup = min(max_roundup, bus->blocksize);
 
 	/* Query if bus module supports packet chaining,
 		 default to use if supported */
