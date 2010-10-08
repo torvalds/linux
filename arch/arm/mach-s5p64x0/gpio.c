@@ -132,7 +132,6 @@ int s5p64x0_gpio_setcfg_4bit_rbank(struct s3c_gpio_chip *chip,
 {
 	void __iomem *reg = chip->base;
 	unsigned int shift;
-	unsigned long flags;
 	u32 con;
 
 	switch (off) {
@@ -158,14 +157,10 @@ int s5p64x0_gpio_setcfg_4bit_rbank(struct s3c_gpio_chip *chip,
 		cfg <<= shift;
 	}
 
-	s3c_gpio_lock(chip, flags);
-
 	con = __raw_readl(reg);
 	con &= ~(0xf << shift);
 	con |= cfg;
 	__raw_writel(con, reg);
-
-	s3c_gpio_unlock(chip, flags);
 
 	return 0;
 }
