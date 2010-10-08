@@ -7,7 +7,6 @@ header-y += display7seg.h
 header-y += envctrl.h
 header-y += fbio.h
 header-y += jsflash.h
-header-y += openprom.h
 header-y += openpromio.h
 header-y += perfctr.h
 header-y += psrcompat.h
