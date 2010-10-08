@@ -1621,7 +1621,7 @@ void wlc_lcnphy_txpower_recalc_target(phy_info_t *pi)
 	if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
 		return;
 
-	for (i = 0, j = 0; i < ARRAYSIZE(rate_table); i++, j++) {
+	for (i = 0, j = 0; i < ARRAY_SIZE(rate_table); i++, j++) {
 
 		if (i == WLC_NUM_RATES_CCK + WLC_NUM_RATES_OFDM)
 			j = TXP_FIRST_MCS_20_SISO;
@@ -1631,7 +1631,7 @@ void wlc_lcnphy_txpower_recalc_target(phy_info_t *pi)
 
 	tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
 	tab.tbl_width = 32;
-	tab.tbl_len = ARRAYSIZE(rate_table);
+	tab.tbl_len = ARRAY_SIZE(rate_table);
 	tab.tbl_ptr = rate_table;
 	tab.tbl_offset = LCNPHY_TX_PWR_CTRL_RATE_OFFSET;
 	wlc_lcnphy_write_table(pi, &tab);
@@ -1900,7 +1900,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	case LCNPHY_CAL_FULL:
 		start_coeffs = syst_coeffs;
 		cal_cmds = commands_fullcal;
-		n_cal_cmds = ARRAYSIZE(commands_fullcal);
+		n_cal_cmds = ARRAY_SIZE(commands_fullcal);
 		break;
 
 	case LCNPHY_CAL_RECAL:
@@ -1909,7 +1909,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 		start_coeffs = syst_coeffs;
 
 		cal_cmds = commands_recal;
-		n_cal_cmds = ARRAYSIZE(commands_recal);
+		n_cal_cmds = ARRAY_SIZE(commands_recal);
 		command_nums = command_nums_recal;
 		break;
 	default:
@@ -1977,12 +1977,12 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
 				      (const void *)
 				      lcnphy_iqcal_loft_gainladder,
-				      ARRAYSIZE(lcnphy_iqcal_loft_gainladder),
+				      ARRAY_SIZE(lcnphy_iqcal_loft_gainladder),
 				      16, 0);
 
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
 				      (const void *)lcnphy_iqcal_ir_gainladder,
-				      ARRAYSIZE(lcnphy_iqcal_ir_gainladder), 16,
+				      ARRAY_SIZE(lcnphy_iqcal_ir_gainladder), 16,
 				      32);
 
 	if (pi->phy_tx_tone_freq) {
@@ -2029,10 +2029,10 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 
 		wlc_lcnphy_common_read_table(pi, LCNPHY_TBL_ID_IQLOCAL,
 					     best_coeffs,
-					     ARRAYSIZE(best_coeffs), 16, 96);
+					     ARRAY_SIZE(best_coeffs), 16, 96);
 		wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
 					      best_coeffs,
-					      ARRAYSIZE(best_coeffs), 16, 64);
+					      ARRAY_SIZE(best_coeffs), 16, 64);
 
 		if ((cal_type == 3) || (cal_type == 4)) {
 			wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
@@ -2041,7 +2041,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 		wlc_lcnphy_common_read_table(pi, LCNPHY_TBL_ID_IQLOCAL,
 					     pi_lcn->lcnphy_cal_results.
 					     txiqlocal_bestcoeffs,
-					     ARRAYSIZE(pi_lcn->
+					     ARRAY_SIZE(pi_lcn->
 						       lcnphy_cal_results.
 						       txiqlocal_bestcoeffs),
 					     16, 96);
@@ -2050,7 +2050,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	wlc_lcnphy_common_read_table(pi, LCNPHY_TBL_ID_IQLOCAL,
 				     pi_lcn->lcnphy_cal_results.
 				     txiqlocal_bestcoeffs,
-				     ARRAYSIZE(pi_lcn->lcnphy_cal_results.
+				     ARRAY_SIZE(pi_lcn->lcnphy_cal_results.
 					       txiqlocal_bestcoeffs), 16, 96);
 	pi_lcn->lcnphy_cal_results.txiqlocal_bestcoeffs_valid = TRUE;
 
@@ -2759,7 +2759,7 @@ wlc_lcnphy_start_tx_tone(phy_info_t *pi, s32 f_kHz, u16 max_val,
 		do {
 			bw = phy_bw * 1000 * k;
 			num_samps = bw / ABS(f_kHz);
-			ASSERT(num_samps <= ARRAYSIZE(data_buf));
+			ASSERT(num_samps <= ARRAY_SIZE(data_buf));
 			k++;
 		} while ((num_samps * (u32) (ABS(f_kHz))) != bw);
 	} else
@@ -3510,7 +3510,7 @@ static void wlc_lcnphy_periodic_cal(phy_info_t *pi)
 	wlc_lcnphy_txpwrtbl_iqlo_cal(pi);
 
 	rx_iqcomp = lcnphy_rx_iqcomp_table_rev0;
-	rx_iqcomp_sz = ARRAYSIZE(lcnphy_rx_iqcomp_table_rev0);
+	rx_iqcomp_sz = ARRAY_SIZE(lcnphy_rx_iqcomp_table_rev0);
 
 	if (LCNREV_IS(pi->pubpi.phy_rev, 1))
 		wlc_lcnphy_rx_iq_cal(pi, NULL, 0, TRUE, FALSE, 1, 40);
@@ -4891,11 +4891,11 @@ wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t *pi, u8 channel)
 	}
 
 	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-		for (i = 0; i < ARRAYSIZE(chan_info_2064_lcnphy); i++)
+		for (i = 0; i < ARRAY_SIZE(chan_info_2064_lcnphy); i++)
 			if (chan_info_2064_lcnphy[i].chan == channel)
 				break;
 
-		if (i >= ARRAYSIZE(chan_info_2064_lcnphy)) {
+		if (i >= ARRAY_SIZE(chan_info_2064_lcnphy)) {
 			return;
 		}
 

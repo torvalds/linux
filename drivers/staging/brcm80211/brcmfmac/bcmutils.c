@@ -945,7 +945,7 @@ const char *bcmerrorstr(int bcmerror)
 {
 	/* check if someone added a bcmerror code but
 		 forgot to add errorstring */
-	ASSERT(ABS(BCME_LAST) == (ARRAYSIZE(bcmerrorstrtable) - 1));
+	ASSERT(ABS(BCME_LAST) == (ARRAY_SIZE(bcmerrorstrtable) - 1));
 
 	if (bcmerror > 0 || bcmerror < BCME_LAST) {
 		snprintf(bcm_undeferrstr, BCME_STRLEN, "Undefined error %d",

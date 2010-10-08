@@ -380,7 +380,7 @@ void wlc_locale_get_channels(const locale_info_t *locale, chanvec_t *channels)
 
 	bzero(channels, sizeof(chanvec_t));
 
-	for (i = 0; i < ARRAYSIZE(g_table_locale_base); i++) {
+	for (i = 0; i < ARRAY_SIZE(g_table_locale_base); i++) {
 		if (locale->valid_channels & (1 << i)) {
 			wlc_locale_add_channels(channels,
 						g_table_locale_base[i]);
@@ -562,10 +562,10 @@ struct chan20_info chan20_info[] = {
 
 const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 {
-	if (locale_idx >= ARRAYSIZE(g_locale_2g_table)) {
+	if (locale_idx >= ARRAY_SIZE(g_locale_2g_table)) {
 		WL_ERROR(("%s: locale 2g index size out of range %d\n",
 			  __func__, locale_idx));
-		ASSERT(locale_idx < ARRAYSIZE(g_locale_2g_table));
+		ASSERT(locale_idx < ARRAY_SIZE(g_locale_2g_table));
 		return NULL;
 	}
 	return g_locale_2g_table[locale_idx];
@@ -573,10 +573,10 @@ const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 
 const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 {
-	if (locale_idx >= ARRAYSIZE(g_locale_5g_table)) {
+	if (locale_idx >= ARRAY_SIZE(g_locale_5g_table)) {
 		WL_ERROR(("%s: locale 5g index size out of range %d\n",
 			  __func__, locale_idx));
-		ASSERT(locale_idx < ARRAYSIZE(g_locale_5g_table));
+		ASSERT(locale_idx < ARRAY_SIZE(g_locale_5g_table));
 		return NULL;
 	}
 	return g_locale_5g_table[locale_idx];
@@ -584,7 +584,7 @@ const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 
 const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
 {
-	if (locale_idx >= ARRAYSIZE(g_mimo_2g_table)) {
+	if (locale_idx >= ARRAY_SIZE(g_mimo_2g_table)) {
 		WL_ERROR(("%s: mimo 2g index size out of range %d\n", __func__,
 			  locale_idx));
 		return NULL;
@@ -594,7 +594,7 @@ const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
 
 const locale_mimo_info_t *wlc_get_mimo_5g(u8 locale_idx)
 {
-	if (locale_idx >= ARRAYSIZE(g_mimo_5g_table)) {
+	if (locale_idx >= ARRAY_SIZE(g_mimo_5g_table)) {
 		WL_ERROR(("%s: mimo 5g index size out of range %d\n", __func__,
 			  locale_idx));
 		return NULL;
@@ -886,7 +886,7 @@ static const country_info_t *wlc_country_lookup_direct(const char *ccode,
 		return NULL;
 
 	/* find matched table entry from country code */
-	size = ARRAYSIZE(cntry_locales);
+	size = ARRAY_SIZE(cntry_locales);
 	for (i = 0; i < size; i++) {
 		if (strcmp(ccode, cntry_locales[i].abbrev) == 0) {
 			return &cntry_locales[i].country;

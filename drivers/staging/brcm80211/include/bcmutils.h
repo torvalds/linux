@@ -456,9 +456,6 @@ extern "C" {
 	& ~((boundary) - 1))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
 #define VALID_MASK(mask)	(!((mask) & ((mask) + 1)))
-#ifndef ARRAYSIZE
-#define ARRAYSIZE(a)		(sizeof(a)/sizeof(a[0]))
-#endif
 
 /* bit map related macros */
 #ifndef setbit

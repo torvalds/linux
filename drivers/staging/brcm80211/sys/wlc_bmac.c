@@ -926,7 +926,7 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, u16 vendor, u16 device,
 
 		/* init tx fifo size */
 		ASSERT((wlc_hw->corerev - XMTFIFOTBL_STARTREV) <
-		       ARRAYSIZE(xmtfifo_sz));
+		       ARRAY_SIZE(xmtfifo_sz));
 		wlc_hw->xmtfifo_sz =
 		    xmtfifo_sz[(wlc_hw->corerev - XMTFIFOTBL_STARTREV)];
 
@@ -1500,7 +1500,7 @@ wlc_bmac_mhf(wlc_hw_info_t *wlc_hw, u8 idx, u16 mask, u16 val,
 
 	ASSERT((val & ~mask) == 0);
 	ASSERT(idx < MHFMAX);
-	ASSERT(ARRAYSIZE(addr) == MHFMAX);
+	ASSERT(ARRAY_SIZE(addr) == MHFMAX);
 
 	switch (bands) {
 		/* Current band only or all bands,
@@ -1576,7 +1576,7 @@ static void wlc_write_mhf(wlc_hw_info_t *wlc_hw, u16 *mhfs)
 		M_HOST_FLAGS5
 	};
 
-	ASSERT(ARRAYSIZE(addr) == MHFMAX);
+	ASSERT(ARRAY_SIZE(addr) == MHFMAX);
 
 	for (idx = 0; idx < MHFMAX; idx++) {
 		wlc_bmac_write_shm(wlc_hw, addr[idx], mhfs[idx]);
@@ -3595,7 +3595,7 @@ static void wlc_upd_ofdm_pctl1_table(wlc_hw_info_t *wlc_hw)
 		return;
 
 	/* walk the phy rate table and update the entries */
-	for (i = 0; i < ARRAYSIZE(rates); i++) {
+	for (i = 0; i < ARRAY_SIZE(rates); i++) {
 		rate = rates[i];
 
 		entry_ptr = wlc_bmac_ofdm_ratetable_offset(wlc_hw, rate);
@@ -3634,7 +3634,7 @@ static u16 wlc_bmac_ofdm_ratetable_offset(wlc_hw_info_t *wlc_hw, u8 rate)
 		{WLC_RATE_54M, 0xC}
 	};
 
-	for (i = 0; i < ARRAYSIZE(rate_lookup); i++) {
+	for (i = 0; i < ARRAY_SIZE(rate_lookup); i++) {
 		if (rate == rate_lookup[i].rate) {
 			plcp_rate = rate_lookup[i].signal_rate;
 			break;

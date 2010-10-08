@@ -707,11 +707,11 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 			pmu_res_updown_table_sz = 0;
 		} else {
 			pmu_res_updown_table = bcm4329_res_updown;
-			pmu_res_updown_table_sz = ARRAYSIZE(bcm4329_res_updown);
+			pmu_res_updown_table_sz = ARRAY_SIZE(bcm4329_res_updown);
 		}
 		/* Optimize resources dependencies */
 		pmu_res_depend_table = bcm4329_res_depend;
-		pmu_res_depend_table_sz = ARRAYSIZE(bcm4329_res_depend);
+		pmu_res_depend_table_sz = ARRAY_SIZE(bcm4329_res_depend);
 		break;
 
 	case BCM4319_CHIP_ID:
@@ -719,15 +719,15 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 		if (ISSIM_ENAB(sih)) {
 			pmu_res_updown_table = bcm4319a0_res_updown_qt;
 			pmu_res_updown_table_sz =
-			    ARRAYSIZE(bcm4319a0_res_updown_qt);
+			    ARRAY_SIZE(bcm4319a0_res_updown_qt);
 		} else {
 			pmu_res_updown_table = bcm4319a0_res_updown;
 			pmu_res_updown_table_sz =
-			    ARRAYSIZE(bcm4319a0_res_updown);
+			    ARRAY_SIZE(bcm4319a0_res_updown);
 		}
 		/* Optimize resources dependancies masks */
 		pmu_res_depend_table = bcm4319a0_res_depend;
-		pmu_res_depend_table_sz = ARRAYSIZE(bcm4319a0_res_depend);
+		pmu_res_depend_table_sz = ARRAY_SIZE(bcm4319a0_res_depend);
 		break;
 
 	case BCM4336_CHIP_ID:
@@ -735,15 +735,15 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 		if (ISSIM_ENAB(sih)) {
 			pmu_res_updown_table = bcm4336a0_res_updown_qt;
 			pmu_res_updown_table_sz =
-			    ARRAYSIZE(bcm4336a0_res_updown_qt);
+			    ARRAY_SIZE(bcm4336a0_res_updown_qt);
 		} else {
 			pmu_res_updown_table = bcm4336a0_res_updown;
 			pmu_res_updown_table_sz =
-			    ARRAYSIZE(bcm4336a0_res_updown);
+			    ARRAY_SIZE(bcm4336a0_res_updown);
 		}
 		/* Optimize resources dependancies masks */
 		pmu_res_depend_table = bcm4336a0_res_depend;
-		pmu_res_depend_table_sz = ARRAYSIZE(bcm4336a0_res_depend);
+		pmu_res_depend_table_sz = ARRAY_SIZE(bcm4336a0_res_depend);
 		break;
 
 	case BCM4330_CHIP_ID:
@@ -751,15 +751,15 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 		if (ISSIM_ENAB(sih)) {
 			pmu_res_updown_table = bcm4330a0_res_updown_qt;
 			pmu_res_updown_table_sz =
-			    ARRAYSIZE(bcm4330a0_res_updown_qt);
+			    ARRAY_SIZE(bcm4330a0_res_updown_qt);
 		} else {
 			pmu_res_updown_table = bcm4330a0_res_updown;
 			pmu_res_updown_table_sz =
-			    ARRAYSIZE(bcm4330a0_res_updown);
+			    ARRAY_SIZE(bcm4330a0_res_updown);
 		}
 		/* Optimize resources dependancies masks */
 		pmu_res_depend_table = bcm4330a0_res_depend;
-		pmu_res_depend_table_sz = ARRAYSIZE(bcm4330a0_res_depend);
+		pmu_res_depend_table_sz = ARRAY_SIZE(bcm4330a0_res_depend);
 		break;
 
 	default:

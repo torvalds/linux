@@ -607,7 +607,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 		(unsigned char) event->addr.octet[5] & 0xff);
 
 	event_name = "UNKNOWN";
-	for (i = 0; i < ARRAYSIZE(event_names); i++) {
+	for (i = 0; i < ARRAY_SIZE(event_names); i++) {
 		if (event_names[i].event == event_type)
 			event_name = event_names[i].event_name;
 	}

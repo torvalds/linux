@@ -1521,7 +1521,7 @@ int wlc_phy_channel2freq(uint channel)
 {
 	uint i;
 
-	for (i = 0; i < ARRAYSIZE(chan_info_all); i++)
+	for (i = 0; i < ARRAY_SIZE(chan_info_all); i++)
 		if (chan_info_all[i].chan == channel)
 			return chan_info_all[i].freq;
 	return 0;
@@ -1538,7 +1538,7 @@ wlc_phy_chanspec_band_validch(wlc_phy_t *ppi, uint band, chanvec_t *channels)
 
 	bzero(channels, sizeof(chanvec_t));
 
-	for (i = 0; i < ARRAYSIZE(chan_info_all); i++) {
+	for (i = 0; i < ARRAY_SIZE(chan_info_all); i++) {
 		channel = chan_info_all[i].chan;
 
 		if ((pi->a_band_high_disable) && (channel >= FIRST_REF5_CHANNUM)
@@ -1560,19 +1560,19 @@ chanspec_t wlc_phy_chanspec_band_firstch(wlc_phy_t *ppi, uint band)
 
 	ASSERT((band == WLC_BAND_2G) || (band == WLC_BAND_5G));
 
-	for (i = 0; i < ARRAYSIZE(chan_info_all); i++) {
+	for (i = 0; i < ARRAY_SIZE(chan_info_all); i++) {
 		channel = chan_info_all[i].chan;
 
 		if (ISNPHY(pi) && IS40MHZ(pi)) {
 			uint j;
 
-			for (j = 0; j < ARRAYSIZE(chan_info_all); j++) {
+			for (j = 0; j < ARRAY_SIZE(chan_info_all); j++) {
 				if (chan_info_all[j].chan ==
 				    channel + CH_10MHZ_APART)
 					break;
 			}
 
-			if (j == ARRAYSIZE(chan_info_all))
+			if (j == ARRAY_SIZE(chan_info_all))
 				continue;
 
 			channel = UPPER_20_SB(channel);
@@ -1725,12 +1725,12 @@ wlc_phy_txpower_sromlimit(wlc_phy_t *ppi, uint channel, u8 *min_pwr,
 		if (txp_rate_idx < 0)
 			txp_rate_idx = TXP_FIRST_OFDM;
 
-		for (i = 0; i < ARRAYSIZE(chan_info_all); i++) {
+		for (i = 0; i < ARRAY_SIZE(chan_info_all); i++) {
 			if (channel == chan_info_all[i].chan) {
 				break;
 			}
 		}
-		ASSERT(i < ARRAYSIZE(chan_info_all));
+		ASSERT(i < ARRAY_SIZE(chan_info_all));
 
 		if (pi->hwtxpwr) {
 			*max_pwr = pi->hwtxpwr[i];

@@ -15073,10 +15073,10 @@ void wlc_phy_rxcore_setstate_nphy(wlc_phy_t *pih, u8 rxcore_bitmask)
 		if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 			if (pi->rx2tx_biasentry == -1) {
 				wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ,
-							ARRAYSIZE(tbl_buf), 80,
+							ARRAY_SIZE(tbl_buf), 80,
 							16, tbl_buf);
 
-				for (i = 0; i < ARRAYSIZE(tbl_buf); i++) {
+				for (i = 0; i < ARRAY_SIZE(tbl_buf); i++) {
 					if (tbl_buf[i] ==
 					    NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS) {
 
@@ -16244,7 +16244,7 @@ static void wlc_phy_workarounds_nphy(phy_info_t *pi)
 		    (pi->sh->boardtype == 0x8b)) {
 			uint i;
 			u8 war_dlys[] = { 1, 6, 6, 2, 4, 20, 1 };
-			for (i = 0; i < ARRAYSIZE(rfseq_rx2tx_dlys); i++)
+			for (i = 0; i < ARRAY_SIZE(rfseq_rx2tx_dlys); i++)
 				rfseq_rx2tx_dlys[i] = war_dlys[i];
 		}
 
@@ -17638,7 +17638,7 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 		if (NREV_IS(pi->pubpi.phy_rev, 7)) {
 
 			chan_info_tbl_p_0 = chan_info_nphyrev7_2057_rev4;
-			tbl_len = ARRAYSIZE(chan_info_nphyrev7_2057_rev4);
+			tbl_len = ARRAY_SIZE(chan_info_nphyrev7_2057_rev4);
 
 		} else if (NREV_IS(pi->pubpi.phy_rev, 8)
 			   || NREV_IS(pi->pubpi.phy_rev, 9)) {
@@ -17651,7 +17651,7 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 					chan_info_tbl_p_2 =
 					    chan_info_nphyrev8_2057_rev5;
 					tbl_len =
-					    ARRAYSIZE
+					    ARRAY_SIZE
 					    (chan_info_nphyrev8_2057_rev5);
 
 				} else if (pi->pubpi.radiover == 0x1) {
@@ -17659,7 +17659,7 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 					chan_info_tbl_p_2 =
 					    chan_info_nphyrev9_2057_rev5v1;
 					tbl_len =
-					    ARRAYSIZE
+					    ARRAY_SIZE
 					    (chan_info_nphyrev9_2057_rev5v1);
 
 				}
@@ -17669,14 +17669,14 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 				chan_info_tbl_p_0 =
 				    chan_info_nphyrev8_2057_rev7;
 				tbl_len =
-				    ARRAYSIZE(chan_info_nphyrev8_2057_rev7);
+				    ARRAY_SIZE(chan_info_nphyrev8_2057_rev7);
 				break;
 
 			case 8:
 				chan_info_tbl_p_0 =
 				    chan_info_nphyrev8_2057_rev8;
 				tbl_len =
-				    ARRAYSIZE(chan_info_nphyrev8_2057_rev8);
+				    ARRAY_SIZE(chan_info_nphyrev8_2057_rev8);
 				break;
 
 			default:
@@ -17688,7 +17688,7 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 		} else if (NREV_IS(pi->pubpi.phy_rev, 16)) {
 
 			chan_info_tbl_p_0 = chan_info_nphyrev8_2057_rev8;
-			tbl_len = ARRAYSIZE(chan_info_nphyrev8_2057_rev8);
+			tbl_len = ARRAY_SIZE(chan_info_nphyrev8_2057_rev8);
 		} else {
 			goto fail;
 		}
@@ -17720,34 +17720,34 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 	} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		if (NREV_IS(pi->pubpi.phy_rev, 3)) {
 			chan_info_tbl_p_1 = chan_info_nphyrev3_2056;
-			tbl_len = ARRAYSIZE(chan_info_nphyrev3_2056);
+			tbl_len = ARRAY_SIZE(chan_info_nphyrev3_2056);
 		} else if (NREV_IS(pi->pubpi.phy_rev, 4)) {
 			chan_info_tbl_p_1 = chan_info_nphyrev4_2056_A1;
-			tbl_len = ARRAYSIZE(chan_info_nphyrev4_2056_A1);
+			tbl_len = ARRAY_SIZE(chan_info_nphyrev4_2056_A1);
 		} else if (NREV_IS(pi->pubpi.phy_rev, 5)
 			   || NREV_IS(pi->pubpi.phy_rev, 6)) {
 			switch (pi->pubpi.radiorev) {
 			case 5:
 				chan_info_tbl_p_1 = chan_info_nphyrev5_2056v5;
-				tbl_len = ARRAYSIZE(chan_info_nphyrev5_2056v5);
+				tbl_len = ARRAY_SIZE(chan_info_nphyrev5_2056v5);
 				break;
 			case 6:
 				chan_info_tbl_p_1 = chan_info_nphyrev6_2056v6;
-				tbl_len = ARRAYSIZE(chan_info_nphyrev6_2056v6);
+				tbl_len = ARRAY_SIZE(chan_info_nphyrev6_2056v6);
 				break;
 			case 7:
 			case 9:
 				chan_info_tbl_p_1 = chan_info_nphyrev5n6_2056v7;
 				tbl_len =
-				    ARRAYSIZE(chan_info_nphyrev5n6_2056v7);
+				    ARRAY_SIZE(chan_info_nphyrev5n6_2056v7);
 				break;
 			case 8:
 				chan_info_tbl_p_1 = chan_info_nphyrev6_2056v8;
-				tbl_len = ARRAYSIZE(chan_info_nphyrev6_2056v8);
+				tbl_len = ARRAY_SIZE(chan_info_nphyrev6_2056v8);
 				break;
 			case 11:
 				chan_info_tbl_p_1 = chan_info_nphyrev6_2056v11;
-				tbl_len = ARRAYSIZE(chan_info_nphyrev6_2056v11);
+				tbl_len = ARRAY_SIZE(chan_info_nphyrev6_2056v11);
 				break;
 			default:
 				if (NORADIO_ENAB(pi->pubpi)) {
@@ -17770,12 +17770,12 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 		freq = chan_info_tbl_p_1[i].freq;
 
 	} else {
-		for (i = 0; i < ARRAYSIZE(chan_info_nphy_2055); i++)
+		for (i = 0; i < ARRAY_SIZE(chan_info_nphy_2055); i++)
 			if (chan_info_nphy_2055[i].chan == channel)
 				break;
 
-		if (i >= ARRAYSIZE(chan_info_nphy_2055)) {
-			ASSERT(i < ARRAYSIZE(chan_info_nphy_2055));
+		if (i >= ARRAY_SIZE(chan_info_nphy_2055)) {
+			ASSERT(i < ARRAY_SIZE(chan_info_nphy_2055));
 			goto fail;
 		}
 		*t3 = &chan_info_nphy_2055[i];
@@ -24212,20 +24212,20 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 
 		if (phy_bw == 40) {
 			tbl_ptr = tbl_tx_iqlo_cal_loft_ladder_40;
-			tbl_len = ARRAYSIZE(tbl_tx_iqlo_cal_loft_ladder_40);
+			tbl_len = ARRAY_SIZE(tbl_tx_iqlo_cal_loft_ladder_40);
 		} else {
 			tbl_ptr = tbl_tx_iqlo_cal_loft_ladder_20;
-			tbl_len = ARRAYSIZE(tbl_tx_iqlo_cal_loft_ladder_20);
+			tbl_len = ARRAY_SIZE(tbl_tx_iqlo_cal_loft_ladder_20);
 		}
 		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, tbl_len, 0,
 					 16, tbl_ptr);
 
 		if (phy_bw == 40) {
 			tbl_ptr = tbl_tx_iqlo_cal_iqimb_ladder_40;
-			tbl_len = ARRAYSIZE(tbl_tx_iqlo_cal_iqimb_ladder_40);
+			tbl_len = ARRAY_SIZE(tbl_tx_iqlo_cal_iqimb_ladder_40);
 		} else {
 			tbl_ptr = tbl_tx_iqlo_cal_iqimb_ladder_20;
-			tbl_len = ARRAYSIZE(tbl_tx_iqlo_cal_iqimb_ladder_20);
+			tbl_len = ARRAY_SIZE(tbl_tx_iqlo_cal_iqimb_ladder_20);
 		}
 		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, tbl_len, 32,
 					 16, tbl_ptr);
@@ -24252,7 +24252,7 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 
 		if (pi->mphase_cal_phase_id > MPHASE_CAL_STATE_TXPHASE0) {
 			tbl_ptr = pi->mphase_txcal_bestcoeffs;
-			tbl_len = ARRAYSIZE(pi->mphase_txcal_bestcoeffs);
+			tbl_len = ARRAY_SIZE(pi->mphase_txcal_bestcoeffs);
 			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 
 				tbl_len -= 2;
@@ -24261,7 +24261,7 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 			if ((!fullcal) && (pi->nphy_txiqlocal_coeffsvalid)) {
 
 				tbl_ptr = pi->nphy_txiqlocal_bestc;
-				tbl_len = ARRAYSIZE(pi->nphy_txiqlocal_bestc);
+				tbl_len = ARRAY_SIZE(pi->nphy_txiqlocal_bestc);
 				if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 
 					tbl_len -= 2;
@@ -24274,12 +24274,12 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 					tbl_ptr =
 					    tbl_tx_iqlo_cal_startcoefs_nphyrev3;
 					tbl_len =
-					    ARRAYSIZE
+					    ARRAY_SIZE
 					    (tbl_tx_iqlo_cal_startcoefs_nphyrev3);
 				} else {
 					tbl_ptr = tbl_tx_iqlo_cal_startcoefs;
 					tbl_len =
-					    ARRAYSIZE
+					    ARRAY_SIZE
 					    (tbl_tx_iqlo_cal_startcoefs);
 				}
 			}
@@ -24289,12 +24289,12 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 
 		if (fullcal) {
 			max_cal_cmds = (NREV_GE(pi->pubpi.phy_rev, 3)) ?
-			    ARRAYSIZE(tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3) :
-			    ARRAYSIZE(tbl_tx_iqlo_cal_cmds_fullcal);
+			    ARRAY_SIZE(tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3) :
+			    ARRAY_SIZE(tbl_tx_iqlo_cal_cmds_fullcal);
 		} else {
 			max_cal_cmds = (NREV_GE(pi->pubpi.phy_rev, 3)) ?
-			    ARRAYSIZE(tbl_tx_iqlo_cal_cmds_recal_nphyrev3) :
-			    ARRAYSIZE(tbl_tx_iqlo_cal_cmds_recal);
+			    ARRAY_SIZE(tbl_tx_iqlo_cal_cmds_recal_nphyrev3) :
+			    ARRAY_SIZE(tbl_tx_iqlo_cal_cmds_recal);
 		}
 
 		if (mphase) {
@@ -24414,7 +24414,7 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 2, 93,
 						 16, tbl_buf);
 
-			tbl_len = ARRAYSIZE(pi->nphy_txiqlocal_bestc);
+			tbl_len = ARRAY_SIZE(pi->nphy_txiqlocal_bestc);
 			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 
 				tbl_len -= 2;
@@ -24426,7 +24426,7 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 			pi->nphy_txiqlocal_coeffsvalid = TRUE;
 			pi->nphy_txiqlocal_chanspec = pi->radio_chanspec;
 		} else {
-			tbl_len = ARRAYSIZE(pi->mphase_txcal_bestcoeffs);
+			tbl_len = ARRAY_SIZE(pi->mphase_txcal_bestcoeffs);
 			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 
 				tbl_len -= 2;
@@ -24473,7 +24473,7 @@ static void wlc_phy_reapply_txcal_coeffs_nphy(phy_info_t *pi)
 	if ((pi->nphy_txiqlocal_chanspec == pi->radio_chanspec) &&
 	    (pi->nphy_txiqlocal_coeffsvalid)) {
 		wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_IQLOCAL,
-					ARRAYSIZE(tbl_buf), 80, 16, tbl_buf);
+					ARRAY_SIZE(tbl_buf), 80, 16, tbl_buf);
 
 		if ((pi->nphy_txiqlocal_bestc[0] != tbl_buf[0]) ||
 		    (pi->nphy_txiqlocal_bestc[1] != tbl_buf[1]) ||

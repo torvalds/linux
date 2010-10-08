@@ -701,7 +701,7 @@ wl_iw_set_spy(struct net_device *dev,
 	if (!extra)
 		return -EINVAL;
 
-	iw->spy_num = min(ARRAYSIZE(iw->spy_addr), dwrq->length);
+	iw->spy_num = min(ARRAY_SIZE(iw->spy_addr), dwrq->length);
 	for (i = 0; i < iw->spy_num; i++)
 		memcpy(&iw->spy_addr[i], addr[i].sa_data, ETHER_ADDR_LEN);
 	memset(iw->spy_qual, 0, sizeof(iw->spy_qual));
@@ -3165,7 +3165,7 @@ static const iw_handler wl_iw_handler[] = {
 #if WIRELESS_EXT > 12
 
 const struct iw_handler_def wl_iw_handler_def = {
-	.num_standard = ARRAYSIZE(wl_iw_handler),
+	.num_standard = ARRAY_SIZE(wl_iw_handler),
 	.standard = (iw_handler *) wl_iw_handler,
 	.num_private = 0,
 	.num_private_args = 0,
@@ -3189,7 +3189,7 @@ int wl_iw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	WL_TRACE(("\n%s, cmd:%x alled via dhd->do_ioctl()entry point\n",
 		  __func__, cmd));
 	if (cmd < SIOCIWFIRST ||
-		IW_IOCTL_IDX(cmd) >= ARRAYSIZE(wl_iw_handler)) {
+		IW_IOCTL_IDX(cmd) >= ARRAY_SIZE(wl_iw_handler)) {
 		WL_ERROR(("%s: error in cmd=%x : out of range\n", __func__,
 			cmd));
 		return -EOPNOTSUPP;

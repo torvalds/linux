@@ -154,7 +154,7 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 
 #ifdef BRCM_FULLMAC
 	/* Check that error map has the right number of entries in it */
-	ASSERT(ABS(BCME_LAST) == (ARRAYSIZE(linuxbcmerrormap) - 1));
+	ASSERT(ABS(BCME_LAST) == (ARRAY_SIZE(linuxbcmerrormap) - 1));
 #endif /* BRCM_FULLMAC */
 
 	osh->magic = OS_HANDLE_MAGIC;
