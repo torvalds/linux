@@ -2333,24 +2333,21 @@ ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
  * the interrupt-remapping table entry.
  */
 static int
-migrate_ioapic_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
+ir_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		       bool force)
 {
-	struct irq_cfg *cfg;
+	struct irq_cfg *cfg = data->chip_data;
+	unsigned int dest, irq = data->irq;
 	struct irte irte;
-	unsigned int dest;
-	unsigned int irq;
-	int ret = -1;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
-		return ret;
+		return -EINVAL;
 
-	irq = desc->irq;
 	if (get_irte(irq, &irte))
-		return ret;
+		return -EBUSY;
 
-	cfg = get_irq_desc_chip_data(desc);
 	if (assign_irq_vector(irq, cfg, mask))
-		return ret;
+		return -EBUSY;
 
 	dest = apic->cpu_mask_to_apicid_and(cfg->domain, mask);
 
@@ -2365,29 +2362,14 @@ migrate_ioapic_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
 	if (cfg->move_in_progress)
 		send_cleanup_vector(cfg);
 
-	cpumask_copy(desc->affinity, mask);
-
+	cpumask_copy(data->affinity, mask);
 	return 0;
 }
 
-/*
- * Migrates the IRQ destination in the process context.
- */
-static int set_ir_ioapic_affinity_irq_desc(struct irq_desc *desc,
-					    const struct cpumask *mask)
-{
-	return migrate_ioapic_irq_desc(desc, mask);
-}
-static int set_ir_ioapic_affinity_irq(unsigned int irq,
-				       const struct cpumask *mask)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	return set_ir_ioapic_affinity_irq_desc(desc, mask);
-}
 #else
-static inline int set_ir_ioapic_affinity_irq_desc(struct irq_desc *desc,
-						   const struct cpumask *mask)
+static inline int
+ir_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		       bool force)
 {
 	return 0;
 }
@@ -2662,18 +2644,18 @@ static struct irq_chip ioapic_chip __read_mostly = {
 };
 
 static struct irq_chip ir_ioapic_chip __read_mostly = {
-	.name		= "IR-IO-APIC",
-	.irq_startup	= startup_ioapic_irq,
-	.irq_mask	= mask_ioapic_irq,
-	.irq_unmask	= unmask_ioapic_irq,
+	.name			= "IR-IO-APIC",
+	.irq_startup		= startup_ioapic_irq,
+	.irq_mask		= mask_ioapic_irq,
+	.irq_unmask		= unmask_ioapic_irq,
 #ifdef CONFIG_INTR_REMAP
-	.irq_ack	= ir_ack_apic_edge,
-	.irq_eoi	= ir_ack_apic_level,
+	.irq_ack		= ir_ack_apic_edge,
+	.irq_eoi		= ir_ack_apic_level,
 #ifdef CONFIG_SMP
-	.set_affinity	= set_ir_ioapic_affinity_irq,
+	.irq_set_affinity	= ir_ioapic_set_affinity,
 #endif
 #endif
-	.irq_retrigger	= ioapic_retrigger_irq,
+	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
 static inline void init_IO_APIC_traps(void)
@@ -4029,7 +4011,7 @@ void __init setup_ioapic_dest(void)
 			mask = apic->target_cpus();
 
 		if (intr_remapping_enabled)
-			set_ir_ioapic_affinity_irq_desc(desc, mask);
+			ir_ioapic_set_affinity(&desc->irq_data, mask, false);
 		else
 			ioapic_set_affinity(&desc->irq_data, mask, false);
 	}
