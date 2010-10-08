@@ -24,4 +24,5 @@ config PHONET_PIPECTRLR
 	  data with Nokia Slim modems like WG2.5 used on ST-Ericsson U8500
 	  platform.
 
-	  If unsure, say N.
+	  This option is incompatible with older Nokia modems.
+	  Say N here unless you really know what you are doing.
