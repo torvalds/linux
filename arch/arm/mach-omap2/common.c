@@ -19,12 +19,12 @@
 
 #include <plat/common.h>
 #include <plat/board.h>
-#include <plat/control.h>
 #include <plat/mux.h>
 
 #include <plat/clock.h>
 
 #include "sdrc.h"
+#include "control.h"
 
 /* Global address base setup code */
 

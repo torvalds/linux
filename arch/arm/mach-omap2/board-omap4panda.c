@@ -34,12 +34,12 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
-#include "hsmmc.h"
 #include "timer-gp.h"
 
+#include "hsmmc.h"
+#include "control.h"
 
 static struct gpio_led gpio_leds[] = {
 	{

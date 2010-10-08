@@ -22,7 +22,9 @@
 #include <plat/dma.h>
 #include <plat/cpu.h>
 #include <plat/mcbsp.h>
-#include <plat/control.h>
+
+#include "control.h"
+
 
 /* McBSP internal signal muxing functions */
 

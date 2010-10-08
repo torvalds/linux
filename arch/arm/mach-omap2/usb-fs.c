@@ -29,17 +29,17 @@
 
 #include <asm/irq.h>
 
-#include <plat/control.h>
 #include <plat/usb.h>
 #include <plat/board.h>
+
+#include "control.h"
+#include "mux.h"
 
 #define INT_USB_IRQ_GEN		INT_24XX_USB_IRQ_GEN
 #define INT_USB_IRQ_NISO	INT_24XX_USB_IRQ_NISO
 #define INT_USB_IRQ_ISO		INT_24XX_USB_IRQ_ISO
 #define INT_USB_IRQ_HGEN	INT_24XX_USB_IRQ_HGEN
 #define INT_USB_IRQ_OTG		INT_24XX_USB_IRQ_OTG
-
-#include "mux.h"
 
 #if defined(CONFIG_ARCH_OMAP2)
 

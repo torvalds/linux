@@ -14,11 +14,11 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <mach/hardware.h>
-#include <plat/control.h>
 #include <plat/mmc.h>
 #include <plat/omap-pm.h>
 
 #include "hsmmc.h"
+#include "control.h"
 
 #if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 

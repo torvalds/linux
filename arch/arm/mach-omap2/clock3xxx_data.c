@@ -20,7 +20,6 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 
-#include <plat/control.h>
 #include <plat/clkdev_omap.h>
 
 #include "clock.h"
@@ -33,6 +32,7 @@
 #include "cm-regbits-34xx.h"
 #include "prm.h"
 #include "prm-regbits-34xx.h"
+#include "control.h"
 
 /*
  * clocks

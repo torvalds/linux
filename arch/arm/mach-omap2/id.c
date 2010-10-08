@@ -22,10 +22,11 @@
 #include <asm/cputype.h>
 
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/cpu.h>
 
 #include <mach/id.h>
+
+#include "control.h"
 
 static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;

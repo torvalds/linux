@@ -27,11 +27,11 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/io.h>
-#include <plat/control.h>
 
 #include "cm.h"
 #include "prm.h"
 #include "sdrc.h"
+#include "control.h"
 
 #define SDRC_SCRATCHPAD_SEM_V	0xfa00291c
 

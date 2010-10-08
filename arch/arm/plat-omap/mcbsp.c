@@ -27,7 +27,6 @@
 
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
-#include <plat/control.h>
 
 #include "../mach-omap2/cm-regbits-34xx.h"
 

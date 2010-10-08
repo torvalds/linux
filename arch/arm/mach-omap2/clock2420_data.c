@@ -18,7 +18,6 @@
 #include <linux/list.h>
 
 #include <plat/clkdev_omap.h>
-#include <plat/control.h>
 
 #include "clock.h"
 #include "clock2xxx.h"
@@ -28,6 +27,7 @@
 #include "prm-regbits-24xx.h"
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
+#include "control.h"
 
 #define OMAP_CM_REGADDR                 OMAP2420_CM_REGADDR
 
