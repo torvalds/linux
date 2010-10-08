@@ -32,6 +32,8 @@
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
 
+#include <mach/board-rx51.h>
+
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
 

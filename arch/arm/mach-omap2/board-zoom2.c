@@ -23,6 +23,7 @@
 
 #include <mach/board-zoom.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 

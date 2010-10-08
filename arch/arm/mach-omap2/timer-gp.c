@@ -40,6 +40,8 @@
 #include <plat/dmtimer.h>
 #include <asm/localtimer.h>
 
+#include "timer-gp.h"
+
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
 

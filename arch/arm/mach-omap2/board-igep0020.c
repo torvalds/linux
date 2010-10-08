@@ -108,7 +108,7 @@ static struct platform_device igep2_onenand_device = {
 	},
 };
 
-void __init igep2_flash_init(void)
+static void __init igep2_flash_init(void)
 {
 	u8		cs = 0;
 	u8		onenandcs = GPMC_CS_NUM + 1;
@@ -142,7 +142,7 @@ void __init igep2_flash_init(void)
 }
 
 #else
-void __init igep2_flash_init(void) {}
+static void __init igep2_flash_init(void) {}
 #endif
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)

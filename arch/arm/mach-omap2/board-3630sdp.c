@@ -21,8 +21,8 @@
 #include <plat/usb.h>
 
 #include <mach/board-zoom.h>
-#include <mach/board-flash.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 

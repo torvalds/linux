@@ -45,6 +45,7 @@
 #include <plat/control.h>
 #include <plat/usb.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "hsmmc.h"
 

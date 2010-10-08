@@ -21,7 +21,8 @@
 #include <plat/nand.h>
 #include <plat/onenand.h>
 #include <plat/tc.h>
-#include <mach/board-flash.h>
+
+#include "board-flash.h"
 
 #define REG_FPGA_REV			0x10
 #define REG_FPGA_DIP_SWITCH_INPUT2	0x60
