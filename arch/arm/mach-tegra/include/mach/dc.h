@@ -25,6 +25,15 @@
 #define TEGRA_MAX_DC		2
 #define DC_N_WINDOWS		3
 
+#define TEGRA_DC_PITCH_ATOM	16
+#define TEGRA_DC_TILED_ATOM	16
+
+enum tegra_win_layout {
+	TEGRA_WIN_LAYOUT_PITCH,
+	TEGRA_WIN_LAYOUT_TILED,
+	TEGRA_WIN_LAYOUT_LINEAR_TILED,
+};
+
 struct tegra_dc_mode {
 	int	pclk;
 	int	h_ref_to_sync;
@@ -77,6 +86,7 @@ struct tegra_dc_out {
 #define TEGRA_DC_ORDER_BLUE_RED		1
 
 struct tegra_dc;
+struct nvmap_handle_ref;
 
 struct tegra_dc_win {
 	u8			idx;
@@ -95,9 +105,12 @@ struct tegra_dc_win {
 	unsigned		out_w;
 	unsigned		out_h;
 	unsigned		z;
+	enum tegra_win_layout	layout;
 
 	int			dirty;
 	struct tegra_dc		*dc;
+
+	struct nvmap_handle_ref	*surface;
 };
 
 #define TEGRA_WIN_FLAG_ENABLED		(1 << 0)
@@ -155,6 +168,10 @@ struct tegra_dc_win *tegra_dc_get_window(struct tegra_dc *dc, unsigned win);
 void tegra_dc_enable(struct tegra_dc *dc);
 void tegra_dc_disable(struct tegra_dc *dc);
 
+u32 tegra_dc_get_syncpt_id(const struct tegra_dc *dc);
+u32 tegra_dc_incr_syncpt_max(struct tegra_dc *dc);
+void tegra_dc_incr_syncpt_min(struct tegra_dc *dc, u32 val);
+
 /* tegra_dc_update_windows and tegra_dc_sync_windows do not support windows
  * with differenct dcs in one call
  */
@@ -162,5 +179,8 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n);
 int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n);
 
 int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode);
+
+ssize_t tegra_dc_compute_stride(int xres, int bpp,
+				enum tegra_win_layout layout);
 
 #endif

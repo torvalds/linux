@@ -72,4 +72,11 @@ struct tegra_audio_out_preload {
 #define TEGRA_AUDIO_OUT_PRELOAD_FIFO	_IOWR(TEGRA_AUDIO_MAGIC, 10, \
 			struct tegra_audio_out_preload *)
 
+#define TEGRA_AUDIO_BIT_FORMAT_DEFAULT 0
+#define TEGRA_AUDIO_BIT_FORMAT_DSP 1
+#define TEGRA_AUDIO_SET_BIT_FORMAT       _IOW(TEGRA_AUDIO_MAGIC, 11, \
+			unsigned int *)
+#define TEGRA_AUDIO_GET_BIT_FORMAT       _IOR(TEGRA_AUDIO_MAGIC, 12, \
+			unsigned int *)
+
 #endif/*_CPCAP_AUDIO_H*/

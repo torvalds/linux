@@ -128,6 +128,10 @@ struct audio_driver_state {
 	struct miscdevice misc_in;
 	struct miscdevice misc_in_ctl;
 	struct audio_stream in;
+
+	/* Control for whole I2S (Data format, etc.) */
+	struct miscdevice misc_ctl;
+	unsigned int bit_format;
 };
 
 static inline int buf_size(struct audio_stream *s)
@@ -181,6 +185,17 @@ static inline struct audio_driver_state *ads_from_misc_in_ctl(
 	struct audio_driver_state *ads =
 			container_of(m, struct audio_driver_state,
 					misc_in_ctl);
+	BUG_ON(!ads);
+	return ads;
+}
+
+static inline struct audio_driver_state *ads_from_misc_ctl(
+		struct file *file)
+{
+	struct miscdevice *m = file->private_data;
+	struct audio_driver_state *ads =
+			container_of(m, struct audio_driver_state,
+					misc_ctl);
 	BUG_ON(!ads);
 	return ads;
 }
@@ -1321,6 +1336,44 @@ static long tegra_audio_out_ioctl(struct file *file,
 	return rc;
 }
 
+static long tegra_audio_ioctl(struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+	int rc = 0;
+	struct audio_driver_state *ads = ads_from_misc_ctl(file);
+	unsigned int mode;
+
+	switch (cmd) {
+	case TEGRA_AUDIO_SET_BIT_FORMAT:
+		if (copy_from_user(&mode, (const void __user *)arg,
+					sizeof(mode))) {
+			rc = -EFAULT;
+			break;
+		}
+		switch(mode) {
+		case TEGRA_AUDIO_BIT_FORMAT_DEFAULT:
+			i2s_set_bit_format(ads->i2s_base, ads->pdata->mode);
+			ads->bit_format = mode;
+		case TEGRA_AUDIO_BIT_FORMAT_DSP:
+			i2s_set_bit_format(ads->i2s_base, I2S_BIT_FORMAT_DSP);
+			ads->bit_format = mode;
+			break;
+		default:
+			pr_err("%s: Invald PCM mode %d", __func__, mode);
+			rc = -EINVAL;
+			break;
+		}
+		break;
+	case TEGRA_AUDIO_GET_BIT_FORMAT:
+		if (copy_to_user((void __user *)arg, &ads->bit_format,
+				sizeof(mode))) {
+			rc = -EFAULT;
+		}
+		break;
+	}
+	return rc;
+}
+
 static long tegra_audio_in_ioctl(struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
@@ -1803,6 +1856,13 @@ static const struct file_operations tegra_audio_in_ctl_fops = {
 	.unlocked_ioctl = tegra_audio_in_ioctl,
 };
 
+static const struct file_operations tegra_audio_ctl_fops = {
+	.owner = THIS_MODULE,
+	.open = tegra_audio_ctl_open,
+	.release = tegra_audio_ctl_release,
+	.unlocked_ioctl = tegra_audio_ioctl,
+};
+
 static int init_stream_buffer(struct audio_stream *s,
 				struct tegra_audio_buf_config *cfg,
 				unsigned padding)
@@ -2231,6 +2291,12 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	rc = setup_misc_device(&state->misc_in_ctl,
 			&tegra_audio_in_ctl_fops,
 			"audio%d_in_ctl", state->pdev->id);
+	if (rc < 0)
+		return rc;
+
+	rc = setup_misc_device(&state->misc_ctl,
+			&tegra_audio_ctl_fops,
+			"audio%d_ctl", state->pdev->id);
 	if (rc < 0)
 		return rc;
 
