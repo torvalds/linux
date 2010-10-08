@@ -385,30 +385,54 @@ static void __init omap3_cpuinfo(void)
 		strcpy(cpu_name, "OMAP3503");
 	}
 
-	switch (rev) {
-	case OMAP_REVBITS_00:
-		strcpy(cpu_rev, "1.0");
-		break;
-	case OMAP_REVBITS_01:
-		strcpy(cpu_rev, "1.1");
-		break;
-	case OMAP_REVBITS_02:
-		strcpy(cpu_rev, "1.2");
-		break;
-	case OMAP_REVBITS_10:
-		strcpy(cpu_rev, "2.0");
-		break;
-	case OMAP_REVBITS_20:
-		strcpy(cpu_rev, "2.1");
-		break;
-	case OMAP_REVBITS_30:
-		strcpy(cpu_rev, "3.0");
-		break;
-	case OMAP_REVBITS_40:
-	/* FALLTHROUGH */
-	default:
-		/* Use the latest known revision as default */
-		strcpy(cpu_rev, "3.1");
+	if (cpu_is_omap3630()) {
+		switch (rev) {
+		case OMAP_REVBITS_00:
+			strcpy(cpu_rev, "1.0");
+			break;
+		case OMAP_REVBITS_01:
+			strcpy(cpu_rev, "1.1");
+			break;
+		case OMAP_REVBITS_02:
+			/* FALLTHROUGH */
+		default:
+			/* Use the latest known revision as default */
+			strcpy(cpu_rev, "1.2");
+		}
+	} else if (cpu_is_omap3505() || cpu_is_omap3517()) {
+		switch (rev) {
+		case OMAP_REVBITS_00:
+			strcpy(cpu_rev, "1.0");
+			break;
+		case OMAP_REVBITS_01:
+			/* FALLTHROUGH */
+		default:
+			/* Use the latest known revision as default */
+			strcpy(cpu_rev, "1.1");
+		}
+	} else {
+		switch (rev) {
+		case OMAP_REVBITS_00:
+			strcpy(cpu_rev, "1.0");
+			break;
+		case OMAP_REVBITS_01:
+			strcpy(cpu_rev, "2.0");
+			break;
+		case OMAP_REVBITS_02:
+			strcpy(cpu_rev, "2.1");
+			break;
+		case OMAP_REVBITS_03:
+			strcpy(cpu_rev, "3.0");
+			break;
+		case OMAP_REVBITS_04:
+			strcpy(cpu_rev, "3.1");
+			break;
+		case OMAP_REVBITS_05:
+			/* FALLTHROUGH */
+		default:
+			/* Use the latest known revision as default */
+			strcpy(cpu_rev, "3.1.2");
+		}
 	}
 
 	/* Print verbose information */

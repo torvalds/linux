@@ -266,6 +266,10 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		mmc->slots[0].caps = c->caps;
 		mmc->slots[0].internal_clock = !c->ext_clock;
 		mmc->dma_mask = 0xffffffff;
+		if (cpu_is_omap44xx())
+			mmc->reg_offset = OMAP4_MMC_REG_OFFSET;
+		else
+			mmc->reg_offset = 0;
 
 		mmc->get_context_loss_count = hsmmc_get_context_loss;
 
@@ -302,6 +306,9 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 			mmc->slots[0].set_power = nop_mmc_set_power;
 		else
 			mmc->slots[0].features |= HSMMC_HAS_PBIAS;
+
+		if (cpu_is_omap44xx() && (omap_rev() > OMAP4430_REV_ES1_0))
+			mmc->slots[0].features |= HSMMC_HAS_UPDATED_RESET;
 
 		switch (c->mmc) {
 		case 1:
