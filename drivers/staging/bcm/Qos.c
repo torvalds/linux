@@ -587,8 +587,7 @@ USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb)
 			pstClassifierRule = &Adapter->astClassifierTable[uiLoopIndex];
 
 			uiSfIndex = SearchSfid(Adapter,pstClassifierRule->ulSFID);
-			if(uiSfIndex > NO_OF_QUEUES)
-			{
+			if (uiSfIndex >= NO_OF_QUEUES) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Queue Not Valid. SearchSfid for this classifier Failed\n");
 				break;
 			}
