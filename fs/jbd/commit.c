@@ -617,7 +617,7 @@ void journal_commit_transaction(journal_t *journal)
                    (this will requeue both the metadata buffer and the
                    temporary IO buffer). new_bh goes on BJ_IO*/
 
-		set_bit(BH_JWrite, &jh2bh(jh)->b_state);
+		set_buffer_jwrite(jh2bh(jh));
 		/*
 		 * akpm: journal_write_metadata_buffer() sets
 		 * new_bh->b_transaction to commit_transaction.
@@ -627,7 +627,7 @@ void journal_commit_transaction(journal_t *journal)
 		JBUFFER_TRACE(jh, "ph3: write metadata");
 		flags = journal_write_metadata_buffer(commit_transaction,
 						      jh, &new_jh, blocknr);
-		set_bit(BH_JWrite, &jh2bh(new_jh)->b_state);
+		set_buffer_jwrite(jh2bh(new_jh));
 		wbuf[bufs++] = jh2bh(new_jh);
 
 		/* Record the new block's tag in the current descriptor
@@ -737,7 +737,7 @@ wait_for_iobuf:
                    shadowed buffer */
 		jh = commit_transaction->t_shadow_list->b_tprev;
 		bh = jh2bh(jh);
-		clear_bit(BH_JWrite, &bh->b_state);
+		clear_buffer_jwrite(bh);
 		J_ASSERT_BH(bh, buffer_jbddirty(bh));
 
 		/* The metadata is now released for reuse, but we need
