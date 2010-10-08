@@ -102,7 +102,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	struct ir_input_dev *ir_dev;
 	int ret = 0;
 	void *drv_data;
-	unsigned long val = 0;
+	__u32 val = 0;
 
 	lirc = lirc_get_pdata(filep);
 	if (!lirc)
@@ -115,7 +115,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	drv_data = ir_dev->props->priv;
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		ret = get_user(val, (unsigned long *)arg);
+		ret = get_user(val, (__u32 *)arg);
 		if (ret)
 			return ret;
 	}
@@ -135,14 +135,14 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
 		if (ir_dev->props->s_tx_mask)
-			ret = ir_dev->props->s_tx_mask(drv_data, (u32)val);
+			ret = ir_dev->props->s_tx_mask(drv_data, val);
 		else
 			return -EINVAL;
 		break;
 
 	case LIRC_SET_SEND_CARRIER:
 		if (ir_dev->props->s_tx_carrier)
-			ir_dev->props->s_tx_carrier(drv_data, (u32)val);
+			ir_dev->props->s_tx_carrier(drv_data, val);
 		else
 			return -EINVAL;
 		break;
@@ -212,7 +212,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	}
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
-		ret = put_user(val, (unsigned long *)arg);
+		ret = put_user(val, (__u32 *)arg);
 
 	return ret;
 }

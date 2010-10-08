@@ -125,10 +125,10 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 struct lirc_driver {
 	char name[40];
 	int minor;
-	unsigned long code_length;
+	__u32 code_length;
 	unsigned int buffer_size; /* in chunks holding one code each */
 	int sample_rate;
-	unsigned long features;
+	__u32 features;
 
 	unsigned int chunk_size;
 
