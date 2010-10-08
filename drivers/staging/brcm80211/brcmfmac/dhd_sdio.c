@@ -1995,7 +1995,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 		return 0;
 
 	/* Read console log struct */
-	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, log);
+	addr = bus->console_addr + offsetof(hndrte_cons_t, log);
 	rv = dhdsdio_membytes(bus, FALSE, addr, (u8 *)&c->log,
 				sizeof(c->log));
 	if (rv < 0)
@@ -4980,20 +4980,20 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 
 	/* Zero cbuf_index */
-	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, cbuf_idx);
+	addr = bus->console_addr + offsetof(hndrte_cons_t, cbuf_idx);
 	val = htol32(0);
 	rv = dhdsdio_membytes(bus, TRUE, addr, (u8 *)&val, sizeof(val));
 	if (rv < 0)
 		goto done;
 
 	/* Write message into cbuf */
-	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, cbuf);
+	addr = bus->console_addr + offsetof(hndrte_cons_t, cbuf);
 	rv = dhdsdio_membytes(bus, TRUE, addr, (u8 *)msg, msglen);
 	if (rv < 0)
 		goto done;
 
 	/* Write length into vcons_in */
-	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, vcons_in);
+	addr = bus->console_addr + offsetof(hndrte_cons_t, vcons_in);
 	val = htol32(msglen);
 	rv = dhdsdio_membytes(bus, TRUE, addr, (u8 *)&val, sizeof(val));
 	if (rv < 0)

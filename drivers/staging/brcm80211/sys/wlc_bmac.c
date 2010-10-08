@@ -2003,16 +2003,16 @@ void wlc_bmac_core_phypll_reset(wlc_hw_info_t *wlc_hw)
 	WL_TRACE(("wl%d: wlc_bmac_core_phypll_reset\n", wlc_hw->unit));
 
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
-		   OFFSETOF(chipcregs_t, chipcontrol_addr), ~0, 0);
+		   offsetof(chipcregs_t, chipcontrol_addr), ~0, 0);
 	OSL_DELAY(1);
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
-		   OFFSETOF(chipcregs_t, chipcontrol_data), 0x4, 0);
+		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 0);
 	OSL_DELAY(1);
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
-		   OFFSETOF(chipcregs_t, chipcontrol_data), 0x4, 4);
+		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 4);
 	OSL_DELAY(1);
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
-		   OFFSETOF(chipcregs_t, chipcontrol_data), 0x4, 0);
+		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 0);
 	OSL_DELAY(1);
 }
 

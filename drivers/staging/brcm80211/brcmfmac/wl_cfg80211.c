@@ -689,7 +689,7 @@ static s32
 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 {
 	s32 params_size =
-	    (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_iscan_params_t, params));
+	    (WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params));
 	struct wl_iscan_params *params;
 	s32 err = 0;
 
@@ -707,7 +707,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 	params->action = htod16(action);
 	params->scan_duration = htod16(0);
 
-	/* params_size += OFFSETOF(wl_iscan_params_t, params); */
+	/* params_size += offsetof(wl_iscan_params_t, params); */
 	err = wl_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
 				iscan->ioctl_buf, WLC_IOCTL_SMLEN);
 	if (unlikely(err)) {

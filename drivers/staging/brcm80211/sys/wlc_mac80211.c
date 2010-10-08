@@ -1791,9 +1791,9 @@ void *BCMATTACHFN(wlc_attach) (void *wl, u16 vendor, u16 device,
 	ASSERT(sizeof(struct dot11_bcn_prb) == DOT11_BCN_PRB_LEN);
 	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
 	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
-	ASSERT(OFFSETOF(wl_scan_params_t, channel_list) ==
+	ASSERT(offsetof(wl_scan_params_t, channel_list) ==
 	       WL_SCAN_PARAMS_FIXED_SIZE);
-	ASSERT(ISALIGNED(OFFSETOF(wsec_key_t, data), sizeof(u32)));
+	ASSERT(ISALIGNED(offsetof(wsec_key_t, data), sizeof(u32)));
 	ASSERT(ISPOWEROF2(MA_WINDOW_SZ));
 
 	ASSERT(sizeof(wlc_d11rxhdr_t) <= WL_HWRXOFF);
@@ -8123,7 +8123,7 @@ int wlc_get_revision_info(wlc_info_t *wlc, void *buf, uint len)
 	rinfo->bus = wlc->pub->sih->bustype;
 	rinfo->chipnum = wlc->pub->sih->chip;
 
-	if (len >= (OFFSETOF(wlc_rev_info_t, chippkg))) {
+	if (len >= (offsetof(wlc_rev_info_t, chippkg))) {
 		rinfo->phytype = wlc->band->phytype;
 		rinfo->phyrev = wlc->band->phyrev;
 		rinfo->anarev = 0;	/* obsolete stuff, suppress */

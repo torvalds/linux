@@ -486,7 +486,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	w = getintvar(pvars, "leddc");
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
-	sb_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, gpiotimerval), ~0, w);
+	sb_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, gpiotimerval), ~0, w);
 
 #ifdef BCMDBG
 	/* clear any previous epidiag-induced target abort */
@@ -646,7 +646,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	w = getintvar(pvars, "leddc");
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, gpiotimerval), ~0, w);
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, gpiotimerval), ~0, w);
 
 	if (PCIE(sii)) {
 		ASSERT(sii->pch != NULL);
@@ -659,7 +659,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 		if (CHIPREV(sih->chiprev) == 0) {
 			SI_MSG(("Applying 43224A0 WARs\n"));
 			si_corereg(sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, chipcontrol),
+				   offsetof(chipcregs_t, chipcontrol),
 				   CCTRL43224_GPIO_TOGGLE,
 				   CCTRL43224_GPIO_TOGGLE);
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
@@ -1021,7 +1021,7 @@ si_watchdog(si_t *sih, uint ticks)
 
 		if ((sih->chip == BCM4319_CHIP_ID) && (sih->chiprev == 0) &&
 			(ticks != 0)) {
-			si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t,
+			si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t,
 			clk_ctl_st), ~0, 0x2);
 			si_setcore(sih, USB20D_CORE_ID, 0);
 			si_core_disable(sih, 1);
@@ -1030,11 +1030,11 @@ si_watchdog(si_t *sih, uint ticks)
 
 		if (ticks == 1)
 			ticks = 2;
-		si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, pmuwatchdog),
+		si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmuwatchdog),
 			~0, ticks);
 	} else {
 		/* instant NMI */
-		si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, watchdog),
+		si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, watchdog),
 			~0, ticks);
 	}
 }
@@ -1048,7 +1048,7 @@ void si_watchdog(si_t *sih, uint ticks)
 		if ((CHIPID(sih->chip) == BCM4319_CHIP_ID) &&
 		    (CHIPREV(sih->chiprev) == 0) && (ticks != 0)) {
 			si_corereg(sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, clk_ctl_st), ~0, 0x2);
+				   offsetof(chipcregs_t, clk_ctl_st), ~0, 0x2);
 			si_setcore(sih, USB20D_CORE_ID, 0);
 			si_core_disable(sih, 1);
 			si_setcore(sih, CC_CORE_ID, 0);
@@ -1068,7 +1068,7 @@ void si_watchdog(si_t *sih, uint ticks)
 		else if (ticks > maxt)
 			ticks = maxt;
 
-		si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, pmuwatchdog),
+		si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmuwatchdog),
 			   ~0, ticks);
 	} else {
 		/* make sure we come up in fast clock mode; or if clearing, clear clock */
@@ -1077,7 +1077,7 @@ void si_watchdog(si_t *sih, uint ticks)
 		if (ticks > maxt)
 			ticks = maxt;
 
-		si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, watchdog), ~0,
+		si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, watchdog), ~0,
 			   ticks);
 	}
 }
@@ -1786,7 +1786,7 @@ u32 si_gpiocontrol(si_t *sih, u32 mask, u32 val, u8 priority)
 		val &= mask;
 	}
 
-	regoff = OFFSETOF(chipcregs_t, gpiocontrol);
+	regoff = offsetof(chipcregs_t, gpiocontrol);
 	return si_corereg(sih, SI_CC_IDX, regoff, mask, val);
 }
 

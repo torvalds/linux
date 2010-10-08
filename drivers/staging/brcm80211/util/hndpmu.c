@@ -71,34 +71,34 @@ static void si_pmu_set_4330_plldivs(si_t *sih);
 /* Read/write a chipcontrol reg */
 u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 {
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, chipcontrol_addr), ~0,
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol_addr), ~0,
 		   reg);
 	return si_corereg(sih, SI_CC_IDX,
-			  OFFSETOF(chipcregs_t, chipcontrol_data), mask, val);
+			  offsetof(chipcregs_t, chipcontrol_data), mask, val);
 }
 
 /* Read/write a regcontrol reg */
 u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 {
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, regcontrol_addr), ~0,
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr), ~0,
 		   reg);
 	return si_corereg(sih, SI_CC_IDX,
-			  OFFSETOF(chipcregs_t, regcontrol_data), mask, val);
+			  offsetof(chipcregs_t, regcontrol_data), mask, val);
 }
 
 /* Read/write a pllcontrol reg */
 u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 {
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, pllcontrol_addr), ~0,
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pllcontrol_addr), ~0,
 		   reg);
 	return si_corereg(sih, SI_CC_IDX,
-			  OFFSETOF(chipcregs_t, pllcontrol_data), mask, val);
+			  offsetof(chipcregs_t, pllcontrol_data), mask, val);
 }
 
 /* PMU PLL update */
 void si_pmu_pllupd(si_t *sih)
 {
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, pmucontrol),
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmucontrol),
 		   PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
 }
 
@@ -176,9 +176,9 @@ BCMATTACHFN(si_pmu_set_ldo_voltage) (si_t *sih, osl_t *osh, u8 ldo,
 
 	shift = sr_cntl_shift + rc_shift;
 
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, regcontrol_addr),
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr),
 		   ~0, addr);
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, regcontrol_data),
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_data),
 		   mask << shift, (voltage & mask) << shift);
 }
 
@@ -2532,7 +2532,7 @@ void BCMATTACHFN(si_pmu_chip_init) (si_t *sih, osl_t *osh)
 	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 #ifdef CHIPC_UART_ALWAYS_ON
-	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, clk_ctl_st),
+	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, clk_ctl_st),
 		   CCS_FORCEALP, CCS_FORCEALP);
 #endif				/* CHIPC_UART_ALWAYS_ON */
 

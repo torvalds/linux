@@ -198,7 +198,7 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 
 	/* pq is variable size; only zero out what's requested */
 	bzero(pq,
-	      OFFSETOF(struct pktq, q) + (sizeof(struct pktq_prec) * num_prec));
+	      offsetof(struct pktq, q) + (sizeof(struct pktq_prec) * num_prec));
 
 	pq->num_prec = (u16) num_prec;
 

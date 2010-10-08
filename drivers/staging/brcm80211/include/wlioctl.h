@@ -254,7 +254,7 @@ typedef struct wl_iscan_params {
 } wl_iscan_params_t;
 
 /* 3 fields + size of wl_scan_params, not including variable length array */
-#define WL_ISCAN_PARAMS_FIXED_SIZE (OFFSETOF(wl_iscan_params_t, params) + sizeof(wlc_ssid_t))
+#define WL_ISCAN_PARAMS_FIXED_SIZE (offsetof(wl_iscan_params_t, params) + sizeof(wlc_ssid_t))
 
 typedef struct wl_scan_results {
 	u32 buflen;
@@ -282,7 +282,7 @@ typedef struct wl_escan_params {
 	wl_scan_params_t params;
 } wl_escan_params_t;
 
-#define WL_ESCAN_PARAMS_FIXED_SIZE (OFFSETOF(wl_escan_params_t, params) + sizeof(wlc_ssid_t))
+#define WL_ESCAN_PARAMS_FIXED_SIZE (offsetof(wl_escan_params_t, params) + sizeof(wlc_ssid_t))
 
 typedef struct wl_escan_result {
 	u32 buflen;
@@ -302,7 +302,7 @@ typedef struct wl_iscan_results {
 
 /* size of wl_iscan_results not including variable length array */
 #define WL_ISCAN_RESULTS_FIXED_SIZE \
-	(WL_SCAN_RESULTS_FIXED_SIZE + OFFSETOF(wl_iscan_results_t, results))
+	(WL_SCAN_RESULTS_FIXED_SIZE + offsetof(wl_iscan_results_t, results))
 
 typedef struct wl_probe_params {
 	wlc_ssid_t ssid;
@@ -490,7 +490,7 @@ typedef struct wl_rm_req {
 	void *cb_arg;		/* arg to completion callback function */
 	wl_rm_req_elt_t req[1];	/* variable length block of requests */
 } wl_rm_req_t;
-#define WL_RM_REQ_FIXED_LEN	OFFSETOF(wl_rm_req_t, req)
+#define WL_RM_REQ_FIXED_LEN	offsetof(wl_rm_req_t, req)
 
 typedef struct wl_rm_rep_elt {
 	s8 type;
@@ -720,7 +720,7 @@ typedef struct {
 	u32 rx_decrypt_failures;	/* # of packet decrypted unsuccessfully */
 } sta_info_t;
 
-#define WL_OLD_STAINFO_SIZE	OFFSETOF(sta_info_t, tx_pkts)
+#define WL_OLD_STAINFO_SIZE	offsetof(sta_info_t, tx_pkts)
 
 #define WL_STA_VER		3
 
@@ -1949,8 +1949,8 @@ typedef struct wl_pkt_filter {
 	} u;
 } wl_pkt_filter_t;
 
-#define WL_PKT_FILTER_FIXED_LEN		  OFFSETOF(wl_pkt_filter_t, u)
-#define WL_PKT_FILTER_PATTERN_FIXED_LEN	  OFFSETOF(wl_pkt_filter_pattern_t, mask_and_pattern)
+#define WL_PKT_FILTER_FIXED_LEN		  offsetof(wl_pkt_filter_t, u)
+#define WL_PKT_FILTER_PATTERN_FIXED_LEN	  offsetof(wl_pkt_filter_pattern_t, mask_and_pattern)
 
 /* IOVAR "pkt_filter_enable" parameter. */
 typedef struct wl_pkt_filter_enable {
@@ -1964,7 +1964,7 @@ typedef struct wl_pkt_filter_list {
 	wl_pkt_filter_t filter[1];	/* Variable array of packet filters. */
 } wl_pkt_filter_list_t;
 
-#define WL_PKT_FILTER_LIST_FIXED_LEN	  OFFSETOF(wl_pkt_filter_list_t, filter)
+#define WL_PKT_FILTER_LIST_FIXED_LEN	  offsetof(wl_pkt_filter_list_t, filter)
 
 /* IOVAR "pkt_filter_stats" parameter. Used to retrieve debug statistics. */
 typedef struct wl_pkt_filter_stats {

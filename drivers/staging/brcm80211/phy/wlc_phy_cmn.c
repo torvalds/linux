@@ -3339,12 +3339,12 @@ void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode)
 
 			}
 			si_corereg(pi->sh->sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, gpiocontrol), ~0x0,
+				   offsetof(chipcregs_t, gpiocontrol), ~0x0,
 				   0x0);
 			si_corereg(pi->sh->sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, gpioout), 0x40, 0x40);
+				   offsetof(chipcregs_t, gpioout), 0x40, 0x40);
 			si_corereg(pi->sh->sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, gpioouten), 0x40,
+				   offsetof(chipcregs_t, gpioouten), 0x40,
 				   0x40);
 		} else {
 			mod_phy_reg(pi, 0x44c, (0x1 << 2), (0) << 2);
@@ -3352,11 +3352,11 @@ void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode)
 			mod_phy_reg(pi, 0x44d, (0x1 << 2), (0) << 2);
 
 			si_corereg(pi->sh->sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, gpioout), 0x40, 0x00);
+				   offsetof(chipcregs_t, gpioout), 0x40, 0x00);
 			si_corereg(pi->sh->sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, gpioouten), 0x40, 0x0);
+				   offsetof(chipcregs_t, gpioouten), 0x40, 0x0);
 			si_corereg(pi->sh->sih, SI_CC_IDX,
-				   OFFSETOF(chipcregs_t, gpiocontrol), ~0x0,
+				   offsetof(chipcregs_t, gpiocontrol), ~0x0,
 				   0x40);
 		}
 	}

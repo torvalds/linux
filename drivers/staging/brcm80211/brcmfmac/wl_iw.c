@@ -3708,12 +3708,12 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 
 #ifdef CSCAN
 	params_size =
-	    (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_iscan_params_t, params)) +
+	    (WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params)) +
 	    (WL_NUMCHANNELS * sizeof(u16)) +
 	    WL_SCAN_PARAMS_SSID_MAX * sizeof(wlc_ssid_t);
 #else
 	params_size =
-	    (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_iscan_params_t, params));
+	    (WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params));
 #endif
 	iscan = kmalloc(sizeof(iscan_info_t), GFP_KERNEL);
 

@@ -348,7 +348,7 @@ static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 	/* return if we got here for a different reason than underflows */
 	cur_txunfl =
 	    wlc_read_shm(wlc,
-			 M_UCODE_MACSTAT + OFFSETOF(macstat_t, txfunfl[fid]));
+			 M_UCODE_MACSTAT + offsetof(macstat_t, txfunfl[fid]));
 	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
 	if (new_txunfl == 0) {
 		WL_FFPLD(("check_txunfl : TX status FRAG set but no tx underflows\n"));

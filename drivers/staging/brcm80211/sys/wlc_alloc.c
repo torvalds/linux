@@ -147,7 +147,7 @@ void wlc_bsscfg_mfree(osl_t *osh, wlc_bsscfg_t *cfg)
 
 	if (cfg->maclist) {
 		MFREE(osh, cfg->maclist,
-		      (int)(OFFSETOF(struct maclist, ea) +
+		      (int)(offsetof(struct maclist, ea) +
 			    cfg->nmac * ETHER_ADDR_LEN));
 		cfg->maclist = NULL;
 	}

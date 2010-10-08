@@ -140,7 +140,7 @@
 	(0 != (read_phy_reg((pi), 0x43b) & (0x1 << 6)))
 
 #define wlc_lcnphy_total_tx_frames(pi) \
-	wlapi_bmac_read_shm((pi)->sh->physhim, M_UCODE_MACSTAT + OFFSETOF(macstat_t, txallfrm))
+	wlapi_bmac_read_shm((pi)->sh->physhim, M_UCODE_MACSTAT + offsetof(macstat_t, txallfrm))
 
 typedef struct {
 	u16 gm_gain;
