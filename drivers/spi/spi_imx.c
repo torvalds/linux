@@ -77,6 +77,7 @@ struct spi_imx_devtype_data {
 	void (*trigger)(struct spi_imx_data *);
 	int (*rx_available)(struct spi_imx_data *);
 	void (*reset)(struct spi_imx_data *);
+	unsigned int fifosize;
 };
 
 struct spi_imx_data {
@@ -541,6 +542,7 @@ static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
 		.trigger = mx1_trigger,
 		.rx_available = mx1_rx_available,
 		.reset = mx1_reset,
+		.fifosize = 8,
 	},
 #endif
 #ifdef CONFIG_SPI_IMX_VER_0_0
@@ -550,6 +552,7 @@ static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
 		.trigger = mx27_trigger,
 		.rx_available = mx27_rx_available,
 		.reset = spi_imx0_0_reset,
+		.fifosize = 8,
 	},
 #endif
 #ifdef CONFIG_SPI_IMX_VER_0_4
@@ -559,6 +562,7 @@ static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
 		.trigger = mx31_trigger,
 		.rx_available = mx31_rx_available,
 		.reset = spi_imx0_4_reset,
+		.fifosize = 8,
 	},
 #endif
 #ifdef CONFIG_SPI_IMX_VER_0_7
@@ -568,6 +572,7 @@ static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
 		.trigger = mx31_trigger,
 		.rx_available = mx31_rx_available,
 		.reset = spi_imx0_4_reset,
+		.fifosize = 8,
 	},
 #endif
 #ifdef CONFIG_SPI_IMX_VER_2_3
@@ -577,6 +582,7 @@ static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
 		.trigger = spi_imx2_3_trigger,
 		.rx_available = spi_imx2_3_rx_available,
 		.reset = spi_imx2_3_reset,
+		.fifosize = 64,
 	},
 #endif
 };
@@ -596,7 +602,7 @@ static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 
 static void spi_imx_push(struct spi_imx_data *spi_imx)
 {
-	while (spi_imx->txfifo < 8) {
+	while (spi_imx->txfifo < spi_imx->devtype_data.fifosize) {
 		if (!spi_imx->count)
 			break;
 		spi_imx->tx(spi_imx);
