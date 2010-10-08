@@ -1559,7 +1559,7 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 
 }
 
-bool BCMATTACHFN(wlc_timers_init) (wlc_info_t *wlc, int unit)
+bool wlc_timers_init(wlc_info_t *wlc, int unit)
 {
 	wlc->wdtimer = wl_init_timer(wlc->wl, wlc_watchdog_by_timer,
 		wlc, "watchdog");
@@ -1586,7 +1586,7 @@ bool BCMATTACHFN(wlc_timers_init) (wlc_info_t *wlc, int unit)
  * Initialize wlc_info default values ...
  * may get overrides later in this function
  */
-void BCMATTACHFN(wlc_info_init) (wlc_info_t *wlc, int unit)
+void wlc_info_init(wlc_info_t *wlc, int unit)
 {
 	int i;
 	/* Assume the device is there until proven otherwise */
@@ -1711,7 +1711,7 @@ static bool wlc_state_bmac_sync(wlc_info_t *wlc)
 	return TRUE;
 }
 
-static uint BCMATTACHFN(wlc_attach_module) (wlc_info_t *wlc)
+static uint wlc_attach_module(wlc_info_t *wlc)
 {
 	uint err = 0;
 	uint unit;
@@ -1760,10 +1760,10 @@ wlc_pub_t *wlc_pub(void *wlc)
 /*
  * The common driver entry routine. Error codes should be unique
  */
-void *BCMATTACHFN(wlc_attach) (void *wl, u16 vendor, u16 device,
-			       uint unit, bool piomode, osl_t *osh,
-			       void *regsva, uint bustype, void *btparam,
-			       uint *perr) {
+void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
+		 osl_t *osh, void *regsva, uint bustype, void *btparam,
+		 uint *perr)
+{
 	wlc_info_t *wlc;
 	uint err = 0;
 	uint j;
@@ -2104,7 +2104,7 @@ static void BCMNMIATTACHFN(wlc_attach_antgain_init) (wlc_info_t *wlc)
 	}
 }
 
-static bool BCMATTACHFN(wlc_attach_stf_ant_init) (wlc_info_t *wlc)
+static bool wlc_attach_stf_ant_init(wlc_info_t *wlc)
 {
 	int aa;
 	uint unit;
@@ -2145,10 +2145,10 @@ static bool BCMATTACHFN(wlc_attach_stf_ant_init) (wlc_info_t *wlc)
 
 #ifdef WLC_HIGH_ONLY
 /* HIGH_ONLY bmac_attach, which sync over LOW_ONLY bmac_attach states */
-int
-BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, u16 vendor, u16 device,
-			      uint unit, bool piomode, osl_t *osh,
-			      void *regsva, uint bustype, void *btparam) {
+int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
+		    bool piomode, osl_t *osh, void *regsva, uint bustype,
+		    void *btparam)
+{
 	wlc_bmac_revinfo_t revinfo;
 	uint idx = 0;
 	rpc_info_t *rpc = (rpc_info_t *) btparam;
@@ -2273,7 +2273,7 @@ int wlc_bmac_detach(wlc_info_t *wlc)
 
 #endif				/* WLC_HIGH_ONLY */
 
-static void BCMATTACHFN(wlc_timers_deinit) (wlc_info_t *wlc)
+static void wlc_timers_deinit(wlc_info_t *wlc)
 {
 	/* free timer state */
 	if (wlc->wdtimer) {
@@ -2286,7 +2286,7 @@ static void BCMATTACHFN(wlc_timers_deinit) (wlc_info_t *wlc)
 	}
 }
 
-static void BCMATTACHFN(wlc_detach_module) (wlc_info_t *wlc)
+static void wlc_detach_module(wlc_info_t *wlc)
 {
 	if (wlc->asi) {
 		wlc_antsel_detach(wlc->asi);
@@ -2309,7 +2309,7 @@ static void BCMATTACHFN(wlc_detach_module) (wlc_info_t *wlc)
  *    One exception is sb register access, which is possible if crystal is turned on
  * After "down" state, driver should avoid software timer with the exception of radio_monitor.
  */
-uint BCMATTACHFN(wlc_detach) (wlc_info_t *wlc)
+uint wlc_detach(wlc_info_t *wlc)
 {
 	uint i;
 	uint callbacks = 0;
@@ -4520,10 +4520,10 @@ int wlc_iovar_gets8(wlc_info_t *wlc, const char *name, s8 *arg)
  * calling function must keep 'iovars' until wlc_module_unregister is called.
  * 'iovar' must have the last entry's name field being NULL as terminator.
  */
-int
-BCMATTACHFN(wlc_module_register) (wlc_pub_t *pub, const bcm_iovar_t *iovars,
-				  const char *name, void *hdl, iovar_fn_t i_fn,
-				  watchdog_fn_t w_fn, down_fn_t d_fn) {
+int wlc_module_register(wlc_pub_t *pub, const bcm_iovar_t *iovars,
+			const char *name, void *hdl, iovar_fn_t i_fn,
+			watchdog_fn_t w_fn, down_fn_t d_fn)
+{
 	wlc_info_t *wlc = (wlc_info_t *) pub->wlc;
 	int i;
 
@@ -4550,9 +4550,8 @@ BCMATTACHFN(wlc_module_register) (wlc_pub_t *pub, const bcm_iovar_t *iovars,
 }
 
 /* unregister module callbacks */
-int
-BCMATTACHFN(wlc_module_unregister) (wlc_pub_t *pub, const char *name,
-				    void *hdl) {
+int wlc_module_unregister(wlc_pub_t *pub, const char *name, void *hdl)
+{
 	wlc_info_t *wlc = (wlc_info_t *) pub->wlc;
 	int i;
 
@@ -8144,7 +8143,7 @@ void wlc_default_rateset(wlc_info_t *wlc, wlc_rateset_t *rs)
 			    wlc->stf->txstreams);
 }
 
-static void BCMATTACHFN(wlc_bss_default_init) (wlc_info_t *wlc)
+static void wlc_bss_default_init(wlc_info_t *wlc)
 {
 	chanspec_t chanspec;
 	wlcband_t *band;

@@ -62,7 +62,7 @@ struct wlc_phy_shim_info {
 	void *wl;		/* pointer to os-specific private state */
 };
 
-wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t *wlc_hw,
+wlc_phy_shim_info_t *wlc_phy_shim_attach(wlc_hw_info_t *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
@@ -80,7 +80,7 @@ wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t *wlc_hw,
 	return physhim;
 }
 
-void BCMATTACHFN(wlc_phy_shim_detach) (wlc_phy_shim_info_t *physhim)
+void wlc_phy_shim_detach(wlc_phy_shim_info_t *physhim)
 {
 	if (!physhim)
 		return;

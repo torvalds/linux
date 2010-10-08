@@ -53,9 +53,9 @@ struct wlc_eventq {
 /*
  * Export functions
  */
-wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t *pub,
-					      struct wlc_info *wlc, void *wl,
-					      wlc_eventq_cb_t cb) {
+wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc, void *wl,
+				wlc_eventq_cb_t cb)
+{
 	wlc_eventq_t *eq;
 
 	eq = (wlc_eventq_t *) MALLOC(pub->osh, sizeof(wlc_eventq_t));
@@ -80,7 +80,7 @@ wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t *pub,
 	return eq;
 }
 
-int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t *eq)
+int wlc_eventq_detach(wlc_eventq_t *eq)
 {
 	/* Clean up pending events */
 	wlc_eventq_down(eq);

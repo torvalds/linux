@@ -551,7 +551,7 @@ static void WLBANDINITFN(wlc_set_phy_uninitted) (phy_info_t *pi)
 	}
 }
 
-shared_phy_t *BCMATTACHFN(wlc_phy_shared_attach) (shared_phy_params_t *shp)
+shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
 {
 	shared_phy_t *sh;
 
@@ -590,7 +590,7 @@ shared_phy_t *BCMATTACHFN(wlc_phy_shared_attach) (shared_phy_params_t *shp)
 	return sh;
 }
 
-void BCMATTACHFN(wlc_phy_shared_detach) (shared_phy_t *phy_sh)
+void wlc_phy_shared_detach(shared_phy_t *phy_sh)
 {
 	osl_t *osh;
 
@@ -604,8 +604,8 @@ void BCMATTACHFN(wlc_phy_shared_detach) (shared_phy_t *phy_sh)
 	}
 }
 
-wlc_phy_t *BCMATTACHFN(wlc_phy_attach) (shared_phy_t *sh, void *regs,
-					int bandtype, char *vars) {
+wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars)
+{
 	phy_info_t *pi;
 	u32 sflags = 0;
 	uint phyversion;
@@ -786,7 +786,7 @@ wlc_phy_t *BCMATTACHFN(wlc_phy_attach) (shared_phy_t *sh, void *regs,
 	return NULL;
 }
 
-void BCMATTACHFN(wlc_phy_detach) (wlc_phy_t *pih)
+void wlc_phy_detach(wlc_phy_t *pih)
 {
 	phy_info_t *pi = (phy_info_t *) pih;
 

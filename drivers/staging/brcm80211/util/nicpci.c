@@ -641,7 +641,7 @@ void pcie_war_ovr_aspm_update(void *pch, u8 aspm)
 }
 
 /* ***** Functions called during driver state changes ***** */
-void BCMATTACHFN(pcicore_attach) (void *pch, char *pvars, int state)
+void pcicore_attach(void *pch, char *pvars, int state)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	si_t *sih = pi->sih;

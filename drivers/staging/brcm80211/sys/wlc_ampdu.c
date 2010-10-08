@@ -167,7 +167,7 @@ static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
 	return ltoh16(h->seq) >> SEQNUM_SHIFT;
 }
 
-ampdu_info_t *BCMATTACHFN(wlc_ampdu_attach) (wlc_info_t *wlc)
+ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc)
 {
 	ampdu_info_t *ampdu;
 	int i;
@@ -233,7 +233,7 @@ ampdu_info_t *BCMATTACHFN(wlc_ampdu_attach) (wlc_info_t *wlc)
 	return ampdu;
 }
 
-void BCMATTACHFN(wlc_ampdu_detach) (ampdu_info_t *ampdu)
+void wlc_ampdu_detach(ampdu_info_t *ampdu)
 {
 	int i;
 

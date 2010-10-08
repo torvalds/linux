@@ -4726,7 +4726,7 @@ static void wlc_lcnphy_rc_cal(phy_info_t *pi)
 	return;
 }
 
-static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_lcnphy) (phy_info_t *pi)
+static bool wlc_phy_txpwr_srom_read_lcnphy(phy_info_t *pi)
 {
 	s8 txpwr = 0;
 	int i;

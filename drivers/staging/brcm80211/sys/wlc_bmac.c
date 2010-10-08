@@ -566,8 +566,7 @@ int wlc_bmac_state_get(wlc_hw_info_t *wlc_hw, wlc_bmac_state_t *state)
 	return 0;
 }
 
-static bool
-BCMATTACHFN(wlc_bmac_attach_dmapio) (wlc_info_t *wlc, uint j, bool wme)
+static bool wlc_bmac_attach_dmapio(wlc_info_t *wlc, uint j, bool wme)
 {
 	uint i;
 	char name[8];
@@ -686,7 +685,7 @@ BCMATTACHFN(wlc_bmac_attach_dmapio) (wlc_info_t *wlc, uint j, bool wme)
 	return TRUE;
 }
 
-static void BCMATTACHFN(wlc_bmac_detach_dmapio) (wlc_hw_info_t *wlc_hw)
+static void wlc_bmac_detach_dmapio(wlc_hw_info_t *wlc_hw)
 {
 	uint j;
 
@@ -704,11 +703,10 @@ static void BCMATTACHFN(wlc_bmac_detach_dmapio) (wlc_hw_info_t *wlc_hw)
  *    initialize software state for each core and band
  *    put the whole chip in reset(driver down state), no clock
  */
-
-int
-BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, u16 vendor, u16 device,
-			      uint unit, bool piomode, osl_t *osh,
-			      void *regsva, uint bustype, void *btparam) {
+int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
+		    bool piomode, osl_t *osh, void *regsva, uint bustype,
+		    void *btparam)
+{
 	wlc_hw_info_t *wlc_hw;
 	d11regs_t *regs;
 	char *macaddr = NULL;
@@ -1048,7 +1046,7 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, u16 vendor, u16 device,
  * may get overrides later in this function
  *  BMAC_NOTES, move low out and resolve the dangling ones
  */
-void BCMATTACHFN(wlc_bmac_info_init) (wlc_hw_info_t *wlc_hw)
+void wlc_bmac_info_init(wlc_hw_info_t *wlc_hw)
 {
 	wlc_info_t *wlc = wlc_hw->wlc;
 
@@ -1070,7 +1068,7 @@ void BCMATTACHFN(wlc_bmac_info_init) (wlc_hw_info_t *wlc_hw)
 /*
  * low level detach
  */
-int BCMATTACHFN(wlc_bmac_detach) (wlc_info_t *wlc)
+int wlc_bmac_detach(wlc_info_t *wlc)
 {
 	uint i;
 	wlc_hwband_t *band;
@@ -2142,7 +2140,7 @@ void WLBANDINITFN(wlc_setxband) (wlc_hw_info_t *wlc_hw, uint bandunit)
 	}
 }
 
-static bool BCMATTACHFN(wlc_isgoodchip) (wlc_hw_info_t *wlc_hw)
+static bool wlc_isgoodchip(wlc_hw_info_t *wlc_hw)
 {
 
 	/* reject unsupported corerev */
@@ -2154,7 +2152,7 @@ static bool BCMATTACHFN(wlc_isgoodchip) (wlc_hw_info_t *wlc_hw)
 	return TRUE;
 }
 
-static bool BCMATTACHFN(wlc_validboardtype) (wlc_hw_info_t *wlc_hw)
+static bool wlc_validboardtype(wlc_hw_info_t *wlc_hw)
 {
 	bool goodboard = TRUE;
 	uint boardrev = wlc_hw->boardrev;
@@ -2784,7 +2782,7 @@ static void BCMINITFN(wlc_gpio_init) (wlc_info_t *wlc)
 	si_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
 }
 
-static void BCMATTACHFN(wlc_ucode_download) (wlc_hw_info_t *wlc_hw)
+static void wlc_ucode_download(wlc_hw_info_t *wlc_hw)
 {
 	wlc_info_t *wlc;
 	wlc = wlc_hw->wlc;
@@ -2812,8 +2810,7 @@ static void BCMATTACHFN(wlc_ucode_download) (wlc_hw_info_t *wlc_hw)
 	}
 }
 
-static void
-BCMATTACHFN(wlc_ucode_write) (wlc_hw_info_t *wlc_hw, const u32 ucode[],
+static void wlc_ucode_write(wlc_hw_info_t *wlc_hw, const u32 ucode[],
 			      const uint nbytes) {
 	osl_t *osh;
 	d11regs_t *regs = wlc_hw->regs;
@@ -3668,7 +3665,7 @@ wlc_bmac_read_tsf(wlc_hw_info_t *wlc_hw, u32 *tsf_l_ptr,
 	return;
 }
 
-bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw)
+bool wlc_bmac_validate_chip_access(wlc_hw_info_t *wlc_hw)
 {
 	d11regs_t *regs;
 	u32 w, val;

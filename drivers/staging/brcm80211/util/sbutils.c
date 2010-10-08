@@ -72,7 +72,7 @@ uint sb_coreid(si_t *sih)
 }
 
 /* return core index of the core with address 'sba' */
-static uint BCMATTACHFN(_sb_coreidx) (si_info_t *sii, u32 sba)
+static uint _sb_coreidx(si_info_t *sii, u32 sba)
 {
 	uint i;
 
@@ -83,7 +83,7 @@ static uint BCMATTACHFN(_sb_coreidx) (si_info_t *sii, u32 sba)
 }
 
 /* return core address of the current core */
-static u32 BCMATTACHFN(_sb_coresba) (si_info_t *sii)
+static u32 _sb_coresba(si_info_t *sii)
 {
 	u32 sbaddr = 0;
 
@@ -205,9 +205,9 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
  * starting from bus 'sbba', inclusive.
  */
 #define SB_MAXBUSES	2
-static uint
-BCMATTACHFN(_sb_scan) (si_info_t *sii, u32 sba, void *regs, uint bus,
-		       u32 sbba, uint numcores) {
+static uint _sb_scan(si_info_t *sii, u32 sba, void *regs, uint bus, u32 sbba,
+		     uint numcores)
+{
 	uint next;
 	uint ncc = 0;
 	uint i;
@@ -287,7 +287,7 @@ BCMATTACHFN(_sb_scan) (si_info_t *sii, u32 sba, void *regs, uint bus,
 }
 
 /* scan the sb enumerated space to identify all cores */
-void BCMATTACHFN(sb_scan) (si_t *sih, void *regs, uint devid)
+void sb_scan(si_t *sih, void *regs, uint devid)
 {
 	si_info_t *sii;
 	u32 origsba;

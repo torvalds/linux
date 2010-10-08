@@ -103,9 +103,9 @@ void si_pmu_pllupd(si_t *sih)
 }
 
 /* Setup switcher voltage */
-void
-BCMATTACHFN(si_pmu_set_switcher_voltage) (si_t *sih, osl_t *osh,
-					  u8 bb_voltage, u8 rf_voltage) {
+void si_pmu_set_switcher_voltage(si_t *sih, osl_t *osh, u8 bb_voltage,
+				 u8 rf_voltage)
+{
 	chipcregs_t *cc;
 	uint origidx;
 
@@ -126,9 +126,8 @@ BCMATTACHFN(si_pmu_set_switcher_voltage) (si_t *sih, osl_t *osh,
 	si_setcoreidx(sih, origidx);
 }
 
-void
-BCMATTACHFN(si_pmu_set_ldo_voltage) (si_t *sih, osl_t *osh, u8 ldo,
-				     u8 voltage) {
+void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo, u8 voltage)
+{
 	u8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
 	u8 addr = 0;
 
@@ -262,7 +261,7 @@ u16 BCMINITFN(si_pmu_fast_pwrup_delay) (si_t *sih, osl_t *osh)
 	return (u16) delay;
 }
 
-u32 BCMATTACHFN(si_pmu_force_ilp) (si_t *sih, osl_t *osh, bool force)
+u32 si_pmu_force_ilp(si_t *sih, osl_t *osh, bool force)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -564,26 +563,26 @@ static const pmu_res_depend_t bcm4330a0_res_depend[] = {
 };
 
 /* TRUE if the power topology uses the buck boost to provide 3.3V to VDDIO_RF and WLAN PA */
-static bool BCMATTACHFN(si_pmu_res_depfltr_bb) (si_t *sih)
+static bool si_pmu_res_depfltr_bb(si_t *sih)
 {
 	return (sih->boardflags & BFL_BUCKBOOST) != 0;
 }
 
 /* TRUE if the power topology doesn't use the cbuck. Key on chiprev also if the chip is BCM4325. */
-static bool BCMATTACHFN(si_pmu_res_depfltr_ncb) (si_t *sih)
+static bool si_pmu_res_depfltr_ncb(si_t *sih)
 {
 
 	return (sih->boardflags & BFL_NOCBUCK) != 0;
 }
 
 /* TRUE if the power topology uses the PALDO */
-static bool BCMATTACHFN(si_pmu_res_depfltr_paldo) (si_t *sih)
+static bool si_pmu_res_depfltr_paldo(si_t *sih)
 {
 	return (sih->boardflags & BFL_PALDO) != 0;
 }
 
 /* TRUE if the power topology doesn't use the PALDO */
-static bool BCMATTACHFN(si_pmu_res_depfltr_npaldo) (si_t *sih)
+static bool si_pmu_res_depfltr_npaldo(si_t *sih)
 {
 	return (sih->boardflags & BFL_PALDO) == 0;
 }
@@ -680,7 +679,7 @@ static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax)
 }
 
 /* initialize PMU resources */
-void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
+void si_pmu_res_init(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1206,9 +1205,8 @@ BCMINITFN(si_pmu1_alpclk0) (si_t *sih, osl_t *osh, chipcregs_t *cc)
  * case the xtal frequency is unknown to the s/w so we need to call
  * si_pmu1_xtaldef0() wherever it is needed to return a default value.
  */
-static void
-BCMATTACHFN(si_pmu1_pllinit0) (si_t *sih, osl_t *osh, chipcregs_t *cc,
-			       u32 xtal) {
+static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
+{
 	const pmu1_xtaltab0_t *xt;
 	u32 tmp;
 	u32 buf_strength = 0;
@@ -1506,7 +1504,7 @@ BCMINITFN(si_pmu1_cpuclk0) (si_t *sih, osl_t *osh, chipcregs_t *cc)
 }
 
 /* initialize PLL */
-void BCMATTACHFN(si_pmu_pll_init) (si_t *sih, osl_t *osh, uint xtalfreq)
+void si_pmu_pll_init(si_t *sih, osl_t *osh, uint xtalfreq)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1980,7 +1978,7 @@ BCMINITFN(si_sdiod_drive_strength_init) (si_t *sih, osl_t *osh,
 }
 
 /* initialize PMU */
-void BCMATTACHFN(si_pmu_init) (si_t *sih, osl_t *osh)
+void si_pmu_init(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2509,7 +2507,7 @@ void
 #if defined(BCMDBG)
 si_pmu_sprom_enable(si_t *sih, osl_t *osh, bool enable)
 #else
-BCMATTACHFN(si_pmu_sprom_enable) (si_t *sih, osl_t *osh, bool enable)
+si_pmu_sprom_enable(si_t *sih, osl_t *osh, bool enable)
 #endif
 {
 	chipcregs_t *cc;
@@ -2525,7 +2523,7 @@ BCMATTACHFN(si_pmu_sprom_enable) (si_t *sih, osl_t *osh, bool enable)
 }
 
 /* initialize PMU chip controls and other chip level stuff */
-void BCMATTACHFN(si_pmu_chip_init) (si_t *sih, osl_t *osh)
+void si_pmu_chip_init(si_t *sih, osl_t *osh)
 {
 	uint origidx;
 
@@ -2547,7 +2545,7 @@ void BCMATTACHFN(si_pmu_chip_init) (si_t *sih, osl_t *osh)
 }
 
 /* initialize PMU switch/regulators */
-void BCMATTACHFN(si_pmu_swreg_init) (si_t *sih, osl_t *osh)
+void si_pmu_swreg_init(si_t *sih, osl_t *osh)
 {
 	ASSERT(sih->cccaps & CC_CAP_PMU);
 
@@ -2620,7 +2618,7 @@ si_pmu_waitforclk_on_backplane(si_t *sih, osl_t *osh, u32 clk,
 
 #define EXT_ILP_HZ 32768
 
-u32 BCMATTACHFN(si_pmu_measure_alpclk) (si_t *sih, osl_t *osh)
+u32 si_pmu_measure_alpclk(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2668,7 +2666,7 @@ u32 BCMATTACHFN(si_pmu_measure_alpclk) (si_t *sih, osl_t *osh)
 	return alp_khz;
 }
 
-static void BCMATTACHFN(si_pmu_set_4330_plldivs) (si_t *sih)
+static void si_pmu_set_4330_plldivs(si_t *sih)
 {
 	u32 FVCO = si_pmu1_pllfvco0(sih) / 1000;
 	u32 m1div, m2div, m3div, m4div, m5div, m6div;

@@ -82,9 +82,9 @@ static u32 si_gpioreservation;
  * vars - pointer to a pointer area for "environment" variables
  * varsz - pointer to int to return the size of the vars
  */
-si_t *BCMATTACHFN(si_attach) (uint devid, osl_t *osh, void *regs,
-			      uint bustype, void *sdh, char **vars,
-			      uint *varsz) {
+si_t *si_attach(uint devid, osl_t *osh, void *regs, uint bustype, void *sdh,
+		char **vars, uint *varsz)
+{
 	si_info_t *sii;
 
 	/* alloc si_info_t */
@@ -109,9 +109,9 @@ si_t *BCMATTACHFN(si_attach) (uint devid, osl_t *osh, void *regs,
 /* global kernel resource */
 static si_info_t ksii;
 
-static bool
-BCMATTACHFN(si_buscore_prep) (si_info_t *sii, uint bustype, uint devid,
-			      void *sdh) {
+static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
+			    void *sdh)
+{
 
 #ifndef BRCM_FULLMAC
 	/* kludge to enable the clock on the 4306 which lacks a slowclock */
@@ -165,9 +165,9 @@ BCMATTACHFN(si_buscore_prep) (si_info_t *sii, uint bustype, uint devid,
 	return TRUE;
 }
 
-static bool
-BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
-			       u32 savewin, uint *origidx, void *regs) {
+static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
+			     u32 savewin, uint *origidx, void *regs)
+{
 	bool pci, pcie;
 	uint i;
 	uint pciidx, pcieidx, pcirev, pcierev;
@@ -305,7 +305,7 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	return TRUE;
 }
 
-static __used void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
+static __used void si_nvram_process(si_info_t *sii, char *pvars)
 {
 	uint w = 0;
 
@@ -366,10 +366,10 @@ static __used void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 /* this is will make Sonics calls directly, since Sonics is no longer supported in the Si abstraction */
 /* this has been customized for the bcm 4329 ONLY */
 #ifdef BCMSDIO
-static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
-					    osl_t *osh, void *regs,
-					    uint bustype, void *sdh,
-					    char **vars, uint *varsz) {
+static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
+			      void *regs, uint bustype, void *sdh,
+			      char **vars, uint *varsz)
+{
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	chipcregs_t *cc;
@@ -501,10 +501,10 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 }
 
 #else				/* BCMSDIO */
-static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
-					    osl_t *osh, void *regs,
-					    uint bustype, void *sdh,
-					    char **vars, uint *varsz) {
+static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
+			      void *regs, uint bustype, void *sdh,
+			      char **vars, uint *varsz)
+{
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	chipcregs_t *cc;
@@ -697,7 +697,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 #endif				/* BCMSDIO */
 
 /* may be called with core in reset */
-void BCMATTACHFN(si_detach) (si_t *sih)
+void si_detach(si_t *sih)
 {
 	si_info_t *sii;
 	uint idx;
@@ -1452,7 +1452,7 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 }
 
 /* Build device path. Support SI, PCI, and JTAG for now. */
-int BCMATTACHFN(si_devpath) (si_t *sih, char *path, int size)
+int si_devpath(si_t *sih, char *path, int size)
 {
 	int slen;
 
@@ -1495,7 +1495,7 @@ int BCMATTACHFN(si_devpath) (si_t *sih, char *path, int size)
 }
 
 /* Get a variable, but only if it has a devpath prefix */
-char *BCMATTACHFN(si_getdevpathvar) (si_t *sih, const char *name)
+char *si_getdevpathvar(si_t *sih, const char *name)
 {
 	char varname[SI_DEVPATH_BUFSZ + 32];
 
@@ -1505,7 +1505,7 @@ char *BCMATTACHFN(si_getdevpathvar) (si_t *sih, const char *name)
 }
 
 /* Get a variable, but only if it has a devpath prefix */
-int BCMATTACHFN(si_getdevpathintvar) (si_t *sih, const char *name)
+int si_getdevpathintvar(si_t *sih, const char *name)
 {
 #if defined(BCMBUSTYPE) && (BCMBUSTYPE == SI_BUS)
 	return getintvar(NULL, name);
@@ -1528,8 +1528,8 @@ char *si_getnvramflvar(si_t *sih, const char *name)
  * Nothing is done to the arguments if len == 0 or var is NULL, var is still returned.
  * On overflow, the first char will be set to '\0'.
  */
-static char *BCMATTACHFN(si_devpathvar) (si_t *sih, char *var, int len,
-					 const char *name) {
+static char *si_devpathvar(si_t *sih, char *var, int len, const char *name)
+{
 	uint path_len;
 
 	if (!var || len <= 0)
@@ -1603,7 +1603,7 @@ void si_sdio_init(si_t *sih)
 }
 #endif				/* BCMSDIO */
 
-bool BCMATTACHFN(si_pci_war16165) (si_t *sih)
+bool si_pci_war16165(si_t *sih)
 {
 	si_info_t *sii;
 
@@ -1662,7 +1662,7 @@ void BCMINITFN(si_pci_down) (si_t *sih)
  * Configure the pci core for pci client (NIC) action
  * coremask is the bitvec of cores by index to be enabled.
  */
-void BCMATTACHFN(si_pci_setup) (si_t *sih, uint coremask)
+void si_pci_setup(si_t *sih, uint coremask)
 {
 	si_info_t *sii;
 	sbpciregs_t *pciregs = NULL;

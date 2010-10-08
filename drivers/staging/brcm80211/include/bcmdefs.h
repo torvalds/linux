@@ -33,13 +33,7 @@
 /* Reclaiming text and data :
  * The following macros specify special linker sections that can be reclaimed
  * after a system is considered 'up'.
- * BCMATTACHFN is also used for detach functions (it's not worth having a BCMDETACHFN,
- * as in most cases, the attach function calls the detach function to clean up on error).
  */
-
-#define bcmreclaimed 		0
-#define BCMATTACHDATA(_data)	_data
-#define BCMATTACHFN(_fn)	_fn
 #define BCMINITDATA(_data)	_data
 #define BCMINITFN(_fn)		_fn
 #define BCMUNINITFN(_fn)	_fn

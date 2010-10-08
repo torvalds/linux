@@ -77,7 +77,7 @@ static void BCMINITFN(get_flash_nvram) (si_t *sih, struct nvram_header *nvh)
 }
 #endif				/* FLASH */
 
-int BCMATTACHFN(nvram_init) (void *si)
+int nvram_init(void *si)
 {
 
 	/* Make sure we read nvram in flash just once before freeing the memory */
@@ -88,7 +88,7 @@ int BCMATTACHFN(nvram_init) (void *si)
 	return 0;
 }
 
-int BCMATTACHFN(nvram_append) (void *si, char *varlst, uint varsz)
+int nvram_append(void *si, char *varlst, uint varsz)
 {
 	uint bufsz = VARS_T_OH;
 	vars_t *new;
@@ -157,22 +157,22 @@ char *nvram_get(const char *name)
 	return v;
 }
 
-int BCMATTACHFN(nvram_set) (const char *name, const char *value)
+int nvram_set(const char *name, const char *value)
 {
 	return 0;
 }
 
-int BCMATTACHFN(nvram_unset) (const char *name)
+int nvram_unset(const char *name)
 {
 	return 0;
 }
 
-int BCMATTACHFN(nvram_reset) (void *si)
+int nvram_reset(void *si)
 {
 	return 0;
 }
 
-int BCMATTACHFN(nvram_commit) (void)
+int nvram_commit(void)
 {
 	return 0;
 }

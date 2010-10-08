@@ -14505,7 +14505,7 @@ bool wlc_phy_attach_nphy(phy_info_t *pi)
 	return TRUE;
 }
 
-static void BCMATTACHFN(wlc_phy_txpwrctrl_config_nphy) (phy_info_t *pi)
+static void wlc_phy_txpwrctrl_config_nphy(phy_info_t *pi)
 {
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
@@ -27940,7 +27940,7 @@ void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
 	return;
 }
 
-static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
+static void wlc_phy_txpwr_srom_read_ppr_nphy(phy_info_t *pi)
 {
 	u16 bw40po, cddpo, stbcpo, bwduppo;
 	uint band_num;
@@ -28148,7 +28148,7 @@ static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
 	wlc_phy_txpwr_apply_nphy(pi);
 }
 
-static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_nphy) (phy_info_t *pi)
+static bool wlc_phy_txpwr_srom_read_nphy(phy_info_t *pi)
 {
 
 	pi->antswitch = (u8) PHY_GETINTVAR(pi, "antswitch");

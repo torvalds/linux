@@ -404,7 +404,7 @@ int wlc_stf_ss_update(wlc_info_t *wlc, wlcband_t *band)
 	return ret_code;
 }
 
-int BCMATTACHFN(wlc_stf_attach) (wlc_info_t *wlc)
+int wlc_stf_attach(wlc_info_t *wlc)
 {
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_ss_mode = PHY_TXC1_MODE_SISO;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_ss_mode = PHY_TXC1_MODE_CDD;
@@ -427,7 +427,7 @@ int BCMATTACHFN(wlc_stf_attach) (wlc_info_t *wlc)
 	return 0;
 }
 
-void BCMATTACHFN(wlc_stf_detach) (wlc_info_t *wlc)
+void wlc_stf_detach(wlc_info_t *wlc)
 {
 }
 
@@ -524,7 +524,7 @@ void wlc_stf_phy_txant_upd(wlc_info_t *wlc)
 	_wlc_stf_phy_txant_upd(wlc);
 }
 
-void BCMATTACHFN(wlc_stf_phy_chain_calc) (wlc_info_t *wlc)
+void wlc_stf_phy_chain_calc(wlc_info_t *wlc)
 {
 	/* get available rx/tx chains */
 	wlc->stf->hw_txchain = (u8) getintvar(wlc->pub->vars, "txchain");
