@@ -159,7 +159,6 @@ static struct dst_ops ipv4_dst_ops = {
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
 	.local_out =		__ip_local_out,
-	.entries =		ATOMIC_INIT(0),
 };
 
 #define ECN_OR_COST(class)	TC_PRIO_##class
@@ -466,7 +465,7 @@ static int rt_cpu_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq,"%08x  %08x %08x %08x %08x %08x %08x %08x "
 		   " %08x %08x %08x %08x %08x %08x %08x %08x %08x \n",
-		   atomic_read(&ipv4_dst_ops.entries),
+		   dst_entries_get_slow(&ipv4_dst_ops),
 		   st->in_hit,
 		   st->in_slow_tot,
 		   st->in_slow_mc,
@@ -945,6 +944,7 @@ static int rt_garbage_collect(struct dst_ops *ops)
 	struct rtable *rth, **rthp;
 	unsigned long now = jiffies;
 	int goal;
+	int entries = dst_entries_get_fast(&ipv4_dst_ops);
 
 	/*
 	 * Garbage collection is pretty expensive,
@@ -954,28 +954,28 @@ static int rt_garbage_collect(struct dst_ops *ops)
 	RT_CACHE_STAT_INC(gc_total);
 
 	if (now - last_gc < ip_rt_gc_min_interval &&
-	    atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size) {
+	    entries < ip_rt_max_size) {
 		RT_CACHE_STAT_INC(gc_ignored);
 		goto out;
 	}
 
+	entries = dst_entries_get_slow(&ipv4_dst_ops);
 	/* Calculate number of entries, which we want to expire now. */
-	goal = atomic_read(&ipv4_dst_ops.entries) -
-		(ip_rt_gc_elasticity << rt_hash_log);
+	goal = entries - (ip_rt_gc_elasticity << rt_hash_log);
 	if (goal <= 0) {
 		if (equilibrium < ipv4_dst_ops.gc_thresh)
 			equilibrium = ipv4_dst_ops.gc_thresh;
-		goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;
+		goal = entries - equilibrium;
 		if (goal > 0) {
 			equilibrium += min_t(unsigned int, goal >> 1, rt_hash_mask + 1);
-			goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;
+			goal = entries - equilibrium;
 		}
 	} else {
 		/* We are in dangerous area. Try to reduce cache really
 		 * aggressively.
 		 */
 		goal = max_t(unsigned int, goal >> 1, rt_hash_mask + 1);
-		equilibrium = atomic_read(&ipv4_dst_ops.entries) - goal;
+		equilibrium = entries - goal;
 	}
 
 	if (now - last_gc >= ip_rt_gc_min_interval)
@@ -1032,14 +1032,16 @@ static int rt_garbage_collect(struct dst_ops *ops)
 		expire >>= 1;
 #if RT_CACHE_DEBUG >= 2
 		printk(KERN_DEBUG "expire>> %u %d %d %d\n", expire,
-				atomic_read(&ipv4_dst_ops.entries), goal, i);
+				dst_entries_get_fast(&ipv4_dst_ops), goal, i);
 #endif
 
-		if (atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size)
+		if (dst_entries_get_fast(&ipv4_dst_ops) < ip_rt_max_size)
 			goto out;
 	} while (!in_softirq() && time_before_eq(jiffies, now));
 
-	if (atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size)
+	if (dst_entries_get_fast(&ipv4_dst_ops) < ip_rt_max_size)
+		goto out;
+	if (dst_entries_get_slow(&ipv4_dst_ops) < ip_rt_max_size)
 		goto out;
 	if (net_ratelimit())
 		printk(KERN_WARNING "dst cache overflow\n");
@@ -1049,11 +1051,12 @@ static int rt_garbage_collect(struct dst_ops *ops)
 work_done:
 	expire += ip_rt_gc_min_interval;
 	if (expire > ip_rt_gc_timeout ||
-	    atomic_read(&ipv4_dst_ops.entries) < ipv4_dst_ops.gc_thresh)
+	    dst_entries_get_fast(&ipv4_dst_ops) < ipv4_dst_ops.gc_thresh ||
+	    dst_entries_get_slow(&ipv4_dst_ops) < ipv4_dst_ops.gc_thresh)
 		expire = ip_rt_gc_timeout;
 #if RT_CACHE_DEBUG >= 2
 	printk(KERN_DEBUG "expire++ %u %d %d %d\n", expire,
-			atomic_read(&ipv4_dst_ops.entries), goal, rover);
+			dst_entries_get_fast(&ipv4_dst_ops), goal, rover);
 #endif
 out:	return 0;
 }
@@ -2717,7 +2720,6 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.destroy		=	ipv4_dst_destroy,
 	.check			=	ipv4_blackhole_dst_check,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
-	.entries		=	ATOMIC_INIT(0),
 };
 
 
@@ -3286,6 +3288,12 @@ int __init ip_rt_init(void)
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 
 	ipv4_dst_blackhole_ops.kmem_cachep = ipv4_dst_ops.kmem_cachep;
+
+	if (dst_entries_init(&ipv4_dst_ops) < 0)
+		panic("IP: failed to allocate ipv4_dst_ops counter\n");
+
+	if (dst_entries_init(&ipv4_dst_blackhole_ops) < 0)
+		panic("IP: failed to allocate ipv4_dst_blackhole_ops counter\n");
 
 	rt_hash_table = (struct rt_hash_bucket *)
 		alloc_large_system_hash("IP route cache",

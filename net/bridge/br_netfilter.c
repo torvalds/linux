@@ -106,7 +106,6 @@ static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
-	.entries =		ATOMIC_INIT(0),
 };
 
 /*
@@ -1003,15 +1002,22 @@ int __init br_netfilter_init(void)
 {
 	int ret;
 
-	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	ret = dst_entries_init(&fake_dst_ops);
 	if (ret < 0)
 		return ret;
+
+	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	if (ret < 0) {
+		dst_entries_destroy(&fake_dst_ops);
+		return ret;
+	}
 #ifdef CONFIG_SYSCTL
 	brnf_sysctl_header = register_sysctl_paths(brnf_path, brnf_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");
 		nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+		dst_entries_destroy(&fake_dst_ops);
 		return -ENOMEM;
 	}
 #endif
@@ -1025,4 +1031,5 @@ void br_netfilter_fini(void)
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(brnf_sysctl_header);
 #endif
+	dst_entries_destroy(&fake_dst_ops);
 }

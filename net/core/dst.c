@@ -168,7 +168,7 @@ void *dst_alloc(struct dst_ops *ops)
 {
 	struct dst_entry *dst;
 
-	if (ops->gc && atomic_read(&ops->entries) > ops->gc_thresh) {
+	if (ops->gc && dst_entries_get_fast(ops) > ops->gc_thresh) {
 		if (ops->gc(ops))
 			return NULL;
 	}
@@ -183,7 +183,7 @@ void *dst_alloc(struct dst_ops *ops)
 #if RT_CACHE_DEBUG >= 2
 	atomic_inc(&dst_total);
 #endif
-	atomic_inc(&ops->entries);
+	dst_entries_add(ops, 1);
 	return dst;
 }
 EXPORT_SYMBOL(dst_alloc);
@@ -236,7 +236,7 @@ again:
 		neigh_release(neigh);
 	}
 
-	atomic_dec(&dst->ops->entries);
+	dst_entries_add(dst->ops, -1);
 
 	if (dst->ops->destroy)
 		dst->ops->destroy(dst);
