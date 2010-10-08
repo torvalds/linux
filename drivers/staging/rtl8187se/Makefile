@@ -16,7 +16,7 @@ ccflags-y += -DENABLE_LPS
 
 #ccflags-y := -mhard-float -DCONFIG_FORCE_HARD_FLOAT=y
 
-r8187se-objs :=			\
+r8187se-y :=			\
 		r8180_core.o		\
 		r8180_wx.o		\
 		r8180_rtl8225z2.o	\
