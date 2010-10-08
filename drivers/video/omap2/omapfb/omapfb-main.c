@@ -2198,6 +2198,16 @@ static int omapfb_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
+	/* TODO : Replace cpu check with omap_has_vrfb once HAS_FEATURE
+	*	 available for OMAP2 and OMAP3
+	*/
+	if (def_vrfb && !cpu_is_omap24xx() && !cpu_is_omap34xx()) {
+		def_vrfb = 0;
+		dev_warn(&pdev->dev, "VRFB is not supported on this hardware, "
+				"ignoring the module parameter vrfb=y\n");
+	}
+
+
 	mutex_init(&fbdev->mtx);
 
 	fbdev->dev = &pdev->dev;
