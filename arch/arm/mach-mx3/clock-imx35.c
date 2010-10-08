@@ -535,6 +535,9 @@ int __init mx35_clocks_init()
 	__raw_writel(cgr2, CCM_BASE + CCM_CGR2);
 	__raw_writel(cgr3, CCM_BASE + CCM_CGR3);
 
+	clk_enable(&iim_clk);
+	mx35_read_cpu_rev();
+
 #ifdef CONFIG_MXC_USE_EPIT
 	epit_timer_init(&epit1_clk,
 			MX35_IO_ADDRESS(MX35_EPIT1_BASE_ADDR), MX35_INT_EPIT1);

@@ -240,7 +240,7 @@
 
 #define MX3x_PROD_SIGNATURE		0x1	/* For MX31 */
 
-/* silicon revisions specific to i.MX31 */
+/* silicon revisions specific to i.MX31 and i.MX35 */
 #define MX3x_CHIP_REV_1_0		0x10
 #define MX3x_CHIP_REV_1_1		0x11
 #define MX3x_CHIP_REV_1_2		0x12
@@ -266,6 +266,14 @@ extern void mx31_read_cpu_rev(void);
 static inline int mx31_revision(void)
 {
 	return mx31_cpu_rev;
+}
+
+extern unsigned int mx35_cpu_rev;
+extern void mx35_read_cpu_rev(void);
+
+static inline int mx35_revision(void)
+{
+	return mx35_cpu_rev;
 }
 #endif
 

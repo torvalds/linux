@@ -1,5 +1,6 @@
 #ifndef __MACH_MX35_H__
 #define __MACH_MX35_H__
+
 /*
  * IRAM
  */
@@ -66,6 +67,8 @@
 #define MX35_CAN1_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xe4000)
 #define MX35_CAN2_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xe8000)
 #define MX35_RTIC_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xec000)
+#define MX35_IIM_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xf0000)
+
 #define MX35_OTG_BASE_ADDR		0x53ff4000
 
 #define MX35_ROMP_BASE_ADDR		0x60000000
@@ -187,20 +190,7 @@
 
 #define MX35_PROD_SIGNATURE		0x1	/* For MX31 */
 
-/* silicon revisions specific to i.MX31 */
-#define MX35_CHIP_REV_1_0		0x10
-#define MX35_CHIP_REV_1_1		0x11
-#define MX35_CHIP_REV_1_2		0x12
-#define MX35_CHIP_REV_1_3		0x13
-#define MX35_CHIP_REV_2_0		0x20
-#define MX35_CHIP_REV_2_1		0x21
-#define MX35_CHIP_REV_2_2		0x22
-#define MX35_CHIP_REV_2_3		0x23
-#define MX35_CHIP_REV_3_0		0x30
-#define MX35_CHIP_REV_3_1		0x31
-#define MX35_CHIP_REV_3_2		0x32
-
-#define MX35_SYSTEM_REV_MIN		MX35_CHIP_REV_1_0
+#define MX35_SYSTEM_REV_MIN		MX3x_CHIP_REV_1_0
 #define MX35_SYSTEM_REV_NUM		3
 
 #ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
