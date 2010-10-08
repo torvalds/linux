@@ -103,7 +103,8 @@ void nilfs_dat_abort_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_palloc_abort_alloc_entry(dat, req);
 }
 
-void nilfs_dat_commit_free(struct inode *dat, struct nilfs_palloc_req *req)
+static void nilfs_dat_commit_free(struct inode *dat,
+				  struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
 	void *kaddr;
