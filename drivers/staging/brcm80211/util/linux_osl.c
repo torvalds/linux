@@ -54,13 +54,6 @@ typedef struct bcm_static_pkt {
 } bcm_static_pkt_t;
 static bcm_static_pkt_t *bcm_static_skb = 0;
 #endif				/* DHD_USE_STATIC_BUF */
-typedef struct bcm_mem_link {
-	struct bcm_mem_link *prev;
-	struct bcm_mem_link *next;
-	uint size;
-	int line;
-	char file[BCM_MEM_FILENAME_LEN];
-} bcm_mem_link_t;
 
 struct osl_info {
 	osl_pubinfo_t pub;
@@ -69,7 +62,6 @@ struct osl_info {
 	uint malloced;
 	uint failed;
 	uint bustype;
-	bcm_mem_link_t *dbgmem_list;
 };
 
 /* Global ASSERT type flag */
@@ -160,7 +152,6 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 	osh->magic = OS_HANDLE_MAGIC;
 	osh->malloced = 0;
 	osh->failed = 0;
-	osh->dbgmem_list = NULL;
 	osh->pdev = pdev;
 	osh->pub.pkttag = pkttag;
 	osh->bustype = bustype;
