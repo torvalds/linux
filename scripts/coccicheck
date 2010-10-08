@@ -16,6 +16,7 @@ if [ "$C" = "1" -o "$C" = "2" ]; then
 else
     ONLINE=0
     FLAGS="-very_quiet"
+    OPTIONS="-dir $srctree"
 fi
 
 if [ ! -x "$SPATCH" ]; then
@@ -25,11 +26,11 @@ fi
 
 if [ "$MODE" = "" ] ; then
     if [ "$ONLINE" = "0" ] ; then
-	echo 'You have not explicitly specified the mode to use. Fallback to "report".'
+	echo 'You have not explicitly specified the mode to use. Using default "chain" mode.'
+	echo 'All available modes will be tried (in that order): patch, report, context, org'
 	echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
-	echo 'Available modes are: report, patch, context, org'
     fi
-    MODE="report"
+    MODE="chain"
 fi
 
 if [ "$ONLINE" = "0" ] ; then
@@ -71,10 +72,15 @@ coccinelle () {
 	    sed -ne 's|^//#||p' $COCCI
 	    echo ''
 	fi
+    fi
 
-	$SPATCH -D $MODE $FLAGS -sp_file $COCCI $OPT -dir $srctree || exit 1
+    if [ "$MODE" = "chain" ] ; then
+	$SPATCH -D patch   $FLAGS -sp_file $COCCI $OPT $OPTIONS || \
+	$SPATCH -D report  $FLAGS -sp_file $COCCI $OPT $OPTIONS || \
+	$SPATCH -D context $FLAGS -sp_file $COCCI $OPT $OPTIONS || \
+	$SPATCH -D org     $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     else
-	$SPATCH -D $MODE $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
+	$SPATCH -D $MODE   $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     fi
 
 }
