@@ -705,23 +705,23 @@ static void _dma_detach(dma_info_t *di)
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 		if (di->txd64)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((s8 *) (uintptr) di->txd64 -
+					    ((s8 *)di->txd64 -
 					     di->txdalign), di->txdalloc,
 					    (di->txdpaorig), &di->tx_dmah);
 		if (di->rxd64)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((s8 *) (uintptr) di->rxd64 -
+					    ((s8 *)di->rxd64 -
 					     di->rxdalign), di->rxdalloc,
 					    (di->rxdpaorig), &di->rx_dmah);
 	} else if (DMA32_ENAB(di)) {
 		if (di->txd32)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((s8 *) (uintptr) di->txd32 -
+					    ((s8 *)di->txd32 -
 					     di->txdalign), di->txdalloc,
 					    (di->txdpaorig), &di->tx_dmah);
 		if (di->rxd32)
 			DMA_FREE_CONSISTENT(di->osh,
-					    ((s8 *) (uintptr) di->rxd32 -
+					    ((s8 *)di->rxd32 -
 					     di->rxdalign), di->rxdalloc,
 					    (di->rxdpaorig), &di->rx_dmah);
 	} else
@@ -912,7 +912,7 @@ static void _dma_rxinit(dma_info_t *di)
 
 	/* clear rx descriptor ring */
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
-		BZERO_SM((void *)(uintptr) di->rxd64,
+		BZERO_SM((void *)di->rxd64,
 			 (di->nrxd * sizeof(dma64dd_t)));
 
 		/* DMA engine with out alignment requirement requires table to be inited
@@ -926,7 +926,7 @@ static void _dma_rxinit(dma_info_t *di)
 		if (di->aligndesc_4k)
 			_dma_ddtable_init(di, DMA_RX, di->rxdpa);
 	} else if (DMA32_ENAB(di)) {
-		BZERO_SM((void *)(uintptr) di->rxd32,
+		BZERO_SM((void *)di->rxd32,
 			 (di->nrxd * sizeof(dma32dd_t)));
 		_dma_rxenable(di);
 		_dma_ddtable_init(di, DMA_RX, di->rxdpa);
@@ -1444,7 +1444,7 @@ static void dma32_txinit(dma_info_t *di)
 	di->hnddma.txavail = di->ntxd - 1;
 
 	/* clear tx descriptor ring */
-	BZERO_SM((void *)(uintptr) di->txd32, (di->ntxd * sizeof(dma32dd_t)));
+	BZERO_SM((void *)di->txd32, (di->ntxd * sizeof(dma32dd_t)));
 
 	if ((di->hnddma.dmactrlflags & DMA_CTRL_PEN) == 0)
 		control |= XC_PD;
@@ -1545,7 +1545,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(PHYSADDRHI(di->txdpaorig) == 0);
 		di->txd32 = (dma32dd_t *) ROUNDUP((uintptr) va, align);
 		di->txdalign =
-		    (uint) ((s8 *) (uintptr) di->txd32 - (s8 *) va);
+		    (uint) ((s8 *)di->txd32 - (s8 *) va);
 
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
@@ -1566,7 +1566,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(PHYSADDRHI(di->rxdpaorig) == 0);
 		di->rxd32 = (dma32dd_t *) ROUNDUP((uintptr) va, align);
 		di->rxdalign =
-		    (uint) ((s8 *) (uintptr) di->rxd32 - (s8 *) va);
+		    (uint) ((s8 *)di->rxd32 - (s8 *) va);
 
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);
@@ -1999,7 +1999,7 @@ static void dma64_txinit(dma_info_t *di)
 	di->hnddma.txavail = di->ntxd - 1;
 
 	/* clear tx descriptor ring */
-	BZERO_SM((void *)(uintptr) di->txd64, (di->ntxd * sizeof(dma64dd_t)));
+	BZERO_SM((void *)di->txd64, (di->ntxd * sizeof(dma64dd_t)));
 
 	/* DMA engine with out alignment requirement requires table to be inited
 	 * before enabling the engine
@@ -2110,8 +2110,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		}
 		align = (1 << align_bits);
 		di->txd64 = (dma64dd_t *) ROUNDUP((uintptr) va, align);
-		di->txdalign =
-		    (uint) ((s8 *) (uintptr) di->txd64 - (s8 *) va);
+		di->txdalign = (uint) ((s8 *)di->txd64 - (s8 *) va);
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
 		/* Make sure that alignment didn't overflow */
@@ -2129,8 +2128,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		}
 		align = (1 << align_bits);
 		di->rxd64 = (dma64dd_t *) ROUNDUP((uintptr) va, align);
-		di->rxdalign =
-		    (uint) ((s8 *) (uintptr) di->rxd64 - (s8 *) va);
+		di->rxdalign = (uint) ((s8 *)di->rxd64 - (s8 *) va);
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);
 		/* Make sure that alignment didn't overflow */

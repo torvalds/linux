@@ -173,7 +173,7 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	uint pciidx, pcieidx, pcirev, pcierev;
 
 	cc = si_setcoreidx(&sii->pub, SI_CC_IDX);
-	ASSERT((uintptr) cc);
+	ASSERT(cc);
 
 	/* get chipcommon rev */
 	sii->pub.ccrev = (int)si_corerev(&sii->pub);
@@ -286,7 +286,7 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	if (BUSTYPE(sii->pub.bustype) == PCI_BUS) {
 		if (SI_FAST(sii)) {
 			if (!sii->pch) {
-				sii->pch = (void *)(uintptr)pcicore_init(
+				sii->pch = (void *)pcicore_init(
 					&sii->pub, sii->osh,
 					(void *)PCIEREGS(sii));
 				if (sii->pch == NULL)
@@ -574,7 +574,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	if (CHIPTYPE(sii->pub.socitype) == SOCI_AI) {
 		SI_MSG(("Found chip type AI (0x%08x)\n", w));
 		/* pass chipc address instead of original core base */
-		ai_scan(&sii->pub, (void *)(uintptr) cc, devid);
+		ai_scan(&sii->pub, (void *)cc, devid);
 	} else {
 		SI_ERROR(("Found chip of unknown type (0x%08x)\n", w));
 		return NULL;
@@ -1203,7 +1203,7 @@ void BCMINITFN(si_clkctl_init) (si_t *sih)
 		SET_REG(sii->osh, &cc->system_clk_ctl, SYCC_CD_MASK,
 			(ILP_DIV_1MHZ << SYCC_CD_SHIFT));
 
-	si_clkctl_setdelay(sii, (void *)(uintptr) cc);
+	si_clkctl_setdelay(sii, (void *)cc);
 
 	if (!fast)
 		si_setcoreidx(sih, origidx);

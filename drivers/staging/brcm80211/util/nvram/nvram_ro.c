@@ -188,7 +188,7 @@ int nvram_getall(char *buf, int count)
 		int acc;
 
 		from = this->vars;
-		lim = (char *)((uintptr) this->vars + this->size);
+		lim = (char *)(this->vars + this->size);
 		to = buf;
 		acc = 0;
 		while ((from < lim) && (*from)) {

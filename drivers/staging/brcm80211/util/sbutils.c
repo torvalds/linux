@@ -350,7 +350,7 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx)
 	case SDIO_BUS:
 		/* map new one */
 		if (!sii->regs[coreidx]) {
-			sii->regs[coreidx] = (void *)(uintptr) sbaddr;
+			sii->regs[coreidx] = (void *)sbaddr;
 			ASSERT(GOODREGS(sii->regs[coreidx]));
 		}
 		regs = sii->regs[coreidx];
