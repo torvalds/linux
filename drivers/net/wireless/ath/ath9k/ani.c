@@ -465,35 +465,13 @@ static void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
 		ath9k_hw_set_cck_nil(ah, aniState->cckNoiseImmunityLevel - 1);
 }
 
-static u8 ath9k_hw_chan_2_clockrate_mhz(struct ath_hw *ah)
-{
-	struct ath9k_channel *chan = ah->curchan;
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-	u8 clockrate; /* in MHz */
-
-	if (!ah->curchan) /* should really check for CCK instead */
-		clockrate = ATH9K_CLOCK_RATE_CCK;
-	else if (conf->channel->band == IEEE80211_BAND_2GHZ)
-		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
-	else if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-		clockrate = ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
-	else
-		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
-
-	if (conf_is_ht40(conf))
-		return clockrate * 2;
-
-	return clockrate;
-}
-
 static int32_t ath9k_hw_ani_get_listen_time(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	int32_t listen_time;
-	int32_t clock_rate;
 
 	ath9k_hw_update_cycle_counters(ah);
-	clock_rate = ath9k_hw_chan_2_clockrate_mhz(ah) * 1000;
-	listen_time = ah->listen_time / clock_rate;
+	listen_time = ah->listen_time / (common->clockrate * 1000);
 	ah->listen_time = 0;
 
 	return listen_time;

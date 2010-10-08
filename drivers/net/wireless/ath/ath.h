@@ -145,6 +145,8 @@ struct ath_common {
 	DECLARE_BITMAP(tkip_keymap, ATH_KEYMAX);
 	enum ath_crypt_caps crypt_caps;
 
+	unsigned int clockrate;
+
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
