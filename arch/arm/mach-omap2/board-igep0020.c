@@ -39,22 +39,28 @@
 #define IGEP2_SMSC911X_CS       5
 #define IGEP2_SMSC911X_GPIO     176
 #define IGEP2_GPIO_USBH_NRESET  24
-#define IGEP2_GPIO_LED0_GREEN 	26
-#define IGEP2_GPIO_LED0_RED 	27
-#define IGEP2_GPIO_LED1_RED   	28
-#define IGEP2_GPIO_DVI_PUP	170
-#define IGEP2_GPIO_WIFI_NPD 	94
-#define IGEP2_GPIO_WIFI_NRESET 	95
+#define IGEP2_GPIO_LED0_GREEN   26
+#define IGEP2_GPIO_LED0_RED     27
+#define IGEP2_GPIO_LED1_RED     28
+#define IGEP2_GPIO_DVI_PUP      170
+
+#define IGEP2_RB_GPIO_WIFI_NPD     94
+#define IGEP2_RB_GPIO_WIFI_NRESET  95
+#define IGEP2_RB_GPIO_BT_NRESET    137
+#define IGEP2_RC_GPIO_WIFI_NPD     138
+#define IGEP2_RC_GPIO_WIFI_NRESET  139
+#define IGEP2_RC_GPIO_BT_NRESET    137
 
 /*
  * IGEP2 Hardware Revision Table
  *
- *  --------------------------
- * | Id. | Hw Rev. | HW0 (28) |
- *  --------------------------
- * |  0  |   B/C   |   high   |
- * |  1  |   C     |   low    |
- *  --------------------------
+ *  --------------------------------------------------------------------------
+ * | Id. | Hw Rev.            | HW0 (28) | WIFI_NPD | WIFI_NRESET | BT_NRESET |
+ *  --------------------------------------------------------------------------
+ * |  0  | B                  |   high   |  gpio94  |   gpio95    |     -     |
+ * |  0  | B/C (B-compatible) |   high   |  gpio94  |   gpio95    |  gpio137  |
+ * |  1  | C                  |   low    |  gpio138 |   gpio139   |  gpio137  |
+ *  --------------------------------------------------------------------------
  */
 
 #define IGEP2_BOARD_HWREV_B	0
@@ -296,12 +302,14 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 	},
+#if defined(CONFIG_LIBERTAS_SDIO) || defined(CONFIG_LIBERTAS_SDIO_MODULE)
 	{
 		.mmc		= 2,
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 	},
+#endif
 	{}      /* Terminator */
 };
 
@@ -578,6 +586,50 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
+#if defined(CONFIG_LIBERTAS_SDIO) || defined(CONFIG_LIBERTAS_SDIO_MODULE)
+
+static void __init igep2_wlan_bt_init(void)
+{
+	unsigned npd, wreset, btreset;
+
+	/* GPIO's for WLAN-BT combo depends on hardware revision */
+	if (hwrev == IGEP2_BOARD_HWREV_B) {
+		npd = IGEP2_RB_GPIO_WIFI_NPD;
+		wreset = IGEP2_RB_GPIO_WIFI_NRESET;
+		btreset = IGEP2_RB_GPIO_BT_NRESET;
+	} else if (hwrev == IGEP2_BOARD_HWREV_C) {
+		npd = IGEP2_RC_GPIO_WIFI_NPD;
+		wreset = IGEP2_RC_GPIO_WIFI_NRESET;
+		btreset = IGEP2_RC_GPIO_BT_NRESET;
+	} else
+		return;
+
+	/* Set GPIO's for  WLAN-BT combo module */
+	if ((gpio_request(npd, "GPIO_WIFI_NPD") == 0) &&
+	    (gpio_direction_output(npd, 1) == 0)) {
+		gpio_export(npd, 0);
+	} else
+		pr_warning("IGEP2: Could not obtain gpio GPIO_WIFI_NPD\n");
+
+	if ((gpio_request(wreset, "GPIO_WIFI_NRESET") == 0) &&
+	    (gpio_direction_output(wreset, 1) == 0)) {
+		gpio_export(wreset, 0);
+		gpio_set_value(wreset, 0);
+		udelay(10);
+		gpio_set_value(wreset, 1);
+	} else
+		pr_warning("IGEP2: Could not obtain gpio GPIO_WIFI_NRESET\n");
+
+	if ((gpio_request(btreset, "GPIO_BT_NRESET") == 0) &&
+	    (gpio_direction_output(btreset, 1) == 0)) {
+		gpio_export(btreset, 0);
+	} else
+		pr_warning("IGEP2: Could not obtain gpio GPIO_BT_NRESET\n");
+}
+#else
+static inline void __init igep2_wlan_bt_init(void) { }
+#endif
+
 static void __init igep2_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -596,22 +648,12 @@ static void __init igep2_init(void)
 	igep2_display_init();
 	igep2_init_smsc911x();
 
-	/* GPIO W-LAN + Bluetooth combo module */
-	if ((gpio_request(IGEP2_GPIO_WIFI_NPD, "GPIO_WIFI_NPD") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_WIFI_NPD, 1) == 0)) {
-		gpio_export(IGEP2_GPIO_WIFI_NPD, 0);
-/* 		gpio_set_value(IGEP2_GPIO_WIFI_NPD, 0); */
-	} else
-		pr_warning("IGEP v2: Could not obtain gpio GPIO_WIFI_NPD\n");
+	/*
+	 * WLAN-BT combo module from MuRata wich has a Marvell WLAN
+	 * (88W8686) + CSR Bluetooth chipset. Uses SDIO interface.
+	 */
+	igep2_wlan_bt_init();
 
-	if ((gpio_request(IGEP2_GPIO_WIFI_NRESET, "GPIO_WIFI_NRESET") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_WIFI_NRESET, 1) == 0)) {
-		gpio_export(IGEP2_GPIO_WIFI_NRESET, 0);
-		gpio_set_value(IGEP2_GPIO_WIFI_NRESET, 0);
-		udelay(10);
-		gpio_set_value(IGEP2_GPIO_WIFI_NRESET, 1);
-	} else
-		pr_warning("IGEP v2: Could not obtain gpio GPIO_WIFI_NRESET\n");
 }
 
 MACHINE_START(IGEP0020, "IGEP v2 board")
