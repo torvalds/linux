@@ -1093,6 +1093,7 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 
 	ah->ah_current_channel = channel;
 	ah->ah_turbo = channel->hw_value == CHANNEL_T ? true : false;
+	ath5k_hw_set_clockrate(ah);
 
 	return 0;
 }
