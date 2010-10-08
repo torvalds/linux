@@ -3545,12 +3545,11 @@ int arch_setup_dmar_msi(unsigned int irq)
 static int hpet_msi_set_affinity(struct irq_data *data,
 				 const struct cpumask *mask, bool force)
 {
-	struct irq_desc *desc = irq_to_desc(data->irq);
 	struct irq_cfg *cfg = data->chip_data;
 	struct msi_msg msg;
 	unsigned int dest;
 
-	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
+	if (__ioapic_set_affinity(data, mask, &dest))
 		return -1;
 
 	hpet_msi_read(data->handler_data, &msg);
