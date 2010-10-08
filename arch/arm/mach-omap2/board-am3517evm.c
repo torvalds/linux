@@ -139,7 +139,6 @@ static void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 static struct i2c_board_info __initdata am3517evm_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("s35390a", 0x30),
-		.type		= "s35390a",
 	},
 };
 
