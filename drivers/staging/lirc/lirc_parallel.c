@@ -301,9 +301,9 @@ static void irq_handler(void *blah)
 
 	if (signal != 0) {
 		/* ajust value to usecs */
-		unsigned long long helper;
+		__u64 helper;
 
-		helper = ((unsigned long long) signal)*1000000;
+		helper = ((__u64) signal)*1000000;
 		do_div(helper, timer);
 		signal = (long) helper;
 
@@ -404,9 +404,9 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 
 	/* adjust values from usecs */
 	for (i = 0; i < count; i++) {
-		unsigned long long helper;
+		__u64 helper;
 
-		helper = ((unsigned long long) wbuf[i])*timer;
+		helper = ((__u64) wbuf[i])*timer;
 		do_div(helper, 1000000);
 		wbuf[i] = (int) helper;
 	}
@@ -464,48 +464,48 @@ static unsigned int lirc_poll(struct file *file, poll_table *wait)
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int result;
-	unsigned long features = LIRC_CAN_SET_TRANSMITTER_MASK |
-				 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
-	unsigned long mode;
-	unsigned int ivalue;
+	__u32 features = LIRC_CAN_SET_TRANSMITTER_MASK |
+			 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
+	__u32 mode;
+	__u32 value;
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
-		result = put_user(features, (unsigned long *) arg);
+		result = put_user(features, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_SEND_MODE:
-		result = put_user(LIRC_MODE_PULSE, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_PULSE, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_REC_MODE:
-		result = put_user(LIRC_MODE_MODE2, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_MODE2, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_SET_SEND_MODE:
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, (__u32 *) arg);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_PULSE)
 			return -EINVAL;
 		break;
 	case LIRC_SET_REC_MODE:
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, (__u32 *) arg);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_MODE2)
 			return -ENOSYS;
 		break;
 	case LIRC_SET_TRANSMITTER_MASK:
-		result = get_user(ivalue, (unsigned int *) arg);
+		result = get_user(value, (__u32 *) arg);
 		if (result)
 			return result;
-		if ((ivalue & LIRC_PARALLEL_TRANSMITTER_MASK) != ivalue)
+		if ((value & LIRC_PARALLEL_TRANSMITTER_MASK) != value)
 			return LIRC_PARALLEL_MAX_TRANSMITTERS;
-		tx_mask = ivalue;
+		tx_mask = value;
 		break;
 	default:
 		return -ENOIOCTLCMD;
