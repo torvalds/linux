@@ -82,9 +82,10 @@ enum srp_target_state {
 	SRP_TARGET_REMOVED
 };
 
-enum srp_request_type {
-	SRP_REQ_NORMAL,
-	SRP_REQ_TASK_MGMT,
+enum srp_iu_type {
+	SRP_IU_CMD,
+	SRP_IU_TSK_MGMT,
+	SRP_IU_RSP,
 };
 
 struct srp_device {
@@ -171,6 +172,7 @@ struct srp_iu {
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
+	enum srp_iu_type	type;
 };
 
 #endif /* IB_SRP_H */
