@@ -306,6 +306,7 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	int xid, i;
 	int rc = 0;
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+	struct tcon_link *tlink;
 
 	cFYI(1, "in %s", __func__);
 	BUG_ON(IS_ROOT(dentry));
@@ -314,14 +315,6 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 
 	dput(nd->path.dentry);
 	nd->path.dentry = dget(dentry);
-
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	ses = cifs_sb->tcon->ses;
-
-	if (!ses) {
-		rc = -EINVAL;
-		goto out_err;
-	}
 
 	/*
 	 * The MSDFS spec states that paths in DFS referral requests and
@@ -335,9 +328,19 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 	}
 
-	rc = get_dfs_path(xid, ses , full_path + 1, cifs_sb->local_nls,
+	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		goto out_err;
+	}
+	ses = tlink_tcon(tlink)->ses;
+
+	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	cifs_put_tlink(tlink);
 
 	for (i = 0; i < num_referrals; i++) {
 		int len;

@@ -36,6 +36,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/smp_lock.h>
+#include <net/ipv6.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -136,9 +137,6 @@ cifs_read_super(struct super_block *sb, void *data,
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
 	sb->s_bdi = &cifs_sb->bdi;
-/*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
-	    sb->s_blocksize =
-		cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
 	inode = cifs_root_iget(sb, ROOT_I);
@@ -224,7 +222,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
 	int rc = -EOPNOTSUPP;
 	int xid;
 
@@ -366,13 +364,35 @@ static int
 cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(m->mnt_sb);
-	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct sockaddr *srcaddr;
+	srcaddr = (struct sockaddr *)&tcon->ses->server->srcaddr;
 
 	seq_printf(s, ",unc=%s", tcon->treeName);
-	if (tcon->ses->userName)
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
+		seq_printf(s, ",multiuser");
+	else if (tcon->ses->userName)
 		seq_printf(s, ",username=%s", tcon->ses->userName);
+
 	if (tcon->ses->domainName)
 		seq_printf(s, ",domain=%s", tcon->ses->domainName);
+
+	if (srcaddr->sa_family != AF_UNSPEC) {
+		struct sockaddr_in *saddr4;
+		struct sockaddr_in6 *saddr6;
+		saddr4 = (struct sockaddr_in *)srcaddr;
+		saddr6 = (struct sockaddr_in6 *)srcaddr;
+		if (srcaddr->sa_family == AF_INET6)
+			seq_printf(s, ",srcaddr=%pI6c",
+				   &saddr6->sin6_addr);
+		else if (srcaddr->sa_family == AF_INET)
+			seq_printf(s, ",srcaddr=%pI4",
+				   &saddr4->sin_addr.s_addr);
+		else
+			seq_printf(s, ",srcaddr=BAD-AF:%i",
+				   (int)(srcaddr->sa_family));
+	}
 
 	seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
@@ -422,6 +442,8 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",dynperm");
 	if (m->mnt_sb->s_flags & MS_POSIXACL)
 		seq_printf(s, ",acl");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
+		seq_printf(s, ",mfsymlinks");
 
 	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
@@ -437,9 +459,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	if (cifs_sb == NULL)
 		return;
 
-	tcon = cifs_sb->tcon;
-	if (tcon == NULL)
-		return;
+	tcon = cifs_sb_master_tcon(cifs_sb);
 
 	read_lock(&cifs_tcp_ses_lock);
 	if ((tcon->tc_count > 1) || (tcon->tidStatus == CifsExiting)) {
@@ -568,6 +588,7 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 	/* note that this is called by vfs setlease with the BKL held
 	   although I doubt that BKL is needed here in cifs */
 	struct inode *inode = file->f_path.dentry->d_inode;
+	struct cifsFileInfo *cfile = file->private_data;
 
 	if (!(S_ISREG(inode->i_mode)))
 		return -EINVAL;
@@ -578,8 +599,8 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 	    ((arg == F_WRLCK) &&
 		(CIFS_I(inode)->clientCanCacheAll)))
 		return generic_setlease(file, arg, lease);
-	else if (CIFS_SB(inode->i_sb)->tcon->local_lease &&
-			!CIFS_I(inode)->clientCanCacheRead)
+	else if (tlink_tcon(cfile->tlink)->local_lease &&
+		 !CIFS_I(inode)->clientCanCacheRead)
 		/* If the server claims to support oplock on this
 		   file, then we still need to check oplock even
 		   if the local_lease mount option is set, but there
@@ -912,11 +933,11 @@ init_cifs(void)
 
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out;
+		goto out_clean_proc;
 
 	rc = cifs_init_inodecache();
 	if (rc)
-		goto out_clean_proc;
+		goto out_unreg_fscache;
 
 	rc = cifs_init_mids();
 	if (rc)
@@ -938,19 +959,19 @@ init_cifs(void)
 	return 0;
 
 #ifdef CONFIG_CIFS_UPCALL
- out_unregister_filesystem:
+out_unregister_filesystem:
 	unregister_filesystem(&cifs_fs_type);
 #endif
- out_destroy_request_bufs:
+out_destroy_request_bufs:
 	cifs_destroy_request_bufs();
- out_destroy_mids:
+out_destroy_mids:
 	cifs_destroy_mids();
- out_destroy_inodecache:
+out_destroy_inodecache:
 	cifs_destroy_inodecache();
- out_clean_proc:
-	cifs_proc_clean();
+out_unreg_fscache:
 	cifs_fscache_unregister();
- out:
+out_clean_proc:
+	cifs_proc_clean();
 	return rc;
 }
 
