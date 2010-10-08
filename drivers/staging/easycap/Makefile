@@ -1,9 +1,9 @@
 
 obj-$(CONFIG_EASYCAP)	+= easycap.o
 
-easycap-objs	:= easycap_main.o easycap_low.o easycap_sound.o
-easycap-objs	+= easycap_ioctl.o easycap_settings.o
-easycap-objs	+= easycap_testcard.o
+easycap-y	:= easycap_main.o easycap_low.o easycap_sound.o
+easycap-y	+= easycap_ioctl.o easycap_settings.o
+easycap-y	+= easycap_testcard.o
 
 ccflags-y := -Wall
 # Impose all or none of the following:
