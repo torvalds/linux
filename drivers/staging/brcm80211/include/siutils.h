@@ -442,10 +442,6 @@ extern uint32 ai_addrspace(si_t *sih, uint asidx);
 extern uint32 ai_addrspacesize(si_t *sih, uint asidx);
 extern void ai_write_wrap_reg(si_t *sih, uint32 offset, uint32 val);
 
-#ifdef BCMDBG
-extern void ai_view(si_t *sih, bool verbose);
-#endif
-
 #ifdef BCMSDIO
 #define si_setcoreidx(sih, idx) sb_setcoreidx(sih, idx)
 #define si_coreid(sih) sb_coreid(sih)
