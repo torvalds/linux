@@ -30,7 +30,6 @@
 #include <nicpci.h>
 #include <bcmnvram.h>
 #include <bcmsrom.h>
-#include <hndtcam.h>
 #include <pcicfg.h>
 #include <sbsocram.h>
 #ifdef BCMSDIO
