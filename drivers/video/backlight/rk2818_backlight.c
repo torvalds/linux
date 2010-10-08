@@ -198,7 +198,8 @@ static void rk2818_bl_suspend(struct early_suspend *h)
     DBG("%s: ==========  suspend  =============== \n",__func__); 
 
     write_pwm_reg(id, PWM_REG_HRC, divh);
-	clk_disable(pwm_clk);
+	if (!suspend_flag)
+		clk_disable(pwm_clk);
 
     suspend_flag = 1;
     
