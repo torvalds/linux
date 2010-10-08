@@ -128,7 +128,7 @@ typedef struct dma_info {
 	u32 rcvptrbase;	/* Base for ptr reg when using unaligned descriptors */
 
 	/* tunables */
-	u16 rxbufsize;	/* rx buffer size in bytes,
+	unsigned int rxbufsize;	/* rx buffer size in bytes,
 				 * not including the extra headroom
 				 */
 	uint rxextrahdrroom;	/* extra rx headroom, reverseved to assist upper stack
@@ -138,7 +138,7 @@ typedef struct dma_info {
 				 *  Some dongle driver may not need it.
 				 */
 	uint nrxpost;		/* # rx buffers to keep posted */
-	uint rxoffset;		/* rxcontrol offset */
+	unsigned int rxoffset;	/* rxcontrol offset */
 	uint ddoffsetlow;	/* add to get dma address of descriptor ring, low 32 bits */
 	uint ddoffsethigh;	/*   high 32 bits */
 	uint dataoffsetlow;	/* add to get dma address of data buffer, low 32 bits */
