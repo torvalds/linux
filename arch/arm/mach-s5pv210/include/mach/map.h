@@ -57,6 +57,8 @@
 
 #define S5P_SZ_UART		SZ_256
 
+#define S3C_VA_UARTx(x)		(S3C_VA_UART + ((x) * S3C_UART_OFFSET))
+
 #define S5PV210_PA_SROMC	(0xE8000000)
 
 #define S5PV210_PA_CFCON	(0xE8200000)
