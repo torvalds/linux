@@ -706,8 +706,11 @@ static void tsl2563_int_bh(struct work_struct *work_s)
 	u8 cmd = TSL2563_CMD | TSL2563_CLEARINT;
 
 	iio_push_event(chip->indio_dev, 0,
-		IIO_EVENT_CODE_LIGHT_BASE,
-		chip->event_timestamp);
+		       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_LIGHT,
+					    0,
+					    IIO_EV_TYPE_THRESH,
+					    IIO_EV_DIR_EITHER),
+		       chip->event_timestamp);
 
 	/* reenable_irq */
 	enable_irq(chip->client->irq);
