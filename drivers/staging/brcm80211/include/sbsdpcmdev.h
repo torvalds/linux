@@ -60,14 +60,14 @@ typedef volatile struct {
 	uint32 biststatus;	/* BistStatus, 0x00c, rev8  */
 
 	/* PCMCIA access */
-	uint16 pcmciamesportaladdr;	/* PcmciaMesPortalAddr, 0x010, rev8   */
-	uint16 PAD[1];
-	uint16 pcmciamesportalmask;	/* PcmciaMesPortalMask, 0x014, rev8   */
-	uint16 PAD[1];
-	uint16 pcmciawrframebc;	/* PcmciaWrFrameBC, 0x018, rev8   */
-	uint16 PAD[1];
-	uint16 pcmciaunderflowtimer;	/* PcmciaUnderflowTimer, 0x01c, rev8   */
-	uint16 PAD[1];
+	u16 pcmciamesportaladdr;	/* PcmciaMesPortalAddr, 0x010, rev8   */
+	u16 PAD[1];
+	u16 pcmciamesportalmask;	/* PcmciaMesPortalMask, 0x014, rev8   */
+	u16 PAD[1];
+	u16 pcmciawrframebc;	/* PcmciaWrFrameBC, 0x018, rev8   */
+	u16 PAD[1];
+	u16 pcmciaunderflowtimer;	/* PcmciaUnderflowTimer, 0x01c, rev8   */
+	u16 PAD[1];
 
 	/* interrupt */
 	uint32 intstatus;	/* IntStatus, 0x020, rev8   */
@@ -125,22 +125,22 @@ typedef volatile struct {
 
 	/* PCMCIA function control registers */
 	char pcmciafcr[256];	/* PCMCIA FCR, 0x600-6ff, rev6 */
-	uint16 PAD[55];
+	u16 PAD[55];
 
 	/* PCMCIA backplane access */
-	uint16 backplanecsr;	/* BackplaneCSR, 0x76E, rev6 */
-	uint16 backplaneaddr0;	/* BackplaneAddr0, 0x770, rev6 */
-	uint16 backplaneaddr1;	/* BackplaneAddr1, 0x772, rev6 */
-	uint16 backplaneaddr2;	/* BackplaneAddr2, 0x774, rev6 */
-	uint16 backplaneaddr3;	/* BackplaneAddr3, 0x776, rev6 */
-	uint16 backplanedata0;	/* BackplaneData0, 0x778, rev6 */
-	uint16 backplanedata1;	/* BackplaneData1, 0x77a, rev6 */
-	uint16 backplanedata2;	/* BackplaneData2, 0x77c, rev6 */
-	uint16 backplanedata3;	/* BackplaneData3, 0x77e, rev6 */
-	uint16 PAD[31];
+	u16 backplanecsr;	/* BackplaneCSR, 0x76E, rev6 */
+	u16 backplaneaddr0;	/* BackplaneAddr0, 0x770, rev6 */
+	u16 backplaneaddr1;	/* BackplaneAddr1, 0x772, rev6 */
+	u16 backplaneaddr2;	/* BackplaneAddr2, 0x774, rev6 */
+	u16 backplaneaddr3;	/* BackplaneAddr3, 0x776, rev6 */
+	u16 backplanedata0;	/* BackplaneData0, 0x778, rev6 */
+	u16 backplanedata1;	/* BackplaneData1, 0x77a, rev6 */
+	u16 backplanedata2;	/* BackplaneData2, 0x77c, rev6 */
+	u16 backplanedata3;	/* BackplaneData3, 0x77e, rev6 */
+	u16 PAD[31];
 
 	/* sprom "size" & "blank" info */
-	uint16 spromstatus;	/* SPROMStatus, 0x7BE, rev2 */
+	u16 spromstatus;	/* SPROMStatus, 0x7BE, rev2 */
 	uint32 PAD[464];
 
 	/* Sonics SiliconBackplane registers */
@@ -264,8 +264,8 @@ typedef volatile struct {
 
 /* rx header */
 typedef volatile struct {
-	uint16 len;
-	uint16 flags;
+	u16 len;
+	u16 flags;
 } sdpcmd_rxh_t;
 
 /* rx header flags */

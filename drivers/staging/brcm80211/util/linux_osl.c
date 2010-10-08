@@ -538,10 +538,10 @@ void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap)
 	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
 }
 #else /* !BRCM_FULLMAC */
-void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
+void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align_bits,
 			       uint *alloced, unsigned long *pap)
 {
-	uint16 align = (1 << align_bits);
+	u16 align = (1 << align_bits);
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 
 	if (!ISALIGNED(DMA_CONSISTENT_ALIGN, align))
@@ -664,12 +664,12 @@ u8 osl_readb(osl_t *osh, volatile u8 *r)
 	return (u8) ((rreg) (ctx, (void *)r, sizeof(u8)));
 }
 
-uint16 osl_readw(osl_t *osh, volatile uint16 *r)
+u16 osl_readw(osl_t *osh, volatile u16 *r)
 {
 	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
 	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
 
-	return (uint16) ((rreg) (ctx, (void *)r, sizeof(uint16)));
+	return (u16) ((rreg) (ctx, (void *)r, sizeof(u16)));
 }
 
 uint32 osl_readl(osl_t *osh, volatile uint32 *r)
@@ -688,12 +688,12 @@ void osl_writeb(osl_t *osh, volatile u8 *r, u8 v)
 	((wreg) (ctx, (void *)r, v, sizeof(u8)));
 }
 
-void osl_writew(osl_t *osh, volatile uint16 *r, uint16 v)
+void osl_writew(osl_t *osh, volatile u16 *r, u16 v)
 {
 	osl_wreg_fn_t wreg = ((osl_pubinfo_t *) osh)->wreg_fn;
 	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
 
-	((wreg) (ctx, (void *)r, v, sizeof(uint16)));
+	((wreg) (ctx, (void *)r, v, sizeof(u16)));
 }
 
 void osl_writel(osl_t *osh, volatile uint32 *r, uint32 v)

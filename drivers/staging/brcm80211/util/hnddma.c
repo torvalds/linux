@@ -98,37 +98,37 @@ typedef struct dma_info {
 		} d64_u;
 	} dregs;
 
-	uint16 dmadesc_align;	/* alignment requirement for dma descriptors */
+	u16 dmadesc_align;	/* alignment requirement for dma descriptors */
 
-	uint16 ntxd;		/* # tx descriptors tunable */
-	uint16 txin;		/* index of next descriptor to reclaim */
-	uint16 txout;		/* index of next descriptor to post */
+	u16 ntxd;		/* # tx descriptors tunable */
+	u16 txin;		/* index of next descriptor to reclaim */
+	u16 txout;		/* index of next descriptor to post */
 	void **txp;		/* pointer to parallel array of pointers to packets */
 	osldma_t *tx_dmah;	/* DMA TX descriptor ring handle */
 	hnddma_seg_map_t *txp_dmah;	/* DMA MAP meta-data handle */
 	dmaaddr_t txdpa;	/* Aligned physical address of descriptor ring */
 	dmaaddr_t txdpaorig;	/* Original physical address of descriptor ring */
-	uint16 txdalign;	/* #bytes added to alloc'd mem to align txd */
+	u16 txdalign;	/* #bytes added to alloc'd mem to align txd */
 	uint32 txdalloc;	/* #bytes allocated for the ring */
 	uint32 xmtptrbase;	/* When using unaligned descriptors, the ptr register
 				 * is not just an index, it needs all 13 bits to be
 				 * an offset from the addr register.
 				 */
 
-	uint16 nrxd;		/* # rx descriptors tunable */
-	uint16 rxin;		/* index of next descriptor to reclaim */
-	uint16 rxout;		/* index of next descriptor to post */
+	u16 nrxd;		/* # rx descriptors tunable */
+	u16 rxin;		/* index of next descriptor to reclaim */
+	u16 rxout;		/* index of next descriptor to post */
 	void **rxp;		/* pointer to parallel array of pointers to packets */
 	osldma_t *rx_dmah;	/* DMA RX descriptor ring handle */
 	hnddma_seg_map_t *rxp_dmah;	/* DMA MAP meta-data handle */
 	dmaaddr_t rxdpa;	/* Aligned physical address of descriptor ring */
 	dmaaddr_t rxdpaorig;	/* Original physical address of descriptor ring */
-	uint16 rxdalign;	/* #bytes added to alloc'd mem to align rxd */
+	u16 rxdalign;	/* #bytes added to alloc'd mem to align rxd */
 	uint32 rxdalloc;	/* #bytes allocated for the ring */
 	uint32 rcvptrbase;	/* Base for ptr reg when using unaligned descriptors */
 
 	/* tunables */
-	uint16 rxbufsize;	/* rx buffer size in bytes,
+	u16 rxbufsize;	/* rx buffer size in bytes,
 				 * not including the extra headroom
 				 */
 	uint rxextrahdrroom;	/* extra rx headroom, reverseved to assist upper stack
@@ -206,8 +206,8 @@ static bool _dma_rxfill(dma_info_t *di);
 static void _dma_rxreclaim(dma_info_t *di);
 static void _dma_rxenable(dma_info_t *di);
 static void *_dma_getnextrxp(dma_info_t *di, bool forceall);
-static void _dma_rx_param_get(dma_info_t *di, uint16 *rxoffset,
-			      uint16 *rxbufsize);
+static void _dma_rx_param_get(dma_info_t *di, u16 *rxoffset,
+			      u16 *rxbufsize);
 
 static void _dma_txblock(dma_info_t *di);
 static void _dma_txunblock(dma_info_t *di);
@@ -224,7 +224,7 @@ static void _dma_fifoloopbackenable(dma_info_t *di);
 static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags);
 static u8 dma_align_sizetobits(uint size);
 static void *dma_ringalloc(osl_t *osh, uint32 boundary, uint size,
-			   uint16 *alignbits, uint *alloced,
+			   u16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah);
 
 /* Prototypes for 32-bit routines */
@@ -446,18 +446,18 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	di->sih = sih;
 
 	/* save tunables */
-	di->ntxd = (uint16) ntxd;
-	di->nrxd = (uint16) nrxd;
+	di->ntxd = (u16) ntxd;
+	di->nrxd = (u16) nrxd;
 
 	/* the actual dma size doesn't include the extra headroom */
 	di->rxextrahdrroom =
 	    (rxextheadroom == -1) ? BCMEXTRAHDROOM : rxextheadroom;
 	if (rxbufsize > BCMEXTRAHDROOM)
-		di->rxbufsize = (uint16) (rxbufsize - di->rxextrahdrroom);
+		di->rxbufsize = (u16) (rxbufsize - di->rxextrahdrroom);
 	else
-		di->rxbufsize = (uint16) rxbufsize;
+		di->rxbufsize = (u16) rxbufsize;
 
-	di->nrxpost = (uint16) nrxpost;
+	di->nrxpost = (u16) nrxpost;
 	di->rxoffset = (u8) rxoffset;
 
 	/*
@@ -970,11 +970,11 @@ static void _dma_rxenable(dma_info_t *di)
 }
 
 static void
-_dma_rx_param_get(dma_info_t *di, uint16 *rxoffset, uint16 *rxbufsize)
+_dma_rx_param_get(dma_info_t *di, u16 *rxoffset, u16 *rxbufsize)
 {
 	/* the normal values fit into 16 bits */
-	*rxoffset = (uint16) di->rxoffset;
-	*rxbufsize = (uint16) di->rxbufsize;
+	*rxoffset = (u16) di->rxoffset;
+	*rxbufsize = (u16) di->rxbufsize;
 }
 
 /* !! rx entry routine
@@ -998,15 +998,15 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	if (head == NULL)
 		return NULL;
 
-	len = ltoh16(*(uint16 *) (PKTDATA(head)));
+	len = ltoh16(*(u16 *) (PKTDATA(head)));
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
 
 #if defined(__mips__)
 	if (!len) {
-		while (!(len = *(uint16 *) OSL_UNCACHED(PKTDATA(head))))
+		while (!(len = *(u16 *) OSL_UNCACHED(PKTDATA(head))))
 			OSL_DELAY(1);
 
-		*(uint16 *) PKTDATA(head) = htol16((uint16) len);
+		*(u16 *) PKTDATA(head) = htol16((u16) len);
 	}
 #endif				/* defined(__mips__) */
 
@@ -1064,7 +1064,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 {
 	void *p;
-	uint16 rxin, rxout;
+	u16 rxin, rxout;
 	uint32 flags = 0;
 	uint n;
 	uint i;
@@ -1406,7 +1406,7 @@ u8 dma_align_sizetobits(uint size)
  * not cross page boundary
  */
 static void *dma_ringalloc(osl_t *osh, uint32 boundary, uint size,
-			   uint16 *alignbits, uint *alloced,
+			   u16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah)
 {
 	void *va;
@@ -1522,8 +1522,8 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 	uint ddlen;
 	void *va;
 	uint alloced;
-	uint16 align;
-	uint16 align_bits;
+	u16 align;
+	u16 align_bits;
 
 	ddlen = sizeof(dma32dd_t);
 
@@ -1666,7 +1666,7 @@ static int dma32_txfast(dma_info_t *di, void *p0, bool commit)
 	void *p, *next;
 	unsigned char *data;
 	uint len;
-	uint16 txout;
+	u16 txout;
 	uint32 flags = 0;
 	dmaaddr_t pa;
 
@@ -1789,8 +1789,8 @@ static int dma32_txfast(dma_info_t *di, void *p0, bool commit)
  */
 static void *dma32_getnexttxp(dma_info_t *di, txd_range_t range)
 {
-	uint16 start, end, i;
-	uint16 active_desc;
+	u16 start, end, i;
+	u16 active_desc;
 	void *txp;
 
 	DMA_TRACE(("%s: dma_getnexttxp %s\n", di->name,
@@ -1811,14 +1811,14 @@ static void *dma32_getnexttxp(dma_info_t *di, txd_range_t range)
 		dma32regs_t *dregs = di->d32txregs;
 
 		end =
-		    (uint16) B2I(R_REG(di->osh, &dregs->status) & XS_CD_MASK,
+		    (u16) B2I(R_REG(di->osh, &dregs->status) & XS_CD_MASK,
 				 dma32dd_t);
 
 		if (range == HNDDMA_RANGE_TRANSFERED) {
 			active_desc =
-			    (uint16) ((R_REG(di->osh, &dregs->status) &
+			    (u16) ((R_REG(di->osh, &dregs->status) &
 				       XS_AD_MASK) >> XS_AD_SHIFT);
-			active_desc = (uint16) B2I(active_desc, dma32dd_t);
+			active_desc = (u16) B2I(active_desc, dma32dd_t);
 			if (end != active_desc)
 				end = PREVTXD(active_desc);
 		}
@@ -1918,17 +1918,17 @@ static void *dma32_getnextrxp(dma_info_t *di, bool forceall)
  */
 static void dma32_txrotate(dma_info_t *di)
 {
-	uint16 ad;
+	u16 ad;
 	uint nactive;
 	uint rot;
-	uint16 old, new;
+	u16 old, new;
 	uint32 w;
-	uint16 first, last;
+	u16 first, last;
 
 	ASSERT(dma32_txsuspendedidle(di));
 
 	nactive = _dma_txactive(di);
-	ad = (uint16) (B2I
+	ad = (u16) (B2I
 		       (((R_REG(di->osh, &di->d32txregs->status) & XS_AD_MASK)
 			 >> XS_AD_SHIFT), dma32dd_t));
 	rot = TXD(ad - di->txin);
@@ -2088,12 +2088,12 @@ static bool dma64_rxstopped(dma_info_t *di)
 
 static bool dma64_alloc(dma_info_t *di, uint direction)
 {
-	uint16 size;
+	u16 size;
 	uint ddlen;
 	void *va;
 	uint alloced = 0;
-	uint16 align;
-	uint16 align_bits;
+	u16 align;
+	u16 align_bits;
 
 	ddlen = sizeof(dma64dd_t);
 
@@ -2260,7 +2260,7 @@ static void *dma64_getpos(dma_info_t *di, bool direction)
  */
 static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
 {
-	uint16 txout;
+	u16 txout;
 	uint32 flags = 0;
 	dmaaddr_t pa;		/* phys addr */
 
@@ -2317,7 +2317,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, void *p0, bool commit)
 	void *p, *next;
 	unsigned char *data;
 	uint len;
-	uint16 txout;
+	u16 txout;
 	uint32 flags = 0;
 	dmaaddr_t pa;
 
@@ -2439,8 +2439,8 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, void *p0, bool commit)
  */
 static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 {
-	uint16 start, end, i;
-	uint16 active_desc;
+	u16 start, end, i;
+	u16 active_desc;
 	void *txp;
 
 	DMA_TRACE(("%s: dma_getnexttxp %s\n", di->name,
@@ -2461,14 +2461,14 @@ static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 		dma64regs_t *dregs = di->d64txregs;
 
 		end =
-		    (uint16) (B2I
+		    (u16) (B2I
 			      (((R_REG(di->osh, &dregs->status0) &
 				 D64_XS0_CD_MASK) -
 				di->xmtptrbase) & D64_XS0_CD_MASK, dma64dd_t));
 
 		if (range == HNDDMA_RANGE_TRANSFERED) {
 			active_desc =
-			    (uint16) (R_REG(di->osh, &dregs->status1) &
+			    (u16) (R_REG(di->osh, &dregs->status1) &
 				      D64_XS1_AD_MASK);
 			active_desc =
 			    (active_desc - di->xmtptrbase) & D64_XS0_CD_MASK;
@@ -2589,17 +2589,17 @@ static bool _dma64_addrext(osl_t *osh, dma64regs_t * dma64regs)
  */
 static void dma64_txrotate(dma_info_t *di)
 {
-	uint16 ad;
+	u16 ad;
 	uint nactive;
 	uint rot;
-	uint16 old, new;
+	u16 old, new;
 	uint32 w;
-	uint16 first, last;
+	u16 first, last;
 
 	ASSERT(dma64_txsuspendedidle(di));
 
 	nactive = _dma_txactive(di);
-	ad = (uint16) (B2I
+	ad = (u16) (B2I
 		       ((((R_REG(di->osh, &di->d64txregs->status1) &
 			   D64_XS1_AD_MASK)
 			  - di->xmtptrbase) & D64_XS1_AD_MASK), dma64dd_t));

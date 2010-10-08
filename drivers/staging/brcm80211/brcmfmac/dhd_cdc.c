@@ -52,7 +52,7 @@ extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 				 */
 
 typedef struct dhd_prot {
-	uint16 reqid;
+	u16 reqid;
 	u8 pending;
 	uint32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];

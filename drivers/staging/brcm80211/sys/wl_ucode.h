@@ -16,8 +16,8 @@
 
 #include <typedefs.h>
 typedef struct d11init {
-	uint16 addr;
-	uint16 size;
+	u16 addr;
+	u16 size;
 	uint32 value;
 } d11init_t;
 

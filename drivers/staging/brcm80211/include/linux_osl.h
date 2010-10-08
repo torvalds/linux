@@ -128,7 +128,7 @@ extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap)
 #define	DMA_ALLOC_CONSISTENT(osh, size, align, tot, pap, dmah) \
 	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
 extern uint osl_dma_consistent_align(void);
-extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align,
+extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,
 				      uint *tot, unsigned long *pap);
 #endif
 #define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
@@ -193,7 +193,7 @@ extern int osl_error(int bcmerror);
 #ifndef __mips__
 #define R_REG(osh, r) (\
 	SELECT_BUS_READ(osh, sizeof(*(r)) == sizeof(u8) ? readb((volatile u8*)(r)) : \
-	sizeof(*(r)) == sizeof(uint16) ? readw((volatile uint16*)(r)) : \
+	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
 	readl((volatile uint32*)(r)), OSL_READ_REG(osh, r)) \
 )
 #else				/* __mips__ */
@@ -206,8 +206,8 @@ extern int osl_error(int bcmerror);
 			case sizeof(u8): \
 				__osl_v = readb((volatile u8*)(r)); \
 				break; \
-			case sizeof(uint16): \
-				__osl_v = readw((volatile uint16*)(r)); \
+			case sizeof(u16): \
+				__osl_v = readw((volatile u16*)(r)); \
 				break; \
 			case sizeof(uint32): \
 				__osl_v = \
@@ -232,8 +232,8 @@ extern int osl_error(int bcmerror);
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
 			writeb((u8)(v), (volatile u8*)(r)); break; \
-		case sizeof(uint16): \
-			writew((uint16)(v), (volatile uint16*)(r)); break; \
+		case sizeof(u16): \
+			writew((u16)(v), (volatile u16*)(r)); break; \
 		case sizeof(uint32): \
 			writel((uint32)(v), (volatile uint32*)(r)); break; \
 		}, \
@@ -249,9 +249,9 @@ extern int osl_error(int bcmerror);
 				__osl_v = \
 				readb((volatile u8*)((uintptr)(r)^3)); \
 				break; \
-			case sizeof(uint16): \
+			case sizeof(u16): \
 				__osl_v = \
-				readw((volatile uint16*)((uintptr)(r)^2)); \
+				readw((volatile u16*)((uintptr)(r)^2)); \
 				break; \
 			case sizeof(uint32): \
 				__osl_v = readl((volatile uint32*)(r)); \
@@ -267,9 +267,9 @@ extern int osl_error(int bcmerror);
 		case sizeof(u8):	\
 			writeb((u8)(v), \
 			(volatile u8*)((uintptr)(r)^3)); break; \
-		case sizeof(uint16):	\
-			writew((uint16)(v), \
-			(volatile uint16*)((uintptr)(r)^2)); break; \
+		case sizeof(u16):	\
+			writew((u16)(v), \
+			(volatile u16*)((uintptr)(r)^2)); break; \
 		case sizeof(uint32):	\
 			writel((uint32)(v), \
 			(volatile uint32*)(r)); break; \
@@ -413,7 +413,7 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 #if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 #define RPC_READ_REG(osh, r) (\
 	sizeof(*(r)) == sizeof(u8) ? osl_readb((osh), (volatile u8*)(r)) : \
-	sizeof(*(r)) == sizeof(uint16) ? osl_readw((osh), (volatile uint16*)(r)) : \
+	sizeof(*(r)) == sizeof(u16) ? osl_readw((osh), (volatile u16*)(r)) : \
 	osl_readl((osh), (volatile uint32*)(r)) \
 )
 #define RPC_WRITE_REG(osh, r, v) do { \
@@ -421,8 +421,8 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 	case sizeof(u8): \
 		osl_writeb((osh), (volatile u8*)(r), (u8)(v)); \
 		break; \
-	case sizeof(uint16): \
-		osl_writew((osh), (volatile uint16*)(r), (uint16)(v)); \
+	case sizeof(u16): \
+		osl_writew((osh), (volatile u16*)(r), (u16)(v)); \
 		break; \
 	case sizeof(uint32): \
 		osl_writel((osh), (volatile uint32*)(r), (uint32)(v)); \
@@ -431,10 +431,10 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 } while (0)
 
 extern u8 osl_readb(osl_t *osh, volatile u8 *r);
-extern uint16 osl_readw(osl_t *osh, volatile uint16 *r);
+extern u16 osl_readw(osl_t *osh, volatile u16 *r);
 extern uint32 osl_readl(osl_t *osh, volatile uint32 *r);
 extern void osl_writeb(osl_t *osh, volatile u8 *r, u8 v);
-extern void osl_writew(osl_t *osh, volatile uint16 *r, uint16 v);
+extern void osl_writew(osl_t *osh, volatile u16 *r, u16 v);
 extern void osl_writel(osl_t *osh, volatile uint32 *r, uint32 v);
 #endif				/* BCMSDIO */
 

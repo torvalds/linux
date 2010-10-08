@@ -484,7 +484,7 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 {
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	si_t *sih = pi->sih;
-	uint16 val16, *reg16;
+	u16 val16, *reg16;
 	uint32 w;
 
 	if (!PCIE_ASPM(sih))
@@ -548,7 +548,7 @@ static void pcie_war_serdes(pcicore_info_t *pi)
 static void BCMINITFN(pcie_misc_config_fixup) (pcicore_info_t *pi)
 {
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
-	uint16 val16, *reg16;
+	u16 val16, *reg16;
 
 	reg16 = &pcieregs->sprom[SRSH_PCIE_MISC_CONFIG];
 	val16 = R_REG(pi->osh, reg16);
@@ -564,7 +564,7 @@ static void BCMINITFN(pcie_misc_config_fixup) (pcicore_info_t *pi)
 static void pcie_war_noplldown(pcicore_info_t *pi)
 {
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
-	uint16 *reg16;
+	u16 *reg16;
 
 	ASSERT(pi->sih->buscorerev == 7);
 

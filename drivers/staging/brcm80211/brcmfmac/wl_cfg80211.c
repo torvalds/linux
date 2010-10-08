@@ -86,7 +86,7 @@ static int32 wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 static int wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_connect_params *sme);
 static int32 wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
-				    uint16 reason_code);
+				    u16 reason_code);
 static int32 wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 				      enum nl80211_tx_power_setting type,
 				      int32 dbm);
@@ -203,8 +203,8 @@ static int32 wl_get_assoc_ies(struct wl_priv *wl);
 */
 static void wl_rst_ie(struct wl_priv *wl);
 static int32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v);
-static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, uint16 ie_size);
-static int32 wl_cp_ie(struct wl_priv *wl, u8 *dst, uint16 dst_size);
+static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, u16 ie_size);
+static int32 wl_cp_ie(struct wl_priv *wl, u8 *dst, u16 dst_size);
 static uint32 wl_get_ielen(struct wl_priv *wl);
 
 static int32 wl_mode_to_nl80211_iftype(int32 mode);
@@ -298,7 +298,7 @@ static int32 wl_dev_iovar_getbuf(struct net_device *dev, s8 *iovar,
 				 void *param, int32 paramlen, void *bufptr,
 				 int32 buflen);
 static int32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid,
-			  uint16 action);
+			  u16 action);
 static int32 wl_do_iscan(struct wl_priv *wl);
 static int32 wl_wakeup_iscan(struct wl_iscan_ctrl *iscan);
 static int32 wl_invoke_iscan(struct wl_priv *wl);
@@ -319,7 +319,7 @@ static void wl_init_fw(struct wl_fw_ctrl *fw);
 /*
 * find most significant bit set
 */
-static __used uint32 wl_find_msb(uint16 bit16);
+static __used uint32 wl_find_msb(u16 bit16);
 
 /*
 * update pmklist to dongle
@@ -686,7 +686,7 @@ wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 }
 
 static int32
-wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, uint16 action)
+wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 {
 	int32 params_size =
 	    (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_iscan_params_t, params));
@@ -1380,7 +1380,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 static int32
 wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
-		       uint16 reason_code)
+		       u16 reason_code)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	scb_val_t scbval;
@@ -1412,7 +1412,7 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	struct net_device *ndev = wl_to_ndev(wl);
-	uint16 txpwrmw;
+	u16 txpwrmw;
 	int32 err = 0;
 	int32 disable = 0;
 
@@ -1445,7 +1445,7 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 	if (dbm > 0xffff)
 		txpwrmw = 0xffff;
 	else
-		txpwrmw = (uint16) dbm;
+		txpwrmw = (u16) dbm;
 	err = wl_dev_intvar_set(ndev, "qtxpower",
 			(int32) (bcm_mw_to_qdbm(txpwrmw)));
 	if (unlikely(err)) {
@@ -1867,7 +1867,7 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
-static __used uint32 wl_find_msb(uint16 bit16)
+static __used uint32 wl_find_msb(u16 bit16)
 {
 	uint32 ret = 0;
 
@@ -2317,7 +2317,7 @@ static int32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e)
 {
 	uint32 event = ntoh32(e->event_type);
-	uint16 flags = ntoh16(e->flags);
+	u16 flags = ntoh16(e->flags);
 
 	if (event == WLC_E_JOIN || event == WLC_E_ASSOC_IND
 	    || event == WLC_E_REASSOC_IND) {
@@ -2339,7 +2339,7 @@ static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e)
 static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 {
 	uint32 event = ntoh32(e->event_type);
-	uint16 flags = ntoh16(e->flags);
+	u16 flags = ntoh16(e->flags);
 
 	if (event == WLC_E_DEAUTH_IND || event == WLC_E_DISASSOC_IND) {
 		return TRUE;
@@ -2602,7 +2602,7 @@ static int32
 wl_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
 		     const wl_event_msg_t *e, void *data)
 {
-	uint16 flags = ntoh16(e->flags);
+	u16 flags = ntoh16(e->flags);
 	enum nl80211_key_type key_type;
 
 	rtnl_lock();
@@ -3897,7 +3897,7 @@ static int32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v)
 	return err;
 }
 
-static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, uint16 ie_size)
+static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, u16 ie_size)
 {
 	struct wl_ie *ie = wl_to_ie(wl);
 	int32 err = 0;
@@ -3912,7 +3912,7 @@ static int32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, uint16 ie_size)
 	return err;
 }
 
-static int32 wl_cp_ie(struct wl_priv *wl, u8 *dst, uint16 dst_size)
+static int32 wl_cp_ie(struct wl_priv *wl, u8 *dst, u16 dst_size)
 {
 	struct wl_ie *ie = wl_to_ie(wl);
 	int32 err = 0;

@@ -765,7 +765,7 @@ static int wl_set_hint(wl_info_t *wl, char *abbrev)
  * a warning that this function is defined but not used if we declare
  * it as static.
  */
-static wl_info_t *wl_attach(uint16 vendor, uint16 device, unsigned long regs,
+static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			    uint bustype, void *btparam, uint irq)
 {
 	wl_info_t *wl;

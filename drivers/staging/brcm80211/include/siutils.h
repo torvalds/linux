@@ -178,7 +178,7 @@ extern void si_register_intr_callback(si_t *sih, void *intrsoff_fn,
 				      void *intrsenabled_fn, void *intr_arg);
 extern void si_deregister_intr_callback(si_t *sih);
 extern void si_clkctl_init(si_t *sih);
-extern uint16 si_clkctl_fast_pwrup_delay(si_t *sih);
+extern u16 si_clkctl_fast_pwrup_delay(si_t *sih);
 extern bool si_clkctl_cc(si_t *sih, uint mode);
 extern int si_clkctl_xtal(si_t *sih, uint what, bool on);
 extern uint32 si_gpiotimerval(si_t *sih, uint32 mask, uint32 val);
@@ -227,7 +227,7 @@ extern uint si_pcie_readreg(void *sih, uint addrtype, uint offset);
 extern void si_sdio_init(si_t *sih);
 #endif
 
-extern uint16 si_d11_devid(si_t *sih);
+extern u16 si_d11_devid(si_t *sih);
 
 #define si_eci(sih) 0
 #define si_eci_init(sih) (0)

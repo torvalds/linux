@@ -200,9 +200,9 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 	bzero(pq,
 	      OFFSETOF(struct pktq, q) + (sizeof(struct pktq_prec) * num_prec));
 
-	pq->num_prec = (uint16) num_prec;
+	pq->num_prec = (u16) num_prec;
 
-	pq->max = (uint16) max_len;
+	pq->max = (u16) max_len;
 
 	for (prec = 0; prec < num_prec; prec++)
 		pq->q[prec].max = pq->max;
@@ -491,7 +491,7 @@ u8 BCMROMFN(hndcrc8) (u8 *pdata,	/* pointer to array of data to process */
  * ****************************************************************************
  */
 
-static const uint16 crc16_table[256] = {
+static const u16 crc16_table[256] = {
 	0x0000, 0x1189, 0x2312, 0x329B, 0x4624, 0x57AD, 0x6536, 0x74BF,
 	0x8C48, 0x9DC1, 0xAF5A, 0xBED3, 0xCA6C, 0xDBE5, 0xE97E, 0xF8F7,
 	0x1081, 0x0108, 0x3393, 0x221A, 0x56A5, 0x472C, 0x75B7, 0x643E,
@@ -526,9 +526,9 @@ static const uint16 crc16_table[256] = {
 	0x7BC7, 0x6A4E, 0x58D5, 0x495C, 0x3DE3, 0x2C6A, 0x1EF1, 0x0F78
 };
 
-uint16 BCMROMFN(hndcrc16) (u8 *pdata,	/* pointer to array of data to process */
+u16 BCMROMFN(hndcrc16) (u8 *pdata,	/* pointer to array of data to process */
 			   uint nbytes,	/* number of input data bytes to process */
-			   uint16 crc	/* either CRC16_INIT_VALUE or previous return value */
+			   u16 crc	/* either CRC16_INIT_VALUE or previous return value */
     ) {
 	while (nbytes-- > 0)
 		CRC_INNER_LOOP(16, crc, *pdata++);

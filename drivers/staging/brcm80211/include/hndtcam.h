@@ -39,8 +39,8 @@ typedef struct patchaddrvalue {
 } patchaddrvalue_t;
 
 extern void hnd_patch_init(void *srp);
-extern void hnd_tcam_write(void *srp, uint16 index, uint32 data);
-extern void hnd_tcam_read(void *srp, uint16 index, uint32 * content);
+extern void hnd_tcam_write(void *srp, u16 index, uint32 data);
+extern void hnd_tcam_read(void *srp, u16 index, uint32 * content);
 void *hnd_tcam_init(void *srp, uint no_addrs);
 extern void hnd_tcam_disablepatch(void *srp);
 extern void hnd_tcam_enablepatch(void *srp);

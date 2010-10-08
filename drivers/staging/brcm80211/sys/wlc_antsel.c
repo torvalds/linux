@@ -61,11 +61,11 @@
 /* static functions */
 static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel);
 static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id);
-static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg);
+static u16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg);
 static void wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
 				bool auto_sel);
 
-const uint16 mimo_2x4_div_antselpat_tbl[] = {
+const u16 mimo_2x4_div_antselpat_tbl[] = {
 	0, 0, 0x9, 0xa,		/* ant0: 0 ant1: 2,3 */
 	0, 0, 0x5, 0x6,		/* ant0: 1 ant1: 2,3 */
 	0, 0, 0, 0,		/* n.a.              */
@@ -77,7 +77,7 @@ const u8 mimo_2x4_div_antselid_tbl[16] = {
 	0, 0, 1, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-const uint16 mimo_2x3_div_antselpat_tbl[] = {
+const u16 mimo_2x3_div_antselpat_tbl[] = {
 	16, 0, 1, 16,		/* ant0: 0 ant1: 1,2 */
 	16, 16, 16, 16,		/* n.a.              */
 	16, 2, 16, 16,		/* ant0: 2 ant1: 1   */
@@ -116,13 +116,13 @@ antsel_info_t *BCMNMIATTACHFN(wlc_antsel_attach) (wlc_info_t *wlc, osl_t *osh,
 			/* 4321/2 board with 2x3 switch logic */
 			asi->antsel_type = ANTSEL_2x3;
 			/* Antenna selection availability */
-			if (((uint16) getintvar(asi->pub->vars, "aa2g") == 7) ||
-			    ((uint16) getintvar(asi->pub->vars, "aa5g") == 7)) {
+			if (((u16) getintvar(asi->pub->vars, "aa2g") == 7) ||
+			    ((u16) getintvar(asi->pub->vars, "aa5g") == 7)) {
 				asi->antsel_avail = TRUE;
 			} else
-			    if (((uint16) getintvar(asi->pub->vars, "aa2g") ==
+			    if (((u16) getintvar(asi->pub->vars, "aa2g") ==
 				 3)
-				|| ((uint16) getintvar(asi->pub->vars, "aa5g")
+				|| ((u16) getintvar(asi->pub->vars, "aa5g")
 				    == 3)) {
 				asi->antsel_avail = FALSE;
 			} else {
@@ -135,8 +135,8 @@ antsel_info_t *BCMNMIATTACHFN(wlc_antsel_attach) (wlc_info_t *wlc, osl_t *osh,
 			break;
 		}
 	} else if ((asi->pub->sromrev == 4) &&
-		   ((uint16) getintvar(asi->pub->vars, "aa2g") == 7) &&
-		   ((uint16) getintvar(asi->pub->vars, "aa5g") == 0)) {
+		   ((u16) getintvar(asi->pub->vars, "aa2g") == 7) &&
+		   ((u16) getintvar(asi->pub->vars, "aa5g") == 0)) {
 		/* hack to match old 4321CB2 cards with 2of3 antenna switch */
 		asi->antsel_type = ANTSEL_2x3;
 		asi->antsel_avail = TRUE;
@@ -235,7 +235,7 @@ wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
 }
 
 /* boardlevel antenna selection: convert mimo_antsel (ucode interface) to id */
-u8 wlc_antsel_antsel2id(antsel_info_t *asi, uint16 antsel)
+u8 wlc_antsel_antsel2id(antsel_info_t *asi, u16 antsel)
 {
 	u8 antselid = 0;
 
@@ -273,10 +273,10 @@ static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id)
 }
 
 /* boardlevel antenna selection: convert ant_cfg to mimo_antsel (ucode interface) */
-static uint16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg)
+static u16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg)
 {
 	u8 idx = WLC_ANTIDX_11N(WLC_ANTSEL_11N(ant_cfg));
-	uint16 mimo_antsel = 0;
+	u16 mimo_antsel = 0;
 
 	if (asi->antsel_type == ANTSEL_2x4) {
 		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
@@ -297,7 +297,7 @@ static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel)
 {
 	wlc_info_t *wlc = asi->wlc;
 	u8 ant_cfg;
-	uint16 mimo_antsel;
+	u16 mimo_antsel;
 
 	ASSERT(asi->antsel_type != ANTSEL_NA);
 

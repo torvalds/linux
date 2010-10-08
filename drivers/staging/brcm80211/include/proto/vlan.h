@@ -34,9 +34,9 @@
 struct ethervlan_header {
 	u8 ether_dhost[ETHER_ADDR_LEN];
 	u8 ether_shost[ETHER_ADDR_LEN];
-	uint16 vlan_type;
-	uint16 vlan_tag;
-	uint16 ether_type;
+	u16 vlan_type;
+	u16 vlan_tag;
+	u16 ether_type;
 };
 
 #define	ETHERVLAN_HDR_LEN	(ETHER_HDR_LEN + VLAN_TAG_LEN)

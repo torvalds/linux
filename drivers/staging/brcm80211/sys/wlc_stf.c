@@ -49,7 +49,7 @@ static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val);
 static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val);
 
 static void _wlc_stf_phy_txant_upd(wlc_info_t *wlc);
-static uint16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec);
+static u16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec);
 
 #define NSTS_1	1
 #define NSTS_2	2
@@ -108,7 +108,7 @@ void wlc_tempsense_upd(wlc_info_t *wlc)
 }
 
 void
-wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, uint16 *ss_algo_channel,
+wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, u16 *ss_algo_channel,
 			    chanspec_t chanspec)
 {
 	tx_power_t power;
@@ -118,7 +118,7 @@ wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, uint16 *ss_algo_channel,
 	*ss_algo_channel = 0;
 
 	if (!wlc->pub->up) {
-		*ss_algo_channel = (uint16) -1;
+		*ss_algo_channel = (u16) -1;
 		return;
 	}
 
@@ -380,7 +380,7 @@ int wlc_stf_ss_update(wlc_info_t *wlc, wlcband_t *band)
 	/* NOTE: opmode can only be SISO or CDD as STBC is decided on a per-packet basis */
 	if (WLC_STBC_CAP_PHY(wlc) &&
 	    wlc->stf->ss_algosel_auto
-	    && (wlc->stf->ss_algo_channel != (uint16) -1)) {
+	    && (wlc->stf->ss_algo_channel != (u16) -1)) {
 		ASSERT(isset(&wlc->stf->ss_algo_channel, PHY_TXC1_MODE_CDD)
 		       || isset(&wlc->stf->ss_algo_channel,
 				PHY_TXC1_MODE_SISO));
@@ -422,7 +422,7 @@ int BCMATTACHFN(wlc_stf_attach) (wlc_info_t *wlc)
 
 	if (WLC_STBC_CAP_PHY(wlc)) {
 		wlc->stf->ss_algosel_auto = TRUE;
-		wlc->stf->ss_algo_channel = (uint16) -1;	/* Init the default value */
+		wlc->stf->ss_algo_channel = (u16) -1;	/* Init the default value */
 	}
 	return 0;
 }
@@ -561,9 +561,9 @@ void BCMATTACHFN(wlc_stf_phy_chain_calc) (wlc_info_t *wlc)
 	wlc_stf_spatial_policy_set(wlc, MIN_SPATIAL_EXPANSION);
 }
 
-static uint16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
+static u16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
 {
-	uint16 phytxant = wlc->stf->phytxant;
+	u16 phytxant = wlc->stf->phytxant;
 
 	if (RSPEC_STF(rspec) != PHY_TXC1_MODE_SISO) {
 		ASSERT(wlc->stf->txstreams > 1);
@@ -574,15 +574,15 @@ static uint16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
 	return phytxant;
 }
 
-uint16 wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
+u16 wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
 {
 	return _wlc_stf_phytxchain_sel(wlc, rspec);
 }
 
-uint16 wlc_stf_d11hdrs_phyctl_txant(wlc_info_t *wlc, ratespec_t rspec)
+u16 wlc_stf_d11hdrs_phyctl_txant(wlc_info_t *wlc, ratespec_t rspec)
 {
-	uint16 phytxant = wlc->stf->phytxant;
-	uint16 mask = PHY_TXC_ANT_MASK;
+	u16 phytxant = wlc->stf->phytxant;
+	u16 mask = PHY_TXC_ANT_MASK;
 
 	/* for non-siso rates or default setting, use the available chains */
 	if (WLCISNPHY(wlc->band)) {

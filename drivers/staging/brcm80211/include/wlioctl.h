@@ -44,8 +44,8 @@ typedef struct wl_bss_info_107 {
 				 * starting at version and including IEs
 				 */
 	struct ether_addr BSSID;
-	uint16 beacon_period;	/* units are Kusec */
-	uint16 capability;	/* Capability information */
+	u16 beacon_period;	/* units are Kusec */
+	u16 capability;	/* Capability information */
 	u8 SSID_len;
 	u8 SSID[32];
 	struct {
@@ -53,7 +53,7 @@ typedef struct wl_bss_info_107 {
 		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
 	u8 channel;		/* Channel no. */
-	uint16 atim_window;	/* units are Kusec */
+	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
@@ -77,8 +77,8 @@ typedef struct wl_bss_info_108 {
 				 * starting at version and including IEs
 				 */
 	struct ether_addr BSSID;
-	uint16 beacon_period;	/* units are Kusec */
-	uint16 capability;	/* Capability information */
+	u16 beacon_period;	/* units are Kusec */
+	u16 capability;	/* Capability information */
 	u8 SSID_len;
 	u8 SSID[32];
 	struct {
@@ -86,7 +86,7 @@ typedef struct wl_bss_info_108 {
 		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
 	chanspec_t chanspec;	/* chanspec for bss */
-	uint16 atim_window;	/* units are Kusec */
+	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
@@ -99,7 +99,7 @@ typedef struct wl_bss_info_108 {
 	u8 reserved[3];	/* Reserved for expansion of BSS properties */
 	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
-	uint16 ie_offset;	/* offset at which IEs start, from beginning */
+	u16 ie_offset;	/* offset at which IEs start, from beginning */
 	uint32 ie_length;	/* byte length of Information Elements */
 	/* Add new fields here */
 	/* variable length Information Elements */
@@ -121,8 +121,8 @@ typedef struct wl_bss_info {
 				 * starting at version and including IEs
 				 */
 	struct ether_addr BSSID;
-	uint16 beacon_period;	/* units are Kusec */
-	uint16 capability;	/* Capability information */
+	u16 beacon_period;	/* units are Kusec */
+	u16 capability;	/* Capability information */
 	u8 SSID_len;
 	u8 SSID[32];
 	struct {
@@ -130,7 +130,7 @@ typedef struct wl_bss_info {
 		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
 	chanspec_t chanspec;	/* chanspec for bss */
-	uint16 atim_window;	/* units are Kusec */
+	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
@@ -143,7 +143,7 @@ typedef struct wl_bss_info {
 	u8 reserved[3];	/* Reserved for expansion of BSS properties */
 	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
-	uint16 ie_offset;	/* offset at which IEs start, from beginning */
+	u16 ie_offset;	/* offset at which IEs start, from beginning */
 	uint32 ie_length;	/* byte length of Information Elements */
 	int16 SNR;		/* average SNR of during frame reception */
 	/* Add new fields here */
@@ -229,7 +229,7 @@ typedef struct wl_scan_params {
 				 * parameter portion is assumed, otherwise ssid in
 				 * the fixed portion is ignored
 				 */
-	uint16 channel_list[1];	/* list of chanspecs */
+	u16 channel_list[1];	/* list of chanspecs */
 } wl_scan_params_t;
 
 /* size of wl_scan_params not including variable length array */
@@ -248,8 +248,8 @@ typedef struct wl_scan_params {
 /* incremental scan struct */
 typedef struct wl_iscan_params {
 	uint32 version;
-	uint16 action;
-	uint16 scan_duration;
+	u16 action;
+	u16 scan_duration;
 	wl_scan_params_t params;
 } wl_iscan_params_t;
 
@@ -277,8 +277,8 @@ typedef struct wl_scan_results {
 
 typedef struct wl_escan_params {
 	uint32 version;
-	uint16 action;
-	uint16 sync_id;
+	u16 action;
+	u16 sync_id;
 	wl_scan_params_t params;
 } wl_escan_params_t;
 
@@ -287,8 +287,8 @@ typedef struct wl_escan_params {
 typedef struct wl_escan_result {
 	uint32 buflen;
 	uint32 version;
-	uint16 sync_id;
-	uint16 bss_count;
+	u16 sync_id;
+	u16 bss_count;
 	wl_bss_info_t bss_info[1];
 } wl_escan_result_t;
 
@@ -552,7 +552,7 @@ typedef struct wl_wsec_key {
 	/* Rx IV */
 	struct {
 		uint32 hi;	/* upper 32 bits of IV */
-		uint16 lo;	/* lower 16 bits of IV */
+		u16 lo;	/* lower 16 bits of IV */
 	} rxiv;
 	uint32 pad_5[2];
 	struct ether_addr ea;	/* per station */
@@ -629,7 +629,7 @@ typedef struct wl_led_info {
 typedef struct {
 	uint byteoff;		/* byte offset */
 	uint nbytes;		/* number of bytes */
-	uint16 buf[1];
+	u16 buf[1];
 } srom_rw_t;
 
 /* similar cis (srom or otp) struct [iovar: may not be aligned] */
@@ -661,10 +661,10 @@ typedef struct {
 #define WL_ATTEN_PCL_OFF		2	/* turn off PCL. */
 
 typedef struct {
-	uint16 auto_ctrl;	/* WL_ATTEN_XX */
-	uint16 bb;		/* Baseband attenuation */
-	uint16 radio;		/* Radio attenuation */
-	uint16 txctl1;		/* Radio TX_CTL1 value */
+	u16 auto_ctrl;	/* WL_ATTEN_XX */
+	u16 bb;		/* Baseband attenuation */
+	u16 radio;		/* Radio attenuation */
+	u16 txctl1;		/* Radio TX_CTL1 value */
 } atten_t;
 
 /* Per-AC retry parameters */
@@ -673,7 +673,7 @@ struct wme_tx_params_s {
 	u8 short_fallback;
 	u8 long_retry;
 	u8 long_fallback;
-	uint16 max_rate;	/* In units of 512 Kbps */
+	u16 max_rate;	/* In units of 512 Kbps */
 };
 
 typedef struct wme_tx_params_s wme_tx_params_t;
@@ -701,9 +701,9 @@ typedef struct {
 #define BCM_MAC_STATUS_INDICATION	(0x40010200L)
 
 typedef struct {
-	uint16 ver;		/* version of this struct */
-	uint16 len;		/* length in bytes of this structure */
-	uint16 cap;		/* sta's advertised capabilities */
+	u16 ver;		/* version of this struct */
+	u16 len;		/* length in bytes of this structure */
+	u16 cap;		/* sta's advertised capabilities */
 	uint32 flags;		/* flags defined below */
 	uint32 idle;		/* time since data pkt rx'd from sta */
 	struct ether_addr ea;	/* Station address */
@@ -819,9 +819,9 @@ typedef struct wl_instance_info {
 
 /* structure to change size of tx fifo */
 typedef struct wl_txfifo_sz {
-	uint16 magic;
-	uint16 fifo;
-	uint16 size;
+	u16 magic;
+	u16 fifo;
+	u16 size;
 } wl_txfifo_sz_t;
 /* magic pattern used for mismatch driver and wl */
 #define WL_TXFIFO_SZ_MAGIC	0xa5a5
@@ -1205,11 +1205,11 @@ typedef struct wlc_iov_trx_s {
 #define WL_PHY_PAVARS_LEN	6	/* Phy type, Band range, chain, a1, b0, b1 */
 
 typedef struct wl_po {
-	uint16 phy_type;	/* Phy type */
-	uint16 band;
-	uint16 cckpo;
+	u16 phy_type;	/* Phy type */
+	u16 band;
+	u16 cckpo;
 	uint32 ofdmpo;
-	uint16 mcspo[8];
+	u16 mcspo[8];
 } wl_po_t;
 
 /* a large TX Power as an init value to factor out of MIN() calculations,
@@ -1493,8 +1493,8 @@ struct tsinfo_arg {
 #define	WL_CNT_T_VERSION	7	/* current version of wl_cnt_t struct */
 
 typedef struct {
-	uint16 version;		/* see definition of WL_CNT_T_VERSION */
-	uint16 length;		/* length of entire structure */
+	u16 version;		/* see definition of WL_CNT_T_VERSION */
+	u16 length;		/* length of entire structure */
 
 	/* transmit stat counters */
 	uint32 txframe;		/* tx data frames */
@@ -1727,8 +1727,8 @@ typedef struct {
 #define	WL_DELTA_STATS_T_VERSION	1	/* current version of wl_delta_stats_t struct */
 
 typedef struct {
-	uint16 version;		/* see definition of WL_DELTA_STATS_T_VERSION */
-	uint16 length;		/* length of entire structure */
+	u16 version;		/* see definition of WL_DELTA_STATS_T_VERSION */
+	u16 length;		/* length of entire structure */
 
 	/* transmit stat counters */
 	uint32 txframe;		/* tx data frames */
@@ -1772,8 +1772,8 @@ typedef struct {
 } wl_traffic_stats_t;
 
 typedef struct {
-	uint16 version;		/* see definition of WL_WME_CNT_VERSION */
-	uint16 length;		/* length of entire structure */
+	u16 version;		/* see definition of WL_WME_CNT_VERSION */
+	u16 length;		/* length of entire structure */
 
 	wl_traffic_stats_t tx[AC_COUNT];	/* Packets transmitted */
 	wl_traffic_stats_t tx_failed[AC_COUNT];	/* Packets dropped or failed to transmit */
@@ -1797,8 +1797,8 @@ struct wl_msglevel2 {
 
 /* block ack related stats */
 typedef struct wlc_ba_cnt {
-	uint16 version;		/* WLC_BA_CNT_VERSION */
-	uint16 length;		/* length of entire structure */
+	u16 version;		/* WLC_BA_CNT_VERSION */
+	u16 length;		/* length of entire structure */
 
 	/* transmit stat counters */
 	uint32 txpdu;		/* pdus sent */
@@ -1858,13 +1858,13 @@ struct tslist {
 
 /* structure for addts/delts arguments */
 typedef struct tspec_arg {
-	uint16 version;		/* see definition of TSPEC_ARG_VERSION */
-	uint16 length;		/* length of entire structure */
+	u16 version;		/* see definition of TSPEC_ARG_VERSION */
+	u16 length;		/* length of entire structure */
 	uint flag;		/* bit field */
 	/* TSPEC Arguments */
 	struct tsinfo_arg tsinfo;	/* TS Info bit field */
-	uint16 nom_msdu_size;	/* (Nominal or fixed) MSDU Size (bytes) */
-	uint16 max_msdu_size;	/* Maximum MSDU Size (bytes) */
+	u16 nom_msdu_size;	/* (Nominal or fixed) MSDU Size (bytes) */
+	u16 max_msdu_size;	/* Maximum MSDU Size (bytes) */
 	uint min_srv_interval;	/* Minimum Service Interval (us) */
 	uint max_srv_interval;	/* Maximum Service Interval (us) */
 	uint inactivity_interval;	/* Inactivity Interval (us) */
@@ -1876,8 +1876,8 @@ typedef struct tspec_arg {
 	uint max_burst_size;	/* Maximum Burst Size (bytes) */
 	uint delay_bound;	/* Delay Bound (us) */
 	uint min_phy_rate;	/* Minimum PHY Rate (bps) */
-	uint16 surplus_bw;	/* Surplus Bandwidth Allowance (range 1.0 to 8.0) */
-	uint16 medium_time;	/* Medium Time (32 us/s periods) */
+	u16 surplus_bw;	/* Surplus Bandwidth Allowance (range 1.0 to 8.0) */
+	u16 medium_time;	/* Medium Time (32 us/s periods) */
 	u8 dialog_token;	/* dialog token */
 } tspec_arg_t;
 

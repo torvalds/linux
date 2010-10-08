@@ -56,7 +56,7 @@
 BWL_PRE_PACKED_STRUCT struct ether_header {
 	u8 ether_dhost[ETHER_ADDR_LEN];
 	u8 ether_shost[ETHER_ADDR_LEN];
-	uint16 ether_type;
+	u16 ether_type;
 } BWL_POST_PACKED_STRUCT;
 
 BWL_PRE_PACKED_STRUCT struct ether_addr {

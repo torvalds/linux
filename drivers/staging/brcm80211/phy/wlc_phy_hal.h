@@ -138,8 +138,8 @@ typedef struct shared_phy_params {
 	uint bustype;
 	uint buscorerev;
 	char *vars;
-	uint16 vid;
-	uint16 did;
+	u16 vid;
+	u16 did;
 	uint chip;
 	uint chiprev;
 	uint chippkg;
@@ -159,9 +159,9 @@ extern wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
 				 char *vars);
 extern void wlc_phy_detach(wlc_phy_t *ppi);
 
-extern bool wlc_phy_get_phyversion(wlc_phy_t *pih, uint16 *phytype,
-				   uint16 *phyrev, uint16 *radioid,
-				   uint16 *radiover);
+extern bool wlc_phy_get_phyversion(wlc_phy_t *pih, u16 *phytype,
+				   u16 *phyrev, u16 *radioid,
+				   u16 *radiover);
 extern bool wlc_phy_get_encore(wlc_phy_t *pih);
 extern uint32 wlc_phy_get_coreflags(wlc_phy_t *pih);
 
@@ -177,8 +177,8 @@ extern void wlc_phy_antsel_init(wlc_phy_t *ppi, bool lut_init);
 extern void wlc_phy_chanspec_set(wlc_phy_t *ppi, chanspec_t chanspec);
 extern chanspec_t wlc_phy_chanspec_get(wlc_phy_t *ppi);
 extern void wlc_phy_chanspec_radio_set(wlc_phy_t *ppi, chanspec_t newch);
-extern uint16 wlc_phy_bw_state_get(wlc_phy_t *ppi);
-extern void wlc_phy_bw_state_set(wlc_phy_t *ppi, uint16 bw);
+extern u16 wlc_phy_bw_state_get(wlc_phy_t *ppi);
+extern void wlc_phy_bw_state_set(wlc_phy_t *ppi, u16 bw);
 
 extern void wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx);
 extern void wlc_phy_por_inform(wlc_phy_t *ppi);

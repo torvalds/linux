@@ -56,7 +56,7 @@ struct sdioh_info {
 	bool intr_handler_valid;	/* client driver interrupt handler valid */
 	sdioh_cb_fn_t intr_handler;	/* registered interrupt handler */
 	void *intr_handler_arg;	/* argument to call interrupt handler */
-	uint16 intmask;		/* Current active interrupts */
+	u16 intmask;		/* Current active interrupts */
 	void *sdos_info;	/* Pointer to per-OS private data */
 
 	uint irq;		/* Client irq */

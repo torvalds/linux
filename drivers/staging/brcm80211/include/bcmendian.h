@@ -21,8 +21,8 @@
 
 /* Reverse the bytes in a 16-bit value */
 #define BCMSWAP16(val) \
-	((uint16)((((uint16)(val) & (uint16)0x00ffU) << 8) | \
-		  (((uint16)(val) & (uint16)0xff00U) >> 8)))
+	((u16)((((u16)(val) & (u16)0x00ffU) << 8) | \
+		  (((u16)(val) & (u16)0xff00U) >> 8)))
 
 /* Reverse the bytes in a 32-bit value */
 #define BCMSWAP32(val) \
@@ -82,8 +82,8 @@
 #define ltoh16_buf(buf, i)
 #define htol16_buf(buf, i)
 #else
-#define ltoh16_buf(buf, i) bcmswap16_buf((uint16 *)(buf), (i))
-#define htol16_buf(buf, i) bcmswap16_buf((uint16 *)(buf), (i))
+#define ltoh16_buf(buf, i) bcmswap16_buf((u16 *)(buf), (i))
+#define htol16_buf(buf, i) bcmswap16_buf((u16 *)(buf), (i))
 #endif				/* IL_BIGENDIAN */
 
 /* Unaligned loads and stores in host byte order */
@@ -106,13 +106,13 @@
 
 #define ltoh_ua(ptr) \
 	(sizeof(*(ptr)) == sizeof(u8) ? *(const u8 *)(ptr) : \
-	 sizeof(*(ptr)) == sizeof(uint16) ? _LTOH16_UA((const u8 *)(ptr)) : \
+	 sizeof(*(ptr)) == sizeof(u16) ? _LTOH16_UA((const u8 *)(ptr)) : \
 	 sizeof(*(ptr)) == sizeof(uint32) ? _LTOH32_UA((const u8 *)(ptr)) : \
 	 *(u8 *)0)
 
 #define ntoh_ua(ptr) \
 	(sizeof(*(ptr)) == sizeof(u8) ? *(const u8 *)(ptr) : \
-	 sizeof(*(ptr)) == sizeof(uint16) ? _NTOH16_UA((const u8 *)(ptr)) : \
+	 sizeof(*(ptr)) == sizeof(u16) ? _NTOH16_UA((const u8 *)(ptr)) : \
 	 sizeof(*(ptr)) == sizeof(uint32) ? _NTOH32_UA((const u8 *)(ptr)) : \
 	 *(u8 *)0)
 
@@ -123,7 +123,7 @@
  */
 
 #define bcmswap16(val) ({ \
-	uint16 _val = (val); \
+	u16 _val = (val); \
 	BCMSWAP16(_val); \
 })
 
@@ -138,7 +138,7 @@
 })
 
 #define bcmswap16_buf(buf, len) ({ \
-	uint16 *_buf = (uint16 *)(buf); \
+	u16 *_buf = (u16 *)(buf); \
 	uint _wds = (len) / 2; \
 	while (_wds--) { \
 		*_buf = bcmswap16(*_buf); \
@@ -147,7 +147,7 @@
 })
 
 #define htol16_ua_store(val, bytes) ({ \
-	uint16 _val = (val); \
+	u16 _val = (val); \
 	u8 *_bytes = (u8 *)(bytes); \
 	_bytes[0] = _val & 0xff; \
 	_bytes[1] = _val >> 8; \
@@ -163,7 +163,7 @@
 })
 
 #define hton16_ua_store(val, bytes) ({ \
-	uint16 _val = (val); \
+	u16 _val = (val); \
 	u8 *_bytes = (u8 *)(bytes); \
 	_bytes[0] = _val >> 8; \
 	_bytes[1] = _val & 0xff; \
@@ -201,7 +201,7 @@
 #else				/* !__GNUC__ */
 
 /* Inline versions avoid referencing the argument multiple times */
-static inline uint16 bcmswap16(uint16 val)
+static inline u16 bcmswap16(u16 val)
 {
 	return BCMSWAP16(val);
 }
@@ -219,7 +219,7 @@ static inline uint32 bcmswap32by16(uint32 val)
 /* Reverse pairs of bytes in a buffer (not for high-performance use) */
 /* buf	- start of buffer of shorts to swap */
 /* len  - byte length of buffer */
-static inline void bcmswap16_buf(uint16 *buf, uint len)
+static inline void bcmswap16_buf(u16 *buf, uint len)
 {
 	len = len / 2;
 
@@ -232,7 +232,7 @@ static inline void bcmswap16_buf(uint16 *buf, uint len)
 /*
  * Store 16-bit value to unaligned little-endian byte array.
  */
-static inline void htol16_ua_store(uint16 val, u8 *bytes)
+static inline void htol16_ua_store(u16 val, u8 *bytes)
 {
 	bytes[0] = val & 0xff;
 	bytes[1] = val >> 8;
@@ -252,7 +252,7 @@ static inline void htol32_ua_store(uint32 val, u8 *bytes)
 /*
  * Store 16-bit value to unaligned network-(big-)endian byte array.
  */
-static inline void hton16_ua_store(uint16 val, u8 *bytes)
+static inline void hton16_ua_store(u16 val, u8 *bytes)
 {
 	bytes[0] = val >> 8;
 	bytes[1] = val & 0xff;
@@ -272,7 +272,7 @@ static inline void hton32_ua_store(uint32 val, u8 *bytes)
 /*
  * Load 16-bit value from unaligned little-endian byte array.
  */
-static inline uint16 ltoh16_ua(const void *bytes)
+static inline u16 ltoh16_ua(const void *bytes)
 {
 	return _LTOH16_UA((const u8 *)bytes);
 }
@@ -288,7 +288,7 @@ static inline uint32 ltoh32_ua(const void *bytes)
 /*
  * Load 16-bit value from unaligned big-(network-)endian byte array.
  */
-static inline uint16 ntoh16_ua(const void *bytes)
+static inline u16 ntoh16_ua(const void *bytes)
 {
 	return _NTOH16_UA((const u8 *)bytes);
 }

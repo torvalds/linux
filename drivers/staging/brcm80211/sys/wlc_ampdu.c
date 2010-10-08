@@ -90,9 +90,9 @@ uint32 wl_ampdu_dbg =
  * how often and/or when the wlc counters are updated.
  */
 typedef struct wlc_fifo_info {
-	uint16 ampdu_pld_size;	/* number of bytes to be pre-loaded */
+	u16 ampdu_pld_size;	/* number of bytes to be pre-loaded */
 	u8 mcs2ampdu_table[FFPLD_MAX_MCS + 1];	/* per-mcs max # of mpdus in an ampdu */
-	uint16 prev_txfunfl;	/* num of underflows last read from the HW macstats counter */
+	u16 prev_txfunfl;	/* num of underflows last read from the HW macstats counter */
 	uint32 accum_txfunfl;	/* num of underflows since we modified pld params */
 	uint32 accum_txampdu;	/* num of tx ampdu since we modified pld params  */
 	uint32 prev_txampdu;	/* previous reading of tx ampdu */
@@ -158,7 +158,7 @@ static void wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 					  uint32 frmtxstatus,
 					  uint32 frmtxstatus2);
 
-static inline uint16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
+static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
 {
 	d11txh_t *txh;
 	struct dot11_header *h;
@@ -173,7 +173,7 @@ ampdu_info_t *BCMATTACHFN(wlc_ampdu_attach) (wlc_info_t *wlc)
 	int i;
 
 	/* some code depends on packed structures */
-	ASSERT(DOT11_MAXNUMFRAGS == NBITS(uint16));
+	ASSERT(DOT11_MAXNUMFRAGS == NBITS(u16));
 	ASSERT(ISPOWEROF2(AMPDU_TX_BA_MAX_WSIZE));
 	ASSERT(ISPOWEROF2(AMPDU_RX_BA_MAX_WSIZE));
 	ASSERT(wlc->pub->tunables->ampdunummpdu <= AMPDU_MAX_MPDU);
@@ -339,17 +339,17 @@ static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 	uint32 txunfl_ratio;
 	u8 max_mpdu;
 	uint32 current_ampdu_cnt = 0;
-	uint16 max_pld_size;
+	u16 max_pld_size;
 	uint32 new_txunfl;
 	wlc_fifo_info_t *fifo = (ampdu->fifo_tb + fid);
 	uint xmtfifo_sz;
-	uint16 cur_txunfl;
+	u16 cur_txunfl;
 
 	/* return if we got here for a different reason than underflows */
 	cur_txunfl =
 	    wlc_read_shm(wlc,
 			 M_UCODE_MACSTAT + OFFSETOF(macstat_t, txfunfl[fid]));
-	new_txunfl = (uint16) (cur_txunfl - fifo->prev_txfunfl);
+	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
 	if (new_txunfl == 0) {
 		WL_FFPLD(("check_txunfl : TX status FRAG set but no tx underflows\n"));
 		return -1;
@@ -516,7 +516,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 
 	bool rr = TRUE, fbr = FALSE;
 	uint i, count = 0, fifo, seg_cnt = 0;
-	uint16 plen, len, seq = 0, mcl, mch, index, frameid, dma_len = 0;
+	u16 plen, len, seq = 0, mcl, mch, index, frameid, dma_len = 0;
 	uint32 ampdu_len, maxlen = 0;
 	d11txh_t *txh = NULL;
 	u8 *plcp;
@@ -528,13 +528,13 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 	bool use_rts = FALSE, use_cts = FALSE;
 	ratespec_t rspec = 0, rspec_fallback = 0;
 	ratespec_t rts_rspec = 0, rts_rspec_fallback = 0;
-	uint16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
+	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 	struct dot11_rts_frame *rts;
 	u8 rr_retry_limit;
 	wlc_fifo_info_t *f;
 	bool fbr_iscck;
 	struct ieee80211_tx_info *tx_info;
-	uint16 qlen;
+	u16 qlen;
 
 	wlc = ampdu->wlc;
 	osh = wlc->osh;
@@ -643,7 +643,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 		 * test whether need to break or change the epoch
 		 */
 		if (count == 0) {
-			uint16 fc;
+			u16 fc;
 			mcl |= (TXC_AMPDU_FIRST << TXC_AMPDU_SHIFT);
 			/* refill the bits since might be a retx mpdu */
 			mcl |= TXC_STARTMSDU;
@@ -665,7 +665,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 		len = ROUNDUP(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (uint16) pkttotlen(osh, p);
+		dma_len += (u16) pkttotlen(osh, p);
 
 		WL_AMPDU_TX(("wl%d: wlc_sendampdu: ampdu_len %d seg_cnt %d null delim %d\n", wlc->pub->unit, ampdu_len, seg_cnt, ndelim));
 
@@ -818,13 +818,13 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 
 		/* reset the mixed mode header durations */
 		if (txh->MModeLen) {
-			uint16 mmodelen =
+			u16 mmodelen =
 			    wlc_calc_lsig_len(wlc, rspec, ampdu_len);
 			txh->MModeLen = htol16(mmodelen);
 			preamble_type = WLC_MM_PREAMBLE;
 		}
 		if (txh->MModeFbrLen) {
-			uint16 mmfbrlen =
+			u16 mmfbrlen =
 			    wlc_calc_lsig_len(wlc, rspec_fallback, ampdu_len);
 			txh->MModeFbrLen = htol16(mmfbrlen);
 			fbr_preamble_type = WLC_MM_PREAMBLE;
@@ -841,7 +841,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 
 		/* update RTS dur fields */
 		if (use_rts || use_cts) {
-			uint16 durid;
+			u16 durid;
 			rts = (struct dot11_rts_frame *)&txh->rts_frame;
 			if ((mch & TXC_PREAMBLE_RTS_MAIN_SHORT) ==
 			    TXC_PREAMBLE_RTS_MAIN_SHORT)
@@ -1026,13 +1026,13 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 	d11txh_t *txh;
 	u8 *plcp;
 	struct dot11_header *h;
-	uint16 seq, start_seq = 0, bindex, index, mcl;
+	u16 seq, start_seq = 0, bindex, index, mcl;
 	u8 mcs = 0;
 	bool ba_recd = FALSE, ack_recd = FALSE;
 	u8 suc_mpdu = 0, tot_mpdu = 0;
 	uint supr_status;
 	bool update_rate = TRUE, retry = TRUE, tx_error = FALSE;
-	uint16 mimoantsel = 0;
+	u16 mimoantsel = 0;
 	u8 antselid = 0;
 	u8 retry_limit, rr_retry_limit;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);

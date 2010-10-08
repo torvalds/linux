@@ -173,8 +173,8 @@ extern void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh);
 /* callback functions */
 typedef struct {
 	/* attach to device */
-	void *(*attach) (uint16 vend_id, uint16 dev_id, uint16 bus, uint16 slot,
-			 uint16 func, uint bustype, void *regsva, osl_t *osh,
+	void *(*attach) (u16 vend_id, u16 dev_id, u16 bus, u16 slot,
+			 u16 func, uint bustype, void *regsva, osl_t *osh,
 			 void *param);
 	/* detach from device */
 	void (*detach) (void *ch);
@@ -183,7 +183,7 @@ typedef struct {
 /* platform specific/high level functions */
 extern int bcmsdh_register(bcmsdh_driver_t *driver);
 extern void bcmsdh_unregister(void);
-extern bool bcmsdh_chipmatch(uint16 vendor, uint16 device);
+extern bool bcmsdh_chipmatch(u16 vendor, u16 device);
 extern void bcmsdh_device_remove(void *sdh);
 
 /* Function to pass device-status bits to DHD. */

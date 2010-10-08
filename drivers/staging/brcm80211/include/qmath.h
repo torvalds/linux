@@ -27,7 +27,7 @@ int16 qm_mul16(int16 op1, int16 op2);
 
 int32 qm_muls321616(int16 op1, int16 op2);
 
-uint16 qm_mulu16(uint16 op1, uint16 op2);
+u16 qm_mulu16(u16 op1, u16 op2);
 
 int16 qm_muls16(int16 op1, int16 op2);
 
@@ -65,7 +65,7 @@ int16 qm_div163232(int32 num, int32 denom, int16 *qquotient);
 
 int32 qm_mul323216(int32 op1, int16 op2);
 
-int32 qm_mulsu321616(int16 op1, uint16 op2);
+int32 qm_mulsu321616(int16 op1, u16 op2);
 
 int32 qm_muls323216(int32 op1, int16 op2);
 

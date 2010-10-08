@@ -836,7 +836,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	bcm_event_t *pvt_data = (bcm_event_t *) pktdata;
 	char *event_data;
 	uint32 type, status;
-	uint16 flags;
+	u16 flags;
 	int evlen;
 
 	if (bcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
@@ -1674,7 +1674,7 @@ void dhd_iscan_ind_scan_confirm(void *dhdp, bool status)
 	dhd_ind_scan_confirm(dhdp, status);
 }
 
-int dhd_iscan_request(void *dhdp, uint16 action)
+int dhd_iscan_request(void *dhdp, u16 action)
 {
 	int rc;
 	wl_iscan_params_t params;

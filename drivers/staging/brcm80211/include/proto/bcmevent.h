@@ -28,8 +28,8 @@
 #define WLC_EVENT_MSG_GROUP		0x04
 
 typedef BWL_PRE_PACKED_STRUCT struct {
-	uint16 version;
-	uint16 flags;
+	u16 version;
+	u16 flags;
 	uint32 event_type;
 	uint32 status;
 	uint32 reason;

@@ -114,9 +114,9 @@ extern void bcm_rpc_tp_txq_wm_get(rpc_tp_info_t *rpc_th, u8 *hiwm,
 
 extern void bcm_rpc_tp_agg_set(rpc_tp_info_t *rpcb, uint32 reason, bool set);
 extern void bcm_rpc_tp_agg_limit_set(rpc_tp_info_t *rpc_th, u8 sf,
-				     uint16 bytes);
+				     u16 bytes);
 extern void bcm_rpc_tp_agg_limit_get(rpc_tp_info_t *rpc_th, u8 *sf,
-				     uint16 *bytes);
+				     u16 *bytes);
 
 #define BCM_RPC_TP_MSG_LEVEL_MASK	0x00ff
 /* dongle msg level */

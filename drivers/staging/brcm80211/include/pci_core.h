@@ -50,7 +50,7 @@ typedef struct sbpciregs {
 	uint32 sbtopci2;	/* Sonics to PCI translation 2 */
 	uint32 PAD[189];
 	uint32 pcicfg[4][64];	/* 0x400 - 0x7FF, PCI Cfg Space (>=rev8) */
-	uint16 sprom[36];	/* SPROM shadow Area */
+	u16 sprom[36];	/* SPROM shadow Area */
 	uint32 PAD[46];
 } sbpciregs_t;
 

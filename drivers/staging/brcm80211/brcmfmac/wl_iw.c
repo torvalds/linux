@@ -148,7 +148,7 @@ typedef struct iscan_info {
 iscan_info_t *g_iscan;
 static void wl_iw_timerfunc(unsigned long data);
 static void wl_iw_set_event_mask(struct net_device *dev);
-static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action);
+static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, u16 action);
 #endif				/* defined(WL_IW_USE_ISCAN) */
 
 static int
@@ -503,7 +503,7 @@ wl_iw_get_range(struct net_device *dev,
 	int bw_cap = 0, sgi_tx = 0, nmode = 0;
 	channel_info_t ci;
 	u8 nrate_list2copy = 0;
-	uint16 nrate_list[4][8] = { {13, 26, 39, 52, 78, 104, 117, 130},
+	u16 nrate_list[4][8] = { {13, 26, 39, 52, 78, 104, 117, 130},
 	{14, 29, 43, 58, 87, 116, 130, 144},
 	{27, 54, 81, 108, 162, 216, 243, 270},
 	{30, 60, 90, 120, 180, 240, 270, 300}
@@ -1048,7 +1048,7 @@ static int wl_iw_iscan_prep(wl_scan_params_t *params, wlc_ssid_t *ssid)
 	return err;
 }
 
-static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action)
+static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, u16 action)
 {
 	int err = 0;
 
@@ -2172,7 +2172,7 @@ wl_iw_set_txpow(struct net_device *dev,
 		struct iw_param *vwrq, char *extra)
 {
 	int error, disable;
-	uint16 txpwrmw;
+	u16 txpwrmw;
 	WL_TRACE(("%s: SIOCSIWTXPOW\n", dev->name));
 
 	disable = vwrq->disabled ? WL_RADIO_SW_DISABLE : 0;
@@ -2195,7 +2195,7 @@ wl_iw_set_txpow(struct net_device *dev,
 	if (vwrq->value > 0xffff)
 		txpwrmw = 0xffff;
 	else
-		txpwrmw = (uint16) vwrq->value;
+		txpwrmw = (u16) vwrq->value;
 
 	error =
 	    dev_wlc_intvar_set(dev, "qtxpower", (int)(bcm_mw_to_qdbm(txpwrmw)));
@@ -3402,7 +3402,7 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 	char extra[IW_CUSTOM_MAX + 1];
 	int cmd = 0;
 	uint32 event_type = ntoh32(e->event_type);
-	uint16 flags = ntoh16(e->flags);
+	u16 flags = ntoh16(e->flags);
 	uint32 datalen = ntoh32(e->datalen);
 	uint32 status = ntoh32(e->status);
 	wl_iw_t *iw;
@@ -3709,7 +3709,7 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 #ifdef CSCAN
 	params_size =
 	    (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_iscan_params_t, params)) +
-	    (WL_NUMCHANNELS * sizeof(uint16)) +
+	    (WL_NUMCHANNELS * sizeof(u16)) +
 	    WL_SCAN_PARAMS_SSID_MAX * sizeof(wlc_ssid_t);
 #else
 	params_size =

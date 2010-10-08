@@ -59,8 +59,8 @@
 typedef int (*otp_status_t) (void *oh);
 typedef int (*otp_size_t) (void *oh);
 typedef void *(*otp_init_t) (si_t *sih);
-typedef uint16(*otp_read_bit_t) (void *oh, chipcregs_t *cc, uint off);
-typedef int (*otp_read_region_t) (si_t *sih, int region, uint16 *data,
+typedef u16(*otp_read_bit_t) (void *oh, chipcregs_t *cc, uint off);
+typedef int (*otp_read_region_t) (si_t *sih, int region, u16 *data,
 				  uint *wlen);
 typedef int (*otp_nvread_t) (void *oh, char *data, uint *len);
 
@@ -82,18 +82,18 @@ typedef struct {
 
 #ifdef BCMIPXOTP
 	/* IPX OTP section */
-	uint16 wsize;		/* Size of otp in words */
-	uint16 rows;		/* Geometry */
-	uint16 cols;		/* Geometry */
+	u16 wsize;		/* Size of otp in words */
+	u16 rows;		/* Geometry */
+	u16 cols;		/* Geometry */
 	uint32 status;		/* Flag bits (lock/prog/rv).
 				 * (Reflected only when OTP is power cycled)
 				 */
-	uint16 hwbase;		/* hardware subregion offset */
-	uint16 hwlim;		/* hardware subregion boundary */
-	uint16 swbase;		/* software subregion offset */
-	uint16 swlim;		/* software subregion boundary */
-	uint16 fbase;		/* fuse subregion offset */
-	uint16 flim;		/* fuse subregion boundary */
+	u16 hwbase;		/* hardware subregion offset */
+	u16 hwlim;		/* hardware subregion boundary */
+	u16 swbase;		/* software subregion offset */
+	u16 swlim;		/* software subregion boundary */
+	u16 fbase;		/* fuse subregion offset */
+	u16 flim;		/* fuse subregion boundary */
 	int otpgu_base;		/* offset to General Use Region */
 #endif				/* BCMIPXOTP */
 
@@ -173,7 +173,7 @@ static int ipxotp_size(void *oh)
 	return (int)oi->wsize * 2;
 }
 
-static uint16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
+static u16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
 	otpinfo_t *oi;
 
@@ -185,7 +185,7 @@ static uint16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 	return R_REG(oi->osh, &cc->sromotp[wn]);
 }
 
-static uint16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
+static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
@@ -373,7 +373,7 @@ static void *BCMNMIATTACHFN(ipxotp_init) (si_t *sih)
 	return (void *)oi;
 }
 
-static int ipxotp_read_region(void *oh, int region, uint16 *data, uint *wlen)
+static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint idx;
@@ -567,26 +567,26 @@ static int hndotp_size(void *oh)
 	return (int)(oi->size);
 }
 
-static uint16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
+static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	osl_t *osh;
-	volatile uint16 *ptr;
+	volatile u16 *ptr;
 
 	ASSERT(wn < ((oi->size / 2) + OTP_RC_LIM_OFF));
 	ASSERT(cc != NULL);
 
 	osh = si_osh(oi->sih);
 
-	ptr = (volatile uint16 *)((volatile char *)cc + CC_SROM_OTP);
+	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 	return R_REG(osh, &ptr[wn]);
 }
 
-static uint16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
+static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	osl_t *osh;
-	volatile uint16 *ptr;
+	volatile u16 *ptr;
 
 	ASSERT(woff >= (-((int)oi->size / 2)));
 	ASSERT(woff < OTP_LIM_OFF);
@@ -594,12 +594,12 @@ static uint16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 
 	osh = si_osh(oi->sih);
 
-	ptr = (volatile uint16 *)((volatile char *)cc + CC_SROM_OTP);
+	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 
 	return R_REG(osh, &ptr[(oi->size / 2) + woff]);
 }
 
-static uint16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
+static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
@@ -627,7 +627,7 @@ static uint16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 		return 0xffff;
 	}
 	st = (st & OTPP_VALUE_MASK) >> OTPP_VALUE_SHIFT;
-	return (uint16) st;
+	return (u16) st;
 }
 
 static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih)
@@ -706,7 +706,7 @@ static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih)
 	return ret;
 }
 
-static int hndotp_read_region(void *oh, int region, uint16 *data, uint *wlen)
+static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint32 idx, st;
@@ -745,7 +745,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 	uint32 idx;
 	chipcregs_t *cc;
 	uint offset;
-	uint16 *rawotp = NULL;
+	u16 *rawotp = NULL;
 
 	/* save the orig core */
 	idx = si_coreidx(oi->sih);
@@ -885,12 +885,12 @@ int otp_size(void *oh)
 	return oi->fn->size(oh);
 }
 
-uint16 otp_read_bit(void *oh, uint offset)
+u16 otp_read_bit(void *oh, uint offset)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint idx = si_coreidx(oi->sih);
 	chipcregs_t *cc = si_setcoreidx(oi->sih, SI_CC_IDX);
-	uint16 readBit = (uint16) oi->fn->read_bit(oh, cc, offset);
+	u16 readBit = (u16) oi->fn->read_bit(oh, cc, offset);
 	si_setcoreidx(oi->sih, idx);
 	return readBit;
 }
@@ -928,7 +928,7 @@ void *BCMNMIATTACHFN(otp_init) (si_t *sih)
 }
 
 int
-BCMNMIATTACHFN(otp_read_region) (si_t *sih, int region, uint16 *data,
+BCMNMIATTACHFN(otp_read_region) (si_t *sih, int region, u16 *data,
 				 uint *wlen) {
 	bool wasup = FALSE;
 	void *oh;

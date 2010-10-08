@@ -180,10 +180,10 @@ struct wl_dev {
 
 /* bss inform structure for cfg80211 interface */
 struct wl_cfg80211_bss_info {
-	uint16 band;
-	uint16 channel;
+	u16 band;
+	u16 channel;
 	int16 rssi;
-	uint16 frame_len;
+	u16 frame_len;
 	u8 frame_buf[1];
 };
 
@@ -194,7 +194,7 @@ struct wl_scan_req {
 
 /* basic structure of information element */
 struct wl_ie {
-	uint16 offset;
+	u16 offset;
 	u8 buf[WL_TLV_INFO_MAX];
 };
 

@@ -390,7 +390,7 @@ uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 		switch (size) {
 		case sizeof(u8):
 			return word & 0xff;
-		case sizeof(uint16):
+		case sizeof(u16):
 			return word & 0xffff;
 		case sizeof(uint32):
 			return word;

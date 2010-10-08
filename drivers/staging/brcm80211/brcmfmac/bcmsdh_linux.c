@@ -81,7 +81,7 @@ static bcmsdh_driver_t drvinfo = { NULL, NULL };
 /**
  * Checks to see if vendor and device IDs match a supported SDIO Host Controller.
  */
-bool bcmsdh_chipmatch(uint16 vendor, uint16 device)
+bool bcmsdh_chipmatch(u16 vendor, u16 device)
 {
 	/* Add other vendors and devices as required */
 

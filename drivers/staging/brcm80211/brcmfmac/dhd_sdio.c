@@ -182,7 +182,7 @@ typedef struct dhd_bus {
 	bool dpc_sched;		/* Indicates DPC schedule (intrpt rcvd) */
 	bool fcstate;		/* State of dongle flow-control */
 
-	uint16 cl_devid;	/* cached devid for dhdsdio_probe_attach() */
+	u16 cl_devid;	/* cached devid for dhdsdio_probe_attach() */
 	char *fw_path;		/* module_param: path to firmware image */
 	char *nv_path;		/* module_param: path to nvram vars file */
 	const char *nvram_params;	/* user specified nvram params. */
@@ -197,7 +197,7 @@ typedef struct dhd_bus {
 
 	u8 hdrbuf[MAX_HDR_READ + DHD_SDALIGN];
 	u8 *rxhdr;		/* Header of current rx frame (in hdrbuf) */
-	uint16 nextlen;		/* Next Read Len from last header */
+	u16 nextlen;		/* Next Read Len from last header */
 	u8 rx_seq;		/* Receive sequence number (expected) */
 	bool rxskip;		/* Skip receive (awaiting NAK ACK) */
 
@@ -271,7 +271,7 @@ typedef struct dhd_bus {
 	uint pktgen_sent;	/* Number of test packets generated */
 	uint pktgen_rcvd;	/* Number of test packets received */
 	uint pktgen_fail;	/* Number of failed send attempts */
-	uint16 pktgen_len;	/* Length of next packet to send */
+	u16 pktgen_len;	/* Length of next packet to send */
 #endif				/* SDTEST */
 
 	/* Some additional counters */
@@ -432,9 +432,9 @@ static int dhdsdio_download_state(dhd_bus_t *bus, bool enter);
 static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh);
 static void dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh);
 static void dhdsdio_disconnect(void *ptr);
-static bool dhdsdio_chipmatch(uint16 chipid);
+static bool dhdsdio_chipmatch(u16 chipid);
 static bool dhdsdio_probe_attach(dhd_bus_t *bus, osl_t *osh, void *sdh,
-				 void *regsva, uint16 devid);
+				 void *regsva, u16 devid);
 static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh);
 static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh);
 static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t * osh);
@@ -904,7 +904,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	int ret;
 	osl_t *osh;
 	u8 *frame;
-	uint16 len, pad = 0;
+	u16 len, pad = 0;
 	uint32 swheader;
 	uint retries = 0;
 	bcmsdh_info_t *sdh;
@@ -960,9 +960,9 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	ASSERT(pad < DHD_SDALIGN);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
-	len = (uint16) PKTLEN(pkt);
-	*(uint16 *) frame = htol16(len);
-	*(((uint16 *) frame) + 1) = htol16(~len);
+	len = (u16) PKTLEN(pkt);
+	*(u16 *) frame = htol16(len);
+	*(((u16 *) frame) + 1) = htol16(~len);
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader =
@@ -985,7 +985,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 
 	/* Raise len to next SDIO block to eliminate tail command */
 	if (bus->roundup && bus->blocksize && (len > bus->blocksize)) {
-		uint16 pad = bus->blocksize - (len % bus->blocksize);
+		u16 pad = bus->blocksize - (len % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize))
 #ifdef NOTUSED
 			if (pad <= PKTTAILROOM(pkt))
@@ -1222,7 +1222,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 {
 	u8 *frame;
-	uint16 len;
+	u16 len;
 	uint32 swheader;
 	uint retries = 0;
 	bcmsdh_info_t *sdh = bus->sdh;
@@ -1254,7 +1254,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	/* Round send length to next SDIO block */
 	if (bus->roundup && bus->blocksize && (len > bus->blocksize)) {
-		uint16 pad = bus->blocksize - (len % bus->blocksize);
+		u16 pad = bus->blocksize - (len % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize))
 			len += pad;
 	} else if (len % DHD_SDALIGN) {
@@ -1276,8 +1276,8 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
-	*(uint16 *) frame = htol16((uint16) msglen);
-	*(((uint16 *) frame) + 1) = htol16(~msglen);
+	*(u16 *) frame = htol16((u16) msglen);
+	*(((u16 *) frame) + 1) = htol16(~msglen);
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader =
@@ -3009,7 +3009,7 @@ static void dhdsdio_rxfail(dhd_bus_t *bus, bool abort, bool rtx)
 	bcmsdh_info_t *sdh = bus->sdh;
 	sdpcmd_regs_t *regs = bus->regs;
 	uint retries = 0;
-	uint16 lastrbc;
+	u16 lastrbc;
 	u8 hi, lo;
 	int err;
 
@@ -3173,10 +3173,10 @@ done:
 
 static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 {
-	uint16 dlen, totlen;
+	u16 dlen, totlen;
 	u8 *dptr, num = 0;
 
-	uint16 sublen, check;
+	u16 sublen, check;
 	void *pfirst, *plast, *pnext, *save_pfirst;
 	osl_t *osh = bus->dhd->osh;
 
@@ -3198,7 +3198,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		dhd_os_sdlock_rxq(bus->dhd);
 
 		pfirst = plast = pnext = NULL;
-		dlen = (uint16) PKTLEN(bus->glomd);
+		dlen = (u16) PKTLEN(bus->glomd);
 		dptr = PKTDATA(bus->glomd);
 		if (!dlen || (dlen & 1)) {
 			DHD_ERROR(("%s: bad glomd len(%d), ignore descriptor\n",
@@ -3209,8 +3209,8 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		for (totlen = num = 0; dlen; num++) {
 			/* Get (and move past) next length */
 			sublen = ltoh16_ua(dptr);
-			dlen -= sizeof(uint16);
-			dptr += sizeof(uint16);
+			dlen -= sizeof(u16);
+			dptr += sizeof(u16);
 			if ((sublen < SDPCM_HDRLEN) ||
 			    ((num == 0) && (sublen < (2 * SDPCM_HDRLEN)))) {
 				DHD_ERROR(("%s: descriptor len %d bad: %d\n",
@@ -3297,7 +3297,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		}
 
 		pfirst = bus->glom;
-		dlen = (uint16) pkttotlen(osh, pfirst);
+		dlen = (u16) pkttotlen(osh, pfirst);
 
 		/* Do an SDIO read for the superframe.  Configurable iovar to
 		 * read directly into the chained packet, or allocate a large
@@ -3317,7 +3317,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 						      F2SYNC, bus->dataptr,
 						      dlen, NULL, NULL, NULL);
 			sublen =
-			    (uint16) pktfrombuf(osh, pfirst, 0, dlen,
+			    (u16) pktfrombuf(osh, pfirst, 0, dlen,
 						bus->dataptr);
 			if (sublen != dlen) {
 				DHD_ERROR(("%s: FAILED TO COPY, dlen %d sublen %d\n",
@@ -3362,7 +3362,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		/* Validate the superframe header */
 		dptr = (u8 *) PKTDATA(pfirst);
 		sublen = ltoh16_ua(dptr);
-		check = ltoh16_ua(dptr + sizeof(uint16));
+		check = ltoh16_ua(dptr + sizeof(u16));
 
 		chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 		seq = SDPCM_PACKET_SEQUENCE(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -3376,7 +3376,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		txmax = SDPCM_WINDOW_VALUE(&dptr[SDPCM_FRAMETAG_LEN]);
 
 		errcode = 0;
-		if ((uint16)~(sublen ^ check)) {
+		if ((u16)~(sublen ^ check)) {
 			DHD_ERROR(("%s (superframe): HW hdr error: len/check "
 				"0x%04x/0x%04x\n", __func__, sublen, check));
 			errcode = -1;
@@ -3430,9 +3430,9 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		for (num = 0, pnext = pfirst; pnext && !errcode;
 		     num++, pnext = PKTNEXT(pnext)) {
 			dptr = (u8 *) PKTDATA(pnext);
-			dlen = (uint16) PKTLEN(pnext);
+			dlen = (u16) PKTLEN(pnext);
 			sublen = ltoh16_ua(dptr);
-			check = ltoh16_ua(dptr + sizeof(uint16));
+			check = ltoh16_ua(dptr + sizeof(u16));
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 			doff = SDPCM_DOFFSET_VALUE(&dptr[SDPCM_FRAMETAG_LEN]);
 #ifdef DHD_DEBUG
@@ -3440,7 +3440,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				prhex("subframe", dptr, 32);
 #endif
 
-			if ((uint16)~(sublen ^ check)) {
+			if ((u16)~(sublen ^ check)) {
 				DHD_ERROR(("%s (subframe %d): HW hdr error: "
 					   "len/check 0x%04x/0x%04x\n",
 					   __func__, num, sublen, check));
@@ -3582,14 +3582,14 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 	osl_t *osh = bus->dhd->osh;
 	bcmsdh_info_t *sdh = bus->sdh;
 
-	uint16 len, check;	/* Extracted hardware header fields */
+	u16 len, check;	/* Extracted hardware header fields */
 	u8 chan, seq, doff;	/* Extracted software header fields */
 	u8 fcbits;		/* Extracted fcbits from software header */
 	u8 delta;
 
 	void *pkt;		/* Packet for event or data frames */
-	uint16 pad;		/* Number of pad bytes to read */
-	uint16 rdlen;		/* Total number of bytes to read */
+	u16 pad;		/* Number of pad bytes to read */
+	u16 rdlen;		/* Total number of bytes to read */
 	u8 rxseq;		/* Next sequence number to expect */
 	uint rxleft = 0;	/* Remaining number of frames allowed */
 	int sdret;		/* Return code from bcmsdh calls */
@@ -3637,7 +3637,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 		/* Try doing single read if we can */
 		if (dhd_readahead && bus->nextlen) {
-			uint16 nextlen = bus->nextlen;
+			u16 nextlen = bus->nextlen;
 			bus->nextlen = 0;
 
 			if (bus->bus == SPI_BUS) {
@@ -3768,7 +3768,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 			/* Extract hardware header fields */
 			len = ltoh16_ua(bus->rxhdr);
-			check = ltoh16_ua(bus->rxhdr + sizeof(uint16));
+			check = ltoh16_ua(bus->rxhdr + sizeof(u16));
 
 			/* All zeros means readahead info was bad */
 			if (!(len | check)) {
@@ -3782,7 +3782,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			}
 
 			/* Validate check bytes */
-			if ((uint16)~(len ^ check)) {
+			if ((u16)~(len ^ check)) {
 				DHD_ERROR(("%s (nextlen): HW hdr error: nextlen/len/check" " 0x%04x/0x%04x/0x%04x\n",
 					__func__, nextlen, len, check));
 				dhd_os_sdlock_rxq(bus->dhd);
@@ -3960,7 +3960,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 		/* Extract hardware header fields */
 		len = ltoh16_ua(bus->rxhdr);
-		check = ltoh16_ua(bus->rxhdr + sizeof(uint16));
+		check = ltoh16_ua(bus->rxhdr + sizeof(u16));
 
 		/* All zeros means no more frames */
 		if (!(len | check)) {
@@ -3969,7 +3969,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		/* Validate check bytes */
-		if ((uint16) ~(len ^ check)) {
+		if ((u16) ~(len ^ check)) {
 			DHD_ERROR(("%s: HW hdr err: len/check 0x%04x/0x%04x\n",
 				__func__, len, check));
 			bus->rx_badhdr++;
@@ -4611,7 +4611,7 @@ static void dhdsdio_pktgen_init(dhd_bus_t *bus)
 		bus->pktgen_maxlen = MAX_PKTGEN_LEN;
 		bus->pktgen_minlen = 0;
 	}
-	bus->pktgen_len = (uint16) bus->pktgen_minlen;
+	bus->pktgen_len = (u16) bus->pktgen_minlen;
 
 	/* Default to per-watchdog burst with 10s print time */
 	bus->pktgen_freq = 1;
@@ -4630,7 +4630,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 	uint pktcount;
 	uint fillbyte;
 	osl_t *osh = bus->dhd->osh;
-	uint16 len;
+	u16 len;
 
 	/* Display current count if appropriate */
 	if (bus->pktgen_print && (++bus->pktgen_ptick >= bus->pktgen_print)) {
@@ -4722,7 +4722,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 
 		/* Bump length if not fixed, wrap at max */
 		if (++bus->pktgen_len > bus->pktgen_maxlen)
-			bus->pktgen_len = (uint16) bus->pktgen_minlen;
+			bus->pktgen_len = (u16) bus->pktgen_minlen;
 
 		/* Special case for burst mode: just send one request! */
 		if (bus->pktgen_mode == DHD_PKTGEN_RXBURST)
@@ -4765,8 +4765,8 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq)
 
 	u8 cmd;
 	u8 extra;
-	uint16 len;
-	uint16 offset;
+	u16 len;
+	u16 offset;
 
 	/* Check for min length */
 	pktlen = PKTLEN(pkt);
@@ -5047,7 +5047,7 @@ static void dhd_dump_cis(uint fn, u8 *cis)
 }
 #endif				/* DHD_DEBUG */
 
-static bool dhdsdio_chipmatch(uint16 chipid)
+static bool dhdsdio_chipmatch(u16 chipid)
 {
 	if (chipid == BCM4325_CHIP_ID)
 		return TRUE;
@@ -5058,8 +5058,8 @@ static bool dhdsdio_chipmatch(uint16 chipid)
 	return FALSE;
 }
 
-static void *dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no,
-			   uint16 slot, uint16 func, uint bustype, void *regsva,
+static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
+			   u16 slot, u16 func, uint bustype, void *regsva,
 			   osl_t *osh, void *sdh)
 {
 	int ret;
@@ -5154,7 +5154,7 @@ static void *dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no,
 	}
 	bzero(bus, sizeof(dhd_bus_t));
 	bus->sdh = sdh;
-	bus->cl_devid = (uint16) devid;
+	bus->cl_devid = (u16) devid;
 	bus->bus = DHD_BUS;
 	bus->tx_seq = SDPCM_SEQUENCE_WRAP - 1;
 	bus->usebufpool = FALSE;	/* Use bufpool if allocated,
@@ -5221,7 +5221,7 @@ fail:
 
 static bool
 dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
-		     uint16 devid)
+		     u16 devid)
 {
 	u8 clkctl = 0;
 	int err = 0;
@@ -5315,7 +5315,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 
 	bcmsdh_chipinfo(sdh, bus->sih->chip, bus->sih->chiprev);
 
-	if (!dhdsdio_chipmatch((uint16) bus->sih->chip)) {
+	if (!dhdsdio_chipmatch((u16) bus->sih->chip)) {
 		DHD_ERROR(("%s: unsupported chip: 0x%04x\n",
 			   __func__, bus->sih->chip));
 		goto fail;

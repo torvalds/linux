@@ -1249,7 +1249,7 @@ void dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 	uint ifidx;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);
 	struct ether_header *eh;
-	uint16 type;
+	u16 type;
 
 	dhd_prot_hdrpull(dhdp, &ifidx, txp);
 

@@ -92,26 +92,26 @@ extern "C" {
 	typedef struct pktq_prec {
 		void *head;	/* first packet to dequeue */
 		void *tail;	/* last packet to dequeue */
-		uint16 len;	/* number of queued packets */
-		uint16 max;	/* maximum number of queued packets */
+		u16 len;	/* number of queued packets */
+		u16 max;	/* maximum number of queued packets */
 	} pktq_prec_t;
 
 /* multi-priority pkt queue */
 	struct pktq {
-		uint16 num_prec;	/* number of precedences in use */
-		uint16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
-		uint16 max;	/* total max packets */
-		uint16 len;	/* total number of packets */
+		u16 num_prec;	/* number of precedences in use */
+		u16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
+		u16 max;	/* total max packets */
+		u16 len;	/* total number of packets */
 		/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 		struct pktq_prec q[PKTQ_MAX_PREC];
 	};
 
 /* simple, non-priority pkt queue */
 	struct spktq {
-		uint16 num_prec;	/* number of precedences in use (always 1) */
-		uint16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
-		uint16 max;	/* total max packets */
-		uint16 len;	/* total number of packets */
+		u16 num_prec;	/* number of precedences in use (always 1) */
+		u16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
+		u16 max;	/* total max packets */
+		u16 len;	/* total number of packets */
 		/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 		struct pktq_prec q[1];
 	};
@@ -273,10 +273,10 @@ extern "C" {
 /* iovar structure */
 	typedef struct bcm_iovar {
 		const char *name;	/* name for lookup and display */
-		uint16 varid;	/* id for switch */
-		uint16 flags;	/* driver-specific flag bits */
-		uint16 type;	/* base type of argument */
-		uint16 minlen;	/* min length for buffer vars */
+		u16 varid;	/* id for switch */
+		u16 flags;	/* driver-specific flag bits */
+		u16 type;	/* base type of argument */
+		u16 minlen;	/* min length for buffer vars */
 	} bcm_iovar_t;
 
 /* varid definitions are per-driver, may use these get/set bits */
@@ -325,7 +325,7 @@ extern "C" {
 	"s8", \
 	"u8", \
 	"int16", \
-	"uint16", \
+	"u16", \
 	"int32", \
 	"uint32", \
 	"buffer", \
@@ -569,7 +569,7 @@ extern "C" {
 /* externs */
 /* crc */
 	extern u8 BCMROMFN(hndcrc8) (u8 *p, uint nbytes, u8 crc);
-	extern uint16 BCMROMFN(hndcrc16) (u8 *p, uint nbytes, uint16 crc);
+	extern u16 BCMROMFN(hndcrc16) (u8 *p, uint nbytes, u16 crc);
 /* format/print */
 #if defined(BCMDBG)
 	extern int bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags,
@@ -612,8 +612,8 @@ extern "C" {
 
 #ifdef BRCM_FULLMAC
 /* power conversion */
-	extern uint16 BCMROMFN(bcm_qdbm_to_mw) (u8 qdbm);
-	extern u8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw);
+	extern u16 BCMROMFN(bcm_qdbm_to_mw) (u8 qdbm);
+	extern u8 BCMROMFN(bcm_mw_to_qdbm) (u16 mw);
 #endif
 
 /* generic datastruct to help dump routines */

@@ -44,8 +44,8 @@ extern void wlc_assign_event_msg(wlc_info_t *wlc, wl_event_msg_t *msg,
 
 #ifdef MSGTRACE
 extern void wlc_event_sendup_trace(struct wlc_info *wlc, hndrte_dev_t *bus,
-				   u8 *hdr, uint16 hdrlen, u8 *buf,
-				   uint16 buflen);
+				   u8 *hdr, u16 hdrlen, u8 *buf,
+				   u16 buflen);
 #endif
 
 #endif				/* _WLC_EVENT_H_ */

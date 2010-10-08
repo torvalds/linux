@@ -59,8 +59,8 @@ typedef void *(*di_getnexttxp_t) (hnddma_t *dmah, txd_range_t range);
 typedef void *(*di_getnextrxp_t) (hnddma_t *dmah, bool forceall);
 typedef void *(*di_peeknexttxp_t) (hnddma_t *dmah);
 typedef void *(*di_peeknextrxp_t) (hnddma_t *dmah);
-typedef void (*di_rxparam_get_t) (hnddma_t *dmah, uint16 *rxoffset,
-				  uint16 *rxbufsize);
+typedef void (*di_rxparam_get_t) (hnddma_t *dmah, u16 *rxoffset,
+				  u16 *rxbufsize);
 typedef void (*di_txblock_t) (hnddma_t *dmah);
 typedef void (*di_txunblock_t) (hnddma_t *dmah);
 typedef uint(*di_txactive_t) (hnddma_t *dmah);

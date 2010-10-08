@@ -307,9 +307,9 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 	bzero(pq,
 	      OFFSETOF(struct pktq, q) + (sizeof(struct pktq_prec) * num_prec));
 
-	pq->num_prec = (uint16) num_prec;
+	pq->num_prec = (u16) num_prec;
 
-	pq->max = (uint16) max_len;
+	pq->max = (u16) max_len;
 
 	for (prec = 0; prec < num_prec; prec++)
 		pq->q[prec].max = pq->max;
@@ -883,12 +883,12 @@ uint pktsetprio(void *pkt, bool update_vtag)
 	int rc = 0;
 
 	pktdata = (u8 *) PKTDATA(pkt);
-	ASSERT(ISALIGNED((uintptr) pktdata, sizeof(uint16)));
+	ASSERT(ISALIGNED((uintptr) pktdata, sizeof(u16)));
 
 	eh = (struct ether_header *)pktdata;
 
 	if (ntoh16(eh->ether_type) == ETHER_TYPE_8021Q) {
-		uint16 vlan_tag;
+		u16 vlan_tag;
 		int vlan_prio, dscp_prio = 0;
 
 		evh = (struct ethervlan_header *)eh;
@@ -920,7 +920,7 @@ uint pktsetprio(void *pkt, bool update_vtag)
 		 */
 		if (update_vtag && (priority != vlan_prio)) {
 			vlan_tag &= ~(VLAN_PRI_MASK << VLAN_PRI_SHIFT);
-			vlan_tag |= (uint16) priority << VLAN_PRI_SHIFT;
+			vlan_tag |= (u16) priority << VLAN_PRI_SHIFT;
 			evh->vlan_tag = hton16(vlan_tag);
 			rc |= PKTPRIO_UPD;
 		}
@@ -1124,7 +1124,7 @@ u8 hndcrc8(u8 *pdata,	/* pointer to array of data to process */
  * ****************************************************************************
  */
 
-static const uint16 crc16_table[256] = {
+static const u16 crc16_table[256] = {
 	0x0000, 0x1189, 0x2312, 0x329B, 0x4624, 0x57AD, 0x6536, 0x74BF,
 	0x8C48, 0x9DC1, 0xAF5A, 0xBED3, 0xCA6C, 0xDBE5, 0xE97E, 0xF8F7,
 	0x1081, 0x0108, 0x3393, 0x221A, 0x56A5, 0x472C, 0x75B7, 0x643E,
@@ -1159,9 +1159,9 @@ static const uint16 crc16_table[256] = {
 	0x7BC7, 0x6A4E, 0x58D5, 0x495C, 0x3DE3, 0x2C6A, 0x1EF1, 0x0F78
 };
 
-uint16 hndcrc16(u8 *pdata,	/* pointer to array of data to process */
+u16 hndcrc16(u8 *pdata,	/* pointer to array of data to process */
 		uint nbytes,	/* number of input data bytes to process */
-		uint16 crc	/* either CRC16_INIT_VALUE or previous
+		u16 crc	/* either CRC16_INIT_VALUE or previous
 				 return value */
 )
 {
@@ -1586,7 +1586,7 @@ uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 /* Quarter dBm units to mW
  * Table starts at QDBM_OFFSET, so the first entry is mW for qdBm=153
  * Table is offset so the last entry is largest mW value that fits in
- * a uint16.
+ * a u16.
  */
 
 #define QDBM_OFFSET 153		/* Offset for first entry */
@@ -1604,7 +1604,7 @@ uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
  */
 #define QDBM_TABLE_HIGH_BOUND 64938	/* High bound */
 
-static const uint16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
+static const u16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
 /* qdBm: 	+0 	+1 	+2 	+3 	+4 	+5 	+6 	+7 */
 /* 153: */ 6683, 7079, 7499, 7943, 8414, 8913, 9441, 10000,
 /* 161: */ 10593, 11220, 11885, 12589, 13335, 14125, 14962, 15849,
@@ -1613,13 +1613,13 @@ static const uint16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
 /* 185: */ 42170, 44668, 47315, 50119, 53088, 56234, 59566, 63096
 };
 
-uint16 bcm_qdbm_to_mw(u8 qdbm)
+u16 bcm_qdbm_to_mw(u8 qdbm)
 {
 	uint factor = 1;
 	int idx = qdbm - QDBM_OFFSET;
 
 	if (idx >= QDBM_TABLE_LEN) {
-		/* clamp to max uint16 mW value */
+		/* clamp to max u16 mW value */
 		return 0xFFFF;
 	}
 
@@ -1637,7 +1637,7 @@ uint16 bcm_qdbm_to_mw(u8 qdbm)
 	return (nqdBm_to_mW_map[idx] + factor / 2) / factor;
 }
 
-u8 bcm_mw_to_qdbm(uint16 mw)
+u8 bcm_mw_to_qdbm(u16 mw)
 {
 	u8 qdbm;
 	int offset;

@@ -81,7 +81,7 @@ struct wlc_bsscfg;
 
 typedef struct wsec_iv {
 	uint32 hi;		/* upper 32 bits of IV */
-	uint16 lo;		/* lower 16 bits of IV */
+	u16 lo;		/* lower 16 bits of IV */
 } wsec_iv_t;
 
 #define WLC_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
@@ -92,7 +92,7 @@ typedef struct wsec_key {
 	u8 id;		/* key ID [0-3] */
 	u8 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
 	u8 rcmta;		/* rcmta entry index, same as idx by default */
-	uint16 flags;		/* misc flags */
+	u16 flags;		/* misc flags */
 	u8 algo_hw;		/* cache for hw register */
 	u8 aes_mode;		/* cache for hw register */
 	s8 iv_len;		/* IV length */

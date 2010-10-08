@@ -479,7 +479,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	case IOV_SVAL(IOV_BLOCKSIZE):
 		{
 			uint func = ((uint32) int_val >> 16);
-			uint blksize = (uint16) int_val;
+			uint blksize = (u16) int_val;
 			uint maxsize;
 
 			if (func > si->num_funcs) {

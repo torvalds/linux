@@ -166,25 +166,25 @@ typedef struct wlc_event {
 /* wlc internal bss_info, wl external one is in wlioctl.h */
 typedef struct wlc_bss_info {
 	struct ether_addr BSSID;	/* network BSSID */
-	uint16 flags;		/* flags for internal attributes */
+	u16 flags;		/* flags for internal attributes */
 	u8 SSID_len;		/* the length of SSID */
 	u8 SSID[32];		/* SSID string */
 	int16 RSSI;		/* receive signal strength (in dBm) */
 	int16 SNR;		/* receive signal SNR in dB */
-	uint16 beacon_period;	/* units are Kusec */
-	uint16 atim_window;	/* units are Kusec */
+	u16 beacon_period;	/* units are Kusec */
+	u16 atim_window;	/* units are Kusec */
 	chanspec_t chanspec;	/* Channel num, bw, ctrl_sb and band */
 	s8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
 	wlc_rateset_t rateset;	/* supported rates */
 	u8 dtim_period;	/* DTIM period */
 	s8 phy_noise;		/* noise right after tx (in dBm) */
-	uint16 capability;	/* Capability information */
+	u16 capability;	/* Capability information */
 	struct dot11_bcn_prb *bcn_prb;	/* beacon/probe response frame (ioctl na) */
-	uint16 bcn_prb_len;	/* beacon/probe response frame length (ioctl na) */
+	u16 bcn_prb_len;	/* beacon/probe response frame length (ioctl na) */
 	u8 wme_qosinfo;	/* QoS Info from WME IE; valid if WLC_BSS_WME flag set */
 	struct rsn_parms wpa;
 	struct rsn_parms wpa2;
-	uint16 qbss_load_aac;	/* qbss load available admission capacity */
+	u16 qbss_load_aac;	/* qbss load available admission capacity */
 	/* qbss_load_chan_free <- (0xff - channel_utilization of qbss_load_ie_t) */
 	u8 qbss_load_chan_free;	/* indicates how free the channel is */
 	u8 mcipher;		/* multicast cipher */
@@ -299,7 +299,7 @@ typedef struct wlc_pub {
 	uint32 wlfeatureflag;	/* Flags to control sw features from registry */
 	int psq_pkts_total;	/* total num of ps pkts */
 
-	uint16 txmaxpkts;	/* max number of large pkts allowed to be pending */
+	u16 txmaxpkts;	/* max number of large pkts allowed to be pending */
 
 	/* s/w decryption counters */
 	uint32 swdecrypt;	/* s/w decrypt attempts */
@@ -308,7 +308,7 @@ typedef struct wlc_pub {
 
 	mbool radio_disabled;	/* bit vector for radio disabled reasons */
 	bool radio_active;	/* radio on/off state */
-	uint16 roam_time_thresh;	/* Max. # secs. of not hearing beacons
+	u16 roam_time_thresh;	/* Max. # secs. of not hearing beacons
 					 * before roaming.
 					 */
 	bool align_wd_tbtt;	/* Align watchdog with tbtt indication
@@ -322,7 +322,7 @@ typedef struct wlc_pub {
 	uint sdiod_drive_strength;	/* SDIO drive strength */
 #endif				/* BCMSDIO */
 
-	uint16 boardrev;	/* version # of particular board */
+	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */
 	char srom_ccode[WLC_CNTRY_BUF_SZ];	/* Country Code in SROM */
 	uint32 boardflags;	/* Board specific flags from srom */
@@ -496,7 +496,7 @@ extern const u8 wme_fifo2ac[];
 #define WLCNTVAL(a)		0	/* No stats support */
 
 /* common functions for every port */
-extern void *wlc_attach(void *wl, uint16 vendor, uint16 device, uint unit,
+extern void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit,
 			bool piomode, osl_t *osh, void *regsva, uint bustype,
 			void *btparam, uint *perr);
 extern uint wlc_detach(struct wlc_info *wlc);
@@ -507,7 +507,7 @@ extern int wlc_set(struct wlc_info *wlc, int cmd, int arg);
 extern int wlc_get(struct wlc_info *wlc, int cmd, int *arg);
 extern int wlc_iovar_getint(struct wlc_info *wlc, const char *name, int *arg);
 extern int wlc_iovar_setint(struct wlc_info *wlc, const char *name, int arg);
-extern bool wlc_chipmatch(uint16 vendor, uint16 device);
+extern bool wlc_chipmatch(u16 vendor, u16 device);
 extern void wlc_init(struct wlc_info *wlc);
 extern void wlc_reset(struct wlc_info *wlc);
 
@@ -539,9 +539,9 @@ extern int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw);
 extern uint32 wlc_reg_read(struct wlc_info *wlc, void *r, uint size);
 extern void wlc_reg_write(struct wlc_info *wlc, void *r, uint32 v, uint size);
 extern void wlc_corereset(struct wlc_info *wlc, uint32 flags);
-extern void wlc_mhf(struct wlc_info *wlc, u8 idx, uint16 mask, uint16 val,
+extern void wlc_mhf(struct wlc_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
-extern uint16 wlc_mhf_get(struct wlc_info *wlc, u8 idx, int bands);
+extern u16 wlc_mhf_get(struct wlc_info *wlc, u8 idx, int bands);
 extern uint32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
 extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset);
 extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
@@ -565,7 +565,7 @@ extern void wlc_event_if(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
 			 wlc_event_t *e, const struct ether_addr *addr);
 extern void wlc_suspend_mac_and_wait(struct wlc_info *wlc);
 extern void wlc_enable_mac(struct wlc_info *wlc);
-extern uint16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
+extern u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
 extern uint32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
 extern uint32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
 

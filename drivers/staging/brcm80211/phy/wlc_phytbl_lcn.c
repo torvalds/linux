@@ -217,7 +217,7 @@ const uint32 dot11lcn_gain_tbl_rev1[] = {
 	0x00000000,
 };
 
-const uint16 dot11lcn_aux_gain_idx_tbl_rev0[] = {
+const u16 dot11lcn_aux_gain_idx_tbl_rev0[] = {
 	0x0401,
 	0x0402,
 	0x0403,
@@ -409,7 +409,7 @@ const uint32 dot11lcn_gain_idx_tbl_rev0[] = {
 	0x0000001c,
 };
 
-const uint16 dot11lcn_aux_gain_idx_tbl_2G[] = {
+const u16 dot11lcn_aux_gain_idx_tbl_2G[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -874,7 +874,7 @@ const uint32 dot11lcn_gain_tbl_extlna_2G[] = {
 	0x00000000
 };
 
-const uint16 dot11lcn_aux_gain_idx_tbl_extlna_2G[] = {
+const u16 dot11lcn_aux_gain_idx_tbl_extlna_2G[] = {
 	0x0400,
 	0x0400,
 	0x0400,
@@ -1625,7 +1625,7 @@ const uint32 dot11lcnphytbl_rx_gain_info_5G_rev2_sz =
     sizeof(dot11lcnphytbl_rx_gain_info_5G_rev2) /
     sizeof(dot11lcnphytbl_rx_gain_info_5G_rev2[0]);
 
-const uint16 dot11lcn_min_sig_sq_tbl_rev0[] = {
+const u16 dot11lcn_min_sig_sq_tbl_rev0[] = {
 	0x014d,
 	0x014d,
 	0x014d,
@@ -1692,7 +1692,7 @@ const uint16 dot11lcn_min_sig_sq_tbl_rev0[] = {
 	0x014d,
 };
 
-const uint16 dot11lcn_noise_scale_tbl_rev0[] = {
+const u16 dot11lcn_noise_scale_tbl_rev0[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -1795,7 +1795,7 @@ const uint32 dot11lcn_ps_ctrl_tbl_rev0[] = {
 	0x00600f22,
 };
 
-const uint16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0_combo[] = {
+const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0_combo[] = {
 	0x0007,
 	0x0005,
 	0x0006,
@@ -1863,7 +1863,7 @@ const uint16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0_combo[] = {
 
 };
 
-const uint16 dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[] = {
+const u16 dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[] = {
 	0x0007,
 	0x0005,
 	0x0002,
@@ -1930,7 +1930,7 @@ const uint16 dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[] = {
 	0x0002,
 };
 
-const uint16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0[] = {
+const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0[] = {
 	0x0002,
 	0x0008,
 	0x0004,
@@ -1997,7 +1997,7 @@ const uint16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0[] = {
 	0x0001,
 };
 
-const uint16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
+const u16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
 	0x000a,
 	0x0009,
 	0x0006,
@@ -2064,7 +2064,7 @@ const uint16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
 	0x0005,
 };
 
-const uint16 dot11lcn_sw_ctrl_tbl_rev0[] = {
+const u16 dot11lcn_sw_ctrl_tbl_rev0[] = {
 	0x0004,
 	0x0004,
 	0x0002,
@@ -2344,7 +2344,7 @@ const u8 dot11lcn_spur_tbl_rev0[] = {
 	0x01,
 };
 
-const uint16 dot11lcn_unsup_mcs_tbl_rev0[] = {
+const u16 dot11lcn_unsup_mcs_tbl_rev0[] = {
 	0x001a,
 	0x0034,
 	0x004e,
@@ -2501,7 +2501,7 @@ const uint16 dot11lcn_unsup_mcs_tbl_rev0[] = {
 	0x06f6,
 };
 
-const uint16 dot11lcn_iq_local_tbl_rev0[] = {
+const u16 dot11lcn_iq_local_tbl_rev0[] = {
 	0x0200,
 	0x0300,
 	0x0400,

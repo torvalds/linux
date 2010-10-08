@@ -25,10 +25,10 @@
 
 /* 2byte-wide pio register set per channel(xmt or rcv) */
 typedef volatile struct {
-	uint16 fifocontrol;
-	uint16 fifodata;
-	uint16 fifofree;	/* only valid in xmt channel, not in rcv channel */
-	uint16 PAD;
+	u16 fifocontrol;
+	u16 fifodata;
+	u16 fifofree;	/* only valid in xmt channel, not in rcv channel */
+	u16 PAD;
 } pio2regs_t;
 
 /* a pair of pio channels(tx and rx) */

@@ -49,8 +49,8 @@ int bcm_xdr_unpack_string(bcm_xdr_buf_t *b, uint *plen, char **pstr);
 
 int bcm_xdr_pack_u8_vec(bcm_xdr_buf_t *, u8 *vec, uint32 elems);
 int bcm_xdr_unpack_u8_vec(bcm_xdr_buf_t *, u8 *vec, uint32 elems);
-int bcm_xdr_pack_uint16_vec(bcm_xdr_buf_t *b, uint len, void *vec);
-int bcm_xdr_unpack_uint16_vec(bcm_xdr_buf_t *b, uint len, void *vec);
+int bcm_xdr_pack_u16_vec(bcm_xdr_buf_t *b, uint len, void *vec);
+int bcm_xdr_unpack_u16_vec(bcm_xdr_buf_t *b, uint len, void *vec);
 int bcm_xdr_pack_uint32_vec(bcm_xdr_buf_t *b, uint len, void *vec);
 int bcm_xdr_unpack_uint32_vec(bcm_xdr_buf_t *b, uint len, void *vec);
 

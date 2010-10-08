@@ -81,9 +81,9 @@ int32 qm_muls321616(int16 op1, int16 op2)
 Description: This function make 16 bit unsigned multiplication. To fit the output into
 16 bits the 32 bit multiplication result is right shifted by 16 bits.
 */
-uint16 qm_mulu16(uint16 op1, uint16 op2)
+u16 qm_mulu16(u16 op1, u16 op2)
 {
-	return (uint16) (((uint32) op1 * (uint32) op2) >> 16);
+	return (u16) (((uint32) op1 * (uint32) op2) >> 16);
 }
 
 /*
@@ -258,7 +258,7 @@ Example: qm_norm16(0x0080) = 7.
 */
 int16 qm_norm16(int16 op)
 {
-	uint16 u16extraSignBits;
+	u16 u16extraSignBits;
 	if (op == 0) {
 		return 15;
 	} else {
@@ -277,7 +277,7 @@ Example: qm_norm32(0x00000080) = 23
 */
 int16 qm_norm32(int32 op)
 {
-	uint16 u16extraSignBits;
+	u16 u16extraSignBits;
 	if (op == 0) {
 		return 31;
 	} else {
@@ -407,7 +407,7 @@ into 32 bit output.
 int32 qm_mul323216(int32 op1, int16 op2)
 {
 	int16 hi;
-	uint16 lo;
+	u16 lo;
 	int32 result;
 	hi = op1 >> 16;
 	lo = (int16) (op1 & 0xffff);
@@ -420,7 +420,7 @@ int32 qm_mul323216(int32 op1, int16 op2)
 Description: This function multiply signed 16 bit number with unsigned 16 bit number and return
 the result in 32 bits.
 */
-int32 qm_mulsu321616(int16 op1, uint16 op2)
+int32 qm_mulsu321616(int16 op1, u16 op2)
 {
 	return (int32) (op1) * op2;
 }
@@ -434,7 +434,7 @@ When the input numbers are 0x80000000, 0x8000 the return value is saturated to 0
 int32 qm_muls323216(int32 op1, int16 op2)
 {
 	int16 hi;
-	uint16 lo;
+	u16 lo;
 	int32 result;
 	hi = op1 >> 16;
 	lo = (int16) (op1 & 0xffff);
@@ -451,12 +451,12 @@ multiplication result is returned as output.
 int32 qm_mul32(int32 a, int32 b)
 {
 	int16 hi1, hi2;
-	uint16 lo1, lo2;
+	u16 lo1, lo2;
 	int32 result;
 	hi1 = a >> 16;
 	hi2 = b >> 16;
-	lo1 = (uint16) (a & 0xffff);
-	lo2 = (uint16) (b & 0xffff);
+	lo1 = (u16) (a & 0xffff);
+	lo2 = (u16) (b & 0xffff);
 	result = qm_mul321616(hi1, hi2);
 	result = result + (qm_mulsu321616(hi1, lo2) >> 16);
 	result = result + (qm_mulsu321616(hi2, lo1) >> 16);
@@ -474,12 +474,12 @@ When the input numbers are 0x80000000, 0x80000000 the return value is saturated 
 int32 qm_muls32(int32 a, int32 b)
 {
 	int16 hi1, hi2;
-	uint16 lo1, lo2;
+	u16 lo1, lo2;
 	int32 result;
 	hi1 = a >> 16;
 	hi2 = b >> 16;
-	lo1 = (uint16) (a & 0xffff);
-	lo2 = (uint16) (b & 0xffff);
+	lo1 = (u16) (a & 0xffff);
+	lo2 = (u16) (b & 0xffff);
 	result = qm_muls321616(hi1, hi2);
 	result = qm_add32(result, (qm_mulsu321616(hi1, lo2) >> 15));
 	result = qm_add32(result, (qm_mulsu321616(hi2, lo1) >> 15));
@@ -548,7 +548,7 @@ For accurate results input should be in normalized or near normalized form.
 void qm_log10(int32 N, int16 qN, int16 *log10N, int16 *qLog10N)
 {
 	int16 s16norm, s16tableIndex, s16errorApproximation;
-	uint16 u16offset;
+	u16 u16offset;
 	int32 s32log;
 
 	/* Logerithm of negative values is undefined.
@@ -580,13 +580,13 @@ void qm_log10(int32 N, int16 qN, int16 *log10N, int16 *qLog10N)
 
 	/* take the offset as the 16 MSBS after table index.
 	 */
-	u16offset = (uint16) (N >> (32 - (2 + LOG2_LOG_TABLE_SIZE + 16)));
+	u16offset = (u16) (N >> (32 - (2 + LOG2_LOG_TABLE_SIZE + 16)));
 
 	/* look the log value in the table. */
 	s32log = log_table[s16tableIndex];	/* q.15 format */
 
 	/* interpolate using the offset. */
-	s16errorApproximation = (int16) qm_mulu16(u16offset, (uint16) (log_table[s16tableIndex + 1] - log_table[s16tableIndex]));	/* q.15 */
+	s16errorApproximation = (int16) qm_mulu16(u16offset, (u16) (log_table[s16tableIndex + 1] - log_table[s16tableIndex]));	/* q.15 */
 
 	s32log = qm_add16((int16) s32log, s16errorApproximation);	/* q.15 format */
 

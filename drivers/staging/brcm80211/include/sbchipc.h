@@ -220,7 +220,7 @@ typedef volatile struct {
 	uint32 pmustrapopt;	/* 0x668, corerev >= 28 */
 	uint32 pmu_xtalfreq;	/* 0x66C, pmurev >= 10 */
 	uint32 PAD[100];
-	uint16 sromotp[768];
+	u16 sromotp[768];
 } chipcregs_t;
 
 #endif				/* _LANGUAGE_ASSEMBLY */

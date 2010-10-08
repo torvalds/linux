@@ -308,8 +308,8 @@ typedef volatile struct {
 
 /* receive frame status */
 typedef volatile struct {
-	uint16 len;
-	uint16 flags;
+	u16 len;
+	u16 flags;
 } dma_rxh_t;
 
 #endif				/* _sbhnddma_h_ */

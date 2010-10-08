@@ -78,7 +78,7 @@ struct wlc_bsscfg {
 	int16 openshared;	/* try Open auth first, then Shared Key */
 	bool wsec_restrict;	/* drop unencrypted packets if wsec is enabled */
 	bool eap_restrict;	/* restrict data until 802.1X auth succeeds */
-	uint16 WPA_auth;	/* WPA: authenticated key management */
+	u16 WPA_auth;	/* WPA: authenticated key management */
 	bool wpa2_preauth;	/* default is TRUE, wpa_cap sets value */
 	bool wsec_portopen;	/* indicates keys are plumbed */
 	wsec_iv_t wpa_none_txiv;	/* global txiv for WPA_NONE, tkip and aes */
@@ -94,8 +94,8 @@ struct wlc_bsscfg {
 
 	struct ether_addr BSSID;	/* BSSID (associated) */
 	struct ether_addr cur_etheraddr;	/* h/w address */
-	uint16 bcmc_fid;	/* the last BCMC FID queued to TX_BCMC_FIFO */
-	uint16 bcmc_fid_shm;	/* the last BCMC FID written to shared mem */
+	u16 bcmc_fid;	/* the last BCMC FID queued to TX_BCMC_FIFO */
+	u16 bcmc_fid_shm;	/* the last BCMC FID written to shared mem */
 
 	uint32 flags;		/* WLC_BSSCFG flags; see below */
 
@@ -125,7 +125,7 @@ struct wlc_bsscfg {
 	wsec_key_t *rcmta;
 
 	/* 'unique' ID of this bsscfg, assigned at bsscfg allocation */
-	uint16 ID;
+	u16 ID;
 
 	uint txrspecidx;	/* index into tx rate circular buffer */
 	ratespec_t txrspec[NTXRATE][2];	/* circular buffer of prev MPDUs tx rates */

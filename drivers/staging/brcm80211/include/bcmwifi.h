@@ -18,7 +18,7 @@
 #define	_bcmwifi_h_
 
 /* A chanspec holds the channel number, band, bandwidth and control sideband */
-typedef uint16 chanspec_t;
+typedef u16 chanspec_t;
 
 /* channel defines */
 #define CH_UPPER_SB			0x01

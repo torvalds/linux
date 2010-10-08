@@ -38,7 +38,7 @@ typedef struct scb_ampdu {
 	u8 mpdu_density;	/* mpdu density */
 	u8 max_pdu;		/* max pdus allowed in ampdu */
 	u8 release;		/* # of mpdus released at a time */
-	uint16 min_len;		/* min mpdu len to support the density */
+	u16 min_len;		/* min mpdu len to support the density */
 	uint32 max_rxlen;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
 	struct pktq txq;	/* sdu transmit queue pending aggregation */
 
@@ -62,11 +62,11 @@ struct scb {
 	void *fragbuf[NUMPRIO];	/* defragmentation buffer per prio */
 	uint fragresid[NUMPRIO];	/* #bytes unused in frag buffer per prio */
 
-	uint16 seqctl[NUMPRIO];	/* seqctl of last received frame (for dups) */
-	uint16 seqctl_nonqos;	/* seqctl of last received frame (for dups) for
+	u16 seqctl[NUMPRIO];	/* seqctl of last received frame (for dups) */
+	u16 seqctl_nonqos;	/* seqctl of last received frame (for dups) for
 				 * non-QoS data and management
 				 */
-	uint16 seqnum[NUMPRIO];	/* WME: driver maintained sw seqnum per priority */
+	u16 seqnum[NUMPRIO];	/* WME: driver maintained sw seqnum per priority */
 
 	scb_ampdu_t scb_ampdu;	/* AMPDU state including per tid info */
 };

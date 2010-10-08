@@ -76,7 +76,7 @@ typedef struct sbpcieregs {
 	uint32 clkreqenctrl;	/* >= rev 6, Clkreq rdma control : 0x138 */
 	uint32 PAD[177];
 	uint32 pciecfg[4][64];	/* 0x400 - 0x7FF, PCIE Cfg Space */
-	uint16 sprom[64];	/* SPROM shadow Area */
+	u16 sprom[64];	/* SPROM shadow Area */
 } sbpcieregs_t;
 
 /* PCI control */

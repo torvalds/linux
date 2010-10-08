@@ -320,13 +320,13 @@ static __used void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 		/* do a pci config read to get subsystem id and subvendor id */
 		w = OSL_PCI_READ_CONFIG(sii->osh, PCI_CFG_SVID, sizeof(uint32));
 		/* Let nvram variables override subsystem Vend/ID */
-		sii->pub.boardvendor = (uint16)si_getdevpathintvar(&sii->pub,
+		sii->pub.boardvendor = (u16)si_getdevpathintvar(&sii->pub,
 			"boardvendor");
 		if (sii->pub.boardvendor == 0)
 			sii->pub.boardvendor = w & 0xffff;
 		else
 			SI_ERROR(("Overriding boardvendor: 0x%x instead of 0x%x\n", sii->pub.boardvendor, w & 0xffff));
-		sii->pub.boardtype = (uint16)si_getdevpathintvar(&sii->pub,
+		sii->pub.boardtype = (u16)si_getdevpathintvar(&sii->pub,
 			"boardtype");
 		if (sii->pub.boardtype == 0)
 			sii->pub.boardtype = (w >> 16) & 0xffff;
@@ -1389,23 +1389,23 @@ void si_watchdog_ms(si_t *sih, uint32 ms)
 	si_watchdog(sih, wd_msticks * ms);
 }
 
-uint16 BCMATTACHFN(si_d11_devid) (si_t *sih)
+u16 BCMATTACHFN(si_d11_devid) (si_t *sih)
 {
 	si_info_t *sii = SI_INFO(sih);
-	uint16 device;
+	u16 device;
 
 	/* normal case: nvram variable with devpath->devid->wl0id */
-	device = (uint16) si_getdevpathintvar(sih, "devid");
+	device = (u16) si_getdevpathintvar(sih, "devid");
 	if (device != 0)
 		goto bail;
 
 	/* Get devid from OTP/SPROM depending on where the SROM is read */
-	device = (uint16) getintvar(sii->vars, "devid");
+	device = (u16) getintvar(sii->vars, "devid");
 	if (device != 0)
 		goto bail;
 
 	/* no longer support wl0id, but keep the code here for backward compatibility. */
-	device = (uint16) getintvar(sii->vars, "wl0id");
+	device = (u16) getintvar(sii->vars, "wl0id");
 	if (device != 0)
 		goto bail;
 
@@ -1543,13 +1543,13 @@ void BCMINITFN(si_clkctl_init) (si_t *sih)
 }
 
 /* return the value suitable for writing to the dot11 core FAST_PWRUP_DELAY register */
-uint16 BCMINITFN(si_clkctl_fast_pwrup_delay) (si_t *sih)
+u16 BCMINITFN(si_clkctl_fast_pwrup_delay) (si_t *sih)
 {
 	si_info_t *sii;
 	uint origidx = 0;
 	chipcregs_t *cc;
 	uint slowminfreq;
-	uint16 fpdelay;
+	u16 fpdelay;
 	uint intr_val = 0;
 	bool fast;
 
@@ -2183,7 +2183,7 @@ int si_pci_fixcfg(si_t *sih)
 	sbpciregs_t *pciregs = NULL;
 	sbpcieregs_t *pcieregs = NULL;
 	void *regs = NULL;
-	uint16 val16, *reg16 = NULL;
+	u16 val16, *reg16 = NULL;
 
 	si_info_t *sii = SI_INFO(sih);
 
@@ -2208,9 +2208,9 @@ int si_pci_fixcfg(si_t *sih)
 	}
 	pciidx = si_coreidx(&sii->pub);
 	val16 = R_REG(sii->osh, reg16);
-	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) != (uint16) pciidx) {
+	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) != (u16) pciidx) {
 		val16 =
-		    (uint16) (pciidx << SRSH_PI_SHIFT) | (val16 &
+		    (u16) (pciidx << SRSH_PI_SHIFT) | (val16 &
 							  ~SRSH_PI_MASK);
 		W_REG(sii->osh, reg16, val16);
 	}

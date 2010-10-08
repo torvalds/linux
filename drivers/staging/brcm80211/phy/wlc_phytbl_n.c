@@ -2057,7 +2057,7 @@ const uint32 intlv_tbl_rev0[] = {
 	0x00000070,
 };
 
-const uint16 pilot_tbl_rev0[] = {
+const u16 pilot_tbl_rev0[] = {
 	0xff08,
 	0xff08,
 	0xff08,
@@ -2499,7 +2499,7 @@ const uint32 tdi_tbl40_ant1_rev0[] = {
 	0x00000000,
 };
 
-const uint16 bdi_tbl_rev0[] = {
+const u16 bdi_tbl_rev0[] = {
 	0x0070,
 	0x0126,
 	0x012c,
@@ -4176,7 +4176,7 @@ const uint32 iq_lut_core1_rev0[] = {
 	0x0000007f,
 };
 
-const uint16 loft_lut_core0_rev0[] = {
+const u16 loft_lut_core0_rev0[] = {
 	0x0000,
 	0x0101,
 	0x0002,
@@ -4307,7 +4307,7 @@ const uint16 loft_lut_core0_rev0[] = {
 	0x0103,
 };
 
-const uint16 loft_lut_core1_rev0[] = {
+const u16 loft_lut_core1_rev0[] = {
 	0x0000,
 	0x0101,
 	0x0002,
@@ -4542,7 +4542,7 @@ const uint32 mimophytbl_info_sz_rev0_volatile =
     sizeof(mimophytbl_info_rev0_volatile) /
     sizeof(mimophytbl_info_rev0_volatile[0]);
 
-const uint16 ant_swctrl_tbl_rev3[] = {
+const u16 ant_swctrl_tbl_rev3[] = {
 	0x0082,
 	0x0082,
 	0x0211,
@@ -4577,7 +4577,7 @@ const uint16 ant_swctrl_tbl_rev3[] = {
 	0x0000,
 };
 
-const uint16 ant_swctrl_tbl_rev3_1[] = {
+const u16 ant_swctrl_tbl_rev3_1[] = {
 	0x0022,
 	0x0022,
 	0x0011,
@@ -4612,7 +4612,7 @@ const uint16 ant_swctrl_tbl_rev3_1[] = {
 	0x0000,
 };
 
-const uint16 ant_swctrl_tbl_rev3_2[] = {
+const u16 ant_swctrl_tbl_rev3_2[] = {
 	0x0088,
 	0x0088,
 	0x0044,
@@ -4647,7 +4647,7 @@ const uint16 ant_swctrl_tbl_rev3_2[] = {
 	0x0000,
 };
 
-const uint16 ant_swctrl_tbl_rev3_3[] = {
+const u16 ant_swctrl_tbl_rev3_3[] = {
 	0x022,
 	0x022,
 	0x011,
@@ -5517,7 +5517,7 @@ const uint32 frame_struct_rev3[] = {
 	0x00000000,
 };
 
-const uint16 pilot_tbl_rev3[] = {
+const u16 pilot_tbl_rev3[] = {
 	0xff08,
 	0xff08,
 	0xff08,
@@ -7035,7 +7035,7 @@ const uint32 noise_var_tbl_rev3[] = {
 	0x0000014d,
 };
 
-const uint16 mcs_tbl_rev3[] = {
+const u16 mcs_tbl_rev3[] = {
 	0x0000,
 	0x0008,
 	0x000a,
@@ -8571,7 +8571,7 @@ const uint32 iq_lut_core1_rev3[] = {
 	0x00000000,
 };
 
-const uint16 loft_lut_core0_rev3[] = {
+const u16 loft_lut_core0_rev3[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -8702,7 +8702,7 @@ const uint16 loft_lut_core0_rev3[] = {
 	0x0000,
 };
 
-const uint16 loft_lut_core1_rev3[] = {
+const u16 loft_lut_core1_rev3[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -8833,7 +8833,7 @@ const uint16 loft_lut_core1_rev3[] = {
 	0x0000,
 };
 
-const uint16 papd_comp_rfpwr_tbl_core0_rev3[] = {
+const u16 papd_comp_rfpwr_tbl_core0_rev3[] = {
 	0x0036,
 	0x0036,
 	0x0036,
@@ -8964,7 +8964,7 @@ const uint16 papd_comp_rfpwr_tbl_core0_rev3[] = {
 	0x01d6,
 };
 
-const uint16 papd_comp_rfpwr_tbl_core1_rev3[] = {
+const u16 papd_comp_rfpwr_tbl_core1_rev3[] = {
 	0x0036,
 	0x0036,
 	0x0036,

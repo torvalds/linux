@@ -185,7 +185,7 @@ BCMATTACHFN(si_pmu_set_ldo_voltage) (si_t *sih, osl_t *osh, u8 ldo,
 /* d11 slow to fast clock transition time in slow clock cycles */
 #define D11SCC_SLOW2FAST_TRANSITION	2
 
-uint16 BCMINITFN(si_pmu_fast_pwrup_delay) (si_t *sih, osl_t *osh)
+u16 BCMINITFN(si_pmu_fast_pwrup_delay) (si_t *sih, osl_t *osh)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 	chipcregs_t *cc;
@@ -259,7 +259,7 @@ uint16 BCMINITFN(si_pmu_fast_pwrup_delay) (si_t *sih, osl_t *osh)
 	/* Return to original core */
 	si_setcoreidx(sih, origidx);
 
-	return (uint16) delay;
+	return (u16) delay;
 }
 
 uint32 BCMATTACHFN(si_pmu_force_ilp) (si_t *sih, osl_t *osh, bool force)
@@ -292,7 +292,7 @@ uint32 BCMATTACHFN(si_pmu_force_ilp) (si_t *sih, osl_t *osh, bool force)
 /* Setup resource up/down timers */
 typedef struct {
 	u8 resnum;
-	uint16 updown;
+	u16 updown;
 } pmu_res_updown_t;
 
 /* Change resource dependancies masks */
@@ -872,7 +872,7 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 
 /* setup pll and query clock speed */
 typedef struct {
-	uint16 freq;
+	u16 freq;
 	u8 xf;
 	u8 wbint;
 	uint32 wbfrac;
@@ -902,7 +902,7 @@ static const pmu0_xtaltab0_t BCMINITDATA(pmu0_xtaltab0)[] = {
 
 /* setup pll and query clock speed */
 typedef struct {
-	uint16 fref;
+	u16 fref;
 	u8 xf;
 	u8 p1div;
 	u8 p2div;

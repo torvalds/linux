@@ -23,7 +23,7 @@ struct phy_info_lcnphy {
 	int lcnphy_txrf_sp_9_override;
 	u8 lcnphy_full_cal_channel;
 	u8 lcnphy_cal_counter;
-	uint16 lcnphy_cal_temper;
+	u16 lcnphy_cal_temper;
 	bool lcnphy_recal;
 
 	u8 lcnphy_rc_cap;
@@ -51,7 +51,7 @@ struct phy_info_lcnphy {
 	int16 lcnphy_pa0b1;
 	int16 lcnphy_pa0b2;
 
-	uint16 lcnphy_rawtempsense;
+	u16 lcnphy_rawtempsense;
 	u8 lcnphy_measPower;
 	u8 lcnphy_tempsense_slope;
 	u8 lcnphy_freqoffset_corr;
@@ -61,13 +61,13 @@ struct phy_info_lcnphy {
 	bool lcnphy_hw_iqcal_en;
 	uint lcnphy_bandedge_corr;
 	bool lcnphy_spurmod;
-	uint16 lcnphy_tssi_tx_cnt;
-	uint16 lcnphy_tssi_idx;
-	uint16 lcnphy_tssi_npt;
+	u16 lcnphy_tssi_tx_cnt;
+	u16 lcnphy_tssi_idx;
+	u16 lcnphy_tssi_npt;
 
-	uint16 lcnphy_target_tx_freq;
+	u16 lcnphy_target_tx_freq;
 	s8 lcnphy_tx_power_idx_override;
-	uint16 lcnphy_noise_samples;
+	u16 lcnphy_noise_samples;
 
 	uint32 lcnphy_papdRxGnIdx;
 	uint32 lcnphy_papd_rxGnCtrl_init;
@@ -81,8 +81,8 @@ struct phy_info_lcnphy {
 	uint32 lcnphy_tr_R_gain_val;
 	uint32 lcnphy_tr_T_gain_val;
 	s8 lcnphy_input_pwr_offset_db;
-	uint16 lcnphy_Med_Low_Gain_db;
-	uint16 lcnphy_Very_Low_Gain_db;
+	u16 lcnphy_Med_Low_Gain_db;
+	u16 lcnphy_Very_Low_Gain_db;
 	s8 lcnphy_lastsensed_temperature;
 	s8 lcnphy_pkteng_rssi_slope;
 	u8 lcnphy_saved_tx_user_target[TXP_NUM_RATES];
@@ -95,9 +95,9 @@ struct phy_info_lcnphy {
 	u8 lcnphy_psat_2pt3_detected;
 	int32 lcnphy_lowest_Re_div_Im;
 	s8 lcnphy_final_papd_cal_idx;
-	uint16 lcnphy_extstxctrl4;
-	uint16 lcnphy_extstxctrl0;
-	uint16 lcnphy_extstxctrl1;
+	u16 lcnphy_extstxctrl4;
+	u16 lcnphy_extstxctrl0;
+	u16 lcnphy_extstxctrl1;
 	int16 lcnphy_cck_dig_filt_type;
 	int16 lcnphy_ofdm_dig_filt_type;
 	lcnphy_cal_results_t lcnphy_cal_results;
@@ -108,11 +108,11 @@ struct phy_info_lcnphy {
 	u8 lcnphy_final_idx;
 	u8 lcnphy_start_idx;
 	u8 lcnphy_current_index;
-	uint16 lcnphy_logen_buf_1;
-	uint16 lcnphy_local_ovr_2;
-	uint16 lcnphy_local_oval_6;
-	uint16 lcnphy_local_oval_5;
-	uint16 lcnphy_logen_mixer_1;
+	u16 lcnphy_logen_buf_1;
+	u16 lcnphy_local_ovr_2;
+	u16 lcnphy_local_oval_6;
+	u16 lcnphy_local_oval_5;
+	u16 lcnphy_logen_mixer_1;
 
 	u8 lcnphy_aci_stat;
 	uint lcnphy_aci_start_time;

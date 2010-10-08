@@ -74,7 +74,7 @@ extern int bcm_rpc_dump(rpc_info_t *rpci, struct bcmstrbuf *b);
 #define RPC_TRACE_VAL	0x0002
 #define RPC_PKTTRACE_VAL 0x0004
 #define RPC_PKTLOG_VAL	0x0008
-extern void bcm_rpc_msglevel_set(struct rpc_info *rpci, uint16 msglevel,
+extern void bcm_rpc_msglevel_set(struct rpc_info *rpci, u16 msglevel,
 				 bool high_low);
 
 #endif				/* _BCM_RPC_H_ */

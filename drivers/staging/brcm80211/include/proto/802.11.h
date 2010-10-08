@@ -47,18 +47,18 @@
 #define DOT11_OUI_LEN			3
 
 BWL_PRE_PACKED_STRUCT struct dot11_header {
-	uint16 fc;
-	uint16 durid;
+	u16 fc;
+	u16 durid;
 	struct ether_addr a1;
 	struct ether_addr a2;
 	struct ether_addr a3;
-	uint16 seq;
+	u16 seq;
 	struct ether_addr a4;
 } BWL_POST_PACKED_STRUCT;
 
 BWL_PRE_PACKED_STRUCT struct dot11_rts_frame {
-	uint16 fc;
-	uint16 durid;
+	u16 fc;
+	u16 durid;
 	struct ether_addr ra;
 	struct ether_addr ta;
 } BWL_POST_PACKED_STRUCT;
@@ -71,19 +71,19 @@ BWL_PRE_PACKED_STRUCT struct dot11_rts_frame {
 #define DOT11_BA_LEN		4
 
 BWL_PRE_PACKED_STRUCT struct dot11_management_header {
-	uint16 fc;
-	uint16 durid;
+	u16 fc;
+	u16 durid;
 	struct ether_addr da;
 	struct ether_addr sa;
 	struct ether_addr bssid;
-	uint16 seq;
+	u16 seq;
 } BWL_POST_PACKED_STRUCT;
 #define	DOT11_MGMT_HDR_LEN	24
 
 BWL_PRE_PACKED_STRUCT struct dot11_bcn_prb {
 	uint32 timestamp[2];
-	uint16 beacon_interval;
-	uint16 capability;
+	u16 beacon_interval;
+	u16 capability;
 } BWL_POST_PACKED_STRUCT;
 #define	DOT11_BCN_PRB_LEN	12
 
@@ -106,7 +106,7 @@ typedef u8 ac_bitmap_t;
 BWL_PRE_PACKED_STRUCT struct edcf_acparam {
 	u8 ACI;
 	u8 ECW;
-	uint16 TXOP;
+	u16 TXOP;
 } BWL_POST_PACKED_STRUCT;
 typedef struct edcf_acparam edcf_acparam_t;
 
@@ -255,10 +255,10 @@ typedef struct d11cnt {
 #define MCSSET_LEN	16
 
 BWL_PRE_PACKED_STRUCT struct ht_cap_ie {
-	uint16 cap;
+	u16 cap;
 	u8 params;
 	u8 supp_mcs[MCSSET_LEN];
-	uint16 ext_htcap;
+	u16 ext_htcap;
 	uint32 txbf_cap;
 	u8 as_cap;
 } BWL_POST_PACKED_STRUCT;
