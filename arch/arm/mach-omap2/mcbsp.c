@@ -34,7 +34,7 @@ void omap2_mcbsp1_mux_clkr_src(u8 mux)
 
 	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
 	if (mux == CLKR_SRC_CLKR)
-		v &= OMAP2_MCBSP1_CLKR_MASK;
+		v &= ~OMAP2_MCBSP1_CLKR_MASK;
 	else if (mux == CLKR_SRC_CLKX)
 		v |= OMAP2_MCBSP1_CLKR_MASK;
 	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
@@ -47,7 +47,7 @@ void omap2_mcbsp1_mux_fsr_src(u8 mux)
 
 	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
 	if (mux == FSR_SRC_FSR)
-		v &= OMAP2_MCBSP1_FSR_MASK;
+		v &= ~OMAP2_MCBSP1_FSR_MASK;
 	else if (mux == FSR_SRC_FSX)
 		v |= OMAP2_MCBSP1_FSR_MASK;
 	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
