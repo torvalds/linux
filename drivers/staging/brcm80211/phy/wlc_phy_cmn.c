@@ -1774,7 +1774,7 @@ wlc_phy_txpower_sromlimit_max_get(wlc_phy_t *ppi, uint chan, u8 *max_txpwr,
 
 		maxtxpwr = (maxtxpwr > 6) ? (maxtxpwr - 6) : 0;
 
-		tx_pwr_max = MAX(tx_pwr_max, maxtxpwr);
+		tx_pwr_max = max(tx_pwr_max, maxtxpwr);
 		tx_pwr_min = min(tx_pwr_min, maxtxpwr);
 	}
 	*max_txpwr = tx_pwr_max;
@@ -1885,7 +1885,7 @@ void wlc_phy_txpower_recalc_target(phy_info_t *pi)
 			if (pi->txpwr_percent <= 100)
 				maxtxpwr = (maxtxpwr * pi->txpwr_percent) / 100;
 
-			tx_pwr_target[rate] = MAX(maxtxpwr, mintxpwr);
+			tx_pwr_target[rate] = max(maxtxpwr, mintxpwr);
 		}
 
 		tx_pwr_target[rate] =
@@ -1894,7 +1894,7 @@ void wlc_phy_txpower_recalc_target(phy_info_t *pi)
 		if (tx_pwr_target[rate] > tx_pwr_max)
 			tx_pwr_max_rate_ind = rate;
 
-		tx_pwr_max = MAX(tx_pwr_max, tx_pwr_target[rate]);
+		tx_pwr_max = max(tx_pwr_max, tx_pwr_target[rate]);
 		tx_pwr_min = min(tx_pwr_min, tx_pwr_target[rate]);
 	}
 

@@ -25482,7 +25482,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 		if (fine_gain_idx + (int)lpf_biq0 > 10) {
 			lpf_biq1 = 10 - lpf_biq0;
 		} else {
-			lpf_biq1 = (u16) MAX(fine_gain_idx, 0);
+			lpf_biq1 = (u16) max(fine_gain_idx, 0);
 		}
 		wlc_phy_rfctrl_override_1tomany_nphy(pi,
 						     NPHY_REV7_RfctrlOverride_cmd_rxgain,
@@ -25492,7 +25492,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 						      (lna2 << 2) | lna1), 0x3,
 						     0);
 	} else {
-		hpvga = (u16) MAX(min(((int)hpvga) + delta_pwr, 10), 0);
+		hpvga = (u16) max(min(((int)hpvga) + delta_pwr, 10), 0);
 		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 12),
 					     ((hpvga << 12) | (lpf_biq1 << 10) |
 					      (lpf_biq0 << 8) | (mix_tia_gain <<
@@ -25663,12 +25663,12 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 
 			if (core_idx == 0) {
 				ref_iq_vals =
-				    MAX((est[0].i_pwr +
+				    max((est[0].i_pwr +
 					 est[0].q_pwr) >> (log_num_samps + 1),
 					1);
 			} else {
 				ref_iq_vals =
-				    MAX((est[1].i_pwr +
+				    max((est[1].i_pwr +
 					 est[1].q_pwr) >> (log_num_samps + 1),
 					1);
 			}
@@ -25877,8 +25877,8 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 						 TXLPF_IDAC_4, txlpf_idac);
 			}
 
-			rxlpf_rccal_hpc = MAX(min(rxlpf_rccal_hpc, 31), 0);
-			txlpf_rccal_lpc = MAX(min(txlpf_rccal_lpc, 31), 0);
+			rxlpf_rccal_hpc = max(min(rxlpf_rccal_hpc, 31), 0);
+			txlpf_rccal_lpc = max(min(txlpf_rccal_lpc, 31), 0);
 
 			write_radio_reg(pi, (RADIO_2056_RX_RXLPF_RCCAL_HPC |
 					     ((rx_core ==
@@ -26060,7 +26060,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 
 				hpf_change = desired_log2_pwr - actual_log2_pwr;
 				curr_hpf += hpf_change;
-				curr_hpf = MAX(min(curr_hpf, 10), 0);
+				curr_hpf = max(min(curr_hpf, 10), 0);
 				if (use_hpf_num == 1) {
 					curr_hpf1 = curr_hpf;
 				} else {
@@ -28687,12 +28687,12 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 			num =
 			    8 * (16 * b0[tbl_id - 26] + b1[tbl_id - 26] * idx);
 			den = 32768 + a1[tbl_id - 26] * idx;
-			pwr_est = MAX(((4 * num + den / 2) / den), -8);
+			pwr_est = max(((4 * num + den / 2) / den), -8);
 			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 				if (idx <=
 				    (uint) (31 - idle_tssi[tbl_id - 26] + 1))
 					pwr_est =
-					    MAX(pwr_est,
+					    max(pwr_est,
 						target_pwr_qtrdbm[tbl_id - 26] +
 						1);
 			}

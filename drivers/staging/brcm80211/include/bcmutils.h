@@ -449,10 +449,6 @@ extern "C" {
 #define	ABS(a)			(((a) < 0) ? -(a) : (a))
 #endif				/* ABS */
 
-#ifndef MAX
-#define	MAX(a, b)		(((a) > (b)) ? (a) : (b))
-#endif				/* MAX */
-
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ROUNDUP(x, y)		((((x)+((y)-1))/(y))*(y))
 #define	ISALIGNED(a, x)		(((a) & ((x)-1)) == 0)

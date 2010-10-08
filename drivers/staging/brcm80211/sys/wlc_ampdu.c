@@ -761,7 +761,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 
 				plen =
 				    pkttotlen(osh, p) + AMPDU_MAX_MPDU_OVERHEAD;
-				plen = MAX(scb_ampdu->min_len, plen);
+				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > maxlen) {
 					p = NULL;

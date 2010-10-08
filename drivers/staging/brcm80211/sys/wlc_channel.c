@@ -1355,7 +1355,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 		maxpwr = li->maxpwr[CHANNEL_POWER_IDX_2G_CCK(chan)];
 
 		maxpwr = maxpwr - delta;
-		maxpwr = MAX(maxpwr, 0);
+		maxpwr = max(maxpwr, 0);
 		maxpwr = min(maxpwr, conducted_max);
 
 		for (i = 0; i < WLC_NUM_RATES_CCK; i++)
@@ -1371,7 +1371,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	}
 
 	maxpwr = maxpwr - delta;
-	maxpwr = MAX(maxpwr, 0);
+	maxpwr = max(maxpwr, 0);
 	maxpwr = min(maxpwr, conducted_ofdm_max);
 
 	/* Keep OFDM lmit below CCK limit */
@@ -1413,9 +1413,9 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	maxpwr40 = li_mimo->maxpwr40[maxpwr_idx];
 
 	maxpwr20 = maxpwr20 - delta;
-	maxpwr20 = MAX(maxpwr20, 0);
+	maxpwr20 = max(maxpwr20, 0);
 	maxpwr40 = maxpwr40 - delta;
-	maxpwr40 = MAX(maxpwr40, 0);
+	maxpwr40 = max(maxpwr40, 0);
 
 	/* Fill in the MCS 0-7 (SISO) rates */
 	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {

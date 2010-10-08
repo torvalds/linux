@@ -1680,7 +1680,7 @@ static int dhdsdio_pktgen_set(dhd_bus_t *bus, u8 *arg)
 	bus->pktgen_stop = pktgen.stop;
 
 	bus->pktgen_tick = bus->pktgen_ptick = 0;
-	bus->pktgen_len = MAX(bus->pktgen_len, bus->pktgen_minlen);
+	bus->pktgen_len = max(bus->pktgen_len, bus->pktgen_minlen);
 	bus->pktgen_len = min(bus->pktgen_len, bus->pktgen_maxlen);
 
 	/* Clear counts for a new pktgen (mode change, or was stopped) */
