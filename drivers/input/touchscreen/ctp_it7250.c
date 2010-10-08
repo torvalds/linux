@@ -198,7 +198,7 @@ return ;
 static irqreturn_t Ctp_it7250_touch_irq(int irq, void *dev_id)
 {	
 	struct Ctp_it7250_data *Ctp_it7250 = dev_id;
-
+	//printk("%s++++ %d \r\n",__FUNCTION__,__LINE__);
 	//rk28printk("%s++++ %d \r\n",__FUNCTION__,__LINE__);
 	disable_irq_nosync(irq);
 	//rk28printk("%s++++ %d irq=%d\r\n",__FUNCTION__,__LINE__,irq);
@@ -312,7 +312,6 @@ ret = gpio_direction_input(client->irq);
 	}
 	return true;	
 }
-
 
 // ================================================================================
 // Function Name --- GetFirmwareInformation
@@ -457,7 +456,7 @@ bool IdentifyCapSensor(struct i2c_client *client)
 	ucWriteLength = 1;
 	ucReadLength = 0x0A;
 	pucData[0] = 0x00;
-rk28printk("%s\r\n",__FUNCTION__);
+	rk28printk("%s\r\n",__FUNCTION__);
 	// Query
 	do
 	{//printk("first wait 111\r\n");
@@ -699,6 +698,7 @@ int CaptouchHWInitial(struct i2c_client *client)
 	if (!IdentifyCapSensor(client))
 	{
 		rk28printk("%s IdentifyCapSensor error \r\n",__FUNCTION__);
+		printk("%s IdentifyCapSensor error \r\n",__FUNCTION__);
 		return false;
 		//goto resetagin;
 }
@@ -706,12 +706,14 @@ int CaptouchHWInitial(struct i2c_client *client)
 if (!GetFirmwareInformation (client))
 	{
 	rk28printk("%s GetFirmwareInformation error \r\n",__FUNCTION__);
+	printk("%s GetFirmwareInformation error \r\n",__FUNCTION__);
 	//	goto resetagin;
 }
 
 	if (!Get2DResolutions(client, &wXResolution, &wYResolution, &ucStep))
 	{
 	rk28printk("%s Get2DResolutions error \r\n",__FUNCTION__);
+	printk("%s Get2DResolutions error \r\n",__FUNCTION__);
 	//	goto resetagin;
 }
 
@@ -956,9 +958,7 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
  static int  Ctp_it7250_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct Ctp_it7250_data *Ctp_it7250;
-//	u16 TempReg=0x0;
-//	u16 val=0x0;
-	
+
 	Ctp_it7250_client = client;
 	rk28printk("+++++++     %s+++++++\n", __FUNCTION__);
 	Ctp_it7250 = kzalloc(sizeof(struct Ctp_it7250_data), GFP_KERNEL);
@@ -971,41 +971,34 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
 //	INIT_WORK(&Ctp_it7250->irq_work, Ctp_it7250_irq_worker);
 	INIT_DELAYED_WORK(&Ctp_it7250->delaywork, Ctp_it7250_delaywork_func);
 
-
 	Ctp_it7250->client = client;
 	i2c_set_clientdata(client, Ctp_it7250);
-
 	
-if (!CaptouchHWInitial(client))
-	goto  err_free_mem;
-Ctp_it7250_init_irq(client);	
+	if (!CaptouchHWInitial(client))
+		goto  err_free_mem;
+	Ctp_it7250_init_irq(client);	
 	ts_input_init(client);
 //	CTS_configure_pin(client);
 
-{
 #if 0
-lp8725_lilo_en(2,0);
-mdelay(100);
+	lp8725_lilo_en(2,0);
+	mdelay(100);
 
-lp8725_lilo_en(2,1);
-mdelay(100);
-lp8725_set_lilo_vol(2,300);
-mdelay(5);
+	lp8725_lilo_en(2,1);
+	mdelay(100);
+	lp8725_set_lilo_vol(2,300);
+	mdelay(5);
 #endif
 
-}
-
-	
-	
 //不是查询模式，不需要轮询
 //schedule_delayed_work(&Ctp_it7250->delaywork,msecs_to_jiffies(50));
 
 
 	rk28printk("+++++++     %s+++++++\n", __FUNCTION__);
 	return 0;
-err_free_mem:
- kfree(Ctp_it7250);
- return false;
+	err_free_mem:
+ 	kfree(Ctp_it7250);
+	 return false;
 
 }
 
@@ -1022,37 +1015,11 @@ static int Ctp_it7250_remove(struct i2c_client *client)
 #ifdef	CONFIG_PM
 static int Ctp_it7250_suspend(struct i2c_client *client, pm_message_t state)
 {//pr_emerg("\n irq1=%d \n",irq1);
-struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(client);
+	struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(client);
 
-//send command to make ctp into sleep mode
-#if 1
-	u8 ucWriteLength;
-	u8 pucData[128];
-	u8 ucQuery;
+	rk28printk("%s\n",__func__);
 
-	ucWriteLength = 3;
-	pucData[0] = 0x04;
-	pucData[1] = 0x00;
-	pucData[2] = 0x02;
-
-	// Query
-	do
-	{
-		if(!ReadQueryBuffer(client, &ucQuery))
-		{
-			ucQuery = QUERY_BUSY;
-		}
-	}while(ucQuery & QUERY_BUSY);
-
-	// Write Command
-	rk28printk("%s WriteCommandBuffer\r\n",__FUNCTION__);
-	if(!WriteCommandBuffer(client, pucData, ucWriteLength))
-	{
-		return false;
-	}
-	#endif
-//send sleep command end
-
+	CaptouchMode(client, 2);
 	disable_irq(Ctp_it7250->irq);
 
 	return 0;
@@ -1060,14 +1027,21 @@ struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdat
 
 static int Ctp_it7250_resume(struct i2c_client *client)
 {
-struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(client);
-//read command to wakeup ctp
-#if 1
-u8 ucQuery;
-ReadQueryBuffer(client, &ucQuery);
-#endif
-//wakeup end
+	struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(client);
+
+	u8 ucQuery;
+	rk28printk("%s\n",__func__);
+
+	if(gpio_direction_output(client->irq,GPIO_LOW))
+		printk("%s:set pin output error\n",__func__);
+	msleep(20);
+	ReadQueryBuffer(client, &ucQuery);
+	if (gpio_direction_input(client->irq)) 
+		printk("%s:failed to set CTS_configure_pin gpio input\n",__func__);
+	gpio_pull_updown(client->irq,GPIOPullUp);
+	msleep(20);
 	enable_irq(Ctp_it7250->irq);
+	
 	return 0;
 }
 #else
@@ -1086,9 +1060,9 @@ static struct i2c_driver Ctp_it7250_driver = {
 	},
 	.id_table 	= Ctp_it7250_id,
 	.probe	= Ctp_it7250_probe,
-	.remove     =  Ctp_it7250_remove,
-	.suspend = Ctp_it7250_suspend,
-	.resume = Ctp_it7250_resume,
+	 .remove     =  Ctp_it7250_remove,
+	 .suspend  = Ctp_it7250_suspend,
+	 .resume = Ctp_it7250_resume,
 };
 
 static int __init Ctp_it7250_init(void)
@@ -1112,4 +1086,5 @@ static void __exit Ctp_it7250_exit(void)
 module_exit(Ctp_it7250_exit);
 
 MODULE_AUTHOR("Robert_mu<robert.mu@rahotech.com>");
+
 

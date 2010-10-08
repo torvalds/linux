@@ -1451,13 +1451,17 @@ static int rk2818_spim_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct rk2818_spi *dws = spi_master_get_devdata(master);
+	struct rk2818_spi_platform_data *pdata = pdev->dev.platform_data;
 	int status;
 
 	status = stop_queue(dws);
 	if (status != 0)
 		return status;
 	clk_disable(dws->clock_spim);
-
+	if (pdata && pdata->io_fix_leakage_bug)
+ 	{
+		pdata->io_fix_leakage_bug( );
+	}
 	return 0;
 }
 
@@ -1465,6 +1469,7 @@ static int rk2818_spim_resume(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct rk2818_spi *dws = spi_master_get_devdata(master);
+	struct rk2818_spi_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 	
 	clk_enable(dws->clock_spim);	
@@ -1472,6 +1477,10 @@ static int rk2818_spim_resume(struct platform_device *pdev)
 	ret = start_queue(dws);
 	if (ret)
 		dev_err(&dws->master->dev, "fail to start queue (%d)\n", ret);
+	if (pdata && pdata->io_resume_leakage_bug)
+ 	{
+		pdata->io_resume_leakage_bug( ); 
+	}
 	return ret;
 }
 

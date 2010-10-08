@@ -210,6 +210,8 @@ struct spi_cs_gpio {
 struct rk2818_spi_platform_data {
 	int (*io_init)(struct spi_cs_gpio*, int);
 	int (*io_deinit)(struct spi_cs_gpio*, int);
+	int (*io_fix_leakage_bug)(void);
+	int (*io_resume_leakage_bug)(void);
 	struct spi_cs_gpio *chipselect_gpios;	
 	u16 num_chipselect;
 };

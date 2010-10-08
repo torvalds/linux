@@ -1311,11 +1311,25 @@ static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 	return 0;
 }
 
+static int spi_io_fix_leakage_bug(void)
+{
+	gpio_direction_output(RK2818_PIN_PB4,GPIO_LOW); 
+	return 0;
+}
+
+static int spi_io_resume_leakage_bug(void)
+{
+	gpio_direction_output(RK2818_PIN_PB4,GPIO_HIGH);
+	return 0;
+}
+
 struct rk2818_spi_platform_data rk2818_spi_platdata = {
 	.num_chipselect = SPI_CHIPSELECT_NUM,//raho 大板需要支持3个片选 dxj
 	.chipselect_gpios = rk2818_spi_cs_gpios,
 	.io_init = spi_io_init,
 	.io_deinit = spi_io_deinit,
+	.io_fix_leakage_bug=spi_io_fix_leakage_bug,
+	.io_resume_leakage_bug=spi_io_resume_leakage_bug,
 };
 
 
