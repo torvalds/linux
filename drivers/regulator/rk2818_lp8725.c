@@ -54,7 +54,7 @@ REVISION 0.01
 #define DBG_INFO(x...)
 #endif
 
-//#define PM_CONTROL
+#define PM_CONTROL
 
 
 struct lp8725 {
