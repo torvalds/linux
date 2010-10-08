@@ -22,7 +22,6 @@
 #include <osl.h>
 #include <siutils.h>
 #include <sbchipc.h>
-#include <bitfuncs.h>
 #include <hndpmu.h>
 #include <bcmendian.h>
 
