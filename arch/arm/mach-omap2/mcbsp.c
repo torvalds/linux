@@ -52,6 +52,54 @@ void omap2_mcbsp1_mux_fsr_src(u8 mux)
 }
 EXPORT_SYMBOL(omap2_mcbsp1_mux_fsr_src);
 
+/* McBSP CLKS source switching function */
+
+int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
+{
+	struct omap_mcbsp *mcbsp;
+	struct clk *fck_src;
+	char *fck_src_name;
+	int r;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		pr_err("%s: Invalid id (%d)\n", __func__, id + 1);
+		return -EINVAL;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	if (fck_src_id == MCBSP_CLKS_PAD_SRC)
+		fck_src_name = "pad_fck";
+	else if (fck_src_id == MCBSP_CLKS_PRCM_SRC)
+		fck_src_name = "prcm_fck";
+	else
+		return -EINVAL;
+
+	fck_src = clk_get(mcbsp->dev, fck_src_name);
+	if (IS_ERR_OR_NULL(fck_src)) {
+		pr_err("omap-mcbsp: %s: could not clk_get() %s\n", "clks",
+		       fck_src_name);
+		return -EINVAL;
+	}
+
+	clk_disable(mcbsp->fclk);
+
+	r = clk_set_parent(mcbsp->fclk, fck_src);
+	if (IS_ERR_VALUE(r)) {
+		pr_err("omap-mcbsp: %s: could not clk_set_parent() to %s\n",
+		       "clks", fck_src_name);
+		clk_put(fck_src);
+		return -EINVAL;
+	}
+
+	clk_enable(mcbsp->fclk);
+
+	clk_put(fck_src);
+
+	return 0;
+}
+EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
+
+
 /* Platform data */
 
 #ifdef CONFIG_ARCH_OMAP2420
@@ -190,18 +238,21 @@ static struct omap_mcbsp_platform_data omap44xx_mcbsp_pdata[] = {
 		.dma_rx_sync    = OMAP44XX_DMA_MCBSP2_RX,
 		.dma_tx_sync    = OMAP44XX_DMA_MCBSP2_TX,
 		.tx_irq         = OMAP44XX_IRQ_MCBSP2,
+		/* XXX .ops ? */
 	},
 	{
 		.phys_base      = OMAP44XX_MCBSP3_BASE,
 		.dma_rx_sync    = OMAP44XX_DMA_MCBSP3_RX,
 		.dma_tx_sync    = OMAP44XX_DMA_MCBSP3_TX,
 		.tx_irq         = OMAP44XX_IRQ_MCBSP3,
+		/* XXX .ops ? */
 	},
 	{
 		.phys_base      = OMAP44XX_MCBSP4_BASE,
 		.dma_rx_sync    = OMAP44XX_DMA_MCBSP4_RX,
 		.dma_tx_sync    = OMAP44XX_DMA_MCBSP4_TX,
 		.tx_irq         = OMAP44XX_IRQ_MCBSP4,
+		/* XXX .ops ? */
 	},
 };
 #define OMAP44XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap44xx_mcbsp_pdata)

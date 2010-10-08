@@ -320,6 +320,10 @@
 #define FSR_SRC_FSR		0
 #define FSR_SRC_FSX		1
 
+/* McBSP functional clock sources */
+#define MCBSP_CLKS_PAD_SRC	0
+#define MCBSP_CLKS_PRCM_SRC	1
+
 /* we don't do multichannel for now */
 struct omap_mcbsp_reg_cfg {
 	u16 spcr2;
@@ -406,6 +410,7 @@ struct omap_mcbsp_spi_cfg {
 struct omap_mcbsp_ops {
 	void (*request)(unsigned int);
 	void (*free)(unsigned int);
+	int (*set_clks_src)(u8, u8);
 };
 
 struct omap_mcbsp_platform_data {
@@ -472,6 +477,9 @@ struct omap_mcbsp {
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 
+#define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
+#define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
+
 int omap_mcbsp_init(void);
 void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 					int size);
@@ -509,6 +517,9 @@ int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int leng
 int omap_mcbsp_spi_master_xmit_word_poll(unsigned int id, u32 word);
 int omap_mcbsp_spi_master_recv_word_poll(unsigned int id, u32 * word);
 
+
+/* McBSP functional clock source changing function */
+extern int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id);
 /* SPI specific API */
 void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * spi_cfg);
 

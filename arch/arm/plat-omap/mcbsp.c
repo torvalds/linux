@@ -81,9 +81,6 @@ static int omap_mcbsp_st_read(struct omap_mcbsp *mcbsp, u16 reg)
 #define MCBSP_READ_CACHE(mcbsp, reg) \
 		omap_mcbsp_read(mcbsp, OMAP_MCBSP_REG_##reg, 1)
 
-#define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
-#define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
-
 #define MCBSP_ST_READ(mcbsp, reg) \
 			omap_mcbsp_st_read(mcbsp, OMAP_ST_REG_##reg)
 #define MCBSP_ST_WRITE(mcbsp, reg, val) \
