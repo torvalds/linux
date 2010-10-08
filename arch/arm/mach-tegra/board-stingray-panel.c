@@ -20,7 +20,6 @@
 #include <linux/resource.h>
 #include <linux/leds-lp8550.h>
 #include <linux/platform_device.h>
-#include <linux/nvhost.h>
 #include <linux/bootmem.h>
 #include <linux/earlysuspend.h>
 #include <asm/mach-types.h>
@@ -28,6 +27,7 @@
 #include <mach/iomap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <mach/nvhost.h>
 #include <linux/regulator/consumer.h>
 
 #include "board-stingray.h"
