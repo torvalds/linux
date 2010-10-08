@@ -243,7 +243,7 @@ static int af9015_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int ret = 0, i = 0;
 	u16 addr;
-	u8 mbox, addr_len;
+	u8 uninitialized_var(mbox), addr_len;
 	struct req_t req;
 
 /* TODO: implement bus lock
@@ -282,7 +282,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 		} else {
 			addr = msg[i].buf[0];
 			addr_len = 1;
-			mbox = 0;
+			/* mbox is don't care in that case */
 		}
 
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
