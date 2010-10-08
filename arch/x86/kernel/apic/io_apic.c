@@ -3488,17 +3488,16 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 #if defined (CONFIG_DMAR) || defined (CONFIG_INTR_REMAP)
 #ifdef CONFIG_SMP
-static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
+static int
+dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		      bool force)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg;
+	struct irq_cfg *cfg = data->chip_data;
+	unsigned int dest, irq = data->irq;
 	struct msi_msg msg;
-	unsigned int dest;
 
-	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
+	if (__ioapic_set_affinity(data, mask, &dest))
 		return -1;
-
-	cfg = get_irq_desc_chip_data(desc);
 
 	dmar_msi_read(irq, &msg);
 
@@ -3515,14 +3514,14 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 #endif /* CONFIG_SMP */
 
 static struct irq_chip dmar_msi_type = {
-	.name = "DMAR_MSI",
-	.irq_unmask = dmar_msi_unmask,
-	.irq_mask = dmar_msi_mask,
-	.irq_ack = ack_apic_edge,
+	.name			= "DMAR_MSI",
+	.irq_unmask		= dmar_msi_unmask,
+	.irq_mask		= dmar_msi_mask,
+	.irq_ack		= ack_apic_edge,
 #ifdef CONFIG_SMP
-	.set_affinity = dmar_msi_set_affinity,
+	.irq_set_affinity	= dmar_msi_set_affinity,
 #endif
-	.irq_retrigger = ioapic_retrigger_irq,
+	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
 int arch_setup_dmar_msi(unsigned int irq)
