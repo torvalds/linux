@@ -3301,26 +3301,24 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 }
 
 #ifdef CONFIG_SMP
-static int set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
+static int
+msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg;
+	struct irq_cfg *cfg = data->chip_data;
 	struct msi_msg msg;
 	unsigned int dest;
 
-	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
+	if (__ioapic_set_affinity(data, mask, &dest))
 		return -1;
 
-	cfg = get_irq_desc_chip_data(desc);
-
-	__get_cached_msi_msg(desc->irq_data.msi_desc, &msg);
+	__get_cached_msi_msg(data->msi_desc, &msg);
 
 	msg.data &= ~MSI_DATA_VECTOR_MASK;
 	msg.data |= MSI_DATA_VECTOR(cfg->vector);
 	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
 
-	__write_msi_msg(desc->irq_data.msi_desc, &msg);
+	__write_msi_msg(data->msi_desc, &msg);
 
 	return 0;
 }
@@ -3370,14 +3368,14 @@ ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
  * which implement the MSI or MSI-X Capability Structure.
  */
 static struct irq_chip msi_chip = {
-	.name		= "PCI-MSI",
-	.irq_unmask	= unmask_msi_irq,
-	.irq_mask	= mask_msi_irq,
-	.irq_ack	= ack_apic_edge,
+	.name			= "PCI-MSI",
+	.irq_unmask		= unmask_msi_irq,
+	.irq_mask		= mask_msi_irq,
+	.irq_ack		= ack_apic_edge,
 #ifdef CONFIG_SMP
-	.set_affinity	= set_msi_irq_affinity,
+	.irq_set_affinity	= msi_set_affinity,
 #endif
-	.irq_retrigger	= ioapic_retrigger_irq,
+	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
 static struct irq_chip msi_ir_chip = {
