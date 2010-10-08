@@ -106,7 +106,7 @@ static void s5p64x0_idle(void)
 void __init s5p6440_map_io(void)
 {
 	/* initialize any device information early */
-	s3c_adc_setname("s3c64x0-adc");
+	s3c_adc_setname("s3c64xx-adc");
 
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
 	iotable_init(s5p6440_iodesc, ARRAY_SIZE(s5p6440_iodesc));
@@ -115,7 +115,7 @@ void __init s5p6440_map_io(void)
 void __init s5p6450_map_io(void)
 {
 	/* initialize any device information early */
-	s3c_adc_setname("s3c64x0-adc");
+	s3c_adc_setname("s3c64xx-adc");
 
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
 	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6440_iodesc));
