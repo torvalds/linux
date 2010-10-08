@@ -484,8 +484,8 @@ struct _MINI_ADAPTER
 	BOOLEAN			    AutoSyncup;
 
 	struct net_device	*dev;
-	UINT				major;
-	UINT				minor;
+	int				major;
+	int				minor;
 	wait_queue_head_t 	tx_packet_wait_queue;
 	wait_queue_head_t 	process_rx_cntrlpkt;
 	atomic_t			process_waiting;
