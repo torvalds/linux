@@ -1576,8 +1576,8 @@ EXPORT_SYMBOL(netif_set_real_num_tx_queues);
  *
  *	This must be called either with the rtnl_lock held or before
  *	registration of the net device.  Returns 0 on success, or a
- *	negative error code.  If called before registration, it also
- *	sets the maximum number of queues, and always succeeds.
+ *	negative error code.  If called before registration, it always
+ *	succeeds.
  */
 int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 {
