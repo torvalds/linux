@@ -184,6 +184,7 @@
 					/* NOTE: Extra mask bit vs K8 */
 #define f10_dhar_offset(dhar)		((dhar & F10_DHAR_OFFSET_MASK) << 16)
 
+#define DCT_CFG_SEL			0x10C
 
 /* F10 High BASE/LIMIT registers */
 #define F10_DRAM_BASE_HIGH		0x140
@@ -257,14 +258,14 @@
 
 
 #define F10_DCTL_SEL_LOW		0x110
-#define dct_sel_baseaddr(pvt)		((pvt->dram_ctl_select_low) & 0xFFFFF800)
-#define dct_sel_interleave_addr(pvt)	(((pvt->dram_ctl_select_low) >> 6) & 0x3)
-#define dct_high_range_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(0))
-#define dct_interleave_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(2))
-#define dct_ganging_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(4))
-#define dct_data_intlv_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(5))
-#define dct_dram_enabled(pvt)		(pvt->dram_ctl_select_low & BIT(8))
-#define dct_memory_cleared(pvt)		(pvt->dram_ctl_select_low & BIT(10))
+#define dct_sel_baseaddr(pvt)		((pvt->dct_sel_low) & 0xFFFFF800)
+#define dct_sel_interleave_addr(pvt)	(((pvt->dct_sel_low) >> 6) & 0x3)
+#define dct_high_range_enabled(pvt)	(pvt->dct_sel_low & BIT(0))
+#define dct_interleave_enabled(pvt)	(pvt->dct_sel_low & BIT(2))
+#define dct_ganging_enabled(pvt)	(pvt->dct_sel_low & BIT(4))
+#define dct_data_intlv_enabled(pvt)	(pvt->dct_sel_low & BIT(5))
+#define dct_dram_enabled(pvt)		(pvt->dct_sel_low & BIT(8))
+#define dct_memory_cleared(pvt)		(pvt->dct_sel_low & BIT(10))
 
 #define F10_DCTL_SEL_HIGH		0x114
 
@@ -380,9 +381,11 @@ static inline int get_node_id(struct pci_dev *pdev)
 	return PCI_SLOT(pdev->devfn) - 0x18;
 }
 
-enum amd64_chipset_families {
+enum amd_families {
 	K8_CPUS = 0,
 	F10_CPUS,
+	F15_CPUS,
+	NUM_FAMILIES,
 };
 
 /* Error injection control structure */
@@ -448,9 +451,9 @@ struct amd64_pvt {
 	u64 top_mem;		/* top of memory below 4GB */
 	u64 top_mem2;		/* top of memory above 4GB */
 
-	u32 dram_ctl_select_low;	/* DRAM Controller Select Low Reg */
-	u32 dram_ctl_select_high;	/* DRAM Controller Select High Reg */
-	u32 online_spare;               /* On-Line spare Reg */
+	u32 dct_sel_low;	/* DRAM Controller Select Low Reg */
+	u32 dct_sel_hi;		/* DRAM Controller Select High Reg */
+	u32 online_spare;	/* On-Line spare Reg */
 
 	/* x4 or x8 syndromes in use */
 	u8 syn_type;
@@ -519,6 +522,8 @@ struct low_ops {
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci,
 					 struct err_regs *info, u64 SystemAddr);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, int cs_mode);
+	int (*read_dct_pci_cfg)		(struct amd64_pvt *pvt, int offset,
+					 u32 *val, const char *func);
 };
 
 struct amd64_family_type {
@@ -527,21 +532,17 @@ struct amd64_family_type {
 	struct low_ops ops;
 };
 
-static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
-					   u32 *val, const char *func)
-{
-	int err = 0;
-
-	err = pci_read_config_dword(pdev, offset, val);
-	if (err)
-		amd64_warn("%s: error reading F%dx%x.\n",
-			   func, PCI_FUNC(pdev->devfn), offset);
-
-	return err;
-}
+int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
+				u32 val, const char *func);
 
 #define amd64_read_pci_cfg(pdev, offset, val)	\
-	amd64_read_pci_cfg_dword(pdev, offset, val, __func__)
+	__amd64_read_pci_cfg_dword(pdev, offset, val, __func__)
+
+#define amd64_write_pci_cfg(pdev, offset, val)	\
+	__amd64_write_pci_cfg_dword(pdev, offset, val, __func__)
+
+#define amd64_read_dct_pci_cfg(pvt, offset, val) \
+	pvt->ops->read_dct_pci_cfg(pvt, offset, val, __func__)
 
 /*
  * For future CPU versions, verify the following as new 'slow' rates appear and

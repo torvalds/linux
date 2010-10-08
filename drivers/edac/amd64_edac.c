@@ -107,6 +107,79 @@ struct scrubrate {
 	{ 0x00, 0UL},        /* scrubbing off */
 };
 
+static int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+				      u32 *val, const char *func)
+{
+	int err = 0;
+
+	err = pci_read_config_dword(pdev, offset, val);
+	if (err)
+		amd64_warn("%s: error reading F%dx%03x.\n",
+			   func, PCI_FUNC(pdev->devfn), offset);
+
+	return err;
+}
+
+int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
+				u32 val, const char *func)
+{
+	int err = 0;
+
+	err = pci_write_config_dword(pdev, offset, val);
+	if (err)
+		amd64_warn("%s: error writing to F%dx%03x.\n",
+			   func, PCI_FUNC(pdev->devfn), offset);
+
+	return err;
+}
+
+/*
+ *
+ * Depending on the family, F2 DCT reads need special handling:
+ *
+ * K8: has a single DCT only
+ *
+ * F10h: each DCT has its own set of regs
+ *	DCT0 -> F2x040..
+ *	DCT1 -> F2x140..
+ *
+ * F15h: we select which DCT we access using F1x10C[DctCfgSel]
+ *
+ */
+static int k8_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
+			       const char *func)
+{
+	if (addr >= 0x100)
+		return -EINVAL;
+
+	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
+}
+
+static int f10_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
+				 const char *func)
+{
+	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
+}
+
+static int f15_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
+				 const char *func)
+{
+	u32 reg = 0;
+	u8 dct  = 0;
+
+	if (addr >= 0x140 && addr <= 0x1a0) {
+		dct   = 1;
+		addr -= 0x100;
+	}
+
+	amd64_read_pci_cfg(pvt->F1, DCT_CFG_SEL, &reg);
+	reg &= 0xfffffffe;
+	reg |= dct;
+	amd64_write_pci_cfg(pvt->F1, DCT_CFG_SEL, reg);
+
+	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
+}
+
 /*
  * Memory scrubber control interface. For K8, memory scrubbing is handled by
  * hardware and can involve L2 cache, dcache as well as the main memory. With
@@ -824,7 +897,7 @@ static void amd64_dump_dramcfg_low(u32 dclr, int chan)
 }
 
 /* Display and decode various NB registers for debug purposes. */
-static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
+static void dump_misc_regs(struct amd64_pvt *pvt)
 {
 	debugf1("F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
@@ -864,13 +937,10 @@ static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 		amd64_dump_dramcfg_low(pvt->dclr1, 1);
 }
 
-/* Read in both of DBAM registers */
 static void amd64_read_dbam_reg(struct amd64_pvt *pvt)
 {
-	amd64_read_pci_cfg(pvt->F2, DBAM0, &pvt->dbam0);
-
-	if (boot_cpu_data.x86 >= 0x10)
-		amd64_read_pci_cfg(pvt->F2, DBAM1, &pvt->dbam1);
+	amd64_read_dct_pci_cfg(pvt, DBAM0, &pvt->dbam0);
+	amd64_read_dct_pci_cfg(pvt, DBAM1, &pvt->dbam1);
 }
 
 /*
@@ -925,7 +995,7 @@ static void amd64_set_dct_base_and_mask(struct amd64_pvt *pvt)
 /*
  * Function 2 Offset F10_DCSB0; read in the DCS Base and DCS Mask hw registers
  */
-static void amd64_read_dct_base_mask(struct amd64_pvt *pvt)
+static void read_dct_base_mask(struct amd64_pvt *pvt)
 {
 	int cs, reg;
 
@@ -933,37 +1003,33 @@ static void amd64_read_dct_base_mask(struct amd64_pvt *pvt)
 
 	for (cs = 0; cs < pvt->cs_count; cs++) {
 		reg = K8_DCSB0 + (cs * 4);
-		if (!amd64_read_pci_cfg(pvt->F2, reg, &pvt->dcsb0[cs]))
+
+		if (!amd64_read_dct_pci_cfg(pvt, reg, &pvt->dcsb0[cs]))
 			debugf0("  DCSB0[%d]=0x%08x reg: F2x%x\n",
 				cs, pvt->dcsb0[cs], reg);
 
-		/* If DCT are NOT ganged, then read in DCT1's base */
-		if (boot_cpu_data.x86 >= 0x10 && !dct_ganging_enabled(pvt)) {
+		if (!dct_ganging_enabled(pvt)) {
 			reg = F10_DCSB1 + (cs * 4);
-			if (!amd64_read_pci_cfg(pvt->F2, reg,
-						&pvt->dcsb1[cs]))
+
+			if (!amd64_read_dct_pci_cfg(pvt, reg, &pvt->dcsb1[cs]))
 				debugf0("  DCSB1[%d]=0x%08x reg: F2x%x\n",
 					cs, pvt->dcsb1[cs], reg);
-		} else {
-			pvt->dcsb1[cs] = 0;
 		}
 	}
 
 	for (cs = 0; cs < pvt->num_dcsm; cs++) {
 		reg = K8_DCSM0 + (cs * 4);
-		if (!amd64_read_pci_cfg(pvt->F2, reg, &pvt->dcsm0[cs]))
+
+		if (!amd64_read_dct_pci_cfg(pvt, reg, &pvt->dcsm0[cs]))
 			debugf0("    DCSM0[%d]=0x%08x reg: F2x%x\n",
 				cs, pvt->dcsm0[cs], reg);
 
-		/* If DCT are NOT ganged, then read in DCT1's mask */
-		if (boot_cpu_data.x86 >= 0x10 && !dct_ganging_enabled(pvt)) {
+		if (!dct_ganging_enabled(pvt)) {
 			reg = F10_DCSM1 + (cs * 4);
-			if (!amd64_read_pci_cfg(pvt->F2, reg,
-						&pvt->dcsm1[cs]))
+
+			if (!amd64_read_dct_pci_cfg(pvt, reg, &pvt->dcsm1[cs]))
 				debugf0("    DCSM1[%d]=0x%08x reg: F2x%x\n",
 					cs, pvt->dcsm1[cs], reg);
-		} else {
-			pvt->dcsm1[cs] = 0;
 		}
 	}
 }
@@ -999,7 +1065,7 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 {
 	int flag, err = 0;
 
-	err = amd64_read_pci_cfg(pvt->F2, F10_DCLR_0, &pvt->dclr0);
+	err = amd64_read_dct_pci_cfg(pvt, F10_DCLR_0, &pvt->dclr0);
 	if (err)
 		return err;
 
@@ -1163,7 +1229,7 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 	 * both controllers since DIMMs can be placed in either one.
 	 */
 	for (i = 0; i < ARRAY_SIZE(dbams); i++) {
-		if (amd64_read_pci_cfg(pvt->F2, dbams[i], &dbam))
+		if (amd64_read_dct_pci_cfg(pvt, dbams[i], &dbam))
 			goto err_reg;
 
 		for (j = 0; j < 4; j++) {
@@ -1255,12 +1321,9 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 {
 
-	if (!amd64_read_pci_cfg(pvt->F2, F10_DCTL_SEL_LOW,
-				&pvt->dram_ctl_select_low)) {
-		debugf0("F2x110 (DCTL Sel. Low): 0x%08x, "
-			"High range addresses at: 0x%x\n",
-			pvt->dram_ctl_select_low,
-			dct_sel_baseaddr(pvt));
+	if (!amd64_read_dct_pci_cfg(pvt, F10_DCTL_SEL_LOW, &pvt->dct_sel_low)) {
+		debugf0("F2x110 (DCTL Sel. Low): 0x%08x, High range addrs at: 0x%x\n",
+			pvt->dct_sel_low, dct_sel_baseaddr(pvt));
 
 		debugf0("  DCT mode: %s, All DCTs on: %s\n",
 			(dct_ganging_enabled(pvt) ? "ganged" : "unganged"),
@@ -1281,8 +1344,7 @@ static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 			dct_sel_interleave_addr(pvt));
 	}
 
-	amd64_read_pci_cfg(pvt->F2, F10_DCTL_SEL_HIGH,
-			   &pvt->dram_ctl_select_high);
+	amd64_read_dct_pci_cfg(pvt, F10_DCTL_SEL_HIGH, &pvt->dct_sel_hi);
 }
 
 /*
@@ -1292,7 +1354,7 @@ static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 static u32 f10_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 				int hi_range_sel, u32 intlv_en)
 {
-	u32 cs, temp, dct_sel_high = (pvt->dram_ctl_select_low >> 1) & 1;
+	u32 cs, temp, dct_sel_high = (pvt->dct_sel_low >> 1) & 1;
 
 	if (dct_ganging_enabled(pvt))
 		cs = 0;
@@ -1481,7 +1543,7 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int dram_range,
 	 */
 	hole_off = (pvt->dhar & 0x0000FF80);
 	hole_valid = (pvt->dhar & 0x1);
-	dct_sel_base_off = (pvt->dram_ctl_select_high & 0xFFFFFC00) << 16;
+	dct_sel_base_off = (pvt->dct_sel_hi & 0xFFFFFC00) << 16;
 
 	debugf1("   HoleOffset=0x%x  HoleValid=0x%x IntlvSel=0x%x\n",
 			hole_off, hole_valid, intlv_sel);
@@ -1668,6 +1730,7 @@ static struct amd64_family_type amd64_family_types[] = {
 			.read_dram_base_limit	= k8_read_dram_base_limit,
 			.map_sysaddr_to_csrow	= k8_map_sysaddr_to_csrow,
 			.dbam_to_cs		= k8_dbam_to_chip_select,
+			.read_dct_pci_cfg	= k8_read_dct_pci_cfg,
 		}
 	},
 	[F10_CPUS] = {
@@ -1681,6 +1744,13 @@ static struct amd64_family_type amd64_family_types[] = {
 			.read_dram_ctl_register	= f10_read_dram_ctl_register,
 			.map_sysaddr_to_csrow	= f10_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f10_dbam_to_chip_select,
+			.read_dct_pci_cfg	= f10_read_dct_pci_cfg,
+		}
+	},
+	[F15_CPUS] = {
+		.ctl_name = "F15h",
+		.ops = {
+			.read_dct_pci_cfg	= f15_read_dct_pci_cfg,
 		}
 	},
 };
@@ -2081,23 +2151,23 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 		}
 	}
 
-	amd64_read_dct_base_mask(pvt);
+	read_dct_base_mask(pvt);
 
 	amd64_read_pci_cfg(pvt->F1, K8_DHAR, &pvt->dhar);
 	amd64_read_dbam_reg(pvt);
 
 	amd64_read_pci_cfg(pvt->F3, F10_ONLINE_SPARE, &pvt->online_spare);
 
-	amd64_read_pci_cfg(pvt->F2, F10_DCLR_0, &pvt->dclr0);
-	amd64_read_pci_cfg(pvt->F2, F10_DCHR_0, &pvt->dchr0);
+	amd64_read_dct_pci_cfg(pvt, F10_DCLR_0, &pvt->dclr0);
+	amd64_read_dct_pci_cfg(pvt, F10_DCHR_0, &pvt->dchr0);
 
-	if (boot_cpu_data.x86 >= 0x10) {
-		if (!dct_ganging_enabled(pvt)) {
-			amd64_read_pci_cfg(pvt->F2, F10_DCLR_1, &pvt->dclr1);
-			amd64_read_pci_cfg(pvt->F2, F10_DCHR_1, &pvt->dchr1);
-		}
-		amd64_read_pci_cfg(pvt->F3, EXT_NB_MCA_CFG, &tmp);
+	if (!dct_ganging_enabled(pvt)) {
+		amd64_read_dct_pci_cfg(pvt, F10_DCLR_1, &pvt->dclr1);
+		amd64_read_dct_pci_cfg(pvt, F10_DCHR_1, &pvt->dchr1);
 	}
+
+	if (boot_cpu_data.x86 >= 0x10)
+		amd64_read_pci_cfg(pvt->F3, EXT_NB_MCA_CFG, &tmp);
 
 	if (boot_cpu_data.x86 == 0x10 &&
 	    boot_cpu_data.x86_model > 7 &&
@@ -2107,7 +2177,7 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	else
 		pvt->syn_type = 4;
 
-	amd64_dump_misc_regs(pvt);
+	dump_misc_regs(pvt);
 }
 
 /*
@@ -2342,7 +2412,7 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 	s->nbctl_valid = true;
 
 	value |= mask;
-	pci_write_config_dword(F3, K8_NBCTL, value);
+	amd64_write_pci_cfg(F3, K8_NBCTL, value);
 
 	amd64_read_pci_cfg(F3, K8_NBCFG, &value);
 
@@ -2357,7 +2427,7 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 
 		/* Attempt to turn on DRAM ECC Enable */
 		value |= K8_NBCFG_ECC_ENABLE;
-		pci_write_config_dword(F3, K8_NBCFG, value);
+		amd64_write_pci_cfg(F3, K8_NBCFG, value);
 
 		amd64_read_pci_cfg(F3, K8_NBCFG, &value);
 
@@ -2391,13 +2461,13 @@ static void restore_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 	value &= ~mask;
 	value |= s->old_nbctl;
 
-	pci_write_config_dword(F3, K8_NBCTL, value);
+	amd64_write_pci_cfg(F3, K8_NBCTL, value);
 
 	/* restore previous BIOS DRAM ECC "off" setting we force-enabled */
 	if (!s->flags.nb_ecc_prev) {
 		amd64_read_pci_cfg(F3, K8_NBCFG, &value);
 		value &= ~K8_NBCFG_ECC_ENABLE;
-		pci_write_config_dword(F3, K8_NBCFG, value);
+		amd64_write_pci_cfg(F3, K8_NBCFG, value);
 	}
 
 	/* restore the NB Enable MCGCTL bit */
