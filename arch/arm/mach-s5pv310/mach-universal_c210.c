@@ -20,6 +20,7 @@
 #include <plat/regs-serial.h>
 #include <plat/s5pv310.h>
 #include <plat/cpu.h>
+#include <plat/devs.h>
 
 #include <mach/map.h>
 
@@ -117,6 +118,7 @@ static struct platform_device universal_gpio_keys = {
 
 static struct platform_device *universal_devices[] __initdata = {
 	&universal_gpio_keys,
+	&s5p_device_onenand,
 };
 
 static void __init universal_map_io(void)
