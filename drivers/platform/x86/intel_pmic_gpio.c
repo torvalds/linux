@@ -197,7 +197,7 @@ static int pmic_irq_type(unsigned irq, unsigned type)
 	u32 gpio = irq - pg->irq_base;
 	unsigned long flags;
 
-	if (gpio > pg->chip.ngpio)
+	if (gpio >= pg->chip.ngpio)
 		return -EINVAL;
 
 	spin_lock_irqsave(&pg->irqtypes.lock, flags);
