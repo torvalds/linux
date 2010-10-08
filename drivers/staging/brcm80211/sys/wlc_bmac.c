@@ -1789,8 +1789,8 @@ wlc_bmac_write_template_ram(wlc_hw_info_t *wlc_hw, int offset, int len,
 	regs = wlc_hw->regs;
 	osh = wlc_hw->osh;
 
-	ASSERT(ISALIGNED(offset, sizeof(u32)));
-	ASSERT(ISALIGNED(len, sizeof(u32)));
+	ASSERT(IS_ALIGNED(offset, sizeof(u32)));
+	ASSERT(IS_ALIGNED(len, sizeof(u32)));
 	ASSERT((offset & ~0xffff) == 0);
 
 	W_REG(osh, &regs->tplatewrptr, offset);
@@ -2824,7 +2824,7 @@ BCMATTACHFN(wlc_ucode_write) (wlc_hw_info_t *wlc_hw, const u32 ucode[],
 
 	WL_TRACE(("wl%d: wlc_ucode_write\n", wlc_hw->unit));
 
-	ASSERT(ISALIGNED(nbytes, sizeof(u32)));
+	ASSERT(IS_ALIGNED(nbytes, sizeof(u32)));
 
 	count = (nbytes / sizeof(u32));
 

@@ -1087,7 +1087,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 
 	/* Add space for the header */
 	PKTPUSH(pkt, SDPCM_HDRLEN);
-	ASSERT(ISALIGNED((uintptr) PKTDATA(pkt), 2));
+	ASSERT(IS_ALIGNED((uintptr) PKTDATA(pkt), 2));
 
 	prec = PRIO2PREC((PKTPRIO(pkt) & PRIOMASK));
 
@@ -1265,7 +1265,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	if (forcealign && (len & (ALIGNMENT - 1)))
 		len = ROUNDUP(len, ALIGNMENT);
 
-	ASSERT(ISALIGNED((uintptr) frame, 2));
+	ASSERT(IS_ALIGNED((uintptr) frame, 2));
 
 	/* Need to lock here to protect txseq and SDIO tx calls */
 	dhd_os_sdlock(bus->dhd);

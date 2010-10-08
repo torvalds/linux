@@ -528,7 +528,7 @@ void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align_bits,
 	u16 align = (1 << align_bits);
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 
-	if (!ISALIGNED(DMA_CONSISTENT_ALIGN, align))
+	if (!IS_ALIGNED(DMA_CONSISTENT_ALIGN, align))
 		size += align;
 	*alloced = size;
 

@@ -1793,7 +1793,7 @@ void *BCMATTACHFN(wlc_attach) (void *wl, u16 vendor, u16 device,
 	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
 	ASSERT(offsetof(wl_scan_params_t, channel_list) ==
 	       WL_SCAN_PARAMS_FIXED_SIZE);
-	ASSERT(ISALIGNED(offsetof(wsec_key_t, data), sizeof(u32)));
+	ASSERT(IS_ALIGNED(offsetof(wsec_key_t, data), sizeof(u32)));
 	ASSERT(ISPOWEROF2(MA_WINDOW_SZ));
 
 	ASSERT(sizeof(wlc_d11rxhdr_t) <= WL_HWRXOFF);
@@ -4619,7 +4619,7 @@ wlc_iovar_op(wlc_info_t *wlc, const char *name,
 	ASSERT(!set || (!params && !p_len));
 
 	if (!set && (len == sizeof(int)) &&
-	    !(ISALIGNED((uintptr) (arg), (uint) sizeof(int)))) {
+	    !(IS_ALIGNED((uintptr) (arg), (uint) sizeof(int)))) {
 		WL_ERROR(("wl%d: %s unaligned get ptr for %s\n",
 			  wlc->pub->unit, __func__, name));
 		ASSERT(0);
@@ -6330,7 +6330,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 		}
 
 		/* RTS PLCP header */
-		ASSERT(ISALIGNED((uintptr) txh->RTSPhyHeader, sizeof(u16)));
+		ASSERT(IS_ALIGNED((uintptr) txh->RTSPhyHeader, sizeof(u16)));
 		rts_plcp = txh->RTSPhyHeader;
 		if (use_cts)
 			rts_phylen = DOT11_CTS_LEN + DOT11_FCS_LEN;
@@ -7176,7 +7176,7 @@ wlc_recvctl(wlc_info_t *wlc, osl_t *osh, d11rxhdr_t *rxh, void *p)
 	ASSERT(!PKTNEXT(p));
 	ASSERT(!PKTLINK(p));
 
-	ASSERT(ISALIGNED((uintptr) skb->data, 2));
+	ASSERT(IS_ALIGNED((uintptr) skb->data, 2));
 
 	memcpy(IEEE80211_SKB_RXCB(p), &rx_status, sizeof(rx_status));
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);

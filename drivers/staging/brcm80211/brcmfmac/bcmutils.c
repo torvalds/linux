@@ -883,7 +883,7 @@ uint pktsetprio(void *pkt, bool update_vtag)
 	int rc = 0;
 
 	pktdata = (u8 *) PKTDATA(pkt);
-	ASSERT(ISALIGNED((uintptr) pktdata, sizeof(u16)));
+	ASSERT(IS_ALIGNED((uintptr) pktdata, sizeof(u16)));
 
 	eh = (struct ether_header *)pktdata;
 

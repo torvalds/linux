@@ -1132,7 +1132,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		pa = DMA_MAP(di->osh, PKTDATA(p),
 			     di->rxbufsize, DMA_RX, p, &di->rxp_dmah[rxout]);
 
-		ASSERT(ISALIGNED(PHYSADDRLO(pa), 4));
+		ASSERT(IS_ALIGNED(PHYSADDRLO(pa), 4));
 
 		/* save the free packet pointer */
 		ASSERT(di->rxp[rxout] == NULL);
@@ -1553,7 +1553,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(PHYSADDRLO(di->txdpa) >= PHYSADDRLO(di->txdpaorig));
 
 		di->txdalloc = alloced;
-		ASSERT(ISALIGNED((uintptr) di->txd32, align));
+		ASSERT(IS_ALIGNED((uintptr) di->txd32, align));
 	} else {
 		va = dma_ringalloc(di->osh, D32RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
@@ -1573,7 +1573,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		/* Make sure that alignment didn't overflow */
 		ASSERT(PHYSADDRLO(di->rxdpa) >= PHYSADDRLO(di->rxdpaorig));
 		di->rxdalloc = alloced;
-		ASSERT(ISALIGNED((uintptr) di->rxd32, align));
+		ASSERT(IS_ALIGNED((uintptr) di->rxd32, align));
 	}
 
 	return TRUE;
@@ -2118,7 +2118,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->txdpa, PHYSADDRHI(di->txdpaorig));
 		di->txdalloc = alloced;
-		ASSERT(ISALIGNED((uintptr) di->txd64, align));
+		ASSERT(IS_ALIGNED((uintptr) di->txd64, align));
 	} else {
 		va = dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
@@ -2136,7 +2136,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->rxdpa, PHYSADDRHI(di->rxdpaorig));
 		di->rxdalloc = alloced;
-		ASSERT(ISALIGNED((uintptr) di->rxd64, align));
+		ASSERT(IS_ALIGNED((uintptr) di->rxd64, align));
 	}
 
 	return TRUE;

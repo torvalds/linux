@@ -268,8 +268,8 @@ typedef struct si_info {
 #define	SI_INFO(sih)	(si_info_t *)(uintptr)sih
 
 #define	GOODCOREADDR(x, b) (((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
-		ISALIGNED((x), SI_CORE_SIZE))
-#define	GOODREGS(regs)	((regs) != NULL && ISALIGNED((uintptr)(regs), SI_CORE_SIZE))
+		IS_ALIGNED((x), SI_CORE_SIZE))
+#define	GOODREGS(regs)	((regs) != NULL && IS_ALIGNED((uintptr)(regs), SI_CORE_SIZE))
 #define BADCOREADDR	0
 #define	GOODIDX(idx)	(((uint)idx) < SI_MAXCORES)
 #define	NOREV		-1	/* Invalid rev */
