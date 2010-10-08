@@ -1,7 +1,8 @@
-/// Find a use after free.  Values of variables may imply that some
-/// execution paths are not possible, resulting in false positives.
-/// Another source of false positives are macros such as
-/// SCTP_DBG_OBJCNT_DEC that do not actually evaluate their argument
+/// Find a use after free.
+//# Values of variables may imply that some
+//# execution paths are not possible, resulting in false positives.
+//# Another source of false positives are macros such as
+//# SCTP_DBG_OBJCNT_DEC that do not actually evaluate their argument
 ///
 // Confidence: Moderate
 // Copyright: (C) 2010 Nicolas Palix, DIKU.  GPLv2.
