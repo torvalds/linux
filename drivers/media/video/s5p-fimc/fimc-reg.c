@@ -29,7 +29,7 @@ void fimc_hw_reset(struct fimc_dev *dev)
 	cfg = readl(dev->regs + S5P_CIGCTRL);
 	cfg |= (S5P_CIGCTRL_SWRST | S5P_CIGCTRL_IRQ_LEVEL);
 	writel(cfg, dev->regs + S5P_CIGCTRL);
-	msleep(1);
+	udelay(1000);
 
 	cfg = readl(dev->regs + S5P_CIGCTRL);
 	cfg &= ~S5P_CIGCTRL_SWRST;
@@ -247,21 +247,20 @@ void fimc_hw_en_lastirq(struct fimc_dev *dev, int enable)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
+static void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev =  ctx->fimc_dev;
 	struct fimc_scaler *sc = &ctx->scaler;
-	u32 cfg = 0, shfactor;
+	u32 cfg, shfactor;
 
 	shfactor = 10 - (sc->hfactor + sc->vfactor);
 
-	cfg |= S5P_CISCPRERATIO_SHFACTOR(shfactor);
+	cfg = S5P_CISCPRERATIO_SHFACTOR(shfactor);
 	cfg |= S5P_CISCPRERATIO_HOR(sc->pre_hratio);
 	cfg |= S5P_CISCPRERATIO_VER(sc->pre_vratio);
 	writel(cfg, dev->regs + S5P_CISCPRERATIO);
 
-	cfg = 0;
-	cfg |= S5P_CISCPREDST_WIDTH(sc->pre_dst_width);
+	cfg = S5P_CISCPREDST_WIDTH(sc->pre_dst_width);
 	cfg |= S5P_CISCPREDST_HEIGHT(sc->pre_dst_height);
 	writel(cfg, dev->regs + S5P_CISCPREDST);
 }
@@ -273,6 +272,8 @@ void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 	struct fimc_frame *src_frame = &ctx->s_frame;
 	struct fimc_frame *dst_frame = &ctx->d_frame;
 	u32 cfg = 0;
+
+	fimc_hw_set_prescaler(ctx);
 
 	if (!(ctx->flags & FIMC_COLOR_RANGE_NARROW))
 		cfg |= (S5P_CISCCTRL_CSCR2Y_WIDE | S5P_CISCCTRL_CSCY2R_WIDE);
@@ -364,7 +365,7 @@ static void fimc_hw_set_in_dma_size(struct fimc_ctx *ctx)
 	u32 cfg_r = 0;
 
 	if (FIMC_LCDFIFO == ctx->out_path)
-		cfg_r |=  S5P_CIREAL_ISIZE_AUTOLOAD_EN;
+		cfg_r |= S5P_CIREAL_ISIZE_AUTOLOAD_EN;
 
 	cfg_o |= S5P_ORIG_SIZE_HOR(frame->f_width);
 	cfg_o |= S5P_ORIG_SIZE_VER(frame->f_height);
@@ -380,27 +381,25 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_frame *frame = &ctx->s_frame;
 	struct fimc_dma_offset *offset = &frame->dma_offset;
-	u32 cfg = 0;
+	u32 cfg;
 
 	/* Set the pixel offsets. */
-	cfg |= S5P_CIO_OFFS_HOR(offset->y_h);
+	cfg = S5P_CIO_OFFS_HOR(offset->y_h);
 	cfg |= S5P_CIO_OFFS_VER(offset->y_v);
 	writel(cfg, dev->regs + S5P_CIIYOFF);
 
-	cfg = 0;
-	cfg |= S5P_CIO_OFFS_HOR(offset->cb_h);
+	cfg = S5P_CIO_OFFS_HOR(offset->cb_h);
 	cfg |= S5P_CIO_OFFS_VER(offset->cb_v);
 	writel(cfg, dev->regs + S5P_CIICBOFF);
 
-	cfg = 0;
-	cfg |= S5P_CIO_OFFS_HOR(offset->cr_h);
+	cfg = S5P_CIO_OFFS_HOR(offset->cr_h);
 	cfg |= S5P_CIO_OFFS_VER(offset->cr_v);
 	writel(cfg, dev->regs + S5P_CIICROFF);
 
 	/* Input original and real size. */
 	fimc_hw_set_in_dma_size(ctx);
 
-	/* Autoload is used currently only in FIFO mode. */
+	/* Use DMA autoload only in FIFO mode. */
 	fimc_hw_en_autoload(dev, ctx->out_path == FIMC_LCDFIFO);
 
 	/* Set the input DMA to process single frame only. */
@@ -501,9 +500,7 @@ void fimc_hw_set_output_path(struct fimc_ctx *ctx)
 
 void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *paddr)
 {
-	u32 cfg = 0;
-
-	cfg = readl(dev->regs + S5P_CIREAL_ISIZE);
+	u32 cfg = readl(dev->regs + S5P_CIREAL_ISIZE);
 	cfg |= S5P_CIREAL_ISIZE_ADDR_CH_DIS;
 	writel(cfg, dev->regs + S5P_CIREAL_ISIZE);
 
@@ -515,13 +512,15 @@ void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *paddr)
 	writel(cfg, dev->regs + S5P_CIREAL_ISIZE);
 }
 
-void fimc_hw_set_output_addr(struct fimc_dev *dev, struct fimc_addr *paddr)
+void fimc_hw_set_output_addr(struct fimc_dev *dev,
+			     struct fimc_addr *paddr, int index)
 {
-	int i;
-	/* Set all the output register sets to point to single video buffer. */
-	for (i = 0; i < FIMC_MAX_OUT_BUFS; i++) {
+	int i = (index == -1) ? 0 : index;
+	do {
 		writel(paddr->y, dev->regs + S5P_CIOYSA(i));
 		writel(paddr->cb, dev->regs + S5P_CIOCBSA(i));
 		writel(paddr->cr, dev->regs + S5P_CIOCRSA(i));
-	}
+		dbg("dst_buf[%d]: 0x%X, cb: 0x%X, cr: 0x%X",
+		    i, paddr->y, paddr->cb, paddr->cr);
+	} while (index == -1 && ++i < FIMC_MAX_OUT_BUFS);
 }

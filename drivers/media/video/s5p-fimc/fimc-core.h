@@ -34,6 +34,7 @@
 #define FIMC_MAX_OUT_BUFS	4
 #define SCALER_MAX_HRATIO	64
 #define SCALER_MAX_VRATIO	64
+#define DMA_MIN_SIZE		8
 
 enum {
 	ST_IDLE,
@@ -54,20 +55,20 @@ enum fimc_datapath {
 };
 
 enum fimc_color_fmt {
-	S5P_FIMC_RGB565,
+	S5P_FIMC_RGB565 = 0x10,
 	S5P_FIMC_RGB666,
 	S5P_FIMC_RGB888,
-	S5P_FIMC_YCBCR420,
+	S5P_FIMC_RGB30_LOCAL,
+	S5P_FIMC_YCBCR420 = 0x20,
 	S5P_FIMC_YCBCR422,
 	S5P_FIMC_YCBYCR422,
 	S5P_FIMC_YCRYCB422,
 	S5P_FIMC_CBYCRY422,
 	S5P_FIMC_CRYCBY422,
-	S5P_FIMC_RGB30_LOCAL,
 	S5P_FIMC_YCBCR444_LOCAL,
-	S5P_FIMC_MAX_COLOR = S5P_FIMC_YCBCR444_LOCAL,
-	S5P_FIMC_COLOR_MASK = 0x0F,
 };
+
+#define fimc_fmt_is_rgb(x) ((x) & 0x10)
 
 /* Y/Cb/Cr components order at DMA output for 1 plane YCbCr 4:2:2 formats. */
 #define	S5P_FIMC_OUT_CRYCBY	S5P_CIOCTRL_ORDER422_CRYCBY
@@ -93,11 +94,13 @@ enum fimc_color_fmt {
 #define	S5P_FIMC_EFFECT_SIKHOUETTE	S5P_CIIMGEFF_FIN_SILHOUETTE
 
 /* The hardware context state. */
-#define	FIMC_PARAMS			(1 << 0)
-#define	FIMC_SRC_ADDR			(1 << 1)
-#define	FIMC_DST_ADDR			(1 << 2)
-#define	FIMC_SRC_FMT			(1 << 3)
-#define	FIMC_DST_FMT			(1 << 4)
+#define	FIMC_PARAMS		(1 << 0)
+#define	FIMC_SRC_ADDR		(1 << 1)
+#define	FIMC_DST_ADDR		(1 << 2)
+#define	FIMC_SRC_FMT		(1 << 3)
+#define	FIMC_DST_FMT		(1 << 4)
+#define	FIMC_CTX_M2M		(1 << 5)
+#define	FIMC_CTX_CAP		(1 << 6)
 
 /* Image conversion flags */
 #define	FIMC_IN_DMA_ACCESS_TILED	(1 << 0)
@@ -106,7 +109,9 @@ enum fimc_color_fmt {
 #define	FIMC_OUT_DMA_ACCESS_LINEAR	(0 << 1)
 #define	FIMC_SCAN_MODE_PROGRESSIVE	(0 << 2)
 #define	FIMC_SCAN_MODE_INTERLACED	(1 << 2)
-/* YCbCr data dynamic range for RGB-YUV color conversion. Y/Cb/Cr: (0 ~ 255) */
+/*
+ * YCbCr data dynamic range for RGB-YUV color conversion.
+ * Y/Cb/Cr: (0 ~ 255) */
 #define	FIMC_COLOR_RANGE_WIDE		(0 << 3)
 /* Y (16 ~ 235), Cb/Cr (16 ~ 240) */
 #define	FIMC_COLOR_RANGE_NARROW		(1 << 3)
@@ -167,37 +172,37 @@ struct fimc_effect {
 /**
  * struct fimc_scaler - the configuration data for FIMC inetrnal scaler
  *
- * @enabled:		the flag set when the scaler is used
+ * @scaleup_h:		flag indicating scaling up horizontally
+ * @scaleup_v:		flag indicating scaling up vertically
+ * @copy_mode:		flag indicating transparent DMA transfer (no scaling
+ *			and color format conversion)
+ * @enabled:		flag indicating if the scaler is used
  * @hfactor:		horizontal shift factor
  * @vfactor:		vertical shift factor
  * @pre_hratio:		horizontal ratio of the prescaler
  * @pre_vratio:		vertical ratio of the prescaler
  * @pre_dst_width:	the prescaler's destination width
  * @pre_dst_height:	the prescaler's destination height
- * @scaleup_h:		flag indicating scaling up horizontally
- * @scaleup_v:		flag indicating scaling up vertically
  * @main_hratio:	the main scaler's horizontal ratio
  * @main_vratio:	the main scaler's vertical ratio
- * @real_width:		source width - offset
- * @real_height:	source height - offset
- * @copy_mode:		flag set if one-to-one mode is used, i.e. no scaling
- *			and color format conversion
+ * @real_width:		source pixel (width - offset)
+ * @real_height:	source pixel (height - offset)
  */
 struct fimc_scaler {
-	u32	enabled;
+	int	scaleup_h:1;
+	int	scaleup_v:1;
+	int	copy_mode:1;
+	int	enabled:1;
 	u32	hfactor;
 	u32	vfactor;
 	u32	pre_hratio;
 	u32	pre_vratio;
 	u32	pre_dst_width;
 	u32	pre_dst_height;
-	u32	scaleup_h;
-	u32	scaleup_v;
 	u32	main_hratio;
 	u32	main_vratio;
 	u32	real_width;
 	u32	real_height;
-	u32	copy_mode;
 };
 
 /**
@@ -222,8 +227,7 @@ struct fimc_vid_buffer {
 };
 
 /**
- * struct fimc_frame - input/output frame format properties
- *
+ * struct fimc_frame - source/target frame properties
  * @f_width:	image full width (virtual screen size)
  * @f_height:	image full height (virtual screen size)
  * @o_width:	original image width as set by S_FMT
@@ -279,10 +283,10 @@ struct fimc_m2m_device {
  * @min_out_pixsize: minimum output pixel size
  * @scaler_en_w: maximum input pixel width when the scaler is enabled
  * @scaler_dis_w: maximum input pixel width when the scaler is disabled
- * @in_rot_en_h: maximum input width when the input rotator is used
- * @in_rot_dis_w: maximum input width when the input rotator is used
- * @out_rot_en_w: maximum output width for the output rotator enabled
- * @out_rot_dis_w: maximum output width for the output rotator enabled
+ * @in_rot_en_h: maximum input width when the input rotator is enabled
+ * @in_rot_dis_w: maximum input width when the input rotator is disabled
+ * @out_rot_en_w: maximum target width when the output rotator enabled
+ * @out_rot_dis_w: maximum target width when the output rotator disnabled
  */
 struct samsung_fimc_variant {
 	unsigned int	pix_hoff:1;
@@ -300,7 +304,7 @@ struct samsung_fimc_variant {
 };
 
 /**
- * struct samsung_fimc_driverdata - per-device type driver data for init time.
+ * struct samsung_fimc_driverdata - per device type driver data for init time.
  *
  * @variant: the variant information for this driver.
  * @dev_cnt: number of fimc sub-devices available in SoC
@@ -313,7 +317,7 @@ struct samsung_fimc_driverdata {
 struct fimc_ctx;
 
 /**
- * struct fimc_subdev - abstraction for a FIMC entity
+ * struct fimc_dev - abstraction for FIMC entity
  *
  * @slock:	the spinlock protecting this data structure
  * @lock:	the mutex protecting this data structure
@@ -323,7 +327,7 @@ struct fimc_ctx;
  * @regs:	the mapped hardware registers
  * @regs_res:	the resource claimed for IO registers
  * @irq:	interrupt number of the FIMC subdevice
- * @irqlock:	spinlock protecting videbuffer queue
+ * @irqlock:	spinlock protecting videobuffer queue
  * @m2m:	memory-to-memory V4L2 device information
  * @state:	the FIMC device state flags
  */
@@ -338,7 +342,6 @@ struct fimc_dev {
 	struct resource			*regs_res;
 	int				irq;
 	spinlock_t			irqlock;
-	struct workqueue_struct		*work_queue;
 	struct fimc_m2m_device		m2m;
 	unsigned long			state;
 };
@@ -359,7 +362,7 @@ struct fimc_dev {
  * @effect:		image effect
  * @rotation:		image clockwise rotation in degrees
  * @flip:		image flip mode
- * @flags:		an additional flags for image conversion
+ * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
  * @fimc_dev:		the FIMC device this context applies to
  * @m2m_ctx:		memory-to-memory device context
@@ -397,18 +400,24 @@ static inline void fimc_hw_clear_irq(struct fimc_dev *dev)
 	writel(cfg, dev->regs + S5P_CIGCTRL);
 }
 
-static inline void fimc_hw_start_scaler(struct fimc_dev *dev)
+static inline void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on)
 {
 	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
-	cfg |= S5P_CISCCTRL_SCALERSTART;
+	if (on)
+		cfg |= S5P_CISCCTRL_SCALERSTART;
+	else
+		cfg &= ~S5P_CISCCTRL_SCALERSTART;
 	writel(cfg, dev->regs + S5P_CISCCTRL);
 }
 
-static inline void fimc_hw_stop_scaler(struct fimc_dev *dev)
+static inline void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on)
 {
-	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
-	cfg &= ~S5P_CISCCTRL_SCALERSTART;
-	writel(cfg, dev->regs + S5P_CISCCTRL);
+	u32 cfg = readl(dev->regs + S5P_MSCTRL);
+	if (on)
+		cfg |= S5P_MSCTRL_ENVID;
+	else
+		cfg &= ~S5P_MSCTRL_ENVID;
+	writel(cfg, dev->regs + S5P_MSCTRL);
 }
 
 static inline void fimc_hw_dis_capture(struct fimc_dev *dev)
@@ -418,22 +427,8 @@ static inline void fimc_hw_dis_capture(struct fimc_dev *dev)
 	writel(cfg, dev->regs + S5P_CIIMGCPT);
 }
 
-static inline void fimc_hw_start_in_dma(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + S5P_MSCTRL);
-	cfg |= S5P_MSCTRL_ENVID;
-	writel(cfg, dev->regs + S5P_MSCTRL);
-}
-
-static inline void fimc_hw_stop_in_dma(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + S5P_MSCTRL);
-	cfg &= ~S5P_MSCTRL_ENVID;
-	writel(cfg, dev->regs + S5P_MSCTRL);
-}
-
-static inline struct fimc_frame *ctx_m2m_get_frame(struct fimc_ctx *ctx,
-						   enum v4l2_buf_type type)
+static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
+					       enum v4l2_buf_type type)
 {
 	struct fimc_frame *frame;
 
@@ -452,20 +447,35 @@ static inline struct fimc_frame *ctx_m2m_get_frame(struct fimc_ctx *ctx,
 
 /* -----------------------------------------------------*/
 /* fimc-reg.c						*/
-void fimc_hw_reset(struct fimc_dev *dev);
+void fimc_hw_reset(struct fimc_dev *fimc);
 void fimc_hw_set_rotation(struct fimc_ctx *ctx);
 void fimc_hw_set_target_format(struct fimc_ctx *ctx);
 void fimc_hw_set_out_dma(struct fimc_ctx *ctx);
-void fimc_hw_en_lastirq(struct fimc_dev *dev, int enable);
-void fimc_hw_en_irq(struct fimc_dev *dev, int enable);
-void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
+void fimc_hw_en_lastirq(struct fimc_dev *fimc, int enable);
+void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
 void fimc_hw_set_scaler(struct fimc_ctx *ctx);
 void fimc_hw_en_capture(struct fimc_ctx *ctx);
 void fimc_hw_set_effect(struct fimc_ctx *ctx);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
 void fimc_hw_set_input_path(struct fimc_ctx *ctx);
 void fimc_hw_set_output_path(struct fimc_ctx *ctx);
-void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *paddr);
-void fimc_hw_set_output_addr(struct fimc_dev *dev, struct fimc_addr *paddr);
+void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *paddr);
+void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *paddr,
+			      int index);
+
+/* Locking: the caller holds fimc->slock */
+static inline void fimc_activate_capture(struct fimc_ctx *ctx)
+{
+	fimc_hw_enable_scaler(ctx->fimc_dev, ctx->scaler.enabled);
+	fimc_hw_en_capture(ctx);
+}
+
+static inline void fimc_deactivate_capture(struct fimc_dev *fimc)
+{
+	fimc_hw_en_lastirq(fimc, true);
+	fimc_hw_dis_capture(fimc);
+	fimc_hw_enable_scaler(fimc, false);
+	fimc_hw_en_lastirq(fimc, false);
+}
 
 #endif /* FIMC_CORE_H_ */
