@@ -12,7 +12,7 @@ ccflags-y += -DUSE_ONE_PIPE
 ccflags-y += -DENABLE_DOT11D
 ccflags-y += -Idrivers/staging/rtl8192u/ieee80211
 
-r8192u_usb-objs := r8192U_core.o r8180_93cx6.o r8192U_wx.o		\
+r8192u_usb-y := r8192U_core.o r8180_93cx6.o r8192U_wx.o		\
 		  r8190_rtl8256.o r819xU_phy.o r819xU_firmware.o	\
 		  r819xU_cmdpkt.o r8192U_dm.o r819xU_firmware_img.o	\
 		  ieee80211/ieee80211_crypt.o				\
