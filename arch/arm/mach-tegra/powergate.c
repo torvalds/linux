@@ -144,6 +144,7 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 	if (ret)
 		goto err_clamp;
 
+	udelay(10);
 	tegra_periph_reset_deassert(clk);
 
 	return 0;
