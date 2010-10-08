@@ -245,6 +245,8 @@ static int omap2_can_sleep(void)
 {
 	if (omap2_fclks_active())
 		return 0;
+	if (!omap_uart_can_sleep())
+		return 0;
 	if (osc_ck->usecount > 1)
 		return 0;
 	if (omap_dma_running())
