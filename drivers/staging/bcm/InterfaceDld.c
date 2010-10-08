@@ -167,7 +167,7 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter,
 	{
 		bcm_kfree (Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
-		return retval;
+		return -EFAULT;
 	}
 	/* Parse the structure and then Download the Firmware */
 	beceem_parse_target_struct(Adapter);
@@ -385,6 +385,7 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 		if(retval != STATUS_SUCCESS)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "copying buffer from user space failed");
+			retval = -EFAULT;
 			goto error ;
 		}
 
