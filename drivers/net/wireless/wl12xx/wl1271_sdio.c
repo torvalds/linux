@@ -290,11 +290,31 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	wl1271_free_hw(wl);
 }
 
+static int wl1271_suspend(struct device *dev)
+{
+	/* Tell MMC/SDIO core it's OK to power down the card
+	 * (if it isn't already), but not to remove it completely */
+	return 0;
+}
+
+static int wl1271_resume(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops wl1271_sdio_pm_ops = {
+	.suspend	= wl1271_suspend,
+	.resume		= wl1271_resume,
+};
+
 static struct sdio_driver wl1271_sdio_driver = {
 	.name		= "wl1271_sdio",
 	.id_table	= wl1271_devices,
 	.probe		= wl1271_probe,
 	.remove		= __devexit_p(wl1271_remove),
+	.drv = {
+		.pm = &wl1271_sdio_pm_ops,
+	},
 };
 
 static int __init wl1271_init(void)
