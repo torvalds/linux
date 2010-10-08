@@ -285,7 +285,7 @@
 #define MX51_MXC_INT_MMC_SDHC3		3
 #define MX51_MXC_INT_MMC_SDHC4		4
 #define MX51_MXC_INT_RESV5		5
-#define MX51_MXC_INT_SDMA		6
+#define MX51_INT_SDMA			6
 #define MX51_MXC_INT_IOMUX		7
 #define MX51_INT_NFC			8
 #define MX51_MXC_INT_VPU		9
