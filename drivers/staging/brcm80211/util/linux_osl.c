@@ -33,7 +33,7 @@
 #define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognise osh */
 #define BCM_MEM_FILENAME_LEN 	24	/* Mem. filename length */
 
-#ifdef DHD_USE_STATIC_BUF
+#if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 #define MAX_STATIC_BUF_NUM 16
 #define STATIC_BUF_SIZE	(PAGE_SIZE*2)
 #define STATIC_BUF_TOTAL_LEN (MAX_STATIC_BUF_NUM*STATIC_BUF_SIZE)
@@ -75,6 +75,7 @@ struct osl_info {
 /* Global ASSERT type flag */
 uint32 g_assert_type;
 
+#ifdef BRCM_FULLMAC
 static s16 linuxbcmerrormap[] = { 0,	/* 0 */
 	-EINVAL,		/* BCME_ERROR */
 	-EINVAL,		/* BCME_BADARG */
@@ -140,6 +141,7 @@ int osl_error(int bcmerror)
 	/* Array bounds covered by ASSERT in osl_attach */
 	return linuxbcmerrormap[-bcmerror];
 }
+#endif /* BRCM_FULLMAC */
 
 osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 {
@@ -150,8 +152,10 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 
 	bzero(osh, sizeof(osl_t));
 
+#ifdef BRCM_FULLMAC
 	/* Check that error map has the right number of entries in it */
 	ASSERT(ABS(BCME_LAST) == (ARRAYSIZE(linuxbcmerrormap) - 1));
+#endif /* BRCM_FULLMAC */
 
 	osh->magic = OS_HANDLE_MAGIC;
 	osh->malloced = 0;
@@ -179,8 +183,7 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 		break;
 	}
 
-#ifdef DHD_USE_STATIC_BUF
-
+#if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 	if (!bcm_static_buf) {
 		if (!(bcm_static_buf =
 		     (bcm_static_buf_t *) dhd_os_prealloc(3,
@@ -211,7 +214,8 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 
 		init_MUTEX(&bcm_static_skb->osl_pkt_sem);
 	}
-#endif				/* DHD_USE_STATIC_BUF */
+#endif /* defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF) */
+
 #if defined(BCMDBG) && !defined(BRCM_FULLMAC)
 	if (pkttag) {
 		struct sk_buff *skb;
@@ -226,7 +230,7 @@ void osl_detach(osl_t *osh)
 	if (osh == NULL)
 		return;
 
-#ifdef DHD_USE_STATIC_BUF
+#if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 	if (bcm_static_buf)
 		bcm_static_buf = 0;
 
@@ -287,7 +291,7 @@ void BCMFASTPATH osl_pktfree(osl_t *osh, void *p, bool send)
 	}
 }
 
-#ifdef DHD_USE_STATIC_BUF
+#if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 void *osl_pktget_static(osl_t *osh, uint len)
 {
 	int i = 0;
@@ -352,7 +356,8 @@ void osl_pktfree_static(osl_t *osh, void *p, bool send)
 	}
 	return osl_pktfree(osh, p, send);
 }
-#endif				/* DHD_USE_STATIC_BUF */
+#endif /* defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF) */
+
 uint32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 {
 	uint val = 0;
@@ -426,7 +431,7 @@ void *osl_malloc(osl_t *osh, uint size)
 	if (osh)
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 
-#ifdef DHD_USE_STATIC_BUF
+#if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 		if (bcm_static_buf) {
 			int i = 0;
 			if ((size >= PAGE_SIZE) && (size <= STATIC_BUF_SIZE)) {
@@ -453,7 +458,7 @@ void *osl_malloc(osl_t *osh, uint size)
 			}
 		}
 	original:
-#endif				/* DHD_USE_STATIC_BUF */
+#endif /* defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF) */
 
 	addr = kmalloc(size, GFP_ATOMIC);
 	if (addr == NULL) {
@@ -469,7 +474,7 @@ void *osl_malloc(osl_t *osh, uint size)
 
 void osl_mfree(osl_t *osh, void *addr, uint size)
 {
-#ifdef DHD_USE_STATIC_BUF
+#if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 	if (bcm_static_buf) {
 		if ((addr > (void *)bcm_static_buf) && ((unsigned char *)addr
 				<= ((unsigned char *)
@@ -490,7 +495,7 @@ void osl_mfree(osl_t *osh, void *addr, uint size)
 			return;
 		}
 	}
-#endif				/* DHD_USE_STATIC_BUF */
+#endif /* defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF) */
 	if (osh) {
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 		osh->malloced -= size;
@@ -662,5 +667,4 @@ void osl_writel(osl_t *osh, volatile uint32 *r, uint32 v)
 
 	((wreg) (ctx, (void *)r, v, sizeof(uint32)));
 }
-#endif				/* BCMSDIO */
-/* Linux Kernel: File Operations: end */
+#endif	/* BCMSDIO */
