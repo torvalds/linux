@@ -129,7 +129,6 @@ struct davinci_spi {
 	u8			version;
 	resource_size_t		pbase;
 	void __iomem		*base;
-	size_t			region_size;
 	u32			irq;
 	struct completion	done;
 
@@ -835,17 +834,15 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	}
 
 	davinci_spi->pbase = r->start;
-	davinci_spi->region_size = resource_size(r);
 	davinci_spi->pdata = pdata;
 
-	mem = request_mem_region(r->start, davinci_spi->region_size,
-					pdev->name);
+	mem = request_mem_region(r->start, resource_size(r), pdev->name);
 	if (mem == NULL) {
 		ret = -EBUSY;
 		goto free_master;
 	}
 
-	davinci_spi->base = ioremap(r->start, davinci_spi->region_size);
+	davinci_spi->base = ioremap(r->start, resource_size(r));
 	if (davinci_spi->base == NULL) {
 		ret = -ENOMEM;
 		goto release_region;
@@ -972,7 +969,7 @@ irq_free:
 unmap_io:
 	iounmap(davinci_spi->base);
 release_region:
-	release_mem_region(davinci_spi->pbase, davinci_spi->region_size);
+	release_mem_region(davinci_spi->pbase, resource_size(r));
 free_master:
 	kfree(master);
 err:
@@ -992,6 +989,7 @@ static int __exit davinci_spi_remove(struct platform_device *pdev)
 {
 	struct davinci_spi *davinci_spi;
 	struct spi_master *master;
+	struct resource *r;
 
 	master = dev_get_drvdata(&pdev->dev);
 	davinci_spi = spi_master_get_devdata(master);
@@ -1003,7 +1001,8 @@ static int __exit davinci_spi_remove(struct platform_device *pdev)
 	spi_master_put(master);
 	free_irq(davinci_spi->irq, davinci_spi);
 	iounmap(davinci_spi->base);
-	release_mem_region(davinci_spi->pbase, davinci_spi->region_size);
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(davinci_spi->pbase, resource_size(r));
 
 	return 0;
 }
