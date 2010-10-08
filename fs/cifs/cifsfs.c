@@ -98,6 +98,9 @@ cifs_read_super(struct super_block *sb, void *data,
 	if (cifs_sb == NULL)
 		return -ENOMEM;
 
+	spin_lock_init(&cifs_sb->tlink_tree_lock);
+	INIT_RADIX_TREE(&cifs_sb->tlink_tree, GFP_KERNEL);
+
 	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
 	if (rc) {
 		kfree(cifs_sb);
