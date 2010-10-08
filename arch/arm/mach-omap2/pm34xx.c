@@ -32,7 +32,6 @@
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
 #include <plat/powerdomain.h>
-#include <plat/control.h>
 #include <plat/serial.h>
 #include <plat/sdrc.h>
 #include <plat/prcm.h>
@@ -48,6 +47,7 @@
 #include "prm.h"
 #include "pm.h"
 #include "sdrc.h"
+#include "control.h"
 
 /* Scratchpad offsets */
 #define OMAP343X_TABLE_ADDRESS_OFFSET	   0x31

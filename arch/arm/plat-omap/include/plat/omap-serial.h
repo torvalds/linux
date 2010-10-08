@@ -20,7 +20,6 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
-#include <plat/control.h>
 #include <plat/mux.h>
 
 #define DRIVER_NAME	"omap-hsuart"

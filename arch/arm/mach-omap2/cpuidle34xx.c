@@ -29,10 +29,10 @@
 #include <plat/irqs.h>
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
-#include <plat/control.h>
 #include <plat/serial.h>
 
 #include "pm.h"
+#include "control.h"
 
 #ifdef CONFIG_CPU_IDLE
 

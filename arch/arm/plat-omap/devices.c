@@ -21,7 +21,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/tc.h>
-#include <plat/control.h>
 #include <plat/board.h>
 #include <plat/mmc.h>
 #include <mach/gpio.h>

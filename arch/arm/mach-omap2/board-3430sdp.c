@@ -39,7 +39,6 @@
 #include <plat/gpmc.h>
 #include <plat/display.h>
 
-#include <plat/control.h>
 #include <plat/gpmc-smc91x.h>
 
 #include "board-flash.h"
@@ -47,6 +46,7 @@
 #include "sdram-qimonda-hyb18m512160af-6.h"
 #include "hsmmc.h"
 #include "pm.h"
+#include "control.h"
 
 #define CONFIG_DISABLE_HFCLK 1
 

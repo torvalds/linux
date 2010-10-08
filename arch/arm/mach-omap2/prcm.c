@@ -26,7 +26,6 @@
 #include <plat/common.h>
 #include <plat/prcm.h>
 #include <plat/irqs.h>
-#include <plat/control.h>
 
 #include "clock.h"
 #include "clock2xxx.h"
@@ -34,6 +33,7 @@
 #include "prm.h"
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-44xx.h"
+#include "control.h"
 
 static void __iomem *prm_base;
 static void __iomem *cm_base;

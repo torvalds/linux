@@ -26,7 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/clk.h>
-#include <plat/control.h>
 #include <plat/clkdev_omap.h>
 
 #include "clock.h"
@@ -35,6 +34,7 @@
 #include "cm-regbits-44xx.h"
 #include "prm.h"
 #include "prm-regbits-44xx.h"
+#include "control.h"
 
 /* Root clocks */
 

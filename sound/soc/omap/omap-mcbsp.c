@@ -31,7 +31,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <plat/control.h>
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
 #include "omap-mcbsp.h"
@@ -608,93 +607,6 @@ static int omap_mcbsp_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
-				       int clk_id)
-{
-	int sel_bit;
-	u16 reg, reg_devconf1 = OMAP243X_CONTROL_DEVCONF1;
-
-	if (cpu_class_is_omap1()) {
-		/* OMAP1's can use only external source clock */
-		if (unlikely(clk_id == OMAP_MCBSP_SYSCLK_CLKS_FCLK))
-			return -EINVAL;
-		else
-			return 0;
-	}
-
-	if (cpu_is_omap2420() && mcbsp_data->bus_id > 1)
-		return -EINVAL;
-
-	if (cpu_is_omap343x())
-		reg_devconf1 = OMAP343X_CONTROL_DEVCONF1;
-
-	switch (mcbsp_data->bus_id) {
-	case 0:
-		reg = OMAP2_CONTROL_DEVCONF0;
-		sel_bit = 2;
-		break;
-	case 1:
-		reg = OMAP2_CONTROL_DEVCONF0;
-		sel_bit = 6;
-		break;
-	case 2:
-		reg = reg_devconf1;
-		sel_bit = 0;
-		break;
-	case 3:
-		reg = reg_devconf1;
-		sel_bit = 2;
-		break;
-	case 4:
-		reg = reg_devconf1;
-		sel_bit = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (clk_id == OMAP_MCBSP_SYSCLK_CLKS_FCLK)
-		omap_ctrl_writel(omap_ctrl_readl(reg) & ~(1 << sel_bit), reg);
-	else
-		omap_ctrl_writel(omap_ctrl_readl(reg) | (1 << sel_bit), reg);
-
-	return 0;
-}
-
-static int omap_mcbsp_dai_set_rcvr_src(struct omap_mcbsp_data *mcbsp_data,
-				       int clk_id)
-{
-	int sel_bit, set = 0;
-	u16 reg = OMAP2_CONTROL_DEVCONF0;
-
-	if (cpu_class_is_omap1())
-		return -EINVAL; /* TODO: Can this be implemented for OMAP1? */
-	if (mcbsp_data->bus_id != 0)
-		return -EINVAL;
-
-	switch (clk_id) {
-	case OMAP_MCBSP_CLKR_SRC_CLKX:
-		set = 1;
-	case OMAP_MCBSP_CLKR_SRC_CLKR:
-		sel_bit = 3;
-		break;
-	case OMAP_MCBSP_FSR_SRC_FSX:
-		set = 1;
-	case OMAP_MCBSP_FSR_SRC_FSR:
-		sel_bit = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (set)
-		omap_ctrl_writel(omap_ctrl_readl(reg) | (1 << sel_bit), reg);
-	else
-		omap_ctrl_writel(omap_ctrl_readl(reg) & ~(1 << sel_bit), reg);
-
-	return 0;
-}
-
 static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 					 int clk_id, unsigned int freq,
 					 int dir)
@@ -703,6 +615,14 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 	int err = 0;
 
+	/* The McBSP signal muxing functions are only available on McBSP1 */
+	if (clk_id == OMAP_MCBSP_CLKR_SRC_CLKR ||
+	    clk_id == OMAP_MCBSP_CLKR_SRC_CLKX ||
+	    clk_id == OMAP_MCBSP_FSR_SRC_FSR ||
+	    clk_id == OMAP_MCBSP_FSR_SRC_FSX)
+		if (cpu_class_is_omap1() || mcbsp_data->bus_id != 0)
+			return -EINVAL;
+
 	mcbsp_data->in_freq = freq;
 
 	switch (clk_id) {
@@ -710,8 +630,20 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		regs->srgr2	|= CLKSM;
 		break;
 	case OMAP_MCBSP_SYSCLK_CLKS_FCLK:
+		if (cpu_class_is_omap1()) {
+			err = -EINVAL;
+			break;
+		}
+		err = omap2_mcbsp_set_clks_src(mcbsp_data->bus_id,
+					       MCBSP_CLKS_PRCM_SRC);
+		break;
 	case OMAP_MCBSP_SYSCLK_CLKS_EXT:
-		err = omap_mcbsp_dai_set_clks_src(mcbsp_data, clk_id);
+		if (cpu_class_is_omap1()) {
+			err = 0;
+			break;
+		}
+		err = omap2_mcbsp_set_clks_src(mcbsp_data->bus_id,
+					       MCBSP_CLKS_PAD_SRC);
 		break;
 
 	case OMAP_MCBSP_SYSCLK_CLKX_EXT:
@@ -720,11 +652,18 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		regs->pcr0	|= SCLKME;
 		break;
 
+
 	case OMAP_MCBSP_CLKR_SRC_CLKR:
+		omap2_mcbsp1_mux_clkr_src(CLKR_SRC_CLKR);
+		break;
 	case OMAP_MCBSP_CLKR_SRC_CLKX:
+		omap2_mcbsp1_mux_clkr_src(CLKR_SRC_CLKX);
+		break;
 	case OMAP_MCBSP_FSR_SRC_FSR:
+		omap2_mcbsp1_mux_fsr_src(FSR_SRC_FSR);
+		break;
 	case OMAP_MCBSP_FSR_SRC_FSX:
-		err = omap_mcbsp_dai_set_rcvr_src(mcbsp_data, clk_id);
+		omap2_mcbsp1_mux_fsr_src(FSR_SRC_FSX);
 		break;
 	default:
 		err = -ENODEV;

@@ -1,10 +1,10 @@
 /*
- * arch/arm/plat-omap/include/mach/control.h
+ * arch/arm/mach-omap2/control.h
  *
  * OMAP2/3/4 System Control Module definitions
  *
- * Copyright (C) 2007-2009 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2010 Texas Instruments, Inc.
+ * Copyright (C) 2007-2008, 2010 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -13,8 +13,8 @@
  * the Free Software Foundation.
  */
 
-#ifndef __ASM_ARCH_CONTROL_H
-#define __ASM_ARCH_CONTROL_H
+#ifndef __ARCH_ARM_MACH_OMAP2_CONTROL_H
+#define __ARCH_ARM_MACH_OMAP2_CONTROL_H
 
 #include <mach/io.h>
 #include <mach/ctrl_module_core_44xx.h>
@@ -223,6 +223,8 @@
 #define OMAP2_MMCSDIO1ADPCLKISEL	(1 << 24) /* MMC1 loop back clock */
 #define OMAP24XX_USBSTANDBYCTRL		(1 << 15)
 #define OMAP2_MCBSP2_CLKS_MASK		(1 << 6)
+#define OMAP2_MCBSP1_FSR_MASK		(1 << 4)
+#define OMAP2_MCBSP1_CLKR_MASK		(1 << 3)
 #define OMAP2_MCBSP1_CLKS_MASK		(1 << 2)
 
 /* CONTROL_DEVCONF1 bits */
@@ -319,12 +321,12 @@
 #define		FEAT_L2CACHE_256KB	3
 
 #define OMAP3_ISP_SHIFT			5
-#define OMAP3_ISP_MASK			(1<< OMAP3_ISP_SHIFT)
+#define OMAP3_ISP_MASK			(1 << OMAP3_ISP_SHIFT)
 #define		FEAT_ISP		0
 #define		FEAT_ISP_NONE		1
 
 #define OMAP3_NEON_SHIFT		4
-#define OMAP3_NEON_MASK			(1<< OMAP3_NEON_SHIFT)
+#define OMAP3_NEON_MASK			(1 << OMAP3_NEON_SHIFT)
 #define		FEAT_NEON		0
 #define		FEAT_NEON_NONE		1
 
@@ -362,5 +364,5 @@ extern void omap3_control_restore_context(void);
 #endif
 #endif	/* __ASSEMBLY__ */
 
-#endif /* __ASM_ARCH_CONTROL_H */
+#endif /* __ARCH_ARM_MACH_OMAP2_CONTROL_H */
 

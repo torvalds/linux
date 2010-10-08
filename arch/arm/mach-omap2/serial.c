@@ -35,7 +35,6 @@
 #include <plat/common.h>
 #include <plat/board.h>
 #include <plat/clock.h>
-#include <plat/control.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -44,6 +43,7 @@
 #include "pm.h"
 #include "cm.h"
 #include "prm-regbits-34xx.h"
+#include "control.h"
 
 #define UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV	0x52
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */

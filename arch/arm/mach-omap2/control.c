@@ -16,14 +16,15 @@
 #include <linux/io.h>
 
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/sdrc.h>
+
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 #include "cm.h"
 #include "prm.h"
 #include "sdrc.h"
 #include "pm.h"
+#include "control.h"
 
 static void __iomem *omap2_ctrl_base;
 static void __iomem *omap4_ctrl_pad_base;

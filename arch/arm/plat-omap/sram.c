@@ -31,10 +31,8 @@
 #include <plat/cpu.h>
 #include <plat/vram.h>
 
-#include <plat/control.h>
 #include "sram.h"
 #include "fb.h"
-
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 # include "../mach-omap2/prm.h"
 # include "../mach-omap2/cm.h"
@@ -71,7 +69,6 @@
 #define OMAP34XX_VA_WRITEPERM0		OMAP2_L3_IO_ADDRESS(0x68012858)
 #define OMAP34XX_VA_ADDR_MATCH2		OMAP2_L3_IO_ADDRESS(0x68012880)
 #define OMAP34XX_VA_SMS_RG_ATT0		OMAP2_L3_IO_ADDRESS(0x6C000048)
-#define OMAP34XX_VA_CONTROL_STAT	OMAP2_L4_IO_ADDRESS(0x480022F0)
 
 #define GP_DEVICE		0x300
 
