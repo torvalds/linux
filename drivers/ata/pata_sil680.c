@@ -210,6 +210,17 @@ static void sil680_sff_exec_command(struct ata_port *ap,
 	ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 }
 
+static bool sil680_sff_irq_check(struct ata_port *ap)
+{
+	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
+	unsigned long addr	= sil680_selreg(ap, 1);
+	u8 val;
+
+	pci_read_config_byte(pdev, addr, &val);
+
+	return val & 0x08;
+}
+
 static struct scsi_host_template sil680_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
@@ -218,6 +229,7 @@ static struct scsi_host_template sil680_sht = {
 static struct ata_port_operations sil680_port_ops = {
 	.inherits		= &ata_bmdma32_port_ops,
 	.sff_exec_command	= sil680_sff_exec_command,
+	.sff_irq_check		= sil680_sff_irq_check,
 	.cable_detect		= sil680_cable_detect,
 	.set_piomode		= sil680_set_piomode,
 	.set_dmamode		= sil680_set_dmamode,
