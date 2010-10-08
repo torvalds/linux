@@ -2251,22 +2251,24 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 	return pt_write;
 }
 
-static void kvm_send_hwpoison_signal(struct kvm *kvm, gfn_t gfn)
+static void kvm_send_hwpoison_signal(unsigned long address, struct task_struct *tsk)
 {
-	char buf[1];
-	void __user *hva;
-	int r;
+	siginfo_t info;
 
-	/* Touch the page, so send SIGBUS */
-	hva = (void __user *)gfn_to_hva(kvm, gfn);
-	r = copy_from_user(buf, hva, 1);
+	info.si_signo	= SIGBUS;
+	info.si_errno	= 0;
+	info.si_code	= BUS_MCEERR_AR;
+	info.si_addr	= (void __user *)address;
+	info.si_addr_lsb = PAGE_SHIFT;
+
+	send_sig_info(SIGBUS, &info, tsk);
 }
 
 static int kvm_handle_bad_page(struct kvm *kvm, gfn_t gfn, pfn_t pfn)
 {
 	kvm_release_pfn_clean(pfn);
 	if (is_hwpoison_pfn(pfn)) {
-		kvm_send_hwpoison_signal(kvm, gfn);
+		kvm_send_hwpoison_signal(gfn_to_hva(kvm, gfn), current);
 		return 0;
 	} else if (is_fault_pfn(pfn))
 		return -EFAULT;
