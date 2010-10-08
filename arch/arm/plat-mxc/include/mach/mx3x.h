@@ -389,19 +389,6 @@ static inline int mx31_revision(void)
 #define MXC_INT_EXT_WDOG MX3x_INT_EXT_WDOG
 #define MXC_INT_EXT_TV MX3x_INT_EXT_TV
 #define PROD_SIGNATURE MX3x_PROD_SIGNATURE
-#define CHIP_REV_1_0 MX3x_CHIP_REV_1_0
-#define CHIP_REV_1_1 MX3x_CHIP_REV_1_1
-#define CHIP_REV_1_2 MX3x_CHIP_REV_1_2
-#define CHIP_REV_1_3 MX3x_CHIP_REV_1_3
-#define CHIP_REV_2_0 MX3x_CHIP_REV_2_0
-#define CHIP_REV_2_1 MX3x_CHIP_REV_2_1
-#define CHIP_REV_2_2 MX3x_CHIP_REV_2_2
-#define CHIP_REV_2_3 MX3x_CHIP_REV_2_3
-#define CHIP_REV_3_0 MX3x_CHIP_REV_3_0
-#define CHIP_REV_3_1 MX3x_CHIP_REV_3_1
-#define CHIP_REV_3_2 MX3x_CHIP_REV_3_2
-#define SYSTEM_REV_MIN MX3x_SYSTEM_REV_MIN
-#define SYSTEM_REV_NUM MX3x_SYSTEM_REV_NUM
 #endif
 
 #endif /* ifndef __MACH_MX3x_H__ */
