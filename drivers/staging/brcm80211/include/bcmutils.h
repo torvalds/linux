@@ -452,8 +452,6 @@ extern "C" {
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ROUNDUP(x, y)		((((x)+((y)-1))/(y))*(y))
 #define	ISALIGNED(a, x)		(((a) & ((x)-1)) == 0)
-#define ALIGN_ADDR(addr, boundary) (void *)(((uintptr)(addr) + (boundary) - 1) \
-	& ~((boundary) - 1))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
 #define VALID_MASK(mask)	(!((mask) & ((mask) + 1)))
 
