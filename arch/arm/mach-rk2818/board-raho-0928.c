@@ -2087,7 +2087,7 @@ struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
-		.gpio = SPI_GPIO_P1_12,
+		.gpio = FPGA_PIO1_12,
 		.max_timeout = 1000,
 		.active_low = 1,
 	},

@@ -93,7 +93,7 @@ void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned c
 enum stream_type_wm8994
 {
 	VOICE_CALL	=0,
-	BLUETOOTH_SCO,
+	BLUETOOTH_SCO =6,
 };
 
 /* For voice device route set, add by phc  */
