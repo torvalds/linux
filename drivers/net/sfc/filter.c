@@ -20,6 +20,12 @@
 #define FILTER_CTL_SRCH_FUDGE_WILD 3
 #define FILTER_CTL_SRCH_FUDGE_FULL 1
 
+/* Hard maximum hop limit.  Hardware will time-out beyond 200-something.
+ * We also need to avoid infinite loops in efx_filter_search() when the
+ * table is full.
+ */
+#define FILTER_CTL_SRCH_MAX 200
+
 struct efx_filter_table {
 	u32		offset;		/* address of table relative to BAR */
 	unsigned	size;		/* number of entries */
@@ -183,7 +189,8 @@ static int efx_filter_search(struct efx_filter_table *table,
 	incr = efx_filter_increment(key);
 
 	for (depth = 1, filter_idx = hash & (table->size - 1);
-	     test_bit(filter_idx, table->used_bitmap);
+	     depth <= FILTER_CTL_SRCH_MAX &&
+		     test_bit(filter_idx, table->used_bitmap);
 	     ++depth) {
 		cmp = &table->spec[filter_idx];
 		if (efx_filter_equal(spec, cmp))
@@ -192,6 +199,8 @@ static int efx_filter_search(struct efx_filter_table *table,
 	}
 	if (!for_insert)
 		return -ENOENT;
+	if (depth > FILTER_CTL_SRCH_MAX)
+		return -EBUSY;
 found:
 	*depth_required = depth;
 	return filter_idx;
