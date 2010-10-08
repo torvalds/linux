@@ -155,8 +155,10 @@ static void op_perf_stop(void)
 }
 
 
-static char *op_name_from_perf_id(enum arm_perf_pmu_ids id)
+char *op_name_from_perf_id(void)
 {
+	enum arm_perf_pmu_ids id = armpmu_get_pmu_id();
+
 	switch (id) {
 	case ARM_PERF_PMU_ID_XSCALE1:
 		return "arm/xscale1";
@@ -391,7 +393,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->start		= op_arm_start;
 	ops->stop		= op_arm_stop;
 	ops->shutdown		= op_arm_stop;
-	ops->cpu_type		= op_name_from_perf_id(armpmu_get_pmu_id());
+	ops->cpu_type		= op_name_from_perf_id();
 
 	if (!ops->cpu_type)
 		ret = -ENODEV;
