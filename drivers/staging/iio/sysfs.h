@@ -260,6 +260,14 @@ struct iio_const_attr {
 #define IIO_EV_MOD_X			0
 #define IIO_EV_MOD_Y			1
 #define IIO_EV_MOD_Z			2
+#define IIO_EV_MOD_X_AND_Y		3
+#define IIO_EV_MOD_X_ANX_Z		4
+#define IIO_EV_MOD_Y_AND_Z		5
+#define IIO_EV_MOD_X_AND_Y_AND_Z	6
+#define IIO_EV_MOD_X_OR_Y		7
+#define IIO_EV_MOD_X_OR_Z		8
+#define IIO_EV_MOD_Y_OR_Z		9
+#define IIO_EV_MOD_X_OR_Y_OR_Z		10
 
 #define IIO_EV_TYPE_THRESH		0
 #define IIO_EV_TYPE_MAG			1

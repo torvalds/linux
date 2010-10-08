@@ -865,22 +865,38 @@ static void sca3000_interrupt_handler_bh(struct work_struct *work_s)
 
 	if (rx[1] & SCA3000_INT_STATUS_FREE_FALL)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_FREE_FALL,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X_AND_Y_AND_Z,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_FALLING),
 			       st->last_timestamp);
 
 	if (rx[1] & SCA3000_INT_STATUS_Y_TRIGGER)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Y_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_RISING),
 			       st->last_timestamp);
 
 	if (rx[1] & SCA3000_INT_STATUS_X_TRIGGER)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_X_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_RISING),
 			       st->last_timestamp);
 
 	if (rx[1] & SCA3000_INT_STATUS_Z_TRIGGER)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Z_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_RISING),
 			       st->last_timestamp);
 
 done:
