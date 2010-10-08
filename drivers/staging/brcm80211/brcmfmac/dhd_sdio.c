@@ -979,7 +979,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	      (DHD_DATA_ON() && (chan != SDPCM_CONTROL_CHANNEL))))) {
 		prhex("Tx Frame", frame, len);
 	} else if (DHD_HDRS_ON()) {
-		prhex("TxHdr", frame, min(len, 16));
+		prhex("TxHdr", frame, min_t(u16, len, 16));
 	}
 #endif
 
@@ -1312,7 +1312,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		if (DHD_BYTES_ON() && DHD_CTL_ON())
 			prhex("Tx Frame", frame, len);
 		else if (DHD_HDRS_ON())
-			prhex("TxHdr", frame, min(len, 16));
+			prhex("TxHdr", frame, min_t(u16, len, 16));
 #endif
 
 		do {
@@ -1737,7 +1737,7 @@ dhdsdio_membytes(dhd_bus_t *bus, bool write, u32 address, u8 *data,
 				break;
 			}
 			sdaddr = 0;
-			dsize = min(SBSDIO_SB_OFT_ADDR_LIMIT, size);
+			dsize = min_t(uint, SBSDIO_SB_OFT_ADDR_LIMIT, size);
 		}
 	}
 
@@ -3355,7 +3355,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 #ifdef DHD_DEBUG
 		if (DHD_GLOM_ON()) {
 			prhex("SUPERFRAME", PKTDATA(pfirst),
-			      min(PKTLEN(pfirst), 48));
+			      min_t(int, PKTLEN(pfirst), 48));
 		}
 #endif
 
@@ -3559,7 +3559,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				PKTLEN(pfirst), PKTNEXT(pfirst),
 				PKTLINK(pfirst)));
 				prhex("", (u8 *) PKTDATA(pfirst),
-				      min(PKTLEN(pfirst), 32));
+				      min_t(int, PKTLEN(pfirst), 32));
 			}
 #endif				/* DHD_DEBUG */
 		}
