@@ -296,7 +296,7 @@ enum cx231xx_mute_video_shift {
 
 
 #define CX23417_GPIO_MASK 0xFC0003FF
-int setITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 value)
+static int setITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 value)
 {
 	int status = 0;
 	u32 _gpio_direction = 0;
@@ -307,7 +307,7 @@ int setITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 value)
 			 (u8 *)&value, 4, 0, 0);
 	return status;
 }
-int getITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 *pValue)
+static int getITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 *pValue)
 {
 	int status = 0;
 	u32 _gpio_direction = 0;
@@ -319,7 +319,8 @@ int getITVCReg(struct cx231xx *dev, u32 gpio_direction, u32 *pValue)
 		 (u8 *)pValue, 4, 0, 1);
 	return status;
 }
-int waitForMciComplete(struct cx231xx *dev)
+
+static int waitForMciComplete(struct cx231xx *dev)
 {
 	u32 gpio;
 	u32 gpio_driection = 0;
@@ -339,7 +340,7 @@ int waitForMciComplete(struct cx231xx *dev)
 	return 0;
 }
 
-int mc417_register_write(struct cx231xx *dev, u16 address, u32 value)
+static int mc417_register_write(struct cx231xx *dev, u16 address, u32 value)
 {
 	u32 temp;
 	int status = 0;
@@ -397,7 +398,7 @@ int mc417_register_write(struct cx231xx *dev, u16 address, u32 value)
 	return waitForMciComplete(dev);
 }
 
-int mc417_register_read(struct cx231xx *dev, u16 address, u32 *value)
+static int mc417_register_read(struct cx231xx *dev, u16 address, u32 *value)
 {
 	/*write address byte 0;*/
 	u32 temp;
@@ -473,7 +474,7 @@ int mc417_register_read(struct cx231xx *dev, u16 address, u32 *value)
 	return ret;
 }
 
-int mc417_memory_write(struct cx231xx *dev, u32 address, u32 value)
+static int mc417_memory_write(struct cx231xx *dev, u32 address, u32 value)
 {
 	/*write data byte 0;*/
 
@@ -537,7 +538,7 @@ int mc417_memory_write(struct cx231xx *dev, u32 address, u32 value)
 	return 0;
 }
 
-int mc417_memory_read(struct cx231xx *dev, u32 address, u32 *value)
+static int mc417_memory_read(struct cx231xx *dev, u32 address, u32 *value)
 {
 	u32 temp = 0;
 	u32 return_value = 0;
@@ -611,7 +612,7 @@ int mc417_memory_read(struct cx231xx *dev, u32 address, u32 *value)
 	return ret;
 }
 
-void mc417_gpio_set(struct cx231xx *dev, u32 mask)
+static void mc417_gpio_set(struct cx231xx *dev, u32 mask)
 {
 	u32 val;
 
@@ -621,7 +622,7 @@ void mc417_gpio_set(struct cx231xx *dev, u32 mask)
 	mc417_register_write(dev, 0x900C, val);
 }
 
-void mc417_gpio_clear(struct cx231xx *dev, u32 mask)
+static void mc417_gpio_clear(struct cx231xx *dev, u32 mask)
 {
 	u32 val;
 
@@ -631,7 +632,7 @@ void mc417_gpio_clear(struct cx231xx *dev, u32 mask)
 	mc417_register_write(dev, 0x900C, val);
 }
 
-void mc417_gpio_enable(struct cx231xx *dev, u32 mask, int asoutput)
+static void mc417_gpio_enable(struct cx231xx *dev, u32 mask, int asoutput)
 {
 	u32 val;
 
@@ -873,7 +874,8 @@ static int cx231xx_find_mailbox(struct cx231xx *dev)
 	dprintk(3, "Mailbox signature values not found!\n");
 	return -1;
 }
-void mciWriteMemoryToGPIO(struct cx231xx *dev, u32 address, u32 value,
+
+static void mciWriteMemoryToGPIO(struct cx231xx *dev, u32 address, u32 value,
 		u32 *p_fw_image)
 {
 
@@ -1095,7 +1097,7 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	return 0;
 }
 
-void cx231xx_417_check_encoder(struct cx231xx *dev)
+static void cx231xx_417_check_encoder(struct cx231xx *dev)
 {
 	u32 status, seq;
 
@@ -1272,7 +1274,7 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
-void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *urb,
+static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *urb,
 		struct cx231xx_dmaqueue *dma_q)
 {
 		void *vbuf;
@@ -1334,7 +1336,7 @@ void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *urb,
 	    return;
 }
 
-void buffer_filled(char *data, int len, struct urb *urb,
+static void buffer_filled(char *data, int len, struct urb *urb,
 		struct cx231xx_dmaqueue *dma_q)
 {
 		void *vbuf;
