@@ -451,7 +451,6 @@ extern "C" {
 
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
-#define VALID_MASK(mask)	(!((mask) & ((mask) + 1)))
 
 /* bit map related macros */
 #ifndef setbit
