@@ -299,12 +299,11 @@ config SPI_STMP3XXX
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
 config SPI_TOPCLIFF_PCH
-	tristate "PCH SPI Controller"
+	tristate "Topcliff PCH SPI Controller"
 	depends on PCI
 	help
-	  This driver is for PCH(Platform controller Hub) SPI of Topcliff which
-	  is an IOH(Input/Output Hub) for x86 embedded processor.
-	  This driver can access PCH SPI bus device.
+	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
+	  used in some x86 embedded processors.
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
