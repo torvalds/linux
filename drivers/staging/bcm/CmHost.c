@@ -1943,14 +1943,13 @@ ULONG SetUpTargetDsxBuffers(PMINI_ADAPTER Adapter)
 	ULONG ulIndex=0;
 	int Status;
 
+	if (!Adapter) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Adapter was NULL!!!");
+		return 0;
+	}
+
 	if(Adapter->astTargetDsxBuffer[0].ulTargetDsxBuffer)
 		return 1;
-
-	 if(NULL == Adapter)
-	 {
-		 BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Adapter was NULL!!!");
-		 return 0;
-	 }
 
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Size of Each DSX Buffer(Also size of ServiceFlowParamSI): %zx ",sizeof(stServiceFlowParamSI));
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Reading DSX buffer From Target location %x ",DSX_MESSAGE_EXCHANGE_BUFFER);
