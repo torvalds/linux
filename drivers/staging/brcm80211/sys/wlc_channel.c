@@ -1376,7 +1376,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 
 	/* Keep OFDM lmit below CCK limit */
 	if (BAND_2G(band->bandtype))
-		maxpwr = min(maxpwr, txpwr->cck[0]);
+		maxpwr = min_t(int, maxpwr, txpwr->cck[0]);
 
 	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
 		txpwr->ofdm[i] = (u8) maxpwr;

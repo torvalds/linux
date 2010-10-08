@@ -4806,7 +4806,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 			bool override;
 
 			/* Remove override bit and clip to max qdbm value */
-			qdbm = (u8)min((int_val & ~WL_TXPWR_OVERRIDE), 0xff);
+			qdbm = (u8)min_t(u32, (int_val & ~WL_TXPWR_OVERRIDE), 0xff);
 			/* Extract override setting */
 			override = (int_val & WL_TXPWR_OVERRIDE) ? TRUE : FALSE;
 			err =
