@@ -94,8 +94,8 @@ static bool initial_no_sleep = true;
 #else
 static bool initial_no_sleep;
 #endif
-static bool initial_debug_enable;
-static bool initial_console_enable;
+static bool initial_debug_enable = true;
+static bool initial_console_enable = true;
 
 module_param_named(no_sleep, initial_no_sleep, bool, 0644);
 module_param_named(debug_enable, initial_debug_enable, bool, 0644);
