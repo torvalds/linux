@@ -420,7 +420,7 @@ volatile unsigned long __iomem *sun4c_memerr_reg = NULL;
 
 void __init sun4c_probe_memerr_reg(void)
 {
-	int node;
+	phandle node;
 	struct linux_prom_registers regs[1];
 
 	node = prom_getchild(prom_root_node);

@@ -31,9 +31,9 @@ static char *cpu_mid_prop(void)
 	return "mid";
 }
 
-static int check_cpu_node(int nd, int *cur_inst,
-			  int (*compare)(int, int, void *), void *compare_arg,
-			  int *prom_node, int *mid)
+static int check_cpu_node(phandle nd, int *cur_inst,
+		int (*compare)(phandle, int, void *), void *compare_arg,
+		phandle *prom_node, int *mid)
 {
 	if (!compare(nd, *cur_inst, compare_arg)) {
 		if (prom_node)
@@ -51,8 +51,8 @@ static int check_cpu_node(int nd, int *cur_inst,
 	return -ENODEV;
 }
 
-static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
-			 int *prom_node, int *mid)
+static int __cpu_find_by(int (*compare)(phandle, int, void *),
+		void *compare_arg, phandle *prom_node, int *mid)
 {
 	struct device_node *dp;
 	int cur_inst;
@@ -71,7 +71,7 @@ static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
 	return -ENODEV;
 }
 
-static int cpu_instance_compare(int nd, int instance, void *_arg)
+static int cpu_instance_compare(phandle nd, int instance, void *_arg)
 {
 	int desired_instance = (int) _arg;
 
@@ -80,13 +80,13 @@ static int cpu_instance_compare(int nd, int instance, void *_arg)
 	return -ENODEV;
 }
 
-int cpu_find_by_instance(int instance, int *prom_node, int *mid)
+int cpu_find_by_instance(int instance, phandle *prom_node, int *mid)
 {
 	return __cpu_find_by(cpu_instance_compare, (void *)instance,
 			     prom_node, mid);
 }
 
-static int cpu_mid_compare(int nd, int instance, void *_arg)
+static int cpu_mid_compare(phandle nd, int instance, void *_arg)
 {
 	int desired_mid = (int) _arg;
 	int this_mid;
@@ -98,7 +98,7 @@ static int cpu_mid_compare(int nd, int instance, void *_arg)
 	return -ENODEV;
 }
 
-int cpu_find_by_mid(int mid, int *prom_node)
+int cpu_find_by_mid(int mid, phandle *prom_node)
 {
 	return __cpu_find_by(cpu_mid_compare, (void *)mid,
 			     prom_node, NULL);
@@ -108,7 +108,7 @@ int cpu_find_by_mid(int mid, int *prom_node)
  * address (0-3).  This gives us the true hardware mid, which might have
  * some other bits set.  On 4d hardware and software mids are the same.
  */
-int cpu_get_hwmid(int prom_node)
+int cpu_get_hwmid(phandle prom_node)
 {
 	return prom_getintdefault(prom_node, cpu_mid_prop(), -ENODEV);
 }
@@ -119,7 +119,8 @@ void __init device_scan(void)
 
 #ifndef CONFIG_SMP
 	{
-		int err, cpu_node;
+		phandle cpu_node;
+		int err;
 		err = cpu_find_by_instance(0, &cpu_node, NULL);
 		if (err) {
 			/* Probably a sun4e, Sun is trying to trick us ;-) */

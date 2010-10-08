@@ -2970,7 +2970,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 	struct atyfb_par *par = info->par;
 	struct device_node *dp;
 	char prop[128];
-	int node, len, i, j, ret;
+	phandle node;
+	int len, i, j, ret;
 	u32 mem, chip_id;
 
 	/*
