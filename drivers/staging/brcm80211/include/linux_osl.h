@@ -52,14 +52,6 @@ extern void osl_assert(char *exp, char *file, int line);
 #define	OSL_DELAY(usec)		osl_delay(usec)
 extern void osl_delay(uint usec);
 
-#define	OSL_PCMCIA_READ_ATTR(osh, offset, buf, size) \
-	osl_pcmcia_read_attr((osh), (offset), (buf), (size))
-#define	OSL_PCMCIA_WRITE_ATTR(osh, offset, buf, size) \
-	osl_pcmcia_write_attr((osh), (offset), (buf), (size))
-extern void osl_pcmcia_read_attr(osl_t *osh, uint offset, void *buf, int size);
-extern void osl_pcmcia_write_attr(osl_t *osh, uint offset, void *buf,
-				  int size);
-
 /* PCI configuration space access macros */
 #define	OSL_PCI_READ_CONFIG(osh, offset, size) \
 	osl_pci_read_config((osh), (offset), (size))
@@ -114,8 +106,6 @@ extern uint osl_malloced(osl_t *osh);
 
 #define NATIVE_MALLOC(osh, size)	kmalloc(size, GFP_ATOMIC)
 #define NATIVE_MFREE(osh, addr, size)	kfree(addr)
-#define	MALLOC_FAILED(osh)		osl_malloc_failed((osh))
-extern uint osl_malloc_failed(osl_t *osh);
 
 #ifdef BRCM_FULLMAC
 #define	DMA_CONSISTENT_ALIGN	PAGE_SIZE
@@ -343,14 +333,12 @@ extern int osl_error(int bcmerror);
 #define	PKTSETLEN(skb, len)	__skb_trim((struct sk_buff *)(skb), (len))
 #define	PKTPUSH(skb, bytes)	skb_push((struct sk_buff *)(skb), (bytes))
 #define	PKTPULL(skb, bytes)	skb_pull((struct sk_buff *)(skb), (bytes))
-#define	PKTDUP(osh, skb)	osl_pktdup((osh), (skb))
 #define	PKTTAG(skb)		((void *)(((struct sk_buff *)(skb))->cb))
 #define PKTALLOCED(osh)		(((osl_pubinfo_t *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		FALSE
 extern void *osl_pktget(osl_t *osh, uint len);
 extern void osl_pktfree(osl_t *osh, void *skb, bool send);
-extern void *osl_pktdup(osl_t *osh, void *skb);
 
 #ifdef BRCM_FULLMAC
 #ifdef DHD_USE_STATIC_BUF

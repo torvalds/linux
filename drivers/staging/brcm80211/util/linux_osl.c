@@ -418,21 +418,6 @@ uint osl_pci_slot(osl_t *osh)
 	return PCI_SLOT(((struct pci_dev *)osh->pdev)->devfn);
 }
 
-static void
-osl_pcmcia_attr(osl_t *osh, uint offset, char *buf, int size, bool write)
-{
-}
-
-void osl_pcmcia_read_attr(osl_t *osh, uint offset, void *buf, int size)
-{
-	osl_pcmcia_attr(osh, offset, (char *)buf, size, FALSE);
-}
-
-void osl_pcmcia_write_attr(osl_t *osh, uint offset, void *buf, int size)
-{
-	osl_pcmcia_attr(osh, offset, (char *)buf, size, TRUE);
-}
-
 void *osl_malloc(osl_t *osh, uint size)
 {
 	void *addr;
@@ -517,12 +502,6 @@ uint osl_malloced(osl_t *osh)
 {
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 	return osh->malloced;
-}
-
-uint osl_malloc_failed(osl_t *osh)
-{
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-	return osh->failed;
 }
 
 uint osl_dma_consistent_align(void)
@@ -633,26 +612,6 @@ void osl_delay(uint usec)
 		udelay(d);
 		usec -= d;
 	}
-}
-
-/* Clone a packet.
- * The pkttag contents are NOT cloned.
- */
-void *osl_pktdup(osl_t *osh, void *skb)
-{
-	void *p;
-
-	p = skb_clone((struct sk_buff *)skb, GFP_ATOMIC);
-	if (p == NULL)
-		return NULL;
-
-	/* skb_clone copies skb->cb.. we don't want that */
-	if (osh->pub.pkttag)
-		bzero((void *)((struct sk_buff *)p)->cb, OSL_PKTTAG_SZ);
-
-	/* Increment the packet counter */
-	osh->pub.pktalloced++;
-	return p;
 }
 
 #if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
