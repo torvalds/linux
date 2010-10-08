@@ -529,11 +529,6 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	BOOLEAN bBcm16 = FALSE;
 	UINT uiData = 0;
 
-	if(psIntfAdapter == NULL)
-	{
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Interface Adapter is NULL");
-		return -EINVAL;
-	}
 	/* Store the usb dev into interface adapter */
 	psIntfAdapter->udev = usb_get_dev(interface_to_usbdev(
 								psIntfAdapter->interface));
