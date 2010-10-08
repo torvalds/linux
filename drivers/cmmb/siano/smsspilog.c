@@ -296,7 +296,7 @@ static void spi_worker_thread(void *arg)
 
 		//check if we lost msg, if so, recover
 		if(g_Sms_MsgFound_Counter < g_Sms_Int_Counter){
-			sms_err("we lost msg, probably becouse dma time out\n");
+		//	sms_err("we lost msg, probably becouse dma time out\n");
 			//for(i=0; i<16; i++)
 			{
 				//smsspi_common_transfer_msg(&spi_device->dev, NULL, 1);

@@ -206,7 +206,7 @@ static irqreturn_t spibus_interrupt(int irq, void *context)
 	u_irq_count ++;
     
 //	PDEBUG("INT counter = %d\n", u_irq_count);
-	printk("cmmb siano 1186 int\n");
+//	printk("cmmb siano 1186 int\n");
         sms_info("spibus_interrupt %d\n", u_irq_count);
     
 	if (spiphy_dev->interruptHandler)
@@ -327,15 +327,15 @@ static void chip_poweron()
 	      mdelay(100);
 		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_en,1);
 	//	gpio_set_value(CMMB_1186_POWER_ENABLE,GPIO_HIGH);
-		mdelay(500);
+		mdelay(200);
 	//	gpio_set_value(CMMB_1186_POWER_DOWN,GPIO_HIGH);
 		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_dwn,1);
 
-		mdelay(500);
+		mdelay(200);
 	//	gpio_set_value(CMMB_1186_POWER_RESET,GPIO_HIGH);
 		gpio_direction_output(cmmb_io_ctrl->cmmb_pw_rst,1);
 
-		mdelay(500);
+		mdelay(200);
 	  
 		printk("cmmb chip_poweron !!!!\n");
 		}
@@ -454,11 +454,15 @@ static void request_cmmb_gpio()
     gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
 	printk("leave the request_cmmb_gpio\n");
 	#endif
-
+#if 1
 		int ret;
 	
 	if(cmmb_io_ctrl)
 		{
+			if(cmmb_io_ctrl->io_init_mux)
+			cmmb_io_ctrl->io_init_mux();
+			else
+				printk("cmmb_io_ctrl->io_init_mux is null !!!!!!!\n");
 			ret = gpio_request(cmmb_io_ctrl->cmmb_pw_rst, NULL);
 			if (ret) {
 			printk("%s:failed to request CMMB_1186_POWER_RESET\n",__FUNCTION__);
@@ -478,7 +482,7 @@ static void request_cmmb_gpio()
 			//return ret;
 			}
 
-			rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
+		//	rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
 		   	ret = gpio_request(cmmb_io_ctrl->cmmb_irq,"cmmb irq");
 			if (ret) {
 				//dev_err(&pdev->dev, "failed to request play key gpio\n");
@@ -490,11 +494,12 @@ static void request_cmmb_gpio()
 		    gpio_pull_updown(cmmb_io_ctrl->cmmb_irq,GPIOPullUp);
 			printk("leave the request_cmmb_gpio\n");
 		}
-
+#endif
 }
 
 static void release_cmmb_gpio()
 {
+#if 1
 	if(cmmb_io_ctrl)
 		{
 		gpio_free(cmmb_io_ctrl->cmmb_pw_rst);
@@ -504,7 +509,7 @@ static void release_cmmb_gpio()
 		cmmb_io_ctrl = NULL;
 		printk("leave the release_cmmb_gpio\n");
 		}
-
+#endif
 
 }
 
