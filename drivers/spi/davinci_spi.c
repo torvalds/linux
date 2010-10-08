@@ -1020,8 +1020,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
-	davinci_spi->base = (struct davinci_spi_reg __iomem *)
-			ioremap(r->start, davinci_spi->region_size);
+	davinci_spi->base = ioremap(r->start, davinci_spi->region_size);
 	if (davinci_spi->base == NULL) {
 		ret = -ENOMEM;
 		goto release_region;
