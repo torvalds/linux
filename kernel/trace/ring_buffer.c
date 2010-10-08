@@ -1823,7 +1823,10 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	local_sub(length, &tail_page->write);
 }
 
-static struct ring_buffer_event *
+/*
+ * This is the slow path, force gcc not to inline it.
+ */
+static noinline struct ring_buffer_event *
 rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	     unsigned long length, unsigned long tail,
 	     struct buffer_page *tail_page, u64 *ts)
@@ -1943,7 +1946,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	tail = write - length;
 
 	/* See if we shot pass the end of this buffer page */
-	if (write > BUF_PAGE_SIZE)
+	if (unlikely(write > BUF_PAGE_SIZE))
 		return rb_move_tail(cpu_buffer, length, tail,
 				    tail_page, ts);
 
