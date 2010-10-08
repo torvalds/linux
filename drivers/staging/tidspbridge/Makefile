@@ -12,7 +12,7 @@ librmgr = rmgr/dbdcd.o rmgr/disp.o rmgr/drv.o rmgr/mgr.o rmgr/node.o \
 libdload = dynload/cload.o dynload/getsection.o dynload/reloc.o \
 		 dynload/tramp.o
 
-bridgedriver-objs = $(libgen) $(libservices) $(libcore) $(libpmgr) $(librmgr) \
+bridgedriver-y := $(libgen) $(libservices) $(libcore) $(libpmgr) $(librmgr) \
 			$(libdload)
 
 #Machine dependent
