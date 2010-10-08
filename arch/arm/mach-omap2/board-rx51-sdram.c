@@ -43,7 +43,7 @@ struct sdram_timings {
 	u32 tWTR;
 };
 
-struct omap_sdrc_params rx51_sdrc_params[4];
+static struct omap_sdrc_params rx51_sdrc_params[4];
 
 static const struct sdram_timings rx51_timings[] = {
 	{

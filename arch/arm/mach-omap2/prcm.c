@@ -119,7 +119,7 @@ struct omap3_prcm_regs {
 	u32 wkup_pm_wken;
 };
 
-struct omap3_prcm_regs prcm_context;
+static struct omap3_prcm_regs prcm_context;
 
 u32 omap_prcm_get_reset_sources(void)
 {

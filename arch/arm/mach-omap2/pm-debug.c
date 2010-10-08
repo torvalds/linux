@@ -167,7 +167,7 @@ void omap2_pm_dump(int mode, int resume, unsigned int us)
 
 static void pm_dbg_regset_store(u32 *ptr);
 
-struct dentry *pm_dbg_dir;
+static struct dentry *pm_dbg_dir;
 
 static int pm_dbg_init_done;
 

@@ -45,6 +45,8 @@
 #define OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE	0x02
 
 struct omap_dm_timer;
+extern struct omap_dm_timer *gptimer_wakeup;
+extern struct sys_timer omap_timer;
 struct clk;
 
 int omap_dm_timer_init(void);

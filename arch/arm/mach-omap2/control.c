@@ -23,6 +23,7 @@
 #include "cm.h"
 #include "prm.h"
 #include "sdrc.h"
+#include "pm.h"
 
 static void __iomem *omap2_ctrl_base;
 static void __iomem *omap4_ctrl_pad_base;
