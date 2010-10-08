@@ -375,7 +375,7 @@ bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev);
 /* internal helpers */
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
-				   const u8 *mac_addr);
+				   bool pairwise, const u8 *mac_addr);
 void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap);
 void cfg80211_sme_scan_done(struct net_device *dev);

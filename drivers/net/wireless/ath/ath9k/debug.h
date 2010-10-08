@@ -89,6 +89,10 @@ struct ath_rc_stats {
 
 /**
  * struct ath_tx_stats - Statistics about TX
+ * @tx_pkts_all:  No. of total frames transmitted, including ones that
+	may have had errors.
+ * @tx_bytes_all:  No. of total bytes transmitted, including ones that
+	may have had errors.
  * @queued: Total MPDUs (non-aggr) queued
  * @completed: Total MPDUs (non-aggr) completed
  * @a_aggr: Total no. of aggregates queued
@@ -107,6 +111,8 @@ struct ath_rc_stats {
  * @delim_urn: TX delimiter underrun errors
  */
 struct ath_tx_stats {
+	u32 tx_pkts_all;
+	u32 tx_bytes_all;
 	u32 queued;
 	u32 completed;
 	u32 a_aggr;
@@ -124,6 +130,10 @@ struct ath_tx_stats {
 
 /**
  * struct ath_rx_stats - RX Statistics
+ * @rx_pkts_all:  No. of total frames received, including ones that
+	may have had errors.
+ * @rx_bytes_all:  No. of total bytes received, including ones that
+	may have had errors.
  * @crc_err: No. of frames with incorrect CRC value
  * @decrypt_crc_err: No. of frames whose CRC check failed after
 	decryption process completed
@@ -136,6 +146,8 @@ struct ath_tx_stats {
  * @phy_err_stats: Individual PHY error statistics
  */
 struct ath_rx_stats {
+	u32 rx_pkts_all;
+	u32 rx_bytes_all;
 	u32 crc_err;
 	u32 decrypt_crc_err;
 	u32 phy_err;

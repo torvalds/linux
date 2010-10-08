@@ -224,13 +224,13 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	int ret;
 
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWLAGN_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
 			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -286,13 +286,13 @@ int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			   u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWLAGN_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_ERR(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
 			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -350,7 +350,8 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 	if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
 	else if (info->band == IEEE80211_BAND_2GHZ &&
-		 priv->cfg->advanced_bt_coexist &&
+		 priv->cfg->bt_params &&
+		 priv->cfg->bt_params->advanced_bt_coexist &&
 		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
 		 ieee80211_is_reassoc_req(fc) ||
 		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
@@ -444,7 +445,9 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	 if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+	 if (priv->cfg->bt_params &&
+	     priv->cfg->bt_params->advanced_bt_coexist &&
+	     priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
 				first_antenna(priv->hw_params.valid_tx_ant));

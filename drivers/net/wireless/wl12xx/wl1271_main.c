@@ -124,28 +124,28 @@ static struct conf_drv_settings default_conf = {
 		},
 		.ac_conf_count               = 4,
 		.ac_conf                     = {
-			[0] = {
+			[CONF_TX_AC_BE] = {
 				.ac          = CONF_TX_AC_BE,
 				.cw_min      = 15,
 				.cw_max      = 63,
 				.aifsn       = 3,
 				.tx_op_limit = 0,
 			},
-			[1] = {
+			[CONF_TX_AC_BK] = {
 				.ac          = CONF_TX_AC_BK,
 				.cw_min      = 15,
 				.cw_max      = 63,
 				.aifsn       = 7,
 				.tx_op_limit = 0,
 			},
-			[2] = {
+			[CONF_TX_AC_VI] = {
 				.ac          = CONF_TX_AC_VI,
 				.cw_min      = 15,
 				.cw_max      = 63,
 				.aifsn       = CONF_TX_AIFS_PIFS,
 				.tx_op_limit = 3008,
 			},
-			[3] = {
+			[CONF_TX_AC_VO] = {
 				.ac          = CONF_TX_AC_VO,
 				.cw_min      = 15,
 				.cw_max      = 63,
@@ -153,64 +153,40 @@ static struct conf_drv_settings default_conf = {
 				.tx_op_limit = 1504,
 			},
 		},
-		.tid_conf_count = 7,
+		.tid_conf_count = 4,
 		.tid_conf = {
-			[0] = {
-				.queue_id    = 0,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
+			[CONF_TX_AC_BE] = {
+				.queue_id    = CONF_TX_AC_BE,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
 				.tsid        = CONF_TX_AC_BE,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[1] = {
-				.queue_id    = 1,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
+			[CONF_TX_AC_BK] = {
+				.queue_id    = CONF_TX_AC_BK,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
+				.tsid        = CONF_TX_AC_BK,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[2] = {
-				.queue_id    = 2,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
+			[CONF_TX_AC_VI] = {
+				.queue_id    = CONF_TX_AC_VI,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
+				.tsid        = CONF_TX_AC_VI,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[3] = {
-				.queue_id    = 3,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
+			[CONF_TX_AC_VO] = {
+				.queue_id    = CONF_TX_AC_VO,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
+				.tsid        = CONF_TX_AC_VO,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[4] = {
-				.queue_id    = 4,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
-				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
-				.ack_policy  = CONF_ACK_POLICY_LEGACY,
-				.apsd_conf   = {0, 0},
-			},
-			[5] = {
-				.queue_id    = 5,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
-				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
-				.ack_policy  = CONF_ACK_POLICY_LEGACY,
-				.apsd_conf   = {0, 0},
-			},
-			[6] = {
-				.queue_id    = 6,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
-				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
-				.ack_policy  = CONF_ACK_POLICY_LEGACY,
-				.apsd_conf   = {0, 0},
-			}
 		},
 		.frag_threshold              = IEEE80211_MAX_FRAG_THRESHOLD,
 		.tx_compl_timeout            = 700,
@@ -238,7 +214,9 @@ static struct conf_drv_settings default_conf = {
 		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
-		.psm_entry_retries           = 3,
+		.psm_entry_retries           = 5,
+		.psm_entry_nullfunc_retries  = 3,
+		.psm_entry_hangover_period   = 1,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
@@ -251,14 +229,33 @@ static struct conf_drv_settings default_conf = {
 		.host_fast_wakeup_support = false
 	},
 	.roam_trigger = {
-		/* FIXME: due to firmware bug, must use value 1 for now */
 		.trigger_pacing               = 1,
 		.avg_weight_rssi_beacon       = 20,
 		.avg_weight_rssi_data         = 10,
 		.avg_weight_snr_beacon        = 20,
 		.avg_weight_snr_data          = 10
-	}
+	},
+	.scan = {
+		.min_dwell_time_active        = 7500,
+		.max_dwell_time_active        = 30000,
+		.min_dwell_time_passive       = 30000,
+		.max_dwell_time_passive       = 60000,
+		.num_probe_reqs               = 2,
+	},
+	.rf = {
+		.tx_per_channel_power_compensation_2 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+		.tx_per_channel_power_compensation_5 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+	},
 };
+
+static void __wl1271_op_remove_interface(struct wl1271 *wl);
+
 
 static void wl1271_device_release(struct device *dev)
 {
@@ -276,6 +273,67 @@ static struct platform_device wl1271_device = {
 };
 
 static LIST_HEAD(wl_list);
+
+static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
+			     void *arg)
+{
+	struct net_device *dev = arg;
+	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
+	struct ieee80211_hw *hw;
+	struct wl1271 *wl;
+	struct wl1271 *wl_temp;
+	int ret = 0;
+
+	/* Check that this notification is for us. */
+	if (what != NETDEV_CHANGE)
+		return NOTIFY_DONE;
+
+	wdev = dev->ieee80211_ptr;
+	if (wdev == NULL)
+		return NOTIFY_DONE;
+
+	wiphy = wdev->wiphy;
+	if (wiphy == NULL)
+		return NOTIFY_DONE;
+
+	hw = wiphy_priv(wiphy);
+	if (hw == NULL)
+		return NOTIFY_DONE;
+
+	wl_temp = hw->priv;
+	list_for_each_entry(wl, &wl_list, list) {
+		if (wl == wl_temp)
+			break;
+	}
+	if (wl != wl_temp)
+		return NOTIFY_DONE;
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
+	if ((dev->operstate == IF_OPER_UP) &&
+	    !test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags)) {
+		wl1271_cmd_set_sta_state(wl);
+		wl1271_info("Association completed.");
+	}
+
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return NOTIFY_OK;
+}
 
 static void wl1271_conf_init(struct wl1271 *wl)
 {
@@ -306,6 +364,10 @@ static int wl1271_plt_init(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_cmd_radio_parms(wl);
+	if (ret < 0)
+		return ret;
+
+	ret = wl1271_cmd_ext_radio_parms(wl);
 	if (ret < 0)
 		return ret;
 
@@ -346,8 +408,16 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Default TID configuration */
+	/* Default TID/AC configuration */
+	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+
 		conf_tid = &wl->conf.tx.tid_conf[i];
 		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
 					 conf_tid->channel_type,
@@ -356,16 +426,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 					 conf_tid->ack_policy,
 					 conf_tid->apsd_conf[0],
 					 conf_tid->apsd_conf[1]);
-		if (ret < 0)
-			goto out_free_memmap;
-	}
-
-	/* Default AC configuration */
-	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
-		conf_ac = &wl->conf.tx.ac_conf[i];
-		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
-					conf_ac->cw_max, conf_ac->aifsn,
-					conf_ac->tx_op_limit);
 		if (ret < 0)
 			goto out_free_memmap;
 	}
@@ -562,20 +622,6 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	/*
-	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
-	 * configurations) can be removed when those NVS files stop floating
-	 * around.
-	 */
-	if (fw->size != sizeof(struct wl1271_nvs_file) &&
-	    (fw->size != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
-	     wl1271_11a_enabled())) {
-		wl1271_error("nvs size is not as expected: %zu != %zu",
-			     fw->size, sizeof(struct wl1271_nvs_file));
-		ret = -EILSEQ;
-		goto out;
-	}
-
 	wl->nvs = kmemdup(fw->data, sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
@@ -584,10 +630,35 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		goto out;
 	}
 
+	wl->nvs_len = fw->size;
+
 out:
 	release_firmware(fw);
 
 	return ret;
+}
+
+static void wl1271_recovery_work(struct work_struct *work)
+{
+	struct wl1271 *wl =
+		container_of(work, struct wl1271, recovery_work);
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state != WL1271_STATE_ON)
+		goto out;
+
+	wl1271_info("Hardware recovery in progress.");
+
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		ieee80211_connection_loss(wl->vif);
+
+	/* reboot the chipset */
+	__wl1271_op_remove_interface(wl);
+	ieee80211_restart_hw(wl->hw);
+
+out:
+	mutex_unlock(&wl->mutex);
 }
 
 static void wl1271_fw_wakeup(struct wl1271 *wl)
@@ -610,8 +681,6 @@ static int wl1271_setup(struct wl1271 *wl)
 		return -ENOMEM;
 	}
 
-	INIT_WORK(&wl->irq_work, wl1271_irq_work);
-	INIT_WORK(&wl->tx_work, wl1271_tx_work);
 	return 0;
 }
 
@@ -768,9 +837,11 @@ int wl1271_plt_stop(struct wl1271 *wl)
 out:
 	mutex_unlock(&wl->mutex);
 
+	cancel_work_sync(&wl->irq_work);
+	cancel_work_sync(&wl->recovery_work);
+
 	return ret;
 }
-
 
 static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -813,6 +884,10 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	return NETDEV_TX_OK;
 }
+
+static struct notifier_block wl1271_dev_notifier = {
+	.notifier_call = wl1271_dev_notify,
+};
 
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
@@ -930,13 +1005,10 @@ out:
 	return ret;
 }
 
-static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif)
+static void __wl1271_op_remove_interface(struct wl1271 *wl)
 {
-	struct wl1271 *wl = hw->priv;
 	int i;
 
-	mutex_lock(&wl->mutex);
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
 	wl1271_info("down");
@@ -950,10 +1022,10 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		ieee80211_enable_dyn_ps(wl->vif);
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
-		ieee80211_scan_completed(wl->hw, true);
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
 		kfree(wl->scan.scanned_ch);
 		wl->scan.scanned_ch = NULL;
+		ieee80211_scan_completed(wl->hw, true);
 	}
 
 	wl->state = WL1271_STATE_OFF;
@@ -962,9 +1034,11 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_unlock(&wl->mutex);
 
+	cancel_delayed_work_sync(&wl->scan_complete_work);
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->pspoll_work);
+	cancel_delayed_work_sync(&wl->elp_work);
 
 	mutex_lock(&wl->mutex);
 
@@ -1006,8 +1080,19 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	wl->tx_res_if = NULL;
 	kfree(wl->target_mem_map);
 	wl->target_mem_map = NULL;
+}
 
+static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
+{
+	struct wl1271 *wl = hw->priv;
+
+	mutex_lock(&wl->mutex);
+	WARN_ON(wl->vif != vif);
+	__wl1271_op_remove_interface(wl);
 	mutex_unlock(&wl->mutex);
+
+	cancel_work_sync(&wl->recovery_work);
 }
 
 static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
@@ -1289,7 +1374,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-						 true);
+						 wl->basic_rate, true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
@@ -1299,7 +1384,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
 			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-						 true);
+						 wl->basic_rate, true);
 	}
 
 	if (conf->power_level != wl->power_level) {
@@ -1476,6 +1561,11 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
 		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
 		break;
+	case WL1271_CIPHER_SUITE_GEM:
+		key_type = KEY_GEM;
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
+		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
 
@@ -1559,10 +1649,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (wl1271_11a_enabled())
-		ret = wl1271_scan(hw->priv, ssid, len, req);
-	else
-		ret = wl1271_scan(hw->priv, ssid, len, req);
+	ret = wl1271_scan(hw->priv, ssid, len, req);
 
 	wl1271_ps_elp_sleep(wl);
 
@@ -1777,12 +1864,15 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
 			    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 				mode = STATION_POWER_SAVE_MODE;
-				ret = wl1271_ps_set_mode(wl, mode, true);
+				ret = wl1271_ps_set_mode(wl, mode,
+							 wl->basic_rate,
+							 true);
 				if (ret < 0)
 					goto out_sleep;
 			}
 		} else {
 			/* use defaults when not associated */
+			clear_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags);
 			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
 
@@ -1994,21 +2084,24 @@ static struct ieee80211_rate wl1271_rates[] = {
 	  .hw_value_short = CONF_HW_BIT_RATE_54MBPS, },
 };
 
-/* can't be const, mac80211 writes to this */
+/*
+ * Can't be const, mac80211 writes to this. The order of the channels here
+ * is designed to improve scanning.
+ */
 static struct ieee80211_channel wl1271_channels[] = {
 	{ .hw_value = 1, .center_freq = 2412, .max_power = 25 },
-	{ .hw_value = 2, .center_freq = 2417, .max_power = 25 },
-	{ .hw_value = 3, .center_freq = 2422, .max_power = 25 },
-	{ .hw_value = 4, .center_freq = 2427, .max_power = 25 },
 	{ .hw_value = 5, .center_freq = 2432, .max_power = 25 },
-	{ .hw_value = 6, .center_freq = 2437, .max_power = 25 },
-	{ .hw_value = 7, .center_freq = 2442, .max_power = 25 },
-	{ .hw_value = 8, .center_freq = 2447, .max_power = 25 },
 	{ .hw_value = 9, .center_freq = 2452, .max_power = 25 },
-	{ .hw_value = 10, .center_freq = 2457, .max_power = 25 },
-	{ .hw_value = 11, .center_freq = 2462, .max_power = 25 },
-	{ .hw_value = 12, .center_freq = 2467, .max_power = 25 },
 	{ .hw_value = 13, .center_freq = 2472, .max_power = 25 },
+	{ .hw_value = 4, .center_freq = 2427, .max_power = 25 },
+	{ .hw_value = 8, .center_freq = 2447, .max_power = 25 },
+	{ .hw_value = 12, .center_freq = 2467, .max_power = 25 },
+	{ .hw_value = 3, .center_freq = 2422, .max_power = 25 },
+	{ .hw_value = 7, .center_freq = 2442, .max_power = 25 },
+	{ .hw_value = 11, .center_freq = 2462, .max_power = 25 },
+	{ .hw_value = 2, .center_freq = 2417, .max_power = 25 },
+	{ .hw_value = 6, .center_freq = 2437, .max_power = 25 },
+	{ .hw_value = 10, .center_freq = 2457, .max_power = 25 },
 };
 
 /* mapping to indexes for wl1271_rates */
@@ -2077,49 +2170,52 @@ static struct ieee80211_rate wl1271_rates_5ghz[] = {
 	  .hw_value_short = CONF_HW_BIT_RATE_54MBPS, },
 };
 
-/* 5 GHz band channels for WL1273 */
+/*
+ * 5 GHz band channels for WL1273 - can't be const, mac80211 writes to this.
+ * The order of the channels here is designed to improve scanning.
+ */
 static struct ieee80211_channel wl1271_channels_5ghz[] = {
 	{ .hw_value = 183, .center_freq = 4915},
-	{ .hw_value = 184, .center_freq = 4920},
-	{ .hw_value = 185, .center_freq = 4925},
-	{ .hw_value = 187, .center_freq = 4935},
 	{ .hw_value = 188, .center_freq = 4940},
-	{ .hw_value = 189, .center_freq = 4945},
-	{ .hw_value = 192, .center_freq = 4960},
-	{ .hw_value = 196, .center_freq = 4980},
-	{ .hw_value = 7, .center_freq = 5035},
 	{ .hw_value = 8, .center_freq = 5040},
-	{ .hw_value = 9, .center_freq = 5045},
-	{ .hw_value = 11, .center_freq = 5055},
-	{ .hw_value = 12, .center_freq = 5060},
-	{ .hw_value = 16, .center_freq = 5080},
 	{ .hw_value = 34, .center_freq = 5170},
-	{ .hw_value = 36, .center_freq = 5180},
-	{ .hw_value = 38, .center_freq = 5190},
-	{ .hw_value = 40, .center_freq = 5200},
-	{ .hw_value = 42, .center_freq = 5210},
 	{ .hw_value = 44, .center_freq = 5220},
-	{ .hw_value = 46, .center_freq = 5230},
-	{ .hw_value = 48, .center_freq = 5240},
-	{ .hw_value = 52, .center_freq = 5260},
-	{ .hw_value = 56, .center_freq = 5280},
 	{ .hw_value = 60, .center_freq = 5300},
-	{ .hw_value = 64, .center_freq = 5320},
-	{ .hw_value = 100, .center_freq = 5500},
-	{ .hw_value = 104, .center_freq = 5520},
-	{ .hw_value = 108, .center_freq = 5540},
 	{ .hw_value = 112, .center_freq = 5560},
-	{ .hw_value = 116, .center_freq = 5580},
-	{ .hw_value = 120, .center_freq = 5600},
-	{ .hw_value = 124, .center_freq = 5620},
-	{ .hw_value = 128, .center_freq = 5640},
 	{ .hw_value = 132, .center_freq = 5660},
-	{ .hw_value = 136, .center_freq = 5680},
-	{ .hw_value = 140, .center_freq = 5700},
-	{ .hw_value = 149, .center_freq = 5745},
-	{ .hw_value = 153, .center_freq = 5765},
 	{ .hw_value = 157, .center_freq = 5785},
+	{ .hw_value = 184, .center_freq = 4920},
+	{ .hw_value = 189, .center_freq = 4945},
+	{ .hw_value = 9, .center_freq = 5045},
+	{ .hw_value = 36, .center_freq = 5180},
+	{ .hw_value = 46, .center_freq = 5230},
+	{ .hw_value = 64, .center_freq = 5320},
+	{ .hw_value = 116, .center_freq = 5580},
+	{ .hw_value = 136, .center_freq = 5680},
+	{ .hw_value = 192, .center_freq = 4960},
+	{ .hw_value = 11, .center_freq = 5055},
+	{ .hw_value = 38, .center_freq = 5190},
+	{ .hw_value = 48, .center_freq = 5240},
+	{ .hw_value = 100, .center_freq = 5500},
+	{ .hw_value = 120, .center_freq = 5600},
+	{ .hw_value = 140, .center_freq = 5700},
+	{ .hw_value = 185, .center_freq = 4925},
+	{ .hw_value = 196, .center_freq = 4980},
+	{ .hw_value = 12, .center_freq = 5060},
+	{ .hw_value = 40, .center_freq = 5200},
+	{ .hw_value = 52, .center_freq = 5260},
+	{ .hw_value = 104, .center_freq = 5520},
+	{ .hw_value = 124, .center_freq = 5620},
+	{ .hw_value = 149, .center_freq = 5745},
 	{ .hw_value = 161, .center_freq = 5805},
+	{ .hw_value = 187, .center_freq = 4935},
+	{ .hw_value = 7, .center_freq = 5035},
+	{ .hw_value = 16, .center_freq = 5080},
+	{ .hw_value = 42, .center_freq = 5210},
+	{ .hw_value = 56, .center_freq = 5280},
+	{ .hw_value = 108, .center_freq = 5540},
+	{ .hw_value = 128, .center_freq = 5640},
+	{ .hw_value = 153, .center_freq = 5765},
 	{ .hw_value = 165, .center_freq = 5825},
 };
 
@@ -2212,8 +2308,7 @@ static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
 
-	/* FIXME: what's the maximum length of buf? page size?*/
-	len = 500;
+	len = PAGE_SIZE;
 
 	mutex_lock(&wl->mutex);
 	len = snprintf(buf, len, "%d\n\n0 - off\n1 - on\n",
@@ -2274,8 +2369,7 @@ static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
 
-	/* FIXME: what's the maximum length of buf? page size?*/
-	len = 500;
+	len = PAGE_SIZE;
 
 	mutex_lock(&wl->mutex);
 	if (wl->hw_pg_ver >= 0)
@@ -2307,6 +2401,8 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	wl->mac80211_registered = true;
 
+	register_netdevice_notifier(&wl1271_dev_notifier);
+
 	wl1271_notice("loaded");
 
 	return 0;
@@ -2315,6 +2411,7 @@ EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
 void wl1271_unregister_hw(struct wl1271 *wl)
 {
+	unregister_netdevice_notifier(&wl1271_dev_notifier);
 	ieee80211_unregister_hw(wl->hw);
 	wl->mac80211_registered = false;
 
@@ -2323,6 +2420,14 @@ EXPORT_SYMBOL_GPL(wl1271_unregister_hw);
 
 int wl1271_init_ieee80211(struct wl1271 *wl)
 {
+	static const u32 cipher_suites[] = {
+		WLAN_CIPHER_SUITE_WEP40,
+		WLAN_CIPHER_SUITE_WEP104,
+		WLAN_CIPHER_SUITE_TKIP,
+		WLAN_CIPHER_SUITE_CCMP,
+		WL1271_CIPHER_SUITE_GEM,
+	};
+
 	/* The tx descriptor buffer and the TKIP space. */
 	wl->hw->extra_tx_headroom = WL1271_TKIP_IV_SPACE +
 		sizeof(struct wl1271_tx_hw_descr);
@@ -2340,13 +2445,14 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_CONNECTION_MONITOR |
 		IEEE80211_HW_SUPPORTS_CQM_RSSI;
 
+	wl->hw->wiphy->cipher_suites = cipher_suites;
+	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1271_band_2ghz;
-
-	if (wl1271_11a_enabled())
-		wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
+	wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
 
 	wl->hw->queues = 4;
 	wl->hw->max_rates = 1;
@@ -2365,6 +2471,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
 	int i, ret;
+	unsigned int order;
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
@@ -2392,6 +2499,10 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
+	INIT_WORK(&wl->irq_work, wl1271_irq_work);
+	INIT_WORK(&wl->tx_work, wl1271_tx_work);
+	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
+	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
@@ -2423,11 +2534,18 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	wl1271_debugfs_init(wl);
 
+	order = get_order(WL1271_AGGR_BUFFER_SIZE);
+	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
+	if (!wl->aggr_buf) {
+		ret = -ENOMEM;
+		goto err_hw;
+	}
+
 	/* Register platform device */
 	ret = platform_device_register(wl->plat_dev);
 	if (ret) {
 		wl1271_error("couldn't register platform device");
-		goto err_hw;
+		goto err_aggr;
 	}
 	dev_set_drvdata(&wl->plat_dev->dev, wl);
 
@@ -2453,6 +2571,9 @@ err_bt_coex_state:
 err_platform:
 	platform_device_unregister(wl->plat_dev);
 
+err_aggr:
+	free_pages((unsigned long)wl->aggr_buf, order);
+
 err_hw:
 	wl1271_debugfs_exit(wl);
 	kfree(plat_dev);
@@ -2469,6 +2590,8 @@ EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 int wl1271_free_hw(struct wl1271 *wl)
 {
 	platform_device_unregister(wl->plat_dev);
+	free_pages((unsigned long)wl->aggr_buf,
+			get_order(WL1271_AGGR_BUFFER_SIZE));
 	kfree(wl->plat_dev);
 
 	wl1271_debugfs_exit(wl);

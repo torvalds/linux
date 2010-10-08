@@ -179,6 +179,9 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
 	struct modal_eep_4k_header *pModal = &eep->modalHeader;
 	struct base_eep_header_4k *pBase = &eep->baseEepHeader;
+	u16 ver_minor;
+
+	ver_minor = pBase->version & AR5416_EEP_VER_MINOR_MASK;
 
 	switch (param) {
 	case EEP_NFTHRESH_2:
@@ -204,7 +207,7 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	case EEP_DB_2:
 		return pModal->db1_1;
 	case EEP_MINOR_REV:
-		return pBase->version & AR5416_EEP_VER_MINOR_MASK;
+		return ver_minor;
 	case EEP_TX_MASK:
 		return pBase->txMask;
 	case EEP_RX_MASK:
@@ -217,6 +220,11 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return pModal->version;
 	case EEP_ANT_DIV_CTL1:
 		return pModal->antdiv_ctl1;
+	case EEP_TXGAIN_TYPE:
+		if (ver_minor >= AR5416_EEP_MINOR_VER_19)
+			return pBase->txGainType;
+		else
+			return AR5416_EEP_TXGAIN_ORIGINAL;
 	default:
 		return 0;
 	}
@@ -500,7 +508,6 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 			}
 
 			REGWRITE_BUFFER_FLUSH(ah);
-			DISABLE_REGWRITE_BUFFER(ah);
 		}
 	}
 
@@ -832,7 +839,6 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	}
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ath9k_hw_4k_set_addac(struct ath_hw *ah,

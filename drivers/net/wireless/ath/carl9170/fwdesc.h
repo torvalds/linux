@@ -66,6 +66,9 @@ enum carl9170fw_feature_list {
 	/* Firmware PSM support | CARL9170_CMD_PSM */
 	CARL9170FW_PSM,
 
+	/* Firmware RX filter | CARL9170_CMD_RX_FILTER */
+	CARL9170FW_RX_FILTER,
+
 	/* KEEP LAST */
 	__CARL9170FW_FEATURE_NUM
 };
@@ -142,7 +145,7 @@ struct carl9170fw_fix_desc {
 	(sizeof(struct carl9170fw_fix_desc))
 
 #define CARL9170FW_DBG_DESC_MIN_VER			1
-#define CARL9170FW_DBG_DESC_CUR_VER			2
+#define CARL9170FW_DBG_DESC_CUR_VER			3
 struct carl9170fw_dbg_desc {
 	struct carl9170fw_desc_head head;
 
@@ -150,6 +153,7 @@ struct carl9170fw_dbg_desc {
 	__le32 counter_addr;
 	__le32 rx_total_addr;
 	__le32 rx_overrun_addr;
+	__le32 rx_filter;
 
 	/* Put your debugging definitions here */
 } __packed;

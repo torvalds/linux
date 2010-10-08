@@ -483,7 +483,8 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 			   txdesc->key_idx : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
 			   txdesc->length);
-	rt2x00_set_field32(&word, TXWI_W1_PACKETID, txdesc->qid + 1);
+	rt2x00_set_field32(&word, TXWI_W1_PACKETID_QUEUE, txdesc->qid);
+	rt2x00_set_field32(&word, TXWI_W1_PACKETID_ENTRY, (entry->entry_idx % 3) + 1);
 	rt2x00_desc_write(txwi, 1, word);
 
 	/*
@@ -630,15 +631,90 @@ static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	return true;
 }
 
+void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct txdone_entry_desc txdesc;
+	u32 word;
+	u16 mcs, real_mcs;
+	int aggr, ampdu;
+	__le32 *txwi;
+
+	/*
+	 * Obtain the status about this packet.
+	 */
+	txdesc.flags = 0;
+	txwi = rt2800_drv_get_txwi(entry);
+	rt2x00_desc_read(txwi, 0, &word);
+
+	mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
+	ampdu = rt2x00_get_field32(word, TXWI_W0_AMPDU);
+
+	real_mcs = rt2x00_get_field32(status, TX_STA_FIFO_MCS);
+	aggr = rt2x00_get_field32(status, TX_STA_FIFO_TX_AGGRE);
+
+	/*
+	 * If a frame was meant to be sent as a single non-aggregated MPDU
+	 * but ended up in an aggregate the used tx rate doesn't correlate
+	 * with the one specified in the TXWI as the whole aggregate is sent
+	 * with the same rate.
+	 *
+	 * For example: two frames are sent to rt2x00, the first one sets
+	 * AMPDU=1 and requests MCS7 whereas the second frame sets AMDPU=0
+	 * and requests MCS15. If the hw aggregates both frames into one
+	 * AMDPU the tx status for both frames will contain MCS7 although
+	 * the frame was sent successfully.
+	 *
+	 * Hence, replace the requested rate with the real tx rate to not
+	 * confuse the rate control algortihm by providing clearly wrong
+	 * data.
+	 */
+	if (aggr == 1 && ampdu == 0 && real_mcs != mcs) {
+		skbdesc->tx_rate_idx = real_mcs;
+		mcs = real_mcs;
+	}
+
+	/*
+	 * Ralink has a retry mechanism using a global fallback
+	 * table. We setup this fallback table to try the immediate
+	 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
+	 * always contains the MCS used for the last transmission, be
+	 * it successful or not.
+	 */
+	if (rt2x00_get_field32(status, TX_STA_FIFO_TX_SUCCESS)) {
+		/*
+		 * Transmission succeeded. The number of retries is
+		 * mcs - real_mcs
+		 */
+		__set_bit(TXDONE_SUCCESS, &txdesc.flags);
+		txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
+	} else {
+		/*
+		 * Transmission failed. The number of retries is
+		 * always 7 in this case (for a total number of 8
+		 * frames sent).
+		 */
+		__set_bit(TXDONE_FAILURE, &txdesc.flags);
+		txdesc.retry = rt2x00dev->long_retry;
+	}
+
+	/*
+	 * the frame was retried at least once
+	 * -> hw used fallback rates
+	 */
+	if (txdesc.retry)
+		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
+
+	rt2x00lib_txdone(entry, &txdesc);
+}
+EXPORT_SYMBOL_GPL(rt2800_txdone_entry);
+
 void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
-	__le32 *txwi;
-	struct txdone_entry_desc txdesc;
-	u32 word;
 	u32 reg;
-	u16 mcs, real_mcs;
 	u8 pid;
 	int i;
 
@@ -660,7 +736,7 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		 * Skip this entry when it contains an invalid
 		 * queue identication number.
 		 */
-		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE) - 1;
+		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
 		if (pid >= QID_RX)
 			continue;
 
@@ -673,7 +749,6 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		 * order. We first check that the queue is not empty.
 		 */
 		entry = NULL;
-		txwi = NULL;
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 			if (rt2800_txdone_entry_check(entry, reg))
@@ -683,48 +758,7 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		if (!entry || rt2x00queue_empty(queue))
 			break;
 
-
-		/*
-		 * Obtain the status about this packet.
-		 */
-		txdesc.flags = 0;
-		txwi = rt2800_drv_get_txwi(entry);
-		rt2x00_desc_read(txwi, 0, &word);
-		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
-		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
-
-		/*
-		 * Ralink has a retry mechanism using a global fallback
-		 * table. We setup this fallback table to try the immediate
-		 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
-		 * always contains the MCS used for the last transmission, be
-		 * it successful or not.
-		 */
-		if (rt2x00_get_field32(reg, TX_STA_FIFO_TX_SUCCESS)) {
-			/*
-			 * Transmission succeeded. The number of retries is
-			 * mcs - real_mcs
-			 */
-			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
-			txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
-		} else {
-			/*
-			 * Transmission failed. The number of retries is
-			 * always 7 in this case (for a total number of 8
-			 * frames sent).
-			 */
-			__set_bit(TXDONE_FAILURE, &txdesc.flags);
-			txdesc.retry = rt2x00dev->long_retry;
-		}
-
-		/*
-		 * the frame was retried at least once
-		 * -> hw used fallback rates
-		 */
-		if (txdesc.retry)
-			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
-
-		rt2x00lib_txdone(entry, &txdesc);
+		rt2800_txdone_entry(entry, reg);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone);
@@ -1031,8 +1065,12 @@ int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 		 * 1 pairwise key is possible per AID, this means that the AID
 		 * equals our hw_key_idx. Make sure the WCID starts _after_ the
 		 * last possible shared key entry.
+		 *
+		 * Since parts of the pairwise key table might be shared with
+		 * the beacon frame buffers 6 & 7 we should only write into the
+		 * first 222 entries.
 		 */
-		if (crypto->aid > (256 - 32))
+		if (crypto->aid > (222 - 32))
 			return -ENOSPC;
 
 		key->hw_key_idx = 32 + crypto->aid;
@@ -1159,6 +1197,102 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 }
 EXPORT_SYMBOL_GPL(rt2800_config_intf);
 
+static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
+				    struct rt2x00lib_erp *erp)
+{
+	bool any_sta_nongf = !!(erp->ht_opmode &
+				IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	u8 protection = erp->ht_opmode & IEEE80211_HT_OP_MODE_PROTECTION;
+	u8 mm20_mode, mm40_mode, gf20_mode, gf40_mode;
+	u16 mm20_rate, mm40_rate, gf20_rate, gf40_rate;
+	u32 reg;
+
+	/* default protection rate for HT20: OFDM 24M */
+	mm20_rate = gf20_rate = 0x4004;
+
+	/* default protection rate for HT40: duplicate OFDM 24M */
+	mm40_rate = gf40_rate = 0x4084;
+
+	switch (protection) {
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONE:
+		/*
+		 * All STAs in this BSS are HT20/40 but there might be
+		 * STAs not supporting greenfield mode.
+		 * => Disable protection for HT transmissions.
+		 */
+		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 0;
+
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
+		/*
+		 * All STAs in this BSS are HT20 or HT20/40 but there
+		 * might be STAs not supporting greenfield mode.
+		 * => Protect all HT40 transmissions.
+		 */
+		mm20_mode = gf20_mode = 0;
+		mm40_mode = gf40_mode = 2;
+
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+		/*
+		 * Nonmember protection:
+		 * According to 802.11n we _should_ protect all
+		 * HT transmissions (but we don't have to).
+		 *
+		 * But if cts_protection is enabled we _shall_ protect
+		 * all HT transmissions using a CCK rate.
+		 *
+		 * And if any station is non GF we _shall_ protect
+		 * GF transmissions.
+		 *
+		 * We decide to protect everything
+		 * -> fall through to mixed mode.
+		 */
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+		/*
+		 * Legacy STAs are present
+		 * => Protect all HT transmissions.
+		 */
+		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 2;
+
+		/*
+		 * If erp protection is needed we have to protect HT
+		 * transmissions with CCK 11M long preamble.
+		 */
+		if (erp->cts_protection) {
+			/* don't duplicate RTS/CTS in CCK mode */
+			mm20_rate = mm40_rate = 0x0003;
+			gf20_rate = gf40_rate = 0x0003;
+		}
+		break;
+	};
+
+	/* check for STAs not supporting greenfield mode */
+	if (any_sta_nongf)
+		gf20_mode = gf40_mode = 2;
+
+	/* Update HT protection config */
+	rt2800_register_read(rt2x00dev, MM20_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, MM20_PROT_CFG_PROTECT_RATE, mm20_rate);
+	rt2x00_set_field32(&reg, MM20_PROT_CFG_PROTECT_CTRL, mm20_mode);
+	rt2800_register_write(rt2x00dev, MM20_PROT_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, MM40_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_RATE, mm40_rate);
+	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_CTRL, mm40_mode);
+	rt2800_register_write(rt2x00dev, MM40_PROT_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, GF20_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, GF20_PROT_CFG_PROTECT_RATE, gf20_rate);
+	rt2x00_set_field32(&reg, GF20_PROT_CFG_PROTECT_CTRL, gf20_mode);
+	rt2800_register_write(rt2x00dev, GF20_PROT_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, GF40_PROT_CFG, &reg);
+	rt2x00_set_field32(&reg, GF40_PROT_CFG_PROTECT_RATE, gf40_rate);
+	rt2x00_set_field32(&reg, GF40_PROT_CFG_PROTECT_CTRL, gf40_mode);
+	rt2800_register_write(rt2x00dev, GF40_PROT_CFG, reg);
+}
+
 void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
 		       u32 changed)
 {
@@ -1203,6 +1337,9 @@ void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
 				   erp->beacon_int * 16);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 	}
+
+	if (changed & BSS_CHANGED_HT)
+		rt2800_config_ht_opmode(rt2x00dev, erp);
 }
 EXPORT_SYMBOL_GPL(rt2800_config_erp);
 
@@ -1907,8 +2044,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_read(rt2x00dev, MM40_PROT_CFG, &reg);
 	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_RATE, 0x4084);
-	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_CTRL,
-			   !rt2x00_is_usb(rt2x00dev));
+	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_CTRL, 0);
 	rt2x00_set_field32(&reg, MM40_PROT_CFG_PROTECT_NAV, 1);
 	rt2x00_set_field32(&reg, MM40_PROT_CFG_TX_OP_ALLOW_CCK, 1);
 	rt2x00_set_field32(&reg, MM40_PROT_CFG_TX_OP_ALLOW_OFDM, 1);
@@ -3056,11 +3192,20 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK |
 	    IEEE80211_HW_AMPDU_AGGREGATION;
+	/*
+	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING for USB devices
+	 * unless we are capable of sending the buffered frames out after the
+	 * DTIM transmission using rt2x00lib_beacondone. This will send out
+	 * multicast and broadcast traffic immediately instead of buffering it
+	 * infinitly and thus dropping it after some time.
+	 */
+	if (!rt2x00_is_usb(rt2x00dev))
+		rt2x00dev->hw->flags |=
+			IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -3071,12 +3216,13 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * As rt2800 has a global fallback table we cannot specify
 	 * more then one tx rate per frame but since the hw will
 	 * try several rates (based on the fallback table) we should
-	 * still initialize max_rates to the maximum number of rates
+	 * initialize max_report_rates to the maximum number of rates
 	 * we are going to try. Otherwise mac80211 will truncate our
 	 * reported tx rates and the rc algortihm will end up with
 	 * incorrect data.
 	 */
-	rt2x00dev->hw->max_rates = 7;
+	rt2x00dev->hw->max_rates = 1;
+	rt2x00dev->hw->max_report_rates = 7;
 	rt2x00dev->hw->max_rate_tries = 1;
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
@@ -3333,8 +3479,12 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 	case IEEE80211_AMPDU_RX_STOP:
-		/* we don't support RX aggregation yet */
-		ret = -ENOTSUPP;
+		/*
+		 * The hw itself takes care of setting up BlockAck mechanisms.
+		 * So, we only have to allow mac80211 to nagotiate a BlockAck
+		 * agreement. Once that is done, the hw will BlockAck incoming
+		 * AMPDUs without further setup.
+		 */
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);

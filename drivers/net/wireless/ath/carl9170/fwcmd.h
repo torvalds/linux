@@ -53,6 +53,7 @@ enum carl9170_cmd_oids {
 	CARL9170_CMD_REBOOT		= 0x04,
 	CARL9170_CMD_BCN_CTRL		= 0x05,
 	CARL9170_CMD_READ_TSF		= 0x06,
+	CARL9170_CMD_RX_FILTER		= 0x07,
 
 	/* CAM */
 	CARL9170_CMD_EKEY		= 0x10,
@@ -153,6 +154,20 @@ struct carl9170_psm {
 } __packed;
 #define CARL9170_PSM_SIZE		4
 
+struct carl9170_rx_filter_cmd {
+	__le32		rx_filter;
+} __packed;
+#define CARL9170_RX_FILTER_CMD_SIZE	4
+
+#define CARL9170_RX_FILTER_BAD		0x01
+#define CARL9170_RX_FILTER_OTHER_RA	0x02
+#define CARL9170_RX_FILTER_DECRY_FAIL	0x04
+#define CARL9170_RX_FILTER_CTL_OTHER	0x08
+#define CARL9170_RX_FILTER_CTL_PSPOLL	0x10
+#define CARL9170_RX_FILTER_CTL_BACKR	0x20
+#define CARL9170_RX_FILTER_MGMT		0x40
+#define CARL9170_RX_FILTER_DATA		0x80
+
 struct carl9170_bcn_ctrl_cmd {
 	__le32		vif_id;
 	__le32		mode;
@@ -188,6 +203,7 @@ struct carl9170_cmd {
 		struct carl9170_rf_init		rf_init;
 		struct carl9170_psm		psm;
 		struct carl9170_bcn_ctrl_cmd	bcn_ctrl;
+		struct carl9170_rx_filter_cmd	rx_filter;
 		u8 data[CARL9170_MAX_CMD_PAYLOAD_LEN];
 	} __packed;
 } __packed;

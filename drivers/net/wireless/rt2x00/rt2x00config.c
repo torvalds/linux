@@ -103,6 +103,9 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	/* Update global beacon interval time, this is needed for PS support */
 	rt2x00dev->beacon_int = bss_conf->beacon_int;
 
+	if (changed & BSS_CHANGED_HT)
+		erp.ht_opmode = bss_conf->ht_operation_mode;
+
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp, changed);
 }
 

@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
 	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
@@ -710,8 +711,14 @@
 
 /*
  * TBTT_SYNC_CFG:
+ * BCN_AIFSN: Beacon AIFSN after TBTT interrupt in slots
+ * BCN_CWMIN: Beacon CWMin after TBTT interrupt in slots
  */
 #define TBTT_SYNC_CFG			0x1118
+#define TBTT_SYNC_CFG_TBTT_ADJUST	FIELD32(0x000000ff)
+#define TBTT_SYNC_CFG_BCN_EXP_WIN	FIELD32(0x0000ff00)
+#define TBTT_SYNC_CFG_BCN_AIFSN		FIELD32(0x000f0000)
+#define TBTT_SYNC_CFG_BCN_CWMIN		FIELD32(0x00f00000)
 
 /*
  * TSF_TIMER_DW0: Local lsb TSF timer, read-only
@@ -747,14 +754,19 @@
 #define INT_TIMER_EN_GP_TIMER		FIELD32(0x00000002)
 
 /*
- * CH_IDLE_STA: channel idle time
+ * CH_IDLE_STA: channel idle time (in us)
  */
 #define CH_IDLE_STA			0x1130
 
 /*
- * CH_BUSY_STA: channel busy time
+ * CH_BUSY_STA: channel busy time on primary channel (in us)
  */
 #define CH_BUSY_STA			0x1134
+
+/*
+ * CH_BUSY_STA_SEC: channel busy time on secondary channel in HT40 mode (in us)
+ */
+#define CH_BUSY_STA_SEC			0x1138
 
 /*
  * MAC_STATUS_CFG:
@@ -1342,6 +1354,9 @@
  * PID_TYPE: The PID latched from the PID field in the TXWI, can be used
  *           to match a frame with its tx result (even though the PID is
  *           only 4 bits wide).
+ * PID_QUEUE: Part of PID_TYPE, this is the queue index number (0-3)
+ * PID_ENTRY: Part of PID_TYPE, this is the queue entry index number (1-3)
+ *            This identification number is calculated by ((idx % 3) + 1).
  * TX_SUCCESS: Indicates tx success (1) or failure (0)
  * TX_AGGRE: Indicates if the frame was part of an aggregate (1) or not (0)
  * TX_ACK_REQUIRED: Indicates if the frame needed to get ack'ed (1) or not (0)
@@ -1353,6 +1368,8 @@
 #define TX_STA_FIFO			0x1718
 #define TX_STA_FIFO_VALID		FIELD32(0x00000001)
 #define TX_STA_FIFO_PID_TYPE		FIELD32(0x0000001e)
+#define TX_STA_FIFO_PID_QUEUE		FIELD32(0x00000006)
+#define TX_STA_FIFO_PID_ENTRY		FIELD32(0x00000018)
 #define TX_STA_FIFO_TX_SUCCESS		FIELD32(0x00000020)
 #define TX_STA_FIFO_TX_AGGRE		FIELD32(0x00000040)
 #define TX_STA_FIFO_TX_ACK_REQUIRED	FIELD32(0x00000080)
@@ -1435,6 +1452,24 @@
 
 /*
  * Security key table memory.
+ *
+ * The pairwise key table shares some memory with the beacon frame
+ * buffers 6 and 7. That basically means that when beacon 6 & 7
+ * are used we should only use the reduced pairwise key table which
+ * has a maximum of 222 entries.
+ *
+ * ---------------------------------------------
+ * |0x4000 | Pairwise Key   | Reduced Pairwise |
+ * |       | Table          | Key Table        |
+ * |       | Size: 256 * 32 | Size: 222 * 32   |
+ * |0x5BC0 |                |-------------------
+ * |       |                | Beacon 6         |
+ * |0x5DC0 |                |-------------------
+ * |       |                | Beacon 7         |
+ * |0x5FC0 |                |-------------------
+ * |0x5FFF |                |
+ * --------------------------
+ *
  * MAC_WCID_BASE: 8-bytes (use only 6 bytes) * 256 entry
  * PAIRWISE_KEY_TABLE_BASE: 32-byte * 256 entry
  * MAC_IVEIV_TABLE_BASE: 8-byte * 256-entry
@@ -1584,7 +1619,8 @@ struct mac_iveiv_entry {
  * 2. Extract memory from FCE table for BCN 4~5
  * 3. Extract memory from Pair-wise key table for BCN 6~7
  *    It occupied those memory of wcid 238~253 for BCN 6
- *    and wcid 222~237 for BCN 7
+ *    and wcid 222~237 for BCN 7 (see Security key table memory
+ *    for more info).
  *
  * IMPORTANT NOTE: Not sure why legacy driver does this,
  * but HW_BEACON_BASE7 is 0x0200 bytes below HW_BEACON_BASE6.
@@ -1963,10 +1999,17 @@ struct mac_iveiv_entry {
  * FRAG: 1 To inform TKIP engine this is a fragment.
  * MIMO_PS: The remote peer is in dynamic MIMO-PS mode
  * TX_OP: 0:HT TXOP rule , 1:PIFS TX ,2:Backoff, 3:sifs
- * BW: Channel bandwidth 20MHz or 40 MHz
+ * BW: Channel bandwidth 0:20MHz, 1:40 MHz (for legacy rates this will
+ *     duplicate the frame to both channels).
  * STBC: 1: STBC support MCS =0-7, 2,3 : RESERVED
  * AMPDU: 1: this frame is eligible for AMPDU aggregation, the hw will
- *        aggregate consecutive frames with the same RA and QoS TID.
+ *        aggregate consecutive frames with the same RA and QoS TID. If
+ *        a frame A with the same RA and QoS TID but AMPDU=0 is queued
+ *        directly after a frame B with AMPDU=1, frame A might still
+ *        get aggregated into the AMPDU started by frame B. So, setting
+ *        AMPDU to 0 does _not_ necessarily mean the frame is sent as
+ *        MPDU, it can still end up in an AMPDU if the previous frame
+ *        was tagged as AMPDU.
  */
 #define TXWI_W0_FRAG			FIELD32(0x00000001)
 #define TXWI_W0_MIMO_PS			FIELD32(0x00000002)
@@ -1993,6 +2036,10 @@ struct mac_iveiv_entry {
  *           frame was processed. If multiple frames are aggregated together
  *           (AMPDU==1) the reported tx status will always contain the packet
  *           id of the first frame. 0: Don't report tx status for this frame.
+ * PACKETID_QUEUE: Part of PACKETID, This is the queue index (0-3)
+ * PACKETID_ENTRY: Part of PACKETID, THis is the queue entry index (1-3)
+ *                 This identification number is calculated by ((idx % 3) + 1).
+ *		   The (+1) is required to prevent PACKETID to become 0.
  */
 #define TXWI_W1_ACK			FIELD32(0x00000001)
 #define TXWI_W1_NSEQ			FIELD32(0x00000002)
@@ -2000,6 +2047,8 @@ struct mac_iveiv_entry {
 #define TXWI_W1_WIRELESS_CLI_ID		FIELD32(0x0000ff00)
 #define TXWI_W1_MPDU_TOTAL_BYTE_COUNT	FIELD32(0x0fff0000)
 #define TXWI_W1_PACKETID		FIELD32(0xf0000000)
+#define TXWI_W1_PACKETID_QUEUE		FIELD32(0x30000000)
+#define TXWI_W1_PACKETID_ENTRY		FIELD32(0xc0000000)
 
 /*
  * Word2

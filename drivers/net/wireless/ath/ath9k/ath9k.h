@@ -241,7 +241,6 @@ struct ath_buf {
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
 	bool bf_stale;
-	bool bf_isnullfunc;
 	bool bf_tx_aborted;
 	u16 bf_flags;
 	struct ath_buf_state bf_state;
@@ -349,7 +348,6 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
 void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
-void ath9k_enable_ps(struct ath_softc *sc);
 
 /********/
 /* VIFs */
@@ -573,8 +571,6 @@ struct ath_ant_comb {
 #define PS_WAIT_FOR_PSPOLL_DATA   BIT(2)
 #define PS_WAIT_FOR_TX_ACK        BIT(3)
 #define PS_BEACON_SYNC            BIT(4)
-#define PS_NULLFUNC_COMPLETED     BIT(5)
-#define PS_ENABLED                BIT(6)
 
 struct ath_wiphy;
 struct ath_rate_table;

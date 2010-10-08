@@ -12,8 +12,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
-	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)))
-		ieee80211_scan_cancel(local);
+	ieee80211_scan_cancel(local);
 
 	ieee80211_stop_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
@@ -46,7 +45,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
-			ieee80211_sta_tear_down_BA_sessions(sta);
+			ieee80211_sta_tear_down_BA_sessions(sta, true);
 		}
 
 		if (sta->uploaded) {

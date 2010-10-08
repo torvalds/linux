@@ -420,12 +420,12 @@ struct iwl4965_tx_power_db {
 
 /**
  * Command REPLY_TX_POWER_DBM_CMD = 0x98
- * struct iwl5000_tx_power_dbm_cmd
+ * struct iwlagn_tx_power_dbm_cmd
  */
-#define IWL50_TX_POWER_AUTO 0x7f
-#define IWL50_TX_POWER_NO_CLOSED (0x1 << 6)
+#define IWLAGN_TX_POWER_AUTO 0x7f
+#define IWLAGN_TX_POWER_NO_CLOSED (0x1 << 6)
 
-struct iwl5000_tx_power_dbm_cmd {
+struct iwlagn_tx_power_dbm_cmd {
 	s8 global_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
 	u8 flags;
 	s8 srv_chan_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
@@ -1042,7 +1042,7 @@ struct iwl4965_keyinfo {
 	u8 key[16];		/* 16-byte unicast decryption key */
 } __packed;
 
-/* 5000 */
+/* agn */
 struct iwl_keyinfo {
 	__le16 key_flags;
 	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
@@ -1168,7 +1168,7 @@ struct iwl4965_addsta_cmd {
 	__le16 reserved2;
 } __packed;
 
-/* 5000 */
+/* agn */
 struct iwl_addsta_cmd {
 	u8 mode;		/* 1: modify existing, 0: add new station */
 	u8 reserved[3];
@@ -1959,12 +1959,12 @@ struct iwl4965_tx_resp {
 #define IWL50_TX_RES_INV_RATE_INDEX_MSK	0x80
 
 /* refer to ra_tid */
-#define IWL50_TX_RES_TID_POS	0
-#define IWL50_TX_RES_TID_MSK	0x0f
-#define IWL50_TX_RES_RA_POS	4
-#define IWL50_TX_RES_RA_MSK	0xf0
+#define IWLAGN_TX_RES_TID_POS	0
+#define IWLAGN_TX_RES_TID_MSK	0x0f
+#define IWLAGN_TX_RES_RA_POS	4
+#define IWLAGN_TX_RES_RA_MSK	0xf0
 
-struct iwl5000_tx_resp {
+struct iwlagn_tx_resp {
 	u8 frame_count;		/* 1 no aggregation, >1 aggregation */
 	u8 bt_kill_count;	/* # blocked by bluetooth (unused for agg) */
 	u8 failure_rts;		/* # failures due to unsuccessful RTS */
@@ -3799,6 +3799,21 @@ enum {
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
 #define IWL_CALIB_INIT_CFG_ALL	cpu_to_le32(0xffffffff)
+
+/* This enum defines the bitmap of various calibrations to enable in both
+ * init ucode and runtime ucode through CALIBRATION_CFG_CMD.
+ */
+enum iwl_ucode_calib_cfg {
+	IWL_CALIB_CFG_RX_BB_IDX,
+	IWL_CALIB_CFG_DC_IDX,
+	IWL_CALIB_CFG_TX_IQ_IDX,
+	IWL_CALIB_CFG_RX_IQ_IDX,
+	IWL_CALIB_CFG_NOISE_IDX,
+	IWL_CALIB_CFG_CRYSTAL_IDX,
+	IWL_CALIB_CFG_TEMPERATURE_IDX,
+	IWL_CALIB_CFG_PAPD_IDX,
+};
+
 
 struct iwl_calib_cfg_elmnt_s {
 	__le32 is_enable;

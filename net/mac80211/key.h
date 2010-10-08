@@ -16,6 +16,9 @@
 #include <linux/rcupdate.h>
 #include <net/mac80211.h>
 
+#define NUM_DEFAULT_KEYS 4
+#define NUM_DEFAULT_MGMT_KEYS 2
+
 #define WEP_IV_LEN		4
 #define WEP_ICV_LEN		4
 #define ALG_TKIP_KEY_LEN	32

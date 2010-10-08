@@ -315,8 +315,8 @@
  *	channel for the specified amount of time. This can be used to do
  *	off-channel operations like transmit a Public Action frame and wait for
  *	a response while being associated to an AP on another channel.
- *	%NL80211_ATTR_WIPHY or %NL80211_ATTR_IFINDEX is used to specify which
- *	radio is used. %NL80211_ATTR_WIPHY_FREQ is used to specify the
+ *	%NL80211_ATTR_IFINDEX is used to specify which interface (and thus
+ *	radio) is used. %NL80211_ATTR_WIPHY_FREQ is used to specify the
  *	frequency for the operation and %NL80211_ATTR_WIPHY_CHANNEL_TYPE may be
  *	optionally used to specify additional channel parameters.
  *	%NL80211_ATTR_DURATION is used to specify the duration in milliseconds
@@ -386,6 +386,8 @@
  *	no other interfaces are operating to avoid disturbing the operation
  *	of any other interfaces, and other interfaces will again take
  *	precedence when they are used.
+ *
+ * @NL80211_CMD_SET_WDS_PEER: Set the MAC address of the peer on a WDS interface.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -489,6 +491,7 @@ enum nl80211_commands {
 	NL80211_CMD_NOTIFY_CQM,
 
 	NL80211_CMD_SET_CHANNEL,
+	NL80211_CMD_SET_WDS_PEER,
 
 	/* add new commands above here */
 
@@ -798,6 +801,9 @@ enum nl80211_commands {
  *      This is used in association with @NL80211_ATTR_WIPHY_TX_POWER_SETTING
  *      for non-automatic settings.
  *
+ * @NL80211_ATTR_SUPPORT_IBSS_RSN: The device supports IBSS RSN, which mostly
+ *	means support for per-station GTKs.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -965,6 +971,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
 	NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT,
 
+	NL80211_ATTR_SUPPORT_IBSS_RSN,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -1129,6 +1137,8 @@ enum nl80211_rate_info {
  * @NL80211_STA_INFO_RX_PACKETS: total received packet (u32, from this station)
  * @NL80211_STA_INFO_TX_PACKETS: total transmitted packets (u32, to this
  *	station)
+ * @NL80211_STA_INFO_TX_RETRIES: total retries (u32, to this station)
+ * @NL80211_STA_INFO_TX_FAILED: total failed packets (u32, to this station)
  */
 enum nl80211_sta_info {
 	__NL80211_STA_INFO_INVALID,
@@ -1142,6 +1152,8 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TX_BITRATE,
 	NL80211_STA_INFO_RX_PACKETS,
 	NL80211_STA_INFO_TX_PACKETS,
+	NL80211_STA_INFO_TX_RETRIES,
+	NL80211_STA_INFO_TX_FAILED,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -1400,6 +1412,7 @@ enum nl80211_reg_rule_flags {
  * @__NL80211_SURVEY_INFO_INVALID: attribute number 0 is reserved
  * @NL80211_SURVEY_INFO_FREQUENCY: center frequency of channel
  * @NL80211_SURVEY_INFO_NOISE: noise level of channel (u8, dBm)
+ * @NL80211_SURVEY_INFO_IN_USE: channel is currently being used
  * @NL80211_SURVEY_INFO_MAX: highest survey info attribute number
  *	currently defined
  * @__NL80211_SURVEY_INFO_AFTER_LAST: internal use
@@ -1408,6 +1421,7 @@ enum nl80211_survey_info {
 	__NL80211_SURVEY_INFO_INVALID,
 	NL80211_SURVEY_INFO_FREQUENCY,
 	NL80211_SURVEY_INFO_NOISE,
+	NL80211_SURVEY_INFO_IN_USE,
 
 	/* keep last */
 	__NL80211_SURVEY_INFO_AFTER_LAST,
@@ -1654,11 +1668,14 @@ enum nl80211_auth_type {
  * @NL80211_KEYTYPE_GROUP: Group (broadcast/multicast) key
  * @NL80211_KEYTYPE_PAIRWISE: Pairwise (unicast/individual) key
  * @NL80211_KEYTYPE_PEERKEY: PeerKey (DLS)
+ * @NUM_NL80211_KEYTYPES: number of defined key types
  */
 enum nl80211_key_type {
 	NL80211_KEYTYPE_GROUP,
 	NL80211_KEYTYPE_PAIRWISE,
 	NL80211_KEYTYPE_PEERKEY,
+
+	NUM_NL80211_KEYTYPES
 };
 
 /**
@@ -1689,6 +1706,9 @@ enum nl80211_wpa_versions {
  *	CCMP keys, each six bytes in little endian
  * @NL80211_KEY_DEFAULT: flag indicating default key
  * @NL80211_KEY_DEFAULT_MGMT: flag indicating default management key
+ * @NL80211_KEY_TYPE: the key type from enum nl80211_key_type, if not
+ *	specified the default depends on whether a MAC address was
+ *	given with the command using the key or not (u32)
  * @__NL80211_KEY_AFTER_LAST: internal
  * @NL80211_KEY_MAX: highest key attribute
  */
@@ -1700,6 +1720,7 @@ enum nl80211_key_attributes {
 	NL80211_KEY_SEQ,
 	NL80211_KEY_DEFAULT,
 	NL80211_KEY_DEFAULT_MGMT,
+	NL80211_KEY_TYPE,
 
 	/* keep last */
 	__NL80211_KEY_AFTER_LAST,

@@ -1648,13 +1648,6 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 
 	bf->bf_buf_addr = bf->bf_dmacontext;
 
-	/* tag if this is a nullfunc frame to enable PS when AP acks it */
-	if (ieee80211_is_nullfunc(fc) && ieee80211_has_pm(fc)) {
-		bf->bf_isnullfunc = true;
-		sc->ps_flags &= ~PS_NULLFUNC_COMPLETED;
-	} else
-		bf->bf_isnullfunc = false;
-
 	bf->bf_tx_aborted = false;
 
 	return 0;
@@ -2082,18 +2075,6 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		}
 
 		/*
-		 * We now know the nullfunc frame has been ACKed so we
-		 * can disable RX.
-		 */
-		if (bf->bf_isnullfunc &&
-		    (ts.ts_status & ATH9K_TX_ACKED)) {
-			if ((sc->ps_flags & PS_ENABLED))
-				ath9k_enable_ps(sc);
-			else
-				sc->ps_flags |= PS_NULLFUNC_COMPLETED;
-		}
-
-		/*
 		 * Remove ath_buf's of the same transmit unit from txq,
 		 * however leave the last descriptor back as the holding
 		 * descriptor for hw.
@@ -2235,17 +2216,6 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		spin_unlock_bh(&txq->axq_lock);
 
 		txok = !(txs.ts_status & ATH9K_TXERR_MASK);
-
-		/*
-		 * Make sure null func frame is acked before configuring
-		 * hw into ps mode.
-		 */
-		if (bf->bf_isnullfunc && txok) {
-			if ((sc->ps_flags & PS_ENABLED))
-				ath9k_enable_ps(sc);
-			else
-				sc->ps_flags |= PS_NULLFUNC_COMPLETED;
-		}
 
 		if (!bf_isampdu(bf)) {
 			if (txs.ts_status & ATH9K_TXERR_XRETRY)

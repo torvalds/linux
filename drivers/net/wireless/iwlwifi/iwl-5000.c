@@ -170,13 +170,13 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->num_of_queues =
+		priv->cfg->base_params->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->num_of_queues *
+			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
@@ -217,13 +217,13 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->num_of_queues =
+		priv->cfg->base_params->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->num_of_queues *
+			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
@@ -504,27 +504,14 @@ static const struct iwl_ops iwl5150_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-struct iwl_cfg iwl5300_agn_cfg = {
-	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
-	.fw_name_pre = IWL5000_FW_PRE,
-	.ucode_api_max = IWL5000_UCODE_API_MAX,
-	.ucode_api_min = IWL5000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+static struct iwl_base_params iwl5000_base_params = {
 	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
-	.valid_tx_ant = ANT_ABC,
-	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
 	.set_l0s = true,
 	.use_bsm = false,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
@@ -533,6 +520,26 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+};
+static struct iwl_ht_params iwl5000_ht_params = {
+	.ht_greenfield_support = true,
+	.use_rts_for_aggregation = true, /* use rts/cts protection */
+};
+
+struct iwl_cfg iwl5300_agn_cfg = {
+	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_ABC,
+	.valid_rx_ant = ANT_ABC,
+	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.ops = &iwl5000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
+	.ht_params = &iwl5000_ht_params,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
@@ -541,29 +548,14 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
-	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.ops = &iwl5000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
+	.ht_params = &iwl5000_ht_params,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -572,27 +564,13 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl5000_ops,
-	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.ops = &iwl5000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -601,29 +579,14 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
-	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.ops = &iwl5000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
+	.ht_params = &iwl5000_ht_params,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -632,29 +595,14 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
-	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
+	.ops = &iwl5000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
+	.ht_params = &iwl5000_ht_params,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -663,29 +611,14 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ucode_api_max = IWL5150_UCODE_API_MAX,
 	.ucode_api_min = IWL5150_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5150_ops,
-	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
+	.ops = &iwl5150_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
+	.ht_params = &iwl5000_ht_params,
 	.need_dc_calib = true,
 };
 
@@ -695,27 +628,13 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.ucode_api_max = IWL5150_UCODE_API_MAX,
 	.ucode_api_min = IWL5150_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl5150_ops,
-	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
+	.ops = &iwl5150_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl5000_base_params,
 	.need_dc_calib = true,
 };
 

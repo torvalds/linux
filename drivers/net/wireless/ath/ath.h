@@ -35,7 +35,6 @@ static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 struct ath_ani {
 	bool caldone;
-	int16_t noise_floor;
 	unsigned int longcal_timer;
 	unsigned int shortcal_timer;
 	unsigned int resetcal_timer;
@@ -103,14 +102,12 @@ enum ath_cipher {
  * @read: Register read
  * @write: Register write
  * @enable_write_buffer: Enable multiple register writes
- * @disable_write_buffer: Disable multiple register writes
- * @write_flush: Flush buffered register writes
+ * @write_flush: flush buffered register writes and disable buffering
  */
 struct ath_ops {
 	unsigned int (*read)(void *, u32 reg_offset);
 	void (*write)(void *, u32 val, u32 reg_offset);
 	void (*enable_write_buffer)(void *);
-	void (*disable_write_buffer)(void *);
 	void (*write_flush) (void *);
 };
 

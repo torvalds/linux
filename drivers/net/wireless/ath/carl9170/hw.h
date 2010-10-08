@@ -731,6 +731,9 @@ struct ar9170_stream {
 #define SET_VAL(reg, value, newvalue)					\
 	(value = ((value) & ~reg) | (((newvalue) << reg##_S) & reg))
 
+#define SET_CONSTVAL(reg, newvalue)					\
+	(((newvalue) << reg##_S) & reg)
+
 #define MOD_VAL(reg, value, newvalue)					\
 	(((value) & ~reg) | (((newvalue) << reg##_S) & reg))
 #endif	/* __CARL9170_SHARED_HW_H */

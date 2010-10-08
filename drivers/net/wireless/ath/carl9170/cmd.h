@@ -59,6 +59,16 @@ static inline int carl9170_flush_cab(struct ar9170 *ar,
 	return carl9170_bcn_ctrl(ar, vif_id, CARL9170_BCN_CTRL_DRAIN, 0, 0);
 }
 
+static inline int carl9170_rx_filter(struct ar9170 *ar,
+				     const unsigned int _rx_filter)
+{
+	__le32 rx_filter = cpu_to_le32(_rx_filter);
+
+	return carl9170_exec_cmd(ar, CARL9170_CMD_RX_FILTER,
+				sizeof(rx_filter), (u8 *)&rx_filter,
+				0, NULL);
+}
+
 struct carl9170_cmd *carl9170_cmd_buf(struct ar9170 *ar,
 	const enum carl9170_cmd_oids cmd, const unsigned int len);
 

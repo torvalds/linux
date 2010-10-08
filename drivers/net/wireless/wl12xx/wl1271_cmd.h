@@ -33,12 +33,13 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		    size_t res_len);
 int wl1271_cmd_general_parms(struct wl1271 *wl);
 int wl1271_cmd_radio_parms(struct wl1271 *wl);
+int wl1271_cmd_ext_radio_parms(struct wl1271 *wl);
 int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type);
 int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send);
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
@@ -55,6 +56,7 @@ int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
 		       u32 tx_seq_32, u16 tx_seq_16);
 int wl1271_cmd_disconnect(struct wl1271 *wl);
+int wl1271_cmd_set_sta_state(struct wl1271 *wl);
 
 enum wl1271_commands {
 	CMD_INTERROGATE     = 1,    /*use this to read information elements*/
@@ -159,41 +161,6 @@ enum {
 	CMD_STATUS_FW_RESET		= 22, /* Driver internal use.*/
 	MAX_COMMAND_STATUS		= 0xff
 };
-
-
-/*
- * CMD_READ_MEMORY
- *
- * The host issues this command to read the WiLink device memory/registers.
- *
- * Note: The Base Band address has special handling (16 bits registers and
- * addresses). For more information, see the hardware specification.
- */
-/*
- * CMD_WRITE_MEMORY
- *
- * The host issues this command to write the WiLink device memory/registers.
- *
- * The Base Band address has special handling (16 bits registers and
- * addresses). For more information, see the hardware specification.
- */
-#define MAX_READ_SIZE 256
-
-struct cmd_read_write_memory {
-	struct wl1271_cmd_header header;
-
-	/* The address of the memory to read from or write to.*/
-	__le32 addr;
-
-	/* The amount of data in bytes to read from or write to the WiLink
-	 * device.*/
-	__le32 size;
-
-	/* The actual value read from or written to the Wilink. The source
-	   of this field is the Host in WRITE command or the Wilink in READ
-	   command. */
-	u8 value[MAX_READ_SIZE];
-} __packed;
 
 #define CMDMBOX_HEADER_LEN 4
 #define CMDMBOX_INFO_ELEM_HEADER_LEN 4
@@ -313,7 +280,7 @@ enum wl1271_cmd_key_type {
 	KEY_WEP  = 1,
 	KEY_TKIP = 2,
 	KEY_AES  = 3,
-	KEY_GEM  = 4
+	KEY_GEM  = 4,
 };
 
 /* FIXME: Add description for key-types */
@@ -358,13 +325,14 @@ enum wl1271_channel_tune_bands {
 	WL1271_CHANNEL_TUNE_BAND_4_9
 };
 
-#define WL1271_PD_REFERENCE_POINT_BAND_B_G 0
+#define WL1271_PD_REFERENCE_POINT_BAND_B_G  0
 
-#define TEST_CMD_P2G_CAL                   0x02
-#define TEST_CMD_CHANNEL_TUNE              0x0d
-#define TEST_CMD_UPDATE_PD_REFERENCE_POINT 0x1d
-#define TEST_CMD_INI_FILE_RADIO_PARAM      0x19
-#define TEST_CMD_INI_FILE_GENERAL_PARAM    0x1E
+#define TEST_CMD_P2G_CAL                    0x02
+#define TEST_CMD_CHANNEL_TUNE               0x0d
+#define TEST_CMD_UPDATE_PD_REFERENCE_POINT  0x1d
+#define TEST_CMD_INI_FILE_RADIO_PARAM       0x19
+#define TEST_CMD_INI_FILE_GENERAL_PARAM     0x1E
+#define TEST_CMD_INI_FILE_RF_EXTENDED_PARAM 0x26
 
 struct wl1271_general_parms_cmd {
 	struct wl1271_cmd_header header;
@@ -395,6 +363,16 @@ struct wl1271_radio_parms_cmd {
 	u8 padding2;
 	struct wl1271_ini_fem_params_5 dyn_params_5;
 	u8 padding3[2];
+} __packed;
+
+struct wl1271_ext_radio_parms_cmd {
+	struct wl1271_cmd_header header;
+
+	struct wl1271_cmd_test_header test;
+
+	u8 tx_per_channel_power_compensation_2[CONF_TX_PWR_COMPENSATION_LEN_2];
+	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
+	u8 padding[3];
 } __packed;
 
 struct wl1271_cmd_cal_channel_tune {
@@ -467,6 +445,15 @@ struct wl1271_cmd_disconnect {
 	u8  type;
 
 	u8  padding;
+} __packed;
+
+#define WL1271_CMD_STA_STATE_CONNECTED  1
+
+struct wl1271_cmd_set_sta_state {
+	struct wl1271_cmd_header header;
+
+	u8 state;
+	u8 padding[3];
 } __packed;
 
 #endif /* __WL1271_CMD_H__ */

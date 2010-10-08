@@ -144,11 +144,17 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
-				   const u8 *mac_addr)
+				   bool pairwise, const u8 *mac_addr)
 {
 	int i;
 
 	if (key_idx > 5)
+		return -EINVAL;
+
+	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+		return -EINVAL;
+
+	if (pairwise && !mac_addr)
 		return -EINVAL;
 
 	/*
@@ -156,7 +162,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	 * (because current deployments use pairwise WEP keys with
 	 * non-zero indizes but 802.11i clearly specifies to use zero)
 	 */
-	if (mac_addr && key_idx &&
+	if (pairwise && key_idx &&
 	    params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
 	    params->cipher != WLAN_CIPHER_SUITE_WEP104)
 		return -EINVAL;
@@ -677,7 +683,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	for (i = 0; i < 6; i++) {
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
-		if (rdev->ops->add_key(wdev->wiphy, dev, i, NULL,
+		if (rdev->ops->add_key(wdev->wiphy, dev, i, false, NULL,
 					&wdev->connect_keys->params[i])) {
 			printk(KERN_ERR "%s: failed to set key %d\n",
 				dev->name, i);

@@ -56,7 +56,7 @@ static void ieee80211_free_tid_rx(struct rcu_head *h)
 }
 
 void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-				     u16 initiator, u16 reason)
+				     u16 initiator, u16 reason, bool tx)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
@@ -81,7 +81,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				"aggregation for tid %d\n", tid);
 
 	/* check if this is a self generated aggregation halt */
-	if (initiator == WLAN_BACK_RECIPIENT)
+	if (initiator == WLAN_BACK_RECIPIENT && tx)
 		ieee80211_send_delba(sta->sdata, sta->sta.addr,
 				     tid, 0, reason);
 
@@ -92,10 +92,10 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 }
 
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-				    u16 initiator, u16 reason)
+				    u16 initiator, u16 reason, bool tx)
 {
 	mutex_lock(&sta->ampdu_mlme.mtx);
-	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
+	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason, tx);
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 

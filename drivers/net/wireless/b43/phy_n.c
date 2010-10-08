@@ -73,7 +73,6 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 						u16 value, u8 core, bool off);
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
-static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel);
 
 static inline bool b43_empty_chanspec(struct b43_chanspec *chanspec)
 {
@@ -223,7 +222,7 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 	if (i)
 		b43err(dev->wl, "radio post init timeout\n");
 	b43_radio_mask(dev, B2055_CAL_LPOCTL, 0xFF7F);
-	nphy_channel_switch(dev, dev->phy.channel);
+	b43_switch_channel(dev, dev->phy.channel);
 	b43_radio_write(dev, B2055_C1_RX_BB_LPF, 0x9);
 	b43_radio_write(dev, B2055_C2_RX_BB_LPF, 0x9);
 	b43_radio_write(dev, B2055_C1_RX_BB_MIDACHP, 0x83);
@@ -3351,12 +3350,6 @@ static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
 
 	b43_chantab_phy_upload(dev, e);
 
-	tmp = chanspec.channel;
-	if (chanspec.b_freq == 1)
-		tmp |= 0x0100;
-	if (chanspec.b_width == 3)
-		tmp |= 0x0200;
-	b43_shm_write16(dev, B43_SHM_SHARED, 0xA0, tmp);
 
 	if (nphy->radio_chanspec.channel == 14) {
 		b43_nphy_classifier(dev, 2, 0);
@@ -3436,18 +3429,6 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 	}
 
 	return 0;
-}
-
-/* Tune the hardware to a new channel */
-static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
-{
-	struct b43_phy_n *nphy = dev->phy.n;
-
-	struct b43_chanspec chanspec;
-	chanspec = nphy->radio_chanspec;
-	chanspec.channel = channel;
-
-	return b43_nphy_set_chanspec(dev, chanspec);
 }
 
 static int b43_nphy_op_allocate(struct b43_wldev *dev)
@@ -3570,7 +3551,7 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 	} else {
 		if (dev->phy.rev >= 3) {
 			b43_radio_init2056(dev);
-			b43_nphy_set_chanspec(dev, nphy->radio_chanspec);
+			b43_switch_channel(dev, dev->phy.channel);
 		} else {
 			b43_radio_init2055(dev);
 		}
@@ -3586,6 +3567,9 @@ static void b43_nphy_op_switch_analog(struct b43_wldev *dev, bool on)
 static int b43_nphy_op_switch_channel(struct b43_wldev *dev,
 				      unsigned int new_channel)
 {
+	struct b43_phy_n *nphy = dev->phy.n;
+	struct b43_chanspec chanspec;
+
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
 		if ((new_channel < 1) || (new_channel > 14))
 			return -EINVAL;
@@ -3594,7 +3578,10 @@ static int b43_nphy_op_switch_channel(struct b43_wldev *dev,
 			return -EINVAL;
 	}
 
-	return nphy_channel_switch(dev, new_channel);
+	chanspec = nphy->radio_chanspec;
+	chanspec.channel = new_channel;
+
+	return b43_nphy_set_chanspec(dev, chanspec);
 }
 
 static unsigned int b43_nphy_op_get_default_chan(struct b43_wldev *dev)
