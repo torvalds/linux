@@ -267,9 +267,11 @@ static int __devinit of_flash_probe(struct platform_device *dev,
 	for (i = 0; i < count; i++) {
 		err = -ENXIO;
 		if (of_address_to_resource(dp, i, &res)) {
-			dev_err(&dev->dev, "Can't get IO address from device"
-				" tree\n");
-			goto err_out;
+			/*
+			 * Continue with next register tuple if this
+			 * one is not mappable
+			 */
+			continue;
 		}
 
 		dev_dbg(&dev->dev, "of_flash device: %.8llx-%.8llx\n",
