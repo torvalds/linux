@@ -3775,8 +3775,6 @@
 #define WM8962_VSS_ENA_SHIFT                         0  /* VSS_ENA */
 #define WM8962_VSS_ENA_WIDTH                         1  /* VSS_ENA */
 
-extern const u16 wm8962_reg[WM8962_MAX_REGISTER + 1];
-
 struct wm8962_reg_access {
 	u16 read;
 	u16 write;
