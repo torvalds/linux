@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_BCM_WIMAX) +=	bcm_wimax.o
 
-bcm_wimax-objs :=  InterfaceDld.o InterfaceIdleMode.o InterfaceInit.o InterfaceRx.o \
+bcm_wimax-y :=  InterfaceDld.o InterfaceIdleMode.o InterfaceInit.o InterfaceRx.o \
 		InterfaceIsr.o InterfaceMisc.o InterfaceTx.o \
 		Arp.o CmHost.o Debug.o IPv6Protocol.o Qos.o Transmit.o\
 		Bcmnet.o DDRInit.o HandleControlPacket.o\
