@@ -969,8 +969,10 @@ error:
 	   content :-( Override some wrong values here. Ditto for the
 	   AVerTV Red HD+ (A850T) device. */
 	if (le16_to_cpu(udev->descriptor.idVendor) == USB_VID_AVERMEDIA &&
-	    ((le16_to_cpu(udev->descriptor.idProduct) == USB_PID_AVERMEDIA_A850) ||
-	     (le16_to_cpu(udev->descriptor.idProduct) == USB_PID_AVERMEDIA_A850T))) {
+		((le16_to_cpu(udev->descriptor.idProduct) ==
+			USB_PID_AVERMEDIA_A850) ||
+		(le16_to_cpu(udev->descriptor.idProduct) ==
+			USB_PID_AVERMEDIA_A850T))) {
 		deb_info("%s: AverMedia A850: overriding config\n", __func__);
 		/* disable dual mode */
 		af9015_config.dual_mode = 0;
@@ -1203,7 +1205,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	struct af9015_state *state = adap->dev->priv;
 	struct i2c_adapter *i2c_adap;
 	int ret;
-	deb_info("%s: \n", __func__);
+	deb_info("%s:\n", __func__);
 
 	/* select I2C adapter */
 	if (adap->id == 0)
@@ -1690,7 +1692,7 @@ static int af9015_usb_probe(struct usb_interface *intf,
 static void af9015_i2c_exit(struct dvb_usb_device *d)
 {
 	struct af9015_state *state = d->priv;
-	deb_info("%s: \n", __func__);
+	deb_info("%s:\n", __func__);
 
 	/* remove 2nd I2C adapter */
 	if (d->state & DVB_USB_STATE_I2C)
@@ -1700,7 +1702,7 @@ static void af9015_i2c_exit(struct dvb_usb_device *d)
 static void af9015_usb_device_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	deb_info("%s: \n", __func__);
+	deb_info("%s:\n", __func__);
 
 	/* remove 2nd I2C adapter */
 	if (d != NULL && d->desc != NULL)
