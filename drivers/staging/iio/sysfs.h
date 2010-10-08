@@ -249,6 +249,38 @@ struct iio_const_attr {
 #define IIO_EVENT_ATTR_DATA_RDY(_show, _store, _mask, _handler) \
 	IIO_EVENT_ATTR(data_rdy, _show, _store, _mask, _handler)
 
+#define IIO_EV_CLASS_BUFFER		0
+#define IIO_EV_CLASS_IN			1
+#define IIO_EV_CLASS_ACCEL		2
+#define IIO_EV_CLASS_GYRO		3
+#define IIO_EV_CLASS_MAGN		4
+#define IIO_EV_CLASS_LIGHT		5
+#define IIO_EV_CLASS_PROXIMITY		6
+
+#define IIO_EV_MOD_X			0
+#define IIO_EV_MOD_Y			1
+#define IIO_EV_MOD_Z			2
+
+#define IIO_EV_TYPE_THRESH		0
+#define IIO_EV_TYPE_MAG			1
+#define IIO_EV_TYPE_ROC			2
+
+#define IIO_EV_DIR_EITHER		0
+#define IIO_EV_DIR_RISING		1
+#define IIO_EV_DIR_FALLING		2
+
+#define IIO_EVENT_CODE(channelclass, orient_bit, number,		\
+		       modifier, type, direction)			\
+	(channelclass | (orient_bit << 8) | ((number) << 9) |		\
+	 ((modifier) << 13) | ((type) << 16) | ((direction) << 24))
+
+#define IIO_MOD_EVENT_CODE(channelclass, number, modifier,		\
+			   type, direction)				\
+	IIO_EVENT_CODE(channelclass, 1, number, modifier, type, direction)
+
+#define IIO_UNMOD_EVENT_CODE(channelclass, number, type, direction)	\
+	IIO_EVENT_CODE(channelclass, 0, number, 0, type, direction)
+
 #define IIO_EVENT_CODE_DATA_RDY		100
 #define IIO_EVENT_CODE_RING_BASE	200
 #define IIO_EVENT_CODE_ACCEL_BASE	300
