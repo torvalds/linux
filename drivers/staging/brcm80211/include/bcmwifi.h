@@ -129,21 +129,6 @@ typedef u16 chanspec_t;
 #define WLC_2G_25MHZ_OFFSET		5	/* 2.4GHz band channel offset */
 
 /*
- * Convert chanspec to ascii string
- * @param	chspec		chanspec format
- * @param	buf		ascii string of chanspec
- * @return	pointer to buf with room for at least CHANSPEC_STR_LEN bytes
- */
-extern char *wf_chspec_ntoa(chanspec_t chspec, char *buf);
-
-/*
- * Convert ascii string to chanspec
- * @param	a		pointer to input string
- * @return	>= 0 if successful or 0 otherwise
- */
-extern chanspec_t wf_chspec_aton(char *a);
-
-/*
  * Verify the chanspec is using a legal set of parameters, i.e. that the
  * chanspec specified a band, bw, ctl_sb and channel and that the
  * combination could be legal given any set of circumstances.
