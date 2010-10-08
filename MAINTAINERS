@@ -4565,6 +4565,14 @@ L:	linux-abi-devel@lists.sourceforge.net
 S:	Maintained
 F:	include/linux/personality.h
 
+PHONET PROTOCOL
+M:	Remi Denis-Courmont <remi.denis-courmont@nokia.com>
+S:	Supported
+F:	Documentation/networking/phonet.txt
+F:	include/linux/phonet.h
+F:	include/net/phonet/
+F:	net/phonet/
+
 PHRAM MTD DRIVER
 M:	Joern Engel <joern@lazybastard.org>
 L:	linux-mtd@lists.infradead.org
