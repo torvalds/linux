@@ -3185,7 +3185,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *ses,
 	return rc;
 }
 
-struct cifsTconInfo *
+static struct cifsTconInfo *
 cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
 {
 	struct cifsTconInfo *master_tcon = cifs_sb_master_tcon(cifs_sb);
