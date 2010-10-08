@@ -30,11 +30,11 @@ static const int num_key_names = MSG_KEYNAMES_END - MSG_KEYNAMES_START + 1;
 static u_short key_offsets[MAXFUNCS], key_data[MAXKEYS];
 static u_short masks[] = { 32, 16, 8, 4, 2, 1 };
 
-static short letter_offsets[26] =
-{ -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1 };
+static short letter_offsets[26] = { 
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1 };
 
 static u_char funcvals[] = {
 	ATTRIB_BLEEP_DEC, ATTRIB_BLEEP_INC, BLEEPS_DEC, BLEEPS_INC,
