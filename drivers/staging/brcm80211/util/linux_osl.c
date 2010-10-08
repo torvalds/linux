@@ -505,27 +505,19 @@ uint osl_dma_consistent_align(void)
 	return PAGE_SIZE;
 }
 
-#ifdef BRCM_FULLMAC
-void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap)
-{
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-
-	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
-}
-#else /* !BRCM_FULLMAC */
 void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align_bits,
 			       uint *alloced, unsigned long *pap)
 {
-	u16 align = (1 << align_bits);
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 
-	if (!IS_ALIGNED(DMA_CONSISTENT_ALIGN, align))
-		size += align;
-	*alloced = size;
-
+	if (align_bits) {
+		u16 align = (1 << align_bits);
+		if (!IS_ALIGNED(DMA_CONSISTENT_ALIGN, align))
+			size += align;
+		*alloced = size;
+	}
 	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
 }
-#endif /* BRCM_FULLMAC */
 
 void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa)
 {

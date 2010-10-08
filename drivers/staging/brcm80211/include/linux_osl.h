@@ -107,20 +107,19 @@ extern uint osl_malloced(osl_t *osh);
 #define NATIVE_MALLOC(osh, size)	kmalloc(size, GFP_ATOMIC)
 #define NATIVE_MFREE(osh, addr, size)	kfree(addr)
 
-#ifdef BRCM_FULLMAC
-#define	DMA_CONSISTENT_ALIGN	PAGE_SIZE
-#define	DMA_ALLOC_CONSISTENT(osh, size, pap, dmah, alignbits) \
-	osl_dma_alloc_consistent((osh), (size), (pap))
-extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, unsigned long *pap);
-#else
-/* allocate/free shared (dma-able) consistent memory */
 #define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
-#define	DMA_ALLOC_CONSISTENT(osh, size, align, tot, pap, dmah) \
-	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
 extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,
 				      uint *tot, unsigned long *pap);
-#endif
+
+#ifdef BRCM_FULLMAC
+#define	DMA_ALLOC_CONSISTENT(osh, size, pap, dmah, alignbits) \
+	osl_dma_alloc_consistent((osh), (size), (0), (tot), (pap))
+#else
+#define	DMA_ALLOC_CONSISTENT(osh, size, align, tot, pap, dmah) \
+	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
+#endif /* BRCM_FULLMAC */
+
 #define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
 	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
 extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa);
