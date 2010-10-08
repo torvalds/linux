@@ -49,7 +49,7 @@
 
 static const struct fb_videomode fb_modedb[] = {
 	{
-		.name		= "CMO_QVGA",
+		.name		= "CMO-QVGA",
 		.refresh	= 60,
 		.xres		= 320,
 		.yres		= 240,
@@ -64,6 +64,40 @@ static const struct fb_videomode fb_modedb[] = {
 		.vmode		= FB_VMODE_NONINTERLACED,
 		.flag		= 0,
 	},
+	{
+		.name		= "DVI-VGA",
+		.refresh	= 60,
+		.xres		= 640,
+		.yres		= 480,
+		.pixclock	= 32000,
+		.left_margin	= 100,
+		.right_margin	= 100,
+		.upper_margin	= 7,
+		.lower_margin	= 100,
+		.hsync_len	= 7,
+		.vsync_len	= 7,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT |
+				  FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
+	{
+		.name		= "DVI-SVGA",
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 600,
+		.pixclock	= 25000,
+		.left_margin	= 75,
+		.right_margin	= 75,
+		.upper_margin	= 7,
+		.lower_margin	= 75,
+		.hsync_len	= 7,
+		.vsync_len	= 7,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT |
+				  FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
 };
 
 static struct ipu_platform_data mx3_ipu_data = {
@@ -72,7 +106,7 @@ static struct ipu_platform_data mx3_ipu_data = {
 
 static struct mx3fb_platform_data mx3fb_pdata = {
 	.dma_dev	= &mx3_ipu.dev,
-	.name		= "CMO_QVGA",
+	.name		= "CMO-QVGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
 };
