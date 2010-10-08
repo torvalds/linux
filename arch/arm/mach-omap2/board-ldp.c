@@ -84,7 +84,7 @@ static struct platform_device ldp_smsc911x_device = {
 	},
 };
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),

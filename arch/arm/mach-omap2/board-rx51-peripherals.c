@@ -186,7 +186,7 @@ static void __init rx51_add_gpio_keys(void)
 }
 #endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	/*
 	 * Note that KEY(x, 8, KEY_XXX) entries represent "entrire row
 	 * connected to the ground" matrix state.
