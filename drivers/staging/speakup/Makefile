@@ -15,7 +15,7 @@ obj-$(CONFIG_SPEAKUP_SYNTH_TXPRT) += speakup_txprt.o
 obj-$(CONFIG_SPEAKUP_SYNTH_DUMMY) += speakup_dummy.o
 
 obj-$(CONFIG_SPEAKUP) += speakup.o
-speakup-objs := \
+speakup-y := \
 	buffers.o \
 	devsynth.o \
 	i18n.o \
