@@ -1,4 +1,4 @@
-r8712u-objs :=				\
+r8712u-y :=				\
 		rtl871x_cmd.o		\
 		rtl8712_cmd.o		\
 		rtl871x_security.o	\
