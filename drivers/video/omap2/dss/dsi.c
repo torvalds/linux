@@ -2242,24 +2242,31 @@ int dsi_vc_send_bta_sync(int channel)
 	if (r)
 		goto err0;
 
-	r = dsi_vc_send_bta(channel);
+	r = dsi_register_isr(dsi_completion_handler, &completion,
+			DSI_IRQ_ERROR_MASK);
 	if (r)
 		goto err1;
+
+	r = dsi_vc_send_bta(channel);
+	if (r)
+		goto err2;
 
 	if (wait_for_completion_timeout(&completion,
 				msecs_to_jiffies(500)) == 0) {
 		DSSERR("Failed to receive BTA\n");
 		r = -EIO;
-		goto err1;
+		goto err2;
 	}
 
 	err = dsi_get_errors();
 	if (err) {
 		DSSERR("Error while sending BTA: %x\n", err);
 		r = -EIO;
-		goto err1;
+		goto err2;
 	}
-
+err2:
+	dsi_unregister_isr(dsi_completion_handler, &completion,
+			DSI_IRQ_ERROR_MASK);
 err1:
 	dsi_unregister_isr_vc(channel, dsi_completion_handler,
 			&completion, DSI_VC_IRQ_BTA);
