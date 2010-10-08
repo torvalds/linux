@@ -180,7 +180,7 @@ struct irq_cfg *irq_cfg(unsigned int irq)
 	return get_irq_chip_data(irq);
 }
 
-static struct irq_cfg *get_one_free_irq_cfg(int node)
+static struct irq_cfg *alloc_irq_cfg(unsigned int irq, int node)
 {
 	struct irq_cfg *cfg;
 
@@ -199,7 +199,7 @@ out_cfg:
 	return NULL;
 }
 
-static void free_irq_cfg(struct irq_cfg *cfg)
+static void free_irq_cfg(unsigned int at, struct irq_cfg *cfg)
 {
 	free_cpumask_var(cfg->domain);
 	free_cpumask_var(cfg->old_domain);
@@ -212,7 +212,7 @@ int arch_init_chip_data(struct irq_desc *desc, int node)
 
 	cfg = get_irq_desc_chip_data(desc);
 	if (!cfg) {
-		cfg = get_one_free_irq_cfg(node);
+		cfg = alloc_irq_cfg(desc->irq, node);
 		desc->chip_data = cfg;
 		if (!cfg) {
 			printk(KERN_ERR "can not alloc irq_cfg\n");
@@ -289,7 +289,7 @@ void arch_init_copy_chip_data(struct irq_desc *old_desc,
 	struct irq_cfg *cfg;
 	struct irq_cfg *old_cfg;
 
-	cfg = get_one_free_irq_cfg(node);
+	cfg = alloc_irq_cfg(desc->irq, node);
 
 	if (!cfg)
 		return;
@@ -318,7 +318,7 @@ void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 
 	if (old_cfg) {
 		free_irq_2_pin(old_cfg, cfg);
-		free_irq_cfg(old_cfg);
+		free_irq_cfg(old_desc->irq, old_cfg);
 		old_desc->chip_data = NULL;
 	}
 }
@@ -331,12 +331,12 @@ struct irq_cfg *irq_cfg(unsigned int irq)
 	return irq < nr_irqs ? irq_cfgx + irq : NULL;
 }
 
-static struct irq_cfg *get_one_free_irq_cfg(unsigned int irq, int node)
+static struct irq_cfg *alloc_irq_cfg(unsigned int irq, int node)
 {
 	return irq_cfgx + irq;
 }
 
-static inline void free_irq_cfg(struct irq_cfg *cfg) { }
+static inline void free_irq_cfg(unsigned int at, struct irq_cfg *cfg) { }
 
 #endif
 
@@ -353,7 +353,7 @@ static struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node)
 			return cfg;
 	}
 
-	cfg = get_one_free_irq_cfg(node);
+	cfg = alloc_irq_cfg(at, node);
 	if (cfg)
 		set_irq_chip_data(at, cfg);
 	else
@@ -368,7 +368,7 @@ static int alloc_irq_from(unsigned int from, int node)
 
 static void free_irq_at(unsigned int at, struct irq_cfg *cfg)
 {
-	free_irq_cfg(cfg);
+	free_irq_cfg(at, cfg);
 	irq_free_desc(at);
 }
 
