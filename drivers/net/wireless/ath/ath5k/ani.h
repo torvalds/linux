@@ -75,10 +75,7 @@ struct ath5k_ani_state {
 	unsigned int		cck_errors;
 
 	/* debug/statistics only: numbers from last ANI calibration */
-	unsigned int		pfc_tx;
-	unsigned int		pfc_rx;
-	unsigned int		pfc_busy;
-	unsigned int		pfc_cycles;
+	struct ath_cycle_counters last_cc;
 	unsigned int		last_listen;
 	unsigned int		last_ofdm_errors;
 	unsigned int		last_cck_errors;
