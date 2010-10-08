@@ -312,4 +312,10 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 	return cpu_to_le32(flags|(u32)rate);
 }
 
+/* eeprom */
+void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
+void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
+int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
+void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
+
 #endif /* __iwl_agn_h__ */
