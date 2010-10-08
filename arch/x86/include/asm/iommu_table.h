@@ -1,4 +1,3 @@
-
 #ifndef _ASM_X86_IOMMU_TABLE_H
 #define _ASM_X86_IOMMU_TABLE_H
 
@@ -60,7 +59,7 @@ struct iommu_table_entry {
  * and it will be run after the SWIOTLB and the other IOMMUs
  * that utilize this macro. If the IOMMU is detected (ie, the
  * detect routine returns a positive value), the other IOMMUs
- * are also checked. You can use IOMMU_INIT_FINISH if you prefer
+ * are also checked. You can use IOMMU_INIT_POST_FINISH if you prefer
  * to stop detecting the other IOMMUs after yours has been detected.
  */
 #define IOMMU_INIT_POST(_detect)					\
@@ -80,9 +79,9 @@ struct iommu_table_entry {
  *  d). Similar to the 'init', except that this gets called from pci_iommu_init
  *      where we do have a memory allocator.
  *
- * The _CONT vs the _EXIT differs in that the _CONT variant will
+ * The standard vs the _FINISH differs in that the _FINISH variant will
  * continue detecting other IOMMUs in the call list after the
- * the detection routine returns a positive number. The _EXIT will
+ * the detection routine returns a positive number. The _FINISH will
  * stop the execution chain. Both will still call the 'init' and
  * 'late_init' functions if they are set.
  */
