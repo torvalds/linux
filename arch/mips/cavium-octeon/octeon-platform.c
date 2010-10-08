@@ -3,13 +3,14 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2009 Cavium Networks
+ * Copyright (C) 2004-2010 Cavium Networks
  * Copyright (C) 2008 Wind River Systems
  */
 
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
+#include <linux/usb.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -336,6 +337,108 @@ out:
 
 }
 device_initcall(octeon_mgmt_device_init);
+
+#ifdef CONFIG_USB
+
+static int __init octeon_ehci_device_init(void)
+{
+	struct platform_device *pd;
+	int ret = 0;
+
+	struct resource usb_resources[] = {
+		{
+			.flags	= IORESOURCE_MEM,
+		}, {
+			.flags	= IORESOURCE_IRQ,
+		}
+	};
+
+	/* Only Octeon2 has ehci/ohci */
+	if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+		return 0;
+
+	if (octeon_is_simulation() || usb_disabled())
+		return 0; /* No USB in the simulator. */
+
+	pd = platform_device_alloc("octeon-ehci", 0);
+	if (!pd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	usb_resources[0].start = 0x00016F0000000000ULL;
+	usb_resources[0].end = usb_resources[0].start + 0x100;
+
+	usb_resources[1].start = OCTEON_IRQ_USB0;
+	usb_resources[1].end = OCTEON_IRQ_USB0;
+
+	ret = platform_device_add_resources(pd, usb_resources,
+					    ARRAY_SIZE(usb_resources));
+	if (ret)
+		goto fail;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		goto fail;
+
+	return ret;
+fail:
+	platform_device_put(pd);
+out:
+	return ret;
+}
+device_initcall(octeon_ehci_device_init);
+
+static int __init octeon_ohci_device_init(void)
+{
+	struct platform_device *pd;
+	int ret = 0;
+
+	struct resource usb_resources[] = {
+		{
+			.flags	= IORESOURCE_MEM,
+		}, {
+			.flags	= IORESOURCE_IRQ,
+		}
+	};
+
+	/* Only Octeon2 has ehci/ohci */
+	if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+		return 0;
+
+	if (octeon_is_simulation() || usb_disabled())
+		return 0; /* No USB in the simulator. */
+
+	pd = platform_device_alloc("octeon-ohci", 0);
+	if (!pd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	usb_resources[0].start = 0x00016F0000000400ULL;
+	usb_resources[0].end = usb_resources[0].start + 0x100;
+
+	usb_resources[1].start = OCTEON_IRQ_USB0;
+	usb_resources[1].end = OCTEON_IRQ_USB0;
+
+	ret = platform_device_add_resources(pd, usb_resources,
+					    ARRAY_SIZE(usb_resources));
+	if (ret)
+		goto fail;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		goto fail;
+
+	return ret;
+fail:
+	platform_device_put(pd);
+out:
+	return ret;
+}
+device_initcall(octeon_ohci_device_init);
+
+#endif /* CONFIG_USB */
 
 MODULE_AUTHOR("David Daney <ddaney@caviumnetworks.com>");
 MODULE_LICENSE("GPL");
