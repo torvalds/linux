@@ -254,6 +254,12 @@ config MACH_IGEP0020
 	default y
 	select OMAP_PACKAGE_CBB
 
+config MACH_IGEP0030
+	bool "IGEP OMAP3 module"
+	depends on ARCH_OMAP3
+	default y
+	select OMAP_PACKAGE_CBB
+
 config MACH_SBC3530
 	bool "OMAP3 SBC STALKER board"
 	depends on ARCH_OMAP3
