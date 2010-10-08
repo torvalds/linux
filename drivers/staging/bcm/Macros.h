@@ -231,7 +231,7 @@ typedef enum _E_PHS_DSC_ACTION
 
 #define MAX_PENDING_CTRL_PACKET (MAX_CTRL_QUEUE_LEN-10)
 
-#define WIMAX_MAX_MTU 					MTU_SIZE + ETH_HLEN
+#define WIMAX_MAX_MTU			(MTU_SIZE + ETH_HLEN)
 #define AUTO_LINKUP_ENABLE              0x2
 #define AUTO_SYNC_DISABLE              	0x1
 #define AUTO_FIRM_DOWNLOAD              0x1
