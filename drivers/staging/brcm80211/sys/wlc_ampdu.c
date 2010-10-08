@@ -290,11 +290,11 @@ static void scb_ampdu_update_config(ampdu_info_t *ampdu, struct scb *scb)
 	if (ampdu->max_pdu != AUTO)
 		scb_ampdu->max_pdu = (u8) ampdu->max_pdu;
 
-	scb_ampdu->release = min(scb_ampdu->max_pdu, AMPDU_SCB_MAX_RELEASE);
+	scb_ampdu->release = min_t(u8, scb_ampdu->max_pdu, AMPDU_SCB_MAX_RELEASE);
 
 	if (scb_ampdu->max_rxlen)
 		scb_ampdu->release =
-		    min(scb_ampdu->release, scb_ampdu->max_rxlen / 1600);
+		    min_t(u8, scb_ampdu->release, scb_ampdu->max_rxlen / 1600);
 
 	scb_ampdu->release = min(scb_ampdu->release,
 				 ampdu->fifo_tb[TX_AC_BE_FIFO].
@@ -396,7 +396,7 @@ static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 		return 0;
 	}
 	max_mpdu =
-	    min(fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
+	    min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
 
 	/* In case max value max_pdu is already lower than
 	   the fifo depth, there is nothing more we can do.
@@ -462,7 +462,7 @@ static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f)
 	/* recompute the dma rate */
 	/* note : we divide/multiply by 100 to avoid integer overflows */
 	max_mpdu =
-	    min(fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
+	    min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
 	phy_rate = MCS_RATE(FFPLD_MAX_MCS, TRUE, FALSE);
 	dma_rate =
 	    (((phy_rate / 100) *
@@ -478,7 +478,7 @@ static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f)
 		if (phy_rate > dma_rate) {
 			tmp = ((fifo->ampdu_pld_size * phy_rate) /
 			       ((phy_rate - dma_rate) * FFPLD_MPDU_SIZE)) + 1;
-			tmp = min(tmp, 255);
+			tmp = min_t(u32, tmp, 255);
 			fifo->mcs2ampdu_table[i] = (u8) tmp;
 		}
 	}
