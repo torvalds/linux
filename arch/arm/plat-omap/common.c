@@ -268,7 +268,7 @@ static struct omap_globals omap242x_globals = {
 	.tap	= OMAP2_L4_IO_ADDRESS(0x48014000),
 	.sdrc	= OMAP2420_SDRC_BASE,
 	.sms	= OMAP2420_SMS_BASE,
-	.ctrl	= OMAP2420_CTRL_BASE,
+	.ctrl	= OMAP242X_CTRL_BASE,
 	.prm	= OMAP2420_PRM_BASE,
 	.cm	= OMAP2420_CM_BASE,
 };
