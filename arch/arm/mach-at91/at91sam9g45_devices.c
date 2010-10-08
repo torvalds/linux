@@ -426,7 +426,7 @@ static struct i2c_gpio_platform_data pdata_i2c0 = {
 	.sda_is_open_drain	= 1,
 	.scl_pin		= AT91_PIN_PA21,
 	.scl_is_open_drain	= 1,
-	.udelay			= 2,		/* ~100 kHz */
+	.udelay			= 5,		/* ~100 kHz */
 };
 
 static struct platform_device at91sam9g45_twi0_device = {
@@ -440,7 +440,7 @@ static struct i2c_gpio_platform_data pdata_i2c1 = {
 	.sda_is_open_drain	= 1,
 	.scl_pin		= AT91_PIN_PB11,
 	.scl_is_open_drain	= 1,
-	.udelay			= 2,		/* ~100 kHz */
+	.udelay			= 5,		/* ~100 kHz */
 };
 
 static struct platform_device at91sam9g45_twi1_device = {

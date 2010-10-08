@@ -73,8 +73,6 @@
 	ldq	$20, HAE_REG($19);	\
 	stq	$21, HAE_CACHE($19);	\
 	stq	$21, 0($20);		\
-	ldq	$0, 0($sp);		\
-	ldq	$1, 8($sp);		\
 99:;					\
 	ldq	$19, 72($sp);		\
 	ldq	$20, 80($sp);		\
@@ -316,7 +314,7 @@ ret_from_sys_call:
 	cmovne	$26, 0, $19		/* $19 = 0 => non-restartable */
 	ldq	$0, SP_OFF($sp)
 	and	$0, 8, $0
-	beq	$0, restore_all
+	beq	$0, ret_to_kernel
 ret_to_user:
 	/* Make sure need_resched and sigpending don't change between
 		sampling and the rti.  */
@@ -328,6 +326,11 @@ ret_to_user:
 restore_all:
 	RESTORE_ALL
 	call_pal PAL_rti
+
+ret_to_kernel:
+	lda	$16, 7
+	call_pal PAL_swpipl
+	br restore_all
 
 	.align 3
 $syscall_error:
@@ -657,7 +660,7 @@ kernel_thread:
 	/* We don't actually care for a3 success widgetry in the kernel.
 	   Not for positive errno values.  */
 	stq	$0, 0($sp)		/* $0 */
-	br	restore_all
+	br	ret_to_kernel
 .end kernel_thread
 
 /*
@@ -910,15 +913,6 @@ sys_execve:
 	mov	$sp, $19
 	jmp	$31, do_sys_execve
 .end sys_execve
-
-	.align	4
-	.globl	osf_sigprocmask
-	.ent	osf_sigprocmask
-osf_sigprocmask:
-	.prologue 0
-	mov	$sp, $18
-	jmp	$31, sys_osf_sigprocmask
-.end osf_sigprocmask
 
 	.align	4
 	.globl	alpha_ni_syscall
