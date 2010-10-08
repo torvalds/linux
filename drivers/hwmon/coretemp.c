@@ -289,6 +289,15 @@ static int __devinit get_tjmax(struct cpuinfo_x86 *c, u32 id,
 	}
 }
 
+static void __devinit get_ucode_rev_on_cpu(void *edx)
+{
+	u32 eax;
+
+	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	sync_core();
+	rdmsr(MSR_IA32_UCODE_REV, eax, *(u32 *)edx);
+}
+
 static int __devinit coretemp_probe(struct platform_device *pdev)
 {
 	struct coretemp_data *data;
@@ -324,8 +333,15 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 
 	if ((c->x86_model == 0xe) && (c->x86_mask < 0xc)) {
 		/* check for microcode update */
-		rdmsr_on_cpu(data->id, MSR_IA32_UCODE_REV, &eax, &edx);
-		if (edx < 0x39) {
+		err = smp_call_function_single(data->id, get_ucode_rev_on_cpu,
+					       &edx, 1);
+		if (err) {
+			dev_err(&pdev->dev,
+				"Cannot determine microcode revision of "
+				"CPU#%u (%d)!\n", data->id, err);
+			err = -ENODEV;
+			goto exit_free;
+		} else if (edx < 0x39) {
 			err = -ENODEV;
 			dev_err(&pdev->dev,
 				"Errata AE18 not fixed, update BIOS or "
