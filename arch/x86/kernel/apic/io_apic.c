@@ -3310,17 +3310,17 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
  * done in the process context using interrupt-remapping hardware.
  */
 static int
-ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
+ir_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		    bool force)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
-	unsigned int dest;
+	struct irq_cfg *cfg = data->chip_data;
+	unsigned int dest, irq = data->irq;
 	struct irte irte;
 
 	if (get_irte(irq, &irte))
 		return -1;
 
-	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
+	if (__ioapic_set_affinity(data, mask, &dest))
 		return -1;
 
 	irte.vector = cfg->vector;
@@ -3361,16 +3361,16 @@ static struct irq_chip msi_chip = {
 };
 
 static struct irq_chip msi_ir_chip = {
-	.name		= "IR-PCI-MSI",
-	.irq_unmask	= unmask_msi_irq,
-	.irq_mask	= mask_msi_irq,
+	.name			= "IR-PCI-MSI",
+	.irq_unmask		= unmask_msi_irq,
+	.irq_mask		= mask_msi_irq,
 #ifdef CONFIG_INTR_REMAP
-	.irq_ack	= ir_ack_apic_edge,
+	.irq_ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP
-	.set_affinity	= ir_set_msi_irq_affinity,
+	.irq_set_affinity	= ir_msi_set_affinity,
 #endif
 #endif
-	.irq_retrigger	= ioapic_retrigger_irq,
+	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
 /*
@@ -3569,16 +3569,16 @@ static int hpet_msi_set_affinity(struct irq_data *data,
 #endif /* CONFIG_SMP */
 
 static struct irq_chip ir_hpet_msi_type = {
-	.name = "IR-HPET_MSI",
-	.irq_unmask = hpet_msi_unmask,
-	.irq_mask = hpet_msi_mask,
+	.name			= "IR-HPET_MSI",
+	.irq_unmask		= hpet_msi_unmask,
+	.irq_mask		= hpet_msi_mask,
 #ifdef CONFIG_INTR_REMAP
-	.irq_ack = ir_ack_apic_edge,
+	.irq_ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP
-	.set_affinity = ir_set_msi_irq_affinity,
+	.irq_set_affinity	= ir_msi_set_affinity,
 #endif
 #endif
-	.irq_retrigger = ioapic_retrigger_irq,
+	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
 static struct irq_chip hpet_msi_type = {
