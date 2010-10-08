@@ -257,7 +257,6 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 	omap2_set_globals_sdrc(omap2_globals);
 	omap2_set_globals_control(omap2_globals);
 	omap2_set_globals_prcm(omap2_globals);
-	omap2_set_globals_uart(omap2_globals);
 }
 
 #endif
@@ -272,9 +271,6 @@ static struct omap_globals omap242x_globals = {
 	.ctrl	= OMAP2420_CTRL_BASE,
 	.prm	= OMAP2420_PRM_BASE,
 	.cm	= OMAP2420_CM_BASE,
-	.uart1_phys	= OMAP2_UART1_BASE,
-	.uart2_phys	= OMAP2_UART2_BASE,
-	.uart3_phys	= OMAP2_UART3_BASE,
 };
 
 void __init omap2_set_globals_242x(void)
@@ -293,9 +289,6 @@ static struct omap_globals omap243x_globals = {
 	.ctrl	= OMAP243X_CTRL_BASE,
 	.prm	= OMAP2430_PRM_BASE,
 	.cm	= OMAP2430_CM_BASE,
-	.uart1_phys	= OMAP2_UART1_BASE,
-	.uart2_phys	= OMAP2_UART2_BASE,
-	.uart3_phys	= OMAP2_UART3_BASE,
 };
 
 void __init omap2_set_globals_243x(void)
@@ -314,10 +307,6 @@ static struct omap_globals omap3_globals = {
 	.ctrl	= OMAP343X_CTRL_BASE,
 	.prm	= OMAP3430_PRM_BASE,
 	.cm	= OMAP3430_CM_BASE,
-	.uart1_phys	= OMAP3_UART1_BASE,
-	.uart2_phys	= OMAP3_UART2_BASE,
-	.uart3_phys	= OMAP3_UART3_BASE,
-	.uart4_phys	= OMAP3_UART4_BASE,	/* Only on 3630 */
 };
 
 void __init omap2_set_globals_3xxx(void)
@@ -341,10 +330,6 @@ static struct omap_globals omap4_globals = {
 	.prm	= OMAP4430_PRM_BASE,
 	.cm	= OMAP4430_CM_BASE,
 	.cm2	= OMAP4430_CM2_BASE,
-	.uart1_phys	= OMAP4_UART1_BASE,
-	.uart2_phys	= OMAP4_UART2_BASE,
-	.uart3_phys	= OMAP4_UART3_BASE,
-	.uart4_phys	= OMAP4_UART4_BASE,
 };
 
 void __init omap2_set_globals_443x(void)
@@ -352,7 +337,6 @@ void __init omap2_set_globals_443x(void)
 	omap2_set_globals_tap(&omap4_globals);
 	omap2_set_globals_control(&omap4_globals);
 	omap2_set_globals_prcm(&omap4_globals);
-	omap2_set_globals_uart(&omap4_globals);
 }
 #endif
 

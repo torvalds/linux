@@ -11,9 +11,8 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select PM_RUNTIME
 	select VFP
 	select NEON if ARCH_OMAP3 || ARCH_OMAP4
-	select SERIAL_8250
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
+	select SERIAL_OMAP
+	select SERIAL_OMAP_CONSOLE
 	select I2C
 	select I2C_OMAP
 	select MFD
@@ -222,12 +221,18 @@ config MACH_OMAP_ZOOM2
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+	select SERIAL_8250
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBP
+	select SERIAL_8250
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"

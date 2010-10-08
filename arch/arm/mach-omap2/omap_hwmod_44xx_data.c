@@ -452,6 +452,365 @@ static struct omap_hwmod omap44xx_mpu_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 };
 
+/*
+ * 'wd_timer' class
+ * 32-bit watchdog upward counter that generates a pulse on the reset pin on
+ * overflow condition
+ */
+
+static struct omap_hwmod_class_sysconfig omap44xx_wd_timer_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_EMUFREE |
+			   SYSC_HAS_SOFTRESET),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+/*
+ * 'uart' class
+ * universal asynchronous receiver/transmitter (uart)
+ */
+
+static struct omap_hwmod_class_sysconfig omap44xx_uart_sysc = {
+	.rev_offs	= 0x0050,
+	.sysc_offs	= 0x0054,
+	.syss_offs	= 0x0058,
+	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap44xx_wd_timer_hwmod_class = {
+	.name = "wd_timer",
+	.sysc = &omap44xx_wd_timer_sysc,
+};
+
+/* wd_timer2 */
+static struct omap_hwmod omap44xx_wd_timer2_hwmod;
+static struct omap_hwmod_irq_info omap44xx_wd_timer2_irqs[] = {
+	{ .irq = 80 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_wd_timer2_addrs[] = {
+	{
+		.pa_start	= 0x4a314000,
+		.pa_end		= 0x4a31407f,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+static struct omap_hwmod_class omap44xx_uart_hwmod_class = {
+	.name = "uart",
+	.sysc = &omap44xx_uart_sysc,
+};
+
+/* uart1 */
+static struct omap_hwmod omap44xx_uart1_hwmod;
+static struct omap_hwmod_irq_info omap44xx_uart1_irqs[] = {
+	{ .irq = 72 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_dma_info omap44xx_uart1_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = 48 + OMAP44XX_DMA_REQ_START },
+	{ .name = "rx", .dma_req = 49 + OMAP44XX_DMA_REQ_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_uart1_addrs[] = {
+	{
+		.pa_start	= 0x4806a000,
+		.pa_end		= 0x4806a0ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_per -> uart1 */
+static struct omap_hwmod_ocp_if omap44xx_l4_per__uart1 = {
+	.master		= &omap44xx_l4_per_hwmod,
+	.slave		= &omap44xx_uart1_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap44xx_uart1_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_uart1_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* uart1 slave ports */
+static struct omap_hwmod_ocp_if *omap44xx_uart1_slaves[] = {
+	&omap44xx_l4_per__uart1,
+};
+
+static struct omap_hwmod omap44xx_uart1_hwmod = {
+	.name		= "uart1",
+	.class		= &omap44xx_uart_hwmod_class,
+	.mpu_irqs	= omap44xx_uart1_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_uart1_irqs),
+	.sdma_reqs	= omap44xx_uart1_sdma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(omap44xx_uart1_sdma_reqs),
+	.main_clk	= "uart1_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = OMAP4430_CM_L4PER_UART1_CLKCTRL,
+		},
+	},
+	.slaves		= omap44xx_uart1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap44xx_uart1_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+/* uart2 */
+static struct omap_hwmod omap44xx_uart2_hwmod;
+static struct omap_hwmod_irq_info omap44xx_uart2_irqs[] = {
+	{ .irq = 73 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_dma_info omap44xx_uart2_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = 50 + OMAP44XX_DMA_REQ_START },
+	{ .name = "rx", .dma_req = 51 + OMAP44XX_DMA_REQ_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_uart2_addrs[] = {
+	{
+		.pa_start	= 0x4806c000,
+		.pa_end		= 0x4806c0ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_wkup -> wd_timer2 */
+static struct omap_hwmod_ocp_if omap44xx_l4_wkup__wd_timer2 = {
+	.master		= &omap44xx_l4_wkup_hwmod,
+	.slave		= &omap44xx_wd_timer2_hwmod,
+	.clk		= "l4_wkup_clk_mux_ck",
+	.addr		= omap44xx_wd_timer2_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_wd_timer2_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* wd_timer2 slave ports */
+static struct omap_hwmod_ocp_if *omap44xx_wd_timer2_slaves[] = {
+	&omap44xx_l4_wkup__wd_timer2,
+};
+
+static struct omap_hwmod omap44xx_wd_timer2_hwmod = {
+	.name		= "wd_timer2",
+	.class		= &omap44xx_wd_timer_hwmod_class,
+	.mpu_irqs	= omap44xx_wd_timer2_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_wd_timer2_irqs),
+	.main_clk	= "wd_timer2_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = OMAP4430_CM_WKUP_WDT2_CLKCTRL,
+		},
+	},
+	.slaves		= omap44xx_wd_timer2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap44xx_wd_timer2_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+/* wd_timer3 */
+static struct omap_hwmod omap44xx_wd_timer3_hwmod;
+static struct omap_hwmod_irq_info omap44xx_wd_timer3_irqs[] = {
+	{ .irq = 36 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_wd_timer3_addrs[] = {
+	{
+		.pa_start	= 0x40130000,
+		.pa_end		= 0x4013007f,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_per -> uart2 */
+static struct omap_hwmod_ocp_if omap44xx_l4_per__uart2 = {
+	.master		= &omap44xx_l4_per_hwmod,
+	.slave		= &omap44xx_uart2_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap44xx_uart2_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_uart2_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* uart2 slave ports */
+static struct omap_hwmod_ocp_if *omap44xx_uart2_slaves[] = {
+	&omap44xx_l4_per__uart2,
+};
+
+static struct omap_hwmod omap44xx_uart2_hwmod = {
+	.name		= "uart2",
+	.class		= &omap44xx_uart_hwmod_class,
+	.mpu_irqs	= omap44xx_uart2_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_uart2_irqs),
+	.sdma_reqs	= omap44xx_uart2_sdma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(omap44xx_uart2_sdma_reqs),
+	.main_clk	= "uart2_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = OMAP4430_CM_L4PER_UART2_CLKCTRL,
+		},
+	},
+	.slaves		= omap44xx_uart2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap44xx_uart2_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+/* uart3 */
+static struct omap_hwmod omap44xx_uart3_hwmod;
+static struct omap_hwmod_irq_info omap44xx_uart3_irqs[] = {
+	{ .irq = 74 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_dma_info omap44xx_uart3_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = 52 + OMAP44XX_DMA_REQ_START },
+	{ .name = "rx", .dma_req = 53 + OMAP44XX_DMA_REQ_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_uart3_addrs[] = {
+	{
+		.pa_start	= 0x48020000,
+		.pa_end		= 0x480200ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_abe -> wd_timer3 */
+static struct omap_hwmod_ocp_if omap44xx_l4_abe__wd_timer3 = {
+	.master		= &omap44xx_l4_abe_hwmod,
+	.slave		= &omap44xx_wd_timer3_hwmod,
+	.clk		= "ocp_abe_iclk",
+	.addr		= omap44xx_wd_timer3_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_wd_timer3_addrs),
+	.user		= OCP_USER_MPU,
+};
+
+/* l4_abe -> wd_timer3 (dma) */
+static struct omap_hwmod_addr_space omap44xx_wd_timer3_dma_addrs[] = {
+	{
+		.pa_start	= 0x49030000,
+		.pa_end		= 0x4903007f,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_per -> uart3 */
+static struct omap_hwmod_ocp_if omap44xx_l4_per__uart3 = {
+	.master		= &omap44xx_l4_per_hwmod,
+	.slave		= &omap44xx_uart3_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap44xx_uart3_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_uart3_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* uart3 slave ports */
+static struct omap_hwmod_ocp_if *omap44xx_uart3_slaves[] = {
+	&omap44xx_l4_per__uart3,
+};
+
+static struct omap_hwmod omap44xx_uart3_hwmod = {
+	.name		= "uart3",
+	.class		= &omap44xx_uart_hwmod_class,
+	.flags		= (HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET),
+	.mpu_irqs	= omap44xx_uart3_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_uart3_irqs),
+	.sdma_reqs	= omap44xx_uart3_sdma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(omap44xx_uart3_sdma_reqs),
+	.main_clk	= "uart3_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = OMAP4430_CM_L4PER_UART3_CLKCTRL,
+		},
+	},
+	.slaves		= omap44xx_uart3_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap44xx_uart3_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+/* uart4 */
+static struct omap_hwmod omap44xx_uart4_hwmod;
+static struct omap_hwmod_irq_info omap44xx_uart4_irqs[] = {
+	{ .irq = 70 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_dma_info omap44xx_uart4_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = 54 + OMAP44XX_DMA_REQ_START },
+	{ .name = "rx", .dma_req = 55 + OMAP44XX_DMA_REQ_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_uart4_addrs[] = {
+	{
+		.pa_start	= 0x4806e000,
+		.pa_end		= 0x4806e0ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+static struct omap_hwmod_ocp_if omap44xx_l4_abe__wd_timer3_dma = {
+	.master		= &omap44xx_l4_abe_hwmod,
+	.slave		= &omap44xx_wd_timer3_hwmod,
+	.clk		= "ocp_abe_iclk",
+	.addr		= omap44xx_wd_timer3_dma_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_wd_timer3_dma_addrs),
+	.user		= OCP_USER_SDMA,
+};
+
+/* wd_timer3 slave ports */
+static struct omap_hwmod_ocp_if *omap44xx_wd_timer3_slaves[] = {
+	&omap44xx_l4_abe__wd_timer3,
+	&omap44xx_l4_abe__wd_timer3_dma,
+};
+
+static struct omap_hwmod omap44xx_wd_timer3_hwmod = {
+	.name		= "wd_timer3",
+	.class		= &omap44xx_wd_timer_hwmod_class,
+	.mpu_irqs	= omap44xx_wd_timer3_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_wd_timer3_irqs),
+	.main_clk	= "wd_timer3_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = OMAP4430_CM1_ABE_WDT3_CLKCTRL,
+		},
+	},
+	.slaves		= omap44xx_wd_timer3_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap44xx_wd_timer3_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+/* l4_per -> uart4 */
+static struct omap_hwmod_ocp_if omap44xx_l4_per__uart4 = {
+	.master		= &omap44xx_l4_per_hwmod,
+	.slave		= &omap44xx_uart4_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap44xx_uart4_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_uart4_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* uart4 slave ports */
+static struct omap_hwmod_ocp_if *omap44xx_uart4_slaves[] = {
+	&omap44xx_l4_per__uart4,
+};
+
+static struct omap_hwmod omap44xx_uart4_hwmod = {
+	.name		= "uart4",
+	.class		= &omap44xx_uart_hwmod_class,
+	.mpu_irqs	= omap44xx_uart4_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_uart4_irqs),
+	.sdma_reqs	= omap44xx_uart4_sdma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(omap44xx_uart4_sdma_reqs),
+	.main_clk	= "uart4_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = OMAP4430_CM_L4PER_UART4_CLKCTRL,
+		},
+	},
+	.slaves		= omap44xx_uart4_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap44xx_uart4_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
 static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	/* dmm class */
 	&omap44xx_dmm_hwmod,
@@ -472,6 +831,15 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 
 	/* mpu class */
 	&omap44xx_mpu_hwmod,
+	/* wd_timer class */
+	&omap44xx_wd_timer2_hwmod,
+	&omap44xx_wd_timer3_hwmod,
+
+	/* uart class */
+	&omap44xx_uart1_hwmod,
+	&omap44xx_uart2_hwmod,
+	&omap44xx_uart3_hwmod,
+	&omap44xx_uart4_hwmod,
 	NULL,
 };
 
