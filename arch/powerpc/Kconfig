@@ -212,7 +212,7 @@ config ARCH_HIBERNATION_POSSIBLE
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx || \
-		   PPC_85xx || PPC_86xx || PPC_PSERIES
+		   PPC_85xx || PPC_86xx || PPC_PSERIES || 44x || 40x
 
 config PPC_DCR_NATIVE
 	bool
@@ -598,13 +598,11 @@ config EXTRA_TARGETS
 
 	  If unsure, leave blank
 
-if !44x || BROKEN
 config ARCH_WANTS_FREEZER_CONTROL
 	def_bool y
 	depends on ADB_PMU
 
 source kernel/power/Kconfig
-endif
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
@@ -684,6 +682,15 @@ config FSL_PMC
 	help
 	  Freescale MPC85xx/MPC86xx power management controller support
 	  (suspend/resume). For MPC83xx see platforms/83xx/suspend.c
+
+config PPC4xx_CPM
+	bool
+	default y
+	depends on SUSPEND && (44x || 40x)
+	help
+	  PPC4xx Clock Power Management (CPM) support (suspend/resume).
+	  It also enables support for two different idle states (idle-wait
+	  and idle-doze).
 
 config 4xx_SOC
 	bool
