@@ -51,7 +51,7 @@ typedef void (*txiqccsetfn_t) (phy_info_t *, u16, u16);
 typedef u16(*txloccgetfn_t) (phy_info_t *);
 typedef void (*radioloftgetfn_t) (phy_info_t *, u8 *, u8 *, u8 *,
 				  u8 *);
-typedef int32(*rxsigpwrfn_t) (phy_info_t *, int32);
+typedef s32(*rxsigpwrfn_t) (phy_info_t *, s32);
 typedef void (*detachfn_t) (phy_info_t *);
 
 #undef ISNPHY
@@ -241,7 +241,7 @@ typedef enum {
 
 #define CORDIC_AG	39797
 #define	CORDIC_NI	18
-#define	FIXED(X)	((int32)((X) << 16))
+#define	FIXED(X)	((s32)((X) << 16))
 #define	FLOAT(X)	(((X) >= 0) ? ((((X) >> 15) + 1) >> 1) : -((((-(X)) >> 15) + 1) >> 1))
 
 #define PHY_CHAIN_TX_DISABLE_TEMP	115
@@ -939,12 +939,12 @@ struct phy_info {
 	u32 mcs40_po;
 };
 
-typedef int32 fixed;
+typedef s32 fixed;
 
-typedef struct _cint32 {
+typedef struct _cs32 {
 	fixed q;
 	fixed i;
-} cint32;
+} cs32;
 
 typedef struct radio_regs {
 	u16 address;
@@ -1023,8 +1023,8 @@ extern void wlc_phy_table_data_write(phy_info_t *pi, uint width, u32 val);
 extern void write_phy_channel_reg(phy_info_t *pi, uint val);
 extern void wlc_phy_txpower_update_shm(phy_info_t *pi);
 
-extern void wlc_phy_cordic(fixed theta, cint32 *val);
-extern u8 wlc_phy_nbits(int32 value);
+extern void wlc_phy_cordic(fixed theta, cs32 *val);
+extern u8 wlc_phy_nbits(s32 value);
 extern u32 wlc_phy_sqrt_int(u32 value);
 extern void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_dB, u8 core);
 
@@ -1036,8 +1036,8 @@ extern uint wlc_phy_init_radio_regs(phy_info_t *pi, radio_regs_t *radioregs,
 extern void wlc_phy_txpower_ipa_upd(phy_info_t *pi);
 
 extern void wlc_phy_do_dummy_tx(phy_info_t *pi, bool ofdm, bool pa_on);
-extern void wlc_phy_papd_decode_epsilon(u32 epsilon, int32 *eps_real,
-					int32 *eps_imag);
+extern void wlc_phy_papd_decode_epsilon(u32 epsilon, s32 *eps_real,
+					s32 *eps_imag);
 
 extern void wlc_phy_cal_perical_mphase_reset(phy_info_t *pi);
 extern void wlc_phy_cal_perical_mphase_restart(phy_info_t *pi);
@@ -1071,7 +1071,7 @@ extern void wlc_phy_txpower_recalc_target_lcnphy(phy_info_t *pi);
 extern void wlc_lcnphy_set_tx_pwr_by_index(phy_info_t *pi, int index);
 extern void wlc_lcnphy_tx_pu(phy_info_t *pi, bool bEnable);
 extern void wlc_lcnphy_stop_tx_tone(phy_info_t *pi);
-extern void wlc_lcnphy_start_tx_tone(phy_info_t *pi, int32 f_kHz,
+extern void wlc_lcnphy_start_tx_tone(phy_info_t *pi, s32 f_kHz,
 				     u16 max_val, bool iqcalmode);
 
 extern void wlc_phy_txpower_sromlimit_get_nphy(phy_info_t *pi, uint chan,
@@ -1121,18 +1121,18 @@ extern void wlc_lcnphy_calib_modes(phy_info_t *pi, uint mode);
 extern void wlc_lcnphy_deaf_mode(phy_info_t *pi, bool mode);
 extern bool wlc_phy_tpc_isenabled_lcnphy(phy_info_t *pi);
 extern void wlc_lcnphy_tx_pwr_update_npt(phy_info_t *pi);
-extern int32 wlc_lcnphy_tssi2dbm(int32 tssi, int32 a1, int32 b0, int32 b1);
+extern s32 wlc_lcnphy_tssi2dbm(s32 tssi, s32 a1, s32 b0, s32 b1);
 extern void wlc_lcnphy_get_tssi(phy_info_t *pi, s8 *ofdm_pwr,
 				s8 *cck_pwr);
 extern void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi);
 
-extern int32 wlc_lcnphy_rx_signal_power(phy_info_t *pi, int32 gain_index);
+extern s32 wlc_lcnphy_rx_signal_power(phy_info_t *pi, s32 gain_index);
 
 #define NPHY_MAX_HPVGA1_INDEX		10
 #define NPHY_DEF_HPVGA1_INDEXLIMIT	7
 
 typedef struct _phy_iq_est {
-	int32 iq_prod;
+	s32 iq_prod;
 	u32 i_pwr;
 	u32 q_pwr;
 } phy_iq_est_t;
@@ -1201,15 +1201,15 @@ extern void wlc_phy_txpwr_index_nphy(phy_info_t *pi, u8 core_mask,
 				     s8 txpwrindex, bool res);
 extern void wlc_phy_rssisel_nphy(phy_info_t *pi, u8 core, u8 rssi_type);
 extern int wlc_phy_poll_rssi_nphy(phy_info_t *pi, u8 rssi_type,
-				  int32 *rssi_buf, u8 nsamps);
+				  s32 *rssi_buf, u8 nsamps);
 extern void wlc_phy_rssi_cal_nphy(phy_info_t *pi);
 extern int wlc_phy_aci_scan_nphy(phy_info_t *pi);
-extern void wlc_phy_cal_txgainctrl_nphy(phy_info_t *pi, int32 dBm_targetpower,
+extern void wlc_phy_cal_txgainctrl_nphy(phy_info_t *pi, s32 dBm_targetpower,
 					bool debug);
 extern int wlc_phy_tx_tone_nphy(phy_info_t *pi, u32 f_kHz, u16 max_val,
 				u8 mode, u8, bool);
 extern void wlc_phy_stopplayback_nphy(phy_info_t *pi);
-extern void wlc_phy_est_tonepwr_nphy(phy_info_t *pi, int32 *qdBm_pwrbuf,
+extern void wlc_phy_est_tonepwr_nphy(phy_info_t *pi, s32 *qdBm_pwrbuf,
 				     u8 num_samps);
 extern void wlc_phy_radio205x_vcocal_nphy(phy_info_t *pi);
 

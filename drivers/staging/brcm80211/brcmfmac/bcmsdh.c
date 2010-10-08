@@ -186,7 +186,7 @@ u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
-	int32 retry = 0;
+	s32 retry = 0;
 #endif
 	u8 data = 0;
 
@@ -222,7 +222,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
-	int32 retry = 0;
+	s32 retry = 0;
 #endif
 
 	if (!bcmsdh)

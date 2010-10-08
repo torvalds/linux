@@ -404,7 +404,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	const bcm_iovar_t *vi = NULL;
 	int bcmerror = 0;
 	int val_size;
-	int32 int_val = 0;
+	s32 int_val = 0;
 	bool bool_val;
 	u32 actionid;
 
@@ -449,7 +449,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
 	switch (actionid) {
 	case IOV_GVAL(IOV_MSGLEVEL):
-		int_val = (int32) sd_msglevel;
+		int_val = (s32) sd_msglevel;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -458,7 +458,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_BLOCKMODE):
-		int_val = (int32) si->sd_blockmode;
+		int_val = (s32) si->sd_blockmode;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -472,7 +472,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			bcmerror = BCME_BADARG;
 			break;
 		}
-		int_val = (int32) si->client_block_size[int_val];
+		int_val = (s32) si->client_block_size[int_val];
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -519,7 +519,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_DMA):
-		int_val = (int32) si->sd_use_dma;
+		int_val = (s32) si->sd_use_dma;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -528,7 +528,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_USEINTS):
-		int_val = (int32) si->use_client_ints;
+		int_val = (s32) si->use_client_ints;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -587,12 +587,12 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_NUMINTS):
-		int_val = (int32) si->intrcount;
+		int_val = (s32) si->intrcount;
 		bcopy(&int_val, arg, val_size);
 		break;
 
 	case IOV_GVAL(IOV_NUMLOCALINTS):
-		int_val = (int32) 0;
+		int_val = (s32) 0;
 		bcopy(&int_val, arg, val_size);
 		break;
 

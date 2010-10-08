@@ -35,8 +35,8 @@ void bcm_xdr_buf_init(bcm_xdr_buf_t *b, void *buf, size_t len);
 
 int bcm_xdr_pack_u32(bcm_xdr_buf_t *b, u32 val);
 int bcm_xdr_unpack_u32(bcm_xdr_buf_t *b, u32 *pval);
-int bcm_xdr_pack_int32(bcm_xdr_buf_t *b, int32 val);
-int bcm_xdr_unpack_int32(bcm_xdr_buf_t *b, int32 *pval);
+int bcm_xdr_pack_s32(bcm_xdr_buf_t *b, s32 val);
+int bcm_xdr_unpack_s32(bcm_xdr_buf_t *b, s32 *pval);
 int bcm_xdr_pack_s8(bcm_xdr_buf_t *b, s8 val);
 int bcm_xdr_unpack_s8(bcm_xdr_buf_t *b, s8 *pval);
 int bcm_xdr_pack_opaque(bcm_xdr_buf_t *b, uint len, void *data);

@@ -2222,7 +2222,7 @@ wl_iw_get_txpow(struct net_device *dev,
 
 	disable = dtoh32(disable);
 	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
-	vwrq->value = (int32) bcm_qdbm_to_mw(result);
+	vwrq->value = (s32) bcm_qdbm_to_mw(result);
 	vwrq->fixed = 0;
 	vwrq->disabled =
 	    (disable & (WL_RADIO_SW_DISABLE | WL_RADIO_HW_DISABLE)) ? 1 : 0;

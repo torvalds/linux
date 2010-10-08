@@ -1782,8 +1782,8 @@ wlc_phy_txpower_sromlimit_max_get(wlc_phy_t *ppi, uint chan, u8 *max_txpwr,
 }
 
 void
-wlc_phy_txpower_boardlimit_band(wlc_phy_t *ppi, uint bandunit, int32 *max_pwr,
-				int32 *min_pwr, u32 *step_pwr)
+wlc_phy_txpower_boardlimit_band(wlc_phy_t *ppi, uint bandunit, s32 *max_pwr,
+				s32 *min_pwr, u32 *step_pwr)
 {
 	return;
 }
@@ -2748,7 +2748,7 @@ void wlc_phy_noise_sample_intr(wlc_phy_t *pih)
 	if (ISLCNPHY(pi)) {
 		u32 cmplx_pwr, cmplx_pwr0, cmplx_pwr1;
 		u16 lo, hi;
-		int32 pwr_offset_dB, gain_dB;
+		s32 pwr_offset_dB, gain_dB;
 		u16 status_0, status_1;
 
 		jssi_aux = wlapi_bmac_read_shm(pi->sh->physhim, M_JSSI_AUX);
@@ -3021,7 +3021,7 @@ void wlc_phy_BSSinit(wlc_phy_t *pih, bool bonlyap, int rssi)
 }
 
 void
-wlc_phy_papd_decode_epsilon(u32 epsilon, int32 *eps_real, int32 *eps_imag)
+wlc_phy_papd_decode_epsilon(u32 epsilon, s32 *eps_real, s32 *eps_imag)
 {
 	*eps_imag = (epsilon >> 13);
 	if (*eps_imag > 0xfff)
@@ -3053,7 +3053,7 @@ static const fixed AtanTbl[] = {
 	29
 };
 
-void wlc_phy_cordic(fixed theta, cint32 *val)
+void wlc_phy_cordic(fixed theta, cs32 *val)
 {
 	fixed angle, valtmp;
 	unsigned iter;
@@ -3207,9 +3207,9 @@ void wlc_phy_cal_perical_mphase_restart(phy_info_t *pi)
 	pi->mphase_txcal_cmdidx = 0;
 }
 
-u8 wlc_phy_nbits(int32 value)
+u8 wlc_phy_nbits(s32 value)
 {
-	int32 abs_val;
+	s32 abs_val;
 	u8 nbits = 0;
 
 	abs_val = ABS(value);

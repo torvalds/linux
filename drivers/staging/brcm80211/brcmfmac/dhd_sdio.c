@@ -234,12 +234,12 @@ typedef struct dhd_bus {
 
 	uint clkstate;		/* State of sd and backplane clock(s) */
 	bool activity;		/* Activity flag for clock down */
-	int32 idletime;		/* Control for activity timeout */
-	int32 idlecount;	/* Activity timeout counter */
-	int32 idleclock;	/* How to set bus driver when idle */
-	int32 sd_divisor;	/* Speed control to bus driver */
-	int32 sd_mode;		/* Mode control to bus driver */
-	int32 sd_rxchain;	/* If bcmsdh api accepts PKT chains */
+	s32 idletime;		/* Control for activity timeout */
+	s32 idlecount;	/* Activity timeout counter */
+	s32 idleclock;	/* How to set bus driver when idle */
+	s32 sd_divisor;	/* Speed control to bus driver */
+	s32 sd_mode;		/* Mode control to bus driver */
+	s32 sd_rxchain;	/* If bcmsdh api accepts PKT chains */
 	bool use_rxchain;	/* If dhd should use PKT chains */
 	bool sleeping;		/* Is SDIO bus sleeping? */
 	bool rxflow_mode;	/* Rx flow control mode */
@@ -461,12 +461,12 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus);
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size)
 {
-	int32 min_size = DONGLE_MIN_MEMSIZE;
+	s32 min_size = DONGLE_MIN_MEMSIZE;
 	/* Restrict the memsize to user specified limit */
 	DHD_ERROR(("user: Restrict the dongle ram size to %d, min %d\n",
 		dhd_dongle_memsize, min_size));
 	if ((dhd_dongle_memsize > min_size) &&
-	    (dhd_dongle_memsize < (int32) bus->orig_ramsize))
+	    (dhd_dongle_memsize < (s32) bus->orig_ramsize))
 		bus->ramsize = dhd_dongle_memsize;
 }
 
@@ -634,7 +634,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 {
 	int err;
-	int32 iovalue;
+	s32 iovalue;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -2100,7 +2100,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		int val_size)
 {
 	int bcmerror = 0;
-	int32 int_val = 0;
+	s32 int_val = 0;
 	bool bool_val = 0;
 
 	DHD_TRACE(("%s: Enter, action %d name %s params %p plen %d arg %p "
@@ -2131,7 +2131,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		if (IOV_ISSET(actionid)) {
 			bcmerror = dhdsdio_bussleep(bus, bool_val);
 		} else {
-			int_val = (int32) bus->sleeping;
+			int_val = (s32) bus->sleeping;
 			bcopy(&int_val, arg, val_size);
 		}
 		goto exit;
@@ -2145,7 +2145,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	switch (actionid) {
 	case IOV_GVAL(IOV_INTR):
-		int_val = (int32) bus->intr;
+		int_val = (s32) bus->intr;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2166,7 +2166,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_POLLRATE):
-		int_val = (int32) bus->pollrate;
+		int_val = (s32) bus->pollrate;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2188,7 +2188,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_IDLECLOCK):
-		int_val = (int32) bus->idleclock;
+		int_val = (s32) bus->idleclock;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2197,7 +2197,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_SD1IDLE):
-		int_val = (int32) sd1idle;
+		int_val = (s32) sd1idle;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2260,12 +2260,12 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		}
 
 	case IOV_GVAL(IOV_MEMSIZE):
-		int_val = (int32) bus->ramsize;
+		int_val = (s32) bus->ramsize;
 		bcopy(&int_val, arg, val_size);
 		break;
 
 	case IOV_GVAL(IOV_SDIOD_DRIVE):
-		int_val = (int32) dhd_sdiod_drive_strength;
+		int_val = (s32) dhd_sdiod_drive_strength;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2284,7 +2284,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_READAHEAD):
-		int_val = (int32) dhd_readahead;
+		int_val = (s32) dhd_readahead;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2295,7 +2295,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_SDRXCHAIN):
-		int_val = (int32) bus->use_rxchain;
+		int_val = (s32) bus->use_rxchain;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2306,7 +2306,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			bus->use_rxchain = bool_val;
 		break;
 	case IOV_GVAL(IOV_ALIGNCTL):
-		int_val = (int32) dhd_alignctl;
+		int_val = (s32) dhd_alignctl;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2338,10 +2338,10 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 			addr = (uintptr) bus->regs + sd_ptr->offset;
 			size = sd_ptr->func;
-			int_val = (int32) bcmsdh_reg_read(bus->sdh, addr, size);
+			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
 				bcmerror = BCME_SDIO_ERROR;
-			bcopy(&int_val, arg, sizeof(int32));
+			bcopy(&int_val, arg, sizeof(s32));
 			break;
 		}
 
@@ -2371,10 +2371,10 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 			addr = SI_ENUM_BASE + sdreg.offset;
 			size = sdreg.func;
-			int_val = (int32) bcmsdh_reg_read(bus->sdh, addr, size);
+			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
 				bcmerror = BCME_SDIO_ERROR;
-			bcopy(&int_val, arg, sizeof(int32));
+			bcopy(&int_val, arg, sizeof(s32));
 			break;
 		}
 
@@ -2413,7 +2413,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		}
 
 	case IOV_GVAL(IOV_FORCEEVEN):
-		int_val = (int32) forcealign;
+		int_val = (s32) forcealign;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2422,7 +2422,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_TXBOUND):
-		int_val = (int32) dhd_txbound;
+		int_val = (s32) dhd_txbound;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2431,7 +2431,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_RXBOUND):
-		int_val = (int32) dhd_rxbound;
+		int_val = (s32) dhd_rxbound;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2440,7 +2440,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_TXMINMAX):
-		int_val = (int32) dhd_txminmax;
+		int_val = (s32) dhd_txminmax;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2451,7 +2451,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 #ifdef SDTEST
 	case IOV_GVAL(IOV_EXTLOOP):
-		int_val = (int32) bus->ext_loop;
+		int_val = (s32) bus->ext_loop;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -2742,7 +2742,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		/* If it was divisor change, read the new one */
 		if (set && strcmp(name, "sd_divisor") == 0) {
 			if (bcmsdh_iovar_op(bus->sdh, "sd_divisor", NULL, 0,
-					    &bus->sd_divisor, sizeof(int32),
+					    &bus->sd_divisor, sizeof(s32),
 					    FALSE) != BCME_OK) {
 				bus->sd_divisor = -1;
 				DHD_ERROR(("%s: fail on %s get\n", __func__,
@@ -2755,7 +2755,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		/* If it was a mode change, read the new one */
 		if (set && strcmp(name, "sd_mode") == 0) {
 			if (bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL, 0,
-					    &bus->sd_mode, sizeof(int32),
+					    &bus->sd_mode, sizeof(s32),
 					    FALSE) != BCME_OK) {
 				bus->sd_mode = -1;
 				DHD_ERROR(("%s: fail on %s get\n", __func__,
@@ -2767,10 +2767,10 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		}
 		/* Similar check for blocksize change */
 		if (set && strcmp(name, "sd_blocksize") == 0) {
-			int32 fnum = 2;
+			s32 fnum = 2;
 			if (bcmsdh_iovar_op
-			    (bus->sdh, "sd_blocksize", &fnum, sizeof(int32),
-			     &bus->blocksize, sizeof(int32),
+			    (bus->sdh, "sd_blocksize", &fnum, sizeof(s32),
+			     &bus->blocksize, sizeof(s32),
 			     FALSE) != BCME_OK) {
 				bus->blocksize = 0;
 				DHD_ERROR(("%s: fail on %s get\n", __func__,
@@ -5442,7 +5442,7 @@ fail:
 
 static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 {
-	int32 fnum;
+	s32 fnum;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -5464,12 +5464,12 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 
 	/* ...and initialize clock/power states */
 	bus->clkstate = CLK_SDONLY;
-	bus->idletime = (int32) dhd_idletime;
+	bus->idletime = (s32) dhd_idletime;
 	bus->idleclock = DHD_IDLE_ACTIVE;
 
 	/* Query the SD clock speed */
 	if (bcmsdh_iovar_op(sdh, "sd_divisor", NULL, 0,
-			    &bus->sd_divisor, sizeof(int32),
+			    &bus->sd_divisor, sizeof(s32),
 			    FALSE) != BCME_OK) {
 		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_divisor"));
 		bus->sd_divisor = -1;
@@ -5480,7 +5480,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 
 	/* Query the SD bus mode */
 	if (bcmsdh_iovar_op(sdh, "sd_mode", NULL, 0,
-			    &bus->sd_mode, sizeof(int32), FALSE) != BCME_OK) {
+			    &bus->sd_mode, sizeof(s32), FALSE) != BCME_OK) {
 		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_mode"));
 		bus->sd_mode = -1;
 	} else {
@@ -5490,8 +5490,8 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 
 	/* Query the F2 block size, set roundup accordingly */
 	fnum = 2;
-	if (bcmsdh_iovar_op(sdh, "sd_blocksize", &fnum, sizeof(int32),
-			    &bus->blocksize, sizeof(int32), FALSE) != BCME_OK) {
+	if (bcmsdh_iovar_op(sdh, "sd_blocksize", &fnum, sizeof(s32),
+			    &bus->blocksize, sizeof(s32), FALSE) != BCME_OK) {
 		bus->blocksize = 0;
 		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_blocksize"));
 	} else {
@@ -5503,7 +5503,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 	/* Query if bus module supports packet chaining,
 		 default to use if supported */
 	if (bcmsdh_iovar_op(sdh, "sd_rxchain", NULL, 0,
-			    &bus->sd_rxchain, sizeof(int32),
+			    &bus->sd_rxchain, sizeof(s32),
 			    FALSE) != BCME_OK) {
 		bus->sd_rxchain = FALSE;
 	} else {

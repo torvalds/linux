@@ -43,7 +43,7 @@
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))
 
 static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc);
-static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, int32 int_val);
+static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val);
 static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 val);
 static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val);
 static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val);
@@ -154,7 +154,7 @@ static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc)
 	return (wlc->ht_cap.cap & HT_CAP_RX_STBC_MASK) >> HT_CAP_RX_STBC_SHIFT;
 }
 
-static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, int32 int_val)
+static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val)
 {
 	if ((int_val != AUTO) && (int_val != OFF) && (int_val != ON)) {
 		return FALSE;
@@ -175,7 +175,7 @@ static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, int32 int_val)
 	return TRUE;
 }
 
-bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, int32 int_val)
+bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val)
 {
 	if ((int_val != HT_CAP_RX_STBC_NO)
 	    && (int_val != HT_CAP_RX_STBC_ONE_STREAM)) {
@@ -245,7 +245,7 @@ static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val)
 	return BCME_OK;
 }
 
-int wlc_stf_txchain_set(wlc_info_t *wlc, int32 int_val, bool force)
+int wlc_stf_txchain_set(wlc_info_t *wlc, s32 int_val, bool force)
 {
 	u8 txchain = (u8) int_val;
 	u8 txstreams;
@@ -305,7 +305,7 @@ int wlc_stf_txchain_set(wlc_info_t *wlc, int32 int_val, bool force)
 	return BCME_OK;
 }
 
-int wlc_stf_rxchain_set(wlc_info_t *wlc, int32 int_val)
+int wlc_stf_rxchain_set(wlc_info_t *wlc, s32 int_val)
 {
 	u8 rxchain_cnt;
 	u8 rxchain = (u8) int_val;

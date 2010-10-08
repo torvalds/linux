@@ -345,8 +345,8 @@ typedef struct wl_rxsts {
 	uint pktlength;		/* pkt length minus bcm phy hdr */
 	u32 mactime;		/* time stamp from mac, count per 1us */
 	uint sq;		/* signal quality */
-	int32 signal;		/* in dbm */
-	int32 noise;		/* in dbm */
+	s32 signal;		/* in dbm */
+	s32 noise;		/* in dbm */
 	uint preamble;		/* Unknown, short, long */
 	uint encoding;		/* Unknown, CCK, PBCC, OFDM */
 	uint nfrmtype;		/* special 802.11n frames(AMPDU, AMSDU) */

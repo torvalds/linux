@@ -391,7 +391,7 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, u8 *pcis[], uint ciscnt,
 	u32 w32;
 	uint funcid;
 	uint cisnum;
-	int32 boardnum;
+	s32 boardnum;
 	int err;
 	bool standard_cis;
 

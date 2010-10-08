@@ -3106,7 +3106,7 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 	return ret;
 }
 
-static int wlc_nmode_validate(wlc_info_t *wlc, int32 nmode)
+static int wlc_nmode_validate(wlc_info_t *wlc, s32 nmode)
 {
 	int err = 0;
 
@@ -3130,7 +3130,7 @@ static int wlc_nmode_validate(wlc_info_t *wlc, int32 nmode)
 	return err;
 }
 
-int wlc_set_nmode(wlc_info_t *wlc, int32 nmode)
+int wlc_set_nmode(wlc_info_t *wlc, s32 nmode)
 {
 	uint i;
 	int err;
@@ -4489,7 +4489,7 @@ static const bcm_iovar_t *wlc_iovar_lookup(const bcm_iovar_t *table,
 /* simplified integer get interface for common WLC_GET_VAR ioctl handler */
 int wlc_iovar_getint(wlc_info_t *wlc, const char *name, int *arg)
 {
-	return wlc_iovar_op(wlc, name, NULL, 0, arg, sizeof(int32), IOV_GET,
+	return wlc_iovar_op(wlc, name, NULL, 0, arg, sizeof(s32), IOV_GET,
 			    NULL);
 }
 
@@ -4677,7 +4677,7 @@ wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg, int len,
 {
 	wlc_info_t *wlc = (wlc_info_t *) pub->wlc;
 	int err = 0;
-	int32 int_val = 0;
+	s32 int_val = 0;
 
 	/* check generic condition flags */
 	if (set) {
@@ -4746,9 +4746,9 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 	wlc_info_t *wlc = hdl;
 	wlc_bsscfg_t *bsscfg;
 	int err = 0;
-	int32 int_val = 0;
-	int32 int_val2 = 0;
-	int32 *ret_int_ptr;
+	s32 int_val = 0;
+	s32 int_val2 = 0;
+	s32 *ret_int_ptr;
 	bool bool_val;
 	bool bool_val2;
 	wlc_bss_info_t *current_bss;
@@ -4771,7 +4771,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		      sizeof(int_val));
 
 	/* convenience int ptr for 4-byte gets (requires int aligned arg) */
-	ret_int_ptr = (int32 *) arg;
+	ret_int_ptr = (s32 *) arg;
 
 	bool_val = (int_val != 0) ? TRUE : FALSE;
 	bool_val2 = (int_val2 != 0) ? TRUE : FALSE;
@@ -4816,7 +4816,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		}
 
 	case IOV_GVAL(IOV_MPC):
-		*ret_int_ptr = (int32) wlc->mpc;
+		*ret_int_ptr = (s32) wlc->mpc;
 		break;
 
 	case IOV_SVAL(IOV_MPC):
@@ -4870,8 +4870,8 @@ wlc_iovar_rangecheck(wlc_info_t *wlc, u32 val, const bcm_iovar_t *vi)
 		else if (vi->flags & IOVF_WHL)
 			min_val = 0;
 		/* Signed values are checked against max_val and min_val */
-		if ((int32) val < (int32) min_val
-		    || (int32) val > (int32) max_val)
+		if ((s32) val < (s32) min_val
+		    || (s32) val > (s32) max_val)
 			err = BCME_RANGE;
 		break;
 

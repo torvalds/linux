@@ -1797,7 +1797,7 @@ static int dhd_open(struct net_device *net)
 	u32 toe_ol;
 #endif
 	int ifidx = dhd_net2idx(dhd, net);
-	int32 ret = 0;
+	s32 ret = 0;
 
 	DHD_TRACE(("%s: ifidx %d\n", __func__, ifidx));
 

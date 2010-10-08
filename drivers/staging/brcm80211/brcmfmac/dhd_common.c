@@ -205,7 +205,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 	    int val_size)
 {
 	int bcmerror = 0;
-	int32 int_val = 0;
+	s32 int_val = 0;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -223,7 +223,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_MSGLEVEL):
-		int_val = (int32) dhd_msg_level;
+		int_val = (s32) dhd_msg_level;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -238,12 +238,12 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_BCMERROR):
-		int_val = (int32) dhd_pub->bcmerror;
+		int_val = (s32) dhd_pub->bcmerror;
 		bcopy(&int_val, arg, val_size);
 		break;
 
 	case IOV_GVAL(IOV_WDTICK):
-		int_val = (int32) dhd_watchdog_ms;
+		int_val = (s32) dhd_watchdog_ms;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -261,7 +261,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 #ifdef DHD_DEBUG
 	case IOV_GVAL(IOV_DCONSOLE_POLL):
-		int_val = (int32) dhd_console_ms;
+		int_val = (s32) dhd_console_ms;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -289,7 +289,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT):{
-			int_val = (int32) dhd_os_get_ioctl_resp_timeout();
+			int_val = (s32) dhd_os_get_ioctl_resp_timeout();
 			bcopy(&int_val, arg, sizeof(int_val));
 			break;
 		}

@@ -29,9 +29,9 @@ extern void wlc_stf_ss_algo_channel_get(wlc_info_t *wlc,
 					chanspec_t chanspec);
 extern int wlc_stf_ss_update(wlc_info_t *wlc, struct wlcband *band);
 extern void wlc_stf_phy_txant_upd(wlc_info_t *wlc);
-extern int wlc_stf_txchain_set(wlc_info_t *wlc, int32 int_val, bool force);
-extern int wlc_stf_rxchain_set(wlc_info_t *wlc, int32 int_val);
-extern bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, int32 int_val);
+extern int wlc_stf_txchain_set(wlc_info_t *wlc, s32 int_val, bool force);
+extern int wlc_stf_rxchain_set(wlc_info_t *wlc, s32 int_val);
+extern bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val);
 
 extern int wlc_stf_ant_txant_validate(wlc_info_t *wlc, s8 val);
 extern void wlc_stf_phy_txant_upd(wlc_info_t *wlc);

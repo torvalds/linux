@@ -183,7 +183,7 @@ typedef struct wl_extdscan_params {
 	wlc_ssid_t ssid[WLC_EXTDSCAN_MAX_SSID];	/* ssid list */
 	u32 tx_rate;		/* in 500ksec units */
 	wl_scan_type_t scan_type;	/* enum */
-	int32 channel_num;
+	s32 channel_num;
 	chan_scandata_t channel_list[1];	/* list of chandata structs */
 } wl_extdscan_params_t;
 
@@ -205,23 +205,23 @@ typedef struct wl_scan_params {
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
 				 */
 	u8 scan_type;	/* flags, 0 use default */
-	int32 nprobes;		/* -1 use default, number of probes per channel */
-	int32 active_time;	/* -1 use default, dwell time per channel for
+	s32 nprobes;		/* -1 use default, number of probes per channel */
+	s32 active_time;	/* -1 use default, dwell time per channel for
 				 * active scanning
 				 */
-	int32 passive_time;	/* -1 use default, dwell time per channel
+	s32 passive_time;	/* -1 use default, dwell time per channel
 				 * for passive scanning
 				 */
-	int32 home_time;	/* -1 use default, dwell time for the home channel
+	s32 home_time;	/* -1 use default, dwell time for the home channel
 				 * between channel scans
 				 */
-	int32 channel_num;	/* count of channels and ssids that follow
+	s32 channel_num;	/* count of channels and ssids that follow
 				 *
 				 * low half is count of channels in channel_list, 0
 				 * means default (use all available channels)
 				 *
 				 * high half is entries in wlc_ssid_t array that
-				 * follows channel_list, aligned for int32 (4 bytes)
+				 * follows channel_list, aligned for s32 (4 bytes)
 				 * meaning an odd channel count implies a 2-byte pad
 				 * between end of channel_list and first ssid
 				 *
@@ -333,7 +333,7 @@ typedef struct wl_u32_list {
 /* used for association with a specific BSSID and chanspec list */
 typedef struct wl_assoc_params {
 	struct ether_addr bssid;	/* 00:00:00:00:00:00: broadcast scan */
-	int32 chanspec_num;	/* 0: all available channels,
+	s32 chanspec_num;	/* 0: all available channels,
 				 * otherwise count of chanspecs in chanspec_list
 				 */
 	chanspec_t chanspec_list[1];	/* list of chanspecs */
@@ -435,7 +435,7 @@ typedef struct wl_country {
 	char country_abbrev[WLC_CNTRY_BUF_SZ];	/* nul-terminated country code used in
 						 * the Country IE
 						 */
-	int32 rev;		/* revision specifier for ccode
+	s32 rev;		/* revision specifier for ccode
 				 * on set, -1 indicates unspecified.
 				 * on get, rev >= 0
 				 */

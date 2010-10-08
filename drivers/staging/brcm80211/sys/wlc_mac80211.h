@@ -637,7 +637,7 @@ struct wlc_info {
 
 	/* driver feature */
 	bool _rifs;		/* enable per-packet rifs */
-	int32 rifs_advert;	/* RIFS mode advertisement */
+	s32 rifs_advert;	/* RIFS mode advertisement */
 	s8 sgi_tx;		/* sgi tx */
 	bool wet;		/* true if wireless ethernet bridging mode */
 
@@ -1004,7 +1004,7 @@ extern int wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 extern void wlc_print_ies(wlc_info_t *wlc, u8 *ies, uint ies_len);
 #endif
 
-extern int wlc_set_nmode(wlc_info_t *wlc, int32 nmode);
+extern int wlc_set_nmode(wlc_info_t *wlc, s32 nmode);
 extern void wlc_ht_mimops_cap_update(wlc_info_t *wlc, u8 mimops_mode);
 extern void wlc_mimops_action_ht_send(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg,
 				      u8 mimops_mode);

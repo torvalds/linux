@@ -42,14 +42,8 @@ typedef unsigned long long int uintptr;
 typedef unsigned int uint;
 #endif
 
-/* define [u]int32/64, uintptr */
-
 #ifndef TYPEDEF_UINTPTR
 typedef unsigned int uintptr;
-#endif
-
-#ifndef TYPEDEF_INT32
-typedef signed int int32;
 #endif
 
 /* define macro values */
@@ -74,7 +68,6 @@ typedef signed int int32;
 
 #undef TYPEDEF_UINT
 #undef TYPEDEF_UINTPTR
-#undef TYPEDEF_INT32
 
 /*
  * Including the bcmdefs.h here, to make sure everyone including typedefs.h

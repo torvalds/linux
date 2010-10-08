@@ -364,7 +364,7 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 	case IOVT_UINT8:
 	case IOVT_UINT16:
 	case IOVT_UINT32:
-		/* all integers are int32 sized args at the ioctl interface */
+		/* all integers are s32 sized args at the ioctl interface */
 		if (len < (int)sizeof(int)) {
 			bcmerror = BCME_BUFTOOSHORT;
 		}

@@ -22,12 +22,12 @@ If input number is greater than 0x7fff then output is saturated to 0x7fff.
 else if input number is less than 0xffff8000 then output is saturated to 0xffff8000
 else output is same as input.
 */
-s16 qm_sat32(int32 op)
+s16 qm_sat32(s32 op)
 {
 	s16 result;
-	if (op > (int32) 0x7fff) {
+	if (op > (s32) 0x7fff) {
 		result = 0x7fff;
-	} else if (op < (int32) 0xffff8000) {
+	} else if (op < (s32) 0xffff8000) {
 		result = (s16) (0x8000);
 	} else {
 		result = (s16) op;
@@ -41,9 +41,9 @@ This multiplication is similar to compiler multiplication. This operation is def
 16 bit multiplication on the processor platform is cheaper than 32 bit multiplication (as
 the most of qmath functions can be replaced with processor intrinsic instructions).
 */
-int32 qm_mul321616(s16 op1, s16 op2)
+s32 qm_mul321616(s16 op1, s16 op2)
 {
-	return (int32) (op1) * (int32) (op2);
+	return (s32) (op1) * (s32) (op2);
 }
 
 /*
@@ -53,8 +53,8 @@ shifted by 16 bits.
 */
 s16 qm_mul16(s16 op1, s16 op2)
 {
-	int32 result;
-	result = ((int32) (op1) * (int32) (op2));
+	s32 result;
+	result = ((s32) (op1) * (s32) (op2));
 	return (s16) (result >> 16);
 }
 
@@ -65,13 +65,13 @@ This function remove the extra sign bit created by the multiplication by leftshi
 twice that of compiler multiplication. (i.e. qm_muls321616(2,3)=12).
 When both input 16 bit numbers are 0x8000, then the result is saturated to 0x7fffffff.
 */
-int32 qm_muls321616(s16 op1, s16 op2)
+s32 qm_muls321616(s16 op1, s16 op2)
 {
-	int32 result;
+	s32 result;
 	if (op1 == (s16) (0x8000) && op2 == (s16) (0x8000)) {
 		result = 0x7fffffff;
 	} else {
-		result = ((int32) (op1) * (int32) (op2));
+		result = ((s32) (op1) * (s32) (op2));
 		result = result << 1;
 	}
 	return result;
@@ -95,11 +95,11 @@ When both the 16bit inputs are 0x8000 then the output is saturated to 0x7fffffff
 */
 s16 qm_muls16(s16 op1, s16 op2)
 {
-	int32 result;
+	s32 result;
 	if (op1 == (s16) 0x8000 && op2 == (s16) 0x8000) {
 		result = 0x7fffffff;
 	} else {
-		result = ((int32) (op1) * (int32) (op2));
+		result = ((s32) (op1) * (s32) (op2));
 	}
 	return (s16) (result >> 15);
 }
@@ -108,9 +108,9 @@ s16 qm_muls16(s16 op1, s16 op2)
 Description: This function add two 32 bit numbers and return the 32bit result.
 If the result overflow 32 bits, the output will be saturated to 32bits.
 */
-int32 qm_add32(int32 op1, int32 op2)
+s32 qm_add32(s32 op1, s32 op2)
 {
-	int32 result;
+	s32 result;
 	result = op1 + op2;
 	if (op1 < 0 && op2 < 0 && result > 0) {
 		result = 0x80000000;
@@ -127,10 +127,10 @@ If the result overflow 16 bits, the output will be saturated to 16bits.
 s16 qm_add16(s16 op1, s16 op2)
 {
 	s16 result;
-	int32 temp = (int32) op1 + (int32) op2;
-	if (temp > (int32) 0x7fff) {
+	s32 temp = (s32) op1 + (s32) op2;
+	if (temp > (s32) 0x7fff) {
 		result = (s16) 0x7fff;
-	} else if (temp < (int32) 0xffff8000) {
+	} else if (temp < (s32) 0xffff8000) {
 		result = (s16) 0xffff8000;
 	} else {
 		result = (s16) temp;
@@ -145,10 +145,10 @@ If the result overflow 16 bits, the output will be saturated to 16bits.
 s16 qm_sub16(s16 op1, s16 op2)
 {
 	s16 result;
-	int32 temp = (int32) op1 - (int32) op2;
-	if (temp > (int32) 0x7fff) {
+	s32 temp = (s32) op1 - (s32) op2;
+	if (temp > (s32) 0x7fff) {
 		result = (s16) 0x7fff;
-	} else if (temp < (int32) 0xffff8000) {
+	} else if (temp < (s32) 0xffff8000) {
 		result = (s16) 0xffff8000;
 	} else {
 		result = (s16) temp;
@@ -160,9 +160,9 @@ s16 qm_sub16(s16 op1, s16 op2)
 Description: This function make 32 bit subtraction and return the 32bit result.
 If the result overflow 32 bits, the output will be saturated to 32bits.
 */
-int32 qm_sub32(int32 op1, int32 op2)
+s32 qm_sub32(s32 op1, s32 op2)
 {
-	int32 result;
+	s32 result;
 	result = op1 - op2;
 	if (op1 >= 0 && op2 < 0 && result < 0) {
 		result = 0x7fffffff;
@@ -177,9 +177,9 @@ Description: This function multiply input 16 bit numbers and accumulate the resu
 into the input 32 bit number and return the 32 bit accumulated result.
 If the accumulation result in overflow, then the output will be saturated.
 */
-int32 qm_mac321616(int32 acc, s16 op1, s16 op2)
+s32 qm_mac321616(s32 acc, s16 op1, s16 op2)
 {
-	int32 result;
+	s32 result;
 	result = qm_add32(acc, qm_mul321616(op1, op2));
 	return result;
 }
@@ -189,10 +189,10 @@ Description: This function make a 32 bit saturated left shift when the specified
 is +ve. This function will make a 32 bit right shift when the specified shift is -ve.
 This function return the result after shifting operation.
 */
-int32 qm_shl32(int32 op, int shift)
+s32 qm_shl32(s32 op, int shift)
 {
 	int i;
-	int32 result;
+	s32 result;
 	result = op;
 	if (shift > 31)
 		shift = 31;
@@ -213,7 +213,7 @@ Description: This function make a 32 bit right shift when shift is +ve.
 This function make a 32 bit saturated left shift when shift is -ve. This function
 return the result of the shift operation.
 */
-int32 qm_shr32(int32 op, int shift)
+s32 qm_shr32(s32 op, int shift)
 {
 	return qm_shl32(op, -shift);
 }
@@ -275,7 +275,7 @@ s16 qm_norm16(s16 op)
 Description: This function return the number of redundant sign bits in a 32 bit number.
 Example: qm_norm32(0x00000080) = 23
 */
-s16 qm_norm32(int32 op)
+s16 qm_norm32(s32 op)
 {
 	u16 u16extraSignBits;
 	if (op == 0) {
@@ -299,8 +299,8 @@ s16 qm_div_s(s16 num, s16 denom)
 {
 	s16 var_out;
 	s16 iteration;
-	int32 L_num;
-	int32 L_denom;
+	s32 L_num;
+	s32 L_denom;
 	L_num = (num) << 15;
 	L_denom = (denom) << 15;
 	for (iteration = 0; iteration < 15; iteration++) {
@@ -359,10 +359,10 @@ s16 qm_div16(s16 num, s16 denom, s16 *qQuotient)
 /*
 Description: This function compute absolute value of a 32 bit number.
 */
-int32 qm_abs32(int32 op)
+s32 qm_abs32(s32 op)
 {
 	if (op < 0) {
-		if (op == (int32) 0x80000000) {
+		if (op == (s32) 0x80000000) {
 			return 0x7fffffff;
 		} else {
 			return -op;
@@ -380,9 +380,9 @@ The qformat of the quotient is returned through the pointer (qquotient) passed
 to this function. The qformat of quotient is adjusted appropriately such that
 the quotient occupies all 16 bits.
 */
-s16 qm_div163232(int32 num, int32 denom, s16 *qquotient)
+s16 qm_div163232(s32 num, s32 denom, s16 *qquotient)
 {
-	int32 sign;
+	s32 sign;
 	s16 nNum, nDenom;
 	sign = num ^ denom;
 	num = qm_abs32(num);
@@ -404,11 +404,11 @@ Description: This function multiply a 32 bit number with a 16 bit number.
 The multiplicaton result is right shifted by 16 bits to fit the result
 into 32 bit output.
 */
-int32 qm_mul323216(int32 op1, s16 op2)
+s32 qm_mul323216(s32 op1, s16 op2)
 {
 	s16 hi;
 	u16 lo;
-	int32 result;
+	s32 result;
 	hi = op1 >> 16;
 	lo = (s16) (op1 & 0xffff);
 	result = qm_mul321616(hi, op2);
@@ -420,9 +420,9 @@ int32 qm_mul323216(int32 op1, s16 op2)
 Description: This function multiply signed 16 bit number with unsigned 16 bit number and return
 the result in 32 bits.
 */
-int32 qm_mulsu321616(s16 op1, u16 op2)
+s32 qm_mulsu321616(s16 op1, u16 op2)
 {
-	return (int32) (op1) * op2;
+	return (s32) (op1) * op2;
 }
 
 /*
@@ -431,11 +431,11 @@ right shifted by 15 bits to fit the result into 32 bits. Right shifting by only 
 16 bits is done to remove the extra sign bit formed by multiplication from the return value.
 When the input numbers are 0x80000000, 0x8000 the return value is saturated to 0x7fffffff.
 */
-int32 qm_muls323216(int32 op1, s16 op2)
+s32 qm_muls323216(s32 op1, s16 op2)
 {
 	s16 hi;
 	u16 lo;
-	int32 result;
+	s32 result;
 	hi = op1 >> 16;
 	lo = (s16) (op1 & 0xffff);
 	result = qm_muls321616(hi, op2);
@@ -448,11 +448,11 @@ Description: This function multiply two 32 bit numbers. The multiplication resul
 shifted by 32 bits to fit the multiplication result into 32 bits. The right shifted
 multiplication result is returned as output.
 */
-int32 qm_mul32(int32 a, int32 b)
+s32 qm_mul32(s32 a, s32 b)
 {
 	s16 hi1, hi2;
 	u16 lo1, lo2;
-	int32 result;
+	s32 result;
 	hi1 = a >> 16;
 	hi2 = b >> 16;
 	lo1 = (u16) (a & 0xffff);
@@ -471,11 +471,11 @@ instead of 32 bits is done to remove the extra sign bit formed by multiplication
 When the input numbers are 0x80000000, 0x80000000 the return value is saturated to
 0x7fffffff.
 */
-int32 qm_muls32(int32 a, int32 b)
+s32 qm_muls32(s32 a, s32 b)
 {
 	s16 hi1, hi2;
 	u16 lo1, lo2;
-	int32 result;
+	s32 result;
 	hi1 = a >> 16;
 	hi2 = b >> 16;
 	lo1 = (u16) (a & 0xffff);
@@ -545,11 +545,11 @@ qLog10N - address where log10N qformat will be written.
 Note/Problem:
 For accurate results input should be in normalized or near normalized form.
 */
-void qm_log10(int32 N, s16 qN, s16 *log10N, s16 *qLog10N)
+void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N)
 {
 	s16 s16norm, s16tableIndex, s16errorApproximation;
 	u16 u16offset;
-	int32 s32log;
+	s32 s32log;
 
 	/* Logerithm of negative values is undefined.
 	 * assert N is greater than 0.
@@ -593,7 +593,7 @@ void qm_log10(int32 N, s16 qN, s16 *log10N, s16 *qLog10N)
 	/* adjust for the qformat of the N as
 	 * log2(mag * 2^x) = log2(mag) + x
 	 */
-	s32log = qm_add32(s32log, ((int32) -qN) << 15);	/* q.15 format */
+	s32log = qm_add32(s32log, ((s32) -qN) << 15);	/* q.15 format */
 
 	/* normalize the result. */
 	s16norm = qm_norm32(s32log);
@@ -631,10 +631,10 @@ sqrtN - address where 1/N has to be written.
 qsqrtN - address where q format of 1/N has to be written.
 */
 #define qx 29
-void qm_1byN(int32 N, s16 qN, int32 *result, s16 *qResult)
+void qm_1byN(s32 N, s16 qN, s32 *result, s16 *qResult)
 {
 	s16 normN;
-	int32 s32firstTerm, s32secondTerm, x;
+	s32 s32firstTerm, s32secondTerm, x;
 	int i;
 
 	normN = qm_norm32(N);
@@ -646,10 +646,10 @@ void qm_1byN(int32 N, s16 qN, int32 *result, s16 *qResult)
 
 	/* Take the initial guess as 1/0.75 in qx format with appropriate sign. */
 	if (N >= 0) {
-		x = (int32) ((1 / 0.75) * (1 << qx));
+		x = (s32) ((1 / 0.75) * (1 << qx));
 		/* input no is in the range 0.5 to 1. So 1/0.75 is taken as initial guess. */
 	} else {
-		x = (int32) ((1 / -0.75) * (1 << qx));
+		x = (s32) ((1 / -0.75) * (1 << qx));
 		/* input no is in the range -0.5 to -1. So 1/-0.75 is taken as initial guess. */
 	}
 

@@ -93,7 +93,7 @@ struct phy_info_lcnphy {
 	u8 lcnphy_lowerofdm;
 	u8 lcnphy_cck;
 	u8 lcnphy_psat_2pt3_detected;
-	int32 lcnphy_lowest_Re_div_Im;
+	s32 lcnphy_lowest_Re_div_Im;
 	s8 lcnphy_final_papd_cal_idx;
 	u16 lcnphy_extstxctrl4;
 	u16 lcnphy_extstxctrl0;
@@ -104,7 +104,7 @@ struct phy_info_lcnphy {
 
 	u8 lcnphy_psat_pwr;
 	u8 lcnphy_psat_indx;
-	int32 lcnphy_min_phase;
+	s32 lcnphy_min_phase;
 	u8 lcnphy_final_idx;
 	u8 lcnphy_start_idx;
 	u8 lcnphy_current_index;

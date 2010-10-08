@@ -204,8 +204,8 @@ extern void wlc_phy_txpower_sromlimit(wlc_phy_t *ppi, uint chan,
 				      u8 *_min_, u8 *_max_, int rate);
 extern void wlc_phy_txpower_sromlimit_max_get(wlc_phy_t *ppi, uint chan,
 					      u8 *_max_, u8 *_min_);
-extern void wlc_phy_txpower_boardlimit_band(wlc_phy_t *ppi, uint band, int32 *,
-					    int32 *, u32 *);
+extern void wlc_phy_txpower_boardlimit_band(wlc_phy_t *ppi, uint band, s32 *,
+					    s32 *, u32 *);
 extern void wlc_phy_txpower_limit_set(wlc_phy_t *ppi, struct txpwr_limits *,
 				      chanspec_t chanspec);
 extern int wlc_phy_txpower_get(wlc_phy_t *ppi, uint *qdbm, bool *override);
