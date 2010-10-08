@@ -85,6 +85,10 @@ struct iio_const_attr {
 	= { .string = _string,						\
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 
+#define IIO_CONST_ATTR_NAMED(_vname, _name, _string)			\
+	struct iio_const_attr iio_const_attr_##_vname			\
+	= { .string = _string,						\
+	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 /* Generic attributes of onetype or another */
 
 /**
