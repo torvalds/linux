@@ -216,7 +216,7 @@ static int uv_set_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	unsigned long mmr_offset;
 	int mmr_pnode;
 
-	if (set_desc_affinity(desc, mask, &dest))
+	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
 		return -1;
 
 	mmr_value = 0;

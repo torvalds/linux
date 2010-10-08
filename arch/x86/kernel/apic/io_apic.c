@@ -2279,63 +2279,44 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 }
 
 /*
- * Either sets desc->affinity to a valid value, and returns
+ * Either sets data->affinity to a valid value, and returns
  * ->cpu_mask_to_apicid of that in dest_id, or returns -1 and
- * leaves desc->affinity untouched.
+ * leaves data->affinity untouched.
  */
-unsigned int
-set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask,
-		  unsigned int *dest_id)
+int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+			  unsigned int *dest_id)
 {
-	struct irq_cfg *cfg;
-	unsigned int irq;
+	struct irq_cfg *cfg = data->chip_data;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
 		return -1;
 
-	irq = desc->irq;
-	cfg = get_irq_desc_chip_data(desc);
-	if (assign_irq_vector(irq, cfg, mask))
+	if (assign_irq_vector(data->irq, data->chip_data, mask))
 		return -1;
 
-	cpumask_copy(desc->affinity, mask);
+	cpumask_copy(data->affinity, mask);
 
-	*dest_id = apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
+	*dest_id = apic->cpu_mask_to_apicid_and(mask, cfg->domain);
 	return 0;
 }
 
 static int
-set_ioapic_affinity_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
+ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		    bool force)
 {
-	struct irq_cfg *cfg;
+	unsigned int dest, irq = data->irq;
 	unsigned long flags;
-	unsigned int dest;
-	unsigned int irq;
-	int ret = -1;
-
-	irq = desc->irq;
-	cfg = get_irq_desc_chip_data(desc);
+	int ret;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	ret = set_desc_affinity(desc, mask, &dest);
+	ret = __ioapic_set_affinity(data, mask, &dest);
 	if (!ret) {
 		/* Only the high 8 bits are valid. */
 		dest = SET_APIC_LOGICAL_ID(dest);
-		__target_IO_APIC_irq(irq, dest, cfg);
+		__target_IO_APIC_irq(irq, dest, data->chip_data);
 	}
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
-
 	return ret;
-}
-
-static int
-set_ioapic_affinity_irq(unsigned int irq, const struct cpumask *mask)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	return set_ioapic_affinity_irq_desc(desc, mask);
 }
 
 #ifdef CONFIG_INTR_REMAP
@@ -2668,16 +2649,16 @@ static void ir_ack_apic_level(struct irq_data *data)
 #endif /* CONFIG_INTR_REMAP */
 
 static struct irq_chip ioapic_chip __read_mostly = {
-	.name		= "IO-APIC",
-	.irq_startup	= startup_ioapic_irq,
-	.irq_mask	= mask_ioapic_irq,
-	.irq_unmask	= unmask_ioapic_irq,
-	.irq_ack	= ack_apic_edge,
-	.irq_eoi	= ack_apic_level,
+	.name			= "IO-APIC",
+	.irq_startup		= startup_ioapic_irq,
+	.irq_mask		= mask_ioapic_irq,
+	.irq_unmask		= unmask_ioapic_irq,
+	.irq_ack		= ack_apic_edge,
+	.irq_eoi		= ack_apic_level,
 #ifdef CONFIG_SMP
-	.set_affinity	= set_ioapic_affinity_irq,
+	.irq_set_affinity	= ioapic_set_affinity,
 #endif
-	.irq_retrigger	= ioapic_retrigger_irq,
+	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
 static struct irq_chip ir_ioapic_chip __read_mostly = {
@@ -3327,7 +3308,7 @@ static int set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	struct msi_msg msg;
 	unsigned int dest;
 
-	if (set_desc_affinity(desc, mask, &dest))
+	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
 		return -1;
 
 	cfg = get_irq_desc_chip_data(desc);
@@ -3359,7 +3340,7 @@ ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	if (get_irte(irq, &irte))
 		return -1;
 
-	if (set_desc_affinity(desc, mask, &dest))
+	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
 		return -1;
 
 	irte.vector = cfg->vector;
@@ -3534,7 +3515,7 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 	struct msi_msg msg;
 	unsigned int dest;
 
-	if (set_desc_affinity(desc, mask, &dest))
+	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
 		return -1;
 
 	cfg = get_irq_desc_chip_data(desc);
@@ -3590,7 +3571,7 @@ static int hpet_msi_set_affinity(struct irq_data *data,
 	struct msi_msg msg;
 	unsigned int dest;
 
-	if (set_desc_affinity(desc, mask, &dest))
+	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
 		return -1;
 
 	hpet_msi_read(data->handler_data, &msg);
@@ -3693,7 +3674,7 @@ static int set_ht_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	struct irq_cfg *cfg;
 	unsigned int dest;
 
-	if (set_desc_affinity(desc, mask, &dest))
+	if (__ioapic_set_affinity(&desc->irq_data, mask, &dest))
 		return -1;
 
 	cfg = get_irq_desc_chip_data(desc);
@@ -4045,14 +4026,14 @@ void __init setup_ioapic_dest(void)
 		 */
 		if (desc->status &
 		    (IRQ_NO_BALANCING | IRQ_AFFINITY_SET))
-			mask = desc->affinity;
+			mask = desc->irq_data.affinity;
 		else
 			mask = apic->target_cpus();
 
 		if (intr_remapping_enabled)
 			set_ir_ioapic_affinity_irq_desc(desc, mask);
 		else
-			set_ioapic_affinity_irq_desc(desc, mask);
+			ioapic_set_affinity(&desc->irq_data, mask, false);
 	}
 
 }

@@ -95,9 +95,9 @@ extern struct irq_cfg *irq_cfg(unsigned int);
 extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
 extern void send_cleanup_vector(struct irq_cfg *);
 
-struct irq_desc;
-extern unsigned int set_desc_affinity(struct irq_desc *, const struct cpumask *,
-				      unsigned int *dest_id);
+struct irq_data;
+int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
+			  unsigned int *dest_id);
 extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin, struct io_apic_irq_attr *irq_attr);
 extern void setup_ioapic_dest(void);
 
