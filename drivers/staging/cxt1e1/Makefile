@@ -4,7 +4,7 @@ ccflags-y := -DSBE_PMCC4_ENABLE
 ccflags-y += -DSBE_ISR_TASKLET
 ccflags-y += -DSBE_INCLUDE_SYMBOLS
 
-cxt1e1-objs += 	\
+cxt1e1-y := 	\
   ossiRelease.o 	\
   musycc.o 		\
   pmcc4_drv.o 		\
