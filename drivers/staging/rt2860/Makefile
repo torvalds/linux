@@ -6,7 +6,7 @@ ccflags-y += -DRTMP_MAC_PCI -DRTMP_PCI_SUPPORT -DRT2860
 ccflags-y += -DRTMP_RF_RW_SUPPORT -DRTMP_EFUSE_SUPPORT -DRT30xx -DRT3090
 ccflags-y += -DDBG
 
-rt2860sta-objs :=	\
+rt2860sta-y :=	\
 	common/crypt_md5.o	\
 	common/crypt_sha2.o	\
 	common/crypt_hmac.o	\
