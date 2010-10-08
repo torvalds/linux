@@ -1401,11 +1401,18 @@ static struct rk2818_spi_chip cmb_spi_chip = {
 
 #define CMMB_1186_SPIIRQ RK2818_PIN_PA1
 
+void cmmb_io_init_mux(void)
+{
+	rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
+
+}
+
 static struct cmmb_io_def_s cmmb_io = {
 	.cmmb_pw_en = FPGA_PIO4_03,
 	.cmmb_pw_dwn = FPGA_PIO2_09,
 	.cmmb_pw_rst = FPGA_PIO2_06,
 	.cmmb_irq = CMMB_1186_SPIIRQ
+	.io_init_mux = cmmb_io_init_mux
 };
 
 static struct spi_board_info board_spi_devices[] = {
