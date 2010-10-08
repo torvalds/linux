@@ -41,6 +41,7 @@ struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata = {
 	.max_width	= 4,
 	.host_caps	= (MMC_CAP_4_BIT_DATA |
 			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
 };
 
 struct platform_device s3c_device_hsmmc1 = {
@@ -73,4 +74,6 @@ void s3c_sdhci1_set_platdata(struct s3c_sdhci_platdata *pd)
 		set->cfg_card = pd->cfg_card;
 	if (pd->host_caps)
 		set->host_caps |= pd->host_caps;
+	if (pd->clk_type)
+		set->clk_type = pd->clk_type;
 }

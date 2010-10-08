@@ -28,11 +28,17 @@ enum cd_types {
 	S3C_SDHCI_CD_PERMANENT,	/* no CD line, card permanently wired to host */
 };
 
+enum clk_types {
+	S3C_SDHCI_CLK_DIV_INTERNAL,	/* use mmc internal clock divider */
+	S3C_SDHCI_CLK_DIV_EXTERNAL,	/* use external clock divider */
+};
+
 /**
  * struct s3c_sdhci_platdata() - Platform device data for Samsung SDHCI
  * @max_width: The maximum number of data bits supported.
  * @host_caps: Standard MMC host capabilities bit field.
  * @cd_type: Type of Card Detection method (see cd_types enum above)
+ * @clk_type: Type of clock divider method (see clk_types enum above)
  * @ext_cd_init: Initialize external card detect subsystem. Called on
  *		 sdhci-s3c driver probe when cd_type == S3C_SDHCI_CD_EXTERNAL.
  *		 notify_func argument is a callback to the sdhci-s3c driver
@@ -59,6 +65,7 @@ struct s3c_sdhci_platdata {
 	unsigned int	max_width;
 	unsigned int	host_caps;
 	enum cd_types	cd_type;
+	enum clk_types	clk_type;
 
 	char		**clocks;	/* set of clock sources */
 
