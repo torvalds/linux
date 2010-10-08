@@ -184,7 +184,7 @@ static int _update_sysc_cache(struct omap_hwmod *oh)
 
 	/* XXX ensure module interface clock is up */
 
-	oh->_sysc_cache = omap_hwmod_readl(oh, oh->class->sysc->sysc_offs);
+	oh->_sysc_cache = omap_hwmod_read(oh, oh->class->sysc->sysc_offs);
 
 	if (!(oh->class->sysc->sysc_flags & SYSC_NO_CACHE))
 		oh->_int_flags |= _HWMOD_SYSCONFIG_LOADED;
@@ -211,7 +211,7 @@ static void _write_sysconfig(u32 v, struct omap_hwmod *oh)
 
 	if (oh->_sysc_cache != v) {
 		oh->_sysc_cache = v;
-		omap_hwmod_writel(v, oh, oh->class->sysc->sysc_offs);
+		omap_hwmod_write(v, oh, oh->class->sysc->sysc_offs);
 	}
 }
 
@@ -1133,12 +1133,12 @@ static int _reset(struct omap_hwmod *oh)
 	_write_sysconfig(v, oh);
 
 	if (oh->class->sysc->sysc_flags & SYSS_HAS_RESET_STATUS)
-		omap_test_timeout((omap_hwmod_readl(oh,
+		omap_test_timeout((omap_hwmod_read(oh,
 						    oh->class->sysc->syss_offs)
 				   & SYSS_RESETDONE_MASK),
 				  MAX_MODULE_SOFTRESET_WAIT, c);
 	else if (oh->class->sysc->sysc_flags & SYSC_HAS_RESET_STATUS)
-		omap_test_timeout(!(omap_hwmod_readl(oh,
+		omap_test_timeout(!(omap_hwmod_read(oh,
 						     oh->class->sysc->sysc_offs)
 				   & SYSC_TYPE2_SOFTRESET_MASK),
 				  MAX_MODULE_SOFTRESET_WAIT, c);
@@ -1378,14 +1378,20 @@ static int _setup(struct omap_hwmod *oh, void *data)
 
 /* Public functions */
 
-u32 omap_hwmod_readl(struct omap_hwmod *oh, u16 reg_offs)
+u32 omap_hwmod_read(struct omap_hwmod *oh, u16 reg_offs)
 {
-	return __raw_readl(oh->_mpu_rt_va + reg_offs);
+	if (oh->flags & HWMOD_16BIT_REG)
+		return __raw_readw(oh->_mpu_rt_va + reg_offs);
+	else
+		return __raw_readl(oh->_mpu_rt_va + reg_offs);
 }
 
-void omap_hwmod_writel(u32 v, struct omap_hwmod *oh, u16 reg_offs)
+void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 {
-	__raw_writel(v, oh->_mpu_rt_va + reg_offs);
+	if (oh->flags & HWMOD_16BIT_REG)
+		__raw_writew(v, oh->_mpu_rt_va + reg_offs);
+	else
+		__raw_writel(v, oh->_mpu_rt_va + reg_offs);
 }
 
 /**
@@ -1732,7 +1738,7 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
 	 * Forces posted writes to complete on the OCP thread handling
 	 * register writes
 	 */
-	omap_hwmod_readl(oh, oh->class->sysc->sysc_offs);
+	omap_hwmod_read(oh, oh->class->sysc->sysc_offs);
 }
 
 /**

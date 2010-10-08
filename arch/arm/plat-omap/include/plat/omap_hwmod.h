@@ -370,6 +370,7 @@ struct omap_hwmod_omap4_prcm {
  *     This is needed for devices like DSS that require optional clocks enabled
  *     in order to complete the reset. Optional clocks will be disabled
  *     again after the reset.
+ * HWMOD_16BIT_REG: Module has 16bit registers
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -379,6 +380,7 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_SET_DEFAULT_CLOCKACT		(1 << 5)
 #define HWMOD_NO_IDLEST				(1 << 6)
 #define HWMOD_CONTROL_OPT_CLKS_IN_RESET		(1 << 7)
+#define HWMOD_16BIT_REG				(1 << 8)
 
 /*
  * omap_hwmod._int_flags definitions
@@ -527,8 +529,8 @@ int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode);
 int omap_hwmod_reset(struct omap_hwmod *oh);
 void omap_hwmod_ocp_barrier(struct omap_hwmod *oh);
 
-void omap_hwmod_writel(u32 v, struct omap_hwmod *oh, u16 reg_offs);
-u32 omap_hwmod_readl(struct omap_hwmod *oh, u16 reg_offs);
+void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs);
+u32 omap_hwmod_read(struct omap_hwmod *oh, u16 reg_offs);
 
 int omap_hwmod_count_resources(struct omap_hwmod *oh);
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res);
