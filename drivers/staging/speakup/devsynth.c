@@ -56,7 +56,7 @@ static int speakup_file_release(struct inode *ip, struct file *fp)
 	return 0;
 }
 
-static struct file_operations synth_fops = {
+static const struct file_operations synth_fops = {
 	.read = speakup_file_read,
 	.write = speakup_file_write,
 	.open = speakup_file_open,
