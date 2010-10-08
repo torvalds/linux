@@ -19,34 +19,16 @@
 
 #include <linux/types.h>
 
-/*
- * Infer the compile environment based on preprocessor symbols and pragmas.
- * Override type definitions as needed, and include configuration-dependent
- * header files to define types.
- */
-
 #if defined(__x86_64__)
 #define TYPEDEF_UINTPTR
 typedef unsigned long long int uintptr;
-#endif
-
-#define TYPEDEF_UINT
-
-/*
- * Default Typedefs
- */
-
-/* define uint */
-
-#ifndef TYPEDEF_UINT
-typedef unsigned int uint;
 #endif
 
 #ifndef TYPEDEF_UINTPTR
 typedef unsigned int uintptr;
 #endif
 
-/* define macro values */
+#undef TYPEDEF_UINTPTR
 
 #ifndef FALSE
 #define FALSE	0
@@ -66,8 +48,6 @@ typedef unsigned int uintptr;
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-#undef TYPEDEF_UINT
-#undef TYPEDEF_UINTPTR
 
 /*
  * Including the bcmdefs.h here, to make sure everyone including typedefs.h
