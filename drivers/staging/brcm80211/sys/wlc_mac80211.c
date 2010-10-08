@@ -790,7 +790,7 @@ void wlc_switch_shortslot(wlc_info_t *wlc, bool shortslot)
 static u8 wlc_local_constraint_qdbm(wlc_info_t *wlc)
 {
 	u8 local;
-	int16 local_max;
+	s16 local_max;
 
 	local = WLC_TXPWR_MAX;
 	if (wlc->pub->associated &&
@@ -5795,7 +5795,7 @@ u16 BCMFASTPATH wlc_phytxctl1_calc(wlc_info_t *wlc, ratespec_t rspec)
 		/* 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps */
 		phyctl1 = (bw | (RSPEC_STF(rspec) << PHY_TXC1_MODE_SHIFT));
 	} else {		/* legacy OFDM/CCK */
-		int16 phycfg;
+		s16 phycfg;
 		/* get the phyctl byte from rate phycfg table */
 		phycfg = wlc_rate_legacy_phyctl(RSPEC2RATE(rspec));
 		if (phycfg == -1) {

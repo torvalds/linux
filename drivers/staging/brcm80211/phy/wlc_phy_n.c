@@ -13280,7 +13280,7 @@ radio_20xx_regs_t regs_2057_rev8[] = {
 	{0xFFFF, 0, 0}
 };
 
-static int16 nphy_def_lnagains[] = { -2, 10, 19, 25 };
+static s16 nphy_def_lnagains[] = { -2, 10, 19, 25 };
 
 static int32 nphy_lnagain_est0[] = { -315, 40370 };
 static int32 nphy_lnagain_est1[] = { -224, 23242 };
@@ -13724,21 +13724,21 @@ static s8 nphy_papd_pga_gain_delta_ipa_5g[] = {
 	-48, -41, -33, -25, -19, -12, -6, 0
 };
 
-static int16 nphy_papd_padgain_dlt_2g_2057rev3n4[] = {
+static s16 nphy_papd_padgain_dlt_2g_2057rev3n4[] = {
 	-159, -113, -86, -72, -62, -54, -48, -43,
 	-39, -35, -31, -28, -25, -23, -20, -18,
 	-17, -15, -13, -11, -10, -8, -7, -6,
 	-5, -4, -3, -3, -2, -1, -1, 0
 };
 
-static int16 nphy_papd_padgain_dlt_2g_2057rev5[] = {
+static s16 nphy_papd_padgain_dlt_2g_2057rev5[] = {
 	-109, -109, -82, -68, -58, -50, -44, -39,
 	-35, -31, -28, -26, -23, -21, -19, -17,
 	-16, -14, -13, -11, -10, -9, -8, -7,
 	-5, -5, -4, -3, -2, -1, -1, 0
 };
 
-static int16 nphy_papd_padgain_dlt_2g_2057rev7[] = {
+static s16 nphy_papd_padgain_dlt_2g_2057rev7[] = {
 	-122, -122, -95, -80, -69, -61, -54, -49,
 	-43, -39, -35, -32, -28, -26, -23, -21,
 	-18, -16, -15, -13, -11, -10, -8, -7,
@@ -14706,8 +14706,8 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		uint32 *tx_pwrctrl_tbl = NULL;
 		u16 idx;
-		int16 pga_gn = 0;
-		int16 pad_gn = 0;
+		s16 pga_gn = 0;
+		s16 pad_gn = 0;
 		int32 rfpwr_offset = 0;
 
 		if (PHY_IPA(pi)) {
@@ -14769,17 +14769,17 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 					if ((pi->pubpi.radiorev == 3) ||
 					    (pi->pubpi.radiorev == 4) ||
 					    (pi->pubpi.radiorev == 6)) {
-						rfpwr_offset = (int16)
+						rfpwr_offset = (s16)
 						    nphy_papd_padgain_dlt_2g_2057rev3n4
 						    [pad_gn];
 					} else if (pi->pubpi.radiorev == 5) {
-						rfpwr_offset = (int16)
+						rfpwr_offset = (s16)
 						    nphy_papd_padgain_dlt_2g_2057rev5
 						    [pad_gn];
 					} else if ((pi->pubpi.radiorev == 7)
 						   || (pi->pubpi.radiorev ==
 						       8)) {
-						rfpwr_offset = (int16)
+						rfpwr_offset = (s16)
 						    nphy_papd_padgain_dlt_2g_2057rev7
 						    [pad_gn];
 					} else {
@@ -14790,13 +14790,13 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 					if ((pi->pubpi.radiorev == 3) ||
 					    (pi->pubpi.radiorev == 4) ||
 					    (pi->pubpi.radiorev == 6)) {
-						rfpwr_offset = (int16)
+						rfpwr_offset = (s16)
 						    nphy_papd_pgagain_dlt_5g_2057
 						    [pga_gn];
 					} else if ((pi->pubpi.radiorev == 7)
 						   || (pi->pubpi.radiorev ==
 						       8)) {
-						rfpwr_offset = (int16)
+						rfpwr_offset = (s16)
 						    nphy_papd_pgagain_dlt_5g_2057rev7
 						    [pga_gn];
 					} else {
@@ -14817,11 +14817,11 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 			for (idx = 0; idx < 128; idx++) {
 				pga_gn = (tx_pwrctrl_tbl[idx] >> 24) & 0xf;
 				if (CHSPEC_IS2G(pi->radio_chanspec)) {
-					rfpwr_offset = (int16)
+					rfpwr_offset = (s16)
 					    nphy_papd_pga_gain_delta_ipa_2g
 					    [pga_gn];
 				} else {
-					rfpwr_offset = (int16)
+					rfpwr_offset = (s16)
 					    nphy_papd_pga_gain_delta_ipa_5g
 					    [pga_gn];
 				}
@@ -15329,8 +15329,8 @@ static void wlc_phy_workarounds_nphy(phy_info_t *pi)
 	u8 rfseq_rx2tx_dlys_rev3_ipa[] = { 8, 6, 6, 4, 4, 16, 43, 1, 1 };
 	u16 rfseq_rx2tx_dacbufpu_rev7[] = { 0x10f, 0x10f };
 
-	int16 alpha0, alpha1, alpha2;
-	int16 beta0, beta1, beta2;
+	s16 alpha0, alpha1, alpha2;
+	s16 beta0, beta1, beta2;
 	uint32 leg_data_weights, ht_data_weights, nss1_data_weights,
 	    stbc_data_weights;
 	u8 chan_freq_range = 0;
@@ -17231,7 +17231,7 @@ static void wlc_phy_adjust_lnagaintbl_nphy(phy_info_t *pi)
 {
 	uint core;
 	int ctr;
-	int16 gain_delta[2];
+	s16 gain_delta[2];
 	u8 curr_channel;
 	u16 minmax_gain[2];
 	u16 regval[4];
@@ -17248,12 +17248,12 @@ static void wlc_phy_adjust_lnagaintbl_nphy(phy_info_t *pi)
 
 			curr_channel = CHSPEC_CHANNEL(pi->radio_chanspec);
 			gain_delta[0] =
-			    (int16)
+			    (s16)
 			    PHY_HW_ROUND(((nphy_lnagain_est0[0] *
 					   curr_channel) +
 					  nphy_lnagain_est0[1]), 13);
 			gain_delta[1] =
-			    (int16)
+			    (s16)
 			    PHY_HW_ROUND(((nphy_lnagain_est1[0] *
 					   curr_channel) +
 					  nphy_lnagain_est1[1]), 13);
@@ -20813,7 +20813,7 @@ int
 wlc_phy_poll_rssi_nphy(phy_info_t *pi, u8 rssi_type, int32 *rssi_buf,
 		       u8 nsamps)
 {
-	int16 rssi0, rssi1;
+	s16 rssi0, rssi1;
 	u16 afectrlCore1_save = 0;
 	u16 afectrlCore2_save = 0;
 	u16 afectrlOverride1_save = 0;
@@ -20909,7 +20909,7 @@ wlc_phy_poll_rssi_nphy(phy_info_t *pi, u8 rssi_type, int32 *rssi_buf,
 	return rssi_out_val;
 }
 
-int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
+s16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 {
 	u16 core1_txrf_iqcal1_save, core1_txrf_iqcal2_save;
 	u16 core2_txrf_iqcal1_save, core2_txrf_iqcal2_save;
@@ -20924,7 +20924,7 @@ int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 	int32 radio_temp[4];
 	int32 radio_temp2[4];
 	u16 syn_tempprocsense_save;
-	int16 offset = 0;
+	s16 offset = 0;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
 		u16 auxADC_Vmid, auxADC_Av, auxADC_Vmid_save, auxADC_Av_save;
@@ -21077,7 +21077,7 @@ int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 					 128) / 256;
 		}
 
-		offset = (int16) pi->phy_tempsense_offset;
+		offset = (s16) pi->phy_tempsense_offset;
 
 	} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		syn_tempprocsense_save =
@@ -21116,7 +21116,7 @@ int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 		write_phy_reg(pi, 0x8f, afectrlOverride_save);
 		write_phy_reg(pi, 0xa5, afectrlOverride2_save);
 
-		offset = (int16) pi->phy_tempsense_offset;
+		offset = (s16) pi->phy_tempsense_offset;
 	} else {
 
 		pwrdet_rxtx_core1_save =
@@ -21189,7 +21189,7 @@ int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 		write_phy_reg(pi, 0xa5, afectrlOverride_save);
 	}
 
-	return (int16) radio_temp[0] + offset;
+	return (s16) radio_temp[0] + offset;
 }
 
 static void
@@ -21470,8 +21470,8 @@ int BCMFASTPATH
 wlc_phy_rssi_compute_nphy(phy_info_t *pi, wlc_d11rxhdr_t *wlc_rxh)
 {
 	d11rxhdr_t *rxh = &wlc_rxh->rxhdr;
-	int16 rxpwr, rxpwr0, rxpwr1;
-	int16 phyRx0_l, phyRx2_l;
+	s16 rxpwr, rxpwr0, rxpwr1;
+	s16 phyRx0_l, phyRx2_l;
 
 	rxpwr = 0;
 	rxpwr0 = ltoh16(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR0_MASK;
@@ -24571,7 +24571,7 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 	nphy_iq_comp_t old_comp, new_comp;
 	int32 iq = 0;
 	uint32 ii = 0, qq = 0;
-	int16 iq_nbits, qq_nbits, brsh, arsh;
+	s16 iq_nbits, qq_nbits, brsh, arsh;
 	int32 a, b, temp;
 	int bcmerror = BCME_OK;
 	uint cal_retry = 0;
@@ -24652,22 +24652,22 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 
 		if ((curr_core == PHY_CORE_0) && (core_mask & 0x1)) {
 			if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-				new_comp.a0 = (int16) a & 0x3ff;
-				new_comp.b0 = (int16) b & 0x3ff;
+				new_comp.a0 = (s16) a & 0x3ff;
+				new_comp.b0 = (s16) b & 0x3ff;
 			} else {
 
-				new_comp.a0 = (int16) b & 0x3ff;
-				new_comp.b0 = (int16) a & 0x3ff;
+				new_comp.a0 = (s16) b & 0x3ff;
+				new_comp.b0 = (s16) a & 0x3ff;
 			}
 		}
 		if ((curr_core == PHY_CORE_1) && (core_mask & 0x2)) {
 			if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-				new_comp.a1 = (int16) a & 0x3ff;
-				new_comp.b1 = (int16) b & 0x3ff;
+				new_comp.a1 = (s16) a & 0x3ff;
+				new_comp.b1 = (s16) b & 0x3ff;
 			} else {
 
-				new_comp.a1 = (int16) b & 0x3ff;
-				new_comp.b1 = (int16) a & 0x3ff;
+				new_comp.a1 = (s16) b & 0x3ff;
+				new_comp.b1 = (s16) a & 0x3ff;
 			}
 		}
 	}
@@ -25318,7 +25318,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 	nphy_iq_comp_t save_comp, zero_comp;
 	uint32 i_pwr, q_pwr, curr_pwr, optim_pwr = 0, prev_pwr = 0, thresh_pwr =
 	    10000;
-	int16 desired_log2_pwr, actual_log2_pwr, delta_pwr;
+	s16 desired_log2_pwr, actual_log2_pwr, delta_pwr;
 	bool gainctrl_done = FALSE;
 	u8 mix_tia_gain = 3;
 	s8 optim_gaintbl_index = 0, prev_gaintbl_index = 0;
@@ -25326,7 +25326,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 	u8 gainctrl_dirn = NPHY_RXCAL_GAIN_INIT;
 	nphy_ipa_txrxgain_t *nphy_rxcal_gaintbl;
 	u16 hpvga, lpf_biq1, lpf_biq0, lna2, lna1;
-	int16 fine_gain_idx;
+	s16 fine_gain_idx;
 	s8 txpwrindex;
 	u16 nphy_rxcal_txgain[2];
 
@@ -25929,8 +25929,8 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 	u16 lna_vals[] = { 0x3, 0x3, 0x1 };
 	u16 hpf1_vals[] = { 0x7, 0x2, 0x0 };
 	u16 hpf2_vals[] = { 0x2, 0x0, 0x0 };
-	int16 curr_hpf1, curr_hpf2, curr_hpf, curr_lna;
-	int16 desired_log2_pwr, actual_log2_pwr, hpf_change;
+	s16 curr_hpf1, curr_hpf2, curr_hpf, curr_lna;
+	s16 desired_log2_pwr, actual_log2_pwr, hpf_change;
 	u16 orig_RfseqCoreActv, orig_AfectrlCore, orig_AfectrlOverride;
 	u16 orig_RfctrlIntcRx, orig_RfctrlIntcTx;
 	u16 num_samps;
@@ -27241,9 +27241,9 @@ static void wlc_phy_a4(phy_info_t *pi, bool full_cal)
 	bool phy_b3;
 	u8 phy_b4;
 	u8 phy_b5;
-	int16 phy_b6, phy_b7, phy_b8;
+	s16 phy_b6, phy_b7, phy_b8;
 	u16 phy_b9;
-	int16 phy_b10, phy_b11, phy_b12;
+	s16 phy_b10, phy_b11, phy_b12;
 
 	phy_b11 = 0;
 	phy_b12 = 0;
@@ -27672,7 +27672,7 @@ void wlc_phy_txpwr_fixpower_nphy(phy_info_t *pi)
 
 			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
 				    0x29b, (0x1ff << 4),
-				    ((int16) rfpwr_offset) << 4);
+				    ((s16) rfpwr_offset) << 4);
 
 			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
 				    0x29b, (0x1 << 2), (1) << 2);
@@ -27988,17 +27988,17 @@ static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
 			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_2g =
 			    (s8) PHY_GETINTVAR(pi, "maxp2ga1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa2gw0a0");
+			    (s16) PHY_GETINTVAR(pi, "pa2gw0a0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa2gw0a1");
+			    (s16) PHY_GETINTVAR(pi, "pa2gw0a1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa2gw1a0");
+			    (s16) PHY_GETINTVAR(pi, "pa2gw1a0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa2gw1a1");
+			    (s16) PHY_GETINTVAR(pi, "pa2gw1a1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa2gw2a0");
+			    (s16) PHY_GETINTVAR(pi, "pa2gw2a0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa2gw2a1");
+			    (s16) PHY_GETINTVAR(pi, "pa2gw2a1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].idle_targ_2g =
 			    (s8) PHY_GETINTVAR(pi, "itt2ga0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].idle_targ_2g =
@@ -28028,17 +28028,17 @@ static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
 			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_5gm =
 			    (s8) PHY_GETINTVAR(pi, "maxp5ga1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5gw0a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5gw0a0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5gw0a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5gw0a1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa5gw1a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5gw1a0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa5gw1a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5gw1a1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5gw2a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5gw2a0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5gw2a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5gw2a1");
 			pi->nphy_pwrctrl_info[PHY_CORE_0].idle_targ_5gm =
 			    (s8) PHY_GETINTVAR(pi, "itt5ga0");
 			pi->nphy_pwrctrl_info[PHY_CORE_1].idle_targ_5gm =
@@ -28066,17 +28066,17 @@ static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
 			pi->nphy_pwrctrl_info[1].max_pwr_5gl =
 			    (s8) PHY_GETINTVAR(pi, "maxp5gla1");
 			pi->nphy_pwrctrl_info[0].pwrdet_5gl_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5glw0a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5glw0a0");
 			pi->nphy_pwrctrl_info[1].pwrdet_5gl_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5glw0a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5glw0a1");
 			pi->nphy_pwrctrl_info[0].pwrdet_5gl_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa5glw1a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5glw1a0");
 			pi->nphy_pwrctrl_info[1].pwrdet_5gl_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa5glw1a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5glw1a1");
 			pi->nphy_pwrctrl_info[0].pwrdet_5gl_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5glw2a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5glw2a0");
 			pi->nphy_pwrctrl_info[1].pwrdet_5gl_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5glw2a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5glw2a1");
 			pi->nphy_pwrctrl_info[0].idle_targ_5gl = 0;
 			pi->nphy_pwrctrl_info[1].idle_targ_5gl = 0;
 
@@ -28110,17 +28110,17 @@ static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
 			pi->nphy_pwrctrl_info[1].max_pwr_5gh =
 			    (s8) PHY_GETINTVAR(pi, "maxp5gha1");
 			pi->nphy_pwrctrl_info[0].pwrdet_5gh_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5ghw0a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5ghw0a0");
 			pi->nphy_pwrctrl_info[1].pwrdet_5gh_a1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5ghw0a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5ghw0a1");
 			pi->nphy_pwrctrl_info[0].pwrdet_5gh_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa5ghw1a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5ghw1a0");
 			pi->nphy_pwrctrl_info[1].pwrdet_5gh_b0 =
-			    (int16) PHY_GETINTVAR(pi, "pa5ghw1a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5ghw1a1");
 			pi->nphy_pwrctrl_info[0].pwrdet_5gh_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5ghw2a0");
+			    (s16) PHY_GETINTVAR(pi, "pa5ghw2a0");
 			pi->nphy_pwrctrl_info[1].pwrdet_5gh_b1 =
-			    (int16) PHY_GETINTVAR(pi, "pa5ghw2a1");
+			    (s16) PHY_GETINTVAR(pi, "pa5ghw2a1");
 			pi->nphy_pwrctrl_info[0].idle_targ_5gh = 0;
 			pi->nphy_pwrctrl_info[1].idle_targ_5gh = 0;
 
@@ -28178,7 +28178,7 @@ static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_nphy) (phy_info_t *pi)
 
 	wlc_phy_txpower_ipa_upd(pi);
 
-	pi->phy_txcore_disable_temp = (int16) PHY_GETINTVAR(pi, "tempthresh");
+	pi->phy_txcore_disable_temp = (s16) PHY_GETINTVAR(pi, "tempthresh");
 	if (pi->phy_txcore_disable_temp == 0) {
 		pi->phy_txcore_disable_temp = PHY_CHAIN_TX_DISABLE_TEMP;
 	}
@@ -28479,7 +28479,7 @@ static void wlc_phy_txpwrctrl_idle_tssi_nphy(phy_info_t *pi)
 static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 {
 	uint32 idx;
-	int16 a1[2], b0[2], b1[2];
+	s16 a1[2], b0[2], b1[2];
 	s8 target_pwr_qtrdbm[2];
 	int32 num, den, pwr_est;
 	u8 chan_freq_range;
@@ -29142,7 +29142,7 @@ wlc_phy_txpwr_index_nphy(phy_info_t *pi, u8 core_mask, s8 txpwrindex,
 
 				mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
 					    0x29b, (0x1ff << 4),
-					    ((int16) rfpwr_offset) << 4);
+					    ((s16) rfpwr_offset) << 4);
 
 				mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
 					    0x29b, (0x1 << 2), (1) << 2);

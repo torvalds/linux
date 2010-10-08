@@ -2274,7 +2274,7 @@ static uint32 wlc_phy_txpower_est_power_nphy(phy_info_t *pi);
 
 static uint32 wlc_phy_txpower_est_power_nphy(phy_info_t *pi)
 {
-	int16 tx0_status, tx1_status;
+	s16 tx0_status, tx1_status;
 	u16 estPower1, estPower2;
 	u8 pwr0, pwr1, adj_pwr0, adj_pwr1;
 	uint32 est_pwr;
@@ -3119,8 +3119,8 @@ static void wlc_phy_cal_perical_mphase_schedule(phy_info_t *pi, uint delay)
 
 void wlc_phy_cal_perical(wlc_phy_t *pih, u8 reason)
 {
-	int16 nphy_currtemp = 0;
-	int16 delta_temp = 0;
+	s16 nphy_currtemp = 0;
+	s16 delta_temp = 0;
 	bool do_periodic_cal = TRUE;
 	phy_info_t *pi = (phy_info_t *) pih;
 
@@ -3171,7 +3171,7 @@ void wlc_phy_cal_perical(wlc_phy_t *pih, u8 reason)
 			    nphy_currtemp - pi->nphy_lastcal_temp :
 			    pi->nphy_lastcal_temp - nphy_currtemp;
 
-			if ((delta_temp < (int16) pi->phycal_tempdelta) &&
+			if ((delta_temp < (s16) pi->phycal_tempdelta) &&
 			    (pi->nphy_txiqlocal_chanspec ==
 			     pi->radio_chanspec)) {
 				do_periodic_cal = FALSE;
@@ -3271,7 +3271,7 @@ void wlc_phy_stf_chain_get(wlc_phy_t *pih, u8 *txchain, u8 *rxchain)
 
 u8 wlc_phy_stf_chain_active_get(wlc_phy_t *pih)
 {
-	int16 nphy_currtemp;
+	s16 nphy_currtemp;
 	u8 active_bitmap;
 	phy_info_t *pi = (phy_info_t *) pih;
 

@@ -317,7 +317,7 @@ typedef struct wlccore {
 
 	/* fifo */
 	uint *txavail[NFIFO];	/* # tx descriptors available */
-	int16 txpktpend[NFIFO];	/* tx admission control */
+	s16 txpktpend[NFIFO];	/* tx admission control */
 #endif				/* WLC_LOW */
 
 	macstat_t *macstat_snapshot;	/* mac hw prev read values */

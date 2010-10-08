@@ -75,7 +75,7 @@ struct osl_info {
 /* Global ASSERT type flag */
 uint32 g_assert_type;
 
-static int16 linuxbcmerrormap[] = { 0,	/* 0 */
+static s16 linuxbcmerrormap[] = { 0,	/* 0 */
 	-EINVAL,		/* BCME_ERROR */
 	-EINVAL,		/* BCME_BADARG */
 	-EINVAL,		/* BCME_BADOPTION */

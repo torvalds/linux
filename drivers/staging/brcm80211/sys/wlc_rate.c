@@ -467,7 +467,7 @@ wlc_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 					   mcsallow ? txstreams : 1);
 }
 
-int16 BCMFASTPATH wlc_rate_legacy_phyctl(uint rate)
+s16 BCMFASTPATH wlc_rate_legacy_phyctl(uint rate)
 {
 	uint i;
 	for (i = 0; i < LEGACY_PHYCFG_TABLE_SIZE; i++)

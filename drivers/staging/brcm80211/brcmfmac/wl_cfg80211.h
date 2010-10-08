@@ -182,7 +182,7 @@ struct wl_dev {
 struct wl_cfg80211_bss_info {
 	u16 band;
 	u16 channel;
-	int16 rssi;
+	s16 rssi;
 	u16 frame_len;
 	u8 frame_buf[1];
 };

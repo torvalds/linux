@@ -42,7 +42,7 @@ typedef unsigned long long int uintptr;
 typedef unsigned int uint;
 #endif
 
-/* define [u]int16/32/64, uintptr */
+/* define [u]int32/64, uintptr */
 
 #ifndef TYPEDEF_UINT32
 typedef unsigned int uint32;
@@ -50,10 +50,6 @@ typedef unsigned int uint32;
 
 #ifndef TYPEDEF_UINTPTR
 typedef unsigned int uintptr;
-#endif
-
-#ifndef TYPEDEF_INT16
-typedef signed short int16;
 #endif
 
 #ifndef TYPEDEF_INT32
@@ -83,7 +79,6 @@ typedef signed int int32;
 #undef TYPEDEF_UINT
 #undef TYPEDEF_UINT32
 #undef TYPEDEF_UINTPTR
-#undef TYPEDEF_INT16
 #undef TYPEDEF_INT32
 
 /*

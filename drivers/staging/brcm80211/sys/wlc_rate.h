@@ -160,7 +160,7 @@ extern void wlc_rateset_default(struct wlc_rateset *rs_tgt,
 				const struct wlc_rateset *rs_hw, uint phy_type,
 				int bandtype, bool cck_only, uint rate_mask,
 				bool mcsallow, u8 bw, u8 txstreams);
-extern int16 wlc_rate_legacy_phyctl(uint rate);
+extern s16 wlc_rate_legacy_phyctl(uint rate);
 
 extern void wlc_rateset_mcs_upd(struct wlc_rateset *rs, u8 txstreams);
 extern void wlc_rateset_mcs_clear(struct wlc_rateset *rateset);

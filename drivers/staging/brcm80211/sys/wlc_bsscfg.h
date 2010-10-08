@@ -74,8 +74,8 @@ struct wlc_bsscfg {
 
 	/* security */
 	uint32 wsec;		/* wireless security bitvec */
-	int16 auth;		/* 802.11 authentication: Open, Shared Key, WPA */
-	int16 openshared;	/* try Open auth first, then Shared Key */
+	s16 auth;		/* 802.11 authentication: Open, Shared Key, WPA */
+	s16 openshared;	/* try Open auth first, then Shared Key */
 	bool wsec_restrict;	/* drop unencrypted packets if wsec is enabled */
 	bool eap_restrict;	/* restrict data until 802.1X auth succeeds */
 	u16 WPA_auth;	/* WPA: authenticated key management */

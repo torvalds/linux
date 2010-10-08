@@ -169,8 +169,8 @@ typedef struct wlc_bss_info {
 	u16 flags;		/* flags for internal attributes */
 	u8 SSID_len;		/* the length of SSID */
 	u8 SSID[32];		/* SSID string */
-	int16 RSSI;		/* receive signal strength (in dBm) */
-	int16 SNR;		/* receive signal SNR in dB */
+	s16 RSSI;		/* receive signal strength (in dBm) */
+	s16 SNR;		/* receive signal SNR in dB */
 	u16 beacon_period;	/* units are Kusec */
 	u16 atim_window;	/* units are Kusec */
 	chanspec_t chanspec;	/* Channel num, bw, ctrl_sb and band */

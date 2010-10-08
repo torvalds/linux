@@ -47,9 +47,9 @@ struct phy_info_lcnphy {
 	u8 lcnphy_rssi_vc_hightemp;
 	u8 lcnphy_rssi_gs_hightemp;
 
-	int16 lcnphy_pa0b0;
-	int16 lcnphy_pa0b1;
-	int16 lcnphy_pa0b2;
+	s16 lcnphy_pa0b0;
+	s16 lcnphy_pa0b1;
+	s16 lcnphy_pa0b2;
 
 	u16 lcnphy_rawtempsense;
 	u8 lcnphy_measPower;
@@ -76,8 +76,8 @@ struct phy_info_lcnphy {
 	uint32 lcnphy_gain_idx_14_hiword;
 	uint32 lcnphy_gain_idx_27_lowword;
 	uint32 lcnphy_gain_idx_27_hiword;
-	int16 lcnphy_ofdmgainidxtableoffset;
-	int16 lcnphy_dsssgainidxtableoffset;
+	s16 lcnphy_ofdmgainidxtableoffset;
+	s16 lcnphy_dsssgainidxtableoffset;
 	uint32 lcnphy_tr_R_gain_val;
 	uint32 lcnphy_tr_T_gain_val;
 	s8 lcnphy_input_pwr_offset_db;
@@ -98,8 +98,8 @@ struct phy_info_lcnphy {
 	u16 lcnphy_extstxctrl4;
 	u16 lcnphy_extstxctrl0;
 	u16 lcnphy_extstxctrl1;
-	int16 lcnphy_cck_dig_filt_type;
-	int16 lcnphy_ofdm_dig_filt_type;
+	s16 lcnphy_cck_dig_filt_type;
+	s16 lcnphy_ofdm_dig_filt_type;
 	lcnphy_cal_results_t lcnphy_cal_results;
 
 	u8 lcnphy_psat_pwr;

@@ -55,7 +55,7 @@ typedef struct wl_bss_info_107 {
 	u8 channel;		/* Channel no. */
 	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
-	int16 RSSI;		/* receive signal strength (in dBm) */
+	s16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
 	uint32 ie_length;	/* byte length of Information Elements */
 	/* variable length Information Elements */
@@ -88,7 +88,7 @@ typedef struct wl_bss_info_108 {
 	chanspec_t chanspec;	/* chanspec for bss */
 	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
-	int16 RSSI;		/* receive signal strength (in dBm) */
+	s16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
@@ -132,7 +132,7 @@ typedef struct wl_bss_info {
 	chanspec_t chanspec;	/* chanspec for bss */
 	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
-	int16 RSSI;		/* receive signal strength (in dBm) */
+	s16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
@@ -145,7 +145,7 @@ typedef struct wl_bss_info {
 
 	u16 ie_offset;	/* offset at which IEs start, from beginning */
 	uint32 ie_length;	/* byte length of Information Elements */
-	int16 SNR;		/* average SNR of during frame reception */
+	s16 SNR;		/* average SNR of during frame reception */
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_t;
