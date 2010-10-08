@@ -11,6 +11,8 @@ menuconfig FSL_SOC_BOOKE
 
 if FSL_SOC_BOOKE
 
+if PPC32
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
@@ -167,7 +169,6 @@ config P3041_DS
 config P4080_DS
 	bool "Freescale P4080 DS"
 	select DEFAULT_UIMAGE
-	select PPC_FSL_BOOK3E
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
@@ -175,6 +176,8 @@ config P4080_DS
 	select HAS_RAPIDIO
 	help
 	  This option enables support for the P4080 DS board
+
+endif # PPC32
 
 endif # FSL_SOC_BOOKE
 
