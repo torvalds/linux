@@ -149,7 +149,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 
 			/*
 			 * 16-, 32-, and 64-bit cases must use the move macros that perform
-			 * endian conversion and/or accomodate hardware that cannot perform
+			 * endian conversion and/or accommodate hardware that cannot perform
 			 * misaligned memory transfers
 			 */
 		case ACPI_RSC_MOVE16:

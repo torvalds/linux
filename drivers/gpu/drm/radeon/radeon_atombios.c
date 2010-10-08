@@ -85,6 +85,19 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
 
+			/* some evergreen boards have bad data for this entry */
+			if (ASIC_IS_DCE4(rdev)) {
+				if ((i == 7) &&
+				    (gpio->usClkMaskRegisterIndex == 0x1936) &&
+				    (gpio->sucI2cId.ucAccess == 0)) {
+					gpio->sucI2cId.ucAccess = 0x97;
+					gpio->ucDataMaskShift = 8;
+					gpio->ucDataEnShift = 8;
+					gpio->ucDataY_Shift = 8;
+					gpio->ucDataA_Shift = 8;
+				}
+			}
+
 			if (gpio->sucI2cId.ucAccess == id) {
 				i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
 				i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
@@ -147,6 +160,20 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
 			i2c.valid = false;
+
+			/* some evergreen boards have bad data for this entry */
+			if (ASIC_IS_DCE4(rdev)) {
+				if ((i == 7) &&
+				    (gpio->usClkMaskRegisterIndex == 0x1936) &&
+				    (gpio->sucI2cId.ucAccess == 0)) {
+					gpio->sucI2cId.ucAccess = 0x97;
+					gpio->ucDataMaskShift = 8;
+					gpio->ucDataEnShift = 8;
+					gpio->ucDataY_Shift = 8;
+					gpio->ucDataA_Shift = 8;
+				}
+			}
+
 			i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
 			i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
 			i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
@@ -288,6 +315,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
 		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
+	/* MSI K9A2GM V2/V3 board has no HDMI or DVI */
+	if ((dev->pdev->device == 0x796e) &&
+	    (dev->pdev->subsystem_vendor == 0x1462) &&
+	    (dev->pdev->subsystem_device == 0x7302)) {
+		if ((supported_device == ATOM_DEVICE_DFP2_SUPPORT) ||
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			return false;
 	}
 
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */

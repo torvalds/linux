@@ -204,7 +204,7 @@ struct radeon_i2c_chan {
 
 /* mostly for macs, but really any system without connector tables */
 enum radeon_connector_table {
-	CT_NONE,
+	CT_NONE = 0,
 	CT_GENERIC,
 	CT_IBOOK,
 	CT_POWERBOOK_EXTERNAL,
@@ -215,6 +215,7 @@ enum radeon_connector_table {
 	CT_IMAC_G5_ISIGHT,
 	CT_EMAC,
 	CT_RN50_POWER,
+	CT_MAC_X800,
 };
 
 enum radeon_dvo_chip {
@@ -600,7 +601,6 @@ extern bool radeon_get_atom_connector_info_from_supported_devices_table(struct d
 void radeon_enc_destroy(struct drm_encoder *encoder);
 void radeon_copy_fb(struct drm_device *dev, struct drm_gem_object *dst_obj);
 void radeon_combios_asic_init(struct drm_device *dev);
-extern int radeon_static_clocks_init(struct drm_device *dev);
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode);

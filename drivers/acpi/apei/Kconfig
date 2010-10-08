@@ -34,6 +34,6 @@ config ACPI_APEI_ERST_DEBUG
 	depends on ACPI_APEI
 	help
 	  ERST is a way provided by APEI to save and retrieve hardware
-	  error infomation to and from a persistent store. Enable this
+	  error information to and from a persistent store. Enable this
 	  if you want to debugging and testing the ERST kernel support
 	  and firmware implementation.

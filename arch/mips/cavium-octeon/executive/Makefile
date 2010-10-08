@@ -11,4 +11,4 @@
 
 obj-y += cvmx-bootmem.o cvmx-l2c.o cvmx-sysinfo.o octeon-model.o
 
-obj-$(CONFIG_PCI) += cvmx-helper-errata.o cvmx-helper-jtag.o
+obj-$(CONFIG_CAVIUM_OCTEON_HELPER) += cvmx-helper-errata.o cvmx-helper-jtag.o

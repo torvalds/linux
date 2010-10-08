@@ -298,8 +298,8 @@ static void set_dma_control0(struct pxa168fb_info *fbi)
 	 * Set bit to enable graphics DMA.
 	 */
 	x = readl(fbi->reg_base + LCD_SPU_DMA_CTRL0);
-	x |= fbi->active ? 0x00000100 : 0;
-	fbi->active = 0;
+	x &= ~CFG_GRA_ENA_MASK;
+	x |= fbi->active ? CFG_GRA_ENA(1) : CFG_GRA_ENA(0);
 
 	/*
 	 * If we are in a pseudo-color mode, we need to enable
@@ -559,7 +559,7 @@ static struct fb_ops pxa168fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __init pxa168fb_init_mode(struct fb_info *info,
+static int __devinit pxa168fb_init_mode(struct fb_info *info,
 			      struct pxa168fb_mach_info *mi)
 {
 	struct pxa168fb_info *fbi = info->par;
@@ -599,7 +599,7 @@ static int __init pxa168fb_init_mode(struct fb_info *info,
 	return ret;
 }
 
-static int __init pxa168fb_probe(struct platform_device *pdev)
+static int __devinit pxa168fb_probe(struct platform_device *pdev)
 {
 	struct pxa168fb_mach_info *mi;
 	struct fb_info *info = 0;
@@ -792,7 +792,7 @@ static struct platform_driver pxa168fb_driver = {
 	.probe		= pxa168fb_probe,
 };
 
-static int __devinit pxa168fb_init(void)
+static int __init pxa168fb_init(void)
 {
 	return platform_driver_register(&pxa168fb_driver);
 }

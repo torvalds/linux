@@ -325,11 +325,15 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 	clrbits32(&simple_gpio->simple_dvo, sync | out);
 	clrbits8(&wkup_gpio->wkup_dvo, reset);
 
-	/* wait at lease 1 us */
-	udelay(2);
+	/* wait for 1 us */
+	udelay(1);
 
 	/* Deassert reset */
 	setbits8(&wkup_gpio->wkup_dvo, reset);
+
+	/* wait at least 200ns */
+	/* 7 ~= (200ns * timebase) / ns2sec */
+	__delay(7);
 
 	/* Restore pin-muxing */
 	out_be32(&simple_gpio->port_config, mux);
