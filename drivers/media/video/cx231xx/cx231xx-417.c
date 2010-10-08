@@ -612,39 +612,6 @@ static int mc417_memory_read(struct cx231xx *dev, u32 address, u32 *value)
 	return ret;
 }
 
-static void mc417_gpio_set(struct cx231xx *dev, u32 mask)
-{
-	u32 val;
-
-	/* Set the gpio value */
-	mc417_register_read(dev, 0x900C, &val);
-	val |= (mask & 0x000ffff);
-	mc417_register_write(dev, 0x900C, val);
-}
-
-static void mc417_gpio_clear(struct cx231xx *dev, u32 mask)
-{
-	u32 val;
-
-	/* Clear the gpio value */
-	mc417_register_read(dev, 0x900C, &val);
-	val &= ~(mask & 0x0000ffff);
-	mc417_register_write(dev, 0x900C, val);
-}
-
-static void mc417_gpio_enable(struct cx231xx *dev, u32 mask, int asoutput)
-{
-	u32 val;
-
-	/* Enable GPIO direction bits */
-	mc417_register_read(dev, 0x9020, &val);
-	if (asoutput)
-		val |= (mask & 0x0000ffff);
-	else
-		val &= ~(mask & 0x0000ffff);
-
-	mc417_register_write(dev, 0x9020, val);
-}
 /* ------------------------------------------------------------------ */
 
 /* MPEG encoder API */
