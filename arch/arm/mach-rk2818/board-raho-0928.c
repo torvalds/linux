@@ -1411,7 +1411,7 @@ static struct cmmb_io_def_s cmmb_io = {
 	.cmmb_pw_en = FPGA_PIO4_03,
 	.cmmb_pw_dwn = FPGA_PIO2_09,
 	.cmmb_pw_rst = FPGA_PIO2_06,
-	.cmmb_irq = CMMB_1186_SPIIRQ
+	.cmmb_irq = CMMB_1186_SPIIRQ,
 	.io_init_mux = cmmb_io_init_mux
 };
 
