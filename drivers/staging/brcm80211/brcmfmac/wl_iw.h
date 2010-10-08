@@ -93,8 +93,8 @@ typedef struct wl_iw {
 	struct iw_statistics wstats;
 
 	int spy_num;
-	uint32 pwsec;
-	uint32 gwsec;
+	u32 pwsec;
+	u32 gwsec;
 	bool privacy_invoked;
 
 	struct ether_addr spy_addr[IW_MAX_SPY];

@@ -28,34 +28,34 @@
 
 /* Memcsocram core registers */
 typedef volatile struct sbsocramregs {
-	uint32 coreinfo;
-	uint32 bwalloc;
-	uint32 extracoreinfo;
-	uint32 biststat;
-	uint32 bankidx;
-	uint32 standbyctrl;
+	u32 coreinfo;
+	u32 bwalloc;
+	u32 extracoreinfo;
+	u32 biststat;
+	u32 bankidx;
+	u32 standbyctrl;
 
-	uint32 errlogstatus;	/* rev 6 */
-	uint32 errlogaddr;	/* rev 6 */
+	u32 errlogstatus;	/* rev 6 */
+	u32 errlogaddr;	/* rev 6 */
 	/* used for patching rev 3 & 5 */
-	uint32 cambankidx;
-	uint32 cambankstandbyctrl;
-	uint32 cambankpatchctrl;
-	uint32 cambankpatchtblbaseaddr;
-	uint32 cambankcmdreg;
-	uint32 cambankdatareg;
-	uint32 cambankmaskreg;
-	uint32 PAD[1];
-	uint32 bankinfo;	/* corev 8 */
-	uint32 PAD[15];
-	uint32 extmemconfig;
-	uint32 extmemparitycsr;
-	uint32 extmemparityerrdata;
-	uint32 extmemparityerrcnt;
-	uint32 extmemwrctrlandsize;
-	uint32 PAD[84];
-	uint32 workaround;
-	uint32 pwrctl;		/* corerev >= 2 */
+	u32 cambankidx;
+	u32 cambankstandbyctrl;
+	u32 cambankpatchctrl;
+	u32 cambankpatchtblbaseaddr;
+	u32 cambankcmdreg;
+	u32 cambankdatareg;
+	u32 cambankmaskreg;
+	u32 PAD[1];
+	u32 bankinfo;	/* corev 8 */
+	u32 PAD[15];
+	u32 extmemconfig;
+	u32 extmemparitycsr;
+	u32 extmemparityerrdata;
+	u32 extmemparityerrcnt;
+	u32 extmemwrctrlandsize;
+	u32 PAD[84];
+	u32 workaround;
+	u32 pwrctl;		/* corerev >= 2 */
 } sbsocramregs_t;
 
 #endif				/* _LANGUAGE_ASSEMBLY */

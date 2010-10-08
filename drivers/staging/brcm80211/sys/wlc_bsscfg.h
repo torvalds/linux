@@ -73,7 +73,7 @@ struct wlc_bsscfg {
 	struct ether_addr *maclist;	/* list of source MAC addrs to match */
 
 	/* security */
-	uint32 wsec;		/* wireless security bitvec */
+	u32 wsec;		/* wireless security bitvec */
 	s16 auth;		/* 802.11 authentication: Open, Shared Key, WPA */
 	s16 openshared;	/* try Open auth first, then Shared Key */
 	bool wsec_restrict;	/* drop unencrypted packets if wsec is enabled */
@@ -87,9 +87,9 @@ struct wlc_bsscfg {
 
 	/* TKIP countermeasures */
 	bool tkip_countermeasures;	/* flags TKIP no-assoc period */
-	uint32 tk_cm_dt;	/* detect timer */
-	uint32 tk_cm_bt;	/* blocking timer */
-	uint32 tk_cm_bt_tmstmp;	/* Timestamp when TKIP BT is activated */
+	u32 tk_cm_dt;	/* detect timer */
+	u32 tk_cm_bt;	/* blocking timer */
+	u32 tk_cm_bt_tmstmp;	/* Timestamp when TKIP BT is activated */
 	bool tk_cm_activate;	/* activate countermeasures after EAPOL-Key sent */
 
 	struct ether_addr BSSID;	/* BSSID (associated) */
@@ -97,7 +97,7 @@ struct wlc_bsscfg {
 	u16 bcmc_fid;	/* the last BCMC FID queued to TX_BCMC_FIFO */
 	u16 bcmc_fid_shm;	/* the last BCMC FID written to shared mem */
 
-	uint32 flags;		/* WLC_BSSCFG flags; see below */
+	u32 flags;		/* WLC_BSSCFG flags; see below */
 
 	u8 *bcn;		/* AP beacon */
 	uint bcn_len;		/* AP beacon length */

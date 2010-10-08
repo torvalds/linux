@@ -34,10 +34,10 @@ struct si_pub {
 	uint buscorerev;	/* buscore rev */
 	uint buscoreidx;	/* buscore index */
 	int ccrev;		/* chip common core rev */
-	uint32 cccaps;		/* chip common capabilities */
-	uint32 cccaps_ext;	/* chip common capabilities extension */
+	u32 cccaps;		/* chip common capabilities */
+	u32 cccaps_ext;	/* chip common capabilities extension */
 	int pmurev;		/* pmu core rev */
-	uint32 pmucaps;		/* pmu capabilities */
+	u32 pmucaps;		/* pmu capabilities */
 	uint boardtype;		/* board type */
 	uint boardvendor;	/* board vendor */
 	uint boardflags;	/* board flags */
@@ -45,7 +45,7 @@ struct si_pub {
 	uint chip;		/* chip number */
 	uint chiprev;		/* chip revision */
 	uint chippkg;		/* chip package option */
-	uint32 chipst;		/* chip status */
+	u32 chipst;		/* chip status */
 	bool issim;		/* chip is in simulation or emulation */
 	uint socirev;		/* SOC interconnect rev */
 	bool pci_pr32414;
@@ -122,7 +122,7 @@ typedef const struct si_pub si_t;
 #define CCPLL_ENAB(sih)		((sih)->cccaps & CC_CAP_PLL_MASK)
 #endif
 
-typedef void (*gpio_handler_t) (uint32 stat, void *arg);
+typedef void (*gpio_handler_t) (u32 stat, void *arg);
 
 /* External PA enable mask */
 #define GPIO_CTRL_EPA_EN_MASK 0x40
@@ -141,9 +141,9 @@ extern uint si_corerev(si_t *sih);
 extern void *si_osh(si_t *sih);
 extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		uint val);
-extern void si_write_wrapperreg(si_t *sih, uint32 offset, uint32 val);
-extern uint32 si_core_cflags(si_t *sih, uint32 mask, uint32 val);
-extern uint32 si_core_sflags(si_t *sih, uint32 mask, uint32 val);
+extern void si_write_wrapperreg(si_t *sih, u32 offset, u32 val);
+extern u32 si_core_cflags(si_t *sih, u32 mask, u32 val);
+extern u32 si_core_sflags(si_t *sih, u32 mask, u32 val);
 extern bool si_iscoreup(si_t *sih);
 extern uint si_findcoreidx(si_t *sih, uint coreid, uint coreunit);
 #ifndef BCMSDIO
@@ -153,10 +153,10 @@ extern void *si_setcore(si_t *sih, uint coreid, uint coreunit);
 extern void *si_switch_core(si_t *sih, uint coreid, uint *origidx,
 			    uint *intr_val);
 extern void si_restore_core(si_t *sih, uint coreid, uint intr_val);
-extern void si_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
-extern void si_core_disable(si_t *sih, uint32 bits);
-extern uint32 si_alp_clock(si_t *sih);
-extern uint32 si_ilp_clock(si_t *sih);
+extern void si_core_reset(si_t *sih, u32 bits, u32 resetbits);
+extern void si_core_disable(si_t *sih, u32 bits);
+extern u32 si_alp_clock(si_t *sih);
+extern u32 si_ilp_clock(si_t *sih);
 extern void si_pci_setup(si_t *sih, uint coremask);
 extern void si_setint(si_t *sih, int siflag);
 extern bool si_backplane64(si_t *sih);
@@ -169,10 +169,10 @@ extern u16 si_clkctl_fast_pwrup_delay(si_t *sih);
 extern bool si_clkctl_cc(si_t *sih, uint mode);
 extern int si_clkctl_xtal(si_t *sih, uint what, bool on);
 extern bool si_deviceremoved(si_t *sih);
-extern uint32 si_socram_size(si_t *sih);
+extern u32 si_socram_size(si_t *sih);
 
 extern void si_watchdog(si_t *sih, uint ticks);
-extern uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val,
+extern u32 si_gpiocontrol(si_t *sih, u32 mask, u32 val,
 			     u8 priority);
 
 #ifdef BCMSDIO
@@ -212,15 +212,15 @@ extern void si_sprom_init(si_t *sih);
 
 #define	IS_SIM(chippkg)	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-typedef uint32(*si_intrsoff_t) (void *intr_arg);
-typedef void (*si_intrsrestore_t) (void *intr_arg, uint32 arg);
+typedef u32(*si_intrsoff_t) (void *intr_arg);
+typedef void (*si_intrsrestore_t) (void *intr_arg, u32 arg);
 typedef bool(*si_intrsenabled_t) (void *intr_arg);
 
 typedef struct gpioh_item {
 	void *arg;
 	bool level;
 	gpio_handler_t handler;
-	uint32 event;
+	u32 event;
 	struct gpioh_item *next;
 } gpioh_item_t;
 
@@ -250,19 +250,19 @@ typedef struct si_info {
 	uint curidx;		/* current core index */
 	uint numcores;		/* # discovered cores */
 	uint coreid[SI_MAXCORES];	/* id of each core */
-	uint32 coresba[SI_MAXCORES];	/* backplane address of each core */
+	u32 coresba[SI_MAXCORES];	/* backplane address of each core */
 	void *regs2[SI_MAXCORES];	/* va of each core second register set (usbh20) */
-	uint32 coresba2[SI_MAXCORES];	/* address of each core second register set (usbh20) */
-	uint32 coresba_size[SI_MAXCORES];	/* backplane address space size */
-	uint32 coresba2_size[SI_MAXCORES];	/* second address space size */
+	u32 coresba2[SI_MAXCORES];	/* address of each core second register set (usbh20) */
+	u32 coresba_size[SI_MAXCORES];	/* backplane address space size */
+	u32 coresba2_size[SI_MAXCORES];	/* second address space size */
 
 	void *curwrap;		/* current wrapper va */
 	void *wrappers[SI_MAXCORES];	/* other cores wrapper va */
-	uint32 wrapba[SI_MAXCORES];	/* address of controlling wrapper */
+	u32 wrapba[SI_MAXCORES];	/* address of controlling wrapper */
 
-	uint32 cia[SI_MAXCORES];	/* erom cia entry for each core */
-	uint32 cib[SI_MAXCORES];	/* erom cia entry for each core */
-	uint32 oob_router;	/* oob router registers for axi */
+	u32 cia[SI_MAXCORES];	/* erom cia entry for each core */
+	u32 cib[SI_MAXCORES];	/* erom cia entry for each core */
+	u32 oob_router;	/* oob router registers for axi */
 } si_info_t;
 
 #define	SI_INFO(sih)	(si_info_t *)(uintptr)sih
@@ -356,17 +356,17 @@ extern uint ai_corevendor(si_t *sih);
 extern uint ai_corerev(si_t *sih);
 extern bool ai_iscoreup(si_t *sih);
 extern void *ai_setcoreidx(si_t *sih, uint coreidx);
-extern uint32 ai_core_cflags(si_t *sih, uint32 mask, uint32 val);
-extern void ai_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
-extern uint32 ai_core_sflags(si_t *sih, uint32 mask, uint32 val);
+extern u32 ai_core_cflags(si_t *sih, u32 mask, u32 val);
+extern void ai_core_cflags_wo(si_t *sih, u32 mask, u32 val);
+extern u32 ai_core_sflags(si_t *sih, u32 mask, u32 val);
 extern uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		       uint val);
-extern void ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
-extern void ai_core_disable(si_t *sih, uint32 bits);
+extern void ai_core_reset(si_t *sih, u32 bits, u32 resetbits);
+extern void ai_core_disable(si_t *sih, u32 bits);
 extern int ai_numaddrspaces(si_t *sih);
-extern uint32 ai_addrspace(si_t *sih, uint asidx);
-extern uint32 ai_addrspacesize(si_t *sih, uint asidx);
-extern void ai_write_wrap_reg(si_t *sih, uint32 offset, uint32 val);
+extern u32 ai_addrspace(si_t *sih, uint asidx);
+extern u32 ai_addrspacesize(si_t *sih, uint asidx);
+extern void ai_write_wrap_reg(si_t *sih, u32 offset, u32 val);
 
 #ifdef BCMSDIO
 #define si_setcoreidx(sih, idx) sb_setcoreidx(sih, idx)

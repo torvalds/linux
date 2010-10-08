@@ -30,9 +30,9 @@ char fw_path[MOD_PARAM_PATHLEN];
 char nv_path[MOD_PARAM_PATHLEN];
 
 /* Last connection success/failure status */
-uint32 dhd_conn_event;
-uint32 dhd_conn_status;
-uint32 dhd_conn_reason;
+u32 dhd_conn_event;
+u32 dhd_conn_status;
+u32 dhd_conn_reason;
 
 #define htod32(i) i
 #define htod16(i) i
@@ -200,7 +200,7 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 }
 
 static int
-dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid,
+dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 	    const char *name, void *params, int plen, void *arg, int len,
 	    int val_size)
 {
@@ -313,7 +313,7 @@ exit:
 }
 
 /* Store the status of a connection attempt for later retrieval by an iovar */
-void dhd_store_conn_status(uint32 event, uint32 status, uint32 reason)
+void dhd_store_conn_status(u32 event, u32 status, u32 reason)
 {
 	/* Do not overwrite a WLC_E_PRUNE with a WLC_E_SET_SSID
 	 * because an encryption/rsn mismatch results in both events, and
@@ -387,7 +387,7 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 	int bcmerror = 0;
 	int val_size;
 	const bcm_iovar_t *vi = NULL;
-	uint32 actionid;
+	u32 actionid;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -750,9 +750,9 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 	case WLC_E_TRACE:
 		{
-			static uint32 seqnum_prev;
+			static u32 seqnum_prev;
 			msgtrace_hdr_t hdr;
-			uint32 nblost;
+			u32 nblost;
 			char *s, *p;
 
 			buf = (unsigned char *) event_data;
@@ -835,7 +835,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	/* check whether packet is a BRCM event pkt */
 	bcm_event_t *pvt_data = (bcm_event_t *) pktdata;
 	char *event_data;
-	uint32 type, status;
+	u32 type, status;
 	u16 flags;
 	int evlen;
 
@@ -912,7 +912,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 
 		/* put it back to WLC_E_NDIS_LINK */
 		if (type == WLC_E_NDIS_LINK) {
-			uint32 temp;
+			u32 temp;
 
 			temp = ntoh32_ua((void *)&event->event_type);
 			DHD_TRACE(("Converted to WLC_E_LINK type %d\n", temp));
@@ -1072,8 +1072,8 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	int buf_len;
 	int str_len;
 	int rc;
-	uint32 mask_size;
-	uint32 pattern_size;
+	u32 mask_size;
+	u32 pattern_size;
 	char *argv[8], *buf = 0;
 	int i = 0;
 	char *arg_save = 0, *arg_org = 0;
@@ -1242,8 +1242,8 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint up = 0;
 	char buf[128], *ptr;
 	uint power_mode = PM_FAST;
-	uint32 dongle_align = DHD_SDALIGN;
-	uint32 glom = 0;
+	u32 dongle_align = DHD_SDALIGN;
+	u32 glom = 0;
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;

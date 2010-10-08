@@ -74,7 +74,7 @@
 	+ DOT11_A4_HDR_LEN + DOT11_QOS_LEN + DOT11_IV_MAX_LEN)
 
 #ifdef BCMDBG
-uint32 wl_ampdu_dbg =
+u32 wl_ampdu_dbg =
     WL_AMPDU_UPDN_VAL |
     WL_AMPDU_ERR_VAL |
     WL_AMPDU_TX_VAL |
@@ -93,10 +93,10 @@ typedef struct wlc_fifo_info {
 	u16 ampdu_pld_size;	/* number of bytes to be pre-loaded */
 	u8 mcs2ampdu_table[FFPLD_MAX_MCS + 1];	/* per-mcs max # of mpdus in an ampdu */
 	u16 prev_txfunfl;	/* num of underflows last read from the HW macstats counter */
-	uint32 accum_txfunfl;	/* num of underflows since we modified pld params */
-	uint32 accum_txampdu;	/* num of tx ampdu since we modified pld params  */
-	uint32 prev_txampdu;	/* previous reading of tx ampdu */
-	uint32 dmaxferrate;	/* estimated dma avg xfer rate in kbits/sec */
+	u32 accum_txfunfl;	/* num of underflows since we modified pld params */
+	u32 accum_txampdu;	/* num of tx ampdu since we modified pld params  */
+	u32 prev_txampdu;	/* previous reading of tx ampdu */
+	u32 dmaxferrate;	/* estimated dma avg xfer rate in kbits/sec */
 } wlc_fifo_info_t;
 
 /* AMPDU module specific state */
@@ -116,11 +116,11 @@ struct ampdu_info {
 	u8 dur;		/* max duration of an ampdu (in msec) */
 	u8 txpkt_weight;	/* weight of ampdu in txfifo; reduces rate lag */
 	u8 rx_factor;	/* maximum rx ampdu factor (0-3) ==> 2^(13+x) bytes */
-	uint32 ffpld_rsvd;	/* number of bytes to reserve for preload */
-	uint32 max_txlen[MCS_TABLE_SIZE][2][2];	/* max size of ampdu per mcs, bw and sgi */
+	u32 ffpld_rsvd;	/* number of bytes to reserve for preload */
+	u32 max_txlen[MCS_TABLE_SIZE][2][2];	/* max size of ampdu per mcs, bw and sgi */
 	void *ini_free[AMPDU_INI_FREE];	/* array of ini's to be freed on detach */
 	bool mfbr;		/* enable multiple fallback rate */
-	uint32 tx_max_funl;	/* underflows should be kept such that
+	u32 tx_max_funl;	/* underflows should be kept such that
 				 * (tx_max_funfl*underflows) < tx frames
 				 */
 	wlc_fifo_info_t fifo_tb[NUM_FFPLD_FIFO];	/* table of fifo infos  */
@@ -155,8 +155,8 @@ static void scb_ampdu_update_config_all(ampdu_info_t *ampdu);
 
 static void wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 					  void *p, tx_status_t *txs,
-					  uint32 frmtxstatus,
-					  uint32 frmtxstatus2);
+					  u32 frmtxstatus,
+					  u32 frmtxstatus2);
 
 static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
 {
@@ -335,12 +335,12 @@ static void wlc_ffpld_init(ampdu_info_t *ampdu)
 static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 {
 	ampdu_info_t *ampdu = wlc->ampdu;
-	uint32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, TRUE, FALSE);
-	uint32 txunfl_ratio;
+	u32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, TRUE, FALSE);
+	u32 txunfl_ratio;
 	u8 max_mpdu;
-	uint32 current_ampdu_cnt = 0;
+	u32 current_ampdu_cnt = 0;
 	u16 max_pld_size;
-	uint32 new_txunfl;
+	u32 new_txunfl;
 	wlc_fifo_info_t *fifo = (ampdu->fifo_tb + fid);
 	uint xmtfifo_sz;
 	u16 cur_txunfl;
@@ -365,7 +365,7 @@ static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 		return -1;
 	}
 
-	if ((TXFIFO_SIZE_UNIT * (uint32) xmtfifo_sz) <= ampdu->ffpld_rsvd)
+	if ((TXFIFO_SIZE_UNIT * (u32) xmtfifo_sz) <= ampdu->ffpld_rsvd)
 		return 1;
 
 	max_pld_size = TXFIFO_SIZE_UNIT * xmtfifo_sz - ampdu->ffpld_rsvd;
@@ -455,7 +455,7 @@ static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f)
 {
 	int i;
-	uint32 phy_rate, dma_rate, tmp;
+	u32 phy_rate, dma_rate, tmp;
 	u8 max_mpdu;
 	wlc_fifo_info_t *fifo = (ampdu->fifo_tb + f);
 
@@ -517,7 +517,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 	bool rr = TRUE, fbr = FALSE;
 	uint i, count = 0, fifo, seg_cnt = 0;
 	u16 plen, len, seq = 0, mcl, mch, index, frameid, dma_len = 0;
-	uint32 ampdu_len, maxlen = 0;
+	u32 ampdu_len, maxlen = 0;
 	d11txh_t *txh = NULL;
 	u8 *plcp;
 	struct dot11_header *h;
@@ -914,7 +914,7 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
 	scb_ampdu_t *scb_ampdu;
 	wlc_info_t *wlc = ampdu->wlc;
 	scb_ampdu_tid_ini_t *ini;
-	uint32 s1 = 0, s2 = 0;
+	u32 s1 = 0, s2 = 0;
 	struct ieee80211_tx_info *tx_info;
 
 	tx_info = IEEE80211_SKB_CB(p);
@@ -969,7 +969,7 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
 }
 
 #ifdef WLC_HIGH_ONLY
-void wlc_ampdu_txstatus_complete(ampdu_info_t *ampdu, uint32 s1, uint32 s2)
+void wlc_ampdu_txstatus_complete(ampdu_info_t *ampdu, u32 s1, u32 s2)
 {
 	WL_AMPDU_TX(("wl%d: wlc_ampdu_txstatus_complete: High Recvd 0x%x 0x%x p:%p\n", ampdu->wlc->pub->unit, s1, s2, ampdu->p));
 
@@ -1017,7 +1017,7 @@ extern void wlc_txq_enq(wlc_info_t *wlc, struct scb *scb, void *sdu,
 
 static void BCMFASTPATH
 wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
-			      tx_status_t *txs, uint32 s1, uint32 s2)
+			      tx_status_t *txs, u32 s1, u32 s2)
 {
 	scb_ampdu_t *scb_ampdu;
 	wlc_info_t *wlc = ampdu->wlc;
@@ -1325,7 +1325,7 @@ bool wlc_ampdu_cap(ampdu_info_t *ampdu)
 
 static void ampdu_update_max_txlen(ampdu_info_t *ampdu, u8 dur)
 {
-	uint32 rate, mcs;
+	u32 rate, mcs;
 
 	for (mcs = 0; mcs < MCS_TABLE_SIZE; mcs++) {
 		/* rate is in Kbps; dur is in msec ==> len = (rate * dur) / 8 */

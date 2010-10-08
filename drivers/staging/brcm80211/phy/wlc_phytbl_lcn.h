@@ -17,19 +17,19 @@
 typedef phytbl_info_t dot11lcnphytbl_info_t;
 
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_rev0[];
-extern const uint32 dot11lcnphytbl_rx_gain_info_sz_rev0;
+extern const u32 dot11lcnphytbl_rx_gain_info_sz_rev0;
 extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313;
 extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_epa;
 extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_epa_combo;
 
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_info_rev0[];
-extern const uint32 dot11lcnphytbl_info_sz_rev0;
+extern const u32 dot11lcnphytbl_info_sz_rev0;
 
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_2G_rev2[];
-extern const uint32 dot11lcnphytbl_rx_gain_info_2G_rev2_sz;
+extern const u32 dot11lcnphytbl_rx_gain_info_2G_rev2_sz;
 
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_5G_rev2[];
-extern const uint32 dot11lcnphytbl_rx_gain_info_5G_rev2_sz;
+extern const u32 dot11lcnphytbl_rx_gain_info_5G_rev2_sz;
 
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_extlna_2G_rev2[];
 

@@ -30,11 +30,11 @@
 typedef BWL_PRE_PACKED_STRUCT struct {
 	u16 version;
 	u16 flags;
-	uint32 event_type;
-	uint32 status;
-	uint32 reason;
-	uint32 auth_type;
-	uint32 datalen;
+	u32 event_type;
+	u32 status;
+	u32 reason;
+	u32 auth_type;
+	u32 datalen;
 	struct ether_addr addr;
 	char ifname[BCM_MSG_IFNAME_MAX];
 } BWL_POST_PACKED_STRUCT wl_event_msg_t;

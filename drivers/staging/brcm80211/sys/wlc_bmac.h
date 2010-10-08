@@ -41,7 +41,7 @@ typedef struct wlc_bmac_revinfo {
 	uint bustype;		/* SB_BUS, PCI_BUS  */
 	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
 	uint buscorerev;	/* buscore rev */
-	uint32 issim;		/* chip is in simulation or emulation */
+	u32 issim;		/* chip is in simulation or emulation */
 
 	uint nbands;
 
@@ -59,8 +59,8 @@ typedef struct wlc_bmac_revinfo {
 
 /* dup state between BMAC(wlc_hw_info_t) and HIGH(wlc_info_t) driver */
 typedef struct wlc_bmac_state {
-	uint32 machwcap;	/* mac hw capibility */
-	uint32 preamble_ovr;	/* preamble override */
+	u32 machwcap;	/* mac hw capibility */
+	u32 preamble_ovr;	/* preamble override */
 } wlc_bmac_state_t;
 
 enum {
@@ -144,9 +144,9 @@ extern void wlc_bmac_xtal(wlc_hw_info_t *wlc_hw, bool want);
 
 extern void wlc_bmac_copyto_objmem(wlc_hw_info_t *wlc_hw,
 				   uint offset, const void *buf, int len,
-				   uint32 sel);
+				   u32 sel);
 extern void wlc_bmac_copyfrom_objmem(wlc_hw_info_t *wlc_hw, uint offset,
-				     void *buf, int len, uint32 sel);
+				     void *buf, int len, u32 sel);
 #define wlc_bmac_copyfrom_shm(wlc_hw, offset, buf, len)                 \
 	wlc_bmac_copyfrom_objmem(wlc_hw, offset, buf, len, OBJADDR_SHM_SEL)
 #define wlc_bmac_copyto_shm(wlc_hw, offset, buf, len)                   \
@@ -158,7 +158,7 @@ extern void wlc_bmac_core_phypll_ctl(wlc_hw_info_t *wlc_hw, bool on);
 extern void wlc_bmac_phyclk_fgc(wlc_hw_info_t *wlc_hw, bool clk);
 extern void wlc_bmac_macphyclk_set(wlc_hw_info_t *wlc_hw, bool clk);
 extern void wlc_bmac_phy_reset(wlc_hw_info_t *wlc_hw);
-extern void wlc_bmac_corereset(wlc_hw_info_t *wlc_hw, uint32 flags);
+extern void wlc_bmac_corereset(wlc_hw_info_t *wlc_hw, u32 flags);
 extern void wlc_bmac_reset(wlc_hw_info_t *wlc_hw);
 extern void wlc_bmac_init(wlc_hw_info_t *wlc_hw, chanspec_t chanspec,
 			  bool mute);
@@ -166,7 +166,7 @@ extern int wlc_bmac_up_prep(wlc_hw_info_t *wlc_hw);
 extern int wlc_bmac_up_finish(wlc_hw_info_t *wlc_hw);
 extern int wlc_bmac_down_prep(wlc_hw_info_t *wlc_hw);
 extern int wlc_bmac_down_finish(wlc_hw_info_t *wlc_hw);
-extern void wlc_bmac_corereset(wlc_hw_info_t *wlc_hw, uint32 flags);
+extern void wlc_bmac_corereset(wlc_hw_info_t *wlc_hw, u32 flags);
 extern void wlc_bmac_switch_macfreq(wlc_hw_info_t *wlc_hw, u8 spurmode);
 
 /* chanspec, ucode interface */
@@ -180,7 +180,7 @@ extern int wlc_bmac_xmtfifo_sz_get(wlc_hw_info_t *wlc_hw, uint fifo,
 				   uint *blocks);
 extern void wlc_bmac_mhf(wlc_hw_info_t *wlc_hw, u8 idx, u16 mask,
 			 u16 val, int bands);
-extern void wlc_bmac_mctrl(wlc_hw_info_t *wlc_hw, uint32 mask, uint32 val);
+extern void wlc_bmac_mctrl(wlc_hw_info_t *wlc_hw, u32 mask, u32 val);
 extern u16 wlc_bmac_mhf_get(wlc_hw_info_t *wlc_hw, u8 idx, int bands);
 extern int wlc_bmac_xmtfifo_sz_set(wlc_hw_info_t *wlc_hw, uint fifo,
 				   uint blocks);
@@ -219,9 +219,9 @@ extern void wlc_bmac_tx_fifo_suspend(wlc_hw_info_t *wlc_hw, uint tx_fifo);
 extern void wlc_bmac_tx_fifo_resume(wlc_hw_info_t *wlc_hw, uint tx_fifo);
 
 extern void wlc_ucode_wake_override_set(wlc_hw_info_t *wlc_hw,
-					uint32 override_bit);
+					u32 override_bit);
 extern void wlc_ucode_wake_override_clear(wlc_hw_info_t *wlc_hw,
-					  uint32 override_bit);
+					  u32 override_bit);
 
 extern void wlc_bmac_set_rcmta(wlc_hw_info_t *wlc_hw, int idx,
 			       const struct ether_addr *addr);
@@ -230,8 +230,8 @@ extern void wlc_bmac_set_addrmatch(wlc_hw_info_t *wlc_hw, int match_reg_offset,
 extern void wlc_bmac_write_hw_bcntemplates(wlc_hw_info_t *wlc_hw, void *bcn,
 					   int len, bool both);
 
-extern void wlc_bmac_read_tsf(wlc_hw_info_t *wlc_hw, uint32 *tsf_l_ptr,
-			      uint32 *tsf_h_ptr);
+extern void wlc_bmac_read_tsf(wlc_hw_info_t *wlc_hw, u32 *tsf_l_ptr,
+			      u32 *tsf_h_ptr);
 extern void wlc_bmac_set_cwmin(wlc_hw_info_t *wlc_hw, u16 newmin);
 extern void wlc_bmac_set_cwmax(wlc_hw_info_t *wlc_hw, u16 newmax);
 extern void wlc_bmac_set_noreset(wlc_hw_info_t *wlc, bool noreset_flag);
@@ -246,10 +246,10 @@ extern void wlc_bmac_fifoerrors(wlc_hw_info_t *wlc_hw);
 extern void wlc_bmac_dngl_reboot(rpc_info_t *);
 extern void wlc_bmac_dngl_rpc_agg(rpc_info_t *, u16 agg);
 extern void wlc_bmac_dngl_rpc_msglevel(rpc_info_t *, u16 level);
-extern void wlc_bmac_dngl_rpc_txq_wm_set(rpc_info_t *rpc, uint32 wm);
-extern void wlc_bmac_dngl_rpc_txq_wm_get(rpc_info_t *rpc, uint32 *wm);
-extern void wlc_bmac_dngl_rpc_agg_limit_set(rpc_info_t *rpc, uint32 val);
-extern void wlc_bmac_dngl_rpc_agg_limit_get(rpc_info_t *rpc, uint32 *pval);
+extern void wlc_bmac_dngl_rpc_txq_wm_set(rpc_info_t *rpc, u32 wm);
+extern void wlc_bmac_dngl_rpc_txq_wm_get(rpc_info_t *rpc, u32 *wm);
+extern void wlc_bmac_dngl_rpc_agg_limit_set(rpc_info_t *rpc, u32 val);
+extern void wlc_bmac_dngl_rpc_agg_limit_get(rpc_info_t *rpc, u32 *pval);
 extern int wlc_bmac_debug_template(wlc_hw_info_t *wlc_hw);
 #endif
 
@@ -268,10 +268,10 @@ extern void wlc_gpio_fast_deinit(wlc_hw_info_t *wlc_hw);
 extern bool wlc_bmac_radio_hw(wlc_hw_info_t *wlc_hw, bool enable);
 extern u16 wlc_bmac_rate_shm_offset(wlc_hw_info_t *wlc_hw, u8 rate);
 
-extern void wlc_bmac_assert_type_set(wlc_hw_info_t *wlc_hw, uint32 type);
+extern void wlc_bmac_assert_type_set(wlc_hw_info_t *wlc_hw, u32 type);
 extern void wlc_bmac_set_txpwr_percent(wlc_hw_info_t *wlc_hw, u8 val);
-extern void wlc_bmac_blink_sync(wlc_hw_info_t *wlc_hw, uint32 led_pins);
+extern void wlc_bmac_blink_sync(wlc_hw_info_t *wlc_hw, u32 led_pins);
 extern void wlc_bmac_ifsctl_edcrs_set(wlc_hw_info_t *wlc_hw, bool abie,
 				      bool isht);
 
-extern void wlc_bmac_antsel_set(wlc_hw_info_t *wlc_hw, uint32 antsel_avail);
+extern void wlc_bmac_antsel_set(wlc_hw_info_t *wlc_hw, u32 antsel_avail);

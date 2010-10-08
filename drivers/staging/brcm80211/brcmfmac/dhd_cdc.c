@@ -54,7 +54,7 @@ extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 typedef struct dhd_prot {
 	u16 reqid;
 	u8 pending;
-	uint32 lastcmd;
+	u32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];
 	cdc_ioctl_t msg;
 	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
@@ -78,7 +78,7 @@ static int dhdcdc_msg(dhd_pub_t *dhd)
 	return dhd_bus_txctl(dhd->bus, (unsigned char *)&prot->msg, len);
 }
 
-static int dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
+static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 {
 	int ret;
 	dhd_prot_t *prot = dhd->prot;
@@ -103,7 +103,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	cdc_ioctl_t *msg = &prot->msg;
 	void *info;
 	int ret = 0, retries = 0;
-	uint32 id, flags = 0;
+	u32 id, flags = 0;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 	DHD_CTL(("%s: cmd %d len %d\n", __func__, cmd, len));
@@ -182,7 +182,7 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	dhd_prot_t *prot = dhd->prot;
 	cdc_ioctl_t *msg = &prot->msg;
 	int ret = 0;
-	uint32 flags, id;
+	u32 flags, id;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 	DHD_CTL(("%s: cmd %d len %d\n", __func__, cmd, len));

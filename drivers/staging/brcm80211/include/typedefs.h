@@ -44,10 +44,6 @@ typedef unsigned int uint;
 
 /* define [u]int32/64, uintptr */
 
-#ifndef TYPEDEF_UINT32
-typedef unsigned int uint32;
-#endif
-
 #ifndef TYPEDEF_UINTPTR
 typedef unsigned int uintptr;
 #endif
@@ -77,7 +73,6 @@ typedef signed int int32;
 #define	AUTO	(-1)		/* Auto = -1 */
 
 #undef TYPEDEF_UINT
-#undef TYPEDEF_UINT32
 #undef TYPEDEF_UINTPTR
 #undef TYPEDEF_INT32
 

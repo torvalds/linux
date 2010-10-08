@@ -18,7 +18,7 @@
 typedef struct d11init {
 	u16 addr;
 	u16 size;
-	uint32 value;
+	u32 value;
 } d11init_t;
 
 extern d11init_t *d11lcn0bsinitvals24;
@@ -30,9 +30,9 @@ extern d11init_t *d11lcn2initvals24;
 extern d11init_t *d11n0absinitvals16;
 extern d11init_t *d11n0bsinitvals16;
 extern d11init_t *d11n0initvals16;
-extern uint32 *bcm43xx_16_mimo;
-extern uint32 bcm43xx_16_mimosz;
-extern uint32 *bcm43xx_24_lcn;
-extern uint32 bcm43xx_24_lcnsz;
-extern uint32 *bcm43xx_bommajor;
-extern uint32 *bcm43xx_bomminor;
+extern u32 *bcm43xx_16_mimo;
+extern u32 bcm43xx_16_mimosz;
+extern u32 *bcm43xx_24_lcn;
+extern u32 bcm43xx_24_lcnsz;
+extern u32 *bcm43xx_bommajor;
+extern u32 *bcm43xx_bomminor;

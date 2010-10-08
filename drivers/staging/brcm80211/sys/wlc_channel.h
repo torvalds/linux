@@ -54,7 +54,7 @@ struct wlc_info;
 
 /* locale channel and power info. */
 typedef struct {
-	uint32 valid_channels;
+	u32 valid_channels;
 	u8 radar_channels;	/* List of radar sensitive channels */
 	u8 restricted_channels;	/* List of channels used only if APs are detected */
 	s8 maxpwr[WLC_MAXPWR_TBL_SIZE];	/* Max tx pwr in qdBm for each sub-band */

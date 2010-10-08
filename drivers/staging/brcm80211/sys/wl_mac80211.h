@@ -53,17 +53,17 @@ struct wl_if {
 
 #define WL_MAX_FW		4
 struct wl_firmware {
-	uint32 fw_cnt;
+	u32 fw_cnt;
 	const struct firmware *fw_bin[WL_MAX_FW];
 	const struct firmware *fw_hdr[WL_MAX_FW];
-	uint32 hdr_num_entries[WL_MAX_FW];
+	u32 hdr_num_entries[WL_MAX_FW];
 };
 
 struct wl_info {
 	wlc_pub_t *pub;		/* pointer to public wlc state */
 	void *wlc;		/* pointer to private common os-independent data */
 	osl_t *osh;		/* pointer to os handler */
-	uint32 magic;
+	u32 magic;
 
 	int irq;
 
@@ -85,7 +85,7 @@ struct wl_info {
 #endif				/* BCMSDIO */
 	bool resched;		/* dpc needs to be and is rescheduled */
 #ifdef LINUXSTA_PS
-	uint32 pci_psstate[16];	/* pci ps-state save/restore */
+	u32 pci_psstate[16];	/* pci ps-state save/restore */
 #endif
 	/* RPC, handle, lock, txq, workitem */
 #ifdef WLC_HIGH_ONLY
@@ -154,8 +154,8 @@ extern int wl_ucode_data_init(wl_info_t *wl);
 extern void wl_ucode_data_free(void);
 #ifdef WLC_LOW
 extern void wl_ucode_free_buf(void *);
-extern int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, uint32 idx);
-extern int wl_ucode_init_uint(wl_info_t *wl, uint32 *data, uint32 idx);
+extern int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx);
+extern int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx);
 #endif				/* WLC_LOW */
 
 #endif				/* _wl_mac80211_h_ */

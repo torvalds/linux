@@ -16,11 +16,11 @@
 #include <proto/ethernet.h>
 
 typedef struct cdc_ioctl {
-	uint32 cmd;		/* ioctl command value */
-	uint32 len;		/* lower 16: output buflen; upper 16:
+	u32 cmd;		/* ioctl command value */
+	u32 len;		/* lower 16: output buflen; upper 16:
 				 input buflen (excludes header) */
-	uint32 flags;		/* flag defns given below */
-	uint32 status;		/* status code returned from the device */
+	u32 flags;		/* flag defns given below */
+	u32 status;		/* status code returned from the device */
 } cdc_ioctl_t;
 
 /* Max valid buffer size that can be sent to the dongle */

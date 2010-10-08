@@ -18,7 +18,7 @@
 #define _wl_dbg_h_
 
 /* wl_msg_level is a bit vector with defs in wlioctl.h */
-extern uint32 wl_msg_level;
+extern u32 wl_msg_level;
 
 #define WL_PRINT(args)		printf args
 #define WL_NONE(args)
@@ -42,7 +42,7 @@ extern uint32 wl_msg_level;
 #define   WL_AMPDU_HWTXS_VAL    0x00000040	/* AMPDU_HWTXS */
 #define   WL_AMPDU_HWDBG_VAL    0x00000080	/* AMPDU_DBG */
 
-extern uint32 wl_ampdu_dbg;
+extern u32 wl_ampdu_dbg;
 
 #define WL_AMPDU_UPDN(args) do {if (wl_ampdu_dbg & WL_AMPDU_UPDN_VAL) {WL_AMPDU(args); } } while (0)
 #define WL_AMPDU_RX(args) do {if (wl_ampdu_dbg & WL_AMPDU_RX_VAL) {WL_AMPDU(args); } } while (0)

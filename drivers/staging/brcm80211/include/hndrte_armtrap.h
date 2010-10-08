@@ -50,26 +50,26 @@
 #include <typedefs.h>
 
 typedef struct _trap_struct {
-	uint32 type;
-	uint32 epc;
-	uint32 cpsr;
-	uint32 spsr;
-	uint32 r0;
-	uint32 r1;
-	uint32 r2;
-	uint32 r3;
-	uint32 r4;
-	uint32 r5;
-	uint32 r6;
-	uint32 r7;
-	uint32 r8;
-	uint32 r9;
-	uint32 r10;
-	uint32 r11;
-	uint32 r12;
-	uint32 r13;
-	uint32 r14;
-	uint32 pc;
+	u32 type;
+	u32 epc;
+	u32 cpsr;
+	u32 spsr;
+	u32 r0;
+	u32 r1;
+	u32 r2;
+	u32 r3;
+	u32 r4;
+	u32 r5;
+	u32 r6;
+	u32 r7;
+	u32 r8;
+	u32 r9;
+	u32 r10;
+	u32 r11;
+	u32 r12;
+	u32 r13;
+	u32 r14;
+	u32 pc;
 } trap_t;
 
 #endif				/* !_LANGUAGE_ASSEMBLY */

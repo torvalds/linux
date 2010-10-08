@@ -21,7 +21,7 @@
 #define LOG_BUF_LEN	1024
 
 typedef struct {
-	uint32 buf;		/* Can't be pointer on (64-bit) hosts */
+	u32 buf;		/* Can't be pointer on (64-bit) hosts */
 	uint buf_size;
 	uint idx;
 	char *_buf_compat;	/* Redundant pointer for backward compat. */

@@ -39,8 +39,8 @@ typedef volatile struct {
 
 /* 4byte-wide pio register set per channel(xmt or rcv) */
 typedef volatile struct {
-	uint32 fifocontrol;
-	uint32 fifodata;
+	u32 fifocontrol;
+	u32 fifodata;
 } pio4regs_t;
 
 /* a pair of pio channels(tx and rx) */

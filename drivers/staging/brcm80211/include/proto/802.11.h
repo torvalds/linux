@@ -81,7 +81,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_management_header {
 #define	DOT11_MGMT_HDR_LEN	24
 
 BWL_PRE_PACKED_STRUCT struct dot11_bcn_prb {
-	uint32 timestamp[2];
+	u32 timestamp[2];
 	u16 beacon_interval;
 	u16 capability;
 } BWL_POST_PACKED_STRUCT;
@@ -236,20 +236,20 @@ typedef struct wme_param_ie wme_param_ie_t;
 #define	DOT11_MAXNUMFRAGS	16
 
 typedef struct d11cnt {
-	uint32 txfrag;
-	uint32 txmulti;
-	uint32 txfail;
-	uint32 txretry;
-	uint32 txretrie;
-	uint32 rxdup;
-	uint32 txrts;
-	uint32 txnocts;
-	uint32 txnoack;
-	uint32 rxfrag;
-	uint32 rxmulti;
-	uint32 rxcrc;
-	uint32 txfrmsnt;
-	uint32 rxundec;
+	u32 txfrag;
+	u32 txmulti;
+	u32 txfail;
+	u32 txretry;
+	u32 txretrie;
+	u32 rxdup;
+	u32 txrts;
+	u32 txnocts;
+	u32 txnoack;
+	u32 rxfrag;
+	u32 rxmulti;
+	u32 rxcrc;
+	u32 txfrmsnt;
+	u32 rxundec;
 } d11cnt_t;
 
 #define MCSSET_LEN	16
@@ -259,7 +259,7 @@ BWL_PRE_PACKED_STRUCT struct ht_cap_ie {
 	u8 params;
 	u8 supp_mcs[MCSSET_LEN];
 	u16 ext_htcap;
-	uint32 txbf_cap;
+	u32 txbf_cap;
 	u8 as_cap;
 } BWL_POST_PACKED_STRUCT;
 typedef struct ht_cap_ie ht_cap_ie_t;

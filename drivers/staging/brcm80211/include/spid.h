@@ -31,12 +31,12 @@ typedef volatile struct {
 	u8 reset_bp;		/* 0x03, reset on wlan/bt backplane reset (corerev >= 1) */
 	u16 intr_reg;	/* 0x04, Intr status register */
 	u16 intr_en_reg;	/* 0x06, Intr mask register */
-	uint32 status_reg;	/* 0x08, RO, Status bits of last spi transfer */
+	u32 status_reg;	/* 0x08, RO, Status bits of last spi transfer */
 	u16 f1_info_reg;	/* 0x0c, RO, enabled, ready for data transfer, blocksize */
 	u16 f2_info_reg;	/* 0x0e, RO, enabled, ready for data transfer, blocksize */
 	u16 f3_info_reg;	/* 0x10, RO, enabled, ready for data transfer, blocksize */
-	uint32 test_read;	/* 0x14, RO 0xfeedbead signature */
-	uint32 test_rw;		/* 0x18, RW */
+	u32 test_read;	/* 0x14, RO 0xfeedbead signature */
+	u32 test_rw;		/* 0x18, RW */
 	u8 resp_delay_f0;	/* 0x1c, read resp delay bytes for F0 (corerev >= 3) */
 	u8 resp_delay_f1;	/* 0x1d, read resp delay bytes for F1 (corerev >= 3) */
 	u8 resp_delay_f2;	/* 0x1e, read resp delay bytes for F2 (corerev >= 3) */

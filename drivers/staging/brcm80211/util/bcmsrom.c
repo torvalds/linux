@@ -85,7 +85,7 @@ static int sprom_read_pci(osl_t *osh, si_t *sih, u16 *sprom, uint wordoff,
 #if defined(BCMNVRAMR)
 static int otp_read_pci(osl_t *osh, si_t *sih, u16 *buf, uint bufsz);
 #endif
-static u16 srom_cc_cmd(si_t *sih, osl_t *osh, void *ccregs, uint32 cmd,
+static u16 srom_cc_cmd(si_t *sih, osl_t *osh, void *ccregs, u32 cmd,
 			  uint wordoff, u16 data);
 
 static int initvars_table(osl_t *osh, char *start, char *end, char **vars,
@@ -388,7 +388,7 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, u8 *pcis[], uint ciscnt,
 	u8 *cis, tup, tlen, sromrev = 1;
 	int i, j;
 	bool ag_init = FALSE;
-	uint32 w32;
+	u32 w32;
 	uint funcid;
 	uint cisnum;
 	int32 boardnum;
@@ -1413,7 +1413,7 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, u8 *pcis[], uint ciscnt,
  * not in the bus cores.
  */
 static u16
-srom_cc_cmd(si_t *sih, osl_t *osh, void *ccregs, uint32 cmd, uint wordoff,
+srom_cc_cmd(si_t *sih, osl_t *osh, void *ccregs, u32 cmd, uint wordoff,
 	    u16 data)
 {
 	chipcregs_t *cc = (chipcregs_t *) ccregs;
@@ -1708,11 +1708,11 @@ static void
 BCMATTACHFN(_initvars_srom_pci) (u8 sromrev, u16 *srom, uint off,
 				 varbuf_t *b) {
 	u16 w;
-	uint32 val;
+	u32 val;
 	const sromvar_t *srv;
 	uint width;
 	uint flags;
-	uint32 sr = (1 << sromrev);
+	u32 sr = (1 << sromrev);
 
 	varbuf_append(b, "sromrev=%d", sromrev);
 
@@ -1786,7 +1786,7 @@ BCMATTACHFN(_initvars_srom_pci) (u8 sromrev, u16 *srom, uint off,
 			 *(oncount >> 24) (offcount >> 8)
 			 */
 			else if (flags & SRFL_LEDDC) {
-				uint32 w32 = (((val >> 8) & 0xff) << 24) |	/* oncount */
+				u32 w32 = (((val >> 8) & 0xff) << 24) |	/* oncount */
 				    (((val & 0xff)) << 8);	/* offcount */
 				varbuf_append(b, "leddc=%d", w32);
 			} else if (flags & SRFL_PRHEX)
@@ -1858,7 +1858,7 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 				uint *count) {
 	u16 *srom, *sromwindow;
 	u8 sromrev = 0;
-	uint32 sr;
+	u32 sr;
 	varbuf_t b;
 	char *vp, *base = NULL;
 	osl_t *osh = si_osh(sih);
@@ -1922,7 +1922,7 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 	 */
 	if (err) {
 		char *value;
-		uint32 val;
+		u32 val;
 		val = 0;
 
 		value = si_getdevpathvar(sih, "sromrev");

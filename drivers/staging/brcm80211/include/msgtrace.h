@@ -29,14 +29,14 @@ typedef BWL_PRE_PACKED_STRUCT struct msgtrace_hdr {
 	u8 version;
 	u8 spare;
 	u16 len;		/* Len of the trace */
-	uint32 seqnum;		/* Sequence number of message. Useful
+	u32 seqnum;		/* Sequence number of message. Useful
 				 * if the messsage has been lost
 				 * because of DMA error or a bus reset
 				 * (ex: SDIO Func2)
 				 */
-	uint32 discarded_bytes;	/* Number of discarded bytes because of
+	u32 discarded_bytes;	/* Number of discarded bytes because of
 				 trace overflow  */
-	uint32 discarded_printf;	/* Number of discarded printf
+	u32 discarded_printf;	/* Number of discarded printf
 				 because of trace overflow */
 } BWL_POST_PACKED_STRUCT msgtrace_hdr_t;
 

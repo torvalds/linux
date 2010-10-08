@@ -420,7 +420,7 @@ typedef struct wlc_hwband {
 	u8 bandhw_stf_ss_mode;	/* HW configured STF type, 0:siso; 1:cdd */
 	u16 CWmin;
 	u16 CWmax;
-	uint32 core_flags;
+	u32 core_flags;
 
 	u16 phytype;		/* phytype */
 	u16 phyrev;
@@ -451,10 +451,10 @@ struct wlc_hw_info {
 	uint corerev;		/* core revision */
 	u8 sromrev;		/* version # of the srom */
 	u16 boardrev;	/* version # of particular board */
-	uint32 boardflags;	/* Board specific flags from srom */
-	uint32 boardflags2;	/* More board flags if sromrev >= 4 */
-	uint32 machwcap;	/* MAC capabilities (corerev >= 13) */
-	uint32 machwcap_backup;	/* backup of machwcap (corerev >= 13) */
+	u32 boardflags;	/* Board specific flags from srom */
+	u32 boardflags2;	/* More board flags if sromrev >= 4 */
+	u32 machwcap;	/* MAC capabilities (corerev >= 13) */
+	u32 machwcap_backup;	/* backup of machwcap (corerev >= 13) */
 	u16 ucode_dbgsel;	/* dbgsel for ucode debug(config gpio) */
 
 	si_t *sih;		/* SB handle (cookie for siutils calls) */
@@ -483,12 +483,12 @@ struct wlc_hw_info {
 	mbool pllreq;		/* pll requests to keep PLL on */
 
 	u8 suspended_fifos;	/* Which TX fifo to remain awake for */
-	uint32 maccontrol;	/* Cached value of maccontrol */
+	u32 maccontrol;	/* Cached value of maccontrol */
 	uint mac_suspend_depth;	/* current depth of mac_suspend levels */
-	uint32 wake_override;	/* Various conditions to force MAC to WAKE mode */
-	uint32 mute_override;	/* Prevent ucode from sending beacons */
+	u32 wake_override;	/* Various conditions to force MAC to WAKE mode */
+	u32 mute_override;	/* Prevent ucode from sending beacons */
 	struct ether_addr etheraddr;	/* currently configured ethernet address */
-	uint32 led_gpio_mask;	/* LED GPIO Mask */
+	u32 led_gpio_mask;	/* LED GPIO Mask */
 	bool noreset;		/* true= do not reset hw, used by WLC_OUT */
 	bool forcefastclk;	/* true if the h/w is forcing the use of fast clk */
 	bool clk;		/* core is out of reset and has clock */
@@ -506,9 +506,9 @@ struct wlc_hw_info {
 	struct wl_timer *wdtimer;	/* timer for watchdog routine */
 	struct ether_addr orig_etheraddr;	/* original hw ethernet address */
 	u16 rpc_dngl_agg;	/* rpc agg control for dongle */
-	uint32 mem_required_def;	/* memory required to replenish RX DMA ring */
-	uint32 mem_required_lower;	/* memory required with lower RX bound */
-	uint32 mem_required_least;	/* minimum memory requirement to handle RX */
+	u32 mem_required_def;	/* memory required to replenish RX DMA ring */
+	u32 mem_required_lower;	/* memory required with lower RX bound */
+	u32 mem_required_least;	/* minimum memory requirement to handle RX */
 
 #endif				/* WLC_LOW_ONLY */
 
@@ -516,7 +516,7 @@ struct wlc_hw_info {
 	u8 antsel_type;	/* Type of boardlevel mimo antenna switch-logic
 				 * 0 = N/A, 1 = 2x4 board, 2 = 2x3 CB2 board
 				 */
-	uint32 antsel_avail;	/* put antsel_info_t here if more info is needed */
+	u32 antsel_avail;	/* put antsel_info_t here if more info is needed */
 #endif				/* WLC_LOW */
 };
 
@@ -552,9 +552,9 @@ struct wlc_info {
 	u16 fastpwrup_dly;	/* time in us needed to bring up d11 fast clock */
 
 	/* interrupt */
-	uint32 macintstatus;	/* bit channel between isr and dpc */
-	uint32 macintmask;	/* sw runtime master macintmask value */
-	uint32 defmacintmask;	/* default "on" macintmask value */
+	u32 macintstatus;	/* bit channel between isr and dpc */
+	u32 macintmask;	/* sw runtime master macintmask value */
+	u32 defmacintmask;	/* default "on" macintmask value */
 
 	/* up and down */
 	bool device_present;	/* (removable) device is present */
@@ -583,8 +583,8 @@ struct wlc_info {
 #ifdef WLC_HIGH_ONLY
 	rpctx_info_t *rpctx;	/* RPC TX module */
 	bool reset_bmac_pending;	/* bmac reset is in progressing */
-	uint32 rpc_agg;		/* host agg: bit 16-31, bmac agg: bit 0-15 */
-	uint32 rpc_msglevel;	/* host rpc: bit 16-31, bmac rpc: bit 0-15 */
+	u32 rpc_agg;		/* host agg: bit 16-31, bmac agg: bit 0-15 */
+	u32 rpc_msglevel;	/* host rpc: bit 16-31, bmac rpc: bit 0-15 */
 #endif
 
 	ampdu_info_t *ampdu;	/* ampdu module handler */
@@ -599,7 +599,7 @@ struct wlc_info {
 	u16 deviceid;	/* PCI device id */
 	uint ucode_rev;		/* microcode revision */
 
-	uint32 machwcap;	/* MAC capabilities, BMAC shadow */
+	u32 machwcap;	/* MAC capabilities, BMAC shadow */
 
 	struct ether_addr perm_etheraddr;	/* original sprom local ethernet address */
 
@@ -661,7 +661,7 @@ struct wlc_info {
 	u8 bcn_li_dtim;	/* beacon listen interval in # dtims */
 
 	bool WDarmed;		/* watchdog timer is armed */
-	uint32 WDlast;		/* last time wlc_watchdog() was called */
+	u32 WDlast;		/* last time wlc_watchdog() was called */
 
 	/* WME */
 	ac_bitmap_t wme_dp;	/* Discard (oldest first) policy per AC */
@@ -776,13 +776,13 @@ struct wlc_info {
 
 	pkt_cb_t *pkt_callback;	/* tx completion callback handlers */
 
-	uint32 txretried;	/* tx retried number in one msdu */
+	u32 txretried;	/* tx retried number in one msdu */
 
 	ratespec_t bcn_rspec;	/* save bcn ratespec purpose */
 
 	bool apsd_sta_usp;	/* Unscheduled Service Period in progress on STA */
 	struct wl_timer *apsd_trigger_timer;	/* timer for wme apsd trigger frames */
-	uint32 apsd_trigger_timeout;	/* timeout value for apsd_trigger_timer (in ms)
+	u32 apsd_trigger_timeout;	/* timeout value for apsd_trigger_timer (in ms)
 					 * 0 == disable
 					 */
 	ac_bitmap_t apsd_trigger_ac;	/* Permissible Acess Category in which APSD Null
@@ -809,10 +809,10 @@ struct wlc_info {
 
 	wlc_if_t *wlcif_list;	/* linked list of wlc_if structs */
 	wlc_txq_info_t *active_queue;	/* txq for the currently active transmit context */
-	uint32 mpc_dur;		/* total time (ms) in mpc mode except for the
+	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
 				 */
-	uint32 mpc_laston_ts;	/* timestamp (ms) when radio is turned off last
+	u32 mpc_laston_ts;	/* timestamp (ms) when radio is turned off last
 				 * time
 				 */
 	bool pr80838_war;
@@ -870,11 +870,11 @@ struct antsel_info {
 	((len1 == len2) && !bcmp(ssid1, ssid2, len1))
 
 /* API shared by both WLC_HIGH and WLC_LOW driver */
-extern void wlc_high_dpc(wlc_info_t *wlc, uint32 macintstatus);
+extern void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus);
 extern void wlc_fatal_error(wlc_info_t *wlc);
 extern void wlc_bmac_rpc_watchdog(wlc_info_t *wlc);
 extern void wlc_recv(wlc_info_t *wlc, void *p);
-extern bool wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, uint32 frm_tx2);
+extern bool wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2);
 extern void wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit,
 		       s8 txpktpend);
 extern void wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, s8 txpktpend);
@@ -892,8 +892,8 @@ extern void wlc_set_rcmta(wlc_info_t *wlc, int idx,
 			  const struct ether_addr *addr);
 extern void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
 			      const struct ether_addr *addr);
-extern void wlc_read_tsf(wlc_info_t *wlc, uint32 *tsf_l_ptr,
-			 uint32 *tsf_h_ptr);
+extern void wlc_read_tsf(wlc_info_t *wlc, u32 *tsf_l_ptr,
+			 u32 *tsf_h_ptr);
 extern void wlc_set_cwmin(wlc_info_t *wlc, u16 newmin);
 extern void wlc_set_cwmax(wlc_info_t *wlc, u16 newmax);
 extern void wlc_fifoerrors(wlc_info_t *wlc);
@@ -903,7 +903,7 @@ extern void wlc_protection_upd(wlc_info_t *wlc, uint idx, int val);
 extern void wlc_hwtimer_gptimer_set(wlc_info_t *wlc, uint us);
 extern void wlc_hwtimer_gptimer_abort(wlc_info_t *wlc);
 extern void wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, u8 rate,
-			 struct ether_addr *sa, uint32 wait_delay);
+			 struct ether_addr *sa, u32 wait_delay);
 
 #if defined(BCMDBG)
 extern void wlc_print_rxh(d11rxhdr_t *rxh);
@@ -959,9 +959,9 @@ extern void wlc_dump_ie(wlc_info_t *wlc, bcm_tlv_t *ie, struct bcmstrbuf *b);
 extern bool wlc_ps_check(wlc_info_t *wlc);
 extern void wlc_reprate_init(wlc_info_t *wlc);
 extern void wlc_bsscfg_reprate_init(wlc_bsscfg_t *bsscfg);
-extern void wlc_uint64_sub(uint32 *a_high, uint32 *a_low, uint32 b_high,
-			   uint32 b_low);
-extern uint32 wlc_calc_tbtt_offset(uint32 bi, uint32 tsf_h, uint32 tsf_l);
+extern void wlc_uint64_sub(u32 *a_high, u32 *a_low, u32 b_high,
+			   u32 b_low);
+extern u32 wlc_calc_tbtt_offset(u32 bi, u32 tsf_h, u32 tsf_l);
 
 /* Shared memory access */
 extern void wlc_write_shm(wlc_info_t *wlc, uint offset, u16 v);
@@ -996,7 +996,7 @@ extern bool wlc_timers_init(wlc_info_t *wlc, int unit);
 
 extern const bcm_iovar_t wlc_iovars[];
 
-extern int wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
+extern int wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		       const char *name, void *params, uint p_len, void *arg,
 		       int len, int val_size, wlc_if_t *wlcif);
 

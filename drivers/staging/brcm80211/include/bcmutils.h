@@ -327,7 +327,7 @@ extern "C" {
 	"s16", \
 	"u16", \
 	"int32", \
-	"uint32", \
+	"u32", \
 	"buffer", \
 	"" }
 
@@ -517,7 +517,7 @@ extern "C" {
 
 /* bcm_format_flags() bit description structure */
 	typedef struct bcm_bit_desc {
-		uint32 bit;
+		u32 bit;
 		const char *name;
 	} bcm_bit_desc_t;
 
@@ -546,17 +546,17 @@ extern "C" {
 			    3) == 0) {
 			/* ARM CM3 rel time: 1229 (727 if alignment check could be omitted) */
 			/* x86 supports unaligned.  This version runs 6x-9x faster on x86. */
-			((uint32 *) dst)[0] =
-			    ((const uint32 *)src1)[0] ^ ((const uint32 *)
+			((u32 *) dst)[0] =
+			    ((const u32 *)src1)[0] ^ ((const u32 *)
 							 src2)[0];
-			((uint32 *) dst)[1] =
-			    ((const uint32 *)src1)[1] ^ ((const uint32 *)
+			((u32 *) dst)[1] =
+			    ((const u32 *)src1)[1] ^ ((const u32 *)
 							 src2)[1];
-			((uint32 *) dst)[2] =
-			    ((const uint32 *)src1)[2] ^ ((const uint32 *)
+			((u32 *) dst)[2] =
+			    ((const u32 *)src1)[2] ^ ((const u32 *)
 							 src2)[2];
-			((uint32 *) dst)[3] =
-			    ((const uint32 *)src1)[3] ^ ((const uint32 *)
+			((u32 *) dst)[3] =
+			    ((const u32 *)src1)[3] ^ ((const u32 *)
 							 src2)[3];
 		} else {
 			/* ARM CM3 rel time: 4668 (4191 if alignment check could be omitted) */
@@ -572,7 +572,7 @@ extern "C" {
 	extern u16 BCMROMFN(hndcrc16) (u8 *p, uint nbytes, u16 crc);
 /* format/print */
 #if defined(BCMDBG)
-	extern int bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags,
+	extern int bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags,
 				    char *buf, int len);
 	extern int bcm_format_hex(char *str, const void *bytes, int len);
 #endif
@@ -584,7 +584,7 @@ extern "C" {
 #endif /* BRCM_FULLMAC */
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
 #ifdef BRCM_FULLMAC
-	extern char *bcm_brev_str(uint32 brev, char *buf);
+	extern char *bcm_brev_str(u32 brev, char *buf);
 	extern void printbig(char *buf);
 #endif /* BRCM_FULLMAC */
 	extern void prhex(const char *msg, unsigned char *buf, uint len);
@@ -604,7 +604,7 @@ extern "C" {
 #endif
 
 /* multi-bool data type: set of bools, mbool is true if any is set */
-	typedef uint32 mbool;
+	typedef u32 mbool;
 #define mboolset(mb, bit)		((mb) |= (bit))	/* set one bool */
 #define mboolclr(mb, bit)		((mb) &= ~(bit))	/* clear one bool */
 #define mboolisset(mb, bit)		(((mb) & (bit)) != 0)	/* TRUE if one bool is set */
@@ -619,8 +619,8 @@ extern "C" {
 /* generic datastruct to help dump routines */
 	struct fielddesc {
 		const char *nameandfmt;
-		uint32 offset;
-		uint32 len;
+		u32 offset;
+		u32 len;
 	};
 
 #ifdef BRCM_FULLMAC
@@ -631,12 +631,12 @@ extern "C" {
 	extern void bcm_print_bytes(char *name, const unsigned char *cdata, int len);
 #endif
 
-	typedef uint32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
-					   uint32 offset);
+	typedef u32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
+					   u32 offset);
 #ifdef BRCM_FULLMAC
 	extern uint bcmdumpfields(bcmutl_rdreg_rtn func_ptr, void *arg0,
 				  uint arg1, struct fielddesc *str, char *buf,
-				  uint32 bufsize);
+				  u32 bufsize);
 
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);

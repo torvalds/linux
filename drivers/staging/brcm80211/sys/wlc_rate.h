@@ -28,10 +28,10 @@ extern const struct wlc_rateset wlc_lrs_rates;
 extern const struct wlc_rateset rate_limit_1_2;
 
 typedef struct mcs_info {
-	uint32 phy_rate_20;	/* phy rate in kbps [20Mhz] */
-	uint32 phy_rate_40;	/* phy rate in kbps [40Mhz] */
-	uint32 phy_rate_20_sgi;	/* phy rate in kbps [20Mhz] with SGI */
-	uint32 phy_rate_40_sgi;	/* phy rate in kbps [40Mhz] with SGI */
+	u32 phy_rate_20;	/* phy rate in kbps [20Mhz] */
+	u32 phy_rate_40;	/* phy rate in kbps [40Mhz] */
+	u32 phy_rate_20_sgi;	/* phy rate in kbps [20Mhz] with SGI */
+	u32 phy_rate_40_sgi;	/* phy rate in kbps [40Mhz] with SGI */
 	u8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
 	u8 leg_ofdm;		/* matching legacy ofdm rate in 500bkps */
 } mcs_info_t;
@@ -65,7 +65,7 @@ extern const mcs_info_t mcs_table[];
 /* rate spec : holds rate and mode specific information required to generate a tx frame. */
 /* Legacy CCK and OFDM information is held in the same manner as was done in the past    */
 /* (in the lower byte) the upper 3 bytes primarily hold MIMO specific information        */
-typedef uint32 ratespec_t;
+typedef u32 ratespec_t;
 
 /* rate spec bit fields */
 #define RSPEC_RATE_MASK		0x0000007F	/* Either 500Kbps units or MIMO MCS idx */

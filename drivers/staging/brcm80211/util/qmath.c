@@ -83,7 +83,7 @@ Description: This function make 16 bit unsigned multiplication. To fit the outpu
 */
 u16 qm_mulu16(u16 op1, u16 op2)
 {
-	return (u16) (((uint32) op1 * (uint32) op2) >> 16);
+	return (u16) (((u32) op1 * (u32) op2) >> 16);
 }
 
 /*

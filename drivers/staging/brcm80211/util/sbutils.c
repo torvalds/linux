@@ -28,10 +28,10 @@
 #include "siutils_priv.h"
 
 /* local prototypes */
-static uint _sb_coreidx(si_info_t *sii, uint32 sba);
-static uint _sb_scan(si_info_t *sii, uint32 sba, void *regs, uint bus,
-		     uint32 sbba, uint ncores);
-static uint32 _sb_coresba(si_info_t *sii);
+static uint _sb_coreidx(si_info_t *sii, u32 sba);
+static uint _sb_scan(si_info_t *sii, u32 sba, void *regs, uint bus,
+		     u32 sbba, uint ncores);
+static u32 _sb_coresba(si_info_t *sii);
 static void *_sb_setcoreidx(si_info_t *sii, uint coreidx);
 
 #define	SET_SBREG(sii, r, mask, val)	\
@@ -49,12 +49,12 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx);
 #define	OR_SBREG(sii, sbr, v)	\
 	W_SBREG((sii), (sbr), (R_SBREG((sii), (sbr)) | (v)))
 
-static uint32 sb_read_sbreg(si_info_t *sii, volatile uint32 *sbr)
+static u32 sb_read_sbreg(si_info_t *sii, volatile u32 *sbr)
 {
 	return R_REG(sii->osh, sbr);
 }
 
-static void sb_write_sbreg(si_info_t *sii, volatile uint32 *sbr, uint32 v)
+static void sb_write_sbreg(si_info_t *sii, volatile u32 *sbr, u32 v)
 {
 	W_REG(sii->osh, sbr, v);
 }
@@ -72,7 +72,7 @@ uint sb_coreid(si_t *sih)
 }
 
 /* return core index of the core with address 'sba' */
-static uint BCMATTACHFN(_sb_coreidx) (si_info_t *sii, uint32 sba)
+static uint BCMATTACHFN(_sb_coreidx) (si_info_t *sii, u32 sba)
 {
 	uint i;
 
@@ -83,14 +83,14 @@ static uint BCMATTACHFN(_sb_coreidx) (si_info_t *sii, uint32 sba)
 }
 
 /* return core address of the current core */
-static uint32 BCMATTACHFN(_sb_coresba) (si_info_t *sii)
+static u32 BCMATTACHFN(_sb_coresba) (si_info_t *sii)
 {
-	uint32 sbaddr = 0;
+	u32 sbaddr = 0;
 
 	switch (BUSTYPE(sii->pub.bustype)) {
 	case SPI_BUS:
 	case SDIO_BUS:
-		sbaddr = (uint32) (uintptr) sii->curmap;
+		sbaddr = (u32) (uintptr) sii->curmap;
 		break;
 	default:
 		ASSERT(0);
@@ -142,7 +142,7 @@ bool sb_iscoreup(si_t *sih)
 uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 {
 	uint origidx = 0;
-	uint32 *r = NULL;
+	u32 *r = NULL;
 	uint w;
 	uint intr_val = 0;
 	bool fast = FALSE;
@@ -164,7 +164,7 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 		origidx = si_coreidx(&sii->pub);
 
 		/* switch core */
-		r = (uint32 *) ((unsigned char *) sb_setcoreidx(&sii->pub, coreidx) +
+		r = (u32 *) ((unsigned char *) sb_setcoreidx(&sii->pub, coreidx) +
 				regoff);
 	}
 	ASSERT(r != NULL);
@@ -206,8 +206,8 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
  */
 #define SB_MAXBUSES	2
 static uint
-BCMATTACHFN(_sb_scan) (si_info_t *sii, uint32 sba, void *regs, uint bus,
-		       uint32 sbba, uint numcores) {
+BCMATTACHFN(_sb_scan) (si_info_t *sii, u32 sba, void *regs, uint bus,
+		       u32 sbba, uint numcores) {
 	uint next;
 	uint ncc = 0;
 	uint i;
@@ -237,7 +237,7 @@ BCMATTACHFN(_sb_scan) (si_info_t *sii, uint32 sba, void *regs, uint bus,
 		/* chipc provides # cores */
 		if (sii->coreid[next] == CC_CORE_ID) {
 			chipcregs_t *cc = (chipcregs_t *) sii->curmap;
-			uint32 ccrev = sb_corerev(&sii->pub);
+			u32 ccrev = sb_corerev(&sii->pub);
 
 			/* determine numcores - this is the
 				 total # cores in the chip */
@@ -259,7 +259,7 @@ BCMATTACHFN(_sb_scan) (si_info_t *sii, uint32 sba, void *regs, uint bus,
 		/* scan bridged SB(s) and add results to the end of the list */
 		else if (sii->coreid[next] == OCP_CORE_ID) {
 			sbconfig_t *sb = REGS2SB(sii->curmap);
-			uint32 nsbba = R_SBREG(sii, &sb->sbadmatch1);
+			u32 nsbba = R_SBREG(sii, &sb->sbadmatch1);
 			uint nsbcc;
 
 			sii->numcores = next + 1;
@@ -290,7 +290,7 @@ BCMATTACHFN(_sb_scan) (si_info_t *sii, uint32 sba, void *regs, uint bus,
 void BCMATTACHFN(sb_scan) (si_t *sih, void *regs, uint devid)
 {
 	si_info_t *sii;
-	uint32 origsba;
+	u32 origsba;
 	sbconfig_t *sb;
 
 	sii = SI_INFO(sih);
@@ -341,7 +341,7 @@ void *sb_setcoreidx(si_t *sih, uint coreidx)
  */
 static void *_sb_setcoreidx(si_info_t *sii, uint coreidx)
 {
-	uint32 sbaddr = sii->coresba[coreidx];
+	u32 sbaddr = sii->coresba[coreidx];
 	void *regs;
 
 	switch (BUSTYPE(sii->pub.bustype)) {
@@ -403,9 +403,9 @@ bool sb_taclear(si_t *sih, bool details)
 	uint origidx;
 	uint intr_val = 0;
 	bool rc = FALSE;
-	uint32 inband = 0, serror = 0, timeout = 0;
+	u32 inband = 0, serror = 0, timeout = 0;
 	void *corereg = NULL;
-	volatile uint32 imstate, tmstate;
+	volatile u32 imstate, tmstate;
 
 	sii = SI_INFO(sih);
 
@@ -453,10 +453,10 @@ bool sb_taclear(si_t *sih, bool details)
 	return rc;
 }
 
-void sb_core_disable(si_t *sih, uint32 bits)
+void sb_core_disable(si_t *sih, u32 bits)
 {
 	si_info_t *sii;
-	volatile uint32 dummy;
+	volatile u32 dummy;
 	sbconfig_t *sb;
 
 	sii = SI_INFO(sih);
@@ -512,11 +512,11 @@ disable:
  * bits - core specific bits that are set during and after reset sequence
  * resetbits - core specific bits that are set only during reset sequence
  */
-void sb_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
+void sb_core_reset(si_t *sih, u32 bits, u32 resetbits)
 {
 	si_info_t *sii;
 	sbconfig_t *sb;
-	volatile uint32 dummy;
+	volatile u32 dummy;
 
 	sii = SI_INFO(sih);
 	ASSERT(GOODREGS(sii->curmap));
@@ -561,9 +561,9 @@ void sb_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 	OSL_DELAY(1);
 }
 
-uint32 sb_base(uint32 admatch)
+u32 sb_base(u32 admatch)
 {
-	uint32 base;
+	u32 base;
 	uint type;
 
 	type = admatch & SBAM_TYPE_MASK;

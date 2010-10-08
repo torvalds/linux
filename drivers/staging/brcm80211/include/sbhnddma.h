@@ -27,10 +27,10 @@
 
 /* dma registers per channel(xmt or rcv) */
 typedef volatile struct {
-	uint32 control;		/* enable, et al */
-	uint32 addr;		/* descriptor ring base address (4K aligned) */
-	uint32 ptr;		/* last descriptor posted to chip */
-	uint32 status;		/* current active descriptor, et al */
+	u32 control;		/* enable, et al */
+	u32 addr;		/* descriptor ring base address (4K aligned) */
+	u32 ptr;		/* last descriptor posted to chip */
+	u32 status;		/* current active descriptor, et al */
 } dma32regs_t;
 
 typedef volatile struct {
@@ -39,10 +39,10 @@ typedef volatile struct {
 } dma32regp_t;
 
 typedef volatile struct {	/* diag access */
-	uint32 fifoaddr;	/* diag address */
-	uint32 fifodatalow;	/* low 32bits of data */
-	uint32 fifodatahigh;	/* high 32bits of data */
-	uint32 pad;		/* reserved */
+	u32 fifoaddr;	/* diag address */
+	u32 fifodatalow;	/* low 32bits of data */
+	u32 fifodatahigh;	/* high 32bits of data */
+	u32 pad;		/* reserved */
 } dma32diag_t;
 
 /*
@@ -50,8 +50,8 @@ typedef volatile struct {	/* diag access */
  * Descriptors are only read by the hardware, never written back.
  */
 typedef volatile struct {
-	uint32 ctrl;		/* misc control bits & bufcount */
-	uint32 addr;		/* data buffer address */
+	u32 ctrl;		/* misc control bits & bufcount */
+	u32 addr;		/* data buffer address */
 } dma32dd_t;
 
 /*
@@ -64,12 +64,12 @@ typedef volatile struct {
 #define	D32MAXDD	(D32MAXRINGSZ / sizeof (dma32dd_t))
 
 /* transmit channel control */
-#define	XC_XE		((uint32)1 << 0)	/* transmit enable */
-#define	XC_SE		((uint32)1 << 1)	/* transmit suspend request */
-#define	XC_LE		((uint32)1 << 2)	/* loopback enable */
-#define	XC_FL		((uint32)1 << 4)	/* flush request */
-#define	XC_PD		((uint32)1 << 11)	/* parity check disable */
-#define	XC_AE		((uint32)3 << 16)	/* address extension bits */
+#define	XC_XE		((u32)1 << 0)	/* transmit enable */
+#define	XC_SE		((u32)1 << 1)	/* transmit suspend request */
+#define	XC_LE		((u32)1 << 2)	/* loopback enable */
+#define	XC_FL		((u32)1 << 4)	/* flush request */
+#define	XC_PD		((u32)1 << 11)	/* parity check disable */
+#define	XC_AE		((u32)3 << 16)	/* address extension bits */
 #define	XC_AE_SHIFT	16
 
 /* transmit descriptor table pointer */
@@ -95,14 +95,14 @@ typedef volatile struct {
 #define	XS_AD_SHIFT	20
 
 /* receive channel control */
-#define	RC_RE		((uint32)1 << 0)	/* receive enable */
+#define	RC_RE		((u32)1 << 0)	/* receive enable */
 #define	RC_RO_MASK	0xfe	/* receive frame offset */
 #define	RC_RO_SHIFT	1
-#define	RC_FM		((uint32)1 << 8)	/* direct fifo receive (pio) mode */
-#define	RC_SH		((uint32)1 << 9)	/* separate rx header descriptor enable */
-#define	RC_OC		((uint32)1 << 10)	/* overflow continue */
-#define	RC_PD		((uint32)1 << 11)	/* parity check disable */
-#define	RC_AE		((uint32)3 << 16)	/* address extension bits */
+#define	RC_FM		((u32)1 << 8)	/* direct fifo receive (pio) mode */
+#define	RC_SH		((u32)1 << 9)	/* separate rx header descriptor enable */
+#define	RC_OC		((u32)1 << 10)	/* overflow continue */
+#define	RC_PD		((u32)1 << 11)	/* parity check disable */
+#define	RC_AE		((u32)3 << 16)	/* address extension bits */
 #define	RC_AE_SHIFT	16
 
 /* receive descriptor table pointer */
@@ -143,13 +143,13 @@ typedef volatile struct {
 
 /* descriptor control flags */
 #define	CTRL_BC_MASK	0x00001fff	/* buffer byte count, real data len must <= 4KB */
-#define	CTRL_AE		((uint32)3 << 16)	/* address extension bits */
+#define	CTRL_AE		((u32)3 << 16)	/* address extension bits */
 #define	CTRL_AE_SHIFT	16
-#define	CTRL_PARITY	((uint32)3 << 18)	/* parity bit */
-#define	CTRL_EOT	((uint32)1 << 28)	/* end of descriptor table */
-#define	CTRL_IOC	((uint32)1 << 29)	/* interrupt on completion */
-#define	CTRL_EOF	((uint32)1 << 30)	/* end of frame */
-#define	CTRL_SOF	((uint32)1 << 31)	/* start of frame */
+#define	CTRL_PARITY	((u32)3 << 18)	/* parity bit */
+#define	CTRL_EOT	((u32)1 << 28)	/* end of descriptor table */
+#define	CTRL_IOC	((u32)1 << 29)	/* interrupt on completion */
+#define	CTRL_EOF	((u32)1 << 30)	/* end of frame */
+#define	CTRL_SOF	((u32)1 << 31)	/* start of frame */
 
 /* control flags in the range [27:20] are core-specific and not defined here */
 #define	CTRL_CORE_MASK	0x0ff00000
@@ -158,12 +158,12 @@ typedef volatile struct {
 
 /* dma registers per channel(xmt or rcv) */
 typedef volatile struct {
-	uint32 control;		/* enable, et al */
-	uint32 ptr;		/* last descriptor posted to chip */
-	uint32 addrlow;		/* descriptor ring base address low 32-bits (8K aligned) */
-	uint32 addrhigh;	/* descriptor ring base address bits 63:32 (8K aligned) */
-	uint32 status0;		/* current descriptor, xmt state */
-	uint32 status1;		/* active descriptor, xmt error */
+	u32 control;		/* enable, et al */
+	u32 ptr;		/* last descriptor posted to chip */
+	u32 addrlow;		/* descriptor ring base address low 32-bits (8K aligned) */
+	u32 addrhigh;	/* descriptor ring base address bits 63:32 (8K aligned) */
+	u32 status0;		/* current descriptor, xmt state */
+	u32 status1;		/* active descriptor, xmt error */
 } dma64regs_t;
 
 typedef volatile struct {
@@ -172,10 +172,10 @@ typedef volatile struct {
 } dma64regp_t;
 
 typedef volatile struct {	/* diag access */
-	uint32 fifoaddr;	/* diag address */
-	uint32 fifodatalow;	/* low 32bits of data */
-	uint32 fifodatahigh;	/* high 32bits of data */
-	uint32 pad;		/* reserved */
+	u32 fifoaddr;	/* diag address */
+	u32 fifodatalow;	/* low 32bits of data */
+	u32 fifodatahigh;	/* high 32bits of data */
+	u32 pad;		/* reserved */
 } dma64diag_t;
 
 /*
@@ -183,10 +183,10 @@ typedef volatile struct {	/* diag access */
  * Descriptors are only read by the hardware, never written back.
  */
 typedef volatile struct {
-	uint32 ctrl1;		/* misc control bits & bufcount */
-	uint32 ctrl2;		/* buffer count and address extension */
-	uint32 addrlow;		/* memory address of the date buffer, bits 31:0 */
-	uint32 addrhigh;	/* memory address of the date buffer, bits 63:32 */
+	u32 ctrl1;		/* misc control bits & bufcount */
+	u32 ctrl2;		/* buffer count and address extension */
+	u32 addrlow;		/* memory address of the date buffer, bits 31:0 */
+	u32 addrhigh;	/* memory address of the date buffer, bits 63:32 */
 } dma64dd_t;
 
 /*
@@ -287,10 +287,10 @@ typedef volatile struct {
 
 /* descriptor control flags 1 */
 #define D64_CTRL_COREFLAGS	0x0ff00000	/* core specific flags */
-#define	D64_CTRL1_EOT		((uint32)1 << 28)	/* end of descriptor table */
-#define	D64_CTRL1_IOC		((uint32)1 << 29)	/* interrupt on completion */
-#define	D64_CTRL1_EOF		((uint32)1 << 30)	/* end of frame */
-#define	D64_CTRL1_SOF		((uint32)1 << 31)	/* start of frame */
+#define	D64_CTRL1_EOT		((u32)1 << 28)	/* end of descriptor table */
+#define	D64_CTRL1_IOC		((u32)1 << 29)	/* interrupt on completion */
+#define	D64_CTRL1_EOF		((u32)1 << 30)	/* end of frame */
+#define	D64_CTRL1_SOF		((u32)1 << 31)	/* start of frame */
 
 /* descriptor control flags 2 */
 #define	D64_CTRL2_BC_MASK	0x00007fff	/* buffer byte count. real data len must <= 16KB */

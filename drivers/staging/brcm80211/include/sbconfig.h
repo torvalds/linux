@@ -74,43 +74,43 @@
 #ifndef _LANGUAGE_ASSEMBLY
 
 typedef volatile struct _sbconfig {
-	uint32 PAD[2];
-	uint32 sbipsflag;	/* initiator port ocp slave flag */
-	uint32 PAD[3];
-	uint32 sbtpsflag;	/* target port ocp slave flag */
-	uint32 PAD[11];
-	uint32 sbtmerrloga;	/* (sonics >= 2.3) */
-	uint32 PAD;
-	uint32 sbtmerrlog;	/* (sonics >= 2.3) */
-	uint32 PAD[3];
-	uint32 sbadmatch3;	/* address match3 */
-	uint32 PAD;
-	uint32 sbadmatch2;	/* address match2 */
-	uint32 PAD;
-	uint32 sbadmatch1;	/* address match1 */
-	uint32 PAD[7];
-	uint32 sbimstate;	/* initiator agent state */
-	uint32 sbintvec;	/* interrupt mask */
-	uint32 sbtmstatelow;	/* target state */
-	uint32 sbtmstatehigh;	/* target state */
-	uint32 sbbwa0;		/* bandwidth allocation table0 */
-	uint32 PAD;
-	uint32 sbimconfiglow;	/* initiator configuration */
-	uint32 sbimconfighigh;	/* initiator configuration */
-	uint32 sbadmatch0;	/* address match0 */
-	uint32 PAD;
-	uint32 sbtmconfiglow;	/* target configuration */
-	uint32 sbtmconfighigh;	/* target configuration */
-	uint32 sbbconfig;	/* broadcast configuration */
-	uint32 PAD;
-	uint32 sbbstate;	/* broadcast state */
-	uint32 PAD[3];
-	uint32 sbactcnfg;	/* activate configuration */
-	uint32 PAD[3];
-	uint32 sbflagst;	/* current sbflags */
-	uint32 PAD[3];
-	uint32 sbidlow;		/* identification */
-	uint32 sbidhigh;	/* identification */
+	u32 PAD[2];
+	u32 sbipsflag;	/* initiator port ocp slave flag */
+	u32 PAD[3];
+	u32 sbtpsflag;	/* target port ocp slave flag */
+	u32 PAD[11];
+	u32 sbtmerrloga;	/* (sonics >= 2.3) */
+	u32 PAD;
+	u32 sbtmerrlog;	/* (sonics >= 2.3) */
+	u32 PAD[3];
+	u32 sbadmatch3;	/* address match3 */
+	u32 PAD;
+	u32 sbadmatch2;	/* address match2 */
+	u32 PAD;
+	u32 sbadmatch1;	/* address match1 */
+	u32 PAD[7];
+	u32 sbimstate;	/* initiator agent state */
+	u32 sbintvec;	/* interrupt mask */
+	u32 sbtmstatelow;	/* target state */
+	u32 sbtmstatehigh;	/* target state */
+	u32 sbbwa0;		/* bandwidth allocation table0 */
+	u32 PAD;
+	u32 sbimconfiglow;	/* initiator configuration */
+	u32 sbimconfighigh;	/* initiator configuration */
+	u32 sbadmatch0;	/* address match0 */
+	u32 PAD;
+	u32 sbtmconfiglow;	/* target configuration */
+	u32 sbtmconfighigh;	/* target configuration */
+	u32 sbbconfig;	/* broadcast configuration */
+	u32 PAD;
+	u32 sbbstate;	/* broadcast state */
+	u32 PAD[3];
+	u32 sbactcnfg;	/* activate configuration */
+	u32 PAD[3];
+	u32 sbflagst;	/* current sbflags */
+	u32 PAD[3];
+	u32 sbidlow;		/* identification */
+	u32 sbidhigh;	/* identification */
 } sbconfig_t;
 
 #endif				/* _LANGUAGE_ASSEMBLY */

@@ -425,15 +425,15 @@ static inline rpc_buf_t *wlc_rpc_buf_alloc(rpc_info_t *rpc, bcm_xdr_buf_t *b,
 {
 	rpc_buf_t *rpc_buf;
 
-	rpc_buf = bcm_rpc_buf_alloc(rpc, len + sizeof(uint32));
+	rpc_buf = bcm_rpc_buf_alloc(rpc, len + sizeof(u32));
 
 	if (!rpc_buf)
 		return NULL;
 
 	bcm_xdr_buf_init(b, bcm_rpc_buf_data(bcm_rpc_tp_get(rpc), rpc_buf),
-			 len + sizeof(uint32));
+			 len + sizeof(u32));
 
-	bcm_xdr_pack_uint32(b, rpc_id);
+	bcm_xdr_pack_u32(b, rpc_id);
 
 	return rpc_buf;
 }
@@ -446,9 +446,9 @@ wlc_rpc_id_get(struct rpc_info *rpc, rpc_buf_t *buf)
 	bcm_xdr_buf_t b;
 
 	bcm_xdr_buf_init(&b, bcm_rpc_buf_data(bcm_rpc_tp_get(rpc), buf),
-			 sizeof(uint32));
+			 sizeof(u32));
 
-	bcm_xdr_unpack_uint32(&b, (uint32 *) ((uintptr) & rpc_id));
+	bcm_xdr_unpack_u32(&b, (u32 *) ((uintptr) & rpc_id));
 	return rpc_id;
 }
 #endif
@@ -488,12 +488,12 @@ extern void wlc_rpc_bmac_dump_txfifohist(wlc_hw_info_t *wlc_hw,
 extern void wlc_rpc_high_dispatch(wlc_rpc_ctx_t *ctx, struct rpc_buf *buf);
 #endif
 
-/* Packed structure for ease of transport across RPC bus along uint32 boundary */
+/* Packed structure for ease of transport across RPC bus along u32 boundary */
 typedef struct wlc_rpc_txstatus {
-	uint32 PAD_framelen;
-	uint32 status_frameid;
-	uint32 sequence_lasttxtime;
-	uint32 ackphyrxsh_phyerr;
+	u32 PAD_framelen;
+	u32 status_frameid;
+	u32 sequence_lasttxtime;
+	u32 ackphyrxsh_phyerr;
 } wlc_rpc_txstatus_t;
 
 static inline

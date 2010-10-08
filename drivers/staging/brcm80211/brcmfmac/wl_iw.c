@@ -66,8 +66,8 @@ bool g_set_essid_before_scan = TRUE;
 static int g_onoff = G_WLAN_SET_ON;
 wl_iw_extra_params_t g_wl_iw_params;
 
-extern bool wl_iw_conn_status_str(uint32 event_type, uint32 status,
-				  uint32 reason, char *stringBuf, uint buflen);
+extern bool wl_iw_conn_status_str(u32 event_type, u32 status,
+				  u32 reason, char *stringBuf, uint buflen);
 
 uint wl_msg_level = WL_ERROR_VAL;
 
@@ -127,8 +127,8 @@ typedef struct iscan_buf {
 typedef struct iscan_info {
 	struct net_device *dev;
 	struct timer_list timer;
-	uint32 timer_ms;
-	uint32 timer_on;
+	u32 timer_ms;
+	u32 timer_on;
 	int iscan_state;
 	iscan_buf_t *list_hdr;
 	iscan_buf_t *list_cur;
@@ -493,7 +493,7 @@ wl_iw_get_range(struct net_device *dev,
 		struct iw_point *dwrq, char *extra)
 {
 	struct iw_range *range = (struct iw_range *)extra;
-	wl_uint32_list_t *list;
+	wl_u32_list_t *list;
 	wl_rateset_t rateset;
 	s8 *channels;
 	int error, i, k;
@@ -519,7 +519,7 @@ wl_iw_get_range(struct net_device *dev,
 		WL_ERROR(("Could not alloc channels\n"));
 		return -ENOMEM;
 	}
-	list = (wl_uint32_list_t *) channels;
+	list = (wl_u32_list_t *) channels;
 
 	dwrq->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(range));
@@ -1097,14 +1097,14 @@ static void wl_iw_set_event_mask(struct net_device *dev)
 			    iovbuf, sizeof(iovbuf));
 }
 
-static uint32 wl_iw_iscan_get(iscan_info_t *iscan)
+static u32 wl_iw_iscan_get(iscan_info_t *iscan)
 {
 	iscan_buf_t *buf;
 	iscan_buf_t *ptr;
 	wl_iscan_results_t *list_buf;
 	wl_iscan_results_t list;
 	wl_scan_results_t *results;
-	uint32 status;
+	u32 status;
 	int res = 0;
 
 	MUTEX_LOCK_WL_SCAN_SET();
@@ -1185,7 +1185,7 @@ static void wl_iw_send_scan_complete(iscan_info_t *iscan)
 
 static int _iscan_sysioc_thread(void *data)
 {
-	uint32 status;
+	u32 status;
 	iscan_info_t *iscan = (iscan_info_t *) data;
 	static bool iscan_pass_abort = FALSE;
 	DAEMONIZE("iscan_sysioc");
@@ -1745,7 +1745,7 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 	char *event = extra, *end = extra + dwrq->length, *value;
 	iscan_info_t *iscan = g_iscan;
 	iscan_buf_t *p_buf;
-	uint32 counter = 0;
+	u32 counter = 0;
 	u8 channel;
 
 	WL_TRACE(("%s %s buflen_from_user %d:\n", dev->name, __func__,
@@ -3300,13 +3300,13 @@ int wl_iw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 bool
-wl_iw_conn_status_str(uint32 event_type, uint32 status, uint32 reason,
+wl_iw_conn_status_str(u32 event_type, u32 status, u32 reason,
 		      char *stringBuf, uint buflen)
 {
 	typedef struct conn_fail_event_map_t {
-		uint32 inEvent;
-		uint32 inStatus;
-		uint32 inReason;
+		u32 inEvent;
+		u32 inStatus;
+		u32 inReason;
 		const char *outName;
 		const char *outCause;
 	} conn_fail_event_map_t;
@@ -3380,9 +3380,9 @@ wl_iw_conn_status_str(uint32 event_type, uint32 status, uint32 reason,
 static bool
 wl_iw_check_conn_fail(wl_event_msg_t *e, char *stringBuf, uint buflen)
 {
-	uint32 event = ntoh32(e->event_type);
-	uint32 status = ntoh32(e->status);
-	uint32 reason = ntoh32(e->reason);
+	u32 event = ntoh32(e->event_type);
+	u32 status = ntoh32(e->status);
+	u32 reason = ntoh32(e->reason);
 
 	if (wl_iw_conn_status_str(event, status, reason, stringBuf, buflen)) {
 		return TRUE;
@@ -3401,12 +3401,12 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 	union iwreq_data wrqu;
 	char extra[IW_CUSTOM_MAX + 1];
 	int cmd = 0;
-	uint32 event_type = ntoh32(e->event_type);
+	u32 event_type = ntoh32(e->event_type);
 	u16 flags = ntoh16(e->flags);
-	uint32 datalen = ntoh32(e->datalen);
-	uint32 status = ntoh32(e->status);
+	u32 datalen = ntoh32(e->datalen);
+	u32 status = ntoh32(e->status);
 	wl_iw_t *iw;
-	uint32 toto;
+	u32 toto;
 	memset(&wrqu, 0, sizeof(wrqu));
 	memset(extra, 0, sizeof(extra));
 	iw = 0;

@@ -75,15 +75,15 @@ extern int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
  *   data: data byte to write
  *   err:  pointer to error code (or NULL)
  */
-extern u8 bcmsdh_cfg_read(void *sdh, uint func, uint32 addr, int *err);
-extern void bcmsdh_cfg_write(void *sdh, uint func, uint32 addr, u8 data,
+extern u8 bcmsdh_cfg_read(void *sdh, uint func, u32 addr, int *err);
+extern void bcmsdh_cfg_write(void *sdh, uint func, u32 addr, u8 data,
 			     int *err);
 
 /* Read/Write 4bytes from/to cfg space */
-extern uint32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, uint32 addr,
+extern u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr,
 				   int *err);
-extern void bcmsdh_cfg_write_word(void *sdh, uint fnc_num, uint32 addr,
-				  uint32 data, int *err);
+extern void bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr,
+				  u32 data, int *err);
 
 /* Read CIS content for specified function.
  *   fn:     function whose CIS is being requested (0 is common CIS)
@@ -99,8 +99,8 @@ extern int bcmsdh_cis_read(void *sdh, uint func, u8 *cis, uint length);
  *   size: register width in bytes (2 or 4)
  *   data: data for register write
  */
-extern uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size);
-extern uint32 bcmsdh_reg_write(void *sdh, uint32 addr, uint size, uint32 data);
+extern u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size);
+extern u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data);
 
 /* Indicate if last reg read/write failed */
 extern bool bcmsdh_regfail(void *sdh);
@@ -118,10 +118,10 @@ extern bool bcmsdh_regfail(void *sdh);
  * NOTE: Async operation is not currently supported.
  */
 typedef void (*bcmsdh_cmplt_fn_t) (void *handle, int status, bool sync_waiting);
-extern int bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
+extern int bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 			   u8 *buf, uint nbytes, void *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
-extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
+extern int bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
 			   u8 *buf, uint nbytes, void *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
 
@@ -140,7 +140,7 @@ extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-extern int bcmsdh_rwdata(void *sdh, uint rw, uint32 addr, u8 *buf,
+extern int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf,
 			 uint nbytes);
 
 /* Issue an abort to the specified function */
@@ -187,12 +187,12 @@ extern bool bcmsdh_chipmatch(u16 vendor, u16 device);
 extern void bcmsdh_device_remove(void *sdh);
 
 /* Function to pass device-status bits to DHD. */
-extern uint32 bcmsdh_get_dstatus(void *sdh);
+extern u32 bcmsdh_get_dstatus(void *sdh);
 
 /* Function to return current window addr */
-extern uint32 bcmsdh_cur_sbwad(void *sdh);
+extern u32 bcmsdh_cur_sbwad(void *sdh);
 
 /* Function to pass chipid and rev to lower layers for controlling pr's */
-extern void bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev);
+extern void bcmsdh_chipinfo(void *sdh, u32 chip, u32 chiprev);
 
 #endif				/* _bcmsdh_h_ */

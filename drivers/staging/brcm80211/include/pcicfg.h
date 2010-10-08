@@ -115,12 +115,12 @@ typedef struct _pci_config_regs {
 	u8 latency_timer;
 	u8 header_type;
 	u8 bist;
-	uint32 base[PCI_BAR_MAX];
-	uint32 cardbus_cis;
+	u32 base[PCI_BAR_MAX];
+	u32 cardbus_cis;
 	u16 subsys_vendor;
 	u16 subsys_id;
-	uint32 baserom;
-	uint32 rsvd_a[PCR_RSVDA_MAX];
+	u32 baserom;
+	u32 rsvd_a[PCR_RSVDA_MAX];
 	u8 int_line;
 	u8 int_pin;
 	u8 min_gnt;
@@ -343,7 +343,7 @@ typedef struct _ppb_config_regs {
 	u8 latency_timer;
 	u8 header_type;
 	u8 bist;
-	uint32 rsvd_a[PPB_RSVDA_MAX];
+	u32 rsvd_a[PPB_RSVDA_MAX];
 	u8 prim_bus;
 	u8 sec_bus;
 	u8 sub_bus;
@@ -355,20 +355,20 @@ typedef struct _ppb_config_regs {
 	u16 mem_lim;
 	u16 pf_mem_base;
 	u16 pf_mem_lim;
-	uint32 pf_mem_base_hi;
-	uint32 pf_mem_lim_hi;
+	u32 pf_mem_base_hi;
+	u32 pf_mem_lim_hi;
 	u16 io_base_hi;
 	u16 io_lim_hi;
 	u16 subsys_vendor;
 	u16 subsys_id;
-	uint32 rsvd_b;
+	u32 rsvd_b;
 	u8 rsvd_c;
 	u8 int_pin;
 	u16 bridge_ctrl;
 	u8 chip_ctrl;
 	u8 diag_ctrl;
 	u16 arb_ctrl;
-	uint32 rsvd_d[PPB_RSVDD_MAX];
+	u32 rsvd_d[PPB_RSVDD_MAX];
 	u8 dev_dep[192];
 } ppb_config_regs;
 
@@ -385,7 +385,7 @@ typedef struct _pciconfig_cap_msi {
 	u8 capID;
 	u8 nextptr;
 	u16 msgctrl;
-	uint32 msgaddr;
+	u32 msgaddr;
 } pciconfig_cap_msi;
 
 /* Data structure to define the Power managment facility
@@ -410,18 +410,18 @@ typedef struct _pciconfig_cap_pcie {
 	u8 capID;
 	u8 nextptr;
 	u16 pcie_cap;
-	uint32 dev_cap;
+	u32 dev_cap;
 	u16 dev_ctrl;
 	u16 dev_status;
-	uint32 link_cap;
+	u32 link_cap;
 	u16 link_ctrl;
 	u16 link_status;
-	uint32 slot_cap;
+	u32 slot_cap;
 	u16 slot_ctrl;
 	u16 slot_status;
 	u16 root_ctrl;
 	u16 root_cap;
-	uint32 root_status;
+	u32 root_status;
 } pciconfig_cap_pcie;
 
 /* PCIE Enhanced CAPABILITY DEFINES */

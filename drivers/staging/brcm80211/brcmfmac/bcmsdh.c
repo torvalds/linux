@@ -36,11 +36,11 @@ const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 struct bcmsdh_info {
 	bool init_success;	/* underlying driver successfully attached */
 	void *sdioh;		/* handler for sdioh */
-	uint32 vendevid;	/* Target Vendor and Device ID on SD bus */
+	u32 vendevid;	/* Target Vendor and Device ID on SD bus */
 	osl_t *osh;
 	bool regfail;		/* Save status of last
 				 reg_read/reg_write call */
-	uint32 sbwad;		/* Save backplane window address */
+	u32 sbwad;		/* Save backplane window address */
 };
 /* local copy of bcm sd handler */
 bcmsdh_info_t *l_bcmsdh;
@@ -78,7 +78,7 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 	bcmsdh->osh = osh;
 	bcmsdh->init_success = TRUE;
 
-	*regsva = (uint32 *) SI_ENUM_BASE;
+	*regsva = (u32 *) SI_ENUM_BASE;
 
 	/* Report the BAR, to fix if needed */
 	bcmsdh->sbwad = SI_ENUM_BASE;
@@ -181,7 +181,7 @@ int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	return BCME_UNSUPPORTED;
 }
 
-u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
+u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -217,7 +217,7 @@ u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 }
 
 void
-bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, u8 data, int *err)
+bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -249,11 +249,11 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, u8 data, int *err)
 		     __func__, fnc_num, addr, data));
 }
 
-uint32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, uint32 addr, int *err)
+u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
-	uint32 data = 0;
+	u32 data = 0;
 
 	if (!bcmsdh)
 		bcmsdh = l_bcmsdh;
@@ -267,14 +267,14 @@ uint32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, uint32 addr, int *err)
 	if (err)
 		*err = (SDIOH_API_SUCCESS(status) ? 0 : BCME_SDIO_ERROR);
 
-	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, uint32data = 0x%x\n",
+	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
 
 	return data;
 }
 
 void
-bcmsdh_cfg_write_word(void *sdh, uint fnc_num, uint32 addr, uint32 data,
+bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 		      int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
@@ -292,7 +292,7 @@ bcmsdh_cfg_write_word(void *sdh, uint fnc_num, uint32 addr, uint32 data,
 	if (err)
 		*err = (SDIOH_API_SUCCESS(status) ? 0 : BCME_SDIO_ERROR);
 
-	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, uint32data = 0x%x\n",
+	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
 }
 
@@ -336,7 +336,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 	return SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR;
 }
 
-static int bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address)
+static int bcmsdhsdio_set_sbaddr_window(void *sdh, u32 address)
 {
 	int err = 0;
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
@@ -353,11 +353,11 @@ static int bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address)
 	return err;
 }
 
-uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
+u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
-	uint32 word = 0;
+	u32 word = 0;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 
 	BCMSDH_INFO(("%s:fun = 1, addr = 0x%x, ", __func__, addr));
@@ -383,7 +383,7 @@ uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 
 	bcmsdh->regfail = !(SDIOH_API_SUCCESS(status));
 
-	BCMSDH_INFO(("uint32data = 0x%x\n", word));
+	BCMSDH_INFO(("u32data = 0x%x\n", word));
 
 	/* if ok, return appropriately masked word */
 	if (SDIOH_API_SUCCESS(status)) {
@@ -392,7 +392,7 @@ uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 			return word & 0xff;
 		case sizeof(u16):
 			return word & 0xffff;
-		case sizeof(uint32):
+		case sizeof(u32):
 			return word;
 		default:
 			bcmsdh->regfail = TRUE;
@@ -406,7 +406,7 @@ uint32 bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 	return 0xFFFFFFFF;
 }
 
-uint32 bcmsdh_reg_write(void *sdh, uint32 addr, uint size, uint32 data)
+u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -451,7 +451,7 @@ bool bcmsdh_regfail(void *sdh)
 }
 
 int
-bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
+bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, void *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
@@ -496,7 +496,7 @@ bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
 }
 
 int
-bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
+bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, void *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
@@ -540,7 +540,7 @@ bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
 	return SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR;
 }
 
-int bcmsdh_rwdata(void *sdh, uint rw, uint32 addr, u8 *buf, uint nbytes)
+int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -612,12 +612,12 @@ void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh)
 }
 
 /* Function to pass device-status bits to DHD. */
-uint32 bcmsdh_get_dstatus(void *sdh)
+u32 bcmsdh_get_dstatus(void *sdh)
 {
 	return 0;
 }
 
-uint32 bcmsdh_cur_sbwad(void *sdh)
+u32 bcmsdh_cur_sbwad(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
@@ -627,7 +627,7 @@ uint32 bcmsdh_cur_sbwad(void *sdh)
 	return bcmsdh->sbwad;
 }
 
-void bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev)
+void bcmsdh_chipinfo(void *sdh, u32 chip, u32 chiprev)
 {
 	return;
 }

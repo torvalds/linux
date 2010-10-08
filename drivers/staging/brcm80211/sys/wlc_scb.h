@@ -24,7 +24,7 @@ extern bool wlc_aggregatable(wlc_info_t *wlc, u8 tid);
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
 /* structure to store per-tid state for the ampdu initiator */
 typedef struct scb_ampdu_tid_ini {
-	uint32 magic;
+	u32 magic;
 	u8 tx_in_transit;	/* number of pending mpdus in transit in driver */
 	u8 tid;		/* initiator tid for easy lookup */
 	u8 txretry[AMPDU_TX_BA_MAX_WSIZE];	/* tx retry count; indexed by seq modulo */
@@ -39,7 +39,7 @@ typedef struct scb_ampdu {
 	u8 max_pdu;		/* max pdus allowed in ampdu */
 	u8 release;		/* # of mpdus released at a time */
 	u16 min_len;		/* min mpdu len to support the density */
-	uint32 max_rxlen;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
+	u32 max_rxlen;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
 	struct pktq txq;	/* sdu transmit queue pending aggregation */
 
 	/* This could easily be a ini[] pointer and we keep this info in wl itself instead
@@ -54,9 +54,9 @@ typedef struct scb_ampdu {
 
 /* station control block - one per remote MAC address */
 struct scb {
-	uint32 magic;
-	uint32 flags;		/* various bit flags as defined below */
-	uint32 flags2;		/* various bit flags2 as defined below */
+	u32 magic;
+	u32 flags;		/* various bit flags as defined below */
+	u32 flags2;		/* various bit flags2 as defined below */
 	u8 state;		/* current state bitfield of auth/assoc process */
 	struct ether_addr ea;	/* station address */
 	void *fragbuf[NUMPRIO];	/* defragmentation buffer per prio */

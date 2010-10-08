@@ -566,13 +566,13 @@ bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen, uint key)
 
 #if defined(BCMDBG)
 int
-bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags, char *buf, int len)
+bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags, char *buf, int len)
 {
 	int i;
 	char *p = buf;
 	char hexstr[16];
 	int slen = 0, nlen = 0;
-	uint32 bit;
+	u32 bit;
 	const char *name;
 
 	if (len < 2 || !buf)

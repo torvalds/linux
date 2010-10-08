@@ -46,14 +46,14 @@
 struct sbpcieregs;
 
 extern u8 pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id,
-					 unsigned char *buf, uint32 *buflen);
+					 unsigned char *buf, u32 *buflen);
 extern uint pcie_readreg(osl_t *osh, struct sbpcieregs *pcieregs,
 			 uint addrtype, uint offset);
 extern uint pcie_writereg(osl_t *osh, struct sbpcieregs *pcieregs,
 			  uint addrtype, uint offset, uint val);
 
-extern u8 pcie_clkreq(void *pch, uint32 mask, uint32 val);
-extern uint32 pcie_lcreg(void *pch, uint32 mask, uint32 val);
+extern u8 pcie_clkreq(void *pch, u32 mask, u32 val);
+extern u32 pcie_lcreg(void *pch, u32 mask, u32 val);
 
 extern void *pcicore_init(si_t *sih, osl_t *osh, void *regs);
 extern void pcicore_deinit(void *pch);
@@ -64,11 +64,11 @@ extern void pcicore_sleep(void *pch);
 extern void pcicore_down(void *pch, int state);
 
 extern void pcie_war_ovr_aspm_update(void *pch, u8 aspm);
-extern uint32 pcicore_pcieserdesreg(void *pch, uint32 mdioslave, uint32 offset,
-				    uint32 mask, uint32 val);
+extern u32 pcicore_pcieserdesreg(void *pch, u32 mdioslave, u32 offset,
+				    u32 mask, u32 val);
 
-extern uint32 pcicore_pciereg(void *pch, uint32 offset, uint32 mask,
-			      uint32 val, uint type);
+extern u32 pcicore_pciereg(void *pch, u32 offset, u32 mask,
+			      u32 val, uint type);
 
 extern bool pcicore_pmecap_fast(osl_t *osh);
 extern void pcicore_pmeen(void *pch);

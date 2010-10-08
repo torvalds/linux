@@ -73,7 +73,7 @@ struct osl_info {
 };
 
 /* Global ASSERT type flag */
-uint32 g_assert_type;
+u32 g_assert_type;
 
 #ifdef BRCM_FULLMAC
 static s16 linuxbcmerrormap[] = { 0,	/* 0 */
@@ -358,7 +358,7 @@ void osl_pktfree_static(osl_t *osh, void *p, bool send)
 }
 #endif /* defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF) */
 
-uint32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
+u32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 {
 	uint val = 0;
 	uint retry = PCI_CFG_RETRY;
@@ -558,7 +558,7 @@ void BCMFASTPATH osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction)
 
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 	dir = (direction == DMA_TX) ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
-	pci_unmap_single(osh->pdev, (uint32) pa, size, dir);
+	pci_unmap_single(osh->pdev, (u32) pa, size, dir);
 }
 
 #if defined(BCMDBG_ASSERT)
@@ -636,12 +636,12 @@ u16 osl_readw(osl_t *osh, volatile u16 *r)
 	return (u16) ((rreg) (ctx, (void *)r, sizeof(u16)));
 }
 
-uint32 osl_readl(osl_t *osh, volatile uint32 *r)
+u32 osl_readl(osl_t *osh, volatile u32 *r)
 {
 	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
 	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
 
-	return (uint32) ((rreg) (ctx, (void *)r, sizeof(uint32)));
+	return (u32) ((rreg) (ctx, (void *)r, sizeof(u32)));
 }
 
 void osl_writeb(osl_t *osh, volatile u8 *r, u8 v)
@@ -660,11 +660,11 @@ void osl_writew(osl_t *osh, volatile u16 *r, u16 v)
 	((wreg) (ctx, (void *)r, v, sizeof(u16)));
 }
 
-void osl_writel(osl_t *osh, volatile uint32 *r, uint32 v)
+void osl_writel(osl_t *osh, volatile u32 *r, u32 v)
 {
 	osl_wreg_fn_t wreg = ((osl_pubinfo_t *) osh)->wreg_fn;
 	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
 
-	((wreg) (ctx, (void *)r, v, sizeof(uint32)));
+	((wreg) (ctx, (void *)r, v, sizeof(u32)));
 }
 #endif	/* BCMSDIO */

@@ -39,8 +39,8 @@
 #define	LEGACY_WL_BSS_INFO_VERSION	107	/* older version of wl_bss_info struct */
 
 typedef struct wl_bss_info_107 {
-	uint32 version;		/* version field */
-	uint32 length;		/* byte length of data in this record,
+	u32 version;		/* version field */
+	u32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
 				 */
 	struct ether_addr BSSID;
@@ -57,7 +57,7 @@ typedef struct wl_bss_info_107 {
 	u8 dtim_period;	/* DTIM period */
 	s16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
-	uint32 ie_length;	/* byte length of Information Elements */
+	u32 ie_length;	/* byte length of Information Elements */
 	/* variable length Information Elements */
 } wl_bss_info_107_t;
 
@@ -72,8 +72,8 @@ typedef struct wl_bss_info_107 {
  * next bss_info structure in a vector (in wl_scan_results_t)
  */
 typedef struct wl_bss_info_108 {
-	uint32 version;		/* version field */
-	uint32 length;		/* byte length of data in this record,
+	u32 version;		/* version field */
+	u32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
 				 */
 	struct ether_addr BSSID;
@@ -92,15 +92,15 @@ typedef struct wl_bss_info_108 {
 	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
-	uint32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
+	u32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
 	u8 ctl_ch;		/* 802.11N BSS control channel number */
-	uint32 reserved32[1];	/* Reserved for expansion of BSS properties */
+	u32 reserved32[1];	/* Reserved for expansion of BSS properties */
 	u8 flags;		/* flags */
 	u8 reserved[3];	/* Reserved for expansion of BSS properties */
 	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
 	u16 ie_offset;	/* offset at which IEs start, from beginning */
-	uint32 ie_length;	/* byte length of Information Elements */
+	u32 ie_length;	/* byte length of Information Elements */
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_108_t;
@@ -116,8 +116,8 @@ typedef struct wl_bss_info_108 {
  * next bss_info structure in a vector (in wl_scan_results_t)
  */
 typedef struct wl_bss_info {
-	uint32 version;		/* version field */
-	uint32 length;		/* byte length of data in this record,
+	u32 version;		/* version field */
+	u32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
 				 */
 	struct ether_addr BSSID;
@@ -136,22 +136,22 @@ typedef struct wl_bss_info {
 	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
-	uint32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
+	u32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
 	u8 ctl_ch;		/* 802.11N BSS control channel number */
-	uint32 reserved32[1];	/* Reserved for expansion of BSS properties */
+	u32 reserved32[1];	/* Reserved for expansion of BSS properties */
 	u8 flags;		/* flags */
 	u8 reserved[3];	/* Reserved for expansion of BSS properties */
 	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
 	u16 ie_offset;	/* offset at which IEs start, from beginning */
-	uint32 ie_length;	/* byte length of Information Elements */
+	u32 ie_length;	/* byte length of Information Elements */
 	s16 SNR;		/* average SNR of during frame reception */
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_t;
 
 typedef struct wlc_ssid {
-	uint32 SSID_len;
+	u32 SSID_len;
 	unsigned char SSID[32];
 } wlc_ssid_t;
 
@@ -159,8 +159,8 @@ typedef struct chan_scandata {
 	u8 txpower;
 	u8 pad;
 	chanspec_t channel;	/* Channel num, bw, ctrl_sb and band */
-	uint32 channel_mintime;
-	uint32 channel_maxtime;
+	u32 channel_mintime;
+	u32 channel_maxtime;
 } chan_scandata_t;
 
 typedef enum wl_scan_type {
@@ -181,7 +181,7 @@ typedef struct wl_extdscan_params {
 	s8 band;		/* band */
 	s8 pad;
 	wlc_ssid_t ssid[WLC_EXTDSCAN_MAX_SSID];	/* ssid list */
-	uint32 tx_rate;		/* in 500ksec units */
+	u32 tx_rate;		/* in 500ksec units */
 	wl_scan_type_t scan_type;	/* enum */
 	int32 channel_num;
 	chan_scandata_t channel_list[1];	/* list of chandata structs */
@@ -247,7 +247,7 @@ typedef struct wl_scan_params {
 
 /* incremental scan struct */
 typedef struct wl_iscan_params {
-	uint32 version;
+	u32 version;
 	u16 action;
 	u16 scan_duration;
 	wl_scan_params_t params;
@@ -257,9 +257,9 @@ typedef struct wl_iscan_params {
 #define WL_ISCAN_PARAMS_FIXED_SIZE (OFFSETOF(wl_iscan_params_t, params) + sizeof(wlc_ssid_t))
 
 typedef struct wl_scan_results {
-	uint32 buflen;
-	uint32 version;
-	uint32 count;
+	u32 buflen;
+	u32 version;
+	u32 count;
 	wl_bss_info_t bss_info[1];
 } wl_scan_results_t;
 
@@ -276,7 +276,7 @@ typedef struct wl_scan_results {
 #define ESCAN_REQ_VERSION 1
 
 typedef struct wl_escan_params {
-	uint32 version;
+	u32 version;
 	u16 action;
 	u16 sync_id;
 	wl_scan_params_t params;
@@ -285,8 +285,8 @@ typedef struct wl_escan_params {
 #define WL_ESCAN_PARAMS_FIXED_SIZE (OFFSETOF(wl_escan_params_t, params) + sizeof(wlc_ssid_t))
 
 typedef struct wl_escan_result {
-	uint32 buflen;
-	uint32 version;
+	u32 buflen;
+	u32 version;
 	u16 sync_id;
 	u16 bss_count;
 	wl_bss_info_t bss_info[1];
@@ -296,7 +296,7 @@ typedef struct wl_escan_result {
 
 /* incremental scan results struct */
 typedef struct wl_iscan_results {
-	uint32 status;
+	u32 status;
 	wl_scan_results_t results;
 } wl_iscan_results_t;
 
@@ -312,23 +312,23 @@ typedef struct wl_probe_params {
 
 #define WL_NUMRATES		16	/* max # of rates in a rateset */
 typedef struct wl_rateset {
-	uint32 count;		/* # rates in this set */
+	u32 count;		/* # rates in this set */
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 } wl_rateset_t;
 
 typedef struct wl_rateset_args {
-	uint32 count;		/* # rates in this set */
+	u32 count;		/* # rates in this set */
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 	u8 mcs[MCSSET_LEN];	/* supported mcs index bit map */
 } wl_rateset_args_t;
 
-/* uint32 list */
-typedef struct wl_uint32_list {
+/* u32 list */
+typedef struct wl_u32_list {
 	/* in - # of elements, out - # of entries */
-	uint32 count;
-	/* variable length uint32 list */
-	uint32 element[1];
-} wl_uint32_list_t;
+	u32 count;
+	/* variable length u32 list */
+	u32 element[1];
+} wl_u32_list_t;
 
 /* used for association with a specific BSSID and chanspec list */
 typedef struct wl_assoc_params {
@@ -415,12 +415,12 @@ typedef struct {
 #define CCA_ERRNO_TOO_FEW	5	/* Only 1 channel was input */
 
 typedef struct {
-	uint32 duration;	/* millisecs spent sampling this channel */
-	uint32 congest_ibss;	/* millisecs in our bss (presumably this traffic will */
+	u32 duration;	/* millisecs spent sampling this channel */
+	u32 congest_ibss;	/* millisecs in our bss (presumably this traffic will */
 	/*  move if cur bss moves channels) */
-	uint32 congest_obss;	/* traffic not in our bss */
-	uint32 interference;	/* millisecs detecting a non 802.11 interferer. */
-	uint32 timestamp;	/* second timestamp */
+	u32 congest_obss;	/* traffic not in our bss */
+	u32 interference;	/* millisecs detecting a non 802.11 interferer. */
+	u32 timestamp;	/* second timestamp */
 } cca_congest_t;
 
 typedef struct {
@@ -447,18 +447,18 @@ typedef struct wl_country {
 } wl_country_t;
 
 typedef struct wl_channels_in_country {
-	uint32 buflen;
-	uint32 band;
+	u32 buflen;
+	u32 band;
 	char country_abbrev[WLC_CNTRY_BUF_SZ];
-	uint32 count;
-	uint32 channel[1];
+	u32 count;
+	u32 channel[1];
 } wl_channels_in_country_t;
 
 typedef struct wl_country_list {
-	uint32 buflen;
-	uint32 band_set;
-	uint32 band;
-	uint32 count;
+	u32 buflen;
+	u32 band_set;
+	u32 band;
+	u32 count;
 	char country_abbrev[1];
 } wl_country_list_t;
 
@@ -477,15 +477,15 @@ typedef struct wl_rm_req_elt {
 	s8 type;
 	s8 flags;
 	chanspec_t chanspec;
-	uint32 token;		/* token for this measurement */
-	uint32 tsf_h;		/* TSF high 32-bits of Measurement start time */
-	uint32 tsf_l;		/* TSF low 32-bits */
-	uint32 dur;		/* TUs */
+	u32 token;		/* token for this measurement */
+	u32 tsf_h;		/* TSF high 32-bits of Measurement start time */
+	u32 tsf_l;		/* TSF low 32-bits */
+	u32 dur;		/* TUs */
 } wl_rm_req_elt_t;
 
 typedef struct wl_rm_req {
-	uint32 token;		/* overall measurement set token */
-	uint32 count;		/* number of measurement requests */
+	u32 token;		/* overall measurement set token */
+	u32 count;		/* number of measurement requests */
 	void *cb;		/* completion callback function: may be NULL */
 	void *cb_arg;		/* arg to completion callback function */
 	wl_rm_req_elt_t req[1];	/* variable length block of requests */
@@ -496,11 +496,11 @@ typedef struct wl_rm_rep_elt {
 	s8 type;
 	s8 flags;
 	chanspec_t chanspec;
-	uint32 token;		/* token for this measurement */
-	uint32 tsf_h;		/* TSF high 32-bits of Measurement start time */
-	uint32 tsf_l;		/* TSF low 32-bits */
-	uint32 dur;		/* TUs */
-	uint32 len;		/* byte length of data block */
+	u32 token;		/* token for this measurement */
+	u32 tsf_h;		/* TSF high 32-bits of Measurement start time */
+	u32 tsf_l;		/* TSF low 32-bits */
+	u32 dur;		/* TUs */
+	u32 len;		/* byte length of data block */
 	u8 data[1];		/* variable length data block */
 } wl_rm_rep_elt_t;
 #define WL_RM_REP_ELT_FIXED_LEN	24	/* length excluding data block */
@@ -512,8 +512,8 @@ typedef struct wl_rm_rpi_rep {
 } wl_rm_rpi_rep_t;
 
 typedef struct wl_rm_rep {
-	uint32 token;		/* overall measurement set token */
-	uint32 len;		/* length of measurement report block */
+	u32 token;		/* overall measurement set token */
+	u32 len;		/* length of measurement report block */
 	wl_rm_rep_elt_t rep[1];	/* variable length block of reports */
 } wl_rm_rep_t;
 #define WL_RM_REP_FIXED_LEN	8
@@ -539,22 +539,22 @@ typedef struct wl_rm_rep {
 #define WL_IBSS_PEER_GROUP_KEY	(1 << 6)	/* Indicates a group key for a IBSS PEER */
 
 typedef struct wl_wsec_key {
-	uint32 index;		/* key index */
-	uint32 len;		/* key length */
+	u32 index;		/* key index */
+	u32 len;		/* key length */
 	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */
-	uint32 pad_1[18];
-	uint32 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
-	uint32 flags;		/* misc flags */
-	uint32 pad_2[2];
+	u32 pad_1[18];
+	u32 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
+	u32 flags;		/* misc flags */
+	u32 pad_2[2];
 	int pad_3;
 	int iv_initialized;	/* has IV been initialized already? */
 	int pad_4;
 	/* Rx IV */
 	struct {
-		uint32 hi;	/* upper 32 bits of IV */
+		u32 hi;	/* upper 32 bits of IV */
 		u16 lo;	/* lower 16 bits of IV */
 	} rxiv;
-	uint32 pad_5[2];
+	u32 pad_5[2];
 	struct ether_addr ea;	/* per station */
 } wl_wsec_key_t;
 
@@ -602,7 +602,7 @@ typedef struct _pmkid {
 } pmkid_t;
 
 typedef struct _pmkid_list {
-	uint32 npmkid;
+	u32 npmkid;
 	pmkid_t pmkid[1];
 } pmkid_list_t;
 
@@ -612,13 +612,13 @@ typedef struct _pmkid_cand {
 } pmkid_cand_t;
 
 typedef struct _pmkid_cand_list {
-	uint32 npmkid_cand;
+	u32 npmkid_cand;
 	pmkid_cand_t pmkid_cand[1];
 } pmkid_cand_list_t;
 
 typedef struct wl_led_info {
-	uint32 index;		/* led index */
-	uint32 behavior;
+	u32 index;		/* led index */
+	u32 behavior;
 	u8 activehi;
 } wl_led_info_t;
 
@@ -634,9 +634,9 @@ typedef struct {
 
 /* similar cis (srom or otp) struct [iovar: may not be aligned] */
 typedef struct {
-	uint32 source;		/* cis source */
-	uint32 byteoff;		/* byte offset */
-	uint32 nbytes;		/* number of bytes */
+	u32 source;		/* cis source */
+	u32 byteoff;		/* byte offset */
+	u32 nbytes;		/* number of bytes */
 	/* data follows here */
 } cis_rw_t;
 
@@ -646,9 +646,9 @@ typedef struct {
 
 /* R_REG and W_REG struct passed through ioctl */
 typedef struct {
-	uint32 byteoff;		/* byte offset of the field in d11regs_t */
-	uint32 val;		/* read/write value of the field */
-	uint32 size;		/* sizeof the field */
+	u32 byteoff;		/* byte offset of the field in d11regs_t */
+	u32 val;		/* read/write value of the field */
+	u32 size;		/* sizeof the field */
 	uint band;		/* band (optional) */
 } rw_reg_t;
 
@@ -704,20 +704,20 @@ typedef struct {
 	u16 ver;		/* version of this struct */
 	u16 len;		/* length in bytes of this structure */
 	u16 cap;		/* sta's advertised capabilities */
-	uint32 flags;		/* flags defined below */
-	uint32 idle;		/* time since data pkt rx'd from sta */
+	u32 flags;		/* flags defined below */
+	u32 idle;		/* time since data pkt rx'd from sta */
 	struct ether_addr ea;	/* Station address */
 	wl_rateset_t rateset;	/* rateset in use */
-	uint32 in;		/* seconds elapsed since associated */
-	uint32 listen_interval_inms;	/* Min Listen interval in ms for this STA */
-	uint32 tx_pkts;		/* # of packets transmitted */
-	uint32 tx_failures;	/* # of packets failed */
-	uint32 rx_ucast_pkts;	/* # of unicast packets received */
-	uint32 rx_mcast_pkts;	/* # of multicast packets received */
-	uint32 tx_rate;		/* Rate of last successful tx frame */
-	uint32 rx_rate;		/* Rate of last successful rx frame */
-	uint32 rx_decrypt_succeeds;	/* # of packet decrypted successfully */
-	uint32 rx_decrypt_failures;	/* # of packet decrypted unsuccessfully */
+	u32 in;		/* seconds elapsed since associated */
+	u32 listen_interval_inms;	/* Min Listen interval in ms for this STA */
+	u32 tx_pkts;		/* # of packets transmitted */
+	u32 tx_failures;	/* # of packets failed */
+	u32 rx_ucast_pkts;	/* # of unicast packets received */
+	u32 rx_mcast_pkts;	/* # of multicast packets received */
+	u32 tx_rate;		/* Rate of last successful tx frame */
+	u32 rx_rate;		/* Rate of last successful rx frame */
+	u32 rx_decrypt_succeeds;	/* # of packet decrypted successfully */
+	u32 rx_decrypt_failures;	/* # of packet decrypted unsuccessfully */
 } sta_info_t;
 
 #define WL_OLD_STAINFO_SIZE	OFFSETOF(sta_info_t, tx_pkts)
@@ -745,7 +745,7 @@ typedef struct {
 
 /* Used to get specific STA parameters */
 typedef struct {
-	uint32 val;
+	u32 val;
 	struct ether_addr ea;
 } scb_val_t;
 
@@ -1208,7 +1208,7 @@ typedef struct wl_po {
 	u16 phy_type;	/* Phy type */
 	u16 band;
 	u16 cckpo;
-	uint32 ofdmpo;
+	u32 ofdmpo;
 	u16 mcspo[8];
 } wl_po_t;
 
@@ -1371,8 +1371,8 @@ typedef struct wl_po {
 
 /* RSSI per antenna */
 typedef struct {
-	uint32 version;		/* version field */
-	uint32 count;		/* number of valid antenna rssi */
+	u32 version;		/* version field */
+	u32 count;		/* number of valid antenna rssi */
 	s8 rssi_ant[WL_RSSI_ANT_MAX];	/* rssi per antenna */
 } wl_rssi_ant_t;
 
@@ -1401,7 +1401,7 @@ typedef struct {
 #define WL_TX_POWER_MCS40_NUM	        17
 
 typedef struct {
-	uint32 flags;
+	u32 flags;
 	chanspec_t chanspec;	/* txpwr report for this channel */
 	chanspec_t local_chanspec;	/* channel on which we are associated */
 	u8 local_max;	/* local max according to the AP */
@@ -1449,7 +1449,7 @@ typedef struct {
 #define WL_TX_POWER_F_SISO	8
 
 typedef struct {
-	uint32 flags;
+	u32 flags;
 	chanspec_t chanspec;	/* txpwr report for this channel */
 	chanspec_t local_chanspec;	/* channel on which we are associated */
 	u8 local_max;	/* local max according to the AP */
@@ -1497,231 +1497,231 @@ typedef struct {
 	u16 length;		/* length of entire structure */
 
 	/* transmit stat counters */
-	uint32 txframe;		/* tx data frames */
-	uint32 txbyte;		/* tx data bytes */
-	uint32 txretrans;	/* tx mac retransmits */
-	uint32 txerror;		/* tx data errors (derived: sum of others) */
-	uint32 txctl;		/* tx management frames */
-	uint32 txprshort;	/* tx short preamble frames */
-	uint32 txserr;		/* tx status errors */
-	uint32 txnobuf;		/* tx out of buffers errors */
-	uint32 txnoassoc;	/* tx discard because we're not associated */
-	uint32 txrunt;		/* tx runt frames */
-	uint32 txchit;		/* tx header cache hit (fastpath) */
-	uint32 txcmiss;		/* tx header cache miss (slowpath) */
-	uint32 ieee_tx_status;	/* calls to ieee80211_tx_status */
-	uint32 ieee_tx;		/* tx calls frm mac0211 */
-	uint32 ieee_rx;		/* calls to ieee_rx */
+	u32 txframe;		/* tx data frames */
+	u32 txbyte;		/* tx data bytes */
+	u32 txretrans;	/* tx mac retransmits */
+	u32 txerror;		/* tx data errors (derived: sum of others) */
+	u32 txctl;		/* tx management frames */
+	u32 txprshort;	/* tx short preamble frames */
+	u32 txserr;		/* tx status errors */
+	u32 txnobuf;		/* tx out of buffers errors */
+	u32 txnoassoc;	/* tx discard because we're not associated */
+	u32 txrunt;		/* tx runt frames */
+	u32 txchit;		/* tx header cache hit (fastpath) */
+	u32 txcmiss;		/* tx header cache miss (slowpath) */
+	u32 ieee_tx_status;	/* calls to ieee80211_tx_status */
+	u32 ieee_tx;		/* tx calls frm mac0211 */
+	u32 ieee_rx;		/* calls to ieee_rx */
 
 	/* transmit chip error counters */
-	uint32 txuflo;		/* tx fifo underflows */
-	uint32 txphyerr;	/* tx phy errors (indicated in tx status) */
-	uint32 txphycrs;
+	u32 txuflo;		/* tx fifo underflows */
+	u32 txphyerr;	/* tx phy errors (indicated in tx status) */
+	u32 txphycrs;
 
 	/* receive stat counters */
-	uint32 rxframe;		/* rx data frames */
-	uint32 rxbyte;		/* rx data bytes */
-	uint32 rxerror;		/* rx data errors (derived: sum of others) */
-	uint32 rxctl;		/* rx management frames */
-	uint32 rxnobuf;		/* rx out of buffers errors */
-	uint32 rxnondata;	/* rx non data frames in the data channel errors */
-	uint32 rxbadds;		/* rx bad DS errors */
-	uint32 rxbadcm;		/* rx bad control or management frames */
-	uint32 rxfragerr;	/* rx fragmentation errors */
-	uint32 rxrunt;		/* rx runt frames */
-	uint32 rxgiant;		/* rx giant frames */
-	uint32 rxnoscb;		/* rx no scb error */
-	uint32 rxbadproto;	/* rx invalid frames */
-	uint32 rxbadsrcmac;	/* rx frames with Invalid Src Mac */
-	uint32 rxbadda;		/* rx frames tossed for invalid da */
-	uint32 rxfilter;	/* rx frames filtered out */
+	u32 rxframe;		/* rx data frames */
+	u32 rxbyte;		/* rx data bytes */
+	u32 rxerror;		/* rx data errors (derived: sum of others) */
+	u32 rxctl;		/* rx management frames */
+	u32 rxnobuf;		/* rx out of buffers errors */
+	u32 rxnondata;	/* rx non data frames in the data channel errors */
+	u32 rxbadds;		/* rx bad DS errors */
+	u32 rxbadcm;		/* rx bad control or management frames */
+	u32 rxfragerr;	/* rx fragmentation errors */
+	u32 rxrunt;		/* rx runt frames */
+	u32 rxgiant;		/* rx giant frames */
+	u32 rxnoscb;		/* rx no scb error */
+	u32 rxbadproto;	/* rx invalid frames */
+	u32 rxbadsrcmac;	/* rx frames with Invalid Src Mac */
+	u32 rxbadda;		/* rx frames tossed for invalid da */
+	u32 rxfilter;	/* rx frames filtered out */
 
 	/* receive chip error counters */
-	uint32 rxoflo;		/* rx fifo overflow errors */
-	uint32 rxuflo[NFIFO];	/* rx dma descriptor underflow errors */
+	u32 rxoflo;		/* rx fifo overflow errors */
+	u32 rxuflo[NFIFO];	/* rx dma descriptor underflow errors */
 
-	uint32 d11cnt_txrts_off;	/* d11cnt txrts value when reset d11cnt */
-	uint32 d11cnt_rxcrc_off;	/* d11cnt rxcrc value when reset d11cnt */
-	uint32 d11cnt_txnocts_off;	/* d11cnt txnocts value when reset d11cnt */
+	u32 d11cnt_txrts_off;	/* d11cnt txrts value when reset d11cnt */
+	u32 d11cnt_rxcrc_off;	/* d11cnt rxcrc value when reset d11cnt */
+	u32 d11cnt_txnocts_off;	/* d11cnt txnocts value when reset d11cnt */
 
 	/* misc counters */
-	uint32 dmade;		/* tx/rx dma descriptor errors */
-	uint32 dmada;		/* tx/rx dma data errors */
-	uint32 dmape;		/* tx/rx dma descriptor protocol errors */
-	uint32 reset;		/* reset count */
-	uint32 tbtt;		/* cnts the TBTT int's */
-	uint32 txdmawar;
-	uint32 pkt_callback_reg_fail;	/* callbacks register failure */
+	u32 dmade;		/* tx/rx dma descriptor errors */
+	u32 dmada;		/* tx/rx dma data errors */
+	u32 dmape;		/* tx/rx dma descriptor protocol errors */
+	u32 reset;		/* reset count */
+	u32 tbtt;		/* cnts the TBTT int's */
+	u32 txdmawar;
+	u32 pkt_callback_reg_fail;	/* callbacks register failure */
 
 	/* MAC counters: 32-bit version of d11.h's macstat_t */
-	uint32 txallfrm;	/* total number of frames sent, incl. Data, ACK, RTS, CTS,
+	u32 txallfrm;	/* total number of frames sent, incl. Data, ACK, RTS, CTS,
 				 * Control Management (includes retransmissions)
 				 */
-	uint32 txrtsfrm;	/* number of RTS sent out by the MAC */
-	uint32 txctsfrm;	/* number of CTS sent out by the MAC */
-	uint32 txackfrm;	/* number of ACK frames sent out */
-	uint32 txdnlfrm;	/* Not used */
-	uint32 txbcnfrm;	/* beacons transmitted */
-	uint32 txfunfl[8];	/* per-fifo tx underflows */
-	uint32 txtplunfl;	/* Template underflows (mac was too slow to transmit ACK/CTS
+	u32 txrtsfrm;	/* number of RTS sent out by the MAC */
+	u32 txctsfrm;	/* number of CTS sent out by the MAC */
+	u32 txackfrm;	/* number of ACK frames sent out */
+	u32 txdnlfrm;	/* Not used */
+	u32 txbcnfrm;	/* beacons transmitted */
+	u32 txfunfl[8];	/* per-fifo tx underflows */
+	u32 txtplunfl;	/* Template underflows (mac was too slow to transmit ACK/CTS
 				 * or BCN)
 				 */
-	uint32 txphyerror;	/* Transmit phy error, type of error is reported in tx-status for
+	u32 txphyerror;	/* Transmit phy error, type of error is reported in tx-status for
 				 * driver enqueued frames
 				 */
-	uint32 rxfrmtoolong;	/* Received frame longer than legal limit (2346 bytes) */
-	uint32 rxfrmtooshrt;	/* Received frame did not contain enough bytes for its frame type */
-	uint32 rxinvmachdr;	/* Either the protocol version != 0 or frame type not
+	u32 rxfrmtoolong;	/* Received frame longer than legal limit (2346 bytes) */
+	u32 rxfrmtooshrt;	/* Received frame did not contain enough bytes for its frame type */
+	u32 rxinvmachdr;	/* Either the protocol version != 0 or frame type not
 				 * data/control/management
 				 */
-	uint32 rxbadfcs;	/* number of frames for which the CRC check failed in the MAC */
-	uint32 rxbadplcp;	/* parity check of the PLCP header failed */
-	uint32 rxcrsglitch;	/* PHY was able to correlate the preamble but not the header */
-	uint32 rxstrt;		/* Number of received frames with a good PLCP
+	u32 rxbadfcs;	/* number of frames for which the CRC check failed in the MAC */
+	u32 rxbadplcp;	/* parity check of the PLCP header failed */
+	u32 rxcrsglitch;	/* PHY was able to correlate the preamble but not the header */
+	u32 rxstrt;		/* Number of received frames with a good PLCP
 				 * (i.e. passing parity check)
 				 */
-	uint32 rxdfrmucastmbss;	/* Number of received DATA frames with good FCS and matching RA */
-	uint32 rxmfrmucastmbss;	/* number of received mgmt frames with good FCS and matching RA */
-	uint32 rxcfrmucast;	/* number of received CNTRL frames with good FCS and matching RA */
-	uint32 rxrtsucast;	/* number of unicast RTS addressed to the MAC (good FCS) */
-	uint32 rxctsucast;	/* number of unicast CTS addressed to the MAC (good FCS) */
-	uint32 rxackucast;	/* number of ucast ACKS received (good FCS) */
-	uint32 rxdfrmocast;	/* number of received DATA frames (good FCS and not matching RA) */
-	uint32 rxmfrmocast;	/* number of received MGMT frames (good FCS and not matching RA) */
-	uint32 rxcfrmocast;	/* number of received CNTRL frame (good FCS and not matching RA) */
-	uint32 rxrtsocast;	/* number of received RTS not addressed to the MAC */
-	uint32 rxctsocast;	/* number of received CTS not addressed to the MAC */
-	uint32 rxdfrmmcast;	/* number of RX Data multicast frames received by the MAC */
-	uint32 rxmfrmmcast;	/* number of RX Management multicast frames received by the MAC */
-	uint32 rxcfrmmcast;	/* number of RX Control multicast frames received by the MAC
+	u32 rxdfrmucastmbss;	/* Number of received DATA frames with good FCS and matching RA */
+	u32 rxmfrmucastmbss;	/* number of received mgmt frames with good FCS and matching RA */
+	u32 rxcfrmucast;	/* number of received CNTRL frames with good FCS and matching RA */
+	u32 rxrtsucast;	/* number of unicast RTS addressed to the MAC (good FCS) */
+	u32 rxctsucast;	/* number of unicast CTS addressed to the MAC (good FCS) */
+	u32 rxackucast;	/* number of ucast ACKS received (good FCS) */
+	u32 rxdfrmocast;	/* number of received DATA frames (good FCS and not matching RA) */
+	u32 rxmfrmocast;	/* number of received MGMT frames (good FCS and not matching RA) */
+	u32 rxcfrmocast;	/* number of received CNTRL frame (good FCS and not matching RA) */
+	u32 rxrtsocast;	/* number of received RTS not addressed to the MAC */
+	u32 rxctsocast;	/* number of received CTS not addressed to the MAC */
+	u32 rxdfrmmcast;	/* number of RX Data multicast frames received by the MAC */
+	u32 rxmfrmmcast;	/* number of RX Management multicast frames received by the MAC */
+	u32 rxcfrmmcast;	/* number of RX Control multicast frames received by the MAC
 				 * (unlikely to see these)
 				 */
-	uint32 rxbeaconmbss;	/* beacons received from member of BSS */
-	uint32 rxdfrmucastobss;	/* number of unicast frames addressed to the MAC from
+	u32 rxbeaconmbss;	/* beacons received from member of BSS */
+	u32 rxdfrmucastobss;	/* number of unicast frames addressed to the MAC from
 				 * other BSS (WDS FRAME)
 				 */
-	uint32 rxbeaconobss;	/* beacons received from other BSS */
-	uint32 rxrsptmout;	/* Number of response timeouts for transmitted frames
+	u32 rxbeaconobss;	/* beacons received from other BSS */
+	u32 rxrsptmout;	/* Number of response timeouts for transmitted frames
 				 * expecting a response
 				 */
-	uint32 bcntxcancl;	/* transmit beacons canceled due to receipt of beacon (IBSS) */
-	uint32 rxf0ovfl;	/* Number of receive fifo 0 overflows */
-	uint32 rxf1ovfl;	/* Number of receive fifo 1 overflows (obsolete) */
-	uint32 rxf2ovfl;	/* Number of receive fifo 2 overflows (obsolete) */
-	uint32 txsfovfl;	/* Number of transmit status fifo overflows (obsolete) */
-	uint32 pmqovfl;		/* Number of PMQ overflows */
-	uint32 rxcgprqfrm;	/* Number of received Probe requests that made it into
+	u32 bcntxcancl;	/* transmit beacons canceled due to receipt of beacon (IBSS) */
+	u32 rxf0ovfl;	/* Number of receive fifo 0 overflows */
+	u32 rxf1ovfl;	/* Number of receive fifo 1 overflows (obsolete) */
+	u32 rxf2ovfl;	/* Number of receive fifo 2 overflows (obsolete) */
+	u32 txsfovfl;	/* Number of transmit status fifo overflows (obsolete) */
+	u32 pmqovfl;		/* Number of PMQ overflows */
+	u32 rxcgprqfrm;	/* Number of received Probe requests that made it into
 				 * the PRQ fifo
 				 */
-	uint32 rxcgprsqovfl;	/* Rx Probe Request Que overflow in the AP */
-	uint32 txcgprsfail;	/* Tx Probe Response Fail. AP sent probe response but did
+	u32 rxcgprsqovfl;	/* Rx Probe Request Que overflow in the AP */
+	u32 txcgprsfail;	/* Tx Probe Response Fail. AP sent probe response but did
 				 * not get ACK
 				 */
-	uint32 txcgprssuc;	/* Tx Probe Response Success (ACK was received) */
-	uint32 prs_timeout;	/* Number of probe requests that were dropped from the PRQ
+	u32 txcgprssuc;	/* Tx Probe Response Success (ACK was received) */
+	u32 prs_timeout;	/* Number of probe requests that were dropped from the PRQ
 				 * fifo because a probe response could not be sent out within
 				 * the time limit defined in M_PRS_MAXTIME
 				 */
-	uint32 rxnack;
-	uint32 frmscons;
-	uint32 txnack;
-	uint32 txglitch_nack;	/* obsolete */
-	uint32 txburst;		/* obsolete */
+	u32 rxnack;
+	u32 frmscons;
+	u32 txnack;
+	u32 txglitch_nack;	/* obsolete */
+	u32 txburst;		/* obsolete */
 
 	/* 802.11 MIB counters, pp. 614 of 802.11 reaff doc. */
-	uint32 txfrag;		/* dot11TransmittedFragmentCount */
-	uint32 txmulti;		/* dot11MulticastTransmittedFrameCount */
-	uint32 txfail;		/* dot11FailedCount */
-	uint32 txretry;		/* dot11RetryCount */
-	uint32 txretrie;	/* dot11MultipleRetryCount */
-	uint32 rxdup;		/* dot11FrameduplicateCount */
-	uint32 txrts;		/* dot11RTSSuccessCount */
-	uint32 txnocts;		/* dot11RTSFailureCount */
-	uint32 txnoack;		/* dot11ACKFailureCount */
-	uint32 rxfrag;		/* dot11ReceivedFragmentCount */
-	uint32 rxmulti;		/* dot11MulticastReceivedFrameCount */
-	uint32 rxcrc;		/* dot11FCSErrorCount */
-	uint32 txfrmsnt;	/* dot11TransmittedFrameCount (bogus MIB?) */
-	uint32 rxundec;		/* dot11WEPUndecryptableCount */
+	u32 txfrag;		/* dot11TransmittedFragmentCount */
+	u32 txmulti;		/* dot11MulticastTransmittedFrameCount */
+	u32 txfail;		/* dot11FailedCount */
+	u32 txretry;		/* dot11RetryCount */
+	u32 txretrie;	/* dot11MultipleRetryCount */
+	u32 rxdup;		/* dot11FrameduplicateCount */
+	u32 txrts;		/* dot11RTSSuccessCount */
+	u32 txnocts;		/* dot11RTSFailureCount */
+	u32 txnoack;		/* dot11ACKFailureCount */
+	u32 rxfrag;		/* dot11ReceivedFragmentCount */
+	u32 rxmulti;		/* dot11MulticastReceivedFrameCount */
+	u32 rxcrc;		/* dot11FCSErrorCount */
+	u32 txfrmsnt;	/* dot11TransmittedFrameCount (bogus MIB?) */
+	u32 rxundec;		/* dot11WEPUndecryptableCount */
 
 	/* WPA2 counters (see rxundec for DecryptFailureCount) */
-	uint32 tkipmicfaill;	/* TKIPLocalMICFailures */
-	uint32 tkipcntrmsr;	/* TKIPCounterMeasuresInvoked */
-	uint32 tkipreplay;	/* TKIPReplays */
-	uint32 ccmpfmterr;	/* CCMPFormatErrors */
-	uint32 ccmpreplay;	/* CCMPReplays */
-	uint32 ccmpundec;	/* CCMPDecryptErrors */
-	uint32 fourwayfail;	/* FourWayHandshakeFailures */
-	uint32 wepundec;	/* dot11WEPUndecryptableCount */
-	uint32 wepicverr;	/* dot11WEPICVErrorCount */
-	uint32 decsuccess;	/* DecryptSuccessCount */
-	uint32 tkipicverr;	/* TKIPICVErrorCount */
-	uint32 wepexcluded;	/* dot11WEPExcludedCount */
+	u32 tkipmicfaill;	/* TKIPLocalMICFailures */
+	u32 tkipcntrmsr;	/* TKIPCounterMeasuresInvoked */
+	u32 tkipreplay;	/* TKIPReplays */
+	u32 ccmpfmterr;	/* CCMPFormatErrors */
+	u32 ccmpreplay;	/* CCMPReplays */
+	u32 ccmpundec;	/* CCMPDecryptErrors */
+	u32 fourwayfail;	/* FourWayHandshakeFailures */
+	u32 wepundec;	/* dot11WEPUndecryptableCount */
+	u32 wepicverr;	/* dot11WEPICVErrorCount */
+	u32 decsuccess;	/* DecryptSuccessCount */
+	u32 tkipicverr;	/* TKIPICVErrorCount */
+	u32 wepexcluded;	/* dot11WEPExcludedCount */
 
-	uint32 rxundec_mcst;	/* dot11WEPUndecryptableCount */
+	u32 rxundec_mcst;	/* dot11WEPUndecryptableCount */
 
 	/* WPA2 counters (see rxundec for DecryptFailureCount) */
-	uint32 tkipmicfaill_mcst;	/* TKIPLocalMICFailures */
-	uint32 tkipcntrmsr_mcst;	/* TKIPCounterMeasuresInvoked */
-	uint32 tkipreplay_mcst;	/* TKIPReplays */
-	uint32 ccmpfmterr_mcst;	/* CCMPFormatErrors */
-	uint32 ccmpreplay_mcst;	/* CCMPReplays */
-	uint32 ccmpundec_mcst;	/* CCMPDecryptErrors */
-	uint32 fourwayfail_mcst;	/* FourWayHandshakeFailures */
-	uint32 wepundec_mcst;	/* dot11WEPUndecryptableCount */
-	uint32 wepicverr_mcst;	/* dot11WEPICVErrorCount */
-	uint32 decsuccess_mcst;	/* DecryptSuccessCount */
-	uint32 tkipicverr_mcst;	/* TKIPICVErrorCount */
-	uint32 wepexcluded_mcst;	/* dot11WEPExcludedCount */
+	u32 tkipmicfaill_mcst;	/* TKIPLocalMICFailures */
+	u32 tkipcntrmsr_mcst;	/* TKIPCounterMeasuresInvoked */
+	u32 tkipreplay_mcst;	/* TKIPReplays */
+	u32 ccmpfmterr_mcst;	/* CCMPFormatErrors */
+	u32 ccmpreplay_mcst;	/* CCMPReplays */
+	u32 ccmpundec_mcst;	/* CCMPDecryptErrors */
+	u32 fourwayfail_mcst;	/* FourWayHandshakeFailures */
+	u32 wepundec_mcst;	/* dot11WEPUndecryptableCount */
+	u32 wepicverr_mcst;	/* dot11WEPICVErrorCount */
+	u32 decsuccess_mcst;	/* DecryptSuccessCount */
+	u32 tkipicverr_mcst;	/* TKIPICVErrorCount */
+	u32 wepexcluded_mcst;	/* dot11WEPExcludedCount */
 
-	uint32 txchanrej;	/* Tx frames suppressed due to channel rejection */
-	uint32 txexptime;	/* Tx frames suppressed due to timer expiration */
-	uint32 psmwds;		/* Count PSM watchdogs */
-	uint32 phywatchdog;	/* Count Phy watchdogs (triggered by ucode) */
+	u32 txchanrej;	/* Tx frames suppressed due to channel rejection */
+	u32 txexptime;	/* Tx frames suppressed due to timer expiration */
+	u32 psmwds;		/* Count PSM watchdogs */
+	u32 phywatchdog;	/* Count Phy watchdogs (triggered by ucode) */
 
 	/* MBSS counters, AP only */
-	uint32 prq_entries_handled;	/* PRQ entries read in */
-	uint32 prq_undirected_entries;	/*    which were bcast bss & ssid */
-	uint32 prq_bad_entries;	/*    which could not be translated to info */
-	uint32 atim_suppress_count;	/* TX suppressions on ATIM fifo */
-	uint32 bcn_template_not_ready;	/* Template marked in use on send bcn ... */
-	uint32 bcn_template_not_ready_done;	/* ...but "DMA done" interrupt rcvd */
-	uint32 late_tbtt_dpc;	/* TBTT DPC did not happen in time */
+	u32 prq_entries_handled;	/* PRQ entries read in */
+	u32 prq_undirected_entries;	/*    which were bcast bss & ssid */
+	u32 prq_bad_entries;	/*    which could not be translated to info */
+	u32 atim_suppress_count;	/* TX suppressions on ATIM fifo */
+	u32 bcn_template_not_ready;	/* Template marked in use on send bcn ... */
+	u32 bcn_template_not_ready_done;	/* ...but "DMA done" interrupt rcvd */
+	u32 late_tbtt_dpc;	/* TBTT DPC did not happen in time */
 
 	/* per-rate receive stat counters */
-	uint32 rx1mbps;		/* packets rx at 1Mbps */
-	uint32 rx2mbps;		/* packets rx at 2Mbps */
-	uint32 rx5mbps5;	/* packets rx at 5.5Mbps */
-	uint32 rx6mbps;		/* packets rx at 6Mbps */
-	uint32 rx9mbps;		/* packets rx at 9Mbps */
-	uint32 rx11mbps;	/* packets rx at 11Mbps */
-	uint32 rx12mbps;	/* packets rx at 12Mbps */
-	uint32 rx18mbps;	/* packets rx at 18Mbps */
-	uint32 rx24mbps;	/* packets rx at 24Mbps */
-	uint32 rx36mbps;	/* packets rx at 36Mbps */
-	uint32 rx48mbps;	/* packets rx at 48Mbps */
-	uint32 rx54mbps;	/* packets rx at 54Mbps */
-	uint32 rx108mbps;	/* packets rx at 108mbps */
-	uint32 rx162mbps;	/* packets rx at 162mbps */
-	uint32 rx216mbps;	/* packets rx at 216 mbps */
-	uint32 rx270mbps;	/* packets rx at 270 mbps */
-	uint32 rx324mbps;	/* packets rx at 324 mbps */
-	uint32 rx378mbps;	/* packets rx at 378 mbps */
-	uint32 rx432mbps;	/* packets rx at 432 mbps */
-	uint32 rx486mbps;	/* packets rx at 486 mbps */
-	uint32 rx540mbps;	/* packets rx at 540 mbps */
+	u32 rx1mbps;		/* packets rx at 1Mbps */
+	u32 rx2mbps;		/* packets rx at 2Mbps */
+	u32 rx5mbps5;	/* packets rx at 5.5Mbps */
+	u32 rx6mbps;		/* packets rx at 6Mbps */
+	u32 rx9mbps;		/* packets rx at 9Mbps */
+	u32 rx11mbps;	/* packets rx at 11Mbps */
+	u32 rx12mbps;	/* packets rx at 12Mbps */
+	u32 rx18mbps;	/* packets rx at 18Mbps */
+	u32 rx24mbps;	/* packets rx at 24Mbps */
+	u32 rx36mbps;	/* packets rx at 36Mbps */
+	u32 rx48mbps;	/* packets rx at 48Mbps */
+	u32 rx54mbps;	/* packets rx at 54Mbps */
+	u32 rx108mbps;	/* packets rx at 108mbps */
+	u32 rx162mbps;	/* packets rx at 162mbps */
+	u32 rx216mbps;	/* packets rx at 216 mbps */
+	u32 rx270mbps;	/* packets rx at 270 mbps */
+	u32 rx324mbps;	/* packets rx at 324 mbps */
+	u32 rx378mbps;	/* packets rx at 378 mbps */
+	u32 rx432mbps;	/* packets rx at 432 mbps */
+	u32 rx486mbps;	/* packets rx at 486 mbps */
+	u32 rx540mbps;	/* packets rx at 540 mbps */
 
 	/* pkteng rx frame stats */
-	uint32 pktengrxducast;	/* unicast frames rxed by the pkteng code */
-	uint32 pktengrxdmcast;	/* multicast frames rxed by the pkteng code */
+	u32 pktengrxducast;	/* unicast frames rxed by the pkteng code */
+	u32 pktengrxdmcast;	/* multicast frames rxed by the pkteng code */
 
-	uint32 rfdisable;	/* count of radio disables */
-	uint32 bphy_rxcrsglitch;	/* PHY count of bphy glitches */
+	u32 rfdisable;	/* count of radio disables */
+	u32 bphy_rxcrsglitch;	/* PHY count of bphy glitches */
 
-	uint32 txmpdu_sgi;	/* count for sgi transmit */
-	uint32 rxmpdu_sgi;	/* count for sgi received */
-	uint32 txmpdu_stbc;	/* count for stbc transmit */
-	uint32 rxmpdu_stbc;	/* count for stbc received */
+	u32 txmpdu_sgi;	/* count for sgi transmit */
+	u32 rxmpdu_sgi;	/* count for sgi received */
+	u32 txmpdu_stbc;	/* count for stbc transmit */
+	u32 rxmpdu_stbc;	/* count for stbc received */
 } wl_cnt_t;
 
 #define	WL_DELTA_STATS_T_VERSION	1	/* current version of wl_delta_stats_t struct */
@@ -1731,44 +1731,44 @@ typedef struct {
 	u16 length;		/* length of entire structure */
 
 	/* transmit stat counters */
-	uint32 txframe;		/* tx data frames */
-	uint32 txbyte;		/* tx data bytes */
-	uint32 txretrans;	/* tx mac retransmits */
-	uint32 txfail;		/* tx failures */
+	u32 txframe;		/* tx data frames */
+	u32 txbyte;		/* tx data bytes */
+	u32 txretrans;	/* tx mac retransmits */
+	u32 txfail;		/* tx failures */
 
 	/* receive stat counters */
-	uint32 rxframe;		/* rx data frames */
-	uint32 rxbyte;		/* rx data bytes */
+	u32 rxframe;		/* rx data frames */
+	u32 rxbyte;		/* rx data bytes */
 
 	/* per-rate receive stat counters */
-	uint32 rx1mbps;		/* packets rx at 1Mbps */
-	uint32 rx2mbps;		/* packets rx at 2Mbps */
-	uint32 rx5mbps5;	/* packets rx at 5.5Mbps */
-	uint32 rx6mbps;		/* packets rx at 6Mbps */
-	uint32 rx9mbps;		/* packets rx at 9Mbps */
-	uint32 rx11mbps;	/* packets rx at 11Mbps */
-	uint32 rx12mbps;	/* packets rx at 12Mbps */
-	uint32 rx18mbps;	/* packets rx at 18Mbps */
-	uint32 rx24mbps;	/* packets rx at 24Mbps */
-	uint32 rx36mbps;	/* packets rx at 36Mbps */
-	uint32 rx48mbps;	/* packets rx at 48Mbps */
-	uint32 rx54mbps;	/* packets rx at 54Mbps */
-	uint32 rx108mbps;	/* packets rx at 108mbps */
-	uint32 rx162mbps;	/* packets rx at 162mbps */
-	uint32 rx216mbps;	/* packets rx at 216 mbps */
-	uint32 rx270mbps;	/* packets rx at 270 mbps */
-	uint32 rx324mbps;	/* packets rx at 324 mbps */
-	uint32 rx378mbps;	/* packets rx at 378 mbps */
-	uint32 rx432mbps;	/* packets rx at 432 mbps */
-	uint32 rx486mbps;	/* packets rx at 486 mbps */
-	uint32 rx540mbps;	/* packets rx at 540 mbps */
+	u32 rx1mbps;		/* packets rx at 1Mbps */
+	u32 rx2mbps;		/* packets rx at 2Mbps */
+	u32 rx5mbps5;	/* packets rx at 5.5Mbps */
+	u32 rx6mbps;		/* packets rx at 6Mbps */
+	u32 rx9mbps;		/* packets rx at 9Mbps */
+	u32 rx11mbps;	/* packets rx at 11Mbps */
+	u32 rx12mbps;	/* packets rx at 12Mbps */
+	u32 rx18mbps;	/* packets rx at 18Mbps */
+	u32 rx24mbps;	/* packets rx at 24Mbps */
+	u32 rx36mbps;	/* packets rx at 36Mbps */
+	u32 rx48mbps;	/* packets rx at 48Mbps */
+	u32 rx54mbps;	/* packets rx at 54Mbps */
+	u32 rx108mbps;	/* packets rx at 108mbps */
+	u32 rx162mbps;	/* packets rx at 162mbps */
+	u32 rx216mbps;	/* packets rx at 216 mbps */
+	u32 rx270mbps;	/* packets rx at 270 mbps */
+	u32 rx324mbps;	/* packets rx at 324 mbps */
+	u32 rx378mbps;	/* packets rx at 378 mbps */
+	u32 rx432mbps;	/* packets rx at 432 mbps */
+	u32 rx486mbps;	/* packets rx at 486 mbps */
+	u32 rx540mbps;	/* packets rx at 540 mbps */
 } wl_delta_stats_t;
 
 #define WL_WME_CNT_VERSION	1	/* current version of wl_wme_cnt_t */
 
 typedef struct {
-	uint32 packets;
-	uint32 bytes;
+	u32 packets;
+	u32 bytes;
 } wl_traffic_stats_t;
 
 typedef struct {
@@ -1787,8 +1787,8 @@ typedef struct {
 } wl_wme_cnt_t;
 
 struct wl_msglevel2 {
-	uint32 low;
-	uint32 high;
+	u32 low;
+	u32 high;
 };
 
 #ifdef WLBA
@@ -1801,34 +1801,34 @@ typedef struct wlc_ba_cnt {
 	u16 length;		/* length of entire structure */
 
 	/* transmit stat counters */
-	uint32 txpdu;		/* pdus sent */
-	uint32 txsdu;		/* sdus sent */
-	uint32 txfc;		/* tx side flow controlled packets */
-	uint32 txfci;		/* tx side flow control initiated */
-	uint32 txretrans;	/* retransmitted pdus */
-	uint32 txbatimer;	/* ba resend due to timer */
-	uint32 txdrop;		/* dropped packets */
-	uint32 txaddbareq;	/* addba req sent */
-	uint32 txaddbaresp;	/* addba resp sent */
-	uint32 txdelba;		/* delba sent */
-	uint32 txba;		/* ba sent */
-	uint32 txbar;		/* bar sent */
-	uint32 txpad[4];	/* future */
+	u32 txpdu;		/* pdus sent */
+	u32 txsdu;		/* sdus sent */
+	u32 txfc;		/* tx side flow controlled packets */
+	u32 txfci;		/* tx side flow control initiated */
+	u32 txretrans;	/* retransmitted pdus */
+	u32 txbatimer;	/* ba resend due to timer */
+	u32 txdrop;		/* dropped packets */
+	u32 txaddbareq;	/* addba req sent */
+	u32 txaddbaresp;	/* addba resp sent */
+	u32 txdelba;		/* delba sent */
+	u32 txba;		/* ba sent */
+	u32 txbar;		/* bar sent */
+	u32 txpad[4];	/* future */
 
 	/* receive side counters */
-	uint32 rxpdu;		/* pdus recd */
-	uint32 rxqed;		/* pdus buffered before sending up */
-	uint32 rxdup;		/* duplicate pdus */
-	uint32 rxnobuf;		/* pdus discarded due to no buf */
-	uint32 rxaddbareq;	/* addba req recd */
-	uint32 rxaddbaresp;	/* addba resp recd */
-	uint32 rxdelba;		/* delba recd */
-	uint32 rxba;		/* ba recd */
-	uint32 rxbar;		/* bar recd */
-	uint32 rxinvba;		/* invalid ba recd */
-	uint32 rxbaholes;	/* ba recd with holes */
-	uint32 rxunexp;		/* unexpected packets */
-	uint32 rxpad[4];	/* future */
+	u32 rxpdu;		/* pdus recd */
+	u32 rxqed;		/* pdus buffered before sending up */
+	u32 rxdup;		/* duplicate pdus */
+	u32 rxnobuf;		/* pdus discarded due to no buf */
+	u32 rxaddbareq;	/* addba req recd */
+	u32 rxaddbaresp;	/* addba resp recd */
+	u32 rxdelba;		/* delba recd */
+	u32 rxba;		/* ba recd */
+	u32 rxbar;		/* bar recd */
+	u32 rxinvba;		/* invalid ba recd */
+	u32 rxbaholes;	/* ba recd with holes */
+	u32 rxunexp;		/* unexpected packets */
+	u32 rxpad[4];	/* future */
 } wlc_ba_cnt_t;
 #endif				/* WLBA */
 
@@ -1889,7 +1889,7 @@ typedef struct tspec_per_sta_arg {
 
 /* structure for max bandwidth for each access category */
 typedef struct wme_max_bandwidth {
-	uint32 ac[AC_COUNT];	/* max bandwidth for each access category */
+	u32 ac[AC_COUNT];	/* max bandwidth for each access category */
 } wme_max_bandwidth_t;
 
 #define WL_WME_MBW_PARAMS_IO_BYTES (sizeof(wme_max_bandwidth_t))
@@ -1930,10 +1930,10 @@ typedef enum wl_pkt_filter_type {
  * that indicates which bits within the pattern should be matched.
  */
 typedef struct wl_pkt_filter_pattern {
-	uint32 offset;		/* Offset within received packet to start pattern matching.
+	u32 offset;		/* Offset within received packet to start pattern matching.
 				 * Offset '0' is the first byte of the ethernet header.
 				 */
-	uint32 size_bytes;	/* Size of the pattern.  Bitmask must be the same size. */
+	u32 size_bytes;	/* Size of the pattern.  Bitmask must be the same size. */
 	u8 mask_and_pattern[1];	/* Variable length mask and pattern data.  mask starts
 					 * at offset 0.  Pattern immediately follows mask.
 					 */
@@ -1941,9 +1941,9 @@ typedef struct wl_pkt_filter_pattern {
 
 /* IOVAR "pkt_filter_add" parameter. Used to install packet filters. */
 typedef struct wl_pkt_filter {
-	uint32 id;		/* Unique filter id, specified by app. */
-	uint32 type;		/* Filter type (WL_PKT_FILTER_TYPE_xxx). */
-	uint32 negate_match;	/* Negate the result of filter matches */
+	u32 id;		/* Unique filter id, specified by app. */
+	u32 type;		/* Filter type (WL_PKT_FILTER_TYPE_xxx). */
+	u32 negate_match;	/* Negate the result of filter matches */
 	union {			/* Filter definitions */
 		wl_pkt_filter_pattern_t pattern;	/* Pattern matching filter */
 	} u;
@@ -1954,13 +1954,13 @@ typedef struct wl_pkt_filter {
 
 /* IOVAR "pkt_filter_enable" parameter. */
 typedef struct wl_pkt_filter_enable {
-	uint32 id;		/* Unique filter id */
-	uint32 enable;		/* Enable/disable bool */
+	u32 id;		/* Unique filter id */
+	u32 enable;		/* Enable/disable bool */
 } wl_pkt_filter_enable_t;
 
 /* IOVAR "pkt_filter_list" parameter. Used to retrieve a list of installed filters. */
 typedef struct wl_pkt_filter_list {
-	uint32 num;		/* Number of installed packet filters */
+	u32 num;		/* Number of installed packet filters */
 	wl_pkt_filter_t filter[1];	/* Variable array of packet filters. */
 } wl_pkt_filter_list_t;
 
@@ -1968,16 +1968,16 @@ typedef struct wl_pkt_filter_list {
 
 /* IOVAR "pkt_filter_stats" parameter. Used to retrieve debug statistics. */
 typedef struct wl_pkt_filter_stats {
-	uint32 num_pkts_matched;	/* # filter matches for specified filter id */
-	uint32 num_pkts_forwarded;	/* # packets fwded from dongle to host for all filters */
-	uint32 num_pkts_discarded;	/* # packets discarded by dongle for all filters */
+	u32 num_pkts_matched;	/* # filter matches for specified filter id */
+	u32 num_pkts_forwarded;	/* # packets fwded from dongle to host for all filters */
+	u32 num_pkts_discarded;	/* # packets discarded by dongle for all filters */
 } wl_pkt_filter_stats_t;
 
 typedef struct wl_pkteng {
-	uint32 flags;
-	uint32 delay;		/* Inter-packet delay */
-	uint32 nframes;		/* Number of frames */
-	uint32 length;		/* Packet length */
+	u32 flags;
+	u32 delay;		/* Inter-packet delay */
+	u32 nframes;		/* Number of frames */
+	u32 length;		/* Packet length */
 	u8 seqno;		/* Enable/disable sequence no. */
 	struct ether_addr dest;	/* Destination address */
 	struct ether_addr src;	/* Source address */

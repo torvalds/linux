@@ -28,30 +28,30 @@
 
 /* Sonics side: PCI core and host control registers */
 typedef struct sbpciregs {
-	uint32 control;		/* PCI control */
-	uint32 PAD[3];
-	uint32 arbcontrol;	/* PCI arbiter control */
-	uint32 clkrun;		/* Clkrun Control (>=rev11) */
-	uint32 PAD[2];
-	uint32 intstatus;	/* Interrupt status */
-	uint32 intmask;		/* Interrupt mask */
-	uint32 sbtopcimailbox;	/* Sonics to PCI mailbox */
-	uint32 PAD[9];
-	uint32 bcastaddr;	/* Sonics broadcast address */
-	uint32 bcastdata;	/* Sonics broadcast data */
-	uint32 PAD[2];
-	uint32 gpioin;		/* ro: gpio input (>=rev2) */
-	uint32 gpioout;		/* rw: gpio output (>=rev2) */
-	uint32 gpioouten;	/* rw: gpio output enable (>= rev2) */
-	uint32 gpiocontrol;	/* rw: gpio control (>= rev2) */
-	uint32 PAD[36];
-	uint32 sbtopci0;	/* Sonics to PCI translation 0 */
-	uint32 sbtopci1;	/* Sonics to PCI translation 1 */
-	uint32 sbtopci2;	/* Sonics to PCI translation 2 */
-	uint32 PAD[189];
-	uint32 pcicfg[4][64];	/* 0x400 - 0x7FF, PCI Cfg Space (>=rev8) */
+	u32 control;		/* PCI control */
+	u32 PAD[3];
+	u32 arbcontrol;	/* PCI arbiter control */
+	u32 clkrun;		/* Clkrun Control (>=rev11) */
+	u32 PAD[2];
+	u32 intstatus;	/* Interrupt status */
+	u32 intmask;		/* Interrupt mask */
+	u32 sbtopcimailbox;	/* Sonics to PCI mailbox */
+	u32 PAD[9];
+	u32 bcastaddr;	/* Sonics broadcast address */
+	u32 bcastdata;	/* Sonics broadcast data */
+	u32 PAD[2];
+	u32 gpioin;		/* ro: gpio input (>=rev2) */
+	u32 gpioout;		/* rw: gpio output (>=rev2) */
+	u32 gpioouten;	/* rw: gpio output enable (>= rev2) */
+	u32 gpiocontrol;	/* rw: gpio control (>= rev2) */
+	u32 PAD[36];
+	u32 sbtopci0;	/* Sonics to PCI translation 0 */
+	u32 sbtopci1;	/* Sonics to PCI translation 1 */
+	u32 sbtopci2;	/* Sonics to PCI translation 2 */
+	u32 PAD[189];
+	u32 pcicfg[4][64];	/* 0x400 - 0x7FF, PCI Cfg Space (>=rev8) */
 	u16 sprom[36];	/* SPROM shadow Area */
-	uint32 PAD[46];
+	u32 PAD[46];
 } sbpciregs_t;
 
 #endif				/* _LANGUAGE_ASSEMBLY */

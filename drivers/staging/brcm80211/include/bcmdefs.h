@@ -104,8 +104,8 @@
 
 #ifdef BCMDMA64OSL
 typedef struct {
-	uint32 loaddr;
-	uint32 hiaddr;
+	u32 loaddr;
+	u32 hiaddr;
 } dma64addr_t;
 
 typedef dma64addr_t dmaaddr_t;
@@ -134,7 +134,7 @@ typedef unsigned long dmaaddr_t;
 /* One physical DMA segment */
 typedef struct {
 	dmaaddr_t addr;
-	uint32 length;
+	u32 length;
 } hnddma_seg_t;
 
 #define MAX_DMA_SEGS 4

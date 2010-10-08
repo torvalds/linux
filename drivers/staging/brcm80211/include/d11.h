@@ -65,15 +65,15 @@
 #define	TX_CTL_FIFO		TX_AC_VO_FIFO
 
 typedef volatile struct {
-	uint32 intstatus;
-	uint32 intmask;
+	u32 intstatus;
+	u32 intmask;
 } intctrlregs_t;
 
 /* read: 32-bit register that can be read as 32-bit or as 2 16-bit
  * write: only low 16b-it half can be written
  */
 typedef volatile union {
-	uint32 pmqhostdata;	/* read only! */
+	u32 pmqhostdata;	/* read only! */
 	struct {
 		u16 pmqctrlstatus;	/* read/write */
 		u16 PAD;
@@ -107,74 +107,74 @@ typedef volatile struct {
  */
 typedef volatile struct _d11regs {
 	/* Device Control ("semi-standard host registers") */
-	uint32 PAD[3];		/* 0x0 - 0x8 */
-	uint32 biststatus;	/* 0xC */
-	uint32 biststatus2;	/* 0x10 */
-	uint32 PAD;		/* 0x14 */
-	uint32 gptimer;		/* 0x18 *//* for corerev >= 3 */
-	uint32 usectimer;	/* 0x1c *//* for corerev >= 26 */
+	u32 PAD[3];		/* 0x0 - 0x8 */
+	u32 biststatus;	/* 0xC */
+	u32 biststatus2;	/* 0x10 */
+	u32 PAD;		/* 0x14 */
+	u32 gptimer;		/* 0x18 *//* for corerev >= 3 */
+	u32 usectimer;	/* 0x1c *//* for corerev >= 26 */
 
 	/* Interrupt Control *//* 0x20 */
 	intctrlregs_t intctrlregs[8];
 
-	uint32 PAD[40];		/* 0x60 - 0xFC */
+	u32 PAD[40];		/* 0x60 - 0xFC */
 
 	/* tx fifos 6-7 and rx fifos 1-3 removed in corerev 5 */
-	uint32 intrcvlazy[4];	/* 0x100 - 0x10C */
+	u32 intrcvlazy[4];	/* 0x100 - 0x10C */
 
-	uint32 PAD[4];		/* 0x110 - 0x11c */
+	u32 PAD[4];		/* 0x110 - 0x11c */
 
-	uint32 maccontrol;	/* 0x120 */
-	uint32 maccommand;	/* 0x124 */
-	uint32 macintstatus;	/* 0x128 */
-	uint32 macintmask;	/* 0x12C */
+	u32 maccontrol;	/* 0x120 */
+	u32 maccommand;	/* 0x124 */
+	u32 macintstatus;	/* 0x128 */
+	u32 macintmask;	/* 0x12C */
 
 	/* Transmit Template Access */
-	uint32 tplatewrptr;	/* 0x130 */
-	uint32 tplatewrdata;	/* 0x134 */
-	uint32 PAD[2];		/* 0x138 - 0x13C */
+	u32 tplatewrptr;	/* 0x130 */
+	u32 tplatewrdata;	/* 0x134 */
+	u32 PAD[2];		/* 0x138 - 0x13C */
 
 	/* PMQ registers */
 	pmqreg_t pmqreg;	/* 0x140 */
-	uint32 pmqpatl;		/* 0x144 */
-	uint32 pmqpath;		/* 0x148 */
-	uint32 PAD;		/* 0x14C */
+	u32 pmqpatl;		/* 0x144 */
+	u32 pmqpath;		/* 0x148 */
+	u32 PAD;		/* 0x14C */
 
-	uint32 chnstatus;	/* 0x150 */
-	uint32 psmdebug;	/* 0x154 *//* for corerev >= 3 */
-	uint32 phydebug;	/* 0x158 *//* for corerev >= 3 */
-	uint32 machwcap;	/* 0x15C *//* Corerev >= 13 */
+	u32 chnstatus;	/* 0x150 */
+	u32 psmdebug;	/* 0x154 *//* for corerev >= 3 */
+	u32 phydebug;	/* 0x158 *//* for corerev >= 3 */
+	u32 machwcap;	/* 0x15C *//* Corerev >= 13 */
 
 	/* Extended Internal Objects */
-	uint32 objaddr;		/* 0x160 */
-	uint32 objdata;		/* 0x164 */
-	uint32 PAD[2];		/* 0x168 - 0x16c */
+	u32 objaddr;		/* 0x160 */
+	u32 objdata;		/* 0x164 */
+	u32 PAD[2];		/* 0x168 - 0x16c */
 
 	/* New txstatus registers on corerev >= 5 */
-	uint32 frmtxstatus;	/* 0x170 */
-	uint32 frmtxstatus2;	/* 0x174 */
-	uint32 PAD[2];		/* 0x178 - 0x17c */
+	u32 frmtxstatus;	/* 0x170 */
+	u32 frmtxstatus2;	/* 0x174 */
+	u32 PAD[2];		/* 0x178 - 0x17c */
 
 	/* New TSF host access on corerev >= 3 */
 
-	uint32 tsf_timerlow;	/* 0x180 */
-	uint32 tsf_timerhigh;	/* 0x184 */
-	uint32 tsf_cfprep;	/* 0x188 */
-	uint32 tsf_cfpstart;	/* 0x18c */
-	uint32 tsf_cfpmaxdur32;	/* 0x190 */
-	uint32 PAD[3];		/* 0x194 - 0x19c */
+	u32 tsf_timerlow;	/* 0x180 */
+	u32 tsf_timerhigh;	/* 0x184 */
+	u32 tsf_cfprep;	/* 0x188 */
+	u32 tsf_cfpstart;	/* 0x18c */
+	u32 tsf_cfpmaxdur32;	/* 0x190 */
+	u32 PAD[3];		/* 0x194 - 0x19c */
 
-	uint32 maccontrol1;	/* 0x1a0 */
-	uint32 machwcap1;	/* 0x1a4 */
-	uint32 PAD[14];		/* 0x1a8 - 0x1dc */
+	u32 maccontrol1;	/* 0x1a0 */
+	u32 machwcap1;	/* 0x1a4 */
+	u32 PAD[14];		/* 0x1a8 - 0x1dc */
 
 	/* Clock control and hardware workarounds (corerev >= 13) */
-	uint32 clk_ctl_st;	/* 0x1e0 */
-	uint32 hw_war;
-	uint32 d11_phypllctl;	/* 0x1e8 (corerev == 16), the phypll request/avail bits are
+	u32 clk_ctl_st;	/* 0x1e0 */
+	u32 hw_war;
+	u32 d11_phypllctl;	/* 0x1e8 (corerev == 16), the phypll request/avail bits are
 				 *   moved to clk_ctl_st for corerev >= 17
 				 */
-	uint32 PAD[5];		/* 0x1ec - 0x1fc */
+	u32 PAD[5];		/* 0x1ec - 0x1fc */
 
 	/* 0x200-0x37F dma/pio registers */
 	volatile union {
@@ -185,14 +185,14 @@ typedef volatile struct _d11regs {
 	/* FIFO diagnostic port access */
 	dma32diag_t dmafifo;	/* 0x380 - 0x38C */
 
-	uint32 aggfifocnt;	/* 0x390 */
-	uint32 aggfifodata;	/* 0x394 */
-	uint32 PAD[16];		/* 0x398 - 0x3d4 */
+	u32 aggfifocnt;	/* 0x390 */
+	u32 aggfifodata;	/* 0x394 */
+	u32 PAD[16];		/* 0x398 - 0x3d4 */
 	u16 radioregaddr;	/* 0x3d8 */
 	u16 radioregdata;	/* 0x3da */
 
 	/* time delay between the change on rf disable input and radio shutdown corerev 10 */
-	uint32 rfdisabledly;	/* 0x3DC */
+	u32 rfdisabledly;	/* 0x3DC */
 
 	/* PHY register access */
 	u16 phyversion;	/* 0x3e0 - 0x0 */
@@ -640,7 +640,7 @@ BWL_PRE_PACKED_STRUCT struct ofdm_phy_hdr {
 
 #define	D11A_PHY_HDR_GRATE(phdr)	((phdr)->rlpt[0] & 0x0f)
 #define	D11A_PHY_HDR_GRES(phdr)		(((phdr)->rlpt[0] >> 4) & 0x01)
-#define	D11A_PHY_HDR_GLENGTH(phdr)	(((uint32 *)((phdr)->rlpt) >> 5) & 0x0fff)
+#define	D11A_PHY_HDR_GLENGTH(phdr)	(((u32 *)((phdr)->rlpt) >> 5) & 0x0fff)
 #define	D11A_PHY_HDR_GPARITY(phdr)	(((phdr)->rlpt[3] >> 1) & 0x01)
 #define	D11A_PHY_HDR_GTAIL(phdr)	(((phdr)->rlpt[3] >> 2) & 0x3f)
 
@@ -651,7 +651,7 @@ BWL_PRE_PACKED_STRUCT struct ofdm_phy_hdr {
 #define	D11A_PHY_HDR_SRES(phdr)		((phdr)->rlpt[0] &= 0xef)
 /* length is number of octets in PSDU */
 #define	D11A_PHY_HDR_SLENGTH(phdr, length)	\
-	(*(uint32 *)((phdr)->rlpt) = *(uint32 *)((phdr)->rlpt) | \
+	(*(u32 *)((phdr)->rlpt) = *(u32 *)((phdr)->rlpt) | \
 	(((length) & 0x0fff) << 5))
 /* set the tail to all zeros */
 #define	D11A_PHY_HDR_STAIL(phdr)	((phdr)->rlpt[3] &= 0x03)
@@ -1330,7 +1330,7 @@ BWL_PRE_PACKED_STRUCT struct d11rxhdr {
 typedef struct wlc_d11rxhdr wlc_d11rxhdr_t;
 BWL_PRE_PACKED_STRUCT struct wlc_d11rxhdr {
 	d11rxhdr_t rxhdr;
-	uint32 tsf_l;		/* TSF_L reading */
+	u32 tsf_l;		/* TSF_L reading */
 	s8 rssi;		/* computed instanteneous rssi in BMAC */
 	s8 rxpwr0;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
 	s8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */

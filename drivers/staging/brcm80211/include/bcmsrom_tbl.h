@@ -22,8 +22,8 @@
 
 typedef struct {
 	const char *name;
-	uint32 revmask;
-	uint32 flags;
+	u32 revmask;
+	u32 flags;
 	u16 off;
 	u16 mask;
 } sromvar_t;

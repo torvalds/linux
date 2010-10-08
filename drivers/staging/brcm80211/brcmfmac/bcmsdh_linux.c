@@ -164,7 +164,7 @@ int bcmsdh_probe(struct device *dev)
 	struct resource *r;
 #endif				/* BCMLXSDMMC */
 	int irq = 0;
-	uint32 vendevid;
+	u32 vendevid;
 	unsigned long irq_flags = 0;
 
 #if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
@@ -384,7 +384,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((pdev->vendor == VENDOR_TI)
 	    && ((pdev->device == PCIXX21_FLASHMEDIA_ID)
 		|| (pdev->device == PCIXX21_FLASHMEDIA0_ID))) {
-		uint32 config_reg;
+		u32 config_reg;
 
 		SDLX_MSG(("%s: Disabling TI FlashMedia Controller.\n",
 			  __func__));

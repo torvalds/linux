@@ -262,12 +262,12 @@ void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg, bool suspend);
 static void wlc_bss_default_init(wlc_info_t *wlc);
 static void wlc_ucode_mac_upd(wlc_info_t *wlc);
 static ratespec_t mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band,
-					 uint32 int_val);
+					 u32 int_val);
 static void wlc_tx_prec_map_init(wlc_info_t *wlc);
 static void wlc_watchdog(void *arg);
 static void wlc_watchdog_by_timer(void *arg);
 static int wlc_set_rateset(wlc_info_t *wlc, wlc_rateset_t *rs_arg);
-static int wlc_iovar_rangecheck(wlc_info_t *wlc, uint32 val,
+static int wlc_iovar_rangecheck(wlc_info_t *wlc, u32 val,
 				const bcm_iovar_t *vi);
 static u8 wlc_local_constraint_qdbm(wlc_info_t *wlc);
 
@@ -330,7 +330,7 @@ static int _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len,
 void wlc_get_rcmta(wlc_info_t *wlc, int idx, struct ether_addr *addr)
 {
 	d11regs_t *regs = wlc->regs;
-	uint32 v32;
+	u32 v32;
 	osl_t *osh;
 
 	WL_TRACE(("wl%d: %s\n", WLCWLUNIT(wlc), __func__));
@@ -506,7 +506,7 @@ void BCMINITFN(wlc_init) (wlc_info_t *wlc)
 	if (wlc->pub->associated) {
 		FOREACH_BSS(wlc, i, bsscfg) {
 			if (bsscfg->up) {
-				uint32 bi;
+				u32 bi;
 
 				/* get beacon period from bsscfg and convert to uS */
 				bi = bsscfg->current_bss->beacon_period << 10;
@@ -612,7 +612,7 @@ void wlc_mac_bcn_promisc(wlc_info_t *wlc)
 /* set or clear maccontrol bits MCTL_PROMISC and MCTL_KEEPCONTROL */
 void wlc_mac_promisc(wlc_info_t *wlc)
 {
-	uint32 promisc_bits = 0;
+	u32 promisc_bits = 0;
 
 	/* promiscuous mode just sets MCTL_PROMISC
 	 * Note: APs get all BSS traffic without the need to set the MCTL_PROMISC bit
@@ -639,7 +639,7 @@ bool wlc_ps_check(wlc_info_t *wlc)
 	bool wake_ok;
 
 	if (!AP_ACTIVE(wlc)) {
-		volatile uint32 tmp;
+		volatile u32 tmp;
 		tmp = R_REG(wlc->osh, &wlc->regs->maccontrol);
 
 		/* If deviceremoved is detected, then don't take any action as this can be called
@@ -692,7 +692,7 @@ bool wlc_ps_check(wlc_info_t *wlc)
 /* push sw hps and wake state through hardware */
 void wlc_set_ps_ctrl(wlc_info_t *wlc)
 {
-	uint32 v1, v2;
+	u32 v1, v2;
 	bool hps, wake;
 	bool awake_before;
 
@@ -1075,9 +1075,9 @@ static int wlc_get_current_txpwr(wlc_info_t *wlc, void *pwr, uint len)
 }
 #endif				/* defined(BCMDBG) */
 
-static uint32 wlc_watchdog_backup_bi(wlc_info_t *wlc)
+static u32 wlc_watchdog_backup_bi(wlc_info_t *wlc)
 {
-	uint32 bi;
+	u32 bi;
 	bi = 2 * wlc->cfg->current_bss->dtim_period *
 	    wlc->cfg->current_bss->beacon_period;
 	if (wlc->bcn_li_dtim)
@@ -1793,7 +1793,7 @@ void *BCMATTACHFN(wlc_attach) (void *wl, u16 vendor, u16 device,
 	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
 	ASSERT(OFFSETOF(wl_scan_params_t, channel_list) ==
 	       WL_SCAN_PARAMS_FIXED_SIZE);
-	ASSERT(ISALIGNED(OFFSETOF(wsec_key_t, data), sizeof(uint32)));
+	ASSERT(ISALIGNED(OFFSETOF(wsec_key_t, data), sizeof(u32)));
 	ASSERT(ISPOWEROF2(MA_WINDOW_SZ));
 
 	ASSERT(sizeof(wlc_d11rxhdr_t) <= WL_HWRXOFF);
@@ -3304,7 +3304,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 	pval = arg ? (int *)arg:NULL;
 
 	/* This will prevent the misaligned access */
-	if (pval && (uint32) len >= sizeof(val))
+	if (pval && (u32) len >= sizeof(val))
 		bcopy(pval, &val, sizeof(val));
 	else
 		val = 0;
@@ -3524,10 +3524,10 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			bcmerror = BCME_BADADDR;
 			break;
 		}
-		if (r->size == sizeof(uint32))
+		if (r->size == sizeof(u32))
 			r->val =
 			    R_REG(osh,
-				  (uint32 *) ((unsigned char *) (uintptr) regs +
+				  (u32 *) ((unsigned char *) (uintptr) regs +
 					      r->byteoff));
 		else if (r->size == sizeof(u16))
 			r->val =
@@ -3560,9 +3560,9 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			bcmerror = BCME_BADADDR;
 			break;
 		}
-		if (r->size == sizeof(uint32))
+		if (r->size == sizeof(u32))
 			W_REG(osh,
-			      (uint32 *) ((unsigned char *) (uintptr) regs +
+			      (u32 *) ((unsigned char *) (uintptr) regs +
 					  r->byteoff), r->val);
 		else if (r->size == sizeof(u16))
 			W_REG(osh,
@@ -3846,7 +3846,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 				(key != NULL)) {
 				u8 seq[DOT11_WPA_KEY_RSC_LEN];
 				u16 lo;
-				uint32 hi;
+				u32 hi;
 				/* group keys in WPA-NONE (IBSS only, AES and TKIP) use a global TXIV */
 				if ((bsscfg->WPA_auth & WPA_AUTH_NONE)
 				    && ETHER_ISNULLADDR(&key->ea)) {
@@ -4043,7 +4043,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_SET_ATIM:
-		wlc->default_bss->atim_window = (uint32) val;
+		wlc->default_bss->atim_window = (u32) val;
 		break;
 
 	case WLC_GET_PKTCNTS:{
@@ -4603,7 +4603,7 @@ wlc_iovar_op(wlc_info_t *wlc, const char *name,
 	int err = 0;
 	int val_size;
 	const bcm_iovar_t *vi = NULL;
-	uint32 actionid;
+	u32 actionid;
 	int i;
 
 	ASSERT(name != NULL);
@@ -4739,7 +4739,7 @@ wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg, int len,
  * Please use params for additional qualifying parameters.
  */
 int
-wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
+wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 	    const char *name, void *params, uint p_len, void *arg, int len,
 	    int val_size, struct wlc_if *wlcif)
 {
@@ -4848,11 +4848,11 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
 }
 
 static int
-wlc_iovar_rangecheck(wlc_info_t *wlc, uint32 val, const bcm_iovar_t *vi)
+wlc_iovar_rangecheck(wlc_info_t *wlc, u32 val, const bcm_iovar_t *vi)
 {
 	int err = 0;
-	uint32 min_val = 0;
-	uint32 max_val = 0;
+	u32 min_val = 0;
+	u32 max_val = 0;
 
 	/* Only ranged integers are checked */
 	switch (vi->type) {
@@ -5577,10 +5577,10 @@ static void wlc_compute_mimo_plcp(ratespec_t rspec, uint length, u8 *plcp)
 
 /* Rate: 802.11 rate code, length: PSDU length in octets */
 static void BCMFASTPATH
-wlc_compute_ofdm_plcp(ratespec_t rspec, uint32 length, u8 *plcp)
+wlc_compute_ofdm_plcp(ratespec_t rspec, u32 length, u8 *plcp)
 {
 	u8 rate_signal;
-	uint32 tmp = 0;
+	u32 tmp = 0;
 	int rate = RSPEC2RATE(rspec);
 
 	ASSERT(IS_OFDM(rspec));
@@ -5902,7 +5902,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	struct dot11_rts_frame *rts = NULL;
 	bool qos;
 	uint ac;
-	uint32 rate_val[2];
+	u32 rate_val[2];
 	bool hwtkmic = FALSE;
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 #ifdef WLANTSEL
@@ -6559,7 +6559,7 @@ void wlc_tbtt(wlc_info_t *wlc, d11regs_t *regs)
 	if (BSSCFG_STA(cfg)) {
 		/* run watchdog here if the watchdog timer is not armed */
 		if (WLC_WATCHDOG_TBTT(wlc)) {
-			uint32 cur, delta;
+			u32 cur, delta;
 			if (wlc->WDarmed) {
 				wl_del_timer(wlc->wl, wlc->wdtimer);
 				wlc->WDarmed = FALSE;
@@ -6567,7 +6567,7 @@ void wlc_tbtt(wlc_info_t *wlc, d11regs_t *regs)
 
 			cur = OSL_SYSUPTIME();
 			delta = cur > wlc->WDlast ? cur - wlc->WDlast :
-			    (uint32) ~0 - wlc->WDlast + cur + 1;
+			    (u32) ~0 - wlc->WDlast + cur + 1;
 			if (delta >= TIMER_INTERVAL_WATCHDOG) {
 				wlc_watchdog((void *)wlc);
 				wlc->WDlast = cur;
@@ -6611,7 +6611,7 @@ static void wlc_hwtimer_gptimer_cb(wlc_info_t *wlc)
  * POLICY: no macinstatus change, no bounding loop.
  *         All dpc bounding should be handled in BMAC dpc, like txstatus and rxint
  */
-void wlc_high_dpc(wlc_info_t *wlc, uint32 macintstatus)
+void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus)
 {
 	d11regs_t *regs = wlc->regs;
 #ifdef BCMDBG
@@ -6752,7 +6752,7 @@ static void wlc_war16165(wlc_info_t *wlc, bool tx)
 /* process an individual tx_status_t */
 /* WLC_HIGH_API */
 bool BCMFASTPATH
-wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, uint32 frm_tx2)
+wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 {
 	void *p;
 	uint queue;
@@ -6953,9 +6953,9 @@ wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, s8 txpktpend)
 /* Given the beacon interval in kus, and a 64 bit TSF in us,
  * return the offset (in us) of the TSF from the last TBTT
  */
-uint32 wlc_calc_tbtt_offset(uint32 bp, uint32 tsf_h, uint32 tsf_l)
+u32 wlc_calc_tbtt_offset(u32 bp, u32 tsf_h, u32 tsf_l)
 {
-	uint32 k, btklo, btkhi, offset;
+	u32 k, btklo, btkhi, offset;
 
 	/* TBTT is always an even multiple of the beacon_interval,
 	 * so the TBTT less than or equal to the beacon timestamp is
@@ -6970,7 +6970,7 @@ uint32 wlc_calc_tbtt_offset(uint32 bp, uint32 tsf_h, uint32 tsf_l)
 	 * BP = beacon interval (Kusec, 16bits)
 	 * BIu = BP * 2^10 = beacon interval (usec, 26bits)
 	 *
-	 * To keep the calculations in uint32s, the modulo operation
+	 * To keep the calculations in u32s, the modulo operation
 	 * on the high part of BT needs to be done in parts using the
 	 * relations:
 	 * X*Y mod Z = ((X mod Z) * (Y mod Z)) mod Z
@@ -7003,8 +7003,8 @@ uint32 wlc_calc_tbtt_offset(uint32 bp, uint32 tsf_h, uint32 tsf_l)
 	offset = btklo % bp;
 
 	/* K[2] = ((2^16 % BP) * 2^16) % BP */
-	k = (uint32) (1 << 16) % bp;
-	k = (uint32) (k * 1 << 16) % (uint32) bp;
+	k = (u32) (1 << 16) % bp;
+	k = (u32) (k * 1 << 16) % (u32) bp;
 
 	/* offset += (BTk[2] * K[2]) % BP */
 	offset += ((btkhi & 0xffff) * k) % bp;
@@ -7046,7 +7046,7 @@ static void
 prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, void *p,
 		     struct ieee80211_rx_status *rx_status)
 {
-	uint32 tsf_l, tsf_h;
+	u32 tsf_l, tsf_h;
 	wlc_d11rxhdr_t *wlc_rxh = (wlc_d11rxhdr_t *) rxh;
 	int preamble;
 	int channel;
@@ -7922,7 +7922,7 @@ void wlc_bss_update_beacon(wlc_info_t *wlc, wlc_bsscfg_t *cfg)
 	if (MBSS_BCN_ENAB(cfg)) {	/* Optimize:  Some of if/else could be combined */
 	} else if (HWBCN_ENAB(cfg)) {	/* Hardware beaconing for this config */
 		u16 bcn[BCN_TMPL_LEN / 2];
-		uint32 both_valid = MCMD_BCN0VLD | MCMD_BCN1VLD;
+		u32 both_valid = MCMD_BCN0VLD | MCMD_BCN1VLD;
 		d11regs_t *regs = wlc->regs;
 		osl_t *osh = NULL;
 
@@ -8198,7 +8198,7 @@ static void wlc_process_eventq(void *arg)
 }
 
 void
-wlc_uint64_sub(uint32 *a_high, uint32 *a_low, uint32 b_high, uint32 b_low)
+wlc_uint64_sub(u32 *a_high, u32 *a_low, u32 b_high, u32 b_low)
 {
 	if (b_low > *a_low) {
 		/* low half needs a carry */
@@ -8209,7 +8209,7 @@ wlc_uint64_sub(uint32 *a_high, uint32 *a_low, uint32 b_high, uint32 b_low)
 }
 
 static ratespec_t
-mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band, uint32 int_val)
+mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band, u32 int_val)
 {
 	u8 stf = (int_val & NRATE_STF_MASK) >> NRATE_STF_SHIFT;
 	u8 rate = int_val & NRATE_RATE_MASK;
@@ -8351,7 +8351,7 @@ wlc_duty_cycle_set(wlc_info_t *wlc, int duty_cycle, bool isOFDM,
 
 void
 wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, u8 rate,
-	     struct ether_addr *sa, uint32 wait_delay)
+	     struct ether_addr *sa, u32 wait_delay)
 {
 	bool suspend;
 	u16 val = M_PKTENG_MODE_TX;
@@ -8474,12 +8474,12 @@ void wlc_copyfrom_shm(wlc_info_t *wlc, uint offset, void *buf, int len)
 }
 
 /* wrapper BMAC functions to for HIGH driver access */
-void wlc_mctrl(wlc_info_t *wlc, uint32 mask, uint32 val)
+void wlc_mctrl(wlc_info_t *wlc, u32 mask, u32 val)
 {
 	wlc_bmac_mctrl(wlc->hw, mask, val);
 }
 
-void wlc_corereset(wlc_info_t *wlc, uint32 flags)
+void wlc_corereset(wlc_info_t *wlc, u32 flags)
 {
 	wlc_bmac_corereset(wlc->hw, flags);
 }
@@ -8521,7 +8521,7 @@ void wlc_set_rcmta(wlc_info_t *wlc, int idx, const struct ether_addr *addr)
 	wlc_bmac_set_rcmta(wlc->hw, idx, addr);
 }
 
-void wlc_read_tsf(wlc_info_t *wlc, uint32 *tsf_l_ptr, uint32 *tsf_h_ptr)
+void wlc_read_tsf(wlc_info_t *wlc, u32 *tsf_l_ptr, u32 *tsf_h_ptr)
 {
 	wlc_bmac_read_tsf(wlc->hw, tsf_l_ptr, tsf_h_ptr);
 }

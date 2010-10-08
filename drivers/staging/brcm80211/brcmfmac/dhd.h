@@ -359,10 +359,10 @@ extern void dhd_os_sdtxunlock(dhd_pub_t *pub);
 int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
 
 typedef struct {
-	uint32 limit;		/* Expiration time (usec) */
-	uint32 increment;	/* Current expiration increment (usec) */
-	uint32 elapsed;		/* Current elapsed time (usec) */
-	uint32 tick;		/* O/S tick time (usec) */
+	u32 limit;		/* Expiration time (usec) */
+	u32 increment;	/* Current expiration increment (usec) */
+	u32 elapsed;		/* Current elapsed time (usec) */
+	u32 tick;		/* O/S tick time (usec) */
 } dhd_timeout_t;
 
 extern void dhd_timeout_start(dhd_timeout_t *tmo, uint usec);
@@ -377,7 +377,7 @@ extern void wl_event_to_host_order(wl_event_msg_t *evt);
 extern void dhd_common_init(void);
 
 extern int dhd_add_if(struct dhd_info *dhd, int ifidx, void *handle,
-		      char *name, u8 *mac_addr, uint32 flags, u8 bssidx);
+		      char *name, u8 *mac_addr, u32 flags, u8 bssidx);
 extern void dhd_del_if(struct dhd_info *dhd, int ifidx);
 
 extern void dhd_vif_add(struct dhd_info *dhd, int ifidx, char *name);

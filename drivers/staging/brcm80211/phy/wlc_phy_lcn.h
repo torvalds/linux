@@ -27,7 +27,7 @@ struct phy_info_lcnphy {
 	bool lcnphy_recal;
 
 	u8 lcnphy_rc_cap;
-	uint32 lcnphy_mcs20_po;
+	u32 lcnphy_mcs20_po;
 
 	u8 lcnphy_tr_isolation_mid;
 	u8 lcnphy_tr_isolation_low;
@@ -69,17 +69,17 @@ struct phy_info_lcnphy {
 	s8 lcnphy_tx_power_idx_override;
 	u16 lcnphy_noise_samples;
 
-	uint32 lcnphy_papdRxGnIdx;
-	uint32 lcnphy_papd_rxGnCtrl_init;
+	u32 lcnphy_papdRxGnIdx;
+	u32 lcnphy_papd_rxGnCtrl_init;
 
-	uint32 lcnphy_gain_idx_14_lowword;
-	uint32 lcnphy_gain_idx_14_hiword;
-	uint32 lcnphy_gain_idx_27_lowword;
-	uint32 lcnphy_gain_idx_27_hiword;
+	u32 lcnphy_gain_idx_14_lowword;
+	u32 lcnphy_gain_idx_14_hiword;
+	u32 lcnphy_gain_idx_27_lowword;
+	u32 lcnphy_gain_idx_27_hiword;
 	s16 lcnphy_ofdmgainidxtableoffset;
 	s16 lcnphy_dsssgainidxtableoffset;
-	uint32 lcnphy_tr_R_gain_val;
-	uint32 lcnphy_tr_T_gain_val;
+	u32 lcnphy_tr_R_gain_val;
+	u32 lcnphy_tr_T_gain_val;
 	s8 lcnphy_input_pwr_offset_db;
 	u16 lcnphy_Med_Low_Gain_db;
 	u16 lcnphy_Very_Low_Gain_db;

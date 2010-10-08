@@ -167,18 +167,18 @@ typedef struct dhd_bus {
 	si_t *sih;		/* Handle for SI calls */
 	char *vars;		/* Variables (from CIS and/or other) */
 	uint varsz;		/* Size of variables buffer */
-	uint32 sbaddr;		/* Current SB window pointer (-1, invalid) */
+	u32 sbaddr;		/* Current SB window pointer (-1, invalid) */
 
 	sdpcmd_regs_t *regs;	/* Registers for SDIO core */
 	uint sdpcmrev;		/* SDIO core revision */
 	uint armrev;		/* CPU core revision */
 	uint ramrev;		/* SOCRAM core revision */
-	uint32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
-	uint32 orig_ramsize;	/* Size of RAM in SOCRAM (bytes) */
+	u32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
+	u32 orig_ramsize;	/* Size of RAM in SOCRAM (bytes) */
 
-	uint32 bus;		/* gSPI or SDIO bus */
-	uint32 hostintmask;	/* Copy of Host Interrupt Mask */
-	uint32 intstatus;	/* Intstatus bits (events) pending */
+	u32 bus;		/* gSPI or SDIO bus */
+	u32 hostintmask;	/* Copy of Host Interrupt Mask */
+	u32 intstatus;	/* Intstatus bits (events) pending */
 	bool dpc_sched;		/* Indicates DPC schedule (intrpt rcvd) */
 	bool fcstate;		/* State of dongle flow-control */
 
@@ -295,7 +295,7 @@ typedef struct dhd_bus {
 	uint f1regdata;		/* Number of f1 register accesses */
 
 	u8 *ctrl_frame_buf;
-	uint32 ctrl_frame_len;
+	u32 ctrl_frame_len;
 	bool ctrl_frame_stat;
 } dhd_bus_t;
 
@@ -442,10 +442,10 @@ static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t * osh);
 static uint process_nvram_vars(char *varbuf, uint len);
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size);
-static int dhd_bcmsdh_recv_buf(dhd_bus_t *bus, uint32 addr, uint fn,
+static int dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes, void *pkt,
 			       bcmsdh_cmplt_fn_t complete, void *handle);
-static int dhd_bcmsdh_send_buf(dhd_bus_t *bus, uint32 addr, uint fn,
+static int dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes, void *pkt,
 			       bcmsdh_cmplt_fn_t complete, void *handle);
 
@@ -470,7 +470,7 @@ static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size)
 		bus->ramsize = dhd_dongle_memsize;
 }
 
-static int dhdsdio_set_siaddr_window(dhd_bus_t *bus, uint32 address)
+static int dhdsdio_set_siaddr_window(dhd_bus_t *bus, u32 address)
 {
 	int err = 0;
 	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
@@ -519,7 +519,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 
 		if (pendok && ((bus->sih->buscoretype == PCMCIA_CORE_ID)
 			       && (bus->sih->buscorerev == 9))) {
-			uint32 dummy, retries;
+			u32 dummy, retries;
 			R_SDREG(dummy, &bus->regs->clockctlstatus, retries);
 		}
 
@@ -905,7 +905,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	osl_t *osh;
 	u8 *frame;
 	u16 len, pad = 0;
-	uint32 swheader;
+	u32 swheader;
 	uint retries = 0;
 	bcmsdh_info_t *sdh;
 	void *new;
@@ -1162,7 +1162,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 {
 	void *pkt;
-	uint32 intstatus = 0;
+	u32 intstatus = 0;
 	uint retries = 0;
 	int ret = 0, prec_out;
 	uint cnt = 0;
@@ -1223,7 +1223,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 {
 	u8 *frame;
 	u16 len;
-	uint32 swheader;
+	u32 swheader;
 	uint retries = 0;
 	bcmsdh_info_t *sdh = bus->sdh;
 	u8 doff = 0;
@@ -1692,11 +1692,11 @@ static int dhdsdio_pktgen_set(dhd_bus_t *bus, u8 *arg)
 #endif				/* SDTEST */
 
 static int
-dhdsdio_membytes(dhd_bus_t *bus, bool write, uint32 address, u8 *data,
+dhdsdio_membytes(dhd_bus_t *bus, bool write, u32 address, u8 *data,
 		 uint size)
 {
 	int bcmerror = 0;
-	uint32 sdaddr;
+	u32 sdaddr;
 	uint dsize;
 
 	/* Determine initial transfer parameters */
@@ -1754,7 +1754,7 @@ xfer_done:
 #ifdef DHD_DEBUG
 static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 {
-	uint32 addr;
+	u32 addr;
 	int rv;
 
 	/* Read last word in memory to determine address of
@@ -1987,7 +1987,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 {
 	dhd_console_t *c = &bus->console;
 	u8 line[CONSOLE_LINE_MAX], ch;
-	uint32 n, idx, addr;
+	u32 n, idx, addr;
 	int rv;
 
 	/* Don't do anything until FWREADY updates console address */
@@ -2095,7 +2095,7 @@ err:
 }
 
 static int
-dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
+dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		const char *name, void *params, int plen, void *arg, int len,
 		int val_size)
 {
@@ -2208,7 +2208,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
 	case IOV_SVAL(IOV_MEMBYTES):
 	case IOV_GVAL(IOV_MEMBYTES):
 		{
-			uint32 address;
+			u32 address;
 			uint size, dsize;
 			u8 *data;
 
@@ -2216,7 +2216,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
 
 			ASSERT(plen >= 2 * sizeof(int));
 
-			address = (uint32) int_val;
+			address = (u32) int_val;
 			bcopy((char *)params + sizeof(int_val), &int_val,
 			      sizeof(int_val));
 			size = (uint) int_val;
@@ -2332,7 +2332,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
 	case IOV_GVAL(IOV_SDREG):
 		{
 			sdreg_t *sd_ptr;
-			uint32 addr, size;
+			u32 addr, size;
 
 			sd_ptr = (sdreg_t *) params;
 
@@ -2348,7 +2348,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
 	case IOV_SVAL(IOV_SDREG):
 		{
 			sdreg_t *sd_ptr;
-			uint32 addr, size;
+			u32 addr, size;
 
 			sd_ptr = (sdreg_t *) params;
 
@@ -2365,7 +2365,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
 	case IOV_GVAL(IOV_SBREG):
 		{
 			sdreg_t sdreg;
-			uint32 addr, size;
+			u32 addr, size;
 
 			bcopy(params, &sdreg, sizeof(sdreg));
 
@@ -2381,7 +2381,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid,
 	case IOV_SVAL(IOV_SBREG):
 		{
 			sdreg_t sdreg;
-			uint32 addr, size;
+			u32 addr, size;
 
 			bcopy(params, &sdreg, sizeof(sdreg));
 
@@ -2512,10 +2512,10 @@ exit:
 static int dhdsdio_write_vars(dhd_bus_t *bus)
 {
 	int bcmerror = 0;
-	uint32 varsize;
-	uint32 varaddr;
+	u32 varsize;
+	u32 varaddr;
 	u8 *vbuffer;
-	uint32 varsizew;
+	u32 varsizew;
 #ifdef DHD_DEBUG
 	char *nvram_ularray;
 #endif				/* DHD_DEBUG */
@@ -2639,7 +2639,7 @@ static int dhdsdio_download_state(dhd_bus_t *bus, bool enter)
 
 		/* Clear the top bit of memory */
 		if (bus->ramsize) {
-			uint32 zeros = 0;
+			u32 zeros = 0;
 			dhdsdio_membytes(bus, TRUE, bus->ramsize - 4,
 					 (u8 *)&zeros, 4);
 		}
@@ -2710,7 +2710,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 	const bcm_iovar_t *vi = NULL;
 	int bcmerror = 0;
 	int val_size;
-	uint32 actionid;
+	u32 actionid;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -2823,7 +2823,7 @@ exit:
 void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 {
 	osl_t *osh = bus->dhd->osh;
-	uint32 local_hostintmask;
+	u32 local_hostintmask;
 	u8 saveclk;
 	uint retries;
 	int err;
@@ -4208,11 +4208,11 @@ deliver:
 	return rxcount;
 }
 
-static uint32 dhdsdio_hostmail(dhd_bus_t *bus)
+static u32 dhdsdio_hostmail(dhd_bus_t *bus)
 {
 	sdpcmd_regs_t *regs = bus->regs;
-	uint32 intstatus = 0;
-	uint32 hmb_data;
+	u32 intstatus = 0;
+	u32 hmb_data;
 	u8 fcbits;
 	uint retries = 0;
 
@@ -4286,7 +4286,7 @@ bool dhdsdio_dpc(dhd_bus_t *bus)
 {
 	bcmsdh_info_t *sdh = bus->sdh;
 	sdpcmd_regs_t *regs = bus->regs;
-	uint32 intstatus, newstatus = 0;
+	u32 intstatus, newstatus = 0;
 	uint retries = 0;
 	uint rxlimit = dhd_rxbound;	/* Rx frames to read before resched */
 	uint txlimit = dhd_txbound;	/* Tx frames to send before resched */
@@ -4460,7 +4460,7 @@ clkwait:
 		ret =
 		    dhd_bcmsdh_send_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
 					F2SYNC, (u8 *) bus->ctrl_frame_buf,
-					(uint32) bus->ctrl_frame_len, NULL,
+					(u32) bus->ctrl_frame_len, NULL,
 					NULL, NULL);
 		ASSERT(ret != BCME_PENDING);
 
@@ -4875,7 +4875,7 @@ extern bool dhd_bus_watchdog(dhd_pub_t *dhdp)
 
 	/* Poll period: check device if appropriate. */
 	if (bus->poll && (++bus->polltick >= bus->pollrate)) {
-		uint32 intstatus = 0;
+		u32 intstatus = 0;
 
 		/* Reset poll tick */
 		bus->polltick = 0;
@@ -4957,7 +4957,7 @@ extern bool dhd_bus_watchdog(dhd_pub_t *dhdp)
 extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 {
 	dhd_bus_t *bus = dhdp->bus;
-	uint32 addr, val;
+	u32 addr, val;
 	int rv;
 	void *pkt;
 
@@ -5765,9 +5765,9 @@ static int dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 			   __func__, MEMBLOCK));
 		goto err;
 	}
-	if ((uint32) (uintptr) memblock % DHD_SDALIGN)
+	if ((u32) (uintptr) memblock % DHD_SDALIGN)
 		memptr +=
-		    (DHD_SDALIGN - ((uint32) (uintptr) memblock % DHD_SDALIGN));
+		    (DHD_SDALIGN - ((u32) (uintptr) memblock % DHD_SDALIGN));
 
 	/* Download image */
 	while ((len =
@@ -6010,7 +6010,7 @@ err:
 }
 
 static int
-dhd_bcmsdh_recv_buf(dhd_bus_t *bus, uint32 addr, uint fn, uint flags,
+dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
 		    u8 *buf, uint nbytes, void *pkt,
 		    bcmsdh_cmplt_fn_t complete, void *handle)
 {
@@ -6024,7 +6024,7 @@ dhd_bcmsdh_recv_buf(dhd_bus_t *bus, uint32 addr, uint fn, uint flags,
 }
 
 static int
-dhd_bcmsdh_send_buf(dhd_bus_t *bus, uint32 addr, uint fn, uint flags,
+dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
 		    u8 *buf, uint nbytes, void *pkt,
 		    bcmsdh_cmplt_fn_t complete, void *handle)
 {
@@ -6091,7 +6091,7 @@ int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 
 			/* Attempt to re-attach & download */
 			if (dhdsdio_probe_attach(bus, bus->dhd->osh, bus->sdh,
-						 (uint32 *) SI_ENUM_BASE,
+						 (u32 *) SI_ENUM_BASE,
 						 bus->cl_devid)) {
 				/* Attempt to download binary to the dongle */
 				if (dhdsdio_probe_init

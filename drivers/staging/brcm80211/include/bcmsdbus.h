@@ -72,22 +72,22 @@ extern SDIOH_API_RC sdioh_request_byte(sdioh_info_t *si, uint rw, uint fnc,
 /* read or write 2/4 bytes using cmd53 */
 extern SDIOH_API_RC sdioh_request_word(sdioh_info_t *si, uint cmd_type,
 				       uint rw, uint fnc, uint addr,
-				       uint32 *word, uint nbyte);
+				       u32 *word, uint nbyte);
 
 /* read or write any buffer using cmd53 */
 extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma,
 					 uint fix_inc, uint rw, uint fnc_num,
-					 uint32 addr, uint regwidth,
-					 uint32 buflen, u8 *buffer,
+					 u32 addr, uint regwidth,
+					 u32 buflen, u8 *buffer,
 					 void *pkt);
 
 /* get cis data */
 extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, u8 *cis,
-				   uint32 length);
+				   u32 length);
 
-extern SDIOH_API_RC sdioh_cfg_read(sdioh_info_t *si, uint fuc, uint32 addr,
+extern SDIOH_API_RC sdioh_cfg_read(sdioh_info_t *si, uint fuc, u32 addr,
 				   u8 *data);
-extern SDIOH_API_RC sdioh_cfg_write(sdioh_info_t *si, uint fuc, uint32 addr,
+extern SDIOH_API_RC sdioh_cfg_write(sdioh_info_t *si, uint fuc, u32 addr,
 				    u8 *data);
 
 /* query number of io functions */

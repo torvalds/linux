@@ -475,7 +475,7 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		WL_NONE(("Need to change Basic Rates:\t0x%x! Implement me\n",
-			 (uint32) info->basic_rates));
+			 (u32) info->basic_rates));
 		/* Basic rateset changed */
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
@@ -982,8 +982,8 @@ fail1:
 }
 
 #ifdef WLC_HIGH_ONLY
-static void *wl_dbus_probe_cb(void *arg, const char *desc, uint32 bustype,
-			      uint32 hdrlen)
+static void *wl_dbus_probe_cb(void *arg, const char *desc, u32 bustype,
+			      u32 hdrlen)
 {
 	wl_info_t *wl;
 	WL_ERROR(("%s:\n", __func__));
@@ -1305,7 +1305,7 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int rc;
 	wl_info_t *wl;
 	struct ieee80211_hw *hw;
-	uint32 val;
+	u32 val;
 
 	ASSERT(pdev);
 
@@ -1388,7 +1388,7 @@ static int wl_resume(struct pci_dev *pdev)
 	wl_info_t *wl;
 	struct ieee80211_hw *hw;
 	int err = 0;
-	uint32 val;
+	u32 val;
 
 	WL_TRACE(("wl: wl_resume\n"));
 	hw = pci_get_drvdata(pdev);
@@ -1485,7 +1485,7 @@ static int __init wl_module_init(void)
 	}
 #ifndef WLC_HIGH_ONLY
 	{
-		extern uint32 phyhal_msg_level;
+		extern u32 phyhal_msg_level;
 
 		if (phymsglevel != 0xdeadbeef)
 			phyhal_msg_level = phymsglevel;
@@ -1727,11 +1727,11 @@ bool wl_alloc_dma_resources(wl_info_t *wl, uint addrwidth)
 	return TRUE;
 }
 
-uint32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
+u32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
 {
 #if defined(WLC_LOW)
 	unsigned long flags;
-	uint32 status;
+	u32 status;
 
 	INT_LOCK(wl, flags);
 	status = wlc_intrsoff(wl->wlc);
@@ -1742,7 +1742,7 @@ uint32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
 #endif				/* WLC_LOW */
 }
 
-void wl_intrsrestore(wl_info_t *wl, uint32 macintmask)
+void wl_intrsrestore(wl_info_t *wl, u32 macintmask)
 {
 #if defined(WLC_LOW)
 	unsigned long flags;
@@ -2052,9 +2052,9 @@ static int wl_linux_watchdog(void *ctx)
 }
 
 struct wl_fw_hdr {
-	uint32 offset;
-	uint32 len;
-	uint32 idx;
+	u32 offset;
+	u32 len;
+	u32 idx;
 };
 
 #ifdef WLC_HIGH_ONLY
@@ -2249,7 +2249,7 @@ static void wl_rpc_dispatch_schedule(void *ctx, struct rpc_buf *buf)
 	bcm_xdr_buf_init(&b, bcm_rpc_buf_data(wl->rpc_th, buf),
 			 bcm_rpc_buf_len_get(wl->rpc_th, buf));
 
-	err = bcm_xdr_unpack_uint32(&b, &rpc_id);
+	err = bcm_xdr_unpack_u32(&b, &rpc_id);
 	ASSERT(!err);
 	WL_TRACE(("%s: Dispatch id %s\n", __func__,
 		  WLC_RPC_ID_LOOKUP(rpc_name_tbl, rpc_id)));
@@ -2283,7 +2283,7 @@ char *wl_firmwares[WL_MAX_FW] = {
 };
 
 #ifdef WLC_LOW
-int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, uint32 idx)
+int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx)
 {
 	int i, entry;
 	const u8 *pdata;
@@ -2309,7 +2309,7 @@ int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, uint32 idx)
 	return -1;
 }
 
-int wl_ucode_init_uint(wl_info_t *wl, uint32 *data, uint32 idx)
+int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx)
 {
 	int i, entry;
 	const u8 *pdata;
@@ -2321,7 +2321,7 @@ int wl_ucode_init_uint(wl_info_t *wl, uint32 *data, uint32 idx)
 			if (hdr->idx == idx) {
 				pdata = wl->fw.fw_bin[i]->data + hdr->offset;
 				ASSERT(hdr->len == 4);
-				*data = *((uint32 *) pdata);
+				*data = *((u32 *) pdata);
 				return 0;
 			}
 		}

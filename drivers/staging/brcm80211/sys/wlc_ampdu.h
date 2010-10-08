@@ -33,8 +33,8 @@ extern u8 wlc_ampdu_null_delim_cnt(ampdu_info_t *ampdu, struct scb *scb,
 				      ratespec_t rspec, int phylen);
 extern void scb_ampdu_cleanup(ampdu_info_t *ampdu, struct scb *scb);
 #ifdef WLC_HIGH_ONLY
-extern void wlc_ampdu_txstatus_complete(ampdu_info_t *ampdu, uint32 s1,
-					uint32 s2);
+extern void wlc_ampdu_txstatus_complete(ampdu_info_t *ampdu, u32 s1,
+					u32 s2);
 #endif
 
 #endif				/* _wlc_ampdu_h_ */

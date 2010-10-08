@@ -80,7 +80,7 @@ struct wlc_bsscfg;
 #define WSEC_BSS_STA_KEY_GROUP_SIZE	5
 
 typedef struct wsec_iv {
-	uint32 hi;		/* upper 32 bits of IV */
+	u32 hi;		/* upper 32 bits of IV */
 	u16 lo;		/* lower 16 bits of IV */
 } wsec_iv_t;
 
@@ -97,7 +97,7 @@ typedef struct wsec_key {
 	u8 aes_mode;		/* cache for hw register */
 	s8 iv_len;		/* IV length */
 	s8 icv_len;		/* ICV length */
-	uint32 len;		/* key length..don't move this var */
+	u32 len;		/* key length..don't move this var */
 	/* data is 4byte aligned */
 	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */
 	wsec_iv_t rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */

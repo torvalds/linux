@@ -147,8 +147,8 @@ typedef struct shared_phy_params {
 	uint boardtype;
 	uint boardrev;
 	uint boardvendor;
-	uint32 boardflags;
-	uint32 boardflags2;
+	u32 boardflags;
+	u32 boardflags2;
 } shared_phy_params_t;
 
 #ifdef WLC_LOW
@@ -163,14 +163,14 @@ extern bool wlc_phy_get_phyversion(wlc_phy_t *pih, u16 *phytype,
 				   u16 *phyrev, u16 *radioid,
 				   u16 *radiover);
 extern bool wlc_phy_get_encore(wlc_phy_t *pih);
-extern uint32 wlc_phy_get_coreflags(wlc_phy_t *pih);
+extern u32 wlc_phy_get_coreflags(wlc_phy_t *pih);
 
 extern void wlc_phy_hw_clk_state_upd(wlc_phy_t *ppi, bool newstate);
 extern void wlc_phy_hw_state_upd(wlc_phy_t *ppi, bool newstate);
 extern void wlc_phy_init(wlc_phy_t *ppi, chanspec_t chanspec);
 extern void wlc_phy_watchdog(wlc_phy_t *ppi);
 extern int wlc_phy_down(wlc_phy_t *ppi);
-extern uint32 wlc_phy_clk_bwbits(wlc_phy_t *pih);
+extern u32 wlc_phy_clk_bwbits(wlc_phy_t *pih);
 extern void wlc_phy_cal_init(wlc_phy_t *ppi);
 extern void wlc_phy_antsel_init(wlc_phy_t *ppi, bool lut_init);
 
@@ -205,7 +205,7 @@ extern void wlc_phy_txpower_sromlimit(wlc_phy_t *ppi, uint chan,
 extern void wlc_phy_txpower_sromlimit_max_get(wlc_phy_t *ppi, uint chan,
 					      u8 *_max_, u8 *_min_);
 extern void wlc_phy_txpower_boardlimit_band(wlc_phy_t *ppi, uint band, int32 *,
-					    int32 *, uint32 *);
+					    int32 *, u32 *);
 extern void wlc_phy_txpower_limit_set(wlc_phy_t *ppi, struct txpwr_limits *,
 				      chanspec_t chanspec);
 extern int wlc_phy_txpower_get(wlc_phy_t *ppi, uint *qdbm, bool *override);
@@ -248,7 +248,7 @@ extern bool wlc_phy_test_ison(wlc_phy_t *ppi);
 extern void wlc_phy_txpwr_percent_set(wlc_phy_t *ppi, u8 txpwr_percent);
 extern void wlc_phy_ofdm_rateset_war(wlc_phy_t *pih, bool war);
 extern void wlc_phy_bf_preempt_enable(wlc_phy_t *pih, bool bf_preempt);
-extern void wlc_phy_machwcap_set(wlc_phy_t *ppi, uint32 machwcap);
+extern void wlc_phy_machwcap_set(wlc_phy_t *ppi, u32 machwcap);
 
 extern void wlc_phy_runbist_config(wlc_phy_t *ppi, bool start_end);
 

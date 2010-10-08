@@ -103,121 +103,121 @@
 #ifndef _LANGUAGE_ASSEMBLY
 
 typedef volatile struct _aidmp {
-	uint32 oobselina30;	/* 0x000 */
-	uint32 oobselina74;	/* 0x004 */
-	uint32 PAD[6];
-	uint32 oobselinb30;	/* 0x020 */
-	uint32 oobselinb74;	/* 0x024 */
-	uint32 PAD[6];
-	uint32 oobselinc30;	/* 0x040 */
-	uint32 oobselinc74;	/* 0x044 */
-	uint32 PAD[6];
-	uint32 oobselind30;	/* 0x060 */
-	uint32 oobselind74;	/* 0x064 */
-	uint32 PAD[38];
-	uint32 oobselouta30;	/* 0x100 */
-	uint32 oobselouta74;	/* 0x104 */
-	uint32 PAD[6];
-	uint32 oobseloutb30;	/* 0x120 */
-	uint32 oobseloutb74;	/* 0x124 */
-	uint32 PAD[6];
-	uint32 oobseloutc30;	/* 0x140 */
-	uint32 oobseloutc74;	/* 0x144 */
-	uint32 PAD[6];
-	uint32 oobseloutd30;	/* 0x160 */
-	uint32 oobseloutd74;	/* 0x164 */
-	uint32 PAD[38];
-	uint32 oobsynca;	/* 0x200 */
-	uint32 oobseloutaen;	/* 0x204 */
-	uint32 PAD[6];
-	uint32 oobsyncb;	/* 0x220 */
-	uint32 oobseloutben;	/* 0x224 */
-	uint32 PAD[6];
-	uint32 oobsyncc;	/* 0x240 */
-	uint32 oobseloutcen;	/* 0x244 */
-	uint32 PAD[6];
-	uint32 oobsyncd;	/* 0x260 */
-	uint32 oobseloutden;	/* 0x264 */
-	uint32 PAD[38];
-	uint32 oobaextwidth;	/* 0x300 */
-	uint32 oobainwidth;	/* 0x304 */
-	uint32 oobaoutwidth;	/* 0x308 */
-	uint32 PAD[5];
-	uint32 oobbextwidth;	/* 0x320 */
-	uint32 oobbinwidth;	/* 0x324 */
-	uint32 oobboutwidth;	/* 0x328 */
-	uint32 PAD[5];
-	uint32 oobcextwidth;	/* 0x340 */
-	uint32 oobcinwidth;	/* 0x344 */
-	uint32 oobcoutwidth;	/* 0x348 */
-	uint32 PAD[5];
-	uint32 oobdextwidth;	/* 0x360 */
-	uint32 oobdinwidth;	/* 0x364 */
-	uint32 oobdoutwidth;	/* 0x368 */
-	uint32 PAD[37];
-	uint32 ioctrlset;	/* 0x400 */
-	uint32 ioctrlclear;	/* 0x404 */
-	uint32 ioctrl;		/* 0x408 */
-	uint32 PAD[61];
-	uint32 iostatus;	/* 0x500 */
-	uint32 PAD[127];
-	uint32 ioctrlwidth;	/* 0x700 */
-	uint32 iostatuswidth;	/* 0x704 */
-	uint32 PAD[62];
-	uint32 resetctrl;	/* 0x800 */
-	uint32 resetstatus;	/* 0x804 */
-	uint32 resetreadid;	/* 0x808 */
-	uint32 resetwriteid;	/* 0x80c */
-	uint32 PAD[60];
-	uint32 errlogctrl;	/* 0x900 */
-	uint32 errlogdone;	/* 0x904 */
-	uint32 errlogstatus;	/* 0x908 */
-	uint32 errlogaddrlo;	/* 0x90c */
-	uint32 errlogaddrhi;	/* 0x910 */
-	uint32 errlogid;	/* 0x914 */
-	uint32 errloguser;	/* 0x918 */
-	uint32 errlogflags;	/* 0x91c */
-	uint32 PAD[56];
-	uint32 intstatus;	/* 0xa00 */
-	uint32 PAD[127];
-	uint32 config;		/* 0xe00 */
-	uint32 PAD[63];
-	uint32 itcr;		/* 0xf00 */
-	uint32 PAD[3];
-	uint32 itipooba;	/* 0xf10 */
-	uint32 itipoobb;	/* 0xf14 */
-	uint32 itipoobc;	/* 0xf18 */
-	uint32 itipoobd;	/* 0xf1c */
-	uint32 PAD[4];
-	uint32 itipoobaout;	/* 0xf30 */
-	uint32 itipoobbout;	/* 0xf34 */
-	uint32 itipoobcout;	/* 0xf38 */
-	uint32 itipoobdout;	/* 0xf3c */
-	uint32 PAD[4];
-	uint32 itopooba;	/* 0xf50 */
-	uint32 itopoobb;	/* 0xf54 */
-	uint32 itopoobc;	/* 0xf58 */
-	uint32 itopoobd;	/* 0xf5c */
-	uint32 PAD[4];
-	uint32 itopoobain;	/* 0xf70 */
-	uint32 itopoobbin;	/* 0xf74 */
-	uint32 itopoobcin;	/* 0xf78 */
-	uint32 itopoobdin;	/* 0xf7c */
-	uint32 PAD[4];
-	uint32 itopreset;	/* 0xf90 */
-	uint32 PAD[15];
-	uint32 peripherialid4;	/* 0xfd0 */
-	uint32 peripherialid5;	/* 0xfd4 */
-	uint32 peripherialid6;	/* 0xfd8 */
-	uint32 peripherialid7;	/* 0xfdc */
-	uint32 peripherialid0;	/* 0xfe0 */
-	uint32 peripherialid1;	/* 0xfe4 */
-	uint32 peripherialid2;	/* 0xfe8 */
-	uint32 peripherialid3;	/* 0xfec */
-	uint32 componentid0;	/* 0xff0 */
-	uint32 componentid1;	/* 0xff4 */
-	uint32 componentid2;	/* 0xff8 */
-	uint32 componentid3;	/* 0xffc */
+	u32 oobselina30;	/* 0x000 */
+	u32 oobselina74;	/* 0x004 */
+	u32 PAD[6];
+	u32 oobselinb30;	/* 0x020 */
+	u32 oobselinb74;	/* 0x024 */
+	u32 PAD[6];
+	u32 oobselinc30;	/* 0x040 */
+	u32 oobselinc74;	/* 0x044 */
+	u32 PAD[6];
+	u32 oobselind30;	/* 0x060 */
+	u32 oobselind74;	/* 0x064 */
+	u32 PAD[38];
+	u32 oobselouta30;	/* 0x100 */
+	u32 oobselouta74;	/* 0x104 */
+	u32 PAD[6];
+	u32 oobseloutb30;	/* 0x120 */
+	u32 oobseloutb74;	/* 0x124 */
+	u32 PAD[6];
+	u32 oobseloutc30;	/* 0x140 */
+	u32 oobseloutc74;	/* 0x144 */
+	u32 PAD[6];
+	u32 oobseloutd30;	/* 0x160 */
+	u32 oobseloutd74;	/* 0x164 */
+	u32 PAD[38];
+	u32 oobsynca;	/* 0x200 */
+	u32 oobseloutaen;	/* 0x204 */
+	u32 PAD[6];
+	u32 oobsyncb;	/* 0x220 */
+	u32 oobseloutben;	/* 0x224 */
+	u32 PAD[6];
+	u32 oobsyncc;	/* 0x240 */
+	u32 oobseloutcen;	/* 0x244 */
+	u32 PAD[6];
+	u32 oobsyncd;	/* 0x260 */
+	u32 oobseloutden;	/* 0x264 */
+	u32 PAD[38];
+	u32 oobaextwidth;	/* 0x300 */
+	u32 oobainwidth;	/* 0x304 */
+	u32 oobaoutwidth;	/* 0x308 */
+	u32 PAD[5];
+	u32 oobbextwidth;	/* 0x320 */
+	u32 oobbinwidth;	/* 0x324 */
+	u32 oobboutwidth;	/* 0x328 */
+	u32 PAD[5];
+	u32 oobcextwidth;	/* 0x340 */
+	u32 oobcinwidth;	/* 0x344 */
+	u32 oobcoutwidth;	/* 0x348 */
+	u32 PAD[5];
+	u32 oobdextwidth;	/* 0x360 */
+	u32 oobdinwidth;	/* 0x364 */
+	u32 oobdoutwidth;	/* 0x368 */
+	u32 PAD[37];
+	u32 ioctrlset;	/* 0x400 */
+	u32 ioctrlclear;	/* 0x404 */
+	u32 ioctrl;		/* 0x408 */
+	u32 PAD[61];
+	u32 iostatus;	/* 0x500 */
+	u32 PAD[127];
+	u32 ioctrlwidth;	/* 0x700 */
+	u32 iostatuswidth;	/* 0x704 */
+	u32 PAD[62];
+	u32 resetctrl;	/* 0x800 */
+	u32 resetstatus;	/* 0x804 */
+	u32 resetreadid;	/* 0x808 */
+	u32 resetwriteid;	/* 0x80c */
+	u32 PAD[60];
+	u32 errlogctrl;	/* 0x900 */
+	u32 errlogdone;	/* 0x904 */
+	u32 errlogstatus;	/* 0x908 */
+	u32 errlogaddrlo;	/* 0x90c */
+	u32 errlogaddrhi;	/* 0x910 */
+	u32 errlogid;	/* 0x914 */
+	u32 errloguser;	/* 0x918 */
+	u32 errlogflags;	/* 0x91c */
+	u32 PAD[56];
+	u32 intstatus;	/* 0xa00 */
+	u32 PAD[127];
+	u32 config;		/* 0xe00 */
+	u32 PAD[63];
+	u32 itcr;		/* 0xf00 */
+	u32 PAD[3];
+	u32 itipooba;	/* 0xf10 */
+	u32 itipoobb;	/* 0xf14 */
+	u32 itipoobc;	/* 0xf18 */
+	u32 itipoobd;	/* 0xf1c */
+	u32 PAD[4];
+	u32 itipoobaout;	/* 0xf30 */
+	u32 itipoobbout;	/* 0xf34 */
+	u32 itipoobcout;	/* 0xf38 */
+	u32 itipoobdout;	/* 0xf3c */
+	u32 PAD[4];
+	u32 itopooba;	/* 0xf50 */
+	u32 itopoobb;	/* 0xf54 */
+	u32 itopoobc;	/* 0xf58 */
+	u32 itopoobd;	/* 0xf5c */
+	u32 PAD[4];
+	u32 itopoobain;	/* 0xf70 */
+	u32 itopoobbin;	/* 0xf74 */
+	u32 itopoobcin;	/* 0xf78 */
+	u32 itopoobdin;	/* 0xf7c */
+	u32 PAD[4];
+	u32 itopreset;	/* 0xf90 */
+	u32 PAD[15];
+	u32 peripherialid4;	/* 0xfd0 */
+	u32 peripherialid5;	/* 0xfd4 */
+	u32 peripherialid6;	/* 0xfd8 */
+	u32 peripherialid7;	/* 0xfdc */
+	u32 peripherialid0;	/* 0xfe0 */
+	u32 peripherialid1;	/* 0xfe4 */
+	u32 peripherialid2;	/* 0xfe8 */
+	u32 peripherialid3;	/* 0xfec */
+	u32 componentid0;	/* 0xff0 */
+	u32 componentid1;	/* 0xff4 */
+	u32 componentid2;	/* 0xff8 */
+	u32 componentid3;	/* 0xffc */
 } aidmp_t;
 
 #endif				/* _LANGUAGE_ASSEMBLY */

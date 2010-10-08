@@ -19,7 +19,7 @@
 #include <wlc_phy_int.h>
 #include <wlc_phytbl_lcn.h>
 
-const uint32 dot11lcn_gain_tbl_rev0[] = {
+const u32 dot11lcn_gain_tbl_rev0[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -118,7 +118,7 @@ const uint32 dot11lcn_gain_tbl_rev0[] = {
 	0x00000000,
 };
 
-const uint32 dot11lcn_gain_tbl_rev1[] = {
+const u32 dot11lcn_gain_tbl_rev1[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -258,7 +258,7 @@ const u16 dot11lcn_aux_gain_idx_tbl_rev0[] = {
 	0x0000,
 };
 
-const uint32 dot11lcn_gain_idx_tbl_rev0[] = {
+const u32 dot11lcn_gain_idx_tbl_rev0[] = {
 	0x00000000,
 	0x00000000,
 	0x10000000,
@@ -521,7 +521,7 @@ const u8 dot11lcn_gain_val_tbl_2G[] = {
 	0x00
 };
 
-const uint32 dot11lcn_gain_idx_tbl_2G[] = {
+const u32 dot11lcn_gain_idx_tbl_2G[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -676,7 +676,7 @@ const uint32 dot11lcn_gain_idx_tbl_2G[] = {
 	0x00000000
 };
 
-const uint32 dot11lcn_gain_tbl_2G[] = {
+const u32 dot11lcn_gain_tbl_2G[] = {
 	0x00000000,
 	0x00000004,
 	0x00000008,
@@ -775,7 +775,7 @@ const uint32 dot11lcn_gain_tbl_2G[] = {
 	0x00000000
 };
 
-const uint32 dot11lcn_gain_tbl_extlna_2G[] = {
+const u32 dot11lcn_gain_tbl_extlna_2G[] = {
 	0x00000000,
 	0x00000004,
 	0x00000008,
@@ -986,7 +986,7 @@ const u8 dot11lcn_gain_val_tbl_extlna_2G[] = {
 	0x00
 };
 
-const uint32 dot11lcn_gain_idx_tbl_extlna_2G[] = {
+const u32 dot11lcn_gain_idx_tbl_extlna_2G[] = {
 	0x00000000,
 	0x00000040,
 	0x00000000,
@@ -1141,7 +1141,7 @@ const uint32 dot11lcn_gain_idx_tbl_extlna_2G[] = {
 	0x00000000
 };
 
-const uint32 dot11lcn_aux_gain_idx_tbl_5G[] = {
+const u32 dot11lcn_aux_gain_idx_tbl_5G[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -1182,7 +1182,7 @@ const uint32 dot11lcn_aux_gain_idx_tbl_5G[] = {
 	0x0000
 };
 
-const uint32 dot11lcn_gain_val_tbl_5G[] = {
+const u32 dot11lcn_gain_val_tbl_5G[] = {
 	0xf7,
 	0xfd,
 	0x00,
@@ -1253,7 +1253,7 @@ const uint32 dot11lcn_gain_val_tbl_5G[] = {
 	0x00
 };
 
-const uint32 dot11lcn_gain_idx_tbl_5G[] = {
+const u32 dot11lcn_gain_idx_tbl_5G[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -1408,7 +1408,7 @@ const uint32 dot11lcn_gain_idx_tbl_5G[] = {
 	0x00000000
 };
 
-const uint32 dot11lcn_gain_tbl_5G[] = {
+const u32 dot11lcn_gain_tbl_5G[] = {
 	0x00000000,
 	0x00000040,
 	0x00000080,
@@ -1609,19 +1609,19 @@ const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_extlna_5G_rev2[] = {
 	 17, 0, 8}
 };
 
-const uint32 dot11lcnphytbl_rx_gain_info_sz_rev0 =
+const u32 dot11lcnphytbl_rx_gain_info_sz_rev0 =
     sizeof(dot11lcnphytbl_rx_gain_info_rev0) /
     sizeof(dot11lcnphytbl_rx_gain_info_rev0[0]);
 
-const uint32 dot11lcnphytbl_rx_gain_info_sz_rev1 =
+const u32 dot11lcnphytbl_rx_gain_info_sz_rev1 =
     sizeof(dot11lcnphytbl_rx_gain_info_rev1) /
     sizeof(dot11lcnphytbl_rx_gain_info_rev1[0]);
 
-const uint32 dot11lcnphytbl_rx_gain_info_2G_rev2_sz =
+const u32 dot11lcnphytbl_rx_gain_info_2G_rev2_sz =
     sizeof(dot11lcnphytbl_rx_gain_info_2G_rev2) /
     sizeof(dot11lcnphytbl_rx_gain_info_2G_rev2[0]);
 
-const uint32 dot11lcnphytbl_rx_gain_info_5G_rev2_sz =
+const u32 dot11lcnphytbl_rx_gain_info_5G_rev2_sz =
     sizeof(dot11lcnphytbl_rx_gain_info_5G_rev2) /
     sizeof(dot11lcnphytbl_rx_gain_info_5G_rev2[0]);
 
@@ -1759,7 +1759,7 @@ const u16 dot11lcn_noise_scale_tbl_rev0[] = {
 	0x0000,
 };
 
-const uint32 dot11lcn_fltr_ctrl_tbl_rev0[] = {
+const u32 dot11lcn_fltr_ctrl_tbl_rev0[] = {
 	0x000141f8,
 	0x000021f8,
 	0x000021fb,
@@ -1772,7 +1772,7 @@ const uint32 dot11lcn_fltr_ctrl_tbl_rev0[] = {
 	0x0000024b,
 };
 
-const uint32 dot11lcn_ps_ctrl_tbl_rev0[] = {
+const u32 dot11lcn_ps_ctrl_tbl_rev0[] = {
 	0x00100001,
 	0x00200010,
 	0x00300001,
@@ -2612,7 +2612,7 @@ const u16 dot11lcn_iq_local_tbl_rev0[] = {
 	0x0000,
 };
 
-const uint32 dot11lcn_papd_compdelta_tbl_rev0[] = {
+const u32 dot11lcn_papd_compdelta_tbl_rev0[] = {
 	0x00080000,
 	0x00080000,
 	0x00080000,
@@ -2858,7 +2858,7 @@ const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313_bt_epa_p250 = {
 	    sizeof(dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[0]), 15, 0, 16
 };
 
-const uint32 dot11lcnphytbl_info_sz_rev0 =
+const u32 dot11lcnphytbl_info_sz_rev0 =
     sizeof(dot11lcnphytbl_info_rev0) / sizeof(dot11lcnphytbl_info_rev0[0]);
 
 const lcnphy_tx_gain_tbl_entry dot11lcnphy_2GHz_extPA_gaintable_rev0[128] = {

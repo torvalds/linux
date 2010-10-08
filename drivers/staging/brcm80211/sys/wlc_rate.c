@@ -153,7 +153,7 @@ const mcs_info_t mcs_table[MCS_TABLE_SIZE] = {
  *   other fields: refer to table 78 of section 17.3.2.2 of the original .11a standard
  */
 typedef struct legacy_phycfg {
-	uint32 rate_ofdm;	/* ofdm mac rate */
+	u32 rate_ofdm;	/* ofdm mac rate */
 	u8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
 } legacy_phycfg_t;
 

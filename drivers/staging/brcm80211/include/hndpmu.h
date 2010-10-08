@@ -30,17 +30,17 @@
 
 extern void si_pmu_init(si_t *sih, osl_t *osh);
 extern void si_pmu_chip_init(si_t *sih, osl_t *osh);
-extern void si_pmu_pll_init(si_t *sih, osl_t *osh, uint32 xtalfreq);
+extern void si_pmu_pll_init(si_t *sih, osl_t *osh, u32 xtalfreq);
 extern void si_pmu_res_init(si_t *sih, osl_t *osh);
 extern void si_pmu_swreg_init(si_t *sih, osl_t *osh);
 
-extern uint32 si_pmu_force_ilp(si_t *sih, osl_t *osh, bool force);
+extern u32 si_pmu_force_ilp(si_t *sih, osl_t *osh, bool force);
 
-extern uint32 si_pmu_si_clock(si_t *sih, osl_t *osh);
-extern uint32 si_pmu_cpu_clock(si_t *sih, osl_t *osh);
-extern uint32 si_pmu_mem_clock(si_t *sih, osl_t *osh);
-extern uint32 si_pmu_alp_clock(si_t *sih, osl_t *osh);
-extern uint32 si_pmu_ilp_clock(si_t *sih, osl_t *osh);
+extern u32 si_pmu_si_clock(si_t *sih, osl_t *osh);
+extern u32 si_pmu_cpu_clock(si_t *sih, osl_t *osh);
+extern u32 si_pmu_mem_clock(si_t *sih, osl_t *osh);
+extern u32 si_pmu_alp_clock(si_t *sih, osl_t *osh);
+extern u32 si_pmu_ilp_clock(si_t *sih, osl_t *osh);
 
 extern void si_pmu_set_switcher_voltage(si_t *sih, osl_t *osh,
 					u8 bb_voltage, u8 rf_voltage);
@@ -52,20 +52,20 @@ extern void si_pmu_pllupd(si_t *sih);
 extern void si_pmu_spuravoid(si_t *sih, osl_t *osh, u8 spuravoid);
 
 extern bool si_pmu_is_otp_powered(si_t *sih, osl_t *osh);
-extern uint32 si_pmu_measure_alpclk(si_t *sih, osl_t *osh);
+extern u32 si_pmu_measure_alpclk(si_t *sih, osl_t *osh);
 
-extern uint32 si_pmu_chipcontrol(si_t *sih, uint reg, uint32 mask, uint32 val);
-extern uint32 si_pmu_regcontrol(si_t *sih, uint reg, uint32 mask, uint32 val);
-extern uint32 si_pmu_pllcontrol(si_t *sih, uint reg, uint32 mask, uint32 val);
+extern u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val);
+extern u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val);
+extern u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val);
 extern void si_pmu_pllupd(si_t *sih);
 extern void si_pmu_sprom_enable(si_t *sih, osl_t *osh, bool enable);
 
 extern void si_pmu_radio_enable(si_t *sih, bool enable);
-extern uint32 si_pmu_waitforclk_on_backplane(si_t *sih, osl_t *osh,
-					     uint32 clk, uint32 delay);
+extern u32 si_pmu_waitforclk_on_backplane(si_t *sih, osl_t *osh,
+					     u32 clk, u32 delay);
 
 extern void si_pmu_otp_power(si_t *sih, osl_t *osh, bool on);
 extern void si_sdiod_drive_strength_init(si_t *sih, osl_t *osh,
-					 uint32 drivestrength);
+					 u32 drivestrength);
 
 #endif				/* _hndpmu_h_ */

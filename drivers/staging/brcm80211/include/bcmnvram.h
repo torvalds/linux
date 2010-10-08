@@ -23,11 +23,11 @@
 #include <bcmdefs.h>
 
 struct nvram_header {
-	uint32 magic;
-	uint32 len;
-	uint32 crc_ver_init;	/* 0:7 crc, 8:15 ver, 16:31 sdram_init */
-	uint32 config_refresh;	/* 0:15 sdram_config, 16:31 sdram_refresh */
-	uint32 config_ncdl;	/* ncdl values for memc */
+	u32 magic;
+	u32 len;
+	u32 crc_ver_init;	/* 0:7 crc, 8:15 ver, 16:31 sdram_init */
+	u32 config_refresh;	/* 0:15 sdram_config, 16:31 sdram_refresh */
+	u32 config_ncdl;	/* ncdl values for memc */
 };
 
 struct nvram_tuple {

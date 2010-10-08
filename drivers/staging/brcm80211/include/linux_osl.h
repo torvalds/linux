@@ -30,7 +30,7 @@ extern void osl_os_close_image(void *image);
 extern osl_t *osl_attach(void *pdev, uint bustype, bool pkttag);
 extern void osl_detach(osl_t *osh);
 
-extern uint32 g_assert_type;
+extern u32 g_assert_type;
 
 #if defined(BCMDBG_ASSERT)
 #define ASSERT(exp) \
@@ -57,7 +57,7 @@ extern void osl_delay(uint usec);
 	osl_pci_read_config((osh), (offset), (size))
 #define	OSL_PCI_WRITE_CONFIG(osh, offset, size, val) \
 	osl_pci_write_config((osh), (offset), (size), (val))
-extern uint32 osl_pci_read_config(osl_t *osh, uint offset, uint size);
+extern u32 osl_pci_read_config(osl_t *osh, uint offset, uint size);
 extern void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val);
 
 /* PCI device bus # and slot # */
@@ -165,7 +165,7 @@ extern int osl_error(int bcmerror);
 /* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
 #define	PKTBUFSZ	2048	/* largest reasonable packet buffer, driver uses for ethernet MTU */
 
-#define OSL_SYSUPTIME()		((uint32)jiffies * (1000 / HZ))
+#define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
 #define	printf(fmt, args...)	printk(fmt , ## args)
 #ifdef BRCM_FULLMAC
 #include <linux/kernel.h>	/* for vsn/printf's */
@@ -184,7 +184,7 @@ extern int osl_error(int bcmerror);
 #define R_REG(osh, r) (\
 	SELECT_BUS_READ(osh, sizeof(*(r)) == sizeof(u8) ? readb((volatile u8*)(r)) : \
 	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
-	readl((volatile uint32*)(r)), OSL_READ_REG(osh, r)) \
+	readl((volatile u32*)(r)), OSL_READ_REG(osh, r)) \
 )
 #else				/* __mips__ */
 #define R_REG(osh, r) (\
@@ -199,9 +199,9 @@ extern int osl_error(int bcmerror);
 			case sizeof(u16): \
 				__osl_v = readw((volatile u16*)(r)); \
 				break; \
-			case sizeof(uint32): \
+			case sizeof(u32): \
 				__osl_v = \
-				readl((volatile uint32*)(r)); \
+				readl((volatile u32*)(r)); \
 				break; \
 			} \
 			__asm__ __volatile__("sync"); \
@@ -224,8 +224,8 @@ extern int osl_error(int bcmerror);
 			writeb((u8)(v), (volatile u8*)(r)); break; \
 		case sizeof(u16): \
 			writew((u16)(v), (volatile u16*)(r)); break; \
-		case sizeof(uint32): \
-			writel((uint32)(v), (volatile uint32*)(r)); break; \
+		case sizeof(u32): \
+			writel((u32)(v), (volatile u32*)(r)); break; \
 		}, \
 		(OSL_WRITE_REG(osh, r, v))); \
 	} while (0)
@@ -243,8 +243,8 @@ extern int osl_error(int bcmerror);
 				__osl_v = \
 				readw((volatile u16*)((uintptr)(r)^2)); \
 				break; \
-			case sizeof(uint32): \
-				__osl_v = readl((volatile uint32*)(r)); \
+			case sizeof(u32): \
+				__osl_v = readl((volatile u32*)(r)); \
 				break; \
 			} \
 			__osl_v; \
@@ -260,9 +260,9 @@ extern int osl_error(int bcmerror);
 		case sizeof(u16):	\
 			writew((u16)(v), \
 			(volatile u16*)((uintptr)(r)^2)); break; \
-		case sizeof(uint32):	\
-			writel((uint32)(v), \
-			(volatile uint32*)(r)); break; \
+		case sizeof(u32):	\
+			writel((u32)(v), \
+			(volatile u32*)(r)); break; \
 		}, \
 		(OSL_WRITE_REG(osh, r, v))); \
 	} while (0)
@@ -402,7 +402,7 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 #define RPC_READ_REG(osh, r) (\
 	sizeof(*(r)) == sizeof(u8) ? osl_readb((osh), (volatile u8*)(r)) : \
 	sizeof(*(r)) == sizeof(u16) ? osl_readw((osh), (volatile u16*)(r)) : \
-	osl_readl((osh), (volatile uint32*)(r)) \
+	osl_readl((osh), (volatile u32*)(r)) \
 )
 #define RPC_WRITE_REG(osh, r, v) do { \
 	switch (sizeof(*(r))) { \
@@ -412,18 +412,18 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 	case sizeof(u16): \
 		osl_writew((osh), (volatile u16*)(r), (u16)(v)); \
 		break; \
-	case sizeof(uint32): \
-		osl_writel((osh), (volatile uint32*)(r), (uint32)(v)); \
+	case sizeof(u32): \
+		osl_writel((osh), (volatile u32*)(r), (u32)(v)); \
 		break; \
 	} \
 } while (0)
 
 extern u8 osl_readb(osl_t *osh, volatile u8 *r);
 extern u16 osl_readw(osl_t *osh, volatile u16 *r);
-extern uint32 osl_readl(osl_t *osh, volatile uint32 *r);
+extern u32 osl_readl(osl_t *osh, volatile u32 *r);
 extern void osl_writeb(osl_t *osh, volatile u8 *r, u8 v);
 extern void osl_writew(osl_t *osh, volatile u16 *r, u16 v);
-extern void osl_writel(osl_t *osh, volatile uint32 *r, uint32 v);
+extern void osl_writel(osl_t *osh, volatile u32 *r, u32 v);
 #endif				/* BCMSDIO */
 
 #endif				/* _linux_osl_h_ */

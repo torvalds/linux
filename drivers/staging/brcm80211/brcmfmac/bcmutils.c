@@ -1170,7 +1170,7 @@ u16 hndcrc16(u8 *pdata,	/* pointer to array of data to process */
 	return crc;
 }
 
-static const uint32 crc32_table[256] = {
+static const u32 crc32_table[256] = {
 	0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA,
 	0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
 	0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988,
@@ -1237,9 +1237,9 @@ static const uint32 crc32_table[256] = {
 	0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D
 };
 
-uint32 hndcrc32(u8 *pdata,	/* pointer to array of data to process */
+u32 hndcrc32(u8 *pdata,	/* pointer to array of data to process */
 		uint nbytes,	/* number of input data bytes to process */
-		uint32 crc	/* either CRC32_INIT_VALUE or previous
+		u32 crc	/* either CRC32_INIT_VALUE or previous
 					 return value */
 )
 {
@@ -1288,8 +1288,8 @@ void testcrc32(void)
 	uint j, k, l;
 	u8 *buf;
 	uint len[CNBUFS];
-	uint32 crcr;
-	uint32 crc32tv[CNBUFS] = {
+	u32 crcr;
+	u32 crc32tv[CNBUFS] = {
 		0xd2cb1faa, 0xd385c8fa, 0xf5b4f3f3, 0x55789e20, 0x00343110};
 
 	ASSERT((buf = MALLOC(CBUFSIZ * CNBUFS)) != NULL);
@@ -1408,13 +1408,13 @@ bcm_tlv_t *bcm_parse_ordered_tlvs(void *buf, int buflen, uint key)
 #if defined(WLMSG_PRHDRS) || defined(WLMSG_PRPKT) || defined(WLMSG_ASSOC) || \
 	defined(DHD_DEBUG)
 int
-bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags, char *buf, int len)
+bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags, char *buf, int len)
 {
 	int i;
 	char *p = buf;
 	char hexstr[16];
 	int slen = 0;
-	uint32 bit;
+	u32 bit;
 	const char *name;
 
 	if (len < 2 || !buf)
@@ -1500,7 +1500,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 #endif		/* defined(WLMSG_PRHDRS) || defined(WLMSG_PRPKT) */
 
 /* Produce a human-readable string for boardrev */
-char *bcm_brev_str(uint32 brev, char *buf)
+char *bcm_brev_str(u32 brev, char *buf)
 {
 	if (brev < 0x100)
 		snprintf(buf, 8, "%d.%d", (brev & 0xf0) >> 4, brev & 0xf);
@@ -1540,7 +1540,7 @@ void printbig(char *buf)
 /* routine to dump fields in a fileddesc structure */
 uint
 bcmdumpfields(bcmutl_rdreg_rtn read_rtn, void *arg0, uint arg1,
-	      struct fielddesc *fielddesc_array, char *buf, uint32 bufsize)
+	      struct fielddesc *fielddesc_array, char *buf, u32 bufsize)
 {
 	uint filled_len;
 	int len;
@@ -1555,7 +1555,7 @@ bcmdumpfields(bcmutl_rdreg_rtn read_rtn, void *arg0, uint arg1,
 		len = snprintf(buf, bufsize, cur_ptr->nameandfmt,
 			       read_rtn(arg0, arg1, cur_ptr->offset));
 		/* check for snprintf overflow or error */
-		if (len < 0 || (uint32) len >= bufsize)
+		if (len < 0 || (u32) len >= bufsize)
 			len = bufsize - 1;
 		buf += len;
 		bufsize -= len;

@@ -44,7 +44,7 @@ extern void sdio_function_cleanup(void);
 static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif				/* !defined(OOB_INTR_ONLY) */
-static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
+static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, u32 regaddr);
 extern int sdio_reset_comm(struct mmc_card *card);
 
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
@@ -66,13 +66,13 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 
 #define DMA_ALIGN_MASK	0x03
 
-int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr,
-			     int regsize, uint32 *data);
+int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, u32 regaddr,
+			     int regsize, u32 *data);
 
 static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 {
 	int err_ret;
-	uint32 fbraddr;
+	u32 fbraddr;
 	u8 func;
 
 	sd_trace(("%s\n", __func__));
@@ -406,7 +406,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	int val_size;
 	int32 int_val = 0;
 	bool bool_val;
-	uint32 actionid;
+	u32 actionid;
 
 	ASSERT(name);
 	ASSERT(len >= 0);
@@ -468,7 +468,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_BLOCKSIZE):
-		if ((uint32) int_val > si->num_funcs) {
+		if ((u32) int_val > si->num_funcs) {
 			bcmerror = BCME_BADARG;
 			break;
 		}
@@ -478,7 +478,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_SVAL(IOV_BLOCKSIZE):
 		{
-			uint func = ((uint32) int_val >> 16);
+			uint func = ((u32) int_val >> 16);
 			uint blksize = (u16) int_val;
 			uint maxsize;
 
@@ -542,7 +542,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_DIVISOR):
-		int_val = (uint32) sd_divisor;
+		int_val = (u32) sd_divisor;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -551,7 +551,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_POWER):
-		int_val = (uint32) sd_power;
+		int_val = (u32) sd_power;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -560,7 +560,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_CLOCK):
-		int_val = (uint32) sd_clock;
+		int_val = (u32) sd_clock;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -569,7 +569,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_SDMODE):
-		int_val = (uint32) sd_sdmode;
+		int_val = (u32) sd_sdmode;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -578,7 +578,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		break;
 
 	case IOV_GVAL(IOV_HISPEED):
-		int_val = (uint32) sd_hiok;
+		int_val = (u32) sd_hiok;
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -703,7 +703,7 @@ SDIOH_API_RC sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 #endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
 extern SDIOH_API_RC
-sdioh_cfg_read(sdioh_info_t *sd, uint fnc_num, uint32 addr, u8 *data)
+sdioh_cfg_read(sdioh_info_t *sd, uint fnc_num, u32 addr, u8 *data)
 {
 	SDIOH_API_RC status;
 	/* No lock needed since sdioh_request_byte does locking */
@@ -712,7 +712,7 @@ sdioh_cfg_read(sdioh_info_t *sd, uint fnc_num, uint32 addr, u8 *data)
 }
 
 extern SDIOH_API_RC
-sdioh_cfg_write(sdioh_info_t *sd, uint fnc_num, uint32 addr, u8 *data)
+sdioh_cfg_write(sdioh_info_t *sd, uint fnc_num, u32 addr, u8 *data)
 {
 	/* No lock needed since sdioh_request_byte does locking */
 	SDIOH_API_RC status;
@@ -720,11 +720,11 @@ sdioh_cfg_write(sdioh_info_t *sd, uint fnc_num, uint32 addr, u8 *data)
 	return status;
 }
 
-static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr)
+static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, u32 regaddr)
 {
 	/* read 24 bits and return valid 17 bit addr */
 	int i;
-	uint32 scratch, regdata;
+	u32 scratch, regdata;
 	u8 *ptr = (u8 *)&scratch;
 	for (i = 0; i < 3; i++) {
 		if ((sdioh_sdmmc_card_regread(sd, 0, regaddr, 1, &regdata)) !=
@@ -742,11 +742,11 @@ static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr)
 }
 
 extern SDIOH_API_RC
-sdioh_cis_read(sdioh_info_t *sd, uint func, u8 *cisd, uint32 length)
+sdioh_cis_read(sdioh_info_t *sd, uint func, u8 *cisd, u32 length)
 {
-	uint32 count;
+	u32 count;
 	int offset;
-	uint32 foo;
+	u32 foo;
 	u8 *cis = cisd;
 
 	sd_trace(("%s: Func = %d\n", __func__, func));
@@ -876,7 +876,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr,
 
 extern SDIOH_API_RC
 sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func,
-		   uint addr, uint32 *word, uint nbytes)
+		   uint addr, u32 *word, uint nbytes)
 {
 	int err_ret = SDIOH_API_RC_FAIL;
 
@@ -932,7 +932,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		     uint addr, void *pkt)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
-	uint32 SGCount = 0;
+	u32 SGCount = 0;
 	int err_ret = 0;
 
 	void *pnext;
@@ -963,7 +963,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		 * is supposed to give
 		 * us something we can work with.
 		 */
-		ASSERT(((uint32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) == 0);
+		ASSERT(((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) == 0);
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
@@ -1067,7 +1067,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 #else
 		PKTFREE(sd->osh, mypkt, write ? TRUE : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
-	} else if (((uint32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
+	} else if (((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
 		/* In this case, we cannot have a chain. */
@@ -1156,8 +1156,8 @@ void sdioh_sdmmc_devintr_on(sdioh_info_t *sd)
 
 /* Read client card reg */
 int
-sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr,
-			 int regsize, uint32 *data)
+sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, u32 regaddr,
+			 int regsize, u32 *data)
 {
 
 	if ((func == 0) || (regsize == 1)) {
@@ -1222,8 +1222,8 @@ static void IRQHandlerF2(struct sdio_func *func)
 #ifdef NOTUSED
 /* Write client card reg */
 static int
-sdioh_sdmmc_card_regwrite(sdioh_info_t *sd, int func, uint32 regaddr,
-			  int regsize, uint32 data)
+sdioh_sdmmc_card_regwrite(sdioh_info_t *sd, int func, u32 regaddr,
+			  int regsize, u32 data)
 {
 
 	if ((func == 0) || (regsize == 1)) {

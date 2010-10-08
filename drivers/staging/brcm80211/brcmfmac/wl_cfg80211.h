@@ -153,11 +153,11 @@ enum wl_fw_status {
 
 /* dongle configuration */
 struct wl_conf {
-	uint32 mode;		/* adhoc , infrastructure or ap */
-	uint32 frag_threshold;
-	uint32 rts_threshold;
-	uint32 retry_short;
-	uint32 retry_long;
+	u32 mode;		/* adhoc , infrastructure or ap */
+	u32 frag_threshold;
+	u32 rts_threshold;
+	u32 retry_short;
+	u32 retry_long;
 	int32 tx_power;
 	struct ieee80211_channel channel;
 };
@@ -201,18 +201,18 @@ struct wl_ie {
 /* event queue for cfg80211 main event */
 struct wl_event_q {
 	struct list_head eq_list;
-	uint32 etype;
+	u32 etype;
 	wl_event_msg_t emsg;
 	s8 edata[1];
 };
 
 /* security information with currently associated ap */
 struct wl_security {
-	uint32 wpa_versions;
-	uint32 auth_type;
-	uint32 cipher_pairwise;
-	uint32 cipher_group;
-	uint32 wpa_auth;
+	u32 wpa_versions;
+	u32 auth_type;
+	u32 cipher_pairwise;
+	u32 cipher_group;
+	u32 wpa_auth;
 };
 
 /* ibss information for currently joined ibss network */
@@ -226,7 +226,7 @@ struct wl_ibss {
 
 /* dongle profile */
 struct wl_profile {
-	uint32 mode;
+	u32 mode;
 	struct wlc_ssid ssid;
 	u8 bssid[ETHER_ADDR_LEN];
 	struct wl_security sec;
@@ -244,8 +244,8 @@ struct wl_iscan_eloop {
 struct wl_iscan_ctrl {
 	struct net_device *dev;
 	struct timer_list timer;
-	uint32 timer_ms;
-	uint32 timer_on;
+	u32 timer_ms;
+	u32 timer_on;
 	int32 state;
 	int32 pid;
 	struct semaphore sync;
@@ -268,15 +268,15 @@ struct wl_connect_info {
 struct wl_fw_ctrl {
 	const struct firmware *fw_entry;
 	unsigned long status;
-	uint32 ptr;
+	u32 ptr;
 	s8 fw_name[WL_FILE_NAME_MAX];
 	s8 nvram_name[WL_FILE_NAME_MAX];
 };
 
 /* assoc ie length */
 struct wl_assoc_ielen {
-	uint32 req_len;
-	uint32 resp_len;
+	u32 req_len;
+	u32 resp_len;
 };
 
 /* wpa2 pmk list */
@@ -318,7 +318,7 @@ struct wl_priv {
 	int32 event_pid;	/* pid of main event handler thread */
 	unsigned long status;		/* current dongle status */
 	void *pub;
-	uint32 channel;		/* current channel */
+	u32 channel;		/* current channel */
 	bool iscan_on;		/* iscan on/off switch */
 	bool iscan_kickstart;	/* indicate iscan already started */
 	bool active_scan;	/* current scan mode */
@@ -369,11 +369,11 @@ extern void wl_cfg80211_sdio_func(void *func);	/* set sdio function info */
 extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function info */
 extern int32 wl_cfg80211_up(void);	/* dongle up */
 extern int32 wl_cfg80211_down(void);	/* dongle down */
-extern void wl_cfg80211_dbg_level(uint32 level);	/* set dongle
+extern void wl_cfg80211_dbg_level(u32 level);	/* set dongle
 							 debugging level */
 extern void *wl_cfg80211_request_fw(s8 *file_name);	/* request fw /nvram
 							 downloading */
-extern int32 wl_cfg80211_read_fw(s8 *buf, uint32 size);	/* read fw
+extern int32 wl_cfg80211_read_fw(s8 *buf, u32 size);	/* read fw
 								 image */
 extern void wl_cfg80211_release_fw(void);	/* release fw */
 extern s8 *wl_cfg80211_get_fwname(void);	/* get firmware name for

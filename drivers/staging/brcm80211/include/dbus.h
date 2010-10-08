@@ -111,10 +111,10 @@ typedef struct {
  * Let upper layer account for packets/bytes
  */
 typedef struct {
-	uint32 rx_errors;
-	uint32 tx_errors;
-	uint32 rx_dropped;
-	uint32 tx_dropped;
+	u32 rx_errors;
+	u32 tx_errors;
+	u32 rx_dropped;
+	u32 tx_dropped;
 } dbus_stats_t;
 
 /*
@@ -127,8 +127,8 @@ typedef struct {
 struct dbus_callbacks;
 struct exec_parms;
 
-typedef void *(*probe_cb_t) (void *arg, const char *desc, uint32 bustype,
-			     uint32 hdrlen);
+typedef void *(*probe_cb_t) (void *arg, const char *desc, u32 bustype,
+			     u32 hdrlen);
 typedef void (*disconnect_cb_t) (void *arg);
 typedef void *(*exec_cb_t) (struct exec_parms *args);
 
@@ -260,7 +260,7 @@ extern int dbus_get_config(const dbus_pub_t *pub, dbus_config_t *config);
 extern void *dbus_pktget(const dbus_pub_t *pub, int len);
 extern void dbus_pktfree(const dbus_pub_t *pub, void *pkt);
 
-extern int dbus_set_errmask(const dbus_pub_t *pub, uint32 mask);
+extern int dbus_set_errmask(const dbus_pub_t *pub, u32 mask);
 extern int dbus_pnp_sleep(const dbus_pub_t *pub);
 extern int dbus_pnp_resume(const dbus_pub_t *pub, int *fw_reload);
 extern int dbus_pnp_disconnect(const dbus_pub_t *pub);

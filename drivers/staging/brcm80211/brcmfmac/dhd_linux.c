@@ -425,8 +425,8 @@ extern int dhd_wait_pend8021x(struct net_device *dev);
 #ifndef BDC
 #error TOE requires BDC
 #endif				/* !BDC */
-static int dhd_toe_get(dhd_info_t *dhd, int idx, uint32 *toe_ol);
-static int dhd_toe_set(dhd_info_t *dhd, int idx, uint32 toe_ol);
+static int dhd_toe_get(dhd_info_t *dhd, int idx, u32 *toe_ol);
+static int dhd_toe_set(dhd_info_t *dhd, int idx, u32 toe_ol);
 #endif				/* TOE */
 
 static int dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
@@ -712,7 +712,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 {
 	struct net_device *dev;
 	struct netdev_hw_addr *ha;
-	uint32 allmulti, cnt;
+	u32 allmulti, cnt;
 
 	wl_ioctl_t ioc;
 	char *buf, *bufp;
@@ -1434,7 +1434,7 @@ void dhd_sched_dpc(dhd_pub_t *dhdp)
 #ifdef TOE
 /* Retrieve current toe component enables, which are kept
 	 as a bitmap in toe_ol iovar */
-static int dhd_toe_get(dhd_info_t *dhd, int ifidx, uint32 *toe_ol)
+static int dhd_toe_get(dhd_info_t *dhd, int ifidx, u32 *toe_ol)
 {
 	wl_ioctl_t ioc;
 	char buf[32];
@@ -1462,13 +1462,13 @@ static int dhd_toe_get(dhd_info_t *dhd, int ifidx, uint32 *toe_ol)
 		return ret;
 	}
 
-	memcpy(toe_ol, buf, sizeof(uint32));
+	memcpy(toe_ol, buf, sizeof(u32));
 	return 0;
 }
 
 /* Set current toe component enables in toe_ol iovar,
 	 and set toe global enable iovar */
-static int dhd_toe_set(dhd_info_t *dhd, int ifidx, uint32 toe_ol)
+static int dhd_toe_set(dhd_info_t *dhd, int ifidx, u32 toe_ol)
 {
 	wl_ioctl_t ioc;
 	char buf[32];
@@ -1484,7 +1484,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, uint32 toe_ol)
 	/* Set toe_ol as requested */
 
 	strcpy(buf, "toe_ol");
-	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(uint32));
+	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(u32));
 
 	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
@@ -1498,7 +1498,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, uint32 toe_ol)
 	toe = (toe_ol != 0);
 
 	strcpy(buf, "toe");
-	memcpy(&buf[sizeof("toe")], &toe, sizeof(uint32));
+	memcpy(&buf[sizeof("toe")], &toe, sizeof(u32));
 
 	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
@@ -1530,17 +1530,17 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 {
 	struct ethtool_drvinfo info;
 	char drvname[sizeof(info.driver)];
-	uint32 cmd;
+	u32 cmd;
 #ifdef TOE
 	struct ethtool_value edata;
-	uint32 toe_cmpnt, csum_dir;
+	u32 toe_cmpnt, csum_dir;
 	int ret;
 #endif
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	/* all ethtool calls start with a cmd word */
-	if (copy_from_user(&cmd, uaddr, sizeof(uint32)))
+	if (copy_from_user(&cmd, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	switch (cmd) {
@@ -1794,7 +1794,7 @@ static int dhd_open(struct net_device *net)
 {
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
 #ifdef TOE
-	uint32 toe_ol;
+	u32 toe_ol;
 #endif
 	int ifidx = dhd_net2idx(dhd, net);
 	int32 ret = 0;
@@ -1854,7 +1854,7 @@ void dhd_osl_detach(osl_t *osh)
 
 int
 dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
-	   u8 *mac_addr, uint32 flags, u8 bssidx)
+	   u8 *mac_addr, u32 flags, u8 bssidx)
 {
 	dhd_if_t *ifp;
 

@@ -71,21 +71,21 @@ extern void wlapi_add_timer(wlc_phy_shim_info_t *physhim,
 extern bool wlapi_del_timer(wlc_phy_shim_info_t *physhim,
 			    struct wlapi_timer *t);
 extern void wlapi_intrson(wlc_phy_shim_info_t *physhim);
-extern uint32 wlapi_intrsoff(wlc_phy_shim_info_t *physhim);
+extern u32 wlapi_intrsoff(wlc_phy_shim_info_t *physhim);
 extern void wlapi_intrsrestore(wlc_phy_shim_info_t *physhim,
-			       uint32 macintmask);
+			       u32 macintmask);
 
 extern void wlapi_bmac_write_shm(wlc_phy_shim_info_t *physhim, uint offset,
 				 u16 v);
 extern u16 wlapi_bmac_read_shm(wlc_phy_shim_info_t *physhim, uint offset);
 extern void wlapi_bmac_mhf(wlc_phy_shim_info_t *physhim, u8 idx,
 			   u16 mask, u16 val, int bands);
-extern void wlapi_bmac_corereset(wlc_phy_shim_info_t *physhim, uint32 flags);
+extern void wlapi_bmac_corereset(wlc_phy_shim_info_t *physhim, u32 flags);
 extern void wlapi_suspend_mac_and_wait(wlc_phy_shim_info_t *physhim);
 extern void wlapi_switch_macfreq(wlc_phy_shim_info_t *physhim, u8 spurmode);
 extern void wlapi_enable_mac(wlc_phy_shim_info_t *physhim);
-extern void wlapi_bmac_mctrl(wlc_phy_shim_info_t *physhim, uint32 mask,
-			     uint32 val);
+extern void wlapi_bmac_mctrl(wlc_phy_shim_info_t *physhim, u32 mask,
+			     u32 val);
 extern void wlapi_bmac_phy_reset(wlc_phy_shim_info_t *physhim);
 extern void wlapi_bmac_bw_set(wlc_phy_shim_info_t *physhim, u16 bw);
 extern void wlapi_bmac_phyclk_fgc(wlc_phy_shim_info_t *physhim, bool clk);
@@ -102,14 +102,14 @@ extern u16 wlapi_bmac_rate_shm_offset(wlc_phy_shim_info_t *physhim,
 					 u8 rate);
 extern void wlapi_ucode_sample_init(wlc_phy_shim_info_t *physhim);
 extern void wlapi_copyfrom_objmem(wlc_phy_shim_info_t *physhim, uint,
-				  void *buf, int, uint32 sel);
+				  void *buf, int, u32 sel);
 extern void wlapi_copyto_objmem(wlc_phy_shim_info_t *physhim, uint,
-				const void *buf, int, uint32);
+				const void *buf, int, u32);
 
 extern void wlapi_high_update_phy_mode(wlc_phy_shim_info_t *physhim,
-				       uint32 phy_mode);
+				       u32 phy_mode);
 extern void wlapi_bmac_pktengtx(wlc_phy_shim_info_t *physhim,
 				wl_pkteng_t *pkteng, u8 rate,
-				struct ether_addr *sa, uint32 wait_delay);
+				struct ether_addr *sa, u32 wait_delay);
 extern u16 wlapi_bmac_get_txant(wlc_phy_shim_info_t *physhim);
 #endif				/* _wlc_phy_shim_h_ */

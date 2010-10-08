@@ -240,7 +240,7 @@ typedef int (*dump_fn_t) (void *handle, struct bcmstrbuf *b);
  * All pointers may point into the same buffer.
  */
 typedef int (*iovar_fn_t) (void *handle, const bcm_iovar_t *vi,
-			   uint32 actionid, const char *name, void *params,
+			   u32 actionid, const char *name, void *params,
 			   uint plen, void *arg, int alen, int vsize,
 			   struct wlc_if *wlcif);
 
@@ -296,13 +296,13 @@ typedef struct wlc_pub {
 	struct ether_addr *multicast;	/* ptr to list of multicast addresses */
 	uint nmulticast;	/* # enabled multicast addresses */
 
-	uint32 wlfeatureflag;	/* Flags to control sw features from registry */
+	u32 wlfeatureflag;	/* Flags to control sw features from registry */
 	int psq_pkts_total;	/* total num of ps pkts */
 
 	u16 txmaxpkts;	/* max number of large pkts allowed to be pending */
 
 	/* s/w decryption counters */
-	uint32 swdecrypt;	/* s/w decrypt attempts */
+	u32 swdecrypt;	/* s/w decrypt attempts */
 
 	int bcmerror;		/* last bcm error */
 
@@ -325,8 +325,8 @@ typedef struct wlc_pub {
 	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */
 	char srom_ccode[WLC_CNTRY_BUF_SZ];	/* Country Code in SROM */
-	uint32 boardflags;	/* Board specific flags from srom */
-	uint32 boardflags2;	/* More board flags if sromrev >= 4 */
+	u32 boardflags;	/* Board specific flags from srom */
+	u32 boardflags2;	/* More board flags if sromrev >= 4 */
 	bool tempsense_disable;	/* disable periodic tempsense check */
 
 	bool _lmac;		/* lmac module included and enabled */
@@ -343,7 +343,7 @@ typedef struct wl_rxsts {
 	uint datarate;		/* rate in 500kbps */
 	uint antenna;		/* antenna pkts received on */
 	uint pktlength;		/* pkt length minus bcm phy hdr */
-	uint32 mactime;		/* time stamp from mac, count per 1us */
+	u32 mactime;		/* time stamp from mac, count per 1us */
 	uint sq;		/* signal quality */
 	int32 signal;		/* in dbm */
 	int32 noise;		/* in dbm */
@@ -512,8 +512,8 @@ extern void wlc_init(struct wlc_info *wlc);
 extern void wlc_reset(struct wlc_info *wlc);
 
 extern void wlc_intrson(struct wlc_info *wlc);
-extern uint32 wlc_intrsoff(struct wlc_info *wlc);
-extern void wlc_intrsrestore(struct wlc_info *wlc, uint32 macintmask);
+extern u32 wlc_intrsoff(struct wlc_info *wlc);
+extern void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask);
 extern bool wlc_intrsupd(struct wlc_info *wlc);
 extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
@@ -536,19 +536,19 @@ extern int wlc_bmac_up_finish(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_down_prep(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw);
 
-extern uint32 wlc_reg_read(struct wlc_info *wlc, void *r, uint size);
-extern void wlc_reg_write(struct wlc_info *wlc, void *r, uint32 v, uint size);
-extern void wlc_corereset(struct wlc_info *wlc, uint32 flags);
+extern u32 wlc_reg_read(struct wlc_info *wlc, void *r, uint size);
+extern void wlc_reg_write(struct wlc_info *wlc, void *r, u32 v, uint size);
+extern void wlc_corereset(struct wlc_info *wlc, u32 flags);
 extern void wlc_mhf(struct wlc_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
 extern u16 wlc_mhf_get(struct wlc_info *wlc, u8 idx, int bands);
-extern uint32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
+extern u32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
 extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset);
 extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
 
 /* wlc_phy.c helper functions */
 extern void wlc_set_ps_ctrl(struct wlc_info *wlc);
-extern void wlc_mctrl(struct wlc_info *wlc, uint32 mask, uint32 val);
+extern void wlc_mctrl(struct wlc_info *wlc, u32 mask, u32 val);
 extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
 
 /* ioctl */
@@ -566,8 +566,8 @@ extern void wlc_event_if(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
 extern void wlc_suspend_mac_and_wait(struct wlc_info *wlc);
 extern void wlc_enable_mac(struct wlc_info *wlc);
 extern u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
-extern uint32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
-extern uint32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
+extern u32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
+extern u32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
 
 static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 				    uint *arg)
@@ -621,7 +621,7 @@ extern void wlc_pmkid_event(struct wlc_bsscfg *cfg);
 void wlc_device_removed(void *arg);
 #endif
 
-/* BMAC RPC: 7 uint32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
+/* BMAC RPC: 7 u32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
 #define WLC_RPCTX_PARAMS		32
 
 #endif				/* _wlc_pub_h_ */

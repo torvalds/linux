@@ -85,7 +85,7 @@ typedef struct {
 	u16 wsize;		/* Size of otp in words */
 	u16 rows;		/* Geometry */
 	u16 cols;		/* Geometry */
-	uint32 status;		/* Flag bits (lock/prog/rv).
+	u32 status;		/* Flag bits (lock/prog/rv).
 				 * (Reflected only when OTP is power cycled)
 				 */
 	u16 hwbase;		/* hardware subregion offset */
@@ -189,7 +189,7 @@ static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
-	uint32 otpp, st;
+	u32 otpp, st;
 
 	row = off / oi->cols;
 	col = off % oi->cols;
@@ -240,7 +240,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 static void BCMNMIATTACHFN(_ipxotp_init) (otpinfo_t *oi, chipcregs_t *cc)
 {
 	uint k;
-	uint32 otpp, st;
+	u32 otpp, st;
 
 	/* record word offset of General Use Region for various chipcommon revs */
 	if (oi->sih->ccrev == 21 || oi->sih->ccrev == 24
@@ -274,7 +274,7 @@ static void BCMNMIATTACHFN(_ipxotp_init) (otpinfo_t *oi, chipcregs_t *cc)
 
 	if ((CHIPID(oi->sih->chip) == BCM43224_CHIP_ID)
 	    || (CHIPID(oi->sih->chip) == BCM43225_CHIP_ID)) {
-		uint32 p_bits;
+		u32 p_bits;
 		p_bits =
 		    (ipxotp_otpr(oi, cc, oi->otpgu_base + OTPGU_P_OFF) &
 		     OTPGU_P_MSK)
@@ -603,7 +603,7 @@ static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
-	uint32 otpp, st;
+	u32 otpp, st;
 	osl_t *osh;
 
 	osh = si_osh(oi->sih);
@@ -635,7 +635,7 @@ static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih)
 	uint idx;
 	chipcregs_t *cc;
 	otpinfo_t *oi;
-	uint32 cap = 0, clkdiv, otpdiv = 0;
+	u32 cap = 0, clkdiv, otpdiv = 0;
 	void *ret = NULL;
 	osl_t *osh;
 
@@ -709,7 +709,7 @@ static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih)
 static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	uint32 idx, st;
+	u32 idx, st;
 	chipcregs_t *cc;
 	int i;
 
@@ -740,9 +740,9 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 {
 	int rc = 0;
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	uint32 base, bound, lim = 0, st;
+	u32 base, bound, lim = 0, st;
 	int i, chunk, gchunks, tsz = 0;
-	uint32 idx;
+	u32 idx;
 	chipcregs_t *cc;
 	uint offset;
 	u16 *rawotp = NULL;

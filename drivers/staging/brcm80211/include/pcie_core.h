@@ -46,36 +46,36 @@
 
 /* SB side: PCIE core and host control registers */
 typedef struct sbpcieregs {
-	uint32 control;		/* host mode only */
-	uint32 PAD[2];
-	uint32 biststatus;	/* bist Status: 0x00C */
-	uint32 gpiosel;		/* PCIE gpio sel: 0x010 */
-	uint32 gpioouten;	/* PCIE gpio outen: 0x14 */
-	uint32 PAD[2];
-	uint32 intstatus;	/* Interrupt status: 0x20 */
-	uint32 intmask;		/* Interrupt mask: 0x24 */
-	uint32 sbtopcimailbox;	/* sb to pcie mailbox: 0x028 */
-	uint32 PAD[53];
-	uint32 sbtopcie0;	/* sb to pcie translation 0: 0x100 */
-	uint32 sbtopcie1;	/* sb to pcie translation 1: 0x104 */
-	uint32 sbtopcie2;	/* sb to pcie translation 2: 0x108 */
-	uint32 PAD[5];
+	u32 control;		/* host mode only */
+	u32 PAD[2];
+	u32 biststatus;	/* bist Status: 0x00C */
+	u32 gpiosel;		/* PCIE gpio sel: 0x010 */
+	u32 gpioouten;	/* PCIE gpio outen: 0x14 */
+	u32 PAD[2];
+	u32 intstatus;	/* Interrupt status: 0x20 */
+	u32 intmask;		/* Interrupt mask: 0x24 */
+	u32 sbtopcimailbox;	/* sb to pcie mailbox: 0x028 */
+	u32 PAD[53];
+	u32 sbtopcie0;	/* sb to pcie translation 0: 0x100 */
+	u32 sbtopcie1;	/* sb to pcie translation 1: 0x104 */
+	u32 sbtopcie2;	/* sb to pcie translation 2: 0x108 */
+	u32 PAD[5];
 
 	/* pcie core supports in direct access to config space */
-	uint32 configaddr;	/* pcie config space access: Address field: 0x120 */
-	uint32 configdata;	/* pcie config space access: Data field: 0x124 */
+	u32 configaddr;	/* pcie config space access: Address field: 0x120 */
+	u32 configdata;	/* pcie config space access: Data field: 0x124 */
 
 	/* mdio access to serdes */
-	uint32 mdiocontrol;	/* controls the mdio access: 0x128 */
-	uint32 mdiodata;	/* Data to the mdio access: 0x12c */
+	u32 mdiocontrol;	/* controls the mdio access: 0x128 */
+	u32 mdiodata;	/* Data to the mdio access: 0x12c */
 
 	/* pcie protocol phy/dllp/tlp register indirect access mechanism */
-	uint32 pcieindaddr;	/* indirect access to the internal register: 0x130 */
-	uint32 pcieinddata;	/* Data to/from the internal regsiter: 0x134 */
+	u32 pcieindaddr;	/* indirect access to the internal register: 0x130 */
+	u32 pcieinddata;	/* Data to/from the internal regsiter: 0x134 */
 
-	uint32 clkreqenctrl;	/* >= rev 6, Clkreq rdma control : 0x138 */
-	uint32 PAD[177];
-	uint32 pciecfg[4][64];	/* 0x400 - 0x7FF, PCIE Cfg Space */
+	u32 clkreqenctrl;	/* >= rev 6, Clkreq rdma control : 0x138 */
+	u32 PAD[177];
+	u32 pciecfg[4][64];	/* 0x400 - 0x7FF, PCIE Cfg Space */
 	u16 sprom[64];	/* SPROM shadow Area */
 } sbpcieregs_t;
 

@@ -65,7 +65,7 @@ extern uint bcm_rpc_buf_header_len(struct rpc_info *rpci);
 #define RPC_PKTLOG_SIZE		50	/* Depth of the history */
 #define RPC_PKTLOG_RD_LEN	3
 #define RPC_PKTLOG_DUMP_SIZE	150	/* dump size should be more than the product of above two */
-extern int bcm_rpc_pktlog_get(struct rpc_info *rpci, uint32 *buf,
+extern int bcm_rpc_pktlog_get(struct rpc_info *rpci, u32 *buf,
 			      uint buf_size, bool send);
 extern int bcm_rpc_dump(rpc_info_t *rpci, struct bcmstrbuf *b);
 

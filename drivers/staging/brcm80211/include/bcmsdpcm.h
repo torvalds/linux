@@ -153,33 +153,33 @@
  */
 
 typedef volatile struct {
-	uint32 cmd52rd;		/* Cmd52RdCount, SDIO: cmd52 reads */
-	uint32 cmd52wr;		/* Cmd52WrCount, SDIO: cmd52 writes */
-	uint32 cmd53rd;		/* Cmd53RdCount, SDIO: cmd53 reads */
-	uint32 cmd53wr;		/* Cmd53WrCount, SDIO: cmd53 writes */
-	uint32 abort;		/* AbortCount, SDIO: aborts */
-	uint32 datacrcerror;	/* DataCrcErrorCount, SDIO: frames w/CRC error */
-	uint32 rdoutofsync;	/* RdOutOfSyncCount, SDIO/PCMCIA: Rd Frm out of sync */
-	uint32 wroutofsync;	/* RdOutOfSyncCount, SDIO/PCMCIA: Wr Frm out of sync */
-	uint32 writebusy;	/* WriteBusyCount, SDIO: device asserted "busy" */
-	uint32 readwait;	/* ReadWaitCount, SDIO: no data ready for a read cmd */
-	uint32 readterm;	/* ReadTermCount, SDIO: read frame termination cmds */
-	uint32 writeterm;	/* WriteTermCount, SDIO: write frames termination cmds */
-	uint32 rxdescuflo;	/* receive descriptor underflows */
-	uint32 rxfifooflo;	/* receive fifo overflows */
-	uint32 txfifouflo;	/* transmit fifo underflows */
-	uint32 runt;		/* runt (too short) frames recv'd from bus */
-	uint32 badlen;		/* frame's rxh len does not match its hw tag len */
-	uint32 badcksum;	/* frame's hw tag chksum doesn't agree with len value */
-	uint32 seqbreak;	/* break in sequence # space from one rx frame to the next */
-	uint32 rxfcrc;		/* frame rx header indicates crc error */
-	uint32 rxfwoos;		/* frame rx header indicates write out of sync */
-	uint32 rxfwft;		/* frame rx header indicates write frame termination */
-	uint32 rxfabort;	/* frame rx header indicates frame aborted */
-	uint32 woosint;		/* write out of sync interrupt */
-	uint32 roosint;		/* read out of sync interrupt */
-	uint32 rftermint;	/* read frame terminate interrupt */
-	uint32 wftermint;	/* write frame terminate interrupt */
+	u32 cmd52rd;		/* Cmd52RdCount, SDIO: cmd52 reads */
+	u32 cmd52wr;		/* Cmd52WrCount, SDIO: cmd52 writes */
+	u32 cmd53rd;		/* Cmd53RdCount, SDIO: cmd53 reads */
+	u32 cmd53wr;		/* Cmd53WrCount, SDIO: cmd53 writes */
+	u32 abort;		/* AbortCount, SDIO: aborts */
+	u32 datacrcerror;	/* DataCrcErrorCount, SDIO: frames w/CRC error */
+	u32 rdoutofsync;	/* RdOutOfSyncCount, SDIO/PCMCIA: Rd Frm out of sync */
+	u32 wroutofsync;	/* RdOutOfSyncCount, SDIO/PCMCIA: Wr Frm out of sync */
+	u32 writebusy;	/* WriteBusyCount, SDIO: device asserted "busy" */
+	u32 readwait;	/* ReadWaitCount, SDIO: no data ready for a read cmd */
+	u32 readterm;	/* ReadTermCount, SDIO: read frame termination cmds */
+	u32 writeterm;	/* WriteTermCount, SDIO: write frames termination cmds */
+	u32 rxdescuflo;	/* receive descriptor underflows */
+	u32 rxfifooflo;	/* receive fifo overflows */
+	u32 txfifouflo;	/* transmit fifo underflows */
+	u32 runt;		/* runt (too short) frames recv'd from bus */
+	u32 badlen;		/* frame's rxh len does not match its hw tag len */
+	u32 badcksum;	/* frame's hw tag chksum doesn't agree with len value */
+	u32 seqbreak;	/* break in sequence # space from one rx frame to the next */
+	u32 rxfcrc;		/* frame rx header indicates crc error */
+	u32 rxfwoos;		/* frame rx header indicates write out of sync */
+	u32 rxfwft;		/* frame rx header indicates write frame termination */
+	u32 rxfabort;	/* frame rx header indicates frame aborted */
+	u32 woosint;		/* write out of sync interrupt */
+	u32 roosint;		/* read out of sync interrupt */
+	u32 rftermint;	/* read frame terminate interrupt */
+	u32 wftermint;	/* write frame terminate interrupt */
 } sdpcmd_cnt_t;
 
 /*
@@ -241,13 +241,13 @@ typedef volatile struct {
 #define SDPCM_SHARED_TRAP          0x0400
 
 typedef struct {
-	uint32 flags;
-	uint32 trap_addr;
-	uint32 assert_exp_addr;
-	uint32 assert_file_addr;
-	uint32 assert_line;
-	uint32 console_addr;	/* Address of hndrte_cons_t */
-	uint32 msgtrace_addr;
+	u32 flags;
+	u32 trap_addr;
+	u32 assert_exp_addr;
+	u32 assert_file_addr;
+	u32 assert_line;
+	u32 console_addr;	/* Address of hndrte_cons_t */
+	u32 msgtrace_addr;
 } sdpcm_shared_t;
 
 extern sdpcm_shared_t sdpcm_shared;
