@@ -321,8 +321,8 @@
 #define FSR_SRC_FSX		1
 
 /* McBSP functional clock sources */
-#define MCBSP_CLKS_PAD_SRC	0
-#define MCBSP_CLKS_PRCM_SRC	1
+#define MCBSP_CLKS_PRCM_SRC	0
+#define MCBSP_CLKS_PAD_SRC	1
 
 /* we don't do multichannel for now */
 struct omap_mcbsp_reg_cfg {
