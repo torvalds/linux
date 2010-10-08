@@ -485,9 +485,9 @@ static struct bin_attribute adc2_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16220_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16220_read_12bit_unsigned,
 		ADIS16220_CAPT_SUPPLY);
-static IIO_CONST_ATTR_IN_NAMED_SCALE(supply, "0.0012207");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.0012207");
 static IIO_DEV_ATTR_ACCEL(adis16220_read_16bit, ADIS16220_CAPT_BUFA);
 static IIO_DEVICE_ATTR(accel_peak_raw, S_IRUGO, adis16220_read_16bit,
 		NULL, ADIS16220_CAPT_PEAKA);
@@ -500,8 +500,8 @@ static IIO_DEV_ATTR_TEMP_RAW(adis16220_read_12bit_unsigned);
 static IIO_CONST_ATTR_TEMP_OFFSET("25");
 static IIO_CONST_ATTR_TEMP_SCALE("-0.47");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16220_read_16bit, ADIS16220_CAPT_BUF1);
-static IIO_DEV_ATTR_IN_RAW(1, adis16220_read_16bit, ADIS16220_CAPT_BUF2);
+static IIO_DEV_ATTR_IN_RAW(1, adis16220_read_16bit, ADIS16220_CAPT_BUF1);
+static IIO_DEV_ATTR_IN_RAW(2, adis16220_read_16bit, ADIS16220_CAPT_BUF2);
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL,
 		adis16220_write_reset, 0);
@@ -524,15 +524,15 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100200");
 static IIO_CONST_ATTR_NAME("adis16220");
 
 static struct attribute *adis16220_attributes[] = {
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_accel_raw.dev_attr.attr,
 	&iio_dev_attr_accel_offset.dev_attr.attr,
 	&iio_dev_attr_accel_peak_raw.dev_attr.attr,
 	&iio_const_attr_accel_scale.dev_attr.attr,
 	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_dev_attr_in2_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,

@@ -17,9 +17,9 @@
 #include "../trigger.h"
 #include "adis16300.h"
 
-static IIO_SCAN_EL_C(in_supply, ADIS16300_SCAN_SUPPLY,
+static IIO_SCAN_EL_C(in0_supply, ADIS16300_SCAN_SUPPLY,
 		     ADIS16300_SUPPLY_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(in_supply, u, 12, 16);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(in0_supply, u, 12, 16);
 static IIO_SCAN_EL_C(gyro_x, ADIS16300_SCAN_GYRO_X, ADIS16300_XGYRO_OUT, NULL);
 static IIO_CONST_ATTR_SCAN_EL_TYPE(gyro, s, 14, 16);
 
@@ -31,8 +31,8 @@ static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 14, 16);
 static IIO_SCAN_EL_C(temp, ADIS16300_SCAN_TEMP, ADIS16300_TEMP_OUT, NULL);
 static IIO_CONST_ATTR_SCAN_EL_TYPE(temp, s, 12, 16);
 
-static IIO_SCAN_EL_C(in0, ADIS16300_SCAN_ADC_0, ADIS16300_AUX_ADC, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(in0, u, 12, 16);
+static IIO_SCAN_EL_C(in1, ADIS16300_SCAN_ADC_0, ADIS16300_AUX_ADC, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(in1, u, 12, 16);
 
 static IIO_SCAN_EL_C(incli_x, ADIS16300_SCAN_INCLI_X,
 		     ADIS16300_XINCLI_OUT, NULL);
@@ -44,9 +44,9 @@ static IIO_SCAN_EL_TIMESTAMP(9);
 static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
 
 static struct attribute *adis16300_scan_el_attrs[] = {
-	&iio_scan_el_in_supply.dev_attr.attr,
-	&iio_const_attr_in_supply_index.dev_attr.attr,
-	&iio_const_attr_in_supply_type.dev_attr.attr,
+	&iio_scan_el_in0_supply.dev_attr.attr,
+	&iio_const_attr_in0_supply_index.dev_attr.attr,
+	&iio_const_attr_in0_supply_type.dev_attr.attr,
 	&iio_scan_el_gyro_x.dev_attr.attr,
 	&iio_const_attr_gyro_x_index.dev_attr.attr,
 	&iio_const_attr_gyro_type.dev_attr.attr,
@@ -65,9 +65,9 @@ static struct attribute *adis16300_scan_el_attrs[] = {
 	&iio_scan_el_incli_y.dev_attr.attr,
 	&iio_const_attr_incli_y_index.dev_attr.attr,
 	&iio_const_attr_incli_type.dev_attr.attr,
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_const_attr_in0_type.dev_attr.attr,
+	&iio_scan_el_in1.dev_attr.attr,
+	&iio_const_attr_in1_index.dev_attr.attr,
+	&iio_const_attr_in1_type.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
 	&iio_const_attr_timestamp_index.dev_attr.attr,
 	&iio_const_attr_timestamp_type.dev_attr.attr,
@@ -214,13 +214,13 @@ int adis16300_configure_ring(struct iio_dev *indio_dev)
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
+	iio_scan_mask_set(ring, iio_scan_el_in0_supply.number);
 	iio_scan_mask_set(ring, iio_scan_el_gyro_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
 	iio_scan_mask_set(ring, iio_scan_el_accel_z.number);
 	iio_scan_mask_set(ring, iio_scan_el_temp.number);
-	iio_scan_mask_set(ring, iio_scan_el_in0.number);
+	iio_scan_mask_set(ring, iio_scan_el_in1.number);
 	iio_scan_mask_set(ring, iio_scan_el_incli_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_incli_y.number);
 

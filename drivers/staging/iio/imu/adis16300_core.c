@@ -523,9 +523,9 @@ static IIO_DEV_ATTR_ACCEL_Z_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16300_write_16bit,
 		ADIS16300_ZACCL_OFF);
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16300_read_14bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16300_read_14bit_unsigned,
 			   ADIS16300_SUPPLY_OUT);
-static IIO_CONST_ATTR_IN_NAMED_SCALE(supply, "0.00242");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.00242");
 
 static IIO_DEV_ATTR_GYRO_X(adis16300_read_14bit_signed,
 		ADIS16300_XGYRO_OUT);
@@ -549,9 +549,9 @@ static IIO_DEV_ATTR_TEMP_RAW(adis16300_read_12bit_unsigned);
 static IIO_CONST_ATTR_TEMP_OFFSET("198.16");
 static IIO_CONST_ATTR_TEMP_SCALE("0.14");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16300_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_RAW(1, adis16300_read_12bit_unsigned,
 		ADIS16300_AUX_ADC);
-static IIO_CONST_ATTR(in0_scale, "0.000806");
+static IIO_CONST_ATTR(in1_scale, "0.000806");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16300_read_frequency,
@@ -576,8 +576,8 @@ static struct attribute *adis16300_attributes[] = {
 	&iio_dev_attr_accel_x_calibbias.dev_attr.attr,
 	&iio_dev_attr_accel_y_calibbias.dev_attr.attr,
 	&iio_dev_attr_accel_z_calibbias.dev_attr.attr,
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_gyro_x_raw.dev_attr.attr,
 	&iio_const_attr_gyro_scale.dev_attr.attr,
 	&iio_dev_attr_accel_x_raw.dev_attr.attr,
@@ -590,8 +590,8 @@ static struct attribute *adis16300_attributes[] = {
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_const_attr_in0_scale.dev_attr.attr,
+	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_const_attr_in1_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,

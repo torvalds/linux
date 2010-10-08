@@ -376,11 +376,11 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16240_read_10bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16240_read_10bit_unsigned,
 		ADIS16240_SUPPLY_OUT);
-static IIO_DEV_ATTR_IN_RAW(0, adis16240_read_10bit_signed,
+static IIO_DEV_ATTR_IN_RAW(1, adis16240_read_10bit_signed,
 		ADIS16240_AUX_ADC);
-static IIO_CONST_ATTR_IN_NAMED_SCALE(supply, "0.00488");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.00488");
 
 static IIO_CONST_ATTR_ACCEL_SCALE("0.50406181");
 static IIO_CONST_ATTR(accel_peak_scale, "6.6292954");
@@ -433,9 +433,9 @@ static struct attribute_group adis16240_event_attribute_group = {
 };
 
 static struct attribute *adis16240_attributes[] = {
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
+	&iio_dev_attr_in1_raw.dev_attr.attr,
 	&iio_const_attr_accel_scale.dev_attr.attr,
 	&iio_const_attr_accel_peak_scale.dev_attr.attr,
 	&iio_dev_attr_accel_x_raw.dev_attr.attr,
