@@ -90,7 +90,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
-static DEFINE_RAW_SPINLOCK(sparse_irq_lock);
+static DEFINE_MUTEX(sparse_irq_lock);
 static DECLARE_BITMAP(allocated_irqs, NR_IRQS);
 
 #ifdef CONFIG_SPARSE_IRQ
@@ -159,13 +159,12 @@ err_desc:
 static void free_desc(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
 
 	unregister_irq_proc(irq, desc);
 
-	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+	mutex_lock(&sparse_irq_lock);
 	delete_irq_desc(irq);
-	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	mutex_unlock(&sparse_irq_lock);
 
 	free_masks(desc);
 	kfree(desc->kstat_irqs);
@@ -175,16 +174,15 @@ static void free_desc(unsigned int irq)
 static int alloc_descs(unsigned int start, unsigned int cnt, int node)
 {
 	struct irq_desc *desc;
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < cnt; i++) {
 		desc = alloc_desc(start + i, node);
 		if (!desc)
 			goto err;
-		raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+		mutex_lock(&sparse_irq_lock);
 		irq_insert_desc(start + i, desc);
-		raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+		mutex_unlock(&sparse_irq_lock);
 	}
 	return start;
 
@@ -192,9 +190,9 @@ err:
 	for (i--; i >= 0; i--)
 		free_desc(start + i);
 
-	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+	mutex_lock(&sparse_irq_lock);
 	bitmap_clear(allocated_irqs, start, cnt);
-	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	mutex_unlock(&sparse_irq_lock);
 	return -ENOMEM;
 }
 
@@ -291,7 +289,6 @@ static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
  */
 void irq_free_descs(unsigned int from, unsigned int cnt)
 {
-	unsigned long flags;
 	int i;
 
 	if (from >= nr_irqs || (from + cnt) > nr_irqs)
@@ -300,9 +297,9 @@ void irq_free_descs(unsigned int from, unsigned int cnt)
 	for (i = 0; i < cnt; i++)
 		free_desc(from + i);
 
-	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+	mutex_lock(&sparse_irq_lock);
 	bitmap_clear(allocated_irqs, from, cnt);
-	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	mutex_unlock(&sparse_irq_lock);
 }
 
 /**
@@ -317,13 +314,12 @@ void irq_free_descs(unsigned int from, unsigned int cnt)
 int __ref
 irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 {
-	unsigned long flags;
 	int start, ret;
 
 	if (!cnt)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+	mutex_lock(&sparse_irq_lock);
 
 	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
 	ret = -EEXIST;
@@ -335,11 +331,11 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 		goto err;
 
 	bitmap_set(allocated_irqs, start, cnt);
-	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	mutex_unlock(&sparse_irq_lock);
 	return alloc_descs(start, cnt, node);
 
 err:
-	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	mutex_unlock(&sparse_irq_lock);
 	return ret;
 }
 
@@ -352,20 +348,19 @@ err:
  */
 int irq_reserve_irqs(unsigned int from, unsigned int cnt)
 {
-	unsigned long flags;
 	unsigned int start;
 	int ret = 0;
 
 	if (!cnt || (from + cnt) > nr_irqs)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+	mutex_lock(&sparse_irq_lock);
 	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
 	if (start == from)
 		bitmap_set(allocated_irqs, start, cnt);
 	else
 		ret = -EEXIST;
-	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	mutex_unlock(&sparse_irq_lock);
 	return ret;
 }
 
