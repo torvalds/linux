@@ -143,14 +143,6 @@ uint wl_msg_level =
 static wlc_info_t *wlc_info_dbg = (wlc_info_t *) (NULL);
 #endif
 
-#if defined(BCMDBG)
-struct wlc_id_name_entry {
-	int id;
-	const char *name;
-};
-typedef struct wlc_id_name_entry wlc_id_name_table_t[];
-#endif
-
 /* IOVar table */
 
 /* Parameter IDs, for use only internally to wlc -- in the wlc_iovars
