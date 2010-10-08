@@ -359,7 +359,7 @@ extern void bcmsdh_enable_hw_oob_intr(void *sdh, bool enable);
 	do {								\
 		uint datalign;						\
 		datalign = (uintptr)PKTDATA((p));		\
-		datalign = ROUNDUP(datalign, (align)) - datalign;	\
+		datalign = roundup(datalign, (align)) - datalign;	\
 		ASSERT(datalign < (align));				\
 		ASSERT(PKTLEN((p)) >= ((len) + datalign));	\
 		if (datalign)						\
@@ -1000,7 +1000,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 #ifdef NOTUSED
 		if (PKTTAILROOM(pkt))
 #endif
-			len = ROUNDUP(len, ALIGNMENT);
+			len = roundup(len, ALIGNMENT);
 #ifdef NOTUSED
 		else
 			DHD_ERROR(("%s: sending unrounded %d-byte packet\n",
@@ -1263,7 +1263,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	/* Satisfy length-alignment requirements */
 	if (forcealign && (len & (ALIGNMENT - 1)))
-		len = ROUNDUP(len, ALIGNMENT);
+		len = roundup(len, ALIGNMENT);
 
 	ASSERT(IS_ALIGNED((uintptr) frame, 2));
 
@@ -2522,7 +2522,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 
 	/* Even if there are no vars are to be written, we still
 		 need to set the ramsize. */
-	varsize = bus->varsz ? ROUNDUP(bus->varsz, 4) : 0;
+	varsize = bus->varsz ? roundup(bus->varsz, 4) : 0;
 	varaddr = (bus->ramsize - 4) - varsize;
 
 	if (bus->vars) {
@@ -3117,7 +3117,7 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 
 	/* Satisfy length-alignment requirements */
 	if (forcealign && (rdlen & (ALIGNMENT - 1)))
-		rdlen = ROUNDUP(rdlen, ALIGNMENT);
+		rdlen = roundup(rdlen, ALIGNMENT);
 
 	/* Drop if the read is too big or it exceeds our maximum */
 	if ((rdlen + firstread) > bus->dhd->maxctl) {
@@ -3229,8 +3229,8 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				 is a block multiple */
 			if (!dlen) {
 				sublen +=
-				    (ROUNDUP(totlen, bus->blocksize) - totlen);
-				totlen = ROUNDUP(totlen, bus->blocksize);
+				    (roundup(totlen, bus->blocksize) - totlen);
+				totlen = roundup(totlen, bus->blocksize);
 			}
 
 			/* Allocate/chain packet for next subframe */
@@ -3380,11 +3380,11 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			DHD_ERROR(("%s (superframe): HW hdr error: len/check "
 				"0x%04x/0x%04x\n", __func__, sublen, check));
 			errcode = -1;
-		} else if (ROUNDUP(sublen, bus->blocksize) != dlen) {
+		} else if (roundup(sublen, bus->blocksize) != dlen) {
 			DHD_ERROR(("%s (superframe): len 0x%04x, rounded "
 				"0x%04x, expect 0x%04x\n",
 				__func__, sublen,
-				ROUNDUP(sublen, bus->blocksize), dlen));
+				roundup(sublen, bus->blocksize), dlen));
 			errcode = -1;
 		} else if (SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]) !=
 			   SDPCM_GLOM_CHANNEL) {
@@ -3806,13 +3806,13 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			}
 
 			/* Check for consistency withreadahead info */
-			len_consistent = (nextlen != (ROUNDUP(len, 16) >> 4));
+			len_consistent = (nextlen != (roundup(len, 16) >> 4));
 			if (len_consistent) {
 				/* Mismatch, force retry w/normal
 					header (may be >4K) */
 				DHD_ERROR(("%s (nextlen): mismatch, nextlen %d len %d rnd %d; " "expected rxseq %d\n",
 					__func__, nextlen,
-					len, ROUNDUP(len, 16), rxseq));
+					len, roundup(len, 16), rxseq));
 				dhd_os_sdlock_rxq(bus->dhd);
 				PKTFREE2();
 				dhd_os_sdunlock_rxq(bus->dhd);
@@ -4072,7 +4072,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 		/* Satisfy length-alignment requirements */
 		if (forcealign && (rdlen & (ALIGNMENT - 1)))
-			rdlen = ROUNDUP(rdlen, ALIGNMENT);
+			rdlen = roundup(rdlen, ALIGNMENT);
 
 		if ((rdlen + firstread) > MAX_RX_DATASZ) {
 			/* Too long -- skip this frame */
@@ -5364,7 +5364,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 	pktq_init(&bus->txq, (PRIOMASK + 1), QLEN);
 
 	/* Locate an appropriately-aligned portion of hdrbuf */
-	bus->rxhdr = (u8 *) ROUNDUP((uintptr)&bus->hdrbuf[0], DHD_SDALIGN);
+	bus->rxhdr = (u8 *) roundup((uintptr)&bus->hdrbuf[0], DHD_SDALIGN);
 
 	/* Set the poll and/or interrupt flags */
 	bus->intr = (bool) dhd_intr;
@@ -5385,7 +5385,7 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 #ifndef DHD_USE_STATIC_BUF
 	if (bus->dhd->maxctl) {
 		bus->rxblen =
-		    ROUNDUP((bus->dhd->maxctl + SDPCM_HDRLEN),
+		    roundup((bus->dhd->maxctl + SDPCM_HDRLEN),
 			    ALIGNMENT) + DHD_SDALIGN;
 		bus->rxbuf = MALLOC(osh, bus->rxblen);
 		if (!(bus->rxbuf)) {
@@ -5408,7 +5408,7 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 #else
 	if (bus->dhd->maxctl) {
 		bus->rxblen =
-		    ROUNDUP((bus->dhd->maxctl + SDPCM_HDRLEN),
+		    roundup((bus->dhd->maxctl + SDPCM_HDRLEN),
 			    ALIGNMENT) + DHD_SDALIGN;
 		bus->rxbuf = dhd_os_prealloc(DHD_PREALLOC_RXBUF, bus->rxblen);
 		if (!(bus->rxbuf)) {

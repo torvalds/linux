@@ -92,7 +92,7 @@
 
 #define RXBUFSZ		PKTBUFSZ
 #ifndef AIDMAPSZ
-#define AIDMAPSZ	(ROUNDUP(MAXSCB, NBBY)/NBBY)	/* aid bitmap size in bytes */
+#define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)	/* aid bitmap size in bytes */
 #endif				/* AIDMAPSZ */
 
 typedef struct wlc_tunables {

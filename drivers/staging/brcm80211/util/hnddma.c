@@ -1418,7 +1418,7 @@ static void *dma_ringalloc(osl_t *osh, u32 boundary, uint size,
 	if (NULL == va)
 		return NULL;
 
-	desc_strtaddr = (u32) ROUNDUP((uintptr) va, alignbytes);
+	desc_strtaddr = (u32) roundup((uintptr) va, alignbytes);
 	if (((desc_strtaddr + size - 1) & boundary) != (desc_strtaddr
 							& boundary)) {
 		*alignbits = dma_align_sizetobits(size);
@@ -1543,7 +1543,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->txdpa, 0);
 		ASSERT(PHYSADDRHI(di->txdpaorig) == 0);
-		di->txd32 = (dma32dd_t *) ROUNDUP((uintptr) va, align);
+		di->txd32 = (dma32dd_t *) roundup((uintptr) va, align);
 		di->txdalign =
 		    (uint) ((s8 *)di->txd32 - (s8 *) va);
 
@@ -1564,7 +1564,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->rxdpa, 0);
 		ASSERT(PHYSADDRHI(di->rxdpaorig) == 0);
-		di->rxd32 = (dma32dd_t *) ROUNDUP((uintptr) va, align);
+		di->rxd32 = (dma32dd_t *) roundup((uintptr) va, align);
 		di->rxdalign =
 		    (uint) ((s8 *)di->rxd32 - (s8 *) va);
 
@@ -2109,7 +2109,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 			return FALSE;
 		}
 		align = (1 << align_bits);
-		di->txd64 = (dma64dd_t *) ROUNDUP((uintptr) va, align);
+		di->txd64 = (dma64dd_t *) roundup((uintptr) va, align);
 		di->txdalign = (uint) ((s8 *)di->txd64 - (s8 *) va);
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
@@ -2127,7 +2127,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 			return FALSE;
 		}
 		align = (1 << align_bits);
-		di->rxd64 = (dma64dd_t *) ROUNDUP((uintptr) va, align);
+		di->rxd64 = (dma64dd_t *) roundup((uintptr) va, align);
 		di->rxdalign = (uint) ((s8 *)di->rxd64 - (s8 *) va);
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);

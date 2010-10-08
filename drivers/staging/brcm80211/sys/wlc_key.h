@@ -106,7 +106,7 @@ typedef struct wsec_key {
 } wsec_key_t;
 
 typedef struct {
-	u8 vec[ROUNDUP(WSEC_MAX_KEYS, NBBY) / NBBY];	/* bitvec of wsec_key indexes */
+	u8 vec[roundup(WSEC_MAX_KEYS, NBBY) / NBBY];	/* bitvec of wsec_key indexes */
 } wsec_key_vec_t;
 
 /* For use with wsec_key_t.flags */

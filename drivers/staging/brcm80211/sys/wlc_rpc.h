@@ -362,9 +362,9 @@ static __inline char *_wlc_rpc_id_lookup(const struct name_entry *tbl, int _id)
 #endif				/* BCMDBG */
 
 /* refer to txpwr_limits_t for each elements, mcs32 is the at the end for 1 byte */
-#define TXPOWER_XDR_SZ	(ROUNDUP(WLC_NUM_RATES_CCK, 4) + ROUNDUP(WLC_NUM_RATES_OFDM, 4) * 4 + \
-	ROUNDUP(WLC_NUM_RATES_MCS_1_STREAM, 4) * 6 + ROUNDUP(WLC_NUM_RATES_MCS_2_STREAM, 4) * 2 + \
-	ROUNDUP(1, 4))
+#define TXPOWER_XDR_SZ	(roundup(WLC_NUM_RATES_CCK, 4) + roundup(WLC_NUM_RATES_OFDM, 4) * 4 + \
+	roundup(WLC_NUM_RATES_MCS_1_STREAM, 4) * 6 + roundup(WLC_NUM_RATES_MCS_2_STREAM, 4) * 2 + \
+	roundup(1, 4))
 
 #define wlc_rpc_txpwr_limits(b, txpwr, op, err)	\
 	do {											\

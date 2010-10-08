@@ -2201,7 +2201,7 @@ void wlc_phy_txpower_update_shm(phy_info_t *pi)
 
 		for (i = TXP_FIRST_OFDM; i <= TXP_LAST_OFDM; i++)
 			pi->tx_power_offset[i] =
-			    (u8) ROUNDUP(pi->tx_power_offset[i], 8);
+			    (u8) roundup(pi->tx_power_offset[i], 8);
 		wlapi_bmac_write_shm(pi->sh->physhim, M_OFDM_OFFSET,
 				     (u16) ((pi->
 						tx_power_offset[TXP_FIRST_OFDM]

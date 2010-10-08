@@ -662,7 +662,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 			mcl &= ~(TXC_STARTMSDU | TXC_SENDRTS | TXC_SENDCTS);
 		}
 
-		len = ROUNDUP(len, 4);
+		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
 		dma_len += (u16) pkttotlen(osh, p);
@@ -806,7 +806,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 		fbr_iscck = ((ltoh16(txh->XtraFrameTypes) & 0x3) == 0);
 		len = fbr_iscck ? WLC_GET_CCK_PLCP_LEN(txh->FragPLCPFallback)
 		    : WLC_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
-		ampdu_len -= ROUNDUP(len, 4) - len;
+		ampdu_len -= roundup(len, 4) - len;
 
 		/* patch up the first txh & plcp */
 		txh = (d11txh_t *) PKTDATA(pkt[0]);
