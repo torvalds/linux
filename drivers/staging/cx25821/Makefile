@@ -1,4 +1,4 @@
-cx25821-objs   := cx25821-core.o cx25821-cards.o cx25821-i2c.o \
+cx25821-y   := cx25821-core.o cx25821-cards.o cx25821-i2c.o \
 		       cx25821-gpio.o cx25821-medusa-video.o \
 		       cx25821-video.o cx25821-video-upstream.o \
 		       cx25821-video-upstream-ch2.o \
