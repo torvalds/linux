@@ -13,9 +13,6 @@
 
 #include <plat/powerdomain.h>
 
-extern u32 enable_off_mode;
-extern u32 sleep_while_idle;
-
 extern void *omap3_secure_ram_storage;
 extern void omap3_pm_off_mode_enable(int);
 extern void omap_sram_idle(void);
@@ -50,10 +47,14 @@ extern struct omap_dm_timer *gptimer_wakeup;
 extern void omap2_pm_dump(int mode, int resume, unsigned int us);
 extern void omap2_pm_wakeup_on_timer(u32 seconds, u32 milliseconds);
 extern int omap2_pm_debug;
+extern u32 enable_off_mode;
+extern u32 sleep_while_idle;
 #else
 #define omap2_pm_dump(mode, resume, us)		do {} while (0);
 #define omap2_pm_wakeup_on_timer(seconds, milliseconds)	do {} while (0);
 #define omap2_pm_debug				0
+#define enable_off_mode 0
+#define sleep_while_idle 0
 #endif
 
 #if defined(CONFIG_CPU_IDLE)

@@ -272,10 +272,8 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 */
 	per_next_state = per_saved_state = pwrdm_read_next_pwrst(per_pd);
 	if ((per_next_state == PWRDM_POWER_OFF) &&
-	    (core_next_state > PWRDM_POWER_RET)) {
+	    (core_next_state > PWRDM_POWER_RET))
 		per_next_state = PWRDM_POWER_RET;
-		pwrdm_set_next_pwrst(per_pd, per_next_state);
-	}
 
 	/* Are we changing PER target state? */
 	if (per_next_state != per_saved_state)
