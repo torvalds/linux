@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/input.h>
+#include <linux/i2c.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
 
@@ -116,6 +117,16 @@ static struct platform_device universal_gpio_keys = {
 	},
 };
 
+/* I2C0 */
+static struct i2c_board_info i2c0_devs[] __initdata = {
+	/* Camera, To be updated */
+};
+
+/* I2C1 */
+static struct i2c_board_info i2c1_devs[] __initdata = {
+	/* Gyro, To be updated */
+};
+
 static struct platform_device *universal_devices[] __initdata = {
 	&universal_gpio_keys,
 	&s5p_device_onenand,
@@ -133,6 +144,9 @@ static void __init universal_machine_init(void)
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_init(S5P_VA_L2CC, 1 << 28, 0xffffffff);
 #endif
+
+	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
+	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
 
 	/* Last */
 	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
