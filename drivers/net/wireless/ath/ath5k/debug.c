@@ -60,6 +60,7 @@
 
 #include "base.h"
 #include "debug.h"
+#include "../debug.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
@@ -492,6 +493,7 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	char buf[700];
 	unsigned int len = 0;
 	u32 filt = ath5k_hw_get_rx_filter(sc->ah);
+	const char *tmp;
 
 	len += snprintf(buf+len, sizeof(buf)-len, "bssid-mask: %pM\n",
 			sc->bssidmask);
@@ -523,6 +525,14 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 		len += snprintf(buf+len, sizeof(buf)-len, " RADARERR-5211\n");
 	else
 		len += snprintf(buf+len, sizeof(buf)-len, "\n");
+
+	tmp = ath_opmode_to_string(sc->opmode);
+	if (tmp)
+		len += snprintf(buf+len, sizeof(buf)-len, "opmode: %s\n",
+				tmp);
+	else
+		len += snprintf(buf+len, sizeof(buf)-len,
+				"opmode: UNKNOWN-%i\n", sc->opmode);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
