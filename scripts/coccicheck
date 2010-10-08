@@ -31,6 +31,8 @@ if [ "$MODE" = "" ] ; then
 	echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
     fi
     MODE="chain"
+elif [ "$MODE" = "report" -o "$MODE" = "org" ] ; then
+    FLAGS="$FLAGS -no_show_diff"    
 fi
 
 if [ "$ONLINE" = "0" ] ; then
@@ -75,10 +77,10 @@ coccinelle () {
     fi
 
     if [ "$MODE" = "chain" ] ; then
-	$SPATCH -D patch   $FLAGS -sp_file $COCCI $OPT $OPTIONS || \
-	$SPATCH -D report  $FLAGS -sp_file $COCCI $OPT $OPTIONS || \
-	$SPATCH -D context $FLAGS -sp_file $COCCI $OPT $OPTIONS || \
-	$SPATCH -D org     $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
+	$SPATCH -D patch   $FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
+	$SPATCH -D report  $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || \
+	$SPATCH -D context $FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
+	$SPATCH -D org     $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || exit 1
     else
 	$SPATCH -D $MODE   $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     fi
