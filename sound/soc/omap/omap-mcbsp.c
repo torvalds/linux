@@ -661,47 +661,22 @@ static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
 	return 0;
 }
 
-static int omap_mcbsp_dai_set_rcvr_src(struct omap_mcbsp_data *mcbsp_data,
-				       int clk_id)
-{
-	int sel_bit, set = 0;
-	u16 reg = OMAP2_CONTROL_DEVCONF0;
-
-	if (cpu_class_is_omap1())
-		return -EINVAL; /* TODO: Can this be implemented for OMAP1? */
-	if (mcbsp_data->bus_id != 0)
-		return -EINVAL;
-
-	switch (clk_id) {
-	case OMAP_MCBSP_CLKR_SRC_CLKX:
-		set = 1;
-	case OMAP_MCBSP_CLKR_SRC_CLKR:
-		sel_bit = 3;
-		break;
-	case OMAP_MCBSP_FSR_SRC_FSX:
-		set = 1;
-	case OMAP_MCBSP_FSR_SRC_FSR:
-		sel_bit = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (set)
-		omap_ctrl_writel(omap_ctrl_readl(reg) | (1 << sel_bit), reg);
-	else
-		omap_ctrl_writel(omap_ctrl_readl(reg) & ~(1 << sel_bit), reg);
-
-	return 0;
-}
-
 static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 					 int clk_id, unsigned int freq,
 					 int dir)
 {
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
+	struct omap_mcbsp_platform_data *pdata = cpu_dai->dev->platform_data;
 	int err = 0;
+
+	/* The McBSP signal muxing functions are only available on McBSP1 */
+	if (clk_id == OMAP_MCBSP_CLKR_SRC_CLKR ||
+	    clk_id == OMAP_MCBSP_CLKR_SRC_CLKX ||
+	    clk_id == OMAP_MCBSP_FSR_SRC_FSR ||
+	    clk_id == OMAP_MCBSP_FSR_SRC_FSX)
+		if (cpu_class_is_omap1() || mcbsp_data->bus_id != 0)
+			return -EINVAL;
 
 	mcbsp_data->in_freq = freq;
 
@@ -720,11 +695,18 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		regs->pcr0	|= SCLKME;
 		break;
 
+
 	case OMAP_MCBSP_CLKR_SRC_CLKR:
+		omap2_mcbsp1_mux_clkr_src(CLKR_SRC_CLKR);
+		break;
 	case OMAP_MCBSP_CLKR_SRC_CLKX:
+		omap2_mcbsp1_mux_clkr_src(CLKR_SRC_CLKX);
+		break;
 	case OMAP_MCBSP_FSR_SRC_FSR:
+		omap2_mcbsp1_mux_fsr_src(FSR_SRC_FSR);
+		break;
 	case OMAP_MCBSP_FSR_SRC_FSX:
-		err = omap_mcbsp_dai_set_rcvr_src(mcbsp_data, clk_id);
+		omap2_mcbsp1_mux_fsr_src(FSR_SRC_FSX);
 		break;
 	default:
 		err = -ENODEV;

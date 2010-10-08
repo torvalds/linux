@@ -223,6 +223,8 @@
 #define OMAP2_MMCSDIO1ADPCLKISEL	(1 << 24) /* MMC1 loop back clock */
 #define OMAP24XX_USBSTANDBYCTRL		(1 << 15)
 #define OMAP2_MCBSP2_CLKS_MASK		(1 << 6)
+#define OMAP2_MCBSP1_FSR_MASK		(1 << 4)
+#define OMAP2_MCBSP1_CLKR_MASK		(1 << 3)
 #define OMAP2_MCBSP1_CLKS_MASK		(1 << 2)
 
 /* CONTROL_DEVCONF1 bits */

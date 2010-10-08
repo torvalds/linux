@@ -312,6 +312,14 @@
 #define RFSREN			0x0002
 #define RSYNCERREN		0x0001
 
+/* CLKR signal muxing options */
+#define CLKR_SRC_CLKR		0
+#define CLKR_SRC_CLKX		1
+
+/* FSR signal muxing options */
+#define FSR_SRC_FSR		0
+#define FSR_SRC_FSX		1
+
 /* we don't do multichannel for now */
 struct omap_mcbsp_reg_cfg {
 	u16 spcr2;
@@ -501,7 +509,6 @@ int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int leng
 int omap_mcbsp_spi_master_xmit_word_poll(unsigned int id, u32 word);
 int omap_mcbsp_spi_master_recv_word_poll(unsigned int id, u32 * word);
 
-
 /* SPI specific API */
 void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * spi_cfg);
 
@@ -509,6 +516,10 @@ void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * 
 int omap_mcbsp_pollread(unsigned int id, u16 * buf);
 int omap_mcbsp_pollwrite(unsigned int id, u16 buf);
 int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
+
+/* McBSP signal muxing API */
+void omap2_mcbsp1_mux_clkr_src(u8 mux);
+void omap2_mcbsp1_mux_fsr_src(u8 mux);
 
 #ifdef CONFIG_ARCH_OMAP3
 /* Sidetone specific API */
