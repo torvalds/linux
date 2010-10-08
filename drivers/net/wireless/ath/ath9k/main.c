@@ -399,6 +399,7 @@ void ath_ani_calibrate(unsigned long data)
 	bool aniflag = false;
 	unsigned int timestamp = jiffies_to_msecs(jiffies);
 	u32 cal_interval, short_cal_interval, long_cal_interval;
+	unsigned long flags;
 
 	if (ah->caldata && ah->caldata->nfcal_interference)
 		long_cal_interval = ATH_LONG_CALINTERVAL_INT;
@@ -449,8 +450,11 @@ void ath_ani_calibrate(unsigned long data)
 	/* Skip all processing if there's nothing to do. */
 	if (longcal || shortcal || aniflag) {
 		/* Call ANI routine if necessary */
-		if (aniflag)
+		if (aniflag) {
+			spin_lock_irqsave(&common->cc_lock, flags);
 			ath9k_hw_ani_monitor(ah, ah->curchan);
+			spin_unlock_irqrestore(&common->cc_lock, flags);
+		}
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
@@ -635,6 +639,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	struct ath_softc *sc = dev;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
 	bool sched = false;
 
@@ -684,7 +689,12 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
+
+		spin_lock(&common->cc_lock);
+		ath_hw_cycle_counters_update(common);
 		ar9003_hw_bb_watchdog_dbg_info(ah);
+		spin_unlock(&common->cc_lock);
+
 		goto chip_reset;
 	}
 
