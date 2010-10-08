@@ -1354,7 +1354,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	loff_t file_size;
 	unsigned int num;
 	unsigned int offset;
-	size_t total_len;
+	size_t total_len = 0;
 
 	req = fuse_get_req(fc);
 	if (IS_ERR(req))

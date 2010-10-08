@@ -27,6 +27,8 @@
 
 #include "vmwgfx_kms.h"
 
+#define VMWGFX_LDU_NUM_DU 8
+
 #define vmw_crtc_to_ldu(x) \
 	container_of(x, struct vmw_legacy_display_unit, base.crtc)
 #define vmw_encoder_to_ldu(x) \
@@ -536,6 +538,10 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+	int i;
+	int ret;
+
 	if (dev_priv->ldu_priv) {
 		DRM_INFO("ldu system already on\n");
 		return -EINVAL;
@@ -553,23 +559,24 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 
 	drm_mode_create_dirty_info_property(dev_priv->dev);
 
-	vmw_ldu_init(dev_priv, 0);
-	/* for old hardware without multimon only enable one display */
 	if (dev_priv->capabilities & SVGA_CAP_MULTIMON) {
-		vmw_ldu_init(dev_priv, 1);
-		vmw_ldu_init(dev_priv, 2);
-		vmw_ldu_init(dev_priv, 3);
-		vmw_ldu_init(dev_priv, 4);
-		vmw_ldu_init(dev_priv, 5);
-		vmw_ldu_init(dev_priv, 6);
-		vmw_ldu_init(dev_priv, 7);
+		for (i = 0; i < VMWGFX_LDU_NUM_DU; ++i)
+			vmw_ldu_init(dev_priv, i);
+		ret = drm_vblank_init(dev, VMWGFX_LDU_NUM_DU);
+	} else {
+		/* for old hardware without multimon only enable one display */
+		vmw_ldu_init(dev_priv, 0);
+		ret = drm_vblank_init(dev, 1);
 	}
 
-	return 0;
+	return ret;
 }
 
 int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+
+	drm_vblank_cleanup(dev);
 	if (!dev_priv->ldu_priv)
 		return -ENOSYS;
 

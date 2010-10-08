@@ -2,6 +2,9 @@
 # Network device configuration
 #
 
+config HAVE_NET_MACB
+	bool
+
 menuconfig NETDEVICES
 	default y if UML
 	depends on NET
@@ -221,7 +224,7 @@ config MII
 
 config MACB
 	tristate "Atmel MACB support"
-	depends on AVR32 || ARCH_AT91SAM9260 || ARCH_AT91SAM9263 || ARCH_AT91SAM9G20 || ARCH_AT91SAM9G45 || ARCH_AT91CAP9
+	depends on HAVE_NET_MACB
 	select PHYLIB
 	help
 	  The Atmel MACB ethernet interface is found on many AT32 and AT91

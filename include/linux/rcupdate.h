@@ -454,7 +454,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * Makes rcu_dereference_check() do the dirty work.
  */
 #define rcu_dereference_bh(p) \
-		rcu_dereference_check(p, rcu_read_lock_bh_held())
+		rcu_dereference_check(p, rcu_read_lock_bh_held() || irqs_disabled())
 
 /**
  * rcu_dereference_sched - fetch RCU-protected pointer, checking for RCU-sched

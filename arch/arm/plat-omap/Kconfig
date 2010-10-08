@@ -33,7 +33,7 @@ config OMAP_DEBUG_DEVICES
 config OMAP_DEBUG_LEDS
 	bool
 	depends on OMAP_DEBUG_DEVICES
-	default y if LEDS
+	default y if LEDS_CLASS
 
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
