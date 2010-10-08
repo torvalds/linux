@@ -21,7 +21,7 @@
 #include <linux/string.h>
 #include <linuxver.h>
 #include <siutils.h>
-#include <bitfuncs.h>
+#include <linux/bitops.h>
 #include <hndpmu.h>
 
 #include <wlc_phy_radio.h>
@@ -5196,7 +5196,7 @@ int32 wlc_lcnphy_rx_signal_power(phy_info_t *pi, int32 gain_index)
 	{
 		uint32 power = (received_power * 16);
 		uint32 msb1, msb2, val1, val2, diff1, diff2;
-		msb1 = find_msbit(power);
+		msb1 = ffs(power) - 1;
 		msb2 = msb1 + 1;
 		val1 = 1 << msb1;
 		val2 = 1 << msb2;
