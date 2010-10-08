@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/omapfb.h>
 
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
@@ -31,6 +32,8 @@
 #include <plat/vram.h>
 
 #include <plat/control.h>
+#include "sram.h"
+#include "fb.h"
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 # include "../mach-omap2/prm.h"
@@ -79,12 +82,6 @@ static unsigned long omap_sram_base;
 static unsigned long omap_sram_size;
 static unsigned long omap_sram_ceil;
 
-extern unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
-					 unsigned long sram_vstart,
-					 unsigned long sram_size,
-					 unsigned long pstart_avail,
-					 unsigned long size_avail);
-
 /*
  * Depending on the target RAMFS firewall setup, the public usable amount of
  * SRAM varies.  The default accessible size for all device types is 2k. A GP
@@ -118,7 +115,7 @@ static int is_sram_locked(void)
  * to secure SRAM will hang the system. Also the SRAM is not
  * yet mapped at this point.
  */
-void __init omap_detect_sram(void)
+static void __init omap_detect_sram(void)
 {
 	unsigned long reserved;
 
@@ -204,7 +201,7 @@ static struct map_desc omap_sram_io_desc[] __initdata = {
 /*
  * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
  */
-void __init omap_map_sram(void)
+static void __init omap_map_sram(void)
 {
 	unsigned long base;
 
@@ -336,7 +333,7 @@ u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP2420
-int __init omap242x_sram_init(void)
+static int __init omap242x_sram_init(void)
 {
 	_omap2_sram_ddr_init = omap_sram_push(omap242x_sram_ddr_init,
 					omap242x_sram_ddr_init_sz);
@@ -357,7 +354,7 @@ static inline int omap242x_sram_init(void)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP2430
-int __init omap243x_sram_init(void)
+static int __init omap243x_sram_init(void)
 {
 	_omap2_sram_ddr_init = omap_sram_push(omap243x_sram_ddr_init,
 					omap243x_sram_ddr_init_sz);
@@ -413,7 +410,7 @@ void omap3_sram_restore_context(void)
 }
 #endif /* CONFIG_PM */
 
-int __init omap34xx_sram_init(void)
+static int __init omap34xx_sram_init(void)
 {
 	_omap3_sram_configure_core_dpll =
 		omap_sram_push(omap3_sram_configure_core_dpll,
@@ -429,7 +426,7 @@ static inline int omap34xx_sram_init(void)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
-int __init omap44xx_sram_init(void)
+static int __init omap44xx_sram_init(void)
 {
 	printk(KERN_ERR "FIXME: %s not implemented\n", __func__);
 

@@ -36,6 +36,7 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
+#include "io.h"
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
