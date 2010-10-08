@@ -327,29 +327,20 @@ static int pipe_handler_send_ind(struct sock *sk, u16 dobj, u8 utid,
 	return pn_skb_send(sk, skb, &spn);
 }
 
-static int pipe_handler_enable_pipe(struct sock *sk, int cmd)
+static int pipe_handler_enable_pipe(struct sock *sk, int enable)
 {
-	int ret;
 	struct pep_sock *pn = pep_sk(sk);
+	int utid, req;
 
-	switch (cmd) {
-	case PNPIPE_ENABLE:
-		ret = pipe_handler_send_req(sk, pn->pn_sk.sobject,
-				PNS_PIPE_ENABLE_UTID, PNS_PEP_ENABLE_REQ,
-				pn->pipe_handle, GFP_ATOMIC);
-		break;
-
-	case PNPIPE_DISABLE:
-		ret = pipe_handler_send_req(sk, pn->pn_sk.sobject,
-				PNS_PIPE_DISABLE_UTID, PNS_PEP_DISABLE_REQ,
-				pn->pipe_handle, GFP_ATOMIC);
-		break;
-
-	default:
-		ret = -EINVAL;
+	if (enable) {
+		utid = PNS_PIPE_ENABLE_UTID;
+		req = PNS_PEP_ENABLE_REQ;
+	} else {
+		utid = PNS_PIPE_DISABLE_UTID;
+		req = PNS_PEP_DISABLE_REQ;
 	}
-
-	return ret;
+	return pipe_handler_send_req(sk, pn->pn_sk.sobject, utid, req,
+			pn->pipe_handle, GFP_ATOMIC);
 }
 
 static int pipe_handler_create_pipe(struct sock *sk, int pipe_handle, int cmd)
@@ -1187,23 +1178,6 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 			break;
 		}
 
-	case PNPIPE_ENABLE:
-		if (pn->pipe_state != PIPE_DISABLED) {
-			err = -EFAULT;
-			break;
-		}
-		err = pipe_handler_enable_pipe(sk, PNPIPE_ENABLE);
-		break;
-
-	case PNPIPE_DISABLE:
-		if (pn->pipe_state != PIPE_ENABLED) {
-			err = -EFAULT;
-			break;
-		}
-
-		err = pipe_handler_enable_pipe(sk, PNPIPE_DISABLE);
-		break;
-
 	case PNPIPE_DESTROY:
 		if (pn->pipe_state < PIPE_DISABLED) {
 			err = -EFAULT;
@@ -1239,6 +1213,17 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 			err = 0;
 		}
 		goto out_norel;
+
+#ifdef CONFIG_PHONET_PIPECTRLR
+	case PNPIPE_ENABLE:
+		if (pn->pipe_state <= PIPE_IDLE) {
+			err = -ENOTCONN;
+			break;
+		}
+		err = pipe_handler_enable_pipe(sk, val);
+		break;
+#endif
+
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -1264,15 +1249,18 @@ static int pep_getsockopt(struct sock *sk, int level, int optname,
 		val = pn->ifindex ? PNPIPE_ENCAP_IP : PNPIPE_ENCAP_NONE;
 		break;
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNPIPE_INQ:
-		val = pn->pipe_state;
-		break;
-#endif
-
 	case PNPIPE_IFINDEX:
 		val = pn->ifindex;
 		break;
+
+#ifdef CONFIG_PHONET_PIPECTRLR
+	case PNPIPE_ENABLE:
+		if (pn->pipe_state <= PIPE_IDLE)
+			return -ENOTCONN;
+		val = pn->pipe_state != PIPE_DISABLED;
+		break;
+#endif
+
 	default:
 		return -ENOPROTOOPT;
 	}
