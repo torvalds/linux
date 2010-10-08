@@ -37,7 +37,7 @@ struct serial_state *spk_serial_init(int index)
 		cval |= UART_LCR_EPAR;
 	if (synth_request_region(ser->port, 8)) {
 		/* try to take it back. */
-		printk("Ports not available, trying to steal them\n");
+		printk(KERN_INFO "Ports not available, trying to steal them\n");
 		__release_region(&ioport_resource, ser->port, 8);
 		err = synth_request_region(ser->port, 8);
 		if (err) {
@@ -155,7 +155,7 @@ int wait_for_xmitr(void)
 	while (!((inb_p(speakup_info.port_tts + UART_MSR)) & UART_MSR_CTS)) {
 		/* CTS */
 		if (--tmout == 0) {
-			// pr_warn("%s: timed out (cts)\n", synth->long_name);
+			/* pr_warn("%s: timed out (cts)\n", synth->long_name); */
 			timeouts++;
 			return 0;
 		}
