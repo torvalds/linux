@@ -261,10 +261,6 @@ static struct regulator_consumer_supply igep2_vmmc1_supply = {
 	.supply		= "vmmc",
 };
 
-static struct regulator_consumer_supply igep2_vmmc2_supply = {
-	.supply		= "vmmc",
-};
-
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep2_vmmc1 = {
 	.constraints = {
@@ -278,21 +274,6 @@ static struct regulator_init_data igep2_vmmc1 = {
 	},
 	.num_consumer_supplies  = 1,
 	.consumer_supplies      = &igep2_vmmc1_supply,
-};
-
-/* VMMC2 for OMAP VDD_MMC2 (i/o) and MMC2 WIFI */
-static struct regulator_init_data igep2_vmmc2 = {
-	.constraints = {
-		.min_uV			= 1850000,
-		.max_uV			= 3150000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &igep2_vmmc2_supply,
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -391,11 +372,11 @@ static int igep2_twl_gpio_setup(struct device *dev,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/* link regulators to MMC adapters ... we "know" the
+	/*
+	 * link regulators to MMC adapters ... we "know" the
 	 * regulators will be set up only *after* we return.
-	*/
+	 */
 	igep2_vmmc1_supply.dev = mmc[0].dev;
-	igep2_vmmc2_supply.dev = mmc[1].dev;
 
 	/*
 	 * REVISIT: need ehci-omap hooks for external VBUS
@@ -537,7 +518,6 @@ static struct twl4030_platform_data igep2_twldata = {
 	.codec		= &igep2_codec_data,
 	.gpio		= &igep2_twl4030_gpio_pdata,
 	.vmmc1          = &igep2_vmmc1,
-	.vmmc2		= &igep2_vmmc2,
 	.vpll2		= &igep2_vpll2,
 
 };
