@@ -28,8 +28,8 @@ void speakup_start_ttys(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		if (speakup_console[i] && speakup_console[i]->tty_stopped)
 			continue;
-		if ((vc_cons[i].d != NULL) && (vc_cons[i].d->vc_tty != NULL))
-			start_tty(vc_cons[i].d->vc_tty);
+		if ((vc_cons[i].d != NULL) && (vc_cons[i].d->port.tty != NULL))
+			start_tty(vc_cons[i].d->port.tty);
 	}
 }
 EXPORT_SYMBOL_GPL(speakup_start_ttys);
@@ -39,9 +39,8 @@ static void speakup_stop_ttys(void)
 	int i;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
-		if ((vc_cons[i].d != NULL) && (vc_cons[i].d->vc_tty != NULL))
-			stop_tty(vc_cons[i].d->vc_tty);
-	return;
+		if ((vc_cons[i].d != NULL) && (vc_cons[i].d->port.tty != NULL))
+			stop_tty(vc_cons[i].d->port.tty);
 }
 
 static int synth_buffer_free(void)

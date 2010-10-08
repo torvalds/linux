@@ -2010,7 +2010,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 		return 0;
 
 	spk_lock(flags);
-	tty = vc->vc_tty;
+	tty = vc->port.tty;
 	if (type >= 0xf0)
 		type -= 0xf0;
 	if (type == KT_PAD &&
