@@ -1,8 +1,8 @@
-EXTRA_CFLAGS += -Idrivers/scsi
+ccflags-y := -Idrivers/scsi
 
 obj-$(CONFIG_USB_ENESTORAGE)	+= keucr.o
 
-keucr-objs :=			\
+keucr-y :=			\
 		usb.o		\
 		scsiglue.o	\
 		transport.o	\
