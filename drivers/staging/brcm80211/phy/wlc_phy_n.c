@@ -25325,7 +25325,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 	u8 gainctrl_dirn = NPHY_RXCAL_GAIN_INIT;
 	nphy_ipa_txrxgain_t *nphy_rxcal_gaintbl;
 	u16 hpvga, lpf_biq1, lpf_biq0, lna2, lna1;
-	s16 fine_gain_idx;
+	int fine_gain_idx;
 	s8 txpwrindex;
 	u16 nphy_rxcal_txgain[2];
 
@@ -25663,12 +25663,12 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 
 			if (core_idx == 0) {
 				ref_iq_vals =
-				    max((est[0].i_pwr +
+				    max_t(u32, (est[0].i_pwr +
 					 est[0].q_pwr) >> (log_num_samps + 1),
 					1);
 			} else {
 				ref_iq_vals =
-				    max((est[1].i_pwr +
+				    max_t(u32, (est[1].i_pwr +
 					 est[1].q_pwr) >> (log_num_samps + 1),
 					1);
 			}
@@ -25877,8 +25877,8 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 						 TXLPF_IDAC_4, txlpf_idac);
 			}
 
-			rxlpf_rccal_hpc = max(min(rxlpf_rccal_hpc, 31), 0);
-			txlpf_rccal_lpc = max(min(txlpf_rccal_lpc, 31), 0);
+			rxlpf_rccal_hpc = max(min_t(u8, rxlpf_rccal_hpc, 31), 0);
+			txlpf_rccal_lpc = max(min_t(u8, txlpf_rccal_lpc, 31), 0);
 
 			write_radio_reg(pi, (RADIO_2056_RX_RXLPF_RCCAL_HPC |
 					     ((rx_core ==
@@ -26060,7 +26060,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 
 				hpf_change = desired_log2_pwr - actual_log2_pwr;
 				curr_hpf += hpf_change;
-				curr_hpf = max(min(curr_hpf, 10), 0);
+				curr_hpf = max(min_t(u16, curr_hpf, 10), 0);
 				if (use_hpf_num == 1) {
 					curr_hpf1 = curr_hpf;
 				} else {
@@ -26746,7 +26746,7 @@ wlc_phy_a1_nphy(phy_info_t *pi, u8 core, u32 winsz, u32 start,
 		s32 phy_a3, phy_a4, phy_a5, phy_a6, phy_a7;
 
 		phy_a1 = end - min(end, (winsz >> 1));
-		phy_a2 = min(NPHY_PAPD_EPS_TBL_SIZE - 1, end + (winsz >> 1));
+		phy_a2 = min_t(u32, NPHY_PAPD_EPS_TBL_SIZE - 1, end + (winsz >> 1));
 		phy_a3 = phy_a2 - phy_a1 + 1;
 		phy_a6 = 0;
 		phy_a7 = 0;
