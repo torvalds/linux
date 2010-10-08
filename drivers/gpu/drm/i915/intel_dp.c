@@ -914,8 +914,6 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (is_edp(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
@@ -925,8 +923,7 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 		else
 			ironlake_edp_pll_off(encoder);
 	}
-	if (dp_reg & DP_PORT_EN)
-		intel_dp_link_down(intel_dp);
+	intel_dp_link_down(intel_dp);
 }
 
 static void intel_dp_commit(struct drm_encoder *encoder)
@@ -956,21 +953,20 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	if (mode != DRM_MODE_DPMS_ON) {
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_off(dev);
-		if (dp_reg & DP_PORT_EN)
-			intel_dp_link_down(intel_dp);
+		intel_dp_link_down(intel_dp);
 		if (is_edp(intel_dp))
 			ironlake_edp_panel_off(dev);
 		if (is_edp(intel_dp) && !is_pch_edp(intel_dp))
 			ironlake_edp_pll_off(encoder);
 	} else {
+		if (is_edp(intel_dp))
+			ironlake_edp_panel_on(intel_dp);
 		if (!(dp_reg & DP_PORT_EN)) {
-			if (is_edp(intel_dp))
-				ironlake_edp_panel_on(intel_dp);
 			intel_dp_start_link_train(intel_dp);
 			intel_dp_complete_link_train(intel_dp);
-			if (is_edp(intel_dp))
-				ironlake_edp_backlight_on(dev);
 		}
+		if (is_edp(intel_dp))
+			ironlake_edp_backlight_on(dev);
 	}
 	intel_dp->dpms_mode = mode;
 }
