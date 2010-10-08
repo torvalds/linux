@@ -613,14 +613,11 @@ static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
 	rx_chainmask = ah->rxchainmask;
 	tx_chainmask = ah->txchainmask;
 
-	ENABLE_REGWRITE_BUFFER(ah);
 
 	switch (rx_chainmask) {
 	case 0x5:
-		DISABLE_REGWRITE_BUFFER(ah);
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
-		ENABLE_REGWRITE_BUFFER(ah);
 	case 0x3:
 		if (ah->hw_version.macVersion == AR_SREV_REVISION_5416_10) {
 			REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
@@ -630,17 +627,18 @@ static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
 	case 0x1:
 	case 0x2:
 	case 0x7:
+		ENABLE_REGWRITE_BUFFER(ah);
 		REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
 		REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
 		break;
 	default:
+		ENABLE_REGWRITE_BUFFER(ah);
 		break;
 	}
 
 	REG_WRITE(ah, AR_SELFGEN_MASK, tx_chainmask);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 
 	if (tx_chainmask == 0x5) {
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
@@ -726,7 +724,6 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 	REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 
@@ -818,7 +815,6 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	}
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 
 	if (AR_SREV_9280(ah) || AR_SREV_9287_11_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
@@ -849,7 +845,6 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	}
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 
 	if (AR_SREV_9271(ah)) {
 		if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) == 1)
@@ -1053,7 +1048,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 				      enum ath9k_ani_cmd cmd,
 				      int param)
 {
-	struct ar5416AniState *aniState = ah->curani;
+	struct ar5416AniState *aniState = &ah->curchan->ani;
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	switch (cmd & ah->ani_function) {
@@ -1225,8 +1220,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		  aniState->firstepLevel,
 		  aniState->listenTime);
 	ath_print(common, ATH_DBG_ANI,
-		"cycleCount=%d, ofdmPhyErrCount=%d, cckPhyErrCount=%d\n\n",
-		aniState->cycleCount,
+		"ofdmPhyErrCount=%d, cckPhyErrCount=%d\n\n",
 		aniState->ofdmPhyErrCount,
 		aniState->cckPhyErrCount);
 
@@ -1237,9 +1231,9 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				      enum ath9k_ani_cmd cmd,
 				      int param)
 {
-	struct ar5416AniState *aniState = ah->curani;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
+	struct ar5416AniState *aniState = &chan->ani;
 	s32 value, value2;
 
 	switch (cmd & ah->ani_function) {
@@ -1478,14 +1472,12 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 
 	ath_print(common, ATH_DBG_ANI,
 		  "ANI parameters: SI=%d, ofdmWS=%s FS=%d "
-		  "MRCcck=%s listenTime=%d CC=%d listen=%d "
+		  "MRCcck=%s listenTime=%d "
 		  "ofdmErrs=%d cckErrs=%d\n",
 		  aniState->spurImmunityLevel,
 		  !aniState->ofdmWeakSigDetectOff ? "on" : "off",
 		  aniState->firstepLevel,
 		  !aniState->mrcCCKOff ? "on" : "off",
-		  aniState->listenTime,
-		  aniState->cycleCount,
 		  aniState->listenTime,
 		  aniState->ofdmPhyErrCount,
 		  aniState->cckPhyErrCount);
@@ -1526,16 +1518,12 @@ static void ar5008_hw_do_getnf(struct ath_hw *ah,
  */
 static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 {
-	struct ar5416AniState *aniState;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
+	struct ar5416AniState *aniState = &chan->ani;
 	struct ath9k_ani_default *iniDef;
-	int index;
 	u32 val;
 
-	index = ath9k_hw_get_ani_channel_idx(ah, chan);
-	aniState = &ah->ani[index];
-	ah->curani = aniState;
 	iniDef = &aniState->iniDef;
 
 	ath_print(common, ATH_DBG_ANI,
@@ -1579,8 +1567,6 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL_NEW;
 	aniState->ofdmWeakSigDetectOff = !ATH9K_ANI_USE_OFDM_WEAK_SIG;
 	aniState->mrcCCKOff = true; /* not available on pre AR9003 */
-
-	aniState->cycleCount = 0;
 }
 
 static void ar5008_hw_set_nf_limits(struct ath_hw *ah)

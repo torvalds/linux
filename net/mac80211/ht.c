@@ -101,16 +101,16 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 		ht_cap->mcs.rx_mask[32/8] |= 1;
 }
 
-void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta)
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta, bool tx)
 {
 	int i;
 
 	cancel_work_sync(&sta->ampdu_mlme.work);
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR);
+		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR, tx);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
-					       WLAN_REASON_QSTA_LEAVE_QBSS);
+					       WLAN_REASON_QSTA_LEAVE_QBSS, tx);
 	}
 }
 
@@ -135,7 +135,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		if (test_and_clear_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired))
 			___ieee80211_stop_rx_ba_session(
 				sta, tid, WLAN_BACK_RECIPIENT,
-				WLAN_REASON_QSTA_TIMEOUT);
+				WLAN_REASON_QSTA_TIMEOUT, true);
 
 		tid_tx = sta->ampdu_mlme.tid_tx[tid];
 		if (!tid_tx)
@@ -146,7 +146,8 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		else if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
 					    &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
-							WLAN_BACK_INITIATOR);
+							WLAN_BACK_INITIATOR,
+							true);
 	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
@@ -214,9 +215,11 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)
-		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0);
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0,
+					       true);
 	else
-		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT);
+		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+					       true);
 }
 
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,

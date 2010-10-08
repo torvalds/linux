@@ -2256,13 +2256,15 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (pieces.init_evtlog_size)
 		priv->_agn.init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
 	else
-		priv->_agn.init_evtlog_size = priv->cfg->max_event_log_size;
+		priv->_agn.init_evtlog_size =
+			priv->cfg->base_params->max_event_log_size;
 	priv->_agn.init_errlog_ptr = pieces.init_errlog_ptr;
 	priv->_agn.inst_evtlog_ptr = pieces.inst_evtlog_ptr;
 	if (pieces.inst_evtlog_size)
 		priv->_agn.inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
 	else
-		priv->_agn.inst_evtlog_size = priv->cfg->max_event_log_size;
+		priv->_agn.inst_evtlog_size =
+			priv->cfg->base_params->max_event_log_size;
 	priv->_agn.inst_errlog_ptr = pieces.inst_errlog_ptr;
 
 	if (ucode_capa.pan) {
@@ -2732,7 +2734,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
 
-	if (priv->cfg->support_ct_kill_exit) {
+	if (priv->cfg->base_params->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
@@ -2764,6 +2766,23 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 					priv->hw_params.ct_kill_threshold);
 	}
 }
+
+static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
+{
+	struct iwl_calib_cfg_cmd calib_cfg_cmd;
+	struct iwl_host_cmd cmd = {
+		.id = CALIBRATION_CFG_CMD,
+		.len = sizeof(struct iwl_calib_cfg_cmd),
+		.data = &calib_cfg_cmd,
+	};
+
+	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));
+	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
+	calib_cfg_cmd.ucd_calib_cfg.once.start = cpu_to_le32(cfg);
+
+	return iwl_send_cmd(priv, &cmd);
+}
+
 
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
@@ -2801,6 +2820,10 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
+	if (priv->hw_params.calib_rt_cfg)
+		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
+
+
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
 
@@ -2808,13 +2831,15 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		/* Enable timer to monitor the driver queues */
 		mod_timer(&priv->monitor_recover,
 			jiffies +
-			msecs_to_jiffies(priv->cfg->monitor_recover_period));
+			msecs_to_jiffies(
+			  priv->cfg->base_params->monitor_recover_period));
 	}
 
 	if (iwl_is_rfkill(priv))
 		return;
 
-	if (priv->cfg->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
@@ -2854,7 +2879,8 @@ static void iwl_alive_start(struct iwl_priv *priv)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 	}
 
-	if (!priv->cfg->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    !priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 	}
@@ -2907,7 +2933,11 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	/* reset BT coex data */
 	priv->bt_status = 0;
-	priv->bt_traffic_load = priv->cfg->bt_init_traffic_load;
+	if (priv->cfg->bt_params)
+		priv->bt_traffic_load =
+			 priv->cfg->bt_params->bt_init_traffic_load;
+	else
+		priv->bt_traffic_load = 0;
 	priv->bt_sco_active = false;
 	priv->bt_full_concurrent = false;
 	priv->bt_ci_compliance = 0;
@@ -3201,7 +3231,8 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		if (priv->cfg->bt_statistics) {
+		if (priv->cfg->bt_params &&
+		    priv->cfg->bt_params->bt_statistics) {
 			iwl_chain_noise_calibration(priv,
 					(void *)&priv->_agn.statistics_bt);
 			iwl_sensitivity_calibration(priv,
@@ -3400,7 +3431,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_NEED_DTIM_PERIOD |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
-	if (!priv->cfg->broken_powersave)
+	if (!priv->cfg->base_params->broken_powersave)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
@@ -3725,7 +3756,8 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			ret = 0;
-		if (priv->cfg->use_rts_for_aggregation) {
+		if (priv->cfg->ht_params &&
+		    priv->cfg->ht_params->use_rts_for_aggregation) {
 			struct iwl_station_priv *sta_priv =
 				(void *) sta->drv_priv;
 			/*
@@ -3739,7 +3771,8 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		if (priv->cfg->use_rts_for_aggregation) {
+		if (priv->cfg->ht_params &&
+		    priv->cfg->ht_params->use_rts_for_aggregation) {
 			struct iwl_station_priv *sta_priv =
 				(void *) sta->drv_priv;
 
@@ -4057,7 +4090,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 			priv->cfg->ops->lib->recover_from_tx_stall;
 	}
 
-	if (!priv->cfg->use_isr_legacy)
+	if (!priv->cfg->base_params->use_isr_legacy)
 		tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 			iwl_irq_tasklet, (unsigned long)priv);
 	else
@@ -4142,7 +4175,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	iwl_init_scan_params(priv);
 
 	/* init bt coex */
-	if (priv->cfg->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
@@ -4273,9 +4307,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
 	if (cfg->mod_params->disable_hw_scan) {
-		if (iwl_debug_level & IWL_DL_INFO)
-			dev_printk(KERN_DEBUG, &(pdev->dev),
-				   "Disabling hw_scan\n");
+		dev_printk(KERN_DEBUG, &(pdev->dev),
+			"sw scan support is deprecated\n");
 		iwl_hw_ops.hw_scan = NULL;
 	}
 
@@ -4788,6 +4821,22 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0083, 0x1326, iwl1000_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0084, 0x1216, iwl1000_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0084, 0x1316, iwl1000_bg_cfg)},
+
+/* 100 Series WiFi */
+	{IWL_PCI_DEVICE(0x08AE, 0x1005, iwl100_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x08AF, 0x1015, iwl100_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1025, iwl100_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1007, iwl100_bg_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1017, iwl100_bg_cfg)},
+
+/* 130 Series WiFi */
+	{IWL_PCI_DEVICE(0x0896, 0x5005, iwl130_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5007, iwl130_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0897, 0x5015, iwl130_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0897, 0x5017, iwl130_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5025, iwl130_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5027, iwl130_bg_cfg)},
+
 #endif /* CONFIG_IWL5000 */
 
 	{0}
@@ -4876,7 +4925,8 @@ module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 module_param_named(
 	disable_hw_scan, iwlagn_mod_params.disable_hw_scan, int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
+MODULE_PARM_DESC(disable_hw_scan,
+		 "disable hardware scanning (default 0) (deprecated)");
 
 module_param_named(ucode_alternative, iwlagn_wanted_ucode_alternative, int,
 		   S_IRUGO);

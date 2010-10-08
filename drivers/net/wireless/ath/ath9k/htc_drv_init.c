@@ -380,15 +380,6 @@ static void ath9k_enable_regwrite_buffer(void *hw_priv)
 	atomic_inc(&priv->wmi->mwrite_cnt);
 }
 
-static void ath9k_disable_regwrite_buffer(void *hw_priv)
-{
-	struct ath_hw *ah = (struct ath_hw *) hw_priv;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-
-	atomic_dec(&priv->wmi->mwrite_cnt);
-}
-
 static void ath9k_regwrite_flush(void *hw_priv)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
@@ -396,6 +387,8 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 	u32 rsp_status;
 	int r;
+
+	atomic_dec(&priv->wmi->mwrite_cnt);
 
 	mutex_lock(&priv->wmi->multi_write_mutex);
 
@@ -420,7 +413,6 @@ static const struct ath_ops ath9k_common_ops = {
 	.read = ath9k_regread,
 	.write = ath9k_regwrite,
 	.enable_write_buffer = ath9k_enable_regwrite_buffer,
-	.disable_write_buffer = ath9k_disable_regwrite_buffer,
 	.write_flush = ath9k_regwrite_flush,
 };
 

@@ -2630,12 +2630,13 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * As rt61 has a global fallback table we cannot specify
 	 * more then one tx rate per frame but since the hw will
 	 * try several rates (based on the fallback table) we should
-	 * still initialize max_rates to the maximum number of rates
+	 * initialize max_report_rates to the maximum number of rates
 	 * we are going to try. Otherwise mac80211 will truncate our
 	 * reported tx rates and the rc algortihm will end up with
 	 * incorrect data.
 	 */
-	rt2x00dev->hw->max_rates = 7;
+	rt2x00dev->hw->max_rates = 1;
+	rt2x00dev->hw->max_report_rates = 7;
 	rt2x00dev->hw->max_rate_tries = 1;
 
 	/*

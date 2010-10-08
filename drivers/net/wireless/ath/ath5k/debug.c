@@ -587,6 +587,8 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 				st->rxerr_jumbo*100/st->rx_all_count : 0);
 	len += snprintf(buf+len, sizeof(buf)-len, "[RX all\t%d]\n",
 			st->rx_all_count);
+	len += snprintf(buf+len, sizeof(buf)-len, "RX-all-bytes\t%d\n",
+			st->rx_bytes_count);
 
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"\nTX\n---------------------\n");
@@ -604,6 +606,8 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 				st->txerr_filt*100/st->tx_all_count : 0);
 	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%d]\n",
 			st->tx_all_count);
+	len += snprintf(buf+len, sizeof(buf)-len, "TX-all-bytes\t%d\n",
+			st->tx_bytes_count);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);

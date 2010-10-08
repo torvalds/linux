@@ -279,6 +279,7 @@ struct ar9170 {
 		unsigned int beacon_max_len;
 		bool rx_stream;
 		bool tx_stream;
+		bool rx_filter;
 		unsigned int mem_blocks;
 		unsigned int mem_block_size;
 		unsigned int rx_size;
@@ -314,6 +315,7 @@ struct ar9170 {
 	u64 cur_mc_hash;
 	u32 cur_filter;
 	unsigned int filter_state;
+	unsigned int rx_filter_caps;
 	bool sniffer_enabled;
 
 	/* MAC */

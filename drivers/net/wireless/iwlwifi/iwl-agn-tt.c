@@ -114,7 +114,7 @@ static bool iwl_within_ct_kill_margin(struct iwl_priv *priv)
 	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 	bool within_margin = false;
 
-	if (priv->cfg->temperature_kelvin)
+	if (priv->cfg->base_params->temperature_kelvin)
 		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
@@ -591,7 +591,7 @@ static void iwl_bg_tt_work(struct work_struct *work)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (priv->cfg->temperature_kelvin)
+	if (priv->cfg->base_params->temperature_kelvin)
 		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
@@ -640,7 +640,7 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	INIT_WORK(&priv->ct_enter, iwl_bg_ct_enter);
 	INIT_WORK(&priv->ct_exit, iwl_bg_ct_exit);
 
-	if (priv->cfg->adv_thermal_throttle) {
+	if (priv->cfg->base_params->adv_thermal_throttle) {
 		IWL_DEBUG_POWER(priv, "Advanced Thermal Throttling\n");
 		tt->restriction = kzalloc(sizeof(struct iwl_tt_restriction) *
 					 IWL_TI_STATE_MAX, GFP_KERNEL);

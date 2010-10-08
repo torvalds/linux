@@ -20,6 +20,13 @@
 
 #define AR9285_CLCAL_REDO_THRESH    1
 
+enum ar9002_cal_types {
+	ADC_GAIN_CAL = BIT(0),
+	ADC_DC_CAL = BIT(1),
+	IQ_MISMATCH_CAL = BIT(2),
+};
+
+
 static void ar9002_hw_setup_calibration(struct ath_hw *ah,
 					struct ath9k_cal_list *currCal)
 {
@@ -45,13 +52,6 @@ static void ar9002_hw_setup_calibration(struct ath_hw *ah,
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "starting ADC DC Calibration\n");
 		break;
-	case ADC_DC_INIT_CAL:
-		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_ADC_DC_INIT);
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "starting Init ADC DC Calibration\n");
-		break;
-	case TEMP_COMP_CAL:
-		break; /* Not supported */
 	}
 
 	REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4(0),
@@ -94,25 +94,6 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 	}
 
 	return iscaldone;
-}
-
-/* Assumes you are talking about the currently configured channel */
-static bool ar9002_hw_iscal_supported(struct ath_hw *ah,
-				      enum ath9k_cal_types calType)
-{
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-
-	switch (calType & ah->supp_cals) {
-	case IQ_MISMATCH_CAL: /* Both 2 GHz and 5 GHz support OFDM */
-		return true;
-	case ADC_GAIN_CAL:
-	case ADC_DC_CAL:
-		if (!(conf->channel->band == IEEE80211_BAND_2GHZ &&
-		      conf_is_ht20(conf)))
-			return true;
-		break;
-	}
-	return false;
 }
 
 static void ar9002_hw_iqcal_collect(struct ath_hw *ah)
@@ -541,7 +522,6 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
@@ -877,24 +857,28 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	/* Enable IQ, ADC Gain and ADC DC offset CALs */
 	if (AR_SREV_9100(ah) || AR_SREV_9160_10_OR_LATER(ah)) {
-		if (ar9002_hw_iscal_supported(ah, ADC_GAIN_CAL)) {
+		ah->supp_cals = IQ_MISMATCH_CAL;
+
+		if (AR_SREV_9160_10_OR_LATER(ah) &&
+		    !(IS_CHAN_2GHZ(chan) && IS_CHAN_HT20(chan))) {
+			ah->supp_cals |= ADC_GAIN_CAL | ADC_DC_CAL;
+
+
 			INIT_CAL(&ah->adcgain_caldata);
 			INSERT_CAL(ah, &ah->adcgain_caldata);
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "enabling ADC Gain Calibration.\n");
-		}
-		if (ar9002_hw_iscal_supported(ah, ADC_DC_CAL)) {
+
 			INIT_CAL(&ah->adcdc_caldata);
 			INSERT_CAL(ah, &ah->adcdc_caldata);
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "enabling ADC DC Calibration.\n");
 		}
-		if (ar9002_hw_iscal_supported(ah, IQ_MISMATCH_CAL)) {
-			INIT_CAL(&ah->iq_caldata);
-			INSERT_CAL(ah, &ah->iq_caldata);
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "enabling IQ Calibration.\n");
-		}
+
+		INIT_CAL(&ah->iq_caldata);
+		INSERT_CAL(ah, &ah->iq_caldata);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "enabling IQ Calibration.\n");
 
 		ah->cal_list_curr = ah->cal_list;
 
@@ -950,13 +934,6 @@ static const struct ath9k_percal_data adc_dc_cal_single_sample = {
 	ar9002_hw_adc_dccal_collect,
 	ar9002_hw_adc_dccal_calibrate
 };
-static const struct ath9k_percal_data adc_init_dc_cal = {
-	ADC_DC_INIT_CAL,
-	MIN_CAL_SAMPLES,
-	INIT_LOG_COUNT,
-	ar9002_hw_adc_dccal_collect,
-	ar9002_hw_adc_dccal_calibrate
-};
 
 static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 {
@@ -973,16 +950,12 @@ static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 				&adc_gain_cal_single_sample;
 			ah->adcdc_caldata.calData =
 				&adc_dc_cal_single_sample;
-			ah->adcdc_calinitdata.calData =
-				&adc_init_dc_cal;
 		} else {
 			ah->iq_caldata.calData = &iq_cal_multi_sample;
 			ah->adcgain_caldata.calData =
 				&adc_gain_cal_multi_sample;
 			ah->adcdc_caldata.calData =
 				&adc_dc_cal_multi_sample;
-			ah->adcdc_calinitdata.calData =
-				&adc_init_dc_cal;
 		}
 		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
 	}
@@ -996,7 +969,6 @@ void ar9002_hw_attach_calib_ops(struct ath_hw *ah)
 	priv_ops->init_cal_settings = ar9002_hw_init_cal_settings;
 	priv_ops->init_cal = ar9002_hw_init_cal;
 	priv_ops->setup_calibration = ar9002_hw_setup_calibration;
-	priv_ops->iscal_supported = ar9002_hw_iscal_supported;
 
 	ops->calibrate = ar9002_hw_calibrate;
 }

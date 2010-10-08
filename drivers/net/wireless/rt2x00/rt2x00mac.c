@@ -671,7 +671,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 */
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_ERP_PREAMBLE |
 		       BSS_CHANGED_ERP_SLOT | BSS_CHANGED_BASIC_RATES |
-		       BSS_CHANGED_BEACON_INT))
+		       BSS_CHANGED_BEACON_INT | BSS_CHANGED_HT))
 		rt2x00lib_config_erp(rt2x00dev, intf, bss_conf, changes);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);

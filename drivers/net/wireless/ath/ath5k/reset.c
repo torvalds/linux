@@ -167,7 +167,7 @@ static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah,
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
 		tx_time = le16_to_cpu(ieee80211_generic_frame_duration(sc->hw,
-							sc->vif, 10, rate));
+							NULL, 10, rate));
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 
@@ -1060,7 +1060,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		 * XXX: rethink this after new mode changes to
 		 * mac80211 are integrated */
 		if (ah->ah_version == AR5K_AR5212 &&
-			ah->ah_sc->vif != NULL)
+			ah->ah_sc->nvifs)
 			ath5k_hw_write_rate_duration(ah, mode);
 
 		/*

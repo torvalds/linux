@@ -50,13 +50,19 @@
 
 /* Highest firmware API version supported */
 #define IWL1000_UCODE_API_MAX 3
+#define IWL100_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL1000_UCODE_API_MIN 1
+#define IWL100_UCODE_API_MIN 5
 
 #define IWL1000_FW_PRE "iwlwifi-1000-"
 #define _IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
 #define IWL1000_MODULE_FIRMWARE(api) _IWL1000_MODULE_FIRMWARE(api)
+
+#define IWL100_FW_PRE "iwlwifi-100-"
+#define _IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE #api ".ucode"
+#define IWL100_MODULE_FIRMWARE(api) _IWL100_MODULE_FIRMWARE(api)
 
 
 /*
@@ -120,13 +126,13 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->num_of_queues =
+		priv->cfg->base_params->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->num_of_queues *
+			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
@@ -244,29 +250,16 @@ static const struct iwl_ops iwl1000_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-struct iwl_cfg iwl1000_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
-	.fw_name_pre = IWL1000_FW_PRE,
-	.ucode_api_max = IWL1000_UCODE_API_MAX,
-	.ucode_api_min = IWL1000_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl1000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+static struct iwl_base_params iwl1000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
 	.set_l0s = true,
 	.use_bsm = false,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
 	.shadow_ram_support = false,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
@@ -276,6 +269,26 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+};
+static struct iwl_ht_params iwl1000_ht_params = {
+	.ht_greenfield_support = true,
+	.use_rts_for_aggregation = true, /* use rts/cts protection */
+};
+
+struct iwl_cfg iwl1000_bgn_cfg = {
+	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
+	.fw_name_pre = IWL1000_FW_PRE,
+	.ucode_api_max = IWL1000_UCODE_API_MAX,
+	.ucode_api_min = IWL1000_UCODE_API_MIN,
+	.sku = IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_AB,
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+	.ops = &iwl1000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl1000_base_params,
+	.ht_params = &iwl1000_ht_params,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
@@ -284,30 +297,45 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
-	.ops = &iwl1000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
-	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
-	.shadow_ram_support = false,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 128,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+	.ops = &iwl1000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl1000_base_params,
+};
+
+struct iwl_cfg iwl100_bgn_cfg = {
+	.name = "Intel(R) 100 Series 1x1 BGN",
+	.fw_name_pre = IWL100_FW_PRE,
+	.ucode_api_max = IWL100_UCODE_API_MAX,
+	.ucode_api_min = IWL100_UCODE_API_MIN,
+	.sku = IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_A,
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+	.ops = &iwl1000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl1000_base_params,
+	.ht_params = &iwl1000_ht_params,
+};
+
+struct iwl_cfg iwl100_bg_cfg = {
+	.name = "Intel(R) 100 Series 1x1 BG",
+	.fw_name_pre = IWL100_FW_PRE,
+	.ucode_api_max = IWL100_UCODE_API_MAX,
+	.ucode_api_min = IWL100_UCODE_API_MIN,
+	.sku = IWL_SKU_G,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_A,
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+	.ops = &iwl1000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl1000_base_params,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL100_MODULE_FIRMWARE(IWL100_UCODE_API_MAX));

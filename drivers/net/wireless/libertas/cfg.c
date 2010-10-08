@@ -1440,7 +1440,7 @@ static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 
 
 static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 idx, const u8 *mac_addr,
+			   u8 idx, bool pairwise, const u8 *mac_addr,
 			   struct key_params *params)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
@@ -1500,7 +1500,7 @@ static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
 
 
 static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr)
+			   u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 
 	lbs_deb_enter(LBS_DEB_CFG80211);

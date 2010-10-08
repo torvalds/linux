@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/etherdevice.h>
 #include <linux/input-polldev.h>
+#include <linux/kfifo.h>
 
 #include <net/mac80211.h>
 
@@ -457,6 +458,7 @@ struct rt2x00lib_erp {
 	short eifs;
 
 	u16 beacon_int;
+	u16 ht_opmode;
 };
 
 /*
@@ -520,6 +522,11 @@ struct rt2x00lib_ops {
 	 * Threaded Interrupt handlers.
 	 */
 	irq_handler_t irq_handler_thread;
+
+	/*
+	 * TX status tasklet handler.
+	 */
+	void (*txstatus_tasklet) (unsigned long data);
 
 	/*
 	 * Device init handlers.
@@ -651,6 +658,7 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_DMA,
 	DRIVER_REQUIRE_COPY_IV,
 	DRIVER_REQUIRE_L2PAD,
+	DRIVER_REQUIRE_TXSTATUS_FIFO,
 
 	/*
 	 * Driver features
@@ -884,6 +892,16 @@ struct rt2x00_dev {
 	 * and interrupt thread routine.
 	 */
 	u32 irqvalue[2];
+
+	/*
+	 * FIFO for storing tx status reports between isr and tasklet.
+	 */
+	struct kfifo txstatus_fifo;
+
+	/*
+	 * Tasklet for processing tx status reports (rt2800pci).
+	 */
+	struct tasklet_struct txstatus_tasklet;
 };
 
 /*

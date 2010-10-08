@@ -51,13 +51,15 @@
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
-#define IWL6050_UCODE_API_MAX 4
+#define IWL6050_UCODE_API_MAX 5
 #define IWL6000G2_UCODE_API_MAX 5
+#define IWL130_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
 #define IWL6050_UCODE_API_MIN 4
 #define IWL6000G2_UCODE_API_MIN 4
+#define IWL130_UCODE_API_MIN 5
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
@@ -75,6 +77,9 @@
 #define _IWL6000G2B_MODULE_FIRMWARE(api) IWL6000G2B_FW_PRE #api ".ucode"
 #define IWL6000G2B_MODULE_FIRMWARE(api) _IWL6000G2B_MODULE_FIRMWARE(api)
 
+#define IWL130_FW_PRE "iwlwifi-130-"
+#define _IWL130_MODULE_FIRMWARE(api) IWL130_FW_PRE #api ".ucode"
+#define IWL130_MODULE_FIRMWARE(api) _IWL130_MODULE_FIRMWARE(api)
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -83,13 +88,22 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
-/* Indicate calibration version to uCode. */
-static void iwl6000_set_calib_version(struct iwl_priv *priv)
+static void iwl6050_additional_nic_config(struct iwl_priv *priv)
 {
-	if (priv->cfg->need_dc_calib &&
-	    (priv->cfg->ops->lib->eeprom_ops.calib_version(priv) >= 6))
+	/* Indicate calibration version to uCode. */
+	if (priv->cfg->ops->lib->eeprom_ops.calib_version(priv) >= 6)
 		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+}
+
+static void iwl6050g2_additional_nic_config(struct iwl_priv *priv)
+{
+	/* Indicate calibration version to uCode. */
+	if (priv->cfg->ops->lib->eeprom_ops.calib_version(priv) >= 6)
+		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+	iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+		    CSR_GP_DRIVER_REG_BIT_6050_1x2);
 }
 
 /* NIC configuration for 6000 series */
@@ -117,9 +131,11 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 		iwl_write32(priv, CSR_GP_DRIVER_REG,
 			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 	}
-	/* else do nothing, uCode configured */
-	if (priv->cfg->ops->lib->temp_ops.set_calib_version)
-		priv->cfg->ops->lib->temp_ops.set_calib_version(priv);
+	/* do additional nic configuration if needed */
+	if (priv->cfg->ops->nic &&
+		priv->cfg->ops->nic->additional_nic_config) {
+			priv->cfg->ops->nic->additional_nic_config(priv);
+	}
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
@@ -151,13 +167,13 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->num_of_queues =
+		priv->cfg->base_params->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->num_of_queues *
+			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
@@ -188,7 +204,7 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_TX_IQ)		|
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
-		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_DC);
+		priv->hw_params.calib_rt_cfg |= BIT(IWL_CALIB_CFG_DC_IDX);
 
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
@@ -320,7 +336,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
-		.set_calib_version = iwl6000_set_calib_version,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -396,7 +411,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
-		.set_calib_version = iwl6000_set_calib_version,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -419,11 +433,35 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 	}
 };
 
+static struct iwl_nic_ops iwl6050_nic_ops = {
+	.additional_nic_config = &iwl6050_additional_nic_config,
+};
+
+static struct iwl_nic_ops iwl6050g2_nic_ops = {
+	.additional_nic_config = &iwl6050g2_additional_nic_config,
+};
+
 static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+};
+
+static const struct iwl_ops iwl6050_ops = {
+	.lib = &iwl6000_lib,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
+	.led = &iwlagn_led_ops,
+	.nic = &iwl6050_nic_ops,
+};
+
+static const struct iwl_ops iwl6050g2_ops = {
+	.lib = &iwl6000_lib,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
+	.led = &iwlagn_led_ops,
+	.nic = &iwl6050g2_nic_ops,
 };
 
 static const struct iwl_ops iwl6000g2b_ops = {
@@ -433,30 +471,16 @@ static const struct iwl_ops iwl6000g2b_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-struct iwl_cfg iwl6000g2a_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2a",
-	.fw_name_pre = IWL6000G2A_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
+static struct iwl_base_params iwl6000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
 	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
@@ -468,6 +492,58 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+};
+
+static struct iwl_base_params iwl6050_base_params = {
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.pll_cfg_val = 0,
+	.set_l0s = true,
+	.use_bsm = false,
+	.max_ll_items = OTP_MAX_LL_ITEMS_6x50,
+	.shadow_ram_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.supports_idle = true,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1500,
+	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
+};
+
+static struct iwl_ht_params iwl6000_ht_params = {
+	.ht_greenfield_support = true,
+	.use_rts_for_aggregation = true, /* use rts/cts protection */
+};
+
+static struct iwl_bt_params iwl6000_bt_params = {
+	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
+};
+
+struct iwl_cfg iwl6000g2a_2agn_cfg = {
+	.name = "6000 Series 2x2 AGN Gen2a",
+	.fw_name_pre = IWL6000G2A_FW_PRE,
+	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
+	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_AB,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 };
 
@@ -477,32 +553,13 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
 };
 
@@ -512,32 +569,13 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
 };
 
@@ -547,41 +585,18 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000g2b_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-	.advanced_bt_coexist = true,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
@@ -590,39 +605,17 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6000g2b_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-	.advanced_bt_coexist = true,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
@@ -631,41 +624,18 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000g2b_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-	.advanced_bt_coexist = true,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
@@ -674,39 +644,17 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
-	.ops = &iwl6000g2b_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-	.advanced_bt_coexist = true,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
@@ -715,41 +663,18 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000g2b_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-	.advanced_bt_coexist = true,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
@@ -758,39 +683,17 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
-	.ops = &iwl6000g2b_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
-	.max_event_log_size = 512,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-	.advanced_bt_coexist = true,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
 
 /*
@@ -802,35 +705,15 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.ht_params = &iwl6000_ht_params,
 	.pa_type = IWL_PA_INTERNAL,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -839,33 +722,14 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
 	.pa_type = IWL_PA_INTERNAL,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -874,33 +738,14 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
 	.pa_type = IWL_PA_INTERNAL,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -909,35 +754,14 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x50,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1500,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.ops = &iwl6000_ops,
+	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6050_base_params,
+	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 };
 
@@ -947,35 +771,14 @@ struct iwl_cfg iwl6050g2_bgn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6050G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6050G2_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x50,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1500,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6050G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6050G2_TX_POWER_VERSION,
+	.ops = &iwl6050g2_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6050_base_params,
+	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 };
 
@@ -985,33 +788,13 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x50,
-	.shadow_ram_support = true,
-	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1500,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
+	.ops = &iwl6050_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6050_base_params,
 	.need_dc_calib = true,
 };
 
@@ -1021,38 +804,58 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6000_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.ops = &iwl6000_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.ht_params = &iwl6000_ht_params,
+	.need_dc_calib = true,
+};
+
+struct iwl_cfg iwl130_bgn_cfg = {
+	.name = "Intel(R) 130 Series 1x1 BGN",
+	.fw_name_pre = IWL6000G2B_FW_PRE,
+	.ucode_api_max = IWL130_UCODE_API_MAX,
+	.ucode_api_min = IWL130_UCODE_API_MIN,
+	.sku = IWL_SKU_G|IWL_SKU_N,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_A,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.ht_params = &iwl6000_ht_params,
+	.need_dc_calib = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+};
+
+struct iwl_cfg iwl130_bg_cfg = {
+	.name = "Intel(R) 130 Series 1x2 BG",
+	.fw_name_pre = IWL6000G2B_FW_PRE,
+	.ucode_api_max = IWL130_UCODE_API_MAX,
+	.ucode_api_min = IWL130_UCODE_API_MIN,
+	.sku = IWL_SKU_G,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_A,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
+	.ops = &iwl6000g2b_ops,
+	.mod_params = &iwlagn_mod_params,
+	.base_params = &iwl6000_base_params,
+	.bt_params = &iwl6000_bt_params,
+	.need_dc_calib = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6050_MODULE_FIRMWARE(IWL6050_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6000G2A_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6000G2B_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL130_MODULE_FIRMWARE(IWL130_UCODE_API_MAX));

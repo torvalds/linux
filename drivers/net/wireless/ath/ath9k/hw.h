@@ -70,19 +70,13 @@
 
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
-		if (AR_SREV_9271(_ah))					\
+		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
 			ath9k_hw_common(_ah)->ops->enable_write_buffer((_ah)); \
-	} while (0)
-
-#define DISABLE_REGWRITE_BUFFER(_ah)					\
-	do {								\
-		if (AR_SREV_9271(_ah))					\
-			ath9k_hw_common(_ah)->ops->disable_write_buffer((_ah)); \
 	} while (0)
 
 #define REGWRITE_BUFFER_FLUSH(_ah)					\
 	do {								\
-		if (AR_SREV_9271(_ah))					\
+		if (ath9k_hw_common(_ah)->ops->write_flush)		\
 			ath9k_hw_common(_ah)->ops->write_flush((_ah));	\
 	} while (0)
 
@@ -342,7 +336,6 @@ struct ath9k_hw_cal_data {
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
-	int16_t rawNoiseFloor;
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;
@@ -353,9 +346,11 @@ struct ath9k_hw_cal_data {
 
 struct ath9k_channel {
 	struct ieee80211_channel *chan;
+	struct ar5416AniState ani;
 	u16 channel;
 	u32 channelFlags;
 	u32 chanmode;
+	s16 noisefloor;
 };
 
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
@@ -514,14 +509,6 @@ struct ath_hw_antcomb_conf {
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
  *
- * @ani_reset: reset ANI parameters to default values
- * @ani_lower_immunity: lower the noise immunity level. The level controls
- *	the power-based packet detection on hardware. If a power jump is
- *	detected the adapter takes it as an indication that a packet has
- *	arrived. The level ranges from 0-5. Each level corresponds to a
- *	few dB more of noise immunity. If you have a strong time-varying
- *	interference that is causing false detections (OFDM timing errors or
- *	CCK timing errors) the level can be increased.
  * @ani_cache_ini_regs: cache the values for ANI from the initial
  *	register settings through the register initialization.
  */
@@ -535,8 +522,6 @@ struct ath_hw_private_ops {
 	bool (*macversion_supported)(u32 macversion);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
-	bool (*iscal_supported)(struct ath_hw *ah,
-				enum ath9k_cal_types calType);
 
 	/* PHY ops */
 	int (*rf_set_freq)(struct ath_hw *ah,
@@ -568,8 +553,6 @@ struct ath_hw_private_ops {
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 
 	/* ANI */
-	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
-	void (*ani_lower_immunity)(struct ath_hw *ah);
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
 };
 
@@ -581,11 +564,6 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
- *
- * @ani_proc_mib_event: process MIB events, this would happen upon specific ANI
- *	thresholds being reached or having overflowed.
- * @ani_monitor: called periodically by the core driver to collect
- *	MIB stats and adjust ANI if specific thresholds have been reached.
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -626,9 +604,6 @@ struct ath_hw_ops {
 				     u32 burstDuration);
 	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
 				       u32 vmf);
-
-	void (*ani_proc_mib_event)(struct ath_hw *ah);
-	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
 struct ath_nf_limits {
@@ -689,10 +664,9 @@ struct ath_hw {
 	u32 atim_window;
 
 	/* Calibration */
-	enum ath9k_cal_types supp_cals;
+	u32 supp_cals;
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
-	struct ath9k_cal_list adcdc_calinitdata;
 	struct ath9k_cal_list adcdc_caldata;
 	struct ath9k_cal_list tempCompCalData;
 	struct ath9k_cal_list *cal_list;
@@ -761,13 +735,13 @@ struct ath_hw {
 	/* ANI */
 	u32 proc_phyerr;
 	u32 aniperiod;
-	struct ar5416AniState *curani;
-	struct ar5416AniState ani[255];
 	int totalSizeDesired[5];
 	int coarse_high[5];
 	int coarse_low[5];
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
+	struct ath_cycle_counters cc, cc_delta;
+	int32_t listen_time;
 
 	/* Bluetooth coexistance */
 	struct ath_btcoex_hw btcoex_hw;
@@ -988,8 +962,9 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
  * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
  */
 extern int modparam_force_new_ani;
-void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
-void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
+void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
+void ath9k_hw_proc_mib_event(struct ath_hw *ah);
+void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

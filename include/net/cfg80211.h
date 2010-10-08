@@ -293,12 +293,14 @@ struct key_params {
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
+ * @SURVEY_INFO_IN_USE: channel is currently being used
  *
  * Used by the driver to indicate which info in &struct survey_info
  * it has filled in during the get_survey().
  */
 enum survey_info_flags {
 	SURVEY_INFO_NOISE_DBM = 1<<0,
+	SURVEY_INFO_IN_USE = 1<<1,
 };
 
 /**
@@ -399,6 +401,8 @@ struct station_parameters {
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  * @STATION_INFO_RX_PACKETS: @rx_packets filled
  * @STATION_INFO_TX_PACKETS: @tx_packets filled
+ * @STATION_INFO_TX_RETRIES: @tx_retries filled
+ * @STATION_INFO_TX_FAILED: @tx_failed filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -411,6 +415,8 @@ enum station_info_flags {
 	STATION_INFO_TX_BITRATE		= 1<<7,
 	STATION_INFO_RX_PACKETS		= 1<<8,
 	STATION_INFO_TX_PACKETS		= 1<<9,
+	STATION_INFO_TX_RETRIES		= 1<<10,
+	STATION_INFO_TX_FAILED		= 1<<11,
 };
 
 /**
@@ -460,6 +466,8 @@ struct rate_info {
  * @txrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station
  * @tx_packets: packets transmitted to this station
+ * @tx_retries: cumulative retry counts
+ * @tx_failed: number of failed transmissions (retries exceeded, no ACK)
  * @generation: generation number for nl80211 dumps.
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
@@ -477,6 +485,8 @@ struct station_info {
 	struct rate_info txrate;
 	u32 rx_packets;
 	u32 tx_packets;
+	u32 tx_retries;
+	u32 tx_failed;
 
 	int generation;
 };
@@ -1128,13 +1138,14 @@ struct cfg80211_ops {
 				       struct vif_params *params);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr,
+			   u8 key_index, bool pairwise, const u8 *mac_addr,
 			   struct key_params *params);
 	int	(*get_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr, void *cookie,
+			   u8 key_index, bool pairwise, const u8 *mac_addr,
+			   void *cookie,
 			   void (*callback)(void *cookie, struct key_params*));
 	int	(*del_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr);
+			   u8 key_index, bool pairwise, const u8 *mac_addr);
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
@@ -1218,7 +1229,7 @@ struct cfg80211_ops {
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
 
 	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,
-				u8 *addr);
+				const u8 *addr);
 
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
@@ -1302,6 +1313,7 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_CONTROL_PORT_PROTOCOL: This device supports setting the
  *	control port protocol ethertype. The device also honours the
  *	control_port_no_encrypt flag.
+ * @WIPHY_FLAG_IBSS_RSN: The device supports IBSS RSN.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
@@ -1312,6 +1324,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_4ADDR_AP			= BIT(5),
 	WIPHY_FLAG_4ADDR_STATION		= BIT(6),
 	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
+	WIPHY_FLAG_IBSS_RSN			= BIT(7),
 };
 
 struct mac_address {
@@ -2551,8 +2564,6 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 			      enum nl80211_cqm_rssi_threshold_event rssi_event,
 			      gfp_t gfp);
 
-#ifdef __KERNEL__
-
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
@@ -2598,7 +2609,5 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
  */
 #define wiphy_WARN(wiphy, format, args...)			\
 	WARN(1, "wiphy: %s\n" format, wiphy_name(wiphy), ##args);
-
-#endif
 
 #endif /* __NET_CFG80211_H */

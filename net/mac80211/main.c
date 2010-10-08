@@ -201,6 +201,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
+	else if (sdata->vif.type == NL80211_IFTYPE_WDS)
+		sdata->vif.bss_conf.bssid = NULL;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		sdata->vif.bss_conf.bssid = zero;
 	} else {
@@ -211,6 +213,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_MESH_POINT:
 		break;
 	default:
@@ -295,7 +298,16 @@ static void ieee80211_restart_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, restart_work);
 
+	/* wait for scan work complete */
+	flush_workqueue(local->workqueue);
+
+	mutex_lock(&local->mtx);
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+		"%s called with hardware scan in progress\n", __func__);
+	mutex_unlock(&local->mtx);
+
 	rtnl_lock();
+	ieee80211_scan_cancel(local);
 	ieee80211_reconfig(local);
 	rtnl_unlock();
 }
@@ -305,15 +317,6 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	trace_api_restart_hw(local);
-
-	/* wait for scan work complete */
-	flush_workqueue(local->workqueue);
-
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
-		"%s called with hardware scan in progress\n", __func__);
-
-	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)))
-		ieee80211_scan_cancel(local);
 
 	/* use this reason, ieee80211_reconfig will unblock it */
 	ieee80211_stop_queues_by_reason(hw,
@@ -329,7 +332,7 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local, recalc_smps);
 
 	mutex_lock(&local->iflist_mtx);
-	ieee80211_recalc_smps(local, NULL);
+	ieee80211_recalc_smps(local);
 	mutex_unlock(&local->iflist_mtx);
 }
 
@@ -533,6 +536,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	/* set up some defaults */
 	local->hw.queues = 1;
 	local->hw.max_rates = 1;
+	local->hw.max_report_rates = 0;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
 	local->user_power_level = -1;
@@ -607,6 +611,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		/* keep last -- depends on hw flags! */
 		WLAN_CIPHER_SUITE_AES_CMAC
 	};
+
+	if (hw->max_report_rates == 0)
+		hw->max_report_rates = hw->max_rates;
 
 	/*
 	 * generic code guarantees at least one band,
