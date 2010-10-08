@@ -298,6 +298,7 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir;
+	u32 hotplug_mask;
 	struct drm_i915_master_private *master_priv;
 	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 	u32 bsd_usr_interrupt = GT_BSD_USER_INTERRUPT;
@@ -316,6 +317,11 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 
 	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
 		goto done;
+
+	if (HAS_PCH_CPT(dev))
+		hotplug_mask = SDE_HOTPLUG_MASK_CPT;
+	else
+		hotplug_mask = SDE_HOTPLUG_MASK;
 
 	ret = IRQ_HANDLED;
 
@@ -358,10 +364,8 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
-	if ((de_iir & DE_PCH_EVENT) &&
-	    (pch_iir & SDE_HOTPLUG_MASK)) {
+	if ((de_iir & DE_PCH_EVENT) && (pch_iir & hotplug_mask))
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-	}
 
 	if (de_iir & DE_PCU_EVENT) {
 		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
@@ -1431,8 +1435,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
 	u32 render_mask = GT_PIPE_NOTIFY | GT_BSD_USER_INTERRUPT;
-	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
-			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
+	u32 hotplug_mask;
 
 	dev_priv->irq_mask_reg = ~display_mask;
 	dev_priv->de_irq_enable_reg = display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK;
@@ -1458,6 +1461,14 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GTIER, dev_priv->gt_irq_enable_reg);
 	(void) I915_READ(GTIER);
+
+	if (HAS_PCH_CPT(dev)) {
+		hotplug_mask = SDE_CRT_HOTPLUG_CPT | SDE_PORTB_HOTPLUG_CPT  |
+			       SDE_PORTC_HOTPLUG_CPT | SDE_PORTD_HOTPLUG_CPT ;
+	} else {
+		hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
+			       SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
+	}
 
 	dev_priv->pch_irq_mask_reg = ~hotplug_mask;
 	dev_priv->pch_irq_enable_reg = hotplug_mask;
