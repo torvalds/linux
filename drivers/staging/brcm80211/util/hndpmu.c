@@ -308,7 +308,7 @@ typedef struct {
 #define RES_DEPEND_ADD		1	/* Add to the  dependancies mask */
 #define RES_DEPEND_REMOVE	-1	/* Remove from the dependancies mask */
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4328a0_res_updown)[] = {
+static const pmu_res_updown_t bcm4328a0_res_updown[] = {
 	{
 	RES4328_EXT_SWITCHER_PWM, 0x0101}, {
 	RES4328_BB_SWITCHER_PWM, 0x1f01}, {
@@ -332,7 +332,7 @@ static const pmu_res_updown_t BCMATTACHDATA(bcm4328a0_res_updown)[] = {
 	RES4328_BB_PLL_PU, 0x0701}
 };
 
-static const pmu_res_depend_t BCMATTACHDATA(bcm4328a0_res_depend)[] = {
+static const pmu_res_depend_t bcm4328a0_res_depend[] = {
 	/* Adjust ILP request resource not to force ext/BB switchers into burst mode */
 	{
 	PMURES_BIT(RES4328_ILP_REQUEST),
@@ -341,7 +341,7 @@ static const pmu_res_depend_t BCMATTACHDATA(bcm4328a0_res_depend)[] = {
 		    PMURES_BIT(RES4328_BB_SWITCHER_PWM), NULL}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4325a0_res_updown_qt)[] = {
+static const pmu_res_updown_t bcm4325a0_res_updown_qt[] = {
 	{
 	RES4325_HT_AVAIL, 0x0300}, {
 	RES4325_BBPLL_PWRSW_PU, 0x0101}, {
@@ -353,12 +353,12 @@ static const pmu_res_updown_t BCMATTACHDATA(bcm4325a0_res_updown_qt)[] = {
 	RES4325_CBUCK_PWM, 0x0803}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4325a0_res_updown)[] = {
+static const pmu_res_updown_t bcm4325a0_res_updown[] = {
 	{
 	RES4325_XTAL_PU, 0x1501}
 };
 
-static const pmu_res_depend_t BCMATTACHDATA(bcm4325a0_res_depend)[] = {
+static const pmu_res_depend_t bcm4325a0_res_depend[] = {
 	/* Adjust OTP PU resource dependencies - remove BB BURST */
 	{
 	PMURES_BIT(RES4325_OTP_PU),
@@ -399,7 +399,7 @@ static const pmu_res_depend_t BCMATTACHDATA(bcm4325a0_res_depend)[] = {
 		    PMURES_BIT(RES4325B0_CBUCK_PWM), si_pmu_res_depfltr_ncb}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4315a0_res_updown_qt)[] = {
+static const pmu_res_updown_t bcm4315a0_res_updown_qt[] = {
 	{
 	RES4315_HT_AVAIL, 0x0101}, {
 	RES4315_XTAL_PU, 0x0100}, {
@@ -411,12 +411,12 @@ static const pmu_res_updown_t BCMATTACHDATA(bcm4315a0_res_updown_qt)[] = {
 	RES4315_CBUCK_LPOM, 0x0100}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4315a0_res_updown)[] = {
+static const pmu_res_updown_t bcm4315a0_res_updown[] = {
 	{
 	RES4315_XTAL_PU, 0x2501}
 };
 
-static const pmu_res_depend_t BCMATTACHDATA(bcm4315a0_res_depend)[] = {
+static const pmu_res_depend_t bcm4315a0_res_depend[] = {
 	/* Adjust OTP PU resource dependencies - not need PALDO unless write */
 	{
 	PMURES_BIT(RES4315_OTP_PU),
@@ -482,7 +482,7 @@ static const pmu_res_depend_t BCMINITDATA(bcm4329_res_depend)[] = {
 		    PMURES_BIT(RES4329_BBPLL_PWRSW_PU), NULL}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4319a0_res_updown_qt)[] = {
+static const pmu_res_updown_t bcm4319a0_res_updown_qt[] = {
 	{
 	RES4319_HT_AVAIL, 0x0101}, {
 	RES4319_XTAL_PU, 0x0100}, {
@@ -494,12 +494,12 @@ static const pmu_res_updown_t BCMATTACHDATA(bcm4319a0_res_updown_qt)[] = {
 	RES4319_CBUCK_LPOM, 0x0100}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4319a0_res_updown)[] = {
+static const pmu_res_updown_t bcm4319a0_res_updown[] = {
 	{
 	RES4319_XTAL_PU, 0x3f01}
 };
 
-static const pmu_res_depend_t BCMATTACHDATA(bcm4319a0_res_depend)[] = {
+static const pmu_res_depend_t bcm4319a0_res_depend[] = {
 	/* Adjust OTP PU resource dependencies - not need PALDO unless write */
 	{
 	PMURES_BIT(RES4319_OTP_PU),
@@ -521,7 +521,7 @@ static const pmu_res_depend_t BCMATTACHDATA(bcm4319a0_res_depend)[] = {
 		    PMURES_BIT(RES4319_AFE_PWRSW_PU), NULL}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4336a0_res_updown_qt)[] = {
+static const pmu_res_updown_t bcm4336a0_res_updown_qt[] = {
 	{
 	RES4336_HT_AVAIL, 0x0101}, {
 	RES4336_XTAL_PU, 0x0100}, {
@@ -531,18 +531,18 @@ static const pmu_res_updown_t BCMATTACHDATA(bcm4336a0_res_updown_qt)[] = {
 	RES4336_CBUCK_LPOM, 0x0100}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4336a0_res_updown)[] = {
+static const pmu_res_updown_t bcm4336a0_res_updown[] = {
 	{
 	RES4336_HT_AVAIL, 0x0D01}
 };
 
-static const pmu_res_depend_t BCMATTACHDATA(bcm4336a0_res_depend)[] = {
+static const pmu_res_depend_t bcm4336a0_res_depend[] = {
 	/* Just a dummy entry for now */
 	{
 	PMURES_BIT(RES4336_RSVD), RES_DEPEND_ADD, 0, NULL}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4330a0_res_updown_qt)[] = {
+static const pmu_res_updown_t bcm4330a0_res_updown_qt[] = {
 	{
 	RES4330_HT_AVAIL, 0x0101}, {
 	RES4330_XTAL_PU, 0x0100}, {
@@ -552,12 +552,12 @@ static const pmu_res_updown_t BCMATTACHDATA(bcm4330a0_res_updown_qt)[] = {
 	RES4330_CBUCK_LPOM, 0x0100}
 };
 
-static const pmu_res_updown_t BCMATTACHDATA(bcm4330a0_res_updown)[] = {
+static const pmu_res_updown_t bcm4330a0_res_updown[] = {
 	{
 	RES4330_HT_AVAIL, 0x0e02}
 };
 
-static const pmu_res_depend_t BCMATTACHDATA(bcm4330a0_res_depend)[] = {
+static const pmu_res_depend_t bcm4330a0_res_depend[] = {
 	/* Just a dummy entry for now */
 	{
 	PMURES_BIT(RES4330_HT_AVAIL), RES_DEPEND_ADD, 0, NULL}
