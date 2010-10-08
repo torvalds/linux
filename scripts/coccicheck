@@ -25,7 +25,7 @@ fi
 
 if [ "$MODE" = "" ] ; then
     if [ "$ONLINE" = "0" ] ; then
-	echo 'You have not explicitly specify the mode to use. Fallback to "report".'
+	echo 'You have not explicitly specified the mode to use. Fallback to "report".'
 	echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
 	echo 'Available modes are: report, patch, context, org'
     fi
@@ -52,10 +52,12 @@ coccinelle () {
 
 	FILE=`echo $COCCI | sed "s|$srctree/||"`
 
-	echo "Processing `basename $COCCI` with option(s) \"$OPT\""
+	echo "Processing `basename $COCCI`"
+	echo "with option(s) \"$OPT\""
+	echo ''
 	echo 'Message example to submit a patch:'
 
-	sed -e '/\/\/\//!d' -e 's|^///||' $COCCI
+	sed -ne 's|^///||p' $COCCI
 
 	echo ' The semantic patch that makes this change is available'
 	echo " in $FILE."
@@ -63,6 +65,12 @@ coccinelle () {
 	echo ' More information about semantic patching is available at'
 	echo ' http://coccinelle.lip6.fr/'
 	echo ''
+
+	if [ "`sed -ne 's|^//#||p' $COCCI`" ] ; then
+	    echo 'Semantic patch information:'
+	    sed -ne 's|^//#||p' $COCCI
+	    echo ''
+	fi
 
 	$SPATCH -D $MODE $FLAGS -sp_file $COCCI $OPT -dir $srctree || exit 1
     else
