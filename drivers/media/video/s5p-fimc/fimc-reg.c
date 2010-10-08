@@ -34,44 +34,6 @@ void fimc_hw_reset(struct fimc_dev *dev)
 	cfg = readl(dev->regs + S5P_CIGCTRL);
 	cfg &= ~S5P_CIGCTRL_SWRST;
 	writel(cfg, dev->regs + S5P_CIGCTRL);
-
-}
-
-void fimc_hw_set_rotation(struct fimc_ctx *ctx)
-{
-	u32 cfg, flip;
-	struct fimc_dev *dev = ctx->fimc_dev;
-
-	cfg = readl(dev->regs + S5P_CITRGFMT);
-	cfg &= ~(S5P_CITRGFMT_INROT90 | S5P_CITRGFMT_OUTROT90);
-
-	flip = readl(dev->regs + S5P_MSCTRL);
-	flip &= ~S5P_MSCTRL_FLIP_MASK;
-
-	/*
-	 * The input and output rotator cannot work simultaneously.
-	 * Use the output rotator in output DMA mode or the input rotator
-	 * in direct fifo output mode.
-	 */
-	if (ctx->rotation == 90 || ctx->rotation == 270) {
-		if (ctx->out_path == FIMC_LCDFIFO) {
-			cfg |= S5P_CITRGFMT_INROT90;
-			if (ctx->rotation == 270)
-				flip |= S5P_MSCTRL_FLIP_180;
-		} else {
-			cfg |= S5P_CITRGFMT_OUTROT90;
-			if (ctx->rotation == 270)
-				cfg |= S5P_CITRGFMT_FLIP_180;
-		}
-	} else if (ctx->rotation == 180) {
-		if (ctx->out_path == FIMC_LCDFIFO)
-			flip |= S5P_MSCTRL_FLIP_180;
-		else
-			cfg |= S5P_CITRGFMT_FLIP_180;
-	}
-	if (ctx->rotation == 180 || ctx->rotation == 270)
-		writel(flip, dev->regs + S5P_MSCTRL);
-	writel(cfg, dev->regs + S5P_CITRGFMT);
 }
 
 static u32 fimc_hw_get_in_flip(u32 ctx_flip)
@@ -114,6 +76,46 @@ static u32 fimc_hw_get_target_flip(u32 ctx_flip)
 	return flip;
 }
 
+void fimc_hw_set_rotation(struct fimc_ctx *ctx)
+{
+	u32 cfg, flip;
+	struct fimc_dev *dev = ctx->fimc_dev;
+
+	cfg = readl(dev->regs + S5P_CITRGFMT);
+	cfg &= ~(S5P_CITRGFMT_INROT90 | S5P_CITRGFMT_OUTROT90 |
+		  S5P_CITRGFMT_FLIP_180);
+
+	flip = readl(dev->regs + S5P_MSCTRL);
+	flip &= ~S5P_MSCTRL_FLIP_MASK;
+
+	/*
+	 * The input and output rotator cannot work simultaneously.
+	 * Use the output rotator in output DMA mode or the input rotator
+	 * in direct fifo output mode.
+	 */
+	if (ctx->rotation == 90 || ctx->rotation == 270) {
+		if (ctx->out_path == FIMC_LCDFIFO) {
+			cfg |= S5P_CITRGFMT_INROT90;
+			if (ctx->rotation == 270)
+				flip |= S5P_MSCTRL_FLIP_180;
+		} else {
+			cfg |= S5P_CITRGFMT_OUTROT90;
+			if (ctx->rotation == 270)
+				cfg |= S5P_CITRGFMT_FLIP_180;
+		}
+	} else if (ctx->rotation == 180) {
+		if (ctx->out_path == FIMC_LCDFIFO)
+			flip |= S5P_MSCTRL_FLIP_180;
+		else
+			cfg |= S5P_CITRGFMT_FLIP_180;
+	}
+	if (ctx->rotation == 180 || ctx->rotation == 270)
+		writel(flip, dev->regs + S5P_MSCTRL);
+
+	cfg |= fimc_hw_get_target_flip(ctx->flip);
+	writel(cfg, dev->regs + S5P_CITRGFMT);
+}
+
 void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 {
 	u32 cfg;
@@ -149,13 +151,15 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 		break;
 	}
 
-	cfg |= S5P_CITRGFMT_HSIZE(frame->width);
-	cfg |= S5P_CITRGFMT_VSIZE(frame->height);
+	if (ctx->rotation == 90 || ctx->rotation == 270) {
+		cfg |= S5P_CITRGFMT_HSIZE(frame->height);
+		cfg |= S5P_CITRGFMT_VSIZE(frame->width);
+	} else {
 
-	if (ctx->rotation == 0) {
-		cfg &= ~S5P_CITRGFMT_FLIP_MASK;
-		cfg |= fimc_hw_get_target_flip(ctx->flip);
+		cfg |= S5P_CITRGFMT_HSIZE(frame->width);
+		cfg |= S5P_CITRGFMT_VSIZE(frame->height);
 	}
+
 	writel(cfg, dev->regs + S5P_CITRGFMT);
 
 	cfg = readl(dev->regs + S5P_CITAREA) & ~S5P_CITAREA_MASK;
@@ -167,15 +171,10 @@ static void fimc_hw_set_out_dma_size(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_frame *frame = &ctx->d_frame;
-	u32 cfg = 0;
+	u32 cfg;
 
-	if (ctx->rotation == 90 || ctx->rotation == 270) {
-		cfg |= S5P_ORIG_SIZE_HOR(frame->f_height);
-		cfg |= S5P_ORIG_SIZE_VER(frame->f_width);
-	} else {
-		cfg |= S5P_ORIG_SIZE_HOR(frame->f_width);
-		cfg |= S5P_ORIG_SIZE_VER(frame->f_height);
-	}
+	cfg = S5P_ORIG_SIZE_HOR(frame->f_width);
+	cfg |= S5P_ORIG_SIZE_VER(frame->f_height);
 	writel(cfg, dev->regs + S5P_ORGOSIZE);
 }
 

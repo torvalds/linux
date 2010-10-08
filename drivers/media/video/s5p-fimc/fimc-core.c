@@ -207,8 +207,13 @@ static int fimc_set_scaler_info(struct fimc_ctx *ctx)
 	int tx, ty, sx, sy;
 	int ret;
 
-	tx = d_frame->width;
-	ty = d_frame->height;
+	if (ctx->rotation == 90 || ctx->rotation == 270) {
+		ty = d_frame->width;
+		tx = d_frame->height;
+	} else {
+		tx = d_frame->width;
+		ty = d_frame->height;
+	}
 	if (tx <= 0 || ty <= 0) {
 		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
 			"invalid target size: %d x %d", tx, ty);
@@ -429,12 +434,6 @@ static int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags)
 	d_frame = &ctx->d_frame;
 
 	if (flags & FIMC_PARAMS) {
-		if ((ctx->out_path == FIMC_DMA) &&
-			(ctx->rotation == 90 || ctx->rotation == 270)) {
-			swap(d_frame->f_width, d_frame->f_height);
-			swap(d_frame->width, d_frame->height);
-		}
-
 		/* Prepare the DMA offset ratios for scaler. */
 		fimc_prepare_dma_offset(ctx, &ctx->s_frame);
 		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
