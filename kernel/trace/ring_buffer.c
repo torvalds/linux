@@ -2119,6 +2119,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	u64 ts, delta;
 	int nr_loops = 0;
 	int add_timestamp;
+	u64 diff;
 
 	rb_start_commit(cpu_buffer);
 
@@ -2155,29 +2156,13 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		goto out_fail;
 
 	ts = rb_time_stamp(cpu_buffer->buffer);
+	diff = ts - cpu_buffer->write_stamp;
 
-	/*
-	 * Only the first commit can update the timestamp.
-	 * Yes there is a race here. If an interrupt comes in
-	 * just after the conditional and it traces too, then it
-	 * will also check the deltas. More than one timestamp may
-	 * also be made. But only the entry that did the actual
-	 * commit will be something other than zero.
-	 */
-	if (likely(cpu_buffer->tail_page == cpu_buffer->commit_page &&
-		   rb_page_write(cpu_buffer->tail_page) ==
-		   rb_commit_index(cpu_buffer))) {
-		u64 diff;
+	/* make sure this diff is calculated here */
+	barrier();
 
-		diff = ts - cpu_buffer->write_stamp;
-
-		/* make sure this diff is calculated here */
-		barrier();
-
-		/* Did the write stamp get updated already? */
-		if (unlikely(ts < cpu_buffer->write_stamp))
-			goto get_event;
-
+	/* Did the write stamp get updated already? */
+	if (likely(ts >= cpu_buffer->write_stamp)) {
 		delta = diff;
 		if (unlikely(test_time_stamp(delta))) {
 			WARN_ONCE(delta > (1ULL << 59),
@@ -2189,7 +2174,6 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		}
 	}
 
- get_event:
 	event = __rb_reserve_next(cpu_buffer, length, ts,
 				  delta, add_timestamp);
 	if (unlikely(PTR_ERR(event) == -EAGAIN))
