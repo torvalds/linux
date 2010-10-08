@@ -101,43 +101,6 @@ config IR_LIRC_CODEC
 	   Enable this option to pass raw IR to and from userspace via
 	   the LIRC interface.
 
-config IR_IMON
-	tristate "SoundGraph iMON Receiver and Display"
-	depends on USB_ARCH_HAS_HCD
-	depends on IR_CORE
-	select USB
-	---help---
-	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
-	   IR Receiver and/or LCD/VFD/VGA display.
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called imon.
-
-config IR_NUVOTON
-	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
-	depends on PNP
-	depends on IR_CORE
-	---help---
-	   Say Y here to enable support for integrated infrared receiver
-	   /transciever made by Nuvoton (formerly Winbond). This chip is
-	   found in the ASRock ION 330HT, as well as assorted Intel
-	   DP55-series motherboards (and of course, possibly others).
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called nuvoton-cir.
-
-config IR_MCEUSB
-	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
-	depends on USB_ARCH_HAS_HCD
-	depends on IR_CORE
-	select USB
-	---help---
-	   Say Y here if you want to use a Windows Media Center Edition
-	   eHome Infrared Transceiver.
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called mceusb.
-
 config IR_ENE
 	tristate "ENE eHome Receiver/Transciever (pnp id: ENE0100/ENE02xxx)"
 	depends on PNP
@@ -151,6 +114,43 @@ config IR_ENE
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called ene_ir.
+
+config IR_IMON
+	tristate "SoundGraph iMON Receiver and Display"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
+	   IR Receiver and/or LCD/VFD/VGA display.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called imon.
+
+config IR_MCEUSB
+	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Windows Media Center Edition
+	   eHome Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mceusb.
+
+config IR_NUVOTON
+	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
+	depends on PNP
+	depends on IR_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receiver
+	   /transciever made by Nuvoton (formerly Winbond). This chip is
+	   found in the ASRock ION 330HT, as well as assorted Intel
+	   DP55-series motherboards (and of course, possibly others).
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called nuvoton-cir.
 
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"
