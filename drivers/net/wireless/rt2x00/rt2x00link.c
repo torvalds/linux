@@ -236,6 +236,12 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	/*
+	 * No need to update the stats for !=STA interfaces
+	 */
+	if (!rt2x00dev->intf_sta_count)
+		return;
+
+	/*
 	 * Frame was received successfully since non-succesfull
 	 * frames would have been dropped by the hardware.
 	 */
