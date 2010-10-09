@@ -246,9 +246,8 @@ typedef struct dhd_info {
 	struct semaphore dpc_sem;
 
 	/* Thread to issue ioctl for multicast */
-	long sysioc_pid;
+	struct task_struct *sysioc_tsk;
 	struct semaphore sysioc_sem;
-	struct completion sysioc_exited;
 	bool set_multicast;
 	bool set_macaddress;
 	struct ether_addr macvalue;
@@ -333,13 +332,6 @@ uint dhd_radio_up = 1;
 /* Network inteface name */
 char iface_name[IFNAMSIZ];
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
-
-#define DAEMONIZE(a) \
-	do { \
-		daemonize(a); \
-		allow_signal(SIGKILL); \
-		allow_signal(SIGTERM); \
-	} while (0)
 
 #define BLOCKABLE()	(!in_atomic())
 
@@ -948,9 +940,9 @@ static int _dhd_sysioc_thread(void *data)
 	bool in_ap = FALSE;
 #endif
 
-	DAEMONIZE("dhd_sysioc");
-
 	while (down_interruptible(&dhd->sysioc_sem) == 0) {
+		if(kthread_should_stop())
+			break;
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			if (dhd->iflist[i]) {
 #ifdef SOFTAP
@@ -992,7 +984,7 @@ static int _dhd_sysioc_thread(void *data)
 			}
 		}
 	}
-	complete_and_exit(&dhd->sysioc_exited, 0);
+	return 0;
 }
 
 static int dhd_set_mac_address(struct net_device *dev, void *addr)
@@ -1007,7 +999,7 @@ static int dhd_set_mac_address(struct net_device *dev, void *addr)
 	if (ifidx == DHD_BAD_IF)
 		return -1;
 
-	ASSERT(dhd->sysioc_pid >= 0);
+	ASSERT(dhd->sysioc_tsk);
 	memcpy(&dhd->macvalue, sa->sa_data, ETHER_ADDR_LEN);
 	dhd->set_macaddress = TRUE;
 	up(&dhd->sysioc_sem);
@@ -1024,7 +1016,7 @@ static void dhd_set_multicast_list(struct net_device *dev)
 	if (ifidx == DHD_BAD_IF)
 		return;
 
-	ASSERT(dhd->sysioc_pid >= 0);
+	ASSERT(dhd->sysioc_tsk);
 	dhd->set_multicast = TRUE;
 	up(&dhd->sysioc_sem);
 }
@@ -1866,7 +1858,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	if (handle == NULL) {
 		ifp->state = WLC_E_IF_ADD;
 		ifp->idx = ifidx;
-		ASSERT(dhd->sysioc_pid >= 0);
+		ASSERT(dhd->sysioc_tsk);
 		up(&dhd->sysioc_sem);
 	} else
 		ifp->net = (struct net_device *)handle;
@@ -1889,7 +1881,7 @@ void dhd_del_if(dhd_info_t *dhd, int ifidx)
 
 	ifp->state = WLC_E_IF_DEL;
 	ifp->idx = ifidx;
-	ASSERT(dhd->sysioc_pid >= 0);
+	ASSERT(dhd->sysioc_tsk);
 	up(&dhd->sysioc_sem);
 }
 
@@ -2030,11 +2022,15 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 
 	if (dhd_sysioc) {
 		sema_init(&dhd->sysioc_sem, 0);
-		init_completion(&dhd->sysioc_exited);
-		dhd->sysioc_pid = kernel_thread(_dhd_sysioc_thread, dhd, 0);
-	} else {
-		dhd->sysioc_pid = -1;
-	}
+		dhd->sysioc_tsk = kthread_run(_dhd_sysioc_thread, dhd,
+						"_dhd_sysioc");
+		if (IS_ERR(dhd->sysioc_tsk)) {
+			printk(KERN_WARNING
+				"_dhd_sysioc thread failed to start\n");
+			dhd->sysioc_tsk = NULL;
+		}
+	} else
+		dhd->sysioc_tsk = NULL;
 
 	/*
 	 * Save the dhd_info into the priv
@@ -2353,9 +2349,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 			else
 				tasklet_kill(&dhd->tasklet);
 
-			if (dhd->sysioc_pid >= 0) {
-				KILL_PROC(dhd->sysioc_pid, SIGTERM);
-				wait_for_completion(&dhd->sysioc_exited);
+			if (dhd->sysioc_tsk) {
+				kthread_stop(dhd->sysioc_tsk);
+				dhd->sysioc_tsk = NULL;
 			}
 
 			dhd_bus_detach(dhdp);
