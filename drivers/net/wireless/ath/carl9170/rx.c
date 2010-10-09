@@ -598,18 +598,14 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	if (!IS_STARTED(ar))
 		return;
 
-	if (unlikely(len < sizeof(*mac))) {
-		ar->rx_dropped++;
-		return;
-	}
+	if (unlikely(len < sizeof(*mac)))
+		goto drop;
 
 	mpdu_len = len - sizeof(*mac);
 
 	mac = (void *)(buf + mpdu_len);
-	if (unlikely(mac->error & AR9170_RX_ERROR_FATAL)) {
-		ar->rx_dropped++;
-		return;
-	}
+	if (unlikely(mac->error & AR9170_RX_ERROR_FATAL))
+		goto drop;
 
 	switch (mac->status & AR9170_RX_STATUS_MPDU) {
 	case AR9170_RX_STATUS_MPDU_FIRST:
@@ -638,8 +634,7 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 					"is clipped.\n");
 			}
 
-			ar->rx_dropped++;
-			return;
+			goto drop;
 		}
 		break;
 
@@ -659,8 +654,7 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 					"is clipped.\n");
 			}
 
-			ar->rx_dropped++;
-			return;
+			goto drop;
 		}
 
 	case AR9170_RX_STATUS_MPDU_MIDDLE:
@@ -672,8 +666,7 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 			wiphy_err(ar->hw->wiphy, "rx stream does not start "
 					"with a first_mpdu frame tag.\n");
 
-			ar->rx_dropped++;
-			return;
+			goto drop;
 		}
 
 		head = &ar->rx_plcp;
@@ -696,16 +689,12 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	}
 
 	/* FC + DU + RA + FCS */
-	if (unlikely(mpdu_len < (2 + 2 + 6 + FCS_LEN))) {
-		ar->rx_dropped++;
-		return;
-	}
+	if (unlikely(mpdu_len < (2 + 2 + ETH_ALEN + FCS_LEN)))
+		goto drop;
 
 	memset(&status, 0, sizeof(status));
-	if (unlikely(carl9170_rx_mac_status(ar, head, mac, &status))) {
-		ar->rx_dropped++;
-		return;
-	}
+	if (unlikely(carl9170_rx_mac_status(ar, head, mac, &status)))
+		goto drop;
 
 	if (phy)
 		carl9170_rx_phy_status(ar, phy, &status);
@@ -713,12 +702,15 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	carl9170_ps_beacon(ar, buf, mpdu_len);
 
 	skb = carl9170_rx_copy_data(buf, mpdu_len);
-	if (likely(skb)) {
-		memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
-		ieee80211_rx(ar->hw, skb);
-	} else {
-		ar->rx_dropped++;
-	}
+	if (!skb)
+		goto drop;
+
+	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	ieee80211_rx(ar->hw, skb);
+	return;
+
+drop:
+	ar->rx_dropped++;
 }
 
 static void carl9170_rx_untie_cmds(struct ar9170 *ar, const u8 *respbuf,
