@@ -166,18 +166,13 @@ static void ttm_bo_release_list(struct kref *list_kref)
 
 int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
 {
-
 	if (interruptible) {
-		int ret = 0;
-
-		ret = wait_event_interruptible(bo->event_queue,
+		return wait_event_interruptible(bo->event_queue,
 					       atomic_read(&bo->reserved) == 0);
-		if (unlikely(ret != 0))
-			return ret;
 	} else {
 		wait_event(bo->event_queue, atomic_read(&bo->reserved) == 0);
+		return 0;
 	}
-	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait_unreserved);
 
