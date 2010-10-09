@@ -687,10 +687,40 @@ static int spi_fpga_wait_suspend(struct spi_fpga_port *port)
 	return -1;
 }
 
+static void fpga_close_power_support(void)
+{
+	//cmmb power down
+	gpio_request(FPGA_PIO4_03, NULL); 
+	gpio_direction_output(FPGA_PIO4_03,GPIO_LOW); 
+	gpio_free(FPGA_PIO4_03);
+	gpio_request(FPGA_PIO2_09, NULL); 
+	gpio_direction_output(FPGA_PIO2_09,GPIO_LOW); 
+	gpio_free(FPGA_PIO2_09);
+	gpio_request(FPGA_PIO2_06, NULL); 
+	gpio_direction_output(FPGA_PIO2_06,GPIO_LOW);
+	gpio_free(FPGA_PIO2_06);
+
+	//KEY LED control
+	gpio_request(FPGA_PIO1_13, NULL); 	
+	gpio_direction_output(FPGA_PIO1_13,GPIO_LOW); 
+	gpio_free(FPGA_PIO1_13);
+}
+
+static void fpga_open_power_support(void)
+{
+	//cmmb do not control here
+
+	//KEY LED resume
+	gpio_request(FPGA_PIO1_13, NULL); 	
+	gpio_direction_output(FPGA_PIO1_13,GPIO_HIGH); 
+	gpio_free(FPGA_PIO1_13);		
+}
+
 static int spi_fpga_suspend(struct spi_device *spi, pm_message_t state)
 {
 
 	struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
+	fpga_close_power_support( );
 	int ret;
 	ret = spi_fpga_wait_suspend(port);
 	if(!ret)
@@ -717,7 +747,7 @@ static int spi_fpga_resume(struct spi_device *spi)
 	spi_fpga_set_sysclk(GPIO_HIGH);
 	udelay(1);
 	spi_fpga_set_status(port, ICE_STATUS_WAKE);
-
+	fpga_open_power_support( );
 	printk("%s\n",__FUNCTION__);
 
 	return 0;

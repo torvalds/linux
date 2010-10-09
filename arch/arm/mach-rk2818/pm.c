@@ -544,10 +544,10 @@ static void rk2818_pm_reg_print(unsigned int *pm_save_reg,unsigned int *pm_ch_re
 
 static void pmu_suspend(void)
 {
-	struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
-	struct regulator *lilo2;
+	//struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
+	struct regulator *lilo1,*lilo2;
 	
-	ldo1 = regulator_get(NULL, "ldo1");
+	/*ldo1 = regulator_get(NULL, "ldo1");
 	regulator_disable(ldo1);
 	ldo2 = regulator_get(NULL, "ldo2");
 	regulator_disable(ldo2);
@@ -556,16 +556,21 @@ static void pmu_suspend(void)
 	ldo5 = regulator_get(NULL, "ldo5");
 	regulator_disable(ldo5);
 	lilo2 = regulator_get(NULL, "lilo2");
-	regulator_disable(lilo2);
+	regulator_disable(lilo2);*/
+	
+	lilo1 = regulator_get(NULL, "lilo1");
+	regulator_set_voltage(lilo1,2800000,2800000);
+	lilo2 = regulator_get(NULL, "lilo2");
+	regulator_set_voltage(lilo2,2800000,2800000);
 }
 
 static void pmu_resume(void)
 {
-	struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
-	struct regulator *lilo2;
-	int tmp = 0;
+	//struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
+	struct regulator *lilo1,*lilo2;
+	//int tmp = 0;
 
-	ldo1 = regulator_get(NULL, "ldo1");
+	/*ldo1 = regulator_get(NULL, "ldo1");
 	regulator_enable(ldo1);
 	tmp = regulator_get_voltage(ldo1);
 
@@ -583,7 +588,12 @@ static void pmu_resume(void)
 
 	lilo2 = regulator_get(NULL, "lilo2");
 	regulator_enable(lilo2);
-	tmp = regulator_get_voltage(lilo2);
+	tmp = regulator_get_voltage(lilo2);*/
+	
+	lilo1 = regulator_get(NULL, "lilo1");
+	regulator_set_voltage(lilo1,3000000,3000000);
+	lilo2 = regulator_get(NULL, "lilo2");
+	regulator_set_voltage(lilo2,3000000,3000000);
 }
 
 static int __tcmfunc rk2818_tcm_idle(void)
@@ -697,7 +707,9 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	printk(KERN_DEBUG "before core halt\n");
 
-	//pmu_suspend( );
+	#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHO_0928)
+	pmu_suspend( );
+	#endif
 	clk_set_rate(arm_clk, 24000000);
 	dump_register();
 
@@ -721,7 +733,9 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	rockchip_timer_clocksource_suspend_resume(0);
 #endif
-	//pmu_resume( );
+	#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHO_0928)
+	pmu_resume( );
+	#endif
 	dump_register();
 	clk_set_rate(arm_clk, arm_rate);
 	//rk2818_socpm_print();
