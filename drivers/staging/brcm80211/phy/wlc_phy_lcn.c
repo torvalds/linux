@@ -1000,9 +1000,6 @@ static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t *pi, u16 num_samps);
 static u16 wlc_lcnphy_get_pa_gain(phy_info_t *pi);
 static void wlc_lcnphy_afe_clk_init(phy_info_t *pi, u8 mode);
 extern void wlc_lcnphy_tx_pwr_ctrl_init(wlc_phy_t *ppi);
-extern void wlc_lcnphy_pktengtx(wlc_phy_t *ppi, wl_pkteng_t *pkteng,
-				u8 rate, struct ether_addr *sa,
-				u32 wait_delay);
 static void wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t *pi,
 						    u8 channel);
 
@@ -3667,12 +3664,6 @@ static void wlc_lcnphy_set_chanspec_tweaks(phy_info_t *pi, chanspec_t chanspec)
 
 	or_phy_reg(pi, 0x44a, 0x44);
 	write_phy_reg(pi, 0x44a, 0x80);
-}
-
-void
-wlc_lcnphy_pktengtx(wlc_phy_t *ppi, wl_pkteng_t *pkteng, u8 rate,
-		    struct ether_addr *sa, u32 wait_delay)
-{
 }
 
 void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi)

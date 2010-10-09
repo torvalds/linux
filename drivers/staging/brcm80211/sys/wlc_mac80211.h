@@ -902,8 +902,6 @@ extern void wlc_reset_bmac_done(wlc_info_t *wlc);
 extern void wlc_protection_upd(wlc_info_t *wlc, uint idx, int val);
 extern void wlc_hwtimer_gptimer_set(wlc_info_t *wlc, uint us);
 extern void wlc_hwtimer_gptimer_abort(wlc_info_t *wlc);
-extern void wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, u8 rate,
-			 struct ether_addr *sa, u32 wait_delay);
 
 #if defined(BCMDBG)
 extern void wlc_print_rxh(d11rxhdr_t *rxh);

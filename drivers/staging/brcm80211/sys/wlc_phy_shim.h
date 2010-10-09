@@ -108,8 +108,5 @@ extern void wlapi_copyto_objmem(wlc_phy_shim_info_t *physhim, uint,
 
 extern void wlapi_high_update_phy_mode(wlc_phy_shim_info_t *physhim,
 				       u32 phy_mode);
-extern void wlapi_bmac_pktengtx(wlc_phy_shim_info_t *physhim,
-				wl_pkteng_t *pkteng, u8 rate,
-				struct ether_addr *sa, u32 wait_delay);
 extern u16 wlapi_bmac_get_txant(wlc_phy_shim_info_t *physhim);
 #endif				/* _wlc_phy_shim_h_ */

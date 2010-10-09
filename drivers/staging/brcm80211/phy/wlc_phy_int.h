@@ -776,7 +776,6 @@ struct phy_info {
 	uint phycal_mlo;
 	uint phycal_txpower;
 
-	bool pkteng_in_progress;
 	u8 phy_aa2g;
 
 	bool nphy_tableloaded;

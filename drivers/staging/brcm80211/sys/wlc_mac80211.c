@@ -8347,66 +8347,6 @@ wlc_duty_cycle_set(wlc_info_t *wlc, int duty_cycle, bool isOFDM,
 	return BCME_OK;
 }
 
-void
-wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, u8 rate,
-	     struct ether_addr *sa, u32 wait_delay)
-{
-	bool suspend;
-	u16 val = M_PKTENG_MODE_TX;
-	volatile u16 frame_cnt_check;
-	u8 counter = 0;
-
-	wlc_bmac_set_deaf(wlc->hw, TRUE);
-
-	suspend =
-	    (0 == (R_REG(wlc->hw->osh, &wlc->regs->maccontrol) & MCTL_EN_MAC));
-	if (suspend)
-		wlc_enable_mac(wlc);
-
-	/* set nframes */
-	if (pkteng->nframes) {
-		/* retry counter is used to replay the packet */
-		wlc_bmac_write_shm(wlc->hw, M_PKTENG_FRMCNT_LO,
-				   (pkteng->nframes & 0xffff));
-		wlc_bmac_write_shm(wlc->hw, M_PKTENG_FRMCNT_HI,
-				   ((pkteng->nframes >> 16) & 0xffff));
-		val |= M_PKTENG_FRMCNT_VLD;
-	}
-
-	if (pkteng->length) {
-		/* DATA frame */
-		wlc_bmac_write_shm(wlc->hw, M_PKTENG_CTRL, val);
-		/* we write to M_MFGTEST_IFS the IFS required in 1/8us factor */
-		/* 10 : for factoring difference b/w Tx.crs and energy in air */
-		/* 44 : amount of time spent after TX_RRSP to frame start */
-		/* IFS */
-		wlc_bmac_write_shm(wlc->hw, M_PKTENG_IFS,
-				   (pkteng->delay - 10) * 8 - 44);
-	} else {
-		/* CTS frame */
-		val |= M_PKTENG_MODE_TX_CTS;
-		wlc_bmac_write_shm(wlc->hw, M_PKTENG_IFS,
-				   (u16) pkteng->delay);
-		wlc_bmac_write_shm(wlc->hw, M_PKTENG_CTRL, val);
-	}
-
-	/* Wait for packets to finish */
-	frame_cnt_check = wlc_bmac_read_shm(wlc->hw, M_PKTENG_FRMCNT_LO);
-	while ((counter < 100) && (frame_cnt_check != 0)) {
-		OSL_DELAY(100);
-		frame_cnt_check =
-		    wlc_bmac_read_shm(wlc->hw, M_PKTENG_FRMCNT_LO);
-		counter++;
-	}
-
-	wlc_bmac_write_shm(wlc->hw, M_PKTENG_CTRL, 0);
-
-	if (suspend)
-		wlc_suspend_mac_and_wait(wlc);
-
-	wlc_bmac_set_deaf(wlc->hw, FALSE);
-}
-
 /* Read a single u16 from shared memory.
  * SHM 'offset' needs to be an even address
  */

@@ -1973,16 +1973,6 @@ typedef struct wl_pkt_filter_stats {
 	u32 num_pkts_discarded;	/* # packets discarded by dongle for all filters */
 } wl_pkt_filter_stats_t;
 
-typedef struct wl_pkteng {
-	u32 flags;
-	u32 delay;		/* Inter-packet delay */
-	u32 nframes;		/* Number of frames */
-	u32 length;		/* Packet length */
-	u8 seqno;		/* Enable/disable sequence no. */
-	struct ether_addr dest;	/* Destination address */
-	struct ether_addr src;	/* Source address */
-} wl_pkteng_t;
-
 #define	WLC_RSSI_INVALID	 0	/* invalid RSSI value */
 
 /* require default structure packing */

@@ -244,10 +244,3 @@ wlapi_copyto_objmem(wlc_phy_shim_info_t *physhim, uint offset, const void *buf,
 {
 	wlc_bmac_copyto_objmem(physhim->wlc_hw, offset, buf, l, sel);
 }
-
-void
-wlapi_bmac_pktengtx(wlc_phy_shim_info_t *physhim, wl_pkteng_t *pkteng,
-		    u8 rate, struct ether_addr *sa, u32 wait_delay)
-{
-	wlc_pktengtx(physhim->wlc, pkteng, rate, sa, wait_delay);
-}

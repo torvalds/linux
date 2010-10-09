@@ -2990,7 +2990,7 @@ void wlc_phy_watchdog(wlc_phy_t *pih)
 			    (SCAN_RM_IN_PROGRESS(pi) || PLT_INPROG_PHY(pi)
 			     || ASSOC_INPROG_PHY(pi)
 			     || pi->carrier_suppr_disable
-			     || pi->pkteng_in_progress || pi->disable_percal))
+			     || pi->disable_percal))
 				wlc_lcnphy_calib_modes(pi,
 						       PHY_PERICAL_WATCHDOG);
 		}
