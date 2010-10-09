@@ -661,13 +661,6 @@
 #define LVDS			0x61180
 #define LVDS_ON			(1<<31)
 
-#define ADPA			0x61100
-#define ADPA_DPMS_MASK		(~(3<<10))
-#define ADPA_DPMS_ON		(0<<10)
-#define ADPA_DPMS_SUSPEND	(1<<10)
-#define ADPA_DPMS_STANDBY	(2<<10)
-#define ADPA_DPMS_OFF		(3<<10)
-
 /* Scratch pad debug 0 reg:
  */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_I830	0x001f0000
@@ -1199,6 +1192,7 @@
 #define   ADPA_DPMS_SUSPEND	(1<<10)
 #define   ADPA_DPMS_STANDBY	(2<<10)
 #define   ADPA_DPMS_OFF		(3<<10)
+
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		0x61110
