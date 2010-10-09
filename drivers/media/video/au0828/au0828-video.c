@@ -1116,6 +1116,13 @@ static ssize_t au0828_v4l2_read(struct file *filp, char __user *buf,
 		if (!res_get(fh, AU0828_RESOURCE_VBI))
 			return -EBUSY;
 
+		if (dev->vbi_timeout_running == 0) {
+			/* Handle case where caller tries to read without
+			   calling streamon first */
+			dev->vbi_timeout_running = 1;
+			mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
+		}
+
 		return videobuf_read_stream(&fh->vb_vbiq, buf, count, pos, 0,
 					    filp->f_flags & O_NONBLOCK);
 	}
