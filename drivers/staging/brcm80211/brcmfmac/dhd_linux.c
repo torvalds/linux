@@ -217,7 +217,7 @@ typedef struct dhd_if {
 	u8 mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
 	bool attached;		/* Delayed attachment when unset */
 	bool txflowcontrol;	/* Per interface flow control indicator */
-	char name[IFNAMSIZ + 1];	/* linux interface name */
+	char name[IFNAMSIZ];	/* linux interface name */
 } dhd_if_t;
 
 /* Local private structure (extension of pub) */
@@ -1871,8 +1871,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	memset(ifp, 0, sizeof(dhd_if_t));
 	ifp->info = dhd;
 	dhd->iflist[ifidx] = ifp;
-	strncpy(ifp->name, name, IFNAMSIZ);
-	ifp->name[IFNAMSIZ] = '\0';
+	strlcpy(ifp->name, name, IFNAMSIZ);
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETHER_ADDR_LEN);
 
