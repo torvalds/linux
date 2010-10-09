@@ -23,6 +23,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -239,9 +240,8 @@ typedef struct dhd_info {
 	/* Thread based operation */
 	bool threads_only;
 	struct semaphore sdsem;
-	long watchdog_pid;
+	struct task_struct *watchdog_tsk;
 	struct semaphore watchdog_sem;
-	struct completion watchdog_exited;
 	long dpc_pid;
 	struct semaphore dpc_sem;
 	struct completion dpc_exited;
@@ -1306,10 +1306,10 @@ static int dhd_watchdog_thread(void *data)
 	}
 #endif				/* DHD_SCHED */
 
-	DAEMONIZE("dhd_watchdog");
-
 	/* Run until signal received */
 	while (1) {
+		if (kthread_should_stop())
+			break;
 		if (down_interruptible(&dhd->watchdog_sem) == 0) {
 			if (dhd->pub.dongle_reset == FALSE) {
 				WAKE_LOCK(&dhd->pub, WAKE_LOCK_WATCHDOG);
@@ -1324,14 +1324,14 @@ static int dhd_watchdog_thread(void *data)
 	}
 
 	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_WATCHDOG);
-	complete_and_exit(&dhd->watchdog_exited, 0);
+	return 0;
 }
 
 static void dhd_watchdog(unsigned long data)
 {
 	dhd_info_t *dhd = (dhd_info_t *) data;
 
-	if (dhd->watchdog_pid >= 0) {
+	if (dhd->watchdog_tsk) {
 		up(&dhd->watchdog_sem);
 
 		/* Reschedule the watchdog */
@@ -2004,10 +2004,15 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize watchdog thread */
 		sema_init(&dhd->watchdog_sem, 0);
-		init_completion(&dhd->watchdog_exited);
-		dhd->watchdog_pid = kernel_thread(dhd_watchdog_thread, dhd, 0);
+		dhd->watchdog_tsk = kthread_run(dhd_watchdog_thread, dhd,
+						"dhd_watchdog");
+		if (IS_ERR(dhd->watchdog_tsk)) {
+			printk(KERN_WARNING
+				"dhd_watchdog thread failed to start\n");
+			dhd->watchdog_tsk = NULL;
+		}
 	} else {
-		dhd->watchdog_pid = -1;
+		dhd->watchdog_tsk = NULL;
 	}
 
 	/* Set up the bottom half handler */
@@ -2334,9 +2339,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 				unregister_netdev(ifp->net);
 			}
 
-			if (dhd->watchdog_pid >= 0) {
-				KILL_PROC(dhd->watchdog_pid, SIGTERM);
-				wait_for_completion(&dhd->watchdog_exited);
+			if (dhd->watchdog_tsk) {
+				kthread_stop(dhd->watchdog_tsk);
+				dhd->watchdog_tsk = NULL;
 			}
 
 			if (dhd->dpc_pid >= 0) {
