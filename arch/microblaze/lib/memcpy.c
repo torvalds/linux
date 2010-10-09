@@ -93,7 +93,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 		case 0x1:	/* Unaligned - Off by 1 */
 			/* Word align the source */
 			i_src = (const void *) ((unsigned)src & ~3);
-
+#ifndef __MICROBLAZEEL__
 			/* Load the holding buffer */
 			buf_hold = *i_src++ << 8;
 
@@ -102,7 +102,16 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 				*i_dst++ = buf_hold | value >> 24;
 				buf_hold = value << 8;
 			}
+#else
+			/* Load the holding buffer */
+			buf_hold = (*i_src++ & 0xFFFFFF00) >>8;
 
+			for (; c >= 4; c -= 4) {
+				value = *i_src++;
+				*i_dst++ = buf_hold | ((value & 0xFF) << 24);
+				buf_hold = (value & 0xFFFFFF00) >>8;
+			}
+#endif
 			/* Realign the source */
 			src = (const void *)i_src;
 			src -= 3;
@@ -110,7 +119,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 		case 0x2:	/* Unaligned - Off by 2 */
 			/* Word align the source */
 			i_src = (const void *) ((unsigned)src & ~3);
-
+#ifndef __MICROBLAZEEL__
 			/* Load the holding buffer */
 			buf_hold = *i_src++ << 16;
 
@@ -119,7 +128,16 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 				*i_dst++ = buf_hold | value >> 16;
 				buf_hold = value << 16;
 			}
+#else
+			/* Load the holding buffer */
+			buf_hold = (*i_src++ & 0xFFFF0000 )>>16;
 
+			for (; c >= 4; c -= 4) {
+				value = *i_src++;
+				*i_dst++ = buf_hold | ((value & 0xFFFF)<<16);
+				buf_hold = (value & 0xFFFF0000) >>16;
+			}
+#endif
 			/* Realign the source */
 			src = (const void *)i_src;
 			src -= 2;
@@ -127,7 +145,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 		case 0x3:	/* Unaligned - Off by 3 */
 			/* Word align the source */
 			i_src = (const void *) ((unsigned)src & ~3);
-
+#ifndef __MICROBLAZEEL__
 			/* Load the holding buffer */
 			buf_hold = *i_src++ << 24;
 
@@ -136,7 +154,16 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 				*i_dst++ = buf_hold | value >> 8;
 				buf_hold = value << 24;
 			}
+#else
+			/* Load the holding buffer */
+			buf_hold = (*i_src++ & 0xFF000000) >> 24;
 
+			for (; c >= 4; c -= 4) {
+				value = *i_src++;
+				*i_dst++ = buf_hold | ((value & 0xFFFFFF) << 8);
+				buf_hold = (value & 0xFF000000) >> 24;
+			}
+#endif
 			/* Realign the source */
 			src = (const void *)i_src;
 			src -= 1;
