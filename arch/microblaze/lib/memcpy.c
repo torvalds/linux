@@ -33,17 +33,24 @@
 #include <asm/system.h>
 
 #ifdef __HAVE_ARCH_MEMCPY
+#ifndef CONFIG_OPT_LIB_FUNCTION
 void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 {
 	const char *src = v_src;
 	char *dst = v_dst;
-#ifndef CONFIG_OPT_LIB_FUNCTION
+
 	/* Simple, byte oriented memcpy. */
 	while (c--)
 		*dst++ = *src++;
 
 	return v_dst;
-#else
+}
+#else /* CONFIG_OPT_LIB_FUNCTION */
+void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
+{
+	const char *src = v_src;
+	char *dst = v_dst;
+
 	/* The following code tries to optimize the copy by using unsigned
 	 * alignment. This will work fine if both source and destination are
 	 * aligned on the same boundary. However, if they are aligned on
@@ -150,7 +157,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 	}
 
 	return v_dst;
-#endif
 }
+#endif /* CONFIG_OPT_LIB_FUNCTION */
 EXPORT_SYMBOL(memcpy);
 #endif /* __HAVE_ARCH_MEMCPY */
