@@ -18,6 +18,7 @@
 
 #include <typedefs.h>
 #include <linuxver.h>
+#include <linux/kthread.h>
 #include <osl.h>
 
 #include <bcmutils.h>
@@ -107,13 +108,6 @@ static wlc_ssid_t g_specific_ssid;
 
 static wlc_ssid_t g_ssid;
 
-#define DAEMONIZE(a) \
-	do { \
-		daemonize(a); \
-		allow_signal(SIGKILL); \
-		allow_signal(SIGTERM); \
-	} while (0)
-
 #if defined(WL_IW_USE_ISCAN)
 #define ISCAN_STATE_IDLE   0
 #define ISCAN_STATE_SCANING 1
@@ -133,9 +127,8 @@ typedef struct iscan_info {
 	iscan_buf_t *list_hdr;
 	iscan_buf_t *list_cur;
 
-	long sysioc_pid;
+	struct task_struct *sysioc_tsk;
 	struct semaphore sysioc_sem;
-	struct completion sysioc_exited;
 
 #if defined CSCAN
 	char ioctlbuf[WLC_IOCTL_MEDLEN];
@@ -966,7 +959,7 @@ wl_iw_iscan_get_aplist(struct net_device *dev,
 	if (!extra)
 		return -EINVAL;
 
-	if ((!iscan) || (iscan->sysioc_pid < 0)) {
+	if ((!iscan) || (!iscan->sysioc_tsk)) {
 		WL_ERROR(("%s error\n", __func__));
 		return 0;
 	}
@@ -1184,10 +1177,11 @@ static int _iscan_sysioc_thread(void *data)
 	u32 status;
 	iscan_info_t *iscan = (iscan_info_t *) data;
 	static bool iscan_pass_abort = FALSE;
-	DAEMONIZE("iscan_sysioc");
 
 	status = WL_SCAN_RESULTS_PARTIAL;
 	while (down_interruptible(&iscan->sysioc_sem) == 0) {
+		if (kthread_should_stop())
+			break;
 
 		if (iscan->timer_on) {
 			del_timer_sync(&iscan->timer);
@@ -1250,7 +1244,7 @@ static int _iscan_sysioc_thread(void *data)
 		del_timer_sync(&iscan->timer);
 		iscan->timer_on = 0;
 	}
-	complete_and_exit(&iscan->sysioc_exited, 0);
+	return 0;
 }
 #endif				/* WL_IW_USE_ISCAN */
 
@@ -1370,7 +1364,7 @@ wl_iw_iscan_set_scan(struct net_device *dev,
 	}
 #endif
 
-	if ((!iscan) || (iscan->sysioc_pid < 0))
+	if ((!iscan) || (!iscan->sysioc_tsk))
 		return wl_iw_set_scan(dev, info, wrqu, extra);
 
 	if (g_scan_specified_ssid) {
@@ -1751,8 +1745,8 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if ((!iscan) || (iscan->sysioc_pid < 0)) {
-		WL_ERROR(("%ssysioc_pid\n", __func__));
+	if ((!iscan) || (!iscan->sysioc_tsk)) {
+		WL_ERROR(("%ssysioc_tsk\n", __func__));
 		return wl_iw_get_scan(dev, info, dwrq, extra);
 	}
 
@@ -3518,7 +3512,7 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 
 	case WLC_E_SCAN_COMPLETE:
 #if defined(WL_IW_USE_ISCAN)
-		if ((g_iscan) && (g_iscan->sysioc_pid > 0) &&
+		if ((g_iscan) && (g_iscan->sysioc_tsk) &&
 		    (g_iscan->iscan_state != ISCAN_STATE_IDLE)) {
 			up(&g_iscan->sysioc_sem);
 		} else {
@@ -3704,7 +3698,7 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 	if (!iscan->iscan_ex_params_p)
 		return -ENOMEM;
 	iscan->iscan_ex_param_size = params_size;
-	iscan->sysioc_pid = -1;
+	iscan->sysioc_tsk = NULL;
 
 	g_iscan = iscan;
 	iscan->dev = dev;
@@ -3716,10 +3710,12 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 	iscan->timer.function = wl_iw_timerfunc;
 
 	sema_init(&iscan->sysioc_sem, 0);
-	init_completion(&iscan->sysioc_exited);
-	iscan->sysioc_pid = kernel_thread(_iscan_sysioc_thread, iscan, 0);
-	if (iscan->sysioc_pid < 0)
+	iscan->sysioc_tsk = kthread_run(_iscan_sysioc_thread, iscan,
+					"_iscan_sysioc");
+	if (IS_ERR(iscan->sysioc_tsk)) {
+		iscan->sysioc_tsk = NULL;
 		return -ENOMEM;
+	}
 #endif				/* defined(WL_IW_USE_ISCAN) */
 
 	iw = *(wl_iw_t **) netdev_priv(dev);
@@ -3750,10 +3746,11 @@ void wl_iw_detach(void)
 
 	if (!iscan)
 		return;
-	if (iscan->sysioc_pid >= 0) {
-		KILL_PROC(iscan->sysioc_pid, SIGTERM);
-		wait_for_completion(&iscan->sysioc_exited);
+	if (iscan->sysioc_tsk) {
+		kthread_stop(iscan->sysioc_tsk);
+		iscan->sysioc_tsk = NULL;
 	}
+
 	MUTEX_LOCK_WL_SCAN_SET();
 	while (iscan->list_hdr) {
 		buf = iscan->list_hdr->next;
