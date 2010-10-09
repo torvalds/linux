@@ -148,6 +148,20 @@ ENDPROC(ret_from_fork)
 	adr	r0, .Lftrace_stub
 	cmp	r0, r2
 	bne	1f
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	ldr     r1, =ftrace_graph_return
+	ldr     r2, [r1]
+	cmp     r0, r2
+	bne     ftrace_graph_caller\suffix
+
+	ldr     r1, =ftrace_graph_entry
+	ldr     r2, [r1]
+	ldr     r0, =ftrace_graph_entry_stub
+	cmp     r0, r2
+	bne     ftrace_graph_caller\suffix
+#endif
+
 	mcount_exit
 
 1: 	mcount_get_lr	r1			@ lr of instrumented func
@@ -169,6 +183,15 @@ ENDPROC(ret_from_fork)
 ftrace_call\suffix:
 	bl	ftrace_stub
 
+	mcount_exit
+.endm
+
+.macro __ftrace_graph_caller
+	sub	r0, fp, #4		@ &lr of instrumented routine (&parent)
+	mov	r1, lr			@ instrumented routine (func)
+	sub	r1, r1, #MCOUNT_INSN_SIZE
+	mov	r2, fp			@ frame pointer
+	bl	prepare_ftrace_return
 	mcount_exit
 .endm
 
@@ -204,6 +227,12 @@ ENDPROC(mcount)
 ENTRY(ftrace_caller_old)
 	__ftrace_caller _old
 ENDPROC(ftrace_caller_old)
+#endif
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(ftrace_graph_caller_old)
+	__ftrace_graph_caller
+ENDPROC(ftrace_graph_caller_old)
 #endif
 
 .purgem mcount_enter
@@ -244,9 +273,26 @@ ENTRY(ftrace_caller)
 ENDPROC(ftrace_caller)
 #endif
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(ftrace_graph_caller)
+	__ftrace_graph_caller
+ENDPROC(ftrace_graph_caller)
+#endif
+
 .purgem mcount_enter
 .purgem mcount_get_lr
 .purgem mcount_exit
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.globl return_to_handler
+return_to_handler:
+	stmdb	sp!, {r0-r3}
+	mov	r0, fp			@ frame pointer
+	bl	ftrace_return_to_handler
+	mov	lr, r0			@ r0 has real ret addr
+	ldmia	sp!, {r0-r3}
+	mov	pc, lr
+#endif
 
 ENTRY(ftrace_stub)
 .Lftrace_stub:
