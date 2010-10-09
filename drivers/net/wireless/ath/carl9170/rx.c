@@ -576,6 +576,41 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 	}
 }
 
+static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms)
+{
+	__le16 fc;
+
+	if ((ms & AR9170_RX_STATUS_MPDU) == AR9170_RX_STATUS_MPDU_SINGLE) {
+		/*
+		 * This frame is not part of an aMPDU.
+		 * Therefore it is not subjected to any
+		 * of the following content restrictions.
+		 */
+		return true;
+	}
+
+	/*
+	 * "802.11n - 7.4a.3 A-MPDU contents" describes in which contexts
+	 * certain frame types can be part of an aMPDU.
+	 *
+	 * In order to keep the processing cost down, I opted for a
+	 * stateless filter solely based on the frame control field.
+	 */
+
+	fc = ((struct ieee80211_hdr *)buf)->frame_control;
+	if (ieee80211_is_data_qos(fc) && ieee80211_is_data_present(fc))
+		return true;
+
+	if (ieee80211_is_ack(fc) || ieee80211_is_back(fc) ||
+	    ieee80211_is_back_req(fc))
+		return true;
+
+	if (ieee80211_is_action(fc))
+		return true;
+
+	return false;
+}
+
 /*
  * If the frame alignment is right (or the kernel has
  * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS), and there
@@ -594,6 +629,7 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	struct ieee80211_rx_status status;
 	struct sk_buff *skb;
 	int mpdu_len;
+	u8 mac_status;
 
 	if (!IS_STARTED(ar))
 		return;
@@ -604,7 +640,8 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	mpdu_len = len - sizeof(*mac);
 
 	mac = (void *)(buf + mpdu_len);
-	switch (mac->status & AR9170_RX_STATUS_MPDU) {
+	mac_status = mac->status;
+	switch (mac_status & AR9170_RX_STATUS_MPDU) {
 	case AR9170_RX_STATUS_MPDU_FIRST:
 		/* Aggregated MPDUs start with an PLCP header */
 		if (likely(mpdu_len >= sizeof(struct ar9170_rx_head))) {
@@ -691,6 +728,9 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 
 	memset(&status, 0, sizeof(status));
 	if (unlikely(carl9170_rx_mac_status(ar, head, mac, &status)))
+		goto drop;
+
+	if (!carl9170_ampdu_check(ar, buf, mac_status))
 		goto drop;
 
 	if (phy)
