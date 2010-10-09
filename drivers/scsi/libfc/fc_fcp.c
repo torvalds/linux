@@ -1971,10 +1971,8 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		break;
 	}
 
-	if (lport->state != LPORT_ST_READY && fsp->status_code != FC_COMPLETE) {
-		sc_cmd->result = (DID_REQUEUE << 16);
-		FC_FCP_DBG(fsp, "Returning DID_REQUEUE to scsi-ml\n");
-	}
+	if (lport->state != LPORT_ST_READY && fsp->status_code != FC_COMPLETE)
+		sc_cmd->result = (DID_TRANSPORT_DISRUPTED << 16);
 
 	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 	list_del(&fsp->list);
