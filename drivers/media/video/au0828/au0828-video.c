@@ -122,6 +122,7 @@ static void au0828_irq_callback(struct urb *urb)
 {
 	struct au0828_dmaqueue  *dma_q = urb->context;
 	struct au0828_dev *dev = container_of(dma_q, struct au0828_dev, vidq);
+	unsigned long flags = 0;
 	int rc, i;
 
 	switch (urb->status) {
@@ -139,9 +140,9 @@ static void au0828_irq_callback(struct urb *urb)
 	}
 
 	/* Copy data from URB */
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 	rc = dev->isoc_ctl.isoc_copy(dev, urb);
-	spin_unlock(&dev->slock);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
@@ -312,9 +313,6 @@ static inline void buffer_filled(struct au0828_dev *dev,
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
-
-	/* Reset the timer for "no video condition" */
-	mod_timer(&dev->vid_timeout, jiffies + (HZ / 10));
 }
 
 static inline void vbi_buffer_filled(struct au0828_dev *dev,
@@ -332,9 +330,6 @@ static inline void vbi_buffer_filled(struct au0828_dev *dev,
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
-
-	/* Reset the timer for "no video condition" */
-	mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
 }
 
 /*
@@ -603,6 +598,15 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 					outp = NULL;
 				else
 					outp = videobuf_to_vmalloc(&buf->vb);
+
+				/* As long as isoc traffic is arriving, keep
+				   resetting the timer */
+				if (dev->vid_timeout_running)
+					mod_timer(&dev->vid_timeout,
+						  jiffies + (HZ / 10));
+				if (dev->vbi_timeout_running)
+					mod_timer(&dev->vbi_timeout,
+						  jiffies + (HZ / 10));
 			}
 
 			if (buf != NULL) {
@@ -922,18 +926,22 @@ void au0828_vid_buffer_timeout(unsigned long data)
 	struct au0828_dmaqueue *dma_q = &dev->vidq;
 	struct au0828_buffer *buf;
 	unsigned char *vid_data;
+	unsigned long flags = 0;
 
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 
 	buf = dev->isoc_ctl.buf;
 	if (buf != NULL) {
 		vid_data = videobuf_to_vmalloc(&buf->vb);
 		memset(vid_data, 0x00, buf->vb.size); /* Blank green frame */
 		buffer_filled(dev, dma_q, buf);
-		get_next_buf(dma_q, &buf);
 	}
+	get_next_buf(dma_q, &buf);
 
-	spin_unlock(&dev->slock);
+	if (dev->vid_timeout_running == 1)
+		mod_timer(&dev->vid_timeout, jiffies + (HZ / 10));
+
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 void au0828_vbi_buffer_timeout(unsigned long data)
@@ -942,18 +950,21 @@ void au0828_vbi_buffer_timeout(unsigned long data)
 	struct au0828_dmaqueue *dma_q = &dev->vbiq;
 	struct au0828_buffer *buf;
 	unsigned char *vbi_data;
+	unsigned long flags = 0;
 
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 
 	buf = dev->isoc_ctl.vbi_buf;
 	if (buf != NULL) {
 		vbi_data = videobuf_to_vmalloc(&buf->vb);
 		memset(vbi_data, 0x00, buf->vb.size);
 		vbi_buffer_filled(dev, dma_q, buf);
-		vbi_get_next_buf(dma_q, &buf);
 	}
+	vbi_get_next_buf(dma_q, &buf);
 
-	spin_unlock(&dev->slock);
+	if (dev->vbi_timeout_running == 1)
+		mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 
@@ -1026,16 +1037,6 @@ static int au0828_v4l2_open(struct file *filp)
 				    V4L2_FIELD_SEQ_TB,
 				    sizeof(struct au0828_buffer), fh, NULL);
 
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		dev->vid_timeout.function = au0828_vid_buffer_timeout;
-		dev->vid_timeout.data = (unsigned long) dev;
-		init_timer(&dev->vid_timeout);
-	} else {
-		dev->vbi_timeout.function = au0828_vbi_buffer_timeout;
-		dev->vbi_timeout.data = (unsigned long) dev;
-		init_timer(&dev->vbi_timeout);
-	}
-
 	return ret;
 }
 
@@ -1046,13 +1047,19 @@ static int au0828_v4l2_close(struct file *filp)
 	struct au0828_dev *dev = fh->dev;
 
 	if (res_check(fh, AU0828_RESOURCE_VIDEO)) {
-		del_timer(&dev->vid_timeout);
+		/* Cancel timeout thread in case they didn't call streamoff */
+		dev->vid_timeout_running = 0;
+		del_timer_sync(&dev->vid_timeout);
+
 		videobuf_stop(&fh->vb_vidq);
 		res_free(fh, AU0828_RESOURCE_VIDEO);
 	}
 
 	if (res_check(fh, AU0828_RESOURCE_VBI)) {
-		del_timer(&dev->vbi_timeout);
+		/* Cancel timeout thread in case they didn't call streamoff */
+		dev->vbi_timeout_running = 0;
+		del_timer_sync(&dev->vbi_timeout);
+
 		videobuf_stop(&fh->vb_vbiq);
 		res_free(fh, AU0828_RESOURCE_VBI);
 	}
@@ -1638,10 +1645,15 @@ static int vidioc_streamon(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 1);
 	}
 
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		rc = videobuf_streamon(&fh->vb_vidq);
-	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		dev->vid_timeout_running = 1;
+		mod_timer(&dev->vid_timeout, jiffies + (HZ / 10));
+	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		rc = videobuf_streamon(&fh->vb_vbiq);
+		dev->vbi_timeout_running = 1;
+		mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
+	}
 
 	return rc;
 }
@@ -1668,6 +1680,9 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		fh, type, fh->resources, dev->resources);
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		dev->vid_timeout_running = 0;
+		del_timer_sync(&dev->vid_timeout);
+
 		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 		rc = au0828_stream_interrupt(dev);
 		if (rc != 0)
@@ -1682,6 +1697,9 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		videobuf_streamoff(&fh->vb_vidq);
 		res_free(fh, AU0828_RESOURCE_VIDEO);
 	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		dev->vbi_timeout_running = 0;
+		del_timer_sync(&dev->vbi_timeout);
+
 		videobuf_streamoff(&fh->vb_vbiq);
 		res_free(fh, AU0828_RESOURCE_VBI);
 	}
@@ -1900,6 +1918,14 @@ int au0828_analog_register(struct au0828_dev *dev,
 	INIT_LIST_HEAD(&dev->vidq.queued);
 	INIT_LIST_HEAD(&dev->vbiq.active);
 	INIT_LIST_HEAD(&dev->vbiq.queued);
+
+	dev->vid_timeout.function = au0828_vid_buffer_timeout;
+	dev->vid_timeout.data = (unsigned long) dev;
+	init_timer(&dev->vid_timeout);
+
+	dev->vbi_timeout.function = au0828_vbi_buffer_timeout;
+	dev->vbi_timeout.data = (unsigned long) dev;
+	init_timer(&dev->vbi_timeout);
 
 	dev->width = NTSC_STD_W;
 	dev->height = NTSC_STD_H;

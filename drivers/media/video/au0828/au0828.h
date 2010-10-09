@@ -205,7 +205,9 @@ struct au0828_dev {
 	struct video_device *vdev;
 	struct video_device *vbi_dev;
 	struct timer_list vid_timeout;
+	int vid_timeout_running;
 	struct timer_list vbi_timeout;
+	int vbi_timeout_running;
 	int width;
 	int height;
 	int vbi_width;
