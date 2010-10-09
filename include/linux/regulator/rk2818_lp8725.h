@@ -42,5 +42,5 @@ struct lp8725_platform_data {
 	int num_regulators;
 	struct lp8725_regulator_subdev *regulators;
 };
-
+extern int rk2818_lp8725_pm_control(void);
 #endif

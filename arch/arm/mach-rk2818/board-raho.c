@@ -370,6 +370,17 @@ struct pca9554_platform_data rk2818_pca9554_data={
  *author: cym
 *****************************************************************************************/
 #if defined (CONFIG_RK2818_REGULATOR_LP8725)
+
+/*DVS pin control, make sure it is high level at start.*/
+int rk2818_lp8725_pm_control(void)
+{
+	rk2818_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
+	gpio_request(RK2818_PIN_PC2,NULL);
+	gpio_direction_output(RK2818_PIN_PC2,1);
+	gpio_set_value(RK2818_PIN_PC2,1);
+	return 0;
+}
+
 /*ldo1 2V8OUT USB2.5V LCD_VCC*/
 static struct regulator_consumer_supply ldo1_consumers[] = {
 	{

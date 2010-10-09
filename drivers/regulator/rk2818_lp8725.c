@@ -922,10 +922,7 @@ static int __devinit lp8725_i2c_probe(struct i2c_client *i2c, const struct i2c_d
 
 	//DVS pin control, make sure it is high level at start.
 	#ifdef PM_CONTROL
-	rk2818_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
-	ret=gpio_request(RK2818_PIN_PC2,NULL);
-	gpio_direction_output(RK2818_PIN_PC2,1);
-	gpio_set_value(RK2818_PIN_PC2,1);
+	rk2818_lp8725_pm_control();
 	#endif
 	lp8725_set_init();
 
