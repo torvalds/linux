@@ -236,20 +236,20 @@ static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret;
+	int ret = -ENODEV;
 
-	if (!vdev->fops->ioctl)
-		return -ENOTTY;
 	if (vdev->fops->unlocked_ioctl) {
 		if (vdev->lock)
 			mutex_lock(vdev->lock);
-		ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
+		if (video_is_registered(vdev))
+			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
 		if (vdev->lock)
 			mutex_unlock(vdev->lock);
 	} else if (vdev->fops->ioctl) {
 		/* TODO: convert all drivers to unlocked_ioctl */
 		lock_kernel();
-		ret = vdev->fops->ioctl(filp, cmd, arg);
+		if (video_is_registered(vdev))
+			ret = vdev->fops->ioctl(filp, cmd, arg);
 		unlock_kernel();
 	} else
 		ret = -ENOTTY;
