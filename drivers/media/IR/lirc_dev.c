@@ -161,6 +161,9 @@ static struct file_operations fops = {
 	.write		= lirc_dev_fop_write,
 	.poll		= lirc_dev_fop_poll,
 	.unlocked_ioctl	= lirc_dev_fop_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_dev_fop_ioctl,
+#endif
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
 };
@@ -527,6 +530,11 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	__u32 mode;
 	int result = 0;
 	struct irctl *ir = file->private_data;
+
+	if (!ir) {
+		printk(KERN_ERR "lirc_dev: %s: no irctl found!\n", __func__);
+		return -ENODEV;
+	}
 
 	dev_dbg(ir->d.dev, LOGHEAD "ioctl called (0x%x)\n",
 		ir->d.name, ir->d.minor, cmd);

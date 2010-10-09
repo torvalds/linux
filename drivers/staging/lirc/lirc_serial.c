@@ -1053,6 +1053,9 @@ static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= lirc_write,
 	.unlocked_ioctl	= lirc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_ioctl,
+#endif
 	.read		= lirc_dev_fop_read,
 	.poll		= lirc_dev_fop_poll,
 	.open		= lirc_dev_fop_open,

@@ -1139,6 +1139,9 @@ static const struct file_operations lirc_fops = {
 	.write		= write,
 	.poll		= poll,
 	.unlocked_ioctl	= ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ioctl,
+#endif
 	.open		= open,
 	.release	= close
 };

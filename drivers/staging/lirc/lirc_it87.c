@@ -339,6 +339,9 @@ static const struct file_operations lirc_fops = {
 	.write		= lirc_write,
 	.poll		= lirc_poll,
 	.unlocked_ioctl	= lirc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_ioctl,
+#endif
 	.open		= lirc_open,
 	.release	= lirc_close,
 };
