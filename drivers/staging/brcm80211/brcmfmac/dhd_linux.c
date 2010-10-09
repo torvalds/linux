@@ -333,8 +333,6 @@ uint dhd_radio_up = 1;
 char iface_name[IFNAMSIZ];
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
-#define BLOCKABLE()	(!in_atomic())
-
 /* The following are specific to the SDIO dongle */
 
 /* IOCTL response timeout */
