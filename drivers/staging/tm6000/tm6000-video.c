@@ -791,16 +791,11 @@ static struct videobuf_queue_ops tm6000_video_qops = {
 static int res_get(struct tm6000_core *dev, struct tm6000_fh *fh)
 {
 	/* is it free? */
-	mutex_lock(&dev->lock);
-	if (dev->resources) {
-		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
+	if (dev->resources)
 		return 0;
-	}
 	/* it's free, grab it */
 	dev->resources =1;
 	dprintk(dev, V4L2_DEBUG_RES_LOCK, "res: get\n");
-	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -811,10 +806,8 @@ static int res_locked(struct tm6000_core *dev)
 
 static void res_free(struct tm6000_core *dev, struct tm6000_fh *fh)
 {
-	mutex_lock(&dev->lock);
 	dev->resources = 0;
 	dprintk(dev, V4L2_DEBUG_RES_LOCK, "res: put\n");
-	mutex_unlock(&dev->lock);
 }
 
 /* ------------------------------------------------------------------
@@ -1229,10 +1222,8 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
 
-//	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, f);
-//	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1308,7 +1299,7 @@ static int tm6000_open(struct file *file)
 			NULL, &dev->slock,
 			fh->type,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct tm6000_buffer), fh, NULL);
+			sizeof(struct tm6000_buffer), fh, &dev->lock);
 
 	return 0;
 }
@@ -1389,7 +1380,7 @@ static struct v4l2_file_operations tm6000_fops = {
 	.owner		= THIS_MODULE,
 	.open           = tm6000_open,
 	.release        = tm6000_release,
-	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
+	.unlocked_ioctl	= video_ioctl2, /* V4L2 ioctl handler */
 	.read           = tm6000_read,
 	.poll		= tm6000_poll,
 	.mmap		= tm6000_mmap,
@@ -1451,8 +1442,10 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
 
-	memcpy (dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
-	dev->vfd->debug=tm6000_debug;
+	memcpy(dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
+	dev->vfd->debug = tm6000_debug;
+	dev->vfd->lock = &dev->lock;
+
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	video_set_drvdata(vfd, dev);
 

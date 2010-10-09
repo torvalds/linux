@@ -313,10 +313,8 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	 * beginning, we needed to add this hack. The better would be to
 	 * discover some way to make tm6000 to wake up without this hack.
 	 */
-	mutex_lock(&dev->lock);
 	f.frequency = dev->freq;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
-	mutex_unlock(&dev->lock);
 
 	msleep(100);
 	tm6000_set_standard(dev, &dev->norm);
