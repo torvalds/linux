@@ -362,24 +362,23 @@ int lirc_unregister_driver(int minor)
 	struct irctl *ir;
 
 	if (minor < 0 || minor >= MAX_IRCTL_DEVICES) {
-		printk(KERN_ERR "lirc_dev: lirc_unregister_driver: "
-		       "\"minor (%d)\" must be between 0 and %d!\n",
-		       minor, MAX_IRCTL_DEVICES-1);
+		printk(KERN_ERR "lirc_dev: %s: minor (%d) must be between "
+		       "0 and %d!\n", __func__, minor, MAX_IRCTL_DEVICES-1);
 		return -EBADRQC;
 	}
 
 	ir = irctls[minor];
 	if (!ir) {
-		printk(KERN_ERR "lirc_dev: lirc_unregister_driver: "
-		       "failed to get irctl struct for minor %d!", minor);
+		printk(KERN_ERR "lirc_dev: %s: failed to get irctl struct "
+		       "for minor %d!\n", __func__, minor);
 		return -ENOENT;
 	}
 
 	mutex_lock(&lirc_dev_lock);
 
 	if (ir->d.minor != minor) {
-		printk(KERN_ERR "lirc_dev: lirc_unregister_driver: "
-		       "minor (%d) device not registered!", minor);
+		printk(KERN_ERR "lirc_dev: %s: minor (%d) device not "
+		       "registered!\n", __func__, minor);
 		mutex_unlock(&lirc_dev_lock);
 		return -ENOENT;
 	}
