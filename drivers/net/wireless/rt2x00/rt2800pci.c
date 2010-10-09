@@ -573,7 +573,7 @@ static void rt2800pci_kick_tx_queue(struct data_queue *queue)
 {
 	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	unsigned int qidx = 0;
+	unsigned int qidx;
 
 	if (queue->qid == QID_MGMT)
 		qidx = 5;
