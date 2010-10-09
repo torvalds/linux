@@ -78,6 +78,9 @@ struct stv090x_config {
 	u32 ts1_clk;
 	u32 ts2_clk;
 
+	u8 ts1_tei : 1;
+	u8 ts2_tei : 1;
+
 	enum stv090x_i2crpt	repeater_level;
 
 	u8			tuner_bbgain; /* default: 10db */

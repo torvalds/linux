@@ -4169,6 +4169,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 	switch (state->config->ts1_mode) {
 	case STV090x_TSMODE_PARALLEL_PUNCTURED:
 		reg = stv090x_read_reg(state, STV090x_P1_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts1_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x00);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x00);
 		if (stv090x_write_reg(state, STV090x_P1_TSCFGH, reg) < 0)
@@ -4177,6 +4178,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 
 	case STV090x_TSMODE_DVBCI:
 		reg = stv090x_read_reg(state, STV090x_P1_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts1_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x00);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x01);
 		if (stv090x_write_reg(state, STV090x_P1_TSCFGH, reg) < 0)
@@ -4185,6 +4187,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 
 	case STV090x_TSMODE_SERIAL_PUNCTURED:
 		reg = stv090x_read_reg(state, STV090x_P1_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts1_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x01);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x00);
 		if (stv090x_write_reg(state, STV090x_P1_TSCFGH, reg) < 0)
@@ -4193,6 +4196,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 
 	case STV090x_TSMODE_SERIAL_CONTINUOUS:
 		reg = stv090x_read_reg(state, STV090x_P1_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts1_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x01);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x01);
 		if (stv090x_write_reg(state, STV090x_P1_TSCFGH, reg) < 0)
@@ -4206,6 +4210,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 	switch (state->config->ts2_mode) {
 	case STV090x_TSMODE_PARALLEL_PUNCTURED:
 		reg = stv090x_read_reg(state, STV090x_P2_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts2_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x00);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x00);
 		if (stv090x_write_reg(state, STV090x_P2_TSCFGH, reg) < 0)
@@ -4214,6 +4219,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 
 	case STV090x_TSMODE_DVBCI:
 		reg = stv090x_read_reg(state, STV090x_P2_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts2_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x00);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x01);
 		if (stv090x_write_reg(state, STV090x_P2_TSCFGH, reg) < 0)
@@ -4222,6 +4228,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 
 	case STV090x_TSMODE_SERIAL_PUNCTURED:
 		reg = stv090x_read_reg(state, STV090x_P2_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts2_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x01);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x00);
 		if (stv090x_write_reg(state, STV090x_P2_TSCFGH, reg) < 0)
@@ -4230,6 +4237,7 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 
 	case STV090x_TSMODE_SERIAL_CONTINUOUS:
 		reg = stv090x_read_reg(state, STV090x_P2_TSCFGH);
+		STV090x_SETFIELD_Px(reg, TSFIFO_TEIUPDATE_FIELD, state->config->ts2_tei);
 		STV090x_SETFIELD_Px(reg, TSFIFO_SERIAL_FIELD, 0x01);
 		STV090x_SETFIELD_Px(reg, TSFIFO_DVBCI_FIELD, 0x01);
 		if (stv090x_write_reg(state, STV090x_P2_TSCFGH, reg) < 0)
