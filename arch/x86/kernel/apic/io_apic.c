@@ -1565,11 +1565,11 @@ void setup_IO_APIC_irq_extra(u32 gsi)
 		return;
 
 	irq = pin_2_irq(idx, apic_id, pin);
-#ifdef CONFIG_SPARSE_IRQ
-	desc = irq_to_desc(irq);
-	if (desc)
+
+	/* Only handle the non legacy irqs on secondary ioapics */
+	if (apic_id == 0 || irq < NR_IRQS_LEGACY)
 		return;
-#endif
+
 	desc = irq_to_desc_alloc_node(irq, node);
 	if (!desc) {
 		printk(KERN_INFO "can not get irq_desc for %d\n", irq);
