@@ -2429,6 +2429,6 @@ EXPORT_SYMBOL_GPL(o2hb_get_all_regions);
 
 int o2hb_global_heartbeat_active(void)
 {
-	return 0;
+	return (o2hb_heartbeat_mode == O2HB_HEARTBEAT_GLOBAL);
 }
 EXPORT_SYMBOL(o2hb_global_heartbeat_active);

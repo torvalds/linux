@@ -135,7 +135,7 @@ static DECLARE_WAIT_QUEUE_HEAD(dlm_domain_events);
  */
 static const struct dlm_protocol_version dlm_protocol = {
 	.pv_major = 1,
-	.pv_minor = 0,
+	.pv_minor = 1,
 };
 
 #define DLM_DOMAIN_BACKOFF_MS 200
