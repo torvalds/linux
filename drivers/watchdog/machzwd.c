@@ -143,7 +143,7 @@ static unsigned long next_heartbeat;
 #ifndef ZF_DEBUG
 #	define dprintk(format, args...)
 #else
-#	define dprintk(format, args...) printk(KERN_DEBUG PFX
+#	define dprintk(format, args...) printk(KERN_DEBUG PFX \
 				":%s:%d: " format, __func__, __LINE__ , ## args)
 #endif
 
