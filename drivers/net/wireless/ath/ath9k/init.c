@@ -481,6 +481,10 @@ static int ath9k_init_channels_rates(struct ath_softc *sc)
 {
 	void *channels;
 
+	BUILD_BUG_ON(ARRAY_SIZE(ath9k_2ghz_chantable) +
+		     ARRAY_SIZE(ath9k_5ghz_chantable) !=
+		     ATH9K_NUM_CHANNELS);
+
 	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes)) {
 		channels = kmemdup(ath9k_2ghz_chantable,
 			sizeof(ath9k_2ghz_chantable), GFP_KERNEL);
