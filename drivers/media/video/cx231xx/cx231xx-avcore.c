@@ -1539,7 +1539,7 @@ u32 cx231xx_Get_Colibri_CarrierOffset(u32 mode, u32 standerd)
 
 	if (mode == TUNER_MODE_FM_RADIO) {
 		colibri_carrier_offset = 1100000;
-	} else if (standerd & (V4L2_STD_NTSC | V4L2_STD_NTSC_M_JP)) {
+	} else if (standerd & (V4L2_STD_MN | V4L2_STD_NTSC_M_JP)) {
 		colibri_carrier_offset = 4832000;  /*4.83MHz	*/
 	} else if (standerd & (V4L2_STD_PAL_B | V4L2_STD_PAL_G)) {
 		colibri_carrier_offset = 2700000;  /*2.70MHz       */
