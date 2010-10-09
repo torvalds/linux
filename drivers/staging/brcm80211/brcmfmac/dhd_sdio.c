@@ -2397,15 +2397,15 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		{
 			*(char *)arg = 0;
 
-			bcmstrcat(arg, "\nFunc 0\n");
+			strcat(arg, "\nFunc 0\n");
 			bcmsdh_cis_read(bus->sdh, 0x10,
 					(u8 *) arg + strlen(arg),
 					SBSDIO_CIS_SIZE_LIMIT);
-			bcmstrcat(arg, "\nFunc 1\n");
+			strcat(arg, "\nFunc 1\n");
 			bcmsdh_cis_read(bus->sdh, 0x11,
 					(u8 *) arg + strlen(arg),
 					SBSDIO_CIS_SIZE_LIMIT);
-			bcmstrcat(arg, "\nFunc 2\n");
+			strcat(arg, "\nFunc 2\n");
 			bcmsdh_cis_read(bus->sdh, 0x12,
 					(u8 *) arg + strlen(arg),
 					SBSDIO_CIS_SIZE_LIMIT);

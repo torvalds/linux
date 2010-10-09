@@ -967,7 +967,7 @@ void print_buf(void *pbuf, int len, int bytes_per_line)
 	printf("\n");
 }
 
-#define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
+#define strtoul(nptr, endptr, base) simple_strtoul((nptr), (endptr), (base))
 
 /* Convert user's input in hex pattern to byte-size mask */
 static int wl_pattern_atoh(char *src, char *dst)
