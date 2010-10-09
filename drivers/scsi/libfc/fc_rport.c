@@ -196,9 +196,9 @@ static const char *fc_rport_state(struct fc_rport_priv *rdata)
 void fc_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
 {
 	if (timeout)
-		rport->dev_loss_tmo = timeout + 5;
+		rport->dev_loss_tmo = timeout;
 	else
-		rport->dev_loss_tmo = 30;
+		rport->dev_loss_tmo = 1;
 }
 EXPORT_SYMBOL(fc_set_rport_loss_tmo);
 
