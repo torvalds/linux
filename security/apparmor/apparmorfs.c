@@ -29,7 +29,7 @@
  * aa_simple_write_to_buffer - common routine for getting policy from user
  * @op: operation doing the user buffer copy
  * @userbuf: user buffer to copy data from  (NOT NULL)
- * @alloc_size: size of user buffer
+ * @alloc_size: size of user buffer (REQUIRES: @alloc_size >= @copy_size)
  * @copy_size: size of data to copy from user buffer
  * @pos: position write is at in the file (NOT NULL)
  *
@@ -41,6 +41,8 @@ static char *aa_simple_write_to_buffer(int op, const char __user *userbuf,
 				       loff_t *pos)
 {
 	char *data;
+
+	BUG_ON(copy_size > alloc_size);
 
 	if (*pos != 0)
 		/* only writes from pos 0, that is complete writes */
