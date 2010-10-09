@@ -653,18 +653,14 @@ wl_iw_get_range(struct net_device *dev,
 	range->enc_capa = IW_ENC_CAPA_WPA;
 	range->enc_capa |= IW_ENC_CAPA_CIPHER_TKIP;
 	range->enc_capa |= IW_ENC_CAPA_CIPHER_CCMP;
-#ifdef BCMWPA2
 	range->enc_capa |= IW_ENC_CAPA_WPA2;
-#endif
 
 	IW_EVENT_CAPA_SET_KERNEL(range->event_capa);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVTXDROP);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVMICHAELMICFAILURE);
-#ifdef BCMWPA2
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVPMKIDCAND);
-#endif
 #endif				/* WIRELESS_EXT > 17 */
 
 	kfree(channels);
@@ -1457,7 +1453,6 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 		u8 *ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 		int ptr_len = bi->ie_length;
 
-#ifdef BCMWPA2
 		ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID);
 		if (ie) {
 			iwe.cmd = IWEVGENIE;
@@ -1467,7 +1462,6 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 						 (char *)ie);
 		}
 		ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
-#endif
 
 		while ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_WPA_ID))) {
 			if (ie_is_wps_ie(((u8 **)&ie), &ptr, &ptr_len)) {
@@ -2634,7 +2628,6 @@ wl_iw_set_encodeext(struct net_device *dev,
 }
 
 #if WIRELESS_EXT > 17
-#ifdef BCMWPA2
 struct {
 	pmkid_list_t pmkids;
 	pmkid_t foo[MAXPMKID - 1];
@@ -2750,7 +2743,6 @@ wl_iw_set_pmksa(struct net_device *dev,
 					 sizeof(pmkid_list));
 	return ret;
 }
-#endif				/* BCMWPA2 */
 #endif				/* WIRELESS_EXT > 17 */
 
 static int
@@ -2787,10 +2779,8 @@ wl_iw_set_wpaauth(struct net_device *dev,
 			val = WPA_AUTH_DISABLED;
 		else if (paramval & (IW_AUTH_WPA_VERSION_WPA))
 			val = WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED;
-#ifdef BCMWPA2
 		else if (paramval & IW_AUTH_WPA_VERSION_WPA2)
 			val = WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED;
-#endif
 		WL_INFORM(("%s: %d: setting wpa_auth to 0x%0x\n", __func__,
 			   __LINE__, val));
 		error = dev_wlc_intvar_set(dev, "wpa_auth", val);
@@ -2850,14 +2840,12 @@ wl_iw_set_wpaauth(struct net_device *dev,
 			else
 				val = WPA_AUTH_UNSPECIFIED;
 		}
-#ifdef BCMWPA2
 		else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
 			if (paramval & IW_AUTH_KEY_MGMT_PSK)
 				val = WPA2_AUTH_PSK;
 			else
 				val = WPA2_AUTH_UNSPECIFIED;
 		}
-#endif
 		WL_INFORM(("%s: %d: setting wpa_auth to %d\n", __func__,
 			   __LINE__, val));
 		error = dev_wlc_intvar_set(dev, "wpa_auth", val);
@@ -2968,11 +2956,7 @@ wl_iw_set_wpaauth(struct net_device *dev,
 	return 0;
 }
 
-#ifdef BCMWPA2
 #define VAL_PSK(_val) (((_val) & WPA_AUTH_PSK) || ((_val) & WPA2_AUTH_PSK))
-#else
-#define VAL_PSK(_val) (((_val) & WPA_AUTH_PSK))
-#endif
 
 static int
 wl_iw_get_wpaauth(struct net_device *dev,
@@ -2998,10 +2982,8 @@ wl_iw_get_wpaauth(struct net_device *dev,
 			paramval = IW_AUTH_WPA_VERSION_DISABLED;
 		else if (val & (WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED))
 			paramval = IW_AUTH_WPA_VERSION_WPA;
-#ifdef BCMWPA2
 		else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED))
 			paramval = IW_AUTH_WPA_VERSION_WPA2;
-#endif
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
@@ -3156,9 +3138,7 @@ static const iw_handler wl_iw_handler[] = {
 	(iw_handler) wl_iw_get_wpaauth,
 	(iw_handler) wl_iw_set_encodeext,
 	(iw_handler) wl_iw_get_encodeext,
-#ifdef BCMWPA2
 	(iw_handler) wl_iw_set_pmksa,
-#endif
 #endif				/* WIRELESS_EXT > 17 */
 };
 
@@ -3498,7 +3478,6 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 
 			break;
 		}
-#ifdef BCMWPA2
 	case WLC_E_PMKID_CACHE:
 		{
 			if (data) {
@@ -3535,7 +3514,6 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 			}
 			return;
 		}
-#endif				/* BCMWPA2 */
 #endif				/* WIRELESS_EXT > 17 */
 
 	case WLC_E_SCAN_COMPLETE:
