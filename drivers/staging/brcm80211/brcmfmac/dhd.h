@@ -21,7 +21,6 @@
 #ifndef _dhd_h_
 #define _dhd_h_
 
-#if defined(LINUX)
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -38,14 +37,6 @@
 #include <linux/wakelock.h>
 #endif			/* defined (CONFIG_HAS_WAKELOCK) */
 /* The kernel threading is sdio-specific */
-#else				/* LINUX */
-#define ENOMEM		1
-#define EFAULT      2
-#define EINVAL		3
-#define EIO			4
-#define ETIMEDOUT	5
-#define ERESTARTSYS 6
-#endif				/* LINUX */
 
 #include <wlioctl.h>
 
