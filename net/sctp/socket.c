@@ -916,6 +916,11 @@ SCTP_STATIC int sctp_setsockopt_bindx(struct sock* sk,
 	/* Walk through the addrs buffer and count the number of addresses. */
 	addr_buf = kaddrs;
 	while (walk_size < addrs_size) {
+		if (walk_size + sizeof(sa_family_t) > addrs_size) {
+			kfree(kaddrs);
+			return -EINVAL;
+		}
+
 		sa_addr = (struct sockaddr *)addr_buf;
 		af = sctp_get_af_specific(sa_addr->sa_family);
 
@@ -1002,9 +1007,13 @@ static int __sctp_connect(struct sock* sk,
 	/* Walk through the addrs buffer and count the number of addresses. */
 	addr_buf = kaddrs;
 	while (walk_size < addrs_size) {
+		if (walk_size + sizeof(sa_family_t) > addrs_size) {
+			err = -EINVAL;
+			goto out_free;
+		}
+
 		sa_addr = (union sctp_addr *)addr_buf;
 		af = sctp_get_af_specific(sa_addr->sa.sa_family);
-		port = ntohs(sa_addr->v4.sin_port);
 
 		/* If the address family is not supported or if this address
 		 * causes the address buffer to overflow return EINVAL.
@@ -1013,6 +1022,8 @@ static int __sctp_connect(struct sock* sk,
 			err = -EINVAL;
 			goto out_free;
 		}
+
+		port = ntohs(sa_addr->v4.sin_port);
 
 		/* Save current address so we can work with it */
 		memcpy(&to, sa_addr, af->sockaddr_len);
