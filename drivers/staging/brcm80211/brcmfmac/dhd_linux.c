@@ -242,9 +242,8 @@ typedef struct dhd_info {
 	struct semaphore sdsem;
 	struct task_struct *watchdog_tsk;
 	struct semaphore watchdog_sem;
-	long dpc_pid;
+	struct task_struct *dpc_tsk;
 	struct semaphore dpc_sem;
-	struct completion dpc_exited;
 
 	/* Thread to issue ioctl for multicast */
 	long sysioc_pid;
@@ -1371,10 +1370,10 @@ static int dhd_dpc_thread(void *data)
 	}
 #endif				/* DHD_SCHED */
 
-	DAEMONIZE("dhd_dpc");
-
 	/* Run until signal received */
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		if (down_interruptible(&dhd->dpc_sem) == 0) {
 			/* Call bus dpc unless it indicated down
 				 (then clean stop) */
@@ -1394,8 +1393,7 @@ static int dhd_dpc_thread(void *data)
 	}
 
 	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_DPC);
-
-	complete_and_exit(&dhd->dpc_exited, 0);
+	return 0;
 }
 
 static void dhd_dpc(unsigned long data)
@@ -1417,7 +1415,7 @@ void dhd_sched_dpc(dhd_pub_t *dhdp)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
 
-	if (dhd->dpc_pid >= 0) {
+	if (dhd->dpc_tsk) {
 		up(&dhd->dpc_sem);
 		return;
 	}
@@ -2019,11 +2017,15 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize DPC thread */
 		sema_init(&dhd->dpc_sem, 0);
-		init_completion(&dhd->dpc_exited);
-		dhd->dpc_pid = kernel_thread(dhd_dpc_thread, dhd, 0);
+		dhd->dpc_tsk = kthread_run(dhd_dpc_thread, dhd, "dhd_dpc");
+		if (IS_ERR(dhd->dpc_tsk)) {
+			printk(KERN_WARNING
+				"dhd_dpc thread failed to start\n");
+			dhd->dpc_tsk = NULL;
+		}
 	} else {
 		tasklet_init(&dhd->tasklet, dhd_dpc, (unsigned long) dhd);
-		dhd->dpc_pid = -1;
+		dhd->dpc_tsk = NULL;
 	}
 
 	if (dhd_sysioc) {
@@ -2344,10 +2346,11 @@ void dhd_detach(dhd_pub_t *dhdp)
 				dhd->watchdog_tsk = NULL;
 			}
 
-			if (dhd->dpc_pid >= 0) {
-				KILL_PROC(dhd->dpc_pid, SIGTERM);
-				wait_for_completion(&dhd->dpc_exited);
-			} else
+			if (dhd->dpc_tsk) {
+				kthread_stop(dhd->dpc_tsk);
+				dhd->dpc_tsk = NULL;
+			}
+			else
 				tasklet_kill(&dhd->tasklet);
 
 			if (dhd->sysioc_pid >= 0) {
