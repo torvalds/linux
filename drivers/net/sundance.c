@@ -365,7 +365,6 @@ struct netdev_private {
 	struct timer_list timer;		/* Media monitoring timer. */
 	/* Frequently used values: keep some adjacent for cache effect. */
 	spinlock_t lock;
-	spinlock_t rx_lock;			/* Group with Tx control cache line. */
 	int msg_enable;
 	int chip_id;
 	unsigned int cur_rx, dirty_rx;		/* Producer/consumer ring indices */
@@ -390,6 +389,7 @@ struct netdev_private {
 	unsigned char phys[MII_CNT];		/* MII device addresses, only first one used. */
 	struct pci_dev *pci_dev;
 	void __iomem *base;
+	spinlock_t statlock;
 };
 
 /* The station address location in the EEPROM. */
@@ -514,6 +514,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	np->chip_id = chip_idx;
 	np->msg_enable = (1 << debug) - 1;
 	spin_lock_init(&np->lock);
+	spin_lock_init(&np->statlock);
 	tasklet_init(&np->rx_tasklet, rx_poll, (unsigned long)dev);
 	tasklet_init(&np->tx_tasklet, tx_poll, (unsigned long)dev);
 
@@ -1486,10 +1487,9 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 	int i;
+	unsigned long flags;
 
-	/* We should lock this segment of code for SMP eventually, although
-	   the vulnerability window is very small and statistics are
-	   non-critical. */
+	spin_lock_irqsave(&np->statlock, flags);
 	/* The chip only need report frame silently dropped. */
 	dev->stats.rx_missed_errors	+= ioread8(ioaddr + RxMissed);
 	dev->stats.tx_packets += ioread16(ioaddr + TxFramesOK);
@@ -1505,6 +1505,8 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	dev->stats.tx_bytes += ioread16(ioaddr + TxOctetsHigh) << 16;
 	dev->stats.rx_bytes += ioread16(ioaddr + RxOctetsLow);
 	dev->stats.rx_bytes += ioread16(ioaddr + RxOctetsHigh) << 16;
+
+	spin_unlock_irqrestore(&np->statlock, flags);
 
 	return &dev->stats;
 }
