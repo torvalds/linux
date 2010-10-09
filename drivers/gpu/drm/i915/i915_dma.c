@@ -2231,6 +2231,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->mchdev_lock = &mchdev_lock;
 	spin_unlock(&mchdev_lock);
 
+	/* XXX Prevent module unload due to memory corruption bugs. */
+	__module_get(THIS_MODULE);
+
 	return 0;
 
 out_workqueue_free:
