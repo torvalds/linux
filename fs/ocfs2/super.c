@@ -2149,7 +2149,9 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 
-	if (ocfs2_userspace_stack(osb)) {
+	if (ocfs2_clusterinfo_valid(osb)) {
+		osb->osb_stackflags =
+			OCFS2_RAW_SB(di)->s_cluster_info.ci_stackflags;
 		memcpy(osb->osb_cluster_stack,
 		       OCFS2_RAW_SB(di)->s_cluster_info.ci_stack,
 		       OCFS2_STACK_LABEL_LEN);
