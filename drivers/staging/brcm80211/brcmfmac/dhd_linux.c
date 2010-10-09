@@ -45,9 +45,7 @@
 #include <dhd_proto.h>
 #include <dhd_dbg.h>
 
-#ifdef CONFIG_CFG80211
 #include <wl_cfg80211.h>
-#endif
 
 #define EPI_VERSION_STR         "4.218.248.5"
 
@@ -359,11 +357,9 @@ module_param(dhd_idletime, int, 0);
 uint dhd_poll = FALSE;
 module_param(dhd_poll, uint, 0);
 
-#ifdef CONFIG_CFG80211
 /* Use cfg80211 */
 uint dhd_cfg80211 = TRUE;
 module_param(dhd_cfg80211, uint, 0);
-#endif
 
 /* Use interrupts */
 uint dhd_intr = TRUE;
@@ -393,12 +389,10 @@ uint dhd_pktgen_len;
 module_param(dhd_pktgen_len, uint, 0);
 #endif
 
-#ifdef CONFIG_CFG80211
 #define FAVORITE_WIFI_CP	(!!dhd_cfg80211)
 #define IS_CFG80211_FAVORITE() FAVORITE_WIFI_CP
 #define DBG_CFG80211_GET() ((dhd_cfg80211 & WL_DBG_MASK) >> 1)
 #define NO_FW_REQ() (dhd_cfg80211 & 0x80)
-#endif
 
 /* Version string to report */
 #ifdef DHD_DEBUG
@@ -1771,11 +1765,9 @@ static int dhd_stop(struct net_device *net)
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
 
 	DHD_TRACE(("%s: Enter\n", __func__));
-#ifdef CONFIG_CFG80211
 	if (IS_CFG80211_FAVORITE()) {
 		wl_cfg80211_down();
 	}
-#endif
 	if (dhd->pub.up == 0)
 		return 0;
 
@@ -1825,7 +1817,6 @@ static int dhd_open(struct net_device *net)
 	/* Allow transmit calls */
 	netif_start_queue(net);
 	dhd->pub.up = 1;
-#ifdef CONFIG_CFG80211
 	if (IS_CFG80211_FAVORITE()) {
 		if (unlikely(wl_cfg80211_up())) {
 			DHD_ERROR(("%s: failed to bring up cfg80211\n",
@@ -1833,7 +1824,6 @@ static int dhd_open(struct net_device *net)
 			return -1;
 		}
 	}
-#endif
 
 	return ret;
 }
@@ -1984,9 +1974,8 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		DHD_ERROR(("wl_iw_attach failed\n"));
 		goto fail;
 	}
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
+#endif	/* defined(CONFIG_WIRELESS_EXT) */
 
-#ifdef CONFIG_CFG80211
 	/* Attach and link in the cfg80211 */
 	if (IS_CFG80211_FAVORITE()) {
 		if (unlikely(wl_cfg80211_attach(net, &dhd->pub))) {
@@ -1999,7 +1988,6 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		}
 		wl_cfg80211_dbg_level(DBG_CFG80211_GET());
 	}
-#endif
 
 	/* Set up the watchdog timer */
 	init_timer(&dhd->timer);
@@ -2263,9 +2251,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	net->ethtool_ops = &dhd_ethtool_ops;
 
 #if defined(CONFIG_WIRELESS_EXT)
-#if defined(CONFIG_CFG80211)
 	if (!IS_CFG80211_FAVORITE()) {
-#endif
 #if WIRELESS_EXT < 19
 		net->get_wireless_stats = dhd_get_wireless_stats;
 #endif				/* WIRELESS_EXT < 19 */
@@ -2273,9 +2259,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 		net->wireless_handlers =
 		    (struct iw_handler_def *)&wl_iw_handler_def;
 #endif				/* WIRELESS_EXT > 12 */
-#if defined(CONFIG_CFG80211)
 	}
-#endif
 #endif				/* defined(CONFIG_WIRELESS_EXT) */
 
 	dhd->pub.rxsz = net->mtu + net->hard_header_len + dhd->pub.hdrlen;
@@ -2375,10 +2359,8 @@ void dhd_detach(dhd_pub_t *dhdp)
 			wl_iw_detach();
 #endif				/* (CONFIG_WIRELESS_EXT) */
 
-#ifdef CONFIG_CFG80211
 			if (IS_CFG80211_FAVORITE())
 				wl_cfg80211_detach();
-#endif				/* CONFIG_CFG80211 */
 
 #if defined(CONFIG_PM_SLEEP)
 			unregister_pm_notifier(&dhd_sleep_pm_notifier);
@@ -2588,10 +2570,8 @@ void *dhd_os_open_image(char *filename)
 {
 	struct file *fp;
 
-#ifdef CONFIG_CFG80211
 	if (IS_CFG80211_FAVORITE() && !NO_FW_REQ())
 		return wl_cfg80211_request_fw(filename);
-#endif
 
 	fp = filp_open(filename, O_RDONLY, 0);
 	/*
@@ -2611,10 +2591,8 @@ int dhd_os_get_image_block(char *buf, int len, void *image)
 	struct file *fp = (struct file *)image;
 	int rdlen;
 
-#ifdef CONFIG_CFG80211
 	if (IS_CFG80211_FAVORITE() && !NO_FW_REQ())
 		return wl_cfg80211_read_fw(buf, len);
-#endif
 
 	if (!image)
 		return 0;
@@ -2628,10 +2606,8 @@ int dhd_os_get_image_block(char *buf, int len, void *image)
 
 void dhd_os_close_image(void *image)
 {
-#ifdef CONFIG_CFG80211
 	if (IS_CFG80211_FAVORITE() && !NO_FW_REQ())
 		return wl_cfg80211_release_fw();
-#endif
 	if (image)
 		filp_close((struct file *)image, NULL);
 }
@@ -2743,9 +2719,7 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 		return bcmerror;
 
 #if defined(CONFIG_WIRELESS_EXT)
-#if defined(CONFIG_CFG80211)
 	if (!IS_CFG80211_FAVORITE()) {
-#endif
 		if ((dhd->iflist[*ifidx] == NULL)
 		    || (dhd->iflist[*ifidx]->net == NULL)) {
 			DHD_ERROR(("%s Exit null pointer\n", __func__));
@@ -2754,12 +2728,9 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 
 		if (dhd->iflist[*ifidx]->net)
 			wl_iw_event(dhd->iflist[*ifidx]->net, event, *data);
-#if defined(CONFIG_CFG80211)
 	}
-#endif
 #endif				/* defined(CONFIG_WIRELESS_EXT)  */
 
-#ifdef CONFIG_CFG80211
 	if (IS_CFG80211_FAVORITE()) {
 		ASSERT(dhd->iflist[*ifidx] != NULL);
 		ASSERT(dhd->iflist[*ifidx]->net != NULL);
@@ -2767,7 +2738,6 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 			wl_cfg80211_event(dhd->iflist[*ifidx]->net, event,
 					  *data);
 	}
-#endif
 
 	return bcmerror;
 }

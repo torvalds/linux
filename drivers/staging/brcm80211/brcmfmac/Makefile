@@ -23,7 +23,6 @@ ccflags-y :=			\
 	-DBCMSDIO		\
 	-DBDC			\
 	-DBRCM_FULLMAC		\
-	-DCONFIG_CFG80211	\
 	-DDHD_DEBUG		\
 	-DDHD_FIRSTREAD=64	\
 	-DDHD_SCHED		\

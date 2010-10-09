@@ -49,9 +49,7 @@
 #include <bcmsdh_sdmmc.h>
 
 #include <dhd_dbg.h>
-#ifdef CONFIG_CFG80211
 #include <wl_cfg80211.h>
-#endif
 
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
@@ -99,9 +97,7 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 	gInstance->func[func->num] = func;
 
 	if (func->num == 2) {
-#ifdef CONFIG_CFG80211
 		wl_cfg80211_sdio_func(func);
-#endif
 		sd_trace(("F2 found, calling bcmsdh_probe...\n"));
 		ret = bcmsdh_probe(&sdmmc_dev);
 	}
