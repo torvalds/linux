@@ -35,6 +35,7 @@
 #include <dhd.h>
 
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
@@ -2848,21 +2849,20 @@ static void wl_deinit_priv_mem(struct wl_priv *wl)
 static s32 wl_create_event_handler(struct wl_priv *wl)
 {
 	sema_init(&wl->event_sync, 0);
-	init_completion(&wl->event_exit);
-	wl->event_pid = kernel_thread(wl_event_handler, wl, 0);
-	if (unlikely(wl->event_pid < 0)) {
+	wl->event_tsk = kthread_run(wl_event_handler, wl, "wl_event_handler");
+	if (IS_ERR(wl->event_tsk)) {
+		wl->event_tsk = NULL;
 		WL_ERR(("failed to create event thread\n"));
 		return -ENOMEM;
 	}
-	WL_DBG(("pid %d\n", wl->event_pid));
 	return 0;
 }
 
 static void wl_destroy_event_handler(struct wl_priv *wl)
 {
-	if (wl->event_pid >= 0) {
-		KILL_PROC(wl->event_pid, SIGTERM);
-		wait_for_completion(&wl->event_exit);
+	if (wl->event_tsk) {
+		kthread_stop(wl->event_tsk);
+		wl->event_tsk = NULL;
 	}
 }
 
@@ -2870,11 +2870,10 @@ static void wl_term_iscan(struct wl_priv *wl)
 {
 	struct wl_iscan_ctrl *iscan = wl_to_iscan(wl);
 
-	if (wl->iscan_on && iscan->pid >= 0) {
+	if (wl->iscan_on && iscan->tsk) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
-		KILL_PROC(iscan->pid, SIGTERM);
-		wait_for_completion(&iscan->exited);
-		iscan->pid = -1;
+		kthread_stop(iscan->tsk);
+		iscan->tsk = NULL;
 	}
 }
 
@@ -3009,6 +3008,8 @@ static s32 wl_iscan_thread(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	status = WL_SCAN_RESULTS_PARTIAL;
 	while (likely(!down_interruptible(&iscan->sync))) {
+		if (kthread_should_stop())
+			break;
 		if (iscan->timer_on) {
 			del_timer_sync(&iscan->timer);
 			iscan->timer_on = 0;
@@ -3026,7 +3027,6 @@ static s32 wl_iscan_thread(void *data)
 		del_timer_sync(&iscan->timer);
 		iscan->timer_on = 0;
 	}
-	complete_and_exit(&iscan->exited, 0);
 
 	return 0;
 }
@@ -3047,13 +3047,13 @@ static s32 wl_invoke_iscan(struct wl_priv *wl)
 	struct wl_iscan_ctrl *iscan = wl_to_iscan(wl);
 	int err = 0;
 
-	if (wl->iscan_on && iscan->pid < 0) {
+	if (wl->iscan_on && !iscan->tsk) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
 		sema_init(&iscan->sync, 0);
-		init_completion(&iscan->exited);
-		iscan->pid = kernel_thread(wl_iscan_thread, iscan, 0);
-		if (unlikely(iscan->pid < 0)) {
+		iscan->tsk = kthread_run(wl_iscan_thread, iscan, "wl_iscan");
+		if (IS_ERR(iscan->tsk)) {
 			WL_ERR(("Could not create iscan thread\n"));
+			iscan->tsk = NULL;
 			return -ENOMEM;
 		}
 	}
@@ -3085,10 +3085,10 @@ static s32 wl_init_iscan(struct wl_priv *wl)
 		iscan->timer.data = (unsigned long) iscan;
 		iscan->timer.function = wl_iscan_timer;
 		sema_init(&iscan->sync, 0);
-		init_completion(&iscan->exited);
-		iscan->pid = kernel_thread(wl_iscan_thread, iscan, 0);
-		if (unlikely(iscan->pid < 0)) {
+		iscan->tsk = kthread_run(wl_iscan_thread, iscan, "wl_iscan");
+		if (IS_ERR(iscan->tsk)) {
 			WL_ERR(("Could not create iscan thread\n"));
+			iscan->tsk = NULL;
 			return -ENOMEM;
 		}
 		iscan->data = wl;
@@ -3228,6 +3228,8 @@ static s32 wl_event_handler(void *data)
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	while (likely(!down_interruptible(&wl->event_sync))) {
+		if(kthread_should_stop())
+			break;
 		e = wl_deq_event(wl);
 		if (unlikely(!e)) {
 			WL_ERR(("eqeue empty..\n"));
@@ -3242,7 +3244,7 @@ static s32 wl_event_handler(void *data)
 		}
 		wl_put_event(e);
 	}
-	complete_and_exit(&wl->event_exit, 0);
+	return 0;
 }
 
 void

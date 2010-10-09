@@ -247,9 +247,8 @@ struct wl_iscan_ctrl {
 	u32 timer_ms;
 	u32 timer_on;
 	s32 state;
-	s32 pid;
+	struct task_struct *tsk;
 	struct semaphore sync;
-	struct completion exited;
 	struct wl_iscan_eloop el;
 	void *data;
 	s8 ioctl_buf[WLC_IOCTL_SMLEN];
@@ -307,7 +306,6 @@ struct wl_priv {
 	struct ether_addr bssid;	/* bssid of currently engaged network */
 	struct semaphore event_sync;	/* for synchronization of main event
 					 thread */
-	struct completion event_exit;
 	struct wl_profile *profile;	/* holding dongle profile */
 	struct wl_iscan_ctrl *iscan;	/* iscan controller */
 	struct wl_connect_info conn_info;	/* association information
@@ -315,7 +313,7 @@ struct wl_priv {
 	struct wl_fw_ctrl *fw;	/* control firwmare / nvram paramter
 				 downloading */
 	struct wl_pmk_list *pmk_list;	/* wpa2 pmk list */
-	s32 event_pid;	/* pid of main event handler thread */
+	struct task_struct *event_tsk;	/* task of main event handler thread */
 	unsigned long status;		/* current dongle status */
 	void *pub;
 	u32 channel;		/* current channel */
