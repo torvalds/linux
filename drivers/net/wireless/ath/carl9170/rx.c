@@ -604,9 +604,6 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	mpdu_len = len - sizeof(*mac);
 
 	mac = (void *)(buf + mpdu_len);
-	if (unlikely(mac->error & AR9170_RX_ERROR_FATAL))
-		goto drop;
-
 	switch (mac->status & AR9170_RX_STATUS_MPDU) {
 	case AR9170_RX_STATUS_MPDU_FIRST:
 		/* Aggregated MPDUs start with an PLCP header */
