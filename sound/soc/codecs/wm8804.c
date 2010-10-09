@@ -720,8 +720,8 @@ static int __devinit wm8804_spi_probe(struct spi_device *spi)
 	int ret;
 
 	wm8804 = kzalloc(sizeof *wm8804, GFP_KERNEL);
-	if (IS_ERR(wm8804))
-		return PTR_ERR(wm8804);
+	if (!wm8804)
+		return -ENOMEM;
 
 	wm8804->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8804);
@@ -758,8 +758,8 @@ static __devinit int wm8804_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	wm8804 = kzalloc(sizeof *wm8804, GFP_KERNEL);
-	if (IS_ERR(wm8804))
-		return PTR_ERR(wm8804);
+	if (!wm8804)
+		return -ENOMEM;
 
 	wm8804->control_type = SND_SOC_I2C;
 	i2c_set_clientdata(i2c, wm8804);

@@ -1079,8 +1079,8 @@ static int __devinit wm8985_spi_probe(struct spi_device *spi)
 	int ret;
 
 	wm8985 = kzalloc(sizeof *wm8985, GFP_KERNEL);
-	if (IS_ERR(wm8985))
-		return PTR_ERR(wm8985);
+	if (!wm8985)
+		return -ENOMEM;
 
 	wm8985->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8985);
@@ -1117,8 +1117,8 @@ static __devinit int wm8985_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	wm8985 = kzalloc(sizeof *wm8985, GFP_KERNEL);
-	if (IS_ERR(wm8985))
-		return PTR_ERR(wm8985);
+	if (!wm8985)
+		return -ENOMEM;
 
 	wm8985->control_type = SND_SOC_I2C;
 	i2c_set_clientdata(i2c, wm8985);
