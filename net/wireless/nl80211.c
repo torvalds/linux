@@ -3153,6 +3153,21 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 pid, u32 seq,
 			    survey->noise);
 	if (survey->filled & SURVEY_INFO_IN_USE)
 		NLA_PUT_FLAG(msg, NL80211_SURVEY_INFO_IN_USE);
+	if (survey->filled & SURVEY_INFO_CHANNEL_TIME)
+		NLA_PUT_U64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME,
+			    survey->channel_time);
+	if (survey->filled & SURVEY_INFO_CHANNEL_TIME_BUSY)
+		NLA_PUT_U64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_BUSY,
+			    survey->channel_time_busy);
+	if (survey->filled & SURVEY_INFO_CHANNEL_TIME_EXT_BUSY)
+		NLA_PUT_U64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_EXT_BUSY,
+			    survey->channel_time_ext_busy);
+	if (survey->filled & SURVEY_INFO_CHANNEL_TIME_RX)
+		NLA_PUT_U64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_RX,
+			    survey->channel_time_rx);
+	if (survey->filled & SURVEY_INFO_CHANNEL_TIME_TX)
+		NLA_PUT_U64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_TX,
+			    survey->channel_time_tx);
 
 	nla_nest_end(msg, infoattr);
 
