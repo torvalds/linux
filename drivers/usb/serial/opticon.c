@@ -99,8 +99,8 @@ static void opticon_bulk_callback(struct urb *urb)
 				available_room = tty_buffer_request_room(tty,
 								data_length);
 				if (available_room) {
-					tty_insert_flip_string(tty, data,
-							       available_room);
+					tty_insert_flip_string(tty, data + 2,
+							       data_length);
 					tty_flip_buffer_push(tty);
 				}
 				tty_kref_put(tty);
@@ -134,7 +134,7 @@ exit:
 						  priv->bulk_address),
 				  priv->bulk_in_buffer, priv->buffer_size,
 				  opticon_bulk_callback, priv);
-		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
 			    "%s - failed resubmitting read urb, error %d\n",
