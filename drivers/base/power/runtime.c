@@ -281,7 +281,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 {
 	int (*callback)(struct device *);
 	struct device *parent = NULL;
-	bool notify = false;
 	int retval;
 
 	dev_dbg(dev, "%s flags 0x%x\n", __func__, rpmflags);
@@ -383,13 +382,10 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	if (retval) {
 		__update_runtime_status(dev, RPM_ACTIVE);
 		dev->power.deferred_resume = 0;
-		if (retval == -EAGAIN || retval == -EBUSY) {
-			if (dev->power.timer_expires == 0)
-				notify = true;
+		if (retval == -EAGAIN || retval == -EBUSY)
 			dev->power.runtime_error = 0;
-		} else {
+		else
 			pm_runtime_cancel_pending(dev);
-		}
 	} else {
  no_callback:
 		__update_runtime_status(dev, RPM_SUSPENDED);
@@ -407,9 +403,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		retval = -EAGAIN;
 		goto out;
 	}
-
-	if (notify)
-		rpm_idle(dev, 0);
 
 	if (parent && !parent->power.ignore_children) {
 		spin_unlock_irq(&dev->power.lock);
