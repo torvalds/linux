@@ -117,7 +117,8 @@ int sst_alloc_stream(char *params, unsigned int stream_ops,
 {
 	struct ipc_post *msg = NULL;
 	struct snd_sst_alloc_params alloc_param;
-	unsigned int pcm_slot = 0, num_ch, str_id;
+	unsigned int pcm_slot = 0, num_ch;
+	int str_id;
 	struct snd_sst_stream_params *sparams;
 	struct stream_info *str_info;
 
