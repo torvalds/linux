@@ -137,6 +137,32 @@ static int ulpi_set_flags(struct otg_transceiver *otg)
 	return ulpi_set_fc_flags(otg);
 }
 
+static int ulpi_check_integrity(struct otg_transceiver *otg)
+{
+	int ret, i;
+	unsigned int val = 0x55;
+
+	for (i = 0; i < 2; i++) {
+		ret = otg_io_write(otg, val, ULPI_SCRATCH);
+		if (ret < 0)
+			return ret;
+
+		ret = otg_io_read(otg, ULPI_SCRATCH);
+		if (ret < 0)
+			return ret;
+
+		if (ret != val) {
+			pr_err("ULPI integrity check: failed!");
+			return -ENODEV;
+		}
+		val = val << 1;
+	}
+
+	pr_info("ULPI integrity check: passed.\n");
+
+	return 0;
+}
+
 static int ulpi_init(struct otg_transceiver *otg)
 {
 	int i, vid, pid, ret;
@@ -155,10 +181,13 @@ static int ulpi_init(struct otg_transceiver *otg)
 
 	for (i = 0; i < ARRAY_SIZE(ulpi_ids); i++)
 		if (ulpi_ids[i] == ULPI_ID(vid, pid))
-			return ulpi_set_flags(otg);
+			break;
 
-	pr_err("ULPI ID does not match any known transceiver.\n");
-	return -ENODEV;
+	ret = ulpi_check_integrity(otg);
+	if (ret)
+		return ret;
+
+	return ulpi_set_flags(otg);
 }
 
 static int ulpi_set_host(struct otg_transceiver *otg, struct usb_bus *host)
