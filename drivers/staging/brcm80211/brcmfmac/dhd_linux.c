@@ -1664,7 +1664,7 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	/* Copy out any buffer passed */
 	if (ioc.buf) {
-		buflen = min(ioc.len, DHD_IOCTL_MAXLEN);
+		buflen = min_t(int, ioc.len, DHD_IOCTL_MAXLEN);
 		/* optimization for direct ioctl calls from kernel */
 		/*
 		   if (segment_eq(get_fs(), KERNEL_DS)) {
