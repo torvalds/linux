@@ -593,6 +593,8 @@ struct ath_softc {
 	struct delayed_work wiphy_work;
 	unsigned long wiphy_scheduler_int;
 	int wiphy_scheduler_index;
+	struct survey_info *cur_survey;
+	struct survey_info survey[ATH9K_NUM_CHANNELS];
 
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
