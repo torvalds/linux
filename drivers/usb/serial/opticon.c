@@ -108,10 +108,10 @@ static void opticon_bulk_callback(struct urb *urb)
 				else
 					priv->rts = true;
 			} else {
-			dev_dbg(&priv->udev->dev,
-				"Unknown data packet received from the device:"
-				" %2x %2x\n",
-				data[0], data[1]);
+				dev_dbg(&priv->udev->dev,
+					"Unknown data packet received from the device:"
+					" %2x %2x\n",
+					data[0], data[1]);
 			}
 		}
 	} else {
