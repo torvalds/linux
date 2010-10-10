@@ -27,8 +27,8 @@
 #include <linux/wl12xx.h>
 
 #include "wl1251.h"
-#include "wl1251_reg.h"
-#include "wl1251_spi.h"
+#include "reg.h"
+#include "spi.h"
 
 static irqreturn_t wl1251_irq(int irq, void *cookie)
 {

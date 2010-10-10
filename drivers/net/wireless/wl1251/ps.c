@@ -19,10 +19,10 @@
  *
  */
 
-#include "wl1251_reg.h"
-#include "wl1251_ps.h"
-#include "wl1251_cmd.h"
-#include "wl1251_io.h"
+#include "reg.h"
+#include "ps.h"
+#include "cmd.h"
+#include "io.h"
 
 /* in ms */
 #define WL1251_WAKEUP_TIMEOUT 100
