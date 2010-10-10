@@ -1052,6 +1052,12 @@ static void musb_shutdown(struct platform_device *pdev)
 		clk_put(musb->clock);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
+	if (!is_otg_enabled(musb) && is_host_enabled(musb))
+		usb_remove_hcd(musb_to_hcd(musb));
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+	musb_platform_exit(musb);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+
 	/* FIXME power down */
 }
 
@@ -2244,13 +2250,6 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
-	if (musb->board_mode == MUSB_HOST)
-		usb_remove_hcd(musb_to_hcd(musb));
-#endif
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
-	musb_platform_exit(musb);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	musb_free(musb);
 	iounmap(ctrl_base);
