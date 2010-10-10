@@ -262,6 +262,7 @@ struct rk2818_adckey_platform_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 	struct adc_key_data *adc_key;
+	const char *name;
 };
 
 struct  jgball_data {

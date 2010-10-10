@@ -279,7 +279,7 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		goto failed_free;
 	}
 
-	input_dev->name = pdev->name;
+	input_dev->name = pdata->name ? pdata->name : pdev->name;
 	//input_dev->id.bustype = BUS_HOST;
 	input_dev->open = rk28_adckey_open;
 	input_dev->close = rk28_adckey_close;

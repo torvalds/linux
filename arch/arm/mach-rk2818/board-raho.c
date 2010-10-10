@@ -2051,7 +2051,7 @@ static unsigned char gInitKeyCode[] =
 	ENDCALL,KEYSTART,KEY_WAKEUP,
 };
 
-struct adc_key_data rk2818_adc_key = {
+static struct adc_key_data rk2818_adc_key = {
     .pin_playon     = PLAY_ON_PIN,
     .playon_level   = PLAY_ON_LEVEL,
     .adc_empty      = 1000,
@@ -2065,6 +2065,7 @@ struct adc_key_data rk2818_adc_key = {
 
 struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
 	.adc_key = &rk2818_adc_key,
+	.name = "raho-keypad",
 };
 
 #if CONFIG_ANDROID_TIMED_GPIO
