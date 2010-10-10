@@ -459,66 +459,20 @@ static void prune_one_dentry(struct dentry * dentry)
 	}
 }
 
-/*
- * Shrink the dentry LRU on a given superblock.
- * @sb   : superblock to shrink dentry LRU.
- * @count: If count is NULL, we prune all dentries on superblock.
- * @flags: If flags is non-zero, we need to do special processing based on
- * which flags are set. This means we don't need to maintain multiple
- * similar copies of this loop.
- */
-static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
+static void shrink_dentry_list(struct list_head *list)
 {
-	LIST_HEAD(referenced);
-	LIST_HEAD(tmp);
 	struct dentry *dentry;
-	int cnt = 0;
 
-	BUG_ON(!sb);
-	BUG_ON((flags & DCACHE_REFERENCED) && count == NULL);
-	spin_lock(&dcache_lock);
-	if (count != NULL)
-		/* called from prune_dcache() and shrink_dcache_parent() */
-		cnt = *count;
-restart:
-	if (count == NULL)
-		list_splice_init(&sb->s_dentry_lru, &tmp);
-	else {
-		while (!list_empty(&sb->s_dentry_lru)) {
-			dentry = list_entry(sb->s_dentry_lru.prev,
-					struct dentry, d_lru);
-			BUG_ON(dentry->d_sb != sb);
-
-			spin_lock(&dentry->d_lock);
-			/*
-			 * If we are honouring the DCACHE_REFERENCED flag and
-			 * the dentry has this flag set, don't free it. Clear
-			 * the flag and put it back on the LRU.
-			 */
-			if ((flags & DCACHE_REFERENCED)
-				&& (dentry->d_flags & DCACHE_REFERENCED)) {
-				dentry->d_flags &= ~DCACHE_REFERENCED;
-				list_move(&dentry->d_lru, &referenced);
-				spin_unlock(&dentry->d_lock);
-			} else {
-				list_move_tail(&dentry->d_lru, &tmp);
-				spin_unlock(&dentry->d_lock);
-				cnt--;
-				if (!cnt)
-					break;
-			}
-			cond_resched_lock(&dcache_lock);
-		}
-	}
-	while (!list_empty(&tmp)) {
-		dentry = list_entry(tmp.prev, struct dentry, d_lru);
+	while (!list_empty(list)) {
+		dentry = list_entry(list->prev, struct dentry, d_lru);
 		dentry_lru_del_init(dentry);
-		spin_lock(&dentry->d_lock);
+
 		/*
 		 * We found an inuse dentry which was not removed from
 		 * the LRU because of laziness during lookup.  Do not free
 		 * it - just keep it off the LRU list.
 		 */
+		spin_lock(&dentry->d_lock);
 		if (atomic_read(&dentry->d_count)) {
 			spin_unlock(&dentry->d_lock);
 			continue;
@@ -527,13 +481,60 @@ restart:
 		/* dentry->d_lock was dropped in prune_one_dentry() */
 		cond_resched_lock(&dcache_lock);
 	}
-	if (count == NULL && !list_empty(&sb->s_dentry_lru))
-		goto restart;
-	if (count != NULL)
-		*count = cnt;
+}
+
+/**
+ * __shrink_dcache_sb - shrink the dentry LRU on a given superblock
+ * @sb:		superblock to shrink dentry LRU.
+ * @count:	number of entries to prune
+ * @flags:	flags to control the dentry processing
+ *
+ * If flags contains DCACHE_REFERENCED reference dentries will not be pruned.
+ */
+static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
+{
+	/* called from prune_dcache() and shrink_dcache_parent() */
+	struct dentry *dentry;
+	LIST_HEAD(referenced);
+	LIST_HEAD(tmp);
+	int cnt = *count;
+
+	spin_lock(&dcache_lock);
+	while (!list_empty(&sb->s_dentry_lru)) {
+		dentry = list_entry(sb->s_dentry_lru.prev,
+				struct dentry, d_lru);
+		BUG_ON(dentry->d_sb != sb);
+
+		/*
+		 * If we are honouring the DCACHE_REFERENCED flag and the
+		 * dentry has this flag set, don't free it.  Clear the flag
+		 * and put it back on the LRU.
+		 */
+		if (flags & DCACHE_REFERENCED) {
+			spin_lock(&dentry->d_lock);
+			if (dentry->d_flags & DCACHE_REFERENCED) {
+				dentry->d_flags &= ~DCACHE_REFERENCED;
+				list_move(&dentry->d_lru, &referenced);
+				spin_unlock(&dentry->d_lock);
+				cond_resched_lock(&dcache_lock);
+				continue;
+			}
+			spin_unlock(&dentry->d_lock);
+		}
+
+		list_move_tail(&dentry->d_lru, &tmp);
+		if (!--cnt)
+			break;
+		cond_resched_lock(&dcache_lock);
+	}
+
+	*count = cnt;
+	shrink_dentry_list(&tmp);
+
 	if (!list_empty(&referenced))
 		list_splice(&referenced, &sb->s_dentry_lru);
 	spin_unlock(&dcache_lock);
+
 }
 
 /**
@@ -619,13 +620,19 @@ static void prune_dcache(int count)
  * shrink_dcache_sb - shrink dcache for a superblock
  * @sb: superblock
  *
- * Shrink the dcache for the specified super block. This
- * is used to free the dcache before unmounting a file
- * system
+ * Shrink the dcache for the specified super block. This is used to free
+ * the dcache before unmounting a file system.
  */
-void shrink_dcache_sb(struct super_block * sb)
+void shrink_dcache_sb(struct super_block *sb)
 {
-	__shrink_dcache_sb(sb, NULL, 0);
+	LIST_HEAD(tmp);
+
+	spin_lock(&dcache_lock);
+	while (!list_empty(&sb->s_dentry_lru)) {
+		list_splice_init(&sb->s_dentry_lru, &tmp);
+		shrink_dentry_list(&tmp);
+	}
+	spin_unlock(&dcache_lock);
 }
 EXPORT_SYMBOL(shrink_dcache_sb);
 
