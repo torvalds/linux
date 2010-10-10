@@ -249,7 +249,7 @@ static int sound_open(struct inode *inode, struct file *file)
 	}
 
 	mutex_unlock(&soundcard_mutex);
-	return 0;
+	return retval;
 }
 
 static int sound_release(struct inode *inode, struct file *file)
