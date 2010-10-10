@@ -1306,9 +1306,9 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 		ext3_msg(sb, KERN_WARNING,
 			"warning: mounting fs with errors, "
 			"running e2fsck is recommended");
-	else if ((__s16) le16_to_cpu(es->s_max_mnt_count) >= 0 &&
+	else if ((__s16) le16_to_cpu(es->s_max_mnt_count) > 0 &&
 		 le16_to_cpu(es->s_mnt_count) >=
-		 (unsigned short) (__s16) le16_to_cpu(es->s_max_mnt_count))
+			le16_to_cpu(es->s_max_mnt_count))
 		ext3_msg(sb, KERN_WARNING,
 			"warning: maximal mount count reached, "
 			"running e2fsck is recommended");
@@ -1325,7 +1325,7 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
                    valid forever! :) */
 	es->s_state &= cpu_to_le16(~EXT3_VALID_FS);
 #endif
-	if (!(__s16) le16_to_cpu(es->s_max_mnt_count))
+	if (!le16_to_cpu(es->s_max_mnt_count))
 		es->s_max_mnt_count = cpu_to_le16(EXT3_DFL_MAX_MNT_COUNT);
 	le16_add_cpu(&es->s_mnt_count, 1);
 	es->s_mtime = cpu_to_le32(get_seconds());
