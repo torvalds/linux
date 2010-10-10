@@ -282,7 +282,7 @@ static int parse_scriptname(const struct option *opt __used,
 		script++;
 	} else {
 		script = str;
-		ext = strchr(script, '.');
+		ext = strrchr(script, '.');
 		if (!ext) {
 			fprintf(stderr, "invalid script extension");
 			return -1;
