@@ -46,53 +46,20 @@ static __init int setup_intremap(char *str)
 }
 early_param("intremap", setup_intremap);
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	return get_irq_iommu(irq);
+	struct irq_cfg *cfg = get_irq_chip_data(irq);
+	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 
-static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
-{
-	struct irq_data *data = irq_get_irq_data(irq);
-
-	if (WARN_ONCE(data->irq_2_iommu,
-		      KERN_DEBUG "irq_2_iommu!=NULL irq %u\n", irq))
-		return data->irq_2_iommu;
-
-	data->irq_2_iommu = kzalloc_node(sizeof(*data->irq_2_iommu),
-					 GFP_ATOMIC, data->node);
-	return data->irq_2_iommu;
-}
-
-static void irq_2_iommu_free(unsigned int irq)
-{
-	struct irq_data *d = irq_get_irq_data(irq);
-	struct irq_2_iommu *p = d->irq_2_iommu;
-
-	d->irq_2_iommu = NULL;
-	kfree(p);
-}
-
-#else /* !CONFIG_SPARSE_IRQ */
-
-static struct irq_2_iommu irq_2_iommuX[NR_IRQS];
-
-static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
-{
-	if (irq < nr_irqs)
-		return &irq_2_iommuX[irq];
-
-	return NULL;
-}
 static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 {
 	return irq_2_iommu(irq);
 }
 
-static void irq_2_iommu_free(unsigned int irq) { }
-
-#endif
+static void irq_2_iommu_free(unsigned int irq)
+{
+}
 
 static DEFINE_SPINLOCK(irq_2_ir_lock);
 
