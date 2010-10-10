@@ -2133,9 +2133,6 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
-	if (dev_priv->regs != NULL)
-		iounmap(dev_priv->regs);
-
 	intel_opregion_fini(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -2156,6 +2153,9 @@ int i915_driver_unload(struct drm_device *dev)
 		if (!I915_NEED_GFX_HWS(dev))
 			i915_free_hws(dev);
 	}
+
+	if (dev_priv->regs != NULL)
+		iounmap(dev_priv->regs);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
