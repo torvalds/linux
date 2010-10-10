@@ -98,7 +98,7 @@ static int intel_sst_check_device(void)
  */
 int intel_sst_open(struct inode *i_node, struct file *file_ptr)
 {
-	unsigned int retval = intel_sst_check_device();
+	int retval = intel_sst_check_device();
 	if (retval)
 		return retval;
 
@@ -137,7 +137,7 @@ int intel_sst_open(struct inode *i_node, struct file *file_ptr)
  */
 int intel_sst_open_cntrl(struct inode *i_node, struct file *file_ptr)
 {
-	unsigned int retval = intel_sst_check_device();
+	int retval = intel_sst_check_device();
 	if (retval)
 		return retval;
 
