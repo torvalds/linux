@@ -4516,6 +4516,20 @@ err:
 	return -1;
 }
 
+int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
+		u8 xor_value)
+{
+	struct stv090x_state *state = fe->demodulator_priv;
+	u8 reg = 0;
+
+	STV090x_SETFIELD(reg, GPIOx_OPD_FIELD, dir);
+	STV090x_SETFIELD(reg, GPIOx_CONFIG_FIELD, value);
+	STV090x_SETFIELD(reg, GPIOx_XOR_FIELD, xor_value);
+
+	return stv090x_write_reg(state, STV090x_GPIOxCFG(gpio), reg);
+}
+EXPORT_SYMBOL(stv090x_set_gpio);
+
 static struct dvb_frontend_ops stv090x_ops = {
 
 	.info = {
