@@ -29,12 +29,23 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
+
+struct ulpi_info {
+	unsigned int	id;
+	char		*name;
+};
+
 #define ULPI_ID(vendor, product) (((vendor) << 16) | (product))
+#define ULPI_INFO(_id, _name)		\
+	{				\
+		.id	= (_id),	\
+		.name	= (_name),	\
+	}
 
 /* ULPI hardcoded IDs, used for probing */
-static unsigned int ulpi_ids[] = {
-	ULPI_ID(0x04cc, 0x1504),	/* NXP ISP1504 */
-	ULPI_ID(0x0424, 0x0006),        /* SMSC USB3319 */
+static struct ulpi_info ulpi_ids[] = {
+	ULPI_INFO(ULPI_ID(0x04cc, 0x1504), "NXP ISP1504"),
+	ULPI_INFO(ULPI_ID(0x0424, 0x0006), "SMSC USB3319"),
 };
 
 static int ulpi_set_otg_flags(struct otg_transceiver *otg)
@@ -179,9 +190,13 @@ static int ulpi_init(struct otg_transceiver *otg)
 
 	pr_info("ULPI transceiver vendor/product ID 0x%04x/0x%04x\n", vid, pid);
 
-	for (i = 0; i < ARRAY_SIZE(ulpi_ids); i++)
-		if (ulpi_ids[i] == ULPI_ID(vid, pid))
+	for (i = 0; i < ARRAY_SIZE(ulpi_ids); i++) {
+		if (ulpi_ids[i].id == ULPI_ID(vid, pid)) {
+			pr_info("Found %s ULPI transceiver.\n",
+				ulpi_ids[i].name);
 			break;
+		}
+	}
 
 	ret = ulpi_check_integrity(otg);
 	if (ret)
