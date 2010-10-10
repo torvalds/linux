@@ -67,6 +67,19 @@ struct dentry_stat_t dentry_stat = {
 	.age_limit = 45,
 };
 
+static struct percpu_counter nr_dentry __cacheline_aligned_in_smp;
+static struct percpu_counter nr_dentry_unused __cacheline_aligned_in_smp;
+
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
+		   size_t *lenp, loff_t *ppos)
+{
+	dentry_stat.nr_dentry = percpu_counter_sum_positive(&nr_dentry);
+	dentry_stat.nr_unused = percpu_counter_sum_positive(&nr_dentry_unused);
+	return proc_dointvec(table, write, buffer, lenp, ppos);
+}
+#endif
+
 static void __d_free(struct rcu_head *head)
 {
 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
@@ -78,13 +91,14 @@ static void __d_free(struct rcu_head *head)
 }
 
 /*
- * no dcache_lock, please.  The caller must decrement dentry_stat.nr_dentry
- * inside dcache_lock.
+ * no dcache_lock, please.
  */
 static void d_free(struct dentry *dentry)
 {
+	percpu_counter_dec(&nr_dentry);
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
+
 	/* if dentry was never inserted into hash, immediate free is OK */
 	if (hlist_unhashed(&dentry->d_hash))
 		__d_free(&dentry->d_u.d_rcu);
@@ -125,14 +139,14 @@ static void dentry_lru_add(struct dentry *dentry)
 {
 	list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 	dentry->d_sb->s_nr_dentry_unused++;
-	dentry_stat.nr_unused++;
+	percpu_counter_inc(&nr_dentry_unused);
 }
 
 static void dentry_lru_add_tail(struct dentry *dentry)
 {
 	list_add_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 	dentry->d_sb->s_nr_dentry_unused++;
-	dentry_stat.nr_unused++;
+	percpu_counter_inc(&nr_dentry_unused);
 }
 
 static void dentry_lru_del(struct dentry *dentry)
@@ -140,7 +154,7 @@ static void dentry_lru_del(struct dentry *dentry)
 	if (!list_empty(&dentry->d_lru)) {
 		list_del(&dentry->d_lru);
 		dentry->d_sb->s_nr_dentry_unused--;
-		dentry_stat.nr_unused--;
+		percpu_counter_dec(&nr_dentry_unused);
 	}
 }
 
@@ -149,7 +163,7 @@ static void dentry_lru_del_init(struct dentry *dentry)
 	if (likely(!list_empty(&dentry->d_lru))) {
 		list_del_init(&dentry->d_lru);
 		dentry->d_sb->s_nr_dentry_unused--;
-		dentry_stat.nr_unused--;
+		percpu_counter_dec(&nr_dentry_unused);
 	}
 }
 
@@ -168,7 +182,6 @@ static struct dentry *d_kill(struct dentry *dentry)
 	struct dentry *parent;
 
 	list_del(&dentry->d_u.d_child);
-	dentry_stat.nr_dentry--;	/* For d_free, below */
 	/*drops the locks, at that point nobody can reach this dentry */
 	dentry_iput(dentry);
 	if (IS_ROOT(dentry))
@@ -314,7 +327,6 @@ int d_invalidate(struct dentry * dentry)
 EXPORT_SYMBOL(d_invalidate);
 
 /* This should be called _only_ with dcache_lock held */
-
 static inline struct dentry * __dget_locked(struct dentry *dentry)
 {
 	atomic_inc(&dentry->d_count);
@@ -534,7 +546,7 @@ static void prune_dcache(int count)
 {
 	struct super_block *sb, *p = NULL;
 	int w_count;
-	int unused = dentry_stat.nr_unused;
+	int unused = percpu_counter_sum_positive(&nr_dentry_unused);
 	int prune_ratio;
 	int pruned;
 
@@ -699,20 +711,13 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 			 * otherwise we ascend to the parent and move to the
 			 * next sibling if there is one */
 			if (!parent)
-				goto out;
-
+				return;
 			dentry = parent;
-
 		} while (list_empty(&dentry->d_subdirs));
 
 		dentry = list_entry(dentry->d_subdirs.next,
 				    struct dentry, d_u.d_child);
 	}
-out:
-	/* several dentries were freed, need to correct nr_dentry */
-	spin_lock(&dcache_lock);
-	dentry_stat.nr_dentry -= detached;
-	spin_unlock(&dcache_lock);
 }
 
 /*
@@ -896,12 +901,16 @@ EXPORT_SYMBOL(shrink_dcache_parent);
  */
 static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
+	int nr_unused;
+
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
 			return -1;
 		prune_dcache(nr);
 	}
-	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
+
+	nr_unused = percpu_counter_sum_positive(&nr_dentry_unused);
+	return (nr_unused / 100) * sysctl_vfs_cache_pressure;
 }
 
 static struct shrinker dcache_shrinker = {
@@ -968,8 +977,9 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	spin_lock(&dcache_lock);
 	if (parent)
 		list_add(&dentry->d_u.d_child, &parent->d_subdirs);
-	dentry_stat.nr_dentry++;
 	spin_unlock(&dcache_lock);
+
+	percpu_counter_inc(&nr_dentry);
 
 	return dentry;
 }
@@ -2416,6 +2426,9 @@ static void __init dcache_init_early(void)
 static void __init dcache_init(void)
 {
 	int loop;
+
+	percpu_counter_init(&nr_dentry, 0);
+	percpu_counter_init(&nr_dentry_unused, 0);
 
 	/* 
 	 * A constructor could be added for stable state like the lists,
