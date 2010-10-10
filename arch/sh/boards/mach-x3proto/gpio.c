@@ -79,7 +79,7 @@ struct gpio_chip x3proto_gpio_chip = {
 
 int __init x3proto_gpio_setup(void)
 {
-	unsigned int ilsel;
+	int ilsel;
 	int ret, i;
 
 	ilsel = ilsel_enable(ILSEL_KEY);
@@ -92,7 +92,7 @@ int __init x3proto_gpio_setup(void)
 
 	for (i = 0; i < NR_BASEBOARD_GPIOS; i++) {
 		unsigned long flags;
-		unsigned int irq = create_irq();
+		int irq = create_irq();
 
 		if (unlikely(irq < 0)) {
 			ret = -EINVAL;
