@@ -17,10 +17,6 @@
 #ifndef	_bcmutils_h_
 #define	_bcmutils_h_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Buffer structure for collecting string-formatted data
 * using bcm_bprintf() API.
 * Use bcm_binit() to initialize before use
@@ -512,9 +508,5 @@ extern "C" {
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);
 	extern uint bcm_bitcount(u8 *bitmap, uint bytelength);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif				/* _bcmutils_h_ */
