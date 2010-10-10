@@ -1847,9 +1847,9 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned long flags;
 
 	if (unlikely(skb->len > (adapter->hw.mac.max_frame_size - 4))) {
-		dev_kfree_skb_any(skb);
 		pr_err("Transfer length Error: skb len: %d > max: %d\n",
 		       skb->len, adapter->hw.mac.max_frame_size);
+		dev_kfree_skb_any(skb);
 		adapter->stats.tx_length_errors++;
 		return NETDEV_TX_OK;
 	}
