@@ -67,18 +67,14 @@ struct dentry_stat_t dentry_stat = {
 	.age_limit = 45,
 };
 
-static void __d_free(struct dentry *dentry)
+static void __d_free(struct rcu_head *head)
 {
+	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
+
 	WARN_ON(!list_empty(&dentry->d_alias));
 	if (dname_external(dentry))
 		kfree(dentry->d_name.name);
 	kmem_cache_free(dentry_cache, dentry); 
-}
-
-static void d_callback(struct rcu_head *head)
-{
-	struct dentry * dentry = container_of(head, struct dentry, d_u.d_rcu);
-	__d_free(dentry);
 }
 
 /*
@@ -91,9 +87,9 @@ static void d_free(struct dentry *dentry)
 		dentry->d_op->d_release(dentry);
 	/* if dentry was never inserted into hash, immediate free is OK */
 	if (hlist_unhashed(&dentry->d_hash))
-		__d_free(dentry);
+		__d_free(&dentry->d_u.d_rcu);
 	else
-		call_rcu(&dentry->d_u.d_rcu, d_callback);
+		call_rcu(&dentry->d_u.d_rcu, __d_free);
 }
 
 /*
