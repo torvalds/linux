@@ -88,8 +88,6 @@ void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {
 	struct dentry *parent;
 	struct inode *p_inode;
-	bool send = false;
-	bool should_update_children = false;
 
 	if (!dentry)
 		dentry = path->dentry;
@@ -97,29 +95,12 @@ void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
 		return;
 
-	spin_lock(&dentry->d_lock);
-	parent = dentry->d_parent;
+	parent = dget_parent(dentry);
 	p_inode = parent->d_inode;
 
-	if (fsnotify_inode_watches_children(p_inode)) {
-		if (p_inode->i_fsnotify_mask & mask) {
-			dget(parent);
-			send = true;
-		}
-	} else {
-		/*
-		 * The parent doesn't care about events on it's children but
-		 * at least one child thought it did.  We need to run all the
-		 * children and update their d_flags to let them know p_inode
-		 * doesn't care about them any more.
-		 */
-		dget(parent);
-		should_update_children = true;
-	}
-
-	spin_unlock(&dentry->d_lock);
-
-	if (send) {
+	if (unlikely(!fsnotify_inode_watches_children(p_inode)))
+		__fsnotify_update_child_dentry_flags(p_inode);
+	else if (p_inode->i_fsnotify_mask & mask) {
 		/* we are notifying a parent so come up with the new mask which
 		 * specifies these are events which came from a child. */
 		mask |= FS_EVENT_ON_CHILD;
@@ -130,13 +111,9 @@ void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 		else
 			fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
 				 dentry->d_name.name, 0);
-		dput(parent);
 	}
 
-	if (unlikely(should_update_children)) {
-		__fsnotify_update_child_dentry_flags(p_inode);
-		dput(parent);
-	}
+	dput(parent);
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
