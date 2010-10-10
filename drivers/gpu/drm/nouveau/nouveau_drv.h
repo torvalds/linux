@@ -100,6 +100,9 @@ struct nouveau_bo {
 	int pin_refcnt;
 };
 
+#define nouveau_bo_tile_layout(nvbo)				\
+	((nvbo)->tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK)
+
 static inline struct nouveau_bo *
 nouveau_bo(struct ttm_buffer_object *bo)
 {
