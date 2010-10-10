@@ -78,6 +78,13 @@ static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
 	irq_attr->polarity	= polarity;
 }
 
+struct irq_2_iommu {
+	struct intel_iommu *iommu;
+	u16 irte_index;
+	u16 sub_handle;
+	u8  irte_mask;
+};
+
 /*
  * This is performance-critical, we want to do it O(1)
  *
@@ -89,6 +96,9 @@ struct irq_cfg {
 	cpumask_var_t		old_domain;
 	u8			vector;
 	u8			move_in_progress : 1;
+#ifdef CONFIG_INTR_REMAP
+	struct irq_2_iommu	irq_2_iommu;
+#endif
 };
 
 extern struct irq_cfg *irq_cfg(unsigned int);

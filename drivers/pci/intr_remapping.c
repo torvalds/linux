@@ -46,13 +46,6 @@ static __init int setup_intremap(char *str)
 }
 early_param("intremap", setup_intremap);
 
-struct irq_2_iommu {
-	struct intel_iommu *iommu;
-	u16 irte_index;
-	u16 sub_handle;
-	u8  irte_mask;
-};
-
 #ifdef CONFIG_GENERIC_HARDIRQS
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {

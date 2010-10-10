@@ -106,6 +106,7 @@ struct irte {
 		__u64 high;
 	};
 };
+
 #ifdef CONFIG_INTR_REMAP
 extern int intr_remapping_enabled;
 extern int intr_remapping_supported(void);
