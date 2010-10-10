@@ -246,13 +246,16 @@ repeat:
 		if (dentry->d_op->d_delete(dentry))
 			goto unhash_it;
 	}
+
 	/* Unreachable? Get rid of it */
  	if (d_unhashed(dentry))
 		goto kill_it;
-  	if (list_empty(&dentry->d_lru)) {
-  		dentry->d_flags |= DCACHE_REFERENCED;
+
+	/* Otherwise leave it cached and ensure it's on the LRU */
+	dentry->d_flags |= DCACHE_REFERENCED;
+	if (list_empty(&dentry->d_lru))
 		dentry_lru_add(dentry);
-  	}
+
  	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 	return;
