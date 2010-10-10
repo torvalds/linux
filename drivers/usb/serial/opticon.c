@@ -187,6 +187,9 @@ static void opticon_write_bulk_callback(struct urb *urb)
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree(urb->transfer_buffer);
 
+	/* setup packet may be set if we're using it for writing */
+	kfree(urb->setup_packet);
+
 	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
 		    __func__, status);
@@ -237,10 +240,29 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
 
-	usb_fill_bulk_urb(urb, serial->dev,
-			  usb_sndbulkpipe(serial->dev,
-					  port->bulk_out_endpointAddress),
-			  buffer, count, opticon_write_bulk_callback, priv);
+	if (port->bulk_out_endpointAddress) {
+		usb_fill_bulk_urb(urb, serial->dev,
+				  usb_sndbulkpipe(serial->dev,
+						  port->bulk_out_endpointAddress),
+				  buffer, count, opticon_write_bulk_callback, priv);
+	} else {
+		struct usb_ctrlrequest *dr;
+
+		dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+		if (!dr)
+			return -ENOMEM;
+
+		dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
+		dr->bRequest = 0x01;
+		dr->wValue = 0;
+		dr->wIndex = 0;
+		dr->wLength = cpu_to_le16(count);
+
+		usb_fill_control_urb(urb, serial->dev,
+			usb_sndctrlpipe(serial->dev, 0),
+			(unsigned char *)dr, buffer, count,
+			opticon_write_bulk_callback, priv);
+	}
 
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);
