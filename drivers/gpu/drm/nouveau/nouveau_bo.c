@@ -143,6 +143,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nvbo->no_vm = no_vm;
 	nvbo->tile_mode = tile_mode;
 	nvbo->tile_flags = tile_flags;
+	nvbo->bo.bdev = &dev_priv->ttm.bdev;
 
 	nouveau_bo_fixup_align(dev, tile_mode, nouveau_bo_tile_layout(nvbo),
 			       &align, &size);
@@ -177,6 +178,31 @@ set_placement_list(uint32_t *pl, unsigned *n, uint32_t type, uint32_t flags)
 		pl[(*n)++] = TTM_PL_FLAG_SYSTEM | flags;
 }
 
+static void
+set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
+
+	if (dev_priv->card_type == NV_10 &&
+	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM)) {
+		/*
+		 * Make sure that the color and depth buffers are handled
+		 * by independent memory controller units. Up to a 9x
+		 * speed up when alpha-blending and depth-test are enabled
+		 * at the same time.
+		 */
+		int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
+
+		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
+			nvbo->placement.fpfn = vram_pages / 2;
+			nvbo->placement.lpfn = ~0;
+		} else {
+			nvbo->placement.fpfn = 0;
+			nvbo->placement.lpfn = vram_pages / 2;
+		}
+	}
+}
+
 void
 nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t type, uint32_t busy)
 {
@@ -191,6 +217,8 @@ nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t type, uint32_t busy)
 	pl->busy_placement = nvbo->busy_placements;
 	set_placement_list(nvbo->busy_placements, &pl->num_busy_placement,
 			   type | busy, flags);
+
+	set_placement_range(nvbo, type);
 }
 
 int
