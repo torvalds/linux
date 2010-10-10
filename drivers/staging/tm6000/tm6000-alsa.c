@@ -201,6 +201,14 @@ _error:
  */
 static int snd_tm6000_close(struct snd_pcm_substream *substream)
 {
+	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
+	struct tm6000_core *core = chip->core;
+
+	if (atomic_read(&core->stream_started) > 0) {
+		atomic_set(&core->stream_started, 0);
+		schedule_work(&core->wq_trigger);
+	}
+
 	return 0;
 }
 
@@ -212,6 +220,9 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 	int period_elapsed = 0;
 	unsigned int stride, buf_pos;
 	int length;
+
+	if (atomic_read(&core->stream_started) == 0)
+		return 0;
 
 	if (!size || !substream) {
 		dprintk(1, "substream was NULL\n");
@@ -298,8 +309,12 @@ static int snd_tm6000_hw_params(struct snd_pcm_substream *substream,
 static int snd_tm6000_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
+	struct tm6000_core *core = chip->core;
 
-	_tm6000_stop_audio_dma(chip);
+	if (atomic_read(&core->stream_started) > 0) {
+		atomic_set(&core->stream_started, 0);
+		schedule_work(&core->wq_trigger);
+	}
 
 	return 0;
 }
@@ -321,30 +336,42 @@ static int snd_tm6000_prepare(struct snd_pcm_substream *substream)
 /*
  * trigger callback
  */
+static void audio_trigger(struct work_struct *work)
+{
+	struct tm6000_core *core = container_of(work, struct tm6000_core,
+						wq_trigger);
+	struct snd_tm6000_card *chip = core->adev;
+
+	if (atomic_read(&core->stream_started)) {
+		dprintk(1, "starting capture");
+		_tm6000_start_audio_dma(chip);
+	} else {
+		dprintk(1, "stopping capture");
+		_tm6000_stop_audio_dma(chip);
+	}
+}
+
 static int snd_tm6000_card_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
-	int err;
-
-	spin_lock(&chip->reg_lock);
+	struct tm6000_core *core = chip->core;
+	int err = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		err = _tm6000_start_audio_dma(chip);
+		atomic_set(&core->stream_started, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		err = _tm6000_stop_audio_dma(chip);
+		atomic_set(&core->stream_started, 0);
 		break;
 	default:
 		err = -EINVAL;
 		break;
 	}
-
-	spin_unlock(&chip->reg_lock);
+	schedule_work(&core->wq_trigger);
 
 	return err;
 }
-
 /*
  * pointer callback
  */
@@ -437,6 +464,7 @@ int tm6000_audio_init(struct tm6000_core *dev)
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_tm6000_pcm_ops);
 
+	INIT_WORK(&dev->wq_trigger, audio_trigger);
 	rc = snd_card_register(card);
 	if (rc < 0)
 		goto error;

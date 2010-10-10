@@ -205,6 +205,9 @@ struct tm6000_core {
 
 	/* audio support */
 	struct snd_tm6000_card		*adev;
+	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
+	atomic_t			stream_started;  /* stream should be running if true */
+
 
 	struct tm6000_IR		*ir;
 
