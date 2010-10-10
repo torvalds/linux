@@ -219,7 +219,8 @@ u32 user_to_dsp_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
 				struct page **usr_pgs)
 {
 	int res, w;
-	unsigned pages, i;
+	unsigned pages;
+	int i;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	struct sg_table *sgt;
