@@ -120,14 +120,16 @@ static int wacom_open(struct input_dev *dev)
 
 out:
 	mutex_unlock(&wacom->lock);
-	if (retval)
-		usb_autopm_put_interface(wacom->intf);
+	usb_autopm_put_interface(wacom->intf);
 	return retval;
 }
 
 static void wacom_close(struct input_dev *dev)
 {
 	struct wacom *wacom = input_get_drvdata(dev);
+	int autopm_error;
+
+	autopm_error = usb_autopm_get_interface(wacom->intf);
 
 	mutex_lock(&wacom->lock);
 	usb_kill_urb(wacom->irq);
@@ -135,7 +137,8 @@ static void wacom_close(struct input_dev *dev)
 	wacom->intf->needs_remote_wakeup = 0;
 	mutex_unlock(&wacom->lock);
 
-	usb_autopm_put_interface(wacom->intf);
+	if (!autopm_error)
+		usb_autopm_put_interface(wacom->intf);
 }
 
 static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hid_desc,
