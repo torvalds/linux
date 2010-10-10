@@ -1491,33 +1491,26 @@ out:
  * This is used by ncpfs in its readdir implementation.
  * Zero is returned in the dentry is invalid.
  */
- 
-int d_validate(struct dentry *dentry, struct dentry *dparent)
+int d_validate(struct dentry *dentry, struct dentry *parent)
 {
-	struct hlist_head *base;
-	struct hlist_node *lhp;
+	struct hlist_head *head = d_hash(parent, dentry->d_name.hash);
+	struct hlist_node *node;
+	struct dentry *d;
 
 	/* Check whether the ptr might be valid at all.. */
 	if (!kmem_ptr_validate(dentry_cache, dentry))
-		goto out;
+		return 0;
+	if (dentry->d_parent != parent)
+		return 0;
 
-	if (dentry->d_parent != dparent)
-		goto out;
-
-	spin_lock(&dcache_lock);
-	base = d_hash(dparent, dentry->d_name.hash);
-	hlist_for_each(lhp,base) { 
-		/* hlist_for_each_entry_rcu() not required for d_hash list
-		 * as it is parsed under dcache_lock
-		 */
-		if (dentry == hlist_entry(lhp, struct dentry, d_hash)) {
-			__dget_locked(dentry);
-			spin_unlock(&dcache_lock);
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(d, node, head, d_hash) {
+		if (d == dentry) {
+			dget(dentry);
 			return 1;
 		}
 	}
-	spin_unlock(&dcache_lock);
-out:
+	rcu_read_unlock();
 	return 0;
 }
 EXPORT_SYMBOL(d_validate);
