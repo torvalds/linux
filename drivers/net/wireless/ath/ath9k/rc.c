@@ -1375,6 +1375,12 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED)
 		return;
 
+	if (!(tx_info->flags & IEEE80211_TX_STAT_AMPDU)) {
+		tx_info->status.ampdu_ack_len =
+			(tx_info->flags & IEEE80211_TX_STAT_ACK ? 1 : 0);
+		tx_info->status.ampdu_len = 1;
+	}
+
 	/*
 	 * If an underrun error is seen assume it as an excessive retry only
 	 * if max frame trigger level has been reached (2 KB for singel stream,
