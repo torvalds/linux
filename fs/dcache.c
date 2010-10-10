@@ -1994,7 +1994,7 @@ global_root:
  * Returns a pointer into the buffer or an error code if the
  * path was too long.
  *
- * "buflen" should be positive. Caller holds the dcache_lock.
+ * "buflen" should be positive.
  *
  * If path is not reachable from the supplied root, then the value of
  * root is changed (without modifying refcounts).
@@ -2006,10 +2006,12 @@ char *__d_path(const struct path *path, struct path *root,
 	int error;
 
 	prepend(&res, &buflen, "\0", 1);
+	spin_lock(&dcache_lock);
 	error = prepend_path(path, root, &res, &buflen);
+	spin_unlock(&dcache_lock);
+
 	if (error)
 		return ERR_PTR(error);
-
 	return res;
 }
 
