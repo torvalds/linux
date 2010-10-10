@@ -263,27 +263,85 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
-/* This is just a filler for ntlmv2 type of security mechanisms.
- * Older servers are not very particular about the contents of av pairs
- * in the blob and for sec mechs like ntlmv2, there is no negotiation
- * as in ntlmssp, so unless domain and server  netbios and dns names
- * are specified, there is no way to obtain name.  In case of ntlmssp,
- * server provides that info in type 2 challenge packet
+/* Build a proper attribute value/target info pairs blob.
+ * Fill in netbios and dns domain name and workstation name
+ * and client time (total five av pairs and + one end of fields indicator.
+ * Allocate domain name which gets freed when session struct is deallocated.
  */
 static int
-build_avpair_blob(struct cifsSesInfo *ses)
+build_avpair_blob(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 {
+	unsigned int dlen;
+	unsigned int wlen;
+	unsigned int size = 6 * sizeof(struct ntlmssp2_name);
+	__le64  curtime;
+	char *defdmname = "WORKGROUP";
+	unsigned char *blobptr;
 	struct ntlmssp2_name *attrptr;
 
-	ses->tilen = 2 * sizeof(struct ntlmssp2_name);
+	if (!ses->domainName) {
+		ses->domainName = kstrdup(defdmname, GFP_KERNEL);
+		if (!ses->domainName)
+			return -ENOMEM;
+	}
+
+	dlen = strlen(ses->domainName);
+	wlen = strlen(ses->server->hostname);
+
+	/* The length of this blob is a size which is
+	 * six times the size of a structure which holds name/size +
+	 * two times the unicode length of a domain name +
+	 * two times the unicode length of a server name +
+	 * size of a timestamp (which is 8 bytes).
+	 */
+	ses->tilen = size + 2 * (2 * dlen) + 2 * (2 * wlen) + 8;
 	ses->tiblob = kzalloc(ses->tilen, GFP_KERNEL);
 	if (!ses->tiblob) {
 		ses->tilen = 0;
 		cERROR(1, "Challenge target info allocation failure");
 		return -ENOMEM;
 	}
-	attrptr = (struct ntlmssp2_name *) ses->tiblob;
-	attrptr->type = cpu_to_le16(NTLMSSP_DOMAIN_TYPE);
+
+	blobptr = ses->tiblob;
+	attrptr = (struct ntlmssp2_name *) blobptr;
+
+	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_DOMAIN_NAME);
+	attrptr->length = cpu_to_le16(2 * dlen);
+	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
+	cifs_strtoUCS((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
+
+	blobptr += 2 * dlen;
+	attrptr = (struct ntlmssp2_name *) blobptr;
+
+	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_COMPUTER_NAME);
+	attrptr->length = cpu_to_le16(2 * wlen);
+	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
+	cifs_strtoUCS((__le16 *)blobptr, ses->server->hostname, wlen, nls_cp);
+
+	blobptr += 2 * wlen;
+	attrptr = (struct ntlmssp2_name *) blobptr;
+
+	attrptr->type = cpu_to_le16(NTLMSSP_AV_DNS_DOMAIN_NAME);
+	attrptr->length = cpu_to_le16(2 * dlen);
+	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
+	cifs_strtoUCS((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
+
+	blobptr += 2 * dlen;
+	attrptr = (struct ntlmssp2_name *) blobptr;
+
+	attrptr->type = cpu_to_le16(NTLMSSP_AV_DNS_COMPUTER_NAME);
+	attrptr->length = cpu_to_le16(2 * wlen);
+	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
+	cifs_strtoUCS((__le16 *)blobptr, ses->server->hostname, wlen, nls_cp);
+
+	blobptr += 2 * wlen;
+	attrptr = (struct ntlmssp2_name *) blobptr;
+
+	attrptr->type = cpu_to_le16(NTLMSSP_AV_TIMESTAMP);
+	attrptr->length = cpu_to_le16(sizeof(__le64));
+	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
+	curtime = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	memcpy(blobptr, &curtime, sizeof(__le64));
 
 	return 0;
 }
@@ -429,7 +487,7 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
 			}
 		}
 	} else {
-		rc = build_avpair_blob(ses);
+		rc = build_avpair_blob(ses, nls_cp);
 		if (rc) {
 			cERROR(1, "error %d building av pair blob", rc);
 			return rc;
