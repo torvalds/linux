@@ -133,37 +133,34 @@ static void dentry_iput(struct dentry * dentry)
 }
 
 /*
- * dentry_lru_(add|add_tail|del|del_init) must be called with dcache_lock held.
+ * dentry_lru_(add|del|move_tail) must be called with dcache_lock held.
  */
 static void dentry_lru_add(struct dentry *dentry)
 {
-	list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
-	dentry->d_sb->s_nr_dentry_unused++;
-	percpu_counter_inc(&nr_dentry_unused);
-}
-
-static void dentry_lru_add_tail(struct dentry *dentry)
-{
-	list_add_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
-	dentry->d_sb->s_nr_dentry_unused++;
-	percpu_counter_inc(&nr_dentry_unused);
+	if (list_empty(&dentry->d_lru)) {
+		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
+		dentry->d_sb->s_nr_dentry_unused++;
+		percpu_counter_inc(&nr_dentry_unused);
+	}
 }
 
 static void dentry_lru_del(struct dentry *dentry)
 {
 	if (!list_empty(&dentry->d_lru)) {
-		list_del(&dentry->d_lru);
+		list_del_init(&dentry->d_lru);
 		dentry->d_sb->s_nr_dentry_unused--;
 		percpu_counter_dec(&nr_dentry_unused);
 	}
 }
 
-static void dentry_lru_del_init(struct dentry *dentry)
+static void dentry_lru_move_tail(struct dentry *dentry)
 {
-	if (likely(!list_empty(&dentry->d_lru))) {
-		list_del_init(&dentry->d_lru);
-		dentry->d_sb->s_nr_dentry_unused--;
-		percpu_counter_dec(&nr_dentry_unused);
+	if (list_empty(&dentry->d_lru)) {
+		list_add_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
+		dentry->d_sb->s_nr_dentry_unused++;
+		percpu_counter_inc(&nr_dentry_unused);
+	} else {
+		list_move_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 	}
 }
 
@@ -253,8 +250,7 @@ repeat:
 
 	/* Otherwise leave it cached and ensure it's on the LRU */
 	dentry->d_flags |= DCACHE_REFERENCED;
-	if (list_empty(&dentry->d_lru))
-		dentry_lru_add(dentry);
+	dentry_lru_add(dentry);
 
  	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
@@ -333,7 +329,7 @@ EXPORT_SYMBOL(d_invalidate);
 static inline struct dentry * __dget_locked(struct dentry *dentry)
 {
 	atomic_inc(&dentry->d_count);
-	dentry_lru_del_init(dentry);
+	dentry_lru_del(dentry);
 	return dentry;
 }
 
@@ -452,7 +448,7 @@ static void prune_one_dentry(struct dentry * dentry)
 
 		if (dentry->d_op && dentry->d_op->d_delete)
 			dentry->d_op->d_delete(dentry);
-		dentry_lru_del_init(dentry);
+		dentry_lru_del(dentry);
 		__d_drop(dentry);
 		dentry = d_kill(dentry);
 		spin_lock(&dcache_lock);
@@ -465,7 +461,7 @@ static void shrink_dentry_list(struct list_head *list)
 
 	while (!list_empty(list)) {
 		dentry = list_entry(list->prev, struct dentry, d_lru);
-		dentry_lru_del_init(dentry);
+		dentry_lru_del(dentry);
 
 		/*
 		 * We found an inuse dentry which was not removed from
@@ -650,7 +646,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 
 	/* detach this root from the system */
 	spin_lock(&dcache_lock);
-	dentry_lru_del_init(dentry);
+	dentry_lru_del(dentry);
 	__d_drop(dentry);
 	spin_unlock(&dcache_lock);
 
@@ -664,7 +660,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 			spin_lock(&dcache_lock);
 			list_for_each_entry(loop, &dentry->d_subdirs,
 					    d_u.d_child) {
-				dentry_lru_del_init(loop);
+				dentry_lru_del(loop);
 				__d_drop(loop);
 				cond_resched_lock(&dcache_lock);
 			}
@@ -841,14 +837,15 @@ resume:
 		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
 		next = tmp->next;
 
-		dentry_lru_del_init(dentry);
 		/* 
 		 * move only zero ref count dentries to the end 
 		 * of the unused list for prune_dcache
 		 */
 		if (!atomic_read(&dentry->d_count)) {
-			dentry_lru_add_tail(dentry);
+			dentry_lru_move_tail(dentry);
 			found++;
+		} else {
+			dentry_lru_del(dentry);
 		}
 
 		/*
