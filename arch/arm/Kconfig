@@ -736,6 +736,7 @@ config ARCH_S5PV310
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
 	select HAVE_S3C_RTC
+	select HAVE_S3C2410_I2C
 	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PV310 series based systems

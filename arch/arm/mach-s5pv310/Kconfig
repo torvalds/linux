@@ -24,6 +24,31 @@ config S5PV310_SETUP_I2C2
 	help
 	  Common setup code for i2c bus 2.
 
+config S5PV310_SETUP_I2C3
+	bool
+	help
+	  Common setup code for i2c bus 3.
+
+config S5PV310_SETUP_I2C4
+	bool
+	help
+	  Common setup code for i2c bus 4.
+
+config S5PV310_SETUP_I2C5
+	bool
+	help
+	  Common setup code for i2c bus 5.
+
+config S5PV310_SETUP_I2C6
+	bool
+	help
+	  Common setup code for i2c bus 6.
+
+config S5PV310_SETUP_I2C7
+	bool
+	help
+	  Common setup code for i2c bus 7.
+
 config S5PV310_SETUP_SDHCI
 	bool
 	select S5PV310_SETUP_SDHCI_GPIO
