@@ -68,6 +68,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-terratec-cinergy-xs.o \
 			rc-terratec-slim.o \
 			rc-tevii-nec.o \
+			rc-trekstor.o \
 			rc-tt-1500.o \
 			rc-videomate-s350.o \
 			rc-videomate-tv-pvr.o \
