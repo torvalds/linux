@@ -46,8 +46,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-lirc.o \
 			rc-lme2510.o \
 			rc-manli.o \
-			rc-msi-digivox.o \
 			rc-msi-digivox-ii.o \
+			rc-msi-digivox-iii.o \
 			rc-msi-tvanywhere.o \
 			rc-msi-tvanywhere-plus.o \
 			rc-nebula.o \
