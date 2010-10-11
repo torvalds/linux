@@ -2225,6 +2225,8 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int full_coherency = !(osb->s_mount_opt &
+			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 
 	mlog_entry("(0x%p, %u, '%.*s')\n", file,
 		   (unsigned int)nr_segs,
@@ -2248,12 +2250,35 @@ relock:
 		have_alloc_sem = 1;
 	}
 
-	/* concurrent O_DIRECT writes are allowed */
-	rw_level = !direct_io;
+	/*
+	 * Concurrent O_DIRECT writes are allowed with
+	 * mount_option "coherency=buffered".
+	 */
+	rw_level = (!direct_io || full_coherency);
+
 	ret = ocfs2_rw_lock(inode, rw_level);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_sems;
+	}
+
+	/*
+	 * O_DIRECT writes with "coherency=full" need to take EX cluster
+	 * inode_lock to guarantee coherency.
+	 */
+	if (direct_io && full_coherency) {
+		/*
+		 * We need to take and drop the inode lock to force
+		 * other nodes to drop their caches.  Buffered I/O
+		 * already does this in write_begin().
+		 */
+		ret = ocfs2_inode_lock(inode, NULL, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out_sems;
+		}
+
+		ocfs2_inode_unlock(inode, 1);
 	}
 
 	can_do_direct = direct_io;
