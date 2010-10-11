@@ -455,12 +455,12 @@ static const pmu_res_depend_t bcm4315a0_res_depend[] = {
 };
 
 	/* 4329 specific. needs to come back this issue later */
-static const pmu_res_updown_t BCMINITDATA(bcm4329_res_updown)[] = {
+static const pmu_res_updown_t bcm4329_res_updown[] = {
 	{
 	RES4329_XTAL_PU, 0x1501}
 };
 
-static const pmu_res_depend_t BCMINITDATA(bcm4329_res_depend)[] = {
+static const pmu_res_depend_t bcm4329_res_depend[] = {
 	/* Adjust HT Avail resource dependencies */
 	{
 	PMURES_BIT(RES4329_HT_AVAIL),
@@ -878,7 +878,7 @@ typedef struct {
 } pmu0_xtaltab0_t;
 
 /* the following table is based on 880Mhz fvco */
-static const pmu0_xtaltab0_t BCMINITDATA(pmu0_xtaltab0)[] = {
+static const pmu0_xtaltab0_t pmu0_xtaltab0[] = {
 	{
 	12000, 1, 73, 349525}, {
 	13000, 2, 67, 725937}, {
@@ -909,7 +909,7 @@ typedef struct {
 	u32 ndiv_frac;
 } pmu1_xtaltab0_t;
 
-static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_880_4329)[] = {
+static const pmu1_xtaltab0_t pmu1_xtaltab0_880_4329[] = {
 	{
 	12000, 1, 3, 22, 0x9, 0xFFFFEF}, {
 	13000, 2, 1, 6, 0xb, 0x483483}, {
@@ -931,7 +931,7 @@ static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_880_4329)[] = {
 };
 
 /* the following table is based on 880Mhz fvco */
-static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_880)[] = {
+static const pmu1_xtaltab0_t pmu1_xtaltab0_880[] = {
 	{
 	12000, 1, 3, 22, 0x9, 0xFFFFEF}, {
 	13000, 2, 1, 6, 0xb, 0x483483}, {
@@ -970,7 +970,7 @@ static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_880)[] = {
 #define PMU1_XTALTAB0_880_40000K	15
 
 /* the following table is based on 1760Mhz fvco */
-static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_1760)[] = {
+static const pmu1_xtaltab0_t pmu1_xtaltab0_1760[] = {
 	{
 	12000, 1, 3, 44, 0x9, 0xFFFFEF}, {
 	13000, 2, 1, 12, 0xb, 0x483483}, {
@@ -1008,7 +1008,7 @@ static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_1760)[] = {
 #define PMU1_XTALTAB0_1760_40000K	14
 
 /* the following table is based on 1440Mhz fvco */
-static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_1440)[] = {
+static const pmu1_xtaltab0_t pmu1_xtaltab0_1440[] = {
 	{
 	12000, 1, 1, 1, 0x78, 0x0}, {
 	13000, 2, 1, 1, 0x6E, 0xC4EC4E}, {
@@ -1052,7 +1052,7 @@ static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_1440)[] = {
 #define XTAL_FREQ_37400MHZ		37400
 #define XTAL_FREQ_48000MHZ		48000
 
-static const pmu1_xtaltab0_t BCMINITDATA(pmu1_xtaltab0_960)[] = {
+static const pmu1_xtaltab0_t pmu1_xtaltab0_960[] = {
 	{
 	12000, 1, 1, 1, 0x50, 0x0}, {
 	13000, 2, 1, 1, 0x49, 0xD89D89}, {
@@ -1871,7 +1871,7 @@ typedef struct {
 } sdiod_drive_str_t;
 
 /* SDIO Drive Strength to sel value table for PMU Rev 1 */
-static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab1)[] = {
+static const sdiod_drive_str_t sdiod_drive_strength_tab1[] = {
 	{
 	4, 0x2}, {
 	2, 0x3}, {
@@ -1880,7 +1880,7 @@ static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab1)[] = {
 	};
 
 /* SDIO Drive Strength to sel value table for PMU Rev 2, 3 */
-static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab2)[] = {
+static const sdiod_drive_str_t sdiod_drive_strength_tab2[] = {
 	{
 	12, 0x7}, {
 	10, 0x6}, {
@@ -1892,7 +1892,7 @@ static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab2)[] = {
 	};
 
 /* SDIO Drive Strength to sel value table for PMU Rev 8 (1.8V) */
-static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab3)[] = {
+static const sdiod_drive_str_t sdiod_drive_strength_tab3[] = {
 	{
 	32, 0x7}, {
 	26, 0x6}, {
