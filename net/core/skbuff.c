@@ -247,10 +247,9 @@ EXPORT_SYMBOL(__alloc_skb);
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		unsigned int length, gfp_t gfp_mask)
 {
-	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
 	struct sk_buff *skb;
 
-	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
+	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, NUMA_NO_NODE);
 	if (likely(skb)) {
 		skb_reserve(skb, NET_SKB_PAD);
 		skb->dev = dev;
@@ -258,16 +257,6 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 	return skb;
 }
 EXPORT_SYMBOL(__netdev_alloc_skb);
-
-struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
-{
-	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
-	struct page *page;
-
-	page = alloc_pages_node(node, gfp_mask, 0);
-	return page;
-}
-EXPORT_SYMBOL(__netdev_alloc_page);
 
 void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
 		int size)
