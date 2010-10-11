@@ -54,13 +54,6 @@ static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 
-int irq_remapped(int irq)
-{
-	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
-
-	return irq_iommu ? irq_iommu->iommu != NULL : 0;
-}
-
 int get_irte(int irq, struct irte *entry)
 {
 	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);

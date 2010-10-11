@@ -122,7 +122,6 @@ extern int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index,
 extern int map_irq_to_irte_handle(int irq, u16 *sub_handle);
 extern int free_irte(int irq);
 
-extern int irq_remapped(int irq);
 extern struct intel_iommu *map_dev_to_ir(struct pci_dev *dev);
 extern struct intel_iommu *map_ioapic_to_ir(int apic);
 extern struct intel_iommu *map_hpet_to_ir(u8 id);
@@ -176,7 +175,6 @@ static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	return 0;
 }
 
-#define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
 #define disable_intr_remapping()	(0)
 #define reenable_intr_remapping(mode)	(0)

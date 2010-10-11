@@ -1237,7 +1237,7 @@ static void ioapic_register_intr(unsigned int irq, unsigned long trigger)
 	else
 		irq_clear_status_flags(irq, IRQ_LEVEL);
 
-	if (irq_remapped(irq)) {
+	if (irq_remapped(get_irq_chip_data(irq))) {
 		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 		if (trigger)
 			set_irq_chip_and_handler_name(irq, &ir_ioapic_chip,
@@ -2183,7 +2183,7 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 		 * With interrupt-remapping, destination information comes
 		 * from interrupt-remapping table entry.
 		 */
-		if (!irq_remapped(irq))
+		if (!irq_remapped(cfg))
 			io_apic_write(apic, 0x11 + pin*2, dest);
 		reg = io_apic_read(apic, 0x10 + pin*2);
 		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
@@ -2415,7 +2415,7 @@ static void eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 			 * intr-remapping table entry. Hence for the io-apic
 			 * EOI we use the pin number.
 			 */
-			if (irq_remapped(irq))
+			if (irq_remapped(cfg))
 				io_apic_eoi(entry->apic, entry->pin);
 			else
 				io_apic_eoi(entry->apic, cfg->vector);
@@ -3139,7 +3139,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 
 	dest = apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
-	if (irq_remapped(irq)) {
+	if (irq_remapped(get_irq_chip_data(irq))) {
 		struct irte irte;
 		int ir_index;
 		u16 sub_handle;
@@ -3321,7 +3321,7 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 	set_irq_msi(irq, msidesc);
 	write_msi_msg(irq, &msg);
 
-	if (irq_remapped(irq)) {
+	if (irq_remapped(get_irq_chip_data(irq))) {
 		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 		set_irq_chip_and_handler_name(irq, &msi_ir_chip, handle_edge_irq, "edge");
 	} else
@@ -3522,7 +3522,7 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 
 	hpet_msi_write(get_irq_data(irq), &msg);
 	irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
-	if (irq_remapped(irq))
+	if (irq_remapped(get_irq_chip_data(irq)))
 		set_irq_chip_and_handler_name(irq, &ir_hpet_msi_type,
 					      handle_edge_irq, "edge");
 	else

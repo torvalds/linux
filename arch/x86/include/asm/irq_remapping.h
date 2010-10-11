@@ -24,9 +24,17 @@ static inline void prepare_irte(struct irte *irte, int vector,
 	irte->dest_id = IRTE_DEST(dest);
 	irte->redir_hint = 1;
 }
+static inline bool irq_remapped(struct irq_cfg *cfg)
+{
+	return cfg->irq_2_iommu.iommu != NULL;
+}
 #else
 static void prepare_irte(struct irte *irte, int vector, unsigned int dest)
 {
+}
+static inline bool irq_remapped(struct irq_cfg *cfg)
+{
+	return false;
 }
 #endif
 
