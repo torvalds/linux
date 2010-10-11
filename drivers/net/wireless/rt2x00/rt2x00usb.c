@@ -208,7 +208,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -220,7 +220,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Check if the frame was correctly uploaded
 	 */
 	if (urb->status)
-		__set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 
 	/*
 	 * Schedule the delayed work for reading the TX status
@@ -407,7 +407,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -421,7 +421,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * a problem.
 	 */
 	if (urb->actual_length < entry->queue->desc_size || urb->status)
-		__set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 
 	/*
 	 * Schedule the delayed work for reading the RX status
