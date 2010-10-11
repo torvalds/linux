@@ -742,6 +742,27 @@ static struct hda_bind_ctls *make_bind_capture(struct hda_codec *codec,
 	return bind;
 }
 
+/* add a (input-boost) volume control to the given input pin */
+static int add_input_volume_control(struct hda_codec *codec,
+				    struct auto_pin_cfg *cfg,
+				    int item)
+{
+	hda_nid_t pin = cfg->inputs[item].pin;
+	u32 caps;
+	const char *label;
+	struct snd_kcontrol *kctl;
+		
+	if (!(get_wcaps(codec, pin) & AC_WCAP_IN_AMP))
+		return 0;
+	caps = query_amp_caps(codec, pin, HDA_INPUT);
+	caps = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
+	if (caps <= 1)
+		return 0;
+	label = hda_get_autocfg_input_label(codec, cfg, item);
+	return add_volume(codec, label, 0,
+			  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT), 1, &kctl);
+}
+
 static int build_input(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
@@ -777,6 +798,12 @@ static int build_input(struct hda_codec *codec)
 	if (spec->num_inputs > 1 && !spec->mic_detect) {
 		err = snd_hda_ctl_add(codec, 0,
 				      snd_ctl_new1(&cs_capture_source, codec));
+		if (err < 0)
+			return err;
+	}
+
+	for (i = 0; i < spec->num_inputs; i++) {
+		err = add_input_volume_control(codec, &spec->autocfg, i);
 		if (err < 0)
 			return err;
 	}
