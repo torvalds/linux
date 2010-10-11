@@ -604,7 +604,9 @@ static bool keep_working(struct global_cwq *gcwq)
 {
 	atomic_t *nr_running = get_gcwq_nr_running(gcwq->cpu);
 
-	return !list_empty(&gcwq->worklist) && atomic_read(nr_running) <= 1;
+	return !list_empty(&gcwq->worklist) &&
+		(atomic_read(nr_running) <= 1 ||
+		 gcwq->flags & GCWQ_HIGHPRI_PENDING);
 }
 
 /* Do we need a new worker?  Called from manager. */
