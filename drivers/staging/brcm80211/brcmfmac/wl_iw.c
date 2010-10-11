@@ -1280,7 +1280,7 @@ wl_iw_set_scan(struct net_device *dev,
 					__func__, req->essid));
 				return -EBUSY;
 			} else {
-				g_specific_ssid.SSID_len = min_t(unsigned char,
+				g_specific_ssid.SSID_len = min_t(size_t,
 						sizeof(g_specific_ssid.SSID),
 						req->essid_len);
 				memcpy(g_specific_ssid.SSID, req->essid,
@@ -1379,7 +1379,7 @@ wl_iw_iscan_set_scan(struct net_device *dev,
 	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			struct iw_scan_req *req = (struct iw_scan_req *)extra;
-			ssid.SSID_len = min_t(unsigned char, sizeof(ssid.SSID),
+			ssid.SSID_len = min_t(size_t, sizeof(ssid.SSID),
 						req->essid_len);
 			memcpy(ssid.SSID, req->essid, ssid.SSID_len);
 			ssid.SSID_len = htod32(ssid.SSID_len);
@@ -1907,10 +1907,10 @@ wl_iw_set_essid(struct net_device *dev,
 
 	if (dwrq->length && extra) {
 #if WIRELESS_EXT > 20
-		g_ssid.SSID_len = min_t(unsigned char, sizeof(g_ssid.SSID),
+		g_ssid.SSID_len = min_t(size_t, sizeof(g_ssid.SSID),
 					dwrq->length);
 #else
-		g_ssid.SSID_len = min_t(unsigned char, sizeof(g_ssid.SSID),
+		g_ssid.SSID_len = min_t(size_t, sizeof(g_ssid.SSID),
 					dwrq->length - 1);
 #endif
 		memcpy(g_ssid.SSID, extra, g_ssid.SSID_len);
