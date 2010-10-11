@@ -61,11 +61,11 @@
 #define DRV_MODULE_NAME		"bnx2"
 #define DRV_MODULE_VERSION	"2.0.17"
 #define DRV_MODULE_RELDATE	"July 18, 2010"
-#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-5.0.0.j6.fw"
-#define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-5.0.0.j3.fw"
-#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-5.0.0.j15.fw"
-#define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-5.0.0.j10.fw"
-#define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-5.0.0.j10.fw"
+#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.0.15.fw"
+#define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
+#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.0.17.fw"
+#define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-6.0.17.fw"
+#define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-6.0.17.fw"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1269,30 +1269,9 @@ bnx2_init_rx_context(struct bnx2 *bp, u32 cid)
 	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
 	val |= 0x02 << 8;
 
-	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
-		u32 lo_water, hi_water;
+	if (bp->flow_ctrl & FLOW_CTRL_TX)
+		val |= BNX2_L2CTX_FLOW_CTRL_ENABLE;
 
-		if (bp->flow_ctrl & FLOW_CTRL_TX)
-			lo_water = BNX2_L2CTX_LO_WATER_MARK_DEFAULT;
-		else
-			lo_water = BNX2_L2CTX_LO_WATER_MARK_DIS;
-		if (lo_water >= bp->rx_ring_size)
-			lo_water = 0;
-
-		hi_water = min_t(int, bp->rx_ring_size / 4, lo_water + 16);
-
-		if (hi_water <= lo_water)
-			lo_water = 0;
-
-		hi_water /= BNX2_L2CTX_HI_WATER_MARK_SCALE;
-		lo_water /= BNX2_L2CTX_LO_WATER_MARK_SCALE;
-
-		if (hi_water > 0xf)
-			hi_water = 0xf;
-		else if (hi_water == 0)
-			lo_water = 0;
-		val |= lo_water | (hi_water << BNX2_L2CTX_HI_WATER_MARK_SHIFT);
-	}
 	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_CTX_TYPE, val);
 }
 
@@ -1373,8 +1352,7 @@ bnx2_set_mac_link(struct bnx2 *bp)
 	/* Acknowledge the interrupt. */
 	REG_WR(bp, BNX2_EMAC_STATUS, BNX2_EMAC_STATUS_LINK_CHANGE);
 
-	if (CHIP_NUM(bp) == CHIP_NUM_5709)
-		bnx2_init_all_rx_contexts(bp);
+	bnx2_init_all_rx_contexts(bp);
 }
 
 static void
@@ -4974,6 +4952,11 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	REG_WR(bp, BNX2_HC_CONFIG, val);
 
+	if (bp->rx_ticks < 25)
+		bnx2_reg_wr_ind(bp, BNX2_FW_RX_LOW_LATENCY, 1);
+	else
+		bnx2_reg_wr_ind(bp, BNX2_FW_RX_LOW_LATENCY, 0);
+
 	for (i = 1; i < bp->irq_nvecs; i++) {
 		u32 base = ((i - 1) * BNX2_HC_SB_CONFIG_SIZE) +
 			   BNX2_HC_SB_CONFIG_1;
@@ -5242,18 +5225,20 @@ bnx2_init_all_rings(struct bnx2 *bp)
 		bnx2_init_rx_ring(bp, i);
 
 	if (bp->num_rx_rings > 1) {
-		u32 tbl_32;
-		u8 *tbl = (u8 *) &tbl_32;
-
-		bnx2_reg_wr_ind(bp, BNX2_RXP_SCRATCH_RSS_TBL_SZ,
-				BNX2_RXP_SCRATCH_RSS_TBL_MAX_ENTRIES);
+		u32 tbl_32 = 0;
 
 		for (i = 0; i < BNX2_RXP_SCRATCH_RSS_TBL_MAX_ENTRIES; i++) {
-			tbl[i % 4] = i % (bp->num_rx_rings - 1);
-			if ((i % 4) == 3)
-				bnx2_reg_wr_ind(bp,
-						BNX2_RXP_SCRATCH_RSS_TBL + i,
-						cpu_to_be32(tbl_32));
+			int shift = (i % 8) << 2;
+
+			tbl_32 |= (i % (bp->num_rx_rings - 1)) << shift;
+			if ((i % 8) == 7) {
+				REG_WR(bp, BNX2_RLUP_RSS_DATA, tbl_32);
+				REG_WR(bp, BNX2_RLUP_RSS_COMMAND, (i >> 3) |
+					BNX2_RLUP_RSS_COMMAND_RSS_WRITE_MASK |
+					BNX2_RLUP_RSS_COMMAND_WRITE |
+					BNX2_RLUP_RSS_COMMAND_HASH_MASK);
+				tbl_32 = 0;
+			}
 		}
 
 		val = BNX2_RLUP_RSS_CONFIG_IPV4_RSS_TYPE_ALL_XI |
