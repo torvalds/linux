@@ -488,7 +488,7 @@ also waits in the code, then you should do the same to allow other processes
 to access the device node while the first process is waiting for something.
 
 The implementation of a hotplug disconnect should also take the lock before
-calling v4l2_device_disconnect and video_unregister_device.
+calling v4l2_device_disconnect.
 
 video_device registration
 -------------------------

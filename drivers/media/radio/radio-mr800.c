@@ -285,8 +285,8 @@ static void usb_amradio_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&radio->lock);
 	v4l2_device_disconnect(&radio->v4l2_dev);
-	video_unregister_device(&radio->videodev);
 	mutex_unlock(&radio->lock);
+	video_unregister_device(&radio->videodev);
 }
 
 /* vidioc_querycap - query device capabilities */
