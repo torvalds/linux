@@ -932,7 +932,7 @@ err:
 
 	taal_hw_reset(dssdev);
 
-	omapdss_dsi_display_disable(dssdev, true);
+	omapdss_dsi_display_disable(dssdev, true, false);
 err0:
 	return r;
 }
@@ -955,7 +955,7 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 		taal_hw_reset(dssdev);
 	}
 
-	omapdss_dsi_display_disable(dssdev, true);
+	omapdss_dsi_display_disable(dssdev, true, false);
 
 	td->enabled = 0;
 }

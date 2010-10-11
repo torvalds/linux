@@ -3763,9 +3763,9 @@ err0:
 }
 
 static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
-		bool disconnect_lanes)
+		bool disconnect_lanes, bool enter_ulps)
 {
-	if (!dsi.ulps_enabled)
+	if (enter_ulps && !dsi.ulps_enabled)
 		dsi_enter_ulps();
 
 	/* disable interface */
@@ -3848,7 +3848,7 @@ err0:
 EXPORT_SYMBOL(omapdss_dsi_display_enable);
 
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
-		bool disconnect_lanes)
+		bool disconnect_lanes, bool enter_ulps)
 {
 	DSSDBG("dsi_display_disable\n");
 
@@ -3858,7 +3858,7 @@ void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
 
 	dsi_display_uninit_dispc(dssdev);
 
-	dsi_display_uninit_dsi(dssdev, disconnect_lanes);
+	dsi_display_uninit_dsi(dssdev, disconnect_lanes, enter_ulps);
 
 	enable_clocks(0);
 	dsi_enable_pll_clock(0);
