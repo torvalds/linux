@@ -4,7 +4,7 @@ config DTC
 config OF
 	bool
 
-menu "Flattened Device Tree and Open Firmware support"
+menu "Device Tree and Open Firmware support"
 	depends on OF
 
 config PROC_DEVICETREE
@@ -18,6 +18,9 @@ config PROC_DEVICETREE
 config OF_FLATTREE
 	bool
 	select DTC
+
+config OF_PROMTREE
+	bool
 
 config OF_DYNAMIC
 	def_bool y

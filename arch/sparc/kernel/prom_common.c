@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_pdt.h>
 #include <asm/prom.h>
 #include <asm/oplib.h>
 #include <asm/leon.h>
@@ -119,4 +120,11 @@ EXPORT_SYMBOL(of_find_in_proplist);
 
 unsigned int prom_early_allocated __initdata;
 
-#include "../../../drivers/of/pdt.c"
+void __init prom_build_devicetree(void)
+{
+	of_pdt_build_devicetree(prom_root_node);
+	of_console_init();
+
+	pr_info("PROM: Built device tree with %u bytes of memory.\n",
+			prom_early_allocated);
+}

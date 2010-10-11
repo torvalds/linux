@@ -1,4 +1,4 @@
-/* prom_common.c: OF device tree support common code.
+/* pdt.c: OF PROM device tree support code.
  *
  * Paul Mackerras	August 1996.
  * Copyright (C) 1996-2005 Paul Mackerras.
@@ -7,6 +7,7 @@
  *    {engebret|bergner}@us.ibm.com
  *
  *  Adapted for sparc by David S. Miller davem@davemloft.net
+ *  Adapted for multiple architectures by Andres Salomon <dilinger@queued.net>
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -20,13 +21,36 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_pdt.h>
 #include <asm/prom.h>
 #include <asm/oplib.h>
-#include <asm/leon.h>
 
-void (*prom_build_more)(struct device_node *dp, struct device_node ***nextp);
+void __initdata (*prom_build_more)(struct device_node *dp,
+		struct device_node ***nextp);
 
-unsigned int prom_unique_id;
+#if defined(CONFIG_SPARC)
+unsigned int of_pdt_unique_id __initdata;
+
+#define of_pdt_incr_unique_id(p) do { \
+	(p)->unique_id = of_pdt_unique_id++; \
+} while (0)
+
+static inline const char *of_pdt_node_name(struct device_node *dp)
+{
+	return dp->path_component_name;
+}
+
+#else
+
+static inline void of_pdt_incr_unique_id(void *p) { }
+static inline void irq_trans_init(struct device_node *dp) { }
+
+static inline const char *of_pdt_node_name(struct device_node *dp)
+{
+	return dp->name;
+}
+
+#endif /* !CONFIG_SPARC */
 
 static struct property * __init build_one_prop(phandle node, char *prev,
 					       char *special_name,
@@ -43,7 +67,7 @@ static struct property * __init build_one_prop(phandle node, char *prev,
 		tmp = NULL;
 	} else {
 		p = prom_early_alloc(sizeof(struct property) + 32);
-		p->unique_id = prom_unique_id++;
+		of_pdt_incr_unique_id(p);
 	}
 
 	p->name = (char *) (p + 1);
@@ -124,7 +148,7 @@ static struct device_node * __init prom_create_node(phandle node,
 		return NULL;
 
 	dp = prom_early_alloc(sizeof(*dp));
-	dp->unique_id = prom_unique_id++;
+	of_pdt_incr_unique_id(dp);
 	dp->parent = parent;
 
 	kref_init(&dp->kref);
@@ -140,13 +164,13 @@ static struct device_node * __init prom_create_node(phandle node,
 	return dp;
 }
 
-char * __init build_full_name(struct device_node *dp)
+static char * __init build_full_name(struct device_node *dp)
 {
 	int len, ourlen, plen;
 	char *n;
 
 	plen = strlen(dp->parent->full_name);
-	ourlen = strlen(dp->path_component_name);
+	ourlen = strlen(of_pdt_node_name(dp));
 	len = ourlen + plen + 2;
 
 	n = prom_early_alloc(len);
@@ -155,7 +179,7 @@ char * __init build_full_name(struct device_node *dp)
 		strcpy(n + plen, "/");
 		plen++;
 	}
-	strcpy(n + plen, dp->path_component_name);
+	strcpy(n + plen, of_pdt_node_name(dp));
 
 	return n;
 }
@@ -182,7 +206,9 @@ static struct device_node * __init prom_build_tree(struct device_node *parent,
 		*(*nextp) = dp;
 		*nextp = &dp->allnext;
 
+#if defined(CONFIG_SPARC)
 		dp->path_component_name = build_path_component(dp);
+#endif
 		dp->full_name = build_full_name(dp);
 
 		dp->child = prom_build_tree(dp, prom_getchild(node), nextp);
@@ -196,20 +222,18 @@ static struct device_node * __init prom_build_tree(struct device_node *parent,
 	return ret;
 }
 
-void __init prom_build_devicetree(void)
+void __init of_pdt_build_devicetree(phandle root_node)
 {
 	struct device_node **nextp;
 
-	allnodes = prom_create_node(prom_root_node, NULL);
+	allnodes = prom_create_node(root_node, NULL);
+#if defined(CONFIG_SPARC)
 	allnodes->path_component_name = "";
+#endif
 	allnodes->full_name = "/";
 
 	nextp = &allnodes->allnext;
 	allnodes->child = prom_build_tree(allnodes,
 					  prom_getchild(allnodes->phandle),
 					  &nextp);
-	of_console_init();
-
-	printk("PROM: Built device tree with %u bytes of memory.\n",
-	       prom_early_allocated);
 }
