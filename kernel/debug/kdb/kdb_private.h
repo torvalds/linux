@@ -15,29 +15,6 @@
 #include <linux/kgdb.h>
 #include "../debug_core.h"
 
-/* Kernel Debugger Error codes.  Must not overlap with command codes. */
-#define KDB_NOTFOUND	(-1)
-#define KDB_ARGCOUNT	(-2)
-#define KDB_BADWIDTH	(-3)
-#define KDB_BADRADIX	(-4)
-#define KDB_NOTENV	(-5)
-#define KDB_NOENVVALUE	(-6)
-#define KDB_NOTIMP	(-7)
-#define KDB_ENVFULL	(-8)
-#define KDB_ENVBUFFULL	(-9)
-#define KDB_TOOMANYBPT	(-10)
-#define KDB_TOOMANYDBREGS (-11)
-#define KDB_DUPBPT	(-12)
-#define KDB_BPTNOTFOUND	(-13)
-#define KDB_BADMODE	(-14)
-#define KDB_BADINT	(-15)
-#define KDB_INVADDRFMT  (-16)
-#define KDB_BADREG      (-17)
-#define KDB_BADCPUNUM   (-18)
-#define KDB_BADLENGTH	(-19)
-#define KDB_NOBP	(-20)
-#define KDB_BADADDR	(-21)
-
 /* Kernel Debugger Command codes.  Must not overlap with error codes. */
 #define KDB_CMD_GO	(-1001)
 #define KDB_CMD_CPU	(-1002)
@@ -93,17 +70,6 @@
  */
 #define KDB_MAXBPT	16
 
-/* Maximum number of arguments to a function  */
-#define KDB_MAXARGS    16
-
-typedef enum {
-	KDB_REPEAT_NONE = 0,	/* Do not repeat this command */
-	KDB_REPEAT_NO_ARGS,	/* Repeat the command without arguments */
-	KDB_REPEAT_WITH_ARGS,	/* Repeat the command including its arguments */
-} kdb_repeat_t;
-
-typedef int (*kdb_func_t)(int, const char **);
-
 /* Symbol table format returned by kallsyms. */
 typedef struct __ksymtab {
 		unsigned long value;	/* Address of symbol */
@@ -123,11 +89,6 @@ extern int kallsyms_symbol_next(char *prefix_name, int flag);
 extern int kallsyms_symbol_complete(char *prefix_name, int max_len);
 
 /* Exported Symbols for kernel loadable modules to use. */
-extern int kdb_register(char *, kdb_func_t, char *, char *, short);
-extern int kdb_register_repeat(char *, kdb_func_t, char *, char *,
-			       short, kdb_repeat_t);
-extern int kdb_unregister(char *);
-
 extern int kdb_getarea_size(void *, unsigned long, size_t);
 extern int kdb_putarea_size(unsigned long, void *, size_t);
 

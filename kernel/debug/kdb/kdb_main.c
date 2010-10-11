@@ -2783,6 +2783,8 @@ int kdb_register_repeat(char *cmd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(kdb_register_repeat);
+
 
 /*
  * kdb_register - Compatibility register function for commands that do
@@ -2805,6 +2807,7 @@ int kdb_register(char *cmd,
 	return kdb_register_repeat(cmd, func, usage, help, minlen,
 				   KDB_REPEAT_NONE);
 }
+EXPORT_SYMBOL_GPL(kdb_register);
 
 /*
  * kdb_unregister - This function is used to unregister a kernel
@@ -2833,6 +2836,7 @@ int kdb_unregister(char *cmd)
 	/* Couldn't find it.  */
 	return 1;
 }
+EXPORT_SYMBOL_GPL(kdb_unregister);
 
 /* Initialize the kdb command table. */
 static void __init kdb_inittab(void)
