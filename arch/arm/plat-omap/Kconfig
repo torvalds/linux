@@ -109,6 +109,9 @@ config OMAP_IOMMU_DEBUG
 
          Say N unless you know you need this.
 
+config OMAP_IOMMU_IVA2
+	bool
+
 choice
 	prompt "System timer"
 	default OMAP_32K_TIMER if !ARCH_OMAP15XX

@@ -37,7 +37,7 @@ static struct iommu_device omap3_devices[] = {
 			.da_end = 0xFFFFF000,
 		},
 	},
-#if defined(CONFIG_MPU_BRIDGE_IOMMU)
+#if defined(CONFIG_OMAP_IOMMU_IVA2)
 	{
 		.base = 0x5d000000,
 		.irq = 28,
