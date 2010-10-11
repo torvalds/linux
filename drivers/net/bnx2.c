@@ -59,8 +59,8 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.0.17"
-#define DRV_MODULE_RELDATE	"July 18, 2010"
+#define DRV_MODULE_VERSION	"2.0.18"
+#define DRV_MODULE_RELDATE	"Oct 7, 2010"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.0.15.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.0.17.fw"
@@ -7915,16 +7915,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto err_out_disable;
 	}
 
-	/* AER (Advanced Error Reporting) hooks */
-	err = pci_enable_pcie_error_reporting(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
-				    "0x%x\n", err);
-		/* non-fatal, continue */
-	}
-
 	pci_set_master(pdev);
-	pci_save_state(pdev);
 
 	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (bp->pm_cap == 0) {
@@ -7979,6 +7970,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		bp->flags |= BNX2_FLAG_PCIE;
 		if (CHIP_REV(bp) == CHIP_REV_Ax)
 			bp->flags |= BNX2_FLAG_JUMBO_BROKEN;
+
+		/* AER (Advanced Error Reporting) hooks */
+		err = pci_enable_pcie_error_reporting(pdev);
+		if (err) {
+			dev_err(&pdev->dev, "pci_enable_pcie_error_reporting "
+					    "failed 0x%x\n", err);
+			/* non-fatal, continue */
+		}
+
 	} else {
 		bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
 		if (bp->pcix_cap == 0) {
@@ -8235,16 +8235,20 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2_timer;
 
+	pci_save_state(pdev);
+
 	return 0;
 
 err_out_unmap:
+	if (bp->flags & BNX2_FLAG_PCIE)
+		pci_disable_pcie_error_reporting(pdev);
+
 	if (bp->regview) {
 		iounmap(bp->regview);
 		bp->regview = NULL;
 	}
 
 err_out_release:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_release_regions(pdev);
 
 err_out_disable:
@@ -8434,9 +8438,10 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	kfree(bp->temp_stats_blk);
 
-	free_netdev(dev);
+	if (bp->flags & BNX2_FLAG_PCIE)
+		pci_disable_pcie_error_reporting(pdev);
 
-	pci_disable_pcie_error_reporting(pdev);
+	free_netdev(dev);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -8549,6 +8554,9 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 		result = PCI_ERS_RESULT_RECOVERED;
 	}
 	rtnl_unlock();
+
+	if (!(bp->flags & BNX2_FLAG_PCIE))
+		return result;
 
 	err = pci_cleanup_aer_uncorrect_error_status(pdev);
 	if (err) {
