@@ -162,7 +162,6 @@
 #define	PKTPRIO_UPD	0x400	/* DSCP used to update VLAN prio */
 #define	PKTPRIO_DSCP	0x800	/* DSCP prio found */
 
-	char *bcmstrtok(char **string, const char *delimiters, char *tokdelim);
 /* ethernet address */
 	extern char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf);
 	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);

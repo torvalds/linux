@@ -15,6 +15,8 @@
  */
 #include <typedefs.h>
 #include <osl.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
 #include <dngl_stats.h>
@@ -967,8 +969,6 @@ void print_buf(void *pbuf, int len, int bytes_per_line)
 	printf("\n");
 }
 
-#define strtoul(nptr, endptr, base) simple_strtoul((nptr), (endptr), (base))
-
 /* Convert user's input in hex pattern to byte-size mask */
 static int wl_pattern_atoh(char *src, char *dst)
 {
@@ -986,7 +986,7 @@ static int wl_pattern_atoh(char *src, char *dst)
 		char num[3];
 		strncpy(num, src, 2);
 		num[2] = '\0';
-		dst[i] = (u8) strtoul(num, NULL, 16);
+		dst[i] = (u8) simple_strtoul(num, NULL, 16);
 		src += 2;
 	}
 	return i;
@@ -1015,7 +1015,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	arg_org = arg_save;
 	memcpy(arg_save, arg, strlen(arg) + 1);
 
-	argv[i] = bcmstrtok(&arg_save, " ", 0);
+	argv[i] = strsep(&arg_save, " ");
 
 	i = 0;
 	if (NULL == argv[i]) {
@@ -1032,7 +1032,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	pkt_filterp = (wl_pkt_filter_enable_t *) (buf + str_len + 1);
 
 	/* Parse packet filter id. */
-	enable_parm.id = htod32(strtoul(argv[i], NULL, 0));
+	enable_parm.id = htod32(simple_strtoul(argv[i], NULL, 0));
 
 	/* Parse enable/disable value. */
 	enable_parm.enable = htod32(enable);
@@ -1101,9 +1101,9 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 		goto fail;
 	}
 
-	argv[i] = bcmstrtok(&arg_save, " ", 0);
+	argv[i] = strsep(&arg_save, " ");
 	while (argv[i++])
-		argv[i] = bcmstrtok(&arg_save, " ", 0);
+		argv[i] = strsep(&arg_save, " ");
 
 	i = 0;
 	if (NULL == argv[i]) {
@@ -1120,7 +1120,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	pkt_filterp = (wl_pkt_filter_t *) (buf + str_len + 1);
 
 	/* Parse packet filter id. */
-	pkt_filter.id = htod32(strtoul(argv[i], NULL, 0));
+	pkt_filter.id = htod32(simple_strtoul(argv[i], NULL, 0));
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Polarity not provided\n"));
@@ -1128,7 +1128,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	}
 
 	/* Parse filter polarity. */
-	pkt_filter.negate_match = htod32(strtoul(argv[i], NULL, 0));
+	pkt_filter.negate_match = htod32(simple_strtoul(argv[i], NULL, 0));
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Filter type not provided\n"));
@@ -1136,7 +1136,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	}
 
 	/* Parse filter type. */
-	pkt_filter.type = htod32(strtoul(argv[i], NULL, 0));
+	pkt_filter.type = htod32(simple_strtoul(argv[i], NULL, 0));
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Offset not provided\n"));
@@ -1144,7 +1144,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	}
 
 	/* Parse pattern filter offset. */
-	pkt_filter.u.pattern.offset = htod32(strtoul(argv[i], NULL, 0));
+	pkt_filter.u.pattern.offset = htod32(simple_strtoul(argv[i], NULL, 0));
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Bitmask not provided\n"));
@@ -1290,7 +1290,7 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	ptr = buf;
 	bcm_mkiovar("ver", 0, 0, buf, sizeof(buf));
 	dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
-	bcmstrtok(&ptr, "\n", 0);
+	strsep(&ptr, "\n");
 	/* Print fw version info */
 	DHD_ERROR(("Firmware version = %s\n", buf));
 
