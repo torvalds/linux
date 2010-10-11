@@ -98,6 +98,7 @@ void rc_map_init(void);
 #define RC_MAP_LIRC                      "rc-lirc"
 #define RC_MAP_LME2510                   "rc-lme2510"
 #define RC_MAP_MANLI                     "rc-manli"
+#define RC_MAP_MSI_DIGIVOX               "rc-msi-digivox"
 #define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
 #define RC_MAP_MSI_TVANYWHERE            "rc-msi-tvanywhere"
 #define RC_MAP_NEBULA                    "rc-nebula"
