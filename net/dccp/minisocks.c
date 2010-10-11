@@ -121,30 +121,18 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		 *
 		 *    Choose S.ISS (initial seqno) or set from Init Cookies
 		 *    Initialize S.GAR := S.ISS
-		 *    Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookies
+		 *    Set S.ISR, S.GSR from packet (or Init Cookies)
+		 *
+		 *    Setting AWL/AWH and SWL/SWH happens as part of the feature
+		 *    activation below, as these windows all depend on the local
+		 *    and remote Sequence Window feature values (7.5.2).
 		 */
-		newdp->dccps_gar = newdp->dccps_iss = dreq->dreq_iss;
-		dccp_update_gss(newsk, dreq->dreq_iss);
-
-		newdp->dccps_isr = dreq->dreq_isr;
-		dccp_update_gsr(newsk, dreq->dreq_isr);
+		newdp->dccps_gss = newdp->dccps_iss = dreq->dreq_iss;
+		newdp->dccps_gar = newdp->dccps_iss;
+		newdp->dccps_gsr = newdp->dccps_isr = dreq->dreq_isr;
 
 		/*
-		 * SWL and AWL are initially adjusted so that they are not less than
-		 * the initial Sequence Numbers received and sent, respectively:
-		 *	SWL := max(GSR + 1 - floor(W/4), ISR),
-		 *	AWL := max(GSS - W' + 1, ISS).
-		 * These adjustments MUST be applied only at the beginning of the
-		 * connection.
-		 */
-		dccp_set_seqno(&newdp->dccps_swl,
-			       max48(newdp->dccps_swl, newdp->dccps_isr));
-		dccp_set_seqno(&newdp->dccps_awl,
-			       max48(newdp->dccps_awl, newdp->dccps_iss));
-
-		/*
-		 * Activate features after initialising the sequence numbers,
-		 * since CCID initialisation may depend on GSS, ISR, ISS etc.
+		 * Activate features: initialise CCIDs, sequence windows etc.
 		 */
 		if (dccp_feat_activate_values(newsk, &dreq->dreq_featneg)) {
 			/* It is still raw copy of parent, so invalidate
