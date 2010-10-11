@@ -228,8 +228,8 @@ again:
 	child = dst->child;
 
 	dst->hh = NULL;
-	if (hh && atomic_dec_and_test(&hh->hh_refcnt))
-		kfree(hh);
+	if (hh)
+		hh_cache_put(hh);
 
 	if (neigh) {
 		dst->neighbour = NULL;

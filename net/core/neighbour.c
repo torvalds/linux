@@ -709,8 +709,7 @@ void neigh_destroy(struct neighbour *neigh)
 		write_seqlock_bh(&hh->hh_lock);
 		hh->hh_output = neigh_blackhole;
 		write_sequnlock_bh(&hh->hh_lock);
-		if (atomic_dec_and_test(&hh->hh_refcnt))
-			kfree(hh);
+		hh_cache_put(hh);
 	}
 
 	skb_queue_purge(&neigh->arp_queue);
@@ -1210,39 +1209,67 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 }
 EXPORT_SYMBOL(neigh_event_ns);
 
+static inline bool neigh_hh_lookup(struct neighbour *n, struct dst_entry *dst,
+				   __be16 protocol)
+{
+	struct hh_cache *hh;
+
+	for (hh = n->hh; hh; hh = hh->hh_next) {
+		if (hh->hh_type == protocol) {
+			atomic_inc(&hh->hh_refcnt);
+			if (unlikely(cmpxchg(&dst->hh, NULL, hh) != NULL))
+				hh_cache_put(hh);
+			return true;
+		}
+	}
+	return false;
+}
+
+/* called with read_lock_bh(&n->lock); */
 static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 			  __be16 protocol)
 {
 	struct hh_cache	*hh;
 	struct net_device *dev = dst->dev;
 
-	for (hh = n->hh; hh; hh = hh->hh_next)
-		if (hh->hh_type == protocol)
-			break;
+	if (likely(neigh_hh_lookup(n, dst, protocol)))
+		return;
 
-	if (!hh && (hh = kzalloc(sizeof(*hh), GFP_ATOMIC)) != NULL) {
-		seqlock_init(&hh->hh_lock);
-		hh->hh_type = protocol;
-		atomic_set(&hh->hh_refcnt, 0);
-		hh->hh_next = NULL;
+	/* slow path */
+	hh = kzalloc(sizeof(*hh), GFP_ATOMIC);
+	if (!hh)
+		return;
 
-		if (dev->header_ops->cache(n, hh)) {
-			kfree(hh);
-			hh = NULL;
-		} else {
-			atomic_inc(&hh->hh_refcnt);
-			hh->hh_next = n->hh;
-			n->hh	    = hh;
-			if (n->nud_state & NUD_CONNECTED)
-				hh->hh_output = n->ops->hh_output;
-			else
-				hh->hh_output = n->ops->output;
-		}
+	seqlock_init(&hh->hh_lock);
+	hh->hh_type = protocol;
+	atomic_set(&hh->hh_refcnt, 2);
+
+	if (dev->header_ops->cache(n, hh)) {
+		kfree(hh);
+		return;
 	}
-	if (hh)	{
-		atomic_inc(&hh->hh_refcnt);
-		dst->hh = hh;
+	read_unlock(&n->lock);
+	write_lock(&n->lock);
+
+	/* must check if another thread already did the insert */
+	if (neigh_hh_lookup(n, dst, protocol)) {
+		kfree(hh);
+		goto end;
 	}
+
+	if (n->nud_state & NUD_CONNECTED)
+		hh->hh_output = n->ops->hh_output;
+	else
+		hh->hh_output = n->ops->output;
+
+	hh->hh_next = n->hh;
+	n->hh	    = hh;
+
+	if (unlikely(cmpxchg(&dst->hh, NULL, hh) != NULL))
+		hh_cache_put(hh);
+end:
+	write_unlock(&n->lock);
+	read_lock(&n->lock);
 }
 
 /* This function can be used in contexts, where only old dev_queue_xmit
@@ -1281,21 +1308,17 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
 		struct net_device *dev = neigh->dev;
+
+		read_lock_bh(&neigh->lock);
 		if (dev->header_ops->cache &&
 		    !dst->hh &&
-		    !(dst->flags & DST_NOCACHE)) {
-			write_lock_bh(&neigh->lock);
-			if (!dst->hh)
-				neigh_hh_init(neigh, dst, dst->ops->protocol);
-			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
-					      neigh->ha, NULL, skb->len);
-			write_unlock_bh(&neigh->lock);
-		} else {
-			read_lock_bh(&neigh->lock);
-			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
-					      neigh->ha, NULL, skb->len);
-			read_unlock_bh(&neigh->lock);
-		}
+		    !(dst->flags & DST_NOCACHE))
+			neigh_hh_init(neigh, dst, dst->ops->protocol);
+
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+				      neigh->ha, NULL, skb->len);
+		read_unlock_bh(&neigh->lock);
+
 		if (err >= 0)
 			rc = neigh->ops->queue_xmit(skb);
 		else

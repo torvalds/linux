@@ -281,6 +281,12 @@ struct hh_cache {
 	unsigned long	hh_data[HH_DATA_ALIGN(LL_MAX_HEADER) / sizeof(long)];
 };
 
+static inline void hh_cache_put(struct hh_cache *hh)
+{
+	if (atomic_dec_and_test(&hh->hh_refcnt))
+		kfree(hh);
+}
+
 /* Reserve HH_DATA_MOD byte aligned hard_header_len, but at least that much.
  * Alternative is:
  *   dev->hard_header_len ? (dev->hard_header_len +
