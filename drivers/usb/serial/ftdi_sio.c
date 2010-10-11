@@ -1589,6 +1589,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	ftdi_set_max_packet_size(port);
 	if (read_latency_timer(port) < 0)
 		priv->latency = 16;
+	write_latency_timer(port);
 	create_sysfs_attrs(port);
 	return 0;
 }
@@ -1716,8 +1717,6 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int result;
 
 	dbg("%s", __func__);
-
-	write_latency_timer(port);
 
 	/* No error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
