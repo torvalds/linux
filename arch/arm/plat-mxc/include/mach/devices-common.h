@@ -97,3 +97,9 @@ struct imx_spi_imx_data {
 struct platform_device *__init imx_add_spi_imx(
 		const struct imx_spi_imx_data *data,
 		const struct spi_imx_master *pdata);
+
+#include <mach/esdhc.h>
+struct platform_device *__init imx_add_esdhc(int id,
+		resource_size_t iobase, resource_size_t iosize,
+		resource_size_t irq,
+		const struct esdhc_platform_data *pdata);
