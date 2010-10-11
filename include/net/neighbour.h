@@ -94,8 +94,6 @@ struct neighbour {
 	struct neighbour __rcu	*next;
 	struct neigh_table	*tbl;
 	struct neigh_parms	*parms;
-	struct net_device	*dev;
-	unsigned long		used;
 	unsigned long		confirmed;
 	unsigned long		updated;
 	__u8			flags;
@@ -103,16 +101,18 @@ struct neighbour {
 	__u8			type;
 	__u8			dead;
 	atomic_t		refcnt;
+	struct sk_buff_head	arp_queue;
+	struct timer_list	timer;
+	unsigned long		used;
 	atomic_t		probes;
 	rwlock_t		lock;
 	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 	struct hh_cache		*hh;
 	int			(*output)(struct sk_buff *skb);
-	struct sk_buff_head	arp_queue;
-	struct timer_list	timer;
 	const struct neigh_ops	*ops;
 	struct rcu_head		rcu;
+	struct net_device	*dev;
 	u8			primary_key[0];
 };
 
