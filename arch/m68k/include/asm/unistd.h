@@ -373,9 +373,7 @@
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-#ifndef __uClinux__
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#endif
 
 /*
  * "Conditional" syscalls
