@@ -2065,7 +2065,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	return NULL;
 }
 
-static void BCMNMIATTACHFN(wlc_attach_antgain_init) (wlc_info_t *wlc)
+static void wlc_attach_antgain_init(wlc_info_t *wlc)
 {
 	uint unit;
 	unit = wlc->pub->unit;

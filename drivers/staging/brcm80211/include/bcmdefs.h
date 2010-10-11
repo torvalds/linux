@@ -29,12 +29,6 @@
  * typedefs.h is included.
  */
 
-
-/* Reclaiming text and data :
- * The following macros specify special linker sections that can be reclaimed
- * after a system is considered 'up'.
- */
-#define	BCMNMIATTACHFN(_fn)	_fn
 #ifdef mips
 #define BCMFASTPATH		__attribute__ ((__section__(".text.fastpath")))
 #else

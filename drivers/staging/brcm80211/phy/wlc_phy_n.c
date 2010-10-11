@@ -27742,7 +27742,7 @@ wlc_phy_mcs_to_ofdm_powers_nphy(u8 *power, u8 rate_ofdm_start,
 	}
 }
 
-void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
+void wlc_phy_txpwr_apply_nphy(phy_info_t *pi)
 {
 	uint rate1, rate2, band_num;
 	u8 tmp_bw40po = 0, tmp_cddpo = 0, tmp_stbcpo = 0;
