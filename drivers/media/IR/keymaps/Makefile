@@ -10,6 +10,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-avermedia-m733a-rm-k6.o \
 			rc-avermedia-rm-ks.o \
 			rc-avertv-303.o \
+			rc-azurewave-ad-tu700.o \
 			rc-behold.o \
 			rc-behold-columbus.o \
 			rc-budget-ci-old.o \

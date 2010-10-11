@@ -66,6 +66,7 @@ void rc_map_init(void);
 #define RC_MAP_AVERMEDIA_RM_KS           "rc-avermedia-rm-ks"
 #define RC_MAP_AVERMEDIA                 "rc-avermedia"
 #define RC_MAP_AVERTV_303                "rc-avertv-303"
+#define RC_MAP_AZUREWAVE_AD_TU700        "rc-azurewave-ad-tu700"
 #define RC_MAP_BEHOLD_COLUMBUS           "rc-behold-columbus"
 #define RC_MAP_BEHOLD                    "rc-behold"
 #define RC_MAP_BUDGET_CI_OLD             "rc-budget-ci-old"
