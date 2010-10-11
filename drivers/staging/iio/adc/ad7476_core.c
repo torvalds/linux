@@ -26,10 +26,9 @@
 
 static int ad7476_scan_direct(struct ad7476_state *st)
 {
-	struct spi_device *spi = st->spi;
 	int ret;
 
-	ret = spi_sync(spi, &st->msg);
+	ret = spi_sync(st->spi, &st->msg);
 	if (ret)
 		return ret;
 
@@ -67,13 +66,9 @@ static ssize_t ad7476_show_scale(struct device *dev,
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	struct ad7476_state *st = iio_dev_get_devdata(dev_info);
 	/* Corresponds to Vref / 2^(bits) */
+	unsigned int scale_uv = (st->int_vref_mv * 1000) >> st->chip_info->bits;
 
-	if ((1 << (st->chip_info->bits + 1)) > st->int_vref_mv)
-		return sprintf(buf, "%d/2^%d\n",
-			       st->int_vref_mv, st->chip_info->bits);
-	else
-		return sprintf(buf, "%d\n",
-			       st->int_vref_mv >> st->chip_info->bits);
+	return sprintf(buf, "%d.%d\n", scale_uv / 1000, scale_uv % 1000);
 }
 static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7476_show_scale, NULL, 0);
 
