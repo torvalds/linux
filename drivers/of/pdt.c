@@ -132,6 +132,47 @@ static char * __init of_pdt_get_one_property(phandle node, const char *name)
 	return buf;
 }
 
+static char * __init of_pdt_try_pkg2path(phandle node)
+{
+	char *res, *buf = NULL;
+	int len;
+
+	if (!of_pdt_prom_ops->pkg2path)
+		return NULL;
+
+	if (of_pdt_prom_ops->pkg2path(node, buf, 0, &len))
+		return NULL;
+	buf = prom_early_alloc(len + 1);
+	if (of_pdt_prom_ops->pkg2path(node, buf, len, &len)) {
+		pr_err("%s: package-to-path failed\n", __func__);
+		return NULL;
+	}
+
+	res = strrchr(buf, '/');
+	if (!res) {
+		pr_err("%s: couldn't find / in %s\n", __func__, buf);
+		return NULL;
+	}
+	return res+1;
+}
+
+/*
+ * When fetching the node's name, first try using package-to-path; if
+ * that fails (either because the arch hasn't supplied a PROM callback,
+ * or some other random failure), fall back to just looking at the node's
+ * 'name' property.
+ */
+static char * __init of_pdt_build_name(phandle node)
+{
+	char *buf;
+
+	buf = of_pdt_try_pkg2path(node);
+	if (!buf)
+		buf = of_pdt_get_one_property(node, "name");
+
+	return buf;
+}
+
 static struct device_node * __init of_pdt_create_node(phandle node,
 						    struct device_node *parent)
 {
@@ -146,7 +187,7 @@ static struct device_node * __init of_pdt_create_node(phandle node,
 
 	kref_init(&dp->kref);
 
-	dp->name = of_pdt_get_one_property(node, "name");
+	dp->name = of_pdt_build_name(node);
 	dp->type = of_pdt_get_one_property(node, "device_type");
 	dp->phandle = node;
 

@@ -29,6 +29,9 @@ struct of_pdt_ops {
 	/* phandles are 0 if no child or sibling exists */
 	phandle (*getchild)(phandle parent);
 	phandle (*getsibling)(phandle node);
+
+	/* return 0 on success; fill in 'len' with number of bytes in path */
+	int (*pkg2path)(phandle node, char *buf, const int buflen, int *len);
 };
 
 extern void *prom_early_alloc(unsigned long size);
