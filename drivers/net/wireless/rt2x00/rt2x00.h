@@ -338,6 +338,11 @@ struct link {
 
 	/*
 	 * Work structure for scheduling periodic watchdog monitoring.
+	 * This work must be scheduled on the kernel workqueue, while
+	 * all other work structures must be queued on the mac80211
+	 * workqueue. This guarantees that the watchdog can schedule
+	 * other work structures and wait for their completion in order
+	 * to bring the device/driver back into the desired state.
 	 */
 	struct delayed_work watchdog_work;
 };

@@ -417,8 +417,7 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev)
 	    !test_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags))
 		return;
 
-	ieee80211_queue_delayed_work(rt2x00dev->hw,
-				     &link->watchdog_work, WATCHDOG_INTERVAL);
+	schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev)
@@ -442,8 +441,7 @@ static void rt2x00link_watchdog(struct work_struct *work)
 	rt2x00dev->ops->lib->watchdog(rt2x00dev);
 
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		ieee80211_queue_delayed_work(rt2x00dev->hw,
-					     &link->watchdog_work, WATCHDOG_INTERVAL);
+		schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)
