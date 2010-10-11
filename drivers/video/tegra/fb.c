@@ -59,17 +59,16 @@ struct tegra_fb_info {
 };
 
 struct tegra_fb_flip_win {
-	struct tegra_dc_win	win_data;
-	struct tegra_dc_win	*dc_win;
-	s32			pre_syncpt_id;
-	u32			pre_syncpt_val;
+	struct tegra_fb_windowattr	attr;
+	struct nvmap_handle_ref		*handle;
+	dma_addr_t			phys_addr;
 };
 
 struct tegra_fb_flip_data {
-	struct work_struct	work;
-	struct tegra_fb_info	*fb;
-	struct tegra_fb_flip_win windows[TEGRA_FB_FLIP_N_WINDOWS];
-	u32			syncpt_max;
+	struct work_struct		work;
+	struct tegra_fb_info		*fb;
+	struct tegra_fb_flip_win	win[TEGRA_FB_FLIP_N_WINDOWS];
+	u32				syncpt_max;
 };
 
 /* palette array used by the fbcon */
@@ -251,10 +250,10 @@ static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
 	tegra_dc_update_windows(&tegra_fb->win, 1);
 	tegra_dc_sync_windows(&tegra_fb->win, 1);
 
-	if (WARN_ON(tegra_fb->win->surface)) {
-		nvmap_unpin(tegra_fb->fb_nvmap, tegra_fb->win->surface);
-		nvmap_free(tegra_fb->fb_nvmap, tegra_fb->win->surface);
-		tegra_fb->win->surface = NULL;
+	if (WARN_ON(tegra_fb->win->cur_handle)) {
+		nvmap_unpin(tegra_fb->fb_nvmap, tegra_fb->win->cur_handle);
+		nvmap_free(tegra_fb->fb_nvmap, tegra_fb->win->cur_handle);
+		tegra_fb->win->cur_handle = NULL;
 	}
 
 	return 0;
@@ -299,131 +298,140 @@ static int tegra_fb_set_nvmap_fd(struct tegra_fb_info *tegra_fb, int fd)
 	return 0;
 }
 
-static int tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
-				   struct tegra_dc_win *win,
-				   const struct tegra_fb_windowattr *attr)
+static int tegra_fb_pin_window(struct tegra_fb_info *tegra_fb,
+			       struct tegra_fb_flip_win *flip_win)
 {
-	struct nvmap_handle_ref *r_dupe;
-	struct nvmap_handle *h_win;
+	struct nvmap_handle_ref *win_dupe;
+	struct nvmap_handle *win_handle;
+	unsigned long buff_id = flip_win->attr.buff_id;
 
-	if (!attr->buff_id) {
-		win->flags = 0;
-		win->surface = NULL;
+	if (!buff_id)
 		return 0;
-	}
 
-	h_win = nvmap_get_handle_id(tegra_fb->user_nvmap, attr->buff_id);
-	if (h_win == NULL) {
+	win_handle = nvmap_get_handle_id(tegra_fb->user_nvmap, buff_id);
+	if (win_handle == NULL) {
 		dev_err(&tegra_fb->ndev->dev, "%s: flip invalid "
-			"handle %08x\n", current->comm, attr->buff_id);
+			"handle %08lx\n", current->comm, buff_id);
 		return -EPERM;
 	}
 
 	/* duplicate the new framebuffer's handle into the fb driver's
 	 * nvmap context, to ensure that the handle won't be freed as
 	 * long as it is in-use by the fb driver */
-	r_dupe = nvmap_duplicate_handle_id(tegra_fb->fb_nvmap, attr->buff_id);
-	nvmap_handle_put(h_win);
+	win_dupe = nvmap_duplicate_handle_id(tegra_fb->fb_nvmap, buff_id);
+	nvmap_handle_put(win_handle);
 
-	if (IS_ERR(r_dupe)) {
+	if (IS_ERR(win_dupe)) {
 		dev_err(&tegra_fb->ndev->dev, "couldn't duplicate handle\n");
-		return PTR_ERR(r_dupe);
+		return PTR_ERR(win_dupe);
 	}
 
-	win->surface = r_dupe;
+	flip_win->handle = win_dupe;
 
-	win->flags = TEGRA_WIN_FLAG_ENABLED;
-	if (attr->blend == TEGRA_FB_WIN_BLEND_PREMULT)
-		win->flags |= TEGRA_WIN_FLAG_BLEND_PREMULT;
-	else if (attr->blend == TEGRA_FB_WIN_BLEND_COVERAGE)
-		win->flags |= TEGRA_WIN_FLAG_BLEND_COVERAGE;
-	win->fmt = attr->pixformat;
-	win->x = attr->x;
-	win->y = attr->y;
-	win->w = attr->w;
-	win->h = attr->h;
-	win->out_x = attr->out_x;
-	win->out_y = attr->out_y;
-	win->out_w = attr->out_w;
-	win->out_h = attr->out_h;
-	win->z = attr->z;
-
-	win->phys_addr = nvmap_pin(tegra_fb->fb_nvmap, r_dupe);
-	if (IS_ERR((void *)win->phys_addr)) {
+	flip_win->phys_addr = nvmap_pin(tegra_fb->fb_nvmap, win_dupe);
+	if (IS_ERR((void *)flip_win->phys_addr)) {
 		dev_err(&tegra_fb->ndev->dev, "couldn't pin handle\n");
-		nvmap_free(tegra_fb->fb_nvmap, r_dupe);
-		return (int)win->phys_addr;
+		nvmap_free(tegra_fb->fb_nvmap, win_dupe);
+		return PTR_ERR((void *)flip_win->phys_addr);
 	}
-	/* STOPSHIP verify that this won't read outside of the surface */
-	win->phys_addr += attr->offset;
-	win->stride = attr->stride;
 
 	return 0;
 }
 
-static void tegra_fb_flip_work(struct work_struct *work)
+static int tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
+				   struct tegra_dc_win *win,
+				   const struct tegra_fb_flip_win *flip_win)
 {
-	struct tegra_fb_flip_data *data;
+	if (flip_win->handle == NULL) {
+		win->flags = 0;
+		return 0;
+	}
+
+	win->flags = TEGRA_WIN_FLAG_ENABLED;
+	if (flip_win->attr.blend == TEGRA_FB_WIN_BLEND_PREMULT)
+		win->flags |= TEGRA_WIN_FLAG_BLEND_PREMULT;
+	else if (flip_win->attr.blend == TEGRA_FB_WIN_BLEND_COVERAGE)
+		win->flags |= TEGRA_WIN_FLAG_BLEND_COVERAGE;
+	win->fmt = flip_win->attr.pixformat;
+	win->x = flip_win->attr.x;
+	win->y = flip_win->attr.y;
+	win->w = flip_win->attr.w;
+	win->h = flip_win->attr.h;
+	win->out_x = flip_win->attr.out_x;
+	win->out_y = flip_win->attr.out_y;
+	win->out_w = flip_win->attr.out_w;
+	win->out_h = flip_win->attr.out_h;
+	win->z = flip_win->attr.z;
+	win->cur_handle = flip_win->handle;
+
+	/* STOPSHIP verify that this won't read outside of the surface */
+	win->phys_addr = flip_win->phys_addr + flip_win->attr.offset;
+	win->stride = flip_win->attr.stride;
+
+	if ((s32)flip_win->attr.pre_syncpt_id >= 0) {
+		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt,
+					   flip_win->attr.pre_syncpt_id,
+					   flip_win->attr.pre_syncpt_val,
+					   msecs_to_jiffies(500));
+	}
+
+
+	return 0;
+}
+
+static void tegra_fb_flip_worker(struct work_struct *work)
+{
+	struct tegra_fb_flip_data *data =
+		container_of(work, struct tegra_fb_flip_data, work);
+	struct tegra_fb_info *tegra_fb = data->fb;
+	struct tegra_dc_win *win;
 	struct tegra_dc_win *wins[TEGRA_FB_FLIP_N_WINDOWS];
-	struct nvmap_handle_ref *surfs[TEGRA_FB_FLIP_N_WINDOWS];
+	struct nvmap_handle_ref *unpin_handles[TEGRA_FB_FLIP_N_WINDOWS];
 	int i, nr_win = 0, nr_unpin = 0;
 
 	data = container_of(work, struct tegra_fb_flip_data, work);
 
 	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		struct tegra_fb_flip_win *flip_win = &data->windows[i];
+		struct tegra_fb_flip_win *flip_win = &data->win[i];
+		int idx = flip_win->attr.index;
+		win = tegra_dc_get_window(tegra_fb->win->dc, idx);
 
-		if (!flip_win->dc_win)
+		if (!win)
 			continue;
 
-		if (flip_win->dc_win->flags && flip_win->dc_win->surface)
-			surfs[nr_unpin++] = flip_win->dc_win->surface;
+		if (win->flags && win->cur_handle)
+			unpin_handles[nr_unpin++] = win->cur_handle;
 
-		wins[nr_win++] = flip_win->dc_win;
+		tegra_fb_set_windowattr(tegra_fb, win, &data->win[i]);
 
-		flip_win->dc_win->flags = flip_win->win_data.flags;
-		if (!flip_win->dc_win->flags)
+		wins[nr_win++] = win;
+
+#if 0
+		if (flip_win->attr.pre_syncpt_id < 0)
 			continue;
+		printk("%08x %08x\n",
+		       flip_win->attr.pre_syncpt_id,
+		       flip_win->attr.pre_syncpt_val);
 
-		flip_win->dc_win->surface = flip_win->win_data.surface;
-		flip_win->dc_win->fmt = flip_win->win_data.fmt;
-		flip_win->dc_win->x = flip_win->win_data.x;
-		flip_win->dc_win->y = flip_win->win_data.y;
-		flip_win->dc_win->w = flip_win->win_data.w;
-		flip_win->dc_win->h = flip_win->win_data.h;
-		flip_win->dc_win->out_x = flip_win->win_data.out_x;
-		flip_win->dc_win->out_y = flip_win->win_data.out_y;
-		flip_win->dc_win->out_w = flip_win->win_data.out_w;
-		flip_win->dc_win->out_h = flip_win->win_data.out_h;
-		flip_win->dc_win->z = flip_win->win_data.z;
-		flip_win->dc_win->phys_addr = flip_win->win_data.phys_addr;
-		flip_win->dc_win->stride = flip_win->win_data.stride;
-
-		if (flip_win->pre_syncpt_id < 0)
-			continue;
-
-		nvhost_syncpt_wait_timeout(&data->fb->ndev->host->syncpt,
-					   flip_win->pre_syncpt_id,
-					   flip_win->pre_syncpt_val,
+		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt,
+					   flip_win->attr.pre_syncpt_id,
+					   flip_win->attr.pre_syncpt_val,
 					   msecs_to_jiffies(500));
+#endif
 	}
-
-	if (!nr_win)
-		goto free_data;
 
 	tegra_dc_update_windows(wins, nr_win);
 	/* TODO: implement swapinterval here */
 	tegra_dc_sync_windows(wins, nr_win);
 
-	tegra_dc_incr_syncpt_min(data->fb->win->dc, data->syncpt_max);
+	tegra_dc_incr_syncpt_min(tegra_fb->win->dc, data->syncpt_max);
 
 	/* unpin and deref previous front buffers */
 	for (i = 0; i < nr_unpin; i++) {
-		nvmap_unpin(data->fb->fb_nvmap, surfs[i]);
-		nvmap_free(data->fb->fb_nvmap, surfs[i]);
+		nvmap_unpin(tegra_fb->fb_nvmap, unpin_handles[i]);
+		nvmap_free(tegra_fb->fb_nvmap, unpin_handles[i]);
 	}
 
-free_data:
 	kfree(data);
 }
 
@@ -432,7 +440,6 @@ static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
 {
 	struct tegra_fb_flip_data *data;
 	struct tegra_fb_flip_win *flip_win;
-	struct tegra_dc *dc = tegra_fb->win->dc;
 	u32 syncpt_max;
 	int i, err;
 
@@ -442,51 +449,46 @@ static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
 	if (WARN_ON(!tegra_fb->ndev))
 		return -EFAULT;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&tegra_fb->ndev->dev, "no memory for flip\n");
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (data == NULL) {
+		dev_err(&tegra_fb->ndev->dev,
+			"can't allocate memory for flip\n");
 		return -ENOMEM;
 	}
 
-	INIT_WORK(&data->work, tegra_fb_flip_work);
+	INIT_WORK(&data->work, tegra_fb_flip_worker);
 	data->fb = tegra_fb;
 
 	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
+		flip_win = &data->win[i];
 
-		flip_win = &data->windows[i];
-		flip_win->dc_win = tegra_dc_get_window(dc, args->win[i].index);
-		flip_win->pre_syncpt_id = args->win[i].pre_syncpt_id;
-		flip_win->pre_syncpt_val = args->win[i].pre_syncpt_val;
+		memcpy(&flip_win->attr, &args->win[i], sizeof(flip_win->attr));
 
-		if (!flip_win->dc_win)
-			continue;
-
-		err = tegra_fb_set_windowattr(tegra_fb, &flip_win->win_data,
-					      &args->win[i]);
-		if (err) {
-			dev_err(&tegra_fb->ndev->dev, "error setting window "
-				"attributes\n");
+		err = tegra_fb_pin_window(tegra_fb, flip_win);
+		if (err < 0) {
+			dev_err(&tegra_fb->ndev->dev,
+				"error setting window attributes\n");
 			goto surf_err;
 		}
 	}
 
-	syncpt_max = tegra_dc_incr_syncpt_max(dc);
+	syncpt_max = tegra_dc_incr_syncpt_max(tegra_fb->win->dc);
 	data->syncpt_max = syncpt_max;
 
 	queue_work(tegra_fb->flip_wq, &data->work);
 
 	args->post_syncpt_val = syncpt_max;
-	args->post_syncpt_id = tegra_dc_get_syncpt_id(dc);
+	args->post_syncpt_id = tegra_dc_get_syncpt_id(tegra_fb->win->dc);
 
 	return 0;
 
 surf_err:
 	while (i--) {
-		if (data->windows[i].win_data.surface) {
+		if (data->win[i].handle) {
 			nvmap_unpin(tegra_fb->fb_nvmap,
-				    data->windows[i].win_data.surface);
+				    data->win[i].handle);
 			nvmap_free(tegra_fb->fb_nvmap,
-				   data->windows[i].win_data.surface);
+				   data->win[i].handle);
 		}
 	}
 	kfree(data);
@@ -715,9 +717,9 @@ void tegra_fb_unregister(struct tegra_fb_info *fb_info)
 {
 	struct fb_info *info = fb_info->info;
 
-	if (fb_info->win->surface) {
-		nvmap_unpin(fb_info->fb_nvmap, fb_info->win->surface);
-		nvmap_free(fb_info->fb_nvmap, fb_info->win->surface);
+	if (fb_info->win->cur_handle) {
+		nvmap_unpin(fb_info->fb_nvmap, fb_info->win->cur_handle);
+		nvmap_free(fb_info->fb_nvmap, fb_info->win->cur_handle);
 	}
 
 	if (fb_info->fb_nvmap)

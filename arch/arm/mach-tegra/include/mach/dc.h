@@ -110,8 +110,9 @@ struct tegra_dc_win {
 	int			dirty;
 	struct tegra_dc		*dc;
 
-	struct nvmap_handle_ref	*surface;
+	struct nvmap_handle_ref	*cur_handle;
 };
+
 
 #define TEGRA_WIN_FLAG_ENABLED		(1 << 0)
 #define TEGRA_WIN_FLAG_BLEND_PREMULT	(1 << 1)
