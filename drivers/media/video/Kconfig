@@ -44,6 +44,9 @@ config V4L2_MEM2MEM_DEV
 	tristate
 	depends on VIDEOBUF_GEN
 
+config VIDEOBUF2_CORE
+	tristate
+
 #
 # Multimedia Video device configuration
 #
