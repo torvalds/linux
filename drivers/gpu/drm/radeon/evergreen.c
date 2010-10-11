@@ -1137,7 +1137,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 		WREG32(RCU_IND_INDEX, 0x203);
 		efuse_straps_3 = RREG32(RCU_IND_DATA);
-		efuse_box_bit_127_124 = (u8)(efuse_straps_3 & 0xF0000000) >> 28;
+		efuse_box_bit_127_124 = (u8)((efuse_straps_3 & 0xF0000000) >> 28);
 
 		switch(efuse_box_bit_127_124) {
 		case 0x0:
