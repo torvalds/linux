@@ -132,8 +132,7 @@ cifs_bp_rename_retry:
 
 struct cifsFileInfo *
 cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
-		  struct vfsmount *mnt, struct tcon_link *tlink,
-		  unsigned int oflags, __u32 oplock)
+		  struct tcon_link *tlink, unsigned int oflags, __u32 oplock)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct cifsFileInfo *pCifsFile;
@@ -147,7 +146,6 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 	pCifsFile->pid = current->tgid;
 	pCifsFile->uid = current_fsuid();
 	pCifsFile->dentry = dget(dentry);
-	pCifsFile->mnt = mnt;
 	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
@@ -485,8 +483,7 @@ cifs_create_set_dentry:
 		}
 
 		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
-						nd->path.mnt, tlink, oflags,
-						oplock);
+						tlink, oflags, oplock);
 		if (pfile_info == NULL) {
 			fput(filp);
 			CIFSSMBClose(xid, tcon, fileHandle);
@@ -760,8 +757,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			}
 
 			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
-						  nd->path.mnt, tlink,
-						  nd->intent.open.flags,
+						  tlink, nd->intent.open.flags,
 						  oplock);
 			if (cfile == NULL) {
 				fput(filp);

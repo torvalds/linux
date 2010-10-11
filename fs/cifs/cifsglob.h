@@ -388,7 +388,6 @@ struct cifsFileInfo {
 	/* lock scope id (0 if none) */
 	struct file *pfile; /* needed for writepage */
 	struct dentry *dentry;
-	struct vfsmount *mnt;
 	struct tcon_link *tlink;
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
