@@ -7215,9 +7215,6 @@ void BCMFASTPATH wlc_recv(wlc_info_t *wlc, void *p)
 	u16 fc;
 	uint len;
 	bool is_amsdu;
-#ifdef BCMDBG
-	char eabuf[ETHER_ADDR_STR_LEN];
-#endif
 
 	WL_TRACE(("wl%d: wlc_recv\n", wlc->pub->unit));
 
@@ -7271,7 +7268,9 @@ void BCMFASTPATH wlc_recv(wlc_info_t *wlc, void *p)
 		/* CTS and ACK CTL frames are w/o a2 */
 		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
 			if ((ETHER_ISNULLADDR(&h->a2) || ETHER_ISMULTI(&h->a2))) {
-				WL_ERROR(("wl%d: %s: dropping a frame with invalid" " src mac address, a2: %s\n", wlc->pub->unit, __func__, bcm_ether_ntoa(&h->a2, eabuf)));
+				WL_ERROR(("wl%d: %s: dropping a frame with "
+					"invalid src mac address, a2: %pM\n",
+					wlc->pub->unit, __func__, &h->a2));
 				WLCNTINCR(wlc->pub->_cnt->rxbadsrcmac);
 				goto toss;
 			}

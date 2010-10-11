@@ -163,7 +163,6 @@
 #define	PKTPRIO_DSCP	0x800	/* DSCP prio found */
 
 /* ethernet address */
-	extern char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf);
 	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);
 
 /* ip address */
@@ -427,7 +426,6 @@
 /* Check that bcm_tlv_t fits into the given buflen */
 #define bcm_valid_tlv(elt, buflen) ((buflen) >= 2 && (int)(buflen) >= (int)(2 + (elt)->len))
 
-/* buffer length for ethernet address from bcm_ether_ntoa() */
 #define ETHER_ADDR_STR_LEN	18	/* 18-bytes of Ethernet address buffer length */
 
 /* crypto utility function */

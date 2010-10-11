@@ -143,8 +143,6 @@ void dhd_common_init(void)
 
 static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 {
-	char eabuf[ETHER_ADDR_STR_LEN];
-
 	struct bcmstrbuf b;
 	struct bcmstrbuf *strbuf = &b;
 
@@ -157,9 +155,8 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 		    dhdp->up, dhdp->txoff, dhdp->busstate);
 	bcm_bprintf(strbuf, "pub.hdrlen %d pub.maxctl %d pub.rxsz %d\n",
 		    dhdp->hdrlen, dhdp->maxctl, dhdp->rxsz);
-	bcm_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %s\n",
-		    dhdp->iswl, dhdp->drv_version, bcm_ether_ntoa(&dhdp->mac,
-								  eabuf));
+	bcm_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %pM\n",
+		    dhdp->iswl, dhdp->drv_version, &dhdp->mac);
 	bcm_bprintf(strbuf, "pub.bcmerror %d tickcnt %d\n", dhdp->bcmerror,
 		    dhdp->tickcnt);
 
@@ -600,13 +597,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	auth_type = ntoh32(event->auth_type);
 	datalen = ntoh32(event->datalen);
 	/* debug dump of event messages */
-	sprintf(eabuf, "%02x:%02x:%02x:%02x:%02x:%02x",
-		(unsigned char) event->addr.octet[0] & 0xff,
-		(unsigned char) event->addr.octet[1] & 0xff,
-		(unsigned char) event->addr.octet[2] & 0xff,
-		(unsigned char) event->addr.octet[3] & 0xff,
-		(unsigned char) event->addr.octet[4] & 0xff,
-		(unsigned char) event->addr.octet[5] & 0xff);
+	sprintf(eabuf, "%pM", event->addr.octet);
 
 	event_name = "UNKNOWN";
 	for (i = 0; i < ARRAY_SIZE(event_names); i++) {

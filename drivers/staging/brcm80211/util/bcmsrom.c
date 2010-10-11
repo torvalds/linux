@@ -504,10 +504,8 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 					    && !(ETHER_ISMULTI(&cis[i + 2]))) {
 						ASSERT(cis[i + 1] ==
 						       ETHER_ADDR_LEN);
-						bcm_ether_ntoa(
-							(struct ether_addr *)
-							       &cis[i + 2],
-							       eabuf);
+						snprintf(eabuf, sizeof(eabuf),
+							"%pM", &cis[i + 2]);
 
 						/* set boardnum if HNBU_BOARDNUM not seen yet */
 						if (boardnum == -1)
@@ -976,10 +974,8 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 				case HNBU_MACADDR:
 					if (!(ETHER_ISNULLADDR(&cis[i + 1])) &&
 					    !(ETHER_ISMULTI(&cis[i + 1]))) {
-						bcm_ether_ntoa(
-							(struct ether_addr *)
-							       &cis[i + 1],
-							       eabuf);
+						snprintf(eabuf, sizeof(eabuf),
+							"%pM", &cis[i + 1]);
 
 						/* set boardnum if HNBU_BOARDNUM not seen yet */
 						if (boardnum == -1)
@@ -1728,7 +1724,6 @@ static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
 			continue;
 
 		if (flags & SRFL_ETHADDR) {
-			char eabuf[ETHER_ADDR_STR_LEN];
 			struct ether_addr ea;
 
 			ea.octet[0] = (srom[srv->off - off] >> 8) & 0xff;
@@ -1737,9 +1732,8 @@ static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
 			ea.octet[3] = srom[srv->off + 1 - off] & 0xff;
 			ea.octet[4] = (srom[srv->off + 2 - off] >> 8) & 0xff;
 			ea.octet[5] = srom[srv->off + 2 - off] & 0xff;
-			bcm_ether_ntoa(&ea, eabuf);
 
-			varbuf_append(b, "%s=%s", name, eabuf);
+			varbuf_append(b, "%s=%pM", name, ea.octet);
 		} else {
 			ASSERT(mask_valid(srv->mask));
 			ASSERT(mask_width(srv->mask));

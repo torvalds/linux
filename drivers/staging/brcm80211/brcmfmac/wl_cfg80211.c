@@ -2006,16 +2006,12 @@ static __used s32
 wl_update_pmklist(struct net_device *dev, struct wl_pmk_list *pmk_list,
 		  s32 err)
 {
-	s8 eabuf[ETHER_ADDR_STR_LEN];
 	int i, j;
-
-	memset(eabuf, 0, ETHER_ADDR_STR_LEN);
 
 	WL_DBG(("No of elements %d\n", pmk_list->pmkids.npmkid));
 	for (i = 0; i < pmk_list->pmkids.npmkid; i++) {
-		WL_DBG(("PMKID[%d]: %s =\n", i,
-			bcm_ether_ntoa(&pmk_list->pmkids.pmkid[i].BSSID,
-				       eabuf)));
+		WL_DBG(("PMKID[%d]: %pM =\n", i,
+			&pmk_list->pmkids.pmkid[i].BSSID));
 		for (j = 0; j < WPA2_PMKID_LEN; j++) {
 			WL_DBG(("%02x\n", pmk_list->pmkids.pmkid[i].PMKID[j]));
 		}
@@ -2033,12 +2029,10 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_pmksa *pmksa)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	s8 eabuf[ETHER_ADDR_STR_LEN];
 	s32 err = 0;
 	int i;
 
 	CHECK_SYS_UP();
-	memset(eabuf, 0, ETHER_ADDR_STR_LEN);
 	for (i = 0; i < wl->pmk_list->pmkids.npmkid; i++)
 		if (!memcmp(pmksa->bssid, &wl->pmk_list->pmkids.pmkid[i].BSSID,
 			    ETHER_ADDR_LEN))
@@ -2053,10 +2047,8 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	} else {
 		err = -EINVAL;
 	}
-	WL_DBG(("set_pmksa,IW_PMKSA_ADD - PMKID: %s =\n",
-		bcm_ether_ntoa(&wl->pmk_list->pmkids.
-			       pmkid[wl->pmk_list->pmkids.npmkid].BSSID,
-			       eabuf)));
+	WL_DBG(("set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n",
+		&wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].BSSID));
 	for (i = 0; i < WPA2_PMKID_LEN; i++) {
 		WL_DBG(("%02x\n",
 			wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].
@@ -2073,18 +2065,16 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_pmksa *pmksa)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	s8 eabuf[ETHER_ADDR_STR_LEN];
 	struct _pmkid_list pmkid;
 	s32 err = 0;
 	int i;
 
 	CHECK_SYS_UP();
-	memset(eabuf, 0, ETHER_ADDR_STR_LEN);
 	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETHER_ADDR_LEN);
 	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WPA2_PMKID_LEN);
 
-	WL_DBG(("del_pmksa,IW_PMKSA_REMOVE - PMKID: %s =\n",
-		bcm_ether_ntoa(&pmkid.pmkid[0].BSSID, eabuf)));
+	WL_DBG(("del_pmksa,IW_PMKSA_REMOVE - PMKID: %pM =\n",
+		&pmkid.pmkid[0].BSSID));
 	for (i = 0; i < WPA2_PMKID_LEN; i++) {
 		WL_DBG(("%02x\n", pmkid.pmkid[0].PMKID[i]));
 	}
@@ -2585,10 +2575,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 		if (unlikely(err))
 			goto update_bss_info_out;
 	} else {
-		WL_DBG(("Found the AP in the list - "
-			"BSSID %02x:%02x:%02x:%02x:%02x:%02x\n",
-			bss->bssid[0], bss->bssid[1], bss->bssid[2],
-			bss->bssid[3], bss->bssid[4], bss->bssid[5]));
+		WL_DBG(("Found the AP in the list - BSSID %pM\n", bss->bssid));
 		cfg80211_put_bss(bss);
 	}
 

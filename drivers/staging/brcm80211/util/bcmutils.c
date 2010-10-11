@@ -358,12 +358,6 @@ int bcm_ether_atoe(char *p, struct ether_addr *ea)
 	return i == 6;
 }
 
-char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf)
-{
-	snprintf(buf, 18, "%pM", ea->octet);
-	return buf;
-}
-
 /*
  * Search the name=value vars for a specific one and return its value.
  * Returns NULL if not found.

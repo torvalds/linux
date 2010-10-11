@@ -800,9 +800,8 @@ wl_iw_set_wap(struct net_device *dev,
 	}
 
 	if (g_ssid.SSID_len) {
-		WL_TRACE(("%s: join SSID=%s BSSID=" MACSTR " ch=%d\n",
-			  __func__, g_ssid.SSID,
-			  MAC2STR((u8 *) awrq->sa_data),
+		WL_TRACE(("%s: join SSID=%s BSSID=%pM ch=%d\n",
+			  __func__, g_ssid.SSID, awrq->sa_data,
 			  g_wl_iw_params.target_channel));
 	}
 
@@ -2638,14 +2637,12 @@ wl_iw_set_pmksa(struct net_device *dev,
 	struct iw_pmksa *iwpmksa;
 	uint i;
 	int ret = 0;
-	char eabuf[ETHER_ADDR_STR_LEN];
 
 	WL_WSEC(("%s: SIOCSIWPMKSA\n", dev->name));
 
 	CHECK_EXTRA_FOR_NULL(extra);
 
 	iwpmksa = (struct iw_pmksa *)extra;
-	bzero((char *)eabuf, ETHER_ADDR_STR_LEN);
 
 	if (iwpmksa->cmd == IW_PMKSA_FLUSH) {
 		WL_WSEC(("wl_iw_set_pmksa - IW_PMKSA_FLUSH\n"));
@@ -2663,8 +2660,8 @@ wl_iw_set_pmksa(struct net_device *dev,
 			bcopy(&iwpmksa->pmkid[0], &pmkidptr->pmkid[0].PMKID,
 			      WPA2_PMKID_LEN);
 
-			WL_WSEC(("wl_iw_set_pmksa:IW_PMKSA_REMOVE:PMKID: %s = ",
-			bcm_ether_ntoa(&pmkidptr->pmkid[0].BSSID, eabuf)));
+			WL_WSEC(("wl_iw_set_pmksa:IW_PMKSA_REMOVE:PMKID: "
+				"%pM = ", &pmkidptr->pmkid[0].BSSID));
 			for (j = 0; j < WPA2_PMKID_LEN; j++)
 				WL_WSEC(("%02x ", pmkidptr->pmkid[0].PMKID[j]));
 			WL_WSEC(("\n"));
@@ -2713,9 +2710,8 @@ wl_iw_set_pmksa(struct net_device *dev,
 			uint j;
 			uint k;
 			k = pmkid_list.pmkids.npmkid;
-			WL_WSEC(("wl_iw_set_pmksa,IW_PMKSA_ADD - PMKID: %s = ",
-				 bcm_ether_ntoa(&pmkid_list.pmkids.pmkid[k].
-						BSSID, eabuf)));
+			WL_WSEC(("wl_iw_set_pmksa,IW_PMKSA_ADD - PMKID: %pM = ",
+				&pmkid_list.pmkids.pmkid[k].BSSID));
 			for (j = 0; j < WPA2_PMKID_LEN; j++)
 				WL_WSEC(("%02x ",
 					 pmkid_list.pmkids.pmkid[k].PMKID[j]));
@@ -2726,9 +2722,8 @@ wl_iw_set_pmksa(struct net_device *dev,
 		 pmkid_list.pmkids.npmkid));
 	for (i = 0; i < pmkid_list.pmkids.npmkid; i++) {
 		uint j;
-		WL_WSEC(("PMKID[%d]: %s = ", i,
-			 bcm_ether_ntoa(&pmkid_list.pmkids.pmkid[i].BSSID,
-					eabuf)));
+		WL_WSEC(("PMKID[%d]: %pM = ", i,
+			&pmkid_list.pmkids.pmkid[i].BSSID));
 		for (j = 0; j < WPA2_PMKID_LEN; j++)
 			WL_WSEC(("%02x ", pmkid_list.pmkids.pmkid[i].PMKID[j]));
 		WL_WSEC(("\n"));
