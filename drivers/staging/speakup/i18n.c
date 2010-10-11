@@ -9,7 +9,7 @@
 #include "spk_priv.h"
 
 static char *speakup_msgs[MSG_LAST_INDEX];
-static char *speakup_default_msgs   [MSG_LAST_INDEX] = {
+static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_BLANK] = "blank",
 	[MSG_IAM_ALIVE] = "I'm aLive!",
 	[MSG_YOU_KILLED_SPEAKUP] = "You killed speakup!",
@@ -349,7 +349,7 @@ static char *speakup_default_msgs   [MSG_LAST_INDEX] = {
 	[MSG_FUNCNAME_WORD_SAY_PREVIOUS] = "word, say previous",
 };
 
-static struct msg_group_t all_groups [] = {
+static struct msg_group_t all_groups[] = {
 	{
 		.name = "ctl_keys",
 		.start = MSG_CTL_START,
@@ -446,7 +446,7 @@ static char *skip_width(char *input)
 }
 
 /*
- * Skip past the end of the conversion part. 
+ * Skip past the end of the conversion part.
  * Note that this code only accepts a handful of conversion specifiers:
  * c d s x and ld.  Not accidental; these are exactly the ones used in
  * the default group of formatted messages.
@@ -498,7 +498,7 @@ static int compare_specifiers(char **input1, char **input2)
 /*
  * Function: fmt_validate
  * Check that two format strings contain the same number of format specifiers,
- * and that the order of specifiers is the same in both strings. 
+ * and that the order of specifiers is the same in both strings.
  * Return 1 if the condition holds, 0 if it doesn't.
 */
 static int fmt_validate(char *template, char *user)
@@ -549,7 +549,7 @@ ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
 			memcpy(newstr, text, length);
 			newstr[length] = '\0';
 			if ((index >= MSG_FORMATTED_START && index <= MSG_FORMATTED_END)
-				&& ! fmt_validate(speakup_default_msgs[index], newstr)) {
+				&& !fmt_validate(speakup_default_msgs[index], newstr)) {
 				return -EINVAL;
 			}
 			spk_lock(flags);
