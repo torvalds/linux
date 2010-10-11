@@ -788,25 +788,49 @@ static struct videobuf_queue_ops tm6000_video_qops = {
 	IOCTL handling
    ------------------------------------------------------------------*/
 
-static int res_get(struct tm6000_core *dev, struct tm6000_fh *fh)
+static bool is_res_read(struct tm6000_core *dev, struct tm6000_fh *fh)
 {
-	/* is it free? */
-	if (dev->resources)
-		return 0;
-	/* it's free, grab it */
-	dev->resources =1;
-	dprintk(dev, V4L2_DEBUG_RES_LOCK, "res: get\n");
-	return 1;
+	/* Is the current fh handling it? if so, that's OK */
+	if (dev->resources == fh && dev->is_res_read)
+		return true;
+
+	return false;
 }
 
-static int res_locked(struct tm6000_core *dev)
+static bool is_res_streaming(struct tm6000_core *dev, struct tm6000_fh *fh)
 {
-	return (dev->resources);
+	/* Is the current fh handling it? if so, that's OK */
+	if (dev->resources == fh)
+		return true;
+
+	return false;
+}
+
+static bool res_get(struct tm6000_core *dev, struct tm6000_fh *fh,
+		   bool is_res_read)
+{
+	/* Is the current fh handling it? if so, that's OK */
+	if (dev->resources == fh && dev->is_res_read == is_res_read)
+		return true;
+
+	/* is it free? */
+	if (dev->resources)
+		return false;
+
+	/* grab it */
+	dev->resources = fh;
+	dev->is_res_read = is_res_read;
+	dprintk(dev, V4L2_DEBUG_RES_LOCK, "res: get\n");
+	return true;
 }
 
 static void res_free(struct tm6000_core *dev, struct tm6000_fh *fh)
 {
-	dev->resources = 0;
+	/* Is the current fh handling it? if so, that's OK */
+	if (dev->resources != fh)
+		return;
+
+	dev->resources = NULL;
 	dprintk(dev, V4L2_DEBUG_RES_LOCK, "res: put\n");
 }
 
@@ -981,7 +1005,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != fh->type)
 		return -EINVAL;
 
-	if (!res_get(dev,fh))
+	if (!res_get(dev, fh, false))
 		return -EBUSY;
 	return (videobuf_streamon(&fh->vb_vidq));
 }
@@ -1310,7 +1334,7 @@ tm6000_read(struct file *file, char __user *data, size_t count, loff_t *pos)
 	struct tm6000_fh        *fh = file->private_data;
 
 	if (fh->type==V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		if (res_locked(fh->dev))
+		if (!res_get(fh->dev, fh, true))
 			return -EBUSY;
 
 		return videobuf_read_stream(&fh->vb_vidq, data, count, pos, 0,
@@ -1328,7 +1352,10 @@ tm6000_poll(struct file *file, struct poll_table_struct *wait)
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
 		return POLLERR;
 
-	if (res_get(fh->dev,fh)) {
+	if (!!is_res_streaming(fh->dev, fh))
+		return POLLERR;
+
+	if (!is_res_read(fh->dev, fh)) {
 		/* streaming capture */
 		if (list_empty(&fh->vb_vidq.stream))
 			return POLLERR;
@@ -1356,6 +1383,7 @@ static int tm6000_release(struct file *file)
 
 	dev->users--;
 
+	res_free(dev, fh);
 	if (!dev->users) {
 		tm6000_uninit_isoc(dev);
 		videobuf_mmap_free(&fh->vb_vidq);
