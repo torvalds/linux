@@ -118,11 +118,45 @@ int of_find_in_proplist(const char *list, const char *match, int len)
 }
 EXPORT_SYMBOL(of_find_in_proplist);
 
+/*
+ * SPARC32 and SPARC64's prom_nextprop() do things differently
+ * here, despite sharing the same interface.  SPARC32 doesn't fill in 'buf',
+ * returning NULL on an error.  SPARC64 fills in 'buf', but sets it to an
+ * empty string upon error.
+ */
+static int __init handle_nextprop_quirks(char *buf, const char *name)
+{
+	if (!name || strlen(name) == 0)
+		return -1;
+
+#ifdef CONFIG_SPARC32
+	strcpy(buf, name);
+#endif
+	return 0;
+}
+
+static int __init prom_common_nextprop(phandle node, char *prev, char *buf)
+{
+	const char *name;
+
+	buf[0] = '\0';
+	name = prom_nextprop(node, prev, buf);
+	return handle_nextprop_quirks(buf, name);
+}
+
 unsigned int prom_early_allocated __initdata;
+
+static struct of_pdt_ops prom_sparc_ops __initdata = {
+	.nextprop = prom_common_nextprop,
+	.getproplen = prom_getproplen,
+	.getproperty = prom_getproperty,
+	.getchild = prom_getchild,
+	.getsibling = prom_getsibling,
+};
 
 void __init prom_build_devicetree(void)
 {
-	of_pdt_build_devicetree(prom_root_node);
+	of_pdt_build_devicetree(prom_root_node, &prom_sparc_ops);
 	of_console_init();
 
 	pr_info("PROM: Built device tree with %u bytes of memory.\n",
