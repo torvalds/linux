@@ -363,10 +363,12 @@ void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 
 	tx_queue_for_each(rt2x00dev, queue) {
-		if (rt2x00queue_dma_timeout(queue))
-			rt2x00usb_watchdog_tx_dma(queue);
-		if (rt2x00queue_timeout(queue))
-			rt2x00usb_watchdog_tx_status(queue);
+		if (!rt2x00queue_empty(queue)) {
+			if (rt2x00queue_dma_timeout(queue))
+				rt2x00usb_watchdog_tx_dma(queue);
+			if (rt2x00queue_timeout(queue))
+				rt2x00usb_watchdog_tx_status(queue);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
