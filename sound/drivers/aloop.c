@@ -188,7 +188,7 @@ static inline void loopback_timer_stop(struct loopback_pcm *dpcm)
 
 static int loopback_check_format(struct loopback_cable *cable, int stream)
 {
-	struct snd_pcm_runtime *runtime;
+	struct snd_pcm_runtime *runtime, *cruntime;
 	struct loopback_setup *setup;
 	struct snd_card *card;
 	int check;
@@ -200,11 +200,11 @@ static int loopback_check_format(struct loopback_cable *cable, int stream)
 	}
 	runtime = cable->streams[SNDRV_PCM_STREAM_PLAYBACK]->
 							substream->runtime;
-	check = cable->hw.formats != (1ULL << runtime->format) ||
-		cable->hw.rate_min != runtime->rate ||
-		cable->hw.rate_max != runtime->rate ||
-		cable->hw.channels_min != runtime->channels ||
-		cable->hw.channels_max != runtime->channels;
+	cruntime = cable->streams[SNDRV_PCM_STREAM_CAPTURE]->
+							substream->runtime;
+	check = runtime->format != cruntime->format ||
+		runtime->rate != cruntime->rate ||
+		runtime->channels != cruntime->channels;
 	if (!check)
 		return 0;
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -274,12 +274,42 @@ static int loopback_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
+static void params_change_substream(struct loopback_pcm *dpcm,
+				    struct snd_pcm_runtime *runtime)
+{
+	struct snd_pcm_runtime *dst_runtime;
+
+	if (dpcm == NULL || dpcm->substream == NULL)
+		return;
+	dst_runtime = dpcm->substream->runtime;
+	if (dst_runtime == NULL)
+		return;
+	dst_runtime->hw = dpcm->cable->hw;
+}
+
+static void params_change(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct loopback_pcm *dpcm = runtime->private_data;
+	struct loopback_cable *cable = dpcm->cable;
+
+	cable->hw.formats = (1ULL << runtime->format);
+	cable->hw.rate_min = runtime->rate;
+	cable->hw.rate_max = runtime->rate;
+	cable->hw.channels_min = runtime->channels;
+	cable->hw.channels_max = runtime->channels;
+	params_change_substream(cable->streams[SNDRV_PCM_STREAM_PLAYBACK],
+				runtime);
+	params_change_substream(cable->streams[SNDRV_PCM_STREAM_CAPTURE],
+				runtime);
+}
+
 static int loopback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct loopback_pcm *dpcm = runtime->private_data;
 	struct loopback_cable *cable = dpcm->cable;
-	unsigned int bps, salign;
+	int bps, salign;
 
 	salign = (snd_pcm_format_width(runtime->format) *
 						runtime->channels) / 8;
@@ -303,13 +333,10 @@ static int loopback_prepare(struct snd_pcm_substream *substream)
 	dpcm->pcm_period_size = frames_to_bytes(runtime, runtime->period_size);
 
 	mutex_lock(&dpcm->loopback->cable_lock);
-	if (!(cable->valid & ~(1 << substream->stream))) {
-		cable->hw.formats = (1ULL << runtime->format);
-		cable->hw.rate_min = runtime->rate;
-		cable->hw.rate_max = runtime->rate;
-		cable->hw.channels_min = runtime->channels;
-		cable->hw.channels_max = runtime->channels;
-	}
+	if (!(cable->valid & ~(1 << substream->stream)) ||
+            (get_setup(dpcm)->notify &&
+	     substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
+		params_change(substream);
 	cable->valid |= 1 << substream->stream;
 	mutex_unlock(&dpcm->loopback->cable_lock);
 
@@ -542,6 +569,47 @@ static unsigned int get_cable_index(struct snd_pcm_substream *substream)
 		return !substream->stream;
 }
 
+static int rule_format(struct snd_pcm_hw_params *params,
+		       struct snd_pcm_hw_rule *rule)
+{
+
+	struct snd_pcm_hardware *hw = rule->private;
+	struct snd_mask *maskp = hw_param_mask(params, rule->var);
+
+	maskp->bits[0] &= (u_int32_t)hw->formats;
+	maskp->bits[1] &= (u_int32_t)(hw->formats >> 32);
+	memset(maskp->bits + 2, 0, (SNDRV_MASK_MAX-64) / 8); /* clear rest */
+	if (! maskp->bits[0] && ! maskp->bits[1])
+		return -EINVAL;
+	return 0;
+}
+
+static int rule_rate(struct snd_pcm_hw_params *params,
+		     struct snd_pcm_hw_rule *rule)
+{
+	struct snd_pcm_hardware *hw = rule->private;
+	struct snd_interval t;
+
+        t.min = hw->rate_min;
+        t.max = hw->rate_max;
+        t.openmin = t.openmax = 0;
+        t.integer = 0;
+	return snd_interval_refine(hw_param_interval(params, rule->var), &t);
+}
+
+static int rule_channels(struct snd_pcm_hw_params *params,
+			 struct snd_pcm_hw_rule *rule)
+{
+	struct snd_pcm_hardware *hw = rule->private;
+	struct snd_interval t;
+
+        t.min = hw->channels_min;
+        t.max = hw->channels_max;
+        t.openmin = t.openmax = 0;
+        t.integer = 0;
+	return snd_interval_refine(hw_param_interval(params, rule->var), &t);
+}
+
 static int loopback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -579,14 +647,34 @@ static int loopback_open(struct snd_pcm_substream *substream)
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 
+	/* use dynamic rules based on actual runtime->hw values */
+	/* note that the default rules created in the PCM midlevel code */
+	/* are cached -> they do not reflect the actual state */
+	err = snd_pcm_hw_rule_add(runtime, 0,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  rule_format, &runtime->hw,
+				  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+	if (err < 0)
+		goto unlock;
+	err = snd_pcm_hw_rule_add(runtime, 0,
+				  SNDRV_PCM_HW_PARAM_RATE,
+				  rule_rate, &runtime->hw,
+				  SNDRV_PCM_HW_PARAM_RATE, -1);
+	if (err < 0)
+		goto unlock;
+	err = snd_pcm_hw_rule_add(runtime, 0,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  rule_channels, &runtime->hw,
+				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	if (err < 0)
+		goto unlock;
+
 	runtime->private_data = dpcm;
 	runtime->private_free = loopback_runtime_free;
-	if (get_notify(dpcm) &&
-	    substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (get_notify(dpcm))
 		runtime->hw = loopback_pcm_hardware;
-	} else {
+	else
 		runtime->hw = cable->hw;
-	}
  unlock:
 	mutex_unlock(&loopback->cable_lock);
 	return err;
