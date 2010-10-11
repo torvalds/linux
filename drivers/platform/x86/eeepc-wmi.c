@@ -57,6 +57,7 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 
 #define EEEPC_WMI_METHODID_DEVS	0x53564544
 #define EEEPC_WMI_METHODID_DSTS	0x53544344
+#define EEEPC_WMI_METHODID_CFVS	0x53564643
 
 #define EEEPC_WMI_DEVID_BACKLIGHT	0x00050012
 
@@ -297,6 +298,49 @@ static void eeepc_wmi_notify(u32 value, void *context)
 	kfree(obj);
 }
 
+static int store_cpufv(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	int value;
+	struct acpi_buffer input = { (acpi_size)sizeof(value), &value };
+	acpi_status status;
+
+	if (!count || sscanf(buf, "%i", &value) != 1)
+		return -EINVAL;
+	if (value < 0 || value > 2)
+		return -EINVAL;
+
+	status = wmi_evaluate_method(EEEPC_WMI_MGMT_GUID,
+				     1, EEEPC_WMI_METHODID_CFVS, &input, NULL);
+
+	if (ACPI_FAILURE(status))
+		return -EIO;
+	else
+		return count;
+}
+
+static DEVICE_ATTR(cpufv, S_IRUGO | S_IWUSR, NULL, store_cpufv);
+
+static void eeepc_wmi_sysfs_exit(struct platform_device *device)
+{
+	device_remove_file(&device->dev, &dev_attr_cpufv);
+}
+
+static int eeepc_wmi_sysfs_init(struct platform_device *device)
+{
+	int retval = -ENOMEM;
+
+	retval = device_create_file(&device->dev, &dev_attr_cpufv);
+	if (retval)
+		goto error_sysfs;
+
+	return 0;
+
+error_sysfs:
+	eeepc_wmi_sysfs_exit(platform_device);
+	return retval;
+}
+
 static int __devinit eeepc_wmi_platform_probe(struct platform_device *device)
 {
 	struct eeepc_wmi *eeepc;
@@ -392,8 +436,14 @@ static int __init eeepc_wmi_init(void)
 		goto del_dev;
 	}
 
+	err = eeepc_wmi_sysfs_init(platform_device);
+	if (err)
+		goto del_sysfs;
+
 	return 0;
 
+del_sysfs:
+	eeepc_wmi_sysfs_exit(platform_device);
 del_dev:
 	platform_device_del(platform_device);
 put_dev:
@@ -408,6 +458,7 @@ static void __exit eeepc_wmi_exit(void)
 {
 	struct eeepc_wmi *eeepc;
 
+	eeepc_wmi_sysfs_exit(platform_device);
 	eeepc = platform_get_drvdata(platform_device);
 	platform_driver_unregister(&platform_driver);
 	platform_device_unregister(platform_device);
