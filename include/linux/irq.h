@@ -85,7 +85,6 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #endif
 
 struct msi_desc;
-struct irq_2_iommu;
 
 /**
  * struct irq_data - per irq and irq chip data passed down to chip functions
@@ -97,7 +96,6 @@ struct irq_2_iommu;
  *			methods, to allow shared chip implementations
  * @msi_desc:		MSI descriptor
  * @affinity:		IRQ affinity on SMP
- * @irq_2_iommu:	iommu with this irq
  *
  * The fields here need to overlay the ones in irq_desc until we
  * cleaned up the direct references and switched everything over to
@@ -112,9 +110,6 @@ struct irq_data {
 	struct msi_desc		*msi_desc;
 #ifdef CONFIG_SMP
 	cpumask_var_t		affinity;
-#endif
-#ifdef CONFIG_INTR_REMAP
-	struct irq_2_iommu      *irq_2_iommu;
 #endif
 };
 
@@ -388,19 +383,6 @@ static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
 {
 	return d->msi_desc;
 }
-
-#ifdef CONFIG_INTR_REMAP
-static inline struct irq_2_iommu *get_irq_iommu(unsigned int irq)
-{
-	struct irq_data *d = irq_get_irq_data(irq);
-	return d ? d->irq_2_iommu : NULL;
-}
-
-static inline struct irq_2_iommu *irq_data_get_iommu(struct irq_data *d)
-{
-	return d->irq_2_iommu;
-}
-#endif
 
 int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
 void irq_free_descs(unsigned int irq, unsigned int cnt);

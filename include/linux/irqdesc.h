@@ -10,7 +10,6 @@
 
 struct proc_dir_entry;
 struct timer_rand_state;
-struct irq_2_iommu;
 /**
  * struct irq_desc - interrupt descriptor
  * @irq_data:		per irq and chip data passed down to chip functions
@@ -52,9 +51,6 @@ struct irq_desc {
 			struct msi_desc		*msi_desc;
 #ifdef CONFIG_SMP
 			cpumask_var_t		affinity;
-#endif
-#ifdef CONFIG_INTR_REMAP
-			struct irq_2_iommu      *irq_2_iommu;
 #endif
 		};
 	};
