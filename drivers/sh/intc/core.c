@@ -300,13 +300,13 @@ int __init register_intc_controller(struct intc_desc *desc)
 	for (i = 0; i < hw->nr_vectors; i++) {
 		struct intc_vect *vect = hw->vectors + i;
 		unsigned int irq = evt2irq(vect->vect);
-		struct irq_desc *irq_desc;
+		int res;
 
 		if (!vect->enum_id)
 			continue;
 
-		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
-		if (unlikely(!irq_desc)) {
+		res = irq_alloc_desc_at(irq, numa_node_id());
+		if (res != irq && res != -EEXIST) {
 			pr_err("can't get irq_desc for %d\n", irq);
 			continue;
 		}
@@ -326,8 +326,8 @@ int __init register_intc_controller(struct intc_desc *desc)
 			 * IRQ support, each vector still needs to have
 			 * its own backing irq_desc.
 			 */
-			irq_desc = irq_to_desc_alloc_node(irq2, numa_node_id());
-			if (unlikely(!irq_desc)) {
+			res = irq_alloc_desc_at(irq2, numa_node_id());
+			if (res != irq2 && res != -EEXIST) {
 				pr_err("can't get irq_desc for %d\n", irq2);
 				continue;
 			}

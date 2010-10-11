@@ -37,7 +37,6 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 {
 	unsigned int irq = 0, new;
 	unsigned long flags;
-	struct irq_desc *desc;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 
@@ -55,24 +54,20 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 		__set_bit(new, intc_irq_map);
 	}
 
-	desc = irq_to_desc_alloc_node(new, node);
-	if (unlikely(!desc)) {
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+
+	irq = irq_alloc_desc_at(new, node);
+	if (unlikely(irq != new)) {
 		pr_err("can't get irq_desc for %d\n", new);
-		goto out_unlock;
+		return 0;
 	}
 
-	desc = move_irq_desc(desc, node);
-	irq = new;
+	activate_irq(irq);
+	return 0;
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
-
-	if (irq > 0) {
-		dynamic_irq_init(irq);
-		activate_irq(irq);
-	}
-
-	return irq;
+	return 0;
 }
 
 int create_irq(void)
@@ -91,7 +86,7 @@ void destroy_irq(unsigned int irq)
 {
 	unsigned long flags;
 
-	dynamic_irq_cleanup(irq);
+	irq_free_desc(irq);
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	__clear_bit(irq, intc_irq_map);

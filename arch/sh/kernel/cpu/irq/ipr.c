@@ -62,13 +62,13 @@ void register_ipr_controller(struct ipr_desc *desc)
 
 	for (i = 0; i < desc->nr_irqs; i++) {
 		struct ipr_data *p = desc->ipr_data + i;
-		struct irq_desc *irq_desc;
+		int res;
 
 		BUG_ON(p->ipr_idx >= desc->nr_offsets);
 		BUG_ON(!desc->ipr_offsets[p->ipr_idx]);
 
-		irq_desc = irq_to_desc_alloc_node(p->irq, numa_node_id());
-		if (unlikely(!irq_desc)) {
+		res = irq_alloc_desc_at(p->irq, numa_node_id());
+		if (unlikely(res != p->irq && res != -EEXIST))
 			printk(KERN_INFO "can not get irq_desc for %d\n",
 			       p->irq);
 			continue;
