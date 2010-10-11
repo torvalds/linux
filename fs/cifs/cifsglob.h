@@ -387,7 +387,7 @@ struct cifsFileInfo {
 	/* BB add lock scope info here if needed */ ;
 	/* lock scope id (0 if none) */
 	struct file *pfile; /* needed for writepage */
-	struct inode *pInode; /* needed for oplock break */
+	struct dentry *dentry;
 	struct vfsmount *mnt;
 	struct tcon_link *tlink;
 	struct mutex lock_mutex;
@@ -412,7 +412,7 @@ static inline void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
 	if (atomic_dec_and_test(&cifs_file->count)) {
 		cifs_put_tlink(cifs_file->tlink);
-		iput(cifs_file->pInode);
+		dput(cifs_file->dentry);
 		kfree(cifs_file);
 	}
 }

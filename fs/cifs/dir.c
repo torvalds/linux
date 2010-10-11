@@ -135,6 +135,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 		  struct vfsmount *mnt, struct tcon_link *tlink,
 		  unsigned int oflags, __u32 oplock)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct cifsFileInfo *pCifsFile;
 	struct cifsInodeInfo *pCifsInode;
 
@@ -145,7 +146,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 	pCifsFile->netfid = fileHandle;
 	pCifsFile->pid = current->tgid;
 	pCifsFile->uid = current_fsuid();
-	pCifsFile->pInode = igrab(newinode);
+	pCifsFile->dentry = dget(dentry);
 	pCifsFile->mnt = mnt;
 	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
