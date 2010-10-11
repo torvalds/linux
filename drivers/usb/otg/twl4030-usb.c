@@ -347,11 +347,20 @@ static void twl4030_i2c_access(struct twl4030_usb *twl, int on)
 	}
 }
 
+static void __twl4030_phy_power(struct twl4030_usb *twl, int on)
+{
+	u8 pwr = twl4030_usb_read(twl, PHY_PWR_CTRL);
+
+	if (on)
+		pwr &= ~PHY_PWR_PHYPWD;
+	else
+		pwr |= PHY_PWR_PHYPWD;
+
+	WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
+}
+
 static void twl4030_phy_power(struct twl4030_usb *twl, int on)
 {
-	u8 pwr;
-
-	pwr = twl4030_usb_read(twl, PHY_PWR_CTRL);
 	if (on) {
 		regulator_enable(twl->usb3v1);
 		regulator_enable(twl->usb1v8);
@@ -365,15 +374,13 @@ static void twl4030_phy_power(struct twl4030_usb *twl, int on)
 		twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, 0,
 							VUSB_DEDICATED2);
 		regulator_enable(twl->usb1v5);
-		pwr &= ~PHY_PWR_PHYPWD;
-		WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
+		__twl4030_phy_power(twl, 1);
 		twl4030_usb_write(twl, PHY_CLK_CTRL,
 				  twl4030_usb_read(twl, PHY_CLK_CTRL) |
 					(PHY_CLK_CTRL_CLOCKGATING_EN |
 						PHY_CLK_CTRL_CLK32K_EN));
-	} else  {
-		pwr |= PHY_PWR_PHYPWD;
-		WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
+	} else {
+		__twl4030_phy_power(twl, 0);
 		regulator_disable(twl->usb1v5);
 		regulator_disable(twl->usb1v8);
 		regulator_disable(twl->usb3v1);
@@ -387,19 +394,25 @@ static void twl4030_phy_suspend(struct twl4030_usb *twl, int controller_off)
 
 	twl4030_phy_power(twl, 0);
 	twl->asleep = 1;
+	dev_dbg(twl->dev, "%s\n", __func__);
+}
+
+static void __twl4030_phy_resume(struct twl4030_usb *twl)
+{
+	twl4030_phy_power(twl, 1);
+	twl4030_i2c_access(twl, 1);
+	twl4030_usb_set_mode(twl, twl->usb_mode);
+	if (twl->usb_mode == T2_USB_MODE_ULPI)
+		twl4030_i2c_access(twl, 0);
 }
 
 static void twl4030_phy_resume(struct twl4030_usb *twl)
 {
 	if (!twl->asleep)
 		return;
-
-	twl4030_phy_power(twl, 1);
-	twl4030_i2c_access(twl, 1);
-	twl4030_usb_set_mode(twl, twl->usb_mode);
-	if (twl->usb_mode == T2_USB_MODE_ULPI)
-		twl4030_i2c_access(twl, 0);
+	__twl4030_phy_resume(twl);
 	twl->asleep = 0;
+	dev_dbg(twl->dev, "%s\n", __func__);
 }
 
 static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
@@ -408,8 +421,8 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 	twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0xC0, PROTECT_KEY);
 	twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0x0C, PROTECT_KEY);
 
-	/* put VUSB3V1 LDO in active state */
-	twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, 0, VUSB_DEDICATED2);
+	/* Keep VUSB3V1 LDO in sleep state until VBUS/ID change detected*/
+	/*twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, 0, VUSB_DEDICATED2);*/
 
 	/* input to VUSB3V1 LDO is from VBAT, not VBUS */
 	twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, 0x14, VUSB_DEDICATED1);
@@ -502,6 +515,26 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 	return IRQ_HANDLED;
 }
 
+static void twl4030_usb_phy_init(struct twl4030_usb *twl)
+{
+	int status;
+
+	status = twl4030_usb_linkstat(twl);
+	if (status >= 0) {
+		if (status == USB_EVENT_NONE) {
+			__twl4030_phy_power(twl, 0);
+			twl->asleep = 1;
+		} else {
+			__twl4030_phy_resume(twl);
+			twl->asleep = 0;
+		}
+
+		blocking_notifier_call_chain(&twl->otg.notifier, status,
+				twl->otg.gadget);
+	}
+	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+}
+
 static int twl4030_set_suspend(struct otg_transceiver *x, int suspend)
 {
 	struct twl4030_usb *twl = xceiv_to_twl(x);
@@ -550,7 +583,6 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	struct twl4030_usb_data *pdata = pdev->dev.platform_data;
 	struct twl4030_usb	*twl;
 	int			status, err;
-	u8			pwr;
 
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform_data not available\n");
@@ -569,10 +601,7 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	twl->otg.set_peripheral	= twl4030_set_peripheral;
 	twl->otg.set_suspend	= twl4030_set_suspend;
 	twl->usb_mode		= pdata->usb_mode;
-
-	pwr = twl4030_usb_read(twl, PHY_PWR_CTRL);
-
-	twl->asleep		= (pwr & PHY_PWR_PHYPWD);
+	twl->asleep = 1;
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);
@@ -610,15 +639,10 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 		return status;
 	}
 
-	/* The IRQ handler just handles changes from the previous states
-	 * of the ID and VBUS pins ... in probe() we must initialize that
-	 * previous state.  The easy way:  fake an IRQ.
-	 *
-	 * REVISIT:  a real IRQ might have happened already, if PREEMPT is
-	 * enabled.  Else the IRQ may not yet be configured or enabled,
-	 * because of scheduling delays.
+	/* Power down phy or make it work according to
+	 * current link state.
 	 */
-	twl4030_usb_irq(twl->irq, twl);
+	twl4030_usb_phy_init(twl);
 
 	dev_info(&pdev->dev, "Initialized TWL4030 USB module\n");
 	return 0;

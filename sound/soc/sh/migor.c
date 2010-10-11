@@ -12,6 +12,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 
 #include <cpu/sh7722.h>
@@ -40,11 +41,11 @@ static struct clk_ops siumckb_clk_ops = {
 };
 
 static struct clk siumckb_clk = {
-	.name		= "siumckb_clk",
-	.id		= -1,
 	.ops		= &siumckb_clk_ops,
 	.rate		= 0, /* initialised at run-time */
 };
+
+static struct clk_lookup *siumckb_lookup;
 
 static int migor_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params)
@@ -180,6 +181,13 @@ static int __init migor_init(void)
 	if (ret < 0)
 		return ret;
 
+	siumckb_lookup = clkdev_alloc(&siumckb_clk, "siumckb_clk", NULL);
+	if (!siumckb_lookup) {
+		ret = -ENOMEM;
+		goto eclkdevalloc;
+	}
+	clkdev_add(siumckb_lookup);
+
 	/* Port number used on this machine: port B */
 	migor_snd_device = platform_device_alloc("soc-audio", 1);
 	if (!migor_snd_device) {
@@ -200,12 +208,15 @@ static int __init migor_init(void)
 epdevadd:
 	platform_device_put(migor_snd_device);
 epdevalloc:
+	clkdev_drop(siumckb_lookup);
+eclkdevalloc:
 	clk_unregister(&siumckb_clk);
 	return ret;
 }
 
 static void __exit migor_exit(void)
 {
+	clkdev_drop(siumckb_lookup);
 	clk_unregister(&siumckb_clk);
 	platform_device_unregister(migor_snd_device);
 }

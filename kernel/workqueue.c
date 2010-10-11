@@ -1,19 +1,26 @@
 /*
- * linux/kernel/workqueue.c
+ * kernel/workqueue.c - generic async execution with shared worker pool
  *
- * Generic mechanism for defining kernel helper threads for running
- * arbitrary tasks in process context.
+ * Copyright (C) 2002		Ingo Molnar
  *
- * Started by Ingo Molnar, Copyright (C) 2002
- *
- * Derived from the taskqueue/keventd code by:
- *
- *   David Woodhouse <dwmw2@infradead.org>
- *   Andrew Morton
- *   Kai Petzke <wpp@marie.physik.tu-berlin.de>
- *   Theodore Ts'o <tytso@mit.edu>
+ *   Derived from the taskqueue/keventd code by:
+ *     David Woodhouse <dwmw2@infradead.org>
+ *     Andrew Morton
+ *     Kai Petzke <wpp@marie.physik.tu-berlin.de>
+ *     Theodore Ts'o <tytso@mit.edu>
  *
  * Made to use alloc_percpu by Christoph Lameter.
+ *
+ * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
+ *
+ * This is the generic async execution mechanism.  Work items as are
+ * executed in process context.  The worker pool is shared and
+ * automatically managed.  There is one worker pool for each CPU and
+ * one extra for works which are better served by workers which are
+ * not bound to any specific CPU.
+ *
+ * Please read Documentation/workqueue.txt for details.
  */
 
 #include <linux/module.h>

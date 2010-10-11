@@ -73,8 +73,6 @@
 	ldq	$20, HAE_REG($19);	\
 	stq	$21, HAE_CACHE($19);	\
 	stq	$21, 0($20);		\
-	ldq	$0, 0($sp);		\
-	ldq	$1, 8($sp);		\
 99:;					\
 	ldq	$19, 72($sp);		\
 	ldq	$20, 80($sp);		\
@@ -316,18 +314,23 @@ ret_from_sys_call:
 	cmovne	$26, 0, $19		/* $19 = 0 => non-restartable */
 	ldq	$0, SP_OFF($sp)
 	and	$0, 8, $0
-	beq	$0, restore_all
-ret_from_reschedule:
+	beq	$0, ret_to_kernel
+ret_to_user:
 	/* Make sure need_resched and sigpending don't change between
 		sampling and the rti.  */
 	lda	$16, 7
 	call_pal PAL_swpipl
 	ldl	$5, TI_FLAGS($8)
 	and	$5, _TIF_WORK_MASK, $2
-	bne	$5, work_pending
+	bne	$2, work_pending
 restore_all:
 	RESTORE_ALL
 	call_pal PAL_rti
+
+ret_to_kernel:
+	lda	$16, 7
+	call_pal PAL_swpipl
+	br restore_all
 
 	.align 3
 $syscall_error:
@@ -363,7 +366,7 @@ $ret_success:
  *       $8: current.
  *      $19: The old syscall number, or zero if this is not a return
  *           from a syscall that errored and is possibly restartable.
- *      $20: Error indication.
+ *      $20: The old a3 value
  */
 
 	.align	4
@@ -392,12 +395,18 @@ $work_resched:
 
 $work_notifysig:
 	mov	$sp, $16
-	br	$1, do_switch_stack
+	bsr	$1, do_switch_stack
 	mov	$sp, $17
 	mov	$5, $18
+	mov	$19, $9		/* save old syscall number */
+	mov	$20, $10	/* save old a3 */
+	and	$5, _TIF_SIGPENDING, $2
+	cmovne	$2, 0, $9	/* we don't want double syscall restarts */
 	jsr	$26, do_notify_resume
+	mov	$9, $19
+	mov	$10, $20
 	bsr	$1, undo_switch_stack
-	br	restore_all
+	br	ret_to_user
 .end work_pending
 
 /*
@@ -430,6 +439,7 @@ strace:
 	beq	$1, 1f
 	ldq	$27, 0($2)
 1:	jsr	$26, ($27), sys_gettimeofday
+ret_from_straced:
 	ldgp	$gp, 0($26)
 
 	/* check return.. */
@@ -650,7 +660,7 @@ kernel_thread:
 	/* We don't actually care for a3 success widgetry in the kernel.
 	   Not for positive errno values.  */
 	stq	$0, 0($sp)		/* $0 */
-	br	restore_all
+	br	ret_to_kernel
 .end kernel_thread
 
 /*
@@ -757,11 +767,15 @@ sys_vfork:
 	.ent	sys_sigreturn
 sys_sigreturn:
 	.prologue 0
+	lda	$9, ret_from_straced
+	cmpult	$26, $9, $9
 	mov	$sp, $17
 	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_sigreturn
-	br	$1, undo_switch_stack
+	bne	$9, 1f
+	jsr	$26, syscall_trace
+1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
 .end sys_sigreturn
 
@@ -770,45 +784,17 @@ sys_sigreturn:
 	.ent	sys_rt_sigreturn
 sys_rt_sigreturn:
 	.prologue 0
+	lda	$9, ret_from_straced
+	cmpult	$26, $9, $9
 	mov	$sp, $17
 	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_rt_sigreturn
-	br	$1, undo_switch_stack
+	bne	$9, 1f
+	jsr	$26, syscall_trace
+1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
 .end sys_rt_sigreturn
-
-	.align	4
-	.globl	sys_sigsuspend
-	.ent	sys_sigsuspend
-sys_sigsuspend:
-	.prologue 0
-	mov	$sp, $17
-	br	$1, do_switch_stack
-	mov	$sp, $18
-	subq	$sp, 16, $sp
-	stq	$26, 0($sp)
-	jsr	$26, do_sigsuspend
-	ldq	$26, 0($sp)
-	lda	$sp, SWITCH_STACK_SIZE+16($sp)
-	ret
-.end sys_sigsuspend
-
-	.align	4
-	.globl	sys_rt_sigsuspend
-	.ent	sys_rt_sigsuspend
-sys_rt_sigsuspend:
-	.prologue 0
-	mov	$sp, $18
-	br	$1, do_switch_stack
-	mov	$sp, $19
-	subq	$sp, 16, $sp
-	stq	$26, 0($sp)
-	jsr	$26, do_rt_sigsuspend
-	ldq	$26, 0($sp)
-	lda	$sp, SWITCH_STACK_SIZE+16($sp)
-	ret
-.end sys_rt_sigsuspend
 
 	.align	4
 	.globl	sys_sethae
@@ -927,15 +913,6 @@ sys_execve:
 	mov	$sp, $19
 	jmp	$31, do_sys_execve
 .end sys_execve
-
-	.align	4
-	.globl	osf_sigprocmask
-	.ent	osf_sigprocmask
-osf_sigprocmask:
-	.prologue 0
-	mov	$sp, $18
-	jmp	$31, sys_osf_sigprocmask
-.end osf_sigprocmask
 
 	.align	4
 	.globl	alpha_ni_syscall

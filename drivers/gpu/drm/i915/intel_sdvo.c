@@ -1417,7 +1417,7 @@ intel_analog_is_connected(struct drm_device *dev)
 	if (!analog_connector)
 		return false;
 
-	if (analog_connector->funcs->detect(analog_connector) ==
+	if (analog_connector->funcs->detect(analog_connector, false) ==
 			connector_status_disconnected)
 		return false;
 
@@ -1486,7 +1486,8 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	return status;
 }
 
-static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_sdvo_detect(struct drm_connector *connector, bool force)
 {
 	uint16_t response;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
@@ -2169,8 +2170,7 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
         return true;
 
 err:
-	intel_sdvo_destroy_enhance_property(connector);
-	kfree(intel_sdvo_connector);
+	intel_sdvo_destroy(connector);
 	return false;
 }
 
@@ -2242,8 +2242,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	return true;
 
 err:
-	intel_sdvo_destroy_enhance_property(connector);
-	kfree(intel_sdvo_connector);
+	intel_sdvo_destroy(connector);
 	return false;
 }
 
@@ -2521,11 +2520,10 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 		uint16_t response;
 	} enhancements;
 
-	if (!intel_sdvo_get_value(intel_sdvo,
-				  SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
-				  &enhancements, sizeof(enhancements)))
-		return false;
-
+	enhancements.response = 0;
+	intel_sdvo_get_value(intel_sdvo,
+			     SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
+			     &enhancements, sizeof(enhancements));
 	if (enhancements.response == 0) {
 		DRM_DEBUG_KMS("No enhancement is supported\n");
 		return true;

@@ -4792,7 +4792,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 clean4:
 	kfree(h->cmd_pool_bits);
 	/* Free up sg elements */
-	for (k = 0; k < h->nr_cmds; k++)
+	for (k-- ; k >= 0; k--)
 		kfree(h->scatter_list[k]);
 	kfree(h->scatter_list);
 	cciss_free_sg_chain_blocks(h->cmd_sg_list, h->nr_cmds);

@@ -2680,10 +2680,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 
 	/*
-	 * Make sure try_to_free_swap didn't release the swapcache
-	 * from under us. The page pin isn't enough to prevent that.
+	 * Make sure try_to_free_swap or reuse_swap_page or swapoff did not
+	 * release the swapcache from under us.  The page pin, and pte_same
+	 * test below, are not enough to exclude that.  Even if it is still
+	 * swapcache, we need to check that the page's swap has not changed.
 	 */
-	if (unlikely(!PageSwapCache(page)))
+	if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
 		goto out_page;
 
 	if (ksm_might_need_to_copy(page, vma, address)) {

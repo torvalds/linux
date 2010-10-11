@@ -635,6 +635,9 @@ struct vortex_private {
 		must_free_region:1,				/* Flag: if zero, Cardbus owns the I/O region */
 		large_frames:1,			/* accept large frames */
 		handling_irq:1;			/* private in_irq indicator */
+	/* {get|set}_wol operations are already serialized by rtnl.
+	 * no additional locking is required for the enable_wol and acpi_set_WOL()
+	 */
 	int drv_flags;
 	u16 status_enable;
 	u16 intr_enable;
@@ -2939,28 +2942,31 @@ static void vortex_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	spin_lock_irq(&vp->lock);
+	if (!VORTEX_PCI(vp))
+		return;
+
 	wol->supported = WAKE_MAGIC;
 
 	wol->wolopts = 0;
 	if (vp->enable_wol)
 		wol->wolopts |= WAKE_MAGIC;
-	spin_unlock_irq(&vp->lock);
 }
 
 static int vortex_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct vortex_private *vp = netdev_priv(dev);
+
+	if (!VORTEX_PCI(vp))
+		return -EOPNOTSUPP;
+
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
-	spin_lock_irq(&vp->lock);
 	if (wol->wolopts & WAKE_MAGIC)
 		vp->enable_wol = 1;
 	else
 		vp->enable_wol = 0;
 	acpi_set_WOL(dev);
-	spin_unlock_irq(&vp->lock);
 
 	return 0;
 }
@@ -3201,6 +3207,9 @@ static void acpi_set_WOL(struct net_device *dev)
 			vp->enable_wol = 0;
 			return;
 		}
+
+		if (VORTEX_PCI(vp)->current_state < PCI_D3hot)
+			return;
 
 		/* Change the power state to D3; RxEnable doesn't take effect. */
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D3hot);

@@ -1160,14 +1160,25 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 									EVERGREEN_MAX_BACKENDS_MASK));
 			break;
 		}
-	} else
-		gb_backend_map =
-			evergreen_get_tile_pipe_to_backend_map(rdev,
-							       rdev->config.evergreen.max_tile_pipes,
-							       rdev->config.evergreen.max_backends,
-							       ((EVERGREEN_MAX_BACKENDS_MASK <<
-								 rdev->config.evergreen.max_backends) &
-								EVERGREEN_MAX_BACKENDS_MASK));
+	} else {
+		switch (rdev->family) {
+		case CHIP_CYPRESS:
+		case CHIP_HEMLOCK:
+			gb_backend_map = 0x66442200;
+			break;
+		case CHIP_JUNIPER:
+			gb_backend_map = 0x00006420;
+			break;
+		default:
+			gb_backend_map =
+				evergreen_get_tile_pipe_to_backend_map(rdev,
+								       rdev->config.evergreen.max_tile_pipes,
+								       rdev->config.evergreen.max_backends,
+								       ((EVERGREEN_MAX_BACKENDS_MASK <<
+									 rdev->config.evergreen.max_backends) &
+									EVERGREEN_MAX_BACKENDS_MASK));
+		}
+	}
 
 	rdev->config.evergreen.tile_config = gb_addr_config;
 	WREG32(GB_BACKEND_MAP, gb_backend_map);

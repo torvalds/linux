@@ -298,7 +298,17 @@ struct ahci_host_priv {
 
 extern int ahci_ignore_sss;
 
-extern struct scsi_host_template ahci_sht;
+extern struct device_attribute *ahci_shost_attrs[];
+extern struct device_attribute *ahci_sdev_attrs[];
+
+#define AHCI_SHT(drv_name)						\
+	ATA_NCQ_SHT(drv_name),						\
+	.can_queue		= AHCI_MAX_CMDS - 1,			\
+	.sg_tablesize		= AHCI_MAX_SG,				\
+	.dma_boundary		= AHCI_DMA_BOUNDARY,			\
+	.shost_attrs		= ahci_shost_attrs,			\
+	.sdev_attrs		= ahci_sdev_attrs
+
 extern struct ata_port_operations ahci_ops;
 
 void ahci_save_initial_config(struct device *dev,

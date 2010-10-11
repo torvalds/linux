@@ -203,8 +203,9 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[1] = (value >> 8) & 0xff;
 	data[2] = value & 0xff;
 
-	if (!snd_soc_codec_volatile_register(codec, reg))
-		reg_cache[reg] = value;
+	if (!snd_soc_codec_volatile_register(codec, reg)
+		&& reg < codec->reg_cache_size)
+			reg_cache[reg] = value;
 
 	if (codec->cache_only) {
 		codec->cache_sync = 1;

@@ -2613,6 +2613,11 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EINVAL;
 
+	if (test_bit(STATUS_SCANNING, &priv->status)) {
+		IWL_DEBUG_INFO(priv, "scan in progress.\n");
+		return -EINVAL;
+	}
+
 	if (mode >= IWL_MAX_FORCE_RESET) {
 		IWL_DEBUG_INFO(priv, "invalid reset request.\n");
 		return -EINVAL;

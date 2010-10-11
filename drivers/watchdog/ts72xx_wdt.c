@@ -449,6 +449,9 @@ static __devinit int ts72xx_wdt_probe(struct platform_device *pdev)
 	wdt->pdev = pdev;
 	mutex_init(&wdt->lock);
 
+	/* make sure that the watchdog is disabled */
+	ts72xx_wdt_stop(wdt);
+
 	error = misc_register(&ts72xx_wdt_miscdev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register miscdev\n");
