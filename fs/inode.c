@@ -663,7 +663,7 @@ EXPORT_SYMBOL(new_inode);
 void unlock_new_inode(struct inode *inode)
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	if (inode->i_mode & S_IFDIR) {
+	if (S_ISDIR(inode->i_mode)) {
 		struct file_system_type *type = inode->i_sb->s_type;
 
 		/* Set new key only if filesystem hasn't already changed it */
