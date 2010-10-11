@@ -29,6 +29,7 @@
 #include <linux/bootmem.h>
 #include <linux/slab.h>
 #include <linux/irqnr.h>
+#include <linux/pci.h>
 
 #include <asm/desc.h>
 #include <asm/ptrace.h>
@@ -656,6 +657,10 @@ out:
 	return irq;
 }
 
+#ifdef CONFIG_PCI_MSI
+#include <linux/msi.h>
+#include "../pci/msi.h"
+
 void xen_allocate_pirq_msi(char *name, int *irq, int *pirq)
 {
 	spin_lock(&irq_mapping_update_lock);
@@ -677,6 +682,61 @@ void xen_allocate_pirq_msi(char *name, int *irq, int *pirq)
 out:
 	spin_unlock(&irq_mapping_update_lock);
 }
+
+int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
+{
+	int irq = -1;
+	struct physdev_map_pirq map_irq;
+	int rc;
+	int pos;
+	u32 table_offset, bir;
+
+	memset(&map_irq, 0, sizeof(map_irq));
+	map_irq.domid = DOMID_SELF;
+	map_irq.type = MAP_PIRQ_TYPE_MSI;
+	map_irq.index = -1;
+	map_irq.pirq = -1;
+	map_irq.bus = dev->bus->number;
+	map_irq.devfn = dev->devfn;
+
+	if (type == PCI_CAP_ID_MSIX) {
+		pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
+
+		pci_read_config_dword(dev, msix_table_offset_reg(pos),
+					&table_offset);
+		bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
+
+		map_irq.table_base = pci_resource_start(dev, bir);
+		map_irq.entry_nr = msidesc->msi_attrib.entry_nr;
+	}
+
+	spin_lock(&irq_mapping_update_lock);
+
+	irq = find_unbound_irq();
+
+	if (irq == -1)
+		goto out;
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+	if (rc) {
+		printk(KERN_WARNING "xen map irq failed %d\n", rc);
+
+		irq_free_desc(irq);
+
+		irq = -1;
+		goto out;
+	}
+	irq_info[irq] = mk_pirq_info(0, map_irq.pirq, 0, map_irq.index);
+
+	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
+			handle_level_irq,
+			(type == PCI_CAP_ID_MSIX) ? "msi-x":"msi");
+
+out:
+	spin_unlock(&irq_mapping_update_lock);
+	return irq;
+}
+#endif
 
 int xen_destroy_irq(int irq)
 {

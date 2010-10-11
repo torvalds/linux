@@ -135,14 +135,12 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (!v)
 		return -ENOMEM;
 
-	if (!xen_initial_domain()) {
-		if (type == PCI_CAP_ID_MSIX)
-			ret = xen_pci_frontend_enable_msix(dev, &v, nvec);
-		else
-			ret = xen_pci_frontend_enable_msi(dev, &v);
-		if (ret)
-			goto error;
-	}
+	if (type == PCI_CAP_ID_MSIX)
+		ret = xen_pci_frontend_enable_msix(dev, &v, nvec);
+	else
+		ret = xen_pci_frontend_enable_msi(dev, &v);
+	if (ret)
+		goto error;
 	i = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		irq = xen_allocate_pirq(v[i], 0, /* not sharable */
@@ -172,22 +170,39 @@ error:
 
 static void xen_teardown_msi_irqs(struct pci_dev *dev)
 {
-	/* Only do this when were are in non-privileged mode.*/
-	if (!xen_initial_domain()) {
-		struct msi_desc *msidesc;
+	struct msi_desc *msidesc;
 
-		msidesc = list_entry(dev->msi_list.next, struct msi_desc, list);
-		if (msidesc->msi_attrib.is_msix)
-			xen_pci_frontend_disable_msix(dev);
-		else
-			xen_pci_frontend_disable_msi(dev);
-	}
-
+	msidesc = list_entry(dev->msi_list.next, struct msi_desc, list);
+	if (msidesc->msi_attrib.is_msix)
+		xen_pci_frontend_disable_msix(dev);
+	else
+		xen_pci_frontend_disable_msi(dev);
 }
 
 static void xen_teardown_msi_irq(unsigned int irq)
 {
 	xen_destroy_irq(irq);
+}
+
+static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	int irq, ret;
+	struct msi_desc *msidesc;
+
+	list_for_each_entry(msidesc, &dev->msi_list, list) {
+		irq = xen_create_msi_irq(dev, msidesc, type);
+		if (irq < 0)
+			return -1;
+
+		ret = set_irq_msi(irq, msidesc);
+		if (ret)
+			goto error;
+	}
+	return 0;
+
+error:
+	xen_destroy_irq(irq);
+	return ret;
 }
 #endif
 
@@ -362,6 +377,10 @@ static int acpi_register_gsi_xen(struct device *dev, u32 gsi,
 
 static int __init pci_xen_initial_domain(void)
 {
+#ifdef CONFIG_PCI_MSI
+	x86_msi.setup_msi_irqs = xen_initdom_setup_msi_irqs;
+	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
+#endif
 	xen_setup_acpi_sci();
 	__acpi_register_gsi = acpi_register_gsi_xen;
 
