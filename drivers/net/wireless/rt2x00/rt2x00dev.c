@@ -253,6 +253,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
 void rt2x00lib_dmadone(struct queue_entry *entry)
 {
+	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmadone);

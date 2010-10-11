@@ -253,7 +253,10 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 			  entry->skb->data, length,
 			  rt2x00usb_interrupt_txdone, entry);
 
-	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	if (usb_submit_urb(entry_priv->urb, GFP_ATOMIC)) {
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		rt2x00lib_dmadone(entry);
+	}
 }
 
 void rt2x00usb_kick_tx_queue(struct data_queue *queue)
@@ -280,14 +283,6 @@ static void rt2x00usb_kill_tx_entry(struct queue_entry *entry)
 	if ((entry->queue->qid == QID_BEACON) &&
 	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
 		usb_kill_urb(bcn_priv->guardian_urb);
-
-	/*
-	 * We need a short delay here to wait for
-	 * the URB to be canceled
-	 */
-	do {
-		udelay(100);
-	} while (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags));
 }
 
 void rt2x00usb_kill_tx_queue(struct data_queue *queue)
@@ -469,7 +464,10 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 				rt2x00usb_interrupt_rxdone, entry);
 
 		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+		if (usb_submit_urb(entry_priv->urb, GFP_ATOMIC)) {
+			set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+			rt2x00lib_dmadone(entry);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
