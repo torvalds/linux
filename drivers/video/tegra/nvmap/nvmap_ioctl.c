@@ -459,7 +459,8 @@ static int cache_maint(struct nvmap_client *client, struct nvmap_handle *h,
 	}
 
 	if (h->flags == NVMAP_HANDLE_UNCACHEABLE ||
-	    h->flags == NVMAP_HANDLE_WRITE_COMBINE)
+	    h->flags == NVMAP_HANDLE_WRITE_COMBINE ||
+	    start == end)
 		goto out;
 
 	if (WARN_ON_ONCE(op == NVMAP_CACHE_OP_WB_INV))
@@ -607,7 +608,7 @@ static ssize_t rw_handle(struct nvmap_client *client, struct nvmap_handle *h,
 		return PTR_ERR(pte);
 
 	while (count--) {
-		if (h_offs + elem_size >= h->size) {
+		if (h_offs + elem_size > h->size) {
 			nvmap_warn(client, "read/write outside of handle\n");
 			ret = -EFAULT;
 			break;
