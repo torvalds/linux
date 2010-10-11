@@ -64,6 +64,9 @@ extern unsigned int irq_create_of_mapping(struct device_node *controller,
 					  unsigned int intsize);
 extern int of_irq_to_resource(struct device_node *dev, int index,
 			      struct resource *r);
+extern int of_irq_count(struct device_node *dev);
+extern int of_irq_to_resource_table(struct device_node *dev,
+		struct resource *res, int nr_irqs);
 
 #endif /* CONFIG_OF_IRQ */
 #endif /* CONFIG_OF */

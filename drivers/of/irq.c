@@ -24,6 +24,11 @@
 #include <linux/of_irq.h>
 #include <linux/string.h>
 
+/* For archs that don't support NO_IRQ (such as x86), provide a dummy value */
+#ifndef NO_IRQ
+#define NO_IRQ 0
+#endif
+
 /**
  * irq_of_parse_and_map - Parse and map an interrupt into linux virq space
  * @device: Device node of the device whose interrupt is to be mapped
@@ -347,3 +352,37 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 	return irq;
 }
 EXPORT_SYMBOL_GPL(of_irq_to_resource);
+
+/**
+ * of_irq_count - Count the number of IRQs a node uses
+ * @dev: pointer to device tree node
+ */
+int of_irq_count(struct device_node *dev)
+{
+	int nr = 0;
+
+	while (of_irq_to_resource(dev, nr, NULL) != NO_IRQ)
+		nr++;
+
+	return nr;
+}
+
+/**
+ * of_irq_to_resource_table - Fill in resource table with node's IRQ info
+ * @dev: pointer to device tree node
+ * @res: array of resources to fill in
+ * @nr_irqs: the number of IRQs (and upper bound for num of @res elements)
+ *
+ * Returns the size of the filled in table (up to @nr_irqs).
+ */
+int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
+		int nr_irqs)
+{
+	int i;
+
+	for (i = 0; i < nr_irqs; i++, res++)
+		if (of_irq_to_resource(dev, i, res) == NO_IRQ)
+			break;
+
+	return i;
+}

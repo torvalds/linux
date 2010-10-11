@@ -584,14 +584,13 @@ struct platform_device *of_device_alloc(struct device_node *np,
 				  struct device *parent)
 {
 	struct platform_device *dev;
-	int rc, i, num_reg = 0, num_irq = 0;
+	int rc, i, num_reg = 0, num_irq;
 	struct resource *res, temp_res;
 
 	/* First count how many resources are needed */
 	while (of_address_to_resource(np, num_reg, &temp_res) == 0)
 		num_reg++;
-	while (of_irq_to_resource(np, num_irq, &temp_res) != NO_IRQ)
-		num_irq++;
+	num_irq = of_irq_count(np);
 
 	/* Allocate memory for both the struct device and the resource table */
 	dev = kzalloc(sizeof(*dev) + (sizeof(*res) * (num_reg + num_irq)),
@@ -608,10 +607,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 			rc = of_address_to_resource(np, i, res);
 			WARN_ON(rc);
 		}
-		for (i = 0; i < num_irq; i++, res++) {
-			rc = of_irq_to_resource(np, i, res);
-			WARN_ON(rc == NO_IRQ);
-		}
+		WARN_ON(of_irq_to_resource_table(np, res, num_irq) != num_irq);
 	}
 
 	dev->dev.of_node = of_node_get(np);
