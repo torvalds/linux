@@ -1805,20 +1805,19 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 
 	mark_all_dquot_dirty(transfer_from);
 	mark_all_dquot_dirty(transfer_to);
+	flush_warnings(transfer_to, warntype_to);
+	flush_warnings(transfer_from, warntype_from_inodes);
+	flush_warnings(transfer_from, warntype_from_space);
 	/* Pass back references to put */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		if (is_valid[cnt])
 			transfer_to[cnt] = transfer_from[cnt];
-
-warn:
-	flush_warnings(transfer_to, warntype_to);
-	flush_warnings(transfer_from, warntype_from_inodes);
-	flush_warnings(transfer_from, warntype_from_space);
-	return ret;
+	return 0;
 over_quota:
 	spin_unlock(&dq_data_lock);
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
-	goto warn;
+	flush_warnings(transfer_to, warntype_to);
+	return ret;
 }
 EXPORT_SYMBOL(__dquot_transfer);
 
