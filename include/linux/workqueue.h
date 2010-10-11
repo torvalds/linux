@@ -243,11 +243,12 @@ enum {
 	WQ_NON_REENTRANT	= 1 << 0, /* guarantee non-reentrance */
 	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
 	WQ_FREEZEABLE		= 1 << 2, /* freeze during suspend */
-	WQ_RESCUER		= 1 << 3, /* has an rescue worker */
+	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
 
 	WQ_DYING		= 1 << 6, /* internal: workqueue is dying */
+	WQ_RESCUER		= 1 << 7, /* internal: workqueue has rescuer */
 
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
 	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
@@ -309,7 +310,7 @@ __alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
 /**
  * alloc_ordered_workqueue - allocate an ordered workqueue
  * @name: name of the workqueue
- * @flags: WQ_* flags (only WQ_FREEZEABLE and WQ_RESCUER are meaningful)
+ * @flags: WQ_* flags (only WQ_FREEZEABLE and WQ_MEM_RECLAIM are meaningful)
  *
  * Allocate an ordered workqueue.  An ordered workqueue executes at
  * most one work item at any given time in the queued order.  They are
@@ -325,11 +326,11 @@ alloc_ordered_workqueue(const char *name, unsigned int flags)
 }
 
 #define create_workqueue(name)					\
-	alloc_workqueue((name), WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_MEM_RECLAIM, 1)
 #define create_freezeable_workqueue(name)			\
-	alloc_workqueue((name), WQ_FREEZEABLE | WQ_UNBOUND | WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_FREEZEABLE | WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
 #define create_singlethread_workqueue(name)			\
-	alloc_workqueue((name), WQ_UNBOUND | WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
