@@ -148,10 +148,7 @@ static int tegra_fb_set_par(struct fb_info *info)
 	default:
 		return -EINVAL;
 	}
-
-	info->fix.line_length = tegra_dc_compute_stride(var->xres,
-			var->bits_per_pixel, TEGRA_WIN_LAYOUT_PITCH);
-	tegra_fb->win->stride = info->fix.line_length;
+	info->fix.line_length = var->xres * var->bits_per_pixel / 8;
 
 	if (var->pixclock) {
 		struct tegra_dc_mode mode;
@@ -681,9 +678,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	win->z = 0;
 	win->phys_addr = fb_phys;
 	win->virt_addr = fb_base;
-	win->layout = TEGRA_WIN_LAYOUT_PITCH;
-	win->stride = tegra_dc_compute_stride(fb_data->xres,
-				      fb_data->bits_per_pixel, win->layout);
+	win->stride = fb_data->xres * fb_data->bits_per_pixel / 8;
 	win->flags = TEGRA_WIN_FLAG_ENABLED;
 
 	if (fb_mem)

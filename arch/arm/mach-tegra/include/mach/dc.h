@@ -25,15 +25,6 @@
 #define TEGRA_MAX_DC		2
 #define DC_N_WINDOWS		3
 
-#define TEGRA_DC_PITCH_ATOM	16
-#define TEGRA_DC_TILED_ATOM	16
-
-enum tegra_win_layout {
-	TEGRA_WIN_LAYOUT_PITCH,
-	TEGRA_WIN_LAYOUT_TILED,
-	TEGRA_WIN_LAYOUT_LINEAR_TILED,
-};
-
 struct tegra_dc_mode {
 	int	pclk;
 	int	h_ref_to_sync;
@@ -105,7 +96,6 @@ struct tegra_dc_win {
 	unsigned		out_w;
 	unsigned		out_h;
 	unsigned		z;
-	enum tegra_win_layout	layout;
 
 	int			dirty;
 	struct tegra_dc		*dc;
@@ -180,8 +170,5 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n);
 int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n);
 
 int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode);
-
-ssize_t tegra_dc_compute_stride(int xres, int bpp,
-				enum tegra_win_layout layout);
 
 #endif
