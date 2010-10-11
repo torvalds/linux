@@ -36,7 +36,7 @@
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
 #define NUM_FIMC_CLOCKS		2
 #define MODULE_NAME		"s5p-fimc"
-#define FIMC_MAX_DEVS		3
+#define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
 #define SCALER_MAX_HRATIO	64
 #define SCALER_MAX_VRATIO	64
@@ -345,33 +345,45 @@ struct fimc_vid_cap {
 };
 
 /**
+ *  struct fimc_pix_limit - image pixel size limits in various IP configurations
+ *
+ *  @scaler_en_w: max input pixel width when the scaler is enabled
+ *  @scaler_dis_w: max input pixel width when the scaler is disabled
+ *  @in_rot_en_h: max input width with the input rotator is on
+ *  @in_rot_dis_w: max input width with the input rotator is off
+ *  @out_rot_en_w: max output width with the output rotator on
+ *  @out_rot_dis_w: max output width with the output rotator off
+ */
+struct fimc_pix_limit {
+	u16 scaler_en_w;
+	u16 scaler_dis_w;
+	u16 in_rot_en_h;
+	u16 in_rot_dis_w;
+	u16 out_rot_en_w;
+	u16 out_rot_dis_w;
+};
+
+/**
  * struct samsung_fimc_variant - camera interface variant information
  *
  * @pix_hoff: indicate whether horizontal offset is in pixels or in bytes
  * @has_inp_rot: set if has input rotator
  * @has_out_rot: set if has output rotator
+ * @pix_limit: pixel size constraints for the scaler
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
- * @scaler_en_w: maximum input pixel width when the scaler is enabled
- * @scaler_dis_w: maximum input pixel width when the scaler is disabled
- * @in_rot_en_h: maximum input width when the input rotator is enabled
- * @in_rot_dis_w: maximum input width when the input rotator is disabled
- * @out_rot_en_w: maximum target width when the output rotator enabled
- * @out_rot_dis_w: maximum target width when the output rotator disnabled
+ * @hor_offs_align: horizontal pixel offset aligment
+ * @out_buf_count: the number of buffers in output DMA sequence
  */
 struct samsung_fimc_variant {
 	unsigned int	pix_hoff:1;
 	unsigned int	has_inp_rot:1;
 	unsigned int	has_out_rot:1;
-
+	struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
-	u16		scaler_en_w;
-	u16		scaler_dis_w;
-	u16		in_rot_en_h;
-	u16		in_rot_dis_w;
-	u16		out_rot_en_w;
-	u16		out_rot_dis_w;
+	u16		hor_offs_align;
+	u16		out_buf_count;
 };
 
 /**
@@ -384,7 +396,7 @@ struct samsung_fimc_variant {
 struct samsung_fimc_driverdata {
 	struct samsung_fimc_variant *variant[FIMC_MAX_DEVS];
 	unsigned long	lclk_frequency;
-	int		devs_cnt;
+	int		num_entities;
 };
 
 struct fimc_ctx;
@@ -505,6 +517,20 @@ static inline void fimc_hw_dis_capture(struct fimc_dev *dev)
 	u32 cfg = readl(dev->regs + S5P_CIIMGCPT);
 	cfg &= ~(S5P_CIIMGCPT_IMGCPTEN | S5P_CIIMGCPT_IMGCPTEN_SC);
 	writel(cfg, dev->regs + S5P_CIIMGCPT);
+}
+
+/**
+ * fimc_hw_set_dma_seq - configure output DMA buffer sequence
+ * @mask: each bit corresponds to one of 32 output buffer registers set
+ *	  1 to include buffer in the sequence, 0 to disable
+ *
+ * This function mask output DMA ring buffers, i.e. it allows to configure
+ * which of the output buffer address registers will be used by the DMA
+ * engine.
+ */
+static inline void fimc_hw_set_dma_seq(struct fimc_dev *dev, u32 mask)
+{
+	writel(mask, dev->regs + S5P_CIFCNTSEQ);
 }
 
 static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,

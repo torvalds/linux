@@ -279,4 +279,7 @@
 #define S5P_CSIIMGFMT_USER3		0x32
 #define S5P_CSIIMGFMT_USER4		0x33
 
+/* Output frame buffer sequence mask */
+#define S5P_CIFCNTSEQ			0x1FC
+
 #endif /* REGS_FIMC_H_ */

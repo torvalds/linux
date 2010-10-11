@@ -823,10 +823,10 @@ int fimc_vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		goto tf_out;
 
 	if (is_output) {
-		max_width = variant->scaler_dis_w;
+		max_width = variant->pix_limit->scaler_dis_w;
 		mod_x = ffs(variant->min_inp_pixsize) - 1;
 	} else {
-		max_width = variant->out_rot_dis_w;
+		max_width = variant->pix_limit->out_rot_dis_w;
 		mod_x = ffs(variant->min_out_pixsize) - 1;
 	}
 
@@ -843,7 +843,7 @@ int fimc_vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	dbg("mod_x: %d, mod_y: %d, max_w: %d", mod_x, mod_y, max_width);
 
 	v4l_bound_align_image(&pix->width, 16, max_width, mod_x,
-		&pix->height, 8, variant->scaler_dis_w, mod_y, 0);
+		&pix->height, 8, variant->pix_limit->scaler_dis_w, mod_y, 0);
 
 	if (pix->bytesperline == 0 ||
 	    (pix->bytesperline * 8 / fmt->depth) > pix->width)
@@ -1519,7 +1519,7 @@ static int fimc_probe(struct platform_device *pdev)
 	drv_data = (struct samsung_fimc_driverdata *)
 		platform_get_device_id(pdev)->driver_data;
 
-	if (pdev->id >= drv_data->devs_cnt) {
+	if (pdev->id >= drv_data->num_entities) {
 		dev_err(&pdev->dev, "Invalid platform device id: %d\n",
 			pdev->id);
 		return -EINVAL;
@@ -1602,6 +1602,13 @@ static int fimc_probe(struct platform_device *pdev)
 		}
 	}
 
+	/*
+	 * Exclude the additional output DMA address registers by masking
+	 * them out on HW revisions that provide extended capabilites.
+	 */
+	if (fimc->variant->out_buf_count > 4)
+		fimc_hw_set_dma_seq(fimc, 0xF);
+
 	dev_dbg(&pdev->dev, "%s(): fimc-%d registered successfully\n",
 		__func__, fimc->id);
 
@@ -1645,78 +1652,135 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct samsung_fimc_variant fimc01_variant_s5p = {
-	.has_inp_rot	= 1,
-	.has_out_rot	= 1,
+/* Image pixel limits, similar across several FIMC HW revisions. */
+static struct fimc_pix_limit s5p_pix_limit[3] = {
+	[0] = {
+		.scaler_en_w	= 3264,
+		.scaler_dis_w	= 8192,
+		.in_rot_en_h	= 1920,
+		.in_rot_dis_w	= 8192,
+		.out_rot_en_w	= 1920,
+		.out_rot_dis_w	= 4224,
+	},
+	[1] = {
+		.scaler_en_w	= 4224,
+		.scaler_dis_w	= 8192,
+		.in_rot_en_h	= 1920,
+		.in_rot_dis_w	= 8192,
+		.out_rot_en_w	= 1920,
+		.out_rot_dis_w	= 4224,
+	},
+	[2] = {
+		.scaler_en_w	= 1920,
+		.scaler_dis_w	= 8192,
+		.in_rot_en_h	= 1280,
+		.in_rot_dis_w	= 8192,
+		.out_rot_en_w	= 1280,
+		.out_rot_dis_w	= 1920,
+	},
+};
+
+static struct samsung_fimc_variant fimc0_variant_s5p = {
+	.has_inp_rot	 = 1,
+	.has_out_rot	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
-
-	.scaler_en_w	= 3264,
-	.scaler_dis_w	= 8192,
-	.in_rot_en_h	= 1920,
-	.in_rot_dis_w	= 8192,
-	.out_rot_en_w	= 1920,
-	.out_rot_dis_w	= 4224,
+	.hor_offs_align	 = 8,
+	.out_buf_count	 = 4,
+	.pix_limit	 = &s5p_pix_limit[0],
 };
 
 static struct samsung_fimc_variant fimc2_variant_s5p = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
-
-	.scaler_en_w	= 4224,
-	.scaler_dis_w	= 8192,
-	.in_rot_en_h	= 1920,
-	.in_rot_dis_w	= 8192,
-	.out_rot_en_w	= 1920,
-	.out_rot_dis_w	= 4224,
+	.hor_offs_align	 = 8,
+	.out_buf_count	 = 4,
+	.pix_limit = &s5p_pix_limit[1],
 };
 
-static struct samsung_fimc_variant fimc01_variant_s5pv210 = {
-	.pix_hoff	= 1,
-	.has_inp_rot	= 1,
-	.has_out_rot	= 1,
+static struct samsung_fimc_variant fimc0_variant_s5pv210 = {
+	.pix_hoff	 = 1,
+	.has_inp_rot	 = 1,
+	.has_out_rot	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
+	.hor_offs_align	 = 8,
+	.out_buf_count	 = 4,
+	.pix_limit	 = &s5p_pix_limit[1],
+};
 
-	.scaler_en_w	= 4224,
-	.scaler_dis_w	= 8192,
-	.in_rot_en_h	= 1920,
-	.in_rot_dis_w	= 8192,
-	.out_rot_en_w	= 1920,
-	.out_rot_dis_w	= 4224,
+static struct samsung_fimc_variant fimc1_variant_s5pv210 = {
+	.pix_hoff	 = 1,
+	.has_inp_rot	 = 1,
+	.has_out_rot	 = 1,
+	.min_inp_pixsize = 16,
+	.min_out_pixsize = 16,
+	.hor_offs_align	 = 1,
+	.out_buf_count	 = 4,
+	.pix_limit	 = &s5p_pix_limit[2],
 };
 
 static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
 	.pix_hoff	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
-
-	.scaler_en_w	= 1920,
-	.scaler_dis_w	= 8192,
-	.in_rot_en_h	= 1280,
-	.in_rot_dis_w	= 8192,
-	.out_rot_en_w	= 1280,
-	.out_rot_dis_w	= 1920,
+	.hor_offs_align	 = 8,
+	.out_buf_count	 = 4,
+	.pix_limit	 = &s5p_pix_limit[2],
 };
 
+static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
+	.pix_hoff	 = 1,
+	.has_inp_rot	 = 1,
+	.has_out_rot	 = 1,
+	.min_inp_pixsize = 16,
+	.min_out_pixsize = 16,
+	.hor_offs_align	 = 1,
+	.out_buf_count	 = 32,
+	.pix_limit	 = &s5p_pix_limit[1],
+};
+
+static struct samsung_fimc_variant fimc2_variant_s5pv310 = {
+	.pix_hoff	 = 1,
+	.min_inp_pixsize = 16,
+	.min_out_pixsize = 16,
+	.hor_offs_align	 = 1,
+	.out_buf_count	 = 32,
+	.pix_limit	 = &s5p_pix_limit[2],
+};
+
+/* S5PC100 */
 static struct samsung_fimc_driverdata fimc_drvdata_s5p = {
 	.variant = {
-		[0] = &fimc01_variant_s5p,
-		[1] = &fimc01_variant_s5p,
+		[0] = &fimc0_variant_s5p,
+		[1] = &fimc0_variant_s5p,
 		[2] = &fimc2_variant_s5p,
 	},
-	.devs_cnt	= 3,
-	.lclk_frequency	= 133000000UL,
+	.num_entities = 3,
+	.lclk_frequency = 133000000UL,
 };
 
+/* S5PV210, S5PC110 */
 static struct samsung_fimc_driverdata fimc_drvdata_s5pv210 = {
 	.variant = {
-		[0] = &fimc01_variant_s5pv210,
-		[1] = &fimc01_variant_s5pv210,
+		[0] = &fimc0_variant_s5pv210,
+		[1] = &fimc1_variant_s5pv210,
 		[2] = &fimc2_variant_s5pv210,
 	},
-	.devs_cnt = 3,
-	.lclk_frequency	= 166000000UL,
+	.num_entities = 3,
+	.lclk_frequency = 166000000UL,
+};
+
+/* S5PV310, S5PC210 */
+static struct samsung_fimc_driverdata fimc_drvdata_s5pv310 = {
+	.variant = {
+		[0] = &fimc0_variant_s5pv310,
+		[1] = &fimc0_variant_s5pv310,
+		[2] = &fimc0_variant_s5pv310,
+		[3] = &fimc2_variant_s5pv310,
+	},
+	.num_entities = 4,
+	.lclk_frequency = 166000000UL,
 };
 
 static struct platform_device_id fimc_driver_ids[] = {
@@ -1726,6 +1790,9 @@ static struct platform_device_id fimc_driver_ids[] = {
 	}, {
 		.name		= "s5pv210-fimc",
 		.driver_data	= (unsigned long)&fimc_drvdata_s5pv210,
+	}, {
+		.name		= "s5pv310-fimc",
+		.driver_data	= (unsigned long)&fimc_drvdata_s5pv310,
 	},
 	{},
 };
