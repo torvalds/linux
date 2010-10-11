@@ -67,7 +67,7 @@ static void si_nvram_process(si_info_t *sii, char *pvars);
 static char *si_devpathvar(si_t *sih, char *var, int len, const char *name);
 static bool _si_clkctl_cc(si_info_t *sii, uint mode);
 static bool si_ispcie(si_info_t *sii);
-static uint BCMINITFN(socram_banksize) (si_info_t *sii, sbsocramregs_t *r,
+static uint socram_banksize(si_info_t *sii, sbsocramregs_t *r,
 					u8 idx, u8 mtype);
 
 /* global variable to indicate reservation/release of gpio's */
@@ -996,7 +996,7 @@ void si_core_reset(si_t *sih, u32 bits, u32 resetbits)
 #endif
 }
 
-u32 BCMINITFN(si_alp_clock) (si_t *sih)
+u32 si_alp_clock(si_t *sih)
 {
 	if (PMUCTL_ENAB(sih))
 		return si_pmu_alp_clock(sih, si_osh(sih));
@@ -1004,7 +1004,7 @@ u32 BCMINITFN(si_alp_clock) (si_t *sih)
 	return ALP_CLOCK;
 }
 
-u32 BCMINITFN(si_ilp_clock) (si_t *sih)
+u32 si_ilp_clock(si_t *sih)
 {
 	if (PMUCTL_ENAB(sih))
 		return si_pmu_ilp_clock(sih, si_osh(sih));
@@ -1146,7 +1146,7 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 	return 0;
 }
 
-static void BCMINITFN(si_clkctl_setdelay) (si_info_t *sii, void *chipcregs)
+static void si_clkctl_setdelay(si_info_t *sii, void *chipcregs)
 {
 	chipcregs_t *cc = (chipcregs_t *) chipcregs;
 	uint slowmaxfreq, pll_delay, slowclk;
@@ -1174,7 +1174,7 @@ static void BCMINITFN(si_clkctl_setdelay) (si_info_t *sii, void *chipcregs)
 }
 
 /* initialize power control delay registers */
-void BCMINITFN(si_clkctl_init) (si_t *sih)
+void si_clkctl_init(si_t *sih)
 {
 	si_info_t *sii;
 	uint origidx = 0;
@@ -1210,7 +1210,7 @@ void BCMINITFN(si_clkctl_init) (si_t *sih)
 }
 
 /* return the value suitable for writing to the dot11 core FAST_PWRUP_DELAY register */
-u16 BCMINITFN(si_clkctl_fast_pwrup_delay) (si_t *sih)
+u16 si_clkctl_fast_pwrup_delay(si_t *sih)
 {
 	si_info_t *sii;
 	uint origidx = 0;
@@ -1612,7 +1612,7 @@ bool si_pci_war16165(si_t *sih)
 	return PCI(sii) && (sih->buscorerev <= 10);
 }
 
-void BCMINITFN(si_pci_up) (si_t *sih)
+void si_pci_up(si_t *sih)
 {
 	si_info_t *sii;
 
@@ -1641,7 +1641,7 @@ void BCMUNINITFN(si_pci_sleep) (si_t *sih)
 }
 
 /* Unconfigure and/or apply various WARs when going down */
-void BCMINITFN(si_pci_down) (si_t *sih)
+void si_pci_down(si_t *sih)
 {
 	si_info_t *sii;
 

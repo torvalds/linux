@@ -75,7 +75,7 @@ extern char *nvram_get(const char *name);
  * Read the reset GPIO value from the nvram and set the GPIO
  * as input
  */
-extern int BCMINITFN(nvram_resetgpio_init) (void *sih);
+extern int nvram_resetgpio_init(void *sih);
 
 /*
  * Get the value of an NVRAM variable.

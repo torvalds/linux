@@ -545,7 +545,7 @@ static void pcie_war_serdes(pcicore_info_t *pi)
 
 /* Fix MISC config to allow coming out of L2/L3-Ready state w/o PRST */
 /* Needs to happen when coming out of 'standby'/'hibernate' */
-static void BCMINITFN(pcie_misc_config_fixup) (pcicore_info_t *pi)
+static void pcie_misc_config_fixup(pcicore_info_t *pi)
 {
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	u16 val16, *reg16;

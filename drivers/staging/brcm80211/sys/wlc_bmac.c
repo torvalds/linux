@@ -1119,7 +1119,7 @@ int wlc_bmac_detach(wlc_info_t *wlc)
 
 }
 
-void BCMINITFN(wlc_bmac_reset) (wlc_hw_info_t *wlc_hw)
+void wlc_bmac_reset(wlc_hw_info_t *wlc_hw)
 {
 	WL_TRACE(("wl%d: wlc_bmac_reset\n", wlc_hw->unit));
 
@@ -1136,7 +1136,7 @@ void BCMINITFN(wlc_bmac_reset) (wlc_hw_info_t *wlc_hw)
 }
 
 void
-BCMINITFN(wlc_bmac_init) (wlc_hw_info_t *wlc_hw, chanspec_t chanspec,
+wlc_bmac_init(wlc_hw_info_t *wlc_hw, chanspec_t chanspec,
 			  bool mute) {
 	u32 macintmask;
 	bool fastclk;
@@ -1187,7 +1187,7 @@ BCMINITFN(wlc_bmac_init) (wlc_hw_info_t *wlc_hw, chanspec_t chanspec,
 		wlc_clkctl_clk(wlc_hw, CLK_DYNAMIC);
 }
 
-int BCMINITFN(wlc_bmac_up_prep) (wlc_hw_info_t *wlc_hw)
+int wlc_bmac_up_prep(wlc_hw_info_t *wlc_hw)
 {
 	uint coremask;
 
@@ -1235,7 +1235,7 @@ int BCMINITFN(wlc_bmac_up_prep) (wlc_hw_info_t *wlc_hw)
 	return 0;
 }
 
-int BCMINITFN(wlc_bmac_up_finish) (wlc_hw_info_t *wlc_hw)
+int wlc_bmac_up_finish(wlc_hw_info_t *wlc_hw)
 {
 	WL_TRACE(("wl%d: %s:\n", wlc_hw->unit, __func__));
 
@@ -1456,7 +1456,7 @@ static void wlc_clkctl_clk(wlc_hw_info_t *wlc_hw, uint mode)
 
 /* set initial host flags value */
 static void
-BCMINITFN(wlc_mhfdef) (wlc_info_t *wlc, u16 *mhfs, u16 mhf2_init)
+wlc_mhfdef(wlc_info_t *wlc, u16 *mhfs, u16 mhf2_init)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 
@@ -2176,7 +2176,7 @@ static bool wlc_validboardtype(wlc_hw_info_t *wlc_hw)
 	return goodboard;
 }
 
-static char *BCMINITFN(wlc_get_macaddr) (wlc_hw_info_t *wlc_hw)
+static char *wlc_get_macaddr(wlc_hw_info_t *wlc_hw)
 {
 	const char *varname = "macaddr";
 	char *macaddr;
@@ -2251,7 +2251,7 @@ bool wlc_bmac_radio_read_hwdisabled(wlc_hw_info_t *wlc_hw)
 }
 
 /* Initialize just the hardware when coming out of POR or S3/S5 system states */
-void BCMINITFN(wlc_bmac_hw_up) (wlc_hw_info_t *wlc_hw)
+void wlc_bmac_hw_up(wlc_hw_info_t *wlc_hw)
 {
 	if (wlc_hw->wlc->pub->hw_up)
 		return;
@@ -2326,7 +2326,7 @@ static bool wlc_dma_rxreset(wlc_hw_info_t *wlc_hw, uint fifo)
  *   clear software macintstatus for fresh new start
  * one testing hack wlc_hw->noreset will bypass the d11/phy reset
  */
-void BCMINITFN(wlc_bmac_corereset) (wlc_hw_info_t *wlc_hw, u32 flags)
+void wlc_bmac_corereset(wlc_hw_info_t *wlc_hw, u32 flags)
 {
 	d11regs_t *regs;
 	uint i;
@@ -2415,7 +2415,7 @@ void BCMINITFN(wlc_bmac_corereset) (wlc_hw_info_t *wlc_hw, u32 flags)
  * txfifo sizes needs to be modified(increased) since the newer cores
  * have more memory.
  */
-static void BCMINITFN(wlc_corerev_fifofixup) (wlc_hw_info_t *wlc_hw)
+static void wlc_corerev_fifofixup(wlc_hw_info_t *wlc_hw)
 {
 	d11regs_t *regs = wlc_hw->regs;
 	u16 fifo_nu;
@@ -2475,7 +2475,7 @@ static void BCMINITFN(wlc_corerev_fifofixup) (wlc_hw_info_t *wlc_hw)
  *   config other core registers
  *   init dma
  */
-static void BCMINITFN(wlc_coreinit) (wlc_info_t *wlc)
+static void wlc_coreinit(wlc_info_t *wlc)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	d11regs_t *regs;
@@ -2717,7 +2717,7 @@ void wlc_bmac_switch_macfreq(wlc_hw_info_t *wlc_hw, u8 spurmode)
 }
 
 /* Initialize GPIOs that are controlled by D11 core */
-static void BCMINITFN(wlc_gpio_init) (wlc_info_t *wlc)
+static void wlc_gpio_init(wlc_info_t *wlc)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	d11regs_t *regs;

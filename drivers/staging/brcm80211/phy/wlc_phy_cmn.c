@@ -1031,7 +1031,7 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
 	pi->init_in_progress = FALSE;
 }
 
-void BCMINITFN(wlc_phy_cal_init) (wlc_phy_t *pih)
+void wlc_phy_cal_init(wlc_phy_t *pih)
 {
 	phy_info_t *pi = (phy_info_t *) pih;
 	initfn_t cal_init = NULL;

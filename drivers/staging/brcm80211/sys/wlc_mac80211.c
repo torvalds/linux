@@ -381,7 +381,7 @@ bool wlc_ps_allowed(wlc_info_t *wlc)
 	return TRUE;
 }
 
-void BCMINITFN(wlc_reset) (wlc_info_t *wlc)
+void wlc_reset(wlc_info_t *wlc)
 {
 	WL_TRACE(("wl%d: wlc_reset\n", wlc->pub->unit));
 
@@ -428,7 +428,7 @@ void wlc_fatal_error(wlc_info_t *wlc)
  * if other configurations are in conflict (bandlocked, 11n mode disabled,
  * invalid channel for current country, etc.)
  */
-static chanspec_t BCMINITFN(wlc_init_chanspec) (wlc_info_t *wlc)
+static chanspec_t wlc_init_chanspec(wlc_info_t *wlc)
 {
 	chanspec_t chanspec =
 	    1 | WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE |
@@ -452,7 +452,7 @@ static void wlc_init_scb(wlc_info_t *wlc, struct scb *scb)
 		scb->seqnum[i] = 0;
 }
 
-void BCMINITFN(wlc_init) (wlc_info_t *wlc)
+void wlc_init(wlc_info_t *wlc)
 {
 	d11regs_t *regs;
 	chanspec_t chanspec;
@@ -2719,7 +2719,7 @@ static void wlc_watchdog(void *arg)
 }
 
 /* make interface operational */
-int BCMINITFN(wlc_up) (wlc_info_t *wlc)
+int wlc_up(wlc_info_t *wlc)
 {
 	WL_TRACE(("wl%d: %s:\n", wlc->pub->unit, __func__));
 
@@ -2827,7 +2827,7 @@ int BCMINITFN(wlc_up) (wlc_info_t *wlc)
 }
 
 /* Initialize the base precedence map for dequeueing from txq based on WME settings */
-static void BCMINITFN(wlc_tx_prec_map_init) (wlc_info_t *wlc)
+static void wlc_tx_prec_map_init(wlc_info_t *wlc)
 {
 	wlc->tx_prec_map = WLC_PREC_BMP_ALL;
 	bzero(wlc->fifo2prec_map, sizeof(u16) * NFIFO);

@@ -184,7 +184,7 @@ void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo, u8 voltage)
 /* d11 slow to fast clock transition time in slow clock cycles */
 #define D11SCC_SLOW2FAST_TRANSITION	2
 
-u16 BCMINITFN(si_pmu_fast_pwrup_delay) (si_t *sih, osl_t *osh)
+u16 si_pmu_fast_pwrup_delay(si_t *sih, osl_t *osh)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 	chipcregs_t *cc;
@@ -1092,7 +1092,7 @@ static const pmu1_xtaltab0_t pmu1_xtaltab0_960[] = {
 #define PMU1_XTALTAB0_960_48000K	15
 
 /* select xtal table for each chip */
-static const pmu1_xtaltab0_t *BCMINITFN(si_pmu1_xtaltab0) (si_t *sih)
+static const pmu1_xtaltab0_t *si_pmu1_xtaltab0(si_t *sih)
 {
 #ifdef BCMDBG
 	char chn[8];
@@ -1119,7 +1119,7 @@ static const pmu1_xtaltab0_t *BCMINITFN(si_pmu1_xtaltab0) (si_t *sih)
 }
 
 /* select default xtal frequency for each chip */
-static const pmu1_xtaltab0_t *BCMINITFN(si_pmu1_xtaldef0) (si_t *sih)
+static const pmu1_xtaltab0_t *si_pmu1_xtaldef0(si_t *sih)
 {
 #ifdef BCMDBG
 	char chn[8];
@@ -1151,7 +1151,7 @@ static const pmu1_xtaltab0_t *BCMINITFN(si_pmu1_xtaldef0) (si_t *sih)
 }
 
 /* select default pll fvco for each chip */
-static u32 BCMINITFN(si_pmu1_pllfvco0) (si_t *sih)
+static u32 si_pmu1_pllfvco0(si_t *sih)
 {
 #ifdef BCMDBG
 	char chn[8];
@@ -1180,7 +1180,7 @@ static u32 BCMINITFN(si_pmu1_pllfvco0) (si_t *sih)
 
 /* query alp/xtal clock frequency */
 static u32
-BCMINITFN(si_pmu1_alpclk0) (si_t *sih, osl_t *osh, chipcregs_t *cc)
+si_pmu1_alpclk0(si_t *sih, osl_t *osh, chipcregs_t *cc)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 xf;
@@ -1450,7 +1450,7 @@ static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
 
 /* query the CPU clock frequency */
 static u32
-BCMINITFN(si_pmu1_cpuclk0) (si_t *sih, osl_t *osh, chipcregs_t *cc)
+si_pmu1_cpuclk0(si_t *sih, osl_t *osh, chipcregs_t *cc)
 {
 	u32 tmp, m1div;
 #ifdef BCMDBG
@@ -1557,7 +1557,7 @@ void si_pmu_pll_init(si_t *sih, osl_t *osh, uint xtalfreq)
 }
 
 /* query alp/xtal clock frequency */
-u32 BCMINITFN(si_pmu_alp_clock) (si_t *sih, osl_t *osh)
+u32 si_pmu_alp_clock(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1618,7 +1618,7 @@ u32 BCMINITFN(si_pmu_alp_clock) (si_t *sih, osl_t *osh)
  * pllreg "pll0" i.e. 12 for main 6 for phy, 0 for misc.
  */
 static u32
-BCMINITFN(si_pmu5_clock) (si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
+si_pmu5_clock(si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
 			  uint m) {
 	u32 tmp, div, ndiv, p1, p2, fc;
 
@@ -1671,7 +1671,7 @@ BCMINITFN(si_pmu5_clock) (si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
 /* For designs that feed the same clock to both backplane
  * and CPU just return the CPU clock speed.
  */
-u32 BCMINITFN(si_pmu_si_clock) (si_t *sih, osl_t *osh)
+u32 si_pmu_si_clock(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1750,7 +1750,7 @@ u32 BCMINITFN(si_pmu_si_clock) (si_t *sih, osl_t *osh)
 }
 
 /* query CPU clock frequency */
-u32 BCMINITFN(si_pmu_cpu_clock) (si_t *sih, osl_t *osh)
+u32 si_pmu_cpu_clock(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1794,7 +1794,7 @@ u32 BCMINITFN(si_pmu_cpu_clock) (si_t *sih, osl_t *osh)
 }
 
 /* query memory clock frequency */
-u32 BCMINITFN(si_pmu_mem_clock) (si_t *sih, osl_t *osh)
+u32 si_pmu_mem_clock(si_t *sih, osl_t *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1843,7 +1843,7 @@ u32 BCMINITFN(si_pmu_mem_clock) (si_t *sih, osl_t *osh)
 
 static u32 ilpcycles_per_sec;
 
-u32 BCMINITFN(si_pmu_ilp_clock) (si_t *sih, osl_t *osh)
+u32 si_pmu_ilp_clock(si_t *sih, osl_t *osh)
 {
 	if (ISSIM_ENAB(sih))
 		return ILP_CLOCK;
@@ -1907,7 +1907,7 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab3[] = {
 #define SDIOD_DRVSTR_KEY(chip, pmu)	(((chip) << 16) | (pmu))
 
 void
-BCMINITFN(si_sdiod_drive_strength_init) (si_t *sih, osl_t *osh,
+si_sdiod_drive_strength_init(si_t *sih, osl_t *osh,
 					 u32 drivestrength) {
 	chipcregs_t *cc;
 	uint origidx, intr_val = 0;
@@ -2010,7 +2010,7 @@ void si_pmu_init(si_t *sih, osl_t *osh)
 
 /* Return up time in ILP cycles for the given resource. */
 static uint
-BCMINITFN(si_pmu_res_uptime) (si_t *sih, osl_t *osh, chipcregs_t *cc,
+si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
 			      u8 rsrc) {
 	u32 deps;
 	uint up, i, dup, dmax;
