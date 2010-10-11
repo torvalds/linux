@@ -393,23 +393,23 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 		return nouveau_fence_wait(fence, NULL, false, false);
 	}
 
-	/* try to take wchan's mutex, if we can't take it right away
+	/* try to take chan's mutex, if we can't take it right away
 	 * we have to fallback to software sync to prevent locking
 	 * order issues
 	 */
-	if (!mutex_trylock(&wchan->mutex)) {
+	if (!mutex_trylock(&chan->mutex)) {
 		free_semaphore(&sema->ref);
 		return nouveau_fence_wait(fence, NULL, false, false);
 	}
 
 	/* Make wchan wait until it gets signalled */
 	ret = emit_semaphore(wchan, NV_SW_SEMAPHORE_ACQUIRE, sema);
-	mutex_unlock(&wchan->mutex);
 	if (ret)
 		goto out;
 
 	/* Signal the semaphore from chan */
 	ret = emit_semaphore(chan, NV_SW_SEMAPHORE_RELEASE, sema);
+	mutex_unlock(&chan->mutex);
 out:
 	kref_put(&sema->ref, free_semaphore);
 	return ret;
