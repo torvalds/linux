@@ -375,7 +375,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *oldcard)
 {
 	struct mmc_card *card;
-	int err, ddr = 0;
+	int err, ddr = MMC_SDR_MODE;
 	u32 cid[4];
 	unsigned int max_dtr;
 
@@ -523,10 +523,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (mmc_card_highspeed(card)) {
 		if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
 			&& (host->caps & (MMC_CAP_1_8V_DDR)))
-				ddr = 1;
+				ddr = MMC_1_8V_DDR_MODE;
 		else if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
 			&& (host->caps & (MMC_CAP_1_2V_DDR)))
-				ddr = 1;
+				ddr = MMC_1_2V_DDR_MODE;
 	}
 
 	/*
