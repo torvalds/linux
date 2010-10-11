@@ -171,7 +171,6 @@ struct drm_nouveau_gem_pushbuf {
 };
 
 #define NOUVEAU_GEM_CPU_PREP_NOWAIT                                  0x00000001
-#define NOUVEAU_GEM_CPU_PREP_NOBLOCK                                 0x00000002
 #define NOUVEAU_GEM_CPU_PREP_WRITE                                   0x00000004
 struct drm_nouveau_gem_cpu_prep {
 	uint32_t handle;

@@ -48,9 +48,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 		return;
 	nvbo->gem = NULL;
 
-	if (unlikely(nvbo->cpu_filp))
-		ttm_bo_synccpu_write_release(bo);
-
 	if (unlikely(nvbo->pin_refcnt)) {
 		nvbo->pin_refcnt = 1;
 		nouveau_bo_unpin(nvbo);
@@ -333,23 +330,6 @@ retry:
 			list_add_tail(&nvbo->entry, &op->both_list);
 			validate_fini(op, NULL);
 			return -EINVAL;
-		}
-
-		if (unlikely(atomic_read(&nvbo->bo.cpu_writers) > 0)) {
-			validate_fini(op, NULL);
-
-			if (nvbo->cpu_filp == file_priv) {
-				NV_ERROR(dev, "bo %p mapped by process trying "
-					      "to validate it!\n", nvbo);
-				return -EINVAL;
-			}
-
-			ret = ttm_bo_wait_cpu(&nvbo->bo, false);
-			if (ret) {
-				NV_ERROR(dev, "fail wait_cpu\n");
-				return ret;
-			}
-			goto retry;
 		}
 	}
 
@@ -791,26 +771,9 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	if (nvbo->cpu_filp) {
-		if (nvbo->cpu_filp == file_priv)
-			goto out;
-
-		ret = ttm_bo_wait_cpu(&nvbo->bo, no_wait);
-		if (ret)
-			goto out;
-	}
-
-	if (req->flags & NOUVEAU_GEM_CPU_PREP_NOBLOCK) {
-		spin_lock(&nvbo->bo.bdev->fence_lock);
-		ret = ttm_bo_wait(&nvbo->bo, false, false, no_wait);
-		spin_unlock(&nvbo->bo.bdev->fence_lock);
-	} else {
-		ret = ttm_bo_synccpu_write_grab(&nvbo->bo, no_wait);
-		if (ret == 0)
-			nvbo->cpu_filp = file_priv;
-	}
-
-out:
+	spin_lock(&nvbo->bo.bdev->fence_lock);
+	ret = ttm_bo_wait(&nvbo->bo, true, true, no_wait);
+	spin_unlock(&nvbo->bo.bdev->fence_lock);
 	drm_gem_object_unreference_unlocked(gem);
 	return ret;
 }
@@ -819,26 +782,7 @@ int
 nouveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
-	struct drm_nouveau_gem_cpu_prep *req = data;
-	struct drm_gem_object *gem;
-	struct nouveau_bo *nvbo;
-	int ret = -EINVAL;
-
-	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
-	if (!gem)
-		return -ENOENT;
-	nvbo = nouveau_gem_object(gem);
-
-	if (nvbo->cpu_filp != file_priv)
-		goto out;
-	nvbo->cpu_filp = NULL;
-
-	ttm_bo_synccpu_write_release(&nvbo->bo);
-	ret = 0;
-
-out:
-	drm_gem_object_unreference_unlocked(gem);
-	return ret;
+	return 0;
 }
 
 int

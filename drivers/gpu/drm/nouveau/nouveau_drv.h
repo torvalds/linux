@@ -96,7 +96,6 @@ struct nouveau_bo {
 	struct nouveau_tile_reg *tile;
 
 	struct drm_gem_object *gem;
-	struct drm_file *cpu_filp;
 	int pin_refcnt;
 };
 
