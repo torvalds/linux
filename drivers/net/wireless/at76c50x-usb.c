@@ -1525,8 +1525,7 @@ static void at76_rx_tasklet(unsigned long param)
 
 	if (priv->device_unplugged) {
 		at76_dbg(DBG_DEVSTART, "device unplugged");
-		if (urb)
-			at76_dbg(DBG_DEVSTART, "urb status %d", urb->status);
+		at76_dbg(DBG_DEVSTART, "urb status %d", urb->status);
 		return;
 	}
 
