@@ -33,9 +33,9 @@
 #include "drmP.h"
 #include "drm.h"
 #include "drm_sarea.h"
-#include "nouveau_drv.h"
 
-#define MIN(a,b) a < b ? a : b
+#include "nouveau_drv.h"
+#include "nouveau_pm.h"
 
 /*
  * NV10-NV40 tiling helpers
@@ -719,7 +719,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 		tUNK_19 = 1;
 		tUNK_20 = 0;
 		tUNK_21 = 0;
-		switch (MIN(recordlen,21)) {
+		switch (min(recordlen, 21)) {
 		case 21:
 			tUNK_21 = entry[21];
 		case 20:
