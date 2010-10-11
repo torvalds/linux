@@ -459,8 +459,7 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 static inline int dccp_ack_pending(const struct sock *sk)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
-	return dp->dccps_timestamp_echo != 0 ||
-	       (dp->dccps_hc_rx_ackvec != NULL &&
+	return (dp->dccps_hc_rx_ackvec != NULL &&
 		dccp_ackvec_pending(dp->dccps_hc_rx_ackvec)) ||
 	       inet_csk_ack_scheduled(sk);
 }
