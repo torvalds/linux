@@ -46,7 +46,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static int eukrea_cpuimx27_pins[] = {
+static const int eukrea_cpuimx27_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -157,7 +157,6 @@ cpuimx27_nand_board_info __initconst = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_cpuimx27_nor_mtd_device,
-	&mxc_fec_device,
 	&mxc_wdt,
 	&mxc_w1_master_device,
 };
@@ -259,8 +258,9 @@ static void __init eukrea_cpuimx27_init(void)
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));
 
-	imx27_add_i2c_imx1(&cpuimx27_i2c1_data);
+	imx27_add_imx_i2c(1, &cpuimx27_i2c1_data);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)

@@ -33,7 +33,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static unsigned int mx27pdk_pins[] = {
+static const int mx27pdk_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -64,10 +64,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct platform_device *platform_devices[] __initdata = {
-	&mxc_fec_device,
-};
-
 /*
  * Matrix keyboard
  */
@@ -94,7 +90,7 @@ static void __init mx27pdk_init(void)
 	mxc_gpio_setup_multiple_pins(mx27pdk_pins, ARRAY_SIZE(mx27pdk_pins),
 		"mx27pdk");
 	imx27_add_imx_uart0(&uart_pdata);
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_fec(NULL);
 	mxc_register_device(&imx_kpp_device, &mx27_3ds_keymap_data);
 }
 

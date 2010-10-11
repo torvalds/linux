@@ -31,6 +31,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <linux/fsl_devices.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -53,39 +54,16 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 };
 
 static const struct imxi2c_platform_data
-eukrea_cpuimx35_i2c0_data __initconst = {
-	.bitrate = 50000,
+		eukrea_cpuimx35_i2c0_data __initconst = {
+	.bitrate =		100000,
 };
-
-#define TSC2007_IRQGPIO		(2 * 32 + 2)
-static int ts_get_pendown_state(void)
-{
-	int val = 0;
-	gpio_free(TSC2007_IRQGPIO);
-	gpio_request(TSC2007_IRQGPIO, NULL);
-	gpio_direction_input(TSC2007_IRQGPIO);
-
-	val = gpio_get_value(TSC2007_IRQGPIO);
-
-	gpio_free(TSC2007_IRQGPIO);
-	gpio_request(TSC2007_IRQGPIO, NULL);
-
-	return val ? 0 : 1;
-}
-
-static int ts_init(void)
-{
-	gpio_request(TSC2007_IRQGPIO, NULL);
-	return 0;
-}
 
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
-	.get_pendown_state	= ts_get_pendown_state,
-	.init_platform_hw	= ts_init,
 };
 
+#define TSC2007_IRQGPIO		(2 * 32 + 2)
 static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
@@ -98,7 +76,6 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&mxc_fec_device,
 	&imx_wdt_device0,
 };
 
@@ -135,18 +112,18 @@ static struct pad_desc eukrea_cpuimx35_pads[] = {
 };
 
 static const struct mxc_nand_platform_data
-eukrea_cpuimx35_nand_board_info __initconst = {
+		eukrea_cpuimx35_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 	.flash_bbt	= 1,
 };
 
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data __maybe_unused otg_pdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static struct mxc_usbh_platform_data __maybe_unused usbh1_pdata = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
@@ -180,6 +157,7 @@ static void __init mxc_board_init(void)
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx35_pads,
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 
+	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);

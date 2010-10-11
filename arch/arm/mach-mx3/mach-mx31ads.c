@@ -517,7 +517,7 @@ static unsigned int ssi_pins[] = {
 
 static void mxc_init_audio(void)
 {
-	mxc_register_device(&imx_ssi_device0, NULL);
+	imx31_add_imx_ssi(0, NULL);
 	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
 }
 

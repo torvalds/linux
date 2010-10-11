@@ -30,6 +30,7 @@
 
 #include <asm/mach/arch.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
 #define MBIMX51_TSC2007_GPIO	(2*32 + 30)
@@ -114,7 +115,7 @@ static struct pad_desc mbimx51_pads[] = {
 	MX51_PAD_KEY_COL3__KEY_COL3,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -172,8 +173,8 @@ void __init eukrea_mbimx51_baseboard_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mbimx51_pads,
 					ARRAY_SIZE(mbimx51_pads));
 
-	mxc_register_device(&mxc_uart_device1, NULL);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+	imx51_add_imx_uart(1, NULL);
+	imx51_add_imx_uart(2, &uart_pdata);
 
 	gpio_request(MBIMX51_LED0, "LED0");
 	gpio_direction_output(MBIMX51_LED0, 1);
