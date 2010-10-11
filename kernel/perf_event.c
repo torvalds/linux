@@ -85,6 +85,11 @@ void __weak hw_perf_enable(void)		{ barrier(); }
 
 void __weak perf_event_print_debug(void)	{ }
 
+extern __weak const char *perf_pmu_name(void)
+{
+	return "pmu";
+}
+
 static DEFINE_PER_CPU(int, perf_disable_count);
 
 void perf_disable(void)
