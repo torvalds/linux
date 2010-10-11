@@ -26,7 +26,7 @@
  */
 int saa7164_bus_setup(struct saa7164_dev *dev)
 {
-	tmComResBusInfo_t *b	= &dev->bus;
+	struct tmComResBusInfo *b	= &dev->bus;
 
 	mutex_init(&b->lock);
 
@@ -54,7 +54,7 @@ int saa7164_bus_setup(struct saa7164_dev *dev)
 
 void saa7164_bus_dump(struct saa7164_dev *dev)
 {
-	tmComResBusInfo_t *b = &dev->bus;
+	struct tmComResBusInfo *b = &dev->bus;
 
 	dprintk(DBGLVL_BUS, "Dumping the bus structure:\n");
 	dprintk(DBGLVL_BUS, " .type             = %d\n", b->Type);
@@ -82,7 +82,7 @@ void saa7164_bus_dump(struct saa7164_dev *dev)
 /* Intensionally throw a BUG() if the state of the message bus looks corrupt */
 void saa7164_bus_verify(struct saa7164_dev *dev)
 {
-	tmComResBusInfo_t *b = &dev->bus;
+	struct tmComResBusInfo *b = &dev->bus;
 	int bug = 0;
 
 	if (saa7164_readl(b->m_dwSetReadPos) > b->m_dwSizeSetRing)
@@ -105,7 +105,7 @@ void saa7164_bus_verify(struct saa7164_dev *dev)
 	}
 }
 
-void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
+void saa7164_bus_dumpmsg(struct saa7164_dev *dev, struct tmComResInfo* m, void *buf)
 {
 	dprintk(DBGLVL_BUS, "Dumping msg structure:\n");
 	dprintk(DBGLVL_BUS, " .id               = %d\n",   m->id);
@@ -121,7 +121,7 @@ void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
 /*
  * Places a command or a response on the bus. The implementation does not
  * know if it is a command or a response it just places the data on the
- * bus depending on the bus information given in the tmComResBusInfo_t
+ * bus depending on the bus information given in the struct tmComResBusInfo
  * structure. If the command or response does not fit into the bus ring
  * buffer it will be refused.
  *
@@ -129,9 +129,9 @@ void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
  *  SAA_OK     The function executed successfully.
  *  < 0        One or more members are not initialized.
  */
-int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
+int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf)
 {
-	tmComResBusInfo_t *bus = &dev->bus;
+	struct tmComResBusInfo *bus = &dev->bus;
 	u32 bytes_to_write, free_write_space, timeout, curr_srp, curr_swp;
 	u32 new_swp, space_rem;
 	int ret = SAA_ERR_BAD_PARAMETER;
@@ -294,19 +294,19 @@ out:
 /*
  * Receive a command or a response from the bus. The implementation does not
  * know if it is a command or a response it simply dequeues the data,
- * depending on the bus information given in the tmComResBusInfo_t structure.
+ * depending on the bus information given in the struct tmComResBusInfo structure.
  *
  * Return Value:
  *  0          The function executed successfully.
  *  < 0        One or more members are not initialized.
  */
-int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
+int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf,
 	int peekonly)
 {
-	tmComResBusInfo_t *bus = &dev->bus;
+	struct tmComResBusInfo *bus = &dev->bus;
 	u32 bytes_to_read, write_distance, curr_grp, curr_gwp,
 		new_grp, buf_size, space_rem;
-	tmComResInfo_t msg_tmp;
+	struct tmComResInfo msg_tmp;
 	int ret = SAA_ERR_BAD_PARAMETER;
 
 	saa7164_bus_verify(dev);

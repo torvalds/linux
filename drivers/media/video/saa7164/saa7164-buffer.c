@@ -92,7 +92,7 @@ void saa7164_buffer_display(struct saa7164_buffer *buf)
 struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	u32 len)
 {
-	tmHWStreamParameters_t *params = &port->hw_streamingparams;
+	struct tmHWStreamParameters *params = &port->hw_streamingparams;
 	struct saa7164_buffer *buf = 0;
 	struct saa7164_dev *dev = port->dev;
 	int i;
@@ -234,7 +234,7 @@ int saa7164_buffer_activate(struct saa7164_buffer *buf, int i)
 
 int saa7164_buffer_cfg_port(struct saa7164_port *port)
 {
-	tmHWStreamParameters_t *params = &port->hw_streamingparams;
+	struct tmHWStreamParameters *params = &port->hw_streamingparams;
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_buffer *buf;
 	struct list_head *c, *n;

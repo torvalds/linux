@@ -92,7 +92,7 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 	do {
 
 		/* Peek the msg bus */
-		tmComResInfo_t tRsp = { 0, 0, 0, 0, 0, 0 };
+		struct tmComResInfo tRsp = { 0, 0, 0, 0, 0, 0 };
 		ret = saa7164_bus_get(dev, &tRsp, NULL, 1);
 		if (ret != SAA_OK)
 			break;
@@ -143,7 +143,7 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 
 	while (loop) {
 
-		tmComResInfo_t tRsp = { 0, 0, 0, 0, 0, 0 };
+		struct tmComResInfo tRsp = { 0, 0, 0, 0, 0, 0 };
 		ret = saa7164_bus_get(dev, &tRsp, NULL, 1);
 		if (ret == SAA_ERR_EMPTY)
 			return SAA_OK;
@@ -186,9 +186,9 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 	return SAA_OK;
 }
 
-int saa7164_cmd_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
+int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf)
 {
-	tmComResBusInfo_t *bus = &dev->bus;
+	struct tmComResBusInfo *bus = &dev->bus;
 	u8 cmd_sent;
 	u16 size, idx;
 	u32 cmds;
@@ -339,11 +339,11 @@ void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno)
 	mutex_unlock(&dev->lock);
 }
 
-int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, tmComResCmd_t command,
+int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 	u16 controlselector, u16 size, void *buf)
 {
-	tmComResInfo_t command_t, *pcommand_t;
-	tmComResInfo_t response_t, *presponse_t;
+	struct tmComResInfo command_t, *pcommand_t;
+	struct tmComResInfo response_t, *presponse_t;
 	u8 errdata[256];
 	u16 resp_dsize;
 	u16 data_recd;

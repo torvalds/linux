@@ -102,7 +102,7 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_buffer *buf;
 	struct saa7164_user_buffer *ubuf;
-	tmHWStreamParameters_t *params = &port->hw_streamingparams;
+	struct tmHWStreamParameters *params = &port->hw_streamingparams;
 	int result = -ENODEV, i;
 	int len = 0;
 

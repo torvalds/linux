@@ -343,10 +343,10 @@ struct saa7164_port {
 	/* --- Generic port attributes --- */
 
 	/* HW stream parameters */
-	tmHWStreamParameters_t hw_streamingparams;
+	struct tmHWStreamParameters hw_streamingparams;
 
 	/* DMA configuration values, is seeded during initialization */
-	tmComResDMATermDescrHeader_t hwcfg;
+	struct tmComResDMATermDescrHeader hwcfg;
 
 	/* hardware specific registers */
 	u32 bufcounter;
@@ -400,11 +400,11 @@ struct saa7164_port {
 	u16 ctl_sharpness;
 	s8 ctl_volume;
 
-	tmComResAFeatureDescrHeader_t audfeat;
-	tmComResEncoderDescrHeader_t encunit;
-	tmComResProcDescrHeader_t vidproc;
-	tmComResExtDevDescrHeader_t ifunit;
-	tmComResTunerDescrHeader_t tunerunit;
+	struct tmComResAFeatureDescrHeader audfeat;
+	struct tmComResEncoderDescrHeader encunit;
+	struct tmComResProcDescrHeader vidproc;
+	struct tmComResExtDevDescrHeader ifunit;
+	struct tmComResTunerDescrHeader tunerunit;
 
 	struct work_struct workenc;
 
@@ -418,7 +418,7 @@ struct saa7164_port {
 	wait_queue_head_t wait_read;
 
 	/* V4L VBI */
-	tmComResVBIFormatDescrHeader_t vbi_fmt_ntsc;
+	struct tmComResVBIFormatDescrHeader vbi_fmt_ntsc;
 	struct saa7164_vbi_params vbi_params;
 
 	/* Debug */
@@ -454,11 +454,11 @@ struct saa7164_dev {
 	struct saa7164_fw_status	fw_status;
 	u32				firmwareloaded;
 
-	tmComResHWDescr_t		hwdesc;
-	tmComResInterfaceDescr_t	intfdesc;
-	tmComResBusDescr_t		busdesc;
+	struct tmComResHWDescr		hwdesc;
+	struct tmComResInterfaceDescr	intfdesc;
+	struct tmComResBusDescr		busdesc;
 
-	tmComResBusInfo_t		bus;
+	struct tmComResBusInfo		bus;
 
 	/* Interrupt status and ack registers */
 	u32 int_status;
@@ -511,14 +511,14 @@ extern void saa7164_call_i2c_clients(struct saa7164_i2c *bus,
 /* saa7164-bus.c                                               */
 int saa7164_bus_setup(struct saa7164_dev *dev);
 void saa7164_bus_dump(struct saa7164_dev *dev);
-int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf);
-int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg,
+int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf);
+int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	void *buf, int peekonly);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cmd.c                                               */
 int saa7164_cmd_send(struct saa7164_dev *dev,
-	u8 id, tmComResCmd_t command, u16 controlselector,
+	u8 id, enum tmComResCmd command, u16 controlselector,
 	u16 size, void *buf);
 void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
 int saa7164_irq_dequeue(struct saa7164_dev *dev);
@@ -553,7 +553,7 @@ int saa7164_api_get_videomux(struct saa7164_port *port);
 int saa7164_api_set_vbi_format(struct saa7164_port *port);
 int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level);
 int saa7164_api_collect_debug(struct saa7164_dev *dev);
-int saa7164_api_get_load_info(struct saa7164_dev *dev, tmFwInfoStruct_t *i);
+int saa7164_api_get_load_info(struct saa7164_dev *dev, struct tmFwInfoStruct *i);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cards.c                                             */

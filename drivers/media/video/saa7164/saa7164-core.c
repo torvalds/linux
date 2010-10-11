@@ -825,8 +825,8 @@ void saa7164_dumpregs(struct saa7164_dev *dev, u32 addr)
 
 static void saa7164_dump_hwdesc(struct saa7164_dev *dev)
 {
-	dprintk(1, "@0x%p hwdesc sizeof(tmComResHWDescr_t) = %d bytes\n",
-		&dev->hwdesc, (u32)sizeof(tmComResHWDescr_t));
+	dprintk(1, "@0x%p hwdesc sizeof(struct tmComResHWDescr) = %d bytes\n",
+		&dev->hwdesc, (u32)sizeof(struct tmComResHWDescr));
 
 	dprintk(1, " .bLength = 0x%x\n", dev->hwdesc.bLength);
 	dprintk(1, " .bDescriptorType = 0x%x\n", dev->hwdesc.bDescriptorType);
@@ -856,8 +856,8 @@ static void saa7164_dump_hwdesc(struct saa7164_dev *dev)
 static void saa7164_dump_intfdesc(struct saa7164_dev *dev)
 {
 	dprintk(1, "@0x%p intfdesc "
-		"sizeof(tmComResInterfaceDescr_t) = %d bytes\n",
-		&dev->intfdesc, (u32)sizeof(tmComResInterfaceDescr_t));
+		"sizeof(struct tmComResInterfaceDescr) = %d bytes\n",
+		&dev->intfdesc, (u32)sizeof(struct tmComResInterfaceDescr));
 
 	dprintk(1, " .bLength = 0x%x\n", dev->intfdesc.bLength);
 	dprintk(1, " .bDescriptorType = 0x%x\n", dev->intfdesc.bDescriptorType);
@@ -877,8 +877,8 @@ static void saa7164_dump_intfdesc(struct saa7164_dev *dev)
 
 static void saa7164_dump_busdesc(struct saa7164_dev *dev)
 {
-	dprintk(1, "@0x%p busdesc sizeof(tmComResBusDescr_t) = %d bytes\n",
-		&dev->busdesc, (u32)sizeof(tmComResBusDescr_t));
+	dprintk(1, "@0x%p busdesc sizeof(struct tmComResBusDescr) = %d bytes\n",
+		&dev->busdesc, (u32)sizeof(struct tmComResBusDescr));
 
 	dprintk(1, " .CommandRing   = 0x%016Lx\n", dev->busdesc.CommandRing);
 	dprintk(1, " .ResponseRing  = 0x%016Lx\n", dev->busdesc.ResponseRing);
@@ -895,23 +895,23 @@ static void saa7164_dump_busdesc(struct saa7164_dev *dev)
  */
 static void saa7164_get_descriptors(struct saa7164_dev *dev)
 {
-	memcpy_fromio(&dev->hwdesc, dev->bmmio, sizeof(tmComResHWDescr_t));
-	memcpy_fromio(&dev->intfdesc, dev->bmmio + sizeof(tmComResHWDescr_t),
-		sizeof(tmComResInterfaceDescr_t));
+	memcpy_fromio(&dev->hwdesc, dev->bmmio, sizeof(struct tmComResHWDescr));
+	memcpy_fromio(&dev->intfdesc, dev->bmmio + sizeof(struct tmComResHWDescr),
+		sizeof(struct tmComResInterfaceDescr));
 	memcpy_fromio(&dev->busdesc, dev->bmmio + dev->intfdesc.BARLocation,
-		sizeof(tmComResBusDescr_t));
+		sizeof(struct tmComResBusDescr));
 
-	if (dev->hwdesc.bLength != sizeof(tmComResHWDescr_t)) {
-		printk(KERN_ERR "Structure tmComResHWDescr_t is mangled\n");
+	if (dev->hwdesc.bLength != sizeof(struct tmComResHWDescr)) {
+		printk(KERN_ERR "Structure struct tmComResHWDescr is mangled\n");
 		printk(KERN_ERR "Need %x got %d\n", dev->hwdesc.bLength,
-			(u32)sizeof(tmComResHWDescr_t));
+			(u32)sizeof(struct tmComResHWDescr));
 	} else
 		saa7164_dump_hwdesc(dev);
 
-	if (dev->intfdesc.bLength != sizeof(tmComResInterfaceDescr_t)) {
-		printk(KERN_ERR "struct tmComResInterfaceDescr_t is mangled\n");
+	if (dev->intfdesc.bLength != sizeof(struct tmComResInterfaceDescr)) {
+		printk(KERN_ERR "struct struct tmComResInterfaceDescr is mangled\n");
 		printk(KERN_ERR "Need %x got %d\n", dev->intfdesc.bLength,
-			(u32)sizeof(tmComResInterfaceDescr_t));
+			(u32)sizeof(struct tmComResInterfaceDescr));
 	} else
 		saa7164_dump_intfdesc(dev);
 
@@ -1101,7 +1101,7 @@ static void saa7164_dev_unregister(struct saa7164_dev *dev)
 static int saa7164_proc_show(struct seq_file *m, void *v)
 {
 	struct saa7164_dev *dev;
-	tmComResBusInfo_t *b;
+	struct tmComResBusInfo *b;
 	struct list_head *list;
 	int i, c;
 
@@ -1191,7 +1191,7 @@ static int saa7164_proc_create(void)
 static int saa7164_thread_function(void *data)
 {
 	struct saa7164_dev *dev = data;
-	tmFwInfoStruct_t fwinfo;
+	struct tmFwInfoStruct fwinfo;
 	u64 last_poll_time = 0;
 
 	dprintk(DBGLVL_THR, "thread started\n");
