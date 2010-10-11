@@ -63,6 +63,7 @@ void rc_map_init(void);
 #define RC_MAP_AVERMEDIA_DVBT            "rc-avermedia-dvbt"
 #define RC_MAP_AVERMEDIA_M135A           "rc-avermedia-m135a"
 #define RC_MAP_AVERMEDIA_M733A_RM_K6     "rc-avermedia-m733a-rm-k6"
+#define RC_MAP_AVERMEDIA_RM_KS           "rc-avermedia-rm-ks"
 #define RC_MAP_AVERMEDIA                 "rc-avermedia"
 #define RC_MAP_AVERTV_303                "rc-avertv-303"
 #define RC_MAP_BEHOLD_COLUMBUS           "rc-behold-columbus"
