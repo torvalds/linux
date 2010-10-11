@@ -244,7 +244,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	if (i->index >= 7)
 		return -EINVAL;
 
-	strcpy(i->name, inputs[ i->index ]);
+	strcpy(i->name, inputs[i->index]);
 
 	if (i->index == 0)
 		i->type = V4L2_INPUT_TYPE_TUNER;
@@ -361,10 +361,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	/* Update the hardware */
 	if (port->nr == SAA7164_PORT_ENC1)
-		tsport = &dev->ports[ SAA7164_PORT_TS1 ];
+		tsport = &dev->ports[SAA7164_PORT_TS1];
 	else
 	if (port->nr == SAA7164_PORT_ENC2)
-		tsport = &dev->ports[ SAA7164_PORT_TS2 ];
+		tsport = &dev->ports[SAA7164_PORT_TS2];
 	else
 		BUG();
 
@@ -1070,8 +1070,8 @@ static int fops_open(struct file *file)
 	list_for_each(list, &saa7164_devlist) {
 		h = list_entry(list, struct saa7164_dev, devlist);
 
-		portc = &h->ports[ SAA7164_PORT_ENC1 ];
-		portd = &h->ports[ SAA7164_PORT_ENC2 ];
+		portc = &h->ports[SAA7164_PORT_ENC1];
+		portd = &h->ports[SAA7164_PORT_ENC2];
 
 		if (portc->v4l_device &&
 		    portc->v4l_device->minor == minor) {

@@ -120,8 +120,8 @@ static void saa7164_pack_verifier(struct saa7164_buffer *buf)
 
 	for (i = 0; i < buf->actual_size; i += 2048) {
 
-		if ( (*(p + i + 0) != 0x00) || (*(p + i + 1) != 0x00) ||
-			(*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA) ) {
+		if ((*(p + i + 0) != 0x00) || (*(p + i + 1) != 0x00) ||
+			(*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA)) {
 			printk(KERN_ERR "No pack at 0x%x\n", i);
 //			saa7164_dumphex16FF(buf->port->dev, (p + i), 32);
 		}
@@ -244,7 +244,7 @@ static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val)
 {
 	int i;
-	for (i = 0; i < 64; i++ ) {
+	for (i = 0; i < 64; i++) {
 		if (val <= hg->counter1[i].val) {
 			hg->counter1[i].count++;
 			hg->counter1[i].update_time = jiffies;
@@ -260,7 +260,7 @@ static void saa7164_histogram_print(struct saa7164_port *port,
 	int i;
 
 	printk(KERN_ERR "Histogram named %s (ms, count, last_update_jiffy)\n", hg->name);
-	for (i = 0; i < 64; i++ ) {
+	for (i = 0; i < 64; i++) {
 		if (hg->counter1[i].count == 0)
 			continue;
 
@@ -305,14 +305,14 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 
 			if (guard_checking) {
 				p = (u8 *)buf->cpu;
-				if ( (*(p + buf->actual_size + 0) != 0xff) ||
+				if ((*(p + buf->actual_size + 0) != 0xff) ||
 					(*(p + buf->actual_size + 1) != 0xff) ||
 					(*(p + buf->actual_size + 2) != 0xff) ||
 					(*(p + buf->actual_size + 3) != 0xff) ||
 					(*(p + buf->actual_size + 0x10) != 0xff) ||
 					(*(p + buf->actual_size + 0x11) != 0xff) ||
 					(*(p + buf->actual_size + 0x12) != 0xff) ||
-					(*(p + buf->actual_size + 0x13) != 0xff) ) {
+					(*(p + buf->actual_size + 0x13) != 0xff)) {
 						printk(KERN_ERR "%s() buf %p guard buffer breach\n",
 							__func__, buf);
 //						saa7164_dumphex16FF(dev, (p + buf->actual_size) - 32 , 64);
@@ -637,12 +637,12 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 static irqreturn_t saa7164_irq(int irq, void *dev_id)
 {
 	struct saa7164_dev *dev = dev_id;
-	struct saa7164_port *porta = &dev->ports[ SAA7164_PORT_TS1 ];
-	struct saa7164_port *portb = &dev->ports[ SAA7164_PORT_TS2 ];
-	struct saa7164_port *portc = &dev->ports[ SAA7164_PORT_ENC1 ];
-	struct saa7164_port *portd = &dev->ports[ SAA7164_PORT_ENC2 ];
-	struct saa7164_port *porte = &dev->ports[ SAA7164_PORT_VBI1 ];
-	struct saa7164_port *portf = &dev->ports[ SAA7164_PORT_VBI2 ];
+	struct saa7164_port *porta = &dev->ports[SAA7164_PORT_TS1];
+	struct saa7164_port *portb = &dev->ports[SAA7164_PORT_TS2];
+	struct saa7164_port *portc = &dev->ports[SAA7164_PORT_ENC1];
+	struct saa7164_port *portd = &dev->ports[SAA7164_PORT_ENC2];
+	struct saa7164_port *porte = &dev->ports[SAA7164_PORT_VBI1];
+	struct saa7164_port *portf = &dev->ports[SAA7164_PORT_VBI2];
 
 	u32 intid, intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
@@ -948,7 +948,7 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 	if ((portnr < 0) || (portnr >= SAA7164_MAX_PORTS))
 		BUG();
 
-	port = &dev->ports[ portnr ];
+	port = &dev->ports[portnr];
 
 	port->dev = dev;
 	port->nr = portnr;
@@ -1339,7 +1339,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 
 		/* Begin to create the video sub-systems and register funcs */
 		if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB) {
-			if (saa7164_dvb_register(&dev->ports[ SAA7164_PORT_TS1 ]) < 0) {
+			if (saa7164_dvb_register(&dev->ports[SAA7164_PORT_TS1]) < 0) {
 				printk(KERN_ERR "%s() Failed to register "
 					"dvb adapters on porta\n",
 					__func__);
@@ -1347,7 +1347,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		}
 
 		if (saa7164_boards[dev->board].portb == SAA7164_MPEG_DVB) {
-			if (saa7164_dvb_register(&dev->ports[ SAA7164_PORT_TS2 ]) < 0) {
+			if (saa7164_dvb_register(&dev->ports[SAA7164_PORT_TS2]) < 0) {
 				printk(KERN_ERR"%s() Failed to register "
 					"dvb adapters on portb\n",
 					__func__);
@@ -1355,28 +1355,28 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		}
 
 		if (saa7164_boards[dev->board].portc == SAA7164_MPEG_ENCODER) {
-			if (saa7164_encoder_register(&dev->ports[ SAA7164_PORT_ENC1 ]) < 0) {
+			if (saa7164_encoder_register(&dev->ports[SAA7164_PORT_ENC1]) < 0) {
 				printk(KERN_ERR"%s() Failed to register "
 					"mpeg encoder\n", __func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].portd == SAA7164_MPEG_ENCODER) {
-			if (saa7164_encoder_register(&dev->ports[ SAA7164_PORT_ENC2 ]) < 0) {
+			if (saa7164_encoder_register(&dev->ports[SAA7164_PORT_ENC2]) < 0) {
 				printk(KERN_ERR"%s() Failed to register "
 					"mpeg encoder\n", __func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].porte == SAA7164_MPEG_VBI) {
-			if (saa7164_vbi_register(&dev->ports[ SAA7164_PORT_VBI1 ]) < 0) {
+			if (saa7164_vbi_register(&dev->ports[SAA7164_PORT_VBI1]) < 0) {
 				printk(KERN_ERR"%s() Failed to register "
 					"vbi device\n", __func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].portf == SAA7164_MPEG_VBI) {
-			if (saa7164_vbi_register(&dev->ports[ SAA7164_PORT_VBI2 ]) < 0) {
+			if (saa7164_vbi_register(&dev->ports[SAA7164_PORT_VBI2]) < 0) {
 				printk(KERN_ERR"%s() Failed to register "
 					"vbi device\n", __func__);
 			}
@@ -1427,40 +1427,40 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 			saa7164_api_set_debug(dev, 0x00);
 	}
 
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
-		&dev->ports[ SAA7164_PORT_ENC1 ].irq_interval);
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
-		&dev->ports[ SAA7164_PORT_ENC1 ].svc_interval);
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
-		&dev->ports[ SAA7164_PORT_ENC1 ].irq_svc_interval);
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
-		&dev->ports[ SAA7164_PORT_ENC1 ].read_interval);
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
-		&dev->ports[ SAA7164_PORT_ENC1 ].poll_interval);
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_VBI1 ],
-		&dev->ports[ SAA7164_PORT_VBI1 ].read_interval);
-	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_VBI2 ],
-		&dev->ports[ SAA7164_PORT_VBI2 ].poll_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_ENC1],
+		&dev->ports[SAA7164_PORT_ENC1].irq_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_ENC1],
+		&dev->ports[SAA7164_PORT_ENC1].svc_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_ENC1],
+		&dev->ports[SAA7164_PORT_ENC1].irq_svc_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_ENC1],
+		&dev->ports[SAA7164_PORT_ENC1].read_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_ENC1],
+		&dev->ports[SAA7164_PORT_ENC1].poll_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_VBI1],
+		&dev->ports[SAA7164_PORT_VBI1].read_interval);
+	saa7164_histogram_print(&dev->ports[SAA7164_PORT_VBI2],
+		&dev->ports[SAA7164_PORT_VBI2].poll_interval);
 
 	saa7164_shutdown(dev);
 
 	if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB)
-		saa7164_dvb_unregister(&dev->ports[ SAA7164_PORT_TS1 ]);
+		saa7164_dvb_unregister(&dev->ports[SAA7164_PORT_TS1]);
 
 	if (saa7164_boards[dev->board].portb == SAA7164_MPEG_DVB)
-		saa7164_dvb_unregister(&dev->ports[ SAA7164_PORT_TS2 ]);
+		saa7164_dvb_unregister(&dev->ports[SAA7164_PORT_TS2]);
 
 	if (saa7164_boards[dev->board].portc == SAA7164_MPEG_ENCODER)
-		saa7164_encoder_unregister(&dev->ports[ SAA7164_PORT_ENC1 ]);
+		saa7164_encoder_unregister(&dev->ports[SAA7164_PORT_ENC1]);
 
 	if (saa7164_boards[dev->board].portd == SAA7164_MPEG_ENCODER)
-		saa7164_encoder_unregister(&dev->ports[ SAA7164_PORT_ENC2 ]);
+		saa7164_encoder_unregister(&dev->ports[SAA7164_PORT_ENC2]);
 
 	if (saa7164_boards[dev->board].porte == SAA7164_MPEG_VBI)
-		saa7164_vbi_unregister(&dev->ports[ SAA7164_PORT_VBI1 ]);
+		saa7164_vbi_unregister(&dev->ports[SAA7164_PORT_VBI1]);
 
 	if (saa7164_boards[dev->board].portf == SAA7164_MPEG_VBI)
-		saa7164_vbi_unregister(&dev->ports[ SAA7164_PORT_VBI2 ]);
+		saa7164_vbi_unregister(&dev->ports[SAA7164_PORT_VBI2]);
 
 	saa7164_i2c_unregister(&dev->i2c_bus[0]);
 	saa7164_i2c_unregister(&dev->i2c_bus[1]);

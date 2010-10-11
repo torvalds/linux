@@ -114,7 +114,7 @@
 #define DBGLVL_THR 4096
 #define DBGLVL_CPU 8192
 
-#define SAA7164_NORMS ( V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443 )
+#define SAA7164_NORMS (V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443)
 
 enum port_t {
 	SAA7164_MPEG_UNDEFINED = 0,
@@ -471,7 +471,7 @@ struct saa7164_dev {
 	struct saa7164_i2c i2c_bus[3];
 
 	/* Transport related */
-	struct saa7164_port ports[ SAA7164_MAX_PORTS ];
+	struct saa7164_port ports[SAA7164_MAX_PORTS];
 
 	/* Deferred command/api interrupts handling */
 	struct work_struct workcmd;

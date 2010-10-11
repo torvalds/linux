@@ -328,7 +328,7 @@ struct tmComResEncVideoInputAspectRatio {
 /* 1. IPPPPPPPPPPPPPP */
 /* 2. IBPBPBPBPBPBPBP */
 /* 3. IBBPBBPBBPBBP   */
-#define SAA7164_ENCODER_DEFAULT_GOP_DIST ( 1)
+#define SAA7164_ENCODER_DEFAULT_GOP_DIST (1)
 #define SAA7164_ENCODER_DEFAULT_GOP_SIZE (15)
 struct tmComResEncVideoGopStructure {
 	u8	ucGOPSize;	/* GOP Size 12, 15 */
