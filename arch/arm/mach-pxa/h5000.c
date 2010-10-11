@@ -202,7 +202,7 @@ static void __init h5000_init(void)
 
 MACHINE_START(H5400, "HP iPAQ H5000")
 	.boot_params = 0xa0000100,
-	.map_io = pxa_map_io,
+	.map_io = pxa25x_map_io,
 	.init_irq = pxa25x_init_irq,
 	.timer = &pxa_timer,
 	.init_machine = h5000_init,

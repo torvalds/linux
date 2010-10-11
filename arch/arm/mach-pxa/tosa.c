@@ -953,7 +953,7 @@ static void __init fixup_tosa(struct machine_desc *desc,
 
 MACHINE_START(TOSA, "SHARP Tosa")
 	.fixup          = fixup_tosa,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa25x_map_io,
 	.nr_irqs	= TOSA_NR_IRQS,
 	.init_irq       = pxa25x_init_irq,
 	.init_machine   = tosa_init,

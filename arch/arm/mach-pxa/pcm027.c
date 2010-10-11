@@ -244,7 +244,7 @@ static void __init pcm027_init(void)
 
 static void __init pcm027_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 
 	/* initialize sleep mode regs (wake-up sources, etc) */
 	PGSR0 = 0x01308000;

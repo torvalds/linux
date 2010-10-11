@@ -549,7 +549,7 @@ static struct map_desc lubbock_io_desc[] __initdata = {
 
 static void __init lubbock_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 	iotable_init(lubbock_io_desc, ARRAY_SIZE(lubbock_io_desc));
 
 	PCFR |= PCFR_OPDE;

@@ -273,7 +273,7 @@ static void __init csb726_init(void)
 
 MACHINE_START(CSB726, "Cogent CSB726")
 	.boot_params	= 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
 	.init_irq       = pxa27x_init_irq,
 	.init_machine   = csb726_init,
 	.timer          = &pxa_timer,

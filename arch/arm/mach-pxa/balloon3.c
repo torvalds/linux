@@ -802,7 +802,7 @@ static struct map_desc balloon3_io_desc[] __initdata = {
 
 static void __init balloon3_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(balloon3_io_desc, ARRAY_SIZE(balloon3_io_desc));
 }
 

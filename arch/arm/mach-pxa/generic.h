@@ -20,7 +20,11 @@ extern void __init pxa26x_init_irq(void);
 #endif
 extern void __init pxa27x_init_irq(void);
 extern void __init pxa3xx_init_irq(void);
+
 extern void __init pxa_map_io(void);
+extern void __init pxa25x_map_io(void);
+extern void __init pxa27x_map_io(void);
+extern void __init pxa3xx_map_io(void);
 
 extern unsigned int get_clk_frequency_khz(int info);
 

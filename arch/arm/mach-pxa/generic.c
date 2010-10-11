@@ -86,26 +86,14 @@ EXPORT_SYMBOL(get_memclk_frequency_10khz);
 /*
  * Intel PXA2xx internal register mapping.
  *
- * Note 1: not all PXA2xx variants implement all those addresses.
- *
- * Note 2: virtual 0xfffe0000-0xffffffff is reserved for the vector table
- *         and cache flush area.
+ * Note: virtual 0xfffe0000-0xffffffff is reserved for the vector table
+ *       and cache flush area.
  */
-static struct map_desc standard_io_desc[] __initdata = {
+static struct map_desc common_io_desc[] __initdata = {
   	{	/* Devs */
 		.virtual	=  0xf2000000,
 		.pfn		= __phys_to_pfn(0x40000000),
 		.length		= 0x02000000,
-		.type		= MT_DEVICE
-	}, {	/* Mem Ctl */
-		.virtual	=  0xf6000000,
-		.pfn		= __phys_to_pfn(0x48000000),
-		.length		= 0x00200000,
-		.type		= MT_DEVICE
-	}, {	/* IMem ctl */
-		.virtual	=  0xfe000000,
-		.pfn		= __phys_to_pfn(0x58000000),
-		.length		= 0x00100000,
 		.type		= MT_DEVICE
 	}, {	/* UNCACHED_PHYS_0 */
 		.virtual	= 0xff000000,
@@ -117,6 +105,5 @@ static struct map_desc standard_io_desc[] __initdata = {
 
 void __init pxa_map_io(void)
 {
-	iotable_init(standard_io_desc, ARRAY_SIZE(standard_io_desc));
-	get_clk_frequency_khz(1);
+	iotable_init(ARRAY_AND_SIZE(common_io_desc));
 }

@@ -498,7 +498,12 @@ static struct map_desc cmx2xx_io_desc[] __initdata = {
 
 static void __init cmx2xx_map_io(void)
 {
-	pxa_map_io();
+	if (cpu_is_pxa25x())
+		pxa25x_map_io();
+
+	if (cpu_is_pxa27x())
+		pxa27x_map_io();
+
 	iotable_init(cmx2xx_io_desc, ARRAY_SIZE(cmx2xx_io_desc));
 
 	it8152_base_address = CMX2XX_IT8152_VIRT;
@@ -506,7 +511,11 @@ static void __init cmx2xx_map_io(void)
 #else
 static void __init cmx2xx_map_io(void)
 {
-	pxa_map_io();
+	if (cpu_is_pxa25x())
+		pxa25x_map_io();
+
+	if (cpu_is_pxa27x())
+		pxa27x_map_io();
 }
 #endif
 

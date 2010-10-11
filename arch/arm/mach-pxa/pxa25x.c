@@ -23,6 +23,7 @@
 #include <linux/suspend.h>
 #include <linux/sysdev.h>
 
+#include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
@@ -319,6 +320,22 @@ void __init pxa26x_init_irq(void)
 	pxa_init_gpio(IRQ_GPIO_2_x, 2, 89, pxa25x_set_wake);
 }
 #endif
+
+static struct map_desc pxa25x_io_desc[] __initdata = {
+	{	/* Mem Ctl */
+		.virtual	=  0xf6000000,
+		.pfn		= __phys_to_pfn(0x48000000),
+		.length		= 0x00200000,
+		.type		= MT_DEVICE
+	},
+};
+
+void __init pxa25x_map_io(void)
+{
+	pxa_map_io();
+	iotable_init(ARRAY_AND_SIZE(pxa25x_io_desc));
+	pxa25x_get_clk_frequency_khz(1);
+}
 
 static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_udc,

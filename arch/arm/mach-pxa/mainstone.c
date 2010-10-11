@@ -614,7 +614,7 @@ static struct map_desc mainstone_io_desc[] __initdata = {
 
 static void __init mainstone_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(mainstone_io_desc, ARRAY_SIZE(mainstone_io_desc));
 
  	/*	for use I SRAM as framebuffer.	*/

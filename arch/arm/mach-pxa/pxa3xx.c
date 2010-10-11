@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 
+#include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 #include <mach/pxa3xx-regs.h>
@@ -578,6 +579,22 @@ void __init pxa3xx_init_irq(void)
 	pxa_init_irq(56, pxa3xx_set_wake);
 	pxa_init_ext_wakeup_irq(pxa3xx_set_wake);
 	pxa_init_gpio(IRQ_GPIO_2_x, 2, 127, NULL);
+}
+
+static struct map_desc pxa3xx_io_desc[] __initdata = {
+	{	/* Mem Ctl */
+		.virtual	=  0xf6000000,
+		.pfn		= __phys_to_pfn(0x4a000000),
+		.length		= 0x00200000,
+		.type		= MT_DEVICE
+	}
+};
+
+void __init pxa3xx_map_io(void)
+{
+	pxa_map_io();
+	iotable_init(ARRAY_AND_SIZE(pxa3xx_io_desc));
+	pxa3xx_get_clk_frequency_khz(1);
 }
 
 /*

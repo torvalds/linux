@@ -539,7 +539,7 @@ static void __init trizeps4_init(void)
 
 static void __init trizeps4_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(trizeps4_io_desc, ARRAY_SIZE(trizeps4_io_desc));
 
 	if ((MSC0 & 0x8) && (BOOT_DEF & 0x1)) {
