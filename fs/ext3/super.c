@@ -1871,6 +1871,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	if (sbi->s_group_desc == NULL) {
 		ext3_msg(sb, KERN_ERR,
 			"error: not enough memory");
+		ret = -ENOMEM;
 		goto failed_mount;
 	}
 
@@ -1958,6 +1959,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	}
 	if (err) {
 		ext3_msg(sb, KERN_ERR, "error: insufficient memory");
+		ret = err;
 		goto failed_mount3;
 	}
 
