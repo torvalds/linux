@@ -178,9 +178,25 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			char *newname)
 {
 	struct cfg80211_registered_device *rdev2;
-	int result;
+	int wiphy_idx, taken = -1, result, digits;
 
 	assert_cfg80211_lock();
+
+	/* prohibit calling the thing phy%d when %d is not its number */
+	sscanf(newname, PHY_NAME "%d%n", &wiphy_idx, &taken);
+	if (taken == strlen(newname) && wiphy_idx != rdev->wiphy_idx) {
+		/* count number of places needed to print wiphy_idx */
+		digits = 1;
+		while (wiphy_idx /= 10)
+			digits++;
+		/*
+		 * deny the name if it is phy<idx> where <idx> is printed
+		 * without leading zeroes. taken == strlen(newname) here
+		 */
+		if (taken == strlen(PHY_NAME) + digits)
+			return -EINVAL;
+	}
+
 
 	/* Ignore nop renames */
 	if (strcmp(newname, dev_name(&rdev->wiphy.dev)) == 0)
@@ -189,7 +205,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	/* Ensure another device does not already have this name. */
 	list_for_each_entry(rdev2, &cfg80211_rdev_list, list)
 		if (strcmp(newname, dev_name(&rdev2->wiphy.dev)) == 0)
-			return -EEXIST;
+			return -EINVAL;
 
 	result = device_rename(&rdev->wiphy.dev, newname);
 	if (result)
@@ -304,11 +320,9 @@ static void cfg80211_event_work(struct work_struct *work)
 struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 {
 	static int wiphy_counter;
-	int i;
-	struct cfg80211_registered_device *rdev, *rdev2;
+
+	struct cfg80211_registered_device *rdev;
 	int alloc_size;
-	char nname[IFNAMSIZ + 1];
-	bool found = false;
 
 	WARN_ON(ops->add_key && (!ops->del_key || !ops->set_default_key));
 	WARN_ON(ops->auth && (!ops->assoc || !ops->deauth || !ops->disassoc));
@@ -332,36 +346,16 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	if (unlikely(!wiphy_idx_valid(rdev->wiphy_idx))) {
 		wiphy_counter--;
-		goto too_many_devs;
-	}
-
-	/* 64k wiphy devices is enough for anyone! */
-	for (i = 0; i < 0xFFFF; i++) {
-		found = false;
-		snprintf(nname, sizeof(nname)-1, PHY_NAME "%d", i);
-		nname[sizeof(nname)-1] = 0;
-		list_for_each_entry(rdev2, &cfg80211_rdev_list, list)
-			if (strcmp(nname, dev_name(&rdev2->wiphy.dev)) == 0) {
-				found = true;
-				break;
-			}
-
-		if (!found)
-			break;
-	}
-
-	if (unlikely(found)) {
-too_many_devs:
 		mutex_unlock(&cfg80211_mutex);
-		/* ugh, too many devices already! */
+		/* ugh, wrapped! */
 		kfree(rdev);
 		return NULL;
 	}
 
-	/* give it a proper name */
-	dev_set_name(&rdev->wiphy.dev, "%s", nname);
-
 	mutex_unlock(&cfg80211_mutex);
+
+	/* give it a proper name */
+	dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
 
 	mutex_init(&rdev->mtx);
 	mutex_init(&rdev->devlist_mtx);
