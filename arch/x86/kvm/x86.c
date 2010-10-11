@@ -830,7 +830,6 @@ static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	kvm_x86_ops->set_efer(vcpu, efer);
 
 	vcpu->arch.mmu.base_role.nxe = (efer & EFER_NX) && !tdp_enabled;
-	kvm_mmu_reset_context(vcpu);
 
 	/* Update reserved bits */
 	if ((efer ^ old_efer) & EFER_NX)
