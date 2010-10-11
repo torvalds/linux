@@ -1631,7 +1631,7 @@ void si_pci_up(si_t *sih)
 }
 
 /* Unconfigure and/or apply various WARs when system is going to sleep mode */
-void BCMUNINITFN(si_pci_sleep) (si_t *sih)
+void si_pci_sleep(si_t *sih)
 {
 	si_info_t *sii;
 

@@ -99,7 +99,7 @@ int wlc_eventq_detach(wlc_eventq_t *eq)
 	return 0;
 }
 
-int BCMUNINITFN(wlc_eventq_down) (wlc_eventq_t *eq)
+int wlc_eventq_down(wlc_eventq_t *eq)
 {
 	int callbacks = 0;
 	if (eq->tpending && !eq->workpending) {

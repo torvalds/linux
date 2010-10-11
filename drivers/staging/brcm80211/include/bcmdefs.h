@@ -34,7 +34,6 @@
  * The following macros specify special linker sections that can be reclaimed
  * after a system is considered 'up'.
  */
-#define BCMUNINITFN(_fn)	_fn
 #define	BCMNMIATTACHFN(_fn)	_fn
 #ifdef mips
 #define BCMFASTPATH		__attribute__ ((__section__(".text.fastpath")))

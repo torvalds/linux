@@ -1047,7 +1047,7 @@ void wlc_phy_cal_init(wlc_phy_t *pih)
 	}
 }
 
-int BCMUNINITFN(wlc_phy_down) (wlc_phy_t *pih)
+int wlc_phy_down(wlc_phy_t *pih)
 {
 	phy_info_t *pi = (phy_info_t *) pih;
 	int callbacks = 0;

@@ -1249,7 +1249,7 @@ int wlc_bmac_up_finish(wlc_hw_info_t *wlc_hw)
 	return 0;
 }
 
-int BCMUNINITFN(wlc_bmac_down_prep) (wlc_hw_info_t *wlc_hw)
+int wlc_bmac_down_prep(wlc_hw_info_t *wlc_hw)
 {
 	bool dev_gone;
 	uint callbacks = 0;
@@ -1277,7 +1277,7 @@ int BCMUNINITFN(wlc_bmac_down_prep) (wlc_hw_info_t *wlc_hw)
 	return callbacks;
 }
 
-int BCMUNINITFN(wlc_bmac_down_finish) (wlc_hw_info_t *wlc_hw)
+int wlc_bmac_down_finish(wlc_hw_info_t *wlc_hw)
 {
 	uint callbacks = 0;
 	bool dev_gone;

@@ -2846,7 +2846,7 @@ static void wlc_tx_prec_map_init(wlc_info_t *wlc)
 	}
 }
 
-static uint BCMUNINITFN(wlc_down_del_timer) (wlc_info_t *wlc)
+static uint wlc_down_del_timer(wlc_info_t *wlc)
 {
 	uint callbacks = 0;
 
@@ -2858,7 +2858,7 @@ static uint BCMUNINITFN(wlc_down_del_timer) (wlc_info_t *wlc)
  * disable the hardware, free any transient buffer state.
  * Return a count of the number of driver callbacks still pending.
  */
-uint BCMUNINITFN(wlc_down) (wlc_info_t *wlc)
+uint wlc_down(wlc_info_t *wlc)
 {
 
 	uint callbacks = 0;

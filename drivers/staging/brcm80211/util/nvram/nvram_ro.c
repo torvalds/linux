@@ -106,7 +106,7 @@ int nvram_append(void *si, char *varlst, uint varsz)
 	return BCME_OK;
 }
 
-void BCMUNINITFN(nvram_exit) (void *si)
+void nvram_exit(void *si)
 {
 	vars_t *this, *next;
 	si_t *sih;
