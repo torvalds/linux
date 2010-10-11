@@ -3229,7 +3229,7 @@ static s32 wl_event_handler(void *data)
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	while (likely(!down_interruptible(&wl->event_sync))) {
-		if(kthread_should_stop())
+		if (kthread_should_stop())
 			break;
 		e = wl_deq_event(wl);
 		if (unlikely(!e)) {

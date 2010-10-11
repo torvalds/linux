@@ -43,7 +43,7 @@ typedef struct bcm_static_buf {
 	unsigned char buf_use[MAX_STATIC_BUF_NUM];
 } bcm_static_buf_t;
 
-static bcm_static_buf_t *bcm_static_buf = 0;
+static bcm_static_buf_t *bcm_static_buf;
 
 #define MAX_STATIC_PKT_NUM 8
 typedef struct bcm_static_pkt {
@@ -52,7 +52,7 @@ typedef struct bcm_static_pkt {
 	struct semaphore osl_pkt_sem;
 	unsigned char pkt_use[MAX_STATIC_PKT_NUM * 2];
 } bcm_static_pkt_t;
-static bcm_static_pkt_t *bcm_static_skb = 0;
+static bcm_static_pkt_t *bcm_static_skb;
 #endif				/* DHD_USE_STATIC_BUF */
 
 struct osl_info {
@@ -176,9 +176,9 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 
 #if defined(BRCM_FULLMAC) && defined(DHD_USE_STATIC_BUF)
 	if (!bcm_static_buf) {
-		if (!(bcm_static_buf =
-		     (bcm_static_buf_t *) dhd_os_prealloc(3,
-			  STATIC_BUF_SIZE + STATIC_BUF_TOTAL_LEN))) {
+		bcm_static_buf = (bcm_static_buf_t *) dhd_os_prealloc(3,
+					STATIC_BUF_SIZE + STATIC_BUF_TOTAL_LEN);
+		if (!bcm_static_buf) {
 			printk(KERN_ERR "can not alloc static buf!\n");
 		} else
 			printk(KERN_ERR "alloc static buf at %x!\n",

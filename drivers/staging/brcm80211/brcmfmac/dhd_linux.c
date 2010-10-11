@@ -939,7 +939,7 @@ static int _dhd_sysioc_thread(void *data)
 #endif
 
 	while (down_interruptible(&dhd->sysioc_sem) == 0) {
-		if(kthread_should_stop())
+		if (kthread_should_stop())
 			break;
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			if (dhd->iflist[i]) {
@@ -1362,7 +1362,7 @@ static int dhd_dpc_thread(void *data)
 
 	/* Run until signal received */
 	while (1) {
-		if(kthread_should_stop())
+		if (kthread_should_stop())
 			break;
 		if (down_interruptible(&dhd->dpc_sem) == 0) {
 			/* Call bus dpc unless it indicated down
@@ -2343,8 +2343,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 			if (dhd->dpc_tsk) {
 				kthread_stop(dhd->dpc_tsk);
 				dhd->dpc_tsk = NULL;
-			}
-			else
+			} else
 				tasklet_kill(&dhd->tasklet);
 
 			if (dhd->sysioc_tsk) {

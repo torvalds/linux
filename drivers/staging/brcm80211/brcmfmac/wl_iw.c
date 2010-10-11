@@ -2836,8 +2836,7 @@ wl_iw_set_wpaauth(struct net_device *dev,
 				val = WPA_AUTH_PSK;
 			else
 				val = WPA_AUTH_UNSPECIFIED;
-		}
-		else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
+		} else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
 			if (paramval & IW_AUTH_KEY_MGMT_PSK)
 				val = WPA2_AUTH_PSK;
 			else
