@@ -90,10 +90,12 @@ void b2055_upload_inittab(struct b43_wldev *dev,
 			  bool ghz5, bool ignore_uploadflag);
 
 
-/* Get the NPHY Channel Switch Table entry for a channel number.
+/* Get the NPHY Channel Switch Table entry for a channel.
  * Returns NULL on failure to find an entry. */
 const struct b43_nphy_channeltab_entry_rev2 *
 b43_nphy_get_chantabent_rev2(struct b43_wldev *dev, u8 channel);
+const struct b43_nphy_channeltab_entry_rev3 *
+b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq);
 
 
 /* The N-PHY tables. */
