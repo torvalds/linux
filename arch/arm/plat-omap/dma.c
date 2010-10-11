@@ -996,11 +996,17 @@ void omap_start_dma(int lch)
 	l = dma_read(CCR(lch));
 
 	/*
-	 * Errata: On ES2.0 BUFFERING disable must be set.
-	 * This will always fail on ES1.0
+	 * Errata: Inter Frame DMA buffering issue (All OMAP2420 and
+	 * OMAP2430ES1.0): DMA will wrongly buffer elements if packing and
+	 * bursting is enabled. This might result in data gets stalled in
+	 * FIFO at the end of the block.
+	 * Workaround: DMA channels must have BUFFERING_DISABLED bit set to
+	 * guarantee no data will stay in the DMA FIFO in case inter frame
+	 * buffering occurs.
 	 */
-	if (cpu_is_omap24xx())
-		l |= OMAP_DMA_CCR_EN;
+	if (cpu_is_omap2420() ||
+	    (cpu_is_omap2430() && (omap_type() == OMAP2430_REV_ES1_0)))
+		l |= OMAP_DMA_CCR_BUFFERING_DISABLE;
 
 	l |= OMAP_DMA_CCR_EN;
 	dma_write(l, CCR(lch));
