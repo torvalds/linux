@@ -73,10 +73,10 @@ void saa7164_buffer_display(struct saa7164_buffer *buf)
 
 	dprintk(DBGLVL_BUF, "%s()   buffer @ 0x%p nr=%d\n",
 		__func__, buf, buf->idx);
-	dprintk(DBGLVL_BUF, "  pci_cpu @ 0x%p    dma @ 0x%p len = 0x%x\n",
-		buf->cpu, (void *)buf->dma, buf->pci_size);
-	dprintk(DBGLVL_BUF, "   pt_cpu @ 0x%p pt_dma @ 0x%p len = 0x%x\n",
-		buf->pt_cpu, (void *)buf->pt_dma, buf->pt_size);
+	dprintk(DBGLVL_BUF, "  pci_cpu @ 0x%p    dma @ 0x%08llx len = 0x%x\n",
+		buf->cpu, (long long)buf->dma, buf->pci_size);
+	dprintk(DBGLVL_BUF, "   pt_cpu @ 0x%p pt_dma @ 0x%08llx len = 0x%x\n",
+		buf->pt_cpu, (long long)buf->pt_dma, buf->pt_size);
 
 	/* Format the Page Table Entries to point into the data buffer */
 	for (i = 0 ; i < SAA7164_PT_ENTRIES; i++) {
