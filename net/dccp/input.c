@@ -259,7 +259,7 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 				      sysctl_dccp_sync_ratelimit)))
 			return 0;
 
-		DCCP_WARN("DCCP: Step 6 failed for %s packet, "
+		DCCP_WARN("Step 6 failed for %s packet, "
 			  "(LSWL(%llu) <= P.seqno(%llu) <= S.SWH(%llu)) and "
 			  "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
 			  "sending SYNC...\n",  dccp_packet_name(dh->dccph_type),
