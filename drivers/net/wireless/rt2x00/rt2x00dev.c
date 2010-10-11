@@ -491,7 +491,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	 */
 	skb = rt2x00queue_alloc_rxskb(entry);
 	if (!skb)
-		return;
+		goto submit_entry;
 
 	/*
 	 * Unmap the skb.
