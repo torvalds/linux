@@ -235,7 +235,7 @@ static void mxc_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	l = (__raw_readl(reg) & (~(1 << offset))) | (value << offset);
+	l = (__raw_readl(reg) & (~(1 << offset))) | (!!value << offset);
 	__raw_writel(l, reg);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
