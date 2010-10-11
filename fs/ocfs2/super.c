@@ -2105,6 +2105,15 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	snprintf(osb->dev_str, sizeof(osb->dev_str), "%u,%u",
 		 MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
 
+	osb->max_slots = le16_to_cpu(di->id2.i_super.s_max_slots);
+	if (osb->max_slots > OCFS2_MAX_SLOTS || osb->max_slots == 0) {
+		mlog(ML_ERROR, "Invalid number of node slots (%u)\n",
+		     osb->max_slots);
+		status = -EINVAL;
+		goto bail;
+	}
+	mlog(0, "max_slots for this device: %u\n", osb->max_slots);
+
 	ocfs2_orphan_scan_init(osb);
 
 	status = ocfs2_recovery_init(osb);
@@ -2142,15 +2151,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -ENOMEM;
 		goto bail;
 	}
-
-	osb->max_slots = le16_to_cpu(di->id2.i_super.s_max_slots);
-	if (osb->max_slots > OCFS2_MAX_SLOTS || osb->max_slots == 0) {
-		mlog(ML_ERROR, "Invalid number of node slots (%u)\n",
-		     osb->max_slots);
-		status = -EINVAL;
-		goto bail;
-	}
-	mlog(0, "max_slots for this device: %u\n", osb->max_slots);
 
 	osb->slot_recovery_generations =
 		kcalloc(osb->max_slots, sizeof(*osb->slot_recovery_generations),
