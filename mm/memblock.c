@@ -99,7 +99,7 @@ long __init_memblock memblock_overlaps_region(struct memblock_type *type, phys_a
  * are top-down.
  */
 
-static phys_addr_t __init memblock_find_region(phys_addr_t start, phys_addr_t end,
+static phys_addr_t __init_memblock memblock_find_region(phys_addr_t start, phys_addr_t end,
 					  phys_addr_t size, phys_addr_t align)
 {
 	phys_addr_t base, res_base;
@@ -653,7 +653,7 @@ void __init memblock_enforce_memory_limit(phys_addr_t memory_limit)
 	}
 }
 
-static int memblock_search(struct memblock_type *type, phys_addr_t addr)
+static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
 {
 	unsigned int left = 0, right = type->cnt;
 
