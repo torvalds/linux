@@ -1140,17 +1140,18 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				radeon_crtc->rmx_type = radeon_encoder->rmx_type;
 			else
 				radeon_crtc->rmx_type = RMX_OFF;
-			src_v = crtc->mode.vdisplay;
-			dst_v = radeon_crtc->native_mode.vdisplay;
-			src_h = crtc->mode.hdisplay;
-			dst_h = radeon_crtc->native_mode.vdisplay;
 			/* copy native mode */
 			memcpy(&radeon_crtc->native_mode,
 			       &radeon_encoder->native_mode,
 				sizeof(struct drm_display_mode));
+			src_v = crtc->mode.vdisplay;
+			dst_v = radeon_crtc->native_mode.vdisplay;
+			src_h = crtc->mode.hdisplay;
+			dst_h = radeon_crtc->native_mode.hdisplay;
 
 			/* fix up for overscan on hdmi */
 			if (ASIC_IS_AVIVO(rdev) &&
+			    (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
 			    ((radeon_encoder->underscan_type == UNDERSCAN_ON) ||
 			     ((radeon_encoder->underscan_type == UNDERSCAN_AUTO) &&
 			      drm_detect_hdmi_monitor(radeon_connector->edid) &&

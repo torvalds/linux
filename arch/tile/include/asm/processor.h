@@ -103,6 +103,18 @@ struct thread_struct {
 	/* Any other miscellaneous processor state bits */
 	unsigned long proc_status;
 #endif
+#if !CHIP_HAS_FIXED_INTVEC_BASE()
+	/* Interrupt base for PL0 interrupts */
+	unsigned long interrupt_vector_base;
+#endif
+#if CHIP_HAS_TILE_RTF_HWM()
+	/* Tile cache retry fifo high-water mark */
+	unsigned long tile_rtf_hwm;
+#endif
+#if CHIP_HAS_DSTREAM_PF()
+	/* Data stream prefetch control */
+	unsigned long dstream_pf;
+#endif
 #ifdef CONFIG_HARDWALL
 	/* Is this task tied to an activated hardwall? */
 	struct hardwall_info *hardwall;

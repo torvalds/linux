@@ -112,7 +112,6 @@ void try_to_clear_window_buffer(struct pt_regs *regs, int who)
 	struct thread_info *tp = current_thread_info();
 	int window;
 
-	lock_kernel();
 	flush_user_windows();
 	for(window = 0; window < tp->w_saved; window++) {
 		unsigned long sp = tp->rwbuf_stkptrs[window];
@@ -123,5 +122,4 @@ void try_to_clear_window_buffer(struct pt_regs *regs, int who)
 			do_exit(SIGILL);
 	}
 	tp->w_saved = 0;
-	unlock_kernel();
 }

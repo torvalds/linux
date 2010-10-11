@@ -23,36 +23,11 @@
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 
-#include "../../pci.h"
-#include "pcie_pme.h"
+#include "../pci.h"
+#include "portdrv.h"
 
 #define PCI_EXP_RTSTA_PME	0x10000 /* PME status */
 #define PCI_EXP_RTSTA_PENDING	0x20000 /* PME pending */
-
-/*
- * If set, this switch will prevent the PCIe root port PME service driver from
- * being registered.  Consequently, the interrupt-based PCIe PME signaling will
- * not be used by any PCIe root ports in that case.
- */
-static bool pcie_pme_disabled = true;
-
-/*
- * The PCI Express Base Specification 2.0, Section 6.1.8, states the following:
- * "In order to maintain compatibility with non-PCI Express-aware system
- * software, system power management logic must be configured by firmware to use
- * the legacy mechanism of signaling PME by default.  PCI Express-aware system
- * software must notify the firmware prior to enabling native, interrupt-based
- * PME signaling."  However, if the platform doesn't provide us with a suitable
- * notification mechanism or the notification fails, it is not clear whether or
- * not we are supposed to use the interrupt-based PCIe PME signaling.  The
- * switch below can be used to indicate the desired behaviour.  When set, it
- * will make the kernel use the interrupt-based PCIe PME signaling regardless of
- * the platform notification status, although the kernel will attempt to notify
- * the platform anyway.  When unset, it will prevent the kernel from using the
- * the interrupt-based PCIe PME signaling if the platform notification fails,
- * which is the default.
- */
-static bool pcie_pme_force_enable;
 
 /*
  * If this switch is set, MSI will not be used for PCIe PME signaling.  This
@@ -64,37 +39,12 @@ bool pcie_pme_msi_disabled;
 
 static int __init pcie_pme_setup(char *str)
 {
-	if (!strncmp(str, "auto", 4))
-		pcie_pme_disabled = false;
-	else if (!strncmp(str, "force", 5))
-		pcie_pme_force_enable = true;
-
-	str = strchr(str, ',');
-	if (str) {
-		str++;
-		str += strspn(str, " \t");
-		if (*str && !strcmp(str, "nomsi"))
-			pcie_pme_msi_disabled = true;
-	}
+	if (!strncmp(str, "nomsi", 5))
+		pcie_pme_msi_disabled = true;
 
 	return 1;
 }
 __setup("pcie_pme=", pcie_pme_setup);
-
-/**
- * pcie_pme_platform_setup - Ensure that the kernel controls the PCIe PME.
- * @srv: PCIe PME root port service to use for carrying out the check.
- *
- * Notify the platform that the native PCIe PME is going to be used and return
- * 'true' if the control of the PCIe PME registers has been acquired from the
- * platform.
- */
-static bool pcie_pme_platform_setup(struct pcie_device *srv)
-{
-	if (!pcie_pme_platform_notify(srv))
-		return true;
-	return pcie_pme_force_enable;
-}
 
 struct pcie_pme_service_data {
 	spinlock_t lock;
@@ -108,7 +58,7 @@ struct pcie_pme_service_data {
  * @dev: PCIe root port or event collector.
  * @enable: Enable or disable the interrupt.
  */
-static void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable)
+void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable)
 {
 	int rtctl_pos;
 	u16 rtctl;
@@ -417,9 +367,6 @@ static int pcie_pme_probe(struct pcie_device *srv)
 	struct pcie_pme_service_data *data;
 	int ret;
 
-	if (!pcie_pme_platform_setup(srv))
-		return -EACCES;
-
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -509,8 +456,7 @@ static struct pcie_port_service_driver pcie_pme_driver = {
  */
 static int __init pcie_pme_service_init(void)
 {
-	return pcie_pme_disabled ?
-		-ENODEV : pcie_port_service_register(&pcie_pme_driver);
+	return pcie_port_service_register(&pcie_pme_driver);
 }
 
 module_init(pcie_pme_service_init);

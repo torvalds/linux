@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
+#include <linux/intel-gtt.h>
 
 static uint32_t i915_gem_get_gtt_alignment(struct drm_gem_object *obj);
 static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
@@ -135,12 +136,15 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	drm_gem_object_unreference_unlocked(obj);
-	if (ret)
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
 		return ret;
+	}
+
+	/* Sink the floating reference from kref_init(handlecount) */
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	args->handle = handle;
-
 	return 0;
 }
 
@@ -2347,14 +2351,21 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 
 	reg->obj = obj;
 
-	if (IS_GEN6(dev))
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
 		sandybridge_write_fence_reg(reg);
-	else if (IS_I965G(dev))
+		break;
+	case 5:
+	case 4:
 		i965_write_fence_reg(reg);
-	else if (IS_I9XX(dev))
+		break;
+	case 3:
 		i915_write_fence_reg(reg);
-	else
+		break;
+	case 2:
 		i830_write_fence_reg(reg);
+		break;
+	}
 
 	trace_i915_gem_object_get_fence(obj, obj_priv->fence_reg,
 			obj_priv->tiling_mode);
@@ -2377,22 +2388,26 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_i915_fence_reg *reg =
 		&dev_priv->fence_regs[obj_priv->fence_reg];
+	uint32_t fence_reg;
 
-	if (IS_GEN6(dev)) {
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
 		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 +
 			     (obj_priv->fence_reg * 8), 0);
-	} else if (IS_I965G(dev)) {
+		break;
+	case 5:
+	case 4:
 		I915_WRITE64(FENCE_REG_965_0 + (obj_priv->fence_reg * 8), 0);
-	} else {
-		uint32_t fence_reg;
-
-		if (obj_priv->fence_reg < 8)
-			fence_reg = FENCE_REG_830_0 + obj_priv->fence_reg * 4;
+		break;
+	case 3:
+		if (obj_priv->fence_reg > 8)
+			fence_reg = FENCE_REG_945_8 + (obj_priv->fence_reg - 8) * 4;
 		else
-			fence_reg = FENCE_REG_945_8 + (obj_priv->fence_reg -
-						       8) * 4;
+	case 2:
+			fence_reg = FENCE_REG_830_0 + obj_priv->fence_reg * 4;
 
 		I915_WRITE(fence_reg, 0);
+		break;
 	}
 
 	reg->obj = NULL;
@@ -3585,6 +3600,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ret != 0) {
 			DRM_ERROR("copy %d cliprects failed: %d\n",
 				  args->num_cliprects, ret);
+			ret = -EFAULT;
 			goto pre_mutex_err;
 		}
 	}

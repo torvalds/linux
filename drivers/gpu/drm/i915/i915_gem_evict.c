@@ -79,6 +79,7 @@ mark_free(struct drm_i915_gem_object *obj_priv,
 	   struct list_head *unwind)
 {
 	list_add(&obj_priv->evict_list, unwind);
+	drm_gem_object_reference(&obj_priv->base);
 	return drm_mm_scan_add_block(obj_priv->gtt_space);
 }
 
@@ -165,6 +166,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignmen
 	list_for_each_entry(obj_priv, &unwind_list, evict_list) {
 		ret = drm_mm_scan_remove_block(obj_priv->gtt_space);
 		BUG_ON(ret);
+		drm_gem_object_unreference(&obj_priv->base);
 	}
 
 	/* We expect the caller to unpin, evict all and try again, or give up.
@@ -181,18 +183,21 @@ found:
 			 * scanning, therefore store to be evicted objects on a
 			 * temporary list. */
 			list_move(&obj_priv->evict_list, &eviction_list);
-		}
+		} else
+			drm_gem_object_unreference(&obj_priv->base);
 	}
 
 	/* Unbinding will emit any required flushes */
 	list_for_each_entry_safe(obj_priv, tmp_obj_priv,
 				 &eviction_list, evict_list) {
 #if WATCH_LRU
-		DRM_INFO("%s: evicting %p\n", __func__, obj);
+		DRM_INFO("%s: evicting %p\n", __func__, &obj_priv->base);
 #endif
 		ret = i915_gem_object_unbind(&obj_priv->base);
 		if (ret)
 			return ret;
+
+		drm_gem_object_unreference(&obj_priv->base);
 	}
 
 	/* The just created free hole should be on the top of the free stack

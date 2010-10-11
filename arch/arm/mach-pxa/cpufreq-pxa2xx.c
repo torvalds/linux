@@ -398,7 +398,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
+static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int i;
 	unsigned int freq;

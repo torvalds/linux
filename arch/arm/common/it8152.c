@@ -263,6 +263,14 @@ static int it8152_pci_platform_notify_remove(struct device *dev)
 	return 0;
 }
 
+int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
+{
+	dev_dbg(dev, "%s: dma_addr %08x, size %08x\n",
+		__func__, dma_addr, size);
+	return (dev->bus == &pci_bus_type) &&
+		((dma_addr + size - PHYS_OFFSET) >= SZ_64M);
+}
+
 int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 {
 	it8152_io.start = IT8152_IO_BASE + 0x12000;

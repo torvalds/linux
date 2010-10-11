@@ -164,22 +164,22 @@ static inline void _tile_writeq(u64 val, unsigned long addr)
 #define iowrite32 writel
 #define iowrite64 writeq
 
-static inline void *memcpy_fromio(void *dst, void *src, int len)
+static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
+				 size_t len)
 {
 	int x;
 	BUG_ON((unsigned long)src & 0x3);
 	for (x = 0; x < len; x += 4)
 		*(u32 *)(dst + x) = readl(src + x);
-	return dst;
 }
 
-static inline void *memcpy_toio(void *dst, void *src, int len)
+static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
+				size_t len)
 {
 	int x;
 	BUG_ON((unsigned long)dst & 0x3);
 	for (x = 0; x < len; x += 4)
 		writel(*(u32 *)(src + x), dst + x);
-	return dst;
 }
 
 /*

@@ -121,14 +121,14 @@ static int max1586_v6_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 	if (max_uV < MAX1586_V6_MIN_UV || max_uV > MAX1586_V6_MAX_UV)
 		return -EINVAL;
 
-	if (min_uV >= 3000000)
-		selector = 3;
-	if (min_uV < 3000000)
-		selector = 2;
-	if (min_uV < 2500000)
-		selector = 1;
 	if (min_uV < 1800000)
 		selector = 0;
+	else if (min_uV < 2500000)
+		selector = 1;
+	else if (min_uV < 3000000)
+		selector = 2;
+	else if (min_uV >= 3000000)
+		selector = 3;
 
 	if (max1586_v6_calc_voltage(selector) > max_uV)
 		return -EINVAL;

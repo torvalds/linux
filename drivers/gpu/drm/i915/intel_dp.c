@@ -239,7 +239,6 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t ch_data = ch_ctl + 4;
 	int i;
 	int recv_bytes;
-	uint32_t ctl;
 	uint32_t status;
 	uint32_t aux_clock_divider;
 	int try, precharge;
@@ -263,41 +262,43 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	else
 		precharge = 5;
 
+	if (I915_READ(ch_ctl) & DP_AUX_CH_CTL_SEND_BUSY) {
+		DRM_ERROR("dp_aux_ch not started status 0x%08x\n",
+			  I915_READ(ch_ctl));
+		return -EBUSY;
+	}
+
 	/* Must try at least 3 times according to DP spec */
 	for (try = 0; try < 5; try++) {
 		/* Load the send data into the aux channel data registers */
-		for (i = 0; i < send_bytes; i += 4) {
-			uint32_t    d = pack_aux(send + i, send_bytes - i);
-	
-			I915_WRITE(ch_data + i, d);
-		}
-	
-		ctl = (DP_AUX_CH_CTL_SEND_BUSY |
-		       DP_AUX_CH_CTL_TIME_OUT_400us |
-		       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-		       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-		       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
-		       DP_AUX_CH_CTL_DONE |
-		       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-		       DP_AUX_CH_CTL_RECEIVE_ERROR);
+		for (i = 0; i < send_bytes; i += 4)
+			I915_WRITE(ch_data + i,
+				   pack_aux(send + i, send_bytes - i));
 	
 		/* Send the command and wait for it to complete */
-		I915_WRITE(ch_ctl, ctl);
-		(void) I915_READ(ch_ctl);
+		I915_WRITE(ch_ctl,
+			   DP_AUX_CH_CTL_SEND_BUSY |
+			   DP_AUX_CH_CTL_TIME_OUT_400us |
+			   (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+			   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+			   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
+			   DP_AUX_CH_CTL_DONE |
+			   DP_AUX_CH_CTL_TIME_OUT_ERROR |
+			   DP_AUX_CH_CTL_RECEIVE_ERROR);
 		for (;;) {
-			udelay(100);
 			status = I915_READ(ch_ctl);
 			if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 				break;
+			udelay(100);
 		}
 	
 		/* Clear done status and any errors */
-		I915_WRITE(ch_ctl, (status |
-				DP_AUX_CH_CTL_DONE |
-				DP_AUX_CH_CTL_TIME_OUT_ERROR |
-				DP_AUX_CH_CTL_RECEIVE_ERROR));
-		(void) I915_READ(ch_ctl);
-		if ((status & DP_AUX_CH_CTL_TIME_OUT_ERROR) == 0)
+		I915_WRITE(ch_ctl,
+			   status |
+			   DP_AUX_CH_CTL_DONE |
+			   DP_AUX_CH_CTL_TIME_OUT_ERROR |
+			   DP_AUX_CH_CTL_RECEIVE_ERROR);
+		if (status & DP_AUX_CH_CTL_DONE)
 			break;
 	}
 
@@ -324,15 +325,12 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	/* Unload any bytes sent back from the other side */
 	recv_bytes = ((status & DP_AUX_CH_CTL_MESSAGE_SIZE_MASK) >>
 		      DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
-
 	if (recv_bytes > recv_size)
 		recv_bytes = recv_size;
 	
-	for (i = 0; i < recv_bytes; i += 4) {
-		uint32_t    d = I915_READ(ch_data + i);
-
-		unpack_aux(d, recv + i, recv_bytes - i);
-	}
+	for (i = 0; i < recv_bytes; i += 4)
+		unpack_aux(I915_READ(ch_data + i),
+			   recv + i, recv_bytes - i);
 
 	return recv_bytes;
 }
@@ -1388,7 +1386,7 @@ ironlake_dp_detect(struct drm_connector *connector)
  * \return false if DP port is disconnected.
  */
 static enum drm_connector_status
-intel_dp_detect(struct drm_connector *connector)
+intel_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);

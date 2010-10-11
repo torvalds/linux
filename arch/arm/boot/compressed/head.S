@@ -177,7 +177,7 @@ not_angel:
 		and	r4, pc, #0xf8000000
 		add	r4, r4, #TEXT_OFFSET
 #else
-		ldr	r4, =CONFIG_ZRELADDR
+		ldr	r4, =zreladdr
 #endif
 		subs	r0, r0, r1		@ calculate the delta offset
 

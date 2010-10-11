@@ -5533,12 +5533,24 @@ xfs_getbmap(
 					map[i].br_startblock))
 				goto out_free_map;
 
-			nexleft--;
 			bmv->bmv_offset =
 				out[cur_ext].bmv_offset +
 				out[cur_ext].bmv_length;
 			bmv->bmv_length =
 				max_t(__int64_t, 0, bmvend - bmv->bmv_offset);
+
+			/*
+			 * In case we don't want to return the hole,
+			 * don't increase cur_ext so that we can reuse
+			 * it in the next loop.
+			 */
+			if ((iflags & BMV_IF_NO_HOLES) &&
+			    map[i].br_startblock == HOLESTARTBLOCK) {
+				memset(&out[cur_ext], 0, sizeof(out[cur_ext]));
+				continue;
+			}
+
+			nexleft--;
 			bmv->bmv_entries++;
 			cur_ext++;
 		}

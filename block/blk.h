@@ -142,14 +142,18 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 
 static inline int blk_cpu_to_group(int cpu)
 {
+	int group = NR_CPUS;
 #ifdef CONFIG_SCHED_MC
 	const struct cpumask *mask = cpu_coregroup_mask(cpu);
-	return cpumask_first(mask);
+	group = cpumask_first(mask);
 #elif defined(CONFIG_SCHED_SMT)
-	return cpumask_first(topology_thread_cpumask(cpu));
+	group = cpumask_first(topology_thread_cpumask(cpu));
 #else
 	return cpu;
 #endif
+	if (likely(group < NR_CPUS))
+		return group;
+	return cpu;
 }
 
 /*

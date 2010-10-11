@@ -25,7 +25,7 @@ struct ad5398_chip_info {
 	unsigned int current_level;
 	unsigned int current_mask;
 	unsigned int current_offset;
-	struct regulator_dev rdev;
+	struct regulator_dev *rdev;
 };
 
 static int ad5398_calc_current(struct ad5398_chip_info *chip,
@@ -211,7 +211,6 @@ MODULE_DEVICE_TABLE(i2c, ad5398_id);
 static int __devinit ad5398_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	struct regulator_dev *rdev;
 	struct regulator_init_data *init_data = client->dev.platform_data;
 	struct ad5398_chip_info *chip;
 	const struct ad5398_current_data_format *df =
@@ -233,9 +232,10 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	chip->current_offset = df->current_offset;
 	chip->current_mask = (chip->current_level - 1) << chip->current_offset;
 
-	rdev = regulator_register(&ad5398_reg, &client->dev, init_data, chip);
-	if (IS_ERR(rdev)) {
-		ret = PTR_ERR(rdev);
+	chip->rdev = regulator_register(&ad5398_reg, &client->dev,
+					init_data, chip);
+	if (IS_ERR(chip->rdev)) {
+		ret = PTR_ERR(chip->rdev);
 		dev_err(&client->dev, "failed to register %s %s\n",
 			id->name, ad5398_reg.name);
 		goto err;
@@ -254,7 +254,7 @@ static int __devexit ad5398_remove(struct i2c_client *client)
 {
 	struct ad5398_chip_info *chip = i2c_get_clientdata(client);
 
-	regulator_unregister(&chip->rdev);
+	regulator_unregister(chip->rdev);
 	kfree(chip);
 	i2c_set_clientdata(client, NULL);
 

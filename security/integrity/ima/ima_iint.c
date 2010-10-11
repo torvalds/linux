@@ -22,8 +22,9 @@
 
 RADIX_TREE(ima_iint_store, GFP_ATOMIC);
 DEFINE_SPINLOCK(ima_iint_lock);
-
 static struct kmem_cache *iint_cache __read_mostly;
+
+int iint_initialized = 0;
 
 /* ima_iint_find_get - return the iint associated with an inode
  *
@@ -141,6 +142,7 @@ static int __init ima_iintcache_init(void)
 	iint_cache =
 	    kmem_cache_create("iint_cache", sizeof(struct ima_iint_cache), 0,
 			      SLAB_PANIC, init_once);
+	iint_initialized = 1;
 	return 0;
 }
 security_initcall(ima_iintcache_init);

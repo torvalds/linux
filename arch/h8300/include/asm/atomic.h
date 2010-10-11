@@ -18,7 +18,8 @@
 
 static __inline__ int atomic_add_return(int i, atomic_t *v)
 {
-	int ret,flags;
+	unsigned long flags;
+	int ret;
 	local_irq_save(flags);
 	ret = v->counter += i;
 	local_irq_restore(flags);
@@ -30,7 +31,8 @@ static __inline__ int atomic_add_return(int i, atomic_t *v)
 
 static __inline__ int atomic_sub_return(int i, atomic_t *v)
 {
-	int ret,flags;
+	unsigned long flags;
+	int ret;
 	local_irq_save(flags);
 	ret = v->counter -= i;
 	local_irq_restore(flags);
@@ -42,7 +44,8 @@ static __inline__ int atomic_sub_return(int i, atomic_t *v)
 
 static __inline__ int atomic_inc_return(atomic_t *v)
 {
-	int ret,flags;
+	unsigned long flags;
+	int ret;
 	local_irq_save(flags);
 	v->counter++;
 	ret = v->counter;
@@ -64,7 +67,8 @@ static __inline__ int atomic_inc_return(atomic_t *v)
 
 static __inline__ int atomic_dec_return(atomic_t *v)
 {
-	int ret,flags;
+	unsigned long flags;
+	int ret;
 	local_irq_save(flags);
 	--v->counter;
 	ret = v->counter;
@@ -76,7 +80,8 @@ static __inline__ int atomic_dec_return(atomic_t *v)
 
 static __inline__ int atomic_dec_and_test(atomic_t *v)
 {
-	int ret,flags;
+	unsigned long flags;
+	int ret;
 	local_irq_save(flags);
 	--v->counter;
 	ret = v->counter;

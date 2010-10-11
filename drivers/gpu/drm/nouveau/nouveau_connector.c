@@ -168,7 +168,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 }
 
 static enum drm_connector_status
-nouveau_connector_detect(struct drm_connector *connector)
+nouveau_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
@@ -246,7 +246,7 @@ detect_analog:
 }
 
 static enum drm_connector_status
-nouveau_connector_detect_lvds(struct drm_connector *connector)
+nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -267,7 +267,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector)
 
 	/* Try retrieving EDID via DDC */
 	if (!dev_priv->vbios.fp_no_ddc) {
-		status = nouveau_connector_detect(connector);
+		status = nouveau_connector_detect(connector, force);
 		if (status == connector_status_connected)
 			goto out;
 	}

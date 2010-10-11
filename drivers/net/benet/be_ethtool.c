@@ -60,6 +60,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(be_rx_events)},
 	{DRVSTAT_INFO(be_tx_compl)},
 	{DRVSTAT_INFO(be_rx_compl)},
+	{DRVSTAT_INFO(be_rx_mcast_pkt)},
 	{DRVSTAT_INFO(be_ethrx_post_fail)},
 	{DRVSTAT_INFO(be_802_3_dropped_frames)},
 	{DRVSTAT_INFO(be_802_3_malformed_frames)},

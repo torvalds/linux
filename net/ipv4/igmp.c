@@ -834,7 +834,7 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	int			mark = 0;
 
 
-	if (len == 8) {
+	if (len == 8 || IGMP_V2_SEEN(in_dev)) {
 		if (ih->code == 0) {
 			/* Alas, old v1 router presents here. */
 
