@@ -27,35 +27,37 @@
 #include <linux/init.h>
 #include <linux/kobject.h>
 
-#define AP_STATUS_BP_PANIC_ACK      0x00
+#define AP_STATUS_UNDEFINED         0x00
 #define AP_STATUS_DATA_ONLY_BYPASS  0x01
 #define AP_STATUS_FULL_BYPASS       0x02
 #define AP_STATUS_NO_BYPASS         0x03
 #define AP_STATUS_BP_SHUTDOWN_REQ   0x04
-#define AP_STATUS_UNDEFINED         0x07
+#define AP_STATUS_BP_PANIC_ACK      0x07
 
-#define BP_STATUS_PANIC             0x00
+
+#define BP_STATUS_UNDEFINED         0x00
 #define BP_STATUS_PANIC_BUSY_WAIT   0x01
 #define BP_STATUS_QC_DLOAD          0x02
 #define BP_STATUS_RAM_DOWNLOADER    0x03
 #define BP_STATUS_PHONE_CODE_AWAKE  0x04
 #define BP_STATUS_PHONE_CODE_ASLEEP 0x05
 #define BP_STATUS_SHUTDOWN_ACK      0x06
-#define BP_STATUS_UNDEFINED         0x07
+#define BP_STATUS_PANIC             0x07
+
 
 #define LOOP_DELAY_TIME_MS          500
 
 static const char *mdmctrl = "mdm6600_ctrl";
 
 static const char *bp_status[8] = {
-	[BP_STATUS_PANIC] = "panic",
+	[BP_STATUS_UNDEFINED] = "undefined",
 	[BP_STATUS_PANIC_BUSY_WAIT] = "panic busy wait",
 	[BP_STATUS_QC_DLOAD] = "qc dload",
 	[BP_STATUS_RAM_DOWNLOADER] = "ram downloader",
 	[BP_STATUS_PHONE_CODE_AWAKE] = "awake",
 	[BP_STATUS_PHONE_CODE_ASLEEP] = "asleep",
 	[BP_STATUS_SHUTDOWN_ACK] = "shutdown ack",
-	[BP_STATUS_UNDEFINED] = "undefined",
+	[BP_STATUS_PANIC] = "panic",
 };
 
 static const char *bp_power_state[2] = {
