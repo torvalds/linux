@@ -74,6 +74,13 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
 
+static inline bool b43_channel_type_is_40mhz(
+					enum nl80211_channel_type channel_type)
+{
+	return (channel_type == NL80211_CHAN_HT40MINUS ||
+		channel_type == NL80211_CHAN_HT40PLUS);
+}
+
 static inline bool b43_empty_chanspec(struct b43_chanspec *chanspec)
 {
 	return !chanspec->channel && !chanspec->sideband &&
@@ -3404,10 +3411,9 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 
 	nphy->radio_chanspec.channel = channel->hw_value;
 
-	/*
-	if (chanspec.b_width != nphy->b_width)
-		; TODO: BMAC BW Set (chanspec.b_width)
-	*/
+	if (b43_channel_type_is_40mhz(phy->channel_type) !=
+		b43_channel_type_is_40mhz(channel_type))
+		; /* TODO: BMAC BW Set (channel_type) */
 
 	if (channel_type == NL80211_CHAN_HT40PLUS)
 		b43_phy_set(dev, B43_NPHY_RXCTL,
