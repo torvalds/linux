@@ -644,7 +644,6 @@ void tm6000_add_into_devlist(struct tm6000_core *dev)
  */
 
 static LIST_HEAD(tm6000_extension_devlist);
-static DEFINE_MUTEX(tm6000_extension_devlist_lock);
 
 int tm6000_call_fillbuf(struct tm6000_core *dev, enum tm6000_ops_type type,
 			char *buf, int size)
@@ -668,14 +667,12 @@ int tm6000_register_extension(struct tm6000_ops *ops)
 	struct tm6000_core *dev = NULL;
 
 	mutex_lock(&tm6000_devlist_mutex);
-	mutex_lock(&tm6000_extension_devlist_lock);
 	list_add_tail(&ops->next, &tm6000_extension_devlist);
 	list_for_each_entry(dev, &tm6000_devlist, devlist) {
 		ops->init(dev);
 		printk(KERN_INFO "%s: Initialized (%s) extension\n",
 		       dev->name, ops->name);
 	}
-	mutex_unlock(&tm6000_extension_devlist_lock);
 	mutex_unlock(&tm6000_devlist_mutex);
 	return 0;
 }
@@ -691,10 +688,8 @@ void tm6000_unregister_extension(struct tm6000_ops *ops)
 			ops->fini(dev);
 	}
 
-	mutex_lock(&tm6000_extension_devlist_lock);
 	printk(KERN_INFO "tm6000: Remove (%s) extension\n", ops->name);
 	list_del(&ops->next);
-	mutex_unlock(&tm6000_extension_devlist_lock);
 	mutex_unlock(&tm6000_devlist_mutex);
 }
 EXPORT_SYMBOL(tm6000_unregister_extension);
@@ -703,26 +698,26 @@ void tm6000_init_extension(struct tm6000_core *dev)
 {
 	struct tm6000_ops *ops = NULL;
 
-	mutex_lock(&tm6000_extension_devlist_lock);
+	mutex_lock(&tm6000_devlist_mutex);
 	if (!list_empty(&tm6000_extension_devlist)) {
 		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
 			if (ops->init)
 				ops->init(dev);
 		}
 	}
-	mutex_unlock(&tm6000_extension_devlist_lock);
+	mutex_unlock(&tm6000_devlist_mutex);
 }
 
 void tm6000_close_extension(struct tm6000_core *dev)
 {
 	struct tm6000_ops *ops = NULL;
 
-	mutex_lock(&tm6000_extension_devlist_lock);
+	mutex_lock(&tm6000_devlist_mutex);
 	if (!list_empty(&tm6000_extension_devlist)) {
 		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
 			if (ops->fini)
 				ops->fini(dev);
 		}
 	}
-	mutex_unlock(&tm6000_extension_devlist_lock);
+	mutex_lock(&tm6000_devlist_mutex);
 }
