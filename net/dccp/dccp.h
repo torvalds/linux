@@ -153,18 +153,27 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 }
 
 /**
- * dccp_loss_free  -  Evaluates condition for data loss from RFC 4340, 7.7.1
- * @s1:	 start sequence number
- * @s2:  end sequence number
+ * dccp_loss_count - Approximate the number of lost data packets in a burst loss
+ * @s1:  last known sequence number before the loss ('hole')
+ * @s2:  first sequence number seen after the 'hole'
  * @ndp: NDP count on packet with sequence number @s2
- * Returns true if the sequence range s1...s2 has no data loss.
  */
-static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
+static inline u64 dccp_loss_count(const u64 s1, const u64 s2, const u64 ndp)
 {
 	s64 delta = dccp_delta_seqno(s1, s2);
 
 	WARN_ON(delta < 0);
-	return (u64)delta <= ndp + 1;
+	delta -= ndp + 1;
+
+	return delta > 0 ? delta : 0;
+}
+
+/**
+ * dccp_loss_free - Evaluate condition for data loss from RFC 4340, 7.7.1
+ */
+static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
+{
+	return dccp_loss_count(s1, s2, ndp) == 0;
 }
 
 enum {
