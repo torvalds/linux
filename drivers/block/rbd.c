@@ -826,8 +826,8 @@ static int rbd_req_sync_op(struct rbd_device *dev,
 
 	num_pages = calc_pages_for(ofs , len);
 	pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
 
 	if (!orig_ops) {
 		payload_len = (flags & CEPH_OSD_FLAG_WRITE ? len : 0);
