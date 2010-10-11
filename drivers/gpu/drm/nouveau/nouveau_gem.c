@@ -299,14 +299,15 @@ retry:
 			return -EINVAL;
 		}
 
-		ret = ttm_bo_reserve(&nvbo->bo, false, false, true, sequence);
+		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, sequence);
 		if (ret) {
 			validate_fini(op, NULL);
-			if (ret == -EAGAIN)
-				ret = ttm_bo_wait_unreserved(&nvbo->bo, false);
+			if (unlikely(ret == -EAGAIN))
+				ret = ttm_bo_wait_unreserved(&nvbo->bo, true);
 			drm_gem_object_unreference_unlocked(gem);
-			if (ret) {
-				NV_ERROR(dev, "fail reserve\n");
+			if (unlikely(ret)) {
+				if (ret != -ERESTARTSYS)
+					NV_ERROR(dev, "fail reserve\n");
 				return ret;
 			}
 			goto retry;
@@ -365,10 +366,11 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 
 		nvbo->channel = (b->read_domains & (1 << 31)) ? NULL : chan;
 		ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
-				      false, false, false);
+				      true, false, false);
 		nvbo->channel = NULL;
 		if (unlikely(ret)) {
-			NV_ERROR(dev, "fail ttm_validate\n");
+			if (ret != -ERESTARTSYS)
+				NV_ERROR(dev, "fail ttm_validate\n");
 			return ret;
 		}
 
@@ -420,13 +422,15 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 
 	ret = validate_init(chan, file_priv, pbbo, nr_buffers, op);
 	if (unlikely(ret)) {
-		NV_ERROR(dev, "validate_init\n");
+		if (ret != -ERESTARTSYS)
+			NV_ERROR(dev, "validate_init\n");
 		return ret;
 	}
 
 	ret = validate_list(chan, &op->vram_list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
-		NV_ERROR(dev, "validate vram_list\n");
+		if (ret != -ERESTARTSYS)
+			NV_ERROR(dev, "validate vram_list\n");
 		validate_fini(op, NULL);
 		return ret;
 	}
@@ -434,7 +438,8 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 
 	ret = validate_list(chan, &op->gart_list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
-		NV_ERROR(dev, "validate gart_list\n");
+		if (ret != -ERESTARTSYS)
+			NV_ERROR(dev, "validate gart_list\n");
 		validate_fini(op, NULL);
 		return ret;
 	}
@@ -442,7 +447,8 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 
 	ret = validate_list(chan, &op->both_list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
-		NV_ERROR(dev, "validate both_list\n");
+		if (ret != -ERESTARTSYS)
+			NV_ERROR(dev, "validate both_list\n");
 		validate_fini(op, NULL);
 		return ret;
 	}
@@ -628,7 +634,8 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	ret = nouveau_gem_pushbuf_validate(chan, file_priv, bo, req->buffers,
 					   req->nr_buffers, &op, &do_reloc);
 	if (ret) {
-		NV_ERROR(dev, "validate: %d\n", ret);
+		if (ret != -ERESTARTSYS)
+			NV_ERROR(dev, "validate: %d\n", ret);
 		goto out;
 	}
 
