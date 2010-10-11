@@ -505,6 +505,41 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 	return count;
 }
 
+int mdm6600_write_room(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
+	unsigned long flags;
+	int room = 0;
+
+	dbg("%s - port %d", __func__, modem->number);
+
+	spin_lock_irqsave(&modem->write.pending_lock, flags);
+	if (modem->write.pending != POOL_SZ)
+		room = modem->write.buffer_sz;
+	spin_unlock_irqrestore(&modem->write.pending_lock, flags);
+
+	dbg("%s - returns %d", __func__, room);
+	return room;
+}
+
+int mdm6600_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
+	unsigned long flags;
+	int chars;
+
+	dbg("%s - port %d", __func__, modem->number);
+
+	spin_lock_irqsave(&modem->write.pending_lock, flags);
+	chars = modem->write.pending * modem->write.buffer_sz;
+	spin_unlock_irqrestore(&modem->write.pending_lock, flags);
+
+	dbg("%s - returns %d", __func__, chars);
+	return chars;
+}
+
 static int mdm6600_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -867,8 +902,10 @@ static struct usb_serial_driver mdm6600_usb_serial_driver = {
 	.disconnect =		mdm6600_disconnect,
 	.release =		mdm6600_release,
 	.open =			mdm6600_open,
-	.close = 		mdm6600_close,
-	.write = 		mdm6600_write,
+	.close =		mdm6600_close,
+	.write =		mdm6600_write,
+	.write_room =		mdm6600_write_room,
+	.chars_in_buffer =      mdm6600_chars_in_buffer,
 	.tiocmset =		mdm6600_tiocmset,
 	.tiocmget =		mdm6600_tiocmget,
 	.read_int_callback =	mdm6600_read_int_callback,
