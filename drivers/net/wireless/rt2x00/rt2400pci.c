@@ -1104,7 +1104,7 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 
-	rt2x00queue_map_txskb(rt2x00dev, entry->skb);
+	rt2x00queue_map_txskb(entry);
 
 	/*
 	 * Write the TX descriptor for the beacon.

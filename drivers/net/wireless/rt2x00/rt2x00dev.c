@@ -273,7 +273,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Unmap the skb.
 	 */
-	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
+	rt2x00queue_unmap_skb(entry);
 
 	/*
 	 * Remove the extra tx headroom from the skb.
@@ -465,9 +465,9 @@ static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
-		      struct queue_entry *entry)
+void rt2x00lib_rxdone(struct queue_entry *entry)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct rxdone_entry_desc rxdesc;
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status;
@@ -481,14 +481,14 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
 	 * received frame and reuse the existing buffer.
 	 */
-	skb = rt2x00queue_alloc_rxskb(rt2x00dev, entry);
+	skb = rt2x00queue_alloc_rxskb(entry);
 	if (!skb)
 		return;
 
 	/*
 	 * Unmap the skb.
 	 */
-	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
+	rt2x00queue_unmap_skb(entry);
 
 	/*
 	 * Extract the RXD details.

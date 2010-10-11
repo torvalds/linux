@@ -398,7 +398,7 @@ static void rt2x00usb_work_rxdone(struct work_struct *work)
 		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(rt2x00dev, entry);
+		rt2x00lib_rxdone(entry);
 	}
 }
 
@@ -542,9 +542,9 @@ static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
-static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
-			       struct data_queue *queue)
+static int rt2x00usb_alloc_entries(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
@@ -561,7 +561,7 @@ static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 	 * no guardian byte was required for the beacon,
 	 * then we are done.
 	 */
-	if (rt2x00dev->bcn != queue ||
+	if (queue->qid != QID_BEACON ||
 	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
 		return 0;
 
@@ -575,9 +575,9 @@ static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
-			       struct data_queue *queue)
+static void rt2x00usb_free_entries(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
@@ -596,7 +596,7 @@ static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 	 * no guardian byte was required for the beacon,
 	 * then we are done.
 	 */
-	if (rt2x00dev->bcn != queue ||
+	if (queue->qid != QID_BEACON ||
 	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
 		return;
 
@@ -623,7 +623,7 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 	 * Allocate DMA
 	 */
 	queue_for_each(rt2x00dev, queue) {
-		status = rt2x00usb_alloc_urb(rt2x00dev, queue);
+		status = rt2x00usb_alloc_entries(queue);
 		if (status)
 			goto exit;
 	}
@@ -642,7 +642,7 @@ void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 
 	queue_for_each(rt2x00dev, queue)
-		rt2x00usb_free_urb(rt2x00dev, queue);
+		rt2x00usb_free_entries(queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_uninitialize);
 
