@@ -88,15 +88,6 @@ static int pep_reply(struct sock *sk, struct sk_buff *oskb,
 	const struct pnpipehdr *oph = pnp_hdr(oskb);
 	struct pnpipehdr *ph;
 	struct sk_buff *skb;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	const struct phonethdr *hdr = pn_hdr(oskb);
-	struct sockaddr_pn spn = {
-		.spn_family = AF_PHONET,
-		.spn_resource = 0xD9,
-		.spn_dev = hdr->pn_sdev,
-		.spn_obj = hdr->pn_sobj,
-	};
-#endif
 
 	skb = alloc_skb(MAX_PNPIPE_HEADER + len, priority);
 	if (!skb)
@@ -114,11 +105,7 @@ static int pep_reply(struct sock *sk, struct sk_buff *oskb,
 	ph->pipe_handle = oph->pipe_handle;
 	ph->error_code = code;
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-	return pn_skb_send(sk, skb, &spn);
-#else
 	return pn_skb_send(sk, skb, &pipe_srv);
-#endif
 }
 
 #define PAD 0x00
@@ -188,18 +175,13 @@ static int pipe_get_flow_info(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
-static int pipe_handler_send_req(struct sock *sk, u16 dobj, u8 utid,
-		u8 msg_id, u8 p_handle, gfp_t priority)
+static int pipe_handler_send_req(struct sock *sk, u8 utid,
+		u8 msg_id, gfp_t priority)
 {
 	int len;
 	struct pnpipehdr *ph;
 	struct sk_buff *skb;
-	struct sockaddr_pn spn = {
-		.spn_family = AF_PHONET,
-		.spn_resource = 0xD9,
-		.spn_dev = pn_dev(dobj),
-		.spn_obj = pn_obj(dobj),
-	};
+	struct pep_sock *pn = pep_sk(sk);
 
 	static const u8 data[4] = {
 		PAD, PAD, PAD, PAD,
@@ -235,30 +217,25 @@ static int pipe_handler_send_req(struct sock *sk, u16 dobj, u8 utid,
 	ph = pnp_hdr(skb);
 	ph->utid = utid;
 	ph->message_id = msg_id;
-	ph->pipe_handle = p_handle;
+	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = PN_PIPE_NO_ERROR;
 
-	return pn_skb_send(sk, skb, &spn);
+	return pn_skb_send(sk, skb, &pn->remote_pep);
 }
 
-static int pipe_handler_send_created_ind(struct sock *sk, u16 dobj,
-		u8 utid, u8 p_handle, u8 msg_id, u8 tx_fc, u8 rx_fc)
+static int pipe_handler_send_created_ind(struct sock *sk,
+		u8 utid, u8 msg_id)
 {
 	int err_code;
 	struct pnpipehdr *ph;
 	struct sk_buff *skb;
-	struct sockaddr_pn spn = {
-		.spn_family = AF_PHONET,
-		.spn_resource = 0xD9,
-		.spn_dev = pn_dev(dobj),
-		.spn_obj = pn_obj(dobj),
-	};
 
+	struct pep_sock *pn = pep_sk(sk);
 	static u8 data[4] = {
 		0x03, 0x04,
 	};
-	data[2] = tx_fc;
-	data[3] = rx_fc;
+	data[2] = pn->tx_fc;
+	data[3] = pn->rx_fc;
 
 	/*
 	 * actually, below is number of sub-blocks and not error code.
@@ -282,24 +259,18 @@ static int pipe_handler_send_created_ind(struct sock *sk, u16 dobj,
 	ph = pnp_hdr(skb);
 	ph->utid = utid;
 	ph->message_id = msg_id;
-	ph->pipe_handle = p_handle;
+	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = err_code;
 
-	return pn_skb_send(sk, skb, &spn);
+	return pn_skb_send(sk, skb, &pn->remote_pep);
 }
 
-static int pipe_handler_send_ind(struct sock *sk, u16 dobj, u8 utid,
-		u8 p_handle, u8 msg_id)
+static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
 {
 	int err_code;
 	struct pnpipehdr *ph;
 	struct sk_buff *skb;
-	struct sockaddr_pn spn = {
-		.spn_family = AF_PHONET,
-		.spn_resource = 0xD9,
-		.spn_dev = pn_dev(dobj),
-		.spn_obj = pn_obj(dobj),
-	};
+	struct pep_sock *pn = pep_sk(sk);
 
 	/*
 	 * actually, below is a filler.
@@ -321,10 +292,10 @@ static int pipe_handler_send_ind(struct sock *sk, u16 dobj, u8 utid,
 	ph = pnp_hdr(skb);
 	ph->utid = utid;
 	ph->message_id = msg_id;
-	ph->pipe_handle = p_handle;
+	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = err_code;
 
-	return pn_skb_send(sk, skb, &spn);
+	return pn_skb_send(sk, skb, &pn->remote_pep);
 }
 
 static int pipe_handler_enable_pipe(struct sock *sk, int enable)
@@ -339,34 +310,7 @@ static int pipe_handler_enable_pipe(struct sock *sk, int enable)
 		utid = PNS_PIPE_DISABLE_UTID;
 		req = PNS_PEP_DISABLE_REQ;
 	}
-	return pipe_handler_send_req(sk, pn->pn_sk.sobject, utid, req,
-			pn->pipe_handle, GFP_ATOMIC);
-}
-
-static int pipe_handler_create_pipe(struct sock *sk, int pipe_handle, int cmd)
-{
-	int ret;
-	struct pep_sock *pn = pep_sk(sk);
-
-	switch (cmd) {
-	case PNPIPE_CREATE:
-		ret = pipe_handler_send_req(sk, pn->pn_sk.sobject,
-				PNS_PEP_CONNECT_UTID, PNS_PEP_CONNECT_REQ,
-				pipe_handle, GFP_ATOMIC);
-		break;
-
-	case PNPIPE_DESTROY:
-		ret = pipe_handler_send_req(sk, pn->remote_pep,
-				PNS_PEP_DISCONNECT_UTID,
-				PNS_PEP_DISCONNECT_REQ,
-				pn->pipe_handle, GFP_ATOMIC);
-		break;
-
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return pipe_handler_send_req(sk, utid, req, GFP_ATOMIC);
 }
 #endif
 
@@ -434,14 +378,6 @@ static int pipe_snd_status(struct sock *sk, u8 type, u8 status, gfp_t priority)
 	struct pep_sock *pn = pep_sk(sk);
 	struct pnpipehdr *ph;
 	struct sk_buff *skb;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	struct sockaddr_pn spn = {
-		.spn_family = AF_PHONET,
-		.spn_resource = 0xD9,
-		.spn_dev = pn_dev(pn->remote_pep),
-		.spn_obj = pn_obj(pn->remote_pep),
-	};
-#endif
 
 	skb = alloc_skb(MAX_PNPIPE_HEADER + 4, priority);
 	if (!skb)
@@ -462,7 +398,7 @@ static int pipe_snd_status(struct sock *sk, u8 type, u8 status, gfp_t priority)
 	ph->data[4] = status;
 
 #ifdef CONFIG_PHONET_PIPECTRLR
-	return pn_skb_send(sk, skb, &spn);
+	return pn_skb_send(sk, skb, &pn->remote_pep);
 #else
 	return pn_skb_send(sk, skb, &pipe_srv);
 #endif
@@ -582,12 +518,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 	struct pnpipehdr *hdr = pnp_hdr(skb);
 	struct sk_buff_head *queue;
 	int err = 0;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	struct phonethdr *ph = pn_hdr(skb);
-	static u8 host_pref_rx_fc[3], host_req_tx_fc[3];
-	u8 remote_pref_rx_fc[3], remote_req_tx_fc[3];
-	u8 negotiated_rx_fc, negotiated_tx_fc;
-#endif
 
 	BUG_ON(sk->sk_state == TCP_CLOSE_WAIT);
 
@@ -595,40 +525,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 	case PNS_PEP_CONNECT_REQ:
 		pep_reject_conn(sk, skb, PN_PIPE_ERR_PEP_IN_USE);
 		break;
-
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNS_PEP_CONNECT_RESP:
-		if ((ph->pn_sdev == pn_dev(pn->remote_pep)) &&
-				(ph->pn_sobj == pn_obj(pn->remote_pep))) {
-			pipe_get_flow_info(sk, skb, remote_pref_rx_fc,
-					remote_req_tx_fc);
-
-			 negotiated_tx_fc = pipe_negotiate_fc(remote_req_tx_fc,
-					 host_pref_rx_fc,
-					 sizeof(host_pref_rx_fc));
-			 negotiated_rx_fc = pipe_negotiate_fc(host_req_tx_fc,
-					 remote_pref_rx_fc,
-					 sizeof(host_pref_rx_fc));
-
-			pn->pipe_state = PIPE_DISABLED;
-			pipe_handler_send_created_ind(sk, pn->remote_pep,
-					PNS_PIPE_CREATED_IND_UTID,
-					pn->pipe_handle, PNS_PIPE_CREATED_IND,
-					negotiated_tx_fc, negotiated_rx_fc);
-			pipe_handler_send_created_ind(sk, pn->pn_sk.sobject,
-					PNS_PIPE_CREATED_IND_UTID,
-					pn->pipe_handle, PNS_PIPE_CREATED_IND,
-					negotiated_tx_fc, negotiated_rx_fc);
-		} else {
-			pipe_handler_send_req(sk, pn->remote_pep,
-					PNS_PEP_CONNECT_UTID,
-					PNS_PEP_CONNECT_REQ, pn->pipe_handle,
-					GFP_ATOMIC);
-			pipe_get_flow_info(sk, skb, host_pref_rx_fc,
-					host_req_tx_fc);
-		}
-		break;
-#endif
 
 	case PNS_PEP_DISCONNECT_REQ:
 		pep_reply(sk, skb, PN_PIPE_NO_ERROR, NULL, 0, GFP_ATOMIC);
@@ -640,10 +536,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_DISCONNECT_RESP:
 		pn->pipe_state = PIPE_IDLE;
-		pipe_handler_send_req(sk, pn->pn_sk.sobject,
-				PNS_PEP_DISCONNECT_UTID,
-				PNS_PEP_DISCONNECT_REQ, pn->pipe_handle,
-				GFP_KERNEL);
+		sk->sk_state = TCP_CLOSE;
 		break;
 #endif
 
@@ -654,21 +547,18 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_ENABLE_RESP:
-		if ((ph->pn_sdev == pn_dev(pn->remote_pep)) &&
-				(ph->pn_sobj == pn_obj(pn->remote_pep))) {
-			pn->pipe_state = PIPE_ENABLED;
-			pipe_handler_send_ind(sk, pn->remote_pep,
-					PNS_PIPE_ENABLED_IND_UTID,
-					pn->pipe_handle, PNS_PIPE_ENABLED_IND);
-			pipe_handler_send_ind(sk, pn->pn_sk.sobject,
-					PNS_PIPE_ENABLED_IND_UTID,
-					pn->pipe_handle, PNS_PIPE_ENABLED_IND);
-		} else
-			pipe_handler_send_req(sk, pn->remote_pep,
-					PNS_PIPE_ENABLE_UTID,
-					PNS_PEP_ENABLE_REQ, pn->pipe_handle,
-					GFP_KERNEL);
+		pn->pipe_state = PIPE_ENABLED;
+		pipe_handler_send_ind(sk, PNS_PIPE_ENABLED_IND_UTID,
+				PNS_PIPE_ENABLED_IND);
 
+		if (!pn_flow_safe(pn->tx_fc)) {
+			atomic_set(&pn->tx_credits, 1);
+			sk->sk_write_space(sk);
+		}
+		if (sk->sk_state == TCP_ESTABLISHED)
+			break; /* Nothing to do */
+		sk->sk_state = TCP_ESTABLISHED;
+		pipe_grant_credits(sk);
 		break;
 #endif
 
@@ -692,22 +582,12 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_DISABLE_RESP:
-		if ((ph->pn_sdev == pn_dev(pn->remote_pep)) &&
-				(ph->pn_sobj == pn_obj(pn->remote_pep))) {
-			pn->pipe_state = PIPE_DISABLED;
-			pipe_handler_send_ind(sk, pn->remote_pep,
-					PNS_PIPE_DISABLED_IND_UTID,
-					pn->pipe_handle,
-					PNS_PIPE_DISABLED_IND);
-			pipe_handler_send_ind(sk, pn->pn_sk.sobject,
-					PNS_PIPE_DISABLED_IND_UTID,
-					pn->pipe_handle,
-					PNS_PIPE_DISABLED_IND);
-		} else
-			pipe_handler_send_req(sk, pn->remote_pep,
-					PNS_PIPE_DISABLE_UTID,
-					PNS_PEP_DISABLE_REQ, pn->pipe_handle,
-					GFP_KERNEL);
+		pn->pipe_state = PIPE_DISABLED;
+		atomic_set(&pn->tx_credits, 0);
+		pipe_handler_send_ind(sk, PNS_PIPE_DISABLED_IND_UTID,
+				PNS_PIPE_DISABLED_IND);
+		sk->sk_state = TCP_SYN_RECV;
+		pn->rx_credits = 0;
 		break;
 #endif
 
@@ -802,6 +682,42 @@ static void pipe_destruct(struct sock *sk)
 	skb_queue_purge(&pn->ctrlreq_queue);
 }
 
+#ifdef CONFIG_PHONET_PIPECTRLR
+static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	u8 host_pref_rx_fc[3] = {3, 2, 1}, host_req_tx_fc[3] = {3, 2, 1};
+	u8 remote_pref_rx_fc[3], remote_req_tx_fc[3];
+	u8 negotiated_rx_fc, negotiated_tx_fc;
+	int ret;
+
+	pipe_get_flow_info(sk, skb, remote_pref_rx_fc,
+			remote_req_tx_fc);
+	negotiated_tx_fc = pipe_negotiate_fc(remote_req_tx_fc,
+			host_pref_rx_fc,
+			sizeof(host_pref_rx_fc));
+	negotiated_rx_fc = pipe_negotiate_fc(host_req_tx_fc,
+			remote_pref_rx_fc,
+			sizeof(host_pref_rx_fc));
+
+	pn->pipe_state = PIPE_DISABLED;
+	sk->sk_state = TCP_SYN_RECV;
+	sk->sk_backlog_rcv = pipe_do_rcv;
+	sk->sk_destruct = pipe_destruct;
+	pn->rx_credits = 0;
+	pn->rx_fc = negotiated_rx_fc;
+	pn->tx_fc = negotiated_tx_fc;
+	sk->sk_state_change(sk);
+
+	ret = pipe_handler_send_created_ind(sk,
+			PNS_PIPE_CREATED_IND_UTID,
+			PNS_PIPE_CREATED_IND
+			);
+
+	return ret;
+}
+#endif
+
 static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct sock *newsk;
@@ -884,9 +800,6 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 	newpn->rx_fc = newpn->tx_fc = PN_LEGACY_FLOW_CONTROL;
 	newpn->init_enable = enabled;
 	newpn->aligned = aligned;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	newpn->remote_pep = pn->remote_pep;
-#endif
 
 	BUG_ON(!skb_queue_empty(&newsk->sk_receive_queue));
 	skb_queue_head(&newsk->sk_receive_queue, skb);
@@ -968,6 +881,12 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 		err = pep_connreq_rcv(sk, skb);
 		break;
 
+#ifdef CONFIG_PHONET_PIPECTRLR
+	case PNS_PEP_CONNECT_RESP:
+		err = pep_connresp_rcv(sk, skb);
+		break;
+#endif
+
 	case PNS_PEP_DISCONNECT_REQ:
 		pep_reply(sk, skb, PN_PIPE_NO_ERROR, NULL, 0, GFP_ATOMIC);
 		break;
@@ -1031,6 +950,18 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	} else if ((1 << sk->sk_state) & (TCPF_SYN_RECV|TCPF_ESTABLISHED))
 		/* Forcefully remove dangling Phonet pipe */
 		pipe_do_remove(sk);
+
+#ifdef CONFIG_PHONET_PIPECTRLR
+	if (pn->pipe_state != PIPE_IDLE) {
+		/* send pep disconnect request */
+		pipe_handler_send_req(sk,
+				PNS_PEP_DISCONNECT_UTID, PNS_PEP_DISCONNECT_REQ,
+				GFP_KERNEL);
+
+		pn->pipe_state = PIPE_IDLE;
+		sk->sk_state = TCP_CLOSE;
+	}
+#endif
 
 	ifindex = pn->ifindex;
 	pn->ifindex = 0;
@@ -1108,6 +1039,20 @@ out:
 	return newsk;
 }
 
+#ifdef CONFIG_PHONET_PIPECTRLR
+static int pep_sock_connect(struct sock *sk, struct sockaddr *addr, int len)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	struct sockaddr_pn *spn =  (struct sockaddr_pn *)addr;
+
+	memcpy(&pn->remote_pep, spn, sizeof(struct sockaddr_pn));
+
+	return pipe_handler_send_req(sk,
+			PNS_PEP_CONNECT_UTID, PNS_PEP_CONNECT_REQ,
+			GFP_ATOMIC);
+}
+#endif
+
 static int pep_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
 	struct pep_sock *pn = pep_sk(sk);
@@ -1149,10 +1094,6 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 {
 	struct pep_sock *pn = pep_sk(sk);
 	int val = 0, err = 0;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	int remote_pep;
-	int pipe_handle;
-#endif
 
 	if (level != SOL_PNPIPE)
 		return -ENOPROTOOPT;
@@ -1164,28 +1105,15 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 	lock_sock(sk);
 	switch (optname) {
 #ifdef CONFIG_PHONET_PIPECTRLR
-	case PNPIPE_CREATE:
+	case PNPIPE_PIPE_HANDLE:
 		if (val) {
 			if (pn->pipe_state > PIPE_IDLE) {
 				err = -EFAULT;
 				break;
 			}
-			remote_pep = val & 0xFFFF;
-			pipe_handle =  (val >> 16) & 0xFF;
-			pn->remote_pep = remote_pep;
-			err = pipe_handler_create_pipe(sk, pipe_handle,
-					PNPIPE_CREATE);
+			pn->pipe_handle = val;
 			break;
 		}
-
-	case PNPIPE_DESTROY:
-		if (pn->pipe_state < PIPE_DISABLED) {
-			err = -EFAULT;
-			break;
-		}
-
-		err = pipe_handler_create_pipe(sk, 0x0, PNPIPE_DESTROY);
-		break;
 #endif
 
 	case PNPIPE_ENCAP:
@@ -1278,14 +1206,6 @@ static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
 	struct pep_sock *pn = pep_sk(sk);
 	struct pnpipehdr *ph;
 	int err;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	struct sockaddr_pn spn = {
-		.spn_family = AF_PHONET,
-		.spn_resource = 0xD9,
-		.spn_dev = pn_dev(pn->remote_pep),
-		.spn_obj = pn_obj(pn->remote_pep),
-	};
-#endif
 
 	if (pn_flow_safe(pn->tx_fc) &&
 	    !atomic_add_unless(&pn->tx_credits, -1, 0)) {
@@ -1304,7 +1224,7 @@ static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
 		ph->message_id = PNS_PIPE_DATA;
 	ph->pipe_handle = pn->pipe_handle;
 #ifdef CONFIG_PHONET_PIPECTRLR
-	err = pn_skb_send(sk, skb, &spn);
+	err = pn_skb_send(sk, skb, &pn->remote_pep);
 #else
 	err = pn_skb_send(sk, skb, &pipe_srv);
 #endif
@@ -1504,6 +1424,8 @@ static void pep_sock_unhash(struct sock *sk)
 	struct sock *skparent = NULL;
 
 	lock_sock(sk);
+
+#ifndef CONFIG_PHONET_PIPECTRLR
 	if ((1 << sk->sk_state) & ~(TCPF_CLOSE|TCPF_LISTEN)) {
 		skparent = pn->listener;
 		release_sock(sk);
@@ -1513,6 +1435,7 @@ static void pep_sock_unhash(struct sock *sk)
 		sk_del_node_init(sk);
 		sk = skparent;
 	}
+#endif
 	/* Unhash a listening sock only when it is closed
 	 * and all of its active connected pipes are closed. */
 	if (hlist_empty(&pn->hlist))
@@ -1526,6 +1449,9 @@ static void pep_sock_unhash(struct sock *sk)
 static struct proto pep_proto = {
 	.close		= pep_sock_close,
 	.accept		= pep_sock_accept,
+#ifdef CONFIG_PHONET_PIPECTRLR
+	.connect	= pep_sock_connect,
+#endif
 	.ioctl		= pep_ioctl,
 	.init		= pep_init,
 	.setsockopt	= pep_setsockopt,

@@ -36,10 +36,9 @@
 /* Socket options for SOL_PNPIPE level */
 #define PNPIPE_ENCAP		1
 #define PNPIPE_IFINDEX		2
-#define PNPIPE_CREATE           3
+#define PNPIPE_PIPE_HANDLE	3
 #define PNPIPE_ENABLE           4
 /* unused slot */
-#define PNPIPE_DESTROY          6
 
 #define PNADDR_ANY		0
 #define PNADDR_BROADCAST	0xFC

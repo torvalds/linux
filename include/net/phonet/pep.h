@@ -46,8 +46,8 @@ struct pep_sock {
 	u8			init_enable;	/* auto-enable at creation */
 	u8			aligned;
 #ifdef CONFIG_PHONET_PIPECTRLR
-	u16                     remote_pep;
-	u8                      pipe_state;
+	u8			pipe_state;
+	struct sockaddr_pn	remote_pep;
 #endif
 };
 

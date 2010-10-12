@@ -225,6 +225,101 @@ static int pn_socket_autobind(struct socket *sock)
 	return 0; /* socket was already bound */
 }
 
+#ifdef CONFIG_PHONET_PIPECTRLR
+static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
+		int len, int flags)
+{
+	struct sock *sk = sock->sk;
+	struct sockaddr_pn *spn = (struct sockaddr_pn *)addr;
+	long timeo;
+	int err;
+
+	if (len < sizeof(struct sockaddr_pn))
+		return -EINVAL;
+	if (spn->spn_family != AF_PHONET)
+		return -EAFNOSUPPORT;
+
+	lock_sock(sk);
+
+	switch (sock->state) {
+	case SS_UNCONNECTED:
+		sk->sk_state = TCP_CLOSE;
+		break;
+	case SS_CONNECTING:
+		switch (sk->sk_state) {
+		case TCP_SYN_RECV:
+			sock->state = SS_CONNECTED;
+			err = -EISCONN;
+			goto out;
+		case TCP_CLOSE:
+			err = -EALREADY;
+			if (flags & O_NONBLOCK)
+				goto out;
+			goto wait_connect;
+		}
+		break;
+	case SS_CONNECTED:
+		switch (sk->sk_state) {
+		case TCP_SYN_RECV:
+			err = -EISCONN;
+			goto out;
+		case TCP_CLOSE:
+			sock->state = SS_UNCONNECTED;
+			break;
+		}
+		break;
+	case SS_DISCONNECTING:
+	case SS_FREE:
+		break;
+	}
+	sk->sk_state = TCP_CLOSE;
+	sk_stream_kill_queues(sk);
+
+	sock->state = SS_CONNECTING;
+	err = sk->sk_prot->connect(sk, addr, len);
+	if (err < 0) {
+		sock->state = SS_UNCONNECTED;
+		sk->sk_state = TCP_CLOSE;
+		goto out;
+	}
+
+	err = -EINPROGRESS;
+wait_connect:
+	if (sk->sk_state != TCP_SYN_RECV && (flags & O_NONBLOCK))
+		goto out;
+
+	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+	release_sock(sk);
+
+	err = -ERESTARTSYS;
+	timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
+			sk->sk_state != TCP_CLOSE,
+			timeo);
+
+	lock_sock(sk);
+	if (timeo < 0)
+		goto out; /* -ERESTARTSYS */
+
+	err = -ETIMEDOUT;
+	if (timeo == 0 && sk->sk_state != TCP_SYN_RECV)
+		goto out;
+
+	if (sk->sk_state != TCP_SYN_RECV) {
+		sock->state = SS_UNCONNECTED;
+		err = sock_error(sk);
+		if (!err)
+			err = -ECONNREFUSED;
+		goto out;
+	}
+	sock->state = SS_CONNECTED;
+	err = 0;
+
+out:
+	release_sock(sk);
+	return err;
+}
+#endif
+
 static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 				int flags)
 {
@@ -393,7 +488,11 @@ const struct proto_ops phonet_stream_ops = {
 	.owner		= THIS_MODULE,
 	.release	= pn_socket_release,
 	.bind		= pn_socket_bind,
+#ifdef CONFIG_PHONET_PIPECTRLR
+	.connect	= pn_socket_connect,
+#else
 	.connect	= sock_no_connect,
+#endif
 	.socketpair	= sock_no_socketpair,
 	.accept		= pn_socket_accept,
 	.getname	= pn_socket_getname,
