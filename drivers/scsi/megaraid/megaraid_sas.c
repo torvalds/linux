@@ -728,6 +728,10 @@ static int
 megasas_check_reset_gen2(struct megasas_instance *instance,
 		struct megasas_register_set __iomem *regs)
 {
+	if (instance->adprecovery != MEGASAS_HBA_OPERATIONAL) {
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -940,6 +944,7 @@ megasas_make_sgl_skinny(struct megasas_instance *instance,
 			mfi_sgl->sge_skinny[i].length = sg_dma_len(os_sgl);
 			mfi_sgl->sge_skinny[i].phys_addr =
 						sg_dma_address(os_sgl);
+			mfi_sgl->sge_skinny[i].flag = 0;
 		}
 	}
 	return sge_count;
@@ -1567,6 +1572,28 @@ static void megasas_complete_cmd_dpc(unsigned long instance_addr)
 	}
 }
 
+static void
+megasas_internal_reset_defer_cmds(struct megasas_instance *instance);
+
+static void
+process_fw_state_change_wq(struct work_struct *work);
+
+void megasas_do_ocr(struct megasas_instance *instance)
+{
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1064R) ||
+	(instance->pdev->device == PCI_DEVICE_ID_DELL_PERC5) ||
+	(instance->pdev->device == PCI_DEVICE_ID_LSI_VERDE_ZCR)) {
+		*instance->consumer     = MEGASAS_ADPRESET_INPROG_SIGN;
+	}
+	instance->instancet->disable_intr(instance->reg_set);
+	instance->adprecovery   = MEGASAS_ADPRESET_SM_INFAULT;
+	instance->issuepend_done = 0;
+
+	atomic_set(&instance->fw_outstanding, 0);
+	megasas_internal_reset_defer_cmds(instance);
+	process_fw_state_change_wq(&instance->work_init);
+}
+
 /**
  * megasas_wait_for_outstanding -	Wait for all outstanding cmds
  * @instance:				Adapter soft state
@@ -1584,6 +1611,8 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 	unsigned long flags;
 	struct list_head clist_local;
 	struct megasas_cmd *reset_cmd;
+	u32 fw_state;
+	u8 kill_adapter_flag;
 
 	spin_lock_irqsave(&instance->hba_lock, flags);
 	adprecovery = instance->adprecovery;
@@ -1669,7 +1698,45 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 		msleep(1000);
 	}
 
-	if (atomic_read(&instance->fw_outstanding)) {
+	i = 0;
+	kill_adapter_flag = 0;
+	do {
+		fw_state = instance->instancet->read_fw_status_reg(
+					instance->reg_set) & MFI_STATE_MASK;
+		if ((fw_state == MFI_STATE_FAULT) &&
+			(instance->disableOnlineCtrlReset == 0)) {
+			if (i == 3) {
+				kill_adapter_flag = 2;
+				break;
+			}
+			megasas_do_ocr(instance);
+			kill_adapter_flag = 1;
+
+			/* wait for 1 secs to let FW finish the pending cmds */
+			msleep(1000);
+		}
+		i++;
+	} while (i <= 3);
+
+	if (atomic_read(&instance->fw_outstanding) &&
+					!kill_adapter_flag) {
+		if (instance->disableOnlineCtrlReset == 0) {
+
+			megasas_do_ocr(instance);
+
+			/* wait for 5 secs to let FW finish the pending cmds */
+			for (i = 0; i < wait_time; i++) {
+				int outstanding =
+					atomic_read(&instance->fw_outstanding);
+				if (!outstanding)
+					return SUCCESS;
+				msleep(1000);
+			}
+		}
+	}
+
+	if (atomic_read(&instance->fw_outstanding) ||
+					(kill_adapter_flag == 2)) {
 		printk(KERN_NOTICE "megaraid_sas: pending cmds after reset\n");
 		/*
 		* Send signal to FW to stop processing any pending cmds.
@@ -2679,6 +2746,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 			return -ENOMEM;
 		}
 
+		memset(cmd->frame, 0, total_sz);
 		cmd->frame->io.context = cmd->index;
 		cmd->frame->io.pad_0 = 0;
 	}
