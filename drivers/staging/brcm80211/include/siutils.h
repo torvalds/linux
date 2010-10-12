@@ -265,7 +265,7 @@ typedef struct si_info {
 	u32 oob_router;	/* oob router registers for axi */
 } si_info_t;
 
-#define	SI_INFO(sih)	(si_info_t *)(uintptr)sih
+#define	SI_INFO(sih)	(si_info_t *)sih
 
 #define	GOODCOREADDR(x, b) (((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
 		IS_ALIGNED((x), SI_CORE_SIZE))

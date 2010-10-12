@@ -236,11 +236,11 @@ extern int osl_error(int bcmerror);
 			switch (sizeof(*(r))) { \
 			case sizeof(u8): \
 				__osl_v = \
-				readb((volatile u8*)((uintptr)(r)^3)); \
+				readb((volatile u8*)((r)^3)); \
 				break; \
 			case sizeof(u16): \
 				__osl_v = \
-				readw((volatile u16*)((uintptr)(r)^2)); \
+				readw((volatile u16*)((r)^2)); \
 				break; \
 			case sizeof(u32): \
 				__osl_v = readl((volatile u32*)(r)); \
@@ -255,10 +255,10 @@ extern int osl_error(int bcmerror);
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
 			writeb((u8)(v), \
-			(volatile u8*)((uintptr)(r)^3)); break; \
+			(volatile u8*)((r)^3)); break; \
 		case sizeof(u16):	\
 			writew((u16)(v), \
-			(volatile u16*)((uintptr)(r)^2)); break; \
+			(volatile u16*)((r)^2)); break; \
 		case sizeof(u32):	\
 			writel((u32)(v), \
 			(volatile u32*)(r)); break; \
