@@ -495,6 +495,7 @@ next_sge:
 			printk(KERN_ERR "svcrdma: Error %d posting RDMA_READ\n",
 			       err);
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			svc_rdma_unmap_dma(ctxt);
 			svc_rdma_put_context(ctxt, 0);
 			goto out;
 		}

@@ -367,6 +367,8 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		goto err;
 	return 0;
  err:
+	svc_rdma_unmap_dma(ctxt);
+	svc_rdma_put_frmr(xprt, vec->frmr);
 	svc_rdma_put_context(ctxt, 0);
 	/* Fatal error, close transport */
 	return -EIO;
