@@ -36,7 +36,8 @@ static ssize_t speakup_file_write(struct file *fp, const char *buffer,
 	return (ssize_t) nbytes;
 }
 
-static ssize_t speakup_file_read(struct file *fp, char *buf, size_t nbytes, loff_t *ppos)
+static ssize_t speakup_file_read(struct file *fp, char *buf, size_t nbytes,
+	loff_t *ppos)
 {
 	return 0;
 }
@@ -77,7 +78,8 @@ void speakup_register_devsynth(void)
 	if (misc_register(&synth_device))
 		pr_warn("Couldn't initialize miscdevice /dev/synth.\n");
 	else {
-		pr_info("initialized device: /dev/synth, node (MAJOR %d, MINOR %d)\n", MISC_MAJOR, SYNTH_MINOR);
+		pr_info("initialized device: /dev/synth, node (MAJOR %d, MINOR %d)\n",
+			MISC_MAJOR, SYNTH_MINOR);
 		misc_registered = 1;
 	}
 }
