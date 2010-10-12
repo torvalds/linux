@@ -1050,7 +1050,7 @@ static int spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	struct spi_fpga_port *port = pFpgaPort;
 	struct spi_gpio_irq_transfer *t;
 	unsigned long flags;
-	t = kzalloc(sizeof(struct spi_gpio_irq_transfer), GFP_KERNEL);
+	t = kzalloc(sizeof(struct spi_gpio_irq_transfer), GFP_ATOMIC);
 	if (!t)
 	{
 		printk("err:%s:ENOMEM\n",__FUNCTION__);
