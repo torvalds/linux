@@ -424,12 +424,30 @@ static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
 	kfree(pi);
 }
 
-void __decode_pool(void **p, struct ceph_pg_pool_info *pi)
+static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 {
+	unsigned n, m;
+
 	ceph_decode_copy(p, &pi->v, sizeof(pi->v));
 	calc_pg_masks(pi);
-	*p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
+
+	/* num_snaps * snap_info_t */
+	n = le32_to_cpu(pi->v.num_snaps);
+	while (n--) {
+		ceph_decode_need(p, end, sizeof(u64) + 1 + sizeof(u64) +
+				 sizeof(struct ceph_timespec), bad);
+		*p += sizeof(u64) +       /* key */
+			1 + sizeof(u64) + /* u8, snapid */
+			sizeof(struct ceph_timespec);
+		m = ceph_decode_32(p);    /* snap name */
+		*p += m;
+	}
+
 	*p += le32_to_cpu(pi->v.num_removed_snap_intervals) * sizeof(u64) * 2;
+	return 0;
+
+bad:
+	return -EINVAL;
 }
 
 static int __decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
@@ -571,7 +589,9 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 			kfree(pi);
 			goto bad;
 		}
-		__decode_pool(p, pi);
+		err = __decode_pool(p, end, pi);
+		if (err < 0)
+			goto bad;
 		__insert_pg_pool(&map->pg_pools, pi);
 	}
 
@@ -760,7 +780,9 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			pi->id = pool;
 			__insert_pg_pool(&map->pg_pools, pi);
 		}
-		__decode_pool(p, pi);
+		err = __decode_pool(p, end, pi);
+		if (err < 0)
+			goto bad;
 	}
 	if (version >= 5 && __decode_pool_names(p, end, map) < 0)
 		goto bad;
@@ -833,7 +855,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 						node)->pgid, pgid) <= 0) {
 			struct ceph_pg_mapping *cur =
 				rb_entry(rbp, struct ceph_pg_mapping, node);
-			
+
 			rbp = rb_next(rbp);
 			dout(" removed pg_temp %llx\n", *(u64 *)&cur->pgid);
 			rb_erase(&cur->node, &map->pg_temp);
@@ -1026,8 +1048,9 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	ruleno = crush_find_rule(osdmap->crush, pool->v.crush_ruleset,
 				 pool->v.type, pool->v.size);
 	if (ruleno < 0) {
-		pr_err("no crush rule pool %d type %d size %d\n",
-		       poolid, pool->v.type, pool->v.size);
+		pr_err("no crush rule pool %d ruleset %d type %d size %d\n",
+		       poolid, pool->v.crush_ruleset, pool->v.type,
+		       pool->v.size);
 		return NULL;
 	}
 

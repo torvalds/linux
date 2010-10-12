@@ -169,7 +169,7 @@ void parse_config(struct net_device *dev)
 	DBG_ENTER(DbgInfo);
 
 	/* Get the wavelan specific info for this device */
-	wvlan_config = (struct wl_private *)dev->priv;
+	wvlan_config = dev->priv;
 	if (wvlan_config == NULL) {
 		DBG_ERROR(DbgInfo, "Wavelan specific info struct not present?\n");
 		return;

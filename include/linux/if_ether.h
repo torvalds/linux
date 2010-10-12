@@ -119,7 +119,7 @@ struct ethhdr {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
 	__be16		h_proto;		/* packet type ID field	*/
-} __attribute__((packed));
+} __packed;
 
 #ifdef __KERNEL__
 #include <linux/skbuff.h>

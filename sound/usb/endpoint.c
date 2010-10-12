@@ -33,6 +33,7 @@
 #include "pcm.h"
 #include "helper.h"
 #include "format.h"
+#include "clock.h"
 
 /*
  * free a substream
@@ -275,7 +276,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		/* get audio formats */
 		switch (protocol) {
 		case UAC_VERSION_1: {
-			struct uac_as_header_descriptor_v1 *as =
+			struct uac1_as_header_descriptor *as =
 				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
 
 			if (!as) {
@@ -297,7 +298,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		case UAC_VERSION_2: {
 			struct uac2_input_terminal_descriptor *input_term;
 			struct uac2_output_terminal_descriptor *output_term;
-			struct uac_as_header_descriptor_v2 *as =
+			struct uac2_as_header_descriptor *as =
 				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
 
 			if (!as) {

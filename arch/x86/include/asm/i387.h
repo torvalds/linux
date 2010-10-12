@@ -31,7 +31,6 @@ extern void mxcsr_feature_mask_init(void);
 extern int init_fpu(struct task_struct *child);
 extern asmlinkage void math_state_restore(void);
 extern void __math_state_restore(void);
-extern void init_thread_xstate(void);
 extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
 
 extern user_regset_active_fn fpregs_active, xfpregs_active;
@@ -58,9 +57,23 @@ extern int restore_i387_xstate_ia32(void __user *buf);
 
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
+static __always_inline __pure bool use_xsaveopt(void)
+{
+	return static_cpu_has(X86_FEATURE_XSAVEOPT);
+}
+
 static __always_inline __pure bool use_xsave(void)
 {
 	return static_cpu_has(X86_FEATURE_XSAVE);
+}
+
+extern void __sanitize_i387_state(struct task_struct *);
+
+static inline void sanitize_i387_state(struct task_struct *tsk)
+{
+	if (!use_xsaveopt())
+		return;
+	__sanitize_i387_state(tsk);
 }
 
 #ifdef CONFIG_X86_64
@@ -126,6 +139,15 @@ static inline void clear_fpu_state(struct task_struct *tsk)
 static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 {
 	int err;
+
+	/*
+	 * Clear the bytes not touched by the fxsave and reserved
+	 * for the SW usage.
+	 */
+	err = __clear_user(&fx->sw_reserved,
+			   sizeof(struct _fpx_sw_bytes));
+	if (unlikely(err))
+		return -EFAULT;
 
 	asm volatile("1:  rex64/fxsave (%[fx])\n\t"
 		     "2:\n"
@@ -481,6 +503,8 @@ static inline void fpu_copy(struct fpu *dst, struct fpu *src)
 {
 	memcpy(dst->state, src->state, xstate_size);
 }
+
+extern void fpu_finit(struct fpu *fpu);
 
 #endif /* __ASSEMBLY__ */
 

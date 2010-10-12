@@ -190,7 +190,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 
 	BUG_ON(sense_len > sizeof(*sense));
 
-	if (blk_sense_request(rq) || drive->sense_rq_armed)
+	if (rq->cmd_type == REQ_TYPE_SENSE || drive->sense_rq_armed)
 		return;
 
 	memset(sense, 0, sizeof(*sense));
@@ -307,13 +307,16 @@ EXPORT_SYMBOL_GPL(ide_cd_expiry);
 
 int ide_cd_get_xferlen(struct request *rq)
 {
-	if (blk_fs_request(rq))
+	switch (rq->cmd_type) {
+	case REQ_TYPE_FS:
 		return 32768;
-	else if (blk_sense_request(rq) || blk_pc_request(rq) ||
-			 rq->cmd_type == REQ_TYPE_ATA_PC)
+	case REQ_TYPE_SENSE:
+	case REQ_TYPE_BLOCK_PC:
+	case REQ_TYPE_ATA_PC:
 		return blk_rq_bytes(rq);
-	else
+	default:
 		return 0;
+	}
 }
 EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
 
@@ -474,12 +477,12 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if (uptodate == 0)
 			drive->failed_pc = NULL;
 
-		if (blk_special_request(rq)) {
+		if (rq->cmd_type == REQ_TYPE_SPECIAL) {
 			rq->errors = 0;
 			error = 0;
 		} else {
 
-			if (blk_fs_request(rq) == 0 && uptodate <= 0) {
+			if (rq->cmd_type != REQ_TYPE_FS && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}

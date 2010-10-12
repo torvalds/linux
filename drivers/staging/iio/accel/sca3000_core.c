@@ -387,7 +387,7 @@ sca3000_show_available_measurement_modes(struct device *dev,
 	case SCA3000_OP_MODE_BYPASS:
 		len += sprintf(buf + len, ", 1 - bypass mode");
 		break;
-	};
+	}
 	switch (st->info->option_mode_2) {
 	case SCA3000_OP_MODE_WIDE:
 		len += sprintf(buf + len, ", 2 - wide mode");
@@ -433,7 +433,7 @@ sca3000_show_measurement_mode(struct device *dev,
 		case SCA3000_OP_MODE_BYPASS:
 			len += sprintf(buf + len, "1 - bypass mode\n");
 			break;
-		};
+		}
 		break;
 	case SCA3000_MEAS_MODE_OP_2:
 		switch (st->info->option_mode_2) {
@@ -442,7 +442,7 @@ sca3000_show_measurement_mode(struct device *dev,
 			break;
 		}
 		break;
-	};
+	}
 
 error_ret:
 	mutex_unlock(&st->lock);
@@ -559,7 +559,7 @@ static ssize_t sca3000_read_av_freq(struct device *dev,
 			       st->info->option_mode_2_freq/2,
 			       st->info->option_mode_2_freq/4);
 		break;
-	};
+	}
 	kfree(rx);
 	return len;
 error_ret:
@@ -590,7 +590,7 @@ static inline int __sca3000_get_base_freq(struct sca3000_state *st,
 	case SCA3000_MEAS_MODE_OP_2:
 		*base_freq = info->option_mode_2_freq;
 		break;
-	};
+	}
 	kfree(rx);
 error_ret:
 	return ret;
@@ -627,8 +627,8 @@ static ssize_t sca3000_read_frequency(struct device *dev,
 		case 0x02:
 			len = sprintf(buf, "%d\n", base_freq/4);
 			break;
-	};
-			kfree(rx);
+	}
+	kfree(rx);
 	return len;
 error_ret_mut:
 	mutex_unlock(&st->lock);

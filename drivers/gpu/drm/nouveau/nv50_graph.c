@@ -30,8 +30,6 @@
 
 #include "nouveau_grctx.h"
 
-#define IS_G80 ((dev_priv->chipset & 0xf0) == 0x50)
-
 static void
 nv50_graph_init_reset(struct drm_device *dev)
 {
@@ -103,37 +101,33 @@ static int
 nv50_graph_init_ctxctl(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_grctx ctx = {};
+	uint32_t *cp;
+	int i;
 
 	NV_DEBUG(dev, "\n");
 
-	if (nouveau_ctxfw) {
-		nouveau_grctx_prog_load(dev);
-		dev_priv->engine.graph.grctx_size = 0x70000;
+	cp = kmalloc(512 * 4, GFP_KERNEL);
+	if (!cp) {
+		NV_ERROR(dev, "failed to allocate ctxprog\n");
+		dev_priv->engine.graph.accel_blocked = true;
+		return 0;
 	}
-	if (!dev_priv->engine.graph.ctxprog) {
-		struct nouveau_grctx ctx = {};
-		uint32_t *cp = kmalloc(512 * 4, GFP_KERNEL);
-		int i;
-		if (!cp) {
-			NV_ERROR(dev, "Couldn't alloc ctxprog! Disabling acceleration.\n");
-			dev_priv->engine.graph.accel_blocked = true;
-			return 0;
-		}
-		ctx.dev = dev;
-		ctx.mode = NOUVEAU_GRCTX_PROG;
-		ctx.data = cp;
-		ctx.ctxprog_max = 512;
-		if (!nv50_grctx_init(&ctx)) {
-			dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
 
-			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
-			for (i = 0; i < ctx.ctxprog_len; i++)
-				nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
-		} else {
-			dev_priv->engine.graph.accel_blocked = true;
-		}
-		kfree(cp);
+	ctx.dev = dev;
+	ctx.mode = NOUVEAU_GRCTX_PROG;
+	ctx.data = cp;
+	ctx.ctxprog_max = 512;
+	if (!nv50_grctx_init(&ctx)) {
+		dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
+
+		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
+		for (i = 0; i < ctx.ctxprog_len; i++)
+			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
+	} else {
+		dev_priv->engine.graph.accel_blocked = true;
 	}
+	kfree(cp);
 
 	nv_wr32(dev, 0x400320, 4);
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0);
@@ -164,7 +158,6 @@ void
 nv50_graph_takedown(struct drm_device *dev)
 {
 	NV_DEBUG(dev, "\n");
-	nouveau_grctx_fini(dev);
 }
 
 void
@@ -212,8 +205,9 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin->gpuobj;
-	struct nouveau_gpuobj *ctx;
+	struct nouveau_gpuobj *obj;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_grctx ctx = {};
 	int hdr, ret;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
@@ -223,10 +217,9 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 				     NVOBJ_FLAG_ZERO_FREE, &chan->ramin_grctx);
 	if (ret)
 		return ret;
-	ctx = chan->ramin_grctx->gpuobj;
+	obj = chan->ramin_grctx->gpuobj;
 
-	hdr = IS_G80 ? 0x200 : 0x20;
-	dev_priv->engine.instmem.prepare_access(dev, true);
+	hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 	nv_wo32(dev, ramin, (hdr + 0x00)/4, 0x00190002);
 	nv_wo32(dev, ramin, (hdr + 0x04)/4, chan->ramin_grctx->instance +
 					   pgraph->grctx_size - 1);
@@ -234,21 +227,15 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 	nv_wo32(dev, ramin, (hdr + 0x0c)/4, 0);
 	nv_wo32(dev, ramin, (hdr + 0x10)/4, 0);
 	nv_wo32(dev, ramin, (hdr + 0x14)/4, 0x00010000);
-	dev_priv->engine.instmem.finish_access(dev);
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
-	if (!pgraph->ctxprog) {
-		struct nouveau_grctx ctx = {};
-		ctx.dev = chan->dev;
-		ctx.mode = NOUVEAU_GRCTX_VALS;
-		ctx.data = chan->ramin_grctx->gpuobj;
-		nv50_grctx_init(&ctx);
-	} else {
-		nouveau_grctx_vals_load(dev, ctx);
-	}
-	nv_wo32(dev, ctx, 0x00000/4, chan->ramin->instance >> 12);
-	dev_priv->engine.instmem.finish_access(dev);
+	ctx.dev = chan->dev;
+	ctx.mode = NOUVEAU_GRCTX_VALS;
+	ctx.data = obj;
+	nv50_grctx_init(&ctx);
 
+	nv_wo32(dev, obj, 0x00000/4, chan->ramin->instance >> 12);
+
+	dev_priv->engine.instmem.flush(dev);
 	return 0;
 }
 
@@ -257,17 +244,16 @@ nv50_graph_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int i, hdr = IS_G80 ? 0x200 : 0x20;
+	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
 	if (!chan->ramin || !chan->ramin->gpuobj)
 		return;
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	for (i = hdr; i < hdr + 24; i += 4)
 		nv_wo32(dev, chan->ramin->gpuobj, i/4, 0);
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	nouveau_gpuobj_ref_del(dev, &chan->ramin_grctx);
 }

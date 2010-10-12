@@ -317,10 +317,6 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 	.restore =	usb_dev_restore,
 };
 
-#else
-
-#define usb_device_pm_ops	(*(struct dev_pm_ops *) NULL)
-
 #endif	/* CONFIG_PM */
 
 
@@ -338,7 +334,9 @@ struct device_type usb_device_type = {
 	.release =	usb_release_dev,
 	.uevent =	usb_dev_uevent,
 	.devnode = 	usb_devnode,
+#ifdef CONFIG_PM
 	.pm =		&usb_device_pm_ops,
+#endif
 };
 
 

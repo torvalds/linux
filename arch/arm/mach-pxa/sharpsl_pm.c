@@ -29,10 +29,7 @@
 #include <mach/pm.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/regs-rtc.h>
-#include <mach/sharpsl.h>
 #include <mach/sharpsl_pm.h>
-
-#include "sharpsl.h"
 
 /*
  * Constants
@@ -180,17 +177,12 @@ int sharpsl_pm_pxa_read_max1111(int channel)
 	if (machine_is_tosa())
 	    return 0;
 
-#ifdef CONFIG_CORGI_SSP_DEPRECATED
-	return corgi_ssp_max1111_get((channel << MAXCTRL_SEL_SH) | MAXCTRL_PD0 | MAXCTRL_PD1
-			| MAXCTRL_SGL | MAXCTRL_UNI | MAXCTRL_STR);
-#else
 	extern int max1111_read_channel(int);
 
 	/* max1111 accepts channels from 0-3, however,
 	 * it is encoded from 0-7 here in the code.
 	 */
 	return max1111_read_channel(channel >> 1);
-#endif
 }
 
 static int get_percentage(int voltage)
@@ -276,21 +268,6 @@ static void sharpsl_battery_thread(struct work_struct *private_)
 
 	dev_dbg(sharpsl_pm.dev, "Battery: voltage: %d, status: %d, percentage: %d, time: %ld\n", voltage,
 			sharpsl_pm.battstat.mainbat_status, sharpsl_pm.battstat.mainbat_percent, jiffies);
-
-#ifdef CONFIG_BACKLIGHT_CORGI
-	/* If battery is low. limit backlight intensity to save power. */
-	if ((sharpsl_pm.battstat.ac_status != APM_AC_ONLINE)
-	    && ((sharpsl_pm.battstat.mainbat_status == APM_BATTERY_STATUS_LOW)
-	    || (sharpsl_pm.battstat.mainbat_status == APM_BATTERY_STATUS_CRITICAL))) {
-		if (!(sharpsl_pm.flags & SHARPSL_BL_LIMIT)) {
-			sharpsl_pm.machinfo->backlight_limit(1);
-			sharpsl_pm.flags |= SHARPSL_BL_LIMIT;
-		}
-	} else if (sharpsl_pm.flags & SHARPSL_BL_LIMIT) {
-		sharpsl_pm.machinfo->backlight_limit(0);
-		sharpsl_pm.flags &= ~SHARPSL_BL_LIMIT;
-	}
-#endif
 
 	/* Suspend if critical battery level */
 	if ((sharpsl_pm.battstat.ac_status != APM_AC_ONLINE)

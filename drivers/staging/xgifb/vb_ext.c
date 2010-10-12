@@ -1,40 +1,7 @@
-#include "osdef.h"
-
-
-
-
-#ifdef WIN2000
-
-#include <dderror.h>
-#include <devioctl.h>
-#include <miniport.h>
-#include <ntddvdeo.h>
-#include <video.h>
-#include "xgiv.h"
-#include "dd_i2c.h"
-#include "tools.h"
-#endif /* WIN2000 */
-
-#ifdef LINUX_XF86
-#include "xf86.h"
-#include "xf86PciInfo.h"
-#include "xgi.h"
-#include "xgi_regs.h"
-#endif
-
-#ifdef LINUX_KERNEL
 #include <linux/version.h>
 #include <asm/io.h>
 #include <linux/types.h>
 #include "XGIfb.h"
-/*#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-#include <video/XGIfb.h>
-#else
-#include <linux/XGIfb.h>
-#endif*/
-#endif
-
-
 
 #include "vb_def.h"
 #include "vgatypes.h"
@@ -42,43 +9,33 @@
 #include "vb_util.h"
 #include "vb_setmode.h"
 #include "vb_ext.h"
-extern   UCHAR XGI330_SoftSetting;
-extern   UCHAR XGI330_OutputSelect;
-extern   USHORT XGI330_RGBSenseData2;
-extern   USHORT XGI330_YCSenseData2;
-extern   USHORT XGI330_VideoSenseData2;
-#ifdef WIN2000
-extern   UCHAR SenseCHTV(PHW_DEVICE_EXTENSION pHWDE);       /* 2007/05/17 Billy */
-#endif
-void     XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo );
-BOOLEAN  XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo);
-USHORT   XGINew_SenseLCD(PXGI_HW_DEVICE_INFO,PVB_DEVICE_INFO pVBInfo);
-BOOLEAN  XGINew_GetLCDDDCInfo(PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_INFO pVBInfo);
-void XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE ) ;
-BOOLEAN  XGINew_BridgeIsEnable(PXGI_HW_DEVICE_INFO,PVB_DEVICE_INFO pVBInfo );
-BOOLEAN  XGINew_Sense(USHORT tempbx,USHORT tempcx, PVB_DEVICE_INFO pVBInfo);
-BOOLEAN  XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo ) ;
+extern   unsigned char XGI330_SoftSetting;
+extern   unsigned char XGI330_OutputSelect;
+extern   unsigned short XGI330_RGBSenseData2;
+extern   unsigned short XGI330_YCSenseData2;
+extern   unsigned short XGI330_VideoSenseData2;
+void     XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo);
+unsigned char  XGINew_GetPanelID(struct vb_device_info *pVBInfo);
+unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *,
+			       struct vb_device_info *pVBInfo);
+unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension,
+			     struct vb_device_info *pVBInfo);
+void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
+		unsigned long VESA_POWER_STATE);
+unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *, struct vb_device_info *pVBInfo);
+unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx,
+		     struct vb_device_info *pVBInfo);
+unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension,
+			       struct vb_device_info *pVBInfo);
 
 /**************************************************************
 	Dynamic Sense
 *************************************************************/
 
 void XGI_WaitDisplay(void);
-BOOLEAN XGI_Is301C(PVB_DEVICE_INFO);
-BOOLEAN XGI_Is301LV(PVB_DEVICE_INFO);
+unsigned char XGI_Is301C(struct vb_device_info *);
+unsigned char XGI_Is301LV(struct vb_device_info *);
 
-#ifdef WIN2000
-UCHAR XGI_SenseLCD(PHW_DEVICE_EXTENSION, PVB_DEVICE_INFO);
-UCHAR XGI_GetLCDDDCInfo(PHW_DEVICE_EXTENSION,PVB_DEVICE_INFO);
-
-extern BOOL bGetDdcInfo(
-PHW_DEVICE_EXTENSION  pHWDE,
-ULONG                 ulWhichOne,
-PUCHAR                pjQueryBuffer,
-ULONG                 ulBufferSize
-   );
-
-#endif
 
 
 /* --------------------------------------------------------------------- */
@@ -87,9 +44,9 @@ ULONG                 ulBufferSize
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_Is301B( PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
 {
-    USHORT flag ;
+    unsigned short flag ;
 
     flag = XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) ;
 
@@ -105,7 +62,7 @@ BOOLEAN XGINew_Is301B( PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGI_Is301C( PVB_DEVICE_INFO pVBInfo )
+unsigned char XGI_Is301C(struct vb_device_info *pVBInfo)
 {
     if ( ( XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) & 0xF0 ) == 0xC0 )
         return( 1 ) ;
@@ -126,7 +83,7 @@ BOOLEAN XGI_Is301C( PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGI_Is301LV( PVB_DEVICE_INFO pVBInfo )
+unsigned char XGI_Is301LV(struct vb_device_info *pVBInfo)
 {
     if ( XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) >= 0xD0 )
     {
@@ -145,9 +102,11 @@ BOOLEAN XGI_Is301LV( PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_Sense(  USHORT tempbx , USHORT tempcx, PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_Sense(unsigned short tempbx,
+		     unsigned short tempcx,
+		     struct vb_device_info *pVBInfo)
 {
-    USHORT temp , i , tempch ;
+    unsigned short temp, i, tempch;
 
     temp = tempbx & 0xFF ;
     XGINew_SetReg1( pVBInfo->Part4Port , 0x11 , temp ) ;
@@ -169,284 +128,6 @@ BOOLEAN XGINew_Sense(  USHORT tempbx , USHORT tempcx, PVB_DEVICE_INFO pVBInfo )
         return( 0 ) ;
 }
 
-#ifdef WIN2000
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SenseLCD */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-UCHAR XGI_SenseLCD( PHW_DEVICE_EXTENSION pHWDE, PVB_DEVICE_INFO pVBInfo)
-{
-    USHORT tempax , tempbx , tempcx ;
-    UCHAR SoftSetting = XGI330_SoftSetting ;
-
-    if ( pVBInfo->VBType & ( VB_XGI301LV | VB_XGI302LV ) )
-        return( 1 ) ;
-
-
-    if ( SoftSetting & HotPlugFunction )	/* Hot Plug Detection */
-    {
-        XGINew_SetRegAND( pVBInfo->Part4Port , 0x0F , 0x3F ) ;
-        tempbx = 0 ;
-        tempcx = 0x9010 ;
-        if ( XGINew_Sense( tempbx , tempcx, pVBInfo ) )
-            return( 1 ) ;
-
-        return( 0 ) ;
-    }
-    else	/* Get LCD Info from EDID */
-        return(XGI_GetLCDDDCInfo(pHWDE, pVBInfo));
-}
-
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_GetLCDDDCInfo */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-UCHAR XGI_GetLCDDDCInfo( PHW_DEVICE_EXTENSION pHWDE , PVB_DEVICE_INFO pVBInfo)
-{
-    UCHAR tempah , tempbl , tempbh ;
-    USHORT tempbx , temp ;
-    UCHAR pjEDIDBuf[ 256 ] ;
-    ULONG ulBufferSize = 256 ;
-    UCHAR bMASK_OUTPUTSTATE_CRT2LCD = 2 ; /* 0423 shampoo */
-
-    bGetDdcInfo( pHWDE , MASK_OUTPUTSTATE_CRT2LCD , pjEDIDBuf , ulBufferSize ) ;
-    if ( ( *( ( PULONG )pjEDIDBuf ) == 0xFFFFFF00 ) && ( *( ( PULONG )( pjEDIDBuf + 4 ) ) == 0x00FFFFFF ) )
-    {
-        tempah = Panel1024x768 ;
-        tempbl=( *( pjEDIDBuf + 0x3A ) ) & 0xf0 ;
-
-        if ( tempbl != 0x40 )
-        {
-            tempah = Panel1600x1200 ;
-            if ( tempbl != 0x60 )
-            {
-                tempah = Panel1280x1024 ;
-                tempbh = ( *( pjEDIDBuf + 0x3B ) ) ;
-                if ( tempbh != 0x00 )
-                {
-                    tempah = Panel1280x960 ;
-                    if ( tempbh != 0x0C0 )
-                    {
-                        tempbx = ( ( *( pjEDIDBuf + 0x24 ) ) << 8 ) | ( *( pjEDIDBuf + 0x23 ) ) ;
-                        tempah = Panel1280x1024 ;
-                        if ( !( tempbx & 0x0100 ) )
-                        {
-                            tempah = Panel1024x768 ;
-                            if ( !( tempbx & 0x0E00 ) )
-                            {
-                                tempah = Panel1280x1024 ;
-                            }
-                        }
-                    }
-
-                    if ( tempbx & 0x00FF )
-                    {
-                        temp = ScalingLCD ;
-                        XGINew_SetRegOR( pVBInfo->P3d4 , 0x37 , temp ) ;
-                    }
-                }
-            }
-        }
-        XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x36 , ( ~0x07 ) , tempah ) ;
-        tempah = ( ( *( pjEDIDBuf + 0x47 ) ) & 0x06 ) ;		/* Polarity */
-        tempah = ( tempah ^ 0x06 ) << 4 ;
-        tempah |= LCDSync ;
-        XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x37 , ( ~LCDSyncBit ) , tempah ) ;
-        tempbh= XGINew_GetReg1( pVBInfo->P3d4 , 0x36 ) ;
-        tempbh &= 0x07 ;
-        if ( tempbh == Panel1280x960 )
-            XGINew_SetRegAND( pVBInfo->P3d4 , 0x37 , 0x0E ) ;
-    }
-    else if ( *pjEDIDBuf == 0x20 )
-    {
-        tempah = Panel1024x768 ;
-        XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x36 , ( ~0x07 ) , tempah ) ;
-    }
-    else
-    {
-        return( 0 ) ;
-    }
-
-    return( 1 ) ;
-}
-
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_DySense */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-BOOLEAN XGI_DySense( PHW_DEVICE_EXTENSION pHWDE , PUCHAR ujConnectStatus)
-{
-    UCHAR pre_CRD,pre_SR1E , pre_Part2_0 , pre_Part4_D ;
-    USHORT tempax , tempbx , tempcx , pushax , temp ;
-    VB_DEVICE_INFO VBINF;
-    PVB_DEVICE_INFO pVBInfo = &VBINF;
-    UCHAR OutputSelect = XGI330_OutputSelect ;
-    PXGI_HW_DEVICE_INFO HwDeviceExtension= pHWDE->pXGIHWDE ;
-    UCHAR   bConnectStatus = 0 ;
-    pVBInfo->BaseAddr = HwDeviceExtension->pjIOAddress ;
-    pVBInfo->ROMAddr  = pHWDE->pjVirtualRomBase ;
-
-    pVBInfo->P3c2 = pVBInfo->BaseAddr + 0x12 ;
-    pVBInfo->P3c4 = pVBInfo->BaseAddr + 0x14 ;
-    pVBInfo->P3d4 = pVBInfo->BaseAddr + 0x24 ;
-    pVBInfo->Part2Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_10 ;
-    pVBInfo->Part4Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_14 ;
-    pushax = XGINew_GetReg1( pVBInfo->P3d4 , 0x17 ) ;	/* 0512 Fix Dysense hanged */
-    temp = ( pushax & 0x00FF ) | 0x80 ;
-    XGINew_SetRegOR( pVBInfo->P3d4 , 0x17 , temp ) ;
-    XGINew_SetReg1( pVBInfo->P3c4 , 0x05 , 0x86 ) ;
-    /* beginning of dynamic sense CRT1 */
-
-    pVBInfo->IF_DEF_CH7007 = 0;
-    if (pHWDE->bCH7007)
-    {
-    	InitTo330Pointer( pHWDE->pXGIHWDE->jChipType, pVBInfo ) ;
-        HwDeviceExtension->pDevice = (PVOID)pHWDE;
-        pVBInfo->IF_DEF_CH7007 = 1;
-        /* [Billy] 2007/05/14 For CH7007 */
-        if ( pVBInfo->IF_DEF_CH7007 == 1 )
-        {
-           bConnectStatus = SenseCHTV(HwDeviceExtension->pDevice) ; /* 07/05/28 */
-           XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x32 , ~0x03 , (UCHAR)bConnectStatus ) ;
-        }
-    }
-    if(( pHWDE->jChipID >= XG40 ) || ( pHWDE->jChipID >= XG20 ))
-    {
-
-        if ( pHWDE->jChipID >= XG40 )
-    	    XGINew_SetReg1( pVBInfo->P3d4 , 0x57 , 0x4A ) ;	/* write sense pattern 30->4a */
-    	else
-            XGINew_SetReg1( pVBInfo->P3d4 , 0x57 , 0x5F ) ;	/* write sense pattern */
-
-        XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x53 , 0xFF , 0x02 ) ;	/* enable sense DAC */
-        XGI_WaitDisply(pVBInfo) ;
-
-        if(XGINew_GetReg2( pVBInfo->P3c2 ) & 0x10 )
-            bConnectStatus |= Monitor1Sense ;
-
-        XGINew_SetRegAND( pVBInfo->P3d4 , 0x53 , 0xFD ) ;	/* disable sense DAC */
-        XGINew_SetRegAND( pVBInfo->P3d4 , 0x57 , 0x00 ) ;	/* clear sense pattern */
-
-
-        /* ---------- End of dynamic sense CRT1 ----------- */
-
-        /* ---------- beginning of dynamic sense VB ------------ */
-        pre_SR1E = XGINew_GetReg1( pVBInfo->P3c4 , 0x1E ) ;
-        XGINew_SetRegOR( pVBInfo->P3c4 , 0x1E , 0x20 ) ;	/* Enable CRT2,work-a-round for 301B/301LV/302LV */
-        pre_Part2_0 = XGINew_GetReg1( pVBInfo->Part2Port , 0x00 ) ;
-        pre_Part4_D = XGINew_GetReg1( pVBInfo->Part4Port , 0x0D ) ;
-
-        if ( XGI_Is301C( pVBInfo ) )	/* 301C only */
-            XGINew_SetRegANDOR( pVBInfo->Part4Port , 0x0D , ~0x07 , 0x01 ) ;	/* Set Part4 0x0D D[2:0] to 001b */
-
-        /* tempax = 0 ; */
-        if ( !XGI_Is301LV( pVBInfo ) )
-        {
-           tempbx = XGI330_RGBSenseData2 ;
-            tempcx = 0x0E08 ;
-            if(XGINew_Sense( tempbx , tempcx, pVBInfo ) )
-            {
-                bConnectStatus |= Monitor2Sense ;
-                if ( OutputSelect & SetSCARTOutput )
-                {
-                    bConnectStatus ^= ( Monitor2Sense | SCARTSense ) ;
-                }
-            }
-        }
-        if ( XGI_Is301C( pVBInfo ) )	/* 301C only */
-            XGINew_SetRegOR( pVBInfo->Part4Port , 0x0D , 0x04 ) ;	/* Set Part4 0x0D D[2]=1 for dynamic sense */
-
-        if ( ( XGINew_Is301B( pVBInfo ) ) )
-            XGINew_SetRegOR( pVBInfo->Part2Port , 0x00 , 0x0C ) ;    /* ????????? */
-
-	if ( XGINew_SenseHiTV( HwDeviceExtension , pVBInfo) )		/* add by kuku for Dysense HiTV //start */
-	{
-	    bConnectStatus|= YPbPrSense ;
-	}
-	else
-	{
-        tempbx = XGI330_YCSenseData2 ;	/* Y/C Sense Data Ptr */
-        tempcx = 0x0604 ;
-        if ( XGINew_Sense( tempbx , tempcx , pVBInfo) )
-            bConnectStatus |= SVIDEOSense ;
-
-        if ( OutputSelect & BoardTVType )
-        {
-            tempbx = XGI330_VideoSenseData2 ;
-            tempcx = 0x0804 ;
-            if ( XGINew_Sense(tempbx , tempcx, pVBInfo) )
-                bConnectStatus|= AVIDEOSense ;
-        }
-        else
-        {
-            if ( !( bConnectStatus & SVIDEOSense ) )
-            {
-                tempbx = XGI330_VideoSenseData2 ;
-                tempcx = 0x0804 ;
-                if ( XGINew_Sense( tempbx , tempcx, pVBInfo ) )
-                    bConnectStatus |= AVIDEOSense ;
-            }
-        }
-    	} /* end */
-        /* DySenseVBCnt */
-
-        tempbx = 0 ;
-        tempcx = 0 ;
-        XGINew_Sense(tempbx , tempcx, pVBInfo ) ;
-
-        if ( !( bConnectStatus & Monitor2Sense ) )
-        {
-            if ( XGI_SenseLCD( pHWDE , pVBInfo ) )
-                bConnectStatus |= LCDSense ;
-        }
-
-        XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x32 , ~( AVIDEOSense | SVIDEOSense | LCDSense | Monitor2Sense | Monitor1Sense ) , bConnectStatus ) ;
-
-        XGINew_SetReg1( pVBInfo->Part4Port , 0x0D , pre_Part4_D ) ;
-        XGINew_SetReg1( pVBInfo->Part2Port , 0x00 , pre_Part2_0 ) ;
-        XGINew_SetReg1( pVBInfo->P3c4 , 0x1E , pre_SR1E ) ;
-
-        if ( XGI_Is301C( pVBInfo ) )	/* 301C only */
-        {
-            tempax = XGINew_GetReg1( pVBInfo->Part2Port , 0x00 ) ;
-            if ( tempax & 0x20 )
-            {
-                /* Reset VBPro */
-                for( tempcx = 2 ; tempcx > 0 ; tempcx-- )
-                {
-                    tempax ^= 0x20 ;
-                    XGINew_SetReg1( pVBInfo->Part2Port , 0x00 , tempax ) ;
-                }
-            }
-        }
-        /* End of dynamic sense VB */
-    }
-    else
-    {
-        XGI_SenseCRT1(pVBInfo) ;
-        XGI_GetSenseStatus( HwDeviceExtension, pVBInfo ) ;	/* sense CRT2 */
-        bConnectStatus = XGINew_GetReg1( pVBInfo->P3d4 , 0x32 ) ;
-    }
-    temp = pushax & 0x00FF ;		/* 0512 Fix Dysense hanged */
-    XGINew_SetReg1( pVBInfo->P3d4 , 0x17 , temp ) ;
-    if ( bConnectStatus )
-    {
-        *ujConnectStatus = bConnectStatus ;
-        return( 1 ) ;
-    }
-    else
-        return( 0 ) ;
-}
-
-#endif /* WIN2000 */
 
 /* --------------------------------------------------------------------- */
 /* Function : XGISetDPMS */
@@ -454,13 +135,14 @@ BOOLEAN XGI_DySense( PHW_DEVICE_EXTENSION pHWDE , PUCHAR ujConnectStatus)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
+void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
+		unsigned long VESA_POWER_STATE)
 {
-    USHORT ModeNo, ModeIdIndex ;
-    UCHAR  temp ;
-    VB_DEVICE_INFO VBINF;
-    PVB_DEVICE_INFO pVBInfo = &VBINF;
-    pVBInfo->BaseAddr = (ULONG)pXGIHWDE->pjIOAddress ;
+    unsigned short ModeNo, ModeIdIndex;
+    unsigned char temp;
+    struct vb_device_info VBINF;
+    struct vb_device_info *pVBInfo = &VBINF;
+    pVBInfo->BaseAddr = (unsigned long)pXGIHWDE->pjIOAddress ;
     pVBInfo->ROMAddr  = pXGIHWDE->pjVirtualRomBase ;
 
 
@@ -527,18 +209,18 @@ VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
     }
 
     if ( VESA_POWER_STATE == 0x00000400 )
-      XGINew_SetReg1( pVBInfo->Part4Port , 0x31 , ( UCHAR )( XGINew_GetReg1( pVBInfo->Part4Port , 0x31 ) & 0xFE ) ) ;
+	    XGINew_SetReg1(pVBInfo->Part4Port, 0x31, (unsigned char)(XGINew_GetReg1(pVBInfo->Part4Port, 0x31) & 0xFE));
     else
-      XGINew_SetReg1( pVBInfo->Part4Port , 0x31 , ( UCHAR )( XGINew_GetReg1( pVBInfo->Part4Port , 0x31 ) | 0x01 ) ) ;
+	    XGINew_SetReg1(pVBInfo->Part4Port, 0x31, (unsigned char)(XGINew_GetReg1(pVBInfo->Part4Port, 0x31) | 0x01));
 
-    temp = ( UCHAR )XGINew_GetReg1( pVBInfo->P3c4 , 0x1f ) ;
+    temp = (unsigned char)XGINew_GetReg1(pVBInfo->P3c4, 0x1f);
     temp &= 0x3f ;
     switch ( VESA_POWER_STATE )
     {
         case 0x00000000: /* on */
             if ( ( pXGIHWDE->ujVBChipID == VB_CHIP_301 ) || ( pXGIHWDE->ujVBChipID == VB_CHIP_302 ) )
             {
-                XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0x00 ) ) ;
+		XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0x00));
                 XGI_EnableBridge( pXGIHWDE, pVBInfo ) ;
             }
             else
@@ -596,7 +278,7 @@ VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
                 XGI_DisplayOff( pXGIHWDE, pVBInfo );
             }
 
-            XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0x40 ) ) ;
+	    XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0x40));
             break ;
         case 0x00000200: /* suspend */
             if ( pXGIHWDE->jChipType == XG21 )
@@ -609,12 +291,12 @@ VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
                 XGI_DisplayOff( pXGIHWDE, pVBInfo );
                 XGI_XG27BLSignalVDD( 0x20 , 0x00, pVBInfo ) ; /* LVDS signal off */
             }
-            XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0x80 ) ) ;
+	    XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0x80));
             break ;
         case 0x00000400: /* off */
             if ( (pXGIHWDE->ujVBChipID == VB_CHIP_301 ) || ( pXGIHWDE->ujVBChipID == VB_CHIP_302 ) )
             {
-                XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0xc0 ) ) ;
+		XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0xc0));
                 XGI_DisableBridge( pXGIHWDE, pVBInfo ) ;
             }
             else
@@ -677,12 +359,12 @@ VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
-    USHORT tempax = 0 , tempbx , tempcx , temp ,
+    unsigned short tempax = 0 , tempbx , tempcx , temp ,
            P2reg0 = 0 , SenseModeNo = 0 , OutputSelect = *pVBInfo->pOutputSelect ,
            ModeIdIndex , i ;
-    pVBInfo->BaseAddr = (ULONG)HwDeviceExtension->pjIOAddress ;
+    pVBInfo->BaseAddr = (unsigned long)HwDeviceExtension->pjIOAddress ;
 
     if ( pVBInfo->IF_DEF_LVDS == 1 )
     {
@@ -876,10 +558,11 @@ void XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-USHORT XGINew_SenseLCD( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO pVBInfo)
+unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension,
+			       struct vb_device_info *pVBInfo)
 {
-    /* USHORT SoftSetting ; */
-    USHORT temp ;
+    /* unsigned short SoftSetting ; */
+    unsigned short temp ;
 
     if ( ( HwDeviceExtension->jChipType >= XG20 ) || ( HwDeviceExtension->jChipType >= XG40 ) )
         temp = 0 ;
@@ -899,9 +582,9 @@ USHORT XGINew_SenseLCD( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO p
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     /* add lcd sense */
     if ( HwDeviceExtension->ulCRT2LCDType == LCD_UNKNOWN )
@@ -910,7 +593,7 @@ BOOLEAN XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_I
     }
     else
     {
-        temp = ( USHORT )HwDeviceExtension->ulCRT2LCDType ;
+	    temp = (unsigned short)HwDeviceExtension->ulCRT2LCDType ;
         switch( HwDeviceExtension->ulCRT2LCDType )
         {
             case LCD_INVALID:
@@ -952,26 +635,27 @@ BOOLEAN XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_I
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 {
-    USHORT PanelTypeTable[ 16 ] = { SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType00 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType01 ,
-                                    SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType02 ,
-                                    SyncNN | PanelRGB18Bit | Panel640x480  | _PanelType03 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType04 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType05 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType06 ,
-                                    SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType07 ,
-                                    SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType08 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType09 ,
-                                    SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType0A ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0B ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0C ,
-                                    SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType0D ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0E ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0F } ;
-    USHORT tempax , tempbx , temp ;
-    /* USHORT return_flag ; */
+	unsigned short PanelTypeTable[16] = {
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType00,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType01,
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType02,
+		SyncNN | PanelRGB18Bit | Panel640x480  | _PanelType03,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType04,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType05,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType06,
+		SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType07,
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType08,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType09,
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType0A,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0B,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0C,
+		SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType0D,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0E,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0F };
+	unsigned short tempax , tempbx, temp;
+    /* unsigned short return_flag ; */
 
     tempax = XGINew_GetReg1( pVBInfo->P3c4 , 0x1A ) ;
     tempbx = tempax & 0x1E ;
@@ -1024,9 +708,9 @@ BOOLEAN XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_BridgeIsEnable( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
-    USHORT flag ;
+    unsigned short flag ;
 
     if ( XGI_BridgeIsOn( pVBInfo ) == 0 )
     {
@@ -1051,9 +735,9 @@ BOOLEAN XGINew_BridgeIsEnable( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE
 /* Output : */
 /* Description : */
 /* ------------------------------------------------------ */
-BOOLEAN XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
-    USHORT tempbx , tempcx , temp , i , tempch;
+    unsigned short tempbx , tempcx , temp , i , tempch;
 
     tempbx = *pVBInfo->pYCSenseData2 ;
 
@@ -1132,14 +816,14 @@ BOOLEAN XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INF
 ;		     DX: PAnel V. resolution
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub70(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
 
-    USHORT ModeIdIndex;
-    USHORT ModeNo;
+    unsigned short ModeIdIndex;
+    unsigned short ModeNo;
 
-    USHORT EModeCount;
-    USHORT lvdstableindex;
+    unsigned short EModeCount;
+    unsigned short lvdstableindex;
 
     lvdstableindex = XGI_GetLVDSOEMTableIndex( pVBInfo );
     pBiosArguments->h.bl = 0x81;
@@ -1153,7 +837,7 @@ void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
         ModeNo = pVBInfo->EModeIDTable[ ModeIdIndex ].Ext_ModeID;
         if ( pVBInfo->EModeIDTable[ ModeIdIndex ].Ext_ModeID == 0xFF )
         {
-            pBiosArguments->h.bh = (UCHAR) EModeCount;
+	    pBiosArguments->h.bh = (unsigned char) EModeCount;
             return;
         }
         if ( !XGI_XG21CheckLVDSMode( ModeNo , ModeIdIndex, pVBInfo) )
@@ -1175,13 +859,13 @@ void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 ;
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub71(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
 
-    USHORT EModeCount;
-    USHORT ModeIdIndex,resindex;
-    USHORT ModeNo;
-    USHORT EModeIndex = pBiosArguments->h.bh;
+    unsigned short EModeCount;
+    unsigned short ModeIdIndex, resindex;
+    unsigned short ModeNo;
+    unsigned short EModeIndex = pBiosArguments->h.bh;
 
     EModeCount = 0;
     for( ModeIdIndex = 0 ; ;  ModeIdIndex ++ )
@@ -1199,7 +883,7 @@ void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
         if (EModeCount == EModeIndex)
         {
             resindex = XGI_GetResInfo( ModeNo , ModeIdIndex, pVBInfo ) ;
-            pBiosArguments->h.bl = (UCHAR) ModeNo;
+	    pBiosArguments->h.bl = (unsigned char) ModeNo;
             pBiosArguments->x.cx = pVBInfo->ModeResInfo[ resindex ].HTotal ;			  /* xres->ax */
             pBiosArguments->x.dx = pVBInfo->ModeResInfo[ resindex ].VTotal ;			  /* yres->bx */
             pBiosArguments->x.ax = 0x0014;
@@ -1221,10 +905,10 @@ void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 ;
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub72( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub72(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
-    USHORT ModeIdIndex,resindex;
-    USHORT ModeNo;
+    unsigned short ModeIdIndex, resindex;
+    unsigned short ModeNo;
 
 
     ModeNo = pBiosArguments->h.bl ;
@@ -1280,11 +964,11 @@ void XGI_XG21Fun14Sub72( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 ;                       BX[6]: *Value1 D[6] Panel H. Polarity
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub73( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub73(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
-    UCHAR Select;
+    unsigned char Select;
 
-    USHORT lvdstableindex;
+    unsigned short lvdstableindex;
 
     lvdstableindex = XGI_GetLVDSOEMTableIndex( pVBInfo );
     Select = pBiosArguments->h.bl;
@@ -1314,10 +998,10 @@ void XGI_XG21Fun14Sub73( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 }
 
 
-void XGI_XG21Fun14( PXGI_HW_DEVICE_INFO pXGIHWDE, PX86_REGS pBiosArguments)
+void XGI_XG21Fun14(struct xgi_hw_device_info *pXGIHWDE, PX86_REGS pBiosArguments)
 {
-    VB_DEVICE_INFO VBINF;
-    PVB_DEVICE_INFO pVBInfo = &VBINF;
+    struct vb_device_info VBINF;
+    struct vb_device_info *pVBInfo = &VBINF;
 
     pVBInfo->IF_DEF_LVDS = 0 ;
     pVBInfo->IF_DEF_CH7005 = 0 ;

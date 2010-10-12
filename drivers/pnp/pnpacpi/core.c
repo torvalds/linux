@@ -122,17 +122,37 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 }
 
 #ifdef CONFIG_ACPI_SLEEP
+static bool pnpacpi_can_wakeup(struct pnp_dev *dev)
+{
+	struct acpi_device *acpi_dev = dev->data;
+	acpi_handle handle = acpi_dev->handle;
+
+	return acpi_bus_can_wakeup(handle);
+}
+
 static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 {
 	struct acpi_device *acpi_dev = dev->data;
 	acpi_handle handle = acpi_dev->handle;
 	int power_state;
 
+	if (device_can_wakeup(&dev->dev)) {
+		int rc = acpi_pm_device_sleep_wake(&dev->dev,
+				device_may_wakeup(&dev->dev));
+
+		if (rc)
+			return rc;
+	}
 	power_state = acpi_pm_device_sleep_state(&dev->dev, NULL);
 	if (power_state < 0)
 		power_state = (state.event == PM_EVENT_ON) ?
 				ACPI_STATE_D0 : ACPI_STATE_D3;
 
+	/* acpi_bus_set_power() often fails (keyboard port can't be
+	 * powered-down?), and in any case, our return value is ignored
+	 * by pnp_bus_suspend().  Hence we don't revert the wakeup
+	 * setting if the set_power fails.
+	 */
 	return acpi_bus_set_power(handle, power_state);
 }
 
@@ -141,6 +161,8 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 	struct acpi_device *acpi_dev = dev->data;
 	acpi_handle handle = acpi_dev->handle;
 
+	if (device_may_wakeup(&dev->dev))
+		acpi_pm_device_sleep_wake(&dev->dev, false);
 	return acpi_bus_set_power(handle, ACPI_STATE_D0);
 }
 #endif
@@ -151,6 +173,7 @@ struct pnp_protocol pnpacpi_protocol = {
 	.set	 = pnpacpi_set_resources,
 	.disable = pnpacpi_disable_resources,
 #ifdef CONFIG_ACPI_SLEEP
+	.can_wakeup = pnpacpi_can_wakeup,
 	.suspend = pnpacpi_suspend,
 	.resume = pnpacpi_resume,
 #endif

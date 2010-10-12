@@ -1081,7 +1081,7 @@ long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 		    unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
-	struct cx18_open_id *id = (struct cx18_open_id *)filp->private_data;
+	struct cx18_open_id *id = filp->private_data;
 	struct cx18 *cx = id->cx;
 	long res;
 

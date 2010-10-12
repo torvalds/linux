@@ -1,9 +1,9 @@
 /*
  *  linux/include/linux/mtd/nand.h
  *
- *  Copyright (c) 2000 David Woodhouse <dwmw2@infradead.org>
- *                     Steven J. Hill <sjhill@realitydiluted.com>
- *		       Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
+ *                        Steven J. Hill <sjhill@realitydiluted.com>
+ *		          Thomas Gleixner <tglx@linutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -181,8 +181,6 @@ typedef enum {
 #define NAND_NO_READRDY		0x00000100
 /* Chip does not allow subpage writes */
 #define NAND_NO_SUBPAGE_WRITE	0x00000200
-/* Chip stores bad block marker on the last page of the eraseblock */
-#define NAND_BB_LAST_PAGE	0x00000400
 
 /* Device is one of 'new' xD cards that expose fake nand command set */
 #define NAND_BROKEN_XD		0x00000400

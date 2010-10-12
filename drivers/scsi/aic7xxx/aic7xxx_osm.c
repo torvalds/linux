@@ -653,7 +653,7 @@ ahc_linux_slave_alloc(struct scsi_device *sdev)
 	struct ahc_linux_device *dev;
 
 	if (bootverbose)
-		printf("%s: Slave Alloc %d\n", ahc_name(ahc), sdev->id);
+		printk("%s: Slave Alloc %d\n", ahc_name(ahc), sdev->id);
 
 	dev = scsi_transport_device_data(sdev);
 	memset(dev, 0, sizeof(*dev));
@@ -755,7 +755,7 @@ ahc_linux_abort(struct scsi_cmnd *cmd)
 
 	error = ahc_linux_queue_recovery_cmd(cmd, SCB_ABORT);
 	if (error != 0)
-		printf("aic7xxx_abort returns 0x%x\n", error);
+		printk("aic7xxx_abort returns 0x%x\n", error);
 	return (error);
 }
 
@@ -769,7 +769,7 @@ ahc_linux_dev_reset(struct scsi_cmnd *cmd)
 
 	error = ahc_linux_queue_recovery_cmd(cmd, SCB_DEVICE_RESET);
 	if (error != 0)
-		printf("aic7xxx_dev_reset returns 0x%x\n", error);
+		printk("aic7xxx_dev_reset returns 0x%x\n", error);
 	return (error);
 }
 
@@ -791,7 +791,7 @@ ahc_linux_bus_reset(struct scsi_cmnd *cmd)
 	ahc_unlock(ahc, &flags);
 
 	if (bootverbose)
-		printf("%s: SCSI bus reset delivered. "
+		printk("%s: SCSI bus reset delivered. "
 		       "%d SCBs aborted.\n", ahc_name(ahc), found);
 
 	return SUCCESS;
@@ -840,7 +840,7 @@ ahc_dma_tag_create(struct ahc_softc *ahc, bus_dma_tag_t parent,
 {
 	bus_dma_tag_t dmat;
 
-	dmat = malloc(sizeof(*dmat), M_DEVBUF, M_NOWAIT);
+	dmat = kmalloc(sizeof(*dmat), GFP_ATOMIC);
 	if (dmat == NULL)
 		return (ENOMEM);
 
@@ -861,7 +861,7 @@ ahc_dma_tag_create(struct ahc_softc *ahc, bus_dma_tag_t parent,
 void
 ahc_dma_tag_destroy(struct ahc_softc *ahc, bus_dma_tag_t dmat)
 {
-	free(dmat, M_DEVBUF);
+	kfree(dmat);
 }
 
 int
@@ -918,7 +918,7 @@ ahc_linux_setup_tag_info_global(char *p)
 	int tags, i, j;
 
 	tags = simple_strtoul(p + 1, NULL, 0) & 0xff;
-	printf("Setting Global Tags= %d\n", tags);
+	printk("Setting Global Tags= %d\n", tags);
 
 	for (i = 0; i < ARRAY_SIZE(aic7xxx_tag_info); i++) {
 		for (j = 0; j < AHC_NUM_TARGETS; j++) {
@@ -936,7 +936,7 @@ ahc_linux_setup_tag_info(u_long arg, int instance, int targ, int32_t value)
 	 && (targ < AHC_NUM_TARGETS)) {
 		aic7xxx_tag_info[instance].tag_commands[targ] = value & 0xff;
 		if (bootverbose)
-			printf("tag_info[%d:%d] = %d\n", instance, targ, value);
+			printk("tag_info[%d:%d] = %d\n", instance, targ, value);
 	}
 }
 
@@ -977,7 +977,7 @@ ahc_parse_brace_option(char *opt_name, char *opt_arg, char *end, int depth,
 					if (targ == -1)
 						targ = 0;
 				} else {
-					printf("Malformed Option %s\n",
+					printk("Malformed Option %s\n",
 					       opt_name);
 					done = TRUE;
 				}
@@ -1120,7 +1120,7 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 	ahc_set_unit(ahc, ahc_linux_unit++);
 	ahc_unlock(ahc, &s);
 	sprintf(buf, "scsi%d", host->host_no);
-	new_name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
+	new_name = kmalloc(strlen(buf) + 1, GFP_ATOMIC);
 	if (new_name != NULL) {
 		strcpy(new_name, buf);
 		ahc_set_name(ahc, new_name);
@@ -1220,7 +1220,7 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 {
 
 	ahc->platform_data =
-	    malloc(sizeof(struct ahc_platform_data), M_DEVBUF, M_NOWAIT);
+	    kmalloc(sizeof(struct ahc_platform_data), GFP_ATOMIC);
 	if (ahc->platform_data == NULL)
 		return (ENOMEM);
 	memset(ahc->platform_data, 0, sizeof(struct ahc_platform_data));
@@ -1264,7 +1264,7 @@ ahc_platform_free(struct ahc_softc *ahc)
 		if (ahc->platform_data->host)
 			scsi_host_put(ahc->platform_data->host);
 
-		free(ahc->platform_data, M_DEVBUF);
+		kfree(ahc->platform_data);
 	}
 }
 
@@ -1378,7 +1378,7 @@ ahc_linux_user_tagdepth(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		if (ahc->unit >= ARRAY_SIZE(aic7xxx_tag_info)) {
 			if (warned_user == 0) {
 
-				printf(KERN_WARNING
+				printk(KERN_WARNING
 "aic7xxx: WARNING: Insufficient tag_info instances\n"
 "aic7xxx: for installed controllers. Using defaults\n"
 "aic7xxx: Please update the aic7xxx_tag_info array in\n"
@@ -1421,7 +1421,7 @@ ahc_linux_device_queue_depth(struct scsi_device *sdev)
 		ahc_send_async(ahc, devinfo.channel, devinfo.target,
 			       devinfo.lun, AC_TRANSFER_NEG);
 		ahc_print_devinfo(ahc, &devinfo);
-		printf("Tagged Queuing enabled.  Depth %d\n", tags);
+		printk("Tagged Queuing enabled.  Depth %d\n", tags);
 	} else {
 		ahc_platform_set_tags(ahc, sdev, &devinfo, AHC_QUEUE_NONE);
 		ahc_send_async(ahc, devinfo.channel, devinfo.target,
@@ -1735,7 +1735,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		 * not have been dispatched to the controller, so
 		 * only check the SCB_ACTIVE flag for tagged transactions.
 		 */
-		printf("SCB %d done'd twice\n", scb->hscb->tag);
+		printk("SCB %d done'd twice\n", scb->hscb->tag);
 		ahc_dump_card_state(ahc);
 		panic("Stopping for safety");
 	}
@@ -1765,7 +1765,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 #ifdef AHC_DEBUG
 			if ((ahc_debug & AHC_SHOW_MISC) != 0) {
 				ahc_print_path(ahc, scb);
-				printf("Set CAM_UNCOR_PARITY\n");
+				printk("Set CAM_UNCOR_PARITY\n");
 			}
 #endif
 			ahc_set_transaction_status(scb, CAM_UNCOR_PARITY);
@@ -1783,12 +1783,12 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 			u_int i;
 
 			ahc_print_path(ahc, scb);
-			printf("CDB:");
+			printk("CDB:");
 			for (i = 0; i < scb->io_ctx->cmd_len; i++)
-				printf(" 0x%x", scb->io_ctx->cmnd[i]);
-			printf("\n");
+				printk(" 0x%x", scb->io_ctx->cmnd[i]);
+			printk("\n");
 			ahc_print_path(ahc, scb);
-			printf("Saw underflow (%ld of %ld bytes). "
+			printk("Saw underflow (%ld of %ld bytes). "
 			       "Treated as error\n",
 				ahc_get_residual(scb),
 				ahc_get_transfer_length(scb));
@@ -1821,7 +1821,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		dev->commands_since_idle_or_otag = 0;
 
 	if ((scb->flags & SCB_RECOVERY_SCB) != 0) {
-		printf("Recovery SCB completes\n");
+		printk("Recovery SCB completes\n");
 		if (ahc_get_transaction_status(scb) == CAM_BDR_SENT
 		 || ahc_get_transaction_status(scb) == CAM_REQ_ABORTED)
 			ahc_set_transaction_status(scb, CAM_CMD_TIMEOUT);
@@ -1886,14 +1886,14 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 			if (ahc_debug & AHC_SHOW_SENSE) {
 				int i;
 
-				printf("Copied %d bytes of sense data:",
+				printk("Copied %d bytes of sense data:",
 				       sense_size);
 				for (i = 0; i < sense_size; i++) {
 					if ((i & 0xF) == 0)
-						printf("\n");
-					printf("0x%x ", cmd->sense_buffer[i]);
+						printk("\n");
+					printk("0x%x ", cmd->sense_buffer[i]);
 				}
-				printf("\n");
+				printk("\n");
 			}
 #endif
 		}
@@ -1918,7 +1918,7 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 			dev->openings = 0;
 /*
 			ahc_print_path(ahc, scb);
-			printf("Dropping tag count to %d\n", dev->active);
+			printk("Dropping tag count to %d\n", dev->active);
  */
 			if (dev->active == dev->tags_on_last_queuefull) {
 
@@ -1935,7 +1935,7 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 				 == AHC_LOCK_TAGS_COUNT) {
 					dev->maxtags = dev->active;
 					ahc_print_path(ahc, scb);
-					printf("Locking max tag count at %d\n",
+					printk("Locking max tag count at %d\n",
 					       dev->active);
 				}
 			} else {
@@ -2100,10 +2100,10 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	scmd_printk(KERN_INFO, cmd, "Attempting to queue a%s message\n",
 	       flag == SCB_ABORT ? "n ABORT" : " TARGET RESET");
 
-	printf("CDB:");
+	printk("CDB:");
 	for (cdb_byte = 0; cdb_byte < cmd->cmd_len; cdb_byte++)
-		printf(" 0x%x", cmd->cmnd[cdb_byte]);
-	printf("\n");
+		printk(" 0x%x", cmd->cmnd[cdb_byte]);
+	printk("\n");
 
 	ahc_lock(ahc, &flags);
 
@@ -2121,7 +2121,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		 * No target device for this command exists,
 		 * so we must not still own the command.
 		 */
-		printf("%s:%d:%d:%d: Is not an active device\n",
+		printk("%s:%d:%d:%d: Is not an active device\n",
 		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
 		       cmd->device->lun);
 		retval = SUCCESS;
@@ -2133,7 +2133,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 				       cmd->device->channel + 'A',
 				       cmd->device->lun,
 				       CAM_REQ_ABORTED, SEARCH_COMPLETE) != 0) {
-		printf("%s:%d:%d:%d: Command found on untagged queue\n",
+		printk("%s:%d:%d:%d: Command found on untagged queue\n",
 		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
 		       cmd->device->lun);
 		retval = SUCCESS;
@@ -2187,7 +2187,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		goto no_cmd;
 	}
 
-	printf("%s: At time of recovery, card was %spaused\n",
+	printk("%s: At time of recovery, card was %spaused\n",
 	       ahc_name(ahc), was_paused ? "" : "not ");
 	ahc_dump_card_state(ahc);
 
@@ -2199,7 +2199,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 				       pending_scb->hscb->tag,
 				       ROLE_INITIATOR, CAM_REQ_ABORTED,
 				       SEARCH_COMPLETE) > 0) {
-			printf("%s:%d:%d:%d: Cmd aborted from QINFIFO\n",
+			printk("%s:%d:%d:%d: Cmd aborted from QINFIFO\n",
 			       ahc_name(ahc), cmd->device->channel,
 					cmd->device->id, cmd->device->lun);
 			retval = SUCCESS;
@@ -2313,7 +2313,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		ahc_qinfifo_requeue_tail(ahc, pending_scb);
 		ahc_outb(ahc, SCBPTR, saved_scbptr);
 		ahc_print_path(ahc, pending_scb);
-		printf("Device is disconnected, re-queuing SCB\n");
+		printk("Device is disconnected, re-queuing SCB\n");
 		wait = TRUE;
 	} else {
 		scmd_printk(KERN_INFO, cmd, "Unable to deliver message\n");
@@ -2338,16 +2338,16 @@ done:
 		ahc->platform_data->eh_done = &done;
 		ahc_unlock(ahc, &flags);
 
-		printf("Recovery code sleeping\n");
+		printk("Recovery code sleeping\n");
 		if (!wait_for_completion_timeout(&done, 5 * HZ)) {
 			ahc_lock(ahc, &flags);
 			ahc->platform_data->eh_done = NULL;
 			ahc_unlock(ahc, &flags);
 
-			printf("Timer Expired\n");
+			printk("Timer Expired\n");
 			retval = FAILED;
 		}
-		printf("Recovery code awake\n");
+		printk("Recovery code awake\n");
 	} else
 		ahc_unlock(ahc, &flags);
 	return (retval);

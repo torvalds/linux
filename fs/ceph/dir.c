@@ -27,7 +27,7 @@
 
 const struct inode_operations ceph_dir_iops;
 const struct file_operations ceph_dir_fops;
-struct dentry_operations ceph_dentry_ops;
+const struct dentry_operations ceph_dentry_ops;
 
 /*
  * Initialize ceph dentry state.
@@ -94,6 +94,8 @@ static unsigned fpos_off(loff_t p)
  */
 static int __dcache_readdir(struct file *filp,
 			    void *dirent, filldir_t filldir)
+		__releases(inode->i_lock)
+		__acquires(inode->i_lock)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct ceph_file_info *fi = filp->private_data;
@@ -1239,16 +1241,16 @@ const struct inode_operations ceph_dir_iops = {
 	.create = ceph_create,
 };
 
-struct dentry_operations ceph_dentry_ops = {
+const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
 	.d_release = ceph_dentry_release,
 };
 
-struct dentry_operations ceph_snapdir_dentry_ops = {
+const struct dentry_operations ceph_snapdir_dentry_ops = {
 	.d_revalidate = ceph_snapdir_d_revalidate,
 	.d_release = ceph_dentry_release,
 };
 
-struct dentry_operations ceph_snap_dentry_ops = {
+const struct dentry_operations ceph_snap_dentry_ops = {
 	.d_release = ceph_dentry_release,
 };

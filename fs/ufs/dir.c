@@ -95,8 +95,7 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 	int err;
 
 	lock_page(page);
-	err = __ufs_write_begin(NULL, page->mapping, pos, len,
-				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
+	err = ufs_prepare_chunk(page, pos, len);
 	BUG_ON(err);
 
 	de->d_ino = cpu_to_fs32(dir->i_sb, inode->i_ino);
@@ -381,8 +380,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 got_it:
 	pos = page_offset(page) +
 			(char*)de - (char*)page_address(page);
-	err = __ufs_write_begin(NULL, page->mapping, pos, rec_len,
-				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
+	err = ufs_prepare_chunk(page, pos, rec_len);
 	if (err)
 		goto out_unlock;
 	if (de->d_ino) {
@@ -518,7 +516,6 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 		     struct page * page)
 {
 	struct super_block *sb = inode->i_sb;
-	struct address_space *mapping = page->mapping;
 	char *kaddr = page_address(page);
 	unsigned from = ((char*)dir - kaddr) & ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
 	unsigned to = ((char*)dir - kaddr) + fs16_to_cpu(sb, dir->d_reclen);
@@ -549,8 +546,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 
 	pos = page_offset(page) + from;
 	lock_page(page);
-	err = __ufs_write_begin(NULL, mapping, pos, to - from,
-				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
+	err = ufs_prepare_chunk(page, pos, to - from);
 	BUG_ON(err);
 	if (pde)
 		pde->d_reclen = cpu_to_fs16(sb, to - from);
@@ -577,8 +573,7 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 	if (!page)
 		return -ENOMEM;
 
-	err = __ufs_write_begin(NULL, mapping, 0, chunk_size,
-				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
+	err = ufs_prepare_chunk(page, 0, chunk_size);
 	if (err) {
 		unlock_page(page);
 		goto fail;

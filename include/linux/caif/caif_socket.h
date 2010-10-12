@@ -62,6 +62,7 @@ enum caif_channel_priority {
  * @CAIFPROTO_DATAGRAM_LOOP:	Datagram loopback channel, used for testing.
  * @CAIFPROTO_UTIL:		Utility (Psock) channel.
  * @CAIFPROTO_RFM:		Remote File Manager
+ * @CAIFPROTO_DEBUG:		Debug link
  *
  * This enum defines the CAIF Channel type to be used. This defines
  * the service to connect to on the modem.
@@ -72,6 +73,7 @@ enum caif_protocol_type {
 	CAIFPROTO_DATAGRAM_LOOP,
 	CAIFPROTO_UTIL,
 	CAIFPROTO_RFM,
+	CAIFPROTO_DEBUG,
 	_CAIFPROTO_MAX
 };
 #define	CAIFPROTO_MAX _CAIFPROTO_MAX
@@ -82,6 +84,28 @@ enum caif_protocol_type {
  */
 enum caif_at_type {
 	CAIF_ATTYPE_PLAIN = 2
+};
+ /**
+ * enum caif_debug_type - Content selection for debug connection
+ * @CAIF_DEBUG_TRACE_INTERACTIVE: Connection will contain
+ *				both trace and interactive debug.
+ * @CAIF_DEBUG_TRACE:		Connection contains trace only.
+ * @CAIF_DEBUG_INTERACTIVE:	Connection to interactive debug.
+ */
+enum caif_debug_type {
+	CAIF_DEBUG_TRACE_INTERACTIVE = 0,
+	CAIF_DEBUG_TRACE,
+	CAIF_DEBUG_INTERACTIVE,
+};
+
+/**
+ * enum caif_debug_service - Debug Service Endpoint
+ * @CAIF_RADIO_DEBUG_SERVICE:	Debug service on the Radio sub-system
+ * @CAIF_APP_DEBUG_SERVICE:	Debug for the applications sub-system
+ */
+enum caif_debug_service {
+	CAIF_RADIO_DEBUG_SERVICE = 1,
+	CAIF_APP_DEBUG_SERVICE
 };
 
 /**
@@ -109,6 +133,12 @@ enum caif_at_type {
  *
  * @u.rfm.volume:            Volume to mount.
  *
+ * @u.dbg:		      Applies when family = CAIFPROTO_DEBUG.
+ *
+ * @u.dbg.type:			     Type of debug connection to set up
+ *			      (caif_debug_type).
+ *
+ * @u.dbg.service:	      Service sub-system to connect (caif_debug_service
  * Description:
  * This structure holds the connect parameters used for setting up a
  * CAIF Channel. It defines the service to connect to on the modem.
@@ -130,6 +160,10 @@ struct sockaddr_caif {
 			__u32 connection_id;
 			char	  volume[16];
 		} rfm;				/* CAIFPROTO_RFM */
+		struct {
+			__u8  type;		/* type:enum caif_debug_type */
+			__u8  service;		/* service:caif_debug_service */
+		} dbg;				/* CAIFPROTO_DEBUG */
 	} u;
 };
 

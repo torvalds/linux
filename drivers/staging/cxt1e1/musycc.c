@@ -405,7 +405,6 @@ musycc_update_tx_thp (mch_t * ch)
 }
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
 /*
  * This is the workq task executed by the OS when our queue_work() is
  * scheduled and run.  It can fire off either RX or TX ACTIVATION depending
@@ -515,7 +514,6 @@ musycc_wq_chan_restart (void *arg)      /* channel private structure */
 #endif
     }
 }
-#endif
 
 
  /*
@@ -531,7 +529,6 @@ musycc_chan_restart (mch_t * ch)
             ch->channum, ch->txd_irq_srv, ch->txd_irq_srv->status);
 #endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
     /* 2.6 - find next unprocessed message, then set TX thp to it */
 #ifdef RLD_RESTART_DEBUG
     pr_info(">> musycc_chan_restart: scheduling Chan %x workQ @ %p\n", ch->channum, &ch->ch_work);
@@ -539,50 +536,8 @@ musycc_chan_restart (mch_t * ch)
     c4_wk_chan_restart (ch);        /* work queue mechanism fires off: Ref:
                                      * musycc_wq_chan_restart () */
 
-#else
-
-
-    /* 2.4 - find next unprocessed message, then set TX thp to it */
-#ifdef RLD_RESTART_DEBUG
-    pr_info(">> musycc_chan_restart: scheduling Chan %x start_tx %x\n", ch->channum, ch->ch_start_tx);
-#endif
-    /* restart transmission from background loop */
-    ch->up->up->wd_notify = WD_NOTIFY_1TX;
-#endif
 }
 
-
-#if 0
-void
-musycc_cleanup (ci_t * ci)
-{
-    mpi_t      *pi;
-    int         i, j;
-
-    /* free up driver resources */
-    ci->state = C_INIT;             /* mark as hardware not available */
-
-    for (i = 0; i < ci->max_ports; i++)
-    {
-        pi = &ci->port[i];
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
-        c4_wq_port_cleanup (pi);
-#endif
-        for (j = 0; j < MUSYCC_NCHANS; j++)
-        {
-            if (pi->chan[j])
-                OS_kfree (pi->chan[j]); /* free mch_t struct */
-        }
-        OS_kfree (pi->regram_saved);
-    }
-#if 0
-    /* obsolete - watchdog is now static w/in ci_t */
-    OS_free_watchdog (ci->wd);
-#endif
-    OS_kfree (ci->iqd_p_saved);
-    OS_kfree (ci);
-}
-#endif
 
 void
 rld_put_led (mpi_t * pi, u_int32_t ledval)
@@ -2008,37 +1963,13 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
     atomic_add (len, &ci->tx_pending);
     ch->s.tx_packets++;
     ch->s.tx_bytes += len;
-#if 0
-    spin_unlock_irqrestore (&ch->ch_txlock, flags);   /* allow pending
-                                                       * interrupt to sneak
-                                                       * thru */
-#endif
-
     /*
      * If an ONR was seen, then channel requires poking to restart
      * transmission.
      */
     if (ch->ch_start_tx)
     {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,41)
-        SD_SEM_TAKE (&ci->sem_wdbusy, "_wd_");  /* only 1 thru here, per
-                                                 * board */
-        if ((ch->ch_start_tx == CH_START_TX_ONR) && (ch->p.chan_mode == CFG_CH_PROTO_TRANS))
-        {
-            /* ONR restart transmission from background loop */
-            ci->wd_notify = WD_NOTIFY_ONR;      /* enabled global watchdog
-                                                 * scan-thru  */
-        } else
-        {
-            /* start first transmission from background loop */
-            ci->wd_notify = WD_NOTIFY_1TX;      /* enabled global watchdog
-                                                 * scan-thru  */
-        }
         musycc_chan_restart (ch);
-        SD_SEM_GIVE (&ci->sem_wdbusy);
-#else
-        musycc_chan_restart (ch);
-#endif
     }
 #ifdef SBE_WAN256T3_ENABLE
     wan256t3_led (ci, LED_TX, LEDV_G);
@@ -2046,140 +1977,5 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
     return 0;
 }
 
-
-#if 0
-int
-musycc_set_chan (ci_t * ci, int channum, struct sbecom_chan_param * p)
-{
-    mch_t      *ch;
-    int         rok = 0;
-    int         n = 0;
-
-    if (channum < 0 || channum >= (MUSYCC_NPORTS * MUSYCC_NCHANS))      /* sanity chk param */
-        return ECHRNG;
-    if (!(ch = sd_find_chan (ci, channum)))
-        return ENOENT;
-    if (ch->channum != p->channum)
-        return EINVAL;
-    if (sd_line_is_ok (ch->user))
-    {
-        rok = 1;
-        sd_line_is_down (ch->user);
-    }
-    if (ch->state == UP &&          /* bring down in current configuration */
-        (ch->p.status != p->status ||
-         ch->p.chan_mode != p->chan_mode ||
-         ch->p.intr_mask != p->intr_mask ||
-         ch->txd_free < ch->txd_num))
-    {
-        if ((n = musycc_chan_down (ci, channum)))
-            return n;
-        if (ch->p.mode_56k != p->mode_56k)
-        {
-            ch->p = *p;             /* copy in new parameters */
-            musycc_update_timeslots (&ci->port[ch->channum / MUSYCC_NCHANS]);
-        } else
-            ch->p = *p;             /* copy in new parameters */
-        if ((n = musycc_chan_up (ci, channum)))
-            return n;
-        sd_enable_xmit (ch->user);  /* re-enable to catch flow controlled
-                                     * channel */
-    } else
-    {
-        if (ch->p.mode_56k != p->mode_56k)
-        {
-            ch->p = *p;             /* copy in new parameters */
-            musycc_update_timeslots (&ci->port[ch->channum / MUSYCC_NCHANS]);
-        } else
-            ch->p = *p;             /* copy in new parameters */
-    }
-
-    if (rok)
-        sd_line_is_up (ch->user);
-    return 0;
-}
-#endif
-
-
-int
-musycc_get_chan (ci_t * ci, int channum, struct sbecom_chan_param * p)
-{
-    mch_t      *ch;
-
-#if 0
-    if (channum < 0 || channum >= (MUSYCC_NPORTS * MUSYCC_NCHANS))      /* sanity chk param */
-        return ECHRNG;
-#endif
-    if (!(ch = sd_find_chan (ci, channum)))
-        return ENOENT;
-    *p = ch->p;
-    return 0;
-}
-
-
-int
-musycc_get_chan_stats (ci_t * ci, int channum, struct sbecom_chan_stats * p)
-{
-    mch_t      *ch;
-
-    if (channum < 0 || channum >= (MUSYCC_NPORTS * MUSYCC_NCHANS))      /* sanity chk param */
-        return ECHRNG;
-    if (!(ch = sd_find_chan (ci, channum)))
-        return ENOENT;
-    *p = ch->s;
-    p->tx_pending = atomic_read (&ch->tx_pending);
-    return 0;
-}
-
-
-
-#ifdef SBE_WAN256T3_ENABLE
-int
-musycc_chan_down (ci_t * ci, int channum)
-{
-    mch_t      *ch;
-    mpi_t      *pi;
-    int         i, gchan;
-
-    if (!(ch = sd_find_chan (ci, channum)))
-        return EINVAL;
-    pi = ch->up;
-    gchan = ch->gchan;
-
-    /* Deactivate the channel */
-    musycc_serv_req (pi, SR_CHANNEL_DEACTIVATE | SR_RX_DIRECTION | gchan);
-    ch->ch_start_rx = 0;
-    musycc_serv_req (pi, SR_CHANNEL_DEACTIVATE | SR_TX_DIRECTION | gchan);
-    ch->ch_start_tx = 0;
-
-    if (ch->state == DOWN)
-        return 0;
-    ch->state = DOWN;
-
-    pi->regram->thp[gchan] = 0;
-    pi->regram->tmp[gchan] = 0;
-    pi->regram->rhp[gchan] = 0;
-    pi->regram->rmp[gchan] = 0;
-    FLUSH_MEM_WRITE ();
-    for (i = 0; i < ch->txd_num; i++)
-    {
-        if (ch->mdt[i].mem_token != 0)
-            OS_mem_token_free (ch->mdt[i].mem_token);
-    }
-
-    for (i = 0; i < ch->rxd_num; i++)
-    {
-        if (ch->mdr[i].mem_token != 0)
-            OS_mem_token_free (ch->mdr[i].mem_token);
-    }
-
-    OS_kfree (ch->mdt);
-    ch->mdt = 0;
-    OS_kfree (ch->mdr);
-    ch->mdr = 0;
-
-    return 0;
-}
-#endif
 
 /*** End-of-File ***/

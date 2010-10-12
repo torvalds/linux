@@ -57,10 +57,20 @@ config S3C64XX_SETUP_I2C1
 	help
 	  Common setup code for i2c bus 1.
 
+config S3C64XX_SETUP_IDE
+	bool
+	help
+	  Common setup code for S3C64XX IDE.
+
 config S3C64XX_SETUP_FB_24BPP
 	bool
 	help
 	  Common setup code for S3C64XX with an 24bpp RGB display helper.
+
+config S3C64XX_SETUP_KEYPAD
+	bool
+	help
+	  Common setup code for S3C64XX KEYPAD GPIO configurations
 
 config S3C64XX_SETUP_SDHCI_GPIO
 	bool
@@ -88,6 +98,15 @@ config MACH_ANW6410
 	help
 	  Machine support for the A&W6410
 
+config MACH_REAL6410
+	bool "REAL6410"
+	select CPU_S3C6410
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C64XX_SETUP_SDHCI
+	help
+	  Machine support for the CoreWind REAL6410
+
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
@@ -95,15 +114,20 @@ config MACH_SMDK6410
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_I2C1
+	select SAMSUNG_DEV_IDE
 	select S3C_DEV_FB
+	select S3C_DEV_RTC
 	select SAMSUNG_DEV_TS
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_WDT
+	select SAMSUNG_DEV_KEYPAD
 	select HAVE_S3C2410_WATCHDOG
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_I2C1
+	select S3C64XX_SETUP_IDE
 	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_KEYPAD
 	help
 	  Machine support for the Samsung SMDK6410
 

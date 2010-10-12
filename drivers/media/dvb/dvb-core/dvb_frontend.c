@@ -465,7 +465,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	if ((fepriv->state & FESTATE_SEARCHING_FAST) || (fepriv->state & FESTATE_RETUNE)) {
 		fepriv->delay = fepriv->min_delay;
 
-		/* peform a tune */
+		/* perform a tune */
 		retval = dvb_frontend_swzigzag_autotune(fe,
 							fepriv->check_wrapped);
 		if (retval < 0) {
@@ -791,7 +791,7 @@ static int dvb_frontend_start(struct dvb_frontend *fe)
 	return 0;
 }
 
-static void dvb_frontend_get_frequeny_limits(struct dvb_frontend *fe,
+static void dvb_frontend_get_frequency_limits(struct dvb_frontend *fe,
 					u32 *freq_min, u32 *freq_max)
 {
 	*freq_min = max(fe->ops.info.frequency_min, fe->ops.tuner_ops.info.frequency_min);
@@ -815,7 +815,7 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 	u32 freq_max;
 
 	/* range check: frequency */
-	dvb_frontend_get_frequeny_limits(fe, &freq_min, &freq_max);
+	dvb_frontend_get_frequency_limits(fe, &freq_min, &freq_max);
 	if ((freq_min && parms->frequency < freq_min) ||
 	    (freq_max && parms->frequency > freq_max)) {
 		printk(KERN_WARNING "DVB: adapter %i frontend %i frequency %u out of range (%u..%u)\n",
@@ -1627,7 +1627,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	case FE_GET_INFO: {
 		struct dvb_frontend_info* info = parg;
 		memcpy(info, &fe->ops.info, sizeof(struct dvb_frontend_info));
-		dvb_frontend_get_frequeny_limits(fe, &info->frequency_min, &info->frequency_max);
+		dvb_frontend_get_frequency_limits(fe, &info->frequency_min, &info->frequency_max);
 
 		/* Force the CAN_INVERSION_AUTO bit on. If the frontend doesn't
 		 * do it, it is done for it. */
@@ -1726,7 +1726,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			 * (stv0299 for instance) take longer than 8msec to
 			 * respond to a set_voltage command.  Those switches
 			 * need custom routines to switch properly.  For all
-			 * other frontends, the following shoule work ok.
+			 * other frontends, the following should work ok.
 			 * Dish network legacy switches (as used by Dish500)
 			 * are controlled by sending 9-bit command words
 			 * spaced 8msec apart.

@@ -369,7 +369,7 @@ struct snd_soc_platform mpc5200_audio_dma_platform = {
 };
 EXPORT_SYMBOL_GPL(mpc5200_audio_dma_platform);
 
-int mpc5200_audio_dma_create(struct of_device *op)
+int mpc5200_audio_dma_create(struct platform_device *op)
 {
 	phys_addr_t fifo;
 	struct psc_dma *psc_dma;
@@ -488,7 +488,7 @@ out_unmap:
 }
 EXPORT_SYMBOL_GPL(mpc5200_audio_dma_create);
 
-int mpc5200_audio_dma_destroy(struct of_device *op)
+int mpc5200_audio_dma_destroy(struct platform_device *op)
 {
 	struct psc_dma *psc_dma = dev_get_drvdata(&op->dev);
 

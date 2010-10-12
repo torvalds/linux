@@ -46,20 +46,10 @@ config FB_MSM_LCDC_PRISM_WVGA
 	select FB_MSM_LCDC_PANEL
 	default n
 
-config FB_MSM_LCDC_ST1_WXGA
-	bool
-	select FB_MSM_LCDC_PANEL
-	default n
-
 config FB_MSM_LCDC_ST15_WXGA
         bool
         select FB_MSM_LCDC_PANEL
         default n
-
-config FB_MSM_LCDC_WXGA
-	bool
-	select FB_MSM_LCDC_PANEL
-	default n
 
 choice
 	prompt "LCD Panel"

@@ -507,6 +507,22 @@ out_unlock:
 	return ret;
 }
 
+static int p54_get_survey(struct ieee80211_hw *dev, int idx,
+				struct survey_info *survey)
+{
+	struct p54_common *priv = dev->priv;
+	struct ieee80211_conf *conf = &dev->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = clamp_t(s8, priv->noise, -128, 127);
+
+	return 0;
+}
+
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx_80211,
 	.start			= p54_start,
@@ -523,6 +539,7 @@ static const struct ieee80211_ops p54_ops = {
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
+	.get_survey		= p54_get_survey,
 };
 
 struct ieee80211_hw *p54_init_common(size_t priv_data_len)

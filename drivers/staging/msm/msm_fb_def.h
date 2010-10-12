@@ -50,15 +50,11 @@
 #include <linux/debugfs.h>
 #include <linux/console.h>
 
-#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/time.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
-#include "linux/proc_fs.h"
 #include <mach/hardware.h>
 #include <linux/io.h>
-#include <linux/fb.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <linux/platform_device.h>

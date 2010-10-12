@@ -152,7 +152,9 @@ struct acpi_video_bus {
 	struct acpi_video_bus_flags flags;
 	struct list_head video_device_list;
 	struct mutex device_list_lock;	/* protects video_device_list */
+#ifdef CONFIG_ACPI_PROCFS
 	struct proc_dir_entry *dir;
+#endif
 	struct input_dev *input;
 	char phys[32];	/* for input device */
 	struct notifier_block pm_nb;
@@ -208,6 +210,7 @@ struct acpi_video_device {
 	struct output_device *output_dev;
 };
 
+#ifdef CONFIG_ACPI_PROCFS
 /* bus */
 static int acpi_video_bus_info_open_fs(struct inode *inode, struct file *file);
 static const struct file_operations acpi_video_bus_info_fops = {
@@ -307,6 +310,7 @@ static const struct file_operations acpi_video_device_EDID_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif /* CONFIG_ACPI_PROCFS */
 
 static const char device_decode[][30] = {
 	"motherboard VGA device",
@@ -448,16 +452,6 @@ static struct thermal_cooling_device_ops video_cooling_ops = {
    -------------------------------------------------------------------------- */
 
 /* device */
-
-static int
-acpi_video_device_query(struct acpi_video_device *device, unsigned long long *state)
-{
-	int status;
-
-	status = acpi_evaluate_integer(device->dev->handle, "_DGS", NULL, state);
-
-	return status;
-}
 
 static int
 acpi_video_device_get_state(struct acpi_video_device *device,
@@ -697,46 +691,6 @@ acpi_video_device_EDID(struct acpi_video_device *device,
 }
 
 /* bus */
-
-static int
-acpi_video_bus_set_POST(struct acpi_video_bus *video, unsigned long option)
-{
-	int status;
-	unsigned long long tmp;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list args = { 1, &arg0 };
-
-
-	arg0.integer.value = option;
-
-	status = acpi_evaluate_integer(video->device->handle, "_SPD", &args, &tmp);
-	if (ACPI_SUCCESS(status))
-		status = tmp ? (-EINVAL) : (AE_OK);
-
-	return status;
-}
-
-static int
-acpi_video_bus_get_POST(struct acpi_video_bus *video, unsigned long long *id)
-{
-	int status;
-
-	status = acpi_evaluate_integer(video->device->handle, "_GPD", NULL, id);
-
-	return status;
-}
-
-static int
-acpi_video_bus_POST_options(struct acpi_video_bus *video,
-			    unsigned long long *options)
-{
-	int status;
-
-	status = acpi_evaluate_integer(video->device->handle, "_VPO", NULL, options);
-	*options &= 3;
-
-	return status;
-}
 
 /*
  *  Arg:
@@ -1159,6 +1113,7 @@ static int acpi_video_bus_check(struct acpi_video_bus *video)
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_PROCFS
 
 static struct proc_dir_entry *acpi_video_dir;
 
@@ -1196,6 +1151,18 @@ acpi_video_device_info_open_fs(struct inode *inode, struct file *file)
 {
 	return single_open(file, acpi_video_device_info_seq_show,
 			   PDE(inode)->data);
+}
+
+static int
+acpi_video_device_query(struct acpi_video_device *device,
+			unsigned long long *state)
+{
+	int status;
+
+	status = acpi_evaluate_integer(device->dev->handle, "_DGS",
+				       NULL, state);
+
+	return status;
 }
 
 static int acpi_video_device_state_seq_show(struct seq_file *seq, void *offset)
@@ -1492,6 +1459,19 @@ static int acpi_video_bus_ROM_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_video_bus_ROM_seq_show, PDE(inode)->data);
 }
 
+static int
+acpi_video_bus_POST_options(struct acpi_video_bus *video,
+			    unsigned long long *options)
+{
+	int status;
+
+	status = acpi_evaluate_integer(video->device->handle, "_VPO",
+				       NULL, options);
+	*options &= 3;
+
+	return status;
+}
+
 static int acpi_video_bus_POST_info_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_video_bus *video = seq->private;
@@ -1528,6 +1508,16 @@ acpi_video_bus_POST_info_open_fs(struct inode *inode, struct file *file)
 {
 	return single_open(file, acpi_video_bus_POST_info_seq_show,
 			   PDE(inode)->data);
+}
+
+static int
+acpi_video_bus_get_POST(struct acpi_video_bus *video, unsigned long long *id)
+{
+	int status;
+
+	status = acpi_evaluate_integer(video->device->handle, "_GPD", NULL, id);
+
+	return status;
 }
 
 static int acpi_video_bus_POST_seq_show(struct seq_file *seq, void *offset)
@@ -1570,6 +1560,25 @@ static int acpi_video_bus_POST_open_fs(struct inode *inode, struct file *file)
 static int acpi_video_bus_DOS_open_fs(struct inode *inode, struct file *file)
 {
 	return single_open(file, acpi_video_bus_DOS_seq_show, PDE(inode)->data);
+}
+
+static int
+acpi_video_bus_set_POST(struct acpi_video_bus *video, unsigned long option)
+{
+	int status;
+	unsigned long long tmp;
+	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list args = { 1, &arg0 };
+
+
+	arg0.integer.value = option;
+
+	status = acpi_evaluate_integer(video->device->handle, "_SPD",
+				       &args, &tmp);
+	if (ACPI_SUCCESS(status))
+		status = tmp ? (-EINVAL) : (AE_OK);
+
+	return status;
 }
 
 static ssize_t
@@ -1722,6 +1731,24 @@ static int acpi_video_bus_remove_fs(struct acpi_device *device)
 
 	return 0;
 }
+#else
+static inline int acpi_video_device_add_fs(struct acpi_device *device)
+{
+	return 0;
+}
+static inline int acpi_video_device_remove_fs(struct acpi_device *device)
+{
+	return 0;
+}
+static inline int acpi_video_bus_add_fs(struct acpi_device *device)
+{
+	return 0;
+}
+static inline int acpi_video_bus_remove_fs(struct acpi_device *device)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI_PROCFS */
 
 /* --------------------------------------------------------------------------
                                  Driver Interface
@@ -2140,7 +2167,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 		status = acpi_video_bus_get_one_device(dev, video);
 		if (ACPI_FAILURE(status)) {
 			printk(KERN_WARNING PREFIX
-					"Cant attach device");
+					"Cant attach device\n");
 			continue;
 		}
 	}
@@ -2150,19 +2177,19 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 {
 	acpi_status status;
-	struct acpi_video_bus *video;
-
 
 	if (!device || !device->video)
 		return -ENOENT;
-
-	video = device->video;
 
 	acpi_video_device_remove_fs(device->dev);
 
 	status = acpi_remove_notify_handler(device->dev->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_WARNING PREFIX
+		       "Cant remove video notify handler\n");
+	}
 	if (device->backlight) {
 		sysfs_remove_link(&device->backlight->dev.kobj, "device");
 		backlight_device_unregister(device->backlight);
@@ -2557,9 +2584,11 @@ int acpi_video_register(void)
 		return 0;
 	}
 
+#ifdef CONFIG_ACPI_PROCFS
 	acpi_video_dir = proc_mkdir(ACPI_VIDEO_CLASS, acpi_root_dir);
 	if (!acpi_video_dir)
 		return -ENODEV;
+#endif
 
 	result = acpi_bus_register_driver(&acpi_video_bus);
 	if (result < 0) {
@@ -2588,7 +2617,9 @@ void acpi_video_unregister(void)
 	}
 	acpi_bus_unregister_driver(&acpi_video_bus);
 
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_VIDEO_CLASS, acpi_root_dir);
+#endif
 
 	register_count = 0;
 

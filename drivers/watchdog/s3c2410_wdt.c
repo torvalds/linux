@@ -532,21 +532,22 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 static int __devexit s3c2410wdt_remove(struct platform_device *dev)
 {
+	misc_deregister(&s3c2410wdt_miscdev);
+
 	s3c2410wdt_cpufreq_deregister();
-
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
-	wdt_mem = NULL;
-
-	free_irq(wdt_irq->start, dev);
-	wdt_irq = NULL;
 
 	clk_disable(wdt_clock);
 	clk_put(wdt_clock);
 	wdt_clock = NULL;
 
+	free_irq(wdt_irq->start, dev);
+	wdt_irq = NULL;
+
 	iounmap(wdt_base);
-	misc_deregister(&s3c2410wdt_miscdev);
+
+	release_resource(wdt_mem);
+	kfree(wdt_mem);
+	wdt_mem = NULL;
 	return 0;
 }
 

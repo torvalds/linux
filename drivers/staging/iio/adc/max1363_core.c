@@ -18,21 +18,19 @@
   *
   * Not currently implemented.
   *
-  * - Monitor interrrupt generation.
   * - Control of internal reference.
   */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
-#include <linux/rtc.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -48,7 +46,7 @@
 	IIO_SCAN_EL_C(in##number, number, IIO_UNSIGNED(16), 0, NULL);
 #define MAX1363_SCAN_EL_D(p, n, number)					\
 	IIO_SCAN_NAMED_EL_C(in##p##m##in##n, in##p-in##n,		\
-			number, IIO_SIGNED(16), 0 , NULL);
+			number, IIO_SIGNED(16), 0, NULL);
 
 static MAX1363_SCAN_EL(0);
 static MAX1363_SCAN_EL(1);
@@ -148,7 +146,7 @@ const struct max1363_mode
 			      mask))
 				return &max1363_mode_table[ci->mode_list[i]];
 	return NULL;
-};
+}
 
 static ssize_t max1363_show_precision(struct device *dev,
 				struct device_attribute *attr,
@@ -167,7 +165,7 @@ static int max1363_write_basic_config(struct i2c_client *client,
 				      unsigned char d2)
 {
 	int ret;
-	u8 *tx_buf = kmalloc(2 , GFP_KERNEL);
+	u8 *tx_buf = kmalloc(2, GFP_KERNEL);
 
 	if (!tx_buf)
 		return -ENOMEM;
@@ -206,6 +204,16 @@ static ssize_t max1363_read_single_channel(struct device *dev,
 	long mask;
 
 	mutex_lock(&dev_info->mlock);
+	/*
+	 * If monitor mode is enabled, the method for reading a single
+	 * channel will have to be rather different and has not yet
+	 * been implemented.
+	 */
+	if (st->monitor_on) {
+		ret = -EBUSY;
+		goto error_ret;
+	}
+
 	/* If ring buffer capture is occuring, query the buffer */
 	if (iio_ring_enabled(dev_info)) {
 		mask = max1363_mode_table[this_attr->address].modemask;
@@ -305,7 +313,7 @@ static ssize_t max1363_show_name(struct device *dev,
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	struct max1363_state *st = iio_dev_get_devdata(dev_info);
-	return sprintf(buf, "%s\n", st->chip_info->name);
+	return sprintf(buf, "%s\n", st->client->name);
 }
 
 static IIO_DEVICE_ATTR(name, S_IRUGO, max1363_show_name, NULL, 0);
@@ -552,8 +560,7 @@ enum { max1361,
 
 /* max1363 and max1368 tested - rest from data sheet */
 static const struct max1363_chip_info max1363_chip_info_tbl[] = {
-	{
-		.name = "max1361",
+	[max1361] = {
 		.num_inputs = 4,
 		.bits = 10,
 		.int_vref_mv = 2048,
@@ -563,8 +570,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1362",
+	},
+	[max1362] = {
 		.num_inputs = 4,
 		.bits = 10,
 		.int_vref_mv = 4096,
@@ -574,8 +581,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1363",
+	},
+	[max1363] = {
 		.num_inputs = 4,
 		.bits = 12,
 		.int_vref_mv = 2048,
@@ -585,8 +592,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1364",
+	},
+	[max1364] = {
 		.num_inputs = 4,
 		.bits = 12,
 		.int_vref_mv = 4096,
@@ -596,8 +603,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1036",
+	},
+	[max1036] = {
 		.num_inputs = 4,
 		.bits = 8,
 		.int_vref_mv = 4096,
@@ -606,8 +613,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1037",
+	},
+	[max1037] = {
 		.num_inputs = 4,
 		.bits = 8,
 		.int_vref_mv = 2048,
@@ -616,8 +623,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1038",
+	},
+	[max1038] = {
 		.num_inputs = 12,
 		.bits = 8,
 		.int_vref_mv = 4096,
@@ -626,8 +633,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max1039",
+	},
+	[max1039] = {
 		.num_inputs = 12,
 		.bits = 8,
 		.int_vref_mv = 2048,
@@ -636,8 +643,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max1136",
+	},
+	[max1136] = {
 		.num_inputs = 4,
 		.bits = 10,
 		.int_vref_mv = 4096,
@@ -646,8 +653,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1137",
+	},
+	[max1137] = {
 		.num_inputs = 4,
 		.bits = 10,
 		.int_vref_mv = 2048,
@@ -656,8 +663,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1138",
+	},
+	[max1138] = {
 		.num_inputs = 12,
 		.bits = 10,
 		.int_vref_mv = 4096,
@@ -666,8 +673,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max1139",
+	},
+	[max1139] = {
 		.num_inputs = 12,
 		.bits = 10,
 		.int_vref_mv = 2048,
@@ -676,8 +683,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max1236",
+	},
+	[max1236] = {
 		.num_inputs = 4,
 		.bits = 12,
 		.int_vref_mv = 4096,
@@ -686,8 +693,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1237",
+	},
+	[max1237] = {
 		.num_inputs = 4,
 		.bits = 12,
 		.int_vref_mv = 2048,
@@ -696,8 +703,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max1238",
+	},
+	[max1238] = {
 		.num_inputs = 12,
 		.bits = 12,
 		.int_vref_mv = 4096,
@@ -706,8 +713,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max1239",
+	},
+	[max1239] = {
 		.num_inputs = 12,
 		.bits = 12,
 		.int_vref_mv = 2048,
@@ -716,8 +723,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max11600",
+	},
+	[max11600] = {
 		.num_inputs = 4,
 		.bits = 8,
 		.int_vref_mv = 4096,
@@ -726,8 +733,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max11601",
+	},
+	[max11601] = {
 		.num_inputs = 4,
 		.bits = 8,
 		.int_vref_mv = 2048,
@@ -736,8 +743,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max11602",
+	},
+	[max11602] = {
 		.num_inputs = 8,
 		.bits = 8,
 		.int_vref_mv = 4096,
@@ -746,8 +753,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to7,
 		.dev_attrs = &max11608_dev_attr_group,
 		.scan_attrs = &max11608_scan_el_group,
-	}, {
-		.name = "max11603",
+	},
+	[max11603] = {
 		.num_inputs = 8,
 		.bits = 8,
 		.int_vref_mv = 2048,
@@ -756,8 +763,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to7,
 		.dev_attrs = &max11608_dev_attr_group,
 		.scan_attrs = &max11608_scan_el_group,
-	}, {
-		.name = "max11604",
+	},
+	[max11604] = {
 		.num_inputs = 12,
 		.bits = 8,
 		.int_vref_mv = 4098,
@@ -766,8 +773,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max11605",
+	},
+	[max11605] = {
 		.num_inputs = 12,
 		.bits = 8,
 		.int_vref_mv = 2048,
@@ -776,8 +783,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max11606",
+	},
+	[max11606] = {
 		.num_inputs = 4,
 		.bits = 10,
 		.int_vref_mv = 4096,
@@ -786,8 +793,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max11607",
+	},
+	[max11607] = {
 		.num_inputs = 4,
 		.bits = 10,
 		.int_vref_mv = 2048,
@@ -796,8 +803,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max11608",
+	},
+	[max11608] = {
 		.num_inputs = 8,
 		.bits = 10,
 		.int_vref_mv = 4096,
@@ -806,8 +813,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to7,
 		.dev_attrs = &max11608_dev_attr_group,
 		.scan_attrs = &max11608_scan_el_group,
-	}, {
-		.name = "max11609",
+	},
+	[max11609] = {
 		.num_inputs = 8,
 		.bits = 10,
 		.int_vref_mv = 2048,
@@ -816,8 +823,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to7,
 		.dev_attrs = &max11608_dev_attr_group,
 		.scan_attrs = &max11608_scan_el_group,
-	}, {
-		.name = "max11610",
+	},
+	[max11610] = {
 		.num_inputs = 12,
 		.bits = 10,
 		.int_vref_mv = 4098,
@@ -826,8 +833,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max11611",
+	},
+	[max11611] = {
 		.num_inputs = 12,
 		.bits = 10,
 		.int_vref_mv = 2048,
@@ -836,8 +843,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max11612",
+	},
+	[max11612] = {
 		.num_inputs = 4,
 		.bits = 12,
 		.int_vref_mv = 4096,
@@ -846,8 +853,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max11613",
+	},
+	[max11613] = {
 		.num_inputs = 4,
 		.bits = 12,
 		.int_vref_mv = 2048,
@@ -856,8 +863,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
-	}, {
-		.name = "max11614",
+	},
+	[max11614] = {
 		.num_inputs = 8,
 		.bits = 12,
 		.int_vref_mv = 4096,
@@ -866,8 +873,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to7,
 		.dev_attrs = &max11608_dev_attr_group,
 		.scan_attrs = &max11608_scan_el_group,
-	}, {
-		.name = "max11615",
+	},
+	[max11615] = {
 		.num_inputs = 8,
 		.bits = 12,
 		.int_vref_mv = 2048,
@@ -876,8 +883,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to7,
 		.dev_attrs = &max11608_dev_attr_group,
 		.scan_attrs = &max11608_scan_el_group,
-	}, {
-		.name = "max11616",
+	},
+	[max11616] = {
 		.num_inputs = 12,
 		.bits = 12,
 		.int_vref_mv = 4098,
@@ -886,8 +893,8 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to11,
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
-	}, {
-		.name = "max11617",
+	},
+	[max11617] = {
 		.num_inputs = 12,
 		.bits = 12,
 		.int_vref_mv = 2048,
@@ -897,6 +904,668 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.dev_attrs = &max1238_dev_attr_group,
 		.scan_attrs = &max1238_scan_el_group,
 	}
+};
+
+static const int max1363_monitor_speeds[] = { 133000, 665000, 33300, 16600,
+					      8300, 4200, 2000, 1000 };
+
+static ssize_t max1363_monitor_show_freq(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	return sprintf(buf, "%d\n", max1363_monitor_speeds[st->monitor_speed]);
+}
+
+static ssize_t max1363_monitor_store_freq(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t len)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	int i, ret;
+	unsigned long val;
+	bool found = false;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(max1363_monitor_speeds); i++)
+		if (val == max1363_monitor_speeds[i]) {
+			found = true;
+			break;
+		}
+	if (!found)
+		return -EINVAL;
+
+	mutex_lock(&dev_info->mlock);
+	st->monitor_speed = i;
+	mutex_unlock(&dev_info->mlock);
+
+	return 0;
+}
+
+static IIO_DEV_ATTR_SAMP_FREQ(S_IRUGO | S_IWUSR,
+			max1363_monitor_show_freq,
+			max1363_monitor_store_freq);
+
+static IIO_CONST_ATTR(sampling_frequency_available,
+		"133000 665000 33300 16600 8300 4200 2000 1000");
+
+static ssize_t max1363_show_thresh(struct device *dev,
+				struct device_attribute *attr,
+				char *buf,
+				bool high)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+
+	if (high)
+		return sprintf(buf, "%d\n",
+			st->thresh_high[this_attr->address]);
+	else
+		return sprintf(buf, "%d\n",
+			st->thresh_low[this_attr->address & 0x7]);
+}
+
+static ssize_t max1363_show_thresh_low(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	return max1363_show_thresh(dev, attr, buf, false);
+}
+
+static ssize_t max1363_show_thresh_high(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return max1363_show_thresh(dev, attr, buf, true);
+}
+
+static ssize_t max1363_store_thresh_unsigned(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t len,
+					bool high)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	unsigned long val;
+	int ret;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+	switch (st->chip_info->bits) {
+	case 10:
+		if (val > 0x3FF)
+			return -EINVAL;
+		break;
+	case 12:
+		if (val > 0xFFF)
+			return -EINVAL;
+		break;
+	}
+
+	switch (high) {
+	case 1:
+		st->thresh_high[this_attr->address] = val;
+		break;
+	case 0:
+		st->thresh_low[this_attr->address & 0x7] = val;
+		break;
+	}
+
+	return len;
+}
+
+static ssize_t max1363_store_thresh_high_unsigned(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t len)
+{
+	return max1363_store_thresh_unsigned(dev, attr, buf, len, true);
+}
+
+static ssize_t max1363_store_thresh_low_unsigned(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t len)
+{
+	return max1363_store_thresh_unsigned(dev, attr, buf, len, false);
+}
+
+static ssize_t max1363_store_thresh_signed(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t len,
+					bool high)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	long val;
+	int ret;
+
+	ret = strict_strtol(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+	switch (st->chip_info->bits) {
+	case 10:
+		if (val < -512 || val > 511)
+			return -EINVAL;
+		break;
+	case 12:
+		if (val < -2048 || val > 2047)
+			return -EINVAL;
+		break;
+	}
+
+	switch (high) {
+	case 1:
+		st->thresh_high[this_attr->address] = val;
+		break;
+	case 0:
+		st->thresh_low[this_attr->address & 0x7] = val;
+		break;
+	}
+
+	return len;
+}
+
+static ssize_t max1363_store_thresh_high_signed(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t len)
+{
+	return max1363_store_thresh_signed(dev, attr, buf, len, true);
+}
+
+static ssize_t max1363_store_thresh_low_signed(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t len)
+{
+	return max1363_store_thresh_signed(dev, attr, buf, len, false);
+}
+
+static IIO_DEVICE_ATTR(in0_thresh_high_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_high,
+		max1363_store_thresh_high_unsigned, 0);
+static IIO_DEVICE_ATTR(in0_thresh_low_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_low,
+		max1363_store_thresh_low_unsigned, 0);
+static IIO_DEVICE_ATTR(in1_thresh_high_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_high,
+		max1363_store_thresh_high_unsigned, 1);
+static IIO_DEVICE_ATTR(in1_thresh_low_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_low,
+		max1363_store_thresh_low_unsigned, 1);
+static IIO_DEVICE_ATTR(in2_thresh_high_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_high,
+		max1363_store_thresh_high_unsigned, 2);
+static IIO_DEVICE_ATTR(in2_thresh_low_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_low,
+		max1363_store_thresh_low_unsigned, 2);
+static IIO_DEVICE_ATTR(in3_thresh_high_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_high,
+		max1363_store_thresh_high_unsigned, 3);
+static IIO_DEVICE_ATTR(in3_thresh_low_value, S_IRUGO | S_IWUSR,
+		max1363_show_thresh_low,
+		max1363_store_thresh_low_unsigned, 3);
+
+static IIO_DEVICE_ATTR_NAMED(in0min1_thresh_high_value,
+			in0-in1_thresh_high_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_high,
+			max1363_store_thresh_high_signed, 4);
+static IIO_DEVICE_ATTR_NAMED(in0min1_thresh_low_value,
+			in0-in1_thresh_low_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_low,
+			max1363_store_thresh_low_signed, 4);
+static IIO_DEVICE_ATTR_NAMED(in2min3_thresh_high_value,
+			in2-in3_thresh_high_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_high,
+			max1363_store_thresh_high_signed, 5);
+static IIO_DEVICE_ATTR_NAMED(in2min3_thresh_low_value,
+			in2-in3_thresh_low_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_low,
+			max1363_store_thresh_low_signed, 5);
+static IIO_DEVICE_ATTR_NAMED(in1min0_thresh_high_value,
+			in1-in0_thresh_high_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_high,
+			max1363_store_thresh_high_signed, 6);
+static IIO_DEVICE_ATTR_NAMED(in1min0_thresh_low_value,
+			in1-in0_thresh_low_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_low,
+			max1363_store_thresh_low_signed, 6);
+static IIO_DEVICE_ATTR_NAMED(in3min2_thresh_high_value,
+			in3-in2_thresh_high_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_high,
+			max1363_store_thresh_high_signed, 7);
+static IIO_DEVICE_ATTR_NAMED(in3min2_thresh_low_value,
+			in3-in2_thresh_low_value,
+			S_IRUGO | S_IWUSR, max1363_show_thresh_low,
+			max1363_store_thresh_low_signed, 7);
+
+static int max1363_int_th(struct iio_dev *dev_info,
+			int index,
+			s64 timestamp,
+			int not_test)
+{
+	struct max1363_state *st = dev_info->dev_data;
+
+	st->last_timestamp = timestamp;
+	schedule_work(&st->thresh_work);
+	return 0;
+}
+
+static void max1363_thresh_handler_bh(struct work_struct *work_s)
+{
+	struct max1363_state *st = container_of(work_s, struct max1363_state,
+						thresh_work);
+	u8 rx;
+	u8 tx[2] = { st->setupbyte,
+		     MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0 };
+
+	i2c_master_recv(st->client, &rx, 1);
+	if (rx & (1 << 0))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_LOW_THRESH(3),
+			st->last_timestamp);
+	if (rx & (1 << 1))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_HIGH_THRESH(3),
+			st->last_timestamp);
+	if (rx & (1 << 2))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_LOW_THRESH(2),
+			st->last_timestamp);
+	if (rx & (1 << 3))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_HIGH_THRESH(2),
+			st->last_timestamp);
+	if (rx & (1 << 4))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_LOW_THRESH(1),
+			st->last_timestamp);
+	if (rx & (1 << 5))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_HIGH_THRESH(1),
+			st->last_timestamp);
+	if (rx & (1 << 6))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_LOW_THRESH(0),
+			st->last_timestamp);
+	if (rx & (1 << 7))
+		iio_push_event(st->indio_dev, 0,
+			IIO_EVENT_CODE_IN_HIGH_THRESH(0),
+			st->last_timestamp);
+	enable_irq(st->client->irq);
+	i2c_master_send(st->client, tx, 2);
+}
+
+static ssize_t max1363_read_interrupt_config(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
+	int val;
+
+	mutex_lock(&dev_info->mlock);
+	if (this_attr->mask & 0x8)
+		val = (1 << (this_attr->mask & 0x7)) & st->mask_low;
+	else
+		val = (1 << this_attr->mask) & st->mask_high;
+	mutex_unlock(&dev_info->mlock);
+
+	return sprintf(buf, "%d\n", !!val);
+}
+
+static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
+{
+	u8 *tx_buf;
+	int ret, i = 3, j;
+	unsigned long numelements;
+	int len;
+	long modemask;
+
+	if (!enabled) {
+		/* transition to ring capture is not currently supported */
+		st->setupbyte &= ~MAX1363_SETUP_MONITOR_SETUP;
+		st->configbyte &= ~MAX1363_SCAN_MASK;
+		st->monitor_on = false;
+		return max1363_write_basic_config(st->client,
+						st->setupbyte,
+						st->configbyte);
+	}
+
+	/* Ensure we are in the relevant mode */
+	st->setupbyte |= MAX1363_SETUP_MONITOR_SETUP;
+	st->configbyte &= ~(MAX1363_CHANNEL_SEL_MASK
+			    | MAX1363_SCAN_MASK
+			| MAX1363_SE_DE_MASK);
+	st->configbyte |= MAX1363_CONFIG_SCAN_MONITOR_MODE;
+	if ((st->mask_low | st->mask_high) & 0x0F) {
+		st->configbyte |= max1363_mode_table[s0to3].conf;
+		modemask = max1363_mode_table[s0to3].modemask;
+	} else if ((st->mask_low | st->mask_high) & 0x30) {
+		st->configbyte |= max1363_mode_table[d0m1to2m3].conf;
+		modemask = max1363_mode_table[d0m1to2m3].modemask;
+	} else {
+		st->configbyte |= max1363_mode_table[d1m0to3m2].conf;
+		modemask = max1363_mode_table[d1m0to3m2].modemask;
+	}
+	numelements = hweight_long(modemask);
+	len = 3 * numelements + 3;
+	tx_buf = kmalloc(len, GFP_KERNEL);
+	if (!tx_buf) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+	tx_buf[0] = st->configbyte;
+	tx_buf[1] = st->setupbyte;
+	tx_buf[2] = (st->monitor_speed << 1);
+
+	/*
+	 * So we need to do yet another bit of nefarious scan mode
+	 * setup to match what we need.
+	 */
+	for (j = 0; j < 8; j++)
+		if (modemask & (1 << j)) {
+			/* Establish the mode is in the scan */
+			if (st->mask_low & (1 << j)) {
+				tx_buf[i] = (st->thresh_low[j] >> 4) & 0xFF;
+				tx_buf[i + 1] = (st->thresh_low[j] << 4) & 0xF0;
+			} else if (j < 4) {
+				tx_buf[i] = 0;
+				tx_buf[i + 1] = 0;
+			} else {
+				tx_buf[i] = 0x80;
+				tx_buf[i + 1] = 0;
+			}
+			if (st->mask_high & (1 << j)) {
+				tx_buf[i + 1] |=
+					(st->thresh_high[j] >> 8) & 0x0F;
+				tx_buf[i + 2] = st->thresh_high[j] & 0xFF;
+			} else if (j < 4) {
+				tx_buf[i + 1] |= 0x0F;
+				tx_buf[i + 2] = 0xFF;
+			} else {
+				tx_buf[i + 1] |= 0x07;
+				tx_buf[i + 2] = 0xFF;
+			}
+			i += 3;
+		}
+
+
+	ret = i2c_master_send(st->client, tx_buf, len);
+	if (ret < 0)
+		goto error_ret;
+	if (ret != len) {
+		ret = -EIO;
+		goto error_ret;
+	}
+
+	/*
+	 * Now that we hopefully have sensible thresholds in place it is
+	 * time to turn the interrupts on.
+	 * It is unclear from the data sheet if this should be necessary
+	 * (i.e. whether monitor mode setup is atomic) but it appears to
+	 * be in practice.
+	 */
+	tx_buf[0] = st->setupbyte;
+	tx_buf[1] = MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0;
+	ret = i2c_master_send(st->client, tx_buf, 2);
+	if (ret < 0)
+		goto error_ret;
+	if (ret != 2) {
+		ret = -EIO;
+		goto error_ret;
+	}
+	ret = 0;
+	st->monitor_on = true;
+error_ret:
+
+	kfree(tx_buf);
+
+	return ret;
+}
+
+/*
+ * To keep this managable we always use one of 3 scan modes.
+ * Scan 0...3, 0-1,2-3 and 1-0,3-2
+ */
+static inline int __max1363_check_event_mask(int thismask, int checkmask)
+{
+	int ret = 0;
+	/* Is it unipolar */
+	if (thismask < 4) {
+		if (checkmask & ~0x0F) {
+			ret = -EBUSY;
+			goto error_ret;
+		}
+	} else if (thismask < 6) {
+		if (checkmask & ~0x30) {
+			ret = -EBUSY;
+			goto error_ret;
+		}
+	} else if (checkmask & ~0xC0)
+		ret = -EBUSY;
+error_ret:
+	return ret;
+}
+
+static ssize_t max1363_write_interrupt_config(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t len)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct max1363_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
+	unsigned long val;
+	int ret;
+	u16 unifiedmask;
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+	mutex_lock(&st->indio_dev->mlock);
+	unifiedmask = st->mask_low | st->mask_high;
+	if (this_attr->mask & 0x08) {
+		/* If we are disabling no need to test */
+		if (val == 0)
+			st->mask_low &= ~(1 << (this_attr->mask & 0x7));
+		else {
+			ret = __max1363_check_event_mask(this_attr->mask & 0x7,
+							unifiedmask);
+			if (ret)
+				goto error_ret;
+			st->mask_low |= (1 << (this_attr->mask & 0x7));
+		}
+	} else {
+		if (val == 0)
+			st->mask_high &= ~(1 << (this_attr->mask));
+		else {
+			ret = __max1363_check_event_mask(this_attr->mask,
+							unifiedmask);
+			if (ret)
+				goto error_ret;
+			st->mask_high |= (1 << this_attr->mask);
+		}
+	}
+	if (st->monitor_on && !st->mask_high && !st->mask_low)
+		iio_remove_event_from_list(this_attr->listel,
+					&dev_info->interrupts[0]->ev_list);
+	if (!st->monitor_on && val)
+		iio_add_event_to_list(this_attr->listel,
+				&dev_info->interrupts[0]->ev_list);
+
+	max1363_monitor_mode_update(st, !!(st->mask_high | st->mask_low));
+error_ret:
+	mutex_unlock(&st->indio_dev->mlock);
+
+	return len;
+}
+
+IIO_EVENT_SH(max1363_thresh, max1363_int_th);
+
+#define MAX1363_HIGH_THRESH(a) a
+#define MAX1363_LOW_THRESH(a) (a | 0x8)
+
+IIO_EVENT_ATTR_SH(in0_thresh_high_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_HIGH_THRESH(0));
+
+IIO_EVENT_ATTR_SH(in0_thresh_low_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_LOW_THRESH(0));
+
+IIO_EVENT_ATTR_SH(in1_thresh_high_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_HIGH_THRESH(1));
+
+IIO_EVENT_ATTR_SH(in1_thresh_low_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_LOW_THRESH(1));
+
+IIO_EVENT_ATTR_SH(in2_thresh_high_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_HIGH_THRESH(2));
+
+IIO_EVENT_ATTR_SH(in2_thresh_low_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_LOW_THRESH(2));
+
+IIO_EVENT_ATTR_SH(in3_thresh_high_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_HIGH_THRESH(3));
+
+IIO_EVENT_ATTR_SH(in3_thresh_low_en,
+		iio_event_max1363_thresh,
+		max1363_read_interrupt_config,
+		max1363_write_interrupt_config,
+		MAX1363_LOW_THRESH(3));
+
+IIO_EVENT_ATTR_NAMED_SH(in0min1_thresh_high_en,
+			in0-in1_thresh_high_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_HIGH_THRESH(4));
+
+IIO_EVENT_ATTR_NAMED_SH(in0min1_thresh_low_en,
+			in0-in1_thresh_low_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_LOW_THRESH(4));
+
+IIO_EVENT_ATTR_NAMED_SH(in3min2_thresh_high_en,
+			in3-in2_thresh_high_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_HIGH_THRESH(5));
+
+IIO_EVENT_ATTR_NAMED_SH(in3min2_thresh_low_en,
+			in3-in2_thresh_low_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_LOW_THRESH(5));
+
+IIO_EVENT_ATTR_NAMED_SH(in1min0_thresh_high_en,
+			in1-in0_thresh_high_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_HIGH_THRESH(6));
+
+IIO_EVENT_ATTR_NAMED_SH(in1min0_thresh_low_en,
+			in1-in0_thresh_low_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_LOW_THRESH(6));
+
+IIO_EVENT_ATTR_NAMED_SH(in2min3_thresh_high_en,
+			in2-in3_thresh_high_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_HIGH_THRESH(7));
+
+IIO_EVENT_ATTR_NAMED_SH(in2min3_thresh_low_en,
+			in2-in3_thresh_low_en,
+			iio_event_max1363_thresh,
+			max1363_read_interrupt_config,
+			max1363_write_interrupt_config,
+			MAX1363_LOW_THRESH(7));
+
+/*
+ * As with scan_elements, only certain sets of these can
+ * be combined.
+ */
+static struct attribute *max1363_event_attributes[] = {
+	&iio_dev_attr_in0_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in0_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in1_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in1_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in2_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in2_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in3_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in3_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in0min1_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in0min1_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in2min3_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in2min3_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in1min0_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in1min0_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in3min2_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in3min2_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_event_attr_in0_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in0_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in1_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in1_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in2_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in2_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in3_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in3_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in0min1_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in0min1_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in3min2_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in3min2_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in1min0_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in1min0_thresh_low_en.dev_attr.attr,
+	&iio_event_attr_in2min3_thresh_high_en.dev_attr.attr,
+	&iio_event_attr_in2min3_thresh_low_en.dev_attr.attr,
+	NULL,
+};
+
+static struct attribute_group max1363_event_attribute_group = {
+	.attrs = max1363_event_attributes,
 };
 
 static int max1363_initial_setup(struct max1363_state *st)
@@ -930,19 +1599,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 
 	atomic_set(&st->protect_ring, 0);
 
-	/* Find the chip model specific data */
-	for (i = 0; i < ARRAY_SIZE(max1363_chip_info_tbl); i++)
-		if (!strcmp(max1363_chip_info_tbl[i].name, id->name)) {
-			st->chip_info = &max1363_chip_info_tbl[i];
-			break;
-		};
-	/* Unsupported chip */
-	if (!st->chip_info) {
-		dev_err(&client->dev, "%s is not supported\n", id->name);
-		ret = -ENODEV;
-		goto error_free_st;
-	}
-
+	st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->reg = regulator_get(&client->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
@@ -978,6 +1635,11 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	if (st->chip_info->monitor_mode && client->irq) {
+		st->indio_dev->num_interrupt_lines = 1;
+		st->indio_dev->event_attrs
+			= &max1363_event_attribute_group;
+	}
 
 	ret = max1363_initial_setup(st);
 	if (ret)
@@ -991,10 +1653,25 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_cleanup_ring;
 	regdone = 1;
-	ret = max1363_initialize_ring(st->indio_dev->ring);
+	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
 	if (ret)
 		goto error_cleanup_ring;
+
+	if (st->chip_info->monitor_mode && client->irq) {
+		ret = iio_register_interrupt_line(client->irq,
+						st->indio_dev,
+						0,
+						IRQF_TRIGGER_RISING,
+						client->name);
+		if (ret)
+			goto error_uninit_ring;
+
+		INIT_WORK(&st->thresh_work, max1363_thresh_handler_bh);
+	}
+
 	return 0;
+error_uninit_ring:
+	iio_ring_buffer_unregister(st->indio_dev->ring);
 error_cleanup_ring:
 	max1363_ring_cleanup(st->indio_dev);
 error_free_available_scan_masks:
@@ -1010,7 +1687,6 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-error_free_st:
 	kfree(st);
 
 error_ret:
@@ -1021,7 +1697,10 @@ static int max1363_remove(struct i2c_client *client)
 {
 	struct max1363_state *st = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = st->indio_dev;
-	max1363_uninitialize_ring(indio_dev->ring);
+
+	if (st->chip_info->monitor_mode && client->irq)
+		iio_unregister_interrupt_line(st->indio_dev, 0);
+	iio_ring_buffer_unregister(indio_dev->ring);
 	max1363_ring_cleanup(indio_dev);
 	kfree(st->indio_dev->available_scan_masks);
 	iio_device_unregister(indio_dev);

@@ -1,5 +1,5 @@
-#ifndef _FS_CEPH_HASH_H
-#define _FS_CEPH_HASH_H
+#ifndef FS_CEPH_HASH_H
+#define FS_CEPH_HASH_H
 
 #define CEPH_STR_HASH_LINUX      0x1  /* linux dcache hash */
 #define CEPH_STR_HASH_RJENKINS   0x2  /* robert jenkins' */

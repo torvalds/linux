@@ -100,7 +100,8 @@ do_acpi_find_child(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	status = acpi_get_object_info(handle, &info);
 	if (ACPI_SUCCESS(status)) {
-		if (info->address == find->address)
+		if ((info->address == find->address)
+			&& (info->valid & ACPI_VALID_ADR))
 			find->handle = handle;
 		kfree(info);
 	}

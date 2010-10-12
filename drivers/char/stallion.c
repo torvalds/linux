@@ -807,7 +807,6 @@ static void stl_waituntilsent(struct tty_struct *tty, int timeout)
 		timeout = HZ;
 	tend = jiffies + timeout;
 
-	lock_kernel();
 	while (stl_datastate(portp)) {
 		if (signal_pending(current))
 			break;
@@ -815,7 +814,6 @@ static void stl_waituntilsent(struct tty_struct *tty, int timeout)
 		if (time_after_eq(jiffies, tend))
 			break;
 	}
-	unlock_kernel();
 }
 
 /*****************************************************************************/
@@ -1029,6 +1027,8 @@ static int stl_getserial(struct stlport *portp, struct serial_struct __user *sp)
 	pr_debug("stl_getserial(portp=%p,sp=%p)\n", portp, sp);
 
 	memset(&sio, 0, sizeof(struct serial_struct));
+
+	mutex_lock(&portp->port.mutex);
 	sio.line = portp->portnr;
 	sio.port = portp->ioaddr;
 	sio.flags = portp->port.flags;
@@ -1048,6 +1048,7 @@ static int stl_getserial(struct stlport *portp, struct serial_struct __user *sp)
 	brdp = stl_brds[portp->brdnr];
 	if (brdp != NULL)
 		sio.irq = brdp->irq;
+	mutex_unlock(&portp->port.mutex);
 
 	return copy_to_user(sp, &sio, sizeof(struct serial_struct)) ? -EFAULT : 0;
 }
@@ -1069,12 +1070,15 @@ static int stl_setserial(struct tty_struct *tty, struct serial_struct __user *sp
 
 	if (copy_from_user(&sio, sp, sizeof(struct serial_struct)))
 		return -EFAULT;
+	mutex_lock(&portp->port.mutex);
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((sio.baud_base != portp->baud_base) ||
 		    (sio.close_delay != portp->close_delay) ||
 		    ((sio.flags & ~ASYNC_USR_MASK) !=
-		    (portp->port.flags & ~ASYNC_USR_MASK)))
+		    (portp->port.flags & ~ASYNC_USR_MASK))) {
+			mutex_unlock(&portp->port.mutex);
 			return -EPERM;
+		}
 	} 
 
 	portp->port.flags = (portp->port.flags & ~ASYNC_USR_MASK) |
@@ -1083,6 +1087,7 @@ static int stl_setserial(struct tty_struct *tty, struct serial_struct __user *sp
 	portp->close_delay = sio.close_delay;
 	portp->closing_wait = sio.closing_wait;
 	portp->custom_divisor = sio.custom_divisor;
+	mutex_unlock(&portp->port.mutex);
 	stl_setport(portp, tty->termios);
 	return 0;
 }
@@ -1147,8 +1152,6 @@ static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd
 
 	rc = 0;
 
-	lock_kernel();
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		rc = stl_getserial(portp, argp);
@@ -1173,7 +1176,6 @@ static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd
 		rc = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
 	return rc;
 }
 
@@ -2327,6 +2329,7 @@ static int stl_getportstats(struct tty_struct *tty, struct stlport *portp, comst
 			return -ENODEV;
 	}
 
+	mutex_lock(&portp->port.mutex);
 	portp->stats.state = portp->istate;
 	portp->stats.flags = portp->port.flags;
 	portp->stats.hwid = portp->hwid;
@@ -2358,6 +2361,7 @@ static int stl_getportstats(struct tty_struct *tty, struct stlport *portp, comst
 		(STL_TXBUFSIZE - (tail - head));
 
 	portp->stats.signals = (unsigned long) stl_getsignals(portp);
+	mutex_unlock(&portp->port.mutex);
 
 	return copy_to_user(cp, &portp->stats,
 			    sizeof(comstats_t)) ? -EFAULT : 0;
@@ -2382,10 +2386,12 @@ static int stl_clrportstats(struct stlport *portp, comstats_t __user *cp)
 			return -ENODEV;
 	}
 
+	mutex_lock(&portp->port.mutex);
 	memset(&portp->stats, 0, sizeof(comstats_t));
 	portp->stats.brd = portp->brdnr;
 	portp->stats.panel = portp->panelnr;
 	portp->stats.port = portp->portnr;
+	mutex_unlock(&portp->port.mutex);
 	return copy_to_user(cp, &portp->stats,
 			    sizeof(comstats_t)) ? -EFAULT : 0;
 }
@@ -2451,7 +2457,6 @@ static long stl_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return -ENODEV;
 	rc = 0;
 
-	lock_kernel();
 	switch (cmd) {
 	case COM_GETPORTSTATS:
 		rc = stl_getportstats(NULL, NULL, argp);
@@ -2472,7 +2477,6 @@ static long stl_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		rc = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
 	return rc;
 }
 

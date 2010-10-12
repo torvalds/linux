@@ -37,6 +37,7 @@
 #include <linux/of.h>		/* for struct device_node */
 
 extern struct bus_type i2c_bus_type;
+extern struct device_type i2c_adapter_type;
 
 /* --- General options ------------------------------------------------	*/
 
@@ -108,6 +109,7 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
  * @shutdown: Callback for device shutdown
  * @suspend: Callback for device suspend
  * @resume: Callback for device resume
+ * @alert: Alert callback, for example for the SMBus alert protocol
  * @command: Callback for bus-wide signaling (optional)
  * @driver: Device driver model driver
  * @id_table: List of I2C devices supported by this driver
@@ -233,6 +235,7 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
  * @addr: stored in i2c_client.addr
  * @platform_data: stored in i2c_client.dev.platform_data
  * @archdata: copied into i2c_client.dev.archdata
+ * @of_node: pointer to OpenFirmware device node
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -282,12 +285,18 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
 
 /* If you don't know the exact address of an I2C device, use this variant
  * instead, which can probe for device presence in a list of possible
- * addresses.
+ * addresses. The "probe" callback function is optional. If it is provided,
+ * it must return 1 on successful probe, 0 otherwise. If it is not provided,
+ * a default probing method is used.
  */
 extern struct i2c_client *
 i2c_new_probed_device(struct i2c_adapter *adap,
 		      struct i2c_board_info *info,
-		      unsigned short const *addr_list);
+		      unsigned short const *addr_list,
+		      int (*probe)(struct i2c_adapter *, unsigned short addr));
+
+/* Common custom probe functions */
+extern int i2c_probe_func_quick_read(struct i2c_adapter *, unsigned short addr);
 
 /* For devices that use several addresses, use i2c_new_dummy() to make
  * client handles for the extra addresses.
@@ -360,6 +369,7 @@ struct i2c_adapter {
 	char name[48];
 	struct completion dev_released;
 
+	struct mutex userspace_clients_lock;
 	struct list_head userspace_clients;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
@@ -374,23 +384,16 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 	dev_set_drvdata(&dev->dev, data);
 }
 
-/**
- * i2c_lock_adapter - Prevent access to an I2C bus segment
- * @adapter: Target I2C bus segment
- */
-static inline void i2c_lock_adapter(struct i2c_adapter *adapter)
+static inline int i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {
-	rt_mutex_lock(&adapter->bus_lock);
+	return adapter->dev.parent != NULL
+		&& adapter->dev.parent->bus == &i2c_bus_type
+		&& adapter->dev.parent->type == &i2c_adapter_type;
 }
 
-/**
- * i2c_unlock_adapter - Reauthorize access to an I2C bus segment
- * @adapter: Target I2C bus segment
- */
-static inline void i2c_unlock_adapter(struct i2c_adapter *adapter)
-{
-	rt_mutex_unlock(&adapter->bus_lock);
-}
+/* Adapter locking functions, exported for shared pin cases */
+void i2c_lock_adapter(struct i2c_adapter *);
+void i2c_unlock_adapter(struct i2c_adapter *);
 
 /*flags for the client struct: */
 #define I2C_CLIENT_PEC	0x04		/* Use Packet Error Checking */

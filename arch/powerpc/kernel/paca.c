@@ -105,6 +105,16 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #endif /* CONFIG_PPC_STD_MMU_64 */
 }
 
+/* Put the paca pointer into r13 and SPRG_PACA */
+void setup_paca(struct paca_struct *new_paca)
+{
+	local_paca = new_paca;
+	mtspr(SPRN_SPRG_PACA, local_paca);
+#ifdef CONFIG_PPC_BOOK3E
+	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
+#endif
+}
+
 static int __initdata paca_size;
 
 void __init allocate_pacas(void)

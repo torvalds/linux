@@ -124,7 +124,7 @@ void	xfs_buf_attach_iodone(struct xfs_buf *,
 			      void(*)(struct xfs_buf *, xfs_log_item_t *),
 			      xfs_log_item_t *);
 void	xfs_buf_iodone_callbacks(struct xfs_buf *);
-void	xfs_buf_iodone(struct xfs_buf *, xfs_buf_log_item_t *);
+void	xfs_buf_iodone(struct xfs_buf *, struct xfs_log_item *);
 
 #ifdef XFS_TRANS_DEBUG
 void

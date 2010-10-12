@@ -77,7 +77,7 @@ static struct comedi_driver driver_adl_pci7296 = {
 static int adl_pci7296_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct comedi_subdevice *s;
 	int bus, slot;
 	int ret;
@@ -94,10 +94,7 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 	if (alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		    pcidev->device == PCI_DEVICE_ID_PCI7296) {
 			if (bus || slot) {
@@ -177,4 +174,46 @@ static int adl_pci7296_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_PCI_INITCLEANUP(driver_adl_pci7296, adl_pci7296_pci_table);
+static int __devinit driver_adl_pci7296_pci_probe(struct pci_dev *dev,
+						  const struct pci_device_id
+						  *ent)
+{
+	return comedi_pci_auto_config(dev, driver_adl_pci7296.driver_name);
+}
+
+static void __devexit driver_adl_pci7296_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_adl_pci7296_pci_driver = {
+	.id_table = adl_pci7296_pci_table,
+	.probe = &driver_adl_pci7296_pci_probe,
+	.remove = __devexit_p(&driver_adl_pci7296_pci_remove)
+};
+
+static int __init driver_adl_pci7296_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_adl_pci7296);
+	if (retval < 0)
+		return retval;
+
+	driver_adl_pci7296_pci_driver.name =
+	    (char *)driver_adl_pci7296.driver_name;
+	return pci_register_driver(&driver_adl_pci7296_pci_driver);
+}
+
+static void __exit driver_adl_pci7296_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_adl_pci7296_pci_driver);
+	comedi_driver_unregister(&driver_adl_pci7296);
+}
+
+module_init(driver_adl_pci7296_init_module);
+module_exit(driver_adl_pci7296_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

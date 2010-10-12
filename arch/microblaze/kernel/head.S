@@ -43,10 +43,10 @@
 .global empty_zero_page
 .align 12
 empty_zero_page:
-	.space	4096
+	.space	PAGE_SIZE
 .global swapper_pg_dir
 swapper_pg_dir:
-	.space	4096
+	.space	PAGE_SIZE
 
 #endif /* CONFIG_MMU */
 

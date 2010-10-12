@@ -80,7 +80,7 @@ int apei_write_mce(struct mce *m)
 	rcd.hdr.revision = CPER_RECORD_REV;
 	rcd.hdr.signature_end = CPER_SIG_END;
 	rcd.hdr.section_count = 1;
-	rcd.hdr.error_severity = CPER_SER_FATAL;
+	rcd.hdr.error_severity = CPER_SEV_FATAL;
 	/* timestamp, platform_id, partition_id are all invalid */
 	rcd.hdr.validation_bits = 0;
 	rcd.hdr.record_length = sizeof(rcd);
@@ -96,7 +96,7 @@ int apei_write_mce(struct mce *m)
 	rcd.sec_hdr.validation_bits = 0;
 	rcd.sec_hdr.flags = CPER_SEC_PRIMARY;
 	rcd.sec_hdr.section_type = CPER_SECTION_TYPE_MCE;
-	rcd.sec_hdr.section_severity = CPER_SER_FATAL;
+	rcd.sec_hdr.section_severity = CPER_SEV_FATAL;
 
 	memcpy(&rcd.mce, m, sizeof(*m));
 

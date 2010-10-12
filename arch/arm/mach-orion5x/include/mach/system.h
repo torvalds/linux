@@ -25,6 +25,8 @@ static inline void arch_reset(char mode, const char *cmd)
 	 */
 	orion5x_setbits(RSTOUTn_MASK, (1 << 2));
 	orion5x_setbits(CPU_SOFT_RESET, 1);
+	mdelay(200);
+	orion5x_clrbits(CPU_SOFT_RESET, 1);
 }
 
 

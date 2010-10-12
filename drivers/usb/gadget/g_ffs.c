@@ -32,12 +32,13 @@
 #  include "u_ether.c"
 
 static u8 gfs_hostaddr[ETH_ALEN];
-#else
-#  if !defined CONFIG_USB_FUNCTIONFS_GENERIC
-#    define CONFIG_USB_FUNCTIONFS_GENERIC
+#  ifdef CONFIG_USB_FUNCTIONFS_ETH
+static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 #  endif
+#else
 #  define gether_cleanup() do { } while (0)
 #  define gether_setup(gadget, hostaddr)   ((int)0)
+#  define gfs_hostaddr NULL
 #endif
 
 #include "f_fs.c"
@@ -107,15 +108,7 @@ static const struct usb_descriptor_header *gfs_otg_desc[] = {
 enum {
 	GFS_STRING_MANUFACTURER_IDX,
 	GFS_STRING_PRODUCT_IDX,
-#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
-	GFS_STRING_RNDIS_CONFIG_IDX,
-#endif
-#ifdef CONFIG_USB_FUNCTIONFS_ETH
-	GFS_STRING_ECM_CONFIG_IDX,
-#endif
-#ifdef CONFIG_USB_FUNCTIONFS_GENERIC
-	GFS_STRING_GENERIC_CONFIG_IDX,
-#endif
+	GFS_STRING_FIRST_CONFIG_IDX,
 };
 
 static       char gfs_manufacturer[50];
@@ -126,13 +119,13 @@ static struct usb_string gfs_strings[] = {
 	[GFS_STRING_MANUFACTURER_IDX].s = gfs_manufacturer,
 	[GFS_STRING_PRODUCT_IDX].s = gfs_driver_desc,
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
-	[GFS_STRING_RNDIS_CONFIG_IDX].s = "FunctionFS + RNDIS",
+	{ .s = "FunctionFS + RNDIS" },
 #endif
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
-	[GFS_STRING_ECM_CONFIG_IDX].s = "FunctionFS + ECM",
+	{ .s = "FunctionFS + ECM" },
 #endif
 #ifdef CONFIG_USB_FUNCTIONFS_GENERIC
-	[GFS_STRING_GENERIC_CONFIG_IDX].s = "FunctionFS",
+	{ .s = "FunctionFS" },
 #endif
 	{  } /* end of list */
 };
@@ -146,59 +139,33 @@ static struct usb_gadget_strings *gfs_dev_strings[] = {
 };
 
 
+
+struct gfs_configuration {
+	struct usb_configuration c;
+	int (*eth)(struct usb_configuration *c, u8 *ethaddr);
+} gfs_configurations[] = {
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
-static int gfs_do_rndis_config(struct usb_configuration *c);
-
-static struct usb_configuration gfs_rndis_config_driver = {
-	.label			= "FunctionFS + RNDIS",
-	.bind			= gfs_do_rndis_config,
-	.bConfigurationValue	= 1,
-	/* .iConfiguration	= DYNAMIC */
-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-};
-#  define gfs_add_rndis_config(cdev) \
-	usb_add_config(cdev, &gfs_rndis_config_driver)
-#else
-#  define gfs_add_rndis_config(cdev) 0
+	{
+		.eth		= rndis_bind_config,
+	},
 #endif
-
 
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
-static int gfs_do_ecm_config(struct usb_configuration *c);
-
-static struct usb_configuration gfs_ecm_config_driver = {
-	.label			= "FunctionFS + ECM",
-	.bind			= gfs_do_ecm_config,
-	.bConfigurationValue	= 1,
-	/* .iConfiguration	= DYNAMIC */
-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-};
-#  define gfs_add_ecm_config(cdev) \
-	usb_add_config(cdev, &gfs_ecm_config_driver)
-#else
-#  define gfs_add_ecm_config(cdev) 0
+	{
+		.eth		= eth_bind_config,
+	},
 #endif
-
 
 #ifdef CONFIG_USB_FUNCTIONFS_GENERIC
-static int gfs_do_generic_config(struct usb_configuration *c);
-
-static struct usb_configuration gfs_generic_config_driver = {
-	.label			= "FunctionFS",
-	.bind			= gfs_do_generic_config,
-	.bConfigurationValue	= 2,
-	/* .iConfiguration	= DYNAMIC */
-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-};
-#  define gfs_add_generic_config(cdev) \
-	usb_add_config(cdev, &gfs_generic_config_driver)
-#else
-#  define gfs_add_generic_config(cdev) 0
+	{
+	},
 #endif
+};
 
 
 static int gfs_bind(struct usb_composite_dev *cdev);
 static int gfs_unbind(struct usb_composite_dev *cdev);
+static int gfs_do_config(struct usb_configuration *c);
 
 static struct usb_composite_driver gfs_driver = {
 	.name		= gfs_short_name,
@@ -267,7 +234,7 @@ static int functionfs_check_dev_callback(const char *dev_name)
 
 static int gfs_bind(struct usb_composite_dev *cdev)
 {
-	int ret;
+	int ret, i;
 
 	ENTER();
 
@@ -284,57 +251,32 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 	snprintf(gfs_manufacturer, sizeof gfs_manufacturer, "%s %s with %s",
 		 init_utsname()->sysname, init_utsname()->release,
 		 cdev->gadget->name);
-	ret = usb_string_id(cdev);
-	if (unlikely(ret < 0))
-		goto error;
-	gfs_strings[GFS_STRING_MANUFACTURER_IDX].id = ret;
-	gfs_dev_desc.iManufacturer = ret;
 
-	ret = usb_string_id(cdev);
+	ret = usb_string_ids_tab(cdev, gfs_strings);
 	if (unlikely(ret < 0))
 		goto error;
-	gfs_strings[GFS_STRING_PRODUCT_IDX].id = ret;
-	gfs_dev_desc.iProduct = ret;
 
-#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
-	ret = usb_string_id(cdev);
-	if (unlikely(ret < 0))
-		goto error;
-	gfs_strings[GFS_STRING_RNDIS_CONFIG_IDX].id = ret;
-	gfs_rndis_config_driver.iConfiguration = ret;
-#endif
-
-#ifdef CONFIG_USB_FUNCTIONFS_ETH
-	ret = usb_string_id(cdev);
-	if (unlikely(ret < 0))
-		goto error;
-	gfs_strings[GFS_STRING_ECM_CONFIG_IDX].id = ret;
-	gfs_ecm_config_driver.iConfiguration = ret;
-#endif
-
-#ifdef CONFIG_USB_FUNCTIONFS_GENERIC
-	ret = usb_string_id(cdev);
-	if (unlikely(ret < 0))
-		goto error;
-	gfs_strings[GFS_STRING_GENERIC_CONFIG_IDX].id = ret;
-	gfs_generic_config_driver.iConfiguration = ret;
-#endif
+	gfs_dev_desc.iManufacturer = gfs_strings[GFS_STRING_MANUFACTURER_IDX].id;
+	gfs_dev_desc.iProduct      = gfs_strings[GFS_STRING_PRODUCT_IDX].id;
 
 	ret = functionfs_bind(gfs_ffs_data, cdev);
 	if (unlikely(ret < 0))
 		goto error;
 
-	ret = gfs_add_rndis_config(cdev);
-	if (unlikely(ret < 0))
-		goto error_unbind;
+	for (i = 0; i < ARRAY_SIZE(gfs_configurations); ++i) {
+		struct gfs_configuration *c = gfs_configurations + i;
 
-	ret = gfs_add_ecm_config(cdev);
-	if (unlikely(ret < 0))
-		goto error_unbind;
+		ret = GFS_STRING_FIRST_CONFIG_IDX + i;
+		c->c.label			= gfs_strings[ret].s;
+		c->c.iConfiguration		= gfs_strings[ret].id;
+		c->c.bind			= gfs_do_config;
+		c->c.bConfigurationValue	= 1 + i;
+		c->c.bmAttributes		= USB_CONFIG_ATT_SELFPOWER;
 
-	ret = gfs_add_generic_config(cdev);
-	if (unlikely(ret < 0))
-		goto error_unbind;
+		ret = usb_add_config(cdev, &c->c);
+		if (unlikely(ret < 0))
+			goto error_unbind;
+	}
 
 	return 0;
 
@@ -368,10 +310,10 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 }
 
 
-static int __gfs_do_config(struct usb_configuration *c,
-			   int (*eth)(struct usb_configuration *c, u8 *ethaddr),
-			   u8 *ethaddr)
+static int gfs_do_config(struct usb_configuration *c)
 {
+	struct gfs_configuration *gc =
+		container_of(c, struct gfs_configuration, c);
 	int ret;
 
 	if (WARN_ON(!gfs_ffs_data))
@@ -382,13 +324,13 @@ static int __gfs_do_config(struct usb_configuration *c,
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	if (eth) {
-		ret = eth(c, ethaddr);
+	if (gc->eth) {
+		ret = gc->eth(c, gfs_hostaddr);
 		if (unlikely(ret < 0))
 			return ret;
 	}
 
-	ret = functionfs_add(c->cdev, c, gfs_ffs_data);
+	ret = functionfs_bind_config(c->cdev, c, gfs_ffs_data);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -406,32 +348,12 @@ static int __gfs_do_config(struct usb_configuration *c,
 	return 0;
 }
 
-#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
-static int gfs_do_rndis_config(struct usb_configuration *c)
-{
-	ENTER();
-
-	return __gfs_do_config(c, rndis_bind_config, gfs_hostaddr);
-}
-#endif
 
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
-static int gfs_do_ecm_config(struct usb_configuration *c)
+static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 {
-	ENTER();
-
-	return __gfs_do_config(c,
-			       can_support_ecm(c->cdev->gadget)
-			     ? ecm_bind_config : geth_bind_config,
-			       gfs_hostaddr);
-}
-#endif
-
-#ifdef CONFIG_USB_FUNCTIONFS_GENERIC
-static int gfs_do_generic_config(struct usb_configuration *c)
-{
-	ENTER();
-
-	return __gfs_do_config(c, NULL, NULL);
+	return can_support_ecm(c->cdev->gadget)
+		? ecm_bind_config(c, ethaddr)
+		: geth_bind_config(c, ethaddr);
 }
 #endif

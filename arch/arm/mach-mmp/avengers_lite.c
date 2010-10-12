@@ -42,9 +42,8 @@ static void __init avengers_lite_init(void)
 
 MACHINE_START(AVENGERS_LITE, "PXA168 Avengers lite Development Platform")
 	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
 	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = avengers_lite_init,

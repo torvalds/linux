@@ -87,8 +87,8 @@ static int ceph_x_decrypt(struct ceph_crypto_key *secret,
 /*
  * get existing (or insert new) ticket handler
  */
-struct ceph_x_ticket_handler *get_ticket_handler(struct ceph_auth_client *ac,
-						 int service)
+static struct ceph_x_ticket_handler *
+get_ticket_handler(struct ceph_auth_client *ac, int service)
 {
 	struct ceph_x_ticket_handler *th;
 	struct ceph_x_info *xi = ac->private;
@@ -429,7 +429,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		auth->struct_v = 1;
 		auth->key = 0;
 		for (u = (u64 *)tmp_enc; u + 1 <= (u64 *)(tmp_enc + ret); u++)
-			auth->key ^= *u;
+			auth->key ^= *(__le64 *)u;
 		dout(" server_challenge %llx client_challenge %llx key %llx\n",
 		     xi->server_challenge, le64_to_cpu(auth->client_challenge),
 		     le64_to_cpu(auth->key));

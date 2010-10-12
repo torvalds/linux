@@ -22,10 +22,4 @@ struct qt_disk_dqdbheader {
 
 #define QT_TREEOFF	1		/* Offset of tree in file in blocks */
 
-#define q_warn(fmt, args...) \
-do { \
-	if (printk_ratelimit()) \
-		printk(fmt, ## args); \
-} while(0)
-
 #endif /* _LINUX_QUOTAIO_TREE_H */

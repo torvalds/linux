@@ -1,0 +1,12 @@
+choice
+	prompt "Machine type"
+	depends on MACH_JZ4740
+	default JZ4740_QI_LB60
+
+config JZ4740_QI_LB60
+	bool "Qi Hardware Ben NanoNote"
+
+endchoice
+
+config HAVE_PWM
+	bool

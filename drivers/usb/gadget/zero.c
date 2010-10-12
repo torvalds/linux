@@ -264,7 +264,7 @@ static void zero_resume(struct usb_composite_dev *cdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init zero_bind(struct usb_composite_dev *cdev)
+static int __ref zero_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;

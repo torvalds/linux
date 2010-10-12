@@ -59,28 +59,28 @@ static struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 /*
  * Global memory.
  */
-static int radeon_ttm_mem_global_init(struct ttm_global_reference *ref)
+static int radeon_ttm_mem_global_init(struct drm_global_reference *ref)
 {
 	return ttm_mem_global_init(ref->object);
 }
 
-static void radeon_ttm_mem_global_release(struct ttm_global_reference *ref)
+static void radeon_ttm_mem_global_release(struct drm_global_reference *ref)
 {
 	ttm_mem_global_release(ref->object);
 }
 
 static int radeon_ttm_global_init(struct radeon_device *rdev)
 {
-	struct ttm_global_reference *global_ref;
+	struct drm_global_reference *global_ref;
 	int r;
 
 	rdev->mman.mem_global_referenced = false;
 	global_ref = &rdev->mman.mem_global_ref;
-	global_ref->global_type = TTM_GLOBAL_TTM_MEM;
+	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
 	global_ref->size = sizeof(struct ttm_mem_global);
 	global_ref->init = &radeon_ttm_mem_global_init;
 	global_ref->release = &radeon_ttm_mem_global_release;
-	r = ttm_global_item_ref(global_ref);
+	r = drm_global_item_ref(global_ref);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up TTM memory accounting "
 			  "subsystem.\n");
@@ -90,14 +90,14 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 	rdev->mman.bo_global_ref.mem_glob =
 		rdev->mman.mem_global_ref.object;
 	global_ref = &rdev->mman.bo_global_ref.ref;
-	global_ref->global_type = TTM_GLOBAL_TTM_BO;
+	global_ref->global_type = DRM_GLOBAL_TTM_BO;
 	global_ref->size = sizeof(struct ttm_bo_global);
 	global_ref->init = &ttm_bo_global_init;
 	global_ref->release = &ttm_bo_global_release;
-	r = ttm_global_item_ref(global_ref);
+	r = drm_global_item_ref(global_ref);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		ttm_global_item_unref(&rdev->mman.mem_global_ref);
+		drm_global_item_unref(&rdev->mman.mem_global_ref);
 		return r;
 	}
 
@@ -108,8 +108,8 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 static void radeon_ttm_global_fini(struct radeon_device *rdev)
 {
 	if (rdev->mman.mem_global_referenced) {
-		ttm_global_item_unref(&rdev->mman.bo_global_ref.ref);
-		ttm_global_item_unref(&rdev->mman.mem_global_ref);
+		drm_global_item_unref(&rdev->mman.bo_global_ref.ref);
+		drm_global_item_unref(&rdev->mman.mem_global_ref);
 		rdev->mman.mem_global_referenced = false;
 	}
 }

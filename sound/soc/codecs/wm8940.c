@@ -845,6 +845,7 @@ static void wm8940_unregister(struct wm8940_priv *wm8940)
 static int wm8940_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	int ret;
 	struct wm8940_priv *wm8940;
 	struct snd_soc_codec *codec;
 
@@ -858,7 +859,11 @@ static int wm8940_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 	codec->dev = &i2c->dev;
 
-	return wm8940_register(wm8940, SND_SOC_I2C);
+	ret = wm8940_register(wm8940, SND_SOC_I2C);
+	if (ret < 0)
+		kfree(wm8940);
+
+	return ret;
 }
 
 static int __devexit wm8940_i2c_remove(struct i2c_client *client)

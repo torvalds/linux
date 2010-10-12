@@ -225,7 +225,7 @@ static void wl1251_boot_set_ecpu_ctrl(struct wl1251 *wl, u32 flag)
 int wl1251_boot_run_firmware(struct wl1251 *wl)
 {
 	int loop, ret;
-	u32 chip_id, interrupt;
+	u32 chip_id, acx_intr;
 
 	wl1251_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
 
@@ -242,15 +242,15 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		interrupt = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		acx_intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 
-		if (interrupt == 0xffffffff) {
+		if (acx_intr == 0xffffffff) {
 			wl1251_error("error reading hardware complete "
 				     "init indication");
 			return -EIO;
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
-		else if (interrupt & WL1251_ACX_INTR_INIT_COMPLETE) {
+		else if (acx_intr & WL1251_ACX_INTR_INIT_COMPLETE) {
 			wl1251_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
 					   WL1251_ACX_INTR_INIT_COMPLETE);
 			break;

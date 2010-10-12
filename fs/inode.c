@@ -20,7 +20,6 @@
 #include <linux/pagemap.h>
 #include <linux/cdev.h>
 #include <linux/bootmem.h>
-#include <linux/inotify.h>
 #include <linux/fsnotify.h>
 #include <linux/mount.h>
 #include <linux/async.h>
@@ -264,12 +263,8 @@ void inode_init_once(struct inode *inode)
 	INIT_RAW_PRIO_TREE_ROOT(&inode->i_data.i_mmap);
 	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
 	i_size_ordered_init(inode);
-#ifdef CONFIG_INOTIFY
-	INIT_LIST_HEAD(&inode->inotify_watches);
-	mutex_init(&inode->inotify_mutex);
-#endif
 #ifdef CONFIG_FSNOTIFY
-	INIT_HLIST_HEAD(&inode->i_fsnotify_mark_entries);
+	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
 #endif
 }
 EXPORT_SYMBOL(inode_init_once);
@@ -294,32 +289,34 @@ void __iget(struct inode *inode)
 	inodes_stat.nr_unused--;
 }
 
-/**
- * clear_inode - clear an inode
- * @inode: inode to clear
- *
- * This is called by the filesystem to tell us
- * that the inode is no longer useful. We just
- * terminate it with extreme prejudice.
- */
-void clear_inode(struct inode *inode)
+void end_writeback(struct inode *inode)
 {
 	might_sleep();
-	invalidate_inode_buffers(inode);
-
 	BUG_ON(inode->i_data.nrpages);
+	BUG_ON(!list_empty(&inode->i_data.private_list));
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(inode->i_state & I_CLEAR);
 	inode_sync_wait(inode);
-	if (inode->i_sb->s_op->clear_inode)
-		inode->i_sb->s_op->clear_inode(inode);
+	inode->i_state = I_FREEING | I_CLEAR;
+}
+EXPORT_SYMBOL(end_writeback);
+
+static void evict(struct inode *inode)
+{
+	const struct super_operations *op = inode->i_sb->s_op;
+
+	if (op->evict_inode) {
+		op->evict_inode(inode);
+	} else {
+		if (inode->i_data.nrpages)
+			truncate_inode_pages(&inode->i_data, 0);
+		end_writeback(inode);
+	}
 	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
 		bd_forget(inode);
 	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
 		cd_forget(inode);
-	inode->i_state = I_CLEAR;
 }
-EXPORT_SYMBOL(clear_inode);
 
 /*
  * dispose_list - dispose of the contents of a local list
@@ -338,9 +335,7 @@ static void dispose_list(struct list_head *head)
 		inode = list_first_entry(head, struct inode, i_list);
 		list_del(&inode->i_list);
 
-		if (inode->i_data.nrpages)
-			truncate_inode_pages(&inode->i_data, 0);
-		clear_inode(inode);
+		evict(inode);
 
 		spin_lock(&inode_lock);
 		hlist_del_init(&inode->i_hash);
@@ -413,7 +408,6 @@ int invalidate_inodes(struct super_block *sb)
 
 	down_write(&iprune_sem);
 	spin_lock(&inode_lock);
-	inotify_unmount_inodes(&sb->s_inodes);
 	fsnotify_unmount_inodes(&sb->s_inodes);
 	busy = invalidate_list(&sb->s_inodes, &throw_away);
 	spin_unlock(&inode_lock);
@@ -553,7 +547,7 @@ repeat:
 			continue;
 		if (!test(inode, data))
 			continue;
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)) {
+		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode);
 			goto repeat;
 		}
@@ -578,7 +572,7 @@ repeat:
 			continue;
 		if (inode->i_sb != sb)
 			continue;
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)) {
+		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode);
 			goto repeat;
 		}
@@ -840,7 +834,7 @@ EXPORT_SYMBOL(iunique);
 struct inode *igrab(struct inode *inode)
 {
 	spin_lock(&inode_lock);
-	if (!(inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)))
+	if (!(inode->i_state & (I_FREEING|I_WILL_FREE)))
 		__iget(inode);
 	else
 		/*
@@ -1089,7 +1083,7 @@ int insert_inode_locked(struct inode *inode)
 				continue;
 			if (old->i_sb != sb)
 				continue;
-			if (old->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
+			if (old->i_state & (I_FREEING|I_WILL_FREE))
 				continue;
 			break;
 		}
@@ -1128,7 +1122,7 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 				continue;
 			if (!test(old, data))
 				continue;
-			if (old->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
+			if (old->i_state & (I_FREEING|I_WILL_FREE))
 				continue;
 			break;
 		}
@@ -1180,69 +1174,51 @@ void remove_inode_hash(struct inode *inode)
 }
 EXPORT_SYMBOL(remove_inode_hash);
 
-/*
- * Tell the filesystem that this inode is no longer of any interest and should
- * be completely destroyed.
- *
- * We leave the inode in the inode hash table until *after* the filesystem's
- * ->delete_inode completes.  This ensures that an iget (such as nfsd might
- * instigate) will always find up-to-date information either in the hash or on
- * disk.
- *
- * I_FREEING is set so that no-one will take a new reference to the inode while
- * it is being deleted.
- */
-void generic_delete_inode(struct inode *inode)
+int generic_delete_inode(struct inode *inode)
 {
-	const struct super_operations *op = inode->i_sb->s_op;
-
-	list_del_init(&inode->i_list);
-	list_del_init(&inode->i_sb_list);
-	WARN_ON(inode->i_state & I_NEW);
-	inode->i_state |= I_FREEING;
-	inodes_stat.nr_inodes--;
-	spin_unlock(&inode_lock);
-
-	if (op->delete_inode) {
-		void (*delete)(struct inode *) = op->delete_inode;
-		/* Filesystems implementing their own
-		 * s_op->delete_inode are required to call
-		 * truncate_inode_pages and clear_inode()
-		 * internally */
-		delete(inode);
-	} else {
-		truncate_inode_pages(&inode->i_data, 0);
-		clear_inode(inode);
-	}
-	spin_lock(&inode_lock);
-	hlist_del_init(&inode->i_hash);
-	spin_unlock(&inode_lock);
-	wake_up_inode(inode);
-	BUG_ON(inode->i_state != I_CLEAR);
-	destroy_inode(inode);
+	return 1;
 }
 EXPORT_SYMBOL(generic_delete_inode);
 
-/**
- *	generic_detach_inode - remove inode from inode lists
- *	@inode: inode to remove
- *
- *	Remove inode from inode lists, write it if it's dirty. This is just an
- *	internal VFS helper exported for hugetlbfs. Do not use!
- *
- *	Returns 1 if inode should be completely destroyed.
+/*
+ * Normal UNIX filesystem behaviour: delete the
+ * inode when the usage count drops to zero, and
+ * i_nlink is zero.
  */
-int generic_detach_inode(struct inode *inode)
+int generic_drop_inode(struct inode *inode)
+{
+	return !inode->i_nlink || hlist_unhashed(&inode->i_hash);
+}
+EXPORT_SYMBOL_GPL(generic_drop_inode);
+
+/*
+ * Called when we're dropping the last reference
+ * to an inode.
+ *
+ * Call the FS "drop_inode()" function, defaulting to
+ * the legacy UNIX filesystem behaviour.  If it tells
+ * us to evict inode, do so.  Otherwise, retain inode
+ * in cache if fs is alive, sync and evict if fs is
+ * shutting down.
+ */
+static void iput_final(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
+	const struct super_operations *op = inode->i_sb->s_op;
+	int drop;
 
-	if (!hlist_unhashed(&inode->i_hash)) {
+	if (op && op->drop_inode)
+		drop = op->drop_inode(inode);
+	else
+		drop = generic_drop_inode(inode);
+
+	if (!drop) {
 		if (!(inode->i_state & (I_DIRTY|I_SYNC)))
 			list_move(&inode->i_list, &inode_unused);
 		inodes_stat.nr_unused++;
 		if (sb->s_flags & MS_ACTIVE) {
 			spin_unlock(&inode_lock);
-			return 0;
+			return;
 		}
 		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state |= I_WILL_FREE;
@@ -1260,54 +1236,13 @@ int generic_detach_inode(struct inode *inode)
 	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
-	return 1;
-}
-EXPORT_SYMBOL_GPL(generic_detach_inode);
-
-static void generic_forget_inode(struct inode *inode)
-{
-	if (!generic_detach_inode(inode))
-		return;
-	if (inode->i_data.nrpages)
-		truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
+	evict(inode);
+	spin_lock(&inode_lock);
+	hlist_del_init(&inode->i_hash);
+	spin_unlock(&inode_lock);
 	wake_up_inode(inode);
+	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
 	destroy_inode(inode);
-}
-
-/*
- * Normal UNIX filesystem behaviour: delete the
- * inode when the usage count drops to zero, and
- * i_nlink is zero.
- */
-void generic_drop_inode(struct inode *inode)
-{
-	if (!inode->i_nlink)
-		generic_delete_inode(inode);
-	else
-		generic_forget_inode(inode);
-}
-EXPORT_SYMBOL_GPL(generic_drop_inode);
-
-/*
- * Called when we're dropping the last reference
- * to an inode.
- *
- * Call the FS "drop()" function, defaulting to
- * the legacy UNIX filesystem behaviour..
- *
- * NOTE! NOTE! NOTE! We're called with the inode lock
- * held, and the drop function is supposed to release
- * the lock!
- */
-static inline void iput_final(struct inode *inode)
-{
-	const struct super_operations *op = inode->i_sb->s_op;
-	void (*drop)(struct inode *) = generic_drop_inode;
-
-	if (op && op->drop_inode)
-		drop = op->drop_inode;
-	drop(inode);
 }
 
 /**
@@ -1322,7 +1257,7 @@ static inline void iput_final(struct inode *inode)
 void iput(struct inode *inode)
 {
 	if (inode) {
-		BUG_ON(inode->i_state == I_CLEAR);
+		BUG_ON(inode->i_state & I_CLEAR);
 
 		if (atomic_dec_and_lock(&inode->i_count, &inode_lock))
 			iput_final(inode);

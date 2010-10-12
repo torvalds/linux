@@ -130,12 +130,6 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-/*
- * When called with struct file pointer set to NULL, there is no way we could
- * update file->private_data, but getting it stuck on openFileList provides a
- * way to access it from cifs_fill_filedata and thereby set file->private_data
- * from cifs_open.
- */
 struct cifsFileInfo *
 cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 		  struct file *file, struct vfsmount *mnt, unsigned int oflags)
@@ -163,7 +157,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
 	atomic_set(&pCifsFile->count, 1);
-	slow_work_init(&pCifsFile->oplock_break, &cifs_oplock_break_ops);
+	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
 
 	write_lock(&GlobalSMBSeslock);
 	list_add(&pCifsFile->tlist, &cifs_sb->tcon->openFileList);

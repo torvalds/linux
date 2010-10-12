@@ -1833,9 +1833,10 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-static int __block_prepare_write(struct inode *inode, struct page *page,
-		unsigned from, unsigned to, get_block_t *get_block)
+int block_prepare_write(struct page *page, unsigned from, unsigned to,
+		get_block_t *get_block)
 {
+	struct inode *inode = page->mapping->host;
 	unsigned block_start, block_end;
 	sector_t block;
 	int err = 0;
@@ -1908,10 +1909,13 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (unlikely(err))
+	if (unlikely(err)) {
 		page_zero_new_buffers(page, from, to);
+		ClearPageUptodate(page);
+	}
 	return err;
 }
+EXPORT_SYMBOL(block_prepare_write);
 
 static int __block_commit_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to)
@@ -1948,90 +1952,41 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 	return 0;
 }
 
-/*
- * Filesystems implementing the new truncate sequence should use the
- * _newtrunc postfix variant which won't incorrectly call vmtruncate.
- * The filesystem needs to handle block truncation upon failure.
- */
-int block_write_begin_newtrunc(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
+int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block)
 {
-	struct inode *inode = mapping->host;
-	int status = 0;
-	struct page *page;
-	pgoff_t index;
-	unsigned start, end;
-	int ownpage = 0;
+	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
 
-	index = pos >> PAGE_CACHE_SHIFT;
-	start = pos & (PAGE_CACHE_SIZE - 1);
-	end = start + len;
-
-	page = *pagep;
-	if (page == NULL) {
-		ownpage = 1;
-		page = grab_cache_page_write_begin(mapping, index, flags);
-		if (!page) {
-			status = -ENOMEM;
-			goto out;
-		}
-		*pagep = page;
-	} else
-		BUG_ON(!PageLocked(page));
-
-	status = __block_prepare_write(inode, page, start, end, get_block);
-	if (unlikely(status)) {
-		ClearPageUptodate(page);
-
-		if (ownpage) {
-			unlock_page(page);
-			page_cache_release(page);
-			*pagep = NULL;
-		}
-	}
-
-out:
-	return status;
+	return block_prepare_write(page, start, start + len, get_block);
 }
-EXPORT_SYMBOL(block_write_begin_newtrunc);
+EXPORT_SYMBOL(__block_write_begin);
 
 /*
  * block_write_begin takes care of the basic task of block allocation and
  * bringing partial write blocks uptodate first.
  *
- * If *pagep is not NULL, then block_write_begin uses the locked page
- * at *pagep rather than allocating its own. In this case, the page will
- * not be unlocked or deallocated on failure.
+ * The filesystem needs to handle block truncation upon failure.
  */
-int block_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
+int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
+		unsigned flags, struct page **pagep, get_block_t *get_block)
 {
-	int ret;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	struct page *page;
+	int status;
 
-	ret = block_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block);
+	page = grab_cache_page_write_begin(mapping, index, flags);
+	if (!page)
+		return -ENOMEM;
 
-	/*
-	 * prepare_write() may have instantiated a few blocks
-	 * outside i_size.  Trim these off again. Don't need
-	 * i_size_read because we hold i_mutex.
-	 *
-	 * Filesystems which pass down their own page also cannot
-	 * call into vmtruncate here because it would lead to lock
-	 * inversion problems (*pagep is locked). This is a further
-	 * example of where the old truncate sequence is inadequate.
-	 */
-	if (unlikely(ret) && *pagep == NULL) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
+	status = __block_write_begin(page, pos, len, get_block);
+	if (unlikely(status)) {
+		unlock_page(page);
+		page_cache_release(page);
+		page = NULL;
 	}
 
-	return ret;
+	*pagep = page;
+	return status;
 }
 EXPORT_SYMBOL(block_write_begin);
 
@@ -2351,7 +2306,7 @@ out:
  * For moronic filesystems that do not allow holes in file.
  * We may have to extend the file.
  */
-int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
+int cont_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block, loff_t *bytes)
@@ -2363,7 +2318,7 @@ int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 
 	err = cont_expand_zero(file, mapping, pos, bytes);
 	if (err)
-		goto out;
+		return err;
 
 	zerofrom = *bytes & ~PAGE_CACHE_MASK;
 	if (pos+len > *bytes && zerofrom & (blocksize-1)) {
@@ -2371,43 +2326,9 @@ int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 		(*bytes)++;
 	}
 
-	*pagep = NULL;
-	err = block_write_begin_newtrunc(file, mapping, pos, len,
-				flags, pagep, fsdata, get_block);
-out:
-	return err;
-}
-EXPORT_SYMBOL(cont_write_begin_newtrunc);
-
-int cont_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block, loff_t *bytes)
-{
-	int ret;
-
-	ret = cont_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block, bytes);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
+	return block_write_begin(mapping, pos, len, flags, pagep, get_block);
 }
 EXPORT_SYMBOL(cont_write_begin);
-
-int block_prepare_write(struct page *page, unsigned from, unsigned to,
-			get_block_t *get_block)
-{
-	struct inode *inode = page->mapping->host;
-	int err = __block_prepare_write(inode, page, from, to, get_block);
-	if (err)
-		ClearPageUptodate(page);
-	return err;
-}
-EXPORT_SYMBOL(block_prepare_write);
 
 int block_commit_write(struct page *page, unsigned from, unsigned to)
 {
@@ -2510,11 +2431,11 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
 }
 
 /*
- * Filesystems implementing the new truncate sequence should use the
- * _newtrunc postfix variant which won't incorrectly call vmtruncate.
+ * On entry, the page is fully not uptodate.
+ * On exit the page is fully uptodate in the areas outside (from,to)
  * The filesystem needs to handle block truncation upon failure.
  */
-int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
+int nobh_write_begin(struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
@@ -2547,8 +2468,8 @@ int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 		*pagep = NULL;
-		return block_write_begin_newtrunc(file, mapping, pos, len,
-					flags, pagep, fsdata, get_block);
+		return block_write_begin(mapping, pos, len, flags, pagep,
+					 get_block);
 	}
 
 	if (PageMappedToDisk(page))
@@ -2651,35 +2572,6 @@ out_release:
 	unlock_page(page);
 	page_cache_release(page);
 	*pagep = NULL;
-
-	return ret;
-}
-EXPORT_SYMBOL(nobh_write_begin_newtrunc);
-
-/*
- * On entry, the page is fully not uptodate.
- * On exit the page is fully uptodate in the areas outside (from,to)
- */
-int nobh_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
-{
-	int ret;
-
-	ret = nobh_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block);
-
-	/*
-	 * prepare_write() may have instantiated a few blocks
-	 * outside i_size.  Trim these off again. Don't need
-	 * i_size_read because we hold i_mutex.
-	 */
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
 
 	return ret;
 }

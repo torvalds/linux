@@ -13,9 +13,6 @@
 #include <linux/spi/spi.h>
 
 #include <mach/common.h>
-#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
-#include <mach/spi.h>
-#endif
 #include <mach/iomux-mx3.h>
 
 #include <asm/mach-types.h>
@@ -64,7 +61,7 @@ static struct spi_board_info pcm037_spi_dev[] = {
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 static int pcm037_spi1_cs[] = {MXC_SPI_CS(1), IOMUX_TO_GPIO(MX31_PIN_KEY_COL7)};
 
-struct spi_imx_master pcm037_spi1_master = {
+static const struct spi_imx_master pcm037_spi1_pdata __initconst = {
 	.chipselect = pcm037_spi1_cs,
 	.num_chipselect = ARRAY_SIZE(pcm037_spi1_cs),
 };
@@ -184,7 +181,7 @@ static int eet_init_devices(void)
 	/* SPI */
 	spi_register_board_info(pcm037_spi_dev, ARRAY_SIZE(pcm037_spi_dev));
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
-	mxc_register_device(&mxc_spi_device0, &pcm037_spi1_master);
+	imx35_add_spi_imx0(&pcm037_spi1_pdata);
 #endif
 
 	platform_device_register(&pcm037_gpio_keys_device);

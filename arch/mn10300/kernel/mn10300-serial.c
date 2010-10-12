@@ -44,11 +44,6 @@ static const char serial_revdate[] = "2007-11-06";
 #include <unit/timex.h>
 #include "mn10300-serial.h"
 
-static inline __attribute__((format(printf, 1, 2)))
-void no_printk(const char *fmt, ...)
-{
-}
-
 #define kenter(FMT, ...) \
 	printk(KERN_DEBUG "-->%s(" FMT ")\n", __func__, ##__VA_ARGS__)
 #define _enter(FMT, ...) \

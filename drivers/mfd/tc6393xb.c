@@ -732,9 +732,9 @@ err_gpio_add:
 	if (tc6393xb->gpio.base != -1)
 		temp = gpiochip_remove(&tc6393xb->gpio);
 	tcpd->disable(dev);
-err_clk_enable:
-	clk_disable(tc6393xb->clk);
 err_enable:
+	clk_disable(tc6393xb->clk);
+err_clk_enable:
 	iounmap(tc6393xb->scr);
 err_ioremap:
 	release_resource(&tc6393xb->rscr);

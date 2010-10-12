@@ -36,6 +36,7 @@
 #include "ioasm.h"
 #include "io_sch.h"
 #include "blacklist.h"
+#include "chsc.h"
 
 static struct timer_list recovery_timer;
 static DEFINE_SPINLOCK(recovery_lock);
@@ -486,9 +487,11 @@ static int online_store_handle_offline(struct ccw_device *cdev)
 		spin_lock_irq(cdev->ccwlock);
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG_EVAL);
 		spin_unlock_irq(cdev->ccwlock);
-	} else if (cdev->online && cdev->drv && cdev->drv->set_offline)
+		return 0;
+	}
+	if (cdev->drv && cdev->drv->set_offline)
 		return ccw_device_set_offline(cdev);
-	return 0;
+	return -EINVAL;
 }
 
 static int online_store_recog_and_online(struct ccw_device *cdev)
@@ -505,8 +508,8 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 			return -EAGAIN;
 	}
 	if (cdev->drv && cdev->drv->set_online)
-		ccw_device_set_online(cdev);
-	return 0;
+		return ccw_device_set_online(cdev);
+	return -EINVAL;
 }
 
 static int online_store_handle_online(struct ccw_device *cdev, int force)
@@ -598,6 +601,25 @@ available_show (struct device *dev, struct device_attribute *attr, char *buf)
 	}
 }
 
+static ssize_t
+initiate_logging(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
+{
+	struct subchannel *sch = to_subchannel(dev);
+	int rc;
+
+	rc = chsc_siosl(sch->schid);
+	if (rc < 0) {
+		pr_warning("Logging for subchannel 0.%x.%04x failed with "
+			   "errno=%d\n",
+			   sch->schid.ssid, sch->schid.sch_no, rc);
+		return rc;
+	}
+	pr_notice("Logging for subchannel 0.%x.%04x was triggered\n",
+		  sch->schid.ssid, sch->schid.sch_no);
+	return count;
+}
+
 static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
 static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
 static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
@@ -605,10 +627,12 @@ static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
 static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
+static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
 
 static struct attribute *io_subchannel_attrs[] = {
 	&dev_attr_chpids.attr,
 	&dev_attr_pimpampom.attr,
+	&dev_attr_logging.attr,
 	NULL,
 };
 
@@ -2035,6 +2059,21 @@ void ccw_device_sched_todo(struct ccw_device *cdev, enum cdev_todo todo)
 		put_device(&cdev->dev);
 	}
 }
+
+/**
+ * ccw_device_siosl() - initiate logging
+ * @cdev: ccw device
+ *
+ * This function is used to invoke model-dependent logging within the channel
+ * subsystem.
+ */
+int ccw_device_siosl(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	return chsc_siosl(sch->schid);
+}
+EXPORT_SYMBOL_GPL(ccw_device_siosl);
 
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(ccw_device_set_online);

@@ -118,11 +118,9 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 	if (!np)
 		goto out_err;
 
-	np->full_name = kmalloc(strlen(path) + 1, GFP_KERNEL);
+	np->full_name = kstrdup(path, GFP_KERNEL);
 	if (!np->full_name)
 		goto out_err;
-
-	strcpy(np->full_name, path);
 
 	np->properties = proplist;
 	of_node_set_flag(np, OF_DYNAMIC);

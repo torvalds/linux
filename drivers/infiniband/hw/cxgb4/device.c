@@ -250,12 +250,17 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->cqshift = PAGE_SHIFT - ilog2(rdev->lldi.ucq_density);
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
 	PDBG("%s dev %s stag start 0x%0x size 0x%0x num stags %d "
-	     "pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x\n",
+	     "pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x "
+	     "qp qid start %u size %u cq qid start %u size %u\n",
 	     __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 	     rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
 	     rdev->lldi.vr->pbl.start,
 	     rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
-	     rdev->lldi.vr->rq.size);
+	     rdev->lldi.vr->rq.size,
+	     rdev->lldi.vr->qp.start,
+	     rdev->lldi.vr->qp.size,
+	     rdev->lldi.vr->cq.start,
+	     rdev->lldi.vr->cq.size);
 	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p qpshift %lu "
 	     "qpmask 0x%x cqshift %lu cqmask 0x%x\n",
 	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),

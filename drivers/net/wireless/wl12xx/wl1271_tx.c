@@ -36,6 +36,7 @@ static int wl1271_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		if (wl->tx_frames[i] == NULL) {
 			wl->tx_frames[i] = skb;
+			wl->tx_frames_cnt++;
 			return i;
 		}
 
@@ -73,8 +74,10 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra)
 		wl1271_debug(DEBUG_TX,
 			     "tx_allocate: size: %d, blocks: %d, id: %d",
 			     total_len, total_blocks, id);
-	} else
+	} else {
 		wl->tx_frames[id] = NULL;
+		wl->tx_frames_cnt--;
+	}
 
 	return ret;
 }
@@ -358,6 +361,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	/* return the packet to the stack */
 	ieee80211_tx_status(wl->hw, skb);
 	wl->tx_frames[result->id] = NULL;
+	wl->tx_frames_cnt--;
 }
 
 /* Called upon reception of a TX complete interrupt */
@@ -412,7 +416,7 @@ void wl1271_tx_complete(struct wl1271 *wl)
 }
 
 /* caller must hold wl->mutex */
-void wl1271_tx_flush(struct wl1271 *wl)
+void wl1271_tx_reset(struct wl1271 *wl)
 {
 	int i;
 	struct sk_buff *skb;
@@ -421,7 +425,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 /* 	control->flags = 0; FIXME */
 
 	while ((skb = skb_dequeue(&wl->tx_queue))) {
-		wl1271_debug(DEBUG_TX, "flushing skb 0x%p", skb);
+		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
 		ieee80211_tx_status(wl->hw, skb);
 	}
 
@@ -429,6 +433,32 @@ void wl1271_tx_flush(struct wl1271 *wl)
 		if (wl->tx_frames[i] != NULL) {
 			skb = wl->tx_frames[i];
 			wl->tx_frames[i] = NULL;
+			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
 			ieee80211_tx_status(wl->hw, skb);
 		}
+	wl->tx_frames_cnt = 0;
+}
+
+#define WL1271_TX_FLUSH_TIMEOUT 500000
+
+/* caller must *NOT* hold wl->mutex */
+void wl1271_tx_flush(struct wl1271 *wl)
+{
+	unsigned long timeout;
+	timeout = jiffies + usecs_to_jiffies(WL1271_TX_FLUSH_TIMEOUT);
+
+	while (!time_after(jiffies, timeout)) {
+		mutex_lock(&wl->mutex);
+		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d",
+			     wl->tx_frames_cnt);
+		if ((wl->tx_frames_cnt == 0) &&
+		    skb_queue_empty(&wl->tx_queue)) {
+			mutex_unlock(&wl->mutex);
+			return;
+		}
+		mutex_unlock(&wl->mutex);
+		msleep(1);
+	}
+
+	wl1271_warning("Unable to flush all TX buffers, timed out.");
 }

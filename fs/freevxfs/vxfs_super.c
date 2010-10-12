@@ -61,7 +61,7 @@ static int		vxfs_statfs(struct dentry *, struct kstatfs *);
 static int		vxfs_remount(struct super_block *, int *, char *);
 
 static const struct super_operations vxfs_super_ops = {
-	.clear_inode =		vxfs_clear_inode,
+	.evict_inode =		vxfs_evict_inode,
 	.put_super =		vxfs_put_super,
 	.statfs =		vxfs_statfs,
 	.remount_fs =		vxfs_remount,
@@ -135,7 +135,7 @@ static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 /**
- * vxfs_read_super - read superblock into memory and initalize filesystem
+ * vxfs_read_super - read superblock into memory and initialize filesystem
  * @sbp:		VFS superblock (to fill)
  * @dp:			fs private mount data
  * @silent:		do not complain loudly when sth is wrong

@@ -148,10 +148,11 @@ EOF
 # Generate a control file
 cat <<EOF > debian/control
 Source: linux-upstream
-Section: admin
+Section: kernel
 Priority: optional
 Maintainer: $maintainer
-Standards-Version: 3.8.1
+Standards-Version: 3.8.4
+Homepage: http://www.kernel.org/
 EOF
 
 if [ "$ARCH" = "um" ]; then

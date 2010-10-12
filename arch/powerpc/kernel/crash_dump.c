@@ -128,9 +128,9 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 	if (!csize)
 		return 0;
 
-	csize = min(csize, PAGE_SIZE);
+	csize = min_t(size_t, csize, PAGE_SIZE);
 
-	if (pfn < max_pfn) {
+	if ((min_low_pfn < pfn) && (pfn < max_pfn)) {
 		vaddr = __va(pfn << PAGE_SHIFT);
 		csize = copy_oldmem_vaddr(vaddr, buf, csize, offset, userbuf);
 	} else {

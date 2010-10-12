@@ -82,17 +82,9 @@ static struct notifier_block ppc_swiotlb_plat_bus_notifier = {
 	.priority = 0,
 };
 
-static struct notifier_block ppc_swiotlb_of_bus_notifier = {
-	.notifier_call = ppc_swiotlb_bus_notify,
-	.priority = 0,
-};
-
 int __init swiotlb_setup_bus_notifier(void)
 {
 	bus_register_notifier(&platform_bus_type,
 			      &ppc_swiotlb_plat_bus_notifier);
-	bus_register_notifier(&of_platform_bus_type,
-			      &ppc_swiotlb_of_bus_notifier);
-
 	return 0;
 }

@@ -119,6 +119,7 @@ do {											\
 #define ELF_CORE_COPY_REGS(pr_reg, regs)	\
         memcpy((char *) &pr_reg, (char *)regs,  \
                sizeof(struct pt_regs));
+#define ELF_CORE_COPY_FPREGS(...) 0	/* Blackfin has no FPU */
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  */

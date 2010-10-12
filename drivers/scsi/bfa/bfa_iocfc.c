@@ -113,7 +113,6 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	bfa_assert(cfg->fwcfg.num_cqs <= BFI_IOC_MAX_CQS);
 	bfa_trc(bfa, cfg->fwcfg.num_cqs);
 
-	iocfc->cfgdone = BFA_FALSE;
 	bfa_iocfc_reset_queues(bfa);
 
 	/**
@@ -145,6 +144,15 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	}
 
 	/**
+	 * Enable interrupt coalescing if it is driver init path
+	 * and not ioc disable/enable path.
+	 */
+	if (!iocfc->cfgdone)
+		cfg_info->intr_attr.coalesce = BFA_TRUE;
+
+	iocfc->cfgdone = BFA_FALSE;
+
+	/**
 	 * dma map IOC configuration itself
 	 */
 	bfi_h2i_set(cfg_req.mh, BFI_MC_IOCFC, BFI_IOCFC_H2I_CFG_REQ,
@@ -170,7 +178,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	/**
 	 * Initialize chip specific handlers.
 	 */
-	if (bfa_ioc_devid(&bfa->ioc) == BFA_PCI_DEVICE_ID_CT) {
+	if (bfa_asic_id_ct(bfa_ioc_devid(&bfa->ioc))) {
 		iocfc->hwif.hw_reginit = bfa_hwct_reginit;
 		iocfc->hwif.hw_reqq_ack = bfa_hwct_reqq_ack;
 		iocfc->hwif.hw_rspq_ack = bfa_hwct_rspq_ack;
@@ -179,6 +187,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		iocfc->hwif.hw_msix_uninstall = bfa_hwct_msix_uninstall;
 		iocfc->hwif.hw_isr_mode_set = bfa_hwct_isr_mode_set;
 		iocfc->hwif.hw_msix_getvecs = bfa_hwct_msix_getvecs;
+		iocfc->hwif.hw_msix_get_rme_range = bfa_hwct_msix_get_rme_range;
 	} else {
 		iocfc->hwif.hw_reginit = bfa_hwcb_reginit;
 		iocfc->hwif.hw_reqq_ack = bfa_hwcb_reqq_ack;
@@ -188,6 +197,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		iocfc->hwif.hw_msix_uninstall = bfa_hwcb_msix_uninstall;
 		iocfc->hwif.hw_isr_mode_set = bfa_hwcb_isr_mode_set;
 		iocfc->hwif.hw_msix_getvecs = bfa_hwcb_msix_getvecs;
+		iocfc->hwif.hw_msix_get_rme_range = bfa_hwcb_msix_get_rme_range;
 	}
 
 	iocfc->hwif.hw_reginit(bfa);
@@ -291,18 +301,6 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
 }
 
 /**
- * BFA submodules initialization completion notification.
- */
-static void
-bfa_iocfc_initdone_submod(struct bfa_s *bfa)
-{
-	int             i;
-
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->initdone(bfa);
-}
-
-/**
  * Start BFA submodules.
  */
 static void
@@ -376,7 +374,6 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	struct bfa_iocfc_s		*iocfc	 = &bfa->iocfc;
 	struct bfi_iocfc_cfgrsp_s	*cfgrsp  = iocfc->cfgrsp;
 	struct bfa_iocfc_fwcfg_s	*fwcfg   = &cfgrsp->fwcfg;
-	struct bfi_iocfc_cfg_s 		*cfginfo = iocfc->cfginfo;
 
 	fwcfg->num_cqs        = fwcfg->num_cqs;
 	fwcfg->num_ioim_reqs  = bfa_os_ntohs(fwcfg->num_ioim_reqs);
@@ -385,15 +382,13 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	fwcfg->num_uf_bufs    = bfa_os_ntohs(fwcfg->num_uf_bufs);
 	fwcfg->num_rports     = bfa_os_ntohs(fwcfg->num_rports);
 
-	cfginfo->intr_attr.coalesce = cfgrsp->intr_attr.coalesce;
-	cfginfo->intr_attr.delay    = bfa_os_ntohs(cfgrsp->intr_attr.delay);
-	cfginfo->intr_attr.latency  = bfa_os_ntohs(cfgrsp->intr_attr.latency);
-
 	iocfc->cfgdone = BFA_TRUE;
 
 	/**
 	 * Configuration is complete - initialize/start submodules
 	 */
+	bfa_fcport_init(bfa);
+
 	if (iocfc->action == BFA_IOCFC_ACT_INIT)
 		bfa_cb_queue(bfa, &iocfc->init_hcb_qe, bfa_iocfc_init_cb, bfa);
 	else
@@ -531,7 +526,6 @@ bfa_iocfc_enable_cbfn(void *bfa_arg, enum bfa_status status)
 		return;
 	}
 
-	bfa_iocfc_initdone_submod(bfa);
 	bfa_iocfc_send_cfg(bfa);
 }
 
@@ -625,9 +619,9 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		bfa->trcmod, bfa->aen, bfa->logm);
 
 	/**
-	 * Choose FC (ssid: 0x1C) v/s FCoE (ssid: 0x14) mode.
+	 * Set FC mode for BFA_PCI_DEVICE_ID_CT_FC.
 	 */
-	if (0)
+	if (pcidev->device_id == BFA_PCI_DEVICE_ID_CT_FC)
 		bfa_ioc_set_fcmode(&bfa->ioc);
 
 	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_MC_IOCFC);
@@ -748,10 +742,20 @@ bfa_adapter_get_id(struct bfa_s *bfa)
 void
 bfa_iocfc_get_attr(struct bfa_s *bfa, struct bfa_iocfc_attr_s *attr)
 {
-	struct bfa_iocfc_s	*iocfc = &bfa->iocfc;
+	struct bfa_iocfc_s      *iocfc = &bfa->iocfc;
 
-	attr->intr_attr = iocfc->cfginfo->intr_attr;
-	attr->config	= iocfc->cfg;
+	attr->intr_attr.coalesce = iocfc->cfginfo->intr_attr.coalesce;
+
+	attr->intr_attr.delay = iocfc->cfginfo->intr_attr.delay ?
+			bfa_os_ntohs(iocfc->cfginfo->intr_attr.delay) :
+			bfa_os_ntohs(iocfc->cfgrsp->intr_attr.delay);
+
+	attr->intr_attr.latency = iocfc->cfginfo->intr_attr.latency ?
+			bfa_os_ntohs(iocfc->cfginfo->intr_attr.latency) :
+			bfa_os_ntohs(iocfc->cfgrsp->intr_attr.latency);
+
+	attr->config    = iocfc->cfg;
+
 }
 
 bfa_status_t
@@ -760,7 +764,10 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 	struct bfa_iocfc_s		*iocfc = &bfa->iocfc;
 	struct bfi_iocfc_set_intr_req_s *m;
 
-	iocfc->cfginfo->intr_attr = *attr;
+	iocfc->cfginfo->intr_attr.coalesce = attr->coalesce;
+	iocfc->cfginfo->intr_attr.delay = bfa_os_htons(attr->delay);
+	iocfc->cfginfo->intr_attr.latency = bfa_os_htons(attr->latency);
+
 	if (!bfa_iocfc_is_operational(bfa))
 		return BFA_STATUS_OK;
 
@@ -770,9 +777,10 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 
 	bfi_h2i_set(m->mh, BFI_MC_IOCFC, BFI_IOCFC_H2I_SET_INTR_REQ,
 			bfa_lpuid(bfa));
-	m->coalesce = attr->coalesce;
-	m->delay    = bfa_os_htons(attr->delay);
-	m->latency  = bfa_os_htons(attr->latency);
+	m->coalesce = iocfc->cfginfo->intr_attr.coalesce;
+	m->delay    = iocfc->cfginfo->intr_attr.delay;
+	m->latency  = iocfc->cfginfo->intr_attr.latency;
+
 
 	bfa_trc(bfa, attr->delay);
 	bfa_trc(bfa, attr->latency);
@@ -872,14 +880,47 @@ bfa_iocfc_is_operational(struct bfa_s *bfa)
  * Return boot target port wwns -- read from boot information in flash.
  */
 void
-bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns)
+bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns)
 {
-	struct bfa_iocfc_s		*iocfc	 = &bfa->iocfc;
-	struct bfi_iocfc_cfgrsp_s	*cfgrsp  = iocfc->cfgrsp;
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+	int i;
+
+	if (cfgrsp->pbc_cfg.boot_enabled && cfgrsp->pbc_cfg.nbluns) {
+		bfa_trc(bfa, cfgrsp->pbc_cfg.nbluns);
+		*nwwns = cfgrsp->pbc_cfg.nbluns;
+		for (i = 0; i < cfgrsp->pbc_cfg.nbluns; i++)
+			wwns[i] = cfgrsp->pbc_cfg.blun[i].tgt_pwwn;
+
+		return;
+	}
 
 	*nwwns = cfgrsp->bootwwns.nwwns;
-	*wwns = cfgrsp->bootwwns.wwn;
+	memcpy(wwns, cfgrsp->bootwwns.wwn, sizeof(cfgrsp->bootwwns.wwn));
 }
+
+void
+bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa, struct bfa_boot_pbc_s *pbcfg)
+{
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	pbcfg->enable = cfgrsp->pbc_cfg.boot_enabled;
+	pbcfg->nbluns = cfgrsp->pbc_cfg.nbluns;
+	pbcfg->speed = cfgrsp->pbc_cfg.port_speed;
+	memcpy(pbcfg->pblun, cfgrsp->pbc_cfg.blun, sizeof(pbcfg->pblun));
+}
+
+int
+bfa_iocfc_get_pbc_vports(struct bfa_s *bfa, struct bfi_pbc_vport_s *pbc_vport)
+{
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	memcpy(pbc_vport, cfgrsp->pbc_cfg.vport, sizeof(cfgrsp->pbc_cfg.vport));
+	return cfgrsp->pbc_cfg.nvports;
+}
+
 
 #endif
 

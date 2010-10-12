@@ -218,7 +218,7 @@ static struct page *dio_get_page(struct dio *dio)
  * filesystems can use it to hold additional state between get_block calls and
  * dio_complete.
  */
-static int dio_complete(struct dio *dio, loff_t offset, int ret)
+static int dio_complete(struct dio *dio, loff_t offset, int ret, bool is_async)
 {
 	ssize_t transferred = 0;
 
@@ -239,20 +239,23 @@ static int dio_complete(struct dio *dio, loff_t offset, int ret)
 			transferred = dio->i_size - offset;
 	}
 
-	if (dio->end_io && dio->result)
-		dio->end_io(dio->iocb, offset, transferred,
-			    dio->map_bh.b_private);
-
-	if (dio->flags & DIO_LOCKING)
-		/* lockdep: non-owner release */
-		up_read_non_owner(&dio->inode->i_alloc_sem);
-
 	if (ret == 0)
 		ret = dio->page_errors;
 	if (ret == 0)
 		ret = dio->io_error;
 	if (ret == 0)
 		ret = transferred;
+
+	if (dio->end_io && dio->result) {
+		dio->end_io(dio->iocb, offset, transferred,
+			    dio->map_bh.b_private, ret, is_async);
+	} else if (is_async) {
+		aio_complete(dio->iocb, ret, 0);
+	}
+
+	if (dio->flags & DIO_LOCKING)
+		/* lockdep: non-owner release */
+		up_read_non_owner(&dio->inode->i_alloc_sem);
 
 	return ret;
 }
@@ -277,8 +280,7 @@ static void dio_bio_end_aio(struct bio *bio, int error)
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
 
 	if (remaining == 0) {
-		int ret = dio_complete(dio, dio->iocb->ki_pos, 0);
-		aio_complete(dio->iocb, ret, 0);
+		dio_complete(dio, dio->iocb->ki_pos, 0, true);
 		kfree(dio);
 	}
 }
@@ -1126,7 +1128,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
 
 	if (ret2 == 0) {
-		ret = dio_complete(dio, offset, ret);
+		ret = dio_complete(dio, offset, ret, false);
 		kfree(dio);
 	} else
 		BUG_ON(ret != -EIOCBQUEUED);
@@ -1134,8 +1136,27 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	return ret;
 }
 
+/*
+ * This is a library function for use by filesystem drivers.
+ *
+ * The locking rules are governed by the flags parameter:
+ *  - if the flags value contains DIO_LOCKING we use a fancy locking
+ *    scheme for dumb filesystems.
+ *    For writes this function is called under i_mutex and returns with
+ *    i_mutex held, for reads, i_mutex is not held on entry, but it is
+ *    taken and dropped again before returning.
+ *    For reads and writes i_alloc_sem is taken in shared mode and released
+ *    on I/O completion (which may happen asynchronously after returning to
+ *    the caller).
+ *
+ *  - if the flags value does NOT contain DIO_LOCKING we don't use any
+ *    internal locking but rather rely on the filesystem to synchronize
+ *    direct I/O reads/writes versus each other and truncate.
+ *    For reads and writes both i_mutex and i_alloc_sem are not held on
+ *    entry and are never taken.
+ */
 ssize_t
-__blockdev_direct_IO_newtrunc(int rw, struct kiocb *iocb, struct inode *inode,
+__blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct block_device *bdev, const struct iovec *iov, loff_t offset, 
 	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
 	dio_submit_t submit_io,	int flags)
@@ -1229,59 +1250,6 @@ __blockdev_direct_IO_newtrunc(int rw, struct kiocb *iocb, struct inode *inode,
 				submit_io, dio);
 
 out:
-	return retval;
-}
-EXPORT_SYMBOL(__blockdev_direct_IO_newtrunc);
-
-/*
- * This is a library function for use by filesystem drivers.
- *
- * The locking rules are governed by the flags parameter:
- *  - if the flags value contains DIO_LOCKING we use a fancy locking
- *    scheme for dumb filesystems.
- *    For writes this function is called under i_mutex and returns with
- *    i_mutex held, for reads, i_mutex is not held on entry, but it is
- *    taken and dropped again before returning.
- *    For reads and writes i_alloc_sem is taken in shared mode and released
- *    on I/O completion (which may happen asynchronously after returning to
- *    the caller).
- *
- *  - if the flags value does NOT contain DIO_LOCKING we don't use any
- *    internal locking but rather rely on the filesystem to synchronize
- *    direct I/O reads/writes versus each other and truncate.
- *    For reads and writes both i_mutex and i_alloc_sem are not held on
- *    entry and are never taken.
- */
-ssize_t
-__blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset,
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
-	dio_submit_t submit_io,	int flags)
-{
-	ssize_t retval;
-
-	retval = __blockdev_direct_IO_newtrunc(rw, iocb, inode, bdev, iov,
-			offset, nr_segs, get_block, end_io, submit_io, flags);
-	/*
-	 * In case of error extending write may have instantiated a few
-	 * blocks outside i_size. Trim these off again for DIO_LOCKING.
-	 * NOTE: DIO_NO_LOCK/DIO_OWN_LOCK callers have to handle this in
-	 * their own manner. This is a further example of where the old
-	 * truncate sequence is inadequate.
-	 *
-	 * NOTE: filesystems with their own locking have to handle this
-	 * on their own.
-	 */
-	if (flags & DIO_LOCKING) {
-		if (unlikely((rw & WRITE) && retval < 0)) {
-			loff_t isize = i_size_read(inode);
-			loff_t end = offset + iov_length(iov, nr_segs);
-
-			if (end > isize)
-				vmtruncate(inode, isize);
-		}
-	}
-
 	return retval;
 }
 EXPORT_SYMBOL(__blockdev_direct_IO);

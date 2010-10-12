@@ -69,8 +69,8 @@ static int efx_mcdi_get_mac_faults(struct efx_nic *efx, u32 *faults)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n",
-		__func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+		  __func__, rc);
 	return rc;
 }
 
@@ -110,8 +110,8 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: %s failed rc=%d\n",
-		__func__, enable ? "enable" : "disable", rc);
+	netif_err(efx, hw, efx->net_dev, "%s: %s failed rc=%d\n",
+		  __func__, enable ? "enable" : "disable", rc);
 	return rc;
 }
 

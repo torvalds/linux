@@ -61,12 +61,11 @@ void __iomem *gic_cpu_base_addr;
 /*
  * Adjust the zones if there are restrictions for DMA access.
  */
-void __init realview_adjust_zones(int node, unsigned long *size,
-				  unsigned long *hole)
+void __init realview_adjust_zones(unsigned long *size, unsigned long *hole)
 {
 	unsigned long dma_size = SZ_256M >> PAGE_SHIFT;
 
-	if (!machine_is_realview_pbx() || node || (size[0] <= dma_size))
+	if (!machine_is_realview_pbx() || size[0] <= dma_size)
 		return;
 
 	size[ZONE_NORMAL] = size[0] - dma_size;
@@ -232,6 +231,21 @@ static unsigned int realview_mmc_status(struct device *dev)
 	struct amba_device *adev = container_of(dev, struct amba_device, dev);
 	u32 mask;
 
+	if (machine_is_realview_pb1176()) {
+		static bool inserted = false;
+
+		/*
+		 * The PB1176 does not have the status register,
+		 * assume it is inserted at startup, then invert
+		 * for each call so card insertion/removal will
+		 * be detected anyway. This will not be called if
+		 * GPIO on PL061 is active, which is the proper
+		 * way to do this on the PB1176.
+		 */
+		inserted = !inserted;
+		return inserted ? 0 : 1;
+	}
+
 	if (adev->res.start == REALVIEW_MMCI0_BASE)
 		mask = 1;
 	else
@@ -300,8 +314,13 @@ static struct clk ref24_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk dummy_apb_pclk;
+
 static struct clk_lookup lookups[] = {
-	{	/* UART0 */
+	{	/* Bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* UART0 */
 		.dev_id		= "dev:uart0",
 		.clk		= &ref24_clk,
 	}, {	/* UART1 */
@@ -313,6 +332,12 @@ static struct clk_lookup lookups[] = {
 	}, {	/* UART3 */
 		.dev_id		= "fpga:uart3",
 		.clk		= &ref24_clk,
+	}, {	/* UART3 is on the dev chip in PB1176 */
+		.dev_id		= "dev:uart3",
+		.clk		= &ref24_clk,
+	}, {	/* UART4 only exists in PB1176 */
+		.dev_id		= "fpga:uart4",
+		.clk		= &ref24_clk,
 	}, {	/* KMI0 */
 		.dev_id		= "fpga:kmi0",
 		.clk		= &ref24_clk,
@@ -322,12 +347,15 @@ static struct clk_lookup lookups[] = {
 	}, {	/* MMC0 */
 		.dev_id		= "fpga:mmc0",
 		.clk		= &ref24_clk,
-	}, {	/* EB:CLCD */
+	}, {	/* CLCD is in the PB1176 and EB DevChip */
 		.dev_id		= "dev:clcd",
 		.clk		= &oscvco_clk,
 	}, {	/* PB:CLCD */
 		.dev_id		= "issp:clcd",
 		.clk		= &oscvco_clk,
+	}, {	/* SSP */
+		.dev_id		= "dev:ssp0",
+		.clk		= &ref24_clk,
 	}
 };
 
@@ -342,7 +370,7 @@ static int __init clk_init(void)
 
 	return 0;
 }
-arch_initcall(clk_init);
+core_initcall(clk_init);
 
 /*
  * CLCD support.

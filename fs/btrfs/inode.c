@@ -1429,7 +1429,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 	BUG_ON(ret);
 
-	if (!(rw & (1 << BIO_RW))) {
+	if (!(rw & REQ_WRITE)) {
 		if (bio_flags & EXTENT_BIO_COMPRESSED) {
 			return btrfs_submit_compressed_read(inode, bio,
 						    mirror_num, bio_flags);
@@ -1841,7 +1841,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 	bio->bi_size = 0;
 
 	bio_add_page(bio, page, failrec->len, start - page_offset(page));
-	if (failed_bio->bi_rw & (1 << BIO_RW))
+	if (failed_bio->bi_rw & REQ_WRITE)
 		rw = WRITE;
 	else
 		rw = READ;
@@ -2938,7 +2938,6 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, dir);
 	BUG_ON(ret);
-	dir->i_sb->s_dirt = 1;
 
 	btrfs_free_path(path);
 	return 0;
@@ -3656,17 +3655,19 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		if (err)
 			return err;
 	}
-	attr->ia_valid &= ~ATTR_SIZE;
 
-	if (attr->ia_valid)
-		err = inode_setattr(inode, attr);
+	if (attr->ia_valid) {
+		setattr_copy(inode, attr);
+		mark_inode_dirty(inode);
 
-	if (!err && ((attr->ia_valid & ATTR_MODE)))
-		err = btrfs_acl_chmod(inode);
+		if (attr->ia_valid & ATTR_MODE)
+			err = btrfs_acl_chmod(inode);
+	}
+
 	return err;
 }
 
-void btrfs_delete_inode(struct inode *inode)
+void btrfs_evict_inode(struct inode *inode)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3674,10 +3675,14 @@ void btrfs_delete_inode(struct inode *inode)
 	int ret;
 
 	truncate_inode_pages(&inode->i_data, 0);
+	if (inode->i_nlink && btrfs_root_refs(&root->root_item) != 0)
+		goto no_delete;
+
 	if (is_bad_inode(inode)) {
 		btrfs_orphan_del(NULL, inode);
 		goto no_delete;
 	}
+	/* do we really want it for ->i_nlink > 0 and zero btrfs_root_refs? */
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
 	if (root->fs_info->log_root_recovering) {
@@ -3727,7 +3732,7 @@ void btrfs_delete_inode(struct inode *inode)
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
 no_delete:
-	clear_inode(inode);
+	end_writeback(inode);
 	return;
 }
 
@@ -3858,7 +3863,7 @@ again:
 			p = &parent->rb_right;
 		else {
 			WARN_ON(!(entry->vfs_inode.i_state &
-				  (I_WILL_FREE | I_FREEING | I_CLEAR)));
+				  (I_WILL_FREE | I_FREEING)));
 			rb_erase(parent, &root->inode_tree);
 			RB_CLEAR_NODE(parent);
 			spin_unlock(&root->inode_lock);
@@ -3937,7 +3942,7 @@ again:
 			if (atomic_read(&inode->i_count) > 1)
 				d_prune_aliases(inode);
 			/*
-			 * btrfs_drop_inode will remove it from
+			 * btrfs_drop_inode will have it removed from
 			 * the inode cache when its usage count
 			 * hits zero.
 			 */
@@ -5642,7 +5647,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	struct bio_vec *bvec = bio->bi_io_vec;
 	u64 start;
 	int skip_sum;
-	int write = rw & (1 << BIO_RW);
+	int write = rw & REQ_WRITE;
 	int ret = 0;
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
@@ -6331,13 +6336,14 @@ free:
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
-void btrfs_drop_inode(struct inode *inode)
+int btrfs_drop_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	if (inode->i_nlink > 0 && btrfs_root_refs(&root->root_item) == 0)
-		generic_delete_inode(inode);
+
+	if (btrfs_root_refs(&root->root_item) == 0)
+		return 1;
 	else
-		generic_drop_inode(inode);
+		return generic_drop_inode(inode);
 }
 
 static void init_once(void *foo)

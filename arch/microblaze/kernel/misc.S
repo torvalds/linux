@@ -76,7 +76,7 @@ early_console_reg_tlb_alloc:
 	 * the UARTs nice and early.  We use a 4k real==virtual mapping.
 	 */
 	ori	r4, r0, MICROBLAZE_TLB_SIZE - 1
-	mts	rtlbx, r4 /* TLB slot 2 */
+	mts	rtlbx, r4 /* TLB slot 63 */
 
 	or	r4,r5,r0
 	andi	r4,r4,0xfffff000

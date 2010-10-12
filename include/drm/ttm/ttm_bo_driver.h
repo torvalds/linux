@@ -34,6 +34,7 @@
 #include "ttm/ttm_memory.h"
 #include "ttm/ttm_module.h"
 #include "drm_mm.h"
+#include "drm_global.h"
 #include "linux/workqueue.h"
 #include "linux/fs.h"
 #include "linux/spinlock.h"
@@ -362,7 +363,7 @@ struct ttm_bo_driver {
  */
 
 struct ttm_bo_global_ref {
-	struct ttm_global_reference ref;
+	struct drm_global_reference ref;
 	struct ttm_mem_global *mem_glob;
 };
 
@@ -687,8 +688,8 @@ extern int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 extern void ttm_mem_io_free(struct ttm_bo_device *bdev,
 				struct ttm_mem_reg *mem);
 
-extern void ttm_bo_global_release(struct ttm_global_reference *ref);
-extern int ttm_bo_global_init(struct ttm_global_reference *ref);
+extern void ttm_bo_global_release(struct drm_global_reference *ref);
+extern int ttm_bo_global_init(struct drm_global_reference *ref);
 
 extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 

@@ -958,7 +958,7 @@ static int __devinit fsl_elbc_ctrl_init(struct fsl_elbc_ctrl *ctrl)
 	return 0;
 }
 
-static int fsl_elbc_ctrl_remove(struct of_device *ofdev)
+static int fsl_elbc_ctrl_remove(struct platform_device *ofdev)
 {
 	struct fsl_elbc_ctrl *ctrl = dev_get_drvdata(&ofdev->dev);
 	int i;
@@ -1013,7 +1013,7 @@ static irqreturn_t fsl_elbc_ctrl_irq(int irqno, void *data)
  * in the chip probe function.
 */
 
-static int __devinit fsl_elbc_ctrl_probe(struct of_device *ofdev,
+static int __devinit fsl_elbc_ctrl_probe(struct platform_device *ofdev,
                                          const struct of_device_id *match)
 {
 	struct device_node *child;

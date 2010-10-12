@@ -529,16 +529,18 @@ dm646x_queue_priority_mapping[][2] = {
 	{-1, -1},
 };
 
-static struct edma_soc_info dm646x_edma_info[] = {
-	{
-		.n_channel		= 64,
-		.n_region		= 6,	/* 0-1, 4-7 */
-		.n_slot			= 512,
-		.n_tc			= 4,
-		.n_cc			= 1,
-		.queue_tc_mapping	= dm646x_queue_tc_mapping,
-		.queue_priority_mapping	= dm646x_queue_priority_mapping,
-	},
+static struct edma_soc_info edma_cc0_info = {
+	.n_channel		= 64,
+	.n_region		= 6,	/* 0-1, 4-7 */
+	.n_slot			= 512,
+	.n_tc			= 4,
+	.n_cc			= 1,
+	.queue_tc_mapping	= dm646x_queue_tc_mapping,
+	.queue_priority_mapping	= dm646x_queue_priority_mapping,
+};
+
+static struct edma_soc_info *dm646x_edma_info[EDMA_MAX_CC] = {
+	&edma_cc0_info,
 };
 
 static struct resource edma_resources[] = {
@@ -877,6 +879,13 @@ void dm646x_setup_vpif(struct vpif_display_config *display_config,
 	platform_device_register(&vpif_capture_dev);
 }
 
+int __init dm646x_init_edma(struct edma_rsv_info *rsv)
+{
+	edma_cc0_info.rsv = rsv;
+
+	return platform_device_register(&dm646x_edma_device);
+}
+
 void __init dm646x_init(void)
 {
 	dm646x_board_setup_refclk(&ref_clk);
@@ -888,7 +897,6 @@ static int __init dm646x_init_devices(void)
 	if (!cpu_is_davinci_dm646x())
 		return 0;
 
-	platform_device_register(&dm646x_edma_device);
 	platform_device_register(&dm646x_emac_device);
 	return 0;
 }

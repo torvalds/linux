@@ -83,25 +83,25 @@ static inline u32 getmiso(struct spi_device *dev)
 static u32 sh_sci_spi_txrx_mode0(struct spi_device *spi,
 				      unsigned nsecs, u32 word, u8 bits)
 {
-	return bitbang_txrx_be_cpha0(spi, nsecs, 0, word, bits);
+	return bitbang_txrx_be_cpha0(spi, nsecs, 0, 0, word, bits);
 }
 
 static u32 sh_sci_spi_txrx_mode1(struct spi_device *spi,
 				      unsigned nsecs, u32 word, u8 bits)
 {
-	return bitbang_txrx_be_cpha1(spi, nsecs, 0, word, bits);
+	return bitbang_txrx_be_cpha1(spi, nsecs, 0, 0, word, bits);
 }
 
 static u32 sh_sci_spi_txrx_mode2(struct spi_device *spi,
 				      unsigned nsecs, u32 word, u8 bits)
 {
-	return bitbang_txrx_be_cpha0(spi, nsecs, 1, word, bits);
+	return bitbang_txrx_be_cpha0(spi, nsecs, 1, 0, word, bits);
 }
 
 static u32 sh_sci_spi_txrx_mode3(struct spi_device *spi,
 				      unsigned nsecs, u32 word, u8 bits)
 {
-	return bitbang_txrx_be_cpha1(spi, nsecs, 1, word, bits);
+	return bitbang_txrx_be_cpha1(spi, nsecs, 1, 0, word, bits);
 }
 
 static void sh_sci_spi_chipselect(struct spi_device *dev, int value)

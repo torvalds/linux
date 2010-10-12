@@ -1296,6 +1296,7 @@ fail:
 
 int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 {
+	struct inode *inode = &ip->i_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_ea_location el;
 	struct buffer_head *dibh;
@@ -1321,14 +1322,25 @@ int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 		return error;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		error = inode_setattr(&ip->i_inode, attr);
-		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+	if (error)
+		goto out_trans_end;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		int error;
+
+		error = vmtruncate(inode, attr->ia_size);
+		gfs2_assert_warn(GFS2_SB(inode), !error);
 	}
 
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+
+out_trans_end:
 	gfs2_trans_end(sdp);
 	return error;
 }

@@ -34,11 +34,13 @@ enum {
 	BH_NILFS_Allocated = BH_PrivateStart,
 	BH_NILFS_Node,
 	BH_NILFS_Volatile,
+	BH_NILFS_Checked,
 };
 
 BUFFER_FNS(NILFS_Allocated, nilfs_allocated)	/* nilfs private buffers */
 BUFFER_FNS(NILFS_Node, nilfs_node)		/* nilfs node buffers */
 BUFFER_FNS(NILFS_Volatile, nilfs_volatile)
+BUFFER_FNS(NILFS_Checked, nilfs_checked)	/* buffer is verified */
 
 
 void nilfs_mark_buffer_dirty(struct buffer_head *bh);

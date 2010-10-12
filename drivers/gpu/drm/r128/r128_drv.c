@@ -85,7 +85,7 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-int r128_driver_load(struct drm_device * dev, unsigned long flags)
+int r128_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	return drm_vblank_init(dev, 1);
 }

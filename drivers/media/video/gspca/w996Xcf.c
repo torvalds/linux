@@ -31,14 +31,10 @@
    the sensor drivers to v4l2 sub drivers, and properly split of this
    driver from ov519.c */
 
-/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
-#define CONEX_CAM
-#include "jpeg.h"
-
 #define W9968CF_I2C_BUS_DELAY    4 /* delay in us for I2C bit r/w operations */
 
-#define Y_QUANTABLE (sd->jpeg_hdr + JPEG_QT0_OFFSET)
-#define UV_QUANTABLE (sd->jpeg_hdr + JPEG_QT1_OFFSET)
+#define Y_QUANTABLE (&sd->jpeg_hdr[JPEG_QT0_OFFSET])
+#define UV_QUANTABLE (&sd->jpeg_hdr[JPEG_QT1_OFFSET])
 
 static const struct v4l2_pix_format w9968cf_vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
@@ -509,11 +505,6 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
 	    V4L2_PIX_FMT_JPEG) {
 		/* We may get called multiple times (usb isoc bw negotiat.) */
-		if (!sd->jpeg_hdr)
-			sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-		if (!sd->jpeg_hdr)
-			return -ENOMEM;
-
 		jpeg_define(sd->jpeg_hdr, sd->gspca_dev.height,
 			    sd->gspca_dev.width, 0x22); /* JPEG 420 */
 		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -562,9 +553,6 @@ static void w9968cf_stop0(struct sd *sd)
 		reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
 		reg_w(sd, 0x16, 0x0000); /* stop video capture */
 	}
-
-	kfree(sd->jpeg_hdr);
-	sd->jpeg_hdr = NULL;
 }
 
 /* The w9968cf docs say that a 0 sized packet means EOF (and also SOF

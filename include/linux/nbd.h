@@ -88,7 +88,7 @@ struct nbd_request {
 	char handle[8];
 	__be64 from;
 	__be32 len;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * This is the reply packet that nbd-server sends back to the client after

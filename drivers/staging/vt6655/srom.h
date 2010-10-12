@@ -97,34 +97,34 @@
 //      2048 bits = 256 bytes = 128 words
 //
 typedef struct tagSSromReg {
-    BYTE    abyPAR[6];                  // 0x00 (WORD)
+    unsigned char abyPAR[6];                  // 0x00 (unsigned short)
 
-    WORD    wSUB_VID;                   // 0x03 (WORD)
-    WORD    wSUB_SID;
+    unsigned short wSUB_VID;                   // 0x03 (unsigned short)
+    unsigned short wSUB_SID;
 
-    BYTE    byBCFG0;                    // 0x05 (WORD)
-    BYTE    byBCFG1;
+    unsigned char byBCFG0;                    // 0x05 (unsigned short)
+    unsigned char byBCFG1;
 
-    BYTE    byFCR0;                     // 0x06 (WORD)
-    BYTE    byFCR1;
-    BYTE    byPMC0;                     // 0x07 (WORD)
-    BYTE    byPMC1;
-    BYTE    byMAXLAT;                   // 0x08 (WORD)
-    BYTE    byMINGNT;
-    BYTE    byCFG0;                     // 0x09 (WORD)
-    BYTE    byCFG1;
-    WORD    wCISPTR;                    // 0x0A (WORD)
-    WORD    wRsv0;                      // 0x0B (WORD)
-    WORD    wRsv1;                      // 0x0C (WORD)
-    BYTE    byBBPAIR;                   // 0x0D (WORD)
-    BYTE    byRFTYPE;
-    BYTE    byMinChannel;               // 0x0E (WORD)
-    BYTE    byMaxChannel;
-    BYTE    bySignature;                // 0x0F (WORD)
-    BYTE    byCheckSum;
+    unsigned char byFCR0;                     // 0x06 (unsigned short)
+    unsigned char byFCR1;
+    unsigned char byPMC0;                     // 0x07 (unsigned short)
+    unsigned char byPMC1;
+    unsigned char byMAXLAT;                   // 0x08 (unsigned short)
+    unsigned char byMINGNT;
+    unsigned char byCFG0;                     // 0x09 (unsigned short)
+    unsigned char byCFG1;
+    unsigned short wCISPTR;                    // 0x0A (unsigned short)
+    unsigned short wRsv0;                      // 0x0B (unsigned short)
+    unsigned short wRsv1;                      // 0x0C (unsigned short)
+    unsigned char byBBPAIR;                   // 0x0D (unsigned short)
+    unsigned char byRFTYPE;
+    unsigned char byMinChannel;               // 0x0E (unsigned short)
+    unsigned char byMaxChannel;
+    unsigned char bySignature;                // 0x0F (unsigned short)
+    unsigned char byCheckSum;
 
-    BYTE    abyReserved0[96];           // 0x10 (WORD)
-    BYTE    abyCIS[128];                // 0x80 (WORD)
+    unsigned char abyReserved0[96];           // 0x10 (unsigned short)
+    unsigned char abyCIS[128];                // 0x80 (unsigned short)
 } SSromReg, *PSSromReg;
 
 /*---------------------  Export Macros ------------------------------*/
@@ -135,23 +135,23 @@ typedef struct tagSSromReg {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BYTE SROMbyReadEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset);
-BOOL SROMbWriteEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byData);
+unsigned char SROMbyReadEmbedded(unsigned long dwIoBase, unsigned char byContntOffset);
+bool SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byData);
 
-void SROMvRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits);
-void SROMvRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits);
+void SROMvRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byBits);
+void SROMvRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byBits);
 
-BOOL SROMbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits);
-BOOL SROMbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits);
+bool SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits);
+bool SROMbIsRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits);
 
-void SROMvReadAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs);
-void SROMvWriteAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs);
+void SROMvReadAllContents(unsigned long dwIoBase, unsigned char *pbyEepromRegs);
+void SROMvWriteAllContents(unsigned long dwIoBase, unsigned char *pbyEepromRegs);
 
-void SROMvReadEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress);
-void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress);
+void SROMvReadEtherAddress(unsigned long dwIoBase, unsigned char *pbyEtherAddress);
+void SROMvWriteEtherAddress(unsigned long dwIoBase, unsigned char *pbyEtherAddress);
 
-void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId);
+void SROMvReadSubSysVenId(unsigned long dwIoBase, unsigned long *pdwSubSysVenId);
 
-BOOL SROMbAutoLoad (DWORD_PTR dwIoBase);
+bool SROMbAutoLoad (unsigned long dwIoBase);
 
 #endif // __EEPROM_H__

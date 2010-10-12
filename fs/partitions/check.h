@@ -16,6 +16,7 @@ struct parsed_partitions {
 	int next;
 	int limit;
 	bool access_beyond_eod;
+	char *pp_buf;
 };
 
 static inline void *read_part_sector(struct parsed_partitions *state,
@@ -32,9 +33,12 @@ static inline void
 put_partition(struct parsed_partitions *p, int n, sector_t from, sector_t size)
 {
 	if (n < p->limit) {
+		char tmp[1 + BDEVNAME_SIZE + 10 + 1];
+
 		p->parts[n].from = from;
 		p->parts[n].size = size;
-		printk(" %s%d", p->name, n);
+		snprintf(tmp, sizeof(tmp), " %s%d", p->name, n);
+		strlcat(p->pp_buf, tmp, PAGE_SIZE);
 	}
 }
 

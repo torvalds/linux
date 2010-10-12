@@ -141,7 +141,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	}
 
 	rc = dns_resolve_server_name_to_ip(*devname, &srvIP);
-	if (rc != 0) {
+	if (rc < 0) {
 		cERROR(1, "%s: Failed to resolve server part of %s to IP: %d",
 			  __func__, *devname, rc);
 		goto compose_mount_options_err;
@@ -150,8 +150,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	 * assuming that we have 'unc=' and 'ip=' in
 	 * the original sb_mountdata
 	 */
-	md_len = strlen(sb_mountdata) + strlen(srvIP) +
-		strlen(ref->node_name) + 12;
+	md_len = strlen(sb_mountdata) + rc + strlen(ref->node_name) + 12;
 	mountdata = kzalloc(md_len+1, GFP_KERNEL);
 	if (mountdata == NULL) {
 		rc = -ENOMEM;
@@ -230,28 +229,22 @@ compose_mount_options_err:
 	goto compose_mount_options_out;
 }
 
-
-static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
-		struct dentry *dentry, const struct dfs_info3_param *ref)
+/**
+ * cifs_dfs_do_refmount - mounts specified path using provided refferal
+ * @cifs_sb:		parent/root superblock
+ * @fullpath:		full path in UNC format
+ * @ref:		server's referral
+ */
+static struct vfsmount *cifs_dfs_do_refmount(struct cifs_sb_info *cifs_sb,
+		const char *fullpath, const struct dfs_info3_param *ref)
 {
-	struct cifs_sb_info *cifs_sb;
 	struct vfsmount *mnt;
 	char *mountdata;
 	char *devname = NULL;
-	char *fullpath;
 
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	/*
-	 * this function gives us a path with a double backslash prefix. We
-	 * require a single backslash for DFS.
-	 */
-	fullpath = build_path_from_dentry(dentry);
-	if (!fullpath)
-		return ERR_PTR(-ENOMEM);
-
+	/* strip first '\' from fullpath */
 	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
 			fullpath + 1, ref, &devname);
-	kfree(fullpath);
 
 	if (IS_ERR(mountdata))
 		return (struct vfsmount *)mountdata;
@@ -357,8 +350,8 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 			rc = -EINVAL;
 			goto out_err;
 		}
-		mnt = cifs_dfs_do_refmount(nd->path.mnt,
-				nd->path.dentry, referrals + i);
+		mnt = cifs_dfs_do_refmount(cifs_sb,
+				full_path, referrals + i);
 		cFYI(1, "%s: cifs_dfs_do_refmount:%s , mnt:%p", __func__,
 					referrals[i].node_name, mnt);
 

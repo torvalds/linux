@@ -402,6 +402,9 @@ __acquires(musb->lock)
 					musb->g.a_alt_hnp_support = 1;
 					break;
 #endif
+				case USB_DEVICE_DEBUG_MODE:
+					handled = 0;
+					break;
 stall:
 				default:
 					handled = -EINVAL;

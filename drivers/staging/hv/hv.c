@@ -192,8 +192,6 @@ int HvInit(void)
 	union hv_x64_msr_hypercall_contents hypercallMsr;
 	void *virtAddr = NULL;
 
-	DPRINT_ENTER(VMBUS);
-
 	memset(gHvContext.synICEventPage, 0, sizeof(void *) * MAX_NUM_CPUS);
 	memset(gHvContext.synICMessagePage, 0, sizeof(void *) * MAX_NUM_CPUS);
 
@@ -275,8 +273,6 @@ int HvInit(void)
 	gHvContext.SignalEventParam->FlagNumber = 0;
 	gHvContext.SignalEventParam->RsvdZ = 0;
 
-	DPRINT_EXIT(VMBUS);
-
 	return ret;
 
 Cleanup:
@@ -289,8 +285,6 @@ Cleanup:
 		vfree(virtAddr);
 	}
 	ret = -1;
-	DPRINT_EXIT(VMBUS);
-
 	return ret;
 }
 
@@ -303,8 +297,6 @@ void HvCleanup(void)
 {
 	union hv_x64_msr_hypercall_contents hypercallMsr;
 
-	DPRINT_ENTER(VMBUS);
-
 	kfree(gHvContext.SignalEventBuffer);
 	gHvContext.SignalEventBuffer = NULL;
 	gHvContext.SignalEventParam = NULL;
@@ -315,8 +307,6 @@ void HvCleanup(void)
 		vfree(gHvContext.HypercallPage);
 		gHvContext.HypercallPage = NULL;
 	}
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -392,12 +382,8 @@ void HvSynicInit(void *irqarg)
 	u32 irqVector = *((u32 *)(irqarg));
 	int cpu = smp_processor_id();
 
-	DPRINT_ENTER(VMBUS);
-
-	if (!gHvContext.HypercallPage) {
-		DPRINT_EXIT(VMBUS);
+	if (!gHvContext.HypercallPage)
 		return;
-	}
 
 	/* Check the version */
 	rdmsrl(HV_X64_MSR_SVERSION, version);
@@ -464,9 +450,6 @@ void HvSynicInit(void *irqarg)
 	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
 
 	gHvContext.SynICInitialized = true;
-
-	DPRINT_EXIT(VMBUS);
-
 	return;
 
 Cleanup:
@@ -475,8 +458,6 @@ Cleanup:
 
 	if (gHvContext.synICMessagePage[cpu])
 		osd_PageFree(gHvContext.synICMessagePage[cpu], 1);
-
-	DPRINT_EXIT(VMBUS);
 	return;
 }
 
@@ -490,12 +471,8 @@ void HvSynicCleanup(void *arg)
 	union hv_synic_siefp siefp;
 	int cpu = smp_processor_id();
 
-	DPRINT_ENTER(VMBUS);
-
-	if (!gHvContext.SynICInitialized) {
-		DPRINT_EXIT(VMBUS);
+	if (!gHvContext.SynICInitialized)
 		return;
-	}
 
 	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
 
@@ -519,6 +496,4 @@ void HvSynicCleanup(void *arg)
 
 	osd_PageFree(gHvContext.synICMessagePage[cpu], 1);
 	osd_PageFree(gHvContext.synICEventPage[cpu], 1);
-
-	DPRINT_EXIT(VMBUS);
 }

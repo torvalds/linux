@@ -458,8 +458,7 @@ static void ext4_xattr_update_super_block(handle_t *handle,
 
 	if (ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh) == 0) {
 		EXT4_SET_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_EXT_ATTR);
-		sb->s_dirt = 1;
-		ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
+		ext4_handle_dirty_super(handle, sb);
 	}
 }
 
@@ -1418,7 +1417,7 @@ ext4_xattr_cache_insert(struct buffer_head *bh)
 		ea_bdebug(bh, "out of memory");
 		return;
 	}
-	error = mb_cache_entry_insert(ce, bh->b_bdev, bh->b_blocknr, &hash);
+	error = mb_cache_entry_insert(ce, bh->b_bdev, bh->b_blocknr, hash);
 	if (error) {
 		mb_cache_entry_free(ce);
 		if (error == -EBUSY) {
@@ -1490,8 +1489,8 @@ ext4_xattr_cache_find(struct inode *inode, struct ext4_xattr_header *header,
 		return NULL;  /* never share */
 	ea_idebug(inode, "looking for cached blocks [%x]", (int)hash);
 again:
-	ce = mb_cache_entry_find_first(ext4_xattr_cache, 0,
-				       inode->i_sb->s_bdev, hash);
+	ce = mb_cache_entry_find_first(ext4_xattr_cache, inode->i_sb->s_bdev,
+				       hash);
 	while (ce) {
 		struct buffer_head *bh;
 
@@ -1515,7 +1514,7 @@ again:
 			return bh;
 		}
 		brelse(bh);
-		ce = mb_cache_entry_find_next(ce, 0, inode->i_sb->s_bdev, hash);
+		ce = mb_cache_entry_find_next(ce, inode->i_sb->s_bdev, hash);
 	}
 	return NULL;
 }
@@ -1591,9 +1590,7 @@ static void ext4_xattr_rehash(struct ext4_xattr_header *header,
 int __init
 init_ext4_xattr(void)
 {
-	ext4_xattr_cache = mb_cache_create("ext4_xattr", NULL,
-		sizeof(struct mb_cache_entry) +
-		sizeof(((struct mb_cache_entry *) 0)->e_indexes[0]), 1, 6);
+	ext4_xattr_cache = mb_cache_create("ext4_xattr", 6);
 	if (!ext4_xattr_cache)
 		return -ENOMEM;
 	return 0;

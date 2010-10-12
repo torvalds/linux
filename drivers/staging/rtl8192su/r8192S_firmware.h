@@ -1,44 +1,32 @@
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #ifndef __INC_FIRMWARE_H
 #define __INC_FIRMWARE_H
-
-
-//#define RTL8190_CPU_START_OFFSET	0x80
-/* TODO: this definition is TBD */
-//#define USB_HWDESC_HEADER_LEN	0
-
-/* It should be double word alignment */
-//#if DEV_BUS_TYPE==PCI_INTERFACE
-//#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	4*(v/4) - 8
-//#else
-//#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8 - USB_HWDESC_HEADER_LEN)
-//#endif
-
-//typedef enum _firmware_init_step{
-//	FW_INIT_STEP0_BOOT = 0,
-//	FW_INIT_STEP1_MAIN = 1,
-//	FW_INIT_STEP2_DATA = 2,
-//}firmware_init_step_e;
-
-//typedef enum _DESC_PACKET_TYPE{
-//	DESC_PACKET_TYPE_INIT = 0,
-//	DESC_PACKET_TYPE_NORMAL = 1,
-//}DESC_PACKET_TYPE;
-#define	RTL8192S_FW_PKT_FRAG_SIZE		0xFF00	// 64K
 
 
 #define 	RTL8190_MAX_FIRMWARE_CODE_SIZE	64000	//64k
 #define	MAX_FIRMWARE_CODE_SIZE	0xFF00 // Firmware Local buffer size.
 #define 	RTL8190_CPU_START_OFFSET			0x80
-
+#define	RTL8192S_FW_PKT_FRAG_SIZE		0x4000
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8 - USB_HWDESC_HEADER_LEN)
 
-//typedef enum _DESC_PACKET_TYPE{
-//	DESC_PACKET_TYPE_INIT = 0,
-//	DESC_PACKET_TYPE_NORMAL = 1,
-//}DESC_PACKET_TYPE;
 
-// Forward declaration.
-//typedef	struct _ADAPTER	ADAPTER, *PADAPTER;
 #ifdef RTL8192S
 typedef enum _firmware_init_step{
 	FW_INIT_STEP0_IMEM = 0,
@@ -64,17 +52,8 @@ typedef enum _opt_rst_type{
 	OPT_FIRMWARE_RESET = 1,
 }opt_rst_type_e;
 
-/*typedef enum _FIRMWARE_STATUS{
-	FW_STATUS_0_INIT = 0,
-	FW_STATUS_1_MOVE_BOOT_CODE = 1,
-	FW_STATUS_2_MOVE_MAIN_CODE = 2,
-	FW_STATUS_3_TURNON_CPU = 3,
-	FW_STATUS_4_MOVE_DATA_CODE = 4,
-	FW_STATUS_5_READY = 5,
-}FIRMWARE_STATUS;
-*/
 //--------------------------------------------------------------------------------
-// RTL8192S Firmware related, Revised by Roger, 2008.12.18.
+// RTL8192S Firmware related
 //--------------------------------------------------------------------------------
 typedef  struct _RT_8192S_FIRMWARE_PRIV { //8-bytes alignment required
 
@@ -181,7 +160,6 @@ typedef enum _FIRMWARE_8192S_STATUS{
 typedef struct _rt_firmware{
 	PRT_8192S_FIRMWARE_HDR	pFwHeader;
 	FIRMWARE_8192S_STATUS	FWStatus;
-	u16             FirmwareVersion;
 	u8		FwIMEM[RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u8		FwEMEM[RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u32		FwIMEMLen;
@@ -189,11 +167,43 @@ typedef struct _rt_firmware{
 	u8		szFwTmpBuffer[164000];
         u32             szFwTmpBufferLen;
 	u16		CmdPacketFragThresold;
+	u16		FirmwareVersion;
 }rt_firmware, *prt_firmware;
 
-//typedef struct _RT_FIRMWARE_INFO_8192SU{
-//	u8		szInfo[16];
-//}RT_FIRMWARE_INFO_8192SU, *PRT_FIRMWARE_INFO_8192SU;
+#define		FW_DIG_ENABLE_CTL			BIT0
+#define		FW_HIGH_PWR_ENABLE_CTL		BIT1
+#define		FW_SS_CTL						BIT2
+#define		FW_RA_INIT_CTL				BIT3
+#define		FW_RA_BG_CTL					BIT4
+#define		FW_RA_N_CTL					BIT5
+#define		FW_PWR_TRK_CTL				BIT6
+#define		FW_IQK_CTL						BIT7
+#define		FW_ANTENNA_SW				BIT8
+#define		FW_DISABLE_ALL_DM			0
+
+#define		FW_PWR_TRK_PARAM_CLR		0x0000ffff
+#define		FW_RA_PARAM_CLR				0xffff0000
+
+#define	FW_CMD_IO_CLR(_pdev, _Bit)		\
+	udelay(1000);		\
+	((struct r8192_priv *)ieee80211_priv(_pdev))->FwCmdIOMap &= (~_Bit);
+
+#define	FW_CMD_IO_UPDATE(_pdev, _val)		\
+	((struct r8192_priv *)ieee80211_priv(_pdev))->FwCmdIOMap = _val;
+
+#define		FW_CMD_IO_SET(_pdev, _val) 	\
+	write_nic_word(_pdev, LBUS_MON_ADDR, (u16)_val);	\
+	FW_CMD_IO_UPDATE(_pdev, _val);
+
+#define		FW_CMD_PARA_SET(_pdev, _val) 		\
+	write_nic_dword(_pdev, LBUS_ADDR_MASK, _val);	\
+	((struct r8192_priv *)ieee80211_priv(_pdev))->FwCmdIOParam = _val;
+
+#define		FW_CMD_IO_QUERY(_pdev)	(u16)(((struct r8192_priv *)ieee80211_priv(_pdev))->FwCmdIOMap)
+#define	FW_CMD_IO_PARA_QUERY(_pdev)	(u32)(((struct r8192_priv *)ieee80211_priv(_pdev))->FwCmdIOParam)
+
+
+
 bool FirmwareDownload92S(struct net_device *dev);
 
 #endif

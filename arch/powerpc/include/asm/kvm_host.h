@@ -35,10 +35,17 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
 /* We don't currently support large pages. */
+#define KVM_HPAGE_GFN_SHIFT(x)	0
 #define KVM_NR_PAGE_SIZES	1
 #define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
 
-#define HPTEG_CACHE_NUM 1024
+#define HPTEG_CACHE_NUM			(1 << 15)
+#define HPTEG_HASH_BITS_PTE		13
+#define HPTEG_HASH_BITS_VPTE		13
+#define HPTEG_HASH_BITS_VPTE_LONG	5
+#define HPTEG_HASH_NUM_PTE		(1 << HPTEG_HASH_BITS_PTE)
+#define HPTEG_HASH_NUM_VPTE		(1 << HPTEG_HASH_BITS_VPTE)
+#define HPTEG_HASH_NUM_VPTE_LONG	(1 << HPTEG_HASH_BITS_VPTE_LONG)
 
 struct kvm;
 struct kvm_run;
@@ -151,6 +158,9 @@ struct kvmppc_mmu {
 };
 
 struct hpte_cache {
+	struct hlist_node list_pte;
+	struct hlist_node list_vpte;
+	struct hlist_node list_vpte_long;
 	u64 host_va;
 	u64 pfn;
 	ulong slot;
@@ -282,8 +292,10 @@ struct kvm_vcpu_arch {
 	unsigned long pending_exceptions;
 
 #ifdef CONFIG_PPC_BOOK3S
-	struct hpte_cache hpte_cache[HPTEG_CACHE_NUM];
-	int hpte_cache_offset;
+	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
+	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
+	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
+	int hpte_cache_count;
 #endif
 };
 

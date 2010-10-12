@@ -419,8 +419,8 @@ void ctc_mpc_establish_connectivity(int port_num,
 		return;
 	priv = dev->ml_priv;
 	grp = priv->mpcg;
-	rch = priv->channel[READ];
-	wch = priv->channel[WRITE];
+	rch = priv->channel[CTCM_READ];
+	wch = priv->channel[CTCM_WRITE];
 
 	CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_INFO,
 			"%s(%s): state=%s",
@@ -578,7 +578,7 @@ void ctc_mpc_flow_control(int port_num, int flowc)
 			"%s: %s: flowc = %d",
 				CTCM_FUNTAIL, dev->name, flowc);
 
-	rch = priv->channel[READ];
+	rch = priv->channel[CTCM_READ];
 
 	mpcg_state = fsm_getstate(grp->fsm);
 	switch (flowc) {
@@ -622,7 +622,7 @@ static void mpc_rcvd_sweep_resp(struct mpcg_info *mpcginfo)
 	struct net_device *dev = rch->netdev;
 	struct ctcm_priv   *priv = dev->ml_priv;
 	struct mpc_group  *grp = priv->mpcg;
-	struct channel	  *ch = priv->channel[WRITE];
+	struct channel	  *ch = priv->channel[CTCM_WRITE];
 
 	CTCM_PR_DEBUG("%s: ch=0x%p id=%s\n", __func__, ch, ch->id);
 	CTCM_D3_DUMP((char *)mpcginfo->sweep, TH_SWEEP_LENGTH);
@@ -656,7 +656,7 @@ static void ctcmpc_send_sweep_resp(struct channel *rch)
 	int rc = 0;
 	struct th_sweep *header;
 	struct sk_buff *sweep_skb;
-	struct channel *ch  = priv->channel[WRITE];
+	struct channel *ch  = priv->channel[CTCM_WRITE];
 
 	CTCM_PR_DEBUG("%s: ch=0x%p id=%s\n", __func__, rch, rch->id);
 
@@ -712,7 +712,7 @@ static void mpc_rcvd_sweep_req(struct mpcg_info *mpcginfo)
 	struct net_device *dev     = rch->netdev;
 	struct ctcm_priv  *priv = dev->ml_priv;
 	struct mpc_group  *grp  = priv->mpcg;
-	struct channel	  *ch	   = priv->channel[WRITE];
+	struct channel	  *ch	   = priv->channel[CTCM_WRITE];
 
 	if (do_debug)
 		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_DEBUG,
@@ -721,8 +721,8 @@ static void mpc_rcvd_sweep_req(struct mpcg_info *mpcginfo)
 	if (grp->in_sweep == 0) {
 		grp->in_sweep = 1;
 		ctcm_test_and_set_busy(dev);
-		grp->sweep_req_pend_num = grp->active_channels[READ];
-		grp->sweep_rsp_pend_num = grp->active_channels[READ];
+		grp->sweep_req_pend_num = grp->active_channels[CTCM_READ];
+		grp->sweep_rsp_pend_num = grp->active_channels[CTCM_READ];
 	}
 
 	CTCM_D3_DUMP((char *)mpcginfo->sweep, TH_SWEEP_LENGTH);
@@ -906,14 +906,14 @@ void mpc_group_ready(unsigned long adev)
 	fsm_newstate(grp->fsm, MPCG_STATE_READY);
 
 	/* Put up a read on the channel */
-	ch = priv->channel[READ];
+	ch = priv->channel[CTCM_READ];
 	ch->pdu_seq = 0;
 	CTCM_PR_DBGDATA("ctcmpc: %s() ToDCM_pdu_seq= %08x\n" ,
 			__func__, ch->pdu_seq);
 
 	ctcmpc_chx_rxidle(ch->fsm, CTC_EVENT_START, ch);
 	/* Put the write channel in idle state */
-	ch = priv->channel[WRITE];
+	ch = priv->channel[CTCM_WRITE];
 	if (ch->collect_len > 0) {
 		spin_lock(&ch->collect_lock);
 		ctcm_purge_skb_queue(&ch->collect_queue);
@@ -960,7 +960,8 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 		"%s: %i / Grp:%s total_channels=%i, active_channels: "
 		"read=%i, write=%i\n", __func__, action,
 		fsm_getstate_str(grp->fsm), grp->num_channel_paths,
-		grp->active_channels[READ], grp->active_channels[WRITE]);
+		grp->active_channels[CTCM_READ],
+		grp->active_channels[CTCM_WRITE]);
 
 	if ((action == MPC_CHANNEL_ADD) && (ch->in_mpcgroup == 0)) {
 		grp->num_channel_paths++;
@@ -994,10 +995,11 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 				grp->xid_skb->data,
 				grp->xid_skb->len);
 
-		ch->xid->xid2_dlc_type = ((CHANNEL_DIRECTION(ch->flags) == READ)
+		ch->xid->xid2_dlc_type =
+			((CHANNEL_DIRECTION(ch->flags) == CTCM_READ)
 				? XID2_READ_SIDE : XID2_WRITE_SIDE);
 
-		if (CHANNEL_DIRECTION(ch->flags) == WRITE)
+		if (CHANNEL_DIRECTION(ch->flags) == CTCM_WRITE)
 			ch->xid->xid2_buf_len = 0x00;
 
 		ch->xid_skb->data = ch->xid_skb_data;
@@ -1006,8 +1008,8 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 
 		fsm_newstate(ch->fsm, CH_XID0_PENDING);
 
-		if ((grp->active_channels[READ]  > 0) &&
-		    (grp->active_channels[WRITE] > 0) &&
+		if ((grp->active_channels[CTCM_READ] > 0) &&
+		    (grp->active_channels[CTCM_WRITE] > 0) &&
 			(fsm_getstate(grp->fsm) < MPCG_STATE_XID2INITW)) {
 			fsm_newstate(grp->fsm, MPCG_STATE_XID2INITW);
 			CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_NOTICE,
@@ -1027,10 +1029,10 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 		if (grp->channels_terminating)
 					goto done;
 
-		if (((grp->active_channels[READ] == 0) &&
-					(grp->active_channels[WRITE] > 0))
-			|| ((grp->active_channels[WRITE] == 0) &&
-					(grp->active_channels[READ] > 0)))
+		if (((grp->active_channels[CTCM_READ] == 0) &&
+					(grp->active_channels[CTCM_WRITE] > 0))
+			|| ((grp->active_channels[CTCM_WRITE] == 0) &&
+					(grp->active_channels[CTCM_READ] > 0)))
 			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
 	}
 done:
@@ -1038,7 +1040,8 @@ done:
 		"exit %s: %i / Grp:%s total_channels=%i, active_channels: "
 		"read=%i, write=%i\n", __func__, action,
 		fsm_getstate_str(grp->fsm), grp->num_channel_paths,
-		grp->active_channels[READ], grp->active_channels[WRITE]);
+		grp->active_channels[CTCM_READ],
+		grp->active_channels[CTCM_WRITE]);
 
 	CTCM_PR_DEBUG("exit %s: ch=0x%p id=%s\n", __func__, ch, ch->id);
 }
@@ -1392,8 +1395,8 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 		(grp->port_persist == 0))
 		fsm_deltimer(&priv->restart_timer);
 
-	wch = priv->channel[WRITE];
-	rch = priv->channel[READ];
+	wch = priv->channel[CTCM_WRITE];
+	rch = priv->channel[CTCM_READ];
 
 	switch (grp->saved_state) {
 	case MPCG_STATE_RESET:
@@ -1480,8 +1483,8 @@ static void mpc_action_timeout(fsm_instance *fi, int event, void *arg)
 
 	priv = dev->ml_priv;
 	grp = priv->mpcg;
-	wch = priv->channel[WRITE];
-	rch = priv->channel[READ];
+	wch = priv->channel[CTCM_WRITE];
+	rch = priv->channel[CTCM_READ];
 
 	switch (fsm_getstate(grp->fsm)) {
 	case MPCG_STATE_XID2INITW:
@@ -1586,7 +1589,7 @@ static int mpc_validate_xid(struct mpcg_info *mpcginfo)
 	CTCM_D3_DUMP((char *)xid, XID2_LENGTH);
 
 	/*the received direction should be the opposite of ours  */
-	if (((CHANNEL_DIRECTION(ch->flags) == READ) ? XID2_WRITE_SIDE :
+	if (((CHANNEL_DIRECTION(ch->flags) == CTCM_READ) ? XID2_WRITE_SIDE :
 				XID2_READ_SIDE) != xid->xid2_dlc_type) {
 		rc = 2;
 		/* XID REJECTED: r/w channel pairing mismatch */
@@ -1912,7 +1915,7 @@ static void mpc_action_doxid7(fsm_instance *fsm, int event, void *arg)
 	if (grp == NULL)
 		return;
 
-	for (direction = READ; direction <= WRITE; direction++)	{
+	for (direction = CTCM_READ; direction <= CTCM_WRITE; direction++) {
 		struct channel *ch = priv->channel[direction];
 		struct xid2 *thisxid = ch->xid;
 		ch->xid_skb->data = ch->xid_skb_data;
@@ -2152,14 +2155,15 @@ static int mpc_send_qllc_discontact(struct net_device *dev)
 			return -ENOMEM;
 		}
 
-		*((__u32 *)skb_push(skb, 4)) = priv->channel[READ]->pdu_seq;
-		priv->channel[READ]->pdu_seq++;
+		*((__u32 *)skb_push(skb, 4)) =
+			priv->channel[CTCM_READ]->pdu_seq;
+		priv->channel[CTCM_READ]->pdu_seq++;
 		CTCM_PR_DBGDATA("ctcmpc: %s ToDCM_pdu_seq= %08x\n",
-				__func__, priv->channel[READ]->pdu_seq);
+				__func__, priv->channel[CTCM_READ]->pdu_seq);
 
 		/* receipt of CC03 resets anticipated sequence number on
 		      receiving side */
-		priv->channel[READ]->pdu_seq = 0x00;
+		priv->channel[CTCM_READ]->pdu_seq = 0x00;
 		skb_reset_mac_header(skb);
 		skb->dev = dev;
 		skb->protocol = htons(ETH_P_SNAP);

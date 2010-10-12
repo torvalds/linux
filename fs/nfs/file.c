@@ -203,37 +203,11 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 }
 
 /*
- * Helper for nfs_file_flush() and nfs_file_fsync()
- *
- * Notice that it clears the NFS_CONTEXT_ERROR_WRITE before synching to
- * disk, but it retrieves and clears ctx->error after synching, despite
- * the two being set at the same time in nfs_context_set_write_error().
- * This is because the former is used to notify the _next_ call to
- * nfs_file_write() that a write error occured, and hence cause it to
- * fall back to doing a synchronous write.
- */
-static int nfs_do_fsync(struct nfs_open_context *ctx, struct inode *inode)
-{
-	int have_error, status;
-	int ret = 0;
-
-	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
-	status = nfs_wb_all(inode);
-	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
-	if (have_error)
-		ret = xchg(&ctx->error, 0);
-	if (!ret)
-		ret = status;
-	return ret;
-}
-
-/*
  * Flush all dirty pages, and check for write errors.
  */
 static int
 nfs_file_flush(struct file *file, fl_owner_t id)
 {
-	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct dentry	*dentry = file->f_path.dentry;
 	struct inode	*inode = dentry->d_inode;
 
@@ -246,7 +220,7 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 		return 0;
 
 	/* Flush writes to the server and return any errors */
-	return nfs_do_fsync(ctx, inode);
+	return vfs_fsync(file, 0);
 }
 
 static ssize_t
@@ -321,6 +295,13 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
  * Flush any dirty pages for this process, and check for write errors.
  * The return status from this call provides a reliable indication of
  * whether any write errors occurred for this process.
+ *
+ * Notice that it clears the NFS_CONTEXT_ERROR_WRITE before synching to
+ * disk, but it retrieves and clears ctx->error after synching, despite
+ * the two being set at the same time in nfs_context_set_write_error().
+ * This is because the former is used to notify the _next_ call to
+ * nfs_file_write() that a write error occured, and hence cause it to
+ * fall back to doing a synchronous write.
  */
 static int
 nfs_file_fsync(struct file *file, int datasync)
@@ -328,13 +309,23 @@ nfs_file_fsync(struct file *file, int datasync)
 	struct dentry *dentry = file->f_path.dentry;
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = dentry->d_inode;
+	int have_error, status;
+	int ret = 0;
+
 
 	dprintk("NFS: fsync file(%s/%s) datasync %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			datasync);
 
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
-	return nfs_do_fsync(ctx, inode);
+	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+	status = nfs_commit_inode(inode, FLUSH_SYNC);
+	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+	if (have_error)
+		ret = xchg(&ctx->error, 0);
+	if (!ret)
+		ret = status;
+	return ret;
 }
 
 /*
@@ -648,7 +639,7 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 
 	/* Return error values for O_DSYNC and IS_SYNC() */
 	if (result >= 0 && nfs_need_sync_write(iocb->ki_filp, inode)) {
-		int err = nfs_do_fsync(nfs_file_open_context(iocb->ki_filp), inode);
+		int err = vfs_fsync(iocb->ki_filp, 0);
 		if (err < 0)
 			result = err;
 	}
@@ -684,7 +675,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 		written = ret;
 
 	if (ret >= 0 && nfs_need_sync_write(filp, inode)) {
-		int err = nfs_do_fsync(nfs_file_open_context(filp), inode);
+		int err = vfs_fsync(filp, 0);
 		if (err < 0)
 			ret = err;
 	}

@@ -23,7 +23,7 @@ struct ams {
 
 	/* General properties */
 	struct device_node *of_node;
-	struct of_device *of_dev;
+	struct platform_device *of_dev;
 	char has_device;
 	char vflag;
 	u32 orient1;

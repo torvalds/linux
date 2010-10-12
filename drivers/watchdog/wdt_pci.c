@@ -60,19 +60,6 @@
 
 #define PFX "wdt_pci: "
 
-/*
- * Until Access I/O gets their application for a PCI vendor ID approved,
- * I don't think that it's appropriate to move these constants into the
- * regular pci_ids.h file. -- JPN 2000/01/18
- */
-
-#ifndef PCI_VENDOR_ID_ACCESSIO
-#define PCI_VENDOR_ID_ACCESSIO 0x494f
-#endif
-#ifndef PCI_DEVICE_ID_WDG_CSM
-#define PCI_DEVICE_ID_WDG_CSM 0x22c0
-#endif
-
 /* We can only use 1 card due to the /dev/watchdog restriction */
 static int dev_count;
 
@@ -743,7 +730,7 @@ static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
 static struct pci_device_id wdtpci_pci_tbl[] = {
 	{
 		.vendor	   = PCI_VENDOR_ID_ACCESSIO,
-		.device	   = PCI_DEVICE_ID_WDG_CSM,
+		.device	   = PCI_DEVICE_ID_ACCESSIO_WDG_CSM,
 		.subvendor = PCI_ANY_ID,
 		.subdevice = PCI_ANY_ID,
 	},

@@ -51,8 +51,10 @@ struct bfa_iocfc_fwcfg_s {
 	u16        num_tsktm_reqs;	/*  TM task management requests*/
 	u16        num_fcxp_reqs;	/*  unassisted FC exchanges	*/
 	u16        num_uf_bufs;	/*  unsolicited recv buffers	*/
-	u8		num_cqs;
-	u8		rsvd[5];
+	u8	   num_cqs;
+	u8         fw_tick_res;    /*!< FW clock resolution in ms */
+	u8         rsvd[4];
+
 };
 
 struct bfa_iocfc_drvcfg_s {
@@ -176,10 +178,10 @@ struct bfa_fw_port_fpg_stats_s {
     u32    nos_rx;
     u32    lip_rx;
     u32    arbf0_rx;
+    u32    arb_rx;
     u32    mrk_rx;
     u32    const_mrk_rx;
     u32    prim_unknown;
-    u32    rsvd;
 };
 
 
@@ -200,6 +202,8 @@ struct bfa_fw_port_lksm_stats_s {
     u32    lrr_tx;             /*  No. of times LRR tx started         */
     u32    ols_tx;             /*  No. of times OLS tx started         */
     u32    nos_tx;             /*  No. of times NOS tx started         */
+    u32    hwsm_lrr_rx;        /*  No. of times LRR rx-ed by HWSM      */
+    u32    hwsm_lr_rx;         /* No. of times LR rx-ed by HWSM        */
 };
 
 
@@ -239,7 +243,7 @@ struct bfa_fw_fip_stats_s {
     u32    disc_fcf_unavail;   /*  Discovery FCF Not Avail.            */
     u32    linksvc_unsupp;     /*  Unsupported link service req        */
     u32    linksvc_err;        /*  Parse error in link service req     */
-    u32    logo_req;           /*  Number of FIP logos received        */
+    u32    logo_req;           /*  FIP logos received	               */
     u32    clrvlink_req;       /*  Clear virtual link req              */
     u32    op_unsupp;          /*  Unsupported FIP operation           */
     u32    untagged;           /*  Untagged frames (ignored)           */

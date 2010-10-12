@@ -294,6 +294,8 @@ int cvm_oct_spi_init(struct net_device *dev)
 	if (number_spi_ports == 0) {
 		r = request_irq(OCTEON_IRQ_RML, cvm_oct_spi_rml_interrupt,
 				IRQF_SHARED, "SPI", &number_spi_ports);
+		if (r)
+			return r;
 	}
 	number_spi_ports++;
 

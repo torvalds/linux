@@ -458,6 +458,8 @@ int main(int argc, const char **argv)
 	handle_options(&argv, &argc, NULL);
 	commit_pager_choice();
 	set_debugfs_path();
+	set_buildid_dir();
+
 	if (argc > 0) {
 		if (!prefixcmp(argv[0], "--"))
 			argv[0] += 2;

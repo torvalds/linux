@@ -28,6 +28,7 @@
 #include <asm/prom.h>
 #include <asm/irq.h>
 #include <asm/system.h>
+#include <linux/cnt32_to_63.h>
 
 #ifdef CONFIG_SELFMOD_TIMER
 #include <asm/selfmod.h>
@@ -135,7 +136,7 @@ static void microblaze_timer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device clockevent_microblaze_timer = {
 	.name		= "microblaze_clockevent",
 	.features       = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.shift		= 24,
+	.shift		= 8,
 	.rating		= 300,
 	.set_next_event	= microblaze_timer_set_next_event,
 	.set_mode	= microblaze_timer_set_mode,
@@ -195,7 +196,7 @@ static cycle_t microblaze_cc_read(const struct cyclecounter *cc)
 static struct cyclecounter microblaze_cc = {
 	.read = microblaze_cc_read,
 	.mask = CLOCKSOURCE_MASK(32),
-	.shift = 24,
+	.shift = 8,
 };
 
 int __init init_microblaze_timecounter(void)
@@ -213,7 +214,7 @@ static struct clocksource clocksource_microblaze = {
 	.rating		= 300,
 	.read		= microblaze_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 24, /* I can shift it */
+	.shift		= 8, /* I can shift it */
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -234,6 +235,12 @@ static int __init microblaze_clocksource_init(void)
 	init_microblaze_timecounter();
 	return 0;
 }
+
+/*
+ * We have to protect accesses before timer initialization
+ * and return 0 for sched_clock function below.
+ */
+static int timer_initialized;
 
 void __init time_init(void)
 {
@@ -289,4 +296,15 @@ void __init time_init(void)
 #endif
 	microblaze_clocksource_init();
 	microblaze_clockevent_init();
+	timer_initialized = 1;
+}
+
+unsigned long long notrace sched_clock(void)
+{
+	if (timer_initialized) {
+		struct clocksource *cs = &clocksource_microblaze;
+		cycle_t cyc = cnt32_to_63(cs->read(NULL));
+		return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
+	}
+	return 0;
 }

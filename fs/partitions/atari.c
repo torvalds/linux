@@ -62,7 +62,7 @@ int atari_partition(struct parsed_partitions *state)
 	}
 
 	pi = &rs->part[0];
-	printk (" AHDI");
+	strlcat(state->pp_buf, " AHDI", PAGE_SIZE);
 	for (slot = 1; pi < &rs->part[4] && slot < state->limit; slot++, pi++) {
 		struct rootsector *xrs;
 		Sector sect2;
@@ -81,7 +81,7 @@ int atari_partition(struct parsed_partitions *state)
 #ifdef ICD_PARTS
 		part_fmt = 1;
 #endif
-		printk(" XGM<");
+		strlcat(state->pp_buf, " XGM<", PAGE_SIZE);
 		partsect = extensect = be32_to_cpu(pi->st);
 		while (1) {
 			xrs = read_part_sector(state, partsect, &sect2);
@@ -120,14 +120,14 @@ int atari_partition(struct parsed_partitions *state)
 				break;
 			}
 		}
-		printk(" >");
+		strlcat(state->pp_buf, " >", PAGE_SIZE);
 	}
 #ifdef ICD_PARTS
 	if ( part_fmt!=1 ) { /* no extended partitions -> test ICD-format */
 		pi = &rs->icdpart[0];
 		/* sanity check: no ICD format if first partition invalid */
 		if (OK_id(pi->id)) {
-			printk(" ICD<");
+			strlcat(state->pp_buf, " ICD<", PAGE_SIZE);
 			for (; pi < &rs->icdpart[8] && slot < state->limit; slot++, pi++) {
 				/* accept only GEM,BGM,RAW,LNX,SWP partitions */
 				if (!((pi->flg & 1) && OK_id(pi->id)))
@@ -137,13 +137,13 @@ int atari_partition(struct parsed_partitions *state)
 						be32_to_cpu(pi->st),
 						be32_to_cpu(pi->siz));
 			}
-			printk(" >");
+			strlcat(state->pp_buf, " >", PAGE_SIZE);
 		}
 	}
 #endif
 	put_dev_sector(sect);
 
-	printk ("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 
 	return 1;
 }

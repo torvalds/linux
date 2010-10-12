@@ -215,6 +215,7 @@ bfa_status_t bfa_fcport_get_stats(struct bfa_s *bfa,
 		bfa_cb_pport_t cbfn, void *cbarg);
 bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
 		void *cbarg);
+bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
 
 /*
  * bfa rport API functions

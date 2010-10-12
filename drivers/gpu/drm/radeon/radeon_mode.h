@@ -66,6 +66,12 @@ enum radeon_tv_std {
 	TV_STD_PAL_N,
 };
 
+enum radeon_underscan_type {
+	UNDERSCAN_OFF,
+	UNDERSCAN_ON,
+	UNDERSCAN_AUTO,
+};
+
 enum radeon_hpd_id {
 	RADEON_HPD_1 = 0,
 	RADEON_HPD_2,
@@ -75,6 +81,8 @@ enum radeon_hpd_id {
 	RADEON_HPD_6,
 	RADEON_HPD_NONE = 0xff,
 };
+
+#define RADEON_MAX_I2C_BUS 16
 
 /* radeon gpio-based i2c
  * 1. "mask" reg and bits
@@ -226,10 +234,12 @@ struct radeon_mode_info {
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
 	struct drm_property *load_detect_property;
-	/* TV standard load detect */
+	/* TV standard */
 	struct drm_property *tv_std_property;
 	/* legacy TMDS PLL detect */
 	struct drm_property *tmds_pll_property;
+	/* underscan */
+	struct drm_property *underscan_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 
@@ -266,6 +276,8 @@ struct radeon_crtc {
 	uint32_t legacy_display_base_addr;
 	uint32_t legacy_cursor_offset;
 	enum radeon_rmx_type rmx_type;
+	u8 h_border;
+	u8 v_border;
 	fixed20_12 vsc;
 	fixed20_12 hsc;
 	struct drm_display_mode native_mode;
@@ -354,6 +366,7 @@ struct radeon_encoder {
 	uint32_t flags;
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
+	enum radeon_underscan_type underscan_type;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int audio_polling_active;
@@ -387,12 +400,22 @@ struct radeon_hpd {
 	struct radeon_gpio_rec gpio;
 };
 
+struct radeon_router {
+	bool valid;
+	u32 router_id;
+	struct radeon_i2c_bus_rec i2c_info;
+	u8 i2c_addr;
+	u8 mux_type;
+	u8 mux_control_pin;
+	u8 mux_state;
+};
+
 struct radeon_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
 	uint32_t devices;
 	struct radeon_i2c_chan *ddc_bus;
-	/* some systems have a an hdmi and vga port with a shared ddc line */
+	/* some systems have an hdmi and vga port with a shared ddc line */
 	bool shared_ddc;
 	bool use_digital;
 	/* we need to mind the EDID between detect
@@ -402,6 +425,8 @@ struct radeon_connector {
 	bool dac_load_detect;
 	uint16_t connector_object_id;
 	struct radeon_hpd hpd;
+	struct radeon_router router;
+	struct radeon_i2c_chan *router_bus;
 };
 
 struct radeon_framebuffer {
@@ -413,6 +438,9 @@ extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
 radeon_atombios_get_tv_info(struct radeon_device *rdev);
+
+extern struct drm_connector *
+radeon_get_connector_for_encoder(struct drm_encoder *encoder);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);
@@ -431,6 +459,15 @@ extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				uint8_t write_byte, uint8_t *read_byte);
 
+extern void radeon_i2c_init(struct radeon_device *rdev);
+extern void radeon_i2c_fini(struct radeon_device *rdev);
+extern void radeon_combios_i2c_init(struct radeon_device *rdev);
+extern void radeon_atombios_i2c_init(struct radeon_device *rdev);
+extern void radeon_i2c_add(struct radeon_device *rdev,
+			   struct radeon_i2c_bus_rec *rec,
+			   const char *name);
+extern struct radeon_i2c_chan *radeon_i2c_lookup(struct radeon_device *rdev,
+						 struct radeon_i2c_bus_rec *i2c_bus);
 extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 						    struct radeon_i2c_bus_rec *rec,
 						    const char *name);
@@ -446,6 +483,7 @@ extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
 				u8 slave_addr,
 				u8 addr,
 				u8 val);
+extern void radeon_router_select_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 

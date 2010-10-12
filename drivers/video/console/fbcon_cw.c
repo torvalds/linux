@@ -22,7 +22,7 @@
  * Rotation 90 degrees
  */
 
-static inline void cw_update_attr(u8 *dst, u8 *src, int attribute,
+static void cw_update_attr(u8 *dst, u8 *src, int attribute,
 				  struct vc_data *vc)
 {
 	int i, j, offset = (vc->vc_font.height < 10) ? 1 : 2;

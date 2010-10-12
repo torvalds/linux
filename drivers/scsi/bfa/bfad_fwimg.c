@@ -33,16 +33,20 @@
 #include <bfa_fwimg_priv.h>
 #include <bfa.h>
 
-u32 bfi_image_ct_size;
-u32 bfi_image_cb_size;
-u32 *bfi_image_ct;
-u32 *bfi_image_cb;
+u32 bfi_image_ct_fc_size;
+u32 bfi_image_ct_cna_size;
+u32 bfi_image_cb_fc_size;
+u32 *bfi_image_ct_fc;
+u32 *bfi_image_ct_cna;
+u32 *bfi_image_cb_fc;
 
 
-#define	BFAD_FW_FILE_CT	"ctfw.bin"
-#define	BFAD_FW_FILE_CB	"cbfw.bin"
-MODULE_FIRMWARE(BFAD_FW_FILE_CT);
-MODULE_FIRMWARE(BFAD_FW_FILE_CB);
+#define	BFAD_FW_FILE_CT_FC	"ctfw_fc.bin"
+#define	BFAD_FW_FILE_CT_CNA	"ctfw_cna.bin"
+#define	BFAD_FW_FILE_CB_FC	"cbfw_fc.bin"
+MODULE_FIRMWARE(BFAD_FW_FILE_CT_FC);
+MODULE_FIRMWARE(BFAD_FW_FILE_CT_CNA);
+MODULE_FIRMWARE(BFAD_FW_FILE_CB_FC);
 
 u32 *
 bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
@@ -74,24 +78,54 @@ error:
 u32 *
 bfad_get_firmware_buf(struct pci_dev *pdev)
 {
-	if (pdev->device == BFA_PCI_DEVICE_ID_CT) {
-		if (bfi_image_ct_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_ct,
-				&bfi_image_ct_size, BFAD_FW_FILE_CT);
-		return bfi_image_ct;
+	if (pdev->device == BFA_PCI_DEVICE_ID_CT_FC) {
+		if (bfi_image_ct_fc_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_ct_fc,
+				&bfi_image_ct_fc_size, BFAD_FW_FILE_CT_FC);
+		return bfi_image_ct_fc;
+	} else if (pdev->device == BFA_PCI_DEVICE_ID_CT) {
+		if (bfi_image_ct_cna_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_ct_cna,
+				&bfi_image_ct_cna_size, BFAD_FW_FILE_CT_CNA);
+		return bfi_image_ct_cna;
 	} else {
-		if (bfi_image_cb_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_cb,
-				&bfi_image_cb_size, BFAD_FW_FILE_CB);
-		return bfi_image_cb;
+		if (bfi_image_cb_fc_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_cb_fc,
+				&bfi_image_cb_fc_size, BFAD_FW_FILE_CB_FC);
+		return bfi_image_cb_fc;
 	}
 }
 
 u32 *
-bfi_image_ct_get_chunk(u32 off)
-{ return (u32 *)(bfi_image_ct + off); }
+bfi_image_ct_fc_get_chunk(u32 off)
+{ return (u32 *)(bfi_image_ct_fc + off); }
 
 u32 *
-bfi_image_cb_get_chunk(u32 off)
-{ return (u32 *)(bfi_image_cb + off); }
+bfi_image_ct_cna_get_chunk(u32 off)
+{ return (u32 *)(bfi_image_ct_cna + off); }
 
+u32 *
+bfi_image_cb_fc_get_chunk(u32 off)
+{ return (u32 *)(bfi_image_cb_fc + off); }
+
+uint32_t *
+bfi_image_get_chunk(int type, uint32_t off)
+{
+	switch (type) {
+	case BFI_IMAGE_CT_FC: return bfi_image_ct_fc_get_chunk(off); break;
+	case BFI_IMAGE_CT_CNA: return bfi_image_ct_cna_get_chunk(off); break;
+	case BFI_IMAGE_CB_FC: return bfi_image_cb_fc_get_chunk(off); break;
+	default: return 0; break;
+	}
+}
+
+uint32_t
+bfi_image_get_size(int type)
+{
+	switch (type) {
+	case BFI_IMAGE_CT_FC: return bfi_image_ct_fc_size; break;
+	case BFI_IMAGE_CT_CNA: return bfi_image_ct_cna_size; break;
+	case BFI_IMAGE_CB_FC: return bfi_image_cb_fc_size; break;
+	default: return 0; break;
+	}
+}

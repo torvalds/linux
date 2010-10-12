@@ -1040,7 +1040,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 		goto out;
 
 	if (gfs2_is_stuffed(ip)) {
-		u64 dsize = size + sizeof(struct gfs2_inode);
+		u64 dsize = size + sizeof(struct gfs2_dinode);
 		ip->i_disksize = size;
 		ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
@@ -1244,13 +1244,12 @@ int gfs2_file_dealloc(struct gfs2_inode *ip)
  * @ip: the file being written to
  * @offset: the offset to write to
  * @len: the number of bytes being written
- * @alloc_required: set to 1 if an alloc is required, 0 otherwise
  *
- * Returns: errno
+ * Returns: 1 if an alloc is required, 0 otherwise
  */
 
 int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
-			      unsigned int len, int *alloc_required)
+			      unsigned int len)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head bh;
@@ -1258,26 +1257,23 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 	u64 lblock, lblock_stop, size;
 	u64 end_of_file;
 
-	*alloc_required = 0;
-
 	if (!len)
 		return 0;
 
 	if (gfs2_is_stuffed(ip)) {
 		if (offset + len >
 		    sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode))
-			*alloc_required = 1;
+			return 1;
 		return 0;
 	}
 
-	*alloc_required = 1;
 	shift = sdp->sd_sb.sb_bsize_shift;
 	BUG_ON(gfs2_is_dir(ip));
 	end_of_file = (ip->i_disksize + sdp->sd_sb.sb_bsize - 1) >> shift;
 	lblock = offset >> shift;
 	lblock_stop = (offset + len + sdp->sd_sb.sb_bsize - 1) >> shift;
 	if (lblock_stop > end_of_file)
-		return 0;
+		return 1;
 
 	size = (lblock_stop - lblock) << shift;
 	do {
@@ -1285,12 +1281,11 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 		bh.b_size = size;
 		gfs2_block_map(&ip->i_inode, lblock, &bh, 0);
 		if (!buffer_mapped(&bh))
-			return 0;
+			return 1;
 		size -= bh.b_size;
 		lblock += (bh.b_size >> ip->i_inode.i_blkbits);
 	} while(size > 0);
 
-	*alloc_required = 0;
 	return 0;
 }
 

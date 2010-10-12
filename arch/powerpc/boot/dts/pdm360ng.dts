@@ -1,0 +1,410 @@
+/*
+ * Device Tree Source for IFM PDM360NG.
+ *
+ * Copyright 2009 - 2010 DENX Software Engineering.
+ * Anatolij Gustschin <agust@denx.de>
+ *
+ * Based on MPC5121E ADS dts.
+ * Copyright 2008 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "pdm360ng";
+	compatible = "ifm,pdm360ng";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&ipic>;
+
+	aliases {
+		ethernet0 = &eth0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,5121@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <0x20>;	// 32 bytes
+			i-cache-line-size = <0x20>;	// 32 bytes
+			d-cache-size = <0x8000>;	// L1, 32K
+			i-cache-size = <0x8000>;	// L1, 32K
+			timebase-frequency = <49500000>;// 49.5 MHz (csb/4)
+			bus-frequency = <198000000>;	// 198 MHz csb bus
+			clock-frequency = <396000000>;	// 396 MHz ppc core
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;	// 512MB at 0
+	};
+
+	nfc@40000000 {
+		compatible = "fsl,mpc5121-nfc";
+		reg = <0x40000000 0x100000>;
+		interrupts = <0x6 0x8>;
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		bank-width = <0x1>;
+		chips = <0x1>;
+
+		partition@0 {
+			label = "nand0";
+			reg = <0x0 0x40000000>;
+		};
+	};
+
+	sram@50000000 {
+		compatible = "fsl,mpc5121-sram";
+		reg = <0x50000000 0x20000>;	// 128K at 0x50000000
+	};
+
+	localbus@80000020 {
+		compatible = "fsl,mpc5121-localbus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x80000020 0x40>;
+
+		ranges = <0x0 0x0 0xf0000000 0x10000000   /* Flash */
+			  0x2 0x0 0x50040000 0x00020000>; /* CS2: MRAM */
+
+		flash@0,0 {
+			compatible = "amd,s29gl01gp", "cfi-flash";
+			reg = <0 0x00000000 0x08000000
+			       0 0x08000000 0x08000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <4>;
+			device-width = <2>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x00000000 0x00080000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "environment";
+				reg = <0x00080000 0x00080000>;
+				read-only;
+			};
+			partition@100000 {
+				label = "splash-image";
+				reg = <0x00100000 0x00080000>;
+				read-only;
+			};
+			partition@180000 {
+				label = "device-tree";
+				reg = <0x00180000 0x00040000>;
+			};
+			partition@1c0000 {
+				label = "kernel";
+				reg = <0x001c0000 0x00500000>;
+			};
+			partition@6c0000 {
+				label = "filesystem";
+				reg = <0x006c0000 0x07940000>;
+			};
+		};
+
+		mram0@2,0 {
+			compatible = "mtd-ram";
+			reg = <2 0x00000 0x10000>;
+			bank-width = <2>;
+		};
+
+		mram1@2,10000 {
+			compatible = "mtd-ram";
+			reg = <2 0x010000 0x10000>;
+			bank-width = <2>;
+		};
+	};
+
+	soc@80000000 {
+		compatible = "fsl,mpc5121-immr";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <2>;
+		ranges = <0x0 0x80000000 0x400000>;
+		reg = <0x80000000 0x400000>;
+		bus-frequency = <66000000>;	// 66 MHz ips bus
+
+		// IPIC
+		// interrupts cell = <intr #, sense>
+		// sense values match linux IORESOURCE_IRQ_* defines:
+		// sense == 8: Level, low assertion
+		// sense == 2: Edge, high-to-low change
+		//
+		ipic: interrupt-controller@c00 {
+			compatible = "fsl,mpc5121-ipic", "fsl,ipic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0xc00 0x100>;
+		};
+
+		rtc@a00 {	// Real time clock
+			compatible = "fsl,mpc5121-rtc";
+			reg = <0xa00 0x100>;
+			interrupts = <79 0x8 80 0x8>;
+		};
+
+		reset@e00 {	// Reset module
+			compatible = "fsl,mpc5121-reset";
+			reg = <0xe00 0x100>;
+		};
+
+		clock@f00 {	// Clock control
+			compatible = "fsl,mpc5121-clock";
+			reg = <0xf00 0x100>;
+		};
+
+		pmc@1000{	//Power Management Controller
+			compatible = "fsl,mpc5121-pmc";
+			reg = <0x1000 0x100>;
+			interrupts = <83 0x2>;
+		};
+
+		gpio@1100 {
+			compatible = "fsl,mpc5121-gpio";
+			reg = <0x1100 0x100>;
+			interrupts = <78 0x8>;
+		};
+
+		can@1300 {
+			compatible = "fsl,mpc5121-mscan";
+			interrupts = <12 0x8>;
+			reg = <0x1300 0x80>;
+		};
+
+		can@1380 {
+			compatible = "fsl,mpc5121-mscan";
+			interrupts = <13 0x8>;
+			reg = <0x1380 0x80>;
+		};
+
+		i2c@1700 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5121-i2c";
+			reg = <0x1700 0x20>;
+			interrupts = <0x9 0x8>;
+			fsl,preserve-clocking;
+
+			eeprom@50 {
+				compatible = "at,24c01";
+				reg = <0x50>;
+			};
+
+			rtc@68 {
+				compatible = "stm,m41t00";
+				reg = <0x68>;
+			};
+		};
+
+		i2c@1740 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5121-i2c";
+			reg = <0x1740 0x20>;
+			interrupts = <0xb 0x8>;
+			fsl,preserve-clocking;
+		};
+
+		i2ccontrol@1760 {
+			compatible = "fsl,mpc5121-i2c-ctrl";
+			reg = <0x1760 0x8>;
+		};
+
+		axe@2000 {
+			compatible = "fsl,mpc5121-axe";
+			reg = <0x2000 0x100>;
+			interrupts = <42 0x8>;
+		};
+
+		display@2100 {
+			compatible = "fsl,mpc5121-diu";
+			reg = <0x2100 0x100>;
+			interrupts = <64 0x8>;
+		};
+
+		can@2300 {
+			compatible = "fsl,mpc5121-mscan";
+			interrupts = <90 0x8>;
+			reg = <0x2300 0x80>;
+		};
+
+		can@2380 {
+			compatible = "fsl,mpc5121-mscan";
+			interrupts = <91 0x8>;
+			reg = <0x2380 0x80>;
+		};
+
+		viu@2400 {
+			compatible = "fsl,mpc5121-viu";
+			reg = <0x2400 0x400>;
+			interrupts = <67 0x8>;
+		};
+
+		mdio@2800 {
+			compatible = "fsl,mpc5121-fec-mdio";
+			reg = <0x2800 0x200>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			phy: ethernet-phy@0 {
+				compatible = "smsc,lan8700";
+				reg = <0x1f>;
+			};
+		};
+
+		eth0: ethernet@2800 {
+			compatible = "fsl,mpc5121-fec";
+			reg = <0x2800 0x200>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <4 0x8>;
+			phy-handle = < &phy >;
+		};
+
+		// USB1 using external ULPI PHY
+		usb@3000 {
+			compatible = "fsl,mpc5121-usb2-dr";
+			reg = <0x3000 0x600>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <43 0x8>;
+			dr_mode = "host";
+			phy_type = "ulpi";
+		};
+
+		// USB0 using internal UTMI PHY
+		usb@4000 {
+			compatible = "fsl,mpc5121-usb2-dr";
+			reg = <0x4000 0x600>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <44 0x8>;
+			dr_mode = "otg";
+			phy_type = "utmi_wide";
+			fsl,invert-pwr-fault;
+		};
+
+		// IO control
+		ioctl@a000 {
+			compatible = "fsl,mpc5121-ioctl";
+			reg = <0xA000 0x1000>;
+		};
+
+		// 512x PSCs are not 52xx PSCs compatible
+		serial@11000 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <0>;
+			reg = <0x11000 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11100 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <1>;
+			reg = <0x11100 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11200 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <2>;
+			reg = <0x11200 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11300 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <3>;
+			reg = <0x11300 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11400 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <4>;
+			reg = <0x11400 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11600 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <6>;
+			reg = <0x11600 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11800 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <8>;
+			reg = <0x11800 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		serial@11B00 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			cell-index = <11>;
+			reg = <0x11B00 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+		};
+
+		pscfifo@11f00 {
+			compatible = "fsl,mpc5121-psc-fifo";
+			reg = <0x11f00 0x100>;
+			interrupts = <40 0x8>;
+		};
+
+		spi@11900 {
+			compatible = "fsl,mpc5121-psc-spi", "fsl,mpc5121-psc";
+			cell-index = <9>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x11900 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+
+			// 7845 touch screen controller
+			ts@0 {
+				compatible = "ti,ads7846";
+				reg = <0x0>;
+				spi-max-frequency = <3000000>;
+				// pen irq is GPIO25
+				interrupts = <78 0x8>;
+			};
+		};
+
+		dma@14000 {
+			compatible = "fsl,mpc5121-dma";
+			reg = <0x14000 0x1800>;
+			interrupts = <65 0x8>;
+		};
+	};
+};

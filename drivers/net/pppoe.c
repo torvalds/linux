@@ -89,11 +89,10 @@
 #define PPPOE_HASH_SIZE (1 << PPPOE_HASH_BITS)
 #define PPPOE_HASH_MASK	(PPPOE_HASH_SIZE - 1)
 
-static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb);
 static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
 
 static const struct proto_ops pppoe_ops;
-static struct ppp_channel_ops pppoe_chan_ops;
+static const struct ppp_channel_ops pppoe_chan_ops;
 
 /* per-net private data for this module */
 static int pppoe_net_id __read_mostly;
@@ -949,7 +948,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 abort:
 	kfree_skb(skb);
-	return 1;
+	return 0;
 }
 
 /************************************************************************
@@ -964,7 +963,7 @@ static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	return __pppoe_xmit(sk, skb);
 }
 
-static struct ppp_channel_ops pppoe_chan_ops = {
+static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
 };
 

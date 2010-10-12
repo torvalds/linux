@@ -92,11 +92,12 @@ enum io_status {
  * @filter: optional callback to adjust request status based on IRB data
  * @callback: final callback
  * @data: user-defined pointer passed to all callbacks
+ * @singlepath: if set, use only one path from @lpm per start I/O
+ * @cancel: non-zero if request was cancelled
+ * @done: non-zero if request was finished
  * @mask: current path mask
  * @retries: current number of retries
  * @drc: delayed return code
- * @cancel: non-zero if request was cancelled
- * @done: non-zero if request was finished
  */
 struct ccw_request {
 	struct ccw1 *cp;
@@ -108,12 +109,13 @@ struct ccw_request {
 				 enum io_status);
 	void (*callback)(struct ccw_device *, void *, int);
 	void *data;
+	unsigned int singlepath:1;
 	/* These fields are used internally. */
+	unsigned int cancel:1;
+	unsigned int done:1;
 	u16 mask;
 	u16 retries;
 	int drc;
-	int cancel:1;
-	int done:1;
 } __attribute__((packed));
 
 /*

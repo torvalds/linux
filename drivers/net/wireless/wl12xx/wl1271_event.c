@@ -26,36 +26,64 @@
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 #include "wl1271_ps.h"
+#include "wl1271_scan.h"
 #include "wl12xx_80211.h"
 
-static int wl1271_event_scan_complete(struct wl1271 *wl,
-				      struct event_mailbox *mbox)
+void wl1271_pspoll_work(struct work_struct *work)
 {
-	wl1271_debug(DEBUG_EVENT, "status: 0x%x",
-		     mbox->scheduled_scan_status);
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
 
-	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
-		if (wl->scan.state == WL1271_SCAN_BAND_DUAL) {
-			/* 2.4 GHz band scanned, scan 5 GHz band, pretend
-			 * to the wl1271_cmd_scan function that we are not
-			 * scanning as it checks that.
-			 */
-			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
-			/* FIXME: ie missing! */
-			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
-						NULL, 0,
-						wl->scan.active,
-						wl->scan.high_prio,
-						WL1271_SCAN_BAND_5_GHZ,
-						wl->scan.probe_requests);
-		} else {
-			mutex_unlock(&wl->mutex);
-			ieee80211_scan_completed(wl->hw, false);
-			mutex_lock(&wl->mutex);
-			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
-		}
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, pspoll_work);
+
+	wl1271_debug(DEBUG_EVENT, "pspoll work");
+
+	mutex_lock(&wl->mutex);
+
+	if (!test_and_clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags))
+		goto out;
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out;
+
+	/*
+	 * if we end up here, then we were in powersave when the pspoll
+	 * delivery failure occurred, and no-one changed state since, so
+	 * we should go back to powersave.
+	 */
+	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, true);
+
+out:
+	mutex_unlock(&wl->mutex);
+};
+
+static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
+{
+	int delay = wl->conf.conn.ps_poll_recovery_period;
+	int ret;
+
+	wl->ps_poll_failures++;
+	if (wl->ps_poll_failures == 1)
+		wl1271_info("AP with dysfunctional ps-poll, "
+			    "trying to work around it.");
+
+	/* force active mode receive data from the AP */
+	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE, true);
+		if (ret < 0)
+			return;
+		set_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
+		ieee80211_queue_delayed_work(wl->hw, &wl->pspoll_work,
+					     msecs_to_jiffies(delay));
 	}
-	return 0;
+
+	/*
+	 * If already in active mode, lets we should be getting data from
+	 * the AP right away. If we enter PSM too fast after this, and data
+	 * remains on the AP, we will get another event like this, and we'll
+	 * go into active once more.
+	 */
 }
 
 static int wl1271_event_ps_report(struct wl1271 *wl,
@@ -163,9 +191,19 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	wl1271_debug(DEBUG_EVENT, "vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {
-		ret = wl1271_event_scan_complete(wl, mbox);
-		if (ret < 0)
-			return ret;
+		wl1271_debug(DEBUG_EVENT, "status: 0x%x",
+			     mbox->scheduled_scan_status);
+
+		wl1271_scan_stm(wl);
+	}
+
+	/* disable dynamic PS when requested by the firmware */
+	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
+	    wl->bss_type == BSS_TYPE_STA_BSS) {
+		if (mbox->soft_gemini_sense_info)
+			ieee80211_disable_dyn_ps(wl->vif);
+		else
+			ieee80211_enable_dyn_ps(wl->vif);
 	}
 
 	/*
@@ -190,6 +228,9 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		if (ret < 0)
 			return ret;
 	}
+
+	if (vector & PSPOLL_DELIVERY_FAILURE_EVENT_ID)
+		wl1271_event_pspoll_delivery_fail(wl);
 
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
 		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");

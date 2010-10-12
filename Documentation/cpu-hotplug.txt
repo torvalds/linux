@@ -2,7 +2,7 @@
 
 		Maintainers:
 		CPU Hotplug Core:
-			Rusty Russell <rusty@rustycorp.com.au>
+			Rusty Russell <rusty@rustcorp.com.au>
 			Srivatsa Vaddagiri <vatsa@in.ibm.com>
 		i386:
 			Zwane Mwaikambo <zwane@arm.linux.org.uk>

@@ -210,7 +210,7 @@ struct mal_instance {
 	dma_addr_t		bd_dma;
 	struct mal_descriptor	*bd_virt;
 
-	struct of_device	*ofdev;
+	struct platform_device	*ofdev;
 	int			index;
 	spinlock_t		lock;
 

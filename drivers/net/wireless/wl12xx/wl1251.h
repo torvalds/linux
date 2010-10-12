@@ -381,6 +381,9 @@ struct wl1251 {
 
 	u32 chip_id;
 	char fw_ver[21];
+
+	/* Most recently reported noise in dBm */
+	s8 noise;
 };
 
 int wl1251_plt_start(struct wl1251 *wl);

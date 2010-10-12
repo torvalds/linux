@@ -164,6 +164,8 @@
 #define E1000_SWFW_EEP_SM   0x1
 #define E1000_SWFW_PHY0_SM  0x2
 #define E1000_SWFW_PHY1_SM  0x4
+#define E1000_SWFW_PHY2_SM  0x20
+#define E1000_SWFW_PHY3_SM  0x40
 
 /* FACTPS Definitions */
 /* Device Control */
@@ -466,6 +468,11 @@
 
 #define E1000_TIMINCA_16NS_SHIFT 24
 
+#define E1000_MDICNFG_EXT_MDIO    0x80000000      /* MDI ext/int destination */
+#define E1000_MDICNFG_COM_MDIO    0x40000000      /* MDI shared w/ lan 0 */
+#define E1000_MDICNFG_PHY_MASK    0x03E00000
+#define E1000_MDICNFG_PHY_SHIFT   21
+
 /* PCI Express Control */
 #define E1000_GCR_CMPL_TMOUT_MASK       0x0000F000
 #define E1000_GCR_CMPL_TMOUT_10ms       0x00001000
@@ -562,6 +569,10 @@
 #define E1000_NVM_CFG_DONE_PORT_3  0x200000 /* ...for fourth port */
 
 #define NVM_82580_LAN_FUNC_OFFSET(a) (a ? (0x40 + (0x40 * a)) : 0)
+
+/* Mask bits for fields in Word 0x24 of the NVM */
+#define NVM_WORD24_COM_MDIO         0x0008 /* MDIO interface shared */
+#define NVM_WORD24_EXT_MDIO         0x0004 /* MDIO accesses routed external */
 
 /* Mask bits for fields in Word 0x0f of the NVM */
 #define NVM_WORD0F_PAUSE_MASK       0x3000
@@ -696,12 +707,17 @@
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X    0x0800
 
 /* MDI Control */
+#define E1000_MDIC_DATA_MASK 0x0000FFFF
+#define E1000_MDIC_REG_MASK  0x001F0000
 #define E1000_MDIC_REG_SHIFT 16
+#define E1000_MDIC_PHY_MASK  0x03E00000
 #define E1000_MDIC_PHY_SHIFT 21
 #define E1000_MDIC_OP_WRITE  0x04000000
 #define E1000_MDIC_OP_READ   0x08000000
 #define E1000_MDIC_READY     0x10000000
+#define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
+#define E1000_MDIC_DEST      0x80000000
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000

@@ -82,6 +82,9 @@ static ssize_t display_upd_mode_store(struct device *dev,
 	int val, r;
 	enum omap_dss_update_mode mode;
 
+	if (!dssdev->driver->set_update_mode)
+		return -EINVAL;
+
 	val = simple_strtoul(buf, NULL, 10);
 
 	switch (val) {
@@ -342,7 +345,6 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 			return 16;
 	case OMAP_DISPLAY_TYPE_VENC:
 	case OMAP_DISPLAY_TYPE_SDI:
-		return 24;
 		return 24;
 	default:
 		BUG();

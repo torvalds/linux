@@ -85,7 +85,7 @@ struct fscache_cookie_def {
 
 	/* get an index key
 	 * - should store the key data in the buffer
-	 * - should return the amount of amount stored
+	 * - should return the amount of data stored
 	 * - not permitted to return an error
 	 * - the netfs data from the cookie being used as the source is
 	 *   presented
@@ -454,6 +454,7 @@ int fscache_read_or_alloc_page(struct fscache_cookie *cookie,
  * @cookie: The cookie representing the cache object
  * @mapping: The netfs inode mapping to which the pages will be attached
  * @pages: A list of potential netfs pages to be filled
+ * @nr_pages: Number of pages to be read and/or allocated
  * @end_io_func: The callback to invoke when and if each page is filled
  * @context: An arbitrary piece of data to pass on to end_io_func()
  * @gfp: The conditions under which memory allocation should be made

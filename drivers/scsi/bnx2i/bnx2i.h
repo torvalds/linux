@@ -295,16 +295,21 @@ struct iscsi_cid_queue {
  * @max_cqes:              CQ size
  * @num_ccell:             number of command cells per connection
  * @ofld_conns_active:     active connection list
+ * @eh_wait:               wait queue for the endpoint to shutdown
  * @max_active_conns:      max offload connections supported by this device
  * @cid_que:               iscsi cid queue
  * @ep_rdwr_lock:          read / write lock to synchronize various ep lists
  * @ep_ofld_list:          connection list for pending offload completion
+ * @ep_active_list:        connection list for active offload endpoints
  * @ep_destroy_list:       connection list for pending offload completion
  * @mp_bd_tbl:             BD table to be used with middle path requests
  * @mp_bd_dma:             DMA address of 'mp_bd_tbl' memory buffer
  * @dummy_buffer:          Dummy buffer to be used with zero length scsicmd reqs
  * @dummy_buf_dma:         DMA address of 'dummy_buffer' memory buffer
  * @lock:              	   lock to synchonize access to hba structure
+ * @hba_shutdown_tmo:      Timeout value to shutdown each connection
+ * @conn_teardown_tmo:     Timeout value to tear down each connection
+ * @conn_ctx_destroy_tmo:  Timeout value to destroy context of each connection
  * @pci_did:               PCI device ID
  * @pci_vid:               PCI vendor ID
  * @pci_sdid:              PCI subsystem device ID
@@ -369,6 +374,7 @@ struct bnx2i_hba {
 
 	rwlock_t ep_rdwr_lock;
 	struct list_head ep_ofld_list;
+	struct list_head ep_active_list;
 	struct list_head ep_destroy_list;
 
 	/*
@@ -383,6 +389,8 @@ struct bnx2i_hba {
 	struct mutex net_dev_lock;/* sync net device access */
 
 	int hba_shutdown_tmo;
+	int conn_teardown_tmo;
+	int conn_ctx_destroy_tmo;
 	/*
 	 * PCI related info.
 	 */
@@ -631,6 +639,8 @@ enum {
 	EP_STATE_CLEANUP_CMPL           = 0x800,
 	EP_STATE_TCP_FIN_RCVD           = 0x1000,
 	EP_STATE_TCP_RST_RCVD           = 0x2000,
+	EP_STATE_LOGOUT_SENT            = 0x4000,
+	EP_STATE_LOGOUT_RESP_RCVD       = 0x8000,
 	EP_STATE_PG_OFLD_FAILED         = 0x1000000,
 	EP_STATE_ULP_UPDATE_FAILED      = 0x2000000,
 	EP_STATE_CLEANUP_FAILED         = 0x4000000,
@@ -645,6 +655,7 @@ enum {
  * @link:               list head to link elements
  * @hba:                adapter to which this connection belongs
  * @conn:               iscsi connection this EP is linked to
+ * @cls_ep:             associated iSCSI endpoint pointer
  * @sess:               iscsi session this EP is linked to
  * @cm_sk:              cnic sock struct
  * @hba_age:            age to detect if 'iscsid' issues ep_disconnect()
@@ -664,6 +675,7 @@ struct bnx2i_endpoint {
 	struct list_head link;
 	struct bnx2i_hba *hba;
 	struct bnx2i_conn *conn;
+	struct iscsi_endpoint *cls_ep;
 	struct cnic_sock *cm_sk;
 	u32 hba_age;
 	u32 state;
@@ -765,6 +777,8 @@ extern struct bnx2i_endpoint *bnx2i_find_ep_in_destroy_list(
 
 extern int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep);
 extern void bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action);
+
+extern int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep);
 
 /* Debug related function prototypes */
 extern void bnx2i_print_pend_cmd_queue(struct bnx2i_conn *conn);

@@ -1496,7 +1496,7 @@ static int bcm_enet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (priv->has_phy) {
 		if (!priv->phydev)
 			return -ENODEV;
-		return phy_mii_ioctl(priv->phydev, if_mii(rq), cmd);
+		return phy_mii_ioctl(priv->phydev, rq, cmd);
 	} else {
 		struct mii_if_info mii;
 

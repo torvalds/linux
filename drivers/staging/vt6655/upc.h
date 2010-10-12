@@ -76,36 +76,36 @@
 
 
 #define VNSvInPortB(dwIOAddress, pbyData) {                     \
-	volatile BYTE* pbyAddr = ((PBYTE)(dwIOAddress));            \
+	volatile unsigned char * pbyAddr = ((unsigned char *)(dwIOAddress));            \
 	*(pbyData) = readb(pbyAddr);                           \
 }
 
 
 #define VNSvInPortW(dwIOAddress, pwData) {                      \
-	volatile WORD* pwAddr = ((PWORD)(dwIOAddress));             \
+	volatile unsigned short *pwAddr = ((unsigned short *)(dwIOAddress));             \
 	*(pwData) = readw(pwAddr);                             \
 }
 
 #define VNSvInPortD(dwIOAddress, pdwData) {                     \
-	volatile DWORD* pdwAddr = ((PDWORD)(dwIOAddress));          \
+	volatile unsigned long *pdwAddr = ((unsigned long *)(dwIOAddress));          \
 	*(pdwData) = readl(pdwAddr);                           \
 }
 
 
 #define VNSvOutPortB(dwIOAddress, byData) {                     \
-    volatile BYTE* pbyAddr = ((PBYTE)(dwIOAddress));            \
-    writeb((BYTE)byData, pbyAddr);							\
+    volatile unsigned char * pbyAddr = ((unsigned char *)(dwIOAddress));            \
+    writeb((unsigned char)byData, pbyAddr);							\
 }
 
 
 #define VNSvOutPortW(dwIOAddress, wData) {                      \
-    volatile WORD* pwAddr = ((PWORD)(dwIOAddress));             \
-    writew((WORD)wData, pwAddr);							\
+    volatile unsigned short *pwAddr = ((unsigned short *)(dwIOAddress));             \
+    writew((unsigned short)wData, pwAddr);							\
 }
 
 #define VNSvOutPortD(dwIOAddress, dwData) {                     \
-    volatile DWORD* pdwAddr = ((PDWORD)(dwIOAddress));          \
-    writel((DWORD)dwData, pdwAddr);					    \
+    volatile unsigned long *pdwAddr = ((unsigned long *)(dwIOAddress));          \
+    writel((unsigned long)dwData, pdwAddr);					    \
 }
 
 #endif
@@ -140,8 +140,8 @@
 
 
 #define PCAvDelayByIO(uDelayUnit) {             \
-    BYTE    byData;                             \
-    ULONG   ii;                                 \
+    unsigned char byData;                       \
+    unsigned long ii;                           \
                                                 \
     if (uDelayUnit <= 50) {                     \
         udelay(uDelayUnit);                     \

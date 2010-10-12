@@ -327,7 +327,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 
 	i = 0;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return -EIO;
 
 	tx_ring = adapter->tx_ring;
@@ -338,9 +338,15 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 
 	if (nr_desc >= qlcnic_tx_avail(tx_ring)) {
 		netif_tx_stop_queue(tx_ring->txq);
-		__netif_tx_unlock_bh(tx_ring->txq);
-		adapter->stats.xmit_off++;
-		return -EBUSY;
+		smp_mb();
+		if (qlcnic_tx_avail(tx_ring) > nr_desc) {
+			if (qlcnic_tx_avail(tx_ring) > TX_STOP_THRESH)
+				netif_tx_wake_queue(tx_ring->txq);
+		} else {
+			adapter->stats.xmit_off++;
+			__netif_tx_unlock_bh(tx_ring->txq);
+			return -EBUSY;
+		}
 	}
 
 	do {
@@ -407,10 +413,15 @@ static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, u8 *addr)
 		return -ENOMEM;
 	}
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
-	list_add_tail(&cur->list, &adapter->mac_list);
 
-	return qlcnic_sre_macaddr_change(adapter,
-				cur->mac_addr, QLCNIC_MAC_ADD);
+	if (qlcnic_sre_macaddr_change(adapter,
+				cur->mac_addr, QLCNIC_MAC_ADD)) {
+		kfree(cur);
+		return -EIO;
+	}
+
+	list_add_tail(&cur->list, &adapter->mac_list);
+	return 0;
 }
 
 void qlcnic_set_multi(struct net_device *netdev)
@@ -420,7 +431,7 @@ void qlcnic_set_multi(struct net_device *netdev)
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
 	qlcnic_nic_add_mac(adapter, adapter->mac_addr);
@@ -538,7 +549,7 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	return rv;
 }
 
-int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, int enable)
+int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 {
 	struct qlcnic_nic_req req;
 	u64 word;
@@ -704,21 +715,15 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	return rc;
 }
 
-int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u64 *mac)
+int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u8 *mac)
 {
-	u32 crbaddr, mac_hi, mac_lo;
+	u32 crbaddr;
 	int pci_func = adapter->ahw.pci_func;
 
 	crbaddr = CRB_MAC_BLOCK_START +
 		(4 * ((pci_func/2) * 3)) + (4 * (pci_func & 1));
 
-	mac_lo = QLCRD32(adapter, crbaddr);
-	mac_hi = QLCRD32(adapter, crbaddr+4);
-
-	if (pci_func & 1)
-		*mac = le64_to_cpu((mac_lo >> 16) | ((u64)mac_hi << 16));
-	else
-		*mac = le64_to_cpu((u64)mac_lo | ((u64)mac_hi << 32));
+	qlcnic_fetch_mac(adapter, crbaddr, crbaddr+4, pci_func & 1, mac);
 
 	return 0;
 }
@@ -766,7 +771,7 @@ qlcnic_pci_get_crb_addr_2M(struct qlcnic_adapter *adapter,
  * Out: 'off' is 2M pci map addr
  * side effect: lock crb window
  */
-static void
+static int
 qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 {
 	u32 window;
@@ -775,6 +780,10 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 	off -= QLCNIC_PCI_CRBSPACE;
 
 	window = CRB_HI(off);
+	if (window == 0) {
+		dev_err(&adapter->pdev->dev, "Invalid offset 0x%lx\n", off);
+		return -EIO;
+	}
 
 	writel(window, addr);
 	if (readl(addr) != window) {
@@ -782,7 +791,9 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 			dev_warn(&adapter->pdev->dev,
 				"failed to set CRB window to %d off 0x%lx\n",
 				window, off);
+		return -EIO;
 	}
+	return 0;
 }
 
 int
@@ -803,11 +814,12 @@ qlcnic_hw_write_wx_2M(struct qlcnic_adapter *adapter, ulong off, u32 data)
 		/* indirect access */
 		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		crb_win_lock(adapter);
-		qlcnic_pci_set_crbwindow_2M(adapter, off);
-		writel(data, addr);
+		rv = qlcnic_pci_set_crbwindow_2M(adapter, off);
+		if (!rv)
+			writel(data, addr);
 		crb_win_unlock(adapter);
 		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
-		return 0;
+		return rv;
 	}
 
 	dev_err(&adapter->pdev->dev,
@@ -821,7 +833,7 @@ qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off)
 {
 	unsigned long flags;
 	int rv;
-	u32 data;
+	u32 data = -1;
 	void __iomem *addr = NULL;
 
 	rv = qlcnic_pci_get_crb_addr_2M(adapter, off, &addr);
@@ -833,8 +845,8 @@ qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off)
 		/* indirect access */
 		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		crb_win_lock(adapter);
-		qlcnic_pci_set_crbwindow_2M(adapter, off);
-		data = readl(addr);
+		if (!qlcnic_pci_set_crbwindow_2M(adapter, off))
+			data = readl(addr);
 		crb_win_unlock(adapter);
 		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 		return data;

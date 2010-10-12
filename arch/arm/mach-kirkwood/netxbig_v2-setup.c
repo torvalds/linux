@@ -270,8 +270,8 @@ static unsigned int net2big_v2_mpp_config[] __initdata = {
 	MPP3_SPI_MISO,
 	MPP6_SYSRST_OUTn,
 	MPP7_GPO,		/* Request power-off */
-	MPP8_TW_SDA,
-	MPP9_TW_SCK,
+	MPP8_TW0_SDA,
+	MPP9_TW0_SCK,
 	MPP10_UART0_TXD,
 	MPP11_UART0_RXD,
 	MPP13_GPIO,		/* Rear power switch (on|auto) */
@@ -306,8 +306,8 @@ static unsigned int net5big_v2_mpp_config[] __initdata = {
 	MPP3_SPI_MISO,
 	MPP6_SYSRST_OUTn,
 	MPP7_GPO,		/* Request power-off */
-	MPP8_TW_SDA,
-	MPP9_TW_SCK,
+	MPP8_TW0_SDA,
+	MPP9_TW0_SCK,
 	MPP10_UART0_TXD,
 	MPP11_UART0_RXD,
 	MPP13_GPIO,		/* Rear power switch (on|auto) */
@@ -315,20 +315,20 @@ static unsigned int net5big_v2_mpp_config[] __initdata = {
 	MPP15_GPIO,		/* Rear power switch (auto|off) */
 	MPP16_GPIO,		/* SATA HDD1 power */
 	MPP17_GPIO,		/* SATA HDD2 power */
-	MPP20_GE1_0,
-	MPP21_GE1_1,
-	MPP22_GE1_2,
-	MPP23_GE1_3,
-	MPP24_GE1_4,
-	MPP25_GE1_5,
-	MPP26_GE1_6,
-	MPP27_GE1_7,
+	MPP20_GE1_TXD0,
+	MPP21_GE1_TXD1,
+	MPP22_GE1_TXD2,
+	MPP23_GE1_TXD3,
+	MPP24_GE1_RXD0,
+	MPP25_GE1_RXD1,
+	MPP26_GE1_RXD2,
+	MPP27_GE1_RXD3,
 	MPP28_GPIO,		/* USB enable host vbus */
 	MPP29_GPIO,		/* CPLD extension ALE */
-	MPP30_GE1_10,
-	MPP31_GE1_11,
-	MPP32_GE1_12,
-	MPP33_GE1_13,
+	MPP30_GE1_RXCTL,
+	MPP31_GE1_RXCLK,
+	MPP32_GE1_TCLKOUT,
+	MPP33_GE1_TXCTL,
 	MPP34_GPIO,		/* Rear Push button */
 	MPP35_GPIO,		/* Inhibit switch power-off */
 	MPP36_GPIO,		/* SATA HDD1 presence */

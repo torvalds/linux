@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include "ring_sw.h"
+#include "trigger.h"
 
 static inline int __iio_allocate_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
 						int bytes_per_datum, int length)
@@ -431,5 +432,73 @@ void iio_sw_rb_free(struct iio_ring_buffer *r)
 		iio_put_ring_buffer(r);
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
+
+int iio_sw_ring_preenable(struct iio_dev *indio_dev)
+{
+	size_t size;
+	dev_dbg(&indio_dev->dev, "%s\n", __func__);
+	/* Check if there are any scan elements enabled, if not fail*/
+	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
+		return -EINVAL;
+	if (indio_dev->scan_timestamp)
+		if (indio_dev->scan_count)
+			/* Timestamp (aligned to s64) and data */
+			size = (((indio_dev->scan_count * indio_dev->ring->bpe)
+					+ sizeof(s64) - 1)
+				& ~(sizeof(s64) - 1))
+				+ sizeof(s64);
+		else /* Timestamp only  */
+			size = sizeof(s64);
+	else /* Data only */
+		size = indio_dev->scan_count * indio_dev->ring->bpe;
+	indio_dev->ring->access.set_bpd(indio_dev->ring, size);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_sw_ring_preenable);
+
+void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
+{
+	struct iio_sw_ring_helper_state *st
+		= container_of(work_s, struct iio_sw_ring_helper_state,
+			work_trigger_to_ring);
+	int len = 0;
+	size_t datasize = st->indio_dev
+		->ring->access.get_bpd(st->indio_dev->ring);
+	char *data = kmalloc(datasize, GFP_KERNEL);
+
+	if (data == NULL) {
+		dev_err(st->indio_dev->dev.parent,
+			"memory alloc failed in ring bh");
+		return;
+	}
+
+	if (st->indio_dev->scan_count)
+		len = st->get_ring_element(st, data);
+
+	  /* Guaranteed to be aligned with 8 byte boundary */
+	if (st->indio_dev->scan_timestamp)
+		*(s64 *)(((phys_addr_t)data + len
+				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
+			= st->last_timestamp;
+	  st->indio_dev->ring->access.store_to(st->indio_dev->ring,
+					(u8 *)data,
+			st->last_timestamp);
+
+	iio_trigger_notify_done(st->indio_dev->trig);
+	kfree(data);
+
+	return;
+}
+EXPORT_SYMBOL(iio_sw_trigger_bh_to_ring);
+
+void iio_sw_poll_func_th(struct iio_dev *indio_dev, s64 time)
+{	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	h->last_timestamp = time;
+	schedule_work(&h->work_trigger_to_ring);
+}
+EXPORT_SYMBOL(iio_sw_poll_func_th);
+
 MODULE_DESCRIPTION("Industrialio I/O software ring buffer");
 MODULE_LICENSE("GPL");

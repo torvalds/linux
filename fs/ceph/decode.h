@@ -99,11 +99,13 @@ static inline void ceph_encode_timespec(struct ceph_timespec *tv,
  */
 static inline void ceph_encode_addr(struct ceph_entity_addr *a)
 {
-	a->in_addr.ss_family = htons(a->in_addr.ss_family);
+	__be16 ss_family = htons(a->in_addr.ss_family);
+	a->in_addr.ss_family = *(__u16 *)&ss_family;
 }
 static inline void ceph_decode_addr(struct ceph_entity_addr *a)
 {
-	a->in_addr.ss_family = ntohs(a->in_addr.ss_family);
+	__be16 ss_family = *(__be16 *)&a->in_addr.ss_family;
+	a->in_addr.ss_family = ntohs(ss_family);
 	WARN_ON(a->in_addr.ss_family == 512);
 }
 

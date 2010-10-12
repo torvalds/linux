@@ -815,7 +815,7 @@ static int pohmelfs_readpages(struct file *file, struct address_space *mapping,
 }
 
 /*
- * Small addres space operations for POHMELFS.
+ * Small address space operations for POHMELFS.
  */
 const struct address_space_operations pohmelfs_aops = {
 	.readpage		= pohmelfs_readpage,
@@ -847,7 +847,7 @@ static void pohmelfs_destroy_inode(struct inode *inode)
 }
 
 /*
- * ->alloc_inode() callback. Allocates inode and initilizes private data.
+ * ->alloc_inode() callback. Allocates inode and initializes private data.
  */
 static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 {
@@ -968,11 +968,17 @@ int pohmelfs_setattr_raw(struct inode *inode, struct iattr *attr)
 		goto err_out_exit;
 	}
 
-	err = inode_setattr(inode, attr);
-	if (err) {
-		dprintk("%s: ino: %llu, failed to set the attributes.\n", __func__, POHMELFS_I(inode)->ino);
-		goto err_out_exit;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		err = vmtruncate(inode, attr->ia_size);
+		if (err) {
+			dprintk("%s: ino: %llu, failed to set the attributes.\n", __func__, POHMELFS_I(inode)->ino);
+			goto err_out_exit;
+		}
 	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 
 	dprintk("%s: ino: %llu, mode: %o -> %o, uid: %u -> %u, gid: %u -> %u, size: %llu -> %llu.\n",
 			__func__, POHMELFS_I(inode)->ino, inode->i_mode, attr->ia_mode,
@@ -1217,7 +1223,7 @@ void pohmelfs_fill_inode(struct inode *inode, struct netfs_inode_info *info)
 	}
 }
 
-static void pohmelfs_drop_inode(struct inode *inode)
+static int pohmelfs_drop_inode(struct inode *inode)
 {
 	struct pohmelfs_sb *psb = POHMELFS_SB(inode->i_sb);
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
@@ -1226,7 +1232,7 @@ static void pohmelfs_drop_inode(struct inode *inode)
 	list_del_init(&pi->inode_entry);
 	spin_unlock(&psb->ino_lock);
 
-	generic_drop_inode(inode);
+	return generic_drop_inode(inode);
 }
 
 static struct pohmelfs_inode *pohmelfs_get_inode_from_list(struct pohmelfs_sb *psb,
@@ -1266,7 +1272,7 @@ static void pohmelfs_put_super(struct super_block *sb)
 {
 	struct pohmelfs_sb *psb = POHMELFS_SB(sb);
 	struct pohmelfs_inode *pi;
-	unsigned int count;
+	unsigned int count = 0;
 	unsigned int in_drop_list = 0;
 	struct inode *inode, *tmp;
 

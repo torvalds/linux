@@ -62,8 +62,8 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-struct cfg80211_ops libipw_config_ops = { };
-void *libipw_wiphy_privid = &libipw_wiphy_privid;
+static struct cfg80211_ops libipw_config_ops = { };
+static void *libipw_wiphy_privid = &libipw_wiphy_privid;
 
 static int libipw_networks_allocate(struct libipw_device *ieee)
 {

@@ -105,8 +105,10 @@ int usb_choose_configuration(struct usb_device *udev)
 		/* When the first config's first interface is one of Microsoft's
 		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
 		 * this kernel has enabled the necessary host side driver.
+		 * But: Don't ignore it if it's the only config.
 		 */
-		if (i == 0 && desc && (is_rndis(desc) || is_activesync(desc))) {
+		if (i == 0 && num_configs > 1 && desc &&
+				(is_rndis(desc) || is_activesync(desc))) {
 #if !defined(CONFIG_USB_NET_RNDIS_HOST) && !defined(CONFIG_USB_NET_RNDIS_HOST_MODULE)
 			continue;
 #else

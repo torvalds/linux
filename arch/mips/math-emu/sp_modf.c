@@ -29,7 +29,7 @@
 
 /* modf function is always exact for a finite number
 */
-ieee754sp ieee754sp_modf(ieee754sp x, ieee754sp * ip)
+ieee754sp ieee754sp_modf(ieee754sp x, ieee754sp *ip)
 {
 	COMPXSP;
 

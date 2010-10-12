@@ -122,7 +122,7 @@ static int check_free_space(struct bsd_acct_struct *acct, struct file *file)
 	spin_unlock(&acct_lock);
 
 	/* May block */
-	if (vfs_statfs(file->f_path.dentry, &sbuf))
+	if (vfs_statfs(&file->f_path, &sbuf))
 		return res;
 	suspend = sbuf.f_blocks * SUSPEND;
 	resume = sbuf.f_blocks * RESUME;

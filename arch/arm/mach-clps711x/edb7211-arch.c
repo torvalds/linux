@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/types.h>
 #include <linux/string.h>
 
@@ -28,6 +29,12 @@
 #include "common.h"
 
 extern void edb7211_map_io(void);
+
+/* Reserve screen memory region at the start of main system memory. */
+static void __init edb7211_reserve(void)
+{
+	memblock_reserve(PHYS_OFFSET, 0x00020000);
+}
 
 static void __init
 fixup_edb7211(struct machine_desc *desc, struct tag *tags,
@@ -43,10 +50,8 @@ fixup_edb7211(struct machine_desc *desc, struct tag *tags,
 	 */
 	mi->bank[0].start = 0xc0000000;
 	mi->bank[0].size = 8*1024*1024;
-	mi->bank[0].node = 0;
 	mi->bank[1].start = 0xc1000000;
 	mi->bank[1].size = 8*1024*1024;
-	mi->bank[1].node = 1;
 	mi->nr_banks = 2;
 }
 
@@ -57,6 +62,7 @@ MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	.boot_params	= 0xc0020100,	/* 0xc0000000 - 0xc001ffff can be video RAM */
 	.fixup		= fixup_edb7211,
 	.map_io		= edb7211_map_io,
+	.reserve	= edb7211_reserve,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END

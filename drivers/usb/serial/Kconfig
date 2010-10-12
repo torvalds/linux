@@ -642,6 +642,15 @@ config USB_SERIAL_ZIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called zio.
 
+config USB_SERIAL_SSU100
+	tristate "USB Quatech SSU-100 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Quatech SSU-100 single
+	  port usb to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssu100.
+
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	help

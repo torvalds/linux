@@ -26,7 +26,7 @@ use IO::Handle;
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
-		"af9015", "ngene");
+		"af9015", "ngene", "az6027");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -518,11 +518,11 @@ sub bluebird {
 sub af9015 {
 	my $sourcefile = "download.ashx?file=57";
 	my $url = "http://www.ite.com.tw/EN/Services/$sourcefile";
-	my $hash = "ff5b096ed47c080870eacdab2de33ad6";
+	my $hash = "e3f08935158038d385ad382442f4bb2d";
 	my $outfile = "dvb-usb-af9015.fw";
 	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
-	my $fwoffset = 0x22708;
-	my $fwlength = 18225;
+	my $fwoffset = 0x25690;
+	my $fwlength = 18725;
 	my ($chunklength, $buf, $rcount);
 
 	checkstandard();
@@ -567,6 +567,23 @@ sub ngene {
     "$file1, $file2";
 }
 
+sub az6027{
+    my $file = "AZ6027_Linux_Driver.tar.gz";
+    my $url = "http://linux.terratec.de/files/$file";
+    my $firmware = "dvb-usb-az6027-03.fw";
+
+    wgetfile($file, $url);
+
+    #untar
+    if( system("tar xzvf $file $firmware")){
+        die "failed to untar firmware";
+    }
+    if( system("rm $file")){
+        die ("unable to remove unnecessary files");
+    }
+
+    $firmware;
+}
 # ---------------------------------------------------------------
 # Utilities
 

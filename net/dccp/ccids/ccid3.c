@@ -715,9 +715,9 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	x_recv = htonl(hc->rx_x_recv);
 	pinv   = htonl(hc->rx_pinv);
 
-	if (dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
+	if (dccp_insert_option(skb, TFRC_OPT_LOSS_EVENT_RATE,
 			       &pinv, sizeof(pinv)) ||
-	    dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,
+	    dccp_insert_option(skb, TFRC_OPT_RECEIVE_RATE,
 			       &x_recv, sizeof(x_recv)))
 		return -1;
 

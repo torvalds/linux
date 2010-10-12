@@ -500,11 +500,7 @@ pmc_init_seeprom (u_int32_t addr, u_int32_t serialNum)
     time_t      createTime;
     int         i;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-    createTime = CURRENT_TIME;
-#else
     createTime = get_seconds ();
-#endif
 
     /* use template data */
     for (i = 0; i < sizeof (FLD_TYPE2); ++i)

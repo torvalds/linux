@@ -48,12 +48,17 @@ void die(const char *str, struct pt_regs *fp, long err)
 	do_exit(err);
 }
 
+/* for user application debugging */
+void sw_exception(struct pt_regs *regs)
+{
+	_exception(SIGTRAP, regs, TRAP_BRKPT, regs->r16);
+}
+
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 {
 	siginfo_t info;
 
 	if (kernel_mode(regs)) {
-		debugger(regs);
 		die("Exception in kernel mode", regs, signr);
 	}
 	info.si_signo = signr;
@@ -143,7 +148,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 #ifdef CONFIG_MMU
 	case MICROBLAZE_PRIVILEGED_EXCEPTION:
 		pr_debug(KERN_WARNING "Privileged exception\n");
-		/* "brk r0,r0" - used as debug breakpoint */
+		/* "brk r0,r0" - used as debug breakpoint - old toolchain */
 		if (get_user(code, (unsigned long *)regs->pc) == 0
 			&& code == 0x980c0000) {
 			_exception(SIGTRAP, regs, TRAP_BRKPT, addr);

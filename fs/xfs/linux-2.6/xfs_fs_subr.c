@@ -21,10 +21,6 @@
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 
-int  fs_noerr(void) { return 0; }
-int  fs_nosys(void) { return ENOSYS; }
-void fs_noval(void) { return; }
-
 /*
  * note: all filemap functions return negative error codes. These
  * need to be inverted before returning to the xfs core functions.

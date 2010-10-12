@@ -42,6 +42,21 @@
 static void rv770_gpu_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 
+/* get temperature in millidegrees */
+u32 rv770_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
+		ASIC_T_SHIFT;
+	u32 actual_temp = 0;
+
+	if ((temp >> 9) & 1)
+		actual_temp = 0;
+	else
+		actual_temp = (temp >> 1) & 0xff;
+
+	return actual_temp * 1000;
+}
+
 void rv770_pm_misc(struct radeon_device *rdev)
 {
 	int req_ps_idx = rdev->pm.requested_power_state_index;
@@ -189,7 +204,10 @@ static void rv770_mc_program(struct radeon_device *rdev)
 		WREG32((0x2c20 + j), 0x00000000);
 		WREG32((0x2c24 + j), 0x00000000);
 	}
-	WREG32(HDP_REG_COHERENCY_FLUSH_CNTL, 0);
+	/* r7xx hw bug.  Read from HDP_DEBUG1 rather
+	 * than writing to HDP_REG_COHERENCY_FLUSH_CNTL
+	 */
+	tmp = RREG32(HDP_DEBUG1);
 
 	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {
@@ -659,8 +677,9 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 								 r600_count_pipe_bits((cc_rb_backend_disable &
 										       R7XX_MAX_BACKENDS_MASK) >> 16)),
 								(cc_rb_backend_disable >> 16));
-	gb_tiling_config |= BACKEND_MAP(backend_map);
 
+	rdev->config.rv770.tile_config = gb_tiling_config;
+	gb_tiling_config |= BACKEND_MAP(backend_map);
 
 	WREG32(GB_TILING_CONFIG, gb_tiling_config);
 	WREG32(DCP_TILING_CONFIG, (gb_tiling_config & 0xffff));
@@ -919,8 +938,8 @@ int rv770_mc_init(struct radeon_device *rdev)
 	}
 	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);

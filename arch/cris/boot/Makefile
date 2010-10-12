@@ -3,7 +3,7 @@
 #
 
 objcopyflags-$(CONFIG_ETRAX_ARCH_V10) += -R .note -R .comment
-objcopyflags-$(CONFIG_ETRAX_ARCH_V32) += --remove-section=.bss
+objcopyflags-$(CONFIG_ETRAX_ARCH_V32) += --remove-section=.bss --remove-section=.note.gnu.build-id
 
 OBJCOPYFLAGS = -O binary $(objcopyflags-y)
 

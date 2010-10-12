@@ -25,7 +25,6 @@
 #include <plat/control.h>
 #include <plat/tc.h>
 #include <plat/board.h>
-#include <plat/mux.h>
 #include <mach/gpio.h>
 #include <plat/mmc.h>
 #include <plat/dma.h>
@@ -153,10 +152,12 @@ static struct resource omap2_mbox_resources[] = {
 	{
 		.start		= INT_24XX_MAIL_U0_MPU,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "dsp",
 	},
 	{
 		.start		= INT_24XX_MAIL_U3_MPU,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "iva",
 	},
 };
 static int omap2_mbox_resources_sz = ARRAY_SIZE(omap2_mbox_resources);
@@ -175,6 +176,7 @@ static struct resource omap3_mbox_resources[] = {
 	{
 		.start		= INT_24XX_MAIL_U0_MPU,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "dsp",
 	},
 };
 static int omap3_mbox_resources_sz = ARRAY_SIZE(omap3_mbox_resources);
@@ -196,6 +198,7 @@ static struct resource omap4_mbox_resources[] = {
 	{
 		.start          = OMAP44XX_IRQ_MAIL_U0,
 		.flags          = IORESOURCE_IRQ,
+		.name		= "mbox",
 	},
 };
 static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
@@ -205,7 +208,7 @@ static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
 #endif
 
 static struct platform_device mbox_device = {
-	.name		= "omap2-mailbox",
+	.name		= "omap-mailbox",
 	.id		= -1,
 };
 
@@ -230,64 +233,7 @@ static inline void omap_init_mbox(void)
 static inline void omap_init_mbox(void) { }
 #endif /* CONFIG_OMAP_MBOX_FWK */
 
-#if defined(CONFIG_OMAP_STI)
-
-#if defined(CONFIG_ARCH_OMAP2)
-
-#define OMAP2_STI_BASE		0x48068000
-#define OMAP2_STI_CHANNEL_BASE	0x54000000
-#define OMAP2_STI_IRQ		4
-
-static struct resource sti_resources[] = {
-	{
-		.start		= OMAP2_STI_BASE,
-		.end		= OMAP2_STI_BASE + 0x7ff,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP2_STI_CHANNEL_BASE,
-		.end		= OMAP2_STI_CHANNEL_BASE + SZ_64K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP2_STI_IRQ,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-#elif defined(CONFIG_ARCH_OMAP3)
-
-#define OMAP3_SDTI_BASE		0x54500000
-#define OMAP3_SDTI_CHANNEL_BASE	0x54600000
-
-static struct resource sti_resources[] = {
-	{
-		.start		= OMAP3_SDTI_BASE,
-		.end		= OMAP3_SDTI_BASE + 0xFFF,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3_SDTI_CHANNEL_BASE,
-		.end		= OMAP3_SDTI_CHANNEL_BASE + SZ_1M - 1,
-		.flags		= IORESOURCE_MEM,
-	}
-};
-
-#endif
-
-static struct platform_device sti_device = {
-	.name		= "sti",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(sti_resources),
-	.resource	= sti_resources,
-};
-
-static inline void omap_init_sti(void)
-{
-	platform_device_register(&sti_device);
-}
-#else
 static inline void omap_init_sti(void) {}
-#endif
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
@@ -672,19 +618,19 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 					OMAP_PIN_INPUT_PULLUP);
 
 	if (cpu_is_omap2420() && controller_nr == 0) {
-		omap_cfg_reg(H18_24XX_MMC_CMD);
-		omap_cfg_reg(H15_24XX_MMC_CLKI);
-		omap_cfg_reg(G19_24XX_MMC_CLKO);
-		omap_cfg_reg(F20_24XX_MMC_DAT0);
-		omap_cfg_reg(F19_24XX_MMC_DAT_DIR0);
-		omap_cfg_reg(G18_24XX_MMC_CMD_DIR);
+		omap_mux_init_signal("sdmmc_cmd", 0);
+		omap_mux_init_signal("sdmmc_clki", 0);
+		omap_mux_init_signal("sdmmc_clko", 0);
+		omap_mux_init_signal("sdmmc_dat0", 0);
+		omap_mux_init_signal("sdmmc_dat_dir0", 0);
+		omap_mux_init_signal("sdmmc_cmd_dir", 0);
 		if (mmc_controller->slots[0].wires == 4) {
-			omap_cfg_reg(H14_24XX_MMC_DAT1);
-			omap_cfg_reg(E19_24XX_MMC_DAT2);
-			omap_cfg_reg(D19_24XX_MMC_DAT3);
-			omap_cfg_reg(E20_24XX_MMC_DAT_DIR1);
-			omap_cfg_reg(F18_24XX_MMC_DAT_DIR2);
-			omap_cfg_reg(E18_24XX_MMC_DAT_DIR3);
+			omap_mux_init_signal("sdmmc_dat1", 0);
+			omap_mux_init_signal("sdmmc_dat2", 0);
+			omap_mux_init_signal("sdmmc_dat3", 0);
+			omap_mux_init_signal("sdmmc_dat_dir1", 0);
+			omap_mux_init_signal("sdmmc_dat_dir2", 0);
+			omap_mux_init_signal("sdmmc_dat_dir3", 0);
 		}
 
 		/*

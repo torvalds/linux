@@ -95,8 +95,7 @@ static int v1_commit_dqblk(struct dquot *dquot)
 			(char *)&dqblk, sizeof(struct v1_disk_dqblk),
 			v1_dqoff(dquot->dq_id));
 	if (ret != sizeof(struct v1_disk_dqblk)) {
-		printk(KERN_WARNING "VFS: dquota write failed on dev %s\n",
-			dquot->dq_sb->s_id);
+		quota_error(dquot->dq_sb, "dquota write failed");
 		if (ret >= 0)
 			ret = -EIO;
 		goto out;

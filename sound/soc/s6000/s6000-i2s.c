@@ -451,16 +451,15 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 		goto err_release_none;
 	}
 
-	region = request_mem_region(scbmem->start,
-				    scbmem->end - scbmem->start + 1,
-				    pdev->name);
+	region = request_mem_region(scbmem->start, resource_size(scbmem),
+								pdev->name);
 	if (!region) {
 		dev_err(&pdev->dev, "I2S SCB region already claimed\n");
 		ret = -EBUSY;
 		goto err_release_none;
 	}
 
-	mmio = ioremap(scbmem->start, scbmem->end - scbmem->start + 1);
+	mmio = ioremap(scbmem->start, resource_size(scbmem));
 	if (!mmio) {
 		dev_err(&pdev->dev, "can't ioremap SCB region\n");
 		ret = -ENOMEM;
@@ -474,9 +473,8 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 		goto err_release_map;
 	}
 
-	region = request_mem_region(sifmem->start,
-				    sifmem->end - sifmem->start + 1,
-				    pdev->name);
+	region = request_mem_region(sifmem->start, resource_size(sifmem),
+								pdev->name);
 	if (!region) {
 		dev_err(&pdev->dev, "I2S SIF region already claimed\n");
 		ret = -EBUSY;
@@ -490,8 +488,8 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 		goto err_release_sif;
 	}
 
-	region = request_mem_region(dma1->start, dma1->end - dma1->start + 1,
-				    pdev->name);
+	region = request_mem_region(dma1->start, resource_size(dma1),
+								pdev->name);
 	if (!region) {
 		dev_err(&pdev->dev, "I2S DMA region already claimed\n");
 		ret = -EBUSY;
@@ -500,9 +498,8 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 
 	dma2 = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (dma2) {
-		region = request_mem_region(dma2->start,
-					    dma2->end - dma2->start + 1,
-					    pdev->name);
+		region = request_mem_region(dma2->start, resource_size(dma2),
+								pdev->name);
 		if (!region) {
 			dev_err(&pdev->dev,
 				"I2S DMA region already claimed\n");
@@ -561,15 +558,15 @@ err_release_dev:
 	kfree(dev);
 err_release_dma2:
 	if (dma2)
-		release_mem_region(dma2->start, dma2->end - dma2->start + 1);
+		release_mem_region(dma2->start, resource_size(dma2));
 err_release_dma1:
-	release_mem_region(dma1->start, dma1->end - dma1->start + 1);
+	release_mem_region(dma1->start, resource_size(dma1));
 err_release_sif:
-	release_mem_region(sifmem->start, (sifmem->end - sifmem->start) + 1);
+	release_mem_region(sifmem->start, resource_size(sifmem));
 err_release_map:
 	iounmap(mmio);
 err_release_scb:
-	release_mem_region(scbmem->start, (scbmem->end - scbmem->start) + 1);
+	release_mem_region(scbmem->start, resource_size(scbmem));
 err_release_none:
 	return ret;
 }
@@ -590,19 +587,18 @@ static void __devexit s6000_i2s_remove(struct platform_device *pdev)
 	kfree(dev);
 
 	region = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	release_mem_region(region->start, region->end - region->start + 1);
+	release_mem_region(region->start, resource_size(region));
 
 	region = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (region)
-		release_mem_region(region->start,
-				   region->end - region->start + 1);
+		release_mem_region(region->start, resource_size(region));
 
 	region = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(region->start, (region->end - region->start) + 1);
+	release_mem_region(region->start, resource_size(region));
 
 	iounmap(mmio);
 	region = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	release_mem_region(region->start, (region->end - region->start) + 1);
+	release_mem_region(region->start, resource_size(region));
 }
 
 static struct platform_driver s6000_i2s_driver = {

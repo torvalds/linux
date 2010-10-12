@@ -378,7 +378,11 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 	if (tlb_flag(TLB_V6_I_ASID))
 		asm("mcr p15, 0, %0, c8, c5, 2" : : "r" (asid) : "cc");
 	if (tlb_flag(TLB_V7_UIS_ASID))
+#ifdef CONFIG_ARM_ERRATA_720789
+		asm("mcr p15, 0, %0, c8, c3, 0" : : "r" (zero) : "cc");
+#else
 		asm("mcr p15, 0, %0, c8, c3, 2" : : "r" (asid) : "cc");
+#endif
 
 	if (tlb_flag(TLB_BTB)) {
 		/* flush the branch target cache */
@@ -424,7 +428,11 @@ local_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 	if (tlb_flag(TLB_V6_I_PAGE))
 		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (uaddr) : "cc");
 	if (tlb_flag(TLB_V7_UIS_PAGE))
+#ifdef CONFIG_ARM_ERRATA_720789
+		asm("mcr p15, 0, %0, c8, c3, 3" : : "r" (uaddr & PAGE_MASK) : "cc");
+#else
 		asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (uaddr) : "cc");
+#endif
 
 	if (tlb_flag(TLB_BTB)) {
 		/* flush the branch target cache */

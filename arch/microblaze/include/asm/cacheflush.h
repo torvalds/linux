@@ -17,6 +17,7 @@
 
 /* Somebody depends on this; sigh... */
 #include <linux/mm.h>
+#include <linux/io.h>
 
 /* Look at Documentation/cachetlb.txt */
 
@@ -60,7 +61,6 @@ void microblaze_cache_init(void);
 #define invalidate_icache()				mbc->iin();
 #define invalidate_icache_range(start, end)		mbc->iinr(start, end);
 
-
 #define flush_icache_user_range(vma, pg, adr, len)	flush_icache();
 #define flush_icache_page(vma, pg)			do { } while (0)
 
@@ -72,9 +72,15 @@ void microblaze_cache_init(void);
 #define flush_dcache()					mbc->dfl();
 #define flush_dcache_range(start, end)			mbc->dflr(start, end);
 
-#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
-/* D-cache aliasing problem can't happen - cache is between MMU and ram */
-#define flush_dcache_page(page)			do { } while (0)
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
+/* MS: We have to implement it because of rootfs-jffs2 issue on WB */
+#define flush_dcache_page(page) \
+do { \
+	unsigned long addr = (unsigned long) page_address(page); /* virtual */ \
+	addr = (u32)virt_to_phys((void *)addr); \
+	flush_dcache_range((unsigned) (addr), (unsigned) (addr) + PAGE_SIZE); \
+} while (0);
+
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
@@ -97,8 +103,10 @@ void microblaze_cache_init(void);
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 do {									\
+	u32 addr = virt_to_phys(dst);					\
+	invalidate_icache_range((unsigned) (addr), (unsigned) (addr) + (len));\
 	memcpy((dst), (src), (len));					\
-	flush_icache_range((unsigned) (dst), (unsigned) (dst) + (len));	\
+	flush_dcache_range((unsigned) (addr), (unsigned) (addr) + (len));\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\

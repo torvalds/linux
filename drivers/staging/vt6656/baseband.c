@@ -989,10 +989,10 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
  * Return Value: none
  *
  */
-BOOL
-BBbVT3184Init (PSDevice pDevice)
+
+BOOL BBbVT3184Init(PSDevice pDevice)
 {
-    NTSTATUS                ntStatus;
+	int ntStatus;
     WORD                    wLength;
     PBYTE                   pbyAddr;
     PBYTE                   pbyAgc;

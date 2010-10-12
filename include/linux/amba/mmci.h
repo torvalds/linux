@@ -15,9 +15,10 @@
  * @ocr_mask: available voltages on the 4 pins from the block, this
  * is ignored if a regulator is used, see the MMC_VDD_* masks in
  * mmc/host.h
- * @translate_vdd: a callback function to translate a MMC_VDD_*
- * mask into a value to be binary or:ed and written into the
- * MMCIPWR register of the block
+ * @vdd_handler: a callback function to translate a MMC_VDD_*
+ * mask into a value to be binary (or set some other custom bits
+ * in MMCIPWR) or:ed and written into the MMCIPWR register of the
+ * block.  May also control external power based on the power_mode.
  * @status: if no GPIO read function was given to the block in
  * gpio_wp (below) this function will be called to determine
  * whether a card is present in the MMC slot or not
@@ -29,7 +30,8 @@
 struct mmci_platform_data {
 	unsigned int f_max;
 	unsigned int ocr_mask;
-	u32 (*translate_vdd)(struct device *, unsigned int);
+	u32 (*vdd_handler)(struct device *, unsigned int vdd,
+			   unsigned char power_mode);
 	unsigned int (*status)(struct device *);
 	int	gpio_wp;
 	int	gpio_cd;

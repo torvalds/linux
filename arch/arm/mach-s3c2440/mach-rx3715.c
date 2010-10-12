@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/memblock.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/tty.h>
@@ -191,6 +192,13 @@ static void __init rx3715_map_io(void)
 	s3c24xx_init_uarts(rx3715_uartcfgs, ARRAY_SIZE(rx3715_uartcfgs));
 }
 
+/* H1940 and RX3715 need to reserve this for suspend */
+static void __init rx3715_reserve(void)
+{
+	memblock_reserve(0x30003000, 0x1000);
+	memblock_reserve(0x30081000, 0x1000);
+}
+
 static void __init rx3715_init_irq(void)
 {
 	s3c24xx_init_irq();
@@ -214,6 +222,7 @@ MACHINE_START(RX3715, "IPAQ-RX3715")
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= rx3715_map_io,
+	.reserve	= rx3715_reserve,
 	.init_irq	= rx3715_init_irq,
 	.init_machine	= rx3715_init_machine,
 	.timer		= &s3c24xx_timer,

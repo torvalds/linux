@@ -10,23 +10,36 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * Very simple screen I/O
- * XXX: Probably should add very simple serial I/O?
+ * Very simple screen and serial I/O
  */
 
 #include "boot.h"
+
+int early_serial_base;
+
+#define XMTRDY          0x20
+
+#define TXR             0       /*  Transmit register (WRITE) */
+#define LSR             5       /*  Line Status               */
 
 /*
  * These functions are in .inittext so they can be used to signal
  * error during initialization.
  */
 
-void __attribute__((section(".inittext"))) putchar(int ch)
+static void __attribute__((section(".inittext"))) serial_putchar(int ch)
+{
+	unsigned timeout = 0xffff;
+
+	while ((inb(early_serial_base + LSR) & XMTRDY) == 0 && --timeout)
+		cpu_relax();
+
+	outb(ch, early_serial_base + TXR);
+}
+
+static void __attribute__((section(".inittext"))) bios_putchar(int ch)
 {
 	struct biosregs ireg;
-
-	if (ch == '\n')
-		putchar('\r');	/* \n -> \r\n */
 
 	initregs(&ireg);
 	ireg.bx = 0x0007;
@@ -34,6 +47,17 @@ void __attribute__((section(".inittext"))) putchar(int ch)
 	ireg.ah = 0x0e;
 	ireg.al = ch;
 	intcall(0x10, &ireg, NULL);
+}
+
+void __attribute__((section(".inittext"))) putchar(int ch)
+{
+	if (ch == '\n')
+		putchar('\r');	/* \n -> \r\n */
+
+	bios_putchar(ch);
+
+	if (early_serial_base != 0)
+		serial_putchar(ch);
 }
 
 void __attribute__((section(".inittext"))) puts(const char *str)
@@ -112,3 +136,4 @@ int getchar_timeout(void)
 
 	return 0;		/* Timeout! */
 }
+

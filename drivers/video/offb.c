@@ -19,13 +19,14 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/pci-bridge.h>

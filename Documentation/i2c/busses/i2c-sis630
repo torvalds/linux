@@ -2,7 +2,7 @@ Kernel driver i2c-sis630
 
 Supported adapters:
   * Silicon Integrated Systems Corp (SiS)
-	630 chipset (Datasheet: available at http://amalysh.bei.t-online.de/docs/SIS/)
+	630 chipset (Datasheet: available at http://www.sfr-fresh.com/linux)
 	730 chipset
   * Possible other SiS chipsets ?
 

@@ -184,6 +184,7 @@ out:
 static const struct file_operations sel_enforce_ops = {
 	.read		= sel_read_enforce,
 	.write		= sel_write_enforce,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_read_handle_unknown(struct file *filp, char __user *buf,
@@ -201,6 +202,7 @@ static ssize_t sel_read_handle_unknown(struct file *filp, char __user *buf,
 
 static const struct file_operations sel_handle_unknown_ops = {
 	.read		= sel_read_handle_unknown,
+	.llseek		= generic_file_llseek,
 };
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
@@ -251,6 +253,7 @@ out:
 
 static const struct file_operations sel_disable_ops = {
 	.write		= sel_write_disable,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_read_policyvers(struct file *filp, char __user *buf,
@@ -265,6 +268,7 @@ static ssize_t sel_read_policyvers(struct file *filp, char __user *buf,
 
 static const struct file_operations sel_policyvers_ops = {
 	.read		= sel_read_policyvers,
+	.llseek		= generic_file_llseek,
 };
 
 /* declaration for sel_write_load */
@@ -289,6 +293,7 @@ static ssize_t sel_read_mls(struct file *filp, char __user *buf,
 
 static const struct file_operations sel_mls_ops = {
 	.read		= sel_read_mls,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_write_load(struct file *file, const char __user *buf,
@@ -356,6 +361,7 @@ out:
 
 static const struct file_operations sel_load_ops = {
 	.write		= sel_write_load,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
@@ -437,6 +443,7 @@ out:
 static const struct file_operations sel_checkreqprot_ops = {
 	.read		= sel_read_checkreqprot,
 	.write		= sel_write_checkreqprot,
+	.llseek		= generic_file_llseek,
 };
 
 /*
@@ -482,6 +489,7 @@ static const struct file_operations transaction_ops = {
 	.write		= selinux_transaction_write,
 	.read		= simple_transaction_read,
 	.release	= simple_transaction_release,
+	.llseek		= generic_file_llseek,
 };
 
 /*
@@ -883,6 +891,7 @@ out:
 static const struct file_operations sel_bool_ops = {
 	.read		= sel_read_bool,
 	.write		= sel_write_bool,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_commit_bools_write(struct file *filep,
@@ -935,6 +944,7 @@ out:
 
 static const struct file_operations sel_commit_bools_ops = {
 	.write		= sel_commit_bools_write,
+	.llseek		= generic_file_llseek,
 };
 
 static void sel_remove_entries(struct dentry *de)
@@ -1127,10 +1137,12 @@ out:
 static const struct file_operations sel_avc_cache_threshold_ops = {
 	.read		= sel_read_avc_cache_threshold,
 	.write		= sel_write_avc_cache_threshold,
+	.llseek		= generic_file_llseek,
 };
 
 static const struct file_operations sel_avc_hash_stats_ops = {
 	.read		= sel_read_avc_hash_stats,
+	.llseek		= generic_file_llseek,
 };
 
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
@@ -1255,6 +1267,7 @@ static ssize_t sel_read_initcon(struct file *file, char __user *buf,
 
 static const struct file_operations sel_initcon_ops = {
 	.read		= sel_read_initcon,
+	.llseek		= generic_file_llseek,
 };
 
 static int sel_make_initcon_files(struct dentry *dir)
@@ -1330,6 +1343,7 @@ out:
 
 static const struct file_operations sel_class_ops = {
 	.read		= sel_read_class,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_read_perm(struct file *file, char __user *buf,
@@ -1354,6 +1368,7 @@ out:
 
 static const struct file_operations sel_perm_ops = {
 	.read		= sel_read_perm,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_read_policycap(struct file *file, char __user *buf,
@@ -1372,6 +1387,7 @@ static ssize_t sel_read_policycap(struct file *file, char __user *buf,
 
 static const struct file_operations sel_policycap_ops = {
 	.read		= sel_read_policycap,
+	.llseek		= generic_file_llseek,
 };
 
 static int sel_make_perm_files(char *objclass, int classvalue,

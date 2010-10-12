@@ -123,9 +123,8 @@ static inline struct ocfs2_caching_info *INODE_CACHE(struct inode *inode)
 	return &OCFS2_I(inode)->ip_metadata_cache;
 }
 
-void ocfs2_clear_inode(struct inode *inode);
-void ocfs2_delete_inode(struct inode *inode);
-void ocfs2_drop_inode(struct inode *inode);
+void ocfs2_evict_inode(struct inode *inode);
+int ocfs2_drop_inode(struct inode *inode);
 
 /* Flags for ocfs2_iget() */
 #define OCFS2_FI_FLAG_SYSFILE		0x1

@@ -94,8 +94,6 @@ void ufs_free_inode (struct inode * inode)
 
 	is_directory = S_ISDIR(inode->i_mode);
 
-	clear_inode (inode);
-
 	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
 		ufs_error(sb, "ufs_free_inode", "bit already cleared for inode %u", ino);
 	else {

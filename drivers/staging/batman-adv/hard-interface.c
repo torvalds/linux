@@ -30,6 +30,7 @@
 #include "hash.h"
 
 #include <linux/if_arp.h>
+#include <linux/netfilter_bridge.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
@@ -71,7 +72,7 @@ static int is_valid_iface(struct net_device *net_dev)
 #endif
 
 	/* Device is being bridged */
-	/* if (net_dev->br_port != NULL)
+	/* if (net_dev->priv_flags & IFF_BRIDGE_PORT)
 		return 0; */
 
 	return 1;
@@ -108,7 +109,7 @@ static void set_primary_if(struct bat_priv *bat_priv,
 	set_main_if_addr(batman_if->net_dev->dev_addr);
 
 	batman_packet = (struct batman_packet *)(batman_if->packet_buff);
-	batman_packet->flags = 0;
+	batman_packet->flags = PRIMARIES_FIRST_HOP;
 	batman_packet->ttl = TTL;
 
 	/***
@@ -149,12 +150,10 @@ static void check_known_mac_addr(uint8_t *addr)
 		if (!compare_orig(batman_if->net_dev->dev_addr, addr))
 			continue;
 
-		printk(KERN_WARNING "batman-adv:"
-		    "The newly added mac address (%pM) already exists on: %s\n",
-		    addr, batman_if->dev);
-		printk(KERN_WARNING "batman-adv:"
-		    "It is strongly recommended to keep mac addresses unique"
-		    "to avoid problems!\n");
+		pr_warning("The newly added mac address (%pM) already exists "
+			   "on: %s\n", addr, batman_if->dev);
+		pr_warning("It is strongly recommended to keep mac addresses "
+			   "unique to avoid problems!\n");
 	}
 	rcu_read_unlock();
 }
@@ -188,7 +187,8 @@ void update_min_mtu(void)
 		soft_device->mtu = min_mtu;
 }
 
-static void hardif_activate_interface(struct bat_priv *bat_priv,
+static void hardif_activate_interface(struct net_device *net_dev,
+				      struct bat_priv *bat_priv,
 				      struct batman_if *batman_if)
 {
 	if (batman_if->if_status != IF_INACTIVE)
@@ -206,8 +206,7 @@ static void hardif_activate_interface(struct bat_priv *bat_priv,
 	if (!bat_priv->primary_if)
 		set_primary_if(bat_priv, batman_if);
 
-	printk(KERN_INFO "batman-adv:Interface activated: %s\n",
-	       batman_if->dev);
+	bat_info(net_dev, "Interface activated: %s\n", batman_if->dev);
 
 	if (atomic_read(&module_state) == MODULE_INACTIVE)
 		activate_module();
@@ -216,7 +215,8 @@ static void hardif_activate_interface(struct bat_priv *bat_priv,
 	return;
 }
 
-static void hardif_deactivate_interface(struct batman_if *batman_if)
+static void hardif_deactivate_interface(struct net_device *net_dev,
+					struct batman_if *batman_if)
 {
 	if ((batman_if->if_status != IF_ACTIVE) &&
 	   (batman_if->if_status != IF_TO_BE_ACTIVATED))
@@ -226,8 +226,7 @@ static void hardif_deactivate_interface(struct batman_if *batman_if)
 
 	batman_if->if_status = IF_INACTIVE;
 
-	printk(KERN_INFO "batman-adv:Interface deactivated: %s\n",
-	       batman_if->dev);
+	bat_info(net_dev, "Interface deactivated: %s\n", batman_if->dev);
 
 	update_min_mtu();
 }
@@ -245,9 +244,8 @@ int hardif_enable_interface(struct batman_if *batman_if)
 	batman_if->packet_buff = kmalloc(batman_if->packet_len, GFP_ATOMIC);
 
 	if (!batman_if->packet_buff) {
-		printk(KERN_ERR "batman-adv:"
-		       "Can't add interface packet (%s): out of memory\n",
-		       batman_if->dev);
+		bat_err(soft_device, "Can't add interface packet (%s): "
+			"out of memory\n", batman_if->dev);
 		goto err;
 	}
 
@@ -265,15 +263,14 @@ int hardif_enable_interface(struct batman_if *batman_if)
 	orig_hash_add_if(batman_if, bat_priv->num_ifaces);
 
 	atomic_set(&batman_if->seqno, 1);
-	printk(KERN_INFO "batman-adv:Adding interface: %s\n", batman_if->dev);
+	bat_info(soft_device, "Adding interface: %s\n", batman_if->dev);
 
 	if (hardif_is_iface_up(batman_if))
-		hardif_activate_interface(bat_priv, batman_if);
+		hardif_activate_interface(soft_device, bat_priv, batman_if);
 	else
-		printk(KERN_ERR "batman-adv:"
-		       "Not using interface %s "
-		       "(retrying later): interface not active\n",
-		       batman_if->dev);
+		bat_err(soft_device, "Not using interface %s "
+			"(retrying later): interface not active\n",
+			batman_if->dev);
 
 	/* begin scheduling originator messages on that interface */
 	schedule_own_packet(batman_if);
@@ -291,12 +288,12 @@ void hardif_disable_interface(struct batman_if *batman_if)
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	if (batman_if->if_status == IF_ACTIVE)
-		hardif_deactivate_interface(batman_if);
+		hardif_deactivate_interface(soft_device, batman_if);
 
 	if (batman_if->if_status != IF_INACTIVE)
 		return;
 
-	printk(KERN_INFO "batman-adv:Removing interface: %s\n", batman_if->dev);
+	bat_info(soft_device, "Removing interface: %s\n", batman_if->dev);
 	bat_priv->num_ifaces--;
 	orig_hash_del_if(batman_if, bat_priv->num_ifaces);
 
@@ -323,8 +320,7 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_ATOMIC);
 	if (!batman_if) {
-		printk(KERN_ERR "batman-adv:"
-		       "Can't add interface (%s): out of memory\n",
+		pr_err("Can't add interface (%s): out of memory\n",
 		       net_dev->name);
 		goto out;
 	}
@@ -407,11 +403,11 @@ static int hard_if_event(struct notifier_block *this,
 	case NETDEV_REGISTER:
 		break;
 	case NETDEV_UP:
-		hardif_activate_interface(bat_priv, batman_if);
+		hardif_activate_interface(soft_device, bat_priv, batman_if);
 		break;
 	case NETDEV_GOING_DOWN:
 	case NETDEV_DOWN:
-		hardif_deactivate_interface(batman_if);
+		hardif_deactivate_interface(soft_device, batman_if);
 		break;
 	case NETDEV_UNREGISTER:
 		hardif_remove_interface(batman_if);
@@ -432,14 +428,22 @@ out:
 	return NOTIFY_DONE;
 }
 
+static int batman_skb_recv_finish(struct sk_buff *skb)
+{
+	return NF_ACCEPT;
+}
+
 /* receive a packet with the batman ethertype coming on a hard
  * interface */
 int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *ptype, struct net_device *orig_dev)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_packet *batman_packet;
 	struct batman_if *batman_if;
 	struct net_device_stats *stats;
+	struct rtnl_link_stats64 temp;
 	int ret;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -450,6 +454,13 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto err_free;
+
+	/* if netfilter/ebtables wants to block incoming batman
+	 * packets then give them a chance to do so here */
+	ret = NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, dev, NULL,
+		      batman_skb_recv_finish);
+	if (ret != 1)
+		goto err_out;
 
 	/* packet should hold at least type and version */
 	if (unlikely(skb_headlen(skb) < 2))
@@ -468,7 +479,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (batman_if->if_status != IF_ACTIVE)
 		goto err_free;
 
-	stats = (struct net_device_stats *)dev_get_stats(skb->dev);
+	stats = (struct net_device_stats *)dev_get_stats(skb->dev, &temp);
 	if (stats) {
 		stats->rx_packets++;
 		stats->rx_bytes += skb->len;
@@ -477,7 +488,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	batman_packet = (struct batman_packet *)skb->data;
 
 	if (batman_packet->version != COMPAT_VERSION) {
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: incompatible batman version (%i)\n",
 			batman_packet->version);
 		goto err_free;
@@ -499,7 +510,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 		/* unicast packet */
 	case BAT_UNICAST:
-		ret = recv_unicast_packet(skb);
+		ret = recv_unicast_packet(skb, batman_if);
 		break;
 
 		/* broadcast packet */
@@ -529,7 +540,6 @@ err_free:
 err_out:
 	return NET_RX_DROP;
 }
-
 
 struct notifier_block hard_if_notifier = {
 	.notifier_call = hard_if_event,

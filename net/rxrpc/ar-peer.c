@@ -64,8 +64,8 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 		return;
 	}
 
-	peer->if_mtu = dst_mtu(&rt->u.dst);
-	dst_release(&rt->u.dst);
+	peer->if_mtu = dst_mtu(&rt->dst);
+	dst_release(&rt->dst);
 
 	_leave(" [if_mtu %u]", peer->if_mtu);
 }

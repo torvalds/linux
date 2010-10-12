@@ -113,6 +113,7 @@ void r100_wb_fini(struct radeon_device *rdev);
 int r100_wb_init(struct radeon_device *rdev);
 int r100_cp_reset(struct radeon_device *rdev);
 void r100_vga_render_disable(struct radeon_device *rdev);
+void r100_restore_sanity(struct radeon_device *rdev);
 int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
 					 struct radeon_cs_packet *pkt,
 					 struct radeon_bo *robj);

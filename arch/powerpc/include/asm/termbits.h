@@ -189,6 +189,7 @@ struct ktermios {
 #define FLUSHO	0x00800000
 #define PENDIN	0x20000000
 #define IEXTEN	0x00000400
+#define EXTPROC	0x10000000
 
 /* Values for the ACTION argument to `tcflow'.  */
 #define	TCOOFF		0

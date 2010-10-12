@@ -1,7 +1,6 @@
 /*
- *                   ASIC Device List Intialization
  *
- * Description:  Defines the platform resources for the SA settop.
+ * Description:  Defines the platform resources for Gaia-based settops.
  *
  * Copyright (C) 2005-2009 Scientific-Atlanta, Inc.
  *
@@ -19,11 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       Ken Eppinett
- *               David Schleef <ds@schleef.org>
- *
- * Description:  Defines the platform resources for the SA settop.
- *
  * NOTE: The bootloader allocates persistent memory at an address which is
  * 16 MiB below the end of the highest address in KSEG0. All fixed
  * address memory reservations must avoid this region.
@@ -39,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/gfp.h>
 #include <asm/page.h>
 #include <linux/swap.h>
 #include <linux/highmem.h>
@@ -74,14 +67,13 @@ unsigned long asic_phy_base;
 unsigned long asic_base;
 EXPORT_SYMBOL(asic_base);			/* Exported for testing */
 struct resource *gp_resources;
-static bool usb_configured;
 
 /*
  * Don't recommend to use it directly, it is usually used by kernel internally.
  * Portable code should be using interfaces such as ioremp, dma_map_single, etc.
  */
-unsigned long phys_to_bus_offset;
-EXPORT_SYMBOL(phys_to_bus_offset);
+unsigned long phys_to_dma_offset;
+EXPORT_SYMBOL(phys_to_dma_offset);
 
 /*
  *
@@ -97,101 +89,19 @@ struct resource asic_resource = {
 };
 
 /*
- *
- * USB Host Resource Definition
- *
- */
-
-static struct resource ehci_resources[] = {
-	{
-		.parent = &asic_resource,
-		.start  = 0,
-		.end    = 0xff,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.start  = irq_usbehci,
-		.end    = irq_usbehci,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static u64 ehci_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device ehci_device = {
-	.name = "powertv-ehci",
-	.id = 0,
-	.num_resources = 2,
-	.resource = ehci_resources,
-	.dev = {
-		.dma_mask = &ehci_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-};
-
-static struct resource ohci_resources[] = {
-	{
-		.parent = &asic_resource,
-		.start  = 0,
-		.end    = 0xff,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.start  = irq_usbohci,
-		.end    = irq_usbohci,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static u64 ohci_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device ohci_device = {
-	.name = "powertv-ohci",
-	.id = 0,
-	.num_resources = 2,
-	.resource = ohci_resources,
-	.dev = {
-		.dma_mask = &ohci_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-};
-
-static struct platform_device *platform_devices[] = {
-	&ehci_device,
-	&ohci_device,
-};
-
-/*
- *
- * Platform Configuration and Device Initialization
- *
- */
-static void __init fs_update(int pe, int md, int sdiv, int disable_div_by_3)
-{
-	int en_prg, byp, pwr, nsb, val;
-	int sout;
-
-	sout = 1;
-	en_prg = 1;
-	byp = 0;
-	nsb = 1;
-	pwr = 1;
-
-	val = ((sdiv << 29) | (md << 24) | (pe<<8) | (sout<<3) | (byp<<2) |
-		(nsb<<1) | (disable_div_by_3<<5));
-
-	asic_write(val, usb_fs);
-	asic_write(val | (en_prg<<4), usb_fs);
-	asic_write(val | (en_prg<<4) | pwr, usb_fs);
-}
-
-/*
  * Allow override of bootloader-specified model
+ * Returns zero on success, a negative errno value on failure.  This parameter
+ * allows overriding of the bootloader-specified model.
  */
 static char __initdata cmdline[COMMAND_LINE_SIZE];
 
 #define	FORCEFAMILY_PARAM	"forcefamily"
 
+/*
+ * check_forcefamily - check for, and parse, forcefamily command line parameter
+ * @forced_family:	Pointer to two-character array in which to store the
+ *			value of the forcedfamily parameter, if any.
+ */
 static __init int check_forcefamily(unsigned char forced_family[2])
 {
 	const char *p;
@@ -231,14 +141,10 @@ static __init int check_forcefamily(unsigned char forced_family[2])
  */
 static __init noinline void platform_set_family(void)
 {
-#define BOOTLDRFAMILY(byte1, byte0) (((byte1) << 8) | (byte0))
-
 	unsigned char forced_family[2];
 	unsigned short bootldr_family;
 
-	check_forcefamily(forced_family);
-
-	if (forced_family[0] != '\0' && forced_family[1] != '\0')
+	if (check_forcefamily(forced_family) == 0)
 		bootldr_family = BOOTLDRFAMILY(forced_family[0],
 			forced_family[1]);
 	else {
@@ -289,6 +195,9 @@ static __init noinline void platform_set_family(void)
 	case BOOTLDRFAMILY('F', '1'):
 		platform_family = FAMILY_1500VZF;
 		break;
+	case BOOTLDRFAMILY('8', '7'):
+		platform_family = FAMILY_8700;
+		break;
 	default:
 		platform_family = -1;
 	}
@@ -301,24 +210,9 @@ unsigned int platform_get_family(void)
 EXPORT_SYMBOL(platform_get_family);
 
 /*
- * \brief usb_eye_configure() for optimizing the USB eye on Calliope.
- *
- * \param     unsigned int value saved to the register.
- *
- * \return    none
- *
- */
-static void __init usb_eye_configure(unsigned int value)
-{
-	asic_write(asic_read(crt_spare) | value, crt_spare);
-}
-
-/*
  * platform_get_asic - determine the ASIC type.
  *
- * \param     none
- *
- * \return    ASIC type; ASIC_UNKNOWN if none
+ * Returns the ASIC type, or ASIC_UNKNOWN if unknown
  *
  */
 enum asic_type platform_get_asic(void)
@@ -328,93 +222,10 @@ enum asic_type platform_get_asic(void)
 EXPORT_SYMBOL(platform_get_asic);
 
 /*
- * platform_configure_usb - usb configuration based on platform type.
- * @bcm1_usb2_ctl:	value for the BCM1_USB2_CTL register, which is
- *			quirky
+ * set_register_map - set ASIC register configuration
+ * @phys_base:	Physical address of the base of the ASIC registers
+ * @map:	Description of key ASIC registers
  */
-static void __init platform_configure_usb(void)
-{
-	u32 bcm1_usb2_ctl;
-
-	if (usb_configured)
-		return;
-
-	switch (asic) {
-	case ASIC_ZEUS:
-	case ASIC_CRONUS:
-	case ASIC_CRONUSLITE:
-		fs_update(0x0000, 0x11, 0x02, 0);
-		bcm1_usb2_ctl = 0x803;
-		break;
-
-	case ASIC_CALLIOPE:
-		fs_update(0x0000, 0x11, 0x02, 1);
-
-		switch (platform_family) {
-		case FAMILY_1500VZE:
-			break;
-
-		case FAMILY_1500VZF:
-			usb_eye_configure(0x003c0000);
-			break;
-
-		default:
-			usb_eye_configure(0x00300000);
-			break;
-		}
-
-		bcm1_usb2_ctl = 0x803;
-		break;
-
-	default:
-		pr_err("Unknown ASIC type: %d\n", asic);
-		break;
-	}
-
-	/* turn on USB power */
-	asic_write(0, usb2_strap);
-	/* Enable all OHCI interrupts */
-	asic_write(bcm1_usb2_ctl, usb2_control);
-	/* USB2_STBUS_OBC store32/load32 */
-	asic_write(3, usb2_stbus_obc);
-	/* USB2_STBUS_MESS_SIZE 2 packets */
-	asic_write(1, usb2_stbus_mess_size);
-	/* USB2_STBUS_CHUNK_SIZE 2 packets */
-	asic_write(1, usb2_stbus_chunk_size);
-
-	usb_configured = true;
-}
-
-/*
- * Set up the USB EHCI interface
- */
-void platform_configure_usb_ehci()
-{
-	platform_configure_usb();
-}
-
-/*
- * Set up the USB OHCI interface
- */
-void platform_configure_usb_ohci()
-{
-	platform_configure_usb();
-}
-
-/*
- * Shut the USB EHCI interface down--currently a NOP
- */
-void platform_unconfigure_usb_ehci()
-{
-}
-
-/*
- * Shut the USB OHCI interface down--currently a NOP
- */
-void platform_unconfigure_usb_ohci()
-{
-}
-
 static void __init set_register_map(unsigned long phys_base,
 	const struct register_map *map)
 {
@@ -526,6 +337,15 @@ void __init configure_platform(void)
 			"DVR_CAPABLE\n");
 		break;
 
+	case FAMILY_8700:
+		platform_features = FFS_CAPABLE | PCIE_CAPABLE;
+		asic = ASIC_GAIA;
+		set_register_map(GAIA_IO_BASE, &gaia_register_map);
+		gp_resources = dvr_gaia_resources;
+
+		pr_info("Platform: 8700 - GAIA, DVR_CAPABLE\n");
+		break;
+
 	default:
 		pr_crit("Platform:  UNKNOWN PLATFORM\n");
 		break;
@@ -533,10 +353,10 @@ void __init configure_platform(void)
 
 	switch (asic) {
 	case ASIC_ZEUS:
-		phys_to_bus_offset = 0x30000000;
+		phys_to_dma_offset = 0x30000000;
 		break;
 	case ASIC_CALLIOPE:
-		phys_to_bus_offset = 0x10000000;
+		phys_to_dma_offset = 0x10000000;
 		break;
 	case ASIC_CRONUSLITE:
 		/* Fall through */
@@ -546,42 +366,16 @@ void __init configure_platform(void)
 		 * 0x2XXXXXXX. If 0x10000000 aliases into 0x60000000-
 		 * 0x6XXXXXXX, the offset should be 0x50000000, not 0x10000000.
 		 */
-		phys_to_bus_offset = 0x10000000;
+		phys_to_dma_offset = 0x10000000;
 		break;
 	default:
-		phys_to_bus_offset = 0x00000000;
+		phys_to_dma_offset = 0x00000000;
 		break;
 	}
 }
 
-/**
- * platform_devices_init - sets up USB device resourse.
- */
-static int __init platform_devices_init(void)
-{
-	pr_notice("%s: ----- Initializing USB resources -----\n", __func__);
-
-	asic_resource.start = asic_phy_base;
-	asic_resource.end += asic_resource.start;
-
-	ehci_resources[0].start = asic_reg_phys_addr(ehci_hcapbase);
-	ehci_resources[0].end += ehci_resources[0].start;
-
-	ohci_resources[0].start = asic_reg_phys_addr(ohci_hc_revision);
-	ohci_resources[0].end += ohci_resources[0].start;
-
-	set_io_port_base(0);
-
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-
-	return 0;
-}
-
-arch_initcall(platform_devices_init);
-
 /*
- *
- * BOOTMEM ALLOCATION
+ * RESOURCE ALLOCATION
  *
  */
 /*
@@ -603,7 +397,7 @@ void __init platform_alloc_bootmem(void)
 		int size = gp_resources[i].end - gp_resources[i].start + 1;
 		if ((gp_resources[i].start != 0) &&
 			((gp_resources[i].flags & IORESOURCE_MEM) != 0)) {
-			reserve_bootmem(bus_to_phys(gp_resources[i].start),
+			reserve_bootmem(dma_to_phys(gp_resources[i].start),
 				size, 0);
 			total += gp_resources[i].end -
 				gp_resources[i].start + 1;
@@ -627,7 +421,7 @@ void __init platform_alloc_bootmem(void)
 
 			else {
 				gp_resources[i].start =
-					phys_to_bus(virt_to_phys(mem));
+					phys_to_dma(virt_to_phys(mem));
 				gp_resources[i].end =
 					gp_resources[i].start + size - 1;
 				total += size;
@@ -691,7 +485,7 @@ static void __init pmem_setup_resource(void)
 	if (resource && pmemaddr && pmemlen) {
 		/* The address provided by bootloader is in kseg0. Convert to
 		 * a bus address. */
-		resource->start = phys_to_bus(pmemaddr - 0x80000000);
+		resource->start = phys_to_dma(pmemaddr - 0x80000000);
 		resource->end = resource->start + pmemlen - 1;
 
 		pr_info("persistent memory: start=0x%x  end=0x%x\n",

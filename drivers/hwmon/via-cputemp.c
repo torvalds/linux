@@ -39,7 +39,7 @@
 
 #define DRVNAME	"via_cputemp"
 
-enum { SHOW_TEMP, SHOW_LABEL, SHOW_NAME } SHOW;
+enum { SHOW_TEMP, SHOW_LABEL, SHOW_NAME };
 
 /*
  * Functions declaration

@@ -81,13 +81,14 @@ struct kvm_vcpu {
 	int vcpu_id;
 	struct mutex mutex;
 	int   cpu;
+	atomic_t guest_mode;
 	struct kvm_run *run;
 	unsigned long requests;
 	unsigned long guest_debug;
 	int srcu_idx;
 
 	int fpu_active;
-	int guest_fpu_loaded;
+	int guest_fpu_loaded, guest_xcr0_loaded;
 	wait_queue_head_t wq;
 	int sigset_active;
 	sigset_t sigset;
@@ -123,6 +124,7 @@ struct kvm_memory_slot {
 	} *lpage_info[KVM_NR_PAGE_SIZES - 1];
 	unsigned long userspace_addr;
 	int user_alloc;
+	int id;
 };
 
 static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memslot)
@@ -266,6 +268,8 @@ extern pfn_t bad_pfn;
 
 int is_error_page(struct page *page);
 int is_error_pfn(pfn_t pfn);
+int is_hwpoison_pfn(pfn_t pfn);
+int is_fault_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
@@ -284,8 +288,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				int user_alloc);
 void kvm_disable_largepages(void);
 void kvm_arch_flush_shadow(struct kvm *kvm);
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
-gfn_t unalias_gfn_instantiation(struct kvm *kvm, gfn_t gfn);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
@@ -445,7 +447,8 @@ void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
 				    struct kvm_irq_mask_notifier *kimn);
 void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 				      struct kvm_irq_mask_notifier *kimn);
-void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask);
+void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
+			     bool mask);
 
 #ifdef __KVM_HAVE_IOAPIC
 void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
@@ -562,10 +565,6 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 }
 #endif
 
-#ifndef KVM_ARCH_HAS_UNALIAS_INSTANTIATION
-#define unalias_gfn_instantiation unalias_gfn
-#endif
-
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 
 #define KVM_MAX_IRQ_ROUTES 1024
@@ -627,6 +626,26 @@ static inline long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 }
 
 #endif
+
+static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
+{
+	set_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_make_check_request(int req, struct kvm_vcpu *vcpu)
+{
+	return test_and_set_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
+{
+	if (test_bit(req, &vcpu->requests)) {
+		clear_bit(req, &vcpu->requests);
+		return true;
+	} else {
+		return false;
+	}
+}
 
 #endif
 

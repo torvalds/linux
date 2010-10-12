@@ -53,13 +53,14 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	status->band = wl->band;
 	status->rate_idx = wl1271_rate_to_idx(wl, desc->rate);
 
-	/*
-	 * FIXME: Add mactime handling.  For IBSS (ad-hoc) we need to get the
-	 * timestamp from the beacon (acx_tsf_info).  In BSS mode (infra) we
-	 * only need the mactime for monitor mode.  For now the mactime is
-	 * not valid, so RX_FLAG_TSFT should not be set
-	 */
 	status->signal = desc->rssi;
+
+	/*
+	 * FIXME: In wl1251, the SNR should be divided by two.  In wl1271 we
+	 * need to divide by two for now, but TI has been discussing about
+	 * changing it.  This needs to be rechecked.
+	 */
+	wl->noise = desc->rssi - (desc->snr >> 1);
 
 	status->freq = ieee80211_channel_to_frequency(desc->channel);
 

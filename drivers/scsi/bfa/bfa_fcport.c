@@ -18,6 +18,7 @@
 #include <bfa.h>
 #include <bfa_svc.h>
 #include <bfi/bfi_pport.h>
+#include <bfi/bfi_pbc.h>
 #include <cs/bfa_debug.h>
 #include <aen/bfa_aen.h>
 #include <cs/bfa_plog.h>
@@ -310,10 +311,12 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 
 		if (!bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
 
-			bfa_trc(fcport->bfa, pevent->link_state.fcf.fipenabled);
-			bfa_trc(fcport->bfa, pevent->link_state.fcf.fipfailed);
+			bfa_trc(fcport->bfa,
+				pevent->link_state.vc_fcf.fcf.fipenabled);
+			bfa_trc(fcport->bfa,
+				pevent->link_state.vc_fcf.fcf.fipfailed);
 
-			if (pevent->link_state.fcf.fipfailed)
+			if (pevent->link_state.vc_fcf.fcf.fipfailed)
 				bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
 					BFA_PL_EID_FIP_FCF_DISC, 0,
 					"FIP FCF Discovery Failed");
@@ -888,6 +891,7 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 	struct bfa_pport_cfg_s *port_cfg = &fcport->cfg;
 	struct bfa_fcport_ln_s *ln = &fcport->ln;
+	struct bfa_timeval_s tv;
 
 	bfa_os_memset(fcport, 0, sizeof(struct bfa_fcport_s));
 	fcport->bfa = bfa;
@@ -897,6 +901,12 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa_sm_set_state(fcport, bfa_fcport_sm_uninit);
 	bfa_sm_set_state(ln, bfa_fcport_ln_sm_dn);
+
+	/**
+	 * initialize time stamp for stats reset
+	 */
+	bfa_os_gettimeofday(&tv);
+	fcport->stats_reset_time = tv.tv_sec;
 
 	/**
 	 * initialize and set default configuration
@@ -909,25 +919,6 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	port_cfg->trl_def_speed = BFA_PPORT_SPEED_1GBPS;
 
 	bfa_reqq_winit(&fcport->reqq_wait, bfa_fcport_qresume, fcport);
-}
-
-static void
-bfa_fcport_initdone(struct bfa_s *bfa)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	/**
-	 * Initialize port attributes from IOC hardware data.
-	 */
-	bfa_fcport_set_wwns(fcport);
-	if (fcport->cfg.maxfrsize == 0)
-		fcport->cfg.maxfrsize = bfa_ioc_maxfrsize(&bfa->ioc);
-	fcport->cfg.rx_bbcredit = bfa_ioc_rx_bbcredit(&bfa->ioc);
-	fcport->speed_sup = bfa_ioc_speed_sup(&bfa->ioc);
-
-	bfa_assert(fcport->cfg.maxfrsize);
-	bfa_assert(fcport->cfg.rx_bbcredit);
-	bfa_assert(fcport->speed_sup);
 }
 
 static void
@@ -971,14 +962,15 @@ bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 	fcport->topology = pevent->link_state.topology;
 
 	if (fcport->topology == BFA_PPORT_TOPOLOGY_LOOP)
-		fcport->myalpa =
-			pevent->link_state.tl.loop_info.myalpa;
+		fcport->myalpa = 0;
 
 	/*
 	 * QoS Details
 	 */
 	bfa_os_assign(fcport->qos_attr, pevent->link_state.qos_attr);
-	bfa_os_assign(fcport->qos_vc_attr, pevent->link_state.qos_vc_attr);
+	bfa_os_assign(fcport->qos_vc_attr,
+		pevent->link_state.vc_fcf.qos_vc_attr);
+
 
 	bfa_trc(fcport->bfa, fcport->speed);
 	bfa_trc(fcport->bfa, fcport->topology);
@@ -1145,16 +1137,22 @@ __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 
 	if (complete) {
 		if (fcport->stats_status == BFA_STATUS_OK) {
+			struct bfa_timeval_s tv;
 
 			/* Swap FC QoS or FCoE stats */
-			if (bfa_ioc_get_fcmode(&fcport->bfa->ioc))
+			if (bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
 				bfa_fcport_qos_stats_swap(
 					&fcport->stats_ret->fcqos,
 					&fcport->stats->fcqos);
-			else
+			} else {
 				bfa_fcport_fcoe_stats_swap(
 					&fcport->stats_ret->fcoe,
 					&fcport->stats->fcoe);
+
+				bfa_os_gettimeofday(&tv);
+				fcport->stats_ret->fcoe.secs_reset =
+					tv.tv_sec - fcport->stats_reset_time;
+			}
 		}
 		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
 	} else {
@@ -1210,6 +1208,14 @@ __bfa_cb_fcport_stats_clr(void *cbarg, bfa_boolean_t complete)
 	struct bfa_fcport_s *fcport = cbarg;
 
 	if (complete) {
+		struct bfa_timeval_s tv;
+
+		/**
+		 * re-initialize time stamp for stats reset
+		 */
+		bfa_os_gettimeofday(&tv);
+		fcport->stats_reset_time = tv.tv_sec;
+
 		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
 	} else {
 		fcport->stats_busy = BFA_FALSE;
@@ -1263,6 +1269,29 @@ bfa_fcport_send_stats_clear(void *cbarg)
  */
 
 /**
+ * Called to initialize port attributes
+ */
+void
+bfa_fcport_init(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	/**
+	 * Initialize port attributes from IOC hardware data.
+	 */
+	bfa_fcport_set_wwns(fcport);
+	if (fcport->cfg.maxfrsize == 0)
+		fcport->cfg.maxfrsize = bfa_ioc_maxfrsize(&bfa->ioc);
+	fcport->cfg.rx_bbcredit = bfa_ioc_rx_bbcredit(&bfa->ioc);
+	fcport->speed_sup = bfa_ioc_speed_sup(&bfa->ioc);
+
+	bfa_assert(fcport->cfg.maxfrsize);
+	bfa_assert(fcport->cfg.rx_bbcredit);
+	bfa_assert(fcport->speed_sup);
+}
+
+
+/**
  * Firmware message handler.
  */
 void
@@ -1281,7 +1310,7 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 		break;
 
 	case BFI_FCPORT_I2H_DISABLE_RSP:
-		if (fcport->msgtag == i2hmsg.penable_rsp->msgtag)
+		if (fcport->msgtag == i2hmsg.pdisable_rsp->msgtag)
 			bfa_sm_send_event(fcport, BFA_FCPORT_SM_FWRSP);
 		break;
 
@@ -1355,6 +1384,17 @@ bfa_status_t
 bfa_fcport_enable(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	/* if port is PBC disabled, return error */
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED) {
+		bfa_trc(bfa, fcport->pwwn);
+		return BFA_STATUS_PBC;
+	}
+
+	if (bfa_ioc_is_disabled(&bfa->ioc))
+		return BFA_STATUS_IOC_DISABLED;
 
 	if (fcport->diag_busy)
 		return BFA_STATUS_DIAG_BUSY;
@@ -1369,6 +1409,16 @@ bfa_fcport_enable(struct bfa_s *bfa)
 bfa_status_t
 bfa_fcport_disable(struct bfa_s *bfa)
 {
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	/* if port is PBC disabled, return error */
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED) {
+		bfa_trc(bfa, fcport->pwwn);
+		return BFA_STATUS_PBC;
+	}
+
 	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DISABLE);
 	return BFA_STATUS_OK;
 }
@@ -1559,11 +1609,16 @@ void
 bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
 
 	bfa_os_memset(attr, 0, sizeof(struct bfa_pport_attr_s));
 
 	attr->nwwn = fcport->nwwn;
 	attr->pwwn = fcport->pwwn;
+
+	attr->factorypwwn =  bfa_ioc_get_mfg_pwwn(&bfa->ioc);
+	attr->factorynwwn =  bfa_ioc_get_mfg_nwwn(&bfa->ioc);
 
 	bfa_os_memcpy(&attr->pport_cfg, &fcport->cfg,
 		      sizeof(struct bfa_pport_cfg_s));
@@ -1590,11 +1645,18 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr)
 
 	attr->pport_cfg.path_tov = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth = bfa_fcpim_qdepth_get(bfa);
-	attr->port_state = bfa_sm_to_state(hal_pport_sm_table, fcport->sm);
-	if (bfa_ioc_is_disabled(&fcport->bfa->ioc))
-		attr->port_state = BFA_PPORT_ST_IOCDIS;
-	else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
-		attr->port_state = BFA_PPORT_ST_FWMISMATCH;
+
+	/* PBC Disabled State */
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED)
+		attr->port_state = BFA_PPORT_ST_PREBOOT_DISABLED;
+	else {
+		attr->port_state = bfa_sm_to_state(
+				hal_pport_sm_table, fcport->sm);
+		if (bfa_ioc_is_disabled(&fcport->bfa->ioc))
+			attr->port_state = BFA_PPORT_ST_IOCDIS;
+		else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
+			attr->port_state = BFA_PPORT_ST_FWMISMATCH;
+	}
 }
 
 #define BFA_FCPORT_STATS_TOV	1000
@@ -1801,8 +1863,13 @@ bfa_fcport_cfg_qos(struct bfa_s *bfa, bfa_boolean_t on_off)
 
 	bfa_trc(bfa, ioc_type);
 
-	if (ioc_type == BFA_IOC_TYPE_FC)
+	if (ioc_type == BFA_IOC_TYPE_FC) {
 		fcport->cfg.qos_enabled = on_off;
+		/**
+		 * Notify fcpim of the change in QoS state
+		 */
+		bfa_fcpim_update_ioredirect(bfa);
+	}
 }
 
 void
@@ -1886,4 +1953,10 @@ bfa_fcport_is_linkup(struct bfa_s *bfa)
 	return bfa_sm_cmp_state(BFA_FCPORT_MOD(bfa), bfa_fcport_sm_linkup);
 }
 
+bfa_boolean_t
+bfa_fcport_is_qos_enabled(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
+	return fcport->cfg.qos_enabled;
+}

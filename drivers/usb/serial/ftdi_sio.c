@@ -157,6 +157,9 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_5_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_6_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_7_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_USINT_CAT_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_USINT_WKEY_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_USINT_RS232_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ACTZWAVE_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_IRTRANS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_IPLUS_PID) },
@@ -746,6 +749,7 @@ static struct usb_device_id id_table_combined [] = {
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FTDI_VID, XVERVE_SIGNALYZER_SH4_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(FTDI_VID, SEGWAY_RMP200_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };

@@ -1,5 +1,7 @@
 if ARCH_MXC
 
+source "arch/arm/plat-mxc/devices/Kconfig"
+
 menu "Freescale MXC Implementations"
 
 choice
@@ -8,15 +10,12 @@ choice
 
 config ARCH_MX1
 	bool "MX1-based"
-	select CPU_ARM920T
-	select IMX_HAVE_IOMUX_V1
+	select SOC_IMX1
 	help
 	  This enables support for systems based on the Freescale i.MX1 family
 
 config ARCH_MX2
 	bool "MX2-based"
-	select CPU_ARM926T
-	select IMX_HAVE_IOMUX_V1
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
@@ -25,6 +24,7 @@ config ARCH_MX25
 	select CPU_ARM926T
 	select ARCH_MXC_IOMUX_V3
 	select HAVE_FB_IMX
+	select ARCH_MXC_AUDMUX_V2
 	help
 	  This enables support for systems based on the Freescale i.MX25 family
 
@@ -48,8 +48,7 @@ config ARCH_MX5
 
 endchoice
 
-source "arch/arm/mach-mx1/Kconfig"
-source "arch/arm/mach-mx2/Kconfig"
+source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
 source "arch/arm/mach-mx25/Kconfig"
 source "arch/arm/mach-mxc91231/Kconfig"
@@ -80,6 +79,17 @@ config MXC_PWM
 	select HAVE_PWM
 	help
 	  Enable support for the i.MX PWM controller(s).
+
+config MXC_DEBUG_BOARD
+	bool "Enable MXC debug board(for 3-stack)"
+	help
+	  The debug board is an integral part of the MXC 3-stack(PDK)
+	  platforms, it can be attached or removed from the peripheral
+	  board. On debug board, several debug devices(ethernet, UART,
+	  buttons, LEDs and JTAG) are implemented. Between the MCU and
+	  these devices, a CPLD is added as a bridge which performs
+	  data/address de-multiplexing and decode, signal level shift,
+	  interrupt control and various board functions.
 
 config MXC_ULPI
 	bool

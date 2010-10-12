@@ -1,4 +1,16 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_request_io changes (as of 2.6.36)
+   Instead of io_req_t, drivers are now requested to fill out
+   struct pcmcia_device *p_dev->resource[0,1] for up to two ioport
+   ranges. After a call to pcmcia_request_io(), the ports found there
+   are reserved, after calling pcmcia_request_configuration(), they may
+   be used.
+
+* No dev_info_t, no cs_types.h (as of 2.6.36)
+   dev_info_t and a few other typedefs are removed. No longer use them
+   in PCMCIA device drivers. Also, do not include pcmcia/cs_types.h, as
+   this file is gone.
+
 * No dev_node_t (as of 2.6.35)
    There is no more need to fill out a "dev_node_t" structure.
 

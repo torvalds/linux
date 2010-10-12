@@ -272,6 +272,7 @@ struct fuse_req {
 			struct fuse_write_in in;
 			struct fuse_write_out out;
 		} write;
+		struct fuse_notify_retrieve_in retrieve_in;
 		struct fuse_lk_in lk_in;
 	} misc;
 
@@ -747,5 +748,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		   unsigned int flags);
 unsigned fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
+
+void fuse_write_update_size(struct inode *inode, loff_t pos);
 
 #endif /* _FS_FUSE_I_H */

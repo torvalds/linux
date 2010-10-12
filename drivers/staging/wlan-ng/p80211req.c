@@ -72,9 +72,9 @@
 #include "p80211metastruct.h"
 #include "p80211req.h"
 
-static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg);
+static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg);
 static int p80211req_mibset_mibget(wlandevice_t *wlandev,
-				   p80211msg_dot11req_mibget_t *mib_msg,
+				   struct p80211msg_dot11req_mibget *mib_msg,
 				   int isget);
 
 /*----------------------------------------------------------------
@@ -96,7 +96,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 {
 	int result = 0;
-	p80211msg_t *msg = (p80211msg_t *) msgbuf;
+	struct p80211msg *msg = (struct p80211msg *) msgbuf;
 
 	/* Check to make sure the MSD is running */
 	if (!((wlandev->msdstate == WLAN_MSD_HWPRESENT &&
@@ -150,13 +150,13 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 * Call context:
 *	Process thread
 ----------------------------------------------------------------*/
-static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg)
+static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
 
 	case DIDmsg_lnxreq_hostwep:{
-			p80211msg_lnxreq_hostwep_t *req =
-			    (p80211msg_lnxreq_hostwep_t *) msg;
+			struct p80211msg_lnxreq_hostwep *req =
+			    (struct p80211msg_lnxreq_hostwep *) msg;
 			wlandev->hostwep &=
 			    ~(HOSTWEP_DECRYPT | HOSTWEP_ENCRYPT);
 			if (req->decrypt.data == P80211ENUM_truth_true)
@@ -169,8 +169,8 @@ static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg)
 	case DIDmsg_dot11req_mibget:
 	case DIDmsg_dot11req_mibset:{
 			int isget = (msg->msgcode == DIDmsg_dot11req_mibget);
-			p80211msg_dot11req_mibget_t *mib_msg =
-			    (p80211msg_dot11req_mibget_t *) msg;
+			struct p80211msg_dot11req_mibget *mib_msg =
+			    (struct p80211msg_dot11req_mibget *) msg;
 			p80211req_mibset_mibget(wlandev, mib_msg, isget);
 		}
 	default:
@@ -181,7 +181,7 @@ static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg)
 }
 
 static int p80211req_mibset_mibget(wlandevice_t *wlandev,
-				   p80211msg_dot11req_mibget_t *mib_msg,
+				   struct p80211msg_dot11req_mibget *mib_msg,
 				   int isget)
 {
 	p80211itemd_t *mibitem = (p80211itemd_t *) mib_msg->mibattribute.data;

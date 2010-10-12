@@ -71,19 +71,10 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 	write_reg(IVTV_IRQ_ENC_PIO_COMPLETE, 0x44);
 }
 
-void ivtv_irq_work_handler(struct work_struct *work)
+void ivtv_irq_work_handler(struct kthread_work *work)
 {
-	struct ivtv *itv = container_of(work, struct ivtv, irq_work_queue);
+	struct ivtv *itv = container_of(work, struct ivtv, irq_work);
 
-	DEFINE_WAIT(wait);
-
-	if (test_and_clear_bit(IVTV_F_I_WORK_INITED, &itv->i_flags)) {
-		struct sched_param param = { .sched_priority = 99 };
-
-		/* This thread must use the FIFO scheduler as it
-		   is realtime sensitive. */
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	}
 	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_PIO, &itv->i_flags))
 		ivtv_pio_work_handler(itv);
 
@@ -975,7 +966,7 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	}
 
 	if (test_and_clear_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags)) {
-		queue_work(itv->irq_work_queues, &itv->irq_work_queue);
+		queue_kthread_work(&itv->irq_worker, &itv->irq_work);
 	}
 
 	spin_unlock(&itv->dma_reg_lock);

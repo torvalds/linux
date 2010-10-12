@@ -16,9 +16,9 @@ static inline int is_c_varname(const char *name)
 }
 
 #ifdef DWARF_SUPPORT
-/* Find kprobe_trace_events specified by perf_probe_event from debuginfo */
-extern int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
-				    struct kprobe_trace_event **tevs,
+/* Find probe_trace_events specified by perf_probe_event from debuginfo */
+extern int find_probe_trace_events(int fd, struct perf_probe_event *pev,
+				    struct probe_trace_event **tevs,
 				    int max_tevs);
 
 /* Find a perf_probe_point from debuginfo */
@@ -33,7 +33,7 @@ extern int find_line_range(int fd, struct line_range *lr);
 
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */
-	struct kprobe_trace_event *tevs;	/* Result trace events */
+	struct probe_trace_event *tevs;		/* Result trace events */
 	int			ntevs;		/* Number of trace events */
 	int			max_tevs;	/* Max number of trace events */
 
@@ -50,7 +50,7 @@ struct probe_finder {
 #endif
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
 	struct perf_probe_arg	*pvar;		/* Current target variable */
-	struct kprobe_trace_arg	*tvar;		/* Current result variable */
+	struct probe_trace_arg	*tvar;		/* Current result variable */
 };
 
 struct line_finder {

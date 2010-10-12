@@ -21,6 +21,7 @@
 #include <bfa_ioc.h>
 #include <bfa.h>
 #include <bfi/bfi_iocfc.h>
+#include <bfi/bfi_pbc.h>
 #include <bfa_callback_priv.h>
 
 #define BFA_REQQ_NELEMS_MIN	(4)
@@ -62,6 +63,8 @@ struct bfa_hwif_s {
 	void (*hw_isr_mode_set)(struct bfa_s *bfa, bfa_boolean_t msix);
 	void (*hw_msix_getvecs)(struct bfa_s *bfa, u32 *vecmap,
 			u32 *nvecs, u32 *maxvec);
+	void (*hw_msix_get_rme_range) (struct bfa_s *bfa, u32 *start,
+			u32 *end);
 };
 typedef void (*bfa_cb_iocfc_t) (void *cbarg, enum bfa_status status);
 
@@ -103,7 +106,8 @@ struct bfa_iocfc_s {
 	struct bfa_hwif_s	hwif;
 
 	bfa_cb_iocfc_t		updateq_cbfn; /*  bios callback function */
-	void				*updateq_cbarg;	/*  bios callback arg */
+	void			*updateq_cbarg;	/*  bios callback arg */
+	u32			intr_mask;
 };
 
 #define bfa_lpuid(__bfa)		bfa_ioc_portid(&(__bfa)->ioc)
@@ -116,7 +120,10 @@ struct bfa_iocfc_s {
 #define bfa_isr_mode_set(__bfa, __msix)	\
 	((__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix))
 #define bfa_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)	\
-	(__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)
+	((__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap,	\
+		 __nvecs, __maxvec))
+#define bfa_msix_get_rme_range(__bfa, __start, __end)   \
+	((__bfa)->iocfc.hwif.hw_msix_get_rme_range(__bfa, __start, __end))
 
 /*
  * FC specific IOC functions.
@@ -152,6 +159,7 @@ void bfa_hwcb_msix_uninstall(struct bfa_s *bfa);
 void bfa_hwcb_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix);
 void bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *vecmap,
 			u32 *nvecs, u32 *maxvec);
+void bfa_hwcb_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end);
 void bfa_hwct_reginit(struct bfa_s *bfa);
 void bfa_hwct_reqq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq);
@@ -161,11 +169,16 @@ void bfa_hwct_msix_uninstall(struct bfa_s *bfa);
 void bfa_hwct_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix);
 void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap,
 			u32 *nvecs, u32 *maxvec);
+void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end);
 
 void bfa_com_meminfo(bfa_boolean_t mincfg, u32 *dm_len);
 void bfa_com_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi,
 		bfa_boolean_t mincfg);
-void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns);
+void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
+void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
+		struct bfa_boot_pbc_s *pbcfg);
+int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
+		struct bfi_pbc_vport_s *pbc_vport);
 
 #endif /* __BFA_IOCFC_H__ */
 

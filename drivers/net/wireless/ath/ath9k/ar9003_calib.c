@@ -68,6 +68,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 				      u8 rxchainmask,
 				      struct ath9k_cal_list *currCal)
 {
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	/* Cal is assumed not done until explicitly set below */
 	bool iscaldone = false;
 
@@ -95,7 +96,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 				currCal->calData->calPostProc(ah, numChains);
 
 				/* Calibration has finished. */
-				ichan->CalValid |= currCal->calData->calType;
+				caldata->CalValid |= currCal->calData->calType;
 				currCal->calState = CAL_DONE;
 				iscaldone = true;
 			} else {
@@ -106,7 +107,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 			ar9003_hw_setup_calibration(ah, currCal);
 			}
 		}
-	} else if (!(ichan->CalValid & currCal->calData->calType)) {
+	} else if (!(caldata->CalValid & currCal->calData->calType)) {
 		/* If current cal is marked invalid in channel, kick it off */
 		ath9k_hw_reset_calibration(ah, currCal);
 	}
@@ -149,6 +150,12 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
 		/*
+		 * Get the value from the previous NF cal and update
+		 * history buffer.
+		 */
+		ath9k_hw_getnf(ah, chan);
+
+		/*
 		 * Load the NF from history buffer of the current channel.
 		 * NF is slow time-variant, so it is OK to use a historical
 		 * value.
@@ -156,7 +163,7 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 		ath9k_hw_loadnf(ah, ah->curchan);
 
 		/* start NF calibration, without updating BB NF register */
-		ath9k_hw_start_nfcal(ah);
+		ath9k_hw_start_nfcal(ah, false);
 	}
 
 	return iscaldone;
@@ -739,6 +746,12 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 */
 	ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
 
+	/* Do Tx IQ Calibration */
+	ar9003_hw_tx_iq_cal(ah);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+	udelay(5);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+
 	/* Calibrate the AGC */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
@@ -753,12 +766,10 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		return false;
 	}
 
-	/* Do Tx IQ Calibration */
-	if (ah->config.tx_iq_calibration)
-		ar9003_hw_tx_iq_cal(ah);
-
 	/* Revert chainmasks to their original values before NF cal */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
+
+	ath9k_hw_start_nfcal(ah, true);
 
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
@@ -783,7 +794,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	if (ah->cal_list_curr)
 		ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
 
-	chan->CalValid = 0;
+	if (ah->caldata)
+		ah->caldata->CalValid = 0;
 
 	return true;
 }

@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * xattr_id.c
+ * xattr.c
  */
 
 #include <linux/init.h>
@@ -295,7 +295,7 @@ static const struct xattr_handler squashfs_xattr_security_handler = {
 	.get	= squashfs_security_get
 };
 
-static inline const struct xattr_handler *squashfs_xattr_handler(int type)
+static const struct xattr_handler *squashfs_xattr_handler(int type)
 {
 	if (type & ~(SQUASHFS_XATTR_PREFIX_MASK | SQUASHFS_XATTR_VALUE_OOL))
 		/* ignore unrecognised type */

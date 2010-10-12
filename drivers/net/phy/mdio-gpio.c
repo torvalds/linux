@@ -188,7 +188,7 @@ static int __devexit mdio_gpio_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF_GPIO
 
-static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
+static int __devinit mdio_ofgpio_probe(struct platform_device *ofdev,
                                         const struct of_device_id *match)
 {
 	struct mdio_gpio_platform_data *pdata;
@@ -224,7 +224,7 @@ out_free:
 	return -ENODEV;
 }
 
-static int __devexit mdio_ofgpio_remove(struct of_device *ofdev)
+static int __devexit mdio_ofgpio_remove(struct platform_device *ofdev)
 {
 	mdio_gpio_bus_destroy(&ofdev->dev);
 	kfree(ofdev->dev.platform_data);

@@ -22,7 +22,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
-#include <linux/mtd/compatmac.h>
 
 int __xipram cfi_qry_present(struct map_info *map, __u32 base,
 			     struct cfi_private *cfi)

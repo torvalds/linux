@@ -85,6 +85,7 @@ static int joystick;
 static int ac97_clock = 48000;
 static char *ac97_quirk;
 static int dxs_support;
+static int dxs_init_volume = 31;
 static int nodelay;
 
 module_param(index, int, 0444);
@@ -103,6 +104,8 @@ module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 module_param(dxs_support, int, 0444);
 MODULE_PARM_DESC(dxs_support, "Support for DXS channels (0 = auto, 1 = enable, 2 = disable, 3 = 48k only, 4 = no VRA, 5 = enable any sample rate)");
+module_param(dxs_init_volume, int, 0644);
+MODULE_PARM_DESC(dxs_init_volume, "initial DXS volume (0-31)");
 module_param(nodelay, int, 0444);
 MODULE_PARM_DESC(nodelay, "Disable 500ms init delay");
 
@@ -1245,8 +1248,10 @@ static int snd_via8233_playback_open(struct snd_pcm_substream *substream)
 		return err;
 	stream = viadev->reg_offset / 0x10;
 	if (chip->dxs_controls[stream]) {
-		chip->playback_volume[stream][0] = 0;
-		chip->playback_volume[stream][1] = 0;
+		chip->playback_volume[stream][0] =
+				VIA_DXS_MAX_VOLUME - (dxs_init_volume & 31);
+		chip->playback_volume[stream][1] =
+				VIA_DXS_MAX_VOLUME - (dxs_init_volume & 31);
 		chip->dxs_controls[stream]->vd[0].access &=
 			~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE |

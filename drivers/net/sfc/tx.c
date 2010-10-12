@@ -42,7 +42,7 @@ void efx_stop_queue(struct efx_channel *channel)
 		return;
 
 	spin_lock_bh(&channel->tx_stop_lock);
-	EFX_TRACE(efx, "stop TX queue\n");
+	netif_vdbg(efx, tx_queued, efx->net_dev, "stop TX queue\n");
 
 	atomic_inc(&channel->tx_stop_count);
 	netif_tx_stop_queue(
@@ -64,7 +64,7 @@ void efx_wake_queue(struct efx_channel *channel)
 	local_bh_disable();
 	if (atomic_dec_and_lock(&channel->tx_stop_count,
 				&channel->tx_stop_lock)) {
-		EFX_TRACE(efx, "waking TX queue\n");
+		netif_vdbg(efx, tx_queued, efx->net_dev, "waking TX queue\n");
 		netif_tx_wake_queue(
 			netdev_get_tx_queue(
 				efx->net_dev,
@@ -94,8 +94,9 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	if (buffer->skb) {
 		dev_kfree_skb_any((struct sk_buff *) buffer->skb);
 		buffer->skb = NULL;
-		EFX_TRACE(tx_queue->efx, "TX queue %d transmission id %x "
-			  "complete\n", tx_queue->queue, read_ptr);
+		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
+			   "TX queue %d transmission id %x complete\n",
+			   tx_queue->queue, tx_queue->read_count);
 	}
 }
 
@@ -300,9 +301,10 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 
  pci_err:
-	EFX_ERR_RL(efx, " TX queue %d could not map skb with %d bytes %d "
-		   "fragments for DMA\n", tx_queue->queue, skb->len,
-		   skb_shinfo(skb)->nr_frags + 1);
+	netif_err(efx, tx_err, efx->net_dev,
+		  " TX queue %d could not map skb with %d bytes %d "
+		  "fragments for DMA\n", tx_queue->queue, skb->len,
+		  skb_shinfo(skb)->nr_frags + 1);
 
 	/* Mark the packet as transmitted, and free the SKB ourselves */
 	dev_kfree_skb_any(skb);
@@ -354,9 +356,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
 		if (unlikely(buffer->len == 0)) {
-			EFX_ERR(tx_queue->efx, "TX queue %d spurious TX "
-				"completion id %x\n", tx_queue->queue,
-				read_ptr);
+			netif_err(efx, tx_err, efx->net_dev,
+				  "TX queue %d spurious TX completion id %x\n",
+				  tx_queue->queue, read_ptr);
 			efx_schedule_reset(efx, RESET_TYPE_TX_SKIP);
 			return;
 		}
@@ -431,7 +433,8 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	unsigned int txq_size;
 	int i, rc;
 
-	EFX_LOG(efx, "creating TX queue %d\n", tx_queue->queue);
+	netif_dbg(efx, probe, efx->net_dev, "creating TX queue %d\n",
+		  tx_queue->queue);
 
 	/* Allocate software ring */
 	txq_size = EFX_TXQ_SIZE * sizeof(*tx_queue->buffer);
@@ -456,7 +459,8 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 
 void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 {
-	EFX_LOG(tx_queue->efx, "initialising TX queue %d\n", tx_queue->queue);
+	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
+		  "initialising TX queue %d\n", tx_queue->queue);
 
 	tx_queue->insert_count = 0;
 	tx_queue->write_count = 0;
@@ -488,7 +492,8 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 
 void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 {
-	EFX_LOG(tx_queue->efx, "shutting down TX queue %d\n", tx_queue->queue);
+	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
+		  "shutting down TX queue %d\n", tx_queue->queue);
 
 	/* Flush TX queue, remove descriptor ring */
 	efx_nic_fini_tx(tx_queue);
@@ -507,7 +512,8 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 {
-	EFX_LOG(tx_queue->efx, "destroying TX queue %d\n", tx_queue->queue);
+	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
+		  "destroying TX queue %d\n", tx_queue->queue);
 	efx_nic_remove_tx(tx_queue);
 
 	kfree(tx_queue->buffer);
@@ -639,8 +645,8 @@ static int efx_tsoh_block_alloc(struct efx_tx_queue *tx_queue)
 
 	base_kva = pci_alloc_consistent(pci_dev, PAGE_SIZE, &dma_addr);
 	if (base_kva == NULL) {
-		EFX_ERR(tx_queue->efx, "Unable to allocate page for TSO"
-			" headers\n");
+		netif_err(tx_queue->efx, tx_err, tx_queue->efx->net_dev,
+			  "Unable to allocate page for TSO headers\n");
 		return -ENOMEM;
 	}
 
@@ -1124,7 +1130,8 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	return NETDEV_TX_OK;
 
  mem_err:
-	EFX_ERR(efx, "Out of memory for TSO headers, or PCI mapping error\n");
+	netif_err(efx, tx_err, efx->net_dev,
+		  "Out of memory for TSO headers, or PCI mapping error\n");
 	dev_kfree_skb_any(skb);
 	goto unwind;
 

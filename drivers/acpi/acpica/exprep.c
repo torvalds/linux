@@ -108,11 +108,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	field_byte_length = field_byte_end_offset - field_byte_offset;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "Bit length %d, Bit offset %d\n",
+			  "Bit length %u, Bit offset %u\n",
 			  field_bit_length, field_bit_offset));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "Byte Length %d, Byte Offset %d, End Offset %d\n",
+			  "Byte Length %u, Byte Offset %u, End Offset %u\n",
 			  field_byte_length, field_byte_offset,
 			  field_byte_end_offset));
 
@@ -147,11 +147,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 			accesses = field_end_offset - field_start_offset;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "AccessWidth %d end is within region\n",
+					  "AccessWidth %u end is within region\n",
 					  access_byte_width));
 
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "Field Start %d, Field End %d -- requires %d accesses\n",
+					  "Field Start %u, Field End %u -- requires %u accesses\n",
 					  field_start_offset, field_end_offset,
 					  accesses));
 
@@ -159,7 +159,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 			if (accesses <= 1) {
 				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-						  "Entire field can be accessed with one operation of size %d\n",
+						  "Entire field can be accessed with one operation of size %u\n",
 						  access_byte_width));
 				return_VALUE(access_byte_width);
 			}
@@ -174,7 +174,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 			}
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "AccessWidth %d end is NOT within region\n",
+					  "AccessWidth %u end is NOT within region\n",
 					  access_byte_width));
 			if (access_byte_width == 1) {
 				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
@@ -190,7 +190,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 			 * previous access
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "Backing off to previous optimal access width of %d\n",
+					  "Backing off to previous optimal access width of %u\n",
 					  minimum_access_width));
 			return_VALUE(minimum_access_width);
 		}
@@ -384,15 +384,6 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	obj_desc->common_field.start_field_bit_offset = (u8)
 	    (field_bit_position -
 	     ACPI_MUL_8(obj_desc->common_field.base_byte_offset));
-
-	/*
-	 * Does the entire field fit within a single field access element? (datum)
-	 * (i.e., without crossing a datum boundary)
-	 */
-	if ((obj_desc->common_field.start_field_bit_offset +
-	     field_bit_length) <= (u16) access_bit_width) {
-		obj_desc->common.flags |= AOPOBJ_SINGLE_DATUM;
-	}
 
 	return_ACPI_STATUS(AE_OK);
 }

@@ -6,7 +6,7 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
 	select NO_IOPORT
 	default y
 	help
@@ -160,6 +160,11 @@ config S3C_DEV_HSMMC2
 	help
 	  Compile in platform device definitions for HSMMC channel 2
 
+config S3C_DEV_HSMMC3
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 3
+
 config S3C_DEV_HWMON
 	bool
 	help
@@ -216,6 +221,11 @@ config SAMSUNG_DEV_ADC
 	help
 	  Compile in platform device definition for ADC controller
 
+config SAMSUNG_DEV_IDE
+	bool
+	help
+	  Compile in platform device definitions for IDE
+
 config S3C64XX_DEV_SPI
 	bool
 	help
@@ -226,6 +236,11 @@ config SAMSUNG_DEV_TS
 	bool
 	help
 	    Common in platform device definitions for touchscreen device
+
+config SAMSUNG_DEV_KEYPAD
+	bool
+	help
+	  Compile in platform device definitions for keypad
 
 # DMA
 

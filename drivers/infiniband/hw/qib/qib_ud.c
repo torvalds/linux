@@ -535,13 +535,6 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	wc.byte_len = tlen + sizeof(struct ib_grh);
 
 	/*
-	 * We need to serialize getting a receive work queue entry and
-	 * generating a completion for it against QPs sending to this QP
-	 * locally.
-	 */
-	spin_lock(&qp->r_lock);
-
-	/*
 	 * Get the next work request entry to find where to put the data.
 	 */
 	if (qp->r_flags & QIB_R_REUSE_SGE)
@@ -552,19 +545,19 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		ret = qib_get_rwqe(qp, 0);
 		if (ret < 0) {
 			qib_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-			goto bail_unlock;
+			return;
 		}
 		if (!ret) {
 			if (qp->ibqp.qp_num == 0)
 				ibp->n_vl15_dropped++;
-			goto bail_unlock;
+			return;
 		}
 	}
 	/* Silently drop packets which are too big. */
 	if (unlikely(wc.byte_len > qp->r_len)) {
 		qp->r_flags |= QIB_R_REUSE_SGE;
 		ibp->n_pkt_drops++;
-		goto bail_unlock;
+		return;
 	}
 	if (has_grh) {
 		qib_copy_sge(&qp->r_sge, &hdr->u.l.grh,
@@ -579,7 +572,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 			qp->r_sge.sge = *qp->r_sge.sg_list++;
 	}
 	if (!test_and_clear_bit(QIB_R_WRID_VALID, &qp->r_aflags))
-		goto bail_unlock;
+		return;
 	wc.wr_id = qp->r_wr_id;
 	wc.status = IB_WC_SUCCESS;
 	wc.opcode = IB_WC_RECV;
@@ -601,7 +594,5 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 		     (ohdr->bth[0] &
 			cpu_to_be32(IB_BTH_SOLICITED)) != 0);
-bail_unlock:
-	spin_unlock(&qp->r_lock);
 bail:;
 }

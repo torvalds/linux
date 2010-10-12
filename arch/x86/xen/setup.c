@@ -20,6 +20,7 @@
 #include <xen/page.h>
 #include <xen/interface/callback.h>
 #include <xen/interface/physdev.h>
+#include <xen/interface/memory.h>
 #include <xen/features.h>
 
 #include "xen-ops.h"
@@ -32,6 +33,73 @@ extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
 
+static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
+					      phys_addr_t end_addr)
+{
+	struct xen_memory_reservation reservation = {
+		.address_bits = 0,
+		.extent_order = 0,
+		.domid        = DOMID_SELF
+	};
+	unsigned long start, end;
+	unsigned long len = 0;
+	unsigned long pfn;
+	int ret;
+
+	start = PFN_UP(start_addr);
+	end = PFN_DOWN(end_addr);
+
+	if (end <= start)
+		return 0;
+
+	printk(KERN_INFO "xen_release_chunk: looking at area pfn %lx-%lx: ",
+	       start, end);
+	for(pfn = start; pfn < end; pfn++) {
+		unsigned long mfn = pfn_to_mfn(pfn);
+
+		/* Make sure pfn exists to start with */
+		if (mfn == INVALID_P2M_ENTRY || mfn_to_pfn(mfn) != pfn)
+			continue;
+
+		set_xen_guest_handle(reservation.extent_start, &mfn);
+		reservation.nr_extents = 1;
+
+		ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
+					   &reservation);
+		WARN(ret != 1, "Failed to release memory %lx-%lx err=%d\n",
+		     start, end, ret);
+		if (ret == 1) {
+			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+			len++;
+		}
+	}
+	printk(KERN_CONT "%ld pages freed\n", len);
+
+	return len;
+}
+
+static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
+						     const struct e820map *e820)
+{
+	phys_addr_t max_addr = PFN_PHYS(max_pfn);
+	phys_addr_t last_end = 0;
+	unsigned long released = 0;
+	int i;
+
+	for (i = 0; i < e820->nr_map && last_end < max_addr; i++) {
+		phys_addr_t end = e820->map[i].addr;
+		end = min(max_addr, end);
+
+		released += xen_release_chunk(last_end, end);
+		last_end = e820->map[i].addr + e820->map[i].size;
+	}
+
+	if (last_end < max_addr)
+		released += xen_release_chunk(last_end, max_addr);
+
+	printk(KERN_INFO "released %ld pages of unused memory\n", released);
+	return released;
+}
 
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
@@ -66,6 +134,8 @@ char * __init xen_memory_setup(void)
 			"XEN START INFO");
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+
+	xen_return_unused_memory(xen_start_info->nr_pages, &e820);
 
 	return "Xen";
 }
@@ -155,6 +225,8 @@ void __init xen_arch_setup(void)
 {
 	struct physdev_set_iopl set_iopl;
 	int rc;
+
+	xen_panic_handler_init();
 
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);

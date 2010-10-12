@@ -33,21 +33,27 @@ init_sunrpc(void)
 	if (err)
 		goto out;
 	err = rpc_init_mempool();
-	if (err) {
-		unregister_rpc_pipefs();
-		goto out;
-	}
+	if (err)
+		goto out2;
+	err = rpcauth_init_module();
+	if (err)
+		goto out3;
 #ifdef RPC_DEBUG
 	rpc_register_sysctl();
 #endif
 #ifdef CONFIG_PROC_FS
 	rpc_proc_init();
 #endif
+	cache_initialize();
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	svc_init_xprt_sock();	/* svc sock transport */
 	init_socket_xprt();	/* clnt sock transport */
-	rpcauth_init_module();
+	return 0;
+out3:
+	rpc_destroy_mempool();
+out2:
+	unregister_rpc_pipefs();
 out:
 	return err;
 }

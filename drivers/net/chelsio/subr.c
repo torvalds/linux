@@ -185,9 +185,6 @@ static int t1_pci_intr_handler(adapter_t *adapter)
 	return 0;
 }
 
-#ifdef CONFIG_CHELSIO_T1_COUGAR
-#include "cspi.h"
-#endif
 #ifdef CONFIG_CHELSIO_T1_1G
 #include "fpga_defs.h"
 
@@ -280,7 +277,7 @@ static void mi1_mdio_init(adapter_t *adapter, const struct board_info *bi)
 	t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_CFG, val);
 }
 
-#if defined(CONFIG_CHELSIO_T1_1G) || defined(CONFIG_CHELSIO_T1_COUGAR)
+#if defined(CONFIG_CHELSIO_T1_1G)
 /*
  * Elmer MI1 MDIO read/write operations.
  */
@@ -317,7 +314,7 @@ static int mi1_mdio_write(struct net_device *dev, int phy_addr, int mmd_addr,
 	return 0;
 }
 
-#if defined(CONFIG_CHELSIO_T1_1G) || defined(CONFIG_CHELSIO_T1_COUGAR)
+#if defined(CONFIG_CHELSIO_T1_1G)
 static const struct mdio_ops mi1_mdio_ops = {
 	.init = mi1_mdio_init,
 	.read = mi1_mdio_read,
@@ -752,31 +749,6 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 					 mod_detect ? "removed" : "inserted");
 		}
 		break;
-#ifdef CONFIG_CHELSIO_T1_COUGAR
-	case CHBT_BOARD_COUGAR:
-		if (adapter->params.nports == 1) {
-			if (cause & ELMER0_GP_BIT1) {         /* Vitesse MAC */
-				struct cmac *mac = adapter->port[0].mac;
-				mac->ops->interrupt_handler(mac);
-			}
-			if (cause & ELMER0_GP_BIT5) {     /* XPAK MOD_DETECT */
-			}
-		} else {
-			int i, port_bit;
-
-			for_each_port(adapter, i) {
-				port_bit = i ? i + 1 : 0;
-				if (!(cause & (1 << port_bit)))
-					continue;
-
-				phy = adapter->port[i].phy;
-				phy_cause = phy->ops->interrupt_handler(phy);
-				if (phy_cause & cphy_cause_link_change)
-					t1_link_changed(adapter, i);
-			}
-		}
-		break;
-#endif
 	}
 	t1_tpi_write(adapter, A_ELMER0_INT_CAUSE, cause);
 	return 0;
@@ -955,7 +927,6 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
 	case CHBT_BOARD_N110:
 	case CHBT_BOARD_N210:
 	case CHBT_BOARD_CHT210:
-	case CHBT_BOARD_COUGAR:
 		t1_tpi_par(adapter, 0xf);
 		t1_tpi_write(adapter, A_ELMER0_GPO, 0x800);
 		break;
@@ -1004,10 +975,6 @@ int t1_init_hw_modules(adapter_t *adapter)
 		       adapter->regs + A_MC5_CONFIG);
 	}
 
-#ifdef CONFIG_CHELSIO_T1_COUGAR
-	if (adapter->cspi && t1_cspi_init(adapter->cspi))
-		goto out_err;
-#endif
 	if (adapter->espi && t1_espi_init(adapter->espi, bi->chip_mac,
 					  bi->espi_nports))
 		goto out_err;
@@ -1061,10 +1028,6 @@ void t1_free_sw_modules(adapter_t *adapter)
 		t1_tp_destroy(adapter->tp);
 	if (adapter->espi)
 		t1_espi_destroy(adapter->espi);
-#ifdef CONFIG_CHELSIO_T1_COUGAR
-	if (adapter->cspi)
-		t1_cspi_destroy(adapter->cspi);
-#endif
 }
 
 static void __devinit init_link_config(struct link_config *lc,
@@ -1083,14 +1046,6 @@ static void __devinit init_link_config(struct link_config *lc,
 		lc->autoneg = AUTONEG_DISABLE;
 	}
 }
-
-#ifdef CONFIG_CHELSIO_T1_COUGAR
-	if (bi->clock_cspi && !(adapter->cspi = t1_cspi_create(adapter))) {
-		pr_err("%s: CSPI initialization failed\n",
-		       adapter->name);
-		goto error;
-	}
-#endif
 
 /*
  * Allocate and initialize the data structures that hold the SW state of

@@ -1090,13 +1090,13 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
  * and put into into an array array used may be for differnet pages
  */
 
-		/*  DMA Start Adress Low */
+		/*  DMA Start Address Low */
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
 		outw((devpriv->ul_DmaBufferHw[0] & 0xFFFF),
 			devpriv->i_IobaseAddon + 2);
 
 		/*************************/
-		/* DMA Start Adress High */
+		/* DMA Start Address High */
 		/*************************/
 		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
 		outw((devpriv->ul_DmaBufferHw[0] / 65536),
@@ -1733,11 +1733,11 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 		var = devpriv->ul_DmaBufferHw[next_dma_buf];
 		high_word = var / 65536;
 
-		/* DMA Start Adress Low */
+		/* DMA Start Address Low */
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
 		outw(low_word, devpriv->i_IobaseAddon + 2);
 
-		/* DMA Start Adress High */
+		/* DMA Start Address High */
 		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
 		outw(high_word, devpriv->i_IobaseAddon + 2);
 

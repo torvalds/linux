@@ -218,9 +218,9 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_logo);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
 		bfa_lps_discard(vport->lps);
-		bfa_fcs_vport_do_logo(vport);
+		bfa_fcs_port_delete(&vport->lport);
 		break;
 
 	case BFA_FCS_VPORT_SM_OFFLINE:
@@ -357,8 +357,9 @@ bfa_fcs_vport_sm_error(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_uninit);
-		bfa_fcs_vport_free(vport);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
+		bfa_fcs_port_delete(&vport->lport);
+
 		break;
 
 	default:
@@ -594,6 +595,15 @@ bfa_fcs_vport_cleanup(struct bfa_fcs_vport_s *vport)
 }
 
 /**
+ * delete notification from fabric SM. To be invoked from within FCS.
+ */
+void
+bfa_fcs_vport_fcs_delete(struct bfa_fcs_vport_s *vport)
+{
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELETE);
+}
+
+/**
  * Delete completion callback from associated lport
  */
 void
@@ -646,6 +656,7 @@ bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 		return BFA_STATUS_VPORT_MAX;
 
 	vport->vport_drv = vport_drv;
+	vport_cfg->preboot_vp = BFA_FALSE;
 	bfa_sm_set_state(vport, bfa_fcs_vport_sm_uninit);
 
 	bfa_fcs_lport_attach(&vport->lport, fcs, vf_id, vport);
@@ -654,6 +665,36 @@ bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_CREATE);
 
 	return BFA_STATUS_OK;
+}
+
+/**
+ *      Use this function to instantiate a new FCS PBC vport object. This
+ *      function will not trigger any HW initialization process (which will be
+ *      done in vport_start() call)
+ *
+ *      param[in] vport        -       pointer to bfa_fcs_vport_t. This space
+ *                                      needs to be allocated by the driver.
+ *      param[in] fcs          -       FCS instance
+ *      param[in] vport_cfg    -       vport configuration
+ *      param[in] vf_id        -       VF_ID if vport is created within a VF.
+ *                                      FC_VF_ID_NULL to specify base fabric.
+ *      param[in] vport_drv    -       Opaque handle back to the driver's vport
+ *                                      structure
+ *
+ *      retval BFA_STATUS_OK - on success.
+ *      retval BFA_STATUS_FAILED - on failure.
+ */
+bfa_status_t
+bfa_fcs_pbc_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
+			uint16_t vf_id, struct bfa_port_cfg_s *vport_cfg,
+			struct bfad_vport_s *vport_drv)
+{
+	bfa_status_t rc;
+
+	rc = bfa_fcs_vport_create(vport, fcs, vf_id, vport_cfg, vport_drv);
+	vport->lport.port_cfg.preboot_vp = BFA_TRUE;
+
+	return rc;
 }
 
 /**
@@ -692,6 +733,8 @@ bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport)
  *  	Use this function to delete a vport object. Fabric object should
  * 		be stopped before this function call.
  *
+ *	Donot invoke this from within FCS
+ *
  * 	param[in] vport - pointer to bfa_fcs_vport_t.
  *
  * 	return     None
@@ -699,6 +742,9 @@ bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport)
 bfa_status_t
 bfa_fcs_vport_delete(struct bfa_fcs_vport_s *vport)
 {
+	if (vport->lport.port_cfg.preboot_vp)
+		return BFA_STATUS_PBC;
+
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELETE);
 
 	return BFA_STATUS_OK;
@@ -789,7 +835,7 @@ bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status)
 	switch (status) {
 	case BFA_STATUS_OK:
 		/*
-		 * Initialiaze the V-Port fields
+		 * Initialize the V-Port fields
 		 */
 		__vport_fcid(vport) = bfa_lps_get_pid(vport->lps);
 		vport->vport_stats.fdisc_accepts++;

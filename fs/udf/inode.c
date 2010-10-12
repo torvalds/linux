@@ -68,37 +68,23 @@ static void udf_update_extents(struct inode *,
 static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 
-void udf_delete_inode(struct inode *inode)
-{
-	truncate_inode_pages(&inode->i_data, 0);
-
-	if (is_bad_inode(inode))
-		goto no_delete;
-
-	inode->i_size = 0;
-	udf_truncate(inode);
-	lock_kernel();
-
-	udf_update_inode(inode, IS_SYNC(inode));
-	udf_free_inode(inode);
-
-	unlock_kernel();
-	return;
-
-no_delete:
-	clear_inode(inode);
-}
-
-/*
- * If we are going to release inode from memory, we truncate last inode extent
- * to proper length. We could use drop_inode() but it's called under inode_lock
- * and thus we cannot mark inode dirty there.  We use clear_inode() but we have
- * to make sure to write inode as it's not written automatically.
- */
-void udf_clear_inode(struct inode *inode)
+void udf_evict_inode(struct inode *inode)
 {
 	struct udf_inode_info *iinfo = UDF_I(inode);
+	int want_delete = 0;
 
+	truncate_inode_pages(&inode->i_data, 0);
+
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
+		want_delete = 1;
+		inode->i_size = 0;
+		udf_truncate(inode);
+		lock_kernel();
+		udf_update_inode(inode, IS_SYNC(inode));
+		unlock_kernel();
+	}
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_size != iinfo->i_lenExtents) {
 		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
@@ -108,9 +94,13 @@ void udf_clear_inode(struct inode *inode)
 			(unsigned long long)inode->i_size,
 			(unsigned long long)iinfo->i_lenExtents);
 	}
-
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
+	if (want_delete) {
+		lock_kernel();
+		udf_free_inode(inode);
+		unlock_kernel();
+	}
 }
 
 static int udf_writepage(struct page *page, struct writeback_control *wbc)
@@ -127,9 +117,16 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				udf_get_block);
+	int ret;
+
+	ret = block_write_begin(mapping, pos, len, flags, pagep, udf_get_block);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t udf_bmap(struct address_space *mapping, sector_t block)

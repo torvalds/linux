@@ -116,6 +116,9 @@ static void pseries_mach_cpu_die(void)
 
 	if (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
 		set_cpu_current_state(cpu, CPU_STATE_INACTIVE);
+		if (ppc_md.suspend_disable_cpu)
+			ppc_md.suspend_disable_cpu();
+
 		cede_latency_hint = 2;
 
 		get_lppaca()->idle = 1;
@@ -190,12 +193,12 @@ static void pseries_cpu_die(unsigned int cpu)
 
 	if (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
 		cpu_status = 1;
-		for (tries = 0; tries < 1000; tries++) {
+		for (tries = 0; tries < 5000; tries++) {
 			if (get_cpu_current_state(cpu) == CPU_STATE_INACTIVE) {
 				cpu_status = 0;
 				break;
 			}
-			cpu_relax();
+			msleep(1);
 		}
 	} else if (get_preferred_offline_state(cpu) == CPU_STATE_OFFLINE) {
 

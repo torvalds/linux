@@ -320,10 +320,19 @@ static int qnx4_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata)
 {
 	struct qnx4_inode_info *qnx4_inode = qnx4_i(mapping->host);
+	int ret;
+
 	*pagep = NULL;
-	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				qnx4_get_block,
 				&qnx4_inode->mmu_private);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {

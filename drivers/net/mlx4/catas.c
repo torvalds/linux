@@ -101,8 +101,8 @@ static void catas_reset(struct work_struct *work)
 		ret = mlx4_restart_one(priv->dev.pdev);
 		/* 'priv' now is not valid */
 		if (ret)
-			printk(KERN_ERR "mlx4 %s: Reset failed (%d)\n",
-				pci_name(pdev), ret);
+			pr_err("mlx4 %s: Reset failed (%d)\n",
+			       pci_name(pdev), ret);
 		else {
 			dev  = pci_get_drvdata(pdev);
 			mlx4_dbg(dev, "Reset succeeded\n");

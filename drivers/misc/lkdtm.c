@@ -124,9 +124,9 @@ static int count = DEFAULT_COUNT;
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
 				 "default is 10");
-module_param(cpoint_name, charp, 0644);
+module_param(cpoint_name, charp, 0444);
 MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
-module_param(cpoint_type, charp, 0644);
+module_param(cpoint_type, charp, 0444);
 MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
 				"hitting the crash point");
 module_param(cpoint_count, int, 0644);

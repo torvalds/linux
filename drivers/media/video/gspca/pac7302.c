@@ -402,7 +402,7 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
-			1,		/* request */
+			0,		/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,		/* value */
 			index, gspca_dev->usb_buf, len,
@@ -804,7 +804,6 @@ static const unsigned char pac_jpeg_header2[] = {
 };
 
 static void pac_start_frame(struct gspca_dev *gspca_dev,
-		struct gspca_frame *frame,
 		__u16 lines, __u16 samples_per_line)
 {
 	unsigned char tmpbuf[4];
@@ -829,18 +828,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct gspca_frame *frame;
+	u8 *image;
 	unsigned char *sof;
 
 	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
 		int n, lum_offset, footer_length;
-
-		frame = gspca_get_i_frame(gspca_dev);
-		if (frame == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
 
 		/* 6 bytes after the FF D9 EOF marker a number of lumination
 		   bytes are send corresponding to different parts of the
@@ -852,16 +845,17 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* Finish decoding current frame */
 		n = (sof - data) - (footer_length + sizeof pac_sof_marker);
 		if (n < 0) {
-			frame->data_end += n;
+			gspca_dev->image_len += n;
 			n = 0;
+		} else {
+			gspca_frame_add(gspca_dev, INTER_PACKET, data, n);
 		}
-		gspca_frame_add(gspca_dev, INTER_PACKET,
-					data, n);
-		if (gspca_dev->last_packet_type != DISCARD_PACKET &&
-				frame->data_end[-2] == 0xff &&
-				frame->data_end[-1] == 0xd9)
-			gspca_frame_add(gspca_dev, LAST_PACKET,
-						NULL, 0);
+
+		image = gspca_dev->image;
+		if (image != NULL
+		 && image[gspca_dev->image_len - 2] == 0xff
+		 && image[gspca_dev->image_len - 1] == 0xd9)
+			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 
 		n = sof - data;
 		len -= n;
@@ -877,7 +871,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Start the new frame with the jpeg header */
 		/* The PAC7302 has the image rotated 90 degrees */
-		pac_start_frame(gspca_dev, frame,
+		pac_start_frame(gspca_dev,
 			gspca_dev->width, gspca_dev->height);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
@@ -1200,6 +1194,7 @@ static const struct usb_device_id device_table[] __devinitconst = {
 	{USB_DEVICE(0x093a, 0x2621)},
 	{USB_DEVICE(0x093a, 0x2622), .driver_info = FL_VFLIP},
 	{USB_DEVICE(0x093a, 0x2624), .driver_info = FL_VFLIP},
+	{USB_DEVICE(0x093a, 0x2625)},
 	{USB_DEVICE(0x093a, 0x2626)},
 	{USB_DEVICE(0x093a, 0x2628)},
 	{USB_DEVICE(0x093a, 0x2629), .driver_info = FL_VFLIP},

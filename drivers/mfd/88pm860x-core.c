@@ -74,12 +74,12 @@ static struct mfd_cell backlight_devs[] = {
 }
 
 static struct resource led_resources[] = {
-	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB2B),
-	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB2C),
-	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB2D),
-	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB1B),
-	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB1C),
-	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB1D),
+	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB1B),
+	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB1C),
+	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB1D),
+	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB2B),
+	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB2C),
+	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB2D),
 };
 
 #define PM8606_LED_DEVS(_i)				\
@@ -428,52 +428,44 @@ static int __devinit device_gpadc_init(struct pm860x_chip *chip,
 {
 	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
 				: chip->companion;
-	int use_gpadc = 0, data, ret;
+	int data;
+	int ret;
 
 	/* initialize GPADC without activating it */
 
-	if (pdata && pdata->touch) {
-		/* set GPADC MISC1 register */
-		data = 0;
-		data |= (pdata->touch->gpadc_prebias << 1)
-			& PM8607_GPADC_PREBIAS_MASK;
-		data |= (pdata->touch->slot_cycle << 3)
-			& PM8607_GPADC_SLOT_CYCLE_MASK;
-		data |= (pdata->touch->off_scale << 5)
-			& PM8607_GPADC_OFF_SCALE_MASK;
-		data |= (pdata->touch->sw_cal << 7)
-			& PM8607_GPADC_SW_CAL_MASK;
-		if (data) {
-			ret = pm860x_reg_write(i2c, PM8607_GPADC_MISC1, data);
-			if (ret < 0)
-				goto out;
-		}
-		/* set tsi prebias time */
-		if (pdata->touch->tsi_prebias) {
-			data = pdata->touch->tsi_prebias;
-			ret = pm860x_reg_write(i2c, PM8607_TSI_PREBIAS, data);
-			if (ret < 0)
-				goto out;
-		}
-		/* set prebias & prechg time of pen detect */
-		data = 0;
-		data |= pdata->touch->pen_prebias & PM8607_PD_PREBIAS_MASK;
-		data |= (pdata->touch->pen_prechg << 5)
-			& PM8607_PD_PRECHG_MASK;
-		if (data) {
-			ret = pm860x_reg_write(i2c, PM8607_PD_PREBIAS, data);
-			if (ret < 0)
-				goto out;
-		}
+	if (!pdata || !pdata->touch)
+		return -EINVAL;
 
-		use_gpadc = 1;
+	/* set GPADC MISC1 register */
+	data = 0;
+	data |= (pdata->touch->gpadc_prebias << 1) & PM8607_GPADC_PREBIAS_MASK;
+	data |= (pdata->touch->slot_cycle << 3) & PM8607_GPADC_SLOT_CYCLE_MASK;
+	data |= (pdata->touch->off_scale << 5) & PM8607_GPADC_OFF_SCALE_MASK;
+	data |= (pdata->touch->sw_cal << 7) & PM8607_GPADC_SW_CAL_MASK;
+	if (data) {
+		ret = pm860x_reg_write(i2c, PM8607_GPADC_MISC1, data);
+		if (ret < 0)
+			goto out;
+	}
+	/* set tsi prebias time */
+	if (pdata->touch->tsi_prebias) {
+		data = pdata->touch->tsi_prebias;
+		ret = pm860x_reg_write(i2c, PM8607_TSI_PREBIAS, data);
+		if (ret < 0)
+			goto out;
+	}
+	/* set prebias & prechg time of pen detect */
+	data = 0;
+	data |= pdata->touch->pen_prebias & PM8607_PD_PREBIAS_MASK;
+	data |= (pdata->touch->pen_prechg << 5) & PM8607_PD_PRECHG_MASK;
+	if (data) {
+		ret = pm860x_reg_write(i2c, PM8607_PD_PREBIAS, data);
+		if (ret < 0)
+			goto out;
 	}
 
-	/* turn on GPADC */
-	if (use_gpadc) {
-		ret = pm860x_set_bits(i2c, PM8607_GPADC_MISC1,
-				      PM8607_GPADC_EN, PM8607_GPADC_EN);
-	}
+	ret = pm860x_set_bits(i2c, PM8607_GPADC_MISC1,
+			      PM8607_GPADC_EN, PM8607_GPADC_EN);
 out:
 	return ret;
 }

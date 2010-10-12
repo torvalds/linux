@@ -85,7 +85,7 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		__skb_queue_tail(&q->q, skb);
 		sch->bstats.bytes += qdisc_pkt_len(skb);
 		sch->bstats.packets++;
-		return 0;
+		return NET_XMIT_SUCCESS;
 	}
 
 	kfree_skb(skb);

@@ -31,6 +31,7 @@
 #include <asm/uaccess.h>
 
 volatile unsigned long irq_err_count;
+DEFINE_PER_CPU(unsigned long, irq_pmi_count);
 
 void ack_bad_irq(unsigned int irq)
 {
@@ -63,9 +64,7 @@ int irq_select_affinity(unsigned int irq)
 int
 show_interrupts(struct seq_file *p, void *v)
 {
-#ifdef CONFIG_SMP
 	int j;
-#endif
 	int irq = *(loff_t *) v;
 	struct irqaction * action;
 	unsigned long flags;
@@ -112,6 +111,10 @@ unlock:
 			seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
 		seq_putc(p, '\n');
 #endif
+		seq_puts(p, "PMI: ");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10lu ", per_cpu(irq_pmi_count, j));
+		seq_puts(p, "          Performance Monitoring\n");
 		seq_printf(p, "ERR: %10lu\n", irq_err_count);
 	}
 	return 0;

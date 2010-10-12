@@ -69,7 +69,8 @@ static struct usb_device_id p54u_table[] __devinitdata = {
 	{USB_DEVICE(0x0915, 0x2002)},	/* Cohiba Proto board */
 	{USB_DEVICE(0x0baf, 0x0118)},   /* U.S. Robotics U5 802.11g Adapter*/
 	{USB_DEVICE(0x0bf8, 0x1009)},   /* FUJITSU E-5400 USB D1700*/
-	{USB_DEVICE(0x0cde, 0x0006)},   /* Medion MD40900 */
+	/* {USB_DEVICE(0x0cde, 0x0006)}, * Medion MD40900 already listed above,
+					 * just noting it here for clarity */
 	{USB_DEVICE(0x0cde, 0x0008)},	/* Sagem XG703A */
 	{USB_DEVICE(0x0cde, 0x0015)},	/* Zcomax XG-705A */
 	{USB_DEVICE(0x0d8e, 0x3762)},	/* DLink DWL-G120 Cohiba */
@@ -434,10 +435,9 @@ static int p54u_firmware_reset_3887(struct ieee80211_hw *dev)
 	u8 *buf;
 	int ret;
 
-	buf = kmalloc(4, GFP_KERNEL);
+	buf = kmemdup(p54u_romboot_3887, 4, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, p54u_romboot_3887, 4);
 	ret = p54u_bulk_msg(priv, P54U_PIPE_DATA,
 			    buf, 4);
 	kfree(buf);

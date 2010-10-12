@@ -97,6 +97,8 @@ source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
 
+source "drivers/staging/spectra/Kconfig"
+
 source "drivers/staging/quatech_usb2/Kconfig"
 
 source "drivers/staging/vt6655/Kconfig"
@@ -109,15 +111,13 @@ source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
 
-source "drivers/staging/rar_register/Kconfig"
-
 source "drivers/staging/memrar/Kconfig"
 
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/ramzswap/Kconfig"
+source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/wlags49_h2/Kconfig"
 
@@ -128,8 +128,6 @@ source "drivers/staging/batman-adv/Kconfig"
 source "drivers/staging/samsung-laptop/Kconfig"
 
 source "drivers/staging/sm7xx/Kconfig"
-
-source "drivers/staging/dt3155/Kconfig"
 
 source "drivers/staging/dt3155v4l/Kconfig"
 
@@ -146,6 +144,16 @@ source "drivers/staging/xgifb/Kconfig"
 source "drivers/staging/mrst-touchscreen/Kconfig"
 
 source "drivers/staging/msm/Kconfig"
+
+source "drivers/staging/lirc/Kconfig"
+
+source "drivers/staging/easycap/Kconfig"
+
+source "drivers/staging/solo6x10/Kconfig"
+
+source "drivers/staging/tidspbridge/Kconfig"
+
+source "drivers/staging/quickstart/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

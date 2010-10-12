@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -130,9 +129,8 @@ static int __devinit sedlbauer_probe(struct pcmcia_device *link)
     /* from old sedl_cs 
     */
     /* The io structure describes IO port mapping */
-    link->io.NumPorts1 = 8;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.IOAddrLines = 3;
+    link->resource[0]->end = 8;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -173,8 +171,6 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 				  unsigned int vcc,
 				  void *priv_data)
 {
-	win_req_t *req = priv_data;
-
 	if (cfg->index == 0)
 		return -ENODEV;
 
@@ -202,52 +198,25 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+					pcmcia_io_cfg_data_width(io->flags);
 		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
 		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+		p_dev->io_lines = 3;
+		if (pcmcia_request_io(p_dev) != 0)
 			return -ENODEV;
 	}
 
-	/*
-	  Now set up a common memory window, if needed.  There is room
-	  in the struct pcmcia_device structure for one memory window handle,
-	  but if the base addresses need to be saved, or if multiple
-	  windows are needed, the info should go in the private data
-	  structure for this device.
-
-	  Note that the memory window base is a physical address, and
-	  needs to be mapped to virtual space with ioremap() before it
-	  is used.
-	*/
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		memreq_t map;
-		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(p_dev, req, &p_dev->win) != 0)
-			return -ENODEV;
-		map.Page = 0;
-		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map) != 0)
-			return -ENODEV;
-	}
 	return 0;
 }
 
@@ -255,15 +224,10 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 
 static int __devinit sedlbauer_config(struct pcmcia_device *link)
 {
-    win_req_t *req;
     int ret;
     IsdnCard_t  icard;
 
     dev_dbg(&link->dev, "sedlbauer_config(0x%p)\n", link);
-
-    req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
-    if (!req)
-	    return -ENOMEM;
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -277,7 +241,7 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
       these things without consulting the CIS, and most client drivers
       will only use the CIS to fill in implementation-defined details.
     */
-    ret = pcmcia_loop_config(link, sedlbauer_config_check, req);
+    ret = pcmcia_loop_config(link, sedlbauer_config_check, NULL);
     if (ret)
 	    goto failed;
 
@@ -297,27 +261,22 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
 	printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	printk(", irq %d", link->irq);
-    if (link->io.NumPorts1)
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-	       link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
-	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-	       link->io.BasePort2+link->io.NumPorts2-1);
-    if (link->win)
-	printk(", mem 0x%06lx-0x%06lx", req->Base,
-	       req->Base+req->Size-1);
+    if (link->resource[0])
+	printk(" & %pR", link->resource[0]);
+    if (link->resource[1])
+	printk(" & %pR", link->resource[1]);
     printk("\n");
 
     icard.para[0] = link->irq;
-    icard.para[1] = link->io.BasePort1;
+    icard.para[1] = link->resource[0]->start;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_SEDLBAUER_PCMCIA;
     
     ret = hisax_init_pcmcia(link, 
 			    &(((local_info_t *)link->priv)->stop), &icard);
     if (ret < 0) {
-	printk(KERN_ERR "sedlbauer_cs: failed to initialize SEDLBAUER PCMCIA %d at i/o %#x\n",
-		ret, link->io.BasePort1);
+	printk(KERN_ERR "sedlbauer_cs: failed to initialize SEDLBAUER PCMCIA %d with %pR\n",
+		ret, link->resource[0]);
     	sedlbauer_release(link);
 	return -ENODEV;
     } else

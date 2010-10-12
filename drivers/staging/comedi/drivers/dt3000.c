@@ -287,7 +287,43 @@ static struct comedi_driver driver_dt3000 = {
 	.detach = dt3000_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(driver_dt3000, dt3k_pci_table);
+static int __devinit driver_dt3000_pci_probe(struct pci_dev *dev,
+					     const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_dt3000.driver_name);
+}
+
+static void __devexit driver_dt3000_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_dt3000_pci_driver = {
+	.id_table = dt3k_pci_table,
+	.probe = &driver_dt3000_pci_probe,
+	.remove = __devexit_p(&driver_dt3000_pci_remove)
+};
+
+static int __init driver_dt3000_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_dt3000);
+	if (retval < 0)
+		return retval;
+
+	driver_dt3000_pci_driver.name = (char *)driver_dt3000.driver_name;
+	return pci_register_driver(&driver_dt3000_pci_driver);
+}
+
+static void __exit driver_dt3000_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_dt3000_pci_driver);
+	comedi_driver_unregister(&driver_dt3000);
+}
+
+module_init(driver_dt3000_init_module);
+module_exit(driver_dt3000_cleanup_module);
 
 static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 			       struct comedi_subdevice *s);
@@ -991,3 +1027,7 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
 	*board = -1;
 	return from;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

@@ -8,29 +8,7 @@
 /*
  * Platform specific compile time options
  */
-#if defined(CONFIG_ARCH_KARO)
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/karo.h>
-
-#define USE_32BIT		1
-
-
-/* These options are mutually eclusive */
-#define USE_PLATFORM_DELAY	1
-#define USE_NDELAY		0
-/*
- * MAX_ROOT_PORTS: Number of downstream ports
- *
- * The chip has two USB ports, one of which can be configured as
- * an USB device port, so the value of this constant is implementation
- * specific.
- */
-#define MAX_ROOT_PORTS		2
-#define DUMMY_DELAY_ACCESS do {} while (0)
-
-/* insert platform specific definitions for other machines here */
-#elif defined(CONFIG_BLACKFIN)
+#if defined(CONFIG_BLACKFIN)
 
 #include <linux/io.h>
 #define USE_32BIT		0

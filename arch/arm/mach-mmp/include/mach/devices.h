@@ -1,3 +1,6 @@
+#ifndef __MACH_DEVICE_H
+#define __MACH_DEVICE_H
+
 #include <linux/types.h>
 
 #define MAX_RESOURCE_DMA	2
@@ -47,3 +50,4 @@ struct pxa_device_desc mmp2_device_##_name __initdata = {		\
 }
 
 extern int pxa_register_device(struct pxa_device_desc *, void *, size_t);
+#endif /* __MACH_DEVICE_H */

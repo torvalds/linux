@@ -33,6 +33,19 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config INTEL_MID_DMAC
+	tristate "Intel MID DMA support for Peripheral DMA controllers"
+	depends on PCI && X86
+	select DMA_ENGINE
+	default n
+	help
+	  Enable support for the Intel(R) MID DMA engine present
+	  in Intel MID chipsets.
+
+	  Say Y here if you have such a chipset.
+
+	  If unsure, say N.
+
 config ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	bool
 
@@ -128,7 +141,7 @@ config TXX9_DMAC
 
 config SH_DMAE
 	tristate "Renesas SuperH DMAC support"
-	depends on SUPERH && SH_DMA
+	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
 	depends on !SH_DMA_API
 	select DMA_ENGINE
 	help
@@ -174,6 +187,13 @@ config PL330_DMA
 	  Select if your platform has one or more PL330 DMACs.
 	  You need to provide platform specific settings via
 	  platform_data for a dma-pl330 device.
+
+config PCH_DMA
+	tristate "Topcliff PCH DMA support"
+	depends on PCI && X86
+	select DMA_ENGINE
+	help
+	  Enable support for the Topcliff PCH DMA engine.
 
 config DMA_ENGINE
 	bool

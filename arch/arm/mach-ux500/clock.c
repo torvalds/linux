@@ -453,7 +453,11 @@ static DEFINE_PRCC_CLK_CUSTOM(7, mtu0_ed, 2, -1, NULL, clk_mtu_get_rate, 0);
 static DEFINE_PRCC_CLK(7, wdg_ed, 	1, -1, NULL);
 static DEFINE_PRCC_CLK(7, cfgreg_ed, 	0, -1, NULL);
 
+static struct clk clk_dummy_apb_pclk;
+
 static struct clk_lookup u8500_common_clks[] = {
+	CLK(dummy_apb_pclk, NULL,	"apb_pclk"),
+
 	/* Peripheral Cluster #1 */
 	CLK(gpio0,	"gpio.0",	NULL),
 	CLK(gpio0,	"gpio.1",	NULL),

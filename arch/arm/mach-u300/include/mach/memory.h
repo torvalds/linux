@@ -35,14 +35,6 @@
 #endif
 
 /*
- * TCM memory whereabouts
- */
-#define ITCM_OFFSET	0xffff2000
-#define ITCM_END	0xffff3fff
-#define DTCM_OFFSET	0xffff4000
-#define DTCM_END	0xffff5fff
-
-/*
  * We enable a real big DMA buffer if need be.
  */
 #define CONSISTENT_DMA_SIZE SZ_4M

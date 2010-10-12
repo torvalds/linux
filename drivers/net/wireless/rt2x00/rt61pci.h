@@ -153,13 +153,13 @@ struct hw_key_entry {
 	u8 key[16];
 	u8 tx_mic[8];
 	u8 rx_mic[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct hw_pairwise_ta_entry {
 	u8 address[6];
 	u8 cipher;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Other on-chip shared memory space.

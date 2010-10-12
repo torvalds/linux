@@ -154,6 +154,7 @@ static bool pcie_pme_walk_bus(struct pci_bus *bus)
 		/* Skip PCIe devices in case we started from a root port. */
 		if (!pci_is_pcie(dev) && pci_check_pme_status(dev)) {
 			pm_request_resume(&dev->dev);
+			pci_wakeup_event(dev);
 			ret = true;
 		}
 
@@ -254,8 +255,10 @@ static void pcie_pme_handle_request(struct pci_dev *port, u16 req_id)
 	if (found) {
 		/* The device is there, but we have to check its PME status. */
 		found = pci_check_pme_status(dev);
-		if (found)
+		if (found) {
 			pm_request_resume(&dev->dev);
+			pci_wakeup_event(dev);
+		}
 		pci_dev_put(dev);
 	} else if (devfn) {
 		/*

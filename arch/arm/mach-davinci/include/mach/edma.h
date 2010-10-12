@@ -230,6 +230,8 @@ enum sync_dimension {
 #define EDMA_CONT_PARAMS_FIXED_EXACT	 1002
 #define EDMA_CONT_PARAMS_FIXED_NOT_EXACT 1003
 
+#define EDMA_MAX_CC               2
+
 /* alloc/free DMA channels and their dedicated parameter RAM slots */
 int edma_alloc_channel(int channel,
 	void (*callback)(unsigned channel, u16 ch_status, void *data),
@@ -269,6 +271,12 @@ void edma_clear_event(unsigned channel);
 void edma_pause(unsigned channel);
 void edma_resume(unsigned channel);
 
+struct edma_rsv_info {
+
+	const s16	(*rsv_chans)[2];
+	const s16	(*rsv_slots)[2];
+};
+
 /* platform_data for EDMA driver */
 struct edma_soc_info {
 
@@ -279,6 +287,9 @@ struct edma_soc_info {
 	unsigned	n_tc;
 	unsigned	n_cc;
 	enum dma_event_q	default_queue;
+
+	/* Resource reservation for other cores */
+	struct edma_rsv_info	*rsv;
 
 	const s8	(*queue_tc_mapping)[2];
 	const s8	(*queue_priority_mapping)[2];

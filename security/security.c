@@ -417,12 +417,11 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 					 new_dentry);
 }
 
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs)
+int security_path_truncate(struct path *path)
 {
 	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->path_truncate(path, length, time_attrs);
+	return security_ops->path_truncate(path);
 }
 
 int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
@@ -620,7 +619,13 @@ void security_inode_getsecid(const struct inode *inode, u32 *secid)
 
 int security_file_permission(struct file *file, int mask)
 {
-	return security_ops->file_permission(file, mask);
+	int ret;
+
+	ret = security_ops->file_permission(file, mask);
+	if (ret)
+		return ret;
+
+	return fsnotify_perm(file, mask);
 }
 
 int security_file_alloc(struct file *file)
@@ -684,7 +689,13 @@ int security_file_receive(struct file *file)
 
 int security_dentry_open(struct file *file, const struct cred *cred)
 {
-	return security_ops->dentry_open(file, cred);
+	int ret;
+
+	ret = security_ops->dentry_open(file, cred);
+	if (ret)
+		return ret;
+
+	return fsnotify_perm(file, MAY_OPEN);
 }
 
 int security_task_create(unsigned long clone_flags)
@@ -769,9 +780,10 @@ int security_task_getioprio(struct task_struct *p)
 	return security_ops->task_getioprio(p);
 }
 
-int security_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
+int security_task_setrlimit(struct task_struct *p, unsigned int resource,
+		struct rlimit *new_rlim)
 {
-	return security_ops->task_setrlimit(resource, new_rlim);
+	return security_ops->task_setrlimit(p, resource, new_rlim);
 }
 
 int security_task_setscheduler(struct task_struct *p,

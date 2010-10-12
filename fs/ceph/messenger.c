@@ -108,7 +108,7 @@ void ceph_msgr_exit(void)
 	destroy_workqueue(ceph_msgr_wq);
 }
 
-void ceph_msgr_flush()
+void ceph_msgr_flush(void)
 {
 	flush_workqueue(ceph_msgr_wq);
 }
@@ -647,7 +647,7 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
 
-	con->out_connect.features = cpu_to_le64(CEPH_FEATURE_SUPPORTED_CLIENT);
+	con->out_connect.features = cpu_to_le64(CEPH_FEATURE_SUPPORTED);
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
@@ -1081,11 +1081,11 @@ static int process_banner(struct ceph_connection *con)
 		   sizeof(con->peer_addr)) != 0 &&
 	    !(addr_is_blank(&con->actual_peer_addr.in_addr) &&
 	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
-		pr_warning("wrong peer, want %s/%lld, got %s/%lld\n",
+		pr_warning("wrong peer, want %s/%d, got %s/%d\n",
 			   pr_addr(&con->peer_addr.in_addr),
-			   le64_to_cpu(con->peer_addr.nonce),
+			   (int)le32_to_cpu(con->peer_addr.nonce),
 			   pr_addr(&con->actual_peer_addr.in_addr),
-			   le64_to_cpu(con->actual_peer_addr.nonce));
+			   (int)le32_to_cpu(con->actual_peer_addr.nonce));
 		con->error_msg = "wrong peer at address";
 		return -1;
 	}
@@ -1123,8 +1123,8 @@ static void fail_protocol(struct ceph_connection *con)
 
 static int process_connect(struct ceph_connection *con)
 {
-	u64 sup_feat = CEPH_FEATURE_SUPPORTED_CLIENT;
-	u64 req_feat = CEPH_FEATURE_REQUIRED_CLIENT;
+	u64 sup_feat = CEPH_FEATURE_SUPPORTED;
+	u64 req_feat = CEPH_FEATURE_REQUIRED;
 	u64 server_feat = le64_to_cpu(con->in_reply.features);
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
@@ -1302,8 +1302,8 @@ static void process_ack(struct ceph_connection *con)
 
 
 static int read_partial_message_section(struct ceph_connection *con,
-					struct kvec *section, unsigned int sec_len,
-					u32 *crc)
+					struct kvec *section,
+					unsigned int sec_len, u32 *crc)
 {
 	int left;
 	int ret;
@@ -1434,7 +1434,8 @@ static int read_partial_message(struct ceph_connection *con)
 
 	/* middle */
 	if (m->middle) {
-		ret = read_partial_message_section(con, &m->middle->vec, middle_len,
+		ret = read_partial_message_section(con, &m->middle->vec,
+						   middle_len,
 						   &con->in_middle_crc);
 		if (ret <= 0)
 			return ret;
@@ -1920,7 +1921,7 @@ out:
 	/*
 	 * in case we faulted due to authentication, invalidate our
 	 * current tickets so that we can get new ones.
-         */
+	 */
 	if (con->auth_retry && con->ops->invalidate_authorizer) {
 		dout("calling invalidate_authorizer()\n");
 		con->ops->invalidate_authorizer(con);

@@ -103,6 +103,10 @@ EXPORT_SYMBOL_PROTO(getuid);
 EXPORT_SYMBOL_PROTO(fsync);
 EXPORT_SYMBOL_PROTO(fdatasync);
 
+EXPORT_SYMBOL_PROTO(lstat64);
+EXPORT_SYMBOL_PROTO(fstat64);
+EXPORT_SYMBOL_PROTO(mknod);
+
 /* Export symbols used by GCC for the stack protector. */
 extern void __stack_smash_handler(void *) __attribute__((weak));
 EXPORT_SYMBOL(__stack_smash_handler);

@@ -74,16 +74,16 @@ static void _mmci_callback(struct work_struct *ws)
 
 	mdelay(20);
 
-	mmci_card->mmc_inserted = !!gpio_get_value(U300_GPIO_PIN_MMC_CD);
+	mmci_card->mmc_inserted = !gpio_get_value(U300_GPIO_PIN_MMC_CD);
 
 	input_report_switch(mmci_card->mmc_input, KEY_INSERT,
-			    !mmci_card->mmc_inserted);
+			    mmci_card->mmc_inserted);
 	input_sync(mmci_card->mmc_input);
 
 	pr_debug("MMC/SD card was %s\n",
-		 mmci_card->mmc_inserted ? "removed" : "inserted");
+		 mmci_card->mmc_inserted ? "inserted" : "removed");
 
-	enable_irq_on_gpio_pin(U300_GPIO_PIN_MMC_CD, !mmci_card->mmc_inserted);
+	enable_irq_on_gpio_pin(U300_GPIO_PIN_MMC_CD, mmci_card->mmc_inserted);
 }
 
 int __devinit mmc_init(struct amba_device *adev)

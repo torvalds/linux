@@ -410,7 +410,7 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 }
 
 static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
-				       struct of_device *op, u32 portid)
+				       struct platform_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->dev.of_node;
@@ -455,7 +455,7 @@ static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __devinit fire_probe(struct of_device *op,
+static int __devinit fire_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -518,7 +518,7 @@ static struct of_platform_driver fire_driver = {
 
 static int __init fire_init(void)
 {
-	return of_register_driver(&fire_driver, &of_bus_type);
+	return of_register_platform_driver(&fire_driver);
 }
 
 subsys_initcall(fire_init);

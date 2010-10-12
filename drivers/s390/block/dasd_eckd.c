@@ -82,6 +82,14 @@ static struct ccw_driver dasd_eckd_driver; /* see below */
 #define INIT_CQR_UNFORMATTED 1
 #define INIT_CQR_ERROR 2
 
+/* emergency request for reserve/release */
+static struct {
+	struct dasd_ccw_req cqr;
+	struct ccw1 ccw;
+	char data[32];
+} *dasd_reserve_req;
+static DEFINE_MUTEX(dasd_reserve_mutex);
+
 
 /* initial attempt at a probe function. this can be simplified once
  * the other detection code is gone */
@@ -1107,8 +1115,9 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
 	struct dasd_uid temp_uid;
-	int is_known, rc;
+	int is_known, rc, i;
 	int readonly;
+	unsigned long value;
 
 	if (!ccw_device_is_pathgroup(device->cdev)) {
 		dev_warn(&device->cdev->dev,
@@ -1142,6 +1151,18 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	rc = dasd_eckd_read_conf(device);
 	if (rc)
 		goto out_err1;
+
+	/* set default timeout */
+	device->default_expires = DASD_EXPIRES;
+	if (private->gneq) {
+		value = 1;
+		for (i = 0; i < private->gneq->timeout.value; i++)
+			value = 10 * value;
+		value = value * private->gneq->timeout.number;
+		/* do not accept useless values */
+		if (value != 0 && value <= DASD_EXPIRES_MAX)
+			device->default_expires = value;
+	}
 
 	/* Generate device unique id */
 	rc = dasd_eckd_generate_uid(device);
@@ -1973,7 +1994,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = private->path_data.ppm;
 	cqr->retries = 256;
 	cqr->buildclk = get_clock();
@@ -2150,7 +2171,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = private->path_data.ppm;
 	cqr->retries = 256;
 	cqr->buildclk = get_clock();
@@ -2398,7 +2419,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = private->path_data.ppm;
 	cqr->retries = 256;
 	cqr->buildclk = get_clock();
@@ -2645,15 +2666,23 @@ dasd_eckd_release(struct dasd_device *device)
 	struct dasd_ccw_req *cqr;
 	int rc;
 	struct ccw1 *ccw;
+	int useglobal;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
+	useglobal = 0;
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1, 32, device);
 	if (IS_ERR(cqr)) {
-		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "Could not allocate initialization request");
-		return PTR_ERR(cqr);
+		mutex_lock(&dasd_reserve_mutex);
+		useglobal = 1;
+		cqr = &dasd_reserve_req->cqr;
+		memset(cqr, 0, sizeof(*cqr));
+		memset(&dasd_reserve_req->ccw, 0,
+		       sizeof(dasd_reserve_req->ccw));
+		cqr->cpaddr = &dasd_reserve_req->ccw;
+		cqr->data = &dasd_reserve_req->data;
+		cqr->magic = DASD_ECKD_MAGIC;
 	}
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = DASD_ECKD_CCW_RELEASE;
@@ -2671,7 +2700,10 @@ dasd_eckd_release(struct dasd_device *device)
 
 	rc = dasd_sleep_on_immediatly(cqr);
 
-	dasd_sfree_request(cqr, cqr->memdev);
+	if (useglobal)
+		mutex_unlock(&dasd_reserve_mutex);
+	else
+		dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
 
@@ -2687,15 +2719,23 @@ dasd_eckd_reserve(struct dasd_device *device)
 	struct dasd_ccw_req *cqr;
 	int rc;
 	struct ccw1 *ccw;
+	int useglobal;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
+	useglobal = 0;
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1, 32, device);
 	if (IS_ERR(cqr)) {
-		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "Could not allocate initialization request");
-		return PTR_ERR(cqr);
+		mutex_lock(&dasd_reserve_mutex);
+		useglobal = 1;
+		cqr = &dasd_reserve_req->cqr;
+		memset(cqr, 0, sizeof(*cqr));
+		memset(&dasd_reserve_req->ccw, 0,
+		       sizeof(dasd_reserve_req->ccw));
+		cqr->cpaddr = &dasd_reserve_req->ccw;
+		cqr->data = &dasd_reserve_req->data;
+		cqr->magic = DASD_ECKD_MAGIC;
 	}
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = DASD_ECKD_CCW_RESERVE;
@@ -2713,7 +2753,10 @@ dasd_eckd_reserve(struct dasd_device *device)
 
 	rc = dasd_sleep_on_immediatly(cqr);
 
-	dasd_sfree_request(cqr, cqr->memdev);
+	if (useglobal)
+		mutex_unlock(&dasd_reserve_mutex);
+	else
+		dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
 
@@ -2728,15 +2771,23 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 	struct dasd_ccw_req *cqr;
 	int rc;
 	struct ccw1 *ccw;
+	int useglobal;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
+	useglobal = 0;
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1, 32, device);
 	if (IS_ERR(cqr)) {
-		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "Could not allocate initialization request");
-		return PTR_ERR(cqr);
+		mutex_lock(&dasd_reserve_mutex);
+		useglobal = 1;
+		cqr = &dasd_reserve_req->cqr;
+		memset(cqr, 0, sizeof(*cqr));
+		memset(&dasd_reserve_req->ccw, 0,
+		       sizeof(dasd_reserve_req->ccw));
+		cqr->cpaddr = &dasd_reserve_req->ccw;
+		cqr->data = &dasd_reserve_req->data;
+		cqr->magic = DASD_ECKD_MAGIC;
 	}
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = DASD_ECKD_CCW_SLCK;
@@ -2754,7 +2805,10 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 
 	rc = dasd_sleep_on_immediatly(cqr);
 
-	dasd_sfree_request(cqr, cqr->memdev);
+	if (useglobal)
+		mutex_unlock(&dasd_reserve_mutex);
+	else
+		dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
 
@@ -3488,10 +3542,15 @@ dasd_eckd_init(void)
 	int ret;
 
 	ASCEBC(dasd_eckd_discipline.ebcname, 4);
+	dasd_reserve_req = kmalloc(sizeof(*dasd_reserve_req),
+				   GFP_KERNEL | GFP_DMA);
+	if (!dasd_reserve_req)
+		return -ENOMEM;
 	ret = ccw_driver_register(&dasd_eckd_driver);
 	if (!ret)
 		wait_for_device_probe();
-
+	else
+		kfree(dasd_reserve_req);
 	return ret;
 }
 
@@ -3499,6 +3558,7 @@ static void __exit
 dasd_eckd_cleanup(void)
 {
 	ccw_driver_unregister(&dasd_eckd_driver);
+	kfree(dasd_reserve_req);
 }
 
 module_init(dasd_eckd_init);

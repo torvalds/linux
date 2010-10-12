@@ -74,6 +74,7 @@ struct fbcon_ops {
 	int    cursor_reset;
 	int    blank_state;
 	int    graphics;
+	int    save_graphics; /* for debug enter/leave */
 	int    flags;
 	int    rotate;
 	int    cur_rotate;

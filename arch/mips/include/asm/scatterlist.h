@@ -3,6 +3,4 @@
 
 #include <asm-generic/scatterlist.h>
 
-#define ISA_DMA_THRESHOLD (0x00ffffffUL)
-
 #endif /* __ASM_SCATTERLIST_H */

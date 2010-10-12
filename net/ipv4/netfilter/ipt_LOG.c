@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <net/icmp.h>
 #include <net/udp.h>
@@ -363,6 +364,42 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
+static void dump_mac_header(const struct nf_loginfo *info,
+			    const struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	unsigned int logflags = 0;
+
+	if (info->type == NF_LOG_TYPE_LOG)
+		logflags = info->u.log.logflags;
+
+	if (!(logflags & IPT_LOG_MACDECODE))
+		goto fallback;
+
+	switch (dev->type) {
+	case ARPHRD_ETHER:
+		printk("MACSRC=%pM MACDST=%pM MACPROTO=%04x ",
+		       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
+		       ntohs(eth_hdr(skb)->h_proto));
+		return;
+	default:
+		break;
+	}
+
+fallback:
+	printk("MAC=");
+	if (dev->hard_header_len &&
+	    skb->mac_header != skb->network_header) {
+		const unsigned char *p = skb_mac_header(skb);
+		unsigned int i;
+
+		printk("%02x", *p++);
+		for (i = 1; i < dev->hard_header_len; i++, p++)
+			printk(":%02x", *p);
+	}
+	printk(" ");
+}
+
 static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
@@ -404,20 +441,9 @@ ipt_log_packet(u_int8_t pf,
 	}
 #endif
 
-	if (in && !out) {
-		/* MAC logging for input chain only. */
-		printk("MAC=");
-		if (skb->dev && skb->dev->hard_header_len &&
-		    skb->mac_header != skb->network_header) {
-			int i;
-			const unsigned char *p = skb_mac_header(skb);
-			for (i = 0; i < skb->dev->hard_header_len; i++,p++)
-				printk("%02x%c", *p,
-				       i==skb->dev->hard_header_len - 1
-				       ? ' ':':');
-		} else
-			printk(" ");
-	}
+	/* MAC logging for input path only. */
+	if (in && !out)
+		dump_mac_header(loginfo, skb);
 
 	dump_packet(loginfo, skb, 0);
 	printk("\n");

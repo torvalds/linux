@@ -20,7 +20,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -79,11 +78,10 @@ static int __devinit avma1cs_probe(struct pcmcia_device *p_dev)
     dev_dbg(&p_dev->dev, "avma1cs_attach()\n");
 
     /* The io structure describes IO port mapping */
-    p_dev->io.NumPorts1 = 16;
-    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    p_dev->io.NumPorts2 = 16;
-    p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_16;
-    p_dev->io.IOAddrLines = 5;
+    p_dev->resource[0]->end = 16;
+    p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    p_dev->resource[1]->end = 16;
+    p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_16;
 
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
@@ -127,13 +125,10 @@ static int avma1cs_configcheck(struct pcmcia_device *p_dev,
 	if (cf->io.nwin <= 0)
 		return -ENODEV;
 
-	p_dev->io.BasePort1 = cf->io.win[0].base;
-	p_dev->io.NumPorts1 = cf->io.win[0].len;
-	p_dev->io.NumPorts2 = 0;
-	printk(KERN_INFO "avma1_cs: testing i/o %#x-%#x\n",
-	       p_dev->io.BasePort1,
-	       p_dev->io.BasePort1+p_dev->io.NumPorts1-1);
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	p_dev->resource[0]->start = cf->io.win[0].base;
+	p_dev->resource[0]->end = cf->io.win[0].len;
+	p_dev->io_lines = 5;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -181,16 +176,18 @@ static int __devinit avma1cs_config(struct pcmcia_device *link)
     }
 
     printk(KERN_NOTICE "avma1_cs: checking at i/o %#x, irq %d\n",
-				link->io.BasePort1, link->irq);
+		(unsigned int) link->resource[0]->start, link->irq);
 
     icard.para[0] = link->irq;
-    icard.para[1] = link->io.BasePort1;
+    icard.para[1] = link->resource[0]->start;
     icard.protocol = isdnprot;
     icard.typ = ISDN_CTYPE_A1_PCMCIA;
     
     i = hisax_init_pcmcia(link, &busy, &icard);
     if (i < 0) {
-    	printk(KERN_ERR "avma1_cs: failed to initialize AVM A1 PCMCIA %d at i/o %#x\n", i, link->io.BasePort1);
+	printk(KERN_ERR "avma1_cs: failed to initialize AVM A1 "
+			"PCMCIA %d at i/o %#x\n", i,
+			(unsigned int) link->resource[0]->start);
 	avma1cs_release(link);
 	return -ENODEV;
     }

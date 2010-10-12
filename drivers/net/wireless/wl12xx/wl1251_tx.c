@@ -117,7 +117,7 @@ static void wl1251_tx_frag_block_num(struct tx_double_buffer_desc *tx_hdr)
 	frag_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
 	tx_hdr->frag_threshold = cpu_to_le16(frag_threshold);
 
-	payload_len = tx_hdr->length + MAX_MSDU_SECURITY_LENGTH;
+	payload_len = le16_to_cpu(tx_hdr->length) + MAX_MSDU_SECURITY_LENGTH;
 
 	if (payload_len > frag_threshold) {
 		mem_blocks_per_frag =
@@ -191,11 +191,13 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 	if (control->control.hw_key &&
 	    control->control.hw_key->alg == ALG_TKIP) {
 		int hdrlen;
-		u16 fc;
+		__le16 fc;
+		u16 length;
 		u8 *pos;
 
-		fc = *(u16 *)(skb->data + sizeof(*tx_hdr));
-		tx_hdr->length += WL1251_TKIP_IV_SPACE;
+		fc = *(__le16 *)(skb->data + sizeof(*tx_hdr));
+		length = le16_to_cpu(tx_hdr->length) + WL1251_TKIP_IV_SPACE;
+		tx_hdr->length = cpu_to_le16(length);
 
 		hdrlen = ieee80211_hdrlen(fc);
 

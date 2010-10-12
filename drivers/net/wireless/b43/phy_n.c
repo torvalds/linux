@@ -509,7 +509,8 @@ static void b43_nphy_rx_cal_phy_setup(struct b43_wldev *dev, u8 core)
 	b43_phy_mask(dev, B43_NPHY_PAPD_EN0, ~0x0001);
 	b43_phy_mask(dev, B43_NPHY_PAPD_EN1, ~0x0001);
 
-	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, (u16)~B43_NPHY_RFSEQCA_RXDIS,
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA,
+			~B43_NPHY_RFSEQCA_RXDIS & 0xFFFF,
 			((1 - core) << B43_NPHY_RFSEQCA_RXDIS_SHIFT));
 	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_TXEN,
 			((1 - core) << B43_NPHY_RFSEQCA_TXEN_SHIFT));
@@ -762,7 +763,7 @@ static void b43_nphy_stop_playback(struct b43_wldev *dev)
 	if (tmp & 0x1)
 		b43_phy_set(dev, B43_NPHY_SAMP_CMD, B43_NPHY_SAMP_CMD_STOP);
 	else if (tmp & 0x2)
-		b43_phy_mask(dev, B43_NPHY_IQLOCAL_CMDGCTL, (u16)~0x8000);
+		b43_phy_mask(dev, B43_NPHY_IQLOCAL_CMDGCTL, 0x7FFF);
 
 	b43_phy_mask(dev, B43_NPHY_SAMP_CMD, ~0x0004);
 
@@ -1009,7 +1010,7 @@ static void b43_nphy_gain_crtl_workarounds(struct b43_wldev *dev)
 			b43_nphy_set_rf_sequence(dev, 5,
 					rfseq_events, rfseq_delays, 3);
 			b43_phy_maskset(dev, B43_NPHY_OVER_DGAIN1,
-				(u16)~B43_NPHY_OVER_DGAIN_CCKDGECV,
+				~B43_NPHY_OVER_DGAIN_CCKDGECV & 0xFFFF,
 				0x5A << B43_NPHY_OVER_DGAIN_CCKDGECV_SHIFT);
 
 			if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
@@ -1116,7 +1117,7 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_PHASETR_B2, 0x20);
 
 		b43_phy_mask(dev, B43_NPHY_PIL_DW1,
-				(u16)~B43_NPHY_PIL_DW_64QAM);
+				~B43_NPHY_PIL_DW_64QAM & 0xFFFF);
 		b43_phy_write(dev, B43_NPHY_TXF_20CO_S2B1, 0xB5);
 		b43_phy_write(dev, B43_NPHY_TXF_20CO_S2B2, 0xA4);
 		b43_phy_write(dev, B43_NPHY_TXF_20CO_S2B3, 0x00);
@@ -2455,7 +2456,8 @@ static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, tmp | 0x0600);
 
 		regs[4] = b43_phy_read(dev, B43_NPHY_BBCFG);
-		b43_phy_mask(dev, B43_NPHY_BBCFG, (u16)~B43_NPHY_BBCFG_RSTRX);
+		b43_phy_mask(dev, B43_NPHY_BBCFG,
+			     ~B43_NPHY_BBCFG_RSTRX & 0xFFFF);
 
 		tmp = b43_ntab_read(dev, B43_NTAB16(8, 3));
 		regs[5] = tmp;
@@ -2930,7 +2932,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 		tmp[5] = b43_phy_read(dev, rfctl[1]);
 
 		b43_phy_maskset(dev, B43_NPHY_RFSEQCA,
-				(u16)~B43_NPHY_RFSEQCA_RXDIS,
+				~B43_NPHY_RFSEQCA_RXDIS & 0xFFFF,
 				((1 - i) << B43_NPHY_RFSEQCA_RXDIS_SHIFT));
 		b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_TXEN,
 				(1 - i));
@@ -3291,7 +3293,7 @@ static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
 		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
 		tmp32 = b43_read32(dev, B43_MMIO_PSM_PHY_HDR);
 		b43_write32(dev, B43_MMIO_PSM_PHY_HDR, tmp32 | 4);
-		b43_phy_mask(dev, B43_PHY_B_BBCFG, (u16)~0xC000);
+		b43_phy_mask(dev, B43_PHY_B_BBCFG, 0x3FFF);
 		b43_write32(dev, B43_MMIO_PSM_PHY_HDR, tmp32);
 	}
 

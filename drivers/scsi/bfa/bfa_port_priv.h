@@ -75,8 +75,9 @@ struct bfa_fcport_s {
 	bfa_status_t            stats_status; /*  stats/statsclr status */
 	bfa_boolean_t           stats_busy; /*  outstanding stats/statsclr */
 	bfa_boolean_t           stats_qfull;
+	u32                	stats_reset_time; /* stats reset time stamp */
 	bfa_cb_pport_t          stats_cbfn; /*  driver callback function */
-	void                    *stats_cbarg; /* *!< user callback arg */
+	void                    *stats_cbarg; /* user callback arg */
 	bfa_boolean_t           diag_busy; /*  diag busy status */
 	bfa_boolean_t           beacon; /*  port beacon status */
 	bfa_boolean_t           link_e2e_beacon; /*  link beacon status */
@@ -87,5 +88,7 @@ struct bfa_fcport_s {
 /*
  * public functions
  */
-void	bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+void bfa_fcport_init(struct bfa_s *bfa);
+void bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+
 #endif /* __BFA_PORT_PRIV_H__ */

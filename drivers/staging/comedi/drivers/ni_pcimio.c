@@ -1239,7 +1239,43 @@ static struct comedi_driver driver_pcimio = {
 	.detach = pcimio_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(driver_pcimio, ni_pci_table)
+static int __devinit driver_pcimio_pci_probe(struct pci_dev *dev,
+					     const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_pcimio.driver_name);
+}
+
+static void __devexit driver_pcimio_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_pcimio_pci_driver = {
+	.id_table = ni_pci_table,
+	.probe = &driver_pcimio_pci_probe,
+	.remove = __devexit_p(&driver_pcimio_pci_remove)
+};
+
+static int __init driver_pcimio_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_pcimio);
+	if (retval < 0)
+		return retval;
+
+	driver_pcimio_pci_driver.name = (char *)driver_pcimio.driver_name;
+	return pci_register_driver(&driver_pcimio_pci_driver);
+}
+
+static void __exit driver_pcimio_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_pcimio_pci_driver);
+	comedi_driver_unregister(&driver_pcimio);
+}
+
+module_init(driver_pcimio_init_module);
+module_exit(driver_pcimio_cleanup_module);
 
 struct ni_private {
 NI_PRIVATE_COMMON};

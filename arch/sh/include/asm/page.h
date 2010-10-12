@@ -180,7 +180,7 @@ typedef struct page *pgtable_t;
  * Some drivers need to perform DMA into kmalloc'ed buffers
  * and so we have to increase the kmalloc minalign for this.
  */
-#define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 
 #ifdef CONFIG_SUPERH64
 /*

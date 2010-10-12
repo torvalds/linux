@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/types.h>
+#include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
 #include "os.h"
 
@@ -623,12 +624,11 @@ static struct inode *hppfs_alloc_inode(struct super_block *sb)
 	return &hi->vfs_inode;
 }
 
-void hppfs_delete_inode(struct inode *ino)
+void hppfs_evict_inode(struct inode *ino)
 {
+	end_writeback(ino);
 	dput(HPPFS_I(ino)->proc_dentry);
 	mntput(ino->i_sb->s_fs_info);
-
-	clear_inode(ino);
 }
 
 static void hppfs_destroy_inode(struct inode *inode)
@@ -639,7 +639,7 @@ static void hppfs_destroy_inode(struct inode *inode)
 static const struct super_operations hppfs_sbops = {
 	.alloc_inode	= hppfs_alloc_inode,
 	.destroy_inode	= hppfs_destroy_inode,
-	.delete_inode	= hppfs_delete_inode,
+	.evict_inode	= hppfs_evict_inode,
 	.statfs		= hppfs_statfs,
 };
 

@@ -525,7 +525,21 @@ static irqreturn_t i596_error(int irq, void *dev_id)
 }
 #endif
 
-static inline void init_rx_bufs(struct net_device *dev)
+static inline void remove_rx_bufs(struct net_device *dev)
+{
+	struct i596_private *lp = dev->ml_priv;
+	struct i596_rbd *rbd;
+	int i;
+
+	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
+		if (rbd->skb == NULL)
+			break;
+		dev_kfree_skb(rbd->skb);
+		rbd->skb = NULL;
+	}
+}
+
+static inline int init_rx_bufs(struct net_device *dev)
 {
 	struct i596_private *lp = dev->ml_priv;
 	int i;
@@ -537,8 +551,11 @@ static inline void init_rx_bufs(struct net_device *dev)
 	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
 		struct sk_buff *skb = dev_alloc_skb(PKT_BUF_SZ);
 
-		if (skb == NULL)
-			panic("82596: alloc_skb() failed");
+		if (skb == NULL) {
+			remove_rx_bufs(dev);
+			return -ENOMEM;
+		}
+
 		skb->dev = dev;
 		rbd->v_next = rbd+1;
 		rbd->b_next = WSWAPrbd(virt_to_bus(rbd+1));
@@ -574,19 +591,8 @@ static inline void init_rx_bufs(struct net_device *dev)
 	rfd->v_next = lp->rfds;
 	rfd->b_next = WSWAPrfd(virt_to_bus(lp->rfds));
 	rfd->cmd = CMD_EOL|CMD_FLEX;
-}
 
-static inline void remove_rx_bufs(struct net_device *dev)
-{
-	struct i596_private *lp = dev->ml_priv;
-	struct i596_rbd *rbd;
-	int i;
-
-	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
-		if (rbd->skb == NULL)
-			break;
-		dev_kfree_skb(rbd->skb);
-	}
+	return 0;
 }
 
 
@@ -1009,19 +1015,34 @@ static int i596_open(struct net_device *dev)
 	}
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
-		if (request_irq(0x56, i596_error, 0, "i82596_error", dev))
-			return -EAGAIN;
+		if (request_irq(0x56, i596_error, 0, "i82596_error", dev)) {
+			res = -EAGAIN;
+			goto err_irq_dev;
+		}
 	}
 #endif
-	init_rx_bufs(dev);
+	res = init_rx_bufs(dev);
+	if (res)
+		goto err_irq_56;
 
 	netif_start_queue(dev);
 
-	/* Initialize the 82596 memory */
 	if (init_i596_mem(dev)) {
 		res = -EAGAIN;
-		free_irq(dev->irq, dev);
+		goto err_queue;
 	}
+
+	return 0;
+
+err_queue:
+	netif_stop_queue(dev);
+	remove_rx_bufs(dev);
+err_irq_56:
+#ifdef ENABLE_MVME16x_NET
+	free_irq(0x56, dev);
+err_irq_dev:
+#endif
+	free_irq(dev->irq, dev);
 
 	return res;
 }
@@ -1488,6 +1509,9 @@ static int i596_close(struct net_device *dev)
 	}
 #endif
 
+#ifdef ENABLE_MVME16x_NET
+	free_irq(0x56, dev);
+#endif
 	free_irq(dev->irq, dev);
 	remove_rx_bufs(dev);
 

@@ -165,7 +165,8 @@ TEST SUITE
 If you plan to make any modifications to the vfat filesystem, please
 get the test suite that comes with the vfat distribution at
 
-  http://bmrc.berkeley.edu/people/chaffee/vfat.html
+  http://web.archive.org/web/*/http://bmrc.berkeley.edu/
+  people/chaffee/vfat.html
 
 This tests quite a few parts of the vfat filesystem and additional
 tests for new features or untested features would be appreciated.

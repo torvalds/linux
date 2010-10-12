@@ -1,12 +1,10 @@
-ifeq ($(CONFIG_CAIF_DEBUG),1)
-CAIF_DBG_FLAGS := -DDEBUG
+ifeq ($(CONFIG_CAIF_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
 endif
-
-KBUILD_EXTRA_SYMBOLS=net/caif/Module.symvers
-
-ccflags-y := $(CAIF_FLAGS) $(CAIF_DBG_FLAGS)
-clean-dirs:= .tmp_versions
-clean-files:= Module.symvers modules.order *.cmd *~ \
 
 # Serial interface
 obj-$(CONFIG_CAIF_TTY) += caif_serial.o
+
+# SPI slave physical interfaces module
+cfspi_slave-objs := caif_spi.o caif_spi_slave.o
+obj-$(CONFIG_CAIF_SPI_SLAVE) += cfspi_slave.o

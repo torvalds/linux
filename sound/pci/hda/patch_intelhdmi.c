@@ -66,8 +66,7 @@ static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	hdmi_setup_audio_infoframe(codec, hinfo->nid, substream);
 
-	hdmi_setup_stream(codec, hinfo->nid, stream_tag, format);
-	return 0;
+	return hdmi_setup_stream(codec, hinfo->nid, stream_tag, format);
 }
 
 static int intel_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
@@ -81,6 +80,7 @@ static struct hda_pcm_stream intel_hdmi_pcm_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.ops = {
+		.open = hdmi_pcm_open,
 		.prepare = intel_hdmi_playback_pcm_prepare,
 		.cleanup = intel_hdmi_playback_pcm_cleanup,
 	},

@@ -26,8 +26,6 @@
 #include "xfs_log_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_alloc.h"
@@ -554,7 +552,7 @@ xlog_cil_push(
 	thdr.th_type = XFS_TRANS_CHECKPOINT;
 	thdr.th_tid = tic->t_tid;
 	thdr.th_num_items = num_iovecs;
-	lhdr.i_addr = (xfs_caddr_t)&thdr;
+	lhdr.i_addr = &thdr;
 	lhdr.i_len = sizeof(xfs_trans_header_t);
 	lhdr.i_type = XLOG_REG_TYPE_TRANSHDR;
 	tic->t_curr_res -= lhdr.i_len + sizeof(xlog_op_header_t);

@@ -479,6 +479,7 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
+	struct qeth_ipaddr *tmpipa, *t;
 	char *tmp;
 	int rc = 0;
 
@@ -497,8 +498,21 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 		card->ipato.enabled = (card->ipato.enabled)? 0 : 1;
 	} else if (!strcmp(tmp, "1")) {
 		card->ipato.enabled = 1;
+		list_for_each_entry_safe(tmpipa, t, card->ip_tbd_list, entry) {
+			if ((tmpipa->type == QETH_IP_TYPE_NORMAL) &&
+				qeth_l3_is_addr_covered_by_ipato(card, tmpipa))
+				tmpipa->set_flags |=
+					QETH_IPA_SETIP_TAKEOVER_FLAG;
+		}
+
 	} else if (!strcmp(tmp, "0")) {
 		card->ipato.enabled = 0;
+		list_for_each_entry_safe(tmpipa, t, card->ip_tbd_list, entry) {
+			if (tmpipa->set_flags &
+				QETH_IPA_SETIP_TAKEOVER_FLAG)
+				tmpipa->set_flags &=
+					~QETH_IPA_SETIP_TAKEOVER_FLAG;
+		}
 	} else
 		rc = -EINVAL;
 out:

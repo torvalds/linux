@@ -144,6 +144,9 @@ struct at91_udc {
 	struct proc_dir_entry		*pde;
 	void __iomem			*udp_baseaddr;
 	int				udp_irq;
+	spinlock_t			lock;
+	struct timer_list		vbus_timer;
+	struct work_struct		vbus_timer_work;
 };
 
 static inline struct at91_udc *to_udc(struct usb_gadget *g)

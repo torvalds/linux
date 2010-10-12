@@ -1845,8 +1845,15 @@ ok:
 		}
 	}
 
-	if (dev->attached && dev->use_count == 0 && dev->open)
-		dev->open(dev);
+	if (dev->attached && dev->use_count == 0 && dev->open) {
+		int rc = dev->open(dev);
+		if (rc < 0) {
+			module_put(dev->driver->module);
+			module_put(THIS_MODULE);
+			mutex_unlock(&dev->mutex);
+			return rc;
+		}
+	}
 
 	dev->use_count++;
 

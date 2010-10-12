@@ -92,12 +92,8 @@ u32 rt_global_debug_component = \
 			//	COMP_POWER_TRACKING	|
                         // 	COMP_INTR       |
 				COMP_ERR ; //always open err flags on
-#ifndef PCI_DEVICE
-#define PCI_DEVICE(vend,dev)\
-	.vendor=(vend),.device=(dev),\
-	.subvendor=PCI_ANY_ID,.subdevice=PCI_ANY_ID
-#endif
-static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
+
+static const struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 #ifdef RTL8190P
 	/* Realtek */
 	/* Dlink */
@@ -116,7 +112,7 @@ static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 	{}
 };
 
-static char* ifname = "wlan%d";
+static char ifname[IFNAMSIZ] = "wlan%d";
 static int hwwep = 1; //default use hw. set 0 to use software security
 static int channels = 0x3fff;
 
@@ -127,7 +123,7 @@ MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 
 
-module_param(ifname, charp, S_IRUGO|S_IWUSR );
+module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
 //module_param(hwseqnum,int, S_IRUGO|S_IWUSR);
 module_param(hwwep,int, S_IRUGO|S_IWUSR);
 module_param(channels,int, S_IRUGO|S_IWUSR);
@@ -155,6 +151,16 @@ static struct pci_driver rtl8192_pci_driver = {
 #endif
 };
 
+static void rtl8192_start_beacon(struct net_device *dev);
+static void rtl8192_stop_beacon(struct net_device *dev);
+static void rtl819x_watchdog_wqcallback(struct work_struct *work);
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
+static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
+static void rtl8192_prepare_beacon(struct r8192_priv *priv);
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
+static void rtl8192_try_wake_queue(struct net_device *dev, int pri);
+static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
+
 #ifdef ENABLE_DOT11D
 
 typedef struct _CHANNEL_LIST
@@ -163,7 +169,7 @@ typedef struct _CHANNEL_LIST
 	u8	Len;
 }CHANNEL_LIST, *PCHANNEL_LIST;
 
-static CHANNEL_LIST ChannelPlan[] = {
+static const CHANNEL_LIST ChannelPlan[] = {
 	{{1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64,149,153,157,161,165},24},  		//FCC
 	{{1,2,3,4,5,6,7,8,9,10,11},11},                    				//IC
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13,36,40,44,48,52,56,60,64},21},  	//ETSI
@@ -349,8 +355,8 @@ u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
 	//struct r8192_priv* priv = ieee80211_priv(dev);
 	//struct ieee80211_device *ieee = priv->ieee80211;
 
-	static u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
-	static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
+	static const u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
+	static const u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
 	int wpa_ie_len= ieee->wpa_ie_len;
 	struct ieee80211_crypt_data* crypt;
 	int encrypt;
@@ -487,15 +493,13 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 /* this might still called in what was the PHY rtl8185/rtl8192 common code
  * plans are to possibilty turn it again in one common code...
  */
-inline void force_pci_posting(struct net_device *dev)
+void force_pci_posting(struct net_device *dev)
 {
 }
 
 
 //warning message WB
-irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 //static struct net_device_stats *rtl8192_stats(struct net_device *dev);
-void rtl8192_commit(struct net_device *dev);
 //void rtl8192_restart(struct net_device *dev);
 void rtl8192_restart(struct work_struct *work);
 //void rtl8192_rq_tx_ack(struct work_struct *work);
@@ -940,7 +944,7 @@ void rtl8192_rx_enable(struct net_device *dev)
  *  HIGH_QUEUE     ===>                        7
  *  BEACON_QUEUE   ===>                        8
  *  */
-static u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
+static const u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
 void rtl8192_tx_enable(struct net_device *dev)
 {
     struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -1116,7 +1120,7 @@ static void rtl8192_reset(struct net_device *dev)
 }
 #endif
 
-static u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
+static const u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
 inline u16 rtl8192_rate2rate(short rate)
 {
 	if (rate >11) return 0;
@@ -1251,8 +1255,6 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 
 }
 
-
-void rtl8192_try_wake_queue(struct net_device *dev, int pri);
 
 static void rtl8192_tx_isr(struct net_device *dev, int prio)
 {
@@ -1733,11 +1735,6 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
     pdesc->NoEnc = 1;
     pdesc->SecType = 0x0;
     if (tcb_desc->bHwSec) {
-        static u8 tmp =0;
-        if (!tmp) {
-            printk("==>================hw sec\n");
-            tmp = 1;
-        }
         switch (priv->ieee80211->pairwise_key_type) {
             case KEY_TYPE_WEP40:
             case KEY_TYPE_WEP104:
@@ -1988,7 +1985,7 @@ static void rtl8192_update_beacon(struct work_struct * work)
 /*
 * background support to run QoS activate functionality
 */
-static int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_VO};
+static const int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_VO};
 static void rtl8192_qos_activate(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, qos_activate);
@@ -2646,11 +2643,6 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 	mutex_init(&priv->mutex);
 }
 
-extern  void    rtl819x_watchdog_wqcallback(struct work_struct *work);
-
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
-void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
-void rtl8192_prepare_beacon(struct r8192_priv *priv);
 //init tasklet and wait_queue here. only 2.6 above kernel is considered
 #define DRV_NAME "wlan0"
 static void rtl8192_init_priv_task(struct net_device* dev)
@@ -3807,7 +3799,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 }
 
-void rtl8192_prepare_beacon(struct r8192_priv *priv)
+static void rtl8192_prepare_beacon(struct r8192_priv *priv)
 {
 	struct sk_buff *skb;
 	//unsigned long flags;
@@ -3837,7 +3829,7 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
  * rtl8192_beacon_tx_enable(). rtl8192_beacon_tx_disable() might
  * be used to stop beacon transmission
  */
-void rtl8192_start_beacon(struct net_device *dev)
+static void rtl8192_start_beacon(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_network *net = &priv->ieee80211->current_network;
@@ -4124,14 +4116,14 @@ static void CamRestoreAllEntry(struct net_device *dev)
 {
 	u8 EntryId = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8*	MacAddr = priv->ieee80211->current_network.bssid;
+	const u8*	MacAddr = priv->ieee80211->current_network.bssid;
 
-	static u8	CAM_CONST_ADDR[4][6] = {
+	static const u8	CAM_CONST_ADDR[4][6] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x02},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
-	static u8	CAM_CONST_BROAD[] =
+	static const u8	CAM_CONST_BROAD[] =
 		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	RT_TRACE(COMP_SEC, "CamRestoreAllEntry: \n");
@@ -4318,7 +4310,6 @@ RESET_START:
 			del_timer_sync(&ieee->associate_timer);
                         cancel_delayed_work(&ieee->associate_retry_wq);
 			ieee80211_stop_scan(ieee);
-			netif_carrier_off(dev);
 			up(&ieee->wx_sem);
 		}
 		else{
@@ -4669,7 +4660,7 @@ static void rtl819x_update_rxcounts(
 }
 
 
-void rtl819x_watchdog_wqcallback(struct work_struct *work)
+static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,watch_dog_wq);
@@ -6076,7 +6067,7 @@ static void rtl8192_tx_resume(struct net_device *dev)
 	}
 }
 
-void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
 {
        rtl8192_tx_resume(priv->ieee80211->dev);
 }
@@ -6305,7 +6296,7 @@ done:
 
 }
 
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
        rtl8192_rx(priv->ieee80211->dev);
 	/* unmask RDU */
@@ -6455,7 +6446,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 	if (dev_alloc_name(dev, ifname) < 0){
                 RT_TRACE(COMP_INIT, "Oops: devname already taken! Trying wlan%%d...\n");
-		ifname = "wlan%d";
+		strcpy(ifname, "wlan%d");
 		dev_alloc_name(dev, ifname);
         }
 
@@ -6640,7 +6631,7 @@ static void __exit rtl8192_pci_module_exit(void)
 }
 
 //warning message WB
-irqreturn_t rtl8192_interrupt(int irq, void *netdev)
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 {
     struct net_device *dev = (struct net_device *) netdev;
     struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -6784,7 +6775,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
     return IRQ_HANDLED;
 }
 
-void rtl8192_try_wake_queue(struct net_device *dev, int pri)
+static void rtl8192_try_wake_queue(struct net_device *dev, int pri)
 {
 #if 0
 	unsigned long flags;
@@ -6847,7 +6838,7 @@ void setKey(	struct net_device *dev,
 		u8 EntryNo,
 		u8 KeyIndex,
 		u16 KeyType,
-		u8 *MacAddr,
+		const u8 *MacAddr,
 		u8 DefaultKey,
 		u32 *KeyContent )
 {

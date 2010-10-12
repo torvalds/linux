@@ -24,20 +24,17 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
 #include "xfs_btree.h"
+#include "xfs_trace.h"
 
 STATIC int
 xfs_internal_inum(
@@ -143,7 +140,8 @@ xfs_bulkstat_one_int(
 		buf->bs_blocks = dic->di_nblocks + ip->i_delayed_blks;
 		break;
 	}
-	xfs_iput(ip, XFS_ILOCK_SHARED);
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	IRELE(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
 

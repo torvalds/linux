@@ -47,7 +47,7 @@ asmlinkage long microblaze_clone(int flags, unsigned long stack, struct pt_regs 
 	return do_fork(flags, stack, regs, 0, NULL, NULL);
 }
 
-asmlinkage long microblaze_execve(char __user *filenamei, char __user *__user *argv,
+asmlinkage long microblaze_execve(const char __user *filenamei, char __user *__user *argv,
 			char __user *__user *envp, struct pt_regs *regs)
 {
 	int error;

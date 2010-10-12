@@ -443,8 +443,7 @@ struct cpl_tx_pkt {
 
 #define cpl_tx_pkt_xt cpl_tx_pkt
 
-struct cpl_tx_pkt_lso {
-	WR_HDR;
+struct cpl_tx_pkt_lso_core {
 	__be32 lso_ctrl;
 #define LSO_TCPHDR_LEN(x) ((x) << 0)
 #define LSO_IPHDR_LEN(x)  ((x) << 4)
@@ -457,6 +456,12 @@ struct cpl_tx_pkt_lso {
 	__be16 mss;
 	__be32 seqno_offset;
 	__be32 len;
+	/* encapsulated CPL (TX_PKT, TX_PKT_XT or TX_DATA) follows here */
+};
+
+struct cpl_tx_pkt_lso {
+	WR_HDR;
+	struct cpl_tx_pkt_lso_core c;
 	/* encapsulated CPL (TX_PKT, TX_PKT_XT or TX_DATA) follows here */
 };
 
@@ -524,6 +529,8 @@ struct cpl_rx_pkt {
 	__be32 l2info;
 #define RXF_UDP (1 << 22)
 #define RXF_TCP (1 << 23)
+#define RXF_IP  (1 << 24)
+#define RXF_IP6 (1 << 25)
 	__be16 hdr_len;
 	__be16 err_vec;
 };
@@ -621,6 +628,11 @@ struct cpl_fw6_msg {
 	__be16 rsvd0;
 	__be32 rsvd1;
 	__be64 data[4];
+};
+
+/* cpl_fw6_msg.type values */
+enum {
+	FW6_TYPE_CMD_RPL = 0,
 };
 
 enum {

@@ -30,97 +30,12 @@
 #define RC5_BIT_END		(1 * RC5_UNIT)
 #define RC5X_SPACE		(4 * RC5_UNIT)
 
-/* Used to register rc5_decoder clients */
-static LIST_HEAD(decoder_list);
-static DEFINE_SPINLOCK(decoder_lock);
-
 enum rc5_state {
 	STATE_INACTIVE,
 	STATE_BIT_START,
 	STATE_BIT_END,
 	STATE_CHECK_RC5X,
 	STATE_FINISHED,
-};
-
-struct decoder_data {
-	struct list_head	list;
-	struct ir_input_dev	*ir_dev;
-	int			enabled:1;
-
-	/* State machine control */
-	enum rc5_state		state;
-	u32			rc5_bits;
-	struct ir_raw_event	prev_ev;
-	unsigned		count;
-	unsigned		wanted_bits;
-};
-
-
-/**
- * get_decoder_data()	- gets decoder data
- * @input_dev:	input device
- *
- * Returns the struct decoder_data that corresponds to a device
- */
-
-static struct decoder_data *get_decoder_data(struct  ir_input_dev *ir_dev)
-{
-	struct decoder_data *data = NULL;
-
-	spin_lock(&decoder_lock);
-	list_for_each_entry(data, &decoder_list, list) {
-		if (data->ir_dev == ir_dev)
-			break;
-	}
-	spin_unlock(&decoder_lock);
-	return data;
-}
-
-static ssize_t store_enabled(struct device *d,
-			     struct device_attribute *mattr,
-			     const char *buf,
-			     size_t len)
-{
-	unsigned long value;
-	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	struct decoder_data *data = get_decoder_data(ir_dev);
-
-	if (!data)
-		return -EINVAL;
-
-	if (strict_strtoul(buf, 10, &value) || value > 1)
-		return -EINVAL;
-
-	data->enabled = value;
-
-	return len;
-}
-
-static ssize_t show_enabled(struct device *d,
-			     struct device_attribute *mattr, char *buf)
-{
-	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	struct decoder_data *data = get_decoder_data(ir_dev);
-
-	if (!data)
-		return -EINVAL;
-
-	if (data->enabled)
-		return sprintf(buf, "1\n");
-	else
-	return sprintf(buf, "0\n");
-}
-
-static DEVICE_ATTR(enabled, S_IRUGO | S_IWUSR, show_enabled, store_enabled);
-
-static struct attribute *decoder_attributes[] = {
-	&dev_attr_enabled.attr,
-	NULL
-};
-
-static struct attribute_group decoder_attribute_group = {
-	.name	= "rc5_decoder",
-	.attrs	= decoder_attributes,
 };
 
 /**
@@ -132,17 +47,13 @@ static struct attribute_group decoder_attribute_group = {
  */
 static int ir_rc5_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 {
-	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
+	struct rc5_dec *data = &ir_dev->raw->rc5;
 	u8 toggle;
 	u32 scancode;
 
-	data = get_decoder_data(ir_dev);
-	if (!data)
-		return -EINVAL;
-
-	if (!data->enabled)
-		return 0;
+        if (!(ir_dev->raw->enabled_protocols & IR_TYPE_RC5))
+                return 0;
 
 	if (IS_RESET(ev)) {
 		data->state = STATE_INACTIVE;
@@ -176,16 +87,15 @@ again:
 		if (!eq_margin(ev.duration, RC5_BIT_START, RC5_UNIT / 2))
 			break;
 
-		data->rc5_bits <<= 1;
+		data->bits <<= 1;
 		if (!ev.pulse)
-			data->rc5_bits |= 1;
+			data->bits |= 1;
 		data->count++;
-		data->prev_ev = ev;
 		data->state = STATE_BIT_END;
 		return 0;
 
 	case STATE_BIT_END:
-		if (!is_transition(&ev, &data->prev_ev))
+		if (!is_transition(&ev, &ir_dev->raw->prev_ev))
 			break;
 
 		if (data->count == data->wanted_bits)
@@ -217,11 +127,11 @@ again:
 		if (data->wanted_bits == RC5X_NBITS) {
 			/* RC5X */
 			u8 xdata, command, system;
-			xdata    = (data->rc5_bits & 0x0003F) >> 0;
-			command  = (data->rc5_bits & 0x00FC0) >> 6;
-			system   = (data->rc5_bits & 0x1F000) >> 12;
-			toggle   = (data->rc5_bits & 0x20000) ? 1 : 0;
-			command += (data->rc5_bits & 0x01000) ? 0 : 0x40;
+			xdata    = (data->bits & 0x0003F) >> 0;
+			command  = (data->bits & 0x00FC0) >> 6;
+			system   = (data->bits & 0x1F000) >> 12;
+			toggle   = (data->bits & 0x20000) ? 1 : 0;
+			command += (data->bits & 0x01000) ? 0 : 0x40;
 			scancode = system << 16 | command << 8 | xdata;
 
 			IR_dprintk(1, "RC5X scancode 0x%06x (toggle: %u)\n",
@@ -230,10 +140,10 @@ again:
 		} else {
 			/* RC5 */
 			u8 command, system;
-			command  = (data->rc5_bits & 0x0003F) >> 0;
-			system   = (data->rc5_bits & 0x007C0) >> 6;
-			toggle   = (data->rc5_bits & 0x00800) ? 1 : 0;
-			command += (data->rc5_bits & 0x01000) ? 0 : 0x40;
+			command  = (data->bits & 0x0003F) >> 0;
+			system   = (data->bits & 0x007C0) >> 6;
+			toggle   = (data->bits & 0x00800) ? 1 : 0;
+			command += (data->bits & 0x01000) ? 0 : 0x40;
 			scancode = system << 8 | command;
 
 			IR_dprintk(1, "RC5 scancode 0x%04x (toggle: %u)\n",
@@ -252,54 +162,9 @@ out:
 	return -EINVAL;
 }
 
-static int ir_rc5_register(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct decoder_data *data;
-	int rc;
-
-	rc = sysfs_create_group(&ir_dev->dev.kobj, &decoder_attribute_group);
-	if (rc < 0)
-		return rc;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		sysfs_remove_group(&ir_dev->dev.kobj, &decoder_attribute_group);
-		return -ENOMEM;
-	}
-
-	data->ir_dev = ir_dev;
-	data->enabled = 1;
-
-	spin_lock(&decoder_lock);
-	list_add_tail(&data->list, &decoder_list);
-	spin_unlock(&decoder_lock);
-
-	return 0;
-}
-
-static int ir_rc5_unregister(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	static struct decoder_data *data;
-
-	data = get_decoder_data(ir_dev);
-	if (!data)
-		return 0;
-
-	sysfs_remove_group(&ir_dev->dev.kobj, &decoder_attribute_group);
-
-	spin_lock(&decoder_lock);
-	list_del(&data->list);
-	spin_unlock(&decoder_lock);
-
-	return 0;
-}
-
 static struct ir_raw_handler rc5_handler = {
+	.protocols	= IR_TYPE_RC5,
 	.decode		= ir_rc5_decode,
-	.raw_register	= ir_rc5_register,
-	.raw_unregister	= ir_rc5_unregister,
 };
 
 static int __init ir_rc5_decode_init(void)

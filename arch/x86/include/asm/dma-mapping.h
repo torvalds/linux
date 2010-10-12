@@ -54,7 +54,6 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
-#define dma_is_consistent(d, h)	(1)
 
 extern int dma_supported(struct device *hwdev, u64 mask);
 extern int dma_set_mask(struct device *dev, u64 mask);
@@ -85,13 +84,6 @@ dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	enum dma_data_direction dir)
 {
 	flush_write_buffers();
-}
-
-static inline int dma_get_cache_alignment(void)
-{
-	/* no easy way to get cache size on all x86, so return the
-	 * maximum possible, to be safe */
-	return boot_cpu_data.x86_clflush_size;
 }
 
 static inline unsigned long dma_alloc_coherent_mask(struct device *dev,

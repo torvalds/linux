@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-main.h: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+ * vxge-main.h: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
  *              Virtualized Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #ifndef VXGE_MAIN_H
 #define VXGE_MAIN_H
@@ -217,21 +217,13 @@ struct vxge_fifo_stats {
 };
 
 struct vxge_fifo {
-	struct net_device	*ndev;
-	struct pci_dev		*pdev;
+	struct net_device *ndev;
+	struct pci_dev *pdev;
 	struct __vxge_hw_fifo *handle;
+	struct netdev_queue *txq;
 
-	/* The vpath id maintained in the driver -
-	 * 0 to 'maximum_vpaths_in_function - 1'
-	 */
-	int driver_id;
 	int tx_steering_type;
 	int indicate_max_pkts;
-	spinlock_t tx_lock;
-	/* flag used to maintain queue state when MULTIQ is not enabled */
-#define VPATH_QUEUE_START       0
-#define VPATH_QUEUE_STOP        1
-	int queue_state;
 
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
@@ -279,7 +271,6 @@ struct vxge_ring {
 } ____cacheline_aligned;
 
 struct vxge_vpath {
-
 	struct vxge_fifo fifo;
 	struct vxge_ring ring;
 
@@ -446,14 +437,6 @@ void vxge_close_vpaths(struct vxgedev *vdev, int index);
 int vxge_open_vpaths(struct vxgedev *vdev);
 
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
-
-void vxge_stop_all_tx_queue(struct vxgedev *vdev);
-
-void vxge_stop_tx_queue(struct vxge_fifo *fifo);
-
-void vxge_start_all_tx_queue(struct vxgedev *vdev);
-
-void vxge_wake_tx_queue(struct vxge_fifo *fifo, struct sk_buff *skb);
 
 enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
 	struct macInfo *mac);

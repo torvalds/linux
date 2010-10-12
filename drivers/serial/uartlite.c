@@ -21,6 +21,7 @@
 #include <asm/io.h>
 #if defined(CONFIG_OF) && (defined(CONFIG_PPC32) || defined(CONFIG_MICROBLAZE))
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
@@ -583,7 +584,7 @@ static struct platform_driver ulite_platform_driver = {
  */
 #if defined(CONFIG_OF) && (defined(CONFIG_PPC32) || defined(CONFIG_MICROBLAZE))
 static int __devinit
-ulite_of_probe(struct of_device *op, const struct of_device_id *match)
+ulite_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource res;
 	const unsigned int *id;
@@ -604,7 +605,7 @@ ulite_of_probe(struct of_device *op, const struct of_device_id *match)
 	return ulite_assign(&op->dev, id ? *id : -1, res.start, irq);
 }
 
-static int __devexit ulite_of_remove(struct of_device *op)
+static int __devexit ulite_of_remove(struct platform_device *op)
 {
 	return ulite_release(&op->dev);
 }

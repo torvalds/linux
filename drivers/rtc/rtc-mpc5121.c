@@ -268,7 +268,7 @@ static const struct rtc_class_ops mpc5121_rtc_ops = {
 	.update_irq_enable = mpc5121_rtc_update_irq_enable,
 };
 
-static int __devinit mpc5121_rtc_probe(struct of_device *op,
+static int __devinit mpc5121_rtc_probe(struct platform_device *op,
 					const struct of_device_id *match)
 {
 	struct mpc5121_rtc_data *rtc;
@@ -338,7 +338,7 @@ out_free:
 	return err;
 }
 
-static int __devexit mpc5121_rtc_remove(struct of_device *op)
+static int __devexit mpc5121_rtc_remove(struct platform_device *op)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(&op->dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;

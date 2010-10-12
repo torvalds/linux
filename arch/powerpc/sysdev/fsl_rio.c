@@ -1332,13 +1332,13 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 
 /**
  * fsl_rio_setup - Setup Freescale PowerPC RapidIO interface
- * @dev: of_device pointer
+ * @dev: platform_device pointer
  *
  * Initializes MPC85xx RapidIO hardware interface, configures
  * master port with system-specific info, and registers the
  * master port with the RapidIO subsystem.
  */
-int fsl_rio_setup(struct of_device *dev)
+int fsl_rio_setup(struct platform_device *dev)
 {
 	struct rio_ops *ops;
 	struct rio_mport *port;
@@ -1536,7 +1536,7 @@ err_ops:
 
 /* The probe function for RapidIO peer-to-peer network.
  */
-static int __devinit fsl_of_rio_rpn_probe(struct of_device *dev,
+static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	int rc;

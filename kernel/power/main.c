@@ -204,6 +204,60 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 power_attr(state);
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * The 'wakeup_count' attribute, along with the functions defined in
+ * drivers/base/power/wakeup.c, provides a means by which wakeup events can be
+ * handled in a non-racy way.
+ *
+ * If a wakeup event occurs when the system is in a sleep state, it simply is
+ * woken up.  In turn, if an event that would wake the system up from a sleep
+ * state occurs when it is undergoing a transition to that sleep state, the
+ * transition should be aborted.  Moreover, if such an event occurs when the
+ * system is in the working state, an attempt to start a transition to the
+ * given sleep state should fail during certain period after the detection of
+ * the event.  Using the 'state' attribute alone is not sufficient to satisfy
+ * these requirements, because a wakeup event may occur exactly when 'state'
+ * is being written to and may be delivered to user space right before it is
+ * frozen, so the event will remain only partially processed until the system is
+ * woken up by another event.  In particular, it won't cause the transition to
+ * a sleep state to be aborted.
+ *
+ * This difficulty may be overcome if user space uses 'wakeup_count' before
+ * writing to 'state'.  It first should read from 'wakeup_count' and store
+ * the read value.  Then, after carrying out its own preparations for the system
+ * transition to a sleep state, it should write the stored value to
+ * 'wakeup_count'.  If that fails, at least one wakeup event has occured since
+ * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
+ * is allowed to write to 'state', but the transition will be aborted if there
+ * are any wakeup events detected after 'wakeup_count' was written to.
+ */
+
+static ssize_t wakeup_count_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char *buf)
+{
+	unsigned long val;
+
+	return pm_get_wakeup_count(&val) ? sprintf(buf, "%lu\n", val) : -EINTR;
+}
+
+static ssize_t wakeup_count_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (sscanf(buf, "%lu", &val) == 1) {
+		if (pm_save_wakeup_count(val))
+			return n;
+	}
+	return -EINVAL;
+}
+
+power_attr(wakeup_count);
+#endif /* CONFIG_PM_SLEEP */
+
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
@@ -236,6 +290,7 @@ static struct attribute * g[] = {
 #endif
 #ifdef CONFIG_PM_SLEEP
 	&pm_async_attr.attr,
+	&wakeup_count_attr.attr,
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
 #endif

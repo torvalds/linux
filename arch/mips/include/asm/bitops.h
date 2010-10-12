@@ -700,7 +700,10 @@ static inline int ffs(int word)
 #ifdef __KERNEL__
 
 #include <asm-generic/bitops/sched.h>
-#include <asm-generic/bitops/hweight.h>
+
+#include <asm/arch_hweight.h>
+#include <asm-generic/bitops/const_hweight.h>
+
 #include <asm-generic/bitops/ext2-non-atomic.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 #include <asm-generic/bitops/minix.h>

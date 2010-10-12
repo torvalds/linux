@@ -394,7 +394,7 @@ err:
 
 static int hdpvr_release(struct file *file)
 {
-	struct hdpvr_fh		*fh  = (struct hdpvr_fh *)file->private_data;
+	struct hdpvr_fh		*fh  = file->private_data;
 	struct hdpvr_device	*dev = fh->dev;
 
 	if (!dev)
@@ -518,7 +518,7 @@ err:
 static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 {
 	struct hdpvr_buffer *buf = NULL;
-	struct hdpvr_fh *fh = (struct hdpvr_fh *)filp->private_data;
+	struct hdpvr_fh *fh = filp->private_data;
 	struct hdpvr_device *dev = fh->dev;
 	unsigned int mask = 0;
 

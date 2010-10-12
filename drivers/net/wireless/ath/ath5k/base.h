@@ -47,6 +47,7 @@
 #include <linux/if_ether.h>
 #include <linux/leds.h>
 #include <linux/rfkill.h>
+#include <linux/workqueue.h>
 
 #include "ath5k.h"
 #include "debug.h"
@@ -136,6 +137,7 @@ struct ath5k_statistics {
 
 	unsigned int mib_intr;
 	unsigned int rxorn_intr;
+	unsigned int rxeol_intr;
 };
 
 #if CHAN_DEBUG
@@ -189,7 +191,7 @@ struct ath5k_softc {
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
 				led_on;		/* pin setting for LED on */
 
-	struct tasklet_struct	restq;		/* reset tasklet */
+	struct work_struct	reset_work;	/* deferred chip reset */
 
 	unsigned int		rxbufsize;	/* rx size based on mtu */
 	struct list_head	rxbuf;		/* receive buffer */

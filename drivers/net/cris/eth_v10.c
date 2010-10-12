@@ -1702,11 +1702,7 @@ e100_set_network_leds(int active)
 
 	if (!current_speed) {
 		/* Make LED red, link is down */
-#if defined(CONFIG_ETRAX_NETWORK_RED_ON_NO_CONNECTION)
-		CRIS_LED_NETWORK_SET(CRIS_LED_RED);
-#else
 		CRIS_LED_NETWORK_SET(CRIS_LED_OFF);
-#endif
 	} else if (light_leds) {
 		if (current_speed == 10) {
 			CRIS_LED_NETWORK_SET(CRIS_LED_ORANGE);

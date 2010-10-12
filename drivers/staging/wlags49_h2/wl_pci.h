@@ -67,10 +67,10 @@
 /*******************************************************************************
  *  constant definitions
  ******************************************************************************/
-#define WL_LKM_PCI_VENDOR_ID    0x11C1  // Lucent Microelectronics
-#define WL_LKM_PCI_DEVICE_ID_0  0xAB30  // Mini PCI
-#define WL_LKM_PCI_DEVICE_ID_1  0xAB34  // Mini PCI
-#define WL_LKM_PCI_DEVICE_ID_2  0xAB11  // WARP CardBus
+#define PCI_VENDOR_IDWL_LKM     0x11C1  /* Lucent Microelectronics */
+#define PCI_DEVICE_ID_WL_LKM_0  0xAB30  /* Mini PCI */
+#define PCI_DEVICE_ID_WL_LKM_1  0xAB34  /* Mini PCI */
+#define PCI_DEVICE_ID_WL_LKM_2  0xAB11  /* WARP CardBus */
 
 
 

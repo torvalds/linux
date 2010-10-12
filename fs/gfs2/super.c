@@ -342,8 +342,6 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	int ar;
-	int error;
 
 	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
 	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
@@ -352,13 +350,12 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 	}
 	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	error = gfs2_write_alloc_required(ip, 0, ip->i_disksize, &ar);
-	if (!error && ar) {
+	if (gfs2_write_alloc_required(ip, 0, ip->i_disksize)) {
 		gfs2_consist_inode(ip);
-		error = -EIO;
+		return -EIO;
 	}
 
-	return error;
+	return 0;
 }
 
 /**
@@ -1191,7 +1188,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * node for later deallocation.
  */
 
-static void gfs2_drop_inode(struct inode *inode)
+static int gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
@@ -1200,26 +1197,7 @@ static void gfs2_drop_inode(struct inode *inode)
 		if (gl && test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
 	}
-	generic_drop_inode(inode);
-}
-
-/**
- * gfs2_clear_inode - Deallocate an inode when VFS is done with it
- * @inode: The VFS inode
- *
- */
-
-static void gfs2_clear_inode(struct inode *inode)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-
-	ip->i_gl->gl_object = NULL;
-	gfs2_glock_put(ip->i_gl);
-	ip->i_gl = NULL;
-	if (ip->i_iopen_gh.gh_gl) {
-		ip->i_iopen_gh.gh_gl->gl_object = NULL;
-		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
-	}
+	return generic_drop_inode(inode);
 }
 
 static int is_ancestor(const struct dentry *d1, const struct dentry *d2)
@@ -1347,12 +1325,15 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
  * is safe, just less efficient.
  */
 
-static void gfs2_delete_inode(struct inode *inode)
+static void gfs2_evict_inode(struct inode *inode)
 {
 	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
+
+	if (inode->i_nlink)
+		goto out;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (unlikely(error)) {
@@ -1407,10 +1388,18 @@ out_unlock:
 	gfs2_holder_uninit(&ip->i_iopen_gh);
 	gfs2_glock_dq_uninit(&gh);
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
-		fs_warn(sdp, "gfs2_delete_inode: %d\n", error);
+		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
 	truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
+	end_writeback(inode);
+
+	ip->i_gl->gl_object = NULL;
+	gfs2_glock_put(ip->i_gl);
+	ip->i_gl = NULL;
+	if (ip->i_iopen_gh.gh_gl) {
+		ip->i_iopen_gh.gh_gl->gl_object = NULL;
+		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+	}
 }
 
 static struct inode *gfs2_alloc_inode(struct super_block *sb)
@@ -1434,14 +1423,13 @@ const struct super_operations gfs2_super_ops = {
 	.alloc_inode		= gfs2_alloc_inode,
 	.destroy_inode		= gfs2_destroy_inode,
 	.write_inode		= gfs2_write_inode,
-	.delete_inode		= gfs2_delete_inode,
+	.evict_inode		= gfs2_evict_inode,
 	.put_super		= gfs2_put_super,
 	.sync_fs		= gfs2_sync_fs,
 	.freeze_fs 		= gfs2_freeze,
 	.unfreeze_fs		= gfs2_unfreeze,
 	.statfs			= gfs2_statfs,
 	.remount_fs		= gfs2_remount_fs,
-	.clear_inode		= gfs2_clear_inode,
 	.drop_inode		= gfs2_drop_inode,
 	.show_options		= gfs2_show_options,
 };

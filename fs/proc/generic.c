@@ -12,6 +12,7 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mount.h>
@@ -258,17 +259,22 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 
 	error = inode_change_ok(inode, iattr);
 	if (error)
-		goto out;
+		return error;
 
-	error = inode_setattr(inode, iattr);
-	if (error)
-		goto out;
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, iattr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
 	
 	de->uid = inode->i_uid;
 	de->gid = inode->i_gid;
 	de->mode = inode->i_mode;
-out:
-	return error;
+	return 0;
 }
 
 static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,

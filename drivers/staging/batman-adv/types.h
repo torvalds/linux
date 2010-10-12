@@ -21,10 +21,8 @@
 
 
 
-
-
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef _NET_BATMAN_ADV_TYPES_H_
+#define _NET_BATMAN_ADV_TYPES_H_
 
 #include "packet.h"
 #include "bitarray.h"
@@ -52,6 +50,7 @@ struct batman_if {
 
 /**
   *	orig_node - structure for orig_list maintaining nodes of mesh
+  *	@primary_addr: hosts primary interface address
   *	@last_valid: when last packet from this node was received
   *	@bcast_seqno_reset: time when the broadcast seqno window was reset
   *	@batman_seqno_reset: time when the batman seqno window was reset
@@ -59,9 +58,13 @@ struct batman_if {
   *	@last_real_seqno: last and best known squence number
   *	@last_ttl: ttl of last received packet
   *	@last_bcast_seqno: last broadcast sequence number received by this host
+  *
+  *	@candidates: how many candidates are available
+  *	@selected: next bonding candidate
  */
 struct orig_node {
 	uint8_t orig[ETH_ALEN];
+	uint8_t primary_addr[ETH_ALEN];
 	struct neigh_node *router;
 	TYPE_OF_WORD *bcast_own;
 	uint8_t *bcast_own_sum;
@@ -72,12 +75,16 @@ struct orig_node {
 	unsigned long batman_seqno_reset;
 	uint8_t  flags;
 	unsigned char *hna_buff;
-	int16_t  hna_buff_len;
-	uint16_t last_real_seqno;
+	int16_t hna_buff_len;
+	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	TYPE_OF_WORD bcast_bits[NUM_WORDS];
-	uint16_t last_bcast_seqno;
+	uint32_t last_bcast_seqno;
 	struct list_head neigh_list;
+	struct {
+		uint8_t candidates;
+		struct neigh_node *selected;
+	} bond;
 };
 
 /**
@@ -92,6 +99,7 @@ struct neigh_node {
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
+	struct neigh_node *next_bond_candidate;
 	unsigned long last_valid;
 	TYPE_OF_WORD real_bits[NUM_WORDS];
 	struct orig_node *orig_node;
@@ -101,14 +109,18 @@ struct neigh_node {
 struct bat_priv {
 	struct net_device_stats stats;
 	atomic_t aggregation_enabled;
+	atomic_t bonding_enabled;
 	atomic_t vis_mode;
 	atomic_t orig_interval;
+	atomic_t log_level;
 	char num_ifaces;
+	struct debug_log *debug_log;
 	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
+	struct dentry *debug_dir;
 };
 
-struct device_client {
+struct socket_client {
 	struct list_head queue_list;
 	unsigned int queue_len;
 	unsigned char index;
@@ -116,9 +128,10 @@ struct device_client {
 	wait_queue_head_t queue_wait;
 };
 
-struct device_packet {
+struct socket_packet {
 	struct list_head list;
-	struct icmp_packet icmp_packet;
+	size_t icmp_len;
+	struct icmp_packet_rr icmp_packet;
 };
 
 struct hna_local_entry {
@@ -159,4 +172,12 @@ struct if_list_entry {
 	struct hlist_node list;
 };
 
-#endif
+struct debug_log {
+	char log_buff[LOG_BUF_LEN];
+	unsigned long log_start;
+	unsigned long log_end;
+	spinlock_t lock;
+	wait_queue_head_t queue_wait;
+};
+
+#endif /* _NET_BATMAN_ADV_TYPES_H_ */

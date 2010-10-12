@@ -103,7 +103,9 @@
       the two sets of lengths.
  */
 #include <linux/compiler.h>
+#ifdef NO_INFLATE_MALLOC
 #include <linux/slab.h>
+#endif
 
 #ifdef RCSID
 static char rcsid[] = "#Id: inflate.c,v 0.14 1993/06/10 13:27:04 jloup Exp #";

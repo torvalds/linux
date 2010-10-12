@@ -292,40 +292,28 @@ static struct platform_device cpmac_high = {
 	.num_resources	= ARRAY_SIZE(cpmac_high_res),
 };
 
-static inline unsigned char char2hex(char h)
+static void __init cpmac_get_mac(int instance, unsigned char *dev_addr)
 {
-	switch (h) {
-	case '0': case '1': case '2': case '3': case '4':
-	case '5': case '6': case '7': case '8': case '9':
-		return h - '0';
-	case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-		return h - 'A' + 10;
-	case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-		return h - 'a' + 10;
-	default:
-		return 0;
-	}
-}
+	char name[5], *mac;
 
-static void cpmac_get_mac(int instance, unsigned char *dev_addr)
-{
-	int i;
-	char name[5], default_mac[ETH_ALEN], *mac;
-
-	mac = NULL;
 	sprintf(name, "mac%c", 'a' + instance);
 	mac = prom_getenv(name);
-	if (!mac) {
+	if (!mac && instance) {
 		sprintf(name, "mac%c", 'a');
 		mac = prom_getenv(name);
 	}
-	if (!mac) {
-		random_ether_addr(default_mac);
-		mac = default_mac;
-	}
-	for (i = 0; i < 6; i++)
-		dev_addr[i] = (char2hex(mac[i * 3]) << 4) +
-			char2hex(mac[i * 3 + 1]);
+
+	if (mac) {
+		if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+					&dev_addr[0], &dev_addr[1],
+					&dev_addr[2], &dev_addr[3],
+					&dev_addr[4], &dev_addr[5]) != 6) {
+			pr_warning("cannot parse mac address, "
+					"using random address\n");
+			random_ether_addr(dev_addr);
+		}
+	} else
+		random_ether_addr(dev_addr);
 }
 
 /*****************************************************************************

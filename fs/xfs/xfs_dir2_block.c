@@ -24,12 +24,10 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
@@ -1073,10 +1071,10 @@ xfs_dir2_sf_to_block(
 	 */
 
 	buf_len = dp->i_df.if_bytes;
-	buf = kmem_alloc(dp->i_df.if_bytes, KM_SLEEP);
+	buf = kmem_alloc(buf_len, KM_SLEEP);
 
-	memcpy(buf, sfp, dp->i_df.if_bytes);
-	xfs_idata_realloc(dp, -dp->i_df.if_bytes, XFS_DATA_FORK);
+	memcpy(buf, sfp, buf_len);
+	xfs_idata_realloc(dp, -buf_len, XFS_DATA_FORK);
 	dp->i_d.di_size = 0;
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 	/*

@@ -170,7 +170,7 @@ static int find_ctxt(struct qib_devdata *dd, unsigned bufn)
 void qib_disarm_piobufs_set(struct qib_devdata *dd, unsigned long *mask,
 			    unsigned cnt)
 {
-	struct qib_pportdata *ppd, *pppd[dd->num_pports];
+	struct qib_pportdata *ppd, *pppd[QIB_MAX_IB_PORTS];
 	unsigned i;
 	unsigned long flags;
 

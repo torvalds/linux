@@ -365,8 +365,8 @@ bcom_engine_cleanup(void)
 /* OF platform driver                                                       */
 /* ======================================================================== */
 
-static int __devinit
-mpc52xx_bcom_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit mpc52xx_bcom_probe(struct platform_device *op,
+					const struct of_device_id *match)
 {
 	struct device_node *ofn_sram;
 	struct resource res_bcom;
@@ -461,8 +461,7 @@ error_ofput:
 }
 
 
-static int
-mpc52xx_bcom_remove(struct of_device *op)
+static int mpc52xx_bcom_remove(struct platform_device *op)
 {
 	/* Clean up the engine */
 	bcom_engine_cleanup();

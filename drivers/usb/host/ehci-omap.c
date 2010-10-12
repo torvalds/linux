@@ -38,6 +38,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/usb/ulpi.h>
 #include <plat/usb.h>
 
 /*
@@ -236,6 +237,35 @@ static void omap_usb_utmi_init(struct ehci_hcd_omap *omap, u8 tll_channel_mask)
 
 /*-------------------------------------------------------------------------*/
 
+static void omap_ehci_soft_phy_reset(struct ehci_hcd_omap *omap, u8 port)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	unsigned reg = 0;
+
+	reg = ULPI_FUNC_CTRL_RESET
+		/* FUNCTION_CTRL_SET register */
+		| (ULPI_SET(ULPI_FUNC_CTRL) << EHCI_INSNREG05_ULPI_REGADD_SHIFT)
+		/* Write */
+		| (2 << EHCI_INSNREG05_ULPI_OPSEL_SHIFT)
+		/* PORTn */
+		| ((port + 1) << EHCI_INSNREG05_ULPI_PORTSEL_SHIFT)
+		/* start ULPI access*/
+		| (1 << EHCI_INSNREG05_ULPI_CONTROL_SHIFT);
+
+	ehci_omap_writel(omap->ehci_base, EHCI_INSNREG05_ULPI, reg);
+
+	/* Wait for ULPI access completion */
+	while ((ehci_omap_readl(omap->ehci_base, EHCI_INSNREG05_ULPI)
+			& (1 << EHCI_INSNREG05_ULPI_CONTROL_SHIFT))) {
+		cpu_relax();
+
+		if (time_after(jiffies, timeout)) {
+			dev_dbg(omap->dev, "phy reset operation timed out\n");
+			break;
+		}
+	}
+}
+
 /* omap_start_ehc
  *	- Start the TI USBHOST controller
  */
@@ -424,6 +454,12 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 		if (gpio_is_valid(omap->reset_gpio_port[1]))
 			gpio_set_value(omap->reset_gpio_port[1], 1);
 	}
+
+	/* Soft reset the PHY using PHY reset command over ULPI */
+	if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY)
+		omap_ehci_soft_phy_reset(omap, 0);
+	if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY)
+		omap_ehci_soft_phy_reset(omap, 1);
 
 	return 0;
 

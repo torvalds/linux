@@ -9717,7 +9717,7 @@ static ushort __devinit AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
 	asc_dvc->bug_fix_cntl = 0;
 	asc_dvc->pci_fix_asyn_xfer = 0;
 	asc_dvc->pci_fix_asyn_xfer_always = 0;
-	/* asc_dvc->init_state initalized in AscInitGetConfig(). */
+	/* asc_dvc->init_state initialized in AscInitGetConfig(). */
 	asc_dvc->sdtr_done = 0;
 	asc_dvc->cur_total_qng = 0;
 	asc_dvc->is_in_int = 0;

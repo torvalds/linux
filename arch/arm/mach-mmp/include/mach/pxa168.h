@@ -1,6 +1,11 @@
 #ifndef __ASM_MACH_PXA168_H
 #define __ASM_MACH_PXA168_H
 
+struct sys_timer;
+
+extern struct sys_timer pxa168_timer;
+extern void __init pxa168_init_irq(void);
+
 #include <linux/i2c.h>
 #include <mach/devices.h>
 #include <plat/i2c.h>

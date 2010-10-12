@@ -226,6 +226,7 @@
 
 #define S3C_DIEPMSK				S3C_HSOTG_REG(0x810)
 
+#define S3C_DIEPMSK_TxFIFOEmpty			(1 << 7)
 #define S3C_DIEPMSK_INEPNakEffMsk		(1 << 6)
 #define S3C_DIEPMSK_INTknEPMisMsk		(1 << 5)
 #define S3C_DIEPMSK_INTknTXFEmpMsk		(1 << 4)
@@ -371,6 +372,7 @@
 
 #define S3C_DIEPDMA(_a)				S3C_HSOTG_REG(0x914 + ((_a) * 0x20))
 #define S3C_DOEPDMA(_a)				S3C_HSOTG_REG(0xB14 + ((_a) * 0x20))
+#define S3C_DTXFSTS(_a)				S3C_HSOTG_REG(0x918 + ((_a) * 0x20))
 
 #define S3C_EPFIFO(_a)				S3C_HSOTG_REG(0x1000 + ((_a) * 0x1000))
 

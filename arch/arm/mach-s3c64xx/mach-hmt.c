@@ -128,7 +128,6 @@ static struct platform_device hmt_backlight_device = {
 
 static struct s3c_fb_pd_win hmt_fb_win0 = {
 	.win_mode	= {
-		.pixclock	= 41094,
 		.left_margin	= 8,
 		.right_margin	= 13,
 		.upper_margin	= 7,

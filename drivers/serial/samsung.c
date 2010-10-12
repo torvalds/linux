@@ -705,8 +705,13 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (ourport->info->has_divslot) {
 		unsigned int div = ourport->baudclk_rate / baud;
 
-		udivslot = udivslot_table[div & 15];
-		dbg("udivslot = %04x (div %d)\n", udivslot, div & 15);
+		if (cfg->has_fracval) {
+			udivslot = (div & 15);
+			dbg("fracval = %04x\n", udivslot);
+		} else {
+			udivslot = udivslot_table[div & 15];
+			dbg("udivslot = %04x (div %d)\n", udivslot, div & 15);
+		}
 	}
 
 	switch (termios->c_cflag & CSIZE) {

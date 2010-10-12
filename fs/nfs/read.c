@@ -190,6 +190,7 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->args.pages  = data->pagevec;
 	data->args.count  = count;
 	data->args.context = get_nfs_open_context(req->wb_context);
+	data->args.lock_context = req->wb_lock_context;
 
 	data->res.fattr   = &data->fattr;
 	data->res.count   = count;
@@ -410,7 +411,7 @@ void nfs_read_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
 
-	if (nfs4_setup_sequence(NFS_SERVER(data->inode)->nfs_client,
+	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
 				&data->args.seq_args, &data->res.seq_res,
 				0, task))
 		return;

@@ -267,15 +267,11 @@ static inline void ReleaseVmbusChannel(void *context)
 {
 	struct vmbus_channel *channel = context;
 
-	DPRINT_ENTER(VMBUS);
-
 	DPRINT_DBG(VMBUS, "releasing channel (%p)", channel);
 	destroy_workqueue(channel->ControlWQ);
 	DPRINT_DBG(VMBUS, "channel released (%p)", channel);
 
 	kfree(channel);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -326,8 +322,6 @@ static void VmbusChannelProcessOffer(void *context)
 	int cnt;
 	unsigned long flags;
 
-	DPRINT_ENTER(VMBUS);
-
 	/* Make sure this is a new offer */
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 
@@ -353,7 +347,6 @@ static void VmbusChannelProcessOffer(void *context)
 		DPRINT_DBG(VMBUS, "Ignoring duplicate offer for relid (%d)",
 			   newChannel->OfferMsg.ChildRelId);
 		FreeVmbusChannel(newChannel);
-		DPRINT_EXIT(VMBUS);
 		return;
 	}
 
@@ -410,7 +403,6 @@ static void VmbusChannelProcessOffer(void *context)
 			}
 		}
 	}
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -420,9 +412,7 @@ static void VmbusChannelProcessRescindOffer(void *context)
 {
 	struct vmbus_channel *channel = context;
 
-	DPRINT_ENTER(VMBUS);
 	VmbusChildDeviceRemove(channel->DeviceObject);
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -441,8 +431,6 @@ static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr)
 	int i;
 	int fSupported = 0;
 
-	DPRINT_ENTER(VMBUS);
-
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 	for (i = 0; i < MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++) {
 		if (memcmp(&offer->Offer.InterfaceType,
@@ -455,7 +443,6 @@ static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr)
 	if (!fSupported) {
 		DPRINT_DBG(VMBUS, "Ignoring channel offer notification for "
 			   "child relid %d", offer->ChildRelId);
-		DPRINT_EXIT(VMBUS);
 		return;
 	}
 
@@ -504,8 +491,6 @@ static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr)
 	/* TODO: Make sure the offer comes from our parent partition */
 	osd_schedule_callback(newChannel->ControlWQ, VmbusChannelProcessOffer,
 			      newChannel);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -518,8 +503,6 @@ static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *hdr)
 	struct vmbus_channel_rescind_offer *rescind;
 	struct vmbus_channel *channel;
 
-	DPRINT_ENTER(VMBUS);
-
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
 	channel = GetChannelFromRelId(rescind->ChildRelId);
 	if (channel == NULL) {
@@ -531,8 +514,6 @@ static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *hdr)
 	osd_schedule_callback(channel->ControlWQ,
 			      VmbusChannelProcessRescindOffer,
 			      channel);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -543,8 +524,6 @@ static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *hdr)
 static void VmbusChannelOnOffersDelivered(
 			struct vmbus_channel_message_header *hdr)
 {
-	DPRINT_ENTER(VMBUS);
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -562,8 +541,6 @@ static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_open_channel *openMsg;
 	unsigned long flags;
-
-	DPRINT_ENTER(VMBUS);
 
 	result = (struct vmbus_channel_open_result *)hdr;
 	DPRINT_DBG(VMBUS, "vmbus open result - %d", result->Status);
@@ -591,8 +568,6 @@ static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 		}
 	}
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -610,8 +585,6 @@ static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr)
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_gpadl_header *gpadlHeader;
 	unsigned long flags;
-
-	DPRINT_ENTER(VMBUS);
 
 	gpadlCreated = (struct vmbus_channel_gpadl_created *)hdr;
 	DPRINT_DBG(VMBUS, "vmbus gpadl created result - %d",
@@ -643,8 +616,6 @@ static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr)
 		}
 	}
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -663,8 +634,6 @@ static void VmbusChannelOnGpadlTorndown(
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_gpadl_teardown *gpadlTeardown;
 	unsigned long flags;
-
-	DPRINT_ENTER(VMBUS);
 
 	gpadlTorndown = (struct vmbus_channel_gpadl_torndown *)hdr;
 
@@ -691,8 +660,6 @@ static void VmbusChannelOnGpadlTorndown(
 		}
 	}
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -712,8 +679,6 @@ static void VmbusChannelOnVersionResponse(
 	struct vmbus_channel_version_response *versionResponse;
 	unsigned long flags;
 
-	DPRINT_ENTER(VMBUS);
-
 	versionResponse = (struct vmbus_channel_version_response *)hdr;
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
@@ -732,8 +697,6 @@ static void VmbusChannelOnVersionResponse(
 		}
 	}
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /* Channel message dispatch table */
@@ -769,8 +732,6 @@ void VmbusOnChannelMessage(void *Context)
 	struct vmbus_channel_message_header *hdr;
 	int size;
 
-	DPRINT_ENTER(VMBUS);
-
 	hdr = (struct vmbus_channel_message_header *)msg->u.Payload;
 	size = msg->Header.PayloadSize;
 
@@ -794,7 +755,6 @@ void VmbusOnChannelMessage(void *Context)
 
 	/* Free the msg that was allocated in VmbusOnMsgDPC() */
 	kfree(msg);
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -805,8 +765,6 @@ int VmbusChannelRequestOffers(void)
 	struct vmbus_channel_message_header *msg;
 	struct vmbus_channel_msginfo *msgInfo;
 	int ret;
-
-	DPRINT_ENTER(VMBUS);
 
 	msgInfo = kmalloc(sizeof(*msgInfo) +
 			  sizeof(struct vmbus_channel_message_header),
@@ -853,7 +811,6 @@ Cleanup:
 		kfree(msgInfo);
 	}
 
-	DPRINT_EXIT(VMBUS);
 	return ret;
 }
 

@@ -1,3 +1,4 @@
+header-y += ebt_802_3.h
 header-y += ebt_among.h
 header-y += ebt_arp.h
 header-y += ebt_arpreply.h
@@ -12,6 +13,4 @@ header-y += ebt_redirect.h
 header-y += ebt_stp.h
 header-y += ebt_ulog.h
 header-y += ebt_vlan.h
-
-unifdef-y += ebtables.h
-unifdef-y += ebt_802_3.h
+header-y += ebtables.h

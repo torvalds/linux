@@ -22,9 +22,11 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
+	select SND_SOC_CS42L51 if I2C
 	select SND_SOC_CS4270 if I2C
-	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_DA7210 if I2C
+	select SND_SOC_JZ4740 if SOC_JZ4740
+	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if I2C
@@ -48,6 +50,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8727
 	select SND_SOC_WM8728 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8731 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8741 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8750 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
@@ -120,12 +123,12 @@ config SND_SOC_AK4671
 config SND_SOC_CQ0093VC
 	tristate
 
+config SND_SOC_CS42L51
+	tristate
+
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate
-
-config SND_SOC_DA7210
-        tristate
 
 # Cirrus Logic CS4270 Codec VD = 3.3V Errata
 # Select if you are affected by the errata where the part will not function
@@ -138,8 +141,14 @@ config SND_SOC_CS4270_VD33_ERRATA
 config SND_SOC_CX20442
 	tristate
 
+config SND_SOC_JZ4740_CODEC
+	tristate
+
 config SND_SOC_L3
        tristate
+
+config SND_SOC_DA7210
+        tristate
 
 config SND_SOC_PCM3008
        tristate
@@ -204,6 +213,9 @@ config SND_SOC_WM8728
 	tristate
 
 config SND_SOC_WM8731
+	tristate
+
+config SND_SOC_WM8741
 	tristate
 
 config SND_SOC_WM8750

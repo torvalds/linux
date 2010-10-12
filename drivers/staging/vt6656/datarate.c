@@ -72,7 +72,7 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
     BYTE            ii;
 
     // clear statistic counter for auto_rate
-    for(ii=0;ii<=MAX_RATE;ii++) {
+    for (ii = 0; ii <= MAX_RATE; ii++) {
         psNodeDBTable->uTxOk[ii] = 0;
         psNodeDBTable->uTxFail[ii] = 0;
     }
@@ -309,7 +309,6 @@ RATEvTxRateFallBack(
 {
 PSDevice        pDevice = (PSDevice) pDeviceHandler;
 PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-#if 1  //mike fixed old: use packet lose ratio algorithm to control rate
 WORD            wIdxDownRate = 0;
 unsigned int            ii;
 BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
@@ -337,7 +336,7 @@ DWORD           dwTxDiff = 0;
         psNodeDBTable->uTimeCount = 0;
     }
 
-    for(ii=0;ii<MAX_RATE;ii++) {
+    for (ii = 0; ii < MAX_RATE; ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
             if (bAutoRate[ii] == TRUE) {
                 wIdxUpRate = (WORD) ii;
@@ -347,7 +346,7 @@ DWORD           dwTxDiff = 0;
         }
     }
 
-    for(ii=0;ii<=psNodeDBTable->wTxDataRate;ii++) {
+    for (ii = 0; ii <= psNodeDBTable->wTxDataRate; ii++) {
         if ( (psNodeDBTable->uTxOk[ii] != 0) ||
              (psNodeDBTable->uTxFail[ii] != 0) ) {
             dwThroughputTbl[ii] *= psNodeDBTable->uTxOk[ii];
@@ -362,7 +361,7 @@ DWORD           dwTxDiff = 0;
     dwThroughput = dwThroughputTbl[psNodeDBTable->wTxDataRate];
 
     wIdxDownRate = psNodeDBTable->wTxDataRate;
-    for(ii = psNodeDBTable->wTxDataRate; ii > 0;) {
+    for (ii = psNodeDBTable->wTxDataRate; ii > 0;) {
         ii--;
         if ( (dwThroughputTbl[ii] > dwThroughput) &&
              (bAutoRate[ii]==TRUE) ) {
@@ -389,66 +388,6 @@ DWORD           dwTxDiff = 0;
     s_vResetCounter(psNodeDBTable);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Rate: %d, U:%d, D:%d\n", (int)psNodeDBTable->wTxDataRate, (int)wIdxUpRate, (int)wIdxDownRate);
     return;
-#else  //mike fixed new: use differ-signal strength to control rate
-WORD            wIdxUpRate = 0;
-BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
-unsigned int            ii;
-long  ldBm;
-
-    if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-        // Don't do Fallback when scanning Channel
-        return;
-    }
-
-    for(ii=0;ii<MAX_RATE;ii++) {
-        if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
-            if (bAutoRate[ii] == TRUE) {
-                wIdxUpRate = (WORD) ii;
-            }
-        } else {
-            bAutoRate[ii] = FALSE;
-        }
-    }
-
-         RFvRSSITodBm(pDevice, (BYTE)(pDevice->uCurrRSSI), &ldBm);
-
-	if (ldBm > -55) {
-		if ( psNodeDBTable->wSuppRate & (0x0001<<RATE_54M) )  //11a/g
-      		{
-	  		psNodeDBTable->wTxDataRate = RATE_54M;
-		}
-		else{ //11b
-	  		psNodeDBTable->wTxDataRate = RATE_11M;
-		}
-	}
-
-if (wIdxUpRate == RATE_54M ) {     //11a/g
-		if (ldBm > -56 )
-			psNodeDBTable->wTxDataRate = RATE_54M;
-		else if (ldBm > -61 )
-			psNodeDBTable->wTxDataRate = RATE_48M;
-		else if (ldBm > -66 )
-			psNodeDBTable->wTxDataRate = RATE_36M;
-		else if (ldBm > -72 )
-			psNodeDBTable->wTxDataRate = RATE_24M;
-		else if (ldBm > -80 )
-			psNodeDBTable->wTxDataRate = RATE_5M;
-		else {
-			psNodeDBTable->wTxDataRate = RATE_1M;
-			//increasingVGA = TRUE;
-		}
-	}
-	else {  //11b
-		if (ldBm > -65 )
-			psNodeDBTable->wTxDataRate = RATE_11M;
-		else if (ldBm > -75 )
-			psNodeDBTable->wTxDataRate = RATE_5M;
-		else
-			psNodeDBTable->wTxDataRate = RATE_1M;
-	}
-
-   return;
-#endif
 }
 
 /*+

@@ -223,7 +223,7 @@ static int __devinit max1586_pmic_probe(struct i2c_client *client,
 		}
 	}
 
-	i2c_set_clientdata(client, rdev);
+	i2c_set_clientdata(client, max1586);
 	dev_info(&client->dev, "Maxim 1586 regulator driver loaded\n");
 	return 0;
 
@@ -238,13 +238,13 @@ out:
 
 static int __devexit max1586_pmic_remove(struct i2c_client *client)
 {
-	struct regulator_dev **rdev = i2c_get_clientdata(client);
+	struct max1586_data *max1586 = i2c_get_clientdata(client);
 	int i;
 
 	for (i = 0; i <= MAX1586_V6; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-	kfree(rdev);
+		if (max1586->rdev[i])
+			regulator_unregister(max1586->rdev[i]);
+	kfree(max1586);
 
 	return 0;
 }

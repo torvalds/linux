@@ -93,7 +93,7 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 		/* Put the name into the buffer */
 
 		ACPI_MOVE_32_TO_32((name_buffer + index), &parent_node->name);
-		parent_node = acpi_ns_get_parent_node(parent_node);
+		parent_node = parent_node->parent;
 
 		/* Prefix name with the path separator */
 
@@ -198,7 +198,7 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 			return 0;
 		}
 		size += ACPI_PATH_SEGMENT_LENGTH;
-		next_node = acpi_ns_get_parent_node(next_node);
+		next_node = next_node->parent;
 	}
 
 	if (!size) {

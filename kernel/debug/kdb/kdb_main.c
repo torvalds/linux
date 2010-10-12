@@ -312,10 +312,29 @@ int kdbgetularg(const char *arg, unsigned long *value)
 
 	if (endp == arg) {
 		/*
-		 * Try base 16, for us folks too lazy to type the
+		 * Also try base 16, for us folks too lazy to type the
 		 * leading 0x...
 		 */
 		val = simple_strtoul(arg, &endp, 16);
+		if (endp == arg)
+			return KDB_BADINT;
+	}
+
+	*value = val;
+
+	return 0;
+}
+
+int kdbgetu64arg(const char *arg, u64 *value)
+{
+	char *endp;
+	u64 val;
+
+	val = simple_strtoull(arg, &endp, 0);
+
+	if (endp == arg) {
+
+		val = simple_strtoull(arg, &endp, 16);
 		if (endp == arg)
 			return KDB_BADINT;
 	}
@@ -1770,11 +1789,65 @@ static int kdb_go(int argc, const char **argv)
  */
 static int kdb_rd(int argc, const char **argv)
 {
-	int diag = kdb_check_regs();
-	if (diag)
-		return diag;
+	int len = kdb_check_regs();
+#if DBG_MAX_REG_NUM > 0
+	int i;
+	char *rname;
+	int rsize;
+	u64 reg64;
+	u32 reg32;
+	u16 reg16;
+	u8 reg8;
+
+	if (len)
+		return len;
+
+	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
+		rsize = dbg_reg_def[i].size * 2;
+		if (rsize > 16)
+			rsize = 2;
+		if (len + strlen(dbg_reg_def[i].name) + 4 + rsize > 80) {
+			len = 0;
+			kdb_printf("\n");
+		}
+		if (len)
+			len += kdb_printf("  ");
+		switch(dbg_reg_def[i].size * 8) {
+		case 8:
+			rname = dbg_get_reg(i, &reg8, kdb_current_regs);
+			if (!rname)
+				break;
+			len += kdb_printf("%s: %02x", rname, reg8);
+			break;
+		case 16:
+			rname = dbg_get_reg(i, &reg16, kdb_current_regs);
+			if (!rname)
+				break;
+			len += kdb_printf("%s: %04x", rname, reg16);
+			break;
+		case 32:
+			rname = dbg_get_reg(i, &reg32, kdb_current_regs);
+			if (!rname)
+				break;
+			len += kdb_printf("%s: %08x", rname, reg32);
+			break;
+		case 64:
+			rname = dbg_get_reg(i, &reg64, kdb_current_regs);
+			if (!rname)
+				break;
+			len += kdb_printf("%s: %016llx", rname, reg64);
+			break;
+		default:
+			len += kdb_printf("%s: ??", dbg_reg_def[i].name);
+		}
+	}
+	kdb_printf("\n");
+#else
+	if (len)
+		return len;
 
 	kdb_dumpregs(kdb_current_regs);
+#endif
 	return 0;
 }
 
@@ -1782,32 +1855,67 @@ static int kdb_rd(int argc, const char **argv)
  * kdb_rm - This function implements the 'rm' (register modify)  command.
  *	rm register-name new-contents
  * Remarks:
- *	Currently doesn't allow modification of control or
- *	debug registers.
+ *	Allows register modification with the same restrictions as gdb
  */
 static int kdb_rm(int argc, const char **argv)
 {
+#if DBG_MAX_REG_NUM > 0
 	int diag;
-	int ind = 0;
-	unsigned long contents;
+	const char *rname;
+	int i;
+	u64 reg64;
+	u32 reg32;
+	u16 reg16;
+	u8 reg8;
 
 	if (argc != 2)
 		return KDB_ARGCOUNT;
 	/*
 	 * Allow presence or absence of leading '%' symbol.
 	 */
-	if (argv[1][0] == '%')
-		ind = 1;
+	rname = argv[1];
+	if (*rname == '%')
+		rname++;
 
-	diag = kdbgetularg(argv[2], &contents);
+	diag = kdbgetu64arg(argv[2], &reg64);
 	if (diag)
 		return diag;
 
 	diag = kdb_check_regs();
 	if (diag)
 		return diag;
+
+	diag = KDB_BADREG;
+	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
+		if (strcmp(rname, dbg_reg_def[i].name) == 0) {
+			diag = 0;
+			break;
+		}
+	}
+	if (!diag) {
+		switch(dbg_reg_def[i].size * 8) {
+		case 8:
+			reg8 = reg64;
+			dbg_set_reg(i, &reg8, kdb_current_regs);
+			break;
+		case 16:
+			reg16 = reg64;
+			dbg_set_reg(i, &reg16, kdb_current_regs);
+			break;
+		case 32:
+			reg32 = reg64;
+			dbg_set_reg(i, &reg32, kdb_current_regs);
+			break;
+		case 64:
+			dbg_set_reg(i, &reg64, kdb_current_regs);
+			break;
+		}
+	}
+	return diag;
+#else
 	kdb_printf("ERROR: Register set currently not implemented\n");
-	return 0;
+    return 0;
+#endif
 }
 
 #if defined(CONFIG_MAGIC_SYSRQ)
@@ -2440,6 +2548,7 @@ static void kdb_sysinfo(struct sysinfo *val)
  */
 static int kdb_summary(int argc, const char **argv)
 {
+	struct timespec now;
 	struct kdb_tm tm;
 	struct sysinfo val;
 
@@ -2454,7 +2563,8 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
 	kdb_printf("ccversion  %s\n", __stringify(CCVERSION));
 
-	kdb_gmtime(&xtime, &tm);
+	now = __current_kernel_time();
+	kdb_gmtime(&now, &tm);
 	kdb_printf("date       %04d-%02d-%02d %02d:%02d:%02d "
 		   "tz_minuteswest %d\n",
 		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,

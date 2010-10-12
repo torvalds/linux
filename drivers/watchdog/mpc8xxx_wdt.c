@@ -185,7 +185,7 @@ static struct miscdevice mpc8xxx_wdt_miscdev = {
 	.fops	= &mpc8xxx_wdt_fops,
 };
 
-static int __devinit mpc8xxx_wdt_probe(struct of_device *ofdev,
+static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev,
 				       const struct of_device_id *match)
 {
 	int ret;
@@ -238,7 +238,7 @@ err_unmap:
 	return ret;
 }
 
-static int __devexit mpc8xxx_wdt_remove(struct of_device *ofdev)
+static int __devexit mpc8xxx_wdt_remove(struct platform_device *ofdev)
 {
 	mpc8xxx_wdt_pr_warn("watchdog removed");
 	del_timer_sync(&wdt_timer);

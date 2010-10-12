@@ -602,8 +602,15 @@ parse_breakpoint_event(const char **strp, struct perf_event_attr *attr)
 			return EVT_FAILED;
 	}
 
-	/* We should find a nice way to override the access type */
-	attr->bp_len = HW_BREAKPOINT_LEN_4;
+	/*
+	 * We should find a nice way to override the access length
+	 * Provide some defaults for now
+	 */
+	if (attr->bp_type == HW_BREAKPOINT_X)
+		attr->bp_len = sizeof(long);
+	else
+		attr->bp_len = HW_BREAKPOINT_LEN_4;
+
 	attr->type = PERF_TYPE_BREAKPOINT;
 
 	return EVT_HANDLED;

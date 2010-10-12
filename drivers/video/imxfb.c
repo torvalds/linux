@@ -40,6 +40,12 @@
  */
 #define DEBUG_VAR 1
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || \
+	(defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE) && \
+		defined(CONFIG_FB_IMX_MODULE))
+#define PWMR_BACKLIGHT_AVAILABLE
+#endif
+
 #define DRIVER_NAME "imx-fb"
 
 #define LCDC_SSA	0x00
@@ -175,6 +181,9 @@ struct imxfb_info {
 
 	struct imx_fb_videomode *mode;
 	int			num_modes;
+#ifdef PWMR_BACKLIGHT_AVAILABLE
+	struct backlight_device *bl;
+#endif
 
 	void (*lcd_power)(int);
 	void (*backlight_power)(int);
@@ -449,6 +458,73 @@ static int imxfb_set_par(struct fb_info *info)
 	return 0;
 }
 
+#ifdef PWMR_BACKLIGHT_AVAILABLE
+static int imxfb_bl_get_brightness(struct backlight_device *bl)
+{
+	struct imxfb_info *fbi = bl_get_data(bl);
+
+	return readl(fbi->regs + LCDC_PWMR) & 0xFF;
+}
+
+static int imxfb_bl_update_status(struct backlight_device *bl)
+{
+	struct imxfb_info *fbi = bl_get_data(bl);
+	int brightness = bl->props.brightness;
+
+	if (bl->props.power != FB_BLANK_UNBLANK)
+		brightness = 0;
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		brightness = 0;
+
+	fbi->pwmr = (fbi->pwmr & ~0xFF) | brightness;
+
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		clk_enable(fbi->clk);
+	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		clk_disable(fbi->clk);
+
+	return 0;
+}
+
+static const struct backlight_ops imxfb_lcdc_bl_ops = {
+	.update_status = imxfb_bl_update_status,
+	.get_brightness = imxfb_bl_get_brightness,
+};
+
+static void imxfb_init_backlight(struct imxfb_info *fbi)
+{
+	struct backlight_properties props;
+	struct backlight_device	*bl;
+
+	if (fbi->bl)
+		return;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 0xff;
+	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
+
+	bl = backlight_device_register("imxfb-bl", &fbi->pdev->dev, fbi,
+				       &imxfb_lcdc_bl_ops, &props);
+	if (IS_ERR(bl)) {
+		dev_err(&fbi->pdev->dev, "error %ld on backlight register\n",
+				PTR_ERR(bl));
+		return;
+	}
+
+	fbi->bl = bl;
+	bl->props.power = FB_BLANK_UNBLANK;
+	bl->props.fb_blank = FB_BLANK_UNBLANK;
+	bl->props.brightness = imxfb_bl_get_brightness(bl);
+}
+
+static void imxfb_exit_backlight(struct imxfb_info *fbi)
+{
+	if (fbi->bl)
+		backlight_device_unregister(fbi->bl);
+}
+#endif
+
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
 	pr_debug("Enabling LCD controller\n");
@@ -579,7 +655,9 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 			fbi->regs + LCDC_SIZE);
 
 	writel(fbi->pcr, fbi->regs + LCDC_PCR);
+#ifndef PWMR_BACKLIGHT_AVAILABLE
 	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
+#endif
 	writel(fbi->lscr1, fbi->regs + LCDC_LSCR1);
 	writel(fbi->dmacr, fbi->regs + LCDC_DMACR);
 
@@ -779,6 +857,10 @@ static int __init imxfb_probe(struct platform_device *pdev)
 	}
 
 	imxfb_enable_controller(fbi);
+	fbi->pdev = pdev;
+#ifdef PWMR_BACKLIGHT_AVAILABLE
+	imxfb_init_backlight(fbi);
+#endif
 
 	return 0;
 
@@ -816,6 +898,9 @@ static int __devexit imxfb_remove(struct platform_device *pdev)
 
 	imxfb_disable_controller(fbi);
 
+#ifdef PWMR_BACKLIGHT_AVAILABLE
+	imxfb_exit_backlight(fbi);
+#endif
 	unregister_framebuffer(info);
 
 	pdata = pdev->dev.platform_data;

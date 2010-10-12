@@ -20,7 +20,7 @@
 
 #include <linux/fscache.h>
 #include <linux/sched.h>
-#include <linux/slow-work.h>
+#include <linux/workqueue.h>
 
 #define NR_MAXCACHES BITS_PER_LONG
 
@@ -76,18 +76,14 @@ typedef void (*fscache_operation_release_t)(struct fscache_operation *op);
 typedef void (*fscache_operation_processor_t)(struct fscache_operation *op);
 
 struct fscache_operation {
-	union {
-		struct work_struct fast_work;	/* record for fast ops */
-		struct slow_work slow_work;	/* record for (very) slow ops */
-	};
+	struct work_struct	work;		/* record for async ops */
 	struct list_head	pend_link;	/* link in object->pending_ops */
 	struct fscache_object	*object;	/* object to be operated upon */
 
 	unsigned long		flags;
 #define FSCACHE_OP_TYPE		0x000f	/* operation type */
-#define FSCACHE_OP_FAST		0x0001	/* - fast op, processor may not sleep for disk */
-#define FSCACHE_OP_SLOW		0x0002	/* - (very) slow op, processor may sleep for disk */
-#define FSCACHE_OP_MYTHREAD	0x0003	/* - processing is done be issuing thread, not pool */
+#define FSCACHE_OP_ASYNC	0x0001	/* - async op, processor may sleep for disk */
+#define FSCACHE_OP_MYTHREAD	0x0002	/* - processing is done be issuing thread, not pool */
 #define FSCACHE_OP_WAITING	4	/* cleared when op is woken */
 #define FSCACHE_OP_EXCLUSIVE	5	/* exclusive op, other ops must wait */
 #define FSCACHE_OP_DEAD		6	/* op is now dead */
@@ -105,7 +101,8 @@ struct fscache_operation {
 	/* operation releaser */
 	fscache_operation_release_t release;
 
-#ifdef CONFIG_SLOW_WORK_DEBUG
+#ifdef CONFIG_WORKQUEUE_DEBUGFS
+	struct work_struct put_work;	/* work to delay operation put */
 	const char *name;		/* operation name */
 	const char *state;		/* operation state */
 #define fscache_set_op_name(OP, N)	do { (OP)->name  = (N); } while(0)
@@ -117,7 +114,7 @@ struct fscache_operation {
 };
 
 extern atomic_t fscache_op_debug_id;
-extern const struct slow_work_ops fscache_op_slow_work_ops;
+extern void fscache_op_work_func(struct work_struct *work);
 
 extern void fscache_enqueue_operation(struct fscache_operation *);
 extern void fscache_put_operation(struct fscache_operation *);
@@ -128,31 +125,19 @@ extern void fscache_put_operation(struct fscache_operation *);
  * @release: The release function to assign
  *
  * Do basic initialisation of an operation.  The caller must still set flags,
- * object, either fast_work or slow_work if necessary, and processor if needed.
+ * object and processor if needed.
  */
 static inline void fscache_operation_init(struct fscache_operation *op,
-					  fscache_operation_release_t release)
+					fscache_operation_processor_t processor,
+					fscache_operation_release_t release)
 {
+	INIT_WORK(&op->work, fscache_op_work_func);
 	atomic_set(&op->usage, 1);
 	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
+	op->processor = processor;
 	op->release = release;
 	INIT_LIST_HEAD(&op->pend_link);
 	fscache_set_op_state(op, "Init");
-}
-
-/**
- * fscache_operation_init_slow - Do additional initialisation of a slow op
- * @op: The operation to initialise
- * @processor: The processor function to assign
- *
- * Do additional initialisation of an operation as required for slow work.
- */
-static inline
-void fscache_operation_init_slow(struct fscache_operation *op,
-				 fscache_operation_processor_t processor)
-{
-	op->processor = processor;
-	slow_work_init(&op->slow_work, &fscache_op_slow_work_ops);
 }
 
 /*
@@ -389,7 +374,7 @@ struct fscache_object {
 	struct fscache_cache	*cache;		/* cache that supplied this object */
 	struct fscache_cookie	*cookie;	/* netfs's file/index object */
 	struct fscache_object	*parent;	/* parent object */
-	struct slow_work	work;		/* attention scheduling record */
+	struct work_struct	work;		/* attention scheduling record */
 	struct list_head	dependents;	/* FIFO of dependent objects */
 	struct list_head	dep_link;	/* link in parent's dependents list */
 	struct list_head	pending_ops;	/* unstarted operations on this object */
@@ -411,7 +396,7 @@ extern const char *fscache_object_states[];
 	(test_bit(FSCACHE_IOERROR, &(obj)->cache->flags) &&	\
 	 (obj)->state >= FSCACHE_OBJECT_DYING)
 
-extern const struct slow_work_ops fscache_object_slow_work_ops;
+extern void fscache_object_work_func(struct work_struct *work);
 
 /**
  * fscache_object_init - Initialise a cache object description
@@ -433,7 +418,7 @@ void fscache_object_init(struct fscache_object *object,
 	spin_lock_init(&object->lock);
 	INIT_LIST_HEAD(&object->cache_link);
 	INIT_HLIST_NODE(&object->cookie_link);
-	vslow_work_init(&object->work, &fscache_object_slow_work_ops);
+	INIT_WORK(&object->work, fscache_object_work_func);
 	INIT_LIST_HEAD(&object->dependents);
 	INIT_LIST_HEAD(&object->dep_link);
 	INIT_LIST_HEAD(&object->pending_ops);
@@ -533,6 +518,8 @@ extern void fscache_io_error(struct fscache_cache *cache);
 
 extern void fscache_mark_pages_cached(struct fscache_retrieval *op,
 				      struct pagevec *pagevec);
+
+extern bool fscache_object_sleep_till_congested(signed long *timeoutp);
 
 extern enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 					       const void *data,

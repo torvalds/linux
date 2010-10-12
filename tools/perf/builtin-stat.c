@@ -69,7 +69,7 @@ static struct perf_event_attr default_attrs[] = {
 };
 
 static bool			system_wide			=  false;
-static unsigned int		nr_cpus				=  0;
+static int			nr_cpus				=  0;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
@@ -82,6 +82,7 @@ static int			thread_num			=  0;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
 static bool			big_num				=  false;
+static const char		*cpu_list;
 
 
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
@@ -158,7 +159,7 @@ static int create_perf_stat_counter(int counter)
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide) {
-		unsigned int cpu;
+		int cpu;
 
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
 			fd[cpu][counter][0] = sys_perf_event_open(attr,
@@ -208,7 +209,7 @@ static inline int nsec_counter(int counter)
 static void read_counter(int counter)
 {
 	u64 count[3], single_count[3];
-	unsigned int cpu;
+	int cpu;
 	size_t res, nv;
 	int scaled;
 	int i, thread;
@@ -542,6 +543,8 @@ static const struct option options[] = {
 		    "null run - dont start any counters"),
 	OPT_BOOLEAN('B', "big-num", &big_num,
 		    "print large numbers with thousands\' separators"),
+	OPT_STRING('C', "cpu", &cpu_list, "cpu",
+		    "list of cpus to monitor in system-wide"),
 	OPT_END()
 };
 
@@ -566,9 +569,12 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (system_wide)
-		nr_cpus = read_cpu_map();
+		nr_cpus = read_cpu_map(cpu_list);
 	else
 		nr_cpus = 1;
+
+	if (nr_cpus < 1)
+		usage_with_options(stat_usage, options);
 
 	if (target_pid != -1) {
 		target_tid = target_pid;

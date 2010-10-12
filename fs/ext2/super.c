@@ -195,17 +195,6 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(ext2_inode_cachep);
 }
 
-static void ext2_clear_inode(struct inode *inode)
-{
-	struct ext2_block_alloc_info *rsv = EXT2_I(inode)->i_block_alloc_info;
-
-	dquot_drop(inode);
-	ext2_discard_reservation(inode);
-	EXT2_I(inode)->i_block_alloc_info = NULL;
-	if (unlikely(rsv))
-		kfree(rsv);
-}
-
 static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
 	struct super_block *sb = vfs->mnt_sb;
@@ -299,13 +288,12 @@ static const struct super_operations ext2_sops = {
 	.alloc_inode	= ext2_alloc_inode,
 	.destroy_inode	= ext2_destroy_inode,
 	.write_inode	= ext2_write_inode,
-	.delete_inode	= ext2_delete_inode,
+	.evict_inode	= ext2_evict_inode,
 	.put_super	= ext2_put_super,
 	.write_super	= ext2_write_super,
 	.sync_fs	= ext2_sync_fs,
 	.statfs		= ext2_statfs,
 	.remount_fs	= ext2_remount,
-	.clear_inode	= ext2_clear_inode,
 	.show_options	= ext2_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext2_quota_read,

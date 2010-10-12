@@ -54,7 +54,7 @@
 /* Increase filter depth to avoid RX_RESET */
 #define EFX_WORKAROUND_7244 EFX_WORKAROUND_FALCON_A
 /* Flushes may never complete */
-#define EFX_WORKAROUND_7803 EFX_WORKAROUND_FALCON_A
+#define EFX_WORKAROUND_7803 EFX_WORKAROUND_FALCON_AB
 /* Leak overlength packets rather than free */
 #define EFX_WORKAROUND_8071 EFX_WORKAROUND_FALCON_A
 

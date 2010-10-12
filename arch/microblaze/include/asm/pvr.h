@@ -16,7 +16,7 @@
 #define PVR_MSR_BIT 0x400
 
 struct pvr_s {
-	unsigned pvr[16];
+	unsigned pvr[12];
 };
 
 /* The following taken from Xilinx's standalone BSP pvr.h */

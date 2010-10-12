@@ -1146,7 +1146,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	}
 
 	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID)))
-		neigh_event_send(rt->u.dst.neighbour, NULL);
+		neigh_event_send(rt->dst.neighbour, NULL);
 
 	ip_rt_put(rt);
 	return rc;
@@ -1719,8 +1719,6 @@ static int handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 {
 	int datasize = 0;
 	u32 inc_sequence;
-	u32 rem_seq_ack;
-	u32 rem_seq;
 	int ret = 0;
 	int optionsize;
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
@@ -1730,8 +1728,6 @@ static int handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 
 	skb_pull(skb, tcph->doff << 2);
 	inc_sequence = ntohl(tcph->seq);
-	rem_seq = ntohl(tcph->seq);
-	rem_seq_ack =  ntohl(tcph->ack_seq);
 	datasize = skb->len;
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_RCVD:
@@ -2565,7 +2561,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 	u16 last_ae;
 	u8 original_hw_tcp_state;
 	u8 original_ibqp_state;
-	enum iw_cm_event_type disconn_status = IW_CM_EVENT_STATUS_OK;
+	enum iw_cm_event_status disconn_status = IW_CM_EVENT_STATUS_OK;
 	int issue_disconn = 0;
 	int issue_close = 0;
 	int issue_flush = 0;
@@ -3128,9 +3124,7 @@ int nes_create_listen(struct iw_cm_id *cm_id, int backlog)
 	struct nes_vnic *nesvnic;
 	struct nes_cm_listener *cm_node;
 	struct nes_cm_info cm_info;
-	struct nes_adapter *adapter;
 	int err;
-
 
 	nes_debug(NES_DBG_CM, "cm_id = %p, local port = 0x%04X.\n",
 			cm_id, ntohs(cm_id->local_addr.sin_port));
@@ -3138,7 +3132,7 @@ int nes_create_listen(struct iw_cm_id *cm_id, int backlog)
 	nesvnic = to_nesvnic(cm_id->device);
 	if (!nesvnic)
 		return -EINVAL;
-	adapter = nesvnic->nesdev->nesadapter;
+
 	nes_debug(NES_DBG_CM, "nesvnic=%p, netdev=%p, %s\n",
 			nesvnic, nesvnic->netdev, nesvnic->netdev->name);
 

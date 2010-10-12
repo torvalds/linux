@@ -176,16 +176,18 @@ static ssize_t led_proc_write(struct file *file, const char *buf,
 	size_t count, loff_t *pos)
 {
 	void *data = PDE(file->f_path.dentry->d_inode)->data;
-	char *cur, lbuf[count + 1];
+	char *cur, lbuf[32];
 	int d;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	memset(lbuf, 0, count + 1);
+	if (count >= sizeof(lbuf))
+		count = sizeof(lbuf)-1;
 
 	if (copy_from_user(lbuf, buf, count))
 		return -EFAULT;
+	lbuf[count] = 0;
 
 	cur = lbuf;
 
@@ -355,12 +357,13 @@ static __inline__ int led_get_net_activity(void)
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
 	    const struct net_device_stats *stats;
+	    struct rtnl_link_stats64 temp;
 	    struct in_device *in_dev = __in_dev_get_rcu(dev);
 	    if (!in_dev || !in_dev->ifa_list)
 		continue;
 	    if (ipv4_is_loopback(in_dev->ifa_list->ifa_local))
 		continue;
-	    stats = dev_get_stats(dev);
+	    stats = dev_get_stats(dev, &temp);
 	    rx_total += stats->rx_packets;
 	    tx_total += stats->tx_packets;
 	}

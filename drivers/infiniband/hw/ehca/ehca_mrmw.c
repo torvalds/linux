@@ -933,11 +933,6 @@ int ehca_unmap_fmr(struct list_head *fmr_list)
 	/* check all FMR belong to same SHCA, and check internal flag */
 	list_for_each_entry(ib_fmr, fmr_list, list) {
 		prev_shca = shca;
-		if (!ib_fmr) {
-			ehca_gen_err("bad fmr=%p in list", ib_fmr);
-			ret = -EINVAL;
-			goto unmap_fmr_exit0;
-		}
 		shca = container_of(ib_fmr->device, struct ehca_shca,
 				    ib_device);
 		e_fmr = container_of(ib_fmr, struct ehca_mr, ib.ib_fmr);

@@ -46,8 +46,9 @@
 #define GPMC_ECC_CONFIG		0x1f4
 #define GPMC_ECC_CONTROL	0x1f8
 #define GPMC_ECC_SIZE_CONFIG	0x1fc
+#define GPMC_ECC1_RESULT        0x200
 
-#define GPMC_CS0		0x60
+#define GPMC_CS0_OFFSET		0x60
 #define GPMC_CS_SIZE		0x30
 
 #define GPMC_MEM_START		0x00000000
@@ -92,7 +93,8 @@ struct omap3_gpmc_regs {
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
-static unsigned		gpmc_cs_map;
+static unsigned int gpmc_cs_map;	/* flag for cs which are initialized */
+static int gpmc_ecc_used = -EINVAL;	/* cs using ecc engine */
 
 static void __iomem *gpmc_base;
 
@@ -108,11 +110,27 @@ static u32 gpmc_read_reg(int idx)
 	return __raw_readl(gpmc_base + idx);
 }
 
+static void gpmc_cs_write_byte(int cs, int idx, u8 val)
+{
+	void __iomem *reg_addr;
+
+	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
+	__raw_writeb(val, reg_addr);
+}
+
+static u8 gpmc_cs_read_byte(int cs, int idx)
+{
+	void __iomem *reg_addr;
+
+	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
+	return __raw_readb(reg_addr);
+}
+
 void gpmc_cs_write_reg(int cs, int idx, u32 val)
 {
 	void __iomem *reg_addr;
 
-	reg_addr = gpmc_base + GPMC_CS0 + (cs * GPMC_CS_SIZE) + idx;
+	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
 	__raw_writel(val, reg_addr);
 }
 
@@ -120,7 +138,7 @@ u32 gpmc_cs_read_reg(int cs, int idx)
 {
 	void __iomem *reg_addr;
 
-	reg_addr = gpmc_base + GPMC_CS0 + (cs * GPMC_CS_SIZE) + idx;
+	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
 	return __raw_readl(reg_addr);
 }
 
@@ -419,8 +437,157 @@ void gpmc_cs_free(int cs)
 EXPORT_SYMBOL(gpmc_cs_free);
 
 /**
+ * gpmc_read_status - read access request to get the different gpmc status
+ * @cmd: command type
+ * @return status
+ */
+int gpmc_read_status(int cmd)
+{
+	int	status = -EINVAL;
+	u32	regval = 0;
+
+	switch (cmd) {
+	case GPMC_GET_IRQ_STATUS:
+		status = gpmc_read_reg(GPMC_IRQSTATUS);
+		break;
+
+	case GPMC_PREFETCH_FIFO_CNT:
+		regval = gpmc_read_reg(GPMC_PREFETCH_STATUS);
+		status = GPMC_PREFETCH_STATUS_FIFO_CNT(regval);
+		break;
+
+	case GPMC_PREFETCH_COUNT:
+		regval = gpmc_read_reg(GPMC_PREFETCH_STATUS);
+		status = GPMC_PREFETCH_STATUS_COUNT(regval);
+		break;
+
+	case GPMC_STATUS_BUFFER:
+		regval = gpmc_read_reg(GPMC_STATUS);
+		/* 1 : buffer is available to write */
+		status = regval & GPMC_STATUS_BUFF_EMPTY;
+		break;
+
+	default:
+		printk(KERN_ERR "gpmc_read_status: Not supported\n");
+	}
+	return status;
+}
+EXPORT_SYMBOL(gpmc_read_status);
+
+/**
+ * gpmc_cs_configure - write request to configure gpmc
+ * @cs: chip select number
+ * @cmd: command type
+ * @wval: value to write
+ * @return status of the operation
+ */
+int gpmc_cs_configure(int cs, int cmd, int wval)
+{
+	int err = 0;
+	u32 regval = 0;
+
+	switch (cmd) {
+	case GPMC_SET_IRQ_STATUS:
+		gpmc_write_reg(GPMC_IRQSTATUS, wval);
+		break;
+
+	case GPMC_CONFIG_WP:
+		regval = gpmc_read_reg(GPMC_CONFIG);
+		if (wval)
+			regval &= ~GPMC_CONFIG_WRITEPROTECT; /* WP is ON */
+		else
+			regval |= GPMC_CONFIG_WRITEPROTECT;  /* WP is OFF */
+		gpmc_write_reg(GPMC_CONFIG, regval);
+		break;
+
+	case GPMC_CONFIG_RDY_BSY:
+		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+		if (wval)
+			regval |= WR_RD_PIN_MONITORING;
+		else
+			regval &= ~WR_RD_PIN_MONITORING;
+		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
+		break;
+
+	case GPMC_CONFIG_DEV_SIZE:
+		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+		regval |= GPMC_CONFIG1_DEVICESIZE(wval);
+		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
+		break;
+
+	case GPMC_CONFIG_DEV_TYPE:
+		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+		regval |= GPMC_CONFIG1_DEVICETYPE(wval);
+		if (wval == GPMC_DEVICETYPE_NOR)
+			regval |= GPMC_CONFIG1_MUXADDDATA;
+		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
+		break;
+
+	default:
+		printk(KERN_ERR "gpmc_configure_cs: Not supported\n");
+		err = -EINVAL;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(gpmc_cs_configure);
+
+/**
+ * gpmc_nand_read - nand specific read access request
+ * @cs: chip select number
+ * @cmd: command type
+ */
+int gpmc_nand_read(int cs, int cmd)
+{
+	int rval = -EINVAL;
+
+	switch (cmd) {
+	case GPMC_NAND_DATA:
+		rval = gpmc_cs_read_byte(cs, GPMC_CS_NAND_DATA);
+		break;
+
+	default:
+		printk(KERN_ERR "gpmc_read_nand_ctrl: Not supported\n");
+	}
+	return rval;
+}
+EXPORT_SYMBOL(gpmc_nand_read);
+
+/**
+ * gpmc_nand_write - nand specific write request
+ * @cs: chip select number
+ * @cmd: command type
+ * @wval: value to write
+ */
+int gpmc_nand_write(int cs, int cmd, int wval)
+{
+	int err = 0;
+
+	switch (cmd) {
+	case GPMC_NAND_COMMAND:
+		gpmc_cs_write_byte(cs, GPMC_CS_NAND_COMMAND, wval);
+		break;
+
+	case GPMC_NAND_ADDRESS:
+		gpmc_cs_write_byte(cs, GPMC_CS_NAND_ADDRESS, wval);
+		break;
+
+	case GPMC_NAND_DATA:
+		gpmc_cs_write_byte(cs, GPMC_CS_NAND_DATA, wval);
+
+	default:
+		printk(KERN_ERR "gpmc_write_nand_ctrl: Not supported\n");
+		err = -EINVAL;
+	}
+	return err;
+}
+EXPORT_SYMBOL(gpmc_nand_write);
+
+
+
+/**
  * gpmc_prefetch_enable - configures and starts prefetch transfer
- * @cs: nand cs (chip select) number
+ * @cs: cs (chip select) number
  * @dma_mode: dma mode enable (1) or disable (0)
  * @u32_count: number of bytes to be transferred
  * @is_write: prefetch read(0) or write post(1) mode
@@ -428,7 +595,6 @@ EXPORT_SYMBOL(gpmc_cs_free);
 int gpmc_prefetch_enable(int cs, int dma_mode,
 				unsigned int u32_count, int is_write)
 {
-	uint32_t prefetch_config1;
 
 	if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
 		/* Set the amount of bytes to be prefetched */
@@ -437,17 +603,17 @@ int gpmc_prefetch_enable(int cs, int dma_mode,
 		/* Set dma/mpu mode, the prefetch read / post write and
 		 * enable the engine. Set which cs is has requested for.
 		 */
-		prefetch_config1 = ((cs << CS_NUM_SHIFT) |
+		gpmc_write_reg(GPMC_PREFETCH_CONFIG1, ((cs << CS_NUM_SHIFT) |
 					PREFETCH_FIFOTHRESHOLD |
 					ENABLE_PREFETCH |
 					(dma_mode << DMA_MPU_MODE) |
-					(0x1 & is_write));
-		gpmc_write_reg(GPMC_PREFETCH_CONFIG1, prefetch_config1);
+					(0x1 & is_write)));
+
+		/*  Start the prefetch engine */
+		gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x1);
 	} else {
 		return -EBUSY;
 	}
-	/*  Start the prefetch engine */
-	gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x1);
 
 	return 0;
 }
@@ -456,24 +622,24 @@ EXPORT_SYMBOL(gpmc_prefetch_enable);
 /**
  * gpmc_prefetch_reset - disables and stops the prefetch engine
  */
-void gpmc_prefetch_reset(void)
+int gpmc_prefetch_reset(int cs)
 {
+	u32 config1;
+
+	/* check if the same module/cs is trying to reset */
+	config1 = gpmc_read_reg(GPMC_PREFETCH_CONFIG1);
+	if (((config1 >> CS_NUM_SHIFT) & 0x7) != cs)
+		return -EINVAL;
+
 	/* Stop the PFPW engine */
 	gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x0);
 
 	/* Reset/disable the PFPW engine */
 	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, 0x0);
+
+	return 0;
 }
 EXPORT_SYMBOL(gpmc_prefetch_reset);
-
-/**
- * gpmc_prefetch_status - reads prefetch status of engine
- */
-int  gpmc_prefetch_status(void)
-{
-	return gpmc_read_reg(GPMC_PREFETCH_STATUS);
-}
-EXPORT_SYMBOL(gpmc_prefetch_status);
 
 static void __init gpmc_mem_init(void)
 {
@@ -615,3 +781,79 @@ void omap3_gpmc_restore_context(void)
 	}
 }
 #endif /* CONFIG_ARCH_OMAP3 */
+
+/**
+ * gpmc_enable_hwecc - enable hardware ecc functionality
+ * @cs: chip select number
+ * @mode: read/write mode
+ * @dev_width: device bus width(1 for x16, 0 for x8)
+ * @ecc_size: bytes for which ECC will be generated
+ */
+int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size)
+{
+	unsigned int val;
+
+	/* check if ecc module is in used */
+	if (gpmc_ecc_used != -EINVAL)
+		return -EINVAL;
+
+	gpmc_ecc_used = cs;
+
+	/* clear ecc and enable bits */
+	val = ((0x00000001<<8) | 0x00000001);
+	gpmc_write_reg(GPMC_ECC_CONTROL, val);
+
+	/* program ecc and result sizes */
+	val = ((((ecc_size >> 1) - 1) << 22) | (0x0000000F));
+	gpmc_write_reg(GPMC_ECC_SIZE_CONFIG, val);
+
+	switch (mode) {
+	case GPMC_ECC_READ:
+		gpmc_write_reg(GPMC_ECC_CONTROL, 0x101);
+		break;
+	case GPMC_ECC_READSYN:
+		 gpmc_write_reg(GPMC_ECC_CONTROL, 0x100);
+		break;
+	case GPMC_ECC_WRITE:
+		gpmc_write_reg(GPMC_ECC_CONTROL, 0x101);
+		break;
+	default:
+		printk(KERN_INFO "Error: Unrecognized Mode[%d]!\n", mode);
+		break;
+	}
+
+	/* (ECC 16 or 8 bit col) | ( CS  )  | ECC Enable */
+	val = (dev_width << 7) | (cs << 1) | (0x1);
+	gpmc_write_reg(GPMC_ECC_CONFIG, val);
+	return 0;
+}
+
+/**
+ * gpmc_calculate_ecc - generate non-inverted ecc bytes
+ * @cs: chip select number
+ * @dat: data pointer over which ecc is computed
+ * @ecc_code: ecc code buffer
+ *
+ * Using non-inverted ECC is considered ugly since writing a blank
+ * page (padding) will clear the ECC bytes. This is not a problem as long
+ * no one is trying to write data on the seemingly unused page. Reading
+ * an erased page will produce an ECC mismatch between generated and read
+ * ECC bytes that has to be dealt with separately.
+ */
+int gpmc_calculate_ecc(int cs, const u_char *dat, u_char *ecc_code)
+{
+	unsigned int val = 0x0;
+
+	if (gpmc_ecc_used != cs)
+		return -EINVAL;
+
+	/* read ecc result */
+	val = gpmc_read_reg(GPMC_ECC1_RESULT);
+	*ecc_code++ = val;          /* P128e, ..., P1e */
+	*ecc_code++ = val >> 16;    /* P128o, ..., P1o */
+	/* P2048o, P1024o, P512o, P256o, P2048e, P1024e, P512e, P256e */
+	*ecc_code++ = ((val >> 8) & 0x0f) | ((val >> 20) & 0xf0);
+
+	gpmc_ecc_used = -EINVAL;
+	return 0;
+}

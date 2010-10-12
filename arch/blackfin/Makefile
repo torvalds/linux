@@ -18,8 +18,8 @@ ifeq ($(CONFIG_ROMKERNEL),y)
 KBUILD_CFLAGS           += -mlong-calls
 endif
 KBUILD_AFLAGS           += $(call cc-option,-mno-fdpic)
-CFLAGS_MODULE    += -mlong-calls
-LDFLAGS_MODULE   += -m elf32bfin
+KBUILD_CFLAGS_MODULE    += -mlong-calls
+KBUILD_LDFLAGS_MODULE   += -m elf32bfin
 KALLSYMS         += --symbol-prefix=_
 
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig
@@ -140,7 +140,7 @@ archclean:
 
 INSTALL_PATH ?= /tftpboot
 boot := arch/$(ARCH)/boot
-BOOT_TARGETS = vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma vmImage.xip
+BOOT_TARGETS = vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma vmImage.lzo vmImage.xip
 PHONY += $(BOOT_TARGETS) install
 KBUILD_IMAGE := $(boot)/vmImage
 
@@ -158,6 +158,7 @@ define archhelp
   echo  '  vmImage.bz2     - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.bz2)'
   echo  '* vmImage.gz      - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.gz)'
   echo  '  vmImage.lzma    - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.lzma)'
+  echo  '  vmImage.lzo     - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.lzo)'
   echo  '  vmImage.xip     - XIP Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.xip)'
   echo  '  install         - Install kernel using'
   echo  '                     (your) ~/bin/$(INSTALLKERNEL) or'

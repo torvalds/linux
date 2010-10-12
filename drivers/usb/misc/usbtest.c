@@ -136,7 +136,7 @@ try_iso:
 					iso_out = e;
 			}
 		}
-		if ((in && out)  ||  (iso_in && iso_out))
+		if ((in && out)  ||  iso_in || iso_out)
 			goto found;
 	}
 	return -EINVAL;
@@ -162,6 +162,9 @@ found:
 		dev->in_iso_pipe = usb_rcvisocpipe (udev,
 				iso_in->desc.bEndpointAddress
 					& USB_ENDPOINT_NUMBER_MASK);
+	}
+
+	if (iso_out) {
 		dev->iso_out = &iso_out->desc;
 		dev->out_iso_pipe = usb_sndisocpipe (udev,
 				iso_out->desc.bEndpointAddress
@@ -1378,7 +1381,6 @@ static void iso_callback (struct urb *urb)
 			break;
 		}
 	}
-	simple_free_urb (urb);
 
 	ctx->pending--;
 	if (ctx->pending == 0) {
@@ -1495,6 +1497,7 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 			}
 
 			simple_free_urb (urbs [i]);
+			urbs[i] = NULL;
 			context.pending--;
 			context.submit_error = 1;
 			break;
@@ -1504,6 +1507,10 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 
 	wait_for_completion (&context.done);
 
+	for (i = 0; i < param->sglen; i++) {
+		if (urbs[i])
+			simple_free_urb(urbs[i]);
+	}
 	/*
 	 * Isochronous transfers are expected to fail sometimes.  As an
 	 * arbitrary limit, we will report an error if any submissions
@@ -1548,6 +1555,7 @@ fail:
  * off just killing the userspace task and waiting for it to exit.
  */
 
+/* No BKL needed */
 static int
 usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 {
@@ -2170,7 +2178,7 @@ static struct usb_driver usbtest_driver = {
 	.name =		"usbtest",
 	.id_table =	id_table,
 	.probe =	usbtest_probe,
-	.ioctl =	usbtest_ioctl,
+	.unlocked_ioctl = usbtest_ioctl,
 	.disconnect =	usbtest_disconnect,
 	.suspend =	usbtest_suspend,
 	.resume =	usbtest_resume,

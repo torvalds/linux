@@ -258,14 +258,6 @@ config SERIAL_8250_ACORN
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
 
-config SERIAL_8250_AU1X00
-	bool "Au1x00 serial port support"
-	depends on SERIAL_8250 != n && SOC_AU1X00
-	help
-	  If you have an Au1x00 SOC based board and want to use the serial port,
-	  say Y to this option. The driver can handle up to 4 serial ports,
-	  depending on the SOC. If unsure, say N.
-
 config SERIAL_8250_RM9K
 	bool "Support for MIPS RM9xxx integrated serial port"
 	depends on SERIAL_8250 != n && SERIAL_RM9000
@@ -544,11 +536,12 @@ config SERIAL_S3C6400
 
 config SERIAL_S5PV210
 	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_S5P6442)
-	select SERIAL_SAMSUNG_UARTS_4 if CPU_S5PV210
+	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_S5P6442 || CPU_S5PV310)
+	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_S5PV310)
 	default y
 	help
 	  Serial port support for Samsung's S5P Family of SoC's
+
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
@@ -556,6 +549,22 @@ config SERIAL_MAX3100
 	select SERIAL_CORE
 	help
 	  MAX3100 chip support
+
+config SERIAL_MAX3107
+	tristate "MAX3107 support"
+	depends on SPI
+	select SERIAL_CORE
+	help
+	  MAX3107 chip support
+
+config SERIAL_MAX3107_AAVA
+	tristate "MAX3107 AAVA platform support"
+	depends on X86_MRST && SERIAL_MAX3107 && GPIOLIB
+	select SERIAL_CORE
+	help
+	  Support for the MAX3107 chip configuration found on the AAVA
+	  platform. Includes the extra initialisation and GPIO support
+	  neded for this device.
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
@@ -697,6 +706,33 @@ config SERIAL_SA1100_CONSOLE
 	  "console=ttySA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
+
+config SERIAL_MRST_MAX3110
+	tristate "SPI UART driver for Max3110"
+	depends on SPI_DW_PCI
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	help
+	  This is the UART protocol driver for the MAX3110 device on
+	  the Intel Moorestown platform. On other systems use the max3100
+	  driver.
+
+config MRST_MAX3110_IRQ
+	boolean "Enable GPIO IRQ for Max3110 over Moorestown"
+	default n
+	depends on SERIAL_MRST_MAX3110 && GPIO_LANGWELL
+	help
+	  This has to be enabled after Moorestown GPIO driver is loaded
+
+config SERIAL_MFD_HSU
+	tristate "Medfield High Speed UART support"
+	depends on PCI
+	select SERIAL_CORE
+
+config SERIAL_MFD_HSU_CONSOLE
+	boolean "Medfile HSU serial console support"
+	depends on SERIAL_MFD_HSU=y
+	select SERIAL_CORE_CONSOLE
 
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"

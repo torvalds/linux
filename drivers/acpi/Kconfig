@@ -54,17 +54,10 @@ config ACPI_PROCFS
 	  they have been replaced by functions in /sys.
 	  The deprecated files (and their replacements) include:
 
-	  /proc/acpi/sleep (/sys/power/state)
-	  /proc/acpi/info (/sys/module/acpi/parameters/acpica_version)
-	  /proc/acpi/dsdt (/sys/firmware/acpi/tables/DSDT)
-	  /proc/acpi/fadt (/sys/firmware/acpi/tables/FACP)
-	  /proc/acpi/debug_layer (/sys/module/acpi/parameters/debug_layer)
-	  /proc/acpi/debug_level (/sys/module/acpi/parameters/debug_level)
-	  /proc/acpi/processor/*/power (/sys/devices/system/cpu/*/cpuidle/*)
-	  /proc/acpi/processor/*/performance (/sys/devices/system/cpu/*/
-		cpufreq/*)
 	  /proc/acpi/processor/*/throttling (/sys/class/thermal/
 		cooling_device*/*)
+	  /proc/acpi/video/*/brightness (/sys/class/backlight/)
+	  /proc/acpi/thermal_zone/*/* (/sys/class/thermal/)
 	  This option has no effect on /proc/acpi/ files
 	  and functions which do not yet exist in /sys.
 
@@ -103,6 +96,24 @@ config ACPI_SYSFS_POWER
 	default y
 	help
 	  Say N to disable power /sys interface
+
+config ACPI_EC_DEBUGFS
+	tristate "EC read/write access through /sys/kernel/debug/ec"
+	default n
+	help
+	  Say N to disable Embedded Controller /sys/kernel/debug interface
+
+	  Be aware that using this interface can confuse your Embedded
+	  Controller in a way that a normal reboot is not enough. You then
+	  have to power of your system, and remove the laptop battery for
+	  some seconds.
+	  An Embedded Controller typically is available on laptops and reads
+	  sensor values like battery state and temperature.
+	  The kernel accesses the EC through ACPI parsed code provided by BIOS
+	  tables. This option allows to access the EC directly without ACPI
+	  code being involved.
+	  Thus this option is a debug option that helps to write ACPI drivers
+	  and can be used to identify ACPI code or EC firmware bugs.
 
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"

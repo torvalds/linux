@@ -245,7 +245,7 @@ static int smsc9420_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (!netif_running(dev) || !pd->phy_dev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(pd->phy_dev, if_mii(ifr), cmd);
+	return phy_mii_ioctl(pd->phy_dev, ifr, cmd);
 }
 
 static int smsc9420_ethtool_get_settings(struct net_device *dev,

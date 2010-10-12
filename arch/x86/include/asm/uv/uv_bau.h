@@ -34,6 +34,7 @@
  */
 
 #define UV_ITEMS_PER_DESCRIPTOR		8
+/* the 'throttle' to prevent the hardware stay-busy bug */
 #define MAX_BAU_CONCURRENT		3
 #define UV_CPUS_PER_ACT_STATUS		32
 #define UV_ACT_STATUS_MASK		0x3
@@ -45,10 +46,26 @@
 #define UV_DESC_BASE_PNODE_SHIFT	49
 #define UV_PAYLOADQ_PNODE_SHIFT		49
 #define UV_PTC_BASENAME			"sgi_uv/ptc_statistics"
+#define UV_BAU_BASENAME			"sgi_uv/bau_tunables"
+#define UV_BAU_TUNABLES_DIR		"sgi_uv"
+#define UV_BAU_TUNABLES_FILE		"bau_tunables"
+#define WHITESPACE			" \t\n"
 #define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
 #define UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT 15
 #define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT 16
-#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x000000000bUL
+#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x0000000009UL
+/* [19:16] SOFT_ACK timeout period  19: 1 is urgency 7  17:16 1 is multiplier */
+#define BAU_MISC_CONTROL_MULT_MASK 3
+
+#define UVH_AGING_PRESCALE_SEL 0x000000b000UL
+/* [30:28] URGENCY_7  an index into a table of times */
+#define BAU_URGENCY_7_SHIFT 28
+#define BAU_URGENCY_7_MASK 7
+
+#define UVH_TRANSACTION_TIMEOUT 0x000000b200UL
+/* [45:40] BAU - BAU transaction timeout select - a multiplier */
+#define BAU_TRANS_SHIFT 40
+#define BAU_TRANS_MASK 0x3f
 
 /*
  * bits in UVH_LB_BAU_SB_ACTIVATION_STATUS_0/1
@@ -59,24 +76,21 @@
 #define DESC_STATUS_SOURCE_TIMEOUT	3
 
 /*
- * source side threshholds at which message retries print a warning
+ * delay for 'plugged' timeout retries, in microseconds
  */
-#define SOURCE_TIMEOUT_LIMIT		20
-#define DESTINATION_TIMEOUT_LIMIT	20
-
-/*
- * misc. delays, in microseconds
- */
-#define THROTTLE_DELAY			10
-#define TIMEOUT_DELAY			10
-#define BIOS_TO				1000
-/* BIOS is assumed to set the destination timeout to 1003520 nanoseconds */
+#define PLUGGED_DELAY			10
 
 /*
  * threshholds at which to use IPI to free resources
  */
+/* after this # consecutive 'plugged' timeouts, use IPI to release resources */
 #define PLUGSB4RESET 100
-#define TIMEOUTSB4RESET 100
+/* after this many consecutive timeouts, use IPI to release resources */
+#define TIMEOUTSB4RESET 1
+/* at this number uses of IPI to release resources, giveup the request */
+#define IPI_RESET_LIMIT 1
+/* after this # consecutive successes, bump up the throttle if it was lowered */
+#define COMPLETE_THRESHOLD 5
 
 /*
  * number of entries in the destination side payload queue
@@ -94,6 +108,13 @@
 #define FLUSH_RETRY_TIMEOUT		2
 #define FLUSH_GIVEUP			3
 #define FLUSH_COMPLETE			4
+
+/*
+ * tuning the action when the numalink network is extremely delayed
+ */
+#define CONGESTED_RESPONSE_US 1000 /* 'long' response time, in microseconds */
+#define CONGESTED_REPS 10 /* long delays averaged over this many broadcasts */
+#define CONGESTED_PERIOD 30 /* time for the bau to be disabled, in seconds */
 
 /*
  * Distribution: 32 bytes (256 bits) (bytes 0-0x1f of descriptor)
@@ -300,37 +321,16 @@ struct bau_payload_queue_entry {
 	/* bytes 24-31 */
 };
 
-/*
- * one per-cpu; to locate the software tables
- */
-struct bau_control {
-	struct bau_desc *descriptor_base;
+struct msg_desc {
+	struct bau_payload_queue_entry *msg;
+	int msg_slot;
+	int sw_ack_slot;
 	struct bau_payload_queue_entry *va_queue_first;
 	struct bau_payload_queue_entry *va_queue_last;
-	struct bau_payload_queue_entry *bau_msg_head;
-	struct bau_control *uvhub_master;
-	struct bau_control *socket_master;
-	unsigned long timeout_interval;
-	atomic_t active_descriptor_count;
-	int max_concurrent;
-	int max_concurrent_constant;
-	int retry_message_scans;
-	int plugged_tries;
-	int timeout_tries;
-	int ipi_attempts;
-	int conseccompletes;
-	short cpu;
-	short uvhub_cpu;
-	short uvhub;
-	short cpus_in_socket;
-	short cpus_in_uvhub;
-	unsigned short message_number;
-	unsigned short uvhub_quiesce;
-	short socket_acknowledge_count[DEST_Q_SIZE];
-	cycles_t send_message;
-	spinlock_t masks_lock;
-	spinlock_t uvhub_lock;
-	spinlock_t queue_lock;
+};
+
+struct reset_args {
+	int sender;
 };
 
 /*
@@ -344,18 +344,25 @@ struct ptc_stats {
 	unsigned long s_dtimeout; /* destination side timeouts */
 	unsigned long s_time; /* time spent in sending side */
 	unsigned long s_retriesok; /* successful retries */
-	unsigned long s_ntargcpu; /* number of cpus targeted */
-	unsigned long s_ntarguvhub; /* number of uvhubs targeted */
-	unsigned long s_ntarguvhub16; /* number of times >= 16 target hubs */
-	unsigned long s_ntarguvhub8; /* number of times >= 8 target hubs */
-	unsigned long s_ntarguvhub4; /* number of times >= 4 target hubs */
-	unsigned long s_ntarguvhub2; /* number of times >= 2 target hubs */
-	unsigned long s_ntarguvhub1; /* number of times == 1 target hub */
+	unsigned long s_ntargcpu; /* total number of cpu's targeted */
+	unsigned long s_ntargself; /* times the sending cpu was targeted */
+	unsigned long s_ntarglocals; /* targets of cpus on the local blade */
+	unsigned long s_ntargremotes; /* targets of cpus on remote blades */
+	unsigned long s_ntarglocaluvhub; /* targets of the local hub */
+	unsigned long s_ntargremoteuvhub; /* remotes hubs targeted */
+	unsigned long s_ntarguvhub; /* total number of uvhubs targeted */
+	unsigned long s_ntarguvhub16; /* number of times target hubs >= 16*/
+	unsigned long s_ntarguvhub8; /* number of times target hubs >= 8 */
+	unsigned long s_ntarguvhub4; /* number of times target hubs >= 4 */
+	unsigned long s_ntarguvhub2; /* number of times target hubs >= 2 */
+	unsigned long s_ntarguvhub1; /* number of times target hubs == 1 */
 	unsigned long s_resets_plug; /* ipi-style resets from plug state */
 	unsigned long s_resets_timeout; /* ipi-style resets from timeouts */
 	unsigned long s_busy; /* status stayed busy past s/w timer */
 	unsigned long s_throttles; /* waits in throttle */
 	unsigned long s_retry_messages; /* retry broadcasts */
+	unsigned long s_bau_reenabled; /* for bau enable/disable */
+	unsigned long s_bau_disabled; /* for bau enable/disable */
 	/* destination statistics */
 	unsigned long d_alltlb; /* times all tlb's on this cpu were flushed */
 	unsigned long d_onetlb; /* times just one tlb on this cpu was flushed */
@@ -368,6 +375,52 @@ struct ptc_stats {
 	unsigned long d_nocanceled; /* retries that found nothing to cancel */
 	unsigned long d_resets; /* number of ipi-style requests processed */
 	unsigned long d_rcanceled; /* number of messages canceled by resets */
+};
+
+/*
+ * one per-cpu; to locate the software tables
+ */
+struct bau_control {
+	struct bau_desc *descriptor_base;
+	struct bau_payload_queue_entry *va_queue_first;
+	struct bau_payload_queue_entry *va_queue_last;
+	struct bau_payload_queue_entry *bau_msg_head;
+	struct bau_control *uvhub_master;
+	struct bau_control *socket_master;
+	struct ptc_stats *statp;
+	unsigned long timeout_interval;
+	unsigned long set_bau_on_time;
+	atomic_t active_descriptor_count;
+	int plugged_tries;
+	int timeout_tries;
+	int ipi_attempts;
+	int conseccompletes;
+	int baudisabled;
+	int set_bau_off;
+	short cpu;
+	short uvhub_cpu;
+	short uvhub;
+	short cpus_in_socket;
+	short cpus_in_uvhub;
+	unsigned short message_number;
+	unsigned short uvhub_quiesce;
+	short socket_acknowledge_count[DEST_Q_SIZE];
+	cycles_t send_message;
+	spinlock_t uvhub_lock;
+	spinlock_t queue_lock;
+	/* tunables */
+	int max_bau_concurrent;
+	int max_bau_concurrent_constant;
+	int plugged_delay;
+	int plugsb4reset;
+	int timeoutsb4reset;
+	int ipi_reset_limit;
+	int complete_threshold;
+	int congested_response_us;
+	int congested_reps;
+	int congested_period;
+	cycles_t period_time;
+	long period_requests;
 };
 
 static inline int bau_uvhub_isset(int uvhub, struct bau_target_uvhubmask *dstp)

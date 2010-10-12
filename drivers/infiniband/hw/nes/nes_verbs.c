@@ -518,7 +518,7 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	memset(props, 0, sizeof(*props));
 	memcpy(&props->sys_image_guid, nesvnic->netdev->dev_addr, 6);
 
-	props->fw_ver = nesdev->nesadapter->fw_ver;
+	props->fw_ver = nesdev->nesadapter->firmware_version;
 	props->device_cap_flags = nesdev->nesadapter->device_cap_flags;
 	props->vendor_id = nesdev->nesadapter->vendor_id;
 	props->vendor_part_id = nesdev->nesadapter->vendor_part_id;
@@ -1941,7 +1941,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	u8  use_256_pbls = 0;
 	u8  use_4k_pbls = 0;
 	u16 use_two_level = (pbl_count_4k > 1) ? 1 : 0;
-	struct nes_root_vpbl new_root = {0, 0, 0};
+	struct nes_root_vpbl new_root = { 0, NULL, NULL };
 	u32 opcode = 0;
 	u16 major_code;
 
@@ -2112,13 +2112,12 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 	u32 driver_key = 0;
 	u32 root_pbl_index = 0;
 	u32 cur_pbl_index = 0;
-	int err = 0, pbl_depth = 0;
+	int err = 0;
 	int ret = 0;
 	u16 pbl_count = 0;
 	u8 single_page = 1;
 	u8 stag_key = 0;
 
-	pbl_depth = 0;
 	region_length = 0;
 	vpbl.pbl_vbase = NULL;
 	root_vpbl.pbl_vbase = NULL;
@@ -2931,7 +2930,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int ret;
 	u16 original_last_aeq;
 	u8 issue_modify_qp = 0;
-	u8 issue_disconnect = 0;
 	u8 dont_wait = 0;
 
 	nes_debug(NES_DBG_MOD_QP, "QP%u: QP State=%u, cur QP State=%u,"
@@ -3058,6 +3056,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hte_added = 0;
 					}
 				if ((nesqp->hw_tcp_state > NES_AEQE_TCP_STATE_CLOSED) &&
+						(nesdev->iw_status) &&
 						(nesqp->hw_tcp_state != NES_AEQE_TCP_STATE_TIME_WAIT)) {
 					next_iwarp_state |= NES_CQP_QP_RESET;
 				} else {
@@ -3082,7 +3081,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
 			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
 					nesqp->iwarp_state);
-			issue_disconnect = 1;
 		} else {
 			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
 			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
@@ -3934,6 +3932,17 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
 
 	return nesibdev;
+}
+
+void  nes_port_ibevent(struct nes_vnic *nesvnic)
+{
+	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
+	struct nes_device *nesdev = nesvnic->nesdev;
+	struct ib_event event;
+	event.device = &nesibdev->ibdev;
+	event.element.port_num = nesvnic->logical_port + 1;
+	event.event = nesdev->iw_status ? IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
+	ib_dispatch_event(&event);
 }
 
 

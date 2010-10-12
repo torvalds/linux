@@ -65,7 +65,7 @@
 /* free dynamic data aalocated during table creation */
 #define SEP_IOCFREEDMATABLEDATA                _IO(SEP_IOC_MAGIC_NUMBER , 7)
 
-/* get the static pool area addersses (physical and virtual) */
+/* get the static pool area addresses (physical and virtual) */
 #define SEP_IOCGETSTATICPOOLADDR               _IO(SEP_IOC_MAGIC_NUMBER , 8)
 
 /* set flow id command */

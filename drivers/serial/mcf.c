@@ -70,16 +70,14 @@ static unsigned int mcf_tx_empty(struct uart_port *port)
 static unsigned int mcf_get_mctrl(struct uart_port *port)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
-	unsigned long flags;
 	unsigned int sigs;
 
-	spin_lock_irqsave(&port->lock, flags);
 	sigs = (readb(port->membase + MCFUART_UIPR) & MCFUART_UIPR_CTS) ?
 		0 : TIOCM_CTS;
 	sigs |= (pp->sigs & TIOCM_RTS);
 	sigs |= (mcf_getppdcd(port->line) ? TIOCM_CD : 0);
 	sigs |= (mcf_getppdtr(port->line) ? TIOCM_DTR : 0);
-	spin_unlock_irqrestore(&port->lock, flags);
+
 	return sigs;
 }
 
@@ -88,16 +86,13 @@ static unsigned int mcf_get_mctrl(struct uart_port *port)
 static void mcf_set_mctrl(struct uart_port *port, unsigned int sigs)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->sigs = sigs;
 	mcf_setppdtr(port->line, (sigs & TIOCM_DTR));
 	if (sigs & TIOCM_RTS)
 		writeb(MCFUART_UOP_RTS, port->membase + MCFUART_UOP1);
 	else
 		writeb(MCFUART_UOP_RTS, port->membase + MCFUART_UOP0);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -105,12 +100,9 @@ static void mcf_set_mctrl(struct uart_port *port, unsigned int sigs)
 static void mcf_start_tx(struct uart_port *port)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->imr |= MCFUART_UIR_TXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -118,12 +110,9 @@ static void mcf_start_tx(struct uart_port *port)
 static void mcf_stop_tx(struct uart_port *port)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->imr &= ~MCFUART_UIR_TXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -131,12 +120,9 @@ static void mcf_stop_tx(struct uart_port *port)
 static void mcf_stop_rx(struct uart_port *port)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->imr &= ~MCFUART_UIR_RXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -366,13 +352,22 @@ static irqreturn_t mcf_interrupt(int irq, void *data)
 	struct uart_port *port = data;
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned int isr;
+	irqreturn_t ret = IRQ_NONE;
 
 	isr = readb(port->membase + MCFUART_UISR) & pp->imr;
-	if (isr & MCFUART_UIR_RXREADY)
+
+	spin_lock(&port->lock);
+	if (isr & MCFUART_UIR_RXREADY) {
 		mcf_rx_chars(pp);
-	if (isr & MCFUART_UIR_TXREADY)
+		ret = IRQ_HANDLED;
+	}
+	if (isr & MCFUART_UIR_TXREADY) {
 		mcf_tx_chars(pp);
-	return IRQ_HANDLED;
+		ret = IRQ_HANDLED;
+	}
+	spin_unlock(&port->lock);
+
+	return ret;
 }
 
 /****************************************************************************/

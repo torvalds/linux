@@ -476,7 +476,7 @@ static const struct tv_mode tv_modes[] = {
 		.vi_end_f1	= 20,		    .vi_end_f2		= 21,
 		.nbr_end	= 240,
 
-		.burst_ena	= 8,
+		.burst_ena	= true,
 		.hburst_start	= 72,		    .hburst_len		= 34,
 		.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
 		.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
@@ -895,8 +895,6 @@ static const struct tv_mode tv_modes[] = {
 		.filter_table = filter_table,
 	},
 };
-
-#define NUM_TV_MODES sizeof(tv_modes) / sizeof (tv_modes[0])
 
 static void
 intel_tv_dpms(struct drm_encoder *encoder, int mode)
@@ -1424,7 +1422,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 	int j, count = 0;
 	u64 tmp;
 
-	for (j = 0; j < sizeof(input_res_table) / sizeof(input_res_table[0]);
+	for (j = 0; j < ARRAY_SIZE(input_res_table);
 	     j++) {
 		struct input_res *input = &input_res_table[j];
 		unsigned int hactive_s = input->w;
@@ -1512,7 +1510,7 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 		tv_priv->margin[TV_MARGIN_BOTTOM] = val;
 		changed = true;
 	} else if (property == dev->mode_config.tv_mode_property) {
-		if (val >= NUM_TV_MODES) {
+		if (val >= ARRAY_SIZE(tv_modes)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1693,13 +1691,13 @@ intel_tv_init(struct drm_device *dev)
 	connector->doublescan_allowed = false;
 
 	/* Create TV properties then attach current values */
-	tv_format_names = kmalloc(sizeof(char *) * NUM_TV_MODES,
+	tv_format_names = kmalloc(sizeof(char *) * ARRAY_SIZE(tv_modes),
 				  GFP_KERNEL);
 	if (!tv_format_names)
 		goto out;
-	for (i = 0; i < NUM_TV_MODES; i++)
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
 		tv_format_names[i] = tv_modes[i].name;
-	drm_mode_create_tv_properties(dev, NUM_TV_MODES, tv_format_names);
+	drm_mode_create_tv_properties(dev, ARRAY_SIZE(tv_modes), tv_format_names);
 
 	drm_connector_attach_property(connector, dev->mode_config.tv_mode_property,
 				   initial_mode);

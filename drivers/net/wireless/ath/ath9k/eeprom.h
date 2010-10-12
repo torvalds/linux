@@ -263,7 +263,8 @@ enum eeprom_param {
 	EEP_PWR_TABLE_OFFSET,
 	EEP_DRIVE_STRENGTH,
 	EEP_INTERNAL_REGULATOR,
-	EEP_SWREG
+	EEP_SWREG,
+	EEP_PAPRD,
 };
 
 enum ar5416_rates {
@@ -669,7 +670,7 @@ struct eeprom_ops {
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
 	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
-	u16 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
+	u32 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
 				      struct ath9k_channel *chan);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_addac)(struct ath_hw *hw, struct ath9k_channel *chan);
@@ -679,6 +680,7 @@ struct eeprom_ops {
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
 };
 
+void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val);
 void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
 			       u32 shift, u32 val);
 int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,
@@ -704,6 +706,7 @@ void ath9k_hw_get_target_powers(struct ath_hw *ah,
 				u16 numRates, bool isHt40Target);
 u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 				bool is2GHz, int num_band_edges);
+void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah);
 int ath9k_hw_eeprom_init(struct ath_hw *ah);
 
 #define ar5416_get_ntxchains(_txchainmask)			\

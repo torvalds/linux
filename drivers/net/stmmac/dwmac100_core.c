@@ -179,6 +179,8 @@ struct mac_device_info *dwmac100_setup(unsigned long ioaddr)
 	struct mac_device_info *mac;
 
 	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
+	if (!mac)
+		return NULL;
 
 	pr_info("\tDWMAC100\n");
 

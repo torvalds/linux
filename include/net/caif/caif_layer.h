@@ -15,14 +15,8 @@ struct cfpktq;
 struct caif_payload_info;
 struct caif_packet_funcs;
 
-#define CAIF_MAX_FRAMESIZE 4096
-#define CAIF_MAX_PAYLOAD_SIZE (4096 - 64)
-#define CAIF_NEEDED_HEADROOM (10)
-#define CAIF_NEEDED_TAILROOM (2)
 
 #define CAIF_LAYER_NAME_SZ 16
-#define CAIF_SUCCESS	1
-#define CAIF_FAILURE	0
 
 /**
  * caif_assert() - Assert function for CAIF.

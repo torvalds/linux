@@ -79,6 +79,29 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
+int en_print(const char *level, const struct mlx4_en_priv *priv,
+	     const char *format, ...)
+{
+	va_list args;
+	struct va_format vaf;
+	int i;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+	if (priv->registered)
+		i = printk("%s%s: %s: %pV",
+			   level, DRV_NAME, priv->dev->name, &vaf);
+	else
+		i = printk("%s%s: %s: Port %d: %pV",
+			   level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
+			   priv->port, &vaf);
+	va_end(args);
+
+	return i;
+}
+
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;
@@ -152,15 +175,11 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 
 static void *mlx4_en_add(struct mlx4_dev *dev)
 {
-	static int mlx4_en_version_printed;
 	struct mlx4_en_dev *mdev;
 	int i;
 	int err;
 
-	if (!mlx4_en_version_printed) {
-		printk(KERN_INFO "%s", mlx4_en_version);
-		mlx4_en_version_printed++;
-	}
+	printk_once(KERN_INFO "%s", mlx4_en_version);
 
 	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
 	if (!mdev) {

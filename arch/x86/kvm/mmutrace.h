@@ -190,7 +190,7 @@ DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_unsync_page,
 	TP_ARGS(sp)
 );
 
-DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_zap_page,
+DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_prepare_zap_page,
 	TP_PROTO(struct kvm_mmu_page *sp),
 
 	TP_ARGS(sp)

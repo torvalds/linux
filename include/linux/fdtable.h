@@ -11,6 +11,7 @@
 #include <linux/rcupdate.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/fs.h>
 
 #include <asm/atomic.h>
 

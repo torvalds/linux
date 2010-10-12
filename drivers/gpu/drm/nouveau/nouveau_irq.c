@@ -49,7 +49,7 @@ nouveau_irq_preinstall(struct drm_device *dev)
 	/* Master disable */
 	nv_wr32(dev, NV03_PMC_INTR_EN_0, 0);
 
-	if (dev_priv->card_type == NV_50) {
+	if (dev_priv->card_type >= NV_50) {
 		INIT_WORK(&dev_priv->irq_work, nv50_display_irq_handler_bh);
 		INIT_WORK(&dev_priv->hpd_work, nv50_display_irq_hotplug_bh);
 		INIT_LIST_HEAD(&dev_priv->vbl_waiting);
@@ -586,11 +586,11 @@ nouveau_pgraph_irq_handler(struct drm_device *dev)
 		}
 
 		if (status & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
-			nouveau_pgraph_intr_context_switch(dev);
-
 			status &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
 			nv_wr32(dev, NV03_PGRAPH_INTR,
 				 NV_PGRAPH_INTR_CONTEXT_SWITCH);
+
+			nouveau_pgraph_intr_context_switch(dev);
 		}
 
 		if (status) {

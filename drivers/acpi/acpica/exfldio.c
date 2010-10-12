@@ -534,13 +534,13 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 	if (ACPI_SUCCESS(status)) {
 		if (read_write == ACPI_READ) {
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "Value Read %8.8X%8.8X, Width %d\n",
+					  "Value Read %8.8X%8.8X, Width %u\n",
 					  ACPI_FORMAT_UINT64(*value),
 					  obj_desc->common_field.
 					  access_byte_width));
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "Value Written %8.8X%8.8X, Width %d\n",
+					  "Value Written %8.8X%8.8X, Width %u\n",
 					  ACPI_FORMAT_UINT64(*value),
 					  obj_desc->common_field.
 					  access_byte_width));

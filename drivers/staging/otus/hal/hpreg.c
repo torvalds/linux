@@ -29,9 +29,6 @@
 #include "hpreg.h"
 #include "hpusb.h"
 
-/* used throughout this file... */
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-
 #define HAL_MODE_11A_TURBO	HAL_MODE_108A
 #define HAL_MODE_11G_TURBO	HAL_MODE_108G
 
@@ -1557,7 +1554,7 @@ u8_t GetWmRD(u16_t regionCode, u16_t channelFlag, REG_DOMAIN *rd)
 	u64_t flags = NO_REQ;
 	REG_DMN_PAIR_MAPPING *regPair = NULL;
 
-	for (i = 0, found = 0; (i < N(regDomainPairs)) && (!found); i++) {
+	for (i = 0, found = 0; (i < ARRAY_SIZE(regDomainPairs)) && (!found); i++) {
 		if (regDomainPairs[i].regDmnEnum == regionCode) {
 			regPair = &regDomainPairs[i];
 			found = 1;
@@ -1581,7 +1578,7 @@ u8_t GetWmRD(u16_t regionCode, u16_t channelFlag, REG_DOMAIN *rd)
 	 * unitary reg domain of the pair
 	 */
 
-	for (i = 0 ; i < N(regDomains) ; i++) {
+	for (i = 0 ; i < ARRAY_SIZE(regDomains) ; i++) {
 		if (regDomains[i].regDmnEnum == regDmn) {
 			if (rd != NULL) {
 					zfMemoryCopy((u8_t *)rd, (u8_t *)&regDomains[i],
@@ -1653,7 +1650,7 @@ void zfHpGetRegulationTable(zdev_t *dev, u16_t regionCode, u16_t c_lo, u16_t c_h
 
 	zmw_enter_critical_section(dev);
 
-	for (cm = modes; cm < &modes[N(modes)]; cm++) {
+	for (cm = modes; cm < &modes[ARRAY_SIZE(modes)]; cm++) {
 		u16_t c;
 		u64_t *channelBM = NULL;
 		REG_DOMAIN *rd = NULL;
@@ -1846,7 +1843,7 @@ void zfHpGetRegulationTablefromCountry(zdev_t *dev, u16_t CountryCode)
 
 	zmw_declare_for_critical_section();
 
-	for (i = 0; i < N(allCountries); i++) {
+	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
 		if (CountryCode == allCountries[i].countryCode) {
 			RegDomain = allCountries[i].regDmnEnum;
 
@@ -1881,7 +1878,7 @@ u8_t zfHpGetRegulationTablefromISO(zdev_t *dev, u8_t *countryInfo, u8_t length)
 		strLen = 3; */
 	}
 	/* zm_debug_msg_s("Desired iso name = ", isoName); */
-	for (i = 0; i < N(allCountries); i++) {
+	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
 		/* zm_debug_msg_s("Current iso name = ", allCountries[i].isoName); */
 		if (zfMemoryIsEqual((u8_t *)allCountries[i].isoName, (u8_t *)&countryInfo[2], length-1)) {
 			/* DbgPrint("Set current iso name = %s\n", allCountries[i].isoName); */
@@ -1937,7 +1934,7 @@ const char *zfHpGetisoNamefromregionCode(zdev_t *dev, u16_t regionCode)
 {
 	u16_t i;
 
-	for (i = 0; i < N(allCountries); i++) {
+	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
 		if (allCountries[i].regDmnEnum == regionCode)
 			return allCountries[i].isoName;
 	}
@@ -1953,7 +1950,7 @@ u16_t zfHpGetRegionCodeFromIsoName(zdev_t *dev, u8_t *countryIsoName)
 	/* if no matching item, return default */
 	regionCode = DEF_REGDMN;
 
-	for (i = 0; i < N(allCountries); i++) {
+	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
 		if (zfMemoryIsEqual((u8_t *)allCountries[i].isoName, countryIsoName, 2)) {
 			regionCode = allCountries[i].regDmnEnum;
 		break;

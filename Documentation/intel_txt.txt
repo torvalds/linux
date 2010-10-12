@@ -25,20 +25,18 @@ which has been updated for the new released platforms.
 Intel TXT has been presented at various events over the past few
 years, some of which are:
       LinuxTAG 2008:
-          http://www.linuxtag.org/2008/en/conf/events/vp-donnerstag/
-          details.html?talkid=110
+          http://www.linuxtag.org/2008/en/conf/events/vp-donnerstag.html
       TRUST2008:
-          http://www.trust2008.eu/downloads/Keynote-Speakers/
+          http://www.trust-conference.eu/downloads/Keynote-Speakers/
           3_David-Grawrock_The-Front-Door-of-Trusted-Computing.pdf
-      IDF 2008, Shanghai:
-          http://inteldeveloperforum.com.edgesuite.net/shanghai_2008/
-          aep/PROS003/index.html
+      IDF, Shanghai:
+          http://www.prcidf.com.cn/index_en.html
       IDFs 2006, 2007 (I'm not sure if/where they are online)
 
 Trusted Boot Project Overview:
 =============================
 
-Trusted Boot (tboot) is an open source, pre- kernel/VMM module that
+Trusted Boot (tboot) is an open source, pre-kernel/VMM module that
 uses Intel TXT to perform a measured and verified launch of an OS
 kernel/VMM.
 

@@ -368,6 +368,8 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	if (qebsm_possible())
 		irq_ptr->qib.rflags |= QIB_RFLAGS_ENABLE_QEBSM;
 
+	irq_ptr->qib.rflags |= init_data->qib_rflags;
+
 	irq_ptr->qib.qfmt = init_data->q_format;
 	if (init_data->no_input_qs)
 		irq_ptr->qib.isliba =

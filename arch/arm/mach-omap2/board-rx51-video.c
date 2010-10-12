@@ -16,7 +16,6 @@
 #include <linux/mm.h>
 
 #include <asm/mach-types.h>
-#include <plat/mux.h>
 #include <plat/display.h>
 #include <plat/vram.h>
 #include <plat/mcspi.h>

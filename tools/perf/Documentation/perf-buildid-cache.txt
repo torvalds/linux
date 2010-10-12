@@ -12,9 +12,9 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This command manages the build-id cache. It can add and remove files to the
-cache. In the future it should as well purge older entries, set upper limits
-for the space used by the cache, etc.
+This command manages the build-id cache. It can add and remove files to/from
+the cache. In the future it should as well purge older entries, set upper
+limits for the space used by the cache, etc.
 
 OPTIONS
 -------
@@ -23,7 +23,7 @@ OPTIONS
         Add specified file to the cache.
 -r::
 --remove=::
-        Remove specified file to the cache.
+        Remove specified file from the cache.
 -v::
 --verbose::
 	Be more verbose.

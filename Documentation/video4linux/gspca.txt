@@ -29,8 +29,12 @@ zc3xx		041e:4029	Creative WebCam Vista Pro
 zc3xx		041e:4034	Creative Instant P0620
 zc3xx		041e:4035	Creative Instant P0620D
 zc3xx		041e:4036	Creative Live !
+sq930x		041e:4038	Creative Joy-IT
 zc3xx		041e:403a	Creative Nx Pro 2
 spca561		041e:403b	Creative Webcam Vista (VF0010)
+sq930x		041e:403c	Creative Live! Ultra
+sq930x		041e:403d	Creative Live! Ultra for Notebooks
+sq930x		041e:4041	Creative Live! Motion
 zc3xx		041e:4051	Creative Live!Cam Notebook Pro (VF0250)
 ov519		041e:4052	Creative Live! VISTA IM
 zc3xx		041e:4053	Creative Live!Cam Video IM
@@ -138,6 +142,7 @@ finepix		04cb:013d	Fujifilm FinePix unknown model
 finepix		04cb:013f	Fujifilm FinePix F420
 sunplus		04f1:1001	JVC GC A50
 spca561		04fc:0561	Flexcam 100
+spca1528	04fc:1528	Sunplus MD80 clone
 sunplus		04fc:500c	Sunplus CA500C
 sunplus		04fc:504a	Aiptek Mini PenCam 1.3
 sunplus		04fc:504b	Maxell MaxPocket LE 1.3
@@ -253,6 +258,7 @@ pac7302		093a:2620	Apollo AC-905
 pac7302		093a:2621	PAC731x
 pac7302		093a:2622	Genius Eye 312
 pac7302		093a:2624	PAC7302
+pac7302		093a:2625	Genius iSlim 310
 pac7302		093a:2626	Labtec 2200
 pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
@@ -362,6 +368,8 @@ sq905c		2770:9052	Disney pix micro 2 (VGA)
 sq905c		2770:905c	All 11 known cameras with this ID
 sq905		2770:9120	All 24 known cameras with this ID
 sq905c		2770:913d	All 4 known cameras with this ID
+sq930x		2770:930b	Sweex Motion Tracking / I-Tec iCam Tracer
+sq930x		2770:930c	Trust WB-3500T / NSG Robbie 2.0
 spca500		2899:012c	Toptro Industrial
 ov519		8020:ef04	ov519
 spca508		8086:0110	Intel Easy PC Camera

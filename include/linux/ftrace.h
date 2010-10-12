@@ -1,3 +1,8 @@
+/*
+ * Ftrace header.  For implementation details beyond the random comments
+ * scattered below, see: Documentation/trace/ftrace-design.txt
+ */
+
 #ifndef _LINUX_FTRACE_H
 #define _LINUX_FTRACE_H
 

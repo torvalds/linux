@@ -650,7 +650,7 @@ static int ftdi_elan_open(struct inode *inode, struct file *file)
 
 static int ftdi_elan_release(struct inode *inode, struct file *file)
 {
-        struct usb_ftdi *ftdi = (struct usb_ftdi *)file->private_data;
+        struct usb_ftdi *ftdi = file->private_data;
         if (ftdi == NULL)
                 return -ENODEV;
         up(&ftdi->sw_lock);        /* decrement the count on our device */
@@ -673,7 +673,7 @@ static ssize_t ftdi_elan_read(struct file *file, char __user *buffer,
         int bytes_read = 0;
         int retry_on_empty = 10;
         int retry_on_timeout = 5;
-        struct usb_ftdi *ftdi = (struct usb_ftdi *)file->private_data;
+        struct usb_ftdi *ftdi = file->private_data;
         if (ftdi->disconnected > 0) {
                 return -ENODEV;
         }

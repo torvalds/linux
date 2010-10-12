@@ -482,7 +482,6 @@ static int isp1760_run(struct usb_hcd *hcd)
 	u32 chipid;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	hcd->state = HC_STATE_RUNNING;
 	isp1760_enable_interrupts(hcd);
@@ -1450,7 +1449,7 @@ static int isp1760_prepare_enqueue(struct isp1760_hcd *priv, struct urb *urb,
 	epnum = urb->ep->desc.bEndpointAddress;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &priv_to_hcd(priv)->flags)) {
+	if (!HCD_HW_ACCESSIBLE(priv_to_hcd(priv))) {
 		rc = -ESHUTDOWN;
 		goto done;
 	}

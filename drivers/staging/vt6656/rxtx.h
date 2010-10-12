@@ -683,9 +683,9 @@ bPacketToWirelessUsb(
     );
 
 void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
-NTSTATUS nsDMA_tx_packet(PSDevice  pDevice,
-			 unsigned int uDMAIdx,
-			 struct sk_buff *skb);
+int nsDMA_tx_packet(PSDevice pDevice,
+		    unsigned int uDMAIdx,
+		    struct sk_buff *skb);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData,

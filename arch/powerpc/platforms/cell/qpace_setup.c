@@ -61,12 +61,24 @@ static void qpace_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
+static const struct of_device_id qpace_bus_ids[] __initdata = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{ .type = "spider", },
+	{ .type = "axon", },
+	{ .type = "plb5", },
+	{ .type = "plb4", },
+	{ .type = "opb", },
+	{ .type = "ebc", },
+	{},
+};
+
 static int __init qpace_publish_devices(void)
 {
 	int node;
 
 	/* Publish OF platform devices for southbridge IOs */
-	of_platform_bus_probe(NULL, NULL, NULL);
+	of_platform_bus_probe(NULL, qpace_bus_ids, NULL);
 
 	/* There is no device for the MIC memory controller, thus we create
 	 * a platform device for it to attach the EDAC driver to.

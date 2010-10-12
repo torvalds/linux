@@ -262,6 +262,42 @@ DEFINE_EVENT(i915_ring, i915_ring_wait_end,
 	    TP_ARGS(dev)
 );
 
+TRACE_EVENT(i915_flip_request,
+	    TP_PROTO(int plane, struct drm_gem_object *obj),
+
+	    TP_ARGS(plane, obj),
+
+	    TP_STRUCT__entry(
+		    __field(int, plane)
+		    __field(struct drm_gem_object *, obj)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->plane = plane;
+		    __entry->obj = obj;
+		    ),
+
+	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
+);
+
+TRACE_EVENT(i915_flip_complete,
+	    TP_PROTO(int plane, struct drm_gem_object *obj),
+
+	    TP_ARGS(plane, obj),
+
+	    TP_STRUCT__entry(
+		    __field(int, plane)
+		    __field(struct drm_gem_object *, obj)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->plane = plane;
+		    __entry->obj = obj;
+		    ),
+
+	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
+);
+
 #endif /* _I915_TRACE_H_ */
 
 /* This part must be outside protection */

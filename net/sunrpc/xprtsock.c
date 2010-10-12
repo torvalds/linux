@@ -2577,7 +2577,8 @@ void cleanup_socket_xprt(void)
 	xprt_unregister_transport(&xs_bc_tcp_transport);
 }
 
-static int param_set_uint_minmax(const char *val, struct kernel_param *kp,
+static int param_set_uint_minmax(const char *val,
+		const struct kernel_param *kp,
 		unsigned int min, unsigned int max)
 {
 	unsigned long num;
@@ -2592,34 +2593,37 @@ static int param_set_uint_minmax(const char *val, struct kernel_param *kp,
 	return 0;
 }
 
-static int param_set_portnr(const char *val, struct kernel_param *kp)
+static int param_set_portnr(const char *val, const struct kernel_param *kp)
 {
 	return param_set_uint_minmax(val, kp,
 			RPC_MIN_RESVPORT,
 			RPC_MAX_RESVPORT);
 }
 
-static int param_get_portnr(char *buffer, struct kernel_param *kp)
-{
-	return param_get_uint(buffer, kp);
-}
+static struct kernel_param_ops param_ops_portnr = {
+	.set = param_set_portnr,
+	.get = param_get_uint,
+};
+
 #define param_check_portnr(name, p) \
 	__param_check(name, p, unsigned int);
 
 module_param_named(min_resvport, xprt_min_resvport, portnr, 0644);
 module_param_named(max_resvport, xprt_max_resvport, portnr, 0644);
 
-static int param_set_slot_table_size(const char *val, struct kernel_param *kp)
+static int param_set_slot_table_size(const char *val,
+				     const struct kernel_param *kp)
 {
 	return param_set_uint_minmax(val, kp,
 			RPC_MIN_SLOT_TABLE,
 			RPC_MAX_SLOT_TABLE);
 }
 
-static int param_get_slot_table_size(char *buffer, struct kernel_param *kp)
-{
-	return param_get_uint(buffer, kp);
-}
+static struct kernel_param_ops param_ops_slot_table_size = {
+	.set = param_set_slot_table_size,
+	.get = param_get_uint,
+};
+
 #define param_check_slot_table_size(name, p) \
 	__param_check(name, p, unsigned int);
 

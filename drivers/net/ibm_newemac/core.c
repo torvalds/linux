@@ -1045,7 +1045,7 @@ static int emac_change_mtu(struct net_device *ndev, int new_mtu)
 	DBG(dev, "change_mtu(%d)" NL, new_mtu);
 
 	if (netif_running(ndev)) {
-		/* Check if we really need to reinitalize RX ring */
+		/* Check if we really need to reinitialize RX ring */
 		if (emac_rx_skb_size(ndev->mtu) != emac_rx_skb_size(new_mtu))
 			ret = emac_resize_rx_ring(dev, new_mtu);
 	}
@@ -2245,7 +2245,7 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 struct emac_depentry {
 	u32			phandle;
 	struct device_node	*node;
-	struct of_device	*ofdev;
+	struct platform_device	*ofdev;
 	void			*drvdata;
 };
 
@@ -2339,11 +2339,11 @@ static int __devinit emac_wait_deps(struct emac_instance *dev)
 		deps[EMAC_DEP_MDIO_IDX].phandle = dev->mdio_ph;
 	if (dev->blist && dev->blist > emac_boot_list)
 		deps[EMAC_DEP_PREV_IDX].phandle = 0xffffffffu;
-	bus_register_notifier(&of_platform_bus_type, &emac_of_bus_notifier);
+	bus_register_notifier(&platform_bus_type, &emac_of_bus_notifier);
 	wait_event_timeout(emac_probe_wait,
 			   emac_check_deps(dev, deps),
 			   EMAC_PROBE_DEP_TIMEOUT);
-	bus_unregister_notifier(&of_platform_bus_type, &emac_of_bus_notifier);
+	bus_unregister_notifier(&platform_bus_type, &emac_of_bus_notifier);
 	err = emac_check_deps(dev, deps) ? 0 : -ENODEV;
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
 		if (deps[i].node)
@@ -2719,7 +2719,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_change_mtu		= emac_change_mtu,
 };
 
-static int __devinit emac_probe(struct of_device *ofdev,
+static int __devinit emac_probe(struct platform_device *ofdev,
 				const struct of_device_id *match)
 {
 	struct net_device *ndev;
@@ -2941,7 +2941,7 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	return err;
 }
 
-static int __devexit emac_remove(struct of_device *ofdev)
+static int __devexit emac_remove(struct platform_device *ofdev)
 {
 	struct emac_instance *dev = dev_get_drvdata(&ofdev->dev);
 

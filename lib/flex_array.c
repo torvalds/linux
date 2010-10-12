@@ -171,6 +171,8 @@ __fa_get_part(struct flex_array *fa, int part_nr, gfp_t flags)
  * Note that this *copies* the contents of @src into
  * the array.  If you are trying to store an array of
  * pointers, make sure to pass in &ptr instead of ptr.
+ * You may instead wish to use the flex_array_put_ptr()
+ * helper function.
  *
  * Locking must be provided by the caller.
  */
@@ -265,7 +267,8 @@ int flex_array_prealloc(struct flex_array *fa, unsigned int start,
  *
  * Returns a pointer to the data at index @element_nr.  Note
  * that this is a copy of the data that was passed in.  If you
- * are using this to store pointers, you'll get back &ptr.
+ * are using this to store pointers, you'll get back &ptr.  You
+ * may instead wish to use the flex_array_get_ptr helper.
  *
  * Locking must be provided by the caller.
  */
@@ -284,6 +287,26 @@ void *flex_array_get(struct flex_array *fa, unsigned int element_nr)
 			return NULL;
 	}
 	return &part->elements[index_inside_part(fa, element_nr)];
+}
+
+/**
+ * flex_array_get_ptr - pull a ptr back out of the array
+ * @fa:		the flex array from which to extract data
+ * @element_nr:	index of the element to fetch from the array
+ *
+ * Returns the pointer placed in the flex array at element_nr using
+ * flex_array_put_ptr().  This function should not be called if the
+ * element in question was not set using the _put_ptr() helper.
+ */
+void *flex_array_get_ptr(struct flex_array *fa, unsigned int element_nr)
+{
+	void **tmp;
+
+	tmp = flex_array_get(fa, element_nr);
+	if (!tmp)
+		return NULL;
+
+	return *tmp;
 }
 
 static int part_is_free(struct flex_array_part *part)

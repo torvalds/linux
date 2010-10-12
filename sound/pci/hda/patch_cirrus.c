@@ -656,7 +656,7 @@ static int change_cur_input(struct hda_codec *codec, unsigned int idx,
 		return 0;
 	if (spec->cur_adc && spec->cur_adc != spec->adc_nid[idx]) {
 		/* stream is running, let's swap the current ADC */
-		snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
+		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
 		spec->cur_adc = spec->adc_nid[idx];
 		snd_hda_codec_setup_stream(codec, spec->cur_adc,
 					   spec->cur_adc_stream_tag, 0,

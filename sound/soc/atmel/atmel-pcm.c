@@ -77,7 +77,6 @@ struct atmel_runtime_data {
 	size_t period_size;
 
 	dma_addr_t period_ptr;		/* physical address of next period */
-	int periods;			/* period index of period_ptr */
 
 	/* PDC register save */
 	u32 pdc_xpr_save;

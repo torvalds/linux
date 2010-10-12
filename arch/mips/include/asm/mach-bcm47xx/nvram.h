@@ -31,6 +31,9 @@ struct nvram_header {
 #define NVRAM_MAX_VALUE_LEN 255
 #define NVRAM_MAX_PARAM_LEN 64
 
+#define NVRAM_ERR_INV_PARAM	-8
+#define NVRAM_ERR_ENVNOTFOUND	-9
+
 extern int nvram_getenv(char *name, char *val, size_t val_len);
 
 #endif

@@ -21,30 +21,11 @@
 #include "ieee80211.h"
 
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#include "rtl_crypto.h"
-#else
 #include <linux/crypto.h>
-#endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-    #include <asm/scatterlist.h>
-#else
-    #include <linux/scatterlist.h>
-#endif
-//#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crc32.h>
-//
-/*
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#include "rtl_crypto.h"
-#else
-#include <linux/crypto.h>
-#endif
 
-#include <asm/scatterlist.h>
-#include <linux/crc32.h>
-*/
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: WEP");
 MODULE_LICENSE("GPL");
@@ -58,12 +39,8 @@ struct prism2_wep_data {
 	u8 key[WEP_KEY_LEN + 1];
 	u8 key_len;
 	u8 key_idx;
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
-	struct crypto_tfm *tfm;
-	#else
         struct crypto_blkcipher *tx_tfm;
         struct crypto_blkcipher *rx_tfm;
-        #endif
 };
 
 
@@ -76,14 +53,6 @@ static void * prism2_wep_init(int keyidx)
 		goto fail;
 	priv->key_idx = keyidx;
 
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
-	priv->tfm = crypto_alloc_tfm("arc4", 0);
-	if (priv->tfm == NULL) {
-		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
-		goto fail;
-	}
-	#else
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
         if (IS_ERR(priv->tx_tfm)) {
                 printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
@@ -98,7 +67,6 @@ static void * prism2_wep_init(int keyidx)
                 priv->rx_tfm = NULL;
                 goto fail;
         }
-        #endif
 
 	/* start WEP IV from a random value */
 	get_random_bytes(&priv->iv, 4);
@@ -106,13 +74,6 @@ static void * prism2_wep_init(int keyidx)
 	return priv;
 
 fail:
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
-	if (priv) {
-		if (priv->tfm)
-			crypto_free_tfm(priv->tfm);
-		kfree(priv);
-	}
-	#else
 	if (priv) {
                 if (priv->tx_tfm)
                         crypto_free_blkcipher(priv->tx_tfm);
@@ -120,7 +81,6 @@ fail:
                         crypto_free_blkcipher(priv->rx_tfm);
                 kfree(priv);
         }
-        #endif
 	return NULL;
 }
 
@@ -128,17 +88,12 @@ fail:
 static void prism2_wep_deinit(void *priv)
 {
 	struct prism2_wep_data *_priv = priv;
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
-	if (_priv && _priv->tfm)
-		crypto_free_tfm(_priv->tfm);
-	#else
 	if (_priv) {
                 if (_priv->tx_tfm)
                         crypto_free_blkcipher(_priv->tx_tfm);
                 if (_priv->rx_tfm)
                         crypto_free_blkcipher(_priv->rx_tfm);
         }
-        #endif
 	kfree(priv);
 }
 
@@ -155,9 +110,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 key[WEP_KEY_LEN + 3];
 	u8 *pos;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)) || (OPENSUSE_SLED))
 	struct blkcipher_desc desc = {.tfm = wep->tx_tfm};
-	#endif
 	u32 crc;
 	u8 *icv;
 	struct scatterlist sg;
@@ -196,35 +149,16 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	{
 
 		/* Append little-endian CRC32 and encrypt it to produce ICV */
-	#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 		crc = ~crc32_le(~0, pos, len);
-	#else
-		crc = ~ether_crc_le(len, pos);
-	#endif
 		icv = skb_put(skb, 4);
 		icv[0] = crc;
 		icv[1] = crc >> 8;
 		icv[2] = crc >> 16;
 		icv[3] = crc >> 24;
 
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
-		crypto_cipher_setkey(wep->tfm, key, klen);
-		sg.page = virt_to_page(pos);
-		sg.offset = offset_in_page(pos);
-		sg.length = len + 4;
-		crypto_cipher_encrypt(wep->tfm, &sg, &sg, len + 4);
-		return 0;
-	#else
 		crypto_blkcipher_setkey(wep->tx_tfm, key, klen);
-	#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-		sg.page = virt_to_page(pos);
-		sg.offset = offset_in_page(pos);
-		sg.length = len + 4;
-	#else
 		sg_init_one(&sg, pos, len+4);
-	#endif
 		return crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
-	#endif
 	}
 
 	return 0;
@@ -245,9 +179,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 key[WEP_KEY_LEN + 3];
 	u8 keyidx, *pos;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)) || (OPENSUSE_SLED))
 	struct blkcipher_desc desc = {.tfm = wep->rx_tfm};
-	#endif
 	u32 crc;
 	u8 icv[4];
 	struct scatterlist sg;
@@ -272,29 +204,11 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (!tcb_desc->bHwSec)
 	{
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
-		crypto_cipher_setkey(wep->tfm, key, klen);
-		sg.page = virt_to_page(pos);
-		sg.offset = offset_in_page(pos);
-		sg.length = plen + 4;
-		crypto_cipher_decrypt(wep->tfm, &sg, &sg, plen + 4);
-	#else
 		crypto_blkcipher_setkey(wep->rx_tfm, key, klen);
-	#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-		sg.page = virt_to_page(pos);
-		sg.offset = offset_in_page(pos);
-		sg.length = plen + 4;
-	#else
 		sg_init_one(&sg, pos, plen+4);
-	#endif
 		if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4))
 			return -7;
-	#endif
-	#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 		crc = ~crc32_le(~0, pos, plen);
-	#else
-		crc = ~ether_crc_le(plen, pos);
-	#endif
 		icv[0] = crc;
 		icv[1] = crc >> 8;
 		icv[2] = crc >> 16;
@@ -379,14 +293,6 @@ void __exit ieee80211_crypto_wep_exit(void)
 
 void ieee80211_wep_null(void)
 {
-//	printk("============>%s()\n", __FUNCTION__);
         return;
 }
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-//EXPORT_SYMBOL(ieee80211_wep_null);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_wep_null);
-#endif
 
-//module_init(ieee80211_crypto_wep_init);
-//module_exit(ieee80211_crypto_wep_exit);

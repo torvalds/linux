@@ -25,9 +25,11 @@ OPTIONS
 --count=<count>::
 	Event period to sample.
 
--C <cpu>::
---CPU=<cpu>::
-	CPU to profile.
+-C <cpu-list>::
+--cpu=<cpu>::
+Monitor only on the list of cpus provided. Multiple CPUs can be provided as a
+comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+Default is to monitor all CPUS.
 
 -d <seconds>::
 --delay=<seconds>::

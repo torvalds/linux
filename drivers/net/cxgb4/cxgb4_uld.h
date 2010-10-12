@@ -185,7 +185,13 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range stag;
 	struct cxgb4_range rq;
 	struct cxgb4_range pbl;
+	struct cxgb4_range qp;
+	struct cxgb4_range cq;
+	struct cxgb4_range ocq;
 };
+
+#define OCQ_WIN_OFFSET(pdev, vres) \
+	(pci_resource_len((pdev), 2) - roundup_pow_of_two((vres)->ocq.size))
 
 /*
  * Block of information the LLD provides to ULDs attaching to a device.

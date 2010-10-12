@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
+#include <acpi/video.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -11,6 +12,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nv50_display.h"
+#include "nouveau_connector.h"
 
 #include <linux/vga_switcheroo.h>
 
@@ -42,7 +44,7 @@ static const char nouveau_dsm_muid[] = {
 	0xB3, 0x4D, 0x7E, 0x5F, 0xEA, 0x12, 0x9F, 0xD4,
 };
 
-static int nouveau_dsm(acpi_handle handle, int func, int arg, int *result)
+static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_object_list input;
@@ -258,4 +260,38 @@ bool nouveau_acpi_rom_supported(struct pci_dev *pdev)
 int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
 {
 	return nouveau_rom_call(nouveau_dsm_priv.rom_handle, bios, offset, len);
+}
+
+int
+nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct acpi_device *acpidev;
+	acpi_handle handle;
+	int type, ret;
+	void *edid;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_eDP:
+		type = ACPI_VIDEO_DISPLAY_LCD;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	if (!handle)
+		return -ENODEV;
+
+	ret = acpi_bus_get_device(handle, &acpidev);
+	if (ret)
+		return -ENODEV;
+
+	ret = acpi_video_get_edid(acpidev, type, -1, &edid);
+	if (ret < 0)
+		return ret;
+
+	nv_connector->edid = edid;
+	return 0;
 }

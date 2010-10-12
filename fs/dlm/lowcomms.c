@@ -248,7 +248,7 @@ static struct connection *assoc2con(int assoc_id)
 
 	for (i = 0 ; i < CONN_HASH_SIZE; i++) {
 		hlist_for_each_entry(con, h, &connection_hash[i], list) {
-			if (con && con->sctp_assoc == assoc_id) {
+			if (con->sctp_assoc == assoc_id) {
 				mutex_unlock(&connections_lock);
 				return con;
 			}

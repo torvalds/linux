@@ -67,7 +67,7 @@ struct fddi_8022_1_hdr {
 	__u8	dsap;					/* destination service access point */
 	__u8	ssap;					/* source service access point */
 	__u8	ctrl;					/* control byte #1 */
-} __attribute__ ((packed));
+} __packed;
 
 /* Define 802.2 Type 2 header */
 struct fddi_8022_2_hdr {
@@ -75,7 +75,7 @@ struct fddi_8022_2_hdr {
 	__u8	ssap;					/* source service access point */
 	__u8	ctrl_1;					/* control byte #1 */
 	__u8	ctrl_2;					/* control byte #2 */
-} __attribute__ ((packed));
+} __packed;
 
 /* Define 802.2 SNAP header */
 #define FDDI_K_OUI_LEN	3
@@ -85,7 +85,7 @@ struct fddi_snap_hdr {
 	__u8	ctrl;					/* always 0x03 */
 	__u8	oui[FDDI_K_OUI_LEN];	/* organizational universal id */
 	__be16	ethertype;				/* packet type ID field */
-} __attribute__ ((packed));
+} __packed;
 
 /* Define FDDI LLC frame header */
 struct fddihdr {
@@ -98,7 +98,7 @@ struct fddihdr {
 		struct fddi_8022_2_hdr		llc_8022_2;
 		struct fddi_snap_hdr		llc_snap;
 		} hdr;
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef __KERNEL__
 #include <linux/netdevice.h>

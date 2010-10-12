@@ -30,8 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/sysdev.h>
 
 #include <asm/uaccess.h>
@@ -438,84 +436,3 @@ struct thermal_cooling_device_ops processor_cooling_ops = {
 	.get_cur_state = processor_get_cur_state,
 	.set_cur_state = processor_set_cur_state,
 };
-
-/* /proc interface */
-#ifdef CONFIG_ACPI_PROCFS
-static int acpi_processor_limit_seq_show(struct seq_file *seq, void *offset)
-{
-	struct acpi_processor *pr = seq->private;
-
-	if (!pr)
-		goto end;
-
-	if (!pr->flags.limit) {
-		seq_puts(seq, "<not supported>\n");
-		goto end;
-	}
-
-	seq_printf(seq, "active limit:            P%d:T%d\n"
-		   "user limit:              P%d:T%d\n"
-		   "thermal limit:           P%d:T%d\n",
-		   pr->limit.state.px, pr->limit.state.tx,
-		   pr->limit.user.px, pr->limit.user.tx,
-		   pr->limit.thermal.px, pr->limit.thermal.tx);
-
-      end:
-	return 0;
-}
-
-static int acpi_processor_limit_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_processor_limit_seq_show,
-			   PDE(inode)->data);
-}
-
-static ssize_t acpi_processor_write_limit(struct file * file,
-					  const char __user * buffer,
-					  size_t count, loff_t * data)
-{
-	int result = 0;
-	struct seq_file *m = file->private_data;
-	struct acpi_processor *pr = m->private;
-	char limit_string[25] = { '\0' };
-	int px = 0;
-	int tx = 0;
-
-
-	if (!pr || (count > sizeof(limit_string) - 1)) {
-		return -EINVAL;
-	}
-
-	if (copy_from_user(limit_string, buffer, count)) {
-		return -EFAULT;
-	}
-
-	limit_string[count] = '\0';
-
-	if (sscanf(limit_string, "%d:%d", &px, &tx) != 2) {
-		printk(KERN_ERR PREFIX "Invalid data format\n");
-		return -EINVAL;
-	}
-
-	if (pr->flags.throttling) {
-		if ((tx < 0) || (tx > (pr->throttling.state_count - 1))) {
-			printk(KERN_ERR PREFIX "Invalid tx\n");
-			return -EINVAL;
-		}
-		pr->limit.user.tx = tx;
-	}
-
-	result = acpi_processor_apply_limit(pr);
-
-	return count;
-}
-
-const struct file_operations acpi_processor_limit_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_processor_limit_open_fs,
-	.read = seq_read,
-	.write = acpi_processor_write_limit,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif

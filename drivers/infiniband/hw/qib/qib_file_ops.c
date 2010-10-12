@@ -1294,128 +1294,130 @@ bail:
 	return ret;
 }
 
-static inline int usable(struct qib_pportdata *ppd, int active_only)
+static inline int usable(struct qib_pportdata *ppd)
 {
 	struct qib_devdata *dd = ppd->dd;
-	u32 linkok = active_only ? QIBL_LINKACTIVE :
-		 (QIBL_LINKINIT | QIBL_LINKARMED | QIBL_LINKACTIVE);
 
 	return dd && (dd->flags & QIB_PRESENT) && dd->kregbase && ppd->lid &&
-		(ppd->lflags & linkok);
+		(ppd->lflags & QIBL_LINKACTIVE);
+}
+
+/*
+ * Select a context on the given device, either using a requested port
+ * or the port based on the context number.
+ */
+static int choose_port_ctxt(struct file *fp, struct qib_devdata *dd, u32 port,
+			    const struct qib_user_info *uinfo)
+{
+	struct qib_pportdata *ppd = NULL;
+	int ret, ctxt;
+
+	if (port) {
+		if (!usable(dd->pport + port - 1)) {
+			ret = -ENETDOWN;
+			goto done;
+		} else
+			ppd = dd->pport + port - 1;
+	}
+	for (ctxt = dd->first_user_ctxt; ctxt < dd->cfgctxts && dd->rcd[ctxt];
+	     ctxt++)
+		;
+	if (ctxt == dd->cfgctxts) {
+		ret = -EBUSY;
+		goto done;
+	}
+	if (!ppd) {
+		u32 pidx = ctxt % dd->num_pports;
+		if (usable(dd->pport + pidx))
+			ppd = dd->pport + pidx;
+		else {
+			for (pidx = 0; pidx < dd->num_pports && !ppd;
+			     pidx++)
+				if (usable(dd->pport + pidx))
+					ppd = dd->pport + pidx;
+		}
+	}
+	ret = ppd ? setup_ctxt(ppd, ctxt, fp, uinfo) : -ENETDOWN;
+done:
+	return ret;
 }
 
 static int find_free_ctxt(int unit, struct file *fp,
 			  const struct qib_user_info *uinfo)
 {
 	struct qib_devdata *dd = qib_lookup(unit);
-	struct qib_pportdata *ppd = NULL;
 	int ret;
-	u32 ctxt;
 
-	if (!dd || (uinfo->spu_port && uinfo->spu_port > dd->num_pports)) {
+	if (!dd || (uinfo->spu_port && uinfo->spu_port > dd->num_pports))
 		ret = -ENODEV;
-		goto bail;
-	}
+	else
+		ret = choose_port_ctxt(fp, dd, uinfo->spu_port, uinfo);
 
-	/*
-	 * If users requests specific port, only try that one port, else
-	 * select "best" port below, based on context.
-	 */
-	if (uinfo->spu_port) {
-		ppd = dd->pport + uinfo->spu_port - 1;
-		if (!usable(ppd, 0)) {
-			ret = -ENETDOWN;
-			goto bail;
-		}
-	}
-
-	for (ctxt = dd->first_user_ctxt; ctxt < dd->cfgctxts; ctxt++) {
-		if (dd->rcd[ctxt])
-			continue;
-		/*
-		 * The setting and clearing of user context rcd[x] protected
-		 * by the qib_mutex
-		 */
-		if (!ppd) {
-			/* choose port based on ctxt, if up, else 1st up */
-			ppd = dd->pport + (ctxt % dd->num_pports);
-			if (!usable(ppd, 0)) {
-				int i;
-				for (i = 0; i < dd->num_pports; i++) {
-					ppd = dd->pport + i;
-					if (usable(ppd, 0))
-						break;
-				}
-				if (i == dd->num_pports) {
-					ret = -ENETDOWN;
-					goto bail;
-				}
-			}
-		}
-		ret = setup_ctxt(ppd, ctxt, fp, uinfo);
-		goto bail;
-	}
-	ret = -EBUSY;
-
-bail:
 	return ret;
 }
 
-static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo)
+static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
+		      unsigned alg)
 {
-	struct qib_pportdata *ppd;
-	int ret = 0, devmax;
-	int npresent, nup;
-	int ndev;
+	struct qib_devdata *udd = NULL;
+	int ret = 0, devmax, npresent, nup, ndev, dusable = 0, i;
 	u32 port = uinfo->spu_port, ctxt;
 
 	devmax = qib_count_units(&npresent, &nup);
-
-	for (ndev = 0; ndev < devmax; ndev++) {
-		struct qib_devdata *dd = qib_lookup(ndev);
-
-		/* device portion of usable() */
-		if (!(dd && (dd->flags & QIB_PRESENT) && dd->kregbase))
-			continue;
-		for (ctxt = dd->first_user_ctxt; ctxt < dd->cfgctxts; ctxt++) {
-			if (dd->rcd[ctxt])
-				continue;
-			if (port) {
-				if (port > dd->num_pports)
-					continue;
-				ppd = dd->pport + port - 1;
-				if (!usable(ppd, 0))
-					continue;
-			} else {
-				/*
-				 * choose port based on ctxt, if up, else
-				 * first port that's up for multi-port HCA
-				 */
-				ppd = dd->pport + (ctxt % dd->num_pports);
-				if (!usable(ppd, 0)) {
-					int j;
-
-					ppd = NULL;
-					for (j = 0; j < dd->num_pports &&
-						!ppd; j++)
-						if (usable(dd->pport + j, 0))
-							ppd = dd->pport + j;
-					if (!ppd)
-						continue; /* to next unit */
-				}
-			}
-			ret = setup_ctxt(ppd, ctxt, fp, uinfo);
-			goto done;
-		}
+	if (!npresent) {
+		ret = -ENXIO;
+		goto done;
+	}
+	if (nup == 0) {
+		ret = -ENETDOWN;
+		goto done;
 	}
 
-	if (npresent) {
-		if (nup == 0)
-			ret = -ENETDOWN;
-		else
-			ret = -EBUSY;
-	} else
-		ret = -ENXIO;
+	if (alg == QIB_PORT_ALG_ACROSS) {
+		unsigned inuse = ~0U;
+		/* find device (with ACTIVE ports) with fewest ctxts in use */
+		for (ndev = 0; ndev < devmax; ndev++) {
+			struct qib_devdata *dd = qib_lookup(ndev);
+			unsigned cused = 0, cfree = 0;
+			if (!dd)
+				continue;
+			if (port && port <= dd->num_pports &&
+			    usable(dd->pport + port - 1))
+				dusable = 1;
+			else
+				for (i = 0; i < dd->num_pports; i++)
+					if (usable(dd->pport + i))
+						dusable++;
+			if (!dusable)
+				continue;
+			for (ctxt = dd->first_user_ctxt; ctxt < dd->cfgctxts;
+			     ctxt++)
+				if (dd->rcd[ctxt])
+					cused++;
+				else
+					cfree++;
+			if (cfree && cused < inuse) {
+				udd = dd;
+				inuse = cused;
+			}
+		}
+		if (udd) {
+			ret = choose_port_ctxt(fp, udd, port, uinfo);
+			goto done;
+		}
+	} else {
+		for (ndev = 0; ndev < devmax; ndev++) {
+			struct qib_devdata *dd = qib_lookup(ndev);
+			if (dd) {
+				ret = choose_port_ctxt(fp, dd, port, uinfo);
+				if (!ret)
+					goto done;
+				if (ret == -EBUSY)
+					dusable++;
+			}
+		}
+	}
+	ret = dusable ? -EBUSY : -ENETDOWN;
 
 done:
 	return ret;
@@ -1481,7 +1483,7 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 {
 	int ret;
 	int i_minor;
-	unsigned swmajor, swminor;
+	unsigned swmajor, swminor, alg = QIB_PORT_ALG_ACROSS;
 
 	/* Check to be sure we haven't already initialized this file */
 	if (ctxt_fp(fp)) {
@@ -1497,6 +1499,9 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 	}
 
 	swminor = uinfo->spu_userversion & 0xffff;
+
+	if (swminor >= 11 && uinfo->spu_port_alg < QIB_PORT_ALG_COUNT)
+		alg = uinfo->spu_port_alg;
 
 	mutex_lock(&qib_mutex);
 
@@ -1514,7 +1519,7 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 	if (i_minor)
 		ret = find_free_ctxt(i_minor - 1, fp, uinfo);
 	else
-		ret = get_a_ctxt(fp, uinfo);
+		ret = get_a_ctxt(fp, uinfo, alg);
 
 done_chk_sdma:
 	if (!ret) {
@@ -1862,7 +1867,7 @@ static int disarm_req_delay(struct qib_ctxtdata *rcd)
 {
 	int ret = 0;
 
-	if (!usable(rcd->ppd, 1)) {
+	if (!usable(rcd->ppd)) {
 		int i;
 		/*
 		 * if link is down, or otherwise not usable, delay
@@ -1881,7 +1886,7 @@ static int disarm_req_delay(struct qib_ctxtdata *rcd)
 				set_bit(_QIB_EVENT_DISARM_BUFS_BIT,
 					&rcd->user_event_mask[i]);
 		}
-		for (i = 0; !usable(rcd->ppd, 1) && i < 300; i++)
+		for (i = 0; !usable(rcd->ppd) && i < 300; i++)
 			msleep(100);
 		ret = -ENETDOWN;
 	}

@@ -84,8 +84,9 @@ enum bfa_status {
 	BFA_STATUS_BADFRMHDR 	= 48,	/*  Bad frame header */
 	BFA_STATUS_BADFRMSZ 	= 49,	/*  Bad frame size check and replace
 					 * SFP/cable */
-	BFA_STATUS_MISSINGFRM 	= 50,	/*  Missing frame check and replace
-					 * SFP/cable */
+	BFA_STATUS_MISSINGFRM 	= 50,   /* Missing frame check and replace
+					 * SFP/cable or for Mezz card check and
+					 * replace pass through module */
 	BFA_STATUS_LINKTIMEOUT 	= 51,	/*  Link timeout check and replace
 					 * SFP/cable */
 	BFA_STATUS_NO_FCPIM_NEXUS = 52,	/*  No FCP Nexus exists with the
@@ -173,7 +174,7 @@ enum bfa_status {
 	BFA_STATUS_LEDTEST_OP = 109, /*  LED test is operating */
 	BFA_STATUS_CEE_NOT_DN = 110, /*  eth port is not at down state, please
 				      * bring down first */
-	BFA_STATUS_10G_SPD = 111, /*  Speed setting not valid for 10G HBA */
+	BFA_STATUS_10G_SPD = 111, /*  Speed setting not valid for 10G CNA */
 	BFA_STATUS_IM_INV_TEAM_NAME = 112, /*  Invalid team name */
 	BFA_STATUS_IM_DUP_TEAM_NAME = 113, /*  Given team name already
 					    * exists */
@@ -213,12 +214,13 @@ enum bfa_status {
 					     * loaded */
 	BFA_STATUS_CARD_TYPE_MISMATCH = 131, /*  Card type mismatch */
 	BFA_STATUS_BAD_ASICBLK = 132, /*  Bad ASIC block */
-	BFA_STATUS_NO_DRIVER = 133, /*  Brocade adapter/driver not installed or loaded */
-	BFA_STATUS_INVALID_MAC = 134, /*  Invalid mac address */
+	BFA_STATUS_NO_DRIVER = 133, /*  Brocade adapter/driver not installed
+				     *  or loaded */
+	BFA_STATUS_INVALID_MAC = 134, /*  Invalid MAC address */
 	BFA_STATUS_IM_NO_VLAN = 135, /*  No VLANs configured on the adapter */
 	BFA_STATUS_IM_ETH_LB_FAILED = 136, /*  Ethernet loopback test failed */
-	BFA_STATUS_IM_PVID_REMOVE = 137, /*  Cannot remove port vlan (PVID) */
-	BFA_STATUS_IM_PVID_EDIT = 138, /*  Cannot edit port vlan (PVID) */
+	BFA_STATUS_IM_PVID_REMOVE = 137, /* Cannot remove port VLAN (PVID) */
+	BFA_STATUS_IM_PVID_EDIT = 138, /* Cannot edit port VLAN (PVID) */
 	BFA_STATUS_CNA_NO_BOOT = 139, /*  Boot upload not allowed for CNA */
 	BFA_STATUS_IM_PVID_NON_ZERO = 140, /*  Port VLAN ID (PVID) is Set to
 					    * Non-Zero Value */
@@ -232,14 +234,15 @@ enum bfa_status {
 	BFA_STATUS_INSUFFICIENT_PERMS = 144, /*  User doesn't have sufficient
 					      * permissions to execute the BCU
 					      * application */
-	BFA_STATUS_IM_INV_VLAN_NAME = 145, /*  Invalid/Reserved Vlan name
+	BFA_STATUS_IM_INV_VLAN_NAME = 145, /* Invalid/Reserved VLAN name
 					    * string. The name is not allowed
-					    * for the normal Vlans */
+					    * for the normal VLAN */
 	BFA_STATUS_CMD_NOTSUPP_CNA = 146, /*  Command not supported for CNA */
-	BFA_STATUS_IM_PASSTHRU_EDIT = 147, /*  Can not edit passthru vlan id */
-	BFA_STATUS_IM_BIND_FAILED = 148, /*! < IM Driver bind operation
+	BFA_STATUS_IM_PASSTHRU_EDIT = 147, /* Can not edit passthrough VLAN
+					    * id */
+	BFA_STATUS_IM_BIND_FAILED = 148, /* IM Driver bind operation
 					  * failed */
-	BFA_STATUS_IM_UNBIND_FAILED = 149, /* ! < IM Driver unbind operation
+	BFA_STATUS_IM_UNBIND_FAILED = 149, /* IM Driver unbind operation
 					    * failed */
 	BFA_STATUS_IM_PORT_IN_TEAM = 150, /*  Port is already part of the
 					   * team */
@@ -249,7 +252,24 @@ enum bfa_status {
 	BFA_STATUS_IM_TEAM_CFG_NOT_ALLOWED = 153, /*  Given settings are not
 						* allowed for the current
 						* Teaming mode */
-	BFA_STATUS_MAX_VAL		/*  Unknown error code */
+	BFA_STATUS_PBC = 154, /* Operation not allowed for pre-boot
+			       * configuration */
+	BFA_STATUS_DEVID_MISSING = 155, /* Boot image is not for the adapter(s)
+					 * installed */
+	BFA_STATUS_BAD_FWCFG = 156, /* Bad firmware configuration */
+	BFA_STATUS_CREATE_FILE = 157, /* Failed to create temporary file */
+	BFA_STATUS_INVALID_VENDOR = 158, /* Invalid switch vendor */
+	BFA_STATUS_SFP_NOT_READY = 159, /* SFP info is not ready. Retry */
+	BFA_STATUS_NO_TOPOLOGY_FOR_CNA = 160, /* Topology command not
+					       * applicable to CNA */
+	BFA_STATUS_BOOT_CODE_UPDATED = 161, /* reboot -- -r is needed after
+					     * boot code updated */
+	BFA_STATUS_BOOT_VERSION = 162, /* Boot code version not compatible with
+					* the driver installed */
+	BFA_STATUS_CARDTYPE_MISSING = 163, /* Boot image is not for the
+					    * adapter(s) installed */
+	BFA_STATUS_INVALID_CARDTYPE = 164, /* Invalid card type provided */
+	BFA_STATUS_MAX_VAL              /* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
 

@@ -68,7 +68,7 @@
 /*
  * System Peripherals (offset from AT91_BASE_SYS)
  */
-#define AT91_SDRAMC	(0xffffea00 - AT91_BASE_SYS)
+#define AT91_SDRAMC0	(0xffffea00 - AT91_BASE_SYS)
 #define AT91_SMC	(0xffffec00 - AT91_BASE_SYS)
 #define AT91_MATRIX	(0xffffee00 - AT91_BASE_SYS)
 #define AT91_AIC	(0xfffff000 - AT91_BASE_SYS)

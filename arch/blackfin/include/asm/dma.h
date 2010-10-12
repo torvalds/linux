@@ -276,6 +276,7 @@ static inline void clear_dma_irqstat(unsigned int channel)
 }
 
 void *dma_memcpy(void *dest, const void *src, size_t count);
+void *dma_memcpy_nocache(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
 void blackfin_dma_early_init(void);
 void early_dma_memcpy(void *dest, const void *src, size_t count);

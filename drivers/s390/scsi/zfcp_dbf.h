@@ -111,6 +111,7 @@ struct zfcp_dbf_hba_record_response {
 		struct {
 			u64 cmnd;
 			u64 serial;
+			u32 data_dir;
 		} fcp;
 		struct {
 			u64 wwpn;

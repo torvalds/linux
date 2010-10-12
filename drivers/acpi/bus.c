@@ -1034,8 +1034,8 @@ static int __init acpi_init(void)
 	acpi_scan_init();
 	acpi_ec_init();
 	acpi_power_init();
-	acpi_system_init();
-	acpi_debug_init();
+	acpi_sysfs_init();
+	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
 	return result;

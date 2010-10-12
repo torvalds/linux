@@ -1,54 +1,25 @@
-#include "osdef.h"
 #include "vb_def.h"
 #include "vgatypes.h"
 #include "vb_struct.h"
 
-#ifdef LINUX_KERNEL
 #include "XGIfb.h"
 #include <asm/io.h>
 #include <linux/types.h>
-#endif
 
-#ifdef TC
-#include <stdio.h>
-#include <string.h>
-#include <conio.h>
-#include <dos.h>
-#endif
-
-#ifdef WIN2000
-#include <dderror.h>
-#include <devioctl.h>
-#include <miniport.h>
-#include <ntddvdeo.h>
-#include <video.h>
-
-#include "xgiv.h"
-#include "dd_i2c.h"
-#include "tools.h"
-#endif
-
-#ifdef LINUX_XF86
-#include "xf86.h"
-#include "xf86PciInfo.h"
-#include "xgi.h"
-#include "xgi_regs.h"
-#endif
-
-
-
-
-void XGINew_SetReg1( ULONG , USHORT , USHORT ) ;
-void XGINew_SetReg2( ULONG , USHORT , USHORT ) ;
-void XGINew_SetReg3( ULONG , USHORT ) ;
-void XGINew_SetReg4( ULONG , ULONG ) ;
-UCHAR XGINew_GetReg1( ULONG , USHORT) ;
-UCHAR XGINew_GetReg2( ULONG ) ;
-ULONG XGINew_GetReg3( ULONG ) ;
-void XGINew_ClearDAC( PUCHAR ) ;
-void     XGINew_SetRegANDOR(ULONG Port,USHORT Index,USHORT DataAND,USHORT DataOR);
-void     XGINew_SetRegOR(ULONG Port,USHORT Index,USHORT DataOR);
-void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);
+void XGINew_SetReg1(unsigned long,unsigned short,unsigned short);
+void XGINew_SetReg2(unsigned long,unsigned short,unsigned short);
+void XGINew_SetReg3(unsigned long,unsigned short);
+void XGINew_SetReg4(unsigned long,unsigned long);
+unsigned char XGINew_GetReg1(unsigned long, unsigned short);
+unsigned char XGINew_GetReg2(unsigned long);
+unsigned long XGINew_GetReg3(unsigned long);
+void XGINew_ClearDAC(unsigned char *);
+void XGINew_SetRegANDOR(unsigned long Port,unsigned short Index,
+			unsigned short DataAND,unsigned short DataOR);
+void XGINew_SetRegOR(unsigned long Port,unsigned short Index,
+		     unsigned short DataOR);
+void XGINew_SetRegAND(unsigned long Port,unsigned short Index,
+		      unsigned short DataAND);
 
 
 /* --------------------------------------------------------------------- */
@@ -57,15 +28,10 @@ void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);
 /* Output : */
 /* Description : SR CRTC GR */
 /* --------------------------------------------------------------------- */
-void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
+void XGINew_SetReg1( unsigned long port , unsigned short index , unsigned short data )
 {
-#ifdef LINUX_XF86
-    OutPortByte( ( PUCHAR )(ULONG)port , index ) ;
-    OutPortByte( ( PUCHAR )(ULONG)port + 1 , data ) ;
-#else
-    OutPortByte( port , index ) ;
-    OutPortByte( port + 1 , data ) ;
-#endif
+	outb(index, port);
+	outb(data, port + 1);
 }
 
 
@@ -75,9 +41,9 @@ void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 /* Output : */
 /* Description : AR( 3C0 ) */
 /* --------------------------------------------------------------------- */
-/*void XGINew_SetReg2( ULONG port , USHORT index , USHORT data )
+/*void XGINew_SetReg2( unsigned long port , unsigned short index , unsigned short data )
 {
-    InPortByte( ( PUCHAR )port + 0x3da - 0x3c0 ) ;
+    InPortByte((P unsigned char )port + 0x3da - 0x3c0) ;
     OutPortByte( XGINew_P3c0 , index ) ;
     OutPortByte( XGINew_P3c0 , data ) ;
     OutPortByte( XGINew_P3c0 , 0x20 ) ;
@@ -90,9 +56,9 @@ void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetReg3( ULONG port , USHORT data )
+void XGINew_SetReg3( unsigned long port , unsigned short data )
 {
-    OutPortByte( port , data ) ;
+	outb(data, port);
 }
 
 
@@ -102,9 +68,9 @@ void XGINew_SetReg3( ULONG port , USHORT data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetReg4( ULONG port , ULONG data )
+void XGINew_SetReg4( unsigned long port , unsigned long data )
 {
-    OutPortLong( port , data ) ;
+	outl(data, port);
 }
 
 
@@ -114,18 +80,12 @@ void XGINew_SetReg4( ULONG port , ULONG data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-UCHAR XGINew_GetReg1( ULONG port , USHORT index )
+unsigned char XGINew_GetReg1(unsigned long port, unsigned short index)
 {
-    UCHAR data ;
+    unsigned char data ;
 
-#ifdef LINUX_XF86
-    OutPortByte( ( PUCHAR )(ULONG)port , index ) ;
-    data = InPortByte( ( PUCHAR )(ULONG)port + 1 ) ;
-#else
-    OutPortByte( port , index ) ;
-    data = InPortByte( port + 1 ) ;
-#endif
-
+    outb(index, port);
+    data = inb(port + 1) ;
     return( data ) ;
 }
 
@@ -136,11 +96,11 @@ UCHAR XGINew_GetReg1( ULONG port , USHORT index )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-UCHAR XGINew_GetReg2( ULONG port )
+unsigned char XGINew_GetReg2(unsigned long port)
 {
-    UCHAR data ;
+    unsigned char data ;
 
-    data = InPortByte( port ) ;
+    data = inb(port) ;
 
     return( data ) ;
 }
@@ -152,11 +112,11 @@ UCHAR XGINew_GetReg2( ULONG port )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-ULONG XGINew_GetReg3( ULONG port )
+unsigned long XGINew_GetReg3( unsigned long port )
 {
-    ULONG data ;
+    unsigned long data ;
 
-    data = InPortLong( port ) ;
+    data = inl(port) ;
 
     return( data ) ;
 }
@@ -169,9 +129,9 @@ ULONG XGINew_GetReg3( ULONG port )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetRegANDOR( ULONG Port , USHORT Index , USHORT DataAND , USHORT DataOR )
+void XGINew_SetRegANDOR( unsigned long Port , unsigned short Index , unsigned short DataAND , unsigned short DataOR )
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     temp = XGINew_GetReg1( Port , Index ) ;		/* XGINew_Part1Port index 02 */
     temp = ( temp & ( DataAND ) ) | DataOR ;
@@ -185,9 +145,9 @@ void XGINew_SetRegANDOR( ULONG Port , USHORT Index , USHORT DataAND , USHORT Dat
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND)
+void XGINew_SetRegAND(unsigned long Port,unsigned short Index,unsigned short DataAND)
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     temp = XGINew_GetReg1( Port , Index ) ;	/* XGINew_Part1Port index 02 */
     temp &= DataAND ;
@@ -201,9 +161,9 @@ void XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetRegOR( ULONG Port , USHORT Index , USHORT DataOR )
+void XGINew_SetRegOR( unsigned long Port , unsigned short Index , unsigned short DataOR )
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     temp = XGINew_GetReg1( Port , Index ) ;	/* XGINew_Part1Port index 02 */
     temp |= DataOR ;
@@ -219,29 +179,14 @@ void XGINew_SetRegOR( ULONG Port , USHORT Index , USHORT DataOR )
 /* --------------------------------------------------------------------- */
 void NewDelaySeconds( int seconds )
 {
-#ifdef WIN2000
-    int j ;
-#endif
     int i ;
 
 
     for( i = 0 ; i < seconds ; i++ )
     {
-#ifdef TC
-        delay( 1000 ) ;
-#endif
 
-#ifdef WIN2000
 
-        for ( j = 0 ; j < 20000 ; j++ )
-            VideoPortStallExecution( 50 ) ;
-#endif
 
-#ifdef WINCE_HEADER
-#endif
-
-#ifdef LINUX_KERNEL
-#endif
     }
 }
 
@@ -252,7 +197,7 @@ void NewDelaySeconds( int seconds )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void Newdebugcode( UCHAR code )
+void Newdebugcode(unsigned char code)
 {
 //    OutPortByte ( 0x80 , code ) ;
     /* OutPortByte ( 0x300 , code ) ; */

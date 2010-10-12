@@ -52,7 +52,7 @@
 static unsigned char smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
 
 /* crystal frequency to HSIO bus frequency multiplier (HSS) */
-static unsigned char hss_mult[4] = { 8, 12, 16, 0 };
+static unsigned char hss_mult[4] = { 8, 12, 16, 24 };
 
 /*
  * Get the clock frequency as reflected by CCSR and the turbo flag.
@@ -552,11 +552,23 @@ static void pxa_unmask_ext_wakeup(unsigned int irq)
 	PECR |= PECR_IE(irq - IRQ_WAKEUP0);
 }
 
+static int pxa_set_ext_wakeup_type(unsigned int irq, unsigned int flow_type)
+{
+	if (flow_type & IRQ_TYPE_EDGE_RISING)
+		PWER |= 1 << (irq - IRQ_WAKEUP0);
+
+	if (flow_type & IRQ_TYPE_EDGE_FALLING)
+		PWER |= 1 << (irq - IRQ_WAKEUP0 + 2);
+
+	return 0;
+}
+
 static struct irq_chip pxa_ext_wakeup_chip = {
 	.name		= "WAKEUP",
 	.ack		= pxa_ack_ext_wakeup,
 	.mask		= pxa_mask_ext_wakeup,
 	.unmask		= pxa_unmask_ext_wakeup,
+	.set_type	= pxa_set_ext_wakeup_type,
 };
 
 static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
@@ -596,6 +608,7 @@ void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
+	&pxa_device_pmu,
 	&pxa_device_i2s,
 	&sa1100_device_rtc,
 	&pxa_device_rtc,

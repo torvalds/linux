@@ -19,7 +19,6 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
 
 	if (bio->bi_private)
 		complete(bio->bi_private);
-	__free_page(bio_page(bio));
 
 	bio_put(bio);
 }
@@ -42,8 +41,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	struct request_queue *q = bdev_get_queue(bdev);
 	int type = flags & BLKDEV_IFL_BARRIER ?
 		DISCARD_BARRIER : DISCARD_NOBARRIER;
+	unsigned int max_discard_sectors;
 	struct bio *bio;
-	struct page *page;
 	int ret = 0;
 
 	if (!q)
@@ -52,36 +51,36 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
 
-	while (nr_sects && !ret) {
-		unsigned int sector_size = q->limits.logical_block_size;
-		unsigned int max_discard_sectors =
-			min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+	/*
+	 * Ensure that max_discard_sectors is of the proper
+	 * granularity
+	 */
+	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+	if (q->limits.discard_granularity) {
+		unsigned int disc_sects = q->limits.discard_granularity >> 9;
 
+		max_discard_sectors &= ~(disc_sects - 1);
+	}
+
+	if (flags & BLKDEV_IFL_SECURE) {
+		if (!blk_queue_secdiscard(q))
+			return -EOPNOTSUPP;
+		type |= DISCARD_SECURE;
+	}
+
+	while (nr_sects && !ret) {
 		bio = bio_alloc(gfp_mask, 1);
-		if (!bio)
-			goto out;
+		if (!bio) {
+			ret = -ENOMEM;
+			break;
+		}
+
 		bio->bi_sector = sector;
 		bio->bi_end_io = blkdev_discard_end_io;
 		bio->bi_bdev = bdev;
 		if (flags & BLKDEV_IFL_WAIT)
 			bio->bi_private = &wait;
 
-		/*
-		 * Add a zeroed one-sector payload as that's what
-		 * our current implementations need.  If we'll ever need
-		 * more the interface will need revisiting.
-		 */
-		page = alloc_page(gfp_mask | __GFP_ZERO);
-		if (!page)
-			goto out_free_bio;
-		if (bio_add_pc_page(q, bio, page, sector_size, 0) < sector_size)
-			goto out_free_page;
-
-		/*
-		 * And override the bio size - the way discard works we
-		 * touch many more blocks on disk than the actual payload
-		 * length.
-		 */
 		if (nr_sects > max_discard_sectors) {
 			bio->bi_size = max_discard_sectors << 9;
 			nr_sects -= max_discard_sectors;
@@ -103,13 +102,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			ret = -EIO;
 		bio_put(bio);
 	}
+
 	return ret;
-out_free_page:
-	__free_page(page);
-out_free_bio:
-	bio_put(bio);
-out:
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
 
@@ -157,7 +151,7 @@ static void bio_batch_end_io(struct bio *bio, int err)
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
 {
-	int ret = 0;
+	int ret;
 	struct bio *bio;
 	struct bio_batch bb;
 	unsigned int sz, issued = 0;
@@ -175,11 +169,14 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			return ret;
 	}
 submit:
+	ret = 0;
 	while (nr_sects != 0) {
 		bio = bio_alloc(gfp_mask,
 				min(nr_sects, (sector_t)BIO_MAX_PAGES));
-		if (!bio)
+		if (!bio) {
+			ret = -ENOMEM;
 			break;
+		}
 
 		bio->bi_sector = sector;
 		bio->bi_bdev   = bdev;
@@ -198,6 +195,7 @@ submit:
 			if (ret < (sz << 9))
 				break;
 		}
+		ret = 0;
 		issued++;
 		submit_bio(WRITE, bio);
 	}

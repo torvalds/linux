@@ -585,6 +585,8 @@ static const struct tps_info tps65023_regs[] = {
 static const struct i2c_device_id tps_65023_id[] = {
 	{.name = "tps65023",
 	.driver_data = (unsigned long) tps65023_regs,},
+	{.name = "tps65021",
+	.driver_data = (unsigned long) tps65023_regs,},
 	{ },
 };
 

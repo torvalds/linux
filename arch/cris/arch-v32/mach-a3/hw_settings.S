@@ -31,6 +31,8 @@
 	; Register values
 	.dword REG_ADDR(ddr2, regi_ddr2_ctrl, rw_cfg)
 	.dword CONFIG_ETRAX_DDR2_CONFIG
+	.dword REG_ADDR(ddr2, regi_ddr2_ctrl, rw_latency)
+	.dword CONFIG_ETRAX_DDR2_LATENCY
 	.dword REG_ADDR(ddr2, regi_ddr2_ctrl, rw_timing)
 	.dword CONFIG_ETRAX_DDR2_TIMING
 	.dword CONFIG_ETRAX_DDR2_MRS

@@ -256,7 +256,8 @@ static void ilo_ccb_close(struct pci_dev *pdev, struct ccb_data *data)
 
 static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 {
-	char *dma_va, *dma_pa;
+	char *dma_va;
+	dma_addr_t dma_pa;
 	struct ccb *driver_ccb, *ilo_ccb;
 
 	driver_ccb = &data->driver_ccb;
@@ -272,12 +273,12 @@ static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 		return -ENOMEM;
 
 	dma_va = (char *)data->dma_va;
-	dma_pa = (char *)data->dma_pa;
+	dma_pa = data->dma_pa;
 
 	memset(dma_va, 0, data->dma_size);
 
 	dma_va = (char *)roundup((unsigned long)dma_va, ILO_START_ALIGN);
-	dma_pa = (char *)roundup((unsigned long)dma_pa, ILO_START_ALIGN);
+	dma_pa = roundup(dma_pa, ILO_START_ALIGN);
 
 	/*
 	 * Create two ccb's, one with virt addrs, one with phys addrs.
@@ -288,26 +289,26 @@ static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 
 	fifo_setup(dma_va, NR_QENTRY);
 	driver_ccb->ccb_u1.send_fifobar = dma_va + FIFOHANDLESIZE;
-	ilo_ccb->ccb_u1.send_fifobar = dma_pa + FIFOHANDLESIZE;
+	ilo_ccb->ccb_u1.send_fifobar_pa = dma_pa + FIFOHANDLESIZE;
 	dma_va += fifo_sz(NR_QENTRY);
 	dma_pa += fifo_sz(NR_QENTRY);
 
 	dma_va = (char *)roundup((unsigned long)dma_va, ILO_CACHE_SZ);
-	dma_pa = (char *)roundup((unsigned long)dma_pa, ILO_CACHE_SZ);
+	dma_pa = roundup(dma_pa, ILO_CACHE_SZ);
 
 	fifo_setup(dma_va, NR_QENTRY);
 	driver_ccb->ccb_u3.recv_fifobar = dma_va + FIFOHANDLESIZE;
-	ilo_ccb->ccb_u3.recv_fifobar = dma_pa + FIFOHANDLESIZE;
+	ilo_ccb->ccb_u3.recv_fifobar_pa = dma_pa + FIFOHANDLESIZE;
 	dma_va += fifo_sz(NR_QENTRY);
 	dma_pa += fifo_sz(NR_QENTRY);
 
 	driver_ccb->ccb_u2.send_desc = dma_va;
-	ilo_ccb->ccb_u2.send_desc = dma_pa;
+	ilo_ccb->ccb_u2.send_desc_pa = dma_pa;
 	dma_pa += desc_mem_sz(NR_QENTRY);
 	dma_va += desc_mem_sz(NR_QENTRY);
 
 	driver_ccb->ccb_u4.recv_desc = dma_va;
-	ilo_ccb->ccb_u4.recv_desc = dma_pa;
+	ilo_ccb->ccb_u4.recv_desc_pa = dma_pa;
 
 	driver_ccb->channel = slot;
 	ilo_ccb->channel = slot;

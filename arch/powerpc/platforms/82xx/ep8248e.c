@@ -111,7 +111,7 @@ static struct mdiobb_ctrl ep8248e_mdio_ctrl = {
 	.ops = &ep8248e_mdio_ops,
 };
 
-static int __devinit ep8248e_mdio_probe(struct of_device *ofdev,
+static int __devinit ep8248e_mdio_probe(struct platform_device *ofdev,
                                         const struct of_device_id *match)
 {
 	struct mii_bus *bus;
@@ -154,7 +154,7 @@ err_free_bus:
 	return ret;
 }
 
-static int ep8248e_mdio_remove(struct of_device *ofdev)
+static int ep8248e_mdio_remove(struct platform_device *ofdev)
 {
 	BUG();
 	return 0;

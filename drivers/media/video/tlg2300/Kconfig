@@ -3,7 +3,7 @@ config VIDEO_TLG2300
 	depends on VIDEO_DEV && I2C && INPUT && SND && DVB_CORE
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEO_IR
+	depends on VIDEO_IR
 	select VIDEOBUF_VMALLOC
 	select SND_PCM
 	select VIDEOBUF_DVB

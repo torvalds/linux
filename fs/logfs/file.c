@@ -181,9 +181,9 @@ static int logfs_releasepage(struct page *page, gfp_t only_xfs_uses_this)
 }
 
 
-int logfs_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		unsigned long arg)
+long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct logfs_inode *li = logfs_inode(inode);
 	unsigned int oldflags, flags;
 	int err;
@@ -232,15 +232,19 @@ static int logfs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	int err = 0;
 
-	if (attr->ia_valid & ATTR_SIZE)
-		err = logfs_truncate(inode, attr->ia_size);
-	attr->ia_valid &= ~ATTR_SIZE;
+	err = inode_change_ok(inode, attr);
+	if (err)
+		return err;
 
-	if (!err)
-		err = inode_change_ok(inode, attr);
-	if (!err)
-		err = inode_setattr(inode, attr);
-	return err;
+	if (attr->ia_valid & ATTR_SIZE) {
+		err = logfs_truncate(inode, attr->ia_size);
+		if (err)
+			return err;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 const struct inode_operations logfs_reg_iops = {
@@ -251,7 +255,7 @@ const struct file_operations logfs_reg_fops = {
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= generic_file_aio_write,
 	.fsync		= logfs_fsync,
-	.ioctl		= logfs_ioctl,
+	.unlocked_ioctl	= logfs_ioctl,
 	.llseek		= generic_file_llseek,
 	.mmap		= generic_file_readonly_mmap,
 	.open		= generic_file_open,

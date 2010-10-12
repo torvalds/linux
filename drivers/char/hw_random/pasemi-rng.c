@@ -94,7 +94,7 @@ static struct hwrng pasemi_rng = {
 	.data_read	= pasemi_rng_data_read,
 };
 
-static int __devinit rng_probe(struct of_device *ofdev,
+static int __devinit rng_probe(struct platform_device *ofdev,
 			       const struct of_device_id *match)
 {
 	void __iomem *rng_regs;
@@ -123,7 +123,7 @@ static int __devinit rng_probe(struct of_device *ofdev,
 	return err;
 }
 
-static int __devexit rng_remove(struct of_device *dev)
+static int __devexit rng_remove(struct platform_device *dev)
 {
 	void __iomem *rng_regs = (void __iomem *)pasemi_rng.priv;
 

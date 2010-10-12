@@ -88,7 +88,7 @@ static const int multicast_filter_limit = 32;
 #define RTL_W32(reg, val32)	writel ((val32), ioaddr + (reg))
 #define RTL_R8(reg)		readb (ioaddr + (reg))
 #define RTL_R16(reg)		readw (ioaddr + (reg))
-#define RTL_R32(reg)		((unsigned long) readl (ioaddr + (reg)))
+#define RTL_R32(reg)		readl (ioaddr + (reg))
 
 enum mac_version {
 	RTL_GIGA_MAC_NONE   = 0x00,
@@ -3219,11 +3219,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
 
-	if (pci_dev_run_wake(pdev)) {
-		pm_runtime_set_active(&pdev->dev);
-		pm_runtime_enable(&pdev->dev);
-	}
-	pm_runtime_idle(&pdev->dev);
+	if (pci_dev_run_wake(pdev))
+		pm_runtime_put_noidle(&pdev->dev);
 
 out:
 	return rc;
@@ -3246,17 +3243,12 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	pm_runtime_get_sync(&pdev->dev);
-
 	flush_scheduled_work();
 
 	unregister_netdev(dev);
 
-	if (pci_dev_run_wake(pdev)) {
-		pm_runtime_disable(&pdev->dev);
-		pm_runtime_set_suspended(&pdev->dev);
-	}
-	pm_runtime_put_noidle(&pdev->dev);
+	if (pci_dev_run_wake(pdev))
+		pm_runtime_get_noresume(&pdev->dev);
 
 	/* restore original MAC address */
 	rtl_rar_set(tp, dev->perm_addr);

@@ -165,6 +165,8 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&m->tcf_lock);
 	m->tcf_tm.lastuse = jiffies;
+	m->tcf_bstats.bytes += qdisc_pkt_len(skb);
+	m->tcf_bstats.packets++;
 
 	dev = m->tcfm_dev;
 	if (!dev) {
@@ -179,13 +181,11 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 		goto out;
 	}
 
-	skb2 = skb_act_clone(skb, GFP_ATOMIC);
+	at = G_TC_AT(skb->tc_verd);
+	skb2 = skb_act_clone(skb, GFP_ATOMIC, m->tcf_action);
 	if (skb2 == NULL)
 		goto out;
 
-	m->tcf_bstats.bytes += qdisc_pkt_len(skb2);
-	m->tcf_bstats.packets++;
-	at = G_TC_AT(skb->tc_verd);
 	if (!(at & AT_EGRESS)) {
 		if (m->tcfm_ok_push)
 			skb_push(skb2, skb2->dev->hard_header_len);
@@ -195,16 +195,14 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 	if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
 		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
 
-	skb2->dev = dev;
 	skb2->skb_iif = skb->dev->ifindex;
+	skb2->dev = dev;
 	dev_queue_xmit(skb2);
 	err = 0;
 
 out:
 	if (err) {
 		m->tcf_qstats.overlimits++;
-		m->tcf_bstats.bytes += qdisc_pkt_len(skb);
-		m->tcf_bstats.packets++;
 		/* should we be asking for packet to be dropped?
 		 * may make sense for redirect case only
 		 */

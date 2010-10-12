@@ -107,7 +107,7 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 			}
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		    task->task_status.stat == SAM_GOOD) {
+		    task->task_status.stat == SAM_STAT_GOOD) {
 			res = 0;
 			break;
 		} if (task->task_status.resp == SAS_TASK_COMPLETE &&

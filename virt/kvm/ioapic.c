@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2001  MandrakeSoft S.A.
+ *  Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  *    MandrakeSoft S.A.
  *    43, rue d'Aboukir
@@ -151,7 +152,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		update_handled_vectors(ioapic);
 		mask_after = e->fields.mask;
 		if (mask_before != mask_after)
-			kvm_fire_mask_notifiers(ioapic->kvm, index, mask_after);
+			kvm_fire_mask_notifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index);

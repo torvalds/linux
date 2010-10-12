@@ -25,11 +25,12 @@
 
 #include "internal.h"
 
-static void proc_delete_inode(struct inode *inode)
+static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
 
 	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 
 	/* Stop tracking associated processes */
 	put_pid(PROC_I(inode)->pid);
@@ -40,7 +41,6 @@ static void proc_delete_inode(struct inode *inode)
 		pde_put(de);
 	if (PROC_I(inode)->sysctl)
 		sysctl_head_put(PROC_I(inode)->sysctl);
-	clear_inode(inode);
 }
 
 struct vfsmount *proc_mnt;
@@ -91,7 +91,7 @@ static const struct super_operations proc_sops = {
 	.alloc_inode	= proc_alloc_inode,
 	.destroy_inode	= proc_destroy_inode,
 	.drop_inode	= generic_delete_inode,
-	.delete_inode	= proc_delete_inode,
+	.evict_inode	= proc_evict_inode,
 	.statfs		= simple_statfs,
 };
 
@@ -214,8 +214,7 @@ static long proc_reg_unlocked_ioctl(struct file *file, unsigned int cmd, unsigne
 {
 	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	long rv = -ENOTTY;
-	long (*unlocked_ioctl)(struct file *, unsigned int, unsigned long);
-	int (*ioctl)(struct inode *, struct file *, unsigned int, unsigned long);
+	long (*ioctl)(struct file *, unsigned int, unsigned long);
 
 	spin_lock(&pde->pde_unload_lock);
 	if (!pde->proc_fops) {
@@ -223,19 +222,11 @@ static long proc_reg_unlocked_ioctl(struct file *file, unsigned int cmd, unsigne
 		return rv;
 	}
 	pde->pde_users++;
-	unlocked_ioctl = pde->proc_fops->unlocked_ioctl;
-	ioctl = pde->proc_fops->ioctl;
+	ioctl = pde->proc_fops->unlocked_ioctl;
 	spin_unlock(&pde->pde_unload_lock);
 
-	if (unlocked_ioctl) {
-		rv = unlocked_ioctl(file, cmd, arg);
-		if (rv == -ENOIOCTLCMD)
-			rv = -EINVAL;
-	} else if (ioctl) {
-		WARN_ONCE(1, "Procfs ioctl handlers must use unlocked_ioctl, "
-			  "%pf will be called without the Bkl held\n", ioctl);
-		rv = ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-	}
+	if (ioctl)
+		rv = ioctl(file, cmd, arg);
 
 	pde_users_dec(pde);
 	return rv;

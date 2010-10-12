@@ -70,7 +70,9 @@ static int mfd_add_device(struct device *parent, int id,
 			goto fail_res;
 	}
 
-	platform_device_add_resources(pdev, res, cell->num_resources);
+	ret = platform_device_add_resources(pdev, res, cell->num_resources);
+	if (ret)
+		goto fail_res;
 
 	ret = platform_device_add(pdev);
 	if (ret)

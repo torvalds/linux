@@ -81,24 +81,11 @@ static struct genl_ops dlm_nl_ops = {
 
 int __init dlm_netlink_init(void)
 {
-	int rv;
-
-	rv = genl_register_family(&family);
-	if (rv)
-		return rv;
-
-	rv = genl_register_ops(&family, &dlm_nl_ops);
-	if (rv < 0)
-		goto err;
-	return 0;
- err:
-	genl_unregister_family(&family);
-	return rv;
+	return genl_register_family_with_ops(&family, &dlm_nl_ops, 1);
 }
 
 void dlm_netlink_exit(void)
 {
-	genl_unregister_ops(&family, &dlm_nl_ops);
 	genl_unregister_family(&family);
 }
 

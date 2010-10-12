@@ -75,8 +75,6 @@ static void check_diport_of_integrated_lvds(
 static struct display_timing lcd_centering_timging(struct display_timing
 					    mode_crt_reg,
 					   struct display_timing panel_crt_reg);
-static void viafb_load_scaling_factor_for_p4m900(int set_hres,
-	int set_vres, int panel_hres, int panel_vres);
 
 static int check_lvds_chip(int device_id_subaddr, int device_id)
 {
@@ -89,33 +87,8 @@ static int check_lvds_chip(int device_id_subaddr, int device_id)
 void viafb_init_lcd_size(void)
 {
 	DEBUG_MSG(KERN_INFO "viafb_init_lcd_size()\n");
-	DEBUG_MSG(KERN_INFO
-		"viaparinfo->lvds_setting_info->get_lcd_size_method %d\n",
-		viaparinfo->lvds_setting_info->get_lcd_size_method);
 
-	switch (viaparinfo->lvds_setting_info->get_lcd_size_method) {
-	case GET_LCD_SIZE_BY_SYSTEM_BIOS:
-		break;
-	case GET_LCD_SZIE_BY_HW_STRAPPING:
-		break;
-	case GET_LCD_SIZE_BY_VGA_BIOS:
-		DEBUG_MSG(KERN_INFO "Get LCD Size method by VGA BIOS !!\n");
-		fp_id_to_vindex(viafb_lcd_panel_id);
-		DEBUG_MSG(KERN_INFO "LCD Panel_ID = %d\n",
-			  viaparinfo->lvds_setting_info->lcd_panel_id);
-		break;
-	case GET_LCD_SIZE_BY_USER_SETTING:
-		DEBUG_MSG(KERN_INFO "Get LCD Size method by user setting !!\n");
-		fp_id_to_vindex(viafb_lcd_panel_id);
-		DEBUG_MSG(KERN_INFO "LCD Panel_ID = %d\n",
-			  viaparinfo->lvds_setting_info->lcd_panel_id);
-		break;
-	default:
-		DEBUG_MSG(KERN_INFO "viafb_init_lcd_size fail\n");
-		viaparinfo->lvds_setting_info->lcd_panel_id =
-			LCD_PANEL_ID1_800X600;
-		fp_id_to_vindex(LCD_PANEL_ID1_800X600);
-	}
+	fp_id_to_vindex(viafb_lcd_panel_id);
 	viaparinfo->lvds_setting_info2->lcd_panel_id =
 		viaparinfo->lvds_setting_info->lcd_panel_id;
 	viaparinfo->lvds_setting_info2->lcd_panel_hres =
@@ -437,14 +410,9 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 
 	/* LCD Scaling Enable */
 	viafb_write_reg_mask(CR79, VIACR, 0x07, BIT0 + BIT1 + BIT2);
-	if (UNICHROME_P4M900 == viaparinfo->chip_info->gfx_chip_name) {
-		viafb_load_scaling_factor_for_p4m900(set_hres, set_vres,
-					       panel_hres, panel_vres);
-		return;
-	}
 
 	/* Check if expansion for horizontal */
-	if (set_hres != panel_hres) {
+	if (set_hres < panel_hres) {
 		/* Load Horizontal Scaling Factor */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
@@ -464,6 +432,10 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		case UNICHROME_CX700:
 		case UNICHROME_K8M890:
 		case UNICHROME_P4M890:
+		case UNICHROME_P4M900:
+		case UNICHROME_CN750:
+		case UNICHROME_VX800:
+		case UNICHROME_VX855:
 			reg_value =
 			    K800_LCD_HOR_SCF_FORMULA(set_hres, panel_hres);
 			/* Horizontal scaling enabled */
@@ -483,7 +455,7 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 	}
 
 	/* Check if expansion for vertical */
-	if (set_vres != panel_vres) {
+	if (set_vres < panel_vres) {
 		/* Load Vertical Scaling Factor */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
@@ -503,6 +475,10 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		case UNICHROME_CX700:
 		case UNICHROME_K8M890:
 		case UNICHROME_P4M890:
+		case UNICHROME_P4M900:
+		case UNICHROME_CN750:
+		case UNICHROME_VX800:
+		case UNICHROME_VX855:
 			reg_value =
 			    K800_LCD_VER_SCF_FORMULA(set_vres, panel_vres);
 			/* Vertical scaling enabled */
@@ -648,9 +624,8 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 				 (mode_crt_reg, panel_crt_reg), IGA1);
 	} else {
 		/* Expansion */
-		if ((plvds_setting_info->display_method ==
-		     LCD_EXPANDSION) & ((set_hres != panel_hres)
-					|| (set_vres != panel_vres))) {
+		if (plvds_setting_info->display_method == LCD_EXPANDSION
+			&& (set_hres < panel_hres || set_vres < panel_vres)) {
 			/* expansion timing IGA2 loaded panel set timing*/
 			viafb_load_crtc_timing(panel_crt_reg, IGA2);
 			DEBUG_MSG(KERN_INFO "viafb_load_crtc_timing!!\n");
@@ -1138,70 +1113,4 @@ bool viafb_lcd_get_mobile_state(bool *mobile)
 		iounmap(biosptr);
 		return false;
 	}
-}
-
-static void viafb_load_scaling_factor_for_p4m900(int set_hres,
-	int set_vres, int panel_hres, int panel_vres)
-{
-	int h_scaling_factor;
-	int v_scaling_factor;
-	u8 cra2 = 0;
-	u8 cr77 = 0;
-	u8 cr78 = 0;
-	u8 cr79 = 0;
-	u8 cr9f = 0;
-	/* Check if expansion for horizontal */
-	if (set_hres < panel_hres) {
-		/* Load Horizontal Scaling Factor */
-
-		/* For VIA_K8M800 or later chipsets. */
-		h_scaling_factor =
-		    K800_LCD_HOR_SCF_FORMULA(set_hres, panel_hres);
-		/* HSCaleFactor[1:0] at CR9F[1:0] */
-		cr9f = h_scaling_factor & 0x0003;
-		/* HSCaleFactor[9:2] at CR77[7:0] */
-		cr77 = (h_scaling_factor & 0x03FC) >> 2;
-		/* HSCaleFactor[11:10] at CR79[5:4] */
-		cr79 = (h_scaling_factor & 0x0C00) >> 10;
-		cr79 <<= 4;
-
-		/* Horizontal scaling enabled */
-		cra2 = 0xC0;
-
-		DEBUG_MSG(KERN_INFO "Horizontal Scaling value = %d\n",
-			  h_scaling_factor);
-	} else {
-		/* Horizontal scaling disabled */
-		cra2 = 0x00;
-	}
-
-	/* Check if expansion for vertical */
-	if (set_vres < panel_vres) {
-		/* Load Vertical Scaling Factor */
-
-		/* For VIA_K8M800 or later chipsets. */
-		v_scaling_factor =
-		    K800_LCD_VER_SCF_FORMULA(set_vres, panel_vres);
-
-		/* Vertical scaling enabled */
-		cra2 |= 0x08;
-		/* VSCaleFactor[0] at CR79[3] */
-		cr79 |= ((v_scaling_factor & 0x0001) << 3);
-		/* VSCaleFactor[8:1] at CR78[7:0] */
-		cr78 |= (v_scaling_factor & 0x01FE) >> 1;
-		/* VSCaleFactor[10:9] at CR79[7:6] */
-		cr79 |= ((v_scaling_factor & 0x0600) >> 9) << 6;
-
-		DEBUG_MSG(KERN_INFO "Vertical Scaling value = %d\n",
-			  v_scaling_factor);
-	} else {
-		/* Vertical scaling disabled */
-		cra2 |= 0x00;
-	}
-
-	viafb_write_reg_mask(CRA2, VIACR, cra2, BIT3 + BIT6 + BIT7);
-	viafb_write_reg_mask(CR77, VIACR, cr77, 0xFF);
-	viafb_write_reg_mask(CR78, VIACR, cr78, 0xFF);
-	viafb_write_reg_mask(CR79, VIACR, cr79, 0xF8);
-	viafb_write_reg_mask(CR9F, VIACR, cr9f, BIT0 + BIT1);
 }

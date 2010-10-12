@@ -499,6 +499,7 @@ static int setup_conn_pgidx(struct t3cdev *tdev, unsigned int tid, int pg_idx,
 	/* set up ulp submode and page size */
 	req = (struct cpl_set_tcb_field *)skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	req->wr.wr_lo = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
 	req->reply = V_NO_REPLY(reply ? 0 : 1);
 	req->cpu_idx = 0;
@@ -564,6 +565,7 @@ int cxgb3i_setup_conn_digest(struct t3cdev *tdev, unsigned int tid,
 	/* set up ulp submode and page size */
 	req = (struct cpl_set_tcb_field *)skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	req->wr.wr_lo = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
 	req->reply = V_NO_REPLY(reply ? 0 : 1);
 	req->cpu_idx = 0;

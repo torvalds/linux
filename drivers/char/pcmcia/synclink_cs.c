@@ -70,7 +70,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -572,18 +571,15 @@ static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
 			  unsigned int vcc,
 			  void *priv_data)
 {
-	if (cfg->io.nwin > 0) {
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(cfg->io.flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(cfg->io.flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = cfg->io.win[0].base;
-		p_dev->io.NumPorts1 = cfg->io.win[0].len;
-		return pcmcia_request_io(p_dev, &p_dev->io);
-	}
-	return -ENODEV;
+	if (!cfg->io.nwin)
+		return -ENODEV;
+
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int mgslpc_config(struct pcmcia_device *link)
@@ -610,16 +606,15 @@ static int mgslpc_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    info->io_base = link->io.BasePort1;
+    info->io_base = link->resource[0]->start;
     info->irq_level = link->irq;
 
     dev_info(&link->dev, "index 0x%02x:",
 	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	    printk(", irq %d", link->irq);
-    if (link->io.NumPorts1)
-	    printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		   link->io.BasePort1+link->io.NumPorts1-1);
+    if (link->resource[0])
+	    printk(", io %pR", link->resource[0]);
     printk("\n");
     return 0;
 

@@ -193,7 +193,7 @@ long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 			  compat_sigset_t __user *oset, size_t sigsetsize);
 long sys32_rt_sigpending(compat_sigset_t __user *set, size_t sigsetsize);
 long sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo);
-long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
 		  compat_uptr_t __user *envp);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
@@ -207,16 +207,16 @@ long sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset,
 		    size_t count);
 long sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset,
 		      s32 count);
-long sys32_stat64(char __user * filename, struct stat64_emu31 __user * statbuf);
-long sys32_lstat64(char __user * filename,
+long sys32_stat64(const char __user * filename, struct stat64_emu31 __user * statbuf);
+long sys32_lstat64(const char __user * filename,
 		   struct stat64_emu31 __user * statbuf);
 long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * statbuf);
-long sys32_fstatat64(unsigned int dfd, char __user *filename,
+long sys32_fstatat64(unsigned int dfd, const char __user *filename,
 		     struct stat64_emu31 __user* statbuf, int flag);
 unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg);
 long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg);
 long sys32_read(unsigned int fd, char __user * buf, size_t count);
-long sys32_write(unsigned int fd, char __user * buf, size_t count);
+long sys32_write(unsigned int fd, const char __user * buf, size_t count);
 long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
 long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
 long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,

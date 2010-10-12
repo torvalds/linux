@@ -627,7 +627,7 @@ repeat:
 		req_data_dir(req) == READ ? "read" : "writ",
 		cyl, head, sec, nsect, req->buffer);
 #endif
-	if (blk_fs_request(req)) {
+	if (req->cmd_type == REQ_TYPE_FS) {
 		switch (rq_data_dir(req)) {
 		case READ:
 			hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_READ,

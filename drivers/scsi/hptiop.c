@@ -1157,7 +1157,7 @@ free_pci_regions:
 disable_pci_device:
 	pci_disable_device(pcidev);
 
-	dprintk("scsi%d: hptiop_probe fail\n", host->host_no);
+	dprintk("scsi%d: hptiop_probe fail\n", host ? host->host_no : 0);
 	return -ENODEV;
 }
 

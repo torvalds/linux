@@ -132,7 +132,7 @@ static inline void *kmap_atomic(struct page *page, enum km_type idx)
 	return page_address(page);
 }
 
-static inline void kunmap_atomic(void *addr, enum km_type idx)
+static inline void kunmap_atomic_notypecheck(void *addr, enum km_type idx)
 {
 	kunmap_parisc(addr);
 	pagefault_enable();

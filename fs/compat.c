@@ -8,13 +8,14 @@
  *  Copyright (C) 1997-2000  Jakub Jelinek  (jakub@redhat.com)
  *  Copyright (C) 1998       Eddie C. Dost  (ecd@skynet.be)
  *  Copyright (C) 2001,2002  Andi Kleen, SuSE Labs 
- *  Copyright (C) 2003       Pavel Machek (pavel@suse.cz)
+ *  Copyright (C) 2003       Pavel Machek (pavel@ucw.cz)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
 
+#include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/compat.h>
@@ -76,7 +77,8 @@ int compat_printk(const char *fmt, ...)
  * Not all architectures have sys_utime, so implement this in terms
  * of sys_utimes.
  */
-asmlinkage long compat_sys_utime(char __user *filename, struct compat_utimbuf __user *t)
+asmlinkage long compat_sys_utime(const char __user *filename,
+				 struct compat_utimbuf __user *t)
 {
 	struct timespec tv[2];
 
@@ -90,7 +92,7 @@ asmlinkage long compat_sys_utime(char __user *filename, struct compat_utimbuf __
 	return do_utimes(AT_FDCWD, filename, t ? tv : NULL, 0);
 }
 
-asmlinkage long compat_sys_utimensat(unsigned int dfd, char __user *filename, struct compat_timespec __user *t, int flags)
+asmlinkage long compat_sys_utimensat(unsigned int dfd, const char __user *filename, struct compat_timespec __user *t, int flags)
 {
 	struct timespec tv[2];
 
@@ -105,7 +107,7 @@ asmlinkage long compat_sys_utimensat(unsigned int dfd, char __user *filename, st
 	return do_utimes(dfd, filename, t ? tv : NULL, flags);
 }
 
-asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename, struct compat_timeval __user *t)
+asmlinkage long compat_sys_futimesat(unsigned int dfd, const char __user *filename, struct compat_timeval __user *t)
 {
 	struct timespec tv[2];
 
@@ -124,7 +126,7 @@ asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename, st
 	return do_utimes(dfd, filename, t ? tv : NULL, 0);
 }
 
-asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
+asmlinkage long compat_sys_utimes(const char __user *filename, struct compat_timeval __user *t)
 {
 	return compat_sys_futimesat(AT_FDCWD, filename, t);
 }
@@ -168,7 +170,7 @@ static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 	return err;
 }
 
-asmlinkage long compat_sys_newstat(char __user * filename,
+asmlinkage long compat_sys_newstat(const char __user * filename,
 		struct compat_stat __user *statbuf)
 {
 	struct kstat stat;
@@ -180,7 +182,7 @@ asmlinkage long compat_sys_newstat(char __user * filename,
 	return cp_compat_stat(&stat, statbuf);
 }
 
-asmlinkage long compat_sys_newlstat(char __user * filename,
+asmlinkage long compat_sys_newlstat(const char __user * filename,
 		struct compat_stat __user *statbuf)
 {
 	struct kstat stat;
@@ -193,7 +195,8 @@ asmlinkage long compat_sys_newlstat(char __user * filename,
 }
 
 #ifndef __ARCH_WANT_STAT64
-asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user *filename,
+asmlinkage long compat_sys_newfstatat(unsigned int dfd,
+		const char __user *filename,
 		struct compat_stat __user *statbuf, int flag)
 {
 	struct kstat stat;
@@ -266,7 +269,7 @@ asmlinkage long compat_sys_statfs(const char __user *pathname, struct compat_sta
 	error = user_path(pathname, &path);
 	if (!error) {
 		struct kstatfs tmp;
-		error = vfs_statfs(path.dentry, &tmp);
+		error = vfs_statfs(&path, &tmp);
 		if (!error)
 			error = put_compat_statfs(buf, &tmp);
 		path_put(&path);
@@ -284,7 +287,7 @@ asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user 
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_path.dentry, &tmp);
+	error = vfs_statfs(&file->f_path, &tmp);
 	if (!error)
 		error = put_compat_statfs(buf, &tmp);
 	fput(file);
@@ -334,7 +337,7 @@ asmlinkage long compat_sys_statfs64(const char __user *pathname, compat_size_t s
 	error = user_path(pathname, &path);
 	if (!error) {
 		struct kstatfs tmp;
-		error = vfs_statfs(path.dentry, &tmp);
+		error = vfs_statfs(&path, &tmp);
 		if (!error)
 			error = put_compat_statfs64(buf, &tmp);
 		path_put(&path);
@@ -355,7 +358,7 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_path.dentry, &tmp);
+	error = vfs_statfs(&file->f_path, &tmp);
 	if (!error)
 		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
@@ -378,7 +381,7 @@ asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
 	sb = user_get_super(new_decode_dev(dev));
 	if (!sb)
 		return -EINVAL;
-	err = vfs_statfs(sb->s_root, &sbuf);
+	err = statfs_by_dentry(sb->s_root, &sbuf);
 	drop_super(sb);
 	if (err)
 		return err;
@@ -836,9 +839,10 @@ static int do_nfs4_super_data_conv(void *raw_data)
 #define NCPFS_NAME      "ncpfs"
 #define NFS4_NAME	"nfs4"
 
-asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
-				 char __user * type, unsigned long flags,
-				 void __user * data)
+asmlinkage long compat_sys_mount(const char __user * dev_name,
+				 const char __user * dir_name,
+				 const char __user * type, unsigned long flags,
+				 const void __user * data)
 {
 	char *kernel_type;
 	unsigned long data_page;
@@ -890,8 +894,6 @@ asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
  out:
 	return retval;
 }
-
-#define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))
 
 struct compat_old_linux_dirent {
 	compat_ulong_t	d_ino;
@@ -981,7 +983,8 @@ static int compat_filldir(void *__buf, const char *name, int namlen,
 	struct compat_linux_dirent __user * dirent;
 	struct compat_getdents_callback *buf = __buf;
 	compat_ulong_t d_ino;
-	int reclen = ALIGN(NAME_OFFSET(dirent) + namlen + 2, sizeof(compat_long_t));
+	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
+		namlen + 2, sizeof(compat_long_t));
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
@@ -1068,8 +1071,8 @@ static int compat_filldir64(void * __buf, const char * name, int namlen, loff_t 
 {
 	struct linux_dirent64 __user *dirent;
 	struct compat_getdents_callback64 *buf = __buf;
-	int jj = NAME_OFFSET(dirent);
-	int reclen = ALIGN(jj + namlen + 1, sizeof(u64));
+	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
+		sizeof(u64));
 	u64 off;
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
@@ -1193,11 +1196,10 @@ out:
 	if (iov != iovstack)
 		kfree(iov);
 	if ((ret + (type == READ)) > 0) {
-		struct dentry *dentry = file->f_path.dentry;
 		if (type == READ)
-			fsnotify_access(dentry);
+			fsnotify_access(file);
 		else
-			fsnotify_modify(dentry);
+			fsnotify_modify(file);
 	}
 	return ret;
 }

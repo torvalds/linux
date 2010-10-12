@@ -26,8 +26,8 @@ config VIDEO_TM6000_ALSA
 	  module will be called tm6000-alsa.
 
 config VIDEO_TM6000_DVB
-	bool "DVB Support for tm6000 based TV cards"
-	depends on VIDEO_TM6000 && DVB_CORE && EXPERIMENTAL
+	tristate "DVB Support for tm6000 based TV cards"
+	depends on VIDEO_TM6000 && DVB_CORE && USB && EXPERIMENTAL
 	select DVB_ZL10353
 	---help---
 	  This adds support for DVB cards based on the tm5600/tm6000 chip.

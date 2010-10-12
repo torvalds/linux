@@ -32,4 +32,10 @@ config DEBUG_NMI_OOPS
 	  If the system locks up without any debug information you can say Y
 	  here to make it possible to dump an OOPS with an external NMI.
 
+config NO_SEGFAULT_TERMINATION
+	bool "Keep segfaulting processes"
+	help
+	  Place segfaulting user mode processes on a wait queue instead of
+	  delivering a terminating SIGSEGV to allow debugging with gdb.
+
 endmenu

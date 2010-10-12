@@ -47,19 +47,3 @@ hold:	ldr	r12,=0x103
 	b	secondary_startup
 END(omap_secondary_startup)
 
-
-ENTRY(omap_modify_auxcoreboot0)
-	stmfd   sp!, {r1-r12, lr}
-	ldr	r12, =0x104
-	dsb
-	smc	#0
-	ldmfd   sp!, {r1-r12, pc}
-END(omap_modify_auxcoreboot0)
-
-ENTRY(omap_auxcoreboot_addr)
-	stmfd   sp!, {r2-r12, lr}
-	ldr	r12, =0x105
-	dsb
-	smc	#0
-	ldmfd   sp!, {r2-r12, pc}
-END(omap_auxcoreboot_addr)

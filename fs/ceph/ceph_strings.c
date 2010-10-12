@@ -28,6 +28,7 @@ const char *ceph_osd_op_name(int op)
 	case CEPH_OSD_OP_TRUNCATE: return "truncate";
 	case CEPH_OSD_OP_ZERO: return "zero";
 	case CEPH_OSD_OP_WRITEFULL: return "writefull";
+	case CEPH_OSD_OP_ROLLBACK: return "rollback";
 
 	case CEPH_OSD_OP_APPEND: return "append";
 	case CEPH_OSD_OP_STARTSYNC: return "startsync";
@@ -129,6 +130,8 @@ const char *ceph_mds_op_name(int op)
 	case CEPH_MDS_OP_LSSNAP: return "lssnap";
 	case CEPH_MDS_OP_MKSNAP: return "mksnap";
 	case CEPH_MDS_OP_RMSNAP: return "rmsnap";
+	case CEPH_MDS_OP_SETFILELOCK: return "setfilelock";
+	case CEPH_MDS_OP_GETFILELOCK: return "getfilelock";
 	}
 	return "???";
 }

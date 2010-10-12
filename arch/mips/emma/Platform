@@ -1,0 +1,4 @@
+platform-$(CONFIG_SOC_EMMA2RH)	+= emma/
+cflags-$(CONFIG_SOC_EMMA2RH)	+=					\
+		-I$(srctree)/arch/mips/include/asm/mach-emma2rh
+load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000

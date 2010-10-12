@@ -15,8 +15,6 @@
  * partitions	 = mtd partition list
  */
 
-#define NFC_PG_SIZE_256		0
-#define NFC_PG_SIZE_512		1
 #define NFC_PG_SIZE_OFFSET	9
 
 #define NFC_NWIDTH_8		0
@@ -30,7 +28,6 @@
 
 struct bf5xx_nand_platform {
 	/* NAND chip information */
-	unsigned short		page_size;
 	unsigned short		data_width;
 
 	/* RD/WR strobe delay timing information, all times in SCLK cycles */

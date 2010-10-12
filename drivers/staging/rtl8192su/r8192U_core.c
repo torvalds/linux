@@ -27,6 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/notifier.h>
 
 #undef LOOP_TEST
 #undef DUMP_RX
@@ -143,13 +144,13 @@ MODULE_VERSION("V 1.1");
 MODULE_DEVICE_TABLE(usb, rtl8192_usb_id_tbl);
 MODULE_DESCRIPTION("Linux driver for Realtek RTL8192 USB WiFi cards");
 
-static char* ifname = "wlan%d";
+static char ifname[IFNAMSIZ] = "wlan%d";
 static int hwwep = 1;  //default use hw. set 0 to use software security
 static int channels = 0x3fff;
 
 
 
-module_param(ifname, charp, S_IRUGO|S_IWUSR );
+module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
 //module_param(hwseqnum,int, S_IRUGO|S_IWUSR);
 module_param(hwwep,int, S_IRUGO|S_IWUSR);
 module_param(channels,int, S_IRUGO|S_IWUSR);
@@ -162,6 +163,8 @@ MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
 static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf);
+static const struct net_device_ops rtl8192_netdev_ops;
+static struct notifier_block proc_netdev_notifier;
 
 static struct usb_driver rtl8192_usb_driver = {
 	.name		= RTL819xU_MODULE_NAME,	          /* Driver name   */
@@ -252,53 +255,49 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 {
 	int i, max_chan=-1, min_chan=-1;
 	struct ieee80211_device* ieee = priv->ieee80211;
-	switch (channel_plan)
-	{
-		case COUNTRY_CODE_FCC:
-		case COUNTRY_CODE_IC:
-		case COUNTRY_CODE_ETSI:
-		case COUNTRY_CODE_SPAIN:
-		case COUNTRY_CODE_FRANCE:
-		case COUNTRY_CODE_MKK:
-		case COUNTRY_CODE_MKK1:
-		case COUNTRY_CODE_ISRAEL:
-		case COUNTRY_CODE_TELEC:
-		case COUNTRY_CODE_MIC:
-		{
-			Dot11d_Init(ieee);
-			ieee->bGlobalDomain = false;
-			//acturally 8225 & 8256 rf chip only support B,G,24N mode
-                        if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256) || (priv->rf_chip == RF_6052))
-			{
-				min_chan = 1;
-				max_chan = 14;
-			}
-			else
-			{
-				RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
-			}
-			if (ChannelPlan[channel_plan].Len != 0){
-				// Clear old channel map
-				memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-				// Set new channel map
-				for (i=0;i<ChannelPlan[channel_plan].Len;i++)
-				{
-					if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
-					break;
-					GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
-				}
-			}
-			break;
+
+	ieee->bGlobalDomain = false;
+	switch (priv->rf_chip) {
+	case RF_8225:
+	case RF_8256:
+	case RF_6052:
+		min_chan = 1;
+		max_chan = 14;
+		break;
+	default:
+		pr_err("%s(): unknown rf chip, can't set channel map\n",
+								__func__);
+		break;
+	}
+	if (ChannelPlan[channel_plan].Len != 0) {
+		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
+				sizeof(GET_DOT11D_INFO(ieee)->channel_map));
+
+		for (i = 0; i < ChannelPlan[channel_plan].Len; i++) {
+			if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
+				break;
+			GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
 		}
-		case COUNTRY_CODE_GLOBAL_DOMAIN:
-		{
-			GET_DOT11D_INFO(ieee)->bEnabled = 0;//this flag enabled to follow 11d country IE setting, otherwise, it shall follow global domain settings.
-			Dot11d_Reset(ieee);
-			ieee->bGlobalDomain = true;
-			break;
-		}
-		default:
-			break;
+	}
+	switch (channel_plan) {
+	case COUNTRY_CODE_GLOBAL_DOMAIN:
+		ieee->bGlobalDomain = true;
+		for (i = 12; i <= 14; i++)
+			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
+		ieee->IbssStartChnl = 10;
+		ieee->ibss_maxjoin_chal = 11;
+		break;
+	case COUNTRY_CODE_WORLD_WIDE_13:
+		printk(KERN_INFO "world wide 13\n");
+		for (i = 12; i <= 13; i++)
+			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
+		ieee->IbssStartChnl = 10;
+		ieee->ibss_maxjoin_chal = 11;
+		break;
+	default:
+		ieee->IbssStartChnl = 1;
+		ieee->ibss_maxjoin_chal = 14;
+		break;
 	}
 	return;
 }
@@ -991,15 +990,24 @@ static int proc_get_stats_rx(char *page, char **start,
 	return len;
 }
 
-void rtl8192_proc_module_init(void)
+int rtl8192_proc_module_init(void)
 {
+	int ret;
+
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
 	rtl8192_proc=create_proc_entry(RTL819xU_MODULE_NAME, S_IFDIR, init_net.proc_net);
+	if (!rtl8192_proc)
+		return -ENOMEM;
+	ret = register_netdevice_notifier(&proc_netdev_notifier);
+	if (ret)
+		remove_proc_entry(RTL819xU_MODULE_NAME, init_net.proc_net);
+	return ret;
 }
 
 
 void rtl8192_proc_module_remove(void)
 {
+	unregister_netdevice_notifier(&proc_netdev_notifier);
 	remove_proc_entry(RTL819xU_MODULE_NAME, init_net.proc_net);
 }
 
@@ -1027,8 +1035,7 @@ void rtl8192_proc_remove_one(struct net_device *dev)
 		remove_proc_entry("registers-e", priv->dir_dev);
 	//	remove_proc_entry("cck-registers",priv->dir_dev);
 	//	remove_proc_entry("ofdm-registers",priv->dir_dev);
-		//remove_proc_entry(dev->name, rtl8192_proc);
-		remove_proc_entry("wlan0", rtl8192_proc);
+		remove_proc_entry(priv->dir_dev->name, rtl8192_proc);
 		priv->dir_dev = NULL;
 	}
 }
@@ -1145,6 +1152,25 @@ void rtl8192_proc_init_one(struct net_device *dev)
 		      dev->name);
 	}
 }
+
+static int proc_netdev_event(struct notifier_block *this,
+			     unsigned long event, void *ptr)
+{
+	struct net_device *net_dev = ptr;
+
+	if (net_dev->netdev_ops == &rtl8192_netdev_ops &&
+	    event == NETDEV_CHANGENAME) {
+		rtl8192_proc_remove_one(net_dev);
+		rtl8192_proc_init_one(net_dev);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block proc_netdev_notifier = {
+	.notifier_call = proc_netdev_event,
+};
+
 /****************************************************************************
    -----------------------------MISC STUFF-------------------------
 *****************************************************************************/
@@ -7355,6 +7381,8 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
         RT_TRACE(COMP_INIT, "Oops: i'm coming\n");
 
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
+	if (dev == NULL)
+		return -ENOMEM;
 
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(dev, &intf->dev);
@@ -7378,7 +7406,7 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 
 	if (dev_alloc_name(dev, ifname) < 0){
                 RT_TRACE(COMP_INIT, "Oops: devname already taken! Trying wlan%%d...\n");
-		ifname = "wlan%d";
+		strcpy(ifname, "wlan%d");
 		dev_alloc_name(dev, ifname);
         }
 
@@ -7392,7 +7420,8 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	if (register_netdev(dev))
+		goto fail;
 	RT_TRACE(COMP_INIT, "dev name=======> %s\n",dev->name);
 	rtl8192_proc_init_one(dev);
 
@@ -7474,35 +7503,63 @@ static int __init rtl8192_usb_module_init(void)
 	ret = ieee80211_crypto_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_init() failed %d\n", ret);
-		return ret;
+		goto fail_crypto;
 	}
 
 	ret = ieee80211_crypto_tkip_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_tkip_init() failed %d\n",
 			ret);
-		return ret;
+		goto fail_crypto_tkip;
 	}
 
 	ret = ieee80211_crypto_ccmp_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_ccmp_init() failed %d\n",
 			ret);
-		return ret;
+		goto fail_crypto_ccmp;
 	}
 
 	ret = ieee80211_crypto_wep_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_wep_init() failed %d\n", ret);
-		return ret;
+		goto fail_crypto_wep;
 	}
 
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192 based WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan\n");
 	RT_TRACE(COMP_INIT, "Initializing module");
 	RT_TRACE(COMP_INIT, "Wireless extensions version %d", WIRELESS_EXT);
-	rtl8192_proc_module_init();
-	return usb_register(&rtl8192_usb_driver);
+
+	ret = rtl8192_proc_module_init();
+	if (ret) {
+		pr_err("rtl8192_proc_module_init() failed %d\n", ret);
+		goto fail_proc;
+	}
+
+	ret = usb_register(&rtl8192_usb_driver);
+	if (ret) {
+		pr_err("usb_register() failed %d\n", ret);
+		goto fail_usb;
+	}
+
+	return 0;
+
+fail_usb:
+	rtl8192_proc_module_remove();
+fail_proc:
+	ieee80211_crypto_wep_exit();
+fail_crypto_wep:
+	ieee80211_crypto_ccmp_exit();
+fail_crypto_ccmp:
+	ieee80211_crypto_tkip_exit();
+fail_crypto_tkip:
+	ieee80211_crypto_deinit();
+fail_crypto:
+#ifdef CONFIG_IEEE80211_DEBUG
+	ieee80211_debug_exit();
+#endif
+	return ret;
 }
 
 

@@ -87,7 +87,6 @@ earlier 3Com products.
 #include <linux/bitops.h>
 #include <linux/mii.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -279,8 +278,8 @@ static int tc574_probe(struct pcmcia_device *link)
 	lp->p_dev = link;
 
 	spin_lock_init(&lp->window_lock);
-	link->io.NumPorts1 = 32;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+	link->resource[0]->end = 32;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
@@ -338,10 +337,11 @@ static int tc574_config(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "3c574_config()\n");
 
-	link->io.IOAddrLines = 16;
+	link->io_lines = 16;
+
 	for (i = j = 0; j < 0x400; j += 0x20) {
-		link->io.BasePort1 = j ^ 0x300;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = j ^ 0x300;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}
@@ -357,7 +357,7 @@ static int tc574_config(struct pcmcia_device *link)
 		goto failed;
 
 	dev->irq = link->irq;
-	dev->base_addr = link->io.BasePort1;
+	dev->base_addr = link->resource[0]->start;
 
 	ioaddr = dev->base_addr;
 

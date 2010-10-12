@@ -257,6 +257,7 @@ enum vmcs_field {
 #define EXIT_REASON_IO_INSTRUCTION      30
 #define EXIT_REASON_MSR_READ            31
 #define EXIT_REASON_MSR_WRITE           32
+#define EXIT_REASON_INVALID_STATE	33
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
 #define EXIT_REASON_MONITOR_INSTRUCTION 39
 #define EXIT_REASON_PAUSE_INSTRUCTION   40
@@ -266,6 +267,7 @@ enum vmcs_field {
 #define EXIT_REASON_EPT_VIOLATION       48
 #define EXIT_REASON_EPT_MISCONFIG       49
 #define EXIT_REASON_WBINVD		54
+#define EXIT_REASON_XSETBV		55
 
 /*
  * Interruption-information format
@@ -374,6 +376,9 @@ enum vmcs_field {
 #define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
+
+#define VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT      (1ull << 9) /* (41 - 32) */
+#define VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT      (1ull << 10) /* (42 - 32) */
 
 #define VMX_EPT_DEFAULT_GAW			3
 #define VMX_EPT_MAX_GAW				0x4

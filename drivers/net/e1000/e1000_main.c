@@ -275,7 +275,7 @@ static int e1000_request_irq(struct e1000_adapter *adapter)
 	err = request_irq(adapter->pdev->irq, handler, irq_flags, netdev->name,
 	                  netdev);
 	if (err) {
-		e_err("Unable to allocate interrupt Error: %d\n", err);
+		e_err(probe, "Unable to allocate interrupt Error: %d\n", err);
 	}
 
 	return err;
@@ -657,7 +657,7 @@ void e1000_reset(struct e1000_adapter *adapter)
 		ew32(WUC, 0);
 
 	if (e1000_init_hw(hw))
-		e_err("Hardware Error\n");
+		e_dev_err("Hardware Error\n");
 	e1000_update_mng_vlan(adapter);
 
 	/* if (adapter->hwflags & HWFLAGS_PHY_PWR_BIT) { */
@@ -925,7 +925,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* initialize eeprom parameters */
 	if (e1000_init_eeprom_params(hw)) {
-		e_err("EEPROM initialization failed\n");
+		e_err(probe, "EEPROM initialization failed\n");
 		goto err_eeprom;
 	}
 
@@ -936,7 +936,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* make sure the EEPROM is good */
 	if (e1000_validate_eeprom_checksum(hw) < 0) {
-		e_err("The EEPROM Checksum Is Not Valid\n");
+		e_err(probe, "The EEPROM Checksum Is Not Valid\n");
 		e1000_dump_eeprom(adapter);
 		/*
 		 * set MAC address to all zeroes to invalidate and temporary
@@ -950,14 +950,14 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	} else {
 		/* copy the MAC address out of the EEPROM */
 		if (e1000_read_mac_addr(hw))
-			e_err("EEPROM Read Error\n");
+			e_err(probe, "EEPROM Read Error\n");
 	}
 	/* don't block initalization here due to bad MAC address */
 	memcpy(netdev->dev_addr, hw->mac_addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, hw->mac_addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr))
-		e_err("Invalid MAC Address\n");
+		e_err(probe, "Invalid MAC Address\n");
 
 	e1000_get_bus_info(hw);
 
@@ -1047,7 +1047,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		goto err_register;
 
 	/* print bus type/speed/width info */
-	e_info("(PCI%s:%dMHz:%d-bit) %pM\n",
+	e_info(probe, "(PCI%s:%dMHz:%d-bit) %pM\n",
 	       ((hw->bus_type == e1000_bus_type_pcix) ? "-X" : ""),
 	       ((hw->bus_speed == e1000_bus_speed_133) ? 133 :
 		(hw->bus_speed == e1000_bus_speed_120) ? 120 :
@@ -1059,7 +1059,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	e_info("Intel(R) PRO/1000 Network Connection\n");
+	e_info(probe, "Intel(R) PRO/1000 Network Connection\n");
 
 	cards_found++;
 	return 0;
@@ -1159,7 +1159,7 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 	/* identify the MAC */
 
 	if (e1000_set_mac_type(hw)) {
-		e_err("Unknown MAC Type\n");
+		e_err(probe, "Unknown MAC Type\n");
 		return -EIO;
 	}
 
@@ -1192,7 +1192,7 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 	adapter->num_rx_queues = 1;
 
 	if (e1000_alloc_queues(adapter)) {
-		e_err("Unable to allocate memory for queues\n");
+		e_err(probe, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
 
@@ -1386,7 +1386,8 @@ static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	size = sizeof(struct e1000_buffer) * txdr->count;
 	txdr->buffer_info = vmalloc(size);
 	if (!txdr->buffer_info) {
-		e_err("Unable to allocate memory for the Tx descriptor ring\n");
+		e_err(probe, "Unable to allocate memory for the Tx descriptor "
+		      "ring\n");
 		return -ENOMEM;
 	}
 	memset(txdr->buffer_info, 0, size);
@@ -1401,7 +1402,8 @@ static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	if (!txdr->desc) {
 setup_tx_desc_die:
 		vfree(txdr->buffer_info);
-		e_err("Unable to allocate memory for the Tx descriptor ring\n");
+		e_err(probe, "Unable to allocate memory for the Tx descriptor "
+		      "ring\n");
 		return -ENOMEM;
 	}
 
@@ -1409,7 +1411,7 @@ setup_tx_desc_die:
 	if (!e1000_check_64k_bound(adapter, txdr->desc, txdr->size)) {
 		void *olddesc = txdr->desc;
 		dma_addr_t olddma = txdr->dma;
-		e_err("txdr align check failed: %u bytes at %p\n",
+		e_err(tx_err, "txdr align check failed: %u bytes at %p\n",
 		      txdr->size, txdr->desc);
 		/* Try again, without freeing the previous */
 		txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size,
@@ -1427,7 +1429,7 @@ setup_tx_desc_die:
 					  txdr->dma);
 			dma_free_coherent(&pdev->dev, txdr->size, olddesc,
 					  olddma);
-			e_err("Unable to allocate aligned memory "
+			e_err(probe, "Unable to allocate aligned memory "
 			      "for the transmit descriptor ring\n");
 			vfree(txdr->buffer_info);
 			return -ENOMEM;
@@ -1460,7 +1462,7 @@ int e1000_setup_all_tx_resources(struct e1000_adapter *adapter)
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		err = e1000_setup_tx_resources(adapter, &adapter->tx_ring[i]);
 		if (err) {
-			e_err("Allocation for Tx Queue %u failed\n", i);
+			e_err(probe, "Allocation for Tx Queue %u failed\n", i);
 			for (i-- ; i >= 0; i--)
 				e1000_free_tx_resources(adapter,
 							&adapter->tx_ring[i]);
@@ -1580,7 +1582,8 @@ static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
 	size = sizeof(struct e1000_buffer) * rxdr->count;
 	rxdr->buffer_info = vmalloc(size);
 	if (!rxdr->buffer_info) {
-		e_err("Unable to allocate memory for the Rx descriptor ring\n");
+		e_err(probe, "Unable to allocate memory for the Rx descriptor "
+		      "ring\n");
 		return -ENOMEM;
 	}
 	memset(rxdr->buffer_info, 0, size);
@@ -1596,7 +1599,8 @@ static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
 					GFP_KERNEL);
 
 	if (!rxdr->desc) {
-		e_err("Unable to allocate memory for the Rx descriptor ring\n");
+		e_err(probe, "Unable to allocate memory for the Rx descriptor "
+		      "ring\n");
 setup_rx_desc_die:
 		vfree(rxdr->buffer_info);
 		return -ENOMEM;
@@ -1606,7 +1610,7 @@ setup_rx_desc_die:
 	if (!e1000_check_64k_bound(adapter, rxdr->desc, rxdr->size)) {
 		void *olddesc = rxdr->desc;
 		dma_addr_t olddma = rxdr->dma;
-		e_err("rxdr align check failed: %u bytes at %p\n",
+		e_err(rx_err, "rxdr align check failed: %u bytes at %p\n",
 		      rxdr->size, rxdr->desc);
 		/* Try again, without freeing the previous */
 		rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size,
@@ -1615,8 +1619,8 @@ setup_rx_desc_die:
 		if (!rxdr->desc) {
 			dma_free_coherent(&pdev->dev, rxdr->size, olddesc,
 					  olddma);
-			e_err("Unable to allocate memory for the Rx descriptor "
-			      "ring\n");
+			e_err(probe, "Unable to allocate memory for the Rx "
+			      "descriptor ring\n");
 			goto setup_rx_desc_die;
 		}
 
@@ -1626,8 +1630,8 @@ setup_rx_desc_die:
 					  rxdr->dma);
 			dma_free_coherent(&pdev->dev, rxdr->size, olddesc,
 					  olddma);
-			e_err("Unable to allocate aligned memory for the Rx "
-			      "descriptor ring\n");
+			e_err(probe, "Unable to allocate aligned memory for "
+			      "the Rx descriptor ring\n");
 			goto setup_rx_desc_die;
 		} else {
 			/* Free old allocation, new allocation was successful */
@@ -1659,7 +1663,7 @@ int e1000_setup_all_rx_resources(struct e1000_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		err = e1000_setup_rx_resources(adapter, &adapter->rx_ring[i]);
 		if (err) {
-			e_err("Allocation for Rx Queue %u failed\n", i);
+			e_err(probe, "Allocation for Rx Queue %u failed\n", i);
 			for (i-- ; i >= 0; i--)
 				e1000_free_rx_resources(adapter,
 							&adapter->rx_ring[i]);
@@ -2110,7 +2114,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	u32 *mcarray = kcalloc(mta_reg_count, sizeof(u32), GFP_ATOMIC);
 
 	if (!mcarray) {
-		e_err("memory allocation failed\n");
+		e_err(probe, "memory allocation failed\n");
 		return;
 	}
 
@@ -2648,7 +2652,8 @@ static bool e1000_tx_csum(struct e1000_adapter *adapter,
 		break;
 	default:
 		if (unlikely(net_ratelimit()))
-			e_warn("checksum_partial proto=%x!\n", skb->protocol);
+			e_warn(drv, "checksum_partial proto=%x!\n",
+			       skb->protocol);
 		break;
 	}
 
@@ -2992,7 +2997,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				/* fall through */
 				pull_size = min((unsigned int)4, skb->data_len);
 				if (!__pskb_pull_tail(skb, pull_size)) {
-					e_err("__pskb_pull_tail failed.\n");
+					e_err(drv, "__pskb_pull_tail "
+					      "failed.\n");
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
 				}
@@ -3140,7 +3146,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if ((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
 	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
-		e_err("Invalid MTU setting\n");
+		e_err(probe, "Invalid MTU setting\n");
 		return -EINVAL;
 	}
 
@@ -3148,7 +3154,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	switch (hw->mac_type) {
 	case e1000_undefined ... e1000_82542_rev2_1:
 		if (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)) {
-			e_err("Jumbo Frames not supported.\n");
+			e_err(probe, "Jumbo Frames not supported.\n");
 			return -EINVAL;
 		}
 		break;
@@ -3448,6 +3454,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
 		bool cleaned = false;
+		rmb();	/* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -3500,7 +3507,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
 
 			/* detected Tx unit hang */
-			e_err("Detected Tx Unit Hang\n"
+			e_err(drv, "Detected Tx Unit Hang\n"
 			      "  Tx Queue             <%lu>\n"
 			      "  TDH                  <%x>\n"
 			      "  TDT                  <%x>\n"
@@ -3637,6 +3644,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
 		skb = buffer_info->skb;
@@ -3749,7 +3757,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 
 		/* eth type trans needs skb->data to point to something */
 		if (!pskb_may_pull(skb, ETH_HLEN)) {
-			e_err("pskb_may_pull failed.\n");
+			e_err(drv, "pskb_may_pull failed.\n");
 			dev_kfree_skb(skb);
 			goto next_desc;
 		}
@@ -3843,6 +3851,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
 		skb = buffer_info->skb;
@@ -3874,7 +3883,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		if (adapter->discarding) {
 			/* All receives must fit into a single buffer */
-			e_info("Receive packet consumed multiple buffers\n");
+			e_dbg("Receive packet consumed multiple buffers\n");
 			/* recycle */
 			buffer_info->skb = skb;
 			if (status & E1000_RXD_STAT_EOP)
@@ -3986,8 +3995,8 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 		/* Fix for errata 23, can't cross 64kB boundary */
 		if (!e1000_check_64k_bound(adapter, skb->data, bufsz)) {
 			struct sk_buff *oldskb = skb;
-			e_err("skb align check failed: %u bytes at %p\n",
-			      bufsz, skb->data);
+			e_err(rx_err, "skb align check failed: %u bytes at "
+			      "%p\n", bufsz, skb->data);
 			/* Try again, without freeing the previous */
 			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			/* Failed allocation, critical failure */
@@ -4095,8 +4104,8 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 		/* Fix for errata 23, can't cross 64kB boundary */
 		if (!e1000_check_64k_bound(adapter, skb->data, bufsz)) {
 			struct sk_buff *oldskb = skb;
-			e_err("skb align check failed: %u bytes at %p\n",
-			      bufsz, skb->data);
+			e_err(rx_err, "skb align check failed: %u bytes at "
+			      "%p\n", bufsz, skb->data);
 			/* Try again, without freeing the previous */
 			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			/* Failed allocation, critical failure */
@@ -4141,8 +4150,8 @@ map_skb:
 		if (!e1000_check_64k_bound(adapter,
 					(void *)(unsigned long)buffer_info->dma,
 					adapter->rx_buffer_len)) {
-			e_err("dma align check failed: %u bytes at %p\n",
-			      adapter->rx_buffer_len,
+			e_err(rx_err, "dma align check failed: %u bytes at "
+			      "%p\n", adapter->rx_buffer_len,
 			      (void *)(unsigned long)buffer_info->dma);
 			dev_kfree_skb(skb);
 			buffer_info->skb = NULL;
@@ -4355,7 +4364,7 @@ void e1000_pci_set_mwi(struct e1000_hw *hw)
 	int ret_val = pci_set_mwi(adapter->pdev);
 
 	if (ret_val)
-		e_err("Error in setting MWI\n");
+		e_err(probe, "Error in setting MWI\n");
 }
 
 void e1000_pci_clear_mwi(struct e1000_hw *hw)
@@ -4486,7 +4495,7 @@ int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
 	/* Fiber NICs only allow 1000 gbps Full duplex */
 	if ((hw->media_type == e1000_media_type_fiber) &&
 		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
-		e_err("Unsupported Speed/Duplex configuration\n");
+		e_err(probe, "Unsupported Speed/Duplex configuration\n");
 		return -EINVAL;
 	}
 
@@ -4509,7 +4518,7 @@ int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
 		break;
 	case SPEED_1000 + DUPLEX_HALF: /* not supported */
 	default:
-		e_err("Unsupported Speed/Duplex configuration\n");
+		e_err(probe, "Unsupported Speed/Duplex configuration\n");
 		return -EINVAL;
 	}
 	return 0;

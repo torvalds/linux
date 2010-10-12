@@ -160,7 +160,6 @@ struct lvds_setting_information {
 	int v_active;
 	int bpp;
 	int refresh_rate;
-	int get_lcd_size_method;
 	int lcd_panel_id;
 	int lcd_panel_hres;
 	int lcd_panel_vres;

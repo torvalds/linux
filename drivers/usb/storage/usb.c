@@ -336,6 +336,7 @@ static int usb_stor_control_thread(void * __us)
 		else {
 			US_DEBUG(usb_stor_show_command(us->srb));
 			us->proto_handler(us->srb, us);
+			usb_mark_last_busy(us->pusb_dev);
 		}
 
 		/* lock access to the state */
@@ -845,6 +846,7 @@ static int usb_stor_scan_thread(void * __us)
 		/* Should we unbind if no devices were detected? */
 	}
 
+	usb_autopm_put_interface(us->pusb_intf);
 	complete_and_exit(&us->scanning_done, 0);
 }
 
@@ -968,6 +970,7 @@ int usb_stor_probe2(struct us_data *us)
 		goto BadDevice;
 	}
 
+	usb_autopm_get_interface_no_resume(us->pusb_intf);
 	wake_up_process(th);
 
 	return 0;
@@ -1040,6 +1043,7 @@ static struct usb_driver usb_storage_driver = {
 	.pre_reset =	usb_stor_pre_reset,
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	usb_storage_usb_ids,
+	.supports_autosuspend = 1,
 	.soft_unbind =	1,
 };
 

@@ -359,7 +359,7 @@ extern long __user_bad(void);
 	__copy_tofrom_user((__force void __user *)(to), \
 				(void __user *)(from), (n))
 #define __copy_from_user_inatomic(to, from, n) \
-		copy_from_user((to), (from), (n))
+		__copy_from_user((to), (from), (n))
 
 static inline long copy_from_user(void *to,
 		const void __user *from, unsigned long n)
@@ -373,7 +373,7 @@ static inline long copy_from_user(void *to,
 #define __copy_to_user(to, from, n)	\
 		__copy_tofrom_user((void __user *)(to), \
 			(__force const void __user *)(from), (n))
-#define __copy_to_user_inatomic(to, from, n)	copy_to_user((to), (from), (n))
+#define __copy_to_user_inatomic(to, from, n) __copy_to_user((to), (from), (n))
 
 static inline long copy_to_user(void __user *to,
 		const void *from, unsigned long n)

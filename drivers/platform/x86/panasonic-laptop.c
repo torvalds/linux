@@ -248,7 +248,7 @@ static int acpi_pcc_write_sset(struct pcc_acpi *pcc, int func, int val)
 	status = acpi_evaluate_object(pcc->handle, METHOD_HKEY_SSET,
 				      &params, NULL);
 
-	return status == AE_OK;
+	return (status == AE_OK) ? 0 : -EIO;
 }
 
 static inline int acpi_pcc_get_sqty(struct acpi_device *device)
@@ -586,7 +586,6 @@ static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 static int acpi_pcc_hotkey_resume(struct acpi_device *device)
 {
 	struct pcc_acpi *pcc = acpi_driver_data(device);
-	acpi_status status = AE_OK;
 
 	if (device == NULL || pcc == NULL)
 		return -EINVAL;
@@ -594,9 +593,7 @@ static int acpi_pcc_hotkey_resume(struct acpi_device *device)
 	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Sticky mode restore: %d\n",
 			  pcc->sticky_mode));
 
-	status = acpi_pcc_write_sset(pcc, SINF_STICKY_KEY, pcc->sticky_mode);
-
-	return status == AE_OK ? 0 : -EINVAL;
+	return acpi_pcc_write_sset(pcc, SINF_STICKY_KEY, pcc->sticky_mode);
 }
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device)

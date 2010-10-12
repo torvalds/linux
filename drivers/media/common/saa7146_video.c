@@ -1370,7 +1370,7 @@ static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 
 static int video_open(struct saa7146_dev *dev, struct file *file)
 {
-	struct saa7146_fh *fh = (struct saa7146_fh *)file->private_data;
+	struct saa7146_fh *fh = file->private_data;
 	struct saa7146_format *sfmt;
 
 	fh->video_fmt.width = 384;
@@ -1394,7 +1394,7 @@ static int video_open(struct saa7146_dev *dev, struct file *file)
 
 static void video_close(struct saa7146_dev *dev, struct file *file)
 {
-	struct saa7146_fh *fh = (struct saa7146_fh *)file->private_data;
+	struct saa7146_fh *fh = file->private_data;
 	struct saa7146_vv *vv = dev->vv_data;
 	struct videobuf_queue *q = &fh->video_q;
 	int err;

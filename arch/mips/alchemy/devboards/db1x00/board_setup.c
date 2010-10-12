@@ -79,7 +79,6 @@ static struct au1000_eth_platform_data eth0_pdata = {
 
 static void bosporus_power_off(void)
 {
-	printk(KERN_INFO "It's now safe to turn off power\n");
 	while (1)
 		asm volatile (".set mips3 ; wait ; .set mips0");
 }

@@ -244,7 +244,7 @@ int musb_hub_control(
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(hcd))) {
 		spin_unlock_irqrestore(&musb->lock, flags);
 		return -ESHUTDOWN;
 	}

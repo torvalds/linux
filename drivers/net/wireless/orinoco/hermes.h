@@ -205,7 +205,7 @@ struct hermes_tx_descriptor {
 	u8 retry_count;
 	u8 tx_rate;
 	__le16 tx_control;
-} __attribute__ ((packed));
+} __packed;
 
 #define HERMES_TXSTAT_RETRYERR		(0x0001)
 #define HERMES_TXSTAT_AGEDERR		(0x0002)
@@ -254,7 +254,7 @@ struct hermes_tallies_frame {
 	/* Those last are probably not available in very old firmwares */
 	__le16 RxDiscards_WEPICVError;
 	__le16 RxDiscards_WEPExcluded;
-} __attribute__ ((packed));
+} __packed;
 
 /* Grabbed from wlan-ng - Thanks Mark... - Jean II
  * This is the result of a scan inquiry command */
@@ -271,7 +271,7 @@ struct prism2_scan_apinfo {
 	u8 rates[10];		/* Bit rate supported */
 	__le16 proberesp_rate;	/* Data rate of the response frame */
 	__le16 atim;		/* ATIM window time, Kus (hostscan only) */
-} __attribute__ ((packed));
+} __packed;
 
 /* Same stuff for the Lucent/Agere card.
  * Thanks to h1kari <h1kari AT dachb0den.com> - Jean II */
@@ -285,7 +285,7 @@ struct agere_scan_apinfo {
 	/* bits: 0-ess, 1-ibss, 4-privacy [wep] */
 	__le16 essid_len;	/* ESSID length */
 	u8 essid[32];		/* ESSID of the network */
-} __attribute__ ((packed));
+} __packed;
 
 /* Moustafa: Scan structure for Symbol cards */
 struct symbol_scan_apinfo {
@@ -303,7 +303,7 @@ struct symbol_scan_apinfo {
 	__le16 basic_rates;	/* Basic rates bitmask */
 	u8 unknown2[6];		/* Always FF:FF:FF:FF:00:00 */
 	u8 unknown3[8];		/* Always 0, appeared in f/w 3.91-68 */
-} __attribute__ ((packed));
+} __packed;
 
 union hermes_scan_info {
 	struct agere_scan_apinfo	a;
@@ -343,7 +343,7 @@ struct agere_ext_scan_info {
 	__le16	beacon_interval;
 	__le16	capabilities;
 	u8	data[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define HERMES_LINKSTATUS_NOT_CONNECTED   (0x0000)
 #define HERMES_LINKSTATUS_CONNECTED       (0x0001)
@@ -355,7 +355,7 @@ struct agere_ext_scan_info {
 
 struct hermes_linkstatus {
 	__le16 linkstatus;         /* Link status */
-} __attribute__ ((packed));
+} __packed;
 
 struct hermes_response {
 	u16 status, resp0, resp1, resp2;
@@ -365,11 +365,11 @@ struct hermes_response {
 struct hermes_idstring {
 	__le16 len;
 	__le16 val[16];
-} __attribute__ ((packed));
+} __packed;
 
 struct hermes_multicast {
 	u8 addr[HERMES_MAX_MULTICAST][ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 /* Timeouts */
 #define HERMES_BAP_BUSY_TIMEOUT (10000) /* In iterations of ~1us */

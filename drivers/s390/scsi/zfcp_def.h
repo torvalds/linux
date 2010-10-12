@@ -37,6 +37,7 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
+#include "zfcp_fc.h"
 #include "zfcp_qdio.h"
 
 struct zfcp_reqlist;
@@ -72,10 +73,12 @@ struct zfcp_reqlist;
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
+#define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED	0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
+#define ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED	0x00000400
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
@@ -190,6 +193,7 @@ struct zfcp_adapter {
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
 	struct device_dma_parameters dma_parms;
+	struct zfcp_fc_events events;
 };
 
 struct zfcp_port {
@@ -212,6 +216,7 @@ struct zfcp_port {
 	struct work_struct     test_link_work;
 	struct work_struct     rport_work;
 	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
+	unsigned int		starget_id;
 };
 
 struct zfcp_unit {

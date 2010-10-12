@@ -110,7 +110,7 @@ struct mlx4_eqe {
 		u32		raw[6];
 		struct {
 			__be32	cqn;
-		} __attribute__((packed)) comp;
+		} __packed comp;
 		struct {
 			u16	reserved1;
 			__be16	token;
@@ -118,27 +118,27 @@ struct mlx4_eqe {
 			u8	reserved3[3];
 			u8	status;
 			__be64	out_param;
-		} __attribute__((packed)) cmd;
+		} __packed cmd;
 		struct {
 			__be32	qpn;
-		} __attribute__((packed)) qp;
+		} __packed qp;
 		struct {
 			__be32	srqn;
-		} __attribute__((packed)) srq;
+		} __packed srq;
 		struct {
 			__be32	cqn;
 			u32	reserved1;
 			u8	reserved2[3];
 			u8	syndrome;
-		} __attribute__((packed)) cq_err;
+		} __packed cq_err;
 		struct {
 			u32	reserved1[2];
 			__be32	port;
-		} __attribute__((packed)) port_change;
+		} __packed port_change;
 	}			event;
 	u8			reserved3[3];
 	u8			owner;
-} __attribute__((packed));
+} __packed;
 
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {
@@ -475,10 +475,10 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 		mlx4_dbg(dev, "Dumping EQ context %02x:\n", eq->eqn);
 		for (i = 0; i < sizeof (struct mlx4_eq_context) / 4; ++i) {
 			if (i % 4 == 0)
-				printk("[%02x] ", i * 4);
-			printk(" %08x", be32_to_cpup(mailbox->buf + i * 4));
+				pr_cont("[%02x] ", i * 4);
+			pr_cont(" %08x", be32_to_cpup(mailbox->buf + i * 4));
 			if ((i + 1) % 4 == 0)
-				printk("\n");
+				pr_cont("\n");
 		}
 	}
 

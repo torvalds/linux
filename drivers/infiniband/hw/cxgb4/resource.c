@@ -110,11 +110,12 @@ static int c4iw_init_qid_fifo(struct c4iw_rdev *rdev)
 
 	spin_lock_init(&rdev->resource.qid_fifo_lock);
 
-	if (kfifo_alloc(&rdev->resource.qid_fifo, T4_MAX_QIDS * sizeof(u32),
-			GFP_KERNEL))
+	if (kfifo_alloc(&rdev->resource.qid_fifo, rdev->lldi.vr->qp.size *
+			sizeof(u32), GFP_KERNEL))
 		return -ENOMEM;
 
-	for (i = T4_QID_BASE; i < T4_QID_BASE + T4_MAX_QIDS; i++)
+	for (i = rdev->lldi.vr->qp.start;
+	     i < rdev->lldi.vr->qp.start + rdev->lldi.vr->qp.size; i++)
 		if (!(i & rdev->qpmask))
 			kfifo_in(&rdev->resource.qid_fifo,
 				    (unsigned char *) &i, sizeof(u32));

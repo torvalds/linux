@@ -320,7 +320,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 	};
 	int i, key, key_provided, len;
 	struct lib80211_crypt_data **crypt;
-	int host_crypto = ieee->host_encrypt || ieee->host_decrypt || ieee->host_build_iv;
+	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
 	DECLARE_SSID_BUF(ssid);
 
 	LIBIPW_DEBUG_WX("SET_ENCODE\n");
@@ -411,10 +411,6 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 
 	/* If a new key was provided, set it up */
 	if (erq->length > 0) {
-#ifdef CONFIG_LIBIPW_DEBUG
-		DECLARE_SSID_BUF(ssid);
-#endif
-
 		len = erq->length <= 5 ? 5 : 13;
 		memcpy(sec.keys[key], keybuf, erq->length);
 		if (len > erq->length)

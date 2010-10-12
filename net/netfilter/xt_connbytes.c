@@ -112,6 +112,16 @@ static int connbytes_mt_check(const struct xt_mtchk_param *par)
 	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
+
+	/*
+	 * This filter cannot function correctly unless connection tracking
+	 * accounting is enabled, so complain in the hope that someone notices.
+	 */
+	if (!nf_ct_acct_enabled(par->net)) {
+		pr_warning("Forcing CT accounting to be enabled\n");
+		nf_ct_set_acct(par->net, true);
+	}
+
 	return ret;
 }
 

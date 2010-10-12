@@ -317,7 +317,7 @@ struct hwsim_radiotap_hdr {
 	u8 rt_rate;
 	__le16 rt_channel;
 	__le16 rt_chbitmask;
-} __attribute__ ((packed));
+} __packed;
 
 
 static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
@@ -486,8 +486,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	struct ieee80211_rx_status rx_status;
 
 	if (data->idle) {
-		printk(KERN_DEBUG "%s: Trying to TX when idle - reject\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_debug(hw->wiphy, "trying to tx when idle - reject\n");
 		return false;
 	}
 
@@ -576,7 +575,7 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 static int mac80211_hwsim_start(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
-	printk(KERN_DEBUG "%s:%s\n", wiphy_name(hw->wiphy), __func__);
+	wiphy_debug(hw->wiphy, "%s\n", __func__);
 	data->started = 1;
 	return 0;
 }
@@ -587,16 +586,15 @@ static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
 	struct mac80211_hwsim_data *data = hw->priv;
 	data->started = 0;
 	del_timer(&data->beacon_timer);
-	printk(KERN_DEBUG "%s:%s\n", wiphy_name(hw->wiphy), __func__);
+	wiphy_debug(hw->wiphy, "%s\n", __func__);
 }
 
 
 static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif)
 {
-	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%pM)\n",
-	       wiphy_name(hw->wiphy), __func__, vif->type,
-	       vif->addr);
+	wiphy_debug(hw->wiphy, "%s (type=%d mac_addr=%pM)\n",
+		    __func__, vif->type, vif->addr);
 	hwsim_set_magic(vif);
 	return 0;
 }
@@ -605,9 +603,8 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 static void mac80211_hwsim_remove_interface(
 	struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%pM)\n",
-	       wiphy_name(hw->wiphy), __func__, vif->type,
-	       vif->addr);
+	wiphy_debug(hw->wiphy, "%s (type=%d mac_addr=%pM)\n",
+		    __func__, vif->type, vif->addr);
 	hwsim_check_magic(vif);
 	hwsim_clear_magic(vif);
 }
@@ -670,13 +667,14 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 		[IEEE80211_SMPS_DYNAMIC] = "dynamic",
 	};
 
-	printk(KERN_DEBUG "%s:%s (freq=%d/%s idle=%d ps=%d smps=%s)\n",
-	       wiphy_name(hw->wiphy), __func__,
-	       conf->channel->center_freq,
-	       hwsim_chantypes[conf->channel_type],
-	       !!(conf->flags & IEEE80211_CONF_IDLE),
-	       !!(conf->flags & IEEE80211_CONF_PS),
-	       smps_modes[conf->smps_mode]);
+	wiphy_debug(hw->wiphy,
+		    "%s (freq=%d/%s idle=%d ps=%d smps=%s)\n",
+		    __func__,
+		    conf->channel->center_freq,
+		    hwsim_chantypes[conf->channel_type],
+		    !!(conf->flags & IEEE80211_CONF_IDLE),
+		    !!(conf->flags & IEEE80211_CONF_PS),
+		    smps_modes[conf->smps_mode]);
 
 	data->idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
@@ -696,7 +694,7 @@ static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 
-	printk(KERN_DEBUG "%s:%s\n", wiphy_name(hw->wiphy), __func__);
+	wiphy_debug(hw->wiphy, "%s\n", __func__);
 
 	data->rx_filter = 0;
 	if (*total_flags & FIF_PROMISC_IN_BSS)
@@ -717,26 +715,23 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	hwsim_check_magic(vif);
 
-	printk(KERN_DEBUG "%s:%s(changed=0x%x)\n",
-	       wiphy_name(hw->wiphy), __func__, changed);
+	wiphy_debug(hw->wiphy, "%s(changed=0x%x)\n", __func__, changed);
 
 	if (changed & BSS_CHANGED_BSSID) {
-		printk(KERN_DEBUG "%s:%s: BSSID changed: %pM\n",
-		       wiphy_name(hw->wiphy), __func__,
-		       info->bssid);
+		wiphy_debug(hw->wiphy, "%s: BSSID changed: %pM\n",
+			    __func__, info->bssid);
 		memcpy(vp->bssid, info->bssid, ETH_ALEN);
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		printk(KERN_DEBUG "  %s: ASSOC: assoc=%d aid=%d\n",
-		       wiphy_name(hw->wiphy), info->assoc, info->aid);
+		wiphy_debug(hw->wiphy, "  ASSOC: assoc=%d aid=%d\n",
+			    info->assoc, info->aid);
 		vp->assoc = info->assoc;
 		vp->aid = info->aid;
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		printk(KERN_DEBUG "  %s: BCNINT: %d\n",
-		       wiphy_name(hw->wiphy), info->beacon_int);
+		wiphy_debug(hw->wiphy, "  BCNINT: %d\n", info->beacon_int);
 		data->beacon_int = 1024 * info->beacon_int / 1000 * HZ / 1000;
 		if (WARN_ON(!data->beacon_int))
 			data->beacon_int = 1;
@@ -746,31 +741,28 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		printk(KERN_DEBUG "  %s: ERP_CTS_PROT: %d\n",
-		       wiphy_name(hw->wiphy), info->use_cts_prot);
+		wiphy_debug(hw->wiphy, "  ERP_CTS_PROT: %d\n",
+			    info->use_cts_prot);
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		printk(KERN_DEBUG "  %s: ERP_PREAMBLE: %d\n",
-		       wiphy_name(hw->wiphy), info->use_short_preamble);
+		wiphy_debug(hw->wiphy, "  ERP_PREAMBLE: %d\n",
+			    info->use_short_preamble);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		printk(KERN_DEBUG "  %s: ERP_SLOT: %d\n",
-		       wiphy_name(hw->wiphy), info->use_short_slot);
+		wiphy_debug(hw->wiphy, "  ERP_SLOT: %d\n", info->use_short_slot);
 	}
 
 	if (changed & BSS_CHANGED_HT) {
-		printk(KERN_DEBUG "  %s: HT: op_mode=0x%x, chantype=%s\n",
-		       wiphy_name(hw->wiphy),
-		       info->ht_operation_mode,
-		       hwsim_chantypes[info->channel_type]);
+		wiphy_debug(hw->wiphy, "  HT: op_mode=0x%x, chantype=%s\n",
+			    info->ht_operation_mode,
+			    hwsim_chantypes[info->channel_type]);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		printk(KERN_DEBUG "  %s: BASIC_RATES: 0x%llx\n",
-		       wiphy_name(hw->wiphy),
-		       (unsigned long long) info->basic_rates);
+		wiphy_debug(hw->wiphy, "  BASIC_RATES: 0x%llx\n",
+			    (unsigned long long) info->basic_rates);
 	}
 }
 
@@ -824,10 +816,11 @@ static int mac80211_hwsim_conf_tx(
 	struct ieee80211_hw *hw, u16 queue,
 	const struct ieee80211_tx_queue_params *params)
 {
-	printk(KERN_DEBUG "%s:%s (queue=%d txop=%d cw_min=%d cw_max=%d "
-	       "aifs=%d)\n",
-	       wiphy_name(hw->wiphy), __func__, queue,
-	       params->txop, params->cw_min, params->cw_max, params->aifs);
+	wiphy_debug(hw->wiphy,
+		    "%s (queue=%d txop=%d cw_min=%d cw_max=%d aifs=%d)\n",
+		    __func__, queue,
+		    params->txop, params->cw_min,
+		    params->cw_max, params->aifs);
 	return 0;
 }
 
@@ -837,8 +830,7 @@ static int mac80211_hwsim_get_survey(
 {
 	struct ieee80211_conf *conf = &hw->conf;
 
-	printk(KERN_DEBUG "%s:%s (idx=%d)\n",
-	       wiphy_name(hw->wiphy), __func__, idx);
+	wiphy_debug(hw->wiphy, "%s (idx=%d)\n", __func__, idx);
 
 	if (idx != 0)
 		return -ENOENT;
@@ -1108,8 +1100,9 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 	if (!vp->assoc)
 		return;
 
-	printk(KERN_DEBUG "%s:%s: send PS-Poll to %pM for aid %d\n",
-	       wiphy_name(data->hw->wiphy), __func__, vp->bssid, vp->aid);
+	wiphy_debug(data->hw->wiphy,
+		    "%s: send PS-Poll to %pM for aid %d\n",
+		    __func__, vp->bssid, vp->aid);
 
 	skb = dev_alloc_skb(sizeof(*pspoll));
 	if (!skb)
@@ -1137,8 +1130,9 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 	if (!vp->assoc)
 		return;
 
-	printk(KERN_DEBUG "%s:%s: send data::nullfunc to %pM ps=%d\n",
-	       wiphy_name(data->hw->wiphy), __func__, vp->bssid, ps);
+	wiphy_debug(data->hw->wiphy,
+		    "%s: send data::nullfunc to %pM ps=%d\n",
+		    __func__, vp->bssid, ps);
 
 	skb = dev_alloc_skb(sizeof(*hdr));
 	if (!skb)
@@ -1290,6 +1284,11 @@ static int __init init_mac80211_hwsim(void)
 		data->addresses[1].addr[0] |= 0x40;
 		hw->wiphy->n_addresses = 2;
 		hw->wiphy->addresses = data->addresses;
+
+		if (fake_hw_scan) {
+			hw->wiphy->max_scan_ssids = 255;
+			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+		}
 
 		hw->channel_change_time = 1;
 		hw->queues = 4;
@@ -1468,9 +1467,8 @@ static int __init init_mac80211_hwsim(void)
 			break;
 		}
 
-		printk(KERN_DEBUG "%s: hwaddr %pM registered\n",
-		       wiphy_name(hw->wiphy),
-		       hw->wiphy->perm_addr);
+		wiphy_debug(hw->wiphy, "hwaddr %pm registered\n",
+			    hw->wiphy->perm_addr);
 
 		data->debugfs = debugfs_create_dir("hwsim",
 						   hw->wiphy->debugfsdir);

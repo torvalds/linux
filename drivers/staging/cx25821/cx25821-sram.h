@@ -23,34 +23,34 @@
 #ifndef __ATHENA_SRAM_H__
 #define __ATHENA_SRAM_H__
 
-//#define RX_SRAM_START_SIZE        = 0;  //  Start of reserved SRAM
-#define VID_CMDS_SIZE             80	//  Video CMDS size in bytes
-#define AUDIO_CMDS_SIZE           80	//  AUDIO CMDS size in bytes
-#define MBIF_CMDS_SIZE            80	//  MBIF  CMDS size in bytes
+/* #define RX_SRAM_START_SIZE        = 0;  //  Start of reserved SRAM */
+#define VID_CMDS_SIZE             80	/* Video CMDS size in bytes */
+#define AUDIO_CMDS_SIZE           80	/* AUDIO CMDS size in bytes */
+#define MBIF_CMDS_SIZE            80	/* MBIF  CMDS size in bytes */
 
-//#define RX_SRAM_POOL_START_SIZE   = 0;  //  Start of useable RX SRAM for buffers
-#define VID_IQ_SIZE               64	//  VID instruction queue size in bytes
+/* #define RX_SRAM_POOL_START_SIZE   = 0;  //  Start of useable RX SRAM for buffers */
+#define VID_IQ_SIZE               64	/* VID instruction queue size in bytes */
 #define MBIF_IQ_SIZE              64
-#define AUDIO_IQ_SIZE             64	//  AUD instruction queue size in bytes
+#define AUDIO_IQ_SIZE             64	/* AUD instruction queue size in bytes */
 
-#define VID_CDT_SIZE              64	//  VID cluster descriptor table size in bytes
-#define MBIF_CDT_SIZE             64	//  MBIF/HBI cluster descriptor table size in bytes
-#define AUDIO_CDT_SIZE            48	//  AUD cluster descriptor table size in bytes
+#define VID_CDT_SIZE              64	/* VID cluster descriptor table size in bytes */
+#define MBIF_CDT_SIZE             64	/* MBIF/HBI cluster descriptor table size in bytes */
+#define AUDIO_CDT_SIZE            48	/* AUD cluster descriptor table size in bytes */
 
-//#define RX_SRAM_POOL_FREE_SIZE    = 16; //  Start of available RX SRAM
-//#define RX_SRAM_END_SIZE          = 0;  //  End of RX SRAM
+/* #define RX_SRAM_POOL_FREE_SIZE    = 16; //  Start of available RX SRAM */
+/* #define RX_SRAM_END_SIZE          = 0;  //  End of RX SRAM */
 
-//#define TX_SRAM_POOL_START_SIZE   = 0;  //  Start of transmit pool SRAM
-//#define MSI_DATA_SIZE             = 64; //  Reserved (MSI Data, RISC working stora
+/* #define TX_SRAM_POOL_START_SIZE   = 0;  //  Start of transmit pool SRAM */
+/* #define MSI_DATA_SIZE             = 64; //  Reserved (MSI Data, RISC working stora */
 
-#define VID_CLUSTER_SIZE          1440	//  VID cluster data line
-#define AUDIO_CLUSTER_SIZE        128	//  AUDIO cluster data line
-#define MBIF_CLUSTER_SIZE         1440	//  MBIF/HBI cluster data line
+#define VID_CLUSTER_SIZE          1440	/* VID cluster data line */
+#define AUDIO_CLUSTER_SIZE        128	/* AUDIO cluster data line */
+#define MBIF_CLUSTER_SIZE         1440	/* MBIF/HBI cluster data line */
 
-//#define TX_SRAM_POOL_FREE_SIZE    = 704;    //  Start of available TX SRAM
-//#define TX_SRAM_END_SIZE          = 0;      //  End of TX SRAM
+/* #define TX_SRAM_POOL_FREE_SIZE    = 704;    //  Start of available TX SRAM */
+/* #define TX_SRAM_END_SIZE          = 0;      //  End of TX SRAM */
 
-// Receive SRAM
+/* Receive SRAM */
 #define RX_SRAM_START             0x10000
 #define VID_A_DOWN_CMDS           0x10000
 #define VID_B_DOWN_CMDS           0x10050
@@ -78,9 +78,9 @@
 #define AUD_E_UP_CMDS             0x10730
 #define MBIF_A_DOWN_CMDS          0x10780
 #define MBIF_B_DOWN_CMDS          0x107D0
-#define DMA_SCRATCH_PAD           0x10820	// Scratch pad area from 0x10820 to 0x10B40
+#define DMA_SCRATCH_PAD           0x10820	/* Scratch pad area from 0x10820 to 0x10B40 */
 
-//#define RX_SRAM_POOL_START        = 0x105B0;
+/* #define RX_SRAM_POOL_START        = 0x105B0; */
 
 #define VID_A_IQ                  0x11000
 #define VID_B_IQ                  0x11040
@@ -118,7 +118,7 @@
 #define MBIF_A_CDT                0x10C00
 #define MBIF_B_CDT                0x10CC0
 
-// Cluster Buffer for RX
+/* Cluster Buffer for RX */
 #define VID_A_UP_CLUSTER_1        0x11400
 #define VID_A_UP_CLUSTER_2        0x119A0
 #define VID_A_UP_CLUSTER_3        0x11F40
@@ -178,9 +178,9 @@
 #define RX_SRAM_POOL_FREE         0x1CE00
 #define RX_SRAM_END               0x1D000
 
-// Free Receive SRAM    144 Bytes
+/* Free Receive SRAM    144 Bytes */
 
-// Transmit SRAM
+/* Transmit SRAM */
 #define TX_SRAM_POOL_START        0x00000
 
 #define VID_A_DOWN_CLUSTER_1      0x00040

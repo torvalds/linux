@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/iomap.h>
 
 /*
  * The io_mapping mechanism provides an abstraction for mapping
@@ -32,6 +31,8 @@
  */
 
 #ifdef CONFIG_HAVE_ATOMIC_IOMAP
+
+#include <asm/iomap.h>
 
 struct io_mapping {
 	resource_size_t base;
@@ -79,7 +80,9 @@ io_mapping_free(struct io_mapping *mapping)
 
 /* Atomic map/unmap */
 static inline void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_atomic_wc(struct io_mapping *mapping,
+			 unsigned long offset,
+			 int slot)
 {
 	resource_size_t phys_addr;
 	unsigned long pfn;
@@ -87,13 +90,13 @@ io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
 	BUG_ON(offset >= mapping->size);
 	phys_addr = mapping->base + offset;
 	pfn = (unsigned long) (phys_addr >> PAGE_SHIFT);
-	return iomap_atomic_prot_pfn(pfn, KM_USER0, mapping->prot);
+	return iomap_atomic_prot_pfn(pfn, slot, mapping->prot);
 }
 
 static inline void
-io_mapping_unmap_atomic(void *vaddr)
+io_mapping_unmap_atomic(void *vaddr, int slot)
 {
-	iounmap_atomic(vaddr, KM_USER0);
+	iounmap_atomic(vaddr, slot);
 }
 
 static inline void *
@@ -133,13 +136,15 @@ io_mapping_free(struct io_mapping *mapping)
 
 /* Atomic map/unmap */
 static inline void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_atomic_wc(struct io_mapping *mapping,
+			 unsigned long offset,
+			 int slot)
 {
 	return ((char *) mapping) + offset;
 }
 
 static inline void
-io_mapping_unmap_atomic(void *vaddr)
+io_mapping_unmap_atomic(void *vaddr, int slot)
 {
 }
 

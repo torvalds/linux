@@ -33,7 +33,7 @@ MODULE_PARM_DESC(debug,
 
 #define deb_decode(args...)   dprintk(dvb_usb_af9005_remote_debug,0x01,args)
 
-struct dvb_usb_rc_key ir_codes_af9005_table[] = {
+struct ir_scancode ir_codes_af9005_table[] = {
 
 	{0x01b7, KEY_POWER},
 	{0x01a7, KEY_VOLUMEUP},
@@ -133,7 +133,7 @@ int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len, u32 * event,
 			for (i = 0; i < ir_codes_af9005_table_size; i++) {
 				if (rc5_custom(&ir_codes_af9005_table[i]) == cust
 				    && rc5_data(&ir_codes_af9005_table[i]) == dat) {
-					*event = ir_codes_af9005_table[i].event;
+					*event = ir_codes_af9005_table[i].keycode;
 					*state = REMOTE_KEY_PRESSED;
 					deb_decode
 					    ("key pressed, event %x\n", *event);

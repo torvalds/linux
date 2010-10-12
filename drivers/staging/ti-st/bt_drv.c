@@ -80,31 +80,33 @@ static inline void hci_st_tx_complete(struct hci_st *hst, int pkt_type)
  * status.hci_st_open() function will wait for signal from this
  * API when st_register() function returns ST_PENDING.
  */
-static void hci_st_registration_completion_cb(char data)
+static void hci_st_registration_completion_cb(void *priv_data, char data)
 {
+	struct hci_st *lhst = (struct hci_st *)priv_data;
 	BTDRV_API_START();
 
 	/* hci_st_open() function needs value of 'data' to know
 	 * the registration status(success/fail),So have a back
 	 * up of it.
 	 */
-	hst->streg_cbdata = data;
+	lhst->streg_cbdata = data;
 
 	/* Got a feedback from ST for BT driver registration
 	 * request.Wackup hci_st_open() function to continue
 	 * it's open operation.
 	 */
-	complete(&hst->wait_for_btdrv_reg_completion);
+	complete(&lhst->wait_for_btdrv_reg_completion);
 
 	BTDRV_API_EXIT(0);
 }
 
 /* Called by Shared Transport layer when receive data is
  * available */
-static long hci_st_receive(struct sk_buff *skb)
+static long hci_st_receive(void *priv_data, struct sk_buff *skb)
 {
 	int err;
 	int len;
+	struct hci_st *lhst = (struct hci_st *)priv_data;
 
 	BTDRV_API_START();
 
@@ -116,13 +118,13 @@ static long hci_st_receive(struct sk_buff *skb)
 		BTDRV_API_EXIT(-EFAULT);
 		return -EFAULT;
 	}
-	if (!hst) {
+	if (!lhst) {
 		kfree_skb(skb);
 		BT_DRV_ERR("Invalid hci_st memory,freeing SKB");
 		BTDRV_API_EXIT(-EFAULT);
 		return -EFAULT;
 	}
-	if (!test_bit(BT_DRV_RUNNING, &hst->flags)) {
+	if (!test_bit(BT_DRV_RUNNING, &lhst->flags)) {
 		kfree_skb(skb);
 		BT_DRV_ERR("Device is not running,freeing SKB");
 		BTDRV_API_EXIT(-EINVAL);
@@ -130,7 +132,7 @@ static long hci_st_receive(struct sk_buff *skb)
 	}
 
 	len = skb->len;
-	skb->dev = (struct net_device *)hst->hdev;
+	skb->dev = (struct net_device *)lhst->hdev;
 
 	/* Forward skb to HCI CORE layer */
 	err = hci_recv_frame(skb);
@@ -141,7 +143,7 @@ static long hci_st_receive(struct sk_buff *skb)
 		BTDRV_API_EXIT(err);
 		return err;
 	}
-	hst->hdev->stat.byte_rx += len;
+	lhst->hdev->stat.byte_rx += len;
 
 	BTDRV_API_EXIT(0);
 	return 0;
@@ -189,9 +191,14 @@ static int hci_st_open(struct hci_dev *hdev)
 	 * make it as NULL */
 	hci_st_proto.write = NULL;
 
+	/* send in the hst to be received at registration complete callback
+	 * and during st's receive
+	 */
+	hci_st_proto.priv_data = hst;
+
 	/* Register with ST layer */
 	err = st_register(&hci_st_proto);
-	if (err == ST_ERR_PENDING) {
+	if (err == -EINPROGRESS) {
 		/* Prepare wait-for-completion handler data structures.
 		 * Needed to syncronize this and st_registration_completion_cb()
 		 * functions.
@@ -232,7 +239,7 @@ static int hci_st_open(struct hci_dev *hdev)
 			return -EAGAIN;
 		}
 		err = 0;
-	} else if (err == ST_ERR_FAILURE) {
+	} else if (err == -1) {
 		BT_DRV_ERR("st_register failed %d", err);
 		BTDRV_API_EXIT(-EAGAIN);
 		return -EAGAIN;
@@ -280,7 +287,7 @@ static int hci_st_close(struct hci_dev *hdev)
 	/* Unregister from ST layer */
 	if (test_and_clear_bit(BT_ST_REGISTERED, &hst->flags)) {
 		err = st_unregister(ST_BT);
-		if (err != ST_SUCCESS) {
+		if (err != 0) {
 			BT_DRV_ERR("st_unregister failed %d", err);
 			BTDRV_API_EXIT(-EBUSY);
 			return -EBUSY;

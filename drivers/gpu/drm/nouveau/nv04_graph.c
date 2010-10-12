@@ -342,7 +342,7 @@ static uint32_t nv04_graph_ctx_regs[] = {
 };
 
 struct graph_state {
-	int nv04[ARRAY_SIZE(nv04_graph_ctx_regs)];
+	uint32_t nv04[ARRAY_SIZE(nv04_graph_ctx_regs)];
 };
 
 struct nouveau_channel *
@@ -527,8 +527,7 @@ static int
 nv04_graph_mthd_set_ref(struct nouveau_channel *chan, int grclass,
 			int mthd, uint32_t data)
 {
-	chan->fence.last_sequence_irq = data;
-	nouveau_fence_handler(chan->dev, chan->id);
+	atomic_set(&chan->fence.last_sequence_irq, data);
 	return 0;
 }
 

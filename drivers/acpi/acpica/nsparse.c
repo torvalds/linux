@@ -136,8 +136,8 @@ acpi_ns_one_complete_parse(u32 pass_number,
 
 	/* Parse the AML */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "*PARSE* pass %d parse\n",
-			  (unsigned)pass_number));
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "*PARSE* pass %u parse\n",
+			  pass_number));
 	status = acpi_ps_parse_aml(walk_state);
 
       cleanup:

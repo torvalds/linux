@@ -1,11 +1,11 @@
 /*
  * Flash partitions described by the OF (or flattened) device tree
  *
- * Copyright (C) 2006 MontaVista Software Inc.
+ * Copyright © 2006 MontaVista Software Inc.
  * Author: Vitaly Wool <vwool@ru.mvista.com>
  *
  * Revised to handle newer style flash binding by:
- *   Copyright (C) 2007 David Gibson, IBM Corporation.
+ *   Copyright © 2007 David Gibson, IBM Corporation.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the

@@ -377,3 +377,11 @@ void ivtv_api_get_data(struct ivtv_mailbox_data *mbdata, int mb,
 	for (i = 0; i < argc; i++, p++)
 		data[i] = readl(p);
 }
+
+/* Wipe api cache */
+void ivtv_mailbox_cache_invalidate(struct ivtv *itv)
+{
+	int i;
+	for (i = 0; i < 256; i++)
+		itv->api_cache[i].last_jiffies = 0;
+}

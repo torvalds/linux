@@ -32,7 +32,7 @@
 #define IRQ_GPIOINT		S5P_IRQ_VIC0(30)
 
 /* VIC1 */
-#define IRQ_nPMUIRQ 		S5P_IRQ_VIC1(0)
+#define IRQ_PMU			S5P_IRQ_VIC1(0)
 #define IRQ_ONENAND 		S5P_IRQ_VIC1(7)
 #define IRQ_UART0 		S5P_IRQ_VIC1(10)
 #define IRQ_UART1 		S5P_IRQ_VIC1(11)

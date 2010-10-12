@@ -400,11 +400,12 @@ static int __init via_pmu_start(void)
 		printk(KERN_ERR "via-pmu: can't map interrupt\n");
 		return -ENODEV;
 	}
-	/* We set IRQF_TIMER because we don't want the interrupt to be disabled
-	 * between the 2 passes of driver suspend, we control our own disabling
-	 * for that one
+	/* We set IRQF_NO_SUSPEND because we don't want the interrupt
+	 * to be disabled between the 2 passes of driver suspend, we
+	 * control our own disabling for that one
 	 */
-	if (request_irq(irq, via_pmu_interrupt, IRQF_TIMER, "VIA-PMU", (void *)0)) {
+	if (request_irq(irq, via_pmu_interrupt, IRQF_NO_SUSPEND,
+			"VIA-PMU", (void *)0)) {
 		printk(KERN_ERR "via-pmu: can't request irq %d\n", irq);
 		return -ENODEV;
 	}

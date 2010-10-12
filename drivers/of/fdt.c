@@ -69,9 +69,9 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 			u32 sz = be32_to_cpup((__be32 *)p);
 			p += 8;
 			if (be32_to_cpu(initial_boot_params->version) < 0x10)
-				p = _ALIGN(p, sz >= 8 ? 8 : 4);
+				p = ALIGN(p, sz >= 8 ? 8 : 4);
 			p += sz;
-			p = _ALIGN(p, 4);
+			p = ALIGN(p, 4);
 			continue;
 		}
 		if (tag != OF_DT_BEGIN_NODE) {
@@ -80,7 +80,7 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 		}
 		depth++;
 		pathp = (char *)p;
-		p = _ALIGN(p + strlen(pathp) + 1, 4);
+		p = ALIGN(p + strlen(pathp) + 1, 4);
 		if ((*pathp) == '/') {
 			char *lp, *np;
 			for (lp = NULL, np = pathp; *np; np++)
@@ -109,7 +109,7 @@ unsigned long __init of_get_flat_dt_root(void)
 		p += 4;
 	BUG_ON(be32_to_cpup((__be32 *)p) != OF_DT_BEGIN_NODE);
 	p += 4;
-	return _ALIGN(p + strlen((char *)p) + 1, 4);
+	return ALIGN(p + strlen((char *)p) + 1, 4);
 }
 
 /**
@@ -138,7 +138,7 @@ void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 		noff = be32_to_cpup((__be32 *)(p + 4));
 		p += 8;
 		if (be32_to_cpu(initial_boot_params->version) < 0x10)
-			p = _ALIGN(p, sz >= 8 ? 8 : 4);
+			p = ALIGN(p, sz >= 8 ? 8 : 4);
 
 		nstr = find_flat_dt_string(noff);
 		if (nstr == NULL) {
@@ -151,7 +151,7 @@ void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 			return (void *)p;
 		}
 		p += sz;
-		p = _ALIGN(p, 4);
+		p = ALIGN(p, 4);
 	} while (1);
 }
 
@@ -169,7 +169,7 @@ int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
-		if (strncasecmp(cp, compat, strlen(compat)) == 0)
+		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
 			return 1;
 		l = strlen(cp) + 1;
 		cp += l;
@@ -184,7 +184,7 @@ static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
 {
 	void *res;
 
-	*mem = _ALIGN(*mem, align);
+	*mem = ALIGN(*mem, align);
 	res = (void *)*mem;
 	*mem += size;
 
@@ -220,7 +220,7 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 	*p += 4;
 	pathp = (char *)*p;
 	l = allocl = strlen(pathp) + 1;
-	*p = _ALIGN(*p + l, 4);
+	*p = ALIGN(*p + l, 4);
 
 	/* version 0x10 has a more compact unit name here instead of the full
 	 * path. we accumulate the full path size using "fpsize", we'll rebuild
@@ -299,7 +299,7 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		noff = be32_to_cpup((__be32 *)((*p) + 4));
 		*p += 8;
 		if (be32_to_cpu(initial_boot_params->version) < 0x10)
-			*p = _ALIGN(*p, sz >= 8 ? 8 : 4);
+			*p = ALIGN(*p, sz >= 8 ? 8 : 4);
 
 		pname = find_flat_dt_string(noff);
 		if (pname == NULL) {
@@ -320,20 +320,20 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 			if ((strcmp(pname, "phandle") == 0) ||
 			    (strcmp(pname, "linux,phandle") == 0)) {
 				if (np->phandle == 0)
-					np->phandle = *((u32 *)*p);
+					np->phandle = be32_to_cpup((__be32*)*p);
 			}
 			/* And we process the "ibm,phandle" property
 			 * used in pSeries dynamic device tree
 			 * stuff */
 			if (strcmp(pname, "ibm,phandle") == 0)
-				np->phandle = *((u32 *)*p);
+				np->phandle = be32_to_cpup((__be32 *)*p);
 			pp->name = pname;
 			pp->length = sz;
 			pp->value = (void *)*p;
 			*prev_pp = pp;
 			prev_pp = &pp->next;
 		}
-		*p = _ALIGN((*p) + sz, 4);
+		*p = ALIGN((*p) + sz, 4);
 	}
 	/* with version 0x10 we may not have the name property, recreate
 	 * it here from the unit name if absent

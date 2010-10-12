@@ -320,7 +320,12 @@ struct dasd_gneq {
 		__u8 identifier:2;
 		__u8 reserved:6;
 	} __attribute__ ((packed)) flags;
-	__u8 reserved[7];
+	__u8 reserved[5];
+	struct {
+		__u8 value:2;
+		__u8 number:6;
+	} __attribute__ ((packed)) timeout;
+	__u8 reserved3;
 	__u16 subsystemID;
 	__u8 reserved2[22];
 } __attribute__ ((packed));

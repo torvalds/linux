@@ -121,7 +121,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			goto out;
 
 		if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
-			DPRINTK(DRV, ERR, "Enable failed, needs MSI-X\n");
+			e_err(drv, "Enable failed, needs MSI-X\n");
 			err = 1;
 			goto out;
 		}

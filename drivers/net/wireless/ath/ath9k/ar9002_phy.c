@@ -471,52 +471,47 @@ static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
 static void ar9002_hw_do_getnf(struct ath_hw *ah,
 			      int16_t nfarray[NUM_NF_READINGS])
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	int16_t nf;
 
 	nf = MS(REG_READ(ah, AR_PHY_CCA), AR9280_PHY_MINCCA_PWR);
-
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
-
-	if (AR_SREV_9271(ah) && (nf >= -114))
-		nf = -116;
-
-	nfarray[0] = nf;
-
-	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
-		nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
-				AR9280_PHY_CH1_MINCCA_PWR);
-
-		if (nf & 0x100)
-			nf = 0 - ((nf ^ 0x1ff) + 1);
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "NF calibrated [ctl] [chain 1] is %d\n", nf);
-		nfarray[1] = nf;
-	}
+	nfarray[0] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR9280_PHY_EXT_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ext] [chain 0] is %d\n", nf);
+	if (IS_CHAN_HT40(ah->curchan))
+		nfarray[3] = sign_extend(nf, 9);
 
-	if (AR_SREV_9271(ah) && (nf >= -114))
-		nf = -116;
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		return;
 
-	nfarray[3] = nf;
+	nf = MS(REG_READ(ah, AR_PHY_CH1_CCA), AR9280_PHY_CH1_MINCCA_PWR);
+	nfarray[1] = sign_extend(nf, 9);
 
-	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
-		nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
-				AR9280_PHY_CH1_EXT_MINCCA_PWR);
+	nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR9280_PHY_CH1_EXT_MINCCA_PWR);
+	if (IS_CHAN_HT40(ah->curchan))
+		nfarray[4] = sign_extend(nf, 9);
+}
 
-		if (nf & 0x100)
-			nf = 0 - ((nf ^ 0x1ff) + 1);
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "NF calibrated [ext] [chain 1] is %d\n", nf);
-		nfarray[4] = nf;
+static void ar9002_hw_set_nf_limits(struct ath_hw *ah)
+{
+	if (AR_SREV_9285(ah)) {
+		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9285_2GHZ;
+		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9285_2GHZ;
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9285_2GHZ;
+	} else if (AR_SREV_9287(ah)) {
+		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9287_2GHZ;
+		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9287_2GHZ;
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9287_2GHZ;
+	} else if (AR_SREV_9271(ah)) {
+		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9271_2GHZ;
+		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9271_2GHZ;
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9271_2GHZ;
+	} else {
+		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_2GHZ;
+		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_2GHZ;
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9280_2GHZ;
+		ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_5GHZ;
+		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_5GHZ;
+		ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9280_5GHZ;
 	}
 }
 
@@ -532,4 +527,6 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->olc_init = ar9002_olc_init;
 	priv_ops->compute_pll_control = ar9002_hw_compute_pll_control;
 	priv_ops->do_getnf = ar9002_hw_do_getnf;
+
+	ar9002_hw_set_nf_limits(ah);
 }

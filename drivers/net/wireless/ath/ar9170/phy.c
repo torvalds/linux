@@ -670,8 +670,7 @@ static int ar9170_init_rf_banks_0_7(struct ar9170 *ar, bool band5ghz)
 	ar9170_regwrite_finish();
 	err = ar9170_regwrite_result();
 	if (err)
-		printk(KERN_ERR "%s: rf init failed\n",
-		       wiphy_name(ar->hw->wiphy));
+		wiphy_err(ar->hw->wiphy, "rf init failed\n");
 	return err;
 }
 
@@ -1702,9 +1701,8 @@ int ar9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 				       0x200 | ar->phy_heavy_clip);
 		if (err) {
 			if (ar9170_nag_limiter(ar))
-				printk(KERN_ERR "%s: failed to set "
-				       "heavy clip\n",
-				       wiphy_name(ar->hw->wiphy));
+				wiphy_err(ar->hw->wiphy,
+					  "failed to set heavy clip\n");
 		}
 	}
 

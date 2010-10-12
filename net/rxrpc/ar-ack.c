@@ -245,6 +245,9 @@ static void rxrpc_resend_timer(struct rxrpc_call *call)
 	_enter("%d,%d,%d",
 	       call->acks_tail, call->acks_unacked, call->acks_head);
 
+	if (call->state >= RXRPC_CALL_COMPLETE)
+		return;
+
 	resend = 0;
 	resend_at = 0;
 

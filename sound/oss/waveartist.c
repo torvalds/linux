@@ -184,14 +184,8 @@ waveartist_iack(wavnc_info *devc)
 static inline int
 waveartist_sleep(int timeout_ms)
 {
-	unsigned int timeout = timeout_ms * 10 * HZ / 100;
-
-	do {
-		set_current_state(TASK_INTERRUPTIBLE);
-		timeout = schedule_timeout(timeout);
-	} while (timeout);
-
-	return 0;
+	unsigned int timeout = msecs_to_jiffies(timeout_ms*100);
+	return schedule_timeout_interruptible(timeout);
 }
 
 static int

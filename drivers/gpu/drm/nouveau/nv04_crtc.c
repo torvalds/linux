@@ -157,6 +157,7 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct drm_connector *connector;
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
@@ -211,6 +212,10 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	NVVgaSeqReset(dev, nv_crtc->index, false);
 
 	NVWriteVgaCrtc(dev, nv_crtc->index, NV_CIO_CRE_RPC1_INDEX, crtc1A);
+
+	/* Update connector polling modes */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		nouveau_connector_set_polling(connector);
 }
 
 static bool
@@ -537,6 +542,9 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	 * 1 << 30 on 0x60.830), for no apparent reason */
 	regp->CRTC[NV_CIO_CRE_59] = off_chip_digital;
 
+	if (dev_priv->card_type >= NV_30)
+		regp->CRTC[0x9f] = off_chip_digital ? 0x11 : 0x1;
+
 	regp->crtc_830 = mode->crtc_vdisplay - 3;
 	regp->crtc_834 = mode->crtc_vdisplay - 1;
 
@@ -734,15 +742,13 @@ nv_crtc_gamma_load(struct drm_crtc *crtc)
 }
 
 static void
-nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b, uint32_t size)
+nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b, uint32_t start,
+		  uint32_t size)
 {
+	int end = (start + size > 256) ? 256 : start + size, i;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	int i;
 
-	if (size != 256)
-		return;
-
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		nv_crtc->lut.r[i] = r[i];
 		nv_crtc->lut.g[i] = g[i];
 		nv_crtc->lut.b[i] = b[i];
@@ -909,7 +915,7 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
 	if (!gem)
-		return -EINVAL;
+		return -ENOENT;
 	cursor = nouveau_gem_object(gem);
 
 	ret = nouveau_bo_map(cursor);

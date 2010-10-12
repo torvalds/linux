@@ -52,7 +52,7 @@ static struct {
 	struct task_struct	*poll_task;
 	
 	struct mutex	 	lock;
-	struct of_device	*of_dev;
+	struct platform_device	*of_dev;
 	
 	struct i2c_client	*thermostat;
 	struct i2c_client	*fan;
@@ -322,10 +322,10 @@ do_attach( struct i2c_adapter *adapter )
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "therm_ds1775", I2C_NAME_SIZE);
-		i2c_new_probed_device(adapter, &info, scan_ds1775);
+		i2c_new_probed_device(adapter, &info, scan_ds1775, NULL);
 
 		strlcpy(info.type, "therm_adm1030", I2C_NAME_SIZE);
-		i2c_new_probed_device(adapter, &info, scan_adm1030);
+		i2c_new_probed_device(adapter, &info, scan_adm1030, NULL);
 
 		if( x.thermostat && x.fan ) {
 			x.running = 1;
@@ -444,13 +444,13 @@ static struct i2c_driver g4fan_driver = {
 /************************************************************************/
 
 static int
-therm_of_probe( struct of_device *dev, const struct of_device_id *match )
+therm_of_probe( struct platform_device *dev, const struct of_device_id *match )
 {
 	return i2c_add_driver( &g4fan_driver );
 }
 
 static int
-therm_of_remove( struct of_device *dev )
+therm_of_remove( struct platform_device *dev )
 {
 	i2c_del_driver( &g4fan_driver );
 	return 0;

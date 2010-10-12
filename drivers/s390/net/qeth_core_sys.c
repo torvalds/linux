@@ -411,7 +411,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
+	mutex_lock(&card->discipline_mutex);
 	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
@@ -433,6 +433,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 	if (card->options.layer2 == newdis)
 		goto out;
 	else {
+		card->info.mac_bits  = 0;
 		if (card->discipline.ccwgdriver) {
 			card->discipline.ccwgdriver->remove(card->gdev);
 			qeth_core_free_discipline(card);
@@ -445,7 +446,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 	rc = card->discipline.ccwgdriver->probe(card->gdev);
 out:
-	mutex_unlock(&card->conf_mutex);
+	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;
 }
 

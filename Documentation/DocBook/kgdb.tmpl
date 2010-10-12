@@ -199,10 +199,33 @@
    may be configured as a kernel built-in or a kernel loadable module.
    You can only make use of <constant>kgdbwait</constant> and early
    debugging if you build kgdboc into the kernel as a built-in.
+   <para>Optionally you can elect to activate kms (Kernel Mode
+   Setting) integration.  When you use kms with kgdboc and you have a
+   video driver that has atomic mode setting hooks, it is possible to
+   enter the debugger on the graphics console.  When the kernel
+   execution is resumed, the previous graphics mode will be restored.
+   This integration can serve as a useful tool to aid in diagnosing
+   crashes or doing analysis of memory with kdb while allowing the
+   full graphics console applications to run.
+   </para>
    </para>
    <sect2 id="kgdbocArgs">
    <title>kgdboc arguments</title>
-   <para>Usage: <constant>kgdboc=[kbd][[,]serial_device][,baud]</constant></para>
+   <para>Usage: <constant>kgdboc=[kms][[,]kbd][[,]serial_device][,baud]</constant></para>
+   <para>The order listed above must be observed if you use any of the
+   optional configurations together.
+   </para>
+   <para>Abbreviations:
+   <itemizedlist>
+   <listitem><para>kms = Kernel Mode Setting</para></listitem>
+   <listitem><para>kbd = Keyboard</para></listitem>
+   </itemizedlist>
+   </para>
+   <para>You can configure kgdboc to use the keyboard, and or a serial
+   device depending on if you are using kdb and or kgdb, in one of the
+   following scenarios.  The order listed above must be observed if
+   you use any of the optional configurations together.  Using kms +
+   only gdb is generally not a useful combination.</para>
    <sect3 id="kgdbocArgs1">
    <title>Using loadable module or built-in</title>
    <para>
@@ -212,7 +235,7 @@
    <listitem>
    <para>As a kernel loadable module:</para>
    <para>Use the command: <constant>modprobe kgdboc kgdboc=&lt;tty-device&gt;,[baud]</constant></para>
-   <para>Here are two examples of how you might formate the kgdboc
+   <para>Here are two examples of how you might format the kgdboc
    string. The first is for an x86 target using the first serial port.
    The second example is for the ARM Versatile AB using the second
    serial port.
@@ -240,6 +263,9 @@
    </sect3>
    <sect3 id="kgdbocArgs3">
    <title>More examples</title>
+   <para>You can configure kgdboc to use the keyboard, and or a serial
+   device depending on if you are using kdb and or kgdb, in one of the
+   following scenarios.</para>
    <para>You can configure kgdboc to use the keyboard, and or a serial device
    depending on if you are using kdb and or kgdb, in one of the
    following scenarios.
@@ -254,6 +280,12 @@
    </listitem>
    <listitem><para>kdb with a keyboard</para>
    <para><constant>kgdboc=kbd</constant></para>
+   </listitem>
+   <listitem><para>kdb with kernel mode setting</para>
+   <para><constant>kgdboc=kms,kbd</constant></para>
+   </listitem>
+   <listitem><para>kdb with kernel mode setting and kgdb over a serial port</para>
+   <para><constant>kgdboc=kms,kbd,ttyS0,115200</constant></para>
    </listitem>
    </orderedlist>
    </para>
@@ -637,6 +669,8 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
       <listitem><para>The logic to perform safe memory reads and writes to memory while using the debugger</para></listitem>
       <listitem><para>A full implementation for software breakpoints unless overridden by the arch</para></listitem>
       <listitem><para>The API to invoke either the kdb or kgdb frontend to the debug core.</para></listitem>
+      <listitem><para>The structures and callback API for atomic kernel mode setting.</para>
+      <para>NOTE: kgdboc is where the kms callbacks are invoked.</para></listitem>
       </itemizedlist>
       </para>
       </listitem>
@@ -747,6 +781,8 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
   </sect1>
   <sect1 id="kgdbocDesign">
   <title>kgdboc internals</title>
+  <sect2>
+  <title>kgdboc and uarts</title>
   <para>
   The kgdboc driver is actually a very thin driver that relies on the
   underlying low level to the hardware driver having "polling hooks"
@@ -754,11 +790,8 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
   implementation of kgdboc it the serial_core was changed to expose a
   low level UART hook for doing polled mode reading and writing of a
   single character while in an atomic context.  When kgdb makes an I/O
-  request to the debugger, kgdboc invokes a call back in the serial
-  core which in turn uses the call back in the UART driver.  It is
-  certainly possible to extend kgdboc to work with non-UART based
-  consoles in the future.
-  </para>
+  request to the debugger, kgdboc invokes a callback in the serial
+  core which in turn uses the callback in the UART driver.</para>
   <para>
   When using kgdboc with a UART, the UART driver must implement two callbacks in the <constant>struct uart_ops</constant>. Example from drivers/8250.c:<programlisting>
 #ifdef CONFIG_CONSOLE_POLL
@@ -772,9 +805,68 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
   that they can be called from an atomic context and have to restore
   the state of the UART chip on return such that the system can return
   to normal when the debugger detaches.  You need to be very careful
-  with any kind of lock you consider, because failing here is most
+  with any kind of lock you consider, because failing here is most likely
   going to mean pressing the reset button.
   </para>
+  </sect2>
+  <sect2 id="kgdbocKbd">
+  <title>kgdboc and keyboards</title>
+  <para>The kgdboc driver contains logic to configure communications
+  with an attached keyboard.  The keyboard infrastructure is only
+  compiled into the kernel when CONFIG_KDB_KEYBOARD=y is set in the
+  kernel configuration.</para>
+  <para>The core polled keyboard driver driver for PS/2 type keyboards
+  is in drivers/char/kdb_keyboard.c.  This driver is hooked into the
+  debug core when kgdboc populates the callback in the array
+  called <constant>kdb_poll_funcs[]</constant>.  The
+  kdb_get_kbd_char() is the top-level function which polls hardware
+  for single character input.
+  </para>
+  </sect2>
+  <sect2 id="kgdbocKms">
+  <title>kgdboc and kms</title>
+  <para>The kgdboc driver contains logic to request the graphics
+  display to switch to a text context when you are using
+  "kgdboc=kms,kbd", provided that you have a video driver which has a
+  frame buffer console and atomic kernel mode setting support.</para>
+  <para>
+  Every time the kernel
+  debugger is entered it calls kgdboc_pre_exp_handler() which in turn
+  calls con_debug_enter() in the virtual console layer.  On resuming kernel
+  execution, the kernel debugger calls kgdboc_post_exp_handler() which
+  in turn calls con_debug_leave().</para>
+  <para>Any video driver that wants to be compatible with the kernel
+  debugger and the atomic kms callbacks must implement the
+  mode_set_base_atomic, fb_debug_enter and fb_debug_leave operations.
+  For the fb_debug_enter and fb_debug_leave the option exists to use
+  the generic drm fb helper functions or implement something custom for
+  the hardware.  The following example shows the initialization of the
+  .mode_set_base_atomic operation in
+  drivers/gpu/drm/i915/intel_display.c:
+  <informalexample>
+  <programlisting>
+static const struct drm_crtc_helper_funcs intel_helper_funcs = {
+[...]
+        .mode_set_base_atomic = intel_pipe_set_base_atomic,
+[...]
+};
+  </programlisting>
+  </informalexample>
+  </para>
+  <para>Here is an example of how the i915 driver initializes the fb_debug_enter and fb_debug_leave functions to use the generic drm helpers in
+  drivers/gpu/drm/i915/intel_fb.c:
+  <informalexample>
+  <programlisting>
+static struct fb_ops intelfb_ops = {
+[...]
+       .fb_debug_enter = drm_fb_helper_debug_enter,
+       .fb_debug_leave = drm_fb_helper_debug_leave,
+[...]
+};
+  </programlisting>
+  </informalexample>
+  </para>
+  </sect2>
   </sect1>
   </chapter>
   <chapter id="credits">

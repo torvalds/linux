@@ -89,7 +89,6 @@ static void htc_process_target_rdy(struct htc_target *target,
 	struct htc_endpoint *endpoint;
 	struct htc_ready_msg *htc_ready_msg = (struct htc_ready_msg *) buf;
 
-	target->credits = be16_to_cpu(htc_ready_msg->credits);
 	target->credit_size = be16_to_cpu(htc_ready_msg->credit_size);
 
 	endpoint = &target->endpoint[ENDPOINT0];
@@ -159,7 +158,7 @@ static int htc_config_pipe_credits(struct htc_target *target)
 
 	cp_msg->message_id = cpu_to_be16(HTC_MSG_CONFIG_PIPE_ID);
 	cp_msg->pipe_id = USB_WLAN_TX_PIPE;
-	cp_msg->credits = 28;
+	cp_msg->credits = target->credits;
 
 	target->htc_flags |= HTC_OP_CONFIG_PIPE_CREDITS;
 

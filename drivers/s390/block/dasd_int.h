@@ -186,7 +186,7 @@ struct dasd_ccw_req {
 
 	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
-	int expires;			/* expiration period in jiffies */
+	unsigned long expires;		/* expiration period in jiffies */
 	char lpm;			/* logical path mask */
 	void *data;			/* pointer to data area */
 
@@ -224,6 +224,9 @@ struct dasd_ccw_req {
 #define DASD_CQR_CLEARED	0x84	/* request was cleared */
 #define DASD_CQR_SUCCESS	0x85	/* request was successful */
 
+/* default expiration time*/
+#define DASD_EXPIRES	  300
+#define DASD_EXPIRES_MAX  40000000
 
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
@@ -404,6 +407,9 @@ struct dasd_device {
 
 	/* hook for alias management */
 	struct list_head alias_list;
+
+	/* default expiration time in s */
+	unsigned long default_expires;
 };
 
 struct dasd_block {

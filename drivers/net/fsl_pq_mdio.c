@@ -35,6 +35,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 
@@ -264,7 +265,7 @@ static int get_ucc_id_for_range(u64 start, u64 end, u32 *ucc_id)
 #endif
 
 
-static int fsl_pq_mdio_probe(struct of_device *ofdev,
+static int fsl_pq_mdio_probe(struct platform_device *ofdev,
 		const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -424,7 +425,7 @@ err_free_priv:
 }
 
 
-static int fsl_pq_mdio_remove(struct of_device *ofdev)
+static int fsl_pq_mdio_remove(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct mii_bus *bus = dev_get_drvdata(device);

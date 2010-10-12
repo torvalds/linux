@@ -69,7 +69,7 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 	int adap_enabled[M9206_MAX_ADAPTERS] = { 0 };
 
 	/* Remote controller init. */
-	if (d->props.rc_query) {
+	if (d->props.rc.legacy.rc_query) {
 		deb("Initialising remote control\n");
 		while (rc_seq->address) {
 			if ((ret = m920x_write(d->udev, M9206_CORE,
@@ -142,9 +142,9 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
 		goto unlock;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++)
-		if (rc5_data(&d->props.rc_key_map[i]) == rc_state[1]) {
-			*event = d->props.rc_key_map[i].event;
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
+		if (rc5_data(&d->props.rc.legacy.rc_key_map[i]) == rc_state[1]) {
+			*event = d->props.rc.legacy.rc_key_map[i].keycode;
 
 			switch(rc_state[0]) {
 			case 0x80:
@@ -589,7 +589,7 @@ static struct m920x_inits pinnacle310e_init[] = {
 };
 
 /* ir keymaps */
-static struct dvb_usb_rc_key ir_codes_megasky_table [] = {
+static struct ir_scancode ir_codes_megasky_table[] = {
 	{ 0x0012, KEY_POWER },
 	{ 0x001e, KEY_CYCLEWINDOWS }, /* min/max */
 	{ 0x0002, KEY_CHANNELUP },
@@ -608,7 +608,7 @@ static struct dvb_usb_rc_key ir_codes_megasky_table [] = {
 	{ 0x000e, KEY_COFFEE }, /* "MTS" */
 };
 
-static struct dvb_usb_rc_key ir_codes_tvwalkertwin_table [] = {
+static struct ir_scancode ir_codes_tvwalkertwin_table[] = {
 	{ 0x0001, KEY_ZOOM }, /* Full Screen */
 	{ 0x0002, KEY_CAMERA }, /* snapshot */
 	{ 0x0003, KEY_MUTE },
@@ -628,7 +628,7 @@ static struct dvb_usb_rc_key ir_codes_tvwalkertwin_table [] = {
 	{ 0x001e, KEY_VOLUMEUP },
 };
 
-static struct dvb_usb_rc_key ir_codes_pinnacle310e_table[] = {
+static struct ir_scancode ir_codes_pinnacle310e_table[] = {
 	{ 0x16, KEY_POWER },
 	{ 0x17, KEY_FAVORITES },
 	{ 0x0f, KEY_TEXT },
@@ -784,10 +784,12 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.firmware = "dvb-usb-megasky-02.fw",
 	.download_firmware = m920x_firmware_download,
 
-	.rc_interval      = 100,
-	.rc_key_map       = ir_codes_megasky_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_megasky_table),
-	.rc_query         = m920x_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_megasky_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_megasky_table),
+		.rc_query         = m920x_rc_query,
+	},
 
 	.size_of_priv     = sizeof(struct m920x_state),
 
@@ -885,10 +887,12 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 	.firmware = "dvb-usb-tvwalkert.fw",
 	.download_firmware = m920x_firmware_download,
 
-	.rc_interval      = 100,
-	.rc_key_map       = ir_codes_tvwalkertwin_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_tvwalkertwin_table),
-	.rc_query         = m920x_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_tvwalkertwin_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_tvwalkertwin_table),
+		.rc_query         = m920x_rc_query,
+	},
 
 	.size_of_priv     = sizeof(struct m920x_state),
 
@@ -992,10 +996,12 @@ static struct dvb_usb_device_properties pinnacle_pctv310e_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.download_firmware = NULL,
 
-	.rc_interval      = 100,
-	.rc_key_map       = ir_codes_pinnacle310e_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_pinnacle310e_table),
-	.rc_query         = m920x_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_pinnacle310e_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_pinnacle310e_table),
+		.rc_query         = m920x_rc_query,
+	},
 
 	.size_of_priv     = sizeof(struct m920x_state),
 

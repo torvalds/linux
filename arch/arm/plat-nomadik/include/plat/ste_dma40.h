@@ -148,7 +148,8 @@ struct stedma40_chan_cfg {
  * @memcpy_conf_phy: default configuration of physical channel memcpy
  * @memcpy_conf_log: default configuration of logical channel memcpy
  * @llis_per_log: number of max linked list items per logical channel
- *
+ * @disabled_channels: A vector, ending with -1, that marks physical channels
+ * that are for different reasons not available for the driver.
  */
 struct stedma40_platform_data {
 	u32				 dev_len;
@@ -159,6 +160,7 @@ struct stedma40_platform_data {
 	struct stedma40_chan_cfg	*memcpy_conf_phy;
 	struct stedma40_chan_cfg	*memcpy_conf_log;
 	unsigned int			 llis_per_log;
+	int				 disabled_channels[8];
 };
 
 /**

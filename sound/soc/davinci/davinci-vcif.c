@@ -203,7 +203,7 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 	int ret;
 
 	davinci_vcif_dev = kzalloc(sizeof(struct davinci_vcif_dev), GFP_KERNEL);
-	if (!davinci_vc) {
+	if (!davinci_vcif_dev) {
 		dev_dbg(&pdev->dev,
 			"could not allocate memory for private data\n");
 		return -ENOMEM;

@@ -17,7 +17,6 @@
  */
 
 #include <linux/kthread.h>
-#include <linux/slab.h>
 #include "m5602_s5k83a.h"
 
 static int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val);

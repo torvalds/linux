@@ -440,7 +440,7 @@ static struct pending_request *next_complete_req(struct file_info *fi)
 static ssize_t raw1394_read(struct file *file, char __user * buffer,
 			    size_t count, loff_t * offset_is_ignored)
 {
-	struct file_info *fi = (struct file_info *)file->private_data;
+	struct file_info *fi = file->private_data;
 	struct pending_request *req;
 	ssize_t ret;
 
@@ -1015,7 +1015,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 	struct arm_addr *arm_addr = NULL;
 	struct arm_request *arm_req = NULL;
 	struct arm_response *arm_resp = NULL;
-	int found = 0, size = 0, rcode = -1, length_conflict = 0;
+	int found = 0, size = 0, rcode = -1;
 	struct arm_request_response *arm_req_resp = NULL;
 
 	DBGMSG("arm_write called by node: %X "
@@ -1054,7 +1054,6 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 	}
 	if (arm_addr->rec_length < length) {
 		DBGMSG("arm_write blocklength too big -> rcode_data_error");
-		length_conflict = 1;
 		rcode = RCODE_DATA_ERROR;	/* hardware error, data is unavailable */
 	}
 	if (rcode == -1) {
@@ -2245,7 +2244,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 			     size_t count, loff_t * offset_is_ignored)
 {
-	struct file_info *fi = (struct file_info *)file->private_data;
+	struct file_info *fi = file->private_data;
 	struct pending_request *req;
 	ssize_t retval = -EBADFD;
 

@@ -158,10 +158,11 @@ and configure pullups/pulldowns appropriately.)
 Spinlock-Safe GPIO access
 -------------------------
 Most GPIO controllers can be accessed with memory read/write instructions.
-That doesn't need to sleep, and can safely be done from inside IRQ handlers.
-(That includes hardirq contexts on RT kernels.)
+Those don't need to sleep, and can safely be done from inside hard
+(nonthreaded) IRQ handlers and similar contexts.
 
-Use these calls to access such GPIOs:
+Use the following calls to access such GPIOs,
+for which gpio_cansleep() will always return false (see below):
 
 	/* GPIO INPUT:  return zero or nonzero */
 	int gpio_get_value(unsigned gpio);
@@ -210,9 +211,31 @@ To access such GPIOs, a different set of accessors is defined:
 	/* GPIO OUTPUT, might sleep */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
 
-Other than the fact that these calls might sleep, and will not be ignored
-for GPIOs that can't be accessed from IRQ handlers, these calls act the
-same as the spinlock-safe calls.
+
+Accessing such GPIOs requires a context which may sleep,  for example
+a threaded IRQ handler, and those accessors must be used instead of
+spinlock-safe accessors without the cansleep() name suffix.
+
+Other than the fact that these accessors might sleep, and will work
+on GPIOs that can't be accessed from hardIRQ handlers, these calls act
+the same as the spinlock-safe calls.
+
+  ** IN ADDITION ** calls to setup and configure such GPIOs must be made
+from contexts which may sleep, since they may need to access the GPIO
+controller chip too:  (These setup calls are usually made from board
+setup or driver probe/teardown code, so this is an easy constraint.)
+
+	gpio_direction_input()
+	gpio_direction_output()
+	gpio_request()
+
+## 	gpio_request_one()
+##	gpio_request_array()
+## 	gpio_free_array()
+
+	gpio_free()
+	gpio_set_debounce()
+
 
 
 Claiming and Releasing GPIOs

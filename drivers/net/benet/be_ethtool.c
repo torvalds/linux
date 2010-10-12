@@ -314,15 +314,19 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	u8 mac_speed = 0, connector = 0;
+	struct be_dma_mem phy_cmd;
+	struct be_cmd_resp_get_phy_info *resp;
+	u8 mac_speed = 0;
 	u16 link_speed = 0;
 	bool link_up = false;
 	int status;
+	u16 intf_type;
 
-	if (adapter->link_speed < 0) {
+	if ((adapter->link_speed < 0) || (!(netdev->flags & IFF_UP))) {
 		status = be_cmd_link_status_query(adapter, &link_up,
 						&mac_speed, &link_speed);
 
+		be_link_status_update(adapter, link_up);
 		/* link_speed is in units of 10 Mbps */
 		if (link_speed) {
 			ecmd->speed = link_speed*10;
@@ -337,40 +341,57 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			}
 		}
 
-		status = be_cmd_read_port_type(adapter, adapter->port_num,
-						&connector);
+		phy_cmd.size = sizeof(struct be_cmd_req_get_phy_info);
+		phy_cmd.va = pci_alloc_consistent(adapter->pdev, phy_cmd.size,
+					&phy_cmd.dma);
+		if (!phy_cmd.va) {
+			dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+			return -ENOMEM;
+		}
+		status = be_cmd_get_phy_info(adapter, &phy_cmd);
 		if (!status) {
-			switch (connector) {
-			case 7:
+			resp = (struct be_cmd_resp_get_phy_info *) phy_cmd.va;
+			intf_type = le16_to_cpu(resp->interface_type);
+
+			switch (intf_type) {
+			case PHY_TYPE_XFP_10GB:
+			case PHY_TYPE_SFP_1GB:
+			case PHY_TYPE_SFP_PLUS_10GB:
 				ecmd->port = PORT_FIBRE;
-				ecmd->transceiver = XCVR_EXTERNAL;
-				break;
-			case 0:
-				ecmd->port = PORT_TP;
-				ecmd->transceiver = XCVR_EXTERNAL;
 				break;
 			default:
 				ecmd->port = PORT_TP;
-				ecmd->transceiver = XCVR_INTERNAL;
 				break;
 			}
-		} else {
-			ecmd->port = PORT_AUI;
+
+			switch (intf_type) {
+			case PHY_TYPE_KR_10GB:
+			case PHY_TYPE_KX4_10GB:
+				ecmd->autoneg = AUTONEG_ENABLE;
 			ecmd->transceiver = XCVR_INTERNAL;
+				break;
+			default:
+				ecmd->autoneg = AUTONEG_DISABLE;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			}
 		}
 
 		/* Save for future use */
 		adapter->link_speed = ecmd->speed;
 		adapter->port_type = ecmd->port;
 		adapter->transceiver = ecmd->transceiver;
+		adapter->autoneg = ecmd->autoneg;
+		pci_free_consistent(adapter->pdev, phy_cmd.size,
+					phy_cmd.va, phy_cmd.dma);
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
 		ecmd->transceiver = adapter->transceiver;
+		ecmd->autoneg = adapter->autoneg;
 	}
 
 	ecmd->duplex = DUPLEX_FULL;
-	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->phy_address = adapter->port_num;
 	switch (ecmd->port) {
 	case PORT_FIBRE:
@@ -382,6 +403,13 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	case PORT_AUI:
 		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
 		break;
+	}
+
+	if (ecmd->autoneg) {
+		ecmd->supported |= SUPPORTED_1000baseT_Full;
+		ecmd->supported |= SUPPORTED_Autoneg;
+		ecmd->advertising |= (ADVERTISED_10000baseT_Full |
+				ADVERTISED_1000baseT_Full);
 	}
 
 	return 0;

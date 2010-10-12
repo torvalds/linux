@@ -74,7 +74,7 @@ static DWORD s_dwGetUINT32 (BYTE * p)
 {
 	DWORD res = 0;
 	unsigned int i;
-	for(i=0; i<4; i++ )
+	for (i = 0; i < 4; i++)
 		res |= (*p++) << (8*i);
 	return res;
 }
@@ -83,7 +83,7 @@ static void s_vPutUINT32(BYTE *p, DWORD val)
 // Convert from DWORD to BYTE[] in a portable way
 {
 	unsigned int i;
-	for(i=0; i<4; i++ ) {
+	for (i = 0; i < 4; i++) {
 		*p++ = (BYTE) (val & 0xff);
 		val >>= 8;
 	}

@@ -373,6 +373,56 @@ static void dump_packet(const struct nf_loginfo *info,
 		printk("MARK=0x%x ", skb->mark);
 }
 
+static void dump_mac_header(const struct nf_loginfo *info,
+			    const struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	unsigned int logflags = 0;
+
+	if (info->type == NF_LOG_TYPE_LOG)
+		logflags = info->u.log.logflags;
+
+	if (!(logflags & IP6T_LOG_MACDECODE))
+		goto fallback;
+
+	switch (dev->type) {
+	case ARPHRD_ETHER:
+		printk("MACSRC=%pM MACDST=%pM MACPROTO=%04x ",
+		       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
+		       ntohs(eth_hdr(skb)->h_proto));
+		return;
+	default:
+		break;
+	}
+
+fallback:
+	printk("MAC=");
+	if (dev->hard_header_len &&
+	    skb->mac_header != skb->network_header) {
+		const unsigned char *p = skb_mac_header(skb);
+		unsigned int len = dev->hard_header_len;
+		unsigned int i;
+
+		if (dev->type == ARPHRD_SIT &&
+		    (p -= ETH_HLEN) < skb->head)
+			p = NULL;
+
+		if (p != NULL) {
+			printk("%02x", *p++);
+			for (i = 1; i < len; i++)
+				printk(":%02x", p[i]);
+		}
+		printk(" ");
+
+		if (dev->type == ARPHRD_SIT) {
+			const struct iphdr *iph =
+				(struct iphdr *)skb_mac_header(skb);
+			printk("TUNNEL=%pI4->%pI4 ", &iph->saddr, &iph->daddr);
+		}
+	} else
+		printk(" ");
+}
+
 static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
@@ -400,35 +450,10 @@ ip6t_log_packet(u_int8_t pf,
 		prefix,
 		in ? in->name : "",
 		out ? out->name : "");
-	if (in && !out) {
-		unsigned int len;
-		/* MAC logging for input chain only. */
-		printk("MAC=");
-		if (skb->dev && (len = skb->dev->hard_header_len) &&
-		    skb->mac_header != skb->network_header) {
-			const unsigned char *p = skb_mac_header(skb);
-			int i;
 
-			if (skb->dev->type == ARPHRD_SIT &&
-			    (p -= ETH_HLEN) < skb->head)
-				p = NULL;
-
-			if (p != NULL) {
-				for (i = 0; i < len; i++)
-					printk("%02x%s", p[i],
-					       i == len - 1 ? "" : ":");
-			}
-			printk(" ");
-
-			if (skb->dev->type == ARPHRD_SIT) {
-				const struct iphdr *iph =
-					(struct iphdr *)skb_mac_header(skb);
-				printk("TUNNEL=%pI4->%pI4 ",
-				       &iph->saddr, &iph->daddr);
-			}
-		} else
-			printk(" ");
-	}
+	/* MAC logging for input path only. */
+	if (in && !out)
+		dump_mac_header(loginfo, skb);
 
 	dump_packet(loginfo, skb, skb_network_offset(skb), 1);
 	printk("\n");

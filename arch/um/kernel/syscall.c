@@ -58,7 +58,7 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-	ret = um_execve((char *)filename, (char __user *__user *)argv,
+	ret = um_execve(filename, (char __user *__user *)argv,
 			(char __user *__user *) envp);
 	set_fs(fs);
 

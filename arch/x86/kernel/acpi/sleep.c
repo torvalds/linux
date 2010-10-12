@@ -2,7 +2,7 @@
  * sleep.c - x86-specific ACPI sleep support.
  *
  *  Copyright (C) 2001-2003 Patrick Mochel
- *  Copyright (C) 2001-2003 Pavel Machek <pavel@suse.cz>
+ *  Copyright (C) 2001-2003 Pavel Machek <pavel@ucw.cz>
  */
 
 #include <linux/acpi.h>

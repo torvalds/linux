@@ -31,7 +31,6 @@
 #ifndef LINUX_VGA_H
 #define LINUX_VGA_H
 
-#include <asm/vga.h>
 
 /* Legacy VGA regions */
 #define VGA_RSRC_NONE	       0x00

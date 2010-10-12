@@ -54,7 +54,6 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 	const struct pci_device_id *id = ap->host->private_data;
 	int dma_enabled = 0;
 	struct ata_device *dev;
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (id->driver_data & ATA_GEN_FORCE_DMA) {
 		dma_enabled = 0xff;
@@ -62,9 +61,6 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 		/* Bits 5 and 6 indicate if DMA is active on master/slave */
 		dma_enabled = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 	}
-
-	if (pdev->vendor == PCI_VENDOR_ID_CENATEK)
-		dma_enabled = 0xFF;
 
 	ata_for_each_dev(dev, link, ENABLED) {
 		/* We don't really care */

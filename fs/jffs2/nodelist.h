@@ -24,7 +24,6 @@
 #ifdef __ECOS
 #include "os-ecos.h"
 #else
-#include <linux/mtd/compatmac.h> /* For compatibility with older kernels */
 #include "os-linux.h"
 #endif
 

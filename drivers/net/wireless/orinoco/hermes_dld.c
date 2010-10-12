@@ -65,10 +65,10 @@ struct dblock {
 	__le32 addr;		/* adapter address where to write the block */
 	__le16 len;		/* length of the data only, in bytes */
 	char data[0];		/* data to be written */
-} __attribute__ ((packed));
+} __packed;
 
 /*
- * Plug Data References are located in in the image after the last data
+ * Plug Data References are located in the image after the last data
  * block.  They refer to areas in the adapter memory where the plug data
  * items with matching ID should be written.
  */
@@ -77,7 +77,7 @@ struct pdr {
 	__le32 addr;		/* adapter address where to write the data */
 	__le32 len;		/* expected length of the data, in bytes */
 	char next[0];		/* next PDR starts here */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Plug Data Items are located in the EEPROM read from the adapter by
@@ -88,7 +88,7 @@ struct pdi {
 	__le16 len;		/* length of ID and data, in words */
 	__le16 id;		/* record ID */
 	char data[0];		/* plug data */
-} __attribute__ ((packed));
+} __packed;
 
 /*** FW data block access functions ***/
 
@@ -317,7 +317,7 @@ static const struct {							\
 	__le16 len;							\
 	__le16 id;							\
 	u8 val[length];							\
-} __attribute__ ((packed)) default_pdr_data_##pid = {			\
+} __packed default_pdr_data_##pid = {			\
 	cpu_to_le16((sizeof(default_pdr_data_##pid)/			\
 				sizeof(__le16)) - 1),			\
 	cpu_to_le16(pid),						\

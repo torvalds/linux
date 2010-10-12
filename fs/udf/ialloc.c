@@ -31,8 +31,6 @@ void udf_free_inode(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
-	clear_inode(inode);
-
 	mutex_lock(&sbi->s_alloc_mutex);
 	if (sbi->s_lvid_bh) {
 		struct logicalVolIntegrityDescImpUse *lvidiu =

@@ -25,107 +25,9 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/mx3_camera.h>
 
 #include "devices.h"
-
-static struct resource uart0[] = {
-	{
-		.start = UART1_BASE_ADDR,
-		.end = UART1_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART1,
-		.end = MXC_INT_UART1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device0 = {
-	.name = "imx-uart",
-	.id = 0,
-	.resource = uart0,
-	.num_resources = ARRAY_SIZE(uart0),
-};
-
-static struct resource uart1[] = {
-	{
-		.start = UART2_BASE_ADDR,
-		.end = UART2_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART2,
-		.end = MXC_INT_UART2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device1 = {
-	.name = "imx-uart",
-	.id = 1,
-	.resource = uart1,
-	.num_resources = ARRAY_SIZE(uart1),
-};
-
-static struct resource uart2[] = {
-	{
-		.start = UART3_BASE_ADDR,
-		.end = UART3_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART3,
-		.end = MXC_INT_UART3,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device2 = {
-	.name = "imx-uart",
-	.id = 2,
-	.resource = uart2,
-	.num_resources = ARRAY_SIZE(uart2),
-};
-
-#ifdef CONFIG_ARCH_MX31
-static struct resource uart3[] = {
-	{
-		.start = UART4_BASE_ADDR,
-		.end = UART4_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART4,
-		.end = MXC_INT_UART4,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device3 = {
-	.name = "imx-uart",
-	.id = 3,
-	.resource = uart3,
-	.num_resources = ARRAY_SIZE(uart3),
-};
-
-static struct resource uart4[] = {
-	{
-		.start = UART5_BASE_ADDR,
-		.end = UART5_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART5,
-		.end = MXC_INT_UART5,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device4 = {
-	.name = "imx-uart",
-	.id = 4,
-	.resource = uart4,
-	.num_resources = ARRAY_SIZE(uart4),
-};
-#endif /* CONFIG_ARCH_MX31 */
 
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
@@ -147,7 +49,7 @@ static struct mxc_gpio_port imx_gpio_ports[] = {
 	}
 };
 
-int __init mxc_register_gpios(void)
+int __init imx3x_register_gpios(void)
 {
 	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
 }
@@ -165,82 +67,6 @@ struct platform_device mxc_w1_master_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(mxc_w1_master_resources),
 	.resource = mxc_w1_master_resources,
-};
-
-static struct resource mxc_nand_resources[] = {
-	{
-		.start	= 0, /* runtime dependent */
-		.end	= 0,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MXC_INT_NANDFC,
-		.end	= MXC_INT_NANDFC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_nand_device = {
-	.name = "mxc_nand",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_nand_resources),
-	.resource = mxc_nand_resources,
-};
-
-static struct resource mxc_i2c0_resources[] = {
-	{
-		.start = I2C_BASE_ADDR,
-		.end = I2C_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_I2C,
-		.end = MXC_INT_I2C,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_i2c_device0 = {
-	.name = "imx-i2c",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_i2c0_resources),
-	.resource = mxc_i2c0_resources,
-};
-
-static struct resource mxc_i2c1_resources[] = {
-	{
-		.start = I2C2_BASE_ADDR,
-		.end = I2C2_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_I2C2,
-		.end = MXC_INT_I2C2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_i2c_device1 = {
-	.name = "imx-i2c",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_i2c1_resources),
-	.resource = mxc_i2c1_resources,
-};
-
-static struct resource mxc_i2c2_resources[] = {
-	{
-		.start = I2C3_BASE_ADDR,
-		.end = I2C3_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_I2C3,
-		.end = MXC_INT_I2C3,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_i2c_device2 = {
-	.name = "imx-i2c",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_i2c2_resources),
-	.resource = mxc_i2c2_resources,
 };
 
 #ifdef CONFIG_ARCH_MX31
@@ -455,68 +281,7 @@ struct platform_device mxc_usbh2 = {
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 
-/*
- * SPI master controller
- * 3 channels
- */
-static struct resource mxc_spi_0_resources[] = {
-	{
-	       .start = CSPI1_BASE_ADDR,
-	       .end = CSPI1_BASE_ADDR + SZ_4K - 1,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = MXC_INT_CSPI1,
-	       .end = MXC_INT_CSPI1,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct resource mxc_spi_1_resources[] = {
-	{
-		.start = CSPI2_BASE_ADDR,
-		.end = CSPI2_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_CSPI2,
-		.end = MXC_INT_CSPI2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct resource mxc_spi_2_resources[] = {
-	{
-		.start = CSPI3_BASE_ADDR,
-		.end = CSPI3_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_CSPI3,
-		.end = MXC_INT_CSPI3,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device0 = {
-	.name = "spi_imx",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_spi_0_resources),
-	.resource = mxc_spi_0_resources,
-};
-
-struct platform_device mxc_spi_device1 = {
-	.name = "spi_imx",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_spi_1_resources),
-	.resource = mxc_spi_1_resources,
-};
-
-struct platform_device mxc_spi_device2 = {
-	.name = "spi_imx",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_spi_2_resources),
-	.resource = mxc_spi_2_resources,
-};
-
-#ifdef CONFIG_ARCH_MX35
+#if defined(CONFIG_ARCH_MX35)
 static struct resource mxc_fec_resources[] = {
 	{
 		.start	= MXC_FEC_BASE_ADDR,
@@ -628,16 +393,15 @@ struct platform_device imx_kpp_device = {
 
 static int __init mx3_devices_init(void)
 {
+#if defined(CONFIG_ARCH_MX31)
 	if (cpu_is_mx31()) {
-		mxc_nand_resources[0].start = MX31_NFC_BASE_ADDR;
-		mxc_nand_resources[0].end = MX31_NFC_BASE_ADDR + 0xfff;
 		imx_wdt_resources[0].start = MX31_WDOG_BASE_ADDR;
 		imx_wdt_resources[0].end = MX31_WDOG_BASE_ADDR + 0x3fff;
 		mxc_register_device(&mxc_rnga_device, NULL);
 	}
+#endif
+#if defined(CONFIG_ARCH_MX35)
 	if (cpu_is_mx35()) {
-		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
-		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0x1fff;
 		otg_resources[0].start = MX35_OTG_BASE_ADDR;
 		otg_resources[0].end = MX35_OTG_BASE_ADDR + 0x1ff;
 		otg_resources[1].start = MXC_INT_USBOTG;
@@ -653,6 +417,7 @@ static int __init mx3_devices_init(void)
 		imx_wdt_resources[0].start = MX35_WDOG_BASE_ADDR;
 		imx_wdt_resources[0].end = MX35_WDOG_BASE_ADDR + 0x3fff;
 	}
+#endif
 
 	return 0;
 }

@@ -42,6 +42,8 @@
 
 #define S5P6442_PA_SYSTIMER   	(0xEA100000)
 
+#define S5P6442_PA_WATCHDOG	(0xEA200000)
+
 #define S5P6442_PA_UART		(0xEC000000)
 
 #define S5P_PA_UART0		(S5P6442_PA_UART + 0x0)
@@ -65,6 +67,7 @@
 #define S5P6442_PA_PCM1		0xF2500000
 
 /* compatibiltiy defines. */
+#define S3C_PA_WDT		S5P6442_PA_WATCHDOG
 #define S3C_PA_UART		S5P6442_PA_UART
 #define S3C_PA_IIC		S5P6442_PA_IIC0
 

@@ -456,12 +456,6 @@ be identical to those passed in (and returned by
 dma_alloc_noncoherent()).
 
 int
-dma_is_consistent(struct device *dev, dma_addr_t dma_handle)
-
-Returns true if the device dev is performing consistent DMA on the memory
-area pointed to by the dma_handle.
-
-int
 dma_get_cache_alignment(void)
 
 Returns the processor cache alignment.  This is the absolute minimum

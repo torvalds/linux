@@ -207,6 +207,20 @@ static struct s3c_gpio_chip s5pv210_gpio_4bit[] = {
 			.label	= "MP03",
 		},
 	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= S5PV210_MP04(0),
+			.ngpio	= S5PV210_GPIO_MP04_NR,
+			.label	= "MP04",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= S5PV210_MP05(0),
+			.ngpio	= S5PV210_GPIO_MP05_NR,
+			.label	= "MP05",
+		},
+	}, {
 		.base	= (S5P_VA_GPIO + 0xC00),
 		.config	= &gpio_cfg_noint,
 		.chip	= {

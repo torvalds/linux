@@ -42,7 +42,7 @@ extern int ceph_encrypt2(struct ceph_crypto_key *secret,
 			 const void *src2, size_t src2_len);
 
 /* armor.c */
-extern int ceph_armor(char *dst, const void *src, const void *end);
-extern int ceph_unarmor(void *dst, const char *src, const char *end);
+extern int ceph_armor(char *dst, const char *src, const char *end);
+extern int ceph_unarmor(char *dst, const char *src, const char *end);
 
 #endif

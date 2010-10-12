@@ -41,8 +41,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	__u64	ExtAttrMask = 0;
 	__u64   caps;
 	struct cifsTconInfo *tcon;
-	struct cifsFileInfo *pSMBFile =
-		(struct cifsFileInfo *)filep->private_data;
+	struct cifsFileInfo *pSMBFile = filep->private_data;
 #endif /* CONFIG_CIFS_POSIX */
 
 	xid = GetXid();

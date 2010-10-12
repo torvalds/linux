@@ -49,7 +49,8 @@ struct bfa_fcpim_mod_s {
 	int			num_tskim_reqs;
 	u32		path_tov;
 	u16		q_depth;
-	u16		rsvd;
+	u8              reqq;           /* Request queue to be used */
+	u8		rsvd;
 	struct list_head 	itnim_q;        /*  queue of active itnim    */
 	struct list_head 	ioim_free_q;    /*  free IO resources        */
 	struct list_head 	ioim_resfree_q; /*  IOs waiting for f/w      */
@@ -58,6 +59,7 @@ struct bfa_fcpim_mod_s {
 	u32	ios_active;	/*  current active IOs	      */
 	u32	delay_comp;
 	struct bfa_fcpim_stats_s stats;
+	bfa_boolean_t           ioredirect;
 };
 
 struct bfa_ioim_s;
@@ -82,6 +84,7 @@ struct bfa_ioim_s {
 	struct bfa_cb_qe_s hcb_qe;	/*  bfa callback qelem       */
 	bfa_cb_cbfn_t io_cbfn;		/*  IO completion handler    */
 	struct bfa_ioim_sp_s *iosp;	/*  slow-path IO handling    */
+	u8 reqq;           		/* Request queue for I/O    */
 };
 
 struct bfa_ioim_sp_s {
@@ -141,6 +144,7 @@ struct bfa_itnim_s {
 	struct bfa_reqq_wait_s reqq_wait; /*  to wait for room in reqq */
 	struct bfa_fcpim_mod_s *fcpim;	/*  fcpim module                */
 	struct bfa_itnim_hal_stats_s	stats;
+	struct bfa_itnim_latency_s  io_latency;
 };
 
 #define bfa_itnim_is_online(_itnim) ((_itnim)->is_online)

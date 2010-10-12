@@ -232,7 +232,7 @@ struct net2280_regs {
 #define GPIO2_INTERRUPT						2
 #define GPIO1_INTERRUPT						1
 #define GPIO0_INTERRUPT						0
-} __attribute__ ((packed));
+} __packed;
 
 /* usb control, BAR0 + 0x0080 */
 struct net2280_usb_regs {
@@ -296,7 +296,7 @@ struct net2280_usb_regs {
 #define FORCE_IMMEDIATE						7
 #define OUR_USB_ADDRESS						0
 	__le32			ourconfig;
-} __attribute__ ((packed));
+} __packed;
 
 /* pci control, BAR0 + 0x0100 */
 struct net2280_pci_regs {
@@ -323,7 +323,7 @@ struct net2280_pci_regs {
 #define PCI_ARBITER_CLEAR					2
 #define PCI_EXTERNAL_ARBITER					1
 #define PCI_HOST_MODE						0
-} __attribute__ ((packed));
+} __packed;
 
 /* dma control, BAR0 + 0x0180 ... array of four structs like this,
  * for channels 0..3.  see also struct net2280_dma:  descriptor
@@ -364,7 +364,7 @@ struct net2280_dma_regs {	/* [11.7] */
 	__le32			dmaaddr;
 	__le32			dmadesc;
 	u32			_unused1;
-} __attribute__ ((packed));
+} __packed;
 
 /* dedicated endpoint registers, BAR0 + 0x0200 */
 
@@ -374,7 +374,7 @@ struct net2280_dep_regs {	/* [11.8] */
 	/* offset 0x0204, 0x0214, 0x224, 0x234, 0x244 */
 	__le32			dep_rsp;
 	u32			_unused[2];
-} __attribute__ ((packed));
+} __packed;
 
 /* configurable endpoint registers, BAR0 + 0x0300 ... array of seven structs
  * like this, for ep0 then the configurable endpoints A..F
@@ -437,16 +437,16 @@ struct net2280_ep_regs {	/* [11.9] */
 	__le32			ep_avail;
 	__le32			ep_data;
 	u32			_unused0[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct net2280_reg_write {
 	__le16 port;
 	__le32 addr;
 	__le32 val;
-} __attribute__ ((packed));
+} __packed;
 
 struct net2280_reg_read {
 	__le16 port;
 	__le32 addr;
-} __attribute__ ((packed));
+} __packed;
 #endif /* NET2280_H */

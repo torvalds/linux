@@ -38,7 +38,7 @@
 #include "st_ll.h"
 #include "st.h"
 
-#ifdef DEBUG
+#define VERBOSE
 /* strings to be used for rfkill entries and by
  * ST Core to be used for sysfs debug entry
  */
@@ -48,7 +48,6 @@ const unsigned char *protocol_strngs[] = {
 	PROTO_ENTRY(ST_FM, "FM"),
 	PROTO_ENTRY(ST_GPS, "GPS"),
 };
-#endif
 /* function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
@@ -61,7 +60,7 @@ void (*st_recv) (void*, const unsigned char*, long);
 bool is_protocol_list_empty(void)
 {
 	unsigned char i = 0;
-	pr_info(" %s ", __func__);
+	pr_debug(" %s ", __func__);
 	for (i = 0; i < ST_MAX; i++) {
 		if (st_gdata->list[i] != NULL)
 			return ST_NOTEMPTY;
@@ -71,6 +70,7 @@ bool is_protocol_list_empty(void)
 	return ST_EMPTY;
 }
 #endif
+
 /* can be called in from
  * -- KIM (during fw download)
  * -- ST Core (during st_write)
@@ -81,20 +81,15 @@ bool is_protocol_list_empty(void)
 int st_int_write(struct st_data_s *st_gdata,
 	const unsigned char *data, int count)
 {
-#ifdef VERBOSE			/* for debug */
-	int i;
-#endif
 	struct tty_struct *tty;
 	if (unlikely(st_gdata == NULL || st_gdata->tty == NULL)) {
 		pr_err("tty unavailable to perform write");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 	tty = st_gdata->tty;
 #ifdef VERBOSE
-	printk(KERN_ERR "start data..\n");
-	for (i = 0; i < count; i++)	/* no newlines for each datum */
-		printk(" %x", data[i]);
-	printk(KERN_ERR "\n ..end data\n");
+	print_hex_dump(KERN_DEBUG, "<out<", DUMP_PREFIX_NONE,
+		16, 1, data, count, 0);
 #endif
 	return tty->ops->write(tty, data, count);
 
@@ -122,8 +117,10 @@ void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
 	 *   protocol stack driver
 	 */
 	if (likely(st_gdata->list[protoid]->recv != NULL)) {
-		if (unlikely(st_gdata->list[protoid]->recv(st_gdata->rx_skb)
-			     != ST_SUCCESS)) {
+		if (unlikely
+			(st_gdata->list[protoid]->recv
+			(st_gdata->list[protoid]->priv_data, st_gdata->rx_skb)
+			     != 0)) {
 			pr_err(" proto stack %d's ->recv failed", protoid);
 			kfree_skb(st_gdata->rx_skb);
 			return;
@@ -132,11 +129,11 @@ void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
 		pr_err(" proto stack %d's ->recv null", protoid);
 		kfree_skb(st_gdata->rx_skb);
 	}
-	pr_info(" done %s", __func__);
 	return;
 }
 
-/*
+/**
+ * st_reg_complete -
  * to call registration complete callbacks
  * of all protocol stack drivers
  */
@@ -147,7 +144,8 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 	for (i = 0; i < ST_MAX; i++) {
 		if (likely(st_gdata != NULL && st_gdata->list[i] != NULL &&
 			   st_gdata->list[i]->reg_complete_cb != NULL))
-			st_gdata->list[i]->reg_complete_cb(err);
+			st_gdata->list[i]->reg_complete_cb
+				(st_gdata->list[i]->priv_data, err);
 	}
 }
 
@@ -156,7 +154,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 {
 	register int room = skb_tailroom(st_gdata->rx_skb);
 
-	pr_info("len %d room %d", len, room);
+	pr_debug("len %d room %d", len, room);
 
 	if (!len) {
 		/* Received packet has only packet header and
@@ -190,8 +188,9 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 	return 0;
 }
 
-/* internal function for action when wake-up ack
- * received
+/**
+ * st_wakeup_ack - internal function for action when wake-up ack
+ *	received
  */
 static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	unsigned char cmd)
@@ -214,9 +213,13 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	st_tx_wakeup(st_gdata);
 }
 
-/* Decodes received RAW data and forwards to corresponding
- * client drivers (Bluetooth,FM,GPS..etc).
- *
+/**
+ * st_int_recv - ST's internal receive function.
+ *	Decodes received RAW data and forwards to corresponding
+ *	client drivers (Bluetooth,FM,GPS..etc).
+ *	This can receive various types of packets,
+ *	HCI-Events, ACL, SCO, 4 types of HCI-LL PM packets
+ *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
 void st_int_recv(void *disc_data,
 	const unsigned char *data, long count)
@@ -259,7 +262,7 @@ void st_int_recv(void *disc_data,
 
 				/* Waiting for complete packet ? */
 			case ST_BT_W4_DATA:
-				pr_info("Complete pkt received");
+				pr_debug("Complete pkt received");
 
 				/* Ask ST CORE to forward
 				 * the packet to protocol driver */
@@ -275,7 +278,7 @@ void st_int_recv(void *disc_data,
 				eh = (struct hci_event_hdr *)st_gdata->rx_skb->
 				    data;
 
-				pr_info("Event header: evt 0x%2.2x"
+				pr_debug("Event header: evt 0x%2.2x"
 					   "plen %d", eh->evt, eh->plen);
 
 				st_check_data_len(st_gdata, protoid, eh->plen);
@@ -439,45 +442,43 @@ void st_int_recv(void *disc_data,
 			break;
 		}
 	}
-	pr_info("done %s", __func__);
+	pr_debug("done %s", __func__);
 	return;
 }
 
-/* internal de-Q function
- * -- return previous in-completely written skb
- *  or return the skb in the txQ
+/**
+ * st_int_dequeue - internal de-Q function.
+ *	If the previous data set was not written
+ *	completely, return that skb which has the pending data.
+ *	In normal cases, return top of txq.
  */
 struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 {
 	struct sk_buff *returning_skb;
 
-	pr_info("%s", __func__);
-	/* if the previous skb wasn't written completely
-	 */
+	pr_debug("%s", __func__);
 	if (st_gdata->tx_skb != NULL) {
 		returning_skb = st_gdata->tx_skb;
 		st_gdata->tx_skb = NULL;
 		return returning_skb;
 	}
-
-	/* de-Q from the txQ always if previous write is complete */
 	return skb_dequeue(&st_gdata->txq);
 }
 
-/* internal Q-ing function
- * will either Q the skb to txq or the tx_waitq
- * depending on the ST LL state
- *
- * lock the whole func - since ll_getstate and Q-ing should happen
- * in one-shot
+/**
+ * st_int_enqueue - internal Q-ing function.
+ *	Will either Q the skb to txq or the tx_waitq
+ *	depending on the ST LL state.
+ *	If the chip is asleep, then Q it onto waitq and
+ *	wakeup the chip.
+ *	txq and waitq needs protection since the other contexts
+ *	may be sending data, waking up chip.
  */
 void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 {
 	unsigned long flags = 0;
 
-	pr_info("%s", __func__);
-	/* this function can be invoked in more then one context.
-	 * so have a lock */
+	pr_debug("%s", __func__);
 	spin_lock_irqsave(&st_gdata->lock, flags);
 
 	switch (st_ll_getstate(st_gdata)) {
@@ -488,16 +489,12 @@ void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 	case ST_LL_ASLEEP_TO_AWAKE:
 		skb_queue_tail(&st_gdata->tx_waitq, skb);
 		break;
-	case ST_LL_AWAKE_TO_ASLEEP:	/* host cannot be in this state */
+	case ST_LL_AWAKE_TO_ASLEEP:
 		pr_err("ST LL is illegal state(%ld),"
 			   "purging received skb.", st_ll_getstate(st_gdata));
 		kfree_skb(skb);
 		break;
-
 	case ST_LL_ASLEEP:
-		/* call a function of ST LL to put data
-		 * in tx_waitQ and wake_ind in txQ
-		 */
 		skb_queue_tail(&st_gdata->tx_waitq, skb);
 		st_ll_wakeup(st_gdata);
 		break;
@@ -507,8 +504,9 @@ void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 		kfree_skb(skb);
 		break;
 	}
+
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
-	pr_info("done %s", __func__);
+	pr_debug("done %s", __func__);
 	return;
 }
 
@@ -522,7 +520,7 @@ void st_tx_wakeup(struct st_data_s *st_data)
 {
 	struct sk_buff *skb;
 	unsigned long flags;	/* for irq save flags */
-	pr_info("%s", __func__);
+	pr_debug("%s", __func__);
 	/* check for sending & set flag sending here */
 	if (test_and_set_bit(ST_TX_SENDING, &st_data->tx_state)) {
 		pr_info("ST already sending");
@@ -563,33 +561,13 @@ void st_tx_wakeup(struct st_data_s *st_data)
 /********************************************************************/
 /* functions called from ST KIM
 */
-void kim_st_list_protocols(struct st_data_s *st_gdata, char *buf)
+void kim_st_list_protocols(struct st_data_s *st_gdata, void *buf)
 {
-	unsigned long flags = 0;
-#ifdef DEBUG
-	unsigned char i = ST_MAX;
-#endif
-	spin_lock_irqsave(&st_gdata->lock, flags);
-#ifdef DEBUG			/* more detailed log */
-	for (i = 0; i < ST_MAX; i++) {
-		if (i == 0) {
-			sprintf(buf, "%s is %s", protocol_strngs[i],
-				st_gdata->list[i] !=
-				NULL ? "Registered" : "Unregistered");
-		} else {
-			sprintf(buf, "%s\n%s is %s", buf, protocol_strngs[i],
-				st_gdata->list[i] !=
-				NULL ? "Registered" : "Unregistered");
-		}
-	}
-	sprintf(buf, "%s\n", buf);
-#else /* limited info */
-	sprintf(buf, "BT=%c\nFM=%c\nGPS=%c\n",
-		st_gdata->list[ST_BT] != NULL ? 'R' : 'U',
-		st_gdata->list[ST_FM] != NULL ? 'R' : 'U',
-		st_gdata->list[ST_GPS] != NULL ? 'R' : 'U');
-#endif
-	spin_unlock_irqrestore(&st_gdata->lock, flags);
+	seq_printf(buf, "[%d]\nBT=%c\nFM=%c\nGPS=%c\n",
+			st_gdata->protos_registered,
+			st_gdata->list[ST_BT] != NULL ? 'R' : 'U',
+			st_gdata->list[ST_FM] != NULL ? 'R' : 'U',
+			st_gdata->list[ST_GPS] != NULL ? 'R' : 'U');
 }
 
 /********************************************************************/
@@ -600,7 +578,7 @@ void kim_st_list_protocols(struct st_data_s *st_gdata, char *buf)
 long st_register(struct st_proto_s *new_proto)
 {
 	struct st_data_s	*st_gdata;
-	long err = ST_SUCCESS;
+	long err = 0;
 	unsigned long flags = 0;
 
 	st_kim_ref(&st_gdata);
@@ -608,17 +586,17 @@ long st_register(struct st_proto_s *new_proto)
 	if (st_gdata == NULL || new_proto == NULL || new_proto->recv == NULL
 	    || new_proto->reg_complete_cb == NULL) {
 		pr_err("gdata/new_proto/recv or reg_complete_cb not ready");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 
 	if (new_proto->type < ST_BT || new_proto->type >= ST_MAX) {
 		pr_err("protocol %d not supported", new_proto->type);
-		return ST_ERR_NOPROTO;
+		return -EPROTONOSUPPORT;
 	}
 
 	if (st_gdata->list[new_proto->type] != NULL) {
 		pr_err("protocol %d already registered", new_proto->type);
-		return ST_ERR_ALREADY;
+		return -EALREADY;
 	}
 
 	/* can be from process context only */
@@ -630,11 +608,12 @@ long st_register(struct st_proto_s *new_proto)
 		st_kim_chip_toggle(new_proto->type, KIM_GPIO_ACTIVE);
 
 		st_gdata->list[new_proto->type] = new_proto;
+		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 
 		set_bit(ST_REG_PENDING, &st_gdata->st_state);
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
-		return ST_ERR_PENDING;
+		return -EINPROGRESS;
 	} else if (st_gdata->protos_registered == ST_EMPTY) {
 		pr_info(" protocol list empty :%d ", new_proto->type);
 		set_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
@@ -648,16 +627,16 @@ long st_register(struct st_proto_s *new_proto)
 		/* this may take a while to complete
 		 * since it involves BT fw download
 		 */
-		err = st_kim_start();
-		if (err != ST_SUCCESS) {
+		err = st_kim_start(st_gdata->kim_data);
+		if (err != 0) {
 			clear_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 			if ((st_gdata->protos_registered != ST_EMPTY) &&
 			    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 				pr_err(" KIM failure complete callback ");
-				st_reg_complete(st_gdata, ST_ERR_FAILURE);
+				st_reg_complete(st_gdata, -1);
 			}
 
-			return ST_ERR_FAILURE;
+			return -1;
 		}
 
 		/* the protocol might require other gpios to be toggled
@@ -672,9 +651,8 @@ long st_register(struct st_proto_s *new_proto)
 		 */
 		if ((st_gdata->protos_registered != ST_EMPTY) &&
 		    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
-			pr_info(" call reg complete callback ");
-			st_gdata->protos_registered++;
-			st_reg_complete(st_gdata, ST_SUCCESS);
+			pr_debug(" call reg complete callback ");
+			st_reg_complete(st_gdata, 0);
 		}
 		clear_bit(ST_REG_PENDING, &st_gdata->st_state);
 
@@ -684,11 +662,12 @@ long st_register(struct st_proto_s *new_proto)
 		if (st_gdata->list[new_proto->type] != NULL) {
 			pr_err(" proto %d already registered ",
 				   new_proto->type);
-			return ST_ERR_ALREADY;
+			return -EALREADY;
 		}
 
 		spin_lock_irqsave(&st_gdata->lock, flags);
 		st_gdata->list[new_proto->type] = new_proto;
+		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return err;
@@ -707,18 +686,19 @@ long st_register(struct st_proto_s *new_proto)
 		default:
 			pr_err("%d protocol not supported",
 				   new_proto->type);
-			err = ST_ERR_NOPROTO;
+			err = -EPROTONOSUPPORT;
 			/* something wrong */
 			break;
 		}
 		st_gdata->list[new_proto->type] = new_proto;
+		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 
 		/* lock already held before entering else */
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return err;
 	}
-	pr_info("done %s(%d) ", __func__, new_proto->type);
+	pr_debug("done %s(%d) ", __func__, new_proto->type);
 }
 EXPORT_SYMBOL_GPL(st_register);
 
@@ -727,16 +707,16 @@ EXPORT_SYMBOL_GPL(st_register);
  */
 long st_unregister(enum proto_type type)
 {
-	long err = ST_SUCCESS;
+	long err = 0;
 	unsigned long flags = 0;
 	struct st_data_s	*st_gdata;
 
-	pr_info("%s: %d ", __func__, type);
+	pr_debug("%s: %d ", __func__, type);
 
 	st_kim_ref(&st_gdata);
 	if (type < ST_BT || type >= ST_MAX) {
 		pr_err(" protocol %d not supported", type);
-		return ST_ERR_NOPROTO;
+		return -EPROTONOSUPPORT;
 	}
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
@@ -744,7 +724,7 @@ long st_unregister(enum proto_type type)
 	if (st_gdata->list[type] == NULL) {
 		pr_err(" protocol %d not registered", type);
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
-		return ST_ERR_NOPROTO;
+		return -EPROTONOSUPPORT;
 	}
 
 	st_gdata->protos_registered--;
@@ -768,7 +748,7 @@ long st_unregister(enum proto_type type)
 		}
 
 		/* all protocols now unregistered */
-		st_kim_stop();
+		st_kim_stop(st_gdata->kim_data);
 		/* disable ST LL */
 		st_ll_disable(st_gdata);
 	}
@@ -791,7 +771,7 @@ long st_write(struct sk_buff *skb)
 	if (unlikely(skb == NULL || st_gdata == NULL
 		|| st_gdata->tty == NULL)) {
 		pr_err("data/tty unavailable to perform write");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 #ifdef DEBUG			/* open-up skb to read the 1st byte */
 	switch (skb->data[0]) {
@@ -810,10 +790,10 @@ long st_write(struct sk_buff *skb)
 	if (unlikely(st_gdata->list[protoid] == NULL)) {
 		pr_err(" protocol %d not registered, and writing? ",
 			   protoid);
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 #endif
-	pr_info("%d to be written", skb->len);
+	pr_debug("%d to be written", skb->len);
 	len = skb->len;
 
 	/* st_ll to decide where to enqueue the skb */
@@ -834,7 +814,7 @@ EXPORT_SYMBOL_GPL(st_unregister);
  */
 static int st_tty_open(struct tty_struct *tty)
 {
-	int err = ST_SUCCESS;
+	int err = 0;
 	struct st_data_s *st_gdata;
 	pr_info("%s ", __func__);
 
@@ -855,8 +835,8 @@ static int st_tty_open(struct tty_struct *tty)
 	 * signal to UIM via KIM that -
 	 * installation of N_TI_WL ldisc is complete
 	 */
-	st_kim_complete();
-	pr_info("done %s", __func__);
+	st_kim_complete(st_gdata->kim_data);
+	pr_debug("done %s", __func__);
 	return err;
 }
 
@@ -878,12 +858,13 @@ static void st_tty_close(struct tty_struct *tty)
 			pr_err("%d not un-registered", i);
 		st_gdata->list[i] = NULL;
 	}
+	st_gdata->protos_registered = 0;
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 	/*
 	 * signal to UIM via KIM that -
 	 * N_TI_WL ldisc is un-installed
 	 */
-	st_kim_complete();
+	st_kim_complete(st_gdata->kim_data);
 	st_gdata->tty = NULL;
 	/* Flush any pending characters in the driver and discipline. */
 	tty_ldisc_flush(tty);
@@ -900,7 +881,7 @@ static void st_tty_close(struct tty_struct *tty)
 	st_gdata->rx_skb = NULL;
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 
-	pr_info("%s: done ", __func__);
+	pr_debug("%s: done ", __func__);
 }
 
 static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
@@ -908,11 +889,8 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 {
 
 #ifdef VERBOSE
-	long i;
-	printk(KERN_ERR "incoming data...\n");
-	for (i = 0; i < count; i++)
-		printk(" %x", data[i]);
-	printk(KERN_ERR "\n.. data end\n");
+	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
+		16, 1, data, count, 0);
 #endif
 
 	/*
@@ -920,7 +898,7 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 	 * to KIM for validation
 	 */
 	st_recv(tty->disc_data, data, count);
-	pr_info("done %s", __func__);
+	pr_debug("done %s", __func__);
 }
 
 /* wake-up function called in from the TTY layer
@@ -929,7 +907,7 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 static void st_tty_wakeup(struct tty_struct *tty)
 {
 	struct	st_data_s *st_gdata = tty->disc_data;
-	pr_info("%s ", __func__);
+	pr_debug("%s ", __func__);
 	/* don't do an wakeup for now */
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
@@ -940,7 +918,7 @@ static void st_tty_wakeup(struct tty_struct *tty)
 static void st_tty_flush_buffer(struct tty_struct *tty)
 {
 	struct	st_data_s *st_gdata = tty->disc_data;
-	pr_info("%s ", __func__);
+	pr_debug("%s ", __func__);
 
 	kfree_skb(st_gdata->tx_skb);
 	st_gdata->tx_skb = NULL;
@@ -979,7 +957,7 @@ int st_core_init(struct st_data_s **core_data)
 		kfree(st_ldisc_ops);
 		return err;
 	}
-	pr_info("registered n_shared line discipline");
+	pr_debug("registered n_shared line discipline");
 
 	st_gdata = kzalloc(sizeof(struct st_data_s), GFP_KERNEL);
 	if (!st_gdata) {

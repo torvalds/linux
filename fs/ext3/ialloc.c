@@ -119,19 +119,7 @@ void ext3_free_inode (handle_t *handle, struct inode * inode)
 	ino = inode->i_ino;
 	ext3_debug ("freeing inode %lu\n", ino);
 
-	/*
-	 * Note: we must free any quota before locking the superblock,
-	 * as writing the quota to disk may need the lock as well.
-	 */
-	dquot_initialize(inode);
-	ext3_xattr_delete_inode(handle, inode);
-	dquot_free_inode(inode);
-	dquot_drop(inode);
-
 	is_directory = S_ISDIR(inode->i_mode);
-
-	/* Do this BEFORE marking the inode not in use or returning an error */
-	clear_inode (inode);
 
 	es = EXT3_SB(sb)->s_es;
 	if (ino < EXT3_FIRST_INO(sb) || ino > le32_to_cpu(es->s_inodes_count)) {

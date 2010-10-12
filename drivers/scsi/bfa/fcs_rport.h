@@ -24,6 +24,8 @@
 
 #include <fcs/bfa_fcs_rport.h>
 
+#define BFA_FCS_RPORT_MAX_RETRIES               (5)
+
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs,
 			u16 len);
 void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);
@@ -41,6 +43,7 @@ void bfa_fcs_rport_plogi_create(struct bfa_fcs_port_s *port,
 void bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs,
 			struct fc_logi_s *plogi);
 void bfa_fcs_rport_logo_imp(struct bfa_fcs_rport_s *rport);
+void bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, uint16_t ox_id);
 void bfa_fcs_rport_itnim_ack(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_itntm_ack(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_tin_ack(struct bfa_fcs_rport_s *rport);

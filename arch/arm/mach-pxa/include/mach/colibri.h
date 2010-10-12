@@ -5,6 +5,27 @@
 #include <mach/mfp.h>
 
 /*
+ * base board glue for PXA270 module
+ */
+
+enum {
+	COLIBRI_PXA270_EVALBOARD = 0,
+	COLIBRI_PXA270_INCOME,
+};
+
+#if defined(CONFIG_MACH_COLIBRI_PXA270_EVALBOARD)
+extern void colibri_pxa270_evalboard_init(void);
+#else
+static inline void colibri_pxa270_evalboard_init(void) {}
+#endif
+
+#if defined(CONFIG_MACH_COLIBRI_PXA270_INCOME)
+extern void colibri_pxa270_income_boardinit(void);
+#else
+static inline void colibri_pxa270_income_boardinit(void) {}
+#endif
+
+/*
  * common settings for all modules
  */
 
@@ -33,13 +54,10 @@ static inline void colibri_pxa3xx_init_nand(void) {}
 /* physical memory regions */
 #define COLIBRI_SDRAM_BASE	0xa0000000      /* SDRAM region */
 
-/* definitions for Colibri PXA270 */
-
-#define COLIBRI_PXA270_FLASH_PHYS	(PXA_CS0_PHYS)  /* Flash region */
-#define COLIBRI_PXA270_ETH_PHYS		(PXA_CS2_PHYS)  /* Ethernet */
-#define COLIBRI_PXA270_ETH_IRQ_GPIO	114
-#define COLIBRI_PXA270_ETH_IRQ		\
-	gpio_to_irq(mfp_to_gpio(COLIBRI_PXA270_ETH_IRQ_GPIO))
+/* GPIO definitions for Colibri PXA270 */
+#define GPIO114_COLIBRI_PXA270_ETH_IRQ	114
+#define GPIO0_COLIBRI_PXA270_SD_DETECT	0
+#define GPIO113_COLIBRI_PXA270_TS_IRQ	113
 
 #endif /* _COLIBRI_H_ */
 

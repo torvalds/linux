@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -73,7 +73,16 @@ struct cq_enet_rq_desc {
 #define CQ_ENET_RQ_DESC_FLAGS_TRUNCATED             (0x1 << 14)
 #define CQ_ENET_RQ_DESC_FLAGS_VLAN_STRIPPED         (0x1 << 15)
 
-#define CQ_ENET_RQ_DESC_FCOE_SOF_BITS               4
+#define CQ_ENET_RQ_DESC_VLAN_TCI_VLAN_BITS          12
+#define CQ_ENET_RQ_DESC_VLAN_TCI_VLAN_MASK \
+	((1 << CQ_ENET_RQ_DESC_VLAN_TCI_VLAN_BITS) - 1)
+#define CQ_ENET_RQ_DESC_VLAN_TCI_CFI_MASK           (0x1 << 12)
+#define CQ_ENET_RQ_DESC_VLAN_TCI_USER_PRIO_BITS     3
+#define CQ_ENET_RQ_DESC_VLAN_TCI_USER_PRIO_MASK \
+	((1 << CQ_ENET_RQ_DESC_VLAN_TCI_USER_PRIO_BITS) - 1)
+#define CQ_ENET_RQ_DESC_VLAN_TCI_USER_PRIO_SHIFT    13
+
+#define CQ_ENET_RQ_DESC_FCOE_SOF_BITS               8
 #define CQ_ENET_RQ_DESC_FCOE_SOF_MASK \
 	((1 << CQ_ENET_RQ_DESC_FCOE_SOF_BITS) - 1)
 #define CQ_ENET_RQ_DESC_FCOE_EOF_BITS               8
@@ -96,7 +105,7 @@ static inline void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc,
 	u8 *type, u8 *color, u16 *q_number, u16 *completed_index,
 	u8 *ingress_port, u8 *fcoe, u8 *eop, u8 *sop, u8 *rss_type,
 	u8 *csum_not_calc, u32 *rss_hash, u16 *bytes_written, u8 *packet_error,
-	u8 *vlan_stripped, u16 *vlan, u16 *checksum, u8 *fcoe_sof,
+	u8 *vlan_stripped, u16 *vlan_tci, u16 *checksum, u8 *fcoe_sof,
 	u8 *fcoe_fc_crc_ok, u8 *fcoe_enc_error, u8 *fcoe_eof,
 	u8 *tcp_udp_csum_ok, u8 *udp, u8 *tcp, u8 *ipv4_csum_ok,
 	u8 *ipv6, u8 *ipv4, u8 *ipv4_fragment, u8 *fcs_ok)
@@ -136,7 +145,10 @@ static inline void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc,
 	*vlan_stripped = (bytes_written_flags &
 		CQ_ENET_RQ_DESC_FLAGS_VLAN_STRIPPED) ? 1 : 0;
 
-	*vlan = le16_to_cpu(desc->vlan);
+	/*
+	 * Tag Control Information(16) = user_priority(3) + cfi(1) + vlan(12)
+	 */
+	*vlan_tci = le16_to_cpu(desc->vlan);
 
 	if (*fcoe) {
 		*fcoe_sof = (u8)(le16_to_cpu(desc->checksum_fcoe) &

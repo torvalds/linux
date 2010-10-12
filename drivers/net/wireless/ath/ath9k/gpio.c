@@ -76,7 +76,8 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	case LED_FULL:
 		if (led->led_type == ATH_LED_ASSOC) {
 			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
-			ieee80211_queue_delayed_work(sc->hw,
+			if (led_blink)
+				ieee80211_queue_delayed_work(sc->hw,
 						     &sc->ath_led_blink_work, 0);
 		} else if (led->led_type == ATH_LED_RADIO) {
 			ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 0);
@@ -143,7 +144,8 @@ void ath_init_leds(struct ath_softc *sc)
 	/* LED off, active low */
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
-	INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
+	if (led_blink)
+		INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
 
 	trigger = ieee80211_get_radio_led_name(sc->hw);
 	snprintf(sc->radio_led.name, sizeof(sc->radio_led.name),
@@ -180,7 +182,8 @@ void ath_init_leds(struct ath_softc *sc)
 	return;
 
 fail:
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
+	if (led_blink)
+		cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_deinit_leds(sc);
 }
 

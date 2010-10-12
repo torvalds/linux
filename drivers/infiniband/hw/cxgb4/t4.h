@@ -36,8 +36,6 @@
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
-#define T4_QID_BASE 1024
-#define T4_MAX_QIDS 256
 #define T4_MAX_NUM_QP (1<<16)
 #define T4_MAX_NUM_CQ (1<<15)
 #define T4_MAX_NUM_PD (1<<15)
@@ -65,10 +63,10 @@ struct t4_status_page {
 	u8 db_off;
 };
 
-#define T4_EQ_SIZE 64
+#define T4_EQ_ENTRY_SIZE 64
 
 #define T4_SQ_NUM_SLOTS 4
-#define T4_SQ_NUM_BYTES (T4_EQ_SIZE * T4_SQ_NUM_SLOTS)
+#define T4_SQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_SQ_NUM_SLOTS)
 #define T4_MAX_SEND_SGE ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_send_wr) - \
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_SEND_INLINE ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_send_wr) - \
@@ -84,7 +82,7 @@ struct t4_status_page {
 #define T4_MAX_FR_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
 
 #define T4_RQ_NUM_SLOTS 2
-#define T4_RQ_NUM_BYTES (T4_EQ_SIZE * T4_RQ_NUM_SLOTS)
+#define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
 #define T4_MAX_RECV_SGE 4
 
 union t4_wr {
@@ -97,20 +95,18 @@ union t4_wr {
 	struct fw_ri_fr_nsmr_wr fr;
 	struct fw_ri_inv_lstag_wr inv;
 	struct t4_status_page status;
-	__be64 flits[T4_EQ_SIZE / sizeof(__be64) * T4_SQ_NUM_SLOTS];
+	__be64 flits[T4_EQ_ENTRY_SIZE / sizeof(__be64) * T4_SQ_NUM_SLOTS];
 };
 
 union t4_recv_wr {
 	struct fw_ri_recv_wr recv;
 	struct t4_status_page status;
-	__be64 flits[T4_EQ_SIZE / sizeof(__be64) * T4_RQ_NUM_SLOTS];
+	__be64 flits[T4_EQ_ENTRY_SIZE / sizeof(__be64) * T4_RQ_NUM_SLOTS];
 };
 
 static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 			       enum fw_wr_opcodes opcode, u8 flags, u8 len16)
 {
-	int slots_used;
-
 	wqe->send.opcode = (u8)opcode;
 	wqe->send.flags = flags;
 	wqe->send.wrid = wrid;
@@ -118,12 +114,6 @@ static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 	wqe->send.r1[1] = 0;
 	wqe->send.r1[2] = 0;
 	wqe->send.len16 = len16;
-
-	slots_used = DIV_ROUND_UP(len16*16, T4_EQ_SIZE);
-	while (slots_used < T4_SQ_NUM_SLOTS) {
-		wqe->flits[slots_used * T4_EQ_SIZE / sizeof(__be64)] = 0;
-		slots_used++;
-	}
 }
 
 /* CQE/AE status codes */
@@ -289,6 +279,7 @@ struct t4_sq {
 	u16 size;
 	u16 cidx;
 	u16 pidx;
+	u16 wq_pidx;
 };
 
 struct t4_swrqe {
@@ -310,6 +301,7 @@ struct t4_rq {
 	u16 size;
 	u16 cidx;
 	u16 pidx;
+	u16 wq_pidx;
 };
 
 struct t4_wq {
@@ -340,11 +332,14 @@ static inline u32 t4_rq_avail(struct t4_wq *wq)
 	return wq->rq.size - 1 - wq->rq.in_use;
 }
 
-static inline void t4_rq_produce(struct t4_wq *wq)
+static inline void t4_rq_produce(struct t4_wq *wq, u8 len16)
 {
 	wq->rq.in_use++;
 	if (++wq->rq.pidx == wq->rq.size)
 		wq->rq.pidx = 0;
+	wq->rq.wq_pidx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
+	if (wq->rq.wq_pidx >= wq->rq.size * T4_RQ_NUM_SLOTS)
+		wq->rq.wq_pidx %= wq->rq.size * T4_RQ_NUM_SLOTS;
 }
 
 static inline void t4_rq_consume(struct t4_wq *wq)
@@ -370,11 +365,14 @@ static inline u32 t4_sq_avail(struct t4_wq *wq)
 	return wq->sq.size - 1 - wq->sq.in_use;
 }
 
-static inline void t4_sq_produce(struct t4_wq *wq)
+static inline void t4_sq_produce(struct t4_wq *wq, u8 len16)
 {
 	wq->sq.in_use++;
 	if (++wq->sq.pidx == wq->sq.size)
 		wq->sq.pidx = 0;
+	wq->sq.wq_pidx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
+	if (wq->sq.wq_pidx >= wq->sq.size * T4_SQ_NUM_SLOTS)
+		wq->sq.wq_pidx %= wq->sq.size * T4_SQ_NUM_SLOTS;
 }
 
 static inline void t4_sq_consume(struct t4_wq *wq)
@@ -386,14 +384,12 @@ static inline void t4_sq_consume(struct t4_wq *wq)
 
 static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc)
 {
-	inc *= T4_SQ_NUM_SLOTS;
 	wmb();
 	writel(QID(wq->sq.qid) | PIDX(inc), wq->db);
 }
 
 static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc)
 {
-	inc *= T4_RQ_NUM_SLOTS;
 	wmb();
 	writel(QID(wq->rq.qid) | PIDX(inc), wq->db);
 }

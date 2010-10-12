@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -664,6 +664,11 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 
+	def = 0;
+	if (IS_QLA25XX(ha))
+		def = 1;
+	else if (IS_QLA81XX(ha))
+		def = 2;
 	ha->flt_region_flt = flt_addr;
 	wptr = (uint16_t *)req->ring;
 	flt = (struct qla_flt_header *)req->ring;
@@ -690,6 +695,10 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		    chksum));
 		goto no_flash_data;
 	}
+
+	/* Assign FCP prio region since older FLT's may not have it */
+	ha->flt_region_fcp_prio = ha->flags.port0 ?
+	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
 
 	loc = locations[1];
 	cnt = le16_to_cpu(flt->length) / sizeof(struct qla_flt_region);
@@ -773,13 +782,6 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 no_flash_data:
 	/* Use hardcoded defaults. */
 	loc = locations[0];
-	def = 0;
-	if (IS_QLA24XX_TYPE(ha))
-		def = 0;
-	else if (IS_QLA25XX(ha))
-		def = 1;
-	else if (IS_QLA81XX(ha))
-		def = 2;
 	ha->flt_region_fw = def_fw[def];
 	ha->flt_region_boot = def_boot[def];
 	ha->flt_region_vpd_nvram = def_vpd_nvram[def];
@@ -790,14 +792,13 @@ no_flash_data:
 	ha->flt_region_fdt = def_fdt[def];
 	ha->flt_region_npiv_conf = ha->flags.port0 ?
 	    def_npiv_conf0[def] : def_npiv_conf1[def];
-	ha->flt_region_fcp_prio = ha->flags.port0 ?
-	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
 	    "vpd_nvram=0x%x vpd=0x%x nvram=0x%x fdt=0x%x flt=0x%x "
-	    "npiv=0x%x.\n", loc, ha->flt_region_boot, ha->flt_region_fw,
-	    ha->flt_region_vpd_nvram, ha->flt_region_vpd, ha->flt_region_nvram,
-	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_npiv_conf));
+	    "npiv=0x%x. fcp_prio_cfg=0x%x\n", loc, ha->flt_region_boot,
+	    ha->flt_region_fw, ha->flt_region_vpd_nvram, ha->flt_region_vpd,
+	    ha->flt_region_nvram, ha->flt_region_fdt, ha->flt_region_flt,
+	    ha->flt_region_npiv_conf, ha->flt_region_fcp_prio));
 }
 
 static void
@@ -2757,6 +2758,28 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		ha->fw_revision[2] = dcode[2];
 		ha->fw_revision[3] = dcode[3];
 	}
+
+	/* Check for golden firmware and get version if available */
+	if (!IS_QLA81XX(ha)) {
+		/* Golden firmware is not present in non 81XX adapters */
+		return ret;
+	}
+
+	memset(ha->gold_fw_version, 0, sizeof(ha->gold_fw_version));
+	dcode = mbuf;
+	ha->isp_ops->read_optrom(vha, (uint8_t *)dcode,
+	    ha->flt_region_gold_fw << 2, 32);
+
+	if (dcode[4] == 0xFFFFFFFF && dcode[5] == 0xFFFFFFFF &&
+	    dcode[6] == 0xFFFFFFFF && dcode[7] == 0xFFFFFFFF) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "%s(%ld): Unrecognized golden fw at 0x%x.\n",
+		    __func__, vha->host_no, ha->flt_region_gold_fw * 4));
+		return ret;
+	}
+
+	for (i = 4; i < 8; i++)
+		ha->gold_fw_version[i-4] = be32_to_cpu(dcode[i]);
 
 	return ret;
 }

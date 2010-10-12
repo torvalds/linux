@@ -170,11 +170,6 @@ bfa_uf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_uf_initdone(struct bfa_s *bfa)
-{
-}
-
-static void
 bfa_uf_detach(struct bfa_s *bfa)
 {
 }
@@ -256,7 +251,10 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 				      (struct fchs_s *) buf, pld_w0);
 	}
 
-	bfa_cb_queue(bfa, &uf->hcb_qe, __bfa_cb_uf_recv, uf);
+	if (bfa->fcs)
+		__bfa_cb_uf_recv(uf, BFA_TRUE);
+	else
+		bfa_cb_queue(bfa, &uf->hcb_qe, __bfa_cb_uf_recv, uf);
 }
 
 static void

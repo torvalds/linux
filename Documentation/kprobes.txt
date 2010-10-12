@@ -285,6 +285,7 @@ architectures:
 - sparc64 (Return probes not yet implemented.)
 - arm
 - ppc
+- mips
 
 3. Configuring Kprobes
 

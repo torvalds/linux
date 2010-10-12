@@ -126,7 +126,7 @@ static int ak881x_try_g_mbus_fmt(struct v4l2_subdev *sd,
 	v4l_bound_align_image(&mf->width, 0, 720, 2,
 			      &mf->height, 0, ak881x->lines, 1, 0);
 	mf->field	= V4L2_FIELD_INTERLACED;
-	mf->code	= V4L2_MBUS_FMT_YUYV8_2X8_LE;
+	mf->code	= V4L2_MBUS_FMT_YUYV8_2X8;
 	mf->colorspace	= V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
@@ -136,7 +136,7 @@ static int ak881x_s_mbus_fmt(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_framefmt *mf)
 {
 	if (mf->field != V4L2_FIELD_INTERLACED ||
-	    mf->code != V4L2_MBUS_FMT_YUYV8_2X8_LE)
+	    mf->code != V4L2_MBUS_FMT_YUYV8_2X8)
 		return -EINVAL;
 
 	return ak881x_try_g_mbus_fmt(sd, mf);
@@ -148,7 +148,7 @@ static int ak881x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
 	if (index)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_YUYV8_2X8_LE;
+	*code = V4L2_MBUS_FMT_YUYV8_2X8;
 	return 0;
 }
 

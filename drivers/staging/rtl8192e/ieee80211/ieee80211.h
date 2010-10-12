@@ -27,12 +27,7 @@
 #include <linux/kernel.h>   /* ARRAY_SIZE */
 #include <linux/version.h>
 #include <linux/module.h>
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 #include <linux/jiffies.h>
-#else
-#include <linux/jffs.h>
-#include <linux/tqueue.h>
-#endif
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
@@ -43,12 +38,6 @@
 #include "rtl819x_HT.h"
 #include "rtl819x_BA.h"
 #include "rtl819x_TS.h"
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-#ifndef bool
-typedef enum{false = 0, true} bool;
-#endif
-#endif
 
 #ifndef IW_MODE_MONITOR
 #define IW_MODE_MONITOR 6
@@ -428,46 +417,9 @@ typedef struct ieee_param {
 #define IW_QUAL_NOISE_UPDATED  0x4
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static inline void tq_init(struct tq_struct * task, void(*func)(void *), void *data)
-{
-	task->routine = func;
-	task->data 	= data;
-	//task->next = NULL;
-	INIT_LIST_HEAD(&task->list);
-	task->sync = 0;
-}
-#endif
-
 // linux under 2.6.9 release may not support it, so modify it for common use
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
-//#define MSECS(t)	(1000 * ((t) / HZ) + 1000 * ((t) % HZ) / HZ)
-#define MSECS(t)	(HZ * ((t) / 1000) + (HZ * ((t) % 1000)) / 1000)
-static inline unsigned long msleep_interruptible_rsl(unsigned int msecs)
-{
-         unsigned long timeout = MSECS(msecs) + 1;
-
-         while (timeout) {
-                 set_current_state(TASK_INTERRUPTIBLE);
-                 timeout = schedule_timeout(timeout);
-         }
-         return timeout;
-}
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,31))
-static inline void msleep(unsigned int msecs)
-{
-         unsigned long timeout = MSECS(msecs) + 1;
-
-         while (timeout) {
-                 set_current_state(TASK_UNINTERRUPTIBLE);
-                 timeout = schedule_timeout(timeout);
-         }
-}
-#endif
-#else
 #define MSECS(t) msecs_to_jiffies(t)
 #define msleep_interruptible_rsl  msleep_interruptible
-#endif
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -1747,21 +1699,6 @@ enum ieee80211_state {
 #define IEEE80211_52GHZ_CHANNELS (IEEE80211_52GHZ_MAX_CHANNEL - \
                                   IEEE80211_52GHZ_MIN_CHANNEL + 1)
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,11))
-extern inline int is_multicast_ether_addr(const u8 *addr)
-{
-        return ((addr[0] != 0xff) && (0x01 & addr[0]));
-}
-#endif
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13))
-extern inline int is_broadcast_ether_addr(const u8 *addr)
-{
-	return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&   \
-		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
-}
-#endif
-
 typedef struct tx_pending_t{
 	int frag;
 	struct ieee80211_txb *txb;
@@ -1838,11 +1775,7 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	bool				bIPSModeBackup;
 	bool				bSwRfProcessing;
 	RT_RF_POWER_STATE	eInactivePowerState;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct work_struct 	InactivePsWorkItem;
-#else
-	struct tq_struct	InactivePsWorkItem;
-#endif
 	struct timer_list	InactivePsTimer;
 
 	// Return point for join action
@@ -2329,36 +2262,16 @@ struct ieee80211_device {
 
 	/* used if IEEE_SOFTMAC_BEACONS is set */
 	struct timer_list beacon_timer;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
         struct work_struct associate_complete_wq;
         struct work_struct associate_procedure_wq;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
         struct delayed_work softmac_scan_wq;
         struct delayed_work associate_retry_wq;
 	 struct delayed_work start_ibss_wq;
 	 struct delayed_work hw_wakeup_wq;
 	struct delayed_work hw_sleep_wq;
-#else
-        struct work_struct softmac_scan_wq;
-        struct work_struct associate_retry_wq;
-	struct work_struct start_ibss_wq;
-	struct work_struct hw_wakeup_wq;
-	struct work_struct hw_sleep_wq;
-#endif
+
         struct work_struct wx_sync_scan_wq;
         struct workqueue_struct *wq;
-#else
-	/* used for periodly scan */
-	struct timer_list scan_timer;
-
-	struct tq_struct associate_complete_wq;
-	struct tq_struct associate_retry_wq;
-	struct tq_struct start_ibss_wq;
-	struct tq_struct associate_procedure_wq;
-	struct tq_struct softmac_scan_wq;
-	struct tq_struct wx_sync_scan_wq;
-
-#endif
         // Qos related. Added by Annie, 2005-11-01.
         //STA_QOS  StaQos;
 
@@ -2557,11 +2470,7 @@ struct ieee80211_device {
 
 static inline void *ieee80211_priv(struct net_device *dev)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
-#else
-	return ((struct ieee80211_device *)dev->priv)->priv;
-#endif
 }
 
 extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
@@ -2814,11 +2723,7 @@ extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee, struct iw_reques
 			     union iwreq_data *wrqu, char *b);
 
 //extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern void ieee80211_wx_sync_scan_wq(struct work_struct *work);
-#else
- extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
-#endif
 
 
 extern int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,

@@ -890,7 +890,7 @@
 #ifndef __ASSEMBLY__
 #define mfmsr()		({unsigned long rval; \
 			asm volatile("mfmsr %0" : "=r" (rval)); rval;})
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
 #define mtmsrd(v)	__mtmsrd((v), 0)

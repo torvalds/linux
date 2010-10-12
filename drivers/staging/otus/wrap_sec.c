@@ -36,7 +36,7 @@ extern int zfLnxCencSendMsg(struct sock *netlink_sk, u_int8_t *msg, int len);
 u16_t zfLnxCencAsocNotify(zdev_t *dev, u16_t *macAddr, u8_t *body,
 				u16_t bodySize, u16_t port)
 {
-	struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+	struct usbdrv_private *macp = dev->priv;
 	struct zydas_cenc_sta_info cenc_info;
 	/* struct sock *netlink_sk;	*/
 	u8_t ie_len;

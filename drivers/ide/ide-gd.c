@@ -1,3 +1,4 @@
+#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -92,7 +93,7 @@ static void ide_disk_release(struct device *dev)
 
 /*
  * On HPA drives the capacity needs to be
- * reinitilized on resume otherwise the disk
+ * reinitialized on resume otherwise the disk
  * can not be used and a hard reset is required
  */
 static void ide_gd_resume(ide_drive_t *drive)
@@ -237,6 +238,18 @@ out_put_idkp:
 	return ret;
 }
 
+static int ide_gd_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ide_gd_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
@@ -244,6 +257,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
 
+	lock_kernel();
 	if (idkp->openers == 1)
 		drive->disk_ops->flush(drive);
 
@@ -255,6 +269,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 	idkp->openers--;
 
 	ide_disk_put(idkp);
+	unlock_kernel();
 
 	return 0;
 }
@@ -321,9 +336,9 @@ static int ide_gd_ioctl(struct block_device *bdev, fmode_t mode,
 
 static const struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
-	.open			= ide_gd_open,
+	.open			= ide_gd_unlocked_open,
 	.release		= ide_gd_release,
-	.locked_ioctl		= ide_gd_ioctl,
+	.ioctl			= ide_gd_ioctl,
 	.getgeo			= ide_gd_getgeo,
 	.media_changed		= ide_gd_media_changed,
 	.unlock_native_capacity	= ide_gd_unlock_native_capacity,

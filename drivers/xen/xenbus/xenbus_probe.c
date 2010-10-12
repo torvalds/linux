@@ -56,6 +56,9 @@
 #include <xen/events.h>
 #include <xen/page.h>
 
+#include <xen/platform_pci.h>
+#include <xen/hvm.h>
+
 #include "xenbus_comms.h"
 #include "xenbus_probe.h"
 
@@ -752,10 +755,7 @@ int register_xenstore_notifier(struct notifier_block *nb)
 {
 	int ret = 0;
 
-	if (xenstored_ready > 0)
-		ret = nb->notifier_call(nb, 0, NULL);
-	else
-		blocking_notifier_chain_register(&xenstore_chain, nb);
+	blocking_notifier_chain_register(&xenstore_chain, nb);
 
 	return ret;
 }
@@ -779,8 +779,23 @@ void xenbus_probe(struct work_struct *unused)
 	/* Notify others that xenstore is up */
 	blocking_notifier_call_chain(&xenstore_chain, 0, NULL);
 }
+EXPORT_SYMBOL_GPL(xenbus_probe);
 
-static int __init xenbus_probe_init(void)
+static int __init xenbus_probe_initcall(void)
+{
+	if (!xen_domain())
+		return -ENODEV;
+
+	if (xen_initial_domain() || xen_hvm_domain())
+		return 0;
+
+	xenbus_probe(NULL);
+	return 0;
+}
+
+device_initcall(xenbus_probe_initcall);
+
+static int __init xenbus_init(void)
 {
 	int err = 0;
 
@@ -805,11 +820,24 @@ static int __init xenbus_probe_init(void)
 	if (xen_initial_domain()) {
 		/* dom0 not yet supported */
 	} else {
+		if (xen_hvm_domain()) {
+			uint64_t v = 0;
+			err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
+			if (err)
+				goto out_error;
+			xen_store_evtchn = (int)v;
+			err = hvm_get_parameter(HVM_PARAM_STORE_PFN, &v);
+			if (err)
+				goto out_error;
+			xen_store_mfn = (unsigned long)v;
+			xen_store_interface = ioremap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
+		} else {
+			xen_store_evtchn = xen_start_info->store_evtchn;
+			xen_store_mfn = xen_start_info->store_mfn;
+			xen_store_interface = mfn_to_virt(xen_store_mfn);
+		}
 		xenstored_ready = 1;
-		xen_store_evtchn = xen_start_info->store_evtchn;
-		xen_store_mfn = xen_start_info->store_mfn;
 	}
-	xen_store_interface = mfn_to_virt(xen_store_mfn);
 
 	/* Initialize the interface to xenstore. */
 	err = xs_init();
@@ -818,9 +846,6 @@ static int __init xenbus_probe_init(void)
 		       "XENBUS: Error initializing xenstore comms: %i\n", err);
 		goto out_unreg_back;
 	}
-
-	if (!xen_initial_domain())
-		xenbus_probe(NULL);
 
 #ifdef CONFIG_XEN_COMPAT_XENFS
 	/*
@@ -842,7 +867,7 @@ static int __init xenbus_probe_init(void)
 	return err;
 }
 
-postcore_initcall(xenbus_probe_init);
+postcore_initcall(xenbus_init);
 
 MODULE_LICENSE("GPL");
 
@@ -950,6 +975,9 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
+	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+		return -ENODEV;
+
 	ready_to_wait_for_devices = 1;
 	wait_for_devices(NULL);
 	return 0;

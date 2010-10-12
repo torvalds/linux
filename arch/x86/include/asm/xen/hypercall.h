@@ -417,6 +417,12 @@ HYPERVISOR_nmi_op(unsigned long op, unsigned long arg)
 	return _hypercall2(int, nmi_op, op, arg);
 }
 
+static inline unsigned long __must_check
+HYPERVISOR_hvm_op(int op, void *arg)
+{
+       return _hypercall2(unsigned long, hvm_op, op, arg);
+}
+
 static inline void
 MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
 {

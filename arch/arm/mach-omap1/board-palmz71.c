@@ -325,7 +325,7 @@ omap_palmz71_init(void)
 
 	spi_register_board_info(palmz71_boardinfo,
 				ARRAY_SIZE(palmz71_boardinfo));
-	omap_usb_init(&palmz71_usb_config);
+	omap1_usb_init(&palmz71_usb_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	palmz71_gpio_setup(0);
@@ -338,10 +338,12 @@ omap_palmz71_map_io(void)
 }
 
 MACHINE_START(OMAP_PALMZ71, "OMAP310 based Palm Zire71")
-	.phys_io = 0xfff00000,
-	.io_pg_offst = ((0xfef00000) >> 18) & 0xfffc,
-	.boot_params = 0x10000100,.map_io = omap_palmz71_map_io,
-	.init_irq = omap_palmz71_init_irq,
-	.init_machine = omap_palmz71_init,
-	.timer = &omap_timer,
+	.phys_io	= 0xfff00000,
+	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.map_io		= omap_palmz71_map_io,
+	.reserve	= omap_reserve,
+	.init_irq	= omap_palmz71_init_irq,
+	.init_machine	= omap_palmz71_init,
+	.timer		= &omap_timer,
 MACHINE_END

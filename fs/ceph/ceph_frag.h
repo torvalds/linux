@@ -1,5 +1,5 @@
-#ifndef _FS_CEPH_FRAG_H
-#define _FS_CEPH_FRAG_H
+#ifndef FS_CEPH_FRAG_H
+#define FS_CEPH_FRAG_H
 
 /*
  * "Frags" are a way to describe a subset of a 32-bit number space,

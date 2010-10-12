@@ -227,7 +227,7 @@ struct mscan_regs {
 		u16 time;			/* + 0x7c     0x3e */
 	} tx;
 	_MSCAN_RESERVED_(32, 2);		/* + 0x7e          */
-} __attribute__ ((packed));
+} __packed;
 
 #undef _MSCAN_RESERVED_
 #define MSCAN_REGION 	sizeof(struct mscan)

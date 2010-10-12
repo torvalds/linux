@@ -254,8 +254,6 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	int ret;
 	unsigned int vector;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/*
 	 * Set this up to allow lower layer to callback to add/remove child
 	 * devices on the bus
@@ -360,8 +358,6 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	wait_for_completion(&hv_channel_ready);
 
 cleanup:
-	DPRINT_EXIT(VMBUS_DRV);
-
 	return ret;
 }
 
@@ -376,8 +372,6 @@ static void vmbus_bus_exit(void)
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
 
 	struct vm_device *dev_ctx = &g_vmbus_drv.device_ctx;
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	/* Remove the root device */
 	if (vmbus_drv_obj->Base.OnDeviceRemove)
@@ -395,10 +389,6 @@ static void vmbus_bus_exit(void)
 
 	tasklet_kill(&vmbus_drv_ctx->msg_dpc);
 	tasklet_kill(&vmbus_drv_ctx->event_dpc);
-
-	DPRINT_EXIT(VMBUS_DRV);
-
-	return;
 }
 
 
@@ -419,8 +409,6 @@ int vmbus_child_driver_register(struct driver_context *driver_ctx)
 	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 	int ret;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	DPRINT_INFO(VMBUS_DRV, "child driver (%p) registering - name %s",
 		    driver_ctx, driver_ctx->driver.name);
 
@@ -430,8 +418,6 @@ int vmbus_child_driver_register(struct driver_context *driver_ctx)
 	ret = driver_register(&driver_ctx->driver);
 
 	vmbus_drv_obj->GetChannelOffers();
-
-	DPRINT_EXIT(VMBUS_DRV);
 
 	return ret;
 }
@@ -450,16 +436,12 @@ EXPORT_SYMBOL(vmbus_child_driver_register);
  */
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx)
 {
-	DPRINT_ENTER(VMBUS_DRV);
-
 	DPRINT_INFO(VMBUS_DRV, "child driver (%p) unregistering - name %s",
 		    driver_ctx, driver_ctx->driver.name);
 
 	driver_unregister(&driver_ctx->driver);
 
 	driver_ctx->driver.bus = NULL;
-
-	DPRINT_EXIT(VMBUS_DRV);
 }
 EXPORT_SYMBOL(vmbus_child_driver_unregister);
 
@@ -506,15 +488,11 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 	struct vm_device *child_device_ctx;
 	struct hv_device *child_device_obj;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/* Allocate the new child device */
 	child_device_ctx = kzalloc(sizeof(struct vm_device), GFP_KERNEL);
 	if (!child_device_ctx) {
 		DPRINT_ERR(VMBUS_DRV,
 			"unable to allocate device_context for child device");
-		DPRINT_EXIT(VMBUS_DRV);
-
 		return NULL;
 	}
 
@@ -546,8 +524,6 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 	memcpy(&child_device_ctx->class_id, type, sizeof(struct hv_guid));
 	memcpy(&child_device_ctx->device_id, instance, sizeof(struct hv_guid));
 
-	DPRINT_EXIT(VMBUS_DRV);
-
 	return child_device_obj;
 }
 
@@ -563,8 +539,6 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
 	struct vm_device *child_device_ctx =
 				to_vm_device(child_device_obj);
 	static atomic_t device_num = ATOMIC_INIT(0);
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	DPRINT_DBG(VMBUS_DRV, "child device (%p) registering",
 		   child_device_ctx);
@@ -594,8 +568,6 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
 		DPRINT_INFO(VMBUS_DRV, "child device (%p) registered",
 			    &child_device_ctx->device);
 
-	DPRINT_EXIT(VMBUS_DRV);
-
 	return ret;
 }
 
@@ -606,8 +578,6 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
 static void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
 	struct vm_device *device_ctx = to_vm_device(device_obj);
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	DPRINT_INFO(VMBUS_DRV, "unregistering child device (%p)",
 		    &device_ctx->device);
@@ -620,8 +590,6 @@ static void vmbus_child_device_unregister(struct hv_device *device_obj)
 
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
 		    &device_ctx->device);
-
-	DPRINT_EXIT(VMBUS_DRV);
 }
 
 /*
@@ -629,9 +597,6 @@ static void vmbus_child_device_unregister(struct hv_device *device_obj)
  */
 static void vmbus_child_device_destroy(struct hv_device *device_obj)
 {
-	DPRINT_ENTER(VMBUS_DRV);
-
-	DPRINT_EXIT(VMBUS_DRV);
 }
 
 /*
@@ -645,8 +610,6 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct vm_device *device_ctx = device_to_vm_device(device);
 	int ret;
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	DPRINT_INFO(VMBUS_DRV, "generating uevent - VMBUS_DEVICE_CLASS_GUID={"
 		    "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
@@ -708,8 +671,6 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	if (ret)
 		return ret;
 
-	DPRINT_EXIT(VMBUS_DRV);
-
 	return 0;
 }
 
@@ -721,8 +682,6 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	int match = 0;
 	struct driver_context *driver_ctx = driver_to_driver_context(driver);
 	struct vm_device *device_ctx = device_to_vm_device(device);
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	/* We found our driver ? */
 	if (memcmp(&device_ctx->class_id, &driver_ctx->class_id,
@@ -742,9 +701,6 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 
 		match = 1;
 	}
-
-	DPRINT_EXIT(VMBUS_DRV);
-
 	return match;
 }
 
@@ -759,8 +715,6 @@ static void vmbus_probe_failed_cb(struct work_struct *context)
 {
 	struct vm_device *device_ctx = (struct vm_device *)context;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/*
 	 * Kick off the process of unregistering the device.
 	 * This will call vmbus_remove() and eventually vmbus_device_release()
@@ -768,7 +722,6 @@ static void vmbus_probe_failed_cb(struct work_struct *context)
 	device_unregister(&device_ctx->device);
 
 	/* put_device(&device_ctx->device); */
-	DPRINT_EXIT(VMBUS_DRV);
 }
 
 /*
@@ -781,8 +734,6 @@ static int vmbus_probe(struct device *child_device)
 			driver_to_driver_context(child_device->driver);
 	struct vm_device *device_ctx =
 			device_to_vm_device(child_device);
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	/* Let the specific open-source driver handles the probe if it can */
 	if (driver_ctx->probe) {
@@ -802,8 +753,6 @@ static int vmbus_probe(struct device *child_device)
 			   child_device->driver->name);
 		ret = -1;
 	}
-
-	DPRINT_EXIT(VMBUS_DRV);
 	return ret;
 }
 
@@ -815,15 +764,12 @@ static int vmbus_remove(struct device *child_device)
 	int ret;
 	struct driver_context *driver_ctx;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/* Special case root bus device */
 	if (child_device->parent == NULL) {
 		/*
 		 * No-op since it is statically defined and handle in
 		 * vmbus_bus_exit()
 		 */
-		DPRINT_EXIT(VMBUS_DRV);
 		return 0;
 	}
 
@@ -844,8 +790,6 @@ static int vmbus_remove(struct device *child_device)
 		}
 	}
 
-	DPRINT_EXIT(VMBUS_DRV);
-
 	return 0;
 }
 
@@ -856,31 +800,24 @@ static void vmbus_shutdown(struct device *child_device)
 {
 	struct driver_context *driver_ctx;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/* Special case root bus device */
 	if (child_device->parent == NULL) {
 		/*
 		 * No-op since it is statically defined and handle in
 		 * vmbus_bus_exit()
 		 */
-		DPRINT_EXIT(VMBUS_DRV);
 		return;
 	}
 
 	/* The device may not be attached yet */
-	if (!child_device->driver) {
-		DPRINT_EXIT(VMBUS_DRV);
+	if (!child_device->driver)
 		return;
-	}
 
 	driver_ctx = driver_to_driver_context(child_device->driver);
 
 	/* Let the specific open-source driver handles the removal if it can */
 	if (driver_ctx->shutdown)
 		driver_ctx->shutdown(child_device);
-
-	DPRINT_EXIT(VMBUS_DRV);
 
 	return;
 }
@@ -890,13 +827,11 @@ static void vmbus_shutdown(struct device *child_device)
  */
 static void vmbus_bus_release(struct device *device)
 {
-	DPRINT_ENTER(VMBUS_DRV);
 	/* FIXME */
 	/* Empty release functions are a bug, or a major sign
 	 * of a problem design, this MUST BE FIXED! */
 	dev_err(device, "%s needs to be fixed!\n", __func__);
 	WARN_ON(1);
-	DPRINT_EXIT(VMBUS_DRV);
 }
 
 /*
@@ -906,15 +841,10 @@ static void vmbus_device_release(struct device *device)
 {
 	struct vm_device *device_ctx = device_to_vm_device(device);
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/* vmbus_child_device_destroy(&device_ctx->device_obj); */
 	kfree(device_ctx);
 
 	/* !!DO NOT REFERENCE device_ctx anymore at this point!! */
-	DPRINT_EXIT(VMBUS_DRV);
-
-	return;
 }
 
 /*
@@ -924,14 +854,10 @@ static void vmbus_msg_dpc(unsigned long data)
 {
 	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/* ASSERT(vmbus_drv_obj->OnMsgDpc != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	vmbus_drv_obj->OnMsgDpc(&vmbus_drv_obj->Base);
-
-	DPRINT_EXIT(VMBUS_DRV);
 }
 
 /*
@@ -941,22 +867,16 @@ static void vmbus_event_dpc(unsigned long data)
 {
 	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
 
-	DPRINT_ENTER(VMBUS_DRV);
-
 	/* ASSERT(vmbus_drv_obj->OnEventDpc != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	vmbus_drv_obj->OnEventDpc(&vmbus_drv_obj->Base);
-
-	DPRINT_EXIT(VMBUS_DRV);
 }
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {
 	struct vmbus_driver *vmbus_driver_obj = &g_vmbus_drv.drv_obj;
 	int ret;
-
-	DPRINT_ENTER(VMBUS_DRV);
 
 	/* ASSERT(vmbus_driver_obj->OnIsr != NULL); */
 
@@ -971,10 +891,8 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 		if (test_bit(1, (unsigned long *)&ret))
 			tasklet_schedule(&g_vmbus_drv.event_dpc);
 
-		DPRINT_EXIT(VMBUS_DRV);
 		return IRQ_HANDLED;
 	} else {
-		DPRINT_EXIT(VMBUS_DRV);
 		return IRQ_NONE;
 	}
 }
@@ -994,10 +912,6 @@ MODULE_DEVICE_TABLE(dmi, microsoft_hv_dmi_table);
 
 static int __init vmbus_init(void)
 {
-	int ret = 0;
-
-	DPRINT_ENTER(VMBUS_DRV);
-
 	DPRINT_INFO(VMBUS_DRV,
 		"Vmbus initializing.... current log level 0x%x (%x,%x)",
 		vmbus_loglevel, HIWORD(vmbus_loglevel), LOWORD(vmbus_loglevel));
@@ -1006,20 +920,13 @@ static int __init vmbus_init(void)
 	if (!dmi_check_system(microsoft_hv_dmi_table))
 		return -ENODEV;
 
-	ret = vmbus_bus_init(VmbusInitialize);
-
-	DPRINT_EXIT(VMBUS_DRV);
-	return ret;
+	return vmbus_bus_init(VmbusInitialize);
 }
 
 static void __exit vmbus_exit(void)
 {
-	DPRINT_ENTER(VMBUS_DRV);
-
 	vmbus_bus_exit();
 	/* Todo: it is used for loglevel, to be ported to new kernel. */
-	DPRINT_EXIT(VMBUS_DRV);
-	return;
 }
 
 /*
@@ -1028,7 +935,7 @@ static void __exit vmbus_exit(void)
  * installed and/or configured.  We don't do anything else with the table, but
  * it needs to be present.
  */
-const static struct pci_device_id microsoft_hv_pci_table[] = {
+static const struct pci_device_id microsoft_hv_pci_table[] = {
 	{ PCI_DEVICE(0x1414, 0x5353) },	/* VGA compatible controller */
 	{ 0 }
 };

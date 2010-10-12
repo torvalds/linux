@@ -135,7 +135,7 @@ static int __init init_legacy(void)
 	struct pci_dev *pdev = NULL;
 
 	/* Add existing devices */
-	while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)))
+	for_each_pci_dev(pdev)
 		legacy_add_slot(pdev);
 
 	/* Be alerted of any new ones */

@@ -79,7 +79,8 @@ BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
         for (ii = 0; ii < DUPLICATE_RX_CACHE_LENGTH; ii++) {
             pCacheEntry = &(pCache->asCacheEntry[uIndex]);
             if ((pCacheEntry->wFmSequence == pMACHeader->wSeqCtl) &&
-                (IS_ETH_ADDRESS_EQUAL (&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0]))) &&
+		(!compare_ether_addr(&(pCacheEntry->abyAddr2[0]),
+				     &(pMACHeader->abyAddr2[0]))) &&
                 (LOBYTE(pCacheEntry->wFrameCtl) == LOBYTE(pMACHeader->wFrameCtl))
                 ) {
                 /* Duplicate match */
@@ -111,21 +112,20 @@ BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
  * Return Value: index number in Defragment Database
  *
  */
+
 unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 {
 	unsigned int ii;
 
-    for(ii=0;ii<pDevice->cbDFCB;ii++) {
-        if ((pDevice->sRxDFCB[ii].bInUse == TRUE) &&
-            (IS_ETH_ADDRESS_EQUAL (&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
-            ) {
-            //
-            return(ii);
-        }
-    }
-    return(pDevice->cbDFCB);
+	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
+		if ((pDevice->sRxDFCB[ii].bInUse == TRUE) &&
+		    (!compare_ether_addr(&(pDevice->sRxDFCB[ii].abyAddr2[0]),
+					  &(pMACHeader->abyAddr2[0])))) {
+			return ii;
+		}
+	}
+	return pDevice->cbDFCB;
 }
-
 
 /*
  * Description:
@@ -147,7 +147,7 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 
     if (pDevice->cbFreeDFCB == 0)
         return(pDevice->cbDFCB);
-    for(ii=0;ii<pDevice->cbDFCB;ii++) {
+    for (ii = 0; ii < pDevice->cbDFCB; ii++) {
         if (pDevice->sRxDFCB[ii].bInUse == FALSE) {
             pDevice->cbFreeDFCB--;
             pDevice->sRxDFCB[ii].uLifetime = pDevice->dwMaxReceiveLifetime;

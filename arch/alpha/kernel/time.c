@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/bcd.h>
 #include <linux/profile.h>
+#include <linux/perf_event.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -81,6 +82,26 @@ static struct {
 } state;
 
 unsigned long est_cycle_freq;
+
+#ifdef CONFIG_PERF_EVENTS
+
+DEFINE_PER_CPU(u8, perf_event_pending);
+
+#define set_perf_event_pending_flag()  __get_cpu_var(perf_event_pending) = 1
+#define test_perf_event_pending()      __get_cpu_var(perf_event_pending)
+#define clear_perf_event_pending()     __get_cpu_var(perf_event_pending) = 0
+
+void set_perf_event_pending(void)
+{
+	set_perf_event_pending_flag();
+}
+
+#else  /* CONFIG_PERF_EVENTS */
+
+#define test_perf_event_pending()      0
+#define clear_perf_event_pending()
+
+#endif /* CONFIG_PERF_EVENTS */
 
 
 static inline __u32 rpcc(void)
@@ -174,6 +195,11 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 	while (nticks--)
 		update_process_times(user_mode(get_irq_regs()));
 #endif
+
+	if (test_perf_event_pending()) {
+		clear_perf_event_pending();
+		perf_event_do_pending();
+	}
 
 	return IRQ_HANDLED;
 }

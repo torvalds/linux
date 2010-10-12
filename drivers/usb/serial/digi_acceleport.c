@@ -609,8 +609,10 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 static void digi_wakeup_write(struct usb_serial_port *port)
 {
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
 }
 
 
@@ -1682,7 +1684,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		priv->dp_throttle_restart = 1;
 
 	/* receive data */
-	if (opcode == DIGI_CMD_RECEIVE_DATA) {
+	if (tty && opcode == DIGI_CMD_RECEIVE_DATA) {
 		/* get flag from port_status */
 		flag = 0;
 
@@ -1763,10 +1765,12 @@ static int digi_read_oob_callback(struct urb *urb)
 			return -1;
 
 		tty = tty_port_tty_get(&port->port);
+
 		rts = 0;
-		rts = tty->termios->c_cflag & CRTSCTS;
+		if (tty)
+			rts = tty->termios->c_cflag & CRTSCTS;
 		
-		if (opcode == DIGI_CMD_READ_INPUT_SIGNALS) {
+		if (tty && opcode == DIGI_CMD_READ_INPUT_SIGNALS) {
 			spin_lock(&priv->dp_port_lock);
 			/* convert from digi flags to termiox flags */
 			if (val & DIGI_READ_INPUT_SIGNALS_CTS) {

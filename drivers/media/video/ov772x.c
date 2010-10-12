@@ -440,21 +440,21 @@ static const struct regval_list ov772x_vga_regs[] = {
  */
 static const struct ov772x_color_format ov772x_cfmts[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8_LE,
+		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.dsp3		= 0x0,
 		.com3		= SWAP_YUV,
 		.com7		= OFMT_YUV,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8_LE,
+		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.dsp3		= UV_ON,
 		.com3		= SWAP_YUV,
 		.com7		= OFMT_YUV,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8_BE,
+		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.dsp3		= 0x0,
 		.com3		= 0x0,
@@ -960,7 +960,7 @@ static int ov772x_g_fmt(struct v4l2_subdev *sd,
 	if (!priv->win || !priv->cfmt) {
 		u32 width = VGA_WIDTH, height = VGA_HEIGHT;
 		int ret = ov772x_set_params(client, &width, &height,
-					    V4L2_MBUS_FMT_YUYV8_2X8_LE);
+					    V4L2_MBUS_FMT_YUYV8_2X8);
 		if (ret < 0)
 			return ret;
 	}

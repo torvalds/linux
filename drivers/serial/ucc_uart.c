@@ -1194,7 +1194,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
-static int ucc_uart_probe(struct of_device *ofdev,
+static int ucc_uart_probe(struct platform_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -1462,7 +1462,7 @@ static int ucc_uart_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int ucc_uart_remove(struct of_device *ofdev)
+static int ucc_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_qe_port *qe_port = dev_get_drvdata(&ofdev->dev);
 

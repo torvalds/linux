@@ -208,6 +208,39 @@ enum {
 	QLCNIC_HW_PX_MAP_CRB_PGR0
 };
 
+#define	BIT_0	0x1
+#define	BIT_1	0x2
+#define	BIT_2	0x4
+#define	BIT_3	0x8
+#define	BIT_4	0x10
+#define	BIT_5	0x20
+#define	BIT_6	0x40
+#define	BIT_7	0x80
+#define	BIT_8	0x100
+#define	BIT_9	0x200
+#define	BIT_10	0x400
+#define	BIT_11	0x800
+#define	BIT_12	0x1000
+#define	BIT_13	0x2000
+#define	BIT_14	0x4000
+#define	BIT_15	0x8000
+#define	BIT_16	0x10000
+#define	BIT_17	0x20000
+#define	BIT_18	0x40000
+#define	BIT_19	0x80000
+#define	BIT_20	0x100000
+#define	BIT_21	0x200000
+#define	BIT_22	0x400000
+#define	BIT_23	0x800000
+#define	BIT_24	0x1000000
+#define	BIT_25	0x2000000
+#define	BIT_26	0x4000000
+#define	BIT_27	0x8000000
+#define	BIT_28	0x10000000
+#define	BIT_29	0x20000000
+#define	BIT_30	0x40000000
+#define	BIT_31	0x80000000
+
 /*  This field defines CRB adr [31:20] of the agents */
 
 #define QLCNIC_HW_CRB_HUB_AGT_ADR_MN	\
@@ -668,10 +701,11 @@ enum {
 #define QLCNIC_CRB_DEV_REF_COUNT	(QLCNIC_CAM_RAM(0x138))
 #define QLCNIC_CRB_DEV_STATE		(QLCNIC_CAM_RAM(0x140))
 
-#define QLCNIC_CRB_DRV_STATE               (QLCNIC_CAM_RAM(0x144))
-#define QLCNIC_CRB_DRV_SCRATCH             (QLCNIC_CAM_RAM(0x148))
-#define QLCNIC_CRB_DEV_PARTITION_INFO      (QLCNIC_CAM_RAM(0x14c))
+#define QLCNIC_CRB_DRV_STATE		(QLCNIC_CAM_RAM(0x144))
+#define QLCNIC_CRB_DRV_SCRATCH		(QLCNIC_CAM_RAM(0x148))
+#define QLCNIC_CRB_DEV_PARTITION_INFO	(QLCNIC_CAM_RAM(0x14c))
 #define QLCNIC_CRB_DRV_IDC_VER		(QLCNIC_CAM_RAM(0x174))
+#define QLCNIC_CRB_DEV_NPAR_STATE	(QLCNIC_CAM_RAM(0x19c))
 #define QLCNIC_ROM_DEV_INIT_TIMEOUT	(0x3e885c)
 #define QLCNIC_ROM_DRV_RESET_TIMEOUT	(0x3e8860)
 
@@ -684,15 +718,26 @@ enum {
 #define QLCNIC_DEV_FAILED		0x6
 #define QLCNIC_DEV_QUISCENT		0x7
 
+#define QLCNIC_DEV_NPAR_NOT_RDY	0
+#define QLCNIC_DEV_NPAR_RDY		1
+
+#define QLC_DEV_CHECK_ACTIVE(VAL, FN)		((VAL) &= (1 << (FN * 4)))
 #define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))
 #define QLC_DEV_CLR_REF_CNT(VAL, FN)		((VAL) &= ~(1 << (FN * 4)))
 #define QLC_DEV_SET_RST_RDY(VAL, FN)		((VAL) |= (1 << (FN * 4)))
 #define QLC_DEV_SET_QSCNT_RDY(VAL, FN)		((VAL) |= (2 << (FN * 4)))
 #define QLC_DEV_CLR_RST_QSCNT(VAL, FN)		((VAL) &= ~(3 << (FN * 4)))
 
+#define QLC_DEV_GET_DRV(VAL, FN)		(0xf & ((VAL) >> (FN * 4)))
+#define QLC_DEV_SET_DRV(VAL, FN)		((VAL) << (FN * 4))
+
+#define QLCNIC_TYPE_NIC		1
+#define QLCNIC_TYPE_FCOE		2
+#define QLCNIC_TYPE_ISCSI		3
+
 #define QLCNIC_RCODE_DRIVER_INFO		0x20000000
-#define QLCNIC_RCODE_DRIVER_CAN_RELOAD		0x40000000
-#define QLCNIC_RCODE_FATAL_ERROR		0x80000000
+#define QLCNIC_RCODE_DRIVER_CAN_RELOAD		BIT_30
+#define QLCNIC_RCODE_FATAL_ERROR		BIT_31
 #define QLCNIC_FWERROR_PEGNUM(code)		((code) & 0xff)
 #define QLCNIC_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
 
@@ -720,6 +765,29 @@ struct qlcnic_legacy_intr_set {
 	u32	tgt_mask_reg;
 	u32	pci_int_reg;
 };
+
+#define QLCNIC_FW_API		0x1b216c
+#define QLCNIC_DRV_OP_MODE	0x1b2170
+#define QLCNIC_MSIX_BASE	0x132110
+#define QLCNIC_MAX_PCI_FUNC	8
+
+/* PCI function operational mode */
+enum {
+	QLCNIC_MGMT_FUNC	= 0,
+	QLCNIC_PRIV_FUNC	= 1,
+	QLCNIC_NON_PRIV_FUNC	= 2
+};
+
+#define QLC_DEV_DRV_DEFAULT 0x11111111
+
+#define LSB(x)	((uint8_t)(x))
+#define MSB(x)	((uint8_t)((uint16_t)(x) >> 8))
+
+#define LSW(x)  ((uint16_t)((uint32_t)(x)))
+#define MSW(x)  ((uint16_t)((uint32_t)(x) >> 16))
+
+#define LSD(x)  ((uint32_t)((uint64_t)(x)))
+#define MSD(x)  ((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
 
 #define	QLCNIC_LEGACY_INTR_CONFIG					\
 {									\

@@ -852,7 +852,7 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	 */
 	cpm_set_smc_fcr(up);
 
-	/* Using idle charater time requires some additional tuning.  */
+	/* Using idle character time requires some additional tuning.  */
 	out_be16(&up->smc_mrblr, pinfo->rx_fifosize);
 	out_be16(&up->smc_maxidl, pinfo->rx_fifosize);
 	out_be16(&up->smc_brklen, 0);
@@ -1340,7 +1340,7 @@ static struct uart_driver cpm_reg = {
 
 static int probe_index;
 
-static int __devinit cpm_uart_probe(struct of_device *ofdev,
+static int __devinit cpm_uart_probe(struct platform_device *ofdev,
                                     const struct of_device_id *match)
 {
 	int index = probe_index++;
@@ -1364,7 +1364,7 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 	return uart_add_one_port(&cpm_reg, &pinfo->port);
 }
 
-static int __devexit cpm_uart_remove(struct of_device *ofdev)
+static int __devexit cpm_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_cpm_port *pinfo = dev_get_drvdata(&ofdev->dev);
 	return uart_remove_one_port(&cpm_reg, &pinfo->port);

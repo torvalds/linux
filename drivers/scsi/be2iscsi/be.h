@@ -128,8 +128,8 @@ struct be_ctrl_info {
 #define mcc_timeout		120000 /* 5s timeout */
 
 /* Returns number of pages spanned by the data starting at the given addr */
-#define PAGES_4K_SPANNED(_address, size) 				\
-		((u32)((((size_t)(_address) & (PAGE_SIZE_4K - 1)) + 	\
+#define PAGES_4K_SPANNED(_address, size)				\
+		((u32)((((size_t)(_address) & (PAGE_SIZE_4K - 1)) +	\
 			(size) + (PAGE_SIZE_4K - 1)) >> PAGE_SHIFT_4K))
 
 /* Byte offset into the page corresponding to given address */
@@ -137,7 +137,7 @@ struct be_ctrl_info {
 		((size_t)(addr) & (PAGE_SIZE_4K-1))
 
 /* Returns bit offset within a DWORD of a bitfield */
-#define AMAP_BIT_OFFSET(_struct, field)  				\
+#define AMAP_BIT_OFFSET(_struct, field)					\
 		(((size_t)&(((_struct *)0)->field))%32)
 
 /* Returns the bit mask of the field that is NOT shifted into location. */

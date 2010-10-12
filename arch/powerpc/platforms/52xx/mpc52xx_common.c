@@ -12,9 +12,11 @@
 
 #undef DEBUG
 
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/of_platform.h>
+#include <linux/of_gpio.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
@@ -82,6 +84,14 @@ mpc5200_setup_xlb_arbiter(void)
 	iounmap(xlb);
 }
 
+/*
+ * This variable is mapped in mpc52xx_map_common_devices and
+ * used in mpc5200_psc_ac97_gpio_reset().
+ */
+static DEFINE_SPINLOCK(gpio_lock);
+struct mpc52xx_gpio __iomem *simple_gpio;
+struct mpc52xx_gpio_wkup __iomem *wkup_gpio;
+
 /**
  * mpc52xx_declare_of_platform_devices: register internal devices and children
  *					of the localplus bus to the of_platform
@@ -109,6 +119,15 @@ static struct of_device_id mpc52xx_cdm_ids[] __initdata = {
 	{ .compatible = "mpc5200-cdm", }, /* old */
 	{}
 };
+static const struct of_device_id mpc52xx_gpio_simple[] = {
+	{ .compatible = "fsl,mpc5200-gpio", },
+	{}
+};
+static const struct of_device_id mpc52xx_gpio_wkup[] = {
+	{ .compatible = "fsl,mpc5200-gpio-wkup", },
+	{}
+};
+
 
 /**
  * mpc52xx_map_common_devices: iomap devices required by common code
@@ -134,6 +153,16 @@ mpc52xx_map_common_devices(void)
 	/* Clock Distribution Module, used by PSC clock setting function */
 	np = of_find_matching_node(NULL, mpc52xx_cdm_ids);
 	mpc52xx_cdm = of_iomap(np, 0);
+	of_node_put(np);
+
+	/* simple_gpio registers */
+	np = of_find_matching_node(NULL, mpc52xx_gpio_simple);
+	simple_gpio = of_iomap(np, 0);
+	of_node_put(np);
+
+	/* wkup_gpio registers */
+	np = of_find_matching_node(NULL, mpc52xx_gpio_wkup);
+	wkup_gpio = of_iomap(np, 0);
 	of_node_put(np);
 }
 
@@ -233,3 +262,80 @@ mpc52xx_restart(char *cmd)
 
 	while (1);
 }
+
+#define PSC1_RESET     0x1
+#define PSC1_SYNC      0x4
+#define PSC1_SDATA_OUT 0x1
+#define PSC2_RESET     0x2
+#define PSC2_SYNC      (0x4<<4)
+#define PSC2_SDATA_OUT (0x1<<4)
+#define MPC52xx_GPIO_PSC1_MASK 0x7
+#define MPC52xx_GPIO_PSC2_MASK (0x7<<4)
+
+/**
+ * mpc5200_psc_ac97_gpio_reset: Use gpio pins to reset the ac97 bus
+ *
+ * @psc: psc number to reset (only psc 1 and 2 support ac97)
+ */
+int mpc5200_psc_ac97_gpio_reset(int psc_number)
+{
+	unsigned long flags;
+	u32 gpio;
+	u32 mux;
+	int out;
+	int reset;
+	int sync;
+
+	if ((!simple_gpio) || (!wkup_gpio))
+		return -ENODEV;
+
+	switch (psc_number) {
+	case 0:
+		reset   = PSC1_RESET;           /* AC97_1_RES */
+		sync    = PSC1_SYNC;            /* AC97_1_SYNC */
+		out     = PSC1_SDATA_OUT;       /* AC97_1_SDATA_OUT */
+		gpio    = MPC52xx_GPIO_PSC1_MASK;
+		break;
+	case 1:
+		reset   = PSC2_RESET;           /* AC97_2_RES */
+		sync    = PSC2_SYNC;            /* AC97_2_SYNC */
+		out     = PSC2_SDATA_OUT;       /* AC97_2_SDATA_OUT */
+		gpio    = MPC52xx_GPIO_PSC2_MASK;
+		break;
+	default:
+		pr_err(__FILE__ ": Unable to determine PSC, no ac97 "
+		       "cold-reset will be performed\n");
+		return -ENODEV;
+	}
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	/* Reconfiure pin-muxing to gpio */
+	mux = in_be32(&simple_gpio->port_config);
+	out_be32(&simple_gpio->port_config, mux & (~gpio));
+
+	/* enable gpio pins for output */
+	setbits8(&wkup_gpio->wkup_gpioe, reset);
+	setbits32(&simple_gpio->simple_gpioe, sync | out);
+
+	setbits8(&wkup_gpio->wkup_ddr, reset);
+	setbits32(&simple_gpio->simple_ddr, sync | out);
+
+	/* Assert cold reset */
+	clrbits32(&simple_gpio->simple_dvo, sync | out);
+	clrbits8(&wkup_gpio->wkup_dvo, reset);
+
+	/* wait at lease 1 us */
+	udelay(2);
+
+	/* Deassert reset */
+	setbits8(&wkup_gpio->wkup_dvo, reset);
+
+	/* Restore pin-muxing */
+	out_be32(&simple_gpio->port_config, mux);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(mpc5200_psc_ac97_gpio_reset);

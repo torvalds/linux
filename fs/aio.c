@@ -1277,7 +1277,7 @@ out:
 /* sys_io_destroy:
  *	Destroy the aio_context specified.  May cancel any outstanding 
  *	AIOs and block on completion.  Will fail with -ENOSYS if not
- *	implemented.  May fail with -EFAULT if the context pointed to
+ *	implemented.  May fail with -EINVAL if the context pointed to
  *	is invalid.
  */
 SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
@@ -1795,15 +1795,16 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 
 /* io_getevents:
  *	Attempts to read at least min_nr events and up to nr events from
- *	the completion queue for the aio_context specified by ctx_id.  May
- *	fail with -EINVAL if ctx_id is invalid, if min_nr is out of range,
- *	if nr is out of range, if when is out of range.  May fail with
- *	-EFAULT if any of the memory specified to is invalid.  May return
- *	0 or < min_nr if no events are available and the timeout specified
- *	by when	has elapsed, where when == NULL specifies an infinite
- *	timeout.  Note that the timeout pointed to by when is relative and
- *	will be updated if not NULL and the operation blocks.  Will fail
- *	with -ENOSYS if not implemented.
+ *	the completion queue for the aio_context specified by ctx_id. If
+ *	it succeeds, the number of read events is returned. May fail with
+ *	-EINVAL if ctx_id is invalid, if min_nr is out of range, if nr is
+ *	out of range, if timeout is out of range.  May fail with -EFAULT
+ *	if any of the memory specified is invalid.  May return 0 or
+ *	< min_nr if the timeout specified by timeout has elapsed
+ *	before sufficient events are available, where timeout == NULL
+ *	specifies an infinite timeout. Note that the timeout pointed to by
+ *	timeout is relative and will be updated if not NULL and the
+ *	operation blocks. Will fail with -ENOSYS if not implemented.
  */
 SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 		long, min_nr,

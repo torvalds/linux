@@ -2001,27 +2001,26 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	if (++adapter->tx_timeo_cnt >= NX_MAX_TX_TIMEOUTS)
 		goto request_reset;
 
+	rtnl_lock();
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		/* try to scrub interrupt */
 		netxen_napi_disable(adapter);
-
-		adapter->netdev->trans_start = jiffies;
 
 		netxen_napi_enable(adapter);
 
 		netif_wake_queue(adapter->netdev);
 
 		clear_bit(__NX_RESETTING, &adapter->state);
-		return;
 	} else {
 		clear_bit(__NX_RESETTING, &adapter->state);
-		if (!netxen_nic_reset_context(adapter)) {
-			adapter->netdev->trans_start = jiffies;
-			return;
+		if (netxen_nic_reset_context(adapter)) {
+			rtnl_unlock();
+			goto request_reset;
 		}
-
-		/* context reset failed, fall through for fw reset */
 	}
+	adapter->netdev->trans_start = jiffies;
+	rtnl_unlock();
+	return;
 
 request_reset:
 	adapter->need_fw_reset = 1;

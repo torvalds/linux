@@ -6,7 +6,7 @@ struct tx_radiotap_hdr {
 	u8 txpower;
 	u8 rts_retries;
 	u8 data_retries;
-} __attribute__ ((packed));
+} __packed;
 
 #define TX_RADIOTAP_PRESENT (				\
 	(1 << IEEE80211_RADIOTAP_RATE) |		\
@@ -34,7 +34,7 @@ struct rx_radiotap_hdr {
 	u8 flags;
 	u8 rate;
 	u8 antsignal;
-} __attribute__ ((packed));
+} __packed;
 
 #define RX_RADIOTAP_PRESENT (			\
 	(1 << IEEE80211_RADIOTAP_FLAGS) |	\

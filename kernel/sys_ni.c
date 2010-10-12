@@ -181,3 +181,7 @@ cond_syscall(sys_eventfd2);
 
 /* performance counters: */
 cond_syscall(sys_perf_event_open);
+
+/* fanotify! */
+cond_syscall(sys_fanotify_init);
+cond_syscall(sys_fanotify_mark);

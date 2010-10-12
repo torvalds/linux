@@ -59,7 +59,7 @@ int mac_partition(struct parsed_partitions *state)
 		put_dev_sector(sect);
 		return 0;		/* not a MacOS disk */
 	}
-	printk(" [mac]");
+	strlcat(state->pp_buf, " [mac]", PAGE_SIZE);
 	blocks_in_map = be32_to_cpu(part->map_count);
 	for (blk = 1; blk <= blocks_in_map; ++blk) {
 		int pos = blk * secsize;
@@ -128,6 +128,6 @@ int mac_partition(struct parsed_partitions *state)
 #endif
 
 	put_dev_sector(sect);
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	return 1;
 }

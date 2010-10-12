@@ -441,7 +441,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			return (AE_OK);
 		}
 
-		acpi_os_printf("(R%d)", obj_desc->common.reference_count);
+		acpi_os_printf("(R%u)", obj_desc->common.reference_count);
 
 		switch (type) {
 		case ACPI_TYPE_METHOD:

@@ -142,7 +142,6 @@ struct siena_nic_data {
 	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
-	u8 ipv6_rss_key[40];
 };
 
 extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
@@ -190,8 +189,8 @@ extern int efx_nic_rx_xoff_thresh, efx_nic_rx_xon_thresh;
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_generate_test_event(struct efx_channel *channel,
-					unsigned int magic);
+extern void efx_nic_generate_test_event(struct efx_channel *channel);
+extern void efx_nic_generate_fill_event(struct efx_channel *channel);
 extern void efx_nic_generate_interrupt(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
@@ -208,6 +207,7 @@ extern void falcon_stop_nic_stats(struct efx_nic *efx);
 extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 extern void efx_nic_init_common(struct efx_nic *efx);
+extern void efx_nic_push_rx_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len);
@@ -221,6 +221,9 @@ struct efx_nic_register_test {
 extern int efx_nic_test_registers(struct efx_nic *efx,
 				  const struct efx_nic_register_test *regs,
 				  size_t n_regs);
+
+extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
+extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 
 /**************************************************************************
  *

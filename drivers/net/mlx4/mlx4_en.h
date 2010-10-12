@@ -52,39 +52,7 @@
 #define DRV_VERSION	"1.4.1.1"
 #define DRV_RELDATE	"June 2009"
 
-
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
-
-#define en_print(level, priv, format, arg...)			\
-	{							\
-	if ((priv)->registered)					\
-		printk(level "%s: %s: " format, DRV_NAME,	\
-			(priv->dev)->name, ## arg);		\
-	else							\
-		printk(level "%s: %s: Port %d: " format,	\
-			DRV_NAME, dev_name(&priv->mdev->pdev->dev), \
-			(priv)->port, ## arg);			\
-	}
-
-#define en_dbg(mlevel, priv, format, arg...)			\
-	{							\
-	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
-		en_print(KERN_DEBUG, priv, format, ## arg)	\
-	}
-#define en_warn(priv, format, arg...)				\
-	en_print(KERN_WARNING, priv, format, ## arg)
-#define en_err(priv, format, arg...)				\
-	en_print(KERN_ERR, priv, format, ## arg)
-
-#define mlx4_err(mdev, format, arg...) \
-	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-#define mlx4_info(mdev, format, arg...) \
-	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-#define mlx4_warn(mdev, format, arg...) \
-	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
 
 /*
  * Device constants
@@ -568,4 +536,34 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset);
  * Globals
  */
 extern const struct ethtool_ops mlx4_en_ethtool_ops;
+
+
+
+/*
+ * printk / logging functions
+ */
+
+int en_print(const char *level, const struct mlx4_en_priv *priv,
+	     const char *format, ...) __attribute__ ((format (printf, 3, 4)));
+
+#define en_dbg(mlevel, priv, format, arg...)			\
+do {								\
+	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
+		en_print(KERN_DEBUG, priv, format, ##arg);	\
+} while (0)
+#define en_warn(priv, format, arg...)			\
+	en_print(KERN_WARNING, priv, format, ##arg)
+#define en_err(priv, format, arg...)			\
+	en_print(KERN_ERR, priv, format, ##arg)
+
+#define mlx4_err(mdev, format, arg...)			\
+	pr_err("%s %s: " format, DRV_NAME,		\
+	       dev_name(&mdev->pdev->dev), ##arg)
+#define mlx4_info(mdev, format, arg...)			\
+	pr_info("%s %s: " format, DRV_NAME,		\
+		dev_name(&mdev->pdev->dev), ##arg)
+#define mlx4_warn(mdev, format, arg...)			\
+	pr_warning("%s %s: " format, DRV_NAME,		\
+		   dev_name(&mdev->pdev->dev), ##arg)
+
 #endif

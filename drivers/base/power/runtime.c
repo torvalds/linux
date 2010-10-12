@@ -123,6 +123,45 @@ int pm_runtime_idle(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pm_runtime_idle);
 
+
+/**
+ * update_pm_runtime_accounting - Update the time accounting of power states
+ * @dev: Device to update the accounting for
+ *
+ * In order to be able to have time accounting of the various power states
+ * (as used by programs such as PowerTOP to show the effectiveness of runtime
+ * PM), we need to track the time spent in each state.
+ * update_pm_runtime_accounting must be called each time before the
+ * runtime_status field is updated, to account the time in the old state
+ * correctly.
+ */
+void update_pm_runtime_accounting(struct device *dev)
+{
+	unsigned long now = jiffies;
+	int delta;
+
+	delta = now - dev->power.accounting_timestamp;
+
+	if (delta < 0)
+		delta = 0;
+
+	dev->power.accounting_timestamp = now;
+
+	if (dev->power.disable_depth > 0)
+		return;
+
+	if (dev->power.runtime_status == RPM_SUSPENDED)
+		dev->power.suspended_jiffies += delta;
+	else
+		dev->power.active_jiffies += delta;
+}
+
+static void __update_runtime_status(struct device *dev, enum rpm_status status)
+{
+	update_pm_runtime_accounting(dev);
+	dev->power.runtime_status = status;
+}
+
 /**
  * __pm_runtime_suspend - Carry out run-time suspend of given device.
  * @dev: Device to suspend.
@@ -197,7 +236,7 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 		goto repeat;
 	}
 
-	dev->power.runtime_status = RPM_SUSPENDING;
+	__update_runtime_status(dev, RPM_SUSPENDING);
 	dev->power.deferred_resume = false;
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend) {
@@ -228,7 +267,7 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 	}
 
 	if (retval) {
-		dev->power.runtime_status = RPM_ACTIVE;
+		__update_runtime_status(dev, RPM_ACTIVE);
 		if (retval == -EAGAIN || retval == -EBUSY) {
 			if (dev->power.timer_expires == 0)
 				notify = true;
@@ -237,7 +276,7 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 			pm_runtime_cancel_pending(dev);
 		}
 	} else {
-		dev->power.runtime_status = RPM_SUSPENDED;
+		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_deactivate_timer(dev);
 
 		if (dev->parent) {
@@ -381,7 +420,7 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 		goto repeat;
 	}
 
-	dev->power.runtime_status = RPM_RESUMING;
+	__update_runtime_status(dev, RPM_RESUMING);
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_resume) {
 		spin_unlock_irq(&dev->power.lock);
@@ -411,10 +450,10 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 	}
 
 	if (retval) {
-		dev->power.runtime_status = RPM_SUSPENDED;
+		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_cancel_pending(dev);
 	} else {
-		dev->power.runtime_status = RPM_ACTIVE;
+		__update_runtime_status(dev, RPM_ACTIVE);
 		if (parent)
 			atomic_inc(&parent->power.child_count);
 	}
@@ -848,7 +887,7 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 	}
 
  out_set:
-	dev->power.runtime_status = status;
+	__update_runtime_status(dev, status);
 	dev->power.runtime_error = 0;
  out:
 	spin_unlock_irqrestore(&dev->power.lock, flags);
@@ -1077,6 +1116,7 @@ void pm_runtime_init(struct device *dev)
 	dev->power.request_pending = false;
 	dev->power.request = RPM_REQ_NONE;
 	dev->power.deferred_resume = false;
+	dev->power.accounting_timestamp = jiffies;
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;

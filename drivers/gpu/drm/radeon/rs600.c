@@ -686,8 +686,8 @@ void rs600_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
 	rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
@@ -696,7 +696,6 @@ void rs600_mc_init(struct radeon_device *rdev)
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	base = RREG32_MC(R_000004_MC_FB_LOCATION);
 	base = G_000004_MC_FB_START(base) << 16;
-	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	rdev->mc.gtt_base_align = 0;
 	radeon_gtt_location(rdev, &rdev->mc);
@@ -813,6 +812,13 @@ static int rs600_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing audio\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -839,6 +845,7 @@ int rs600_resume(struct radeon_device *rdev)
 
 int rs600_suspend(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -848,6 +855,7 @@ int rs600_suspend(struct radeon_device *rdev)
 
 void rs600_fini(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -871,6 +879,8 @@ int rs600_init(struct radeon_device *rdev)
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+	/* restore some register to sane defaults */
+	r100_restore_sanity(rdev);
 	/* BIOS */
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))

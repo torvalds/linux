@@ -143,8 +143,6 @@ struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
 	enum plane plane;
-	struct drm_gem_object *cursor_bo;
-	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
 	bool busy; /* is scanout buffer being updated frequently? */
@@ -153,6 +151,12 @@ struct intel_crtc {
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
 	int fdi_lanes;
+
+	struct drm_gem_object *cursor_bo;
+	uint32_t cursor_addr;
+	int16_t cursor_x, cursor_y;
+	int16_t cursor_width, cursor_height;
+	bool cursor_visble;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -179,6 +183,8 @@ extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
+extern bool intel_pch_has_edp(struct drm_crtc *crtc);
+extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
 
 

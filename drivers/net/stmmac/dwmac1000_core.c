@@ -220,6 +220,8 @@ struct mac_device_info *dwmac1000_setup(unsigned long ioaddr)
 		((uid & 0x0000ff00) >> 8), (uid & 0x000000ff));
 
 	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
+	if (!mac)
+		return NULL;
 
 	mac->mac = &dwmac1000_ops;
 	mac->dma = &dwmac1000_dma_ops;

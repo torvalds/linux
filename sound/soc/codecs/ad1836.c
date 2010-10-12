@@ -272,6 +272,7 @@ static int ad1836_register(struct ad1836_priv *ad1836)
 
 	if (ad1836_codec) {
 		dev_err(codec->dev, "Another ad1836 is registered\n");
+		kfree(ad1836);
 		return -EINVAL;
 	}
 

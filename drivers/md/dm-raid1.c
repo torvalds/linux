@@ -445,7 +445,7 @@ static sector_t map_sector(struct mirror *m, struct bio *bio)
 {
 	if (unlikely(!bio->bi_size))
 		return 0;
-	return m->offset + (bio->bi_sector - m->ms->ti->begin);
+	return m->offset + dm_target_offset(m->ms->ti, bio->bi_sector);
 }
 
 static void map_bio(struct mirror *m, struct bio *bio)
@@ -1211,7 +1211,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	if (error == -EOPNOTSUPP)
 		goto out;
 
-	if ((error == -EWOULDBLOCK) && bio_rw_flagged(bio, BIO_RW_AHEAD))
+	if ((error == -EWOULDBLOCK) && (bio->bi_rw & REQ_RAHEAD))
 		goto out;
 
 	if (unlikely(error)) {

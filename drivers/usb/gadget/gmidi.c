@@ -238,7 +238,7 @@ static const struct usb_interface_descriptor ac_interface_desc = {
 };
 
 /* B.3.2  Class-Specific AC Interface Descriptor */
-static const struct uac_ac_header_descriptor_v1_1 ac_header_desc = {
+static const struct uac1_ac_header_descriptor_1 ac_header_desc = {
 	.bLength =		UAC_DT_AC_HEADER_SIZE(1),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	USB_MS_HEADER,
@@ -1157,7 +1157,7 @@ fail:
 /*
  * Creates an output endpoint, and initializes output ports.
  */
-static int __init gmidi_bind(struct usb_gadget *gadget)
+static int __ref gmidi_bind(struct usb_gadget *gadget)
 {
 	struct gmidi_device *dev;
 	struct usb_ep *in_ep, *out_ep;

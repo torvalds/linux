@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 
+#include <plat/pincfg.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 
@@ -46,20 +47,12 @@ struct nmk_gpio_chip {
 	u32 edge_falling;
 };
 
-/* Mode functions */
-int nmk_gpio_set_mode(int gpio, int gpio_mode)
+static void __nmk_gpio_set_mode(struct nmk_gpio_chip *nmk_chip,
+				unsigned offset, int gpio_mode)
 {
-	struct nmk_gpio_chip *nmk_chip;
-	unsigned long flags;
-	u32 afunc, bfunc, bit;
+	u32 bit = 1 << offset;
+	u32 afunc, bfunc;
 
-	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
-	if (!nmk_chip)
-		return -EINVAL;
-
-	bit = 1 << (gpio - nmk_chip->chip.base);
-
-	spin_lock_irqsave(&nmk_chip->lock, flags);
 	afunc = readl(nmk_chip->addr + NMK_GPIO_AFSLA) & ~bit;
 	bfunc = readl(nmk_chip->addr + NMK_GPIO_AFSLB) & ~bit;
 	if (gpio_mode & NMK_GPIO_ALT_A)
@@ -68,6 +61,203 @@ int nmk_gpio_set_mode(int gpio, int gpio_mode)
 		bfunc |= bit;
 	writel(afunc, nmk_chip->addr + NMK_GPIO_AFSLA);
 	writel(bfunc, nmk_chip->addr + NMK_GPIO_AFSLB);
+}
+
+static void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip,
+				unsigned offset, enum nmk_gpio_slpm mode)
+{
+	u32 bit = 1 << offset;
+	u32 slpm;
+
+	slpm = readl(nmk_chip->addr + NMK_GPIO_SLPC);
+	if (mode == NMK_GPIO_SLPM_NOCHANGE)
+		slpm |= bit;
+	else
+		slpm &= ~bit;
+	writel(slpm, nmk_chip->addr + NMK_GPIO_SLPC);
+}
+
+static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
+				unsigned offset, enum nmk_gpio_pull pull)
+{
+	u32 bit = 1 << offset;
+	u32 pdis;
+
+	pdis = readl(nmk_chip->addr + NMK_GPIO_PDIS);
+	if (pull == NMK_GPIO_PULL_NONE)
+		pdis |= bit;
+	else
+		pdis &= ~bit;
+	writel(pdis, nmk_chip->addr + NMK_GPIO_PDIS);
+
+	if (pull == NMK_GPIO_PULL_UP)
+		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
+	else if (pull == NMK_GPIO_PULL_DOWN)
+		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
+}
+
+static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset)
+{
+	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRC);
+}
+
+static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
+			     pin_cfg_t cfg)
+{
+	static const char *afnames[] = {
+		[NMK_GPIO_ALT_GPIO]	= "GPIO",
+		[NMK_GPIO_ALT_A]	= "A",
+		[NMK_GPIO_ALT_B]	= "B",
+		[NMK_GPIO_ALT_C]	= "C"
+	};
+	static const char *pullnames[] = {
+		[NMK_GPIO_PULL_NONE]	= "none",
+		[NMK_GPIO_PULL_UP]	= "up",
+		[NMK_GPIO_PULL_DOWN]	= "down",
+		[3] /* illegal */	= "??"
+	};
+	static const char *slpmnames[] = {
+		[NMK_GPIO_SLPM_INPUT]		= "input",
+		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change",
+	};
+
+	int pin = PIN_NUM(cfg);
+	int pull = PIN_PULL(cfg);
+	int af = PIN_ALT(cfg);
+	int slpm = PIN_SLPM(cfg);
+
+	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s\n",
+		pin, afnames[af], pullnames[pull], slpmnames[slpm]);
+
+	__nmk_gpio_make_input(nmk_chip, offset);
+	__nmk_gpio_set_pull(nmk_chip, offset, pull);
+	__nmk_gpio_set_slpm(nmk_chip, offset, slpm);
+	__nmk_gpio_set_mode(nmk_chip, offset, af);
+}
+
+/**
+ * nmk_config_pin - configure a pin's mux attributes
+ * @cfg: pin confguration
+ *
+ * Configures a pin's mode (alternate function or GPIO), its pull up status,
+ * and its sleep mode based on the specified configuration.  The @cfg is
+ * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
+ * are constructed using, and can be further enhanced with, the macros in
+ * plat/pincfg.h.
+ *
+ * If a pin's mode is set to GPIO, it is configured as an input to avoid
+ * side-effects.  The gpio can be manipulated later using standard GPIO API
+ * calls.
+ */
+int nmk_config_pin(pin_cfg_t cfg)
+{
+	struct nmk_gpio_chip *nmk_chip;
+	int gpio = PIN_NUM(cfg);
+	unsigned long flags;
+
+	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+	__nmk_config_pin(nmk_chip, gpio - nmk_chip->chip.base, cfg);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(nmk_config_pin);
+
+/**
+ * nmk_config_pins - configure several pins at once
+ * @cfgs: array of pin configurations
+ * @num: number of elments in the array
+ *
+ * Configures several pins using nmk_config_pin().  Refer to that function for
+ * further information.
+ */
+int nmk_config_pins(pin_cfg_t *cfgs, int num)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < num; i++) {
+		int ret = nmk_config_pin(cfgs[i]);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(nmk_config_pins);
+
+/**
+ * nmk_gpio_set_slpm() - configure the sleep mode of a pin
+ * @gpio: pin number
+ * @mode: NMK_GPIO_SLPM_INPUT or NMK_GPIO_SLPM_NOCHANGE,
+ *
+ * Sets the sleep mode of a pin.  If @mode is NMK_GPIO_SLPM_INPUT, the pin is
+ * changed to an input (with pullup/down enabled) in sleep and deep sleep.  If
+ * @mode is NMK_GPIO_SLPM_NOCHANGE, the pin remains in the state it was
+ * configured even when in sleep and deep sleep.
+ */
+int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode)
+{
+	struct nmk_gpio_chip *nmk_chip;
+	unsigned long flags;
+
+	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+	__nmk_gpio_set_slpm(nmk_chip, gpio - nmk_chip->chip.base, mode);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
+}
+
+/**
+ * nmk_gpio_set_pull() - enable/disable pull up/down on a gpio
+ * @gpio: pin number
+ * @pull: one of NMK_GPIO_PULL_DOWN, NMK_GPIO_PULL_UP, and NMK_GPIO_PULL_NONE
+ *
+ * Enables/disables pull up/down on a specified pin.  This only takes effect if
+ * the pin is configured as an input (either explicitly or by the alternate
+ * function).
+ *
+ * NOTE: If enabling the pull up/down, the caller must ensure that the GPIO is
+ * configured as an input.  Otherwise, due to the way the controller registers
+ * work, this function will change the value output on the pin.
+ */
+int nmk_gpio_set_pull(int gpio, enum nmk_gpio_pull pull)
+{
+	struct nmk_gpio_chip *nmk_chip;
+	unsigned long flags;
+
+	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+	__nmk_gpio_set_pull(nmk_chip, gpio - nmk_chip->chip.base, pull);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
+}
+
+/* Mode functions */
+int nmk_gpio_set_mode(int gpio, int gpio_mode)
+{
+	struct nmk_gpio_chip *nmk_chip;
+	unsigned long flags;
+
+	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+	__nmk_gpio_set_mode(nmk_chip, gpio - nmk_chip->chip.base, gpio_mode);
 	spin_unlock_irqrestore(&nmk_chip->lock, flags);
 
 	return 0;
@@ -111,32 +301,41 @@ static void nmk_gpio_irq_ack(unsigned int irq)
 	writel(nmk_gpio_get_bitmask(gpio), nmk_chip->addr + NMK_GPIO_IC);
 }
 
+enum nmk_gpio_irq_type {
+	NORMAL,
+	WAKE,
+};
+
 static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
-				  int gpio, bool enable)
+				  int gpio, enum nmk_gpio_irq_type which,
+				  bool enable)
 {
+	u32 rimsc = which == WAKE ? NMK_GPIO_RWIMSC : NMK_GPIO_RIMSC;
+	u32 fimsc = which == WAKE ? NMK_GPIO_FWIMSC : NMK_GPIO_FIMSC;
 	u32 bitmask = nmk_gpio_get_bitmask(gpio);
 	u32 reg;
 
 	/* we must individually set/clear the two edges */
 	if (nmk_chip->edge_rising & bitmask) {
-		reg = readl(nmk_chip->addr + NMK_GPIO_RIMSC);
+		reg = readl(nmk_chip->addr + rimsc);
 		if (enable)
 			reg |= bitmask;
 		else
 			reg &= ~bitmask;
-		writel(reg, nmk_chip->addr + NMK_GPIO_RIMSC);
+		writel(reg, nmk_chip->addr + rimsc);
 	}
 	if (nmk_chip->edge_falling & bitmask) {
-		reg = readl(nmk_chip->addr + NMK_GPIO_FIMSC);
+		reg = readl(nmk_chip->addr + fimsc);
 		if (enable)
 			reg |= bitmask;
 		else
 			reg &= ~bitmask;
-		writel(reg, nmk_chip->addr + NMK_GPIO_FIMSC);
+		writel(reg, nmk_chip->addr + fimsc);
 	}
 }
 
-static void nmk_gpio_irq_modify(unsigned int irq, bool enable)
+static int nmk_gpio_irq_modify(unsigned int irq, enum nmk_gpio_irq_type which,
+			       bool enable)
 {
 	int gpio;
 	struct nmk_gpio_chip *nmk_chip;
@@ -147,26 +346,35 @@ static void nmk_gpio_irq_modify(unsigned int irq, bool enable)
 	nmk_chip = get_irq_chip_data(irq);
 	bitmask = nmk_gpio_get_bitmask(gpio);
 	if (!nmk_chip)
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&nmk_chip->lock, flags);
-	__nmk_gpio_irq_modify(nmk_chip, gpio, enable);
+	__nmk_gpio_irq_modify(nmk_chip, gpio, which, enable);
 	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
 }
 
 static void nmk_gpio_irq_mask(unsigned int irq)
 {
-	nmk_gpio_irq_modify(irq, false);
-};
+	nmk_gpio_irq_modify(irq, NORMAL, false);
+}
 
 static void nmk_gpio_irq_unmask(unsigned int irq)
 {
-	nmk_gpio_irq_modify(irq, true);
+	nmk_gpio_irq_modify(irq, NORMAL, true);
+}
+
+static int nmk_gpio_irq_set_wake(unsigned int irq, unsigned int on)
+{
+	return nmk_gpio_irq_modify(irq, WAKE, on);
 }
 
 static int nmk_gpio_irq_set_type(unsigned int irq, unsigned int type)
 {
-	bool enabled = !(irq_to_desc(irq)->status & IRQ_DISABLED);
+	struct irq_desc *desc = irq_to_desc(irq);
+	bool enabled = !(desc->status & IRQ_DISABLED);
+	bool wake = desc->wake_depth;
 	int gpio;
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
@@ -186,7 +394,10 @@ static int nmk_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	spin_lock_irqsave(&nmk_chip->lock, flags);
 
 	if (enabled)
-		__nmk_gpio_irq_modify(nmk_chip, gpio, false);
+		__nmk_gpio_irq_modify(nmk_chip, gpio, NORMAL, false);
+
+	if (wake)
+		__nmk_gpio_irq_modify(nmk_chip, gpio, WAKE, false);
 
 	nmk_chip->edge_rising &= ~bitmask;
 	if (type & IRQ_TYPE_EDGE_RISING)
@@ -197,7 +408,10 @@ static int nmk_gpio_irq_set_type(unsigned int irq, unsigned int type)
 		nmk_chip->edge_falling |= bitmask;
 
 	if (enabled)
-		__nmk_gpio_irq_modify(nmk_chip, gpio, true);
+		__nmk_gpio_irq_modify(nmk_chip, gpio, NORMAL, true);
+
+	if (wake)
+		__nmk_gpio_irq_modify(nmk_chip, gpio, WAKE, true);
 
 	spin_unlock_irqrestore(&nmk_chip->lock, flags);
 
@@ -210,6 +424,7 @@ static struct irq_chip nmk_gpio_irq_chip = {
 	.mask		= nmk_gpio_irq_mask,
 	.unmask		= nmk_gpio_irq_unmask,
 	.set_type	= nmk_gpio_irq_set_type,
+	.set_wake	= nmk_gpio_irq_set_wake,
 };
 
 static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -266,16 +481,6 @@ static int nmk_gpio_make_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
-				int val)
-{
-	struct nmk_gpio_chip *nmk_chip =
-		container_of(chip, struct nmk_gpio_chip, chip);
-
-	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
-	return 0;
-}
-
 static int nmk_gpio_get_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct nmk_gpio_chip *nmk_chip =
@@ -298,12 +503,33 @@ static void nmk_gpio_set_output(struct gpio_chip *chip, unsigned offset,
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
 }
 
+static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
+				int val)
+{
+	struct nmk_gpio_chip *nmk_chip =
+		container_of(chip, struct nmk_gpio_chip, chip);
+
+	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
+	nmk_gpio_set_output(chip, offset, val);
+
+	return 0;
+}
+
+static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct nmk_gpio_chip *nmk_chip =
+		container_of(chip, struct nmk_gpio_chip, chip);
+
+	return NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base) + offset;
+}
+
 /* This structure is replicated for each GPIO block allocated at probe time */
 static struct gpio_chip nmk_gpio_template = {
 	.direction_input	= nmk_gpio_make_input,
 	.get			= nmk_gpio_get_input,
 	.direction_output	= nmk_gpio_make_output,
 	.set			= nmk_gpio_set_output,
+	.to_irq			= nmk_gpio_to_irq,
 	.ngpio			= NMK_GPIO_PER_CHIP,
 	.can_sleep		= 0,
 };
@@ -393,30 +619,12 @@ out:
 	return ret;
 }
 
-static int __exit nmk_gpio_remove(struct platform_device *dev)
-{
-	struct nmk_gpio_chip *nmk_chip;
-	struct resource *res;
-
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-
-	nmk_chip = platform_get_drvdata(dev);
-	gpiochip_remove(&nmk_chip->chip);
-	clk_disable(nmk_chip->clk);
-	clk_put(nmk_chip->clk);
-	kfree(nmk_chip);
-	release_mem_region(res->start, resource_size(res));
-	return 0;
-}
-
-
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "gpio",
 		},
 	.probe = nmk_gpio_probe,
-	.remove = __exit_p(nmk_gpio_remove),
 	.suspend = NULL, /* to be done */
 	.resume = NULL,
 };
@@ -426,7 +634,7 @@ static int __init nmk_gpio_init(void)
 	return platform_driver_register(&nmk_gpio_driver);
 }
 
-arch_initcall(nmk_gpio_init);
+core_initcall(nmk_gpio_init);
 
 MODULE_AUTHOR("Prafulla WADASKAR and Alessandro Rubini");
 MODULE_DESCRIPTION("Nomadik GPIO Driver");

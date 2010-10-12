@@ -1,13 +1,13 @@
 /*
  *  linux/arch/cris/arch-v32/kernel/time.c
  *
- *  Copyright (C) 2003-2007 Axis Communications AB
+ *  Copyright (C) 2003-2010 Axis Communications AB
  *
  */
 
 #include <linux/timex.h>
 #include <linux/time.h>
-#include <linux/jiffies.h>
+#include <linux/clocksource.h>
 #include <linux/interrupt.h>
 #include <linux/swap.h>
 #include <linux/sched.h>
@@ -35,6 +35,30 @@
 #define ETRAX_WD_HZ		763 /* watchdog counts at 763 Hz */
 /* Number of 763 counts before watchdog bites */
 #define ETRAX_WD_CNT		((2*ETRAX_WD_HZ)/HZ + 1)
+
+/* Register the continuos readonly timer available in FS and ARTPEC-3.  */
+static cycle_t read_cont_rotime(struct clocksource *cs)
+{
+	return (u32)REG_RD(timer, regi_timer0, r_time);
+}
+
+static struct clocksource cont_rotime = {
+	.name   = "crisv32_rotime",
+	.rating = 300,
+	.read   = read_cont_rotime,
+	.mask   = CLOCKSOURCE_MASK(32),
+	.shift  = 10,
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static int __init etrax_init_cont_rotime(void)
+{
+	cont_rotime.mult = clocksource_khz2mult(100000, cont_rotime.shift);
+	clocksource_register(&cont_rotime);
+	return 0;
+}
+arch_initcall(etrax_init_cont_rotime);
+
 
 unsigned long timer_regs[NR_CPUS] =
 {
@@ -67,43 +91,6 @@ unsigned long get_ns_in_jiffie(void)
 	return ns;
 }
 
-unsigned long do_slow_gettimeoffset(void)
-{
-	unsigned long count;
-	unsigned long usec_count = 0;
-
-	/* For the first call after boot */
-	static unsigned long count_p = TIMER0_DIV;
-	static unsigned long jiffies_p = 0;
-
-	/* Cache volatile jiffies temporarily; we have IRQs turned off. */
-	unsigned long jiffies_t;
-
-	/* The timer interrupt comes from Etrax timer 0. In order to get
-	 * better precision, we check the current value. It might have
-	 * underflowed already though. */
-	count = REG_RD(timer, regi_timer0, r_tmr0_data);
-	jiffies_t = jiffies;
-
-	/* Avoiding timer inconsistencies (they are rare, but they happen)
-	 * There is one problem that must be avoided here:
-	 *	1. the timer counter underflows
-	 */
-	if( jiffies_t == jiffies_p ) {
-		if( count > count_p ) {
-			/* Timer wrapped, use new count and prescale.
-			 * Increase the time corresponding to one jiffy.
-			 */
-			usec_count = 1000000/HZ;
-		}
-	} else
-		jiffies_p = jiffies_t;
-        count_p = count;
-	/* Convert timer value to usec */
-	/* 100 MHz timer, divide by 100 to get usec */
-	usec_count +=  (TIMER0_DIV - count) / 100;
-	return usec_count;
-}
 
 /* From timer MDS describing the hardware watchdog:
  * 4.3.1 Watchdog Operation
@@ -126,8 +113,7 @@ static short int watchdog_key = 42;  /* arbitrary 7 bit number */
  * is used though, so set this really low. */
 #define WATCHDOG_MIN_FREE_PAGES 8
 
-void
-reset_watchdog(void)
+void reset_watchdog(void)
 {
 #if defined(CONFIG_ETRAX_WATCHDOG)
 	reg_timer_rw_wd_ctrl wd_ctrl = { 0 };
@@ -147,8 +133,7 @@ reset_watchdog(void)
 
 /* stop the watchdog - we still need the correct key */
 
-void
-stop_watchdog(void)
+void stop_watchdog(void)
 {
 #if defined(CONFIG_ETRAX_WATCHDOG)
 	reg_timer_rw_wd_ctrl wd_ctrl = { 0 };
@@ -162,8 +147,7 @@ stop_watchdog(void)
 
 extern void show_registers(struct pt_regs *regs);
 
-void
-handle_watchdog_bite(struct pt_regs* regs)
+void handle_watchdog_bite(struct pt_regs *regs)
 {
 #if defined(CONFIG_ETRAX_WATCHDOG)
 	extern int cause_of_death;
@@ -203,8 +187,7 @@ handle_watchdog_bite(struct pt_regs* regs)
  */
 extern void cris_do_profile(struct pt_regs *regs);
 
-static inline irqreturn_t
-timer_interrupt(int irq, void *dev_id)
+static inline irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	struct pt_regs *regs = get_irq_regs();
 	int cpu = smp_processor_id();
@@ -233,7 +216,9 @@ timer_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	/* Call the real timer interrupt handler */
+	write_seqlock(&xtime_lock);
 	do_timer(1);
+	write_sequnlock(&xtime_lock);
         return IRQ_HANDLED;
 }
 
@@ -246,8 +231,7 @@ static struct irqaction irq_timer = {
 	.name = "timer"
 };
 
-void __init
-cris_timer_init(void)
+void __init cris_timer_init(void)
 {
 	int cpu = smp_processor_id();
 	reg_timer_rw_tmr0_ctrl tmr0_ctrl = { 0 };
@@ -273,8 +257,7 @@ cris_timer_init(void)
 	REG_WR(timer, timer_regs[cpu], rw_intr_mask, timer_intr_mask);
 }
 
-void __init
-time_init(void)
+void __init time_init(void)
 {
 	reg_intr_vect_rw_mask intr_mask;
 

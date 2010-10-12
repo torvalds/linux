@@ -2,7 +2,8 @@
     "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append"
 
 #define COMMON_FILE_PERMS COMMON_FILE_SOCK_PERMS, "unlink", "link", \
-    "rename", "execute", "swapon", "quotaon", "mounton"
+    "rename", "execute", "swapon", "quotaon", "mounton", "audit_access", \
+    "open", "execmod"
 
 #define COMMON_SOCK_PERMS COMMON_FILE_SOCK_PERMS, "bind", "connect", \
     "listen", "accept", "getopt", "setopt", "shutdown", "recvfrom",  \
@@ -43,22 +44,21 @@ struct security_class_mapping secclass_map[] = {
 	    "quotaget", NULL } },
 	{ "file",
 	  { COMMON_FILE_PERMS,
-	    "execute_no_trans", "entrypoint", "execmod", "open", NULL } },
+	    "execute_no_trans", "entrypoint", NULL } },
 	{ "dir",
 	  { COMMON_FILE_PERMS, "add_name", "remove_name",
-	    "reparent", "search", "rmdir", "open", NULL } },
+	    "reparent", "search", "rmdir", NULL } },
 	{ "fd", { "use", NULL } },
 	{ "lnk_file",
 	  { COMMON_FILE_PERMS, NULL } },
 	{ "chr_file",
-	  { COMMON_FILE_PERMS,
-	    "execute_no_trans", "entrypoint", "execmod", "open", NULL } },
+	  { COMMON_FILE_PERMS, NULL } },
 	{ "blk_file",
-	  { COMMON_FILE_PERMS, "open", NULL } },
+	  { COMMON_FILE_PERMS, NULL } },
 	{ "sock_file",
-	  { COMMON_FILE_PERMS, "open", NULL } },
+	  { COMMON_FILE_PERMS, NULL } },
 	{ "fifo_file",
-	  { COMMON_FILE_PERMS, "open", NULL } },
+	  { COMMON_FILE_PERMS, NULL } },
 	{ "socket",
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "tcp_socket",

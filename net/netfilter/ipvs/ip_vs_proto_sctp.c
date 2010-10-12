@@ -8,55 +8,6 @@
 #include <net/sctp/checksum.h>
 #include <net/ip_vs.h>
 
-
-static struct ip_vs_conn *
-sctp_conn_in_get(int af,
-		 const struct sk_buff *skb,
-		 struct ip_vs_protocol *pp,
-		 const struct ip_vs_iphdr *iph,
-		 unsigned int proto_off,
-		 int inverse)
-{
-	__be16 _ports[2], *pptr;
-
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
-	if (pptr == NULL)
-		return NULL;
-
-	if (likely(!inverse)) 
-		return ip_vs_conn_in_get(af, iph->protocol,
-					 &iph->saddr, pptr[0],
-					 &iph->daddr, pptr[1]);
-	else 
-		return ip_vs_conn_in_get(af, iph->protocol,
-					 &iph->daddr, pptr[1],
-					 &iph->saddr, pptr[0]);
-}
-
-static struct ip_vs_conn *
-sctp_conn_out_get(int af,
-		  const struct sk_buff *skb,
-		  struct ip_vs_protocol *pp,
-		  const struct ip_vs_iphdr *iph,
-		  unsigned int proto_off,
-		  int inverse)
-{
-	__be16 _ports[2], *pptr;
-
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
-	if (pptr == NULL)
-		return NULL;
-
-	if (likely(!inverse)) 
-		return ip_vs_conn_out_get(af, iph->protocol,
-					  &iph->saddr, pptr[0],
-					  &iph->daddr, pptr[1]);
-	else 
-		return ip_vs_conn_out_get(af, iph->protocol,
-					  &iph->daddr, pptr[1],
-					  &iph->saddr, pptr[0]);
-}
-
 static int
 sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		   int *verdict, struct ip_vs_conn **cpp)
@@ -173,7 +124,7 @@ sctp_dnat_handler(struct sk_buff *skb,
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!ip_vs_app_pkt_in(cp, skb))
 			return 0;
 	}
 
@@ -1169,8 +1120,8 @@ struct ip_vs_protocol ip_vs_protocol_sctp = {
 	.register_app = sctp_register_app,
 	.unregister_app = sctp_unregister_app,
 	.conn_schedule = sctp_conn_schedule,
-	.conn_in_get = sctp_conn_in_get,
-	.conn_out_get = sctp_conn_out_get,
+	.conn_in_get = ip_vs_conn_in_get_proto,
+	.conn_out_get = ip_vs_conn_out_get_proto,
 	.snat_handler = sctp_snat_handler,
 	.dnat_handler = sctp_dnat_handler,
 	.csum_check = sctp_csum_check,

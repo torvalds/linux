@@ -59,7 +59,7 @@ static struct platform_device *omap3_iommu_pdev[NR_OMAP3_IOMMU_DEVICES];
 static struct iommu_device omap4_devices[] = {
 	{
 		.base = OMAP4_MMU1_BASE,
-		.irq = INT_44XX_DUCATI_MMU_IRQ,
+		.irq = OMAP44XX_IRQ_DUCATI_MMU,
 		.pdata = {
 			.name = "ducati",
 			.nr_tlb_entries = 32,

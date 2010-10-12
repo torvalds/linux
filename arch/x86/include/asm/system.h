@@ -457,4 +457,11 @@ static __always_inline void rdtsc_barrier(void)
 	alternative(ASM_NOP3, "lfence", X86_FEATURE_LFENCE_RDTSC);
 }
 
+/*
+ * We handle most unaligned accesses in hardware.  On the other hand
+ * unaligned DMA can be quite expensive on some Nehalem processors.
+ *
+ * Based on this we disable the IP header alignment in network drivers.
+ */
+#define NET_IP_ALIGN	0
 #endif /* _ASM_X86_SYSTEM_H */

@@ -44,10 +44,6 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 
 	memset(&args, 0, sizeof(args));
 
-	args.usOverscanRight = 0;
-	args.usOverscanLeft = 0;
-	args.usOverscanBottom = 0;
-	args.usOverscanTop = 0;
 	args.ucCRTC = radeon_crtc->crtc_id;
 
 	switch (radeon_crtc->rmx_type) {
@@ -56,7 +52,6 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 		args.usOverscanBottom = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
 		args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
 		args.usOverscanRight = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 		break;
 	case RMX_ASPECT:
 		a1 = mode->crtc_vdisplay * adjusted_mode->crtc_hdisplay;
@@ -69,17 +64,16 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 			args.usOverscanLeft = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
 			args.usOverscanRight = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
 		}
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 		break;
 	case RMX_FULL:
 	default:
-		args.usOverscanRight = 0;
-		args.usOverscanLeft = 0;
-		args.usOverscanBottom = 0;
-		args.usOverscanTop = 0;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		args.usOverscanRight = radeon_crtc->h_border;
+		args.usOverscanLeft = radeon_crtc->h_border;
+		args.usOverscanBottom = radeon_crtc->v_border;
+		args.usOverscanTop = radeon_crtc->v_border;
 		break;
 	}
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
 static void atombios_scaler_setup(struct drm_crtc *crtc)
@@ -282,22 +276,22 @@ atombios_set_crtc_dtd_timing(struct drm_crtc *crtc,
 	u16 misc = 0;
 
 	memset(&args, 0, sizeof(args));
-	args.usH_Size = cpu_to_le16(mode->crtc_hdisplay);
+	args.usH_Size = cpu_to_le16(mode->crtc_hdisplay - (radeon_crtc->h_border * 2));
 	args.usH_Blanking_Time =
-		cpu_to_le16(mode->crtc_hblank_end - mode->crtc_hdisplay);
-	args.usV_Size = cpu_to_le16(mode->crtc_vdisplay);
+		cpu_to_le16(mode->crtc_hblank_end - mode->crtc_hdisplay + (radeon_crtc->h_border * 2));
+	args.usV_Size = cpu_to_le16(mode->crtc_vdisplay - (radeon_crtc->v_border * 2));
 	args.usV_Blanking_Time =
-	    cpu_to_le16(mode->crtc_vblank_end - mode->crtc_vdisplay);
+		cpu_to_le16(mode->crtc_vblank_end - mode->crtc_vdisplay + (radeon_crtc->v_border * 2));
 	args.usH_SyncOffset =
-		cpu_to_le16(mode->crtc_hsync_start - mode->crtc_hdisplay);
+		cpu_to_le16(mode->crtc_hsync_start - mode->crtc_hdisplay + radeon_crtc->h_border);
 	args.usH_SyncWidth =
 		cpu_to_le16(mode->crtc_hsync_end - mode->crtc_hsync_start);
 	args.usV_SyncOffset =
-		cpu_to_le16(mode->crtc_vsync_start - mode->crtc_vdisplay);
+		cpu_to_le16(mode->crtc_vsync_start - mode->crtc_vdisplay + radeon_crtc->v_border);
 	args.usV_SyncWidth =
 		cpu_to_le16(mode->crtc_vsync_end - mode->crtc_vsync_start);
-	/*args.ucH_Border = mode->hborder;*/
-	/*args.ucV_Border = mode->vborder;*/
+	args.ucH_Border = radeon_crtc->h_border;
+	args.ucV_Border = radeon_crtc->v_border;
 
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		misc |= ATOM_VSYNC_POLARITY;
@@ -669,6 +663,90 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+static void atombios_crtc_program_pll(struct drm_crtc *crtc,
+				      int crtc_id,
+				      int pll_id,
+				      u32 encoder_mode,
+				      u32 encoder_id,
+				      u32 clock,
+				      u32 ref_div,
+				      u32 fb_div,
+				      u32 frac_fb_div,
+				      u32 post_div)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	u8 frev, crev;
+	int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
+	union set_pixel_clock args;
+
+	memset(&args, 0, sizeof(args));
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
+				   &crev))
+		return;
+
+	switch (frev) {
+	case 1:
+		switch (crev) {
+		case 1:
+			if (clock == ATOM_DISABLE)
+				return;
+			args.v1.usPixelClock = cpu_to_le16(clock / 10);
+			args.v1.usRefDiv = cpu_to_le16(ref_div);
+			args.v1.usFbDiv = cpu_to_le16(fb_div);
+			args.v1.ucFracFbDiv = frac_fb_div;
+			args.v1.ucPostDiv = post_div;
+			args.v1.ucPpll = pll_id;
+			args.v1.ucCRTC = crtc_id;
+			args.v1.ucRefDivSrc = 1;
+			break;
+		case 2:
+			args.v2.usPixelClock = cpu_to_le16(clock / 10);
+			args.v2.usRefDiv = cpu_to_le16(ref_div);
+			args.v2.usFbDiv = cpu_to_le16(fb_div);
+			args.v2.ucFracFbDiv = frac_fb_div;
+			args.v2.ucPostDiv = post_div;
+			args.v2.ucPpll = pll_id;
+			args.v2.ucCRTC = crtc_id;
+			args.v2.ucRefDivSrc = 1;
+			break;
+		case 3:
+			args.v3.usPixelClock = cpu_to_le16(clock / 10);
+			args.v3.usRefDiv = cpu_to_le16(ref_div);
+			args.v3.usFbDiv = cpu_to_le16(fb_div);
+			args.v3.ucFracFbDiv = frac_fb_div;
+			args.v3.ucPostDiv = post_div;
+			args.v3.ucPpll = pll_id;
+			args.v3.ucMiscInfo = (pll_id << 2);
+			args.v3.ucTransmitterId = encoder_id;
+			args.v3.ucEncoderMode = encoder_mode;
+			break;
+		case 5:
+			args.v5.ucCRTC = crtc_id;
+			args.v5.usPixelClock = cpu_to_le16(clock / 10);
+			args.v5.ucRefDiv = ref_div;
+			args.v5.usFbDiv = cpu_to_le16(fb_div);
+			args.v5.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
+			args.v5.ucPostDiv = post_div;
+			args.v5.ucMiscInfo = 0; /* HDMI depth, etc. */
+			args.v5.ucTransmitterID = encoder_id;
+			args.v5.ucEncoderMode = encoder_mode;
+			args.v5.ucPpll = pll_id;
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			return;
+		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		return;
+	}
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
 static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -676,16 +754,11 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder = NULL;
 	struct radeon_encoder *radeon_encoder = NULL;
-	u8 frev, crev;
-	int index;
-	union set_pixel_clock args;
 	u32 pll_clock = mode->clock;
 	u32 ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
 	struct radeon_pll *pll;
 	u32 adjusted_clock;
 	int encoder_mode = 0;
-
-	memset(&args, 0, sizeof(args));
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
@@ -718,68 +791,10 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
 			   &ref_div, &post_div);
 
-	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
-	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
-				   &crev))
-		return;
+	atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
+				  encoder_mode, radeon_encoder->encoder_id, mode->clock,
+				  ref_div, fb_div, frac_fb_div, post_div);
 
-	switch (frev) {
-	case 1:
-		switch (crev) {
-		case 1:
-			args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
-			args.v1.usRefDiv = cpu_to_le16(ref_div);
-			args.v1.usFbDiv = cpu_to_le16(fb_div);
-			args.v1.ucFracFbDiv = frac_fb_div;
-			args.v1.ucPostDiv = post_div;
-			args.v1.ucPpll = radeon_crtc->pll_id;
-			args.v1.ucCRTC = radeon_crtc->crtc_id;
-			args.v1.ucRefDivSrc = 1;
-			break;
-		case 2:
-			args.v2.usPixelClock = cpu_to_le16(mode->clock / 10);
-			args.v2.usRefDiv = cpu_to_le16(ref_div);
-			args.v2.usFbDiv = cpu_to_le16(fb_div);
-			args.v2.ucFracFbDiv = frac_fb_div;
-			args.v2.ucPostDiv = post_div;
-			args.v2.ucPpll = radeon_crtc->pll_id;
-			args.v2.ucCRTC = radeon_crtc->crtc_id;
-			args.v2.ucRefDivSrc = 1;
-			break;
-		case 3:
-			args.v3.usPixelClock = cpu_to_le16(mode->clock / 10);
-			args.v3.usRefDiv = cpu_to_le16(ref_div);
-			args.v3.usFbDiv = cpu_to_le16(fb_div);
-			args.v3.ucFracFbDiv = frac_fb_div;
-			args.v3.ucPostDiv = post_div;
-			args.v3.ucPpll = radeon_crtc->pll_id;
-			args.v3.ucMiscInfo = (radeon_crtc->pll_id << 2);
-			args.v3.ucTransmitterId = radeon_encoder->encoder_id;
-			args.v3.ucEncoderMode = encoder_mode;
-			break;
-		case 5:
-			args.v5.ucCRTC = radeon_crtc->crtc_id;
-			args.v5.usPixelClock = cpu_to_le16(mode->clock / 10);
-			args.v5.ucRefDiv = ref_div;
-			args.v5.usFbDiv = cpu_to_le16(fb_div);
-			args.v5.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
-			args.v5.ucPostDiv = post_div;
-			args.v5.ucMiscInfo = 0; /* HDMI depth, etc. */
-			args.v5.ucTransmitterID = radeon_encoder->encoder_id;
-			args.v5.ucEncoderMode = encoder_mode;
-			args.v5.ucPpll = radeon_crtc->pll_id;
-			break;
-		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
-			return;
-		}
-		break;
-	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
-		return;
-	}
-
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
 static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
@@ -797,7 +812,7 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -840,6 +855,11 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			  crtc->fb->bits_per_pixel);
 		return -EINVAL;
 	}
+
+	if (tiling_flags & RADEON_TILING_MACRO)
+		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1);
+	else if (tiling_flags & RADEON_TILING_MICRO)
+		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
 	switch (radeon_crtc->crtc_id) {
 	case 0:
@@ -931,7 +951,7 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -979,11 +999,18 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EINVAL;
 	}
 
-	if (tiling_flags & RADEON_TILING_MACRO)
-		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
+	if (rdev->family >= CHIP_R600) {
+		if (tiling_flags & RADEON_TILING_MACRO)
+			fb_format |= R600_D1GRPH_ARRAY_MODE_2D_TILED_THIN1;
+		else if (tiling_flags & RADEON_TILING_MICRO)
+			fb_format |= R600_D1GRPH_ARRAY_MODE_1D_TILED_THIN1;
+	} else {
+		if (tiling_flags & RADEON_TILING_MACRO)
+			fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
-	if (tiling_flags & RADEON_TILING_MICRO)
-		fb_format |= AVIVO_D1GRPH_TILED;
+		if (tiling_flags & RADEON_TILING_MICRO)
+			fb_format |= AVIVO_D1GRPH_TILED;
+	}
 
 	if (radeon_crtc->crtc_id == 0)
 		WREG32(AVIVO_D1VGA_CONTROL, 0);
@@ -1143,10 +1170,8 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 	atombios_enable_ss(crtc);
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_AVIVO(rdev))
 		atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
-	else if (ASIC_IS_AVIVO(rdev))
-		atombios_crtc_set_timing(crtc, adjusted_mode);
 	else {
 		atombios_crtc_set_timing(crtc, adjusted_mode);
 		if (radeon_crtc->crtc_id == 0)
@@ -1191,6 +1216,24 @@ static void atombios_crtc_commit(struct drm_crtc *crtc)
 	atombios_lock_crtc(crtc, ATOM_DISABLE);
 }
 
+static void atombios_crtc_disable(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	switch (radeon_crtc->pll_id) {
+	case ATOM_PPLL1:
+	case ATOM_PPLL2:
+		/* disable the ppll */
+		atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
+					  0, 0, ATOM_DISABLE, 0, 0, 0, 0);
+		break;
+	default:
+		break;
+	}
+	radeon_crtc->pll_id = -1;
+}
+
 static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.dpms = atombios_crtc_dpms,
 	.mode_fixup = atombios_crtc_mode_fixup,
@@ -1199,6 +1242,7 @@ static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.prepare = atombios_crtc_prepare,
 	.commit = atombios_crtc_commit,
 	.load_lut = radeon_crtc_load_lut,
+	.disable = atombios_crtc_disable,
 };
 
 void radeon_atombios_init_crtc(struct drm_device *dev,

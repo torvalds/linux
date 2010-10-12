@@ -30,7 +30,6 @@ static ssize_t sta_ ##name## _read(struct file *file,			\
 }
 #define STA_READ_D(name, field) STA_READ(name, 20, field, "%d\n")
 #define STA_READ_U(name, field) STA_READ(name, 20, field, "%u\n")
-#define STA_READ_LU(name, field) STA_READ(name, 20, field, "%lu\n")
 #define STA_READ_S(name, field) STA_READ(name, 20, field, "%s\n")
 
 #define STA_OPS(name)							\
@@ -52,19 +51,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 
 STA_FILE(aid, sta.aid, D);
 STA_FILE(dev, sdata->name, S);
-STA_FILE(rx_packets, rx_packets, LU);
-STA_FILE(tx_packets, tx_packets, LU);
-STA_FILE(rx_bytes, rx_bytes, LU);
-STA_FILE(tx_bytes, tx_bytes, LU);
-STA_FILE(rx_duplicates, num_duplicates, LU);
-STA_FILE(rx_fragments, rx_fragments, LU);
-STA_FILE(rx_dropped, rx_dropped, LU);
-STA_FILE(tx_fragments, tx_fragments, LU);
-STA_FILE(tx_filtered, tx_filtered_count, LU);
-STA_FILE(tx_retry_failed, tx_retry_failed, LU);
-STA_FILE(tx_retry_count, tx_retry_count, LU);
 STA_FILE(last_signal, last_signal, D);
-STA_FILE(wep_weak_iv_count, wep_weak_iv_count, LU);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
@@ -134,28 +121,25 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf) + buf - p, "next dialog_token: %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
 	p += scnprintf(p, sizeof(buf) + buf - p,
-		       "TID\t\tRX active\tDTKN\tSSN\t\tTX\tDTKN\tSSN\tpending\n");
+		       "TID\t\tRX active\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
 	for (i = 0; i < STA_TID_NUM; i++) {
 		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
-				sta->ampdu_mlme.tid_active_rx[i]);
+				!!sta->ampdu_mlme.tid_rx[i]);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				sta->ampdu_mlme.tid_active_rx[i] ?
+				sta->ampdu_mlme.tid_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->dialog_token : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
-				sta->ampdu_mlme.tid_active_rx[i] ?
+				sta->ampdu_mlme.tid_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->ssn : 0);
 
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
-				sta->ampdu_mlme.tid_state_tx[i]);
+				!!sta->ampdu_mlme.tid_tx[i]);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				sta->ampdu_mlme.tid_state_tx[i] ?
+				sta->ampdu_mlme.tid_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
-				sta->ampdu_mlme.tid_state_tx[i] ?
-				sta->ampdu_mlme.tid_tx[i]->ssn : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%03d",
-				sta->ampdu_mlme.tid_state_tx[i] ?
+				sta->ampdu_mlme.tid_tx[i] ?
 				skb_queue_len(&sta->ampdu_mlme.tid_tx[i]->pending) : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\n");
 	}
@@ -210,8 +194,7 @@ static ssize_t sta_agg_status_write(struct file *file, const char __user *userbu
 		if (start)
 			ret = ieee80211_start_tx_ba_session(&sta->sta, tid);
 		else
-			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid,
-							   WLAN_BACK_RECIPIENT);
+			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid);
 	} else {
 		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT, 3);
 		ret = 0;
@@ -307,6 +290,13 @@ STA_OPS(ht_capa);
 	debugfs_create_file(#name, 0400, \
 		sta->debugfs.dir, sta, &sta_ ##name## _ops);
 
+#define DEBUGFS_ADD_COUNTER(name, field)				\
+	if (sizeof(sta->field) == sizeof(u32))				\
+		debugfs_create_u32(#name, 0400, sta->debugfs.dir,	\
+			(u32 *) &sta->field);				\
+	else								\
+		debugfs_create_u64(#name, 0400, sta->debugfs.dir,	\
+			(u64 *) &sta->field);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
@@ -339,20 +329,21 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);
 	DEBUGFS_ADD(dev);
-	DEBUGFS_ADD(rx_packets);
-	DEBUGFS_ADD(tx_packets);
-	DEBUGFS_ADD(rx_bytes);
-	DEBUGFS_ADD(tx_bytes);
-	DEBUGFS_ADD(rx_duplicates);
-	DEBUGFS_ADD(rx_fragments);
-	DEBUGFS_ADD(rx_dropped);
-	DEBUGFS_ADD(tx_fragments);
-	DEBUGFS_ADD(tx_filtered);
-	DEBUGFS_ADD(tx_retry_failed);
-	DEBUGFS_ADD(tx_retry_count);
 	DEBUGFS_ADD(last_signal);
-	DEBUGFS_ADD(wep_weak_iv_count);
 	DEBUGFS_ADD(ht_capa);
+
+	DEBUGFS_ADD_COUNTER(rx_packets, rx_packets);
+	DEBUGFS_ADD_COUNTER(tx_packets, tx_packets);
+	DEBUGFS_ADD_COUNTER(rx_bytes, rx_bytes);
+	DEBUGFS_ADD_COUNTER(tx_bytes, tx_bytes);
+	DEBUGFS_ADD_COUNTER(rx_duplicates, num_duplicates);
+	DEBUGFS_ADD_COUNTER(rx_fragments, rx_fragments);
+	DEBUGFS_ADD_COUNTER(rx_dropped, rx_dropped);
+	DEBUGFS_ADD_COUNTER(tx_fragments, tx_fragments);
+	DEBUGFS_ADD_COUNTER(tx_filtered, tx_filtered_count);
+	DEBUGFS_ADD_COUNTER(tx_retry_failed, tx_retry_failed);
+	DEBUGFS_ADD_COUNTER(tx_retry_count, tx_retry_count);
+	DEBUGFS_ADD_COUNTER(wep_weak_iv_count, wep_weak_iv_count);
 }
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)

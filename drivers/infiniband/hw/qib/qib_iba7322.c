@@ -5864,7 +5864,7 @@ static void write_7322_initregs(struct qib_devdata *dd)
 	 * Doesn't clear any of the error bits that might be set.
 	 */
 	val = TIDFLOW_ERRBITS; /* these are W1C */
-	for (i = 0; i < dd->ctxtcnt; i++) {
+	for (i = 0; i < dd->cfgctxts; i++) {
 		int flow;
 		for (flow = 0; flow < NUM_TIDFLOWS_CTXT; flow++)
 			qib_write_ureg(dd, ur_rcvflowtable+flow, val, i);
@@ -7271,6 +7271,8 @@ static int serdes_7322_init(struct qib_pportdata *ppd)
 	ibsd_wr_allchans(ppd, 20, (4 << 13), BMASK(15, 13)); /* SDR */
 
 	data = qib_read_kreg_port(ppd, krp_serdesctrl);
+	/* Turn off IB latency mode */
+	data &= ~SYM_MASK(IBSerdesCtrl_0, IB_LAT_MODE);
 	qib_write_kreg_port(ppd, krp_serdesctrl, data |
 		SYM_MASK(IBSerdesCtrl_0, RXLOSEN));
 

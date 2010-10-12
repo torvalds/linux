@@ -24,6 +24,14 @@ static inline u16 ath9k_hw_fbin2freq(u8 fbin, bool is2GHz)
 	return (u16) ((is2GHz) ? (2300 + fbin) : (4800 + 5 * fbin));
 }
 
+void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val)
+{
+        REG_WRITE(ah, reg, val);
+
+        if (ah->config.analog_shiftreg)
+		udelay(100);
+}
+
 void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
 			       u32 shift, u32 val)
 {
@@ -248,6 +256,27 @@ u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 	}
 
 	return twiceMaxEdgePower;
+}
+
+void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
+
+	switch (ar5416_get_ntxchains(ah->txchainmask)) {
+	case 1:
+		break;
+	case 2:
+		regulatory->max_power_level += INCREASE_MAXPOW_BY_TWO_CHAIN;
+		break;
+	case 3:
+		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
+		break;
+	default:
+		ath_print(common, ATH_DBG_EEPROM,
+			  "Invalid chainmask configuration\n");
+		break;
+	}
 }
 
 int ath9k_hw_eeprom_init(struct ath_hw *ah)

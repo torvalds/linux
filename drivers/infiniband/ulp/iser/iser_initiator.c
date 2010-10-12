@@ -170,7 +170,7 @@ static void iser_create_send_desc(struct iser_conn	*ib_conn,
 }
 
 
-int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
+static int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
 {
 	int i, j;
 	u64 dma_addr;

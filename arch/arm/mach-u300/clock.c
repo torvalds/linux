@@ -947,6 +947,10 @@ static struct clk fast_clk = {
 	.lock       = __SPIN_LOCK_UNLOCKED(fast_clk.lock),
 };
 
+/*
+ * The MMCI apb_pclk is hardwired to the same terminal as the
+ * external MCI clock. Thus this will be referenced twice.
+ */
 static struct clk mmcsd_clk = {
 	.name       = "MCLK",
 	.parent	    = &fast_clk,
@@ -1024,6 +1028,10 @@ static struct clk i2c1_clk = {
 	.lock       = __SPIN_LOCK_UNLOCKED(i2c1_clk.lock),
 };
 
+/*
+ * The SPI apb_pclk is hardwired to the same terminal as the
+ * external SPI clock. Thus this will be referenced twice.
+ */
 static struct clk spi_clk = {
 	.name       = "SPI",
 	.parent	    = &fast_clk,
@@ -1040,10 +1048,9 @@ static struct clk spi_clk = {
 };
 
 #ifdef CONFIG_MACH_U300_BS335
-static struct clk uart1_clk = {
-	.name	    = "UART1",
+static struct clk uart1_pclk = {
+	.name	    = "UART1_PCLK",
 	.parent	    = &fast_clk,
-	.rate	    = 13000000,
 	.hw_ctrld   = false,
 	.reset	    = true,
 	.res_reg    = U300_SYSCON_VBASE + U300_SYSCON_RFR,
@@ -1051,6 +1058,14 @@ static struct clk uart1_clk = {
 	.clk_val    = U300_SYSCON_SBCER_UART1_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(uart1_pclk.lock),
+};
+
+/* This one is hardwired to PLL13 */
+static struct clk uart1_clk = {
+	.name	    = "UART1_CLK",
+	.rate	    = 13000000,
+	.hw_ctrld   = true,
 	.lock       = __SPIN_LOCK_UNLOCKED(uart1_clk.lock),
 };
 #endif
@@ -1085,11 +1100,9 @@ static struct clk wdog_clk = {
 	.lock       = __SPIN_LOCK_UNLOCKED(wdog_clk.lock),
 };
 
-/* This one is hardwired to PLL13 */
-static struct clk uart_clk = {
-	.name	    = "UARTCLK",
+static struct clk uart0_pclk = {
+	.name	    = "UART0_PCLK",
 	.parent	    = &slow_clk,
-	.rate	    = 13000000,
 	.hw_ctrld   = false,
 	.reset	    = true,
 	.res_reg    = U300_SYSCON_VBASE + U300_SYSCON_RSR,
@@ -1097,7 +1110,16 @@ static struct clk uart_clk = {
 	.clk_val    = U300_SYSCON_SBCER_UART_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
-	.lock       = __SPIN_LOCK_UNLOCKED(uart_clk.lock),
+	.lock       = __SPIN_LOCK_UNLOCKED(uart0_pclk.lock),
+};
+
+/* This one is hardwired to PLL13 */
+static struct clk uart0_clk = {
+	.name	    = "UART0_CLK",
+	.parent	    = &slow_clk,
+	.rate	    = 13000000,
+	.hw_ctrld   = true,
+	.lock       = __SPIN_LOCK_UNLOCKED(uart0_clk.lock),
 };
 
 static struct clk keypad_clk = {
@@ -1182,10 +1204,14 @@ static struct clk timer_clk = {
 	.lock       = __SPIN_LOCK_UNLOCKED(timer_clk.lock),
 };
 
+/*
+ * There is a binary divider in the hardware that divides
+ * the 13MHz PLL by 13 down to 1 MHz.
+ */
 static struct clk app_timer_clk = {
 	.name       = "TIMER_APP",
 	.parent	    = &slow_clk,
-	.rate       = 13000000,
+	.rate       = 1000000,
 	.hw_ctrld   = true,
 	.reset	    = true,
 	.res_reg    = U300_SYSCON_VBASE + U300_SYSCON_RSR,
@@ -1218,6 +1244,13 @@ static struct clk ppm_clk = {
 	.clk = clkref,				\
 	}
 
+#define DEF_LOOKUP_CON(devid, conid, clkref)	\
+	{					\
+	.dev_id = devid,			\
+	.con_id = conid,			\
+	.clk = clkref,				\
+	}
+
 /*
  * Here we only define clocks that are meaningful to
  * look up through clockdevice.
@@ -1241,11 +1274,14 @@ static struct clk_lookup lookups[] = {
 	/* AHB bridge clocks */
 	DEF_LOOKUP("ahb_subsys", &ahb_subsys_clk),
 	DEF_LOOKUP("intcon",    &intcon_clk),
+	DEF_LOOKUP_CON("intcon", "apb_pclk", &intcon_clk),
 	DEF_LOOKUP("mspro",     &mspro_clk),
 	DEF_LOOKUP("pl172",     &emif_clk),
+	DEF_LOOKUP_CON("pl172", "apb_pclk", &emif_clk),
 	/* FAST bridge clocks */
 	DEF_LOOKUP("fast",      &fast_clk),
 	DEF_LOOKUP("mmci",      &mmcsd_clk),
+	DEF_LOOKUP_CON("mmci", "apb_pclk", &mmcsd_clk),
 	/*
 	 * The .0 and .1 identifiers on these comes from the platform device
 	 * .id field and are assigned when the platform devices are registered.
@@ -1255,13 +1291,16 @@ static struct clk_lookup lookups[] = {
 	DEF_LOOKUP("stu300.0",  &i2c0_clk),
 	DEF_LOOKUP("stu300.1",  &i2c1_clk),
 	DEF_LOOKUP("pl022",     &spi_clk),
+	DEF_LOOKUP_CON("pl022", "apb_pclk", &spi_clk),
 #ifdef CONFIG_MACH_U300_BS335
 	DEF_LOOKUP("uart1",     &uart1_clk),
+	DEF_LOOKUP_CON("uart1", "apb_pclk", &uart1_pclk),
 #endif
 	/* SLOW bridge clocks */
 	DEF_LOOKUP("slow",      &slow_clk),
 	DEF_LOOKUP("coh901327_wdog",      &wdog_clk),
-	DEF_LOOKUP("uart0",     &uart_clk),
+	DEF_LOOKUP("uart0",     &uart0_clk),
+	DEF_LOOKUP_CON("uart0", "apb_pclk", &uart0_pclk),
 	DEF_LOOKUP("apptimer",  &app_timer_clk),
 	DEF_LOOKUP("coh901461-keypad",    &keypad_clk),
 	DEF_LOOKUP("u300-gpio", &gpio_clk),
@@ -1279,64 +1318,6 @@ static void __init clk_register(void)
 	/* Register the lookups */
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 }
-
-/*
- * These are the clocks for cells registered as primecell drivers
- * on the AMBA bus. These must be on during AMBA device registration
- * since the bus probe will attempt to read magic configuration
- * registers for these devices. If they are deactivated these probes
- * will fail.
- *
- *
- * Please note that on emif, both RAM and NAND is connected in dual
- * RAM phones. On single RAM phones, ram is on semi and NAND on emif.
- *
- */
-void u300_clock_primecells(void)
-{
-	clk_enable(&intcon_clk);
-	clk_enable(&uart_clk);
-#ifdef CONFIG_MACH_U300_BS335
-	clk_enable(&uart1_clk);
-#endif
-	clk_enable(&spi_clk);
-
-	clk_enable(&mmcsd_clk);
-
-}
-EXPORT_SYMBOL(u300_clock_primecells);
-
-void u300_unclock_primecells(void)
-{
-
-	clk_disable(&intcon_clk);
-	clk_disable(&uart_clk);
-#ifdef CONFIG_MACH_U300_BS335
-	clk_disable(&uart1_clk);
-#endif
-	clk_disable(&spi_clk);
-	clk_disable(&mmcsd_clk);
-
-}
-EXPORT_SYMBOL(u300_unclock_primecells);
-
-/*
- * The interrupt controller is enabled before the clock API is registered.
- */
-void u300_enable_intcon_clock(void)
-{
-	clk_enable(&intcon_clk);
-}
-EXPORT_SYMBOL(u300_enable_intcon_clock);
-
-/*
- * The timer is enabled before the clock API is registered.
- */
-void u300_enable_timer_clock(void)
-{
-	clk_enable(&app_timer_clk);
-}
-EXPORT_SYMBOL(u300_enable_timer_clock);
 
 #if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_U300_DEBUG))
 /*
@@ -1379,11 +1360,13 @@ static struct clk *clks[] = {
 	&spi_clk,
 #ifdef CONFIG_MACH_U300_BS335
 	&uart1_clk,
+	&uart1_pclk,
 #endif
 	/* SLOW bridge clocks */
 	&slow_clk,
 	&wdog_clk,
-	&uart_clk,
+	&uart0_clk,
+	&uart0_pclk,
 	&app_timer_clk,
 	&keypad_clk,
 	&gpio_clk,
@@ -1424,7 +1407,7 @@ static int u300_clocks_show(struct seq_file *s, void *data)
 				chars++;
 			}
 			cdp[32] = '\0';
-			if (clk->get_rate)
+			if (clk->get_rate || clk->rate != 0)
 				seq_printf(s,
 					   "%s%s\t%s\t%d\t%s\t%lu Hz\n",
 					   &cdp[0],
@@ -1433,7 +1416,7 @@ static int u300_clocks_show(struct seq_file *s, void *data)
 					   clk->usecount ? "ON" : "OFF",
 					   clk->usecount,
 					   clk->hw_ctrld  ? "YES" : "NO ",
-					   clk->get_rate(clk));
+					   clk_get_rate(clk));
 			else
 				seq_printf(s,
 					   "%s%s\t%s\t%d\t%s\t" \
@@ -1477,7 +1460,7 @@ static int __init init_clk_read_debugfs(void)
 module_init(init_clk_read_debugfs);
 #endif
 
-static int __init u300_clock_init(void)
+int __init u300_clock_init(void)
 {
 	u16 val;
 
@@ -1514,10 +1497,8 @@ static int __init u300_clock_init(void)
 	 */
 	syscon_block_reset_disable(&semi_clk);
 	syscon_block_reset_disable(&emif_clk);
-	semi_clk.enable(&semi_clk);
-	emif_clk.enable(&emif_clk);
+	clk_enable(&semi_clk);
+	clk_enable(&emif_clk);
 
 	return 0;
 }
-/* initialize clocking early to be available later in the boot */
-core_initcall(u300_clock_init);

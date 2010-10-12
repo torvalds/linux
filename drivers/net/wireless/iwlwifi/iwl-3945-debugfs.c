@@ -28,6 +28,28 @@
 
 #include "iwl-3945-debugfs.h"
 
+
+static int iwl3945_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
+{
+	int p = 0;
+
+	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n",
+		       le32_to_cpu(priv->_3945.statistics.flag));
+	if (le32_to_cpu(priv->_3945.statistics.flag) &
+			UCODE_STATISTICS_CLEAR_MSK)
+		p += scnprintf(buf + p, bufsz - p,
+			       "\tStatistics have been cleared\n");
+	p += scnprintf(buf + p, bufsz - p, "\tOperational Frequency: %s\n",
+		       (le32_to_cpu(priv->_3945.statistics.flag) &
+			UCODE_STATISTICS_FREQUENCY_MSK)
+			? "2.4 GHz" : "5.2 GHz");
+	p += scnprintf(buf + p, bufsz - p, "\tTGj Narrow Band: %s\n",
+		       (le32_to_cpu(priv->_3945.statistics.flag) &
+			UCODE_STATISTICS_NARROW_BAND_MSK)
+			? "enabled" : "disabled");
+	return p;
+}
+
 ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
 				    char __user *user_buf,
 				    size_t count, loff_t *ppos)
@@ -70,7 +92,7 @@ ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
 	max_cck = &priv->_3945.max_delta.rx.cck;
 	max_general = &priv->_3945.max_delta.rx.general;
 
-	pos += iwl_dbgfs_statistics_flag(priv, buf, bufsz);
+	pos += iwl3945_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_Rx - OFDM:");
@@ -331,7 +353,7 @@ ssize_t iwl3945_ucode_tx_stats_read(struct file *file,
 	accum_tx = &priv->_3945.accum_statistics.tx;
 	delta_tx = &priv->_3945.delta_statistics.tx;
 	max_tx = &priv->_3945.max_delta.tx;
-	pos += iwl_dbgfs_statistics_flag(priv, buf, bufsz);
+	pos += iwl3945_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_Tx:");
@@ -438,7 +460,7 @@ ssize_t iwl3945_ucode_general_stats_read(struct file *file,
 	accum_div = &priv->_3945.accum_statistics.general.div;
 	delta_div = &priv->_3945.delta_statistics.general.div;
 	max_div = &priv->_3945.max_delta.general.div;
-	pos += iwl_dbgfs_statistics_flag(priv, buf, bufsz);
+	pos += iwl3945_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_General:");

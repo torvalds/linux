@@ -46,7 +46,6 @@
 #include <scsi/scsi_host.h>
 #include "fdomain.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -84,9 +83,8 @@ static int fdomain_probe(struct pcmcia_device *link)
 
 	info->p_dev = link;
 	link->priv = info;
-	link->io.NumPorts1 = 0x10;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.IOAddrLines = 10;
+	link->resource[0]->end = 0x10;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
@@ -113,8 +111,9 @@ static int fdomain_config_check(struct pcmcia_device *p_dev,
 				unsigned int vcc,
 				void *priv_data)
 {
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	p_dev->io_lines = 10;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -138,10 +137,10 @@ static int fdomain_config(struct pcmcia_device *link)
 	    goto failed;
 
     /* A bad hack... */
-    release_region(link->io.BasePort1, link->io.NumPorts1);
+    release_region(link->resource[0]->start, resource_size(link->resource[0]));
 
     /* Set configuration options for the fdomain driver */
-    sprintf(str, "%d,%d", link->io.BasePort1, link->irq);
+    sprintf(str, "%d,%d", (unsigned int) link->resource[0]->start, link->irq);
     fdomain_setup(str);
 
     host = __fdomain_16x0_detect(&fdomain_driver_template);

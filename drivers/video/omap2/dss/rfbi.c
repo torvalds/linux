@@ -886,7 +886,7 @@ int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 		return -EINVAL;
 
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		dss_setup_partial_planes(dssdev, x, y, w, h);
+		dss_setup_partial_planes(dssdev, x, y, w, h, true);
 		dispc_set_lcd_size(*w, *h);
 	}
 

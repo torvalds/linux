@@ -390,7 +390,9 @@ static inline int gpio_valid(int gpio)
 		return 0;
 	if (cpu_is_omap7xx() && gpio < 192)
 		return 0;
-	if (cpu_is_omap24xx() && gpio < 128)
+	if (cpu_is_omap2420() && gpio < 128)
+		return 0;
+	if (cpu_is_omap2430() && gpio < 160)
 		return 0;
 	if ((cpu_is_omap34xx() || cpu_is_omap44xx()) && gpio < 192)
 		return 0;

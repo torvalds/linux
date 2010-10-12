@@ -243,5 +243,4 @@ void linkwatch_fire_event(struct net_device *dev)
 
 	linkwatch_schedule_work(urgent);
 }
-
 EXPORT_SYMBOL(linkwatch_fire_event);

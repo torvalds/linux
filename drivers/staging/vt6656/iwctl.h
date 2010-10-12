@@ -33,15 +33,13 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
 
-struct iw_statistics *iwctl_get_wireless_stats (struct net_device *dev);
-
+struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev);
 
 int iwctl_siwap(struct net_device *dev,
              struct iw_request_info *info,

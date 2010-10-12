@@ -96,7 +96,7 @@ static int network_mode = 0;
 static u32 ipw_debug_level;
 static int associate;
 static int auto_create = 1;
-static int led_support = 0;
+static int led_support = 1;
 static int disable = 0;
 static int bt_coexist = 0;
 static int hwcrypto = 0;
@@ -6624,13 +6624,12 @@ static int ipw_wx_set_genie(struct net_device *dev,
 		return -EINVAL;
 
 	if (wrqu->data.length) {
-		buf = kmalloc(wrqu->data.length, GFP_KERNEL);
+		buf = kmemdup(extra, wrqu->data.length, GFP_KERNEL);
 		if (buf == NULL) {
 			err = -ENOMEM;
 			goto out;
 		}
 
-		memcpy(buf, extra, wrqu->data.length);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = wrqu->data.length;
@@ -12083,7 +12082,7 @@ module_param(auto_create, int, 0444);
 MODULE_PARM_DESC(auto_create, "auto create adhoc network (default on)");
 
 module_param_named(led, led_support, int, 0444);
-MODULE_PARM_DESC(led, "enable led control on some systems (default 0 off)");
+MODULE_PARM_DESC(led, "enable led control on some systems (default 1 on)");
 
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");

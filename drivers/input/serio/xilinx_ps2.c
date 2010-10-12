@@ -232,7 +232,7 @@ static void sxps2_close(struct serio *pserio)
  * It returns 0, if the driver is bound to the PS/2 device, or a negative
  * value if there is an error.
  */
-static int __devinit xps2_of_probe(struct of_device *ofdev,
+static int __devinit xps2_of_probe(struct platform_device *ofdev,
 				   const struct of_device_id *match)
 {
 	struct resource r_irq; /* Interrupt resources */
@@ -332,7 +332,7 @@ failed1:
  * if the driver module is being unloaded. It frees any resources allocated to
  * the device.
  */
-static int __devexit xps2_of_remove(struct of_device *of_dev)
+static int __devexit xps2_of_remove(struct platform_device *of_dev)
 {
 	struct device *dev = &of_dev->dev;
 	struct xps2data *drvdata = dev_get_drvdata(dev);

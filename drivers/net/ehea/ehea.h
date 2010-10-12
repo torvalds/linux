@@ -413,7 +413,7 @@ struct ehea_port_res {
 
 struct ehea_adapter {
 	u64 handle;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
 	struct tasklet_struct neq_tasklet;
@@ -465,7 +465,7 @@ struct ehea_port {
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	struct ehea_port_res port_res[EHEA_MAX_PORT_RES];
-	struct of_device  ofdev; /* Open Firmware Device */
+	struct platform_device  ofdev; /* Open Firmware Device */
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */
 	struct vlan_group *vgrp;
 	struct ehea_eq *qp_eq;

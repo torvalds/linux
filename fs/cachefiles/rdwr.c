@@ -422,7 +422,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	shift = PAGE_SHIFT - inode->i_sb->s_blocksize_bits;
 
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
-	op->op.flags |= FSCACHE_OP_FAST;
+	op->op.flags |= FSCACHE_OP_ASYNC;
 	op->op.processor = cachefiles_read_copier;
 
 	pagevec_init(&pagevec, 0);
@@ -729,7 +729,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	pagevec_init(&pagevec, 0);
 
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
-	op->op.flags |= FSCACHE_OP_FAST;
+	op->op.flags |= FSCACHE_OP_ASYNC;
 	op->op.processor = cachefiles_read_copier;
 
 	INIT_LIST_HEAD(&backpages);

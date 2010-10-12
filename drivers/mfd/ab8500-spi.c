@@ -68,7 +68,12 @@ static int ab8500_spi_read(struct ab8500 *ab8500, u16 addr)
 
 	ret = spi_sync(spi, &msg);
 	if (!ret)
-		ret = ab8500->rx_buf[0];
+		/*
+		 * Only the 8 lowermost bytes are
+		 * defined with value, the rest may
+		 * vary depending on chip/board noise.
+		 */
+		ret = ab8500->rx_buf[0] & 0xFFU;
 
 	return ret;
 }

@@ -2,6 +2,7 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
@@ -169,13 +170,13 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
 
-	/* We have to do the simple_setsize() without f->sem held, since
+	/* We have to do the truncate_setsize() without f->sem held, since
 	   some pages may be locked and waiting for it in readpage().
 	   We are protected from a simultaneous write() extending i_size
 	   back past iattr->ia_size, because do_truncate() holds the
 	   generic inode semaphore. */
 	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
-		simple_setsize(inode, iattr->ia_size);
+		truncate_setsize(inode, iattr->ia_size);
 		inode->i_blocks = (inode->i_size + 511) >> 9;
 	}	
 
@@ -225,7 +226,7 @@ int jffs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 
-void jffs2_clear_inode (struct inode *inode)
+void jffs2_evict_inode (struct inode *inode)
 {
 	/* We can forget about this inode for now - drop all
 	 *  the nodelists associated with it, etc.
@@ -233,7 +234,9 @@ void jffs2_clear_inode (struct inode *inode)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 
-	D1(printk(KERN_DEBUG "jffs2_clear_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
+	D1(printk(KERN_DEBUG "jffs2_evict_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	jffs2_do_clear_inode(c, f);
 }
 

@@ -96,7 +96,7 @@ static int whack_reset(struct fec __iomem *fecp)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-	struct of_device *ofdev = to_of_device(fep->dev);
+	struct platform_device *ofdev = to_platform_device(fep->dev);
 
 	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
 	if (fep->interrupt == NO_IRQ)

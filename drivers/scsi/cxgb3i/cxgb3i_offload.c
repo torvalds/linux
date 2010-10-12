@@ -264,6 +264,7 @@ static void make_act_open_req(struct s3_conn *c3cn, struct sk_buff *skb,
 	skb->priority = CPL_PRIORITY_SETUP;
 	req = (struct cpl_act_open_req *)__skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	req->wr.wr_lo = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, atid));
 	req->local_port = c3cn->saddr.sin_port;
 	req->peer_port = c3cn->daddr.sin_port;
@@ -273,6 +274,7 @@ static void make_act_open_req(struct s3_conn *c3cn, struct sk_buff *skb,
 			   V_TX_CHANNEL(e->smt_idx));
 	req->opt0l = htonl(calc_opt0l(c3cn));
 	req->params = 0;
+	req->opt2 = 0;
 }
 
 static void fail_act_open(struct s3_conn *c3cn, int errno)
@@ -379,6 +381,7 @@ static void send_abort_req(struct s3_conn *c3cn)
 
 	c3cn->cpl_abort_req = NULL;
 	req = (struct cpl_abort_req *)skb->head;
+	memset(req, 0, sizeof(*req));
 
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, abort_arp_failure);
@@ -406,6 +409,7 @@ static void send_abort_rpl(struct s3_conn *c3cn, int rst_status)
 	c3cn->cpl_abort_rpl = NULL;
 
 	skb->priority = CPL_PRIORITY_DATA;
+	memset(rpl, 0, sizeof(*rpl));
 	rpl->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_HOST_ABORT_CON_RPL));
 	rpl->wr.wr_lo = htonl(V_WR_TID(c3cn->tid));
 	OPCODE_TID(rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, c3cn->tid));
@@ -430,6 +434,7 @@ static u32 send_rx_credits(struct s3_conn *c3cn, u32 credits, u32 dack)
 
 	req = (struct cpl_rx_data_ack *)__skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	req->wr.wr_lo = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RX_DATA_ACK, c3cn->tid));
 	req->credit_dack = htonl(dack | V_RX_CREDITS(credits));
 	skb->priority = CPL_PRIORITY_ACK;
@@ -1587,7 +1592,7 @@ cxgb3i_find_dev(struct net_device *dev, __be32 ipaddr)
 
 	err = ip_route_output_key(dev ? dev_net(dev) : &init_net, &rt, &fl);
 	if (!err)
-		return (&rt->u.dst)->dev;
+		return (&rt->dst)->dev;
 
 	return NULL;
 }
@@ -1649,7 +1654,7 @@ int cxgb3i_c3cn_connect(struct net_device *dev, struct s3_conn *c3cn,
 		c3cn->saddr.sin_addr.s_addr = rt->rt_src;
 
 	/* now commit destination to connection */
-	c3cn->dst_cache = &rt->u.dst;
+	c3cn->dst_cache = &rt->dst;
 
 	/* try to establish an offloaded connection */
 	dev = cxgb3_egress_dev(c3cn->dst_cache->dev, c3cn, 0);

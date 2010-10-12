@@ -19,7 +19,7 @@
  *
  * File: power.c
  *
- * Purpose: Handles 802.11 power managment  functions
+ * Purpose: Handles 802.11 power management  functions
  *
  * Author: Lyndon Chen
  *
@@ -290,17 +290,11 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
         return FALSE;
     }
 
-//2007-0115-03<Add>by MikeLiu
-#ifdef TxInSleep
      if ((pDevice->bEnablePSMode == FALSE) &&
 	  (pDevice->fTxDataInSleep == FALSE)){
         return FALSE;
     }
-#else
-    if (pDevice->bEnablePSMode == FALSE) {
-        return FALSE;
-    }
-#endif
+
     memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN);
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
     pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));

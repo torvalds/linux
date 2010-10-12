@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2002-2004 John Belmonte
  *  Copyright (C) 2008 Philip Langdale
+ *  Copyright (C) 2010 Pierre Ducroquet
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,6 +48,7 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
@@ -129,6 +131,8 @@ enum {KE_KEY, KE_END};
 
 static struct key_entry toshiba_acpi_keymap[]  = {
 	{KE_KEY, 0x101, KEY_MUTE},
+	{KE_KEY, 0x102, KEY_ZOOMOUT},
+	{KE_KEY, 0x103, KEY_ZOOMIN},
 	{KE_KEY, 0x13b, KEY_COFFEE},
 	{KE_KEY, 0x13c, KEY_BATTERY},
 	{KE_KEY, 0x13d, KEY_SLEEP},
@@ -285,11 +289,116 @@ struct toshiba_acpi_dev {
 	struct platform_device *p_dev;
 	struct rfkill *bt_rfk;
 	struct input_dev *hotkey_dev;
+	int illumination_installed;
 	acpi_handle handle;
 
 	const char *bt_name;
 
 	struct mutex mutex;
+};
+
+/* Illumination support */
+static int toshiba_illumination_available(void)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return 0;
+	}
+	in[0] = 0xf400;
+	status = hci_raw(in, out);
+	return 1;
+}
+
+static void toshiba_illumination_set(struct led_classdev *cdev,
+				     enum led_brightness brightness)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	/* First request : initialize communication. */
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return;
+	}
+
+	if (brightness) {
+		/* Switch the illumination on */
+		in[0] = 0xf400;
+		in[1] = 0x14e;
+		in[2] = 1;
+		status = hci_raw(in, out);
+		if (ACPI_FAILURE(status)) {
+			printk(MY_INFO "ACPI call for illumination failed.\n");
+			return;
+		}
+	} else {
+		/* Switch the illumination off */
+		in[0] = 0xf400;
+		in[1] = 0x14e;
+		in[2] = 0;
+		status = hci_raw(in, out);
+		if (ACPI_FAILURE(status)) {
+			printk(MY_INFO "ACPI call for illumination failed.\n");
+			return;
+		}
+	}
+
+	/* Last request : close communication. */
+	in[0] = 0xf200;
+	in[1] = 0;
+	in[2] = 0;
+	hci_raw(in, out);
+}
+
+static enum led_brightness toshiba_illumination_get(struct led_classdev *cdev)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+	enum led_brightness result;
+
+	/* First request : initialize communication. */
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return LED_OFF;
+	}
+
+	/* Check the illumination */
+	in[0] = 0xf300;
+	in[1] = 0x14e;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "ACPI call for illumination failed.\n");
+		return LED_OFF;
+	}
+
+	result = out[2] ? LED_FULL : LED_OFF;
+
+	/* Last request : close communication. */
+	in[0] = 0xf200;
+	in[1] = 0;
+	in[2] = 0;
+	hci_raw(in, out);
+
+	return result;
+}
+
+static struct led_classdev toshiba_led = {
+	.name           = "toshiba::illumination",
+	.max_brightness = 1,
+	.brightness_set = toshiba_illumination_set,
+	.brightness_get = toshiba_illumination_get,
 };
 
 static struct toshiba_acpi_dev toshiba_acpi = {
@@ -720,25 +829,22 @@ static const struct file_operations version_proc_fops = {
 
 #define PROC_TOSHIBA		"toshiba"
 
-static acpi_status __init add_device(void)
+static void __init create_toshiba_proc_entries(void)
 {
 	proc_create("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir, &lcd_proc_fops);
 	proc_create("video", S_IRUGO | S_IWUSR, toshiba_proc_dir, &video_proc_fops);
 	proc_create("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir, &fan_proc_fops);
 	proc_create("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir, &keys_proc_fops);
 	proc_create("version", S_IRUGO, toshiba_proc_dir, &version_proc_fops);
-
-	return AE_OK;
 }
 
-static acpi_status remove_device(void)
+static void remove_toshiba_proc_entries(void)
 {
 	remove_proc_entry("lcd", toshiba_proc_dir);
 	remove_proc_entry("video", toshiba_proc_dir);
 	remove_proc_entry("fan", toshiba_proc_dir);
 	remove_proc_entry("keys", toshiba_proc_dir);
 	remove_proc_entry("version", toshiba_proc_dir);
-	return AE_OK;
 }
 
 static struct backlight_ops toshiba_backlight_data = {
@@ -906,13 +1012,16 @@ static void toshiba_acpi_exit(void)
 	if (toshiba_backlight_device)
 		backlight_device_unregister(toshiba_backlight_device);
 
-	remove_device();
+	remove_toshiba_proc_entries();
 
 	if (toshiba_proc_dir)
 		remove_proc_entry(PROC_TOSHIBA, acpi_root_dir);
 
 	acpi_remove_notify_handler(toshiba_acpi.handle, ACPI_DEVICE_NOTIFY,
 				   toshiba_acpi_notify);
+
+	if (toshiba_acpi.illumination_installed)
+		led_classdev_unregister(&toshiba_led);
 
 	platform_device_unregister(toshiba_acpi.p_dev);
 
@@ -921,7 +1030,6 @@ static void toshiba_acpi_exit(void)
 
 static int __init toshiba_acpi_init(void)
 {
-	acpi_status status = AE_OK;
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
@@ -969,11 +1077,7 @@ static int __init toshiba_acpi_init(void)
 		toshiba_acpi_exit();
 		return -ENODEV;
 	} else {
-		status = add_device();
-		if (ACPI_FAILURE(status)) {
-			toshiba_acpi_exit();
-			return -ENODEV;
-		}
+		create_toshiba_proc_entries();
 	}
 
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
@@ -1011,6 +1115,13 @@ static int __init toshiba_acpi_init(void)
 			toshiba_acpi_exit();
 			return ret;
 		}
+	}
+
+	toshiba_acpi.illumination_installed = 0;
+	if (toshiba_illumination_available()) {
+		if (!led_classdev_register(&(toshiba_acpi.p_dev->dev),
+					   &toshiba_led))
+			toshiba_acpi.illumination_installed = 1;
 	}
 
 	return 0;

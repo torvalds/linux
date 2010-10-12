@@ -84,8 +84,8 @@
 
 #ifdef VERBOSE_DEBUG
 static int usbatm_print_packet(const unsigned char *data, int len);
-#define PACKETDEBUG(arg...)	usbatm_print_packet (arg)
-#define vdbg(arg...)		dbg (arg)
+#define PACKETDEBUG(arg...)	usbatm_print_packet(arg)
+#define vdbg(arg...)		dbg(arg)
 #else
 #define PACKETDEBUG(arg...)
 #define vdbg(arg...)
@@ -273,8 +273,7 @@ static void usbatm_complete(struct urb *urb)
 
 	if (unlikely(status) &&
 			(!(channel->usbatm->flags & UDSL_IGNORE_EILSEQ) ||
-			 status != -EILSEQ ))
-	{
+			 status != -EILSEQ)) {
 		if (status == -ESHUTDOWN)
 			return;
 
@@ -494,7 +493,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 		ptr += data_len;
 		__skb_pull(skb, data_len);
 
-		if(!left)
+		if (!left)
 			continue;
 
 		memset(ptr, 0, left);
@@ -506,7 +505,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 			trailer[2] = ctrl->len >> 8;
 			trailer[3] = ctrl->len;
 
-			ctrl->crc = ~ crc32_be(ctrl->crc, ptr, left - 4);
+			ctrl->crc = ~crc32_be(ctrl->crc, ptr, left - 4);
 
 			trailer[4] = ctrl->crc >> 24;
 			trailer[5] = ctrl->crc >> 16;
@@ -516,8 +515,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 			target[3] |= 0x2;	/* adjust PTI */
 
 			ctrl->len = 0;		/* tag this skb finished */
-		}
-		else
+		} else
 			ctrl->crc = crc32_be(ctrl->crc, ptr, left);
 	}
 
@@ -1146,7 +1144,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	instance->tx_channel.endpoint = usb_sndbulkpipe(usb_dev, driver->bulk_out);
 
 	/* tx buffer size must be a positive multiple of the stride */
-	instance->tx_channel.buf_size = max (instance->tx_channel.stride,
+	instance->tx_channel.buf_size = max(instance->tx_channel.stride,
 			snd_buf_bytes - (snd_buf_bytes % instance->tx_channel.stride));
 
 	/* rx buffer size must be a positive multiple of the endpoint maxpacket */
@@ -1159,7 +1157,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		goto fail_unbind;
 	}
 
-	num_packets = max (1U, (rcv_buf_bytes + maxpacket / 2) / maxpacket); /* round */
+	num_packets = max(1U, (rcv_buf_bytes + maxpacket / 2) / maxpacket); /* round */
 
 	if (num_packets * maxpacket > UDSL_MAX_BUF_SIZE)
 		num_packets--;
@@ -1262,7 +1260,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		usb_free_urb(instance->urbs[i]);
 	}
 
-	kfree (instance);
+	kfree(instance);
 
 	return error;
 }
@@ -1390,9 +1388,8 @@ static int usbatm_print_packet(const unsigned char *data, int len)
 	for (i = 0; i < len;) {
 		buffer[0] = '\0';
 		sprintf(buffer, "%.3d :", i);
-		for (j = 0; (j < 16) && (i < len); j++, i++) {
+		for (j = 0; (j < 16) && (i < len); j++, i++)
 			sprintf(buffer, "%s %2.2x", buffer, data[i]);
-		}
 		dbg("%s", buffer);
 	}
 	return i;

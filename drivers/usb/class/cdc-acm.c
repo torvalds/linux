@@ -2,7 +2,7 @@
  * cdc-acm.c
  *
  * Copyright (c) 1999 Armin Fuerst	<fuerst@in.tum.de>
- * Copyright (c) 1999 Pavel Machek	<pavel@suse.cz>
+ * Copyright (c) 1999 Pavel Machek	<pavel@ucw.cz>
  * Copyright (c) 1999 Johannes Erdfelt	<johannes@erdfelt.com>
  * Copyright (c) 2000 Vojtech Pavlik	<vojtech@suse.cz>
  * Copyright (c) 2004 Oliver Neukum	<oliver@neukum.name>
@@ -636,19 +636,13 @@ static void acm_tty_unregister(struct acm *acm)
 
 static int acm_tty_chars_in_buffer(struct tty_struct *tty);
 
-static void acm_port_down(struct acm *acm, int drain)
+static void acm_port_down(struct acm *acm)
 {
 	int i, nr = acm->rx_buflimit;
 	mutex_lock(&open_mutex);
 	if (acm->dev) {
 		usb_autopm_get_interface(acm->control);
 		acm_set_control(acm, acm->ctrlout = 0);
-		/* try letting the last writes drain naturally */
-		if (drain) {
-			wait_event_interruptible_timeout(acm->drain_wait,
-				(ACM_NW == acm_wb_is_avail(acm)) || !acm->dev,
-					ACM_CLOSE_TIMEOUT * HZ);
-		}
 		usb_kill_urb(acm->ctrlurb);
 		for (i = 0; i < ACM_NW; i++)
 			usb_kill_urb(acm->wb[i].urb);
@@ -664,7 +658,7 @@ static void acm_tty_hangup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	tty_port_hangup(&acm->port);
-	acm_port_down(acm, 0);
+	acm_port_down(acm);
 }
 
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
@@ -685,7 +679,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 		mutex_unlock(&open_mutex);
 		return;
 	}
-	acm_port_down(acm, 0);
+	acm_port_down(acm);
 	tty_port_close_end(&acm->port, tty);
 	tty_port_tty_set(&acm->port, NULL);
 }

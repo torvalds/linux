@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>
@@ -59,6 +58,7 @@ MACHINE_START(OMAP_GENERIC, "Generic OMAP24xx")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_generic_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_generic_init_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap_timer,

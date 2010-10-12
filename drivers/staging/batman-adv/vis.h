@@ -19,7 +19,10 @@
  *
  */
 
-#define VIS_TIMEOUT		200000
+#ifndef _NET_BATMAN_ADV_VIS_H_
+#define _NET_BATMAN_ADV_VIS_H_
+
+#define VIS_TIMEOUT		200	/* timeout of vis packets in seconds */
 
 struct vis_info {
 	unsigned long       first_seen;
@@ -44,11 +47,7 @@ struct recvlist_node {
 	uint8_t mac[ETH_ALEN];
 };
 
-extern struct hashtable_t *vis_hash;
-extern spinlock_t vis_hash_lock;
-
-ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
-			      size_t count, loff_t off);
+int vis_seq_print_text(struct seq_file *seq, void *offset);
 void receive_server_sync_packet(struct bat_priv *bat_priv,
 				struct vis_packet *vis_packet,
 				int vis_info_len);
@@ -57,3 +56,5 @@ void receive_client_update_packet(struct bat_priv *bat_priv,
 				  int vis_info_len);
 int vis_init(void);
 void vis_quit(void);
+
+#endif /* _NET_BATMAN_ADV_VIS_H_ */

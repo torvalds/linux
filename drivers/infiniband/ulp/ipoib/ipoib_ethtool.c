@@ -147,6 +147,11 @@ static void ipoib_get_ethtool_stats(struct net_device *dev,
 	data[index++] = priv->lro.lro_mgr.stats.no_desc;
 }
 
+static int ipoib_set_flags(struct net_device *dev, u32 flags)
+{
+	return ethtool_op_set_flags(dev, flags, ETH_FLAG_LRO);
+}
+
 static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_drvinfo		= ipoib_get_drvinfo,
 	.get_rx_csum		= ipoib_get_rx_csum,
@@ -154,7 +159,7 @@ static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_coalesce		= ipoib_get_coalesce,
 	.set_coalesce		= ipoib_set_coalesce,
 	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= ethtool_op_set_flags,
+	.set_flags		= ipoib_set_flags,
 	.get_strings		= ipoib_get_strings,
 	.get_sset_count		= ipoib_get_sset_count,
 	.get_ethtool_stats	= ipoib_get_ethtool_stats,

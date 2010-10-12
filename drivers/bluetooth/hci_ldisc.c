@@ -210,7 +210,6 @@ static int hci_uart_close(struct hci_dev *hdev)
 static int hci_uart_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev* hdev = (struct hci_dev *) skb->dev;
-	struct tty_struct *tty;
 	struct hci_uart *hu;
 
 	if (!hdev) {
@@ -222,7 +221,6 @@ static int hci_uart_send_frame(struct sk_buff *skb)
 		return -EBUSY;
 
 	hu = (struct hci_uart *) hdev->driver_data;
-	tty = hu->tty;
 
 	BT_DBG("%s: type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
@@ -397,6 +395,9 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	if (!reset)
 		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
 
+	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
+		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
+
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
 		hci_free_dev(hdev);
@@ -477,6 +478,15 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 			return hu->hdev->id;
 		return -EUNATCH;
 
+	case HCIUARTSETFLAGS:
+		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+			return -EBUSY;
+		hu->hdev_flags = arg;
+		break;
+
+	case HCIUARTGETFLAGS:
+		return hu->hdev_flags;
+
 	default:
 		err = n_tty_ioctl_helper(tty, file, cmd, arg);
 		break;
@@ -542,6 +552,9 @@ static int __init hci_uart_init(void)
 #ifdef CONFIG_BT_HCIUART_LL
 	ll_init();
 #endif
+#ifdef CONFIG_BT_HCIUART_ATH3K
+	ath_init();
+#endif
 
 	return 0;
 }
@@ -558,6 +571,9 @@ static void __exit hci_uart_exit(void)
 #endif
 #ifdef CONFIG_BT_HCIUART_LL
 	ll_deinit();
+#endif
+#ifdef CONFIG_BT_HCIUART_ATH3K
+	ath_deinit();
 #endif
 
 	/* Release tty registration of line discipline */

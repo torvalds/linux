@@ -21,31 +21,35 @@
  * /dev/leds   minor 2, Access to leds depending on kernelconfig
  *
  * For ARTPEC-3 (CONFIG_CRIS_MACH_ARTPEC3):
- * /dev/gpioa  minor 0,  8 bit GPIO, each bit can change direction
- * /dev/gpiob  minor 1, 18 bit GPIO, each bit can change direction
- * /dev/gpioc  minor 3, 18 bit GPIO, each bit can change direction
- * /dev/gpiod  minor 4, 18 bit GPIO, each bit can change direction
+ * /dev/gpioa  minor 0, 32 bit GPIO, each bit can change direction
+ * /dev/gpiob  minor 1, 32 bit GPIO, each bit can change direction
+ * /dev/gpioc  minor 3, 16 bit GPIO, each bit can change direction
+ * /dev/gpiod  minor 4, 32 bit GPIO, input only
  * /dev/leds   minor 2, Access to leds depending on kernelconfig
  * /dev/pwm0   minor 16, PWM channel 0 on PA30
  * /dev/pwm1   minor 17, PWM channel 1 on PA31
  * /dev/pwm2   minor 18, PWM channel 2 on PB26
+ * /dev/ppwm   minor 19, PPWM channel
  *
  */
 #ifndef _ASM_ETRAXGPIO_H
 #define _ASM_ETRAXGPIO_H
 
+#define GPIO_MINOR_FIRST 0
+
+#define ETRAXGPIO_IOCTYPE 43
+
 /* etraxgpio _IOC_TYPE, bits 8 to 15 in ioctl cmd */
 #ifdef CONFIG_ETRAX_ARCH_V10
-#define ETRAXGPIO_IOCTYPE 43
 #define GPIO_MINOR_A 0
 #define GPIO_MINOR_B 1
 #define GPIO_MINOR_LEDS 2
 #define GPIO_MINOR_G 3
 #define GPIO_MINOR_LAST 3
+#define GPIO_MINOR_LAST_REAL GPIO_MINOR_LAST
 #endif
 
 #ifdef CONFIG_ETRAXFS
-#define ETRAXGPIO_IOCTYPE 43
 #define GPIO_MINOR_A 0
 #define GPIO_MINOR_B 1
 #define GPIO_MINOR_LEDS 2
@@ -58,10 +62,10 @@
 #else
 #define GPIO_MINOR_LAST 5
 #endif
+#define GPIO_MINOR_LAST_REAL GPIO_MINOR_LAST
 #endif
 
 #ifdef CONFIG_CRIS_MACH_ARTPEC3
-#define ETRAXGPIO_IOCTYPE 43
 #define GPIO_MINOR_A 0
 #define GPIO_MINOR_B 1
 #define GPIO_MINOR_LEDS 2
@@ -73,11 +77,16 @@
 #else
 #define GPIO_MINOR_LAST 4
 #endif
-#define GPIO_MINOR_PWM0 16
-#define GPIO_MINOR_PWM1 17
-#define GPIO_MINOR_PWM2 18
-#define GPIO_MINOR_LAST_PWM GPIO_MINOR_PWM2
+#define GPIO_MINOR_FIRST_PWM 16
+#define GPIO_MINOR_PWM0 (GPIO_MINOR_FIRST_PWM+0)
+#define GPIO_MINOR_PWM1 (GPIO_MINOR_FIRST_PWM+1)
+#define GPIO_MINOR_PWM2 (GPIO_MINOR_FIRST_PWM+2)
+#define GPIO_MINOR_PPWM (GPIO_MINOR_FIRST_PWM+3)
+#define GPIO_MINOR_LAST_PWM GPIO_MINOR_PPWM
+#define GPIO_MINOR_LAST_REAL GPIO_MINOR_LAST_PWM
 #endif
+
+
 
 /* supported ioctl _IOC_NR's */
 
@@ -125,12 +134,10 @@
  */
 #define IO_READ_INBITS   0x10 /* *arg is result of reading the input pins */
 #define IO_READ_OUTBITS  0x11 /* *arg is result of reading the output shadow */
-#define IO_SETGET_INPUT  0x12 /* bits set in *arg is set to input,
-                               * *arg updated with current input pins.
-                               */
-#define IO_SETGET_OUTPUT 0x13 /* bits set in *arg is set to output,
-                               * *arg updated with current output pins.
-                               */
+#define IO_SETGET_INPUT  0x12 /* bits set in *arg is set to input, */
+			      /* *arg updated with current input pins. */
+#define IO_SETGET_OUTPUT 0x13 /* bits set in *arg is set to output, */
+			      /* *arg updated with current output pins. */
 
 /* The following ioctl's are applicable to the PWM channels only */
 
@@ -140,7 +147,8 @@ enum io_pwm_mode {
 	PWM_OFF = 0,		/* disabled, deallocated */
 	PWM_STANDARD = 1,	/* 390 kHz, duty cycle 0..255/256 */
 	PWM_FAST = 2,		/* variable freq, w/ 10ns active pulse len */
-	PWM_VARFREQ = 3		/* individually configurable high/low periods */
+	PWM_VARFREQ = 3,	/* individually configurable high/low periods */
+	PWM_SOFT = 4		/* software generated */
 };
 
 struct io_pwm_set_mode {
@@ -175,5 +183,57 @@ struct io_pwm_set_period {
 struct io_pwm_set_duty {
 	int duty;		/* 0..255 */
 };
+
+/* Returns information about the latest PWM pulse.
+ * lo: Length of the latest low period, in units of 10ns.
+ * hi: Length of the latest high period, in units of 10ns.
+ * cnt: Time since last detected edge, in units of 10ns.
+ *
+ * The input source to PWM is decied by IO_PWM_SET_INPUT_SRC.
+ *
+ * NOTE: All PWM devices is connected to the same input source.
+ */
+#define IO_PWM_GET_PERIOD   0x23
+
+struct io_pwm_get_period {
+	unsigned int lo;
+	unsigned int hi;
+	unsigned int cnt;
+};
+
+/* Sets the input source for the PWM input. For the src value see the
+ * register description for gio:rw_pwm_in_cfg.
+ *
+ * NOTE: All PWM devices is connected to the same input source.
+ */
+#define IO_PWM_SET_INPUT_SRC   0x24
+struct io_pwm_set_input_src {
+	unsigned int src;	/* 0..7 */
+};
+
+/* Sets the duty cycles in steps of 1/256, 0 = 0%, 255 = 100% duty cycle */
+#define IO_PPWM_SET_DUTY     0x25
+
+struct io_ppwm_set_duty {
+	int duty;		/* 0..255 */
+};
+
+/* Configuraton struct for the IO_PWMCLK_SET_CONFIG ioctl to configure
+ * PWM capable gpio pins:
+ */
+#define IO_PWMCLK_SETGET_CONFIG 0x26
+struct gpio_pwmclk_conf {
+  unsigned int gpiopin; /* The pin number based on the opened device */
+  unsigned int baseclk; /* The base clock to use, or sw will select one close*/
+  unsigned int low;     /* The number of low periods of the baseclk */
+  unsigned int high;    /* The number of high periods of the baseclk */
+};
+
+/* Examples:
+ * To get a symmetric 12 MHz clock without knowing anything about the hardware:
+ * baseclk = 12000000, low = 0, high = 0
+ * To just get info of current setting:
+ * baseclk = 0, low = 0, high = 0, the values will be updated by driver.
+ */
 
 #endif

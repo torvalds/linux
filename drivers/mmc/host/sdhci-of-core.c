@@ -85,14 +85,14 @@ void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg)
 
 #ifdef CONFIG_PM
 
-static int sdhci_of_suspend(struct of_device *ofdev, pm_message_t state)
+static int sdhci_of_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 
 	return mmc_suspend_host(host->mmc);
 }
 
-static int sdhci_of_resume(struct of_device *ofdev)
+static int sdhci_of_resume(struct platform_device *ofdev)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 
@@ -115,7 +115,7 @@ static bool __devinit sdhci_of_wp_inverted(struct device_node *np)
 	return machine_is(mpc837x_rdb) || machine_is(mpc837x_mds);
 }
 
-static int __devinit sdhci_of_probe(struct of_device *ofdev,
+static int __devinit sdhci_of_probe(struct platform_device *ofdev,
 				 const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -154,6 +154,10 @@ static int __devinit sdhci_of_probe(struct of_device *ofdev,
 		host->ops = &sdhci_of_data->ops;
 	}
 
+	if (of_get_property(np, "sdhci,auto-cmd12", NULL))
+		host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
+
+
 	if (of_get_property(np, "sdhci,1-bit-only", NULL))
 		host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
 
@@ -179,7 +183,7 @@ err_addr_map:
 	return ret;
 }
 
-static int __devexit sdhci_of_remove(struct of_device *ofdev)
+static int __devexit sdhci_of_remove(struct platform_device *ofdev)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 

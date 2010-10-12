@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -775,6 +776,7 @@ dcssblk_open(struct block_device *bdev, fmode_t mode)
 	struct dcssblk_dev_info *dev_info;
 	int rc;
 
+	lock_kernel();
 	dev_info = bdev->bd_disk->private_data;
 	if (NULL == dev_info) {
 		rc = -ENODEV;
@@ -784,6 +786,7 @@ dcssblk_open(struct block_device *bdev, fmode_t mode)
 	bdev->bd_block_size = 4096;
 	rc = 0;
 out:
+	unlock_kernel();
 	return rc;
 }
 
@@ -794,6 +797,7 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 	struct segment_info *entry;
 	int rc;
 
+	lock_kernel();
 	if (!dev_info) {
 		rc = -ENODEV;
 		goto out;
@@ -811,6 +815,7 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 	up_write(&dcssblk_devices_sem);
 	rc = 0;
 out:
+	unlock_kernel();
 	return rc;
 }
 

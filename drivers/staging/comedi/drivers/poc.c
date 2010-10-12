@@ -248,4 +248,19 @@ static int pcl734_insn_bits(struct comedi_device *dev,
 	return 2;
 }
 
-COMEDI_INITCLEANUP(driver_poc);
+static int __init driver_poc_init_module(void)
+{
+	return comedi_driver_register(&driver_poc);
+}
+
+static void __exit driver_poc_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_poc);
+}
+
+module_init(driver_poc_init_module);
+module_exit(driver_poc_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

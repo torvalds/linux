@@ -258,7 +258,7 @@ loop_lock:
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
 
-		if (bio_rw_flagged(cur, BIO_RW_SYNCIO))
+		if (cur->bi_rw & REQ_SYNC)
 			num_sync_run++;
 
 		submit_bio(cur->bi_rw, cur);
@@ -2651,7 +2651,7 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 	int max_errors = 0;
 	struct btrfs_multi_bio *multi = NULL;
 
-	if (multi_ret && !(rw & (1 << BIO_RW)))
+	if (multi_ret && !(rw & REQ_WRITE))
 		stripes_allocated = 1;
 again:
 	if (multi_ret) {
@@ -2687,7 +2687,7 @@ again:
 		mirror_num = 0;
 
 	/* if our multi bio struct is too small, back off and try again */
-	if (rw & (1 << BIO_RW)) {
+	if (rw & REQ_WRITE) {
 		if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
 				 BTRFS_BLOCK_GROUP_DUP)) {
 			stripes_required = map->num_stripes;
@@ -2697,7 +2697,7 @@ again:
 			max_errors = 1;
 		}
 	}
-	if (multi_ret && (rw & (1 << BIO_RW)) &&
+	if (multi_ret && (rw & REQ_WRITE) &&
 	    stripes_allocated < stripes_required) {
 		stripes_allocated = map->num_stripes;
 		free_extent_map(em);
@@ -2733,7 +2733,7 @@ again:
 	num_stripes = 1;
 	stripe_index = 0;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
-		if (unplug_page || (rw & (1 << BIO_RW)))
+		if (unplug_page || (rw & REQ_WRITE))
 			num_stripes = map->num_stripes;
 		else if (mirror_num)
 			stripe_index = mirror_num - 1;
@@ -2744,7 +2744,7 @@ again:
 		}
 
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
-		if (rw & (1 << BIO_RW))
+		if (rw & REQ_WRITE)
 			num_stripes = map->num_stripes;
 		else if (mirror_num)
 			stripe_index = mirror_num - 1;
@@ -2755,7 +2755,7 @@ again:
 		stripe_index = do_div(stripe_nr, factor);
 		stripe_index *= map->sub_stripes;
 
-		if (unplug_page || (rw & (1 << BIO_RW)))
+		if (unplug_page || (rw & REQ_WRITE))
 			num_stripes = map->sub_stripes;
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
@@ -2945,7 +2945,7 @@ static noinline int schedule_bio(struct btrfs_root *root,
 	struct btrfs_pending_bios *pending_bios;
 
 	/* don't bother with additional async steps for reads, right now */
-	if (!(rw & (1 << BIO_RW))) {
+	if (!(rw & REQ_WRITE)) {
 		bio_get(bio);
 		submit_bio(rw, bio);
 		bio_put(bio);
@@ -2964,7 +2964,7 @@ static noinline int schedule_bio(struct btrfs_root *root,
 	bio->bi_rw |= rw;
 
 	spin_lock(&device->io_lock);
-	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
+	if (bio->bi_rw & REQ_SYNC)
 		pending_bios = &device->pending_sync_bios;
 	else
 		pending_bios = &device->pending_bios;

@@ -145,16 +145,18 @@ static int hfsplus_write_inode(struct inode *inode,
 	return ret;
 }
 
-static void hfsplus_clear_inode(struct inode *inode)
+static void hfsplus_evict_inode(struct inode *inode)
 {
-	dprint(DBG_INODE, "hfsplus_clear_inode: %lu\n", inode->i_ino);
+	dprint(DBG_INODE, "hfsplus_evict_inode: %lu\n", inode->i_ino);
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	if (HFSPLUS_IS_RSRC(inode)) {
 		HFSPLUS_I(HFSPLUS_I(inode).rsrc_inode).rsrc_inode = NULL;
 		iput(HFSPLUS_I(inode).rsrc_inode);
 	}
 }
 
-static int hfsplus_sync_fs(struct super_block *sb, int wait)
+int hfsplus_sync_fs(struct super_block *sb, int wait)
 {
 	struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
 
@@ -293,7 +295,7 @@ static const struct super_operations hfsplus_sops = {
 	.alloc_inode	= hfsplus_alloc_inode,
 	.destroy_inode	= hfsplus_destroy_inode,
 	.write_inode	= hfsplus_write_inode,
-	.clear_inode	= hfsplus_clear_inode,
+	.evict_inode	= hfsplus_evict_inode,
 	.put_super	= hfsplus_put_super,
 	.write_super	= hfsplus_write_super,
 	.sync_fs	= hfsplus_sync_fs,

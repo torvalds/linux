@@ -228,7 +228,7 @@ static int ehci_hcd_au1xxx_drv_suspend(struct device *dev)
 	 * the root hub is either suspended or stopped.
 	 */
 	spin_lock_irqsave(&ehci->lock, flags);
-	ehci_prepare_ports_for_controller_suspend(ehci);
+	ehci_prepare_ports_for_controller_suspend(ehci, device_may_wakeup(dev));
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 

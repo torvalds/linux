@@ -335,7 +335,7 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 		smp_rmb();  /* prevent speculative reads of dma'ed hdrq */
 	}
 
-	for (last = 0, i = 1; !last; i += !last) {
+	for (last = 0, i = 1; !last && i <= 64; i += !last) {
 		hdr = dd->f_get_msgheader(dd, rhf_addr);
 		eflags = qib_hdrget_err_flags(rhf_addr);
 		etype = qib_hdrget_rcv_type(rhf_addr);

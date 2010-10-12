@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/bitops.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 
 #include <asm/setup.h>
@@ -153,6 +154,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
     device = MINOR(bdev->bd_dev);
 
+    lock_kernel();
     if ( current_device != -1 && current_device != device )
     {
 	rc = -EBUSY;
@@ -294,20 +296,25 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 	set_capacity(z2ram_gendisk, z2ram_size >> 9);
     }
 
+    unlock_kernel();
     return 0;
 
 err_out_kfree:
     kfree(z2ram_map);
 err_out:
+    unlock_kernel();
     return rc;
 }
 
 static int
 z2_release(struct gendisk *disk, fmode_t mode)
 {
-    if ( current_device == -1 )
-	return 0;     
-
+    lock_kernel();
+    if ( current_device == -1 ) {
+    	unlock_kernel();
+    	return 0;
+    }
+    unlock_kernel();
     /*
      * FIXME: unmap memory
      */

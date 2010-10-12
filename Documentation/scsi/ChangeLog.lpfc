@@ -807,7 +807,7 @@ Changes from 20040908 to 20040920
 	  lpfc_disc_done/lpfc_do_dpc cleanup - lpfc_disc_done can return
 	  void - move lpfc_do_dpc and lpfc_disc_done to lpfc_hbadisc.c -
 	  remove checking of list emptiness before calling lpfc_disc_done,
-	  it handles the emtpy list case just fine and the additional
+	  it handles the empty list case just fine and the additional
 	  instructions cost less then the bustlocked spinlock operations.
 	* Integrated patch from Christoph Hellwig: This adds a new 64bit
 	  counter instead, brd_no isn't reused anymore.  Also some tiny

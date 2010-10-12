@@ -134,6 +134,7 @@ bfa_isr_enable(struct bfa_s *bfa)
 
 	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, intr_unmask);
 	bfa_reg_write(bfa->iocfc.bfa_regs.intr_mask, ~intr_unmask);
+	bfa->iocfc.intr_mask = ~intr_unmask;
 	bfa_isr_mode_set(bfa, bfa->msix.nvecs != 0);
 }
 

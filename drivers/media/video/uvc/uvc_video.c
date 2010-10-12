@@ -555,6 +555,9 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		if (urb->iso_frame_desc[i].status < 0) {
 			uvc_trace(UVC_TRACE_FRAME, "USB isochronous frame "
 				"lost (%d).\n", urb->iso_frame_desc[i].status);
+			/* Mark the buffer as faulty. */
+			if (buf != NULL)
+				buf->error = 1;
 			continue;
 		}
 
@@ -579,8 +582,14 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		uvc_video_decode_end(stream, buf, mem,
 			urb->iso_frame_desc[i].actual_length);
 
-		if (buf->state == UVC_BUF_STATE_READY)
+		if (buf->state == UVC_BUF_STATE_READY) {
+			if (buf->buf.length != buf->buf.bytesused &&
+			    !(stream->cur_format->flags &
+			      UVC_FMT_FLAG_COMPRESSED))
+				buf->error = 1;
+
 			buf = uvc_queue_next_buffer(&stream->queue, buf);
+		}
 	}
 }
 
@@ -1104,7 +1113,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	atomic_set(&stream->active, 0);
 
 	/* Initialize the video buffers queue. */
-	uvc_queue_init(&stream->queue, stream->type);
+	uvc_queue_init(&stream->queue, stream->type, !uvc_no_drop_param);
 
 	/* Alternate setting 0 should be the default, yet the XBox Live Vision
 	 * Cam (and possibly other devices) crash or otherwise misbehave if
@@ -1196,12 +1205,6 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 		uvc_queue_enable(&stream->queue, 0);
 		return 0;
 	}
-
-	if ((stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED) ||
-	    uvc_no_drop_param)
-		stream->queue.flags &= ~UVC_QUEUE_DROP_INCOMPLETE;
-	else
-		stream->queue.flags |= UVC_QUEUE_DROP_INCOMPLETE;
 
 	ret = uvc_queue_enable(&stream->queue, 1);
 	if (ret < 0)

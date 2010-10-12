@@ -180,6 +180,13 @@ static int __init smsgiucv_app_init(void)
 		goto fail_put_driver;
 	}
 
+	/* convert sender to uppercase characters */
+	if (sender) {
+		int len = strlen(sender);
+		while (len--)
+			sender[len] = toupper(sender[len]);
+	}
+
 	/* register with the smsgiucv device driver */
 	rc = smsg_register_callback(SMSG_PREFIX, smsg_app_callback);
 	if (rc) {

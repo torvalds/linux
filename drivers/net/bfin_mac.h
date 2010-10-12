@@ -13,8 +13,11 @@
 #include <linux/net_tstamp.h>
 #include <linux/clocksource.h>
 #include <linux/timecompare.h>
+#include <linux/timer.h>
 
 #define BFIN_MAC_CSUM_OFFLOAD
+
+#define TX_RECLAIM_JIFFIES (HZ / 5)
 
 struct dma_descriptor {
 	struct dma_descriptor *next_dma_desc;
@@ -68,6 +71,8 @@ struct bfin_mac_local {
 
 	int wol;		/* Wake On Lan */
 	int irq_wake_requested;
+	struct timer_list tx_reclaim_timer;
+	struct net_device *ndev;
 
 	/* MII and PHY stuffs */
 	int old_link;          /* used by bf537_adjust_link */

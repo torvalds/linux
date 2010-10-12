@@ -15,7 +15,7 @@ field##_show (struct device *dev, struct device_attribute *attr,	\
 static ssize_t
 compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct of_device *of;
+	struct platform_device *of;
 	const char *compat;
 	int cplen;
 	int length = 0;
@@ -41,10 +41,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	struct of_device *ofdev = to_of_device(dev);
-	int len;
-
-	len = of_device_get_modalias(ofdev, buf, PAGE_SIZE - 2);
+	int len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
 
 	buf[len] = '\n';
 	buf[len+1] = 0;
@@ -55,9 +52,9 @@ static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 static ssize_t devspec_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 
-	ofdev = to_of_device(dev);
+	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
 }
 

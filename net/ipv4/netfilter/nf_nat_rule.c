@@ -28,7 +28,8 @@
 
 #define NAT_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | \
 			 (1 << NF_INET_POST_ROUTING) | \
-			 (1 << NF_INET_LOCAL_OUT))
+			 (1 << NF_INET_LOCAL_OUT) | \
+			 (1 << NF_INET_LOCAL_IN))
 
 static const struct xt_table nat_table = {
 	.name		= "nat",
@@ -45,7 +46,8 @@ ipt_snat_target(struct sk_buff *skb, const struct xt_action_param *par)
 	enum ip_conntrack_info ctinfo;
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
-	NF_CT_ASSERT(par->hooknum == NF_INET_POST_ROUTING);
+	NF_CT_ASSERT(par->hooknum == NF_INET_POST_ROUTING ||
+		     par->hooknum == NF_INET_LOCAL_IN);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
@@ -99,7 +101,7 @@ static int ipt_dnat_checkentry(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-unsigned int
+static unsigned int
 alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
 	/* Force range to this IP; let proto decide mapping for
@@ -141,7 +143,7 @@ static struct xt_target ipt_snat_reg __read_mostly = {
 	.target		= ipt_snat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= 1 << NF_INET_POST_ROUTING,
+	.hooks		= (1 << NF_INET_POST_ROUTING) | (1 << NF_INET_LOCAL_IN),
 	.checkentry	= ipt_snat_checkentry,
 	.family		= AF_INET,
 };

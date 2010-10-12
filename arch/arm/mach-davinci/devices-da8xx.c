@@ -111,19 +111,21 @@ static const s8 da850_queue_priority_mapping[][2] = {
 	{-1, -1}
 };
 
-static struct edma_soc_info da830_edma_info[] = {
-	{
-		.n_channel		= 32,
-		.n_region		= 4,
-		.n_slot			= 128,
-		.n_tc			= 2,
-		.n_cc			= 1,
-		.queue_tc_mapping	= da8xx_queue_tc_mapping,
-		.queue_priority_mapping	= da8xx_queue_priority_mapping,
-	},
+static struct edma_soc_info da830_edma_cc0_info = {
+	.n_channel		= 32,
+	.n_region		= 4,
+	.n_slot			= 128,
+	.n_tc			= 2,
+	.n_cc			= 1,
+	.queue_tc_mapping	= da8xx_queue_tc_mapping,
+	.queue_priority_mapping	= da8xx_queue_priority_mapping,
 };
 
-static struct edma_soc_info da850_edma_info[] = {
+static struct edma_soc_info *da830_edma_info[EDMA_MAX_CC] = {
+	&da830_edma_cc0_info,
+};
+
+static struct edma_soc_info da850_edma_cc_info[] = {
 	{
 		.n_channel		= 32,
 		.n_region		= 4,
@@ -142,6 +144,11 @@ static struct edma_soc_info da850_edma_info[] = {
 		.queue_tc_mapping	= da850_queue_tc_mapping,
 		.queue_priority_mapping	= da850_queue_priority_mapping,
 	},
+};
+
+static struct edma_soc_info *da850_edma_info[EDMA_MAX_CC] = {
+	&da850_edma_cc_info[0],
+	&da850_edma_cc_info[1],
 };
 
 static struct resource da830_edma_resources[] = {
@@ -248,18 +255,21 @@ static struct platform_device da850_edma_device = {
 	.resource	= da850_edma_resources,
 };
 
-int __init da8xx_register_edma(void)
+int __init da830_register_edma(struct edma_rsv_info *rsv)
 {
-	struct platform_device *pdev;
+	da830_edma_cc0_info.rsv = rsv;
 
-	if (cpu_is_davinci_da830())
-		pdev = &da830_edma_device;
-	else if (cpu_is_davinci_da850())
-		pdev = &da850_edma_device;
-	else
-		return -ENODEV;
+	return platform_device_register(&da830_edma_device);
+}
 
-	return platform_device_register(pdev);
+int __init da850_register_edma(struct edma_rsv_info *rsv[2])
+{
+	if (rsv) {
+		da850_edma_cc_info[0].rsv = rsv[0];
+		da850_edma_cc_info[1].rsv = rsv[1];
+	}
+
+	return platform_device_register(&da850_edma_device);
 }
 
 static struct resource da8xx_i2c_resources0[] = {

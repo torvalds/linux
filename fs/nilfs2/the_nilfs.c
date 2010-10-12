@@ -38,6 +38,8 @@
 static LIST_HEAD(nilfs_objects);
 static DEFINE_SPINLOCK(nilfs_lock);
 
+static int nilfs_valid_sb(struct nilfs_super_block *sbp);
+
 void nilfs_set_last_segment(struct the_nilfs *nilfs,
 			    sector_t start_blocknr, u64 seq, __u64 cno)
 {
@@ -45,6 +47,16 @@ void nilfs_set_last_segment(struct the_nilfs *nilfs,
 	nilfs->ns_last_pseg = start_blocknr;
 	nilfs->ns_last_seq = seq;
 	nilfs->ns_last_cno = cno;
+
+	if (!nilfs_sb_dirty(nilfs)) {
+		if (nilfs->ns_prev_seq == nilfs->ns_last_seq)
+			goto stay_cursor;
+
+		set_nilfs_sb_dirty(nilfs);
+	}
+	nilfs->ns_prev_seq = nilfs->ns_last_seq;
+
+ stay_cursor:
 	spin_unlock(&nilfs->ns_last_segment_lock);
 }
 
@@ -159,8 +171,7 @@ void put_nilfs(struct the_nilfs *nilfs)
 	kfree(nilfs);
 }
 
-static int nilfs_load_super_root(struct the_nilfs *nilfs,
-				 struct nilfs_sb_info *sbi, sector_t sr_block)
+static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
 {
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
@@ -169,7 +180,7 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	unsigned inode_size;
 	int err;
 
-	err = nilfs_read_super_root_block(sbi->s_super, sr_block, &bh_sr, 1);
+	err = nilfs_read_super_root_block(nilfs, sr_block, &bh_sr, 1);
 	if (unlikely(err))
 		return err;
 
@@ -248,6 +259,37 @@ static void nilfs_clear_recovery_info(struct nilfs_recovery_info *ri)
 }
 
 /**
+ * nilfs_store_log_cursor - load log cursor from a super block
+ * @nilfs: nilfs object
+ * @sbp: buffer storing super block to be read
+ *
+ * nilfs_store_log_cursor() reads the last position of the log
+ * containing a super root from a given super block, and initializes
+ * relevant information on the nilfs object preparatory for log
+ * scanning and recovery.
+ */
+static int nilfs_store_log_cursor(struct the_nilfs *nilfs,
+				  struct nilfs_super_block *sbp)
+{
+	int ret = 0;
+
+	nilfs->ns_last_pseg = le64_to_cpu(sbp->s_last_pseg);
+	nilfs->ns_last_cno = le64_to_cpu(sbp->s_last_cno);
+	nilfs->ns_last_seq = le64_to_cpu(sbp->s_last_seq);
+
+	nilfs->ns_prev_seq = nilfs->ns_last_seq;
+	nilfs->ns_seg_seq = nilfs->ns_last_seq;
+	nilfs->ns_segnum =
+		nilfs_get_segnum_of_block(nilfs, nilfs->ns_last_pseg);
+	nilfs->ns_cno = nilfs->ns_last_cno + 1;
+	if (nilfs->ns_segnum >= nilfs->ns_nsegments) {
+		printk(KERN_ERR "NILFS invalid last segment number.\n");
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+/**
  * load_nilfs - load and recover the nilfs
  * @nilfs: the_nilfs structure to be released
  * @sbi: nilfs_sb_info used to recover past segment
@@ -285,13 +327,55 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 
 	nilfs_init_recovery_info(&ri);
 
-	err = nilfs_search_super_root(nilfs, sbi, &ri);
+	err = nilfs_search_super_root(nilfs, &ri);
 	if (unlikely(err)) {
-		printk(KERN_ERR "NILFS: error searching super root.\n");
-		goto failed;
+		struct nilfs_super_block **sbp = nilfs->ns_sbp;
+		int blocksize;
+
+		if (err != -EINVAL)
+			goto scan_error;
+
+		if (!nilfs_valid_sb(sbp[1])) {
+			printk(KERN_WARNING
+			       "NILFS warning: unable to fall back to spare"
+			       "super block\n");
+			goto scan_error;
+		}
+		printk(KERN_INFO
+		       "NILFS: try rollback from an earlier position\n");
+
+		/*
+		 * restore super block with its spare and reconfigure
+		 * relevant states of the nilfs object.
+		 */
+		memcpy(sbp[0], sbp[1], nilfs->ns_sbsize);
+		nilfs->ns_crc_seed = le32_to_cpu(sbp[0]->s_crc_seed);
+		nilfs->ns_sbwtime = le64_to_cpu(sbp[0]->s_wtime);
+
+		/* verify consistency between two super blocks */
+		blocksize = BLOCK_SIZE << le32_to_cpu(sbp[0]->s_log_block_size);
+		if (blocksize != nilfs->ns_blocksize) {
+			printk(KERN_WARNING
+			       "NILFS warning: blocksize differs between "
+			       "two super blocks (%d != %d)\n",
+			       blocksize, nilfs->ns_blocksize);
+			goto scan_error;
+		}
+
+		err = nilfs_store_log_cursor(nilfs, sbp[0]);
+		if (err)
+			goto scan_error;
+
+		/* drop clean flag to allow roll-forward and recovery */
+		nilfs->ns_mount_state &= ~NILFS_VALID_FS;
+		valid_fs = 0;
+
+		err = nilfs_search_super_root(nilfs, &ri);
+		if (err)
+			goto scan_error;
 	}
 
-	err = nilfs_load_super_root(nilfs, sbi, ri.ri_super_root);
+	err = nilfs_load_super_root(nilfs, ri.ri_super_root);
 	if (unlikely(err)) {
 		printk(KERN_ERR "NILFS: error loading super root.\n");
 		goto failed;
@@ -301,10 +385,22 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto skip_recovery;
 
 	if (s_flags & MS_RDONLY) {
+		__u64 features;
+
 		if (nilfs_test_opt(sbi, NORECOVERY)) {
 			printk(KERN_INFO "NILFS: norecovery option specified. "
 			       "skipping roll-forward recovery\n");
 			goto skip_recovery;
+		}
+		features = le64_to_cpu(nilfs->ns_sbp[0]->s_feature_compat_ro) &
+			~NILFS_FEATURE_COMPAT_RO_SUPP;
+		if (features) {
+			printk(KERN_ERR "NILFS: couldn't proceed with "
+			       "recovery because of unsupported optional "
+			       "features (%llx)\n",
+			       (unsigned long long)features);
+			err = -EROFS;
+			goto failed_unload;
 		}
 		if (really_read_only) {
 			printk(KERN_ERR "NILFS: write access "
@@ -320,14 +416,13 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto failed_unload;
 	}
 
-	err = nilfs_recover_logical_segments(nilfs, sbi, &ri);
+	err = nilfs_salvage_orphan_logs(nilfs, sbi, &ri);
 	if (err)
 		goto failed_unload;
 
 	down_write(&nilfs->ns_sem);
-	nilfs->ns_mount_state |= NILFS_VALID_FS;
-	nilfs->ns_sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
-	err = nilfs_commit_super(sbi, 1);
+	nilfs->ns_mount_state |= NILFS_VALID_FS; /* set "clean" flag */
+	err = nilfs_cleanup_super(sbi);
 	up_write(&nilfs->ns_sem);
 
 	if (err) {
@@ -342,6 +437,10 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	nilfs_clear_recovery_info(&ri);
 	sbi->s_super->s_flags = s_flags;
 	return 0;
+
+ scan_error:
+	printk(KERN_ERR "NILFS: error searching super root.\n");
+	goto failed;
 
  failed_unload:
 	nilfs_mdt_destroy(nilfs->ns_cpfile);
@@ -515,8 +614,8 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 		nilfs_swap_super_block(nilfs);
 	}
 
-	nilfs->ns_sbwtime[0] = le64_to_cpu(sbp[0]->s_wtime);
-	nilfs->ns_sbwtime[1] = valid[!swp] ? le64_to_cpu(sbp[1]->s_wtime) : 0;
+	nilfs->ns_sbwcount = 0;
+	nilfs->ns_sbwtime = le64_to_cpu(sbp[0]->s_wtime);
 	nilfs->ns_prot_seq = le64_to_cpu(sbp[valid[1] & !swp]->s_last_seq);
 	*sbpp = sbp[0];
 	return 0;
@@ -557,6 +656,10 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		if (err)
 			goto out;
 
+		err = nilfs_check_feature_compatibility(sb, sbp);
+		if (err)
+			goto out;
+
 		blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
 		if (sb->s_blocksize != blocksize &&
 		    !sb_set_blocksize(sb, blocksize)) {
@@ -568,7 +671,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		goto out;
 	}
 
-	blocksize = sb_min_blocksize(sb, BLOCK_SIZE);
+	blocksize = sb_min_blocksize(sb, NILFS_MIN_BLOCK_SIZE);
 	if (!blocksize) {
 		printk(KERN_ERR "NILFS: unable to set blocksize\n");
 		err = -EINVAL;
@@ -582,7 +685,18 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	if (err)
 		goto failed_sbh;
 
+	err = nilfs_check_feature_compatibility(sb, sbp);
+	if (err)
+		goto failed_sbh;
+
 	blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
+	if (blocksize < NILFS_MIN_BLOCK_SIZE ||
+	    blocksize > NILFS_MAX_BLOCK_SIZE) {
+		printk(KERN_ERR "NILFS: couldn't mount because of unsupported "
+		       "filesystem blocksize %d\n", blocksize);
+		err = -EINVAL;
+		goto failed_sbh;
+	}
 	if (sb->s_blocksize != blocksize) {
 		int hw_blocksize = bdev_logical_block_size(sb->s_bdev);
 
@@ -604,6 +718,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 			   when reloading fails. */
 	}
 	nilfs->ns_blocksize_bits = sb->s_blocksize_bits;
+	nilfs->ns_blocksize = blocksize;
 
 	err = nilfs_store_disk_layout(nilfs, sbp);
 	if (err)
@@ -616,23 +731,9 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	bdi = nilfs->ns_bdev->bd_inode->i_mapping->backing_dev_info;
 	nilfs->ns_bdi = bdi ? : &default_backing_dev_info;
 
-	/* Finding last segment */
-	nilfs->ns_last_pseg = le64_to_cpu(sbp->s_last_pseg);
-	nilfs->ns_last_cno = le64_to_cpu(sbp->s_last_cno);
-	nilfs->ns_last_seq = le64_to_cpu(sbp->s_last_seq);
-
-	nilfs->ns_seg_seq = nilfs->ns_last_seq;
-	nilfs->ns_segnum =
-		nilfs_get_segnum_of_block(nilfs, nilfs->ns_last_pseg);
-	nilfs->ns_cno = nilfs->ns_last_cno + 1;
-	if (nilfs->ns_segnum >= nilfs->ns_nsegments) {
-		printk(KERN_ERR "NILFS invalid last segment number.\n");
-		err = -EINVAL;
+	err = nilfs_store_log_cursor(nilfs, sbp);
+	if (err)
 		goto failed_sbh;
-	}
-	/* Dummy values  */
-	nilfs->ns_free_segments_count =
-		nilfs->ns_nsegments - (nilfs->ns_segnum + 1);
 
 	/* Initialize gcinode cache */
 	err = nilfs_init_gccache(nilfs);

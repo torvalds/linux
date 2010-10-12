@@ -259,7 +259,7 @@
 				clock-frequency = <0>; /* Filled in by U-Boot */
 				current-speed = <0>; /* Filled in by U-Boot */
 				interrupt-parent = <&UIC1>;
-				interrupts = <0x1d 0x4>;
+				interrupts = <28 0x4>;
 			};
 
 			UART3: serial@ef600600 {
@@ -270,7 +270,7 @@
 				clock-frequency = <0>; /* Filled in by U-Boot */
 				current-speed = <0>; /* Filled in by U-Boot */
 				interrupt-parent = <&UIC1>;
-				interrupts = <0x1e 0x4>;
+				interrupts = <29 0x4>;
 			};
 
 			IIC0: i2c@ef600700 {

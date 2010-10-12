@@ -286,12 +286,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22))
 	ip = ip_hdr(skb);
-#else
-	ip = (struct iphdr*)(skb->data + sizeof(struct ether_header));
-#endif
 	switch (ip->tos & 0xfc) {
 		case 0x20:
 			return 2;
@@ -613,11 +608,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 
 int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	struct ieee80211_txb *txb = NULL;
 	struct ieee80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;

@@ -190,6 +190,11 @@ int nes_read_eeprom_values(struct nes_device *nesdev, struct nes_adapter *nesada
 		nesadapter->firmware_version = (((u32)(u8)(eeprom_data>>8))  <<  16) +
 				(u32)((u8)eeprom_data);
 
+		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 10);
+		printk(PFX "EEPROM version %u.%u\n", (u8)(eeprom_data>>8), (u8)eeprom_data);
+		nesadapter->eeprom_version = (((u32)(u8)(eeprom_data>>8)) << 16) +
+				(u32)((u8)eeprom_data);
+
 no_fw_rev:
 		/* eeprom is valid */
 		eeprom_offset = nesadapter->software_eeprom_offset;

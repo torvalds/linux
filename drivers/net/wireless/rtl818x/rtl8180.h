@@ -36,7 +36,7 @@ struct rtl8180_tx_desc {
 	u8 agc;
 	u8 flags2;
 	u32 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl8180_rx_desc {
 	__le32 flags;
@@ -45,7 +45,7 @@ struct rtl8180_rx_desc {
 		__le32 rx_buf;
 		__le64 tsft;
 	};
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl8180_tx_ring {
 	struct rtl8180_tx_desc *desc;

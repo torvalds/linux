@@ -37,6 +37,9 @@
 #define UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV	0x52
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
 
+#define UART_ERRATA_FIFO_FULL_ABORT	(0x1 << 0)
+#define UART_ERRATA_i202_MDR1_ACCESS	(0x1 << 1)
+
 /*
  * NOTE: By default the serial timeout is disabled as it causes lost characters
  * over the serial ports. This means that the UART clocks will stay on until
@@ -64,6 +67,7 @@ struct omap_uart_state {
 	struct list_head node;
 	struct platform_device pdev;
 
+	u32 errata;
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 	int context_valid;
 
@@ -74,6 +78,7 @@ struct omap_uart_state {
 	u16 sysc;
 	u16 scr;
 	u16 wer;
+	u16 mcr;
 #endif
 };
 
@@ -180,6 +185,42 @@ static inline void __init omap_uart_reset(struct omap_uart_state *uart)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 
+/*
+ * Work Around for Errata i202 (3430 - 1.12, 3630 - 1.6)
+ * The access to uart register after MDR1 Access
+ * causes UART to corrupt data.
+ *
+ * Need a delay =
+ * 5 L4 clock cycles + 5 UART functional clock cycle (@48MHz = ~0.2uS)
+ * give 10 times as much
+ */
+static void omap_uart_mdr1_errataset(struct omap_uart_state *uart, u8 mdr1_val,
+		u8 fcr_val)
+{
+	struct plat_serial8250_port *p = uart->p;
+	u8 timeout = 255;
+
+	serial_write_reg(p, UART_OMAP_MDR1, mdr1_val);
+	udelay(2);
+	serial_write_reg(p, UART_FCR, fcr_val | UART_FCR_CLEAR_XMIT |
+			UART_FCR_CLEAR_RCVR);
+	/*
+	 * Wait for FIFO to empty: when empty, RX_FIFO_E bit is 0 and
+	 * TX_FIFO_E bit is 1.
+	 */
+	while (UART_LSR_THRE != (serial_read_reg(p, UART_LSR) &
+				(UART_LSR_THRE | UART_LSR_DR))) {
+		timeout--;
+		if (!timeout) {
+			/* Should *never* happen. we warn and carry on */
+			dev_crit(&uart->pdev.dev, "Errata i202: timedout %x\n",
+				serial_read_reg(p, UART_LSR));
+			break;
+		}
+		udelay(1);
+	}
+}
+
 static void omap_uart_save_context(struct omap_uart_state *uart)
 {
 	u16 lcr = 0;
@@ -197,6 +238,9 @@ static void omap_uart_save_context(struct omap_uart_state *uart)
 	uart->sysc = serial_read_reg(p, UART_OMAP_SYSC);
 	uart->scr = serial_read_reg(p, UART_OMAP_SCR);
 	uart->wer = serial_read_reg(p, UART_OMAP_WER);
+	serial_write_reg(p, UART_LCR, 0x80);
+	uart->mcr = serial_read_reg(p, UART_MCR);
+	serial_write_reg(p, UART_LCR, lcr);
 
 	uart->context_valid = 1;
 }
@@ -214,7 +258,10 @@ static void omap_uart_restore_context(struct omap_uart_state *uart)
 
 	uart->context_valid = 0;
 
-	serial_write_reg(p, UART_OMAP_MDR1, 0x7);
+	if (uart->errata & UART_ERRATA_i202_MDR1_ACCESS)
+		omap_uart_mdr1_errataset(uart, 0x07, 0xA0);
+	else
+		serial_write_reg(p, UART_OMAP_MDR1, 0x7);
 	serial_write_reg(p, UART_LCR, 0xBF); /* Config B mode */
 	efr = serial_read_reg(p, UART_EFR);
 	serial_write_reg(p, UART_EFR, UART_EFR_ECB);
@@ -225,14 +272,18 @@ static void omap_uart_restore_context(struct omap_uart_state *uart)
 	serial_write_reg(p, UART_DLM, uart->dlh);
 	serial_write_reg(p, UART_LCR, 0x0); /* Operational mode */
 	serial_write_reg(p, UART_IER, uart->ier);
-	serial_write_reg(p, UART_FCR, 0xA1);
+	serial_write_reg(p, UART_LCR, 0x80);
+	serial_write_reg(p, UART_MCR, uart->mcr);
 	serial_write_reg(p, UART_LCR, 0xBF); /* Config B mode */
 	serial_write_reg(p, UART_EFR, efr);
 	serial_write_reg(p, UART_LCR, UART_LCR_WLEN8);
 	serial_write_reg(p, UART_OMAP_SCR, uart->scr);
 	serial_write_reg(p, UART_OMAP_WER, uart->wer);
 	serial_write_reg(p, UART_OMAP_SYSC, uart->sysc);
-	serial_write_reg(p, UART_OMAP_MDR1, 0x00); /* UART 16x mode */
+	if (uart->errata & UART_ERRATA_i202_MDR1_ACCESS)
+		omap_uart_mdr1_errataset(uart, 0x00, 0xA1);
+	else
+		serial_write_reg(p, UART_OMAP_MDR1, 0x00); /* UART 16x mode */
 }
 #else
 static inline void omap_uart_save_context(struct omap_uart_state *uart) {}
@@ -489,8 +540,8 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 		}
 		uart->wk_mask = wk_mask;
 	} else {
-		uart->wk_en = 0;
-		uart->wk_st = 0;
+		uart->wk_en = NULL;
+		uart->wk_st = NULL;
 		uart->wk_mask = 0;
 		uart->padconf = 0;
 	}
@@ -552,7 +603,8 @@ static ssize_t sleep_timeout_store(struct device *dev,
 	return n;
 }
 
-DEVICE_ATTR(sleep_timeout, 0644, sleep_timeout_show, sleep_timeout_store);
+static DEVICE_ATTR(sleep_timeout, 0644, sleep_timeout_show,
+		sleep_timeout_store);
 #define DEV_CREATE_FILE(dev, attr) WARN_ON(device_create_file(dev, attr))
 #else
 static inline void omap_uart_idle_init(struct omap_uart_state *uart) {}
@@ -749,14 +801,20 @@ void __init omap_serial_init_port(int port)
 	 * omap3xxx: Never read empty UART fifo on UARTs
 	 * with IP rev >=0x52
 	 */
-	if (cpu_is_omap44xx()) {
-		uart->p->serial_in = serial_in_override;
-		uart->p->serial_out = serial_out_override;
-	} else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
-			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV) {
+	if (cpu_is_omap44xx())
+		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
+	else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
+			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
+		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
+
+	if (uart->errata & UART_ERRATA_FIFO_FULL_ABORT) {
 		uart->p->serial_in = serial_in_override;
 		uart->p->serial_out = serial_out_override;
 	}
+
+	/* Enable the MDR1 errata for OMAP3 */
+	if (cpu_is_omap34xx())
+		uart->errata |= UART_ERRATA_i202_MDR1_ACCESS;
 }
 
 /**

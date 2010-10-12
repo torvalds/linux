@@ -35,7 +35,7 @@
  * the slab must be aligned such that load- and store-double instructions don't
  * fault if used
  */
-#define	ARCH_KMALLOC_MINALIGN		L1_CACHE_BYTES
+#define	ARCH_DMA_MINALIGN		L1_CACHE_BYTES
 #define	ARCH_SLAB_MINALIGN		L1_CACHE_BYTES
 
 /*****************************************************************************/

@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2008 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.15"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.15"
+#define MPT_LINUX_VERSION_COMMON	"3.04.17"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.17"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -396,6 +396,8 @@ typedef struct _VirtTarget {
 	u8			 raidVolume;	/* set, if RAID Volume */
 	u8			 type;		/* byte 0 of Inquiry data */
 	u8			 deleted;	/* target in process of being removed */
+	u8			 inDMD;		/* currently in the device
+						   removal delay timer */
 	u32			 num_luns;
 } VirtTarget;
 
@@ -416,31 +418,6 @@ typedef struct _VirtDevice {
 #define MPT_TARGET_FLAGS_SAF_TE_ISSUED	0x20
 #define MPT_TARGET_FLAGS_RAID_COMPONENT	0x40
 #define MPT_TARGET_FLAGS_LED_ON		0x80
-
-/*
- *	/proc/mpt interface
- */
-typedef struct {
-	const char	*name;
-	mode_t		 mode;
-	int		 pad;
-	read_proc_t	*read_proc;
-	write_proc_t	*write_proc;
-} mpt_proc_entry_t;
-
-#define MPT_PROC_READ_RETURN(buf,start,offset,request,eof,len) \
-do { \
-	len -= offset;			\
-	if (len < request) {		\
-		*eof = 1;		\
-		if (len <= 0)		\
-			return 0;	\
-	} else				\
-		len = request;		\
-	*start = buf + offset;		\
-	return len;			\
-} while (0)
-
 
 /*
  *	IOCTL structure and associated defines
@@ -580,6 +557,7 @@ struct mptfc_rport_info
 typedef void (*MPT_ADD_SGE)(void *pAddr, u32 flagslength, dma_addr_t dma_addr);
 typedef void (*MPT_ADD_CHAIN)(void *pAddr, u8 next, u16 length,
 		dma_addr_t dma_addr);
+typedef void (*MPT_SCHEDULE_TARGET_RESET)(void *ioc);
 
 /*
  *  Adapter Structure - pci_dev specific. Maximum: MPT_MAX_ADAPTERS
@@ -601,7 +579,7 @@ typedef struct _MPT_ADAPTER
 	u16			 nvdata_version_default;
 	int			 debug_level;
 	u8			 io_missing_delay;
-	u8			 device_missing_delay;
+	u16			 device_missing_delay;
 	SYSIF_REGS __iomem	*chip;		/* == c8817000 (mmap) */
 	SYSIF_REGS __iomem	*pio_chip;	/* Programmed IO (downloadboot) */
 	u8			 bus_type;
@@ -738,6 +716,7 @@ typedef struct _MPT_ADAPTER
 	int			 taskmgmt_in_progress;
 	u8			 taskmgmt_quiesce_io;
 	u8			 ioc_reset_in_progress;
+	MPT_SCHEDULE_TARGET_RESET schedule_target_reset;
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
@@ -922,7 +901,8 @@ extern void	 mpt_detach(struct pci_dev *pdev);
 extern int	 mpt_suspend(struct pci_dev *pdev, pm_message_t state);
 extern int	 mpt_resume(struct pci_dev *pdev);
 #endif
-extern u8	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass);
+extern u8	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass,
+		char *func_name);
 extern void	 mpt_deregister(u8 cb_idx);
 extern int	 mpt_event_register(u8 cb_idx, MPT_EVHANDLER ev_cbfunc);
 extern void	 mpt_event_deregister(u8 cb_idx);

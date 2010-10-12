@@ -57,7 +57,6 @@
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -152,9 +151,8 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->priv = info;
     info->ti = netdev_priv(dev);
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts1 = 4;
-    link->io.IOAddrLines = 16;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[0]->end = 4;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
@@ -213,26 +211,26 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     struct net_device *dev = info->dev;
     struct tok_info *ti = netdev_priv(dev);
     win_req_t req;
-    memreq_t mem;
     int i, ret;
 
     dev_dbg(&link->dev, "ibmtr_config\n");
 
     link->conf.ConfigIndex = 0x61;
+    link->io_lines = 16;
 
     /* Determine if this is PRIMARY or ALTERNATE. */
 
     /* Try PRIMARY card at 0xA20-0xA23 */
-    link->io.BasePort1 = 0xA20;
-    i = pcmcia_request_io(link, &link->io);
+    link->resource[0]->start = 0xA20;
+    i = pcmcia_request_io(link);
     if (i != 0) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
-	link->io.BasePort1 = 0xA24;
-	ret = pcmcia_request_io(link, &link->io);
+	link->resource[0]->start = 0xA24;
+	ret = pcmcia_request_io(link);
 	if (ret)
 		goto failed;
     }
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     ret = pcmcia_request_exclusive_irq(link, ibmtr_interrupt);
     if (ret)
@@ -251,9 +249,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = mmiobase;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, link->win, &mem);
+    ret = pcmcia_map_mem_page(link, link->win, mmiobase);
     if (ret)
 	    goto failed;
     ti->mmio = ioremap(req.Base, req.Size);
@@ -268,13 +264,11 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = srambase;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, info->sram_win_handle, &mem);
+    ret = pcmcia_map_mem_page(link, info->sram_win_handle, srambase);
     if (ret)
 	    goto failed;
 
-    ti->sram_base = mem.CardOffset >> 12;
+    ti->sram_base = srambase >> 12;
     ti->sram_virt = ioremap(req.Base, req.Size);
     ti->sram_phys = req.Base;
 
@@ -325,7 +319,6 @@ static void ibmtr_release(struct pcmcia_device *link)
 	if (link->win) {
 		struct tok_info *ti = netdev_priv(dev);
 		iounmap(ti->mmio);
-		pcmcia_release_window(link, info->sram_win_handle);
 	}
 	pcmcia_disable_device(link);
 }

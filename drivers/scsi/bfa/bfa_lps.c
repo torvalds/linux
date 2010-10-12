@@ -41,7 +41,6 @@ static void bfa_lps_attach(struct bfa_s *bfa, void *bfad,
 			   struct bfa_iocfc_cfg_s *cfg,
 			   struct bfa_meminfo_s *meminfo,
 			   struct bfa_pcidev_s *pcidev);
-static void bfa_lps_initdone(struct bfa_s *bfa);
 static void bfa_lps_detach(struct bfa_s *bfa);
 static void bfa_lps_start(struct bfa_s *bfa);
 static void bfa_lps_stop(struct bfa_s *bfa);
@@ -344,11 +343,6 @@ bfa_lps_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		bfa_reqq_winit(&lps->wqe, bfa_lps_reqq_resume, lps);
 		list_add_tail(&lps->qe, &mod->lps_free_q);
 	}
-}
-
-static void
-bfa_lps_initdone(struct bfa_s *bfa)
-{
 }
 
 static void

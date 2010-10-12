@@ -16,12 +16,14 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
-#include <mach/gpio.h>
 #include <plat/gpio-cfg.h>
+#include <plat/sdhci.h>
 
 void s3c64xx_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 {
+	struct s3c_sdhci_platdata *pdata = dev->dev.platform_data;
 	unsigned int gpio;
 	unsigned int end;
 
@@ -33,12 +35,15 @@ void s3c64xx_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
 	}
 
-	s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_UP);
-	s3c_gpio_cfgpin(S3C64XX_GPG(6), S3C_GPIO_SFN(2));
+	if (pdata->cd_type == S3C_SDHCI_CD_INTERNAL) {
+		s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgpin(S3C64XX_GPG(6), S3C_GPIO_SFN(2));
+	}
 }
 
 void s3c64xx_setup_sdhci1_cfg_gpio(struct platform_device *dev, int width)
 {
+	struct s3c_sdhci_platdata *pdata = dev->dev.platform_data;
 	unsigned int gpio;
 	unsigned int end;
 
@@ -50,8 +55,10 @@ void s3c64xx_setup_sdhci1_cfg_gpio(struct platform_device *dev, int width)
 		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
 	}
 
-	s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_UP);
-	s3c_gpio_cfgpin(S3C64XX_GPG(6), S3C_GPIO_SFN(3));
+	if (pdata->cd_type == S3C_SDHCI_CD_INTERNAL) {
+		s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgpin(S3C64XX_GPG(6), S3C_GPIO_SFN(3));
+	}
 }
 
 void s3c64xx_setup_sdhci2_cfg_gpio(struct platform_device *dev, int width)

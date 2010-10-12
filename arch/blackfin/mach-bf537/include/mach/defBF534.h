@@ -434,22 +434,22 @@
 
 /* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
 #define TWI0_REGBASE			0xFFC01400
-#define TWI_CLKDIV			0xFFC01400	/* Serial Clock Divider Register                        */
-#define TWI_CONTROL			0xFFC01404	/* TWI Control Register                                         */
-#define TWI_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register                          */
-#define TWI_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register                           */
-#define TWI_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register                          */
-#define TWI_MASTER_CTL		0xFFC01414	/* Master Mode Control Register                         */
-#define TWI_MASTER_STAT		0xFFC01418	/* Master Mode Status Register                          */
-#define TWI_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register                         */
-#define TWI_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register                        */
-#define TWI_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register           */
-#define TWI_FIFO_CTL		0xFFC01428	/* FIFO Control Register                                        */
-#define TWI_FIFO_STAT		0xFFC0142C	/* FIFO Status Register                                         */
-#define TWI_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register      */
-#define TWI_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register      */
-#define TWI_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register       */
-#define TWI_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register       */
+#define TWI0_CLKDIV			0xFFC01400	/* Serial Clock Divider Register                        */
+#define TWI0_CONTROL			0xFFC01404	/* TWI Control Register                                         */
+#define TWI0_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register                          */
+#define TWI0_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register                           */
+#define TWI0_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register                          */
+#define TWI0_MASTER_CTL		0xFFC01414	/* Master Mode Control Register                         */
+#define TWI0_MASTER_STAT		0xFFC01418	/* Master Mode Status Register                          */
+#define TWI0_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register                         */
+#define TWI0_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register                        */
+#define TWI0_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register           */
+#define TWI0_FIFO_CTL		0xFFC01428	/* FIFO Control Register                                        */
+#define TWI0_FIFO_STAT		0xFFC0142C	/* FIFO Status Register                                         */
+#define TWI0_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register      */
+#define TWI0_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register      */
+#define TWI0_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register       */
+#define TWI0_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register       */
 
 /* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)												*/
 #define PORTGIO					0xFFC01500	/* Port G I/O Pin State Specify Register                                */
@@ -1642,7 +1642,7 @@
 #define	TWI_ENA		0x0080	/* TWI Enable                                                                   */
 #define	SCCB		0x0200	/* SCCB Compatibility Enable                                    */
 
-/* TWI_SLAVE_CTRL Masks															*/
+/* TWI_SLAVE_CTL Masks															*/
 #define	SEN			0x0001	/* Slave Enable                                                                 */
 #define	SADD_LEN	0x0002	/* Slave Address Length                                                 */
 #define	STDVAL		0x0004	/* Slave Transmit Data Valid                                    */
@@ -1653,7 +1653,7 @@
 #define	SDIR		0x0001	/* Slave Transfer Direction (Transmit/Receive*) */
 #define GCALL		0x0002	/* General Call Indicator                                               */
 
-/* TWI_MASTER_CTRL Masks													*/
+/* TWI_MASTER_CTL Masks													*/
 #define	MEN			0x0001	/* Master Mode Enable                                           */
 #define	MADD_LEN	0x0002	/* Master Address Length                                        */
 #define	MDIR		0x0004	/* Master Transmit Direction (RX/TX*)           */

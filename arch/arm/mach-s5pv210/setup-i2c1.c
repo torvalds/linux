@@ -14,10 +14,10 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/gpio.h>
 
 struct platform_device; /* don't need the contents */
 
-#include <mach/gpio.h>
 #include <plat/iic.h>
 #include <plat/gpio-cfg.h>
 

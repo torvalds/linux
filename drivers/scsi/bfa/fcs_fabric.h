@@ -26,6 +26,8 @@
 #include <fcs/bfa_fcs_vport.h>
 #include <fcs/bfa_fcs_lport.h>
 
+#define BFA_FCS_BRCD_SWITCH_OUI  0x051e
+
 /*
 * fcs friend functions: only between fcs modules
  */
@@ -60,4 +62,7 @@ void bfa_fcs_auth_finished(struct bfa_fcs_fabric_s *fabric,
 
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 			wwn_t fabric_name);
+u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
+void bfa_fcs_get_sym_name(const struct bfa_fcs_s *fcs, char *node_symname);
+
 #endif /* __FCS_FABRIC_H__ */

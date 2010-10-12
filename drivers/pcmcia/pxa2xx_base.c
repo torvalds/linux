@@ -32,7 +32,6 @@
 #include <mach/pxa2xx-regs.h>
 #include <asm/mach-types.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
 

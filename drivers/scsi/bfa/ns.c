@@ -664,7 +664,7 @@ bfa_fcs_port_ns_send_plogi(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ns_plogi_response,
-		      (void *)ns, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ns, FC_MAX_PDUSZ, FC_ELS_TOV);
 	port->stats.ns_plogi_sent++;
 
 	bfa_sm_send_event(ns, NSSM_EVENT_PLOGI_SENT);
@@ -791,7 +791,7 @@ bfa_fcs_port_ns_send_rspn_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ns_rspn_id_response,
-		      (void *)ns, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ns, FC_MAX_PDUSZ, FC_FCCT_TOV);
 
 	port->stats.ns_rspnid_sent++;
 
@@ -865,7 +865,7 @@ bfa_fcs_port_ns_send_rft_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ns_rft_id_response,
-		      (void *)ns, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ns, FC_MAX_PDUSZ, FC_FCCT_TOV);
 
 	port->stats.ns_rftid_sent++;
 	bfa_sm_send_event(ns, NSSM_EVENT_RFTID_SENT);
@@ -943,7 +943,7 @@ bfa_fcs_port_ns_send_rff_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ns_rff_id_response,
-		      (void *)ns, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ns, FC_MAX_PDUSZ, FC_FCCT_TOV);
 
 	port->stats.ns_rffid_sent++;
 	bfa_sm_send_event(ns, NSSM_EVENT_RFFID_SENT);
@@ -1029,7 +1029,7 @@ bfa_fcs_port_ns_send_gid_ft(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ns_gid_ft_response,
 		      (void *)ns, bfa_fcxp_get_maxrsp(port->fcs->bfa),
-		      FC_RA_TOV);
+		      FC_FCCT_TOV);
 
 	port->stats.ns_gidft_sent++;
 
@@ -1228,10 +1228,10 @@ bfa_fcs_port_ns_boot_target_disc(struct bfa_fcs_port_s *port)
 
 	struct bfa_fcs_rport_s *rport;
 	u8         nwwns;
-	wwn_t          *wwns;
+	wwn_t  wwns[BFA_PREBOOT_BOOTLUN_MAX];
 	int             ii;
 
-	bfa_iocfc_get_bootwwns(port->fcs->bfa, &nwwns, &wwns);
+	bfa_iocfc_get_bootwwns(port->fcs->bfa, &nwwns, wwns);
 
 	for (ii = 0; ii < nwwns; ++ii) {
 		rport = bfa_fcs_rport_create_by_wwn(port, wwns[ii]);

@@ -35,10 +35,7 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 	struct addr_location al;
 	struct sample_data data = { .period = 1, };
 
-	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
-		    event->ip.pid, event->ip.ip);
-
-	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, &data, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -46,8 +43,6 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 
 	if (al.filtered || al.sym == NULL)
 		return 0;
-
-	event__parse_sample(event, session->sample_type, &data);
 
 	if (hists__add_entry(&session->hists, &al, data.period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
@@ -185,8 +180,6 @@ static const struct option options[] = {
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('P', "full-paths", &symbol_conf.full_paths,
-		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",

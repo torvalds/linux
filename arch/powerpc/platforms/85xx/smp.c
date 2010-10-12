@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/kexec.h>
 
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
@@ -24,6 +25,7 @@
 #include <asm/dbell.h>
 
 #include <sysdev/fsl_soc.h>
+#include <sysdev/mpic.h>
 
 extern void __early_start(void);
 
@@ -99,11 +101,69 @@ static void __init
 smp_85xx_setup_cpu(int cpu_nr)
 {
 	mpic_setup_this_cpu();
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		doorbell_setup_this_cpu();
 }
 
 struct smp_ops_t smp_85xx_ops = {
 	.kick_cpu = smp_85xx_kick_cpu,
+#ifdef CONFIG_KEXEC
+	.give_timebase	= smp_generic_give_timebase,
+	.take_timebase	= smp_generic_take_timebase,
+#endif
 };
+
+#ifdef CONFIG_KEXEC
+static int kexec_down_cpus = 0;
+
+void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
+{
+	mpic_teardown_this_cpu(1);
+
+	/* When crashing, this gets called on all CPU's we only
+	 * take down the non-boot cpus */
+	if (smp_processor_id() != boot_cpuid)
+	{
+		local_irq_disable();
+		kexec_down_cpus++;
+
+		while (1);
+	}
+}
+
+static void mpc85xx_smp_kexec_down(void *arg)
+{
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0,1);
+}
+
+static void mpc85xx_smp_machine_kexec(struct kimage *image)
+{
+	int timeout = 2000;
+	int i;
+
+	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
+
+	smp_call_function(mpc85xx_smp_kexec_down, NULL, 0);
+
+	while ( (kexec_down_cpus != (num_online_cpus() - 1)) &&
+		( timeout > 0 ) )
+	{
+		timeout--;
+	}
+
+	if ( !timeout )
+		printk(KERN_ERR "Unable to bring down secondary cpu(s)");
+
+	for (i = 0; i < num_present_cpus(); i++)
+	{
+		if ( i == smp_processor_id() ) continue;
+		mpic_reset_core(i);
+	}
+
+	default_machine_kexec(image);
+}
+#endif /* CONFIG_KEXEC */
 
 void __init mpc85xx_smp_init(void)
 {
@@ -117,9 +177,14 @@ void __init mpc85xx_smp_init(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_DBELL))
-		smp_85xx_ops.message_pass = smp_dbell_message_pass;
+		smp_85xx_ops.message_pass = doorbell_message_pass;
 
 	BUG_ON(!smp_85xx_ops.message_pass);
 
 	smp_ops = &smp_85xx_ops;
+
+#ifdef CONFIG_KEXEC
+	ppc_md.kexec_cpu_down = mpc85xx_smp_kexec_cpu_down;
+	ppc_md.machine_kexec = mpc85xx_smp_machine_kexec;
+#endif
 }

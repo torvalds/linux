@@ -114,3 +114,18 @@ Description:
 		if this file contains "1", which is the default.  It may be
 		disabled by writing "0" to this file, in which case all devices
 		will be suspended and resumed synchronously.
+
+What:		/sys/power/wakeup_count
+Date:		July 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/wakeup_count file allows user space to put the
+		system into a sleep state while taking into account the
+		concurrent arrival of wakeup events.  Reading from it returns
+		the current number of registered wakeup events and it blocks if
+		some wakeup events are being processed at the time the file is
+		read from.  Writing to it will only succeed if the current
+		number of wakeup events is equal to the written value and, if
+		successful, will make the kernel abort a subsequent transition
+		to a sleep state if any wakeup events are reported after the
+		write has returned.

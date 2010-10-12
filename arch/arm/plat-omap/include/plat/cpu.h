@@ -66,6 +66,8 @@ unsigned int omap_rev(void);
  * family. This difference can be handled separately.
  */
 #define OMAP_REVBITS_00		0x00
+#define OMAP_REVBITS_01		0x01
+#define OMAP_REVBITS_02		0x02
 #define OMAP_REVBITS_10		0x10
 #define OMAP_REVBITS_20		0x20
 #define OMAP_REVBITS_30		0x30
@@ -376,6 +378,8 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP3430_REV_ES3_1_2	0x34305034
 
 #define OMAP3630_REV_ES1_0	0x36300034
+#define OMAP3630_REV_ES1_1	0x36300134
+#define OMAP3630_REV_ES1_2	0x36300234
 
 #define OMAP35XX_CLASS		0x35000034
 #define OMAP3503_REV(v)		(OMAP35XX_CLASS | (0x3503 << 16) | (v << 8))
@@ -411,6 +415,8 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define CHIP_IS_OMAP3430ES3_1		(1 << 6)
 #define CHIP_IS_OMAP3630ES1		(1 << 7)
 #define CHIP_IS_OMAP4430ES1		(1 << 8)
+#define CHIP_IS_OMAP3630ES1_1           (1 << 9)
+#define CHIP_IS_OMAP3630ES1_2           (1 << 10)
 
 #define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
 
@@ -424,11 +430,12 @@ IS_OMAP_TYPE(3517, 0x3517)
  */
 #define CHIP_GE_OMAP3430ES2		(CHIP_IS_OMAP3430ES2 | \
 					 CHIP_IS_OMAP3430ES3_0 | \
-					 CHIP_IS_OMAP3430ES3_1 | \
-					 CHIP_IS_OMAP3630ES1)
+					 CHIP_GE_OMAP3430ES3_1)
 #define CHIP_GE_OMAP3430ES3_1		(CHIP_IS_OMAP3430ES3_1 | \
-					 CHIP_IS_OMAP3630ES1)
-
+					 CHIP_IS_OMAP3630ES1 | \
+					 CHIP_GE_OMAP3630ES1_1)
+#define CHIP_GE_OMAP3630ES1_1		(CHIP_IS_OMAP3630ES1_1 | \
+					 CHIP_IS_OMAP3630ES1_2)
 
 int omap_chip_is(struct omap_chip_id oci);
 void omap2_check_revision(void);
@@ -444,6 +451,7 @@ extern u32 omap3_features;
 #define OMAP3_HAS_NEON			BIT(3)
 #define OMAP3_HAS_ISP			BIT(4)
 #define OMAP3_HAS_192MHZ_CLK		BIT(5)
+#define OMAP3_HAS_IO_WAKEUP		BIT(6)
 
 #define OMAP3_HAS_FEATURE(feat,flag)			\
 static inline unsigned int omap3_has_ ##feat(void)	\
@@ -457,5 +465,6 @@ OMAP3_HAS_FEATURE(iva, IVA)
 OMAP3_HAS_FEATURE(neon, NEON)
 OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
+OMAP3_HAS_FEATURE(io_wakeup, IO_WAKEUP)
 
 #endif

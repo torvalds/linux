@@ -216,7 +216,7 @@ main1:
 		switch (buffer[nbase+3]) {
 		case 'f':
 			if (initval) {
-				fprintf(stderr, "Cannot use pre-initalized fixups for calls\n%s\n", buffer);
+				fprintf(stderr, "Cannot use pre-initialized fixups for calls\n%s\n", buffer);
 				exit(1);
 			}
 			if (!strcmp (sect, "__ksymtab")) {
@@ -273,7 +273,7 @@ main1:
 			break;
 		case 'i':
 			if (initval) {
-				fprintf(stderr, "Cannot use pre-initalized fixups for INT\n%s\n", buffer);
+				fprintf(stderr, "Cannot use pre-initialized fixups for INT\n%s\n", buffer);
 				exit(1);
 			}
 			if (strncmp (buffer + mode+9, "HI22      ", 10) && strncmp (buffer + mode+9, "LO10      ", 10)) {

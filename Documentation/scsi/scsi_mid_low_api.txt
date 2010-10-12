@@ -43,7 +43,7 @@ There is a SCSI documentation directory within the kernel source tree,
 typically Documentation/scsi . Most documents are in plain
 (i.e. ASCII) text. This file is named scsi_mid_low_api.txt and can be 
 found in that directory. A more recent copy of this document may be found
-at http://www.torque.net/scsi/scsi_mid_low_api.txt.gz . 
+at http://web.archive.org/web/20070107183357rn_1/sg.torque.net/scsi/. 
 Many LLDs are documented there (e.g. aic7xxx.txt). The SCSI mid-level is
 briefly described in scsi.txt which contains a url to a document 
 describing the SCSI subsystem in the lk 2.4 series. Two upper level 

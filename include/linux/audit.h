@@ -544,7 +544,7 @@ extern int audit_signals;
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,d) do { ; } while (0)
 #define __audit_inode_child(i,p) do { ; } while (0)
-#define audit_inode(n,d) do { ; } while (0)
+#define audit_inode(n,d) do { (void)(d); } while (0)
 #define audit_inode_child(i,p) do { ; } while (0)
 #define audit_core_dumps(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) (0)

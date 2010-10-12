@@ -1,3 +1,7 @@
+if ARCH_OMAP1
+
+menu "TI OMAP1 specific features"
+
 comment "OMAP Core Type"
 	depends on ARCH_OMAP1
 
@@ -224,6 +228,12 @@ config OMAP_ARM_120MHZ
 	help
           Enable 120MHz clock for OMAP CPU. If unsure, say N.
 
+config OMAP_ARM_96MHZ
+	bool "OMAP ARM 96 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
+	help
+          Enable 96MHz clock for OMAP CPU. If unsure, say N.
+
 config OMAP_ARM_60MHZ
 	bool "OMAP ARM 60 MHz CPU"
 	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
@@ -237,3 +247,6 @@ config OMAP_ARM_30MHZ
 	help
           Enable 30MHz clock for OMAP CPU. If unsure, say N.
 
+endmenu
+
+endif

@@ -39,11 +39,13 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 static unsigned int psmouse_max_proto = PSMOUSE_AUTO;
-static int psmouse_set_maxproto(const char *val, struct kernel_param *kp);
-static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp);
+static int psmouse_set_maxproto(const char *val, const struct kernel_param *);
+static int psmouse_get_maxproto(char *buffer, const struct kernel_param *kp);
+static struct kernel_param_ops param_ops_proto_abbrev = {
+	.set = psmouse_set_maxproto,
+	.get = psmouse_get_maxproto,
+};
 #define param_check_proto_abbrev(name, p)	__param_check(name, p, unsigned int)
-#define param_set_proto_abbrev			psmouse_set_maxproto
-#define param_get_proto_abbrev			psmouse_get_maxproto
 module_param_named(proto, psmouse_max_proto, proto_abbrev, 0644);
 MODULE_PARM_DESC(proto, "Highest protocol extension to probe (bare, imps, exps, any). Useful for KVM switches.");
 
@@ -1679,7 +1681,7 @@ static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, void *data, 
 }
 
 
-static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
+static int psmouse_set_maxproto(const char *val, const struct kernel_param *kp)
 {
 	const struct psmouse_protocol *proto;
 
@@ -1696,7 +1698,7 @@ static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp)
+static int psmouse_get_maxproto(char *buffer, const struct kernel_param *kp)
 {
 	int type = *((unsigned int *)kp->arg);
 

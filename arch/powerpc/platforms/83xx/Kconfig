@@ -9,6 +9,14 @@ menuconfig PPC_83xx
 
 if PPC_83xx
 
+config MPC830x_RDB
+	bool "Freescale MPC830x RDB"
+	select DEFAULT_UIMAGE
+	select PPC_MPC831x
+	select FSL_GTM
+	help
+	  This option enables support for the MPC8308 RDB board.
+
 config MPC831x_RDB
 	bool "Freescale MPC831x RDB"
 	select DEFAULT_UIMAGE

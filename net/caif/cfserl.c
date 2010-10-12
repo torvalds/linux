@@ -14,7 +14,8 @@
 #define container_obj(layr) ((struct cfserl *) layr)
 
 #define CFSERL_STX 0x02
-#define CAIF_MINIUM_PACKET_SIZE 4
+#define SERIAL_MINIUM_PACKET_SIZE 4
+#define SERIAL_MAX_FRAMESIZE 4096
 struct cfserl {
 	struct cflayer layer;
 	struct cfpkt *incomplete_frm;
@@ -119,8 +120,8 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 		/*
 		 * Frame error handling
 		 */
-		if (expectlen < CAIF_MINIUM_PACKET_SIZE
-		    || expectlen > CAIF_MAX_FRAMESIZE) {
+		if (expectlen < SERIAL_MINIUM_PACKET_SIZE
+		    || expectlen > SERIAL_MAX_FRAMESIZE) {
 			if (!layr->usestx) {
 				if (pkt != NULL)
 					cfpkt_destroy(pkt);

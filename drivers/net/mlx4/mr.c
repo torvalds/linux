@@ -58,7 +58,7 @@ struct mlx4_mpt_entry {
 	__be32 mtt_sz;
 	__be32 entity_size;
 	__be32 first_byte_offset;
-} __attribute__((packed));
+} __packed;
 
 #define MLX4_MPT_FLAG_SW_OWNS	    (0xfUL << 28)
 #define MLX4_MPT_FLAG_FREE	    (0x3UL << 28)

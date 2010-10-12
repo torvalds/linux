@@ -55,6 +55,12 @@
 static struct snd_card *snd_cx25821_cards[SNDRV_CARDS];
 static int devno;
 
+struct cx25821_audio_buffer {
+	unsigned int bpl;
+	struct btcx_riscmem risc;
+	struct videobuf_dmabuf dma;
+};
+
 struct cx25821_audio_dev {
 	struct cx25821_dev *dev;
 	struct cx25821_dmaqueue q;
@@ -77,7 +83,7 @@ struct cx25821_audio_dev {
 
 	struct videobuf_dmabuf *dma_risc;
 
-	struct cx25821_buffer *buf;
+	struct cx25821_audio_buffer *buf;
 
 	struct snd_pcm_substream *substream;
 };
@@ -136,7 +142,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 
 static int _cx25821_start_audio_dma(struct cx25821_audio_dev *chip)
 {
-	struct cx25821_buffer *buf = chip->buf;
+	struct cx25821_audio_buffer *buf = chip->buf;
 	struct cx25821_dev *dev = chip->dev;
 	struct sram_channel *audio_ch =
 	    &cx25821_sram_channels[AUDIO_SRAM_CHANNEL];
@@ -331,7 +337,7 @@ static int dsp_buffer_free(struct cx25821_audio_dev *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
-	videobuf_sg_dma_unmap(&chip->pci->dev, chip->dma_risc);
+	videobuf_dma_unmap(&chip->pci->dev, chip->dma_risc);
 	videobuf_dma_free(chip->dma_risc);
 	btcx_riscmem_free(chip->pci, &chip->buf->risc);
 	kfree(chip->buf);
@@ -432,7 +438,7 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	struct cx25821_audio_dev *chip = snd_pcm_substream_chip(substream);
 	struct videobuf_dmabuf *dma;
 
-	struct cx25821_buffer *buf;
+	struct cx25821_audio_buffer *buf;
 	int ret;
 
 	if (substream->runtime->dma_area) {
@@ -447,36 +453,31 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	BUG_ON(!chip->dma_size);
 	BUG_ON(chip->num_periods & (chip->num_periods - 1));
 
-	buf = videobuf_sg_alloc(sizeof(*buf));
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (NULL == buf)
 		return -ENOMEM;
 
 	if (chip->period_size > AUDIO_LINE_SIZE)
 		chip->period_size = AUDIO_LINE_SIZE;
 
-	buf->vb.memory = V4L2_MEMORY_MMAP;
-	buf->vb.field = V4L2_FIELD_NONE;
-	buf->vb.width = chip->period_size;
 	buf->bpl = chip->period_size;
-	buf->vb.height = chip->num_periods;
-	buf->vb.size = chip->dma_size;
 
-	dma = videobuf_to_dma(&buf->vb);
+	dma = &buf->dma;
 	videobuf_dma_init(dma);
-
 	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
-				       (PAGE_ALIGN(buf->vb.size) >>
+				       (PAGE_ALIGN(chip->dma_size) >>
 					PAGE_SHIFT));
 	if (ret < 0)
 		goto error;
 
-	ret = videobuf_sg_dma_map(&chip->pci->dev, dma);
+	ret = videobuf_dma_map(&chip->pci->dev, dma);
 	if (ret < 0)
 		goto error;
 
 	ret =
 	    cx25821_risc_databuffer_audio(chip->pci, &buf->risc, dma->sglist,
-					  buf->vb.width, buf->vb.height, 1);
+					  chip->period_size, chip->num_periods,
+					  1);
 	if (ret < 0) {
 		printk(KERN_INFO
 			"DEBUG: ERROR after cx25821_risc_databuffer_audio()\n");
@@ -488,12 +489,10 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	buf->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 	buf->risc.jmp[2] = cpu_to_le32(0);	/* bits 63-32 */
 
-	buf->vb.state = VIDEOBUF_PREPARED;
-
 	chip->buf = buf;
 	chip->dma_risc = dma;
 
-	substream->runtime->dma_area = chip->dma_risc->vmalloc;
+	substream->runtime->dma_area = chip->dma_risc->vaddr;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
 
@@ -699,7 +698,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 
 	/* Card "creation" */
 	card->private_free = snd_cx25821_dev_free;
-	chip = (struct cx25821_audio_dev *) card->private_data;
+	chip = card->private_data;
 	spin_lock_init(&chip->reg_lock);
 
 	chip->dev = dev;

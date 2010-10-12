@@ -12,3 +12,4 @@ obj-$(CONFIG_FIREWIRE)      += firewire-core.o
 obj-$(CONFIG_FIREWIRE_OHCI) += firewire-ohci.o
 obj-$(CONFIG_FIREWIRE_SBP2) += firewire-sbp2.o
 obj-$(CONFIG_FIREWIRE_NET)  += firewire-net.o
+obj-$(CONFIG_FIREWIRE_NOSY) += nosy.o

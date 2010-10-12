@@ -339,10 +339,6 @@ ENTRY(pxa_cpu_resume)
 	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs
 	mcr	p15, 0, r1, c7, c7, 0		@ invalidate I & D caches, BTB
 
-#ifdef CONFIG_XSCALE_CACHE_ERRATA
-	bic     r9, r9, #0x0004			@ see cpu_xscale_proc_init
-#endif
-
 	mcr	p14, 0, r3, c6, c0, 0		@ clock configuration, turbo mode.
 	mcr	p15, 0, r4, c15, c1, 0		@ CP access reg
 	mcr	p15, 0, r5, c13, c0, 0		@ PID
@@ -368,9 +364,6 @@ sleep_save_sp:
 
 	.text
 resume_after_mmu:
-#ifdef CONFIG_XSCALE_CACHE_ERRATA
-	bl	cpu_xscale_proc_init
-#endif
 	ldmfd	sp!, {r2, r3}
 #ifndef CONFIG_IWMMXT
 	mar	acc0, r2, r3

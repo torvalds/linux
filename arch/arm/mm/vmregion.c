@@ -35,7 +35,8 @@
  */
 
 struct arm_vmregion *
-arm_vmregion_alloc(struct arm_vmregion_head *head, size_t size, gfp_t gfp)
+arm_vmregion_alloc(struct arm_vmregion_head *head, size_t align,
+		   size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
@@ -58,7 +59,7 @@ arm_vmregion_alloc(struct arm_vmregion_head *head, size_t size, gfp_t gfp)
 			goto nospc;
 		if ((addr + size) <= c->vm_start)
 			goto found;
-		addr = c->vm_end;
+		addr = ALIGN(c->vm_end, align);
 		if (addr > end)
 			goto nospc;
 	}

@@ -48,7 +48,6 @@
 #include <linux/mlx4/doorbell.h>
 
 #define DRV_NAME	"mlx4_core"
-#define PFX		DRV_NAME ": "
 #define DRV_VERSION	"0.01"
 #define DRV_RELDATE	"May 1, 2007"
 
@@ -88,17 +87,17 @@ extern int mlx4_debug_level;
 #endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_dbg(mdev, format, arg...)					\
-	do {								\
-		if (mlx4_debug_level)					\
-			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
-	} while (0)
+do {									\
+	if (mlx4_debug_level)						\
+		dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ##arg); \
+} while (0)
 
 #define mlx4_err(mdev, format, arg...) \
-	dev_err(&mdev->pdev->dev, format, ## arg)
+	dev_err(&mdev->pdev->dev, format, ##arg)
 #define mlx4_info(mdev, format, arg...) \
-	dev_info(&mdev->pdev->dev, format, ## arg)
+	dev_info(&mdev->pdev->dev, format, ##arg)
 #define mlx4_warn(mdev, format, arg...) \
-	dev_warn(&mdev->pdev->dev, format, ## arg)
+	dev_warn(&mdev->pdev->dev, format, ##arg)
 
 struct mlx4_bitmap {
 	u32			last;

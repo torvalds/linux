@@ -706,16 +706,11 @@ static long dabusb_ioctl (struct file *file, unsigned int cmd, unsigned long arg
 	switch (cmd) {
 
 	case IOCTL_DAB_BULK:
-		pbulk = kmalloc(sizeof (bulk_transfer_t), GFP_KERNEL);
+		pbulk = memdup_user((void __user *)arg,
+				    sizeof(bulk_transfer_t));
 
-		if (!pbulk) {
-			ret = -ENOMEM;
-			break;
-		}
-
-		if (copy_from_user (pbulk, (void __user *) arg, sizeof (bulk_transfer_t))) {
-			ret = -EFAULT;
-			kfree (pbulk);
+		if (IS_ERR(pbulk)) {
+			ret = PTR_ERR(pbulk);
 			break;
 		}
 

@@ -1276,8 +1276,6 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	/* it may be a short read due to an object boundary */
 	req->r_pages = pages;
-	num_pages = calc_pages_for(off, *plen);
-	req->r_num_pages = num_pages;
 
 	dout("readpages  final extent is %llu~%llu (%d pages)\n",
 	     off, *plen, req->r_num_pages);
@@ -1319,7 +1317,6 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 
 	/* it may be a short write due to an object boundary */
 	req->r_pages = pages;
-	req->r_num_pages = calc_pages_for(off, len);
 	dout("writepages %llu~%llu (%d pages)\n", off, len,
 	     req->r_num_pages);
 
@@ -1476,8 +1473,8 @@ static void put_osd_con(struct ceph_connection *con)
  * authentication
  */
 static int get_authorizer(struct ceph_connection *con,
-	                  void **buf, int *len, int *proto,
-	                  void **reply_buf, int *reply_len, int force_new)
+			  void **buf, int *len, int *proto,
+			  void **reply_buf, int *reply_len, int force_new)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
@@ -1497,7 +1494,7 @@ static int get_authorizer(struct ceph_connection *con,
 			&o->o_authorizer_reply_buf,
 			&o->o_authorizer_reply_buf_len);
 		if (ret)
-		return ret;
+			return ret;
 	}
 
 	*proto = ac->protocol;

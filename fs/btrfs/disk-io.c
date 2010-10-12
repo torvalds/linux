@@ -480,7 +480,7 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	end_io_wq->work.func = end_workqueue_fn;
 	end_io_wq->work.flags = 0;
 
-	if (bio->bi_rw & (1 << BIO_RW)) {
+	if (bio->bi_rw & REQ_WRITE) {
 		if (end_io_wq->metadata)
 			btrfs_queue_worker(&fs_info->endio_meta_write_workers,
 					   &end_io_wq->work);
@@ -604,7 +604,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 
 	atomic_inc(&fs_info->nr_async_submits);
 
-	if (rw & (1 << BIO_RW_SYNCIO))
+	if (rw & REQ_SYNC)
 		btrfs_set_work_high_prio(&async->work);
 
 	btrfs_queue_worker(&fs_info->workers, &async->work);
@@ -668,7 +668,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 					  bio, 1);
 	BUG_ON(ret);
 
-	if (!(rw & (1 << BIO_RW))) {
+	if (!(rw & REQ_WRITE)) {
 		/*
 		 * called for a read, do the setup so that checksum validation
 		 * can happen in the async kernel threads
@@ -1427,7 +1427,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	 * ram and up to date before trying to verify things.  For
 	 * blocksize <= pagesize, it is basically a noop
 	 */
-	if (!(bio->bi_rw & (1 << BIO_RW)) && end_io_wq->metadata &&
+	if (!(bio->bi_rw & REQ_WRITE) && end_io_wq->metadata &&
 	    !bio_ready_for_csum(bio)) {
 		btrfs_queue_worker(&fs_info->endio_meta_workers,
 				   &end_io_wq->work);

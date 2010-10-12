@@ -921,8 +921,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 			   &sbi->s_flex_groups[flex_group].free_inodes);
 	}
 
-	ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
-	sb->s_dirt = 1;
+	ext4_handle_dirty_super(handle, sb);
 
 exit_journal:
 	mutex_unlock(&sbi->s_resize_lock);
@@ -953,7 +952,6 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		      ext4_fsblk_t n_blocks_count)
 {
 	ext4_fsblk_t o_blocks_count;
-	ext4_group_t o_groups_count;
 	ext4_grpblk_t last;
 	ext4_grpblk_t add;
 	struct buffer_head *bh;
@@ -965,7 +963,6 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	 * yet: we're going to revalidate es->s_blocks_count after
 	 * taking the s_resize_lock below. */
 	o_blocks_count = ext4_blocks_count(es);
-	o_groups_count = EXT4_SB(sb)->s_groups_count;
 
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT4-fs: extending last group from %llu uto %llu blocks\n",
@@ -1045,13 +1042,12 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		goto exit_put;
 	}
 	ext4_blocks_count_set(es, o_blocks_count + add);
-	ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
-	sb->s_dirt = 1;
 	mutex_unlock(&EXT4_SB(sb)->s_resize_lock);
 	ext4_debug("freeing blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	/* We add the blocks to the bitmap and set the group need init bit */
 	ext4_add_groupblocks(handle, sb, o_blocks_count, add);
+	ext4_handle_dirty_super(handle, sb);
 	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	if ((err = ext4_journal_stop(handle)))

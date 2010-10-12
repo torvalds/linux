@@ -1705,7 +1705,6 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 	printk("jiff=%lu...", jiffies);
 #endif
 
-	lock_kernel();
 	/* We go through the loop at least once because we can't tell
 	 * exactly when the last character exits the shifter.  There can
 	 * be at least two characters waiting to be sent after the buffers
@@ -1734,7 +1733,6 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 			bdp--;
 	} while (bdp->status & BD_SC_READY);
 	current->state = TASK_RUNNING;
-	unlock_kernel();
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif
@@ -1862,7 +1860,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		printk("block_til_ready blocking: ttys%d, count = %d\n",
 		       info->line, state->count);
 #endif
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&info->open_wait, &wait);
@@ -2649,7 +2649,7 @@ static int __init rs_360_init(void)
 				sup->tfcr = SMC_EB;
 
 				/* Set this to 1 for now, so we get single
-				 * character interrupts.  Using idle charater
+				 * character interrupts.  Using idle character
 				 * time requires some additional tuning.
 				 */
 				sup->mrblr = 1;
@@ -2728,7 +2728,7 @@ static int __init rs_360_init(void)
 				up->tfcr = SMC_EB;
 
 				/* Set this to 1 for now, so we get single
-				 * character interrupts.  Using idle charater
+				 * character interrupts.  Using idle character
 				 * time requires some additional tuning.
 				 */
 				up->mrblr = 1;
@@ -2886,7 +2886,7 @@ int serial_console_setup( struct console *co, char *options)
 		sup->tfcr = SMC_EB;
 
 		/* Set this to 1 for now, so we get single
-		 * character interrupts.  Using idle charater
+		 * character interrupts.  Using idle character
 		 * time requires some additional tuning.
 		 */
 		sup->mrblr = 1;

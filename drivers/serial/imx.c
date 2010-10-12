@@ -909,13 +909,11 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	rational_best_approximation(16 * div * baud, sport->port.uartclk,
 		1 << 16, 1 << 16, &num, &denom);
 
-	if (port->state && port->state->port.tty) {
-		tdiv64 = sport->port.uartclk;
-		tdiv64 *= num;
-		do_div(tdiv64, denom * 16 * div);
-		tty_encode_baud_rate(sport->port.state->port.tty,
+	tdiv64 = sport->port.uartclk;
+	tdiv64 *= num;
+	do_div(tdiv64, denom * 16 * div);
+	tty_termios_encode_baud_rate(termios,
 				(speed_t)tdiv64, (speed_t)tdiv64);
-	}
 
 	num -= 1;
 	denom -= 1;

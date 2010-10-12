@@ -119,7 +119,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 	}
 	hw = wlandev->priv;
 
-	if (wlan_setup(wlandev) != 0) {
+	if (wlan_setup(wlandev, &(interface->dev)) != 0) {
 		printk(KERN_ERR "%s: wlan_setup() failed.\n", dev_info);
 		result = -EIO;
 		goto failed;

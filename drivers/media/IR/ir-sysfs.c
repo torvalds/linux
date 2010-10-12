@@ -33,123 +33,170 @@ static struct class ir_input_class = {
 	.devnode	= ir_devnode,
 };
 
+static struct {
+	u64	type;
+	char	*name;
+} proto_names[] = {
+	{ IR_TYPE_UNKNOWN,	"unknown"	},
+	{ IR_TYPE_RC5,		"rc-5"		},
+	{ IR_TYPE_NEC,		"nec"		},
+	{ IR_TYPE_RC6,		"rc-6"		},
+	{ IR_TYPE_JVC,		"jvc"		},
+	{ IR_TYPE_SONY,		"sony"		},
+	{ IR_TYPE_LIRC,		"lirc"		},
+};
+
+#define PROTO_NONE	"none"
+
 /**
- * show_protocol() - shows the current IR protocol
+ * show_protocols() - shows the current IR protocol(s)
  * @d:		the device descriptor
  * @mattr:	the device attribute struct (unused)
  * @buf:	a pointer to the output buffer
  *
- * This routine is a callback routine for input read the IR protocol type.
- * it is trigged by reading /sys/class/rc/rc?/current_protocol.
- * It returns the protocol name, as understood by the driver.
+ * This routine is a callback routine for input read the IR protocol type(s).
+ * it is trigged by reading /sys/class/rc/rc?/protocols.
+ * It returns the protocol names of supported protocols.
+ * Enabled protocols are printed in brackets.
  */
-static ssize_t show_protocol(struct device *d,
-			     struct device_attribute *mattr, char *buf)
+static ssize_t show_protocols(struct device *d,
+			      struct device_attribute *mattr, char *buf)
 {
-	char *s;
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	u64 ir_type = ir_dev->rc_tab.ir_type;
+	u64 allowed, enabled;
+	char *tmp = buf;
+	int i;
 
-	IR_dprintk(1, "Current protocol is %lld\n", (long long)ir_type);
+	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
+		enabled = ir_dev->rc_tab.ir_type;
+		allowed = ir_dev->props->allowed_protos;
+	} else {
+		enabled = ir_dev->raw->enabled_protocols;
+		allowed = ir_raw_get_allowed_protocols();
+	}
 
-	/* FIXME: doesn't support multiple protocols at the same time */
-	if (ir_type == IR_TYPE_UNKNOWN)
-		s = "Unknown";
-	else if (ir_type == IR_TYPE_RC5)
-		s = "rc-5";
-	else if (ir_type == IR_TYPE_NEC)
-		s = "nec";
-	else if (ir_type == IR_TYPE_RC6)
-		s = "rc6";
-	else if (ir_type == IR_TYPE_JVC)
-		s = "jvc";
-	else if (ir_type == IR_TYPE_SONY)
-		s = "sony";
-	else
-		s = "other";
+	IR_dprintk(1, "allowed - 0x%llx, enabled - 0x%llx\n",
+		   (long long)allowed,
+		   (long long)enabled);
 
-	return sprintf(buf, "%s\n", s);
+	for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
+		if (allowed & enabled & proto_names[i].type)
+			tmp += sprintf(tmp, "[%s] ", proto_names[i].name);
+		else if (allowed & proto_names[i].type)
+			tmp += sprintf(tmp, "%s ", proto_names[i].name);
+	}
+
+	if (tmp != buf)
+		tmp--;
+	*tmp = '\n';
+	return tmp + 1 - buf;
 }
 
 /**
- * store_protocol() - shows the current IR protocol
+ * store_protocols() - changes the current IR protocol(s)
  * @d:		the device descriptor
  * @mattr:	the device attribute struct (unused)
  * @buf:	a pointer to the input buffer
  * @len:	length of the input buffer
  *
  * This routine is a callback routine for changing the IR protocol type.
- * it is trigged by reading /sys/class/rc/rc?/current_protocol.
- * It changes the IR the protocol name, if the IR type is recognized
- * by the driver.
- * If an unknown protocol name is used, returns -EINVAL.
+ * It is trigged by writing to /sys/class/rc/rc?/protocols.
+ * Writing "+proto" will add a protocol to the list of enabled protocols.
+ * Writing "-proto" will remove a protocol from the list of enabled protocols.
+ * Writing "proto" will enable only "proto".
+ * Writing "none" will disable all protocols.
+ * Returns -EINVAL if an invalid protocol combination or unknown protocol name
+ * is used, otherwise @len.
  */
-static ssize_t store_protocol(struct device *d,
-			      struct device_attribute *mattr,
-			      const char *data,
-			      size_t len)
+static ssize_t store_protocols(struct device *d,
+			       struct device_attribute *mattr,
+			       const char *data,
+			       size_t len)
 {
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	u64 ir_type = 0;
-	int rc = -EINVAL;
+	bool enable, disable;
+	const char *tmp;
+	u64 type;
+	u64 mask;
+	int rc, i, count = 0;
 	unsigned long flags;
-	char *buf;
 
-	while ((buf = strsep((char **) &data, " \n")) != NULL) {
-		if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
-			ir_type |= IR_TYPE_RC5;
-		if (!strcasecmp(buf, "nec"))
-			ir_type |= IR_TYPE_NEC;
-		if (!strcasecmp(buf, "jvc"))
-			ir_type |= IR_TYPE_JVC;
-		if (!strcasecmp(buf, "sony"))
-			ir_type |= IR_TYPE_SONY;
+	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
+		type = ir_dev->rc_tab.ir_type;
+	else
+		type = ir_dev->raw->enabled_protocols;
+
+	while ((tmp = strsep((char **) &data, " \n")) != NULL) {
+		if (!*tmp)
+			break;
+
+		if (*tmp == '+') {
+			enable = true;
+			disable = false;
+			tmp++;
+		} else if (*tmp == '-') {
+			enable = false;
+			disable = true;
+			tmp++;
+		} else {
+			enable = false;
+			disable = false;
+		}
+
+		if (!enable && !disable && !strncasecmp(tmp, PROTO_NONE, sizeof(PROTO_NONE))) {
+			tmp += sizeof(PROTO_NONE);
+			mask = 0;
+			count++;
+		} else {
+			for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
+				if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
+					tmp += strlen(proto_names[i].name);
+					mask = proto_names[i].type;
+					break;
+				}
+			}
+			if (i == ARRAY_SIZE(proto_names)) {
+				IR_dprintk(1, "Unknown protocol: '%s'\n", tmp);
+				return -EINVAL;
+			}
+			count++;
+		}
+
+		if (enable)
+			type |= mask;
+		else if (disable)
+			type &= ~mask;
+		else
+			type = mask;
 	}
 
-	if (!ir_type) {
-		IR_dprintk(1, "Unknown protocol\n");
+	if (!count) {
+		IR_dprintk(1, "Protocol not specified\n");
 		return -EINVAL;
 	}
 
-	if (ir_dev->props && ir_dev->props->change_protocol)
+	if (ir_dev->props && ir_dev->props->change_protocol) {
 		rc = ir_dev->props->change_protocol(ir_dev->props->priv,
-						    ir_type);
-
-	if (rc < 0) {
-		IR_dprintk(1, "Error setting protocol to %lld\n",
-			   (long long)ir_type);
-		return -EINVAL;
+						    type);
+		if (rc < 0) {
+			IR_dprintk(1, "Error setting protocols to 0x%llx\n",
+				   (long long)type);
+			return -EINVAL;
+		}
 	}
 
-	spin_lock_irqsave(&ir_dev->rc_tab.lock, flags);
-	ir_dev->rc_tab.ir_type = ir_type;
-	spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
+	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
+		spin_lock_irqsave(&ir_dev->rc_tab.lock, flags);
+		ir_dev->rc_tab.ir_type = type;
+		spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
+	} else {
+		ir_dev->raw->enabled_protocols = type;
+	}
 
-	IR_dprintk(1, "Current protocol(s) is(are) %lld\n",
-		   (long long)ir_type);
+	IR_dprintk(1, "Current protocol(s): 0x%llx\n",
+		   (long long)type);
 
 	return len;
-}
-
-static ssize_t show_supported_protocols(struct device *d,
-			     struct device_attribute *mattr, char *buf)
-{
-	char *orgbuf = buf;
-	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-
-	/* FIXME: doesn't support multiple protocols at the same time */
-	if (ir_dev->props->allowed_protos == IR_TYPE_UNKNOWN)
-		buf += sprintf(buf, "unknown ");
-	if (ir_dev->props->allowed_protos & IR_TYPE_RC5)
-		buf += sprintf(buf, "rc-5 ");
-	if (ir_dev->props->allowed_protos & IR_TYPE_NEC)
-		buf += sprintf(buf, "nec ");
-	if (buf == orgbuf)
-		buf += sprintf(buf, "other ");
-
-	buf += sprintf(buf - 1, "\n");
-
-	return buf - orgbuf;
 }
 
 #define ADD_HOTPLUG_VAR(fmt, val...)					\
@@ -159,7 +206,7 @@ static ssize_t show_supported_protocols(struct device *d,
 			return err;					\
 	} while (0)
 
-static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
+static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct ir_input_dev *ir_dev = dev_get_drvdata(device);
 
@@ -174,34 +221,26 @@ static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static DEVICE_ATTR(protocol, S_IRUGO | S_IWUSR,
-		   show_protocol, store_protocol);
+static DEVICE_ATTR(protocols, S_IRUGO | S_IWUSR,
+		   show_protocols, store_protocols);
 
-static DEVICE_ATTR(supported_protocols, S_IRUGO | S_IWUSR,
-		   show_supported_protocols, NULL);
-
-static struct attribute *ir_hw_dev_attrs[] = {
-	&dev_attr_protocol.attr,
-	&dev_attr_supported_protocols.attr,
+static struct attribute *rc_dev_attrs[] = {
+	&dev_attr_protocols.attr,
 	NULL,
 };
 
-static struct attribute_group ir_hw_dev_attr_grp = {
-	.attrs	= ir_hw_dev_attrs,
+static struct attribute_group rc_dev_attr_grp = {
+	.attrs	= rc_dev_attrs,
 };
 
-static const struct attribute_group *ir_hw_dev_attr_groups[] = {
-	&ir_hw_dev_attr_grp,
+static const struct attribute_group *rc_dev_attr_groups[] = {
+	&rc_dev_attr_grp,
 	NULL
 };
 
 static struct device_type rc_dev_type = {
-	.groups		= ir_hw_dev_attr_groups,
-	.uevent		= ir_dev_uevent,
-};
-
-static struct device_type ir_raw_dev_type = {
-	.uevent		= ir_dev_uevent,
+	.groups		= rc_dev_attr_groups,
+	.uevent		= rc_dev_uevent,
 };
 
 /**
@@ -221,11 +260,7 @@ int ir_register_class(struct input_dev *input_dev)
 	if (unlikely(devno < 0))
 		return devno;
 
-	if (ir_dev->props) {
-		if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
-			ir_dev->dev.type = &rc_dev_type;
-	} else
-		ir_dev->dev.type = &ir_raw_dev_type;
+	ir_dev->dev.type = &rc_dev_type;
 
 	ir_dev->dev.class = &ir_input_class;
 	ir_dev->dev.parent = input_dev->dev.parent;
@@ -290,6 +325,7 @@ static int __init ir_core_init(void)
 
 	/* Initialize/load the decoders/keymap code that will be used */
 	ir_raw_init();
+	ir_rcmap_init();
 
 	return 0;
 }
@@ -297,6 +333,7 @@ static int __init ir_core_init(void)
 static void __exit ir_core_exit(void)
 {
 	class_unregister(&ir_input_class);
+	ir_rcmap_cleanup();
 }
 
 module_init(ir_core_init);

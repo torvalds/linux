@@ -392,13 +392,13 @@ static void intel_sdvo_debug_write(struct intel_encoder *intel_encoder, u8 cmd,
 		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
 	for (; i < 8; i++)
 		DRM_LOG_KMS("   ");
-	for (i = 0; i < sizeof(sdvo_cmd_names) / sizeof(sdvo_cmd_names[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
 			DRM_LOG_KMS("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
-	if (i == sizeof(sdvo_cmd_names)/ sizeof(sdvo_cmd_names[0]))
+	if (i == ARRAY_SIZE(sdvo_cmd_names))
 		DRM_LOG_KMS("(%02X)", cmd);
 	DRM_LOG_KMS("\n");
 }
@@ -1237,9 +1237,11 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* Set the SDVO control regs. */
 	if (IS_I965G(dev)) {
-		sdvox |= SDVO_BORDER_ENABLE |
-			SDVO_VSYNC_ACTIVE_HIGH |
-			SDVO_HSYNC_ACTIVE_HIGH;
+		sdvox |= SDVO_BORDER_ENABLE;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+			sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 	} else {
 		sdvox |= I915_READ(sdvo_priv->sdvo_reg);
 		switch (sdvo_priv->sdvo_reg) {

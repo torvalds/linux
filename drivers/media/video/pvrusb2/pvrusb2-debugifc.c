@@ -94,8 +94,6 @@ static int debugifc_parse_unsigned_number(const char *buf,unsigned int count,
 					  u32 *num_ptr)
 {
 	u32 result = 0;
-	u32 val;
-	int ch;
 	int radix = 10;
 	if ((count >= 2) && (buf[0] == '0') &&
 	    ((buf[1] == 'x') || (buf[1] == 'X'))) {
@@ -107,17 +105,9 @@ static int debugifc_parse_unsigned_number(const char *buf,unsigned int count,
 	}
 
 	while (count--) {
-		ch = *buf++;
-		if ((ch >= '0') && (ch <= '9')) {
-			val = ch - '0';
-		} else if ((ch >= 'a') && (ch <= 'f')) {
-			val = ch - 'a' + 10;
-		} else if ((ch >= 'A') && (ch <= 'F')) {
-			val = ch - 'A' + 10;
-		} else {
+		int val = hex_to_bin(*buf++);
+		if (val < 0 || val >= radix)
 			return -EINVAL;
-		}
-		if (val >= radix) return -EINVAL;
 		result *= radix;
 		result += val;
 	}

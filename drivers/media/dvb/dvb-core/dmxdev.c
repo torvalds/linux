@@ -207,7 +207,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 	}
 	/* TODO */
 	dvbdev->users--;
-	if(dvbdev->users==-1 && dmxdev->exit==1) {
+	if (dvbdev->users == 1 && dmxdev->exit == 1) {
 		fops_put(file->f_op);
 		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);

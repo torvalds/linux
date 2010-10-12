@@ -41,7 +41,7 @@ struct sd {
 #define QUALITY_MAX 60
 #define QUALITY_DEF 40
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -845,9 +845,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -862,10 +859,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int retry = 50;
-
-	kfree(sd->jpeg_hdr);
 
 	if (!gspca_dev->present)
 		return;

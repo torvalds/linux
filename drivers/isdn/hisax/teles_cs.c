@@ -27,7 +27,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -107,9 +106,8 @@ static int __devinit teles_probe(struct pcmcia_device *link)
       and attributes of IO windows) are fixed by the nature of the
       device, and can be hard-wired here.
     */
-    link->io.NumPorts1 = 96;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 5;
+    link->resource[0]->end = 96;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -154,16 +152,18 @@ static int teles_cs_configcheck(struct pcmcia_device *p_dev,
 {
 	int j;
 
+	p_dev->io_lines = 5;
+
 	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
 		printk(KERN_INFO "(teles_cs: looks like the 96 model)\n");
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	} else {
 		printk(KERN_INFO "(teles_cs: looks like the 97 model)\n");
 		for (j = 0x2f0; j > 0x100; j -= 0x10) {
-			p_dev->io.BasePort1 = j;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[0]->start = j;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}
@@ -195,23 +195,21 @@ static int __devinit teles_cs_config(struct pcmcia_device *link)
 	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	    printk(", irq %d", link->irq);
-    if (link->io.NumPorts1)
-        printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-               link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
-        printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-               link->io.BasePort2+link->io.NumPorts2-1);
+    if (link->resource[0])
+	printk(" & %pR", link->resource[0]);
+    if (link->resource[1])
+	printk(" & %pR", link->resource[1]);
     printk("\n");
 
     icard.para[0] = link->irq;
-    icard.para[1] = link->io.BasePort1;
+    icard.para[1] = link->resource[0]->start;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_TELESPCMCIA;
     
     i = hisax_init_pcmcia(link, &(((local_info_t*)link->priv)->busy), &icard);
     if (i < 0) {
     	printk(KERN_ERR "teles_cs: failed to initialize Teles PCMCIA %d at i/o %#x\n",
-    		i, link->io.BasePort1);
+			i, (unsigned int) link->resource[0]->start);
     	teles_cs_release(link);
 	return -ENODEV;
     }

@@ -38,8 +38,6 @@
 struct kvm;
 struct kvm_vcpu;
 
-typedef void irq_request_func(void *opaque, int level);
-
 struct kvm_kpic_state {
 	u8 last_irr;	/* edge detection */
 	u8 irr;		/* interrupt request register */
@@ -67,8 +65,6 @@ struct kvm_pic {
 	unsigned pending_acks;
 	struct kvm *kvm;
 	struct kvm_kpic_state pics[2]; /* 0 is master pic, 1 is slave pic */
-	irq_request_func *irq_request;
-	void *irq_request_opaque;
 	int output;		/* intr from master PIC */
 	struct kvm_io_device dev;
 	void (*ack_notifier)(void *opaque, int irq);

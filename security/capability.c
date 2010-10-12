@@ -27,7 +27,7 @@ static int cap_quota_on(struct dentry *dentry)
 	return 0;
 }
 
-static int cap_bprm_check_security (struct linux_binprm *bprm)
+static int cap_bprm_check_security(struct linux_binprm *bprm)
 {
 	return 0;
 }
@@ -268,8 +268,7 @@ static int cap_path_rename(struct path *old_path, struct dentry *old_dentry,
 	return 0;
 }
 
-static int cap_path_truncate(struct path *path, loff_t length,
-			     unsigned int time_attrs)
+static int cap_path_truncate(struct path *path)
 {
 	return 0;
 }
@@ -412,7 +411,8 @@ static int cap_task_getioprio(struct task_struct *p)
 	return 0;
 }
 
-static int cap_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
+static int cap_task_setrlimit(struct task_struct *p, unsigned int resource,
+		struct rlimit *new_rlim)
 {
 	return 0;
 }

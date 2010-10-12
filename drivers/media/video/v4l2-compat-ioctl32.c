@@ -5,7 +5,7 @@
  * Copyright (C) 1997-2000  Jakub Jelinek  (jakub@redhat.com)
  * Copyright (C) 1998  Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 2001,2002  Andi Kleen, SuSE Labs
- * Copyright (C) 2003       Pavel Machek (pavel@suse.cz)
+ * Copyright (C) 2003       Pavel Machek (pavel@ucw.cz)
  * Copyright (C) 2005       Philippe De Muyter (phdm@macqel.be)
  * Copyright (C) 2008       Hans Verkuil <hverkuil@xs4all.nl>
  *
@@ -228,11 +228,6 @@ static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (file->f_op->unlocked_ioctl)
 		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
-	else if (file->f_op->ioctl) {
-		lock_kernel();
-		ret = file->f_op->ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-		unlock_kernel();
-	}
 
 	return ret;
 }
@@ -973,7 +968,7 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = -ENOIOCTLCMD;
 
-	if (!file->f_op->ioctl && !file->f_op->unlocked_ioctl)
+	if (!file->f_op->unlocked_ioctl)
 		return ret;
 
 	switch (cmd) {

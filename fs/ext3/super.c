@@ -527,17 +527,6 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(ext3_inode_cachep);
 }
 
-static void ext3_clear_inode(struct inode *inode)
-{
-	struct ext3_block_alloc_info *rsv = EXT3_I(inode)->i_block_alloc_info;
-
-	dquot_drop(inode);
-	ext3_discard_reservation(inode);
-	EXT3_I(inode)->i_block_alloc_info = NULL;
-	if (unlikely(rsv))
-		kfree(rsv);
-}
-
 static inline void ext3_show_quota_options(struct seq_file *seq, struct super_block *sb)
 {
 #if defined(CONFIG_QUOTA)
@@ -661,9 +650,6 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	 */
 	seq_puts(seq, ",barrier=");
 	seq_puts(seq, test_opt(sb, BARRIER) ? "1" : "0");
-	if (test_opt(sb, NOBH))
-		seq_puts(seq, ",nobh");
-
 	seq_printf(seq, ",data=%s", data_mode_string(test_opt(sb, DATA_FLAGS)));
 	if (test_opt(sb, DATA_ERR_ABORT))
 		seq_puts(seq, ",data_err=abort");
@@ -783,14 +769,13 @@ static const struct super_operations ext3_sops = {
 	.destroy_inode	= ext3_destroy_inode,
 	.write_inode	= ext3_write_inode,
 	.dirty_inode	= ext3_dirty_inode,
-	.delete_inode	= ext3_delete_inode,
+	.evict_inode	= ext3_evict_inode,
 	.put_super	= ext3_put_super,
 	.sync_fs	= ext3_sync_fs,
 	.freeze_fs	= ext3_freeze,
 	.unfreeze_fs	= ext3_unfreeze,
 	.statfs		= ext3_statfs,
 	.remount_fs	= ext3_remount,
-	.clear_inode	= ext3_clear_inode,
 	.show_options	= ext3_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext3_quota_read,
@@ -1255,10 +1240,12 @@ set_qf_format:
 			*n_blocks_count = option;
 			break;
 		case Opt_nobh:
-			set_opt(sbi->s_mount_opt, NOBH);
+			ext3_msg(sb, KERN_WARNING,
+				"warning: ignoring deprecated nobh option");
 			break;
 		case Opt_bh:
-			clear_opt(sbi->s_mount_opt, NOBH);
+			ext3_msg(sb, KERN_WARNING,
+				"warning: ignoring deprecated bh option");
 			break;
 		default:
 			ext3_msg(sb, KERN_ERR,
@@ -2001,14 +1988,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		break;
 	}
 
-	if (test_opt(sb, NOBH)) {
-		if (!(test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)) {
-			ext3_msg(sb, KERN_WARNING,
-				"warning: ignoring nobh option - "
-				"it is supported only with writeback mode");
-			clear_opt(sbi->s_mount_opt, NOBH);
-		}
-	}
 	/*
 	 * The journal_load will have done any necessary log recovery,
 	 * so we can safely mount the rest of the filesystem now.

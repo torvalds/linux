@@ -32,11 +32,11 @@
 
 typedef unsigned long  gva_t;
 typedef u64            gpa_t;
-typedef unsigned long  gfn_t;
+typedef u64            gfn_t;
 
 typedef unsigned long  hva_t;
 typedef u64            hpa_t;
-typedef unsigned long  hfn_t;
+typedef u64            hfn_t;
 
 typedef hfn_t pfn_t;
 

@@ -119,7 +119,7 @@ static inline unsigned int hweight32(unsigned int w)
 {
 	unsigned int res;
 
-	__asm__ ("%0.l = ONES %0;"
+	__asm__ ("%0.l = ONES %1;"
 		"%0 = %0.l (Z);"
 		: "=d" (res) : "d" (w));
 	return res;

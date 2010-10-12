@@ -1,6 +1,6 @@
 config DRM_NOUVEAU
 	tristate "Nouveau (nVidia) cards"
-	depends on DRM
+	depends on DRM && PCI
         select FW_LOADER
 	select DRM_KMS_HELPER
 	select DRM_TTM
@@ -41,4 +41,13 @@ config DRM_I2C_CH7006
 
 	  This driver is currently only useful if you're also using
 	  the nouveau driver.
+
+config DRM_I2C_SIL164
+	tristate "Silicon Image sil164 TMDS transmitter"
+	default m if DRM_NOUVEAU
+	help
+	  Support for sil164 and similar single-link (or dual-link
+	  when used in pairs) TMDS transmitters, used in some nVidia
+	  video cards.
+
 endmenu

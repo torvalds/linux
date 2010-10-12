@@ -76,6 +76,8 @@
 #define AB8500_NR_IRQS			104
 #define AB8500_NUM_IRQ_REGS		13
 
+#define AB8500_NUM_REGULATORS   15
+
 /**
  * struct ab8500 - ab8500 internal structure
  * @dev: parent device
@@ -108,14 +110,18 @@ struct ab8500 {
 	u8 oldmask[AB8500_NUM_IRQ_REGS];
 };
 
+struct regulator_init_data;
+
 /**
  * struct ab8500_platform_data - AB8500 platform data
  * @irq_base: start of AB8500 IRQs, AB8500_NR_IRQS will be used
  * @init: board-specific initialization after detection of ab8500
+ * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
 	int irq_base;
 	void (*init) (struct ab8500 *);
+	struct regulator_init_data *regulator[AB8500_NUM_REGULATORS];
 };
 
 extern int ab8500_write(struct ab8500 *a8500, u16 addr, u8 data);

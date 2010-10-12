@@ -18,7 +18,9 @@
 #include <linux/slab.h>
 #include <linux/param.h>
 #include <linux/time.h>
+#include <linux/compat.h>
 #include <linux/smp_lock.h>
+
 #include "autofs_i.h"
 
 static int autofs4_dir_symlink(struct inode *,struct dentry *,const char *);
@@ -26,6 +28,7 @@ static int autofs4_dir_unlink(struct inode *,struct dentry *);
 static int autofs4_dir_rmdir(struct inode *,struct dentry *);
 static int autofs4_dir_mkdir(struct inode *,struct dentry *,int);
 static long autofs4_root_ioctl(struct file *,unsigned int,unsigned long);
+static long autofs4_root_compat_ioctl(struct file *,unsigned int,unsigned long);
 static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
 static void *autofs4_follow_link(struct dentry *, struct nameidata *);
@@ -40,6 +43,9 @@ const struct file_operations autofs4_root_operations = {
 	.readdir	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 	.unlocked_ioctl	= autofs4_root_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= autofs4_root_compat_ioctl,
+#endif
 };
 
 const struct file_operations autofs4_dir_operations = {
@@ -198,8 +204,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	}
 
 	/* Initialize expiry counter after successful mount */
-	if (ino)
-		ino->last_used = jiffies;
+	ino->last_used = jiffies;
 
 	spin_lock(&sbi->fs_lock);
 	ino->flags &= ~AUTOFS_INF_PENDING;
@@ -840,6 +845,26 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 }
 
 /* Get/set timeout ioctl() operation */
+#ifdef CONFIG_COMPAT
+static inline int autofs4_compat_get_set_timeout(struct autofs_sb_info *sbi,
+					 compat_ulong_t __user *p)
+{
+	int rv;
+	unsigned long ntimeout;
+
+	if ((rv = get_user(ntimeout, p)) ||
+	     (rv = put_user(sbi->exp_timeout/HZ, p)))
+		return rv;
+
+	if (ntimeout > UINT_MAX/HZ)
+		sbi->exp_timeout = 0;
+	else
+		sbi->exp_timeout = ntimeout * HZ;
+
+	return 0;
+}
+#endif
+
 static inline int autofs4_get_set_timeout(struct autofs_sb_info *sbi,
 					 unsigned long __user *p)
 {
@@ -933,6 +958,10 @@ static int autofs4_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 		return autofs4_get_protosubver(sbi, p);
 	case AUTOFS_IOC_SETTIMEOUT:
 		return autofs4_get_set_timeout(sbi, p);
+#ifdef CONFIG_COMPAT
+	case AUTOFS_IOC_SETTIMEOUT32:
+		return autofs4_compat_get_set_timeout(sbi, p);
+#endif
 
 	case AUTOFS_IOC_ASKUMOUNT:
 		return autofs4_ask_umount(filp->f_path.mnt, p);
@@ -961,3 +990,22 @@ static long autofs4_root_ioctl(struct file *filp,
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long autofs4_root_compat_ioctl(struct file *filp,
+			     unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	int ret;
+
+	lock_kernel();
+	if (cmd == AUTOFS_IOC_READY || cmd == AUTOFS_IOC_FAIL)
+		ret = autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
+	else
+		ret = autofs4_root_ioctl_unlocked(inode, filp, cmd,
+			(unsigned long)compat_ptr(arg));
+	unlock_kernel();
+
+	return ret;
+}
+#endif

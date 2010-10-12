@@ -74,7 +74,7 @@
 		"on firmware-problems."
 
 struct ir_codes_dvb_usb_table_table {
-	struct dvb_usb_rc_key *rc_keys;
+	struct ir_scancode *rc_keys;
 	int rc_keys_size;
 };
 
@@ -948,7 +948,7 @@ static int dw3101_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_dw210x_table[] = {
+static struct ir_scancode ir_codes_dw210x_table[] = {
 	{ 0xf80a, KEY_Q },		/*power*/
 	{ 0xf80c, KEY_M },		/*mute*/
 	{ 0xf811, KEY_1 },
@@ -982,7 +982,7 @@ static struct dvb_usb_rc_key ir_codes_dw210x_table[] = {
 	{ 0xf81b, KEY_B },		/*recall*/
 };
 
-static struct dvb_usb_rc_key ir_codes_tevii_table[] = {
+static struct ir_scancode ir_codes_tevii_table[] = {
 	{ 0xf80a, KEY_POWER },
 	{ 0xf80c, KEY_MUTE },
 	{ 0xf811, KEY_1 },
@@ -1032,7 +1032,7 @@ static struct dvb_usb_rc_key ir_codes_tevii_table[] = {
 	{ 0xf858, KEY_SWITCHVIDEOMODE },
 };
 
-static struct dvb_usb_rc_key ir_codes_tbs_table[] = {
+static struct ir_scancode ir_codes_tbs_table[] = {
 	{ 0xf884, KEY_POWER },
 	{ 0xf894, KEY_MUTE },
 	{ 0xf887, KEY_1 },
@@ -1075,8 +1075,8 @@ static struct ir_codes_dvb_usb_table_table keys_tables[] = {
 
 static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
-	int keymap_size = d->props.rc_key_map_size;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
+	int keymap_size = d->props.rc.legacy.rc_key_map_size;
 	u8 key[2];
 	struct i2c_msg msg = {
 		.addr = DW2102_RC_QUERY,
@@ -1096,7 +1096,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		for (i = 0; i < keymap_size ; i++) {
 			if (rc5_data(&keymap[i]) == msg.buf[0]) {
 				*state = REMOTE_KEY_PRESSED;
-				*event = keymap[i].event;
+				*event = keymap[i].keycode;
 				break;
 			}
 
@@ -1185,13 +1185,13 @@ static int dw2102_load_firmware(struct usb_device *dev,
 		/* init registers */
 		switch (dev->descriptor.idProduct) {
 		case USB_PID_PROF_1100:
-			s6x0_properties.rc_key_map = ir_codes_tbs_table;
-			s6x0_properties.rc_key_map_size =
+			s6x0_properties.rc.legacy.rc_key_map = ir_codes_tbs_table;
+			s6x0_properties.rc.legacy.rc_key_map_size =
 					ARRAY_SIZE(ir_codes_tbs_table);
 			break;
 		case USB_PID_TEVII_S650:
-			dw2104_properties.rc_key_map = ir_codes_tevii_table;
-			dw2104_properties.rc_key_map_size =
+			dw2104_properties.rc.legacy.rc_key_map = ir_codes_tevii_table;
+			dw2104_properties.rc.legacy.rc_key_map_size =
 					ARRAY_SIZE(ir_codes_tevii_table);
 		case USB_PID_DW2104:
 			reset = 1;
@@ -1255,10 +1255,13 @@ static struct dvb_usb_device_properties dw2102_properties = {
 	.no_reconnect = 1,
 
 	.i2c_algo = &dw2102_serit_i2c_algo,
-	.rc_key_map = ir_codes_dw210x_table,
-	.rc_key_map_size = ARRAY_SIZE(ir_codes_dw210x_table),
-	.rc_interval = 150,
-	.rc_query = dw2102_rc_query,
+
+	.rc.legacy = {
+		.rc_key_map = ir_codes_dw210x_table,
+		.rc_key_map_size = ARRAY_SIZE(ir_codes_dw210x_table),
+		.rc_interval = 150,
+		.rc_query = dw2102_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x81,
 	/* parameter for the MPEG2-data transfer */
@@ -1306,10 +1309,12 @@ static struct dvb_usb_device_properties dw2104_properties = {
 	.no_reconnect = 1,
 
 	.i2c_algo = &dw2104_i2c_algo,
-	.rc_key_map = ir_codes_dw210x_table,
-	.rc_key_map_size = ARRAY_SIZE(ir_codes_dw210x_table),
-	.rc_interval = 150,
-	.rc_query = dw2102_rc_query,
+	.rc.legacy = {
+		.rc_key_map = ir_codes_dw210x_table,
+		.rc_key_map_size = ARRAY_SIZE(ir_codes_dw210x_table),
+		.rc_interval = 150,
+		.rc_query = dw2102_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x81,
 	/* parameter for the MPEG2-data transfer */
@@ -1353,10 +1358,12 @@ static struct dvb_usb_device_properties dw3101_properties = {
 	.no_reconnect = 1,
 
 	.i2c_algo = &dw3101_i2c_algo,
-	.rc_key_map = ir_codes_dw210x_table,
-	.rc_key_map_size = ARRAY_SIZE(ir_codes_dw210x_table),
-	.rc_interval = 150,
-	.rc_query = dw2102_rc_query,
+	.rc.legacy = {
+		.rc_key_map = ir_codes_dw210x_table,
+		.rc_key_map_size = ARRAY_SIZE(ir_codes_dw210x_table),
+		.rc_interval = 150,
+		.rc_query = dw2102_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x81,
 	/* parameter for the MPEG2-data transfer */
@@ -1396,10 +1403,12 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	.no_reconnect = 1,
 
 	.i2c_algo = &s6x0_i2c_algo,
-	.rc_key_map = ir_codes_tevii_table,
-	.rc_key_map_size = ARRAY_SIZE(ir_codes_tevii_table),
-	.rc_interval = 150,
-	.rc_query = dw2102_rc_query,
+	.rc.legacy = {
+		.rc_key_map = ir_codes_tevii_table,
+		.rc_key_map_size = ARRAY_SIZE(ir_codes_tevii_table),
+		.rc_interval = 150,
+		.rc_query = dw2102_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x81,
 	.num_adapters = 1,
@@ -1459,8 +1468,8 @@ static int dw2102_probe(struct usb_interface *intf,
 	/* fill only different fields */
 	p7500->firmware = "dvb-usb-p7500.fw";
 	p7500->devices[0] = d7500;
-	p7500->rc_key_map = ir_codes_tbs_table;
-	p7500->rc_key_map_size = ARRAY_SIZE(ir_codes_tbs_table);
+	p7500->rc.legacy.rc_key_map = ir_codes_tbs_table;
+	p7500->rc.legacy.rc_key_map_size = ARRAY_SIZE(ir_codes_tbs_table);
 	p7500->adapter->frontend_attach = prof_7500_frontend_attach;
 
 	if (0 == dvb_usb_device_init(intf, &dw2102_properties,

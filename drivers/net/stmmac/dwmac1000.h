@@ -93,7 +93,7 @@ enum inter_frame_gap {
 #define GMAC_CONTROL_IPC	0x00000400 /* Checksum Offload */
 #define GMAC_CONTROL_DR		0x00000200 /* Disable Retry */
 #define GMAC_CONTROL_LUD	0x00000100 /* Link up/down */
-#define GMAC_CONTROL_ACS	0x00000080 /* Automatic Pad Stripping */
+#define GMAC_CONTROL_ACS	0x00000080 /* Automatic Pad/FCS Stripping */
 #define GMAC_CONTROL_DC		0x00000010 /* Deferral Check */
 #define GMAC_CONTROL_TE		0x00000008 /* Transmitter Enable */
 #define GMAC_CONTROL_RE		0x00000004 /* Receiver Enable */

@@ -91,7 +91,7 @@ static void cuda_write_pram(int offset, __u8 data)
 #define cuda_write_pram NULL
 #endif
 
-#if 0 /* def CONFIG_ADB_PMU68K */
+#ifdef CONFIG_ADB_PMU68K
 static long pmu_read_time(void)
 {
 	struct adb_request req;
@@ -102,8 +102,8 @@ static long pmu_read_time(void)
 	while (!req.complete)
 		pmu_poll();
 
-	time = (req.reply[0] << 24) | (req.reply[1] << 16)
-		| (req.reply[2] << 8) | req.reply[3];
+	time = (req.reply[1] << 24) | (req.reply[2] << 16)
+		| (req.reply[3] << 8) | req.reply[4];
 	return time - RTC_OFFSET;
 }
 

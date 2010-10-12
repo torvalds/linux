@@ -77,7 +77,7 @@ config ZCRYPT
 
 config ZCRYPT_MONOLITHIC
 	bool "Monolithic zcrypt module"
-	depends on ZCRYPT="m"
+	depends on ZCRYPT
 	help
 	  Select this option if you want to have a single module z90crypt,
 	  that contains all parts of the crypto device driver (ap bus,

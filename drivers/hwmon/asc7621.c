@@ -1150,9 +1150,6 @@ static int asc7621_detect(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int company, verstep, chip_index;
-	struct device *dev;
-
-	dev = &client->dev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -1169,13 +1166,11 @@ static int asc7621_detect(struct i2c_client *client,
 
 		if (company == asc7621_chips[chip_index].company_id &&
 		    verstep == asc7621_chips[chip_index].verstep_id) {
-			strlcpy(client->name, asc7621_chips[chip_index].name,
-				I2C_NAME_SIZE);
 			strlcpy(info->type, asc7621_chips[chip_index].name,
 				I2C_NAME_SIZE);
 
-			dev_info(&adapter->dev, "Matched %s\n",
-				 asc7621_chips[chip_index].name);
+			dev_info(&adapter->dev, "Matched %s at 0x%02x\n",
+				 asc7621_chips[chip_index].name, client->addr);
 			return 0;
 		}
 	}

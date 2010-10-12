@@ -32,7 +32,6 @@
 #define IO_SIZE			0x0B000000                 // How much?
 #define IO_START		INTEGRATOR_HDR_BASE        // PA of IO
 
-#define PCIO_BASE		PCI_IO_VADDR
 #define PCIMEM_BASE		PCI_MEMORY_VADDR
 
 #define pcibios_assign_all_busses()	1

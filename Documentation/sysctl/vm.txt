@@ -196,7 +196,7 @@ controlled by this knob are discussed in Documentation/laptops/laptop-mode.txt.
 
 legacy_va_layout
 
-If non-zero, this sysctl disables the new 32-bit mmap mmap layout - the kernel
+If non-zero, this sysctl disables the new 32-bit mmap layout - the kernel
 will use the legacy (2.4) layout for all processes.
 
 ==============================================================
@@ -511,7 +511,7 @@ information may not be desired.
 If this is set to non-zero, this information is shown whenever the
 OOM killer actually kills a memory-hogging task.
 
-The default value is 0.
+The default value is 1 (enabled).
 
 ==============================================================
 

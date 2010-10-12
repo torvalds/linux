@@ -32,8 +32,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/mux.h>
-
 #include "musb_core.h"
 #include "omap2430.h"
 
@@ -193,10 +191,6 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 {
 	u32 l;
 	struct omap_musb_board_data *data = board_data;
-
-#if defined(CONFIG_ARCH_OMAP2430)
-	omap_cfg_reg(AE5_2430_USB0HS_STP);
-#endif
 
 	/* We require some kind of external transceiver, hooked
 	 * up through ULPI.  TWL4030-family PMICs include one,

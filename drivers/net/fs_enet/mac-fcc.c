@@ -84,7 +84,7 @@ static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 op)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-	struct of_device *ofdev = to_of_device(fep->dev);
+	struct platform_device *ofdev = to_platform_device(fep->dev);
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 

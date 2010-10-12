@@ -922,61 +922,73 @@ static void bfin_mac_hwtstamp_init(struct net_device *netdev)
 # define bfin_tx_hwtstamp(dev, skb)
 #endif
 
-static void adjust_tx_list(void)
+static inline void _tx_reclaim_skb(void)
 {
-	int timeout_cnt = MAX_TIMEOUT_CNT;
-
-	if (tx_list_head->status.status_word != 0 &&
-	    current_tx_ptr != tx_list_head) {
-		goto adjust_head;	/* released something, just return; */
-	}
-
-	/*
-	 * if nothing released, check wait condition
-	 * current's next can not be the head,
-	 * otherwise the dma will not stop as we want
-	 */
-	if (current_tx_ptr->next->next == tx_list_head) {
-		while (tx_list_head->status.status_word == 0) {
-			udelay(10);
-			if (tx_list_head->status.status_word != 0 ||
-			    !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
-				goto adjust_head;
-			}
-			if (timeout_cnt-- < 0) {
-				printk(KERN_ERR DRV_NAME
-				": wait for adjust tx list head timeout\n");
-				break;
-			}
-		}
-		if (tx_list_head->status.status_word != 0) {
-			goto adjust_head;
-		}
-	}
-
-	return;
-
-adjust_head:
 	do {
 		tx_list_head->desc_a.config &= ~DMAEN;
 		tx_list_head->status.status_word = 0;
 		if (tx_list_head->skb) {
 			dev_kfree_skb(tx_list_head->skb);
 			tx_list_head->skb = NULL;
-		} else {
-			printk(KERN_ERR DRV_NAME
-			       ": no sk_buff in a transmitted frame!\n");
 		}
 		tx_list_head = tx_list_head->next;
-	} while (tx_list_head->status.status_word != 0 &&
-		 current_tx_ptr != tx_list_head);
-	return;
 
+	} while (tx_list_head->status.status_word != 0);
+}
+
+static void tx_reclaim_skb(struct bfin_mac_local *lp)
+{
+	int timeout_cnt = MAX_TIMEOUT_CNT;
+
+	if (tx_list_head->status.status_word != 0)
+		_tx_reclaim_skb();
+
+	if (current_tx_ptr->next == tx_list_head) {
+		while (tx_list_head->status.status_word == 0) {
+			/* slow down polling to avoid too many queue stop. */
+			udelay(10);
+			/* reclaim skb if DMA is not running. */
+			if (!(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN))
+				break;
+			if (timeout_cnt-- < 0)
+				break;
+		}
+
+		if (timeout_cnt >= 0)
+			_tx_reclaim_skb();
+		else
+			netif_stop_queue(lp->ndev);
+	}
+
+	if (current_tx_ptr->next != tx_list_head &&
+		netif_queue_stopped(lp->ndev))
+		netif_wake_queue(lp->ndev);
+
+	if (tx_list_head != current_tx_ptr) {
+		/* shorten the timer interval if tx queue is stopped */
+		if (netif_queue_stopped(lp->ndev))
+			lp->tx_reclaim_timer.expires =
+				jiffies + (TX_RECLAIM_JIFFIES >> 4);
+		else
+			lp->tx_reclaim_timer.expires =
+				jiffies + TX_RECLAIM_JIFFIES;
+
+		mod_timer(&lp->tx_reclaim_timer,
+			lp->tx_reclaim_timer.expires);
+	}
+
+	return;
+}
+
+static void tx_reclaim_skb_timeout(unsigned long lp)
+{
+	tx_reclaim_skb((struct bfin_mac_local *)lp);
 }
 
 static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
 	u16 *data;
 	u32 data_align = (unsigned long)(skb->data) & 0x3;
 	union skb_shared_tx *shtx = skb_tx(skb);
@@ -1009,8 +1021,6 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 			skb->len);
 		current_tx_ptr->desc_a.start_addr =
 			(u32)current_tx_ptr->packet;
-		if (current_tx_ptr->status.status_word != 0)
-			current_tx_ptr->status.status_word = 0;
 		blackfin_dcache_flush_range(
 			(u32)current_tx_ptr->packet,
 			(u32)(current_tx_ptr->packet + skb->len + 2));
@@ -1021,6 +1031,9 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	 * DMA engine goes to fetch them below
 	 */
 	SSYNC();
+
+	/* always clear status buffer before start tx dma */
+	current_tx_ptr->status.status_word = 0;
 
 	/* enable this packet's dma */
 	current_tx_ptr->desc_a.config |= DMAEN;
@@ -1037,13 +1050,14 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	bfin_write_EMAC_OPMODE(bfin_read_EMAC_OPMODE() | TE);
 
 out:
-	adjust_tx_list();
-
 	bfin_tx_hwtstamp(dev, skb);
 
 	current_tx_ptr = current_tx_ptr->next;
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (skb->len);
+
+	tx_reclaim_skb(lp);
+
 	return NETDEV_TX_OK;
 }
 
@@ -1167,8 +1181,11 @@ real_rx:
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void bfin_mac_poll(struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
 	disable_irq(IRQ_MAC_RX);
 	bfin_mac_interrupt(IRQ_MAC_RX, dev);
+	tx_reclaim_skb(lp);
 	enable_irq(IRQ_MAC_RX);
 }
 #endif				/* CONFIG_NET_POLL_CONTROLLER */
@@ -1232,12 +1249,27 @@ static int bfin_mac_enable(void)
 /* Our watchdog timed out. Called by the networking layer */
 static void bfin_mac_timeout(struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
 	pr_debug("%s: %s\n", dev->name, __func__);
 
 	bfin_mac_disable();
 
-	/* reset tx queue */
-	tx_list_tail = tx_list_head->next;
+	del_timer(&lp->tx_reclaim_timer);
+
+	/* reset tx queue and free skb */
+	while (tx_list_head != current_tx_ptr) {
+		tx_list_head->desc_a.config &= ~DMAEN;
+		tx_list_head->status.status_word = 0;
+		if (tx_list_head->skb) {
+			dev_kfree_skb(tx_list_head->skb);
+			tx_list_head->skb = NULL;
+		}
+		tx_list_head = tx_list_head->next;
+	}
+
+	if (netif_queue_stopped(lp->ndev))
+		netif_wake_queue(lp->ndev);
 
 	bfin_mac_enable();
 
@@ -1430,6 +1462,7 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	platform_set_drvdata(pdev, ndev);
 	lp = netdev_priv(ndev);
+	lp->ndev = ndev;
 
 	/* Grab the MAC address in the MAC */
 	*(__le32 *) (&(ndev->dev_addr[0])) = cpu_to_le32(bfin_read_EMAC_ADDRLO());
@@ -1484,6 +1517,10 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 
 	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
+
+	init_timer(&lp->tx_reclaim_timer);
+	lp->tx_reclaim_timer.data = (unsigned long)lp;
+	lp->tx_reclaim_timer.function = tx_reclaim_skb_timeout;
 
 	spin_lock_init(&lp->lock);
 

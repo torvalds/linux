@@ -211,6 +211,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
 		skb_queue_purge(&intf->frame_dump_skbqueue);
 }
+EXPORT_SYMBOL_GPL(rt2x00debug_dump_frame);
 
 static int rt2x00debug_file_open(struct inode *inode, struct file *file)
 {

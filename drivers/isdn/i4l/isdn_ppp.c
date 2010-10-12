@@ -449,14 +449,9 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 
 	/* uprog.len is unsigned short, so no overflow here */
 	len = uprog.len * sizeof(struct sock_filter);
-	code = kmalloc(len, GFP_KERNEL);
-	if (code == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(code, uprog.filter, len)) {
-		kfree(code);
-		return -EFAULT;
-	}
+	code = memdup_user(uprog.filter, len);
+	if (IS_ERR(code))
+		return PTR_ERR(code);
 
 	err = sk_chk_filter(code, uprog.len);
 	if (err) {
@@ -482,7 +477,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	struct isdn_ppp_comp_data data;
 	void __user *argp = (void __user *)arg;
 
-	is = (struct ippp_struct *) file->private_data;
+	is = file->private_data;
 	lp = is->lp;
 
 	if (is->debug & 0x1)

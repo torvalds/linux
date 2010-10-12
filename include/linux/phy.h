@@ -234,6 +234,8 @@ enum phy_state {
 	PHY_RESUMING
 };
 
+struct sk_buff;
+
 /* phy_device: An instance of a PHY
  *
  * drv: Pointer to the driver for this PHY instance
@@ -402,6 +404,26 @@ struct phy_driver {
 	/* Clears up any memory if needed */
 	void (*remove)(struct phy_device *phydev);
 
+	/* Handles SIOCSHWTSTAMP ioctl for hardware time stamping. */
+	int  (*hwtstamp)(struct phy_device *phydev, struct ifreq *ifr);
+
+	/*
+	 * Requests a Rx timestamp for 'skb'. If the skb is accepted,
+	 * the phy driver promises to deliver it using netif_rx() as
+	 * soon as a timestamp becomes available. One of the
+	 * PTP_CLASS_ values is passed in 'type'. The function must
+	 * return true if the skb is accepted for delivery.
+	 */
+	bool (*rxtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
+
+	/*
+	 * Requests a Tx timestamp for 'skb'. The phy driver promises
+	 * to deliver it to the socket's error queue as soon as a
+	 * timestamp becomes available. One of the PTP_CLASS_ values
+	 * is passed in 'type'.
+	 */
+	void (*txtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)
@@ -498,7 +520,7 @@ void phy_stop_machine(struct phy_device *phydev);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_mii_ioctl(struct phy_device *phydev,
-		struct mii_ioctl_data *mii_data, int cmd);
+		struct ifreq *ifr, int cmd);
 int phy_start_interrupts(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
 struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id);

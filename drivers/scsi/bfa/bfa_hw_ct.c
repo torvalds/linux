@@ -168,4 +168,9 @@ bfa_hwct_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix)
 	bfa_ioc_isr_mode_set(&bfa->ioc, msix);
 }
 
-
+void
+bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end)
+{
+	*start = BFA_MSIX_RME_Q0;
+	*end = BFA_MSIX_RME_Q3;
+}

@@ -48,11 +48,12 @@ struct ads7846_platform_data {
 					 * state if get_pendown_state == NULL
 					 */
 	int	(*get_pendown_state)(void);
-	int	(*filter_init)	(struct ads7846_platform_data *pdata,
+	int	(*filter_init)	(const struct ads7846_platform_data *pdata,
 				 void **filter_data);
 	int	(*filter)	(void *filter_data, int data_idx, int *val);
 	void	(*filter_cleanup)(void *filter_data);
 	void	(*wait_for_sync)(void);
 	bool	wakeup;
+	unsigned long irq_flags;
 };
 

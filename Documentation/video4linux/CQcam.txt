@@ -203,11 +203,11 @@ The V4L2 API spec:
   http://v4l2spec.bytesex.org/
 
 Some web pages about the quickcams:
-   http://www.dkfz-heidelberg.de/Macromol/wedemann/mini-HOWTO-cqcam.html
+   http://www.pingouin-land.com/howto/QuickCam-HOWTO.html
 
    http://www.crynwr.com/qcpc/            QuickCam Third-Party Drivers
    http://www.crynwr.com/qcpc/re.html     Some Reverse Engineering
-   http://cse.unl.edu/~cluening/gqcam/    v4l client
+   http://www.wirelesscouch.net/software/gqcam/   v4l client
    http://phobos.illtel.denver.co.us/pub/qcread/ doesn't use v4l
    ftp://ftp.cs.unm.edu/pub/chris/quickcam/   Has lots of drivers
    http://www.cs.duke.edu/~reynolds/quickcam/ Has lots of information

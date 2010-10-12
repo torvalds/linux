@@ -1067,7 +1067,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 
 	TRACE_L("read()");
 
-	lock_kernel();
+	tty_lock();
 
 	pClient = findClient(pInfo, task_pid(current));
 	if (pClient) {
@@ -1079,7 +1079,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 				goto unlock;
 			}
 			/* block until there is a message: */
-			wait_event_interruptible(pInfo->read_wait,
+			wait_event_interruptible_tty(pInfo->read_wait,
 					(pMsg = remove_msg(pInfo, pClient)));
 		}
 
@@ -1109,7 +1109,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 	}
 	ret = -EPERM;
 unlock:
-	unlock_kernel();
+	tty_unlock();
 	return ret;
 }
 
@@ -1158,7 +1158,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 	pHeader->locks = 0;
 	pHeader->owner = NULL;
 
-	lock_kernel();
+	tty_lock();
 
 	pClient = findClient(pInfo, task_pid(current));
 	if (pClient) {
@@ -1177,7 +1177,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 	add_tx_queue(pInfo, pHeader);
 	trigger_transmit(pInfo);
 
-	unlock_kernel();
+	tty_unlock();
 
 	return 0;
 }

@@ -419,7 +419,7 @@ static loff_t debug_buffer_llseek(struct file *file, loff_t off, int whence)
 
 static int debug_buffer_release(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *db = (struct debug_buffer *)file->private_data;
+	struct debug_buffer *db = file->private_data;
 
 	if (db)
 		kfree(db->buf);
@@ -715,7 +715,7 @@ static int debug_lockres_open(struct inode *inode, struct file *file)
 		goto bail;
 	}
 
-	seq = (struct seq_file *) file->private_data;
+	seq = file->private_data;
 	seq->private = dl;
 
 	dlm_grab(dlm);
@@ -731,7 +731,7 @@ bail:
 
 static int debug_lockres_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq = (struct seq_file *)file->private_data;
+	struct seq_file *seq = file->private_data;
 	struct debug_lockres *dl = (struct debug_lockres *)seq->private;
 
 	if (dl->dl_res)

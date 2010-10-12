@@ -193,7 +193,7 @@ struct rx_desc {
 	__le32 pa_low;		/* Low 32 bit PCI address */
 	__le16 pa_high;		/* Next 16 bit PCI address (48 total) */
 	__le16 size;		/* bits 0--14 - frame size, bit 15 - enable int. */
-} __attribute__ ((__packed__));
+} __packed;
 
 /*
  *	Transmit descriptor
@@ -208,7 +208,7 @@ struct tdesc1 {
 	__le16 vlan;
 	u8 TCR;
 	u8 cmd;			/* bits 0--1 - TCPLS, bits 4--7 - CMDZ */
-} __attribute__ ((__packed__));
+} __packed;
 
 enum {
 	TD_QUEUE = cpu_to_le16(0x8000)
@@ -218,7 +218,7 @@ struct td_buf {
 	__le32 pa_low;
 	__le16 pa_high;
 	__le16 size;		/* bits 0--13 - size, bit 15 - queue */
-} __attribute__ ((__packed__));
+} __packed;
 
 struct tx_desc {
 	struct tdesc0 tdesc0;
@@ -1096,7 +1096,7 @@ struct mac_regs {
 
 	volatile __le16 PatternCRC[8];	/* 0xB0 */
 	volatile __le32 ByteMask[4][4];	/* 0xC0 */
-} __attribute__ ((__packed__));
+} __packed;
 
 
 enum hw_mib {
@@ -1216,7 +1216,7 @@ struct arp_packet {
 	u8 ar_sip[4];
 	u8 ar_tha[ETH_ALEN];
 	u8 ar_tip[4];
-} __attribute__ ((__packed__));
+} __packed;
 
 struct _magic_packet {
 	u8 dest_mac[6];
@@ -1224,7 +1224,7 @@ struct _magic_packet {
 	__be16 type;
 	u8 MAC[16][6];
 	u8 password[6];
-} __attribute__ ((__packed__));
+} __packed;
 
 /*
  *	Store for chip context when saving and restoring status. Not

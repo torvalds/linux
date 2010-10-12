@@ -25,6 +25,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -114,6 +115,12 @@ static struct pl061_platform_data gpio2_plat_data = {
 	.irq_base	= -1,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView PBA8Core AMBA devices
  */
@@ -180,7 +187,7 @@ AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
 AMBA_DEVICE(uart0,	"dev:uart0",	PBA8_UART0,	NULL);
 AMBA_DEVICE(uart1,	"dev:uart1",	PBA8_UART1,	NULL);
 AMBA_DEVICE(uart2,	"dev:uart2",	PBA8_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PBA8_SSP,	NULL);
+AMBA_DEVICE(ssp0,	"dev:ssp0",	PBA8_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
 AMBA_DEVICE(clcd,	"issp:clcd",	PBA8_CLCD,	&clcd_plat_data);

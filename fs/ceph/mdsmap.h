@@ -13,6 +13,7 @@ struct ceph_mds_info {
 	struct ceph_entity_addr addr;
 	s32 state;
 	int num_export_targets;
+	bool laggy;
 	u32 *export_targets;
 };
 
@@ -45,6 +46,13 @@ static inline int ceph_mdsmap_get_state(struct ceph_mdsmap *m, int w)
 	if (w >= m->m_max_mds)
 		return CEPH_MDS_STATE_DNE;
 	return m->m_info[w].state;
+}
+
+static inline bool ceph_mdsmap_is_laggy(struct ceph_mdsmap *m, int w)
+{
+	if (w >= 0 && w < m->m_max_mds)
+		return m->m_info[w].laggy;
+	return false;
 }
 
 extern int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m);

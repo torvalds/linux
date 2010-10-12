@@ -24,12 +24,17 @@ static int minix_write_inode(struct inode *inode,
 static int minix_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int minix_remount (struct super_block * sb, int * flags, char * data);
 
-static void minix_delete_inode(struct inode *inode)
+static void minix_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	inode->i_size = 0;
-	minix_truncate(inode);
-	minix_free_inode(inode);
+	if (!inode->i_nlink) {
+		inode->i_size = 0;
+		minix_truncate(inode);
+	}
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
+	if (!inode->i_nlink)
+		minix_free_inode(inode);
 }
 
 static void minix_put_super(struct super_block *sb)
@@ -96,7 +101,7 @@ static const struct super_operations minix_sops = {
 	.alloc_inode	= minix_alloc_inode,
 	.destroy_inode	= minix_destroy_inode,
 	.write_inode	= minix_write_inode,
-	.delete_inode	= minix_delete_inode,
+	.evict_inode	= minix_evict_inode,
 	.put_super	= minix_put_super,
 	.statfs		= minix_statfs,
 	.remount_fs	= minix_remount,
@@ -357,20 +362,26 @@ static int minix_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page,minix_get_block);
 }
 
-int __minix_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
+int minix_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				minix_get_block);
+	return __block_write_begin(page, pos, len, minix_get_block);
 }
 
 static int minix_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return __minix_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+	int ret;
+
+	ret = block_write_begin(mapping, pos, len, flags, pagep,
+				minix_get_block);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t minix_bmap(struct address_space *mapping, sector_t block)

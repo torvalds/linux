@@ -13,11 +13,9 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_WAKE:
 	case TRACE_STACK:
 	case TRACE_PRINT:
-	case TRACE_SPECIAL:
 	case TRACE_BRANCH:
 	case TRACE_GRAPH_ENT:
 	case TRACE_GRAPH_RET:
-	case TRACE_KSYM:
 		return 1;
 	}
 	return 0;
@@ -691,38 +689,6 @@ trace_selftest_startup_sched_switch(struct tracer *trace, struct trace_array *tr
 }
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
-#ifdef CONFIG_SYSPROF_TRACER
-int
-trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
-{
-	unsigned long count;
-	int ret;
-
-	/* start the tracing */
-	ret = tracer_init(trace, tr);
-	if (ret) {
-		warn_failed_init_tracer(trace, ret);
-		return ret;
-	}
-
-	/* Sleep for a 1/10 of a second */
-	msleep(100);
-	/* stop the tracing. */
-	tracing_stop();
-	/* check the trace buffer */
-	ret = trace_test_buffer(tr, &count);
-	trace->reset(tr);
-	tracing_start();
-
-	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
-		ret = -1;
-	}
-
-	return ret;
-}
-#endif /* CONFIG_SYSPROF_TRACER */
-
 #ifdef CONFIG_BRANCH_TRACER
 int
 trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
@@ -754,57 +720,4 @@ trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
 	return ret;
 }
 #endif /* CONFIG_BRANCH_TRACER */
-
-#ifdef CONFIG_KSYM_TRACER
-static int ksym_selftest_dummy;
-
-int
-trace_selftest_startup_ksym(struct tracer *trace, struct trace_array *tr)
-{
-	unsigned long count;
-	int ret;
-
-	/* start the tracing */
-	ret = tracer_init(trace, tr);
-	if (ret) {
-		warn_failed_init_tracer(trace, ret);
-		return ret;
-	}
-
-	ksym_selftest_dummy = 0;
-	/* Register the read-write tracing request */
-
-	ret = process_new_ksym_entry("ksym_selftest_dummy",
-				     HW_BREAKPOINT_R | HW_BREAKPOINT_W,
-					(unsigned long)(&ksym_selftest_dummy));
-
-	if (ret < 0) {
-		printk(KERN_CONT "ksym_trace read-write startup test failed\n");
-		goto ret_path;
-	}
-	/* Perform a read and a write operation over the dummy variable to
-	 * trigger the tracer
-	 */
-	if (ksym_selftest_dummy == 0)
-		ksym_selftest_dummy++;
-
-	/* stop the tracing. */
-	tracing_stop();
-	/* check the trace buffer */
-	ret = trace_test_buffer(tr, &count);
-	trace->reset(tr);
-	tracing_start();
-
-	/* read & write operations - one each is performed on the dummy variable
-	 * triggering two entries in the trace buffer
-	 */
-	if (!ret && count != 2) {
-		printk(KERN_CONT "Ksym tracer startup test failed");
-		ret = -1;
-	}
-
-ret_path:
-	return ret;
-}
-#endif /* CONFIG_KSYM_TRACER */
 

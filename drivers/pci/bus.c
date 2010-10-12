@@ -56,7 +56,7 @@ void pci_bus_remove_resources(struct pci_bus *bus)
 	int i;
 
 	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++)
-		bus->resource[i] = 0;
+		bus->resource[i] = NULL;
 
 	list_for_each_entry_safe(bus_res, tmp, &bus->resources, list) {
 		list_del(&bus_res->list);
@@ -240,6 +240,8 @@ void pci_enable_bridges(struct pci_bus *bus)
 		if (dev->subordinate) {
 			if (!pci_is_enabled(dev)) {
 				retval = pci_enable_device(dev);
+				if (retval)
+					dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n", retval);
 				pci_set_master(dev);
 			}
 			pci_enable_bridges(dev->subordinate);

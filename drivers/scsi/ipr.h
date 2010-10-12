@@ -62,12 +62,12 @@
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
 #define IPR_SUBS_DEV_ID_5703	0x0278
-#define IPR_SUBS_DEV_ID_572E  0x028D
-#define IPR_SUBS_DEV_ID_573E  0x02D3
-#define IPR_SUBS_DEV_ID_573D  0x02D4
+#define IPR_SUBS_DEV_ID_572E	0x028D
+#define IPR_SUBS_DEV_ID_573E	0x02D3
+#define IPR_SUBS_DEV_ID_573D	0x02D4
 #define IPR_SUBS_DEV_ID_571A	0x02C0
 #define IPR_SUBS_DEV_ID_571B	0x02BE
-#define IPR_SUBS_DEV_ID_571E  0x02BF
+#define IPR_SUBS_DEV_ID_571E	0x02BF
 #define IPR_SUBS_DEV_ID_571F	0x02D5
 #define IPR_SUBS_DEV_ID_572A	0x02C1
 #define IPR_SUBS_DEV_ID_572B	0x02C2
@@ -82,6 +82,7 @@
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
 #define IPR_SUBS_DEV_ID_57C6    0x0357
+#define IPR_SUBS_DEV_ID_57CC    0x035C
 
 #define IPR_SUBS_DEV_ID_57B5    0x033C
 #define IPR_SUBS_DEV_ID_57CE    0x035E
@@ -272,6 +273,7 @@ IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
 
 #define IPR_UPROCI_RESET_ALERT			(0x80000000 >> 7)
 #define IPR_UPROCI_IO_DEBUG_ALERT			(0x80000000 >> 9)
+#define IPR_UPROCI_SIS64_START_BIST			(0x80000000 >> 23)
 
 #define IPR_LDUMP_MAX_LONG_ACK_DELAY_IN_USEC		200000	/* 200 ms */
 #define IPR_LDUMP_MAX_SHORT_ACK_DELAY_IN_USEC		200000	/* 200 ms */
@@ -996,7 +998,7 @@ struct ipr_hostrcb64_fabric_desc {
 	__be16 length;
 	u8 descriptor_id;
 
-	u8 reserved;
+	u8 reserved[2];
 	u8 path_state;
 
 	u8 reserved2[2];
@@ -1054,7 +1056,7 @@ struct ipr_hostrcb64_error {
 	__be64 fd_lun;
 	u8 fd_res_path[8];
 	__be64 time_stamp;
-	u8 reserved[2];
+	u8 reserved[16];
 	union {
 		struct ipr_hostrcb_type_ff_error type_ff_error;
 		struct ipr_hostrcb_type_12_error type_12_error;
@@ -1254,6 +1256,9 @@ struct ipr_interrupt_offsets {
 
 	unsigned long dump_addr_reg;
 	unsigned long dump_data_reg;
+
+#define IPR_ENDIAN_SWAP_KEY		0x00080800
+	unsigned long endian_swap_reg;
 };
 
 struct ipr_interrupts {
@@ -1279,6 +1284,8 @@ struct ipr_interrupts {
 
 	void __iomem *dump_addr_reg;
 	void __iomem *dump_data_reg;
+
+	void __iomem *endian_swap_reg;
 };
 
 struct ipr_chip_cfg_t {
@@ -1296,6 +1303,9 @@ struct ipr_chip_t {
 	u16 sis_type;
 #define IPR_SIS32			0x00
 #define IPR_SIS64			0x01
+	u16 bist_method;
+#define IPR_PCI_CFG			0x00
+#define IPR_MMIO			0x01
 	const struct ipr_chip_cfg_t *cfg;
 };
 
@@ -1855,4 +1865,12 @@ static inline int ipr_sdt_is_fmt2(u32 sdt_word)
 	return 0;
 }
 
+#ifndef writeq
+static inline void writeq(u64 val, void __iomem *addr)
+{
+        writel(((u32) (val >> 32)), addr);
+        writel(((u32) (val)), (addr + 4));
+}
 #endif
+
+#endif /* _IPR_H */

@@ -828,6 +828,7 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 /* We have a data breakpoint exception - handle it */
 handle_dabr_fault:
+	bl	.save_nvgprs
 	ld      r4,_DAR(r1)
 	ld      r5,_DSISR(r1)
 	addi    r3,r1,STACK_FRAME_OVERHEAD

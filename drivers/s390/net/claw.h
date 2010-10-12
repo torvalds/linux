@@ -74,8 +74,8 @@
 #define MAX_ENVELOPE_SIZE       65536
 #define CLAW_DEFAULT_MTU_SIZE   4096
 #define DEF_PACK_BUFSIZE	32768
-#define READ                    0
-#define WRITE                   1
+#define READ_CHANNEL		0
+#define WRITE_CHANNEL		1
 
 #define TB_TX                   0          /* sk buffer handling in process  */
 #define TB_STOP                 1          /* network device stop in process */

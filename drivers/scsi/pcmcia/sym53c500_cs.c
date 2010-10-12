@@ -71,7 +71,6 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -691,13 +690,14 @@ static int SYM53C500_config_check(struct pcmcia_device *p_dev,
 				  unsigned int vcc,
 				  void *priv_data)
 {
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->io_lines = 10;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
 
-	if (p_dev->io.BasePort1 == 0)
+	if (p_dev->resource[0]->start == 0)
 		return -ENODEV;
 
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int
@@ -734,9 +734,9 @@ SYM53C500_config(struct pcmcia_device *link)
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {
 		/* set ATAcmd */
-		outb(0xb4, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0xb4, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 
 	/*
@@ -749,7 +749,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	*	0x130, 0x230, 0x280, 0x290,
 	*	0x320, 0x330, 0x340, 0x350
 	*/
-	port_base = link->io.BasePort1;
+	port_base = link->resource[0]->start;
 	irq_level = link->irq;
 
 	DEB(printk("SYM53C500: port_base=0x%x, irq=%d, fast_pio=%d\n",
@@ -822,15 +822,15 @@ static int sym53c500_resume(struct pcmcia_device *link)
 	if ((info->manf_id == MANFID_MACNICA) ||
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {
-		outb(0x80, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0x80, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 	/*
 	 *  If things don't work after a "resume",
 	 *  this is a good place to start looking.
 	 */
-	SYM53C500_int_host_reset(link->io.BasePort1);
+	SYM53C500_int_host_reset(link->resource[0]->start);
 
 	return 0;
 }
@@ -859,9 +859,8 @@ SYM53C500_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	info->p_dev = link;
 	link->priv = info;
-	link->io.NumPorts1 = 16;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.IOAddrLines = 10;
+	link->resource[0]->end = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 

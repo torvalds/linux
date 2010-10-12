@@ -197,7 +197,7 @@ Description:	These files exist in every cpu's cache index directories.
 		Currently, only AMD Family 10h Processors support cache index
 		disable, and only for their L3 caches.  See the BIOS and
 		Kernel Developer's Guide at
-		http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/31116-Public-GH-BKDG_3.20_2-4-09.pdf
+		http://support.amd.com/us/Embedded_TechDocs/31116-Public-GH-BKDG_3-28_5-28-09.pdf	
 		for formatting information and other details on the
 		cache index disable.
 Users:    joachim.deguara@amd.com

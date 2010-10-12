@@ -41,9 +41,12 @@ void request_event_sources_irqs(struct device_node *np,
 			if (count > 15)
 				break;
 			virqs[count] = irq_create_mapping(NULL, *(opicprop++));
-			if (virqs[count] == NO_IRQ)
-				printk(KERN_ERR "Unable to allocate interrupt "
-				       "number for %s\n", np->full_name);
+			if (virqs[count] == NO_IRQ) {
+				pr_err("event-sources: Unable to allocate "
+				       "interrupt number for %s\n",
+				       np->full_name);
+				WARN_ON(1);
+			}
 			else
 				count++;
 
@@ -59,9 +62,12 @@ void request_event_sources_irqs(struct device_node *np,
 			virqs[count] = irq_create_of_mapping(oirq.controller,
 							    oirq.specifier,
 							    oirq.size);
-			if (virqs[count] == NO_IRQ)
-				printk(KERN_ERR "Unable to allocate interrupt "
-				       "number for %s\n", np->full_name);
+			if (virqs[count] == NO_IRQ) {
+				pr_err("event-sources: Unable to allocate "
+				       "interrupt number for %s\n",
+				       np->full_name);
+				WARN_ON(1);
+			}
 			else
 				count++;
 		}
@@ -70,8 +76,9 @@ void request_event_sources_irqs(struct device_node *np,
 	/* Now request them */
 	for (i = 0; i < count; i++) {
 		if (request_irq(virqs[i], handler, 0, name, NULL)) {
-			printk(KERN_ERR "Unable to request interrupt %d for "
-			       "%s\n", virqs[i], np->full_name);
+			pr_err("event-sources: Unable to request interrupt "
+			       "%d for %s\n", virqs[i], np->full_name);
+			WARN_ON(1);
 			return;
 		}
 	}

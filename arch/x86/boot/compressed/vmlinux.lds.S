@@ -41,6 +41,12 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
+	.got : {
+		_got = .;
+		KEEP(*(.got.plt))
+		KEEP(*(.got))
+		_egot = .;
+	}
 	.data :	{
 		_data = . ;
 		*(.data)

@@ -383,7 +383,7 @@ config ETRAX_RS485
 	depends on ETRAX_SERIAL
 	help
 	  Enables support for RS-485 serial communication.  For a primer on
-	  RS-485, see <http://www.hw.cz/english/docs/rs485/rs485.html>.
+	  RS-485, see <http://en.wikipedia.org/wiki/Rs485>
 
 config ETRAX_RS485_ON_PA
 	bool "RS-485 mode on PA"

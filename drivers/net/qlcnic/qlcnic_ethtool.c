@@ -69,8 +69,6 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 		QLC_SIZEOF(stats.xmit_off), QLC_OFF(stats.xmit_off)},
 	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
 		QLC_OFF(stats.skb_alloc_failure)},
-	{"null skb",
-		QLC_SIZEOF(stats.null_skb), QLC_OFF(stats.null_skb)},
 	{"null rxbuf",
 		QLC_SIZEOF(stats.null_rxbuf), QLC_OFF(stats.null_rxbuf)},
 	{"rx dma map error", QLC_SIZEOF(stats.rx_dma_map_error),
@@ -350,7 +348,7 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	for (i = 0; diag_registers[i] != -1; i++)
 		regs_buff[i] = QLCRD32(adapter, diag_registers[i]);
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return;
 
 	regs_buff[i++] = 0xFFEFCDAB; /* Marker btw regs and ring count*/
@@ -580,8 +578,12 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 		}
 		QLCWR32(adapter, QLCNIC_NIU_GB_PAUSE_CTL, val);
 	} else if (adapter->ahw.port_type == QLCNIC_XGBE) {
+		if (!pause->rx_pause || pause->autoneg)
+			return -EOPNOTSUPP;
+
 		if ((port < 0) || (port > QLCNIC_NIU_MAX_XG_PORTS))
 			return -EIO;
+
 		val = QLCRD32(adapter, QLCNIC_NIU_XG_PAUSE_CTL);
 		if (port == 0) {
 			if (pause->tx_pause)
@@ -676,6 +678,12 @@ static int qlcnic_loopback_test(struct net_device *netdev)
 	int max_sds_rings = adapter->max_sds_rings;
 	int ret;
 
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		dev_warn(&adapter->pdev->dev, "Loopback test not supported"
+				"for non privilege function\n");
+		return 0;
+	}
+
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
 
@@ -715,7 +723,8 @@ static int qlcnic_irq_test(struct net_device *netdev)
 
 	adapter->diag_cnt = 0;
 	ret = qlcnic_issue_cmd(adapter, adapter->ahw.pci_func,
-			QLCHAL_VERSION, adapter->portnum, 0, 0, 0x00000011);
+			adapter->fw_hal_version, adapter->portnum,
+			0, 0, 0x00000011);
 	if (ret)
 		goto done;
 
@@ -821,6 +830,9 @@ static u32 qlcnic_get_tso(struct net_device *dev)
 
 static int qlcnic_set_tso(struct net_device *dev, u32 data)
 {
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO))
+		return -EOPNOTSUPP;
 	if (data)
 		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
 	else
@@ -834,7 +846,10 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int ret;
 
-	ret = qlcnic_config_led(adapter, 1, 0xf);
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
+		return -EIO;
+
+	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
@@ -843,7 +858,7 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 
 	msleep_interruptible(val * 1000);
 
-	ret = qlcnic_config_led(adapter, 0, 0xf);
+	ret = adapter->nic_ops->config_led(adapter, 0, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to reset LED blink state.\n");
@@ -905,7 +920,7 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return -EINVAL;
 
 	/*
@@ -981,12 +996,19 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int hw_lro;
 
+	if (data & ~ETH_FLAG_LRO)
+		return -EINVAL;
+
 	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
 		return -EINVAL;
 
-	ethtool_op_set_flags(netdev, data);
-
-	hw_lro = (data & ETH_FLAG_LRO) ? QLCNIC_LRO_ENABLED : 0;
+	if (data & ETH_FLAG_LRO) {
+		hw_lro = QLCNIC_LRO_ENABLED;
+		netdev->features |= NETIF_F_LRO;
+	} else {
+		hw_lro = 0;
+		netdev->features &= ~NETIF_F_LRO;
+	}
 
 	if (qlcnic_config_hw_lro(adapter, hw_lro))
 		return -EIO;

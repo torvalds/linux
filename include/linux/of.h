@@ -70,6 +70,11 @@ extern struct device_node *allnodes;
 extern struct device_node *of_chosen;
 extern rwlock_t devtree_lock;
 
+static inline bool of_node_is_root(const struct device_node *node)
+{
+	return node && (node->parent == NULL);
+}
+
 static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 {
 	return test_bit(flag, &n->_flags);
@@ -140,6 +145,11 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
 #define OF_BAD_ADDR	((u64)-1)
+
+#ifndef of_node_to_nid
+static inline int of_node_to_nid(struct device_node *np) { return -1; }
+#define of_node_to_nid of_node_to_nid
+#endif
 
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);

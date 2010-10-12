@@ -121,7 +121,7 @@ ENDPROC(__memset)
 	.align 8
 	.quad memset
 	.quad .Lmemset_c
-	.byte X86_FEATURE_REP_GOOD
+	.word X86_FEATURE_REP_GOOD
 	.byte .Lfinal - memset
 	.byte .Lmemset_e - .Lmemset_c
 	.previous

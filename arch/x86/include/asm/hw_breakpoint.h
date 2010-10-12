@@ -20,10 +20,10 @@ struct arch_hw_breakpoint {
 #include <linux/list.h>
 
 /* Available HW breakpoint length encodings */
+#define X86_BREAKPOINT_LEN_X		0x00
 #define X86_BREAKPOINT_LEN_1		0x40
 #define X86_BREAKPOINT_LEN_2		0x44
 #define X86_BREAKPOINT_LEN_4		0x4c
-#define X86_BREAKPOINT_LEN_EXECUTE	0x40
 
 #ifdef CONFIG_X86_64
 #define X86_BREAKPOINT_LEN_8		0x48

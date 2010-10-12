@@ -302,6 +302,15 @@ config LEDS_MC13783
 	  This option enable support for on-chip LED drivers found
 	  on Freescale Semiconductor MC13783 PMIC.
 
+config LEDS_NS2
+	tristate "LED support for Network Space v2 GPIO LEDs"
+	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || MACH_NETSPACE_MAX_V2
+	default y
+	help
+	  This option enable support for the dual-GPIO LED found on the
+	  Network Space v2 board (and parents). This include Internet Space v2,
+	  Network Space (Max) v2 and d2 Network v2 boards.
+
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
 	help

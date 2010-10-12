@@ -428,8 +428,11 @@ static struct clk gpio2_clk = {
 	.recalc = &follow_parent,
 };
 
+static struct clk dummy_apb_pclk;
+
 /* array of all spear 6xx clock lookups */
 static struct clk_lookup spear_clk_lookups[] = {
+	{ .con_id = "apb_pclk",	.clk = &dummy_apb_pclk},
 	/* root clks */
 	{ .con_id = "osc_32k_clk",	.clk = &osc_32k_clk},
 	{ .con_id = "osc_30m_clk",	.clk = &osc_30m_clk},

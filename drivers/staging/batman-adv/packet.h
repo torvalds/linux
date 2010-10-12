@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_PACKET_H_
+#define _NET_BATMAN_ADV_PACKET_H_
+
 #define ETH_P_BATMAN  0x4305	/* unofficial/not registered Ethertype */
 
 #define BAT_PACKET    0x01
@@ -28,9 +31,10 @@
 #define BAT_VIS       0x05
 
 /* this file is included by batctl which needs these defines */
-#define COMPAT_VERSION 8
+#define COMPAT_VERSION 11
 #define DIRECTLINK 0x40
 #define VIS_SERVER 0x20
+#define PRIMARIES_FIRST_HOP 0x10
 
 /* ICMP message types */
 #define ECHO_REPLY 0
@@ -48,7 +52,7 @@ struct batman_packet {
 	uint8_t  version;  /* batman version field */
 	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
 	uint8_t  tq;
-	uint16_t seqno;
+	uint32_t seqno;
 	uint8_t  orig[6];
 	uint8_t  prev_sender[6];
 	uint8_t  ttl;
@@ -68,6 +72,23 @@ struct icmp_packet {
 	uint8_t  uid;
 } __attribute__((packed));
 
+#define BAT_RR_LEN 16
+
+/* icmp_packet_rr must start with all fields from imcp_packet
+   as this is assumed by code that handles ICMP packets */
+struct icmp_packet_rr {
+	uint8_t  packet_type;
+	uint8_t  version;  /* batman version field */
+	uint8_t  msg_type; /* see ICMP message types above */
+	uint8_t  ttl;
+	uint8_t  dst[6];
+	uint8_t  orig[6];
+	uint16_t seqno;
+	uint8_t  uid;
+	uint8_t  rr_cur;
+	uint8_t  rr[BAT_RR_LEN][ETH_ALEN];
+} __attribute__((packed));
+
 struct unicast_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
@@ -79,18 +100,21 @@ struct bcast_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  orig[6];
-	uint16_t seqno;
+	uint8_t  ttl;
+	uint32_t seqno;
 } __attribute__((packed));
 
 struct vis_packet {
 	uint8_t  packet_type;
 	uint8_t  version;        /* batman version field */
 	uint8_t  vis_type;	 /* which type of vis-participant sent this? */
-	uint8_t  seqno;		 /* sequence number */
 	uint8_t  entries;	 /* number of entries behind this struct */
+	uint32_t seqno;		 /* sequence number */
 	uint8_t  ttl;		 /* TTL */
 	uint8_t  vis_orig[6];	 /* originator that informs about its
 				  * neighbors */
 	uint8_t  target_orig[6]; /* who should receive this packet */
 	uint8_t  sender_orig[6]; /* who sent or rebroadcasted this packet */
 } __attribute__((packed));
+
+#endif /* _NET_BATMAN_ADV_PACKET_H_ */

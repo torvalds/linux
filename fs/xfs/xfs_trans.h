@@ -161,105 +161,14 @@ typedef struct xfs_trans_header {
  * the amount of space needed to log the item it describes
  * once we get to commit processing (see xfs_trans_commit()).
  */
-typedef struct xfs_log_item_desc {
+struct xfs_log_item_desc {
 	struct xfs_log_item	*lid_item;
-	ushort		lid_size;
-	unsigned char	lid_flags;
-	unsigned char	lid_index;
-} xfs_log_item_desc_t;
+	ushort			lid_size;
+	unsigned char		lid_flags;
+	struct list_head	lid_trans;
+};
 
 #define XFS_LID_DIRTY		0x1
-#define XFS_LID_PINNED		0x2
-
-/*
- * This structure is used to maintain a chunk list of log_item_desc
- * structures. The free field is a bitmask indicating which descriptors
- * in this chunk's array are free.  The unused field is the first value
- * not used since this chunk was allocated.
- */
-#define	XFS_LIC_NUM_SLOTS	15
-typedef struct xfs_log_item_chunk {
-	struct xfs_log_item_chunk	*lic_next;
-	ushort				lic_free;
-	ushort				lic_unused;
-	xfs_log_item_desc_t		lic_descs[XFS_LIC_NUM_SLOTS];
-} xfs_log_item_chunk_t;
-
-#define	XFS_LIC_MAX_SLOT	(XFS_LIC_NUM_SLOTS - 1)
-#define	XFS_LIC_FREEMASK	((1 << XFS_LIC_NUM_SLOTS) - 1)
-
-
-/*
- * Initialize the given chunk.  Set the chunk's free descriptor mask
- * to indicate that all descriptors are free.  The caller gets to set
- * lic_unused to the right value (0 matches all free).  The
- * lic_descs.lid_index values are set up as each desc is allocated.
- */
-static inline void xfs_lic_init(xfs_log_item_chunk_t *cp)
-{
-	cp->lic_free = XFS_LIC_FREEMASK;
-}
-
-static inline void xfs_lic_init_slot(xfs_log_item_chunk_t *cp, int slot)
-{
-	cp->lic_descs[slot].lid_index = (unsigned char)(slot);
-}
-
-static inline int xfs_lic_vacancy(xfs_log_item_chunk_t *cp)
-{
-	return cp->lic_free & XFS_LIC_FREEMASK;
-}
-
-static inline void xfs_lic_all_free(xfs_log_item_chunk_t *cp)
-{
-	cp->lic_free = XFS_LIC_FREEMASK;
-}
-
-static inline int xfs_lic_are_all_free(xfs_log_item_chunk_t *cp)
-{
-	return ((cp->lic_free & XFS_LIC_FREEMASK) == XFS_LIC_FREEMASK);
-}
-
-static inline int xfs_lic_isfree(xfs_log_item_chunk_t *cp, int slot)
-{
-	return (cp->lic_free & (1 << slot));
-}
-
-static inline void xfs_lic_claim(xfs_log_item_chunk_t *cp, int slot)
-{
-	cp->lic_free &= ~(1 << slot);
-}
-
-static inline void xfs_lic_relse(xfs_log_item_chunk_t *cp, int slot)
-{
-	cp->lic_free |= 1 << slot;
-}
-
-static inline xfs_log_item_desc_t *
-xfs_lic_slot(xfs_log_item_chunk_t *cp, int slot)
-{
-	return &(cp->lic_descs[slot]);
-}
-
-static inline int xfs_lic_desc_to_slot(xfs_log_item_desc_t *dp)
-{
-	return (uint)dp->lid_index;
-}
-
-/*
- * Calculate the address of a chunk given a descriptor pointer:
- * dp - dp->lid_index give the address of the start of the lic_descs array.
- * From this we subtract the offset of the lic_descs field in a chunk.
- * All of this yields the address of the chunk, which is
- * cast to a chunk pointer.
- */
-static inline xfs_log_item_chunk_t *
-xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
-{
-	return (xfs_log_item_chunk_t*) \
-		(((xfs_caddr_t)((dp) - (dp)->lid_index)) - \
-		(xfs_caddr_t)(((xfs_log_item_chunk_t*)0)->lic_descs));
-}
 
 #define	XFS_TRANS_MAGIC		0x5452414E	/* 'TRAN' */
 /*
@@ -275,8 +184,6 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 /*
  * Values for call flags parameter.
  */
-#define	XFS_TRANS_NOSLEEP		0x1
-#define	XFS_TRANS_WAIT			0x2
 #define	XFS_TRANS_RELEASE_LOG_RES	0x4
 #define	XFS_TRANS_ABORT			0x8
 
@@ -438,8 +345,7 @@ typedef struct xfs_item_ops {
 	uint (*iop_size)(xfs_log_item_t *);
 	void (*iop_format)(xfs_log_item_t *, struct xfs_log_iovec *);
 	void (*iop_pin)(xfs_log_item_t *);
-	void (*iop_unpin)(xfs_log_item_t *);
-	void (*iop_unpin_remove)(xfs_log_item_t *, struct xfs_trans *);
+	void (*iop_unpin)(xfs_log_item_t *, int remove);
 	uint (*iop_trylock)(xfs_log_item_t *);
 	void (*iop_unlock)(xfs_log_item_t *);
 	xfs_lsn_t (*iop_committed)(xfs_log_item_t *, xfs_lsn_t);
@@ -451,8 +357,7 @@ typedef struct xfs_item_ops {
 #define IOP_SIZE(ip)		(*(ip)->li_ops->iop_size)(ip)
 #define IOP_FORMAT(ip,vp)	(*(ip)->li_ops->iop_format)(ip, vp)
 #define IOP_PIN(ip)		(*(ip)->li_ops->iop_pin)(ip)
-#define IOP_UNPIN(ip)		(*(ip)->li_ops->iop_unpin)(ip)
-#define IOP_UNPIN_REMOVE(ip,tp) (*(ip)->li_ops->iop_unpin_remove)(ip, tp)
+#define IOP_UNPIN(ip, remove)	(*(ip)->li_ops->iop_unpin)(ip, remove)
 #define IOP_TRYLOCK(ip)		(*(ip)->li_ops->iop_trylock)(ip)
 #define IOP_UNLOCK(ip)		(*(ip)->li_ops->iop_unlock)(ip)
 #define IOP_COMMITTED(ip, lsn)	(*(ip)->li_ops->iop_committed)(ip, lsn)
@@ -516,8 +421,7 @@ typedef struct xfs_trans {
 	int64_t			t_rblocks_delta;/* superblock rblocks change */
 	int64_t			t_rextents_delta;/* superblocks rextents chg */
 	int64_t			t_rextslog_delta;/* superblocks rextslog chg */
-	unsigned int		t_items_free;	/* log item descs free */
-	xfs_log_item_chunk_t	t_items;	/* first log item desc chunk */
+	struct list_head	t_items;	/* log item descriptors */
 	xfs_trans_header_t	t_header;	/* header for in-log trans */
 	struct list_head	t_busy;		/* list of busy extents */
 	unsigned long		t_pflags;	/* saved process flags state */
@@ -569,8 +473,8 @@ void		xfs_trans_dquot_buf(xfs_trans_t *, struct xfs_buf *, uint);
 void		xfs_trans_inode_alloc_buf(xfs_trans_t *, struct xfs_buf *);
 int		xfs_trans_iget(struct xfs_mount *, xfs_trans_t *,
 			       xfs_ino_t , uint, uint, struct xfs_inode **);
-void		xfs_trans_ijoin(xfs_trans_t *, struct xfs_inode *, uint);
-void		xfs_trans_ihold(xfs_trans_t *, struct xfs_inode *);
+void		xfs_trans_ijoin_ref(struct xfs_trans *, struct xfs_inode *, uint);
+void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_inode *);
 void		xfs_trans_log_buf(xfs_trans_t *, struct xfs_buf *, uint, uint);
 void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
 struct xfs_efi_log_item	*xfs_trans_get_efi(xfs_trans_t *, uint);
@@ -595,6 +499,7 @@ int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);
 
 extern kmem_zone_t	*xfs_trans_zone;
+extern kmem_zone_t	*xfs_log_item_desc_zone;
 
 #endif	/* __KERNEL__ */
 

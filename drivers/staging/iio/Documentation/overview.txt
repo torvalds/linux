@@ -44,7 +44,7 @@ which the raw data it self may be read back.
 applications it it useful to be able to capture data based on some
 external signal (trigger).  These triggers might be a data ready
 signal, a gpio line connected to some external system or an on
-processor periodic interrupt.  A single trigger many initialize data
+processor periodic interrupt.  A single trigger may initialize data
 capture or reading from a number of sensors.  These triggers are
 used in iio to fill software ring buffers acting in a very similar
 fashion to the hardware buffers described above.

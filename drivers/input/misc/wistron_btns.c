@@ -1347,7 +1347,7 @@ static int __init wb_module_init(void)
 
 	err = map_bios();
 	if (err)
-		return err;
+		goto err_free_keymap;
 
 	err = platform_driver_register(&wistron_driver);
 	if (err)
@@ -1371,6 +1371,8 @@ static int __init wb_module_init(void)
 	platform_driver_unregister(&wistron_driver);
  err_unmap_bios:
 	unmap_bios();
+ err_free_keymap:
+	kfree(keymap);
 
 	return err;
 }

@@ -997,7 +997,7 @@ int smd_core_init(void)
 	return 0;
 }
 
-static int __init msm_smd_probe(struct platform_device *pdev)
+static int __devinit msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
 

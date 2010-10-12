@@ -42,6 +42,12 @@ EXPORT_SYMBOL(node_data);
 
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
+static int form1_affinity;
+
+#define MAX_DISTANCE_REF_POINTS 4
+static int distance_ref_points_depth;
+static const unsigned int *distance_ref_points;
+static int distance_lookup_table[MAX_NUMNODES][MAX_DISTANCE_REF_POINTS];
 
 /*
  * Allocate node_to_cpumask_map based on number of available nodes
@@ -204,6 +210,39 @@ static const u32 *of_get_usable_memory(struct device_node *memory)
 	return prop;
 }
 
+int __node_distance(int a, int b)
+{
+	int i;
+	int distance = LOCAL_DISTANCE;
+
+	if (!form1_affinity)
+		return distance;
+
+	for (i = 0; i < distance_ref_points_depth; i++) {
+		if (distance_lookup_table[a][i] == distance_lookup_table[b][i])
+			break;
+
+		/* Double the distance for each NUMA level */
+		distance *= 2;
+	}
+
+	return distance;
+}
+
+static void initialize_distance_lookup_table(int nid,
+		const unsigned int *associativity)
+{
+	int i;
+
+	if (!form1_affinity)
+		return;
+
+	for (i = 0; i < distance_ref_points_depth; i++) {
+		distance_lookup_table[nid][i] =
+			associativity[distance_ref_points[i]];
+	}
+}
+
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
  * info is found.
  */
@@ -225,6 +264,10 @@ static int of_node_to_nid_single(struct device_node *device)
 	/* POWER4 LPAR uses 0xffff as invalid node */
 	if (nid == 0xffff || nid >= MAX_NUMNODES)
 		nid = -1;
+
+	if (nid > 0 && tmp[0] >= distance_ref_points_depth)
+		initialize_distance_lookup_table(nid, tmp);
+
 out:
 	return nid;
 }
@@ -251,26 +294,10 @@ int of_node_to_nid(struct device_node *device)
 }
 EXPORT_SYMBOL_GPL(of_node_to_nid);
 
-/*
- * In theory, the "ibm,associativity" property may contain multiple
- * associativity lists because a resource may be multiply connected
- * into the machine.  This resource then has different associativity
- * characteristics relative to its multiple connections.  We ignore
- * this for now.  We also assume that all cpu and memory sets have
- * their distances represented at a common level.  This won't be
- * true for hierarchical NUMA.
- *
- * In any case the ibm,associativity-reference-points should give
- * the correct depth for a normal NUMA system.
- *
- * - Dave Hansen <haveblue@us.ibm.com>
- */
 static int __init find_min_common_depth(void)
 {
-	int depth, index;
-	const unsigned int *ref_points;
+	int depth;
 	struct device_node *rtas_root;
-	unsigned int len;
 	struct device_node *chosen;
 	const char *vec5;
 
@@ -280,18 +307,28 @@ static int __init find_min_common_depth(void)
 		return -1;
 
 	/*
-	 * this property is 2 32-bit integers, each representing a level of
-	 * depth in the associativity nodes.  The first is for an SMP
-	 * configuration (should be all 0's) and the second is for a normal
-	 * NUMA configuration.
+	 * This property is a set of 32-bit integers, each representing
+	 * an index into the ibm,associativity nodes.
+	 *
+	 * With form 0 affinity the first integer is for an SMP configuration
+	 * (should be all 0's) and the second is for a normal NUMA
+	 * configuration. We have only one level of NUMA.
+	 *
+	 * With form 1 affinity the first integer is the most significant
+	 * NUMA boundary and the following are progressively less significant
+	 * boundaries. There can be more than one level of NUMA.
 	 */
-	index = 1;
-	ref_points = of_get_property(rtas_root,
-			"ibm,associativity-reference-points", &len);
+	distance_ref_points = of_get_property(rtas_root,
+					"ibm,associativity-reference-points",
+					&distance_ref_points_depth);
 
-	/*
-	 * For form 1 affinity information we want the first field
-	 */
+	if (!distance_ref_points) {
+		dbg("NUMA: ibm,associativity-reference-points not found.\n");
+		goto err;
+	}
+
+	distance_ref_points_depth /= sizeof(int);
+
 #define VEC5_AFFINITY_BYTE	5
 #define VEC5_AFFINITY		0x80
 	chosen = of_find_node_by_path("/chosen");
@@ -299,19 +336,38 @@ static int __init find_min_common_depth(void)
 		vec5 = of_get_property(chosen, "ibm,architecture-vec-5", NULL);
 		if (vec5 && (vec5[VEC5_AFFINITY_BYTE] & VEC5_AFFINITY)) {
 			dbg("Using form 1 affinity\n");
-			index = 0;
+			form1_affinity = 1;
 		}
 	}
 
-	if ((len >= 2 * sizeof(unsigned int)) && ref_points) {
-		depth = ref_points[index];
+	if (form1_affinity) {
+		depth = distance_ref_points[0];
 	} else {
-		dbg("NUMA: ibm,associativity-reference-points not found.\n");
-		depth = -1;
-	}
-	of_node_put(rtas_root);
+		if (distance_ref_points_depth < 2) {
+			printk(KERN_WARNING "NUMA: "
+				"short ibm,associativity-reference-points\n");
+			goto err;
+		}
 
+		depth = distance_ref_points[1];
+	}
+
+	/*
+	 * Warn and cap if the hardware supports more than
+	 * MAX_DISTANCE_REF_POINTS domains.
+	 */
+	if (distance_ref_points_depth > MAX_DISTANCE_REF_POINTS) {
+		printk(KERN_WARNING "NUMA: distance array capped at "
+			"%d entries\n", MAX_DISTANCE_REF_POINTS);
+		distance_ref_points_depth = MAX_DISTANCE_REF_POINTS;
+	}
+
+	of_node_put(rtas_root);
 	return depth;
+
+err:
+	of_node_put(rtas_root);
+	return -1;
 }
 
 static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)

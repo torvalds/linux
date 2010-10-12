@@ -636,11 +636,6 @@ bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_rport_initdone(struct bfa_s *bfa)
-{
-}
-
-static void
 bfa_rport_detach(struct bfa_s *bfa)
 {
 }

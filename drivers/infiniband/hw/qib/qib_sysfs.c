@@ -347,7 +347,7 @@ static struct kobj_type qib_sl2vl_ktype = {
 
 #define QIB_DIAGC_ATTR(N) \
 	static struct qib_diagc_attr qib_diagc_attr_##N = { \
-		.attr = { .name = __stringify(N), .mode = 0444 }, \
+		.attr = { .name = __stringify(N), .mode = 0664 }, \
 		.counter = offsetof(struct qib_ibport, n_##N) \
 	}
 
@@ -403,8 +403,27 @@ static ssize_t diagc_attr_show(struct kobject *kobj, struct attribute *attr,
 	return sprintf(buf, "%u\n", *(u32 *)((char *)qibp + dattr->counter));
 }
 
+static ssize_t diagc_attr_store(struct kobject *kobj, struct attribute *attr,
+				const char *buf, size_t size)
+{
+	struct qib_diagc_attr *dattr =
+		container_of(attr, struct qib_diagc_attr, attr);
+	struct qib_pportdata *ppd =
+		container_of(kobj, struct qib_pportdata, diagc_kobj);
+	struct qib_ibport *qibp = &ppd->ibport_data;
+	char *endp;
+	long val = simple_strtol(buf, &endp, 0);
+
+	if (val < 0 || endp == buf)
+		return -EINVAL;
+
+	*(u32 *)((char *) qibp + dattr->counter) = val;
+	return size;
+}
+
 static const struct sysfs_ops qib_diagc_ops = {
 	.show = diagc_attr_show,
+	.store = diagc_attr_store,
 };
 
 static struct kobj_type qib_diagc_ktype = {

@@ -16,8 +16,10 @@
                 moveq   \rx, #0xc8000000
                 movne   \rx, #0xff000000
 		orrne	\rx, \rx, #0x00b00000
+#ifdef __ARMEB__
                 add     \rx,\rx,#3              @ Uart regs are at off set of 3 if
 						@ byte writes used - Big Endian.
+#endif
                 .endm
 
 #define UART_SHIFT	2

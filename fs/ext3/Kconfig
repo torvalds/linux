@@ -31,6 +31,7 @@ config EXT3_FS
 config EXT3_DEFAULTS_TO_ORDERED
 	bool "Default to 'data=ordered' in ext3"
 	depends on EXT3_FS
+	default y
 	help
 	  The journal mode options for ext3 have different tradeoffs
 	  between when data is guaranteed to be on disk and

@@ -19,7 +19,7 @@
  *
  * File: 80211mgr.h
  *
- * Purpose: 802.11 managment frames pre-defines.
+ * Purpose: 802.11 management frames pre-defines.
  *
  *
  * Author: Lyndon Chen
@@ -230,8 +230,8 @@
 
 #pragma pack(1)
 typedef struct tagWLAN_IE {
-    BYTE   byElementID;
-    BYTE   len;
+    unsigned char byElementID;
+    unsigned char len;
 }__attribute__ ((__packed__))
 WLAN_IE, *PWLAN_IE;
 
@@ -239,9 +239,9 @@ WLAN_IE, *PWLAN_IE;
 // Service Set Identity (SSID)
 #pragma pack(1)
 typedef struct tagWLAN_IE_SSID {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   abySSID[1];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abySSID[1];
 }__attribute__ ((__packed__))
 WLAN_IE_SSID, *PWLAN_IE_SSID;
 
@@ -249,9 +249,9 @@ WLAN_IE_SSID, *PWLAN_IE_SSID;
 // Supported Rates
 #pragma pack(1)
 typedef struct tagWLAN_IE_SUPP_RATES {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   abyRates[1];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abyRates[1];
 }__attribute__ ((__packed__))
 WLAN_IE_SUPP_RATES,  *PWLAN_IE_SUPP_RATES;
 
@@ -260,20 +260,20 @@ WLAN_IE_SUPP_RATES,  *PWLAN_IE_SUPP_RATES;
 // FH Parameter Set
 #pragma pack(1)
 typedef struct _WLAN_IE_FH_PARMS {
-    BYTE    byElementID;
-    BYTE    len;
-    WORD    wDwellTime;
-    BYTE    byHopSet;
-    BYTE    byHopPattern;
-    BYTE    byHopIndex;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned short wDwellTime;
+    unsigned char byHopSet;
+    unsigned char byHopPattern;
+    unsigned char byHopIndex;
 } WLAN_IE_FH_PARMS,  *PWLAN_IE_FH_PARMS;
 
 // DS Parameter Set
 #pragma pack(1)
 typedef struct tagWLAN_IE_DS_PARMS {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   byCurrChannel;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byCurrChannel;
 }__attribute__ ((__packed__))
 WLAN_IE_DS_PARMS,  *PWLAN_IE_DS_PARMS;
 
@@ -281,12 +281,12 @@ WLAN_IE_DS_PARMS,  *PWLAN_IE_DS_PARMS;
 // CF Parameter Set
 #pragma pack(1)
 typedef struct tagWLAN_IE_CF_PARMS {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   byCFPCount;
-    BYTE   byCFPPeriod;
-    WORD   wCFPMaxDuration;
-    WORD   wCFPDurRemaining;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byCFPCount;
+    unsigned char byCFPPeriod;
+    unsigned short wCFPMaxDuration;
+    unsigned short wCFPDurRemaining;
 }__attribute__ ((__packed__))
 WLAN_IE_CF_PARMS,  *PWLAN_IE_CF_PARMS;
 
@@ -294,12 +294,12 @@ WLAN_IE_CF_PARMS,  *PWLAN_IE_CF_PARMS;
 // TIM
 #pragma pack(1)
 typedef struct tagWLAN_IE_TIM {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   byDTIMCount;
-    BYTE   byDTIMPeriod;
-    BYTE   byBitMapCtl;
-    BYTE   byVirtBitMap[1];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byDTIMCount;
+    unsigned char byDTIMPeriod;
+    unsigned char byBitMapCtl;
+    unsigned char byVirtBitMap[1];
 }__attribute__ ((__packed__))
 WLAN_IE_TIM,  *PWLAN_IE_TIM;
 
@@ -307,9 +307,9 @@ WLAN_IE_TIM,  *PWLAN_IE_TIM;
 // IBSS Parameter Set
 #pragma pack(1)
 typedef struct tagWLAN_IE_IBSS_PARMS {
-    BYTE   byElementID;
-    BYTE   len;
-    WORD   wATIMWindow;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned short wATIMWindow;
 }__attribute__ ((__packed__))
 WLAN_IE_IBSS_PARMS, *PWLAN_IE_IBSS_PARMS;
 
@@ -317,84 +317,84 @@ WLAN_IE_IBSS_PARMS, *PWLAN_IE_IBSS_PARMS;
 // Challenge Text
 #pragma pack(1)
 typedef struct tagWLAN_IE_CHALLENGE {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   abyChallenge[1];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abyChallenge[1];
 }__attribute__ ((__packed__))
 WLAN_IE_CHALLENGE,  *PWLAN_IE_CHALLENGE;
 
 
 #pragma pack(1)
 typedef struct tagWLAN_IE_RSN_EXT {
-    BYTE byElementID;
-    BYTE len;
-    BYTE abyOUI[4];
-    WORD wVersion;
-    BYTE abyMulticast[4];
-    WORD wPKCount;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abyOUI[4];
+    unsigned short wVersion;
+    unsigned char abyMulticast[4];
+    unsigned short wPKCount;
     struct {
-        BYTE abyOUI[4];
+        unsigned char abyOUI[4];
     } PKSList[1]; // the rest is variable so need to
     // overlay ieauth structure
 } WLAN_IE_RSN_EXT, *PWLAN_IE_RSN_EXT;
 
 #pragma pack(1)
 typedef struct tagWLAN_IE_RSN_AUTH {
-    WORD wAuthCount;
+    unsigned short wAuthCount;
     struct {
-        BYTE abyOUI[4];
+        unsigned char abyOUI[4];
     } AuthKSList[1];
 } WLAN_IE_RSN_AUTH, *PWLAN_IE_RSN_AUTH;
 
 // RSN Identity
 #pragma pack(1)
 typedef struct tagWLAN_IE_RSN {
-    BYTE   byElementID;
-    BYTE   len;
-    WORD   wVersion;
-    BYTE   abyRSN[WLAN_MIN_ARRAY];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned short wVersion;
+    unsigned char abyRSN[WLAN_MIN_ARRAY];
 } WLAN_IE_RSN, *PWLAN_IE_RSN;
 
 
 // ERP
 #pragma pack(1)
 typedef struct tagWLAN_IE_ERP {
-    BYTE   byElementID;
-    BYTE   len;
-    BYTE   byContext;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byContext;
 }__attribute__ ((__packed__))
 WLAN_IE_ERP,  *PWLAN_IE_ERP;
 
 
 #pragma pack(1)
 typedef struct _MEASEURE_REQ {
-    BYTE                byChannel;
-    BYTE                abyStartTime[8];
-    BYTE                abyDuration[2];
+    unsigned char byChannel;
+    unsigned char abyStartTime[8];
+    unsigned char abyDuration[2];
 } MEASEURE_REQ, *PMEASEURE_REQ,
   MEASEURE_REQ_BASIC, *PMEASEURE_REQ_BASIC,
   MEASEURE_REQ_CCA, *PMEASEURE_REQ_CCA,
   MEASEURE_REQ_RPI, *PMEASEURE_REQ_RPI;
 
 typedef struct _MEASEURE_REP_BASIC {
-    BYTE                byChannel;
-    BYTE                abyStartTime[8];
-    BYTE                abyDuration[2];
-    BYTE                byMap;
+    unsigned char byChannel;
+    unsigned char abyStartTime[8];
+    unsigned char abyDuration[2];
+    unsigned char byMap;
 } MEASEURE_REP_BASIC, *PMEASEURE_REP_BASIC;
 
 typedef struct _MEASEURE_REP_CCA {
-    BYTE                byChannel;
-    BYTE                abyStartTime[8];
-    BYTE                abyDuration[2];
-    BYTE                byCCABusyFraction;
+    unsigned char byChannel;
+    unsigned char abyStartTime[8];
+    unsigned char abyDuration[2];
+    unsigned char byCCABusyFraction;
 } MEASEURE_REP_CCA, *PMEASEURE_REP_CCA;
 
 typedef struct _MEASEURE_REP_RPI {
-    BYTE                byChannel;
-    BYTE                abyStartTime[8];
-    BYTE                abyDuration[2];
-    BYTE                abyRPIdensity[8];
+    unsigned char byChannel;
+    unsigned char abyStartTime[8];
+    unsigned char abyDuration[2];
+    unsigned char abyRPIdensity[8];
 } MEASEURE_REP_RPI, *PMEASEURE_REP_RPI;
 
 typedef union _MEASEURE_REP {
@@ -406,85 +406,85 @@ typedef union _MEASEURE_REP {
 } MEASEURE_REP, *PMEASEURE_REP;
 
 typedef struct _WLAN_IE_MEASURE_REQ {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byToken;
-    BYTE                byMode;
-    BYTE                byType;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byToken;
+    unsigned char byMode;
+    unsigned char byType;
     MEASEURE_REQ        sReq;
 } WLAN_IE_MEASURE_REQ, *PWLAN_IE_MEASURE_REQ;
 
 typedef struct _WLAN_IE_MEASURE_REP {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byToken;
-    BYTE                byMode;
-    BYTE                byType;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byToken;
+    unsigned char byMode;
+    unsigned char byType;
     MEASEURE_REP        sRep;
 } WLAN_IE_MEASURE_REP, *PWLAN_IE_MEASURE_REP;
 
 typedef struct _WLAN_IE_CH_SW {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byMode;
-    BYTE                byChannel;
-    BYTE                byCount;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byMode;
+    unsigned char byChannel;
+    unsigned char byCount;
 } WLAN_IE_CH_SW, *PWLAN_IE_CH_SW;
 
 typedef struct _WLAN_IE_QUIET {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byQuietCount;
-    BYTE                byQuietPeriod;
-    BYTE                abyQuietDuration[2];
-    BYTE                abyQuietOffset[2];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byQuietCount;
+    unsigned char byQuietPeriod;
+    unsigned char abyQuietDuration[2];
+    unsigned char abyQuietOffset[2];
 } WLAN_IE_QUIET, *PWLAN_IE_QUIET;
 
 typedef struct _WLAN_IE_COUNTRY {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                abyCountryString[3];
-    BYTE                abyCountryInfo[3];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abyCountryString[3];
+    unsigned char abyCountryInfo[3];
 } WLAN_IE_COUNTRY, *PWLAN_IE_COUNTRY;
 
 typedef struct _WLAN_IE_PW_CONST {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byPower;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byPower;
 } WLAN_IE_PW_CONST, *PWLAN_IE_PW_CONST;
 
 typedef struct _WLAN_IE_PW_CAP {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byMinPower;
-    BYTE                byMaxPower;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byMinPower;
+    unsigned char byMaxPower;
 } WLAN_IE_PW_CAP, *PWLAN_IE_PW_CAP;
 
 typedef struct _WLAN_IE_SUPP_CH {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                abyChannelTuple[2];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abyChannelTuple[2];
 } WLAN_IE_SUPP_CH, *PWLAN_IE_SUPP_CH;
 
 typedef struct _WLAN_IE_TPC_REQ {
-    BYTE                byElementID;
-    BYTE                len;
+    unsigned char byElementID;
+    unsigned char len;
 } WLAN_IE_TPC_REQ, *PWLAN_IE_TPC_REQ;
 
 typedef struct _WLAN_IE_TPC_REP {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                byTxPower;
-    BYTE                byLinkMargin;
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char byTxPower;
+    unsigned char byLinkMargin;
 } WLAN_IE_TPC_REP, *PWLAN_IE_TPC_REP;
 
 
 typedef struct _WLAN_IE_IBSS_DFS {
-    BYTE                byElementID;
-    BYTE                len;
-    BYTE                abyDFSOwner[6];
-    BYTE                byDFSRecovery;
-    BYTE                abyChannelMap[2];
+    unsigned char byElementID;
+    unsigned char len;
+    unsigned char abyDFSOwner[6];
+    unsigned char byDFSRecovery;
+    unsigned char abyChannelMap[2];
 } WLAN_IE_IBSS_DFS, *PWLAN_IE_IBSS_DFS;
 
 #pragma pack()
@@ -495,9 +495,9 @@ typedef struct _WLAN_IE_IBSS_DFS {
 // prototype structure, all mgmt frame types will start with these members
 typedef struct tagWLAN_FR_MGMT {
 
-    UINT                  uType;
-    UINT                  len;
-    PBYTE                 pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR       pHdr;
 
 } WLAN_FR_MGMT,  *PWLAN_FR_MGMT;
@@ -505,14 +505,14 @@ typedef struct tagWLAN_FR_MGMT {
 // Beacon frame
 typedef struct tagWLAN_FR_BEACON {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     // fixed fields
     PQWORD                  pqwTimestamp;
-    PWORD                   pwBeaconInterval;
-    PWORD                   pwCapInfo;
+    unsigned short *pwBeaconInterval;
+    unsigned short *pwCapInfo;
     /*-- info elements ----------*/
     PWLAN_IE_SSID           pSSID;
     PWLAN_IE_SUPP_RATES     pSuppRates;
@@ -537,9 +537,9 @@ typedef struct tagWLAN_FR_BEACON {
 // IBSS ATIM frame
 typedef struct tagWLAN_FR_IBSSATIM {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
 
     // fixed fields
@@ -551,12 +551,12 @@ typedef struct tagWLAN_FR_IBSSATIM {
 // Disassociation
 typedef struct tagWLAN_FR_DISASSOC {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwReason;
+    unsigned short *pwReason;
     /*-- info elements ----------*/
 
 } WLAN_FR_DISASSOC, *PWLAN_FR_DISASSOC;
@@ -564,13 +564,13 @@ typedef struct tagWLAN_FR_DISASSOC {
 // Association Request
 typedef struct tagWLAN_FR_ASSOCREQ {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwListenInterval;
+    unsigned short *pwCapInfo;
+    unsigned short *pwListenInterval;
     /*-- info elements ----------*/
     PWLAN_IE_SSID           pSSID;
     PWLAN_IE_SUPP_RATES     pSuppRates;
@@ -585,14 +585,14 @@ typedef struct tagWLAN_FR_ASSOCREQ {
 // Association Response
 typedef struct tagWLAN_FR_ASSOCRESP {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwStatus;
-    PWORD                   pwAid;
+    unsigned short *pwCapInfo;
+    unsigned short *pwStatus;
+    unsigned short *pwAid;
     /*-- info elements ----------*/
     PWLAN_IE_SUPP_RATES     pSuppRates;
     PWLAN_IE_SUPP_RATES     pExtSuppRates;
@@ -602,14 +602,14 @@ typedef struct tagWLAN_FR_ASSOCRESP {
 // Reassociation Request
 typedef struct tagWLAN_FR_REASSOCREQ {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
 
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwListenInterval;
+    unsigned short *pwCapInfo;
+    unsigned short *pwListenInterval;
     PIEEE_ADDR              pAddrCurrAP;
 
     /*-- info elements ----------*/
@@ -624,14 +624,14 @@ typedef struct tagWLAN_FR_REASSOCREQ {
 // Reassociation Response
 typedef struct tagWLAN_FR_REASSOCRESP {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwStatus;
-    PWORD                   pwAid;
+    unsigned short *pwCapInfo;
+    unsigned short *pwStatus;
+    unsigned short *pwAid;
     /*-- info elements ----------*/
     PWLAN_IE_SUPP_RATES     pSuppRates;
     PWLAN_IE_SUPP_RATES     pExtSuppRates;
@@ -641,9 +641,9 @@ typedef struct tagWLAN_FR_REASSOCRESP {
 // Probe Request
 typedef struct tagWLAN_FR_PROBEREQ {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     /*-- info elements ----------*/
@@ -656,14 +656,14 @@ typedef struct tagWLAN_FR_PROBEREQ {
 // Probe Response
 typedef struct tagWLAN_FR_PROBERESP {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PQWORD                  pqwTimestamp;
-    PWORD                   pwBeaconInterval;
-    PWORD                   pwCapInfo;
+    unsigned short *pwBeaconInterval;
+    unsigned short *pwCapInfo;
     /*-- info elements ----------*/
     PWLAN_IE_SSID           pSSID;
     PWLAN_IE_SUPP_RATES     pSuppRates;
@@ -685,14 +685,14 @@ typedef struct tagWLAN_FR_PROBERESP {
 // Authentication
 typedef struct tagWLAN_FR_AUTHEN {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwAuthAlgorithm;
-    PWORD                   pwAuthSequence;
-    PWORD                   pwStatus;
+    unsigned short *pwAuthAlgorithm;
+    unsigned short *pwAuthSequence;
+    unsigned short *pwStatus;
     /*-- info elements ----------*/
     PWLAN_IE_CHALLENGE      pChallenge;
 
@@ -701,12 +701,12 @@ typedef struct tagWLAN_FR_AUTHEN {
 // Deauthenication
 typedef struct tagWLAN_FR_DEAUTHEN {
 
-    UINT                    uType;
-    UINT                    len;
-    PBYTE                   pBuf;
+    unsigned int	uType;
+    unsigned int	len;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwReason;
+    unsigned short *pwReason;
 
     /*-- info elements ----------*/
 

@@ -27,7 +27,7 @@ struct ncp_request_header {
 	__u8 conn_high;
 	__u8 function;
 	__u8 data[0];
-} __attribute__((packed));
+} __packed;
 
 #define NCP_REPLY                (0x3333)
 #define NCP_WATCHDOG		 (0x3E3E)
@@ -42,7 +42,7 @@ struct ncp_reply_header {
 	__u8 completion_code;
 	__u8 connection_state;
 	__u8 data[0];
-} __attribute__((packed));
+} __packed;
 
 #define NCP_VOLNAME_LEN (16)
 #define NCP_NUMBER_OF_VOLUMES (256)
@@ -158,7 +158,7 @@ struct nw_info_struct {
 #ifdef __KERNEL__
 	struct nw_nfs_info nfs;
 #endif
-} __attribute__((packed));
+} __packed;
 
 /* modify mask - use with MODIFY_DOS_INFO structure */
 #define DM_ATTRIBUTES		  (cpu_to_le32(0x02))
@@ -190,12 +190,12 @@ struct nw_modify_dos_info {
 	__u16 inheritanceGrantMask;
 	__u16 inheritanceRevokeMask;
 	__u32 maximumSpace;
-} __attribute__((packed));
+} __packed;
 
 struct nw_search_sequence {
 	__u8 volNumber;
 	__u32 dirBase;
 	__u32 sequence;
-} __attribute__((packed));
+} __packed;
 
 #endif				/* _LINUX_NCP_H */

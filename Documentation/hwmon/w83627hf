@@ -5,23 +5,19 @@ Supported chips:
   * Winbond W83627HF (ISA accesses ONLY)
     Prefix: 'w83627hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/w83627hf.pdf
   * Winbond W83627THF
     Prefix: 'w83627thf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/w83627thf.pdf
   * Winbond W83697HF
     Prefix: 'w83697hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/697hf.pdf
   * Winbond W83637HF
     Prefix: 'w83637hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/w83637hf.pdf
   * Winbond W83687THF
     Prefix: 'w83687thf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: Provided by Winbond on request
+    Datasheet: Provided by Winbond on request(http://www.winbond.com/hq/enu)
 
 Authors:
         Frodo Looijaard <frodol@dds.nl>,

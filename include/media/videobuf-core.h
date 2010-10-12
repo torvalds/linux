@@ -54,8 +54,6 @@ struct videobuf_queue;
 
 struct videobuf_mapping {
 	unsigned int count;
-	unsigned long start;
-	unsigned long end;
 	struct videobuf_queue *q;
 };
 
@@ -127,7 +125,7 @@ struct videobuf_queue_ops {
 struct videobuf_qtype_ops {
 	u32                     magic;
 
-	struct videobuf_buffer *(*alloc)(size_t size);
+	struct videobuf_buffer *(*alloc_vb)(size_t size);
 	void *(*vaddr)		(struct videobuf_buffer *buf);
 	int (*iolock)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *vb,
@@ -173,7 +171,7 @@ int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
 int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		struct v4l2_framebuffer *fbuf);
 
-struct videobuf_buffer *videobuf_alloc(struct videobuf_queue *q);
+struct videobuf_buffer *videobuf_alloc_vb(struct videobuf_queue *q);
 
 /* Used on videobuf-dvb */
 void *videobuf_queue_to_vaddr(struct videobuf_queue *q,

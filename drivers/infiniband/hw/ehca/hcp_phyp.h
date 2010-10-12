@@ -83,7 +83,7 @@ int hcp_galpas_ctor(struct h_galpas *galpas, int is_user,
 
 int hcp_galpas_dtor(struct h_galpas *galpas);
 
-int hcall_map_page(u64 physaddr, u64 * mapaddr);
+u64 hcall_map_page(u64 physaddr);
 
 int hcall_unmap_page(u64 mapaddr);
 

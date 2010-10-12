@@ -250,7 +250,7 @@ unlock:
 	raw_spin_unlock(&desc->lock);
 }
 
-static int fsl_of_msi_remove(struct of_device *ofdev)
+static int fsl_of_msi_remove(struct platform_device *ofdev)
 {
 	struct fsl_msi *msi = ofdev->dev.platform_data;
 	int virq, i;
@@ -274,7 +274,7 @@ static int fsl_of_msi_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static int __devinit fsl_of_msi_probe(struct of_device *dev,
+static int __devinit fsl_of_msi_probe(struct platform_device *dev,
 				const struct of_device_id *match)
 {
 	struct fsl_msi *msi;

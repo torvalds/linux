@@ -80,11 +80,6 @@ bfa_fcpim_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_fcpim_initdone(struct bfa_s *bfa)
-{
-}
-
-static void
 bfa_fcpim_detach(struct bfa_s *bfa)
 {
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
@@ -172,4 +167,28 @@ bfa_fcpim_qdepth_get(struct bfa_s *bfa)
 	return fcpim->q_depth;
 }
 
+void
+bfa_fcpim_update_ioredirect(struct bfa_s *bfa)
+{
+	bfa_boolean_t ioredirect;
 
+	/*
+	 * IO redirection is turned off when QoS is enabled and vice versa
+	 */
+	ioredirect = bfa_fcport_is_qos_enabled(bfa) ? BFA_FALSE : BFA_TRUE;
+
+	/*
+	 * Notify the bfad module of a possible state change in
+	 * IO redirection capability, due to a QoS state change. bfad will
+	 * check on the support for io redirection and update the
+	 * fcpim's ioredirect state accordingly.
+	 */
+	bfa_cb_ioredirect_state_change((void *)(bfa->bfad), ioredirect);
+}
+
+void
+bfa_fcpim_set_ioredirect(struct bfa_s *bfa, bfa_boolean_t state)
+{
+	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
+	fcpim->ioredirect = state;
+}

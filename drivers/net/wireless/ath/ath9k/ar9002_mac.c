@@ -287,6 +287,7 @@ static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
 	ts->ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
 	ts->ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
+	ts->tid = MS(ads->ds_txstatus9, AR_TxTid);
 	ts->ts_antenna = 0;
 
 	return 0;

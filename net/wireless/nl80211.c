@@ -153,6 +153,9 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_CQM] = { .type = NLA_NESTED, },
 	[NL80211_ATTR_LOCAL_STATE_CHANGE] = { .type = NLA_FLAG },
 	[NL80211_ATTR_AP_ISOLATE] = { .type = NLA_U8 },
+
+	[NL80211_ATTR_WIPHY_TX_POWER_SETTING] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] = { .type = NLA_U32 },
 };
 
 /* policy for the attributes */
@@ -869,6 +872,34 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			goto bad_res;
 	}
 
+	if (info->attrs[NL80211_ATTR_WIPHY_TX_POWER_SETTING]) {
+		enum nl80211_tx_power_setting type;
+		int idx, mbm = 0;
+
+		if (!rdev->ops->set_tx_power) {
+			result = -EOPNOTSUPP;
+			goto bad_res;
+		}
+
+		idx = NL80211_ATTR_WIPHY_TX_POWER_SETTING;
+		type = nla_get_u32(info->attrs[idx]);
+
+		if (!info->attrs[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] &&
+		    (type != NL80211_TX_POWER_AUTOMATIC)) {
+			result = -EINVAL;
+			goto bad_res;
+		}
+
+		if (type != NL80211_TX_POWER_AUTOMATIC) {
+			idx = NL80211_ATTR_WIPHY_TX_POWER_LEVEL;
+			mbm = nla_get_u32(info->attrs[idx]);
+		}
+
+		result = rdev->ops->set_tx_power(&rdev->wiphy, type, mbm);
+		if (result)
+			goto bad_res;
+	}
+
 	changed = 0;
 
 	if (info->attrs[NL80211_ATTR_WIPHY_RETRY_SHORT]) {
@@ -1107,7 +1138,7 @@ static int nl80211_valid_4addr(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype)
 {
 	if (!use_4addr) {
-		if (netdev && netdev->br_port)
+		if (netdev && (netdev->priv_flags & IFF_BRIDGE_PORT))
 			return -EBUSY;
 		return 0;
 	}
@@ -2738,6 +2769,7 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 
  nla_put_failure:
 	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
 	err = -EMSGSIZE;
  out:
 	/* Cleanup */
@@ -2929,6 +2961,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
 	err = -EMSGSIZE;
 out:
 	mutex_unlock(&cfg80211_mutex);
@@ -3955,6 +3988,55 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	if (info->attrs[NL80211_ATTR_BSS_BASIC_RATES]) {
+		u8 *rates =
+			nla_data(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
+		int n_rates =
+			nla_len(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
+		struct ieee80211_supported_band *sband =
+			wiphy->bands[ibss.channel->band];
+		int i, j;
+
+		if (n_rates == 0) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		for (i = 0; i < n_rates; i++) {
+			int rate = (rates[i] & 0x7f) * 5;
+			bool found = false;
+
+			for (j = 0; j < sband->n_bitrates; j++) {
+				if (sband->bitrates[j].bitrate == rate) {
+					found = true;
+					ibss.basic_rates |= BIT(j);
+					break;
+				}
+			}
+			if (!found) {
+				err = -EINVAL;
+				goto out;
+			}
+		}
+	} else {
+		/*
+		* If no rates were explicitly configured,
+		* use the mandatory rate set for 11b or
+		* 11a for maximum compatibility.
+		*/
+		struct ieee80211_supported_band *sband =
+			wiphy->bands[ibss.channel->band];
+		int j;
+		u32 flag = ibss.channel->band == IEEE80211_BAND_5GHZ ?
+			IEEE80211_RATE_MANDATORY_A :
+			IEEE80211_RATE_MANDATORY_B;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			if (sband->bitrates[j].flags & flag)
+				ibss.basic_rates |= BIT(j);
+		}
+	}
+
 	err = cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
 
 out:
@@ -4653,7 +4735,8 @@ static int nl80211_register_action(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4681,6 +4764,7 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev;
 	struct ieee80211_channel *chan;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
+	bool channel_type_valid = false;
 	u32 freq;
 	int err;
 	void *hdr;
@@ -4702,7 +4786,8 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4722,6 +4807,7 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 			err = -EINVAL;
 			goto out;
 		}
+		channel_type_valid = true;
 	}
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
@@ -4745,6 +4831,7 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 		goto free_msg;
 	}
 	err = cfg80211_mlme_action(rdev, dev, chan, channel_type,
+				   channel_type_valid,
 				   nla_data(info->attrs[NL80211_ATTR_FRAME]),
 				   nla_len(info->attrs[NL80211_ATTR_FRAME]),
 				   &cookie);

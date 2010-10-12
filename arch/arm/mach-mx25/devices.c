@@ -22,103 +22,6 @@
 #include <mach/mx25.h>
 #include <mach/irqs.h>
 
-static struct resource uart0[] = {
-	{
-		.start = 0x43f90000,
-		.end = 0x43f93fff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 45,
-		.end = 45,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device0 = {
-	.name = "imx-uart",
-	.id = 0,
-	.resource = uart0,
-	.num_resources = ARRAY_SIZE(uart0),
-};
-
-static struct resource uart1[] = {
-	{
-		.start = 0x43f94000,
-		.end = 0x43f97fff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 32,
-		.end = 32,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device1 = {
-	.name = "imx-uart",
-	.id = 1,
-	.resource = uart1,
-	.num_resources = ARRAY_SIZE(uart1),
-};
-
-static struct resource uart2[] = {
-	{
-		.start = 0x5000c000,
-		.end = 0x5000ffff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 18,
-		.end = 18,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device2 = {
-	.name = "imx-uart",
-	.id = 2,
-	.resource = uart2,
-	.num_resources = ARRAY_SIZE(uart2),
-};
-
-static struct resource uart3[] = {
-	{
-		.start = 0x50008000,
-		.end = 0x5000bfff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 5,
-		.end = 5,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device3 = {
-	.name = "imx-uart",
-	.id = 3,
-	.resource = uart3,
-	.num_resources = ARRAY_SIZE(uart3),
-};
-
-static struct resource uart4[] = {
-	{
-		.start = 0x5002c000,
-		.end = 0x5002ffff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 40,
-		.end = 40,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device4 = {
-	.name = "imx-uart",
-	.id = 4,
-	.resource = uart4,
-	.num_resources = ARRAY_SIZE(uart4),
-};
-
-#define MX25_OTG_BASE_ADDR 0x53FF4000
-
 static u64 otg_dmamask = DMA_BIT_MASK(32);
 
 static struct resource mxc_otg_resources[] = {
@@ -179,63 +82,6 @@ struct platform_device mxc_usbh2 = {
 	},
 	.resource = mxc_usbh2_resources,
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
-};
-
-static struct resource mxc_spi_resources0[] = {
-	{
-	       .start = 0x43fa4000,
-	       .end = 0x43fa7fff,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = 14,
-	       .end = 14,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device0 = {
-	.name = "spi_imx",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources0),
-	.resource = mxc_spi_resources0,
-};
-
-static struct resource mxc_spi_resources1[] = {
-	{
-	       .start = 0x50010000,
-	       .end = 0x50013fff,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = 13,
-	       .end = 13,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device1 = {
-	.name = "spi_imx",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources1),
-	.resource = mxc_spi_resources1,
-};
-
-static struct resource mxc_spi_resources2[] = {
-	{
-	       .start = 0x50004000,
-	       .end = 0x50007fff,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = 0,
-	       .end = 0,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device2 = {
-	.name = "spi_imx",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources2),
-	.resource = mxc_spi_resources2,
 };
 
 static struct resource mxc_pwm_resources0[] = {
@@ -333,63 +179,6 @@ struct platform_device mxc_pwm_device3 = {
 	.resource = mxc_pwm_resources3,
 };
 
-static struct resource mxc_i2c_1_resources[] = {
-	{
-		.start	= 0x43f80000,
-		.end	= 0x43f83fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= 3,
-		.end	= 3,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device0 = {
-	.name = "imx-i2c",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_i2c_1_resources),
-	.resource = mxc_i2c_1_resources,
-};
-
-static struct resource mxc_i2c_2_resources[] = {
-	{
-		.start	= 0x43f98000,
-		.end	= 0x43f9bfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= 4,
-		.end	= 4,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device1 = {
-	.name = "imx-i2c",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_i2c_2_resources),
-	.resource = mxc_i2c_2_resources,
-};
-
-static struct resource mxc_i2c_3_resources[] = {
-	{
-		.start	= 0x43f84000,
-		.end	= 0x43f87fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= 10,
-		.end	= 10,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device2 = {
-	.name = "imx-i2c",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_i2c_3_resources),
-	.resource = mxc_i2c_3_resources,
-};
-
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{
 		.chip.label = "gpio-0",
@@ -414,7 +203,7 @@ static struct mxc_gpio_port imx_gpio_ports[] = {
 	}
 };
 
-int __init mxc_register_gpios(void)
+int __init imx25_register_gpios(void)
 {
 	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
 }
@@ -437,26 +226,6 @@ struct platform_device mx25_fec_device = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(mx25_fec_resources),
 	.resource	= mx25_fec_resources,
-};
-
-static struct resource mxc_nand_resources[] = {
-	{
-		.start	= MX25_NFC_BASE_ADDR,
-		.end	= MX25_NFC_BASE_ADDR + 0x1fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MX25_INT_NANDFC,
-		.end	= MX25_INT_NANDFC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_nand_device = {
-	.name		= "mxc_nand",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(mxc_nand_resources),
-	.resource	= mxc_nand_resources,
 };
 
 static struct resource mx25_rtc_resources[] = {
@@ -514,4 +283,84 @@ struct platform_device mxc_wdt = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
 	.resource = mxc_wdt_resources,
+};
+
+static struct resource mx25_kpp_resources[] = {
+	{
+		.start	= MX25_KPP_BASE_ADDR,
+		.end	= MX25_KPP_BASE_ADDR + 0xf,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_KPP,
+		.end	= MX25_INT_KPP,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mx25_kpp_device = {
+	.name	= "imx-keypad",
+	.id	= -1,
+	.num_resources	= ARRAY_SIZE(mx25_kpp_resources),
+	.resource	= mx25_kpp_resources,
+};
+
+static struct resource imx_ssi_resources0[] = {
+	{
+		.start	= MX25_SSI1_BASE_ADDR,
+		.end	= MX25_SSI1_BASE_ADDR + 0x3fff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MX25_INT_SSI1,
+		.end	= MX25_INT_SSI1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource imx_ssi_resources1[] = {
+	{
+		.start	= MX25_SSI2_BASE_ADDR,
+		.end	= MX25_SSI2_BASE_ADDR + 0x3fff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MX25_INT_SSI2,
+		.end	= MX25_INT_SSI2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_ssi_device0 = {
+	.name = "imx-ssi",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
+	.resource = imx_ssi_resources0,
+};
+
+struct platform_device imx_ssi_device1 = {
+	.name = "imx-ssi",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
+	.resource = imx_ssi_resources1,
+};
+
+static struct resource mx25_csi_resources[] = {
+	{
+		.start	= MX25_CSI_BASE_ADDR,
+		.end	= MX25_CSI_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_CSI,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mx25_csi_device = {
+	.name	= "mx2-camera",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(mx25_csi_resources),
+	.resource	= mx25_csi_resources,
+	.dev		= {
+		.coherent_dma_mask = 0xffffffff,
+	},
 };

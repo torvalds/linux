@@ -2763,11 +2763,11 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 
 	vptr->dev = dev;
 
-	dev->irq = pdev->irq;
-
 	ret = pci_enable_device(pdev);
 	if (ret < 0)
 		goto err_free_dev;
+
+	dev->irq = pdev->irq;
 
 	ret = velocity_get_pci_info(vptr, pdev);
 	if (ret < 0) {

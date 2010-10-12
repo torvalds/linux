@@ -11,5 +11,3 @@ obj-$(CONFIG_SOC_TX4939)	+= setup_tx4939.o irq_tx4939.o
 obj-$(CONFIG_TOSHIBA_FPCIB0)	+= smsc_fdc37m81x.o
 obj-$(CONFIG_SPI)		+= spi_eeprom.o
 obj-$(CONFIG_TXX9_7SEGLED)	+= 7segled.o
-
-EXTRA_CFLAGS += -Werror

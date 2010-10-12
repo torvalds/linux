@@ -59,8 +59,9 @@
 #define CGC_SATA1		(1 << 15)
 #define CGC_XOR1		(1 << 16)
 #define CGC_CRYPTO		(1 << 17)
+#define CGC_PEX1		(1 << 18)
 #define CGC_GE1			(1 << 19)
 #define CGC_TDM			(1 << 20)
-#define CGC_RESERVED		((1 << 18) | (0x6 << 21))
+#define CGC_RESERVED		(0x6 << 21)
 
 #endif

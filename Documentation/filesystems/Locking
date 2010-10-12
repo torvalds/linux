@@ -92,8 +92,8 @@ prototypes:
 	void (*destroy_inode)(struct inode *);
 	void (*dirty_inode) (struct inode *);
 	int (*write_inode) (struct inode *, int);
-	void (*drop_inode) (struct inode *);
-	void (*delete_inode) (struct inode *);
+	int (*drop_inode) (struct inode *);
+	void (*evict_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
 	void (*write_super) (struct super_block *);
 	int (*sync_fs)(struct super_block *sb, int wait);
@@ -101,14 +101,13 @@ prototypes:
 	int (*unfreeze_fs) (struct super_block *);
 	int (*statfs) (struct dentry *, struct kstatfs *);
 	int (*remount_fs) (struct super_block *, int *, char *);
-	void (*clear_inode) (struct inode *);
 	void (*umount_begin) (struct super_block *);
 	int (*show_options)(struct seq_file *, struct vfsmount *);
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
 
 locking rules:
-	All may block.
+	All may block [not true, see below]
 	None have BKL
 			s_umount
 alloc_inode:
@@ -116,22 +115,25 @@ destroy_inode:
 dirty_inode:				(must not sleep)
 write_inode:
 drop_inode:				!!!inode_lock!!!
-delete_inode:
+evict_inode:
 put_super:		write
 write_super:		read
 sync_fs:		read
 freeze_fs:		read
 unfreeze_fs:		read
-statfs:			no
-remount_fs:		maybe		(see below)
-clear_inode:
+statfs:			maybe(read)	(see below)
+remount_fs:		write
 umount_begin:		no
 show_options:		no		(namespace_sem)
 quota_read:		no		(see below)
 quota_write:		no		(see below)
 
-->remount_fs() will have the s_umount exclusive lock if it's already mounted.
-When called from get_sb_single, it does NOT have the s_umount lock.
+->statfs() has s_umount (shared) when called by ustat(2) (native or
+compat), but that's an accident of bad API; s_umount is used to pin
+the superblock down when we only have dev_t given us by userland to
+identify the superblock.  Everything else (statfs(), fstatfs(), etc.)
+doesn't hold it when calling ->statfs() - superblock is pinned down
+by resolving the pathname passed to syscall.
 ->quota_read() and ->quota_write() functions are both guaranteed to
 be the only ones operating on the quota file by the quota code (via
 dqio_sem) (unless an admin really wants to screw up something and
@@ -372,8 +374,6 @@ prototypes:
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	int (*readdir) (struct file *, void *, filldir_t);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
-	int (*ioctl) (struct inode *, struct file *, unsigned int,
-			unsigned long);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
@@ -407,8 +407,7 @@ write:			no
 aio_write:		no
 readdir: 		no
 poll:			no
-ioctl:			yes	(see below)
-unlocked_ioctl:		no	(see below)
+unlocked_ioctl:		no
 compat_ioctl:		no
 mmap:			no
 open:			no
@@ -450,9 +449,6 @@ move ->readdir() to inode_operations and use a separate method for directory
 ->ioctl() or kill the latter completely. One of the problems is that for
 anything that resembles union-mount we won't have a struct file for all
 components. And there are other reasons why the current interface is a mess...
-
-->ioctl() on regular files is superceded by the ->unlocked_ioctl() that
-doesn't take the BKL.
 
 ->read on directories probably must go away - we should just enforce -EISDIR
 in sys_read() and friends.

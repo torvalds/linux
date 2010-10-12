@@ -578,7 +578,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 	}
 
 	if (ieee80211_is_data_qos(hdr11->frame_control)) {
-		hdr[12] = le16_to_cpu(*ieee80211_get_qos_ctl(hdr11))
+		hdr[12] = le16_to_cpu(*((__le16 *)ieee80211_get_qos_ctl(hdr11)))
 			& IEEE80211_QOS_CTL_TID_MASK;
 	} else
 		hdr[12] = 0;		/* priority */
@@ -757,7 +757,6 @@ static struct lib80211_crypto_ops lib80211_crypt_tkip = {
 	.name = "TKIP",
 	.init = lib80211_tkip_init,
 	.deinit = lib80211_tkip_deinit,
-	.build_iv = lib80211_tkip_hdr,
 	.encrypt_mpdu = lib80211_tkip_encrypt,
 	.decrypt_mpdu = lib80211_tkip_decrypt,
 	.encrypt_msdu = lib80211_michael_mic_add,

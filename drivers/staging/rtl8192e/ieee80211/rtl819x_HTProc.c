@@ -1024,17 +1024,6 @@ u8 HTFilterMCSRate( struct ieee80211_device* ieee, u8* pSupportMCS, u8* pOperate
 	return true;
 }
 void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET	Offset);
-#if 0
-//I need move this function to other places, such as rx?
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
-void HTOnAssocRsp_wq(struct work_struct *work)
-{
-	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, ht_onAssRsp);
-#else
-void HTOnAssocRsp_wq(struct ieee80211_device *ieee)
-{
-#endif
-#endif
 void HTOnAssocRsp(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
@@ -1760,9 +1749,3 @@ void HTSetConnectBwModeCallback(struct ieee80211_device* ieee)
 
 	pHTInfo->bSwBwInProgress = false;
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-//EXPORT_SYMBOL_NOVERS(HTUpdateSelfAndPeerSetting);
-#else
-//EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
-#endif

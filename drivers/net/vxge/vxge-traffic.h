@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-traffic.h: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+ * vxge-traffic.h: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
  *                 Virtualized Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #ifndef VXGE_TRAFFIC_H
 #define VXGE_TRAFFIC_H

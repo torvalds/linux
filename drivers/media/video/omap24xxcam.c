@@ -426,7 +426,7 @@ static void omap24xxcam_vbq_release(struct videobuf_queue *vbq,
 			     dma->direction);
 		dma->direction = DMA_NONE;
 	} else {
-		videobuf_dma_unmap(vbq, videobuf_to_dma(vb));
+		videobuf_dma_unmap(vbq->dev, videobuf_to_dma(vb));
 		videobuf_dma_free(videobuf_to_dma(vb));
 	}
 

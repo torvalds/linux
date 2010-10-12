@@ -28,7 +28,6 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
-#include <linux/inetdevice.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -45,6 +44,7 @@
 #include "wl1271_cmd.h"
 #include "wl1271_boot.h"
 #include "wl1271_testmode.h"
+#include "wl1271_scan.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -55,7 +55,7 @@ static struct conf_drv_settings default_conf = {
 			[CONF_SG_HV3_MAX_OVERRIDE]                  = 0,
 			[CONF_SG_BT_NFS_SAMPLE_INTERVAL]            = 400,
 			[CONF_SG_BT_LOAD_RATIO]                     = 50,
-			[CONF_SG_AUTO_PS_MODE]                      = 0,
+			[CONF_SG_AUTO_PS_MODE]                      = 1,
 			[CONF_SG_AUTO_SCAN_PROBE_REQ]               = 170,
 			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3]   = 50,
 			[CONF_SG_ANTENNA_CONFIGURATION]             = 0,
@@ -234,17 +234,13 @@ static struct conf_drv_settings default_conf = {
 		.beacon_rx_timeout           = 10000,
 		.broadcast_timeout           = 20000,
 		.rx_broadcast_in_ps          = 1,
-		.ps_poll_threshold           = 20,
+		.ps_poll_threshold           = 10,
+		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
 		.psm_entry_retries           = 3,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
-	},
-	.init = {
-		.radioparam = {
-			.fem                 = 1,
-		}
 	},
 	.itrim = {
 		.enable = false,
@@ -566,22 +562,27 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	if (fw->size != sizeof(struct wl1271_nvs_file)) {
+	/*
+	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
+	 * configurations) can be removed when those NVS files stop floating
+	 * around.
+	 */
+	if (fw->size != sizeof(struct wl1271_nvs_file) &&
+	    (fw->size != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
+	     wl1271_11a_enabled())) {
 		wl1271_error("nvs size is not as expected: %zu != %zu",
 			     fw->size, sizeof(struct wl1271_nvs_file));
 		ret = -EILSEQ;
 		goto out;
 	}
 
-	wl->nvs = kmalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kmemdup(fw->data, sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memcpy(wl->nvs, fw->data, sizeof(struct wl1271_nvs_file));
 
 out:
 	release_firmware(fw);
@@ -811,93 +812,6 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
-			     void *arg)
-{
-	struct net_device *dev;
-	struct wireless_dev *wdev;
-	struct wiphy *wiphy;
-	struct ieee80211_hw *hw;
-	struct wl1271 *wl;
-	struct wl1271 *wl_temp;
-	struct in_device *idev;
-	struct in_ifaddr *ifa = arg;
-	int ret = 0;
-
-	/* FIXME: this ugly function should probably be implemented in the
-	 * mac80211, and here should only be a simple callback handling actual
-	 * setting of the filters. Now we need to dig up references to
-	 * various structures to gain access to what we need.
-	 * Also, because of this, there is no "initial" setting of the filter
-	 * in "op_start", because we don't want to dig up struct net_device
-	 * there - the filter will be set upon first change of the interface
-	 * IP address. */
-
-	dev = ifa->ifa_dev->dev;
-
-	wdev = dev->ieee80211_ptr;
-	if (wdev == NULL)
-		return NOTIFY_DONE;
-
-	wiphy = wdev->wiphy;
-	if (wiphy == NULL)
-		return NOTIFY_DONE;
-
-	hw = wiphy_priv(wiphy);
-	if (hw == NULL)
-		return NOTIFY_DONE;
-
-	/* Check that the interface is one supported by this driver. */
-	wl_temp = hw->priv;
-	list_for_each_entry(wl, &wl_list, list) {
-		if (wl == wl_temp)
-			break;
-	}
-	if (wl != wl_temp)
-		return NOTIFY_DONE;
-
-	/* Get the interface IP address for the device. "ifa" will become
-	   NULL if:
-	     - there is no IPV4 protocol address configured
-	     - there are multiple (virtual) IPV4 addresses configured
-	   When "ifa" is NULL, filtering will be disabled.
-	*/
-	ifa = NULL;
-	idev = dev->ip_ptr;
-	if (idev)
-		ifa = idev->ifa_list;
-
-	if (ifa && ifa->ifa_next)
-		ifa = NULL;
-
-	mutex_lock(&wl->mutex);
-
-	if (wl->state == WL1271_STATE_OFF)
-		goto out;
-
-	ret = wl1271_ps_elp_wakeup(wl, false);
-	if (ret < 0)
-		goto out;
-	if (ifa)
-		ret = wl1271_acx_arp_ip_filter(wl, true,
-					       (u8 *)&ifa->ifa_address,
-					       ACX_IPV4_VERSION);
-	else
-		ret = wl1271_acx_arp_ip_filter(wl, false, NULL,
-					       ACX_IPV4_VERSION);
-	wl1271_ps_elp_sleep(wl);
-
-out:
-	mutex_unlock(&wl->mutex);
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block wl1271_dev_notifier = {
-	.notifier_call = wl1271_dev_notify,
-};
-
-
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
 	wl1271_debug(DEBUG_MAC80211, "mac80211 start");
@@ -925,6 +839,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wiphy *wiphy = hw->wiphy;
 	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
 
@@ -978,6 +893,12 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 		wl->state = WL1271_STATE_ON;
 		wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
+
+		/* update hw/fw version info in wiphy struct */
+		wiphy->hw_version = wl->chip.id;
+		strncpy(wiphy->fw_version, wl->chip.fw_ver,
+			sizeof(wiphy->fw_version));
+
 		goto out;
 
 irq_disable:
@@ -1001,10 +922,8 @@ power_off:
 out:
 	mutex_unlock(&wl->mutex);
 
-	if (!ret) {
+	if (!ret)
 		list_add(&wl->list, &wl_list);
-		register_inetaddr_notifier(&wl1271_dev_notifier);
-	}
 
 	return ret;
 }
@@ -1015,8 +934,6 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 	int i;
 
-	unregister_inetaddr_notifier(&wl1271_dev_notifier);
-
 	mutex_lock(&wl->mutex);
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
@@ -1026,10 +943,17 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	WARN_ON(wl->state != WL1271_STATE_ON);
 
-	if (test_and_clear_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
+	/* enable dyn ps just in case (if left on due to fw crash etc) */
+	if (wl->bss_type == BSS_TYPE_STA_BSS)
+		ieee80211_enable_dyn_ps(wl->vif);
+
+	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
 		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, true);
 		mutex_lock(&wl->mutex);
+		wl->scan.state = WL1271_SCAN_STATE_IDLE;
+		kfree(wl->scan.scanned_ch);
+		wl->scan.scanned_ch = NULL;
 	}
 
 	wl->state = WL1271_STATE_OFF;
@@ -1040,11 +964,12 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
+	cancel_delayed_work_sync(&wl->pspoll_work);
 
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl1271_tx_flush(wl);
+	wl1271_tx_reset(wl);
 	wl1271_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -1241,6 +1166,42 @@ static u32 wl1271_min_rate_get(struct wl1271 *wl)
 	return rate;
 }
 
+static int wl1271_handle_idle(struct wl1271 *wl, bool idle)
+{
+	int ret;
+
+	if (idle) {
+		if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
+			ret = wl1271_unjoin(wl);
+			if (ret < 0)
+				goto out;
+		}
+		wl->rate_set = wl1271_min_rate_get(wl);
+		wl->sta_rate_set = 0;
+		ret = wl1271_acx_rate_policies(wl);
+		if (ret < 0)
+			goto out;
+		ret = wl1271_acx_keep_alive_config(
+			wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+			ACX_KEEP_ALIVE_TPL_INVALID);
+		if (ret < 0)
+			goto out;
+		set_bit(WL1271_FLAG_IDLE, &wl->flags);
+	} else {
+		/* increment the session counter */
+		wl->session_counter++;
+		if (wl->session_counter >= SESSION_COUNTER_MAX)
+			wl->session_counter = 0;
+		ret = wl1271_dummy_join(wl);
+		if (ret < 0)
+			goto out;
+		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+	}
+
+out:
+	return ret;
+}
+
 static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1271 *wl = hw->priv;
@@ -1254,6 +1215,15 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
 		     conf->power_level,
 		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use");
+
+	/*
+	 * mac80211 will go to idle nearly immediately after transmitting some
+	 * frames, such as the deauth. To make sure those frames reach the air,
+	 * wait here until the TX queue is fully flushed.
+	 */
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    (conf->flags & IEEE80211_CONF_IDLE))
+		wl1271_tx_flush(wl);
 
 	mutex_lock(&wl->mutex);
 
@@ -1295,23 +1265,17 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		if (conf->flags & IEEE80211_CONF_IDLE &&
-		    test_bit(WL1271_FLAG_JOINED, &wl->flags))
-			wl1271_unjoin(wl);
-		else if (!(conf->flags & IEEE80211_CONF_IDLE))
-			wl1271_dummy_join(wl);
-
-		if (conf->flags & IEEE80211_CONF_IDLE) {
-			wl->rate_set = wl1271_min_rate_get(wl);
-			wl->sta_rate_set = 0;
-			wl1271_acx_rate_policies(wl);
-			wl1271_acx_keep_alive_config(
-				wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
-				ACX_KEEP_ALIVE_TPL_INVALID);
-			set_bit(WL1271_FLAG_IDLE, &wl->flags);
-		} else
-			clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+		ret = wl1271_handle_idle(wl, conf->flags & IEEE80211_CONF_IDLE);
+		if (ret < 0)
+			wl1271_warning("idle mode change failed %d", ret);
 	}
+
+	/*
+	 * if mac80211 changes the PSM mode, make sure the mode is not
+	 * incorrectly changed after the pspoll failure active window.
+	 */
+	if (changed & IEEE80211_CONF_CHANGE_PS)
+		clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
 
 	if (conf->flags & IEEE80211_CONF_PS &&
 	    !test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
@@ -1595,13 +1559,9 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 
 	if (wl1271_11a_enabled())
-		ret = wl1271_cmd_scan(hw->priv, ssid, len,
-				      req->ie, req->ie_len, 1, 0,
-				      WL1271_SCAN_BAND_DUAL, 3);
+		ret = wl1271_scan(hw->priv, ssid, len, req);
 	else
-		ret = wl1271_cmd_scan(hw->priv, ssid, len,
-				      req->ie, req->ie_len, 1, 0,
-				      WL1271_SCAN_BAND_2_4_GHZ, 3);
+		ret = wl1271_scan(hw->priv, ssid, len, req);
 
 	wl1271_ps_elp_sleep(wl);
 
@@ -1774,6 +1734,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl->aid = bss_conf->aid;
 			set_assoc = true;
 
+			wl->ps_poll_failures = 0;
+
 			/*
 			 * use basic rates from AP, and determine lowest rate
 			 * to use with control frames.
@@ -1823,6 +1785,9 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
 
+			/* re-enable dynamic ps - just in case */
+			ieee80211_enable_dyn_ps(wl->vif);
+
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl);
 			wl->basic_rate = wl1271_min_rate_get(wl);
@@ -1869,6 +1834,19 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl1271_warning("Set ctsprotect failed %d", ret);
 			goto out_sleep;
 		}
+	}
+
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		__be32 addr = bss_conf->arp_addr_list[0];
+		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+
+		if (bss_conf->arp_addr_cnt == 1 && bss_conf->arp_filter_enabled)
+			ret = wl1271_acx_arp_ip_filter(wl, true, addr);
+		else
+			ret = wl1271_acx_arp_ip_filter(wl, false, addr);
+
+		if (ret < 0)
+			goto out_sleep;
 	}
 
 	if (do_join) {
@@ -1929,6 +1907,48 @@ out:
 	return ret;
 }
 
+static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw)
+{
+
+	struct wl1271 *wl = hw->priv;
+	u64 mactime = ULLONG_MAX;
+	int ret;
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 get tsf");
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_tsf_info(wl, &mactime);
+	if (ret < 0)
+		goto out_sleep;
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+	return mactime;
+}
+
+static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct wl1271 *wl = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+ 
+	if (idx != 0)
+		return -ENOENT;
+ 
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = wl->noise;
+ 
+	return 0;
+}
 
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_rate wl1271_rates[] = {
@@ -1991,7 +2011,7 @@ static struct ieee80211_channel wl1271_channels[] = {
 };
 
 /* mapping to indexes for wl1271_rates */
-const static u8 wl1271_rate_to_idx_2ghz[] = {
+static const u8 wl1271_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
@@ -2103,7 +2123,7 @@ static struct ieee80211_channel wl1271_channels_5ghz[] = {
 };
 
 /* mapping to indexes for wl1271_rates_5ghz */
-const static u8 wl1271_rate_to_idx_5ghz[] = {
+static const u8 wl1271_rate_to_idx_5ghz[] = {
 	/* MCS rates are used only with 11n */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
@@ -2139,7 +2159,7 @@ static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
 };
 
-const static u8 *wl1271_band_rate_to_idx[] = {
+static const u8 *wl1271_band_rate_to_idx[] = {
 	[IEEE80211_BAND_2GHZ] = wl1271_rate_to_idx_2ghz,
 	[IEEE80211_BAND_5GHZ] = wl1271_rate_to_idx_5ghz
 };
@@ -2158,6 +2178,8 @@ static const struct ieee80211_ops wl1271_ops = {
 	.bss_info_changed = wl1271_op_bss_info_changed,
 	.set_rts_threshold = wl1271_op_set_rts_threshold,
 	.conf_tx = wl1271_op_conf_tx,
+	.get_tsf = wl1271_op_get_tsf,
+	.get_survey = wl1271_op_get_survey,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
@@ -2350,14 +2372,12 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_hw_alloc;
 	}
 
-	plat_dev = kmalloc(sizeof(wl1271_device), GFP_KERNEL);
+	plat_dev = kmemdup(&wl1271_device, sizeof(wl1271_device), GFP_KERNEL);
 	if (!plat_dev) {
 		wl1271_error("could not allocate platform_device");
 		ret = -ENOMEM;
 		goto err_plat_alloc;
 	}
-
-	memcpy(plat_dev, &wl1271_device, sizeof(wl1271_device));
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
@@ -2370,6 +2390,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	skb_queue_head_init(&wl->tx_queue);
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
+	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;

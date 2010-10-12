@@ -32,6 +32,8 @@
 #ifdef CONFIG_PPC32
 #include <linux/module.h>
 #endif
+#include <linux/hw_breakpoint.h>
+#include <linux/perf_event.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -866,9 +868,34 @@ void user_disable_single_step(struct task_struct *task)
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+void ptrace_triggered(struct perf_event *bp, int nmi,
+		      struct perf_sample_data *data, struct pt_regs *regs)
+{
+	struct perf_event_attr attr;
+
+	/*
+	 * Disable the breakpoint request here since ptrace has defined a
+	 * one-shot behaviour for breakpoint exceptions in PPC64.
+	 * The SIGTRAP signal is generated automatically for us in do_dabr().
+	 * We don't have to do anything about that here
+	 */
+	attr = bp->attr;
+	attr.disabled = true;
+	modify_user_hw_breakpoint(bp, &attr);
+}
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
 int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 			       unsigned long data)
 {
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	int ret;
+	struct thread_struct *thread = &(task->thread);
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
 	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
 	 *  For embedded processors we support one DAC and no IAC's at the
 	 *  moment.
@@ -896,6 +923,43 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	/* Ensure breakpoint translation bit is set */
 	if (data && !(data & DABR_TRANSLATION))
 		return -EIO;
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	bp = thread->ptrace_bps[0];
+	if ((!data) || !(data & (DABR_DATA_WRITE | DABR_DATA_READ))) {
+		if (bp) {
+			unregister_hw_breakpoint(bp);
+			thread->ptrace_bps[0] = NULL;
+		}
+		return 0;
+	}
+	if (bp) {
+		attr = bp->attr;
+		attr.bp_addr = data & ~HW_BREAKPOINT_ALIGN;
+		arch_bp_generic_fields(data &
+					(DABR_DATA_WRITE | DABR_DATA_READ),
+							&attr.bp_type);
+		ret =  modify_user_hw_breakpoint(bp, &attr);
+		if (ret)
+			return ret;
+		thread->ptrace_bps[0] = bp;
+		thread->dabr = data;
+		return 0;
+	}
+
+	/* Create a new breakpoint request if one doesn't exist already */
+	hw_breakpoint_init(&attr);
+	attr.bp_addr = data & ~HW_BREAKPOINT_ALIGN;
+	arch_bp_generic_fields(data & (DABR_DATA_WRITE | DABR_DATA_READ),
+								&attr.bp_type);
+
+	thread->ptrace_bps[0] = bp = register_user_hw_breakpoint(&attr,
+							ptrace_triggered, task);
+	if (IS_ERR(bp)) {
+		thread->ptrace_bps[0] = NULL;
+		return PTR_ERR(bp);
+	}
+
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
 	/* Move contents to the DABR register */
 	task->thread.dabr = data;

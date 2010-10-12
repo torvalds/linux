@@ -64,5 +64,6 @@ void qeth_l3_del_rxip(struct qeth_card *card, enum qeth_prot_versions,
 			const u8 *);
 int qeth_l3_set_large_send(struct qeth_card *, enum qeth_large_send_types);
 int qeth_l3_set_rx_csum(struct qeth_card *, enum qeth_checksum_types);
+int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *, struct qeth_ipaddr *);
 
 #endif /* __QETH_L3_H__ */

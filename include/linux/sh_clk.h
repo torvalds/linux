@@ -25,6 +25,10 @@ struct clk {
 	int			id;
 
 	struct clk		*parent;
+	struct clk		**parent_table;	/* list of parents to */
+	unsigned short		parent_num;	/* choose between */
+	unsigned char		src_shift;	/* source clock field in the */
+	unsigned char		src_width;	/* configuration register */
 	struct clk_ops		*ops;
 
 	struct list_head	children;
@@ -138,13 +142,22 @@ int sh_clk_div4_enable_register(struct clk *clks, int nr,
 int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 			 struct clk_div4_table *table);
 
-#define SH_CLK_DIV6(_parent, _reg, _flags)	\
-{						\
-	.parent = _parent,			\
-	.enable_reg = (void __iomem *)_reg,	\
-	.flags = _flags,			\
+#define SH_CLK_DIV6_EXT(_parent, _reg, _flags, _parents,	\
+			_num_parents, _src_shift, _src_width)	\
+{								\
+	.parent = _parent,					\
+	.enable_reg = (void __iomem *)_reg,			\
+	.flags = _flags,					\
+	.parent_table = _parents,				\
+	.parent_num = _num_parents,				\
+	.src_shift = _src_shift,				\
+	.src_width = _src_width,				\
 }
 
+#define SH_CLK_DIV6(_parent, _reg, _flags)			\
+	SH_CLK_DIV6_EXT(_parent, _reg, _flags, NULL, 0, 0, 0)
+
 int sh_clk_div6_register(struct clk *clks, int nr);
+int sh_clk_div6_reparent_register(struct clk *clks, int nr);
 
 #endif /* __SH_CLOCK_H */

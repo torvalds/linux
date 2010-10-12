@@ -632,9 +632,21 @@ extern struct ip_vs_conn *ip_vs_ct_in_get
 (int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
  const union nf_inet_addr *d_addr, __be16 d_port);
 
+struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
+					    struct ip_vs_protocol *pp,
+					    const struct ip_vs_iphdr *iph,
+					    unsigned int proto_off,
+					    int inverse);
+
 extern struct ip_vs_conn *ip_vs_conn_out_get
 (int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
  const union nf_inet_addr *d_addr, __be16 d_port);
+
+struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
+					     struct ip_vs_protocol *pp,
+					     const struct ip_vs_iphdr *iph,
+					     unsigned int proto_off,
+					     int inverse);
 
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
@@ -736,8 +748,6 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
-extern int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
-			     char *o_buf, int o_len, char *n_buf, int n_len);
 extern int ip_vs_app_init(void);
 extern void ip_vs_app_cleanup(void);
 

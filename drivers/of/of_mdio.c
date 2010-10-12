@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/phy.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
 

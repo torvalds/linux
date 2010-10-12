@@ -698,7 +698,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		ipv6_hdr(skb)->payload_len = htons(first_len -
 						   sizeof(struct ipv6hdr));
 
-		dst_hold(&rt->u.dst);
+		dst_hold(&rt->dst);
 
 		for (;;) {
 			/* Prepare header of the next frame,
@@ -726,7 +726,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 			err = output(skb);
 			if(!err)
-				IP6_INC_STATS(net, ip6_dst_idev(&rt->u.dst),
+				IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 					      IPSTATS_MIB_FRAGCREATES);
 
 			if (err || !frag)
@@ -740,9 +740,9 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		kfree(tmp_hdr);
 
 		if (err == 0) {
-			IP6_INC_STATS(net, ip6_dst_idev(&rt->u.dst),
+			IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 				      IPSTATS_MIB_FRAGOKS);
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 			return 0;
 		}
 
@@ -752,9 +752,9 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			frag = skb;
 		}
 
-		IP6_INC_STATS(net, ip6_dst_idev(&rt->u.dst),
+		IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 			      IPSTATS_MIB_FRAGFAILS);
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 		return err;
 	}
 
@@ -785,7 +785,7 @@ slow_path:
 		 *	Allocate buffer.
 		 */
 
-		if ((frag = alloc_skb(len+hlen+sizeof(struct frag_hdr)+LL_ALLOCATED_SPACE(rt->u.dst.dev), GFP_ATOMIC)) == NULL) {
+		if ((frag = alloc_skb(len+hlen+sizeof(struct frag_hdr)+LL_ALLOCATED_SPACE(rt->dst.dev), GFP_ATOMIC)) == NULL) {
 			NETDEBUG(KERN_INFO "IPv6: frag: no memory for new fragment!\n");
 			IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 				      IPSTATS_MIB_FRAGFAILS);
@@ -798,7 +798,7 @@ slow_path:
 		 */
 
 		ip6_copy_metadata(frag, skb);
-		skb_reserve(frag, LL_RESERVED_SPACE(rt->u.dst.dev));
+		skb_reserve(frag, LL_RESERVED_SPACE(rt->dst.dev));
 		skb_put(frag, len + hlen + sizeof(struct frag_hdr));
 		skb_reset_network_header(frag);
 		fh = (struct frag_hdr *)(skb_network_header(frag) + hlen);
@@ -1156,24 +1156,24 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 
 			/* need source address above miyazawa*/
 		}
-		dst_hold(&rt->u.dst);
-		inet->cork.dst = &rt->u.dst;
+		dst_hold(&rt->dst);
+		inet->cork.dst = &rt->dst;
 		inet->cork.fl = *fl;
 		np->cork.hop_limit = hlimit;
 		np->cork.tclass = tclass;
 		mtu = np->pmtudisc == IPV6_PMTUDISC_PROBE ?
-		      rt->u.dst.dev->mtu : dst_mtu(rt->u.dst.path);
+		      rt->dst.dev->mtu : dst_mtu(rt->dst.path);
 		if (np->frag_size < mtu) {
 			if (np->frag_size)
 				mtu = np->frag_size;
 		}
 		inet->cork.fragsize = mtu;
-		if (dst_allfrag(rt->u.dst.path))
+		if (dst_allfrag(rt->dst.path))
 			inet->cork.flags |= IPCORK_ALLFRAG;
 		inet->cork.length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
-		exthdrlen = rt->u.dst.header_len + (opt ? opt->opt_flen : 0) -
+		exthdrlen = rt->dst.header_len + (opt ? opt->opt_flen : 0) -
 			    rt->rt6i_nfheader_len;
 		length += exthdrlen;
 		transhdrlen += exthdrlen;
@@ -1186,7 +1186,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		mtu = inet->cork.fragsize;
 	}
 
-	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
+	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
 
 	fragheaderlen = sizeof(struct ipv6hdr) + rt->rt6i_nfheader_len +
 			(opt ? opt->opt_nflen : 0);
@@ -1224,7 +1224,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		}
 
 		if (proto == IPPROTO_UDP &&
-		    (rt->u.dst.dev->features & NETIF_F_UFO)) {
+		    (rt->dst.dev->features & NETIF_F_UFO)) {
 
 			err = ip6_ufo_append_data(sk, getfrag, from, length,
 						  hh_len, fragheaderlen,
@@ -1270,7 +1270,7 @@ alloc_new_skb:
 
 			fraglen = datalen + fragheaderlen;
 			if ((flags & MSG_MORE) &&
-			    !(rt->u.dst.dev->features&NETIF_F_SG))
+			    !(rt->dst.dev->features&NETIF_F_SG))
 				alloclen = mtu;
 			else
 				alloclen = datalen + fragheaderlen;
@@ -1281,7 +1281,7 @@ alloc_new_skb:
 			 * because we have no idea if we're the last one.
 			 */
 			if (datalen == length + fraggap)
-				alloclen += rt->u.dst.trailer_len;
+				alloclen += rt->dst.trailer_len;
 
 			/*
 			 * We just reserve space for fragment header.
@@ -1358,7 +1358,7 @@ alloc_new_skb:
 		if (copy > length)
 			copy = length;
 
-		if (!(rt->u.dst.dev->features&NETIF_F_SG)) {
+		if (!(rt->dst.dev->features&NETIF_F_SG)) {
 			unsigned int off;
 
 			off = skb->len;
@@ -1503,7 +1503,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
-	skb_dst_set(skb, dst_clone(&rt->u.dst));
+	skb_dst_set(skb, dst_clone(&rt->dst));
 	IP6_UPD_PO_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	if (proto == IPPROTO_ICMPV6) {
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));

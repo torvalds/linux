@@ -789,7 +789,7 @@ bfa_fcs_fabric_delete(struct bfa_fcs_fabric_s *fabric)
 
 	list_for_each_safe(qe, qen, &fabric->vport_q) {
 		vport = (struct bfa_fcs_vport_s *)qe;
-		bfa_fcs_vport_delete(vport);
+		bfa_fcs_vport_fcs_delete(vport);
 	}
 
 	bfa_fcs_port_delete(&fabric->bport);
@@ -1025,6 +1025,32 @@ u16
 bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric)
 {
 	return fabric->num_vports;
+}
+
+/*
+ *  Get OUI of the attached switch.
+ *
+ *  Note : Use of this function should be avoided as much as possible.
+ *         This function should be used only if there is any requirement
+ *         to check for FOS version below 6.3.
+ *         To check if the attached fabric is a brocade fabric, use
+ *         bfa_lps_is_brcd_fabric() which works for FOS versions 6.3
+ *         or above only.
+ */
+
+u16
+bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric)
+{
+	wwn_t fab_nwwn;
+	u8 *tmp;
+	u16 oui;
+
+	fab_nwwn = bfa_lps_get_peer_nwwn(fabric->lps);
+
+	tmp = (uint8_t *)&fab_nwwn;
+	oui = (tmp[3] << 8) | tmp[4];
+
+	return oui;
 }
 
 /**
@@ -1268,6 +1294,22 @@ bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 					BFA_PORT_AEN_FABRIC_NAME_CHANGE);
 	}
 
+}
+
+/**
+ *
+ * @param[in] fabric - fabric
+ * @param[in] node_symname -
+ *              Caller allocated buffer to receive the symbolic name
+ *
+ * @return - none
+ */
+void
+bfa_fcs_get_sym_name(const struct bfa_fcs_s *fcs, char *node_symname)
+{
+	bfa_os_memcpy(node_symname,
+			fcs->fabric.bport.port_cfg.sym_name.symname,
+			BFA_SYMNAME_MAXLEN);
 }
 
 /**

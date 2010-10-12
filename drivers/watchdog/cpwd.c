@@ -526,7 +526,7 @@ static const struct file_operations cpwd_fops = {
 	.release =		cpwd_release,
 };
 
-static int __devinit cpwd_probe(struct of_device *op,
+static int __devinit cpwd_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *options;
@@ -545,7 +545,7 @@ static int __devinit cpwd_probe(struct of_device *op,
 		goto out;
 	}
 
-	p->irq = op->irqs[0];
+	p->irq = op->archdata.irqs[0];
 
 	spin_lock_init(&p->lock);
 
@@ -639,7 +639,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit cpwd_remove(struct of_device *op)
+static int __devexit cpwd_remove(struct platform_device *op)
 {
 	struct cpwd *p = dev_get_drvdata(&op->dev);
 	int i;
@@ -688,12 +688,12 @@ static struct of_platform_driver cpwd_driver = {
 
 static int __init cpwd_init(void)
 {
-	return of_register_driver(&cpwd_driver, &of_bus_type);
+	return of_register_platform_driver(&cpwd_driver);
 }
 
 static void __exit cpwd_exit(void)
 {
-	of_unregister_driver(&cpwd_driver);
+	of_unregister_platform_driver(&cpwd_driver);
 }
 
 module_init(cpwd_init);

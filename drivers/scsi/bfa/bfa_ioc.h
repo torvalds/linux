@@ -186,9 +186,6 @@ struct bfa_ioc_hwif_s {
 	bfa_status_t    (*ioc_pll_init) (struct bfa_ioc_s *ioc);
 	bfa_boolean_t   (*ioc_firmware_lock)    (struct bfa_ioc_s *ioc);
 	void            (*ioc_firmware_unlock)  (struct bfa_ioc_s *ioc);
-	u32 *   	(*ioc_fwimg_get_chunk)  (struct bfa_ioc_s *ioc,
-						u32 off);
-	u32		(*ioc_fwimg_get_size)   (struct bfa_ioc_s *ioc);
 	void		(*ioc_reg_init) (struct bfa_ioc_s *ioc);
 	void		(*ioc_map_port) (struct bfa_ioc_s *ioc);
 	void		(*ioc_isr_mode_set)     (struct bfa_ioc_s *ioc,
@@ -214,6 +211,10 @@ struct bfa_ioc_hwif_s {
 
 #define bfa_ioc_stats(_ioc, _stats)     ((_ioc)->stats._stats++)
 #define BFA_IOC_FWIMG_MINSZ     (16 * 1024)
+#define BFA_IOC_FWIMG_TYPE(__ioc)                                       \
+	(((__ioc)->ctdev) ?                                             \
+	 (((__ioc)->fcmode) ? BFI_IMAGE_CT_FC : BFI_IMAGE_CT_CNA) :     \
+	 BFI_IMAGE_CB_FC)
 
 #define BFA_IOC_FLASH_CHUNK_NO(off)             (off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)      (off % BFI_FLASH_CHUNK_SZ_WORDS)
@@ -296,14 +297,17 @@ void bfa_ioc_fwver_get(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
 bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
+void bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event);
 
 /*
  * bfa mfg wwn API functions
  */
 wwn_t bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc);
 wwn_t bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_wwn_naa5(struct bfa_ioc_s *ioc, u16 inst);
 mac_t bfa_ioc_get_mac(struct bfa_ioc_s *ioc);
+wwn_t bfa_ioc_get_mfg_pwwn(struct bfa_ioc_s *ioc);
+wwn_t bfa_ioc_get_mfg_nwwn(struct bfa_ioc_s *ioc);
+mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc);
 u64 bfa_ioc_get_adid(struct bfa_ioc_s *ioc);
 
 #endif /* __BFA_IOC_H__ */

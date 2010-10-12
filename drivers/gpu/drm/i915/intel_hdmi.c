@@ -54,10 +54,11 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
 	u32 sdvox;
 
-	sdvox = SDVO_ENCODING_HDMI |
-		SDVO_BORDER_ENABLE |
-		SDVO_VSYNC_ACTIVE_HIGH |
-		SDVO_HSYNC_ACTIVE_HIGH;
+	sdvox = SDVO_ENCODING_HDMI | SDVO_BORDER_ENABLE;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+		sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+		sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 
 	if (hdmi_priv->has_hdmi_sink) {
 		sdvox |= SDVO_AUDIO_ENABLE;

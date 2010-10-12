@@ -159,7 +159,7 @@ _config_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 	if (!desc)
 		return;
 
-	printk(MPT2SAS_DEBUG_FMT "%s: %s(%d), action(%d), form(0x%08x), "
+	printk(MPT2SAS_INFO_FMT "%s: %s(%d), action(%d), form(0x%08x), "
 	    "smid(%d)\n", ioc->name, calling_function_name, desc,
 	    mpi_request->Header.PageNumber, mpi_request->Action,
 	    le32_to_cpu(mpi_request->PageAddress), smid);
@@ -168,7 +168,7 @@ _config_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 		return;
 
 	if (mpi_reply->IOCStatus || mpi_reply->IOCLogInfo)
-		printk(MPT2SAS_DEBUG_FMT
+		printk(MPT2SAS_INFO_FMT
 		    "\tiocstatus(0x%04x), loginfo(0x%08x)\n",
 		    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
 		    le32_to_cpu(mpi_reply->IOCLogInfo));
@@ -401,7 +401,7 @@ _config_request(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		if (ioc->config_cmds.smid == smid)
 			mpt2sas_base_free_smid(ioc, smid);
 		if ((ioc->shost_recovery) || (ioc->config_cmds.status &
-		    MPT2_CMD_RESET))
+		    MPT2_CMD_RESET) || ioc->pci_error_recovery)
 			goto retry_config;
 		issue_host_reset = 1;
 		r = -EFAULT;

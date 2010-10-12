@@ -43,7 +43,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	int ret;
 
 	wr_len = sizeof *res_wr + sizeof *res;
-	skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -118,7 +118,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + sizeof *res;
 
-	skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto err4;

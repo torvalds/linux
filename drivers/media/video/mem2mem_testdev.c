@@ -903,14 +903,14 @@ static int m2mtest_release(struct file *file)
 static unsigned int m2mtest_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
-	struct m2mtest_ctx *ctx = (struct m2mtest_ctx *)file->private_data;
+	struct m2mtest_ctx *ctx = file->private_data;
 
 	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 }
 
 static int m2mtest_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct m2mtest_ctx *ctx = (struct m2mtest_ctx *)file->private_data;
+	struct m2mtest_ctx *ctx = file->private_data;
 
 	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
 }

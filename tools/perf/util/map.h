@@ -29,7 +29,8 @@ struct map {
 	};
 	u64			start;
 	u64			end;
-	enum map_type		type;
+	u8 /* enum map_type */	type;
+	bool			referenced;
 	u32			priv;
 	u64			pgoff;
 
@@ -106,7 +107,7 @@ void map__init(struct map *self, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		     u64 pgoff, u32 pid, char *filename,
-		     enum map_type type, char *cwd, int cwdlen);
+		     enum map_type type);
 void map__delete(struct map *self);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
@@ -125,8 +126,10 @@ void map__reloc_vmlinux(struct map *self);
 size_t __map_groups__fprintf_maps(struct map_groups *self,
 				  enum map_type type, int verbose, FILE *fp);
 void maps__insert(struct rb_root *maps, struct map *map);
+void maps__remove(struct rb_root *self, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
 void map_groups__init(struct map_groups *self);
+void map_groups__exit(struct map_groups *self);
 int map_groups__clone(struct map_groups *self,
 		      struct map_groups *parent, enum map_type type);
 size_t map_groups__fprintf(struct map_groups *self, int verbose, FILE *fp);
@@ -142,6 +145,8 @@ struct machine *machines__find(struct rb_root *self, pid_t pid);
 struct machine *machines__findnew(struct rb_root *self, pid_t pid);
 char *machine__mmap_name(struct machine *self, char *bf, size_t size);
 int machine__init(struct machine *self, const char *root_dir, pid_t pid);
+void machine__exit(struct machine *self);
+void machine__delete(struct machine *self);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
@@ -161,6 +166,11 @@ static inline void map_groups__insert(struct map_groups *self, struct map *map)
 {
 	maps__insert(&self->maps[map->type], map);
 	map->groups = self;
+}
+
+static inline void map_groups__remove(struct map_groups *self, struct map *map)
+{
+	maps__remove(&self->maps[map->type], map);
 }
 
 static inline struct map *map_groups__find(struct map_groups *self,

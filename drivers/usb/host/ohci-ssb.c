@@ -93,8 +93,11 @@ static void ssb_ohci_detach(struct ssb_device *dev)
 {
 	struct usb_hcd *hcd = ssb_get_drvdata(dev);
 
+	if (hcd->driver->shutdown)
+		hcd->driver->shutdown(hcd);
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	ssb_device_disable(dev, 0);
 }
@@ -106,10 +109,52 @@ static int ssb_ohci_attach(struct ssb_device *dev)
 	int err = -ENOMEM;
 	u32 tmp, flags = 0;
 
-	if (dev->id.coreid == SSB_DEV_USB11_HOSTDEV)
-		flags |= SSB_OHCI_TMSLOW_HOSTMODE;
+	if (dma_set_mask(dev->dma_dev, DMA_BIT_MASK(32)) ||
+	    dma_set_coherent_mask(dev->dma_dev, DMA_BIT_MASK(32)))
+		return -EOPNOTSUPP;
 
-	ssb_device_enable(dev, flags);
+	if (dev->id.coreid == SSB_DEV_USB11_HOSTDEV) {
+		/* Put the device into host-mode. */
+		flags |= SSB_OHCI_TMSLOW_HOSTMODE;
+		ssb_device_enable(dev, flags);
+	} else if (dev->id.coreid == SSB_DEV_USB20_HOST) {
+		/*
+		 * USB 2.0 special considerations:
+		 *
+		 * In addition to the standard SSB reset sequence, the Host
+		 * Control Register must be programmed to bring the USB core
+		 * and various phy components out of reset.
+		 */
+		ssb_device_enable(dev, 0);
+		ssb_write32(dev, 0x200, 0x7ff);
+
+		/* Change Flush control reg */
+		tmp = ssb_read32(dev, 0x400);
+		tmp &= ~8;
+		ssb_write32(dev, 0x400, tmp);
+		tmp = ssb_read32(dev, 0x400);
+
+		/* Change Shim control reg */
+		tmp = ssb_read32(dev, 0x304);
+		tmp &= ~0x100;
+		ssb_write32(dev, 0x304, tmp);
+		tmp = ssb_read32(dev, 0x304);
+
+		udelay(1);
+
+		/* Work around for 5354 failures */
+		if (dev->id.revision == 2 && dev->bus->chip_id == 0x5354) {
+			/* Change syn01 reg */
+			tmp = 0x00fe00fe;
+			ssb_write32(dev, 0x894, tmp);
+
+			/* Change syn03 reg */
+			tmp = ssb_read32(dev, 0x89c);
+			tmp |= 0x1;
+			ssb_write32(dev, 0x89c, tmp);
+		}
+	} else
+		ssb_device_enable(dev, 0);
 
 	hcd = usb_create_hcd(&ssb_ohci_hc_driver, dev->dev,
 			dev_name(dev->dev));
@@ -200,6 +245,7 @@ static int ssb_ohci_resume(struct ssb_device *dev)
 static const struct ssb_device_id ssb_ohci_table[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB11_HOSTDEV, SSB_ANY_REV),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB11_HOST, SSB_ANY_REV),
+	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB20_HOST, SSB_ANY_REV),
 	SSB_DEVTABLE_END
 };
 MODULE_DEVICE_TABLE(ssb, ssb_ohci_table);

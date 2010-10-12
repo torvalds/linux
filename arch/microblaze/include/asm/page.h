@@ -23,8 +23,16 @@
 #ifdef __KERNEL__
 
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	(12)
-#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
+#if defined(CONFIG_MICROBLAZE_32K_PAGES)
+#define PAGE_SHIFT		15
+#elif defined(CONFIG_MICROBLAZE_16K_PAGES)
+#define PAGE_SHIFT		14
+#elif defined(CONFIG_MICROBLAZE_8K_PAGES)
+#define PAGE_SHIFT		13
+#else
+#define PAGE_SHIFT		12
+#endif
+#define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_KERNEL_BASE_ADDR))
@@ -32,19 +40,12 @@
 #ifndef __ASSEMBLY__
 
 /* MS be sure that SLAB allocates aligned objects */
-#define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 
 #define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
 
 #define PAGE_UP(addr)	(((addr)+((PAGE_SIZE)-1))&(~((PAGE_SIZE)-1)))
 #define PAGE_DOWN(addr)	((addr)&(~((PAGE_SIZE)-1)))
-
-/* align addr on a size boundary - adjust address up/down if needed */
-#define _ALIGN_UP(addr, size)	(((addr)+((size)-1))&(~((size)-1)))
-#define _ALIGN_DOWN(addr, size)	((addr)&(~((size)-1)))
-
-/* align addr on a size boundary - adjust address up if needed */
-#define _ALIGN(addr, size)	_ALIGN_UP(addr, size)
 
 #ifndef CONFIG_MMU
 /*

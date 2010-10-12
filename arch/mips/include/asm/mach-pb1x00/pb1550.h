@@ -40,14 +40,6 @@
 #define SMBUS_PSC_BASE		PSC2_BASE_ADDR
 #define I2S_PSC_BASE		PSC3_BASE_ADDR
 
-#if defined(CONFIG_MTD_PB1550_BOOT) && defined(CONFIG_MTD_PB1550_USER)
-#define PB1550_BOTH_BANKS
-#elif defined(CONFIG_MTD_PB1550_BOOT) && !defined(CONFIG_MTD_PB1550_USER)
-#define PB1550_BOOT_ONLY
-#elif !defined(CONFIG_MTD_PB1550_BOOT) && defined(CONFIG_MTD_PB1550_USER)
-#define PB1550_USER_ONLY
-#endif
-
 /*
  * Timing values as described in databook, * ns value stripped of
  * lower 2 bits.

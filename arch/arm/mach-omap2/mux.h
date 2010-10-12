@@ -7,6 +7,8 @@
  * published by the Free Software Foundation.
  */
 
+#include "mux2420.h"
+#include "mux2430.h"
 #include "mux34xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
@@ -56,10 +58,12 @@
 
 /* Flags for omap_mux_init */
 #define OMAP_PACKAGE_MASK		0xffff
-#define OMAP_PACKAGE_CBP		4		/* 515-pin 0.40 0.50 */
-#define OMAP_PACKAGE_CUS		3		/* 423-pin 0.65 */
-#define OMAP_PACKAGE_CBB		2		/* 515-pin 0.40 0.50 */
-#define OMAP_PACKAGE_CBC		1		/* 515-pin 0.50 0.65 */
+#define OMAP_PACKAGE_CBP		6		/* 515-pin 0.40 0.50 */
+#define OMAP_PACKAGE_CUS		5		/* 423-pin 0.65 */
+#define OMAP_PACKAGE_CBB		4		/* 515-pin 0.40 0.50 */
+#define OMAP_PACKAGE_CBC		3		/* 515-pin 0.50 0.65 */
+#define OMAP_PACKAGE_ZAC		2		/* 24xx 447-pin POP */
+#define OMAP_PACKAGE_ZAF		1		/* 2420 447-pin SIP */
 
 
 #define OMAP_MUX_NR_MODES	8			/* Available modes */
@@ -102,7 +106,7 @@ struct omap_board_mux {
 	u16	value;
 };
 
-#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_OMAP_MUX)
 
 /**
  * omap_mux_init_gpio - initialize a signal based on the GPIO number
@@ -169,6 +173,20 @@ void omap_mux_write(u16 val, u16 mux_offset);
  * This should be only needed for dynamic remuxing of non-gpio signals.
  */
 void omap_mux_write_array(struct omap_board_mux *board_mux);
+
+/**
+ * omap2420_mux_init() - initialize mux system with board specific set
+ * @board_mux:		Board specific mux table
+ * @flags:		OMAP package type used for the board
+ */
+int omap2420_mux_init(struct omap_board_mux *board_mux, int flags);
+
+/**
+ * omap2430_mux_init() - initialize mux system with board specific set
+ * @board_mux:		Board specific mux table
+ * @flags:		OMAP package type used for the board
+ */
+int omap2430_mux_init(struct omap_board_mux *board_mux, int flags);
 
 /**
  * omap3_mux_init() - initialize mux system with board specific set

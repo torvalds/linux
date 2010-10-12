@@ -65,6 +65,34 @@
 
 #include "iwl-dev.h"
 
+/* configuration for the _agn devices */
+extern struct iwl_cfg iwl4965_agn_cfg;
+extern struct iwl_cfg iwl5300_agn_cfg;
+extern struct iwl_cfg iwl5100_agn_cfg;
+extern struct iwl_cfg iwl5350_agn_cfg;
+extern struct iwl_cfg iwl5100_bgn_cfg;
+extern struct iwl_cfg iwl5100_abg_cfg;
+extern struct iwl_cfg iwl5150_agn_cfg;
+extern struct iwl_cfg iwl5150_abg_cfg;
+extern struct iwl_cfg iwl6000g2a_2agn_cfg;
+extern struct iwl_cfg iwl6000g2a_2abg_cfg;
+extern struct iwl_cfg iwl6000g2a_2bg_cfg;
+extern struct iwl_cfg iwl6000g2b_bgn_cfg;
+extern struct iwl_cfg iwl6000g2b_bg_cfg;
+extern struct iwl_cfg iwl6000g2b_2agn_cfg;
+extern struct iwl_cfg iwl6000g2b_2abg_cfg;
+extern struct iwl_cfg iwl6000g2b_2bgn_cfg;
+extern struct iwl_cfg iwl6000g2b_2bg_cfg;
+extern struct iwl_cfg iwl6000i_2agn_cfg;
+extern struct iwl_cfg iwl6000i_2abg_cfg;
+extern struct iwl_cfg iwl6000i_2bg_cfg;
+extern struct iwl_cfg iwl6000_3agn_cfg;
+extern struct iwl_cfg iwl6050_2agn_cfg;
+extern struct iwl_cfg iwl6050_2abg_cfg;
+extern struct iwl_cfg iwl6050g2_bgn_cfg;
+extern struct iwl_cfg iwl1000_bgn_cfg;
+extern struct iwl_cfg iwl1000_bg_cfg;
+
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
@@ -93,6 +121,8 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			   u16 ssn_idx, u8 tx_fifo);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
+void iwl_free_tfds_in_queue(struct iwl_priv *priv,
+			    int sta_id, int tid, int freed);
 
 /* uCode */
 int iwlagn_load_ucode(struct iwl_priv *priv);
@@ -102,6 +132,7 @@ void iwlagn_rx_calib_complete(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb);
 void iwlagn_init_alive_start(struct iwl_priv *priv);
 int iwlagn_alive_notify(struct iwl_priv *priv);
+int iwl_verify_ucode(struct iwl_priv *priv);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
@@ -117,6 +148,9 @@ const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
 void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_hw_nic_init(struct iwl_priv *priv);
+int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 
 /* rx */
 void iwlagn_rx_queue_restock(struct iwl_priv *priv);
@@ -171,11 +205,25 @@ static inline bool iwl_is_tx_success(u32 status)
 	       (status == TX_STATUS_DIRECT_DONE);
 }
 
+/* rx */
+void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
+				struct iwl_rx_mem_buffer *rxb);
+bool iwl_good_plcp_health(struct iwl_priv *priv,
+			  struct iwl_rx_packet *pkt);
+void iwl_rx_statistics(struct iwl_priv *priv,
+		       struct iwl_rx_mem_buffer *rxb);
+void iwl_reply_statistics(struct iwl_priv *priv,
+			  struct iwl_rx_mem_buffer *rxb);
+
 /* scan */
 void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 
 /* station mgmt */
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
+
+/* hcmd */
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv);
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
 
 #endif /* __iwl_agn_h__ */

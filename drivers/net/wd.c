@@ -358,8 +358,10 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 #endif
 
 	err = register_netdev(dev);
-	if (err)
+	if (err) {
 		free_irq(dev->irq, dev);
+		iounmap(ei_status.mem);
+	}
 	return err;
 }
 

@@ -351,6 +351,7 @@ int hfsplus_show_options(struct seq_file *, struct vfsmount *);
 
 /* super.c */
 struct inode *hfsplus_iget(struct super_block *, unsigned long);
+int hfsplus_sync_fs(struct super_block *sb, int wait);
 
 /* tables.c */
 extern u16 hfsplus_case_fold_table[];

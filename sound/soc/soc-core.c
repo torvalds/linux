@@ -84,7 +84,7 @@ static int run_delayed_work(struct delayed_work *dwork)
 /* codec register dump */
 static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 {
-	int i, step = 1, count = 0;
+	int ret, i, step = 1, count = 0;
 
 	if (!codec->reg_cache_size)
 		return 0;
@@ -101,12 +101,24 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 		if (count >= PAGE_SIZE - 1)
 			break;
 
-		if (codec->display_register)
+		if (codec->display_register) {
 			count += codec->display_register(codec, buf + count,
 							 PAGE_SIZE - count, i);
-		else
-			count += snprintf(buf + count, PAGE_SIZE - count,
-					  "%4x", codec->read(codec, i));
+		} else {
+			/* If the read fails it's almost certainly due to
+			 * the register being volatile and the device being
+			 * powered off.
+			 */
+			ret = codec->read(codec, i);
+			if (ret >= 0)
+				count += snprintf(buf + count,
+						  PAGE_SIZE - count,
+						  "%4x", ret);
+			else
+				count += snprintf(buf + count,
+						  PAGE_SIZE - count,
+						  "<no data: %d>", ret);
+		}
 
 		if (count >= PAGE_SIZE - 1)
 			break;
@@ -1307,7 +1319,7 @@ cpu_dai_err:
 }
 
 /*
- * Attempt to initialise any uninitalised cards.  Must be called with
+ * Attempt to initialise any uninitialised cards.  Must be called with
  * client_mutex.
  */
 static void snd_soc_instantiate_cards(void)
@@ -2351,6 +2363,99 @@ int snd_soc_limit_volume(struct snd_soc_codec *codec,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_limit_volume);
+
+/**
+ * snd_soc_info_volsw_2r_sx - double with tlv and variable data size
+ *  mixer info callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_info_volsw_2r_sx(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
+	int min = mc->min;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = max-min;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_info_volsw_2r_sx);
+
+/**
+ * snd_soc_get_volsw_2r_sx - double with tlv and variable data size
+ *  mixer get callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_get_volsw_2r_sx(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = (1<<mc->shift)-1;
+	int min = mc->min;
+	int val = snd_soc_read(codec, mc->reg) & mask;
+	int valr = snd_soc_read(codec, mc->rreg) & mask;
+
+	ucontrol->value.integer.value[0] = ((val & 0xff)-min) & mask;
+	ucontrol->value.integer.value[1] = ((valr & 0xff)-min) & mask;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r_sx);
+
+/**
+ * snd_soc_put_volsw_2r_sx - double with tlv and variable data size
+ *  mixer put callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = (1<<mc->shift)-1;
+	int min = mc->min;
+	int ret;
+	unsigned int val, valr, oval, ovalr;
+
+	val = ((ucontrol->value.integer.value[0]+min) & 0xff);
+	val &= mask;
+	valr = ((ucontrol->value.integer.value[1]+min) & 0xff);
+	valr &= mask;
+
+	oval = snd_soc_read(codec, mc->reg) & mask;
+	ovalr = snd_soc_read(codec, mc->rreg) & mask;
+
+	ret = 0;
+	if (oval != val) {
+		ret = snd_soc_write(codec, mc->reg, val);
+		if (ret < 0)
+			return ret;
+	}
+	if (ovalr != valr) {
+		ret = snd_soc_write(codec, mc->rreg, valr);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_put_volsw_2r_sx);
 
 /**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.

@@ -69,9 +69,12 @@
 struct uart_amba_port {
 	struct uart_port	port;
 	struct clk		*clk;
-	unsigned int		im;	/* interrupt mask */
+	unsigned int		im;		/* interrupt mask */
 	unsigned int		old_status;
-	unsigned int		ifls;	/* vendor-specific */
+	unsigned int		ifls;		/* vendor-specific */
+	unsigned int		lcrh_tx;	/* vendor-specific */
+	unsigned int		lcrh_rx;	/* vendor-specific */
+	bool			oversampling;   /* vendor-specific */
 	bool			autorts;
 };
 
@@ -79,16 +82,25 @@ struct uart_amba_port {
 struct vendor_data {
 	unsigned int		ifls;
 	unsigned int		fifosize;
+	unsigned int		lcrh_tx;
+	unsigned int		lcrh_rx;
+	bool			oversampling;
 };
 
 static struct vendor_data vendor_arm = {
 	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
 	.fifosize		= 16,
+	.lcrh_tx		= UART011_LCRH,
+	.lcrh_rx		= UART011_LCRH,
+	.oversampling		= false,
 };
 
 static struct vendor_data vendor_st = {
 	.ifls			= UART011_IFLS_RX_HALF|UART011_IFLS_TX_HALF,
 	.fifosize		= 64,
+	.lcrh_tx		= ST_UART011_LCRH_TX,
+	.lcrh_rx		= ST_UART011_LCRH_RX,
+	.oversampling		= true,
 };
 
 static void pl011_stop_tx(struct uart_port *port)
@@ -327,12 +339,12 @@ static void pl011_break_ctl(struct uart_port *port, int break_state)
 	unsigned int lcr_h;
 
 	spin_lock_irqsave(&uap->port.lock, flags);
-	lcr_h = readw(uap->port.membase + UART011_LCRH);
+	lcr_h = readw(uap->port.membase + uap->lcrh_tx);
 	if (break_state == -1)
 		lcr_h |= UART01x_LCRH_BRK;
 	else
 		lcr_h &= ~UART01x_LCRH_BRK;
-	writew(lcr_h, uap->port.membase + UART011_LCRH);
+	writew(lcr_h, uap->port.membase + uap->lcrh_tx);
 	spin_unlock_irqrestore(&uap->port.lock, flags);
 }
 
@@ -393,7 +405,17 @@ static int pl011_startup(struct uart_port *port)
 	writew(cr, uap->port.membase + UART011_CR);
 	writew(0, uap->port.membase + UART011_FBRD);
 	writew(1, uap->port.membase + UART011_IBRD);
-	writew(0, uap->port.membase + UART011_LCRH);
+	writew(0, uap->port.membase + uap->lcrh_rx);
+	if (uap->lcrh_tx != uap->lcrh_rx) {
+		int i;
+		/*
+		 * Wait 10 PCLKs before writing LCRH_TX register,
+		 * to get this delay write read only register 10 times
+		 */
+		for (i = 0; i < 10; ++i)
+			writew(0xff, uap->port.membase + UART011_MIS);
+		writew(0, uap->port.membase + uap->lcrh_tx);
+	}
 	writew(0, uap->port.membase + UART01x_DR);
 	while (readw(uap->port.membase + UART01x_FR) & UART01x_FR_BUSY)
 		barrier();
@@ -422,10 +444,19 @@ static int pl011_startup(struct uart_port *port)
 	return retval;
 }
 
+static void pl011_shutdown_channel(struct uart_amba_port *uap,
+					unsigned int lcrh)
+{
+      unsigned long val;
+
+      val = readw(uap->port.membase + lcrh);
+      val &= ~(UART01x_LCRH_BRK | UART01x_LCRH_FEN);
+      writew(val, uap->port.membase + lcrh);
+}
+
 static void pl011_shutdown(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
-	unsigned long val;
 
 	/*
 	 * disable all interrupts
@@ -450,9 +481,9 @@ static void pl011_shutdown(struct uart_port *port)
 	/*
 	 * disable break condition and fifos
 	 */
-	val = readw(uap->port.membase + UART011_LCRH);
-	val &= ~(UART01x_LCRH_BRK | UART01x_LCRH_FEN);
-	writew(val, uap->port.membase + UART011_LCRH);
+	pl011_shutdown_channel(uap, uap->lcrh_rx);
+	if (uap->lcrh_rx != uap->lcrh_tx)
+		pl011_shutdown_channel(uap, uap->lcrh_tx);
 
 	/*
 	 * Shut down the clock producer
@@ -472,8 +503,13 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
-	quot = port->uartclk * 4 / baud;
+	baud = uart_get_baud_rate(port, termios, old, 0,
+				  port->uartclk/(uap->oversampling ? 8 : 16));
+
+	if (baud > port->uartclk/16)
+		quot = DIV_ROUND_CLOSEST(port->uartclk * 8, baud);
+	else
+		quot = DIV_ROUND_CLOSEST(port->uartclk * 4, baud);
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -552,6 +588,13 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 		uap->autorts = false;
 	}
 
+	if (uap->oversampling) {
+		if (baud > port->uartclk/16)
+			old_cr |= ST_UART011_CR_OVSFACT;
+		else
+			old_cr &= ~ST_UART011_CR_OVSFACT;
+	}
+
 	/* Set baud rate */
 	writew(quot & 0x3f, port->membase + UART011_FBRD);
 	writew(quot >> 6, port->membase + UART011_IBRD);
@@ -561,7 +604,17 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * NOTE: MUST BE WRITTEN AFTER UARTLCR_M & UARTLCR_L
 	 * ----------^----------^----------^----------^-----
 	 */
-	writew(lcr_h, port->membase + UART011_LCRH);
+	writew(lcr_h, port->membase + uap->lcrh_rx);
+	if (uap->lcrh_rx != uap->lcrh_tx) {
+		int i;
+		/*
+		 * Wait 10 PCLKs before writing LCRH_TX register,
+		 * to get this delay write read only register 10 times
+		 */
+		for (i = 0; i < 10; ++i)
+			writew(0xff, uap->port.membase + UART011_MIS);
+		writew(lcr_h, port->membase + uap->lcrh_tx);
+	}
 	writew(old_cr, port->membase + UART011_CR);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -688,7 +741,7 @@ pl011_console_get_options(struct uart_amba_port *uap, int *baud,
 	if (readw(uap->port.membase + UART011_CR) & UART01x_CR_UARTEN) {
 		unsigned int lcr_h, ibrd, fbrd;
 
-		lcr_h = readw(uap->port.membase + UART011_LCRH);
+		lcr_h = readw(uap->port.membase + uap->lcrh_tx);
 
 		*parity = 'n';
 		if (lcr_h & UART01x_LCRH_PEN) {
@@ -707,6 +760,12 @@ pl011_console_get_options(struct uart_amba_port *uap, int *baud,
 		fbrd = readw(uap->port.membase + UART011_FBRD);
 
 		*baud = uap->port.uartclk * 4 / (64 * ibrd + fbrd);
+
+		if (uap->oversampling) {
+			if (readw(uap->port.membase + UART011_CR)
+				  & ST_UART011_CR_OVSFACT)
+				*baud *= 2;
+		}
 	}
 }
 
@@ -800,6 +859,9 @@ static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 	}
 
 	uap->ifls = vendor->ifls;
+	uap->lcrh_rx = vendor->lcrh_rx;
+	uap->lcrh_tx = vendor->lcrh_tx;
+	uap->oversampling = vendor->oversampling;
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
@@ -868,7 +930,7 @@ static int pl011_resume(struct amba_device *dev)
 }
 #endif
 
-static struct amba_id pl011_ids[] __initdata = {
+static struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,

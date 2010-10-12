@@ -889,8 +889,6 @@ void logfs_cleanup_journal(struct super_block *sb)
 	struct logfs_super *super = logfs_super(sb);
 
 	btree_grim_visitor32(&super->s_reserved_segments, 0, NULL);
-	destroy_meta_inode(super->s_master_inode);
-	super->s_master_inode = NULL;
 
 	kfree(super->s_compressed_je);
 	kfree(super->s_je);

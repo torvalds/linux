@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <scsi/fc/fc_fcp.h>
+#include <scsi/scsi_eh.h>
 #include <asm/atomic.h>
 #include "zfcp_ext.h"
 #include "zfcp_dbf.h"
@@ -21,6 +22,13 @@
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);
 MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
+
+static bool enable_dif;
+
+#ifdef CONFIG_ZFCP_DIF
+module_param_named(dif, enable_dif, bool, 0600);
+MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
+#endif
 
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
@@ -506,8 +514,10 @@ static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
  * @rport: The FC rport where to teminate I/O
  *
  * Abort all pending SCSI commands for a port by closing the
- * port. Using a reopen avoiding a conflict with a shutdown
- * overwriting a reopen.
+ * port. Using a reopen avoids a conflict with a shutdown
+ * overwriting a reopen. The "forced" ensures that a disappeared port
+ * is not opened again as valid due to the cached plogi data in
+ * non-NPIV mode.
  */
 static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 {
@@ -519,9 +529,23 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 
 	if (port) {
-		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
+		zfcp_erp_port_forced_reopen(port, 0, "sctrpi1", NULL);
 		put_device(&port->dev);
 	}
+}
+
+static void zfcp_scsi_queue_unit_register(struct zfcp_port *port)
+{
+	struct zfcp_unit *unit;
+
+	read_lock_irq(&port->unit_list_lock);
+	list_for_each_entry(unit, &port->unit_list, list) {
+		get_device(&unit->dev);
+		if (scsi_queue_work(port->adapter->scsi_host,
+				    &unit->scsi_work) <= 0)
+			put_device(&unit->dev);
+	}
+	read_unlock_irq(&port->unit_list_lock);
 }
 
 static void zfcp_scsi_rport_register(struct zfcp_port *port)
@@ -548,6 +572,9 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 	rport->maxframe_size = port->maxframe_size;
 	rport->supported_classes = port->supported_classes;
 	port->rport = rport;
+	port->starget_id = rport->scsi_target_id;
+
+	zfcp_scsi_queue_unit_register(port);
 }
 
 static void zfcp_scsi_rport_block(struct zfcp_port *port)
@@ -610,22 +637,72 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 	put_device(&port->dev);
 }
 
-
-void zfcp_scsi_scan(struct work_struct *work)
+/**
+ * zfcp_scsi_scan - Register LUN with SCSI midlayer
+ * @unit: The LUN/unit to register
+ */
+void zfcp_scsi_scan(struct zfcp_unit *unit)
 {
-	struct zfcp_unit *unit = container_of(work, struct zfcp_unit,
-					      scsi_work);
-	struct fc_rport *rport;
-
-	flush_work(&unit->port->rport_work);
-	rport = unit->port->rport;
+	struct fc_rport *rport = unit->port->rport;
 
 	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
 		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
 				 scsilun_to_int((struct scsi_lun *)
 						&unit->fcp_lun), 0);
+}
 
+void zfcp_scsi_scan_work(struct work_struct *work)
+{
+	struct zfcp_unit *unit = container_of(work, struct zfcp_unit,
+					      scsi_work);
+
+	zfcp_scsi_scan(unit);
 	put_device(&unit->dev);
+}
+
+/**
+ * zfcp_scsi_set_prot - Configure DIF/DIX support in scsi_host
+ * @adapter: The adapter where to configure DIF/DIX for the SCSI host
+ */
+void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
+{
+	unsigned int mask = 0;
+	unsigned int data_div;
+	struct Scsi_Host *shost = adapter->scsi_host;
+
+	data_div = atomic_read(&adapter->status) &
+		   ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED;
+
+	if (enable_dif &&
+	    adapter->adapter_features & FSF_FEATURE_DIF_PROT_TYPE1)
+		mask |= SHOST_DIF_TYPE1_PROTECTION;
+
+	if (enable_dif && data_div &&
+	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
+		mask |= SHOST_DIX_TYPE1_PROTECTION;
+		scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);
+		shost->sg_tablesize = ZFCP_QDIO_MAX_SBALES_PER_REQ / 2;
+		shost->max_sectors = ZFCP_QDIO_MAX_SBALES_PER_REQ * 8 / 2;
+	}
+
+	scsi_host_set_prot(shost, mask);
+}
+
+/**
+ * zfcp_scsi_dif_sense_error - Report DIF/DIX error as driver sense error
+ * @scmd: The SCSI command to report the error for
+ * @ascq: The ASCQ to put in the sense buffer
+ *
+ * See the error handling in sd_done for the sense codes used here.
+ * Set DID_SOFT_ERROR to retry the request, if possible.
+ */
+void zfcp_scsi_dif_sense_error(struct scsi_cmnd *scmd, int ascq)
+{
+	scsi_build_sense_buffer(1, scmd->sense_buffer,
+				ILLEGAL_REQUEST, 0x10, ascq);
+	set_driver_byte(scmd, DRIVER_SENSE);
+	scmd->result |= SAM_STAT_CHECK_CONDITION;
+	set_host_byte(scmd, DID_SOFT_ERROR);
 }
 
 struct fc_function_template zfcp_transport_functions = {
@@ -677,11 +754,11 @@ struct zfcp_data zfcp_data = {
 		.eh_host_reset_handler	 = zfcp_scsi_eh_host_reset_handler,
 		.can_queue		 = 4096,
 		.this_id		 = -1,
-		.sg_tablesize		 = ZFCP_FSF_MAX_SBALES_PER_REQ,
+		.sg_tablesize		 = ZFCP_QDIO_MAX_SBALES_PER_REQ,
 		.cmd_per_lun		 = 1,
 		.use_clustering		 = 1,
 		.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
-		.max_sectors		 = (ZFCP_FSF_MAX_SBALES_PER_REQ * 8),
+		.max_sectors		 = (ZFCP_QDIO_MAX_SBALES_PER_REQ * 8),
 		.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
 		.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	},

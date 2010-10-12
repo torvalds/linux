@@ -7,9 +7,6 @@
 #include "linux/ptrace.h"
 #include "linux/sched.h"
 #include "asm/uaccess.h"
-#ifdef CONFIG_PROC_MM
-#include "proc_mm.h"
-#endif
 #include "skas_ptrace.h"
 
 
@@ -155,24 +152,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 * now
 		 */
 		ret = -EIO;
-		break;
-	}
-#endif
-#ifdef CONFIG_PROC_MM
-	case PTRACE_SWITCH_MM: {
-		struct mm_struct *old = child->mm;
-		struct mm_struct *new = proc_mm_get_mm(data);
-
-		if (IS_ERR(new)) {
-			ret = PTR_ERR(new);
-			break;
-		}
-
-		atomic_inc(&new->mm_users);
-		child->mm = new;
-		child->active_mm = new;
-		mmput(old);
-		ret = 0;
 		break;
 	}
 #endif

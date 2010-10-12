@@ -2,6 +2,7 @@
  * KVM coalesced MMIO
  *
  * Copyright (c) 2008 Bull S.A.S.
+ * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
  *  Author: Laurent Vivier <Laurent.Vivier@bull.net>
  *

@@ -350,7 +350,7 @@ void dump(struct pt_regs *fp)
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char *name, char **argv, char **envp)
+asmlinkage int sys_execve(const char *name, char **argv, char **envp)
 {
 	int error;
 	char * filename;

@@ -104,14 +104,6 @@ MODULE_VERSION(DRV_VERSION);
  * complete immediately.
  */
 
-/* These addresses are only used if yamon doesn't tell us what
- * the mac address is, and the mac address is not passed on the
- * command line.
- */
-static unsigned char au1000_mac_addr[6] __devinitdata = {
-	0x00, 0x50, 0xc2, 0x0c, 0x30, 0x00
-};
-
 struct au1000_private *au_macs[NUM_ETH_INTERFACES];
 
 /*
@@ -978,7 +970,7 @@ static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!aup->phy_dev)
 		return -EINVAL; /* PHY not controllable */
 
-	return phy_mii_ioctl(aup->phy_dev, if_mii(rq), cmd);
+	return phy_mii_ioctl(aup->phy_dev, rq, cmd);
 }
 
 static const struct net_device_ops au1000_netdev_ops = {
@@ -1002,7 +994,6 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	db_dest_t *pDB, *pDBfree;
 	int irq, i, err = 0;
 	struct resource *base, *macen;
-	char ethaddr[6];
 
 	base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!base) {
@@ -1079,24 +1070,13 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	}
 	aup->mac_id = pdev->id;
 
-	if (pdev->id == 0) {
-		if (prom_get_ethernet_addr(ethaddr) == 0)
-			memcpy(au1000_mac_addr, ethaddr, sizeof(au1000_mac_addr));
-		else {
-			netdev_info(dev, "No MAC address found\n");
-				/* Use the hard coded MAC addresses */
-		}
-
+	if (pdev->id == 0)
 		au1000_setup_hw_rings(aup, MAC0_RX_DMA_ADDR, MAC0_TX_DMA_ADDR);
-	} else if (pdev->id == 1)
+	else if (pdev->id == 1)
 		au1000_setup_hw_rings(aup, MAC1_RX_DMA_ADDR, MAC1_TX_DMA_ADDR);
 
-	/*
-	 * Assign to the Ethernet ports two consecutive MAC addresses
-	 * to match those that are printed on their stickers
-	 */
-	memcpy(dev->dev_addr, au1000_mac_addr, sizeof(au1000_mac_addr));
-	dev->dev_addr[5] += pdev->id;
+	/* set a random MAC now in case platform_data doesn't provide one */
+	random_ether_addr(dev->dev_addr);
 
 	*aup->enable = 0;
 	aup->mac_enabled = 0;
@@ -1106,6 +1086,9 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "no platform_data passed, PHY search on MAC0\n");
 		aup->phy1_search_mac0 = 1;
 	} else {
+		if (is_valid_ether_addr(pd->mac))
+			memcpy(dev->dev_addr, pd->mac, 6);
+
 		aup->phy_static_config = pd->phy_static_config;
 		aup->phy_search_highest_addr = pd->phy_search_highest_addr;
 		aup->phy1_search_mac0 = pd->phy1_search_mac0;

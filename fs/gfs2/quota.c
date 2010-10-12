@@ -787,15 +787,9 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		goto out;
 
 	for (x = 0; x < num_qd; x++) {
-		int alloc_required;
-
 		offset = qd2offset(qda[x]);
-		error = gfs2_write_alloc_required(ip, offset,
-						  sizeof(struct gfs2_quota),
-						  &alloc_required);
-		if (error)
-			goto out_gunlock;
-		if (alloc_required)
+		if (gfs2_write_alloc_required(ip, offset,
+					      sizeof(struct gfs2_quota)))
 			nalloc++;
 	}
 
@@ -1455,10 +1449,10 @@ static int gfs2_quota_get_xstate(struct super_block *sb,
 
 	switch (sdp->sd_args.ar_quota) {
 	case GFS2_QUOTA_ON:
-		fqs->qs_flags |= (XFS_QUOTA_UDQ_ENFD | XFS_QUOTA_GDQ_ENFD);
+		fqs->qs_flags |= (FS_QUOTA_UDQ_ENFD | FS_QUOTA_GDQ_ENFD);
 		/*FALLTHRU*/
 	case GFS2_QUOTA_ACCOUNT:
-		fqs->qs_flags |= (XFS_QUOTA_UDQ_ACCT | XFS_QUOTA_GDQ_ACCT);
+		fqs->qs_flags |= (FS_QUOTA_UDQ_ACCT | FS_QUOTA_GDQ_ACCT);
 		break;
 	case GFS2_QUOTA_OFF:
 		break;
@@ -1504,7 +1498,7 @@ static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
 
 	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
 	fdq->d_version = FS_DQUOT_VERSION;
-	fdq->d_flags = (type == QUOTA_USER) ? XFS_USER_QUOTA : XFS_GROUP_QUOTA;
+	fdq->d_flags = (type == QUOTA_USER) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
 	fdq->d_id = id;
 	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit);
 	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn);
@@ -1539,12 +1533,12 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 	switch(type) {
 	case USRQUOTA:
 		type = QUOTA_USER;
-		if (fdq->d_flags != XFS_USER_QUOTA)
+		if (fdq->d_flags != FS_USER_QUOTA)
 			return -EINVAL;
 		break;
 	case GRPQUOTA:
 		type = QUOTA_GROUP;
-		if (fdq->d_flags != XFS_GROUP_QUOTA)
+		if (fdq->d_flags != FS_GROUP_QUOTA)
 			return -EINVAL;
 		break;
 	default:
@@ -1584,10 +1578,7 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 		goto out_i;
 
 	offset = qd2offset(qd);
-	error = gfs2_write_alloc_required(ip, offset, sizeof(struct gfs2_quota),
-					  &alloc_required);
-	if (error)
-		goto out_i;
+	alloc_required = gfs2_write_alloc_required(ip, offset, sizeof(struct gfs2_quota));
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
 		if (al == NULL)

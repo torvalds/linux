@@ -234,7 +234,7 @@ static const struct attribute_group env_group = {
 	.attrs = env_attributes,
 };
 
-static int __devinit env_probe(struct of_device *op,
+static int __devinit env_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct env *p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -276,7 +276,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit env_remove(struct of_device *op)
+static int __devexit env_remove(struct platform_device *op)
 {
 	struct env *p = dev_get_drvdata(&op->dev);
 
@@ -311,12 +311,12 @@ static struct of_platform_driver env_driver = {
 
 static int __init env_init(void)
 {
-	return of_register_driver(&env_driver, &of_bus_type);
+	return of_register_platform_driver(&env_driver);
 }
 
 static void __exit env_exit(void)
 {
-	of_unregister_driver(&env_driver);
+	of_unregister_platform_driver(&env_driver);
 }
 
 module_init(env_init);

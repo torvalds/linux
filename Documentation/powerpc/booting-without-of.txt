@@ -1048,7 +1048,7 @@ IV - "dtc", the device tree compiler
 
 
 dtc source code can be found at
-<http://ozlabs.org/~dgibson/dtc/dtc.tar.gz>
+<http://git.jdl.com/gitweb/?p=dtc.git>
 
 WARNING: This version is still in early development stage; the
 resulting device-tree "blobs" have not yet been validated with the

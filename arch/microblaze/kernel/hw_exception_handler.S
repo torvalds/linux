@@ -78,9 +78,6 @@
 #include <asm/asm-offsets.h>
 
 /* Helpful Macros */
-#ifndef CONFIG_MMU
-#define EX_HANDLER_STACK_SIZ	(4*19)
-#endif
 #define NUM_TO_REG(num)		r ## num
 
 #ifdef CONFIG_MMU
@@ -988,6 +985,7 @@ ex_unaligned_fixup:
 .end _unaligned_data_exception
 #endif /* CONFIG_MMU */
 
+.global ex_handler_unhandled
 ex_handler_unhandled:
 /* FIXME add handle function for unhandled exception - dump register */
 	bri 0

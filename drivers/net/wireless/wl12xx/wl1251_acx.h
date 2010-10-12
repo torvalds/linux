@@ -60,7 +60,7 @@ struct acx_error_counter {
 	/* the number of missed sequence numbers in the squentially */
 	/* values of frames seq numbers */
 	u32 seq_num_miss;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_revision {
 	struct acx_header header;
@@ -89,7 +89,7 @@ struct acx_revision {
 	 * bits 24 - 31: Chip ID - The WiLink chip ID.
 	 */
 	u32 hw_version;
-} __attribute__ ((packed));
+} __packed;
 
 enum wl1251_psm_mode {
 	/* Active mode */
@@ -111,7 +111,7 @@ struct acx_sleep_auth {
 	/* 2 - ELP mode: Deep / Max sleep*/
 	u8  sleep_auth;
 	u8  padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	HOSTIF_PCI_MASTER_HOST_INDIRECT,
@@ -159,7 +159,7 @@ struct acx_data_path_params {
 	 * complete ring until an interrupt is generated.
 	 */
 	u32 tx_complete_timeout;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct acx_data_path_params_resp {
@@ -180,7 +180,7 @@ struct acx_data_path_params_resp {
 	u32 tx_control_addr;
 
 	u32 tx_complete_addr;
-} __attribute__ ((packed));
+} __packed;
 
 #define TX_MSDU_LIFETIME_MIN       0
 #define TX_MSDU_LIFETIME_MAX       3000
@@ -197,7 +197,7 @@ struct acx_rx_msdu_lifetime {
 	 * firmware discards the MSDU.
 	 */
 	u32 lifetime;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * RX Config Options Table
@@ -285,7 +285,7 @@ struct acx_rx_config {
 
 	u32 config_options;
 	u32 filter_options;
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	QOS_AC_BE = 0,
@@ -325,13 +325,13 @@ struct acx_tx_queue_qos_config {
 
 	/* Lowest memory blocks guaranteed for this queue */
 	u16 low_threshold;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_packet_detection {
 	struct acx_header header;
 
 	u32 threshold;
-} __attribute__ ((packed));
+} __packed;
 
 
 enum acx_slot_type {
@@ -349,7 +349,7 @@ struct acx_slot {
 	u8 wone_index; /* Reserved */
 	u8 slot_time;
 	u8 reserved[6];
-} __attribute__ ((packed));
+} __packed;
 
 
 #define ADDRESS_GROUP_MAX	(8)
@@ -362,7 +362,7 @@ struct acx_dot11_grp_addr_tbl {
 	u8 num_groups;
 	u8 pad[2];
 	u8 mac_table[ADDRESS_GROUP_MAX_LEN];
-} __attribute__ ((packed));
+} __packed;
 
 
 #define  RX_TIMEOUT_PS_POLL_MIN    0
@@ -388,7 +388,7 @@ struct acx_rx_timeout {
 	 * from an UPSD enabled queue.
 	 */
 	u16 upsd_timeout;
-} __attribute__ ((packed));
+} __packed;
 
 #define RTS_THRESHOLD_MIN              0
 #define RTS_THRESHOLD_MAX              4096
@@ -399,7 +399,7 @@ struct acx_rts_threshold {
 
 	u16 threshold;
 	u8 pad[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_beacon_filter_option {
 	struct acx_header header;
@@ -415,7 +415,7 @@ struct acx_beacon_filter_option {
 	 */
 	u8 max_num_beacons;
 	u8 pad[2];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * ACXBeaconFilterEntry (not 221)
@@ -461,7 +461,7 @@ struct acx_beacon_filter_ie_table {
 	u8 num_ie;
 	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 	u8 pad[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define SYNCH_FAIL_DEFAULT_THRESHOLD    10     /* number of beacons */
 #define NO_BEACON_DEFAULT_TIMEOUT       (500) /* in microseconds */
@@ -494,7 +494,7 @@ struct acx_bt_wlan_coex {
 	 */
 	u8 enable;
 	u8 pad[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define PTA_ANTENNA_TYPE_DEF		  (0)
 #define PTA_BT_HP_MAXTIME_DEF		  (2000)
@@ -648,7 +648,7 @@ struct acx_bt_wlan_coex_param {
 
 	/* range: 0 - 20  default: 1 */
 	u8 bt_hp_respected_num;
-} __attribute__ ((packed));
+} __packed;
 
 #define CCA_THRSH_ENABLE_ENERGY_D       0x140A
 #define CCA_THRSH_DISABLE_ENERGY_D      0xFFEF
@@ -660,7 +660,7 @@ struct acx_energy_detection {
 	u16 rx_cca_threshold;
 	u8 tx_energy_detection;
 	u8 pad;
-} __attribute__ ((packed));
+} __packed;
 
 #define BCN_RX_TIMEOUT_DEF_VALUE        10000
 #define BROADCAST_RX_TIMEOUT_DEF_VALUE  20000
@@ -679,14 +679,14 @@ struct acx_beacon_broadcast {
 	/* Consecutive PS Poll failures before updating the host */
 	u8 ps_poll_threshold;
 	u8 pad[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_event_mask {
 	struct acx_header header;
 
 	u32 event_mask;
 	u32 high_event_mask; /* Unused */
-} __attribute__ ((packed));
+} __packed;
 
 #define CFG_RX_FCS		BIT(2)
 #define CFG_RX_ALL_GOOD		BIT(3)
@@ -729,7 +729,7 @@ struct acx_fw_gen_frame_rates {
 	u8 tx_ctrl_frame_mod; /* CCK_* or PBCC_* */
 	u8 tx_mgt_frame_rate;
 	u8 tx_mgt_frame_mod;
-} __attribute__ ((packed));
+} __packed;
 
 /* STA MAC */
 struct acx_dot11_station_id {
@@ -737,28 +737,28 @@ struct acx_dot11_station_id {
 
 	u8 mac[ETH_ALEN];
 	u8 pad[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_feature_config {
 	struct acx_header header;
 
 	u32 options;
 	u32 data_flow_options;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_current_tx_power {
 	struct acx_header header;
 
 	u8  current_tx_power;
 	u8  padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_dot11_default_key {
 	struct acx_header header;
 
 	u8 id;
 	u8 pad[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_tsf_info {
 	struct acx_header header;
@@ -769,7 +769,7 @@ struct acx_tsf_info {
 	u32 last_TBTT_lsb;
 	u8 last_dtim_count;
 	u8 pad[3];
-} __attribute__ ((packed));
+} __packed;
 
 enum acx_wake_up_event {
 	WAKE_UP_EVENT_BEACON_BITMAP	= 0x01, /* Wake on every Beacon*/
@@ -785,7 +785,7 @@ struct acx_wake_up_condition {
 	u8 wake_up_event; /* Only one bit can be set */
 	u8 listen_interval;
 	u8 pad[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_aid {
 	struct acx_header header;
@@ -795,7 +795,7 @@ struct acx_aid {
 	 */
 	u16 aid;
 	u8 pad[2];
-} __attribute__ ((packed));
+} __packed;
 
 enum acx_preamble_type {
 	ACX_PREAMBLE_LONG = 0,
@@ -811,7 +811,7 @@ struct acx_preamble {
 	 */
 	u8 preamble;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 enum acx_ctsprotect_type {
 	CTSPROTECT_DISABLE = 0,
@@ -822,11 +822,11 @@ struct acx_ctsprotect {
 	struct acx_header header;
 	u8 ctsprotect;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_tx_statistics {
 	u32 internal_desc_overflow;
-}  __attribute__ ((packed));
+}  __packed;
 
 struct acx_rx_statistics {
 	u32 out_of_mem;
@@ -837,14 +837,14 @@ struct acx_rx_statistics {
 	u32 xfr_hint_trig;
 	u32 path_reset;
 	u32 reset_counter;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_dma_statistics {
 	u32 rx_requested;
 	u32 rx_errors;
 	u32 tx_requested;
 	u32 tx_errors;
-}  __attribute__ ((packed));
+}  __packed;
 
 struct acx_isr_statistics {
 	/* host command complete */
@@ -903,7 +903,7 @@ struct acx_isr_statistics {
 
 	/* (INT_STS_ND & INT_TRIG_LOW_RSSI) */
 	u32 low_rssi;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_wep_statistics {
 	/* WEP address keys configured */
@@ -925,7 +925,7 @@ struct acx_wep_statistics {
 
 	/* WEP decrypt interrupts */
 	u32 interrupt;
-} __attribute__ ((packed));
+} __packed;
 
 #define ACX_MISSED_BEACONS_SPREAD 10
 
@@ -985,12 +985,12 @@ struct acx_pwr_statistics {
 
 	/* the number of beacons in awake mode */
 	u32 rcvd_awake_beacons;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_mic_statistics {
 	u32 rx_pkts;
 	u32 calc_failure;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_aes_statistics {
 	u32 encrypt_fail;
@@ -999,7 +999,7 @@ struct acx_aes_statistics {
 	u32 decrypt_packets;
 	u32 encrypt_interrupt;
 	u32 decrypt_interrupt;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_event_statistics {
 	u32 heart_beat;
@@ -1010,7 +1010,7 @@ struct acx_event_statistics {
 	u32 oom_late;
 	u32 phy_transmit_error;
 	u32 tx_stuck;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_ps_statistics {
 	u32 pspoll_timeouts;
@@ -1020,7 +1020,7 @@ struct acx_ps_statistics {
 	u32 pspoll_max_apturn;
 	u32 pspoll_utilization;
 	u32 upsd_utilization;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_rxpipe_statistics {
 	u32 rx_prep_beacon_drop;
@@ -1028,7 +1028,7 @@ struct acx_rxpipe_statistics {
 	u32 beacon_buffer_thres_host_int_trig_rx_data;
 	u32 missed_beacon_host_int_trig_rx_data;
 	u32 tx_xfr_host_int_trig_rx_data;
-} __attribute__ ((packed));
+} __packed;
 
 struct acx_statistics {
 	struct acx_header header;
@@ -1044,7 +1044,7 @@ struct acx_statistics {
 	struct acx_event_statistics event;
 	struct acx_ps_statistics ps;
 	struct acx_rxpipe_statistics rxpipe;
-} __attribute__ ((packed));
+} __packed;
 
 #define ACX_MAX_RATE_CLASSES       8
 #define ACX_RATE_MASK_UNSPECIFIED  0
@@ -1063,7 +1063,7 @@ struct acx_rate_policy {
 
 	u32 rate_class_cnt;
 	struct acx_rate_class rate_class[ACX_MAX_RATE_CLASSES];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1251_acx_memory {
 	__le16 num_stations; /* number of STAs to be supported. */
@@ -1082,7 +1082,7 @@ struct wl1251_acx_memory {
 	u8 tx_min_mem_block_num;
 	u8 num_ssid_profiles;
 	__le16 debug_buffer_size;
-} __attribute__ ((packed));
+} __packed;
 
 
 #define ACX_RX_DESC_MIN                1
@@ -1094,7 +1094,7 @@ struct wl1251_acx_rx_queue_config {
 	u8 type;
 	u8 priority;
 	__le32 dma_address;
-} __attribute__ ((packed));
+} __packed;
 
 #define ACX_TX_DESC_MIN                1
 #define ACX_TX_DESC_MAX                127
@@ -1103,7 +1103,7 @@ struct wl1251_acx_tx_queue_config {
     u8 num_descs;
     u8 pad[2];
     u8 attributes;
-} __attribute__ ((packed));
+} __packed;
 
 #define MAX_TX_QUEUE_CONFIGS 5
 #define MAX_TX_QUEUES 4
@@ -1113,7 +1113,7 @@ struct wl1251_acx_config_memory {
 	struct wl1251_acx_memory mem_config;
 	struct wl1251_acx_rx_queue_config rx_queue_config;
 	struct wl1251_acx_tx_queue_config tx_queue_config[MAX_TX_QUEUE_CONFIGS];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1251_acx_mem_map {
 	struct acx_header header;
@@ -1147,7 +1147,7 @@ struct wl1251_acx_mem_map {
 
 	/* Number of blocks FW allocated for RX packets */
 	u32 num_rx_mem_blocks;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct wl1251_acx_wr_tbtt_and_dtim {
@@ -1164,7 +1164,7 @@ struct wl1251_acx_wr_tbtt_and_dtim {
 	*/
 	u8  dtim;
 	u8  padding;
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1251_acx_ac_cfg {
 	struct acx_header header;
@@ -1194,7 +1194,7 @@ struct wl1251_acx_ac_cfg {
 
 	/* The TX Op Limit (in microseconds) for the access class. */
 	u16 txop_limit;
-} __attribute__ ((packed));
+} __packed;
 
 
 enum wl1251_acx_channel_type {
@@ -1245,7 +1245,7 @@ struct wl1251_acx_tid_cfg {
 
 	/* not supported */
 	u32 apsdconf[2];
-} __attribute__ ((packed));
+} __packed;
 
 /*************************************************************************
 

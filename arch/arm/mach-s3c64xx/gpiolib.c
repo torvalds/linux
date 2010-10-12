@@ -15,9 +15,9 @@
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include <mach/map.h>
-#include <mach/gpio.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>

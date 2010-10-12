@@ -460,7 +460,8 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 			return err;
 		}
 
-		if (p9_is_proto_dotu(c))
+		if (p9_is_proto_dotu(c) ||
+			p9_is_proto_dotl(c))
 			err = -ecode;
 
 		if (!err || !IS_ERR_VALUE(err))
@@ -1015,14 +1016,18 @@ int p9_client_open(struct p9_fid *fid, int mode)
 	struct p9_qid qid;
 	int iounit;
 
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TOPEN fid %d mode %d\n", fid->fid, mode);
-	err = 0;
 	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> %s fid %d mode %d\n",
+		p9_is_proto_dotl(clnt) ? "TLOPEN" : "TOPEN", fid->fid, mode);
+	err = 0;
 
 	if (fid->mode != -1)
 		return -EINVAL;
 
-	req = p9_client_rpc(clnt, P9_TOPEN, "db", fid->fid, mode);
+	if (p9_is_proto_dotl(clnt))
+		req = p9_client_rpc(clnt, P9_TLOPEN, "dd", fid->fid, mode);
+	else
+		req = p9_client_rpc(clnt, P9_TOPEN, "db", fid->fid, mode);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1034,10 +1039,9 @@ int p9_client_open(struct p9_fid *fid, int mode)
 		goto free_and_error;
 	}
 
-	P9_DPRINTK(P9_DEBUG_9P, "<<< ROPEN qid %x.%llx.%x iounit %x\n",
-				qid.type,
-				(unsigned long long)qid.path,
-				qid.version, iounit);
+	P9_DPRINTK(P9_DEBUG_9P, "<<< %s qid %x.%llx.%x iounit %x\n",
+		p9_is_proto_dotl(clnt) ? "RLOPEN" : "ROPEN",  qid.type,
+		(unsigned long long)qid.path, qid.version, iounit);
 
 	fid->mode = mode;
 	fid->iounit = iounit;
@@ -1048,6 +1052,50 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_open);
+
+int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
+		gid_t gid, struct p9_qid *qid)
+{
+	int err = 0;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+	int iounit;
+
+	P9_DPRINTK(P9_DEBUG_9P,
+			">>> TLCREATE fid %d name %s flags %d mode %d gid %d\n",
+			ofid->fid, name, flags, mode, gid);
+	clnt = ofid->clnt;
+
+	if (ofid->mode != -1)
+		return -EINVAL;
+
+	req = p9_client_rpc(clnt, P9_TLCREATE, "dsddd", ofid->fid, name, flags,
+			mode, gid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", qid, &iounit);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto free_and_error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RLCREATE qid %x.%llx.%x iounit %x\n",
+			qid->type,
+			(unsigned long long)qid->path,
+			qid->version, iounit);
+
+	ofid->mode = mode;
+	ofid->iounit = iounit;
+
+free_and_error:
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_create_dotl);
 
 int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 		     char *extension)
@@ -1094,6 +1142,59 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fcreate);
 
+int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, gid_t gid,
+		struct p9_qid *qid)
+{
+	int err = 0;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TSYMLINK dfid %d name %s  symtgt %s\n",
+			dfid->fid, name, symtgt);
+	clnt = dfid->clnt;
+
+	req = p9_client_rpc(clnt, P9_TSYMLINK, "dssd", dfid->fid, name, symtgt,
+			gid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto free_and_error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RSYMLINK qid %x.%llx.%x\n",
+			qid->type, (unsigned long long)qid->path, qid->version);
+
+free_and_error:
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_symlink);
+
+int p9_client_link(struct p9_fid *dfid, struct p9_fid *oldfid, char *newname)
+{
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TLINK dfid %d oldfid %d newname %s\n",
+			dfid->fid, oldfid->fid, newname);
+	clnt = dfid->clnt;
+	req = p9_client_rpc(clnt, P9_TLINK, "dds", dfid->fid, oldfid->fid,
+			newname);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RLINK\n");
+	p9_free_req(clnt, req);
+	return 0;
+}
+EXPORT_SYMBOL(p9_client_link);
+
 int p9_client_clunk(struct p9_fid *fid)
 {
 	int err;
@@ -1139,9 +1240,8 @@ int p9_client_remove(struct p9_fid *fid)
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREMOVE fid %d\n", fid->fid);
 
 	p9_free_req(clnt, req);
-	p9_fid_destroy(fid);
-
 error:
+	p9_fid_destroy(fid);
 	return err;
 }
 EXPORT_SYMBOL(p9_client_remove);
@@ -1302,6 +1402,65 @@ error:
 }
 EXPORT_SYMBOL(p9_client_stat);
 
+struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
+							u64 request_mask)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_stat_dotl *ret = kmalloc(sizeof(struct p9_stat_dotl),
+								GFP_KERNEL);
+	struct p9_req_t *req;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TGETATTR fid %d, request_mask %lld\n",
+							fid->fid, request_mask);
+
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+
+	err = 0;
+	clnt = fid->clnt;
+
+	req = p9_client_rpc(clnt, P9_TGETATTR, "dq", fid->fid, request_mask);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "A", ret);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		p9_free_req(clnt, req);
+		goto error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P,
+		"<<< RGETATTR st_result_mask=%lld\n"
+		"<<< qid=%x.%llx.%x\n"
+		"<<< st_mode=%8.8x st_nlink=%llu\n"
+		"<<< st_uid=%d st_gid=%d\n"
+		"<<< st_rdev=%llx st_size=%llx st_blksize=%llu st_blocks=%llu\n"
+		"<<< st_atime_sec=%lld st_atime_nsec=%lld\n"
+		"<<< st_mtime_sec=%lld st_mtime_nsec=%lld\n"
+		"<<< st_ctime_sec=%lld st_ctime_nsec=%lld\n"
+		"<<< st_btime_sec=%lld st_btime_nsec=%lld\n"
+		"<<< st_gen=%lld st_data_version=%lld",
+		ret->st_result_mask, ret->qid.type, ret->qid.path,
+		ret->qid.version, ret->st_mode, ret->st_nlink, ret->st_uid,
+		ret->st_gid, ret->st_rdev, ret->st_size, ret->st_blksize,
+		ret->st_blocks, ret->st_atime_sec, ret->st_atime_nsec,
+		ret->st_mtime_sec, ret->st_mtime_nsec, ret->st_ctime_sec,
+		ret->st_ctime_nsec, ret->st_btime_sec, ret->st_btime_nsec,
+		ret->st_gen, ret->st_data_version);
+
+	p9_free_req(clnt, req);
+	return ret;
+
+error:
+	kfree(ret);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL(p9_client_getattr_dotl);
+
 static int p9_client_statsize(struct p9_wstat *wst, int proto_version)
 {
 	int ret;
@@ -1365,6 +1524,36 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_wstat);
+
+int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *p9attr)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TSETATTR fid %d\n", fid->fid);
+	P9_DPRINTK(P9_DEBUG_9P,
+		"    valid=%x mode=%x uid=%d gid=%d size=%lld\n"
+		"    atime_sec=%lld atime_nsec=%lld\n"
+		"    mtime_sec=%lld mtime_nsec=%lld\n",
+		p9attr->valid, p9attr->mode, p9attr->uid, p9attr->gid,
+		p9attr->size, p9attr->atime_sec, p9attr->atime_nsec,
+		p9attr->mtime_sec, p9attr->mtime_nsec);
+
+	req = p9_client_rpc(clnt, P9_TSETATTR, "dI", fid->fid, p9attr);
+
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RSETATTR fid %d\n", fid->fid);
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_setattr);
 
 int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb)
 {
@@ -1432,3 +1621,187 @@ error:
 }
 EXPORT_SYMBOL(p9_client_rename);
 
+/*
+ * An xattrwalk without @attr_name gives the fid for the lisxattr namespace
+ */
+struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
+				const char *attr_name, u64 *attr_size)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+	struct p9_fid *attr_fid;
+
+	err = 0;
+	clnt = file_fid->clnt;
+	attr_fid = p9_fid_create(clnt);
+	if (IS_ERR(attr_fid)) {
+		err = PTR_ERR(attr_fid);
+		attr_fid = NULL;
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P,
+		">>> TXATTRWALK file_fid %d, attr_fid %d name %s\n",
+		file_fid->fid, attr_fid->fid, attr_name);
+
+	req = p9_client_rpc(clnt, P9_TXATTRWALK, "dds",
+			file_fid->fid, attr_fid->fid, attr_name);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	err = p9pdu_readf(req->rc, clnt->proto_version, "q", attr_size);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		p9_free_req(clnt, req);
+		goto clunk_fid;
+	}
+	p9_free_req(clnt, req);
+	P9_DPRINTK(P9_DEBUG_9P, "<<<  RXATTRWALK fid %d size %llu\n",
+		attr_fid->fid, *attr_size);
+	return attr_fid;
+clunk_fid:
+	p9_client_clunk(attr_fid);
+	attr_fid = NULL;
+error:
+	if (attr_fid && (attr_fid != file_fid))
+		p9_fid_destroy(attr_fid);
+
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(p9_client_xattrwalk);
+
+int p9_client_xattrcreate(struct p9_fid *fid, const char *name,
+			u64 attr_size, int flags)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P,
+		">>> TXATTRCREATE fid %d name  %s size %lld flag %d\n",
+		fid->fid, name, (long long)attr_size, flags);
+	err = 0;
+	clnt = fid->clnt;
+	req = p9_client_rpc(clnt, P9_TXATTRCREATE, "dsqd",
+			fid->fid, name, attr_size, flags);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RXATTRCREATE fid %d\n", fid->fid);
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL_GPL(p9_client_xattrcreate);
+
+int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
+{
+	int err, rsize, total;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+	char *dataptr;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TREADDIR fid %d offset %llu count %d\n",
+				fid->fid, (long long unsigned) offset, count);
+
+	err = 0;
+	clnt = fid->clnt;
+	total = 0;
+
+	rsize = fid->iounit;
+	if (!rsize || rsize > clnt->msize-P9_READDIRHDRSZ)
+		rsize = clnt->msize - P9_READDIRHDRSZ;
+
+	if (count < rsize)
+		rsize = count;
+
+	req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid, offset, rsize);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "D", &count, &dataptr);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto free_and_error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RREADDIR count %d\n", count);
+
+	if (data)
+		memmove(data, dataptr, count);
+
+	p9_free_req(clnt, req);
+	return count;
+
+free_and_error:
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_readdir);
+
+int p9_client_mknod_dotl(struct p9_fid *fid, char *name, int mode,
+			dev_t rdev, gid_t gid, struct p9_qid *qid)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TMKNOD fid %d name %s mode %d major %d "
+		"minor %d\n", fid->fid, name, mode, MAJOR(rdev), MINOR(rdev));
+	req = p9_client_rpc(clnt, P9_TMKNOD, "dsdddd", fid->fid, name, mode,
+		MAJOR(rdev), MINOR(rdev), gid);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RMKNOD qid %x.%llx.%x\n", qid->type,
+				(unsigned long long)qid->path, qid->version);
+
+error:
+	p9_free_req(clnt, req);
+	return err;
+
+}
+EXPORT_SYMBOL(p9_client_mknod_dotl);
+
+int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
+				gid_t gid, struct p9_qid *qid)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TMKDIR fid %d name %s mode %d gid %d\n",
+		 fid->fid, name, mode, gid);
+	req = p9_client_rpc(clnt, P9_TMKDIR, "dsdd", fid->fid, name, mode,
+		gid);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RMKDIR qid %x.%llx.%x\n", qid->type,
+				(unsigned long long)qid->path, qid->version);
+
+error:
+	p9_free_req(clnt, req);
+	return err;
+
+}
+EXPORT_SYMBOL(p9_client_mkdir_dotl);

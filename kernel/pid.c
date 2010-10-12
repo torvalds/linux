@@ -122,6 +122,43 @@ static void free_pidmap(struct upid *upid)
 	atomic_inc(&map->nr_free);
 }
 
+/*
+ * If we started walking pids at 'base', is 'a' seen before 'b'?
+ */
+static int pid_before(int base, int a, int b)
+{
+	/*
+	 * This is the same as saying
+	 *
+	 * (a - base + MAXUINT) % MAXUINT < (b - base + MAXUINT) % MAXUINT
+	 * and that mapping orders 'a' and 'b' with respect to 'base'.
+	 */
+	return (unsigned)(a - base) < (unsigned)(b - base);
+}
+
+/*
+ * We might be racing with someone else trying to set pid_ns->last_pid.
+ * We want the winner to have the "later" value, because if the
+ * "earlier" value prevails, then a pid may get reused immediately.
+ *
+ * Since pids rollover, it is not sufficient to just pick the bigger
+ * value.  We have to consider where we started counting from.
+ *
+ * 'base' is the value of pid_ns->last_pid that we observed when
+ * we started looking for a pid.
+ *
+ * 'pid' is the pid that we eventually found.
+ */
+static void set_last_pid(struct pid_namespace *pid_ns, int base, int pid)
+{
+	int prev;
+	int last_write = base;
+	do {
+		prev = last_write;
+		last_write = cmpxchg(&pid_ns->last_pid, prev, pid);
+	} while ((prev != last_write) && (pid_before(base, last_write, pid)));
+}
+
 static int alloc_pidmap(struct pid_namespace *pid_ns)
 {
 	int i, offset, max_scan, pid, last = pid_ns->last_pid;
@@ -132,7 +169,12 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 		pid = RESERVED_PIDS;
 	offset = pid & BITS_PER_PAGE_MASK;
 	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
-	max_scan = (pid_max + BITS_PER_PAGE - 1)/BITS_PER_PAGE - !offset;
+	/*
+	 * If last_pid points into the middle of the map->page we
+	 * want to scan this bitmap block twice, the second time
+	 * we start with offset == 0 (or RESERVED_PIDS).
+	 */
+	max_scan = DIV_ROUND_UP(pid_max, BITS_PER_PAGE) - !offset;
 	for (i = 0; i <= max_scan; ++i) {
 		if (unlikely(!map->page)) {
 			void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
@@ -154,20 +196,12 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 			do {
 				if (!test_and_set_bit(offset, map->page)) {
 					atomic_dec(&map->nr_free);
-					pid_ns->last_pid = pid;
+					set_last_pid(pid_ns, last, pid);
 					return pid;
 				}
 				offset = find_next_offset(map, offset);
 				pid = mk_pid(pid_ns, map, offset);
-			/*
-			 * find_next_offset() found a bit, the pid from it
-			 * is in-bounds, and if we fell back to the last
-			 * bitmap block and the final block was the same
-			 * as the starting point, pid is before last_pid.
-			 */
-			} while (offset < BITS_PER_PAGE && pid < pid_max &&
-					(i != max_scan || pid < last ||
-					    !((last+1) & BITS_PER_PAGE_MASK)));
+			} while (offset < BITS_PER_PAGE && pid < pid_max);
 		}
 		if (map < &pid_ns->pidmap[(pid_max-1)/BITS_PER_PAGE]) {
 			++map;

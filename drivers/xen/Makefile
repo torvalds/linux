@@ -10,3 +10,5 @@ obj-$(CONFIG_XEN_BALLOON)	+= balloon.o
 obj-$(CONFIG_XEN_DEV_EVTCHN)	+= evtchn.o
 obj-$(CONFIG_XENFS)		+= xenfs/
 obj-$(CONFIG_XEN_SYS_HYPERVISOR)	+= sys-hypervisor.o
+obj-$(CONFIG_XEN_PLATFORM_PCI)	+= platform-pci.o
+obj-$(CONFIG_SWIOTLB_XEN)	+= swiotlb-xen.o

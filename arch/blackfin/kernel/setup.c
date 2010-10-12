@@ -864,6 +864,13 @@ void __init setup_arch(char **cmdline_p)
 	bfin_write_EBIU_MODE(CONFIG_EBIU_MODEVAL);
 	bfin_write_EBIU_FCTL(CONFIG_EBIU_FCTLVAL);
 #endif
+#ifdef CONFIG_BFIN_HYSTERESIS_CONTROL
+	bfin_write_PORTF_HYSTERISIS(HYST_PORTF_0_15);
+	bfin_write_PORTG_HYSTERISIS(HYST_PORTG_0_15);
+	bfin_write_PORTH_HYSTERISIS(HYST_PORTH_0_15);
+	bfin_write_MISCPORT_HYSTERISIS((bfin_read_MISCPORT_HYSTERISIS() &
+					~HYST_NONEGPIO_MASK) | HYST_NONEGPIO);
+#endif
 
 	cclk = get_cclk();
 	sclk = get_sclk();

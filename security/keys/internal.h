@@ -15,11 +15,6 @@
 #include <linux/sched.h>
 #include <linux/key-type.h>
 
-static inline __attribute__((format(printf, 1, 2)))
-void no_printk(const char *fmt, ...)
-{
-}
-
 #ifdef __KDEBUG
 #define kenter(FMT, ...) \
 	printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
@@ -114,6 +109,10 @@ extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 				    const void *description,
 				    key_match_func_t match);
 
+extern key_ref_t search_my_process_keyrings(struct key_type *type,
+					    const void *description,
+					    key_match_func_t match,
+					    const struct cred *cred);
 extern key_ref_t search_process_keyrings(struct key_type *type,
 					 const void *description,
 					 key_match_func_t match,
@@ -134,6 +133,7 @@ extern struct key *request_key_and_link(struct key_type *type,
 					struct key *dest_keyring,
 					unsigned long flags);
 
+extern int lookup_user_key_possessed(const struct key *key, const void *target);
 extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 				 key_perm_t perm);
 #define KEY_LOOKUP_CREATE	0x01

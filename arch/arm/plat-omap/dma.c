@@ -290,7 +290,7 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 		val = dma_read(CCR(lch));
 
 		/* DMA_SYNCHRO_CONTROL_UPPER depends on the channel number */
-		val &= ~((3 << 19) | 0x1f);
+		val &= ~((1 << 23) | (3 << 19) | 0x1f);
 		val |= (dma_trigger & ~0x1f) << 14;
 		val |= dma_trigger & 0x1f;
 
@@ -304,11 +304,14 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 		else
 			val &= ~(1 << 18);
 
-		if (src_or_dst_synch)
-			val |= 1 << 24;		/* source synch */
-		else
+		if (src_or_dst_synch == OMAP_DMA_DST_SYNC_PREFETCH) {
 			val &= ~(1 << 24);	/* dest synch */
-
+			val |= (1 << 23);	/* Prefetch */
+		} else if (src_or_dst_synch) {
+			val |= 1 << 24;		/* source synch */
+		} else {
+			val &= ~(1 << 24);	/* dest synch */
+		}
 		dma_write(val, CCR(lch));
 	}
 

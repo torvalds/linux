@@ -45,7 +45,6 @@ This document describes the Linux kernel Makefiles.
 		--- 7.1 header-y
 		--- 7.2 objhdr-y
 		--- 7.3 destination-y
-		--- 7.4 unifdef-y (deprecated)
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -168,7 +167,7 @@ more details, with real examples.
 		#drivers/isdn/i4l/Makefile
 		# Makefile for the kernel ISDN subsystem and device drivers.
 		# Each configuration option enables a list of files.
-		obj-$(CONFIG_ISDN)             += isdn.o
+		obj-$(CONFIG_ISDN_I4L)         += isdn.o
 		obj-$(CONFIG_ISDN_PPP_BSDCOMP) += isdn_bsdcomp.o
 
 --- 3.3 Loadable module goals - obj-m
@@ -187,34 +186,35 @@ more details, with real examples.
 	Note: In this example $(CONFIG_ISDN_PPP_BSDCOMP) evaluates to 'm'
 
 	If a kernel module is built from several source files, you specify
-	that you want to build a module in the same way as above.
-
-	Kbuild needs to know which the parts that you want to build your
-	module from, so you have to tell it by setting an
-	$(<module_name>-objs) variable.
+	that you want to build a module in the same way as above; however,
+	kbuild needs to know which object files you want to build your
+	module from, so you have to tell it by setting a $(<module_name>-y)
+	variable.
 
 	Example:
 		#drivers/isdn/i4l/Makefile
-		obj-$(CONFIG_ISDN) += isdn.o
-		isdn-objs := isdn_net_lib.o isdn_v110.o isdn_common.o
+		obj-$(CONFIG_ISDN_I4L) += isdn.o
+		isdn-y := isdn_net_lib.o isdn_v110.o isdn_common.o
 
 	In this example, the module name will be isdn.o. Kbuild will
-	compile the objects listed in $(isdn-objs) and then run
+	compile the objects listed in $(isdn-y) and then run
 	"$(LD) -r" on the list of these files to generate isdn.o.
 
-	Kbuild recognises objects used for composite objects by the suffix
-	-objs, and the suffix -y. This allows the Makefiles to use
-	the value of a CONFIG_ symbol to determine if an object is part
-	of a composite object.
+	Due to kbuild recognizing $(<module_name>-y) for composite objects,
+	you can use the value of a CONFIG_ symbol to optionally include an
+	object file as part of a composite object.
 
 	Example:
 		#fs/ext2/Makefile
-	        obj-$(CONFIG_EXT2_FS)        += ext2.o
-		ext2-y                       := balloc.o bitmap.o
-	        ext2-$(CONFIG_EXT2_FS_XATTR) += xattr.o
+	        obj-$(CONFIG_EXT2_FS) += ext2.o
+		ext2-y := balloc.o dir.o file.o ialloc.o inode.o ioctl.o \
+			  namei.o super.o symlink.o
+	        ext2-$(CONFIG_EXT2_FS_XATTR) += xattr.o xattr_user.o \
+						xattr_trusted.o
 
-	In this example, xattr.o is only part of the composite object
-	ext2.o if $(CONFIG_EXT2_FS_XATTR) evaluates to 'y'.
+	In this example, xattr.o, xattr_user.o and xattr_trusted.o are only
+	part of the composite object ext2.o if $(CONFIG_EXT2_FS_XATTR)
+	evaluates to 'y'.
 
 	Note: Of course, when you are building objects into the kernel,
 	the syntax above will also work. So, if you have CONFIG_EXT2_FS=y,
@@ -244,12 +244,12 @@ more details, with real examples.
 	may contain both a built-in.o and a lib.a file.
 
 	Example:
-		#arch/i386/lib/Makefile
-		lib-y    := checksum.o delay.o
+		#arch/x86/lib/Makefile
+		lib-y    := delay.o
 
-	This will create a library lib.a based on checksum.o and delay.o.
-	For kbuild to actually recognize that there is a lib.a being built,
-	the directory shall be listed in libs-y.
+	This will create a library lib.a based on delay.o. For kbuild to
+	actually recognize that there is a lib.a being built, the directory
+	shall be listed in libs-y.
 	See also "6.3 List directories to visit when descending".
 
 	Use of lib-y is normally restricted to lib/ and arch/*/lib.
@@ -284,43 +284,40 @@ more details, with real examples.
 --- 3.7 Compilation flags
 
     ccflags-y, asflags-y and ldflags-y
-	The three flags listed above applies only to the kbuild makefile
-	where they are assigned. They are used for all the normal
-	cc, as and ld invocation happenign during a recursive build.
+	These three flags apply only to the kbuild makefile in which they
+	are assigned. They are used for all the normal cc, as and ld
+	invocations happening during a recursive build.
 	Note: Flags with the same behaviour were previously named:
 	EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
-	They are yet supported but their use are deprecated.
+	They are still supported but their usage is deprecated.
 
-	ccflags-y specifies options for compiling C files with $(CC).
+	ccflags-y specifies options for compiling with $(CC).
 
 	Example:
-		# drivers/sound/emu10k1/Makefile
-		ccflags-y += -I$(obj)
-		ccflags-$(DEBUG) += -DEMU10K1_DEBUG
-
+		# drivers/acpi/Makefile
+		ccflags-y := -Os
+		ccflags-$(CONFIG_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
 	This variable is necessary because the top Makefile owns the
 	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
 	entire tree.
 
-	asflags-y is a similar string for per-directory options
-	when compiling assembly language source.
+	asflags-y specifies options for assembling with $(AS).
 
 	Example:
-		#arch/x86_64/kernel/Makefile
-		asflags-y := -traditional
+		#arch/sparc/kernel/Makefile
+		asflags-y := -ansi
 
-
-	ldflags-y is a string for per-directory options to $(LD).
+	ldflags-y specifies options for linking with $(LD).
 
 	Example:
-		#arch/m68k/fpsp040/Makefile
-		ldflags-y := -x
+		#arch/cris/boot/compressed/Makefile
+		ldflags-y += -T $(srctree)/$(src)/decompress_$(arch-y).lds
 
     subdir-ccflags-y, subdir-asflags-y
-	The two flags listed above are similar to ccflags-y and as-falgs-y.
-	The difference is that the subdir- variants has effect for the kbuild
-	file where tey are present and all subdirectories.
+	The two flags listed above are similar to ccflags-y and asflags-y.
+	The difference is that the subdir- variants have effect for the kbuild
+	file where they are present and all subdirectories.
 	Options specified using subdir-* are added to the commandline before
 	the options specified using the non-subdir variants.
 
@@ -340,18 +337,18 @@ more details, with real examples.
 		CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
 		CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ \
 				     -DGDTH_STATISTICS
-		CFLAGS_seagate.o =   -DARBITRATE -DPARITY -DSEAGATE_USE_ASM
 
-	These three lines specify compilation flags for aha152x.o,
-	gdth.o, and seagate.o
+	These two lines specify compilation flags for aha152x.o and gdth.o.
 
 	$(AFLAGS_$@) is a similar feature for source files in assembly
 	languages.
 
 	Example:
 		# arch/arm/kernel/Makefile
-		AFLAGS_head-armv.o := -DTEXTADDR=$(TEXTADDR) -traditional
-		AFLAGS_head-armo.o := -DTEXTADDR=$(TEXTADDR) -traditional
+		AFLAGS_head.o        := -DTEXT_OFFSET=$(TEXT_OFFSET)
+		AFLAGS_crunch-bits.o := -Wa,-mcpu=ep9312
+		AFLAGS_iwmmxt.o      := -Wa,-mcpu=iwmmxt
+
 
 --- 3.9 Dependency tracking
 
@@ -923,16 +920,33 @@ When kbuild executes, the following steps are followed (roughly):
 	The first example utilises the trick that a config option expands
 	to 'y' when selected.
 
-    CFLAGS_KERNEL	$(CC) options specific for built-in
+    KBUILD_AFLAGS_KERNEL	$(AS) options specific for built-in
 
-	$(CFLAGS_KERNEL) contains extra C compiler flags used to compile
+	$(KBUILD_AFLAGS_KERNEL) contains extra C compiler flags used to compile
 	resident kernel code.
 
-    CFLAGS_MODULE	$(CC) options specific for modules
+    KBUILD_AFLAGS_MODULE   Options for $(AS) when building modules
 
-	$(CFLAGS_MODULE) contains extra C compiler flags used to compile code
-	for loadable kernel modules.
+	$(KBUILD_AFLAGS_MODULE) is used to add arch specific options that
+	are used for $(AS).
+	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
 
+    KBUILD_CFLAGS_KERNEL	$(CC) options specific for built-in
+
+	$(KBUILD_CFLAGS_KERNEL) contains extra C compiler flags used to compile
+	resident kernel code.
+
+    KBUILD_CFLAGS_MODULE   Options for $(CC) when building modules
+
+	$(KBUILD_CFLAGS_MODULE) is used to add arch specific options that
+	are used for $(CC).
+	From commandline CFLAGS_MODULE shall be used (see kbuild.txt).
+
+    KBUILD_LDFLAGS_MODULE   Options for $(LD) when linking modules
+
+	$(KBUILD_LDFLAGS_MODULE) is used to add arch specific options
+	used when linking modules. This is often a linker script.
+	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
 
 --- 6.2 Add prerequisites to archprepare:
 
@@ -1176,14 +1190,14 @@ When kbuild executes, the following steps are followed (roughly):
 === 7 Kbuild syntax for exported headers
 
 The kernel include a set of headers that is exported to userspace.
-Many headers can be exported as-is but other headers requires  a
+Many headers can be exported as-is but other headers require a
 minimal pre-processing before they are ready for user-space.
 The pre-processing does:
 - drop kernel specific annotations
 - drop include of compiler.h
-- drop all sections that is kernel internat (guarded by ifdef __KERNEL__)
+- drop all sections that are kernel internal (guarded by ifdef __KERNEL__)
 
-Each relevant directory contain a file name "Kbuild" which specify the
+Each relevant directory contains a file name "Kbuild" which specifies the
 headers to be exported.
 See subsequent chapter for the syntax of the Kbuild file.
 
@@ -1228,11 +1242,6 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	In the example above all exported headers in the Kbuild file
 	will be located in the directory "include/linux" when exported.
-
-
-	--- 7.4 unifdef-y (deprecated)
-
-	unifdef-y is deprecated. A direct replacement is header-y.
 
 
 === 8 Kbuild Variables

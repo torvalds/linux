@@ -80,4 +80,6 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp);
 
 int chsc_error_from_response(int response);
 
+int chsc_siosl(struct subchannel_id schid);
+
 #endif

@@ -8,7 +8,10 @@
 
 #define DECLARE_BITMAP(name,bits) \
 	unsigned long name[BITS_TO_LONGS(bits)]
-
+#else
+#ifndef __EXPORTED_HEADERS__
+#warning "Attempt to use kernel headers from user space, see http://kernelnewbies.org/KernelHeaders"
+#endif /* __EXPORTED_HEADERS__ */
 #endif
 
 #include <linux/posix_types.h>
@@ -196,6 +199,18 @@ typedef struct {
 	long counter;
 } atomic64_t;
 #endif
+
+struct list_head {
+	struct list_head *next, *prev;
+};
+
+struct hlist_head {
+	struct hlist_node *first;
+};
+
+struct hlist_node {
+	struct hlist_node *next, **pprev;
+};
 
 struct ustat {
 	__kernel_daddr_t	f_tfree;

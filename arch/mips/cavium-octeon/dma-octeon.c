@@ -99,13 +99,16 @@ dma_addr_t octeon_map_dma_mem(struct device *dev, void *ptr, size_t size)
 			panic("dma_map_single: "
 			      "Attempt to map illegal memory address 0x%llx\n",
 			      physical);
-		else if ((physical + size >=
-			  (4ull<<30) - (OCTEON_PCI_BAR1_HOLE_SIZE<<20))
-			 && physical < (4ull<<30))
-			pr_warning("dma_map_single: Warning: "
-				   "Mapping memory address that might "
-				   "conflict with devices 0x%llx-0x%llx\n",
-				   physical, physical+size-1);
+		else if (physical >= CVMX_PCIE_BAR1_PHYS_BASE &&
+			 physical + size < (CVMX_PCIE_BAR1_PHYS_BASE + CVMX_PCIE_BAR1_PHYS_SIZE)) {
+			result = physical - CVMX_PCIE_BAR1_PHYS_BASE + CVMX_PCIE_BAR1_RC_BASE;
+
+			if (((result+size-1) & dma_mask) != result+size-1)
+				panic("dma_map_single: Attempt to map address 0x%llx-0x%llx, which can't be accessed according to the dma mask 0x%llx\n",
+				      physical, physical+size-1, dma_mask);
+			goto done;
+		}
+
 		/* The 2nd 256MB is mapped at 256<<20 instead of 0x410000000 */
 		if ((physical >= 0x410000000ull) && physical < 0x420000000ull)
 			result = physical - 0x400000000ull;

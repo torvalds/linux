@@ -243,23 +243,3 @@ void ieee80211_crypto_deinit(void)
 	kfree(hcrypt);
 }
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-//EXPORT_SYMBOL(ieee80211_crypt_deinit_entries);
-//EXPORT_SYMBOL(ieee80211_crypt_deinit_handler);
-//EXPORT_SYMBOL(ieee80211_crypt_delayed_deinit);
-
-//EXPORT_SYMBOL(ieee80211_register_crypto_ops);
-//EXPORT_SYMBOL(ieee80211_unregister_crypto_ops);
-//EXPORT_SYMBOL(ieee80211_get_crypto_ops);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_deinit_entries);
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_deinit_handler);
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_delayed_deinit);
-
-EXPORT_SYMBOL_NOVERS(ieee80211_register_crypto_ops);
-EXPORT_SYMBOL_NOVERS(ieee80211_unregister_crypto_ops);
-EXPORT_SYMBOL_NOVERS(ieee80211_get_crypto_ops);
-#endif
-
-//module_init(ieee80211_crypto_init);
-//module_exit(ieee80211_crypto_deinit);

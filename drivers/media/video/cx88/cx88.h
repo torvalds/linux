@@ -636,6 +636,7 @@ extern struct videobuf_queue_ops cx8800_vbi_qops;
 /* cx88-i2c.c                                                  */
 
 extern int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci);
+extern void cx88_i2c_init_ir(struct cx88_core *core);
 
 
 /* ----------------------------------------------------------- */

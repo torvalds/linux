@@ -288,8 +288,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
- 
-	smp_space_timers(max_cpus);
 
 	for_each_possible_cpu(cpu)
 		if (cpu != boot_cpuid)
@@ -501,14 +499,6 @@ int __devinit start_secondary(void *unused)
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
-
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-#endif
 	set_dec(tb_ticks_per_jiffy);
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;

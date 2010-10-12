@@ -740,6 +740,8 @@ acpi_bus_extract_wakeup_device_power_package(struct acpi_device *device,
 		device->wakeup.resources.handles[i] = element->reference.handle;
 	}
 
+	acpi_gpe_can_wake(device->wakeup.gpe_device, device->wakeup.gpe_number);
+
 	return AE_OK;
 }
 
@@ -764,8 +766,9 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 		return;
 	}
 
-	status = acpi_get_gpe_status(NULL, device->wakeup.gpe_number,
-					&event_status);
+	status = acpi_get_gpe_status(device->wakeup.gpe_device,
+					device->wakeup.gpe_number,
+						&event_status);
 	if (status == AE_OK)
 		device->wakeup.flags.run_wake =
 				!!(event_status & ACPI_EVENT_FLAG_HANDLE);

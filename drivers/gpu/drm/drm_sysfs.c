@@ -489,7 +489,8 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 	int err;
 	char *minor_str;
 
-	minor->kdev.parent = &minor->dev->pdev->dev;
+	minor->kdev.parent = minor->dev->dev;
+
 	minor->kdev.class = drm_class;
 	minor->kdev.release = drm_sysfs_device_release;
 	minor->kdev.devt = minor->device;

@@ -65,6 +65,8 @@ void __init mx51_map_io(void)
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
 
+int imx51_register_gpios(void);
+
 void __init mx51_init_irq(void)
 {
 	unsigned long tzic_addr;
@@ -80,4 +82,5 @@ void __init mx51_init_irq(void)
 		panic("unable to map TZIC interrupt controller\n");
 
 	tzic_init_irq(tzic_virt);
+	imx51_register_gpios();
 }

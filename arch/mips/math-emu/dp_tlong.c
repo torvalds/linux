@@ -71,8 +71,7 @@ s64 ieee754dp_tlong(ieee754dp x)
 			round = 0;
 			sticky = residue != 0;
 			xm = 0;
-		}
-		else {
+		} else {
 			/* Shifting a u64 64 times does not work,
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */

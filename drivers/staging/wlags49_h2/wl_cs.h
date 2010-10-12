@@ -72,8 +72,6 @@ void wl_adapter_insert(struct pcmcia_device *link);
 
 void wl_adapter_release(struct pcmcia_device *link);
 
-int wl_adapter_event(event_t event, int priority, event_callback_args_t *args );
-
 int wl_adapter_init_module( void );
 
 void wl_adapter_cleanup_module( void );

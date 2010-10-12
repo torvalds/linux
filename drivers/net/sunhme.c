@@ -1591,7 +1591,7 @@ static int happy_meal_init(struct happy_meal *hp)
 		 */
 #ifdef CONFIG_SBUS
 		if ((hp->happy_flags & HFLAG_PCI) == 0) {
-			struct of_device *op = hp->happy_dev;
+			struct platform_device *op = hp->happy_dev;
 			if (sbus_can_dma_64bit()) {
 				sbus_set_sbus64(&op->dev,
 						hp->happy_bursts);
@@ -2480,7 +2480,7 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 #ifdef CONFIG_SBUS
 	else {
 		const struct linux_prom_registers *regs;
-		struct of_device *op = hp->happy_dev;
+		struct platform_device *op = hp->happy_dev;
 		regs = of_get_property(op->dev.of_node, "regs", NULL);
 		if (regs)
 			sprintf(info->bus_info, "SBUS:%d",
@@ -2515,13 +2515,13 @@ static int hme_version_printed;
  *
  * Return NULL on failure.
  */
-static struct quattro * __devinit quattro_sbus_find(struct of_device *child)
+static struct quattro * __devinit quattro_sbus_find(struct platform_device *child)
 {
 	struct device *parent = child->dev.parent;
-	struct of_device *op;
+	struct platform_device *op;
 	struct quattro *qp;
 
-	op = to_of_device(parent);
+	op = to_platform_device(parent);
 	qp = dev_get_drvdata(&op->dev);
 	if (qp)
 		return qp;
@@ -2551,7 +2551,7 @@ static int __init quattro_sbus_register_irqs(void)
 	struct quattro *qp;
 
 	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
-		struct of_device *op = qp->quattro_dev;
+		struct platform_device *op = qp->quattro_dev;
 		int err, qfe_slot, skip = 0;
 
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++) {
@@ -2561,7 +2561,7 @@ static int __init quattro_sbus_register_irqs(void)
 		if (skip)
 			continue;
 
-		err = request_irq(op->irqs[0],
+		err = request_irq(op->archdata.irqs[0],
 				  quattro_sbus_interrupt,
 				  IRQF_SHARED, "Quattro",
 				  qp);
@@ -2580,7 +2580,7 @@ static void quattro_sbus_free_irqs(void)
 	struct quattro *qp;
 
 	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
-		struct of_device *op = qp->quattro_dev;
+		struct platform_device *op = qp->quattro_dev;
 		int qfe_slot, skip = 0;
 
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++) {
@@ -2590,7 +2590,7 @@ static void quattro_sbus_free_irqs(void)
 		if (skip)
 			continue;
 
-		free_irq(op->irqs[0], qp);
+		free_irq(op->archdata.irqs[0], qp);
 	}
 }
 #endif /* CONFIG_SBUS */
@@ -2639,7 +2639,7 @@ static const struct net_device_ops hme_netdev_ops = {
 };
 
 #ifdef CONFIG_SBUS
-static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
+static int __devinit happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 {
 	struct device_node *dp = op->dev.of_node, *sbus_dp;
 	struct quattro *qp = NULL;
@@ -2648,7 +2648,7 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	int i, qfe_slot = -1;
 	int err = -ENODEV;
 
-	sbus_dp = to_of_device(op->dev.parent)->dev.of_node;
+	sbus_dp = op->dev.parent->of_node;
 
 	/* We can match PCI devices too, do not accept those here. */
 	if (strcmp(sbus_dp->name, "sbus"))
@@ -2790,7 +2790,7 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	/* Happy Meal can do it all... */
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	/* Hook up SBUS register/descriptor accessors. */
@@ -3235,7 +3235,7 @@ static void happy_meal_pci_exit(void)
 #endif
 
 #ifdef CONFIG_SBUS
-static int __devinit hme_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit hme_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
@@ -3247,7 +3247,7 @@ static int __devinit hme_sbus_probe(struct of_device *op, const struct of_device
 	return happy_meal_sbus_probe_one(op, is_qfe);
 }
 
-static int __devexit hme_sbus_remove(struct of_device *op)
+static int __devexit hme_sbus_remove(struct platform_device *op)
 {
 	struct happy_meal *hp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = hp->dev;
@@ -3304,7 +3304,7 @@ static int __init happy_meal_sbus_init(void)
 {
 	int err;
 
-	err = of_register_driver(&hme_sbus_driver, &of_bus_type);
+	err = of_register_platform_driver(&hme_sbus_driver);
 	if (!err)
 		err = quattro_sbus_register_irqs();
 
@@ -3313,7 +3313,7 @@ static int __init happy_meal_sbus_init(void)
 
 static void happy_meal_sbus_exit(void)
 {
-	of_unregister_driver(&hme_sbus_driver);
+	of_unregister_platform_driver(&hme_sbus_driver);
 	quattro_sbus_free_irqs();
 
 	while (qfe_sbus_list) {

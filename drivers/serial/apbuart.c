@@ -551,7 +551,7 @@ static struct uart_driver grlib_apbuart_driver = {
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
 
-static int __devinit apbuart_probe(struct of_device *op,
+static int __devinit apbuart_probe(struct platform_device *op,
 				   const struct of_device_id *match)
 {
 	int i = -1;

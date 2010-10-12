@@ -50,12 +50,12 @@ enum bfa_port_role {
  * FCS port configuration.
  */
 struct bfa_port_cfg_s {
-    wwn_t               pwwn;       /*  port wwn */
-    wwn_t               nwwn;       /*  node wwn */
-    struct bfa_port_symname_s  sym_name;   /*  vm port symbolic name */
-    enum bfa_port_role     roles;      /*  FCS port roles */
-	u32			rsvd;
-    u8             tag[16];	/*  opaque tag from application */
+	wwn_t               pwwn;       /*  port wwn */
+	wwn_t               nwwn;       /*  node wwn */
+	struct bfa_port_symname_s  sym_name;   /*  vm port symbolic name */
+	bfa_boolean_t       preboot_vp;  /* vport created from PBC */
+	enum bfa_port_role     roles;      /*  FCS port roles */
+	u8             tag[16];	/*  opaque tag from application */
 };
 
 /**
@@ -159,7 +159,7 @@ struct bfa_port_stats_s {
 	u32        ms_plogi_rsp_err;
 	u32        ms_plogi_acc_err;
 	u32        ms_plogi_accepts;
-	u32        ms_rejects;	/* NS command rejects */
+	u32        ms_rejects;	/* MS command rejects */
 	u32        ms_plogi_unknown_rsp;
 	u32        ms_plogi_alloc_wait;
 

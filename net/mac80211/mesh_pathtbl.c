@@ -315,7 +315,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	read_unlock(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
 	return 0;
 
@@ -425,7 +425,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	read_unlock(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
 	return 0;
 

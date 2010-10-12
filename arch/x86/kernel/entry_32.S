@@ -611,14 +611,14 @@ ldt_ss:
  * compensating for the offset by changing to the ESPFIX segment with
  * a base address that matches for the difference.
  */
+#define GDT_ESPFIX_SS PER_CPU_VAR(gdt_page) + (GDT_ENTRY_ESPFIX_SS * 8)
 	mov %esp, %edx			/* load kernel esp */
 	mov PT_OLDESP(%esp), %eax	/* load userspace esp */
 	mov %dx, %ax			/* eax: new kernel esp */
 	sub %eax, %edx			/* offset (low word is 0) */
-	PER_CPU(gdt_page, %ebx)
 	shr $16, %edx
-	mov %dl, GDT_ENTRY_ESPFIX_SS * 8 + 4(%ebx) /* bits 16..23 */
-	mov %dh, GDT_ENTRY_ESPFIX_SS * 8 + 7(%ebx) /* bits 24..31 */
+	mov %dl, GDT_ESPFIX_SS + 4 /* bits 16..23 */
+	mov %dh, GDT_ESPFIX_SS + 7 /* bits 24..31 */
 	pushl $__ESPFIX_SS
 	CFI_ADJUST_CFA_OFFSET 4
 	push %eax			/* new kernel esp */
@@ -791,9 +791,8 @@ ptregs_clone:
  * normal stack and adjusts ESP with the matching offset.
  */
 	/* fixup the stack */
-	PER_CPU(gdt_page, %ebx)
-	mov GDT_ENTRY_ESPFIX_SS * 8 + 4(%ebx), %al /* bits 16..23 */
-	mov GDT_ENTRY_ESPFIX_SS * 8 + 7(%ebx), %ah /* bits 24..31 */
+	mov GDT_ESPFIX_SS + 4, %al /* bits 16..23 */
+	mov GDT_ESPFIX_SS + 7, %ah /* bits 24..31 */
 	shl $16, %eax
 	addl %esp, %eax			/* the adjusted stack pointer */
 	pushl $__KERNEL_DS
@@ -914,7 +913,7 @@ ENTRY(simd_coprocessor_error)
 	.balign 4
 	.long 661b
 	.long 663f
-	.byte X86_FEATURE_XMM
+	.word X86_FEATURE_XMM
 	.byte 662b-661b
 	.byte 664f-663f
 .previous
@@ -1165,6 +1164,9 @@ ENTRY(xen_failsafe_callback)
 	.long 4b,9b
 .previous
 ENDPROC(xen_failsafe_callback)
+
+BUILD_INTERRUPT3(xen_hvm_callback_vector, XEN_HVM_EVTCHN_CALLBACK,
+		xen_evtchn_do_upcall)
 
 #endif	/* CONFIG_XEN */
 

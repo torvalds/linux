@@ -67,6 +67,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 
 #include <asm/atafd.h>
 #include <asm/atafdreg.h>
@@ -359,7 +360,7 @@ static void finish_fdc( void );
 static void finish_fdc_done( int dummy );
 static void setup_req_params( int drive );
 static void redo_fd_request( void);
-static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
+static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
                      cmd, unsigned long param);
 static void fd_probe( int drive );
 static int fd_test_drive_present( int drive );
@@ -1480,7 +1481,7 @@ void do_fd_request(struct request_queue * q)
 	atari_enable_irq( IRQ_MFP_FDC );
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
 	struct gendisk *disk = bdev->bd_disk;
@@ -1665,6 +1666,17 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = fd_locked_ioctl(bdev, mode, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
 
 /* Initialize the 'unit' variable for drive 'drive' */
 
@@ -1838,24 +1850,36 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = floppy_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
 
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct atari_floppy_struct *p = disk->private_data;
+	lock_kernel();
 	if (p->ref < 0)
 		p->ref = 0;
 	else if (!p->ref--) {
 		printk(KERN_ERR "floppy_release with fd_ref == 0");
 		p->ref = 0;
 	}
+	unlock_kernel();
 	return 0;
 }
 
 static const struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
-	.open		= floppy_open,
+	.open		= floppy_unlocked_open,
 	.release	= floppy_release,
-	.locked_ioctl	= fd_ioctl,
+	.ioctl		= fd_ioctl,
 	.media_changed	= check_floppy_change,
 	.revalidate_disk= floppy_revalidate,
 };

@@ -46,7 +46,6 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	long disabled;
-	int resched;
 	int cpu;
 	int pc;
 
@@ -54,7 +53,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 		return;
 
 	pc = preempt_count();
-	resched = ftrace_preempt_disable();
+	preempt_disable_notrace();
 
 	cpu = raw_smp_processor_id();
 	if (cpu != wakeup_current_cpu)
@@ -74,7 +73,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
  out:
 	atomic_dec(&data->disabled);
  out_enable:
-	ftrace_preempt_enable(resched);
+	preempt_enable_notrace();
 }
 
 static struct ftrace_ops trace_ops __read_mostly =
@@ -383,6 +382,7 @@ static struct tracer wakeup_tracer __read_mostly =
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
 #endif
+	.use_max_tr	= 1,
 };
 
 static struct tracer wakeup_rt_tracer __read_mostly =
@@ -397,6 +397,7 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
 #endif
+	.use_max_tr	= 1,
 };
 
 __init static int init_wakeup_tracer(void)

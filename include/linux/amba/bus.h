@@ -14,14 +14,19 @@
 #ifndef ASMARM_AMBA_H
 #define ASMARM_AMBA_H
 
+#include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/resource.h>
 
 #define AMBA_NR_IRQS	2
 
+struct clk;
+
 struct amba_device {
 	struct device		dev;
 	struct resource		res;
+	struct clk		*pclk;
 	u64			dma_mask;
 	unsigned int		periphid;
 	unsigned int		irq[AMBA_NR_IRQS];
@@ -58,6 +63,12 @@ void amba_device_unregister(struct amba_device *);
 struct amba_device *amba_find_device(const char *, struct device *, unsigned int, unsigned int);
 int amba_request_regions(struct amba_device *, const char *);
 void amba_release_regions(struct amba_device *);
+
+#define amba_pclk_enable(d)	\
+	(IS_ERR((d)->pclk) ? 0 : clk_enable((d)->pclk))
+
+#define amba_pclk_disable(d)	\
+	do { if (!IS_ERR((d)->pclk)) clk_disable((d)->pclk); } while (0)
 
 #define amba_config(d)	(((d)->periphid >> 24) & 0xff)
 #define amba_rev(d)	(((d)->periphid >> 20) & 0x0f)

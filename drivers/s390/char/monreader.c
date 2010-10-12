@@ -627,7 +627,7 @@ out_iucv:
 static void __exit mon_exit(void)
 {
 	segment_unload(mon_dcss_name);
-	WARN_ON(misc_deregister(&mon_dev) != 0);
+	misc_deregister(&mon_dev);
 	device_unregister(monreader_device);
 	driver_unregister(&monreader_driver);
 	iucv_unregister(&monreader_iucv_handler, 1);

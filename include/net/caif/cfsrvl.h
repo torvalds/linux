@@ -16,6 +16,8 @@ struct cfsrvl {
 	bool open;
 	bool phy_flow_on;
 	bool modem_flow_on;
+	bool supports_flowctrl;
+	void (*release)(struct kref *);
 	struct dev_info dev_info;
 	struct kref ref;
 };
@@ -25,13 +27,15 @@ struct cflayer *cfvei_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfdgml_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfutill_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfvidl_create(u8 linkid, struct dev_info *dev_info);
-struct cflayer *cfrfml_create(u8 linkid, struct dev_info *dev_info);
+struct cflayer *cfrfml_create(u8 linkid, struct dev_info *dev_info,
+				int mtu_size);
 struct cflayer *cfdbgl_create(u8 linkid, struct dev_info *dev_info);
 bool cfsrvl_phyid_match(struct cflayer *layer, int phyid);
 void cfservl_destroy(struct cflayer *layer);
 void cfsrvl_init(struct cfsrvl *service,
-		 u8 channel_id,
-		 struct dev_info *dev_info);
+			u8 channel_id,
+			struct dev_info *dev_info,
+			bool supports_flowctrl);
 bool cfsrvl_ready(struct cfsrvl *service, int *err);
 u8 cfsrvl_getphyid(struct cflayer *layer);
 
@@ -50,7 +54,10 @@ static inline void cfsrvl_put(struct cflayer *layr)
 	if (layr == NULL)
 		return;
 	s = container_of(layr, struct cfsrvl, layer);
-	kref_put(&s->ref, cfsrvl_release);
+
+	WARN_ON(!s->release);
+	if (s->release)
+		kref_put(&s->ref, s->release);
 }
 
 #endif				/* CFSRVL_H_ */

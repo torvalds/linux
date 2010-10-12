@@ -25,6 +25,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -129,6 +130,12 @@ static struct pl061_platform_data gpio2_plat_data = {
 	.irq_base	= -1,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView EB AMBA devices
  */
@@ -213,7 +220,7 @@ AMBA_DEVICE(sci0,  "dev:sci0",  SCI,      NULL);
 AMBA_DEVICE(uart0, "dev:uart0", EB_UART0, NULL);
 AMBA_DEVICE(uart1, "dev:uart1", EB_UART1, NULL);
 AMBA_DEVICE(uart2, "dev:uart2", EB_UART2, NULL);
-AMBA_DEVICE(ssp0,  "dev:ssp0",  EB_SSP,   NULL);
+AMBA_DEVICE(ssp0,  "dev:ssp0",  EB_SSP,   &ssp0_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
@@ -322,6 +329,26 @@ static struct platform_device pmu_device = {
 	.id			= ARM_PMU_DEVICE_CPU,
 	.num_resources		= ARRAY_SIZE(pmu_resources),
 	.resource		= pmu_resources,
+};
+
+static struct resource char_lcd_resources[] = {
+	{
+		.start = REALVIEW_CHAR_LCD_BASE,
+		.end   = (REALVIEW_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_EB_CHARLCD,
+		.end	= IRQ_EB_CHARLCD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name		=	"arm-charlcd",
+	.id		=	-1,
+	.num_resources	=	ARRAY_SIZE(char_lcd_resources),
+	.resource	=	char_lcd_resources,
 };
 
 static void __init gic_init_irq(void)
@@ -442,6 +469,7 @@ static void __init realview_eb_init(void)
 
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
+	platform_device_register(&char_lcd_device);
 	eth_device_register();
 	realview_usb_register(realview_eb_isp1761_resources);
 

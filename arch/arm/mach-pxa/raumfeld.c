@@ -745,13 +745,32 @@ static int raumfeld_is_usb_online(void)
 
 static char *raumfeld_power_supplicants[] = { "ds2760-battery.0" };
 
+static void raumfeld_power_signal_charged(void)
+{
+	struct power_supply *psy =
+		power_supply_get_by_name(raumfeld_power_supplicants[0]);
+
+	if (psy)
+		power_supply_set_battery_charged(psy);
+}
+
+static int raumfeld_power_resume(void)
+{
+	/* check if GPIO_CHARGE_DONE went low while we were sleeping */
+	if (!gpio_get_value(GPIO_CHARGE_DONE))
+		raumfeld_power_signal_charged();
+
+	return 0;
+}
+
 static struct pda_power_pdata power_supply_info = {
 	.init			= power_supply_init,
 	.is_ac_online		= raumfeld_is_ac_online,
 	.is_usb_online		= raumfeld_is_usb_online,
 	.exit			= power_supply_exit,
 	.supplied_to		= raumfeld_power_supplicants,
-	.num_supplicants	= ARRAY_SIZE(raumfeld_power_supplicants)
+	.num_supplicants	= ARRAY_SIZE(raumfeld_power_supplicants),
+	.resume			= raumfeld_power_resume,
 };
 
 static struct resource power_supply_resources[] = {
@@ -766,13 +785,7 @@ static struct resource power_supply_resources[] = {
 
 static irqreturn_t charge_done_irq(int irq, void *dev_id)
 {
-	struct power_supply *psy;
-
-	psy = power_supply_get_by_name("ds2760-battery.0");
-
-	if (psy)
-		power_supply_set_battery_charged(psy);
-
+	raumfeld_power_signal_charged();
 	return IRQ_HANDLED;
 }
 

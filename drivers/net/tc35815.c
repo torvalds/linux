@@ -2066,7 +2066,7 @@ static int tc35815_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 	if (!lp->phy_dev)
 		return -ENODEV;
-	return phy_mii_ioctl(lp->phy_dev, if_mii(rq), cmd);
+	return phy_mii_ioctl(lp->phy_dev, rq, cmd);
 }
 
 static void tc35815_chip_reset(struct net_device *dev)

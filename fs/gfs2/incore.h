@@ -12,7 +12,6 @@
 
 #include <linux/fs.h>
 #include <linux/workqueue.h>
-#include <linux/slow-work.h>
 #include <linux/dlm.h>
 #include <linux/buffer_head.h>
 
@@ -383,7 +382,7 @@ struct gfs2_journal_extent {
 struct gfs2_jdesc {
 	struct list_head jd_list;
 	struct list_head extent_list;
-	struct slow_work jd_work;
+	struct work_struct jd_work;
 	struct inode *jd_inode;
 	unsigned long jd_flags;
 #define JDF_RECOVERY 1
@@ -460,6 +459,7 @@ enum {
 	SDF_NOBARRIERS		= 3,
 	SDF_NORECOVERY		= 4,
 	SDF_DEMOTE		= 5,
+	SDF_NOJOURNALID		= 6,
 };
 
 #define GFS2_FSNAME_LEN		256

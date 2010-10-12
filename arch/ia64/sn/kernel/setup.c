@@ -507,7 +507,7 @@ static void __init sn_init_pdas(char **cmdline_p)
 	cnodeid_t cnode;
 
 	/*
-	 * Allocate & initalize the nodepda for each node.
+	 * Allocate & initialize the nodepda for each node.
 	 */
 	for_each_online_node(cnode) {
 		nodepdaindr[cnode] =

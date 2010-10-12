@@ -2,8 +2,10 @@
 #define _LINUX_VIRTIO_9P_H
 /* This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers. */
+#include <linux/types.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
+#include <linux/types.h>
 
 /* The feature bitmap for virtio 9P */
 

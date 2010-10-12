@@ -90,28 +90,6 @@ struct zdap_ioctl {
 
 #endif
 
-static char hex(char v)
-{
-	if (isdigit(v))
-		return v - '0';
-	else if (isxdigit(v))
-		return tolower(v) - 'a' + 10;
-	else
-		return 0;
-}
-
-static unsigned char asctohex(char *str)
-{
-	unsigned char value;
-
-	value = hex(*str) & 0x0f;
-	value = value << 4;
-	str++;
-	value |= hex(*str) & 0x0f;
-
-	return value;
-}
-
 char *prgname;
 
 int set_ioctl(int sock, struct ifreq *req)
@@ -180,7 +158,7 @@ int main(int argc, char **argv)
 	if (argc < 3) {
 		fprintf(stderr, "%s: usage is \"%s <ifname> <operation>"
 				"[<address>] [<value>]\"\n", prgname, prgname);
-		fprintf(stderr, "valid operation : read, write, mem, reg, \n");
+		fprintf(stderr, "valid operation : read, write, mem, reg,\n");
 		fprintf(stderr, "		: txd, rxd, rmem, wmem\n");
 		fprintf(stderr, "		: dmat, regt, test\n");
 

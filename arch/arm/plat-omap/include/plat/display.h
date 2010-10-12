@@ -238,7 +238,7 @@ int dsi_vc_dcs_write_1(int channel, u8 dcs_cmd, u8 param);
 int dsi_vc_dcs_write_nosync(int channel, u8 *data, int len);
 int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen);
 int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data);
-int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u16 *data);
+int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u8 *data1, u8 *data2);
 int dsi_vc_set_max_rx_packet_size(int channel, u16 len);
 int dsi_vc_send_null(int channel);
 int dsi_vc_send_bta_sync(int channel);
@@ -277,8 +277,8 @@ struct omap_video_timings {
  * identify the mode, and does not actually use the configs
  * itself. However, the configs should be something that
  * a normal monitor can also show */
-const extern struct omap_video_timings omap_dss_pal_timings;
-const extern struct omap_video_timings omap_dss_ntsc_timings;
+extern const struct omap_video_timings omap_dss_pal_timings;
+extern const struct omap_video_timings omap_dss_ntsc_timings;
 #endif
 
 struct omap_overlay_info {
@@ -560,7 +560,8 @@ void omapdss_dsi_vc_enable_hs(int channel, bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h);
+				    u16 *x, u16 *y, u16 *w, u16 *h,
+				    bool enlarge_update_area);
 int omap_dsi_update(struct omap_dss_device *dssdev,
 		int channel,
 		u16 x, u16 y, u16 w, u16 h,

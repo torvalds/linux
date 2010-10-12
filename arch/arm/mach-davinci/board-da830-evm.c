@@ -208,7 +208,7 @@ static struct snd_platform_data da830_evm_snd_data = {
 	.num_serializer = ARRAY_SIZE(da830_iis_serializer_direction),
 	.tdm_slots      = 2,
 	.serial_dir     = da830_iis_serializer_direction,
-	.eventq_no      = EVENTQ_0,
+	.asp_chan_q     = EVENTQ_0,
 	.version	= MCASP_VERSION_2,
 	.txnumevt	= 1,
 	.rxnumevt	= 1,
@@ -494,12 +494,42 @@ static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
+/*
+ * The following EDMA channels/slots are not being used by drivers (for
+ * example: Timer, GPIO, UART events etc) on da830/omap-l137 EVM, hence
+ * they are being reserved for codecs on the DSP side.
+ */
+static const s16 da830_dma_rsv_chans[][2] = {
+	/* (offset, number) */
+	{ 8,  2},
+	{12,  2},
+	{24,  4},
+	{30,  2},
+	{-1, -1}
+};
+
+static const s16 da830_dma_rsv_slots[][2] = {
+	/* (offset, number) */
+	{ 8,  2},
+	{12,  2},
+	{24,  4},
+	{30, 26},
+	{-1, -1}
+};
+
+static struct edma_rsv_info da830_edma_rsv[] = {
+	{
+		.rsv_chans	= da830_dma_rsv_chans,
+		.rsv_slots	= da830_dma_rsv_slots,
+	},
+};
+
 static __init void da830_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
 
-	ret = da8xx_register_edma();
+	ret = da830_register_edma(da830_edma_rsv);
 	if (ret)
 		pr_warning("da830_evm_init: edma registration failed: %d\n",
 				ret);

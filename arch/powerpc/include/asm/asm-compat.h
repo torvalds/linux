@@ -30,6 +30,7 @@
 #define PPC_STLCX	stringify_in_c(stdcx.)
 #define PPC_CNTLZL	stringify_in_c(cntlzd)
 #define PPC_LR_STKOFF	16
+#define PPC_MIN_STKFRM	112
 
 /* Move to CR, single-entry optimized version. Only available
  * on POWER4 and later.
@@ -55,6 +56,7 @@
 #define PPC_CNTLZL	stringify_in_c(cntlzw)
 #define PPC_MTOCRF	stringify_in_c(mtcrf)
 #define PPC_LR_STKOFF	4
+#define PPC_MIN_STKFRM	16
 
 #endif
 

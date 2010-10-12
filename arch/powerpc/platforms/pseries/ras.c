@@ -61,7 +61,6 @@ static int ras_check_exception_token;
 
 #define EPOW_SENSOR_TOKEN	9
 #define EPOW_SENSOR_INDEX	0
-#define RAS_VECTOR_OFFSET	0x500
 
 static irqreturn_t ras_epow_interrupt(int irq, void *dev_id);
 static irqreturn_t ras_error_interrupt(int irq, void *dev_id);
@@ -121,7 +120,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 	spin_lock(&ras_log_buf_lock);
 
 	status = rtas_call(ras_check_exception_token, 6, 1, NULL,
-			   RAS_VECTOR_OFFSET,
+			   RTAS_VECTOR_EXTERNAL_INTERRUPT,
 			   irq_map[irq].hwirq,
 			   RTAS_EPOW_WARNING | RTAS_POWERMGM_EVENTS,
 			   critical, __pa(&ras_log_buf),
@@ -156,7 +155,7 @@ static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 	spin_lock(&ras_log_buf_lock);
 
 	status = rtas_call(ras_check_exception_token, 6, 1, NULL,
-			   RAS_VECTOR_OFFSET,
+			   RTAS_VECTOR_EXTERNAL_INTERRUPT,
 			   irq_map[irq].hwirq,
 			   RTAS_INTERNAL_ERROR, 1 /*Time Critical */,
 			   __pa(&ras_log_buf),

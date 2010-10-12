@@ -93,12 +93,20 @@ static unsigned short known_revisions[] =
 
 static int xtsonic_open(struct net_device *dev)
 {
-	if (request_irq(dev->irq,sonic_interrupt,IRQF_DISABLED,"sonic",dev)) {
+	int retval;
+
+	retval = request_irq(dev->irq, sonic_interrupt, IRQF_DISABLED,
+				"sonic", dev);
+	if (retval) {
 		printk(KERN_ERR "%s: unable to get IRQ %d.\n",
 		       dev->name, dev->irq);
 		return -EAGAIN;
 	}
-	return sonic_open(dev);
+
+	retval = sonic_open(dev);
+	if (retval)
+		free_irq(dev->irq, dev);
+	return retval;
 }
 
 static int xtsonic_close(struct net_device *dev)

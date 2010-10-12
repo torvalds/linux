@@ -37,10 +37,14 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+
+#ifdef CONFIG_ACPI_PROCFS
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#endif
+
 #include <linux/jiffies.h>
 #include <linux/kmod.h>
-#include <linux/seq_file.h>
 #include <linux/reboot.h>
 #include <linux/device.h>
 #include <asm/uaccess.h>
@@ -102,16 +106,6 @@ static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
 static int acpi_thermal_resume(struct acpi_device *device);
 static void acpi_thermal_notify(struct acpi_device *device, u32 event);
-static int acpi_thermal_state_open_fs(struct inode *inode, struct file *file);
-static int acpi_thermal_temp_open_fs(struct inode *inode, struct file *file);
-static int acpi_thermal_trip_open_fs(struct inode *inode, struct file *file);
-static int acpi_thermal_cooling_open_fs(struct inode *inode, struct file *file);
-static ssize_t acpi_thermal_write_cooling_mode(struct file *,
-					       const char __user *, size_t,
-					       loff_t *);
-static int acpi_thermal_polling_open_fs(struct inode *inode, struct file *file);
-static ssize_t acpi_thermal_write_polling(struct file *, const char __user *,
-					  size_t, loff_t *);
 
 static const struct acpi_device_id  thermal_device_ids[] = {
 	{ACPI_THERMAL_HID, 0},
@@ -201,6 +195,18 @@ struct acpi_thermal {
 	struct mutex lock;
 };
 
+#ifdef CONFIG_ACPI_PROCFS
+static int acpi_thermal_state_open_fs(struct inode *inode, struct file *file);
+static int acpi_thermal_temp_open_fs(struct inode *inode, struct file *file);
+static int acpi_thermal_trip_open_fs(struct inode *inode, struct file *file);
+static int acpi_thermal_cooling_open_fs(struct inode *inode, struct file *file);
+static ssize_t acpi_thermal_write_cooling_mode(struct file *,
+					       const char __user *, size_t,
+					       loff_t *);
+static int acpi_thermal_polling_open_fs(struct inode *inode, struct file *file);
+static ssize_t acpi_thermal_write_polling(struct file *, const char __user *,
+					  size_t, loff_t *);
+
 static const struct file_operations acpi_thermal_state_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_thermal_state_open_fs,
@@ -242,6 +248,7 @@ static const struct file_operations acpi_thermal_polling_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif /* CONFIG_ACPI_PROCFS*/
 
 /* --------------------------------------------------------------------------
                              Thermal Zone Management
@@ -283,26 +290,6 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 	tz->polling_frequency = tmp;
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Polling frequency is %lu dS\n",
 			  tz->polling_frequency));
-
-	return 0;
-}
-
-static int acpi_thermal_set_polling(struct acpi_thermal *tz, int seconds)
-{
-
-	if (!tz)
-		return -EINVAL;
-
-	tz->polling_frequency = seconds * 10;	/* Convert value to deci-seconds */
-
-	tz->thermal_zone->polling_delay = seconds * 1000;
-
-	if (tz->tz_enabled)
-		thermal_zone_device_update(tz->thermal_zone);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Polling frequency set to %lu seconds\n",
-			  tz->polling_frequency/10));
 
 	return 0;
 }
@@ -973,7 +960,7 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
-
+#ifdef CONFIG_ACPI_PROCFS
 static struct proc_dir_entry *acpi_thermal_dir;
 
 static int acpi_thermal_state_seq_show(struct seq_file *seq, void *offset)
@@ -1187,6 +1174,26 @@ static int acpi_thermal_polling_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
+static int acpi_thermal_set_polling(struct acpi_thermal *tz, int seconds)
+{
+	if (!tz)
+		return -EINVAL;
+
+	/* Convert value to deci-seconds */
+	tz->polling_frequency = seconds * 10;
+
+	tz->thermal_zone->polling_delay = seconds * 1000;
+
+	if (tz->tz_enabled)
+		thermal_zone_device_update(tz->thermal_zone);
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "Polling frequency set to %lu seconds\n",
+			  tz->polling_frequency/10));
+
+	return 0;
+}
+
 static ssize_t
 acpi_thermal_write_polling(struct file *file,
 			   const char __user * buffer,
@@ -1295,7 +1302,13 @@ static int acpi_thermal_remove_fs(struct acpi_device *device)
 
 	return 0;
 }
-
+#else
+static inline int acpi_thermal_add_fs(struct acpi_device *device) { return 0; }
+static inline int acpi_thermal_remove_fs(struct acpi_device *device)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI_PROCFS */
 /* --------------------------------------------------------------------------
                                  Driver Interface
    -------------------------------------------------------------------------- */
@@ -1566,13 +1579,18 @@ static int __init acpi_thermal_init(void)
 		printk(KERN_NOTICE "ACPI: thermal control disabled\n");
 		return -ENODEV;
 	}
+
+#ifdef CONFIG_ACPI_PROCFS
 	acpi_thermal_dir = proc_mkdir(ACPI_THERMAL_CLASS, acpi_root_dir);
 	if (!acpi_thermal_dir)
 		return -ENODEV;
+#endif
 
 	result = acpi_bus_register_driver(&acpi_thermal_driver);
 	if (result < 0) {
+#ifdef CONFIG_ACPI_PROCFS
 		remove_proc_entry(ACPI_THERMAL_CLASS, acpi_root_dir);
+#endif
 		return -ENODEV;
 	}
 
@@ -1584,7 +1602,9 @@ static void __exit acpi_thermal_exit(void)
 
 	acpi_bus_unregister_driver(&acpi_thermal_driver);
 
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_THERMAL_CLASS, acpi_root_dir);
+#endif
 
 	return;
 }

@@ -45,6 +45,18 @@ void machine_kexec_cleanup(struct kimage *image)
 		ppc_md.machine_kexec_cleanup(image);
 }
 
+void arch_crash_save_vmcoreinfo(void)
+{
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	VMCOREINFO_SYMBOL(node_data);
+	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+#endif
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+	VMCOREINFO_SYMBOL(contig_page_data);
+#endif
+}
+
 /*
  * Do not allocate memory (or fail in any way) in machine_kexec().
  * We are past the point of no return, committed to rebooting now.
@@ -144,24 +156,24 @@ int overlaps_crashkernel(unsigned long start, unsigned long size)
 }
 
 /* Values we need to export to the second kernel via the device tree. */
-static unsigned long kernel_end;
-static unsigned long crashk_size;
+static phys_addr_t kernel_end;
+static phys_addr_t crashk_size;
 
 static struct property kernel_end_prop = {
 	.name = "linux,kernel-end",
-	.length = sizeof(unsigned long),
+	.length = sizeof(phys_addr_t),
 	.value = &kernel_end,
 };
 
 static struct property crashk_base_prop = {
 	.name = "linux,crashkernel-base",
-	.length = sizeof(unsigned long),
+	.length = sizeof(phys_addr_t),
 	.value = &crashk_res.start,
 };
 
 static struct property crashk_size_prop = {
 	.name = "linux,crashkernel-size",
-	.length = sizeof(unsigned long),
+	.length = sizeof(phys_addr_t),
 	.value = &crashk_size,
 };
 

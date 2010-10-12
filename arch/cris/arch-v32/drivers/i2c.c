@@ -32,7 +32,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/etraxi2c.h>
 
@@ -47,6 +47,7 @@
 #define D(x)
 
 #define I2C_MAJOR 123  /* LOCAL/EXPERIMENTAL */
+static DEFINE_MUTEX(i2c_mutex);
 static const char i2c_name[] = "i2c";
 
 #define CLOCK_LOW_TIME            8
@@ -636,7 +637,6 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 static int
 i2c_open(struct inode *inode, struct file *filp)
 {
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -665,11 +665,11 @@ i2c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				 I2C_ARGREG(arg),
 				 I2C_ARGVALUE(arg)));
 
-			lock_kernel();
+			mutex_lock(&i2c_mutex);
 			ret = i2c_writereg(I2C_ARGSLAVE(arg),
 					    I2C_ARGREG(arg),
 					    I2C_ARGVALUE(arg));
-			unlock_kernel();
+			mutex_unlock(&i2c_mutex);
 			return ret;
 
 		case I2C_READREG:
@@ -679,9 +679,9 @@ i2c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			D(printk("i2cr %d %d ",
 				I2C_ARGSLAVE(arg),
 				I2C_ARGREG(arg)));
-			lock_kernel();
+			mutex_lock(&i2c_mutex);
 			val = i2c_readreg(I2C_ARGSLAVE(arg), I2C_ARGREG(arg));
-			unlock_kernel();
+			mutex_unlock(&i2c_mutex);
 			D(printk("= %d\n", val));
 			return val;
 		}

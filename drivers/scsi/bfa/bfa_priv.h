@@ -37,7 +37,6 @@
 			void *bfad, struct bfa_iocfc_cfg_s *cfg, 	\
 			struct bfa_meminfo_s *meminfo,			\
 			struct bfa_pcidev_s *pcidev);      \
-	static void bfa_ ## __mod ## _initdone(struct bfa_s *bfa);      \
 	static void bfa_ ## __mod ## _detach(struct bfa_s *bfa);      \
 	static void bfa_ ## __mod ## _start(struct bfa_s *bfa);      \
 	static void bfa_ ## __mod ## _stop(struct bfa_s *bfa);      \
@@ -47,7 +46,6 @@
 	struct bfa_module_s hal_mod_ ## __mod = {			\
 		bfa_ ## __mod ## _meminfo,				\
 		bfa_ ## __mod ## _attach,				\
-		bfa_ ## __mod ## _initdone,				\
 		bfa_ ## __mod ## _detach,				\
 		bfa_ ## __mod ## _start,				\
 		bfa_ ## __mod ## _stop,					\
@@ -69,7 +67,6 @@ struct bfa_module_s {
 			struct bfa_iocfc_cfg_s *cfg,
 			struct bfa_meminfo_s *meminfo,
 			struct bfa_pcidev_s *pcidev);
-	void (*initdone) (struct bfa_s *bfa);
 	void (*detach) (struct bfa_s *bfa);
 	void (*start) (struct bfa_s *bfa);
 	void (*stop) (struct bfa_s *bfa);

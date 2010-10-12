@@ -312,6 +312,8 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 	__set_bit(BTN_LEFT, input_dev->keybit);
+
+	input_set_events_per_packet(input_dev, 60);
 }
 
 /* report button data as logical button state */
@@ -580,23 +582,30 @@ exit:
  */
 static int bcm5974_start_traffic(struct bcm5974 *dev)
 {
-	if (bcm5974_wellspring_mode(dev, true)) {
+	int error;
+
+	error = bcm5974_wellspring_mode(dev, true);
+	if (error) {
 		dprintk(1, "bcm5974: mode switch failed\n");
-		goto error;
+		goto err_out;
 	}
 
-	if (usb_submit_urb(dev->bt_urb, GFP_KERNEL))
-		goto error;
+	error = usb_submit_urb(dev->bt_urb, GFP_KERNEL);
+	if (error)
+		goto err_reset_mode;
 
-	if (usb_submit_urb(dev->tp_urb, GFP_KERNEL))
+	error = usb_submit_urb(dev->tp_urb, GFP_KERNEL);
+	if (error)
 		goto err_kill_bt;
 
 	return 0;
 
 err_kill_bt:
 	usb_kill_urb(dev->bt_urb);
-error:
-	return -EIO;
+err_reset_mode:
+	bcm5974_wellspring_mode(dev, false);
+err_out:
+	return error;
 }
 
 static void bcm5974_pause_traffic(struct bcm5974 *dev)

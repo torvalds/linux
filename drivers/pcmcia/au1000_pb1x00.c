@@ -31,11 +31,9 @@
 #include <linux/proc_fs.h>
 #include <linux/types.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
-#include <pcmcia/bus_ops.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

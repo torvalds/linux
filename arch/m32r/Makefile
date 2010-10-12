@@ -12,8 +12,8 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux	:=
 
 KBUILD_CFLAGS += -pipe -fno-schedule-insns
-CFLAGS_KERNEL += -mmodel=medium
-CFLAGS_MODULE += -mmodel=large
+KBUILD_CFLAGS_KERNEL += -mmodel=medium
+KBUILD_CFLAGS_MODULE += -mmodel=large
 
 ifdef CONFIG_CHIP_VDEC2
 cflags-$(CONFIG_ISA_M32R2)	+= -DNO_FPU -Wa,-bitinst

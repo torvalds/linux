@@ -11,6 +11,7 @@
 
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <asm/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
@@ -149,6 +150,8 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 	if (current->thread.dabr)
 		set_dabr(current->thread.dabr);
 #endif
+	/* Re-enable the breakpoints for the signal stack */
+	thread_change_pc(current, regs);
 
 	if (is32) {
         	if (ka.sa.sa_flags & SA_SIGINFO)

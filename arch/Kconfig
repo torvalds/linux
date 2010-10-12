@@ -151,4 +151,11 @@ config HAVE_MIXED_BREAKPOINTS_REGS
 config HAVE_USER_RETURN_NOTIFIER
 	bool
 
+config HAVE_PERF_EVENTS_NMI
+	bool
+	help
+	  System hardware can generate an NMI using the perf event
+	  subsystem.  Also has support for calculating CPU cycle events
+	  to determine how many clock cycles in a given period.
+
 source "kernel/gcov/Kconfig"

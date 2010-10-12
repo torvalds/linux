@@ -21,7 +21,7 @@
 static struct resource s3c_wdt_resource[] = {
 	[0] = {
 		.start	= S3C_PA_WDT,
-		.end	= S3C_PA_WDT + SZ_1M - 1,
+		.end	= S3C_PA_WDT + SZ_1K,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {

@@ -450,7 +450,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
  *
  * Flushes both send and receive work queues.
  * Returns true if last WQE event should be generated.
- * The QP s_lock should be held and interrupts disabled.
+ * The QP r_lock and s_lock should be held and interrupts disabled.
  * If we are already in error state, just return.
  */
 int qib_error_qp(struct qib_qp *qp, enum ib_wc_status err)

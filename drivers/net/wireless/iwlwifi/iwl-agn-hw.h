@@ -112,7 +112,7 @@
  */
 struct iwlagn_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 
 #endif /* __iwl_agn_hw_h__ */

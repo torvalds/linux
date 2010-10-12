@@ -4,7 +4,7 @@
 #
 menu "Texas Instruments shared transport line discipline"
 config TI_ST
-	tristate "shared transport core driver"
+	tristate "Shared transport core driver"
 	depends on RFKILL
 	select FW_LOADER
 	help

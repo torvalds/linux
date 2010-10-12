@@ -997,7 +997,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 	 * because of those XXX, this is not yet enabled,
 	 * i.e. in drbd_init_set_defaults we set the NO_BARRIER_SUPP bit.
 	 */
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && test_bit(NO_BARRIER_SUPP, &mdev->flags))) {
+	if (unlikely(bio->bi_rw & REQ_HARDBARRIER) && test_bit(NO_BARRIER_SUPP, &mdev->flags)) {
 		/* dev_warn(DEV, "Rejecting barrier request as underlying device does not support\n"); */
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;

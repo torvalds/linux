@@ -19,8 +19,6 @@
 #include <plat/board.h>
 #include <plat/gpmc.h>
 
-#define WR_RD_PIN_MONITORING	0x00600000
-
 static struct omap_nand_platform_data *gpmc_nand_data;
 
 static struct resource gpmc_nand_resource = {
@@ -71,10 +69,10 @@ static int omap2_nand_gpmc_retime(void)
 	t.wr_cycle  = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->wr_cycle);
 
 	/* Configure GPMC */
-	gpmc_cs_write_reg(gpmc_nand_data->cs, GPMC_CS_CONFIG1,
-			GPMC_CONFIG1_DEVICESIZE(gpmc_nand_data->devsize) |
-			GPMC_CONFIG1_DEVICETYPE_NAND);
-
+	gpmc_cs_configure(gpmc_nand_data->cs,
+				GPMC_CONFIG_DEV_SIZE, gpmc_nand_data->devsize);
+	gpmc_cs_configure(gpmc_nand_data->cs,
+			GPMC_CONFIG_DEV_TYPE, GPMC_DEVICETYPE_NAND);
 	err = gpmc_cs_set_timings(gpmc_nand_data->cs, &t);
 	if (err)
 		return err;
@@ -82,27 +80,13 @@ static int omap2_nand_gpmc_retime(void)
 	return 0;
 }
 
-static int gpmc_nand_setup(void)
-{
-	struct device *dev = &gpmc_nand_device.dev;
-
-	/* Set timings in GPMC */
-	if (omap2_nand_gpmc_retime() < 0) {
-		dev_err(dev, "Unable to set gpmc timings\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 int __init gpmc_nand_init(struct omap_nand_platform_data *_nand_data)
 {
-	unsigned int val;
 	int err	= 0;
 	struct device *dev = &gpmc_nand_device.dev;
 
 	gpmc_nand_data = _nand_data;
-	gpmc_nand_data->nand_setup = gpmc_nand_setup;
+	gpmc_nand_data->nand_setup = omap2_nand_gpmc_retime;
 	gpmc_nand_device.dev.platform_data = gpmc_nand_data;
 
 	err = gpmc_cs_request(gpmc_nand_data->cs, NAND_IO_SIZE,
@@ -112,19 +96,16 @@ int __init gpmc_nand_init(struct omap_nand_platform_data *_nand_data)
 		return err;
 	}
 
-	err = gpmc_nand_setup();
+	 /* Set timings in GPMC */
+	err = omap2_nand_gpmc_retime();
 	if (err < 0) {
-		dev_err(dev, "NAND platform setup failed: %d\n", err);
+		dev_err(dev, "Unable to set gpmc timings: %d\n", err);
 		return err;
 	}
 
 	/* Enable RD PIN Monitoring Reg */
 	if (gpmc_nand_data->dev_ready) {
-		val  = gpmc_cs_read_reg(gpmc_nand_data->cs,
-						 GPMC_CS_CONFIG1);
-		val |= WR_RD_PIN_MONITORING;
-		gpmc_cs_write_reg(gpmc_nand_data->cs,
-						GPMC_CS_CONFIG1, val);
+		gpmc_cs_configure(gpmc_nand_data->cs, GPMC_CONFIG_RDY_BSY, 1);
 	}
 
 	err = platform_device_register(&gpmc_nand_device);

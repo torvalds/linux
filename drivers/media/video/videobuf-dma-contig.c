@@ -190,7 +190,7 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 	return ret;
 }
 
-static struct videobuf_buffer *__videobuf_alloc(size_t size)
+static struct videobuf_buffer *__videobuf_alloc_vb(size_t size)
 {
 	struct videobuf_dma_contig_memory *mem;
 	struct videobuf_buffer *vb;
@@ -280,8 +280,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		return -ENOMEM;
 
 	buf->map = map;
-	map->start = vma->vm_start;
-	map->end = vma->vm_end;
 	map->q = q;
 
 	buf->baddr = vma->vm_start;
@@ -338,7 +336,7 @@ error:
 static struct videobuf_qtype_ops qops = {
 	.magic        = MAGIC_QTYPE_OPS,
 
-	.alloc        = __videobuf_alloc,
+	.alloc_vb     = __videobuf_alloc_vb,
 	.iolock       = __videobuf_iolock,
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.vaddr        = __videobuf_to_vaddr,

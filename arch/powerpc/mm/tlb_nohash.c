@@ -46,6 +46,7 @@
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
+		.ind	= 20,
 		.enc	= BOOK3E_PAGESZ_4K,
 	},
 	[MMU_PAGE_16K] = {
@@ -54,6 +55,7 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	},
 	[MMU_PAGE_64K] = {
 		.shift	= 16,
+		.ind	= 28,
 		.enc	= BOOK3E_PAGESZ_64K,
 	},
 	[MMU_PAGE_1M] = {
@@ -62,6 +64,7 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	},
 	[MMU_PAGE_16M] = {
 		.shift	= 24,
+		.ind	= 36,
 		.enc	= BOOK3E_PAGESZ_16M,
 	},
 	[MMU_PAGE_256M] = {
@@ -344,16 +347,108 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 	}
 }
 
-/*
- * Early initialization of the MMU TLB code
- */
-static void __early_init_mmu(int boot_cpu)
+static void setup_page_sizes(void)
+{
+	unsigned int tlb0cfg = mfspr(SPRN_TLB0CFG);
+	unsigned int tlb0ps = mfspr(SPRN_TLB0PS);
+	unsigned int eptcfg = mfspr(SPRN_EPTCFG);
+	int i, psize;
+
+	/* Look for supported direct sizes */
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
+		struct mmu_psize_def *def = &mmu_psize_defs[psize];
+
+		if (tlb0ps & (1U << (def->shift - 10)))
+			def->flags |= MMU_PAGE_SIZE_DIRECT;
+	}
+
+	/* Indirect page sizes supported ? */
+	if ((tlb0cfg & TLBnCFG_IND) == 0)
+		goto no_indirect;
+
+	/* Now, we only deal with one IND page size for each
+	 * direct size. Hopefully all implementations today are
+	 * unambiguous, but we might want to be careful in the
+	 * future.
+	 */
+	for (i = 0; i < 3; i++) {
+		unsigned int ps, sps;
+
+		sps = eptcfg & 0x1f;
+		eptcfg >>= 5;
+		ps = eptcfg & 0x1f;
+		eptcfg >>= 5;
+		if (!ps || !sps)
+			continue;
+		for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+			struct mmu_psize_def *def = &mmu_psize_defs[psize];
+
+			if (ps == (def->shift - 10))
+				def->flags |= MMU_PAGE_SIZE_INDIRECT;
+			if (sps == (def->shift - 10))
+				def->ind = ps + 10;
+		}
+	}
+ no_indirect:
+
+	/* Cleanup array and print summary */
+	pr_info("MMU: Supported page sizes\n");
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
+		struct mmu_psize_def *def = &mmu_psize_defs[psize];
+		const char *__page_type_names[] = {
+			"unsupported",
+			"direct",
+			"indirect",
+			"direct & indirect"
+		};
+		if (def->flags == 0) {
+			def->shift = 0;	
+			continue;
+		}
+		pr_info("  %8ld KB as %s\n", 1ul << (def->shift - 10),
+			__page_type_names[def->flags & 0x3]);
+	}
+}
+
+static void setup_mmu_htw(void)
 {
 	extern unsigned int interrupt_base_book3e;
 	extern unsigned int exc_data_tlb_miss_htw_book3e;
 	extern unsigned int exc_instruction_tlb_miss_htw_book3e;
 
 	unsigned int *ibase = &interrupt_base_book3e;
+
+	/* Check if HW tablewalk is present, and if yes, enable it by:
+	 *
+	 * - patching the TLB miss handlers to branch to the
+	 *   one dedicates to it
+	 *
+	 * - setting the global book3e_htw_enabled
+       	 */
+	unsigned int tlb0cfg = mfspr(SPRN_TLB0CFG);
+
+	if ((tlb0cfg & TLBnCFG_IND) &&
+	    (tlb0cfg & TLBnCFG_PT)) {
+		/* Our exceptions vectors start with a NOP and -then- a branch
+		 * to deal with single stepping from userspace which stops on
+		 * the second instruction. Thus we need to patch the second
+		 * instruction of the exception, not the first one
+		 */
+		patch_branch(ibase + (0x1c0 / 4) + 1,
+			     (unsigned long)&exc_data_tlb_miss_htw_book3e, 0);
+		patch_branch(ibase + (0x1e0 / 4) + 1,
+			     (unsigned long)&exc_instruction_tlb_miss_htw_book3e, 0);
+		book3e_htw_enabled = 1;
+	}
+	pr_info("MMU: Book3E Page Tables %s\n",
+		book3e_htw_enabled ? "Enabled" : "Disabled");
+}
+
+/*
+ * Early initialization of the MMU TLB code
+ */
+static void __early_init_mmu(int boot_cpu)
+{
 	unsigned int mas4;
 
 	/* XXX This will have to be decided at runtime, but right
@@ -370,35 +465,17 @@ static void __early_init_mmu(int boot_cpu)
 	 */
 	mmu_vmemmap_psize = MMU_PAGE_16M;
 
-	/* Check if HW tablewalk is present, and if yes, enable it by:
-	 *
-	 * - patching the TLB miss handlers to branch to the
-	 *   one dedicates to it
-	 *
-	 * - setting the global book3e_htw_enabled
-	 *
-	 * - Set MAS4:INDD and default page size
-	 */
-
 	/* XXX This code only checks for TLB 0 capabilities and doesn't
 	 *     check what page size combos are supported by the HW. It
 	 *     also doesn't handle the case where a separate array holds
 	 *     the IND entries from the array loaded by the PT.
 	 */
 	if (boot_cpu) {
-		unsigned int tlb0cfg = mfspr(SPRN_TLB0CFG);
+		/* Look for supported page sizes */
+		setup_page_sizes();
 
-		/* Check if HW loader is supported */
-		if ((tlb0cfg & TLBnCFG_IND) &&
-		    (tlb0cfg & TLBnCFG_PT)) {
-			patch_branch(ibase + (0x1c0 / 4),
-			     (unsigned long)&exc_data_tlb_miss_htw_book3e, 0);
-			patch_branch(ibase + (0x1e0 / 4),
-			     (unsigned long)&exc_instruction_tlb_miss_htw_book3e, 0);
-			book3e_htw_enabled = 1;
-		}
-		pr_info("MMU: Book3E Page Tables %s\n",
-			book3e_htw_enabled ? "Enabled" : "Disabled");
+		/* Look for HW tablewalk support */
+		setup_mmu_htw();
 	}
 
 	/* Set MAS4 based on page table setting */

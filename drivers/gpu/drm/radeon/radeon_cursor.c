@@ -170,7 +170,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, radeon_crtc->crtc_id);
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	ret = radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &gpu_addr);

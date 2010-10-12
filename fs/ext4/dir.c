@@ -61,10 +61,11 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 }
 
 
-int ext4_check_dir_entry(const char *function, struct inode *dir,
-			 struct ext4_dir_entry_2 *de,
-			 struct buffer_head *bh,
-			 unsigned int offset)
+int __ext4_check_dir_entry(const char *function, unsigned int line,
+			   struct inode *dir,
+			   struct ext4_dir_entry_2 *de,
+			   struct buffer_head *bh,
+			   unsigned int offset)
 {
 	const char *error_msg = NULL;
 	const int rlen = ext4_rec_len_from_disk(de->rec_len,
@@ -83,11 +84,10 @@ int ext4_check_dir_entry(const char *function, struct inode *dir,
 		error_msg = "inode out of bounds";
 
 	if (error_msg != NULL)
-		ext4_error_inode(function, dir,
-			"bad entry in directory: %s - block=%llu"
+		ext4_error_inode(dir, function, line, bh->b_blocknr,
+			"bad entry in directory: %s - "
 			"offset=%u(%u), inode=%u, rec_len=%d, name_len=%d",
-			error_msg, (unsigned long long) bh->b_blocknr,
-			(unsigned) (offset%bh->b_size), offset,
+			error_msg, (unsigned) (offset%bh->b_size), offset,
 			le32_to_cpu(de->inode),
 			rlen, de->name_len);
 	return error_msg == NULL ? 1 : 0;
@@ -121,7 +121,8 @@ static int ext4_readdir(struct file *filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		ext4_clear_inode_flag(filp->f_path.dentry->d_inode, EXT4_INODE_INDEX);
+		ext4_clear_inode_flag(filp->f_path.dentry->d_inode,
+				      EXT4_INODE_INDEX);
 	}
 	stored = 0;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
@@ -193,7 +194,7 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (!ext4_check_dir_entry("ext4_readdir", inode, de,
+			if (!ext4_check_dir_entry(inode, de,
 						  bh, offset)) {
 				/*
 				 * On error, skip the f_pos to the next block
@@ -343,7 +344,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	struct dir_private_info *info;
 	int len;
 
-	info = (struct dir_private_info *) dir_file->private_data;
+	info = dir_file->private_data;
 	p = &info->root.rb_node;
 
 	/* Create and allocate the fname structure */

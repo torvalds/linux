@@ -8,8 +8,8 @@
 
 MKIMAGE := $(srctree)/scripts/mkuboot.sh
 
-targets := vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma vmImage.xip
-extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma vmlinux.bin.xip
+targets := vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma vmImage.lzo vmImage.xip
+extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.xip
 
 UIMAGE_OPTS-y :=
 UIMAGE_OPTS-$(CONFIG_RAMKERNEL) += -a $(CONFIG_BOOT_LOAD)
@@ -33,6 +33,9 @@ $(obj)/vmlinux.bin.bz2: $(obj)/vmlinux.bin FORCE
 $(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,lzma)
 
+$(obj)/vmlinux.bin.lzo: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lzo)
+
 # The mkimage tool wants 64bytes prepended to the image
 quiet_cmd_mk_bin_xip = BIN     $@
       cmd_mk_bin_xip = ( printf '%64s' | tr ' ' '\377' ; cat $< ) > $@
@@ -51,6 +54,9 @@ $(obj)/vmImage.gz: $(obj)/vmlinux.bin.gz
 $(obj)/vmImage.lzma: $(obj)/vmlinux.bin.lzma
 	$(call if_changed,uimage,lzma)
 
+$(obj)/vmImage.lzo: $(obj)/vmlinux.bin.lzo
+	$(call if_changed,uimage,lzo)
+
 $(obj)/vmImage.xip: $(obj)/vmlinux.bin.xip
 	$(call if_changed,uimage,none)
 
@@ -58,6 +64,7 @@ suffix-y                      := bin
 suffix-$(CONFIG_KERNEL_GZIP)  := gz
 suffix-$(CONFIG_KERNEL_BZIP2) := bz2
 suffix-$(CONFIG_KERNEL_LZMA)  := lzma
+suffix-$(CONFIG_KERNEL_LZO)   := lzo
 suffix-$(CONFIG_ROMKERNEL)    := xip
 
 $(obj)/vmImage: $(obj)/vmImage.$(suffix-y)

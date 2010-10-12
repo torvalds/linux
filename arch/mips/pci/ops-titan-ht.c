@@ -32,7 +32,7 @@
 #include <asm/titan_dep.h>
 
 static int titan_ht_config_read_dword(struct pci_bus *bus, unsigned int devfn,
-	int offset, u32 * val)
+	int offset, u32 *val)
 {
 	volatile uint32_t address;
 	int busno;
@@ -64,7 +64,7 @@ static int titan_ht_config_read_dword(struct pci_bus *bus, unsigned int devfn,
 }
 
 static int titan_ht_config_read(struct pci_bus *bus, unsigned int devfn,
-	int offset, int size, u32 * val)
+	int offset, int size, u32 *val)
 {
 	uint32_t dword;
 

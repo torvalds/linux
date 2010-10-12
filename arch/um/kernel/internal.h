@@ -1,1 +1,1 @@
-extern long um_execve(char *file, char __user *__user *argv, char __user *__user *env);
+extern long um_execve(const char *file, char __user *__user *argv, char __user *__user *env);

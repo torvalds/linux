@@ -43,19 +43,6 @@ config BT_L2CAP
 	  Say Y here to compile L2CAP support into the kernel or say M to
 	  compile it as module (l2cap).
 
-config BT_L2CAP_EXT_FEATURES
-	bool "L2CAP Extended Features support (EXPERIMENTAL)"
-	depends on BT_L2CAP && EXPERIMENTAL
-	help
-	  This option enables the L2CAP Extended Features support. These
-	  new features include the Enhanced Retransmission and Streaming
-	  Modes, the Frame Check Sequence (FCS), and Segmentation and
-	  Reassembly (SAR) for L2CAP packets. They are a required for the
-	  new Alternate MAC/PHY and the Bluetooth Medical Profile.
-
-	  You should say N unless you know what you are doing. Note that
-	  this is in an experimental state yet.
-
 config BT_SCO
 	tristate "SCO links support"
 	depends on BT

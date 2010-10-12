@@ -108,7 +108,7 @@ static int __init celleb_init_iommu(void)
 	celleb_init_direct_mapping();
 	set_pci_dma_ops(&dma_direct_ops);
 	ppc_md.pci_dma_dev_setup = celleb_pci_dma_dev_setup;
-	bus_register_notifier(&of_platform_bus_type, &celleb_of_bus_notifier);
+	bus_register_notifier(&platform_bus_type, &celleb_of_bus_notifier);
 
 	return 0;
 }

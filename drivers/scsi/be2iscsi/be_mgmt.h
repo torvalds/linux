@@ -86,16 +86,19 @@ struct mcc_wrb {
 	struct mcc_wrb_payload payload;
 };
 
-unsigned char mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute);
-int mgmt_open_connection(struct beiscsi_hba *phba, struct sockaddr *dst_addr,
-			 struct beiscsi_endpoint *beiscsi_ep);
+int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute);
+int mgmt_open_connection(struct beiscsi_hba *phba,
+			 struct sockaddr *dst_addr,
+			 struct beiscsi_endpoint *beiscsi_ep,
+			 struct be_dma_mem *nonemb_cmd);
 
-unsigned char mgmt_upload_connection(struct beiscsi_hba *phba,
+unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 				     unsigned short cid,
 				     unsigned int upload_flag);
-unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
+unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				struct invalidate_command_table *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid);
+				unsigned int num_invalidate, unsigned int cid,
+				struct be_dma_mem *nonemb_cmd);
 
 struct iscsi_invalidate_connection_params_in {
 	struct be_cmd_req_hdr hdr;
@@ -237,10 +240,10 @@ struct beiscsi_endpoint {
 	u16 cid_vld;
 };
 
-unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
+int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 				 struct beiscsi_hba *phba);
 
-unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
+unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 struct beiscsi_endpoint *beiscsi_ep,
 					 unsigned short cid,
 					 unsigned short issue_reset,

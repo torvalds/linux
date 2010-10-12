@@ -111,6 +111,8 @@ static int __init afs_init(void)
 
 	/* initialise the callback update process */
 	ret = afs_callback_update_init();
+	if (ret < 0)
+		goto error_callback_update_init;
 
 	/* create the RxRPC transport */
 	ret = afs_open_socket();
@@ -127,15 +129,16 @@ static int __init afs_init(void)
 error_fs:
 	afs_close_socket();
 error_open_socket:
+	afs_callback_update_kill();
+error_callback_update_init:
+	afs_vlocation_purge();
 error_vl_update_init:
+	afs_cell_purge();
 error_cell_init:
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_unregister_netfs(&afs_cache_netfs);
 error_cache:
 #endif
-	afs_callback_update_kill();
-	afs_vlocation_purge();
-	afs_cell_purge();
 	afs_proc_cleanup();
 	rcu_barrier();
 	printk(KERN_ERR "kAFS: failed to register: %d\n", ret);

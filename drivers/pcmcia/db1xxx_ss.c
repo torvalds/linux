@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 
 #include <asm/mach-au1x00/au1000.h>

@@ -104,9 +104,10 @@ unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
 }
 
 /*
- * Set up one of the I/D BAT (block address translation) register pairs.
- * The parameters are not checked; in particular size must be a power
- * of 4 between 4k and 256M.
+ * Set up a variable-size TLB entry (tlbcam). The parameters are not checked;
+ * in particular size must be a power of 4 between 4k and 256M (or 1G, for cpus
+ * that support extended page sizes).  Note that while some cpus support a
+ * page size of 4G, we don't allow its use here.
  */
 static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		unsigned long size, unsigned long flags, unsigned int pid)

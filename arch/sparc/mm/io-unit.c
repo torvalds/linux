@@ -35,7 +35,7 @@
 #define IOPERM        (IOUPTE_CACHE | IOUPTE_WRITE | IOUPTE_VALID)
 #define MKIOPTE(phys) __iopte((((phys)>>4) & IOUPTE_PAGE) | IOPERM)
 
-static void __init iounit_iommu_init(struct of_device *op)
+static void __init iounit_iommu_init(struct platform_device *op)
 {
 	struct iounit_struct *iounit;
 	iopte_t *xpt, *xptend;
@@ -74,7 +74,7 @@ static int __init iounit_init(void)
 	struct device_node *dp;
 
 	for_each_node_by_name(dp, "sbi") {
-		struct of_device *op = of_find_device_by_node(dp);
+		struct platform_device *op = of_find_device_by_node(dp);
 
 		iounit_iommu_init(op);
 		of_propagate_archdata(op);

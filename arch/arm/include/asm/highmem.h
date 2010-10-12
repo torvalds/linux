@@ -36,7 +36,7 @@ extern void kunmap_high_l1_vipt(struct page *page, pte_t saved_pte);
 extern void *kmap(struct page *page);
 extern void kunmap(struct page *page);
 extern void *kmap_atomic(struct page *page, enum km_type type);
-extern void kunmap_atomic(void *kvaddr, enum km_type type);
+extern void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type);
 extern void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
 extern struct page *kmap_atomic_to_page(const void *ptr);
 #endif

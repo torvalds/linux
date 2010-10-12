@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_HARD_INTERFACE_H_
+#define _NET_BATMAN_ADV_HARD_INTERFACE_H_
+
 #define IF_NOT_IN_USE 0
 #define IF_TO_BE_REMOVED 1
 #define IF_INACTIVE 2
@@ -38,3 +41,5 @@ int batman_skb_recv(struct sk_buff *skb,
 				struct net_device *orig_dev);
 int hardif_min_mtu(void);
 void update_min_mtu(void);
+
+#endif /* _NET_BATMAN_ADV_HARD_INTERFACE_H_ */

@@ -326,7 +326,7 @@ if ($arch eq "x86_64") {
     #                    14: R_MIPS_NONE *ABS*
     #	 18:   00020021        nop
     if ($is_module eq "0") {
-	    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s_mcount\$";
+	    $mcount_regex = "^\\s*([0-9a-fA-F]+): R_MIPS_26\\s+_mcount\$";
     } else {
 	    $mcount_regex = "^\\s*([0-9a-fA-F]+): R_MIPS_HI16\\s+_mcount\$";
     }

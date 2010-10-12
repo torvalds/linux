@@ -366,7 +366,7 @@ iplstart:
 	l	%r1,.Lstartup
 	br	%r1
 
-.Linitrd:.long _end + 0x400000		# default address of initrd
+.Linitrd:.long _end			# default address of initrd
 .Lparm:	.long  PARMAREA
 .Lstartup: .long startup
 .Lreset:.byte	0xc3,0xc8,0xc1,0xd5,0xc7,0xc5,0x40,0xd9,0xc4,0xd9,0x40

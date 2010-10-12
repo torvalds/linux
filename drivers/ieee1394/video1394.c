@@ -720,7 +720,7 @@ static inline unsigned video1394_buffer_state(struct dma_iso_ctx *d,
 static long video1394_ioctl(struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-	struct file_ctx *ctx = (struct file_ctx *)file->private_data;
+	struct file_ctx *ctx = file->private_data;
 	struct ti_ohci *ohci = ctx->ohci;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
@@ -1045,14 +1045,9 @@ static long video1394_ioctl(struct file *file,
 			if (get_user(qv, &p->packet_sizes))
 				return -EFAULT;
 
-			psizes = kmalloc(buf_size, GFP_KERNEL);
-			if (!psizes)
-				return -ENOMEM;
-
-			if (copy_from_user(psizes, qv, buf_size)) {
-				kfree(psizes);
-				return -EFAULT;
-			}
+			psizes = memdup_user(qv, buf_size);
+			if (IS_ERR(psizes))
+				return PTR_ERR(psizes);
 		}
 
 		spin_lock_irqsave(&d->lock,flags);
@@ -1177,7 +1172,7 @@ static long video1394_ioctl(struct file *file,
 
 static int video1394_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct file_ctx *ctx = (struct file_ctx *)file->private_data;
+	struct file_ctx *ctx = file->private_data;
 
 	if (ctx->current_ctx == NULL) {
 		PRINT(KERN_ERR, ctx->ohci->host->id,
@@ -1244,7 +1239,7 @@ static int video1394_open(struct inode *inode, struct file *file)
 
 static int video1394_release(struct inode *inode, struct file *file)
 {
-	struct file_ctx *ctx = (struct file_ctx *)file->private_data;
+	struct file_ctx *ctx = file->private_data;
 	struct ti_ohci *ohci = ctx->ohci;
 	struct list_head *lh, *next;
 	u64 mask;

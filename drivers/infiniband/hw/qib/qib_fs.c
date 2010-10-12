@@ -135,8 +135,8 @@ static ssize_t driver_names_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations driver_ops[] = {
-	{ .read = driver_stats_read, },
-	{ .read = driver_names_read, },
+	{ .read = driver_stats_read, .llseek = generic_file_llseek, },
+	{ .read = driver_names_read, .llseek = generic_file_llseek, },
 };
 
 /* read the per-device counters */
@@ -164,8 +164,8 @@ static ssize_t dev_names_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations cntr_ops[] = {
-	{ .read = dev_counters_read, },
-	{ .read = dev_names_read, },
+	{ .read = dev_counters_read, .llseek = generic_file_llseek, },
+	{ .read = dev_names_read, .llseek = generic_file_llseek, },
 };
 
 /*
@@ -210,9 +210,9 @@ static ssize_t portcntrs_2_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations portcntr_ops[] = {
-	{ .read = portnames_read, },
-	{ .read = portcntrs_1_read, },
-	{ .read = portcntrs_2_read, },
+	{ .read = portnames_read, .llseek = generic_file_llseek, },
+	{ .read = portcntrs_1_read, .llseek = generic_file_llseek, },
+	{ .read = portcntrs_2_read, .llseek = generic_file_llseek, },
 };
 
 /*
@@ -261,8 +261,8 @@ static ssize_t qsfp_2_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations qsfp_ops[] = {
-	{ .read = qsfp_1_read, },
-	{ .read = qsfp_2_read, },
+	{ .read = qsfp_1_read, .llseek = generic_file_llseek, },
+	{ .read = qsfp_2_read, .llseek = generic_file_llseek, },
 };
 
 static ssize_t flash_read(struct file *file, char __user *buf,

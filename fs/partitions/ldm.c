@@ -643,7 +643,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 		return false;
 	}
 
-	printk (" [LDM]");
+	strlcat(pp->pp_buf, " [LDM]", PAGE_SIZE);
 
 	/* Create the data partitions */
 	list_for_each (item, &ldb->v_part) {
@@ -658,7 +658,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 		part_num++;
 	}
 
-	printk ("\n");
+	strlcat(pp->pp_buf, "\n", PAGE_SIZE);
 	return true;
 }
 

@@ -125,12 +125,6 @@ ftrace_define_fields_##name(struct ftrace_event_call *event_call)	\
 
 #include "trace_entries.h"
 
-static int ftrace_raw_init_event(struct ftrace_event_call *call)
-{
-	INIT_LIST_HEAD(&call->class->fields);
-	return 0;
-}
-
 #undef __entry
 #define __entry REC
 
@@ -158,7 +152,7 @@ static int ftrace_raw_init_event(struct ftrace_event_call *call)
 struct ftrace_event_class event_class_ftrace_##call = {			\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.define_fields		= ftrace_define_fields_##call,		\
-	.raw_init		= ftrace_raw_init_event,		\
+	.fields			= LIST_HEAD_INIT(event_class_ftrace_##call.fields),\
 };									\
 									\
 struct ftrace_event_call __used						\

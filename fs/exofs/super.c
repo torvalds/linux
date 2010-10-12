@@ -31,7 +31,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/vfs.h>
@@ -743,7 +742,7 @@ static const struct super_operations exofs_sops = {
 	.alloc_inode    = exofs_alloc_inode,
 	.destroy_inode  = exofs_destroy_inode,
 	.write_inode    = exofs_write_inode,
-	.delete_inode   = exofs_delete_inode,
+	.evict_inode    = exofs_evict_inode,
 	.put_super      = exofs_put_super,
 	.write_super    = exofs_write_super,
 	.sync_fs	= exofs_sync_fs,

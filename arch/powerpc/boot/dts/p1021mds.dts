@@ -617,6 +617,7 @@
 		bus-frequency = <0>;
 		fsl,qe-num-riscs = <1>;
 		fsl,qe-num-snums = <28>;
+		status = "disabled"; /* no firmware loaded */
 
 		qeic: interrupt-controller@80 {
 			interrupt-controller;

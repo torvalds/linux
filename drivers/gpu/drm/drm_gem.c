@@ -68,8 +68,18 @@
  * We make up offsets for buffer objects so we can recognize them at
  * mmap time.
  */
+
+/* pgoff in mmap is an unsigned long, so we need to make sure that
+ * the faked up offset will fit
+ */
+
+#if BITS_PER_LONG == 64
 #define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFFUL >> PAGE_SHIFT) + 1)
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFFUL >> PAGE_SHIFT) * 16)
+#else
+#define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFUL >> PAGE_SHIFT) + 1)
+#define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
+#endif
 
 /**
  * Initialize the GEM device fields
@@ -312,7 +322,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 
 again:
 	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0) {
@@ -419,6 +429,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 	idr_for_each(&file_private->object_idr,
 		     &drm_gem_object_release_handle, NULL);
 
+	idr_remove_all(&file_private->object_idr);
 	idr_destroy(&file_private->object_idr);
 }
 

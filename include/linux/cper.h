@@ -39,10 +39,10 @@
  * Severity difinition for error_severity in struct cper_record_header
  * and section_severity in struct cper_section_descriptor
  */
-#define CPER_SER_RECOVERABLE			0x0
-#define CPER_SER_FATAL				0x1
-#define CPER_SER_CORRECTED			0x2
-#define CPER_SER_INFORMATIONAL			0x3
+#define CPER_SEV_RECOVERABLE			0x0
+#define CPER_SEV_FATAL				0x1
+#define CPER_SEV_CORRECTED			0x2
+#define CPER_SEV_INFORMATIONAL			0x3
 
 /*
  * Validation bits difinition for validation_bits in struct

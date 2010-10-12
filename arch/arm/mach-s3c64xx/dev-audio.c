@@ -12,11 +12,11 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>
 #include <mach/dma.h>
-#include <mach/gpio.h>
 
 #include <plat/devs.h>
 #include <plat/audio.h>

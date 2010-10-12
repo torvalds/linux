@@ -256,7 +256,6 @@ static inline int exofs_oi_read(struct exofs_i_info *oi,
 }
 
 /* inode.c               */
-void exofs_truncate(struct inode *inode);
 int exofs_setattr(struct dentry *, struct iattr *);
 int exofs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
@@ -264,7 +263,7 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 extern struct inode *exofs_iget(struct super_block *, unsigned long);
 struct inode *exofs_new_inode(struct inode *, int);
 extern int exofs_write_inode(struct inode *, struct writeback_control *wbc);
-extern void exofs_delete_inode(struct inode *);
+extern void exofs_evict_inode(struct inode *);
 
 /* dir.c:                */
 int exofs_add_link(struct dentry *, struct inode *);

@@ -408,6 +408,7 @@
 #define  STATUSB_IP15		7
 #define  STATUSF_IP15		(_ULCAST_(1) <<  7)
 #define ST0_CH			0x00040000
+#define ST0_NMI			0x00080000
 #define ST0_SR			0x00100000
 #define ST0_TS			0x00200000
 #define ST0_BEV			0x00400000

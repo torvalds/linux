@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
+#include <linux/netdevice.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
@@ -22,6 +23,7 @@
 #define PHY_NAME_LEN 20
 
 #define container_obj(layr) container_of(layr, struct cfcnfg, layer)
+#define RFM_FRAGMENT_SIZE 4030
 
 /* Information about CAIF physical interfaces held by Config Module in order
  * to manage physical interfaces
@@ -41,6 +43,15 @@ struct cfcnfg_phyinfo {
 
 	/* Information about the physical device */
 	struct dev_info dev_info;
+
+	/* Interface index */
+	int ifindex;
+
+	/* Use Start of frame extension */
+	bool use_stx;
+
+	/* Use Start of frame checksum */
+	bool use_fcs;
 };
 
 struct cfcnfg {
@@ -248,9 +259,20 @@ static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id)
 {
 }
 
+int protohead[CFCTRL_SRV_MASK] = {
+	[CFCTRL_SRV_VEI] = 4,
+	[CFCTRL_SRV_DATAGRAM] = 7,
+	[CFCTRL_SRV_UTIL] = 4,
+	[CFCTRL_SRV_RFM] = 3,
+	[CFCTRL_SRV_DBG] = 3,
+};
+
 int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 				struct cfctrl_link_param *param,
-				struct cflayer *adap_layer)
+				struct cflayer *adap_layer,
+				int *ifindex,
+				int *proto_head,
+				int *proto_tail)
 {
 	struct cflayer *frml;
 	if (adap_layer == NULL) {
@@ -276,6 +298,14 @@ int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 		     param->phyid);
 	caif_assert(cnfg->phy_layers[param->phyid].phy_layer->id ==
 		     param->phyid);
+
+	*ifindex = cnfg->phy_layers[param->phyid].ifindex;
+	*proto_head =
+		protohead[param->linktype]+
+		(cnfg->phy_layers[param->phyid].use_stx ? 1 : 0);
+
+	*proto_tail = 2;
+
 	/* FIXME: ENUMERATE INITIALLY WHEN ACTIVATING PHYSICAL INTERFACE */
 	cfctrl_enum_req(cnfg->ctrl, param->phyid);
 	return cfctrl_linkup_request(cnfg->ctrl, param, adap_layer);
@@ -297,6 +327,8 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	struct cfcnfg *cnfg = container_obj(layer);
 	struct cflayer *servicel = NULL;
 	struct cfcnfg_phyinfo *phyinfo;
+	struct net_device *netdev;
+
 	if (adapt_layer == NULL) {
 		pr_debug("CAIF: %s(): link setup response "
 				"but no client exist, send linkdown back\n",
@@ -308,19 +340,15 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	caif_assert(cnfg != NULL);
 	caif_assert(phyid != 0);
 	phyinfo = &cnfg->phy_layers[phyid];
-	caif_assert(phyinfo != NULL);
 	caif_assert(phyinfo->id == phyid);
 	caif_assert(phyinfo->phy_layer != NULL);
 	caif_assert(phyinfo->phy_layer->id == phyid);
 
-	if (phyinfo != NULL &&
-	    phyinfo->phy_ref_count++ == 0 &&
-	    phyinfo->phy_layer != NULL &&
+	phyinfo->phy_ref_count++;
+	if (phyinfo->phy_ref_count == 1 &&
 	    phyinfo->phy_layer->modemcmd != NULL) {
-		caif_assert(phyinfo->phy_layer->id == phyid);
 		phyinfo->phy_layer->modemcmd(phyinfo->phy_layer,
 					     _CAIF_MODEMCMD_PHYIF_USEFULL);
-
 	}
 	adapt_layer->id = channel_id;
 
@@ -332,7 +360,9 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 		servicel = cfdgml_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_RFM:
-		servicel = cfrfml_create(channel_id, &phyinfo->dev_info);
+		netdev = phyinfo->dev_info.dev;
+		servicel = cfrfml_create(channel_id, &phyinfo->dev_info,
+						netdev->mtu);
 		break;
 	case CFCTRL_SRV_UTIL:
 		servicel = cfutill_create(channel_id, &phyinfo->dev_info);
@@ -363,8 +393,8 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 
 void
 cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
-		     void *dev, struct cflayer *phy_layer, u16 *phyid,
-		     enum cfcnfg_phy_preference pref,
+		     struct net_device *dev, struct cflayer *phy_layer,
+		     u16 *phyid, enum cfcnfg_phy_preference pref,
 		     bool fcs, bool stx)
 {
 	struct cflayer *frml;
@@ -418,6 +448,10 @@ cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
 	cnfg->phy_layers[*phyid].dev_info.dev = dev;
 	cnfg->phy_layers[*phyid].phy_layer = phy_layer;
 	cnfg->phy_layers[*phyid].phy_ref_count = 0;
+	cnfg->phy_layers[*phyid].ifindex = dev->ifindex;
+	cnfg->phy_layers[*phyid].use_stx = stx;
+	cnfg->phy_layers[*phyid].use_fcs = fcs;
+
 	phy_layer->type = phy_type;
 	frml = cffrml_create(*phyid, fcs);
 	if (!frml) {

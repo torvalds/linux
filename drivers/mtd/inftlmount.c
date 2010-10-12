@@ -2,11 +2,11 @@
  * inftlmount.c -- INFTL mount code with extensive checks.
  *
  * Author: Greg Ungerer (gerg@snapgear.com)
- * (C) Copyright 2002-2003, Greg Ungerer (gerg@snapgear.com)
+ * Copyright © 2002-2003, Greg Ungerer (gerg@snapgear.com)
  *
  * Based heavily on the nftlmount.c code which is:
  * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
- * Copyright (C) 2000 Netgem S.A.
+ * Copyright © 2000 Netgem S.A.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nftl.h>
 #include <linux/mtd/inftl.h>
-#include <linux/mtd/compatmac.h>
 
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which

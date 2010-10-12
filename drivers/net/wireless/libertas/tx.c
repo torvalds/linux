@@ -4,13 +4,13 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
+#include <net/cfg80211.h>
 
 #include "host.h"
 #include "radiotap.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
-#include "wext.h"
 
 /**
  *  @brief This function converts Tx/Rx rates from IEEE80211_RADIOTAP_RATE
@@ -111,7 +111,7 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	p802x_hdr = skb->data;
 	pkt_len = skb->len;
 
-	if (dev == priv->rtap_net_dev) {
+	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		struct tx_radiotap_hdr *rtap_hdr = (void *)skb->data;
 
 		/* set txpd fields from the radiotap header */
@@ -147,7 +147,7 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	if (priv->monitormode) {
+	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
@@ -158,6 +158,7 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
  free:
 		dev_kfree_skb_any(skb);
 	}
+
  unlock:
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 	wake_up(&priv->waitq);
@@ -179,7 +180,8 @@ void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 {
 	struct tx_radiotap_hdr *radiotap_hdr;
 
-	if (!priv->monitormode || priv->currenttxskb == NULL)
+	if (priv->wdev->iftype != NL80211_IFTYPE_MONITOR ||
+	    priv->currenttxskb == NULL)
 		return;
 
 	radiotap_hdr = (struct tx_radiotap_hdr *)priv->currenttxskb->data;
@@ -188,7 +190,7 @@ void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 		(1 + priv->txretrycount - try_count) : 0;
 
 	priv->currenttxskb->protocol = eth_type_trans(priv->currenttxskb,
-						      priv->rtap_net_dev);
+						      priv->dev);
 	netif_rx(priv->currenttxskb);
 
 	priv->currenttxskb = NULL;

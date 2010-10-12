@@ -35,10 +35,6 @@
 
 #include "drm_pciids.h"
 
-MODULE_PARM_DESC(ctxfw, "Use external firmware blob for grctx init (NV40)");
-int nouveau_ctxfw = 0;
-module_param_named(ctxfw, nouveau_ctxfw, int, 0400);
-
 MODULE_PARM_DESC(noagp, "Disable AGP");
 int nouveau_noagp;
 module_param_named(noagp, nouveau_noagp, int, 0400);
@@ -56,7 +52,7 @@ int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 MODULE_PARM_DESC(vram_notify, "Force DMA notifiers to be in VRAM");
-int nouveau_vram_notify = 1;
+int nouveau_vram_notify = 0;
 module_param_named(vram_notify, nouveau_vram_notify, int, 0400);
 
 MODULE_PARM_DESC(duallink, "Allow dual-link TMDS (>=GeForce 8)");
@@ -132,7 +128,7 @@ static struct drm_driver driver;
 static int __devinit
 nouveau_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_dev(pdev, ent, &driver);
+	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
 static void
@@ -154,9 +150,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	struct nouveau_channel *chan;
 	struct drm_crtc *crtc;
 	int ret, i;
-
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
 
 	if (pm_state.event == PM_EVENT_PRETHAW)
 		return 0;
@@ -257,9 +250,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	struct drm_crtc *crtc;
 	int ret, i;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
 	nouveau_fbcon_save_disable_accel(dev);
 
 	NV_INFO(dev, "We're back, enabling device...\n");
@@ -268,6 +258,13 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	if (pci_enable_device(pdev))
 		return -1;
 	pci_set_master(dev->pdev);
+
+	/* Make sure the AGP controller is in a consistent state */
+	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP)
+		nouveau_mem_reset_agp(dev);
+
+	/* Make the CRTCs accessible */
+	engine->display.early_init(dev);
 
 	NV_INFO(dev, "POSTing device...\n");
 	ret = nouveau_run_vbios_init(dev);
@@ -323,7 +320,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		int ret;
 
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret)
@@ -332,11 +328,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 			NV_ERROR(dev, "Could not pin/map cursor.\n");
 	}
 
-	if (dev_priv->card_type < NV_50) {
-		nv04_display_restore(dev);
-		NVLockVgaCrtcs(dev, false);
-	} else
-		nv50_display_init(dev);
+	engine->display.init(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -371,7 +363,8 @@ nouveau_pci_resume(struct pci_dev *pdev)
 static struct drm_driver driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
-		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM,
+		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
+		DRIVER_MODESET,
 	.load = nouveau_load,
 	.firstopen = nouveau_firstopen,
 	.lastclose = nouveau_lastclose,
@@ -438,16 +431,18 @@ static int __init nouveau_init(void)
 			nouveau_modeset = 1;
 	}
 
-	if (nouveau_modeset == 1) {
-		driver.driver_features |= DRIVER_MODESET;
-		nouveau_register_dsm_handler();
-	}
+	if (!nouveau_modeset)
+		return 0;
 
+	nouveau_register_dsm_handler();
 	return drm_init(&driver);
 }
 
 static void __exit nouveau_exit(void)
 {
+	if (!nouveau_modeset)
+		return;
+
 	drm_exit(&driver);
 	nouveau_unregister_dsm_handler();
 }

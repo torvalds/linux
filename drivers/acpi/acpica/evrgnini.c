@@ -199,7 +199,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 		return_ACPI_STATUS(status);
 	}
 
-	parent_node = acpi_ns_get_parent_node(region_obj->region.node);
+	parent_node = region_obj->region.node->parent;
 
 	/*
 	 * Get the _SEG and _BBN values from the device upon which the handler
@@ -248,7 +248,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 				break;
 			}
 
-			pci_root_node = acpi_ns_get_parent_node(pci_root_node);
+			pci_root_node = pci_root_node->parent;
 		}
 
 		/* PCI root bridge not found, use namespace root node */
@@ -280,7 +280,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 */
 	pci_device_node = region_obj->region.node;
 	while (pci_device_node && (pci_device_node->type != ACPI_TYPE_DEVICE)) {
-		pci_device_node = acpi_ns_get_parent_node(pci_device_node);
+		pci_device_node = pci_device_node->parent;
 	}
 
 	if (!pci_device_node) {
@@ -521,7 +521,7 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	node = acpi_ns_get_parent_node(region_obj->region.node);
+	node = region_obj->region.node->parent;
 	space_id = region_obj->region.space_id;
 
 	/* Setup defaults */
@@ -654,7 +654,7 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 
 		/* This node does not have the handler we need; Pop up one level */
 
-		node = acpi_ns_get_parent_node(node);
+		node = node->parent;
 	}
 
 	/* If we get here, there is no handler for this region */

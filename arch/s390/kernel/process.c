@@ -267,7 +267,7 @@ asmlinkage void execve_tail(void)
 /*
  * sys_execve() executes a new program.
  */
-SYSCALL_DEFINE3(execve, char __user *, name, char __user * __user *, argv,
+SYSCALL_DEFINE3(execve, const char __user *, name, char __user * __user *, argv,
 		char __user * __user *, envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);

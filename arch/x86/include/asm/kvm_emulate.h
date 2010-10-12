@@ -51,8 +51,10 @@ struct x86_emulate_ctxt;
 #define X86EMUL_UNHANDLEABLE    1
 /* Terminate emulation but return success to the caller. */
 #define X86EMUL_PROPAGATE_FAULT 2 /* propagate a generated fault to guest */
-#define X86EMUL_RETRY_INSTR     2 /* retry the instruction for some reason */
-#define X86EMUL_CMPXCHG_FAILED  2 /* cmpxchg did not see expected value */
+#define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
+#define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
+#define X86EMUL_IO_NEEDED       5 /* IO is needed to complete emulation */
+
 struct x86_emulate_ops {
 	/*
 	 * read_std: Read bytes of standard (non-emulated/special) memory.
@@ -92,6 +94,7 @@ struct x86_emulate_ops {
 	int (*read_emulated)(unsigned long addr,
 			     void *val,
 			     unsigned int bytes,
+			     unsigned int *error,
 			     struct kvm_vcpu *vcpu);
 
 	/*
@@ -104,6 +107,7 @@ struct x86_emulate_ops {
 	int (*write_emulated)(unsigned long addr,
 			      const void *val,
 			      unsigned int bytes,
+			      unsigned int *error,
 			      struct kvm_vcpu *vcpu);
 
 	/*
@@ -118,6 +122,7 @@ struct x86_emulate_ops {
 				const void *old,
 				const void *new,
 				unsigned int bytes,
+				unsigned int *error,
 				struct kvm_vcpu *vcpu);
 
 	int (*pio_in_emulated)(int size, unsigned short port, void *val,
@@ -132,18 +137,26 @@ struct x86_emulate_ops {
 				      int seg, struct kvm_vcpu *vcpu);
 	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
 	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
+	unsigned long (*get_cached_segment_base)(int seg, struct kvm_vcpu *vcpu);
 	void (*get_gdt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
 	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
-	void (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
+	int (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 	int (*cpl)(struct kvm_vcpu *vcpu);
-	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
+	int (*get_dr)(int dr, unsigned long *dest, struct kvm_vcpu *vcpu);
+	int (*set_dr)(int dr, unsigned long value, struct kvm_vcpu *vcpu);
+	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
+	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 };
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
 	enum { OP_REG, OP_MEM, OP_IMM, OP_NONE } type;
 	unsigned int bytes;
-	unsigned long val, orig_val, *ptr;
+	unsigned long orig_val, *ptr;
+	union {
+		unsigned long val;
+		char valptr[sizeof(unsigned long) + 2];
+	};
 };
 
 struct fetch_cache {
@@ -186,6 +199,7 @@ struct decode_cache {
 	unsigned long modrm_val;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
+	struct read_cache mem_read;
 };
 
 struct x86_emulate_ctxt {
@@ -202,6 +216,12 @@ struct x86_emulate_ctxt {
 	int interruptibility;
 
 	bool restart; /* restart string instruction after writeback */
+
+	int exception; /* exception that happens during emulation or -1 */
+	u32 error_code; /* error code for exception */
+	bool error_code_valid;
+	unsigned long cr2; /* faulted address in case of #PF */
+
 	/* decode cache */
 	struct decode_cache decode;
 };

@@ -32,43 +32,6 @@
 #define RT2800USB_H
 
 /*
- * USB registers.
- */
-
-/*
- * USB_DMA_CFG
- * RX_BULK_AGG_TIMEOUT: Rx Bulk Aggregation TimeOut in unit of 33ns.
- * RX_BULK_AGG_LIMIT: Rx Bulk Aggregation Limit in unit of 256 bytes.
- * PHY_CLEAR: phy watch dog enable.
- * TX_CLEAR: Clear USB DMA TX path.
- * TXOP_HALT: Halt TXOP count down when TX buffer is full.
- * RX_BULK_AGG_EN: Enable Rx Bulk Aggregation.
- * RX_BULK_EN: Enable USB DMA Rx.
- * TX_BULK_EN: Enable USB DMA Tx.
- * EP_OUT_VALID: OUT endpoint data valid.
- * RX_BUSY: USB DMA RX FSM busy.
- * TX_BUSY: USB DMA TX FSM busy.
- */
-#define USB_DMA_CFG			0x02a0
-#define USB_DMA_CFG_RX_BULK_AGG_TIMEOUT	FIELD32(0x000000ff)
-#define USB_DMA_CFG_RX_BULK_AGG_LIMIT	FIELD32(0x0000ff00)
-#define USB_DMA_CFG_PHY_CLEAR		FIELD32(0x00010000)
-#define USB_DMA_CFG_TX_CLEAR		FIELD32(0x00080000)
-#define USB_DMA_CFG_TXOP_HALT		FIELD32(0x00100000)
-#define USB_DMA_CFG_RX_BULK_AGG_EN	FIELD32(0x00200000)
-#define USB_DMA_CFG_RX_BULK_EN		FIELD32(0x00400000)
-#define USB_DMA_CFG_TX_BULK_EN		FIELD32(0x00800000)
-#define USB_DMA_CFG_EP_OUT_VALID	FIELD32(0x3f000000)
-#define USB_DMA_CFG_RX_BUSY		FIELD32(0x40000000)
-#define USB_DMA_CFG_TX_BUSY		FIELD32(0x80000000)
-
-/*
- * USB_CYC_CFG
- */
-#define USB_CYC_CFG			0x02a4
-#define USB_CYC_CFG_CLOCK_CYCLE		FIELD32(0x000000ff)
-
-/*
  * 8051 firmware image.
  */
 #define FIRMWARE_RT2870			"rt2870.bin"

@@ -268,6 +268,7 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		mmc->slots[0].gpio_wp = c->gpio_wp;
 
 		mmc->slots[0].remux = c->remux;
+		mmc->slots[0].init_card = c->init_card;
 
 		if (c->cover_only)
 			mmc->slots[0].cover = 1;

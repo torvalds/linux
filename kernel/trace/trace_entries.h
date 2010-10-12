@@ -151,23 +151,6 @@ FTRACE_ENTRY_DUP(wakeup, ctx_switch_entry,
 );
 
 /*
- * Special (free-form) trace entry:
- */
-FTRACE_ENTRY(special, special_entry,
-
-	TRACE_SPECIAL,
-
-	F_STRUCT(
-		__field(	unsigned long,	arg1	)
-		__field(	unsigned long,	arg2	)
-		__field(	unsigned long,	arg3	)
-	),
-
-	F_printk("(%08lx) (%08lx) (%08lx)",
-		 __entry->arg1, __entry->arg2, __entry->arg3)
-);
-
-/*
  * Stack-trace entry:
  */
 
@@ -271,33 +254,6 @@ FTRACE_ENTRY(mmiotrace_map, trace_mmiotrace_map,
 		 __entry->map_id, __entry->opcode)
 );
 
-FTRACE_ENTRY(boot_call, trace_boot_call,
-
-	TRACE_BOOT_CALL,
-
-	F_STRUCT(
-		__field_struct(	struct boot_trace_call,	boot_call	)
-		__field_desc(	pid_t,	boot_call,	caller		)
-		__array_desc(	char,	boot_call,	func,	KSYM_SYMBOL_LEN)
-	),
-
-	F_printk("%d  %s", __entry->caller, __entry->func)
-);
-
-FTRACE_ENTRY(boot_ret, trace_boot_ret,
-
-	TRACE_BOOT_RET,
-
-	F_STRUCT(
-		__field_struct(	struct boot_trace_ret,	boot_ret	)
-		__array_desc(	char,	boot_ret,	func,	KSYM_SYMBOL_LEN)
-		__field_desc(	int,	boot_ret,	result		)
-		__field_desc(	unsigned long, boot_ret, duration	)
-	),
-
-	F_printk("%s %d %lx",
-		 __entry->func, __entry->result, __entry->duration)
-);
 
 #define TRACE_FUNC_SIZE 30
 #define TRACE_FILE_SIZE 20
@@ -318,53 +274,3 @@ FTRACE_ENTRY(branch, trace_branch,
 		 __entry->func, __entry->file, __entry->correct)
 );
 
-FTRACE_ENTRY(kmem_alloc, kmemtrace_alloc_entry,
-
-	TRACE_KMEM_ALLOC,
-
-	F_STRUCT(
-		__field(	enum kmemtrace_type_id,	type_id		)
-		__field(	unsigned long,		call_site	)
-		__field(	const void *,		ptr		)
-		__field(	size_t,			bytes_req	)
-		__field(	size_t,			bytes_alloc	)
-		__field(	gfp_t,			gfp_flags	)
-		__field(	int,			node		)
-	),
-
-	F_printk("type:%u call_site:%lx ptr:%p req:%zi alloc:%zi"
-		 " flags:%x node:%d",
-		 __entry->type_id, __entry->call_site, __entry->ptr,
-		 __entry->bytes_req, __entry->bytes_alloc,
-		 __entry->gfp_flags, __entry->node)
-);
-
-FTRACE_ENTRY(kmem_free, kmemtrace_free_entry,
-
-	TRACE_KMEM_FREE,
-
-	F_STRUCT(
-		__field(	enum kmemtrace_type_id,	type_id		)
-		__field(	unsigned long,		call_site	)
-		__field(	const void *,		ptr		)
-	),
-
-	F_printk("type:%u call_site:%lx ptr:%p",
-		 __entry->type_id, __entry->call_site, __entry->ptr)
-);
-
-FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
-
-	TRACE_KSYM,
-
-	F_STRUCT(
-		__field(	unsigned long,	ip			  )
-		__field(	unsigned char,	type			  )
-		__array(	char	     ,	cmd,	   TASK_COMM_LEN  )
-		__field(	unsigned long,  addr			  )
-	),
-
-	F_printk("ip: %pF type: %d ksym_name: %pS cmd: %s",
-		(void *)__entry->ip, (unsigned int)__entry->type,
-		(void *)__entry->addr,  __entry->cmd)
-);

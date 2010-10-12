@@ -27,7 +27,7 @@
 
 #include <linux/scatterlist.h>
 
-typedef struct _RING_BUFFER {
+struct hv_ring_buffer {
 	/* Offset in bytes from the start of ring data below */
 	volatile u32 WriteIndex;
 
@@ -51,51 +51,52 @@ typedef struct _RING_BUFFER {
 	 * !!! DO NOT place any fields below this !!!
 	 */
 	u8 Buffer[0];
-} __attribute__((packed)) RING_BUFFER;
+} __attribute__((packed));
 
-typedef struct _RING_BUFFER_INFO {
-	RING_BUFFER *RingBuffer;
+struct hv_ring_buffer_info {
+	struct hv_ring_buffer *RingBuffer;
 	u32 RingSize;			/* Include the shared header */
 	spinlock_t ring_lock;
 
 	u32 RingDataSize;		/* < ringSize */
 	u32 RingDataStartOffset;
+};
 
-} RING_BUFFER_INFO;
-
-typedef struct _RING_BUFFER_DEBUG_INFO {
+struct hv_ring_buffer_debug_info {
 	u32 CurrentInterruptMask;
 	u32 CurrentReadIndex;
 	u32 CurrentWriteIndex;
 	u32 BytesAvailToRead;
 	u32 BytesAvailToWrite;
-} RING_BUFFER_DEBUG_INFO;
+};
 
 
 
 /* Interface */
 
 
-int RingBufferInit(RING_BUFFER_INFO *RingInfo, void *Buffer, u32 BufferLen);
+int RingBufferInit(struct hv_ring_buffer_info *RingInfo, void *Buffer,
+		   u32 BufferLen);
 
-void RingBufferCleanup(RING_BUFFER_INFO *RingInfo);
+void RingBufferCleanup(struct hv_ring_buffer_info *RingInfo);
 
-int RingBufferWrite(RING_BUFFER_INFO *RingInfo,
+int RingBufferWrite(struct hv_ring_buffer_info *RingInfo,
 		    struct scatterlist *sglist,
 		    u32 sgcount);
 
-int RingBufferPeek(RING_BUFFER_INFO *RingInfo, void *Buffer, u32 BufferLen);
+int RingBufferPeek(struct hv_ring_buffer_info *RingInfo, void *Buffer,
+		   u32 BufferLen);
 
-int RingBufferRead(RING_BUFFER_INFO *RingInfo,
+int RingBufferRead(struct hv_ring_buffer_info *RingInfo,
 		   void *Buffer,
 		   u32 BufferLen,
 		   u32 Offset);
 
-u32 GetRingBufferInterruptMask(RING_BUFFER_INFO *RingInfo);
+u32 GetRingBufferInterruptMask(struct hv_ring_buffer_info *RingInfo);
 
-void DumpRingInfo(RING_BUFFER_INFO *RingInfo, char *Prefix);
+void DumpRingInfo(struct hv_ring_buffer_info *RingInfo, char *Prefix);
 
-void RingBufferGetDebugInfo(RING_BUFFER_INFO *RingInfo,
-			    RING_BUFFER_DEBUG_INFO *DebugInfo);
+void RingBufferGetDebugInfo(struct hv_ring_buffer_info *RingInfo,
+			    struct hv_ring_buffer_debug_info *debug_info);
 
 #endif /* _RING_BUFFER_H_ */

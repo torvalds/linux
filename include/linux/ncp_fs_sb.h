@@ -104,13 +104,13 @@ struct ncp_server {
 
 		unsigned int state;		/* STREAM only: receiver state */
 		struct {
-			__u32 magic __attribute__((packed));
-			__u32 len __attribute__((packed));
-			__u16 type __attribute__((packed));
-			__u16 p1 __attribute__((packed));
-			__u16 p2 __attribute__((packed));
-			__u16 p3 __attribute__((packed));
-			__u16 type2 __attribute__((packed));
+			__u32 magic __packed;
+			__u32 len __packed;
+			__u16 type __packed;
+			__u16 p1 __packed;
+			__u16 p2 __packed;
+			__u16 p3 __packed;
+			__u16 type2 __packed;
 		} buf;				/* STREAM only: temporary buffer */
 		unsigned char* ptr;		/* STREAM only: pointer to data */
 		size_t len;			/* STREAM only: length of data to receive */

@@ -51,6 +51,9 @@
 #define LPFC_FCOE_FCF_GET_FIRST	0xFFFF
 #define LPFC_FCOE_FCF_NEXT_NONE	0xFFFF
 
+#define LPFC_FCOE_NULL_VID	0xFFF
+#define LPFC_FCOE_IGNORE_VID	0xFFFF
+
 /* First 3 bytes of default FCF MAC is specified by FC_MAP */
 #define LPFC_FCOE_FCF_MAC3	0xFF
 #define LPFC_FCOE_FCF_MAC4	0xFF
@@ -58,7 +61,7 @@
 #define LPFC_FCOE_FCF_MAP0	0x0E
 #define LPFC_FCOE_FCF_MAP1	0xFC
 #define LPFC_FCOE_FCF_MAP2	0x00
-#define LPFC_FCOE_MAX_RCV_SIZE	0x5AC
+#define LPFC_FCOE_MAX_RCV_SIZE	0x800
 #define LPFC_FCOE_FKA_ADV_PER	0
 #define LPFC_FCOE_FIP_PRIORITY	0x80
 
@@ -160,6 +163,7 @@ struct lpfc_fcf {
 #define FCF_REDISC_PEND	0x80 /* FCF rediscovery pending */
 #define FCF_REDISC_EVT	0x100 /* FCF rediscovery event to worker thread */
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
+#define FCF_REDISC_RRU	0x400 /* Roundrobin bitmap updated */
 	uint32_t addr_mode;
 	uint16_t fcf_rr_init_indx;
 	uint32_t eligible_fcf_cnt;
@@ -382,6 +386,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
 	uint32_t cfg_eqn;
+	uint32_t msix_vec_nr;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_queue **fp_eq; /* Fast-path event queue */
@@ -524,6 +529,7 @@ int lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *);
 struct lpfc_rpi_hdr *lpfc_sli4_create_rpi_hdr(struct lpfc_hba *);
 void lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *);
 int lpfc_sli4_alloc_rpi(struct lpfc_hba *);
+void __lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_remove_rpis(struct lpfc_hba *);
 void lpfc_sli4_async_event_proc(struct lpfc_hba *);

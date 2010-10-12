@@ -60,6 +60,7 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/amifdreg.h>
 #include <linux/amifd.h>
 #include <linux/buffer_head.h>
@@ -1423,7 +1424,7 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
 	struct amiga_floppy_struct *p = bdev->bd_disk->private_data;
@@ -1500,6 +1501,18 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 	return 0;
 }
 
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	lock_kernel();
+	ret = fd_locked_ioctl(bdev, mode, cmd, param);
+	unlock_kernel();
+
+	return ret;
+}
+
 static void fd_probe(int dev)
 {
 	unsigned long code;
@@ -1542,10 +1555,13 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int old_dev;
 	unsigned long flags;
 
+	lock_kernel();
 	old_dev = fd_device[drive];
 
-	if (fd_ref[drive] && old_dev != system)
+	if (fd_ref[drive] && old_dev != system) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
 	if (mode & (FMODE_READ|FMODE_WRITE)) {
 		check_disk_change(bdev);
@@ -1558,8 +1574,10 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			fd_deselect (drive);
 			rel_fdc();
 
-			if (wrprot)
+			if (wrprot) {
+				unlock_kernel();
 				return -EROFS;
+			}
 		}
 	}
 
@@ -1576,6 +1594,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	printk(KERN_INFO "fd%d: accessing %s-disk with %s-layout\n",drive,
 	       unit[drive].type->name, data_types[system].name);
 
+	unlock_kernel();
 	return 0;
 }
 
@@ -1584,6 +1603,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	struct amiga_floppy_struct *p = disk->private_data;
 	int drive = p - unit;
 
+	lock_kernel();
 	if (unit[drive].dirty == 1) {
 		del_timer (flush_track_timer + drive);
 		non_int_flush_track (drive);
@@ -1597,6 +1617,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 /* the mod_use counter is handled this way */
 	floppy_off (drive | 0x40000000);
 #endif
+	unlock_kernel();
 	return 0;
 }
 
@@ -1638,7 +1659,7 @@ static const struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.locked_ioctl	= fd_ioctl,
+	.ioctl		= fd_ioctl,
 	.getgeo		= fd_getgeo,
 	.media_changed	= amiga_floppy_change,
 };

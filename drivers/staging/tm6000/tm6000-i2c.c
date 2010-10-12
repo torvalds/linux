@@ -40,7 +40,7 @@ static unsigned int i2c_debug = 0;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-#define i2c_dprintk(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
+#define i2c_dprintk(lvl, fmt, args...) if (i2c_debug >= lvl) do { \
 			printk(KERN_DEBUG "%s at %s: " fmt, \
 			dev->name, __FUNCTION__ , ##args); } while (0)
 
@@ -171,7 +171,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 		return 0;
 	for (i = 0; i < num; i++) {
 		addr = (msgs[i].addr << 1) & 0xff;
-		i2c_dprintk(2,"%s %s addr=0x%x len=%d:",
+		i2c_dprintk(2, "%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {
@@ -235,7 +235,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	return num;
 err:
-	i2c_dprintk(2," ERROR: %i\n", rc);
+	i2c_dprintk(2, " ERROR: %i\n", rc);
 	return rc;
 }
 
@@ -266,11 +266,10 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev,
 		if (0 == (i % 16))
 			printk(KERN_INFO "%s: i2c eeprom %02x:", dev->name, i);
 		printk(" %02x", eedata[i]);
-		if ((eedata[i] >= ' ') && (eedata[i] <= 'z')) {
+		if ((eedata[i] >= ' ') && (eedata[i] <= 'z'))
 			bytes[i%16] = eedata[i];
-		} else {
-			bytes[i%16]='.';
-		}
+		else
+			bytes[i%16] = '.';
 
 		i++;
 
@@ -305,15 +304,15 @@ static u32 functionality(struct i2c_adapter *adap)
 }
 
 #define mass_write(addr, reg, data...)					\
-	{ const static u8 _val[] = data;				\
-	rc=tm6000_read_write_usb(dev,USB_DIR_OUT | USB_TYPE_VENDOR,	\
-	REQ_16_SET_GET_I2C_WR1_RDN,(reg<<8)+addr, 0x00, (u8 *) _val,	\
+	{ static const u8 _val[] = data;				\
+	rc = tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,	\
+	REQ_16_SET_GET_I2C_WR1_RDN, (reg<<8)+addr, 0x00, (u8 *) _val,	\
 	ARRAY_SIZE(_val));						\
-	if (rc<0) {							\
-		printk(KERN_ERR "Error on line %d: %d\n",__LINE__,rc);	\
+	if (rc < 0) {							\
+		printk(KERN_ERR "Error on line %d: %d\n", __LINE__, rc);	\
 		return rc;						\
 	}								\
-	msleep (10);							\
+	msleep(10);							\
 	}
 
 static struct i2c_algorithm tm6000_algo = {

@@ -63,6 +63,7 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 				      u8 rxchainmask,
 				      struct ath9k_cal_list *currCal)
 {
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool iscaldone = false;
 
 	if (currCal->calState == CAL_RUNNING) {
@@ -81,14 +82,14 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 				}
 
 				currCal->calData->calPostProc(ah, numChains);
-				ichan->CalValid |= currCal->calData->calType;
+				caldata->CalValid |= currCal->calData->calType;
 				currCal->calState = CAL_DONE;
 				iscaldone = true;
 			} else {
 				ar9002_hw_setup_calibration(ah, currCal);
 			}
 		}
-	} else if (!(ichan->CalValid & currCal->calData->calType)) {
+	} else if (!(caldata->CalValid & currCal->calData->calType)) {
 		ath9k_hw_reset_calibration(ah, currCal);
 	}
 
@@ -239,7 +240,7 @@ static void ar9002_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			if (qCoff > 15)
 				qCoff = 15;
 			else if (qCoff <= -16)
-				qCoff = 16;
+				qCoff = -16;
 
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "Chn %d : iCoff = 0x%x  qCoff = 0x%x\n",
@@ -686,8 +687,13 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 {
 	bool iscaldone = true;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
+	bool nfcal, nfcal_pending = false;
 
-	if (currCal &&
+	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
+	if (ah->caldata)
+		nfcal_pending = ah->caldata->nfcal_pending;
+
+	if (currCal && !nfcal &&
 	    (currCal->calState == CAL_RUNNING ||
 	     currCal->calState == CAL_WAITING)) {
 		iscaldone = ar9002_hw_per_calibration(ah, chan,
@@ -703,7 +709,7 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 	}
 
 	/* Do NF cal only at longer intervals */
-	if (longcal) {
+	if (longcal || nfcal_pending) {
 		/* Do periodic PAOffset Cal */
 		ar9002_hw_pa_cal(ah, false);
 		ar9002_hw_olc_temp_compensation(ah);
@@ -712,16 +718,18 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 		 * Get the value from the previous NF cal and update
 		 * history buffer.
 		 */
-		ath9k_hw_getnf(ah, chan);
+		if (ath9k_hw_getnf(ah, chan)) {
+			/*
+			 * Load the NF from history buffer of the current
+			 * channel.
+			 * NF is slow time-variant, so it is OK to use a
+			 * historical value.
+			 */
+			ath9k_hw_loadnf(ah, ah->curchan);
+		}
 
-		/*
-		 * Load the NF from history buffer of the current channel.
-		 * NF is slow time-variant, so it is OK to use a historical
-		 * value.
-		 */
-		ath9k_hw_loadnf(ah, ah->curchan);
-
-		ath9k_hw_start_nfcal(ah);
+		if (longcal)
+			ath9k_hw_start_nfcal(ah, false);
 	}
 
 	return iscaldone;
@@ -869,8 +877,10 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	ar9002_hw_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
-	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-		  REG_READ(ah, AR_PHY_AGC_CONTROL) | AR_PHY_AGC_CONTROL_NF);
+	ath9k_hw_start_nfcal(ah, true);
+
+	if (ah->caldata)
+		ah->caldata->nfcal_pending = true;
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 
@@ -901,7 +911,8 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
 	}
 
-	chan->CalValid = 0;
+	if (ah->caldata)
+		ah->caldata->CalValid = 0;
 
 	return true;
 }

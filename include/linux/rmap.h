@@ -26,6 +26,7 @@
  */
 struct anon_vma {
 	spinlock_t lock;	/* Serialize access to vma list */
+	struct anon_vma *root;	/* Root of this anon_vma tree */
 #if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
 
 	/*
@@ -80,6 +81,13 @@ static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
 	return atomic_read(&anon_vma->external_refcount);
 }
+
+static inline void get_anon_vma(struct anon_vma *anon_vma)
+{
+	atomic_inc(&anon_vma->external_refcount);
+}
+
+void drop_anon_vma(struct anon_vma *);
 #else
 static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 {
@@ -88,6 +96,14 @@ static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
 	return 0;
+}
+
+static inline void get_anon_vma(struct anon_vma *anon_vma)
+{
+}
+
+static inline void drop_anon_vma(struct anon_vma *anon_vma)
+{
 }
 #endif /* CONFIG_KSM */
 
@@ -99,18 +115,28 @@ static inline struct anon_vma *page_anon_vma(struct page *page)
 	return page_rmapping(page);
 }
 
-static inline void anon_vma_lock(struct vm_area_struct *vma)
+static inline void vma_lock_anon_vma(struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 	if (anon_vma)
-		spin_lock(&anon_vma->lock);
+		spin_lock(&anon_vma->root->lock);
 }
 
-static inline void anon_vma_unlock(struct vm_area_struct *vma)
+static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 	if (anon_vma)
-		spin_unlock(&anon_vma->lock);
+		spin_unlock(&anon_vma->root->lock);
+}
+
+static inline void anon_vma_lock(struct anon_vma *anon_vma)
+{
+	spin_lock(&anon_vma->root->lock);
+}
+
+static inline void anon_vma_unlock(struct anon_vma *anon_vma)
+{
+	spin_unlock(&anon_vma->root->lock);
 }
 
 /*
@@ -136,9 +162,16 @@ static inline void anon_vma_merge(struct vm_area_struct *vma,
  */
 void page_move_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
+void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
+			   unsigned long, int);
 void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_file_rmap(struct page *);
 void page_remove_rmap(struct page *);
+
+void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
+			    unsigned long);
+void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+				unsigned long);
 
 static inline void page_dup_rmap(struct page *page)
 {

@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
+#include <media/ir-core.h>
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>
 #endif
@@ -113,6 +114,7 @@
 #define EM2870_BOARD_REDDO_DVB_C_USB_BOX          73
 #define EM2800_BOARD_VC211A			  74
 #define EM2882_BOARD_DIKOM_DK300		  75
+#define EM2870_BOARD_KWORLD_A340		  76
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

@@ -46,6 +46,7 @@ struct hdmi_spec {
 	 * export one pcm per pipe
 	 */
 	struct hda_pcm	pcm_rec[MAX_HDMI_CVTS];
+	struct hda_pcm_stream codec_pcm_pars[MAX_HDMI_CVTS];
 
 	/*
 	 * nvhdmi specific
@@ -698,11 +699,51 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  * Callbacks
  */
 
-static void hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
+/* HBR should be Non-PCM, 8 channels */
+#define is_hbr_format(format) \
+	((format & AC_FMT_TYPE_NON_PCM) && (format & AC_FMT_CHAN_MASK) == 7)
+
+static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 			      u32 stream_tag, int format)
 {
+	struct hdmi_spec *spec = codec->spec;
 	int tag;
 	int fmt;
+	int pinctl;
+	int new_pinctl = 0;
+	int i;
+
+	for (i = 0; i < spec->num_pins; i++) {
+		if (spec->pin_cvt[i] != nid)
+			continue;
+		if (!(snd_hda_query_pin_caps(codec, spec->pin[i]) & AC_PINCAP_HBR))
+			continue;
+
+		pinctl = snd_hda_codec_read(codec, spec->pin[i], 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+
+		new_pinctl = pinctl & ~AC_PINCTL_EPT;
+		if (is_hbr_format(format))
+			new_pinctl |= AC_PINCTL_EPT_HBR;
+		else
+			new_pinctl |= AC_PINCTL_EPT_NATIVE;
+
+		snd_printdd("hdmi_setup_stream: "
+			    "NID=0x%x, %spinctl=0x%x\n",
+			    spec->pin[i],
+			    pinctl == new_pinctl ? "" : "new-",
+			    new_pinctl);
+
+		if (pinctl != new_pinctl)
+			snd_hda_codec_write(codec, spec->pin[i], 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    new_pinctl);
+	}
+
+	if (is_hbr_format(format) && !new_pinctl) {
+		snd_printdd("hdmi_setup_stream: HBR is not supported\n");
+		return -EINVAL;
+	}
 
 	tag = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0) >> 4;
 	fmt = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_STREAM_FORMAT, 0);
@@ -722,6 +763,48 @@ static void hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	if (fmt != format)
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_STREAM_FORMAT, format);
+	return 0;
+}
+
+/*
+ * HDA PCM callbacks
+ */
+static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
+			 struct hda_codec *codec,
+			 struct snd_pcm_substream *substream)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_eld *eld;
+	struct hda_pcm_stream *codec_pars;
+	unsigned int idx;
+
+	for (idx = 0; idx < spec->num_cvts; idx++)
+		if (hinfo->nid == spec->cvt[idx])
+			break;
+	if (snd_BUG_ON(idx >= spec->num_cvts) ||
+	    snd_BUG_ON(idx >= spec->num_pins))
+		return -EINVAL;
+
+	/* save the PCM info the codec provides */
+	codec_pars = &spec->codec_pcm_pars[idx];
+	if (!codec_pars->rates)
+		*codec_pars = *hinfo;
+
+	eld = &spec->sink_eld[idx];
+	if (eld->sad_count > 0) {
+		hdmi_eld_update_pcm_info(eld, hinfo, codec_pars);
+		if (hinfo->channels_min > hinfo->channels_max ||
+		    !hinfo->rates || !hinfo->formats)
+			return -ENODEV;
+	} else {
+		/* fallback to the codec default */
+		hinfo->channels_min = codec_pars->channels_min;
+		hinfo->channels_max = codec_pars->channels_max;
+		hinfo->rates = codec_pars->rates;
+		hinfo->formats = codec_pars->formats;
+		hinfo->maxbps = codec_pars->maxbps;
+	}
+	return 0;
 }
 
 /*

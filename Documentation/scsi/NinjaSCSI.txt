@@ -3,8 +3,6 @@
 
 1. Comment
  This is Workbit corp.'s(http://www.workbit.co.jp/) NinjaSCSI-3
-(http://www.workbit.co.jp/ts/z_nj3r.html) and NinjaSCSI-32Bi
-(http://www.workbit.co.jp/ts/z_njsc32bi.html) PCMCIA card driver module
 for Linux.
 
 2. My Linux environment

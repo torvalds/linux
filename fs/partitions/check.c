@@ -164,10 +164,16 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
 	if (!state)
 		return NULL;
+	state->pp_buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!state->pp_buf) {
+		kfree(state);
+		return NULL;
+	}
+	state->pp_buf[0] = '\0';
 
 	state->bdev = bdev;
 	disk_name(hd, 0, state->name);
-	printk(KERN_INFO " %s:", state->name);
+	snprintf(state->pp_buf, PAGE_SIZE, " %s:", state->name);
 	if (isdigit(state->name[strlen(state->name)-1]))
 		sprintf(state->name, "p");
 
@@ -185,17 +191,25 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		}
 
 	}
-	if (res > 0)
+	if (res > 0) {
+		printk(KERN_INFO "%s", state->pp_buf);
+
+		free_page((unsigned long)state->pp_buf);
 		return state;
+	}
 	if (state->access_beyond_eod)
 		err = -ENOSPC;
 	if (err)
 	/* The partition is unrecognized. So report I/O errors if there were any */
 		res = err;
 	if (!res)
-		printk(" unknown partition table\n");
+		strlcat(state->pp_buf, " unknown partition table\n", PAGE_SIZE);
 	else if (warn_no_part)
-		printk(" unable to read partition table\n");
+		strlcat(state->pp_buf, " unable to read partition table\n", PAGE_SIZE);
+
+	printk(KERN_INFO "%s", state->pp_buf);
+
+	free_page((unsigned long)state->pp_buf);
 	kfree(state);
 	return ERR_PTR(res);
 }
@@ -459,7 +473,6 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	}
 
 	/* everything is up and running, commence */
-	INIT_RCU_HEAD(&p->rcu_head);
 	rcu_assign_pointer(ptbl->part[partno], p);
 
 	/* suppress uevent if the disk supresses it */

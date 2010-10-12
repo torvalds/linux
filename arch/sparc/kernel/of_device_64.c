@@ -310,10 +310,10 @@ static int __init use_1to1_mapping(struct device_node *pp)
 
 static int of_resource_verbose;
 
-static void __init build_device_resources(struct of_device *op,
+static void __init build_device_resources(struct platform_device *op,
 					  struct device *parent)
 {
-	struct of_device *p_op;
+	struct platform_device *p_op;
 	struct of_bus *bus;
 	int na, ns;
 	int index, num_reg;
@@ -322,7 +322,7 @@ static void __init build_device_resources(struct of_device *op,
 	if (!parent)
 		return;
 
-	p_op = to_of_device(parent);
+	p_op = to_platform_device(parent);
 	bus = of_match_bus(p_op->dev.of_node);
 	bus->count_cells(op->dev.of_node, &na, &ns);
 
@@ -344,6 +344,8 @@ static void __init build_device_resources(struct of_device *op,
 		num_reg = PROMREG_MAX;
 	}
 
+	op->resource = op->archdata.resource;
+	op->num_resources = num_reg;
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
@@ -526,7 +528,7 @@ static unsigned int __init pci_irq_swizzle(struct device_node *dp,
 
 static int of_irq_verbose;
 
-static unsigned int __init build_one_device_irq(struct of_device *op,
+static unsigned int __init build_one_device_irq(struct platform_device *op,
 						struct device *parent,
 						unsigned int irq)
 {
@@ -628,10 +630,10 @@ out:
 	return irq;
 }
 
-static struct of_device * __init scan_one_device(struct device_node *dp,
+static struct platform_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
-	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
+	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	const unsigned int *irq;
 	struct dev_archdata *sd;
 	int len, i;
@@ -644,34 +646,28 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 
 	op->dev.of_node = dp;
 
-	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
-					       (25*1000*1000));
-	op->portid = of_getintprop_default(dp, "upa-portid", -1);
-	if (op->portid == -1)
-		op->portid = of_getintprop_default(dp, "portid", -1);
-
 	irq = of_get_property(dp, "interrupts", &len);
 	if (irq) {
-		op->num_irqs = len / 4;
+		op->archdata.num_irqs = len / 4;
 
 		/* Prevent overrunning the op->irqs[] array.  */
-		if (op->num_irqs > PROMINTR_MAX) {
+		if (op->archdata.num_irqs > PROMINTR_MAX) {
 			printk(KERN_WARNING "%s: Too many irqs (%d), "
 			       "limiting to %d.\n",
-			       dp->full_name, op->num_irqs, PROMINTR_MAX);
-			op->num_irqs = PROMINTR_MAX;
+			       dp->full_name, op->archdata.num_irqs, PROMINTR_MAX);
+			op->archdata.num_irqs = PROMINTR_MAX;
 		}
-		memcpy(op->irqs, irq, op->num_irqs * 4);
+		memcpy(op->archdata.irqs, irq, op->archdata.num_irqs * 4);
 	} else {
-		op->num_irqs = 0;
+		op->archdata.num_irqs = 0;
 	}
 
 	build_device_resources(op, parent);
-	for (i = 0; i < op->num_irqs; i++)
-		op->irqs[i] = build_one_device_irq(op, parent, op->irqs[i]);
+	for (i = 0; i < op->archdata.num_irqs; i++)
+		op->archdata.irqs[i] = build_one_device_irq(op, parent, op->archdata.irqs[i]);
 
 	op->dev.parent = parent;
-	op->dev.bus = &of_platform_bus_type;
+	op->dev.bus = &platform_bus_type;
 	if (!parent)
 		dev_set_name(&op->dev, "root");
 	else
@@ -690,7 +686,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 static void __init scan_tree(struct device_node *dp, struct device *parent)
 {
 	while (dp) {
-		struct of_device *op = scan_one_device(dp, parent);
+		struct platform_device *op = scan_one_device(dp, parent);
 
 		if (op)
 			scan_tree(dp->child, &op->dev);
@@ -699,30 +695,19 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 	}
 }
 
-static void __init scan_of_devices(void)
+static int __init scan_of_devices(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
-	struct of_device *parent;
+	struct platform_device *parent;
 
 	parent = scan_one_device(root, NULL);
 	if (!parent)
-		return;
+		return 0;
 
 	scan_tree(root->child, &parent->dev);
+	return 0;
 }
-
-static int __init of_bus_driver_init(void)
-{
-	int err;
-
-	err = of_bus_type_init(&of_platform_bus_type, "of");
-	if (!err)
-		scan_of_devices();
-
-	return err;
-}
-
-postcore_initcall(of_bus_driver_init);
+postcore_initcall(scan_of_devices);
 
 static int __init of_debug(char *str)
 {

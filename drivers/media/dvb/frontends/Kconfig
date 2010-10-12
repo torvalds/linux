@@ -1,7 +1,7 @@
 config DVB_FE_CUSTOMISE
 	bool "Customise the frontend modules to build"
 	depends on DVB_CORE
-	default N
+	default y if EMBEDDED
 	help
 	  This allows the user to select/deselect frontend drivers for their
 	  hardware from the build.
@@ -584,6 +584,7 @@ config DVB_LGS8GL5
 config DVB_LGS8GXX
 	tristate "Legend Silicon LGS8913/LGS8GL5/LGS8GXX DMB-TH demodulator"
 	depends on DVB_CORE && I2C
+	select FW_LOADER
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.

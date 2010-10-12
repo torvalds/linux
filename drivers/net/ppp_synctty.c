@@ -97,9 +97,9 @@ static void ppp_sync_flush_output(struct syncppp *ap);
 static void ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 			   char *flags, int count);
 
-static struct ppp_channel_ops sync_ops = {
-	ppp_sync_send,
-	ppp_sync_ioctl
+static const struct ppp_channel_ops sync_ops = {
+	.start_xmit = ppp_sync_send,
+	.ioctl      = ppp_sync_ioctl,
 };
 
 /*

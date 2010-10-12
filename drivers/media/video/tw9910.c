@@ -768,7 +768,7 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 
 	mf->width	= priv->scale->width;
 	mf->height	= priv->scale->height;
-	mf->code	= V4L2_MBUS_FMT_YUYV8_2X8_BE;
+	mf->code	= V4L2_MBUS_FMT_UYVY8_2X8;
 	mf->colorspace	= V4L2_COLORSPACE_JPEG;
 	mf->field	= V4L2_FIELD_INTERLACED_BT;
 
@@ -797,7 +797,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 	/*
 	 * check color format
 	 */
-	if (mf->code != V4L2_MBUS_FMT_YUYV8_2X8_BE)
+	if (mf->code != V4L2_MBUS_FMT_UYVY8_2X8)
 		return -EINVAL;
 
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
@@ -824,7 +824,7 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	mf->code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
+	mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
 	/*
@@ -909,7 +909,7 @@ static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 	if (index)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
+	*code = V4L2_MBUS_FMT_UYVY8_2X8;
 	return 0;
 }
 

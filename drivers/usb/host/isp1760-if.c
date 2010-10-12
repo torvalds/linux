@@ -27,7 +27,7 @@
 #endif
 
 #ifdef CONFIG_PPC_OF
-static int of_isp1760_probe(struct of_device *dev,
+static int of_isp1760_probe(struct platform_device *dev,
 		const struct of_device_id *match)
 {
 	struct usb_hcd *hcd;
@@ -95,7 +95,7 @@ release_reg:
 	return ret;
 }
 
-static int of_isp1760_remove(struct of_device *dev)
+static int of_isp1760_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&dev->dev);
 

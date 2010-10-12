@@ -23,6 +23,58 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
 
+/**
+ * zfcp_fc_post_event - post event to userspace via fc_transport
+ * @work: work struct with enqueued events
+ */
+void zfcp_fc_post_event(struct work_struct *work)
+{
+	struct zfcp_fc_event *event = NULL, *tmp = NULL;
+	LIST_HEAD(tmp_lh);
+	struct zfcp_fc_events *events = container_of(work,
+					struct zfcp_fc_events, work);
+	struct zfcp_adapter *adapter = container_of(events, struct zfcp_adapter,
+						events);
+
+	spin_lock_bh(&events->list_lock);
+	list_splice_init(&events->list, &tmp_lh);
+	spin_unlock_bh(&events->list_lock);
+
+	list_for_each_entry_safe(event, tmp, &tmp_lh, list) {
+		fc_host_post_event(adapter->scsi_host, fc_get_event_number(),
+				event->code, event->data);
+		list_del(&event->list);
+		kfree(event);
+	}
+
+}
+
+/**
+ * zfcp_fc_enqueue_event - safely enqueue FC HBA API event from irq context
+ * @adapter: The adapter where to enqueue the event
+ * @event_code: The event code (as defined in fc_host_event_code in
+ *		scsi_transport_fc.h)
+ * @event_data: The event data (e.g. n_port page in case of els)
+ */
+void zfcp_fc_enqueue_event(struct zfcp_adapter *adapter,
+			enum fc_host_event_code event_code, u32 event_data)
+{
+	struct zfcp_fc_event *event;
+
+	event = kmalloc(sizeof(struct zfcp_fc_event), GFP_ATOMIC);
+	if (!event)
+		return;
+
+	event->code = event_code;
+	event->data = event_data;
+
+	spin_lock(&adapter->events.list_lock);
+	list_add_tail(&event->list, &adapter->events.list);
+	spin_unlock(&adapter->events.list_lock);
+
+	queue_work(adapter->work_queue, &adapter->events.work);
+}
+
 static int zfcp_fc_wka_port_get(struct zfcp_fc_wka_port *wka_port)
 {
 	if (mutex_lock_interruptible(&wka_port->mutex))
@@ -148,6 +200,8 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 		afmt = page->rscn_page_flags & ELS_RSCN_ADDR_FMT_MASK;
 		_zfcp_fc_incoming_rscn(fsf_req, zfcp_fc_rscn_range_mask[afmt],
 				       page);
+		zfcp_fc_enqueue_event(fsf_req->adapter, FCH_EVT_RSCN,
+				      *(u32 *)page);
 	}
 	queue_work(fsf_req->adapter->work_queue, &fsf_req->adapter->scan_work);
 }

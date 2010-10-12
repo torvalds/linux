@@ -60,6 +60,7 @@ void iwl_restore_stations(struct iwl_priv *priv);
 void iwl_clear_ucode_stations(struct iwl_priv *priv);
 int iwl_alloc_bcast_station(struct iwl_priv *priv, bool init_lq);
 void iwl_dealloc_bcast_station(struct iwl_priv *priv);
+int iwl_update_bcast_station(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
@@ -73,7 +74,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
-void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
+int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
 int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			 int tid, u16 ssn);
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
@@ -117,5 +118,34 @@ static inline int iwl_sta_id(struct ieee80211_sta *sta)
 		return IWL_INVALID_STATION;
 
 	return ((struct iwl_station_priv_common *)sta->drv_priv)->sta_id;
+}
+
+/**
+ * iwl_sta_id_or_broadcast - return sta_id or broadcast sta
+ * @priv: iwl priv
+ * @sta: mac80211 station
+ *
+ * In certain circumstances mac80211 passes a station pointer
+ * that may be %NULL, for example during TX or key setup. In
+ * that case, we need to use the broadcast station, so this
+ * inline wraps that pattern.
+ */
+static inline int iwl_sta_id_or_broadcast(struct iwl_priv *priv,
+					  struct ieee80211_sta *sta)
+{
+	int sta_id;
+
+	if (!sta)
+		return priv->hw_params.bcast_sta_id;
+
+	sta_id = iwl_sta_id(sta);
+
+	/*
+	 * mac80211 should not be passing a partially
+	 * initialised station!
+	 */
+	WARN_ON(sta_id == IWL_INVALID_STATION);
+
+	return sta_id;
 }
 #endif /* __iwl_sta_h__ */

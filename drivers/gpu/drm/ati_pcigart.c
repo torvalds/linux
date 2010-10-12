@@ -152,7 +152,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 		/* we need to support large memory configurations */
 		entry->busaddr[i] = pci_map_page(dev->pdev, entry->pagelist[i],
 						 0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		if (entry->busaddr[i] == 0) {
+		if (pci_dma_mapping_error(dev->pdev, entry->busaddr[i])) {
 			DRM_ERROR("unable to map PCIGART pages!\n");
 			drm_ati_pcigart_cleanup(dev, gart_info);
 			address = NULL;

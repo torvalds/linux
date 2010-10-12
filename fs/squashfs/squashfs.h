@@ -104,3 +104,6 @@ extern const struct xattr_handler *squashfs_xattr_handlers[];
 
 /* zlib_wrapper.c */
 extern const struct squashfs_decompressor squashfs_zlib_comp_ops;
+
+/* lzo_wrapper.c */
+extern const struct squashfs_decompressor squashfs_lzo_comp_ops;

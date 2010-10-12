@@ -781,14 +781,14 @@ static void cx25821_shutdown(struct cx25821_dev *dev)
 
 	/* Disable Video A/B activity */
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-		cx_write(dev->sram_channels[i].dma_ctl, 0);
-		cx_write(dev->sram_channels[i].int_msk, 0);
+	       cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
+	       cx_write(dev->channels[i].sram_channels->int_msk, 0);
 	}
 
 	for (i = VID_UPSTREAM_SRAM_CHANNEL_I; i <= VID_UPSTREAM_SRAM_CHANNEL_J;
 	     i++) {
-		cx_write(dev->sram_channels[i].dma_ctl, 0);
-		cx_write(dev->sram_channels[i].int_msk, 0);
+	       cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
+	       cx_write(dev->channels[i].sram_channels->int_msk, 0);
 	}
 
 	/* Disable Audio activity */
@@ -805,12 +805,10 @@ static void cx25821_shutdown(struct cx25821_dev *dev)
 void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel_select,
 			      u32 format)
 {
-	struct sram_channel *ch;
-
 	if (channel_select <= 7 && channel_select >= 0) {
-		ch = &cx25821_sram_channels[channel_select];
-		cx_write(ch->pix_frmt, format);
-		dev->pixel_formats[channel_select] = format;
+	       cx_write(dev->channels[channel_select].
+			       sram_channels->pix_frmt, format);
+	       dev->channels[channel_select].pixel_formats = format;
 	}
 }
 
@@ -831,7 +829,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	cx_write(PCI_INT_STAT, 0xffffffff);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++)
-		cx_write(dev->sram_channels[i].int_stat, 0xffffffff);
+	       cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
 
 	cx_write(AUD_A_INT_STAT, 0xffffffff);
 	cx_write(AUD_B_INT_STAT, 0xffffffff);
@@ -845,21 +843,22 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	mdelay(100);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-		cx25821_set_vip_mode(dev, &dev->sram_channels[i]);
-		cx25821_sram_channel_setup(dev, &dev->sram_channels[i], 1440,
-					   0);
-		dev->pixel_formats[i] = PIXEL_FRMT_422;
-		dev->use_cif_resolution[i] = FALSE;
+	       cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
+	       cx25821_sram_channel_setup(dev, dev->channels[i].sram_channels,
+					       1440, 0);
+	       dev->channels[i].pixel_formats = PIXEL_FRMT_422;
+	       dev->channels[i].use_cif_resolution = FALSE;
 	}
 
 	/* Probably only affect Downstream */
 	for (i = VID_UPSTREAM_SRAM_CHANNEL_I; i <= VID_UPSTREAM_SRAM_CHANNEL_J;
 	     i++) {
-		cx25821_set_vip_mode(dev, &dev->sram_channels[i]);
+	       cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
 	}
 
-	cx25821_sram_channel_setup_audio(dev, &dev->sram_channels[SRAM_CH08],
-					 128, 0);
+       cx25821_sram_channel_setup_audio(dev,
+			       dev->channels[SRAM_CH08].sram_channels,
+			       128, 0);
 
 	cx25821_gpio_init(dev);
 }
@@ -902,21 +901,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 {
 	int io_size = 0, i;
 
-	struct video_device *video_template[] = {
-		&cx25821_video_template0,
-		&cx25821_video_template1,
-		&cx25821_video_template2,
-		&cx25821_video_template3,
-		&cx25821_video_template4,
-		&cx25821_video_template5,
-		&cx25821_video_template6,
-		&cx25821_video_template7,
-		&cx25821_video_template9,
-		&cx25821_video_template10,
-		&cx25821_video_template11,
-		&cx25821_videoioctl_template,
-	};
-
 	printk(KERN_INFO "\n***********************************\n");
 	printk(KERN_INFO "cx25821 set up\n");
 	printk(KERN_INFO "***********************************\n\n");
@@ -947,7 +931,8 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	/* Apply a sensible clock frequency for the PCIe bridge */
 	dev->clk_freq = 28000000;
-	dev->sram_channels = cx25821_sram_channels;
+       for (i = 0; i < MAX_VID_CHANNEL_NUM; i++)
+	       dev->channels[i].sram_channels = &cx25821_sram_channels[i];
 
 	if (dev->nr > 1)
 		CX25821_INFO("dev->nr > 1!");
@@ -969,7 +954,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	dev->i2c_bus[0].reg_rdata = I2C1_RDATA;
 	dev->i2c_bus[0].reg_wdata = I2C1_WDATA;
 	dev->i2c_bus[0].i2c_period = (0x07 << 24);	/* 1.95MHz */
-
 
 	if (cx25821_get_resources(dev) < 0) {
 		printk(KERN_ERR "%s No more PCIe resources for "
@@ -1018,37 +1002,24 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 		     dev->i2c_bus[0].i2c_rc);
 
 	cx25821_card_setup(dev);
-	medusa_video_init(dev);
 
-	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-		if (cx25821_video_register(dev, i, video_template[i]) < 0) {
-			printk(KERN_ERR
-			       "%s() Failed to register analog video adapters on VID channel %d\n",
-			       __func__, i);
-		}
-	}
+       if (medusa_video_init(dev) < 0)
+	       CX25821_ERR("%s() Failed to initialize medusa!\n"
+	       , __func__);
 
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
-	     i <= AUDIO_UPSTREAM_SRAM_CHANNEL_B; i++) {
-		/* Since we don't have template8 for Audio Downstream */
-		if (cx25821_video_register(dev, i, video_template[i - 1]) < 0) {
-			printk(KERN_ERR
-			       "%s() Failed to register analog video adapters for Upstream channel %d.\n",
-			       __func__, i);
-		}
-	}
+       cx25821_video_register(dev);
 
 	/* register IOCTL device */
 	dev->ioctl_dev =
-	    cx25821_vdev_init(dev, dev->pci, video_template[VIDEO_IOCTL_CH],
+	   cx25821_vdev_init(dev, dev->pci, &cx25821_videoioctl_template,
 			      "video");
 
 	if (video_register_device
 	    (dev->ioctl_dev, VFL_TYPE_GRABBER, VIDEO_IOCTL_CH) < 0) {
 		cx25821_videoioctl_unregister(dev);
 		printk(KERN_ERR
-		       "%s() Failed to register video adapter for IOCTL so releasing.\n",
-		       __func__);
+		   "%s() Failed to register video adapter for IOCTL, so \
+		   unregistering videoioctl device.\n", __func__);
 	}
 
 	cx25821_dev_checkrevision(dev);
@@ -1349,7 +1320,7 @@ void cx25821_free_buffer(struct videobuf_queue *q, struct cx25821_buffer *buf)
 
 	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb, 0, 0);
-	videobuf_dma_unmap(q, dma);
+	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -1371,7 +1342,8 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
 		if (pci_status & mask[i]) {
-			vid_status = cx_read(dev->sram_channels[i].int_stat);
+		       vid_status = cx_read(dev->channels[i].
+			       sram_channels->int_stat);
 
 			if (vid_status)
 				handled +=

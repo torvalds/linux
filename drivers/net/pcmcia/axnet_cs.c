@@ -39,7 +39,6 @@
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
@@ -260,28 +259,30 @@ static int get_prom(struct pcmcia_device *link)
 static int try_io_port(struct pcmcia_device *link)
 {
     int j, ret;
-    if (link->io.NumPorts1 == 32) {
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+    link->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+    link->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+    if (link->resource[0]->end == 32) {
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	/* for master/slave multifunction cards */
-	if (link->io.NumPorts2 > 0)
-	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+	if (link->resource[1]->end > 0)
+	    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     } else {
 	/* This should be two 16-port windows */
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.Attributes2 = IO_DATA_PATH_WIDTH_16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_16;
     }
-    if (link->io.BasePort1 == 0) {
-	link->io.IOAddrLines = 16;
+    if (link->resource[0]->start == 0) {
 	for (j = 0; j < 0x400; j += 0x20) {
-	    link->io.BasePort1 = j ^ 0x300;
-	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
-	    ret = pcmcia_request_io(link, &link->io);
+	    link->resource[0]->start = j ^ 0x300;
+	    link->resource[1]->start = (j ^ 0x300) + 0x10;
+	    link->io_lines = 16;
+	    ret = pcmcia_request_io(link);
 	    if (ret == 0)
 		    return ret;
 	}
 	return ret;
     } else {
-	return pcmcia_request_io(link, &link->io);
+	return pcmcia_request_io(link);
     }
 }
 
@@ -302,15 +303,15 @@ static int axnet_configcheck(struct pcmcia_device *p_dev,
 	   network function with window 0, and serial with window 1 */
 	if (io->nwin > 1) {
 		i = (io->win[1].len > io->win[0].len);
-		p_dev->io.BasePort2 = io->win[1-i].base;
-		p_dev->io.NumPorts2 = io->win[1-i].len;
+		p_dev->resource[1]->start = io->win[1-i].base;
+		p_dev->resource[1]->end = io->win[1-i].len;
 	} else {
-		i = p_dev->io.NumPorts2 = 0;
+		i = p_dev->resource[1]->end = 0;
 	}
-	p_dev->io.BasePort1 = io->win[i].base;
-	p_dev->io.NumPorts1 = io->win[i].len;
-	p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	if (p_dev->io.NumPorts1 + p_dev->io.NumPorts2 >= 32)
+	p_dev->resource[0]->start = io->win[i].base;
+	p_dev->resource[0]->end = io->win[i].len;
+	p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+	if (p_dev->resource[0]->end + p_dev->resource[1]->end >= 32)
 		return try_io_port(p_dev);
 
 	return -ENODEV;
@@ -333,7 +334,7 @@ static int axnet_config(struct pcmcia_device *link)
     if (!link->irq)
 	    goto failed;
     
-    if (link->io.NumPorts2 == 8) {
+    if (resource_size(link->resource[1]) == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
@@ -343,7 +344,7 @@ static int axnet_config(struct pcmcia_device *link)
 	    goto failed;
 
     dev->irq = link->irq;
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     if (!get_prom(link)) {
 	printk(KERN_NOTICE "axnet_cs: this is not an AX88190 card!\n");
@@ -379,8 +380,7 @@ static int axnet_config(struct pcmcia_device *link)
     /* Maybe PHY is in power down mode. (PPD_SET = 1) 
        Bit 2 of CCSR is active low. */ 
     if (i == 32) {
-	conf_reg_t reg = { 0, CS_WRITE, CISREG_CCSR, 0x04 };
- 	pcmcia_access_configuration_register(link, &reg);
+	pcmcia_write_config_byte(link, CISREG_CCSR, 0x04);
 	for (i = 0; i < 32; i++) {
 	    j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	    j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);

@@ -30,11 +30,13 @@
 #include "tuner-simple.h"
 
 #include "lgdt330x.h"
+#include "lgdt3305.h"
 #include "zl10353.h"
 #include "s5h1409.h"
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
+#include "tda18271.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -231,6 +233,18 @@ static struct lgdt330x_config em2880_lgdt3303_dev = {
 	.demod_chip = LGDT3303,
 };
 
+static struct lgdt3305_config em2870_lgdt3304_dev = {
+	.i2c_addr           = 0x0e,
+	.demod_chip         = LGDT3304,
+	.spectral_inversion = 1,
+	.deny_i2c_rptr      = 1,
+	.mpeg_mode          = LGDT3305_MPEG_PARALLEL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.vsb_if_khz         = 3250,
+	.qam_if_khz         = 4000,
+};
+
 static struct zl10353_config em28xx_zl10353_with_xc3028 = {
 	.demod_address = (0x1e >> 1),
 	.no_tuner = 1,
@@ -245,6 +259,17 @@ static struct s5h1409_config em28xx_s5h1409_with_xc3028 = {
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
+};
+
+static struct tda18271_std_map kworld_a340_std_map = {
+	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 0,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 1,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+};
+
+static struct tda18271_config kworld_a340_config = {
+	.std_map           = &kworld_a340_std_map,
 };
 
 static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
@@ -571,6 +596,14 @@ static int dvb_init(struct em28xx *dev)
 				goto out_free;
 			}
 		}
+		break;
+	case EM2870_BOARD_KWORLD_A340:
+		dvb->frontend = dvb_attach(lgdt3305_attach,
+					   &em2870_lgdt3304_dev,
+					   &dev->i2c_adap);
+		if (dvb->frontend != NULL)
+			dvb_attach(tda18271_attach, dvb->frontend, 0x60,
+				   &dev->i2c_adap, &kworld_a340_config);
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"

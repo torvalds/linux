@@ -697,9 +697,7 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 
 static struct spi_driver p54spi_driver = {
 	.driver = {
-		/* use cx3110x name because board-n800.c uses that for the
-		 * SPI port */
-		.name		= "cx3110x",
+		.name		= "p54spi",
 		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
@@ -733,3 +731,4 @@ module_exit(p54spi_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_ALIAS("spi:cx3110x");
+MODULE_ALIAS("spi:p54spi");

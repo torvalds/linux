@@ -55,11 +55,7 @@ static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 
 	skb->dev = ieee->dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
         skb_reset_mac_header(skb);
-#else
-        skb->mac.raw = skb->data;
-#endif
 
 	skb_pull(skb, ieee80211_get_hdrlen(fc));
 	skb->pkt_type = PACKET_OTHERHOST;
@@ -2793,8 +2789,6 @@ static inline void ieee80211_process_probe_response(
 #endif
 		memcpy(target, &network, sizeof(*target));
 		list_add_tail(&target->list, &ieee->network_list);
-		if(ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
-			ieee80211_softmac_new_net(ieee,&network);
 	} else {
 		IEEE80211_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
 				     escape_essid(target->ssid,
@@ -2821,8 +2815,6 @@ static inline void ieee80211_process_probe_response(
 		//YJ,add,080819,for hidden ap,end
 
 		update_network(target, &network);
-		if(renew && (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE))
-			ieee80211_softmac_new_net(ieee,&network);
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
@@ -2880,11 +2872,3 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	}
 }
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-//EXPORT_SYMBOL(ieee80211_rx_mgt);
-//EXPORT_SYMBOL(ieee80211_rx);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_rx_mgt);
-EXPORT_SYMBOL_NOVERS(ieee80211_rx);
-#endif

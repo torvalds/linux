@@ -835,7 +835,7 @@ __setup("vga=", sm712vga_setup);
  * Original init function changed to probe method to be used by pci_drv
  * process used to detect chips replaced with kernel process in pci_drv
  */
-static int __init smtcfb_pci_probe(struct pci_dev *pdev,
+static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;

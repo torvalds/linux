@@ -16,7 +16,6 @@
 
 #include <asm/mpc52xx_psc.h>
 
-#include "mpc5200_psc_i2s.h"
 #include "mpc5200_dma.h"
 
 /**
@@ -153,7 +152,7 @@ EXPORT_SYMBOL_GPL(psc_i2s_dai);
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_i2s_of_probe(struct of_device *op,
+static int __devinit psc_i2s_of_probe(struct platform_device *op,
 				      const struct of_device_id *match)
 {
 	int rc;
@@ -206,7 +205,7 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 
 }
 
-static int __devexit psc_i2s_of_remove(struct of_device *op)
+static int __devexit psc_i2s_of_remove(struct platform_device *op)
 {
 	return mpc5200_audio_dma_destroy(op);
 }

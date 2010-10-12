@@ -2,7 +2,7 @@
 #define __ASM_MACH_IP27_KMALLOC_H
 
 /*
- * All happy, no need to define ARCH_KMALLOC_MINALIGN
+ * All happy, no need to define ARCH_DMA_MINALIGN
  */
 
 #endif /* __ASM_MACH_IP27_KMALLOC_H */

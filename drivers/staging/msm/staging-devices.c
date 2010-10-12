@@ -18,7 +18,6 @@
 #include "msm_mdp.h"
 #include "memory_ll.h"
 //#include "android_pmem.h"
-#include <mach/board.h>
 
 #ifdef CONFIG_MSM_SOC_REV_A
 #define MSM_SMI_BASE 0xE0000000
@@ -115,17 +114,7 @@ static int msm_fb_detect_panel(const char *name)
 	} else if ((machine_is_qsd8x50_surf() || machine_is_qsd8x50a_surf())
 			&& !strcmp(name, "lcdc_external"))
 		ret = 0;
-	else if (0 /*machine_is_qsd8x50_grapefruit() */) {
-		if (!strcmp(name, "lcdc_grapefruit_vga"))
-			ret = 0;
-		else
-			ret = -ENODEV;
-	} else if (machine_is_qsd8x50_st1()) {
-		if (!strcmp(name, "lcdc_st1_wxga"))
-			ret = 0;
-		else
-			ret = -ENODEV;
-	} else if (machine_is_qsd8x50a_st1_5()) {
+	else if (machine_is_qsd8x50a_st1_5()) {
 		if (!strcmp(name, "lcdc_st15") ||
 		    !strcmp(name, "hdmi_sii9022"))
 			ret = 0;

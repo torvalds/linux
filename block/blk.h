@@ -161,8 +161,10 @@ static inline int blk_cpu_to_group(int cpu)
  */
 static inline int blk_do_io_stat(struct request *rq)
 {
-	return rq->rq_disk && blk_rq_io_stat(rq) &&
-	       (blk_fs_request(rq) || blk_discard_rq(rq));
+	return rq->rq_disk &&
+	       (rq->cmd_flags & REQ_IO_STAT) &&
+	       (rq->cmd_type == REQ_TYPE_FS ||
+	        (rq->cmd_flags & REQ_DISCARD));
 }
 
 #endif

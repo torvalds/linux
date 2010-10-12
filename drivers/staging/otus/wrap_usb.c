@@ -104,6 +104,11 @@ u32_t zfwUsbSubmitControl(zdev_t *dev, u8_t req, u16_t value, u16_t index,
 
 	if (size > 0) {
 		buf = kmalloc(size, GFP_KERNEL);
+		if (buf == NULL) {
+			pr_err("zfwUsbSubmitControl() failed, "
+				  "kmalloc() returned NULL\n");
+			return 1;
+		}
 		memcpy(buf, (u8_t *)data, size);
 	} else
 		buf = NULL;

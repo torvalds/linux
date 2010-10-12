@@ -176,7 +176,8 @@ struct drm_i915_display_funcs {
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
 	void (*update_wm)(struct drm_device *dev, int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int pixel_size);
+			  int planeb_clock, int sr_hdisplay, int sr_htotal,
+			  int pixel_size);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
@@ -200,6 +201,8 @@ struct intel_device_info {
 	u8 need_gfx_hws : 1;
 	u8 is_g4x : 1;
 	u8 is_pineview : 1;
+	u8 is_broadwater : 1;
+	u8 is_crestline : 1;
 	u8 is_ironlake : 1;
 	u8 is_gen6 : 1;
 	u8 has_fbc : 1;
@@ -288,6 +291,8 @@ typedef struct drm_i915_private {
 	struct timer_list hangcheck_timer;
 	int hangcheck_count;
 	uint32_t last_acthd;
+	uint32_t last_instdone;
+	uint32_t last_instdone1;
 
 	struct drm_mm vram;
 
@@ -547,6 +552,14 @@ typedef struct drm_i915_private {
 		struct list_head fence_list;
 
 		/**
+		 * List of objects currently pending being freed.
+		 *
+		 * These objects are no longer in use, but due to a signal
+		 * we were prevented from freeing them at the appointed time.
+		 */
+		struct list_head deferred_free_list;
+
+		/**
 		 * We leave the user IRQ off as much as possible,
 		 * but this means that requests will finish and never
 		 * be retired once the system goes idle. Set a timer to
@@ -677,7 +690,7 @@ struct drm_i915_gem_object {
 	 *
 	 * Size: 4 bits for 16 fences + sign (for FENCE_REG_NONE)
 	 */
-	int fence_reg : 5;
+	signed int fence_reg : 5;
 
 	/**
 	 * Used for checking the object doesn't appear more than once
@@ -713,7 +726,7 @@ struct drm_i915_gem_object {
 	 *
 	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
 	 * bits with absolutely no headroom. So use 4 bits. */
-	int pin_count : 4;
+	unsigned int pin_count : 4;
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 
 	/** AGP memory structure for our GTT binding. */
@@ -743,7 +756,7 @@ struct drm_i915_gem_object {
 	uint32_t stride;
 
 	/** Record of address bit 17 of each page at last unbind. */
-	long *bit_17;
+	unsigned long *bit_17;
 
 	/** AGP mapping type (AGP_USER_MEMORY or AGP_USER_CACHED_MEMORY */
 	uint32_t agp_type;
@@ -955,8 +968,7 @@ uint32_t i915_get_gem_seqno(struct drm_device *dev,
 bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 int i915_gem_object_put_fence_reg(struct drm_gem_object *obj);
-void i915_gem_retire_requests(struct drm_device *dev,
-		 struct intel_ring_buffer *ring);
+void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_work_handler(struct work_struct *work);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
 int i915_gem_object_set_domain(struct drm_gem_object *obj,
@@ -986,7 +998,7 @@ void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
-void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
+int i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
 
 void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);
@@ -1046,6 +1058,7 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void i8xx_disable_fbc(struct drm_device *dev);
 extern void g4x_disable_fbc(struct drm_device *dev);
+extern void ironlake_disable_fbc(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern bool intel_fbc_enabled(struct drm_device *dev);
@@ -1135,6 +1148,8 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 #define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
 #define IS_I965G(dev)		(INTEL_INFO(dev)->is_i965g)
 #define IS_I965GM(dev)		(INTEL_INFO(dev)->is_i965gm)
+#define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
+#define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
 #define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
 #define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
 #define IS_PINEVIEW_G(dev)	((dev)->pci_device == 0xa001)

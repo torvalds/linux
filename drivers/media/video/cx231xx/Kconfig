@@ -3,7 +3,7 @@ config VIDEO_CX231XX
 	depends on VIDEO_DEV && I2C && INPUT
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEO_IR
+	depends on VIDEO_IR
 	select VIDEOBUF_VMALLOC
 	select VIDEO_CX25840
 

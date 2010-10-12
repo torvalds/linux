@@ -84,7 +84,7 @@ static int iget_skip_test(struct inode *inode, void *opaque)
 	struct gfs2_skip_data *data = opaque;
 
 	if (ip->i_no_addr == data->no_addr) {
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
+		if (inode->i_state & (I_FREEING|I_WILL_FREE)){
 			data->skipped = 1;
 			return 0;
 		}
@@ -991,18 +991,29 @@ fail:
 
 static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 {
+	struct inode *inode = &ip->i_inode;
 	struct buffer_head *dibh;
 	int error;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		error = inode_setattr(&ip->i_inode, attr);
-		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+	if (error)
+		return error;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
 	}
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	gfs2_assert_warn(GFS2_SB(inode), !error);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+	return 0;
 }
 
 /**

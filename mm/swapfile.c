@@ -47,6 +47,8 @@ long nr_swap_pages;
 long total_swap_pages;
 static int least_priority;
 
+static bool swap_for_hibernation;
+
 static const char Bad_file[] = "Bad swap file entry ";
 static const char Unused_file[] = "Unused swap file entry ";
 static const char Bad_offset[] = "Bad swap offset entry ";
@@ -318,8 +320,10 @@ checks:
 	if (offset > si->highest_bit)
 		scan_base = offset = si->lowest_bit;
 
-	/* reuse swap entry of cache-only swap if not busy. */
-	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+	/* reuse swap entry of cache-only swap if not hibernation. */
+	if (vm_swap_full()
+		&& usage == SWAP_HAS_CACHE
+		&& si->swap_map[offset] == SWAP_HAS_CACHE) {
 		int swap_was_freed;
 		spin_unlock(&swap_lock);
 		swap_was_freed = __try_to_reclaim_swap(si, offset);
@@ -449,6 +453,8 @@ swp_entry_t get_swap_page(void)
 	spin_lock(&swap_lock);
 	if (nr_swap_pages <= 0)
 		goto noswap;
+	if (swap_for_hibernation)
+		goto noswap;
 	nr_swap_pages--;
 
 	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
@@ -477,28 +483,6 @@ swp_entry_t get_swap_page(void)
 
 	nr_swap_pages++;
 noswap:
-	spin_unlock(&swap_lock);
-	return (swp_entry_t) {0};
-}
-
-/* The only caller of this function is now susupend routine */
-swp_entry_t get_swap_page_of_type(int type)
-{
-	struct swap_info_struct *si;
-	pgoff_t offset;
-
-	spin_lock(&swap_lock);
-	si = swap_info[type];
-	if (si && (si->flags & SWP_WRITEOK)) {
-		nr_swap_pages--;
-		/* This is called for allocating swap entry, not cache */
-		offset = scan_swap_map(si, 1);
-		if (offset) {
-			spin_unlock(&swap_lock);
-			return swp_entry(type, offset);
-		}
-		nr_swap_pages++;
-	}
 	spin_unlock(&swap_lock);
 	return (swp_entry_t) {0};
 }
@@ -762,6 +746,74 @@ int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep)
 #endif
 
 #ifdef CONFIG_HIBERNATION
+
+static pgoff_t hibernation_offset[MAX_SWAPFILES];
+/*
+ * Once hibernation starts to use swap, we freeze swap_map[]. Otherwise,
+ * saved swap_map[] image to the disk will be an incomplete because it's
+ * changing without synchronization with hibernation snap shot.
+ * At resume, we just make swap_for_hibernation=false. We can forget
+ * used maps easily.
+ */
+void hibernation_freeze_swap(void)
+{
+	int i;
+
+	spin_lock(&swap_lock);
+
+	printk(KERN_INFO "PM: Freeze Swap\n");
+	swap_for_hibernation = true;
+	for (i = 0; i < MAX_SWAPFILES; i++)
+		hibernation_offset[i] = 1;
+	spin_unlock(&swap_lock);
+}
+
+void hibernation_thaw_swap(void)
+{
+	spin_lock(&swap_lock);
+	if (swap_for_hibernation) {
+		printk(KERN_INFO "PM: Thaw Swap\n");
+		swap_for_hibernation = false;
+	}
+	spin_unlock(&swap_lock);
+}
+
+/*
+ * Because updateing swap_map[] can make not-saved-status-change,
+ * we use our own easy allocator.
+ * Please see kernel/power/swap.c, Used swaps are recorded into
+ * RB-tree.
+ */
+swp_entry_t get_swap_for_hibernation(int type)
+{
+	pgoff_t off;
+	swp_entry_t val = {0};
+	struct swap_info_struct *si;
+
+	spin_lock(&swap_lock);
+
+	si = swap_info[type];
+	if (!si || !(si->flags & SWP_WRITEOK))
+		goto done;
+
+	for (off = hibernation_offset[type]; off < si->max; ++off) {
+		if (!si->swap_map[off])
+			break;
+	}
+	if (off < si->max) {
+		val = swp_entry(type, off);
+		hibernation_offset[type] = off + 1;
+	}
+done:
+	spin_unlock(&swap_lock);
+	return val;
+}
+
+void swap_free_for_hibernation(swp_entry_t ent)
+{
+	/* Nothing to do */
+}
+
 /*
  * Find the swap type that corresponds to given device (if any).
  *

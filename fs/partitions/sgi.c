@@ -76,7 +76,7 @@ int sgi_partition(struct parsed_partitions *state)
 		}
 		slot++;
 	}
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	put_dev_sector(sect);
 	return 1;
 }

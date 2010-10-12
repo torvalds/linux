@@ -391,7 +391,7 @@ void __init s3c_disable_clocks(struct clk *clkp, int nr_clks)
 		(clkp->enable)(clkp, 0);
 }
 
-/* initalise all the clocks */
+/* initialise all the clocks */
 
 int __init s3c24xx_register_baseclocks(unsigned long xtal)
 {

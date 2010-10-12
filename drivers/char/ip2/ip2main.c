@@ -1486,7 +1486,9 @@ ip2_open( PTTY tty, struct file *pFile )
 
 	if ( tty_hung_up_p(pFile) || ( pCh->flags & ASYNC_CLOSING )) {
 		if ( pCh->flags & ASYNC_CLOSING ) {
+			tty_unlock();
 			schedule();
+			tty_lock();
 		}
 		if ( tty_hung_up_p(pFile) ) {
 			set_current_state( TASK_RUNNING );
@@ -1548,7 +1550,9 @@ ip2_open( PTTY tty, struct file *pFile )
 			rc = (( pCh->flags & ASYNC_HUP_NOTIFY ) ? -EAGAIN : -ERESTARTSYS);
 			break;
 		}
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	set_current_state( TASK_RUNNING );
 	remove_wait_queue(&pCh->open_wait, &wait);

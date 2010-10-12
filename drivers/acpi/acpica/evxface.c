@@ -691,23 +691,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Ensure that we have a valid GPE number */
-
-	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
-	if (!gpe_event_info) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/* Make sure that there isn't a handler there already */
-
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-	    ACPI_GPE_DISPATCH_HANDLER) {
-		status = AE_ALREADY_EXISTS;
-		goto unlock_and_exit;
-	}
-
-	/* Allocate and init handler object */
+	/* Allocate memory for the handler object */
 
 	handler = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_handler_info));
 	if (!handler) {
@@ -715,13 +699,45 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+
+	/* Ensure that we have a valid GPE number */
+
+	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
+	if (!gpe_event_info) {
+		status = AE_BAD_PARAMETER;
+		goto free_and_exit;
+	}
+
+	/* Make sure that there isn't a handler there already */
+
+	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+	    ACPI_GPE_DISPATCH_HANDLER) {
+		status = AE_ALREADY_EXISTS;
+		goto free_and_exit;
+	}
+
+	/* Allocate and init handler object */
+
 	handler->address = address;
 	handler->context = context;
 	handler->method_node = gpe_event_info->dispatch.method_node;
+	handler->orig_flags = gpe_event_info->flags &
+			(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
+
+	/*
+	 * If the GPE is associated with a method and it cannot wake up the
+	 * system from sleep states, it was enabled automatically during
+	 * initialization, so it has to be disabled now to avoid spurious
+	 * execution of the handler.
+	 */
+
+	if ((handler->orig_flags & ACPI_GPE_DISPATCH_METHOD)
+	    && !(gpe_event_info->flags & ACPI_GPE_CAN_WAKE))
+		(void)acpi_raw_disable_gpe(gpe_event_info);
 
 	/* Install the handler */
 
-	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	gpe_event_info->dispatch.handler = handler;
 
 	/* Setup up dispatch flags to indicate handler (vs. method) */
@@ -735,6 +751,11 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
+
+free_and_exit:
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+	ACPI_FREE(handler);
+	goto unlock_and_exit;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_gpe_handler)
@@ -770,10 +791,16 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
+	/* Make sure all deferred tasks are completed */
+
+	acpi_os_wait_events_complete(NULL);
+
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
+
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
 	/* Ensure that we have a valid GPE number */
 
@@ -798,34 +825,34 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
-	/* Make sure all deferred tasks are completed */
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-	acpi_os_wait_events_complete(NULL);
-	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
 	/* Remove the handler */
 
-	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	handler = gpe_event_info->dispatch.handler;
 
 	/* Restore Method node (if any), set dispatch flags */
 
 	gpe_event_info->dispatch.method_node = handler->method_node;
-	gpe_event_info->flags &= ~ACPI_GPE_DISPATCH_MASK;	/* Clear bits */
-	if (handler->method_node) {
-		gpe_event_info->flags |= ACPI_GPE_DISPATCH_METHOD;
-	}
-	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+	gpe_event_info->flags &=
+		~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
+	gpe_event_info->flags |= handler->orig_flags;
+
+	/*
+	 * If the GPE was previously associated with a method and it cannot wake
+	 * up the system from sleep states, it should be enabled at this point
+	 * to restore the post-initialization configuration.
+	 */
+
+	if ((handler->orig_flags & ACPI_GPE_DISPATCH_METHOD)
+	    && !(gpe_event_info->flags & ACPI_GPE_CAN_WAKE))
+		(void)acpi_raw_enable_gpe(gpe_event_info);
 
 	/* Now we can free the handler object */
 
 	ACPI_FREE(handler);
 
-      unlock_and_exit:
+unlock_and_exit:
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }

@@ -73,10 +73,10 @@ static int tcf_simp_release(struct tcf_defact *d, int bind)
 
 static int alloc_defdata(struct tcf_defact *d, char *defdata)
 {
-	d->tcfd_defdata = kstrndup(defdata, SIMP_MAX_DATA, GFP_KERNEL);
+	d->tcfd_defdata = kzalloc(SIMP_MAX_DATA, GFP_KERNEL);
 	if (unlikely(!d->tcfd_defdata))
 		return -ENOMEM;
-
+	strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	return 0;
 }
 

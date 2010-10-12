@@ -16,8 +16,8 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/module.h>
+#include <linux/kprobes.h>
 
 #include <asm/branch.h>
 #include <asm/mmu_context.h>
@@ -25,13 +25,14 @@
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/highmem.h>		/* For VMALLOC_END */
+#include <linux/kdebug.h>
 
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
+asmlinkage void __kprobes do_page_fault(struct pt_regs *regs, unsigned long write,
 			      unsigned long address)
 {
 	struct vm_area_struct * vma = NULL;
@@ -45,6 +46,17 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 	printk("Cpu%d[%s:%d:%0*lx:%ld:%0*lx]\n", raw_smp_processor_id(),
 	       current->comm, current->pid, field, address, write,
 	       field, regs->cp0_epc);
+#endif
+
+#ifdef CONFIG_KPROBES
+	/*
+	 * This is to notify the fault handler of the kprobes.  The
+	 * exception code is redundant as it is also carried in REGS,
+	 * but we pass it anyhow.
+	 */
+	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
+		       (regs->cp0_cause >> 2) & 0x1f, SIGSEGV) == NOTIFY_STOP)
+		return;
 #endif
 
 	info.si_code = SEGV_MAPERR;

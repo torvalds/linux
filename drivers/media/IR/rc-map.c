@@ -82,3 +82,26 @@ void ir_unregister_map(struct rc_keymap *map)
 }
 EXPORT_SYMBOL_GPL(ir_unregister_map);
 
+
+static struct ir_scancode empty[] = {
+	{ 0x2a, KEY_COFFEE },
+};
+
+static struct rc_keymap empty_map = {
+	.map = {
+		.scan    = empty,
+		.size    = ARRAY_SIZE(empty),
+		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.name    = RC_MAP_EMPTY,
+	}
+};
+
+int ir_rcmap_init(void)
+{
+	return ir_register_map(&empty_map);
+}
+
+void ir_rcmap_cleanup(void)
+{
+	ir_unregister_map(&empty_map);
+}

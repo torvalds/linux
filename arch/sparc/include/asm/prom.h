@@ -43,20 +43,22 @@ extern int of_getintprop_default(struct device_node *np,
 extern int of_find_in_proplist(const char *list, const char *match, int len);
 #ifdef CONFIG_NUMA
 extern int of_node_to_nid(struct device_node *dp);
-#else
-#define of_node_to_nid(dp)	(-1)
+#define of_node_to_nid of_node_to_nid
 #endif
 
 extern void prom_build_devicetree(void);
 extern void of_populate_present_mask(void);
 extern void of_fill_in_cpu_data(void);
 
+struct resource;
+extern void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
+extern void of_iounmap(struct resource *res, void __iomem *base, unsigned long size);
+
 /* These routines are here to provide compatibility with how powerpc
  * handles IRQ mapping for OF device nodes.  We precompute and permanently
- * register them in the of_device objects, whereas powerpc computes them
+ * register them in the platform_device objects, whereas powerpc computes them
  * on request.
  */
-extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 static inline void irq_dispose_mapping(unsigned int virq)
 {
 }

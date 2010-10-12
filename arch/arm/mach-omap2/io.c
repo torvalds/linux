@@ -28,12 +28,10 @@
 
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
 #include <plat/sram.h>
 #include <plat/sdrc.h>
 #include <plat/gpmc.h>
 #include <plat/serial.h>
-#include <plat/vram.h>
 
 #include "clock2xxx.h"
 #include "clock3xxx.h"
@@ -45,6 +43,7 @@
 
 #include <plat/clockdomain.h>
 #include "clockdomains.h"
+
 #include <plat/omap_hwmod.h>
 
 /*
@@ -241,8 +240,6 @@ static void __init _omap2_map_common_io(void)
 
 	omap2_check_revision();
 	omap_sram_init();
-	omapfb_reserve_sdram();
-	omap_vram_reserve_sdram();
 }
 
 #ifdef CONFIG_ARCH_OMAP2420
@@ -316,6 +313,8 @@ static int __init _omap2_init_reprogram_sdrc(void)
 void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1)
 {
+	u8 skip_setup_idle = 0;
+
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
 	if (cpu_is_omap242x())
@@ -324,7 +323,6 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		omap2430_hwmod_init();
 	else if (cpu_is_omap34xx())
 		omap3xxx_hwmod_init();
-	omap2_mux_init();
 	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 
@@ -340,9 +338,13 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		pr_err("Could not init clock framework - unknown CPU\n");
 
 	omap_serial_early_init();
+
+#ifndef CONFIG_PM_RUNTIME
+	skip_setup_idle = 1;
+#endif
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())   /* FIXME: OMAP4 */
-		omap_hwmod_late_init();
-	omap_pm_if_init();
+		omap_hwmod_late_init(skip_setup_idle);
+
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();

@@ -25,23 +25,6 @@
 /* --------------------------------------------------------------------- */
 
 /*
- * Return a scatterlist for some page-aligned vmalloc()'ed memory
- * block (NULL on errors).  Memory for the scatterlist is allocated
- * using kmalloc.  The caller must free the memory.
- */
-struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages);
-
-/*
- * Return a scatterlist for a an array of userpages (NULL on errors).
- * Memory for the scatterlist is allocated using kmalloc.  The caller
- * must free the memory.
- */
-struct scatterlist *videobuf_pages_to_sg(struct page **pages, int nr_pages,
-					 int offset);
-
-/* --------------------------------------------------------------------- */
-
-/*
  * A small set of helper functions to manage buffers (both userland
  * and kernel) for DMA.
  *
@@ -68,7 +51,7 @@ struct videobuf_dmabuf {
 	struct page         **pages;
 
 	/* for kernel buffers */
-	void                *vmalloc;
+	void                *vaddr;
 
 	/* for overlay buffers (pci-pci dma) */
 	dma_addr_t          bus_addr;
@@ -87,6 +70,16 @@ struct videobuf_dma_sg_memory {
 	struct videobuf_dmabuf  dma;
 };
 
+/*
+ * Scatter-gather DMA buffer API.
+ *
+ * These functions provide a simple way to create a page list and a
+ * scatter-gather list from a kernel, userspace of physical address and map the
+ * memory for DMA operation.
+ *
+ * Despite the name, this is totally unrelated to videobuf, except that
+ * videobuf-dma-sg uses the same API internally.
+ */
 void videobuf_dma_init(struct videobuf_dmabuf *dma);
 int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 			   unsigned long data, unsigned long size);
@@ -96,8 +89,8 @@ int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 			      dma_addr_t addr, int nr_pages);
 int videobuf_dma_free(struct videobuf_dmabuf *dma);
 
-int videobuf_dma_map(struct videobuf_queue *q, struct videobuf_dmabuf *dma);
-int videobuf_dma_unmap(struct videobuf_queue *q, struct videobuf_dmabuf *dma);
+int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma);
+int videobuf_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma);
 struct videobuf_dmabuf *videobuf_to_dma(struct videobuf_buffer *buf);
 
 void *videobuf_sg_alloc(size_t size);
@@ -110,12 +103,6 @@ void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 enum v4l2_field field,
 			 unsigned int msize,
 			 void *priv);
-
-/*FIXME: these variants are used only on *-alsa code, where videobuf is
- * used without queue
- */
-int videobuf_sg_dma_map(struct device *dev, struct videobuf_dmabuf *dma);
-int videobuf_sg_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma);
 
 #endif /* _VIDEOBUF_DMA_SG_H */
 

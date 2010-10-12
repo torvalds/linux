@@ -288,7 +288,6 @@ static struct avc_node *avc_alloc_node(void)
 	if (!node)
 		goto out;
 
-	INIT_RCU_HEAD(&node->rhead);
 	INIT_HLIST_NODE(&node->list);
 	avc_cache_stats_incr(allocations);
 
@@ -489,9 +488,29 @@ void avc_audit(u32 ssid, u32 tsid,
 	struct common_audit_data stack_data;
 	u32 denied, audited;
 	denied = requested & ~avd->allowed;
-	if (denied)
+	if (denied) {
 		audited = denied & avd->auditdeny;
-	else if (result)
+		/*
+		 * a->selinux_audit_data.auditdeny is TRICKY!  Setting a bit in
+		 * this field means that ANY denials should NOT be audited if
+		 * the policy contains an explicit dontaudit rule for that
+		 * permission.  Take notice that this is unrelated to the
+		 * actual permissions that were denied.  As an example lets
+		 * assume:
+		 *
+		 * denied == READ
+		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
+		 * selinux_audit_data.auditdeny & ACCESS == 1
+		 *
+		 * We will NOT audit the denial even though the denied
+		 * permission was READ and the auditdeny checks were for
+		 * ACCESS
+		 */
+		if (a &&
+		    a->selinux_audit_data.auditdeny &&
+		    !(a->selinux_audit_data.auditdeny & avd->auditdeny))
+			audited = 0;
+	} else if (result)
 		audited = denied = requested;
 	else
 		audited = requested & avd->auditallow;

@@ -6,6 +6,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
 
@@ -16,17 +17,7 @@
 #include "../trigger.h"
 #include "adis16300.h"
 
-/**
- * combine_8_to_16() utility function to munge to u8s into u16
- **/
-static inline u16 combine_8_to_16(u8 lower, u8 upper)
-{
-	u16 _lower = lower;
-	u16 _upper = upper;
-	return _lower | (_upper << 8);
-}
-
-static IIO_SCAN_EL_C(supply, ADIS16300_SCAN_SUPPLY, IIO_SIGNED(14),
+static IIO_SCAN_EL_C(supply, ADIS16300_SCAN_SUPPLY, IIO_UNSIGNED(14),
 		     ADIS16300_SUPPLY_OUT, NULL);
 
 static IIO_SCAN_EL_C(gyro_x, ADIS16300_SCAN_GYRO_X, IIO_SIGNED(14),
@@ -39,9 +30,9 @@ static IIO_SCAN_EL_C(accel_y, ADIS16300_SCAN_ACC_Y, IIO_SIGNED(14),
 static IIO_SCAN_EL_C(accel_z, ADIS16300_SCAN_ACC_Z, IIO_SIGNED(14),
 		     ADIS16300_ZACCL_OUT, NULL);
 
-static IIO_SCAN_EL_C(temp, ADIS16300_SCAN_TEMP, IIO_SIGNED(12),
+static IIO_SCAN_EL_C(temp, ADIS16300_SCAN_TEMP, IIO_UNSIGNED(12),
 		     ADIS16300_TEMP_OUT, NULL);
-static IIO_SCAN_EL_C(adc_0, ADIS16300_SCAN_ADC_0, IIO_SIGNED(12),
+static IIO_SCAN_EL_C(adc_0, ADIS16300_SCAN_ADC_0, IIO_UNSIGNED(12),
 		     ADIS16300_AUX_ADC, NULL);
 
 static IIO_SCAN_EL_C(incli_x, ADIS16300_SCAN_INCLI_X, IIO_SIGNED(12),
@@ -74,10 +65,10 @@ static struct attribute_group adis16300_scan_el_group = {
  * adis16300_poll_func_th() top half interrupt handler called by trigger
  * @private_data:	iio_dev
  **/
-static void adis16300_poll_func_th(struct iio_dev *indio_dev)
+static void adis16300_poll_func_th(struct iio_dev *indio_dev, s64 time)
 {
 	struct adis16300_state *st = iio_dev_get_devdata(indio_dev);
-	st->last_timestamp = indio_dev->trig->timestamp;
+	st->last_timestamp = time;
 	schedule_work(&st->work_trigger_to_ring);
 	/* Indicate that this interrupt is being handled */
 
@@ -85,6 +76,54 @@ static void adis16300_poll_func_th(struct iio_dev *indio_dev)
 	 * handler running there is currently no way for the interrupt
 	 * to clear.
 	 */
+}
+
+/**
+ * adis16300_spi_read_burst() - read all data registers
+ * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @rx: somewhere to pass back the value read (min size is 24 bytes)
+ **/
+static int adis16300_spi_read_burst(struct device *dev, u8 *rx)
+{
+	struct spi_message msg;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct adis16300_state *st = iio_dev_get_devdata(indio_dev);
+	u32 old_speed_hz = st->us->max_speed_hz;
+	int ret;
+
+	struct spi_transfer xfers[] = {
+		{
+			.tx_buf = st->tx,
+			.bits_per_word = 8,
+			.len = 2,
+			.cs_change = 0,
+		}, {
+			.rx_buf = rx,
+			.bits_per_word = 8,
+			.len = 18,
+			.cs_change = 0,
+		},
+	};
+
+	mutex_lock(&st->buf_lock);
+	st->tx[0] = ADIS16300_READ_REG(ADIS16300_GLOB_CMD);
+	st->tx[1] = 0;
+
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
+
+	st->us->max_speed_hz = ADIS16300_SPI_BURST;
+	spi_setup(st->us);
+
+	ret = spi_sync(st->us, &msg);
+	if (ret)
+		dev_err(&st->us->dev, "problem when burst reading");
+
+	st->us->max_speed_hz = old_speed_hz;
+	spi_setup(st->us);
+	mutex_unlock(&st->buf_lock);
+	return ret;
 }
 
 /* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
@@ -109,10 +148,9 @@ static void adis16300_trigger_bh_to_ring(struct work_struct *work_s)
 
 	if (st->indio_dev->scan_count)
 		if (adis16300_spi_read_burst(&st->indio_dev->dev, st->rx) >= 0)
-			for (; i < st->indio_dev->scan_count; i++) {
-				data[i] = combine_8_to_16(st->rx[i*2+1],
-							  st->rx[i*2]);
-			}
+			for (; i < st->indio_dev->scan_count; i++)
+				data[i] = be16_to_cpup(
+					(__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (st->indio_dev->scan_timestamp)
@@ -126,45 +164,6 @@ static void adis16300_trigger_bh_to_ring(struct work_struct *work_s)
 	kfree(data);
 
 	return;
-}
-/* in these circumstances is it better to go with unaligned packing and
- * deal with the cost?*/
-static int adis16300_data_rdy_ring_preenable(struct iio_dev *indio_dev)
-{
-	size_t size;
-	dev_dbg(&indio_dev->dev, "%s\n", __func__);
-	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
-		return -EINVAL;
-
-	if (indio_dev->ring->access.set_bpd) {
-		if (indio_dev->scan_timestamp)
-			if (indio_dev->scan_count) /* Timestamp and data */
-				size = 4*sizeof(s64);
-			else /* Timestamp only  */
-				size = sizeof(s64);
-		else /* Data only */
-			size = indio_dev->scan_count*sizeof(s16);
-		indio_dev->ring->access.set_bpd(indio_dev->ring, size);
-	}
-
-	return 0;
-}
-
-static int adis16300_data_rdy_ring_postenable(struct iio_dev *indio_dev)
-{
-	return indio_dev->trig
-		? iio_trigger_attach_poll_func(indio_dev->trig,
-					       indio_dev->pollfunc)
-		: 0;
-}
-
-static int adis16300_data_rdy_ring_predisable(struct iio_dev *indio_dev)
-{
-	return indio_dev->trig
-		? iio_trigger_dettach_poll_func(indio_dev->trig,
-						indio_dev->pollfunc)
-		: 0;
 }
 
 void adis16300_unconfigure_ring(struct iio_dev *indio_dev)
@@ -202,18 +201,16 @@ int adis16300_configure_ring(struct iio_dev *indio_dev)
 	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
-	ring->preenable = &adis16300_data_rdy_ring_preenable;
-	ring->postenable = &adis16300_data_rdy_ring_postenable;
-	ring->predisable = &adis16300_data_rdy_ring_predisable;
+	ring->bpe = 2;
+	ring->preenable = &iio_sw_ring_preenable;
+	ring->postenable = &iio_triggered_ring_postenable;
+	ring->predisable = &iio_triggered_ring_predisable;
 	ring->owner = THIS_MODULE;
 
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;;
-	}
-	indio_dev->pollfunc->poll_func_main = &adis16300_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &adis16300_poll_func_th);
+	if (ret)
+		goto error_iio_sw_rb_free;
+
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
 
@@ -222,12 +219,3 @@ error_iio_sw_rb_free:
 	return ret;
 }
 
-int adis16300_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return iio_ring_buffer_register(ring, 0);
-}
-
-void adis16300_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-	iio_ring_buffer_unregister(ring);
-}

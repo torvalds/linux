@@ -11,6 +11,8 @@
 #define _IIO_RING_GENERIC_H_
 #include "iio.h"
 
+#ifdef CONFIG_IIO_RING_BUFFER
+
 struct iio_handler;
 struct iio_ring_buffer;
 struct iio_dev;
@@ -98,6 +100,7 @@ struct iio_ring_access_funcs {
  * @access_id:		device id number
  * @length:		[DEVICE] number of datums in ring
  * @bpd:		[DEVICE] size of individual datum including timestamp
+ * @bpe:		[DEVICE] size of individual channel value
  * @loopcount:		[INTERN] number of times the ring has looped
  * @access_handler:	[INTERN] chrdev access handling
  * @ev_int:		[INTERN] chrdev interface for the event chrdev
@@ -119,6 +122,7 @@ struct iio_ring_buffer {
 	int				access_id;
 	int				length;
 	int				bpd;
+	int				bpe;
 	int				loopcount;
 	struct iio_handler		access_handler;
 	struct iio_event_interface	ev_int;
@@ -213,7 +217,7 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
  * @_label:	indentification variable used by drivers.  Often a reg address.
  * @_controlfunc: function used to notify hardware of whether state changes
  **/
-#define IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
+#define __IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_name##_en,		\
 				   S_IRUGO | S_IWUSR,			\
@@ -225,7 +229,10 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.set_state = _controlfunc,				\
 	}
 
-#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
+#define IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
+	__IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)
+
+#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_string##_en,		\
 				   S_IRUGO | S_IWUSR,			\
@@ -236,7 +243,8 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.label = _label,					\
 		.set_state = _cf,					\
 	}
-
+#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
+	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf)
 /**
  * IIO_SCAN_EL_TIMESTAMP - declare a special scan element for timestamps
  *
@@ -287,5 +295,14 @@ ssize_t iio_show_ring_enable(struct device *dev,
 #define IIO_RING_ENABLE_ATTR DEVICE_ATTR(ring_enable, S_IRUGO | S_IWUSR, \
 					 iio_show_ring_enable,		\
 					 iio_store_ring_enable)
+#else /* CONFIG_IIO_RING_BUFFER */
+static inline int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
+{
+	return 0;
+};
+static inline void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
+{};
+
+#endif /* CONFIG_IIO_RING_BUFFER */
 
 #endif /* _IIO_RING_GENERIC_H_ */

@@ -552,23 +552,29 @@ static void via_auto_init_hp_out(struct hda_codec *codec)
 	}
 }
 
+static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin);
+
 static void via_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
+	unsigned int ctl;
 	int i;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
+		if (!nid)
+			continue;
 
+		if (spec->smart51_enabled && is_smart51_pins(spec, nid))
+			ctl = PIN_OUT;
+		else if (i <= AUTO_PIN_FRONT_MIC)
+			ctl = PIN_VREF50;
+		else
+			ctl = PIN_IN;
 		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    (i <= AUTO_PIN_FRONT_MIC ?
-				     PIN_VREF50 : PIN_IN));
-
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, ctl);
 	}
 }
-
-static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin);
 
 static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int *affected_parm)
@@ -658,6 +664,8 @@ static void set_jack_power_state(struct hda_codec *codec)
 		/* PW0 (19h), SW1 (18h), AOW1 (11h) */
 		parm = AC_PWRST_D3;
 		set_pin_power_state(codec, 0x19, &parm);
+		if (spec->smart51_enabled)
+			parm = AC_PWRST_D0;
 		snd_hda_codec_write(codec, 0x18, 0, AC_VERB_SET_POWER_STATE,
 				    parm);
 		snd_hda_codec_write(codec, 0x11, 0, AC_VERB_SET_POWER_STATE,
@@ -667,6 +675,8 @@ static void set_jack_power_state(struct hda_codec *codec)
 		if (is_8ch) {
 			parm = AC_PWRST_D3;
 			set_pin_power_state(codec, 0x22, &parm);
+			if (spec->smart51_enabled)
+				parm = AC_PWRST_D0;
 			snd_hda_codec_write(codec, 0x26, 0,
 					    AC_VERB_SET_POWER_STATE, parm);
 			snd_hda_codec_write(codec, 0x24, 0,
@@ -3915,6 +3925,13 @@ static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
 		}
 	}
 
+	/* for Smart 5.1, line/mic inputs double as output pins */
+	if (cfg->line_outs == 1) {
+		spec->multiout.num_dacs = 3;
+		spec->multiout.dac_nids[AUTO_SEQ_SURROUND] = 0x11;
+		spec->multiout.dac_nids[AUTO_SEQ_CENLFE] = 0x24;
+	}
+
 	return 0;
 }
 
@@ -3932,7 +3949,8 @@ static int vt1708S_auto_create_multi_out_ctls(struct via_spec *spec,
 	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
 		nid = cfg->line_out_pins[i];
 
-		if (!nid)
+		/* for Smart 5.1, there are always at least six channels */
+		if (!nid && i > AUTO_SEQ_CENLFE)
 			continue;
 
 		nid_vol = nid_vols[i];

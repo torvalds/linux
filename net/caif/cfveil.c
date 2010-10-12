@@ -30,7 +30,7 @@ struct cflayer *cfvei_create(u8 channel_id, struct dev_info *dev_info)
 	}
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);
 	memset(vei, 0, sizeof(struct cfsrvl));
-	cfsrvl_init(vei, channel_id, dev_info);
+	cfsrvl_init(vei, channel_id, dev_info, true);
 	vei->layer.receive = cfvei_receive;
 	vei->layer.transmit = cfvei_transmit;
 	snprintf(vei->layer.name, CAIF_LAYER_NAME_SZ - 1, "vei%d", channel_id);
@@ -84,11 +84,6 @@ static int cfvei_transmit(struct cflayer *layr, struct cfpkt *pkt)
 		return ret;
 	caif_assert(layr->dn != NULL);
 	caif_assert(layr->dn->transmit != NULL);
-	if (cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
-		pr_warning("CAIF: %s(): Packet too large - size=%d\n",
-			   __func__, cfpkt_getlen(pkt));
-		return -EOVERFLOW;
-	}
 
 	if (cfpkt_add_head(pkt, &tmp, 1) < 0) {
 		pr_err("CAIF: %s(): Packet is erroneous!\n", __func__);

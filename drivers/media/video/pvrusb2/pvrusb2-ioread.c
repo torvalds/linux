@@ -223,7 +223,10 @@ int pvr2_ioread_setup(struct pvr2_ioread *cp,struct pvr2_stream *sp)
 				   " pvr2_ioread_setup (setup) id=%p",cp);
 			pvr2_stream_kill(sp);
 			ret = pvr2_stream_set_buffer_count(sp,BUFFER_COUNT);
-			if (ret < 0) return ret;
+			if (ret < 0) {
+				mutex_unlock(&cp->mutex);
+				return ret;
+			}
 			for (idx = 0; idx < BUFFER_COUNT; idx++) {
 				bp = pvr2_stream_get_buffer(sp,idx);
 				pvr2_buffer_set_buffer(bp,

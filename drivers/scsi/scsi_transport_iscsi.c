@@ -30,8 +30,9 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/iscsi_if.h>
+#include <scsi/scsi_cmnd.h>
 
-#define ISCSI_SESSION_ATTRS 22
+#define ISCSI_SESSION_ATTRS 23
 #define ISCSI_CONN_ATTRS 13
 #define ISCSI_HOST_ATTRS 4
 
@@ -533,6 +534,37 @@ static void iscsi_scan_session(struct work_struct *work)
 	iscsi_user_scan_session(&session->dev, &scan_data);
 	atomic_dec(&ihost->nr_scans);
 }
+
+/**
+ * iscsi_block_scsi_eh - block scsi eh until session state has transistioned
+ * cmd: scsi cmd passed to scsi eh handler
+ *
+ * If the session is down this function will wait for the recovery
+ * timer to fire or for the session to be logged back in. If the
+ * recovery timer fires then FAST_IO_FAIL is returned. The caller
+ * should pass this error value to the scsi eh.
+ */
+int iscsi_block_scsi_eh(struct scsi_cmnd *cmd)
+{
+	struct iscsi_cls_session *session =
+			starget_to_session(scsi_target(cmd->device));
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&session->lock, flags);
+	while (session->state != ISCSI_SESSION_LOGGED_IN) {
+		if (session->state == ISCSI_SESSION_FREE) {
+			ret = FAST_IO_FAIL;
+			break;
+		}
+		spin_unlock_irqrestore(&session->lock, flags);
+		msleep(1000);
+		spin_lock_irqsave(&session->lock, flags);
+	}
+	spin_unlock_irqrestore(&session->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iscsi_block_scsi_eh);
 
 static void session_recovery_timedout(struct work_struct *work)
 {
@@ -1763,7 +1795,8 @@ iscsi_session_attr(abort_tmo, ISCSI_PARAM_ABORT_TMO, 0);
 iscsi_session_attr(lu_reset_tmo, ISCSI_PARAM_LU_RESET_TMO, 0);
 iscsi_session_attr(tgt_reset_tmo, ISCSI_PARAM_TGT_RESET_TMO, 0);
 iscsi_session_attr(ifacename, ISCSI_PARAM_IFACE_NAME, 0);
-iscsi_session_attr(initiatorname, ISCSI_PARAM_INITIATOR_NAME, 0)
+iscsi_session_attr(initiatorname, ISCSI_PARAM_INITIATOR_NAME, 0);
+iscsi_session_attr(targetalias, ISCSI_PARAM_TARGET_ALIAS, 0);
 
 static ssize_t
 show_priv_session_state(struct device *dev, struct device_attribute *attr,
@@ -1782,14 +1815,42 @@ show_priv_session_##field(struct device *dev, 				\
 {									\
 	struct iscsi_cls_session *session = 				\
 			iscsi_dev_to_session(dev->parent);		\
+	if (session->field == -1)					\
+		return sprintf(buf, "off\n");				\
 	return sprintf(buf, format"\n", session->field);		\
 }
 
-#define iscsi_priv_session_attr(field, format)				\
+#define iscsi_priv_session_attr_store(field)				\
+static ssize_t								\
+store_priv_session_##field(struct device *dev,				\
+			   struct device_attribute *attr,		\
+			   const char *buf, size_t count)		\
+{									\
+	int val;							\
+	char *cp;							\
+	struct iscsi_cls_session *session =				\
+		iscsi_dev_to_session(dev->parent);			\
+	if ((session->state == ISCSI_SESSION_FREE) ||			\
+	    (session->state == ISCSI_SESSION_FAILED))			\
+		return -EBUSY;						\
+	if (strncmp(buf, "off", 3) == 0)				\
+		session->field = -1;					\
+	else {								\
+		val = simple_strtoul(buf, &cp, 0);			\
+		if (*cp != '\0' && *cp != '\n')				\
+			return -EINVAL;					\
+		session->field = val;					\
+	}								\
+	return count;							\
+}
+
+#define iscsi_priv_session_rw_attr(field, format)			\
 	iscsi_priv_session_attr_show(field, format)			\
-static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO, show_priv_session_##field, \
-			NULL)
-iscsi_priv_session_attr(recovery_tmo, "%d");
+	iscsi_priv_session_attr_store(field)				\
+static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO | S_IWUGO,		\
+			show_priv_session_##field,			\
+			store_priv_session_##field)
+iscsi_priv_session_rw_attr(recovery_tmo, "%d");
 
 /*
  * iSCSI host attrs
@@ -1820,6 +1881,11 @@ do {									\
 	count++;							\
 } while (0)
 
+#define SETUP_PRIV_SESSION_RW_ATTR(field)				\
+do {									\
+	priv->session_attrs[count] = &dev_attr_priv_sess_##field;	\
+	count++;							\
+} while (0)
 
 #define SETUP_SESSION_RD_ATTR(field, param_flag)			\
 do {									\
@@ -2006,7 +2072,8 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_SESSION_RD_ATTR(tgt_reset_tmo,ISCSI_TGT_RESET_TMO);
 	SETUP_SESSION_RD_ATTR(ifacename, ISCSI_IFACE_NAME);
 	SETUP_SESSION_RD_ATTR(initiatorname, ISCSI_INITIATOR_NAME);
-	SETUP_PRIV_SESSION_RD_ATTR(recovery_tmo);
+	SETUP_SESSION_RD_ATTR(targetalias, ISCSI_TARGET_ALIAS);
+	SETUP_PRIV_SESSION_RW_ATTR(recovery_tmo);
 	SETUP_PRIV_SESSION_RD_ATTR(state);
 
 	BUG_ON(count > ISCSI_SESSION_ATTRS);

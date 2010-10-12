@@ -38,6 +38,7 @@ enum bfa_pport_states {
 	BFA_PPORT_ST_IOCDOWN 		= 10,
 	BFA_PPORT_ST_IOCDIS 		= 11,
 	BFA_PPORT_ST_FWMISMATCH		= 12,
+	BFA_PPORT_ST_PREBOOT_DISABLED   = 13,
 	BFA_PPORT_ST_MAX_STATE,
 };
 
@@ -203,6 +204,8 @@ struct bfa_pport_attr_s {
 	 */
 	wwn_t           nwwn;		/*  node wwn */
 	wwn_t           pwwn;		/*  port wwn */
+	wwn_t           factorynwwn;    /*  factory node wwn */
+	wwn_t           factorypwwn;    /*  factory port wwn */
 	enum fc_cos     cos_supported;	/*  supported class of services */
 	u32        rsvd;
 	struct fc_symname_s    port_symname;	/*  port symbolic name */
@@ -243,7 +246,7 @@ struct bfa_pport_fc_stats_s {
 	u64    secs_reset; /* Seconds since stats is reset     */
 	u64    tx_frames;  /* Tx frames                */
 	u64    tx_words;   /* Tx words                 */
-	u64    tx_lip;     /* TX LIP               */
+	u64    tx_lip;     /* Tx LIP               */
 	u64    tx_nos;     /* Tx NOS               */
 	u64    tx_ols;     /* Tx OLS               */
 	u64    tx_lr;      /* Tx LR                */
@@ -309,7 +312,7 @@ struct bfa_pport_eth_stats_s {
 	u64    rx_zero_pause;    /* Rx zero pause              */
 	u64    tx_pause;     /* Tx pause               */
 	u64    tx_zero_pause;    /* Tx zero pause              */
-	u64    rx_fcoe_pause;    /* Rx fcoe pause              */
+	u64    rx_fcoe_pause;    /* Rx FCoE pause              */
 	u64    rx_fcoe_zero_pause; /* Rx FCoE zero pause       */
 	u64    tx_fcoe_pause;    /* Tx FCoE pause              */
 	u64    tx_fcoe_zero_pause; /* Tx FCoE zero pause       */
@@ -381,26 +384,10 @@ struct bfa_pport_link_s {
 	u8         trunked;	/*  Trunked or not (1 or 0) */
 	u8         resvd[3];
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
-	struct bfa_qos_vc_attr_s qos_vc_attr;  /*  VC info from ELP */
 	union {
-		struct {
-			u8         tmaster;/*  Trunk Master or
-						 *    not (1 or 0) */
-			u8         tlinks;	/*  Trunk links bitmap
-						 *    (linkup) */
-			u8         resv1;	/*  Reserved */
-		} trunk_info;
-
-		struct {
-			u8         myalpa;	   /*  alpa claimed */
-			u8         login_req; /*  Login required or
-						    *    not (1 or 0) */
-			u8         alpabm_val;/*  alpa bitmap valid
-						    *    or not (1 or 0) */
-			struct fc_alpabm_s     alpabm;	   /*  alpa bitmap */
-		} loop_info;
-	} tl;
-	struct bfa_fcport_fcf_s fcf;    /*!< FCF information (for FCoE) */
+		struct bfa_qos_vc_attr_s qos_vc_attr;  /* VC info from ELP */
+		struct bfa_fcport_fcf_s fcf;    /* FCF information (for FCoE) */
+	} vc_fcf;
 };
 
 #endif /* __BFA_DEFS_PPORT_H__ */

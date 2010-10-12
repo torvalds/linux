@@ -18,3 +18,5 @@ perf-archive
 tags
 TAGS
 cscope*
+config.mak
+config.mak.autogen

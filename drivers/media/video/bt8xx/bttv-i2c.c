@@ -411,7 +411,7 @@ void __devinit init_bttv_i2c_ir(struct bttv *btv)
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list);
+		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list, NULL);
 	}
 }
 

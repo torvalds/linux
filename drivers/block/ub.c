@@ -28,6 +28,7 @@
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
@@ -648,7 +649,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 		return 0;
 	}
 
-	if (lun->changed && !blk_pc_request(rq)) {
+	if (lun->changed && rq->cmd_type != REQ_TYPE_BLOCK_PC) {
 		blk_start_request(rq);
 		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION);
 		return 0;
@@ -684,7 +685,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	}
 	urq->nsg = n_elem;
 
-	if (blk_pc_request(rq)) {
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		ub_cmd_build_packet(sc, lun, cmd, urq);
 	} else {
 		ub_cmd_build_block(sc, lun, cmd, urq);
@@ -781,7 +782,7 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	rq = urq->rq;
 
 	if (cmd->error == 0) {
-		if (blk_pc_request(rq)) {
+		if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 			if (cmd->act_len >= rq->resid_len)
 				rq->resid_len = 0;
 			else
@@ -795,7 +796,7 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			}
 		}
 	} else {
-		if (blk_pc_request(rq)) {
+		if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 			/* UB_SENSE_SIZE is smaller than SCSI_SENSE_BUFFERSIZE */
 			memcpy(rq->sense, sc->top_sense, UB_SENSE_SIZE);
 			rq->sense_len = UB_SENSE_SIZE;
@@ -1710,6 +1711,18 @@ err_open:
 	return rc;
 }
 
+static int ub_bd_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ub_bd_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 /*
  */
 static int ub_bd_release(struct gendisk *disk, fmode_t mode)
@@ -1717,7 +1730,10 @@ static int ub_bd_release(struct gendisk *disk, fmode_t mode)
 	struct ub_lun *lun = disk->private_data;
 	struct ub_dev *sc = lun->udev;
 
+	lock_kernel();
 	ub_put(sc);
+	unlock_kernel();
+
 	return 0;
 }
 
@@ -1729,8 +1745,13 @@ static int ub_bd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	void __user *usermem = (void __user *) arg;
+	int ret;
 
-	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, usermem);
+	lock_kernel();
+	ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, usermem);
+	unlock_kernel();
+
+	return ret;
 }
 
 /*
@@ -1792,9 +1813,9 @@ static int ub_bd_media_changed(struct gendisk *disk)
 
 static const struct block_device_operations ub_bd_fops = {
 	.owner		= THIS_MODULE,
-	.open		= ub_bd_open,
+	.open		= ub_bd_unlocked_open,
 	.release	= ub_bd_release,
-	.locked_ioctl	= ub_bd_ioctl,
+	.ioctl		= ub_bd_ioctl,
 	.media_changed	= ub_bd_media_changed,
 	.revalidate_disk = ub_bd_revalidate,
 };

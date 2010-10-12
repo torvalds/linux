@@ -1350,12 +1350,11 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 	struct csr1212_keyval *kv;
 	struct csr1212_dentry *dentry;
 	u64 management_agent_addr;
-	u32 unit_characteristics, firmware_revision, model;
+	u32 firmware_revision, model;
 	unsigned workarounds;
 	int i;
 
 	management_agent_addr = 0;
-	unit_characteristics = 0;
 	firmware_revision = SBP2_ROM_VALUE_MISSING;
 	model = ud->flags & UNIT_DIRECTORY_MODEL_ID ?
 				ud->model_id : SBP2_ROM_VALUE_MISSING;
@@ -1372,17 +1371,15 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 				lu->lun = ORB_SET_LUN(kv->value.immediate);
 			break;
 
-		case SBP2_UNIT_CHARACTERISTICS_KEY:
-			/* FIXME: This is ignored so far.
-			 * See SBP-2 clause 7.4.8. */
-			unit_characteristics = kv->value.immediate;
-			break;
 
 		case SBP2_FIRMWARE_REVISION_KEY:
 			firmware_revision = kv->value.immediate;
 			break;
 
 		default:
+			/* FIXME: Check for SBP2_UNIT_CHARACTERISTICS_KEY
+			 * mgt_ORB_timeout and ORB_size, SBP-2 clause 7.4.8. */
+
 			/* FIXME: Check for SBP2_DEVICE_TYPE_AND_LUN_KEY.
 			 * Its "ordered" bit has consequences for command ORB
 			 * list handling. See SBP-2 clauses 4.6, 7.4.11, 10.2 */

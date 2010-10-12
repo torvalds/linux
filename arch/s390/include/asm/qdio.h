@@ -84,6 +84,7 @@ struct qdr {
 
 #define QIB_AC_OUTBOUND_PCI_SUPPORTED	0x40
 #define QIB_RFLAGS_ENABLE_QEBSM		0x80
+#define QIB_RFLAGS_ENABLE_DATA_DIV	0x02
 
 /**
  * struct qib - queue information block (QIB)
@@ -284,6 +285,9 @@ struct slsb {
 	u8 val[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(256)));
 
+#define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
+#define CHSC_AC2_DATA_DIV_ENABLED	0x0002
+
 struct qdio_ssqd_desc {
 	u8 flags;
 	u8:8;
@@ -332,6 +336,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @adapter_name: name for the adapter
  * @qib_param_field_format: format for qib_parm_field
  * @qib_param_field: pointer to 128 bytes or NULL, if no param field
+ * @qib_rflags: rflags to set
  * @input_slib_elements: pointer to no_input_qs * 128 words of data or NULL
  * @output_slib_elements: pointer to no_output_qs * 128 words of data or NULL
  * @no_input_qs: number of input queues
@@ -348,6 +353,7 @@ struct qdio_initialize {
 	unsigned char adapter_name[8];
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
+	unsigned char qib_rflags;
 	unsigned long *input_slib_elements;
 	unsigned long *output_slib_elements;
 	unsigned int no_input_qs;

@@ -127,7 +127,7 @@ core_initcall(random32_init);
 
 /*
  *	Generate better values after random number generator
- *	is fully initalized.
+ *	is fully initialized.
  */
 static int __init random32_reseed(void)
 {

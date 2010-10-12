@@ -235,9 +235,9 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	cfi_qry_mode_off(base, map, cfi);
 	xip_allowed(base, map);
 
-	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank\n",
+	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank. Manufacturer ID %#08x Chip ID %#08x\n",
 	       map->name, cfi->interleave, cfi->device_type*8, base,
-	       map->bankwidth*8);
+	       map->bankwidth*8, cfi->mfr, cfi->id);
 
 	return 1;
 }

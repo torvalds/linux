@@ -630,6 +630,12 @@ normal:
 	return 0;
 }
 
+static int s5pc110_chip_probe(struct mtd_info *mtd)
+{
+	/* Now just return 0 */
+	return 0;
+}
+
 static int s3c_onenand_bbt_wait(struct mtd_info *mtd, int state)
 {
 	unsigned int flags = INT_ACT | LOAD_CMP;
@@ -757,6 +763,7 @@ static void s3c_onenand_setup(struct mtd_info *mtd)
 		/* Use generic onenand functions */
 		onenand->cmd_map = s5pc1xx_cmd_map;
 		this->read_bufferram = s5pc110_read_bufferram;
+		this->chip_probe = s5pc110_chip_probe;
 		return;
 	} else {
 		BUG();
@@ -781,7 +788,6 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct resource *r;
 	int size, err;
-	unsigned long onenand_ctrl_cfg = 0;
 
 	pdata = pdev->dev.platform_data;
 	/* No need to check pdata. the platform data is optional */
@@ -900,14 +906,6 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 		}
 
 		onenand->phys_base = onenand->base_res->start;
-
-		onenand_ctrl_cfg = readl(onenand->dma_addr + 0x100);
-		if ((onenand_ctrl_cfg & ONENAND_SYS_CFG1_SYNC_WRITE) &&
-		    onenand->dma_addr)
-			writel(onenand_ctrl_cfg & ~ONENAND_SYS_CFG1_SYNC_WRITE,
-					onenand->dma_addr + 0x100);
-		else
-			onenand_ctrl_cfg = 0;
 	}
 
 	if (onenand_scan(mtd, 1)) {
@@ -915,10 +913,7 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 		goto scan_failed;
 	}
 
-	if (onenand->type == TYPE_S5PC110) {
-		if (onenand_ctrl_cfg && onenand->dma_addr)
-			writel(onenand_ctrl_cfg, onenand->dma_addr + 0x100);
-	} else {
+	if (onenand->type != TYPE_S5PC110) {
 		/* S3C doesn't handle subpage write */
 		mtd->subpage_sft = 0;
 		this->subpagesize = mtd->writesize;

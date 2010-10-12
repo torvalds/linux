@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -217,7 +217,10 @@ enum e1e_registers {
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
 	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
-	E1000_CRC_OFFSET = 0x05F50, /* CRC Offset register */
+	E1000_FFLT_DBG  = 0x05F04, /* Debug Register */
+	E1000_PCH_RAICC_BASE = 0x05F50, /* Receive Address Initial CRC */
+#define E1000_PCH_RAICC(_n)	(E1000_PCH_RAICC_BASE + ((_n) * 4))
+#define E1000_CRC_OFFSET	E1000_PCH_RAICC_BASE
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
@@ -303,13 +306,14 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_OFFSET	0x001F0000
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT	16
 #define E1000_KMRNCTRLSTA_REN		0x00200000
+#define E1000_KMRNCTRLSTA_CTRL_OFFSET	0x1    /* Kumeran Control */
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
 #define E1000_KMRNCTRLSTA_TIMEOUTS	0x4    /* Kumeran Timeouts */
 #define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9    /* Kumeran InBand Parameters */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
-#define E1000_KMRNCTRLSTA_K1_ENABLE	0x140E
-#define E1000_KMRNCTRLSTA_K1_DISABLE	0x1400
+#define E1000_KMRNCTRLSTA_K1_ENABLE	0x0002
+#define E1000_KMRNCTRLSTA_HD_CTRL	0x10   /* Kumeran HD Control */
 
 #define IFE_PHY_EXTENDED_STATUS_CONTROL	0x10
 #define IFE_PHY_SPECIAL_CONTROL		0x11 /* 100BaseTx PHY Special Control */
@@ -387,6 +391,8 @@ enum e1e_registers {
 #define E1000_DEV_ID_PCH_M_HV_LC		0x10EB
 #define E1000_DEV_ID_PCH_D_HV_DM		0x10EF
 #define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
+#define E1000_DEV_ID_PCH2_LV_LM			0x1502
+#define E1000_DEV_ID_PCH2_LV_V			0x1503
 
 #define E1000_REVISION_4 4
 
@@ -406,6 +412,7 @@ enum e1000_mac_type {
 	e1000_ich9lan,
 	e1000_ich10lan,
 	e1000_pchlan,
+	e1000_pch2lan,
 };
 
 enum e1000_media_type {
@@ -442,6 +449,7 @@ enum e1000_phy_type {
 	e1000_phy_bm,
 	e1000_phy_82578,
 	e1000_phy_82577,
+	e1000_phy_82579,
 };
 
 enum e1000_bus_width {
@@ -929,6 +937,7 @@ struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_ICH8_SHADOW_RAM_WORDS];
 	bool nvm_k1_enabled;
+	bool eee_disable;
 };
 
 struct e1000_hw {

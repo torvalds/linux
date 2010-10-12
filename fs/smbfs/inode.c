@@ -46,7 +46,7 @@
 
 #define SMB_TTL_DEFAULT 1000
 
-static void smb_delete_inode(struct inode *);
+static void smb_evict_inode(struct inode *);
 static void smb_put_super(struct super_block *);
 static int  smb_statfs(struct dentry *, struct kstatfs *);
 static int  smb_show_options(struct seq_file *, struct vfsmount *);
@@ -102,7 +102,7 @@ static const struct super_operations smb_sops =
 	.alloc_inode	= smb_alloc_inode,
 	.destroy_inode	= smb_destroy_inode,
 	.drop_inode	= generic_delete_inode,
-	.delete_inode	= smb_delete_inode,
+	.evict_inode	= smb_evict_inode,
 	.put_super	= smb_put_super,
 	.statfs		= smb_statfs,
 	.show_options	= smb_show_options,
@@ -324,15 +324,15 @@ out:
  * All blocking cleanup operations need to go here to avoid races.
  */
 static void
-smb_delete_inode(struct inode *ino)
+smb_evict_inode(struct inode *ino)
 {
 	DEBUG1("ino=%ld\n", ino->i_ino);
 	truncate_inode_pages(&ino->i_data, 0);
+	end_writeback(ino);
 	lock_kernel();
 	if (smb_close(ino))
 		PARANOIA("could not close inode %ld\n", ino->i_ino);
 	unlock_kernel();
-	clear_inode(ino);
 }
 
 static struct option opts[] = {
@@ -714,9 +714,7 @@ smb_notify_change(struct dentry *dentry, struct iattr *attr)
 		error = server->ops->truncate(inode, attr->ia_size);
 		if (error)
 			goto out;
-		error = simple_setsize(inode, attr->ia_size);
-		if (error)
-			goto out;
+		truncate_setsize(inode, attr->ia_size);
 		refresh = 1;
 	}
 

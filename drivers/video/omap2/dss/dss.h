@@ -199,7 +199,8 @@ int dss_init_overlay_managers(struct platform_device *pdev);
 void dss_uninit_overlay_managers(struct platform_device *pdev);
 int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
 void dss_setup_partial_planes(struct omap_dss_device *dssdev,
-				u16 *x, u16 *y, u16 *w, u16 *h);
+				u16 *x, u16 *y, u16 *w, u16 *h,
+				bool enlarge_update_area);
 void dss_start_update(struct omap_dss_device *dssdev);
 
 /* overlay */
@@ -281,12 +282,20 @@ void dsi_pll_uninit(void);
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high);
+void dsi_wait_dsi1_pll_active(void);
+void dsi_wait_dsi2_pll_active(void);
 #else
 static inline int dsi_init(struct platform_device *pdev)
 {
 	return 0;
 }
 static inline void dsi_exit(void)
+{
+}
+static inline void dsi_wait_dsi1_pll_active(void)
+{
+}
+static inline void dsi_wait_dsi2_pll_active(void)
 {
 }
 #endif

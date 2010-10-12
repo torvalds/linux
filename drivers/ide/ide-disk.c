@@ -184,7 +184,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	ide_hwif_t *hwif = drive->hwif;
 
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
-	BUG_ON(!blk_fs_request(rq));
+	BUG_ON(rq->cmd_type != REQ_TYPE_FS);
 
 	ledtrig_ide_activity();
 
@@ -427,10 +427,15 @@ static void ide_disk_unlock_native_capacity(ide_drive_t *drive)
 		drive->dev_flags |= IDE_DFLAG_NOHPA; /* disable HPA on resume */
 }
 
-static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
+static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
-	struct ide_cmd *cmd = kmalloc(sizeof(*cmd), GFP_ATOMIC);
+	struct ide_cmd *cmd;
+
+	if (!(rq->cmd_flags & REQ_FLUSH))
+		return BLKPREP_OK;
+
+	cmd = kmalloc(sizeof(*cmd), GFP_ATOMIC);
 
 	/* FIXME: map struct ide_taskfile on rq->cmd[] */
 	BUG_ON(cmd == NULL);
@@ -448,6 +453,8 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->special = cmd;
 	cmd->rq = rq;
+
+	return BLKPREP_OK;
 }
 
 ide_devset_get(multcount, mult_count);
@@ -513,7 +520,6 @@ static void update_ordered(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
 	unsigned ordered = QUEUE_ORDERED_NONE;
-	prepare_flush_fn *prep_fn = NULL;
 
 	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
@@ -538,12 +544,12 @@ static void update_ordered(ide_drive_t *drive)
 
 		if (barrier) {
 			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
-			prep_fn = idedisk_prepare_flush;
+			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
 		}
 	} else
 		ordered = QUEUE_ORDERED_DRAIN;
 
-	blk_queue_ordered(drive->queue, ordered, prep_fn);
+	blk_queue_ordered(drive->queue, ordered);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);

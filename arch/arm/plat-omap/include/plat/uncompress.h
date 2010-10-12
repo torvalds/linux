@@ -25,6 +25,8 @@
 
 #include <plat/serial.h>
 
+#define MDR1_MODE_MASK			0x07
+
 static volatile u8 *uart_base;
 static int uart_shift;
 
@@ -40,6 +42,10 @@ static void set_omap_uart_info(unsigned char port)
 static void putc(int c)
 {
 	if (!uart_base)
+		return;
+
+	/* Check for UART 16x mode */
+	if ((uart_base[UART_OMAP_MDR1 << uart_shift] & MDR1_MODE_MASK) != 0)
 		return;
 
 	while (!(uart_base[UART_LSR << uart_shift] & UART_LSR_THRE))

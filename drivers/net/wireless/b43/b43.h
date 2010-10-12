@@ -530,7 +530,7 @@ struct b43_fw_header {
 	/* Size of the data. For ucode and PCM this is in bytes.
 	 * For IV this is number-of-ivs. */
 	__be32 size;
-} __attribute__((__packed__));
+} __packed;
 
 /* Initial Value file format */
 #define B43_IV_OFFSET_MASK	0x7FFF
@@ -540,8 +540,8 @@ struct b43_iv {
 	union {
 		__be16 d16;
 		__be32 d32;
-	} data __attribute__((__packed__));
-} __attribute__((__packed__));
+	} data __packed;
+} __packed;
 
 
 /* Data structures for DMA transmission, per 80211 core. */

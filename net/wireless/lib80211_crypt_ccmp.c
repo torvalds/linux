@@ -467,7 +467,6 @@ static struct lib80211_crypto_ops lib80211_crypt_ccmp = {
 	.name = "CCMP",
 	.init = lib80211_ccmp_init,
 	.deinit = lib80211_ccmp_deinit,
-	.build_iv = lib80211_ccmp_hdr,
 	.encrypt_mpdu = lib80211_ccmp_encrypt,
 	.decrypt_mpdu = lib80211_ccmp_decrypt,
 	.encrypt_msdu = NULL,

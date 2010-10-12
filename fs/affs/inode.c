@@ -235,31 +235,36 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 		goto out;
 	}
 
-	error = inode_setattr(inode, attr);
-	if (!error && (attr->ia_valid & ATTR_MODE))
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	if (attr->ia_valid & ATTR_MODE)
 		mode_to_prot(inode);
 out:
 	return error;
 }
 
 void
-affs_delete_inode(struct inode *inode)
-{
-	pr_debug("AFFS: delete_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
-	truncate_inode_pages(&inode->i_data, 0);
-	inode->i_size = 0;
-	affs_truncate(inode);
-	clear_inode(inode);
-	affs_free_block(inode->i_sb, inode->i_ino);
-}
-
-void
-affs_clear_inode(struct inode *inode)
+affs_evict_inode(struct inode *inode)
 {
 	unsigned long cache_page;
+	pr_debug("AFFS: evict_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
+	truncate_inode_pages(&inode->i_data, 0);
 
-	pr_debug("AFFS: clear_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
+	if (!inode->i_nlink) {
+		inode->i_size = 0;
+		affs_truncate(inode);
+	}
 
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
 	affs_free_prealloc(inode);
 	cache_page = (unsigned long)AFFS_I(inode)->i_lc;
 	if (cache_page) {
@@ -271,6 +276,9 @@ affs_clear_inode(struct inode *inode)
 	affs_brelse(AFFS_I(inode)->i_ext_bh);
 	AFFS_I(inode)->i_ext_last = ~1;
 	AFFS_I(inode)->i_ext_bh = NULL;
+
+	if (!inode->i_nlink)
+		affs_free_block(inode->i_sb, inode->i_ino);
 }
 
 struct inode *

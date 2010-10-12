@@ -79,8 +79,8 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	md_io.error = 0;
 
 	if ((rw & WRITE) && !test_bit(MD_NO_BARRIER, &mdev->flags))
-		rw |= (1 << BIO_RW_BARRIER);
-	rw |= ((1<<BIO_RW_UNPLUG) | (1<<BIO_RW_SYNCIO));
+		rw |= REQ_HARDBARRIER;
+	rw |= REQ_UNPLUG | REQ_SYNC;
 
  retry:
 	bio = bio_alloc(GFP_NOIO, 1);
@@ -103,11 +103,11 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	/* check for unsupported barrier op.
 	 * would rather check on EOPNOTSUPP, but that is not reliable.
 	 * don't try again for ANY return value != 0 */
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && !ok)) {
+	if (unlikely((bio->bi_rw & REQ_HARDBARRIER) && !ok)) {
 		/* Try again with no barrier */
 		dev_warn(DEV, "Barriers not supported on meta data device - disabling\n");
 		set_bit(MD_NO_BARRIER, &mdev->flags);
-		rw &= ~(1 << BIO_RW_BARRIER);
+		rw &= ~REQ_HARDBARRIER;
 		bio_put(bio);
 		goto retry;
 	}

@@ -82,7 +82,7 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	elapsed_time = delta / 10;
 
 	if (elapsed_time != 0 &&
-	    dccp_insert_option_elapsed_time(sk, skb, elapsed_time))
+	    dccp_insert_option_elapsed_time(skb, elapsed_time))
 		return -1;
 
 	avr = dccp_ackvec_record_new();
@@ -201,7 +201,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 						 const unsigned int packets,
 						 const unsigned char state)
 {
-	unsigned int gap;
+	long gap;
 	long new_head;
 
 	if (av->av_vec_len + packets > DCCP_MAX_ACKVEC_LEN)

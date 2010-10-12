@@ -5,7 +5,7 @@ Supported chips:
   * Winbond W83792D
     Prefix: 'w83792d'
     Addresses scanned: I2C 0x2c - 0x2f
-    Datasheet: http://www.winbond.com.tw/E-WINBONDHTM/partner/PDFresult.asp?Pname=1035
+    Datasheet: http://www.winbond.com.tw
 
 Author: Chunhao Huang
 Contact: DZShen <DZShen@Winbond.com.tw>

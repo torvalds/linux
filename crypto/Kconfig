@@ -80,6 +80,11 @@ config CRYPTO_RNG2
 
 config CRYPTO_PCOMP
 	tristate
+	select CRYPTO_PCOMP2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_PCOMP2
+	tristate
 	select CRYPTO_ALGAPI2
 
 config CRYPTO_MANAGER
@@ -94,7 +99,15 @@ config CRYPTO_MANAGER2
 	select CRYPTO_AEAD2
 	select CRYPTO_HASH2
 	select CRYPTO_BLKCIPHER2
-	select CRYPTO_PCOMP
+	select CRYPTO_PCOMP2
+
+config CRYPTO_MANAGER_TESTS
+	bool "Run algolithms' self-tests"
+	default y
+	depends on CRYPTO_MANAGER2
+	help
+	  Run cryptomanager's tests for the new crypto algorithms being
+	  registered.
 
 config CRYPTO_GF128MUL
 	tristate "GF(2^128) multiplication functions (EXPERIMENTAL)"

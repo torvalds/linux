@@ -153,7 +153,7 @@ typedef struct {
 	u16 len;		/* Data Length */
 	u8 stat;		/* Status */
 	u8 unused;		/* pads to 2-byte boundary */
-}__attribute__ ((packed)) pkt_desc;
+}__packed pkt_desc;
 
 
 /* Packet Descriptor Status bits */

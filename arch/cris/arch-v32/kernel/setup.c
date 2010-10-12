@@ -9,6 +9,9 @@
 #include <linux/delay.h>
 #include <linux/param.h>
 
+#include <linux/i2c.h>
+#include <linux/platform_device.h>
+
 #ifdef CONFIG_PROC_FS
 
 #define HAS_FPU         0x0001
@@ -43,14 +46,15 @@ static struct cpu_info cpinfo[] = {
 
 	{"ETRAX 100LX v2", 11, 8, HAS_ETHERNET100 | HAS_SCSI | HAS_ATA | HAS_USB
 			        | HAS_MMU},
-
+#ifdef CONFIG_ETRAXFS
 	{"ETRAX FS", 32, 32, HAS_ETHERNET100 | HAS_ATA | HAS_MMU},
-
+#else
+	{"ARTPEC-3", 32, 32, HAS_ETHERNET100 | HAS_MMU},
+#endif
 	{"Unknown", 0, 0, 0}
 };
 
-int
-show_cpuinfo(struct seq_file *m, void *v)
+int show_cpuinfo(struct seq_file *m, void *v)
 {
 	int i;
 	int cpu = (int)v - 1;
@@ -107,9 +111,63 @@ show_cpuinfo(struct seq_file *m, void *v)
 
 #endif /* CONFIG_PROC_FS */
 
-void
-show_etrax_copyright(void)
+void show_etrax_copyright(void)
 {
-	printk(KERN_INFO
-               "Linux/CRISv32 port on ETRAX FS (C) 2003, 2004 Axis Communications AB\n");
+#ifdef CONFIG_ETRAXFS
+	printk(KERN_INFO "Linux/CRISv32 port on ETRAX FS "
+		"(C) 2003, 2004 Axis Communications AB\n");
+#else
+	printk(KERN_INFO "Linux/CRISv32 port on ARTPEC-3 "
+		"(C) 2003-2009 Axis Communications AB\n");
+#endif
 }
+
+static struct i2c_board_info __initdata i2c_info[] = {
+	{I2C_BOARD_INFO("camblock", 0x43)},
+	{I2C_BOARD_INFO("tmp100", 0x48)},
+	{I2C_BOARD_INFO("tmp100", 0x4A)},
+	{I2C_BOARD_INFO("tmp100", 0x4C)},
+	{I2C_BOARD_INFO("tmp100", 0x4D)},
+	{I2C_BOARD_INFO("tmp100", 0x4E)},
+#ifdef CONFIG_RTC_DRV_PCF8563
+	{I2C_BOARD_INFO("pcf8563", 0x51)},
+#endif
+#ifdef CONFIG_ETRAX_VIRTUAL_GPIO
+	{I2C_BOARD_INFO("vgpio", 0x20)},
+	{I2C_BOARD_INFO("vgpio", 0x21)},
+#endif
+	{I2C_BOARD_INFO("pca9536", 0x41)},
+	{I2C_BOARD_INFO("fnp300", 0x40)},
+	{I2C_BOARD_INFO("fnp300", 0x42)},
+	{I2C_BOARD_INFO("adc101", 0x54)},
+};
+
+static struct i2c_board_info __initdata i2c_info2[] = {
+	{I2C_BOARD_INFO("camblock", 0x43)},
+	{I2C_BOARD_INFO("tmp100", 0x48)},
+	{I2C_BOARD_INFO("tmp100", 0x4A)},
+	{I2C_BOARD_INFO("tmp100", 0x4C)},
+	{I2C_BOARD_INFO("tmp100", 0x4D)},
+	{I2C_BOARD_INFO("tmp100", 0x4E)},
+#ifdef CONFIG_ETRAX_VIRTUAL_GPIO
+	{I2C_BOARD_INFO("vgpio", 0x20)},
+	{I2C_BOARD_INFO("vgpio", 0x21)},
+#endif
+	{I2C_BOARD_INFO("pca9536", 0x41)},
+	{I2C_BOARD_INFO("fnp300", 0x40)},
+	{I2C_BOARD_INFO("fnp300", 0x42)},
+	{I2C_BOARD_INFO("adc101", 0x54)},
+};
+
+static struct i2c_board_info __initdata i2c_info3[] = {
+	{I2C_BOARD_INFO("adc101", 0x54)},
+};
+
+static int __init etrax_init(void)
+{
+	i2c_register_board_info(0, i2c_info, ARRAY_SIZE(i2c_info));
+	i2c_register_board_info(1, i2c_info2, ARRAY_SIZE(i2c_info2));
+	i2c_register_board_info(2, i2c_info3, ARRAY_SIZE(i2c_info3));
+	return 0;
+}
+arch_initcall(etrax_init);

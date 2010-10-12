@@ -17,6 +17,7 @@
 #include <linux/kdb.h>
 #include <linux/tty.h>
 #include <linux/console.h>
+#include <linux/vt_kern.h>
 
 #define MAX_CONFIG_LEN		40
 
@@ -31,6 +32,7 @@ static struct kparam_string kps = {
 	.maxlen			= MAX_CONFIG_LEN,
 };
 
+static int kgdboc_use_kms;  /* 1 if we use kernel mode switching */
 static struct tty_driver	*kgdb_tty_driver;
 static int			kgdb_tty_line;
 
@@ -103,6 +105,12 @@ static int configure_kgdboc(void)
 	err = -ENODEV;
 	kgdboc_io_ops.is_console = 0;
 	kgdb_tty_driver = NULL;
+
+	kgdboc_use_kms = 0;
+	if (strncmp(cptr, "kms,", 4) == 0) {
+		cptr += 4;
+		kgdboc_use_kms = 1;
+	}
 
 	if (kgdboc_register_kbd(&cptr))
 		goto do_register;
@@ -201,8 +209,14 @@ static int param_set_kgdboc_var(const char *kmessage, struct kernel_param *kp)
 	return configure_kgdboc();
 }
 
+static int dbg_restore_graphics;
+
 static void kgdboc_pre_exp_handler(void)
 {
+	if (!dbg_restore_graphics && kgdboc_use_kms) {
+		dbg_restore_graphics = 1;
+		con_debug_enter(vc_cons[fg_console].d);
+	}
 	/* Increment the module count when the debugger is active */
 	if (!kgdb_connected)
 		try_module_get(THIS_MODULE);
@@ -213,6 +227,10 @@ static void kgdboc_post_exp_handler(void)
 	/* decrement the module count when the debugger detaches */
 	if (!kgdb_connected)
 		module_put(THIS_MODULE);
+	if (kgdboc_use_kms && dbg_restore_graphics) {
+		dbg_restore_graphics = 0;
+		con_debug_leave();
+	}
 }
 
 static struct kgdb_io kgdboc_io_ops = {

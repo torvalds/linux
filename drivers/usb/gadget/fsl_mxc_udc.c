@@ -30,7 +30,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
-	if (!cpu_is_mx35()) {
+	if (!cpu_is_mx35() && !cpu_is_mx25()) {
 		mxc_ahb_clk = clk_get(&pdev->dev, "usb_ahb");
 		if (IS_ERR(mxc_ahb_clk))
 			return PTR_ERR(mxc_ahb_clk);

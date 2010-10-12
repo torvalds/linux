@@ -25,8 +25,34 @@
 #include <asm/i8259.h>
 #include <asm/apb_timer.h>
 
+/*
+ * the clockevent devices on Moorestown/Medfield can be APBT or LAPIC clock,
+ * cmdline option x86_mrst_timer can be used to override the configuration
+ * to prefer one or the other.
+ * at runtime, there are basically three timer configurations:
+ * 1. per cpu apbt clock only
+ * 2. per cpu always-on lapic clocks only, this is Penwell/Medfield only
+ * 3. per cpu lapic clock (C3STOP) and one apbt clock, with broadcast.
+ *
+ * by default (without cmdline option), platform code first detects cpu type
+ * to see if we are on lincroft or penwell, then set up both lapic or apbt
+ * clocks accordingly.
+ * i.e. by default, medfield uses configuration #2, moorestown uses #1.
+ * config #3 is supported but not recommended on medfield.
+ *
+ * rating and feature summary:
+ * lapic (with C3STOP) --------- 100
+ * apbt (always-on) ------------ 110
+ * lapic (always-on,ARAT) ------ 150
+ */
+
+__cpuinitdata enum mrst_timer_options mrst_timer_options;
+
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
+enum mrst_cpu_type __mrst_cpu_chip;
+EXPORT_SYMBOL_GPL(__mrst_cpu_chip);
+
 int sfi_mtimer_num;
 
 struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
@@ -167,18 +193,6 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 	return 0;
 }
 
-/*
- * the secondary clock in Moorestown can be APBT or LAPIC clock, default to
- * APBT but cmdline option can also override it.
- */
-static void __cpuinit mrst_setup_secondary_clock(void)
-{
-	/* restore default lapic clock if disabled by cmdline */
-	if (disable_apbt_percpu)
-		return setup_secondary_APIC_clock();
-	apbt_setup_secondary_clock();
-}
-
 static unsigned long __init mrst_calibrate_tsc(void)
 {
 	unsigned long flags, fast_calibrate;
@@ -195,6 +209,21 @@ static unsigned long __init mrst_calibrate_tsc(void)
 
 void __init mrst_time_init(void)
 {
+	switch (mrst_timer_options) {
+	case MRST_TIMER_APBT_ONLY:
+		break;
+	case MRST_TIMER_LAPIC_APBT:
+		x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
+		x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
+		break;
+	default:
+		if (!boot_cpu_has(X86_FEATURE_ARAT))
+			break;
+		x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
+		x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
+		return;
+	}
+	/* we need at least one APB timer */
 	sfi_table_parse(SFI_SIG_MTMR, NULL, NULL, sfi_parse_mtmr);
 	pre_init_apic_IRQ0();
 	apbt_time_init();
@@ -205,16 +234,21 @@ void __init mrst_rtc_init(void)
 	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
 }
 
-/*
- * if we use per cpu apb timer, the bootclock already setup. if we use lapic
- * timer and one apbt timer for broadcast, we need to set up lapic boot clock.
- */
-static void __init mrst_setup_boot_clock(void)
+void __cpuinit mrst_arch_setup(void)
 {
-	pr_info("%s: per cpu apbt flag %d \n", __func__, disable_apbt_percpu);
-	if (disable_apbt_percpu)
-		setup_boot_APIC_clock();
-};
+	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
+		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
+	else if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x26)
+		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+	else {
+		pr_err("Unknown Moorestown CPU (%d:%d), default to Lincroft\n",
+			boot_cpu_data.x86, boot_cpu_data.x86_model);
+		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+	}
+	pr_debug("Moorestown CPU %s identified\n",
+		(__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT) ?
+		"Lincroft" : "Penwell");
+}
 
 /* MID systems don't have i8042 controller */
 static int mrst_i8042_detect(void)
@@ -232,11 +266,13 @@ void __init x86_mrst_early_setup(void)
 	x86_init.resources.reserve_resources = x86_init_noop;
 
 	x86_init.timers.timer_init = mrst_time_init;
-	x86_init.timers.setup_percpu_clockev = mrst_setup_boot_clock;
+	x86_init.timers.setup_percpu_clockev = x86_init_noop;
 
 	x86_init.irqs.pre_vector_init = x86_init_noop;
 
-	x86_cpuinit.setup_percpu_clockev = mrst_setup_secondary_clock;
+	x86_init.oem.arch_setup = mrst_arch_setup;
+
+	x86_cpuinit.setup_percpu_clockev = apbt_setup_secondary_clock;
 
 	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_platform.i8042_detect = mrst_i8042_detect;
@@ -250,3 +286,26 @@ void __init x86_mrst_early_setup(void)
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 
 }
+
+/*
+ * if user does not want to use per CPU apb timer, just give it a lower rating
+ * than local apic timer and skip the late per cpu timer init.
+ */
+static inline int __init setup_x86_mrst_timer(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp("apbt_only", arg) == 0)
+		mrst_timer_options = MRST_TIMER_APBT_ONLY;
+	else if (strcmp("lapic_and_apbt", arg) == 0)
+		mrst_timer_options = MRST_TIMER_LAPIC_APBT;
+	else {
+		pr_warning("X86 MRST timer option %s not recognised"
+			   " use x86_mrst_timer=apbt_only or lapic_and_apbt\n",
+			   arg);
+		return -EINVAL;
+	}
+	return 0;
+}
+__setup("x86_mrst_timer=", setup_x86_mrst_timer);

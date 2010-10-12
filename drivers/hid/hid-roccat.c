@@ -168,7 +168,7 @@ static int roccat_open(struct inode *inode, struct file *file)
 		printk(KERN_EMERG "roccat device with minor %d doesn't exist\n",
 				minor);
 		error = -ENODEV;
-		goto exit_unlock;
+		goto exit_err;
 	}
 
 	if (!device->open++) {
@@ -178,7 +178,7 @@ static int roccat_open(struct inode *inode, struct file *file)
 					PM_HINT_FULLON);
 			if (error < 0) {
 				--device->open;
-				goto exit_unlock;
+				goto exit_err;
 			}
 		}
 		error = device->hid->ll_driver->open(device->hid);
@@ -187,7 +187,7 @@ static int roccat_open(struct inode *inode, struct file *file)
 				device->hid->ll_driver->power(device->hid,
 						PM_HINT_NORMAL);
 			--device->open;
-			goto exit_unlock;
+			goto exit_err;
 		}
 	}
 
@@ -202,6 +202,9 @@ exit_unlock:
 	mutex_unlock(&device->readers_lock);
 	mutex_unlock(&devices_lock);
 	return error;
+exit_err:
+	kfree(reader);
+	goto exit_unlock;
 }
 
 static int roccat_release(struct inode *inode, struct file *file)

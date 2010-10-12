@@ -30,6 +30,23 @@
 
 #include <linux/if_ether.h>
 
+/* some helpful macros */
+
+#define ntohll(x) be64_to_cpu(x)
+#define htonll(x) cpu_to_be64(x)
+
+static inline u32 ntoh24(const u8 *p)
+{
+	return (p[0] << 16) | (p[1] << 8) | p[2];
+}
+
+static inline void hton24(u8 *p, u32 v)
+{
+	p[0] = (v >> 16) & 0xff;
+	p[1] = (v >> 8) & 0xff;
+	p[2] = v & 0xff;
+}
+
 /*
  * The fc_frame interface is used to pass frame data between functions.
  * The frame includes the data buffer, length, and SOF / EOF delimiter types.
@@ -51,6 +68,7 @@
 #define fr_sof(fp)	(fr_cb(fp)->fr_sof)
 #define fr_eof(fp)	(fr_cb(fp)->fr_eof)
 #define fr_flags(fp)	(fr_cb(fp)->fr_flags)
+#define fr_encaps(fp)	(fr_cb(fp)->fr_encaps)
 #define fr_max_payload(fp)	(fr_cb(fp)->fr_max_payload)
 #define fr_fsp(fp)	(fr_cb(fp)->fr_fsp)
 #define fr_crc(fp)	(fr_cb(fp)->fr_crc)
@@ -66,9 +84,10 @@ struct fcoe_rcv_info {
 	struct fc_fcp_pkt *fr_fsp;	/* for the corresponding fcp I/O */
 	u32		fr_crc;
 	u16		fr_max_payload;	/* max FC payload */
-	enum fc_sof	fr_sof;		/* start of frame delimiter */
-	enum fc_eof	fr_eof;		/* end of frame delimiter */
+	u8		fr_sof;		/* start of frame delimiter */
+	u8		fr_eof;		/* end of frame delimiter */
 	u8		fr_flags;	/* flags - see below */
+	u8		fr_encaps;	/* LLD encapsulation info (e.g. FIP) */
 	u8		granted_mac[ETH_ALEN]; /* FCoE MAC address */
 };
 
@@ -97,6 +116,7 @@ static inline void fc_frame_init(struct fc_frame *fp)
 	fr_dev(fp) = NULL;
 	fr_seq(fp) = NULL;
 	fr_flags(fp) = 0;
+	fr_encaps(fp) = 0;
 }
 
 struct fc_frame *fc_frame_alloc_fill(struct fc_lport *, size_t payload_len);
@@ -136,13 +156,39 @@ static inline int fc_frame_is_linear(struct fc_frame *fp)
 
 /*
  * Get frame header from message in fc_frame structure.
+ * This version doesn't do a length check.
+ */
+static inline
+struct fc_frame_header *__fc_frame_header_get(const struct fc_frame *fp)
+{
+	return (struct fc_frame_header *)fr_hdr(fp);
+}
+
+/*
+ * Get frame header from message in fc_frame structure.
  * This hides a cast and provides a place to add some checking.
  */
 static inline
 struct fc_frame_header *fc_frame_header_get(const struct fc_frame *fp)
 {
 	WARN_ON(fr_len(fp) < sizeof(struct fc_frame_header));
-	return (struct fc_frame_header *) fr_hdr(fp);
+	return __fc_frame_header_get(fp);
+}
+
+/*
+ * Get source FC_ID (S_ID) from frame header in message.
+ */
+static inline u32 fc_frame_sid(const struct fc_frame *fp)
+{
+	return ntoh24(__fc_frame_header_get(fp)->fh_s_id);
+}
+
+/*
+ * Get destination FC_ID (D_ID) from frame header in message.
+ */
+static inline u32 fc_frame_did(const struct fc_frame *fp)
+{
+	return ntoh24(__fc_frame_header_get(fp)->fh_d_id);
 }
 
 /*

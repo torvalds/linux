@@ -94,7 +94,7 @@
 
 /* Control */
 #define WLAN_FSTYPE_BLOCKACKREQ		0x8
-#define WLAN_FSTYPE_BLOCKACK  		0x9
+#define WLAN_FSTYPE_BLOCKACK		0x9
 #define WLAN_FSTYPE_PSPOLL		0x0a
 #define WLAN_FSTYPE_RTS			0x0b
 #define WLAN_FSTYPE_CTS			0x0c
@@ -133,13 +133,13 @@
 
 #define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT(2) | BIT(3))) >> 2)
 #define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT(4)|BIT(5)|BIT(6)|BIT(7))) >> 4)
-#define WLAN_GET_FC_TODS(n) 	((((u16)(n)) & (BIT(8))) >> 8)
+#define WLAN_GET_FC_TODS(n)	((((u16)(n)) & (BIT(8))) >> 8)
 #define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT(9))) >> 9)
 #define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT(14))) >> 14)
 
 #define WLAN_SET_FC_FTYPE(n)	(((u16)(n)) << 2)
 #define WLAN_SET_FC_FSTYPE(n)	(((u16)(n)) << 4)
-#define WLAN_SET_FC_TODS(n) 	(((u16)(n)) << 8)
+#define WLAN_SET_FC_TODS(n)	(((u16)(n)) << 8)
 #define WLAN_SET_FC_FROMDS(n)	(((u16)(n)) << 9)
 #define WLAN_SET_FC_ISWEP(n)	(((u16)(n)) << 14)
 
@@ -147,16 +147,16 @@
 
 /* Generic 802.11 Header types */
 
-typedef struct p80211_hdr_a3 {
+struct p80211_hdr_a3 {
 	u16 fc;
 	u16 dur;
 	u8 a1[ETH_ALEN];
 	u8 a2[ETH_ALEN];
 	u8 a3[ETH_ALEN];
 	u16 seq;
-} __attribute__ ((packed)) p80211_hdr_a3_t;
+} __attribute__ ((packed));
 
-typedef struct p80211_hdr_a4 {
+struct p80211_hdr_a4 {
 	u16 fc;
 	u16 dur;
 	u8 a1[ETH_ALEN];
@@ -164,18 +164,18 @@ typedef struct p80211_hdr_a4 {
 	u8 a3[ETH_ALEN];
 	u16 seq;
 	u8 a4[ETH_ALEN];
-} __attribute__ ((packed)) p80211_hdr_a4_t;
+} __attribute__ ((packed));
 
-typedef union p80211_hdr {
-	p80211_hdr_a3_t a3;
-	p80211_hdr_a4_t a4;
-} __attribute__ ((packed)) p80211_hdr_t;
+union p80211_hdr {
+	struct p80211_hdr_a3 a3;
+	struct p80211_hdr_a4 a4;
+} __attribute__ ((packed));
 
 /* Frame and header length macros */
 
 #define WLAN_CTL_FRAMELEN(fstype) (\
 	(fstype) == WLAN_FSTYPE_BLOCKACKREQ	? 24 : \
-	(fstype) == WLAN_FSTYPE_BLOCKACK   	? 152 : \
+	(fstype) == WLAN_FSTYPE_BLOCKACK	? 152 : \
 	(fstype) == WLAN_FSTYPE_PSPOLL		? 20 : \
 	(fstype) == WLAN_FSTYPE_RTS		? 20 : \
 	(fstype) == WLAN_FSTYPE_CTS		? 14 : \

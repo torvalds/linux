@@ -9,7 +9,7 @@
  *  Based on the powernow-k7.c module written by Dave Jones.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
  *  (C) 2004 Dominik Brodowski <linux@brodo.de>
- *  (C) 2004 Pavel Machek <pavel@suse.cz>
+ *  (C) 2004 Pavel Machek <pavel@ucw.cz>
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
  *
@@ -806,6 +806,8 @@ static int find_psb_table(struct powernow_k8_data *data)
 	 * www.amd.com
 	 */
 	printk(KERN_ERR FW_BUG PFX "No PSB or ACPI _PSS objects\n");
+	printk(KERN_ERR PFX "Make sure that your BIOS is up to date"
+		" and Cool'N'Quiet support is enabled in BIOS setup\n");
 	return -ENODEV;
 }
 
@@ -910,8 +912,8 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 {
 	int i;
 	u32 hi = 0, lo = 0;
-	rdmsr(MSR_PSTATE_CUR_LIMIT, hi, lo);
-	data->max_hw_pstate = (hi & HW_PSTATE_MAX_MASK) >> HW_PSTATE_MAX_SHIFT;
+	rdmsr(MSR_PSTATE_CUR_LIMIT, lo, hi);
+	data->max_hw_pstate = (lo & HW_PSTATE_MAX_MASK) >> HW_PSTATE_MAX_SHIFT;
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		u32 index;

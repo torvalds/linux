@@ -106,12 +106,17 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 	alarms1 &= mask;
 	alarms2 &= mask >> 8;
 	if (alarms1 || alarms2) {
-		EFX_ERR(efx,
-			"LM87 detected a hardware failure (status %02x:%02x)"
-			"%s%s\n",
-			alarms1, alarms2,
-			(alarms1 & LM87_ALARM_TEMP_INT) ? " INTERNAL" : "",
-			(alarms1 & LM87_ALARM_TEMP_EXT1) ? " EXTERNAL" : "");
+		netif_err(efx, hw, efx->net_dev,
+			  "LM87 detected a hardware failure (status %02x:%02x)"
+			  "%s%s%s\n",
+			  alarms1, alarms2,
+			  (alarms1 & LM87_ALARM_TEMP_INT) ?
+			  "; board is overheating" : "",
+			  (alarms1 & LM87_ALARM_TEMP_EXT1) ?
+			  "; controller is overheating" : "",
+			  (alarms1 & ~(LM87_ALARM_TEMP_INT | LM87_ALARM_TEMP_EXT1)
+			   || alarms2) ?
+			  "; electrical fault" : "");
 		return -ERANGE;
 	}
 
@@ -243,7 +248,7 @@ static int sfe4001_poweron(struct efx_nic *efx)
 		       (0 << P0_EN_3V3X_LBN) | (0 << P0_EN_5V_LBN) |
 		       (0 << P0_EN_1V0X_LBN));
 	if (rc != out) {
-		EFX_INFO(efx, "power-cycling PHY\n");
+		netif_info(efx, hw, efx->net_dev, "power-cycling PHY\n");
 		rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
 		if (rc)
 			goto fail_on;
@@ -269,7 +274,8 @@ static int sfe4001_poweron(struct efx_nic *efx)
 		if (rc)
 			goto fail_on;
 
-		EFX_INFO(efx, "waiting for DSP boot (attempt %d)...\n", i);
+		netif_info(efx, hw, efx->net_dev,
+			   "waiting for DSP boot (attempt %d)...\n", i);
 
 		/* In flash config mode, DSP does not turn on AFE, so
 		 * just wait 1 second.
@@ -291,7 +297,7 @@ static int sfe4001_poweron(struct efx_nic *efx)
 		}
 	}
 
-	EFX_INFO(efx, "timed out waiting for DSP boot\n");
+	netif_info(efx, hw, efx->net_dev, "timed out waiting for DSP boot\n");
 	rc = -ETIMEDOUT;
 fail_on:
 	sfe4001_poweroff(efx);
@@ -377,7 +383,7 @@ static void sfe4001_fini(struct efx_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
-	EFX_INFO(efx, "%s\n", __func__);
+	netif_info(efx, drv, efx->net_dev, "%s\n", __func__);
 
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
 	sfe4001_poweroff(efx);
@@ -461,7 +467,7 @@ static int sfe4001_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_on;
 
-	EFX_INFO(efx, "PHY is powered on\n");
+	netif_info(efx, hw, efx->net_dev, "PHY is powered on\n");
 	return 0;
 
 fail_on:
@@ -493,7 +499,7 @@ static int sfn4111t_check_hw(struct efx_nic *efx)
 
 static void sfn4111t_fini(struct efx_nic *efx)
 {
-	EFX_INFO(efx, "%s\n", __func__);
+	netif_info(efx, drv, efx->net_dev, "%s\n", __func__);
 
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
 	i2c_unregister_device(falcon_board(efx)->hwmon_client);
@@ -742,13 +748,14 @@ int falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 			board->type = &board_types[i];
 
 	if (board->type) {
-		EFX_INFO(efx, "board is %s rev %c%d\n",
+		netif_info(efx, probe, efx->net_dev, "board is %s rev %c%d\n",
 			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
 			 ? board->type->ref_model : board->type->gen_type,
 			 'A' + board->major, board->minor);
 		return 0;
 	} else {
-		EFX_ERR(efx, "unknown board type %d\n", type_id);
+		netif_err(efx, probe, efx->net_dev, "unknown board type %d\n",
+			  type_id);
 		return -ENODEV;
 	}
 }

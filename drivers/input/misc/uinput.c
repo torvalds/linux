@@ -304,21 +304,25 @@ static int uinput_validate_absbits(struct input_dev *dev)
 		if (!test_bit(cnt, dev->absbit))
 			continue;
 
-		if ((dev->absmax[cnt] <= dev->absmin[cnt])) {
+		if (input_abs_get_max(dev, cnt) <= input_abs_get_min(dev, cnt)) {
 			printk(KERN_DEBUG
 				"%s: invalid abs[%02x] min:%d max:%d\n",
 				UINPUT_NAME, cnt,
-				dev->absmin[cnt], dev->absmax[cnt]);
+				input_abs_get_min(dev, cnt),
+				input_abs_get_max(dev, cnt));
 			retval = -EINVAL;
 			break;
 		}
 
-		if (dev->absflat[cnt] > (dev->absmax[cnt] - dev->absmin[cnt])) {
+		if (input_abs_get_flat(dev, cnt) >
+		    input_abs_get_max(dev, cnt) - input_abs_get_min(dev, cnt)) {
 			printk(KERN_DEBUG
-				"%s: absflat[%02x] out of range: %d "
+				"%s: abs_flat #%02x out of range: %d "
 				"(min:%d/max:%d)\n",
-				UINPUT_NAME, cnt, dev->absflat[cnt],
-				dev->absmin[cnt], dev->absmax[cnt]);
+				UINPUT_NAME, cnt,
+				input_abs_get_flat(dev, cnt),
+				input_abs_get_min(dev, cnt),
+				input_abs_get_max(dev, cnt));
 			retval = -EINVAL;
 			break;
 		}
@@ -343,7 +347,7 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
 	char			*name;
-	int			size;
+	int			i, size;
 	int			retval;
 
 	if (count != sizeof(struct uinput_user_dev))
@@ -387,11 +391,12 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 	dev->id.product	= user_dev->id.product;
 	dev->id.version	= user_dev->id.version;
 
-	size = sizeof(int) * ABS_CNT;
-	memcpy(dev->absmax, user_dev->absmax, size);
-	memcpy(dev->absmin, user_dev->absmin, size);
-	memcpy(dev->absfuzz, user_dev->absfuzz, size);
-	memcpy(dev->absflat, user_dev->absflat, size);
+	for (i = 0; i < ABS_CNT; i++) {
+		input_abs_set_max(dev, i, user_dev->absmax[i]);
+		input_abs_set_min(dev, i, user_dev->absmin[i]);
+		input_abs_set_fuzz(dev, i, user_dev->absfuzz[i]);
+		input_abs_set_flat(dev, i, user_dev->absflat[i]);
+	}
 
 	/* check if absmin/absmax/absfuzz/absflat are filled as
 	 * told in Documentation/input/input-programming.txt */

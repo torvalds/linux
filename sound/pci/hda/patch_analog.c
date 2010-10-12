@@ -3662,7 +3662,12 @@ static int patch_ad1984(struct hda_codec *codec)
 		codec->patch_ops.build_pcms = ad1984_build_pcms;
 		break;
 	case AD1984_THINKPAD:
-		spec->multiout.dig_out_nid = AD1884_SPDIF_OUT;
+		if (codec->subsystem_id == 0x17aa20fb) {
+			/* Thinpad X300 does not have the ability to do SPDIF,
+			   or attach to docking station to use SPDIF */
+			spec->multiout.dig_out_nid = 0;
+		} else
+			spec->multiout.dig_out_nid = AD1884_SPDIF_OUT;
 		spec->input_mux = &ad1984_thinkpad_capture_source;
 		spec->mixers[0] = ad1984_thinkpad_mixers;
 		spec->init_verbs[spec->num_init_verbs++] = ad1984_thinkpad_init_verbs;

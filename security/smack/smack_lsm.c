@@ -598,6 +598,8 @@ static int smack_inode_rename(struct inode *old_inode,
 static int smack_inode_permission(struct inode *inode, int mask)
 {
 	struct smk_audit_info ad;
+
+	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
 	/*
 	 * No permission to check. Existence test. Yup, it's there.
 	 */
@@ -2191,7 +2193,7 @@ static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
 
 /**
  * smack_d_instantiate - Make sure the blob is correct on an inode
- * @opt_dentry: unused
+ * @opt_dentry: dentry where inode will be attached
  * @inode: the object
  *
  * Set the inode's security blob if it hasn't been done already.
@@ -2310,20 +2312,10 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		/*
 		 * Get the dentry for xattr.
 		 */
-		if (opt_dentry == NULL) {
-			dp = d_find_alias(inode);
-			if (dp == NULL)
-				break;
-		} else {
-			dp = dget(opt_dentry);
-			if (dp == NULL)
-				break;
-		}
-
+		dp = dget(opt_dentry);
 		fetched = smk_fetch(inode, dp);
 		if (fetched != NULL)
 			final = fetched;
-
 		dput(dp);
 		break;
 	}
@@ -3227,7 +3219,7 @@ static __init int smack_init(void)
 	cred = (struct cred *) current->cred;
 	cred->security = &smack_known_floor.smk_known;
 
-	/* initilize the smack_know_list */
+	/* initialize the smack_know_list */
 	init_smack_know_list();
 	/*
 	 * Initialize locks

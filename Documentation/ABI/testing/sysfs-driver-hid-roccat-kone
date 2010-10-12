@@ -33,19 +33,6 @@ Description:	When read, this file returns the raw integer version number of the
 		left. E.g. a returned value of 138 means 1.38
 		This file is readonly.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/kone_driver_version
-Date:		March 2010
-Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
-Description:	When read, this file returns the driver version.
-		The format of the string is "v<major>.<minor>.<patchlevel>".
-		This attribute is used by the userland tools to find the sysfs-
-		paths of installed kone-mice and determine the capabilites of
-		the driver. Versions of this driver for old kernels replace
-		usbhid instead of generic-usb. The way to scan for this file
-		has been chosen to provide a consistent way for all supported
-		kernel versions.
-		This file is readonly.
-
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/profile[1-5]
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>

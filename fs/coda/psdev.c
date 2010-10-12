@@ -177,7 +177,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 		nbytes = req->uc_outSize; /* don't have more space! */
 	}
         if (copy_from_user(req->uc_data, buf, nbytes)) {
-		req->uc_flags |= REQ_ABORT;
+		req->uc_flags |= CODA_REQ_ABORT;
 		wake_up(&req->uc_sleep);
 		retval = -EFAULT;
 		goto out;
@@ -254,8 +254,8 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	        retval = -EFAULT;
         
 	/* If request was not a signal, enqueue and don't free */
-	if (!(req->uc_flags & REQ_ASYNC)) {
-		req->uc_flags |= REQ_READ;
+	if (!(req->uc_flags & CODA_REQ_ASYNC)) {
+		req->uc_flags |= CODA_REQ_READ;
 		list_add_tail(&(req->uc_chain), &vcp->vc_processing);
 		goto out;
 	}
@@ -315,19 +315,19 @@ static int coda_psdev_release(struct inode * inode, struct file * file)
 		list_del(&req->uc_chain);
 
 		/* Async requests need to be freed here */
-		if (req->uc_flags & REQ_ASYNC) {
+		if (req->uc_flags & CODA_REQ_ASYNC) {
 			CODA_FREE(req->uc_data, sizeof(struct coda_in_hdr));
 			kfree(req);
 			continue;
 		}
-		req->uc_flags |= REQ_ABORT;
+		req->uc_flags |= CODA_REQ_ABORT;
 		wake_up(&req->uc_sleep);
 	}
 
 	list_for_each_entry_safe(req, tmp, &vcp->vc_processing, uc_chain) {
 		list_del(&req->uc_chain);
 
-		req->uc_flags |= REQ_ABORT;
+		req->uc_flags |= CODA_REQ_ABORT;
 		wake_up(&req->uc_sleep);
 	}
 

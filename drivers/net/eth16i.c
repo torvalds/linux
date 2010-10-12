@@ -1442,8 +1442,10 @@ int __init init_module(void)
 		dev->if_port = eth16i_parse_mediatype(mediatype[this_dev]);
 
 		if(io[this_dev] == 0) {
-			if(this_dev != 0) /* Only autoprobe 1st one */
+			if (this_dev != 0) { /* Only autoprobe 1st one */
+				free_netdev(dev);
 				break;
+			}
 
 			printk(KERN_NOTICE "eth16i.c: Presently autoprobing (not recommended) for a single card.\n");
 		}

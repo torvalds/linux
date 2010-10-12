@@ -1237,7 +1237,43 @@ static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 static void load_ao_dma(struct comedi_device *dev,
 			const struct comedi_cmd *cmd);
 
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, pcidas64_pci_table);
+static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
+}
+
+static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidas_pci_driver = {
+	.id_table = pcidas64_pci_table,
+	.probe = &driver_cb_pcidas_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
+};
+
+static int __init driver_cb_pcidas_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidas);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
+	return pci_register_driver(&driver_cb_pcidas_pci_driver);
+}
+
+static void __exit driver_cb_pcidas_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidas);
+}
+
+module_init(driver_cb_pcidas_init_module);
+module_exit(driver_cb_pcidas_cleanup_module);
 
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 				       unsigned int range_index)
@@ -1718,7 +1754,7 @@ static inline void warn_external_queue(struct comedi_device *dev)
  */
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 	uint32_t local_range, local_decode;
 	int retval;
@@ -1735,9 +1771,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
@@ -4303,3 +4337,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	}
 	i2c_stop(dev);
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

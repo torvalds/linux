@@ -154,13 +154,13 @@ void rs690_mc_init(struct radeon_device *rdev)
 	rdev->mc.vram_width = 128;
 	rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
-	rs690_pm_info(rdev);
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	rs690_pm_info(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	rdev->mc.gtt_base_align = rdev->mc.gtt_size - 1;
 	radeon_gtt_location(rdev, &rdev->mc);
@@ -398,7 +398,9 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	struct drm_display_mode *mode1 = NULL;
 	struct rs690_watermark wm0;
 	struct rs690_watermark wm1;
-	u32 tmp, d1mode_priority_a_cnt, d2mode_priority_a_cnt;
+	u32 tmp;
+	u32 d1mode_priority_a_cnt = S_006548_D1MODE_PRIORITY_A_OFF(1);
+	u32 d2mode_priority_a_cnt = S_006548_D1MODE_PRIORITY_A_OFF(1);
 	fixed20_12 priority_mark02, priority_mark12, fill_rate;
 	fixed20_12 a, b;
 
@@ -495,10 +497,6 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
 			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
 		}
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	} else if (mode0) {
 		if (dfixed_trunc(wm0.dbpp) > 64)
 			a.full = dfixed_mul(wm0.dbpp, wm0.num_line_pair);
@@ -528,13 +526,7 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
 		if (rdev->disp_priority == 2)
 			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT,
-			S_006D48_D2MODE_PRIORITY_A_OFF(1));
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT,
-			S_006D4C_D2MODE_PRIORITY_B_OFF(1));
-	} else {
+	} else if (mode1) {
 		if (dfixed_trunc(wm1.dbpp) > 64)
 			a.full = dfixed_mul(wm1.dbpp, wm1.num_line_pair);
 		else
@@ -563,13 +555,12 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
 		if (rdev->disp_priority == 2)
 			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT,
-			S_006548_D1MODE_PRIORITY_A_OFF(1));
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT,
-			S_00654C_D1MODE_PRIORITY_B_OFF(1));
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	}
+
+	WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+	WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+	WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+	WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 }
 
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg)
@@ -641,6 +632,13 @@ static int rs690_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing audio\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -667,6 +665,7 @@ int rs690_resume(struct radeon_device *rdev)
 
 int rs690_suspend(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -676,6 +675,7 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -699,6 +699,8 @@ int rs690_init(struct radeon_device *rdev)
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+	/* restore some register to sane defaults */
+	r100_restore_sanity(rdev);
 	/* TODO: disable VGA need to use VGA request */
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {

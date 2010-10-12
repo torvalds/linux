@@ -274,7 +274,7 @@ struct squashfs_base_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 };
 
 struct squashfs_ipc_inode {
@@ -283,7 +283,7 @@ struct squashfs_ipc_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			nlink;
 };
 
@@ -293,7 +293,7 @@ struct squashfs_lipc_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			nlink;
 	__le32			xattr;
 };
@@ -304,7 +304,7 @@ struct squashfs_dev_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			nlink;
 	__le32			rdev;
 };
@@ -315,7 +315,7 @@ struct squashfs_ldev_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			nlink;
 	__le32			rdev;
 	__le32			xattr;
@@ -327,7 +327,7 @@ struct squashfs_symlink_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			nlink;
 	__le32			symlink_size;
 	char			symlink[0];
@@ -339,7 +339,7 @@ struct squashfs_reg_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			start_block;
 	__le32			fragment;
 	__le32			offset;
@@ -353,7 +353,7 @@ struct squashfs_lreg_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le64			start_block;
 	__le64			file_size;
 	__le64			sparse;
@@ -370,7 +370,7 @@ struct squashfs_dir_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			start_block;
 	__le32			nlink;
 	__le16			file_size;
@@ -384,7 +384,7 @@ struct squashfs_ldir_inode {
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32	 		inode_number;
+	__le32			inode_number;
 	__le32			nlink;
 	__le32			file_size;
 	__le32			start_block;

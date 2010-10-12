@@ -727,20 +727,21 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 static int get_e_source(struct aer_rpc *rpc, struct aer_err_source *e_src)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	/* Lock access to Root error producer/consumer index */
 	spin_lock_irqsave(&rpc->e_lock, flags);
-	if (rpc->prod_idx != rpc->cons_idx) {
-		*e_src = rpc->e_sources[rpc->cons_idx];
-		rpc->cons_idx++;
-		if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
-			rpc->cons_idx = 0;
-		ret = 1;
+	if (rpc->prod_idx == rpc->cons_idx) {
+		spin_unlock_irqrestore(&rpc->e_lock, flags);
+		return 0;
 	}
+
+	*e_src = rpc->e_sources[rpc->cons_idx];
+	rpc->cons_idx++;
+	if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
+		rpc->cons_idx = 0;
 	spin_unlock_irqrestore(&rpc->e_lock, flags);
 
-	return ret;
+	return 1;
 }
 
 /**

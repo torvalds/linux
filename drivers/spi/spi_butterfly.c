@@ -156,7 +156,7 @@ butterfly_txrx_word_mode0(struct spi_device *spi,
 		unsigned nsecs,
 		u32 word, u8 bits)
 {
-	return bitbang_txrx_be_cpha0(spi, nsecs, 0, word, bits);
+	return bitbang_txrx_be_cpha0(spi, nsecs, 0, 0, word, bits);
 }
 
 /*----------------------------------------------------------------------*/

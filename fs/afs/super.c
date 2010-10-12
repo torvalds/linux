@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
@@ -48,8 +49,9 @@ struct file_system_type afs_fs_type = {
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
+	.drop_inode	= afs_drop_inode,
 	.destroy_inode	= afs_destroy_inode,
-	.clear_inode	= afs_clear_inode,
+	.evict_inode	= afs_evict_inode,
 	.put_super	= afs_put_super,
 	.show_options	= generic_show_options,
 };
@@ -62,12 +64,14 @@ enum {
 	afs_opt_cell,
 	afs_opt_rwpath,
 	afs_opt_vol,
+	afs_opt_autocell,
 };
 
 static const match_table_t afs_options_list = {
 	{ afs_opt_cell,		"cell=%s"	},
 	{ afs_opt_rwpath,	"rwpath"	},
 	{ afs_opt_vol,		"vol=%s"	},
+	{ afs_opt_autocell,	"autocell"	},
 	{ afs_no_opt,		NULL		},
 };
 
@@ -151,7 +155,8 @@ static int afs_parse_options(struct afs_mount_params *params,
 		switch (token) {
 		case afs_opt_cell:
 			cell = afs_cell_lookup(args[0].from,
-					       args[0].to - args[0].from);
+					       args[0].to - args[0].from,
+					       false);
 			if (IS_ERR(cell))
 				return PTR_ERR(cell);
 			afs_put_cell(params->cell);
@@ -164,6 +169,10 @@ static int afs_parse_options(struct afs_mount_params *params,
 
 		case afs_opt_vol:
 			*devname = args[0].from;
+			break;
+
+		case afs_opt_autocell:
+			params->autocell = 1;
 			break;
 
 		default:
@@ -252,10 +261,10 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 
 	/* lookup the cell record */
 	if (cellname || !params->cell) {
-		cell = afs_cell_lookup(cellname, cellnamesz);
+		cell = afs_cell_lookup(cellname, cellnamesz, true);
 		if (IS_ERR(cell)) {
-			printk(KERN_ERR "kAFS: unable to lookup cell '%s'\n",
-			       cellname ?: "");
+			printk(KERN_ERR "kAFS: unable to lookup cell '%*.*s'\n",
+			       cellnamesz, cellnamesz, cellname ?: "");
 			return PTR_ERR(cell);
 		}
 		afs_put_cell(params->cell);
@@ -320,6 +329,9 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	inode = afs_iget(sb, params->key, &fid, NULL, NULL);
 	if (IS_ERR(inode))
 		goto error_inode;
+
+	if (params->autocell)
+		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(inode)->flags);
 
 	ret = -ENOMEM;
 	root = d_alloc_root(inode);

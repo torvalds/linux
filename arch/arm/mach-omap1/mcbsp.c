@@ -23,7 +23,6 @@
 #include <plat/mux.h>
 #include <plat/cpu.h>
 #include <plat/mcbsp.h>
-#include <plat/dsp_common.h>
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
 #define DSP_RSTCT2_WD_PER_EN	(1 << 1)
@@ -46,7 +45,6 @@ static void omap1_mcbsp_request(unsigned int id)
 				clk_enable(api_clk);
 				clk_enable(dsp_clk);
 
-				omap_dsp_request_mem();
 				/*
 				 * DSP external peripheral reset
 				 * FIXME: This should be moved to dsp code
@@ -62,7 +60,6 @@ static void omap1_mcbsp_free(unsigned int id)
 {
 	if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3) {
 		if (--dsp_use == 0) {
-			omap_dsp_release_mem();
 			if (!IS_ERR(api_clk)) {
 				clk_disable(api_clk);
 				clk_put(api_clk);

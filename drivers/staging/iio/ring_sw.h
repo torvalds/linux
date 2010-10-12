@@ -207,10 +207,21 @@ struct iio_sw_ring_buffer {
 struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev);
 void iio_sw_rb_free(struct iio_ring_buffer *ring);
 
+int iio_sw_ring_preenable(struct iio_dev *indio_dev);
 
+struct iio_sw_ring_helper_state {
+	struct work_struct		work_trigger_to_ring;
+	struct iio_dev			*indio_dev;
+	int (*get_ring_element)(struct iio_sw_ring_helper_state *st, u8 *buf);
+	s64				last_timestamp;
+};
+
+void iio_sw_poll_func_th(struct iio_dev *indio_dev, s64 time);
+void iio_sw_trigger_bh_to_ring(struct work_struct *work_s);
 
 #else /* CONFIG_IIO_RING_BUFFER*/
-static inline void iio_ring_sw_register_funcs(struct iio_ring_access_funcs *ra)
-{};
+struct iio_sw_ring_helper_state {
+	struct iio_dev			*indio_dev;
+};
 #endif /* !CONFIG_IIO_RING_BUFFER */
 #endif /* _IIO_RING_SW_H_ */

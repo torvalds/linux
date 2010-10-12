@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Pavel Machek <pavel@suse.cz>
+ * Copyright 2008 Pavel Machek <pavel@ucw.cz>
  *
  * Distribute under GPLv2.
  *
@@ -700,7 +700,7 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	Mds_initial(priv);
 
 	/*
-	 * If no user-defined address in the registry, use the addresss
+	 * If no user-defined address in the registry, use the address
 	 * "burned" on the NIC instead.
 	 */
 	pMacAddr = priv->sLocalPara.ThisMacAddress;

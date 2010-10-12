@@ -153,6 +153,7 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_bad_seqid	cpu_to_be32(NFSERR_BAD_SEQID)
 #define	nfserr_symlink		cpu_to_be32(NFSERR_SYMLINK)
 #define	nfserr_not_same		cpu_to_be32(NFSERR_NOT_SAME)
+#define nfserr_lock_range	cpu_to_be32(NFSERR_LOCK_RANGE)
 #define	nfserr_restorefh	cpu_to_be32(NFSERR_RESTOREFH)
 #define	nfserr_attrnotsupp	cpu_to_be32(NFSERR_ATTRNOTSUPP)
 #define	nfserr_bad_xdr		cpu_to_be32(NFSERR_BAD_XDR)

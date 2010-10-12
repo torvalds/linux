@@ -350,7 +350,6 @@ static int t7l66xb_probe(struct platform_device *dev)
 	t7l66xb->clk48m = clk_get(&dev->dev, "CLK_CK48M");
 	if (IS_ERR(t7l66xb->clk48m)) {
 		ret = PTR_ERR(t7l66xb->clk48m);
-		clk_put(t7l66xb->clk32k);
 		goto err_clk48m_get;
 	}
 
@@ -425,6 +424,8 @@ static int t7l66xb_remove(struct platform_device *dev)
 	ret = pdata->disable(dev);
 	clk_disable(t7l66xb->clk48m);
 	clk_put(t7l66xb->clk48m);
+	clk_disable(t7l66xb->clk32k);
+	clk_put(t7l66xb->clk32k);
 	t7l66xb_detach_irq(dev);
 	iounmap(t7l66xb->scr);
 	release_resource(&t7l66xb->rscr);

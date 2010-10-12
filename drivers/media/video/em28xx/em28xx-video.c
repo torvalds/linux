@@ -654,12 +654,12 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 		}
 
 		if (buf != NULL && dev->capture_type == 2) {
-			if (len > 4 && p[0] == 0x88 && p[1] == 0x88 &&
+			if (len >= 4 && p[0] == 0x88 && p[1] == 0x88 &&
 			    p[2] == 0x88 && p[3] == 0x88) {
 				p += 4;
 				len -= 4;
 			}
-			if (len > 4 && p[0] == 0x22 && p[1] == 0x5a) {
+			if (len >= 4 && p[0] == 0x22 && p[1] == 0x5a) {
 				em28xx_isocdbg("Video frame %d, len=%i, %s\n",
 					       p[2], len, (p[2] & 1) ?
 					       "odd" : "even");

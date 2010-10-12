@@ -760,7 +760,8 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			if (etdev->linkspeed == TRUEPHY_SPEED_10MBPS) {
 				/* NOTE - Is there a way to query this without
 				 * TruePHY?
-				 * && TRU_QueryCoreType(etdev->hTruePhy, 0) == EMI_TRUEPHY_A13O) {
+				 * && TRU_QueryCoreType(etdev->hTruePhy, 0) ==
+				 * EMI_TRUEPHY_A13O) {
 				 */
 				u16 Register18;
 
@@ -778,7 +779,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			 * in the LinkDetectionDPC).
 			 */
 			if (!(etdev->Flags & fMP_ADAPTER_LINK_DETECTION) ||
-			  (etdev->MediaState == NETIF_STATUS_MEDIA_DISCONNECT)) {
+			 (etdev->MediaState == NETIF_STATUS_MEDIA_DISCONNECT)) {
 				spin_lock_irqsave(&etdev->Lock, flags);
 				etdev->MediaState =
 				    NETIF_STATUS_MEDIA_DISCONNECT;
@@ -836,7 +837,8 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 				/*
 				 * NOTE - Is there a way to query this without
 				 * TruePHY?
-				 * && TRU_QueryCoreType(etdev->hTruePhy, 0)== EMI_TRUEPHY_A13O) {
+				 * && TRU_QueryCoreType(etdev->hTruePhy, 0)==
+				 * EMI_TRUEPHY_A13O) {
 				 */
 				u16 Register18;
 

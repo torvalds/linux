@@ -1,7 +1,9 @@
 #ifndef __LINUX_SLOB_DEF_H
 #define __LINUX_SLOB_DEF_H
 
-#ifndef ARCH_KMALLOC_MINALIGN
+#ifdef ARCH_DMA_MINALIGN
+#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
+#else
 #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long)
 #endif
 

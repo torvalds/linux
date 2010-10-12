@@ -16,6 +16,7 @@
 #include <linux/io.h>
 
 #include <mach/regs-icu.h>
+#include <mach/mmp2.h>
 
 #include "common.h"
 

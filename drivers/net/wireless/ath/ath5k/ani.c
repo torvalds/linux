@@ -74,8 +74,8 @@ ath5k_ani_set_noise_immunity_level(struct ath5k_hw *ah, int level)
 	const s8 fr[] = { -78, -80 };
 #endif
 	if (level < 0 || level >= ARRAY_SIZE(sz)) {
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
-			"level out of range %d", level);
+		ATH5K_ERR(ah->ah_sc, "noise immuniy level %d out of range",
+			  level);
 		return;
 	}
 
@@ -106,8 +106,8 @@ ath5k_ani_set_spur_immunity_level(struct ath5k_hw *ah, int level)
 
 	if (level < 0 || level >= ARRAY_SIZE(val) ||
 	    level > ah->ah_sc->ani_state.max_spur_level) {
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
-			"level out of range %d", level);
+		ATH5K_ERR(ah->ah_sc, "spur immunity level %d out of range",
+			  level);
 		return;
 	}
 
@@ -130,8 +130,7 @@ ath5k_ani_set_firstep_level(struct ath5k_hw *ah, int level)
 	const int val[] = { 0, 4, 8 };
 
 	if (level < 0 || level >= ARRAY_SIZE(val)) {
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
-			"level out of range %d", level);
+		ATH5K_ERR(ah->ah_sc, "firstep level %d out of range", level);
 		return;
 	}
 
@@ -481,13 +480,14 @@ ath5k_ani_calibration(struct ath5k_hw *ah)
 	struct ath5k_ani_state *as = &ah->ah_sc->ani_state;
 	int listen, ofdm_high, ofdm_low, cck_high, cck_low;
 
-	if (as->ani_mode != ATH5K_ANI_MODE_AUTO)
-		return;
-
 	/* get listen time since last call and add it to the counter because we
-	 * might not have restarted the "ani period" last time */
+	 * might not have restarted the "ani period" last time.
+	 * always do this to calculate the busy time also in manual mode */
 	listen = ath5k_hw_ani_get_listen_time(ah, as);
 	as->listen_time += listen;
+
+	if (as->ani_mode != ATH5K_ANI_MODE_AUTO)
+		return;
 
 	ath5k_ani_save_and_clear_phy_errors(ah, as);
 

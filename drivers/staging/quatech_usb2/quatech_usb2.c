@@ -258,8 +258,6 @@ static int qt2_box_get_register(struct usb_serial *serial,
 static int qt2_box_set_register(struct usb_serial *serial,
 		unsigned short Uart_Number, unsigned short Register_Num,
 		unsigned short Value);
-static int qt2_box_flush(struct usb_serial *serial,  unsigned char uart_number,
-		unsigned short rcv_or_xmit);
 static int qt2_boxsetuart(struct usb_serial *serial, unsigned short Uart_Number,
 		unsigned short default_divisor, unsigned char default_LCR);
 static int qt2_boxsethw_flowctl(struct usb_serial *serial,
@@ -644,9 +642,6 @@ static void qt2_close(struct usb_serial_port *port)
 	dev_extra = qt2_get_dev_private(serial);
 	/* get the device private data */
 	port_extra = qt2_get_port_private(port); /* port private data */
-
-	/* we don't need to force flush though the hardware, so we skip using
-	 * qt2_box_flush() here */
 
 	/* we can now (and only now) stop reading data */
 	port_extra->close_pending = true;
@@ -1841,24 +1836,6 @@ static int qt2_box_set_register(struct usb_serial *serial,
 	return result;
 }
 
-
-/** @brief Request the Tx or Rx buffers on the USB side be flushed
- *
- * Tx flush: When all the currently buffered data has been sent, send an escape
- * sequence back up the data stream to us
- * Rx flush: add a flag in the data stream now so we know when it's made it's
- * way up to us.
- */
-static int qt2_box_flush(struct usb_serial *serial,  unsigned char uart_number,
-		    unsigned short rcv_or_xmit)
-{
-	int result;
-	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-		QT2_FLUSH_DEVICE, 0x40, rcv_or_xmit, uart_number, NULL, 0,
-		300);
-	return result;
-}
-
 /** qt2_boxsetuart - Issue a SET_UART vendor-spcific request on the default
  * control pipe. If successful sets baud rate divisor and LCR value.
  */
@@ -1873,6 +1850,7 @@ static int qt2_boxsetuart(struct usb_serial *serial, unsigned short Uart_Number,
 			QT2_GET_SET_UART, 0x40, default_divisor, UartNumandLCR,
 			NULL, 0, 300);
 }
+
 /** qt2_boxsethw_flowctl - Turn hardware (RTS/CTS) flow control on and off for
  * a hardware UART.
  */

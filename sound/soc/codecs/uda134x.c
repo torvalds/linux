@@ -28,19 +28,6 @@
 #include "uda134x.h"
 
 
-#define POWER_OFF_ON_STANDBY 1
-/*
-  ALSA SOC usually puts the device in standby mode when it's not used
-  for sometime. If you define POWER_OFF_ON_STANDBY the driver will
-  turn off the ADC/DAC when this callback is invoked and turn it back
-  on when needed. Unfortunately this will result in a very light bump
-  (it can be audible only with good earphones). If this bothers you
-  just comment this line, you will have slightly higher power
-  consumption . Please note that sending the L3 command for ADC is
-  enough to make the bump, so it doesn't make difference if you
-  completely take off power from the codec.
- */
-
 #define UDA134X_RATES SNDRV_PCM_RATE_8000_48000
 #define UDA134X_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
 		SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
@@ -58,7 +45,7 @@ static const char uda134x_reg[UDA134X_REGS_NUM] = {
 	/* Extended address registers */
 	0x04, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 	/* Status, data regs */
-	0x00, 0x83, 0x00, 0x40, 0x80, 0x00,
+	0x00, 0x83, 0x00, 0x40, 0x80, 0xC0, 0x00,
 };
 
 /*
@@ -117,6 +104,7 @@ static int uda134x_write(struct snd_soc_codec *codec, unsigned int reg,
 	case UDA134X_DATA000:
 	case UDA134X_DATA001:
 	case UDA134X_DATA010:
+	case UDA134X_DATA011:
 		addr = UDA134X_DATA0_ADDR;
 		break;
 	case UDA134X_DATA1:
@@ -353,8 +341,22 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		/* ADC, DAC on */
-		reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
-		uda134x_write(codec, UDA134X_STATUS1, reg | 0x03);
+		switch (pd->model) {
+		case UDA134X_UDA1340:
+		case UDA134X_UDA1344:
+		case UDA134X_UDA1345:
+			reg = uda134x_read_reg_cache(codec, UDA134X_DATA011);
+			uda134x_write(codec, UDA134X_DATA011, reg | 0x03);
+			break;
+		case UDA134X_UDA1341:
+			reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
+			uda134x_write(codec, UDA134X_STATUS1, reg | 0x03);
+			break;
+		default:
+			printk(KERN_ERR "UDA134X SoC codec: "
+			       "unsupported model %d\n", pd->model);
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		/* power on */
@@ -367,8 +369,22 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* ADC, DAC power off */
-		reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
-		uda134x_write(codec, UDA134X_STATUS1, reg & ~(0x03));
+		switch (pd->model) {
+		case UDA134X_UDA1340:
+		case UDA134X_UDA1344:
+		case UDA134X_UDA1345:
+			reg = uda134x_read_reg_cache(codec, UDA134X_DATA011);
+			uda134x_write(codec, UDA134X_DATA011, reg & ~(0x03));
+			break;
+		case UDA134X_UDA1341:
+			reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
+			uda134x_write(codec, UDA134X_STATUS1, reg & ~(0x03));
+			break;
+		default:
+			printk(KERN_ERR "UDA134X SoC codec: "
+			       "unsupported model %d\n", pd->model);
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* power off */
@@ -531,9 +547,7 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 	codec->num_dai = 1;
 	codec->read = uda134x_read_reg_cache;
 	codec->write = uda134x_write;
-#ifdef POWER_OFF_ON_STANDBY
-	codec->set_bias_level = uda134x_set_bias_level;
-#endif
+
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
@@ -543,6 +557,14 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 		pd->power(1);
 
 	uda134x_reset(codec);
+
+	if (pd->is_powered_on_standby) {
+		codec->set_bias_level = NULL;
+		uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
+	} else {
+		codec->set_bias_level = uda134x_set_bias_level;
+		uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	}
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);

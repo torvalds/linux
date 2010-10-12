@@ -75,6 +75,13 @@ config MACH_OPENRD_CLIENT
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell OpenRD Client Board.
 
+config MACH_OPENRD_ULTIMATE
+	bool "Marvell OpenRD Ultimate Board"
+	select MACH_OPENRD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell OpenRD Ultimate Board.
+
 config MACH_NETSPACE_V2
 	bool "LaCie Network Space v2 NAS Board"
 	help
@@ -87,6 +94,12 @@ config MACH_INETSPACE_V2
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie Internet Space v2 NAS.
 
+config MACH_NETSPACE_MAX_V2
+	bool "LaCie Network Space Max v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie Network Space Max v2 NAS.
+
 config MACH_NET2BIG_V2
 	bool "LaCie 2Big Network v2 NAS Board"
 	help
@@ -98,6 +111,12 @@ config MACH_NET5BIG_V2
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie 5Big Network v2 NAS.
+
+config MACH_T5325
+	bool "HP t5325 Thin Client"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  HP t5325 Thin Client.
 
 endmenu
 

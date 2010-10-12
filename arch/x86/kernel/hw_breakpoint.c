@@ -208,6 +208,9 @@ int arch_bp_generic_fields(int x86_len, int x86_type,
 {
 	/* Len */
 	switch (x86_len) {
+	case X86_BREAKPOINT_LEN_X:
+		*gen_len = sizeof(long);
+		break;
 	case X86_BREAKPOINT_LEN_1:
 		*gen_len = HW_BREAKPOINT_LEN_1;
 		break;
@@ -251,6 +254,29 @@ static int arch_build_bp_info(struct perf_event *bp)
 
 	info->address = bp->attr.bp_addr;
 
+	/* Type */
+	switch (bp->attr.bp_type) {
+	case HW_BREAKPOINT_W:
+		info->type = X86_BREAKPOINT_WRITE;
+		break;
+	case HW_BREAKPOINT_W | HW_BREAKPOINT_R:
+		info->type = X86_BREAKPOINT_RW;
+		break;
+	case HW_BREAKPOINT_X:
+		info->type = X86_BREAKPOINT_EXECUTE;
+		/*
+		 * x86 inst breakpoints need to have a specific undefined len.
+		 * But we still need to check userspace is not trying to setup
+		 * an unsupported length, to get a range breakpoint for example.
+		 */
+		if (bp->attr.bp_len == sizeof(long)) {
+			info->len = X86_BREAKPOINT_LEN_X;
+			return 0;
+		}
+	default:
+		return -EINVAL;
+	}
+
 	/* Len */
 	switch (bp->attr.bp_len) {
 	case HW_BREAKPOINT_LEN_1:
@@ -267,21 +293,6 @@ static int arch_build_bp_info(struct perf_event *bp)
 		info->len = X86_BREAKPOINT_LEN_8;
 		break;
 #endif
-	default:
-		return -EINVAL;
-	}
-
-	/* Type */
-	switch (bp->attr.bp_type) {
-	case HW_BREAKPOINT_W:
-		info->type = X86_BREAKPOINT_WRITE;
-		break;
-	case HW_BREAKPOINT_W | HW_BREAKPOINT_R:
-		info->type = X86_BREAKPOINT_RW;
-		break;
-	case HW_BREAKPOINT_X:
-		info->type = X86_BREAKPOINT_EXECUTE;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -305,6 +316,9 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	ret = -EINVAL;
 
 	switch (info->len) {
+	case X86_BREAKPOINT_LEN_X:
+		align = sizeof(long) -1;
+		break;
 	case X86_BREAKPOINT_LEN_1:
 		align = 0;
 		break;
@@ -465,6 +479,13 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 		}
 
 		perf_bp_event(bp, args->regs);
+
+		/*
+		 * Set up resume flag to avoid breakpoint recursion when
+		 * returning back to origin.
+		 */
+		if (bp->hw.info.type == X86_BREAKPOINT_EXECUTE)
+			args->regs->flags |= X86_EFLAGS_RF;
 
 		rcu_read_unlock();
 	}

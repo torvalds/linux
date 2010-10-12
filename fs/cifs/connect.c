@@ -48,6 +48,7 @@
 #include "nterr.h"
 #include "rfc1002pdu.h"
 #include "cn_cifs.h"
+#include "fscache.h"
 
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
@@ -66,6 +67,7 @@ struct smb_vol {
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[16]; /* netbios name of client */
 	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
+	uid_t cred_uid;
 	uid_t linux_uid;
 	gid_t linux_gid;
 	mode_t file_mode;
@@ -97,6 +99,7 @@ struct smb_vol {
 	bool noblocksnd:1;
 	bool noautotune:1;
 	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
+	bool fsc:1;	/* enable fscache */
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -830,7 +833,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 	/* null target name indicates to use *SMBSERVR default called name
 	   if we end up sending RFC1001 session initialize */
 	vol->target_rfc1001_name[0] = 0;
-	vol->linux_uid = current_uid();  /* use current_euid() instead? */
+	vol->cred_uid = current_uid();
+	vol->linux_uid = current_uid();
 	vol->linux_gid = current_gid();
 
 	/* default to only allowing write access to owner of the mount */
@@ -1257,6 +1261,12 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if ((strnicmp(data, "nocase", 6) == 0) ||
 			   (strnicmp(data, "ignorecase", 10)  == 0)) {
 			vol->nocase = 1;
+		} else if (strnicmp(data, "mand", 4) == 0) {
+			/* ignore */
+		} else if (strnicmp(data, "nomand", 6) == 0) {
+			/* ignore */
+		} else if (strnicmp(data, "_netdev", 7) == 0) {
+			/* ignore */
 		} else if (strnicmp(data, "brl", 3) == 0) {
 			vol->nobrl =  0;
 		} else if ((strnicmp(data, "nobrl", 5) == 0) ||
@@ -1331,6 +1341,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
+		} else if (strnicmp(data, "fsc", 3) == 0) {
+			vol->fsc = true;
 		} else
 			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
 						data);
@@ -1380,18 +1392,92 @@ cifs_parse_mount_options(char *options, const char *devname,
 	return 0;
 }
 
-static struct TCP_Server_Info *
-cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
+static bool
+match_address(struct TCP_Server_Info *server, struct sockaddr *addr)
 {
-	struct list_head *tmp;
+	struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		if (addr4->sin_addr.s_addr !=
+		    server->addr.sockAddr.sin_addr.s_addr)
+			return false;
+		if (addr4->sin_port &&
+		    addr4->sin_port != server->addr.sockAddr.sin_port)
+			return false;
+		break;
+	case AF_INET6:
+		if (!ipv6_addr_equal(&addr6->sin6_addr,
+				     &server->addr.sockAddr6.sin6_addr))
+			return false;
+		if (addr6->sin6_scope_id !=
+		    server->addr.sockAddr6.sin6_scope_id)
+			return false;
+		if (addr6->sin6_port &&
+		    addr6->sin6_port != server->addr.sockAddr6.sin6_port)
+			return false;
+		break;
+	}
+
+	return true;
+}
+
+static bool
+match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
+{
+	unsigned int secFlags;
+
+	if (vol->secFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
+		secFlags = vol->secFlg;
+	else
+		secFlags = global_secflags | vol->secFlg;
+
+	switch (server->secType) {
+	case LANMAN:
+		if (!(secFlags & (CIFSSEC_MAY_LANMAN|CIFSSEC_MAY_PLNTXT)))
+			return false;
+		break;
+	case NTLMv2:
+		if (!(secFlags & CIFSSEC_MAY_NTLMV2))
+			return false;
+		break;
+	case NTLM:
+		if (!(secFlags & CIFSSEC_MAY_NTLM))
+			return false;
+		break;
+	case Kerberos:
+		if (!(secFlags & CIFSSEC_MAY_KRB5))
+			return false;
+		break;
+	case RawNTLMSSP:
+		if (!(secFlags & CIFSSEC_MAY_NTLMSSP))
+			return false;
+		break;
+	default:
+		/* shouldn't happen */
+		return false;
+	}
+
+	/* now check if signing mode is acceptible */
+	if ((secFlags & CIFSSEC_MAY_SIGN) == 0 &&
+	    (server->secMode & SECMODE_SIGN_REQUIRED))
+			return false;
+	else if (((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) &&
+		 (server->secMode &
+		  (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED)) == 0)
+			return false;
+
+	return true;
+}
+
+static struct TCP_Server_Info *
+cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
+{
 	struct TCP_Server_Info *server;
-	struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
-	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 
 	write_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &cifs_tcp_ses_list) {
-		server = list_entry(tmp, struct TCP_Server_Info,
-				    tcp_ses_list);
+	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
 		/*
 		 * the demux thread can exit on its own while still in CifsNew
 		 * so don't accept any sockets in that state. Since the
@@ -1401,37 +1487,11 @@ cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
 		if (server->tcpStatus == CifsNew)
 			continue;
 
-		switch (addr->ss_family) {
-		case AF_INET:
-			if (addr4->sin_addr.s_addr ==
-			    server->addr.sockAddr.sin_addr.s_addr) {
-				addr4->sin_port = htons(port);
-				/* user overrode default port? */
-				if (addr4->sin_port) {
-					if (addr4->sin_port !=
-					    server->addr.sockAddr.sin_port)
-						continue;
-				}
-				break;
-			} else
-				continue;
+		if (!match_address(server, addr))
+			continue;
 
-		case AF_INET6:
-			if (ipv6_addr_equal(&addr6->sin6_addr,
-			    &server->addr.sockAddr6.sin6_addr) &&
-			    (addr6->sin6_scope_id ==
-			    server->addr.sockAddr6.sin6_scope_id)) {
-				addr6->sin6_port = htons(port);
-				/* user overrode default port? */
-				if (addr6->sin6_port) {
-					if (addr6->sin6_port !=
-					   server->addr.sockAddr6.sin6_port)
-						continue;
-				}
-				break;
-			} else
-				continue;
-		}
+		if (!match_security(server, vol))
+			continue;
 
 		++server->srv_count;
 		write_unlock(&cifs_tcp_ses_lock);
@@ -1460,6 +1520,8 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 	server->tcpStatus = CifsExiting;
 	spin_unlock(&GlobalMid_Lock);
 
+	cifs_fscache_release_client_cookie(server);
+
 	task = xchg(&server->tsk, NULL);
 	if (task)
 		force_sig(SIGKILL, task);
@@ -1479,7 +1541,10 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	cFYI(1, "UNC: %s ip: %s", volume_info->UNC, volume_info->UNCip);
 
 	if (volume_info->UNCip && volume_info->UNC) {
-		rc = cifs_convert_address(volume_info->UNCip, &addr);
+		rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
+					volume_info->UNCip,
+					strlen(volume_info->UNCip),
+					volume_info->port);
 		if (!rc) {
 			/* we failed translating address */
 			rc = -EINVAL;
@@ -1499,7 +1564,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	}
 
 	/* see if we already have a matching tcp_ses */
-	tcp_ses = cifs_find_tcp_session(&addr, volume_info->port);
+	tcp_ses = cifs_find_tcp_session((struct sockaddr *)&addr, volume_info);
 	if (tcp_ses)
 		return tcp_ses;
 
@@ -1543,12 +1608,10 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		cFYI(1, "attempting ipv6 connect");
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
-		sin_server6->sin6_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
 			sizeof(struct sockaddr_in6));
 		rc = ipv6_connect(tcp_ses);
 	} else {
-		sin_server->sin_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
 		rc = ipv4_connect(tcp_ses);
@@ -1577,6 +1640,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	list_add(&tcp_ses->tcp_ses_list, &cifs_tcp_ses_list);
 	write_unlock(&cifs_tcp_ses_lock);
 
+	cifs_fscache_get_client_cookie(tcp_ses);
+
 	return tcp_ses;
 
 out_err:
@@ -1591,17 +1656,27 @@ out_err:
 }
 
 static struct cifsSesInfo *
-cifs_find_smb_ses(struct TCP_Server_Info *server, char *username)
+cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 {
-	struct list_head *tmp;
 	struct cifsSesInfo *ses;
 
 	write_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &server->smb_ses_list) {
-		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
-		if (strncmp(ses->userName, username, MAX_USERNAME_SIZE))
-			continue;
-
+	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+		switch (server->secType) {
+		case Kerberos:
+			if (vol->cred_uid != ses->cred_uid)
+				continue;
+			break;
+		default:
+			/* anything else takes username/password */
+			if (strncmp(ses->userName, vol->username,
+				    MAX_USERNAME_SIZE))
+				continue;
+			if (strlen(vol->username) != 0 &&
+			    strncmp(ses->password, vol->password,
+				    MAX_PASSWORD_SIZE))
+				continue;
+		}
 		++ses->ses_count;
 		write_unlock(&cifs_tcp_ses_lock);
 		return ses;
@@ -1643,7 +1718,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 
 	xid = GetXid();
 
-	ses = cifs_find_smb_ses(server, volume_info->username);
+	ses = cifs_find_smb_ses(server, volume_info);
 	if (ses) {
 		cFYI(1, "Existing smb sess found (status=%d)", ses->status);
 
@@ -1706,6 +1781,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		if (ses->domainName)
 			strcpy(ses->domainName, volume_info->domainname);
 	}
+	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
 	ses->overrideSecFlg = volume_info->secFlg;
 
@@ -1773,6 +1849,7 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	CIFSSMBTDis(xid, tcon);
 	_FreeXid(xid);
 
+	cifs_fscache_release_super_cookie(tcon);
 	tconInfoFree(tcon);
 	cifs_put_smb_ses(ses);
 }
@@ -1842,6 +1919,8 @@ cifs_get_tcon(struct cifsSesInfo *ses, struct smb_vol *volume_info)
 	write_lock(&cifs_tcp_ses_lock);
 	list_add(&tcon->tcon_list, &ses->tcon_list);
 	write_unlock(&cifs_tcp_ses_lock);
+
+	cifs_fscache_get_super_cookie(tcon);
 
 	return tcon;
 
@@ -2397,6 +2476,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
 	if (pvolume_info->dynperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
+	if (pvolume_info->fsc)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_FSCACHE;
 	if (pvolume_info->direct_io) {
 		cFYI(1, "mounting share using direct i/o");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;

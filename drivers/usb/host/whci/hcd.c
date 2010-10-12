@@ -68,7 +68,7 @@ static int whc_start(struct usb_hcd *usb_hcd)
 	whc_write_wusbcmd(whc, WUSBCMD_RUN, WUSBCMD_RUN);
 
 	usb_hcd->uses_new_polling = 1;
-	usb_hcd->poll_rh = 1;
+	set_bit(HCD_FLAG_POLL_RH, &usb_hcd->flags);
 	usb_hcd->state = HC_STATE_RUNNING;
 
 out:

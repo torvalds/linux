@@ -893,7 +893,7 @@ static void ffb_init_fix(struct fb_info *info)
 	info->fix.accel = FB_ACCEL_SUN_CREATOR;
 }
 
-static int __devinit ffb_probe(struct of_device *op,
+static int __devinit ffb_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -1023,7 +1023,7 @@ out_err:
 	return err;
 }
 
-static int __devexit ffb_remove(struct of_device *op)
+static int __devexit ffb_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct ffb_par *par = info->par;
@@ -1067,12 +1067,12 @@ static int __init ffb_init(void)
 	if (fb_get_options("ffb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&ffb_driver, &of_bus_type);
+	return of_register_platform_driver(&ffb_driver);
 }
 
 static void __exit ffb_exit(void)
 {
-	of_unregister_driver(&ffb_driver);
+	of_unregister_platform_driver(&ffb_driver);
 }
 
 module_init(ffb_init);

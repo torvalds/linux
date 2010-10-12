@@ -9,8 +9,7 @@
 #include <hwregs/intr_vect_defs.h>
 #include <asm/irq.h>
 
-void
-show_registers(struct pt_regs *regs)
+void show_registers(struct pt_regs *regs)
 {
 	/*
 	 * It's possible to use either the USP register or current->thread.usp.
@@ -101,8 +100,7 @@ bad_value:
 	}
 }
 
-void
-arch_enable_nmi(void)
+void arch_enable_nmi(void)
 {
 	unsigned long flags;
 

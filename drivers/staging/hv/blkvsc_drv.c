@@ -25,6 +25,7 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -175,8 +176,6 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
 	int ret;
 
-	DPRINT_ENTER(BLKVSC_DRV);
-
 	vmbus_get_interface(&storvsc_drv_obj->Base.VmbusChannelInterface);
 
 	storvsc_drv_obj->RingBufferSize = blkvsc_ringbuffer_size;
@@ -195,8 +194,6 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(drv_ctx);
 
-	DPRINT_EXIT(BLKVSC_DRV);
-
 	return ret;
 }
 
@@ -213,8 +210,6 @@ static void blkvsc_drv_exit(void)
 	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
 	struct device *current_dev;
 	int ret;
-
-	DPRINT_ENTER(BLKVSC_DRV);
 
 	while (1) {
 		current_dev = NULL;
@@ -241,8 +236,6 @@ static void blkvsc_drv_exit(void)
 
 	vmbus_child_driver_unregister(drv_ctx);
 
-	DPRINT_EXIT(BLKVSC_DRV);
-
 	return;
 }
 
@@ -267,8 +260,6 @@ static int blkvsc_probe(struct device *device)
 	int ret = 0;
 	static int ide0_registered;
 	static int ide1_registered;
-
-	DPRINT_ENTER(BLKVSC_DRV);
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_probe - enter");
 
@@ -412,8 +403,6 @@ Cleanup:
 		kfree(blkdev);
 		blkdev = NULL;
 	}
-
-	DPRINT_EXIT(BLKVSC_DRV);
 
 	return ret;
 }
@@ -751,14 +740,10 @@ static int blkvsc_remove(struct device *device)
 	unsigned long flags;
 	int ret;
 
-	DPRINT_ENTER(BLKVSC_DRV);
-
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_remove()\n");
 
-	if (!storvsc_drv_obj->Base.OnDeviceRemove) {
-		DPRINT_EXIT(BLKVSC_DRV);
+	if (!storvsc_drv_obj->Base.OnDeviceRemove)
 		return -1;
-	}
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
@@ -802,8 +787,6 @@ static int blkvsc_remove(struct device *device)
 
 	kfree(blkdev);
 
-	DPRINT_EXIT(BLKVSC_DRV);
-
 	return ret;
 }
 
@@ -823,7 +806,8 @@ static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 			blkvsc_req->cmnd[0] = READ_16;
 		}
 
-		blkvsc_req->cmnd[1] |= blk_fua_rq(blkvsc_req->req) ? 0x8 : 0;
+		blkvsc_req->cmnd[1] |=
+			(blkvsc_req->req->cmd_flags & REQ_FUA) ? 0x8 : 0;
 
 		*(unsigned long long *)&blkvsc_req->cmnd[2] =
 				cpu_to_be64(blkvsc_req->sector_start);
@@ -839,7 +823,8 @@ static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 			blkvsc_req->cmnd[0] = READ_10;
 		}
 
-		blkvsc_req->cmnd[1] |= blk_fua_rq(blkvsc_req->req) ? 0x8 : 0;
+		blkvsc_req->cmnd[1] |=
+			(blkvsc_req->req->cmd_flags & REQ_FUA) ? 0x8 : 0;
 
 		*(unsigned int *)&blkvsc_req->cmnd[2] =
 				cpu_to_be32(blkvsc_req->sector_start);
@@ -1286,7 +1271,7 @@ static void blkvsc_request(struct request_queue *queue)
 		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
 
 		blkdev = req->rq_disk->private_data;
-		if (blkdev->shutting_down || !blk_fs_request(req) ||
+		if (blkdev->shutting_down || req->cmd_type != REQ_TYPE_FS ||
 		    blkdev->media_not_present) {
 			__blk_end_request_cur(req, 0);
 			continue;
@@ -1324,6 +1309,7 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
 		   blkdev->gd->disk_name);
 
+	lock_kernel();
 	spin_lock(&blkdev->lock);
 
 	if (!blkdev->users && blkdev->device_type == DVD_TYPE) {
@@ -1335,6 +1321,7 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 	blkdev->users++;
 
 	spin_unlock(&blkdev->lock);
+	unlock_kernel();
 	return 0;
 }
 
@@ -1345,6 +1332,7 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
 		   blkdev->gd->disk_name);
 
+	lock_kernel();
 	spin_lock(&blkdev->lock);
 	if (blkdev->users == 1) {
 		spin_unlock(&blkdev->lock);
@@ -1355,6 +1343,7 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	blkdev->users--;
 
 	spin_unlock(&blkdev->lock);
+	unlock_kernel();
 	return 0;
 }
 
@@ -1492,22 +1481,16 @@ static int __init blkvsc_init(void)
 
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
 
-	DPRINT_ENTER(BLKVSC_DRV);
-
 	DPRINT_INFO(BLKVSC_DRV, "Blkvsc initializing....");
 
 	ret = blkvsc_drv_init(BlkVscInitialize);
-
-	DPRINT_EXIT(BLKVSC_DRV);
 
 	return ret;
 }
 
 static void __exit blkvsc_exit(void)
 {
-	DPRINT_ENTER(BLKVSC_DRV);
 	blkvsc_drv_exit();
-	DPRINT_ENTER(BLKVSC_DRV);
 }
 
 MODULE_LICENSE("GPL");

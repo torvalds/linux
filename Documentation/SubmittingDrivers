@@ -161,7 +161,7 @@ How to NOT write kernel driver by Arjan van de Ven:
 	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
 
 Kernel Janitor:
-	http://janitor.kernelnewbies.org/
+	http://kernelnewbies.org/KernelJanitors
 
 GIT, Fast Version Control System:
 	http://git-scm.com/

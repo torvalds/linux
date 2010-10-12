@@ -136,8 +136,6 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 
 	bug = find_bug(bugaddr);
 
-	printk(KERN_EMERG "------------[ cut here ]------------\n");
-
 	file = NULL;
 	line = 0;
 	warning = 0;
@@ -156,18 +154,24 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 
 	if (warning) {
 		/* this is a WARN_ON rather than BUG/BUG_ON */
+		printk(KERN_WARNING "------------[ cut here ]------------\n");
+
 		if (file)
-			printk(KERN_ERR "Badness at %s:%u\n",
+			printk(KERN_WARNING "WARNING: at %s:%u\n",
 			       file, line);
 		else
-			printk(KERN_ERR "Badness at %p "
+			printk(KERN_WARNING "WARNING: at %p "
 			       "[verbose debug info unavailable]\n",
 			       (void *)bugaddr);
 
+		print_modules();
 		show_regs(regs);
+		print_oops_end_marker();
 		add_taint(BUG_GET_TAINT(bug));
 		return BUG_TRAP_TYPE_WARN;
 	}
+
+	printk(KERN_EMERG "------------[ cut here ]------------\n");
 
 	if (file)
 		printk(KERN_CRIT "kernel BUG at %s:%u!\n",

@@ -121,7 +121,7 @@ static int m41t80_get_datetime(struct i2c_client *client,
 
 	/* assume 20YY not 19YY, and ignore the Century Bit */
 	tm->tm_year = bcd2bin(buf[M41T80_REG_YEAR]) + 100;
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 /* Sets the given date and time to the real time clock. */
@@ -364,7 +364,7 @@ static int m41t80_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	t->time.tm_isdst = -1;
 	t->enabled = !!(reg[M41T80_REG_ALARM_MON] & M41T80_ALMON_AFE);
 	t->pending = !!(reg[M41T80_REG_FLAGS] & M41T80_FLAGS_AF);
-	return 0;
+	return rtc_valid_tm(t);
 }
 
 static struct rtc_class_ops m41t80_rtc_ops = {

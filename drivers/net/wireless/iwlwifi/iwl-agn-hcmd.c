@@ -37,7 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-agn.h"
 
-static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl5000_rxon_assoc_cmd rxon_assoc;
@@ -84,7 +84,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
 	  .valid = cpu_to_le32(valid_tx_ant),
@@ -164,7 +164,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_gain_cmd;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;
 		cmd.hdr.data_valid = 1;
@@ -176,14 +176,6 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 		data->radio_write = 1;
 		data->state = IWL_CHAIN_NOISE_CALIBRATED;
 	}
-
-	data->chain_noise_a = 0;
-	data->chain_noise_b = 0;
-	data->chain_noise_c = 0;
-	data->chain_signal_a = 0;
-	data->chain_signal_b = 0;
-	data->chain_signal_c = 0;
-	data->beacon_count = 0;
 }
 
 static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
@@ -191,11 +183,21 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	     iwl_is_associated(priv)) {
 		struct iwl_calib_chain_noise_reset_cmd cmd;
-		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
+
+		memset(&cmd, 0, sizeof(cmd));
+		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_reset_cmd;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;
 		cmd.hdr.data_valid = 1;
@@ -209,10 +211,21 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	}
 }
 
-static void iwlagn_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
-			__le32 *tx_flags)
+static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
+				     struct ieee80211_tx_info *info,
+				     __le16 fc, __le32 *tx_flags)
 {
-	*tx_flags |= TX_CMD_FLG_RTS_CTS_MSK;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS ||
+	    info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
+		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
+		return;
+	}
+
+	if (priv->cfg->use_rts_for_aggregation &&
+	    info->flags & IEEE80211_TX_CTL_AMPDU) {
+		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
+		return;
+	}
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
@@ -266,7 +279,7 @@ struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
 	.build_addsta_hcmd = iwlagn_build_addsta_hcmd,
 	.gain_computation = iwlagn_gain_computation,
 	.chain_noise_reset = iwlagn_chain_noise_reset,
-	.rts_tx_cmd_flag = iwlagn_rts_tx_cmd_flag,
+	.tx_cmd_protection = iwlagn_tx_cmd_protection,
 	.calc_rssi = iwlagn_calc_rssi,
 	.request_scan = iwlagn_request_scan,
 };

@@ -22,7 +22,7 @@ struct cflayer *cfdbgl_create(u8 channel_id, struct dev_info *dev_info)
 	}
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);
 	memset(dbg, 0, sizeof(struct cfsrvl));
-	cfsrvl_init(dbg, channel_id, dev_info);
+	cfsrvl_init(dbg, channel_id, dev_info, false);
 	dbg->layer.receive = cfdbgl_receive;
 	dbg->layer.transmit = cfdbgl_transmit;
 	snprintf(dbg->layer.name, CAIF_LAYER_NAME_SZ - 1, "dbg%d", channel_id);

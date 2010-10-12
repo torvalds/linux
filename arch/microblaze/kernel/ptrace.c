@@ -38,6 +38,8 @@
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/asm-offsets.h>
+#include <asm/cacheflush.h>
+#include <asm/io.h>
 
 /* Returns the address where the register at REG_OFFS in P is stashed away. */
 static microblaze_reg_t *reg_save_addr(unsigned reg_offs,
@@ -101,8 +103,21 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			microblaze_reg_t *reg_addr = reg_save_addr(addr, child);
 			if (request == PTRACE_PEEKUSR)
 				val = *reg_addr;
-			else
+			else {
+#if 1
 				*reg_addr = data;
+#else
+				/* MS potential problem on WB system
+				 * Be aware that reg_addr is virtual address
+				 * virt_to_phys conversion is necessary.
+				 * This could be sensible solution.
+				 */
+				u32 paddr = virt_to_phys((u32)reg_addr);
+				invalidate_icache_range(paddr, paddr + 4);
+				*reg_addr = data;
+				flush_dcache_range(paddr, paddr + 4);
+#endif
+			}
 		} else
 			rval = -EIO;
 

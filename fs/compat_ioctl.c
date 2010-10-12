@@ -4,7 +4,7 @@
  * Copyright (C) 1997-2000  Jakub Jelinek  (jakub@redhat.com)
  * Copyright (C) 1998  Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 2001,2002  Andi Kleen, SuSE Labs 
- * Copyright (C) 2003       Pavel Machek (pavel@suse.cz)
+ * Copyright (C) 2003       Pavel Machek (pavel@ucw.cz)
  *
  * These routines maintain argument size conversion between 32bit and 64bit
  * ioctls.
@@ -123,23 +123,6 @@ static int w_long(unsigned int fd, unsigned int cmd,
 	int err;
 	unsigned long val;
 
-	set_fs (KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long)&val);
-	set_fs (old_fs);
-	if (!err && put_user(val, argp))
-		return -EFAULT;
-	return err;
-}
-
-static int rw_long(unsigned int fd, unsigned int cmd,
-		compat_ulong_t __user *argp)
-{
-	mm_segment_t old_fs = get_fs();
-	int err;
-	unsigned long val;
-
-	if(get_user(val, argp))
-		return -EFAULT;
 	set_fs (KERNEL_DS);
 	err = sys_ioctl(fd, cmd, (unsigned long)&val);
 	set_fs (old_fs);
@@ -594,15 +577,12 @@ static int do_smb_getmountuid(unsigned int fd, unsigned int cmd,
 	return err;
 }
 
-static int ioc_settimeout(unsigned int fd, unsigned int cmd,
-		compat_ulong_t __user *argp)
-{
-	return rw_long(fd, AUTOFS_IOC_SETTIMEOUT, argp);
-}
-
 /* Bluetooth ioctls */
-#define HCIUARTSETPROTO	_IOW('U', 200, int)
-#define HCIUARTGETPROTO	_IOR('U', 201, int)
+#define HCIUARTSETPROTO		_IOW('U', 200, int)
+#define HCIUARTGETPROTO		_IOR('U', 201, int)
+#define HCIUARTGETDEVICE	_IOR('U', 202, int)
+#define HCIUARTSETFLAGS		_IOW('U', 203, int)
+#define HCIUARTGETFLAGS		_IOR('U', 204, int)
 
 #define BNEPCONNADD	_IOW('B', 200, int)
 #define BNEPCONNDEL	_IOW('B', 201, int)
@@ -966,6 +946,7 @@ COMPATIBLE_IOCTL(TIOCGPGRP)
 COMPATIBLE_IOCTL(TIOCGPTN)
 COMPATIBLE_IOCTL(TIOCSPTLCK)
 COMPATIBLE_IOCTL(TIOCSERGETLSR)
+COMPATIBLE_IOCTL(TIOCSIG)
 #ifdef TCGETS2
 COMPATIBLE_IOCTL(TCGETS2)
 COMPATIBLE_IOCTL(TCSETS2)
@@ -1281,13 +1262,6 @@ COMPATIBLE_IOCTL(SOUND_MIXER_PRIVATE5)
 COMPATIBLE_IOCTL(SOUND_MIXER_GETLEVELS)
 COMPATIBLE_IOCTL(SOUND_MIXER_SETLEVELS)
 COMPATIBLE_IOCTL(OSS_GETVERSION)
-/* AUTOFS */
-COMPATIBLE_IOCTL(AUTOFS_IOC_CATATONIC)
-COMPATIBLE_IOCTL(AUTOFS_IOC_PROTOVER)
-COMPATIBLE_IOCTL(AUTOFS_IOC_EXPIRE)
-COMPATIBLE_IOCTL(AUTOFS_IOC_EXPIRE_MULTI)
-COMPATIBLE_IOCTL(AUTOFS_IOC_PROTOSUBVER)
-COMPATIBLE_IOCTL(AUTOFS_IOC_ASKUMOUNT)
 /* Raw devices */
 COMPATIBLE_IOCTL(RAW_SETBIND)
 COMPATIBLE_IOCTL(RAW_GETBIND)
@@ -1328,6 +1302,8 @@ COMPATIBLE_IOCTL(HCISETLINKPOL)
 COMPATIBLE_IOCTL(HCISETLINKMODE)
 COMPATIBLE_IOCTL(HCISETACLMTU)
 COMPATIBLE_IOCTL(HCISETSCOMTU)
+COMPATIBLE_IOCTL(HCIBLOCKADDR)
+COMPATIBLE_IOCTL(HCIUNBLOCKADDR)
 COMPATIBLE_IOCTL(HCIINQUIRY)
 COMPATIBLE_IOCTL(HCIUARTSETPROTO)
 COMPATIBLE_IOCTL(HCIUARTGETPROTO)
@@ -1552,9 +1528,6 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 	case RAW_GETBIND:
 		return raw_ioctl(fd, cmd, argp);
 #endif
-#define AUTOFS_IOC_SETTIMEOUT32 _IOWR(0x93,0x64,unsigned int)
-	case AUTOFS_IOC_SETTIMEOUT32:
-		return ioc_settimeout(fd, cmd, argp);
 	/* One SMB ioctl needs translations. */
 #define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)
 	case SMB_IOC_GETMOUNTUID_32:
@@ -1609,9 +1582,6 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 	case KDSKBMETA:
 	case KDSKBLED:
 	case KDSETLED:
-	/* AUTOFS */
-	case AUTOFS_IOC_READY:
-	case AUTOFS_IOC_FAIL:
 	/* NBD */
 	case NBD_SET_SOCK:
 	case NBD_SET_BLKSIZE:
@@ -1729,8 +1699,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				goto out_fput;
 		}
 
-		if (!filp->f_op ||
-		    (!filp->f_op->ioctl && !filp->f_op->unlocked_ioctl))
+		if (!filp->f_op || !filp->f_op->unlocked_ioctl)
 			goto do_ioctl;
 		break;
 	}

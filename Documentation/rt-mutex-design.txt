@@ -364,7 +364,7 @@ process this is rather easy to know what needs to be adjusted.
 
 The functions implementing the task adjustments are rt_mutex_adjust_prio,
 __rt_mutex_adjust_prio (same as the former, but expects the task pi_lock
-to already be taken), rt_mutex_get_prio, and rt_mutex_setprio.
+to already be taken), rt_mutex_getprio, and rt_mutex_setprio.
 
 rt_mutex_getprio and rt_mutex_setprio are only used in __rt_mutex_adjust_prio.
 

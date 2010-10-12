@@ -34,7 +34,7 @@
 #define PRID_COMP_LSI		0x080000
 #define PRID_COMP_LEXRA		0x0b0000
 #define PRID_COMP_CAVIUM	0x0d0000
-
+#define PRID_COMP_INGENIC	0xd00000
 
 /*
  * Assigned values for the product ID register.  In order to detect a
@@ -133,6 +133,12 @@
 #define PRID_IMP_CAVIUM_CN52XX 0x0700
 
 /*
+ * These are the PRID's for when 23:16 == PRID_COMP_INGENIC
+ */
+
+#define PRID_IMP_JZRISC        0x0200
+
+/*
  * Definitions for 7:0 on legacy processors
  */
 
@@ -219,6 +225,7 @@ enum cpu_type_enum {
 	CPU_4KC, CPU_4KEC, CPU_4KSC, CPU_24K, CPU_34K, CPU_1004K, CPU_74K,
 	CPU_ALCHEMY, CPU_PR4450, CPU_BCM3302, CPU_BCM4710,
 	CPU_BCM6338, CPU_BCM6345, CPU_BCM6348, CPU_BCM6358,
+	CPU_JZRISC,
 
 	/*
 	 * MIPS64 class processors

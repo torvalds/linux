@@ -35,7 +35,7 @@ static int cmx2xx_it8152_irq_gpio;
  * This is really ugly and we need a better way of specifying
  * DMA-capable regions of memory.
  */
-void __init cmx2xx_pci_adjust_zones(int node, unsigned long *zone_size,
+void __init cmx2xx_pci_adjust_zones(unsigned long *zone_size,
 	unsigned long *zhole_size)
 {
 	unsigned int sz = SZ_64M >> PAGE_SHIFT;
@@ -46,7 +46,7 @@ void __init cmx2xx_pci_adjust_zones(int node, unsigned long *zone_size,
 		/*
 		 * Only adjust if > 64M on current system
 		 */
-		if (node || (zone_size[0] <= sz))
+		if (zone_size[0] <= sz)
 			return;
 
 		zone_size[1] = zone_size[0] - sz;

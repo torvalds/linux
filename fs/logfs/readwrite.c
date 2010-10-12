@@ -1972,31 +1972,6 @@ static struct page *inode_to_page(struct inode *inode)
 	return page;
 }
 
-/* Cheaper version of write_inode.  All changes are concealed in
- * aliases, which are moved back.  No write to the medium happens.
- */
-void logfs_clear_inode(struct inode *inode)
-{
-	struct super_block *sb = inode->i_sb;
-	struct logfs_inode *li = logfs_inode(inode);
-	struct logfs_block *block = li->li_block;
-	struct page *page;
-
-	/* Only deleted files may be dirty at this point */
-	BUG_ON(inode->i_state & I_DIRTY && inode->i_nlink);
-	if (!block)
-		return;
-	if ((logfs_super(sb)->s_flags & LOGFS_SB_FLAG_SHUTDOWN)) {
-		block->ops->free_block(inode->i_sb, block);
-		return;
-	}
-
-	BUG_ON(inode->i_ino < LOGFS_RESERVED_INOS);
-	page = inode_to_page(inode);
-	BUG_ON(!page); /* FIXME: Use emergency page */
-	logfs_put_write_page(page);
-}
-
 static int do_write_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
@@ -2164,18 +2139,40 @@ static int do_delete_inode(struct inode *inode)
  * ZOMBIE inodes have already been deleted before and should remain dead,
  * if it weren't for valid checking.  No need to kill them again here.
  */
-void logfs_delete_inode(struct inode *inode)
+void logfs_evict_inode(struct inode *inode)
 {
+	struct super_block *sb = inode->i_sb;
 	struct logfs_inode *li = logfs_inode(inode);
+	struct logfs_block *block = li->li_block;
+	struct page *page;
 
-	if (!(li->li_flags & LOGFS_IF_ZOMBIE)) {
-		li->li_flags |= LOGFS_IF_ZOMBIE;
-		if (i_size_read(inode) > 0)
-			logfs_truncate(inode, 0);
-		do_delete_inode(inode);
+	if (!inode->i_nlink) {
+		if (!(li->li_flags & LOGFS_IF_ZOMBIE)) {
+			li->li_flags |= LOGFS_IF_ZOMBIE;
+			if (i_size_read(inode) > 0)
+				logfs_truncate(inode, 0);
+			do_delete_inode(inode);
+		}
 	}
 	truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
+	end_writeback(inode);
+
+	/* Cheaper version of write_inode.  All changes are concealed in
+	 * aliases, which are moved back.  No write to the medium happens.
+	 */
+	/* Only deleted files may be dirty at this point */
+	BUG_ON(inode->i_state & I_DIRTY && inode->i_nlink);
+	if (!block)
+		return;
+	if ((logfs_super(sb)->s_flags & LOGFS_SB_FLAG_SHUTDOWN)) {
+		block->ops->free_block(inode->i_sb, block);
+		return;
+	}
+
+	BUG_ON(inode->i_ino < LOGFS_RESERVED_INOS);
+	page = inode_to_page(inode);
+	BUG_ON(!page); /* FIXME: Use emergency page */
+	logfs_put_write_page(page);
 }
 
 void btree_write_block(struct logfs_block *block)
@@ -2272,7 +2269,6 @@ void logfs_cleanup_rw(struct super_block *sb)
 {
 	struct logfs_super *super = logfs_super(sb);
 
-	destroy_meta_inode(super->s_segfile_inode);
 	logfs_mempool_destroy(super->s_block_pool);
 	logfs_mempool_destroy(super->s_shadow_pool);
 }

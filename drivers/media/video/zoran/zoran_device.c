@@ -484,7 +484,7 @@ zr36057_overlay (struct zoran *zr,
 				zr->overlay_settings.format);
 
 		/* Start and length of each line MUST be 4-byte aligned.
-		 * This should be allready checked before the call to this routine.
+		 * This should be already checked before the call to this routine.
 		 * All error messages are internal driver checking only! */
 
 		/* video display top and bottom registers */

@@ -11,6 +11,7 @@
 #include <linux/types.h>
 
 #define DM_DIR "mapper"		/* Slashes not supported */
+#define DM_CONTROL_NODE "control"
 #define DM_MAX_TYPE_NAME 16
 #define DM_NAME_LEN 128
 #define DM_UUID_LEN 129
@@ -266,9 +267,9 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	17
+#define DM_VERSION_MINOR	18
 #define DM_VERSION_PATCHLEVEL	0
-#define DM_VERSION_EXTRA	"-ioctl (2010-03-05)"
+#define DM_VERSION_EXTRA	"-ioctl (2010-06-29)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */

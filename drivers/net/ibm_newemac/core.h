@@ -170,12 +170,12 @@ struct emac_instance {
 	struct net_device		*ndev;
 	struct resource			rsrc_regs;
 	struct emac_regs		__iomem *emacp;
-	struct of_device		*ofdev;
+	struct platform_device		*ofdev;
 	struct device_node		**blist; /* bootlist entry */
 
 	/* MAL linkage */
 	u32				mal_ph;
-	struct of_device		*mal_dev;
+	struct platform_device		*mal_dev;
 	u32				mal_rx_chan;
 	u32				mal_tx_chan;
 	struct mal_instance		*mal;
@@ -196,24 +196,24 @@ struct emac_instance {
 
 	/* Shared MDIO if any */
 	u32				mdio_ph;
-	struct of_device		*mdio_dev;
+	struct platform_device		*mdio_dev;
 	struct emac_instance		*mdio_instance;
 	struct mutex			mdio_lock;
 
 	/* ZMII infos if any */
 	u32				zmii_ph;
 	u32				zmii_port;
-	struct of_device		*zmii_dev;
+	struct platform_device		*zmii_dev;
 
 	/* RGMII infos if any */
 	u32				rgmii_ph;
 	u32				rgmii_port;
-	struct of_device		*rgmii_dev;
+	struct platform_device		*rgmii_dev;
 
 	/* TAH infos if any */
 	u32				tah_ph;
 	u32				tah_port;
-	struct of_device		*tah_dev;
+	struct platform_device		*tah_dev;
 
 	/* IRQs */
 	int				wol_irq;

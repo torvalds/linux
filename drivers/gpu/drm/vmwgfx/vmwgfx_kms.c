@@ -737,7 +737,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 	if (ret) {
 		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 	return &vfb->base;
 
@@ -747,7 +747,7 @@ try_dmabuf:
 	ret = vmw_user_dmabuf_lookup(tfile, mode_cmd->handle, &bo);
 	if (ret) {
 		DRM_ERROR("failed to find buffer: %i\n", ret);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
 
 	ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
@@ -758,7 +758,7 @@ try_dmabuf:
 
 	if (ret) {
 		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	return &vfb->base;
@@ -768,7 +768,7 @@ err_not_scanout:
 	/* vmw_user_surface_lookup takes one ref */
 	vmw_surface_unreference(&surface);
 
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static struct drm_mode_config_funcs vmw_kms_funcs = {

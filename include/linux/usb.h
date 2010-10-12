@@ -127,6 +127,8 @@ enum usb_interface_condition {
  *      queued reset so that usb_cancel_queued_reset() doesn't try to
  *      remove from the workqueue when running inside the worker
  *      thread. See __usb_queue_reset_device().
+ * @resetting_device: USB core reset the device, so use alt setting 0 as
+ *	current; needs bandwidth alloc after reset.
  *
  * USB device drivers attach to interfaces on a physical device.  Each
  * interface encapsulates a single high level function, such as feeding
@@ -843,7 +845,7 @@ struct usb_driver {
 
 	void (*disconnect) (struct usb_interface *intf);
 
-	int (*ioctl) (struct usb_interface *intf, unsigned int code,
+	int (*unlocked_ioctl) (struct usb_interface *intf, unsigned int code,
 			void *buf);
 
 	int (*suspend) (struct usb_interface *intf, pm_message_t message);
@@ -1015,6 +1017,7 @@ typedef void (*usb_complete_t)(struct urb *);
  *	is a different endpoint (and pipe) from "out" endpoint two.
  *	The current configuration controls the existence, type, and
  *	maximum packet size of any given endpoint.
+ * @stream_id: the endpoint's stream ID for bulk streams
  * @dev: Identifies the USB device to perform the request.
  * @status: This is read in non-iso completion functions to get the
  *	status of the particular request.  ISO requests only use it

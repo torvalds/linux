@@ -816,7 +816,7 @@ static irqreturn_t sh_dmae_interrupt(int irq, void *data)
 	return ret;
 }
 
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
 	struct sh_dmae_device *shdev = (struct sh_dmae_device *)data;
@@ -1057,7 +1057,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	/* Default transfer size of 32 bytes requires 32-byte alignment */
 	shdev->common.copy_align = LOG2_DEFAULT_XFER_SIZE;
 
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 	chanirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 
 	if (!chanirq_res)
@@ -1082,7 +1082,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 #else
 	chanirq_res = errirq_res;
-#endif /* CONFIG_CPU_SH4 */
+#endif /* CONFIG_CPU_SH4 || CONFIG_ARCH_SHMOBILE */
 
 	if (chanirq_res->start == chanirq_res->end &&
 	    !platform_get_resource(pdev, IORESOURCE_IRQ, 1)) {
@@ -1129,7 +1129,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 chan_probe_err:
 	sh_dmae_chan_remove(shdev);
 eirqres:
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 	free_irq(errirq, shdev);
 eirq_err:
 #endif

@@ -157,6 +157,7 @@ static void __init snappercl15_init_machine(void)
 	ep93xx_register_i2c(&snappercl15_i2c_gpio_data, snappercl15_i2c_data,
 			    ARRAY_SIZE(snappercl15_i2c_data));
 	ep93xx_register_fb(&snappercl15_fb_info);
+	ep93xx_register_i2s();
 	platform_device_register(&snappercl15_nand_device);
 }
 

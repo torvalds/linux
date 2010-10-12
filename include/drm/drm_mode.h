@@ -74,6 +74,7 @@
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
 #define DRM_MODE_DITHERING_ON	1
+#define DRM_MODE_DITHERING_AUTO 2
 
 /* Dirty info options */
 #define DRM_MODE_DIRTY_OFF      0

@@ -970,7 +970,6 @@ static inline int cmos_poweroff(struct device *dev)
 
 #include <linux/acpi.h>
 
-#ifdef	CONFIG_PM
 static u32 rtc_handler(void *context)
 {
 	acpi_clear_event(ACPI_EVENT_RTC);
@@ -999,11 +998,6 @@ static void rtc_wake_off(struct device *dev)
 {
 	acpi_disable_event(ACPI_EVENT_RTC, 0);
 }
-#else
-#define rtc_wake_setup()	do{}while(0)
-#define rtc_wake_on		NULL
-#define rtc_wake_off		NULL
-#endif
 
 /* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
  * its device node and pass extra config data.  This helps its driver use

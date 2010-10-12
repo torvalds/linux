@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1187,6 +1187,21 @@ qla2x00_optrom_fw_version_show(struct device *dev,
 }
 
 static ssize_t
+qla2x00_optrom_gold_fw_version_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%d)\n",
+	    ha->gold_fw_version[0], ha->gold_fw_version[1],
+	    ha->gold_fw_version[2], ha->gold_fw_version[3]);
+}
+
+static ssize_t
 qla2x00_total_isp_aborts_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -1208,7 +1223,7 @@ qla24xx_84xx_fw_version_show(struct device *dev,
 	if (!IS_QLA84XX(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
-	if (ha->cs84xx && ha->cs84xx->op_fw_version == 0)
+	if (ha->cs84xx->op_fw_version == 0)
 		rval = qla84xx_verify_chip(vha, status);
 
 	if ((rval == QLA_SUCCESS) && (status[0] == 0))
@@ -1336,6 +1351,8 @@ static DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
 		   qla2x00_optrom_fcode_version_show, NULL);
 static DEVICE_ATTR(optrom_fw_version, S_IRUGO, qla2x00_optrom_fw_version_show,
 		   NULL);
+static DEVICE_ATTR(optrom_gold_fw_version, S_IRUGO,
+    qla2x00_optrom_gold_fw_version_show, NULL);
 static DEVICE_ATTR(84xx_fw_version, S_IRUGO, qla24xx_84xx_fw_version_show,
 		   NULL);
 static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
@@ -1376,6 +1393,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_vn_port_mac_address,
 	&dev_attr_fabric_param,
 	&dev_attr_fw_state,
+	&dev_attr_optrom_gold_fw_version,
 	NULL,
 };
 
@@ -1732,7 +1750,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 	}
 
-	if (IS_QLA25XX(ha) && ql2xenabledif) {
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
 			vha->flags.difdix_supported = 1;
 			DEBUG18(qla_printk(KERN_INFO, ha,
@@ -1740,8 +1758,10 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			    " protection.\n"));
 			scsi_host_set_prot(vha->host,
 			    SHOST_DIF_TYPE1_PROTECTION
+			    | SHOST_DIF_TYPE2_PROTECTION
 			    | SHOST_DIF_TYPE3_PROTECTION
 			    | SHOST_DIX_TYPE1_PROTECTION
+			    | SHOST_DIX_TYPE2_PROTECTION
 			    | SHOST_DIX_TYPE3_PROTECTION);
 			scsi_host_set_guard(vha->host, SHOST_DIX_GUARD_CRC);
 		} else
@@ -1809,7 +1829,6 @@ static int
 qla24xx_vport_delete(struct fc_vport *fc_vport)
 {
 	scsi_qla_host_t *vha = fc_vport->dd_data;
-	fc_port_t *fcport, *tfcport;
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t id = vha->vp_idx;
 
@@ -1823,11 +1842,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	scsi_remove_host(vha->host);
 
-	list_for_each_entry_safe(fcport, tfcport, &vha->vp_fcports, list) {
-		list_del(&fcport->list);
-		kfree(fcport);
-		fcport = NULL;
-	}
+	qla2x00_free_fcports(vha);
 
 	qla24xx_deallocate_vp_id(vha);
 

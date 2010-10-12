@@ -436,8 +436,8 @@ void mpc52xx_lpbfifo_abort(struct mpc52xx_lpbfifo_request *req)
 }
 EXPORT_SYMBOL(mpc52xx_lpbfifo_abort);
 
-static int __devinit
-mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit mpc52xx_lpbfifo_probe(struct platform_device *op,
+					   const struct of_device_id *match)
 {
 	struct resource res;
 	int rc = -ENOMEM;
@@ -507,7 +507,7 @@ mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
 }
 
 
-static int __devexit mpc52xx_lpbfifo_remove(struct of_device *op)
+static int __devexit mpc52xx_lpbfifo_remove(struct platform_device *op)
 {
 	if (lpbfifo.dev != &op->dev)
 		return 0;

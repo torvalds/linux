@@ -29,20 +29,20 @@
 struct obj_ssid {
 	u8 length;
 	char octets[33];
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_key {
 	u8 type;		/* dot11_priv_t */
 	u8 length;
 	char key[32];
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_mlme {
 	u8 address[6];
 	u16 id;
 	u16 state;
 	u16 code;
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_mlmeex {
 	u8 address[6];
@@ -51,12 +51,12 @@ struct obj_mlmeex {
 	u16 code;
 	u16 size;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_buffer {
 	u32 size;
 	u32 addr;		/* 32bit bus address */
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_bss {
 	u8 address[6];
@@ -77,17 +77,17 @@ struct obj_bss {
 	short rates;
 	short basic_rates;
 	int:16;			/* padding */
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_bsslist {
 	u32 nr;
 	struct obj_bss bsslist[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_frequencies {
 	u16 nr;
 	u16 mhz[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct obj_attachment {
 	char type;
@@ -95,7 +95,7 @@ struct obj_attachment {
 	short id;
 	short size;
 	char data[0];
-} __attribute__((packed));
+} __packed;
 
 /*
  * in case everything's ok, the inlined function below will be

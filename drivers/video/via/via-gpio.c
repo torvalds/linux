@@ -73,7 +73,7 @@ struct viafb_gpio_cfg {
 	struct gpio_chip gpio_chip;
 	struct viafb_dev *vdev;
 	struct viafb_gpio *active_gpios[VIAFB_NUM_GPIOS];
-	char *gpio_names[VIAFB_NUM_GPIOS];
+	const char *gpio_names[VIAFB_NUM_GPIOS];
 };
 
 /*

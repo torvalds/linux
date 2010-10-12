@@ -95,6 +95,7 @@ enum wm831x_parent {
 	WM8311 = 0x8311,
 	WM8312 = 0x8312,
 	WM8320 = 0x8320,
+	WM8321 = 0x8321,
 };
 
 static int wm831x_reg_locked(struct wm831x *wm831x, unsigned short reg)
@@ -1533,6 +1534,12 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		dev_info(wm831x->dev, "WM8320 revision %c\n", 'A' + rev);
 		break;
 
+	case WM8321:
+		parent = WM8321;
+		wm831x->num_gpio = 12;
+		dev_info(wm831x->dev, "WM8321 revision %c\n", 'A' + rev);
+		break;
+
 	default:
 		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
 		ret = -EINVAL;
@@ -1602,6 +1609,12 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		break;
 
 	case WM8320:
+		ret = mfd_add_devices(wm831x->dev, -1,
+				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
+				      NULL, 0);
+		break;
+
+	case WM8321:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
 				      NULL, 0);
@@ -1744,10 +1757,8 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 	struct wm831x *wm831x;
 
 	wm831x = kzalloc(sizeof(struct wm831x), GFP_KERNEL);
-	if (wm831x == NULL) {
-		kfree(i2c);
+	if (wm831x == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, wm831x);
 	wm831x->dev = &i2c->dev;
@@ -1779,6 +1790,7 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8311", WM8311 },
 	{ "wm8312", WM8312 },
 	{ "wm8320", WM8320 },
+	{ "wm8321", WM8321 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);

@@ -46,13 +46,6 @@
 
 #define RBUFSIZE 8192
 
-/* compile time options */
-#define GIG_MAJOR 0
-
-#define GIG_MAYINITONDIAL
-#define GIG_RETRYCID
-#define GIG_X75
-
 #define GIG_TICK 100		/* in milliseconds */
 
 /* timeout values (unit: 1 sec) */
@@ -193,9 +186,8 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 /* variables in struct at_state_t */
 #define VAR_ZSAU	0
 #define VAR_ZDLE	1
-#define VAR_ZVLS	2
-#define VAR_ZCTP	3
-#define VAR_NUM		4
+#define VAR_ZCTP	2
+#define VAR_NUM		3
 
 #define STR_NMBR	0
 #define STR_ZCPN	1
@@ -574,9 +566,7 @@ struct bas_bc_state {
 struct gigaset_ops {
 	/* Called from ev-layer.c/interface.c for sending AT commands to the
 	   device */
-	int (*write_cmd)(struct cardstate *cs,
-			 const unsigned char *buf, int len,
-			 struct tasklet_struct *wake_tasklet);
+	int (*write_cmd)(struct cardstate *cs, struct cmdbuf_t *cb);
 
 	/* Called from interface.c for additional device control */
 	int (*write_room)(struct cardstate *cs);

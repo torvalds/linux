@@ -150,15 +150,23 @@ int register_qdisc(struct Qdisc_ops *qops)
 	if (qops->enqueue == NULL)
 		qops->enqueue = noop_qdisc_ops.enqueue;
 	if (qops->peek == NULL) {
-		if (qops->dequeue == NULL) {
+		if (qops->dequeue == NULL)
 			qops->peek = noop_qdisc_ops.peek;
-		} else {
-			rc = -EINVAL;
-			goto out;
-		}
+		else
+			goto out_einval;
 	}
 	if (qops->dequeue == NULL)
 		qops->dequeue = noop_qdisc_ops.dequeue;
+
+	if (qops->cl_ops) {
+		const struct Qdisc_class_ops *cops = qops->cl_ops;
+
+		if (!(cops->get && cops->put && cops->walk && cops->leaf))
+			goto out_einval;
+
+		if (cops->tcf_chain && !(cops->bind_tcf && cops->unbind_tcf))
+			goto out_einval;
+	}
 
 	qops->next = NULL;
 	*qp = qops;
@@ -166,6 +174,10 @@ int register_qdisc(struct Qdisc_ops *qops)
 out:
 	write_unlock(&qdisc_mod_lock);
 	return rc;
+
+out_einval:
+	rc = -EINVAL;
+	goto out;
 }
 EXPORT_SYMBOL(register_qdisc);
 

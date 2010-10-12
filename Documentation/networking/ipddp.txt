@@ -36,11 +36,6 @@ AppleTalk-IP to IP decapsulation.
 Basic instructions for user space tools
 =======================================
 
-To enable AppleTalk-IP decapsulation/encapsulation you will need the 
-proper tools. You can get the tools for decapsulation from
-http://spacs1.spacs.k12.wi.us/~jschlst/index.html and for encapsulation
-from http://www.maths.unm.edu/~bradford/ltpc.html
-
 I will briefly describe the operation of the tools, but you will
 need to consult the supporting documentation for each set of tools.
 

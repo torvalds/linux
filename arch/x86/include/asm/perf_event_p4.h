@@ -19,7 +19,6 @@
 #define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) not always present */
 #define ARCH_P4_MAX_ESCR	(ARCH_P4_TOTAL_ESCR - ARCH_P4_RESERVED_ESCR)
 #define ARCH_P4_MAX_CCCR	(18)
-#define ARCH_P4_MAX_COUNTER	(ARCH_P4_MAX_CCCR / 2)
 
 #define P4_ESCR_EVENT_MASK	0x7e000000U
 #define P4_ESCR_EVENT_SHIFT	25
@@ -71,10 +70,6 @@
 #define P4_CCCR_THRESHOLD(v)		((v) << P4_CCCR_THRESHOLD_SHIFT)
 #define P4_CCCR_ESEL(v)			((v) << P4_CCCR_ESCR_SELECT_SHIFT)
 
-/* Custom bits in reerved CCCR area */
-#define P4_CCCR_CACHE_OPS_MASK		0x0000003fU
-
-
 /* Non HT mask */
 #define P4_CCCR_MASK				\
 	(P4_CCCR_OVF			|	\
@@ -106,8 +101,7 @@
  * ESCR and CCCR but rather an only packed value should
  * be unpacked and written to a proper addresses
  *
- * the base idea is to pack as much info as
- * possible
+ * the base idea is to pack as much info as possible
  */
 #define p4_config_pack_escr(v)		(((u64)(v)) << 32)
 #define p4_config_pack_cccr(v)		(((u64)(v)) & 0xffffffffULL)
@@ -129,8 +123,6 @@
 		t = t >> P4_ESCR_EVENT_SHIFT;		\
 		t;					\
 	})
-
-#define p4_config_unpack_cache_event(v)	(((u64)(v)) & P4_CCCR_CACHE_OPS_MASK)
 
 #define P4_CONFIG_HT_SHIFT		63
 #define P4_CONFIG_HT			(1ULL << P4_CONFIG_HT_SHIFT)
@@ -214,6 +206,12 @@ static inline u32 p4_default_escr_conf(int cpu, int exclude_os, int exclude_usr)
 	return escr;
 }
 
+/*
+ * This are the events which should be used in "Event Select"
+ * field of ESCR register, they are like unique keys which allow
+ * the kernel to determinate which CCCR and COUNTER should be
+ * used to track an event
+ */
 enum P4_EVENTS {
 	P4_EVENT_TC_DELIVER_MODE,
 	P4_EVENT_BPU_FETCH_REQUEST,
@@ -561,7 +559,7 @@ enum P4_EVENT_OPCODES {
  * a caller should use P4_ESCR_EMASK_NAME helper to
  * pick the EventMask needed, for example
  *
- *	P4_ESCR_EMASK_NAME(P4_EVENT_TC_DELIVER_MODE, DD)
+ *	P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, DD)
  */
 enum P4_ESCR_EMASKS {
 	P4_GEN_ESCR_EMASK(P4_EVENT_TC_DELIVER_MODE, DD, 0),
@@ -753,43 +751,50 @@ enum P4_ESCR_EMASKS {
 	P4_GEN_ESCR_EMASK(P4_EVENT_INSTR_COMPLETED, BOGUS, 1),
 };
 
-/* P4 PEBS: stale for a while */
-#define P4_PEBS_METRIC_MASK	0x00001fffU
-#define P4_PEBS_UOB_TAG		0x01000000U
-#define P4_PEBS_ENABLE		0x02000000U
+/*
+ * P4 PEBS specifics (Replay Event only)
+ *
+ * Format (bits):
+ *   0-6: metric from P4_PEBS_METRIC enum
+ *    7 : reserved
+ *    8 : reserved
+ * 9-11 : reserved
+ *
+ * Note we have UOP and PEBS bits reserved for now
+ * just in case if we will need them once
+ */
+#define P4_PEBS_CONFIG_ENABLE		(1 << 7)
+#define P4_PEBS_CONFIG_UOP_TAG		(1 << 8)
+#define P4_PEBS_CONFIG_METRIC_MASK	0x3f
+#define P4_PEBS_CONFIG_MASK		0xff
 
-/* Replay metrics for MSR_IA32_PEBS_ENABLE and MSR_P4_PEBS_MATRIX_VERT */
-#define P4_PEBS__1stl_cache_load_miss_retired	0x3000001
-#define P4_PEBS__2ndl_cache_load_miss_retired	0x3000002
-#define P4_PEBS__dtlb_load_miss_retired		0x3000004
-#define P4_PEBS__dtlb_store_miss_retired	0x3000004
-#define P4_PEBS__dtlb_all_miss_retired		0x3000004
-#define P4_PEBS__tagged_mispred_branch		0x3018000
-#define P4_PEBS__mob_load_replay_retired	0x3000200
-#define P4_PEBS__split_load_retired		0x3000400
-#define P4_PEBS__split_store_retired		0x3000400
+/*
+ * mem: Only counters MSR_IQ_COUNTER4 (16) and
+ * MSR_IQ_COUNTER5 (17) are allowed for PEBS sampling
+ */
+#define P4_PEBS_ENABLE			0x02000000U
+#define P4_PEBS_ENABLE_UOP_TAG		0x01000000U
 
-#define P4_VERT__1stl_cache_load_miss_retired	0x0000001
-#define P4_VERT__2ndl_cache_load_miss_retired	0x0000001
-#define P4_VERT__dtlb_load_miss_retired		0x0000001
-#define P4_VERT__dtlb_store_miss_retired	0x0000002
-#define P4_VERT__dtlb_all_miss_retired		0x0000003
-#define P4_VERT__tagged_mispred_branch		0x0000010
-#define P4_VERT__mob_load_replay_retired	0x0000001
-#define P4_VERT__split_load_retired		0x0000001
-#define P4_VERT__split_store_retired		0x0000002
+#define p4_config_unpack_metric(v)	(((u64)(v)) & P4_PEBS_CONFIG_METRIC_MASK)
+#define p4_config_unpack_pebs(v)	(((u64)(v)) & P4_PEBS_CONFIG_MASK)
 
-enum P4_CACHE_EVENTS {
-	P4_CACHE__NONE,
+#define p4_config_pebs_has(v, mask)	(p4_config_unpack_pebs(v) & (mask))
 
-	P4_CACHE__1stl_cache_load_miss_retired,
-	P4_CACHE__2ndl_cache_load_miss_retired,
-	P4_CACHE__dtlb_load_miss_retired,
-	P4_CACHE__dtlb_store_miss_retired,
-	P4_CACHE__itlb_reference_hit,
-	P4_CACHE__itlb_reference_miss,
+enum P4_PEBS_METRIC {
+	P4_PEBS_METRIC__none,
 
-	P4_CACHE__MAX
+	P4_PEBS_METRIC__1stl_cache_load_miss_retired,
+	P4_PEBS_METRIC__2ndl_cache_load_miss_retired,
+	P4_PEBS_METRIC__dtlb_load_miss_retired,
+	P4_PEBS_METRIC__dtlb_store_miss_retired,
+	P4_PEBS_METRIC__dtlb_all_miss_retired,
+	P4_PEBS_METRIC__tagged_mispred_branch,
+	P4_PEBS_METRIC__mob_load_replay_retired,
+	P4_PEBS_METRIC__split_load_retired,
+	P4_PEBS_METRIC__split_store_retired,
+
+	P4_PEBS_METRIC__max
 };
 
 #endif /* PERF_EVENT_P4_H */
+

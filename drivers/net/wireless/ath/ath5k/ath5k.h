@@ -204,6 +204,7 @@
 #define AR5K_TUNE_TPC_TXPOWER			false
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -565,7 +566,7 @@ enum ath5k_pkt_type {
 )
 
 /*
- * DMA size definitions (2^n+2)
+ * DMA size definitions (2^(n+2))
  */
 enum ath5k_dmasize {
 	AR5K_DMASIZE_4B	= 0,
@@ -1118,6 +1119,7 @@ struct ath5k_hw {
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
 	unsigned long		ah_cal_next_ani;
+	unsigned long		ah_cal_next_nf;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;
@@ -1125,15 +1127,10 @@ struct ath5k_hw {
 	/*
 	 * Function pointers
 	 */
-	int (*ah_setup_rx_desc)(struct ath5k_hw *ah, struct ath5k_desc *desc,
-				u32 size, unsigned int flags);
 	int (*ah_setup_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, int, enum ath5k_pkt_type,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int, unsigned int, unsigned int);
-	int (*ah_setup_mrr_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
-		unsigned int, unsigned int, unsigned int, unsigned int,
-		unsigned int, unsigned int);
 	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		struct ath5k_tx_status *);
 	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *,
@@ -1147,6 +1144,9 @@ struct ath5k_hw {
 /* Attach/Detach Functions */
 int ath5k_hw_attach(struct ath5k_softc *sc);
 void ath5k_hw_detach(struct ath5k_hw *ah);
+
+int ath5k_sysfs_register(struct ath5k_softc *sc);
+void ath5k_sysfs_unregister(struct ath5k_softc *sc);
 
 /* LED functions */
 int ath5k_init_leds(struct ath5k_softc *sc);
@@ -1231,6 +1231,11 @@ int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time);
 
 /* Hardware Descriptor Functions */
 int ath5k_hw_init_desc_functions(struct ath5k_hw *ah);
+int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
+			   u32 size, unsigned int flags);
+int ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
+	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2,
+	u_int tx_tries2, unsigned int tx_rate3, u_int tx_tries3);
 
 /* GPIO Functions */
 void ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state);
@@ -1270,6 +1275,7 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 			   struct ieee80211_channel *channel);
+void ath5k_hw_update_noise_floor(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
 				  struct ieee80211_channel *channel);
@@ -1280,6 +1286,7 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Antenna control */
 void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
+void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 /* TX power setup */
 int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		     u8 ee_mode, u8 txpower);

@@ -435,7 +435,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto tx_error_icmp;
 		}
 	}
-	tdev = rt->u.dst.dev;
+	tdev = rt->dst.dev;
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
@@ -446,7 +446,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	df |= old_iph->frag_off & htons(IP_DF);
 
 	if (df) {
-		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
+		mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr);
 
 		if (mtu < 68) {
 			stats->collisions++;
@@ -503,7 +503,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
 	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -552,7 +552,7 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 				    .proto = IPPROTO_IPIP };
 		struct rtable *rt;
 		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tdev = rt->u.dst.dev;
+			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
 		dev->flags |= IFF_POINTOPOINT;

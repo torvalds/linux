@@ -54,7 +54,6 @@
 
 EXPORT_SYMBOL(register_ip_vs_scheduler);
 EXPORT_SYMBOL(unregister_ip_vs_scheduler);
-EXPORT_SYMBOL(ip_vs_skb_replace);
 EXPORT_SYMBOL(ip_vs_proto_name);
 EXPORT_SYMBOL(ip_vs_conn_new);
 EXPORT_SYMBOL(ip_vs_conn_in_get);
@@ -194,6 +193,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
 	__be16  dport;			/* destination port to forward */
+	__be16  flags;
 	union nf_inet_addr snet;	/* source network of the client,
 					   after masking */
 
@@ -340,6 +340,10 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		dport = ports[1];
 	}
 
+	flags = (svc->flags & IP_VS_SVC_F_ONEPACKET
+		 && iph.protocol == IPPROTO_UDP)?
+		IP_VS_CONN_F_ONE_PACKET : 0;
+
 	/*
 	 *    Create a new connection according to the template
 	 */
@@ -347,7 +351,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 			    &iph.saddr, ports[0],
 			    &iph.daddr, ports[1],
 			    &dest->addr, dport,
-			    0,
+			    flags,
 			    dest);
 	if (cp == NULL) {
 		ip_vs_conn_put(ct);
@@ -377,7 +381,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_conn *cp = NULL;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
-	__be16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr, flags;
 
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
@@ -407,6 +411,10 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		return NULL;
 	}
 
+	flags = (svc->flags & IP_VS_SVC_F_ONEPACKET
+		 && iph.protocol == IPPROTO_UDP)?
+		IP_VS_CONN_F_ONE_PACKET : 0;
+
 	/*
 	 *    Create a connection entry.
 	 */
@@ -414,7 +422,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 			    &iph.saddr, pptr[0],
 			    &iph.daddr, pptr[1],
 			    &dest->addr, dest->port ? dest->port : pptr[1],
-			    0,
+			    flags,
 			    dest);
 	if (cp == NULL)
 		return NULL;
@@ -464,6 +472,9 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	if (sysctl_ip_vs_cache_bypass && svc->fwmark && unicast) {
 		int ret, cs;
 		struct ip_vs_conn *cp;
+		__u16 flags = (svc->flags & IP_VS_SVC_F_ONEPACKET &&
+				iph.protocol == IPPROTO_UDP)?
+				IP_VS_CONN_F_ONE_PACKET : 0;
 		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
 
 		ip_vs_service_put(svc);
@@ -474,7 +485,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 				    &iph.saddr, pptr[0],
 				    &iph.daddr, pptr[1],
 				    &daddr, 0,
-				    IP_VS_CONN_F_BYPASS,
+				    IP_VS_CONN_F_BYPASS | flags,
 				    NULL);
 		if (cp == NULL)
 			return NF_DROP;
@@ -522,26 +533,6 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 	return NF_DROP;
-}
-
-
-/*
- *      It is hooked before NF_IP_PRI_NAT_SRC at the NF_INET_POST_ROUTING
- *      chain, and is used for VS/NAT.
- *      It detects packets for VS/NAT connections and sends the packets
- *      immediately. This can avoid that iptable_nat mangles the packets
- *      for VS/NAT.
- */
-static unsigned int ip_vs_post_routing(unsigned int hooknum,
-				       struct sk_buff *skb,
-				       const struct net_device *in,
-				       const struct net_device *out,
-				       int (*okfn)(struct sk_buff *))
-{
-	if (!skb->ipvs_property)
-		return NF_ACCEPT;
-	/* The packet was sent from IPVS, exit this chain */
-	return NF_STOP;
 }
 
 __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
@@ -1487,14 +1478,6 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.hooknum        = NF_INET_FORWARD,
 		.priority       = 99,
 	},
-	/* Before the netfilter connection tracking, exit from POST_ROUTING */
-	{
-		.hook		= ip_vs_post_routing,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
-		.hooknum        = NF_INET_POST_ROUTING,
-		.priority       = NF_IP_PRI_NAT_SRC-1,
-	},
 #ifdef CONFIG_IP_VS_IPV6
 	/* After packet filtering, forward packet through VS/DR, VS/TUN,
 	 * or VS/NAT(change destination), so that filtering rules can be
@@ -1522,14 +1505,6 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.pf		= PF_INET6,
 		.hooknum        = NF_INET_FORWARD,
 		.priority       = 99,
-	},
-	/* Before the netfilter connection tracking, exit from POST_ROUTING */
-	{
-		.hook		= ip_vs_post_routing,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET6,
-		.hooknum        = NF_INET_POST_ROUTING,
-		.priority       = NF_IP6_PRI_NAT_SRC-1,
 	},
 #endif
 };

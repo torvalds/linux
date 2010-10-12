@@ -525,6 +525,8 @@ static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
+	atomic_set(&ei->openers, 0);
+	mutex_init(&ei->tailpack);
 	return &ei->vfs_inode;
 }
 
@@ -589,11 +591,6 @@ out:
 	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 }
 
-static void reiserfs_clear_inode(struct inode *inode)
-{
-	dquot_drop(inode);
-}
-
 #ifdef CONFIG_QUOTA
 static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
 				    size_t, loff_t);
@@ -606,8 +603,7 @@ static const struct super_operations reiserfs_sops = {
 	.destroy_inode = reiserfs_destroy_inode,
 	.write_inode = reiserfs_write_inode,
 	.dirty_inode = reiserfs_dirty_inode,
-	.clear_inode = reiserfs_clear_inode,
-	.delete_inode = reiserfs_delete_inode,
+	.evict_inode = reiserfs_evict_inode,
 	.put_super = reiserfs_put_super,
 	.write_super = reiserfs_write_super,
 	.sync_fs = reiserfs_sync_fs,

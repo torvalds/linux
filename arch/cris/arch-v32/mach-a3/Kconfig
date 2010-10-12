@@ -33,6 +33,10 @@ config ETRAX_DDR2_CONFIG
 	hex "DDR2 config"
 	default "0"
 
+config ETRAX_DDR2_LATENCY
+	hex "DDR2 latency"
+	default "0"
+
 config ETRAX_PIO_CE0_CFG
        hex "PIO CE0 configuration"
        default "0"

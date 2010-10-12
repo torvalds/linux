@@ -52,6 +52,10 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 		}
 	};
 
+	/* on hw with routers, select right port */
+	if (radeon_connector->router.valid)
+		radeon_router_select_port(radeon_connector);
+
 	ret = i2c_transfer(&radeon_connector->ddc_bus->adapter, msgs, 2);
 	if (ret == 2)
 		return true;
@@ -960,6 +964,59 @@ void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 	kfree(i2c);
 }
 
+/* Add the default buses */
+void radeon_i2c_init(struct radeon_device *rdev)
+{
+	if (rdev->is_atom_bios)
+		radeon_atombios_i2c_init(rdev);
+	else
+		radeon_combios_i2c_init(rdev);
+}
+
+/* remove all the buses */
+void radeon_i2c_fini(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
+		if (rdev->i2c_bus[i]) {
+			radeon_i2c_destroy(rdev->i2c_bus[i]);
+			rdev->i2c_bus[i] = NULL;
+		}
+	}
+}
+
+/* Add additional buses */
+void radeon_i2c_add(struct radeon_device *rdev,
+		    struct radeon_i2c_bus_rec *rec,
+		    const char *name)
+{
+	struct drm_device *dev = rdev->ddev;
+	int i;
+
+	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
+		if (!rdev->i2c_bus[i]) {
+			rdev->i2c_bus[i] = radeon_i2c_create(dev, rec, name);
+			return;
+		}
+	}
+}
+
+/* looks up bus based on id */
+struct radeon_i2c_chan *radeon_i2c_lookup(struct radeon_device *rdev,
+					  struct radeon_i2c_bus_rec *i2c_bus)
+{
+	int i;
+
+	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
+		if (rdev->i2c_bus[i] &&
+		    (rdev->i2c_bus[i]->rec.i2c_id == i2c_bus->i2c_id)) {
+			return rdev->i2c_bus[i];
+		}
+	}
+	return NULL;
+}
+
 struct drm_encoder *radeon_best_encoder(struct drm_connector *connector)
 {
 	return NULL;
@@ -1018,5 +1075,30 @@ void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c_bus,
 	if (i2c_transfer(&i2c_bus->adapter, &msg, 1) != 1)
 		DRM_ERROR("i2c 0x%02x 0x%02x write failed\n",
 			  addr, val);
+}
+
+/* router switching */
+void radeon_router_select_port(struct radeon_connector *radeon_connector)
+{
+	u8 val;
+
+	if (!radeon_connector->router.valid)
+		return;
+
+	radeon_i2c_get_byte(radeon_connector->router_bus,
+			    radeon_connector->router.i2c_addr,
+			    0x3, &val);
+	val &= radeon_connector->router.mux_control_pin;
+	radeon_i2c_put_byte(radeon_connector->router_bus,
+			    radeon_connector->router.i2c_addr,
+			    0x3, val);
+	radeon_i2c_get_byte(radeon_connector->router_bus,
+			    radeon_connector->router.i2c_addr,
+			    0x1, &val);
+	val &= radeon_connector->router.mux_control_pin;
+	val |= radeon_connector->router.mux_state;
+	radeon_i2c_put_byte(radeon_connector->router_bus,
+			    radeon_connector->router.i2c_addr,
+			    0x1, val);
 }
 

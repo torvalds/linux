@@ -16,6 +16,8 @@
 #include "symbol.h"
 #include "debug.h"
 
+static bool no_buildid_cache = false;
+
 /*
  * Create new perf.data header attribute:
  */
@@ -385,8 +387,7 @@ static int perf_session__cache_build_ids(struct perf_session *self)
 	int ret;
 	char debugdir[PATH_MAX];
 
-	snprintf(debugdir, sizeof(debugdir), "%s/%s", getenv("HOME"),
-		 DEBUG_CACHE_DIR);
+	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
 
 	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
 		return -1;
@@ -471,7 +472,8 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		}
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) -
 					  buildid_sec->offset;
-		perf_session__cache_build_ids(session);
+		if (!no_buildid_cache)
+			perf_session__cache_build_ids(session);
 	}
 
 	lseek(fd, sec_start, SEEK_SET);
@@ -1189,4 +1191,9 @@ int event__process_build_id(event_t *self,
 				 self->build_id.filename,
 				 session);
 	return 0;
+}
+
+void disable_buildid_cache(void)
+{
+	no_buildid_cache = true;
 }

@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/termios.h>
@@ -30,6 +31,7 @@
 #include <asm/system.h>
 #include <asm/leds.h>
 #include <asm/mach/time.h>
+#include <asm/pgtable.h>
 
 static struct amba_pl010_data integrator_uart_data;
 
@@ -119,8 +121,13 @@ static struct clk uartclk = {
 	.rate	= 14745600,
 };
 
+static struct clk dummy_apb_pclk;
+
 static struct clk_lookup lookups[] = {
-	{	/* UART0 */
+	{	/* Bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* UART0 */
 		.dev_id		= "mb:16",
 		.clk		= &uartclk,
 	}, {	/* UART1 */
@@ -215,3 +222,13 @@ void cm_control(u32 mask, u32 set)
 }
 
 EXPORT_SYMBOL(cm_control);
+
+/*
+ * We need to stop things allocating the low memory; ideally we need a
+ * better implementation of GFP_DMA which does not assume that DMA-able
+ * memory starts at zero.
+ */
+void __init integrator_reserve(void)
+{
+	memblock_reserve(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET);
+}

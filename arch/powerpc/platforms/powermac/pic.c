@@ -46,6 +46,10 @@ struct pmac_irq_hw {
         unsigned int    level;
 };
 
+/* Workaround flags for 32bit powermac machines */
+unsigned int of_irq_workarounds;
+struct device_node *of_irq_dflt_pic;
+
 /* Default addresses */
 static volatile struct pmac_irq_hw __iomem *pmac_irq_hw[4];
 
@@ -428,6 +432,42 @@ static void __init pmac_pic_probe_oldstyle(void)
 	setup_irq(irq_create_mapping(NULL, 20), &xmon_action);
 #endif
 }
+
+int of_irq_map_oldworld(struct device_node *device, int index,
+			struct of_irq *out_irq)
+{
+	const u32 *ints = NULL;
+	int intlen;
+
+	/*
+	 * Old machines just have a list of interrupt numbers
+	 * and no interrupt-controller nodes. We also have dodgy
+	 * cases where the APPL,interrupts property is completely
+	 * missing behind pci-pci bridges and we have to get it
+	 * from the parent (the bridge itself, as apple just wired
+	 * everything together on these)
+	 */
+	while (device) {
+		ints = of_get_property(device, "AAPL,interrupts", &intlen);
+		if (ints != NULL)
+			break;
+		device = device->parent;
+		if (device && strcmp(device->type, "pci") != 0)
+			break;
+	}
+	if (ints == NULL)
+		return -EINVAL;
+	intlen /= sizeof(u32);
+
+	if (index >= intlen)
+		return -EINVAL;
+
+	out_irq->controller = NULL;
+	out_irq->specifier[0] = ints[index];
+	out_irq->size = 1;
+
+	return 0;
+}
 #endif /* CONFIG_PPC32 */
 
 static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc)
@@ -559,19 +599,39 @@ static int __init pmac_pic_probe_mpic(void)
 
 void __init pmac_pic_init(void)
 {
-	unsigned int flags = 0;
-
 	/* We configure the OF parsing based on our oldworld vs. newworld
 	 * platform type and wether we were booted by BootX.
 	 */
 #ifdef CONFIG_PPC32
 	if (!pmac_newworld)
-		flags |= OF_IMAP_OLDWORLD_MAC;
+		of_irq_workarounds |= OF_IMAP_OLDWORLD_MAC;
 	if (of_get_property(of_chosen, "linux,bootx", NULL) != NULL)
-		flags |= OF_IMAP_NO_PHANDLE;
-#endif /* CONFIG_PPC_32 */
+		of_irq_workarounds |= OF_IMAP_NO_PHANDLE;
 
-	of_irq_map_init(flags);
+	/* If we don't have phandles on a newworld, then try to locate a
+	 * default interrupt controller (happens when booting with BootX).
+	 * We do a first match here, hopefully, that only ever happens on
+	 * machines with one controller.
+	 */
+	if (pmac_newworld && (of_irq_workarounds & OF_IMAP_NO_PHANDLE)) {
+		struct device_node *np;
+
+		for_each_node_with_property(np, "interrupt-controller") {
+			/* Skip /chosen/interrupt-controller */
+			if (strcmp(np->name, "chosen") == 0)
+				continue;
+			/* It seems like at least one person wants
+			 * to use BootX on a machine with an AppleKiwi
+			 * controller which happens to pretend to be an
+			 * interrupt controller too. */
+			if (strcmp(np->name, "AppleKiwi") == 0)
+				continue;
+			/* I think we found one ! */
+			of_irq_dflt_pic = np;
+			break;
+		}
+	}
+#endif /* CONFIG_PPC32 */
 
 	/* We first try to detect Apple's new Core99 chipset, since mac-io
 	 * is quite different on those machines and contains an IBM MPIC2.

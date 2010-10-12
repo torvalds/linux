@@ -680,7 +680,7 @@ mpc52xx_ata_remove_one(struct device *dev)
 /* ======================================================================== */
 
 static int __devinit
-mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
+mpc52xx_ata_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	unsigned int ipb_freq;
 	struct resource res_mem;
@@ -821,7 +821,7 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 }
 
 static int
-mpc52xx_ata_remove(struct of_device *op)
+mpc52xx_ata_remove(struct platform_device *op)
 {
 	struct mpc52xx_ata_priv *priv;
 	int task_irq;
@@ -848,7 +848,7 @@ mpc52xx_ata_remove(struct of_device *op)
 #ifdef CONFIG_PM
 
 static int
-mpc52xx_ata_suspend(struct of_device *op, pm_message_t state)
+mpc52xx_ata_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct ata_host *host = dev_get_drvdata(&op->dev);
 
@@ -856,7 +856,7 @@ mpc52xx_ata_suspend(struct of_device *op, pm_message_t state)
 }
 
 static int
-mpc52xx_ata_resume(struct of_device *op)
+mpc52xx_ata_resume(struct platform_device *op)
 {
 	struct ata_host *host = dev_get_drvdata(&op->dev);
 	struct mpc52xx_ata_priv *priv = host->private_data;

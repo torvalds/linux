@@ -33,27 +33,13 @@ BFA_TRC_FILE(CNA, IOC_CT);
 static bfa_status_t bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc);
-static u32* bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc,
-					u32 off);
-static u32 bfa_ioc_ct_fwimg_get_size(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
 static void bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc);
 
-struct bfa_ioc_hwif_s hwif_ct = {
-	bfa_ioc_ct_pll_init,
-	bfa_ioc_ct_firmware_lock,
-	bfa_ioc_ct_firmware_unlock,
-	bfa_ioc_ct_fwimg_get_chunk,
-	bfa_ioc_ct_fwimg_get_size,
-	bfa_ioc_ct_reg_init,
-	bfa_ioc_ct_map_port,
-	bfa_ioc_ct_isr_mode_set,
-	bfa_ioc_ct_notify_hbfail,
-	bfa_ioc_ct_ownership_reset,
-};
+struct bfa_ioc_hwif_s hwif_ct;
 
 /**
  * Called from bfa_ioc_attach() to map asic specific calls.
@@ -61,19 +47,16 @@ struct bfa_ioc_hwif_s hwif_ct = {
 void
 bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc)
 {
+	hwif_ct.ioc_pll_init = bfa_ioc_ct_pll_init;
+	hwif_ct.ioc_firmware_lock = bfa_ioc_ct_firmware_lock;
+	hwif_ct.ioc_firmware_unlock = bfa_ioc_ct_firmware_unlock;
+	hwif_ct.ioc_reg_init = bfa_ioc_ct_reg_init;
+	hwif_ct.ioc_map_port = bfa_ioc_ct_map_port;
+	hwif_ct.ioc_isr_mode_set = bfa_ioc_ct_isr_mode_set;
+	hwif_ct.ioc_notify_hbfail = bfa_ioc_ct_notify_hbfail;
+	hwif_ct.ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
+
 	ioc->ioc_hwif = &hwif_ct;
-}
-
-static u32*
-bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc, u32 off)
-{
-	return bfi_image_ct_get_chunk(off);
-}
-
-static u32
-bfa_ioc_ct_fwimg_get_size(struct bfa_ioc_s *ioc)
-{
-	return bfi_image_ct_size;
 }
 
 /**
@@ -95,7 +78,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	/**
 	 * If bios boot (flash based) -- do not increment usage count
 	 */
-	if (bfa_ioc_ct_fwimg_get_size(ioc) < BFA_IOC_FWIMG_MINSZ)
+	if (bfi_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) < BFA_IOC_FWIMG_MINSZ)
 		return BFA_TRUE;
 
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
@@ -146,9 +129,14 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 
 	/**
 	 * Firmware lock is relevant only for CNA.
+	 */
+	if (!ioc->cna)
+		return;
+
+	/**
 	 * If bios boot (flash based) -- do not decrement usage count
 	 */
-	if (!ioc->cna || bfa_ioc_ct_fwimg_get_size(ioc) < BFA_IOC_FWIMG_MINSZ)
+	if (bfi_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) < BFA_IOC_FWIMG_MINSZ)
 		return;
 
 	/**
@@ -388,10 +376,35 @@ bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
 	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
 		__APP_PLL_425_ENABLE);
 
+	/**
+	 * PSS memory reset is asserted at power-on-reset. Need to clear
+	 * this before running EDRAM BISTR
+	 */
+	if (ioc->cna) {
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), __PMM_1T_RESET_P);
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), __PMM_1T_RESET_P);
+	}
+
+	r32 = bfa_reg_read((rb + PSS_CTL_REG));
+	r32 &= ~__PSS_LMEM_RESET;
+	bfa_reg_write((rb + PSS_CTL_REG), r32);
+	bfa_os_udelay(1000);
+
+	if (ioc->cna) {
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), 0);
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), 0);
+	}
+
 	bfa_reg_write((rb + MBIST_CTL_REG), __EDRAM_BISTR_START);
 	bfa_os_udelay(1000);
 	r32 = bfa_reg_read((rb + MBIST_STAT_REG));
 	bfa_trc(ioc, r32);
+
+	/**
+	 * Clear BISTR
+	 */
+	bfa_reg_write((rb + MBIST_CTL_REG), 0);
+
 	/*
 	 *  release semaphore.
 	 */

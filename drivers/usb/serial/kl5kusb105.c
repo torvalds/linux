@@ -261,7 +261,7 @@ static int klsi_105_startup(struct usb_serial *serial)
 
 		spin_lock_init(&priv->lock);
 
-		/* priv->termios is left uninitalized until port opening */
+		/* priv->termios is left uninitialized until port opening */
 		init_waitqueue_head(&serial->port[i]->write_wait);
 	}
 

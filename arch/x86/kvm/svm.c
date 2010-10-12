@@ -4,6 +4,7 @@
  * AMD SVM support
  *
  * Copyright (C) 2006 Qumranet, Inc.
+ * Copyright 2010 Red Hat, Inc. and/or its affilates.
  *
  * Authors:
  *   Yaniv Kamay  <yaniv@qumranet.com>
@@ -130,7 +131,7 @@ static struct svm_direct_access_msrs {
 	u32 index;   /* Index of the MSR */
 	bool always; /* True if intercept is always on */
 } direct_access_msrs[] = {
-	{ .index = MSR_K6_STAR,				.always = true  },
+	{ .index = MSR_STAR,				.always = true  },
 	{ .index = MSR_IA32_SYSENTER_CS,		.always = true  },
 #ifdef CONFIG_X86_64
 	{ .index = MSR_GS_BASE,				.always = true  },
@@ -285,11 +286,11 @@ static inline void flush_guest_tlb(struct kvm_vcpu *vcpu)
 
 static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
+	vcpu->arch.efer = efer;
 	if (!npt_enabled && !(efer & EFER_LMA))
 		efer &= ~EFER_LME;
 
 	to_svm(vcpu)->vmcb->save.efer = efer | EFER_SVME;
-	vcpu->arch.efer = efer;
 }
 
 static int is_external_interrupt(u32 info)
@@ -383,8 +384,7 @@ static void svm_init_erratum_383(void)
 	int err;
 	u64 val;
 
-	/* Only Fam10h is affected */
-	if (boot_cpu_data.x86 != 0x10)
+	if (!cpu_has_amd_erratum(amd_erratum_383))
 		return;
 
 	/* Use _safe variants to not break nested virtualization */
@@ -640,7 +640,7 @@ static __init int svm_hardware_setup(void)
 
 	if (nested) {
 		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
-		kvm_enable_efer_bits(EFER_SVME);
+		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -806,7 +806,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	 * svm_set_cr0() sets PG and WP and clears NW and CD on save->cr0.
 	 */
 	svm->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	kvm_set_cr0(&svm->vcpu, svm->vcpu.arch.cr0);
+	(void)kvm_set_cr0(&svm->vcpu, svm->vcpu.arch.cr0);
 
 	save->cr4 = X86_CR4_PAE;
 	/* rdx = ?? */
@@ -903,13 +903,18 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm->asid_generation = 0;
 	init_vmcb(svm);
 
-	fx_init(&svm->vcpu);
+	err = fx_init(&svm->vcpu);
+	if (err)
+		goto free_page4;
+
 	svm->vcpu.arch.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
 	if (kvm_vcpu_is_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 
 	return &svm->vcpu;
 
+free_page4:
+	__free_page(hsave_page);
 free_page3:
 	__free_pages(nested_msrpm_pages, MSRPM_ALLOC_ORDER);
 free_page2:
@@ -1488,7 +1493,7 @@ static void svm_handle_mce(struct vcpu_svm *svm)
 		 */
 		pr_err("KVM: Guest triggered AMD Erratum 383\n");
 
-		set_bit(KVM_REQ_TRIPLE_FAULT, &svm->vcpu.requests);
+		kvm_make_request(KVM_REQ_TRIPLE_FAULT, &svm->vcpu);
 
 		return;
 	}
@@ -1535,7 +1540,7 @@ static int io_interception(struct vcpu_svm *svm)
 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
 	if (string || in)
-		return !(emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DO_MMIO);
+		return emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DONE;
 
 	port = io_info >> 16;
 	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
@@ -1957,7 +1962,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 		svm->vmcb->save.cr3 = hsave->save.cr3;
 		svm->vcpu.arch.cr3 = hsave->save.cr3;
 	} else {
-		kvm_set_cr3(&svm->vcpu, hsave->save.cr3);
+		(void)kvm_set_cr3(&svm->vcpu, hsave->save.cr3);
 	}
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RAX, hsave->save.rax);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RSP, hsave->save.rsp);
@@ -2080,7 +2085,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 		svm->vmcb->save.cr3 = nested_vmcb->save.cr3;
 		svm->vcpu.arch.cr3 = nested_vmcb->save.cr3;
 	} else
-		kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
+		(void)kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
 
 	/* Guest paging mode is active - reset mmu */
 	kvm_mmu_reset_context(&svm->vcpu);
@@ -2386,16 +2391,12 @@ static int iret_interception(struct vcpu_svm *svm)
 
 static int invlpg_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0, 0, 0) != EMULATE_DONE)
-		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
-	return 1;
+	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
 }
 
 static int emulate_on_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0, 0, 0) != EMULATE_DONE)
-		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
-	return 1;
+	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
 }
 
 static int cr8_write_interception(struct vcpu_svm *svm)
@@ -2431,7 +2432,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 		*data = tsc_offset + native_read_tsc();
 		break;
 	}
-	case MSR_K6_STAR:
+	case MSR_STAR:
 		*data = svm->vmcb->save.star;
 		break;
 #ifdef CONFIG_X86_64
@@ -2555,7 +2556,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 
 		break;
 	}
-	case MSR_K6_STAR:
+	case MSR_STAR:
 		svm->vmcb->save.star = data;
 		break;
 #ifdef CONFIG_X86_64
@@ -2726,6 +2727,99 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_NPF]				= pf_interception,
 };
 
+void dump_vmcb(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb_control_area *control = &svm->vmcb->control;
+	struct vmcb_save_area *save = &svm->vmcb->save;
+
+	pr_err("VMCB Control Area:\n");
+	pr_err("cr_read:            %04x\n", control->intercept_cr_read);
+	pr_err("cr_write:           %04x\n", control->intercept_cr_write);
+	pr_err("dr_read:            %04x\n", control->intercept_dr_read);
+	pr_err("dr_write:           %04x\n", control->intercept_dr_write);
+	pr_err("exceptions:         %08x\n", control->intercept_exceptions);
+	pr_err("intercepts:         %016llx\n", control->intercept);
+	pr_err("pause filter count: %d\n", control->pause_filter_count);
+	pr_err("iopm_base_pa:       %016llx\n", control->iopm_base_pa);
+	pr_err("msrpm_base_pa:      %016llx\n", control->msrpm_base_pa);
+	pr_err("tsc_offset:         %016llx\n", control->tsc_offset);
+	pr_err("asid:               %d\n", control->asid);
+	pr_err("tlb_ctl:            %d\n", control->tlb_ctl);
+	pr_err("int_ctl:            %08x\n", control->int_ctl);
+	pr_err("int_vector:         %08x\n", control->int_vector);
+	pr_err("int_state:          %08x\n", control->int_state);
+	pr_err("exit_code:          %08x\n", control->exit_code);
+	pr_err("exit_info1:         %016llx\n", control->exit_info_1);
+	pr_err("exit_info2:         %016llx\n", control->exit_info_2);
+	pr_err("exit_int_info:      %08x\n", control->exit_int_info);
+	pr_err("exit_int_info_err:  %08x\n", control->exit_int_info_err);
+	pr_err("nested_ctl:         %lld\n", control->nested_ctl);
+	pr_err("nested_cr3:         %016llx\n", control->nested_cr3);
+	pr_err("event_inj:          %08x\n", control->event_inj);
+	pr_err("event_inj_err:      %08x\n", control->event_inj_err);
+	pr_err("lbr_ctl:            %lld\n", control->lbr_ctl);
+	pr_err("next_rip:           %016llx\n", control->next_rip);
+	pr_err("VMCB State Save Area:\n");
+	pr_err("es:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->es.selector, save->es.attrib,
+		save->es.limit, save->es.base);
+	pr_err("cs:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->cs.selector, save->cs.attrib,
+		save->cs.limit, save->cs.base);
+	pr_err("ss:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->ss.selector, save->ss.attrib,
+		save->ss.limit, save->ss.base);
+	pr_err("ds:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->ds.selector, save->ds.attrib,
+		save->ds.limit, save->ds.base);
+	pr_err("fs:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->fs.selector, save->fs.attrib,
+		save->fs.limit, save->fs.base);
+	pr_err("gs:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->gs.selector, save->gs.attrib,
+		save->gs.limit, save->gs.base);
+	pr_err("gdtr: s: %04x a: %04x l: %08x b: %016llx\n",
+		save->gdtr.selector, save->gdtr.attrib,
+		save->gdtr.limit, save->gdtr.base);
+	pr_err("ldtr: s: %04x a: %04x l: %08x b: %016llx\n",
+		save->ldtr.selector, save->ldtr.attrib,
+		save->ldtr.limit, save->ldtr.base);
+	pr_err("idtr: s: %04x a: %04x l: %08x b: %016llx\n",
+		save->idtr.selector, save->idtr.attrib,
+		save->idtr.limit, save->idtr.base);
+	pr_err("tr:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->tr.selector, save->tr.attrib,
+		save->tr.limit, save->tr.base);
+	pr_err("cpl:            %d                efer:         %016llx\n",
+		save->cpl, save->efer);
+	pr_err("cr0:            %016llx cr2:          %016llx\n",
+		save->cr0, save->cr2);
+	pr_err("cr3:            %016llx cr4:          %016llx\n",
+		save->cr3, save->cr4);
+	pr_err("dr6:            %016llx dr7:          %016llx\n",
+		save->dr6, save->dr7);
+	pr_err("rip:            %016llx rflags:       %016llx\n",
+		save->rip, save->rflags);
+	pr_err("rsp:            %016llx rax:          %016llx\n",
+		save->rsp, save->rax);
+	pr_err("star:           %016llx lstar:        %016llx\n",
+		save->star, save->lstar);
+	pr_err("cstar:          %016llx sfmask:       %016llx\n",
+		save->cstar, save->sfmask);
+	pr_err("kernel_gs_base: %016llx sysenter_cs:  %016llx\n",
+		save->kernel_gs_base, save->sysenter_cs);
+	pr_err("sysenter_esp:   %016llx sysenter_eip: %016llx\n",
+		save->sysenter_esp, save->sysenter_eip);
+	pr_err("gpat:           %016llx dbgctl:       %016llx\n",
+		save->g_pat, save->dbgctl);
+	pr_err("br_from:        %016llx br_to:        %016llx\n",
+		save->br_from, save->br_to);
+	pr_err("excp_from:      %016llx excp_to:      %016llx\n",
+		save->last_excp_from, save->last_excp_to);
+
+}
+
 static int handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2770,6 +2864,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		kvm_run->fail_entry.hardware_entry_failure_reason
 			= svm->vmcb->control.exit_code;
+		pr_err("KVM: FAILED VMRUN WITH VMCB:\n");
+		dump_vmcb(vcpu);
 		return 0;
 	}
 
@@ -2826,9 +2922,6 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 {
 	struct vmcb_control_area *control;
 
-	trace_kvm_inj_virq(irq);
-
-	++svm->vcpu.stat.irq_injections;
 	control = &svm->vmcb->control;
 	control->int_vector = irq;
 	control->int_ctl &= ~V_INTR_PRIO_MASK;
@@ -2841,6 +2934,9 @@ static void svm_set_irq(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	BUG_ON(!(gif_set(svm)));
+
+	trace_kvm_inj_virq(vcpu->arch.interrupt.nr);
+	++vcpu->stat.irq_injections;
 
 	svm->vmcb->control.event_inj = vcpu->arch.interrupt.nr |
 		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
@@ -3327,6 +3423,11 @@ static bool svm_rdtscp_supported(void)
 	return false;
 }
 
+static bool svm_has_wbinvd_exit(void)
+{
+	return true;
+}
+
 static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3411,6 +3512,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.rdtscp_supported = svm_rdtscp_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
+
+	.has_wbinvd_exit = svm_has_wbinvd_exit,
 };
 
 static int __init svm_init(void)

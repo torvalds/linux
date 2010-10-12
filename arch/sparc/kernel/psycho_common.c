@@ -447,7 +447,7 @@ int psycho_iommu_init(struct pci_pbm_info *pbm, int tsbsize,
 
 }
 
-void psycho_pbm_init_common(struct pci_pbm_info *pbm, struct of_device *op,
+void psycho_pbm_init_common(struct pci_pbm_info *pbm, struct platform_device *op,
 			    const char *chip_name, int chip_type)
 {
 	struct device_node *dp = op->dev.of_node;

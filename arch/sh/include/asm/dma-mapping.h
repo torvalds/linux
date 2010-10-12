@@ -42,21 +42,6 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
-#ifdef CONFIG_DMA_COHERENT
-#define dma_is_consistent(d, h) (1)
-#else
-#define dma_is_consistent(d, h) (0)
-#endif
-
-static inline int dma_get_cache_alignment(void)
-{
-	/*
-	 * Each processor family will define its own L1_CACHE_SHIFT,
-	 * L1_CACHE_BYTES wraps to this, so this is always safe.
-	 */
-	return L1_CACHE_BYTES;
-}
-
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);

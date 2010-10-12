@@ -16,8 +16,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
-obj-y += asic-calliope.o asic-cronus.o asic-zeus.o asic_devices.o asic_int.o \
-	 irq_asic.o prealloc-calliope.o prealloc-cronus.o \
-	 prealloc-cronuslite.o prealloc-zeus.o
+obj-y += asic-calliope.o asic-cronus.o asic-gaia.o asic-zeus.o \
+	asic_devices.o asic_int.o irq_asic.o prealloc-calliope.o \
+	prealloc-cronus.o prealloc-cronuslite.o prealloc-gaia.o prealloc-zeus.o
 
 EXTRA_CFLAGS += -Wall -Werror

@@ -65,7 +65,7 @@
 #define OCMD_YUV_410_PLANAR	(0xe<<10) /* also 411 */
 #define OCMD_TVSYNCFLIP_PARITY	(0x1<<9)
 #define OCMD_TVSYNCFLIP_ENABLE	(0x1<<7)
-#define OCMD_BUF_TYPE_MASK	(Ox1<<5)
+#define OCMD_BUF_TYPE_MASK	(0x1<<5)
 #define OCMD_BUF_TYPE_FRAME	(0x0<<5)
 #define OCMD_BUF_TYPE_FIELD	(0x1<<5)
 #define OCMD_TEST_MODE		(0x1<<4)
@@ -185,7 +185,8 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 
 	if (OVERLAY_NONPHYSICAL(overlay->dev)) {
 		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-				overlay->reg_bo->gtt_offset);
+						overlay->reg_bo->gtt_offset,
+						KM_USER0);
 
 		if (!regs) {
 			DRM_ERROR("failed to map overlay regs in GTT\n");
@@ -200,7 +201,7 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay)
 {
 	if (OVERLAY_NONPHYSICAL(overlay->dev))
-		io_mapping_unmap_atomic(overlay->virt_addr);
+		io_mapping_unmap_atomic(overlay->virt_addr, KM_USER0);
 
 	overlay->virt_addr = NULL;
 
@@ -958,7 +959,7 @@ static int check_overlay_src(struct drm_device *dev,
 	    || rec->src_width < N_HORIZ_Y_TAPS*4)
 		return -EINVAL;
 
-	/* check alingment constrains */
+	/* check alignment constraints */
 	switch (rec->flags & I915_OVERLAY_TYPE_MASK) {
 		case I915_OVERLAY_RGB:
 			/* not implemented */
@@ -990,7 +991,10 @@ static int check_overlay_src(struct drm_device *dev,
 		return -EINVAL;
 
 	/* stride checking */
-	stride_mask = 63;
+	if (IS_I830(dev) || IS_845G(dev))
+		stride_mask = 255;
+	else
+		stride_mask = 63;
 
 	if (rec->stride_Y & stride_mask || rec->stride_UV & stride_mask)
 		return -EINVAL;

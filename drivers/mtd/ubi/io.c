@@ -150,6 +150,8 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 retry:
 	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
 	if (err) {
+		const char *errstr = (err == -EBADMSG) ? " (ECC error)" : "";
+
 		if (err == -EUCLEAN) {
 			/*
 			 * -EUCLEAN is reported if there was a bit-flip which
@@ -165,15 +167,15 @@ retry:
 		}
 
 		if (read != len && retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d while reading %d bytes from PEB %d:%d,"
+			dbg_io("error %d%s while reading %d bytes from PEB %d:%d,"
 			       " read only %zd bytes, retry",
-			       err, len, pnum, offset, read);
+			       err, errstr, len, pnum, offset, read);
 			yield();
 			goto retry;
 		}
 
-		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
-			"read %zd bytes", err, len, pnum, offset, read);
+		ubi_err("error %d%s while reading %d bytes from PEB %d:%d, "
+			"read %zd bytes", err, errstr, len, pnum, offset, read);
 		ubi_dbg_dump_stack();
 
 		/*
@@ -515,7 +517,7 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * In this case we probably anyway have garbage in this PEB.
 	 */
 	err1 = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
-	if (err1 == UBI_IO_BAD_VID_HDR)
+	if (err1 == UBI_IO_BAD_HDR_READ || err1 == UBI_IO_BAD_HDR)
 		/*
 		 * The VID header is corrupted, so we can safely erase this
 		 * PEB and not afraid that it will be treated as a valid PEB in
@@ -709,7 +711,7 @@ bad:
  * o %UBI_IO_BITFLIPS if the CRC is correct, but bit-flips were detected
  *   and corrected by the flash driver; this is harmless but may indicate that
  *   this eraseblock may become bad soon (but may be not);
- * o %UBI_IO_BAD_EC_HDR if the erase counter header is corrupted (a CRC error);
+ * o %UBI_IO_BAD_HDR if the erase counter header is corrupted (a CRC error);
  * o %UBI_IO_PEB_EMPTY if the physical eraseblock is empty;
  * o a negative error code in case of failure.
  */
@@ -736,23 +738,21 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		 * header is still OK, we just report this as there was a
 		 * bit-flip.
 		 */
-		read_err = err;
+		if (err == -EBADMSG)
+			read_err = UBI_IO_BAD_HDR_READ;
 	}
 
 	magic = be32_to_cpu(ec_hdr->magic);
 	if (magic != UBI_EC_HDR_MAGIC) {
+		if (read_err)
+			return read_err;
+
 		/*
 		 * The magic field is wrong. Let's check if we have read all
 		 * 0xFF. If yes, this physical eraseblock is assumed to be
 		 * empty.
-		 *
-		 * But if there was a read error, we do not test it for all
-		 * 0xFFs. Even if it does contain all 0xFFs, this error
-		 * indicates that something is still wrong with this physical
-		 * eraseblock and we anyway cannot treat it as empty.
 		 */
-		if (read_err != -EBADMSG &&
-		    check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
+		if (check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
 			/* The physical eraseblock is supposedly empty */
 			if (verbose)
 				ubi_warn("no EC header found at PEB %d, "
@@ -774,7 +774,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		} else if (UBI_IO_DEBUG)
 			dbg_msg("bad magic number at PEB %d: %08x instead of "
 				"%08x", pnum, magic, UBI_EC_HDR_MAGIC);
-		return UBI_IO_BAD_EC_HDR;
+		return UBI_IO_BAD_HDR;
 	}
 
 	crc = crc32(UBI_CRC32_INIT, ec_hdr, UBI_EC_HDR_SIZE_CRC);
@@ -788,7 +788,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		} else if (UBI_IO_DEBUG)
 			dbg_msg("bad EC header CRC at PEB %d, calculated "
 				"%#08x, read %#08x", pnum, crc, hdr_crc);
-		return UBI_IO_BAD_EC_HDR;
+		return read_err ?: UBI_IO_BAD_HDR;
 	}
 
 	/* And of course validate what has just been read from the media */
@@ -798,6 +798,10 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		return -EINVAL;
 	}
 
+	/*
+	 * If there was %-EBADMSG, but the header CRC is still OK, report about
+	 * a bit-flip to force scrubbing on this PEB.
+	 */
 	return read_err ? UBI_IO_BITFLIPS : 0;
 }
 
@@ -977,7 +981,7 @@ bad:
  * o %UBI_IO_BITFLIPS if the CRC is correct, but bit-flips were detected
  *   and corrected by the flash driver; this is harmless but may indicate that
  *   this eraseblock may become bad soon;
- * o %UBI_IO_BAD_VID_HDR if the volume identifier header is corrupted (a CRC
+ * o %UBI_IO_BAD_HDR if the volume identifier header is corrupted (a CRC
  *   error detected);
  * o %UBI_IO_PEB_FREE if the physical eraseblock is free (i.e., there is no VID
  *   header there);
@@ -1008,22 +1012,20 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		 * CRC check-sum and we will identify this. If the VID header is
 		 * still OK, we just report this as there was a bit-flip.
 		 */
-		read_err = err;
+		if (err == -EBADMSG)
+			read_err = UBI_IO_BAD_HDR_READ;
 	}
 
 	magic = be32_to_cpu(vid_hdr->magic);
 	if (magic != UBI_VID_HDR_MAGIC) {
+		if (read_err)
+			return read_err;
+
 		/*
 		 * If we have read all 0xFF bytes, the VID header probably does
 		 * not exist and the physical eraseblock is assumed to be free.
-		 *
-		 * But if there was a read error, we do not test the data for
-		 * 0xFFs. Even if it does contain all 0xFFs, this error
-		 * indicates that something is still wrong with this physical
-		 * eraseblock and it cannot be regarded as free.
 		 */
-		if (read_err != -EBADMSG &&
-		    check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
+		if (check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
 			/* The physical eraseblock is supposedly free */
 			if (verbose)
 				ubi_warn("no VID header found at PEB %d, "
@@ -1045,7 +1047,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		} else if (UBI_IO_DEBUG)
 			dbg_msg("bad magic number at PEB %d: %08x instead of "
 				"%08x", pnum, magic, UBI_VID_HDR_MAGIC);
-		return UBI_IO_BAD_VID_HDR;
+		return UBI_IO_BAD_HDR;
 	}
 
 	crc = crc32(UBI_CRC32_INIT, vid_hdr, UBI_VID_HDR_SIZE_CRC);
@@ -1059,7 +1061,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		} else if (UBI_IO_DEBUG)
 			dbg_msg("bad CRC at PEB %d, calculated %#08x, "
 				"read %#08x", pnum, crc, hdr_crc);
-		return UBI_IO_BAD_VID_HDR;
+		return read_err ?: UBI_IO_BAD_HDR;
 	}
 
 	/* Validate the VID header that we have just read */
@@ -1069,6 +1071,10 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		return -EINVAL;
 	}
 
+	/*
+	 * If there was a read error (%-EBADMSG), but the header CRC is still
+	 * OK, report about a bit-flip to force scrubbing on this PEB.
+	 */
 	return read_err ? UBI_IO_BITFLIPS : 0;
 }
 

@@ -125,10 +125,10 @@ struct bfa_auth_attr_s {
 	enum bfa_auth_status 	status;
 	enum bfa_auth_algo 	algo;
 	enum bfa_auth_group 	dh_grp;
-	u16		rjt_code;
-	u16		rjt_code_exp;
+	enum bfa_auth_rej_code  rjt_code;
+	enum bfa_auth_rej_code_exp rjt_code_exp;
 	u8			secret_set;
-	u8			resv[7];
+	u8			resv[3];
 };
 
 #endif /* __BFA_DEFS_AUTH_H__ */

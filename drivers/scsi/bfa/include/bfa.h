@@ -126,6 +126,10 @@ struct bfa_sge_s {
 	bfa_ioc_get_type(&(__bfa)->ioc)
 #define bfa_get_mac(__bfa)  \
 	bfa_ioc_get_mac(&(__bfa)->ioc)
+#define bfa_get_mfg_mac(__bfa)  \
+	bfa_ioc_get_mfg_mac(&(__bfa)->ioc)
+#define bfa_get_fw_clock_res(__bfa)    \
+	((__bfa)->iocfc.cfgrsp->fwcfg.fw_tick_res)
 
 /*
  * bfa API functions

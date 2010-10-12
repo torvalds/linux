@@ -145,8 +145,7 @@ static const struct super_operations ocfs2_sops = {
 	.alloc_inode	= ocfs2_alloc_inode,
 	.destroy_inode	= ocfs2_destroy_inode,
 	.drop_inode	= ocfs2_drop_inode,
-	.clear_inode	= ocfs2_clear_inode,
-	.delete_inode	= ocfs2_delete_inode,
+	.evict_inode	= ocfs2_evict_inode,
 	.sync_fs	= ocfs2_sync_fs,
 	.put_super	= ocfs2_put_super,
 	.remount_fs	= ocfs2_remount,
@@ -2472,7 +2471,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	kfree(osb->slot_recovery_generations);
 	/* FIXME
 	 * This belongs in journal shutdown, but because we have to
-	 * allocate osb->journal at the start of ocfs2_initalize_osb(),
+	 * allocate osb->journal at the start of ocfs2_initialize_osb(),
 	 * we free it here.
 	 */
 	kfree(osb->journal);

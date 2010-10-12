@@ -43,7 +43,7 @@ struct pmi_data {
 	struct mutex		msg_mutex;
 	pmi_message_t		msg;
 	struct completion	*completion;
-	struct of_device	*dev;
+	struct platform_device	*dev;
 	int			irq;
 	u8 __iomem		*pmi_reg;
 	struct work_struct	work;
@@ -121,7 +121,7 @@ static void pmi_notify_handlers(struct work_struct *work)
 	spin_unlock(&data->handler_spinlock);
 }
 
-static int pmi_of_probe(struct of_device *dev,
+static int pmi_of_probe(struct platform_device *dev,
 			const struct of_device_id *match)
 {
 	struct device_node *np = dev->dev.of_node;
@@ -185,7 +185,7 @@ out:
 	return rc;
 }
 
-static int pmi_of_remove(struct of_device *dev)
+static int pmi_of_remove(struct platform_device *dev)
 {
 	struct pmi_handler *handler, *tmp;
 

@@ -16,10 +16,12 @@
 #include <mach/hardware.h>
 #include <mach/at91_pmc.h>
 
-#ifdef CONFIG_ARCH_AT91RM9200
+#if defined(CONFIG_ARCH_AT91RM9200)
 #include <mach/at91rm9200_mc.h>
 #elif defined(CONFIG_ARCH_AT91CAP9)
 #include <mach/at91cap9_ddrsdr.h>
+#elif defined(CONFIG_ARCH_AT91SAM9G45)
+#include <mach/at91sam9_ddrsdr.h>
 #else
 #include <mach/at91sam9_sdramc.h>
 #endif
@@ -30,7 +32,6 @@
  * FIXME either or both the SDRAM controllers (EB0, EB1) might be in use;
  * handle those cases both here and in the Suspend-To-RAM support.
  */
-#define AT91_SDRAMC	AT91_SDRAMC0
 #warning Assuming EB1 SDRAM controller is *NOT* used
 #endif
 
@@ -113,12 +114,14 @@ ENTRY(at91_slow_clock)
 	/*
 	 * Register usage:
 	 *  R1 = Base address of AT91_PMC
-	 *  R2 = Base address of AT91_SDRAMC (or AT91_SYS on AT91RM9200)
+	 *  R2 = Base address of RAM Controller (SDRAM, DDRSDR, or AT91_SYS)
 	 *  R3 = temporary register
 	 *  R4 = temporary register
+	 *  R5 = Base address of second RAM Controller or 0 if not present
 	 */
 	ldr	r1, .at91_va_base_pmc
 	ldr	r2, .at91_va_base_sdramc
+	ldr	r5, .at91_va_base_ramc1
 
 	/* Drain write buffer */
 	mcr	p15, 0, r0, c7, c10, 4
@@ -127,20 +130,33 @@ ENTRY(at91_slow_clock)
 	/* Put SDRAM in self-refresh mode */
 	mov	r3, #1
 	str	r3, [r2, #AT91_SDRAMC_SRR]
-#elif defined(CONFIG_ARCH_AT91CAP9)
-	/* Enable SDRAM self-refresh mode */
-	ldr	r3, [r2, #AT91_DDRSDRC_LPR - AT91_DDRSDRC]
-	str	r3, .saved_sam9_lpr
+#elif defined(CONFIG_ARCH_AT91CAP9) \
+	|| defined(CONFIG_ARCH_AT91SAM9G45)
 
-	mov	r3, #AT91_DDRSDRC_LPCB_SELF_REFRESH
-	str	r3, [r2, #AT91_DDRSDRC_LPR - AT91_DDRSDRC]
+	/* prepare for DDRAM self-refresh mode */
+	ldr	r3, [r2, #AT91_DDRSDRC_LPR]
+	str	r3, .saved_sam9_lpr
+	bic	r3, #AT91_DDRSDRC_LPCB
+	orr	r3, #AT91_DDRSDRC_LPCB_SELF_REFRESH
+
+	/* figure out if we use the second ram controller */
+	cmp	r5, #0
+	ldrne	r4, [r5, #AT91_DDRSDRC_LPR]
+	strne	r4, .saved_sam9_lpr1
+	bicne	r4, #AT91_DDRSDRC_LPCB
+	orrne	r4, #AT91_DDRSDRC_LPCB_SELF_REFRESH
+
+	/* Enable DDRAM self-refresh mode */
+	str	r3, [r2, #AT91_DDRSDRC_LPR]
+	strne	r4, [r5, #AT91_DDRSDRC_LPR]
 #else
 	/* Enable SDRAM self-refresh mode */
-	ldr	r3, [r2, #AT91_SDRAMC_LPR - AT91_SDRAMC]
+	ldr	r3, [r2, #AT91_SDRAMC_LPR]
 	str	r3, .saved_sam9_lpr
 
-	mov	r3, #AT91_SDRAMC_LPCB_SELF_REFRESH
-	str	r3, [r2, #AT91_SDRAMC_LPR - AT91_SDRAMC]
+	bic	r3, #AT91_SDRAMC_LPCB
+	orr	r3, #AT91_SDRAMC_LPCB_SELF_REFRESH
+	str	r3, [r2, #AT91_SDRAMC_LPR]
 #endif
 
 	/* Save Master clock setting */
@@ -247,14 +263,21 @@ ENTRY(at91_slow_clock)
 
 #ifdef CONFIG_ARCH_AT91RM9200
 	/* Do nothing - self-refresh is automatically disabled. */
-#elif defined(CONFIG_ARCH_AT91CAP9)
-	/* Restore LPR on AT91CAP9 */
+#elif defined(CONFIG_ARCH_AT91CAP9) \
+	|| defined(CONFIG_ARCH_AT91SAM9G45)
+	/* Restore LPR on AT91 with DDRAM */
 	ldr	r3, .saved_sam9_lpr
-	str	r3, [r2, #AT91_DDRSDRC_LPR - AT91_DDRSDRC]
+	str	r3, [r2, #AT91_DDRSDRC_LPR]
+
+	/* if we use the second ram controller */
+	cmp	r5, #0
+	ldrne	r4, .saved_sam9_lpr1
+	strne	r4, [r5, #AT91_DDRSDRC_LPR]
+
 #else
-	/* Restore LPR on AT91SAM9 */
+	/* Restore LPR on AT91 with SDRAM */
 	ldr	r3, .saved_sam9_lpr
-	str	r3, [r2, #AT91_SDRAMC_LPR - AT91_SDRAMC]
+	str	r3, [r2, #AT91_SDRAMC_LPR]
 #endif
 
 	/* Restore registers, and return */
@@ -273,18 +296,29 @@ ENTRY(at91_slow_clock)
 .saved_sam9_lpr:
 	.word 0
 
+.saved_sam9_lpr1:
+	.word 0
+
 .at91_va_base_pmc:
 	.word AT91_VA_BASE_SYS + AT91_PMC
 
 #ifdef CONFIG_ARCH_AT91RM9200
 .at91_va_base_sdramc:
 	.word AT91_VA_BASE_SYS
-#elif defined(CONFIG_ARCH_AT91CAP9)
+#elif defined(CONFIG_ARCH_AT91CAP9) \
+	|| defined(CONFIG_ARCH_AT91SAM9G45)
 .at91_va_base_sdramc:
-	.word AT91_VA_BASE_SYS + AT91_DDRSDRC
+	.word AT91_VA_BASE_SYS + AT91_DDRSDRC0
 #else
 .at91_va_base_sdramc:
-	.word AT91_VA_BASE_SYS + AT91_SDRAMC
+	.word AT91_VA_BASE_SYS + AT91_SDRAMC0
+#endif
+
+.at91_va_base_ramc1:
+#if defined(CONFIG_ARCH_AT91SAM9G45)
+	.word AT91_VA_BASE_SYS + AT91_DDRSDRC1
+#else
+	.word 0
 #endif
 
 ENTRY(at91_slow_clock_sz)

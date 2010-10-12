@@ -171,6 +171,11 @@ bfa_cb_ioim_get_cdblen(struct bfad_ioim_s *dio)
 	return cmnd->cmd_len;
 }
 
-
+/**
+ * Assign queue to be used for the I/O request. This value depends on whether
+ * the driver wants to use the queues via any specific algorithm. Currently,
+ * this is not supported.
+ */
+#define bfa_cb_ioim_get_reqq(__dio) BFA_FALSE
 
 #endif /* __BFA_HCB_IOIM_MACROS_H__ */

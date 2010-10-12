@@ -82,7 +82,18 @@ static struct comedi_driver driver_dt2815 = {
 	.detach = dt2815_detach,
 };
 
-COMEDI_INITCLEANUP(driver_dt2815);
+static int __init driver_dt2815_init_module(void)
+{
+	return comedi_driver_register(&driver_dt2815);
+}
+
+static void __exit driver_dt2815_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dt2815);
+}
+
+module_init(driver_dt2815_init_module);
+module_exit(driver_dt2815_cleanup_module);
 
 static void dt2815_free_resources(struct comedi_device *dev);
 
@@ -255,3 +266,7 @@ static int dt2815_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

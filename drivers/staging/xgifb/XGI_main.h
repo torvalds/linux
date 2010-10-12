@@ -42,17 +42,10 @@
 
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
 #define XGI_IOTYPE1 void __iomem
 #define XGI_IOTYPE2 __iomem
 #define XGIINITSTATIC static
-#else
-#define XGI_IOTYPE1 unsigned char
-#define XGI_IOTYPE2
-#define XGIINITSTATIC
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 static struct pci_device_id __devinitdata xgifb_pci_table[] = {
 
 	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -63,7 +56,7 @@ static struct pci_device_id __devinitdata xgifb_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
-#endif
+
 /* To be included in fb.h */
 #ifndef FB_ACCEL_XGI_GLAMOUR_2
 #define FB_ACCEL_XGI_GLAMOUR_2  40	/* XGI 315, 650, 740		*/
@@ -255,9 +248,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define BRI_DRAM_SIZE_32MB        0x04
 #define BRI_DRAM_SIZE_64MB        0x05
 
-#define HW_DEVICE_EXTENSION	  XGI_HW_DEVICE_INFO
-#define PHW_DEVICE_EXTENSION      PXGI_HW_DEVICE_INFO
-
 #define SR_BUFFER_SIZE            5
 #define CR_BUFFER_SIZE            5
 
@@ -300,11 +290,7 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 /* ------------------- Global Variables ----------------------------- */
 
 /* Fbcon variables */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 static struct fb_info* fb_info;
-#else
-static struct fb_info XGI_fb_info;
-#endif
 
 
 static int    video_type = FB_TYPE_PACKED_PIXELS;
@@ -336,12 +322,8 @@ static struct fb_var_screeninfo default_var = {
 	.vsync_len	= 0,
 	.sync		= 0,
 	.vmode		= FB_VMODE_NONINTERLACED,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	.reserved	= {0, 0, 0, 0, 0, 0}
-#endif
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 static struct fb_fix_screeninfo XGIfb_fix = {
 	.id		= "XGI",
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -350,28 +332,7 @@ static struct fb_fix_screeninfo XGIfb_fix = {
 };
 static char myid[20];
 static u32 pseudo_palette[17];
-#endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-static struct display XGI_disp;
-
-static struct display_switch XGIfb_sw;
-
-static struct {
-	u16 blue, green, red, pad;
-} XGI_palette[256];
-
-static union {
-#ifdef FBCON_HAS_CFB16
-	u16 cfb16[16];
-#endif
-#ifdef FBCON_HAS_CFB32
-	u32 cfb32[16];
-#endif
-} XGI_fbcon_cmap;
-
-static int XGIfb_inverse = 0;
-#endif
 
 /* display status */
 static int XGIfb_off = 0;
@@ -380,9 +341,6 @@ static int XGIfb_forcecrt1 = -1;
 static int XGIvga_enabled = 0;
 static int XGIfb_userom = 0;
 //static int XGIfb_useoem = -1;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-static int currcon = 0;
-#endif
 
 /* global flags */
 static int XGIfb_registered;
@@ -415,10 +373,10 @@ unsigned char XGIfb_detectedlcda = 0xff;
 /* XGIfb_info XGIfbinfo; */
 
 /* TW: Hardware extension; contains data on hardware */
-HW_DEVICE_EXTENSION XGIhw_ext;
+struct xgi_hw_device_info XGIhw_ext;
 
 /* TW: XGI private structure */
-VB_DEVICE_INFO  XGI_Pr;
+struct vb_device_info  XGI_Pr;
 
 /* card parameters */
 static unsigned long XGIfb_mmio_size = 0;
@@ -530,29 +488,21 @@ struct _XGIbios_mode {
 
 /* mode-related variables */
 #ifdef MODULE
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 static int xgifb_mode_idx = 1;
 #else
-static int XGIfb_mode_idx = MODE_INDEX_NONE;  /* Don't use a mode by default if we are a module */
-#endif
-#else
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 static int xgifb_mode_idx = -1;               /* Use a default mode if we are inside the kernel */
-#else
-static int XGIfb_mode_idx = -1;
-#endif
 #endif
 u8  XGIfb_mode_no  = 0;
 u8  XGIfb_rate_idx = 0;
 
 /* TW: CR36 evaluation */
-const USHORT XGI300paneltype[] =
+const unsigned short XGI300paneltype[] =
     { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
       LCD_1280x960,  LCD_640x480,  LCD_1024x600,  LCD_1152x768,
        LCD_1024x768, LCD_1024x768,  LCD_1024x768,
       LCD_1024x768,  LCD_1024x768, LCD_1024x768,  LCD_1024x768 };
 
-const USHORT XGI310paneltype[] =
+const unsigned short XGI310paneltype[] =
     { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
       LCD_640x480,   LCD_1024x600, LCD_1152x864,  LCD_1280x960,
       LCD_1152x768,  LCD_1400x1050,LCD_1280x768,  LCD_1600x1200,
@@ -647,17 +597,6 @@ static const struct _chswtable {
         { 0x1631, 0x1002, "Mitachi", "0x1002" },
 	{ 0,      0,      ""       , ""       }
 };
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-/* Offscreen layout */
-typedef struct _XGI_GLYINFO {
-	unsigned char ch;
-	int fontwidth;
-	int fontheight;
-	u8 gmask[72];
-	int ngmask;
-} XGI_GLYINFO;
-#endif
 
 typedef struct _XGI_OH {
 	struct _XGI_OH *poh_next;
@@ -852,50 +791,6 @@ XGIINITSTATIC int __init XGIfb_setup(char *options);
 
 
 /* fbdev routines */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-       int	XGIfb_init(void);
-static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix,
-			      int con,
-			      struct fb_info *info);
-static int      XGIfb_get_var(struct fb_var_screeninfo *var,
-			      int con,
-			      struct fb_info *info);
-static int      XGIfb_set_var(struct fb_var_screeninfo *var,
-			      int con,
-			      struct fb_info *info);
-static void     XGIfb_crtc_to_var(struct fb_var_screeninfo *var);
-static int      XGIfb_get_cmap(struct fb_cmap *cmap,
-			       int kspc,
-			       int con,
-			       struct fb_info *info);
-static int      XGIfb_set_cmap(struct fb_cmap *cmap,
-			       int kspc,
-			       int con,
-			       struct fb_info *info);
-static int      XGIfb_update_var(int con,
-				 struct fb_info *info);
-static int      XGIfb_switch(int con,
-			     struct fb_info *info);
-static void     XGIfb_blank(int blank,
-			    struct fb_info *info);
-static void     XGIfb_set_disp(int con,
-			       struct fb_var_screeninfo *var,
-                               struct fb_info *info);
-static int      XGI_getcolreg(unsigned regno, unsigned *red, unsigned *green,
-			      unsigned *blue, unsigned *transp,
-			      struct fb_info *fb_info);
-static void     XGIfb_do_install_cmap(int con,
-                                      struct fb_info *info);
-static void     XGI_get_glyph(struct fb_info *info,
-                              XGI_GLYINFO *gly);
-static int 	XGIfb_mmap(struct fb_info *info, struct file *file,
-		           struct vm_area_struct *vma);
-static int      XGIfb_ioctl(struct inode *inode, struct file *file,
-		       	    unsigned int cmd, unsigned long arg, int con,
-		       	    struct fb_info *info);
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 XGIINITSTATIC int __init xgifb_init(void);
 static int      XGIfb_set_par(struct fb_info *info);
 static int      XGIfb_blank(int blank,
@@ -907,36 +802,25 @@ extern void     fbcon_XGI_fillrect(struct fb_info *info,
                                    const struct fb_fillrect *rect);
 extern void     fbcon_XGI_copyarea(struct fb_info *info,
                                    const struct fb_copyarea *area);
-#if 0
-extern void     cfb_imageblit(struct fb_info *info,
-                              const struct fb_image *image);
-#endif
 extern int      fbcon_XGI_sync(struct fb_info *info);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
 static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 			    unsigned long arg);
-#else
-static int      XGIfb_ioctl(struct inode *inode,
-	 		    struct file *file,
-		       	    unsigned int cmd,
-			    unsigned long arg,
-		       	    struct fb_info *info);
-#endif
 
 /*
 extern int	XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr,
-			      PXGI_HW_DEVICE_INFO HwDeviceExtension,
+			      struct xgi_hw_device_info *HwDeviceExtension,
 			      unsigned char modeno, unsigned char rateindex);
-extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
+extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned char modeno, unsigned char rateindex,
 			 unsigned int *left_margin, unsigned int *right_margin,
 			 unsigned int *upper_margin, unsigned int *lower_margin,
 			 unsigned int *hsync_len, unsigned int *vsync_len,
 			 unsigned int *sync, unsigned int *vmode);
 */
-#endif
-			extern   BOOLEAN  XGI_SearchModeID( USHORT ModeNo,USHORT  *ModeIdIndex, PVB_DEVICE_INFO );
+extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
+				unsigned short *ModeIdIndex,
+				struct vb_device_info *);
 static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 			      struct fb_info *info);
 
@@ -956,10 +840,10 @@ static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 static void     XGIfb_pre_setmode(void);
 static void     XGIfb_post_setmode(void);
 
-static BOOLEAN  XGIfb_CheckVBRetrace(void);
-static BOOLEAN  XGIfbcheckvretracecrt2(void);
-static BOOLEAN  XGIfbcheckvretracecrt1(void);
-static BOOLEAN  XGIfb_bridgeisslave(void);
+static unsigned char  XGIfb_CheckVBRetrace(void);
+static unsigned char  XGIfbcheckvretracecrt2(void);
+static unsigned char  XGIfbcheckvretracecrt1(void);
+static unsigned char  XGIfb_bridgeisslave(void);
 
 struct XGI_memreq {
 	unsigned long offset;
@@ -994,30 +878,40 @@ static XGI_OH   *XGIfb_poh_free(unsigned long base);
 static void     XGIfb_free_node(XGI_OH *poh);
 
 /* Internal routines to access PCI configuration space */
-BOOLEAN         XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
-	          	unsigned long offset, unsigned long set, unsigned long *value);
+unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,
+					   unsigned long offset,
+					   unsigned long set,
+					   unsigned long *value);
 //BOOLEAN         XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 //	         	unsigned long offset, unsigned long set, unsigned long *value);
 
 
 /* Routines from init.c/init301.c */
-extern void     InitTo330Pointer(UCHAR,PVB_DEVICE_INFO pVBInfo);
-extern BOOLEAN  XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension);
-extern BOOLEAN  XGISetModeNew(PXGI_HW_DEVICE_INFO HwDeviceExtension, USHORT ModeNo);
+extern void     InitTo330Pointer(unsigned char, struct vb_device_info *pVBInfo);
+extern unsigned char  XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension);
+extern unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
+				   unsigned short ModeNo);
 //extern void     XGI_SetEnableDstn(VB_DEVICE_INFO *XGI_Pr);
-extern void     XGI_LongWait(VB_DEVICE_INFO *XGI_Pr);
-extern USHORT   XGI_GetRatePtrCRT2( PXGI_HW_DEVICE_INFO pXGIHWDE, USHORT ModeNo,USHORT ModeIdIndex,PVB_DEVICE_INFO pVBInfo );
+extern void     XGI_LongWait(struct vb_device_info *XGI_Pr);
+extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
+					 unsigned short ModeNo,
+					 unsigned short ModeIdIndex,
+					 struct vb_device_info *pVBInfo);
 /* TW: Chrontel TV functions */
-extern USHORT 	XGI_GetCH700x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern void 	XGI_SetCH700x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern USHORT 	XGI_GetCH701x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern void 	XGI_SetCH701x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern void     XGI_SetCH70xxANDOR(VB_DEVICE_INFO *XGI_Pr, USHORT tempax,USHORT tempbh);
-extern void     XGI_DDC2Delay(VB_DEVICE_INFO *XGI_Pr, USHORT delaytime);
+extern unsigned short XGI_GetCH700x(struct vb_device_info *XGI_Pr,
+				    unsigned short tempbx);
+extern void XGI_SetCH700x(struct vb_device_info *XGI_Pr, unsigned short tempbx);
+extern unsigned short XGI_GetCH701x(struct vb_device_info *XGI_Pr,
+				    unsigned short tempbx);
+extern void XGI_SetCH701x(struct vb_device_info *XGI_Pr, unsigned short tempbx);
+extern void XGI_SetCH70xxANDOR(struct vb_device_info *XGI_Pr,
+			       unsigned short tempax,
+			       unsigned short tempbh);
+extern void XGI_DDC2Delay(struct vb_device_info *XGI_Pr, unsigned short delaytime);
 
 /* TW: Sensing routines */
 void            XGI_Sense30x(void);
 int             XGIDoSense(int tempbl, int tempbh, int tempcl, int tempch);
 
-extern XGI21_LVDSCapStruct XGI21_LCDCapList[13];
+extern struct XGI21_LVDSCapStruct XGI21_LCDCapList[13];
 #endif

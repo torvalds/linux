@@ -132,7 +132,7 @@
  * 	%NL80211_ATTR_REG_RULE_POWER_MAX_ANT_GAIN and
  * 	%NL80211_ATTR_REG_RULE_POWER_MAX_EIRP.
  * @NL80211_CMD_REQ_SET_REG: ask the wireless core to set the regulatory domain
- * 	to the the specified ISO/IEC 3166-1 alpha2 country code. The core will
+ * 	to the specified ISO/IEC 3166-1 alpha2 country code. The core will
  * 	store this as a valid request and then query userspace for it.
  *
  * @NL80211_CMD_GET_MESH_PARAMS: Get mesh networking properties for the
@@ -725,6 +725,12 @@ enum nl80211_commands {
  * @NL80211_ATTR_AP_ISOLATE: (AP mode) Do not forward traffic between stations
  *	connected to this BSS.
  *
+ * @NL80211_ATTR_WIPHY_TX_POWER_SETTING: Transmit power setting type. See
+ *      &enum nl80211_tx_power_setting for possible values.
+ * @NL80211_ATTR_WIPHY_TX_POWER_LEVEL: Transmit power level in signed mBm units.
+ *      This is used in association with @NL80211_ATTR_WIPHY_TX_POWER_SETTING
+ *      for non-automatic settings.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -881,6 +887,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_LOCAL_STATE_CHANGE,
 
 	NL80211_ATTR_AP_ISOLATE,
+
+	NL80211_ATTR_WIPHY_TX_POWER_SETTING,
+	NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1657,6 +1666,19 @@ enum nl80211_attr_cqm {
 enum nl80211_cqm_rssi_threshold_event {
 	NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 	NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+};
+
+
+/**
+ * enum nl80211_tx_power_setting - TX power adjustment
+ * @NL80211_TX_POWER_AUTOMATIC: automatically determine transmit power
+ * @NL80211_TX_POWER_LIMITED: limit TX power by the mBm parameter
+ * @NL80211_TX_POWER_FIXED: fix TX power to the mBm parameter
+ */
+enum nl80211_tx_power_setting {
+	NL80211_TX_POWER_AUTOMATIC,
+	NL80211_TX_POWER_LIMITED,
+	NL80211_TX_POWER_FIXED,
 };
 
 #endif /* __LINUX_NL80211_H */

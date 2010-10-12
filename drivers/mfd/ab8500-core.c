@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/ab8500.h>
+#include <linux/regulator/ab8500.h>
 
 /*
  * Interrupt register offsets
@@ -352,6 +353,7 @@ static struct mfd_cell ab8500_devs[] = {
 	{ .name = "ab8500-audio", },
 	{ .name = "ab8500-usb", },
 	{ .name = "ab8500-pwm", },
+	{ .name = "ab8500-regulator", },
 };
 
 int __devinit ab8500_init(struct ab8500 *ab8500)
@@ -411,7 +413,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 			goto out_removeirq;
 	}
 
-	ret = mfd_add_devices(ab8500->dev, -1, ab8500_devs,
+	ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
 			      ARRAY_SIZE(ab8500_devs), NULL,
 			      ab8500->irq_base);
 	if (ret)

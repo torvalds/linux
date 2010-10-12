@@ -53,7 +53,6 @@ struct ctlr_info {
 	int	ctlr;
 	char	devname[8];
 	char    *product_name;
-	char	firm_ver[4]; /* Firmware version */
 	struct pci_dev *pdev;
 	u32	board_id;
 	void __iomem *vaddr;

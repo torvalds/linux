@@ -1083,6 +1083,49 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
 
+/*
+ * expiration time for default requests
+ */
+static ssize_t
+dasd_expires_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = snprintf(buf, PAGE_SIZE, "%lu\n", device->default_expires);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t
+dasd_expires_store(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned long val;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	if ((strict_strtoul(buf, 10, &val) != 0) ||
+	    (val > DASD_EXPIRES_MAX) || val == 0) {
+		dasd_put_device(device);
+		return -EINVAL;
+	}
+
+	if (val)
+		device->default_expires = val;
+
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(expires, 0644, dasd_expires_show, dasd_expires_store);
+
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
 	&dev_attr_discipline.attr,
@@ -1094,6 +1137,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_eer_enabled.attr,
 	&dev_attr_erplog.attr,
 	&dev_attr_failfast.attr,
+	&dev_attr_expires.attr,
 	NULL,
 };
 

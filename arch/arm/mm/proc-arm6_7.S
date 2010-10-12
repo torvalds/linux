@@ -184,8 +184,6 @@ ENTRY(cpu_arm7_proc_init)
 
 ENTRY(cpu_arm6_proc_fin)
 ENTRY(cpu_arm7_proc_fin)
-		mov	r0, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-		msr	cpsr_c, r0
 		mov	r0, #0x31			@ ....S..DP...M
 		mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 		mov	pc, lr

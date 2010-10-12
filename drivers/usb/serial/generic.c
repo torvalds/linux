@@ -208,18 +208,23 @@ retry:
 	urb->transfer_buffer_length = count;
 	usb_serial_debug_data(debug, &port->dev, __func__, count,
 						urb->transfer_buffer);
+	spin_lock_irqsave(&port->lock, flags);
+	port->tx_bytes += count;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	clear_bit(i, &port->write_urbs_free);
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result) {
 		dev_err(&port->dev, "%s - error submitting urb: %d\n",
 						__func__, result);
+		set_bit(i, &port->write_urbs_free);
+		spin_lock_irqsave(&port->lock, flags);
+		port->tx_bytes -= count;
+		spin_unlock_irqrestore(&port->lock, flags);
+
 		clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
 		return result;
 	}
-	clear_bit(i, &port->write_urbs_free);
-
-	spin_lock_irqsave(&port->lock, flags);
-	port->tx_bytes += count;
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	/* Try sending off another urb, unless in irq context (in which case
 	 * there will be no free urb). */

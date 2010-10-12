@@ -185,10 +185,10 @@ static void sh_perf_event_update(struct perf_event *event,
 	 * this is the simplest approach for maintaining consistency.
 	 */
 again:
-	prev_raw_count = atomic64_read(&hwc->prev_count);
+	prev_raw_count = local64_read(&hwc->prev_count);
 	new_raw_count = sh_pmu->read(idx);
 
-	if (atomic64_cmpxchg(&hwc->prev_count, prev_raw_count,
+	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 			     new_raw_count) != prev_raw_count)
 		goto again;
 
@@ -203,7 +203,7 @@ again:
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
 	delta >>= shift;
 
-	atomic64_add(delta, &event->count);
+	local64_add(delta, &event->count);
 }
 
 static void sh_pmu_disable(struct perf_event *event)

@@ -184,9 +184,9 @@ struct ppc4xx_ecc_status {
 
 /* Function Prototypes */
 
-static int ppc4xx_edac_probe(struct of_device *device,
+static int ppc4xx_edac_probe(struct platform_device *device,
 			     const struct of_device_id *device_id);
-static int ppc4xx_edac_remove(struct of_device *device);
+static int ppc4xx_edac_remove(struct platform_device *device);
 
 /* Global Variables */
 
@@ -1014,7 +1014,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
  */
 static int __devinit
 ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
-		    struct of_device *op,
+		    struct platform_device *op,
 		    const struct of_device_id *match,
 		    const dcr_host_t *dcr_host,
 		    u32 mcopt1)
@@ -1108,7 +1108,7 @@ ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
  * mapped and assigned.
  */
 static int __devinit
-ppc4xx_edac_register_irq(struct of_device *op, struct mem_ctl_info *mci)
+ppc4xx_edac_register_irq(struct platform_device *op, struct mem_ctl_info *mci)
 {
 	int status = 0;
 	int ded_irq, sec_irq;
@@ -1238,7 +1238,7 @@ ppc4xx_edac_map_dcrs(const struct device_node *np, dcr_host_t *dcr_host)
  * driver; otherwise, < 0 on error.
  */
 static int __devinit
-ppc4xx_edac_probe(struct of_device *op, const struct of_device_id *match)
+ppc4xx_edac_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	int status = 0;
 	u32 mcopt1, memcheck;
@@ -1359,7 +1359,7 @@ ppc4xx_edac_probe(struct of_device *op, const struct of_device_id *match)
  * Unconditionally returns 0.
  */
 static int
-ppc4xx_edac_remove(struct of_device *op)
+ppc4xx_edac_remove(struct platform_device *op)
 {
 	struct mem_ctl_info *mci = dev_get_drvdata(&op->dev);
 	struct ppc4xx_edac_pdata *pdata = mci->pvt_info;

@@ -502,7 +502,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
 #endif // MSF_COMPONENT_ID
 	NULL									//endsentinel
   };
-#define xxxx_PRI_IDENTITY_OFFSET	(sizeof(xxxx)/sizeof(xxxx[0]) - 3)
+#define xxxx_PRI_IDENTITY_OFFSET	(ARRAY_SIZE(xxxx) - 3)
 
 #endif // MSF_COMPONENT_ID / HCF_EXT_MB
 
