@@ -1106,7 +1106,7 @@ int wlc_bmac_detach(wlc_info_t *wlc)
 
 	/* free vars */
 	if (wlc_hw->vars) {
-		MFREE(wlc_hw->osh, wlc_hw->vars, wlc_hw->vars_size);
+		kfree(wlc_hw->vars);
 		wlc_hw->vars = NULL;
 	}
 

@@ -427,14 +427,14 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 
 fail:
 	if (cdc != NULL)
-		MFREE(dhd->osh, cdc, sizeof(dhd_prot_t));
+		kfree(cdc);
 	return BCME_NOMEM;
 }
 
 /* ~NOTE~ What if another thread is waiting on the semaphore?  Holding it? */
 void dhd_prot_detach(dhd_pub_t *dhd)
 {
-	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
+	kfree(dhd->prot);
 	dhd->prot = NULL;
 }
 

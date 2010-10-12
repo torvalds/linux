@@ -22382,7 +22382,7 @@ wlc_phy_gen_load_samples_nphy(phy_info_t *pi, u32 f_kHz, u16 max_val,
 	wlc_phy_loadsampletable_nphy(pi, tone_buf, num_samps);
 
 	if (tone_buf != NULL)
-		MFREE(pi->sh->osh, tone_buf, sizeof(cs32) * tbl_len);
+		kfree(tone_buf);
 
 	return num_samps;
 }
@@ -22430,7 +22430,7 @@ wlc_phy_loadsampletable_nphy(phy_info_t *pi, cs32 *tone_buf,
 				 data_buf);
 
 	if (data_buf != NULL)
-		MFREE(pi->sh->osh, data_buf, sizeof(u32) * num_samps);
+		kfree(data_buf);
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, false);
@@ -26768,7 +26768,7 @@ wlc_phy_a1_nphy(phy_info_t *pi, u8 core, u32 winsz, u32 start,
 				  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0 :
 				 NPHY_TBL_ID_EPSILONTBL1, sz, start, 32, dst);
 
-	MFREE(pi->sh->osh, buf, 2 * sizeof(u32) * NPHY_PAPD_EPS_TBL_SIZE);
+	kfree(buf);
 }
 
 static void

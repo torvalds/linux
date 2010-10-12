@@ -164,7 +164,7 @@ void sdioh_sdmmc_osfree(sdioh_info_t *sd)
 	ASSERT(sd && sd->sdos_info);
 
 	sdos = (struct sdos_info *)sd->sdos_info;
-	MFREE(sd->osh, sdos, sizeof(struct sdos_info));
+	kfree(sdos);
 }
 
 /* Interrupt enable/disable */

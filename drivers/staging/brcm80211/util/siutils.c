@@ -96,7 +96,7 @@ si_t *si_attach(uint devid, osl_t *osh, void *regs, uint bustype, void *sdh,
 
 	if (si_doattach(sii, devid, osh, regs, bustype, sdh, vars, varsz) ==
 	    NULL) {
-		MFREE(osh, sii, sizeof(si_info_t));
+		kfree(sii);
 		return NULL;
 	}
 	sii->vars = vars ? *vars : NULL;
@@ -728,7 +728,7 @@ void si_detach(si_t *sih)
 #if !defined(BCMBUSTYPE) || (BCMBUSTYPE == SI_BUS)
 	if (sii != &ksii)
 #endif				/* !BCMBUSTYPE || (BCMBUSTYPE == SI_BUS) */
-		MFREE(sii->osh, sii, sizeof(si_info_t));
+		kfree(sii);
 }
 
 void *si_osh(si_t *sih)

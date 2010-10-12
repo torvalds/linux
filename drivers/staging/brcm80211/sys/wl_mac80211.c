@@ -1582,9 +1582,9 @@ void wl_free(wl_info_t *wl)
 		next = t->next;
 #ifdef BCMDBG
 		if (t->name)
-			MFREE(wl->osh, t->name, strlen(t->name) + 1);
+			kfree(t->name);
 #endif
-		MFREE(wl->osh, t, sizeof(wl_timer_t));
+		kfree(t);
 	}
 
 	osh = wl->osh;
@@ -1668,7 +1668,7 @@ wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
 
 	if (!schedule_work(&task->work)) {
 		WL_ERROR(("wl%d: schedule_work() failed\n", wl->pub->unit));
-		MFREE(wl->osh, task, sizeof(wl_task_t));
+		kfree(task);
 		return -ENOMEM;
 	}
 
@@ -1984,9 +1984,9 @@ void wl_free_timer(wl_info_t *wl, wl_timer_t *t)
 		wl->timers = wl->timers->next;
 #ifdef BCMDBG
 		if (t->name)
-			MFREE(wl->osh, t->name, strlen(t->name) + 1);
+			kfree(t->name);
 #endif
-		MFREE(wl->osh, t, sizeof(wl_timer_t));
+		kfree(t);
 		return;
 
 	}
@@ -1997,9 +1997,9 @@ void wl_free_timer(wl_info_t *wl, wl_timer_t *t)
 			tmp->next = t->next;
 #ifdef BCMDBG
 			if (t->name)
-				MFREE(wl->osh, t->name, strlen(t->name) + 1);
+				kfree(t->name);
 #endif
-			MFREE(wl->osh, t, sizeof(wl_timer_t));
+			kfree(t);
 			return;
 		}
 		tmp = tmp->next;
@@ -2199,7 +2199,7 @@ static void wl_rpcq_dispatch(struct wl_task *task)
 
 	RPCQ_UNLOCK(wl, flags);
 
-	MFREE(wl->osh, task, sizeof(wl_task_t));
+	kfree(task);
 	atomic_dec(&wl->callbacks);
 }
 
@@ -2259,7 +2259,7 @@ static void wl_timer_task(wl_task_t *task)
 	wl_timer_t *t = (wl_timer_t *) task->context;
 
 	_wl_timer(t);
-	MFREE(t->wl->osh, task, sizeof(wl_task_t));
+	kfree(task);
 
 	/* This dec is for the task_schedule. The timer related
 	 * callback is decremented in _wl_timer

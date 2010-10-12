@@ -94,9 +94,6 @@ typedef struct {
 
 #define BUS_SWAP32(v)		(v)
 
-#define MFREE(osh, addr, size)	osl_mfree((osh), (addr), (size))
-extern void osl_mfree(osl_t *osh, void *addr, uint size);
-
 #define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
 extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,

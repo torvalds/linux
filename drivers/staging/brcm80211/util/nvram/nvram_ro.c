@@ -116,11 +116,11 @@ void nvram_exit(void *si)
 	this = vars;
 
 	if (this)
-		MFREE(si_osh(sih), this->vars, this->size);
+		kfree(this->vars);
 
 	while (this) {
 		next = this->next;
-		MFREE(si_osh(sih), this, this->bufsz);
+		kfree(this);
 		this = next;
 	}
 	vars = NULL;

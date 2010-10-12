@@ -144,7 +144,7 @@ void pcicore_deinit(void *pch)
 
 	if (pi == NULL)
 		return;
-	MFREE(pi->osh, pi, sizeof(pcicore_info_t));
+	kfree(pi);
 }
 
 /* return cap_offset if requested capability exists in the PCI config space */

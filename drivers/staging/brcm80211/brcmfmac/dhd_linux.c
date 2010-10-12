@@ -747,7 +747,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 		allmulti = cnt ? true : allmulti;
 	}
 
-	MFREE(dhd->pub.osh, buf, buflen);
+	kfree(buf);
 
 	/* Now send the allmulti setting.  This is based on the setting in the
 	 * net_device flags, but might be modified above to be turned on if we
@@ -768,7 +768,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 		DHD_ERROR(("%s: mkiovar failed for allmulti, datalen %d "
 			"buflen %u\n", dhd_ifname(&dhd->pub, ifidx),
 			(int)sizeof(allmulti), buflen));
-		MFREE(dhd->pub.osh, buf, buflen);
+		kfree(buf);
 		return;
 	}
 
@@ -784,7 +784,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 			   dhd_ifname(&dhd->pub, ifidx), ltoh32(allmulti)));
 	}
 
-	MFREE(dhd->pub.osh, buf, buflen);
+	kfree(buf);
 
 	/* Finally, pick up the PROMISC flag as well, like the NIC
 		 driver does */
@@ -921,7 +921,7 @@ static void dhd_op_if(dhd_if_t *ifp)
 			free_netdev(ifp->net);
 
 		dhd->iflist[ifp->idx] = NULL;
-		MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
+		kfree(ifp);
 #ifdef SOFTAP
 		if (ifp->net == ap_net_dev)
 			ap_net_dev = NULL;	/*  NULL  SOFTAP global
@@ -1746,7 +1746,7 @@ done:
 	}
 
 	if (buf)
-		MFREE(dhd->pub.osh, buf, buflen);
+		kfree(buf);
 
 	return OSL_ERROR(bcmerror);
 }
@@ -2374,8 +2374,8 @@ void dhd_detach(dhd_pub_t *dhdp)
 			WAKE_LOCK_DESTROY(dhdp, WAKE_LOCK_LINK_DOWN_TMOUT);
 			WAKE_LOCK_DESTROY(dhdp, WAKE_LOCK_PNO_FIND_TMOUT);
 			free_netdev(ifp->net);
-			MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
-			MFREE(dhd->pub.osh, dhd, sizeof(*dhd));
+			kfree(ifp);
+			kfree(dhd);
 		}
 	}
 }
@@ -2923,7 +2923,7 @@ int write_to_file(dhd_pub_t *dhd, u8 *buf, int size)
 
 exit:
 	/* free buf before return */
-	MFREE(dhd->osh, buf, size);
+	kfree(buf);
 	/* close file before return */
 	if (fp)
 		filp_close(fp, current->files);

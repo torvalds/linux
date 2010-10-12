@@ -92,7 +92,7 @@ int bcmsdh_detach(osl_t *osh, void *sdh)
 			sdioh_detach(osh, bcmsdh->sdioh);
 			bcmsdh->sdioh = NULL;
 		}
-		MFREE(osh, bcmsdh, sizeof(bcmsdh_info_t));
+		kfree(bcmsdh);
 	}
 
 	l_bcmsdh = NULL;
@@ -328,7 +328,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 			if ((((tmp_ptr - tmp_buf) + 1) & 0xf) == 0)
 				ptr += sprintf((char *)ptr, "\n");
 		}
-		MFREE(bcmsdh->osh, tmp_buf, length);
+		kfree(tmp_buf);
 	}
 
 	return SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR;

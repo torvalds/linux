@@ -242,13 +242,12 @@ void wlc_ampdu_detach(ampdu_info_t *ampdu)
 	/* free all ini's which were to be freed on callbacks which were never called */
 	for (i = 0; i < AMPDU_INI_FREE; i++) {
 		if (ampdu->ini_free[i]) {
-			MFREE(ampdu->wlc->osh, ampdu->ini_free[i],
-			      sizeof(scb_ampdu_tid_ini_t));
+			kfree(ampdu->ini_free[i]);
 		}
 	}
 
 	wlc_module_unregister(ampdu->wlc->pub, "ampdu", ampdu);
-	MFREE(ampdu->wlc->osh, ampdu, sizeof(ampdu_info_t));
+	kfree(ampdu);
 }
 
 void scb_ampdu_cleanup(ampdu_info_t *ampdu, struct scb *scb)

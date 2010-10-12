@@ -246,7 +246,7 @@ err:
 	if (sdhc) {
 		if (sdhc->sdh)
 			bcmsdh_detach(sdhc->osh, sdhc->sdh);
-		MFREE(osh, sdhc, sizeof(bcmsdh_hc_t));
+		kfree(sdhc);
 	}
 	if (osh)
 		osl_detach(osh);
@@ -283,7 +283,7 @@ int bcmsdh_remove(struct device *dev)
 
 	/* release SDIO Host Controller info */
 	osh = sdhc->osh;
-	MFREE(osh, sdhc, sizeof(bcmsdh_hc_t));
+	kfree(sdhc);
 	osl_detach(osh);
 
 #if !defined(BCMLXSDMMC)
@@ -471,7 +471,7 @@ err:
 	if (sdhc->sdh)
 		bcmsdh_detach(sdhc->osh, sdhc->sdh);
 	if (sdhc)
-		MFREE(osh, sdhc, sizeof(bcmsdh_hc_t));
+		kfree(sdhc);
 	if (osh)
 		osl_detach(osh);
 	return -ENODEV;
@@ -506,7 +506,7 @@ static void __devexit bcmsdh_pci_remove(struct pci_dev *pdev)
 
 	/* release SDIO Host Controller info */
 	osh = sdhc->osh;
-	MFREE(osh, sdhc, sizeof(bcmsdh_hc_t));
+	kfree(sdhc);
 	osl_detach(osh);
 }
 #endif				/* BCMLXSDMMC */

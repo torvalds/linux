@@ -285,15 +285,6 @@ uint osl_pci_slot(osl_t *osh)
 	return PCI_SLOT(((struct pci_dev *)osh->pdev)->devfn);
 }
 
-void osl_mfree(osl_t *osh, void *addr, uint size)
-{
-	if (osh) {
-		ASSERT(osh->magic == OS_HANDLE_MAGIC);
-		osh->malloced -= size;
-	}
-	kfree(addr);
-}
-
 uint osl_dma_consistent_align(void)
 {
 	return PAGE_SIZE;

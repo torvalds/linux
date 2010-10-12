@@ -158,7 +158,7 @@ void wlc_antsel_detach(antsel_info_t *asi)
 	if (!asi)
 		return;
 
-	MFREE(asi->pub->osh, asi, sizeof(antsel_info_t));
+	kfree(asi);
 }
 
 void wlc_antsel_init(antsel_info_t *asi)

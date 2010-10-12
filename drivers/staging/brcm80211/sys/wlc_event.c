@@ -71,7 +71,7 @@ wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc, void *wl,
 	if (!eq->timer) {
 		WL_ERROR(("wl%d: wlc_eventq_attach: timer failed\n",
 			  pub->unit));
-		MFREE(eq->pub->osh, eq, sizeof(wlc_eventq_t));
+		kfree(eq);
 		return NULL;
 	}
 
@@ -93,7 +93,7 @@ int wlc_eventq_detach(wlc_eventq_t *eq)
 	}
 
 	ASSERT(wlc_eventq_avail(eq) == false);
-	MFREE(eq->pub->osh, eq, sizeof(wlc_eventq_t));
+	kfree(eq);
 	return 0;
 }
 
@@ -135,7 +135,7 @@ void wlc_event_free(wlc_eventq_t *eq, wlc_event_t *e)
 {
 	ASSERT(e->data == NULL);
 	ASSERT(e->next == NULL);
-	MFREE(eq->pub->osh, e, sizeof(wlc_event_t));
+	kfree(e);
 }
 
 void wlc_eventq_enq(wlc_eventq_t *eq, wlc_event_t *e)

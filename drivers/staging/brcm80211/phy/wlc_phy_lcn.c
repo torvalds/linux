@@ -2061,7 +2061,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 
  cleanup:
 	wlc_lcnphy_tx_iqlo_loopback_cleanup(pi, values_to_save);
-	MFREE(pi->sh->osh, values_to_save, 20 * sizeof(u16));
+	kfree(values_to_save);
 
 	if (!keep_tone)
 		wlc_lcnphy_stop_tx_tone(pi);
@@ -3437,7 +3437,7 @@ wlc_lcnphy_rx_iq_cal(phy_info_t *pi, const lcnphy_rx_iqcomp_t *iqcomp,
 	}
 
  cal_done:
-	MFREE(pi->sh->osh, ptr, 131 * sizeof(s16));
+	kfree(ptr);
 	return result;
 }
 
@@ -4212,8 +4212,8 @@ wlc_lcnphy_a1(phy_info_t *pi, int cal_type, int num_levels, int step_size_lg2)
 	write_phy_reg(pi, 0x4d8, phy_c30);
 	write_radio_reg(pi, RADIO_2064_REG026, phy_c31);
 
-	MFREE(pi->sh->osh, phy_c32, 20 * sizeof(u16));
-	MFREE(pi->sh->osh, ptr, 131 * sizeof(s16));
+	kfree(phy_c32);
+	kfree(ptr);
 }
 
 static void
@@ -5047,7 +5047,7 @@ void wlc_phy_txpower_recalc_target_lcnphy(phy_info_t *pi)
 
 void wlc_phy_detach_lcnphy(phy_info_t *pi)
 {
-	MFREE(pi->sh->osh, pi->u.pi_lcnphy, sizeof(phy_info_lcnphy_t));
+	kfree(pi->u.pi_lcnphy);
 }
 
 bool wlc_phy_attach_lcnphy(phy_info_t *pi)

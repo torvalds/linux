@@ -2248,8 +2248,7 @@ int wlc_bmac_detach(wlc_info_t *wlc)
 
 	for (idx = 0; idx < MAXBANDS; idx++)
 		if (wlc->bandstate[idx]->pi) {
-			osl_mfree(wlc->osh, wlc->bandstate[idx]->pi,
-				  sizeof(wlc_phy_t));
+			kfree(wlc->bandstate[idx]->pi);
 			wlc->bandstate[idx]->pi = NULL;
 		}
 
@@ -2336,15 +2335,14 @@ uint wlc_detach(wlc_info_t *wlc)
 	 * references the wlc->hw->vars which is freed in wlc_bmac_detach()
 	 */
 	if (wlc->pub->vars) {
-		osl_mfree(wlc->osh, wlc->pub->vars, wlc->vars_size);
+		kfree(wlc->pub->vars);
 		wlc->pub->vars = NULL;
 	}
 #endif
 
 #ifdef BCMDBG
 	if (wlc->country_ie_override) {
-		osl_mfree(wlc->osh, wlc->country_ie_override,
-			  wlc->country_ie_override->len + TLV_HDR_LEN);
+		kfree(wlc->country_ie_override);
 		wlc->country_ie_override = NULL;
 	}
 #endif				/* BCMDBG */
@@ -2355,7 +2353,7 @@ uint wlc_detach(wlc_info_t *wlc)
 		prev = ptr = wlc->dumpcb_head;
 		while (ptr) {
 			ptr = prev->next;
-			osl_mfree(wlc->osh, prev, sizeof(dumpcb_t));
+			kfree(prev);
 			prev = ptr;
 		}
 		wlc->dumpcb_head = NULL;
@@ -7190,10 +7188,9 @@ void wlc_bss_list_free(wlc_info_t *wlc, wlc_bss_list_t *bss_list)
 		bi = bss_list->ptrs[index];
 		if (bi) {
 			if (bi->bcn_prb) {
-				osl_mfree(wlc->osh, bi->bcn_prb,
-					  bi->bcn_prb_len);
+				kfree(bi->bcn_prb);
 			}
-			osl_mfree(wlc->osh, bi, sizeof(wlc_bss_info_t));
+			kfree(bi);
 			bss_list->ptrs[index] = NULL;
 		}
 	}
@@ -8178,7 +8175,7 @@ static void wlc_process_eventq(void *arg)
 		/* Perform OS specific event processing */
 		wl_event(wlc->wl, etmp->event.ifname, etmp);
 		if (etmp->data) {
-			osl_mfree(wlc->osh, etmp->data, etmp->event.datalen);
+			kfree(etmp->data);
 			etmp->data = NULL;
 		}
 		wlc_event_free(wlc->eventq, etmp);
@@ -8676,5 +8673,5 @@ static void wlc_txq_free(wlc_info_t *wlc, osl_t *osh, wlc_txq_info_t *qi)
 			p->next = p->next->next;
 	}
 
-	osl_mfree(osh, qi, sizeof(wlc_txq_info_t));
+	kfree(qi);
 }

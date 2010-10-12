@@ -722,22 +722,20 @@ static void _dma_detach(dma_info_t *di)
 
 	/* free packet pointer vectors */
 	if (di->txp)
-		MFREE(di->osh, (void *)di->txp, (di->ntxd * sizeof(void *)));
+		kfree((void *)di->txp);
 	if (di->rxp)
-		MFREE(di->osh, (void *)di->rxp, (di->nrxd * sizeof(void *)));
+		kfree((void *)di->rxp);
 
 	/* free tx packet DMA handles */
 	if (di->txp_dmah)
-		MFREE(di->osh, (void *)di->txp_dmah,
-		      di->ntxd * sizeof(hnddma_seg_map_t));
+		kfree(di->txp_dmah);
 
 	/* free rx packet DMA handles */
 	if (di->rxp_dmah)
-		MFREE(di->osh, (void *)di->rxp_dmah,
-		      di->nrxd * sizeof(hnddma_seg_map_t));
+		kfree(di->rxp_dmah);
 
 	/* free our private info structure */
-	MFREE(di->osh, (void *)di, sizeof(dma_info_t));
+	kfree((void *)di);
 
 }
 

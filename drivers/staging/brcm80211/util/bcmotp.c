@@ -842,7 +842,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 
  out:
 	if (rawotp)
-		MFREE(si_osh(oi->sih), rawotp, lim);
+		kfree(rawotp);
 	si_setcoreidx(oi->sih, idx);
 
 	return rc;

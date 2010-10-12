@@ -106,15 +106,13 @@ static void wlc_pub_mfree(osl_t *osh, wlc_pub_t *pub)
 		return;
 
 	if (pub->multicast)
-		MFREE(osh, pub->multicast,
-		      (sizeof(struct ether_addr) * MAXMULTILIST));
-
+		kfree(pub->multicast);
 	if (pub->tunables) {
-		MFREE(osh, pub->tunables, sizeof(wlc_tunables_t));
+		kfree(pub->tunables);
 		pub->tunables = NULL;
 	}
 
-	MFREE(osh, pub, sizeof(wlc_pub_t));
+	kfree(pub);
 }
 
 wlc_bsscfg_t *wlc_bsscfg_malloc(osl_t *osh, uint unit)
@@ -143,22 +141,19 @@ void wlc_bsscfg_mfree(osl_t *osh, wlc_bsscfg_t *cfg)
 		return;
 
 	if (cfg->maclist) {
-		MFREE(osh, cfg->maclist,
-		      (int)(offsetof(struct maclist, ea) +
-			    cfg->nmac * ETHER_ADDR_LEN));
+		kfree(cfg->maclist);
 		cfg->maclist = NULL;
 	}
 
 	if (cfg->current_bss != NULL) {
 		wlc_bss_info_t *current_bss = cfg->current_bss;
 		if (current_bss->bcn_prb != NULL)
-			MFREE(osh, current_bss->bcn_prb,
-			      current_bss->bcn_prb_len);
-		MFREE(osh, current_bss, sizeof(wlc_bss_info_t));
+			kfree(current_bss->bcn_prb);
+		kfree(current_bss);
 		cfg->current_bss = NULL;
 	}
 
-	MFREE(osh, cfg, sizeof(wlc_bsscfg_t));
+	kfree(cfg);
 }
 
 void wlc_bsscfg_ID_assign(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg)
@@ -313,12 +308,12 @@ void wlc_detach_mfree(wlc_info_t *wlc, osl_t *osh)
 		return;
 
 	if (wlc->modulecb) {
-		MFREE(osh, wlc->modulecb, sizeof(modulecb_t) * WLC_MAXMODULES);
+		kfree(wlc->modulecb);
 		wlc->modulecb = NULL;
 	}
 
 	if (wlc->default_bss) {
-		MFREE(osh, wlc->default_bss, sizeof(wlc_bss_info_t));
+		kfree(wlc->default_bss);
 		wlc->default_bss = NULL;
 	}
 	if (wlc->cfg) {
@@ -327,36 +322,30 @@ void wlc_detach_mfree(wlc_info_t *wlc, osl_t *osh)
 	}
 
 	if (wlc->pkt_callback && wlc->pub && wlc->pub->tunables) {
-		MFREE(osh,
-		      wlc->pkt_callback,
-		      sizeof(pkt_cb_t) * (wlc->pub->tunables->maxpktcb + 1));
+		kfree(wlc->pkt_callback);
 		wlc->pkt_callback = NULL;
 	}
 
 	if (wlc->wsec_def_keys[0])
-		MFREE(osh, wlc->wsec_def_keys[0],
-		      (sizeof(wsec_key_t) * WLC_DEFAULT_KEYS));
-
+		kfree(wlc->wsec_def_keys[0]);
 	if (wlc->protection) {
-		MFREE(osh, wlc->protection, sizeof(wlc_protection_t));
+		kfree(wlc->protection);
 		wlc->protection = NULL;
 	}
 
 	if (wlc->stf) {
-		MFREE(osh, wlc->stf, sizeof(wlc_stf_t));
+		kfree(wlc->stf);
 		wlc->stf = NULL;
 	}
 
 	if (wlc->bandstate[0])
-		MFREE(osh, wlc->bandstate[0], (sizeof(wlcband_t) * MAXBANDS));
+		kfree(wlc->bandstate[0]);
 
 	if (wlc->corestate) {
 		if (wlc->corestate->macstat_snapshot) {
-			MFREE(osh, wlc->corestate->macstat_snapshot,
-			      sizeof(macstat_t));
-			wlc->corestate->macstat_snapshot = NULL;
+	kfree(wlc->corestate->macstat_snapshot);			wlc->corestate->macstat_snapshot = NULL;
 		}
-		MFREE(osh, wlc->corestate, sizeof(wlccore_t));
+		kfree(wlc->corestate);
 		wlc->corestate = NULL;
 	}
 
@@ -369,18 +358,17 @@ void wlc_detach_mfree(wlc_info_t *wlc, osl_t *osh)
 	if (wlc->hw) {
 #ifdef WLC_LOW
 		if (wlc->hw->bandstate[0]) {
-			MFREE(osh, wlc->hw->bandstate[0],
-			      (sizeof(wlc_hwband_t) * MAXBANDS));
+			kfree(wlc->hw->bandstate[0]);
 			wlc->hw->bandstate[0] = NULL;
 		}
 #endif
 
 		/* free hw struct */
-		MFREE(osh, wlc->hw, sizeof(wlc_hw_info_t));
+		kfree(wlc->hw);
 		wlc->hw = NULL;
 	}
 
 	/* free the wlc */
-	MFREE(osh, wlc, sizeof(wlc_info_t));
+	kfree(wlc);
 	wlc = NULL;
 }

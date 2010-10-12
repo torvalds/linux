@@ -599,7 +599,7 @@ void wlc_phy_shared_detach(shared_phy_t *phy_sh)
 		if (phy_sh->phy_head) {
 			ASSERT(!phy_sh->phy_head);
 		}
-		MFREE(osh, phy_sh, sizeof(shared_phy_t));
+		kfree(phy_sh);
 	}
 }
 
@@ -780,7 +780,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 
  err:
 	if (pi)
-		MFREE(sh->osh, pi, sizeof(phy_info_t));
+		kfree(pi);
 	return NULL;
 }
 
@@ -808,7 +808,7 @@ void wlc_phy_detach(wlc_phy_t *pih)
 		if (pi->pi_fptr.detach)
 			(pi->pi_fptr.detach) (pi);
 
-		MFREE(pi->sh->osh, pi, sizeof(phy_info_t));
+		kfree(pi);
 	}
 }
 

@@ -83,7 +83,7 @@ void wlc_phy_shim_detach(wlc_phy_shim_info_t *physhim)
 	if (!physhim)
 		return;
 
-	MFREE(physhim->wlc_hw->osh, physhim, sizeof(wlc_phy_shim_info_t));
+	kfree(physhim);
 }
 
 struct wlapi_timer *wlapi_init_timer(wlc_phy_shim_info_t *physhim,

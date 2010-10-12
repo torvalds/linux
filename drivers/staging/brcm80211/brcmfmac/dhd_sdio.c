@@ -1927,9 +1927,9 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 
 done:
 	if (mbuffer)
-		MFREE(bus->dhd->osh, mbuffer, msize);
+		kfree(mbuffer);
 	if (str)
-		MFREE(bus->dhd->osh, str, maxstrlen);
+		kfree(str);
 
 	return bcmerror;
 }
@@ -1959,7 +1959,7 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus)
 		if (ret) {
 			printf("%s: Error membytes %d\n", __func__, ret);
 			if (buf)
-				MFREE(bus->dhd->osh, buf, size);
+				kfree(buf);
 			return -1;
 		}
 		printf(".");
@@ -2078,7 +2078,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 
 	/* Free the old ones and replace with passed variables */
 	if (bus->vars)
-		MFREE(bus->dhd->osh, bus->vars, bus->varsz);
+		kfree(bus->vars);
 
 	bus->vars = kmalloc(len, GFP_ATOMIC);
 	bus->varsz = bus->vars ? len : 0;
@@ -2562,10 +2562,10 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 			DHD_ERROR(("%s: Download/Upload/Compare of NVRAM ok.\n",
 				__func__));
 
-		MFREE(bus->dhd->osh, nvram_ularray, varsize);
+		kfree(nvram_ularray);
 #endif				/* DHD_DEBUG */
 
-		MFREE(bus->dhd->osh, vbuffer, varsize);
+		kfree(vbuffer);
 	}
 
 	/* adjust to the user specified RAM */
@@ -5286,7 +5286,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 			if (err) {
 				DHD_INFO(("dhdsdio_probe: fn %d cis read "
 					"err %d\n", fn, err));
-				MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
+				kfree(cis[fn]);
 				break;
 			}
 			dhd_dump_cis(fn, cis[fn]);
@@ -5294,7 +5294,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 
 		while (fn-- > 0) {
 			ASSERT(cis[fn]);
-			MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
+			kfree(cis[fn]);
 		}
 
 		if (err) {
@@ -5400,7 +5400,7 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 			   __func__, MAX_DATA_BUF));
 		/* release rxbuf which was already located as above */
 		if (!bus->rxblen)
-			MFREE(osh, bus->rxbuf, bus->rxblen);
+			kfree(bus->rxbuf);
 		goto fail;
 	}
 
@@ -5544,7 +5544,7 @@ static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh)
 
 		dhdsdio_release_malloc(bus, osh);
 
-		MFREE(osh, bus, sizeof(dhd_bus_t));
+		kfree(bus);
 	}
 
 	if (osh)
@@ -5561,13 +5561,13 @@ static void dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh)
 		return;
 
 	if (bus->rxbuf) {
-		MFREE(osh, bus->rxbuf, bus->rxblen);
+		kfree(bus->rxbuf);
 		bus->rxctl = bus->rxbuf = NULL;
 		bus->rxlen = 0;
 	}
 
 	if (bus->databuf) {
-		MFREE(osh, bus->databuf, MAX_DATA_BUF);
+		kfree(bus->databuf);
 		bus->databuf = NULL;
 	}
 }
@@ -5587,7 +5587,7 @@ static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh)
 		dhdsdio_clkctl(bus, CLK_NONE, false);
 		si_detach(bus->sih);
 		if (bus->vars && bus->varsz)
-			MFREE(osh, bus->vars, bus->varsz);
+			kfree(bus->vars);
 		bus->vars = NULL;
 	}
 
@@ -5710,7 +5710,7 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 			DHD_ERROR(("%s: Download/Upload/Compare succeeded.\n",
 				__func__));
 
-		MFREE(bus->dhd->osh, ularray, bus->ramsize);
+		kfree(ularray);
 	}
 #endif				/* DHD_DEBUG */
 
@@ -5758,7 +5758,7 @@ static int dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 
 err:
 	if (memblock)
-		MFREE(bus->dhd->osh, memblock, MEMBLOCK + DHD_SDALIGN);
+		kfree(memblock);
 
 	if (image)
 		dhd_os_close_image(image);
@@ -5898,7 +5898,7 @@ static int dhdsdio_download_nvram(struct dhd_bus *bus)
 
 err:
 	if (memblock)
-		MFREE(bus->dhd->osh, memblock, MEMBLOCK);
+		kfree(memblock);
 
 	if (image)
 		dhd_os_close_image(image);

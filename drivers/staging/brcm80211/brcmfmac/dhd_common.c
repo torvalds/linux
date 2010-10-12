@@ -1052,7 +1052,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 
 fail:
 	if (arg_org)
-		MFREE(dhd->osh, arg_org, strlen(arg) + 1);
+		kfree(arg_org);
 }
 
 void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
@@ -1188,10 +1188,10 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 fail:
 	if (arg_org)
-		MFREE(dhd->osh, arg_org, strlen(arg) + 1);
+		kfree(arg_org);
 
 	if (buf)
-		MFREE(dhd->osh, buf, BUF_SIZE);
+		kfree(buf);
 }
 
 void dhd_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
@@ -1406,7 +1406,7 @@ void dhd_iscan_free_buf(void *dhdp, iscan_buf_t *iscan_delete)
 			iscanbuf_free = iscanbuf_cur;
 			iscanbuf_cur = iscanbuf_cur->next;
 			iscanbuf_free->next = 0;
-			MFREE(dhd->osh, iscanbuf_free, sizeof(iscan_buf_t));
+			kfree(iscanbuf_free);
 		}
 		iscan_chain = 0;
 	} else {
@@ -1420,7 +1420,7 @@ void dhd_iscan_free_buf(void *dhdp, iscan_buf_t *iscan_delete)
 			iscanbuf_prv->next = iscan_delete->next;
 
 		iscan_delete->next = 0;
-		MFREE(dhd->osh, iscan_delete, sizeof(iscan_buf_t));
+		kfree(iscan_delete);
 
 		if (!iscanbuf_prv)
 			iscan_chain = 0;

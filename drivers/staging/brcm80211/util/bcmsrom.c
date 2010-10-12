@@ -1399,7 +1399,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 	ASSERT(b.buf - base <= MAXSZ_NVRAM_VARS);
 	err = initvars_table(osh, base, b.buf, vars, count);
 
-	MFREE(osh, base, MAXSZ_NVRAM_VARS);
+	kfree(base);
 	return err;
 }
 
@@ -1519,7 +1519,7 @@ static int otp_read_pci(osl_t *osh, si_t *sih, u16 *buf, uint bufsz)
 	bcopy(otp, buf, bufsz);
 
 	if (otp)
-		MFREE(osh, otp, OTP_SZ_MAX);
+		kfree(otp);
 
 	/* Check CRC */
 	if (buf[0] == 0xffff) {
@@ -1626,7 +1626,7 @@ static int initvars_flash(si_t *sih, osl_t *osh, char **base, uint len)
 
 	*base = vp;
 
- exit:	MFREE(osh, flash, NVRAM_SPACE);
+ exit:	kfree(flash);
 	return err;
 }
 
@@ -1652,7 +1652,7 @@ static int initvars_flash_si(si_t *sih, char **vars, uint *count)
 	if (err == 0)
 		err = initvars_table(osh, base, vp, vars, count);
 
-	MFREE(osh, base, MAXSZ_NVRAM_VARS);
+	kfree(base);
 
 	return err;
 }
@@ -1977,9 +1977,9 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 
  errout:
 	if (base)
-		MFREE(osh, base, MAXSZ_NVRAM_VARS);
+		kfree(base);
 
-	MFREE(osh, srom, SROM_MAX);
+	kfree(srom);
 	return err;
 }
 
@@ -2006,7 +2006,7 @@ static int initvars_cis_sdio(osl_t *osh, char **vars, uint *count)
 
 		if (bcmsdh_cis_read(NULL, fn, cis[fn], SBSDIO_CIS_SIZE_LIMIT) !=
 		    0) {
-			MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
+			kfree(cis[fn]);
 			rc = -2;
 			break;
 		}
@@ -2016,7 +2016,7 @@ static int initvars_cis_sdio(osl_t *osh, char **vars, uint *count)
 		rc = srom_parsecis(osh, cis, fn, vars, count);
 
 	while (fn-- > 0)
-		MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
+		kfree(cis[fn]);
 
 	return rc;
 }

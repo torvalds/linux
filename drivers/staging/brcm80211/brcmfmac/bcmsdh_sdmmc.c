@@ -131,7 +131,7 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	sd->osh = osh;
 	if (sdioh_sdmmc_osinit(sd) != 0) {
 		sd_err(("%s:sdioh_sdmmc_osinit() failed\n", __func__));
-		MFREE(sd->osh, sd, sizeof(sdioh_info_t));
+		kfree(sd);
 		return NULL;
 	}
 
@@ -193,7 +193,7 @@ extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd)
 		/* deregister irq */
 		sdioh_sdmmc_osfree(sd);
 
-		MFREE(sd->osh, sd, sizeof(sdioh_info_t));
+		kfree(sd);
 	}
 	return SDIOH_API_RC_SUCCESS;
 }

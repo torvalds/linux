@@ -650,7 +650,7 @@ wlc_cm_info_t *wlc_channel_mgr_attach(wlc_info_t *wlc)
 void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm)
 {
 	if (wlc_cm)
-		MFREE(wlc_cm->pub->osh, wlc_cm, sizeof(wlc_cm_info_t));
+		kfree(wlc_cm);
 }
 
 const char *wlc_channel_country_abbrev(wlc_cm_info_t *wlc_cm)
