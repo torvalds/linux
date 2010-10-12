@@ -2809,9 +2809,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	if (priv->hw_params.calib_rt_cfg)
-		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
-
 
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
@@ -2827,6 +2824,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	if (iwl_is_rfkill(priv))
 		return;
 
+	/* download priority table before any calibration request */
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
@@ -2835,8 +2833,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
-		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC)
-			iwlagn_send_prio_tbl(priv);
+		iwlagn_send_prio_tbl(priv);
 
 		/* FIXME: w/a to force change uCode BT state machine */
 		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
@@ -2844,6 +2841,9 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
 			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 	}
+	if (priv->hw_params.calib_rt_cfg)
+		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
+
 	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = IWL_RATES_MASK;

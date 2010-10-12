@@ -2753,6 +2753,7 @@ static const struct iwl_ops iwl3945_ops = {
 
 static struct iwl_base_params iwl3945_base_params = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
+	.num_of_queues = IWL39_NUM_QUEUES,
 	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
 	.set_l0s = false,
 	.use_bsm = true,
