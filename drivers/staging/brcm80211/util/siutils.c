@@ -1665,7 +1665,7 @@ void si_pci_down(si_t *sih)
 void si_pci_setup(si_t *sih, uint coremask)
 {
 	si_info_t *sii;
-	sbpciregs_t *pciregs = NULL;
+	struct sbpciregs *pciregs = NULL;
 	u32 siflag = 0, w;
 	uint idx = 0;
 
@@ -1685,8 +1685,7 @@ void si_pci_setup(si_t *sih, uint coremask)
 		siflag = si_flag(sih);
 
 		/* switch over to pci core */
-		pciregs =
-		    (sbpciregs_t *) si_setcoreidx(sih, sii->pub.buscoreidx);
+		pciregs = (struct sbpciregs *)si_setcoreidx(sih, sii->pub.buscoreidx);
 	}
 
 	/*
@@ -1727,7 +1726,7 @@ void si_pci_setup(si_t *sih, uint coremask)
 int si_pci_fixcfg(si_t *sih)
 {
 	uint origidx, pciidx;
-	sbpciregs_t *pciregs = NULL;
+	struct sbpciregs *pciregs = NULL;
 	sbpcieregs_t *pcieregs = NULL;
 	void *regs = NULL;
 	u16 val16, *reg16 = NULL;
@@ -1748,7 +1747,7 @@ int si_pci_fixcfg(si_t *sih)
 		ASSERT(pcieregs != NULL);
 		reg16 = &pcieregs->sprom[SRSH_PI_OFFSET];
 	} else if (sii->pub.buscoretype == PCI_CORE_ID) {
-		pciregs = (sbpciregs_t *) si_setcore(&sii->pub, PCI_CORE_ID, 0);
+		pciregs = (struct sbpciregs *)si_setcore(&sii->pub, PCI_CORE_ID, 0);
 		regs = pciregs;
 		ASSERT(pciregs != NULL);
 		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];

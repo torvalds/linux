@@ -27,7 +27,7 @@
 #endif
 
 /* Sonics side: PCI core and host control registers */
-typedef struct sbpciregs {
+struct sbpciregs {
 	u32 control;		/* PCI control */
 	u32 PAD[3];
 	u32 arbcontrol;	/* PCI arbiter control */
@@ -52,7 +52,7 @@ typedef struct sbpciregs {
 	u32 pcicfg[4][64];	/* 0x400 - 0x7FF, PCI Cfg Space (>=rev8) */
 	u16 sprom[36];	/* SPROM shadow Area */
 	u32 PAD[46];
-} sbpciregs_t;
+};
 
 #endif				/* _LANGUAGE_ASSEMBLY */
 

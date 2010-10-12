@@ -32,7 +32,7 @@
 typedef struct {
 	union {
 		sbpcieregs_t *pcieregs;
-		sbpciregs_t *pciregs;
+		struct sbpciregs *pciregs;
 	} regs;			/* Memory mapped register to the core */
 
 	si_t *sih;		/* System interconnect handle */
@@ -136,7 +136,7 @@ void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
 		ASSERT(cap_ptr);
 		pi->pciecap_lcreg_offset = cap_ptr + PCIE_CAP_LINKCTRL_OFFSET;
 	} else
-		pi->regs.pciregs = (sbpciregs_t *) regs;
+		pi->regs.pciregs = (struct sbpciregs *) regs;
 
 	return pi;
 }
