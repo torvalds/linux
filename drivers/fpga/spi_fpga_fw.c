@@ -113,10 +113,11 @@ static void __init spi_fpga_wait(unsigned int num)
 		i++;
     }
 }
-static spinlock_t		lock_fw;
+
+static DEFINE_SPINLOCK(lock_fw);
 static void __init spi_fpga_dlfw(unsigned char * fpga_fw, unsigned int fpga_fw_len)
 {
-    int ret;
+    //int ret;
     unsigned long flags;
     unsigned char command1[6] = {0x7e, 0xaa, 0x99, 0x7e, 0x01, 0x0e};
     unsigned char command2[5] = {0x83, 0x00, 0x00, 0x26, 0x11};
@@ -245,6 +246,7 @@ int __init fpga_dl_fw(void)
 	gpio_direction_output(RK2818_PIN_PE0,1);
 	udelay(2);
 	gpio_direction_output(RK2818_PIN_PE0,0);
-	
+
+	return 0;
 }
 
