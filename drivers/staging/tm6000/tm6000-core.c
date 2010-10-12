@@ -186,27 +186,17 @@ void tm6000_set_fourcc_format(struct tm6000_core *dev)
 	}
 }
 
-int tm6000_init_analog_mode(struct tm6000_core *dev)
+static void tm6000_set_vbi(struct tm6000_core *dev)
 {
-	struct v4l2_frequency f;
+	/*
+	 * FIXME:
+	 * VBI lines and start/end are different between 60Hz and 50Hz
+	 * So, it is very likely that we need to change the config to
+	 * something that takes it into account, doing something different
+	 * if (dev->norm & V4L2_STD_525_60)
+	 */
 
 	if (dev->dev_type == TM6010) {
-		int val;
-
-		/* Enable video */
-		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0);
-		val |= 0x60;
-		tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
-		val = tm6000_get_reg(dev,
-			TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0);
-		val &= ~0x40;
-		tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, val);
-
-		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc);
-
-#if 0		/* FIXME: VBI is standard-dependent */
-
-		/* Init teletext */
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x01);
 		tm6000_set_reg(dev, TM6010_REQ07_R41_TELETEXT_VBI_CODE1, 0x27);
 		tm6000_set_reg(dev, TM6010_REQ07_R42_VBI_DATA_HIGH_LEVEL, 0x55);
@@ -255,7 +245,27 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 		tm6000_set_reg(dev, TM6010_REQ07_R5B_VBI_TELETEXT_DTO0, 0x4c);
 		tm6000_set_reg(dev, TM6010_REQ07_R40_TELETEXT_VBI_CODE0, 0x01);
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x00);
-#endif
+	}
+}
+
+int tm6000_init_analog_mode(struct tm6000_core *dev)
+{
+	struct v4l2_frequency f;
+
+	if (dev->dev_type == TM6010) {
+		int val;
+
+		/* Enable video */
+		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0);
+		val |= 0x60;
+		tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
+		val = tm6000_get_reg(dev,
+			TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0);
+		val &= ~0x40;
+		tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, val);
+
+		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc);
+
 	} else {
 		/* Enables soft reset */
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x01);
@@ -310,6 +320,7 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 
 	msleep(100);
 	tm6000_set_standard(dev, &dev->norm);
+	tm6000_set_vbi(dev);
 	tm6000_set_audio_bitrate(dev, 48000);
 
 	/* switch dvb led off */
