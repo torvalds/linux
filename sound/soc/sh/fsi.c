@@ -730,7 +730,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	u32 data;
 	int is_play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	int is_master;
-	int ret = 0;
 
 	pm_runtime_get_sync(dai->dev);
 
@@ -809,7 +808,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	/* fifo init */
 	fsi_fifo_init(fsi, is_play, dai);
 
-	return ret;
+	return 0;
 }
 
 static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
