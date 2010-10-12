@@ -121,6 +121,7 @@ bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 
 void ath9k_ps_wakeup(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
@@ -129,17 +130,32 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
+	/*
+	 * While the hardware is asleep, the cycle counters contain no
+	 * useful data. Better clear them now so that they don't mess up
+	 * survey data results.
+	 */
+	spin_lock(&common->cc_lock);
+	ath_hw_cycle_counters_update(common);
+	memset(&common->cc_survey, 0, sizeof(common->cc_survey));
+	spin_unlock(&common->cc_lock);
+
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 }
 
 void ath9k_ps_restore(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (--sc->ps_usecount != 0)
 		goto unlock;
+
+	spin_lock(&common->cc_lock);
+	ath_hw_cycle_counters_update(common);
+	spin_unlock(&common->cc_lock);
 
 	if (sc->ps_idle)
 		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
@@ -196,7 +212,8 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 	struct ath_cycle_counters *cc = &common->cc_survey;
 	unsigned int div = common->clockrate * 1000;
 
-	ath_hw_cycle_counters_update(common);
+	if (ah->power_mode == ATH9K_PM_AWAKE)
+		ath_hw_cycle_counters_update(common);
 
 	if (cc->cycles > 0) {
 		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
