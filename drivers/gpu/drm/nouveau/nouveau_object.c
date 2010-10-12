@@ -926,20 +926,14 @@ int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_nouveau_gpuobj_free *objfree = data;
-	struct nouveau_gpuobj *gpuobj;
 	struct nouveau_channel *chan;
-	int ret = -ENOENT;
+	int ret;
 
 	chan = nouveau_channel_get(dev, file_priv, objfree->channel);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	gpuobj = nouveau_ramht_find(chan, objfree->handle);
-	if (gpuobj) {
-		nouveau_ramht_remove(chan, objfree->handle);
-		ret = 0;
-	}
-
+	ret = nouveau_ramht_remove(chan, objfree->handle);
 	nouveau_channel_put(&chan);
 	return ret;
 }

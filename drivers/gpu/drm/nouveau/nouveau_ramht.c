@@ -214,18 +214,19 @@ out:
 	spin_unlock_irqrestore(&chan->ramht->lock, flags);
 }
 
-void
+int
 nouveau_ramht_remove(struct nouveau_channel *chan, u32 handle)
 {
 	struct nouveau_ramht_entry *entry;
 
 	entry = nouveau_ramht_remove_entry(chan, handle);
 	if (!entry)
-		return;
+		return -ENOENT;
 
 	nouveau_ramht_remove_hash(chan, entry->handle);
 	nouveau_gpuobj_ref(NULL, &entry->gpuobj);
 	kfree(entry);
+	return 0;
 }
 
 struct nouveau_gpuobj *
