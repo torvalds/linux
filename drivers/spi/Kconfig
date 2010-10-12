@@ -111,11 +111,14 @@ config SPI_COLDFIRE_QSPI
 	  will be called coldfire_qspi.
 
 config SPI_DAVINCI
-	tristate "SPI controller driver for DaVinci/DA8xx SoC's"
+	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
 	depends on SPI_MASTER && ARCH_DAVINCI
 	select SPI_BITBANG
 	help
-	  SPI master controller for DaVinci and DA8xx SPI modules.
+	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
+
+	  This driver can also be built as a module. The module will be called
+	  davinci_spi.
 
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
