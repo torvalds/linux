@@ -1044,8 +1044,9 @@ nfs3_xdr_fsinfores(struct rpc_rqst *req, __be32 *p, struct nfs_fsinfo *res)
 	res->wtmult = ntohl(*p++);
 	res->dtpref = ntohl(*p++);
 	p = xdr_decode_hyper(p, &res->maxfilesize);
+	p = xdr_decode_time3(p, &res->time_delta);
 
-	/* ignore time_delta and properties */
+	/* ignore properties */
 	res->lease_time = 0;
 	return 0;
 }

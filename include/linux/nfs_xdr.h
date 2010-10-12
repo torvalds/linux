@@ -112,6 +112,7 @@ struct nfs_fsinfo {
 	__u32			wtmult;	/* writes should be multiple of this */
 	__u32			dtpref;	/* pref. readdir transfer size */
 	__u64			maxfilesize;
+	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
 };
 

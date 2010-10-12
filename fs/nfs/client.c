@@ -915,6 +915,8 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fsinfo *
 
 	server->maxfilesize = fsinfo->maxfilesize;
 
+	server->time_delta = fsinfo->time_delta;
+
 	/* We're airborne Set socket buffersize */
 	rpc_setbufsize(server->client, server->wsize + 100, server->rsize + 100);
 }
