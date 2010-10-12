@@ -96,10 +96,8 @@ typedef struct {
 
 #define MALLOC(osh, size)	osl_malloc((osh), (size))
 #define MFREE(osh, addr, size)	osl_mfree((osh), (addr), (size))
-#define MALLOCED(osh)		osl_malloced((osh))
 extern void *osl_malloc(osl_t *osh, uint size);
 extern void osl_mfree(osl_t *osh, void *addr, uint size);
-extern uint osl_malloced(osl_t *osh);
 
 #define NATIVE_MALLOC(osh, size)	kmalloc(size, GFP_ATOMIC)
 #define NATIVE_MFREE(osh, addr, size)	kfree(addr)

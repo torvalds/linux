@@ -69,7 +69,7 @@ wlc_phy_shim_info_t *wlc_phy_shim_attach(wlc_hw_info_t *wlc_hw,
 	physhim = (wlc_phy_shim_info_t *)MALLOC(wlc_hw->osh,
 		sizeof(wlc_phy_shim_info_t));
 	if (!physhim) {
-		WL_ERROR(("wl%d: wlc_phy_shim_attach: out of mem, malloced %d bytes\n", wlc_hw->unit, MALLOCED(wlc_hw->osh)));
+		WL_ERROR(("wl%d: wlc_phy_shim_attach: out of mem\n", wlc_hw->unit));
 		return NULL;
 	}
 	bzero((char *)physhim, sizeof(wlc_phy_shim_info_t));

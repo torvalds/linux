@@ -117,8 +117,7 @@ void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
 	/* alloc pcicore_info_t */
 	pi = MALLOC(osh, sizeof(pcicore_info_t));
 	if (pi == NULL) {
-		PCI_ERROR(("pci_attach: malloc failed! malloced %d bytes\n",
-			   MALLOCED(osh)));
+		PCI_ERROR(("pci_attach: malloc failed!\n"));
 		return NULL;
 	}
 

@@ -96,7 +96,7 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 
 	asi = (antsel_info_t *) MALLOC(osh, sizeof(antsel_info_t));
 	if (!asi) {
-		WL_ERROR(("wl%d: wlc_antsel_attach: out of mem, malloced %d bytes\n", pub->unit, MALLOCED(osh)));
+		WL_ERROR(("wl%d: wlc_antsel_attach: out of mem\n", pub->unit));
 		return NULL;
 	}
 

@@ -197,8 +197,7 @@ int bcmsdh_probe(struct device *dev)
 	}
 	sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t));
 	if (!sdhc) {
-		SDLX_MSG(("%s: out of memory, allocated %d bytes\n",
-			  __func__, MALLOCED(osh)));
+		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
 	}
 	bzero(sdhc, sizeof(bcmsdh_hc_t));
@@ -430,8 +429,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t));
 	if (!sdhc) {
-		SDLX_MSG(("%s: out of memory, allocated %d bytes\n",
-			  __func__, MALLOCED(osh)));
+		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
 	}
 	bzero(sdhc, sizeof(bcmsdh_hc_t));

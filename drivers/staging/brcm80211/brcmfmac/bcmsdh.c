@@ -60,8 +60,7 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 
 	bcmsdh = (bcmsdh_info_t *) MALLOC(osh, sizeof(bcmsdh_info_t));
 	if (bcmsdh == NULL) {
-		BCMSDH_ERROR(("bcmsdh_attach: out of memory, "
-			"malloced %d bytes\n", MALLOCED(osh)));
+		BCMSDH_ERROR(("bcmsdh_attach: out of memory"));
 		return NULL;
 	}
 	bzero((char *)bcmsdh, sizeof(bcmsdh_info_t));

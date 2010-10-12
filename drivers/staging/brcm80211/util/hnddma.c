@@ -381,8 +381,7 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	di = MALLOC(osh, sizeof(dma_info_t));
 	if (di == NULL) {
 #ifdef BCMDBG
-		printf("dma_attach: out of memory, malloced %d bytes\n",
-		       MALLOCED(osh));
+		printf("dma_attach: out of memory\n");
 #endif
 		return NULL;
 	}
@@ -517,7 +516,7 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 		size = ntxd * sizeof(void *);
 		di->txp = MALLOC(osh, size);
 		if (di->txp == NULL) {
-			DMA_ERROR(("%s: dma_attach: out of tx memory, malloced %d bytes\n", di->name, MALLOCED(osh)));
+			DMA_ERROR(("%s: dma_attach: out of tx memory\n", di->name));
 			goto fail;
 		}
 		bzero((char *)di->txp, size);
@@ -528,7 +527,7 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 		size = nrxd * sizeof(void *);
 		di->rxp = MALLOC(osh, size);
 		if (di->rxp == NULL) {
-			DMA_ERROR(("%s: dma_attach: out of rx memory, malloced %d bytes\n", di->name, MALLOCED(osh)));
+			DMA_ERROR(("%s: dma_attach: out of rx memory\n", di->name));
 			goto fail;
 		}
 		bzero((char *)di->rxp, size);

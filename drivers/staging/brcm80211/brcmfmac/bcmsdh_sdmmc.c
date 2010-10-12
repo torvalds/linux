@@ -125,8 +125,7 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 
 	sd = (sdioh_info_t *) MALLOC(osh, sizeof(sdioh_info_t));
 	if (sd == NULL) {
-		sd_err(("sdioh_attach: out of memory, malloced %d bytes\n",
-			MALLOCED(osh)));
+		sd_err(("sdioh_attach: out of memory\n"));
 		return NULL;
 	}
 	bzero((char *)sd, sizeof(sdioh_info_t));

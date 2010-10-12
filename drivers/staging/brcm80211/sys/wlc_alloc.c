@@ -39,8 +39,7 @@ void *wlc_calloc(osl_t *osh, uint unit, uint size)
 
 	item = MALLOC(osh, size);
 	if (item == NULL)
-		WL_ERROR(("wl%d: %s: out of memory, malloced %d bytes\n",
-			  unit, __func__, MALLOCED(osh)));
+		WL_ERROR(("wl%d: %s: out of memory\n", unit, __func__));
 	else
 		bzero((char *)item, size);
 	return item;

@@ -1827,10 +1827,6 @@ osl_t *dhd_osl_attach(void *pdev, uint bustype)
 
 void dhd_osl_detach(osl_t *osh)
 {
-	if (MALLOCED(osh)) {
-		DHD_ERROR(("%s: MEMORY LEAK %d bytes\n", __func__,
-			   MALLOCED(osh)));
-	}
 	osl_detach(osh);
 }
 

@@ -314,12 +314,6 @@ void osl_mfree(osl_t *osh, void *addr, uint size)
 	kfree(addr);
 }
 
-uint osl_malloced(osl_t *osh)
-{
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-	return osh->malloced;
-}
-
 uint osl_dma_consistent_align(void)
 {
 	return PAGE_SIZE;

@@ -614,8 +614,7 @@ wlc_cm_info_t *wlc_channel_mgr_attach(wlc_info_t *wlc)
 
 	wlc_cm = (wlc_cm_info_t *) MALLOC(pub->osh, sizeof(wlc_cm_info_t));
 	if (wlc_cm == NULL) {
-		WL_ERROR(("wl%d: %s: out of memory, malloced %d bytes",
-			  pub->unit, __func__, MALLOCED(pub->osh)));
+		WL_ERROR(("wl%d: %s: out of memory", pub->unit, __func__));
 		return NULL;
 	}
 	bzero((char *)wlc_cm, sizeof(wlc_cm_info_t));

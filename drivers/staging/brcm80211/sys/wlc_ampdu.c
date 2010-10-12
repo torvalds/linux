@@ -181,7 +181,7 @@ ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc)
 
 	ampdu = (ampdu_info_t *) MALLOC(wlc->osh, sizeof(ampdu_info_t));
 	if (!ampdu) {
-		WL_ERROR(("wl%d: wlc_ampdu_attach: out of mem, malloced %d bytes\n", wlc->pub->unit, MALLOCED(wlc->osh)));
+		WL_ERROR(("wl%d: wlc_ampdu_attach: out of mem\n", wlc->pub->unit));
 		return NULL;
 	}
 	bzero((char *)ampdu, sizeof(ampdu_info_t));

@@ -1615,11 +1615,6 @@ void wl_free(wl_info_t *wl)
 	}
 #endif				/* WLC_HIGH_ONLY */
 
-	if (osl_malloced(osh)) {
-		printf("****   Memory leak of bytes %d\n", osl_malloced(osh));
-		ASSERT(0 && "Memory Leak");
-	}
-
 	osl_detach(osh);
 }
 
@@ -1664,7 +1659,7 @@ wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
 
 	task = osl_malloc(wl->osh, sizeof(wl_task_t));
 	if (!task) {
-		WL_ERROR(("wl%d: wl_schedule_task: out of memory, malloced %d bytes\n", wl->pub->unit, osl_malloced(wl->osh)));
+		WL_ERROR(("wl%d: wl_schedule_task: out of memory\n", wl->pub->unit));
 		return -ENOMEM;
 	}
 
@@ -1918,7 +1913,7 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 
 	t = osl_malloc(wl->osh, sizeof(wl_timer_t));
 	if (!t) {
-		WL_ERROR(("wl%d: wl_init_timer: out of memory, malloced %d bytes\n", wl->pub->unit, osl_malloced(wl->osh)));
+		WL_ERROR(("wl%d: wl_init_timer: out of memory\n", wl->pub->unit));
 		return 0;
 	}
 
