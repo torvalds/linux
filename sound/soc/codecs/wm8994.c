@@ -3546,6 +3546,7 @@ static struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
 static struct snd_soc_dai_driver wm8994_dai[] = {
 	{
 		.name = "wm8994-aif1",
+		.id = 1,
 		.playback = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 2,
@@ -3564,6 +3565,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 	},
 	{
 		.name = "wm8994-aif2",
+		.id = 2,
 		.playback = {
 			.stream_name = "AIF2 Playback",
 			.channels_min = 2,
@@ -3582,6 +3584,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 	},
 	{
 		.name = "wm8994-aif3",
+		.id = 3,
 		.playback = {
 			.stream_name = "AIF3 Playback",
 			.channels_min = 2,
