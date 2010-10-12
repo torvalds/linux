@@ -27,7 +27,7 @@ static struct ir_scancode alink_dtu_m[] = {
 	{ 0x0802, KEY_3 },
 	{ 0x0803, KEY_7 },
 	{ 0x0804, KEY_9 },
-	{ 0x0805, KEY_ZOOM },            /* [two windows + corner arrows] */
+	{ 0x0805, KEY_NEW },             /* symbol: PIP */
 	{ 0x0806, KEY_0 },
 	{ 0x0807, KEY_CHANNEL },         /* JUMP */
 	{ 0x080d, KEY_5 },
