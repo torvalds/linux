@@ -182,9 +182,14 @@ config SPI_MPC512x_PSC
 	  This enables using the Freescale MPC5121 Programmable Serial
 	  Controller in SPI master mode.
 
+config SPI_FSL_LIB
+	tristate
+	depends on FSL_SOC
+
 config SPI_FSL_SPI
 	tristate "Freescale SPI controller"
 	depends on FSL_SOC
+	select SPI_FSL_LIB
 	help
 	  This enables using the Freescale SPI controllers in master mode.
 	  MPC83xx platform uses the controller in cpu mode or CPM/QE mode.
