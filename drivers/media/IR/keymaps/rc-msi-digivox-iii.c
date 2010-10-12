@@ -27,7 +27,7 @@
 static struct ir_scancode msi_digivox_iii[] = {
 	{ 0x61d601, KEY_VIDEO },           /* Source */
 	{ 0x61d602, KEY_3 },
-	{ 0x61d603, KEY_POWER2 },          /* ShutDown */
+	{ 0x61d603, KEY_POWER },           /* ShutDown */
 	{ 0x61d604, KEY_1 },
 	{ 0x61d605, KEY_5 },
 	{ 0x61d606, KEY_6 },
@@ -56,7 +56,7 @@ static struct ir_scancode msi_digivox_iii[] = {
 	{ 0x61d61d, KEY_GREEN },
 	{ 0x61d61e, KEY_YELLOW },
 	{ 0x61d61f, KEY_BLUE },
-	{ 0x61d643, KEY_POWER },           /* [red power button] */
+	{ 0x61d643, KEY_POWER2 },          /* [red power button] */
 };
 
 static struct rc_keymap msi_digivox_iii_map = {
