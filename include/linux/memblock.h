@@ -111,40 +111,39 @@ extern void memblock_set_current_limit(phys_addr_t limit);
  */
 
 /**
- * memblock_region_base_pfn - Return the lowest pfn intersecting with the region
+ * memblock_region_memory_base_pfn - Return the lowest pfn intersecting with the memory region
  * @reg: memblock_region structure
  */
-static inline unsigned long memblock_region_base_pfn(const struct memblock_region *reg)
+static inline unsigned long memblock_region_memory_base_pfn(const struct memblock_region *reg)
 {
-	return reg->base >> PAGE_SHIFT;
+	return PFN_UP(reg->base);
 }
 
 /**
- * memblock_region_last_pfn - Return the highest pfn intersecting with the region
+ * memblock_region_memory_end_pfn - Return the end_pfn this region
  * @reg: memblock_region structure
  */
-static inline unsigned long memblock_region_last_pfn(const struct memblock_region *reg)
+static inline unsigned long memblock_region_memory_end_pfn(const struct memblock_region *reg)
 {
-	return (reg->base + reg->size - 1) >> PAGE_SHIFT;
+	return PFN_DOWN(reg->base + reg->size);
 }
 
 /**
- * memblock_region_end_pfn - Return the pfn of the first page following the region
- *                      but not intersecting it
+ * memblock_region_reserved_base_pfn - Return the lowest pfn intersecting with the reserved region
  * @reg: memblock_region structure
  */
-static inline unsigned long memblock_region_end_pfn(const struct memblock_region *reg)
+static inline unsigned long memblock_region_reserved_base_pfn(const struct memblock_region *reg)
 {
-	return memblock_region_last_pfn(reg) + 1;
+	return PFN_DOWN(reg->base);
 }
 
 /**
- * memblock_region_pages - Return the number of pages covering a region
+ * memblock_region_reserved_end_pfn - Return the end_pfn this region
  * @reg: memblock_region structure
  */
-static inline unsigned long memblock_region_pages(const struct memblock_region *reg)
+static inline unsigned long memblock_region_reserved_end_pfn(const struct memblock_region *reg)
 {
-	return memblock_region_end_pfn(reg) - memblock_region_end_pfn(reg);
+	return PFN_UP(reg->base + reg->size);
 }
 
 #define for_each_memblock(memblock_type, region)					\

@@ -244,8 +244,8 @@ static void __init do_init_bootmem(void)
 	/* Add active regions with valid PFNs. */
 	for_each_memblock(memory, reg) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = memblock_region_base_pfn(reg);
-		end_pfn = memblock_region_end_pfn(reg);
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 		__add_active_range(0, start_pfn, end_pfn);
 	}
 

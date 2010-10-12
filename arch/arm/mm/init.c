@@ -182,8 +182,8 @@ static void __init arm_bootmem_init(struct meminfo *mi,
 	 * Reserve the memblock reserved regions in bootmem.
 	 */
 	for_each_memblock(reserved, reg) {
-		phys_addr_t start = memblock_region_base_pfn(reg);
-		phys_addr_t end = memblock_region_end_pfn(reg);
+		phys_addr_t start = memblock_region_reserved_base_pfn(reg);
+		phys_addr_t end = memblock_region_reserved_end_pfn(reg);
 		if (start >= start_pfn && end <= end_pfn)
 			reserve_bootmem_node(pgdat, __pfn_to_phys(start),
 					     (end - start) << PAGE_SHIFT,
@@ -251,8 +251,8 @@ static void arm_memory_present(void)
 	struct memblock_region *reg;
 
 	for_each_memblock(memory, reg)
-		memory_present(0, memblock_region_base_pfn(reg),
-			       memblock_region_end_pfn(reg));
+		memory_present(0, memblock_region_memory_base_pfn(reg),
+			       memblock_region_memory_end_pfn(reg));
 }
 #endif
 

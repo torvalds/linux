@@ -1294,8 +1294,8 @@ static void __init bootmem_init_nonnuma(void)
 		if (!reg->size)
 			continue;
 
-		start_pfn = memblock_region_base_pfn(reg);
-		end_pfn = memblock_region_end_pfn(reg);
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 		add_active_range(0, start_pfn, end_pfn);
 	}
 

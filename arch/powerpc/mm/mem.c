@@ -148,8 +148,8 @@ walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	int ret = -1;
 
 	for_each_memblock(memory, reg) {
-		tstart = max(start_pfn, memblock_region_base_pfn(reg));
-		tend = min(end_pfn, memblock_region_end_pfn(reg));
+		tstart = max(start_pfn, memblock_region_memory_base_pfn(reg));
+		tend = min(end_pfn, memblock_region_memory_end_pfn(reg));
 		if (tstart >= tend)
 			continue;
 		ret = (*func)(tstart, tend - tstart, arg);
@@ -195,8 +195,8 @@ void __init do_init_bootmem(void)
 	/* Add active regions with valid PFNs */
 	for_each_memblock(memory, reg) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = memblock_region_base_pfn(reg);
-		end_pfn = memblock_region_end_pfn(reg);
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 		add_active_range(0, start_pfn, end_pfn);
 	}
 
@@ -236,9 +236,9 @@ static int __init mark_nonram_nosave(void)
 
 	for_each_memblock(memory, reg) {
 		if (prev &&
-		    memblock_region_end_pfn(prev) < memblock_region_base_pfn(reg))
-			register_nosave_region(memblock_region_end_pfn(prev),
-					       memblock_region_base_pfn(reg));
+		    memblock_region_memory_end_pfn(prev) < memblock_region_memory_base_pfn(reg))
+			register_nosave_region(memblock_region_memory_end_pfn(prev),
+					       memblock_region_memory_base_pfn(reg));
 		prev = reg;
 	}
 	return 0;
