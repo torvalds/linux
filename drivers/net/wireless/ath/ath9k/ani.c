@@ -664,7 +664,7 @@ static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	phyCnt1 = REG_READ(ah, AR_PHY_ERR_1);
 	phyCnt2 = REG_READ(ah, AR_PHY_ERR_2);
 
-	if (use_new_ani(ah) && (phyCnt1 < ofdm_base || phyCnt2 < cck_base)) {
+	if (!use_new_ani(ah) && (phyCnt1 < ofdm_base || phyCnt2 < cck_base)) {
 		if (phyCnt1 < ofdm_base) {
 			ath_print(common, ATH_DBG_ANI,
 				  "phyCnt1 0x%x, resetting "
