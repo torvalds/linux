@@ -75,7 +75,7 @@ const unsigned char *protocol_names[] = {
 };
 
 #define MAX_ST_DEVICES	3	/* Imagine 1 on each UART for now */
-struct platform_device *st_kim_devices[MAX_ST_DEVICES];
+static struct platform_device *st_kim_devices[MAX_ST_DEVICES];
 
 /**********************************************************************/
 /* internal functions */
@@ -157,17 +157,18 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 void kim_int_recv(struct kim_data_s *kim_gdata,
 	const unsigned char *data, long count)
 {
-	register char *ptr;
+	const unsigned char *ptr;
 	struct hci_event_hdr *eh;
-	register int len = 0, type = 0;
+	int len = 0, type = 0;
 
 	pr_debug("%s", __func__);
 	/* Decode received bytes here */
-	ptr = (char *)data;
+	ptr = data;
 	if (unlikely(ptr == NULL)) {
 		pr_err(" received null from TTY ");
 		return;
 	}
+
 	while (count) {
 		if (kim_gdata->rx_count) {
 			len = min_t(unsigned int, kim_gdata->rx_count, count);
@@ -231,7 +232,7 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 {
 	unsigned short version = 0, chip = 0, min_ver = 0, maj_ver = 0;
-	char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
+	const char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
 
 	pr_debug("%s", __func__);
 
@@ -278,8 +279,8 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 {
 	long err = 0;
 	long len = 0;
-	register unsigned char *ptr = NULL;
-	register unsigned char *action_ptr = NULL;
+	unsigned char *ptr = NULL;
+	unsigned char *action_ptr = NULL;
 	unsigned char bts_scr_name[30] = { 0 };	/* 30 char long bts scr name? */
 
 	err = read_local_version(kim_gdata, bts_scr_name);

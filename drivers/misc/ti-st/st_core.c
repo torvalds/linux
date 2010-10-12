@@ -31,15 +31,6 @@
 #include <net/bluetooth/hci.h>
 #include <linux/ti_wilink_st.h>
 
-/* strings to be used for rfkill entries and by
- * ST Core to be used for sysfs debug entry
- */
-#define PROTO_ENTRY(type, name)	name
-const unsigned char *protocol_strngs[] = {
-	PROTO_ENTRY(ST_BT, "Bluetooth"),
-	PROTO_ENTRY(ST_FM, "FM"),
-	PROTO_ENTRY(ST_GPS, "GPS"),
-};
 /* function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
@@ -144,7 +135,7 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 static inline int st_check_data_len(struct st_data_s *st_gdata,
 	int protoid, int len)
 {
-	register int room = skb_tailroom(st_gdata->rx_skb);
+	int room = skb_tailroom(st_gdata->rx_skb);
 
 	pr_debug("len %d room %d", len, room);
 
@@ -187,7 +178,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	unsigned char cmd)
 {
-	register struct sk_buff *waiting_skb;
+	struct sk_buff *waiting_skb;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
@@ -216,13 +207,13 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 void st_int_recv(void *disc_data,
 	const unsigned char *data, long count)
 {
-	register char *ptr;
+	char *ptr;
 	struct hci_event_hdr *eh;
 	struct hci_acl_hdr *ah;
 	struct hci_sco_hdr *sh;
 	struct fm_event_hdr *fm;
 	struct gps_event_hdr *gps;
-	register int len = 0, type = 0, dlen = 0;
+	int len = 0, type = 0, dlen = 0;
 	static enum proto_type protoid = ST_MAX;
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 
@@ -918,34 +909,27 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 	return;
 }
 
+static struct tty_ldisc_ops st_ldisc_ops = {
+	.magic = TTY_LDISC_MAGIC,
+	.name = "n_st",
+	.open = st_tty_open,
+	.close = st_tty_close,
+	.receive_buf = st_tty_receive,
+	.write_wakeup = st_tty_wakeup,
+	.flush_buffer = st_tty_flush_buffer,
+	.owner = THIS_MODULE
+};
+
 /********************************************************************/
 int st_core_init(struct st_data_s **core_data)
 {
 	struct st_data_s *st_gdata;
 	long err;
-	static struct tty_ldisc_ops *st_ldisc_ops;
 
-	/* populate and register to TTY line discipline */
-	st_ldisc_ops = kzalloc(sizeof(*st_ldisc_ops), GFP_KERNEL);
-	if (!st_ldisc_ops) {
-		pr_err("no mem to allocate");
-		return -ENOMEM;
-	}
-
-	st_ldisc_ops->magic = TTY_LDISC_MAGIC;
-	st_ldisc_ops->name = "n_st";	/*"n_hci"; */
-	st_ldisc_ops->open = st_tty_open;
-	st_ldisc_ops->close = st_tty_close;
-	st_ldisc_ops->receive_buf = st_tty_receive;
-	st_ldisc_ops->write_wakeup = st_tty_wakeup;
-	st_ldisc_ops->flush_buffer = st_tty_flush_buffer;
-	st_ldisc_ops->owner = THIS_MODULE;
-
-	err = tty_register_ldisc(N_TI_WL, st_ldisc_ops);
+	err = tty_register_ldisc(N_TI_WL, &st_ldisc_ops);
 	if (err) {
 		pr_err("error registering %d line discipline %ld",
 			   N_TI_WL, err);
-		kfree(st_ldisc_ops);
 		return err;
 	}
 	pr_debug("registered n_shared line discipline");
@@ -956,7 +940,6 @@ int st_core_init(struct st_data_s **core_data)
 		err = tty_unregister_ldisc(N_TI_WL);
 		if (err)
 			pr_err("unable to un-register ldisc %ld", err);
-		kfree(st_ldisc_ops);
 		err = -ENOMEM;
 		return err;
 	}
@@ -970,22 +953,6 @@ int st_core_init(struct st_data_s **core_data)
 	/* Locking used in st_int_enqueue() to avoid multiple execution */
 	spin_lock_init(&st_gdata->lock);
 
-	/* ldisc_ops ref to be only used in __exit of module */
-	st_gdata->ldisc_ops = st_ldisc_ops;
-
-#if 0
-	err = st_kim_init();
-	if (err) {
-		pr_err("error during kim initialization(%ld)", err);
-		kfree(st_gdata);
-		err = tty_unregister_ldisc(N_TI_WL);
-		if (err)
-			pr_err("unable to un-register ldisc");
-		kfree(st_ldisc_ops);
-		return -1;
-	}
-#endif
-
 	err = st_ll_init(st_gdata);
 	if (err) {
 		pr_err("error during st_ll initialization(%ld)", err);
@@ -993,7 +960,6 @@ int st_core_init(struct st_data_s **core_data)
 		err = tty_unregister_ldisc(N_TI_WL);
 		if (err)
 			pr_err("unable to un-register ldisc");
-		kfree(st_ldisc_ops);
 		return -1;
 	}
 	*core_data = st_gdata;
@@ -1007,11 +973,7 @@ void st_core_exit(struct st_data_s *st_gdata)
 	err = st_ll_deinit(st_gdata);
 	if (err)
 		pr_err("error during deinit of ST LL %ld", err);
-#if 0
-	err = st_kim_deinit();
-	if (err)
-		pr_err("error during deinit of ST KIM %ld", err);
-#endif
+
 	if (st_gdata != NULL) {
 		/* Free ST Tx Qs and skbs */
 		skb_queue_purge(&st_gdata->txq);
@@ -1022,7 +984,6 @@ void st_core_exit(struct st_data_s *st_gdata)
 		err = tty_unregister_ldisc(N_TI_WL);
 		if (err)
 			pr_err("unable to un-register ldisc %ld", err);
-		kfree(st_gdata->ldisc_ops);
 		/* free the global data pointer */
 		kfree(st_gdata);
 	}

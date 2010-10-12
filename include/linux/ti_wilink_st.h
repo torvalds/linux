@@ -101,7 +101,6 @@ extern long st_unregister(enum proto_type);
  *	can occur , where as during other times other events CH8, CH9
  *	can occur.
  * @tty: tty provided by the TTY core for line disciplines.
- * @ldisc_ops: the procedures that this line discipline registers with TTY.
  * @tx_skb: If for some reason the tty's write returns lesser bytes written
  *	then to maintain the rest of data to be written on next instance.
  *	This needs to be protected, hence the lock inside wakeup func.
@@ -132,7 +131,6 @@ extern long st_unregister(enum proto_type);
 struct st_data_s {
 	unsigned long st_state;
 	struct tty_struct *tty;
-	struct tty_ldisc_ops *ldisc_ops;
 	struct sk_buff *tx_skb;
 #define ST_TX_SENDING	1
 #define ST_TX_WAKEUP	2
