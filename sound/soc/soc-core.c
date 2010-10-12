@@ -3051,8 +3051,11 @@ int snd_soc_register_dais(struct device *dev,
 		}
 
 		dai->dev = dev;
-		dai->id = i;
 		dai->driver = &dai_drv[i];
+		if (dai->driver->id)
+			dai->id = dai->driver->id;
+		else
+			dai->id = i;
 		if (!dai->driver->ops)
 			dai->driver->ops = &null_dai_ops;
 
