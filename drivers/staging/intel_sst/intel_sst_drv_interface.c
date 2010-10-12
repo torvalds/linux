@@ -26,6 +26,7 @@
  *  Upper layer interfaces (MAD driver, MMF) to SST driver
  */
 
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/firmware.h>
