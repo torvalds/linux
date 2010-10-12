@@ -33,6 +33,7 @@ obj-$(CONFIG_SPI_MPC512x_PSC)		+= mpc512x_psc_spi.o
 obj-$(CONFIG_SPI_MPC52xx_PSC)		+= mpc52xx_psc_spi.o
 obj-$(CONFIG_SPI_MPC52xx)		+= mpc52xx_spi.o
 obj-$(CONFIG_SPI_FSL_LIB)		+= spi_fsl_lib.o
+obj-$(CONFIG_SPI_FSL_ESPI)		+= spi_fsl_espi.o
 obj-$(CONFIG_SPI_FSL_SPI)		+= spi_fsl_spi.o
 obj-$(CONFIG_SPI_PPC4xx)		+= spi_ppc4xx.o
 obj-$(CONFIG_SPI_S3C24XX_GPIO)		+= spi_s3c24xx_gpio.o

@@ -195,6 +195,15 @@ config SPI_FSL_SPI
 	  MPC83xx platform uses the controller in cpu mode or CPM/QE mode.
 	  MPC8569 uses the controller in QE mode, MPC8610 in cpu mode.
 
+config SPI_FSL_ESPI
+	tristate "Freescale eSPI controller"
+	depends on FSL_SOC
+	select SPI_FSL_LIB
+	help
+	  This enables using the Freescale eSPI controllers in master mode.
+	  From MPC8536, 85xx platform uses the controller, and all P10xx,
+	  P20xx, P30xx,P40xx, P50xx uses this controller.
+
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
 	depends on ARCH_OMAP1
