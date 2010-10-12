@@ -1755,7 +1755,7 @@ check_inval:
 }
 
 int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-	struct kstat *stat)
+		 struct kstat *stat)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
 	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
@@ -1765,11 +1765,17 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		generic_fillattr(dentry->d_inode, stat);
 		stat->blksize = CIFS_MAX_MSGSIZE;
 		stat->ino = CIFS_I(dentry->d_inode)->uniqueid;
+
+		/*
+		 * If on a multiuser mount without unix extensions, and the
+		 * admin hasn't overridden them, set the ownership to the
+		 * fsuid/fsgid of the current process.
+		 */
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER) &&
 		    !tcon->unix_ext) {
-			if (!cifs_sb->mnt_uid)
+			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID))
 				stat->uid = current_fsuid();
-			if (!cifs_sb->mnt_uid)
+			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID))
 				stat->gid = current_fsgid();
 		}
 	}
