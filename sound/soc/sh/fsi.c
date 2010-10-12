@@ -572,7 +572,6 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int is_play)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
-	u32 status;
 	u32 status_reg = is_play ? DOFF_ST : DIFF_ST;
 	int data_residue_num;
 	int data_num;
@@ -662,9 +661,9 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int is_play)
 	fsi->buff_offset += fsi_num2offset(data_num, ch_width);
 
 	/* check fifo status */
-	status = fsi_reg_read(fsi, status_reg);
 	if (!startup) {
 		struct snd_soc_dai *dai = fsi_get_dai(substream);
+		u32 status = fsi_reg_read(fsi, status_reg);
 
 		if (status & ERR_OVER)
 			dev_err(dai->dev, "over run\n");
