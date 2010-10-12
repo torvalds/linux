@@ -294,6 +294,11 @@ static u32 fsi_get_info_flags(struct fsi_priv *fsi)
 		master->info->portb_flags;
 }
 
+static inline int fsi_is_play(struct snd_pcm_substream *substream)
+{
+	return substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+}
+
 static int fsi_is_master_mode(struct fsi_priv *fsi, int is_play)
 {
 	u32 mode;
@@ -726,7 +731,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	u32 fmt;
 	u32 reg;
 	u32 data;
-	int is_play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int is_play = fsi_is_play(substream);
 	int is_master;
 
 	pm_runtime_get_sync(dai->dev);
@@ -813,7 +818,7 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	int is_play = fsi_is_play(substream);
 
 	fsi_irq_disable(fsi, is_play);
 	fsi_clk_ctrl(fsi, 0);
@@ -826,7 +831,7 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	int is_play = fsi_is_play(substream);
 	int ret = 0;
 
 	switch (cmd) {
@@ -853,7 +858,7 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 	struct fsi_master *master = fsi_get_master(fsi);
 	int (*set_rate)(int is_porta, int rate) = master->info->set_rate;
 	int fsi_ver = master->core->ver;
-	int is_play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int is_play = fsi_is_play(substream);
 	int ret;
 
 	/* if slave mode, set_rate is not needed */
