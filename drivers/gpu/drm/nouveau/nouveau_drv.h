@@ -1165,6 +1165,7 @@ extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
+extern int nouveau_bo_sync_gpu(struct nouveau_bo *, struct nouveau_channel *);
 
 /* nouveau_fence.c */
 struct nouveau_fence;
@@ -1386,6 +1387,15 @@ nv_two_reg_pll(struct drm_device *dev)
 	if (impl == 0x0310 || impl == 0x0340 || dev_priv->card_type >= NV_40)
 		return true;
 	return false;
+}
+
+static inline bool
+nv_match_device(struct drm_device *dev, unsigned device,
+		unsigned sub_vendor, unsigned sub_device)
+{
+	return dev->pdev->device == device &&
+		dev->pdev->subsystem_vendor == sub_vendor &&
+		dev->pdev->subsystem_device == sub_device;
 }
 
 #define NV_SW                                                        0x0000506e

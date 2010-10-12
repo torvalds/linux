@@ -492,7 +492,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
                         sysrq_requested = 0;
                         if (ch && time_before(jiffies, sysrq_timeout)) {
                                 spin_unlock_irqrestore(&port->sc_port.lock, flags);
-                                handle_sysrq(ch, NULL);
+                                handle_sysrq(ch);
                                 spin_lock_irqsave(&port->sc_port.lock, flags);
                                 /* ignore actual sysrq command char */
                                 continue;

@@ -1437,7 +1437,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 
 static int sh_eth_drv_probe(struct platform_device *pdev)
 {
-	int ret, i, devno = 0;
+	int ret, devno = 0;
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp;

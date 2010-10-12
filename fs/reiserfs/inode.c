@@ -83,6 +83,7 @@ void reiserfs_evict_inode(struct inode *inode)
 	dquot_drop(inode);
 	inode->i_blocks = 0;
 	reiserfs_write_unlock_once(inode->i_sb, depth);
+	return;
 
 no_delete:
 	end_writeback(inode);

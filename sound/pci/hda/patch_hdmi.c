@@ -707,8 +707,6 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 			      u32 stream_tag, int format)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int tag;
-	int fmt;
 	int pinctl;
 	int new_pinctl = 0;
 	int i;
@@ -745,24 +743,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 		return -EINVAL;
 	}
 
-	tag = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0) >> 4;
-	fmt = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_STREAM_FORMAT, 0);
-
-	snd_printdd("hdmi_setup_stream: "
-		    "NID=0x%x, %sstream=0x%x, %sformat=0x%x\n",
-		    nid,
-		    tag == stream_tag ? "" : "new-",
-		    stream_tag,
-		    fmt == format ? "" : "new-",
-		    format);
-
-	if (tag != stream_tag)
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_CHANNEL_STREAMID,
-				    stream_tag << 4);
-	if (fmt != format)
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_STREAM_FORMAT, format);
+	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
 	return 0;
 }
 

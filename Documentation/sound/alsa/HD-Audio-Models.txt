@@ -296,6 +296,7 @@ Conexant 5051
 Conexant 5066
 =============
   laptop	Basic Laptop config (default)
+  hp-laptop	HP laptops, e g G60
   dell-laptop	Dell laptops
   dell-vostro	Dell Vostro
   olpc-xo-1_5	OLPC XO 1.5

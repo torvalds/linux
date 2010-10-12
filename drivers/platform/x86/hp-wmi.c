@@ -79,12 +79,13 @@ struct bios_args {
 	u32 command;
 	u32 commandtype;
 	u32 datasize;
-	char *data;
+	u32 data;
 };
 
 struct bios_return {
 	u32 sigpass;
 	u32 return_code;
+	u32 value;
 };
 
 struct key_entry {
@@ -148,7 +149,7 @@ static struct platform_driver hp_wmi_driver = {
  *       buffer = kzalloc(128, GFP_KERNEL);
  *       ret = hp_wmi_perform_query(0x7, 0, buffer, 128)
  */
-static int hp_wmi_perform_query(int query, int write, char *buffer,
+static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 				int buffersize)
 {
 	struct bios_return bios_return;
@@ -159,7 +160,7 @@ static int hp_wmi_perform_query(int query, int write, char *buffer,
 		.command = write ? 0x2 : 0x1,
 		.commandtype = query,
 		.datasize = buffersize,
-		.data = buffer,
+		.data = *buffer,
 	};
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -177,29 +178,14 @@ static int hp_wmi_perform_query(int query, int write, char *buffer,
 
 	bios_return = *((struct bios_return *)obj->buffer.pointer);
 
-	if (bios_return.return_code) {
-		printk(KERN_WARNING PREFIX "Query %d returned %d\n", query,
-		       bios_return.return_code);
-		kfree(obj);
-		return bios_return.return_code;
-	}
-	if (obj->buffer.length - sizeof(bios_return) > buffersize) {
-		kfree(obj);
-		return -EINVAL;
-	}
-
-	memset(buffer, 0, buffersize);
-	memcpy(buffer,
-	       ((char *)obj->buffer.pointer) + sizeof(struct bios_return),
-	       obj->buffer.length - sizeof(bios_return));
-	kfree(obj);
+	memcpy(buffer, &bios_return.value, sizeof(bios_return.value));
 	return 0;
 }
 
 static int hp_wmi_display_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_DISPLAY_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_DISPLAY_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return -EINVAL;
@@ -208,8 +194,8 @@ static int hp_wmi_display_state(void)
 
 static int hp_wmi_hddtemp_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_HDDTEMP_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_HDDTEMP_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return -EINVAL;
@@ -218,8 +204,8 @@ static int hp_wmi_hddtemp_state(void)
 
 static int hp_wmi_als_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return -EINVAL;
@@ -228,8 +214,8 @@ static int hp_wmi_als_state(void)
 
 static int hp_wmi_dock_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
 				       sizeof(state));
 
 	if (ret)
@@ -240,8 +226,8 @@ static int hp_wmi_dock_state(void)
 
 static int hp_wmi_tablet_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return ret;
@@ -256,7 +242,7 @@ static int hp_wmi_set_block(void *data, bool blocked)
 	int ret;
 
 	ret = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1,
-				   (char *)&query, sizeof(query));
+				   &query, sizeof(query));
 	if (ret)
 		return -EINVAL;
 	return 0;
@@ -268,10 +254,10 @@ static const struct rfkill_ops hp_wmi_rfkill_ops = {
 
 static bool hp_wmi_get_sw_state(enum hp_wmi_radio r)
 {
-	int wireless;
+	int wireless = 0;
 	int mask;
 	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0,
-			     (char *)&wireless, sizeof(wireless));
+			     &wireless, sizeof(wireless));
 	/* TBD: Pass error */
 
 	mask = 0x200 << (r * 8);
@@ -284,10 +270,10 @@ static bool hp_wmi_get_sw_state(enum hp_wmi_radio r)
 
 static bool hp_wmi_get_hw_state(enum hp_wmi_radio r)
 {
-	int wireless;
+	int wireless = 0;
 	int mask;
 	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0,
-			     (char *)&wireless, sizeof(wireless));
+			     &wireless, sizeof(wireless));
 	/* TBD: Pass error */
 
 	mask = 0x800 << (r * 8);
@@ -347,7 +333,7 @@ static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
 	u32 tmp = simple_strtoul(buf, NULL, 10);
-	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 1, (char *)&tmp,
+	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 1, &tmp,
 				       sizeof(tmp));
 	if (ret)
 		return -EINVAL;
@@ -421,7 +407,7 @@ static void hp_wmi_notify(u32 value, void *context)
 	static struct key_entry *key;
 	union acpi_object *obj;
 	u32 event_id, event_data;
-	int key_code, ret;
+	int key_code = 0, ret;
 	u32 *location;
 	acpi_status status;
 
@@ -475,7 +461,7 @@ static void hp_wmi_notify(u32 value, void *context)
 		break;
 	case HPWMI_BEZEL_BUTTON:
 		ret = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
-					   (char *)&key_code,
+					   &key_code,
 					   sizeof(key_code));
 		if (ret)
 			break;
@@ -578,9 +564,9 @@ static void cleanup_sysfs(struct platform_device *device)
 static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
-	int wireless;
+	int wireless = 0;
 
-	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, (char *)&wireless,
+	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, &wireless,
 				   sizeof(wireless));
 	if (err)
 		return err;

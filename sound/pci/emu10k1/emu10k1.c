@@ -52,6 +52,7 @@ static int max_synth_voices[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 64};
 static int max_buffer_size[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 128};
 static int enable_ir[SNDRV_CARDS];
 static uint subsystem[SNDRV_CARDS]; /* Force card subsystem model */
+static uint delay_pcm_irq[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the EMU10K1 soundcard.");
@@ -73,6 +74,8 @@ module_param_array(enable_ir, bool, NULL, 0444);
 MODULE_PARM_DESC(enable_ir, "Enable IR.");
 module_param_array(subsystem, uint, NULL, 0444);
 MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
+module_param_array(delay_pcm_irq, uint, NULL, 0444);
+MODULE_PARM_DESC(delay_pcm_irq, "Delay PCM interrupt by specified number of samples (default 0).");
 /*
  * Class 0401: 1102:0008 (rev 00) Subsystem: 1102:1001 -> Audigy2 Value  Model:SB0400
  */
@@ -127,6 +130,7 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 				      &emu)) < 0)
 		goto error;
 	card->private_data = emu;
+	emu->delay_pcm_irq = delay_pcm_irq[dev] & 0x1f;
 	if ((err = snd_emu10k1_pcm(emu, 0, NULL)) < 0)
 		goto error;
 	if ((err = snd_emu10k1_pcm_mic(emu, 1, NULL)) < 0)

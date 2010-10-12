@@ -243,10 +243,10 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 			if (features->type == WACOM_G4 ||
 					features->type == WACOM_MO) {
 				input_report_abs(input, ABS_DISTANCE, data[6] & 0x3f);
-				rw = (signed)(data[7] & 0x04) - (data[7] & 0x03);
+				rw = (data[7] & 0x04) - (data[7] & 0x03);
 			} else {
 				input_report_abs(input, ABS_DISTANCE, data[7] & 0x3f);
-				rw = -(signed)data[6];
+				rw = -(signed char)data[6];
 			}
 			input_report_rel(input, REL_WHEEL, rw);
 		}

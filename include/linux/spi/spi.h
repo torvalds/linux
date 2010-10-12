@@ -213,6 +213,9 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @dma_alignment: SPI controller constraint on DMA buffers alignment.
  * @mode_bits: flags understood by this controller driver
  * @flags: other constraints relevant to this driver
+ * @bus_lock_spinlock: spinlock for SPI bus locking
+ * @bus_lock_mutex: mutex for SPI bus locking
+ * @bus_lock_flag: indicates that the SPI bus is locked for exclusive use
  * @setup: updates the device mode and clocking records used by a
  *	device's SPI controller; protocol code may call this.  This
  *	must fail if an unrecognized or unsupported mode is requested.

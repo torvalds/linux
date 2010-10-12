@@ -95,13 +95,6 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
-static inline int
-dma_get_cache_alignment(void)
-{
-	BUG();
-	return(0);
-}
-
 static inline void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)

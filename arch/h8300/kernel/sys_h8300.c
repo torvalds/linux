@@ -51,11 +51,13 @@ asmlinkage void syscall_print(void *dummy,...)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register long res __asm__("er0");
-	register char *const *_c __asm__("er3") = envp;
-	register char *const *_b __asm__("er2") = argv;
+	register const char *const *_c __asm__("er3") = envp;
+	register const char *const *_b __asm__("er2") = argv;
 	register const char * _a __asm__("er1") = filename;
 	__asm__ __volatile__ ("mov.l %1,er0\n\t"
 			"trapa	#0\n\t"

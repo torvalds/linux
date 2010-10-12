@@ -191,15 +191,15 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 
 	write_sequnlock(&xtime_lock);
 
-#ifndef CONFIG_SMP
-	while (nticks--)
-		update_process_times(user_mode(get_irq_regs()));
-#endif
-
 	if (test_perf_event_pending()) {
 		clear_perf_event_pending();
 		perf_event_do_pending();
 	}
+
+#ifndef CONFIG_SMP
+	while (nticks--)
+		update_process_times(user_mode(get_irq_regs()));
+#endif
 
 	return IRQ_HANDLED;
 }

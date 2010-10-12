@@ -142,14 +142,16 @@ int
 nvc0_instmem_suspend(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 *buf;
 	int i;
 
 	dev_priv->susres.ramin_copy = vmalloc(65536);
 	if (!dev_priv->susres.ramin_copy)
 		return -ENOMEM;
+	buf = dev_priv->susres.ramin_copy;
 
-	for (i = 0x700000; i < 0x710000; i += 4)
-		dev_priv->susres.ramin_copy[i/4] = nv_rd32(dev, i);
+	for (i = 0; i < 65536; i += 4)
+		buf[i/4] = nv_rd32(dev, NV04_PRAMIN + i);
 	return 0;
 }
 
@@ -157,14 +159,15 @@ void
 nvc0_instmem_resume(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 *buf = dev_priv->susres.ramin_copy;
 	u64 chan;
 	int i;
 
 	chan = dev_priv->vram_size - dev_priv->ramin_rsvd_vram;
 	nv_wr32(dev, 0x001700, chan >> 16);
 
-	for (i = 0x700000; i < 0x710000; i += 4)
-		nv_wr32(dev, i, dev_priv->susres.ramin_copy[i/4]);
+	for (i = 0; i < 65536; i += 4)
+		nv_wr32(dev, NV04_PRAMIN + i, buf[i/4]);
 	vfree(dev_priv->susres.ramin_copy);
 	dev_priv->susres.ramin_copy = NULL;
 
@@ -221,7 +224,7 @@ nvc0_instmem_init(struct drm_device *dev)
 	/*XXX: incorrect, but needed to make hash func "work" */
 	dev_priv->ramht_offset = 0x10000;
 	dev_priv->ramht_bits   = 9;
-	dev_priv->ramht_size   = (1 << dev_priv->ramht_bits);
+	dev_priv->ramht_size   = (1 << dev_priv->ramht_bits) * 8;
 	return 0;
 }
 

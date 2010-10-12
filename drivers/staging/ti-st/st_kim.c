@@ -72,9 +72,24 @@ const unsigned char *protocol_names[] = {
 	PROTO_ENTRY(ST_GPS, "GPS"),
 };
 
+#define MAX_ST_DEVICES	3	/* Imagine 1 on each UART for now */
+struct platform_device *st_kim_devices[MAX_ST_DEVICES];
 
 /**********************************************************************/
 /* internal functions */
+
+/**
+ * st_get_plat_device -
+ *	function which returns the reference to the platform device
+ *	requested by id. As of now only 1 such device exists (id=0)
+ *	the context requesting for reference can get the id to be
+ *	requested by a. The protocol driver which is registering or
+ *	b. the tty device which is opened.
+ */
+static struct platform_device *st_get_plat_device(int id)
+{
+	return st_kim_devices[id];
+}
 
 /**
  * validate_firmware_response -
@@ -353,7 +368,7 @@ void st_kim_chip_toggle(enum proto_type type, enum kim_gpio_state state)
 	struct kim_data_s	*kim_gdata;
 	pr_info(" %s ", __func__);
 
-	kim_pdev = st_get_plat_device();
+	kim_pdev = st_get_plat_device(0);
 	kim_gdata = dev_get_drvdata(&kim_pdev->dev);
 
 	if (kim_gdata->gpios[type] == -1) {
@@ -574,12 +589,12 @@ static int kim_toggle_radio(void *data, bool blocked)
  *	This would enable multiple such platform devices to exist
  *	on a given platform
  */
-void st_kim_ref(struct st_data_s **core_data)
+void st_kim_ref(struct st_data_s **core_data, int id)
 {
 	struct platform_device	*pdev;
 	struct kim_data_s	*kim_gdata;
 	/* get kim_gdata reference from platform device */
-	pdev = st_get_plat_device();
+	pdev = st_get_plat_device(id);
 	kim_gdata = dev_get_drvdata(&pdev->dev);
 	*core_data = kim_gdata->core_data;
 }
@@ -623,6 +638,7 @@ static int kim_probe(struct platform_device *pdev)
 	long *gpios = pdev->dev.platform_data;
 	struct kim_data_s	*kim_gdata;
 
+	st_kim_devices[pdev->id] = pdev;
 	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_ATOMIC);
 	if (!kim_gdata) {
 		pr_err("no mem to allocate");

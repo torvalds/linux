@@ -129,20 +129,35 @@ struct device_node *dlpar_configure_connector(u32 drc_index)
 	struct property *property;
 	struct property *last_property = NULL;
 	struct cc_workarea *ccwa;
+	char *data_buf;
 	int cc_token;
-	int rc;
+	int rc = -1;
 
 	cc_token = rtas_token("ibm,configure-connector");
 	if (cc_token == RTAS_UNKNOWN_SERVICE)
 		return NULL;
 
-	spin_lock(&rtas_data_buf_lock);
-	ccwa = (struct cc_workarea *)&rtas_data_buf[0];
+	data_buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
+	if (!data_buf)
+		return NULL;
+
+	ccwa = (struct cc_workarea *)&data_buf[0];
 	ccwa->drc_index = drc_index;
 	ccwa->zero = 0;
 
-	rc = rtas_call(cc_token, 2, 1, NULL, rtas_data_buf, NULL);
-	while (rc) {
+	do {
+		/* Since we release the rtas_data_buf lock between configure
+		 * connector calls we want to re-populate the rtas_data_buffer
+		 * with the contents of the previous call.
+		 */
+		spin_lock(&rtas_data_buf_lock);
+
+		memcpy(rtas_data_buf, data_buf, RTAS_DATA_BUF_SIZE);
+		rc = rtas_call(cc_token, 2, 1, NULL, rtas_data_buf, NULL);
+		memcpy(data_buf, rtas_data_buf, RTAS_DATA_BUF_SIZE);
+
+		spin_unlock(&rtas_data_buf_lock);
+
 		switch (rc) {
 		case NEXT_SIBLING:
 			dn = dlpar_parse_cc_node(ccwa);
@@ -197,18 +212,19 @@ struct device_node *dlpar_configure_connector(u32 drc_index)
 			       "returned from configure-connector\n", rc);
 			goto cc_error;
 		}
-
-		rc = rtas_call(cc_token, 2, 1, NULL, rtas_data_buf, NULL);
-	}
-
-	spin_unlock(&rtas_data_buf_lock);
-	return first_dn;
+	} while (rc);
 
 cc_error:
-	if (first_dn)
-		dlpar_free_cc_nodes(first_dn);
-	spin_unlock(&rtas_data_buf_lock);
-	return NULL;
+	kfree(data_buf);
+
+	if (rc) {
+		if (first_dn)
+			dlpar_free_cc_nodes(first_dn);
+
+		return NULL;
+	}
+
+	return first_dn;
 }
 
 static struct device_node *derive_parent(const char *path)

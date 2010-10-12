@@ -258,8 +258,10 @@ asmlinkage int sys_execve(nabi_no_regargs struct pt_regs regs)
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, (char __user *__user *) (long)regs.regs[5],
-	                  (char __user *__user *) (long)regs.regs[6], &regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) (long)regs.regs[5],
+	                  (const char __user *const __user *) (long)regs.regs[6],
+			  &regs);
 	putname(filename);
 
 out:
@@ -436,7 +438,9 @@ asmlinkage void bad_stack(void)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register unsigned long __a0 asm("$4") = (unsigned long) filename;
 	register unsigned long __a1 asm("$5") = (unsigned long) argv;

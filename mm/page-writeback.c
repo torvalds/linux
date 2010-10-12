@@ -836,7 +836,8 @@ void tag_pages_for_writeback(struct address_space *mapping,
 		spin_unlock_irq(&mapping->tree_lock);
 		WARN_ON_ONCE(tagged > WRITEBACK_TAG_BATCH);
 		cond_resched();
-	} while (tagged >= WRITEBACK_TAG_BATCH);
+		/* We check 'start' to handle wrapping when end == ~0UL */
+	} while (tagged >= WRITEBACK_TAG_BATCH && start);
 }
 EXPORT_SYMBOL(tag_pages_for_writeback);
 
@@ -984,22 +985,16 @@ continue_unlock:
 				}
 			}
 
-			if (wbc->nr_to_write > 0) {
-				if (--wbc->nr_to_write == 0 &&
-				    wbc->sync_mode == WB_SYNC_NONE) {
-					/*
-					 * We stop writing back only if we are
-					 * not doing integrity sync. In case of
-					 * integrity sync we have to keep going
-					 * because someone may be concurrently
-					 * dirtying pages, and we might have
-					 * synced a lot of newly appeared dirty
-					 * pages, but have not synced all of the
-					 * old dirty pages.
-					 */
-					done = 1;
-					break;
-				}
+			/*
+			 * We stop writing back only if we are not doing
+			 * integrity sync. In case of integrity sync we have to
+			 * keep going until we have written all the pages
+			 * we tagged for writeback prior to entering this loop.
+			 */
+			if (--wbc->nr_to_write <= 0 &&
+			    wbc->sync_mode == WB_SYNC_NONE) {
+				done = 1;
+				break;
 			}
 		}
 		pagevec_release(&pvec);
@@ -1131,6 +1126,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		task_io_account_write(PAGE_CACHE_SIZE);
 	}
 }
+EXPORT_SYMBOL(account_page_dirtied);
 
 /*
  * For address_spaces which do not use buffers.  Just tag the page as dirty in

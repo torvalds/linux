@@ -486,7 +486,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	struct ieee80211_rx_status rx_status;
 
 	if (data->idle) {
-		wiphy_debug(hw->wiphy, "trying to tx when idle - reject\n");
+		wiphy_debug(hw->wiphy, "Trying to TX when idle - reject\n");
 		return false;
 	}
 

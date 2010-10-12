@@ -113,10 +113,8 @@ void ufs_free_inode (struct inode * inode)
 
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	
 	sb->s_dirt = 1;
 	unlock_super (sb);
@@ -156,10 +154,8 @@ static void ufs2_init_inodes_chunk(struct super_block *sb,
 
 	fs32_add(sb, &ucg->cg_u.cg_u2.cg_initediblk, uspi->s_inopb);
 	ubh_mark_buffer_dirty(UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer(UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 
 	UFSD("EXIT\n");
 }
@@ -290,10 +286,8 @@ cg_found:
 	}
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 
 	inode->i_ino = cg * uspi->s_ipg + bit;

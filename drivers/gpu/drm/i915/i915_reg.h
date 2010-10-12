@@ -170,6 +170,7 @@
 #define   MI_NO_WRITE_FLUSH	(1 << 2)
 #define   MI_SCENE_COUNT	(1 << 3) /* just increment scene count */
 #define   MI_END_SCENE		(1 << 4) /* flush binner and incr scene count */
+#define   MI_INVALIDATE_ISP	(1 << 5) /* invalidate indirect state pointers */
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
 #define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11,0)
@@ -180,6 +181,12 @@
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+#define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
+#define   MI_MM_SPACE_GTT		(1<<8)
+#define   MI_MM_SPACE_PHYSICAL		(0<<8)
+#define   MI_SAVE_EXT_STATE_EN		(1<<3)
+#define   MI_RESTORE_EXT_STATE_EN	(1<<2)
+#define   MI_RESTORE_INHIBIT		(1<<0)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
@@ -312,6 +319,7 @@
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
+# define MI_FLUSH_ENABLE				(1 << 11)
 
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
@@ -1099,6 +1107,11 @@
 #define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
+/*
+ * Logical Context regs
+ */
+#define CCID			0x2180
+#define   CCID_EN		(1<<0)
 /*
  * Overlay regs
  */
@@ -2069,6 +2082,7 @@
 #define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
+#define   DSL_LINEMASK	       	0x00000fff
 #define PIPEACONF		0x70008
 #define   PIPEACONF_ENABLE	(1<<31)
 #define   PIPEACONF_DISABLE	0
@@ -2192,9 +2206,17 @@
 #define  WM1_LP_SR_EN		(1<<31)
 #define  WM1_LP_LATENCY_SHIFT	24
 #define  WM1_LP_LATENCY_MASK	(0x7f<<24)
+#define  WM1_LP_FBC_LP1_MASK	(0xf<<20)
+#define  WM1_LP_FBC_LP1_SHIFT	20
 #define  WM1_LP_SR_MASK		(0x1ff<<8)
 #define  WM1_LP_SR_SHIFT	8
 #define  WM1_LP_CURSOR_MASK	(0x3f)
+#define WM2_LP_ILK		0x4510c
+#define  WM2_LP_EN		(1<<31)
+#define WM3_LP_ILK		0x45110
+#define  WM3_LP_EN		(1<<31)
+#define WM1S_LP_ILK		0x45120
+#define  WM1S_LP_EN		(1<<31)
 
 /* Memory latency timer register */
 #define MLTR_ILK		0x11222
@@ -2928,6 +2950,7 @@
 #define  TRANS_DP_VSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)
 #define  TRANS_DP_HSYNC_ACTIVE_LOW	0
+#define  TRANS_DP_SYNC_MASK	(3<<3)
 
 /* SNB eDP training params */
 /* SNB A-stepping */

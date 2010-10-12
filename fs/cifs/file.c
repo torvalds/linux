@@ -242,8 +242,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto out;
 	}
 
 	cFYI(1, "inode = 0x%p file flags are 0x%x for %s",

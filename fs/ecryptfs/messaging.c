@@ -473,7 +473,7 @@ sleep:
 	return rc;
 }
 
-int ecryptfs_init_messaging(void)
+int __init ecryptfs_init_messaging(void)
 {
 	int i;
 	int rc = 0;

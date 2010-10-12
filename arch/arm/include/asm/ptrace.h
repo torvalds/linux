@@ -158,15 +158,24 @@ struct pt_regs {
  */
 static inline int valid_user_regs(struct pt_regs *regs)
 {
-	if (user_mode(regs) && (regs->ARM_cpsr & PSR_I_BIT) == 0) {
-		regs->ARM_cpsr &= ~(PSR_F_BIT | PSR_A_BIT);
-		return 1;
+	unsigned long mode = regs->ARM_cpsr & MODE_MASK;
+
+	/*
+	 * Always clear the F (FIQ) and A (delayed abort) bits
+	 */
+	regs->ARM_cpsr &= ~(PSR_F_BIT | PSR_A_BIT);
+
+	if ((regs->ARM_cpsr & PSR_I_BIT) == 0) {
+		if (mode == USR_MODE)
+			return 1;
+		if (elf_hwcap & HWCAP_26BIT && mode == USR26_MODE)
+			return 1;
 	}
 
 	/*
 	 * Force CPSR to something logical...
 	 */
-	regs->ARM_cpsr &= PSR_f | PSR_s | (PSR_x & ~PSR_A_BIT) | PSR_T_BIT | MODE32_BIT;
+	regs->ARM_cpsr &= PSR_f | PSR_s | PSR_x | PSR_T_BIT | MODE32_BIT;
 	if (!(elf_hwcap & HWCAP_26BIT))
 		regs->ARM_cpsr |= USR_MODE;
 

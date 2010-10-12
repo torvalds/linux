@@ -391,11 +391,12 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
 {
 	struct orig_node *orig_node;
+	unsigned long flags;
 	HASHIT(hashit);
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	while (hash_iterate(orig_hash, &hashit)) {
 		orig_node = hashit.bucket->data;
@@ -404,11 +405,11 @@ int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
 			goto err;
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	return 0;
 
 err:
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	return -ENOMEM;
 }
 
@@ -468,12 +469,13 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 {
 	struct batman_if *batman_if_tmp;
 	struct orig_node *orig_node;
+	unsigned long flags;
 	HASHIT(hashit);
 	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	while (hash_iterate(orig_hash, &hashit)) {
 		orig_node = hashit.bucket->data;
@@ -500,10 +502,10 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 	rcu_read_unlock();
 
 	batman_if->if_num = -1;
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	return 0;
 
 err:
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	return -ENOMEM;
 }

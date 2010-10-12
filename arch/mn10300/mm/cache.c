@@ -54,12 +54,29 @@ EXPORT_SYMBOL(flush_icache_page);
 void flush_icache_range(unsigned long start, unsigned long end)
 {
 #ifdef CONFIG_MN10300_CACHE_WBACK
-	unsigned long addr, size, off;
+	unsigned long addr, size, base, off;
 	struct page *page;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ppte, pte;
+
+	if (end > 0x80000000UL) {
+		/* addresses above 0xa0000000 do not go through the cache */
+		if (end > 0xa0000000UL) {
+			end = 0xa0000000UL;
+			if (start >= end)
+				return;
+		}
+
+		/* kernel addresses between 0x80000000 and 0x9fffffff do not
+		 * require page tables, so we just map such addresses directly */
+		base = (start >= 0x80000000UL) ? start : 0x80000000UL;
+		mn10300_dcache_flush_range(base, end);
+		if (base == start)
+			goto invalidate;
+		end = base;
+	}
 
 	for (; start < end; start += size) {
 		/* work out how much of the page to flush */
@@ -104,6 +121,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
 	}
 #endif
 
+invalidate:
 	mn10300_icache_inv();
 }
 EXPORT_SYMBOL(flush_icache_range);

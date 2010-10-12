@@ -1038,6 +1038,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
 
+	pmap = NULL;
 	if (attr->type == PERF_TYPE_HARDWARE) {
 		if (attr->config >= sparc_pmu->max_events)
 			return -EINVAL;
@@ -1046,8 +1047,17 @@ static int __hw_perf_event_init(struct perf_event *event)
 		pmap = sparc_map_cache_event(attr->config);
 		if (IS_ERR(pmap))
 			return PTR_ERR(pmap);
-	} else
+	} else if (attr->type != PERF_TYPE_RAW)
 		return -EOPNOTSUPP;
+
+	if (pmap) {
+		hwc->event_base = perf_event_encode(pmap);
+	} else {
+		/* User gives us "(encoding << 16) | pic_mask" for
+		 * PERF_TYPE_RAW events.
+		 */
+		hwc->event_base = attr->config;
+	}
 
 	/* We save the enable bits in the config_base.  */
 	hwc->config_base = sparc_pmu->irq_bit;
@@ -1057,8 +1067,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 		hwc->config_base |= PCR_STRACE;
 	if (!attr->exclude_hv)
 		hwc->config_base |= sparc_pmu->hv_bit;
-
-	hwc->event_base = perf_event_encode(pmap);
 
 	n = 0;
 	if (event->group_leader != event) {

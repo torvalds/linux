@@ -820,7 +820,7 @@ asmlinkage long sys_fanotify_mark(int fanotify_fd, unsigned int flags,
 				  u64 mask, int fd,
 				  const char  __user *pathname);
 
-int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
+int kernel_execve(const char *filename, const char *const argv[], const char *const envp[]);
 
 
 asmlinkage long sys_perf_event_open(

@@ -733,6 +733,7 @@ static struct radeon_asic evergreen_asic = {
 	.set_engine_clock = &radeon_atom_set_engine_clock,
 	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
+	.get_pcie_lanes = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
@@ -857,21 +858,3 @@ int radeon_asic_init(struct radeon_device *rdev)
 	return 0;
 }
 
-/*
- * Wrapper around modesetting bits. Move to radeon_clocks.c?
- */
-int radeon_clocks_init(struct radeon_device *rdev)
-{
-	int r;
-
-	r = radeon_static_clocks_init(rdev->ddev);
-	if (r) {
-		return r;
-	}
-	DRM_INFO("Clocks initialized !\n");
-	return 0;
-}
-
-void radeon_clocks_fini(struct radeon_device *rdev)
-{
-}

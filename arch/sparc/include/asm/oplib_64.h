@@ -185,9 +185,8 @@ extern int prom_getunumber(int syndrome_code,
 			   char *buf, int buflen);
 
 /* Retain physical memory to the caller across soft resets. */
-extern unsigned long prom_retain(const char *name,
-				 unsigned long pa_low, unsigned long pa_high,
-				 long size, long align);
+extern int prom_retain(const char *name, unsigned long size,
+		       unsigned long align, unsigned long *paddr);
 
 /* Load explicit I/D TLB entries into the calling processor. */
 extern long prom_itlb_load(unsigned long index,
@@ -287,26 +286,6 @@ extern void prom_sun4v_guest_soft_state(void);
 extern int prom_ihandle2path(int handle, char *buffer, int bufsize);
 
 /* Client interface level routines. */
-extern long p1275_cmd(const char *, long, ...);
-
-#if 0
-#define P1275_SIZE(x) ((((long)((x) / 32)) << 32) | (x))
-#else
-#define P1275_SIZE(x) x
-#endif
-
-/* We support at most 16 input and 1 output argument */
-#define P1275_ARG_NUMBER		0
-#define P1275_ARG_IN_STRING		1
-#define P1275_ARG_OUT_BUF		2
-#define P1275_ARG_OUT_32B		3
-#define P1275_ARG_IN_FUNCTION		4
-#define P1275_ARG_IN_BUF		5
-#define P1275_ARG_IN_64B		6
-
-#define P1275_IN(x) ((x) & 0xf)
-#define P1275_OUT(x) (((x) << 4) & 0xf0)
-#define P1275_INOUT(i,o) (P1275_IN(i)|P1275_OUT(o))
-#define P1275_ARG(n,x) ((x) << ((n)*3 + 8))
+extern void p1275_cmd_direct(unsigned long *);
 
 #endif /* !(__SPARC64_OPLIB_H) */

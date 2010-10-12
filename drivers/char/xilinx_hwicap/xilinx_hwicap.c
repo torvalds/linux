@@ -94,6 +94,7 @@
 
 #ifdef CONFIG_OF
 /* For open firmware. */
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #endif

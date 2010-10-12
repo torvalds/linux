@@ -487,7 +487,7 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data)
 		mdelay(1);
 		*data = readl(ipcdev.i2c_base + I2C_DATA_ADDR);
 	} else if (cmd == IPC_I2C_WRITE) {
-		writel(addr, ipcdev.i2c_base + I2C_DATA_ADDR);
+		writel(*data, ipcdev.i2c_base + I2C_DATA_ADDR);
 		mdelay(1);
 		writel(addr, ipcdev.i2c_base + IPC_I2C_CNTRL_ADDR);
 	} else {

@@ -403,7 +403,7 @@ static void hvsi_insert_chars(struct hvsi_struct *hp, const char *buf, int len)
 			hp->sysrq = 1;
 			continue;
 		} else if (hp->sysrq) {
-			handle_sysrq(c, hp->tty);
+			handle_sysrq(c);
 			hp->sysrq = 0;
 			continue;
 		}

@@ -811,6 +811,8 @@ static struct miscdevice uinput_misc = {
 	.minor		= UINPUT_MINOR,
 	.name		= UINPUT_NAME,
 };
+MODULE_ALIAS_MISCDEV(UINPUT_MINOR);
+MODULE_ALIAS("devname:" UINPUT_NAME);
 
 static int __init uinput_init(void)
 {

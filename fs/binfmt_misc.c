@@ -108,7 +108,7 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	Node *fmt;
 	struct file * interp_file = NULL;
 	char iname[BINPRM_BUF_SIZE];
-	char *iname_addr = iname;
+	const char *iname_addr = iname;
 	int retval;
 	int fd_binary = -1;
 
@@ -724,7 +724,7 @@ static int __init init_misc_binfmt(void)
 {
 	int err = register_filesystem(&bm_fs_type);
 	if (!err) {
-		err = register_binfmt(&misc_format);
+		err = insert_binfmt(&misc_format);
 		if (err)
 			unregister_filesystem(&bm_fs_type);
 	}

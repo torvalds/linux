@@ -799,7 +799,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
-	if (hif_dev->device_id == 0x7010)
+	if ((hif_dev->device_id == 0x7010) || (hif_dev->device_id == 0x7015))
 		firm_offset = AR7010_FIRMWARE_TEXT;
 	else
 		firm_offset = AR9271_FIRMWARE_TEXT;
@@ -901,6 +901,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 
 	switch(hif_dev->device_id) {
 	case 0x7010:
+	case 0x7015:
 	case 0x9018:
 		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
 			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
@@ -910,11 +911,6 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	default:
 		hif_dev->fw_name = FIRMWARE_AR9271;
 		break;
-	}
-
-	if (!hif_dev->fw_name) {
-		dev_err(&udev->dev, "Can't determine firmware !\n");
-		goto err_htc_hw_alloc;
 	}
 
 	ret = ath9k_hif_usb_dev_init(hif_dev);

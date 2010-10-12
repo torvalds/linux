@@ -19,7 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/of_platform.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -97,7 +97,7 @@ static void __init p1022_ds_setup_arch(void)
 #endif
 
 #ifdef CONFIG_SWIOTLB
-	if (lmb_end_of_DRAM() > max) {
+	if (memblock_end_of_DRAM() > max) {
 		ppc_swiotlb_enable = 1;
 		set_pci_dma_ops(&swiotlb_dma_ops);
 		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;

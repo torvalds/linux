@@ -45,6 +45,7 @@
 #define NES_PHY_TYPE_KR	       9
 
 #define NES_MULTICAST_PF_MAX 8
+#define NES_A0 3
 
 enum pci_regs {
 	NES_INT_STAT = 0x0000,

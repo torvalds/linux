@@ -266,13 +266,15 @@ static int hiddev_open(struct inode *inode, struct file *file)
 {
 	struct hiddev_list *list;
 	struct usb_interface *intf;
+	struct hid_device *hid;
 	struct hiddev *hiddev;
 	int res;
 
-	intf = usb_find_interface(&hiddev_driver, iminor(inode));
+	intf = usbhid_find_interface(iminor(inode));
 	if (!intf)
 		return -ENODEV;
-	hiddev = usb_get_intfdata(intf);
+	hid = usb_get_intfdata(intf);
+	hiddev = hid->hiddev;
 
 	if (!(list = kzalloc(sizeof(struct hiddev_list), GFP_KERNEL)))
 		return -ENOMEM;
@@ -587,7 +589,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct hiddev_list *list = file->private_data;
 	struct hiddev *hiddev = list->hiddev;
 	struct hid_device *hid = hiddev->hid;
-	struct usb_device *dev = hid_to_usb_dev(hid);
+	struct usb_device *dev;
 	struct hiddev_collection_info cinfo;
 	struct hiddev_report_info rinfo;
 	struct hiddev_field_info finfo;
@@ -601,8 +603,10 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* Called without BKL by compat methods so no BKL taken */
 
 	/* FIXME: Who or what stop this racing with a disconnect ?? */
-	if (!hiddev->exist)
+	if (!hiddev->exist || !hid)
 		return -EIO;
+
+	dev = hid_to_usb_dev(hid);
 
 	switch (cmd) {
 
@@ -888,7 +892,6 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	hid->hiddev = hiddev;
 	hiddev->hid = hid;
 	hiddev->exist = 1;
-	usb_set_intfdata(usbhid->intf, usbhid);
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
 		err_hid("Not able to get a minor for this device.");

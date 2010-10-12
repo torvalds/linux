@@ -1,6 +1,4 @@
 /*
- *  linux/include/asm-m68k/ide.h
- *
  *  Copyright (C) 1994-1996  Linus Torvalds & authors
  */
 
@@ -34,6 +32,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#ifdef CONFIG_MMU
+
 /*
  * Get rid of defs from io.h - ide has its private and conflicting versions
  * Since so far no single m68k platform uses ISA/PCI I/O space for IDE, we
@@ -52,6 +52,15 @@
 #define writew(val, port)		out_be16(port, val)
 #define __ide_mm_outsw(port, addr, n)	raw_outsw((u16 *)port, addr, n)
 #define __ide_mm_outsl(port, addr, n)	raw_outsl((u32 *)port, addr, n)
+
+#else
+
+#define __ide_mm_insw(port, addr, n)	io_insw((unsigned int)port, addr, n)
+#define __ide_mm_insl(port, addr, n)	io_insl((unsigned int)port, addr, n)
+#define __ide_mm_outsw(port, addr, n)	io_outsw((unsigned int)port, addr, n)
+#define __ide_mm_outsl(port, addr, n)	io_outsl((unsigned int)port, addr, n)
+
+#endif /* CONFIG_MMU */
 
 #endif /* __KERNEL__ */
 #endif /* _M68K_IDE_H */

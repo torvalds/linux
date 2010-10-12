@@ -1643,7 +1643,9 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		bmask = queue_logical_block_size(rdev->bdev->bd_disk->queue)-1;
 		if (rdev->sb_size & bmask)
 			rdev->sb_size = (rdev->sb_size | bmask) + 1;
-	}
+	} else
+		max_dev = le32_to_cpu(sb->max_dev);
+
 	for (i=0; i<max_dev;i++)
 		sb->dev_roles[i] = cpu_to_le16(0xfffe);
 	
@@ -2136,16 +2138,6 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 	 * with the rest of the array)
 	 */
 	mdk_rdev_t *rdev;
-
-	/* First make sure individual recovery_offsets are correct */
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		if (rdev->raid_disk >= 0 &&
-		    mddev->delta_disks >= 0 &&
-		    !test_bit(In_sync, &rdev->flags) &&
-		    mddev->curr_resync_completed > rdev->recovery_offset)
-				rdev->recovery_offset = mddev->curr_resync_completed;
-
-	}	
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->sb_events == mddev->events ||
 		    (nospares &&
@@ -2167,13 +2159,27 @@ static void md_update_sb(mddev_t * mddev, int force_change)
 	int sync_req;
 	int nospares = 0;
 
-	mddev->utime = get_seconds();
-	if (mddev->external)
-		return;
 repeat:
+	/* First make sure individual recovery_offsets are correct */
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk >= 0 &&
+		    mddev->delta_disks >= 0 &&
+		    !test_bit(In_sync, &rdev->flags) &&
+		    mddev->curr_resync_completed > rdev->recovery_offset)
+				rdev->recovery_offset = mddev->curr_resync_completed;
+
+	}	
+	if (!mddev->persistent) {
+		clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
+		clear_bit(MD_CHANGE_DEVS, &mddev->flags);
+		wake_up(&mddev->sb_wait);
+		return;
+	}
+
 	spin_lock_irq(&mddev->write_lock);
 
-	set_bit(MD_CHANGE_PENDING, &mddev->flags);
+	mddev->utime = get_seconds();
+
 	if (test_and_clear_bit(MD_CHANGE_DEVS, &mddev->flags))
 		force_change = 1;
 	if (test_and_clear_bit(MD_CHANGE_CLEAN, &mddev->flags))
@@ -2220,19 +2226,6 @@ repeat:
 		 */
 		MD_BUG();
 		mddev->events --;
-	}
-
-	/*
-	 * do not write anything to disk if using
-	 * nonpersistent superblocks
-	 */
-	if (!mddev->persistent) {
-		if (!mddev->external)
-			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
-
-		spin_unlock_irq(&mddev->write_lock);
-		wake_up(&mddev->sb_wait);
-		return;
 	}
 	sync_sbs(mddev, nospares);
 	spin_unlock_irq(&mddev->write_lock);
@@ -3379,7 +3372,7 @@ array_state_show(mddev_t *mddev, char *page)
 		case 0:
 			if (mddev->in_sync)
 				st = clean;
-			else if (test_bit(MD_CHANGE_CLEAN, &mddev->flags))
+			else if (test_bit(MD_CHANGE_PENDING, &mddev->flags))
 				st = write_pending;
 			else if (mddev->safemode)
 				st = active_idle;
@@ -3460,9 +3453,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 					mddev->in_sync = 1;
 					if (mddev->safemode == 1)
 						mddev->safemode = 0;
-					if (mddev->persistent)
-						set_bit(MD_CHANGE_CLEAN,
-							&mddev->flags);
+					set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 				}
 				err = 0;
 			} else
@@ -3474,8 +3465,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 	case active:
 		if (mddev->pers) {
 			restart_array(mddev);
-			if (mddev->external)
-				clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
 			wake_up(&mddev->sb_wait);
 			err = 0;
 		} else {
@@ -6580,6 +6570,7 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 		if (mddev->in_sync) {
 			mddev->in_sync = 0;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			set_bit(MD_CHANGE_PENDING, &mddev->flags);
 			md_wakeup_thread(mddev->thread);
 			did_change = 1;
 		}
@@ -6588,7 +6579,6 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 	if (did_change)
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 	wait_event(mddev->sb_wait,
-		   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
 		   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
 }
 
@@ -6624,6 +6614,7 @@ int md_allow_write(mddev_t *mddev)
 	if (mddev->in_sync) {
 		mddev->in_sync = 0;
 		set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+		set_bit(MD_CHANGE_PENDING, &mddev->flags);
 		if (mddev->safemode_delay &&
 		    mddev->safemode == 0)
 			mddev->safemode = 1;
@@ -6633,7 +6624,7 @@ int md_allow_write(mddev_t *mddev)
 	} else
 		spin_unlock_irq(&mddev->write_lock);
 
-	if (test_bit(MD_CHANGE_CLEAN, &mddev->flags))
+	if (test_bit(MD_CHANGE_PENDING, &mddev->flags))
 		return -EAGAIN;
 	else
 		return 0;
@@ -6831,8 +6822,7 @@ void md_do_sync(mddev_t *mddev)
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed =
 				mddev->curr_resync;
-			if (mddev->persistent)
-				set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
 
@@ -7081,7 +7071,7 @@ void md_check_recovery(mddev_t *mddev)
 	if (mddev->ro && !test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
 		return;
 	if ( ! (
-		(mddev->flags && !mddev->external) ||
+		(mddev->flags & ~ (1<<MD_CHANGE_PENDING)) ||
 		test_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
 		test_bit(MD_RECOVERY_DONE, &mddev->recovery) ||
 		(mddev->external == 0 && mddev->safemode == 1) ||
@@ -7111,8 +7101,7 @@ void md_check_recovery(mddev_t *mddev)
 			    mddev->recovery_cp == MaxSector) {
 				mddev->in_sync = 1;
 				did_change = 1;
-				if (mddev->persistent)
-					set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+				set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			}
 			if (mddev->safemode == 1)
 				mddev->safemode = 0;

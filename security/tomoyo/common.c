@@ -1416,15 +1416,19 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 	const pid_t gpid = task_pid_nr(current);
 	static const int tomoyo_buffer_len = 4096;
 	char *buffer = kmalloc(tomoyo_buffer_len, GFP_NOFS);
+	pid_t ppid;
 	if (!buffer)
 		return NULL;
 	do_gettimeofday(&tv);
+	rcu_read_lock();
+	ppid = task_tgid_vnr(current->real_parent);
+	rcu_read_unlock();
 	snprintf(buffer, tomoyo_buffer_len - 1,
 		 "#timestamp=%lu profile=%u mode=%s (global-pid=%u)"
 		 " task={ pid=%u ppid=%u uid=%u gid=%u euid=%u"
 		 " egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
 		 tv.tv_sec, r->profile, tomoyo_mode[r->mode], gpid,
-		 (pid_t) sys_getpid(), (pid_t) sys_getppid(),
+		 task_tgid_vnr(current), ppid,
 		 current_uid(), current_gid(), current_euid(),
 		 current_egid(), current_suid(), current_sgid(),
 		 current_fsuid(), current_fsgid());

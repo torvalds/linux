@@ -1542,8 +1542,7 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 		   atomic_read(&bitmap->mddev->recovery_active) == 0);
 
 	bitmap->mddev->curr_resync_completed = bitmap->mddev->curr_resync;
-	if (bitmap->mddev->persistent)
-		set_bit(MD_CHANGE_CLEAN, &bitmap->mddev->flags);
+	set_bit(MD_CHANGE_CLEAN, &bitmap->mddev->flags);
 	sector &= ~((1ULL << CHUNK_BLOCK_SHIFT(bitmap)) - 1);
 	s = 0;
 	while (s < sector && s < bitmap->mddev->resync_max_sectors) {

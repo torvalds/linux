@@ -44,10 +44,17 @@ static DECLARE_KFIFO_PTR(test, int);
 static DEFINE_KFIFO(test, int, FIFO_SIZE);
 #endif
 
+static const int expected_result[FIFO_SIZE] = {
+	 3,  4,  5,  6,  7,  8,  9,  0,
+	 1, 20, 21, 22, 23, 24, 25, 26,
+	27, 28, 29, 30, 31, 32, 33, 34,
+	35, 36, 37, 38, 39, 40, 41, 42,
+};
+
 static int __init testfunc(void)
 {
 	int		buf[6];
-	int		i;
+	int		i, j;
 	unsigned int	ret;
 
 	printk(KERN_INFO "int fifo test start\n");
@@ -66,8 +73,13 @@ static int __init testfunc(void)
 	ret = kfifo_in(&test, buf, ret);
 	printk(KERN_INFO "ret: %d\n", ret);
 
-	for (i = 20; i != 30; i++)
-		kfifo_put(&test, &i);
+	/* skip first element of the fifo */
+	printk(KERN_INFO "skip 1st element\n");
+	kfifo_skip(&test);
+
+	/* put values into the fifo until is full */
+	for (i = 20; kfifo_put(&test, &i); i++)
+		;
 
 	printk(KERN_INFO "queue len: %u\n", kfifo_len(&test));
 
@@ -75,10 +87,20 @@ static int __init testfunc(void)
 	if (kfifo_peek(&test, &i))
 		printk(KERN_INFO "%d\n", i);
 
-	/* print out all values in the fifo */
-	while (kfifo_get(&test, &i))
-		printk("%d ", i);
-	printk("\n");
+	/* check the correctness of all values in the fifo */
+	j = 0;
+	while (kfifo_get(&test, &i)) {
+		printk(KERN_INFO "item = %d\n", i);
+		if (i != expected_result[j++]) {
+			printk(KERN_WARNING "value mismatch: test failed\n");
+			return -EIO;
+		}
+	}
+	if (j != ARRAY_SIZE(expected_result)) {
+		printk(KERN_WARNING "size mismatch: test failed\n");
+		return -EIO;
+	}
+	printk(KERN_INFO "test passed\n");
 
 	return 0;
 }
@@ -132,7 +154,12 @@ static int __init example_init(void)
 		return ret;
 	}
 #endif
-	testfunc();
+	if (testfunc() < 0) {
+#ifdef DYNAMIC
+		kfifo_free(&test);
+#endif
+		return -EIO;
+	}
 
 	if (proc_create(PROC_FIFO, 0, NULL, &fifo_fops) == NULL) {
 #ifdef DYNAMIC

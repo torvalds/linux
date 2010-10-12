@@ -194,10 +194,11 @@ static DECLARE_WORK(console_work, console_callback);
 int fg_console;
 int last_console;
 int want_console = -1;
-int saved_fg_console;
-int saved_last_console;
-int saved_want_console;
-int saved_vc_mode;
+static int saved_fg_console;
+static int saved_last_console;
+static int saved_want_console;
+static int saved_vc_mode;
+static int saved_console_blanked;
 
 /*
  * For each existing display, we have a pointer to console currently visible
@@ -905,22 +906,16 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			 * bottom of buffer
 			 */
 			old_origin += (old_rows - new_rows) * old_row_size;
-			end = vc->vc_scr_end;
 		} else {
 			/*
 			 * Cursor is in no man's land, copy 1/2 screenful
 			 * from the top and bottom of cursor position
 			 */
 			old_origin += (vc->vc_y - new_rows/2) * old_row_size;
-			end = old_origin + (old_row_size * new_rows);
 		}
-	} else
-		/*
-		 * Cursor near the top, copy contents from the top of buffer
-		 */
-		end = (old_rows > new_rows) ? old_origin +
-			(old_row_size * new_rows) :
-			vc->vc_scr_end;
+	}
+
+	end = old_origin + old_row_size * min(old_rows, new_rows);
 
 	update_attr(vc);
 
@@ -3074,8 +3069,7 @@ static int bind_con_driver(const struct consw *csw, int first, int last,
 
 		old_was_color = vc->vc_can_do_color;
 		vc->vc_sw->con_deinit(vc);
-		if (!vc->vc_origin)
-			vc->vc_origin = (unsigned long)vc->vc_screenbuf;
+		vc->vc_origin = (unsigned long)vc->vc_screenbuf;
 		visual_init(vc, i, 0);
 		set_origin(vc);
 		update_attr(vc);
@@ -3449,6 +3443,7 @@ int con_debug_enter(struct vc_data *vc)
 	saved_last_console = last_console;
 	saved_want_console = want_console;
 	saved_vc_mode = vc->vc_mode;
+	saved_console_blanked = console_blanked;
 	vc->vc_mode = KD_TEXT;
 	console_blanked = 0;
 	if (vc->vc_sw->con_debug_enter)
@@ -3492,6 +3487,7 @@ int con_debug_leave(void)
 	fg_console = saved_fg_console;
 	last_console = saved_last_console;
 	want_console = saved_want_console;
+	console_blanked = saved_console_blanked;
 	vc_cons[fg_console].d->vc_mode = saved_vc_mode;
 
 	vc = vc_cons[fg_console].d;

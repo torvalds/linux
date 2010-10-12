@@ -2,10 +2,6 @@ Kernel driver f71882fg
 ======================
 
 Supported chips:
-  * Fintek F71808E
-    Prefix: 'f71808fg'
-    Addresses scanned: none, address read from Super I/O config space
-    Datasheet: Not public
   * Fintek F71858FG
     Prefix: 'f71858fg'
     Addresses scanned: none, address read from Super I/O config space

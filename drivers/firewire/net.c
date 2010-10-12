@@ -579,7 +579,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 		if (!peer) {
 			fw_notify("No peer for ARP packet from %016llx\n",
 				  (unsigned long long)peer_guid);
-			goto failed_proto;
+			goto no_peer;
 		}
 
 		/*
@@ -656,7 +656,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 
 	return 0;
 
- failed_proto:
+ no_peer:
 	net->stats.rx_errors++;
 	net->stats.rx_dropped++;
 
@@ -664,7 +664,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	if (netif_queue_stopped(net))
 		netif_wake_queue(net);
 
-	return 0;
+	return -ENOENT;
 }
 
 static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
@@ -701,7 +701,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 			fw_error("out of memory\n");
 			net->stats.rx_dropped++;
 
-			return -1;
+			return -ENOMEM;
 		}
 		skb_reserve(skb, (net->hard_header_len + 15) & ~15);
 		memcpy(skb_put(skb, len), buf, len);
@@ -726,8 +726,10 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	spin_lock_irqsave(&dev->lock, flags);
 
 	peer = fwnet_peer_find_by_node_id(dev, source_node_id, generation);
-	if (!peer)
-		goto bad_proto;
+	if (!peer) {
+		retval = -ENOENT;
+		goto fail;
+	}
 
 	pd = fwnet_pd_find(peer, datagram_label);
 	if (pd == NULL) {
@@ -741,7 +743,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 				  dg_size, buf, fg_off, len);
 		if (pd == NULL) {
 			retval = -ENOMEM;
-			goto bad_proto;
+			goto fail;
 		}
 		peer->pdg_size++;
 	} else {
@@ -755,9 +757,9 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 			pd = fwnet_pd_new(net, peer, datagram_label,
 					  dg_size, buf, fg_off, len);
 			if (pd == NULL) {
-				retval = -ENOMEM;
 				peer->pdg_size--;
-				goto bad_proto;
+				retval = -ENOMEM;
+				goto fail;
 			}
 		} else {
 			if (!fwnet_pd_update(peer, pd, buf, fg_off, len)) {
@@ -768,7 +770,8 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 				 */
 				fwnet_pd_delete(pd);
 				peer->pdg_size--;
-				goto bad_proto;
+				retval = -ENOMEM;
+				goto fail;
 			}
 		}
 	} /* new datagram or add to existing one */
@@ -794,14 +797,13 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return 0;
-
- bad_proto:
+ fail:
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	if (netif_queue_stopped(net))
 		netif_wake_queue(net);
 
-	return 0;
+	return retval;
 }
 
 static void fwnet_receive_packet(struct fw_card *card, struct fw_request *r,

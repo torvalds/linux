@@ -1342,8 +1342,10 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 		limits = &ips_lv_limits;
 	else if (strstr(boot_cpu_data.x86_model_id, "CPU       U"))
 		limits = &ips_ulv_limits;
-	else
+	else {
 		dev_info(&ips->dev->dev, "No CPUID match found.\n");
+		goto out;
+	}
 
 	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_power);
 	tdp = turbo_power & TURBO_TDP_MASK;
@@ -1432,6 +1434,12 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	spin_lock_init(&ips->turbo_status_lock);
 
+	ret = pci_enable_device(dev);
+	if (ret) {
+		dev_err(&dev->dev, "can't enable PCI device, aborting\n");
+		goto error_free;
+	}
+
 	if (!pci_resource_start(dev, 0)) {
 		dev_err(&dev->dev, "TBAR not assigned, aborting\n");
 		ret = -ENXIO;
@@ -1444,11 +1452,6 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto error_free;
 	}
 
-	ret = pci_enable_device(dev);
-	if (ret) {
-		dev_err(&dev->dev, "can't enable PCI device, aborting\n");
-		goto error_free;
-	}
 
 	ips->regmap = ioremap(pci_resource_start(dev, 0),
 			      pci_resource_len(dev, 0));

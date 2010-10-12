@@ -1540,7 +1540,6 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
-	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	napi_gro_receive(&sds_ring->napi, skb);
@@ -1601,8 +1600,6 @@ netxen_process_lro(struct netxen_adapter *adapter,
 		data_offset = l4_hdr_offset + TCP_HDR_SIZE;
 
 	skb_put(skb, lro_length + data_offset);
-
-	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
 
 	skb_pull(skb, l2_hdr_offset);
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -1805,8 +1802,6 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 	netxen_ctx_msg msg = 0;
 	struct list_head *head;
 
-	spin_lock(&rds_ring->lock);
-
 	producer = rds_ring->producer;
 
 	head = &rds_ring->free_list;
@@ -1853,8 +1848,6 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 					NETXEN_RCV_PRODUCER_OFFSET), msg);
 		}
 	}
-
-	spin_unlock(&rds_ring->lock);
 }
 
 static void

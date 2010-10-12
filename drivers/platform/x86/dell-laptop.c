@@ -122,6 +122,13 @@ static struct dmi_system_id __devinitdata dell_blacklist[] = {
 		},
 	},
 	{
+		.ident = "Dell Mini 1012",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1012"),
+		},
+	},
+	{
 		.ident = "Dell Inspiron 11z",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),

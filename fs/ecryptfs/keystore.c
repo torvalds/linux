@@ -515,6 +515,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	if (!s) {
 		printk(KERN_ERR "%s: Out of memory whilst trying to kmalloc "
 		       "[%zd] bytes of kernel memory\n", __func__, sizeof(*s));
+		rc = -ENOMEM;
 		goto out;
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -806,6 +807,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	if (!s) {
 		printk(KERN_ERR "%s: Out of memory whilst trying to kmalloc "
 		       "[%zd] bytes of kernel memory\n", __func__, sizeof(*s));
+		rc = -ENOMEM;
 		goto out;
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;

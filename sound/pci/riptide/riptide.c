@@ -1224,15 +1224,14 @@ static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 		    firmware.firmware.ASIC, firmware.firmware.CODEC,
 		    firmware.firmware.AUXDSP, firmware.firmware.PROG);
 
+	if (!chip)
+		return 1;
+
 	for (i = 0; i < FIRMWARE_VERSIONS; i++) {
 		if (!memcmp(&firmware_versions[i], &firmware, sizeof(firmware)))
-			break;
-	}
-	if (i >= FIRMWARE_VERSIONS)
-		return 0; /* no match */
+			return 1; /* OK */
 
-	if (!chip)
-		return 1; /* OK */
+	}
 
 	snd_printdd("Writing Firmware\n");
 	if (!chip->fw_entry) {

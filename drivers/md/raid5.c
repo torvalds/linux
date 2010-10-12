@@ -5330,6 +5330,8 @@ static int raid5_spare_active(mddev_t *mddev)
 	int i;
 	raid5_conf_t *conf = mddev->private;
 	struct disk_info *tmp;
+	int count = 0;
+	unsigned long flags;
 
 	for (i = 0; i < conf->raid_disks; i++) {
 		tmp = conf->disks + i;
@@ -5337,14 +5339,15 @@ static int raid5_spare_active(mddev_t *mddev)
 		    && tmp->rdev->recovery_offset == MaxSector
 		    && !test_bit(Faulty, &tmp->rdev->flags)
 		    && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
-			unsigned long flags;
-			spin_lock_irqsave(&conf->device_lock, flags);
-			mddev->degraded--;
-			spin_unlock_irqrestore(&conf->device_lock, flags);
+			count++;
+			sysfs_notify_dirent(tmp->rdev->sysfs_state);
 		}
 	}
+	spin_lock_irqsave(&conf->device_lock, flags);
+	mddev->degraded -= count;
+	spin_unlock_irqrestore(&conf->device_lock, flags);
 	print_raid5_conf(conf);
-	return 0;
+	return count;
 }
 
 static int raid5_remove_disk(mddev_t *mddev, int number)

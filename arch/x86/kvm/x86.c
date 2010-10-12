@@ -2387,7 +2387,7 @@ static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
 	if (cpu_has_xsave)
 		memcpy(guest_xsave->region,
 			&vcpu->arch.guest_fpu.state->xsave,
-			sizeof(struct xsave_struct));
+			xstate_size);
 	else {
 		memcpy(guest_xsave->region,
 			&vcpu->arch.guest_fpu.state->fxsave,
@@ -2405,7 +2405,7 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 
 	if (cpu_has_xsave)
 		memcpy(&vcpu->arch.guest_fpu.state->xsave,
-			guest_xsave->region, sizeof(struct xsave_struct));
+			guest_xsave->region, xstate_size);
 	else {
 		if (xstate_bv & ~XSTATE_FPSSE)
 			return -EINVAL;

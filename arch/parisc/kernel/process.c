@@ -348,17 +348,22 @@ asmlinkage int sys_execve(struct pt_regs *regs)
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, (char __user * __user *) regs->gr[25],
-		(char __user * __user *) regs->gr[24], regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) regs->gr[25],
+			  (const char __user *const __user *) regs->gr[24],
+			  regs);
 	putname(filename);
 out:
 
 	return error;
 }
 
-extern int __execve(const char *filename, char *const argv[],
-		char *const envp[], struct task_struct *task);
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+extern int __execve(const char *filename,
+		    const char *const argv[],
+		    const char *const envp[], struct task_struct *task);
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	return __execve(filename, argv, envp, current);
 }

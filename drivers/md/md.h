@@ -140,7 +140,7 @@ struct mddev_s
 	unsigned long			flags;
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
-#define MD_CHANGE_PENDING 2	/* superblock update in progress */
+#define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
 
 	int				suspended;
 	atomic_t			active_io;

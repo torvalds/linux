@@ -119,7 +119,6 @@ static int journal_write_commit_record(journal_t *journal,
 	struct buffer_head *bh;
 	journal_header_t *header;
 	int ret;
-	int barrier_done = 0;
 
 	if (is_journal_aborted(journal))
 		return 0;
@@ -137,34 +136,36 @@ static int journal_write_commit_record(journal_t *journal,
 
 	JBUFFER_TRACE(descriptor, "write commit block");
 	set_buffer_dirty(bh);
+
 	if (journal->j_flags & JFS_BARRIER) {
-		set_buffer_ordered(bh);
-		barrier_done = 1;
-	}
-	ret = sync_dirty_buffer(bh);
-	if (barrier_done)
-		clear_buffer_ordered(bh);
-	/* is it possible for another commit to fail at roughly
-	 * the same time as this one?  If so, we don't want to
-	 * trust the barrier flag in the super, but instead want
-	 * to remember if we sent a barrier request
-	 */
-	if (ret == -EOPNOTSUPP && barrier_done) {
-		char b[BDEVNAME_SIZE];
+		ret = __sync_dirty_buffer(bh, WRITE_SYNC | WRITE_BARRIER);
 
-		printk(KERN_WARNING
-			"JBD: barrier-based sync failed on %s - "
-			"disabling barriers\n",
-			bdevname(journal->j_dev, b));
-		spin_lock(&journal->j_state_lock);
-		journal->j_flags &= ~JFS_BARRIER;
-		spin_unlock(&journal->j_state_lock);
+		/*
+		 * Is it possible for another commit to fail at roughly
+		 * the same time as this one?  If so, we don't want to
+		 * trust the barrier flag in the super, but instead want
+		 * to remember if we sent a barrier request
+		 */
+		if (ret == -EOPNOTSUPP) {
+			char b[BDEVNAME_SIZE];
 
-		/* And try again, without the barrier */
-		set_buffer_uptodate(bh);
-		set_buffer_dirty(bh);
+			printk(KERN_WARNING
+				"JBD: barrier-based sync failed on %s - "
+				"disabling barriers\n",
+				bdevname(journal->j_dev, b));
+			spin_lock(&journal->j_state_lock);
+			journal->j_flags &= ~JFS_BARRIER;
+			spin_unlock(&journal->j_state_lock);
+
+			/* And try again, without the barrier */
+			set_buffer_uptodate(bh);
+			set_buffer_dirty(bh);
+			ret = sync_dirty_buffer(bh);
+		}
+	} else {
 		ret = sync_dirty_buffer(bh);
 	}
+
 	put_bh(bh);		/* One for getblk() */
 	journal_put_journal_head(descriptor);
 

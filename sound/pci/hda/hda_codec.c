@@ -589,6 +589,7 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 	bus->ops = temp->ops;
 
 	mutex_init(&bus->cmd_mutex);
+	mutex_init(&bus->prepare_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
 
 	snprintf(bus->workq_name, sizeof(bus->workq_name),
@@ -1068,7 +1069,6 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	codec->addr = codec_addr;
 	mutex_init(&codec->spdif_mutex);
 	mutex_init(&codec->control_mutex);
-	mutex_init(&codec->prepare_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	snd_array_init(&codec->mixers, sizeof(struct hda_nid_item), 32);
@@ -1213,6 +1213,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format)
 {
+	struct hda_codec *c;
 	struct hda_cvt_setup *p;
 	unsigned int oldval, newval;
 	int i;
@@ -1253,10 +1254,12 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	p->dirty = 0;
 
 	/* make other inactive cvts with the same stream-tag dirty */
-	for (i = 0; i < codec->cvt_setups.used; i++) {
-		p = snd_array_elem(&codec->cvt_setups, i);
-		if (!p->active && p->stream_tag == stream_tag)
-			p->dirty = 1;
+	list_for_each_entry(c, &codec->bus->codec_list, list) {
+		for (i = 0; i < c->cvt_setups.used; i++) {
+			p = snd_array_elem(&c->cvt_setups, i);
+			if (!p->active && p->stream_tag == stream_tag)
+				p->dirty = 1;
+		}
 	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_setup_stream);
@@ -1306,12 +1309,16 @@ static void really_cleanup_stream(struct hda_codec *codec,
 /* clean up the all conflicting obsolete streams */
 static void purify_inactive_streams(struct hda_codec *codec)
 {
+	struct hda_codec *c;
 	int i;
 
-	for (i = 0; i < codec->cvt_setups.used; i++) {
-		struct hda_cvt_setup *p = snd_array_elem(&codec->cvt_setups, i);
-		if (p->dirty)
-			really_cleanup_stream(codec, p);
+	list_for_each_entry(c, &codec->bus->codec_list, list) {
+		for (i = 0; i < c->cvt_setups.used; i++) {
+			struct hda_cvt_setup *p;
+			p = snd_array_elem(&c->cvt_setups, i);
+			if (p->dirty)
+				really_cleanup_stream(c, p);
+		}
 	}
 }
 
@@ -3502,11 +3509,11 @@ int snd_hda_codec_prepare(struct hda_codec *codec,
 			  struct snd_pcm_substream *substream)
 {
 	int ret;
-	mutex_lock(&codec->prepare_mutex);
+	mutex_lock(&codec->bus->prepare_mutex);
 	ret = hinfo->ops.prepare(hinfo, codec, stream, format, substream);
 	if (ret >= 0)
 		purify_inactive_streams(codec);
-	mutex_unlock(&codec->prepare_mutex);
+	mutex_unlock(&codec->bus->prepare_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_prepare);
@@ -3515,9 +3522,9 @@ void snd_hda_codec_cleanup(struct hda_codec *codec,
 			   struct hda_pcm_stream *hinfo,
 			   struct snd_pcm_substream *substream)
 {
-	mutex_lock(&codec->prepare_mutex);
+	mutex_lock(&codec->bus->prepare_mutex);
 	hinfo->ops.cleanup(hinfo, codec, substream);
-	mutex_unlock(&codec->prepare_mutex);
+	mutex_unlock(&codec->bus->prepare_mutex);
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_cleanup);
 
@@ -4529,7 +4536,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			cfg->hp_outs--;
 			memmove(cfg->hp_pins + i, cfg->hp_pins + i + 1,
 				sizeof(cfg->hp_pins[0]) * (cfg->hp_outs - i));
-			memmove(sequences_hp + i - 1, sequences_hp + i,
+			memmove(sequences_hp + i, sequences_hp + i + 1,
 				sizeof(sequences_hp[0]) * (cfg->hp_outs - i));
 		}
 	}

@@ -146,6 +146,7 @@ static int annotate_browser__run(struct annotate_browser *self,
 		return -1;
 
 	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
+	newtFormAddHotKey(self->b.form, NEWT_KEY_RIGHT);
 
 	nd = self->curr_hot;
 	if (nd) {
@@ -178,7 +179,7 @@ static int annotate_browser__run(struct annotate_browser *self,
 	}
 out:
 	ui_browser__hide(&self->b);
-	return 0;
+	return es->u.key;
 }
 
 int hist_entry__tui_annotate(struct hist_entry *self)

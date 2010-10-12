@@ -250,7 +250,9 @@ int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs)
 {
 	int i, err = 0;
 
-	ll_rw_block(SWRITE, nr_bhs, bhs);
+	for (i = 0; i < nr_bhs; i++)
+		write_dirty_buffer(bhs[i], WRITE);
+
 	for (i = 0; i < nr_bhs; i++) {
 		wait_on_buffer(bhs[i]);
 		if (buffer_eopnotsupp(bhs[i])) {

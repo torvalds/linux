@@ -365,8 +365,6 @@ static unsigned int setup_sgl(struct __kfifo *fifo, struct scatterlist *sgl,
 	n = setup_sgl_buf(sgl, fifo->data + off, nents, l);
 	n += setup_sgl_buf(sgl + n, fifo->data, nents - n, len - l);
 
-	if (n)
-		sg_mark_end(sgl + n - 1);
 	return n;
 }
 
@@ -502,6 +500,15 @@ unsigned int __kfifo_out_r(struct __kfifo *fifo, void *buf,
 	return len;
 }
 EXPORT_SYMBOL(__kfifo_out_r);
+
+void __kfifo_skip_r(struct __kfifo *fifo, size_t recsize)
+{
+	unsigned int n;
+
+	n = __kfifo_peek_n(fifo, recsize);
+	fifo->out += n + recsize;
+}
+EXPORT_SYMBOL(__kfifo_skip_r);
 
 int __kfifo_from_user_r(struct __kfifo *fifo, const void __user *from,
 	unsigned long len, unsigned int *copied, size_t recsize)

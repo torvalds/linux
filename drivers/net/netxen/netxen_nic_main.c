@@ -2032,8 +2032,6 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;
 
-	memset(stats, 0, sizeof(*stats));
-
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;
 	stats->rx_bytes = adapter->stats.rxbytes;
@@ -2133,9 +2131,16 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev)
 {
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
 	struct netxen_adapter *adapter = netdev_priv(netdev);
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
 	disable_irq(adapter->irq);
-	netxen_intr(adapter->irq, adapter);
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netxen_intr(adapter->irq, sds_ring);
+	}
 	enable_irq(adapter->irq);
 }
 #endif

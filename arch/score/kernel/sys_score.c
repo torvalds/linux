@@ -99,8 +99,10 @@ score_execve(struct pt_regs *regs)
 	if (IS_ERR(filename))
 		return error;
 
-	error = do_execve(filename, (char __user *__user*)regs->regs[5],
-			  (char __user *__user *) regs->regs[6], regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *)regs->regs[5],
+			  (const char __user *const __user *)regs->regs[6],
+			  regs);
 
 	putname(filename);
 	return error;
@@ -110,7 +112,9 @@ score_execve(struct pt_regs *regs)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register unsigned long __r4 asm("r4") = (unsigned long) filename;
 	register unsigned long __r5 asm("r5") = (unsigned long) argv;

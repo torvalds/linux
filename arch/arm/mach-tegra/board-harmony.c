@@ -91,10 +91,8 @@ static void __init tegra_harmony_fixup(struct machine_desc *desc,
 {
 	mi->nr_banks = 2;
 	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
 	mi->bank[0].size = 448 * SZ_1M;
 	mi->bank[1].start = SZ_512M;
-	mi->bank[1].node = PHYS_TO_NID(SZ_512M);
 	mi->bank[1].size = SZ_512M;
 }
 

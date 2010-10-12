@@ -117,7 +117,7 @@ int st_core_init(struct st_data_s **);
 void st_core_exit(struct st_data_s *);
 
 /* ask for reference from KIM */
-void st_kim_ref(struct st_data_s **);
+void st_kim_ref(struct st_data_s **, int);
 
 #define GPS_STUB_TEST
 #ifdef GPS_STUB_TEST

@@ -899,6 +899,7 @@
 
 #define AR_DEVID_7010(_ah) \
 	(((_ah)->hw_version.devid == 0x7010) || \
+	 ((_ah)->hw_version.devid == 0x7015) || \
 	 ((_ah)->hw_version.devid == 0x9018))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0

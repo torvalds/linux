@@ -251,7 +251,10 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		drm_mode->htotal = drm_mode->hdisplay + CVT_RB_H_BLANK;
 		/* Fill in HSync values */
 		drm_mode->hsync_end = drm_mode->hdisplay + CVT_RB_H_BLANK / 2;
-		drm_mode->hsync_start = drm_mode->hsync_end = CVT_RB_H_SYNC;
+		drm_mode->hsync_start = drm_mode->hsync_end - CVT_RB_H_SYNC;
+		/* Fill in VSync values */
+		drm_mode->vsync_start = drm_mode->vdisplay + CVT_RB_VFPORCH;
+		drm_mode->vsync_end = drm_mode->vsync_start + vsync;
 	}
 	/* 15/13. Find pixel clock frequency (kHz for xf86) */
 	drm_mode->clock = drm_mode->htotal * HV_FACTOR * 1000 / hperiod;

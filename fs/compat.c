@@ -1153,7 +1153,7 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 {
 	compat_ssize_t tot_len;
 	struct iovec iovstack[UIO_FASTIOV];
-	struct iovec *iov;
+	struct iovec *iov = iovstack;
 	ssize_t ret;
 	io_fn_t fn;
 	iov_fn_t fnv;

@@ -22,6 +22,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/concat.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 

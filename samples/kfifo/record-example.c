@@ -55,6 +55,19 @@ typedef STRUCT_KFIFO_REC_1(FIFO_SIZE) mytest;
 static mytest test;
 #endif
 
+static const char *expected_result[] = {
+	"a",
+	"bb",
+	"ccc",
+	"dddd",
+	"eeeee",
+	"ffffff",
+	"ggggggg",
+	"hhhhhhhh",
+	"iiiiiiiii",
+	"jjjjjjjjjj",
+};
+
 static int __init testfunc(void)
 {
 	char		buf[100];
@@ -75,6 +88,10 @@ static int __init testfunc(void)
 		kfifo_in(&test, buf, i + 1);
 	}
 
+	/* skip first element of the fifo */
+	printk(KERN_INFO "skip 1st element\n");
+	kfifo_skip(&test);
+
 	printk(KERN_INFO "fifo len: %u\n", kfifo_len(&test));
 
 	/* show the first record without removing from the fifo */
@@ -82,11 +99,22 @@ static int __init testfunc(void)
 	if (ret)
 		printk(KERN_INFO "%.*s\n", ret, buf);
 
-	/* print out all records in the fifo */
+	/* check the correctness of all values in the fifo */
+	i = 0;
 	while (!kfifo_is_empty(&test)) {
 		ret = kfifo_out(&test, buf, sizeof(buf));
-		printk(KERN_INFO "%.*s\n", ret, buf);
+		buf[ret] = '\0';
+		printk(KERN_INFO "item = %.*s\n", ret, buf);
+		if (strcmp(buf, expected_result[i++])) {
+			printk(KERN_WARNING "value mismatch: test failed\n");
+			return -EIO;
+		}
 	}
+	if (i != ARRAY_SIZE(expected_result)) {
+		printk(KERN_WARNING "size mismatch: test failed\n");
+		return -EIO;
+	}
+	printk(KERN_INFO "test passed\n");
 
 	return 0;
 }
@@ -142,7 +170,12 @@ static int __init example_init(void)
 #else
 	INIT_KFIFO(test);
 #endif
-	testfunc();
+	if (testfunc() < 0) {
+#ifdef DYNAMIC
+		kfifo_free(&test);
+#endif
+		return -EIO;
+	}
 
 	if (proc_create(PROC_FIFO, 0, NULL, &fifo_fops) == NULL) {
 #ifdef DYNAMIC

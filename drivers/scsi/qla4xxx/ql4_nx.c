@@ -1418,7 +1418,7 @@ static int qla4_8xxx_rcvpeg_ready(struct scsi_qla_host *ha)
 	return QLA_SUCCESS;
 }
 
-inline void
+void
 qla4_8xxx_set_drv_active(struct scsi_qla_host *ha)
 {
 	uint32_t drv_active;

@@ -7,7 +7,9 @@
  */
 #include <linux/unistd.h>
 
-int kernel_execve(const char *file, char **argv, char **envp)
+int kernel_execve(const char *file,
+		  const char *const *argv,
+		  const char *const *envp)
 {
 	register long scno asm("r8") = __NR_execve;
 	register long sc1 asm("r12") = (long)file;

@@ -2071,16 +2071,6 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 		amd64_handle_ce(mci, info);
 	else if (ecc_type == 1)
 		amd64_handle_ue(mci, info);
-
-	/*
-	 * If main error is CE then overflow must be CE.  If main error is UE
-	 * then overflow is unknown.  We'll call the overflow a CE - if
-	 * panic_on_ue is set then we're already panic'ed and won't arrive
-	 * here. Else, then apparently someone doesn't think that UE's are
-	 * catastrophic.
-	 */
-	if (info->nbsh & K8_NBSH_OVERFLOW)
-		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR " Error Overflow");
 }
 
 void amd64_decode_bus_error(int node_id, struct err_regs *regs)

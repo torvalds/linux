@@ -160,19 +160,20 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 adpa, temp;
 	bool ret;
+	bool turn_off_dac = false;
 
 	temp = adpa = I915_READ(PCH_ADPA);
 
-	if (HAS_PCH_CPT(dev)) {
-		/* Disable DAC before force detect */
-		I915_WRITE(PCH_ADPA, adpa & ~ADPA_DAC_ENABLE);
-		(void)I915_READ(PCH_ADPA);
-	} else {
-		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-		/* disable HPD first */
-		I915_WRITE(PCH_ADPA, adpa);
-		(void)I915_READ(PCH_ADPA);
-	}
+	if (HAS_PCH_SPLIT(dev))
+		turn_off_dac = true;
+
+	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+	if (turn_off_dac)
+		adpa &= ~ADPA_DAC_ENABLE;
+
+	/* disable HPD first */
+	I915_WRITE(PCH_ADPA, adpa);
+	(void)I915_READ(PCH_ADPA);
 
 	adpa |= (ADPA_CRT_HOTPLUG_PERIOD_128 |
 			ADPA_CRT_HOTPLUG_WARMUP_10MS |
@@ -185,10 +186,11 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 	DRM_DEBUG_KMS("pch crt adpa 0x%x", adpa);
 	I915_WRITE(PCH_ADPA, adpa);
 
-	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)
-		;
+	if (wait_for((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
+		     1000, 1))
+		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 
-	if (HAS_PCH_CPT(dev)) {
+	if (turn_off_dac) {
 		I915_WRITE(PCH_ADPA, temp);
 		(void)I915_READ(PCH_ADPA);
 	}
@@ -237,17 +239,13 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
 	for (i = 0; i < tries ; i++) {
-		unsigned long timeout;
 		/* turn on the FORCE_DETECT */
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
-		timeout = jiffies + msecs_to_jiffies(1000);
 		/* wait for FORCE_DETECT to go off */
-		do {
-			if (!(I915_READ(PORT_HOTPLUG_EN) &
-					CRT_HOTPLUG_FORCE_DETECT))
-				break;
-			msleep(1);
-		} while (time_after(timeout, jiffies));
+		if (wait_for((I915_READ(PORT_HOTPLUG_EN) &
+			      CRT_HOTPLUG_FORCE_DETECT) == 0,
+			     1000, 1))
+			DRM_DEBUG_KMS("timed out waiting for FORCE_DETECT to go off");
 	}
 
 	stat = I915_READ(PORT_HOTPLUG_STAT);
@@ -331,7 +329,7 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 		I915_WRITE(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
-		intel_wait_for_vblank(dev);
+		intel_wait_for_vblank(dev, pipe);
 		st00 = I915_READ8(VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :
@@ -402,7 +400,8 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 	return status;
 }
 
-static enum drm_connector_status intel_crt_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_crt_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
@@ -420,6 +419,9 @@ static enum drm_connector_status intel_crt_detect(struct drm_connector *connecto
 
 	if (intel_crt_detect_ddc(encoder))
 		return connector_status_connected;
+
+	if (!force)
+		return connector->status;
 
 	/* for pre-945g platforms use load detect */
 	if (encoder->crtc && encoder->crtc->enabled) {
@@ -508,17 +510,8 @@ static const struct drm_connector_helper_funcs intel_crt_connector_helper_funcs 
 	.best_encoder = intel_attached_encoder,
 };
 
-static void intel_crt_enc_destroy(struct drm_encoder *encoder)
-{
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-
-	intel_i2c_destroy(intel_encoder->ddc_bus);
-	drm_encoder_cleanup(encoder);
-	kfree(intel_encoder);
-}
-
 static const struct drm_encoder_funcs intel_crt_enc_funcs = {
-	.destroy = intel_crt_enc_destroy,
+	.destroy = intel_encoder_destroy,
 };
 
 void intel_crt_init(struct drm_device *dev)

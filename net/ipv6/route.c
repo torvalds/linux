@@ -670,7 +670,7 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *dad
 
 			if (net_ratelimit())
 				printk(KERN_WARNING
-				       "Neighbour table overflow.\n");
+				       "ipv6: Neighbour table overflow.\n");
 			dst_free(&rt->dst);
 			return NULL;
 		}
@@ -2580,7 +2580,7 @@ ctl_table ipv6_route_table_template[] = {
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_elasticity,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.proc_handler	=	proc_dointvec,
 	},
 	{
 		.procname	=	"mtu_expires",
@@ -2594,7 +2594,7 @@ ctl_table ipv6_route_table_template[] = {
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_min_advmss,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.proc_handler	=	proc_dointvec,
 	},
 	{
 		.procname	=	"gc_min_interval_ms",

@@ -114,10 +114,8 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 	
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 	
 	unlock_super (sb);
@@ -207,10 +205,8 @@ do_more:
 
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 
 	if (overflow) {
 		fragment += count;
@@ -558,10 +554,8 @@ static u64 ufs_add_fragments(struct inode *inode, u64 fragment,
 	
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 
 	UFSD("EXIT, fragment %llu\n", (unsigned long long)fragment);
@@ -680,10 +674,8 @@ cg_found:
 succed:
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 
 	result += cgno * uspi->s_fpg;

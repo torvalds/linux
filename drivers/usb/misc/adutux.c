@@ -439,7 +439,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			/* drain secondary buffer */
 			int amount = bytes_to_read < data_in_secondary ? bytes_to_read : data_in_secondary;
 			i = copy_to_user(buffer, dev->read_buffer_secondary+dev->secondary_head, amount);
-			if (i < 0) {
+			if (i) {
 				retval = -EFAULT;
 				goto exit;
 			}

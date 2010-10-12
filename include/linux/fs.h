@@ -125,9 +125,6 @@ struct inodes_stat_t {
  *			block layer could (in theory) choose to ignore this
  *			request if it runs into resource problems.
  * WRITE		A normal async write. Device will be plugged.
- * SWRITE		Like WRITE, but a special case for ll_rw_block() that
- *			tells it to lock the buffer first. Normally a buffer
- *			must be locked before doing IO.
  * WRITE_SYNC_PLUG	Synchronous write. Identical to WRITE, but passes down
  *			the hint that someone will be waiting on this IO
  *			shortly. The device must still be unplugged explicitly,
@@ -138,9 +135,6 @@ struct inodes_stat_t {
  *			immediately after submission. The write equivalent
  *			of READ_SYNC.
  * WRITE_ODIRECT_PLUG	Special case write for O_DIRECT only.
- * SWRITE_SYNC
- * SWRITE_SYNC_PLUG	Like WRITE_SYNC/WRITE_SYNC_PLUG, but locks the buffer.
- *			See SWRITE.
  * WRITE_BARRIER	Like WRITE_SYNC, but tells the block layer that all
  *			previously submitted writes must be safely on storage
  *			before this one is started. Also guarantees that when
@@ -155,7 +149,6 @@ struct inodes_stat_t {
 #define READ			0
 #define WRITE			RW_MASK
 #define READA			RWA_MASK
-#define SWRITE			(WRITE | READA)
 
 #define READ_SYNC		(READ | REQ_SYNC | REQ_UNPLUG)
 #define READ_META		(READ | REQ_META)
@@ -165,8 +158,6 @@ struct inodes_stat_t {
 #define WRITE_META		(WRITE | REQ_META)
 #define WRITE_BARRIER		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
 				 REQ_HARDBARRIER)
-#define SWRITE_SYNC_PLUG	(SWRITE | REQ_SYNC | REQ_NOIDLE)
-#define SWRITE_SYNC		(SWRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
 
 /*
  * These aren't really reads or writes, they pass down information about
@@ -929,6 +920,9 @@ struct file {
 #define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
 	spinlock_t		f_lock;  /* f_ep_links, f_flags, no IRQ */
+#ifdef CONFIG_SMP
+	int			f_sb_list_cpu;
+#endif
 	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	fmode_t			f_mode;
@@ -953,9 +947,6 @@ struct file {
 	unsigned long f_mnt_write_state;
 #endif
 };
-extern spinlock_t files_lock;
-#define file_list_lock() spin_lock(&files_lock);
-#define file_list_unlock() spin_unlock(&files_lock);
 
 #define get_file(x)	atomic_long_inc(&(x)->f_count)
 #define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
@@ -1101,6 +1092,10 @@ struct file_lock {
 #endif
 
 #include <linux/fcntl.h>
+
+/* temporary stubs for BKL removal */
+#define lock_flocks() lock_kernel()
+#define unlock_flocks() unlock_kernel()
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
@@ -1346,7 +1341,11 @@ struct super_block {
 
 	struct list_head	s_inodes;	/* all inodes */
 	struct hlist_head	s_anon;		/* anonymous dentries for (nfs) exporting */
+#ifdef CONFIG_SMP
+	struct list_head __percpu *s_files;
+#else
 	struct list_head	s_files;
+#endif
 	/* s_dentry_lru and s_nr_dentry_unused are protected by dcache_lock */
 	struct list_head	s_dentry_lru;	/* unused dentry lru */
 	int			s_nr_dentry_unused;	/* # of dentry on lru */
@@ -2197,8 +2196,6 @@ static inline void insert_inode_hash(struct inode *inode) {
 	__insert_inode_hash(inode, inode->i_ino);
 }
 
-extern void file_move(struct file *f, struct list_head *list);
-extern void file_kill(struct file *f);
 #ifdef CONFIG_BLOCK
 extern void submit_bio(int, struct bio *);
 extern int bdev_read_only(struct block_device *);

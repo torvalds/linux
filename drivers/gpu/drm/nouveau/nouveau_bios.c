@@ -2166,7 +2166,7 @@ peek_fb(struct drm_device *dev, struct io_mapping *fb,
 	uint32_t val = 0;
 
 	if (off < pci_resource_len(dev->pdev, 1)) {
-		uint32_t __iomem *p =
+		uint8_t __iomem *p =
 			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
 
 		val = ioread32(p + (off & ~PAGE_MASK));
@@ -2182,7 +2182,7 @@ poke_fb(struct drm_device *dev, struct io_mapping *fb,
 	uint32_t off, uint32_t val)
 {
 	if (off < pci_resource_len(dev->pdev, 1)) {
-		uint32_t __iomem *p =
+		uint8_t __iomem *p =
 			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
 
 		iowrite32(val, p + (off & ~PAGE_MASK));
@@ -3869,27 +3869,10 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entr
 	}
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
-	if ((dev->pci_device & 0xffff) == 0x0179 ||
-	    (dev->pci_device & 0xffff) == 0x0189 ||
-	    (dev->pci_device & 0xffff) == 0x0329) {
-		if (script == LVDS_RESET) {
-			nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
-
-		} else if (script == LVDS_PANEL_ON) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
-				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
-				  | (1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
-				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) | 1);
-
-		} else if (script == LVDS_PANEL_OFF) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
-				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
-				  & ~(1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
-				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) & ~3);
-		}
-	}
+	if (script == LVDS_RESET &&
+	    (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	     dev->pci_device == 0x0329))
+		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
 #endif
 
 	return 0;
@@ -4381,11 +4364,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 *
 	 * For the moment, a quirk will do :)
 	 */
-	if ((dev->pdev->device == 0x01d7) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x01c2)) {
+	if (nv_match_device(dev, 0x01d7, 0x1028, 0x01c2))
 		bios->fp.duallink_transition_clk = 80000;
-	}
 
 	/* set dual_link flag for EDID case */
 	if (pxclk && (chip_version < 0x25 || chip_version > 0x28))
@@ -4587,7 +4567,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -1) {
@@ -4597,7 +4577,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -2) {
@@ -4610,7 +4590,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 2\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 2\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk > 0) {
@@ -4622,7 +4602,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk < 0) {
@@ -4634,7 +4614,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	}
 
@@ -5357,19 +5337,17 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	}
 
 	tmdstableptr = ROM16(bios->data[bitentry->offset]);
-
-	if (tmdstableptr == 0x0) {
+	if (!tmdstableptr) {
 		NV_ERROR(dev, "Pointer to TMDS table invalid\n");
 		return -EINVAL;
 	}
 
+	NV_INFO(dev, "TMDS table version %d.%d\n",
+		bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+
 	/* nv50+ has v2.0, but we don't parse it atm */
-	if (bios->data[tmdstableptr] != 0x11) {
-		NV_WARN(dev,
-			"TMDS table revision %d.%d not currently supported\n",
-			bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+	if (bios->data[tmdstableptr] != 0x11)
 		return -ENOSYS;
-	}
 
 	/*
 	 * These two scripts are odd: they don't seem to get run even when
@@ -5809,6 +5787,20 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			gpio->line = tvdac_gpio[1] >> 4;
 			gpio->invert = tvdac_gpio[0] & 2;
 		}
+	} else {
+		/*
+		 * No systematic way to store GPIO info on pre-v2.2
+		 * DCBs, try to match the PCI device IDs.
+		 */
+
+		/* Apple iMac G4 NV18 */
+		if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
+			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
+
+			gpio->tag = DCB_GPIO_TVDAC0;
+			gpio->line = 4;
+		}
+
 	}
 
 	if (!gpio_table_ptr)
@@ -5884,9 +5876,7 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	struct drm_device *dev = bios->dev;
 
 	/* Gigabyte NX85T */
-	if ((dev->pdev->device == 0x0421) &&
-	    (dev->pdev->subsystem_vendor == 0x1458) &&
-	    (dev->pdev->subsystem_device == 0x344c)) {
+	if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
 		if (cte->type == DCB_CONNECTOR_HDMI_1)
 			cte->type = DCB_CONNECTOR_DVI_I;
 	}
@@ -6139,7 +6129,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
 
 		break;
-	case 0xe:
+	case OUTPUT_EOL:
 		/* weird g80 mobile type that "nv" treats as a terminator */
 		dcb->entries--;
 		return false;
@@ -6176,22 +6166,14 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->type = OUTPUT_TV;
 		break;
 	case 2:
+	case 4:
+		if (conn & 0x10)
+			entry->type = OUTPUT_LVDS;
+		else
+			entry->type = OUTPUT_TMDS;
+		break;
 	case 3:
 		entry->type = OUTPUT_LVDS;
-		break;
-	case 4:
-		switch ((conn & 0x000000f0) >> 4) {
-		case 0:
-			entry->type = OUTPUT_TMDS;
-			break;
-		case 1:
-			entry->type = OUTPUT_LVDS;
-			break;
-		default:
-			NV_ERROR(dev, "Unknown DCB subtype 4/%d\n",
-				 (conn & 0x000000f0) >> 4);
-			return false;
-		}
 		break;
 	default:
 		NV_ERROR(dev, "Unknown DCB type %d\n", conn & 0x0000000f);
@@ -6307,9 +6289,7 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	 * nasty problems until this is sorted (assuming it's not a
 	 * VBIOS bug).
 	 */
-	if ((dev->pdev->device == 0x040d) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x019b)) {
+	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
 		if (*conn == 0x02026312 && *conf == 0x00000020)
 			return false;
 	}

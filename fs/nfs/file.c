@@ -323,7 +323,7 @@ nfs_file_fsync(struct file *file, int datasync)
 	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
 	if (have_error)
 		ret = xchg(&ctx->error, 0);
-	if (!ret)
+	if (!ret && status < 0)
 		ret = status;
 	return ret;
 }
@@ -723,10 +723,6 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 		default:
 			BUG();
 	}
-	if (res < 0)
-		dprintk(KERN_WARNING "%s: VFS is out of sync with lock manager"
-			" - error %d!\n",
-				__func__, res);
 	return res;
 }
 

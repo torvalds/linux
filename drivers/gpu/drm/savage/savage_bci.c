@@ -1082,10 +1082,10 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 }
 
 struct drm_ioctl_desc savage_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_INIT, savage_bci_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_CMDBUF, savage_bci_cmdbuf, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_EVENT_EMIT, savage_bci_event_emit, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_EVENT_WAIT, savage_bci_event_wait, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_INIT, savage_bci_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_CMDBUF, savage_bci_cmdbuf, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_EVENT_EMIT, savage_bci_event_emit, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_EVENT_WAIT, savage_bci_event_wait, DRM_AUTH),
 };
 
 int savage_max_ioctl = DRM_ARRAY_SIZE(savage_ioctls);

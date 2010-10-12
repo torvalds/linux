@@ -352,6 +352,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 
 	if (nouveau_fb->nvbo) {
 		nouveau_bo_unmap(nouveau_fb->nvbo);
+		drm_gem_object_handle_unreference_unlocked(nouveau_fb->nvbo->gem);
 		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
 	}

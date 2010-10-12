@@ -33,18 +33,35 @@
 #include "i915_drm.h"
 #include "i915_trace.h"
 
+static u32 i915_gem_get_seqno(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 seqno;
+
+	seqno = dev_priv->next_seqno;
+
+	/* reserve 0 for non-seqno */
+	if (++dev_priv->next_seqno == 0)
+		dev_priv->next_seqno = 1;
+
+	return seqno;
+}
+
 static void
 render_ring_flush(struct drm_device *dev,
 		struct intel_ring_buffer *ring,
 		u32	invalidate_domains,
 		u32	flush_domains)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 cmd;
+
 #if WATCH_EXEC
 	DRM_INFO("%s: invalidate %08x flush %08x\n", __func__,
 		  invalidate_domains, flush_domains);
 #endif
-	u32 cmd;
-	trace_i915_gem_request_flush(dev, ring->next_seqno,
+
+	trace_i915_gem_request_flush(dev, dev_priv->next_seqno,
 				     invalidate_domains, flush_domains);
 
 	if ((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) {
@@ -203,9 +220,13 @@ static int init_render_ring(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret = init_ring_common(dev, ring);
+	int mode;
+
 	if (IS_I9XX(dev) && !IS_GEN3(dev)) {
-		I915_WRITE(MI_MODE,
-				(VS_TIMER_DISPATCH) << 16 | VS_TIMER_DISPATCH);
+		mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
+		if (IS_GEN6(dev))
+			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
+		I915_WRITE(MI_MODE, mode);
 	}
 	return ret;
 }
@@ -233,9 +254,10 @@ render_ring_add_request(struct drm_device *dev,
 		struct drm_file *file_priv,
 		u32 flush_domains)
 {
-	u32 seqno;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	seqno = intel_ring_get_seqno(dev, ring);
+	u32 seqno;
+
+	seqno = i915_gem_get_seqno(dev);
 
 	if (IS_GEN6(dev)) {
 		BEGIN_LP_RING(6);
@@ -405,7 +427,9 @@ bsd_ring_add_request(struct drm_device *dev,
 		u32 flush_domains)
 {
 	u32 seqno;
-	seqno = intel_ring_get_seqno(dev, ring);
+
+	seqno = i915_gem_get_seqno(dev);
+
 	intel_ring_begin(dev, ring, 4);
 	intel_ring_emit(dev, ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(dev, ring,
@@ -479,7 +503,7 @@ render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 	exec_len = (uint32_t) exec->batch_len;
 
-	trace_i915_gem_request_submit(dev, dev_priv->mm.next_gem_seqno + 1);
+	trace_i915_gem_request_submit(dev, dev_priv->next_seqno + 1);
 
 	count = nbox ? nbox : 1;
 
@@ -515,7 +539,16 @@ render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 		intel_ring_advance(dev, ring);
 	}
 
+	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+		intel_ring_begin(dev, ring, 2);
+		intel_ring_emit(dev, ring, MI_FLUSH |
+				MI_NO_WRITE_FLUSH |
+				MI_INVALIDATE_ISP );
+		intel_ring_emit(dev, ring, MI_NOOP);
+		intel_ring_advance(dev, ring);
+	}
 	/* XXX breadcrumb */
+
 	return 0;
 }
 
@@ -588,9 +621,10 @@ err:
 int intel_init_ring_buffer(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
-	int ret;
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_gem_object *obj;
+	int ret;
+
 	ring->dev = dev;
 
 	if (I915_NEED_GFX_HWS(dev)) {
@@ -603,16 +637,14 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
 		ret = -ENOMEM;
-		goto cleanup;
+		goto err_hws;
 	}
 
 	ring->gem_object = obj;
 
 	ret = i915_gem_object_pin(obj, ring->alignment);
-	if (ret != 0) {
-		drm_gem_object_unreference(obj);
-		goto cleanup;
-	}
+	if (ret)
+		goto err_unref;
 
 	obj_priv = to_intel_bo(obj);
 	ring->map.size = ring->size;
@@ -624,18 +656,14 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	drm_core_ioremap_wc(&ring->map, dev);
 	if (ring->map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(obj);
 		ret = -EINVAL;
-		goto cleanup;
+		goto err_unpin;
 	}
 
 	ring->virtual_start = ring->map.handle;
 	ret = ring->init(dev, ring);
-	if (ret != 0) {
-		intel_cleanup_ring_buffer(dev, ring);
-		return ret;
-	}
+	if (ret)
+		goto err_unmap;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_kernel_lost_context(dev);
@@ -649,7 +677,15 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	return ret;
-cleanup:
+
+err_unmap:
+	drm_core_ioremapfree(&ring->map, dev);
+err_unpin:
+	i915_gem_object_unpin(obj);
+err_unref:
+	drm_gem_object_unreference(obj);
+	ring->gem_object = NULL;
+err_hws:
 	cleanup_status_page(dev, ring);
 	return ret;
 }
@@ -682,9 +718,11 @@ int intel_wrap_ring_buffer(struct drm_device *dev,
 	}
 
 	virt = (unsigned int *)(ring->virtual_start + ring->tail);
-	rem /= 4;
-	while (rem--)
+	rem /= 8;
+	while (rem--) {
 		*virt++ = MI_NOOP;
+		*virt++ = MI_NOOP;
+	}
 
 	ring->tail = 0;
 	ring->space = ring->head - 8;
@@ -729,21 +767,14 @@ void intel_ring_begin(struct drm_device *dev,
 		intel_wrap_ring_buffer(dev, ring);
 	if (unlikely(ring->space < n))
 		intel_wait_ring_buffer(dev, ring, n);
-}
 
-void intel_ring_emit(struct drm_device *dev,
-		struct intel_ring_buffer *ring, unsigned int data)
-{
-	unsigned int *virt = ring->virtual_start + ring->tail;
-	*virt = data;
-	ring->tail += 4;
-	ring->tail &= ring->size - 1;
-	ring->space -= 4;
+	ring->space -= n;
 }
 
 void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
+	ring->tail &= ring->size - 1;
 	ring->advance_ring(dev, ring);
 }
 
@@ -760,18 +791,6 @@ void intel_fill_struct(struct drm_device *dev,
 	ring->tail &= ring->size - 1;
 	ring->space -= len;
 	intel_ring_advance(dev, ring);
-}
-
-u32 intel_ring_get_seqno(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	u32 seqno;
-	seqno = ring->next_seqno;
-
-	/* reserve 0 for non-seqno */
-	if (++ring->next_seqno == 0)
-		ring->next_seqno = 1;
-	return seqno;
 }
 
 struct intel_ring_buffer render_ring = {
@@ -791,7 +810,6 @@ struct intel_ring_buffer render_ring = {
 	.head			= 0,
 	.tail			= 0,
 	.space			= 0,
-	.next_seqno		= 1,
 	.user_irq_refcount	= 0,
 	.irq_gem_seqno		= 0,
 	.waiting_gem_seqno	= 0,
@@ -830,7 +848,6 @@ struct intel_ring_buffer bsd_ring = {
 	.head			= 0,
 	.tail			= 0,
 	.space			= 0,
-	.next_seqno		= 1,
 	.user_irq_refcount	= 0,
 	.irq_gem_seqno		= 0,
 	.waiting_gem_seqno	= 0,

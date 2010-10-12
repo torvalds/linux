@@ -119,6 +119,11 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			ehci->broken_periodic = 1;
 			ehci_info(ehci, "using broken periodic workaround\n");
 		}
+		if (pdev->device == 0x0806 || pdev->device == 0x0811
+				|| pdev->device == 0x0829) {
+			ehci_info(ehci, "disable lpm for langwell/penwell\n");
+			ehci->has_lpm = 0;
+		}
 		break;
 	case PCI_VENDOR_ID_TDI:
 		if (pdev->device == PCI_DEVICE_ID_TDI_EHCI) {
