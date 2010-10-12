@@ -772,7 +772,7 @@ static struct clk emi_slow_clk = {
 	.get_rate = clk_emi_slow_get_rate,
 };
 
-#define DEFINE_CLOCK1(name, i, er, es, pfx, p, s)	\
+#define DEFINE_CLOCK_CCGR(name, i, er, es, pfx, p, s)	\
 	static struct clk name = {			\
 		.id		= i,			\
 		.enable_reg	= er,			\
@@ -900,7 +900,7 @@ DEFINE_CLOCK(fec_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG12_OFFSET,
 	NULL,  NULL, &ipg_clk, NULL);
 
 /* NFC */
-DEFINE_CLOCK1(nfc_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG10_OFFSET,
+DEFINE_CLOCK_CCGR(nfc_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG10_OFFSET,
 	clk_nfc, &emi_slow_clk, NULL);
 
 /* SSI */
