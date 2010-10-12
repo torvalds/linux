@@ -693,6 +693,31 @@ static u32 d40_chan_has_events(struct d40_chan *d40c)
 	return val;
 }
 
+static u32 d40_get_prmo(struct d40_chan *d40c)
+{
+	static const unsigned int phy_map[] = {
+		[STEDMA40_PCHAN_BASIC_MODE]
+			= D40_DREG_PRMO_PCHAN_BASIC,
+		[STEDMA40_PCHAN_MODULO_MODE]
+			= D40_DREG_PRMO_PCHAN_MODULO,
+		[STEDMA40_PCHAN_DOUBLE_DST_MODE]
+			= D40_DREG_PRMO_PCHAN_DOUBLE_DST,
+	};
+	static const unsigned int log_map[] = {
+		[STEDMA40_LCHAN_SRC_PHY_DST_LOG]
+			= D40_DREG_PRMO_LCHAN_SRC_PHY_DST_LOG,
+		[STEDMA40_LCHAN_SRC_LOG_DST_PHY]
+			= D40_DREG_PRMO_LCHAN_SRC_LOG_DST_PHY,
+		[STEDMA40_LCHAN_SRC_LOG_DST_LOG]
+			= D40_DREG_PRMO_LCHAN_SRC_LOG_DST_LOG,
+	};
+
+	if (d40c->log_num == D40_PHY_CHAN)
+		return phy_map[d40c->dma_cfg.mode_opt];
+	else
+		return log_map[d40c->dma_cfg.mode_opt];
+}
+
 static void d40_config_write(struct d40_chan *d40c)
 {
 	u32 addr_base;
@@ -706,8 +731,7 @@ static void d40_config_write(struct d40_chan *d40c)
 	writel(var, d40c->base->virtbase + D40_DREG_PRMSE + addr_base);
 
 	/* Setup operational mode option register */
-	var = ((d40c->dma_cfg.channel_type >> STEDMA40_INFO_CH_MODE_OPT_POS) &
-	       0x3) << D40_CHAN_POS(d40c->phy_chan->num);
+	var = d40_get_prmo(d40c) << D40_CHAN_POS(d40c->phy_chan->num);
 
 	writel(var, d40c->base->virtbase + D40_DREG_PRMOE + addr_base);
 
