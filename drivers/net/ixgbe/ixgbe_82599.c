@@ -39,20 +39,20 @@
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
 
-void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
-void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
-void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
-                                          ixgbe_link_speed speed,
-                                          bool autoneg,
-                                          bool autoneg_wait_to_complete);
+static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+						 ixgbe_link_speed speed,
+						 bool autoneg,
+						 bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
                                            ixgbe_link_speed speed,
                                            bool autoneg,
                                            bool autoneg_wait_to_complete);
-s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
-                               bool autoneg_wait_to_complete);
-s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
+static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
+				      bool autoneg_wait_to_complete);
+static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed,
                                bool autoneg,
                                bool autoneg_wait_to_complete);
@@ -369,7 +369,7 @@ out:
  *  Configures link settings based on values in the ixgbe_hw struct.
  *  Restarts the link.  Performs autonegotiation if needed.
  **/
-s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
+static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
                                bool autoneg_wait_to_complete)
 {
 	u32 autoc_reg;
@@ -418,7 +418,7 @@ s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
   *  PHY states.  This includes selectively shutting down the Tx
   *  laser on the PHY, effectively halting physical link.
   **/
-void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 
@@ -437,7 +437,7 @@ void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *  PHY states.  This includes selectively turning on the Tx
  *  laser on the PHY, effectively starting physical link.
  **/
-void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 
@@ -460,7 +460,7 @@ void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *  end.  This is consistent with true clause 37 autoneg, which also
  *  involves a loss of signal.
  **/
-void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	hw_dbg(hw, "ixgbe_flap_tx_laser_multispeed_fiber\n");
 
@@ -729,7 +729,7 @@ out:
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
+static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed, bool autoneg,
                                bool autoneg_wait_to_complete)
 {
