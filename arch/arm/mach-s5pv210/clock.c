@@ -31,6 +31,8 @@
 #include <plat/clock-clksrc.h>
 #include <plat/s5pv210.h>
 
+static unsigned long xtal;
+
 static struct clksrc_clk clk_mout_apll = {
 	.clk	= {
 		.name		= "mout_apll",
@@ -266,6 +268,15 @@ static unsigned long s5pv210_clk_imem_get_rate(struct clk *clk)
 
 static struct clk_ops clk_hclk_imem_ops = {
 	.get_rate	= s5pv210_clk_imem_get_rate,
+};
+
+static unsigned long s5pv210_clk_fout_apll_get_rate(struct clk *clk)
+{
+	return s5p_get_pll45xx(xtal, __raw_readl(S5P_APLL_CON), pll_4508);
+}
+
+static struct clk_ops clk_fout_apll_ops = {
+	.get_rate	= s5pv210_clk_fout_apll_get_rate,
 };
 
 static struct clk init_clocks_disable[] = {
@@ -958,7 +969,6 @@ static struct clksrc_clk *sysclks[] = {
 void __init_or_cpufreq s5pv210_setup_clocks(void)
 {
 	struct clk *xtal_clk;
-	unsigned long xtal;
 	unsigned long vpllsrc;
 	unsigned long armclk;
 	unsigned long hclk_msys;
@@ -996,7 +1006,7 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 	vpllsrc = clk_get_rate(&clk_vpllsrc.clk);
 	vpll = s5p_get_pll45xx(vpllsrc, __raw_readl(S5P_VPLL_CON), pll_4502);
 
-	clk_fout_apll.rate = apll;
+	clk_fout_apll.ops = &clk_fout_apll_ops;
 	clk_fout_mpll.rate = mpll;
 	clk_fout_epll.rate = epll;
 	clk_fout_vpll.rate = vpll;
