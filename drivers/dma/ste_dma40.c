@@ -2239,11 +2239,11 @@ static void d40_set_runtime_config(struct dma_chan *chan,
 	/* Set up all the endpoint configs */
 	cfg->src_info.data_width = addr_width;
 	cfg->src_info.psize = psize;
-	cfg->src_info.endianess = STEDMA40_LITTLE_ENDIAN;
+	cfg->src_info.big_endian = false;
 	cfg->src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL;
 	cfg->dst_info.data_width = addr_width;
 	cfg->dst_info.psize = psize;
-	cfg->dst_info.endianess = STEDMA40_LITTLE_ENDIAN;
+	cfg->dst_info.big_endian = false;
 	cfg->dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL;
 
 	/* Fill in register values */

@@ -69,11 +69,6 @@ enum stedma40_flow_ctrl {
 	STEDMA40_FLOW_CTRL,
 };
 
-enum stedma40_endianess {
-	STEDMA40_LITTLE_ENDIAN,
-	STEDMA40_BIG_ENDIAN
-};
-
 enum stedma40_periph_data_width {
 	STEDMA40_BYTE_WIDTH = STEDMA40_ESIZE_8_BIT,
 	STEDMA40_HALFWORD_WIDTH = STEDMA40_ESIZE_16_BIT,
@@ -92,13 +87,13 @@ enum stedma40_xfer_dir {
 /**
  * struct stedma40_chan_cfg - dst/src channel configuration
  *
- * @endianess: Endianess of the src/dst hardware
+ * @big_endian: true if the src/dst should be read as big endian
  * @data_width: Data width of the src/dst hardware
  * @p_size: Burst size
  * @flow_ctrl: Flow control on/off.
  */
 struct stedma40_half_channel_info {
-	enum stedma40_endianess endianess;
+	bool big_endian;
 	enum stedma40_periph_data_width data_width;
 	int psize;
 	enum stedma40_flow_ctrl flow_ctrl;
