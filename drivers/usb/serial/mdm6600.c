@@ -71,6 +71,7 @@ struct mdm6600_urb_write_pool {
 	struct usb_anchor delayed;
 	int buffer_sz;  /* allocated urb buffer size */
 	int pending; /* number of in flight or delayed writes */
+	spinlock_t pending_lock;
 };
 
 struct mdm6600_urb_read_pool {
@@ -220,6 +221,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	}
 
 	spin_lock_init(&modem->susp_lock);
+	spin_lock_init(&modem->write.pending_lock);
 
 	snprintf(modem->readlock_name, sizeof(modem->readlock_name),
 					"mdm6600_read.%d", modem->number);
@@ -312,7 +314,7 @@ static int mdm6600_submit_urbs(struct mdm6600_port *modem)
 
 	if (modem->number == MODEM_INTERFACE_NUM) {
 		WARN_ON_ONCE(!modem->port->interrupt_in_urb);
-		rc = usb_submit_urb(modem->port->interrupt_in_urb, GFP_ATOMIC);
+		rc = usb_submit_urb(modem->port->interrupt_in_urb, GFP_KERNEL);
 		if (rc) {
 			pr_err("%s: failed to submit interrupt urb, error %d\n",
 			    __func__, rc);
@@ -321,7 +323,7 @@ static int mdm6600_submit_urbs(struct mdm6600_port *modem)
 	}
 	for (i = 0; i < POOL_SZ; i++) {
 		usb_anchor_urb(modem->read.urb[i], &modem->read.in_flight);
-		rc = usb_submit_urb(modem->read.urb[i], GFP_ATOMIC);
+		rc = usb_submit_urb(modem->read.urb[i], GFP_KERNEL);
 		if (rc) {
 			usb_unanchor_urb(modem->read.urb[i]);
 			pr_err("%s: failed to submit bulk read urb, error %d\n",
@@ -338,7 +340,6 @@ static int mdm6600_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
 	int status;
-	unsigned long flags;
 
 	dbg("%s: port %d", __func__, modem->number);
 
@@ -346,15 +347,8 @@ static int mdm6600_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	modem->tiocm_status = 0;
 
-	spin_lock_irqsave(&modem->susp_lock, flags);
 	modem->opened = 1;
-	if (modem->susp_count) {
-		spin_unlock_irqrestore(&modem->susp_lock, flags);
-		usb_autopm_put_interface(modem->serial->interface);
-		return 0;
-	}
 	status = mdm6600_submit_urbs(modem);
-	spin_unlock_irqrestore(&modem->susp_lock, flags);
 
 	usb_autopm_put_interface(modem->serial->interface);
 	return status;
@@ -445,12 +439,12 @@ static void mdm6600_write_bulk_cb(struct urb *u)
 	if (mdm6600_mark_write_urb_unused(&modem->write, u))
 		pr_warn("%s unknown urb %p\n", __func__, u);
 
-	spin_lock_irqsave(&modem->susp_lock, flags);
+	spin_lock_irqsave(&modem->write.pending_lock, flags);
 	if (--modem->write.pending == 0) {
 		usb_autopm_put_interface_async(modem->serial->interface);
 		wake_unlock(&modem->writelock);
 	}
-	spin_unlock_irqrestore(&modem->susp_lock, flags);
+	spin_unlock_irqrestore(&modem->write.pending_lock, flags);
 }
 
 static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -480,30 +474,34 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 	usb_serial_debug_data(debug_data, &port->dev, __func__,
 		u->transfer_buffer_length, u->transfer_buffer);
 
-	spin_lock_irqsave(&modem->susp_lock, flags);
+	spin_lock_irqsave(&modem->write.pending_lock, flags);
 	if (modem->write.pending++ == 0) {
 		wake_lock(&modem->writelock);
 		usb_autopm_get_interface_async(modem->serial->interface);
 	}
+	spin_unlock_irqrestore(&modem->write.pending_lock, flags);
 
+	spin_lock_irqsave(&modem->susp_lock, flags);
 	if (modem->susp_count) {
 		usb_anchor_urb(u, &modem->write.delayed);
-	} else {
-		usb_anchor_urb(u, &modem->write.in_flight);
-		rc = usb_submit_urb(u, GFP_ATOMIC);
-		if (rc < 0) {
-			pr_err("%s: submit bulk urb failed %d\n", __func__, rc);
-			usb_unanchor_urb(u);
-			if (--modem->write.pending == 0) {
-				usb_autopm_put_interface_async(serial->interface);
-				wake_unlock(&modem->writelock);
-			}
-			spin_unlock_irqrestore(&modem->susp_lock, flags);
-			return rc;
-		}
+		spin_unlock_irqrestore(&modem->susp_lock, flags);
+		return count;
 	}
 	spin_unlock_irqrestore(&modem->susp_lock, flags);
 
+	usb_anchor_urb(u, &modem->write.in_flight);
+	rc = usb_submit_urb(u, GFP_KERNEL);
+	if (rc < 0) {
+		pr_err("%s: submit bulk urb failed %d\n", __func__, rc);
+		usb_unanchor_urb(u);
+		spin_lock_irqsave(&modem->write.pending_lock, flags);
+		if (--modem->write.pending == 0) {
+			usb_autopm_put_interface_async(serial->interface);
+			wake_unlock(&modem->writelock);
+		}
+		spin_unlock_irqrestore(&modem->write.pending_lock, flags);
+		return rc;
+	}
 	return count;
 }
 
