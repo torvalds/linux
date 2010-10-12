@@ -61,10 +61,10 @@ static struct usb_device_id streamzap_table[] = {
 
 MODULE_DEVICE_TABLE(usb, streamzap_table);
 
-#define STREAMZAP_PULSE_MASK 0xf0
-#define STREAMZAP_SPACE_MASK 0x0f
-#define STREAMZAP_TIMEOUT    0xff
-#define STREAMZAP_RESOLUTION 256
+#define SZ_PULSE_MASK 0xf0
+#define SZ_SPACE_MASK 0x0f
+#define SZ_TIMEOUT    0xff
+#define SZ_RESOLUTION 256
 
 /* number of samples buffered */
 #define SZ_BUF_LEN 128
@@ -175,8 +175,8 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 	}
 
 	rawir.pulse = true;
-	rawir.duration = ((int) value) * STREAMZAP_RESOLUTION;
-	rawir.duration += STREAMZAP_RESOLUTION / 2;
+	rawir.duration = ((int) value) * SZ_RESOLUTION;
+	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
 	rawir.duration *= 1000;
 	rawir.duration &= IR_MAX_DURATION;
@@ -187,7 +187,7 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 static void sz_push_half_pulse(struct streamzap_ir *sz,
 			       unsigned char value)
 {
-	sz_push_full_pulse(sz, (value & STREAMZAP_PULSE_MASK) >> 4);
+	sz_push_full_pulse(sz, (value & SZ_PULSE_MASK) >> 4);
 }
 
 static void sz_push_full_space(struct streamzap_ir *sz,
@@ -196,8 +196,8 @@ static void sz_push_full_space(struct streamzap_ir *sz,
 	struct ir_raw_event rawir;
 
 	rawir.pulse = false;
-	rawir.duration = ((int) value) * STREAMZAP_RESOLUTION;
-	rawir.duration += STREAMZAP_RESOLUTION / 2;
+	rawir.duration = ((int) value) * SZ_RESOLUTION;
+	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
 	rawir.duration *= 1000;
 	dev_dbg(sz->dev, "s %u\n", rawir.duration);
@@ -207,7 +207,7 @@ static void sz_push_full_space(struct streamzap_ir *sz,
 static void sz_push_half_space(struct streamzap_ir *sz,
 			       unsigned long value)
 {
-	sz_push_full_space(sz, value & STREAMZAP_SPACE_MASK);
+	sz_push_full_space(sz, value & SZ_SPACE_MASK);
 }
 
 /**
@@ -221,7 +221,7 @@ static void streamzap_callback(struct urb *urb)
 	struct streamzap_ir *sz;
 	unsigned int i;
 	int len;
-	static int timeout = (((STREAMZAP_TIMEOUT * STREAMZAP_RESOLUTION) &
+	static int timeout = (((SZ_TIMEOUT * SZ_RESOLUTION) &
 				IR_MAX_DURATION) | 0x03000000);
 
 	if (!urb)
@@ -250,12 +250,12 @@ static void streamzap_callback(struct urb *urb)
 			i, (unsigned char)sz->buf_in[i]);
 		switch (sz->decoder_state) {
 		case PulseSpace:
-			if ((sz->buf_in[i] & STREAMZAP_PULSE_MASK) ==
-				STREAMZAP_PULSE_MASK) {
+			if ((sz->buf_in[i] & SZ_PULSE_MASK) ==
+				SZ_PULSE_MASK) {
 				sz->decoder_state = FullPulse;
 				continue;
-			} else if ((sz->buf_in[i] & STREAMZAP_SPACE_MASK)
-					== STREAMZAP_SPACE_MASK) {
+			} else if ((sz->buf_in[i] & SZ_SPACE_MASK)
+					== SZ_SPACE_MASK) {
 				sz_push_half_pulse(sz, sz->buf_in[i]);
 				sz->decoder_state = FullSpace;
 				continue;
@@ -269,7 +269,7 @@ static void streamzap_callback(struct urb *urb)
 			sz->decoder_state = IgnorePulse;
 			break;
 		case FullSpace:
-			if (sz->buf_in[i] == STREAMZAP_TIMEOUT) {
+			if (sz->buf_in[i] == SZ_TIMEOUT) {
 				struct ir_raw_event rawir;
 
 				rawir.pulse = false;
@@ -284,8 +284,8 @@ static void streamzap_callback(struct urb *urb)
 			sz->decoder_state = PulseSpace;
 			break;
 		case IgnorePulse:
-			if ((sz->buf_in[i] & STREAMZAP_SPACE_MASK) ==
-				STREAMZAP_SPACE_MASK) {
+			if ((sz->buf_in[i] & SZ_SPACE_MASK) ==
+				SZ_SPACE_MASK) {
 				sz->decoder_state = FullSpace;
 				continue;
 			}
@@ -447,8 +447,8 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 	#if 0
 	/* not yet supported, depends on patches from maxim */
 	/* see also: LIRC_GET_REC_RESOLUTION and LIRC_SET_REC_TIMEOUT */
-	sz->min_timeout = STREAMZAP_TIMEOUT * STREAMZAP_RESOLUTION * 1000;
-	sz->max_timeout = STREAMZAP_TIMEOUT * STREAMZAP_RESOLUTION * 1000;
+	sz->min_timeout = SZ_TIMEOUT * SZ_RESOLUTION * 1000;
+	sz->max_timeout = SZ_TIMEOUT * SZ_RESOLUTION * 1000;
 	#endif
 
 	do_gettimeofday(&sz->signal_start);
