@@ -96,6 +96,7 @@
 #include <linux/crc32.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
+#include <linux/nls.h>
 #include "check.h"
 #include "efi.h"
 
@@ -617,15 +618,20 @@ int efi_partition(struct parsed_partitions *state)
 		u64 start = le64_to_cpu(ptes[i].starting_lba);
 		u64 size = le64_to_cpu(ptes[i].ending_lba) -
 			   le64_to_cpu(ptes[i].starting_lba) + 1ULL;
+		u8 name[sizeof(ptes->partition_name) / sizeof(efi_char16_t)];
+		int len;
 
 		if (!is_pte_valid(&ptes[i], last_lba(state->bdev)))
 			continue;
 
+		len = utf16s_to_utf8s(ptes[i].partition_name,
+				      sizeof(ptes[i].partition_name) /
+				      sizeof(efi_char16_t),
+				      UTF16_LITTLE_ENDIAN, name,
+				      sizeof(name));
+
 		put_named_partition(state, i+1, start * ssz, size * ssz,
-				   (const char *) ptes[i].partition_name,
-				    strnlen((const char *)
-					    ptes[i].partition_name,
-					    sizeof(ptes[i].partition_name)));
+				    name, len);
 
 		/* If this is a RAID volume, tell md */
 		if (!efi_guidcmp(ptes[i].partition_type_guid,
