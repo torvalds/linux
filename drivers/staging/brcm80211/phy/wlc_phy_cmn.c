@@ -439,7 +439,7 @@ void write_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 	if (addr == 0x72)
 		(void)R_REG(osh, &regs->phyregdata);
 #else
-	W_REG(osh, (volatile u32 *)(uintptr) (&regs->phyregaddr),
+	W_REG(osh, (volatile u32 *)(&regs->phyregaddr),
 	      addr | (val << 16));
 	if (BUSTYPE(pi->sh->bustype) == PCI_BUS) {
 		if (++pi->phy_wreg >= pi->phy_wreg_limit) {
@@ -1167,9 +1167,9 @@ wlc_phy_read_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
 	uint tbl_id = ptbl_info->tbl_id;
 	uint tbl_offset = ptbl_info->tbl_offset;
 	uint tbl_width = ptbl_info->tbl_width;
-	u8 *ptbl_8b = (u8 *) (uintptr) ptbl_info->tbl_ptr;
-	u16 *ptbl_16b = (u16 *) (uintptr) ptbl_info->tbl_ptr;
-	u32 *ptbl_32b = (u32 *) (uintptr) ptbl_info->tbl_ptr;
+	u8 *ptbl_8b = (u8 *)ptbl_info->tbl_ptr;
+	u16 *ptbl_16b = (u16 *)ptbl_info->tbl_ptr;
+	u32 *ptbl_32b = (u32 *)ptbl_info->tbl_ptr;
 
 	ASSERT((tbl_width == 8) || (tbl_width == 16) || (tbl_width == 32));
 
