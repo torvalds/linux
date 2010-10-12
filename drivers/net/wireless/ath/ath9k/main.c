@@ -779,7 +779,9 @@ irqreturn_t ath_isr(int irq, void *dev)
 		 * it will clear whatever condition caused
 		 * the interrupt.
 		 */
+		spin_lock(&common->cc_lock);
 		ath9k_hw_proc_mib_event(ah);
+		spin_unlock(&common->cc_lock);
 		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
 
