@@ -26,6 +26,7 @@
  */
 
 #include "../rt_config.h"
+#include <linux/kernel.h>
 
 #define BA_ORI_INIT_SEQ		(pEntry->TxSeq[TID])	/*1                        // inital sequence number of BA session */
 

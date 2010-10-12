@@ -38,6 +38,7 @@
 
 #include "../rt_config.h"
 #include <stdarg.h>
+#include <linux/kernel.h>
 
 u8 CISCO_OUI[] = { 0x00, 0x40, 0x96 };
 

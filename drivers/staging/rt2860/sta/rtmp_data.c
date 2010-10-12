@@ -35,6 +35,7 @@
 	--------	----------		----------------------------------------------
 */
 #include "../rt_config.h"
+#include <linux/kernel.h>
 
 void STARxEAPOLFrameIndicate(struct rt_rtmp_adapter *pAd,
 			     struct rt_mac_table_entry *pEntry,

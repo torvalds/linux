@@ -324,14 +324,6 @@ struct rt_rtmp_sg_list {
 /* */
 /*  Some utility macros */
 /* */
-#ifndef min
-#define min(_a, _b)     (((_a) < (_b)) ? (_a) : (_b))
-#endif
-
-#ifndef max
-#define max(_a, _b)     (((_a) > (_b)) ? (_a) : (_b))
-#endif
-
 #define GET_LNA_GAIN(_pAd)	((_pAd->LatchRfRegs.Channel <= 14) ? (_pAd->BLNAGain) : ((_pAd->LatchRfRegs.Channel <= 64) ? (_pAd->ALNAGain0) : ((_pAd->LatchRfRegs.Channel <= 128) ? (_pAd->ALNAGain1) : (_pAd->ALNAGain2))))
 
 #define INC_COUNTER64(Val)          (Val.QuadPart++)
