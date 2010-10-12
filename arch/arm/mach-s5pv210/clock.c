@@ -261,6 +261,36 @@ static struct clksrc_clk clk_sclk_vpll = {
 	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 12, .size = 1 },
 };
 
+static struct clk *clkset_moutdmc0src_list[] = {
+	[0] = &clk_sclk_a2m.clk,
+	[1] = &clk_mout_mpll.clk,
+	[2] = NULL,
+	[3] = NULL,
+};
+
+static struct clksrc_sources clkset_moutdmc0src = {
+	.sources	= clkset_moutdmc0src_list,
+	.nr_sources	= ARRAY_SIZE(clkset_moutdmc0src_list),
+};
+
+static struct clksrc_clk clk_mout_dmc0 = {
+	.clk	= {
+		.name		= "mout_dmc0",
+		.id		= -1,
+	},
+	.sources	= &clkset_moutdmc0src,
+	.reg_src	= { .reg = S5P_CLK_SRC6, .shift = 24, .size = 2 },
+};
+
+static struct clksrc_clk clk_sclk_dmc0 = {
+	.clk	= {
+		.name		= "sclk_dmc0",
+		.id		= -1,
+		.parent		= &clk_mout_dmc0.clk,
+	},
+	.reg_div	= { .reg = S5P_CLK_DIV6, .shift = 28, .size = 4 },
+};
+
 static unsigned long s5pv210_clk_imem_get_rate(struct clk *clk)
 {
 	return clk_get_rate(clk->parent) / 2;
@@ -964,6 +994,8 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_sclk_dac,
 	&clk_sclk_pixel,
 	&clk_sclk_hdmi,
+	&clk_mout_dmc0,
+	&clk_sclk_dmc0,
 };
 
 void __init_or_cpufreq s5pv210_setup_clocks(void)
