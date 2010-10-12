@@ -506,7 +506,7 @@ static int rk28_dma_request(unsigned int dma_ch, dma_t *dma_t)
     
 	/*channel 0 and 1 support llp, but others does not*/    
 	if (dma_ch < RK28_DMA_CH2) { 
-        rk28dma->dma_llp_vir = (struct rk28_dma_llp *)dma_alloc_coherent(NULL, RK28_MAX_DMA_LLPS*sizeof(struct rk28_dma_llp), &rk28dma->dma_llp_phy, GFP_KERNEL);
+        rk28dma->dma_llp_vir = (struct rk28_dma_llp *)dma_alloc_coherent(NULL, RK28_MAX_DMA_LLPS*sizeof(struct rk28_dma_llp), &rk28dma->dma_llp_phy, GFP_ATOMIC);
         if (!rk28dma->dma_llp_vir) {
             printk(KERN_ERR "dma_request: no dma space can be allocated for llp by virtual channel %d\n", dma_ch); 
             return -ENOMEM;
