@@ -89,10 +89,10 @@ static void report_char_chartab_status(int reset, int received, int used,
 
 	if (reset) {
 		pr_info("%s reset to defaults\n", object_type[do_characters]);
-	} else if (received ) {
+	} else if (received) {
 		len = snprintf(buf, sizeof(buf),
-			       " updated %d of %d %s\n",
-				       used, received, object_type[do_characters]);
+				" updated %d of %d %s\n",
+				used, received, object_type[do_characters]);
 		if (rejected)
 			snprintf(buf + (len - 1), sizeof(buf) - (len - 1),
 				 " with %d reject%s\n",
@@ -146,7 +146,7 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 			break;
 		}
 
-		if (! isdigit(*cp)) {
+		if (!isdigit(*cp)) {
 			rejected++;
 			cp = linefeed + 1;
 			continue;
@@ -170,7 +170,7 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 		}
 		if (do_characters) {
 			desc = kmalloc(desc_length + 1, GFP_ATOMIC);
-			if (! desc) {
+			if (!desc) {
 				retval = -ENOMEM;
 				reset = 1;	/* just reset on error. */
 				break;
@@ -212,7 +212,8 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 	}
 
 	spk_unlock(flags);
-	report_char_chartab_status(reset, received, used, rejected, do_characters);
+	report_char_chartab_status(reset, received, used, rejected,
+		do_characters);
 	return retval;
 }
 
@@ -236,8 +237,8 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	nstates = (int)cp1[1];
 	cp += sprintf(cp, "%d, %d, %d,\n", KEY_MAP_VER, num_keys, nstates);
 	cp1 += 2; /* now pointing at shift states */
-/* dump num_keys+1 as first row is shift states + flags,
-   each subsequent row is key + states */
+	/* dump num_keys+1 as first row is shift states + flags,
+	 * each subsequent row is key + states */
 	for (n = 0; n <= num_keys; n++) {
 		for (i = 0; i <= nstates; i++) {
 			ch = *cp1++;
@@ -265,7 +266,7 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	spk_lock(flags);
 	in_buff = kmalloc(count + 1, GFP_ATOMIC);
-	if (! in_buff) {
+	if (!in_buff) {
 		spk_unlock(flags);
 		return -ENOMEM;
 	}
@@ -278,7 +279,7 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 		return count;
 	}
 	if (in_buff[count - 1] == '\n')
-	in_buff[count - 1] = '\0';
+		in_buff[count - 1] = '\0';
 	cp = in_buff;
 	cp1 = (u_char *)in_buff;
 	for (i = 0; i < 3; i++) {
@@ -401,15 +402,15 @@ static ssize_t synth_store(struct kobject *kobj, struct kobj_attribute *attr,
 /*
  * This is called when text is sent to the synth via the synth_direct file.
  */
-static ssize_t synth_direct_store(struct kobject *kobj, struct kobj_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t synth_direct_store(struct kobject *kobj,
+	struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	u_char tmp[256];
 	int len;
 	int bytes;
 	const char *ptr = buf;
 
-	if (! synth)
+	if (!synth)
 		return -EPERM;
 
 	len = strlen(buf);
@@ -457,7 +458,8 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 	p_header = var_header_by_name(attr->attr.name);
 	if (p_header == NULL) {
-		pr_warn("p_header is null, attr->attr.name is %s\n", attr->attr.name);
+		pr_warn("p_header is null, attr->attr.name is %s\n",
+			attr->attr.name);
 		return -EINVAL;
 	}
 
@@ -498,7 +500,8 @@ static ssize_t punc_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	p_header = var_header_by_name(attr->attr.name);
 	if (p_header == NULL) {
-		pr_warn("p_header is null, attr->attr.name is %s\n", attr->attr.name);
+		pr_warn("p_header is null, attr->attr.name is %s\n",
+			attr->attr.name);
 		return -EINVAL;
 	}
 
@@ -652,14 +655,16 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		if (synth && synth->default_pitch) {
 			param = var_header_by_name("pitch");
 			if (param)  {
-				set_num_var(synth->default_pitch[value], param, E_NEW_DEFAULT);
+				set_num_var(synth->default_pitch[value], param,
+					E_NEW_DEFAULT);
 				set_num_var(0, param, E_DEFAULT);
 			}
 		}
 		if (synth && synth->default_vol) {
 			param = var_header_by_name("vol");
 			if (param)  {
-				set_num_var(synth->default_vol[value], param, E_NEW_DEFAULT);
+				set_num_var(synth->default_vol[value], param,
+					E_NEW_DEFAULT);
 				set_num_var(0, param, E_DEFAULT);
 			}
 		}
@@ -707,7 +712,7 @@ static void report_msg_status(int reset, int received, int used,
 	if (reset) {
 		pr_info("i18n messages from group %s reset to defaults\n",
 			groupname);
-	} else if (received ) {
+	} else if (received) {
 		len = snprintf(buf, sizeof(buf),
 			       " updated %d of %d i18n messages from group %s\n",
 				       used, received, groupname);
@@ -757,7 +762,7 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 			break;
 		}
 
-		if (! isdigit(*cp)) {
+		if (!isdigit(*cp)) {
 			rejected++;
 			cp = linefeed + 1;
 			continue;
@@ -811,7 +816,7 @@ static ssize_t message_show(struct kobject *kobj,
 	struct msg_group_t *group = find_msg_group(attr->attr.name);
 	unsigned long flags;
 
-	BUG_ON(! group);
+	BUG_ON(!group);
 	spk_lock(flags);
 	retval = message_show_helper(buf, group->start, group->end);
 	spk_unlock(flags);
@@ -824,7 +829,7 @@ static ssize_t message_store(struct kobject *kobj, struct kobj_attribute *attr,
 	ssize_t retval = 0;
 	struct msg_group_t *group = find_msg_group(attr->attr.name);
 
-	BUG_ON(! group);
+	BUG_ON(!group);
 	retval = message_store_helper(buf, count, group);
 	return retval;
 }
