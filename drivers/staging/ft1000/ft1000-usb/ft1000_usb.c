@@ -182,17 +182,15 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 //    DEBUG("In probe: pft1000info=%x\n", pft1000info);				// aelias [-] reason: warning: format ???%x??? expects type ???unsigned int???, but argument 2 has type ???struct FT1000_INFO *???
     DEBUG("In probe: pft1000info=%p\n", pft1000info);		// aelias [+] reason: up
 
-    dsp_reload(ft1000dev);
+	ret = dsp_reload(ft1000dev);
+	if (ret) {
+		printk(KERN_ERR "Problem with DSP image loading\n");
+		goto err_load;
+	}
+
     gPollingfailed = FALSE;  //mbelian
     pft1000info->pPollThread = kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
 	msleep(500); //mbelian
-
-
-    if ( pft1000info->DSP_loading )
-    {
-        DEBUG("ERROR!!!! RETURN FROM ft1000_probe **********************\n");
-        return 0;
-    }
 
     while (!pft1000info->CardReady)
     {
@@ -220,6 +218,8 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 
        return 0;
 
+err_load:
+	kfree(pFileStart);
 err_fw:
 	kfree(ft1000dev);
 	return ret;

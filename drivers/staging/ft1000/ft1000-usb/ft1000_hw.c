@@ -685,7 +685,7 @@ void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int siz
 //
 //  Returns:    None
 //-----------------------------------------------------------------------
-void dsp_reload (struct ft1000_device *ft1000dev)
+int dsp_reload(struct ft1000_device *ft1000dev)
 {
     u16 status;
     USHORT tempword;
@@ -696,7 +696,6 @@ void dsp_reload (struct ft1000_device *ft1000dev)
     pft1000info = netdev_priv(ft1000dev->net);
 
     pft1000info->CardReady = 0;
-    pft1000info->DSP_loading= 1;
 
     // Program Interrupt Mask register
     status = ft1000_write_register (ft1000dev, 0xffff, FT1000_REG_SUP_IMASK);
@@ -723,14 +722,13 @@ void dsp_reload (struct ft1000_device *ft1000dev)
     // call codeloader
     status = scram_dnldr(ft1000dev, pFileStart, FileLength);
 
-    if ( status != STATUS_SUCCESS)
-       return;
+	if (status != STATUS_SUCCESS)
+		return -EIO;
 
     msleep(1000);
-    pft1000info->DSP_loading= 0;
 
     DEBUG("dsp_reload returned\n");
-
+	return 0;
 
 }
 
@@ -1054,7 +1052,6 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     pInfo->CurrentInterruptEnableMask = ISR_DEFAULT_MASK;
     pInfo->InterruptsEnabled = FALSE;
     pInfo->CardReady = 0;
-    pInfo->DSP_loading = 0;
     pInfo->DSP_TIME[0] = 0;
     pInfo->DSP_TIME[1] = 0;
     pInfo->DSP_TIME[2] = 0;
@@ -2252,7 +2249,6 @@ static int ft1000_dsp_prov(void *arg)
 
     info->fProvComplete = 1;
     info->CardReady = 1;
-    info->DSP_loading= 0;
     return STATUS_SUCCESS;
 
 }

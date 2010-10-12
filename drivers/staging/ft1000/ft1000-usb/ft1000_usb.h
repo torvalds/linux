@@ -554,7 +554,6 @@ typedef struct _FT1000_INFO {
     int IOCTLBufLvl;
     int DeviceCreated;
     int CardReady;
-    int DSP_loading;
     int NetDevRegDone;
     u8 CardNumber;
     u8 DeviceName[15];
@@ -632,7 +631,7 @@ void ft1000_free_buffer (PDPRAM_BLK pdpram_blk, struct list_head *plist);
 
 char *getfw (char *fn, size_t *pimgsz);
 
-void dsp_reload(struct ft1000_device *ft1000dev);
+int dsp_reload(struct ft1000_device *ft1000dev);
 u16 init_ft1000_netdev(struct ft1000_device *ft1000dev);
 struct usb_interface;
 u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf);
