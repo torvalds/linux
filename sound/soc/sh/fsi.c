@@ -80,11 +80,12 @@
 #define B_CLK		0x00000010
 #define A_CLK		0x00000001
 
-/* INT_ST */
-#define INT_B_IN	(1 << 12)
-#define INT_B_OUT	(1 << 8)
-#define INT_A_IN	(1 << 4)
-#define INT_A_OUT	(1 << 0)
+/* IO SHIFT / MACRO */
+#define BI_SHIFT	12
+#define BO_SHIFT	8
+#define AI_SHIFT	4
+#define AO_SHIFT	0
+#define AB_IO(param, shift)	(param << shift)
 
 /* SOFT_RST */
 #define PBSR		(1 << 12) /* Port B Software Reset */
@@ -93,9 +94,7 @@
 #define FSISR		(1 <<  0) /* Software Reset */
 
 /* FIFO_SZ */
-#define OUT_SZ_MASK	0x7
-#define BO_SZ_SHIFT	8
-#define AO_SZ_SHIFT	0
+#define FIFO_SZ_MASK	0x7
 
 #define FSI_RATES SNDRV_PCM_RATE_8000_96000
 
@@ -310,17 +309,17 @@ static int fsi_is_master_mode(struct fsi_priv *fsi, int is_play)
 	return (mode & flags) != mode;
 }
 
-static u32 fsi_port_ab_io_bit(struct fsi_priv *fsi, int is_play)
+static u32 fsi_get_port_shift(struct fsi_priv *fsi, int is_play)
 {
 	int is_porta = fsi_is_port_a(fsi);
-	u32 data;
+	u32 shift;
 
 	if (is_porta)
-		data = is_play ? (1 << 0) : (1 << 4);
+		shift = is_play ? AO_SHIFT : AI_SHIFT;
 	else
-		data = is_play ? (1 << 8) : (1 << 12);
+		shift = is_play ? BO_SHIFT : BI_SHIFT;
 
-	return data;
+	return shift;
 }
 
 static void fsi_stream_push(struct fsi_priv *fsi,
@@ -435,7 +434,7 @@ static void fsi_dma_soft_pop32(struct fsi_priv *fsi, int num)
 
 static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 {
-	u32 data = fsi_port_ab_io_bit(fsi, is_play);
+	u32 data = AB_IO(1, fsi_get_port_shift(fsi, is_play));
 	struct fsi_master *master = fsi_get_master(fsi);
 
 	fsi_master_mask_set(master, master->core->imsk,  data, data);
@@ -444,7 +443,7 @@ static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 
 static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 {
-	u32 data = fsi_port_ab_io_bit(fsi, is_play);
+	u32 data = AB_IO(1, fsi_get_port_shift(fsi, is_play));
 	struct fsi_master *master = fsi_get_master(fsi);
 
 	fsi_master_mask_set(master, master->core->imsk,  data, 0);
@@ -466,8 +465,8 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 	u32 data = 0;
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	data |= fsi_port_ab_io_bit(fsi, 0);
-	data |= fsi_port_ab_io_bit(fsi, 1);
+	data |= AB_IO(1, fsi_get_port_shift(fsi, 0));
+	data |= AB_IO(1, fsi_get_port_shift(fsi, 1));
 
 	/* clear interrupt factor */
 	fsi_master_mask_set(master, master->core->int_st, data, 0);
@@ -518,8 +517,8 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 
 	/* get on-chip RAM capacity */
 	shift = fsi_master_read(master, FIFO_SZ);
-	shift >>= fsi_is_port_a(fsi) ? AO_SZ_SHIFT : BO_SZ_SHIFT;
-	shift &= OUT_SZ_MASK;
+	shift >>= fsi_get_port_shift(fsi, is_play);
+	shift &= FIFO_SZ_MASK;
 	fsi->fifo_max_num = 256 << shift;
 	dev_dbg(dai->dev, "fifo = %d words\n", fsi->fifo_max_num);
 
@@ -700,13 +699,13 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	fsi_master_mask_set(master, SOFT_RST, IR, 0);
 	fsi_master_mask_set(master, SOFT_RST, IR, IR);
 
-	if (int_st & INT_A_OUT)
+	if (int_st & AB_IO(1, AO_SHIFT))
 		fsi_data_push(&master->fsia, 0);
-	if (int_st & INT_B_OUT)
+	if (int_st & AB_IO(1, BO_SHIFT))
 		fsi_data_push(&master->fsib, 0);
-	if (int_st & INT_A_IN)
+	if (int_st & AB_IO(1, AI_SHIFT))
 		fsi_data_pop(&master->fsia, 0);
-	if (int_st & INT_B_IN)
+	if (int_st & AB_IO(1, BI_SHIFT))
 		fsi_data_pop(&master->fsib, 0);
 
 	fsi_irq_clear_all_status(master);
