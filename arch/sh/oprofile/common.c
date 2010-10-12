@@ -21,9 +21,9 @@
 #include <linux/slab.h>
 #include <asm/processor.h>
 
-#ifdef CONFIG_HW_PERF_EVENTS
 extern void sh_backtrace(struct pt_regs * const regs, unsigned int depth);
 
+#ifdef CONFIG_HW_PERF_EVENTS
 /*
  * This will need to be reworked when multiple PMUs are supported.
  */
@@ -57,7 +57,7 @@ void __exit oprofile_arch_exit(void)
 #else
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	pr_info("oprofile: hardware counters not available\n");
+	ops->backtrace = sh_backtrace;
 	return -ENODEV;
 }
 void __exit oprofile_arch_exit(void) {}
