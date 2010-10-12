@@ -439,6 +439,7 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_level *cur;
 
 	struct device *hwmon;
+	struct notifier_block acpi_nb;
 
 	int (*clock_get)(struct drm_device *, u32 id);
 	void *(*clock_pre)(struct drm_device *, struct nouveau_pm_level *,
