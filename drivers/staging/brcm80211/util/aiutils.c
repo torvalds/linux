@@ -591,10 +591,10 @@ void ai_core_disable(si_t *sih, u32 bits)
 
 	W_REG(sii->osh, &ai->ioctrl, bits);
 	dummy = R_REG(sii->osh, &ai->ioctrl);
-	OSL_DELAY(10);
+	udelay(10);
 
 	W_REG(sii->osh, &ai->resetctrl, AIRC_RESET);
-	OSL_DELAY(1);
+	udelay(1);
 }
 
 /* reset and re-enable a core
@@ -623,11 +623,11 @@ void ai_core_reset(si_t *sih, u32 bits, u32 resetbits)
 	W_REG(sii->osh, &ai->ioctrl, (bits | SICF_FGC | SICF_CLOCK_EN));
 	dummy = R_REG(sii->osh, &ai->ioctrl);
 	W_REG(sii->osh, &ai->resetctrl, 0);
-	OSL_DELAY(1);
+	udelay(1);
 
 	W_REG(sii->osh, &ai->ioctrl, (bits | SICF_CLOCK_EN));
 	dummy = R_REG(sii->osh, &ai->ioctrl);
-	OSL_DELAY(1);
+	udelay(1);
 }
 
 void ai_core_cflags_wo(si_t *sih, u32 mask, u32 val)

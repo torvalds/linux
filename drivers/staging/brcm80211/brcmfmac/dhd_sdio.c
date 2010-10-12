@@ -5271,7 +5271,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 		/* Now request ALP be put on the bus */
 		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR,
 				 DHD_INIT_CLKCTL2, &err);
-		OSL_DELAY(65);
+		udelay(65);
 
 		for (fn = 0; fn <= numfn; fn++) {
 			cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT);

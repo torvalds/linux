@@ -477,7 +477,7 @@ void sb_core_disable(si_t *sih, u32 bits)
 	   (preserve core-specific bits) */
 	OR_SBREG(sii, &sb->sbtmstatelow, SBTML_REJ);
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
-	OSL_DELAY(1);
+	udelay(1);
 	SPINWAIT((R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_BUSY), 100000);
 	if (R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_BUSY)
 		SI_ERROR(("%s: target state still busy\n", __func__));
@@ -485,7 +485,7 @@ void sb_core_disable(si_t *sih, u32 bits)
 	if (R_SBREG(sii, &sb->sbidlow) & SBIDL_INIT) {
 		OR_SBREG(sii, &sb->sbimstate, SBIM_RJ);
 		dummy = R_SBREG(sii, &sb->sbimstate);
-		OSL_DELAY(1);
+		udelay(1);
 		SPINWAIT((R_SBREG(sii, &sb->sbimstate) & SBIM_BY), 100000);
 	}
 
@@ -494,7 +494,7 @@ void sb_core_disable(si_t *sih, u32 bits)
 		(((bits | SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
 		 SBTML_REJ | SBTML_RESET));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
-	OSL_DELAY(10);
+	udelay(10);
 
 	/* don't forget to clear the initiator reject bit */
 	if (R_SBREG(sii, &sb->sbidlow) & SBIDL_INIT)
@@ -504,7 +504,7 @@ disable:
 	/* leave reset and reject asserted */
 	W_SBREG(sii, &sb->sbtmstatelow,
 		((bits << SBTML_SICF_SHIFT) | SBTML_REJ | SBTML_RESET));
-	OSL_DELAY(1);
+	udelay(1);
 }
 
 /* reset and re-enable a core
@@ -538,7 +538,7 @@ void sb_core_reset(si_t *sih, u32 bits, u32 resetbits)
 		(((bits | resetbits | SICF_FGC | SICF_CLOCK_EN) <<
 		  SBTML_SICF_SHIFT) | SBTML_RESET));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
-	OSL_DELAY(1);
+	udelay(1);
 
 	if (R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_SERR)
 		W_SBREG(sii, &sb->sbtmstatehigh, 0);
@@ -552,13 +552,13 @@ void sb_core_reset(si_t *sih, u32 bits, u32 resetbits)
 		((bits | resetbits | SICF_FGC | SICF_CLOCK_EN) <<
 		 SBTML_SICF_SHIFT));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
-	OSL_DELAY(1);
+	udelay(1);
 
 	/* leave clock enabled */
 	W_SBREG(sii, &sb->sbtmstatelow,
 		((bits | SICF_CLOCK_EN) << SBTML_SICF_SHIFT));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
-	OSL_DELAY(1);
+	udelay(1);
 }
 
 u32 sb_base(u32 admatch)

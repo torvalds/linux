@@ -132,7 +132,7 @@ void dhd_customer_gpio_wlan_ctrl(int onoff)
 		bcm_wlan_power_on(1);
 #endif				/* CUSTOMER_HW */
 		/* Lets customer power to get stable */
-		OSL_DELAY(200);
+		udelay(200);
 		break;
 	}
 }

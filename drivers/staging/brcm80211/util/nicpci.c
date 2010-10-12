@@ -103,7 +103,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi);
 	} while (0)
 
 /* delay needed between the mdio control/ mdiodata register data access */
-#define PR28829_DELAY() OSL_DELAY(10)
+#define PR28829_DELAY() udelay(10)
 
 /* Initialize the PCI core. It's caller's responsibility to make sure that this is done
  * only once
@@ -281,7 +281,7 @@ static bool pcie_mdiosetblock(pcicore_info_t *pi, uint blk)
 		    MDIOCTL_ACCESS_DONE) {
 			break;
 		}
-		OSL_DELAY(1000);
+		udelay(1000);
 		i++;
 	}
 
@@ -342,7 +342,7 @@ pcie_mdioop(pcicore_info_t *pi, uint physmedia, uint regaddr, bool write,
 			W_REG(pi->osh, (&pcieregs->mdiocontrol), 0);
 			return 0;
 		}
-		OSL_DELAY(1000);
+		udelay(1000);
 		i++;
 	}
 

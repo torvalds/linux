@@ -1004,7 +1004,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 #if defined(__mips__)
 	if (!len) {
 		while (!(len = *(u16 *) OSL_UNCACHED(PKTDATA(head))))
-			OSL_DELAY(1);
+			udelay(1);
 
 		*(u16 *) PKTDATA(head) = htol16((u16) len);
 	}
@@ -1599,7 +1599,7 @@ static bool dma32_txreset(dma_info_t *di)
 		  XS_XS_DISABLED), 10000);
 
 	/* wait for the last transaction to complete */
-	OSL_DELAY(300);
+	udelay(300);
 
 	return status == XS_XS_DISABLED;
 }
@@ -1649,7 +1649,7 @@ static bool dma32_txsuspendedidle(dma_info_t *di)
 	if ((R_REG(di->osh, &di->d32txregs->status) & XS_XS_MASK) != XS_XS_IDLE)
 		return 0;
 
-	OSL_DELAY(2);
+	udelay(2);
 	return ((R_REG(di->osh, &di->d32txregs->status) & XS_XS_MASK) ==
 		XS_XS_IDLE);
 }
@@ -2162,7 +2162,7 @@ static bool dma64_txreset(dma_info_t *di)
 		  != D64_XS0_XS_DISABLED), 10000);
 
 	/* wait for the last transaction to complete */
-	OSL_DELAY(300);
+	udelay(300);
 
 	return status == D64_XS0_XS_DISABLED;
 }

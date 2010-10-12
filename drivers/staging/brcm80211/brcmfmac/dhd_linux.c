@@ -614,7 +614,7 @@ int dhd_timeout_expired(dhd_timeout_t *tmo)
 	tmo->elapsed += tmo->increment;
 
 	if (tmo->increment < tmo->tick) {
-		OSL_DELAY(tmo->increment);
+		udelay(tmo->increment);
 		tmo->increment *= 2;
 		if (tmo->increment > tmo->tick)
 			tmo->increment = tmo->tick;

@@ -198,7 +198,7 @@ u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
-			OSL_DELAY(1000);
+			udelay(1000);
 #endif
 		status =
 		    sdioh_cfg_read(bcmsdh->sdioh, fnc_num, addr,
@@ -233,7 +233,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
-			OSL_DELAY(1000);
+			udelay(1000);
 #endif
 		status =
 		    sdioh_cfg_write(bcmsdh->sdioh, fnc_num, addr,

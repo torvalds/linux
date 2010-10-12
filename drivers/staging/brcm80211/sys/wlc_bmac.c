@@ -1324,10 +1324,10 @@ int wlc_bmac_down_finish(wlc_hw_info_t *wlc_hw)
 void wlc_bmac_wait_for_wake(wlc_hw_info_t *wlc_hw)
 {
 	if (D11REV_IS(wlc_hw->corerev, 4))	/* no slowclock */
-		OSL_DELAY(5);
+		udelay(5);
 	else {
 		/* delay before first read of ucode state */
-		OSL_DELAY(40);
+		udelay(40);
 
 		/* wait until ucode is no longer asleep */
 		SPINWAIT((wlc_bmac_read_shm(wlc_hw, M_UCODE_DBGST) ==
@@ -1373,7 +1373,7 @@ static void wlc_clkctl_clk(wlc_hw_info_t *wlc_hw, uint mode)
 				OR_REG(wlc_hw->osh, &wlc_hw->regs->clk_ctl_st,
 				       CCS_FORCEHT);
 
-				OSL_DELAY(64);
+				udelay(64);
 
 				SPINWAIT(((R_REG
 					   (wlc_hw->osh,
@@ -1980,16 +1980,16 @@ void wlc_bmac_core_phy_clk(wlc_hw_info_t *wlc_hw, bool clk)
 
 		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC | SICF_GMODE),
 			       (SICF_PRST | SICF_FGC));
-		OSL_DELAY(1);
+		udelay(1);
 		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_PRST);
-		OSL_DELAY(1);
+		udelay(1);
 
 	} else {		/* take phy out of reset */
 
 		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_FGC);
-		OSL_DELAY(1);
+		udelay(1);
 		si_core_cflags(wlc_hw->sih, (SICF_FGC), 0);
-		OSL_DELAY(1);
+		udelay(1);
 
 	}
 }
@@ -2001,16 +2001,16 @@ void wlc_bmac_core_phypll_reset(wlc_hw_info_t *wlc_hw)
 
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_addr), ~0, 0);
-	OSL_DELAY(1);
+	udelay(1);
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 0);
-	OSL_DELAY(1);
+	udelay(1);
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 4);
-	OSL_DELAY(1);
+	udelay(1);
 	si_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 0);
-	OSL_DELAY(1);
+	udelay(1);
 }
 
 /* light way to turn on phy clock without reset for NPHY only
@@ -2056,7 +2056,7 @@ void wlc_bmac_phy_reset(wlc_hw_info_t *wlc_hw)
 		/* Set the PHY bandwidth */
 		si_core_cflags(wlc_hw->sih, SICF_BWMASK, phy_bw_clkbits);
 
-		OSL_DELAY(1);
+		udelay(1);
 
 		/* Perform a soft reset of the PHY PLL */
 		wlc_bmac_core_phypll_reset(wlc_hw);
@@ -2072,7 +2072,7 @@ void wlc_bmac_phy_reset(wlc_hw_info_t *wlc_hw)
 			       (SICF_PRST | SICF_PCLKE | phy_bw_clkbits));
 	}
 
-	OSL_DELAY(2);
+	udelay(2);
 	wlc_bmac_core_phy_clk(wlc_hw, ON);
 
 	if (pih)
@@ -2311,7 +2311,7 @@ static bool wlc_dma_rxreset(wlc_hw_info_t *wlc_hw, uint fifo)
 
 		if (!rxidle && (rcv_frm_cnt != 0))
 			WL_ERROR(("wl%d: %s: rxdma[%d] not idle && rcv_frm_cnt(%d) not zero\n", wlc_hw->unit, __func__, fifo, rcv_frm_cnt));
-		OSL_DELAY(2000);
+		mdelay(2);
 	}
 
 	return dma_rxreset(di);
@@ -3004,7 +3004,7 @@ u32 wlc_intrsoff(wlc_info_t *wlc)
 
 	W_REG(wlc_hw->osh, &wlc_hw->regs->macintmask, 0);
 	(void)R_REG(wlc_hw->osh, &wlc_hw->regs->macintmask);	/* sync readback */
-	OSL_DELAY(1);		/* ensure int line is no longer driven */
+	udelay(1);		/* ensure int line is no longer driven */
 	wlc->macintmask = 0;
 
 	/* return previous macintmask; resolve race between us and our isr */

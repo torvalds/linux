@@ -152,7 +152,7 @@ static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 				bcmsdh_cfg_write(sdh, SDIO_FUNC_1,
 						 SBSDIO_FUNC1_CHIPCLKCSR,
 						 clkset, &err);
-				OSL_DELAY(65);
+				udelay(65);
 			}
 		}
 
@@ -607,7 +607,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 			W_REG(osh, &cc->clkdiv, clkdiv);
 			SI_ERROR(("%s: set clkdiv to %x\n", __func__, clkdiv));
 		}
-		OSL_DELAY(10);
+		udelay(10);
 	}
 
 	/* Init nvram from flash if it exists */
@@ -1308,7 +1308,7 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 						     sizeof(u32), out);
 				OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUTEN,
 						     sizeof(u32), outen);
-				OSL_DELAY(XTAL_ON_DELAY);
+				udelay(XTAL_ON_DELAY);
 			}
 
 			/* turn pll on */
@@ -1316,7 +1316,7 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 				out &= ~PCI_CFG_GPIO_PLL;
 				OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUT,
 						     sizeof(u32), out);
-				OSL_DELAY(2000);
+				mdelay(2);
 			}
 		} else {
 			if (what & XTAL)
@@ -1416,7 +1416,7 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 				  == 0), PMU_MAX_TRANSITION_DLY);
 			ASSERT(R_REG(sii->osh, &cc->clk_ctl_st) & htavail);
 		} else {
-			OSL_DELAY(PLL_DELAY);
+			udelay(PLL_DELAY);
 		}
 		break;
 
@@ -2018,6 +2018,6 @@ void si_otp_power(si_t *sih, bool on)
 {
 	if (PMUCTL_ENAB(sih))
 		si_pmu_otp_power(sih, si_osh(sih), on);
-	OSL_DELAY(1000);
+	udelay(1000);
 }
 

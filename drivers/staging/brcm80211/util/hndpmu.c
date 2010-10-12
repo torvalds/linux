@@ -863,7 +863,7 @@ void si_pmu_res_init(si_t *sih, osl_t *osh)
 	}
 
 	/* Add some delay; allow resources to come up and settle. */
-	OSL_DELAY(2000);
+	mdelay(2);
 
 	/* Return to original core */
 	si_setcoreidx(sih, origidx);
@@ -1295,13 +1295,13 @@ static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
 		AND_REG(osh, &cc->max_res_mask,
 			~(PMURES_BIT(RES4319_HT_AVAIL)));
 
-		OSL_DELAY(100);
+		udelay(100);
 		AND_REG(osh, &cc->min_res_mask,
 			~(PMURES_BIT(RES4319_BBPLL_PWRSW_PU)));
 		AND_REG(osh, &cc->max_res_mask,
 			~(PMURES_BIT(RES4319_BBPLL_PWRSW_PU)));
 
-		OSL_DELAY(100);
+		udelay(100);
 		SPINWAIT(R_REG(osh, &cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
 		ASSERT(!(R_REG(osh, &cc->clk_ctl_st) & CCS_HTAVAIL));
@@ -1317,7 +1317,7 @@ static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
 		AND_REG(osh, &cc->max_res_mask,
 			~(PMURES_BIT(RES4336_HT_AVAIL) |
 			  PMURES_BIT(RES4336_MACPHY_CLKAVAIL)));
-		OSL_DELAY(100);
+		udelay(100);
 		SPINWAIT(R_REG(osh, &cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
 		ASSERT(!(R_REG(osh, &cc->clk_ctl_st) & CCS_HTAVAIL));
@@ -1330,7 +1330,7 @@ static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
 		AND_REG(osh, &cc->max_res_mask,
 			~(PMURES_BIT(RES4330_HT_AVAIL) |
 			  PMURES_BIT(RES4330_MACPHY_CLKAVAIL)));
-		OSL_DELAY(100);
+		udelay(100);
 		SPINWAIT(R_REG(osh, &cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
 		ASSERT(!(R_REG(osh, &cc->clk_ctl_st) & CCS_HTAVAIL));
@@ -1854,7 +1854,7 @@ u32 si_pmu_ilp_clock(si_t *sih, osl_t *osh)
 		chipcregs_t *cc = si_setcoreidx(sih, SI_CC_IDX);
 		ASSERT(cc != NULL);
 		start = R_REG(osh, &cc->pmutimer);
-		OSL_DELAY(ILP_CALC_DUR * 1000);
+		mdelay(ILP_CALC_DUR);
 		end = R_REG(osh, &cc->pmutimer);
 		delta = end - start;
 		ilpcycles_per_sec = delta * (1000 / ILP_CALC_DUR);
@@ -2642,7 +2642,7 @@ u32 si_pmu_measure_alpclk(si_t *sih, osl_t *osh)
 		      1U << PMU_XTALFREQ_REG_MEASURE_SHIFT);
 
 		/* Delay for well over 4 ILP clocks */
-		OSL_DELAY(1000);
+		udelay(1000);
 
 		/* Read the latched number of ALP ticks per 4 ILP ticks */
 		ilp_ctr =

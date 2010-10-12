@@ -14967,7 +14967,7 @@ static void wlc_phy_resetcca_nphy(phy_info_t *pi)
 
 	val = read_phy_reg(pi, 0x01);
 	write_phy_reg(pi, 0x01, val | BBCFG_RESETCCA);
-	OSL_DELAY(1);
+	udelay(1);
 	write_phy_reg(pi, 0x01, val & (~BBCFG_RESETCCA));
 
 	wlapi_bmac_phyclk_fgc(pi->sh->physhim, OFF);
@@ -17409,7 +17409,7 @@ static void wlc_phy_radio_postinit_2055(phy_info_t *pi)
 
 	or_radio_reg(pi, RADIO_2055_CAL_MISC, RADIO_2055_RRCAL_RST_N);
 
-	OSL_DELAY(1000);
+	udelay(1000);
 
 	or_radio_reg(pi, RADIO_2055_CAL_MISC, RADIO_2055_RRCAL_START);
 
@@ -17446,7 +17446,7 @@ static void wlc_phy_radio_postinit_2055(phy_info_t *pi)
 			     RADIO_2055_GAINBST_DISABLE);
 	}
 
-	OSL_DELAY(2);
+	udelay(2);
 }
 
 static void wlc_phy_radio_preinit_205x(phy_info_t *pi)
@@ -17530,7 +17530,7 @@ static void wlc_phy_radio_postinit_2056(phy_info_t *pi)
 
 	mod_radio_reg(pi, RADIO_2056_SYN_COM_PU, 0x2, 0x2);
 	mod_radio_reg(pi, RADIO_2056_SYN_COM_RESET, 0x2, 0x2);
-	OSL_DELAY(1000);
+	udelay(1000);
 	mod_radio_reg(pi, RADIO_2056_SYN_COM_RESET, 0x2, 0x0);
 
 	if ((pi->sh->boardflags2 & BFL2_LEGACY)
@@ -17606,7 +17606,7 @@ static void wlc_phy_radio_postinit_2057(phy_info_t *pi)
 
 	mod_radio_reg(pi, RADIO_2057_RFPLL_MISC_CAL_RESETN, 0x78, 0x78);
 	mod_radio_reg(pi, RADIO_2057_XTAL_CONFIG2, 0x80, 0x80);
-	OSL_DELAY(2000);
+	mdelay(2);
 	mod_radio_reg(pi, RADIO_2057_RFPLL_MISC_CAL_RESETN, 0x78, 0x0);
 	mod_radio_reg(pi, RADIO_2057_XTAL_CONFIG2, 0x80, 0x0);
 
@@ -17868,7 +17868,7 @@ wlc_phy_chanspec_radio2055_setup(phy_info_t *pi, chan_info_nphy_2055_t *ci)
 	write_radio_reg(pi, RADIO_2055_CORE2_TX_MX_BGTRIM,
 			ci->RF_core2_tx_mx_bgtrim);
 
-	OSL_DELAY(50);
+	udelay(50);
 
 	write_radio_reg(pi, RADIO_2055_VCO_CAL10, 0x05);
 	write_radio_reg(pi, RADIO_2055_VCO_CAL10, 0x45);
@@ -17877,7 +17877,7 @@ wlc_phy_chanspec_radio2055_setup(phy_info_t *pi, chan_info_nphy_2055_t *ci)
 
 	write_radio_reg(pi, RADIO_2055_VCO_CAL10, 0x65);
 
-	OSL_DELAY(300);
+	udelay(300);
 }
 
 static void
@@ -18217,7 +18217,7 @@ wlc_phy_chanspec_radio2056_setup(phy_info_t *pi,
 		}
 	}
 
-	OSL_DELAY(50);
+	udelay(50);
 
 	wlc_phy_radio205x_vcocal_nphy(pi);
 }
@@ -18238,7 +18238,7 @@ void wlc_phy_radio205x_vcocal_nphy(phy_info_t *pi)
 		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST3, 0x39);
 	}
 
-	OSL_DELAY(300);
+	udelay(300);
 }
 
 #define MAX_205x_RCAL_WAITLOOPS 10000
@@ -18254,7 +18254,7 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 
 			and_phy_reg(pi, 0x342, ~(0x1 << 1));
 
-			OSL_DELAY(10);
+			udelay(10);
 
 			mod_radio_reg(pi, RADIO_2057_IQTEST_SEL_PU, 0x1, 0x1);
 			mod_radio_reg(pi, RADIO_2057v7_IQTEST_SEL_PU2, 0x2,
@@ -18262,7 +18262,7 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 		}
 		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x1, 0x1);
 
-		OSL_DELAY(10);
+		udelay(10);
 
 		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x3, 0x3);
 
@@ -18271,7 +18271,7 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 			if (rcal_reg & 0x1) {
 				break;
 			}
-			OSL_DELAY(100);
+			udelay(100);
 		}
 
 		ASSERT(i < MAX_205x_RCAL_WAITLOOPS);
@@ -18304,11 +18304,11 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 				   RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN);
 		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN,
 				savereg | 0x7);
-		OSL_DELAY(10);
+		udelay(10);
 
 		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
 				0x1);
-		OSL_DELAY(10);
+		udelay(10);
 
 		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
 				0x9);
@@ -18320,7 +18320,7 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 			if (rcal_reg & 0x80) {
 				break;
 			}
-			OSL_DELAY(100);
+			udelay(100);
 		}
 
 		ASSERT(i < MAX_205x_RCAL_WAITLOOPS);
@@ -18535,7 +18535,7 @@ wlc_phy_chanspec_radio2057_setup(phy_info_t *pi,
 		}
 	}
 
-	OSL_DELAY(50);
+	udelay(50);
 
 	wlc_phy_radio205x_vcocal_nphy(pi);
 }
@@ -18567,7 +18567,7 @@ static u16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 		if (rccal_valid & 0x2) {
 			break;
 		}
-		OSL_DELAY(500);
+		udelay(500);
 	}
 
 	ASSERT(rccal_valid & 0x2);
@@ -18591,7 +18591,7 @@ static u16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 		if (rccal_valid & 0x2) {
 			break;
 		}
-		OSL_DELAY(500);
+		udelay(500);
 	}
 
 	ASSERT(rccal_valid & 0x2);
@@ -18616,7 +18616,7 @@ static u16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 		if (rccal_valid & 0x2) {
 			break;
 		}
-		OSL_DELAY(500);
+		udelay(500);
 	}
 
 	ASSERT(rccal_valid & 0x2);
@@ -20273,7 +20273,7 @@ wlc_phy_rfctrl_override_nphy(phy_info_t *pi, u16 field, u16 value,
 
 		or_phy_reg(pi, 0xec, (0x1 << 0));
 		or_phy_reg(pi, 0x78, (0x1 << 0));
-		OSL_DELAY(1);
+		udelay(1);
 		and_phy_reg(pi, 0xec, ~(0x1 << 0));
 	}
 }
@@ -20801,7 +20801,7 @@ void wlc_phy_rssisel_nphy(phy_info_t *pi, u8 core_code, u8 rssi_type)
 			mod_phy_reg(pi, 0xec, rfctrlovr_mask, rfctrlovr_val);
 
 			mod_phy_reg(pi, 0x78, (0x1 << 0), (startseq << 0));
-			OSL_DELAY(20);
+			udelay(20);
 
 			mod_phy_reg(pi, 0xec, (0x1 << 0), 0);
 		}
@@ -20983,7 +20983,7 @@ s16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 		mod_phy_reg(pi, 0xa7, (0x1 << 2), (0x1 << 2));
 		mod_phy_reg(pi, 0x8f, (0x1 << 2), (0x1 << 2));
 		mod_phy_reg(pi, 0xa5, (0x1 << 2), (0x1 << 2));
-		OSL_DELAY(5);
+		udelay(5);
 		mod_phy_reg(pi, 0xa6, (0x1 << 2), 0);
 		mod_phy_reg(pi, 0xa7, (0x1 << 2), 0);
 		mod_phy_reg(pi, 0xa6, (0x1 << 3), 0);
@@ -21002,13 +21002,13 @@ s16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_AFECTRL, 1, 0x0E, 16,
 					 &auxADC_Av);
 
-		OSL_DELAY(3);
+		udelay(3);
 
 		wlc_phy_poll_rssi_nphy(pi, NPHY_RSSI_SEL_IQ, radio_temp, 1);
 		write_radio_reg(pi, RADIO_2057_TEMPSENSE_CONFIG,
 				tempsense_Rcal | 0x03);
 
-		OSL_DELAY(5);
+		udelay(5);
 		wlc_phy_poll_rssi_nphy(pi, NPHY_RSSI_SEL_IQ, radio_temp2, 1);
 
 		auxADC_Av = 0x7;
@@ -21031,13 +21031,13 @@ s16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_AFECTRL, 1, 0x0E, 16,
 					 &auxADC_Av);
 
-		OSL_DELAY(3);
+		udelay(3);
 
 		wlc_phy_poll_rssi_nphy(pi, NPHY_RSSI_SEL_IQ, radio_temp2, 1);
 		write_radio_reg(pi, RADIO_2057_TEMPSENSE_CONFIG,
 				tempsense_Rcal | 0x01);
 
-		OSL_DELAY(5);
+		udelay(5);
 		wlc_phy_poll_rssi_nphy(pi, NPHY_RSSI_SEL_IQ, radio_temp, 1);
 
 		write_radio_reg(pi, RADIO_2057_TEMPSENSE_CONFIG,
@@ -23714,7 +23714,7 @@ wlc_phy_cal_txgainctrl_nphy(phy_info_t *pi, s32 dBm_targetpower, bool debug)
 			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &curr_m0m1);
 			wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &curr_m0m1);
 
-			OSL_DELAY(50);
+			udelay(50);
 
 			wlc_phy_est_tonepwr_nphy(pi, qdBm_power,
 						 NPHY_CAL_TSSISAMPS);
@@ -23765,7 +23765,7 @@ wlc_phy_cal_txgainctrl_nphy(phy_info_t *pi, s32 dBm_targetpower, bool debug)
 			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &dbg_m0m1);
 			wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &dbg_m0m1);
 
-			OSL_DELAY(100);
+			udelay(100);
 
 			wlc_phy_est_tonepwr_nphy(pi, qdBm_power,
 						 NPHY_CAL_TSSISAMPS);
@@ -23773,7 +23773,7 @@ wlc_phy_cal_txgainctrl_nphy(phy_info_t *pi, s32 dBm_targetpower, bool debug)
 			wlc_phy_table_read_nphy(pi, 7, 1, (0x110 + core), 16,
 						&radio_gain);
 
-			OSL_DELAY(4000000);
+			mdelay(4000);
 			pi->nphy_bb_mult_save = 0;
 			wlc_phy_stopplayback_nphy(pi);
 		}
@@ -25657,7 +25657,7 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 
 			wlc_phy_tx_tone_nphy(pi, ref_tone, NPHY_RXCAL_TONEAMP,
 					     0, 1, false);
-			OSL_DELAY(2);
+			udelay(2);
 
 			wlc_phy_rx_iq_est_nphy(pi, est, num_samps, 32, 0);
 
@@ -25675,7 +25675,7 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 
 			wlc_phy_tx_tone_nphy(pi, target_bw, NPHY_RXCAL_TONEAMP,
 					     0, 1, false);
-			OSL_DELAY(2);
+			udelay(2);
 		}
 
 		wlc_phy_rx_iq_est_nphy(pi, est, num_samps, 32, 0);
@@ -25761,7 +25761,7 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 	return best_rccal_val - 0x80;
 }
 
-#define WAIT_FOR_SCOPE	4000000
+#define WAIT_FOR_SCOPE	4000
 static int
 wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 			   u8 cal_type, bool debug)
@@ -25821,7 +25821,7 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 					     false);
 
 			if (debug)
-				OSL_DELAY(WAIT_FOR_SCOPE);
+				mdelay(WAIT_FOR_SCOPE);
 
 			wlc_phy_calc_rx_iq_comp_nphy(pi, rx_core + 1);
 			wlc_phy_stopplayback_nphy(pi);
@@ -26022,7 +26022,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 		for (gain_pass = 0; gain_pass < 4; gain_pass++) {
 
 			if (debug)
-				OSL_DELAY(WAIT_FOR_SCOPE);
+				mdelay(WAIT_FOR_SCOPE);
 
 			if (gain_pass < 3) {
 				curr_lna = lna_vals[gain_pass];
@@ -28219,7 +28219,7 @@ void wlc_phy_txpower_recalc_target_nphy(phy_info_t *pi)
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
 		(void)R_REG(pi->sh->osh, &pi->regs->maccontrol);
-		OSL_DELAY(1);
+		udelay(1);
 	}
 
 	wlc_phy_txpwrctrl_enable_nphy(pi, tx_pwr_ctrl_state);
@@ -28434,7 +28434,7 @@ static void wlc_phy_txpwrctrl_idle_tssi_nphy(phy_info_t *pi)
 
 	wlc_phy_tx_tone_nphy(pi, 4000, 0, 0, 0, false);
 
-	OSL_DELAY(20);
+	udelay(20);
 	int_val =
 	    wlc_phy_poll_rssi_nphy(pi, (u8) NPHY_RSSI_SEL_TSSI_2G, rssi_buf,
 				   1);
@@ -28490,7 +28490,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
 		(void)R_REG(pi->sh->osh, &pi->regs->maccontrol);
-		OSL_DELAY(1);
+		udelay(1);
 	}
 
 	if (pi->phyhang_avoid)
@@ -28647,7 +28647,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
 		(void)R_REG(pi->sh->osh, &pi->regs->maccontrol);
-		OSL_DELAY(1);
+		udelay(1);
 	}
 
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {

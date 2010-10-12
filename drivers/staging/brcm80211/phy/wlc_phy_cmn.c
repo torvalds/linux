@@ -201,7 +201,7 @@ void wlc_radioreg_enter(wlc_phy_t *pih)
 	phy_info_t *pi = (phy_info_t *) pih;
 	wlapi_bmac_mctrl(pi->sh->physhim, MCTL_LOCK_RADIO, MCTL_LOCK_RADIO);
 
-	OSL_DELAY(10);
+	udelay(10);
 }
 
 void wlc_radioreg_exit(wlc_phy_t *pih)
@@ -1316,20 +1316,20 @@ void wlc_phy_do_dummy_tx(phy_info_t *pi, bool ofdm, bool pa_on)
 
 	while ((i++ < count)
 	       && (R_REG(pi->sh->osh, &regs->txe_status) & (1 << 7))) {
-		OSL_DELAY(10);
+		udelay(10);
 	}
 
 	i = 0;
 
 	while ((i++ < 10)
 	       && ((R_REG(pi->sh->osh, &regs->txe_status) & (1 << 10)) == 0)) {
-		OSL_DELAY(10);
+		udelay(10);
 	}
 
 	i = 0;
 
 	while ((i++ < 10) && ((R_REG(pi->sh->osh, &regs->ifsstat) & (1 << 8)))) {
-		OSL_DELAY(10);
+		udelay(10);
 	}
 	if (!pa_on) {
 		if (ISNPHY(pi))

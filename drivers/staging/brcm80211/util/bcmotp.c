@@ -695,7 +695,7 @@ static void *hndotp_init(si_t *sih)
 			    (clkdiv & ~CLKD_OTP) | (otpdiv << CLKD_OTP_SHIFT);
 			W_REG(osh, &cc->clkdiv, clkdiv);
 		}
-		OSL_DELAY(10);
+		udelay(10);
 
 		ret = (void *)oi;
 	}

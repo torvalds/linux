@@ -49,9 +49,6 @@ extern void osl_assert(char *exp, char *file, int line);
 #endif				/* __GNUC__ */
 #endif				/* defined(BCMDBG_ASSERT) */
 
-#define	OSL_DELAY(usec)		osl_delay(usec)
-extern void osl_delay(uint usec);
-
 /* PCI configuration space access macros */
 #define	OSL_PCI_READ_CONFIG(osh, offset, size) \
 	osl_pci_read_config((osh), (offset), (size))

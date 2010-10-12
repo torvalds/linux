@@ -939,7 +939,7 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
 		while (((s1 =
 			 R_REG(wlc->osh,
 			       &wlc->regs->frmtxstatus)) & TXS_V) == 0) {
-			OSL_DELAY(1);
+			udelay(1);
 			status_delay++;
 			if (status_delay > 10) {
 				ASSERT(status_delay <= 10);

@@ -42,7 +42,7 @@
 #define SPINWAIT(exp, us) { \
 	uint countdown = (us) + 9; \
 	while ((exp) && (countdown >= 10)) {\
-		OSL_DELAY(10); \
+		udelay(10); \
 		countdown -= 10; \
 	} \
 }

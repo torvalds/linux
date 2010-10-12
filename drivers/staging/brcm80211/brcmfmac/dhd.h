@@ -188,7 +188,7 @@ typedef struct dhd_pub {
 #define SPINWAIT_SLEEP(a, exp, us)  do { \
 		uint countdown = (us) + 9; \
 		while ((exp) && (countdown >= 10)) { \
-			OSL_DELAY(10);  \
+			udelay(10);  \
 			countdown -= 10;  \
 		} \
 	} while (0)

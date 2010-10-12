@@ -591,17 +591,6 @@ void osl_assert(char *exp, char *file, int line)
 }
 #endif				/* defined(BCMDBG_ASSERT) */
 
-void osl_delay(uint usec)
-{
-	uint d;
-
-	while (usec > 0) {
-		d = min(usec, (uint)1000);
-		udelay(d);
-		usec -= d;
-	}
-}
-
 #if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 u8 osl_readb(osl_t *osh, volatile u8 *r)
 {
