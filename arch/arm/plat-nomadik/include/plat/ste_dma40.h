@@ -23,11 +23,6 @@
  * the info structure.
  */
 
-/* Priority */
-#define STEDMA40_INFO_PRIO_TYPE_POS 2
-#define STEDMA40_HIGH_PRIORITY_CHANNEL (0x1 << STEDMA40_INFO_PRIO_TYPE_POS)
-#define STEDMA40_LOW_PRIORITY_CHANNEL (0x2 << STEDMA40_INFO_PRIO_TYPE_POS)
-
 /* Mode  */
 #define STEDMA40_INFO_CH_MODE_TYPE_POS 6
 #define STEDMA40_CHANNEL_IN_PHY_MODE (0x1 << STEDMA40_INFO_CH_MODE_TYPE_POS)
@@ -119,6 +114,7 @@ struct stedma40_half_channel_info {
  *
  * @dir: MEM 2 MEM, PERIPH 2 MEM , MEM 2 PERIPH, PERIPH 2 PERIPH
  * @channel_type: priority, mode, mode options and interrupt configuration.
+ * @high_priority: true if high-priority
  * @src_dev_type: Src device type
  * @dst_dev_type: Dst device type
  * @src_info: Parameters for dst half channel
@@ -132,6 +128,7 @@ struct stedma40_half_channel_info {
 struct stedma40_chan_cfg {
 	enum stedma40_xfer_dir			 dir;
 	unsigned int				 channel_type;
+	bool					 high_priority;
 	int					 src_dev_type;
 	int					 dst_dev_type;
 	struct stedma40_half_channel_info	 src_info;
