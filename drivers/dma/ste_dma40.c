@@ -1151,8 +1151,7 @@ static int d40_validate_conf(struct d40_chan *d40c,
 	int res = 0;
 	u32 dst_event_group = D40_TYPE_TO_GROUP(conf->dst_dev_type);
 	u32 src_event_group = D40_TYPE_TO_GROUP(conf->src_dev_type);
-	bool is_log = (conf->channel_type & STEDMA40_CHANNEL_IN_OPER_MODE)
-		== STEDMA40_CHANNEL_IN_LOG_MODE;
+	bool is_log = conf->mode == STEDMA40_MODE_LOGICAL;
 
 	if (!conf->dir) {
 		dev_err(&d40c->chan.dev->device, "[%s] Invalid direction.\n",
@@ -1316,10 +1315,7 @@ static int d40_allocate_channel(struct d40_chan *d40c)
 	int j;
 	int log_num;
 	bool is_src;
-	bool is_log = (d40c->dma_cfg.channel_type &
-		       STEDMA40_CHANNEL_IN_OPER_MODE)
-		== STEDMA40_CHANNEL_IN_LOG_MODE;
-
+	bool is_log = d40c->dma_cfg.mode == STEDMA40_MODE_LOGICAL;
 
 	phys = d40c->base->phy_res;
 

@@ -132,8 +132,8 @@ static struct resource dma40_resources[] = {
 
 /* Default configuration for physcial memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
-	.channel_type = (STEDMA40_CHANNEL_IN_PHY_MODE |
-			 STEDMA40_PCHAN_BASIC_MODE),
+	.channel_type = STEDMA40_PCHAN_BASIC_MODE,
+	.mode = STEDMA40_MODE_PHYSICAL,
 	.dir = STEDMA40_MEM_TO_MEM,
 
 	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
@@ -148,8 +148,7 @@ struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 };
 /* Default configuration for logical memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_log = {
-	.channel_type = (STEDMA40_CHANNEL_IN_LOG_MODE |
-			 STEDMA40_LCHAN_SRC_LOG_DST_LOG |
+	.channel_type = (STEDMA40_LCHAN_SRC_LOG_DST_LOG |
 			 STEDMA40_NO_TIM_FOR_LINK),
 	.dir = STEDMA40_MEM_TO_MEM,
 
