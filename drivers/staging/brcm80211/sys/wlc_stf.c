@@ -25,7 +25,6 @@
 #include <bcmendian.h>
 #include <proto/802.11.h>
 #include <wlioctl.h>
-#include <bcmwpa.h>
 #include <bcmwifi.h>
 #include <d11.h>
 #include <wlc_rate.h>

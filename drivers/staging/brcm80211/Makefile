@@ -38,7 +38,6 @@ BRCM80211_OFILES := \
 	util/bcmsrom.o \
 	util/bcmutils.o \
 	util/bcmwifi.o \
-	util/bcmwpa.o \
 	util/hndpmu.o \
 	util/linux_osl.o \
 	sys/wlc_alloc.o \

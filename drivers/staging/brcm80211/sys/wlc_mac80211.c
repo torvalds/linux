@@ -30,7 +30,6 @@
 #include <bcmsrom.h>
 #include <wlioctl.h>
 #include <epivers.h>
-#include <bcmwpa.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <hndpmu.h>

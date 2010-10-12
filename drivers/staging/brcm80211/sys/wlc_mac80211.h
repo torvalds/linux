@@ -117,6 +117,10 @@ typedef struct wlc_bss_list {
 
 /* if wpa is in use then portopen is true when the group key is plumbed otherwise it is always true
  */
+#define WSEC_ENABLED(wsec) ((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
+#define WLC_SW_KEYS(wlc, bsscfg) ((((wlc)->wsec_swkeys) || \
+	((bsscfg)->wsec & WSEC_SWFLAG)))
+
 #define WLC_PORTOPEN(cfg) \
 	(((cfg)->WPA_auth != WPA_AUTH_DISABLED && WSEC_ENABLED((cfg)->wsec)) ? \
 	(cfg)->wsec_portopen : true)
