@@ -113,9 +113,10 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 
 	pch_gbe_hal_write_phy_reg(hw, MII_BMCR, BMCR_RESET);
 
-	if (ecmd->speed == -1)
+	if (ecmd->speed == USHRT_MAX) {
 		ecmd->speed = SPEED_1000;
 		ecmd->duplex = DUPLEX_FULL;
+	}
 	ret = mii_ethtool_sset(&adapter->mii, ecmd);
 	if (ret) {
 		pr_err("Error: mii_ethtool_sset\n");
