@@ -593,14 +593,6 @@ err: ;
 /**************************************  MACROS  ************************************************/
 /************************************************************************************************/
 
-/* min and max macros */
-#if ! defined max
-#define max(a,b)  		(((a) > (b)) ? (a) : (b))
-#endif
-#if ! defined min
-#define min(a,b)  		(((a) < (b)) ? (a) : (b))
-#endif
-
 #ifdef HCF_SLEEP
 #if defined MSF_WAIT
 err: MSF should no longer supply this macro;
