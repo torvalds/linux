@@ -99,7 +99,10 @@ do_trace_exit:
 	jra	.Lret_from_exception
 
 ENTRY(ret_from_signal)
-	RESTORE_SWITCH_STACK
+	tstb	%curptr@(TASK_INFO+TINFO_FLAGS+2)
+	jge	1f
+	jbsr	syscall_trace
+1:	RESTORE_SWITCH_STACK
 	addql	#4,%sp
 /* on 68040 complete pending writebacks if any */
 #ifdef CONFIG_M68040
