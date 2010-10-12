@@ -220,7 +220,7 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		ak4642_write(codec, 0x0e, 0x19);
 		ak4642_write(codec, 0x09, 0x91);
 		ak4642_write(codec, 0x0c, 0x91);
-		ak4642_write(codec, 0x00, 0x64);
+		snd_soc_update_bits(codec, 0x00, 0x64, 0x64);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
@@ -242,7 +242,7 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		ak4642_write(codec, 0x08, 0xe1);
 		ak4642_write(codec, 0x0b, 0x00);
 		ak4642_write(codec, 0x07, 0x21);
-		ak4642_write(codec, 0x00, 0x41);
+		snd_soc_update_bits(codec, 0x00, 0x41, 0x41);
 		ak4642_write(codec, 0x10, 0x01);
 	}
 
@@ -259,12 +259,12 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 		/* stop headphone output */
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	0);
-		ak4642_write(codec, 0x00, 0x40);
+		snd_soc_update_bits(codec, 0x00, 0x64, 0x40);
 		ak4642_write(codec, 0x0e, 0x11);
 		ak4642_write(codec, 0x0f, 0x08);
 	} else {
 		/* stop stereo input */
-		ak4642_write(codec, 0x00, 0x40);
+		snd_soc_update_bits(codec, 0x00, 0x41, 0x40);
 		ak4642_write(codec, 0x10, 0x00);
 		ak4642_write(codec, 0x07, 0x01);
 	}
