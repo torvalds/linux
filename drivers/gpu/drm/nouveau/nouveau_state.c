@@ -1051,7 +1051,7 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		}
 		/* FALLTHRU */
 	default:
-		NV_ERROR(dev, "unknown parameter %lld\n", getparam->param);
+		NV_DEBUG(dev, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 
@@ -1066,7 +1066,7 @@ nouveau_ioctl_setparam(struct drm_device *dev, void *data,
 
 	switch (setparam->param) {
 	default:
-		NV_ERROR(dev, "unknown parameter %lld\n", setparam->param);
+		NV_DEBUG(dev, "unknown parameter %lld\n", setparam->param);
 		return -EINVAL;
 	}
 
