@@ -37,7 +37,6 @@ struct osl_info {
 	osl_pubinfo_t pub;
 	uint magic;
 	void *pdev;
-	uint malloced;
 	uint failed;
 	uint bustype;
 };
@@ -128,7 +127,6 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 #endif /* BRCM_FULLMAC */
 
 	osh->magic = OS_HANDLE_MAGIC;
-	osh->malloced = 0;
 	osh->failed = 0;
 	osh->pdev = pdev;
 	osh->pub.pkttag = pkttag;
