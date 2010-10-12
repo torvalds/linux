@@ -464,6 +464,32 @@ err:
 }
 
 /**
+ * irq_reserve_irqs - mark irqs allocated
+ * @from:	mark from irq number
+ * @cnt:	number of irqs to mark
+ *
+ * Returns 0 on success or an appropriate error code
+ */
+int irq_reserve_irqs(unsigned int from, unsigned int cnt)
+{
+	unsigned long flags;
+	unsigned int start;
+	int ret = 0;
+
+	if (!cnt || (from + cnt) > nr_irqs)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
+	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
+	if (start == from)
+		bitmap_set(allocated_irqs, start, cnt);
+	else
+		ret = -EEXIST;
+	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
+	return ret;
+}
+
+/**
  * irq_get_next_irq - get next allocated irq number
  * @offset:	where to start the search
  *

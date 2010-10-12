@@ -400,6 +400,7 @@ static inline struct irq_2_iommu *irq_data_get_iommu(struct irq_data *d)
 
 int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
 void irq_free_descs(unsigned int irq, unsigned int cnt);
+int irq_reserve_irqs(unsigned int from, unsigned int cnt);
 
 static inline int irq_alloc_desc(int node)
 {
