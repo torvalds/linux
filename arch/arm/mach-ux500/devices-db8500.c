@@ -147,7 +147,6 @@ struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 };
 /* Default configuration for logical memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_log = {
-	.channel_type = STEDMA40_NO_TIM_FOR_LINK,
 	.dir = STEDMA40_MEM_TO_MEM,
 
 	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,

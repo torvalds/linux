@@ -38,11 +38,6 @@ enum stedma40_mode_opt {
 	STEDMA40_LCHAN_SRC_LOG_DST_PHY,
 };
 
-/* Interrupt */
-#define STEDMA40_INFO_TIM_POS 10
-#define STEDMA40_NO_TIM_FOR_LINK (0x0 << STEDMA40_INFO_TIM_POS)
-#define STEDMA40_TIM_FOR_LINK (0x1 << STEDMA40_INFO_TIM_POS)
-
 /* End of channel_type configuration */
 
 #define STEDMA40_ESIZE_8_BIT  0x0
