@@ -71,36 +71,32 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 {
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, fpga_trans_work);
-	unsigned long flags;
-	spin_lock_irqsave(&port->work_lock, flags);
-	while (!list_empty(&port->trans_queue)) 
-	{
-		spin_unlock_irqrestore(&port->work_lock, flags);
-		struct spi_fpga_transfer	*t = NULL, *tmp;
-		list_for_each_entry_safe(t, tmp, &port->trans_queue, queue)
-		{
 
-			if (t->id == 0) 
-				break;	
-			DBG("%s:id=%d,txbuf=0x%x\n",__FUNCTION__,t->id,(int)t->txbuf);
-			switch(t->id)
-			{
-				case ID_SPI_FPGA_WRITE:
-					spi_write(port->spi, t->txbuf, t->n_tx);
-					break;
-				default:
-					break;
-					
-			}
-			kfree(t->txbuf);
-			kfree(t);
-		}
+	while (1) {
+		unsigned long flags;
+		struct spi_fpga_transfer *t = NULL;
+
 		spin_lock_irqsave(&port->work_lock, flags);
-		list_del_init(&port->trans_queue);
+		if (!list_empty(&port->trans_queue)) {
+			t = list_first_entry(&port->trans_queue, struct spi_fpga_transfer, queue);
+			list_del(&t->queue);
+		}
+		spin_unlock_irqrestore(&port->work_lock, flags);
 
+		if (!t)	// trans_queue empty
+			break;
+
+		DBG("%s:id=%d,txbuf=0x%x\n",__FUNCTION__,t->id,(int)t->txbuf);
+		switch (t->id) {
+			case ID_SPI_FPGA_WRITE:
+				spi_write(port->spi, t->txbuf, t->n_tx);
+				break;
+			default:
+				break;
+		}
+		kfree(t->txbuf);
+		kfree(t);
 	}
-	spin_unlock_irqrestore(&port->work_lock, flags);
-
 }
 
 int spi_write_work(struct spi_device *spi, u8 *buf, size_t len)
@@ -129,8 +125,8 @@ int spi_write_work(struct spi_device *spi, u8 *buf, size_t len)
 
 	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->trans_queue);
-	queue_work(port->fpga_trans_workqueue, &port->fpga_trans_work);
 	spin_unlock_irqrestore(&port->work_lock, flags);
+	queue_work(port->fpga_trans_workqueue, &port->fpga_trans_work);
 
 	return 0;
 
@@ -720,8 +716,8 @@ static int spi_fpga_suspend(struct spi_device *spi, pm_message_t state)
 {
 
 	struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
-	fpga_close_power_support( );
 	int ret;
+	fpga_close_power_support( );
 	ret = spi_fpga_wait_suspend(port);
 	if(!ret)
 	{
