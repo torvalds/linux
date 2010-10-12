@@ -121,6 +121,6 @@ struct page *arm_attrib_alloc_pages_exact_node(int nid, gfp_t gfp,
 			update_pte(p, prot);
 	}
 	base = page_to_phys(page);
-	outer_flush_range(base, base + (size >> PAGE_SHIFT));
+	outer_flush_range(base, base + size);
 	return page;
 }
