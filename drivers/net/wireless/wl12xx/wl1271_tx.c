@@ -52,7 +52,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	int id, ret = -EBUSY;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
-		return -EBUSY;
+		return -EAGAIN;
 
 	/* allocate free identifier for the packet */
 	id = wl1271_tx_id(wl, skb);
@@ -210,7 +210,8 @@ void wl1271_tx_work(struct work_struct *work)
 	struct sk_buff *skb;
 	bool woken_up = false;
 	u32 sta_rates = 0;
-	u32 buf_offset;
+	u32 buf_offset = 0;
+	bool sent_packets = false;
 	int ret;
 
 	/* check if the rates supported by the AP have changed */
@@ -233,9 +234,6 @@ void wl1271_tx_work(struct work_struct *work)
 		wl1271_acx_rate_policies(wl);
 	}
 
-	/* Prepare the transfer buffer, by aggregating all
-	 * available packets */
-	buf_offset = 0;
 	while ((skb = skb_dequeue(&wl->tx_queue))) {
 		if (!woken_up) {
 			ret = wl1271_ps_elp_wakeup(wl, false);
@@ -245,10 +243,20 @@ void wl1271_tx_work(struct work_struct *work)
 		}
 
 		ret = wl1271_prepare_tx_frame(wl, skb, buf_offset);
-		if (ret == -EBUSY) {
+		if (ret == -EAGAIN) {
 			/*
-			 * Either the firmware buffer is full, or the
-			 * aggregation buffer is.
+			 * Aggregation buffer is full.
+			 * Flush buffer and try again.
+			 */
+			skb_queue_head(&wl->tx_queue, skb);
+			wl1271_write(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
+				buf_offset, true);
+			sent_packets = true;
+			buf_offset = 0;
+			continue;
+		} else if (ret == -EBUSY) {
+			/*
+			 * Firmware buffer is full.
 			 * Queue back last skb, and stop aggregating.
 			 */
 			skb_queue_head(&wl->tx_queue, skb);
@@ -265,6 +273,9 @@ out_ack:
 	if (buf_offset) {
 		wl1271_write(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
 				buf_offset, true);
+		sent_packets = true;
+	}
+	if (sent_packets) {
 		/* interrupt the firmware with the new packets */
 		wl1271_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
 	}
