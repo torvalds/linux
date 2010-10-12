@@ -93,14 +93,14 @@ static struct davinci_i2c_platform_data mityomap_i2c_0_pdata = {
 
 /* TPS65023 voltage regulator support */
 /* 1.2V Core */
-struct regulator_consumer_supply tps65023_dcdc1_consumers[] = {
+static struct regulator_consumer_supply tps65023_dcdc1_consumers[] = {
 	{
 		.supply = "cvdd",
 	},
 };
 
 /* 1.8V */
-struct regulator_consumer_supply tps65023_dcdc2_consumers[] = {
+static struct regulator_consumer_supply tps65023_dcdc2_consumers[] = {
 	{
 		.supply = "usb0_vdda18",
 	},
@@ -116,7 +116,7 @@ struct regulator_consumer_supply tps65023_dcdc2_consumers[] = {
 };
 
 /* 1.2V */
-struct regulator_consumer_supply tps65023_dcdc3_consumers[] = {
+static struct regulator_consumer_supply tps65023_dcdc3_consumers[] = {
 	{
 		.supply = "sata_vdd",
 	},
@@ -132,20 +132,20 @@ struct regulator_consumer_supply tps65023_dcdc3_consumers[] = {
 };
 
 /* 1.8V Aux LDO, not used */
-struct regulator_consumer_supply tps65023_ldo1_consumers[] = {
+static struct regulator_consumer_supply tps65023_ldo1_consumers[] = {
 	{
 		.supply = "1.8v_aux",
 	},
 };
 
 /* FPGA VCC Aux (2.5 or 3.3) LDO */
-struct regulator_consumer_supply tps65023_ldo2_consumers[] = {
+static struct regulator_consumer_supply tps65023_ldo2_consumers[] = {
 	{
 		.supply = "vccaux",
 	},
 };
 
-struct regulator_init_data tps65023_regulator_data[] = {
+static struct regulator_init_data tps65023_regulator_data[] = {
 	/* dcdc1 */
 	{
 		.constraints = {
@@ -226,7 +226,7 @@ static int __init pmic_tps65023_init(void)
  * MityDSP-L138 includes a 256 MByte large-page NAND flash
  * (128K blocks).
  */
-struct mtd_partition mityomapl138_nandflash_partition[] = {
+static struct mtd_partition mityomapl138_nandflash_partition[] = {
 	{
 		.name		= "rootfs",
 		.offset		= 0,
