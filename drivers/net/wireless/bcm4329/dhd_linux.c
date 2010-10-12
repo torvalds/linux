@@ -280,7 +280,7 @@ char nvram_path[MOD_PARAM_PATHLEN];
 extern int	 wl_control_wl_start(struct net_device *dev);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 struct semaphore dhd_registration_sem;
-#define DHD_REGISTRATION_TIMEOUT  8000  /* msec : allowed time to finished dhd registration */
+#define DHD_REGISTRATION_TIMEOUT  10000  /* msec : allowed time to finished dhd registration */
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
 /* load firmware and/or nvram values from the filesystem */
 module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0);
