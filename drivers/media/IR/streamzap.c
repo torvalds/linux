@@ -221,7 +221,7 @@ static void streamzap_callback(struct urb *urb)
 	struct streamzap_ir *sz;
 	unsigned int i;
 	int len;
-	static int timeout = (((SZ_TIMEOUT * SZ_RESOLUTION) &
+	static int timeout = (((SZ_TIMEOUT * SZ_RESOLUTION * 1000) &
 				IR_MAX_DURATION) | 0x03000000);
 
 	if (!urb)
@@ -273,7 +273,7 @@ static void streamzap_callback(struct urb *urb)
 				struct ir_raw_event rawir;
 
 				rawir.pulse = false;
-				rawir.duration = timeout * 1000;
+				rawir.duration = timeout;
 				sz->idle = true;
 				if (sz->timeout_enabled)
 					sz_push(sz, rawir);
