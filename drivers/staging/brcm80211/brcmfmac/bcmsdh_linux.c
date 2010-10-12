@@ -195,12 +195,11 @@ int bcmsdh_probe(struct device *dev)
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
 	}
-	sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t));
+	sdhc = kzalloc(sizeof(bcmsdh_hc_t), GFP_ATOMIC);
 	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
 	}
-	bzero(sdhc, sizeof(bcmsdh_hc_t));
 	sdhc->osh = osh;
 
 	sdhc->dev = (void *)dev;
@@ -427,12 +426,11 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
 	}
-	sdhc = MALLOC(osh, sizeof(bcmsdh_hc_t));
+	sdhc = kzalloc(sizeof(bcmsdh_hc_t), GFP_ATOMIC);
 	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
 	}
-	bzero(sdhc, sizeof(bcmsdh_hc_t));
 	sdhc->osh = osh;
 
 	sdhc->dev = pdev;

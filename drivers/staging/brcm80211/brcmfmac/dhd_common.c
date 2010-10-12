@@ -998,7 +998,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	wl_pkt_filter_enable_t enable_parm;
 	wl_pkt_filter_enable_t *pkt_filterp;
 
-	arg_save = MALLOC(dhd->osh, strlen(arg) + 1);
+	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
 	if (!arg_save) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
@@ -1070,7 +1070,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	char *arg_save = 0, *arg_org = 0;
 #define BUF_SIZE		2048
 
-	arg_save = MALLOC(dhd->osh, strlen(arg) + 1);
+	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
 	if (!arg_save) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
@@ -1078,7 +1078,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	arg_org = arg_save;
 
-	buf = MALLOC(dhd->osh, BUF_SIZE);
+	buf = kmalloc(BUF_SIZE, GFP_ATOMIC);
 	if (!buf) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
@@ -1363,7 +1363,7 @@ iscan_buf_t *dhd_iscan_allocate_buf(dhd_pub_t *dhd, iscan_buf_t **iscanbuf)
 
 	dhd_iscan_lock();
 
-	iscanbuf_alloc = (iscan_buf_t *) MALLOC(dhd->osh, sizeof(iscan_buf_t));
+	iscanbuf_alloc = kmalloc(sizeof(iscan_buf_t), GFP_ATOMIC);
 	if (iscanbuf_alloc == NULL)
 		goto fail;
 

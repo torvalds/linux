@@ -285,26 +285,6 @@ uint osl_pci_slot(osl_t *osh)
 	return PCI_SLOT(((struct pci_dev *)osh->pdev)->devfn);
 }
 
-void *osl_malloc(osl_t *osh, uint size)
-{
-	void *addr;
-
-	/* only ASSERT if osh is defined */
-	if (osh)
-		ASSERT(osh->magic == OS_HANDLE_MAGIC);
-
-	addr = kmalloc(size, GFP_ATOMIC);
-	if (addr == NULL) {
-		if (osh)
-			osh->failed++;
-		return NULL;
-	}
-	if (osh)
-		osh->malloced += size;
-
-	return addr;
-}
-
 void osl_mfree(osl_t *osh, void *addr, uint size)
 {
 	if (osh) {

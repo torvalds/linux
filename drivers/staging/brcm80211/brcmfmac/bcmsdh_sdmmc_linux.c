@@ -148,7 +148,7 @@ int sdioh_sdmmc_osinit(sdioh_info_t *sd)
 {
 	struct sdos_info *sdos;
 
-	sdos = (struct sdos_info *)MALLOC(sd->osh, sizeof(struct sdos_info));
+	sdos = kmalloc(sizeof(struct sdos_info), GFP_ATOMIC);
 	sd->sdos_info = (void *)sdos;
 	if (sdos == NULL)
 		return BCME_NOMEM;

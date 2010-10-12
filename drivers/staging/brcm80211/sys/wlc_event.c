@@ -58,11 +58,9 @@ wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc, void *wl,
 {
 	wlc_eventq_t *eq;
 
-	eq = (wlc_eventq_t *) MALLOC(pub->osh, sizeof(wlc_eventq_t));
+	eq = kzalloc(sizeof(wlc_eventq_t), GFP_ATOMIC);
 	if (eq == NULL)
 		return NULL;
-
-	bzero(eq, sizeof(wlc_eventq_t));
 
 	eq->cb = cb;
 	eq->wlc = wlc;
@@ -125,12 +123,11 @@ wlc_event_t *wlc_event_alloc(wlc_eventq_t *eq)
 {
 	wlc_event_t *e;
 
-	e = MALLOC(eq->pub->osh, sizeof(wlc_event_t));
+	e = kzalloc(sizeof(wlc_event_t), GFP_ATOMIC);
 
 	if (e == NULL)
 		return NULL;
 
-	bzero(e, sizeof(wlc_event_t));
 	return e;
 }
 

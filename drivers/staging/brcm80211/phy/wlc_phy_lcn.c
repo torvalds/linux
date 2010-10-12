@@ -1882,7 +1882,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
 
-	values_to_save = MALLOC(pi->sh->osh, sizeof(u16) * 20);
+	values_to_save = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
 	if (NULL == values_to_save) {
 		return;
 	}
@@ -3289,7 +3289,7 @@ wlc_lcnphy_rx_iq_cal(phy_info_t *pi, const lcnphy_rx_iqcomp_t *iqcomp,
 	s16 *ptr;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
-	ptr = MALLOC(pi->sh->osh, sizeof(s16) * 131);
+	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
 	if (NULL == ptr) {
 		return false;
 	}
@@ -4038,12 +4038,12 @@ wlc_lcnphy_a1(phy_info_t *pi, int cal_type, int num_levels, int step_size_lg2)
 	u16 *phy_c32;
 	phy_c21 = 0;
 	phy_c10 = phy_c13 = phy_c14 = phy_c8 = 0;
-	ptr = MALLOC(pi->sh->osh, sizeof(s16) * 131);
+	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
 	if (NULL == ptr) {
 		return;
 	}
 
-	phy_c32 = MALLOC(pi->sh->osh, sizeof(u16) * 20);
+	phy_c32 = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
 	if (NULL == phy_c32) {
 		return;
 	}
@@ -5054,13 +5054,10 @@ bool wlc_phy_attach_lcnphy(phy_info_t *pi)
 {
 	phy_info_lcnphy_t *pi_lcn;
 
-	pi->u.pi_lcnphy =
-	    (phy_info_lcnphy_t *) MALLOC(pi->sh->osh,
-					 sizeof(phy_info_lcnphy_t));
+	pi->u.pi_lcnphy = kzalloc(sizeof(phy_info_lcnphy_t), GFP_ATOMIC);
 	if (pi->u.pi_lcnphy == NULL) {
 		return false;
 	}
-	bzero((char *)pi->u.pi_lcnphy, sizeof(phy_info_lcnphy_t));
 
 	pi_lcn = pi->u.pi_lcnphy;
 

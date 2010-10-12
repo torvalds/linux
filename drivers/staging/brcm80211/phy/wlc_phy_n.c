@@ -22360,7 +22360,7 @@ wlc_phy_gen_load_samples_nphy(phy_info_t *pi, u32 f_kHz, u16 max_val,
 		tbl_len = (phy_bw << 1);
 	}
 
-	tone_buf = (cs32 *) MALLOC(pi->sh->osh, sizeof(cs32) * tbl_len);
+	tone_buf = kmalloc(sizeof(cs32) * tbl_len, GFP_ATOMIC);
 	if (tone_buf == NULL) {
 		return 0;
 	}
@@ -22414,7 +22414,7 @@ wlc_phy_loadsampletable_nphy(phy_info_t *pi, cs32 *tone_buf,
 	u16 t;
 	u32 *data_buf = NULL;
 
-	data_buf = (u32 *) MALLOC(pi->sh->osh, sizeof(u32) * num_samps);
+	data_buf = kmalloc(sizeof(u32) * num_samps, GFP_ATOMIC);
 	if (data_buf == NULL) {
 		return;
 	}
@@ -26727,7 +26727,7 @@ wlc_phy_a1_nphy(phy_info_t *pi, u8 core, u32 winsz, u32 start,
 	ASSERT(end > start);
 	ASSERT(end < NPHY_PAPD_EPS_TBL_SIZE);
 
-	buf = MALLOC(pi->sh->osh, 2 * sizeof(u32) * NPHY_PAPD_EPS_TBL_SIZE);
+	buf = kmalloc(2 * sizeof(u32) * NPHY_PAPD_EPS_TBL_SIZE, GFP_ATOMIC);
 	if (NULL == buf) {
 		return;
 	}

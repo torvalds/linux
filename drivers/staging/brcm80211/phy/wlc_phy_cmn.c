@@ -555,11 +555,10 @@ shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
 {
 	shared_phy_t *sh;
 
-	sh = (shared_phy_t *) MALLOC(shp->osh, sizeof(shared_phy_t));
+	sh = kzalloc(sizeof(shared_phy_t), GFP_ATOMIC);
 	if (sh == NULL) {
 		return NULL;
 	}
-	bzero((char *)sh, sizeof(shared_phy_t));
 
 	sh->osh = shp->osh;
 	sh->sih = shp->sih;
@@ -633,11 +632,10 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 		return &pi->pubpi_ro;
 	}
 
-	pi = (phy_info_t *) MALLOC(osh, sizeof(phy_info_t));
+	pi = kzalloc(sizeof(phy_info_t), GFP_ATOMIC);
 	if (pi == NULL) {
 		return NULL;
 	}
-	bzero((char *)pi, sizeof(phy_info_t));
 	pi->regs = (d11regs_t *) regs;
 	pi->sh = sh;
 	pi->phy_init_por = true;

@@ -115,13 +115,11 @@ void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
 	ASSERT(sih->bustype == PCI_BUS);
 
 	/* alloc pcicore_info_t */
-	pi = MALLOC(osh, sizeof(pcicore_info_t));
+	pi = kzalloc(sizeof(pcicore_info_t), GFP_ATOMIC);
 	if (pi == NULL) {
 		PCI_ERROR(("pci_attach: malloc failed!\n"));
 		return NULL;
 	}
-
-	bzero(pi, sizeof(pcicore_info_t));
 
 	pi->sih = sih;
 	pi->osh = osh;

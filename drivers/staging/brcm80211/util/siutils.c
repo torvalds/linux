@@ -88,7 +88,7 @@ si_t *si_attach(uint devid, osl_t *osh, void *regs, uint bustype, void *sdh,
 	si_info_t *sii;
 
 	/* alloc si_info_t */
-	sii = MALLOC(osh, sizeof(si_info_t));
+	sii = kmalloc(sizeof(si_info_t), GFP_ATOMIC);
 	if (sii == NULL) {
 		SI_ERROR(("si_attach: malloc failed!\n"));
 		return NULL;

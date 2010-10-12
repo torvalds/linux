@@ -712,7 +712,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	/* Send down the multicast list first. */
 
 	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETHER_ADDR_LEN);
-	bufp = buf = MALLOC(dhd->pub.osh, buflen);
+	bufp = buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!bufp) {
 		DHD_ERROR(("%s: out of memory for mcast_list, cnt %d\n",
 			   dhd_ifname(&dhd->pub, ifidx), cnt));
@@ -755,7 +755,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	 */
 
 	buflen = sizeof("allmulti") + sizeof(allmulti);
-	buf = MALLOC(dhd->pub.osh, buflen);
+	buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!buf) {
 		DHD_ERROR(("%s: out of memory for allmulti\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
@@ -1676,7 +1676,7 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		   } else {
 		 */
 		{
-			buf = (char *)MALLOC(dhd->pub.osh, buflen);
+			buf = kmalloc(buflen, GFP_ATOMIC);
 			if (!buf) {
 				bcmerror = -BCME_NOMEM;
 				goto done;
@@ -1841,7 +1841,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	ASSERT(dhd && (ifidx < DHD_MAX_IFS));
 
 	ifp = dhd->iflist[ifidx];
-	if (!ifp && !(ifp = MALLOC(dhd->pub.osh, sizeof(dhd_if_t)))) {
+	if (!ifp && !(ifp = kmalloc(sizeof(dhd_if_t), GFP_ATOMIC))) {
 		DHD_ERROR(("%s: OOM - dhd_if_t\n", __func__));
 		return -ENOMEM;
 	}
@@ -1904,7 +1904,7 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	}
 
 	/* Allocate primary dhd_info */
-	dhd = MALLOC(osh, sizeof(dhd_info_t));
+	dhd = kmalloc(sizeof(dhd_info_t), GFP_ATOMIC);
 	if (!dhd) {
 		DHD_ERROR(("%s: OOM - alloc dhd_info\n", __func__));
 		goto fail;

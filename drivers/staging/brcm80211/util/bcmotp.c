@@ -760,7 +760,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 
 	/* Read the whole otp so we can easily manipulate it */
 	lim = hndotp_size(oh);
-	rawotp = MALLOC(si_osh(oi->sih), lim);
+	rawotp = kmalloc(lim, GFP_ATOMIC);
 	if (rawotp == NULL) {
 		rc = -2;
 		goto out;

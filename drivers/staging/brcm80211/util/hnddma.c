@@ -378,15 +378,13 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	uint size;
 
 	/* allocate private info structure */
-	di = MALLOC(osh, sizeof(dma_info_t));
+	di = kzalloc(sizeof(dma_info_t), GFP_ATOMIC);
 	if (di == NULL) {
 #ifdef BCMDBG
 		printf("dma_attach: out of memory\n");
 #endif
 		return NULL;
 	}
-
-	bzero((char *)di, sizeof(dma_info_t));
 
 	di->msg_level = msg_level ? msg_level : &dma_msg_level;
 
@@ -514,23 +512,21 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	/* allocate tx packet pointer vector */
 	if (ntxd) {
 		size = ntxd * sizeof(void *);
-		di->txp = MALLOC(osh, size);
+		di->txp = kzalloc(size, GFP_ATOMIC);
 		if (di->txp == NULL) {
 			DMA_ERROR(("%s: dma_attach: out of tx memory\n", di->name));
 			goto fail;
 		}
-		bzero((char *)di->txp, size);
 	}
 
 	/* allocate rx packet pointer vector */
 	if (nrxd) {
 		size = nrxd * sizeof(void *);
-		di->rxp = MALLOC(osh, size);
+		di->rxp = kzalloc(size, GFP_ATOMIC);
 		if (di->rxp == NULL) {
 			DMA_ERROR(("%s: dma_attach: out of rx memory\n", di->name));
 			goto fail;
 		}
-		bzero((char *)di->rxp, size);
 	}
 
 	/* allocate transmit descriptor ring, only need ntxd descriptors but it must be aligned */
@@ -562,18 +558,16 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	if (DMASGLIST_ENAB) {
 		if (ntxd) {
 			size = ntxd * sizeof(hnddma_seg_map_t);
-			di->txp_dmah = (hnddma_seg_map_t *) MALLOC(osh, size);
+			di->txp_dmah = kzalloc(size, GFP_ATOMIC);
 			if (di->txp_dmah == NULL)
 				goto fail;
-			bzero((char *)di->txp_dmah, size);
 		}
 
 		if (nrxd) {
 			size = nrxd * sizeof(hnddma_seg_map_t);
-			di->rxp_dmah = (hnddma_seg_map_t *) MALLOC(osh, size);
+			di->rxp_dmah = kzalloc(size, GFP_ATOMIC);
 			if (di->rxp_dmah == NULL)
 				goto fail;
-			bzero((char *)di->rxp_dmah, size);
 		}
 	}
 

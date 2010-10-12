@@ -398,7 +398,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 
 	boardnum = -1;
 
-	base = MALLOC(osh, MAXSZ_NVRAM_VARS);
+	base = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
 	ASSERT(base != NULL);
 	if (!base)
 		return -2;
@@ -1509,12 +1509,10 @@ static int otp_read_pci(osl_t *osh, si_t *sih, u16 *buf, uint bufsz)
 
 	ASSERT(bufsz <= OTP_SZ_MAX);
 
-	otp = MALLOC(osh, OTP_SZ_MAX);
+	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
 	if (otp == NULL) {
 		return BCME_ERROR;
 	}
-
-	bzero(otp, OTP_SZ_MAX);
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
 
@@ -1558,7 +1556,7 @@ static int initvars_table(osl_t *osh, char *start, char *end, char **vars,
 
 	/* do it only when there is more than just the null string */
 	if (c > 1) {
-		char *vp = MALLOC(osh, c);
+		char *vp = kmalloc(c, GFP_ATOMIC);
 		ASSERT(vp != NULL);
 		if (!vp)
 			return BCME_NOMEM;
@@ -1588,7 +1586,7 @@ static int initvars_flash(si_t *sih, osl_t *osh, char **base, uint len)
 	char devpath[SI_DEVPATH_BUFSZ];
 
 	/* allocate memory and read in flash */
-	flash = MALLOC(osh, NVRAM_SPACE);
+	flash = kmalloc(NVRAM_SPACE, GFP_ATOMIC);
 	if (!flash)
 		return BCME_NOMEM;
 	err = nvram_getall(flash, NVRAM_SPACE);
@@ -1645,7 +1643,7 @@ static int initvars_flash_si(si_t *sih, char **vars, uint *count)
 	ASSERT(vars != NULL);
 	ASSERT(count != NULL);
 
-	base = vp = MALLOC(osh, MAXSZ_NVRAM_VARS);
+	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
 	ASSERT(vp != NULL);
 	if (!vp)
 		return BCME_NOMEM;
@@ -1859,7 +1857,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	 * if we should return an error when CRC fails or read SROM variables
 	 * from flash.
 	 */
-	srom = MALLOC(osh, SROM_MAX);
+	srom = kmalloc(SROM_MAX, GFP_ATOMIC);
 	ASSERT(srom != NULL);
 	if (!srom)
 		return -2;
@@ -1947,7 +1945,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	ASSERT(vars != NULL);
 	ASSERT(count != NULL);
 
-	base = vp = MALLOC(osh, MAXSZ_NVRAM_VARS);
+	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
 	ASSERT(vp != NULL);
 	if (!vp) {
 		err = -2;
@@ -2000,13 +1998,11 @@ static int initvars_cis_sdio(osl_t *osh, char **vars, uint *count)
 	ASSERT(numfn <= SDIOD_MAX_IOFUNCS);
 
 	for (fn = 0; fn <= numfn; fn++) {
-		cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT)
+		cis[fn] = kzalloc(SBSDIO_CIS_SIZE_LIMIT, GFP_ATOMIC);
 		if (cis[fn] == NULL) {
 			rc = -1;
 			break;
 		}
-
-		bzero(cis[fn], SBSDIO_CIS_SIZE_LIMIT);
 
 		if (bcmsdh_cis_read(NULL, fn, cis[fn], SBSDIO_CIS_SIZE_LIMIT) !=
 		    0) {

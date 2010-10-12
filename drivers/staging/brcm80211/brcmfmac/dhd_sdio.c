@@ -1822,18 +1822,18 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 		 * allocate memory to trace the trap or assert.
 		 */
 		size = msize;
-		mbuffer = data = MALLOC(bus->dhd->osh, msize);
+		mbuffer = data = kmalloc(msize, GFP_ATOMIC);
 		if (mbuffer == NULL) {
-			DHD_ERROR(("%s: MALLOC(%d) failed\n", __func__,
+			DHD_ERROR(("%s: kmalloc(%d) failed\n", __func__,
 				   msize));
 			bcmerror = BCME_NOMEM;
 			goto done;
 		}
 	}
 
-	str = MALLOC(bus->dhd->osh, maxstrlen);
+	str = kmalloc(maxstrlen, GFP_ATOMIC);
 	if (str == NULL) {
-		DHD_ERROR(("%s: MALLOC(%d) failed\n", __func__, maxstrlen));
+		DHD_ERROR(("%s: kmalloc(%d) failed\n", __func__, maxstrlen));
 		bcmerror = BCME_NOMEM;
 		goto done;
 	}
@@ -1944,7 +1944,7 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus)
 
 	/* Get full mem size */
 	size = bus->ramsize;
-	buf = MALLOC(bus->dhd->osh, size);
+	buf = kmalloc(size, GFP_ATOMIC);
 	if (!buf) {
 		printf("%s: Out of memory (%d bytes)\n", __func__, size);
 		return -1;
@@ -2004,7 +2004,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 	/* Allocate console buffer (one time only) */
 	if (c->buf == NULL) {
 		c->bufsize = ltoh32(c->log.buf_size);
-		c->buf = MALLOC(bus->dhd->osh, c->bufsize);
+		c->buf = kmalloc(c->bufsize, GFP_ATOMIC);
 		if (c->buf == NULL)
 			return BCME_NOMEM;
 	}
@@ -2080,7 +2080,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 	if (bus->vars)
 		MFREE(bus->dhd->osh, bus->vars, bus->varsz);
 
-	bus->vars = MALLOC(bus->dhd->osh, len);
+	bus->vars = kmalloc(len, GFP_ATOMIC);
 	bus->varsz = bus->vars ? len : 0;
 	if (bus->vars == NULL) {
 		bcmerror = BCME_NOMEM;
@@ -2526,7 +2526,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 	varaddr = (bus->ramsize - 4) - varsize;
 
 	if (bus->vars) {
-		vbuffer = (u8 *) MALLOC(bus->dhd->osh, varsize);
+		vbuffer = kmalloc(varsize, GFP_ATOMIC);
 		if (!vbuffer)
 			return BCME_NOMEM;
 
@@ -2539,7 +2539,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 #ifdef DHD_DEBUG
 		/* Verify NVRAM bytes */
 		DHD_INFO(("Compare NVRAM dl & ul; varsize=%d\n", varsize));
-		nvram_ularray = (char *)MALLOC(bus->dhd->osh, varsize);
+		nvram_ularray = kmalloc(varsize, GFP_ATOMIC);
 		if (!nvram_ularray)
 			return BCME_NOMEM;
 
@@ -5147,12 +5147,11 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	}
 
 	/* Allocate private bus interface state */
-	bus = MALLOC(osh, sizeof(dhd_bus_t));
+	bus = kzalloc(sizeof(dhd_bus_t), GFP_ATOMIC);
 	if (!bus) {
-		DHD_ERROR(("%s: MALLOC of dhd_bus_t failed\n", __func__));
+		DHD_ERROR(("%s: kmalloc of dhd_bus_t failed\n", __func__));
 		goto fail;
 	}
-	bzero(bus, sizeof(dhd_bus_t));
 	bus->sdh = sdh;
 	bus->cl_devid = (u16) devid;
 	bus->bus = DHD_BUS;
@@ -5274,7 +5273,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 		udelay(65);
 
 		for (fn = 0; fn <= numfn; fn++) {
-			cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT);
+			cis[fn] = kmalloc(SBSDIO_CIS_SIZE_LIMIT, GFP_ATOMIC);
 			if (!cis[fn]) {
 				DHD_INFO(("dhdsdio_probe: fn %d cis malloc "
 					"failed\n", fn));
@@ -5386,18 +5385,18 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 		bus->rxblen =
 		    roundup((bus->dhd->maxctl + SDPCM_HDRLEN),
 			    ALIGNMENT) + DHD_SDALIGN;
-		bus->rxbuf = MALLOC(osh, bus->rxblen);
+		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf)) {
-			DHD_ERROR(("%s: MALLOC of %d-byte rxbuf failed\n",
+			DHD_ERROR(("%s: kmalloc of %d-byte rxbuf failed\n",
 				   __func__, bus->rxblen));
 			goto fail;
 		}
 	}
 
 	/* Allocate buffer to receive glomed packet */
-	bus->databuf = MALLOC(osh, MAX_DATA_BUF);
+	bus->databuf = kmalloc(MAX_DATA_BUF, GFP_ATOMIC);
 	if (!(bus->databuf)) {
-		DHD_ERROR(("%s: MALLOC of %d-byte databuf failed\n",
+		DHD_ERROR(("%s: kmalloc of %d-byte databuf failed\n",
 			   __func__, MAX_DATA_BUF));
 		/* release rxbuf which was already located as above */
 		if (!bus->rxblen)
@@ -5672,7 +5671,7 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 	{
 		unsigned char *ularray;
 
-		ularray = MALLOC(bus->dhd->osh, bus->ramsize);
+		ularray = kmalloc(bus->ramsize, GFP_ATOMIC);
 		/* Upload image to verify downloaded contents. */
 		offset = 0;
 		memset(ularray, 0xaa, bus->ramsize);
@@ -5734,7 +5733,7 @@ static int dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 	if (image == NULL)
 		goto err;
 
-	memptr = memblock = MALLOC(bus->dhd->osh, MEMBLOCK + DHD_SDALIGN);
+	memptr = memblock = kmalloc(MEMBLOCK + DHD_SDALIGN, GFP_ATOMIC);
 	if (memblock == NULL) {
 		DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
 			   __func__, MEMBLOCK));
@@ -5861,7 +5860,7 @@ static int dhdsdio_download_nvram(struct dhd_bus *bus)
 			goto err;
 	}
 
-	memblock = MALLOC(bus->dhd->osh, MEMBLOCK);
+	memblock = kmalloc(MEMBLOCK, GFP_ATOMIC);
 	if (memblock == NULL) {
 		DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
 			   __func__, MEMBLOCK));

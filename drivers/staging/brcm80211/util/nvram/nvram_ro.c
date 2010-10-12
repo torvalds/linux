@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <linux/string.h>
@@ -58,7 +59,7 @@ static void get_flash_nvram(si_t *sih, struct nvram_header *nvh)
 	nvs = R_REG(osh, &nvh->len) - sizeof(struct nvram_header);
 	bufsz = nvs + VARS_T_OH;
 
-	new = (vars_t *) MALLOC(osh, bufsz);
+	new = kmalloc(bufsz, GFP_ATOMIC);
 	if (new == NULL) {
 		NVR_MSG(("Out of memory for flash vars\n"));
 		return;
@@ -93,7 +94,7 @@ int nvram_append(void *si, char *varlst, uint varsz)
 	uint bufsz = VARS_T_OH;
 	vars_t *new;
 
-	new = MALLOC(si_osh((si_t *) si), bufsz);
+	new = kmalloc(bufsz, GFP_ATOMIC);
 	if (new == NULL)
 		return BCME_NOMEM;
 

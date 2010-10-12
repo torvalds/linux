@@ -1657,7 +1657,7 @@ wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
 
 	WL_TRACE(("wl%d: wl_schedule_task\n", wl->pub->unit));
 
-	task = osl_malloc(wl->osh, sizeof(wl_task_t));
+	task = kmalloc(sizeof(wl_task_t), GFP_ATOMIC);
 	if (!task) {
 		WL_ERROR(("wl%d: wl_schedule_task: out of memory\n", wl->pub->unit));
 		return -ENOMEM;
@@ -1911,7 +1911,7 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 {
 	wl_timer_t *t;
 
-	t = osl_malloc(wl->osh, sizeof(wl_timer_t));
+	t = kmalloc(sizeof(wl_timer_t), GFP_ATOMIC);
 	if (!t) {
 		WL_ERROR(("wl%d: wl_init_timer: out of memory\n", wl->pub->unit));
 		return 0;
@@ -1929,7 +1929,7 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 	wl->timers = t;
 
 #ifdef BCMDBG
-	t->name = osl_malloc(wl->osh, strlen(name) + 1);
+	t->name = kmalloc(strlen(name) + 1, GFP_ATOMIC);
 	if (t->name)
 		strcpy(t->name, name);
 #endif

@@ -123,12 +123,11 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 		return NULL;
 	}
 
-	sd = (sdioh_info_t *) MALLOC(osh, sizeof(sdioh_info_t));
+	sd = kzalloc(sizeof(sdioh_info_t), GFP_ATOMIC);
 	if (sd == NULL) {
 		sd_err(("sdioh_attach: out of memory\n"));
 		return NULL;
 	}
-	bzero((char *)sd, sizeof(sdioh_info_t));
 	sd->osh = osh;
 	if (sdioh_sdmmc_osinit(sd) != 0) {
 		sd_err(("%s:sdioh_sdmmc_osinit() failed\n", __func__));

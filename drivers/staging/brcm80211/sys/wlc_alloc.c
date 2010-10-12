@@ -37,11 +37,9 @@ void *wlc_calloc(osl_t *osh, uint unit, uint size)
 {
 	void *item;
 
-	item = MALLOC(osh, size);
+	item = kzalloc(size, GFP_ATOMIC);
 	if (item == NULL)
 		WL_ERROR(("wl%d: %s: out of memory\n", unit, __func__));
-	else
-		bzero((char *)item, size);
 	return item;
 }
 

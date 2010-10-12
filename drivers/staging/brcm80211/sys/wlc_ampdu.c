@@ -179,12 +179,11 @@ ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc)
 	ASSERT(wlc->pub->tunables->ampdunummpdu <= AMPDU_MAX_MPDU);
 	ASSERT(wlc->pub->tunables->ampdunummpdu > 0);
 
-	ampdu = (ampdu_info_t *) MALLOC(wlc->osh, sizeof(ampdu_info_t));
+	ampdu = kzalloc(sizeof(ampdu_info_t), GFP_ATOMIC);
 	if (!ampdu) {
 		WL_ERROR(("wl%d: wlc_ampdu_attach: out of mem\n", wlc->pub->unit));
 		return NULL;
 	}
-	bzero((char *)ampdu, sizeof(ampdu_info_t));
 	ampdu->wlc = wlc;
 
 	for (i = 0; i < AMPDU_MAX_SCB_TID; i++)

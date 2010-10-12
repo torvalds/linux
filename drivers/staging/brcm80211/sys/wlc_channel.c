@@ -612,12 +612,11 @@ wlc_cm_info_t *wlc_channel_mgr_attach(wlc_info_t *wlc)
 
 	WL_TRACE(("wl%d: wlc_channel_mgr_attach\n", wlc->pub->unit));
 
-	wlc_cm = (wlc_cm_info_t *) MALLOC(pub->osh, sizeof(wlc_cm_info_t));
+	wlc_cm = kzalloc(sizeof(wlc_cm_info_t), GFP_ATOMIC);
 	if (wlc_cm == NULL) {
 		WL_ERROR(("wl%d: %s: out of memory", pub->unit, __func__));
 		return NULL;
 	}
-	bzero((char *)wlc_cm, sizeof(wlc_cm_info_t));
 	wlc_cm->pub = pub;
 	wlc_cm->wlc = wlc;
 	wlc->cmi = wlc_cm;

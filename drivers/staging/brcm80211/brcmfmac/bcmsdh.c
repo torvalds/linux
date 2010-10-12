@@ -58,12 +58,11 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 {
 	bcmsdh_info_t *bcmsdh;
 
-	bcmsdh = (bcmsdh_info_t *) MALLOC(osh, sizeof(bcmsdh_info_t));
+	bcmsdh = kzalloc(sizeof(bcmsdh_info_t), GFP_ATOMIC);
 	if (bcmsdh == NULL) {
 		BCMSDH_ERROR(("bcmsdh_attach: out of memory"));
 		return NULL;
 	}
-	bzero((char *)bcmsdh, sizeof(bcmsdh_info_t));
 
 	/* save the handler locally */
 	l_bcmsdh = bcmsdh;
@@ -317,7 +316,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 	if (ascii) {
 		/* Move binary bits to tmp and format them
 			 into the provided buffer. */
-		tmp_buf = (u8 *) MALLOC(bcmsdh->osh, length);
+		tmp_buf = kmalloc(length, GFP_ATOMIC);
 		if (tmp_buf == NULL) {
 			BCMSDH_ERROR(("%s: out of memory\n", __func__));
 			return BCME_NOMEM;

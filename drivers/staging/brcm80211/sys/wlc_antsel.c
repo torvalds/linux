@@ -94,13 +94,11 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 						  wlc_hw_info_t *wlc_hw) {
 	antsel_info_t *asi;
 
-	asi = (antsel_info_t *) MALLOC(osh, sizeof(antsel_info_t));
+	asi = kzalloc(sizeof(antsel_info_t), GFP_ATOMIC);
 	if (!asi) {
 		WL_ERROR(("wl%d: wlc_antsel_attach: out of mem\n", pub->unit));
 		return NULL;
 	}
-
-	bzero((char *)asi, sizeof(antsel_info_t));
 
 	asi->wlc = wlc;
 	asi->pub = pub;

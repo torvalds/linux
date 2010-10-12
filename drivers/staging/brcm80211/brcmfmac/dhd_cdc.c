@@ -406,12 +406,11 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 {
 	dhd_prot_t *cdc;
 
-	cdc = (dhd_prot_t *) MALLOC(dhd->osh, sizeof(dhd_prot_t));
+	cdc = kzalloc(sizeof(dhd_prot_t), GFP_ATOMIC);
 	if (!cdc) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
-	memset(cdc, 0, sizeof(dhd_prot_t));
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
 	if ((uintptr) (&cdc->msg + 1) != (uintptr) cdc->buf) {

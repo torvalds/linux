@@ -66,13 +66,11 @@ wlc_phy_shim_info_t *wlc_phy_shim_attach(wlc_hw_info_t *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
-	physhim = (wlc_phy_shim_info_t *)MALLOC(wlc_hw->osh,
-		sizeof(wlc_phy_shim_info_t));
+	physhim = kzalloc(sizeof(wlc_phy_shim_info_t), GFP_ATOMIC);
 	if (!physhim) {
 		WL_ERROR(("wl%d: wlc_phy_shim_attach: out of mem\n", wlc_hw->unit));
 		return NULL;
 	}
-	bzero((char *)physhim, sizeof(wlc_phy_shim_info_t));
 	physhim->wlc_hw = wlc_hw;
 	physhim->wlc = wlc;
 	physhim->wl = wl;
