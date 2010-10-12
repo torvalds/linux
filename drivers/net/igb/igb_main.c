@@ -6115,6 +6115,13 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 
 	mac->autoneg = 0;
 
+	/* Fiber NIC's only allow 1000 Gbps Full duplex */
+	if ((adapter->hw.phy.media_type == e1000_media_type_internal_serdes) &&
+		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
+		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
+		return -EINVAL;
+	}
+
 	switch (spddplx) {
 	case SPEED_10 + DUPLEX_HALF:
 		mac->forced_speed_duplex = ADVERTISE_10_HALF;
