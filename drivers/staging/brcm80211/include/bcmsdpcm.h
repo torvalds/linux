@@ -183,54 +183,6 @@ typedef volatile struct {
 } sdpcmd_cnt_t;
 
 /*
- * Register Access Macros
- */
-
-#define SDIODREV_IS(var, val)	((var) == (val))
-#define SDIODREV_GE(var, val)	((var) >= (val))
-#define SDIODREV_GT(var, val)	((var) > (val))
-#define SDIODREV_LT(var, val)	((var) < (val))
-#define SDIODREV_LE(var, val)	((var) <= (val))
-
-#define SDIODDMAREG32(h, dir, chnl) \
-	((dir) == DMA_TX ? \
-	 (void *)(uintptr)&((h)->regs->dma.sdiod32.dma32regs[chnl].xmt) : \
-	 (void *)(uintptr)&((h)->regs->dma.sdiod32.dma32regs[chnl].rcv))
-
-#define SDIODDMAREG64(h, dir, chnl) \
-	((dir) == DMA_TX ? \
-	 (void *)(uintptr)&((h)->regs->dma.sdiod64.dma64regs[chnl].xmt) : \
-	 (void *)(uintptr)&((h)->regs->dma.sdiod64.dma64regs[chnl].rcv))
-
-#define SDIODDMAREG(h, dir, chnl) \
-	(SDIODREV_LT((h)->corerev, 1) ? \
-	 SDIODDMAREG32((h), (dir), (chnl)) : \
-	 SDIODDMAREG64((h), (dir), (chnl)))
-
-#define PCMDDMAREG(h, dir, chnl) \
-	((dir) == DMA_TX ? \
-	 (void *)(uintptr)&((h)->regs->dma.pcm32.dmaregs.xmt) : \
-	 (void *)(uintptr)&((h)->regs->dma.pcm32.dmaregs.rcv))
-
-#define SDPCMDMAREG(h, dir, chnl, coreid) \
-	((coreid) == SDIOD_CORE_ID ? \
-	 SDIODDMAREG(h, dir, chnl) : \
-	 PCMDDMAREG(h, dir, chnl))
-
-#define SDIODFIFOREG(h, corerev) \
-	(SDIODREV_LT((corerev), 1) ? \
-	 ((dma32diag_t *)(uintptr)&((h)->regs->dma.sdiod32.dmafifo)) : \
-	 ((dma32diag_t *)(uintptr)&((h)->regs->dma.sdiod64.dmafifo)))
-
-#define PCMDFIFOREG(h) \
-	((dma32diag_t *)(uintptr)&((h)->regs->dma.pcm32.dmafifo))
-
-#define SDPCMFIFOREG(h, coreid, corerev) \
-	((coreid) == SDIOD_CORE_ID ? \
-	 SDIODFIFOREG(h, corerev) : \
-	 PCMDFIFOREG(h))
-
-/*
  * Shared structure between dongle and the host.
  * The structure contains pointers to trap or assert information.
  */
