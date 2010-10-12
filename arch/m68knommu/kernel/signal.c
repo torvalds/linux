@@ -717,7 +717,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage int do_signal(struct pt_regs *regs)
+asmlinkage void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
@@ -731,7 +731,7 @@ asmlinkage int do_signal(struct pt_regs *regs)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;
@@ -743,7 +743,7 @@ asmlinkage int do_signal(struct pt_regs *regs)
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &ka, &info, oldset, regs);
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		return 1;
+		return;
 	}
 
 	/* Did we come from a system call? */
@@ -757,5 +757,4 @@ asmlinkage int do_signal(struct pt_regs *regs)
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
-	return 0;
 }

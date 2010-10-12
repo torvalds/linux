@@ -171,7 +171,7 @@ Lsignal_return:
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	jmp	Lreturn
+	jmp	Luser_return
 
 /*
  * This is the generic interrupt handler (for all hardware interrupt
