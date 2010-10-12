@@ -121,7 +121,7 @@ void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 		 */
 		if (ctxt->sge[i].lkey == xprt->sc_dma_lkey) {
 			atomic_dec(&xprt->sc_dma_used);
-			ib_dma_unmap_single(xprt->sc_cm_id->device,
+			ib_dma_unmap_page(xprt->sc_cm_id->device,
 					    ctxt->sge[i].addr,
 					    ctxt->sge[i].length,
 					    ctxt->direction);
@@ -503,8 +503,8 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 		BUG_ON(sge_no >= xprt->sc_max_sge);
 		page = svc_rdma_get_page();
 		ctxt->pages[sge_no] = page;
-		pa = ib_dma_map_single(xprt->sc_cm_id->device,
-				     page_address(page), PAGE_SIZE,
+		pa = ib_dma_map_page(xprt->sc_cm_id->device,
+				     page, 0, PAGE_SIZE,
 				     DMA_FROM_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device, pa))
 			goto err_put_ctxt;
@@ -800,8 +800,8 @@ static void frmr_unmap_dma(struct svcxprt_rdma *xprt,
 		if (ib_dma_mapping_error(frmr->mr->device, addr))
 			continue;
 		atomic_dec(&xprt->sc_dma_used);
-		ib_dma_unmap_single(frmr->mr->device, addr, PAGE_SIZE,
-				    frmr->direction);
+		ib_dma_unmap_page(frmr->mr->device, addr, PAGE_SIZE,
+				  frmr->direction);
 	}
 }
 
@@ -1276,7 +1276,7 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 				   atomic_read(&xprt->sc_sq_count) <
 				   xprt->sc_sq_depth);
 			if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
-				return 0;
+				return -ENOTCONN;
 			continue;
 		}
 		/* Take a transport ref for each WR posted */
@@ -1322,8 +1322,8 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	length = svc_rdma_xdr_encode_error(xprt, rmsgp, err, va);
 
 	/* Prepare SGE for local address */
-	sge.addr = ib_dma_map_single(xprt->sc_cm_id->device,
-				   page_address(p), PAGE_SIZE, DMA_FROM_DEVICE);
+	sge.addr = ib_dma_map_page(xprt->sc_cm_id->device,
+				   p, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (ib_dma_mapping_error(xprt->sc_cm_id->device, sge.addr)) {
 		put_page(p);
 		return;
@@ -1350,7 +1350,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	if (ret) {
 		dprintk("svcrdma: Error %d posting send for protocol error\n",
 			ret);
-		ib_dma_unmap_single(xprt->sc_cm_id->device,
+		ib_dma_unmap_page(xprt->sc_cm_id->device,
 				  sge.addr, PAGE_SIZE,
 				  DMA_FROM_DEVICE);
 		svc_rdma_put_context(ctxt, 1);
