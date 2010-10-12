@@ -1452,9 +1452,10 @@ void mmc_rescan(struct work_struct *work)
 			mmc_release_host(host);
 			goto out;
 		}
+#ifdef CONFIG_MMC_DEBUG
 		pr_info("%s: %s: trying to init card at %u Hz\n",
 			mmc_hostname(host), __func__, host->f_init);
-
+#endif
 		mmc_power_up(host);
 		sdio_reset(host);
 		mmc_go_idle(host);
