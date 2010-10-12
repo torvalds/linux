@@ -18,11 +18,6 @@
 #define STEDMA40_DEV_DST_MEMORY (-1)
 #define	STEDMA40_DEV_SRC_MEMORY (-1)
 
-/*
- * Description of bitfields of channel_type variable is available in
- * the info structure.
- */
-
 enum stedma40_mode {
 	STEDMA40_MODE_LOGICAL = 0,
 	STEDMA40_MODE_PHYSICAL,
@@ -37,8 +32,6 @@ enum stedma40_mode_opt {
 	STEDMA40_LCHAN_SRC_PHY_DST_LOG,
 	STEDMA40_LCHAN_SRC_LOG_DST_PHY,
 };
-
-/* End of channel_type configuration */
 
 #define STEDMA40_ESIZE_8_BIT  0x0
 #define STEDMA40_ESIZE_16_BIT 0x1
@@ -103,7 +96,6 @@ struct stedma40_half_channel_info {
  * struct stedma40_chan_cfg - Structure to be filled by client drivers.
  *
  * @dir: MEM 2 MEM, PERIPH 2 MEM , MEM 2 PERIPH, PERIPH 2 PERIPH
- * @channel_type: priority, mode, mode options and interrupt configuration.
  * @high_priority: true if high-priority
  * @mode: channel mode: physical, logical, or operation
  * @mode_opt: options for the chosen channel mode
@@ -119,7 +111,6 @@ struct stedma40_half_channel_info {
  */
 struct stedma40_chan_cfg {
 	enum stedma40_xfer_dir			 dir;
-	unsigned int				 channel_type;
 	bool					 high_priority;
 	enum stedma40_mode			 mode;
 	enum stedma40_mode_opt			 mode_opt;
