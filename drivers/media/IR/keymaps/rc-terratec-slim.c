@@ -34,7 +34,7 @@ static struct ir_scancode terratec_slim[] = {
 	{ 0x02bd08, KEY_9 },
 	{ 0x02bd09, KEY_0 },
 	{ 0x02bd0a, KEY_MUTE },
-	{ 0x02bd0b, KEY_ZOOM },            /* symbol: PIP or zoom ? */
+	{ 0x02bd0b, KEY_NEW },             /* symbol: PIP */
 	{ 0x02bd0e, KEY_VOLUMEDOWN },
 	{ 0x02bd0f, KEY_PLAYPAUSE },
 	{ 0x02bd10, KEY_RIGHT },
