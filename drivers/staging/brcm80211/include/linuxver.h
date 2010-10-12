@@ -35,14 +35,11 @@
 #undef IP_TOS
 #include <asm/io.h>
 
-#define KILL_PROC(nr, sig) \
+#define KILL_PROC(pid, sig) \
 	do { \
 		struct task_struct *tsk; \
-		struct pid *pid;    \
-		pid = find_get_pid((pid_t)nr);    \
-		tsk = pid_task(pid, PIDTYPE_PID);    \
-		if (tsk) \
-			send_sig(sig, tsk, 1); \
+		tsk = pid_task(find_vpid(pid), PIDTYPE_PID);    \
+		if (tsk)			\
+			send_sig(sig, tsk, 1);	\
 	} while (0)
-
 #endif				/* _linuxver_h_ */

@@ -938,6 +938,8 @@ static int _dhd_sysioc_thread(void *data)
 	bool in_ap = false;
 #endif
 
+	allow_signal(SIGTERM);
+
 	while (down_interruptible(&dhd->sysioc_sem) == 0) {
 		if (kthread_should_stop())
 			break;
@@ -1295,6 +1297,7 @@ static int dhd_watchdog_thread(void *data)
 	}
 #endif				/* DHD_SCHED */
 
+	allow_signal(SIGTERM);
 	/* Run until signal received */
 	while (1) {
 		if (kthread_should_stop())
@@ -1360,6 +1363,7 @@ static int dhd_dpc_thread(void *data)
 	}
 #endif				/* DHD_SCHED */
 
+	allow_signal(SIGTERM);
 	/* Run until signal received */
 	while (1) {
 		if (kthread_should_stop())
@@ -2336,17 +2340,20 @@ void dhd_detach(dhd_pub_t *dhdp)
 			}
 
 			if (dhd->watchdog_tsk) {
+				KILL_PROC(dhd->watchdog_tsk->pid, SIGTERM);
 				kthread_stop(dhd->watchdog_tsk);
 				dhd->watchdog_tsk = NULL;
 			}
 
 			if (dhd->dpc_tsk) {
+				KILL_PROC(dhd->dpc_tsk->pid, SIGTERM);
 				kthread_stop(dhd->dpc_tsk);
 				dhd->dpc_tsk = NULL;
 			} else
 				tasklet_kill(&dhd->tasklet);
 
 			if (dhd->sysioc_tsk) {
+				KILL_PROC(dhd->sysioc_tsk->pid, SIGTERM);
 				kthread_stop(dhd->sysioc_tsk);
 				dhd->sysioc_tsk = NULL;
 			}

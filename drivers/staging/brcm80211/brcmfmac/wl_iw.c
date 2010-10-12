@@ -1177,6 +1177,7 @@ static int _iscan_sysioc_thread(void *data)
 	iscan_info_t *iscan = (iscan_info_t *) data;
 	static bool iscan_pass_abort = false;
 
+	allow_signal(SIGTERM);
 	status = WL_SCAN_RESULTS_PARTIAL;
 	while (down_interruptible(&iscan->sysioc_sem) == 0) {
 		if (kthread_should_stop())
@@ -3744,6 +3745,7 @@ void wl_iw_detach(void)
 	if (!iscan)
 		return;
 	if (iscan->sysioc_tsk) {
+		KILL_PROC(iscan->sysioc_tsk->pid, SIGTERM);
 		kthread_stop(iscan->sysioc_tsk);
 		iscan->sysioc_tsk = NULL;
 	}
