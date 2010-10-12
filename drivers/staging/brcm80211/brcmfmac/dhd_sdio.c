@@ -5382,7 +5382,6 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-#ifndef DHD_USE_STATIC_BUF
 	if (bus->dhd->maxctl) {
 		bus->rxblen =
 		    roundup((bus->dhd->maxctl + SDPCM_HDRLEN),
@@ -5405,26 +5404,6 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 			MFREE(osh, bus->rxbuf, bus->rxblen);
 		goto fail;
 	}
-#else
-	if (bus->dhd->maxctl) {
-		bus->rxblen =
-		    roundup((bus->dhd->maxctl + SDPCM_HDRLEN),
-			    ALIGNMENT) + DHD_SDALIGN;
-		bus->rxbuf = dhd_os_prealloc(DHD_PREALLOC_RXBUF, bus->rxblen);
-		if (!(bus->rxbuf)) {
-			DHD_ERROR(("%s: MALLOC of %d-byte rxbuf failed\n",
-				   __func__, bus->rxblen));
-			goto fail;
-		}
-	}
-	/* Allocate buffer to receive glomed packet */
-	bus->databuf = dhd_os_prealloc(DHD_PREALLOC_DATABUF, MAX_DATA_BUF);
-	if (!(bus->databuf)) {
-		DHD_ERROR(("%s: MALLOC of %d-byte databuf failed\n",
-			   __func__, MAX_DATA_BUF));
-		goto fail;
-	}
-#endif				/* DHD_USE_STATIC_BUF */
 
 	/* Align the buffer */
 	if ((uintptr) bus->databuf % DHD_SDALIGN)
@@ -5583,17 +5562,13 @@ static void dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh)
 		return;
 
 	if (bus->rxbuf) {
-#ifndef DHD_USE_STATIC_BUF
 		MFREE(osh, bus->rxbuf, bus->rxblen);
-#endif
 		bus->rxctl = bus->rxbuf = NULL;
 		bus->rxlen = 0;
 	}
 
 	if (bus->databuf) {
-#ifndef DHD_USE_STATIC_BUF
 		MFREE(osh, bus->databuf, MAX_DATA_BUF);
-#endif
 		bus->databuf = NULL;
 	}
 }

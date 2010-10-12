@@ -337,11 +337,6 @@ extern void *osl_pktget(osl_t *osh, uint len);
 extern void osl_pktfree(osl_t *osh, void *skb, bool send);
 
 #ifdef BRCM_FULLMAC
-#ifdef DHD_USE_STATIC_BUF
-#define	PKTGET_STATIC(osh, len, send)		osl_pktget_static((osh), (len))
-#define	PKTFREE_STATIC(osh, skb, send)	\
-	osl_pktfree_static((osh), (skb), (send))
-#endif
 extern void *osl_pktget_static(osl_t *osh, uint len);
 extern void osl_pktfree_static(osl_t *osh, void *skb, bool send);
 

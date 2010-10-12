@@ -73,9 +73,7 @@ enum dhd_prealloc_index {
 	DHD_PREALLOC_DATABUF,
 	DHD_PREALLOC_OSL_BUF
 };
-#ifdef DHD_USE_STATIC_BUF
-extern void *dhd_os_prealloc(int section, unsigned long size);
-#endif
+
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */

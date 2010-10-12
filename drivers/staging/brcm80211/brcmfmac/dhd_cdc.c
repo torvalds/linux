@@ -406,20 +406,11 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 {
 	dhd_prot_t *cdc;
 
-#ifndef DHD_USE_STATIC_BUF
 	cdc = (dhd_prot_t *) MALLOC(dhd->osh, sizeof(dhd_prot_t));
 	if (!cdc) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
-#else
-	cdc = (dhd_prot_t *) dhd_os_prealloc(DHD_PREALLOC_PROT,
-						sizeof(dhd_prot_t));
-	if (!cdc) {
-		DHD_ERROR(("%s: kmalloc failed\n", __func__));
-		goto fail;
-	}
-#endif				/* DHD_USE_STATIC_BUF */
 	memset(cdc, 0, sizeof(dhd_prot_t));
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
@@ -436,19 +427,15 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 	return 0;
 
 fail:
-#ifndef DHD_USE_STATIC_BUF
 	if (cdc != NULL)
 		MFREE(dhd->osh, cdc, sizeof(dhd_prot_t));
-#endif
 	return BCME_NOMEM;
 }
 
 /* ~NOTE~ What if another thread is waiting on the semaphore?  Holding it? */
 void dhd_prot_detach(dhd_pub_t *dhd)
 {
-#ifndef DHD_USE_STATIC_BUF
 	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
-#endif
 	dhd->prot = NULL;
 }
 

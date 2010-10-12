@@ -1040,11 +1040,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-#ifdef DHD_USE_STATIC_BUF
-		mypkt = PKTGET_STATIC(sd->osh, buflen_u, write ? true : false);
-#else
 		mypkt = PKTGET(sd->osh, buflen_u, write ? true : false);
-#endif				/* DHD_USE_STATIC_BUF */
 		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
 				__func__, buflen_u));
@@ -1062,11 +1058,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			bcopy(PKTDATA(mypkt), buffer, buflen_u);
 
-#ifdef DHD_USE_STATIC_BUF
-		PKTFREE_STATIC(sd->osh, mypkt, write ? true : false);
-#else
 		PKTFREE(sd->osh, mypkt, write ? true : false);
-#endif				/* DHD_USE_STATIC_BUF */
 	} else if (((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
@@ -1075,12 +1067,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", PKTLEN(pkt)));
-#ifdef DHD_USE_STATIC_BUF
-		mypkt = PKTGET_STATIC(sd->osh, PKTLEN(pkt),
-					write ? true : false);
-#else
 		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? true : false);
-#endif				/* DHD_USE_STATIC_BUF */
 		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
 				__func__, PKTLEN(pkt)));
@@ -1098,11 +1085,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			bcopy(PKTDATA(mypkt), PKTDATA(pkt), PKTLEN(mypkt));
 
-#ifdef DHD_USE_STATIC_BUF
-		PKTFREE_STATIC(sd->osh, mypkt, write ? true : false);
-#else
 		PKTFREE(sd->osh, mypkt, write ? true : false);
-#endif				/* DHD_USE_STATIC_BUF */
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",
