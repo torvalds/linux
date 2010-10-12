@@ -55,6 +55,10 @@ static const struct inode_operations v9fs_file_inode_operations_dotl;
 static const struct inode_operations v9fs_symlink_inode_operations;
 static const struct inode_operations v9fs_symlink_inode_operations_dotl;
 
+static int
+v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
+		    dev_t rdev);
+
 /**
  * unixmode2p9mode - convert unix mode bits to plan 9
  * @v9ses: v9fs session information
@@ -681,8 +685,14 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	v9ses = v9fs_inode2v9ses(dir);
 	if (nd && nd->flags & LOOKUP_OPEN)
 		flags = nd->intent.open.flags - 1;
-	else
-		flags = O_RDWR;
+	else {
+		/*
+		 * create call without LOOKUP_OPEN is due
+		 * to mknod of regular files. So use mknod
+		 * operation.
+		 */
+		return v9fs_vfs_mknod_dotl(dir, dentry, omode, 0);
+	}
 
 	name = (char *) dentry->d_name.name;
 	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_vfs_create_dotl: name:%s flags:0x%x "
