@@ -271,7 +271,6 @@ config ARCH_AT91
 	bool "Atmel AT91"
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
-	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
@@ -1050,6 +1049,32 @@ config ARM_ERRATA_460075
 	  workaround disables the write-allocate mode for the L2 cache via the
 	  ACTLR register. Note that setting specific bits in the ACTLR register
 	  may not be available in non-secure mode.
+
+config ARM_ERRATA_742230
+	bool "ARM errata: DMB operation may be faulty"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742230 Cortex-A9
+	  (r1p0..r2p2) erratum. Under rare circumstances, a DMB instruction
+	  between two write operations may not ensure the correct visibility
+	  ordering of the two writes. This workaround sets a specific bit in
+	  the diagnostic register of the Cortex-A9 which causes the DMB
+	  instruction to behave as a DSB, ensuring the correct behaviour of
+	  the two writes.
+
+config ARM_ERRATA_742231
+	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742231 Cortex-A9
+	  (r2p0..r2p2) erratum. Under certain conditions, specific to the
+	  Cortex-A9 MPCore micro-architecture, two CPUs working in SMP mode,
+	  accessing some data located in the same cache line, may get corrupted
+	  data due to bad handling of the address hazard when the line gets
+	  replaced from one of the CPUs at the same time as another CPU is
+	  accessing it. This workaround sets specific bits in the diagnostic
+	  register of the Cortex-A9 which reduces the linefill issuing
+	  capabilities of the processor.
 
 config PL310_ERRATA_588369
 	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"

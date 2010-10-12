@@ -814,7 +814,7 @@ int __ceph_caps_used(struct ceph_inode_info *ci)
 		used |= CEPH_CAP_PIN;
 	if (ci->i_rd_ref)
 		used |= CEPH_CAP_FILE_RD;
-	if (ci->i_rdcache_ref || ci->i_rdcache_gen)
+	if (ci->i_rdcache_ref || ci->vfs_inode.i_data.nrpages)
 		used |= CEPH_CAP_FILE_CACHE;
 	if (ci->i_wr_ref)
 		used |= CEPH_CAP_FILE_WR;
@@ -1195,10 +1195,14 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
  * asynchronously back to the MDS once sync writes complete and dirty
  * data is written out.
  *
+ * Unless @again is true, skip cap_snaps that were already sent to
+ * the MDS (i.e., during this session).
+ *
  * Called under i_lock.  Takes s_mutex as needed.
  */
 void __ceph_flush_snaps(struct ceph_inode_info *ci,
-			struct ceph_mds_session **psession)
+			struct ceph_mds_session **psession,
+			int again)
 		__releases(ci->vfs_inode->i_lock)
 		__acquires(ci->vfs_inode->i_lock)
 {
@@ -1227,7 +1231,7 @@ retry:
 		 * pages to be written out.
 		 */
 		if (capsnap->dirty_pages || capsnap->writing)
-			continue;
+			break;
 
 		/*
 		 * if cap writeback already occurred, we should have dropped
@@ -1240,6 +1244,13 @@ retry:
 			dout("no auth cap (migrating?), doing nothing\n");
 			goto out;
 		}
+
+		/* only flush each capsnap once */
+		if (!again && !list_empty(&capsnap->flushing_item)) {
+			dout("already flushed %p, skipping\n", capsnap);
+			continue;
+		}
+
 		mds = ci->i_auth_cap->session->s_mds;
 		mseq = ci->i_auth_cap->mseq;
 
@@ -1276,8 +1287,8 @@ retry:
 			      &session->s_cap_snaps_flushing);
 		spin_unlock(&inode->i_lock);
 
-		dout("flush_snaps %p cap_snap %p follows %lld size %llu\n",
-		     inode, capsnap, next_follows, capsnap->size);
+		dout("flush_snaps %p cap_snap %p follows %lld tid %llu\n",
+		     inode, capsnap, capsnap->follows, capsnap->flush_tid);
 		send_cap_msg(session, ceph_vino(inode).ino, 0,
 			     CEPH_CAP_OP_FLUSHSNAP, capsnap->issued, 0,
 			     capsnap->dirty, 0, capsnap->flush_tid, 0, mseq,
@@ -1314,7 +1325,7 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
 	struct inode *inode = &ci->vfs_inode;
 
 	spin_lock(&inode->i_lock);
-	__ceph_flush_snaps(ci, NULL);
+	__ceph_flush_snaps(ci, NULL, 0);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -1477,7 +1488,7 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 
 	/* flush snaps first time around only */
 	if (!list_empty(&ci->i_cap_snaps))
-		__ceph_flush_snaps(ci, &session);
+		__ceph_flush_snaps(ci, &session, 0);
 	goto retry_locked;
 retry:
 	spin_lock(&inode->i_lock);
@@ -1894,7 +1905,7 @@ static void kick_flushing_capsnaps(struct ceph_mds_client *mdsc,
 		if (cap && cap->session == session) {
 			dout("kick_flushing_caps %p cap %p capsnap %p\n", inode,
 			     cap, capsnap);
-			__ceph_flush_snaps(ci, &session);
+			__ceph_flush_snaps(ci, &session, 1);
 		} else {
 			pr_err("%p auth cap %p not mds%d ???\n", inode,
 			       cap, session->s_mds);

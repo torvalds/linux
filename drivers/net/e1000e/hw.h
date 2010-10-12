@@ -57,6 +57,7 @@ enum e1e_registers {
 	E1000_SCTL     = 0x00024, /* SerDes Control - RW */
 	E1000_FCAL     = 0x00028, /* Flow Control Address Low - RW */
 	E1000_FCAH     = 0x0002C, /* Flow Control Address High -RW */
+	E1000_FEXTNVM4 = 0x00024, /* Future Extended NVM 4 - RW */
 	E1000_FEXTNVM  = 0x00028, /* Future Extended NVM - RW */
 	E1000_FCT      = 0x00030, /* Flow Control Type - RW */
 	E1000_VET      = 0x00038, /* VLAN Ether Type - RW */

@@ -70,7 +70,11 @@ nf_tproxy_destructor(struct sk_buff *skb)
 int
 nf_tproxy_assign_sock(struct sk_buff *skb, struct sock *sk)
 {
-	if (inet_sk(sk)->transparent) {
+	bool transparent = (sk->sk_state == TCP_TIME_WAIT) ?
+				inet_twsk(sk)->tw_transparent :
+				inet_sk(sk)->transparent;
+
+	if (transparent) {
 		skb_orphan(skb);
 		skb->sk = sk;
 		skb->destructor = nf_tproxy_destructor;

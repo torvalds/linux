@@ -2324,11 +2324,8 @@ retry_avoidcopy:
 	 * and just make the page writable */
 	avoidcopy = (page_mapcount(old_page) == 1);
 	if (avoidcopy) {
-		if (!trylock_page(old_page)) {
-			if (PageAnon(old_page))
-				page_move_anon_rmap(old_page, vma, address);
-		} else
-			unlock_page(old_page);
+		if (PageAnon(old_page))
+			page_move_anon_rmap(old_page, vma, address);
 		set_huge_ptep_writable(vma, address, ptep);
 		return 0;
 	}
@@ -2404,7 +2401,7 @@ retry_avoidcopy:
 		set_huge_pte_at(mm, address, ptep,
 				make_huge_pte(vma, new_page, 1));
 		page_remove_rmap(old_page);
-		hugepage_add_anon_rmap(new_page, vma, address);
+		hugepage_add_new_anon_rmap(new_page, vma, address);
 		/* Make the old page be freed below */
 		new_page = old_page;
 		mmu_notifier_invalidate_range_end(mm,
@@ -2631,10 +2628,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 								vma, address);
 	}
 
-	if (!pagecache_page) {
-		page = pte_page(entry);
+	/*
+	 * hugetlb_cow() requires page locks of pte_page(entry) and
+	 * pagecache_page, so here we need take the former one
+	 * when page != pagecache_page or !pagecache_page.
+	 * Note that locking order is always pagecache_page -> page,
+	 * so no worry about deadlock.
+	 */
+	page = pte_page(entry);
+	if (page != pagecache_page)
 		lock_page(page);
-	}
 
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
@@ -2661,9 +2664,8 @@ out_page_table_lock:
 	if (pagecache_page) {
 		unlock_page(pagecache_page);
 		put_page(pagecache_page);
-	} else {
-		unlock_page(page);
 	}
+	unlock_page(page);
 
 out_mutex:
 	mutex_unlock(&hugetlb_instantiation_mutex);

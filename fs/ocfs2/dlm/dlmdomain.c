@@ -693,6 +693,7 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 
 		dlm_mark_domain_leaving(dlm);
 		dlm_leave_domain(dlm);
+		dlm_force_free_mles(dlm);
 		dlm_complete_dlm_shutdown(dlm);
 	}
 	dlm_put(dlm);

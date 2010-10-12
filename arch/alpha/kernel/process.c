@@ -356,7 +356,7 @@ dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt, struct thread_info *ti)
 	dest[27] = pt->r27;
 	dest[28] = pt->r28;
 	dest[29] = pt->gp;
-	dest[30] = rdusp();
+	dest[30] = ti == current_thread_info() ? rdusp() : ti->pcb.usp;
 	dest[31] = pt->pc;
 
 	/* Once upon a time this was the PS value.  Which is stupid
