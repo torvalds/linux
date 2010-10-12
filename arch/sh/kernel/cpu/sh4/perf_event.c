@@ -225,7 +225,7 @@ static void sh7750_pmu_enable_all(void)
 }
 
 static struct sh_pmu sh7750_pmu = {
-	.name		= "SH7750",
+	.name		= "sh7750",
 	.num_events	= 2,
 	.event_map	= sh7750_event_map,
 	.max_events	= ARRAY_SIZE(sh7750_general_events),
