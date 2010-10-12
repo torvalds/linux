@@ -411,9 +411,10 @@ static char *next_specifier(char *input)
 	while ((next_percent != NULL) && !found) {
 		next_percent = strchr(next_percent, '%');
 		if (next_percent != NULL) {
+			/* skip over doubled percent signs */
 			while ((next_percent[0] == '%')
 			       && (next_percent[1] == '%'))
-				next_percent += 2;	/* Advance over doubled percent signs. */
+				next_percent += 2;
 			if (*next_percent == '%')
 				found = 1;
 			else if (*next_percent == '\0')
@@ -487,7 +488,7 @@ static int compare_specifiers(char **input1, char **input2)
 	size_t length1 = end1 - *input1;
 	size_t length2 = end2 - *input2;
 
-	if((length1 == length2) && !memcmp(*input1, *input2, length1))
+	if ((length1 == length2) && !memcmp(*input1, *input2, length1))
 		same = 1;
 
 	*input1 = end1;
@@ -512,13 +513,14 @@ static int fmt_validate(char *template, char *user)
 		template_ptr = next_specifier(template_ptr);
 		user_ptr = next_specifier(user_ptr);
 		if (template_ptr && user_ptr) {
-/* Both have at least one more specifier. */
+			/* Both have at least one more specifier. */
 			valid = compare_specifiers(&template_ptr, &user_ptr);
 		} else {
-/* No more format specifiers in one or both of the strings. */
+			/* No more format specifiers in one or both strings. */
 			still_comparing = 0;
+			/* See if one has more specifiers than the other. */
 			if (template_ptr || user_ptr)
-				valid = 0;	/* One has more specifiers than the other. */
+				valid = 0;
 		}
 	}
 	return valid;
@@ -591,7 +593,7 @@ void reset_msg_group(struct msg_group_t *group)
 
 	spk_lock(flags);
 
-	for(i = group->start; i <= group->end; i++) {
+	for (i = group->start; i <= group->end; i++) {
 		if (speakup_msgs[i] != speakup_default_msgs[i])
 			kfree(speakup_msgs[i]);
 		speakup_msgs[i] = speakup_default_msgs[i];
@@ -602,7 +604,8 @@ void reset_msg_group(struct msg_group_t *group)
 /* Called at initialization time, to establish default messages. */
 void initialize_msgs(void)
 {
-	memcpy(speakup_msgs, speakup_default_msgs, sizeof(speakup_default_msgs));
+	memcpy(speakup_msgs, speakup_default_msgs,
+		sizeof(speakup_default_msgs));
 }
 
 /* Free user-supplied strings when module is unloaded: */
@@ -612,7 +615,7 @@ void free_user_msgs(void)
 	unsigned long flags;
 
 	spk_lock(flags);
-	for(index = MSG_FIRST_INDEX; index < MSG_LAST_INDEX; index++) {
+	for (index = MSG_FIRST_INDEX; index < MSG_LAST_INDEX; index++) {
 		if (speakup_msgs[index] != speakup_default_msgs[index]) {
 			kfree(speakup_msgs[index]);
 			speakup_msgs[index] = speakup_default_msgs[index];
