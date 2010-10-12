@@ -633,7 +633,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
-static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
+static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar5416AniState *aniState = &ah->curchan->ani;
@@ -646,10 +646,10 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	ath_hw_cycle_counters_update(common);
 	listenTime = ath_hw_get_listen_time(common);
 
-	if (listenTime < 0) {
+	if (listenTime <= 0) {
 		ah->stats.ast_ani_lneg++;
 		ath9k_ani_restart(ah);
-		return;
+		return false;
 	}
 
 	if (!use_new_ani(ah)) {
@@ -683,7 +683,7 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_ERR_MASK_2,
 				  AR_PHY_ERR_CCK_TIMING);
 		}
-		return;
+		return false;
 	}
 
 	ofdmPhyErrCnt = phyCnt1 - ofdm_base;
@@ -695,7 +695,7 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	ah->stats.ast_ani_cckerrs +=
 		cckPhyErrCnt - aniState->cckPhyErrCount;
 	aniState->cckPhyErrCount = cckPhyErrCnt;
-
+	return true;
 }
 
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
@@ -711,7 +711,8 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (WARN_ON(!aniState))
 		return;
 
-	ath9k_hw_ani_read_counters(ah);
+	if (!ath9k_hw_ani_read_counters(ah))
+		return;
 
 	ofdmPhyErrRate = aniState->ofdmPhyErrCount * 1000 /
 			 aniState->listenTime;
