@@ -59,7 +59,7 @@ struct netvsc_driver_context {
 /* Need this many pages to handle worst case fragmented packet */
 #define PACKET_PAGES_HIWATER  (MAX_SKB_FRAGS + 2)
 
-static int ring_size = roundup_pow_of_two(2*MAX_SKB_FRAGS+1);
+static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
