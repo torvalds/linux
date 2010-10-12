@@ -1,24 +1,24 @@
 /* speakup_keyhelp.c
-   help module for speakup
-
-  written by David Borowski.
-
-    Copyright (C) 2003  David Borowski.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ * help module for speakup
+ *
+ *written by David Borowski.
+ *
+ *  Copyright (C) 2003  David Borowski.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 #include <linux/keyboard.h>
 #include "spk_priv.h"
@@ -30,7 +30,7 @@ static const int num_key_names = MSG_KEYNAMES_END - MSG_KEYNAMES_START + 1;
 static u_short key_offsets[MAXFUNCS], key_data[MAXKEYS];
 static u_short masks[] = { 32, 16, 8, 4, 2, 1 };
 
-static short letter_offsets[26] = { 
+static short letter_offsets[26] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -87,8 +87,9 @@ static void build_key_data(void)
 			break;
 	}
 /* leave counters set so high keycodes come first.
-   this is done so num pad and other extended keys maps are spoken before
-   the alpha with speakup type mapping. */
+ * this is done so num pad and other extended keys maps are spoken before
+ * the alpha with speakup type mapping.
+ */
 	kp = state_tbl + nstates + 1;
 	while ((ch = *kp++)) {
 		for (i = 0; i < nstates; i++) {
@@ -174,7 +175,8 @@ int handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 	} else {
 		name = NULL;
 		if ((type != KT_SPKUP) && (key > 0) && (key <= num_key_names)) {
-			synth_printf("%s\n", msg_get(MSG_KEYNAMES_START + key-1));
+			synth_printf("%s\n",
+				msg_get(MSG_KEYNAMES_START + key-1));
 			return 1;
 		}
 		for (i = 0; funcvals[i] != 0 && !name; i++) {
