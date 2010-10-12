@@ -493,7 +493,6 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	char buf[700];
 	unsigned int len = 0;
 	u32 filt = ath5k_hw_get_rx_filter(sc->ah);
-	const char *tmp;
 
 	len += snprintf(buf+len, sizeof(buf)-len, "bssid-mask: %pM\n",
 			sc->bssidmask);
@@ -522,17 +521,10 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	if (filt & AR5K_RX_FILTER_PHYERR_5211)
 		snprintf(buf+len, sizeof(buf)-len, " PHYERR-5211");
 	if (filt & AR5K_RX_FILTER_RADARERR_5211)
-		len += snprintf(buf+len, sizeof(buf)-len, " RADARERR-5211\n");
-	else
-		len += snprintf(buf+len, sizeof(buf)-len, "\n");
+		len += snprintf(buf+len, sizeof(buf)-len, " RADARERR-5211");
 
-	tmp = ath_opmode_to_string(sc->opmode);
-	if (tmp)
-		len += snprintf(buf+len, sizeof(buf)-len, "opmode: %s\n",
-				tmp);
-	else
-		len += snprintf(buf+len, sizeof(buf)-len,
-				"opmode: UNKNOWN-%i\n", sc->opmode);
+	len += snprintf(buf+len, sizeof(buf)-len, "\nopmode: %s (%d)\n",
+			ath_opmode_to_string(sc->opmode), sc->opmode);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);

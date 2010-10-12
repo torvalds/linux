@@ -563,9 +563,7 @@ static void ath_do_set_opmode(struct ath5k_softc *sc)
 	struct ath5k_hw *ah = sc->ah;
 	ath5k_hw_set_opmode(ah, sc->opmode);
 	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "mode setup opmode %d (%s)\n",
-		  sc->opmode,
-		  ath_opmode_to_string(sc->opmode) ?
-		  ath_opmode_to_string(sc->opmode) : "UKNOWN");
+		  sc->opmode, ath_opmode_to_string(sc->opmode));
 }
 
 void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,

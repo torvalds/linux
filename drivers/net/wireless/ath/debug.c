@@ -55,7 +55,7 @@ const char *ath_opmode_to_string(enum nl80211_iftype opmode)
 	case NL80211_IFTYPE_P2P_GO:
 		return "P2P-GO";
 	default:
-		return NULL;
+		return "UNKNOWN";
 	}
 }
 EXPORT_SYMBOL(ath_opmode_to_string);
