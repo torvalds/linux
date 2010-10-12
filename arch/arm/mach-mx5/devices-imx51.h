@@ -37,11 +37,6 @@ extern const struct imx_spi_imx_data imx51_ecspi_data[] __initconst;
 #define imx51_add_ecspi(id, pdata)	\
 	imx_add_spi_imx(&imx51_ecspi_data[id], pdata)
 
-#define imx51_add_esdhc0(pdata)	\
-	imx_add_esdhc(0, MX51_MMC_SDHC1_BASE_ADDR, SZ_16K, MX51_MXC_INT_MMC_SDHC1, pdata)
-#define imx51_add_esdhc1(pdata)	\
-	imx_add_esdhc(1, MX51_MMC_SDHC2_BASE_ADDR, SZ_16K, MX51_MXC_INT_MMC_SDHC2, pdata)
-#define imx51_add_esdhc2(pdata)	\
-	imx_add_esdhc(2, MX51_MMC_SDHC3_BASE_ADDR, SZ_16K, MX51_MXC_INT_MMC_SDHC3, pdata)
-#define imx51_add_esdhc3(pdata)	\
-	imx_add_esdhc(3, MX51_MMC_SDHC4_BASE_ADDR, SZ_16K, MX51_MXC_INT_MMC_SDHC4, pdata)
+extern const struct imx_esdhc_imx_data imx51_esdhc_data[] __initconst;
+#define imx51_add_esdhc(id, pdata)	\
+	imx_add_esdhc(&imx51_esdhc_data[id], pdata)

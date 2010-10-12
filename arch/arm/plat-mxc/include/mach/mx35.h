@@ -128,9 +128,9 @@
 #define MX35_INT_I2C3		3
 #define MX35_INT_I2C2		4
 #define MX35_INT_RTIC		6
-#define MX35_INT_MMC_SDHC1	7
-#define MX35_INT_MMC_SDHC2	8
-#define MX35_INT_MMC_SDHC3	9
+#define MX35_INT_ESDHC1		7
+#define MX35_INT_ESDHC2		8
+#define MX35_INT_ESDHC3		9
 #define MX35_INT_I2C1		10
 #define MX35_INT_SSI1		11
 #define MX35_INT_SSI2		12

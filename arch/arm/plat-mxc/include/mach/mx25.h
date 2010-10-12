@@ -62,8 +62,8 @@
 #define MX25_INT_I2C1		3
 #define MX25_INT_I2C2		4
 #define MX25_INT_UART4		5
-#define MX25_INT_MMC_SDHC2	8
-#define MX25_INT_MMC_SDHC1	9
+#define MX25_INT_ESDHC2		8
+#define MX25_INT_ESDHC1		9
 #define MX25_INT_I2C3		10
 #define MX25_INT_SSI2		11
 #define MX25_INT_SSI1		12
