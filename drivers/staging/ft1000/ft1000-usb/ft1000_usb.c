@@ -200,7 +200,8 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
             {
                 kthread_stop(pft1000info->pPollThread );
             }
-            return 0;
+		ret = -EIO;
+		goto err_load;
         }
         msleep(100);
         DEBUG("ft1000_probe::Waiting for Card Ready\n");
