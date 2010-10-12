@@ -72,8 +72,6 @@ module_param_named(debug, ath5k_debug, uint, 0);
 #include "reg.h"
 #include "ani.h"
 
-static struct dentry *ath5k_global_debugfs;
-
 static int ath5k_debugfs_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -882,21 +880,13 @@ static const struct file_operations fops_queue = {
 };
 
 
-/* init */
-
-void
-ath5k_debug_init(void)
-{
-	ath5k_global_debugfs = debugfs_create_dir("ath5k", NULL);
-}
-
 void
 ath5k_debug_init_device(struct ath5k_softc *sc)
 {
 	sc->debug.level = ath5k_debug;
 
-	sc->debug.debugfs_phydir = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
-				ath5k_global_debugfs);
+	sc->debug.debugfs_phydir = debugfs_create_dir("ath5k",
+				sc->hw->wiphy->debugfsdir);
 
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
 				S_IWUSR | S_IRUSR,
@@ -934,12 +924,6 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc,
 				&fops_queue);
-}
-
-void
-ath5k_debug_finish(void)
-{
-	debugfs_remove(ath5k_global_debugfs);
 }
 
 void

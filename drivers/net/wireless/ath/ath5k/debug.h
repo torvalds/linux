@@ -138,13 +138,7 @@ enum ath5k_debug_level {
 	} while (0)
 
 void
-ath5k_debug_init(void);
-
-void
 ath5k_debug_init_device(struct ath5k_softc *sc);
-
-void
-ath5k_debug_finish(void);
 
 void
 ath5k_debug_finish_device(struct ath5k_softc *sc);
@@ -174,13 +168,7 @@ ATH5K_DBG_UNLIMIT(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...)
 {}
 
 static inline void
-ath5k_debug_init(void) {}
-
-static inline void
 ath5k_debug_init_device(struct ath5k_softc *sc) {}
-
-static inline void
-ath5k_debug_finish(void) {}
 
 static inline void
 ath5k_debug_finish_device(struct ath5k_softc *sc) {}

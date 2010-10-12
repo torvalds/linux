@@ -3541,8 +3541,6 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	sc->hw = hw;
 	sc->pdev = pdev;
 
-	ath5k_debug_init_device(sc);
-
 	/*
 	 * Mark the device as detached to avoid processing
 	 * interrupts until setup is complete.
@@ -3650,6 +3648,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
+	ath5k_debug_init_device(sc);
 
 	/* ready to process interrupts */
 	__clear_bit(ATH_STAT_INVALID, sc->status);
@@ -3736,8 +3735,6 @@ init_ath5k_pci(void)
 {
 	int ret;
 
-	ath5k_debug_init();
-
 	ret = pci_register_driver(&ath5k_pci_driver);
 	if (ret) {
 		printk(KERN_ERR "ath5k_pci: can't register pci driver\n");
@@ -3751,8 +3748,6 @@ static void __exit
 exit_ath5k_pci(void)
 {
 	pci_unregister_driver(&ath5k_pci_driver);
-
-	ath5k_debug_finish();
 }
 
 module_init(init_ath5k_pci);
