@@ -1316,7 +1316,7 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 	}
 
-	skb_reserve(skb, 2);
+	skb_reserve(skb, NET_IP_ALIGN);
 
 	dma = pci_map_single(pdev, skb->data,
 			rds_ring->dma_size, PCI_DMA_FROMDEVICE);
@@ -1404,7 +1404,6 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
-	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	napi_gro_receive(&sds_ring->napi, skb);
@@ -1465,8 +1464,6 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 		data_offset = l4_hdr_offset + QLC_TCP_HDR_SIZE;
 
 	skb_put(skb, lro_length + data_offset);
-
-	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
 
 	skb_pull(skb, l2_hdr_offset);
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -1699,8 +1696,6 @@ qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
-
-	skb->truesize = skb->len + sizeof(struct sk_buff);
 
 	if (!qlcnic_check_loopback_buff(skb->data))
 		adapter->diag_cnt++;

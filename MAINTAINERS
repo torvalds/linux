@@ -3925,8 +3925,10 @@ S:	Supported
 F:	drivers/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-S:	Orphan
+M:	Chris Ball <cjb@laptop.org>
 L:	linux-mmc@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
+S:	Maintained
 F:	drivers/mmc/
 F:	include/linux/mmc/
 
@@ -5097,8 +5099,10 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
-S:	Orphan
+M:	Chris Ball <cjb@laptop.org>
 L:	linux-mmc@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
+S:	Maintained
 F:	drivers/mmc/host/sdhci.*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)

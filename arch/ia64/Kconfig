@@ -53,6 +53,9 @@ config MMU
 	bool
 	default y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
 config NEED_DMA_MAP_STATE
 	def_bool y
 
@@ -61,6 +64,9 @@ config NEED_SG_DMA_LENGTH
 
 config SWIOTLB
        bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
 
 config GENERIC_LOCKBREAK
 	def_bool n

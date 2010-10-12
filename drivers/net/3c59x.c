@@ -2942,6 +2942,9 @@ static void vortex_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
+	if (!VORTEX_PCI(vp))
+		return;
+
 	wol->supported = WAKE_MAGIC;
 
 	wol->wolopts = 0;
@@ -2952,6 +2955,10 @@ static void vortex_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 static int vortex_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct vortex_private *vp = netdev_priv(dev);
+
+	if (!VORTEX_PCI(vp))
+		return -EOPNOTSUPP;
+
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
@@ -3200,6 +3207,9 @@ static void acpi_set_WOL(struct net_device *dev)
 			vp->enable_wol = 0;
 			return;
 		}
+
+		if (VORTEX_PCI(vp)->current_state < PCI_D3hot)
+			return;
 
 		/* Change the power state to D3; RxEnable doesn't take effect. */
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D3hot);

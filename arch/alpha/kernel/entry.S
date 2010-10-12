@@ -915,15 +915,6 @@ sys_execve:
 .end sys_execve
 
 	.align	4
-	.globl	osf_sigprocmask
-	.ent	osf_sigprocmask
-osf_sigprocmask:
-	.prologue 0
-	mov	$sp, $18
-	jmp	$31, sys_osf_sigprocmask
-.end osf_sigprocmask
-
-	.align	4
 	.globl	alpha_ni_syscall
 	.ent	alpha_ni_syscall
 alpha_ni_syscall:
