@@ -368,6 +368,14 @@ static int fsi_num2len(int num, int width)
 	return num * width;
 }
 
+static int fsi_get_frame_width(struct fsi_priv *fsi)
+{
+	struct snd_pcm_substream *substream = fsi->substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	return frames_to_bytes(runtime, 1) / fsi->chan_num;
+}
+
 /*
  *		dma function
  */
@@ -596,7 +604,7 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int is_play)
 	}
 
 	/* get 1 channel data width */
-	ch_width = frames_to_bytes(runtime, 1) / fsi->chan_num;
+	ch_width = fsi_get_frame_width(fsi);
 
 	/* get residue data number of alsa */
 	data_residue_num = fsi_len2num(fsi->buff_len - fsi->buff_offset,
