@@ -97,9 +97,6 @@ typedef struct {
 #define MFREE(osh, addr, size)	osl_mfree((osh), (addr), (size))
 extern void osl_mfree(osl_t *osh, void *addr, uint size);
 
-#define NATIVE_MALLOC(osh, size)	kmalloc(size, GFP_ATOMIC)
-#define NATIVE_MFREE(osh, addr, size)	kfree(addr)
-
 #define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
 extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,
