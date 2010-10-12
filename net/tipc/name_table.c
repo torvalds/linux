@@ -1009,16 +1009,6 @@ static void nametbl_list(struct print_buf *buf, u32 depth_info,
 	}
 }
 
-#if 0
-void tipc_nametbl_print(struct print_buf *buf, const char *str)
-{
-	tipc_printf(buf, str);
-	read_lock_bh(&tipc_nametbl_lock);
-	nametbl_list(buf, 0, 0, 0, 0);
-	read_unlock_bh(&tipc_nametbl_lock);
-}
-#endif
-
 #define MAX_NAME_TBL_QUERY 32768
 
 struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
@@ -1050,13 +1040,6 @@ struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
 
 	return buf;
 }
-
-#if 0
-void tipc_nametbl_dump(void)
-{
-	nametbl_list(TIPC_CONS, 0, 0, 0, 0);
-}
-#endif
 
 int tipc_nametbl_init(void)
 {

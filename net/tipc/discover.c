@@ -46,16 +46,6 @@
 #define TIPC_LINK_REQ_FAST	2000	/* normal delay if bearer has no links */
 #define TIPC_LINK_REQ_SLOW	600000	/* normal delay if bearer has links */
 
-#if 0
-#define  GET_NODE_INFO         300
-#define  GET_NODE_INFO_RESULT  301
-#define  FORWARD_LINK_PROBE    302
-#define  LINK_REQUEST_REJECTED 303
-#define  LINK_REQUEST_ACCEPTED 304
-#define  DROP_LINK_REQUEST     305
-#define  CHECK_LINK_COUNT      306
-#endif
-
 /*
  * TODO: Most of the inter-cluster setup stuff should be
  * rewritten, and be made conformant with specification.
@@ -78,16 +68,6 @@ struct link_req {
 	unsigned int timer_intv;
 };
 
-
-#if 0
-int disc_create_link(const struct tipc_link_create *argv)
-{
-	/*
-	 * Code for inter cluster link setup here
-	 */
-	return TIPC_OK;
-}
-#endif
 
 /*
  * disc_lost_link(): A link has lost contact

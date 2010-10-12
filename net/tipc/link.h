@@ -210,10 +210,6 @@ struct link {
 		u32 msg_length_counts;
 		u32 msg_lengths_total;
 		u32 msg_length_profile[7];
-#if 0
-		u32 sent_tunneled;
-		u32 recv_tunneled;
-#endif
 	} stats;
 
 	struct print_buf print_buf;

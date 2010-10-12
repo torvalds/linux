@@ -710,50 +710,6 @@ struct sk_buff *tipc_port_get_ports(void)
 	return buf;
 }
 
-#if 0
-
-#define MAX_PORT_STATS 2000
-
-struct sk_buff *port_show_stats(const void *req_tlv_area, int req_tlv_space)
-{
-	u32 ref;
-	struct port *p_ptr;
-	struct sk_buff *buf;
-	struct tlv_desc *rep_tlv;
-	struct print_buf pb;
-	int str_len;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_PORT_REF))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	ref = *(u32 *)TLV_DATA(req_tlv_area);
-	ref = ntohl(ref);
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return cfg_reply_error_string("port not found");
-
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(MAX_PORT_STATS));
-	if (!buf) {
-		tipc_port_unlock(p_ptr);
-		return NULL;
-	}
-	rep_tlv = (struct tlv_desc *)buf->data;
-
-	tipc_printbuf_init(&pb, TLV_DATA(rep_tlv), MAX_PORT_STATS);
-	port_print(p_ptr, &pb, 1);
-	/* NEED TO FILL IN ADDITIONAL PORT STATISTICS HERE */
-	tipc_port_unlock(p_ptr);
-	str_len = tipc_printbuf_validate(&pb);
-
-	skb_put(buf, TLV_SPACE(str_len));
-	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
-
-	return buf;
-}
-
-#endif
-
 void tipc_port_reinit(void)
 {
 	struct port *p_ptr;

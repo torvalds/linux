@@ -125,16 +125,6 @@ void tipc_node_delete(struct tipc_node *n_ptr)
 	if (!n_ptr)
 		return;
 
-#if 0
-	/* Not needed because links are already deleted via tipc_bearer_stop() */
-
-	u32 l_num;
-
-	for (l_num = 0; l_num < MAX_BEARERS; l_num++) {
-		link_delete(n_ptr->links[l_num]);
-	}
-#endif
-
 	dbg("node %x deleted\n", n_ptr->addr);
 	kfree(n_ptr);
 }
@@ -596,22 +586,6 @@ void tipc_node_remove_router(struct tipc_node *n_ptr, u32 router)
 	if (!tipc_node_is_up(n_ptr))
 		node_lost_contact(n_ptr);
 }
-
-#if 0
-void node_print(struct print_buf *buf, struct tipc_node *n_ptr, char *str)
-{
-	u32 i;
-
-	tipc_printf(buf, "\n\n%s", str);
-	for (i = 0; i < MAX_BEARERS; i++) {
-		if (!n_ptr->links[i])
-			continue;
-		tipc_printf(buf, "Links[%u]: %x, ", i, n_ptr->links[i]);
-	}
-	tipc_printf(buf, "Active links: [%x,%x]\n",
-		    n_ptr->active_links[0], n_ptr->active_links[1]);
-}
-#endif
 
 u32 tipc_available_nodes(const u32 domain)
 {
