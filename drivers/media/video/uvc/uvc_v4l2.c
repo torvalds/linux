@@ -538,6 +538,20 @@ static int uvc_v4l2_release(struct file *file)
 	return 0;
 }
 
+static void uvc_v4l2_ioctl_warn(void)
+{
+	static int warned;
+
+	if (warned)
+		return;
+
+	uvc_printk(KERN_INFO, "Deprecated UVCIOC_CTRL_{ADD,MAP_OLD,GET,SET} "
+		   "ioctls will be removed in 2.6.42.\n");
+	uvc_printk(KERN_INFO, "See http://www.ideasonboard.org/uvc/upgrade/ "
+		   "for upgrade instructions.\n");
+	warned = 1;
+}
+
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -1018,12 +1032,16 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		uvc_trace(UVC_TRACE_IOCTL, "Unsupported ioctl 0x%08x\n", cmd);
 		return -EINVAL;
 
-	/* Dynamic controls. */
+	/* Dynamic controls. UVCIOC_CTRL_ADD, UVCIOC_CTRL_MAP_OLD,
+	 * UVCIOC_CTRL_GET and UVCIOC_CTRL_SET are deprecated and scheduled for
+	 * removal in 2.6.42.
+	 */
 	case UVCIOC_CTRL_ADD:
-		/* Legacy ioctl, kept for API compatibility reasons */
+		uvc_v4l2_ioctl_warn();
 		return -EEXIST;
 
 	case UVCIOC_CTRL_MAP_OLD:
+		uvc_v4l2_ioctl_warn();
 	case UVCIOC_CTRL_MAP:
 		return uvc_ioctl_ctrl_map(chain, arg,
 					  cmd == UVCIOC_CTRL_MAP_OLD);
@@ -1041,6 +1059,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			.data		= xctrl->data,
 		};
 
+		uvc_v4l2_ioctl_warn();
 		return uvc_xu_ctrl_query(chain, &xqry);
 	}
 
