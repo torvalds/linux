@@ -30,17 +30,26 @@
 #include "wl1271_ps.h"
 #include "wl1271_tx.h"
 
-static int wl1271_tx_id(struct wl1271 *wl, struct sk_buff *skb)
+static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 {
-	int i;
-	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
-		if (wl->tx_frames[i] == NULL) {
-			wl->tx_frames[i] = skb;
-			wl->tx_frames_cnt++;
-			return i;
-		}
+	int id;
 
-	return -EBUSY;
+	id = find_first_zero_bit(wl->tx_frames_map, ACX_TX_DESCRIPTORS);
+	if (id >= ACX_TX_DESCRIPTORS)
+		return -EBUSY;
+
+	__set_bit(id, wl->tx_frames_map);
+	wl->tx_frames[id] = skb;
+	wl->tx_frames_cnt++;
+	return id;
+}
+
+static void wl1271_free_tx_id(struct wl1271 *wl, int id)
+{
+	if (__test_and_clear_bit(id, wl->tx_frames_map)) {
+		wl->tx_frames[id] = NULL;
+		wl->tx_frames_cnt--;
+	}
 }
 
 static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
@@ -55,7 +64,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 		return -EAGAIN;
 
 	/* allocate free identifier for the packet */
-	id = wl1271_tx_id(wl, skb);
+	id = wl1271_alloc_tx_id(wl, skb);
 	if (id < 0)
 		return id;
 
@@ -79,8 +88,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 			     "tx_allocate: size: %d, blocks: %d, id: %d",
 			     total_len, total_blocks, id);
 	} else {
-		wl->tx_frames[id] = NULL;
-		wl->tx_frames_cnt--;
+		wl1271_free_tx_id(wl, id);
 	}
 
 	return ret;
@@ -352,8 +360,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	/* return the packet to the stack */
 	ieee80211_tx_status(wl->hw, skb);
-	wl->tx_frames[result->id] = NULL;
-	wl->tx_frames_cnt--;
+	wl1271_free_tx_id(wl, result->id);
 }
 
 /* Called upon reception of a TX complete interrupt */
@@ -422,11 +429,10 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		if (wl->tx_frames[i] != NULL) {
 			skb = wl->tx_frames[i];
-			wl->tx_frames[i] = NULL;
+			wl1271_free_tx_id(wl, i);
 			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
 			ieee80211_tx_status(wl->hw, skb);
 		}
-	wl->tx_frames_cnt = 0;
 }
 
 #define WL1271_TX_FLUSH_TIMEOUT 500000

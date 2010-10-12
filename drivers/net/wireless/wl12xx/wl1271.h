@@ -398,6 +398,7 @@ struct wl1271 {
 	struct work_struct tx_work;
 
 	/* Pending TX frames */
+	unsigned long tx_frames_map[BITS_TO_LONGS(ACX_TX_DESCRIPTORS)];
 	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
 	int tx_frames_cnt;
 
