@@ -89,11 +89,11 @@
 
 #define DMAREG(wlc_hw, direction, fifonum)	(D11REV_LT(wlc_hw->corerev, 11) ? \
 	((direction == DMA_TX) ? \
-		(void *)(uintptr)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].xmt) : \
-		(void *)(uintptr)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].rcv)) : \
+		(void *)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].xmt) : \
+		(void *)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].rcv)) : \
 	((direction == DMA_TX) ? \
-		(void *)(uintptr)&(wlc_hw->regs->fifo.f64regs[fifonum].dmaxmt) : \
-		(void *)(uintptr)&(wlc_hw->regs->fifo.f64regs[fifonum].dmarcv)))
+		(void *)&(wlc_hw->regs->fifo.f64regs[fifonum].dmaxmt) : \
+		(void *)&(wlc_hw->regs->fifo.f64regs[fifonum].dmarcv)))
 
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.
@@ -930,7 +930,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 
 		/* Get a phy for this band */
 		wlc_hw->band->pi = wlc_phy_attach(wlc_hw->phy_sh,
-			(void *)(uintptr) regs, wlc_hw->band->bandtype, vars);
+			(void *)regs, wlc_hw->band->bandtype, vars);
 		if (wlc_hw->band->pi == NULL) {
 			WL_ERROR(("wl%d: wlc_bmac_attach: wlc_phy_attach failed\n", unit));
 			err = 17;
@@ -1712,8 +1712,7 @@ wlc_bmac_set_rcmta(wlc_hw_info_t *wlc_hw, int idx,
 		   const struct ether_addr *addr)
 {
 	d11regs_t *regs = wlc_hw->regs;
-	volatile u16 *objdata16 =
-	    (volatile u16 *)(uintptr) & regs->objdata;
+	volatile u16 *objdata16 = (volatile u16 *)&regs->objdata;
 	u32 mac_hm;
 	u16 mac_l;
 	osl_t *osh;
@@ -2846,10 +2845,10 @@ static void wlc_write_inits(wlc_hw_info_t *wlc_hw, const d11init_t *inits)
 		ASSERT((inits[i].size == 2) || (inits[i].size == 4));
 
 		if (inits[i].size == 2)
-			W_REG(osh, (u16 *) (uintptr) (base + inits[i].addr),
+			W_REG(osh, (u16 *)(base + inits[i].addr),
 			      inits[i].value);
 		else if (inits[i].size == 4)
-			W_REG(osh, (u32 *) (uintptr) (base + inits[i].addr),
+			W_REG(osh, (u32 *)(base + inits[i].addr),
 			      inits[i].value);
 	}
 }
@@ -3716,7 +3715,7 @@ bool wlc_bmac_validate_chip_access(wlc_hw_info_t *wlc_hw)
 		/* if 32 bit writes are split into 16 bit writes, are they in the correct order
 		 * for our interface, low to high
 		 */
-		reg16 = (volatile u16 *)(uintptr) & regs->tsf_cfpstart;
+		reg16 = (volatile u16 *)&regs->tsf_cfpstart;
 
 		/* write the CFPStart register low half explicitly, starting a buffered write */
 		W_REG(osh, reg16, 0xAAAA);
@@ -3934,8 +3933,7 @@ static u16
 wlc_bmac_read_objmem(wlc_hw_info_t *wlc_hw, uint offset, u32 sel)
 {
 	d11regs_t *regs = wlc_hw->regs;
-	volatile u16 *objdata_lo =
-	    (volatile u16 *)(uintptr) & regs->objdata;
+	volatile u16 *objdata_lo = (volatile u16 *)&regs->objdata;
 	volatile u16 *objdata_hi = objdata_lo + 1;
 	u16 v;
 
@@ -3956,8 +3954,7 @@ static void
 wlc_bmac_write_objmem(wlc_hw_info_t *wlc_hw, uint offset, u16 v, u32 sel)
 {
 	d11regs_t *regs = wlc_hw->regs;
-	volatile u16 *objdata_lo =
-	    (volatile u16 *)(uintptr) & regs->objdata;
+	volatile u16 *objdata_lo = (volatile u16 *)&regs->objdata;
 	volatile u16 *objdata_hi = objdata_lo + 1;
 
 	ASSERT((offset & 1) == 0);

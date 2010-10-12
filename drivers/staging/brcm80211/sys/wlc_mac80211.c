@@ -340,7 +340,7 @@ void wlc_get_rcmta(wlc_info_t *wlc, int idx, struct ether_addr *addr)
 	addr->octet[3] = (u8) (v32 >> 24);
 	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | ((idx * 2) + 1)));
 	(void)R_REG(osh, &regs->objaddr);
-	v32 = R_REG(osh, (volatile u16 *)(uintptr) & regs->objdata);
+	v32 = R_REG(osh, (volatile u16 *)&regs->objdata);
 	addr->octet[4] = (u8) v32;
 	addr->octet[5] = (u8) (v32 >> 8);
 }
