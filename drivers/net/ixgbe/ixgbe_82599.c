@@ -1415,92 +1415,6 @@ s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr)
 }
 
 /**
- *  ixgbe_atr_set_src_ipv6_82599 - Sets the source IPv6 address
- *  @input: input stream to modify
- *  @src_addr_1: the first 4 bytes of the IP address to load
- *  @src_addr_2: the second 4 bytes of the IP address to load
- *  @src_addr_3: the third 4 bytes of the IP address to load
- *  @src_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 src_addr_1, u32 src_addr_2,
-                                 u32 src_addr_3, u32 src_addr_4)
-{
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET] = src_addr_4 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 1] =
-	                                               (src_addr_4 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 2] =
-	                                              (src_addr_4 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 3] = src_addr_4 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 4] = src_addr_3 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 5] =
-	                                               (src_addr_3 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 6] =
-	                                              (src_addr_3 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 7] = src_addr_3 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 8] = src_addr_2 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 9] =
-	                                               (src_addr_2 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 10] =
-	                                              (src_addr_2 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 11] = src_addr_2 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 12] = src_addr_1 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 13] =
-	                                               (src_addr_1 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 14] =
-	                                              (src_addr_1 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 15] = src_addr_1 >> 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_dst_ipv6_82599 - Sets the destination IPv6 address
- *  @input: input stream to modify
- *  @dst_addr_1: the first 4 bytes of the IP address to load
- *  @dst_addr_2: the second 4 bytes of the IP address to load
- *  @dst_addr_3: the third 4 bytes of the IP address to load
- *  @dst_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 dst_addr_1, u32 dst_addr_2,
-                                 u32 dst_addr_3, u32 dst_addr_4)
-{
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET] = dst_addr_4 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] =
-	                                               (dst_addr_4 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 2] =
-	                                              (dst_addr_4 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 3] = dst_addr_4 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 4] = dst_addr_3 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 5] =
-	                                               (dst_addr_3 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 6] =
-	                                              (dst_addr_3 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 7] = dst_addr_3 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 8] = dst_addr_2 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 9] =
-	                                               (dst_addr_2 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 10] =
-	                                              (dst_addr_2 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 11] = dst_addr_2 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 12] = dst_addr_1 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 13] =
-	                                               (dst_addr_1 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 14] =
-	                                              (dst_addr_1 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 15] = dst_addr_1 >> 24;
-
-	return 0;
-}
-
-/**
  *  ixgbe_atr_set_src_port_82599 - Sets the source port
  *  @input: input stream to modify
  *  @src_port: the source port to load
@@ -1535,19 +1449,6 @@ s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input, u16 flex_byte)
 {
 	input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET + 1] = flex_byte >> 8;
 	input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET] = flex_byte & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_vm_pool_82599 - Sets the Virtual Machine pool
- *  @input: input stream to modify
- *  @vm_pool: the Virtual Machine pool to load
- **/
-s32 ixgbe_atr_set_vm_pool_82599(struct ixgbe_atr_input *input,
-                                u8 vm_pool)
-{
-	input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET] = vm_pool;
 
 	return 0;
 }
@@ -1645,41 +1546,6 @@ static s32 ixgbe_atr_get_src_ipv6_82599(struct ixgbe_atr_input *input,
 }
 
 /**
- *  ixgbe_atr_get_dst_ipv6_82599 - Gets the destination IPv6 address
- *  @input: input stream to search
- *  @dst_addr_1: the first 4 bytes of the IP address to load
- *  @dst_addr_2: the second 4 bytes of the IP address to load
- *  @dst_addr_3: the third 4 bytes of the IP address to load
- *  @dst_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_get_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 *dst_addr_1, u32 *dst_addr_2,
-                                        u32 *dst_addr_3, u32 *dst_addr_4)
-{
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 12];
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 13] << 8;
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 14] << 16;
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 15] << 24;
-
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 8];
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 9] << 8;
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 10] << 16;
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 11] << 24;
-
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 4];
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 5] << 8;
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 6] << 16;
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 7] << 24;
-
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET];
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] << 8;
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 2] << 16;
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 3] << 24;
-
-	return 0;
-}
-
-/**
  *  ixgbe_atr_get_src_port_82599 - Gets the source port
  *  @input: input stream to modify
  *  @src_port: the source port to load
@@ -1727,19 +1593,6 @@ static s32 ixgbe_atr_get_flex_byte_82599(struct ixgbe_atr_input *input,
 {
 	*flex_byte = input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET];
 	*flex_byte |= input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET + 1] << 8;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_vm_pool_82599 - Gets the Virtual Machine pool
- *  @input: input stream to modify
- *  @vm_pool: the Virtual Machine pool to load
- **/
-s32 ixgbe_atr_get_vm_pool_82599(struct ixgbe_atr_input *input,
-                                       u8 *vm_pool)
-{
-	*vm_pool = input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET];
 
 	return 0;
 }
