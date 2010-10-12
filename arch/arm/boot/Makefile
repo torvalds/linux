@@ -61,7 +61,7 @@ endif
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arm -O linux -T kernel \
-		   -C none -a $(LOADADDR) -e $(STARTADDR) \
+		   -C gzip -a $(LOADADDR) -e $(STARTADDR) \
 		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
 
 ifeq ($(CONFIG_ZBOOT_ROM),y)
@@ -77,9 +77,13 @@ else
 $(obj)/uImage: STARTADDR=$(LOADADDR)
 endif
 
-$(obj)/uImage:	$(obj)/zImage FORCE
+$(obj)/Image.gz: $(obj)/Image FORCE
+	$(call if_changed,gzip)
+	@echo '  Image:  $@ is ready'
+
+$(obj)/uImage: $(obj)/Image.gz FORCE
 	$(call if_changed,uimage)
-	@echo '  Image $@ is ready'
+	@echo '  Image:  $@ is ready'
 
 $(obj)/bootp/bootp: $(obj)/zImage initrd FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/bootp $@
