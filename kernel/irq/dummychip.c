@@ -31,7 +31,7 @@ static unsigned int noop_ret(struct irq_data *data)
 	return 0;
 }
 
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_CRUFT
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 static void compat_noop(unsigned int irq) { }
 #define END_INIT .end = compat_noop
 #else

@@ -118,7 +118,7 @@ static void free_masks(struct irq_desc *desc)
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	free_cpumask_var(desc->pending_mask);
 #endif
-	free_cpumask_var(desc->affinity);
+	free_cpumask_var(desc->irq_data.affinity);
 }
 #else
 static inline void free_masks(struct irq_desc *desc) { }
