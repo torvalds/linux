@@ -151,7 +151,7 @@ out:
 	sock_put(sk);
 }
 
-static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
+static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);

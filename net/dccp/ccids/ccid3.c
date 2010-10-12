@@ -351,8 +351,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
-				    unsigned int len)
+static void ccid3_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 
