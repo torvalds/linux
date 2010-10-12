@@ -2486,6 +2486,7 @@ void bnx2x_pf_init(struct bnx2x *bp)
 	 * if (is_eth_multi(bp))
 	 *	flags |= FUNC_FLG_RSS;
 	 */
+	flags |= FUNC_FLG_RSS;
 
 	/* function setup */
 	if (flags & FUNC_FLG_RSS) {
