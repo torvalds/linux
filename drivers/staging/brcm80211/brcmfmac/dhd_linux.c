@@ -171,7 +171,7 @@ void wifi_del_dev(void)
 
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
-volatile bool dhd_mmc_suspend = FALSE;
+volatile bool dhd_mmc_suspend = false;
 DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
@@ -343,7 +343,7 @@ int dhd_idletime = DHD_IDLETIME_TICKS;
 module_param(dhd_idletime, int, 0);
 
 /* Use polling */
-uint dhd_poll = FALSE;
+uint dhd_poll = false;
 module_param(dhd_poll, uint, 0);
 
 /* Use cfg80211 */
@@ -426,7 +426,7 @@ static int dhd_sleep_pm_callback(struct notifier_block *nfb,
 		return NOTIFY_OK;
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
-		dhd_mmc_suspend = FALSE;
+		dhd_mmc_suspend = false;
 		return NOTIFY_OK;
 	}
 	return 0;
@@ -707,7 +707,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	cnt = netdev_mc_count(dev);
 
 	/* Determine initial value of allmulti flag */
-	allmulti = (dev->flags & IFF_ALLMULTI) ? true : FALSE;
+	allmulti = (dev->flags & IFF_ALLMULTI) ? true : false;
 
 	/* Send down the multicast list first. */
 
@@ -789,7 +789,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	/* Finally, pick up the PROMISC flag as well, like the NIC
 		 driver does */
 
-	allmulti = (dev->flags & IFF_PROMISC) ? true : FALSE;
+	allmulti = (dev->flags & IFF_PROMISC) ? true : false;
 	allmulti = htol32(allmulti);
 
 	memset(&ioc, 0, sizeof(ioc));
@@ -935,7 +935,7 @@ static int _dhd_sysioc_thread(void *data)
 	dhd_info_t *dhd = (dhd_info_t *) data;
 	int i;
 #ifdef SOFTAP
-	bool in_ap = FALSE;
+	bool in_ap = false;
 #endif
 
 	while (down_interruptible(&dhd->sysioc_sem) == 0) {
@@ -959,23 +959,23 @@ static int _dhd_sysioc_thread(void *data)
 					DHD_TRACE(("attempt to set MAC for %s "
 						"in AP Mode," "blocked. \n",
 						dhd->iflist[i]->net->name));
-					dhd->set_macaddress = FALSE;
+					dhd->set_macaddress = false;
 					continue;
 				}
 
 				if (in_ap && dhd->set_multicast) {
 					DHD_TRACE(("attempt to set MULTICAST list for %s" "in AP Mode, blocked. \n",
 						dhd->iflist[i]->net->name));
-					dhd->set_multicast = FALSE;
+					dhd->set_multicast = false;
 					continue;
 				}
 #endif				/* SOFTAP */
 				if (dhd->set_multicast) {
-					dhd->set_multicast = FALSE;
+					dhd->set_multicast = false;
 					_dhd_set_multicast_list(dhd, i);
 				}
 				if (dhd->set_macaddress) {
-					dhd->set_macaddress = FALSE;
+					dhd->set_macaddress = false;
 					_dhd_set_mac_address(dhd, i,
 							     &dhd->macvalue);
 				}
@@ -1041,7 +1041,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 
 	/* Look into the packet and update the packet priority */
 	if ((PKTPRIO(pktbuf) == 0))
-		pktsetprio(pktbuf, FALSE);
+		pktsetprio(pktbuf, false);
 
 	/* If the protocol uses a data header, apply it */
 	dhd_prot_hdrpush(dhdp, ifidx, pktbuf);
@@ -1300,7 +1300,7 @@ static int dhd_watchdog_thread(void *data)
 		if (kthread_should_stop())
 			break;
 		if (down_interruptible(&dhd->watchdog_sem) == 0) {
-			if (dhd->pub.dongle_reset == FALSE) {
+			if (dhd->pub.dongle_reset == false) {
 				WAKE_LOCK(&dhd->pub, WAKE_LOCK_WATCHDOG);
 				/* Call the bus module watchdog */
 				dhd_bus_watchdog(&dhd->pub);
@@ -1427,7 +1427,7 @@ static int dhd_toe_get(dhd_info_t *dhd, int ifidx, u32 *toe_ol)
 	ioc.cmd = WLC_GET_VAR;
 	ioc.buf = buf;
 	ioc.len = (uint) sizeof(buf);
-	ioc.set = FALSE;
+	ioc.set = false;
 
 	strcpy(buf, "toe_ol");
 	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
@@ -1987,7 +1987,7 @@ dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	if ((dhd_watchdog_prio >= 0) && (dhd_dpc_prio >= 0))
 		dhd->threads_only = true;
 	else
-		dhd->threads_only = FALSE;
+		dhd->threads_only = false;
 
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize watchdog thread */
@@ -2111,7 +2111,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	/* Host registration for OOB interrupt */
 	if (bcmsdh_register_oob_intr(dhdp)) {
 		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = FALSE;
+		dhd->wd_timer_valid = false;
 		DHD_ERROR(("%s Host failed to resgister for OOB\n", __func__));
 		return -ENODEV;
 	}
@@ -2123,7 +2123,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	/* If bus is not ready, can't come up */
 	if (dhd->pub.busstate != DHD_BUS_DATA) {
 		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = FALSE;
+		dhd->wd_timer_valid = false;
 		DHD_ERROR(("%s failed bus is not ready\n", __func__));
 		return -ENODEV;
 	}
@@ -2302,7 +2302,7 @@ void dhd_bus_detach(dhd_pub_t *dhdp)
 
 			/* Clear the watchdog timer */
 			del_timer_sync(&dhd->timer);
-			dhd->wd_timer_valid = FALSE;
+			dhd->wd_timer_valid = false;
 		}
 	}
 }
@@ -2535,7 +2535,7 @@ void dhd_os_wd_timer(void *bus, uint wdtick)
 	/* Totally stop the timer */
 	if (!wdtick && dhd->wd_timer_valid == true) {
 		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = FALSE;
+		dhd->wd_timer_valid = false;
 		save_dhd_watchdog_ms = wdtick;
 		return;
 	}
@@ -2757,7 +2757,7 @@ void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
 	struct dhd_info *dhdinfo = dhd->info;
 	dhd_os_sdunlock(dhd);
 	wait_event_interruptible_timeout(dhdinfo->ctrl_wait,
-					 (*lockvar == FALSE), HZ * 2);
+					 (*lockvar == false), HZ * 2);
 	dhd_os_sdlock(dhd);
 	return;
 }

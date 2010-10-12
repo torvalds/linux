@@ -930,7 +930,7 @@ void *otp_init(si_t *sih)
 int
 otp_read_region(si_t *sih, int region, u16 *data,
 				 uint *wlen) {
-	bool wasup = FALSE;
+	bool wasup = false;
 	void *oh;
 	int err = 0;
 
@@ -953,7 +953,7 @@ otp_read_region(si_t *sih, int region, u16 *data,
 
  out:
 	if (!wasup)
-		si_otp_power(sih, FALSE);
+		si_otp_power(sih, false);
 
 	return err;
 }

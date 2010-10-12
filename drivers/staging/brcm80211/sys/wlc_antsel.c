@@ -105,7 +105,7 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 	asi->wlc = wlc;
 	asi->pub = pub;
 	asi->antsel_type = ANTSEL_NA;
-	asi->antsel_avail = FALSE;
+	asi->antsel_avail = false;
 	asi->antsel_antswitch = (u8) getintvar(asi->pub->vars, "antswitch");
 
 	if ((asi->pub->sromrev >= 4) && (asi->antsel_antswitch != 0)) {
@@ -124,9 +124,9 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 				 3)
 				|| ((u16) getintvar(asi->pub->vars, "aa5g")
 				    == 3)) {
-				asi->antsel_avail = FALSE;
+				asi->antsel_avail = false;
 			} else {
-				asi->antsel_avail = FALSE;
+				asi->antsel_avail = false;
 				WL_ERROR(("wlc_antsel_attach: 2o3 board cfg invalid\n"));
 				ASSERT(0);
 			}

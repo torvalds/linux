@@ -118,7 +118,7 @@ bool bcmsdh_intr_query(void *sdh)
 	ASSERT(bcmsdh);
 	status = sdioh_interrupt_query(bcmsdh->sdioh, &on);
 	if (SDIOH_API_SUCCESS(status))
-		return FALSE;
+		return false;
 	else
 		return on;
 }
@@ -139,7 +139,7 @@ int bcmsdh_intr_disable(void *sdh)
 	SDIOH_API_RC status;
 	ASSERT(bcmsdh);
 
-	status = sdioh_interrupt_set(bcmsdh->sdioh, FALSE);
+	status = sdioh_interrupt_set(bcmsdh->sdioh, false);
 	return SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR;
 }
 

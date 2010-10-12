@@ -167,10 +167,10 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 	case USB_BUS:
 	case SPI_BUS:
 	case RPC_BUS:
-		osh->pub.mmbus = FALSE;
+		osh->pub.mmbus = false;
 		break;
 	default:
-		ASSERT(FALSE);
+		ASSERT(false);
 		break;
 	}
 

@@ -144,7 +144,7 @@ static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 					 PMU_MAX_TRANSITION_DLY);
 				if (!SBSDIO_ALPAV(clkval)) {
 					SI_ERROR(("timeout on ALPAV wait, clkval 0x%02x\n", clkval));
-					return FALSE;
+					return false;
 				}
 				clkset =
 				    SBSDIO_FORCE_HW_CLKREQ_OFF |
@@ -207,7 +207,7 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 	sii->pub.buscorerev = NOREV;
 	sii->pub.buscoreidx = BADIDX;
 
-	pci = pcie = FALSE;
+	pci = pcie = false;
 	pcirev = pcierev = NOREV;
 	pciidx = pcieidx = BADIDX;
 
@@ -265,9 +265,9 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 #else
 	if (pci && pcie) {
 		if (si_ispcie(sii))
-			pci = FALSE;
+			pci = false;
 		else
-			pcie = FALSE;
+			pcie = false;
 	}
 	if (pci) {
 		sii->pub.buscoretype = PCI_CORE_ID;
@@ -290,12 +290,12 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 					&sii->pub, sii->osh,
 					(void *)PCIEREGS(sii));
 				if (sii->pch == NULL)
-					return FALSE;
+					return false;
 			}
 		}
 		if (si_pci_fixcfg(&sii->pub)) {
 			SI_ERROR(("si_doattach: sb_pci_fixcfg failed\n"));
-			return FALSE;
+			return false;
 		}
 	}
 #endif
@@ -490,7 +490,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 #ifdef BCMDBG
 	/* clear any previous epidiag-induced target abort */
-	sb_taclear(sih, FALSE);
+	sb_taclear(sih, false);
 #endif				/* BCMDBG */
 #endif
 
@@ -947,7 +947,7 @@ bool si_iscoreup(si_t *sih)
 		return sb_iscoreup(sih);
 #else
 		ASSERT(0);
-		return FALSE;
+		return false;
 #endif
 	}
 }
@@ -1164,7 +1164,7 @@ static void si_clkctl_setdelay(si_info_t *sii, void *chipcregs)
 
 	/* Starting with 4318 it is ILP that is used for the delays */
 	slowmaxfreq =
-	    si_slowclk_freq(sii, (sii->pub.ccrev >= 10) ? FALSE : true, cc);
+	    si_slowclk_freq(sii, (sii->pub.ccrev >= 10) ? false : true, cc);
 
 	pll_on_delay = ((slowmaxfreq * pll_delay) + 999999) / 1000000;
 	fref_sel_delay = ((slowmaxfreq * FREF_DELAY) + 999999) / 1000000;
@@ -1246,7 +1246,7 @@ u16 si_clkctl_fast_pwrup_delay(si_t *sih)
 	}
 	ASSERT(cc != NULL);
 
-	slowminfreq = si_slowclk_freq(sii, FALSE, cc);
+	slowminfreq = si_slowclk_freq(sii, false, cc);
 	fpdelay = (((R_REG(sii->osh, &cc->pll_on_delay) + 2) * 1000000) +
 		   (slowminfreq - 1)) / slowminfreq;
 
@@ -1352,7 +1352,7 @@ bool si_clkctl_cc(si_t *sih, uint mode)
 
 	/* chipcommon cores prior to rev6 don't support dynamic clock control */
 	if (sih->ccrev < 6)
-		return FALSE;
+		return false;
 
 	if (PCI_FORCEHT(sii))
 		return mode == CLK_FAST;
@@ -1371,7 +1371,7 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 
 	/* chipcommon cores prior to rev6 don't support dynamic clock control */
 	if (sii->pub.ccrev < 6)
-		return FALSE;
+		return false;
 
 	/* Chips with ccrev 10 are EOL and they don't have SYCC_HR which we use below */
 	ASSERT(sii->pub.ccrev != 10);
@@ -1553,13 +1553,13 @@ static __used bool si_ispcie(si_info_t *sii)
 	u8 cap_ptr;
 
 	if (BUSTYPE(sii->pub.bustype) != PCI_BUS)
-		return FALSE;
+		return false;
 
 	cap_ptr =
 	    pcicore_find_pci_capability(sii->osh, PCI_CAP_PCIECAP_ID, NULL,
 					NULL);
 	if (!cap_ptr)
-		return FALSE;
+		return false;
 
 	return true;
 }
@@ -1940,7 +1940,7 @@ bool si_deviceremoved(si_t *sih)
 			return true;
 		break;
 	}
-	return FALSE;
+	return false;
 }
 
 bool si_is_sprom_available(si_t *sih)
@@ -1952,7 +1952,7 @@ bool si_is_sprom_available(si_t *sih)
 		u32 sromctrl;
 
 		if ((sih->cccaps & CC_CAP_SROM) == 0)
-			return FALSE;
+			return false;
 
 		sii = SI_INFO(sih);
 		origidx = sii->curidx;
@@ -2004,7 +2004,7 @@ bool si_is_otp_disabled(si_t *sih)
 	case BCM43238_CHIP_ID:
 	case BCM4331_CHIP_ID:
 	default:
-		return FALSE;
+		return false;
 	}
 }
 

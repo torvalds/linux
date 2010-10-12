@@ -347,7 +347,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 		p = pktq_peek_tail(q, &eprec);
 		ASSERT(p);
 		if (eprec > prec)
-			return FALSE;
+			return false;
 	}
 
 	/* Evict if needed */
@@ -356,7 +356,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 		ASSERT(!pktq_pempty(q, eprec));
 		discard_oldest = AC_BITMAP_TST(dhdp->wme_dp, eprec);
 		if (eprec == prec && !discard_oldest)
-			return FALSE;	/* refuse newer (incoming) packet */
+			return false;	/* refuse newer (incoming) packet */
 		/* Evict packet according to discard policy */
 		p = discard_oldest ? pktq_pdeq(q, eprec) : pktq_pdeq_tail(q,
 						  eprec);
@@ -523,7 +523,7 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 {
 	uint i, status, reason;
-	bool group = FALSE, flush_txq = FALSE, link = FALSE;
+	bool group = false, flush_txq = false, link = false;
 	char *auth_str, *event_name;
 	unsigned char *buf;
 	char err_msg[256], eabuf[ETHER_ADDR_STR_LEN];

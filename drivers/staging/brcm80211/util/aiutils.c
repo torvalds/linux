@@ -153,7 +153,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 		uint i, j, idx;
 		bool br;
 
-		br = FALSE;
+		br = false;
 
 		/* Grok a component */
 		cia = get_erom_ent(sih, &eromptr, ER_TAG, ER_CI);
@@ -493,7 +493,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 	u32 *r = NULL;
 	uint w;
 	uint intr_val = 0;
-	bool fast = FALSE;
+	bool fast = false;
 	si_info_t *sii;
 
 	sii = SI_INFO(sih);

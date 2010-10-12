@@ -145,7 +145,7 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 	u32 *r = NULL;
 	uint w;
 	uint intr_val = 0;
-	bool fast = FALSE;
+	bool fast = false;
 	si_info_t *sii;
 
 	sii = SI_INFO(sih);
@@ -402,7 +402,7 @@ bool sb_taclear(si_t *sih, bool details)
 	sbconfig_t *sb;
 	uint origidx;
 	uint intr_val = 0;
-	bool rc = FALSE;
+	bool rc = false;
 	u32 inband = 0, serror = 0, timeout = 0;
 	void *corereg = NULL;
 	volatile u32 imstate, tmstate;

@@ -266,7 +266,7 @@ static u32 WLBANDINITFN(wlc_setband_inact) (wlc_info_t *wlc, uint bandunit)
 
 /* Process received frames */
 /*
- * Return true if more frames need to be processed. FALSE otherwise.
+ * Return true if more frames need to be processed. false otherwise.
  * Param 'bound' indicates max. # frames to process before break out.
  */
 static bool BCMFASTPATH
@@ -321,7 +321,7 @@ wlc_bmac_recv(wlc_hw_info_t *wlc_hw, uint fifo, bool bound)
 }
 
 /* second-level interrupt processing
- *   Return true if another dpc needs to be re-scheduled. FALSE otherwise.
+ *   Return true if another dpc needs to be re-scheduled. false otherwise.
  *   Param 'bounded' indicates if applicable loops should be bounded.
  */
 bool BCMFASTPATH wlc_dpc(wlc_info_t *wlc, bool bounded)
@@ -329,12 +329,12 @@ bool BCMFASTPATH wlc_dpc(wlc_info_t *wlc, bool bounded)
 	u32 macintstatus;
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
-	bool fatal = FALSE;
+	bool fatal = false;
 
 	if (DEVICEREMOVED(wlc)) {
 		WL_ERROR(("wl%d: %s: dead chip\n", wlc_hw->unit, __func__));
 		wl_down(wlc->wl);
-		return FALSE;
+		return false;
 	}
 
 	/* grab and clear the saved software intstatus bits */
@@ -594,7 +594,7 @@ static bool wlc_bmac_attach_dmapio(wlc_info_t *wlc, uint j, bool wme)
 
 		if (!wl_alloc_dma_resources(wlc_hw->wlc->wl, addrwidth)) {
 			WL_ERROR(("wl%d: wlc_attach: alloc_dma_resources failed\n", unit));
-			return FALSE;
+			return false;
 		}
 
 		/*
@@ -668,7 +668,7 @@ static bool wlc_bmac_attach_dmapio(wlc_info_t *wlc, uint j, bool wme)
 		if (dma_attach_err) {
 			WL_ERROR(("wl%d: wlc_attach: dma_attach failed\n",
 				  unit));
-			return FALSE;
+			return false;
 		}
 
 		/* get pointer to dma engine tx flow control variable */
@@ -713,7 +713,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 	char *vars;
 	uint err = 0;
 	uint j;
-	bool wme = FALSE;
+	bool wme = false;
 	shared_phy_params_t sha_params;
 
 	WL_TRACE(("wl%d: wlc_bmac_attach: vendor 0x%x device 0x%x\n", unit,
@@ -803,7 +803,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 
 	/* request fastclock and force fastclock for the rest of attach
 	 * bring the d11 core out of reset.
-	 *   For PMU chips, the first wlc_clkctl_clk is no-op since core-clk is still FALSE;
+	 *   For PMU chips, the first wlc_clkctl_clk is no-op since core-clk is still false;
 	 *   But it will be called again inside wlc_corereset, after d11 is out of reset.
 	 */
 	wlc_clkctl_clk(wlc_hw, CLK_FAST);
@@ -1009,7 +1009,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 	 * or cores are in reset with clocks off, and the board PLLs
 	 * are off if possible.
 	 *
-	 * Beyond this point, wlc->sbclk == FALSE and chip registers
+	 * Beyond this point, wlc->sbclk == false and chip registers
 	 * should not be touched.
 	 *********************************************************************
 	 */
@@ -1054,7 +1054,7 @@ void wlc_bmac_info_init(wlc_hw_info_t *wlc_hw)
 	wlc->defmacintmask = DEF_MACINTMASK;
 
 	/* various 802.11g modes */
-	wlc_hw->shortslot = FALSE;
+	wlc_hw->shortslot = false;
 
 	wlc_hw->SFBL = RETRY_SHORT_FB;
 	wlc_hw->LFBL = RETRY_LONG_FB;
@@ -1287,15 +1287,15 @@ int wlc_bmac_down_finish(wlc_hw_info_t *wlc_hw)
 	if (!wlc_hw->up)
 		return callbacks;
 
-	wlc_hw->up = FALSE;
-	wlc_phy_hw_state_upd(wlc_hw->band->pi, FALSE);
+	wlc_hw->up = false;
+	wlc_phy_hw_state_upd(wlc_hw->band->pi, false);
 
 	dev_gone = DEVICEREMOVED(wlc_hw->wlc);
 
 	if (dev_gone) {
-		wlc_hw->sbclk = FALSE;
-		wlc_hw->clk = FALSE;
-		wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, FALSE);
+		wlc_hw->sbclk = false;
+		wlc_hw->clk = false;
+		wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, false);
 
 		/* reclaim any posted packets */
 		wlc_flushqueues(wlc_hw->wlc);
@@ -2042,7 +2042,7 @@ void wlc_bmac_phy_reset(wlc_hw_info_t *wlc_hw)
 {
 	wlc_phy_t *pih = wlc_hw->band->pi;
 	u32 phy_bw_clkbits;
-	bool phy_in_reset = FALSE;
+	bool phy_in_reset = false;
 
 	WL_TRACE(("wl%d: wlc_bmac_phy_reset\n", wlc_hw->unit));
 
@@ -2146,7 +2146,7 @@ static bool wlc_isgoodchip(wlc_hw_info_t *wlc_hw)
 	/* reject unsupported corerev */
 	if (!VALID_COREREV(wlc_hw->corerev)) {
 		WL_ERROR(("unsupported core rev %d\n", wlc_hw->corerev));
-		return FALSE;
+		return false;
 	}
 
 	return true;
@@ -2158,7 +2158,7 @@ static bool wlc_validboardtype(wlc_hw_info_t *wlc_hw)
 	uint boardrev = wlc_hw->boardrev;
 
 	if (boardrev == 0)
-		goodboard = FALSE;
+		goodboard = false;
 	else if (boardrev > 0xff) {
 		uint brt = (boardrev & 0xf000) >> 12;
 		uint b0 = (boardrev & 0xf00) >> 8;
@@ -2167,7 +2167,7 @@ static bool wlc_validboardtype(wlc_hw_info_t *wlc_hw)
 
 		if ((brt > 2) || (brt == 0) || (b0 > 9) || (b0 == 0) || (b1 > 9)
 		    || (b2 > 9))
-			goodboard = FALSE;
+			goodboard = false;
 	}
 
 	if (wlc_hw->sih->boardvendor != VENDOR_BROADCOM)
@@ -2200,7 +2200,7 @@ static char *wlc_get_macaddr(wlc_hw_info_t *wlc_hw)
 }
 
 /*
- * Return true if radio is disabled, otherwise FALSE.
+ * Return true if radio is disabled, otherwise false.
  * hw radio disable signal is an external pin, users activate it asynchronously
  * this function could be called when driver is down and w/o clock
  * it operates on different registers depending on corerev and boardflag.
@@ -2281,7 +2281,7 @@ void wlc_bmac_hw_up(wlc_hw_info_t *wlc_hw)
 	/* Inform phy that a POR reset has occurred so it does a complete phy init */
 	wlc_phy_por_inform(wlc_hw->band->pi);
 
-	wlc_hw->ucode_loaded = FALSE;
+	wlc_hw->ucode_loaded = false;
 	wlc_hw->wlc->pub->hw_up = true;
 
 	if ((wlc_hw->boardflags & BFL_FEM)
@@ -2387,7 +2387,7 @@ void wlc_bmac_corereset(wlc_hw_info_t *wlc_hw, u32 flags)
 	 *  chipcommon during this period if necessary. But that has to work coordinate
 	 *  with other driver like mips/arm since they may touch chipcommon as well.
 	 */
-	wlc_hw->clk = FALSE;
+	wlc_hw->clk = false;
 	si_core_reset(wlc_hw->sih, flags, resetbits);
 	wlc_hw->clk = true;
 	if (wlc_hw->band && wlc_hw->band->pi)
@@ -2482,7 +2482,7 @@ static void wlc_coreinit(wlc_info_t *wlc)
 	u32 sflags;
 	uint bcnint_us;
 	uint i = 0;
-	bool fifosz_fixup = FALSE;
+	bool fifosz_fixup = false;
 	osl_t *osh;
 	int err = 0;
 	u16 buf[NFIFO];
@@ -2750,7 +2750,7 @@ static void wlc_gpio_init(wlc_info_t *wlc)
 				     MHF3_ANTSEL_MODE, WLC_BAND_ALL);
 
 			/* init superswitch control */
-			wlc_phy_antsel_init(wlc_hw->band->pi, FALSE);
+			wlc_phy_antsel_init(wlc_hw->band->pi, false);
 
 		} else if (wlc_hw->antsel_type == ANTSEL_2x4) {
 			ASSERT((gm & BOARD_GPIO_12) == 0);
@@ -2898,7 +2898,7 @@ void wlc_bmac_antsel_type_set(wlc_hw_info_t *wlc_hw, u8 antsel_type)
 
 void wlc_bmac_fifoerrors(wlc_hw_info_t *wlc_hw)
 {
-	bool fatal = FALSE;
+	bool fatal = false;
 	uint unit;
 	uint intstatus, idx;
 	d11regs_t *regs = wlc_hw->regs;
@@ -3109,7 +3109,7 @@ bool wlc_bmac_tx_fifo_suspended(wlc_hw_info_t *wlc_hw, uint tx_fifo)
 	     (1 << tx_fifo)) == 0)
 		return true;
 
-	return FALSE;
+	return false;
 }
 
 void wlc_bmac_tx_fifo_suspend(wlc_hw_info_t *wlc_hw, uint tx_fifo)
@@ -3262,7 +3262,7 @@ static inline u32 wlc_intstatus(wlc_info_t *wlc, bool in_isr)
 }
 
 /* Update wlc->macintstatus and wlc->intstatus[]. */
-/* Return true if they are updated successfully. FALSE otherwise */
+/* Return true if they are updated successfully. false otherwise */
 bool wlc_intrsupd(wlc_info_t *wlc)
 {
 	u32 macintstatus;
@@ -3270,11 +3270,11 @@ bool wlc_intrsupd(wlc_info_t *wlc)
 	ASSERT(wlc->macintstatus != 0);
 
 	/* read and clear macintstatus and intstatus registers */
-	macintstatus = wlc_intstatus(wlc, FALSE);
+	macintstatus = wlc_intstatus(wlc, false);
 
 	/* device is removed */
 	if (macintstatus == 0xffffffff)
-		return FALSE;
+		return false;
 
 	/* update interrupt status in software */
 	wlc->macintstatus |= macintstatus;
@@ -3284,19 +3284,19 @@ bool wlc_intrsupd(wlc_info_t *wlc)
 
 /*
  * First-level interrupt processing.
- * Return true if this was our interrupt, FALSE otherwise.
+ * Return true if this was our interrupt, false otherwise.
  * *wantdpc will be set to true if further wlc_dpc() processing is required,
- * FALSE otherwise.
+ * false otherwise.
  */
 bool BCMFASTPATH wlc_isr(wlc_info_t *wlc, bool *wantdpc)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	u32 macintstatus;
 
-	*wantdpc = FALSE;
+	*wantdpc = false;
 
 	if (!wlc_hw->up || !wlc->macintmask)
-		return FALSE;
+		return false;
 
 	/* read and clear macintstatus and intstatus registers */
 	macintstatus = wlc_intstatus(wlc, true);
@@ -3306,7 +3306,7 @@ bool BCMFASTPATH wlc_isr(wlc_info_t *wlc, bool *wantdpc)
 
 	/* it is not for us */
 	if (macintstatus == 0)
-		return FALSE;
+		return false;
 
 	*wantdpc = true;
 
@@ -3324,7 +3324,7 @@ static bool wlc_bmac_txstatus_corerev4(wlc_hw_info_t *wlc_hw)
 	void *status_p;
 	tx_status_t *txs;
 	osl_t *osh;
-	bool fatal = FALSE;
+	bool fatal = false;
 
 	WL_TRACE(("wl%d: wlc_txstatusrecv\n", wlc_hw->unit));
 
@@ -3342,7 +3342,7 @@ static bool wlc_bmac_txstatus_corerev4(wlc_hw_info_t *wlc_hw)
 
 		fatal = wlc_bmac_dotxstatus(wlc_hw, txs, 0);
 
-		PKTFREE(osh, status_p, FALSE);
+		PKTFREE(osh, status_p, false);
 	}
 
 	if (fatal)
@@ -3351,7 +3351,7 @@ static bool wlc_bmac_txstatus_corerev4(wlc_hw_info_t *wlc_hw)
 	/* post more rbufs */
 	dma_rxfill(wlc_hw->di[RX_TXSTATUS_FIFO]);
 
-	return FALSE;
+	return false;
 }
 
 static bool BCMFASTPATH
@@ -3364,19 +3364,19 @@ wlc_bmac_dotxstatus(wlc_hw_info_t *wlc_hw, tx_status_t *txs, u32 s2)
 	 */
 	if (!(txs->status & TX_STATUS_AMPDU)
 	    && (txs->status & TX_STATUS_INTERMEDIATE)) {
-		return FALSE;
+		return false;
 	}
 
 	return wlc_dotxstatus(wlc_hw->wlc, txs, s2);
 }
 
 /* process tx completion events in BMAC
- * Return true if more tx status need to be processed. FALSE otherwise.
+ * Return true if more tx status need to be processed. false otherwise.
  */
 static bool BCMFASTPATH
 wlc_bmac_txstatus(wlc_hw_info_t *wlc_hw, bool bound, bool *fatal)
 {
-	bool morepending = FALSE;
+	bool morepending = false;
 	wlc_info_t *wlc = wlc_hw->wlc;
 
 	WL_TRACE(("wl%d: wlc_bmac_txstatus\n", wlc_hw->unit));
@@ -3693,7 +3693,7 @@ bool wlc_bmac_validate_chip_access(wlc_hw_info_t *wlc_hw)
 	val = R_REG(osh, &regs->objdata);
 	if (val != (u32) 0xaa5555aa) {
 		WL_ERROR(("wl%d: validate_chip_access: SHM = 0x%x, expected 0xaa5555aa\n", wlc_hw->unit, val));
-		return FALSE;
+		return false;
 	}
 
 	W_REG(osh, &regs->objaddr, OBJADDR_SHM_SEL | 0);
@@ -3705,7 +3705,7 @@ bool wlc_bmac_validate_chip_access(wlc_hw_info_t *wlc_hw)
 	val = R_REG(osh, &regs->objdata);
 	if (val != (u32) 0x55aaaa55) {
 		WL_ERROR(("wl%d: validate_chip_access: SHM = 0x%x, expected 0x55aaaa55\n", wlc_hw->unit, val));
-		return FALSE;
+		return false;
 	}
 
 	W_REG(osh, &regs->objaddr, OBJADDR_SHM_SEL | 0);
@@ -3735,12 +3735,12 @@ bool wlc_bmac_validate_chip_access(wlc_hw_info_t *wlc_hw)
 		val = R_REG(osh, &regs->tsf_cfpstrt_l);
 		if (val != (uint) 0xBBBB) {
 			WL_ERROR(("wl%d: validate_chip_access: tsf_cfpstrt_l = 0x%x, expected" " 0x%x\n", wlc_hw->unit, val, 0xBBBB));
-			return FALSE;
+			return false;
 		}
 		val = R_REG(osh, &regs->tsf_cfpstrt_h);
 		if (val != (uint) 0xCCCC) {
 			WL_ERROR(("wl%d: validate_chip_access: tsf_cfpstrt_h = 0x%x, expected" " 0x%x\n", wlc_hw->unit, val, 0xCCCC));
-			return FALSE;
+			return false;
 		}
 
 	}
@@ -3752,7 +3752,7 @@ bool wlc_bmac_validate_chip_access(wlc_hw_info_t *wlc_hw)
 	if ((w != (MCTL_IHR_EN | MCTL_WAKE)) &&
 	    (w != (MCTL_IHR_EN | MCTL_GMODE | MCTL_WAKE))) {
 		WL_ERROR(("wl%d: validate_chip_access: maccontrol = 0x%x, expected 0x%x or 0x%x\n", wlc_hw->unit, w, (MCTL_IHR_EN | MCTL_WAKE), (MCTL_IHR_EN | MCTL_GMODE | MCTL_WAKE)));
-		return FALSE;
+		return false;
 	}
 
 	return true;
@@ -3842,7 +3842,7 @@ void wlc_coredisable(wlc_hw_info_t *wlc_hw)
 	wlc_phy_anacore(wlc_hw->band->pi, OFF);
 
 	/* turn off PHYPLL to save power */
-	wlc_bmac_core_phypll_ctl(wlc_hw, FALSE);
+	wlc_bmac_core_phypll_ctl(wlc_hw, false);
 
 	/* No need to set wlc->pub->radio_active = OFF
 	 * because this function needs down capability and
@@ -3853,9 +3853,9 @@ void wlc_coredisable(wlc_hw_info_t *wlc_hw)
 	if (wlc_hw->ucode_dbgsel)
 		si_gpiocontrol(wlc_hw->sih, ~0, 0, GPIO_DRV_PRIORITY);
 
-	wlc_hw->clk = FALSE;
+	wlc_hw->clk = false;
 	si_core_disable(wlc_hw->sih, 0);
-	wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, FALSE);
+	wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, false);
 }
 
 /* power both the pll and external oscillator on/off */
@@ -3872,9 +3872,9 @@ void wlc_bmac_xtal(wlc_hw_info_t *wlc_hw, bool want)
 
 	wlc_hw->sbclk = want;
 	if (!wlc_hw->sbclk) {
-		wlc_hw->clk = FALSE;
+		wlc_hw->clk = false;
 		if (wlc_hw->band && wlc_hw->band->pi)
-			wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, FALSE);
+			wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, false);
 	}
 }
 
@@ -4143,8 +4143,8 @@ void wlc_gpio_fast_deinit(wlc_hw_info_t *wlc_hw)
 bool wlc_bmac_radio_hw(wlc_hw_info_t *wlc_hw, bool enable)
 {
 	/* Do not access Phy registers if core is not up */
-	if (si_iscoreup(wlc_hw->sih) == FALSE)
-		return FALSE;
+	if (si_iscoreup(wlc_hw->sih) == false)
+		return false;
 
 	if (enable) {
 		if (PMUCTL_ENAB(wlc_hw->sih)) {
@@ -4166,7 +4166,7 @@ bool wlc_bmac_radio_hw(wlc_hw_info_t *wlc_hw, bool enable)
 		wlc_phy_anacore(wlc_hw->band->pi, OFF);
 
 		if (PMUCTL_ENAB(wlc_hw->sih)) {
-			si_pmu_radio_enable(wlc_hw->sih, FALSE);
+			si_pmu_radio_enable(wlc_hw->sih, false);
 			OR_REG(wlc_hw->osh, &wlc_hw->regs->clk_ctl_st,
 			       CCS_FORCEHWREQOFF);
 		}

@@ -50,7 +50,7 @@ extern uint wl_buf_to_pktcopy(osl_t *osh, void *p, unsigned char *buf, int len,
 extern void *wl_get_pktbuffer(osl_t *osh, int len);
 extern int wl_set_pktlen(osl_t *osh, void *p, int len);
 
-#define wl_sort_bsslist(a, b) FALSE
+#define wl_sort_bsslist(a, b) false
 
 extern int wl_tkip_miccheck(struct wl_info *wl, void *p, int hdr_len,
 			    bool group_key, int id);

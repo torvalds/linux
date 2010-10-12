@@ -169,7 +169,7 @@ typedef struct dma_info {
 #ifdef BCMDMASGLISTOSL
 #define DMASGLIST_ENAB true
 #else
-#define DMASGLIST_ENAB FALSE
+#define DMASGLIST_ENAB false
 #endif				/* BCMDMASGLISTOSL */
 
 /* descriptor bumping macros */
@@ -758,18 +758,18 @@ static bool _dma_descriptor_align(dma_info_t *di)
 			W_REG(di->osh, &di->d64txregs->addrlow, 0xff0);
 			addrl = R_REG(di->osh, &di->d64txregs->addrlow);
 			if (addrl != 0)
-				return FALSE;
+				return false;
 		} else if (di->d64rxregs != NULL) {
 			W_REG(di->osh, &di->d64rxregs->addrlow, 0xff0);
 			addrl = R_REG(di->osh, &di->d64rxregs->addrlow);
 			if (addrl != 0)
-				return FALSE;
+				return false;
 		}
 	}
 	return true;
 }
 
-/* return true if this dma engine supports DmaExtendedAddrChanges, otherwise FALSE */
+/* return true if this dma engine supports DmaExtendedAddrChanges, otherwise false */
 static bool _dma_isaddrext(dma_info_t *di)
 {
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
@@ -789,7 +789,7 @@ static bool _dma_isaddrext(dma_info_t *di)
 			}
 			return true;
 		}
-		return FALSE;
+		return false;
 	} else if (DMA32_ENAB(di)) {
 		if (di->d32txregs)
 			return _dma32_addrext(di->osh, di->d32txregs);
@@ -798,7 +798,7 @@ static bool _dma_isaddrext(dma_info_t *di)
 	} else
 		ASSERT(0);
 
-	return FALSE;
+	return false;
 }
 
 /* initialize descriptor table base address */
@@ -994,7 +994,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	int resid = 0;
 
  next_frame:
-	head = _dma_getnextrxp(di, FALSE);
+	head = _dma_getnextrxp(di, false);
 	if (head == NULL)
 		return NULL;
 
@@ -1018,7 +1018,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	/* check for single or multi-buffer rx */
 	if (resid > 0) {
 		tail = head;
-		while ((resid > 0) && (p = _dma_getnextrxp(di, FALSE))) {
+		while ((resid > 0) && (p = _dma_getnextrxp(di, false))) {
 			PKTSETNEXT(tail, p);
 			pkt_len = min(resid, (int)di->rxbufsize);
 			PKTSETLEN(p, pkt_len);
@@ -1047,7 +1047,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 		if ((di->hnddma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
 			DMA_ERROR(("%s: dma_rx: bad frame length (%d)\n",
 				   di->name, len));
-			PKTFREE(di->osh, head, FALSE);
+			PKTFREE(di->osh, head, false);
 			di->hnddma.rxgiants++;
 			goto next_frame;
 		}
@@ -1057,7 +1057,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 }
 
 /* post receive buffers
- *  return FALSE is refill failed completely and ring is empty
+ *  return false is refill failed completely and ring is empty
  *  this will stall the rx dma and user might want to call rxfill again asap
  *  This unlikely happens on memory-rich NIC, but often on memory-constrained dongle
  */
@@ -1072,7 +1072,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 	uint extra_offset = 0;
 	bool ring_empty;
 
-	ring_empty = FALSE;
+	ring_empty = false;
 
 	/*
 	 * Determine how many receive buffers we're lacking
@@ -1238,7 +1238,7 @@ static void _dma_rxreclaim(dma_info_t *di)
 	DMA_TRACE(("%s: dma_rxreclaim\n", di->name));
 
 	while ((p = _dma_getnextrxp(di, true)))
-		PKTFREE(di->osh, p, FALSE);
+		PKTFREE(di->osh, p, false);
 }
 
 static void *BCMFASTPATH _dma_getnextrxp(dma_info_t *di, bool forceall)
@@ -1538,7 +1538,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 			&alloced, &di->txdpaorig, &di->tx_dmah);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma_alloc: DMA_ALLOC_CONSISTENT(ntxd) failed\n", di->name));
-			return FALSE;
+			return false;
 		}
 
 		PHYSADDRHISET(di->txdpa, 0);
@@ -1559,7 +1559,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma_alloc: DMA_ALLOC_CONSISTENT(nrxd) failed\n", di->name));
-			return FALSE;
+			return false;
 		}
 
 		PHYSADDRHISET(di->rxdpa, 0);
@@ -2106,7 +2106,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 			&alloced, &di->txdpaorig, &di->tx_dmah);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(ntxd) failed\n", di->name));
-			return FALSE;
+			return false;
 		}
 		align = (1 << align_bits);
 		di->txd64 = (dma64dd_t *) roundup((uintptr) va, align);
@@ -2124,7 +2124,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(nrxd) failed\n", di->name));
-			return FALSE;
+			return false;
 		}
 		align = (1 << align_bits);
 		di->rxd64 = (dma64dd_t *) roundup((uintptr) va, align);

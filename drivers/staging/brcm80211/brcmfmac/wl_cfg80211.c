@@ -780,8 +780,8 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		return -EAGAIN;
 	}
 
-	iscan_req = FALSE;
-	spec_scan = FALSE;
+	iscan_req = false;
+	spec_scan = false;
 	if (request) {		/* scan bss */
 		ssids = request->ssids;
 		if (wl->iscan_on && (!ssids || !ssids->ssid_len)) {	/* for
@@ -984,7 +984,7 @@ static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (changed & WIPHY_PARAM_RETRY_SHORT
 	    && (wl->conf->retry_short != wiphy->retry_short)) {
 		wl->conf->retry_short = wiphy->retry_short;
-		err = wl_set_retry(ndev, wl->conf->retry_short, FALSE);
+		err = wl_set_retry(ndev, wl->conf->retry_short, false);
 		if (!err) {
 			return err;
 		}
@@ -1032,7 +1032,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 					params->ssid, params->ssid_len);
 	}
 	if (bss) {
-		wl->ibss_starter = FALSE;
+		wl->ibss_starter = false;
 		WL_DBG(("Found IBSS\n"));
 	} else {
 		wl->ibss_starter = true;
@@ -1404,7 +1404,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	scb_val_t scbval;
-	bool act = FALSE;
+	bool act = false;
 	s32 err = 0;
 
 	WL_DBG(("Reason %d\n", reason_code));
@@ -2344,7 +2344,7 @@ static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e)
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
@@ -2359,7 +2359,7 @@ static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 			return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e)
@@ -2372,7 +2372,7 @@ static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e)
 			return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static s32
@@ -2402,7 +2402,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 		wl_link_down(wl);
 		wl_init_prof(wl->profile);
 	} else if (wl_is_nonetwork(wl, e)) {
-		wl_bss_connect_done(wl, ndev, e, data, FALSE);
+		wl_bss_connect_done(wl, ndev, e, data, false);
 	}
 
 	return err;
@@ -2710,7 +2710,7 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 
 scan_done_out:
 	if (wl->scan_request) {
-		cfg80211_scan_done(wl->scan_request, FALSE);
+		cfg80211_scan_done(wl->scan_request, false);
 		wl_set_mpc(ndev, 1);
 		wl->scan_request = NULL;
 	}
@@ -2879,7 +2879,7 @@ static void wl_notify_iscan_complete(struct wl_iscan_ctrl *iscan, bool aborted)
 		wl_set_mpc(ndev, 1);
 		wl->scan_request = NULL;
 	}
-	wl->iscan_kickstart = FALSE;
+	wl->iscan_kickstart = false;
 }
 
 static s32 wl_wakeup_iscan(struct wl_iscan_ctrl *iscan)
@@ -2937,7 +2937,7 @@ static s32 wl_iscan_done(struct wl_priv *wl)
 	iscan->state = WL_ISCAN_STATE_IDLE;
 	rtnl_lock();
 	wl_inform_bss(wl);
-	wl_notify_iscan_complete(iscan, FALSE);
+	wl_notify_iscan_complete(iscan, false);
 	rtnl_unlock();
 
 	return err;
@@ -3102,19 +3102,19 @@ static s32 wl_init_priv(struct wl_priv *wl)
 	wl->iscan_on = true;	/* iscan on & off switch.
 				 we enable iscan per default */
 #else
-	wl->iscan_on = FALSE;
+	wl->iscan_on = false;
 #endif				/* WL_ISCAN_DISABLED */
 #ifndef WL_ROAM_DISABLED
 	wl->roam_on = true;	/* roam on & off switch.
 				 we enable roam per default */
 #else
-	wl->roam_on = FALSE;
+	wl->roam_on = false;
 #endif				/* WL_ROAM_DISABLED */
 
-	wl->iscan_kickstart = FALSE;
+	wl->iscan_kickstart = false;
 	wl->active_scan = true;	/* we do active scan for
 				 specific scan per default */
-	wl->dongle_up = FALSE;	/* dongle is not up yet */
+	wl->dongle_up = false;	/* dongle is not up yet */
 	wl_init_eq(wl);
 	err = wl_init_priv_mem(wl);
 	if (unlikely(err))
@@ -3137,7 +3137,7 @@ static s32 wl_init_priv(struct wl_priv *wl)
 static void wl_deinit_priv(struct wl_priv *wl)
 {
 	wl_destroy_event_handler(wl);
-	wl->dongle_up = FALSE;	/* dongle down */
+	wl->dongle_up = false;	/* dongle down */
 	wl_flush_eq(wl);
 	wl_link_down(wl);
 	wl_term_iscan(wl);
@@ -3776,7 +3776,7 @@ static s32 __wl_cfg80211_up(struct wl_priv *wl)
 {
 	s32 err = 0;
 
-	err = wl_config_dongle(wl, FALSE);
+	err = wl_config_dongle(wl, false);
 	if (unlikely(err))
 		return err;
 
@@ -3989,7 +3989,7 @@ static void wl_link_down(struct wl_priv *wl)
 {
 	struct wl_connect_info *conn_info = wl_to_conn(wl);
 
-	wl->link_up = FALSE;
+	wl->link_up = false;
 	kfree(conn_info->req_ie);
 	conn_info->req_ie = NULL;
 	conn_info->req_ie_len = 0;

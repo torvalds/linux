@@ -157,11 +157,11 @@ static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc)
 static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val)
 {
 	if ((int_val != AUTO) && (int_val != OFF) && (int_val != ON)) {
-		return FALSE;
+		return false;
 	}
 
 	if ((int_val == ON) && (wlc->stf->txstreams == 1))
-		return FALSE;
+		return false;
 
 	if ((int_val == OFF) || (wlc->stf->txstreams == 1)
 	    || !WLC_STBC_CAP_PHY(wlc))
@@ -179,13 +179,13 @@ bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val)
 {
 	if ((int_val != HT_CAP_RX_STBC_NO)
 	    && (int_val != HT_CAP_RX_STBC_ONE_STREAM)) {
-		return FALSE;
+		return false;
 	}
 
 	if (WLC_STF_SS_STBC_RX(wlc)) {
 		if ((int_val != HT_CAP_RX_STBC_NO)
 		    && (wlc->stf->rxstreams == 1))
-			return FALSE;
+			return false;
 	}
 
 	wlc_stf_stbc_rx_ht_update(wlc, int_val);

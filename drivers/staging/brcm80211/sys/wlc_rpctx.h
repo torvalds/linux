@@ -51,11 +51,11 @@ extern void wlc_rpctx_txpktpendclr(rpctx_info_t *rpctx, uint fifo);
 extern int wlc_rpctx_txpktpend(rpctx_info_t *rpctx, uint fifo, bool all);
 
 #else
-#define	RPCTX_ENAB(pub)			(FALSE)
+#define	RPCTX_ENAB(pub)			(false)
 #define	wlc_rpctx_attach(pub, wlc)	(NULL)
 #define	wlc_rpctx_fifoinit(rpctx, fifo, ntxd) (0)
 #define	wlc_rpctx_detach(rpctx)		ASSERT(0)
-#define	wlc_rpctx_txavail(rpctx, f)	(FALSE)
+#define	wlc_rpctx_txavail(rpctx, f)	(false)
 #define	wlc_rpctx_dump(rpctx, b)		(0)
 #define	wlc_rpctx_getnexttxp(rpctx, f)		(NULL)
 #define	wlc_rpctx_txreclaim(rpctx)		ASSERT(0)

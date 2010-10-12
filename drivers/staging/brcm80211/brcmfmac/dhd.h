@@ -158,7 +158,7 @@ typedef struct dhd_pub {
 #define _DHD_PM_RESUME_WAIT(a, b) do {\
 			int retry = 0; \
 			while (dhd_mmc_suspend && retry++ != b) { \
-				wait_event_timeout(a, FALSE, HZ/100); \
+				wait_event_timeout(a, false, HZ/100); \
 			} \
 		}	while (0)
 #define DHD_PM_RESUME_WAIT(a)	_DHD_PM_RESUME_WAIT(a, 30)
@@ -171,7 +171,7 @@ typedef struct dhd_pub {
 #define SPINWAIT_SLEEP(a, exp, us) do { \
 		uint countdown = (us) + 9999; \
 		while ((exp) && (countdown >= 10000)) { \
-			wait_event_timeout(a, FALSE, HZ/100); \
+			wait_event_timeout(a, false, HZ/100); \
 			countdown -= 10000; \
 		} \
 	} while (0)

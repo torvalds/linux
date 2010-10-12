@@ -1373,7 +1373,7 @@ static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	WL_LOCK(wl);
 	wl_down(wl);
-	wl->pub->hw_up = FALSE;
+	wl->pub->hw_up = false;
 	WL_UNLOCK(wl);
 	pci_save_state(pdev, wl->pci_psstate);
 	pci_disable_device(pdev);
@@ -1802,7 +1802,7 @@ irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 
 			/* ...and call the second level interrupt handler */
 			/* schedule dpc */
-			ASSERT(wl->resched == FALSE);
+			ASSERT(wl->resched == false);
 			tasklet_schedule(&wl->tasklet);
 		}
 	}
@@ -1901,7 +1901,7 @@ static void _wl_timer(wl_timer_t *t)
 			add_timer(&t->timer);
 			t->set = true;
 		} else
-			t->set = FALSE;
+			t->set = false;
 
 		t->fn(t->arg);
 	}
@@ -1964,13 +1964,13 @@ void wl_add_timer(wl_info_t *wl, wl_timer_t *t, uint ms, int periodic)
 	add_timer(&t->timer);
 }
 
-/* return true if timer successfully deleted, FALSE if still pending */
+/* return true if timer successfully deleted, false if still pending */
 bool wl_del_timer(wl_info_t *wl, wl_timer_t *t)
 {
 	if (t->set) {
-		t->set = FALSE;
+		t->set = false;
 		if (!del_timer(&t->timer)) {
-			return FALSE;
+			return false;
 		}
 		atomic_dec(&wl->callbacks);
 	}
@@ -2080,7 +2080,7 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 	}
 	wl->txq_tail = skb;
 
-	if (wl->txq_dispatched == FALSE) {
+	if (wl->txq_dispatched == false) {
 		wl->txq_dispatched = true;
 
 		if (schedule_work(&wl->txq_task.work)) {
@@ -2133,7 +2133,7 @@ static void wl_start_txqwork(struct wl_task *task)
 			atomic_dec(&wl->callbacks);
 		}
 	} else {
-		wl->txq_dispatched = FALSE;
+		wl->txq_dispatched = false;
 		TXQ_UNLOCK(wl, flags);
 		atomic_dec(&wl->callbacks);
 	}
@@ -2200,7 +2200,7 @@ static void wl_rpcq_dispatch(struct wl_task *task)
 		RPCQ_LOCK(wl, flags);
 	}
 
-	wl->rpcq_dispatched = FALSE;
+	wl->rpcq_dispatched = false;
 
 	RPCQ_UNLOCK(wl, flags);
 
@@ -2223,7 +2223,7 @@ static void wl_rpcq_add(wl_info_t *wl, rpc_buf_t *buf)
 
 	wl->rpcq_tail = buf;
 
-	if (wl->rpcq_dispatched == FALSE) {
+	if (wl->rpcq_dispatched == false) {
 		wl->rpcq_dispatched = true;
 		wl_schedule_task(wl, wl_rpcq_dispatch, wl);
 	}

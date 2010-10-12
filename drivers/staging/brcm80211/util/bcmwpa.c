@@ -40,7 +40,7 @@ bool bcm_is_wfa_ie(u8 *ie, u8 **tlvs, uint *tlvs_len, u8 type)
 	/* update the pointer to the start of the buffer */
 	*tlvs = ie;
 
-	return FALSE;
+	return false;
 }
 
 wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (u8 * parse, uint len)

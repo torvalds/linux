@@ -51,7 +51,7 @@
 #define BCM2064_IDCODE		0x02064000
 #define BCM2064A0_IDCODE	0x0206417f
 
-#define PHY_TPC_HW_OFF		FALSE
+#define PHY_TPC_HW_OFF		false
 #define PHY_TPC_HW_ON		true
 
 #define PHY_PERICAL_DRIVERUP	1

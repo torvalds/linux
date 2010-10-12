@@ -38,10 +38,10 @@
 #define pcicore_pcieserdesreg(a, b, c, d, e) (0)
 #define pcicore_pciereg(a, b, c, d, e) (0)
 
-#define pcicore_pmecap_fast(a)	(FALSE)
+#define pcicore_pmecap_fast(a)	(false)
 #define pcicore_pmeen(a)	do { } while (0)
 #define pcicore_pmeclr(a)	do { } while (0)
-#define pcicore_pmestat(a)	(FALSE)
+#define pcicore_pmestat(a)	(false)
 #else
 struct sbpcieregs;
 

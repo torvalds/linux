@@ -30,10 +30,6 @@ typedef unsigned int uintptr;
 
 #undef TYPEDEF_UINTPTR
 
-#ifndef FALSE
-#define FALSE	0
-#endif
-
 #ifndef OFF
 #define	OFF	0
 #endif

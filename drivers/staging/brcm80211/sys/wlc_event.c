@@ -88,13 +88,13 @@ int wlc_eventq_detach(wlc_eventq_t *eq)
 	if (eq->timer) {
 		if (eq->tpending) {
 			wl_del_timer(eq->wl, eq->timer);
-			eq->tpending = FALSE;
+			eq->tpending = false;
 		}
 		wl_free_timer(eq->wl, eq->timer);
 		eq->timer = NULL;
 	}
 
-	ASSERT(wlc_eventq_avail(eq) == FALSE);
+	ASSERT(wlc_eventq_avail(eq) == false);
 	MFREE(eq->pub->osh, eq, sizeof(wlc_eventq_t));
 	return 0;
 }
@@ -107,16 +107,16 @@ int wlc_eventq_down(wlc_eventq_t *eq)
 			callbacks++;
 
 		ASSERT(wlc_eventq_avail(eq) == true);
-		ASSERT(eq->workpending == FALSE);
+		ASSERT(eq->workpending == false);
 		eq->workpending = true;
 		if (eq->cb)
 			eq->cb(eq->wlc);
 
 		ASSERT(eq->workpending == true);
-		eq->workpending = FALSE;
-		eq->tpending = FALSE;
+		eq->workpending = false;
+		eq->tpending = false;
 	} else {
-		ASSERT(eq->workpending || wlc_eventq_avail(eq) == FALSE);
+		ASSERT(eq->workpending || wlc_eventq_avail(eq) == false);
 	}
 	return callbacks;
 }
@@ -216,14 +216,14 @@ static void wlc_timer_cb(void *arg)
 
 	ASSERT(eq->tpending == true);
 	ASSERT(wlc_eventq_avail(eq) == true);
-	ASSERT(eq->workpending == FALSE);
+	ASSERT(eq->workpending == false);
 	eq->workpending = true;
 
 	if (eq->cb)
 		eq->cb(eq->wlc);
 
-	ASSERT(wlc_eventq_avail(eq) == FALSE);
+	ASSERT(wlc_eventq_avail(eq) == false);
 	ASSERT(eq->tpending == true);
-	eq->workpending = FALSE;
-	eq->tpending = FALSE;
+	eq->workpending = false;
+	eq->tpending = false;
 }

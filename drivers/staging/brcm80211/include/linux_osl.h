@@ -335,7 +335,7 @@ extern int osl_error(int bcmerror);
 #define	PKTTAG(skb)		((void *)(((struct sk_buff *)(skb))->cb))
 #define PKTALLOCED(osh)		(((osl_pubinfo_t *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
-#define PKTPOOL(osh, skb)		FALSE
+#define PKTPOOL(osh, skb)		false
 extern void *osl_pktget(osl_t *osh, uint len);
 extern void osl_pktfree(osl_t *osh, void *skb, bool send);
 

@@ -288,7 +288,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 		dhd->wme_dp = (u8) ltoh32(val);
 	}
 
-	prot->pending = FALSE;
+	prot->pending = false;
 
 done:
 	dhd_os_proto_unblock(dhd);
@@ -351,7 +351,7 @@ bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 * fcbits)
 	if ((h->flags2 & BDC_FLAG2_FC_FLAG) == BDC_FLAG2_FC_FLAG)
 		return true;
 #endif
-	return FALSE;
+	return false;
 }
 
 int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf)

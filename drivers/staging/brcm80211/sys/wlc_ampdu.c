@@ -190,12 +190,12 @@ ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc)
 	for (i = 0; i < AMPDU_MAX_SCB_TID; i++)
 		ampdu->ini_enable[i] = true;
 	/* Disable ampdu for VO by default */
-	ampdu->ini_enable[PRIO_8021D_VO] = FALSE;
-	ampdu->ini_enable[PRIO_8021D_NC] = FALSE;
+	ampdu->ini_enable[PRIO_8021D_VO] = false;
+	ampdu->ini_enable[PRIO_8021D_NC] = false;
 
 	/* Disable ampdu for BK by default since not enough fifo space */
-	ampdu->ini_enable[PRIO_8021D_NONE] = FALSE;
-	ampdu->ini_enable[PRIO_8021D_BK] = FALSE;
+	ampdu->ini_enable[PRIO_8021D_NONE] = false;
+	ampdu->ini_enable[PRIO_8021D_BK] = false;
 
 	ampdu->ba_tx_wsize = AMPDU_TX_BA_DEF_WSIZE;
 	ampdu->ba_rx_wsize = AMPDU_RX_BA_DEF_WSIZE;
@@ -223,7 +223,7 @@ ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc)
 	}
 
 	ampdu_update_max_txlen(ampdu, ampdu->dur);
-	ampdu->mfbr = FALSE;
+	ampdu->mfbr = false;
 	/* try to set ampdu to the default value */
 	wlc_ampdu_set(ampdu, wlc->pub->_ampdu);
 
@@ -261,7 +261,7 @@ void scb_ampdu_cleanup(ampdu_info_t *ampdu, struct scb *scb)
 	ASSERT(scb_ampdu);
 
 	for (tid = 0; tid < AMPDU_MAX_SCB_TID; tid++) {
-		ampdu_cleanup_tid_ini(ampdu, scb_ampdu, tid, FALSE);
+		ampdu_cleanup_tid_ini(ampdu, scb_ampdu, tid, false);
 	}
 }
 
@@ -335,7 +335,7 @@ static void wlc_ffpld_init(ampdu_info_t *ampdu)
 static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
 {
 	ampdu_info_t *ampdu = wlc->ampdu;
-	u32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, FALSE);
+	u32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
 	u32 txunfl_ratio;
 	u8 max_mpdu;
 	u32 current_ampdu_cnt = 0;
@@ -463,7 +463,7 @@ static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f)
 	/* note : we divide/multiply by 100 to avoid integer overflows */
 	max_mpdu =
 	    min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
-	phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, FALSE);
+	phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
 	dma_rate =
 	    (((phy_rate / 100) *
 	      (max_mpdu * FFPLD_MPDU_SIZE - fifo->ampdu_pld_size))
@@ -474,7 +474,7 @@ static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f)
 	dma_rate = dma_rate >> 7;
 	for (i = 0; i < FFPLD_MAX_MCS; i++) {
 		/* shifting to keep it within integer range */
-		phy_rate = MCS_RATE(i, true, FALSE) >> 7;
+		phy_rate = MCS_RATE(i, true, false) >> 7;
 		if (phy_rate > dma_rate) {
 			tmp = ((fifo->ampdu_pld_size * phy_rate) /
 			       ((phy_rate - dma_rate) * FFPLD_MPDU_SIZE)) + 1;
@@ -496,7 +496,7 @@ wlc_ampdu_agg(ampdu_info_t *ampdu, struct scb *scb, void *p, uint prec)
 	/* initialize initiator on first packet; sends addba req */
 	ini = SCB_AMPDU_INI(scb_ampdu, tid);
 	if (ini->magic != INI_MAGIC) {
-		ini = wlc_ampdu_init_tid_ini(ampdu, scb_ampdu, tid, FALSE);
+		ini = wlc_ampdu_init_tid_ini(ampdu, scb_ampdu, tid, false);
 	}
 	return;
 }
@@ -514,7 +514,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 	u8 rts_preamble_type = WLC_LONG_PREAMBLE;
 	u8 rts_fbr_preamble_type = WLC_LONG_PREAMBLE;
 
-	bool rr = true, fbr = FALSE;
+	bool rr = true, fbr = false;
 	uint i, count = 0, fifo, seg_cnt = 0;
 	u16 plen, len, seq = 0, mcl, mch, index, frameid, dma_len = 0;
 	u32 ampdu_len, maxlen = 0;
@@ -525,7 +525,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 	scb_ampdu_t *scb_ampdu;
 	scb_ampdu_tid_ini_t *ini;
 	u8 mcs = 0;
-	bool use_rts = FALSE, use_cts = FALSE;
+	bool use_rts = false, use_cts = false;
 	ratespec_t rspec = 0, rspec_fallback = 0;
 	ratespec_t rts_rspec = 0, rts_rspec_fallback = 0;
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
@@ -619,11 +619,11 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 		if (txrate[0].count <= rr_retry_limit) {
 			txrate[0].count++;
 			rr = true;
-			fbr = FALSE;
+			fbr = false;
 			ASSERT(!fbr);
 		} else {
 			fbr = true;
-			rr = FALSE;
+			rr = false;
 			txrate[1].count++;
 		}
 
@@ -729,17 +729,17 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 
 			if (use_rts || use_cts) {
 				rts_rspec =
-				    wlc_rspec_to_rts_rspec(wlc, rspec, FALSE,
+				    wlc_rspec_to_rts_rspec(wlc, rspec, false,
 							   mimo_ctlchbw);
 				rts_rspec_fallback =
 				    wlc_rspec_to_rts_rspec(wlc, rspec_fallback,
-							   FALSE, mimo_ctlchbw);
+							   false, mimo_ctlchbw);
 			}
 		}
 
 		/* if (first mpdu for host agg) */
 		/* test whether to add more */
-		if ((MCS_RATE(mcs, true, FALSE) >= f->dmaxferrate) &&
+		if ((MCS_RATE(mcs, true, false) >= f->dmaxferrate) &&
 		    (count == f->mcs2ampdu_table[mcs])) {
 			WL_AMPDU_ERR(("wl%d: PR 37644: stopping ampdu at %d for mcs %d", wlc->pub->unit, count, mcs));
 			break;
@@ -831,7 +831,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 		}
 
 		/* set the preload length */
-		if (MCS_RATE(mcs, true, FALSE) >= f->dmaxferrate) {
+		if (MCS_RATE(mcs, true, false) >= f->dmaxferrate) {
 			dma_len = min(dma_len, f->ampdu_pld_size);
 			txh->PreloadSize = htol16(dma_len);
 		} else
@@ -899,7 +899,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 #ifdef WLC_HIGH_ONLY
 		if (wlc->rpc_agg & BCM_RPC_TP_HOST_AGG_AMPDU)
 			bcm_rpc_tp_agg_set(bcm_rpc_tp_get(wlc->rpc),
-					   BCM_RPC_TP_HOST_AGG_AMPDU, FALSE);
+					   BCM_RPC_TP_HOST_AGG_AMPDU, false);
 #endif
 
 	}
@@ -990,7 +990,7 @@ void wlc_ampdu_txstatus_complete(ampdu_info_t *ampdu, u32 s1, u32 s2)
 		ampdu->p = NULL;
 	}
 
-	ampdu->waiting_status = FALSE;
+	ampdu->waiting_status = false;
 }
 #endif				/* WLC_HIGH_ONLY */
 void rate_status(wlc_info_t *wlc, struct ieee80211_tx_info *tx_info,
@@ -1028,10 +1028,10 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 	struct dot11_header *h;
 	u16 seq, start_seq = 0, bindex, index, mcl;
 	u8 mcs = 0;
-	bool ba_recd = FALSE, ack_recd = FALSE;
+	bool ba_recd = false, ack_recd = false;
 	u8 suc_mpdu = 0, tot_mpdu = 0;
 	uint supr_status;
-	bool update_rate = true, retry = true, tx_error = FALSE;
+	bool update_rate = true, retry = true, tx_error = false;
 	u16 mimoantsel = 0;
 	u8 antselid = 0;
 	u8 retry_limit, rr_retry_limit;
@@ -1064,7 +1064,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 
 	if (txs->status & TX_STATUS_ACK_RCV) {
 		if (TX_STATUS_SUPR_UF == supr_status) {
-			update_rate = FALSE;
+			update_rate = false;
 		}
 
 		ASSERT(txs->status & TX_STATUS_INTERMEDIATE);
@@ -1091,7 +1091,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 	} else {
 		WLCNTINCR(ampdu->cnt->noba);
 		if (supr_status) {
-			update_rate = FALSE;
+			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
 				WL_ERROR(("%s: Pkt tx suppressed, illegal channel possibly %d\n", __func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec)));
 			} else {
@@ -1104,7 +1104,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 			/* no need to retry for badch; will fail again */
 			if (supr_status == TX_STATUS_SUPR_BADCH ||
 			    supr_status == TX_STATUS_SUPR_EXPTIME) {
-				retry = FALSE;
+				retry = false;
 				WLCNTINCR(wlc->pub->_cnt->txchanrej);
 			} else if (supr_status == TX_STATUS_SUPR_EXPTIME) {
 
@@ -1126,7 +1126,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 				}
 			}
 		} else if (txs->phyerr) {
-			update_rate = FALSE;
+			update_rate = false;
 			WLCNTINCR(wlc->pub->_cnt->txphyerr);
 			WL_ERROR(("wl%d: wlc_ampdu_dotxstatus: tx phy error (0x%x)\n", wlc->pub->unit, txs->phyerr));
 
@@ -1156,7 +1156,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 		}
 
 		index = TX_SEQ_TO_INDEX(seq);
-		ack_recd = FALSE;
+		ack_recd = false;
 		if (ba_recd) {
 			bindex = MODSUB_POW2(seq, start_seq, SEQNUM_MAX);
 
@@ -1296,7 +1296,7 @@ int wlc_ampdu_set(ampdu_info_t *ampdu, bool on)
 {
 	wlc_info_t *wlc = ampdu->wlc;
 
-	wlc->pub->_ampdu = FALSE;
+	wlc->pub->_ampdu = false;
 
 	if (on) {
 		if (!N_ENAB(wlc->pub)) {
@@ -1320,7 +1320,7 @@ bool wlc_ampdu_cap(ampdu_info_t *ampdu)
 	if (WLC_PHY_11N_CAP(ampdu->wlc->band))
 		return true;
 	else
-		return FALSE;
+		return false;
 }
 
 static void ampdu_update_max_txlen(ampdu_info_t *ampdu, u8 dur)
@@ -1330,13 +1330,13 @@ static void ampdu_update_max_txlen(ampdu_info_t *ampdu, u8 dur)
 	for (mcs = 0; mcs < MCS_TABLE_SIZE; mcs++) {
 		/* rate is in Kbps; dur is in msec ==> len = (rate * dur) / 8 */
 		/* 20MHz, No SGI */
-		rate = MCS_RATE(mcs, FALSE, FALSE);
+		rate = MCS_RATE(mcs, false, false);
 		ampdu->max_txlen[mcs][0][0] = (rate * dur) >> 3;
 		/* 40 MHz, No SGI */
-		rate = MCS_RATE(mcs, true, FALSE);
+		rate = MCS_RATE(mcs, true, false);
 		ampdu->max_txlen[mcs][1][0] = (rate * dur) >> 3;
 		/* 20MHz, SGI */
-		rate = MCS_RATE(mcs, FALSE, true);
+		rate = MCS_RATE(mcs, false, true);
 		ampdu->max_txlen[mcs][0][1] = (rate * dur) >> 3;
 		/* 40 MHz, SGI */
 		rate = MCS_RATE(mcs, true, true);

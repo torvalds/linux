@@ -46,7 +46,7 @@ bool wf_chspec_malformed(chanspec_t chanspec)
 			return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 /*

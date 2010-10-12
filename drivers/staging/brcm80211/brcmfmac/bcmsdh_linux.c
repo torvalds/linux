@@ -121,7 +121,7 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 	}
 #endif				/* BCMSDIOH_SPI */
 
-	return FALSE;
+	return false;
 }
 
 #if defined(BCMPLATFORM_BUS)
@@ -190,7 +190,7 @@ int bcmsdh_probe(struct device *dev)
 	}
 #endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
-	osh = osl_attach(dev, PCI_BUS, FALSE);
+	osh = osl_attach(dev, PCI_BUS, false);
 	if (!osh) {
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
@@ -222,7 +222,7 @@ int bcmsdh_probe(struct device *dev)
 	sdhc->sdh = sdh;
 	sdhc->oob_irq = irq;
 	sdhc->oob_flags = irq_flags;
-	sdhc->oob_irq_registered = FALSE;	/* to make sure.. */
+	sdhc->oob_irq_registered = false;	/* to make sure.. */
 #if defined(OOB_INTR_ONLY)
 	spin_lock_init(&sdhc->irq_lock);
 #endif
@@ -388,7 +388,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		SDLX_MSG(("%s: Disabling TI FlashMedia Controller.\n",
 			  __func__));
-		osh = osl_attach(pdev, PCI_BUS, FALSE);
+		osh = osl_attach(pdev, PCI_BUS, false);
 		if (!osh) {
 			SDLX_MSG(("%s: osl_attach failed\n", __func__));
 			goto err;
@@ -423,7 +423,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 
 	/* allocate SDIO Host Controller state info */
-	osh = osl_attach(pdev, PCI_BUS, FALSE);
+	osh = osl_attach(pdev, PCI_BUS, false);
 	if (!osh) {
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
@@ -634,7 +634,7 @@ void bcmsdh_unregister_oob_intr(void)
 	set_irq_wake(sdhcinfo->oob_irq, 0);
 	disable_irq(sdhcinfo->oob_irq);	/* just in case.. */
 	free_irq(sdhcinfo->oob_irq, NULL);
-	sdhcinfo->oob_irq_registered = FALSE;
+	sdhcinfo->oob_irq_registered = false;
 }
 #endif				/* defined(OOB_INTR_ONLY) */
 /* Module parameters specific to each host-controller driver */

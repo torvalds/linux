@@ -723,7 +723,7 @@ struct wlc_info {
 	u16 counter;		/* per-sdu monotonically increasing counter */
 	u16 mc_fid_counter;	/* BC/MC FIFO frame ID counter */
 
-	bool ibss_allowed;	/* FALSE, all IBSS will be ignored during a scan
+	bool ibss_allowed;	/* false, all IBSS will be ignored during a scan
 				 * and the driver will not allow the creation of
 				 * an IBSS network
 				 */
@@ -847,7 +847,7 @@ struct antsel_info {
 /* sum the individual fifo tx pending packet counts */
 #if defined(WLC_HIGH_ONLY)
 #define TXPKTPENDTOT(wlc)		(wlc_rpctx_txpktpend((wlc)->rpctx, 0, true))
-#define TXPKTPENDGET(wlc, fifo)		(wlc_rpctx_txpktpend((wlc)->rpctx, (fifo), FALSE))
+#define TXPKTPENDGET(wlc, fifo)		(wlc_rpctx_txpktpend((wlc)->rpctx, (fifo), false))
 #define TXPKTPENDINC(wlc, fifo, val)	(wlc_rpctx_txpktpendinc((wlc)->rpctx, (fifo), (val)))
 #define TXPKTPENDDEC(wlc, fifo, val)	(wlc_rpctx_txpktpenddec((wlc)->rpctx, (fifo), (val)))
 #define TXPKTPENDCLR(wlc, fifo)		(wlc_rpctx_txpktpendclr((wlc)->rpctx, (fifo)))

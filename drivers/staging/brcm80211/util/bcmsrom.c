@@ -385,7 +385,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 	varbuf_t b;
 	u8 *cis, tup, tlen, sromrev = 1;
 	int i, j;
-	bool ag_init = FALSE;
+	bool ag_init = false;
 	u32 w32;
 	uint funcid;
 	uint cisnum;
@@ -692,7 +692,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 					 * after this tuple
 					 */
 					tlen++;
-					standard_cis = FALSE;
+					standard_cis = false;
 					break;
 
 				case HNBU_USBEPNUM:
@@ -1388,7 +1388,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 	}
 
 	/* if there is no antenna gain field, set default */
-	if (getvar(NULL, "ag0") == NULL && ag_init == FALSE) {
+	if (getvar(NULL, "ag0") == NULL && ag_init == false) {
 		varbuf_append(&b, vstr_ag, 0, 0xff);
 	}
 
@@ -1850,7 +1850,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	varbuf_t b;
 	char *vp, *base = NULL;
 	osl_t *osh = si_osh(sih);
-	bool flash = FALSE;
+	bool flash = false;
 	int err = 0;
 
 	/*

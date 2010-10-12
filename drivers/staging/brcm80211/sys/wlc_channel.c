@@ -682,14 +682,14 @@ wlc_channel_get_chanvec(struct wlc_info *wlc, const char *country_abbrev,
 
 	country = wlc_country_lookup(wlc, country_abbrev);
 	if (country == NULL)
-		return FALSE;
+		return false;
 
 	if (bandtype == WLC_BAND_2G)
 		locale = wlc_get_locale_2g(country->locale_2G);
 	else if (bandtype == WLC_BAND_5G)
 		locale = wlc_get_locale_5g(country->locale_5G);
 	if (locale == NULL)
-		return FALSE;
+		return false;
 
 	wlc_locale_get_channels(locale, channels);
 	return true;
@@ -775,7 +775,7 @@ wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 		wlc_set_nmode(wlc, OFF);
 		wlc->stf->no_cddstbc = true;
 	} else {
-		wlc->stf->no_cddstbc = FALSE;
+		wlc->stf->no_cddstbc = false;
 		if (N_ENAB(wlc->pub) != wlc->protection->nmode_user)
 			wlc_set_nmode(wlc, wlc->protection->nmode_user);
 	}
@@ -785,9 +785,9 @@ wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 	/* set or restore gmode as required by regulatory */
 	locale = wlc_get_locale_2g(country->locale_2G);
 	if (locale && (locale->flags & WLC_NO_OFDM)) {
-		wlc_set_gmode(wlc, GMODE_LEGACY_B, FALSE);
+		wlc_set_gmode(wlc, GMODE_LEGACY_B, false);
 	} else {
-		wlc_set_gmode(wlc, wlc->protection->gmode_user, FALSE);
+		wlc_set_gmode(wlc, wlc->protection->gmode_user, false);
 	}
 
 	wlc_channels_init(wlc_cm, country);
@@ -867,7 +867,7 @@ static int
 wlc_country_aggregate_map(wlc_cm_info_t *wlc_cm, const char *ccode,
 			  char *mapped_ccode, uint *mapped_regrev)
 {
-	return FALSE;
+	return false;
 }
 
 /* Lookup a country info structure from a null terminated country
@@ -986,7 +986,7 @@ static void wlc_channels_commit(wlc_cm_info_t *wlc_cm)
 	if (NBANDS(wlc) > 1 || BAND_2G(wlc->band->bandtype)) {
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
 						     wlc_japan(wlc) ? true :
-						     FALSE);
+						     false);
 	}
 
 	if (wlc->pub->up && chan != INVCHANNEL) {
@@ -1539,12 +1539,12 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 		WL_ERROR(("wl%d: malformed chanspec 0x%x\n", wlc->pub->unit,
 			  chspec));
 		ASSERT(0);
-		return FALSE;
+		return false;
 	}
 
 	if (CHANNEL_BANDUNIT(wlc_cm->wlc, channel) !=
 	    CHSPEC_WLCBANDUNIT(chspec))
-		return FALSE;
+		return false;
 
 	/* Check a 20Mhz channel */
 	if (CHSPEC_IS20(chspec)) {
@@ -1563,16 +1563,16 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 		    sizeof(chan20_info) / sizeof(struct chan20_info);
 
 		if (!VALID_40CHANSPEC_IN_BAND(wlc, CHSPEC_WLCBANDUNIT(chspec)))
-			return FALSE;
+			return false;
 
 		if (dualband) {
 			if (!VALID_CHANNEL20_DB(wlc, LOWER_20_SB(channel)) ||
 			    !VALID_CHANNEL20_DB(wlc, UPPER_20_SB(channel)))
-				return FALSE;
+				return false;
 		} else {
 			if (!VALID_CHANNEL20(wlc, LOWER_20_SB(channel)) ||
 			    !VALID_CHANNEL20(wlc, UPPER_20_SB(channel)))
-				return FALSE;
+				return false;
 		}
 
 		/* find the lower sideband info in the sideband array */
@@ -1584,16 +1584,16 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 		if ((upper_sideband & (CH_UPPER_SB | CH_EWA_VALID)) ==
 		    (CH_UPPER_SB | CH_EWA_VALID))
 			return true;
-		return FALSE;
+		return false;
 	}
 #endif				/* 40 MHZ */
 
-	return FALSE;
+	return false;
 }
 
 bool wlc_valid_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 {
-	return wlc_valid_chanspec_ext(wlc_cm, chspec, FALSE);
+	return wlc_valid_chanspec_ext(wlc_cm, chspec, false);
 }
 
 bool wlc_valid_chanspec_db(wlc_cm_info_t *wlc_cm, chanspec_t chspec)

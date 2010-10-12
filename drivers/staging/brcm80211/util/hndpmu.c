@@ -152,7 +152,7 @@ void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo, u8 voltage)
 			mask = 0xf;
 			break;
 		default:
-			ASSERT(FALSE);
+			ASSERT(false);
 			return;
 		}
 		break;
@@ -164,12 +164,12 @@ void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo, u8 voltage)
 			mask = 0x1f;
 			break;
 		default:
-			ASSERT(FALSE);
+			ASSERT(false);
 			break;
 		}
 		break;
 	default:
-		ASSERT(FALSE);
+		ASSERT(false);
 		return;
 	}
 
@@ -2021,7 +2021,7 @@ si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
 	up = (R_REG(osh, &cc->res_updn_timer) >> 8) & 0xff;
 
 	/* direct dependancies of resource 'rsrc' */
-	deps = si_pmu_res_deps(sih, osh, cc, PMURES_BIT(rsrc), FALSE);
+	deps = si_pmu_res_deps(sih, osh, cc, PMURES_BIT(rsrc), false);
 	for (i = 0; i <= PMURES_MAX_RESNUM; i++) {
 		if (!(deps & PMURES_BIT(i)))
 			continue;
@@ -2535,7 +2535,7 @@ void si_pmu_chip_init(si_t *sih, osl_t *osh)
 #endif				/* CHIPC_UART_ALWAYS_ON */
 
 	/* Gate off SPROM clock and chip select signals */
-	si_pmu_sprom_enable(sih, osh, FALSE);
+	si_pmu_sprom_enable(sih, osh, false);
 
 	/* Remember original core */
 	origidx = si_coreidx(sih);

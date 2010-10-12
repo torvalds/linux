@@ -65,7 +65,7 @@ struct wlc_bsscfg;
 #define WSEC_KEY(wlc, i)	(((wlc)->wsec_keys[i] && (wlc)->wsec_keys[i]->len) ? \
 	(wlc)->wsec_keys[i] : NULL)
 
-#define WSEC_SCB_KEY_VALID(scb)	(((scb)->key && (scb)->key->len) ? true : FALSE)
+#define WSEC_SCB_KEY_VALID(scb)	(((scb)->key && (scb)->key->len) ? true : false)
 
 /* default key */
 #define WSEC_BSS_DEFAULT_KEY(bsscfg) (((bsscfg)->wsec_index == -1) ? \

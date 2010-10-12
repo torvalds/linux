@@ -265,7 +265,7 @@ static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 	uint idx;
 
 	if (!rs->count)
-		return FALSE;
+		return false;
 
 	if (!check_brate)
 		return true;
@@ -275,7 +275,7 @@ static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 		if (rs->rates[idx] & WLC_RATE_FLAG)
 			return true;
 	}
-	return FALSE;
+	return false;
 }
 
 void wlc_rateset_mcs_upd(wlc_rateset_t *rs, u8 txstreams)
@@ -328,7 +328,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 	if (wlc_rateset_valid(rs, check_brate))
 		return true;
 	else
-		return FALSE;
+		return false;
 }
 
 /* caluclate the rate of a rx'd frame and return it as a ratespec */
@@ -460,10 +460,10 @@ wlc_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 
 	wlc_rateset_copy(rs_dflt, &rs_sel);
 	wlc_rateset_mcs_upd(&rs_sel, txstreams);
-	wlc_rateset_filter(&rs_sel, rs_tgt, FALSE,
+	wlc_rateset_filter(&rs_sel, rs_tgt, false,
 			   cck_only ? WLC_RATES_CCK : WLC_RATES_CCK_OFDM,
 			   rate_mask, mcsallow);
-	wlc_rate_hwrs_filter_sort_validate(rs_tgt, rs_hw, FALSE,
+	wlc_rate_hwrs_filter_sort_validate(rs_tgt, rs_hw, false,
 					   mcsallow ? txstreams : 1);
 }
 

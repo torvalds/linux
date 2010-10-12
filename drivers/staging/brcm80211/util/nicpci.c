@@ -287,7 +287,7 @@ static bool pcie_mdiosetblock(pcicore_info_t *pi, uint blk)
 
 	if (i >= pcie_serdes_spinwait) {
 		PCI_ERROR(("pcie_mdiosetblock: timed out\n"));
-		return FALSE;
+		return false;
 	}
 
 	return true;
@@ -356,7 +356,7 @@ pcie_mdioop(pcicore_info_t *pi, uint physmedia, uint regaddr, bool write,
 static int
 pcie_mdioread(pcicore_info_t *pi, uint physmedia, uint regaddr, uint *regval)
 {
-	return pcie_mdioop(pi, physmedia, regaddr, FALSE, regval);
+	return pcie_mdioop(pi, physmedia, regaddr, false, regval);
 }
 
 /* use the mdio interface to write to mdio slaves */
@@ -704,7 +704,7 @@ void pcicore_sleep(void *pch)
 	OSL_PCI_WRITE_CONFIG(pi->osh, pi->pciecap_lcreg_offset, sizeof(u32),
 			     w);
 
-	pi->pcie_pr42767 = FALSE;
+	pi->pcie_pr42767 = false;
 }
 
 void pcicore_down(void *pch, int state)
@@ -717,7 +717,7 @@ void pcicore_down(void *pch, int state)
 	pcie_clkreq_upd(pi, state);
 
 	/* Reduce L1 timer for better power savings */
-	pcie_extendL1timer(pi, FALSE);
+	pcie_extendL1timer(pi, false);
 }
 
 /* ***** Wake-on-wireless-LAN (WOWL) support functions ***** */
@@ -732,7 +732,7 @@ bool pcicore_pmecap_fast(osl_t *osh)
 					NULL);
 
 	if (!cap_ptr)
-		return FALSE;
+		return false;
 
 	pmecap = OSL_PCI_READ_CONFIG(osh, cap_ptr, sizeof(u32));
 
@@ -753,7 +753,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi)
 						PCI_CAP_POWERMGMTCAP_ID, NULL,
 						NULL);
 		if (!cap_ptr)
-			return FALSE;
+			return false;
 
 		pi->pmecap_offset = cap_ptr;
 
@@ -794,7 +794,7 @@ bool pcicore_pmestat(void *pch)
 	u32 w;
 
 	if (!pcicore_pmecap(pi))
-		return FALSE;
+		return false;
 
 	w = OSL_PCI_READ_CONFIG(pi->osh, pi->pmecap_offset + PME_CSR_OFFSET,
 				sizeof(u32));

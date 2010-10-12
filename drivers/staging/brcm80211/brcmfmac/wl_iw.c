@@ -1175,7 +1175,7 @@ static int _iscan_sysioc_thread(void *data)
 {
 	u32 status;
 	iscan_info_t *iscan = (iscan_info_t *) data;
-	static bool iscan_pass_abort = FALSE;
+	static bool iscan_pass_abort = false;
 
 	status = WL_SCAN_RESULTS_PARTIAL;
 	while (down_interruptible(&iscan->sysioc_sem) == 0) {
@@ -1193,7 +1193,7 @@ static int _iscan_sysioc_thread(void *data)
 			WL_TRACE(("%s Get results from specific scan "
 				"status = %d\n", __func__, status));
 			wl_iw_send_scan_complete(iscan);
-			iscan_pass_abort = FALSE;
+			iscan_pass_abort = false;
 			status = -1;
 		}
 
@@ -1255,7 +1255,7 @@ wl_iw_set_scan(struct net_device *dev,
 	int error;
 	WL_TRACE(("\n:%s dev:%s: SIOCSIWSCAN : SCAN\n", __func__, dev->name));
 
-	g_set_essid_before_scan = FALSE;
+	g_set_essid_before_scan = false;
 #if defined(CSCAN)
 	WL_ERROR(("%s: Scan from SIOCGIWSCAN not supported\n", __func__));
 	return -EINVAL;
@@ -1413,7 +1413,7 @@ static bool ie_is_wpa_ie(u8 **wpaie, u8 **tlvs, int *tlvs_len)
 	ie += ie[1] + 2;
 	*tlvs_len -= (int)(ie - *tlvs);
 	*tlvs = ie;
-	return FALSE;
+	return false;
 }
 
 static bool ie_is_wps_ie(u8 **wpsie, u8 **tlvs, int *tlvs_len)
@@ -1429,7 +1429,7 @@ static bool ie_is_wps_ie(u8 **wpsie, u8 **tlvs, int *tlvs_len)
 	ie += ie[1] + 2;
 	*tlvs_len -= (int)(ie - *tlvs);
 	*tlvs = ie;
-	return FALSE;
+	return false;
 }
 #endif				/* WIRELESS_EXT > 17 */
 
@@ -2808,7 +2808,7 @@ wl_iw_set_wpaauth(struct net_device *dev,
 			}
 		} else if (val) {
 			error = dev_wlc_intvar_set(dev, "is_WPS_enrollee",
-							FALSE);
+							false);
 			if (error) {
 				WL_WSEC(("Failed to clear is_WPS_enrollee\n"));
 				return error;
@@ -2904,9 +2904,9 @@ wl_iw_set_wpaauth(struct net_device *dev,
 			int wsec;
 
 			if (paramval == 0) {
-				iw->privacy_invoked = FALSE;
+				iw->privacy_invoked = false;
 				error = dev_wlc_intvar_set(dev,
-						"is_WPS_enrollee", FALSE);
+						"is_WPS_enrollee", false);
 				if (error) {
 					WL_WSEC(("Failed to clear iovar "
 						"is_WPS_enrollee\n"));
@@ -2930,7 +2930,7 @@ wl_iw_set_wpaauth(struct net_device *dev,
 				} else {
 					error = dev_wlc_intvar_set(dev,
 							"is_WPS_enrollee",
-							FALSE);
+							false);
 					if (error) {
 						WL_WSEC(("Failed to clear "
 							"is_WPS_enrollee\n"));
@@ -3036,7 +3036,7 @@ wl_iw_get_wpaauth(struct net_device *dev,
 		if (val)
 			paramval = true;
 		else
-			paramval = FALSE;
+			paramval = false;
 		break;
 #if WIRELESS_EXT > 17
 	case IW_AUTH_ROAMING_CONTROL:
@@ -3342,7 +3342,7 @@ wl_iw_conn_status_str(u32 event_type, u32 status, u32 reason,
 		WL_INFORM(("Connection status: %s\n", stringBuf));
 		return true;
 	} else {
-		return FALSE;
+		return false;
 	}
 }
 
@@ -3358,7 +3358,7 @@ wl_iw_check_conn_fail(wl_event_msg_t *e, char *stringBuf, uint buflen)
 	if (wl_iw_conn_status_str(event, status, reason, stringBuf, buflen)) {
 		return true;
 	} else
-		return FALSE;
+		return false;
 }
 #endif
 

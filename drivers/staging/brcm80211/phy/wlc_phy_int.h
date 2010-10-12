@@ -264,8 +264,8 @@ typedef enum {
 #define VALID_LCN_RADIO(radioid)	(radioid == BCM2064_ID)
 
 #define	VALID_RADIO(pi, radioid)	(\
-	(ISNPHY(pi) ? VALID_N_RADIO(radioid) : FALSE) || \
-	(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : FALSE))
+	(ISNPHY(pi) ? VALID_N_RADIO(radioid) : false) || \
+	(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : false))
 
 #define SCAN_INPROG_PHY(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_SCAN))
 #define RM_INPROG_PHY(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_RM))
