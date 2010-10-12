@@ -72,6 +72,7 @@ static void HandleCreateMessage(const NvRmMessage_HandleCreat *req,
     resp->msg = NvRmMsg_MemHandleCreate_Response;
     ref = nvmap_create_handle(s_AvpClient, req->size);
     if (IS_ERR(ref)) {
+        pr_err("[AVP] error creating handle %ld\n", PTR_ERR(ref));
         resp->error = NvError_InsufficientMemory;
     } else {
         resp->error = NvSuccess;
@@ -114,10 +115,12 @@ static void HandleAllocMessage(const NvRmMessage_MemAlloc *req, NvRmMessage_Resp
                                 heap_mask, align, 0);
     nvmap_handle_put(handle);
 
-    if (err)
+    if (err) {
+        pr_err("[AVP] allocate handle error %d\n", err);
         resp->error = NvError_InsufficientMemory;
-    else
+    } else {
         resp->error = NvSuccess;
+    }
 }
 void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int messageLength)
 {
@@ -158,6 +161,7 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
     break;
     case NvRmMsg_MemPin:
     {
+        struct nvmap_handle_ref *ref;
         NvRmMessage_Pin *msg;
         NvRmMessage_PinResponse response;
         unsigned long id;
@@ -167,11 +171,19 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         id = (unsigned long)msg->hMem;
         response.msg = NvRmMsg_MemPin_Response;
 
-        err = nvmap_pin_ids(s_AvpClient, 1, &id);
-        if (!err)
+        ref = nvmap_duplicate_handle_id(s_AvpClient, id);
+        if (IS_ERR(ref)) {
+            pr_err("[AVP] unable to duplicate handle for pin\n");
+            err = PTR_ERR(ref);
+        } else {
+            err = nvmap_pin_ids(s_AvpClient, 1, &id);
+        }
+        if (!err) {
             response.address = nvmap_handle_address(s_AvpClient, id);
-        else
+        } else {
+            pr_err("[AVP] pin error %d\n", err);
             response.address = 0xffffffff;
+        }
 
         NvRmPrivRPCSendMsg(hRPCHandle, &response, sizeof(response));
         barrier();
@@ -186,6 +198,7 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         msg = (NvRmMessage_HandleFree*)pRecvMessage;
         id = (unsigned long)msg->hMem;
         nvmap_unpin_ids(s_AvpClient, 1, &id);
+	nvmap_free_handle_id(s_AvpClient, id);
 
         msgResponse.msg = NvRmMsg_MemUnpin_Response;
         msgResponse.error = NvSuccess;
@@ -208,7 +221,7 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         barrier();
     }
     break;
-    case NvRmMsg_HandleFromId :
+    case NvRmMsg_HandleFromId:
     {
         NvRmMessage_HandleFromId *msg = NULL;
         struct nvmap_handle_ref *ref;
@@ -218,11 +231,12 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         ref = nvmap_duplicate_handle_id(s_AvpClient, msg->id);
 
         response.msg = NvRmMsg_HandleFromId_Response;
-        if (IS_ERR(ref))
+        if (IS_ERR(ref)) {
             response.error = NvError_InsufficientMemory;
-        else
+            pr_err("[AVP] duplicate handle error %ld\n", PTR_ERR(ref));
+        } else {
             response.error = NvSuccess;
-
+        }
         NvRmPrivRPCSendMsg(hRPCHandle, &response, sizeof(response));
     }
     break;
