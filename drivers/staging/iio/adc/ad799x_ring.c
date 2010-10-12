@@ -32,6 +32,7 @@ int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int count = 0, ret;
 	u16 *ring_data;
+
 	if (!(ring->scan_mask & mask)) {
 		ret = -EBUSY;
 		goto error_ret;
@@ -70,6 +71,7 @@ error_ret:
  **/
 static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 {
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	struct ad799x_state *st = indio_dev->dev_data;
 	size_t d_size;
 	unsigned long numvals;
@@ -80,16 +82,15 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 	 */
 
 	if (st->id == ad7997 || st->id == ad7998)
-		ad799x_set_scan_mode(st, st->indio_dev->ring->scan_mask);
+		ad799x_set_scan_mode(st, ring->scan_mask);
 
-	numvals = st->indio_dev->ring->scan_count;
+	numvals = ring->scan_count;
 
-	if (indio_dev->ring->access.set_bytes_per_datum) {
+	if (ring->access.set_bytes_per_datum) {
 		d_size = numvals*2 + sizeof(s64);
 		if (d_size % 8)
 			d_size += 8 - (d_size % 8);
-		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring,
-							    d_size);
+		ring->access.set_bytes_per_datum(ring, d_size);
 	}
 
 	return 0;
@@ -124,14 +125,15 @@ static void ad799x_poll_bh_to_ring(struct work_struct *work_s)
 	struct ad799x_state *st = container_of(work_s, struct ad799x_state,
 						  poll_work);
 	struct iio_dev *indio_dev = st->indio_dev;
-	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(indio_dev->ring);
+	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_sw_ring_buffer *ring_sw = iio_to_sw_ring(indio_dev->ring);
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
 	size_t d_size;
 	u8 cmd;
 
-	unsigned long numvals = st->indio_dev->ring->scan_count;
+	unsigned long numvals = ring->scan_count;
 
 	/* Ensure the timestamp is 8 byte aligned */
 	d_size = numvals*2 + sizeof(s64);
@@ -158,14 +160,13 @@ static void ad799x_poll_bh_to_ring(struct work_struct *work_s)
 	case ad7991:
 	case ad7995:
 	case ad7999:
-		cmd = st->config | (st->indio_dev->ring->scan_mask <<
-			AD799X_CHANNEL_SHIFT);
+		cmd = st->config | (ring->scan_mask << AD799X_CHANNEL_SHIFT);
 		break;
 	case ad7992:
 	case ad7993:
 	case ad7994:
-		cmd = (st->indio_dev->ring->scan_mask <<
-			AD799X_CHANNEL_SHIFT) | AD7998_CONV_RES_REG;
+		cmd = (ring->scan_mask << AD799X_CHANNEL_SHIFT) |
+			AD7998_CONV_RES_REG;
 		break;
 	case ad7997:
 	case ad7998:
@@ -184,7 +185,7 @@ static void ad799x_poll_bh_to_ring(struct work_struct *work_s)
 
 	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 
-	indio_dev->ring->access.store_to(&ring->buf, rxbuf, time_ns);
+	ring->access.store_to(&ring_sw->buf, rxbuf, time_ns);
 done:
 	kfree(rxbuf);
 	atomic_dec(&st->protect_ring);
@@ -203,14 +204,9 @@ int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&st->indio_dev->ring->access);
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &ad799x_poll_func_th);
+	if (ret)
 		goto error_deallocate_sw_rb;
-	}
-	/* Configure the polling function called on trigger interrupts */
-	indio_dev->pollfunc->poll_func_main = &ad799x_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
 
 	/* Ring buffer functions - here trigger setup related */
 

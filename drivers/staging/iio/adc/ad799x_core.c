@@ -428,14 +428,11 @@ static ssize_t ad799x_show_scale(struct device *dev,
 	/* Driver currently only support internal vref */
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
-	/* Corresponds to Vref / 2^(bits) */
 
-	if ((1 << (st->chip_info->bits + 1))
-	    > st->int_vref_mv)
-		return sprintf(buf, "0.5\n");
-	else
-		return sprintf(buf, "%d\n",
-			st->int_vref_mv >> st->chip_info->bits);
+	/* Corresponds to Vref / 2^(bits) */
+	unsigned int scale_uv = (st->int_vref_mv * 1000) >> st->chip_info->bits;
+
+	return sprintf(buf, "%d.%d\n", scale_uv / 1000, scale_uv % 1000);
 }
 
 static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad799x_show_scale, NULL, 0);
