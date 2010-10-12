@@ -3306,6 +3306,7 @@ static int __init snd_soc_init(void)
 
 	return platform_driver_register(&soc_driver);
 }
+module_init(snd_soc_init);
 
 static void __exit snd_soc_exit(void)
 {
@@ -3314,8 +3315,6 @@ static void __exit snd_soc_exit(void)
 #endif
 	platform_driver_unregister(&soc_driver);
 }
-
-module_init(snd_soc_init);
 module_exit(snd_soc_exit);
 
 /* Module information */
