@@ -175,6 +175,7 @@ struct d40_base;
  * @active: Active descriptor.
  * @queue: Queued jobs.
  * @dma_cfg: The client configuration of this dma channel.
+ * @configured: whether the dma_cfg configuration is valid
  * @base: Pointer to the device instance struct.
  * @src_def_cfg: Default cfg register setting for src.
  * @dst_def_cfg: Default cfg register setting for dst.
@@ -198,6 +199,7 @@ struct d40_chan {
 	struct list_head		 active;
 	struct list_head		 queue;
 	struct stedma40_chan_cfg	 dma_cfg;
+	bool				 configured;
 	struct d40_base			*base;
 	/* Default register configurations */
 	u32				 src_def_cfg;
@@ -1518,8 +1520,7 @@ static int d40_free_dma(struct d40_chan *d40c)
 		return res;
 	}
 	d40c->phy_chan = NULL;
-	/* Invalidate channel type */
-	d40c->dma_cfg.channel_type = 0;
+	d40c->configured = false;
 	d40c->base->lookup_phy_chans[phy->num] = NULL;
 
 	return 0;
@@ -1704,6 +1705,9 @@ bool stedma40_filter(struct dma_chan *chan, void *data)
 	} else
 		err = d40_config_memcpy(d40c);
 
+	if (!err)
+		d40c->configured = true;
+
 	return err == 0;
 }
 EXPORT_SYMBOL(stedma40_filter);
@@ -1720,12 +1724,8 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 
 	d40c->completed = chan->cookie = 1;
 
-	/*
-	 * If no dma configuration is set (channel_type == 0)
-	 * use default configuration (memcpy)
-	 */
-	if (d40c->dma_cfg.channel_type == 0) {
-
+	/* If no dma configuration is set use default configuration (memcpy) */
+	if (!d40c->configured) {
 		err = d40_config_memcpy(d40c);
 		if (err) {
 			dev_err(&d40c->chan.dev->device,
