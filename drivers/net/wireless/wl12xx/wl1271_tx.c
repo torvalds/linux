@@ -204,9 +204,8 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 	return enabled_rates;
 }
 
-void wl1271_tx_work(struct work_struct *work)
+void wl1271_tx_work_locked(struct wl1271 *wl)
 {
-	struct wl1271 *wl = container_of(work, struct wl1271, tx_work);
 	struct sk_buff *skb;
 	bool woken_up = false;
 	u32 sta_rates = 0;
@@ -222,8 +221,6 @@ void wl1271_tx_work(struct work_struct *work)
 		sta_rates = wl->sta_rate_set;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
-
-	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
@@ -260,6 +257,8 @@ void wl1271_tx_work(struct work_struct *work)
 			 * Queue back last skb, and stop aggregating.
 			 */
 			skb_queue_head(&wl->tx_queue, skb);
+			/* No work left, avoid scheduling redundant tx work */
+			set_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 			goto out_ack;
 		} else if (ret < 0) {
 			dev_kfree_skb(skb);
@@ -283,7 +282,14 @@ out_ack:
 out:
 	if (woken_up)
 		wl1271_ps_elp_sleep(wl);
+}
 
+void wl1271_tx_work(struct work_struct *work)
+{
+	struct wl1271 *wl = container_of(work, struct wl1271, tx_work);
+
+	mutex_lock(&wl->mutex);
+	wl1271_tx_work_locked(wl);
 	mutex_unlock(&wl->mutex);
 }
 

@@ -140,6 +140,7 @@ static inline int wl1271_tx_get_queue(int queue)
 }
 
 void wl1271_tx_work(struct work_struct *work);
+void wl1271_tx_work_locked(struct wl1271 *wl);
 void wl1271_tx_complete(struct wl1271 *wl);
 void wl1271_tx_reset(struct wl1271 *wl);
 void wl1271_tx_flush(struct wl1271 *wl);

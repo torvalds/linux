@@ -481,9 +481,9 @@ static void wl1271_fw_status(struct wl1271 *wl,
 		total += cnt;
 	}
 
-	/* if more blocks are available now, schedule some tx work */
-	if (total && !skb_queue_empty(&wl->tx_queue))
-		ieee80211_queue_work(wl->hw, &wl->tx_work);
+	/* if more blocks are available now, tx work can be scheduled */
+	if (total)
+		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -536,6 +536,16 @@ static void wl1271_irq_work(struct work_struct *work)
 			if (wl->fw_status->tx_results_counter !=
 			    (wl->tx_results_count & 0xff))
 				wl1271_tx_complete(wl);
+
+			/* Check if any tx blocks were freed */
+			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
+					!skb_queue_empty(&wl->tx_queue)) {
+				/*
+				 * In order to avoid starvation of the TX path,
+				 * call the work function directly.
+				 */
+				wl1271_tx_work_locked(wl);
+			}
 
 			wl1271_rx(wl, wl->fw_status);
 		}
@@ -867,7 +877,8 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * before that, the tx_work will not be initialized!
 	 */
 
-	ieee80211_queue_work(wl->hw, &wl->tx_work);
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/*
 	 * The workqueue is slow to process the tx_queue and we need stop
