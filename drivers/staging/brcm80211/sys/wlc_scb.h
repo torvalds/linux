@@ -80,5 +80,5 @@ struct scb {
 #define SCB_SEQNUM(scb, prio)	((scb)->seqnum[(prio)])
 #define SCB_PS(a)		NULL
 #define SCB_STBC_CAP(a)		((a)->flags & SCB_STBCCAP)
-#define SCB_AMPDU(a)		TRUE
+#define SCB_AMPDU(a)		true
 #endif				/* _wlc_scb_h_ */

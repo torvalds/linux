@@ -88,7 +88,7 @@ extern int nvram_resetgpio_init(void *sih);
  * Match an NVRAM variable.
  * @param	name	name of variable to match
  * @param	match	value to compare against value of variable
- * @return	TRUE if variable is defined and its value is string equal
+ * @return	true if variable is defined and its value is string equal
  *		to match or FALSE otherwise
  */
 static inline int nvram_match(char *name, char *match)
@@ -101,7 +101,7 @@ static inline int nvram_match(char *name, char *match)
  * Inversely match an NVRAM variable.
  * @param	name	name of variable to match
  * @param	match	value to compare against value of variable
- * @return	TRUE if variable is defined and its value is not string
+ * @return	true if variable is defined and its value is not string
  *		equal to invmatch or FALSE otherwise
  */
 static inline int nvram_invmatch(char *name, char *invmatch)

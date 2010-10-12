@@ -160,7 +160,7 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 	case PCI_BUS:
 	case SI_BUS:
 	case PCMCIA_BUS:
-		osh->pub.mmbus = TRUE;
+		osh->pub.mmbus = true;
 		break;
 	case JTAG_BUS:
 	case SDIO_BUS:

@@ -248,7 +248,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	if (len > WLC_IOCTL_MAXLEN)
 		goto done;
 
-	if (prot->pending == TRUE) {
+	if (prot->pending == true) {
 		DHD_TRACE(("CDC packet is pending!!!! cmd=0x%x (%lu) "
 			"lastcmd=0x%x (%lu)\n",
 			ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
@@ -259,7 +259,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 		goto done;
 	}
 
-	prot->pending = TRUE;
+	prot->pending = true;
 	prot->lastcmd = ioc->cmd;
 	if (ioc->set)
 		ret = dhdcdc_set_ioctl(dhd, ifidx, ioc->cmd, buf, len);
@@ -349,7 +349,7 @@ bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 * fcbits)
 
 	*fcbits = h->priority >> BDC_PRIORITY_FC_SHIFT;
 	if ((h->flags2 & BDC_FLAG2_FC_FLAG) == BDC_FLAG2_FC_FLAG)
-		return TRUE;
+		return true;
 #endif
 	return FALSE;
 }
@@ -391,7 +391,7 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf)
 		DHD_INFO(("%s: BDC packet received with good rx-csum, "
 			"flags 0x%x\n",
 			dhd_ifname(dhd, *ifidx), h->flags));
-		PKTSETSUMGOOD(pktbuf, TRUE);
+		PKTSETSUMGOOD(pktbuf, true);
 	}
 
 	PKTSETPRIO(pktbuf, (h->priority & BDC_PRIORITY_MASK));
@@ -489,7 +489,7 @@ int dhd_prot_init(dhd_pub_t *dhd)
 #endif				/* EMBEDDED_PLATFORM */
 
 	/* Always assumes wl for now */
-	dhd->iswl = TRUE;
+	dhd->iswl = true;
 
 	return ret;
 }

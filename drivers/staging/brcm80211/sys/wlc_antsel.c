@@ -118,7 +118,7 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 			/* Antenna selection availability */
 			if (((u16) getintvar(asi->pub->vars, "aa2g") == 7) ||
 			    ((u16) getintvar(asi->pub->vars, "aa5g") == 7)) {
-				asi->antsel_avail = TRUE;
+				asi->antsel_avail = true;
 			} else
 			    if (((u16) getintvar(asi->pub->vars, "aa2g") ==
 				 3)
@@ -139,18 +139,18 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 		   ((u16) getintvar(asi->pub->vars, "aa5g") == 0)) {
 		/* hack to match old 4321CB2 cards with 2of3 antenna switch */
 		asi->antsel_type = ANTSEL_2x3;
-		asi->antsel_avail = TRUE;
+		asi->antsel_avail = true;
 	} else if (asi->pub->boardflags2 & BFL2_2X4_DIV) {
 		asi->antsel_type = ANTSEL_2x4;
-		asi->antsel_avail = TRUE;
+		asi->antsel_avail = true;
 	}
 
 	/* Set the antenna selection type for the low driver */
 	wlc_bmac_antsel_type_set(wlc_hw, asi->antsel_type);
 
 	/* Init (auto/manual) antenna selection */
-	wlc_antsel_init_cfg(asi, &asi->antcfg_11n, TRUE);
-	wlc_antsel_init_cfg(asi, &asi->antcfg_cur, TRUE);
+	wlc_antsel_init_cfg(asi, &asi->antcfg_11n, true);
+	wlc_antsel_init_cfg(asi, &asi->antcfg_cur, true);
 
 	return asi;
 }

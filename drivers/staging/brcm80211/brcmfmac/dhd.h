@@ -87,7 +87,7 @@ typedef struct dhd_pub {
 	/* Internal dhd items */
 	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
-	bool dongle_reset;	/* TRUE = DEVRESET put dongle into reset */
+	bool dongle_reset;	/* true = DEVRESET put dongle into reset */
 	enum dhd_bus_state busstate;
 	uint hdrlen;		/* Total DHD header length (proto + bus) */
 	uint maxctl;		/* Max size rxctl request from proto to bus */

@@ -52,7 +52,7 @@ extern bool dhd_bus_watchdog(dhd_pub_t *dhd);
 extern int dhd_bus_console_in(dhd_pub_t *dhd, unsigned char *msg, uint msglen);
 #endif				/* DHD_DEBUG */
 
-/* Deferred processing for the bus, return TRUE requests reschedule */
+/* Deferred processing for the bus, return true requests reschedule */
 extern bool dhd_bus_dpc(struct dhd_bus *bus);
 extern void dhd_bus_isr(bool *InterruptRecognized,
 			bool *QueueMiniportHandleInterrupt, void *arg);

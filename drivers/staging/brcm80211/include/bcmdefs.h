@@ -185,7 +185,7 @@ typedef struct {
 
 /* define BCMSMALL to remove misc features for memory-constrained environments */
 #define	BCMSPACE
-#define bcmspace	TRUE	/* if (bcmspace) code is retained */
+#define bcmspace	true	/* if (bcmspace) code is retained */
 
 /* Max. nvram variable table size */
 #define	MAXSZ_NVRAM_VARS	4096

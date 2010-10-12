@@ -34,7 +34,7 @@ struct wlc_rpc_phy {
 	struct rpc_info *rpc;
 };
 
-#define RPCTX_ENAB(pub)		(TRUE)
+#define RPCTX_ENAB(pub)		(true)
 extern rpctx_info_t *wlc_rpctx_attach(wlc_pub_t *pub, struct wlc_info *wlc);
 extern int wlc_rpctx_fifoinit(rpctx_info_t *rpctx, uint fifo, uint ntxd);
 extern void wlc_rpctx_detach(rpctx_info_t *rpctx);

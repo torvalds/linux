@@ -299,7 +299,7 @@ typedef struct {
 	u32 res_mask;	/* resources (chip specific) */
 	s8 action;		/* action */
 	u32 depend_mask;	/* changes to the dependancies mask */
-	 bool(*filter) (si_t *sih);	/* action is taken when filter is NULL or return TRUE */
+	 bool(*filter) (si_t *sih);	/* action is taken when filter is NULL or return true */
 } pmu_res_depend_t;
 
 /* Resource dependancies mask change action */
@@ -562,26 +562,26 @@ static const pmu_res_depend_t bcm4330a0_res_depend[] = {
 	PMURES_BIT(RES4330_HT_AVAIL), RES_DEPEND_ADD, 0, NULL}
 };
 
-/* TRUE if the power topology uses the buck boost to provide 3.3V to VDDIO_RF and WLAN PA */
+/* true if the power topology uses the buck boost to provide 3.3V to VDDIO_RF and WLAN PA */
 static bool si_pmu_res_depfltr_bb(si_t *sih)
 {
 	return (sih->boardflags & BFL_BUCKBOOST) != 0;
 }
 
-/* TRUE if the power topology doesn't use the cbuck. Key on chiprev also if the chip is BCM4325. */
+/* true if the power topology doesn't use the cbuck. Key on chiprev also if the chip is BCM4325. */
 static bool si_pmu_res_depfltr_ncb(si_t *sih)
 {
 
 	return (sih->boardflags & BFL_NOCBUCK) != 0;
 }
 
-/* TRUE if the power topology uses the PALDO */
+/* true if the power topology uses the PALDO */
 static bool si_pmu_res_depfltr_paldo(si_t *sih)
 {
 	return (sih->boardflags & BFL_PALDO) != 0;
 }
 
-/* TRUE if the power topology doesn't use the PALDO */
+/* true if the power topology doesn't use the PALDO */
 static bool si_pmu_res_depfltr_npaldo(si_t *sih)
 {
 	return (sih->boardflags & BFL_PALDO) == 0;
@@ -2025,7 +2025,7 @@ si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
 	for (i = 0; i <= PMURES_MAX_RESNUM; i++) {
 		if (!(deps & PMURES_BIT(i)))
 			continue;
-		deps &= ~si_pmu_res_deps(sih, osh, cc, PMURES_BIT(i), TRUE);
+		deps &= ~si_pmu_res_deps(sih, osh, cc, PMURES_BIT(i), true);
 	}
 	si_pmu_res_masks(sih, &min_mask, &max_mask);
 	deps &= ~min_mask;
@@ -2063,7 +2063,7 @@ si_pmu_res_deps(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 rsrcs,
 	return !all ? deps : (deps
 			      ? (deps |
 				 si_pmu_res_deps(sih, osh, cc, deps,
-						 TRUE)) : 0);
+						 true)) : 0);
 }
 
 /* power up/down OTP through PMU resources */
@@ -2107,7 +2107,7 @@ void si_pmu_otp_power(si_t *sih, osl_t *osh, bool on)
 		u32 otps;
 
 		/* Figure out the dependancies (exclude min_res_mask) */
-		u32 deps = si_pmu_res_deps(sih, osh, cc, rsrcs, TRUE);
+		u32 deps = si_pmu_res_deps(sih, osh, cc, rsrcs, true);
 		u32 min_mask = 0, max_mask = 0;
 		si_pmu_res_masks(sih, &min_mask, &max_mask);
 		deps &= ~min_mask;
@@ -2491,10 +2491,10 @@ bool si_pmu_is_otp_powered(si_t *sih, osl_t *osh)
 	case BCM43236_CHIP_ID:
 	case BCM43235_CHIP_ID:
 	case BCM43238_CHIP_ID:
-		st = TRUE;
+		st = true;
 		break;
 	default:
-		st = TRUE;
+		st = true;
 		break;
 	}
 

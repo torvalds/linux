@@ -167,7 +167,7 @@ typedef struct dma_info {
 
 /* DMA Scatter-gather list is supported. Note this is limited to TX direction only */
 #ifdef BCMDMASGLISTOSL
-#define DMASGLIST_ENAB TRUE
+#define DMASGLIST_ENAB true
 #else
 #define DMASGLIST_ENAB FALSE
 #endif				/* BCMDMASGLISTOSL */
@@ -766,10 +766,10 @@ static bool _dma_descriptor_align(dma_info_t *di)
 				return FALSE;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
-/* return TRUE if this dma engine supports DmaExtendedAddrChanges, otherwise FALSE */
+/* return true if this dma engine supports DmaExtendedAddrChanges, otherwise FALSE */
 static bool _dma_isaddrext(dma_info_t *di)
 {
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
@@ -781,13 +781,13 @@ static bool _dma_isaddrext(dma_info_t *di)
 				DMA_ERROR(("%s: _dma_isaddrext: DMA64 tx doesn't have AE set\n", di->name));
 				ASSERT(0);
 			}
-			return TRUE;
+			return true;
 		} else if (di->d64rxregs != NULL) {
 			if (!_dma64_addrext(di->osh, di->d64rxregs)) {
 				DMA_ERROR(("%s: _dma_isaddrext: DMA64 rx doesn't have AE set\n", di->name));
 				ASSERT(0);
 			}
-			return TRUE;
+			return true;
 		}
 		return FALSE;
 	} else if (DMA32_ENAB(di)) {
@@ -1104,12 +1104,12 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 				if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 					if (dma64_rxidle(di)) {
 						DMA_ERROR(("%s: rxfill64: ring is empty !\n", di->name));
-						ring_empty = TRUE;
+						ring_empty = true;
 					}
 				} else if (DMA32_ENAB(di)) {
 					if (dma32_rxidle(di)) {
 						DMA_ERROR(("%s: rxfill32: ring is empty !\n", di->name));
-						ring_empty = TRUE;
+						ring_empty = true;
 					}
 				} else
 					ASSERT(0);
@@ -1237,7 +1237,7 @@ static void _dma_rxreclaim(dma_info_t *di)
 
 	DMA_TRACE(("%s: dma_rxreclaim\n", di->name));
 
-	while ((p = _dma_getnextrxp(di, TRUE)))
+	while ((p = _dma_getnextrxp(di, true)))
 		PKTFREE(di->osh, p, FALSE);
 }
 
@@ -1501,7 +1501,7 @@ static void dma32_txreclaim(dma_info_t *di, txd_range_t range)
 		return;
 
 	while ((p = dma32_getnexttxp(di, range)))
-		PKTFREE(di->osh, p, TRUE);
+		PKTFREE(di->osh, p, true);
 }
 
 static bool dma32_txstopped(dma_info_t *di)
@@ -1576,7 +1576,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(IS_ALIGNED((uintptr) di->rxd32, align));
 	}
 
-	return TRUE;
+	return true;
 }
 
 static bool dma32_txreset(dma_info_t *di)
@@ -1584,7 +1584,7 @@ static bool dma32_txreset(dma_info_t *di)
 	u32 status;
 
 	if (di->ntxd == 0)
-		return TRUE;
+		return true;
 
 	/* suspend tx DMA first */
 	W_REG(di->osh, &di->d32txregs->control, XC_SE);
@@ -1609,7 +1609,7 @@ static bool dma32_rxidle(dma_info_t *di)
 	DMA_TRACE(("%s: dma_rxidle\n", di->name));
 
 	if (di->nrxd == 0)
-		return TRUE;
+		return true;
 
 	return ((R_REG(di->osh, &di->d32rxregs->status) & RS_CD_MASK) ==
 		R_REG(di->osh, &di->d32rxregs->ptr));
@@ -1620,7 +1620,7 @@ static bool dma32_rxreset(dma_info_t *di)
 	u32 status;
 
 	if (di->nrxd == 0)
-		return TRUE;
+		return true;
 
 	W_REG(di->osh, &di->d32rxregs->control, 0);
 	SPINWAIT(((status = (R_REG(di->osh,
@@ -1641,7 +1641,7 @@ static bool dma32_rxenabled(dma_info_t *di)
 static bool dma32_txsuspendedidle(dma_info_t *di)
 {
 	if (di->ntxd == 0)
-		return TRUE;
+		return true;
 
 	if (!(R_REG(di->osh, &di->d32txregs->control) & XC_SE))
 		return 0;
@@ -1771,7 +1771,7 @@ static int dma32_txfast(dma_info_t *di, void *p0, bool commit)
 
  outoftxd:
 	DMA_ERROR(("%s: dma_txfast: out of txds\n", di->name));
-	PKTFREE(di->osh, p0, TRUE);
+	PKTFREE(di->osh, p0, true);
 	di->hnddma.txavail = 0;
 	di->hnddma.txnobuf++;
 	return -1;
@@ -2070,7 +2070,7 @@ static void BCMFASTPATH dma64_txreclaim(dma_info_t *di, txd_range_t range)
 	while ((p = dma64_getnexttxp(di, range))) {
 		/* For unframed data, we don't have any packets to free */
 		if (!(di->hnddma.dmactrlflags & DMA_CTRL_UNFRAMED))
-			PKTFREE(di->osh, p, TRUE);
+			PKTFREE(di->osh, p, true);
 	}
 }
 
@@ -2139,7 +2139,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		ASSERT(IS_ALIGNED((uintptr) di->rxd64, align));
 	}
 
-	return TRUE;
+	return true;
 }
 
 static bool dma64_txreset(dma_info_t *di)
@@ -2147,7 +2147,7 @@ static bool dma64_txreset(dma_info_t *di)
 	u32 status;
 
 	if (di->ntxd == 0)
-		return TRUE;
+		return true;
 
 	/* suspend tx DMA first */
 	W_REG(di->osh, &di->d64txregs->control, D64_XC_SE);
@@ -2172,7 +2172,7 @@ static bool dma64_rxidle(dma_info_t *di)
 	DMA_TRACE(("%s: dma_rxidle\n", di->name));
 
 	if (di->nrxd == 0)
-		return TRUE;
+		return true;
 
 	return ((R_REG(di->osh, &di->d64rxregs->status0) & D64_RS0_CD_MASK) ==
 		(R_REG(di->osh, &di->d64rxregs->ptr) & D64_RS0_CD_MASK));
@@ -2183,7 +2183,7 @@ static bool dma64_rxreset(dma_info_t *di)
 	u32 status;
 
 	if (di->nrxd == 0)
-		return TRUE;
+		return true;
 
 	W_REG(di->osh, &di->d64rxregs->control, 0);
 	SPINWAIT(((status =
@@ -2205,7 +2205,7 @@ static bool dma64_txsuspendedidle(dma_info_t *di)
 {
 
 	if (di->ntxd == 0)
-		return TRUE;
+		return true;
 
 	if (!(R_REG(di->osh, &di->d64txregs->control) & D64_XC_SE))
 		return 0;
@@ -2419,7 +2419,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, void *p0, bool commit)
 
  outoftxd:
 	DMA_ERROR(("%s: dma_txfast: out of txds !!!\n", di->name));
-	PKTFREE(di->osh, p0, TRUE);
+	PKTFREE(di->osh, p0, true);
 	di->hnddma.txavail = 0;
 	di->hnddma.txnobuf++;
 	return -1;
@@ -2679,7 +2679,7 @@ uint dma_addrwidth(si_t *sih, void *dmaregs)
 			     (sih->buscoretype == PCIE_CORE_ID)))
 				return DMADDRWIDTH_64;
 
-		/* DMA64 is always 32-bit capable, AE is always TRUE */
+		/* DMA64 is always 32-bit capable, AE is always true */
 		ASSERT(_dma64_addrext(osh, (dma64regs_t *) dmaregs));
 
 		return DMADDRWIDTH_32;

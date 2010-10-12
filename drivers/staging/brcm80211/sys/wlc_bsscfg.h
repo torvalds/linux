@@ -79,7 +79,7 @@ struct wlc_bsscfg {
 	bool wsec_restrict;	/* drop unencrypted packets if wsec is enabled */
 	bool eap_restrict;	/* restrict data until 802.1X auth succeeds */
 	u16 WPA_auth;	/* WPA: authenticated key management */
-	bool wpa2_preauth;	/* default is TRUE, wpa_cap sets value */
+	bool wpa2_preauth;	/* default is true, wpa_cap sets value */
 	bool wsec_portopen;	/* indicates keys are plumbed */
 	wsec_iv_t wpa_none_txiv;	/* global txiv for WPA_NONE, tkip and aes */
 	int wsec_index;		/* 0-3: default tx key, -1: not set */

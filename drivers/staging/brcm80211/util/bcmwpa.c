@@ -30,7 +30,7 @@ bool bcm_is_wfa_ie(u8 *ie, u8 **tlvs, uint *tlvs_len, u8 type)
 	if ((ie[TLV_LEN_OFF] > (WFA_OUI_LEN + 1)) &&
 	    !bcmp(&ie[TLV_BODY_OFF], WFA_OUI, WFA_OUI_LEN) &&
 	    type == ie[TLV_BODY_OFF + WFA_OUI_LEN]) {
-		return TRUE;
+		return true;
 	}
 
 	/* point to the next ie */

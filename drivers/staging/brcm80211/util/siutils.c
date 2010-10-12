@@ -162,7 +162,7 @@ static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 	}
 #endif				/* defined(BCMSDIO) */
 
-	return TRUE;
+	return true;
 }
 
 static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
@@ -226,11 +226,11 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 			if (cid == PCI_CORE_ID) {
 				pciidx = i;
 				pcirev = crev;
-				pci = TRUE;
+				pci = true;
 			} else if (cid == PCIE_CORE_ID) {
 				pcieidx = i;
 				pcierev = crev;
-				pcie = TRUE;
+				pcie = true;
 			}
 		}
 #ifdef BCMSDIO
@@ -302,7 +302,7 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 	/* return to the original core */
 	si_setcoreidx(&sii->pub, *origidx);
 
-	return TRUE;
+	return true;
 }
 
 static __used void si_nvram_process(si_info_t *sii, char *pvars)
@@ -681,7 +681,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 	if (CHIPID(sih->chip) == BCM4331_CHIP_ID) {
 		/* Enable Ext PA lines depending on chip package option */
-		si_chipcontrl_epa4331(sih, TRUE);
+		si_chipcontrl_epa4331(sih, true);
 	}
 
 	return sii;
@@ -1164,7 +1164,7 @@ static void si_clkctl_setdelay(si_info_t *sii, void *chipcregs)
 
 	/* Starting with 4318 it is ILP that is used for the delays */
 	slowmaxfreq =
-	    si_slowclk_freq(sii, (sii->pub.ccrev >= 10) ? FALSE : TRUE, cc);
+	    si_slowclk_freq(sii, (sii->pub.ccrev >= 10) ? FALSE : true, cc);
 
 	pll_on_delay = ((slowmaxfreq * pll_delay) + 999999) / 1000000;
 	fref_sel_delay = ((slowmaxfreq * FREF_DELAY) + 999999) / 1000000;
@@ -1547,7 +1547,7 @@ static char *si_devpathvar(si_t *sih, char *var, int len, const char *name)
 	return var;
 }
 
-/* return TRUE if PCIE capability exists in the pci config space */
+/* return true if PCIE capability exists in the pci config space */
 static __used bool si_ispcie(si_info_t *sii)
 {
 	u8 cap_ptr;
@@ -1561,7 +1561,7 @@ static __used bool si_ispcie(si_info_t *sii)
 	if (!cap_ptr)
 		return FALSE;
 
-	return TRUE;
+	return true;
 }
 
 #ifdef BCMSDIO
@@ -1937,7 +1937,7 @@ bool si_deviceremoved(si_t *sih)
 		ASSERT(sii->osh != NULL);
 		w = OSL_PCI_READ_CONFIG(sii->osh, PCI_CFG_VID, sizeof(u32));
 		if ((w & 0xFFFF) != VENDOR_BROADCOM)
-			return TRUE;
+			return true;
 		break;
 	}
 	return FALSE;
@@ -1976,7 +1976,7 @@ bool si_is_sprom_available(si_t *sih)
 	case BCM4331_CHIP_ID:
 		return (sih->chipst & CST4331_SPROM_PRESENT) != 0;
 	default:
-		return TRUE;
+		return true;
 	}
 }
 
@@ -2012,7 +2012,7 @@ bool si_is_otp_powered(si_t *sih)
 {
 	if (PMUCTL_ENAB(sih))
 		return si_pmu_is_otp_powered(sih, si_osh(sih));
-	return TRUE;
+	return true;
 }
 
 void si_otp_power(si_t *sih, bool on)

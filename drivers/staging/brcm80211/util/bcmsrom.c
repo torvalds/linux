@@ -410,7 +410,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 		cis = *pcis++;
 		i = 0;
 		funcid = 0;
-		standard_cis = TRUE;
+		standard_cis = true;
 		do {
 			if (standard_cis) {
 				tup = cis[i++];
@@ -722,7 +722,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 					if (tlen >= 5)
 						varbuf_append(&b, vstr_ag, 3,
 							      cis[i + 4]);
-					ag_init = TRUE;
+					ag_init = true;
 					break;
 
 				case HNBU_ANT5G:
@@ -1340,7 +1340,7 @@ int srom_parsecis(osl_t *osh, u8 *pcis[], uint ciscnt, char **vars, uint *count)
 								   SROM3_SWRGN_OFF,
 								   &b);
 						/* 2.4G antenna gain is included in SROM */
-						ag_init = TRUE;
+						ag_init = true;
 						/* Ethernet MAC address is included in SROM */
 						eabuf[0] = 0;
 						boardnum = -1;
@@ -1868,7 +1868,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	if (si_is_sprom_available(sih)) {
 		err =
 		    sprom_read_pci(osh, sih, sromwindow, 0, srom, SROM_WORDS,
-				   TRUE);
+				   true);
 
 		if ((srom[SROM4_SIGN] == SROM4_SIGNATURE) ||
 		    (((sih->buscoretype == PCIE_CORE_ID)
@@ -1878,7 +1878,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 			/* sromrev >= 4, read more */
 			err =
 			    sprom_read_pci(osh, sih, sromwindow, 0, srom,
-					   SROM4_WORDS, TRUE);
+					   SROM4_WORDS, true);
 			sromrev = srom[SROM4_CRCREV] & 0xff;
 			if (err)
 				BS_ERROR(("%s: srom %d, bad crc\n", __func__,
@@ -1916,7 +1916,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 		value = si_getdevpathvar(sih, "sromrev");
 		if (value) {
 			sromrev = (u8) simple_strtoul(value, NULL, 0);
-			flash = TRUE;
+			flash = true;
 			goto varscont;
 		}
 

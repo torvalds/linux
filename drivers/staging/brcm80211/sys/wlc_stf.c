@@ -79,7 +79,7 @@ static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val)
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
-		wlc_update_probe_resp(wlc, TRUE);
+		wlc_update_probe_resp(wlc, true);
 	}
 }
 
@@ -97,12 +97,12 @@ void wlc_tempsense_upd(wlc_info_t *wlc)
 	if (wlc->stf->txchain == wlc->stf->hw_txchain) {
 		if (txchain && (txchain < wlc->stf->hw_txchain)) {
 			/* turn off 1 tx chain */
-			wlc_stf_txchain_set(wlc, txchain, TRUE);
+			wlc_stf_txchain_set(wlc, txchain, true);
 		}
 	} else if (wlc->stf->txchain < wlc->stf->hw_txchain) {
 		if (txchain == wlc->stf->hw_txchain) {
 			/* turn back on txchain */
-			wlc_stf_txchain_set(wlc, txchain, TRUE);
+			wlc_stf_txchain_set(wlc, txchain, true);
 		}
 	}
 }
@@ -172,7 +172,7 @@ static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val)
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = (s8) int_val;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = (s8) int_val;
 
-	return TRUE;
+	return true;
 }
 
 bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val)
@@ -189,7 +189,7 @@ bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val)
 	}
 
 	wlc_stf_stbc_rx_ht_update(wlc, int_val);
-	return TRUE;
+	return true;
 }
 
 static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 core_mask)
@@ -421,7 +421,7 @@ int wlc_stf_attach(wlc_info_t *wlc)
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = OFF;
 
 	if (WLC_STBC_CAP_PHY(wlc)) {
-		wlc->stf->ss_algosel_auto = TRUE;
+		wlc->stf->ss_algosel_auto = true;
 		wlc->stf->ss_algo_channel = (u16) -1;	/* Init the default value */
 	}
 	return 0;

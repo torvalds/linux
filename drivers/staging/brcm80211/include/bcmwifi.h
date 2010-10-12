@@ -132,7 +132,7 @@ typedef u16 chanspec_t;
  * Verify the chanspec is using a legal set of parameters, i.e. that the
  * chanspec specified a band, bw, ctl_sb and channel and that the
  * combination could be legal given any set of circumstances.
- * RETURNS: TRUE is the chanspec is malformed, false if it looks good.
+ * RETURNS: true is the chanspec is malformed, false if it looks good.
  */
 extern bool wf_chspec_malformed(chanspec_t chanspec);
 

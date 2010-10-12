@@ -750,7 +750,7 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 		}
 	}
 	wl_set_mpc(ndev, 0);
-	wl->iscan_kickstart = TRUE;
+	wl->iscan_kickstart = true;
 	wl_run_iscan(iscan, &ssid, WL_SCAN_ACTION_START);
 	mod_timer(&iscan->timer, jiffies + iscan->timer_ms * HZ / 1000);
 	iscan->timer_on = 1;
@@ -793,7 +793,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 							 * we do not iscan for
 							 * specific scan request
 							 */
-			iscan_req = TRUE;
+			iscan_req = true;
 		}
 	} else {		/* scan in ibss */
 		/* we don't do iscan in ibss */
@@ -818,7 +818,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			sr->ssid.SSID_len = htod32(sr->ssid.SSID_len);
 			WL_DBG(("Specific scan ssid=\"%s\" len=%d\n",
 					sr->ssid.SSID, sr->ssid.SSID_len));
-			spec_scan = TRUE;
+			spec_scan = true;
 		} else {
 			WL_DBG(("Broadcast scan\n"));
 		}
@@ -977,7 +977,7 @@ static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (changed & WIPHY_PARAM_RETRY_LONG
 	    && (wl->conf->retry_long != wiphy->retry_long)) {
 		wl->conf->retry_long = wiphy->retry_long;
-		err = wl_set_retry(ndev, wl->conf->retry_long, TRUE);
+		err = wl_set_retry(ndev, wl->conf->retry_long, true);
 		if (!err)
 			return err;
 	}
@@ -1035,7 +1035,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 		wl->ibss_starter = FALSE;
 		WL_DBG(("Found IBSS\n"));
 	} else {
-		wl->ibss_starter = TRUE;
+		wl->ibss_starter = true;
 	}
 	chan = params->channel;
 	if (chan)
@@ -1574,7 +1574,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 			key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
 			    (ivptr[3] << 8) | ivptr[2];
 			key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];
-			key.iv_initialized = TRUE;
+			key.iv_initialized = true;
 		}
 
 		switch (params->cipher) {
@@ -1991,7 +1991,7 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 	set_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
 	wl_term_iscan(wl);
 	if (wl->scan_request) {
-		cfg80211_scan_done(wl->scan_request, TRUE);	/* TRUE means
+		cfg80211_scan_done(wl->scan_request, true);	/* true means
 								 abort */
 		wl_set_mpc(ndev, 1);
 		wl->scan_request = NULL;
@@ -2339,7 +2339,7 @@ static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e)
 				if (wl_is_ibssstarter(wl)) {
 				}
 			} else {
-				return TRUE;
+				return true;
 			}
 		}
 	}
@@ -2353,10 +2353,10 @@ static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 	u16 flags = ntoh16(e->flags);
 
 	if (event == WLC_E_DEAUTH_IND || event == WLC_E_DISASSOC_IND) {
-		return TRUE;
+		return true;
 	} else if (event == WLC_E_LINK) {
 		if (!(flags & WLC_EVENT_MSG_LINK))
-			return TRUE;
+			return true;
 	}
 
 	return FALSE;
@@ -2369,7 +2369,7 @@ static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e)
 
 	if (event == WLC_E_SET_SSID || event == WLC_E_LINK) {
 		if (status == WLC_E_STATUS_NO_NETWORKS)
-			return TRUE;
+			return true;
 	}
 
 	return FALSE;
@@ -2389,12 +2389,12 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 					     GFP_KERNEL);
 			WL_DBG(("joined in IBSS network\n"));
 		} else {
-			wl_bss_connect_done(wl, ndev, e, data, TRUE);
+			wl_bss_connect_done(wl, ndev, e, data, true);
 			WL_DBG(("joined in BSS network \"%s\"\n",
 				((struct wlc_ssid *)
 				 wl_read_prof(wl, WL_PROF_SSID))->SSID));
 		}
-		act = TRUE;
+		act = true;
 		wl_update_prof(wl, e, &act, WL_PROF_ACT);
 	} else if (wl_is_linkdown(wl, e)) {
 		cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
@@ -2416,7 +2416,7 @@ wl_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
 	s32 err = 0;
 
 	wl_bss_roaming_done(wl, ndev, e, data);
-	act = TRUE;
+	act = true;
 	wl_update_prof(wl, e, &act, WL_PROF_ACT);
 
 	return err;
@@ -2978,7 +2978,7 @@ static s32 wl_iscan_aborted(struct wl_priv *wl)
 
 	iscan->state = WL_ISCAN_STATE_IDLE;
 	rtnl_lock();
-	wl_notify_iscan_complete(iscan, TRUE);
+	wl_notify_iscan_complete(iscan, true);
 	rtnl_unlock();
 
 	return err;
@@ -3099,20 +3099,20 @@ static s32 wl_init_priv(struct wl_priv *wl)
 	wl->scan_request = NULL;
 	wl->pwr_save = !!(wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT);
 #ifndef WL_ISCAN_DISABLED
-	wl->iscan_on = TRUE;	/* iscan on & off switch.
+	wl->iscan_on = true;	/* iscan on & off switch.
 				 we enable iscan per default */
 #else
 	wl->iscan_on = FALSE;
 #endif				/* WL_ISCAN_DISABLED */
 #ifndef WL_ROAM_DISABLED
-	wl->roam_on = TRUE;	/* roam on & off switch.
+	wl->roam_on = true;	/* roam on & off switch.
 				 we enable roam per default */
 #else
 	wl->roam_on = FALSE;
 #endif				/* WL_ROAM_DISABLED */
 
 	wl->iscan_kickstart = FALSE;
-	wl->active_scan = TRUE;	/* we do active scan for
+	wl->active_scan = true;	/* we do active scan for
 				 specific scan per default */
 	wl->dongle_up = FALSE;	/* dongle is not up yet */
 	wl_init_eq(wl);
@@ -3742,7 +3742,7 @@ default_conf_out:
 	if (need_lock)
 		rtnl_unlock();
 
-	wl->dongle_up = TRUE;
+	wl->dongle_up = true;
 
 	return err;
 
@@ -3797,7 +3797,7 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	set_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
 	wl_term_iscan(wl);
 	if (wl->scan_request) {
-		cfg80211_scan_done(wl->scan_request, TRUE);	/* TRUE
+		cfg80211_scan_done(wl->scan_request, true);	/* true
 								 means abort */
 		wl_set_mpc(ndev, 1);
 		wl->scan_request = NULL;
@@ -3982,7 +3982,7 @@ static u32 wl_get_ielen(struct wl_priv *wl)
 
 static void wl_link_up(struct wl_priv *wl)
 {
-	wl->link_up = TRUE;
+	wl->link_up = true;
 }
 
 static void wl_link_down(struct wl_priv *wl)

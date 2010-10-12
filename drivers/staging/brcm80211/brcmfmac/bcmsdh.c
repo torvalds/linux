@@ -76,7 +76,7 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 	}
 
 	bcmsdh->osh = osh;
-	bcmsdh->init_success = TRUE;
+	bcmsdh->init_success = true;
 
 	*regsva = (u32 *) SI_ENUM_BASE;
 
@@ -129,7 +129,7 @@ int bcmsdh_intr_enable(void *sdh)
 	SDIOH_API_RC status;
 	ASSERT(bcmsdh);
 
-	status = sdioh_interrupt_set(bcmsdh->sdioh, TRUE);
+	status = sdioh_interrupt_set(bcmsdh->sdioh, true);
 	return SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR;
 }
 
@@ -395,7 +395,7 @@ u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size)
 		case sizeof(u32):
 			return word;
 		default:
-			bcmsdh->regfail = TRUE;
+			bcmsdh->regfail = true;
 
 		}
 	}

@@ -268,12 +268,12 @@ static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 		return FALSE;
 
 	if (!check_brate)
-		return TRUE;
+		return true;
 
 	/* error if no basic rates */
 	for (idx = 0; idx < rs->count; idx++) {
 		if (rs->rates[idx] & WLC_RATE_FLAG)
-			return TRUE;
+			return true;
 	}
 	return FALSE;
 }
@@ -326,7 +326,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 		rs->mcs[i] = (rs->mcs[i] & hw_rs->mcs[i]);
 
 	if (wlc_rateset_valid(rs, check_brate))
-		return TRUE;
+		return true;
 	else
 		return FALSE;
 }

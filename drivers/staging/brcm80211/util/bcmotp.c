@@ -936,7 +936,7 @@ otp_read_region(si_t *sih, int region, u16 *data,
 
 	wasup = si_is_otp_powered(sih);
 	if (!wasup)
-		si_otp_power(sih, TRUE);
+		si_otp_power(sih, true);
 
 	if (!si_is_otp_powered(sih) || si_is_otp_disabled(sih)) {
 		err = BCME_NOTREADY;

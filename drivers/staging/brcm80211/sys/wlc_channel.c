@@ -692,7 +692,7 @@ wlc_channel_get_chanvec(struct wlc_info *wlc, const char *country_abbrev,
 		return FALSE;
 
 	wlc_locale_get_channels(locale, channels);
-	return TRUE;
+	return true;
 }
 
 /* set the driver's current country and regulatory information using a country code
@@ -773,7 +773,7 @@ wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 	li_mimo = wlc_get_mimo_2g(country->locale_mimo_2G);
 	if (li_mimo && (li_mimo->flags & WLC_NO_MIMO)) {
 		wlc_set_nmode(wlc, OFF);
-		wlc->stf->no_cddstbc = TRUE;
+		wlc->stf->no_cddstbc = true;
 	} else {
 		wlc->stf->no_cddstbc = FALSE;
 		if (N_ENAB(wlc->pub) != wlc->protection->nmode_user)
@@ -985,7 +985,7 @@ static void wlc_channels_commit(wlc_cm_info_t *wlc_cm)
 	 */
 	if (NBANDS(wlc) > 1 || BAND_2G(wlc->band->bandtype)) {
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
-						     wlc_japan(wlc) ? TRUE :
+						     wlc_japan(wlc) ? true :
 						     FALSE);
 	}
 
@@ -1511,7 +1511,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	return;
 }
 
-/* Returns TRUE if currently set country is Japan or variant */
+/* Returns true if currently set country is Japan or variant */
 bool wlc_japan(struct wlc_info *wlc)
 {
 	return wlc_japan_ccode(wlc->cmi->country_abbrev);
@@ -1583,7 +1583,7 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 		/* check that the lower sideband allows an upper sideband */
 		if ((upper_sideband & (CH_UPPER_SB | CH_EWA_VALID)) ==
 		    (CH_UPPER_SB | CH_EWA_VALID))
-			return TRUE;
+			return true;
 		return FALSE;
 	}
 #endif				/* 40 MHZ */
@@ -1598,5 +1598,5 @@ bool wlc_valid_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 
 bool wlc_valid_chanspec_db(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 {
-	return wlc_valid_chanspec_ext(wlc_cm, chspec, TRUE);
+	return wlc_valid_chanspec_ext(wlc_cm, chspec, true);
 }

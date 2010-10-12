@@ -337,7 +337,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 	 */
 	if (!pktq_pfull(q, prec) && !pktq_full(q)) {
 		pktq_penq(q, prec, pkt);
-		return TRUE;
+		return true;
 	}
 
 	/* Determine precedence from which to evict packet, if any */
@@ -366,7 +366,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 			ASSERT(p);
 		}
 
-		PKTFREE(dhdp->osh, p, TRUE);
+		PKTFREE(dhdp->osh, p, true);
 	}
 
 	/* Enqueue */
@@ -376,7 +376,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 		ASSERT(p);
 	}
 
-	return TRUE;
+	return true;
 }
 
 static int
@@ -608,11 +608,11 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	DHD_EVENT(("EVENT: %s, event ID = %d\n", event_name, event_type));
 
 	if (flags & WLC_EVENT_MSG_LINK)
-		link = TRUE;
+		link = true;
 	if (flags & WLC_EVENT_MSG_GROUP)
-		group = TRUE;
+		group = true;
 	if (flags & WLC_EVENT_MSG_FLUSHTXQ)
-		flush_txq = TRUE;
+		flush_txq = true;
 
 	switch (event_type) {
 	case WLC_E_START:

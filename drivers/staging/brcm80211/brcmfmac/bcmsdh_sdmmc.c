@@ -58,7 +58,7 @@ uint sd_power = 1;		/* Default to SD Slot powered ON */
 uint sd_clock = 1;		/* Default to SD Clock turned ON */
 uint sd_hiok = FALSE;		/* Don't use hi-speed mode by default */
 uint sd_msglevel = 0x01;
-uint sd_use_dma = TRUE;
+uint sd_use_dma = true;
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
@@ -138,8 +138,8 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	}
 
 	sd->num_funcs = 2;
-	sd->sd_blockmode = TRUE;
-	sd->use_client_ints = TRUE;
+	sd->sd_blockmode = true;
+	sd->use_client_ints = true;
 	sd->client_block_size[0] = 64;
 
 	gInstance->sd = sd;
@@ -281,7 +281,7 @@ sdioh_interrupt_register(sdioh_info_t *sd, sdioh_cb_fn_t fn, void *argh)
 #if !defined(OOB_INTR_ONLY)
 	sd->intr_handler = fn;
 	sd->intr_handler_arg = argh;
-	sd->intr_handler_valid = TRUE;
+	sd->intr_handler_valid = true;
 
 	/* register and unmask irq */
 	if (gInstance->func[2]) {
@@ -444,7 +444,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	if (plen >= (int)sizeof(int_val))
 		bcopy(params, &int_val, sizeof(int_val));
 
-	bool_val = (int_val != 0) ? TRUE : FALSE;
+	bool_val = (int_val != 0) ? true : FALSE;
 
 	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
 	switch (actionid) {
@@ -1041,9 +1041,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
 #ifdef DHD_USE_STATIC_BUF
-		mypkt = PKTGET_STATIC(sd->osh, buflen_u, write ? TRUE : FALSE);
+		mypkt = PKTGET_STATIC(sd->osh, buflen_u, write ? true : FALSE);
 #else
-		mypkt = PKTGET(sd->osh, buflen_u, write ? TRUE : FALSE);
+		mypkt = PKTGET(sd->osh, buflen_u, write ? true : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
 		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
@@ -1063,9 +1063,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 			bcopy(PKTDATA(mypkt), buffer, buflen_u);
 
 #ifdef DHD_USE_STATIC_BUF
-		PKTFREE_STATIC(sd->osh, mypkt, write ? TRUE : FALSE);
+		PKTFREE_STATIC(sd->osh, mypkt, write ? true : FALSE);
 #else
-		PKTFREE(sd->osh, mypkt, write ? TRUE : FALSE);
+		PKTFREE(sd->osh, mypkt, write ? true : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
 	} else if (((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
@@ -1077,9 +1077,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 			 __func__, write ? "TX" : "RX", PKTLEN(pkt)));
 #ifdef DHD_USE_STATIC_BUF
 		mypkt = PKTGET_STATIC(sd->osh, PKTLEN(pkt),
-					write ? TRUE : FALSE);
+					write ? true : FALSE);
 #else
-		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? TRUE : FALSE);
+		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? true : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
 		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
@@ -1099,9 +1099,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 			bcopy(PKTDATA(mypkt), PKTDATA(pkt), PKTLEN(mypkt));
 
 #ifdef DHD_USE_STATIC_BUF
-		PKTFREE_STATIC(sd->osh, mypkt, write ? TRUE : FALSE);
+		PKTFREE_STATIC(sd->osh, mypkt, write ? true : FALSE);
 #else
-		PKTFREE(sd->osh, mypkt, write ? TRUE : FALSE);
+		PKTFREE(sd->osh, mypkt, write ? true : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */

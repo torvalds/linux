@@ -640,14 +640,14 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 	bzero((char *)pi, sizeof(phy_info_t));
 	pi->regs = (d11regs_t *) regs;
 	pi->sh = sh;
-	pi->phy_init_por = TRUE;
+	pi->phy_init_por = true;
 	pi->phy_wreg_limit = PHY_WREG_LIMIT;
 
 	pi->vars = vars;
 
 	pi->txpwr_percent = 100;
 
-	pi->do_initcal = TRUE;
+	pi->do_initcal = true;
 
 	pi->phycal_tempdelta = 0;
 
@@ -713,7 +713,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 	pi->rxiq_samps = PHY_NOISE_SAMPLE_LOG_NUM_NPHY;
 	pi->rxiq_antsel = ANT_RX_DIV_DEF;
 
-	pi->watchdog_override = TRUE;
+	pi->watchdog_override = true;
 
 	pi->cal_type_override = PHY_PERICAL_AUTO;
 
@@ -736,7 +736,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 
 	pi->nphy_lastcal_temp = -50;
 
-	pi->phynoise_polling = TRUE;
+	pi->phynoise_polling = true;
 	if (ISNPHY(pi) || ISLCNPHY(pi))
 		pi->phynoise_polling = FALSE;
 
@@ -824,7 +824,7 @@ wlc_phy_get_phyversion(wlc_phy_t *pih, u16 *phytype, u16 *phyrev,
 	*radioid = pi->pubpi.radioid;
 	*radiover = pi->pubpi.radiorev;
 
-	return TRUE;
+	return true;
 }
 
 bool wlc_phy_get_encore(wlc_phy_t *pih)
@@ -929,7 +929,7 @@ void WLBANDINITFN(wlc_phy_por_inform) (wlc_phy_t *ppi)
 {
 	phy_info_t *pi = (phy_info_t *) ppi;
 
-	pi->phy_init_por = TRUE;
+	pi->phy_init_por = true;
 }
 
 void wlc_phy_edcrs_lock(wlc_phy_t *pih, bool lock)
@@ -980,7 +980,7 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
 	if (pi->init_in_progress)
 		return;
 
-	pi->init_in_progress = TRUE;
+	pi->init_in_progress = true;
 
 	pi->radio_chanspec = chanspec;
 
@@ -1012,7 +1012,7 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
 		wlapi_bmac_bw_set(pi->sh->physhim,
 				  CHSPEC_BW(pi->radio_chanspec));
 
-	pi->nphy_gain_boost = TRUE;
+	pi->nphy_gain_boost = true;
 
 	wlc_phy_switch_radio((wlc_phy_t *) pi, ON);
 
@@ -1021,7 +1021,7 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
 	pi->phy_init_por = FALSE;
 
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12))
-		wlc_phy_do_dummy_tx(pi, TRUE, OFF);
+		wlc_phy_do_dummy_tx(pi, true, OFF);
 
 	if (!(ISNPHY(pi)))
 		wlc_phy_txpower_update_shm(pi);
@@ -1043,7 +1043,7 @@ void wlc_phy_cal_init(wlc_phy_t *pih)
 		if (cal_init)
 			(*cal_init) (pi);
 
-		pi->initialized = TRUE;
+		pi->initialized = true;
 	}
 }
 
@@ -1652,7 +1652,7 @@ void wlc_phy_txpower_target_set(wlc_phy_t *ppi, struct txpwr_limits *txpwr)
 	      WLC_NUM_RATES_MCS_2_STREAM);
 
 	if (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC)
-		mac_enabled = TRUE;
+		mac_enabled = true;
 
 	if (mac_enabled)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
@@ -2436,7 +2436,7 @@ bool wlc_phy_test_ison(wlc_phy_t *ppi)
 bool wlc_phy_ant_rxdiv_get(wlc_phy_t *ppi, u8 *pval)
 {
 	phy_info_t *pi = (phy_info_t *) ppi;
-	bool ret = TRUE;
+	bool ret = true;
 
 	wlc_phyreg_enter(ppi);
 
@@ -2527,7 +2527,7 @@ wlc_phy_noise_calc_phy(phy_info_t *pi, u32 *cmplx_pwr, s8 *pwr_ant)
 	}
 	pi->nphy_noise_index =
 	    MODINC_POW2(pi->nphy_noise_index, PHY_NOISE_WINDOW_SZ);
-	return TRUE;
+	return true;
 }
 
 static void
@@ -2536,7 +2536,7 @@ wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason, u8 ch)
 	phy_info_t *pi = (phy_info_t *) pih;
 	s8 noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
 	bool sampling_in_progress = (pi->phynoise_state != 0);
-	bool wait_for_intr = TRUE;
+	bool wait_for_intr = true;
 
 	if (NORADIO_ENAB(pi->pubpi)) {
 		return;
@@ -2924,9 +2924,9 @@ void wlc_phy_set_deaf(wlc_phy_t *ppi, bool user_flag)
 	pi = (phy_info_t *) ppi;
 
 	if (ISLCNPHY(pi))
-		wlc_lcnphy_deaf_mode(pi, TRUE);
+		wlc_lcnphy_deaf_mode(pi, true);
 	else if (ISNPHY(pi))
-		wlc_nphy_deaf_mode(pi, TRUE);
+		wlc_nphy_deaf_mode(pi, true);
 	else {
 		ASSERT(0);
 	}
@@ -3121,7 +3121,7 @@ void wlc_phy_cal_perical(wlc_phy_t *pih, u8 reason)
 {
 	s16 nphy_currtemp = 0;
 	s16 delta_temp = 0;
-	bool do_periodic_cal = TRUE;
+	bool do_periodic_cal = true;
 	phy_info_t *pi = (phy_info_t *) pih;
 
 	if (!ISNPHY(pi))
@@ -3153,7 +3153,7 @@ void wlc_phy_cal_perical(wlc_phy_t *pih, u8 reason)
 			wlc_phy_cal_perical_mphase_reset(pi);
 		}
 
-		pi->first_cal_after_assoc = TRUE;
+		pi->first_cal_after_assoc = true;
 
 		pi->cal_type_override = PHY_PERICAL_FULL;
 
@@ -3288,7 +3288,7 @@ u8 wlc_phy_stf_chain_active_get(wlc_phy_t *pih)
 		if (!pi->phy_txcore_heatedup) {
 			if (nphy_currtemp >= pi->phy_txcore_disable_temp) {
 				active_bitmap &= 0xFD;
-				pi->phy_txcore_heatedup = TRUE;
+				pi->phy_txcore_heatedup = true;
 			}
 		} else {
 			if (nphy_currtemp <= pi->phy_txcore_enable_temp) {

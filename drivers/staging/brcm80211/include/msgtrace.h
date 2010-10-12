@@ -44,7 +44,7 @@ typedef BWL_PRE_PACKED_STRUCT struct msgtrace_hdr {
 
 /* The hbus driver generates traces when sending a trace message.
  * This causes endless traces.
- * This flag must be set to TRUE in any hbus traces.
+ * This flag must be set to true in any hbus traces.
  * The flag is reset in the function msgtrace_put.
  * This prevents endless traces but generates hasardous
  * lost of traces only in bus device code.

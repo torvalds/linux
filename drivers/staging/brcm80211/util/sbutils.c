@@ -445,7 +445,7 @@ bool sb_taclear(si_t *sih, bool details)
 	}
 
 	if (inband | timeout | serror) {
-		rc = TRUE;
+		rc = true;
 		SI_ERROR(("sb_taclear: inband 0x%x, serror 0x%x, timeout "
 			"0x%x!\n", inband, serror, timeout));
 	}

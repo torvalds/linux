@@ -53,7 +53,7 @@ typedef void (*osl_wreg_fn_t) (void *ctx, void *reg, unsigned int val,
 #define OSL_SYSUPTIME() (0)
 #define OSL_SYSUPTIME_SUPPORT FALSE
 #else
-#define OSL_SYSUPTIME_SUPPORT TRUE
+#define OSL_SYSUPTIME_SUPPORT true
 #endif				/* OSL_SYSUPTIME */
 
 #endif				/* _osl_h_ */

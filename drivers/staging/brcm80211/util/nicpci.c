@@ -290,7 +290,7 @@ static bool pcie_mdiosetblock(pcicore_info_t *pi, uint blk)
 		return FALSE;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static int
@@ -363,7 +363,7 @@ pcie_mdioread(pcicore_info_t *pi, uint physmedia, uint regaddr, uint *regval)
 static int
 pcie_mdiowrite(pcicore_info_t *pi, uint physmedia, uint regaddr, uint val)
 {
-	return pcie_mdioop(pi, physmedia, regaddr, TRUE, &val);
+	return pcie_mdioop(pi, physmedia, regaddr, true, &val);
 }
 
 /* ***** Support functions ***** */
@@ -519,7 +519,7 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 
 	if (pi->pcie_war_aspm_ovr != PCIE_ASPM_DISAB) {
 		val16 |= SRSH_CLKREQ_ENB;
-		pi->pcie_pr42767 = TRUE;
+		pi->pcie_pr42767 = true;
 	} else
 		val16 &= ~SRSH_CLKREQ_ENB;
 
@@ -684,7 +684,7 @@ void pcicore_up(void *pch, int state)
 		return;
 
 	/* Restore L1 timer for better performance */
-	pcie_extendL1timer(pi, TRUE);
+	pcie_extendL1timer(pi, true);
 
 	pcie_clkreq_upd(pi, state);
 }
@@ -739,7 +739,7 @@ bool pcicore_pmecap_fast(osl_t *osh)
 	return (pmecap & PME_CAP_PM_STATES) != 0;
 }
 
-/* return TRUE if PM capability exists in the pci config space
+/* return true if PM capability exists in the pci config space
  * Uses and caches the information using core handle
  */
 static bool pcicore_pmecap(pcicore_info_t *pi)
@@ -786,7 +786,7 @@ void pcicore_pmeen(void *pch)
 }
 
 /*
- * Return TRUE if PME status set
+ * Return true if PME status set
  */
 bool pcicore_pmestat(void *pch)
 {

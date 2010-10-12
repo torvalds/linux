@@ -609,7 +609,7 @@ wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		 params->txop, params->cw_min, params->cw_max, params->aifs));
 
 	WL_LOCK(wl);
-	wlc_wme_setparams(wl->wlc, queue, (void *)params, TRUE);
+	wlc_wme_setparams(wl->wlc, queue, (void *)params, true);
 	WL_UNLOCK(wl);
 
 	return 0;
@@ -649,7 +649,7 @@ wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	pktq_init(&scb->scb_ampdu.txq, AMPDU_MAX_SCB_TID,
 		  AMPDU_MAX_SCB_TID * PKTQ_LEN_DEFAULT);
 
-	sta->ht_cap.ht_supported = TRUE;
+	sta->ht_cap.ht_supported = true;
 #ifdef WLC_HIGH_ONLY
 	sta->ht_cap.ampdu_factor = AMPDU_RX_FACTOR_16K;
 #else
@@ -787,7 +787,7 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	}
 
 	/* Requires pkttag feature */
-	osh = osl_attach(btparam, bustype, TRUE);
+	osh = osl_attach(btparam, bustype, true);
 	ASSERT(osh);
 
 #ifdef WLC_HIGH_ONLY
@@ -1721,7 +1721,7 @@ void BCMFASTPATH wl_intrson(wl_info_t *wl)
 
 bool wl_alloc_dma_resources(wl_info_t *wl, uint addrwidth)
 {
-	return TRUE;
+	return true;
 }
 
 u32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
@@ -1834,7 +1834,7 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
 			INT_UNLOCK(wl, flags);
 		}
 
-		wl->resched = wlc_dpc(wl->wlc, TRUE);
+		wl->resched = wlc_dpc(wl->wlc, true);
 	}
 
 	/* wlc_dpc() may bring the driver down */
@@ -1899,7 +1899,7 @@ static void _wl_timer(wl_timer_t *t)
 			t->timer.expires = jiffies + t->ms * HZ / 1000;
 			atomic_inc(&t->wl->callbacks);
 			add_timer(&t->timer);
-			t->set = TRUE;
+			t->set = true;
 		} else
 			t->set = FALSE;
 
@@ -1957,14 +1957,14 @@ void wl_add_timer(wl_info_t *wl, wl_timer_t *t, uint ms, int periodic)
 
 	t->ms = ms;
 	t->periodic = (bool) periodic;
-	t->set = TRUE;
+	t->set = true;
 	t->timer.expires = jiffies + ms * HZ / 1000;
 
 	atomic_inc(&wl->callbacks);
 	add_timer(&t->timer);
 }
 
-/* return TRUE if timer successfully deleted, FALSE if still pending */
+/* return true if timer successfully deleted, FALSE if still pending */
 bool wl_del_timer(wl_info_t *wl, wl_timer_t *t)
 {
 	if (t->set) {
@@ -1975,7 +1975,7 @@ bool wl_del_timer(wl_info_t *wl, wl_timer_t *t)
 		atomic_dec(&wl->callbacks);
 	}
 
-	return TRUE;
+	return true;
 }
 
 void wl_free_timer(wl_info_t *wl, wl_timer_t *t)
@@ -2081,7 +2081,7 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 	wl->txq_tail = skb;
 
 	if (wl->txq_dispatched == FALSE) {
-		wl->txq_dispatched = TRUE;
+		wl->txq_dispatched = true;
 
 		if (schedule_work(&wl->txq_task.work)) {
 			atomic_inc(&wl->callbacks);
@@ -2153,7 +2153,7 @@ static void wl_txq_free(wl_info_t *wl)
 	while (wl->txq_head) {
 		skb = wl->txq_head;
 		wl->txq_head = skb->prev;
-		PKTFREE(wl->osh, skb, TRUE);
+		PKTFREE(wl->osh, skb, true);
 	}
 
 	wl->txq_tail = NULL;
@@ -2224,7 +2224,7 @@ static void wl_rpcq_add(wl_info_t *wl, rpc_buf_t *buf)
 	wl->rpcq_tail = buf;
 
 	if (wl->rpcq_dispatched == FALSE) {
-		wl->rpcq_dispatched = TRUE;
+		wl->rpcq_dispatched = true;
 		wl_schedule_task(wl, wl_rpcq_dispatch, wl);
 	}
 

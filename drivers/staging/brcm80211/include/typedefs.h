@@ -34,10 +34,6 @@ typedef unsigned int uintptr;
 #define FALSE	0
 #endif
 
-#ifndef TRUE
-#define TRUE	1		/* TRUE */
-#endif
-
 #ifndef OFF
 #define	OFF	0
 #endif

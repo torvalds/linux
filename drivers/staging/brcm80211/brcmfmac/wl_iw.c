@@ -57,7 +57,7 @@ typedef const struct si_pub si_t;
 #define WL_IW_USE_ISCAN  1
 #define ENABLE_ACTIVE_PASSIVE_SCAN_SUPPRESS  1
 
-bool g_set_essid_before_scan = TRUE;
+bool g_set_essid_before_scan = true;
 
 #define WL_IW_IOCTL_CALL(func_call) \
 	do {				\
@@ -1189,7 +1189,7 @@ static int _iscan_sysioc_thread(void *data)
 		rtnl_lock();
 		status = wl_iw_iscan_get(iscan);
 		rtnl_unlock();
-		if (g_scan_specified_ssid && (iscan_pass_abort == TRUE)) {
+		if (g_scan_specified_ssid && (iscan_pass_abort == true)) {
 			WL_TRACE(("%s Get results from specific scan "
 				"status = %d\n", __func__, status));
 			wl_iw_send_scan_complete(iscan);
@@ -1224,7 +1224,7 @@ static int _iscan_sysioc_thread(void *data)
 			if (g_scan_specified_ssid == 0)
 				wl_iw_send_scan_complete(iscan);
 			else {
-				iscan_pass_abort = TRUE;
+				iscan_pass_abort = true;
 				wl_iw_force_specific_scan(iscan);
 			}
 			break;
@@ -1407,7 +1407,7 @@ static bool ie_is_wpa_ie(u8 **wpaie, u8 **tlvs, int *tlvs_len)
 
 	if ((ie[1] >= 6) &&
 	    !bcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x01"), 4)) {
-		return TRUE;
+		return true;
 	}
 
 	ie += ie[1] + 2;
@@ -1423,7 +1423,7 @@ static bool ie_is_wps_ie(u8 **wpsie, u8 **tlvs, int *tlvs_len)
 
 	if ((ie[1] >= 4) &&
 	    !bcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x04"), 4)) {
-		return TRUE;
+		return true;
 	}
 
 	ie += ie[1] + 2;
@@ -2590,7 +2590,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 			key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
 			    (ivptr[3] << 8) | ivptr[2];
 			key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];
-			key.iv_initialized = TRUE;
+			key.iv_initialized = true;
 		}
 
 		switch (iwe->alg) {
@@ -2797,11 +2797,11 @@ wl_iw_set_wpaauth(struct net_device *dev,
 		}
 
 		if (iw->privacy_invoked && !val) {
-			WL_WSEC(("%s: %s: 'Privacy invoked' TRUE but clearing "
+			WL_WSEC(("%s: %s: 'Privacy invoked' true but clearing "
 				"wsec, assuming " "we're a WPS enrollee\n",
 				dev->name, __func__));
 			error = dev_wlc_intvar_set(dev, "is_WPS_enrollee",
-							TRUE);
+							true);
 			if (error) {
 				WL_WSEC(("Failed to set is_WPS_enrollee\n"));
 				return error;
@@ -2913,7 +2913,7 @@ wl_iw_set_wpaauth(struct net_device *dev,
 					return error;
 				}
 			} else {
-				iw->privacy_invoked = TRUE;
+				iw->privacy_invoked = true;
 				error = dev_wlc_intvar_get(dev, "wsec", &wsec);
 				if (error)
 					return error;
@@ -2921,7 +2921,7 @@ wl_iw_set_wpaauth(struct net_device *dev,
 				if (!(IW_WSEC_ENABLED(wsec))) {
 					error = dev_wlc_intvar_set(dev,
 							"is_WPS_enrollee",
-							TRUE);
+							true);
 					if (error) {
 						WL_WSEC(("Failed to set iovar "
 						"is_WPS_enrollee\n"));
@@ -3034,7 +3034,7 @@ wl_iw_get_wpaauth(struct net_device *dev,
 		if (error)
 			return error;
 		if (val)
-			paramval = TRUE;
+			paramval = true;
 		else
 			paramval = FALSE;
 		break;
@@ -3340,7 +3340,7 @@ wl_iw_conn_status_str(u32 event_type, u32 status, u32 reason,
 		snprintf(stringBuf, buflen, "%s %s %02d %02d",
 			 name, cause, status, reason);
 		WL_INFORM(("Connection status: %s\n", stringBuf));
-		return TRUE;
+		return true;
 	} else {
 		return FALSE;
 	}
@@ -3356,7 +3356,7 @@ wl_iw_check_conn_fail(wl_event_msg_t *e, char *stringBuf, uint buflen)
 	u32 reason = ntoh32(e->reason);
 
 	if (wl_iw_conn_status_str(event, status, reason, stringBuf, buflen)) {
-		return TRUE;
+		return true;
 	} else
 		return FALSE;
 }

@@ -349,7 +349,7 @@ void wlc_get_rcmta(wlc_info_t *wlc, int idx, struct ether_addr *addr)
 /* keep the chip awake if needed */
 bool wlc_stay_awake(wlc_info_t *wlc)
 {
-	return TRUE;
+	return true;
 }
 
 /* conditions under which the PM bit should be set in outgoing frames and STAY_AWAKE is meaningful
@@ -378,7 +378,7 @@ bool wlc_ps_allowed(wlc_info_t *wlc)
 			return FALSE;
 	}
 
-	return TRUE;
+	return true;
 }
 
 void wlc_reset(wlc_info_t *wlc)
@@ -408,7 +408,7 @@ void wlc_reset(wlc_info_t *wlc)
 	 *  have been cleared instantly in wlc_bmac_reset() and no txstatus interrupt
 	 *  will come to driver to fetch those flushed dma pkt pointers.
 	 */
-	wlc->reset_bmac_pending = TRUE;
+	wlc->reset_bmac_pending = true;
 
 	wlc_rpctx_txreclaim(wlc->rpctx);
 
@@ -530,8 +530,8 @@ void wlc_init(wlc_info_t *wlc)
 		       _rifs ? (EDCF_AC_VO_TXOP_AP << 5) : MAXFRAMEBURST_TXOP));
 
 	/* initialize maximum allowed duty cycle */
-	wlc_duty_cycle_set(wlc, wlc->tx_duty_cycle_ofdm, TRUE, TRUE);
-	wlc_duty_cycle_set(wlc, wlc->tx_duty_cycle_cck, FALSE, TRUE);
+	wlc_duty_cycle_set(wlc, wlc->tx_duty_cycle_ofdm, true, true);
+	wlc_duty_cycle_set(wlc, wlc->tx_duty_cycle_cck, FALSE, true);
 
 	/* Update some shared memory locations related to max AMPDU size allowed to received */
 	wlc_ampdu_shm_upd(wlc->ampdu);
@@ -626,7 +626,7 @@ void wlc_mac_promisc(wlc_info_t *wlc)
 /* check if hps and wake states of sw and hw are in sync */
 bool wlc_ps_check(wlc_info_t *wlc)
 {
-	bool res = TRUE;
+	bool res = true;
 	bool hps, wake;
 	bool wake_ok;
 
@@ -689,7 +689,7 @@ void wlc_set_ps_ctrl(wlc_info_t *wlc)
 	bool awake_before;
 
 	hps = PS_ALLOWED(wlc);
-	wake = hps ? (STAY_AWAKE(wlc)) : TRUE;
+	wake = hps ? (STAY_AWAKE(wlc)) : true;
 
 	WL_TRACE(("wl%d: wlc_set_ps_ctrl: hps %d wake %d\n", wlc->pub->unit,
 		  hps, wake));
@@ -860,7 +860,7 @@ void wlc_set_chanspec(wlc_info_t *wlc, chanspec_t chanspec)
 	if (NBANDS(wlc) > 1) {
 		bandunit = CHSPEC_WLCBANDUNIT(chanspec);
 		if (wlc->band->bandunit != bandunit || wlc->bandinit_pending) {
-			switchband = TRUE;
+			switchband = true;
 			if (wlc->bandlocked) {
 				WL_ERROR(("wl%d: %s: chspec %d band is locked!\n", wlc->pub->unit, __func__, CHSPEC_CHANNEL(chanspec)));
 				return;
@@ -1084,7 +1084,7 @@ static u32 wlc_watchdog_backup_bi(wlc_info_t *wlc)
 }
 
 /* Change to run the watchdog either from a periodic timer or from tbtt handler.
- * Call watchdog from tbtt handler if tbtt is TRUE, watchdog timer otherwise.
+ * Call watchdog from tbtt handler if tbtt is true, watchdog timer otherwise.
  */
 void wlc_watchdog_upd(wlc_info_t *wlc, bool tbtt)
 {
@@ -1105,13 +1105,13 @@ void wlc_watchdog_upd(wlc_info_t *wlc, bool tbtt)
 	/* arm watchdog timer and drive the watchdog there */
 	else if (!tbtt && !wlc->WDarmed) {
 		wl_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG,
-			     TRUE);
-		wlc->WDarmed = TRUE;
+			     true);
+		wlc->WDarmed = true;
 	}
 	if (tbtt && !wlc->WDarmed) {
 		wl_add_timer(wlc->wl, wlc->wdtimer, wlc_watchdog_backup_bi(wlc),
-			     TRUE);
-		wlc->WDarmed = TRUE;
+			     true);
+		wlc->WDarmed = true;
 	}
 }
 
@@ -1216,7 +1216,7 @@ static void wlc_ht_update_sgi_rx(wlc_info_t *wlc, int val)
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
-		wlc_update_probe_resp(wlc, TRUE);
+		wlc_update_probe_resp(wlc, true);
 	}
 }
 
@@ -1230,8 +1230,8 @@ static void wlc_ht_update_ldpc(wlc_info_t *wlc, s8 val)
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
-		wlc_update_probe_resp(wlc, TRUE);
-		wlc_phy_ldpc_override_set(wlc->band->pi, (val ? TRUE : FALSE));
+		wlc_update_probe_resp(wlc, true);
+		wlc_phy_ldpc_override_set(wlc->band->pi, (val ? true : FALSE));
 	}
 }
 
@@ -1346,9 +1346,9 @@ static void WLBANDINITFN(wlc_setband) (wlc_info_t *wlc, uint bandunit)
 		return;
 
 	/* wait for at least one beacon before entering sleeping state */
-	wlc->PMawakebcn = TRUE;
+	wlc->PMawakebcn = true;
 	FOREACH_AS_STA(wlc, idx, cfg)
-	    cfg->PMawakebcn = TRUE;
+	    cfg->PMawakebcn = true;
 	wlc_set_ps_ctrl(wlc);
 
 	/* band-specific initializations */
@@ -1568,7 +1568,7 @@ bool wlc_timers_init(wlc_info_t *wlc, int unit)
 		goto fail;
 	}
 
-	return TRUE;
+	return true;
 
  fail:
 	return FALSE;
@@ -1582,7 +1582,7 @@ void wlc_info_init(wlc_info_t *wlc, int unit)
 {
 	int i;
 	/* Assume the device is there until proven otherwise */
-	wlc->device_present = TRUE;
+	wlc->device_present = true;
 
 	/* set default power output percentage to 100 percent */
 	wlc->txpwr_percent = 100;
@@ -1593,13 +1593,13 @@ void wlc_info_init(wlc_info_t *wlc, int unit)
 	/* initialize CCK preamble mode to unassociated state */
 	wlc->shortpreamble = FALSE;
 
-	wlc->legacy_probe = TRUE;
+	wlc->legacy_probe = true;
 
 	/* various 802.11g modes */
 	wlc->shortslot = FALSE;
 	wlc->shortslot_override = WLC_SHORTSLOT_AUTO;
 
-	wlc->barker_overlap_control = TRUE;
+	wlc->barker_overlap_control = true;
 	wlc->barker_preamble = WLC_BARKER_SHORT_ALLOWED;
 	wlc->txburst_limit_override = AUTO;
 
@@ -1615,7 +1615,7 @@ void wlc_info_init(wlc_info_t *wlc, int unit)
 	wlc_protection_upd(wlc, WLC_PROT_OVERLAP, WLC_PROTECTION_CTL_OVERLAP);
 
 	/* 802.11g draft 4.0 NonERP elt advertisement */
-	wlc->include_legacy_erp = TRUE;
+	wlc->include_legacy_erp = true;
 
 	wlc->stf->ant_rx_ovr = ANT_RX_DIV_DEF;
 	wlc->stf->txant = ANT_TX_DEF;
@@ -1654,7 +1654,7 @@ void wlc_info_init(wlc_info_t *wlc, int unit)
 	wlc->PSpoll = FALSE;
 
 	/* APSD defaults */
-	wlc->wme_apsd = TRUE;
+	wlc->wme_apsd = true;
 	wlc->apsd_sta_usp = FALSE;
 	wlc->apsd_trigger_timeout = 0;	/* disable the trigger timer */
 	wlc->apsd_trigger_ac = AC_BITMAP_ALL;
@@ -1674,19 +1674,19 @@ void wlc_info_init(wlc_info_t *wlc, int unit)
 	wlc->pub->_wme = AUTO;
 
 #ifdef BCMSDIODEV_ENABLED
-	wlc->pub->_priofc = TRUE;	/* enable priority flow control for sdio dongle */
+	wlc->pub->_priofc = true;	/* enable priority flow control for sdio dongle */
 #endif
 
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
 	wlc->pub->bcmerror = 0;
-	wlc->ibss_allowed = TRUE;
-	wlc->ibss_coalesce_allowed = TRUE;
+	wlc->ibss_allowed = true;
+	wlc->ibss_coalesce_allowed = true;
 	wlc->pub->_coex = ON;
 
 	/* intialize mpc delay */
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = WLC_MPC_MIN_DELAYCNT;
 
-	wlc->pr80838_war = TRUE;
+	wlc->pr80838_war = true;
 }
 
 static bool wlc_state_bmac_sync(wlc_info_t *wlc)
@@ -1700,7 +1700,7 @@ static bool wlc_state_bmac_sync(wlc_info_t *wlc)
 	wlc_protection_upd(wlc, WLC_PROT_N_PAM_OVR,
 			   (s8) state_bmac.preamble_ovr);
 
-	return TRUE;
+	return true;
 }
 
 static uint wlc_attach_module(wlc_info_t *wlc)
@@ -2132,7 +2132,7 @@ static bool wlc_attach_stf_ant_init(wlc_info_t *wlc)
 	    (s8) getintvar(vars, (BAND_5G(bandtype) ? "ag1" : "ag0"));
 	wlc_attach_antgain_init(wlc);
 
-	return TRUE;
+	return true;
 }
 
 #ifdef WLC_HIGH_ONLY
@@ -2399,7 +2399,7 @@ void wlc_ap_upd(wlc_info_t *wlc)
 	wlc->vlan_mode = AP_ENAB(wlc->pub) ? OFF : AUTO;
 
 	/* fixup mpc */
-	wlc->mpc = TRUE;
+	wlc->mpc = true;
 }
 
 /* read hwdisable state and propagate to wlc flag */
@@ -2415,7 +2415,7 @@ static void wlc_radio_hwdisable_upd(wlc_info_t *wlc)
 	}
 }
 
-/* return TRUE if Minimum Power Consumption should be entered, FALSE otherwise */
+/* return true if Minimum Power Consumption should be entered, FALSE otherwise */
 bool wlc_is_non_delay_mpc(wlc_info_t *wlc)
 {
 	return FALSE;
@@ -2454,7 +2454,7 @@ void wlc_radio_mpc_upd(wlc_info_t *wlc)
 	radio_state =
 	    (mboolisset(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE) ? OFF :
 	     ON);
-	mpc_radio = (wlc_ismpc(wlc) == TRUE) ? OFF : ON;
+	mpc_radio = (wlc_ismpc(wlc) == true) ? OFF : ON;
 
 	if (radio_state == ON && mpc_radio == OFF)
 		wlc->mpc_delay_off = wlc->mpc_dlycnt;
@@ -2472,7 +2472,7 @@ void wlc_radio_mpc_upd(wlc_info_t *wlc)
 	 * wlc->mpc_delay_off to wlc->mpc_dlycnt, so that we restart the countdown of mpc_delay_off
 	 */
 	if ((wlc->prev_non_delay_mpc == FALSE) &&
-	    (wlc_is_non_delay_mpc(wlc) == TRUE) && wlc->mpc_delay_off) {
+	    (wlc_is_non_delay_mpc(wlc) == true) && wlc->mpc_delay_off) {
 		wlc->mpc_delay_off = wlc->mpc_dlycnt;
 	}
 	wlc->prev_non_delay_mpc = wlc_is_non_delay_mpc(wlc);
@@ -2498,7 +2498,7 @@ static void wlc_down_led_upd(wlc_info_t *wlc)
 	/* maintain LEDs while in down state, turn on sbclk if not available yet */
 	/* turn on sbclk if necessary */
 	if (!AP_ENAB(wlc->pub)) {
-		wlc_pllreq(wlc, TRUE, WLC_PLLREQ_FLIP);
+		wlc_pllreq(wlc, true, WLC_PLLREQ_FLIP);
 
 		wlc_pllreq(wlc, FALSE, WLC_PLLREQ_FLIP);
 	}
@@ -2553,18 +2553,18 @@ static bool wlc_radio_monitor_start(wlc_info_t *wlc)
 {
 	/* Don't start the timer if HWRADIO feature is disabled */
 	if (wlc->radio_monitor || (wlc->pub->wlfeatureflag & WL_SWFL_NOHWRADIO))
-		return TRUE;
+		return true;
 
-	wlc->radio_monitor = TRUE;
-	wlc_pllreq(wlc, TRUE, WLC_PLLREQ_RADIO_MON);
-	wl_add_timer(wlc->wl, wlc->radio_timer, TIMER_INTERVAL_RADIOCHK, TRUE);
-	return TRUE;
+	wlc->radio_monitor = true;
+	wlc_pllreq(wlc, true, WLC_PLLREQ_RADIO_MON);
+	wl_add_timer(wlc->wl, wlc->radio_timer, TIMER_INTERVAL_RADIOCHK, true);
+	return true;
 }
 
 bool wlc_radio_monitor_stop(wlc_info_t *wlc)
 {
 	if (!wlc->radio_monitor)
-		return TRUE;
+		return true;
 
 	ASSERT((wlc->pub->wlfeatureflag & WL_SWFL_NOHWRADIO) !=
 	       WL_SWFL_NOHWRADIO);
@@ -2577,13 +2577,13 @@ bool wlc_radio_monitor_stop(wlc_info_t *wlc)
 /* bring the driver down, but don't reset hardware */
 void wlc_out(wlc_info_t *wlc)
 {
-	wlc_bmac_set_noreset(wlc->hw, TRUE);
+	wlc_bmac_set_noreset(wlc->hw, true);
 	wlc_radio_upd(wlc);
 	wl_down(wlc->wl);
 	wlc_bmac_set_noreset(wlc->hw, FALSE);
 
-	/* core clk is TRUE in BMAC driver due to noreset, need to mirror it in HIGH */
-	wlc->clk = TRUE;
+	/* core clk is true in BMAC driver due to noreset, need to mirror it in HIGH */
+	wlc->clk = true;
 
 	/* This will make sure that when 'up' is done
 	 * after 'out' it'll restore hardware (especially gpios)
@@ -2606,7 +2606,7 @@ static bool wlc_tx_prec_map_verify(wlc_info_t *wlc)
 		      WLC_TX_FIFO_CHECK(wlc, TX_CTL_FIFO)))
 			return FALSE;
 		else
-			return TRUE;
+			return true;
 	}
 
 	return WLC_TX_FIFO_CHECK(wlc, TX_AC_BK_FIFO)
@@ -2624,7 +2624,7 @@ static void wlc_watchdog_by_timer(void *arg)
 		/* set to normal osl watchdog period */
 		wl_del_timer(wlc->wl, wlc->wdtimer);
 		wl_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG,
-			     TRUE);
+			     true);
 	}
 }
 
@@ -2709,7 +2709,7 @@ static void wlc_watchdog(void *arg)
 	}
 #ifdef WLC_LOW
 	/* BMAC_NOTE: for HIGH_ONLY driver, this seems being called after RPC bus failed */
-	ASSERT(wlc_bmac_taclear(wlc->hw, TRUE));
+	ASSERT(wlc_bmac_taclear(wlc->hw, true));
 #endif
 
 	/* Verify that tx_prec_map and fifos are in sync to avoid lock ups */
@@ -2729,7 +2729,7 @@ int wlc_up(wlc_info_t *wlc)
 
 	if (!wlc->pub->hw_up) {
 		wlc_bmac_hw_up(wlc->hw);
-		wlc->pub->hw_up = TRUE;
+		wlc->pub->hw_up = true;
 	}
 
 	if ((wlc->pub->boardflags & BFL_FEM)
@@ -2779,7 +2779,7 @@ int wlc_up(wlc_info_t *wlc)
 	}
 
 	/* wlc_bmac_up_prep has done wlc_corereset(). so clk is on, set it */
-	wlc->clk = TRUE;
+	wlc->clk = true;
 
 	wlc_radio_monitor_stop(wlc);
 
@@ -2795,7 +2795,7 @@ int wlc_up(wlc_info_t *wlc)
 			WLC_BAND_ALL);
 
 	wl_init(wlc->wl);
-	wlc->pub->up = TRUE;
+	wlc->pub->up = true;
 
 	if (wlc->bandinit_pending) {
 		wlc_suspend_mac_and_wait(wlc);
@@ -2815,8 +2815,8 @@ int wlc_up(wlc_info_t *wlc)
 
 	/* start one second watchdog timer */
 	ASSERT(!wlc->WDarmed);
-	wl_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG, TRUE);
-	wlc->WDarmed = TRUE;
+	wl_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG, true);
+	wlc->WDarmed = true;
 
 	/* ensure antenna config is up to date */
 	wlc_stf_phy_txant_upd(wlc);
@@ -2878,7 +2878,7 @@ uint wlc_down(wlc_info_t *wlc)
 		return callbacks;
 
 	/* in between, mpc could try to bring down again.. */
-	wlc->going_down = TRUE;
+	wlc->going_down = true;
 
 	callbacks += wlc_bmac_down_prep(wlc->hw);
 
@@ -2912,7 +2912,7 @@ uint wlc_down(wlc_info_t *wlc)
 
 	/* flush tx queues */
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
-		pktq_flush(wlc->osh, &qi->q, TRUE, NULL, 0);
+		pktq_flush(wlc->osh, &qi->q, true, NULL, 0);
 		ASSERT(pktq_empty(&qi->q));
 	}
 
@@ -2957,7 +2957,7 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 	s8 shortslot = WLC_SHORTSLOT_AUTO;	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	bool shortslot_restrict = FALSE;	/* Restrict association to stations that support shortslot
 						 */
-	bool ignore_bcns = TRUE;	/* Ignore legacy beacons on the same channel */
+	bool ignore_bcns = true;	/* Ignore legacy beacons on the same channel */
 	bool ofdm_basic = FALSE;	/* Make 6, 12, and 24 basic rates */
 	int preamble = WLC_PLCP_LONG;	/* Advertise and use short preambles (-1/0/1 Auto/Off/On) */
 	bool preamble_restrict = FALSE;	/* Restrict association to stations that support short
@@ -2986,7 +2986,7 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 		return BCME_RANGE;
 
 	/* update configuration value */
-	if (config == TRUE)
+	if (config == true)
 		wlc_protection_upd(wlc, WLC_PROT_G_USER, gmode);
 
 	/* Clear supported rates filter */
@@ -3012,9 +3012,9 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 		break;
 
 	case GMODE_ONLY:
-		ofdm_basic = TRUE;
+		ofdm_basic = true;
 		preamble = WLC_PLCP_SHORT;
-		preamble_restrict = TRUE;
+		preamble_restrict = true;
 		break;
 
 	case GMODE_PERFORMANCE:
@@ -3023,10 +3023,10 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 					 &wlc->sup_rates_override);
 
 		shortslot = WLC_SHORTSLOT_ON;
-		shortslot_restrict = TRUE;
-		ofdm_basic = TRUE;
+		shortslot_restrict = true;
+		ofdm_basic = true;
 		preamble = WLC_PLCP_SHORT;
-		preamble_restrict = TRUE;
+		preamble_restrict = true;
 		break;
 
 	default:
@@ -3159,7 +3159,7 @@ int wlc_set_nmode(wlc_info_t *wlc, s32 nmode)
 	case WL_11N_3x3:
 		ASSERT(WLC_PHY_11N_CAP(wlc->band));
 		/* force GMODE_AUTO if NMODE is ON */
-		wlc_set_gmode(wlc, GMODE_AUTO, TRUE);
+		wlc_set_gmode(wlc, GMODE_AUTO, true);
 		if (nmode == WL_11N_3x3)
 			wlc->pub->_n_enab = SUPPORT_HT;
 		else
@@ -3196,7 +3196,7 @@ static int wlc_set_rateset(wlc_info_t *wlc, wlc_rateset_t *rs_arg)
 	bandunit = wlc->band->bandunit;
 	bcopy((char *)&rs, (char *)&new, sizeof(wlc_rateset_t));
 	if (wlc_rate_hwrs_filter_sort_validate
-	    (&new, &wlc->bandstate[bandunit]->hw_rateset, TRUE,
+	    (&new, &wlc->bandstate[bandunit]->hw_rateset, true,
 	     wlc->stf->txstreams))
 		goto good;
 
@@ -3207,7 +3207,7 @@ static int wlc_set_rateset(wlc_info_t *wlc, wlc_rateset_t *rs_arg)
 		if (wlc_rate_hwrs_filter_sort_validate(&new,
 						       &wlc->
 						       bandstate[bandunit]->
-						       hw_rateset, TRUE,
+						       hw_rateset, true,
 						       wlc->stf->txstreams))
 			goto good;
 	}
@@ -3379,7 +3379,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			if (!wlc->pub->up && IS_MBAND_UNLOCKED(wlc)) {
 				if (wlc->band->bandunit !=
 				    CHSPEC_WLCBANDUNIT(chspec))
-					wlc->bandinit_pending = TRUE;
+					wlc->bandinit_pending = true;
 				else
 					wlc->bandinit_pending = FALSE;
 			}
@@ -3452,7 +3452,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_GET_SHMEM:
-		ta_ok = TRUE;
+		ta_ok = true;
 
 		/* optional band is stored in the second integer of incoming buffer */
 		band =
@@ -3473,7 +3473,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_SET_SHMEM:
-		ta_ok = TRUE;
+		ta_ok = true;
 
 		/* optional band is stored in the second integer of incoming buffer */
 		band =
@@ -3495,7 +3495,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_R_REG:	/* MAC registers */
-		ta_ok = TRUE;
+		ta_ok = true;
 		r = (rw_reg_t *) arg;
 		band = WLC_BAND_AUTO;
 
@@ -3531,7 +3531,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		break;
 
 	case WLC_W_REG:
-		ta_ok = TRUE;
+		ta_ok = true;
 		r = (rw_reg_t *) arg;
 		band = WLC_BAND_AUTO;
 
@@ -4007,7 +4007,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			break;
 		}
 
-		wlc->wake = val ? TRUE : FALSE;
+		wlc->wake = val ? true : FALSE;
 
 		/* if down, we're done */
 		if (!wlc->pub->up)
@@ -4167,7 +4167,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 		if (AP_ENAB(wlc->pub) && wlc->clk) {
 			wlc_update_beacon(wlc);
-			wlc_update_probe_resp(wlc, TRUE);
+			wlc_update_probe_resp(wlc, true);
 		}
 		break;
 
@@ -4180,7 +4180,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 	case WLC_SET_GMODE:
 		if (!wlc->pub->associated)
-			bcmerror = wlc_set_gmode(wlc, (u8) val, TRUE);
+			bcmerror = wlc_set_gmode(wlc, (u8) val, true);
 		else {
 			bcmerror = BCME_ASSOCIATED;
 			break;
@@ -4277,7 +4277,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			if (wlc->pub->up && AP_ENAB(wlc->pub)
 			    && wlc->pub->associated) {
 				wlc_update_beacon(wlc);
-				wlc_update_probe_resp(wlc, TRUE);
+				wlc_update_probe_resp(wlc, true);
 			}
 			break;
 		}
@@ -4321,7 +4321,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			/* treat the 'val' parm as the key id */
 			key = WSEC_BSS_DEFAULT_KEY(bsscfg);
 			if (key != NULL) {
-				*pval = key->id == val ? TRUE : FALSE;
+				*pval = key->id == val ? true : FALSE;
 			} else {
 				bcmerror = BCME_BADKEYIDX;
 			}
@@ -4764,8 +4764,8 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 	/* convenience int ptr for 4-byte gets (requires int aligned arg) */
 	ret_int_ptr = (s32 *) arg;
 
-	bool_val = (int_val != 0) ? TRUE : FALSE;
-	bool_val2 = (int_val2 != 0) ? TRUE : FALSE;
+	bool_val = (int_val != 0) ? true : FALSE;
+	bool_val2 = (int_val2 != 0) ? true : FALSE;
 
 	WL_TRACE(("wl%d: %s: id %d\n", wlc->pub->unit, __func__,
 		  IOV_ID(actionid)));
@@ -4799,7 +4799,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 			/* Remove override bit and clip to max qdbm value */
 			qdbm = (u8)min_t(u32, (int_val & ~WL_TXPWR_OVERRIDE), 0xff);
 			/* Extract override setting */
-			override = (int_val & WL_TXPWR_OVERRIDE) ? TRUE : FALSE;
+			override = (int_val & WL_TXPWR_OVERRIDE) ? true : FALSE;
 			err =
 			    wlc_phy_txpower_set(wlc->band->pi, qdbm, override);
 			break;
@@ -5025,12 +5025,12 @@ bool wlc_chipmatch(u16 vendor, u16 device)
 	}
 
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
-		return TRUE;
+		return true;
 
 	if (device == BCM4313_D11N2G_ID)
-		return TRUE;
+		return true;
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
-		return TRUE;
+		return true;
 
 	WL_ERROR(("wlc_chipmatch: unknown device id %04x\n", device));
 	return FALSE;
@@ -5209,7 +5209,7 @@ void wlc_device_removed(void *arg)
  * 'prec' is the precedence number that has already been mapped
  * from the packet priority.
  *
- * Returns TRUE if packet consumed (queued), FALSE if not.
+ * Returns true if packet consumed (queued), FALSE if not.
  */
 bool BCMFASTPATH
 wlc_prec_enq(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec)
@@ -5268,7 +5268,7 @@ wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec,
 		}
 
 		ASSERT(0);
-		PKTFREE(wlc->osh, p, TRUE);
+		PKTFREE(wlc->osh, p, true);
 		WLCNTINCR(wlc->pub->_cnt->txnobuf);
 	}
 
@@ -5279,7 +5279,7 @@ wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec,
 		p = pktq_penq(q, prec, pkt);
 	ASSERT(p != NULL);
 
-	return TRUE;
+	return true;
 }
 
 void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, void *sdu, uint prec)
@@ -5300,7 +5300,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, void *sdu, uint prec)
 				  wlc->pub->unit));
 
 		/* ASSERT(9 == 8); *//* XXX we might hit this condtion in case packet flooding from mac80211 stack */
-		PKTFREE(wlc->osh, sdu, TRUE);
+		PKTFREE(wlc->osh, sdu, true);
 		WLCNTINCR(wlc->pub->_cnt->txnobuf);
 	}
 
@@ -5374,7 +5374,7 @@ void BCMFASTPATH wlc_send_q(wlc_info_t *wlc, wlc_txq_info_t *qi)
 	if (in_send_q)
 		return;
 	else
-		in_send_q = TRUE;
+		in_send_q = true;
 
 	prec_map = wlc->tx_prec_map;
 
@@ -5390,7 +5390,7 @@ void BCMFASTPATH wlc_send_q(wlc_info_t *wlc, wlc_txq_info_t *qi)
 			err = wlc_prep_pdu(wlc, pkt[0], &fifo);
 			if (!err) {
 				for (i = 0; i < count; i++) {
-					wlc_txfifo(wlc, fifo, pkt[i], TRUE, 1);
+					wlc_txfifo(wlc, fifo, pkt[i], true, 1);
 				}
 			}
 		}
@@ -5463,7 +5463,7 @@ wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit, s8 txpktpend)
 	}
 
 	if (WLC_WAR16165(wlc))
-		wlc_war16165(wlc, TRUE);
+		wlc_war16165(wlc, true);
 
 #ifdef WLC_HIGH_ONLY
 	if (RPCTX_ENAB(wlc->pub)) {
@@ -5750,7 +5750,7 @@ static bool wlc_phy_rspec_check(wlc_info_t *wlc, u16 bw, ratespec_t rspec)
 		ASSERT(RSPEC_STF(rspec) == PHY_TXC1_MODE_SISO);
 	}
 
-	return TRUE;
+	return true;
 }
 
 u16 BCMFASTPATH wlc_phytxctl1_calc(wlc_info_t *wlc, ratespec_t rspec)
@@ -5996,7 +5996,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 
 	for (k = 0; k < hw->max_rates; k++) {
 		is_mcs[k] =
-		    txrate[k]->flags & IEEE80211_TX_RC_MCS ? TRUE : FALSE;
+		    txrate[k]->flags & IEEE80211_TX_RC_MCS ? true : FALSE;
 		if (!is_mcs[k]) {
 			ASSERT(!(tx_info->flags & IEEE80211_TX_CTL_AMPDU));
 			if ((txrate[k]->idx >= 0)
@@ -6008,7 +6008,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 				short_preamble[k] =
 				    txrate[k]->
 				    flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ?
-				    TRUE : FALSE;
+				    true : FALSE;
 			} else {
 				ASSERT((txrate[k]->idx >= 0) &&
 				       (txrate[k]->idx <
@@ -6024,10 +6024,10 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 		 */
 		use_rts |=
 		    txrate[k]->
-		    flags & IEEE80211_TX_RC_USE_RTS_CTS ? TRUE : FALSE;
+		    flags & IEEE80211_TX_RC_USE_RTS_CTS ? true : FALSE;
 		use_cts |=
 		    txrate[k]->
-		    flags & IEEE80211_TX_RC_USE_CTS_PROTECT ? TRUE : FALSE;
+		    flags & IEEE80211_TX_RC_USE_CTS_PROTECT ? true : FALSE;
 
 		if (is_mcs[k])
 			rate_val[k] |= NRATE_MCS_INUSE;
@@ -6564,8 +6564,8 @@ void wlc_tbtt(wlc_info_t *wlc, d11regs_t *regs)
 			}
 
 			wl_add_timer(wlc->wl, wlc->wdtimer,
-				     wlc_watchdog_backup_bi(wlc), TRUE);
-			wlc->WDarmed = TRUE;
+				     wlc_watchdog_backup_bi(wlc), true);
+			wlc->WDarmed = true;
 		}
 	}
 
@@ -6879,7 +6879,7 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 	}
 
 	totlen = pkttotlen(osh, p);
-	free_pdu = TRUE;
+	free_pdu = true;
 
 	wlc_txfifo_complete(wlc, queue, 1);
 
@@ -6902,7 +6902,7 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
  fatal:
 	ASSERT(0);
 	if (p)
-		PKTFREE(osh, p, TRUE);
+		PKTFREE(osh, p, true);
 
 #ifdef WLC_HIGH_ONLY
 	/* If this is a split driver, do the big-hammer here.
@@ -6910,7 +6910,7 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 	 */
 	wl_init(wlc->wl);
 #endif
-	return TRUE;
+	return true;
 
 }
 
@@ -7203,7 +7203,7 @@ void wlc_bss_list_free(wlc_info_t *wlc, wlc_bss_list_t *bss_list)
 
 /* Process received frames */
 /*
- * Return TRUE if more frames need to be processed. FALSE otherwise.
+ * Return true if more frames need to be processed. FALSE otherwise.
  * Param 'bound' indicates max. # frames to process before break out.
  */
 /* WLC_HIGH_API */
@@ -7704,7 +7704,7 @@ bool wlc_valid_rate(wlc_info_t *wlc, ratespec_t rspec, int band, bool verbose)
 
 	for (i = 0; i < hw_rateset->count; i++)
 		if (hw_rateset->rates[i] == RSPEC2RATE(rspec))
-			return TRUE;
+			return true;
  error:
 	if (verbose) {
 		WL_ERROR(("wl%d: wlc_valid_rate: rate spec 0x%x not in hw_rateset\n", wlc->pub->unit, rspec));
@@ -7725,13 +7725,13 @@ static void wlc_update_mimo_band_bwcap(wlc_info_t *wlc, u8 bwcap)
 		if (band->bandtype == WLC_BAND_5G) {
 			if ((bwcap == WLC_N_BW_40ALL)
 			    || (bwcap == WLC_N_BW_20IN2G_40IN5G))
-				band->mimo_cap_40 = TRUE;
+				band->mimo_cap_40 = true;
 			else
 				band->mimo_cap_40 = FALSE;
 		} else {
 			ASSERT(band->bandtype == WLC_BAND_2G);
 			if (bwcap == WLC_N_BW_40ALL)
-				band->mimo_cap_40 = TRUE;
+				band->mimo_cap_40 = true;
 			else
 				band->mimo_cap_40 = FALSE;
 		}
@@ -7938,7 +7938,7 @@ void wlc_bss_update_beacon(wlc_info_t *wlc, wlc_bsscfg_t *cfg)
 		       (wlc, wlc->bcn_rspec,
 			CHSPEC_IS2G(cfg->current_bss->
 				    chanspec) ? WLC_BAND_2G : WLC_BAND_5G,
-			TRUE));
+			true));
 
 		/* update the template and ucode shm */
 		wlc_bcn_prb_template(wlc, FC_BEACON, wlc->bcn_rspec, cfg, bcn,
@@ -8300,7 +8300,7 @@ mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band, u32 int_val)
 		rspec |= RSPEC_SHORT_GI;
 
 	if ((rate != 0)
-	    && !wlc_valid_rate(wlc, rspec, cur_band->bandtype, TRUE)) {
+	    && !wlc_valid_rate(wlc, rspec, cur_band->bandtype, true)) {
 		return rate;
 	}
 
@@ -8494,7 +8494,7 @@ void wlc_ht_mimops_cap_update(wlc_info_t *wlc, u8 mimops_mode)
 
 	if (AP_ENAB(wlc->pub) && wlc->clk) {
 		wlc_update_beacon(wlc);
-		wlc_update_probe_resp(wlc, TRUE);
+		wlc_update_probe_resp(wlc, true);
 	}
 }
 

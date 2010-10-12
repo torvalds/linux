@@ -39,7 +39,7 @@ get_erom_ent(si_t *sih, u32 **eromptr, u32 mask, u32 match)
 	u32 ent;
 	uint inv = 0, nom = 0;
 
-	while (TRUE) {
+	while (true) {
 		ent = R_REG(si_osh(sih), *eromptr);
 		(*eromptr)++;
 
@@ -224,7 +224,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 			    get_asd(sih, &eromptr, 0, 0, AD_ST_BRIDGE, &addrl,
 				    &addrh, &sizel, &sizeh);
 			if (asd != 0)
-				br = TRUE;
+				br = true;
 			else if ((addrh != 0) || (sizeh != 0)
 				 || (sizel != SI_CORE_SIZE)) {
 				SI_ERROR(("First Slave ASD for core 0x%04x malformed " "(0x%08x)\n", cid, asd));
@@ -507,7 +507,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 
 	if (BUSTYPE(sih->bustype) == SI_BUS) {
 		/* If internal bus, we can always get at everything */
-		fast = TRUE;
+		fast = true;
 		/* map if does not exist */
 		if (!sii->regs[coreidx]) {
 			sii->regs[coreidx] = REG_MAP(sii->coresba[coreidx],
@@ -521,14 +521,14 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 		if ((sii->coreid[coreidx] == CC_CORE_ID) && SI_FAST(sii)) {
 			/* Chipc registers are mapped at 12KB */
 
-			fast = TRUE;
+			fast = true;
 			r = (u32 *) ((char *)sii->curmap +
 					PCI_16KB0_CCREGS_OFFSET + regoff);
 		} else if (sii->pub.buscoreidx == coreidx) {
 			/* pci registers are at either in the last 2KB of an 8KB window
 			 * or, in pcie and pci rev 13 at 8KB
 			 */
-			fast = TRUE;
+			fast = true;
 			if (SI_FAST(sii))
 				r = (u32 *) ((char *)sii->curmap +
 						PCI_16KB0_PCIREGS_OFFSET +

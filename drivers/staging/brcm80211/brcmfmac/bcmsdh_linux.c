@@ -88,36 +88,36 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 #ifdef BCMSDIOH_STD
 	/* Check for Arasan host controller */
 	if (vendor == VENDOR_SI_IMAGE)
-		return TRUE;
+		return true;
 
 	/* Check for BRCM 27XX Standard host controller */
 	if (device == BCM27XX_SDIOH_ID && vendor == VENDOR_BROADCOM)
-		return TRUE;
+		return true;
 
 	/* Check for BRCM Standard host controller */
 	if (device == SDIOH_FPGA_ID && vendor == VENDOR_BROADCOM)
-		return TRUE;
+		return true;
 
 	/* Check for TI PCIxx21 Standard host controller */
 	if (device == PCIXX21_SDIOH_ID && vendor == VENDOR_TI)
-		return TRUE;
+		return true;
 
 	if (device == PCIXX21_SDIOH0_ID && vendor == VENDOR_TI)
-		return TRUE;
+		return true;
 
 	/* Ricoh R5C822 Standard SDIO Host */
 	if (device == R5C822_SDIOH_ID && vendor == VENDOR_RICOH)
-		return TRUE;
+		return true;
 
 	/* JMicron Standard SDIO Host */
 	if (device == JMICRON_SDIOH_ID && vendor == VENDOR_JMICRON)
-		return TRUE;
+		return true;
 #endif				/* BCMSDIOH_STD */
 #ifdef BCMSDIOH_SPI
 	/* This is the PciSpiHost. */
 	if (device == SPIH_FPGA_ID && vendor == VENDOR_BROADCOM) {
 		printf("Found PCI SPI Host Controller\n");
-		return TRUE;
+		return true;
 	}
 #endif				/* BCMSDIOH_SPI */
 
@@ -621,7 +621,7 @@ int bcmsdh_register_oob_intr(void *dhdp)
 			return -ENODEV;
 
 		set_irq_wake(sdhcinfo->oob_irq, 1);
-		sdhcinfo->oob_irq_registered = TRUE;
+		sdhcinfo->oob_irq_registered = true;
 	}
 
 	return 0;

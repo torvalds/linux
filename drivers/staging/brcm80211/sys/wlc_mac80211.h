@@ -119,7 +119,7 @@ typedef struct wlc_bss_list {
  */
 #define WLC_PORTOPEN(cfg) \
 	(((cfg)->WPA_auth != WPA_AUTH_DISABLED && WSEC_ENABLED((cfg)->wsec)) ? \
-	(cfg)->wsec_portopen : TRUE)
+	(cfg)->wsec_portopen : true)
 
 #define PS_ALLOWED(wlc)	wlc_ps_allowed(wlc)
 #define STAY_AWAKE(wlc) wlc_stay_awake(wlc)
@@ -191,7 +191,7 @@ extern const u8 prio2fifo[];
 #define WLC_PLLREQ_FLIP		0x4	/* hold/release pll for some short operation */
 
 /* Do we support this rate? */
-#define VALID_RATE_DBG(wlc, rspec) wlc_valid_rate(wlc, rspec, WLC_BAND_AUTO, TRUE)
+#define VALID_RATE_DBG(wlc, rspec) wlc_valid_rate(wlc, rspec, WLC_BAND_AUTO, true)
 
 /*
  * Macros to check if AP or STA is active.
@@ -270,7 +270,7 @@ typedef struct wlc_stf {
 	u16 phytxant;	/* phyTx antenna setting in txheader */
 
 	u8 ss_opmode;	/* singlestream Operational mode, 0:siso; 1:cdd */
-	bool ss_algosel_auto;	/* if TRUE, use wlc->stf->ss_algo_channel; */
+	bool ss_algosel_auto;	/* if true, use wlc->stf->ss_algo_channel; */
 	/* else use wlc->band->stf->ss_mode_band; */
 	u16 ss_algo_channel;	/* ss based on per-channel algo: 0: SISO, 1: CDD 2: STBC */
 	u8 no_cddstbc;	/* stf override, 1: no CDD (or STBC) allowed */
@@ -500,7 +500,7 @@ struct wlc_hw_info {
 #ifdef BCMSDIO
 	void *sdh;
 #endif
-	bool ucode_loaded;	/* TRUE after ucode downloaded */
+	bool ucode_loaded;	/* true after ucode downloaded */
 
 #ifdef WLC_LOW_ONLY
 	struct wl_timer *wdtimer;	/* timer for watchdog routine */
@@ -765,7 +765,7 @@ struct wlc_info {
 	s8 barker_preamble;	/* current Barker Preamble Mode */
 	s8 shortslot_override;	/* 11g ShortSlot override */
 	bool include_legacy_erp;	/* include Legacy ERP info elt ID 47 as well as g ID 42 */
-	bool barker_overlap_control;	/* TRUE: be aware of overlapping BSSs for barker */
+	bool barker_overlap_control;	/* true: be aware of overlapping BSSs for barker */
 	bool ignore_bcns;	/* override: ignore non shortslot bcns in a 11g network */
 	bool legacy_probe;	/* restricts probe requests to CCK rates */
 
@@ -846,7 +846,7 @@ struct antsel_info {
 
 /* sum the individual fifo tx pending packet counts */
 #if defined(WLC_HIGH_ONLY)
-#define TXPKTPENDTOT(wlc)		(wlc_rpctx_txpktpend((wlc)->rpctx, 0, TRUE))
+#define TXPKTPENDTOT(wlc)		(wlc_rpctx_txpktpend((wlc)->rpctx, 0, true))
 #define TXPKTPENDGET(wlc, fifo)		(wlc_rpctx_txpktpend((wlc)->rpctx, (fifo), FALSE))
 #define TXPKTPENDINC(wlc, fifo, val)	(wlc_rpctx_txpktpendinc((wlc)->rpctx, (fifo), (val)))
 #define TXPKTPENDDEC(wlc, fifo, val)	(wlc_rpctx_txpktpenddec((wlc)->rpctx, (fifo), (val)))

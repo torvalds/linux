@@ -482,7 +482,7 @@
 	typedef u32 mbool;
 #define mboolset(mb, bit)		((mb) |= (bit))	/* set one bool */
 #define mboolclr(mb, bit)		((mb) &= ~(bit))	/* clear one bool */
-#define mboolisset(mb, bit)		(((mb) & (bit)) != 0)	/* TRUE if one bool is set */
+#define mboolisset(mb, bit)		(((mb) & (bit)) != 0)	/* true if one bool is set */
 #define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
 /* power conversion */

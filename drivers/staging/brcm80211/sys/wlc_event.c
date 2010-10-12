@@ -106,13 +106,13 @@ int wlc_eventq_down(wlc_eventq_t *eq)
 		if (!wl_del_timer(eq->wl, eq->timer))
 			callbacks++;
 
-		ASSERT(wlc_eventq_avail(eq) == TRUE);
+		ASSERT(wlc_eventq_avail(eq) == true);
 		ASSERT(eq->workpending == FALSE);
-		eq->workpending = TRUE;
+		eq->workpending = true;
 		if (eq->cb)
 			eq->cb(eq->wlc);
 
-		ASSERT(eq->workpending == TRUE);
+		ASSERT(eq->workpending == true);
 		eq->workpending = FALSE;
 		eq->tpending = FALSE;
 	} else {
@@ -153,7 +153,7 @@ void wlc_eventq_enq(wlc_eventq_t *eq, wlc_event_t *e)
 		eq->head = eq->tail = e;
 
 	if (!eq->tpending) {
-		eq->tpending = TRUE;
+		eq->tpending = true;
 		/* Use a zero-delay timer to trigger
 		 * delayed processing of the event.
 		 */
@@ -214,16 +214,16 @@ static void wlc_timer_cb(void *arg)
 {
 	struct wlc_eventq *eq = (struct wlc_eventq *)arg;
 
-	ASSERT(eq->tpending == TRUE);
-	ASSERT(wlc_eventq_avail(eq) == TRUE);
+	ASSERT(eq->tpending == true);
+	ASSERT(wlc_eventq_avail(eq) == true);
 	ASSERT(eq->workpending == FALSE);
-	eq->workpending = TRUE;
+	eq->workpending = true;
 
 	if (eq->cb)
 		eq->cb(eq->wlc);
 
 	ASSERT(wlc_eventq_avail(eq) == FALSE);
-	ASSERT(eq->tpending == TRUE);
+	ASSERT(eq->tpending == true);
 	eq->workpending = FALSE;
 	eq->tpending = FALSE;
 }
