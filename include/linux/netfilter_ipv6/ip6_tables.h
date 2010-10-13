@@ -38,6 +38,29 @@
 #define ip6t_entry_target xt_entry_target
 #define ip6t_standard_target xt_standard_target
 #define ip6t_counters xt_counters
+#define IP6T_CONTINUE XT_CONTINUE
+#define IP6T_RETURN XT_RETURN
+
+/* Pre-iptables-1.4.0 */
+#include <linux/netfilter/xt_tcpudp.h>
+#define ip6t_tcp xt_tcp
+#define ip6t_udp xt_udp
+#define IP6T_TCP_INV_SRCPT	XT_TCP_INV_SRCPT
+#define IP6T_TCP_INV_DSTPT	XT_TCP_INV_DSTPT
+#define IP6T_TCP_INV_FLAGS	XT_TCP_INV_FLAGS
+#define IP6T_TCP_INV_OPTION	XT_TCP_INV_OPTION
+#define IP6T_TCP_INV_MASK	XT_TCP_INV_MASK
+#define IP6T_UDP_INV_SRCPT	XT_UDP_INV_SRCPT
+#define IP6T_UDP_INV_DSTPT	XT_UDP_INV_DSTPT
+#define IP6T_UDP_INV_MASK	XT_UDP_INV_MASK
+
+#define ip6t_counters_info xt_counters_info
+#define IP6T_STANDARD_TARGET XT_STANDARD_TARGET
+#define IP6T_ERROR_TARGET XT_ERROR_TARGET
+#define IP6T_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct ip6t_entry, e, fn, ## args)
+#define IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct ip6t_entry, entries, size, fn, ## args)
 #endif
 
 /* Yes, Virginia, you have to zero the padding. */
@@ -133,7 +156,7 @@ struct ip6t_error {
 #define IP6T_STANDARD_INIT(__verdict)					       \
 {									       \
 	.entry		= IP6T_ENTRY_INIT(sizeof(struct ip6t_standard)),       \
-	.target		= XT_TARGET_INIT(IP6T_STANDARD_TARGET,		       \
+	.target		= XT_TARGET_INIT(XT_STANDARD_TARGET,		       \
 					 sizeof(struct xt_standard_target)),   \
 	.target.verdict	= -(__verdict) - 1,				       \
 }
@@ -141,7 +164,7 @@ struct ip6t_error {
 #define IP6T_ERROR_INIT							       \
 {									       \
 	.entry		= IP6T_ENTRY_INIT(sizeof(struct ip6t_error)),	       \
-	.target		= XT_TARGET_INIT(IP6T_ERROR_TARGET,		       \
+	.target		= XT_TARGET_INIT(XT_ERROR_TARGET,		       \
 					 sizeof(struct ip6t_error_target)),    \
 	.target.errorname = "ERROR",					       \
 }
@@ -164,30 +187,6 @@ struct ip6t_error {
 #define IP6T_SO_GET_REVISION_MATCH	(IP6T_BASE_CTL + 4)
 #define IP6T_SO_GET_REVISION_TARGET	(IP6T_BASE_CTL + 5)
 #define IP6T_SO_GET_MAX			IP6T_SO_GET_REVISION_TARGET
-
-/* CONTINUE verdict for targets */
-#define IP6T_CONTINUE XT_CONTINUE
-
-/* For standard target */
-#define IP6T_RETURN XT_RETURN
-
-/* TCP/UDP matching stuff */
-#include <linux/netfilter/xt_tcpudp.h>
-
-#define ip6t_tcp xt_tcp
-#define ip6t_udp xt_udp
-
-/* Values for "inv" field in struct ipt_tcp. */
-#define IP6T_TCP_INV_SRCPT	XT_TCP_INV_SRCPT
-#define IP6T_TCP_INV_DSTPT	XT_TCP_INV_DSTPT
-#define IP6T_TCP_INV_FLAGS	XT_TCP_INV_FLAGS
-#define IP6T_TCP_INV_OPTION	XT_TCP_INV_OPTION
-#define IP6T_TCP_INV_MASK	XT_TCP_INV_MASK
-
-/* Values for "invflags" field in struct ipt_udp. */
-#define IP6T_UDP_INV_SRCPT	XT_UDP_INV_SRCPT
-#define IP6T_UDP_INV_DSTPT	XT_UDP_INV_DSTPT
-#define IP6T_UDP_INV_MASK	XT_UDP_INV_MASK
 
 /* ICMP matching stuff */
 struct ip6t_icmp {
@@ -252,9 +251,6 @@ struct ip6t_replace {
 	struct ip6t_entry entries[0];
 };
 
-/* The argument to IP6T_SO_ADD_COUNTERS. */
-#define ip6t_counters_info xt_counters_info
-
 /* The argument to IP6T_SO_GET_ENTRIES. */
 struct ip6t_get_entries {
 	/* Which table: user fills this in. */
@@ -267,27 +263,12 @@ struct ip6t_get_entries {
 	struct ip6t_entry entrytable[0];
 };
 
-/* Standard return verdict, or do jump. */
-#define IP6T_STANDARD_TARGET XT_STANDARD_TARGET
-/* Error verdict. */
-#define IP6T_ERROR_TARGET XT_ERROR_TARGET
-
 /* Helper functions */
 static __inline__ struct xt_entry_target *
 ip6t_get_target(struct ip6t_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
-
-#ifndef __KERNEL__
-/* fn returns 0 to continue iteration */
-#define IP6T_MATCH_ITERATE(e, fn, args...) \
-	XT_MATCH_ITERATE(struct ip6t_entry, e, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct ip6t_entry, entries, size, fn, ## args)
-#endif
 
 /*
  *	Main firewall chains definitions and global var's definitions.

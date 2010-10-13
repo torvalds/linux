@@ -230,7 +230,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 		result = TC_ACT_SHOT;
 		ipt->tcf_qstats.drops++;
 		break;
-	case IPT_CONTINUE:
+	case XT_CONTINUE:
 		result = TC_ACT_PIPE;
 		break;
 	default:

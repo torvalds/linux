@@ -262,7 +262,7 @@ get_chainname_rulenum(const struct ip6t_entry *s, const struct ip6t_entry *e,
 {
 	const struct xt_standard_target *t = (void *)ip6t_get_target_c(s);
 
-	if (strcmp(t->target.u.kernel.target->name, IP6T_ERROR_TARGET) == 0) {
+	if (strcmp(t->target.u.kernel.target->name, XT_ERROR_TARGET) == 0) {
 		/* Head of user chain: ERROR target with chainname */
 		*chainname = t->target.data;
 		(*rulenum) = 0;
@@ -271,7 +271,7 @@ get_chainname_rulenum(const struct ip6t_entry *s, const struct ip6t_entry *e,
 
 		if (s->target_offset == sizeof(struct ip6t_entry) &&
 		    strcmp(t->target.u.kernel.target->name,
-			   IP6T_STANDARD_TARGET) == 0 &&
+			   XT_STANDARD_TARGET) == 0 &&
 		    t->verdict < 0 &&
 		    unconditional(&s->ipv6)) {
 			/* Tail of chains: STANDARD target (return/policy) */
@@ -406,7 +406,7 @@ ip6t_do_table(struct sk_buff *skb,
 			v = ((struct xt_standard_target *)t)->verdict;
 			if (v < 0) {
 				/* Pop from stack? */
-				if (v != IP6T_RETURN) {
+				if (v != XT_RETURN) {
 					verdict = (unsigned)(-v) - 1;
 					break;
 				}
@@ -434,7 +434,7 @@ ip6t_do_table(struct sk_buff *skb,
 		acpar.targinfo = t->data;
 
 		verdict = t->u.kernel.target->target(skb, &acpar);
-		if (verdict == IP6T_CONTINUE)
+		if (verdict == XT_CONTINUE)
 			e = ip6t_next_entry(e);
 		else
 			/* Verdict */
@@ -488,13 +488,13 @@ mark_source_chains(const struct xt_table_info *newinfo,
 			/* Unconditional return/END. */
 			if ((e->target_offset == sizeof(struct ip6t_entry) &&
 			     (strcmp(t->target.u.user.name,
-				     IP6T_STANDARD_TARGET) == 0) &&
+				     XT_STANDARD_TARGET) == 0) &&
 			     t->verdict < 0 &&
 			     unconditional(&e->ipv6)) || visited) {
 				unsigned int oldpos, size;
 
 				if ((strcmp(t->target.u.user.name,
-					    IP6T_STANDARD_TARGET) == 0) &&
+					    XT_STANDARD_TARGET) == 0) &&
 				    t->verdict < -NF_MAX_VERDICT - 1) {
 					duprintf("mark_source_chains: bad "
 						"negative verdict (%i)\n",
@@ -537,7 +537,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 				int newpos = t->verdict;
 
 				if (strcmp(t->target.u.user.name,
-					   IP6T_STANDARD_TARGET) == 0 &&
+					   XT_STANDARD_TARGET) == 0 &&
 				    newpos >= 0) {
 					if (newpos > newinfo->size -
 						sizeof(struct ip6t_entry)) {
@@ -2191,7 +2191,7 @@ static int icmp6_checkentry(const struct xt_mtchk_param *par)
 /* The built-in targets: standard (NULL) and error. */
 static struct xt_target ip6t_builtin_tg[] __read_mostly = {
 	{
-		.name             = IP6T_STANDARD_TARGET,
+		.name             = XT_STANDARD_TARGET,
 		.targetsize       = sizeof(int),
 		.family           = NFPROTO_IPV6,
 #ifdef CONFIG_COMPAT
@@ -2201,7 +2201,7 @@ static struct xt_target ip6t_builtin_tg[] __read_mostly = {
 #endif
 	},
 	{
-		.name             = IP6T_ERROR_TARGET,
+		.name             = XT_ERROR_TARGET,
 		.target           = ip6t_error,
 		.targetsize       = XT_FUNCTION_MAXNAMELEN,
 		.family           = NFPROTO_IPV6,

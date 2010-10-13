@@ -232,7 +232,7 @@ get_chainname_rulenum(const struct ipt_entry *s, const struct ipt_entry *e,
 {
 	const struct xt_standard_target *t = (void *)ipt_get_target_c(s);
 
-	if (strcmp(t->target.u.kernel.target->name, IPT_ERROR_TARGET) == 0) {
+	if (strcmp(t->target.u.kernel.target->name, XT_ERROR_TARGET) == 0) {
 		/* Head of user chain: ERROR target with chainname */
 		*chainname = t->target.data;
 		(*rulenum) = 0;
@@ -241,7 +241,7 @@ get_chainname_rulenum(const struct ipt_entry *s, const struct ipt_entry *e,
 
 		if (s->target_offset == sizeof(struct ipt_entry) &&
 		    strcmp(t->target.u.kernel.target->name,
-			   IPT_STANDARD_TARGET) == 0 &&
+			   XT_STANDARD_TARGET) == 0 &&
 		   t->verdict < 0 &&
 		   unconditional(&s->ip)) {
 			/* Tail of chains: STANDARD target (return/policy) */
@@ -383,7 +383,7 @@ ipt_do_table(struct sk_buff *skb,
 			v = ((struct xt_standard_target *)t)->verdict;
 			if (v < 0) {
 				/* Pop from stack? */
-				if (v != IPT_RETURN) {
+				if (v != XT_RETURN) {
 					verdict = (unsigned)(-v) - 1;
 					break;
 				}
@@ -421,7 +421,7 @@ ipt_do_table(struct sk_buff *skb,
 		verdict = t->u.kernel.target->target(skb, &acpar);
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);
-		if (verdict == IPT_CONTINUE)
+		if (verdict == XT_CONTINUE)
 			e = ipt_next_entry(e);
 		else
 			/* Verdict */
@@ -475,13 +475,13 @@ mark_source_chains(const struct xt_table_info *newinfo,
 			/* Unconditional return/END. */
 			if ((e->target_offset == sizeof(struct ipt_entry) &&
 			     (strcmp(t->target.u.user.name,
-				     IPT_STANDARD_TARGET) == 0) &&
+				     XT_STANDARD_TARGET) == 0) &&
 			     t->verdict < 0 && unconditional(&e->ip)) ||
 			    visited) {
 				unsigned int oldpos, size;
 
 				if ((strcmp(t->target.u.user.name,
-			    		    IPT_STANDARD_TARGET) == 0) &&
+			    		    XT_STANDARD_TARGET) == 0) &&
 				    t->verdict < -NF_MAX_VERDICT - 1) {
 					duprintf("mark_source_chains: bad "
 						"negative verdict (%i)\n",
@@ -524,7 +524,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 				int newpos = t->verdict;
 
 				if (strcmp(t->target.u.user.name,
-					   IPT_STANDARD_TARGET) == 0 &&
+					   XT_STANDARD_TARGET) == 0 &&
 				    newpos >= 0) {
 					if (newpos > newinfo->size -
 						sizeof(struct ipt_entry)) {
@@ -2176,7 +2176,7 @@ static int icmp_checkentry(const struct xt_mtchk_param *par)
 
 static struct xt_target ipt_builtin_tg[] __read_mostly = {
 	{
-		.name             = IPT_STANDARD_TARGET,
+		.name             = XT_STANDARD_TARGET,
 		.targetsize       = sizeof(int),
 		.family           = NFPROTO_IPV4,
 #ifdef CONFIG_COMPAT
@@ -2186,7 +2186,7 @@ static struct xt_target ipt_builtin_tg[] __read_mostly = {
 #endif
 	},
 	{
-		.name             = IPT_ERROR_TARGET,
+		.name             = XT_ERROR_TARGET,
 		.target           = ipt_error,
 		.targetsize       = XT_FUNCTION_MAXNAMELEN,
 		.family           = NFPROTO_IPV4,

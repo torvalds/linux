@@ -38,6 +38,36 @@
 #define ipt_entry_target xt_entry_target
 #define ipt_standard_target xt_standard_target
 #define ipt_counters xt_counters
+#define IPT_CONTINUE XT_CONTINUE
+#define IPT_RETURN XT_RETURN
+
+/* This group is older than old (iptables < v1.4.0-rc1~89) */
+#include <linux/netfilter/xt_tcpudp.h>
+#define ipt_udp xt_udp
+#define ipt_tcp xt_tcp
+#define IPT_TCP_INV_SRCPT	XT_TCP_INV_SRCPT
+#define IPT_TCP_INV_DSTPT	XT_TCP_INV_DSTPT
+#define IPT_TCP_INV_FLAGS	XT_TCP_INV_FLAGS
+#define IPT_TCP_INV_OPTION	XT_TCP_INV_OPTION
+#define IPT_TCP_INV_MASK	XT_TCP_INV_MASK
+#define IPT_UDP_INV_SRCPT	XT_UDP_INV_SRCPT
+#define IPT_UDP_INV_DSTPT	XT_UDP_INV_DSTPT
+#define IPT_UDP_INV_MASK	XT_UDP_INV_MASK
+
+/* The argument to IPT_SO_ADD_COUNTERS. */
+#define ipt_counters_info xt_counters_info
+/* Standard return verdict, or do jump. */
+#define IPT_STANDARD_TARGET XT_STANDARD_TARGET
+/* Error verdict. */
+#define IPT_ERROR_TARGET XT_ERROR_TARGET
+
+/* fn returns 0 to continue iteration */
+#define IPT_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct ipt_entry, e, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
 #endif
 
 /* Yes, Virginia, you have to zero the padding. */
@@ -116,23 +146,6 @@ struct ipt_entry {
 #define IPT_SO_GET_REVISION_TARGET	(IPT_BASE_CTL + 3)
 #define IPT_SO_GET_MAX			IPT_SO_GET_REVISION_TARGET
 
-#define IPT_CONTINUE XT_CONTINUE
-#define IPT_RETURN XT_RETURN
-
-#include <linux/netfilter/xt_tcpudp.h>
-#define ipt_udp xt_udp
-#define ipt_tcp xt_tcp
-
-#define IPT_TCP_INV_SRCPT	XT_TCP_INV_SRCPT
-#define IPT_TCP_INV_DSTPT	XT_TCP_INV_DSTPT
-#define IPT_TCP_INV_FLAGS	XT_TCP_INV_FLAGS
-#define IPT_TCP_INV_OPTION	XT_TCP_INV_OPTION
-#define IPT_TCP_INV_MASK	XT_TCP_INV_MASK
-
-#define IPT_UDP_INV_SRCPT	XT_UDP_INV_SRCPT
-#define IPT_UDP_INV_DSTPT	XT_UDP_INV_DSTPT
-#define IPT_UDP_INV_MASK	XT_UDP_INV_MASK
-
 /* ICMP matching stuff */
 struct ipt_icmp {
 	u_int8_t type;				/* type to match */
@@ -196,9 +209,6 @@ struct ipt_replace {
 	struct ipt_entry entries[0];
 };
 
-/* The argument to IPT_SO_ADD_COUNTERS. */
-#define ipt_counters_info xt_counters_info
-
 /* The argument to IPT_SO_GET_ENTRIES. */
 struct ipt_get_entries {
 	/* Which table: user fills this in. */
@@ -211,27 +221,12 @@ struct ipt_get_entries {
 	struct ipt_entry entrytable[0];
 };
 
-/* Standard return verdict, or do jump. */
-#define IPT_STANDARD_TARGET XT_STANDARD_TARGET
-/* Error verdict. */
-#define IPT_ERROR_TARGET XT_ERROR_TARGET
-
 /* Helper functions */
 static __inline__ struct xt_entry_target *
 ipt_get_target(struct ipt_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
-
-#ifndef __KERNEL__
-/* fn returns 0 to continue iteration */
-#define IPT_MATCH_ITERATE(e, fn, args...) \
-	XT_MATCH_ITERATE(struct ipt_entry, e, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
-#endif
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -271,7 +266,7 @@ struct ipt_error {
 #define IPT_STANDARD_INIT(__verdict)					       \
 {									       \
 	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_standard)),	       \
-	.target		= XT_TARGET_INIT(IPT_STANDARD_TARGET,		       \
+	.target		= XT_TARGET_INIT(XT_STANDARD_TARGET,		       \
 					 sizeof(struct xt_standard_target)),   \
 	.target.verdict	= -(__verdict) - 1,				       \
 }
@@ -279,7 +274,7 @@ struct ipt_error {
 #define IPT_ERROR_INIT							       \
 {									       \
 	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_error)),	       \
-	.target		= XT_TARGET_INIT(IPT_ERROR_TARGET,		       \
+	.target		= XT_TARGET_INIT(XT_ERROR_TARGET,		       \
 					 sizeof(struct ipt_error_target)),     \
 	.target.errorname = "ERROR",					       \
 }

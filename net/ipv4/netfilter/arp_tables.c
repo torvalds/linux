@@ -300,7 +300,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			v = ((struct xt_standard_target *)t)->verdict;
 			if (v < 0) {
 				/* Pop from stack? */
-				if (v != ARPT_RETURN) {
+				if (v != XT_RETURN) {
 					verdict = (unsigned)(-v) - 1;
 					break;
 				}
@@ -332,7 +332,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 		/* Target might have changed stuff. */
 		arp = arp_hdr(skb);
 
-		if (verdict == ARPT_CONTINUE)
+		if (verdict == XT_CONTINUE)
 			e = arpt_next_entry(e);
 		else
 			/* Verdict */
@@ -392,13 +392,13 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 			/* Unconditional return/END. */
 			if ((e->target_offset == sizeof(struct arpt_entry) &&
 			     (strcmp(t->target.u.user.name,
-				     ARPT_STANDARD_TARGET) == 0) &&
+				     XT_STANDARD_TARGET) == 0) &&
 			     t->verdict < 0 && unconditional(&e->arp)) ||
 			    visited) {
 				unsigned int oldpos, size;
 
 				if ((strcmp(t->target.u.user.name,
-					    ARPT_STANDARD_TARGET) == 0) &&
+					    XT_STANDARD_TARGET) == 0) &&
 				    t->verdict < -NF_MAX_VERDICT - 1) {
 					duprintf("mark_source_chains: bad "
 						"negative verdict (%i)\n",
@@ -433,7 +433,7 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 				int newpos = t->verdict;
 
 				if (strcmp(t->target.u.user.name,
-					   ARPT_STANDARD_TARGET) == 0 &&
+					   XT_STANDARD_TARGET) == 0 &&
 				    newpos >= 0) {
 					if (newpos > newinfo->size -
 						sizeof(struct arpt_entry)) {
@@ -1828,7 +1828,7 @@ void arpt_unregister_table(struct xt_table *table)
 /* The built-in targets: standard (NULL) and error. */
 static struct xt_target arpt_builtin_tg[] __read_mostly = {
 	{
-		.name             = ARPT_STANDARD_TARGET,
+		.name             = XT_STANDARD_TARGET,
 		.targetsize       = sizeof(int),
 		.family           = NFPROTO_ARP,
 #ifdef CONFIG_COMPAT
@@ -1838,7 +1838,7 @@ static struct xt_target arpt_builtin_tg[] __read_mostly = {
 #endif
 	},
 	{
-		.name             = ARPT_ERROR_TARGET,
+		.name             = XT_ERROR_TARGET,
 		.target           = arpt_error,
 		.targetsize       = XT_FUNCTION_MAXNAMELEN,
 		.family           = NFPROTO_ARP,
