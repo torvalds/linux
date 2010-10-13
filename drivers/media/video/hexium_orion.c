@@ -230,7 +230,6 @@ static int hexium_probe(struct saa7146_dev *dev)
 	saa7146_write(dev, MC2, (MASK_09 | MASK_25 | MASK_10 | MASK_26));
 
 	hexium->i2c_adapter = (struct i2c_adapter) {
-		.class = I2C_CLASS_TV_ANALOG,
 		.name = "hexium orion",
 	};
 	saa7146_i2c_adapter_prepare(dev, &hexium->i2c_adapter, SAA7146_I2C_BUS_BIT_RATE_480);
