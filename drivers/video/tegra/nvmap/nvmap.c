@@ -623,10 +623,7 @@ void *nvmap_mmap(struct nvmap_handle_ref *ref)
 
 	prot = nvmap_pgprot(h, pgprot_kernel);
 
-	if (h->heap_pgalloc && h->pgalloc.contig &&
-	    !PageHighMem(h->pgalloc.pages[0]))
-		return page_address(h->pgalloc.pages[0]);
-	else if (h->heap_pgalloc)
+	if (h->heap_pgalloc)
 		return vm_map_ram(h->pgalloc.pages, h->size >> PAGE_SHIFT,
 				  -1, prot);
 
@@ -687,10 +684,9 @@ void nvmap_munmap(struct nvmap_handle_ref *ref, void *addr)
 
 	h = ref->handle;
 
-	if (h->heap_pgalloc && (!h->pgalloc.contig ||
-				PageHighMem(h->pgalloc.pages[0]))) {
+	if (h->heap_pgalloc) {
 		vm_unmap_ram(addr, h->size >> PAGE_SHIFT);
-	} else if (!h->heap_pgalloc) {
+	} else {
 		struct vm_struct *vm;
 		addr -= (h->carveout->base & ~PAGE_MASK);
 		vm = remove_vm_area(addr);

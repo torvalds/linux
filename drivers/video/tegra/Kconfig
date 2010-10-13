@@ -28,22 +28,38 @@ config FB_TEGRA
 	  Framebuffer device support for the Tegra display controller.
 
 config TEGRA_NVMAP
-	bool "Tegra GPU memory management driver"
-	select ARM_ATTRIB_ALLOCATOR
+	bool "Tegra GPU memory management driver (nvmap)"
 	default y
 	help
 	  Say Y here to include the memory management driver for the Tegra
 	  GPU, multimedia and display subsystems
 
 config NVMAP_RECLAIM_UNPINNED_VM
-	bool "Allow /dev/nvmap to reclaim unpinned I/O virtual memory"
+	bool "Virtualize IOVMM memory in nvmap"
 	depends on TEGRA_NVMAP && TEGRA_IOVMM
 	default y
 	help
-	  Say Y here to enable /dev/nvmap to reclaim I/O virtual memory after
-	  it has been unpinned, and re-use it for other objects. This can
+	  Say Y here to enable nvmap to reclaim I/O virtual memory after
+	  it has been unpinned, and re-use it for other handles. This can
 	  allow a larger virtual I/O VM space than would normally be
 	  supported by the hardware, at a slight cost in performance.
+
+config NVMAP_ALLOW_SYSMEM
+	bool "Allow physical system memory to be used by nvmap"
+	depends on TEGRA_NVMAP
+	default y
+	help
+	  Say Y here to allow nvmap to use physical system memory (i.e.,
+	  shared with the operating system but not translated through
+	  an IOVMM device) for allocations.
+
+config NVMAP_HIGHMEM_ONLY
+	bool "Use only HIGHMEM for nvmap"
+	depends on TEGRA_NVMAP && (NVMAP_ALLOW_SYSMEM || TEGRA_IOVMM) && HIGHMEM
+	default n
+	help
+	  Say Y here to restrict nvmap system memory allocations (both
+	  physical system memory and IOVMM) to just HIGHMEM pages.
 
 endif
 
