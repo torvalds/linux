@@ -41,7 +41,7 @@ struct serial_state *spk_serial_init(int index)
 		__release_region(&ioport_resource, ser->port, 8);
 		err = synth_request_region(ser->port, 8);
 		if (err) {
-			pr_warn("Unable to allocate port at %x, errno %i", ser->port, err);
+			pr_warn("Unable to allocate port at %lx, errno %i", ser->port, err);
 			return NULL;
 		}
 	}
