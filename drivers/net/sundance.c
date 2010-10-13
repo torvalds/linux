@@ -363,6 +363,19 @@ struct netdev_private {
         dma_addr_t tx_ring_dma;
         dma_addr_t rx_ring_dma;
 	struct timer_list timer;		/* Media monitoring timer. */
+	/* ethtool extra stats */
+	struct {
+		u64 tx_multiple_collisions;
+		u64 tx_single_collisions;
+		u64 tx_late_collisions;
+		u64 tx_deferred;
+		u64 tx_deferred_excessive;
+		u64 tx_aborted;
+		u64 tx_bcasts;
+		u64 rx_bcasts;
+		u64 tx_mcasts;
+		u64 rx_mcasts;
+	} xstats;
 	/* Frequently used values: keep some adjacent for cache effect. */
 	spinlock_t lock;
 	int msg_enable;
@@ -1486,21 +1499,34 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
-	int i;
 	unsigned long flags;
+	u8 late_coll, single_coll, mult_coll;
 
 	spin_lock_irqsave(&np->statlock, flags);
 	/* The chip only need report frame silently dropped. */
 	dev->stats.rx_missed_errors	+= ioread8(ioaddr + RxMissed);
 	dev->stats.tx_packets += ioread16(ioaddr + TxFramesOK);
 	dev->stats.rx_packets += ioread16(ioaddr + RxFramesOK);
-	dev->stats.collisions += ioread8(ioaddr + StatsLateColl);
-	dev->stats.collisions += ioread8(ioaddr + StatsMultiColl);
-	dev->stats.collisions += ioread8(ioaddr + StatsOneColl);
 	dev->stats.tx_carrier_errors += ioread8(ioaddr + StatsCarrierError);
-	ioread8(ioaddr + StatsTxDefer);
-	for (i = StatsTxDefer; i <= StatsMcastRx; i++)
-		ioread8(ioaddr + i);
+
+	mult_coll = ioread8(ioaddr + StatsMultiColl);
+	np->xstats.tx_multiple_collisions += mult_coll;
+	single_coll = ioread8(ioaddr + StatsOneColl);
+	np->xstats.tx_single_collisions += single_coll;
+	late_coll = ioread8(ioaddr + StatsLateColl);
+	np->xstats.tx_late_collisions += late_coll;
+	dev->stats.collisions += mult_coll
+		+ single_coll
+		+ late_coll;
+
+	np->xstats.tx_deferred += ioread8(ioaddr + StatsTxDefer);
+	np->xstats.tx_deferred_excessive += ioread8(ioaddr + StatsTxXSDefer);
+	np->xstats.tx_aborted += ioread8(ioaddr + StatsTxAbort);
+	np->xstats.tx_bcasts += ioread8(ioaddr + StatsBcastTx);
+	np->xstats.rx_bcasts += ioread8(ioaddr + StatsBcastRx);
+	np->xstats.tx_mcasts += ioread8(ioaddr + StatsMcastTx);
+	np->xstats.rx_mcasts += ioread8(ioaddr + StatsMcastRx);
+
 	dev->stats.tx_bytes += ioread16(ioaddr + TxOctetsLow);
 	dev->stats.tx_bytes += ioread16(ioaddr + TxOctetsHigh) << 16;
 	dev->stats.rx_bytes += ioread16(ioaddr + RxOctetsLow);
@@ -1566,6 +1592,21 @@ static int __set_mac_addr(struct net_device *dev)
 	return 0;
 }
 
+static const struct {
+	const char name[ETH_GSTRING_LEN];
+} sundance_stats[] = {
+	{ "tx_multiple_collisions" },
+	{ "tx_single_collisions" },
+	{ "tx_late_collisions" },
+	{ "tx_deferred" },
+	{ "tx_deferred_excessive" },
+	{ "tx_aborted" },
+	{ "tx_bcasts" },
+	{ "rx_bcasts" },
+	{ "tx_mcasts" },
+	{ "rx_mcasts" },
+};
+
 static int check_if_running(struct net_device *dev)
 {
 	if (!netif_running(dev))
@@ -1624,6 +1665,42 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	np->msg_enable = val;
 }
 
+static void get_strings(struct net_device *dev, u32 stringset,
+		u8 *data)
+{
+	if (stringset == ETH_SS_STATS)
+		memcpy(data, sundance_stats, sizeof(sundance_stats));
+}
+
+static int get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(sundance_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void get_ethtool_stats(struct net_device *dev,
+		struct ethtool_stats *stats, u64 *data)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	int i = 0;
+
+	get_stats(dev);
+	data[i++] = np->xstats.tx_multiple_collisions;
+	data[i++] = np->xstats.tx_single_collisions;
+	data[i++] = np->xstats.tx_late_collisions;
+	data[i++] = np->xstats.tx_deferred;
+	data[i++] = np->xstats.tx_deferred_excessive;
+	data[i++] = np->xstats.tx_aborted;
+	data[i++] = np->xstats.tx_bcasts;
+	data[i++] = np->xstats.rx_bcasts;
+	data[i++] = np->xstats.tx_mcasts;
+	data[i++] = np->xstats.rx_mcasts;
+}
+
 static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = get_drvinfo,
@@ -1633,6 +1710,9 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link = get_link,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
+	.get_strings = get_strings,
+	.get_sset_count = get_sset_count,
+	.get_ethtool_stats = get_ethtool_stats,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
