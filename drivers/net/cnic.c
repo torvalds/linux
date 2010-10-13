@@ -1721,7 +1721,7 @@ static int cnic_bnx2x_iscsi_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	struct kcqe *cqes[1];
 	u32 hw_cid, type;
 
-	if (!(ctx->ctx_flags & CTX_FL_OFFLD_START))
+	if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
 		goto skip_cfc_delete;
 
 	while (!time_after(jiffies, ctx->timestamp + (2 * HZ)))
@@ -1943,7 +1943,7 @@ static int cnic_bnx2x_connect(struct cnic_dev *dev, struct kwqe *wqes[],
 	ret = cnic_submit_kwqe_16(dev, L5CM_RAMROD_CMD_ID_TCP_CONNECT,
 			kwqe1->cid, ISCSI_CONNECTION_TYPE, &l5_data);
 	if (!ret)
-		ctx->ctx_flags |= CTX_FL_OFFLD_START;
+		set_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags);
 
 	return ret;
 }

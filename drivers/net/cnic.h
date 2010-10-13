@@ -168,8 +168,8 @@ struct cnic_context {
 	wait_queue_head_t	waitq;
 	int			wait_cond;
 	unsigned long		timestamp;
-	u32			ctx_flags;
-#define	CTX_FL_OFFLD_START	0x00000001
+	unsigned long		ctx_flags;
+#define	CTX_FL_OFFLD_START	0
 	u8			ulp_proto_id;
 	union {
 		struct cnic_iscsi	*iscsi;
