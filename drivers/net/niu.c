@@ -7090,24 +7090,20 @@ static int niu_get_hash_opts(struct niu *np, struct ethtool_rxnfc *nfc)
 static void niu_get_ip4fs_from_tcam_key(struct niu_tcam_entry *tp,
 					struct ethtool_rx_flow_spec *fsp)
 {
+	u32 tmp;
+	u16 prt;
 
-	fsp->h_u.tcp_ip4_spec.ip4src = (tp->key[3] & TCAM_V4KEY3_SADDR) >>
-		TCAM_V4KEY3_SADDR_SHIFT;
-	fsp->h_u.tcp_ip4_spec.ip4dst = (tp->key[3] & TCAM_V4KEY3_DADDR) >>
-		TCAM_V4KEY3_DADDR_SHIFT;
-	fsp->m_u.tcp_ip4_spec.ip4src = (tp->key_mask[3] & TCAM_V4KEY3_SADDR) >>
-		TCAM_V4KEY3_SADDR_SHIFT;
-	fsp->m_u.tcp_ip4_spec.ip4dst = (tp->key_mask[3] & TCAM_V4KEY3_DADDR) >>
-		TCAM_V4KEY3_DADDR_SHIFT;
+	tmp = (tp->key[3] & TCAM_V4KEY3_SADDR) >> TCAM_V4KEY3_SADDR_SHIFT;
+	fsp->h_u.tcp_ip4_spec.ip4src = cpu_to_be32(tmp);
 
-	fsp->h_u.tcp_ip4_spec.ip4src =
-		cpu_to_be32(fsp->h_u.tcp_ip4_spec.ip4src);
-	fsp->m_u.tcp_ip4_spec.ip4src =
-		cpu_to_be32(fsp->m_u.tcp_ip4_spec.ip4src);
-	fsp->h_u.tcp_ip4_spec.ip4dst =
-		cpu_to_be32(fsp->h_u.tcp_ip4_spec.ip4dst);
-	fsp->m_u.tcp_ip4_spec.ip4dst =
-		cpu_to_be32(fsp->m_u.tcp_ip4_spec.ip4dst);
+	tmp = (tp->key[3] & TCAM_V4KEY3_DADDR) >> TCAM_V4KEY3_DADDR_SHIFT;
+	fsp->h_u.tcp_ip4_spec.ip4dst = cpu_to_be32(tmp);
+
+	tmp = (tp->key_mask[3] & TCAM_V4KEY3_SADDR) >> TCAM_V4KEY3_SADDR_SHIFT;
+	fsp->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(tmp);
+
+	tmp = (tp->key_mask[3] & TCAM_V4KEY3_DADDR) >> TCAM_V4KEY3_DADDR_SHIFT;
+	fsp->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(tmp);
 
 	fsp->h_u.tcp_ip4_spec.tos = (tp->key[2] & TCAM_V4KEY2_TOS) >>
 		TCAM_V4KEY2_TOS_SHIFT;
@@ -7118,54 +7114,40 @@ static void niu_get_ip4fs_from_tcam_key(struct niu_tcam_entry *tp,
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
-		fsp->h_u.tcp_ip4_spec.psrc =
-			((tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
-			 TCAM_V4KEY2_PORT_SPI_SHIFT) >> 16;
-		fsp->h_u.tcp_ip4_spec.pdst =
-			((tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
-			 TCAM_V4KEY2_PORT_SPI_SHIFT) & 0xffff;
-		fsp->m_u.tcp_ip4_spec.psrc =
-			((tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
-			 TCAM_V4KEY2_PORT_SPI_SHIFT) >> 16;
-		fsp->m_u.tcp_ip4_spec.pdst =
-			((tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
-			 TCAM_V4KEY2_PORT_SPI_SHIFT) & 0xffff;
+		prt = ((tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
+			TCAM_V4KEY2_PORT_SPI_SHIFT) >> 16;
+		fsp->h_u.tcp_ip4_spec.psrc = cpu_to_be16(prt);
 
-		fsp->h_u.tcp_ip4_spec.psrc =
-			cpu_to_be16(fsp->h_u.tcp_ip4_spec.psrc);
-		fsp->h_u.tcp_ip4_spec.pdst =
-			cpu_to_be16(fsp->h_u.tcp_ip4_spec.pdst);
-		fsp->m_u.tcp_ip4_spec.psrc =
-			cpu_to_be16(fsp->m_u.tcp_ip4_spec.psrc);
-		fsp->m_u.tcp_ip4_spec.pdst =
-			cpu_to_be16(fsp->m_u.tcp_ip4_spec.pdst);
+		prt = ((tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
+			TCAM_V4KEY2_PORT_SPI_SHIFT) & 0xffff;
+		fsp->h_u.tcp_ip4_spec.pdst = cpu_to_be16(prt);
+
+		prt = ((tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
+			TCAM_V4KEY2_PORT_SPI_SHIFT) >> 16;
+		fsp->m_u.tcp_ip4_spec.psrc = cpu_to_be16(prt);
+
+		prt = ((tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
+			 TCAM_V4KEY2_PORT_SPI_SHIFT) & 0xffff;
+		fsp->m_u.tcp_ip4_spec.pdst = cpu_to_be16(prt);
 		break;
 	case AH_V4_FLOW:
 	case ESP_V4_FLOW:
-		fsp->h_u.ah_ip4_spec.spi =
-			(tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
+		tmp = (tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
 			TCAM_V4KEY2_PORT_SPI_SHIFT;
-		fsp->m_u.ah_ip4_spec.spi =
-			(tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
-			TCAM_V4KEY2_PORT_SPI_SHIFT;
+		fsp->h_u.ah_ip4_spec.spi = cpu_to_be32(tmp);
 
-		fsp->h_u.ah_ip4_spec.spi =
-			cpu_to_be32(fsp->h_u.ah_ip4_spec.spi);
-		fsp->m_u.ah_ip4_spec.spi =
-			cpu_to_be32(fsp->m_u.ah_ip4_spec.spi);
+		tmp = (tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
+			TCAM_V4KEY2_PORT_SPI_SHIFT;
+		fsp->m_u.ah_ip4_spec.spi = cpu_to_be32(tmp);
 		break;
 	case IP_USER_FLOW:
-		fsp->h_u.usr_ip4_spec.l4_4_bytes =
-			(tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
+		tmp = (tp->key[2] & TCAM_V4KEY2_PORT_SPI) >>
 			TCAM_V4KEY2_PORT_SPI_SHIFT;
-		fsp->m_u.usr_ip4_spec.l4_4_bytes =
-			(tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
-			TCAM_V4KEY2_PORT_SPI_SHIFT;
+		fsp->h_u.usr_ip4_spec.l4_4_bytes = cpu_to_be32(tmp);
 
-		fsp->h_u.usr_ip4_spec.l4_4_bytes =
-			cpu_to_be32(fsp->h_u.usr_ip4_spec.l4_4_bytes);
-		fsp->m_u.usr_ip4_spec.l4_4_bytes =
-			cpu_to_be32(fsp->m_u.usr_ip4_spec.l4_4_bytes);
+		tmp = (tp->key_mask[2] & TCAM_V4KEY2_PORT_SPI) >>
+			TCAM_V4KEY2_PORT_SPI_SHIFT;
+		fsp->m_u.usr_ip4_spec.l4_4_bytes = cpu_to_be32(tmp);
 
 		fsp->h_u.usr_ip4_spec.proto =
 			(tp->key[2] & TCAM_V4KEY2_PROTO) >>
