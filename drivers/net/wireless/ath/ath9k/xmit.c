@@ -1924,8 +1924,8 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 		else
 			complete(&sc->paprd_complete);
 	} else {
-		ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 		ath_debug_stat_tx(sc, txq, bf, ts);
+		ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 	}
 
 	/*
