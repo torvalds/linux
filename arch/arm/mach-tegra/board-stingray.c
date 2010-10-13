@@ -901,7 +901,7 @@ static void init_dac2(bool bluetooth)
 				APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
 	} else {
 		/* DAC2 -> DAP4 for Bluetooth Voice */
-		das_writel((!master)<<31 | 19, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
+		das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 12);
 		das_writel(3<<28 | 3<<24 | 3,
 				APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
 	}
