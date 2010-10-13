@@ -80,6 +80,8 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	/* Cleanup the over mapped high alias */
 	cleanup_highmap();
 
+	max_pfn_mapped = KERNEL_IMAGE_SIZE >> PAGE_SHIFT;
+
 	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++) {
 #ifdef CONFIG_EARLY_PRINTK
 		set_intr_gate(i, &early_idt_handlers[i]);
