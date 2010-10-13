@@ -26,6 +26,7 @@
 #define ARPT_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
 #define arpt_entry_target xt_entry_target
 #define arpt_standard_target xt_standard_target
+#define arpt_error_target xt_error_target
 #define ARPT_CONTINUE XT_CONTINUE
 #define ARPT_RETURN XT_RETURN
 #define arpt_counters_info xt_counters_info
@@ -216,14 +217,9 @@ struct arpt_standard {
 	struct xt_standard_target target;
 };
 
-struct arpt_error_target {
-	struct xt_entry_target target;
-	char errorname[XT_FUNCTION_MAXNAMELEN];
-};
-
 struct arpt_error {
 	struct arpt_entry entry;
-	struct arpt_error_target target;
+	struct xt_error_target target;
 };
 
 #define ARPT_ENTRY_INIT(__size)						       \
@@ -244,7 +240,7 @@ struct arpt_error {
 {									       \
 	.entry		= ARPT_ENTRY_INIT(sizeof(struct arpt_error)),	       \
 	.target		= XT_TARGET_INIT(XT_ERROR_TARGET,		       \
-					 sizeof(struct arpt_error_target)),    \
+					 sizeof(struct xt_error_target)),      \
 	.target.errorname = "ERROR",					       \
 }
 

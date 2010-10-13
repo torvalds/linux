@@ -37,6 +37,7 @@
 #define ipt_entry_match xt_entry_match
 #define ipt_entry_target xt_entry_target
 #define ipt_standard_target xt_standard_target
+#define ipt_error_target xt_error_target
 #define ipt_counters xt_counters
 #define IPT_CONTINUE XT_CONTINUE
 #define IPT_RETURN XT_RETURN
@@ -247,14 +248,9 @@ struct ipt_standard {
 	struct xt_standard_target target;
 };
 
-struct ipt_error_target {
-	struct xt_entry_target target;
-	char errorname[XT_FUNCTION_MAXNAMELEN];
-};
-
 struct ipt_error {
 	struct ipt_entry entry;
-	struct ipt_error_target target;
+	struct xt_error_target target;
 };
 
 #define IPT_ENTRY_INIT(__size)						       \
@@ -275,7 +271,7 @@ struct ipt_error {
 {									       \
 	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_error)),	       \
 	.target		= XT_TARGET_INIT(XT_ERROR_TARGET,		       \
-					 sizeof(struct ipt_error_target)),     \
+					 sizeof(struct xt_error_target)),      \
 	.target.errorname = "ERROR",					       \
 }
 

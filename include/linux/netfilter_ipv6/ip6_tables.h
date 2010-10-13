@@ -37,6 +37,7 @@
 #define ip6t_entry_match xt_entry_match
 #define ip6t_entry_target xt_entry_target
 #define ip6t_standard_target xt_standard_target
+#define ip6t_error_target xt_error_target
 #define ip6t_counters xt_counters
 #define IP6T_CONTINUE XT_CONTINUE
 #define IP6T_RETURN XT_RETURN
@@ -137,14 +138,9 @@ struct ip6t_standard {
 	struct xt_standard_target target;
 };
 
-struct ip6t_error_target {
-	struct xt_entry_target target;
-	char errorname[XT_FUNCTION_MAXNAMELEN];
-};
-
 struct ip6t_error {
 	struct ip6t_entry entry;
-	struct ip6t_error_target target;
+	struct xt_error_target target;
 };
 
 #define IP6T_ENTRY_INIT(__size)						       \
@@ -165,7 +161,7 @@ struct ip6t_error {
 {									       \
 	.entry		= IP6T_ENTRY_INIT(sizeof(struct ip6t_error)),	       \
 	.target		= XT_TARGET_INIT(XT_ERROR_TARGET,		       \
-					 sizeof(struct ip6t_error_target)),    \
+					 sizeof(struct xt_error_target)),      \
 	.target.errorname = "ERROR",					       \
 }
 
