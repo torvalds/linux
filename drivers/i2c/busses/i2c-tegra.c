@@ -95,6 +95,8 @@
 #define I2C_HEADER_MASTER_ADDR_SHIFT		12
 #define I2C_HEADER_SLAVE_ADDR_SHIFT		1
 
+#define DEBUG_TEGRA_I2C_TEMP
+
 struct tegra_i2c_dev;
 
 struct tegra_i2c_bus {
@@ -128,6 +130,9 @@ struct tegra_i2c_dev {
 	int last_mux_len;
 	unsigned long last_bus_clk;
 	struct tegra_i2c_bus busses[1];
+#ifdef DEBUG_TEGRA_I2C_TEMP
+	atomic_t incmplt_irq_count;
+#endif
 };
 
 static void dvc_writel(struct tegra_i2c_dev *i2c_dev, u32 val, unsigned long reg)
@@ -326,6 +331,10 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 
 	clk_disable(i2c_dev->clk);
 
+#ifdef DEBUG_TEGRA_I2C_TEMP
+	atomic_set(&i2c_dev->incmplt_irq_count, 0);
+#endif
+
 	if (i2c_dev->irq_disabled) {
 		i2c_dev->irq_disabled = 0;
 		enable_irq(i2c_dev->irq);
@@ -341,6 +350,34 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	struct tegra_i2c_dev *i2c_dev = dev_id;
 
 	status = i2c_readl(i2c_dev, I2C_INT_STATUS);
+
+#ifdef DEBUG_TEGRA_I2C_TEMP
+	if (atomic_inc_return(&i2c_dev->incmplt_irq_count) == 1000) {
+		dev_err(i2c_dev->dev, "suspected irq storm\n");
+		pr_err("ist=%x im=%x pxst=%x st=%x cfg=%x fst=%x fc=%x\n",
+		       i2c_readl(i2c_dev, I2C_INT_STATUS),
+		       i2c_readl(i2c_dev, I2C_INT_MASK),
+		       i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS),
+		       i2c_readl(i2c_dev, I2C_STATUS),
+		       i2c_readl(i2c_dev, I2C_CNFG),
+		       i2c_readl(i2c_dev, I2C_FIFO_STATUS),
+		       i2c_readl(i2c_dev, I2C_FIFO_CONTROL));
+		pr_err("mbrm=%d mcmp=%d merr=%d\n",
+		       i2c_dev->msg_buf_remaining,
+		       i2c_dev->msg_transfer_complete,
+		       i2c_dev->msg_err);
+
+		i2c_dev->msg_err |= I2C_ERR_UNKNOWN_INTERRUPT << 1;
+
+		if (! i2c_dev->irq_disabled) {
+			disable_irq_nosync(i2c_dev->irq);
+			i2c_dev->irq_disabled = 1;
+		}
+
+		complete(&i2c_dev->msg_complete);
+		goto err;
+	}
+#endif
 
 	if (status == 0) {
 		dev_warn(i2c_dev->dev, "irq status 0 %08x %08x %08x\n",
@@ -398,7 +435,7 @@ err:
 	i2c_writel(i2c_dev, status, I2C_INT_STATUS);
 	if (i2c_dev->is_dvc)
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
@@ -457,9 +494,28 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 	ret = wait_for_completion_timeout(&i2c_dev->msg_complete, TEGRA_I2C_TIMEOUT);
 	tegra_i2c_mask_irq(i2c_dev, int_mask);
 
+#ifdef DEBUG_TEGRA_I2C_TEMP
+	atomic_set(&i2c_dev->incmplt_irq_count, 0);
+#endif
+
 	if (WARN_ON(ret == 0)) {
 		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
-
+#ifdef DEBUG_TEGRA_I2C_TEMP
+		pr_err("ist=%x im=%x pxst=%x st=%x cfg=%x fst=%x fc=%x\n",
+		       i2c_readl(i2c_dev, I2C_INT_STATUS),
+		       i2c_readl(i2c_dev, I2C_INT_MASK),
+		       i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS),
+		       i2c_readl(i2c_dev, I2C_STATUS),
+		       i2c_readl(i2c_dev, I2C_CNFG),
+		       i2c_readl(i2c_dev, I2C_FIFO_STATUS),
+		       i2c_readl(i2c_dev, I2C_FIFO_CONTROL));
+		pr_err("mbrm=%d mcmp=%d merr=%d\n",
+		       i2c_dev->msg_buf_remaining,
+		       i2c_dev->msg_transfer_complete,
+		       i2c_dev->msg_err);
+		pr_err("madr=%x mlen=%d mfl=%x stop=%d\n", msg->addr, msg->len,
+		       msg->flags, stop);
+#endif
 		tegra_i2c_init(i2c_dev);
 		return -ETIMEDOUT;
 	}
