@@ -4591,10 +4591,8 @@ int drbd_asender(struct drbd_thread *thi)
 		while (1) {
 			clear_bit(SIGNAL_ASENDER, &mdev->flags);
 			flush_signals(current);
-			if (!drbd_process_done_ee(mdev)) {
-				dev_err(DEV, "process_done_ee() = NOT_OK\n");
+			if (!drbd_process_done_ee(mdev))
 				goto reconnect;
-			}
 			/* to avoid race with newly queued ACKs */
 			set_bit(SIGNAL_ASENDER, &mdev->flags);
 			spin_lock_irq(&mdev->req_lock);

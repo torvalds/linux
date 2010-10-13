@@ -780,9 +780,6 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
 	blk_stack_limits(&q->limits, &b->limits, 0);
 
-	if (b->merge_bvec_fn)
-		dev_warn(DEV, "Backing device's merge_bvec_fn() = %p\n",
-		     b->merge_bvec_fn);
 	dev_info(DEV, "max_segment_size ( = BIO size ) = %u\n", queue_max_segment_size(q));
 
 	if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
