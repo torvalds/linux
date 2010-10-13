@@ -15,6 +15,7 @@
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
 #include <linux/dmi.h>
+#include <linux/pci-aspm.h>
 
 #include "portdrv.h"
 #include "aer/aerdrv.h"
@@ -28,6 +29,31 @@
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+
+/* If this switch is set, PCIe port native services should not be enabled. */
+bool pcie_ports_disabled;
+
+/*
+ * If this switch is set, ACPI _OSC will be used to determine whether or not to
+ * enable PCIe port native services.
+ */
+bool pcie_ports_auto = true;
+
+static int __init pcie_port_setup(char *str)
+{
+	if (!strncmp(str, "compat", 6)) {
+		pcie_ports_disabled = true;
+	} else if (!strncmp(str, "native", 6)) {
+		pcie_ports_disabled = false;
+		pcie_ports_auto = false;
+	} else if (!strncmp(str, "auto", 4)) {
+		pcie_ports_disabled = false;
+		pcie_ports_auto = true;
+	}
+
+	return 1;
+}
+__setup("pcie_ports=", pcie_port_setup);
 
 /* global data */
 
@@ -301,6 +327,11 @@ static int __init pcie_portdrv_init(void)
 {
 	int retval;
 
+	if (pcie_ports_disabled) {
+		pcie_no_aspm();
+		return -EACCES;
+	}
+
 	dmi_check_system(pcie_portdrv_dmi_table);
 
 	retval = pcie_port_bus_register();
@@ -315,11 +346,4 @@ static int __init pcie_portdrv_init(void)
 	return retval;
 }
 
-static void __exit pcie_portdrv_exit(void)
-{
-	pci_unregister_driver(&pcie_portdriver);
-	pcie_port_bus_unregister();
-}
-
 module_init(pcie_portdrv_init);
-module_exit(pcie_portdrv_exit);

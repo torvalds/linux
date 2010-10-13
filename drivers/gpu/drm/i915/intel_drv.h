@@ -176,6 +176,16 @@ struct intel_crtc {
 #define enc_to_intel_encoder(x) container_of(x, struct intel_encoder, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
+struct intel_unpin_work {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_gem_object *old_fb_obj;
+	struct drm_gem_object *pending_flip_obj;
+	struct drm_pending_vblank_event *event;
+	int pending;
+	bool enable_stall_check;
+};
+
 struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 				     const char *name);
 void intel_i2c_destroy(struct i2c_adapter *adapter);

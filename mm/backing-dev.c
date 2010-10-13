@@ -30,6 +30,7 @@ EXPORT_SYMBOL_GPL(default_backing_dev_info);
 
 struct backing_dev_info noop_backing_dev_info = {
 	.name		= "noop",
+	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
@@ -243,6 +244,7 @@ static int __init default_bdi_init(void)
 	err = bdi_init(&default_backing_dev_info);
 	if (!err)
 		bdi_register(&default_backing_dev_info, NULL, "default");
+	err = bdi_init(&noop_backing_dev_info);
 
 	return err;
 }
@@ -445,8 +447,8 @@ static int bdi_forker_thread(void *ptr)
 		switch (action) {
 		case FORK_THREAD:
 			__set_current_state(TASK_RUNNING);
-			task = kthread_run(bdi_writeback_thread, &bdi->wb, "flush-%s",
-					   dev_name(bdi->dev));
+			task = kthread_create(bdi_writeback_thread, &bdi->wb,
+					      "flush-%s", dev_name(bdi->dev));
 			if (IS_ERR(task)) {
 				/*
 				 * If thread creation fails, force writeout of
@@ -457,10 +459,13 @@ static int bdi_forker_thread(void *ptr)
 				/*
 				 * The spinlock makes sure we do not lose
 				 * wake-ups when racing with 'bdi_queue_work()'.
+				 * And as soon as the bdi thread is visible, we
+				 * can start it.
 				 */
 				spin_lock_bh(&bdi->wb_lock);
 				bdi->wb.task = task;
 				spin_unlock_bh(&bdi->wb_lock);
+				wake_up_process(task);
 			}
 			break;
 

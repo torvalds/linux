@@ -439,7 +439,7 @@ int ocfs2_block_check_validate(void *data, size_t blocksize,
 
 	ocfs2_blockcheck_inc_failure(stats);
 	mlog(ML_ERROR,
-	     "CRC32 failed: stored: %u, computed %u.  Applying ECC.\n",
+	     "CRC32 failed: stored: 0x%x, computed 0x%x. Applying ECC.\n",
 	     (unsigned int)check.bc_crc32e, (unsigned int)crc);
 
 	/* Ok, try ECC fixups */
@@ -453,7 +453,7 @@ int ocfs2_block_check_validate(void *data, size_t blocksize,
 		goto out;
 	}
 
-	mlog(ML_ERROR, "Fixed CRC32 failed: stored: %u, computed %u\n",
+	mlog(ML_ERROR, "Fixed CRC32 failed: stored: 0x%x, computed 0x%x\n",
 	     (unsigned int)check.bc_crc32e, (unsigned int)crc);
 
 	rc = -EIO;

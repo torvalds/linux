@@ -1423,7 +1423,6 @@ static void hsu_global_init(void)
 	}
 
 	phsu = hsu;
-
 	hsu_debugfs_init(hsu);
 	return;
 
@@ -1435,18 +1434,20 @@ err_free_region:
 
 static void serial_hsu_remove(struct pci_dev *pdev)
 {
-	struct hsu_port *hsu;
-	int i;
+	void *priv = pci_get_drvdata(pdev);
+	struct uart_hsu_port *up;
 
-	hsu = pci_get_drvdata(pdev);
-	if (!hsu)
+	if (!priv)
 		return;
 
-	for (i = 0; i < 3; i++)
-		uart_remove_one_port(&serial_hsu_reg, &hsu->port[i].port);
+	/* For port 0/1/2, priv is the address of uart_hsu_port */
+	if (pdev->device != 0x081E) {
+		up = priv;
+		uart_remove_one_port(&serial_hsu_reg, &up->port);
+	}
 
 	pci_set_drvdata(pdev, NULL);
-	free_irq(hsu->irq, hsu);
+	free_irq(pdev->irq, priv);
 	pci_disable_device(pdev);
 }
 

@@ -91,12 +91,12 @@ config USB_DYNAMIC_MINORS
 	  If you are unsure about this, say N here.
 
 config USB_SUSPEND
-	bool "USB runtime power management (suspend/resume and wakeup)"
+	bool "USB runtime power management (autosuspend) and wakeup"
 	depends on USB && PM_RUNTIME
 	help
 	  If you say Y here, you can use driver calls or the sysfs
-	  "power/level" file to suspend or resume individual USB
-	  peripherals and to enable or disable autosuspend (see
+	  "power/control" file to enable or disable autosuspend for
+	  individual USB peripherals (see
 	  Documentation/usb/power-management.txt for more details).
 
 	  Also, USB "remote wakeup" signaling is supported, whereby some

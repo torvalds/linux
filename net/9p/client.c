@@ -331,8 +331,10 @@ static void p9_tag_cleanup(struct p9_client *c)
 		}
 	}
 
-	if (c->tagpool)
+	if (c->tagpool) {
+		p9_idpool_put(0, c->tagpool); /* free reserved tag 0 */
 		p9_idpool_destroy(c->tagpool);
+	}
 
 	/* free requests associated with tags */
 	for (row = 0; row < (c->max_tag/P9_ROW_MAXTAG); row++) {
@@ -944,6 +946,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 	int16_t nwqids, count;
 
 	err = 0;
+	wqids = NULL;
 	clnt = oldfid->clnt;
 	if (clone) {
 		fid = p9_fid_create(clnt);
@@ -994,9 +997,11 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 	else
 		fid->qid = oldfid->qid;
 
+	kfree(wqids);
 	return fid;
 
 clunk_fid:
+	kfree(wqids);
 	p9_client_clunk(fid);
 	fid = NULL;
 

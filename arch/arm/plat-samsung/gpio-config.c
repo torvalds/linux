@@ -273,13 +273,13 @@ s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin)
 	if (!chip)
 		return -EINVAL;
 
-	off = chip->chip.base - pin;
+	off = pin - chip->chip.base;
 	shift = off * 2;
 	reg = chip->base + 0x0C;
 
 	drvstr = __raw_readl(reg);
-	drvstr = 0xffff & (0x3 << shift);
 	drvstr = drvstr >> shift;
+	drvstr &= 0x3;
 
 	return (__force s5p_gpio_drvstr_t)drvstr;
 }
@@ -296,11 +296,12 @@ int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr)
 	if (!chip)
 		return -EINVAL;
 
-	off = chip->chip.base - pin;
+	off = pin - chip->chip.base;
 	shift = off * 2;
 	reg = chip->base + 0x0C;
 
 	tmp = __raw_readl(reg);
+	tmp &= ~(0x3 << shift);
 	tmp |= drvstr << shift;
 
 	__raw_writel(tmp, reg);

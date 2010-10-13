@@ -79,7 +79,7 @@ struct adm1031_data {
 	int chip_type;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
-	unsigned int update_rate;	/* In milliseconds */
+	unsigned int update_interval;	/* In milliseconds */
 	/* The chan_select_table contains the possible configurations for
 	 * auto fan control.
 	 */
@@ -743,23 +743,23 @@ static SENSOR_DEVICE_ATTR(temp3_crit_alarm, S_IRUGO, show_alarm, NULL, 12);
 static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_alarm, NULL, 13);
 static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 14);
 
-/* Update Rate */
-static const unsigned int update_rates[] = {
+/* Update Interval */
+static const unsigned int update_intervals[] = {
 	16000, 8000, 4000, 2000, 1000, 500, 250, 125,
 };
 
-static ssize_t show_update_rate(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t show_update_interval(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1031_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%u\n", data->update_rate);
+	return sprintf(buf, "%u\n", data->update_interval);
 }
 
-static ssize_t set_update_rate(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t set_update_interval(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1031_data *data = i2c_get_clientdata(client);
@@ -771,12 +771,15 @@ static ssize_t set_update_rate(struct device *dev,
 	if (err)
 		return err;
 
-	/* find the nearest update rate from the table */
-	for (i = 0; i < ARRAY_SIZE(update_rates) - 1; i++) {
-		if (val >= update_rates[i])
+	/*
+	 * Find the nearest update interval from the table.
+	 * Use it to determine the matching update rate.
+	 */
+	for (i = 0; i < ARRAY_SIZE(update_intervals) - 1; i++) {
+		if (val >= update_intervals[i])
 			break;
 	}
-	/* if not found, we point to the last entry (lowest update rate) */
+	/* if not found, we point to the last entry (lowest update interval) */
 
 	/* set the new update rate while preserving other settings */
 	reg = adm1031_read_value(client, ADM1031_REG_FAN_FILTER);
@@ -785,14 +788,14 @@ static ssize_t set_update_rate(struct device *dev,
 	adm1031_write_value(client, ADM1031_REG_FAN_FILTER, reg);
 
 	mutex_lock(&data->update_lock);
-	data->update_rate = update_rates[i];
+	data->update_interval = update_intervals[i];
 	mutex_unlock(&data->update_lock);
 
 	return count;
 }
 
-static DEVICE_ATTR(update_rate, S_IRUGO | S_IWUSR, show_update_rate,
-		   set_update_rate);
+static DEVICE_ATTR(update_interval, S_IRUGO | S_IWUSR, show_update_interval,
+		   set_update_interval);
 
 static struct attribute *adm1031_attributes[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
@@ -830,7 +833,7 @@ static struct attribute *adm1031_attributes[] = {
 
 	&sensor_dev_attr_auto_fan1_min_pwm.dev_attr.attr,
 
-	&dev_attr_update_rate.attr,
+	&dev_attr_update_interval.attr,
 	&dev_attr_alarms.attr,
 
 	NULL
@@ -981,7 +984,8 @@ static void adm1031_init_client(struct i2c_client *client)
 	mask = ADM1031_UPDATE_RATE_MASK;
 	read_val = adm1031_read_value(client, ADM1031_REG_FAN_FILTER);
 	i = (read_val & mask) >> ADM1031_UPDATE_RATE_SHIFT;
-	data->update_rate = update_rates[i];
+	/* Save it as update interval */
+	data->update_interval = update_intervals[i];
 }
 
 static struct adm1031_data *adm1031_update_device(struct device *dev)
@@ -993,7 +997,8 @@ static struct adm1031_data *adm1031_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
-	next_update = data->last_updated + msecs_to_jiffies(data->update_rate);
+	next_update = data->last_updated
+	  + msecs_to_jiffies(data->update_interval);
 	if (time_after(jiffies, next_update) || !data->valid) {
 
 		dev_dbg(&client->dev, "Starting adm1031 update\n");

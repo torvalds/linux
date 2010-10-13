@@ -288,15 +288,7 @@ extern void dmabounce_unregister_dev(struct device *);
  * DMA access and 1 if the buffer needs to be bounced.
  *
  */
-#ifdef CONFIG_SA1111
 extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
-#else
-static inline int dma_needs_bounce(struct device *dev, dma_addr_t addr,
-				   size_t size)
-{
-	return 0;
-}
-#endif
 
 /*
  * The DMA API, implemented by dmabounce.c.  See below for descriptions.

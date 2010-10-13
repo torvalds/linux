@@ -213,7 +213,7 @@ static void post_xfer(struct i2c_adapter *i2c_adap)
 
 static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 {
-	u32 sclk = radeon_get_engine_clock(rdev);
+	u32 sclk = rdev->pm.current_sclk;
 	u32 prescale = 0;
 	u32 nm;
 	u8 n, m, loop;

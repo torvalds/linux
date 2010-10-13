@@ -309,7 +309,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 static __always_inline int constant_test_bit(unsigned int nr, const volatile unsigned long *addr)
 {
 	return ((1UL << (nr % BITS_PER_LONG)) &
-		(((unsigned long *)addr)[nr / BITS_PER_LONG])) != 0;
+		(addr[nr / BITS_PER_LONG])) != 0;
 }
 
 static inline int variable_test_bit(int nr, volatile const unsigned long *addr)

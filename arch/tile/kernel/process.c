@@ -408,6 +408,15 @@ static void save_arch_state(struct thread_struct *t)
 #if CHIP_HAS_PROC_STATUS_SPR()
 	t->proc_status = __insn_mfspr(SPR_PROC_STATUS);
 #endif
+#if !CHIP_HAS_FIXED_INTVEC_BASE()
+	t->interrupt_vector_base = __insn_mfspr(SPR_INTERRUPT_VECTOR_BASE_0);
+#endif
+#if CHIP_HAS_TILE_RTF_HWM()
+	t->tile_rtf_hwm = __insn_mfspr(SPR_TILE_RTF_HWM);
+#endif
+#if CHIP_HAS_DSTREAM_PF()
+	t->dstream_pf = __insn_mfspr(SPR_DSTREAM_PF);
+#endif
 }
 
 static void restore_arch_state(const struct thread_struct *t)
@@ -428,14 +437,14 @@ static void restore_arch_state(const struct thread_struct *t)
 #if CHIP_HAS_PROC_STATUS_SPR()
 	__insn_mtspr(SPR_PROC_STATUS, t->proc_status);
 #endif
+#if !CHIP_HAS_FIXED_INTVEC_BASE()
+	__insn_mtspr(SPR_INTERRUPT_VECTOR_BASE_0, t->interrupt_vector_base);
+#endif
 #if CHIP_HAS_TILE_RTF_HWM()
-	/*
-	 * Clear this whenever we switch back to a process in case
-	 * the previous process was monkeying with it.  Even if enabled
-	 * in CBOX_MSR1 via TILE_RTF_HWM_MIN, it's still just a
-	 * performance hint, so isn't worth a full save/restore.
-	 */
-	__insn_mtspr(SPR_TILE_RTF_HWM, 0);
+	__insn_mtspr(SPR_TILE_RTF_HWM, t->tile_rtf_hwm);
+#endif
+#if CHIP_HAS_DSTREAM_PF()
+	__insn_mtspr(SPR_DSTREAM_PF, t->dstream_pf);
 #endif
 }
 
@@ -561,8 +570,9 @@ out:
 }
 
 #ifdef CONFIG_COMPAT
-long _compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
-			compat_uptr_t __user *envp, struct pt_regs *regs)
+long _compat_sys_execve(const char __user *path,
+			const compat_uptr_t __user *argv,
+			const compat_uptr_t __user *envp, struct pt_regs *regs)
 {
 	long error;
 	char *filename;
@@ -657,7 +667,7 @@ void show_regs(struct pt_regs *regs)
 	       regs->regs[51], regs->regs[52], regs->tp);
 	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
 #else
-	for (i = 0; i < 52; i += 3)
+	for (i = 0; i < 52; i += 4)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
 		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
 		       i, regs->regs[i], i+1, regs->regs[i+1],

@@ -357,6 +357,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 {
 #ifdef CONFIG_PCI
 	struct pci_controller *hose;
+	struct device_node *np;
 #endif
 	dma_addr_t max = 0xffffffff;
 

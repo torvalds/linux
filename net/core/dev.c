@@ -2058,16 +2058,16 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 					struct sk_buff *skb)
 {
 	int queue_index;
-	struct sock *sk = skb->sk;
+	const struct net_device_ops *ops = dev->netdev_ops;
 
-	queue_index = sk_tx_queue_get(sk);
-	if (queue_index < 0) {
-		const struct net_device_ops *ops = dev->netdev_ops;
+	if (ops->ndo_select_queue) {
+		queue_index = ops->ndo_select_queue(dev, skb);
+		queue_index = dev_cap_txqueue(dev, queue_index);
+	} else {
+		struct sock *sk = skb->sk;
+		queue_index = sk_tx_queue_get(sk);
+		if (queue_index < 0) {
 
-		if (ops->ndo_select_queue) {
-			queue_index = ops->ndo_select_queue(dev, skb);
-			queue_index = dev_cap_txqueue(dev, queue_index);
-		} else {
 			queue_index = 0;
 			if (dev->real_num_tx_queues > 1)
 				queue_index = skb_tx_hash(dev, skb);
@@ -4845,7 +4845,7 @@ static void rollback_registered_many(struct list_head *head)
 	dev = list_first_entry(head, struct net_device, unreg_list);
 	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, dev);
 
-	synchronize_net();
+	rcu_barrier();
 
 	list_for_each_entry(dev, head, unreg_list)
 		dev_put(dev);

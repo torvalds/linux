@@ -769,6 +769,7 @@ static int __init zram_init(void)
 free_devices:
 	while (dev_id)
 		destroy_device(&devices[--dev_id]);
+	kfree(devices);
 unregister:
 	unregister_blkdev(zram_major, "zram");
 out:

@@ -6672,7 +6672,7 @@ int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
 	last_page_bytes = PAGE_ALIGN(end);
 	index = start >> PAGE_CACHE_SHIFT;
 	do {
-		pages[numpages] = grab_cache_page(mapping, index);
+		pages[numpages] = find_or_create_page(mapping, index, GFP_NOFS);
 		if (!pages[numpages]) {
 			ret = -ENOMEM;
 			mlog_errno(ret);

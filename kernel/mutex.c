@@ -36,15 +36,6 @@
 # include <asm/mutex.h>
 #endif
 
-/***
- * mutex_init - initialize the mutex
- * @lock: the mutex to be initialized
- * @key: the lock_class_key for the class; used by mutex lock debugging
- *
- * Initialize the mutex to unlocked state.
- *
- * It is not allowed to initialize an already locked mutex.
- */
 void
 __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 {
@@ -68,7 +59,7 @@ EXPORT_SYMBOL(__mutex_init);
 static __used noinline void __sched
 __mutex_lock_slowpath(atomic_t *lock_count);
 
-/***
+/**
  * mutex_lock - acquire the mutex
  * @lock: the mutex to be acquired
  *
@@ -105,7 +96,7 @@ EXPORT_SYMBOL(mutex_lock);
 
 static __used noinline void __sched __mutex_unlock_slowpath(atomic_t *lock_count);
 
-/***
+/**
  * mutex_unlock - release the mutex
  * @lock: the mutex to be released
  *
@@ -364,8 +355,8 @@ __mutex_lock_killable_slowpath(atomic_t *lock_count);
 static noinline int __sched
 __mutex_lock_interruptible_slowpath(atomic_t *lock_count);
 
-/***
- * mutex_lock_interruptible - acquire the mutex, interruptable
+/**
+ * mutex_lock_interruptible - acquire the mutex, interruptible
  * @lock: the mutex to be acquired
  *
  * Lock the mutex like mutex_lock(), and return 0 if the mutex has
@@ -456,15 +447,15 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
 	return prev == 1;
 }
 
-/***
- * mutex_trylock - try acquire the mutex, without waiting
+/**
+ * mutex_trylock - try to acquire the mutex, without waiting
  * @lock: the mutex to be acquired
  *
  * Try to acquire the mutex atomically. Returns 1 if the mutex
  * has been acquired successfully, and 0 on contention.
  *
  * NOTE: this function follows the spin_trylock() convention, so
- * it is negated to the down_trylock() return values! Be careful
+ * it is negated from the down_trylock() return values! Be careful
  * about this when converting semaphore users to mutexes.
  *
  * This function must not be used in interrupt context. The
