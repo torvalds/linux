@@ -772,7 +772,7 @@ static int ns83820_setup_rx(struct net_device *ndev)
 		phy_intr(ndev);
 
 		/* Okay, let it rip */
-		spin_lock_irq(&dev->misc_lock);
+		spin_lock(&dev->misc_lock);
 		dev->IMR_cache |= ISR_PHY;
 		dev->IMR_cache |= ISR_RXRCMP;
 		//dev->IMR_cache |= ISR_RXERR;
