@@ -237,7 +237,7 @@ static struct platform_device smc911x_device = {
 /* SH_MMCIF */
 static struct resource sh_mmcif_resources[] = {
 	[0] = {
-		.name	= "SH_MMCIF",
+		.name	= "MMCIF",
 		.start	= 0xE6BD0000,
 		.end	= 0xE6BD00FF,
 		.flags	= IORESOURCE_MEM,
