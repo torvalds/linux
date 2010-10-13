@@ -170,6 +170,7 @@ struct cnic_context {
 	unsigned long		timestamp;
 	unsigned long		ctx_flags;
 #define	CTX_FL_OFFLD_START	0
+#define	CTX_FL_DELETE_WAIT	1
 	u8			ulp_proto_id;
 	union {
 		struct cnic_iscsi	*iscsi;
@@ -286,6 +287,8 @@ struct cnic_local {
 	int			r2tq_size;
 	int			hq_size;
 	int			num_cqs;
+
+	struct delayed_work	delete_task;
 
 	struct cnic_ctx		*ctx_arr;
 	int			ctx_blks;

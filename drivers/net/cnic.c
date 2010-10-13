@@ -81,6 +81,8 @@ static struct cnic_ops cnic_bnx2x_ops = {
 	.cnic_ctl	= cnic_ctl,
 };
 
+static struct workqueue_struct *cnic_wq;
+
 static void cnic_shutdown_rings(struct cnic_dev *);
 static void cnic_init_rings(struct cnic_dev *);
 static int cnic_cm_set_pg(struct cnic_sock *);
@@ -1629,10 +1631,11 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 	struct iscsi_kwqe_conn_offload1 *req1;
 	struct iscsi_kwqe_conn_offload2 *req2;
 	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_context *ctx;
 	struct iscsi_kcqe kcqe;
 	struct kcqe *cqes[1];
 	u32 l5_cid;
-	int ret;
+	int ret = 0;
 
 	if (num < 2) {
 		*work = num;
@@ -1656,9 +1659,15 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 	kcqe.iscsi_conn_id = l5_cid;
 	kcqe.completion_status = ISCSI_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAILURE;
 
+	ctx = &cp->ctx_tbl[l5_cid];
+	if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags)) {
+		kcqe.completion_status =
+			ISCSI_KCQE_COMPLETION_STATUS_CID_BUSY;
+		goto done;
+	}
+
 	if (atomic_inc_return(&cp->iscsi_conn) > dev->max_iscsi_conn) {
 		atomic_dec(&cp->iscsi_conn);
-		ret = 0;
 		goto done;
 	}
 	ret = cnic_alloc_bnx2x_conn_resc(dev, l5_cid);
@@ -1748,8 +1757,16 @@ static int cnic_bnx2x_iscsi_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
 		goto skip_cfc_delete;
 
-	while (!time_after(jiffies, ctx->timestamp + (2 * HZ)))
-		msleep(250);
+	if (!time_after(jiffies, ctx->timestamp + (2 * HZ))) {
+		unsigned long delta = ctx->timestamp + (2 * HZ) - jiffies;
+
+		if (delta > (2 * HZ))
+			delta = 0;
+
+		set_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags);
+		queue_delayed_work(cnic_wq, &cp->delete_task, delta);
+		goto destroy_reply;
+	}
 
 	ret = cnic_bnx2x_destroy_ramrod(dev, l5_cid);
 
@@ -1757,7 +1774,9 @@ skip_cfc_delete:
 	cnic_free_bnx2x_conn_resc(dev, l5_cid);
 
 	atomic_dec(&cp->iscsi_conn);
+	clear_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags);
 
+destroy_reply:
 	memset(&kcqe, 0, sizeof(kcqe));
 	kcqe.op_code = ISCSI_KCQE_OPCODE_DESTROY_CONN;
 	kcqe.iscsi_conn_id = l5_cid;
@@ -2748,6 +2767,13 @@ static int cnic_cm_create(struct cnic_dev *dev, int ulp_type, u32 cid,
 	if (l5_cid >= MAX_CM_SK_TBL_SZ)
 		return -EINVAL;
 
+	if (cp->ctx_tbl) {
+		struct cnic_context *ctx = &cp->ctx_tbl[l5_cid];
+
+		if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
+			return -EAGAIN;
+	}
+
 	csk1 = &cp->csk_tbl[l5_cid];
 	if (atomic_read(&csk1->ref_count))
 		return -EAGAIN;
@@ -3299,6 +3325,32 @@ static void cnic_close_bnx2x_conn(struct cnic_sock *csk, u32 opcode)
 
 static void cnic_cm_stop_bnx2x_hw(struct cnic_dev *dev)
 {
+	struct cnic_local *cp = dev->cnic_priv;
+	int i;
+
+	if (!cp->ctx_tbl)
+		return;
+
+	if (!netif_running(dev->netdev))
+		return;
+
+	for (i = 0; i < cp->max_cid_space; i++) {
+		struct cnic_context *ctx = &cp->ctx_tbl[i];
+
+		while (test_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags))
+			msleep(10);
+
+		if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
+			netdev_warn(dev->netdev, "CID %x not deleted\n",
+				   ctx->cid);
+	}
+
+	cancel_delayed_work(&cp->delete_task);
+	flush_workqueue(cnic_wq);
+
+	if (atomic_read(&cp->iscsi_conn) != 0)
+		netdev_warn(dev->netdev, "%d iSCSI connections not destroyed\n",
+			    atomic_read(&cp->iscsi_conn));
 }
 
 static int cnic_cm_init_bnx2x_hw(struct cnic_dev *dev)
@@ -3333,6 +3385,46 @@ static int cnic_cm_init_bnx2x_hw(struct cnic_dev *dev)
 	return 0;
 }
 
+static void cnic_delete_task(struct work_struct *work)
+{
+	struct cnic_local *cp;
+	struct cnic_dev *dev;
+	u32 i;
+	int need_resched = 0;
+
+	cp = container_of(work, struct cnic_local, delete_task.work);
+	dev = cp->dev;
+
+	for (i = 0; i < cp->max_cid_space; i++) {
+		struct cnic_context *ctx = &cp->ctx_tbl[i];
+
+		if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags) ||
+		    !test_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags))
+			continue;
+
+		if (!time_after(jiffies, ctx->timestamp + (2 * HZ))) {
+			need_resched = 1;
+			continue;
+		}
+
+		if (!test_and_clear_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags))
+			continue;
+
+		cnic_bnx2x_destroy_ramrod(dev, i);
+
+		cnic_free_bnx2x_conn_resc(dev, i);
+		if (ctx->ulp_proto_id == CNIC_ULP_ISCSI)
+			atomic_dec(&cp->iscsi_conn);
+
+		clear_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags);
+	}
+
+	if (need_resched)
+		queue_delayed_work(cnic_wq, &cp->delete_task,
+				   msecs_to_jiffies(10));
+
+}
+
 static int cnic_cm_open(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -3346,6 +3438,8 @@ static int cnic_cm_open(struct cnic_dev *dev)
 
 	if (err)
 		goto err_out;
+
+	INIT_DELAYED_WORK(&cp->delete_task, cnic_delete_task);
 
 	dev->cm_create = cnic_cm_create;
 	dev->cm_destroy = cnic_cm_destroy;
@@ -4735,6 +4829,13 @@ static int __init cnic_init(void)
 		return rc;
 	}
 
+	cnic_wq = create_singlethread_workqueue("cnic_wq");
+	if (!cnic_wq) {
+		cnic_release();
+		unregister_netdevice_notifier(&cnic_netdev_notifier);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -4742,6 +4843,7 @@ static void __exit cnic_exit(void)
 {
 	unregister_netdevice_notifier(&cnic_netdev_notifier);
 	cnic_release();
+	destroy_workqueue(cnic_wq);
 }
 
 module_init(cnic_init);
