@@ -377,8 +377,14 @@ static int i2s_set_bit_format(unsigned long base, unsigned fmt)
 	val = i2s_readl(base, I2S_I2S_CTRL_0);
 	val &= ~I2S_I2S_CTRL_BIT_FORMAT_MASK;
 	val |= fmt << I2S_BIT_FORMAT_SHIFT;
-
 	i2s_writel(base, val, I2S_I2S_CTRL_0);
+
+	if (fmt == I2S_BIT_FORMAT_DSP) {
+		val = i2s_readl(base, I2S_I2S_PCM_CTRL_0);
+		val |= I2S_I2S_PCM_CTRL_TRM_MODE|I2S_I2S_PCM_CTRL_RCV_MODE;
+		i2s_writel(base, val, I2S_I2S_PCM_CTRL_0);
+	}
+
 	return 0;
 }
 
