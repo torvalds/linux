@@ -770,20 +770,15 @@ static void cnic_free_context(struct cnic_dev *dev)
 	}
 }
 
-static void cnic_free_resc(struct cnic_dev *dev)
+static void __cnic_free_uio(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	int i = 0;
 
-	if (cp->cnic_uinfo) {
-		while (cp->uio_dev != -1 && i < 15) {
-			msleep(100);
-			i++;
-		}
+	if (cp->cnic_uinfo)
 		uio_unregister_device(cp->cnic_uinfo);
-		kfree(cp->cnic_uinfo);
-		cp->cnic_uinfo = NULL;
-	}
+
+	kfree(cp->cnic_uinfo);
+	cp->cnic_uinfo = NULL;
 
 	if (cp->l2_buf) {
 		dma_free_coherent(&dev->pcidev->dev, cp->l2_buf_size,
@@ -795,6 +790,28 @@ static void cnic_free_resc(struct cnic_dev *dev)
 		dma_free_coherent(&dev->pcidev->dev, cp->l2_ring_size,
 				  cp->l2_ring, cp->l2_ring_map);
 		cp->l2_ring = NULL;
+	}
+}
+
+static void cnic_free_uio(struct cnic_dev *dev)
+{
+	if (!dev)
+		return;
+
+	__cnic_free_uio(dev);
+}
+
+static void cnic_free_resc(struct cnic_dev *dev)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	int i = 0;
+
+	if (cp->cnic_uinfo) {
+		while (cp->uio_dev != -1 && i < 15) {
+			msleep(100);
+			i++;
+		}
+		cnic_free_uio(dev);
 	}
 
 	cnic_free_context(dev);
