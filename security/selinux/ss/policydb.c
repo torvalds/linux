@@ -185,9 +185,19 @@ static u32 rangetr_hash(struct hashtab *h, const void *k)
 static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
 {
 	const struct range_trans *key1 = k1, *key2 = k2;
-	return (key1->source_type != key2->source_type ||
-		key1->target_type != key2->target_type ||
-		key1->target_class != key2->target_class);
+	int v;
+
+	v = key1->source_type - key2->source_type;
+	if (v)
+		return v;
+
+	v = key1->target_type - key2->target_type;
+	if (v)
+		return v;
+
+	v = key1->target_class - key2->target_class;
+
+	return v;
 }
 
 /*
