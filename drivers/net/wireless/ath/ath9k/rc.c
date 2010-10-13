@@ -302,7 +302,7 @@ static const struct ath_rate_table ar5416_11ng_ratetable = {
 		[64] = {  RC_INVALID, WLAN_RC_PHY_HT_40_TS, 243000,
 			205100, 20, 20, 8, 64, 65, 65 }, /* 243 Mb */
 		[65] = {  RC_INVALID, WLAN_RC_PHY_HT_40_TS_HGI, 270000,
-			224700, 20, 20, 8, 64, 65, 65 }, /* 170 Mb */
+			224700, 20, 20, 8, 64, 65, 65 }, /* 270 Mb */
 		[66] = {  RC_HT_T_40, WLAN_RC_PHY_HT_40_TS, 324000,
 			263100, 21, 21, 8, 66, 67, 67 }, /* 324 Mb */
 		[67] = {  RC_HT_T_40, WLAN_RC_PHY_HT_40_TS_HGI, 360000,

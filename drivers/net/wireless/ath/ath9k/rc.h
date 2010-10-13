@@ -135,20 +135,21 @@ enum {
 
 /**
  * struct ath_rate_table - Rate Control table
- * @valid: valid for use in rate control
- * @valid_single_stream: valid for use in rate control for
- * 	single stream operation
- * @phy: CCK/OFDM
+ * @rate_cnt: total number of rates for the given wireless mode
+ * @mcs_start: MCS rate index offset
+ * @rate_flags: Rate Control flags
+ * @phy: CCK/OFDM/HT20/HT40
  * @ratekbps: rate in Kbits per second
  * @user_ratekbps: user rate in Kbits per second
  * @ratecode: rate that goes into HW descriptors
- * @short_preamble: Mask for enabling short preamble in ratecode for CCK
  * @dot11rate: value that goes into supported
  * 	rates info element of MLME
  * @ctrl_rate: Index of next lower basic rate, used for duration computation
- * @max_4ms_framelen: maximum frame length(bytes) for tx duration
+ * @cw40index: Index of rates having 40MHz channel width
+ * @sgi_index: Index of rates having Short Guard Interval
+ * @ht_index: high throughput rates having 40MHz channel width and
+ * 	Short Guard Interval
  * @probe_interval: interval for rate control to probe for other rates
- * @rssi_reduce_interval: interval for rate control to reduce rssi
  * @initial_ratemax: initial ratemax value
  */
 struct ath_rate_table {
