@@ -639,6 +639,16 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	}
 #endif
 
+	if (unlikely(subclass >= MAX_LOCKDEP_SUBCLASSES)) {
+		debug_locks_off();
+		printk(KERN_ERR
+			"BUG: looking up invalid subclass: %u\n", subclass);
+		printk(KERN_ERR
+			"turning off the locking correctness validator.\n");
+		dump_stack();
+		return NULL;
+	}
+
 	/*
 	 * Static locks do not have their class-keys yet - for them the key
 	 * is the lock object itself:
@@ -2744,14 +2754,6 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 
 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return 0;
-
-	if (unlikely(subclass >= MAX_LOCKDEP_SUBCLASSES)) {
-		debug_locks_off();
-		printk("BUG: MAX_LOCKDEP_SUBCLASSES too low!\n");
-		printk("turning off the locking correctness validator.\n");
-		dump_stack();
-		return 0;
-	}
 
 	if (lock->key == &__lockdep_no_validate__)
 		check = 1;
