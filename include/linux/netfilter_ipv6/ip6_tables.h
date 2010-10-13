@@ -292,8 +292,6 @@ extern int ip6t_ext_hdr(u8 nexthdr);
 extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 			 int target, unsigned short *fragoff);
 
-#define IP6T_ALIGN(s) XT_ALIGN(s)
-
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
 
@@ -312,8 +310,6 @@ compat_ip6t_get_target(struct compat_ip6t_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
-
-#define COMPAT_IP6T_ALIGN(s)	COMPAT_XT_ALIGN(s)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/

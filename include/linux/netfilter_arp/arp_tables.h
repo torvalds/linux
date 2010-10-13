@@ -255,8 +255,6 @@ extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  const struct net_device *out,
 				  struct xt_table *table);
 
-#define ARPT_ALIGN(s) XT_ALIGN(s)
-
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
 
@@ -274,8 +272,6 @@ compat_arpt_get_target(struct compat_arpt_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
-
-#define COMPAT_ARPT_ALIGN(s)	COMPAT_XT_ALIGN(s)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/
