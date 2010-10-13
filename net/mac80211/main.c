@@ -54,6 +54,9 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	if (local->monitors || local->scanning)
 		new_flags |= FIF_BCN_PRBRESP_PROMISC;
 
+	if (local->fif_probe_req || local->probe_req_reg)
+		new_flags |= FIF_PROBE_REQ;
+
 	if (local->fif_fcsfail)
 		new_flags |= FIF_FCSFAIL;
 
