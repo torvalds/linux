@@ -14,6 +14,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#define pr_fmt(fmt) "clock: " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -357,7 +359,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		if (ret == 0) {
 			if (clk->ops->recalc)
 				clk->rate = clk->ops->recalc(clk);
-			pr_debug("clock: set parent of %p to %p (new rate %ld)\n",
+			pr_debug("set parent of %p to %p (new rate %ld)\n",
 				 clk, clk->parent, clk->rate);
 			propagate_rate(clk);
 		}
