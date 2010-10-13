@@ -33,14 +33,8 @@
  * occur, and the final time the board will reset.
  */
 
-#ifdef	CONFIG_FSL_BOOKE
-#define WDT_PERIOD_DEFAULT 38	/* Ex. wdt_period=28 bus=333Mhz,reset=~40sec */
-#else
-#define WDT_PERIOD_DEFAULT 3	/* Refer to the PPC40x and PPC4xx manuals */
-#endif				/* for timing information */
-
 u32 booke_wdt_enabled;
-u32 booke_wdt_period = WDT_PERIOD_DEFAULT;
+u32 booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
 
 #ifdef	CONFIG_FSL_BOOKE
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
