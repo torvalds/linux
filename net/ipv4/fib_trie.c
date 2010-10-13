@@ -1384,8 +1384,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 	t_key cindex = 0;
 	int current_prefix_length = KEYLENGTH;
 	struct tnode *cn;
-	t_key node_prefix, key_prefix, pref_mismatch;
-	int mp;
+	t_key pref_mismatch;
 
 	rcu_read_lock();
 
@@ -1500,10 +1499,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 		 * matching prefix.
 		 */
 
-		node_prefix = mask_pfx(cn->key, cn->pos);
-		key_prefix = mask_pfx(key, cn->pos);
-		pref_mismatch = key_prefix^node_prefix;
-		mp = 0;
+		pref_mismatch = mask_pfx(cn->key ^ key, cn->pos);
 
 		/*
 		 * In short: If skipped bits in this node do not match
@@ -1511,13 +1507,9 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 		 * state.directly.
 		 */
 		if (pref_mismatch) {
-			while (!(pref_mismatch & (1<<(KEYLENGTH-1)))) {
-				mp++;
-				pref_mismatch = pref_mismatch << 1;
-			}
-			key_prefix = tkey_extract_bits(cn->key, mp, cn->pos-mp);
+			int mp = KEYLENGTH - fls(pref_mismatch);
 
-			if (key_prefix != 0)
+			if (tkey_extract_bits(cn->key, mp, cn->pos - mp) != 0)
 				goto backtrace;
 
 			if (current_prefix_length >= cn->pos)
