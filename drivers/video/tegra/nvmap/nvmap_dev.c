@@ -353,6 +353,8 @@ struct nvmap_handle *nvmap_validate_get(struct nvmap_client *client,
 		if ((unsigned long)h == id) {
 			if (client->super || h->global || (h->owner == client))
 				h = nvmap_handle_get(h);
+			else
+				h = NULL;
 			spin_unlock(&client->dev->handle_lock);
 			return h;
 		}
@@ -696,9 +698,9 @@ static int nvmap_probe(struct platform_device *pdev)
 	dev->dev_user.parent = &pdev->dev;
 
 	dev->dev_super.minor = MISC_DYNAMIC_MINOR;
-	dev->dev_super.name = "kvmap";
-	dev->dev_user.fops = &nvmap_super_fops;
-	dev->dev_user.parent = &pdev->dev;
+	dev->dev_super.name = "knvmap";
+	dev->dev_super.fops = &nvmap_super_fops;
+	dev->dev_super.parent = &pdev->dev;
 
 	dev->handles = RB_ROOT;
 

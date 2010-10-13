@@ -38,7 +38,7 @@
 #include "nvmap_mru.h"
 
 #define NVMAP_SECURE_HEAPS	(NVMAP_HEAP_CARVEOUT_IRAM | NVMAP_HEAP_IOVMM)
-#define GFP_NVMAP		(GFP_KERNEL | __GFP_HIGHMEM | __GFP_NOWARN)
+#define GFP_NVMAP		(__GFP_HIGHMEM | __GFP_NOWARN)
 /* handles may be arbitrarily large (16+MiB), and any handle allocated from
  * the kernel (i.e., not a carveout handle) includes its array of pages. to
  * preserve kmalloc space, if the array of pages exceeds PAGELIST_VMALLOC_MIN,

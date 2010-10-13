@@ -20,5 +20,6 @@
 int ventana_regulator_init(void);
 int ventana_sdhci_init(void);
 int ventana_pinmux_init(void);
+int ventana_panel_init(void);
 
 #endif
