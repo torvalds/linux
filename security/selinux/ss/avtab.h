@@ -71,6 +71,8 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		    void *p);
 
 int avtab_read(struct avtab *a, void *fp, struct policydb *pol);
+int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp);
+int avtab_write(struct policydb *p, struct avtab *a, void *fp);
 
 struct avtab_node *avtab_insert_nonunique(struct avtab *h, struct avtab_key *key,
 					  struct avtab_datum *datum);

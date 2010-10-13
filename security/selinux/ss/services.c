@@ -1776,6 +1776,7 @@ int security_load_policy(void *data, size_t len)
 			return rc;
 		}
 
+		policydb.len = len;
 		rc = selinux_set_mapping(&policydb, secclass_map,
 					 &current_mapping,
 					 &current_mapping_size);
@@ -1812,6 +1813,7 @@ int security_load_policy(void *data, size_t len)
 	if (rc)
 		return rc;
 
+	newpolicydb.len = len;
 	/* If switching between different policy types, log MLS status */
 	if (policydb.mls_enabled && !newpolicydb.mls_enabled)
 		printk(KERN_INFO "SELinux: Disabling MLS support...\n");
@@ -1890,6 +1892,17 @@ err:
 	policydb_destroy(&newpolicydb);
 	return rc;
 
+}
+
+size_t security_policydb_len(void)
+{
+	size_t len;
+
+	read_lock(&policy_rwlock);
+	len = policydb.len;
+	read_unlock(&policy_rwlock);
+
+	return len;
 }
 
 /**
@@ -3139,3 +3152,38 @@ netlbl_sid_to_secattr_failure:
 	return rc;
 }
 #endif /* CONFIG_NETLABEL */
+
+/**
+ * security_read_policy - read the policy.
+ * @data: binary policy data
+ * @len: length of data in bytes
+ *
+ */
+int security_read_policy(void **data, ssize_t *len)
+{
+	int rc;
+	struct policy_file fp;
+
+	if (!ss_initialized)
+		return -EINVAL;
+
+	*len = security_policydb_len();
+
+	*data = vmalloc(*len);
+	if (!*data)
+		return -ENOMEM;
+
+	fp.data = *data;
+	fp.len = *len;
+
+	read_lock(&policy_rwlock);
+	rc = policydb_write(&policydb, &fp);
+	read_unlock(&policy_rwlock);
+
+	if (rc)
+		return rc;
+
+	*len = (unsigned long)fp.data - (unsigned long)*data;
+	return 0;
+
+}

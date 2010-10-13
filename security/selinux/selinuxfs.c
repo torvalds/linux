@@ -68,6 +68,8 @@ static int *bool_pending_values;
 static struct dentry *class_dir;
 static unsigned long last_class_ino;
 
+static char policy_opened;
+
 /* global data for policy capabilities */
 static struct dentry *policycap_dir;
 
@@ -111,6 +113,7 @@ enum sel_inos {
 	SEL_REJECT_UNKNOWN, /* export unknown reject handling to userspace */
 	SEL_DENY_UNKNOWN, /* export unknown deny handling to userspace */
 	SEL_STATUS,	/* export current status using mmap() */
+	SEL_POLICY,	/* allow userspace to read the in kernel policy */
 	SEL_INO_NEXT,	/* The next inode number to use */
 };
 
@@ -349,6 +352,97 @@ static ssize_t sel_read_mls(struct file *filp, char __user *buf,
 static const struct file_operations sel_mls_ops = {
 	.read		= sel_read_mls,
 	.llseek		= generic_file_llseek,
+};
+
+struct policy_load_memory {
+	size_t len;
+	void *data;
+};
+
+static int sel_open_policy(struct inode *inode, struct file *filp)
+{
+	struct policy_load_memory *plm = NULL;
+	int rc;
+
+	BUG_ON(filp->private_data);
+
+	mutex_lock(&sel_mutex);
+
+	rc = task_has_security(current, SECURITY__READ_POLICY);
+	if (rc)
+		goto err;
+
+	rc = -EBUSY;
+	if (policy_opened)
+		goto err;
+
+	rc = -ENOMEM;
+	plm = kzalloc(sizeof(*plm), GFP_KERNEL);
+	if (!plm)
+		goto err;
+
+	if (i_size_read(inode) != security_policydb_len()) {
+		mutex_lock(&inode->i_mutex);
+		i_size_write(inode, security_policydb_len());
+		mutex_unlock(&inode->i_mutex);
+	}
+
+	rc = security_read_policy(&plm->data, &plm->len);
+	if (rc)
+		goto err;
+
+	policy_opened = 1;
+
+	filp->private_data = plm;
+
+	mutex_unlock(&sel_mutex);
+
+	return 0;
+err:
+	mutex_unlock(&sel_mutex);
+
+	if (plm)
+		vfree(plm->data);
+	kfree(plm);
+	return rc;
+}
+
+static int sel_release_policy(struct inode *inode, struct file *filp)
+{
+	struct policy_load_memory *plm = filp->private_data;
+
+	BUG_ON(!plm);
+
+	policy_opened = 0;
+
+	vfree(plm->data);
+	kfree(plm);
+
+	return 0;
+}
+
+static ssize_t sel_read_policy(struct file *filp, char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	struct policy_load_memory *plm = filp->private_data;
+	int ret;
+
+	mutex_lock(&sel_mutex);
+
+	ret = task_has_security(current, SECURITY__READ_POLICY);
+	if (ret)
+		goto out;
+
+	ret = simple_read_from_buffer(buf, count, ppos, plm->data, plm->len);
+out:
+	mutex_unlock(&sel_mutex);
+	return ret;
+}
+
+static const struct file_operations sel_policy_ops = {
+	.open		= sel_open_policy,
+	.read		= sel_read_policy,
+	.release	= sel_release_policy,
 };
 
 static ssize_t sel_write_load(struct file *file, const char __user *buf,
@@ -1668,6 +1762,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 		[SEL_REJECT_UNKNOWN] = {"reject_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		[SEL_DENY_UNKNOWN] = {"deny_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		[SEL_STATUS] = {"status", &sel_handle_status_ops, S_IRUGO},
+		[SEL_POLICY] = {"policy", &sel_policy_ops, S_IRUSR},
 		/* last one */ {""}
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);

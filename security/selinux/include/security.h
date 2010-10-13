@@ -83,6 +83,8 @@ extern int selinux_policycap_openperm;
 int security_mls_enabled(void);
 
 int security_load_policy(void *data, size_t len);
+int security_read_policy(void **data, ssize_t *len);
+size_t security_policydb_len(void);
 
 int security_policycap_supported(unsigned int req_cap);
 
