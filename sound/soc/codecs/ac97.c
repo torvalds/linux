@@ -162,3 +162,4 @@ module_exit(ac97_exit);
 MODULE_DESCRIPTION("Soc Generic AC97 driver");
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ac97-codec");
