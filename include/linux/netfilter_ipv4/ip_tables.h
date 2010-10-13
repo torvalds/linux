@@ -27,12 +27,14 @@
 
 #include <linux/netfilter/x_tables.h>
 
+#ifndef __KERNEL__
 #define IPT_FUNCTION_MAXNAMELEN XT_FUNCTION_MAXNAMELEN
 #define IPT_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
 #define ipt_match xt_match
 #define ipt_target xt_target
 #define ipt_table xt_table
 #define ipt_get_revision xt_get_revision
+#endif
 
 /* Yes, Virginia, you have to zero the padding. */
 struct ipt_ip {
@@ -146,7 +148,7 @@ struct ipt_icmp {
 /* The argument to IPT_SO_GET_INFO */
 struct ipt_getinfo {
 	/* Which table: caller fills this in. */
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Kernel fills these in. */
 	/* Which hook entry points are valid: bitmask */
@@ -168,7 +170,7 @@ struct ipt_getinfo {
 /* The argument to IPT_SO_SET_REPLACE. */
 struct ipt_replace {
 	/* Which table. */
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Which hook entry points are valid: bitmask.  You can't
            change this. */
@@ -202,7 +204,7 @@ struct ipt_replace {
 /* The argument to IPT_SO_GET_ENTRIES. */
 struct ipt_get_entries {
 	/* Which table: user fills this in. */
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* User fills this in: total entry size. */
 	unsigned int size;
@@ -254,7 +256,7 @@ struct ipt_standard {
 
 struct ipt_error_target {
 	struct ipt_entry_target target;
-	char errorname[IPT_FUNCTION_MAXNAMELEN];
+	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
 
 struct ipt_error {

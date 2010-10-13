@@ -27,13 +27,14 @@
 
 #include <linux/netfilter/x_tables.h>
 
+#ifndef __KERNEL__
 #define IP6T_FUNCTION_MAXNAMELEN XT_FUNCTION_MAXNAMELEN
 #define IP6T_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
-
 #define ip6t_match xt_match
 #define ip6t_target xt_target
 #define ip6t_table xt_table
 #define ip6t_get_revision xt_get_revision
+#endif
 
 /* Yes, Virginia, you have to zero the padding. */
 struct ip6t_ip6 {
@@ -117,7 +118,7 @@ struct ip6t_standard {
 
 struct ip6t_error_target {
 	struct ip6t_entry_target target;
-	char errorname[IP6T_FUNCTION_MAXNAMELEN];
+	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
 
 struct ip6t_error {
@@ -203,7 +204,7 @@ struct ip6t_icmp {
 /* The argument to IP6T_SO_GET_INFO */
 struct ip6t_getinfo {
 	/* Which table: caller fills this in. */
-	char name[IP6T_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Kernel fills these in. */
 	/* Which hook entry points are valid: bitmask */
@@ -225,7 +226,7 @@ struct ip6t_getinfo {
 /* The argument to IP6T_SO_SET_REPLACE. */
 struct ip6t_replace {
 	/* Which table. */
-	char name[IP6T_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Which hook entry points are valid: bitmask.  You can't
            change this. */
@@ -259,7 +260,7 @@ struct ip6t_replace {
 /* The argument to IP6T_SO_GET_ENTRIES. */
 struct ip6t_get_entries {
 	/* Which table: user fills this in. */
-	char name[IP6T_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* User fills this in: total entry size. */
 	unsigned int size;

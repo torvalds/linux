@@ -21,8 +21,10 @@
 
 #include <linux/netfilter/x_tables.h>
 
+#ifndef __KERNEL__
 #define ARPT_FUNCTION_MAXNAMELEN XT_FUNCTION_MAXNAMELEN
 #define ARPT_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
+#endif
 
 #define ARPT_DEV_ADDR_LEN_MAX 16
 
@@ -134,7 +136,7 @@ struct arpt_entry
 /* The argument to ARPT_SO_GET_INFO */
 struct arpt_getinfo {
 	/* Which table: caller fills this in. */
-	char name[ARPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Kernel fills these in. */
 	/* Which hook entry points are valid: bitmask */
@@ -156,7 +158,7 @@ struct arpt_getinfo {
 /* The argument to ARPT_SO_SET_REPLACE. */
 struct arpt_replace {
 	/* Which table. */
-	char name[ARPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Which hook entry points are valid: bitmask.  You can't
            change this. */
@@ -191,7 +193,7 @@ struct arpt_replace {
 /* The argument to ARPT_SO_GET_ENTRIES. */
 struct arpt_get_entries {
 	/* Which table: user fills this in. */
-	char name[ARPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* User fills this in: total entry size. */
 	unsigned int size;
@@ -230,7 +232,7 @@ struct arpt_standard {
 
 struct arpt_error_target {
 	struct arpt_entry_target target;
-	char errorname[ARPT_FUNCTION_MAXNAMELEN];
+	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
 
 struct arpt_error {

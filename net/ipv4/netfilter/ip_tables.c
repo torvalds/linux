@@ -1092,7 +1092,7 @@ static int compat_table_info(const struct xt_table_info *info,
 static int get_info(struct net *net, void __user *user,
                     const int *len, int compat)
 {
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 	struct xt_table *t;
 	int ret;
 
@@ -1105,7 +1105,7 @@ static int get_info(struct net *net, void __user *user,
 	if (copy_from_user(name, user, sizeof(name)) != 0)
 		return -EFAULT;
 
-	name[IPT_TABLE_MAXNAMELEN-1] = '\0';
+	name[XT_TABLE_MAXNAMELEN-1] = '\0';
 #ifdef CONFIG_COMPAT
 	if (compat)
 		xt_compat_lock(AF_INET);
@@ -1400,7 +1400,7 @@ do_add_counters(struct net *net, const void __user *user,
 
 #ifdef CONFIG_COMPAT
 struct compat_ipt_replace {
-	char			name[IPT_TABLE_MAXNAMELEN];
+	char			name[XT_TABLE_MAXNAMELEN];
 	u32			valid_hooks;
 	u32			num_entries;
 	u32			size;
@@ -1884,7 +1884,7 @@ compat_do_ipt_set_ctl(struct sock *sk,	int cmd, void __user *user,
 }
 
 struct compat_ipt_get_entries {
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 	compat_uint_t size;
 	struct compat_ipt_entry entrytable[0];
 };
@@ -2039,7 +2039,7 @@ do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	case IPT_SO_GET_REVISION_MATCH:
 	case IPT_SO_GET_REVISION_TARGET: {
-		struct ipt_get_revision rev;
+		struct xt_get_revision rev;
 		int target;
 
 		if (*len != sizeof(rev)) {
@@ -2188,7 +2188,7 @@ static struct xt_target ipt_builtin_tg[] __read_mostly = {
 	{
 		.name             = IPT_ERROR_TARGET,
 		.target           = ipt_error,
-		.targetsize       = IPT_FUNCTION_MAXNAMELEN,
+		.targetsize       = XT_FUNCTION_MAXNAMELEN,
 		.family           = NFPROTO_IPV4,
 	},
 };

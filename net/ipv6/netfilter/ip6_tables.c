@@ -1105,7 +1105,7 @@ static int compat_table_info(const struct xt_table_info *info,
 static int get_info(struct net *net, void __user *user,
                     const int *len, int compat)
 {
-	char name[IP6T_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 	struct xt_table *t;
 	int ret;
 
@@ -1118,7 +1118,7 @@ static int get_info(struct net *net, void __user *user,
 	if (copy_from_user(name, user, sizeof(name)) != 0)
 		return -EFAULT;
 
-	name[IP6T_TABLE_MAXNAMELEN-1] = '\0';
+	name[XT_TABLE_MAXNAMELEN-1] = '\0';
 #ifdef CONFIG_COMPAT
 	if (compat)
 		xt_compat_lock(AF_INET6);
@@ -1415,7 +1415,7 @@ do_add_counters(struct net *net, const void __user *user, unsigned int len,
 
 #ifdef CONFIG_COMPAT
 struct compat_ip6t_replace {
-	char			name[IP6T_TABLE_MAXNAMELEN];
+	char			name[XT_TABLE_MAXNAMELEN];
 	u32			valid_hooks;
 	u32			num_entries;
 	u32			size;
@@ -1899,7 +1899,7 @@ compat_do_ip6t_set_ctl(struct sock *sk, int cmd, void __user *user,
 }
 
 struct compat_ip6t_get_entries {
-	char name[IP6T_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 	compat_uint_t size;
 	struct compat_ip6t_entry entrytable[0];
 };
@@ -2054,7 +2054,7 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	case IP6T_SO_GET_REVISION_MATCH:
 	case IP6T_SO_GET_REVISION_TARGET: {
-		struct ip6t_get_revision rev;
+		struct xt_get_revision rev;
 		int target;
 
 		if (*len != sizeof(rev)) {
@@ -2203,7 +2203,7 @@ static struct xt_target ip6t_builtin_tg[] __read_mostly = {
 	{
 		.name             = IP6T_ERROR_TARGET,
 		.target           = ip6t_error,
-		.targetsize       = IP6T_FUNCTION_MAXNAMELEN,
+		.targetsize       = XT_FUNCTION_MAXNAMELEN,
 		.family           = NFPROTO_IPV6,
 	},
 };

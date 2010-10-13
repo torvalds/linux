@@ -895,7 +895,7 @@ static int compat_table_info(const struct xt_table_info *info,
 static int get_info(struct net *net, void __user *user,
                     const int *len, int compat)
 {
-	char name[ARPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 	struct xt_table *t;
 	int ret;
 
@@ -908,7 +908,7 @@ static int get_info(struct net *net, void __user *user,
 	if (copy_from_user(name, user, sizeof(name)) != 0)
 		return -EFAULT;
 
-	name[ARPT_TABLE_MAXNAMELEN-1] = '\0';
+	name[XT_TABLE_MAXNAMELEN-1] = '\0';
 #ifdef CONFIG_COMPAT
 	if (compat)
 		xt_compat_lock(NFPROTO_ARP);
@@ -1474,7 +1474,7 @@ out_unlock:
 }
 
 struct compat_arpt_replace {
-	char				name[ARPT_TABLE_MAXNAMELEN];
+	char				name[XT_TABLE_MAXNAMELEN];
 	u32				valid_hooks;
 	u32				num_entries;
 	u32				size;
@@ -1628,7 +1628,7 @@ static int compat_copy_entries_to_user(unsigned int total_size,
 }
 
 struct compat_arpt_get_entries {
-	char name[ARPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 	compat_uint_t size;
 	struct compat_arpt_entry entrytable[0];
 };
@@ -1840,7 +1840,7 @@ static struct xt_target arpt_builtin_tg[] __read_mostly = {
 	{
 		.name             = ARPT_ERROR_TARGET,
 		.target           = arpt_error,
-		.targetsize       = ARPT_FUNCTION_MAXNAMELEN,
+		.targetsize       = XT_FUNCTION_MAXNAMELEN,
 		.family           = NFPROTO_ARP,
 	},
 };
