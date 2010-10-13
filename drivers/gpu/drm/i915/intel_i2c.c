@@ -155,6 +155,7 @@ intel_gpio_create(struct drm_i915_private *dev_priv, u32 pin)
 		GPIOC,
 		GPIOD,
 		GPIOE,
+		0,
 		GPIOF,
 	};
 	struct intel_gpio *gpio;
