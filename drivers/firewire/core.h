@@ -140,6 +140,8 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p);
 extern struct rw_semaphore fw_device_rwsem;
 extern struct idr fw_device_idr;
 extern int fw_cdev_major;
+struct workqueue_struct;
+extern struct workqueue_struct *fw_wq;
 
 struct fw_device *fw_device_get_by_devt(dev_t devt);
 int fw_device_set_broadcast_channel(struct device *dev, void *gen);

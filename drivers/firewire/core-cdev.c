@@ -149,7 +149,7 @@ static void release_iso_resource(struct client *, struct client_resource *);
 static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
 {
 	client_get(r->client);
-	if (!schedule_delayed_work(&r->work, delay))
+	if (!queue_delayed_work(fw_wq, &r->work, delay))
 		client_put(r->client);
 }
 
