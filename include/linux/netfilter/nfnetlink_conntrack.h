@@ -39,8 +39,9 @@ enum ctattr_type {
 	CTA_TUPLE_MASTER,
 	CTA_NAT_SEQ_ADJ_ORIG,
 	CTA_NAT_SEQ_ADJ_REPLY,
-	CTA_SECMARK,
+	CTA_SECMARK,		/* obsolete */
 	CTA_ZONE,
+	CTA_SECCTX,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)
@@ -171,5 +172,12 @@ enum ctattr_help {
 	__CTA_HELP_MAX
 };
 #define CTA_HELP_MAX (__CTA_HELP_MAX - 1)
+
+enum ctattr_secctx {
+	CTA_SECCTX_UNSPEC,
+	CTA_SECCTX_NAME,
+	__CTA_SECCTX_MAX
+};
+#define CTA_SECCTX_MAX (__CTA_SECCTX_MAX - 1)
 
 #endif /* _IPCONNTRACK_NETLINK_H */
