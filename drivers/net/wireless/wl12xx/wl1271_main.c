@@ -861,12 +861,32 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_sta *sta = txinfo->control.sta;
 	unsigned long flags;
 
-	/* peek into the rates configured in the STA entry */
+	/*
+	 * peek into the rates configured in the STA entry.
+	 * The rates set after connection stage, The first block only BG sets:
+	 * the compare is for bit 0-16 of sta_rate_set. The second block add
+	 * HT rates in case of HT supported.
+	 */
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	if (sta && sta->supp_rates[conf->channel->band] != wl->sta_rate_set) {
+	if (sta &&
+	    (sta->supp_rates[conf->channel->band] !=
+	    (wl->sta_rate_set & HW_BG_RATES_MASK))) {
 		wl->sta_rate_set = sta->supp_rates[conf->channel->band];
 		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
 	}
+
+#ifdef CONFIG_WL1271_HT
+	if (sta &&
+	    sta->ht_cap.ht_supported &&
+	    ((wl->sta_rate_set >> HW_HT_RATES_OFFSET) !=
+	      sta->ht_cap.mcs.rx_mask[0])) {
+		/* Clean MCS bits before setting them */
+		wl->sta_rate_set &= HW_BG_RATES_MASK;
+		wl->sta_rate_set |=
+			(sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET);
+		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
+	}
+#endif
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	/* queue the packet */
@@ -1720,6 +1740,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	enum wl1271_cmd_ps_mode mode;
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_sta *sta = ieee80211_find_sta(vif, bss_conf->bssid);
 	bool do_join = false;
 	bool set_assoc = false;
 	int ret;
@@ -1938,6 +1959,37 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	/*
+	 * Takes care of: New association with HT enable,
+	 *                HT information change in beacon.
+	 */
+	if (sta &&
+	    (changed & BSS_CHANGED_HT) &&
+	    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
+		ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap, true);
+		if (ret < 0) {
+			wl1271_warning("Set ht cap true failed %d", ret);
+			goto out_sleep;
+		}
+			ret = wl1271_acx_set_ht_information(wl,
+				bss_conf->ht_operation_mode);
+		if (ret < 0) {
+			wl1271_warning("Set ht information failed %d", ret);
+			goto out_sleep;
+		}
+	}
+	/*
+	 * Takes care of: New association without HT,
+	 *                Disassociation.
+	 */
+	else if (sta && (changed & BSS_CHANGED_ASSOC)) {
+		ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap, false);
+		if (ret < 0) {
+			wl1271_warning("Set ht cap false failed %d", ret);
+			goto out_sleep;
+		}
+	}
+
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		__be32 addr = bss_conf->arp_addr_list[0];
 		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
@@ -2118,14 +2170,14 @@ static struct ieee80211_channel wl1271_channels[] = {
 /* mapping to indexes for wl1271_rates */
 static const u8 wl1271_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS5 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS4 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS3 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS2 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS1 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS0 */
+	7,                            /* CONF_HW_RXTX_RATE_MCS7 */
+	6,                            /* CONF_HW_RXTX_RATE_MCS6 */
+	5,                            /* CONF_HW_RXTX_RATE_MCS5 */
+	4,                            /* CONF_HW_RXTX_RATE_MCS4 */
+	3,                            /* CONF_HW_RXTX_RATE_MCS3 */
+	2,                            /* CONF_HW_RXTX_RATE_MCS2 */
+	1,                            /* CONF_HW_RXTX_RATE_MCS1 */
+	0,                            /* CONF_HW_RXTX_RATE_MCS0 */
 
 	11,                            /* CONF_HW_RXTX_RATE_54   */
 	10,                            /* CONF_HW_RXTX_RATE_48   */
@@ -2148,6 +2200,7 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 /* 11n STA capabilities */
 #define HW_RX_HIGHEST_RATE	72
 
+#ifdef CONFIG_WL1271_HT
 #define WL1271_HT_CAP { \
 	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20, \
 	.ht_supported = true, \
@@ -2159,6 +2212,11 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 		.tx_params = IEEE80211_HT_MCS_TX_DEFINED, \
 		}, \
 }
+#else
+#define WL1271_HT_CAP { \
+	.ht_supported = false, \
+}
+#endif
 
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1271_band_2ghz = {
@@ -2166,6 +2224,7 @@ static struct ieee80211_supported_band wl1271_band_2ghz = {
 	.n_channels = ARRAY_SIZE(wl1271_channels),
 	.bitrates = wl1271_rates,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates),
+	.ht_cap	= WL1271_HT_CAP,
 };
 
 /* 5 GHz data rates for WL1273 */
@@ -2248,14 +2307,14 @@ static struct ieee80211_channel wl1271_channels_5ghz[] = {
 /* mapping to indexes for wl1271_rates_5ghz */
 static const u8 wl1271_rate_to_idx_5ghz[] = {
 	/* MCS rates are used only with 11n */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS5 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS4 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS3 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS2 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS1 */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS0 */
+	7,                            /* CONF_HW_RXTX_RATE_MCS7 */
+	6,                            /* CONF_HW_RXTX_RATE_MCS6 */
+	5,                            /* CONF_HW_RXTX_RATE_MCS5 */
+	4,                            /* CONF_HW_RXTX_RATE_MCS4 */
+	3,                            /* CONF_HW_RXTX_RATE_MCS3 */
+	2,                            /* CONF_HW_RXTX_RATE_MCS2 */
+	1,                            /* CONF_HW_RXTX_RATE_MCS1 */
+	0,                            /* CONF_HW_RXTX_RATE_MCS0 */
 
 	7,                             /* CONF_HW_RXTX_RATE_54   */
 	6,                             /* CONF_HW_RXTX_RATE_48   */
@@ -2280,6 +2339,7 @@ static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.n_channels = ARRAY_SIZE(wl1271_channels_5ghz),
 	.bitrates = wl1271_rates_5ghz,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
+	.ht_cap	= WL1271_HT_CAP,
 };
 
 static const u8 *wl1271_band_rate_to_idx[] = {

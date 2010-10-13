@@ -53,6 +53,12 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	status->band = wl->band;
 	status->rate_idx = wl1271_rate_to_idx(wl, desc->rate);
 
+#ifdef CONFIG_WL1271_HT
+	/* 11n support */
+	if (desc->rate <= CONF_HW_RXTX_RATE_MCS0)
+		status->flag |= RX_FLAG_HT;
+#endif
+
 	status->signal = desc->rssi;
 
 	/*

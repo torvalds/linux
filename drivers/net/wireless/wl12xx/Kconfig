@@ -18,6 +18,16 @@ config WL1271
 	  If you choose to build a module, it'll be called wl1271. Say N if
 	  unsure.
 
+config WL1271_HT
+        bool "TI wl1271 802.11 HT support (EXPERIMENTAL)"
+        depends on WL1271 && EXPERIMENTAL
+        default n
+        ---help---
+          This will enable 802.11 HT support for TI wl1271 chipset.
+
+	  That configuration is temporary due to the code incomplete and
+	  still in testing process.
+
 config WL1271_SPI
 	tristate "TI wl1271 SPI support"
 	depends on WL1271 && SPI_MASTER
