@@ -1147,6 +1147,9 @@ struct cfg80211_pmksa {
  *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
  *
+ * @mgmt_frame_register: Notify driver that a management frame type was
+ *	registered. Note that this callback may not sleep, and cannot run
+ *	concurrently with itself.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -1297,6 +1300,10 @@ struct cfg80211_ops {
 	int	(*set_cqm_rssi_config)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       s32 rssi_thold, u32 rssi_hyst);
+
+	void	(*mgmt_frame_register)(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       u16 frame_type, bool reg);
 };
 
 /*
