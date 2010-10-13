@@ -3745,7 +3745,7 @@ void wl_iw_detach(void)
 	if (!iscan)
 		return;
 	if (iscan->sysioc_tsk) {
-		KILL_PROC(iscan->sysioc_tsk->pid, SIGTERM);
+		send_sig(SIGTERM, iscan->sysioc_tsk, 1);
 		kthread_stop(iscan->sysioc_tsk);
 		iscan->sysioc_tsk = NULL;
 	}

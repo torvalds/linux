@@ -2340,20 +2340,20 @@ void dhd_detach(dhd_pub_t *dhdp)
 			}
 
 			if (dhd->watchdog_tsk) {
-				KILL_PROC(dhd->watchdog_tsk->pid, SIGTERM);
+				send_sig(SIGTERM, dhd->watchdog_tsk, 1);
 				kthread_stop(dhd->watchdog_tsk);
 				dhd->watchdog_tsk = NULL;
 			}
 
 			if (dhd->dpc_tsk) {
-				KILL_PROC(dhd->dpc_tsk->pid, SIGTERM);
+				send_sig(SIGTERM, dhd->dpc_tsk, 1);
 				kthread_stop(dhd->dpc_tsk);
 				dhd->dpc_tsk = NULL;
 			} else
 				tasklet_kill(&dhd->tasklet);
 
 			if (dhd->sysioc_tsk) {
-				KILL_PROC(dhd->sysioc_tsk->pid, SIGTERM);
+				send_sig(SIGTERM, dhd->sysioc_tsk, 1);
 				kthread_stop(dhd->sysioc_tsk);
 				dhd->sysioc_tsk = NULL;
 			}

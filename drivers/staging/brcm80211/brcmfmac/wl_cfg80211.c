@@ -2849,7 +2849,7 @@ static s32 wl_create_event_handler(struct wl_priv *wl)
 static void wl_destroy_event_handler(struct wl_priv *wl)
 {
 	if (wl->event_tsk) {
-		KILL_PROC(wl->event_tsk->pid, SIGTERM);
+		send_sig(SIGTERM, wl->event_tsk, 1);
 		kthread_stop(wl->event_tsk);
 		wl->event_tsk = NULL;
 	}
@@ -2861,7 +2861,7 @@ static void wl_term_iscan(struct wl_priv *wl)
 
 	if (wl->iscan_on && iscan->tsk) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
-		KILL_PROC(iscan->tsk->pid, SIGTERM);
+		send_sig(SIGTERM, iscan->tsk, 1);
 		kthread_stop(iscan->tsk);
 		iscan->tsk = NULL;
 	}
@@ -3793,7 +3793,6 @@ static s32 __wl_cfg80211_up(struct wl_priv *wl)
 
 static s32 __wl_cfg80211_down(struct wl_priv *wl)
 {
-	struct net_device *ndev = wl_to_ndev(wl);
 	s32 err = 0;
 
 	/* Check if cfg80211 interface is already down */
