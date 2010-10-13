@@ -1497,6 +1497,16 @@ static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 	 * for the generic AC97 subsystem.
 	 */
 	if (rtd->codec_dai->driver->ac97_control && !rtd->codec->ac97_registered) {
+		/*
+		 * It is possible that the AC97 device is already registered to
+		 * the device subsystem. This happens when the device is created
+		 * via snd_ac97_mixer(). Currently only SoC codec that does so
+		 * is the generic AC97 glue but others migh emerge.
+		 *
+		 * In those cases we don't try to register the device again.
+		 */
+		if (!rtd->codec->ac97_created)
+			return 0;
 
 		ret = soc_ac97_dev_register(rtd->codec);
 		if (ret < 0) {
@@ -1812,6 +1822,13 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 
 	codec->ac97->bus->ops = ops;
 	codec->ac97->num = num;
+
+	/*
+	 * Mark the AC97 device to be created by us. This way we ensure that the
+	 * device will be registered with the device subsystem later on.
+	 */
+	codec->ac97_created = 1;
+
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
@@ -1832,6 +1849,7 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 	kfree(codec->ac97->bus);
 	kfree(codec->ac97);
 	codec->ac97 = NULL;
+	codec->ac97_created = 0;
 	mutex_unlock(&codec->mutex);
 }
 EXPORT_SYMBOL_GPL(snd_soc_free_ac97_codec);
