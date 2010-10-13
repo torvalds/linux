@@ -17,7 +17,6 @@
 #include <linux/sh_clk.h>
 #include "pcie-sh7786.h"
 #include <asm/sizes.h>
-#include <asm/clock.h>
 
 struct sh7786_pcie_port {
 	struct pci_channel	*hose;
@@ -510,6 +509,7 @@ static struct sh7786_pcie_hwops sh7786_65nm_pcie_hwops __initdata = {
 
 static int __init sh7786_pcie_init(void)
 {
+	struct clk *platclk;
 	int ret = 0, i;
 
 	printk(KERN_NOTICE "PCI: Starting initialization.\n");
@@ -527,6 +527,22 @@ static int __init sh7786_pcie_init(void)
 	if (unlikely(!sh7786_pcie_ports))
 		return -ENOMEM;
 
+	/*
+	 * Fetch any optional platform clock associated with this block.
+	 *
+	 * This is a rather nasty hack for boards with spec-mocking FPGAs
+	 * that have a secondary set of clocks outside of the on-chip
+	 * ones that need to be accounted for before there is any chance
+	 * of touching the existing MSTP bits or CPG clocks.
+	 */
+	platclk = clk_get(NULL, "pcie_plat_clk");
+	if (IS_ERR(platclk)) {
+		/* Sane hardware should probably get a WARN_ON.. */
+		platclk = NULL;
+	}
+
+	clk_enable(platclk);
+
 	printk(KERN_NOTICE "PCI: probing %d ports.\n", nr_ports);
 
 	for (i = 0; i < nr_ports; i++) {
@@ -539,8 +555,11 @@ static int __init sh7786_pcie_init(void)
 		ret |= sh7786_pcie_hwops->port_init_hw(port);
 	}
 
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		clk_disable(platclk);
+		clk_put(platclk);
 		return ret;
+	}
 
 	return 0;
 }

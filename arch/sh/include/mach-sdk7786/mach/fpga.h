@@ -39,7 +39,7 @@
 #define  PCIECR_PRST3		BIT(11) /* slot 3 card present */
 #define  PCIECR_PRST2		BIT(10) /* slot 2 card present */
 #define  PCIECR_PRST1		BIT(9)  /* slot 1 card present */
-#define  PCIECR_CLKEN		BIT(4)
+#define  PCIECR_CLKEN		BIT(4)	/* oscillator enable */
 
 #define FAER		0x150
 #define USRGPIR		0x160
