@@ -8,6 +8,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
 
+#ifdef CONFIG_IP_VS_DEBUG
 static const char *ip_vs_dbg_callid(char *buf, size_t buf_len,
 				    const char *callid, size_t callid_len,
 				    int *idx)
@@ -22,6 +23,7 @@ static const char *ip_vs_dbg_callid(char *buf, size_t buf_len,
 #define IP_VS_DEBUG_CALLID(callid, len)					\
 	ip_vs_dbg_callid(ip_vs_dbg_buf, sizeof(ip_vs_dbg_buf),		\
 			 callid, len, &ip_vs_dbg_idx)
+#endif
 
 static int get_callid(const char *dptr, unsigned int dataoff,
 		      unsigned int datalen,
