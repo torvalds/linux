@@ -274,15 +274,22 @@ static ssize_t codec_list_read_file(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t ret = 0;
+	ssize_t len, ret = 0;
 	struct snd_soc_codec *codec;
 
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry(codec, &codec_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-				codec->name);
+	list_for_each_entry(codec, &codec_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
+			       codec->name);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
 
 	if (ret >= 0)
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
@@ -301,17 +308,23 @@ static ssize_t dai_list_read_file(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t ret = 0;
+	ssize_t len, ret = 0;
 	struct snd_soc_dai *dai;
 
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry(dai, &dai_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n", dai->name);
+	list_for_each_entry(dai, &dai_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n", dai->name);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
 
-	if (ret >= 0)
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 
 	kfree(buf);
 
@@ -328,18 +341,24 @@ static ssize_t platform_list_read_file(struct file *file,
 				       size_t count, loff_t *ppos)
 {
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t ret = 0;
+	ssize_t len, ret = 0;
 	struct snd_soc_platform *platform;
 
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry(platform, &platform_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-				platform->name);
+	list_for_each_entry(platform, &platform_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
+			       platform->name);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
 
-	if (ret >= 0)
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 
 	kfree(buf);
 
