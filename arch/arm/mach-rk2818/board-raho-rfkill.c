@@ -34,11 +34,22 @@
 
 #define RAHO_BT_GPIO_POWER_N   FPGA_PIO1_06
 #define RAHO_BT_GPIO_RESET_N   FPGA_PIO1_07
+#define RAHO_BT_GPIO_WAKE_UP_N   RK2818_PIN_PC6
 
 static struct rfkill *bt_rfk;
 static const char bt_name[] = "bcm4329";
 extern int raho_bt_power_state;
 extern int raho_wifi_power_state;
+#ifdef CONFIG_BT_HCIBCM4325
+int bcm4325_sleep(int bSleep)
+{
+	printk("*************bt enter sleep***************\n");
+    if (bSleep)
+    gpio_set_value(RAHO_BT_GPIO_WAKE_UP_N, GPIO_LOW);   //low represent bt device may enter sleep  
+    else
+    gpio_set_value(RAHO_BT_GPIO_WAKE_UP_N,  GPIO_HIGH);  //high represent bt device must be awake 
+}
+#endif
   
 static int bcm4329_set_block(void *data, bool blocked)
 {

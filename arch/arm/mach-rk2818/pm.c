@@ -707,7 +707,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	printk(KERN_DEBUG "before core halt\n");
 
-	#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHO_0928)
+	#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHOSDK)
 	pmu_suspend( );
 	#endif
 	clk_set_rate(arm_clk, 24000000);
@@ -733,7 +733,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	rockchip_timer_clocksource_suspend_resume(0);
 #endif
-	#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHO_0928)
+	#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHOSDK)
 	pmu_resume( );
 	#endif
 	dump_register();

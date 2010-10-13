@@ -54,7 +54,7 @@ extern volatile int gZvalue[3];
 #elif defined(CONFIG_MACH_RK2818INFO) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI) 
 	int uncali_x_default[5] = { 438,  565, 3507,  3631, 2105 };
 	int uncali_y_default[5] = {  3756,  489, 3792, 534, 2159 };
-#elif (defined(CONFIG_MACH_RAHO) || defined(CONFIG_MACH_RK2818INFO))&& defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+#elif (defined(CONFIG_MACH_RAHO) || defined(CONFIG_MACH_RAHOSDK) || defined(CONFIG_MACH_RK2818INFO))&& defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
 	int uncali_x_default[5] = { 812,  3341, 851,  3371, 2183 };
 	int uncali_y_default[5] = {  442,  435, 3193, 3195, 2004 };
 #endif

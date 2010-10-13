@@ -23,7 +23,7 @@
 #include "timed_output.h"
 #include "timed_gpio.h"
 
-#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHO_0928)
+#if defined(CONFIG_MACH_RAHO)||defined(CONFIG_MACH_RAHOSDK)
 #define GPIO_TYPE   1       //使用FPGA扩展的IO不能使用中断内部直接操作IO
 #else
 #define GPIO_TYPE   0
