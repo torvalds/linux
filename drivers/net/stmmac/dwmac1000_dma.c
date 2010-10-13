@@ -138,7 +138,7 @@ static void dwmac1000_dump_dma_regs(void __iomem *ioaddr)
 	}
 }
 
-struct stmmac_dma_ops dwmac1000_dma_ops = {
+const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.init = dwmac1000_dma_init,
 	.dump_regs = dwmac1000_dump_dma_regs,
 	.dma_mode = dwmac1000_dma_operation_mode,

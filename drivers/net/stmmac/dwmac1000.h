@@ -205,4 +205,4 @@ enum rtc_control {
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
 
-extern struct stmmac_dma_ops dwmac1000_dma_ops;
+extern const struct stmmac_dma_ops dwmac1000_dma_ops;

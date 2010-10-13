@@ -212,7 +212,7 @@ static void dwmac1000_irq_status(void __iomem *ioaddr)
 	}
 }
 
-struct stmmac_ops dwmac1000_ops = {
+static const struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
 	.rx_coe = dwmac1000_rx_coe_supported,
 	.dump_regs = dwmac1000_dump_regs,

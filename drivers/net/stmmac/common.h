@@ -235,9 +235,9 @@ struct mii_regs {
 };
 
 struct mac_device_info {
-	struct stmmac_ops	*mac;
-	struct stmmac_desc_ops	*desc;
-	struct stmmac_dma_ops	*dma;
+	const struct stmmac_ops		*mac;
+	const struct stmmac_desc_ops	*desc;
+	const struct stmmac_dma_ops	*dma;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 };

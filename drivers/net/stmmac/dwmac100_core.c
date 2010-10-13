@@ -168,7 +168,7 @@ static void dwmac100_pmt(void __iomem *ioaddr, unsigned long mode)
 	return;
 }
 
-struct stmmac_ops dwmac100_ops = {
+static const struct stmmac_ops dwmac100_ops = {
 	.core_init = dwmac100_core_init,
 	.rx_coe = dwmac100_rx_coe_supported,
 	.dump_regs = dwmac100_dump_mac_regs,
