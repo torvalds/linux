@@ -17,6 +17,7 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <plat/gpio-cfg.h>
+#include <plat/ata.h>
 
 void s3c64xx_ide_setup_gpio(void)
 {
