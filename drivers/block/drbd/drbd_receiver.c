@@ -2079,7 +2079,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
 	struct drbd_epoch_entry *e;
 	struct digest_info *di = NULL;
-	int size;
+	int size, verb;
 	unsigned int fault_type;
 	struct p_block_req *p =	&mdev->data.rbuf.block_req;
 
@@ -2098,11 +2098,29 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 	}
 
 	if (!get_ldev_if_state(mdev, D_UP_TO_DATE)) {
-		if (__ratelimit(&drbd_ratelimit_state))
+		verb = 1;
+		switch (cmd) {
+		case P_DATA_REQUEST:
+			drbd_send_ack_rp(mdev, P_NEG_DREPLY, p);
+			break;
+		case P_RS_DATA_REQUEST:
+		case P_CSUM_RS_REQUEST:
+		case P_OV_REQUEST:
+			drbd_send_ack_rp(mdev, P_NEG_RS_DREPLY , p);
+			break;
+		case P_OV_REPLY:
+			verb = 0;
+			dec_rs_pending(mdev);
+			drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size, ID_IN_SYNC);
+			break;
+		default:
+			dev_err(DEV, "unexpected command (%s) in receive_DataRequest\n",
+				cmdname(cmd));
+		}
+		if (verb && __ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "Can not satisfy peer's read request, "
 			    "no local data.\n");
-		drbd_send_ack_rp(mdev, cmd == P_DATA_REQUEST ? P_NEG_DREPLY :
-				 P_NEG_RS_DREPLY , p);
+
 		/* drain possibly payload */
 		return drbd_drain_block(mdev, digest_size);
 	}
@@ -2157,10 +2175,6 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 		break;
 
 	case P_OV_REQUEST:
-		if (mdev->state.conn >= C_CONNECTED &&
-		    mdev->state.conn != C_VERIFY_T)
-			dev_warn(DEV, "ASSERT FAILED: got P_OV_REQUEST while being %s\n",
-				drbd_conn_str(mdev->state.conn));
 		if (mdev->ov_start_sector == ~(sector_t)0 &&
 		    mdev->agreed_pro_version >= 90) {
 			mdev->ov_start_sector = sector;
