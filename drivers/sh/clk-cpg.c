@@ -180,7 +180,6 @@ static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
 		clkp = clks + k;
 
 		clkp->ops = ops;
-		clkp->id = -1;
 		clkp->freq_table = freq_table + (k * freq_table_size);
 		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
 
@@ -319,7 +318,6 @@ static int __init sh_clk_div4_register_ops(struct clk *clks, int nr,
 		clkp = clks + k;
 
 		clkp->ops = ops;
-		clkp->id = -1;
 		clkp->priv = table;
 
 		clkp->freq_table = freq_table + (k * freq_table_size);

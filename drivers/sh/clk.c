@@ -161,8 +161,8 @@ void propagate_rate(struct clk *tclk)
 
 static void __clk_disable(struct clk *clk)
 {
-	if (WARN(!clk->usecount, "Trying to disable clock %s with 0 usecount\n",
-		 clk->name))
+	if (WARN(!clk->usecount, "Trying to disable clock %p with 0 usecount\n",
+		 clk))
 		return;
 
 	if (!(--clk->usecount)) {
@@ -357,8 +357,8 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		if (ret == 0) {
 			if (clk->ops->recalc)
 				clk->rate = clk->ops->recalc(clk);
-			pr_debug("clock: set parent of %s to %s (new rate %ld)\n",
-				 clk->name, clk->parent->name, clk->rate);
+			pr_debug("clock: set parent of %p to %p (new rate %ld)\n",
+				 clk, clk->parent, clk->rate);
 			propagate_rate(clk);
 		}
 	} else
@@ -470,9 +470,7 @@ static int clk_debugfs_register_one(struct clk *c)
 	char s[255];
 	char *p = s;
 
-	p += sprintf(p, "%s", c->name);
-	if (c->id >= 0)
-		sprintf(p, ":%d", c->id);
+	p += sprintf(p, "%p", c);
 	d = debugfs_create_dir(s, pa ? pa->dentry : clk_debugfs_root);
 	if (!d)
 		return -ENOMEM;
@@ -514,7 +512,7 @@ static int clk_debugfs_register(struct clk *c)
 			return err;
 	}
 
-	if (!c->dentry && c->name) {
+	if (!c->dentry) {
 		err = clk_debugfs_register_one(c);
 		if (err)
 			return err;

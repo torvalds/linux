@@ -21,9 +21,6 @@ struct clk_ops {
 
 struct clk {
 	struct list_head	node;
-	const char		*name;
-	int			id;
-
 	struct clk		*parent;
 	struct clk		**parent_table;	/* list of parents to */
 	unsigned short		parent_num;	/* choose between */
