@@ -330,7 +330,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 		/* set external clock frequency */
 		info->extclk_freq = pdata->extclk_freq;
 		max8649_set_bits(info->i2c, MAX8649_SYNC, MAX8649_EXT_MASK,
-				 info->extclk_freq);
+				 info->extclk_freq << 6);
 	}
 
 	if (pdata->ramp_timing) {

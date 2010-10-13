@@ -105,7 +105,7 @@ config ACPI_EC_DEBUGFS
 
 	  Be aware that using this interface can confuse your Embedded
 	  Controller in a way that a normal reboot is not enough. You then
-	  have to power of your system, and remove the laptop battery for
+	  have to power off your system, and remove the laptop battery for
 	  some seconds.
 	  An Embedded Controller typically is available on laptops and reads
 	  sensor values like battery state and temperature.
