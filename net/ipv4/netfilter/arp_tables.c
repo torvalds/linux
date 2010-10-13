@@ -228,7 +228,7 @@ arpt_error(struct sk_buff *skb, const struct xt_action_param *par)
 	return NF_DROP;
 }
 
-static inline const struct arpt_entry_target *
+static inline const struct xt_entry_target *
 arpt_get_target_c(const struct arpt_entry *e)
 {
 	return arpt_get_target((struct arpt_entry *)e);
@@ -282,7 +282,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 
 	arp = arp_hdr(skb);
 	do {
-		const struct arpt_entry_target *t;
+		const struct xt_entry_target *t;
 
 		if (!arp_packet_match(arp, skb->dev, indev, outdev, &e->arp)) {
 			e = arpt_next_entry(e);
@@ -297,7 +297,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 		if (!t->u.kernel.target->target) {
 			int v;
 
-			v = ((struct arpt_standard_target *)t)->verdict;
+			v = ((struct xt_standard_target *)t)->verdict;
 			if (v < 0) {
 				/* Pop from stack? */
 				if (v != ARPT_RETURN) {
@@ -377,7 +377,7 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 		e->counters.pcnt = pos;
 
 		for (;;) {
-			const struct arpt_standard_target *t
+			const struct xt_standard_target *t
 				= (void *)arpt_get_target_c(e);
 			int visited = e->comefrom & (1 << hook);
 
@@ -464,14 +464,14 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 
 static inline int check_entry(const struct arpt_entry *e, const char *name)
 {
-	const struct arpt_entry_target *t;
+	const struct xt_entry_target *t;
 
 	if (!arp_checkentry(&e->arp)) {
 		duprintf("arp_tables: arp check failed %p %s.\n", e, name);
 		return -EINVAL;
 	}
 
-	if (e->target_offset + sizeof(struct arpt_entry_target) > e->next_offset)
+	if (e->target_offset + sizeof(struct xt_entry_target) > e->next_offset)
 		return -EINVAL;
 
 	t = arpt_get_target_c(e);
@@ -483,7 +483,7 @@ static inline int check_entry(const struct arpt_entry *e, const char *name)
 
 static inline int check_target(struct arpt_entry *e, const char *name)
 {
-	struct arpt_entry_target *t = arpt_get_target(e);
+	struct xt_entry_target *t = arpt_get_target(e);
 	int ret;
 	struct xt_tgchk_param par = {
 		.table     = name,
@@ -506,7 +506,7 @@ static inline int check_target(struct arpt_entry *e, const char *name)
 static inline int
 find_check_entry(struct arpt_entry *e, const char *name, unsigned int size)
 {
-	struct arpt_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_target *target;
 	int ret;
 
@@ -536,7 +536,7 @@ out:
 
 static bool check_underflow(const struct arpt_entry *e)
 {
-	const struct arpt_entry_target *t;
+	const struct xt_entry_target *t;
 	unsigned int verdict;
 
 	if (!unconditional(&e->arp))
@@ -544,7 +544,7 @@ static bool check_underflow(const struct arpt_entry *e)
 	t = arpt_get_target_c(e);
 	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) != 0)
 		return false;
-	verdict = ((struct arpt_standard_target *)t)->verdict;
+	verdict = ((struct xt_standard_target *)t)->verdict;
 	verdict = -verdict - 1;
 	return verdict == NF_DROP || verdict == NF_ACCEPT;
 }
@@ -566,7 +566,7 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 	}
 
 	if (e->next_offset
-	    < sizeof(struct arpt_entry) + sizeof(struct arpt_entry_target)) {
+	    < sizeof(struct arpt_entry) + sizeof(struct xt_entry_target)) {
 		duprintf("checking: element %p size %u\n",
 			 e, e->next_offset);
 		return -EINVAL;
@@ -598,7 +598,7 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 static inline void cleanup_entry(struct arpt_entry *e)
 {
 	struct xt_tgdtor_param par;
-	struct arpt_entry_target *t;
+	struct xt_entry_target *t;
 
 	t = arpt_get_target(e);
 	par.target   = t->u.kernel.target;
@@ -794,7 +794,7 @@ static int copy_entries_to_user(unsigned int total_size,
 	/* FIXME: use iterator macros --RR */
 	/* ... then go back and fix counters and names */
 	for (off = 0, num = 0; off < total_size; off += e->next_offset, num++){
-		const struct arpt_entry_target *t;
+		const struct xt_entry_target *t;
 
 		e = (struct arpt_entry *)(loc_cpu_entry + off);
 		if (copy_to_user(userptr + off
@@ -807,7 +807,7 @@ static int copy_entries_to_user(unsigned int total_size,
 
 		t = arpt_get_target_c(e);
 		if (copy_to_user(userptr + off + e->target_offset
-				 + offsetof(struct arpt_entry_target,
+				 + offsetof(struct xt_entry_target,
 					    u.user.name),
 				 t->u.kernel.target->name,
 				 strlen(t->u.kernel.target->name)+1) != 0) {
@@ -844,7 +844,7 @@ static int compat_calc_entry(const struct arpt_entry *e,
 			     const struct xt_table_info *info,
 			     const void *base, struct xt_table_info *newinfo)
 {
-	const struct arpt_entry_target *t;
+	const struct xt_entry_target *t;
 	unsigned int entry_offset;
 	int off, i, ret;
 
@@ -1204,7 +1204,7 @@ static int do_add_counters(struct net *net, const void __user *user,
 #ifdef CONFIG_COMPAT
 static inline void compat_release_entry(struct compat_arpt_entry *e)
 {
-	struct arpt_entry_target *t;
+	struct xt_entry_target *t;
 
 	t = compat_arpt_get_target(e);
 	module_put(t->u.kernel.target->me);
@@ -1220,7 +1220,7 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 				  const unsigned int *underflows,
 				  const char *name)
 {
-	struct arpt_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_target *target;
 	unsigned int entry_offset;
 	int ret, off, h;
@@ -1288,7 +1288,7 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 			    unsigned int *size, const char *name,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
-	struct arpt_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_target *target;
 	struct arpt_entry *de;
 	unsigned int origsize;
@@ -1567,7 +1567,7 @@ static int compat_copy_entry_to_user(struct arpt_entry *e, void __user **dstptr,
 				     struct xt_counters *counters,
 				     unsigned int i)
 {
-	struct arpt_entry_target *t;
+	struct xt_entry_target *t;
 	struct compat_arpt_entry __user *ce;
 	u_int16_t target_offset, next_offset;
 	compat_uint_t origsize;

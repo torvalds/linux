@@ -215,7 +215,7 @@ static inline bool unconditional(const struct ip6t_ip6 *ipv6)
 	return memcmp(ipv6, &uncond, sizeof(uncond)) == 0;
 }
 
-static inline const struct ip6t_entry_target *
+static inline const struct xt_entry_target *
 ip6t_get_target_c(const struct ip6t_entry *e)
 {
 	return ip6t_get_target((struct ip6t_entry *)e);
@@ -260,7 +260,7 @@ get_chainname_rulenum(const struct ip6t_entry *s, const struct ip6t_entry *e,
 		      const char *hookname, const char **chainname,
 		      const char **comment, unsigned int *rulenum)
 {
-	const struct ip6t_standard_target *t = (void *)ip6t_get_target_c(s);
+	const struct xt_standard_target *t = (void *)ip6t_get_target_c(s);
 
 	if (strcmp(t->target.u.kernel.target->name, IP6T_ERROR_TARGET) == 0) {
 		/* Head of user chain: ERROR target with chainname */
@@ -369,7 +369,7 @@ ip6t_do_table(struct sk_buff *skb,
 	e = get_entry(table_base, private->hook_entry[hook]);
 
 	do {
-		const struct ip6t_entry_target *t;
+		const struct xt_entry_target *t;
 		const struct xt_entry_match *ematch;
 
 		IP_NF_ASSERT(e);
@@ -403,7 +403,7 @@ ip6t_do_table(struct sk_buff *skb,
 		if (!t->u.kernel.target->target) {
 			int v;
 
-			v = ((struct ip6t_standard_target *)t)->verdict;
+			v = ((struct xt_standard_target *)t)->verdict;
 			if (v < 0) {
 				/* Pop from stack? */
 				if (v != IP6T_RETURN) {
@@ -474,7 +474,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 		e->counters.pcnt = pos;
 
 		for (;;) {
-			const struct ip6t_standard_target *t
+			const struct xt_standard_target *t
 				= (void *)ip6t_get_target_c(e);
 			int visited = e->comefrom & (1 << hook);
 
@@ -565,7 +565,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 	return 1;
 }
 
-static void cleanup_match(struct ip6t_entry_match *m, struct net *net)
+static void cleanup_match(struct xt_entry_match *m, struct net *net)
 {
 	struct xt_mtdtor_param par;
 
@@ -581,14 +581,14 @@ static void cleanup_match(struct ip6t_entry_match *m, struct net *net)
 static int
 check_entry(const struct ip6t_entry *e, const char *name)
 {
-	const struct ip6t_entry_target *t;
+	const struct xt_entry_target *t;
 
 	if (!ip6_checkentry(&e->ipv6)) {
 		duprintf("ip_tables: ip check failed %p %s.\n", e, name);
 		return -EINVAL;
 	}
 
-	if (e->target_offset + sizeof(struct ip6t_entry_target) >
+	if (e->target_offset + sizeof(struct xt_entry_target) >
 	    e->next_offset)
 		return -EINVAL;
 
@@ -599,7 +599,7 @@ check_entry(const struct ip6t_entry *e, const char *name)
 	return 0;
 }
 
-static int check_match(struct ip6t_entry_match *m, struct xt_mtchk_param *par)
+static int check_match(struct xt_entry_match *m, struct xt_mtchk_param *par)
 {
 	const struct ip6t_ip6 *ipv6 = par->entryinfo;
 	int ret;
@@ -618,7 +618,7 @@ static int check_match(struct ip6t_entry_match *m, struct xt_mtchk_param *par)
 }
 
 static int
-find_check_match(struct ip6t_entry_match *m, struct xt_mtchk_param *par)
+find_check_match(struct xt_entry_match *m, struct xt_mtchk_param *par)
 {
 	struct xt_match *match;
 	int ret;
@@ -643,7 +643,7 @@ err:
 
 static int check_target(struct ip6t_entry *e, struct net *net, const char *name)
 {
-	struct ip6t_entry_target *t = ip6t_get_target(e);
+	struct xt_entry_target *t = ip6t_get_target(e);
 	struct xt_tgchk_param par = {
 		.net       = net,
 		.table     = name,
@@ -670,7 +670,7 @@ static int
 find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 		 unsigned int size)
 {
-	struct ip6t_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_target *target;
 	int ret;
 	unsigned int j;
@@ -721,7 +721,7 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 
 static bool check_underflow(const struct ip6t_entry *e)
 {
-	const struct ip6t_entry_target *t;
+	const struct xt_entry_target *t;
 	unsigned int verdict;
 
 	if (!unconditional(&e->ipv6))
@@ -729,7 +729,7 @@ static bool check_underflow(const struct ip6t_entry *e)
 	t = ip6t_get_target_c(e);
 	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) != 0)
 		return false;
-	verdict = ((struct ip6t_standard_target *)t)->verdict;
+	verdict = ((struct xt_standard_target *)t)->verdict;
 	verdict = -verdict - 1;
 	return verdict == NF_DROP || verdict == NF_ACCEPT;
 }
@@ -752,7 +752,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 	}
 
 	if (e->next_offset
-	    < sizeof(struct ip6t_entry) + sizeof(struct ip6t_entry_target)) {
+	    < sizeof(struct ip6t_entry) + sizeof(struct xt_entry_target)) {
 		duprintf("checking: element %p size %u\n",
 			 e, e->next_offset);
 		return -EINVAL;
@@ -784,7 +784,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 static void cleanup_entry(struct ip6t_entry *e, struct net *net)
 {
 	struct xt_tgdtor_param par;
-	struct ip6t_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_entry_match *ematch;
 
 	/* Cleanup all matches */
@@ -985,8 +985,8 @@ copy_entries_to_user(unsigned int total_size,
 	/* ... then go back and fix counters and names */
 	for (off = 0, num = 0; off < total_size; off += e->next_offset, num++){
 		unsigned int i;
-		const struct ip6t_entry_match *m;
-		const struct ip6t_entry_target *t;
+		const struct xt_entry_match *m;
+		const struct xt_entry_target *t;
 
 		e = (struct ip6t_entry *)(loc_cpu_entry + off);
 		if (copy_to_user(userptr + off
@@ -1003,7 +1003,7 @@ copy_entries_to_user(unsigned int total_size,
 			m = (void *)e + i;
 
 			if (copy_to_user(userptr + off + i
-					 + offsetof(struct ip6t_entry_match,
+					 + offsetof(struct xt_entry_match,
 						    u.user.name),
 					 m->u.kernel.match->name,
 					 strlen(m->u.kernel.match->name)+1)
@@ -1015,7 +1015,7 @@ copy_entries_to_user(unsigned int total_size,
 
 		t = ip6t_get_target_c(e);
 		if (copy_to_user(userptr + off + e->target_offset
-				 + offsetof(struct ip6t_entry_target,
+				 + offsetof(struct xt_entry_target,
 					    u.user.name),
 				 t->u.kernel.target->name,
 				 strlen(t->u.kernel.target->name)+1) != 0) {
@@ -1053,7 +1053,7 @@ static int compat_calc_entry(const struct ip6t_entry *e,
 			     const void *base, struct xt_table_info *newinfo)
 {
 	const struct xt_entry_match *ematch;
-	const struct ip6t_entry_target *t;
+	const struct xt_entry_target *t;
 	unsigned int entry_offset;
 	int off, i, ret;
 
@@ -1422,7 +1422,7 @@ struct compat_ip6t_replace {
 	u32			hook_entry[NF_INET_NUMHOOKS];
 	u32			underflow[NF_INET_NUMHOOKS];
 	u32			num_counters;
-	compat_uptr_t		counters;	/* struct ip6t_counters * */
+	compat_uptr_t		counters;	/* struct xt_counters * */
 	struct compat_ip6t_entry entries[0];
 };
 
@@ -1431,7 +1431,7 @@ compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 			  unsigned int *size, struct xt_counters *counters,
 			  unsigned int i)
 {
-	struct ip6t_entry_target *t;
+	struct xt_entry_target *t;
 	struct compat_ip6t_entry __user *ce;
 	u_int16_t target_offset, next_offset;
 	compat_uint_t origsize;
@@ -1466,7 +1466,7 @@ compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 }
 
 static int
-compat_find_calc_match(struct ip6t_entry_match *m,
+compat_find_calc_match(struct xt_entry_match *m,
 		       const char *name,
 		       const struct ip6t_ip6 *ipv6,
 		       unsigned int hookmask,
@@ -1488,7 +1488,7 @@ compat_find_calc_match(struct ip6t_entry_match *m,
 
 static void compat_release_entry(struct compat_ip6t_entry *e)
 {
-	struct ip6t_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_entry_match *ematch;
 
 	/* Cleanup all matches */
@@ -1509,7 +1509,7 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 				  const char *name)
 {
 	struct xt_entry_match *ematch;
-	struct ip6t_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_target *target;
 	unsigned int entry_offset;
 	unsigned int j;
@@ -1591,7 +1591,7 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 			    unsigned int *size, const char *name,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
-	struct ip6t_entry_target *t;
+	struct xt_entry_target *t;
 	struct xt_target *target;
 	struct ip6t_entry *de;
 	unsigned int origsize;

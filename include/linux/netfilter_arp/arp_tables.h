@@ -24,6 +24,8 @@
 #ifndef __KERNEL__
 #define ARPT_FUNCTION_MAXNAMELEN XT_FUNCTION_MAXNAMELEN
 #define ARPT_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
+#define arpt_entry_target xt_entry_target
+#define arpt_standard_target xt_standard_target
 #endif
 
 #define ARPT_DEV_ADDR_LEN_MAX 16
@@ -64,9 +66,6 @@ struct arpt_arp {
 	/* Inverse flags */
 	u_int16_t invflags;
 };
-
-#define arpt_entry_target xt_entry_target
-#define arpt_standard_target xt_standard_target
 
 /* Values for "flag" field in struct arpt_ip (general arp structure).
  * No flags defined yet.
@@ -208,7 +207,7 @@ struct arpt_get_entries {
 #define ARPT_ERROR_TARGET XT_ERROR_TARGET
 
 /* Helper functions */
-static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e)
+static __inline__ struct xt_entry_target *arpt_get_target(struct arpt_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
@@ -227,11 +226,11 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
 /* Standard entry. */
 struct arpt_standard {
 	struct arpt_entry entry;
-	struct arpt_standard_target target;
+	struct xt_standard_target target;
 };
 
 struct arpt_error_target {
-	struct arpt_entry_target target;
+	struct xt_entry_target target;
 	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
 
@@ -250,7 +249,7 @@ struct arpt_error {
 {									       \
 	.entry		= ARPT_ENTRY_INIT(sizeof(struct arpt_standard)),       \
 	.target		= XT_TARGET_INIT(ARPT_STANDARD_TARGET,		       \
-					 sizeof(struct arpt_standard_target)), \
+					 sizeof(struct xt_standard_target)), \
 	.target.verdict	= -(__verdict) - 1,				       \
 }
 
@@ -287,7 +286,7 @@ struct compat_arpt_entry {
 	unsigned char elems[0];
 };
 
-static inline struct arpt_entry_target *
+static inline struct xt_entry_target *
 compat_arpt_get_target(struct compat_arpt_entry *e)
 {
 	return (void *)e + e->target_offset;

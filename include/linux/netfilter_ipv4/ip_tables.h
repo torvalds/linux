@@ -34,6 +34,10 @@
 #define ipt_target xt_target
 #define ipt_table xt_table
 #define ipt_get_revision xt_get_revision
+#define ipt_entry_match xt_entry_match
+#define ipt_entry_target xt_entry_target
+#define ipt_standard_target xt_standard_target
+#define ipt_counters xt_counters
 #endif
 
 /* Yes, Virginia, you have to zero the padding. */
@@ -53,12 +57,6 @@ struct ipt_ip {
 	/* Inverse flags */
 	u_int8_t invflags;
 };
-
-#define ipt_entry_match xt_entry_match
-#define ipt_entry_target xt_entry_target
-#define ipt_standard_target xt_standard_target
-
-#define ipt_counters xt_counters
 
 /* Values for "flag" field in struct ipt_ip (general ip structure). */
 #define IPT_F_FRAG		0x01	/* Set if rule is a fragment rule */
@@ -219,7 +217,7 @@ struct ipt_get_entries {
 #define IPT_ERROR_TARGET XT_ERROR_TARGET
 
 /* Helper functions */
-static __inline__ struct ipt_entry_target *
+static __inline__ struct xt_entry_target *
 ipt_get_target(struct ipt_entry *e)
 {
 	return (void *)e + e->target_offset;
@@ -251,11 +249,11 @@ extern void ipt_unregister_table(struct net *net, struct xt_table *table);
 /* Standard entry. */
 struct ipt_standard {
 	struct ipt_entry entry;
-	struct ipt_standard_target target;
+	struct xt_standard_target target;
 };
 
 struct ipt_error_target {
-	struct ipt_entry_target target;
+	struct xt_entry_target target;
 	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
 
@@ -309,7 +307,7 @@ struct compat_ipt_entry {
 };
 
 /* Helper functions */
-static inline struct ipt_entry_target *
+static inline struct xt_entry_target *
 compat_ipt_get_target(struct compat_ipt_entry *e)
 {
 	return (void *)e + e->target_offset;

@@ -34,6 +34,10 @@
 #define ip6t_target xt_target
 #define ip6t_table xt_table
 #define ip6t_get_revision xt_get_revision
+#define ip6t_entry_match xt_entry_match
+#define ip6t_entry_target xt_entry_target
+#define ip6t_standard_target xt_standard_target
+#define ip6t_counters xt_counters
 #endif
 
 /* Yes, Virginia, you have to zero the padding. */
@@ -62,12 +66,6 @@ struct ip6t_ip6 {
 	/* Inverse flags */
 	u_int8_t invflags;
 };
-
-#define ip6t_entry_match xt_entry_match
-#define ip6t_entry_target xt_entry_target
-#define ip6t_standard_target xt_standard_target
-
-#define ip6t_counters	xt_counters
 
 /* Values for "flag" field in struct ip6t_ip6 (general ip6 structure). */
 #define IP6T_F_PROTO		0x01	/* Set if rule cares about upper 
@@ -113,11 +111,11 @@ struct ip6t_entry {
 /* Standard entry */
 struct ip6t_standard {
 	struct ip6t_entry entry;
-	struct ip6t_standard_target target;
+	struct xt_standard_target target;
 };
 
 struct ip6t_error_target {
-	struct ip6t_entry_target target;
+	struct xt_entry_target target;
 	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
 
@@ -136,7 +134,7 @@ struct ip6t_error {
 {									       \
 	.entry		= IP6T_ENTRY_INIT(sizeof(struct ip6t_standard)),       \
 	.target		= XT_TARGET_INIT(IP6T_STANDARD_TARGET,		       \
-					 sizeof(struct ip6t_standard_target)), \
+					 sizeof(struct xt_standard_target)),   \
 	.target.verdict	= -(__verdict) - 1,				       \
 }
 
@@ -275,7 +273,7 @@ struct ip6t_get_entries {
 #define IP6T_ERROR_TARGET XT_ERROR_TARGET
 
 /* Helper functions */
-static __inline__ struct ip6t_entry_target *
+static __inline__ struct xt_entry_target *
 ip6t_get_target(struct ip6t_entry *e)
 {
 	return (void *)e + e->target_offset;
@@ -332,7 +330,7 @@ struct compat_ip6t_entry {
 	unsigned char elems[0];
 };
 
-static inline struct ip6t_entry_target *
+static inline struct xt_entry_target *
 compat_ip6t_get_target(struct compat_ip6t_entry *e)
 {
 	return (void *)e + e->target_offset;
