@@ -15,10 +15,9 @@ module_param(ecc_enable_override, int, 0644);
 
 static struct msr __percpu *msrs;
 
-/* Lookup table for all possible MC control instances */
-struct amd64_pvt;
-static struct mem_ctl_info *mci_lookup[EDAC_MAX_NUMNODES];
-static struct amd64_pvt *pvt_lookup[EDAC_MAX_NUMNODES];
+/* Per-node driver instances */
+static struct mem_ctl_info **mcis;
+static struct amd64_pvt **pvts;
 
 /*
  * Address to DRAM bank mapping: see F2x80 for K8 and F2x[1,0]80 for Fam10 and
@@ -1446,7 +1445,7 @@ static int f10_lookup_addr_in_dct(u32 in_addr, u32 nid, u32 cs)
 	int cs_found = -EINVAL;
 	int csrow;
 
-	mci = mci_lookup[nid];
+	mci = mcis[nid];
 	if (!mci)
 		return cs_found;
 
@@ -1995,7 +1994,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 
 void amd64_decode_bus_error(int node_id, struct mce *m, u32 nbcfg)
 {
-	struct mem_ctl_info *mci = mci_lookup[node_id];
+	struct mem_ctl_info *mci = mcis[node_id];
 	struct err_regs regs;
 
 	regs.nbsl  = (u32) m->status;
@@ -2615,7 +2614,7 @@ static int amd64_probe_one_instance(struct pci_dev *F2)
 	 * Save the pointer to the private data for use in 2nd initialization
 	 * stage
 	 */
-	pvt_lookup[pvt->mc_node_id] = pvt;
+	pvts[pvt->mc_node_id] = pvt;
 
 	return 0;
 
@@ -2672,8 +2671,8 @@ static int amd64_init_2nd_stage(struct amd64_pvt *pvt)
 		goto err_add_mc;
 	}
 
-	mci_lookup[node_id] = mci;
-	pvt_lookup[node_id] = NULL;
+	mcis[node_id] = mci;
+	pvts[node_id] = NULL;
 
 	/* register stuff with EDAC MCE */
 	if (report_gart_errors)
@@ -2696,8 +2695,8 @@ err_exit:
 
 	amd64_free_mc_sibling_devices(pvt);
 
-	kfree(pvt_lookup[pvt->mc_node_id]);
-	pvt_lookup[node_id] = NULL;
+	kfree(pvts[pvt->mc_node_id]);
+	pvts[node_id] = NULL;
 
 	return ret;
 }
@@ -2746,7 +2745,7 @@ static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
 
 	/* Free the EDAC CORE resources */
 	mci->pvt_info = NULL;
-	mci_lookup[pvt->mc_node_id] = NULL;
+	mcis[pvt->mc_node_id] = NULL;
 
 	kfree(pvt);
 	edac_mc_free(mci);
@@ -2793,7 +2792,7 @@ static void amd64_setup_pci_device(void)
 	if (amd64_ctl_pci)
 		return;
 
-	mci = mci_lookup[0];
+	mci = mcis[0];
 	if (mci) {
 
 		pvt = mci->pvt_info;
@@ -2822,6 +2821,12 @@ static int __init amd64_edac_init(void)
 	if (amd_cache_northbridges() < 0)
 		goto err_ret;
 
+	err = -ENOMEM;
+	pvts = kzalloc(amd_nb_num() * sizeof(pvts[0]), GFP_KERNEL);
+	mcis = kzalloc(amd_nb_num() * sizeof(mcis[0]), GFP_KERNEL);
+	if (!(pvts && mcis))
+		goto err_ret;
+
 	msrs = msrs_alloc();
 	if (!msrs)
 		goto err_ret;
@@ -2831,16 +2836,16 @@ static int __init amd64_edac_init(void)
 		goto err_pci;
 
 	/*
-	 * At this point, the array 'pvt_lookup[]' contains pointers to alloc'd
+	 * At this point, the array 'pvts[]' contains pointers to alloc'd
 	 * amd64_pvt structs. These will be used in the 2nd stage init function
 	 * to finish initialization of the MC instances.
 	 */
 	err = -ENODEV;
 	for (nb = 0; nb < amd_nb_num(); nb++) {
-		if (!pvt_lookup[nb])
+		if (!pvts[nb])
 			continue;
 
-		err = amd64_init_2nd_stage(pvt_lookup[nb]);
+		err = amd64_init_2nd_stage(pvts[nb]);
 		if (err)
 			goto err_2nd_stage;
 
@@ -2854,9 +2859,11 @@ static int __init amd64_edac_init(void)
 
 err_2nd_stage:
 	pci_unregister_driver(&amd64_pci_driver);
+
 err_pci:
 	msrs_free(msrs);
 	msrs = NULL;
+
 err_ret:
 	return err;
 }
@@ -2867,6 +2874,12 @@ static void __exit amd64_edac_exit(void)
 		edac_pci_release_generic_ctl(amd64_ctl_pci);
 
 	pci_unregister_driver(&amd64_pci_driver);
+
+	kfree(mcis);
+	mcis = NULL;
+
+	kfree(pvts);
+	pvts = NULL;
 
 	msrs_free(msrs);
 	msrs = NULL;

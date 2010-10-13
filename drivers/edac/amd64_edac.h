@@ -147,8 +147,6 @@
 #define EDAC_AMD64_VERSION		"v3.3.0"
 #define EDAC_MOD_STR			"amd64_edac"
 
-#define EDAC_MAX_NUMNODES		8
-
 /* Extended Model from CPUID, for CPU Revision numbers */
 #define K8_REV_D			1
 #define K8_REV_E			2
