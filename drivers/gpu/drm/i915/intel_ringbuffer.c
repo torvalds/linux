@@ -707,7 +707,7 @@ int intel_wait_ring_buffer(struct drm_device *dev,
 				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 		}
 
-		yield();
+		msleep(1);
 	} while (!time_after(jiffies, end));
 	trace_i915_ring_wait_end (dev);
 	return -EBUSY;
