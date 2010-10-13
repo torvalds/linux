@@ -1016,15 +1016,14 @@ static struct notifier_block fib_netdev_notifier = {
 static int __net_init ip_fib_net_init(struct net *net)
 {
 	int err;
-	unsigned int i;
+	size_t size = sizeof(struct hlist_head) * FIB_TABLE_HASHSZ;
 
-	net->ipv4.fib_table_hash = kzalloc(
-			sizeof(struct hlist_head)*FIB_TABLE_HASHSZ, GFP_KERNEL);
+	/* Avoid false sharing : Use at least a full cache line */
+	size = max_t(size_t, size, L1_CACHE_BYTES);
+
+	net->ipv4.fib_table_hash = kzalloc(size, GFP_KERNEL);
 	if (net->ipv4.fib_table_hash == NULL)
 		return -ENOMEM;
-
-	for (i = 0; i < FIB_TABLE_HASHSZ; i++)
-		INIT_HLIST_HEAD(&net->ipv4.fib_table_hash[i]);
 
 	err = fib4_rules_init(net);
 	if (err < 0)
