@@ -121,8 +121,6 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	memcpy(&vp3054_i2c->algo, &vp3054_i2c_algo_template,
 	       sizeof(vp3054_i2c->algo));
 
-	vp3054_i2c->adap.class |= I2C_CLASS_TV_DIGITAL;
-
 	vp3054_i2c->adap.dev.parent = &dev->pci->dev;
 	strlcpy(vp3054_i2c->adap.name, core->name,
 		sizeof(vp3054_i2c->adap.name));

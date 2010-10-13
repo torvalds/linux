@@ -1083,11 +1083,6 @@ static int af9015_i2c_init(struct dvb_usb_device *d)
 
 	strncpy(state->i2c_adap.name, d->desc->name,
 		sizeof(state->i2c_adap.name));
-#ifdef I2C_ADAP_CLASS_TV_DIGITAL
-	state->i2c_adap.class = I2C_ADAP_CLASS_TV_DIGITAL,
-#else
-	state->i2c_adap.class = I2C_CLASS_TV_DIGITAL,
-#endif
 	state->i2c_adap.algo      = d->props.i2c_algo;
 	state->i2c_adap.algo_data = NULL;
 	state->i2c_adap.dev.parent = &d->udev->dev;

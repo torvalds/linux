@@ -245,9 +245,6 @@ int flexcop_i2c_init(struct flexcop_device *fc)
 	i2c_set_adapdata(&fc->fc_i2c_adap[1].i2c_adap, &fc->fc_i2c_adap[1]);
 	i2c_set_adapdata(&fc->fc_i2c_adap[2].i2c_adap, &fc->fc_i2c_adap[2]);
 
-	fc->fc_i2c_adap[0].i2c_adap.class =
-		fc->fc_i2c_adap[1].i2c_adap.class =
-		fc->fc_i2c_adap[2].i2c_adap.class = I2C_CLASS_TV_DIGITAL;
 	fc->fc_i2c_adap[0].i2c_adap.algo =
 		fc->fc_i2c_adap[1].i2c_adap.algo =
 		fc->fc_i2c_adap[2].i2c_adap.algo = &flexcop_algo;
