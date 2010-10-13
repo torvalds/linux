@@ -193,7 +193,7 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 	if (FPU_IS_EMU) {
 		/* restore fpu control register */
 		if (__copy_from_user(current->thread.fpcntl,
-				&uc->uc_mcontext.fpregs.f_pcr, 12))
+				uc->uc_mcontext.fpregs.f_fpcntl, 12))
 			goto out;
 		/* restore all other fpu register */
 		if (__copy_from_user(current->thread.fp,
@@ -219,7 +219,7 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 				  ".chip 68k"
 				  : /* no outputs */
 				  : "m" (*fpregs.f_fpregs),
-				    "m" (fpregs.f_pcr));
+				    "m" (*fpregs.f_fpcntl));
 	}
 	if (context_size &&
 	    __copy_from_user(fpstate + 4, (long *)&uc->uc_fpstate + 1,
@@ -426,7 +426,7 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 
 	if (FPU_IS_EMU) {
 		/* save fpu control register */
-		err |= copy_to_user(&uc->uc_mcontext.fpregs.f_pcr,
+		err |= copy_to_user(uc->uc_mcontext.fpregs.f_pcntl,
 				current->thread.fpcntl, 12);
 		/* save all other fpu register */
 		err |= copy_to_user(uc->uc_mcontext.fpregs.f_fpregs,
@@ -450,7 +450,7 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 				  ".chip 68k"
 				  : /* no outputs */
 				  : "m" (*fpregs.f_fpregs),
-				    "m" (fpregs.f_pcr)
+				    "m" (*fpregs.f_fpcntl)
 				  : "memory");
 		err |= copy_to_user(&uc->uc_mcontext.fpregs, &fpregs,
 				    sizeof(fpregs));
