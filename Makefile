@@ -568,6 +568,12 @@ endif
 
 ifdef CONFIG_FUNCTION_TRACER
 KBUILD_CFLAGS	+= -pg
+ifdef CONFIG_DYNAMIC_FTRACE
+	ifdef CONFIG_HAVE_C_MCOUNT_RECORD
+		BUILD_C_RECORDMCOUNT := y
+		export BUILD_C_RECORDMCOUNT
+	endif
+endif
 endif
 
 # We trigger additional mismatches with less inlining

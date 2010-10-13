@@ -209,11 +209,15 @@ cmd_modversions =								\
 endif
 
 ifdef CONFIG_FTRACE_MCOUNT_RECORD
+ifdef BUILD_C_RECORDMCOUNT
+cmd_record_mcount = $(srctree)/scripts/recordmcount "$(@)";
+else
 cmd_record_mcount = set -e ; perl $(srctree)/scripts/recordmcount.pl "$(ARCH)" \
 	"$(if $(CONFIG_CPU_BIG_ENDIAN),big,little)" \
 	"$(if $(CONFIG_64BIT),64,32)" \
 	"$(OBJDUMP)" "$(OBJCOPY)" "$(CC)" "$(LD)" "$(NM)" "$(RM)" "$(MV)" \
 	"$(if $(part-of-module),1,0)" "$(@)";
+endif
 endif
 
 define rule_cc_o_c
