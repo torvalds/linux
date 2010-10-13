@@ -848,7 +848,7 @@ enum  velocity_owner {
  *	Bits in CHIPGCR register
  */
 
-#define CHIPGCR_FCGMII      0x80
+#define CHIPGCR_FCGMII      0x80	/* enable GMII mode */
 #define CHIPGCR_FCFDX       0x40
 #define CHIPGCR_FCRESV      0x20
 #define CHIPGCR_FCMODE      0x10
@@ -1390,7 +1390,8 @@ enum speed_opt {
 	SPD_DPX_100_HALF = 1,
 	SPD_DPX_100_FULL = 2,
 	SPD_DPX_10_HALF = 3,
-	SPD_DPX_10_FULL = 4
+	SPD_DPX_10_FULL = 4,
+	SPD_DPX_1000_FULL = 5
 };
 
 enum velocity_init_type {
