@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/string.h>
+#include <linux/platform_device.h>
 
 #include <asm/geode.h>
 #include <asm/setup.h>
@@ -223,8 +224,25 @@ static bool __init platform_detect(void)
 	return true;
 }
 
+static int __init add_xo1_platform_devices(void)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_simple("xo1-rfkill", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	pdev = platform_device_register_simple("olpc-xo1", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
+
 static int __init olpc_init(void)
 {
+	int r = 0;
+
 	if (!olpc_ofw_present() || !platform_detect())
 		return 0;
 
@@ -250,6 +268,12 @@ static int __init olpc_init(void)
 			((olpc_platform_info.boardrev & 0xf) < 8) ? "pre" : "",
 			olpc_platform_info.boardrev >> 4,
 			olpc_platform_info.ecver);
+
+	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0)) { /* XO-1 */
+		r = add_xo1_platform_devices();
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
