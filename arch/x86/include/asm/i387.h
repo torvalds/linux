@@ -175,7 +175,7 @@ static inline void fpu_fxsave(struct fpu *fpu)
 	   uses any extended registers for addressing, a second REX prefix
 	   will be generated (to the assembler, rex64 followed by semicolon
 	   is a separate instruction), and hence the 64-bitness is lost. */
-#if 0
+#ifdef CONFIG_AS_FXSAVEQ
 	/* Using "fxsaveq %0" would be the ideal choice, but is only supported
 	   starting with gas 2.16. */
 	__asm__ __volatile__("fxsaveq %0"
