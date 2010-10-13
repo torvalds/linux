@@ -372,15 +372,35 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_ISCSI_PBL_NOT_CACHED	0xff
 #define BNX2X_ISCSI_PDU_HEADER_NOT_CACHED	0xff
 
+#define BNX2X_CHIP_NUM_57710		0x164e
 #define BNX2X_CHIP_NUM_57711		0x164f
 #define BNX2X_CHIP_NUM_57711E		0x1650
+#define BNX2X_CHIP_NUM_57712		0x1662
+#define BNX2X_CHIP_NUM_57712E		0x1663
+#define BNX2X_CHIP_NUM_57713		0x1651
+#define BNX2X_CHIP_NUM_57713E		0x1652
+
 #define BNX2X_CHIP_NUM(x)		(x >> 16)
+#define BNX2X_CHIP_IS_57710(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57710)
 #define BNX2X_CHIP_IS_57711(x)		\
 	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57711)
 #define BNX2X_CHIP_IS_57711E(x)		\
 	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57711E)
 #define BNX2X_CHIP_IS_E1H(x)		\
 	(BNX2X_CHIP_IS_57711(x) || BNX2X_CHIP_IS_57711E(x))
+#define BNX2X_CHIP_IS_57712(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57712)
+#define BNX2X_CHIP_IS_57712E(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57712E)
+#define BNX2X_CHIP_IS_57713(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57713)
+#define BNX2X_CHIP_IS_57713E(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57713E)
+#define BNX2X_CHIP_IS_E2(x)		\
+	(BNX2X_CHIP_IS_57712(x) || BNX2X_CHIP_IS_57712E(x) || \
+	 BNX2X_CHIP_IS_57713(x) || BNX2X_CHIP_IS_57713E(x))
+
 #define IS_E1H_OFFSET       		BNX2X_CHIP_IS_E1H(cp->chip_id)
 
 #define BNX2X_RX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
@@ -409,6 +429,8 @@ struct bnx2x_bd_chain_next {
 
 #define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
+#define CNIC_PATH(cp)			(!BNX2X_CHIP_IS_E2(cp->chip_id) ? 0 :\
+					 (CNIC_FUNC(cp) & 1))
 #define CNIC_E1HVN(cp)			((cp)->pfid >> 1)
 
 #define BNX2X_HW_CID(cp, x)		((CNIC_PORT(cp) << 23) | \
