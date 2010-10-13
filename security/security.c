@@ -1136,6 +1136,24 @@ void security_inet_conn_established(struct sock *sk,
 	security_ops->inet_conn_established(sk, skb);
 }
 
+int security_secmark_relabel_packet(u32 secid)
+{
+	return security_ops->secmark_relabel_packet(secid);
+}
+EXPORT_SYMBOL(security_secmark_relabel_packet);
+
+void security_secmark_refcount_inc(void)
+{
+	security_ops->secmark_refcount_inc();
+}
+EXPORT_SYMBOL(security_secmark_refcount_inc);
+
+void security_secmark_refcount_dec(void)
+{
+	security_ops->secmark_refcount_dec();
+}
+EXPORT_SYMBOL(security_secmark_refcount_dec);
+
 int security_tun_dev_create(void)
 {
 	return security_ops->tun_dev_create();

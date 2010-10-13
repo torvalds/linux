@@ -9,6 +9,7 @@
 #define _SELINUX_SECURITY_H_
 
 #include <linux/magic.h>
+#include <linux/types.h>
 #include "flask.h"
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
