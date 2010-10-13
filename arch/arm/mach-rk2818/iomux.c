@@ -69,7 +69,7 @@ MUX_CFG(GPIOB3_U0RTSN_SEL_NAME,			B,   13,    1,	  0,	DEFAULT)		/* 0 : gpio_b3 1
 MUX_CFG(GPIOB2_U0CTSN_SEL_NAME,			B,   12,    1,	  0,	DEFAULT)		/* 0 : gpio_b2 1 : uart0_cts_n */
 MUX_CFG(GPIOF2_APWM0_SEL_NAME,			B,   11,    1,	  0,	INITIAL)		/* 0 : gpio_f2 1 : pwm0 */
 MUX_CFG(GPIOC_LCDC16BIT_SEL_NAME,		B,   10,    1,	  1,	INITIAL)		/* 0 : gpio_d0 ~ gpio_d7 1 : lcdc_data8 ~ lcdc_data15 */
-MUX_CFG(GPIOC_LCDC24BIT_SEL_NAME,		B,    9,    1,	  1,	INITIAL)		/* 0 : gpio_c2 ~ gpio_c7 1 : lcdc_data18 ~ lcdc_data23 */
+MUX_CFG(GPIOC_LCDC24BIT_SEL_NAME,		B,    9,    1,	  0,	INITIAL)		/* 0 : gpio_c2 ~ gpio_c7 1 : lcdc_data18 ~ lcdc_data23 */
 MUX_CFG(GPIOC_LCDC18BIT_SEL_NAME,		B,    8,    1,	  1,	INITIAL)		/* 0 : gpio_c0/c1 1 : lcdc_data16 ~ lcdc_data17 */
 MUX_CFG(CXGPIO_LCDDEN_SEL_NAME,			B,    7,    1,	  1,	INITIAL)		/* 0 : gpio2_26 1 : lcdc_denable */
 MUX_CFG(CXGPIO_LCDVSYNC_SEL_NAME,		B,    6,    1,	  1,	INITIAL)		/* 0 : gpio2_25 1 : lcdc_vsync */

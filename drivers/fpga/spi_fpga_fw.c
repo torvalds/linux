@@ -165,13 +165,13 @@ static void __init spi_fpga_dlfw(unsigned char * fpga_fw, unsigned int fpga_fw_l
     
     //step 2
     FPGA_CRESET_HIGH();
-    udelay(500); //delay >= 300us for clear internal memory 
+    mdelay(2); //delay >= 300us for clear internal memory 
 
     //step 3
     //spi_fpga_wait(8); //need ???
     
     //step 4
-    //FPGA_CS_HIGH();
+    FPGA_CS_HIGH();
     spi_fpga_wait(8);
 
     //step 5
@@ -180,7 +180,7 @@ static void __init spi_fpga_dlfw(unsigned char * fpga_fw, unsigned int fpga_fw_l
 
 
     //step 6
-    //FPGA_CS_HIGH();
+    FPGA_CS_HIGH();
     spi_fpga_wait(13000);
 
     //step 7
@@ -189,7 +189,7 @@ static void __init spi_fpga_dlfw(unsigned char * fpga_fw, unsigned int fpga_fw_l
 
 
     //step 8
-    //FPGA_CS_HIGH();
+    FPGA_CS_HIGH();
     spi_fpga_wait(8);
 
     //step 9
@@ -198,7 +198,7 @@ static void __init spi_fpga_dlfw(unsigned char * fpga_fw, unsigned int fpga_fw_l
 
 
     //step 10
-    //FPGA_CS_HIGH();
+    FPGA_CS_HIGH();
     spi_fpga_wait(8);
 
     //step 11
@@ -207,11 +207,11 @@ static void __init spi_fpga_dlfw(unsigned char * fpga_fw, unsigned int fpga_fw_l
 
 
     //step 12
-    //FPGA_CS_HIGH();
+    FPGA_CS_HIGH();
     spi_fpga_wait(8);
 
     //step 13
-    //FPGA_CS_HIGH();
+    FPGA_CS_HIGH();
     spi_fpga_send_bytes(fpga_fw, fpga_fw_len);
 
     //step 14

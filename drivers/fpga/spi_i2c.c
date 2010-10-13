@@ -66,6 +66,9 @@ int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel)
 	}
 	else if(INT_I2C_READ_NACK ==(ret & 0x07))
 	{
+		#if SPI_FPGA_I2C_EVENT
+		wake_up(&port->i2c.wait_r);
+		#endif
 		printk("Error::read no ack!!check the I2C slave device ret=%d \n",ret);
 	}
 	else if(INT_I2C_WRITE_ACK == (ret & 0x07))
@@ -77,6 +80,9 @@ int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel)
 	}
 	else if(INT_I2C_WRITE_NACK == (ret & 0x07))
 	{
+		#if SPI_FPGA_I2C_EVENT
+		wake_up(&port->i2c.wait_w);
+		#endif
 		printk("Error::write no ack!!check the I2C slave device ret=%d \n",ret);
 	}
 	else
@@ -247,7 +253,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		if(ret == 0)
 		{
 			printk("%s:60ms time out!\n",__FUNCTION__);
-			return -1;
+			continue;
 		}
 		spin_lock(&port->i2c.i2c_lock);
 		port->i2c.interrupt &= INT_I2C_WRITE_MASK;
