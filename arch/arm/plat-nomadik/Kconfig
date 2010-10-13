@@ -25,4 +25,10 @@ config NOMADIK_GPIO
 	help
 	  Support for the Nomadik GPIO controller.
 
+config NOMADIK_GPIO_PM
+	bool
+	depends on NOMADIK_GPIO && PM
+	help
+	  Support PM for the Nomadik GPIO controller.
+
 endif
