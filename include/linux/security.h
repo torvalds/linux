@@ -1285,9 +1285,13 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Return 0 if permission is granted.
  *
  * @secid_to_secctx:
- *	Convert secid to security context.
+ *	Convert secid to security context.  If secdata is NULL the length of
+ *	the result will be returned in seclen, but no secdata will be returned.
+ *	This does mean that the length could change between calls to check the
+ *	length and the next call which actually allocates and returns the secdata.
  *	@secid contains the security ID.
  *	@secdata contains the pointer that stores the converted security context.
+ *	@seclen pointer which contains the length of the data
  * @secctx_to_secid:
  *	Convert security context to secid.
  *	@secid contains the pointer to the generated security ID.

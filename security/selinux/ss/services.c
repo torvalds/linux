@@ -991,7 +991,8 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 {
 	char *scontextp;
 
-	*scontext = NULL;
+	if (scontext)
+		*scontext = NULL;
 	*scontext_len = 0;
 
 	if (context->len) {
@@ -1007,6 +1008,9 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 	*scontext_len += strlen(policydb.p_role_val_to_name[context->role - 1]) + 1;
 	*scontext_len += strlen(policydb.p_type_val_to_name[context->type - 1]) + 1;
 	*scontext_len += mls_compute_context_len(context);
+
+	if (!scontext)
+		return 0;
 
 	/* Allocate space for the context; caller must free this space. */
 	scontextp = kmalloc(*scontext_len, GFP_ATOMIC);
@@ -1047,7 +1051,8 @@ static int security_sid_to_context_core(u32 sid, char **scontext,
 	struct context *context;
 	int rc = 0;
 
-	*scontext = NULL;
+	if (scontext)
+		*scontext = NULL;
 	*scontext_len  = 0;
 
 	if (!ss_initialized) {
@@ -1055,6 +1060,8 @@ static int security_sid_to_context_core(u32 sid, char **scontext,
 			char *scontextp;
 
 			*scontext_len = strlen(initial_sid_to_string[sid]) + 1;
+			if (!scontext)
+				goto out;
 			scontextp = kmalloc(*scontext_len, GFP_ATOMIC);
 			if (!scontextp) {
 				rc = -ENOMEM;

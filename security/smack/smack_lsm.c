@@ -3004,7 +3004,8 @@ static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
 	char *sp = smack_from_secid(secid);
 
-	*secdata = sp;
+	if (secdata)
+		*secdata = sp;
 	*seclen = strlen(sp);
 	return 0;
 }
