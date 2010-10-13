@@ -60,6 +60,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(CNIC_MODULE_VERSION);
 
 static LIST_HEAD(cnic_dev_list);
+static LIST_HEAD(cnic_udev_list);
 static DEFINE_RWLOCK(cnic_dev_lock);
 static DEFINE_MUTEX(cnic_lock);
 
@@ -101,13 +102,14 @@ static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
 	rtnl_lock();
 	dev = udev->dev;
 
-	if (!test_bit(CNIC_F_CNIC_UP, &dev->flags)) {
+	if (!dev || !test_bit(CNIC_F_CNIC_UP, &dev->flags)) {
 		rtnl_unlock();
 		return -ENODEV;
 	}
 
 	udev->uio_dev = iminor(inode);
 
+	cnic_shutdown_rings(dev);
 	cnic_init_rings(dev);
 	rtnl_unlock();
 
@@ -117,9 +119,6 @@ static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
 static int cnic_uio_close(struct uio_info *uinfo, struct inode *inode)
 {
 	struct cnic_uio_dev *udev = uinfo->priv;
-	struct cnic_dev *dev = udev->dev;
-
-	cnic_shutdown_rings(dev);
 
 	udev->uio_dev = -1;
 	return 0;
@@ -787,6 +786,9 @@ static void __cnic_free_uio(struct cnic_uio_dev *udev)
 				  udev->l2_ring, udev->l2_ring_map);
 		udev->l2_ring = NULL;
 	}
+
+	pci_dev_put(udev->pdev);
+	kfree(udev);
 }
 
 static void cnic_free_uio(struct cnic_uio_dev *udev)
@@ -794,6 +796,9 @@ static void cnic_free_uio(struct cnic_uio_dev *udev)
 	if (!udev)
 		return;
 
+	write_lock(&cnic_dev_lock);
+	list_del_init(&udev->list);
+	write_unlock(&cnic_dev_lock);
 	__cnic_free_uio(udev);
 }
 
@@ -801,14 +806,9 @@ static void cnic_free_resc(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_uio_dev *udev = cp->udev;
-	int i = 0;
 
 	if (udev) {
-		while (udev->uio_dev != -1 && i < 15) {
-			msleep(100);
-			i++;
-		}
-		cnic_free_uio(udev);
+		udev->dev = NULL;
 		cp->udev = NULL;
 	}
 
@@ -916,6 +916,17 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_uio_dev *udev;
 
+	read_lock(&cnic_dev_lock);
+	list_for_each_entry(udev, &cnic_udev_list, list) {
+		if (udev->pdev == dev->pcidev) {
+			udev->dev = dev;
+			cp->udev = udev;
+			read_unlock(&cnic_dev_lock);
+			return 0;
+		}
+	}
+	read_unlock(&cnic_dev_lock);
+
 	udev = kzalloc(sizeof(struct cnic_uio_dev), GFP_ATOMIC);
 	if (!udev)
 		return -ENOMEM;
@@ -939,6 +950,12 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 	if (!udev->l2_buf)
 		return -ENOMEM;
 
+	write_lock(&cnic_dev_lock);
+	list_add(&udev->list, &cnic_udev_list);
+	write_unlock(&cnic_dev_lock);
+
+	pci_dev_get(udev->pdev);
+
 	cp->udev = udev;
 
 	return 0;
@@ -953,8 +970,6 @@ static int cnic_init_uio(struct cnic_dev *dev)
 
 	if (!udev)
 		return -ENOMEM;
-
-	udev->uio_dev = -1;
 
 	uinfo = &udev->cnic_uinfo;
 
@@ -996,9 +1011,15 @@ static int cnic_init_uio(struct cnic_dev *dev)
 	uinfo->open = cnic_uio_open;
 	uinfo->release = cnic_uio_close;
 
-	uinfo->priv = udev;
+	if (udev->uio_dev == -1) {
+		if (!uinfo->priv) {
+			uinfo->priv = udev;
 
-	ret = uio_register_device(&udev->pdev->dev, uinfo);
+			ret = uio_register_device(&udev->pdev->dev, uinfo);
+		}
+	} else {
+		cnic_init_rings(dev);
+	}
 
 	return ret;
 }
@@ -4559,6 +4580,7 @@ static void cnic_stop_hw(struct cnic_dev *dev)
 			msleep(100);
 			i++;
 		}
+		cnic_shutdown_rings(dev);
 		clear_bit(CNIC_F_CNIC_UP, &dev->flags);
 		rcu_assign_pointer(cp->ulp_ops[CNIC_ULP_L4], NULL);
 		synchronize_rcu();
@@ -4834,6 +4856,7 @@ static struct notifier_block cnic_netdev_notifier = {
 static void cnic_release(void)
 {
 	struct cnic_dev *dev;
+	struct cnic_uio_dev *udev;
 
 	while (!list_empty(&cnic_dev_list)) {
 		dev = list_entry(cnic_dev_list.next, struct cnic_dev, list);
@@ -4846,6 +4869,11 @@ static void cnic_release(void)
 		cnic_unregister_netdev(dev);
 		list_del_init(&dev->list);
 		cnic_free_dev(dev);
+	}
+	while (!list_empty(&cnic_udev_list)) {
+		udev = list_entry(cnic_udev_list.next, struct cnic_uio_dev,
+				  list);
+		cnic_free_uio(udev);
 	}
 }
 
