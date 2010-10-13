@@ -20,7 +20,6 @@
 #include <linux/resource.h>
 #include <linux/leds-lp8550.h>
 #include <linux/platform_device.h>
-#include <linux/bootmem.h>
 #include <linux/earlysuspend.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
@@ -75,6 +74,8 @@ static struct resource stingray_disp2_resources[] = {
 	},
 	{
 		.name	= "fbmem",
+		.start	= 0x1c600000,
+		.end	= 0x1c600000 + 0x1000000 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -330,17 +331,6 @@ static void stingray_panel_late_resume(struct early_suspend *h)
 }
 #endif
 
-#define FB_MEM_SIZE	(1920 * 1080 * 4 * 2)
-void __init stingray_fb_alloc(void)
-{
-#if 0
-	u32 *fb_mem = alloc_bootmem(FB_MEM_SIZE);
-
-	stingray_disp2_resources[2].start = virt_to_phys(fb_mem);
-	stingray_disp2_resources[2].end = virt_to_phys(fb_mem) + FB_MEM_SIZE - 1;
-#endif
-}
-
 static struct regulator *stingray_csi_reg;
 
 int __init stingray_panel_init(void)
@@ -377,7 +367,7 @@ int __init stingray_panel_init(void)
 	register_early_suspend(&stingray_panel_early_suspender);
 #endif
 
-	return nvhost_device_register(&stingray_disp1_device);
-//	return  nvhost_device_register(&stingray_disp2_device);
+	nvhost_device_register(&stingray_disp1_device);
+	return  nvhost_device_register(&stingray_disp2_device);
 }
 

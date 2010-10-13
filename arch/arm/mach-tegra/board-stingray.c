@@ -565,8 +565,8 @@ static struct nvmap_platform_carveout stingray_carveouts[] = {
 	[1] = {
 		.name		= "generic-0",
 		.usage_mask	= NVMAP_HEAP_CARVEOUT_GENERIC,
-		.base		= 0x1c600000, /* 1M aligned above disp1 fbmem */
-		.size		= SZ_64M - 0x600000,
+		.base		= 0x18000000,
+		.size		= SZ_64M,
 		.buddy_size	= SZ_32K,
 	},
 };
@@ -1026,7 +1026,6 @@ static void __init tegra_stingray_init(void)
 void __init stingray_map_io(void)
 {
 	tegra_map_common_io();
-	stingray_fb_alloc();
 }
 
 void __init stingray_reserve(void)
