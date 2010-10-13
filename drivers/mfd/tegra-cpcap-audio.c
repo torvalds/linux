@@ -30,7 +30,6 @@
 #include <linux/miscdevice.h>
 #include <linux/cpcap_audio.h>
 #include <linux/uaccess.h>
-#include <linux/delay.h>
 
 #include <mach/cpcap_audio.h>
 
@@ -260,8 +259,6 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			current_output.on = !out.on;
 			if (out.on) {
 				pr_info("%s: standby mode\n", __func__);
-				/* HACK: Give output audio FIFO time to empty */
-				msleep(100);
 				tegra_setup_audio_output_off();
 				break;
 			}
