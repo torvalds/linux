@@ -74,9 +74,9 @@ sys_sigsuspend(int unused0, int unused1, old_sigset_t mask)
 	return -ERESTARTNOHAND;
 }
 
-asmlinkage int 
-sys_sigaction(int sig, const struct old_sigaction *act,
-	      struct old_sigaction *oact)
+asmlinkage int
+sys_sigaction(int sig, const struct old_sigaction __user *act,
+	      struct old_sigaction __user *oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -107,7 +107,7 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 }
 
 asmlinkage int
-sys_sigaltstack(const stack_t *uss, stack_t *uoss)
+sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
 	return do_sigaltstack(uss, uoss, rdusp());
 }
@@ -122,10 +122,10 @@ sys_sigaltstack(const stack_t *uss, stack_t *uoss)
 
 struct sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
 	int code;
-	struct sigcontext *psc;
+	struct sigcontext __user *psc;
 	char retcode[8];
 	unsigned long extramask[_NSIG_WORDS-1];
 	struct sigcontext sc;
@@ -133,10 +133,10 @@ struct sigframe
 
 struct rt_sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	char retcode[8];
 	struct siginfo info;
 	struct ucontext uc;
@@ -183,7 +183,7 @@ out:
 #define uc_formatvec	uc_filler[FPCONTEXT_SIZE/4]
 #define uc_extra	uc_filler[FPCONTEXT_SIZE/4+1]
 
-static inline int rt_restore_fpu_state(struct ucontext *uc)
+static inline int rt_restore_fpu_state(struct ucontext __user *uc)
 {
 	unsigned char fpstate[FPCONTEXT_SIZE];
 	int context_size = 0;
@@ -202,7 +202,7 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 		return 0;
 	}
 
-	if (__get_user(*(long *)fpstate, (long *)&uc->uc_fpstate))
+	if (__get_user(*(long *)fpstate, (long __user *)&uc->uc_fpstate))
 		goto out;
 	if (fpstate[0]) {
 		context_size = fpstate[1];
@@ -222,7 +222,7 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 				    "m" (*fpregs.f_fpcntl));
 	}
 	if (context_size &&
-	    __copy_from_user(fpstate + 4, (long *)&uc->uc_fpstate + 1,
+	    __copy_from_user(fpstate + 4, (long __user *)&uc->uc_fpstate + 1,
 			     context_size))
 		goto out;
 	__asm__ volatile (".chip 68k/68881\n\t"
@@ -237,7 +237,7 @@ out:
 #endif
 
 static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp,
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __user *fp,
 		   int *pd0)
 {
 	int formatvec;
@@ -277,10 +277,10 @@ badframe:
 
 static inline int
 rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
-		    struct ucontext *uc, int *pd0)
+		    struct ucontext __user *uc, int *pd0)
 {
 	int temp;
-	greg_t *gregs = uc->uc_mcontext.gregs;
+	greg_t __user *gregs = uc->uc_mcontext.gregs;
 	unsigned long usp;
 	int err;
 
@@ -330,7 +330,7 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 	struct switch_stack *sw = (struct switch_stack *) &__unused;
 	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
-	struct sigframe *frame = (struct sigframe *)(usp - 4);
+	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
 	int d0;
 
@@ -362,7 +362,7 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	struct switch_stack *sw = (struct switch_stack *) &__unused;
 	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
-	struct rt_sigframe *frame = (struct rt_sigframe *)(usp - 4);
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;
 	int d0;
 
@@ -418,7 +418,7 @@ static inline void save_fpu_state(struct sigcontext *sc, struct pt_regs *regs)
 	}
 }
 
-static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
+static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *regs)
 {
 	unsigned char fpstate[FPCONTEXT_SIZE];
 	int context_size = 0;
@@ -439,7 +439,7 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 			  ".chip 68k"
 			  : : "m" (*fpstate) : "memory");
 
-	err |= __put_user(*(long *)fpstate, (long *)&uc->uc_fpstate);
+	err |= __put_user(*(long *)fpstate, (long __user *)&uc->uc_fpstate);
 	if (fpstate[0]) {
 		fpregset_t fpregs;
 		context_size = fpstate[1];
@@ -456,7 +456,7 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 				    sizeof(fpregs));
 	}
 	if (context_size)
-		err |= copy_to_user((long *)&uc->uc_fpstate + 1, fpstate + 4,
+		err |= copy_to_user((long __user *)&uc->uc_fpstate + 1, fpstate + 4,
 				    context_size);
 	return err;
 }
@@ -481,10 +481,10 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 #endif
 }
 
-static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
+static inline int rt_setup_ucontext(struct ucontext __user *uc, struct pt_regs *regs)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	greg_t *gregs = uc->uc_mcontext.gregs;
+	greg_t __user *gregs = uc->uc_mcontext.gregs;
 	int err = 0;
 
 	err |= __put_user(MCONTEXT_VERSION, &uc->uc_mcontext.version);
@@ -512,7 +512,7 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 	return err;
 }
 
-static inline void *
+static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 {
 	unsigned long usp;
@@ -525,13 +525,13 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 		if (!sas_ss_flags(usp))
 			usp = current->sas_ss_sp + current->sas_ss_size;
 	}
-	return (void *)((usp - frame_size) & -8UL);
+	return (void __user *)((usp - frame_size) & -8UL);
 }
 
 static int setup_frame (int sig, struct k_sigaction *ka,
 			 sigset_t *set, struct pt_regs *regs)
 {
-	struct sigframe *frame;
+	struct sigframe __user *frame;
 	struct sigcontext context;
 	int err = 0;
 
@@ -592,7 +592,7 @@ give_sigsegv:
 static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 			    sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
@@ -609,8 +609,8 @@ static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
+	err |= __put_user(NULL, &frame->uc.uc_link);
+	err |= __put_user((void __user *)current->sas_ss_sp,
 			  &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(rdusp()),
 			  &frame->uc.uc_stack.ss_flags);
