@@ -176,6 +176,13 @@ struct ath_rateset {
 	u8 rs_rates[ATH_RATE_MAX];
 };
 
+struct ath_rc_stats {
+	u32 success;
+	u32 retries;
+	u32 xretries;
+	u8 per;
+};
+
 /**
  * struct ath_rate_priv - Rate Control priv data
  * @state: RC state
@@ -212,6 +219,10 @@ struct ath_rate_priv {
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
 	struct ath_rate_softc *asc;
+	const struct ath_rate_table *rate_table;
+
+	struct dentry *debugfs_rcstats;
+	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
 
 #define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)

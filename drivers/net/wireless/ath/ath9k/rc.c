@@ -1026,6 +1026,16 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 	return state_change;
 }
 
+static void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
+				   int xretries, int retries, u8 per)
+{
+	struct ath_rc_stats *stats = &rc->rcstats[rix];
+
+	stats->xretries += xretries;
+	stats->retries += retries;
+	stats->per = per;
+}
+
 /* Update PER, RSSI and whatever else that the code thinks it is doing.
    If you can make sense of all this, you really need to go out more. */
 
@@ -1098,7 +1108,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 		ath_rc_priv->per_down_time = now_msec;
 	}
 
-	ath_debug_stat_retries(sc, tx_rate, xretries, retries,
+	ath_debug_stat_retries(ath_rc_priv, tx_rate, xretries, retries,
 			       ath_rc_priv->per[tx_rate]);
 
 }
@@ -1294,6 +1304,7 @@ static void ath_rc_init(struct ath_softc *sc,
 	ath_rc_sort_validrates(rate_table, ath_rc_priv);
 	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
 	sc->cur_rate_table = rate_table;
+	ath_rc_priv->rate_table = rate_table;
 
 	ath_print(common, ATH_DBG_CONFIG,
 		  "RC Initialized with capabilities: 0x%x\n",
@@ -1339,6 +1350,15 @@ static bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an,
 /***********************************/
 /* mac80211 Rate Control callbacks */
 /***********************************/
+
+static void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
+{
+	struct ath_rc_stats *stats;
+
+	stats = &rc->rcstats[final_rate];
+	stats->success++;
+}
+
 
 static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta,
@@ -1419,7 +1439,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		}
 	}
 
-	ath_debug_stat_rc(sc, ath_rc_get_rateindex(sc->cur_rate_table,
+	ath_debug_stat_rc(ath_rc_priv, ath_rc_get_rateindex(sc->cur_rate_table,
 		&tx_info->status.rates[final_ts_idx]));
 }
 
@@ -1521,6 +1541,94 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 	}
 }
 
+#ifdef CONFIG_ATH9K_DEBUGFS
+
+static int ath9k_debugfs_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath_rate_priv *rc = file->private_data;
+	char *buf;
+	unsigned int len = 0, max;
+	int i = 0;
+	ssize_t retval;
+
+	if (rc->rate_table == NULL)
+		return 0;
+
+	max = 80 + rc->rate_table->rate_cnt * 1024 + 1;
+	buf = kmalloc(max, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	len += sprintf(buf, "%6s %6s %6s "
+		       "%10s %10s %10s %10s\n",
+		       "HT", "MCS", "Rate",
+		       "Success", "Retries", "XRetries", "PER");
+
+	for (i = 0; i < rc->rate_table->rate_cnt; i++) {
+		u32 ratekbps = rc->rate_table->info[i].ratekbps;
+		struct ath_rc_stats *stats = &rc->rcstats[i];
+		char mcs[5];
+		char htmode[5];
+		int used_mcs = 0, used_htmode = 0;
+
+		if (WLAN_RC_PHY_HT(rc->rate_table->info[i].phy)) {
+			used_mcs = snprintf(mcs, 5, "%d",
+				rc->rate_table->info[i].ratecode);
+
+			if (WLAN_RC_PHY_40(rc->rate_table->info[i].phy))
+				used_htmode = snprintf(htmode, 5, "HT40");
+			else if (WLAN_RC_PHY_20(rc->rate_table->info[i].phy))
+				used_htmode = snprintf(htmode, 5, "HT20");
+			else
+				used_htmode = snprintf(htmode, 5, "????");
+		}
+
+		mcs[used_mcs] = '\0';
+		htmode[used_htmode] = '\0';
+
+		len += snprintf(buf + len, max - len,
+			"%6s %6s %3u.%d: "
+			"%10u %10u %10u %10u\n",
+			htmode,
+			mcs,
+			ratekbps / 1000,
+			(ratekbps % 1000) / 100,
+			stats->success,
+			stats->retries,
+			stats->xretries,
+			stats->per);
+	}
+
+	if (len > max)
+		len = max;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return retval;
+}
+
+static const struct file_operations fops_rcstat = {
+	.read = read_file_rcstat,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+static void ath_rate_add_sta_debugfs(void *priv, void *priv_sta,
+				     struct dentry *dir)
+{
+	struct ath_rate_priv *rc = priv_sta;
+	debugfs_create_file("rc_stats", S_IRUGO, dir, rc, &fops_rcstat);
+}
+
+#endif /* CONFIG_ATH9K_DEBUGFS */
+
 static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
 	struct ath_wiphy *aphy = hw->priv;
@@ -1567,6 +1675,9 @@ static struct rate_control_ops ath_rate_ops = {
 	.free = ath_rate_free,
 	.alloc_sta = ath_rate_alloc_sta,
 	.free_sta = ath_rate_free_sta,
+#ifdef CONFIG_ATH9K_DEBUGFS
+	.add_sta_debugfs = ath_rate_add_sta_debugfs,
+#endif
 };
 
 int ath_rate_control_register(void)
