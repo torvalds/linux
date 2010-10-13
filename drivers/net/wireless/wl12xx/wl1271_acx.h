@@ -964,6 +964,87 @@ struct wl1271_acx_rssi_snr_avg_weights {
 	u8 snr_data;
 };
 
+/*
+ * ACX_PEER_HT_CAP
+ * Configure HT capabilities - declare the capabilities of the peer
+ * we are connected to.
+ */
+struct wl1271_acx_ht_capabilities {
+	struct acx_header header;
+
+	/*
+	 * bit 0 - Allow HT Operation
+	 * bit 1 - Allow Greenfield format in TX
+	 * bit 2 - Allow Short GI in TX
+	 * bit 3 - Allow L-SIG TXOP Protection in TX
+	 * bit 4 - Allow HT Control fields in TX.
+	 *         Note, driver will still leave space for HT control in packets
+	 *         regardless of the value of this field. FW will be responsible
+	 *         to drop the HT field from any frame when this Bit set to 0.
+	 * bit 5 - Allow RD initiation in TXOP. FW is allowed to initate RD.
+	 *         Exact policy setting for this feature is TBD.
+	 *         Note, this bit can only be set to 1 if bit 3 is set to 1.
+	 */
+	__le32 ht_capabilites;
+
+	/*
+	 * Indicates to which peer these capabilities apply.
+	 * For infrastructure use ff:ff:ff:ff:ff:ff that indicates relevance
+	 * for all peers.
+	 * Only valid for IBSS/DLS operation.
+	 */
+	u8 mac_address[ETH_ALEN];
+
+	/*
+	 * This the maximum A-MPDU length supported by the AP. The FW may not
+	 * exceed this length when sending A-MPDUs
+	 */
+	u8 ampdu_max_length;
+
+	/* This is the minimal spacing required when sending A-MPDUs to the AP*/
+	u8 ampdu_min_spacing;
+} __packed;
+
+/* HT Capabilites Fw Bit Mask Mapping */
+#define WL1271_ACX_FW_CAP_HT_OPERATION                 BIT(0)
+#define WL1271_ACX_FW_CAP_GREENFIELD_FRAME_FORMAT      BIT(1)
+#define WL1271_ACX_FW_CAP_SHORT_GI_FOR_20MHZ_PACKETS   BIT(2)
+#define WL1271_ACX_FW_CAP_LSIG_TXOP_PROTECTION         BIT(3)
+#define WL1271_ACX_FW_CAP_HT_CONTROL_FIELDS            BIT(4)
+#define WL1271_ACX_FW_CAP_RD_INITIATION                BIT(5)
+
+
+/*
+ * ACX_HT_BSS_OPERATION
+ * Configure HT capabilities - AP rules for behavior in the BSS.
+ */
+struct wl1271_acx_ht_information {
+	struct acx_header header;
+
+	/* Values: 0 - RIFS not allowed, 1 - RIFS allowed */
+	u8 rifs_mode;
+
+	/* Values: 0 - 3 like in spec */
+	u8 ht_protection;
+
+	/* Values: 0 - GF protection not required, 1 - GF protection required */
+	u8 gf_protection;
+
+	/*Values: 0 - TX Burst limit not required, 1 - TX Burst Limit required*/
+	u8 ht_tx_burst_limit;
+
+	/*
+	 * Values: 0 - Dual CTS protection not required,
+	 *         1 - Dual CTS Protection required
+	 * Note: When this value is set to 1 FW will protect all TXOP with RTS
+	 * frame and will not use CTS-to-self regardless of the value of the
+	 * ACX_CTS_PROTECTION information element
+	 */
+	u8 dual_cts_protection;
+
+	u8 padding[3];
+} __packed;
+
 struct wl1271_acx_fw_tsf_information {
 	struct acx_header header;
 

@@ -2145,6 +2145,21 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 	0                              /* CONF_HW_RXTX_RATE_1    */
 };
 
+/* 11n STA capabilities */
+#define HW_RX_HIGHEST_RATE	72
+
+#define WL1271_HT_CAP { \
+	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20, \
+	.ht_supported = true, \
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K, \
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8, \
+	.mcs = { \
+		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, }, \
+		.rx_highest = cpu_to_le16(HW_RX_HIGHEST_RATE), \
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED, \
+		}, \
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1271_band_2ghz = {
 	.channels = wl1271_channels,

@@ -434,7 +434,12 @@ struct wl1271 {
 	/* Our association ID */
 	u16 aid;
 
-	/* currently configured rate set */
+	/*
+	 * currently configured rate set:
+	 *	bits  0-15 - 802.11abg rates
+	 *	bits 16-23 - 802.11n   MCS index mask
+	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
+	 */
 	u32 sta_rate_set;
 	u32 basic_rate_set;
 	u32 basic_rate;
@@ -510,5 +515,9 @@ int wl1271_plt_stop(struct wl1271 *wl);
    on in case is has been shut down shortly before */
 #define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
+
+/* Macros to handle wl1271.sta_rate_set */
+#define HW_BG_RATES_MASK	0xffff
+#define HW_HT_RATES_OFFSET	16
 
 #endif
