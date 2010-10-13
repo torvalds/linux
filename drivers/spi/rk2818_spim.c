@@ -768,7 +768,9 @@ static void msg_giveback(struct rk2818_spi *dws)
 {
 	struct spi_transfer *last_transfer;
 	struct spi_message *msg;
+
 	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
+
 	msg = dws->cur_msg;
 	dws->cur_msg = NULL;
 	dws->cur_transfer = NULL;
@@ -784,9 +786,7 @@ static void msg_giveback(struct rk2818_spi *dws)
 	if (!last_transfer->cs_change)
 		dws->cs_control(dws,msg->spi->chip_select,MRST_SPI_DEASSERT);
 
-	msg->state = NULL;
-	if (msg->complete)
-		msg->complete(msg->context);
+	msg->state = NULL;	
 }
 
 /* Must be called inside pump_transfers() */
@@ -814,7 +814,7 @@ comple:
 					
 	if (dws->cur_msg->state == DONE_STATE) {
 		dws->cur_msg->status = 0;
-		msg_giveback(dws);
+		//msg_giveback(dws);
 		return 0;
 	}
 	else {
@@ -848,7 +848,7 @@ static int do_half_transfer(struct rk2818_spi *dws)
 					
 	if (dws->cur_msg->state == DONE_STATE) {
 		dws->cur_msg->status = 0;
-		msg_giveback(dws);
+		//msg_giveback(dws);
 		return 0;
 	}
 	else {
@@ -1021,7 +1021,7 @@ static int rk2818_pump_transfers(struct rk2818_spi *dws, int mode)
 		return do_half_transfer(dws);
 early_exit:
 	
-	msg_giveback(dws);
+	//msg_giveback(dws);
 	
 	return 0;
 }
@@ -1064,6 +1064,7 @@ static int rk2818_spi_quick_transfer(struct spi_device *spi, struct spi_message 
 	struct rk2818_spi *dws = spi_master_get_devdata(spi->master);
 	unsigned long flags;
 	struct rk2818_spi_chip *chip_info = spi->controller_data;
+	struct spi_message *mmsg;
 	
 	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
 	
@@ -1089,7 +1090,14 @@ static int rk2818_spi_quick_transfer(struct spi_device *spi, struct spi_message 
 		//printk("+++++++++++++half transfer++++++++++++++\n");
 	}
 
+	mmsg = dws->cur_msg;
+	msg_giveback(dws);
+	
 	spin_unlock_irqrestore(&dws->lock, flags);
+
+	if (mmsg->complete)
+		mmsg->complete(mmsg->context);
+	
 	return 0;
 }
 #endif
