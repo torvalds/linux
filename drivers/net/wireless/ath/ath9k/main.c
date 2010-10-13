@@ -1739,6 +1739,7 @@ skip_chan_change:
 	FIF_PSPOLL |				\
 	FIF_OTHER_BSS |				\
 	FIF_BCN_PRBRESP_PROMISC |		\
+	FIF_PROBE_REQ |				\
 	FIF_FCSFAIL)
 
 /* FIXME: sc->sc_full_reset ? */
