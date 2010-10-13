@@ -195,6 +195,23 @@ struct iro {
 	u16 size;
 };
 
+struct cnic_uio_dev {
+	struct uio_info		cnic_uinfo;
+	u32			uio_dev;
+
+	int			l2_ring_size;
+	void			*l2_ring;
+	dma_addr_t		l2_ring_map;
+
+	int			l2_buf_size;
+	void			*l2_buf;
+	dma_addr_t		l2_buf_map;
+
+	struct cnic_dev		*dev;
+	struct pci_dev		*pdev;
+	struct list_head	list;
+};
+
 struct cnic_local {
 
 	spinlock_t cnic_ulp_lock;
@@ -214,14 +231,9 @@ struct cnic_local {
 
 	struct cnic_eth_dev *ethdev;
 
-	void		*l2_ring;
-	dma_addr_t	l2_ring_map;
-	int		l2_ring_size;
-	int		l2_rx_ring_size;
+	struct cnic_uio_dev *udev;
 
-	void		*l2_buf;
-	dma_addr_t	l2_buf_map;
-	int		l2_buf_size;
+	int		l2_rx_ring_size;
 	int		l2_single_buf_size;
 
 	u16		*rx_cons_ptr;
@@ -300,9 +312,6 @@ struct cnic_local {
 	int			func;
 	u32			pfid;
 	u32			shmem_base;
-
-	u32			uio_dev;
-	struct uio_info		*cnic_uinfo;
 
 	struct cnic_ops		*cnic_ops;
 	int			(*start_hw)(struct cnic_dev *);
