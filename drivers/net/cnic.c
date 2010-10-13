@@ -3428,9 +3428,22 @@ static void cnic_free_irq(struct cnic_dev *dev)
 
 	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX) {
 		cp->disable_int_sync(dev);
-		tasklet_disable(&cp->cnic_irq_task);
+		tasklet_kill(&cp->cnic_irq_task);
 		free_irq(ethdev->irq_arr[0].vector, dev);
 	}
+}
+
+static int cnic_request_irq(struct cnic_dev *dev)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_eth_dev *ethdev = cp->ethdev;
+	int err;
+
+	err = request_irq(ethdev->irq_arr[0].vector, cnic_irq, 0, "cnic", dev);
+	if (err)
+		tasklet_disable(&cp->cnic_irq_task);
+
+	return err;
 }
 
 static int cnic_init_bnx2_irq(struct cnic_dev *dev)
@@ -3453,12 +3466,10 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 		cp->last_status_idx = cp->status_blk.bnx2->status_idx;
 		tasklet_init(&cp->cnic_irq_task, cnic_service_bnx2_msix,
 			     (unsigned long) dev);
-		err = request_irq(ethdev->irq_arr[0].vector, cnic_irq, 0,
-				  "cnic", dev);
-		if (err) {
-			tasklet_disable(&cp->cnic_irq_task);
+		err = cnic_request_irq(dev);
+		if (err)
 			return err;
-		}
+
 		while (cp->status_blk.bnx2->status_completion_producer_index &&
 		       i < 10) {
 			CNIC_WR(dev, BNX2_HC_COALESCE_NOW,
@@ -3860,12 +3871,9 @@ static int cnic_init_bnx2x_irq(struct cnic_dev *dev)
 
 	tasklet_init(&cp->cnic_irq_task, cnic_service_bnx2x_bh,
 		     (unsigned long) dev);
-	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX) {
-		err = request_irq(ethdev->irq_arr[0].vector, cnic_irq, 0,
-				  "cnic", dev);
-		if (err)
-			tasklet_disable(&cp->cnic_irq_task);
-	}
+	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX)
+		err = cnic_request_irq(dev);
+
 	return err;
 }
 
