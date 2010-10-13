@@ -1708,24 +1708,13 @@ static int cnic_bnx2x_iscsi_update(struct cnic_dev *dev, struct kwqe *kwqe)
 	return ret;
 }
 
-static int cnic_bnx2x_iscsi_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
+static int cnic_bnx2x_destroy_ramrod(struct cnic_dev *dev, u32 l5_cid)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	struct iscsi_kwqe_conn_destroy *req =
-		(struct iscsi_kwqe_conn_destroy *) kwqe;
-	union l5cm_specific_data l5_data;
-	u32 l5_cid = req->reserved0;
 	struct cnic_context *ctx = &cp->ctx_tbl[l5_cid];
-	int ret = 0;
-	struct iscsi_kcqe kcqe;
-	struct kcqe *cqes[1];
+	union l5cm_specific_data l5_data;
+	int ret;
 	u32 hw_cid, type;
-
-	if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
-		goto skip_cfc_delete;
-
-	while (!time_after(jiffies, ctx->timestamp + (2 * HZ)))
-		msleep(250);
 
 	init_waitqueue_head(&ctx->waitq);
 	ctx->wait_cond = 0;
@@ -1741,6 +1730,28 @@ static int cnic_bnx2x_iscsi_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 
 	if (ret == 0)
 		wait_event(ctx->waitq, ctx->wait_cond);
+
+	return ret;
+}
+
+static int cnic_bnx2x_iscsi_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct iscsi_kwqe_conn_destroy *req =
+		(struct iscsi_kwqe_conn_destroy *) kwqe;
+	u32 l5_cid = req->reserved0;
+	struct cnic_context *ctx = &cp->ctx_tbl[l5_cid];
+	int ret = 0;
+	struct iscsi_kcqe kcqe;
+	struct kcqe *cqes[1];
+
+	if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
+		goto skip_cfc_delete;
+
+	while (!time_after(jiffies, ctx->timestamp + (2 * HZ)))
+		msleep(250);
+
+	ret = cnic_bnx2x_destroy_ramrod(dev, l5_cid);
 
 skip_cfc_delete:
 	cnic_free_bnx2x_conn_resc(dev, l5_cid);
