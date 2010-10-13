@@ -109,8 +109,6 @@ struct port {
 extern spinlock_t tipc_port_list_lock;
 struct port_list;
 
-int tipc_port_recv_sections(struct port *p_ptr, u32 num_sect,
-			    struct iovec const *msg_sect);
 int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
 			      struct iovec const *msg_sect, u32 num_sect,
 			      int err);

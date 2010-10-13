@@ -68,20 +68,6 @@ struct link_req {
 	unsigned int timer_intv;
 };
 
-
-/*
- * disc_lost_link(): A link has lost contact
- */
-
-void tipc_disc_link_event(u32 addr, char *name, int up)
-{
-	if (in_own_cluster(addr))
-		return;
-	/*
-	 * Code for inter cluster link setup here
-	 */
-}
-
 /**
  * tipc_disc_init_msg - initialize a link setup message
  * @type: message type (request or response)
@@ -95,7 +81,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 					  u32 dest_domain,
 					  struct bearer *b_ptr)
 {
-	struct sk_buff *buf = buf_acquire(DSC_H_SIZE);
+	struct sk_buff *buf = tipc_buf_acquire(DSC_H_SIZE);
 	struct tipc_msg *msg;
 
 	if (buf) {

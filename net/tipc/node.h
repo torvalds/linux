@@ -96,7 +96,6 @@ struct tipc_node {
 	} bclink;
 };
 
-extern struct tipc_node *tipc_nodes;
 extern u32 tipc_own_tag;
 
 struct tipc_node *tipc_node_create(u32 addr);

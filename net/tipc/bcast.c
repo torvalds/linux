@@ -121,6 +121,9 @@ static DEFINE_SPINLOCK(bc_lock);
 
 const char tipc_bclink_name[] = "broadcast-link";
 
+static void tipc_nmap_diff(struct tipc_node_map *nm_a,
+			   struct tipc_node_map *nm_b,
+			   struct tipc_node_map *nm_diff);
 
 static u32 buf_seqno(struct sk_buff *buf)
 {
@@ -287,7 +290,7 @@ static void bclink_send_nack(struct tipc_node *n_ptr)
 	if (!less(n_ptr->bclink.gap_after, n_ptr->bclink.gap_to))
 		return;
 
-	buf = buf_acquire(INT_H_SIZE);
+	buf = tipc_buf_acquire(INT_H_SIZE);
 	if (buf) {
 		msg = buf_msg(buf);
 		tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
@@ -871,8 +874,9 @@ void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
  * @nm_diff: output node map A-B (i.e. nodes of A that are not in B)
  */
 
-void tipc_nmap_diff(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b,
-				  struct tipc_node_map *nm_diff)
+static void tipc_nmap_diff(struct tipc_node_map *nm_a,
+			   struct tipc_node_map *nm_b,
+			   struct tipc_node_map *nm_diff)
 {
 	int stop = ARRAY_SIZE(nm_a->map);
 	int w;

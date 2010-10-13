@@ -50,6 +50,4 @@ void tipc_disc_stop_link_req(struct link_req *req);
 
 void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr);
 
-void tipc_disc_link_event(u32 addr, char *name, int up);
-
 #endif

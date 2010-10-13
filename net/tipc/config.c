@@ -95,7 +95,7 @@ int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 	return 1;
 }
 
-struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
+static struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 {
 	struct sk_buff *buf;
 	__be32 value_net;
@@ -107,6 +107,11 @@ struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 				    sizeof(value_net));
 	}
 	return buf;
+}
+
+static struct sk_buff *tipc_cfg_reply_unsigned(u32 value)
+{
+	return tipc_cfg_reply_unsigned_type(TIPC_TLV_UNSIGNED, value);
 }
 
 struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)

@@ -112,6 +112,9 @@ static void link_state_event(struct link *l_ptr, u32 event);
 static void link_reset_statistics(struct link *l_ptr);
 static void link_print(struct link *l_ptr, struct print_buf *buf,
 		       const char *str);
+static void link_start(struct link *l_ptr);
+static int link_send_long_buf(struct link *l_ptr, struct sk_buff *buf);
+
 
 /*
  * Debugging code used by link routines only
@@ -442,7 +445,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 	k_init_timer(&l_ptr->timer, (Handler)link_timeout, (unsigned long)l_ptr);
 	list_add_tail(&l_ptr->link_list, &b_ptr->links);
-	tipc_k_signal((Handler)tipc_link_start, (unsigned long)l_ptr);
+	tipc_k_signal((Handler)link_start, (unsigned long)l_ptr);
 
 	dbg("tipc_link_create(): tolerance = %u,cont intv = %u, abort_limit = %u\n",
 	    l_ptr->tolerance, l_ptr->continuity_interval, l_ptr->abort_limit);
@@ -482,9 +485,9 @@ void tipc_link_delete(struct link *l_ptr)
 	kfree(l_ptr);
 }
 
-void tipc_link_start(struct link *l_ptr)
+static void link_start(struct link *l_ptr)
 {
-	dbg("tipc_link_start %x\n", l_ptr);
+	dbg("link_start %x\n", l_ptr);
 	link_state_event(l_ptr, STARTING_EVT);
 }
 
@@ -1000,7 +1003,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 	/* Fragmentation needed ? */
 
 	if (size > max_packet)
-		return tipc_link_send_long_buf(l_ptr, buf);
+		return link_send_long_buf(l_ptr, buf);
 
 	/* Packet can be queued or sent: */
 
@@ -1036,7 +1039,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 		/* Try creating a new bundle */
 
 		if (size <= max_packet * 2 / 3) {
-			struct sk_buff *bundler = buf_acquire(max_packet);
+			struct sk_buff *bundler = tipc_buf_acquire(max_packet);
 			struct tipc_msg bundler_hdr;
 
 			if (bundler) {
@@ -1312,7 +1315,7 @@ again:
 
 	/* Prepare header of first fragment: */
 
-	buf_chain = buf = buf_acquire(max_pkt);
+	buf_chain = buf = tipc_buf_acquire(max_pkt);
 	if (!buf)
 		return -ENOMEM;
 	buf->next = NULL;
@@ -1369,7 +1372,7 @@ error:
 			msg_set_size(&fragm_hdr, fragm_sz + INT_H_SIZE);
 			msg_set_fragm_no(&fragm_hdr, ++fragm_no);
 			prev = buf;
-			buf = buf_acquire(fragm_sz + INT_H_SIZE);
+			buf = tipc_buf_acquire(fragm_sz + INT_H_SIZE);
 			if (!buf)
 				goto error;
 
@@ -2145,7 +2148,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
 		if (!l_ptr->proto_msg_queue) {
 			l_ptr->proto_msg_queue =
-				buf_acquire(sizeof(l_ptr->proto_msg));
+				tipc_buf_acquire(sizeof(l_ptr->proto_msg));
 		}
 		buf = l_ptr->proto_msg_queue;
 		if (!buf)
@@ -2159,7 +2162,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 
 	msg_dbg(msg, ">>");
 
-	buf = buf_acquire(msg_size);
+	buf = tipc_buf_acquire(msg_size);
 	if (!buf)
 		return;
 
@@ -2318,10 +2321,10 @@ exit:
  * tipc_link_tunnel(): Send one message via a link belonging to
  * another bearer. Owner node is locked.
  */
-void tipc_link_tunnel(struct link *l_ptr,
-		      struct tipc_msg *tunnel_hdr,
-		      struct tipc_msg  *msg,
-		      u32 selector)
+static void tipc_link_tunnel(struct link *l_ptr,
+			     struct tipc_msg *tunnel_hdr,
+			     struct tipc_msg  *msg,
+			     u32 selector)
 {
 	struct link *tunnel;
 	struct sk_buff *buf;
@@ -2334,7 +2337,7 @@ void tipc_link_tunnel(struct link *l_ptr,
 		return;
 	}
 	msg_set_size(tunnel_hdr, length + INT_H_SIZE);
-	buf = buf_acquire(length + INT_H_SIZE);
+	buf = tipc_buf_acquire(length + INT_H_SIZE);
 	if (!buf) {
 		warn("Link changeover error, "
 		     "unable to send tunnel msg\n");
@@ -2380,7 +2383,7 @@ void tipc_link_changeover(struct link *l_ptr)
 	if (!l_ptr->first_out) {
 		struct sk_buff *buf;
 
-		buf = buf_acquire(INT_H_SIZE);
+		buf = tipc_buf_acquire(INT_H_SIZE);
 		if (buf) {
 			skb_copy_to_linear_data(buf, &tunnel_hdr, INT_H_SIZE);
 			msg_set_size(&tunnel_hdr, INT_H_SIZE);
@@ -2441,7 +2444,7 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *tunnel)
 		msg_set_ack(msg, mod(l_ptr->next_in_no - 1));	/* Update */
 		msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
 		msg_set_size(&tunnel_hdr, length + INT_H_SIZE);
-		outbuf = buf_acquire(length + INT_H_SIZE);
+		outbuf = tipc_buf_acquire(length + INT_H_SIZE);
 		if (outbuf == NULL) {
 			warn("Link changeover error, "
 			     "unable to send duplicate msg\n");
@@ -2477,7 +2480,7 @@ static struct sk_buff *buf_extract(struct sk_buff *skb, u32 from_pos)
 	u32 size = msg_size(msg);
 	struct sk_buff *eb;
 
-	eb = buf_acquire(size);
+	eb = tipc_buf_acquire(size);
 	if (eb)
 		skb_copy_to_linear_data(eb, msg, size);
 	return eb;
@@ -2605,11 +2608,11 @@ void tipc_link_recv_bundle(struct sk_buff *buf)
 
 
 /*
- * tipc_link_send_long_buf: Entry for buffers needing fragmentation.
+ * link_send_long_buf: Entry for buffers needing fragmentation.
  * The buffer is complete, inclusive total message length.
  * Returns user data length.
  */
-int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
+static int link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 {
 	struct tipc_msg *inmsg = buf_msg(buf);
 	struct tipc_msg fragm_hdr;
@@ -2648,7 +2651,7 @@ int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 			fragm_sz = rest;
 			msg_set_type(&fragm_hdr, LAST_FRAGMENT);
 		}
-		fragm = buf_acquire(fragm_sz + INT_H_SIZE);
+		fragm = tipc_buf_acquire(fragm_sz + INT_H_SIZE);
 		if (fragm == NULL) {
 			warn("Link unable to fragment message\n");
 			dsz = -ENOMEM;
@@ -2753,7 +2756,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			buf_discard(fbuf);
 			return 0;
 		}
-		pbuf = buf_acquire(msg_size(imsg));
+		pbuf = tipc_buf_acquire(msg_size(imsg));
 		if (pbuf != NULL) {
 			pbuf->next = *pending;
 			*pending = pbuf;

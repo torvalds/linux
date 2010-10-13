@@ -112,7 +112,7 @@ int tipc_msg_build(struct tipc_msg *hdr,
 		return dsz;
 	}
 
-	*buf = buf_acquire(sz);
+	*buf = tipc_buf_acquire(sz);
 	if (!(*buf))
 		return -ENOMEM;
 	skb_copy_to_linear_data(*buf, hdr, hsz);
