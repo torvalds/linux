@@ -18,36 +18,6 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
-static void ath_cache_conf_rate(struct ath_softc *sc,
-				struct ieee80211_conf *conf)
-{
-	switch (conf->channel->band) {
-	case IEEE80211_BAND_2GHZ:
-		if (conf_is_ht20(conf))
-			sc->cur_rate_mode = ATH9K_MODE_11NG_HT20;
-		else if (conf_is_ht40_minus(conf))
-			sc->cur_rate_mode = ATH9K_MODE_11NG_HT40MINUS;
-		else if (conf_is_ht40_plus(conf))
-			sc->cur_rate_mode = ATH9K_MODE_11NG_HT40PLUS;
-		else
-			sc->cur_rate_mode = ATH9K_MODE_11G;
-		break;
-	case IEEE80211_BAND_5GHZ:
-		if (conf_is_ht20(conf))
-			sc->cur_rate_mode = ATH9K_MODE_11NA_HT20;
-		else if (conf_is_ht40_minus(conf))
-			sc->cur_rate_mode = ATH9K_MODE_11NA_HT40MINUS;
-		else if (conf_is_ht40_plus(conf))
-			sc->cur_rate_mode = ATH9K_MODE_11NA_HT40PLUS;
-		else
-			sc->cur_rate_mode = ATH9K_MODE_11A;
-		break;
-	default:
-		BUG_ON(1);
-		break;
-	}
-}
-
 static void ath_update_txpow(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -306,7 +276,6 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		goto ps_restore;
 	}
 
-	ath_cache_conf_rate(sc, &hw->conf);
 	ath_update_txpow(sc);
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
@@ -1013,8 +982,6 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_cache_conf_rate(sc, &hw->conf);
-
 	ath_update_txpow(sc);
 
 	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
@@ -1220,8 +1187,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
-
-	ath_cache_conf_rate(sc, &hw->conf);
 
 	sc->sc_flags &= ~SC_OP_INVALID;
 

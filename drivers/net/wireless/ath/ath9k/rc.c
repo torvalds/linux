@@ -791,7 +791,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	 */
 	try_per_rate = 4;
 
-	rate_table = sc->cur_rate_table;
+	rate_table = ath_rc_priv->rate_table;
 	rix = ath_rc_get_highest_rix(sc, ath_rc_priv, rate_table, &is_probe);
 
 	/*
@@ -1048,7 +1048,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	int rate;
 	u8 last_per;
 	bool state_change = false;
-	const struct ath_rate_table *rate_table = sc->cur_rate_table;
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	int size = ath_rc_priv->rate_table_size;
 
 	if ((tx_rate < 0) || (tx_rate > rate_table->rate_cnt))
@@ -1150,7 +1150,7 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 	u8 flags;
 	u32 i = 0, rix;
 
-	rate_table = sc->cur_rate_table;
+	rate_table = ath_rc_priv->rate_table;
 
 	/*
 	 * If the first rate is not the final index, there
@@ -1231,7 +1231,6 @@ struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 	ath_print(common, ATH_DBG_CONFIG,
 		  "Choosing rate table for mode: %d\n", mode);
 
-	sc->cur_rate_mode = mode;
 	return hw_rate_table[mode];
 }
 
@@ -1303,7 +1302,6 @@ static void ath_rc_init(struct ath_softc *sc,
 	ath_rc_priv->max_valid_rate = k;
 	ath_rc_sort_validrates(rate_table, ath_rc_priv);
 	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
-	sc->cur_rate_table = rate_table;
 	ath_rc_priv->rate_table = rate_table;
 
 	ath_print(common, ATH_DBG_CONFIG,
@@ -1439,8 +1437,9 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		}
 	}
 
-	ath_debug_stat_rc(ath_rc_priv, ath_rc_get_rateindex(sc->cur_rate_table,
-		&tx_info->status.rates[final_ts_idx]));
+	ath_debug_stat_rc(ath_rc_priv,
+		ath_rc_get_rateindex(ath_rc_priv->rate_table,
+			&tx_info->status.rates[final_ts_idx]));
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
@@ -1480,14 +1479,8 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 
 	/* Choose rate table first */
 
-	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)) {
-		rate_table = ath_choose_rate_table(sc, sband->band,
-		                      sta->ht_cap.ht_supported, is_cw40);
-	} else {
-		rate_table = hw_rate_table[sc->cur_rate_mode];
-	}
+	rate_table = ath_choose_rate_table(sc, sband->band,
+	                      sta->ht_cap.ht_supported, is_cw40);
 
 	ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta, is_cw40, is_sgi);
 	ath_rc_init(sc, priv_sta, sband, sta, rate_table);
@@ -1536,7 +1529,6 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 			ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
 				  "Operating HT Bandwidth changed to: %d\n",
 				  sc->hw->conf.channel_type);
-			sc->cur_rate_table = hw_rate_table[sc->cur_rate_mode];
 		}
 	}
 }
