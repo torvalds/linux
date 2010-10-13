@@ -141,6 +141,26 @@ my %nameexception = (
     'VDSO32_sigreturn'	=> 1,
 );
 
+# Files with exceptions to source file location
+my %sourceloc = (
+    'net/dccp/dccp_probe.o'	=> 'probe',
+    'net/dccp/dccp_ipv4.o'	=> 'ipv4',
+    'net/dccp/dccp_ipv6.o'	=> 'ipv6',
+    'net/dccp/dccp_diag.o'	=> 'diag',
+    'drivers/char/hw_random/rng-core.o'	=> 'core',
+    'fs/fat/msdos.o'		=> 'namei_msdos',
+    'fs/fat/vfat.o'		=> 'namei_vfat',
+    'fs/nfs_common/nfs_acl.o'	=> 'nfsacl',
+    'sound/soundcore.o'		=> 'sound_core',
+    'drivers/md/dm-mirror.o'	=> 'dm-raid1',
+    'drivers/message/i2o/i2o_bus.o' => 'bus-osm',
+    'arch/x86/kvm/kvm-amd.o'	=> 'svm',
+    'arch/x86/kvm/kvm-intel.o'	=> 'vmx',
+    'arch/x86/crypto/twofish-x86_64.o' => 'twofish-x86_64-asm_64',
+    'arch/x86/crypto/aes-x86_64.o' => 'aes-x86_64-asm_64',
+    'arch/x86/crypto/aesni-intel.o' => 'aesni-intel_asm',
+    'arch/x86/crypto/salsa20-x86_64.o' => 'salsa20-x86_64-asm_64',
+);
 
 &find(\&linux_objects, '.');	# find the objects and do_nm on them
 &list_multiply_defined();
@@ -228,11 +248,15 @@ sub do_nm
 		return;
 	}
 	($source = $basename) =~ s/\.o$//;
+
+	$source = $sourceloc{$fullname} if ($sourceloc{$fullname});
+
 	if (-e "$source.c" || -e "$source.S") {
 		$source = "$objtree$File::Find::dir/$source";
 	} else {
 		$source = "$srctree$File::Find::dir/$source";
 	}
+
 	if (! -e "$source.c" && ! -e "$source.S") {
 		# No obvious source, exclude the object if it is conglomerate
 	        open(my $objdumpdata, "$objdump $basename|")
