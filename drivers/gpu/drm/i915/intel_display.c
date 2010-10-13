@@ -345,8 +345,11 @@ intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
 static inline u32 /* units of 100MHz */
 intel_fdi_link_freq(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	return (I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2;
+	if (IS_GEN5(dev)) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+		return (I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2;
+	} else
+		return 27;
 }
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
