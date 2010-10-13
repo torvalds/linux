@@ -255,6 +255,9 @@ static void mdm6600_kill_urbs(struct mdm6600_port *modem)
 	usb_scuttle_anchored_urbs(&modem->read.in_flight);
 
 	usb_kill_urb(modem->port->interrupt_in_urb);
+
+	if (!usb_wait_anchor_empty_timeout(&modem->read.pending, 1000))
+		usb_scuttle_anchored_urbs(&modem->read.pending);
 }
 
 static void mdm6600_disconnect(struct usb_serial *serial)
@@ -262,6 +265,8 @@ static void mdm6600_disconnect(struct usb_serial *serial)
 	struct mdm6600_port *modem = usb_get_serial_data(serial);
 
 	dbg("%s: port %d", __func__, modem->number);
+
+	modem->opened = 0;
 
 	if (modem->number == MODEM_INTERFACE_NUM) {
 		disable_irq_wake(mdm6600_wake_irq);
@@ -272,9 +277,6 @@ static void mdm6600_disconnect(struct usb_serial *serial)
 
 	/* cancel read bottom half */
 	cancel_work_sync(&modem->read.work);
-
-	/* drop pending reads */
-	usb_scuttle_anchored_urbs(&modem->read.pending);
 
 	modem->tiocm_status = 0;
 
@@ -360,14 +362,13 @@ static void mdm6600_close(struct usb_serial_port *port)
 
 	dbg("%s: port %d", __func__, modem->number);
 
+	usb_autopm_get_interface(modem->serial->interface);
+
 	modem->opened = 0;
 	mdm6600_kill_urbs(modem);
 
 	/* cancel read bottom half */
 	cancel_work_sync(&modem->read.work);
-
-	/* drop pending reads */
-	usb_scuttle_anchored_urbs(&modem->read.pending);
 
 	modem->tiocm_status = 0;
 }
@@ -740,10 +741,13 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 
 next:
 		usb_unanchor_urb(u);
-		if (modem->susp_count) {
+		spin_lock_irqsave(&modem->susp_lock, flags);
+		if (modem->susp_count || !modem->opened) {
+			spin_unlock_irqrestore(&modem->susp_lock, flags);
 			usb_put_urb(u);
 			continue;
 		}
+		spin_unlock_irqrestore(&modem->susp_lock, flags);
 
 		usb_anchor_urb(u, &modem->read.in_flight);
 		usb_put_urb(u);
@@ -808,8 +812,6 @@ static int mdm6600_suspend(struct usb_interface *intf, pm_message_t message)
 		spin_unlock_irq(&modem->susp_lock);
 		dbg("%s: kill urbs", __func__);
 		mdm6600_kill_urbs(modem);
-		if (!usb_wait_anchor_empty_timeout(&modem->read.pending, 1000))
-			usb_scuttle_anchored_urbs(&modem->read.pending);
 		return 0;
 	}
 
