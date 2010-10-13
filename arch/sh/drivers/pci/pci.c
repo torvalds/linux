@@ -268,7 +268,7 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
-char * __devinit pcibios_setup(char *str)
+char * __devinit __weak pcibios_setup(char *str)
 {
 	return str;
 }

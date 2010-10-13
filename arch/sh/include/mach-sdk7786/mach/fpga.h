@@ -31,7 +31,16 @@
 #define EXTASR		0x110
 #define SPCAR		0x120
 #define INTMSR		0x130
+
 #define PCIECR		0x140
+#define  PCIECR_PCIEMUX1	BIT(15)
+#define  PCIECR_PCIEMUX0	BIT(14)
+#define  PCIECR_PRST4		BIT(12) /* slot 4 card present */
+#define  PCIECR_PRST3		BIT(11) /* slot 3 card present */
+#define  PCIECR_PRST2		BIT(10) /* slot 2 card present */
+#define  PCIECR_PRST1		BIT(9)  /* slot 1 card present */
+#define  PCIECR_CLKEN		BIT(4)
+
 #define FAER		0x150
 #define USRGPIR		0x160
 /* 0x170 reserved */
