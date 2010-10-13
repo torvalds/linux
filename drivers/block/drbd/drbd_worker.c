@@ -922,6 +922,8 @@ out:
 	mdev->rs_paused = 0;
 	mdev->ov_start_sector = 0;
 
+	drbd_md_sync(mdev);
+
 	if (test_and_clear_bit(WRITE_BM_AFTER_RESYNC, &mdev->flags)) {
 		dev_warn(DEV, "Writing the whole bitmap, due to failed kmalloc\n");
 		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
