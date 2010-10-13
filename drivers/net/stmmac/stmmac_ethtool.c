@@ -89,8 +89,8 @@ static const struct  stmmac_stats stmmac_gstrings_stats[] = {
 };
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
 
-void stmmac_ethtool_getdrvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
+static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
+				      struct ethtool_drvinfo *info)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
@@ -104,7 +104,8 @@ void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 	info->n_stats = STMMAC_STATS_LEN;
 }
 
-int stmmac_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int stmmac_ethtool_getsettings(struct net_device *dev,
+				      struct ethtool_cmd *cmd)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = priv->phydev;
@@ -126,7 +127,8 @@ int stmmac_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return rc;
 }
 
-int stmmac_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int stmmac_ethtool_setsettings(struct net_device *dev,
+				      struct ethtool_cmd *cmd)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = priv->phydev;
@@ -139,32 +141,32 @@ int stmmac_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return rc;
 }
 
-u32 stmmac_ethtool_getmsglevel(struct net_device *dev)
+static u32 stmmac_ethtool_getmsglevel(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	return priv->msg_enable;
 }
 
-void stmmac_ethtool_setmsglevel(struct net_device *dev, u32 level)
+static void stmmac_ethtool_setmsglevel(struct net_device *dev, u32 level)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	priv->msg_enable = level;
 
 }
 
-int stmmac_check_if_running(struct net_device *dev)
+static int stmmac_check_if_running(struct net_device *dev)
 {
 	if (!netif_running(dev))
 		return -EBUSY;
 	return 0;
 }
 
-int stmmac_ethtool_get_regs_len(struct net_device *dev)
+static int stmmac_ethtool_get_regs_len(struct net_device *dev)
 {
 	return REG_SPACE_SIZE;
 }
 
-void stmmac_ethtool_gregs(struct net_device *dev,
+static void stmmac_ethtool_gregs(struct net_device *dev,
 			  struct ethtool_regs *regs, void *space)
 {
 	int i;
@@ -195,7 +197,7 @@ void stmmac_ethtool_gregs(struct net_device *dev,
 	}
 }
 
-int stmmac_ethtool_set_tx_csum(struct net_device *netdev, u32 data)
+static int stmmac_ethtool_set_tx_csum(struct net_device *netdev, u32 data)
 {
 	if (data)
 		netdev->features |= NETIF_F_HW_CSUM;
@@ -205,7 +207,7 @@ int stmmac_ethtool_set_tx_csum(struct net_device *netdev, u32 data)
 	return 0;
 }
 
-u32 stmmac_ethtool_get_rx_csum(struct net_device *dev)
+static u32 stmmac_ethtool_get_rx_csum(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
