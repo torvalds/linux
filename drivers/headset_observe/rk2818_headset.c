@@ -61,6 +61,16 @@ static struct rk2818_headset_data *prk2818_headset_info;
 static irqreturn_t headset_interrupt(int irq, void *dev_id);
 unsigned int headset_irq_type;
 
+int headset_status(void)
+{	    
+    if(Headset_dev.cur_headset_status & BIT_HEADSET)		        
+        return 1;	    
+    else		       
+        return 0;
+}
+
+EXPORT_SYMBOL_GPL(headset_status);
+
 static void headsetobserve_work(void)
 {
 	if(gpio_get_value(prk2818_headset_info->irq)){

@@ -28,3 +28,4 @@ obj-y				+= eeprom/
 obj-y				+= cb710/
 obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
+obj-$(CONFIG_STE)		+= ste.o

@@ -1846,6 +1846,13 @@ struct platform_device rk2818_device_dm9k = {
 };
 #endif
 
+#ifdef CONFIG_STE
+struct platform_device rk2818_device_ste = {	
+        .name = "ste",	
+    	.id = -1,	
+    	};
+#endif
+
 #ifdef CONFIG_HEADSET_DET
 struct rk2818_headset_data rk2818_headset_info = {
 	.irq		= FPGA_PIO0_00,
@@ -1858,6 +1865,81 @@ struct platform_device rk28_device_headset = {
 		.id 	= 0,
 		.dev    = {
 		    .platform_data = &rk2818_headset_info,
+		}
+};
+#endif
+
+//	adc	 ---> key	
+#define PLAY_ON_PIN RK2818_PIN_PA3
+#define PLAY_ON_LEVEL 1
+static  ADC_keyst gAdcValueTab[] = 
+{
+	{0x65,  AD2KEY2},///VOLUME_DOWN
+	{0xd3,  AD2KEY1},///VOLUME_UP
+	{0x130, AD2KEY3},///MENU
+	{0x19d, AD2KEY4},///HOME
+	{0x202, AD2KEY5},///BACK
+	{0x2d0, AD2KEY6},///CALL
+	{0x267, AD2KEY7},///SEARCH
+	{0,     0}///table end
+};
+
+static unsigned char gInitKeyCode[] = 
+{
+	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,AD2KEY7,
+	ENDCALL,KEYSTART,KEY_WAKEUP,
+};
+
+struct adc_key_data rk2818_adc_key = {
+    .pin_playon     = PLAY_ON_PIN,
+    .playon_level   = PLAY_ON_LEVEL,
+    .adc_empty      = 1000,
+    .adc_invalid    = 20,
+    .adc_drift      = 50,
+    .adc_chn        = 1,
+    .adc_key_table  = gAdcValueTab,
+    .initKeyCode    = gInitKeyCode,
+    .adc_key_cnt    = 10,
+};
+
+struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
+	.adc_key = &rk2818_adc_key,
+};
+
+//headset key
+#ifdef CONFIG_HEADSET_KEY
+static  ADC_keyst gHskeyValueTab[] = 
+{
+	{0,  KEY_HEADSETHOOK},
+	{0,     0}///table end
+};
+
+static unsigned char gInitHsKeyCode[] = 
+{
+    KEY_HEADSETHOOK,
+};
+
+struct adc_key_data rk2818_hs_key = {
+    .pin_playon     = 0,
+    .playon_level   = 0,
+    .adc_empty      = 0,
+    .adc_invalid    = 0,
+    .adc_drift      = 50,
+    .adc_chn        = 2,
+    .adc_key_table  = gHskeyValueTab,
+    .initKeyCode    = gInitHsKeyCode,
+    .adc_key_cnt    = 1,
+};
+
+struct rk2818_adckey_platform_data rk2818_hskey_platdata = {
+	.adc_key = &rk2818_hs_key,
+};
+
+struct platform_device rk2818_device_hskey = {
+	.name		= "rk2818-hskey",
+	.id		= -1,
+	.dev    = {
+		    .platform_data = &rk2818_hskey_platdata,
 		}
 };
 #endif
@@ -2012,6 +2094,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_HEADSET_DET
     &rk28_device_headset,
 #endif
+#ifdef CONFIG_HEADSET_KEY
+    &rk2818_device_hskey,
+#endif
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
 #endif
@@ -2021,6 +2106,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_USB_ANDROID
 	&android_usb_device,
 	&usb_mass_storage_device,
+#endif
+#ifdef CONFIG_STE	
+	&rk2818_device_ste,
 #endif
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 	&rk28_device_vibrator,
@@ -2057,50 +2145,13 @@ static void rk2818_power_off(void)
 	gpio_set_value(POWER_PIN, 0);/*power down*/
 }
 
-//	adc	 ---> key	
-#define PLAY_ON_PIN RK2818_PIN_PA3
-#define PLAY_ON_LEVEL 1
-static  ADC_keyst gAdcValueTab[] = 
-{
-	{0x65,  AD2KEY1},///VOLUME_DOWN
-	{0xd3,  AD2KEY2},///VOLUME_UP
-	{0x130, AD2KEY3},///MENU
-	{0x19d, AD2KEY4},///HOME
-	{0x202, AD2KEY5},///BACK
-	{0x2d0, AD2KEY6},///CALL
-	{0x267, AD2KEY7},///SEARCH
-	{0,     0}///table end
-};
-
-static unsigned char gInitKeyCode[] = 
-{
-	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,AD2KEY7,
-	ENDCALL,KEYSTART,KEY_WAKEUP,
-};
-
-struct adc_key_data rk2818_adc_key = {
-    .pin_playon     = PLAY_ON_PIN,
-    .playon_level   = PLAY_ON_LEVEL,
-    .adc_empty      = 1000,
-    .adc_invalid    = 20,
-    .adc_drift      = 50,
-    .adc_chn        = 1,
-    .adc_key_table  = gAdcValueTab,
-    .initKeyCode    = gInitKeyCode,
-    .adc_key_cnt    = 10,
-};
-
-struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
-	.adc_key = &rk2818_adc_key,
-};
-
-#if CONFIG_ANDROID_TIMED_GPIO
+#if defined(CONFIG_ANDROID_TIMED_GPIO)
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
 		.gpio = FPGA_PIO1_12,
 		.max_timeout = 1000,
-		.active_low = 1,
+		.active_low = 0,
 	},
 };
 

@@ -59,8 +59,10 @@ struct rk28_adckey *pRk28AdcKey;
 
 unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab,struct adc_key_data *rk2818_adckey_data)
 {	
-	while(ptab->adc_value != 0)
+	while(ptab->adc_keycode != 0)
 	{
+	    if((ptab->adc_value == 0)&&(advalue >= 0 && advalue <= 5))
+	        return ptab->adc_keycode;
 		if((advalue > ptab->adc_value - rk2818_adckey_data->adc_drift) && (advalue < ptab->adc_value + rk2818_adckey_data->adc_drift))
 		    return ptab->adc_keycode;
 		ptab++;
@@ -68,6 +70,8 @@ unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab,struct adc_ke
 
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(rk28_get_keycode);
 
 static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 { 

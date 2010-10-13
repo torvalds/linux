@@ -96,7 +96,7 @@
 #define  VIPREGNTSC                   0x00000000
 #define  VIPREGPAL                    0x00000400
 //--------------------------
-#define CONFIG_RK28CAMERA_TR      1
+#define CONFIG_RK28CAMERA_TR      0
 #define CONFIG_RK28CAMERA_DEBUG	  0
 #if (CONFIG_RK28CAMERA_TR)
 	#define RK28CAMERA_TR(format, ...)      printk(format, ## __VA_ARGS__)
@@ -107,6 +107,7 @@
 	#endif
 #else
 	#define RK28CAMERA_TR(format, ...)
+	#define RK28CAMERA_DG(format, ...)
 #endif
 
 #define MIN(x,y)   ((x<y) ? x: y)

@@ -26,7 +26,7 @@
 #define RTC_RATE	100 * 1000
 #define S35392_TEST 0
 
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -56,7 +56,7 @@ static int s35392a_set_reg(struct s35392a *s35392a, const char reg, char *buf, i
 	
 	ret = i2c_transfer(client->adapter,&msg,1);
 	for(i=0;i<len;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	return ret;	
 	
 }
@@ -219,11 +219,11 @@ static int s35392a_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	/* This chip expects the bits of each byte to be in reverse order */
 	for(i=0;i<7;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	for (i = 0; i < 7; ++i)
 		buf[i] = bitrev8(buf[i]);
 	for(i=0;i<7;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	err = s35392a_set_reg(s35392a, S35392A_CMD_TIME1, buf, sizeof(buf));
 
 	return err;
@@ -239,12 +239,12 @@ static int s35392a_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if (err < 0)
 		return err;
 	for(i=0;i<7;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	/* This chip returns the bits of each byte in reverse order */
 	for (i = 0; i < 7; ++i)
 		buf[i] = bitrev8(buf[i]);
 	for(i=0;i<7;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	tm->tm_sec = bcd2bin(buf[S35392A_BYTE_SECS]);
 	tm->tm_min = bcd2bin(buf[S35392A_BYTE_MINS]);
 	tm->tm_hour = s35392a_reg2hr(s35392a, buf[S35392A_BYTE_HOURS]);
@@ -272,11 +272,11 @@ static int s35392a_i2c_read_alarm(struct i2c_client *client, struct rtc_wkalrm  
    	if(err < 0)
         	return err;
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
    	 for(i = 0;i < 3;++i)
        	 buf[i] = bitrev8(buf[i]);
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
    	tm->time.tm_wday = -1;   
     	tm->time.tm_hour = -1;
 	tm->time.tm_min = -1;    	
@@ -330,11 +330,11 @@ static int s35392a_i2c_set_alarm(struct i2c_client *client, struct rtc_wkalrm  *
 	buf[S35392A_ALARM_MINS] = tm->time.tm_min >= 0?
 		bin2bcd(tm->time.tm_min) | S35392A_ALARM_ENABLE:0;	
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	 for(i = 0;i < 3;++i)
        	 buf[i] = bitrev8(buf[i]);
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	 if(tm->enabled)
 	 {
         	data = 0x00;
@@ -346,7 +346,7 @@ static int s35392a_i2c_set_alarm(struct i2c_client *client, struct rtc_wkalrm  *
         	data = 0x02;
 		s35392a_set_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);		
 		s35392a_get_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);
-		printk("data = 0x%x\n",data);
+		DBG("data = 0x%x\n",data);
 		err = s35392a_set_reg(s35392a, S35392A_CMD_INT2, buf, sizeof(buf));
 		return err;
 	 }
@@ -370,11 +370,11 @@ static int s35392a_i2c_read_alarm0(struct i2c_client *client, struct rtc_wkalrm 
    	if(err < 0)
         	return err;
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
    	 for(i = 0;i < 3;++i)
        	 buf[i] = bitrev8(buf[i]);
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
    	tm->time.tm_wday = -1;   
     	tm->time.tm_hour = -1;
 	tm->time.tm_min = -1;    	
@@ -428,11 +428,11 @@ static int s35392a_i2c_set_alarm0(struct i2c_client *client, struct rtc_wkalrm  
 	buf[S35392A_ALARM_MINS] = tm->time.tm_min >= 0?
 		bin2bcd(tm->time.tm_min) | S35392A_ALARM_ENABLE:0;	
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	 for(i = 0;i < 3;++i)
        	 buf[i] = bitrev8(buf[i]);
 	for(i=0;i<3;i++)
-		printk("buf[%d]=0x%x\n",i,buf[i]);
+		DBG("buf[%d]=0x%x\n",i,buf[i]);
 	 if(tm->enabled)
 	 {
         	data = 0x00;
@@ -444,7 +444,7 @@ static int s35392a_i2c_set_alarm0(struct i2c_client *client, struct rtc_wkalrm  
         	data = 0x02;
 		s35392a_set_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);		
 		s35392a_get_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);
-		printk("data = 0x%x\n",data);
+		DBG("data = 0x%x\n",data);
 		err = s35392a_set_reg(s35392a, S35392A_CMD_INT1, buf, sizeof(buf));
 		return err;
 	 }
@@ -743,7 +743,7 @@ static void s35392a_work_func(struct work_struct *work)
 	struct s35392a *s35392a = container_of(work, struct s35392a, work);
 	struct i2c_client *client = s35392a->client;
     
-	printk("\n@@@@@@@@@@@rtc_wakeup_irq@@@@@@@@@@@@@\n");
+	DBG("\n@@@@@@@@@@@rtc_wakeup_irq@@@@@@@@@@@@@\n");
 	
 	char data = 0x00;
     s35392a_get_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);
@@ -751,7 +751,7 @@ static void s35392a_work_func(struct work_struct *work)
     s35392a_set_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);
     s35392a_get_reg(s35392a, S35392A_CMD_STATUS2, &data, 1);
     
-	printk("\n@@@@@@@@@@@rtc_wakeup_irq@@@@@@@@@@@@@\n");	
+	DBG("\n@@@@@@@@@@@rtc_wakeup_irq@@@@@@@@@@@@@\n");	
 		
 	enable_irq(client->irq);		
 }
@@ -774,7 +774,7 @@ static int s35392a_probe(struct i2c_client *client,
 	struct rtc_time tm;
 	char buf[1];
 	
-	printk("@@@@@%s:%d@@@@@\n",__FUNCTION__,__LINE__);
+	DBG("@@@@@%s:%d@@@@@\n",__FUNCTION__,__LINE__);
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		goto exit;
@@ -843,7 +843,7 @@ static int s35392a_probe(struct i2c_client *client,
 
 		if(err = request_irq(client->irq, s35392a_wakeup_irq,IRQF_TRIGGER_LOW,NULL,s35392a) <0)	
 		{
-			printk("unable to request rtc irq\n");
+			DBG("unable to request rtc irq\n");
 			goto exit_dummy;
 		}	
 	}
@@ -854,7 +854,7 @@ static int s35392a_probe(struct i2c_client *client,
 
 		if(err = request_irq(client->irq, s35392a_wakeup_irq,IRQF_TRIGGER_HIGH,NULL,s35392a) <0)	
 		{
-			printk("unable to request rtc irq\n");
+			DBG("unable to request rtc irq\n");
 			goto exit_dummy;
 		}	
 	}
@@ -871,7 +871,7 @@ static int s35392a_probe(struct i2c_client *client,
 	}
 #endif
 	
-	printk("@@@@@%s:%d@@@@@\n",__FUNCTION__,__LINE__);
+	DBG("@@@@@%s:%d@@@@@\n",__FUNCTION__,__LINE__);
 	return 0;
 
 exit_dummy:
@@ -916,7 +916,7 @@ static struct i2c_driver s35392a_driver = {
 
 static int __init s35392a_rtc_init(void)
 {
-	printk("@@@@@%s:%d@@@@@\n",__FUNCTION__,__LINE__);
+	DBG("@@@@@%s:%d@@@@@\n",__FUNCTION__,__LINE__);
 	return i2c_add_driver(&s35392a_driver);
 }
 

@@ -237,6 +237,7 @@ struct rk2818_rtc_platform_data {
 #define KEYMENU					AD2KEY6		///CALL
 #define	KEY_PLAY_SHORT_PRESS	KEYSTART	//code for short press the play key
 #define	KEY_PLAY_LONG_PRESS		ENDCALL		//code for long press the play key
+#define KEY_HEADSETHOOK         226
 
 //ADC Registers
 typedef  struct tagADC_keyst
