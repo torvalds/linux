@@ -69,21 +69,29 @@ qla2x00_ctx_sp_free(srb_t *sp)
 {
 	struct srb_ctx *ctx = sp->ctx;
 	struct srb_iocb *iocb = ctx->u.iocb_cmd;
+	struct scsi_qla_host *vha = sp->fcport->vha;
 
 	del_timer_sync(&iocb->timer);
 	kfree(iocb);
 	kfree(ctx);
 	mempool_free(sp, sp->fcport->vha->hw->srb_mempool);
+
+	QLA_VHA_MARK_NOT_BUSY(vha);
 }
 
 inline srb_t *
 qla2x00_get_ctx_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size,
     unsigned long tmo)
 {
-	srb_t *sp;
+	srb_t *sp = NULL;
 	struct qla_hw_data *ha = vha->hw;
 	struct srb_ctx *ctx;
 	struct srb_iocb *iocb;
+	uint8_t bail;
+
+	QLA_VHA_MARK_BUSY(vha, bail);
+	if (bail)
+		return NULL;
 
 	sp = mempool_alloc(ha->srb_mempool, GFP_KERNEL);
 	if (!sp)
@@ -116,6 +124,8 @@ qla2x00_get_ctx_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size,
 	iocb->timer.function = qla2x00_ctx_sp_timeout;
 	add_timer(&iocb->timer);
 done:
+	if (!sp)
+		QLA_VHA_MARK_NOT_BUSY(vha);
 	return sp;
 }
 
@@ -1777,11 +1787,15 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		qla2x00_init_response_q_entries(rsp);
 	}
 
+	spin_lock_irqsave(&ha->vport_slock, flags);
 	/* Clear RSCN queue. */
 	list_for_each_entry(vp, &ha->vp_list, list) {
 		vp->rscn_in_ptr = 0;
 		vp->rscn_out_ptr = 0;
 	}
+
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 	ha->isp_ops->config_rings(vha);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -3218,12 +3232,17 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		/* Bypass virtual ports of the same host. */
 		found = 0;
 		if (ha->num_vhosts) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&ha->vport_slock, flags);
 			list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
 				if (new_fcport->d_id.b24 == vp->d_id.b24) {
 					found = 1;
 					break;
 				}
 			}
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 			if (found)
 				continue;
 		}
@@ -3343,6 +3362,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp;
 	struct scsi_qla_host *tvp;
+	unsigned long flags = 0;
 
 	rval = QLA_SUCCESS;
 
@@ -3367,6 +3387,8 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 		/* Check for loop ID being already in use. */
 		found = 0;
 		fcport = NULL;
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
 		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
 			list_for_each_entry(fcport, &vp->vp_fcports, list) {
 				if (fcport->loop_id == dev->loop_id &&
@@ -3379,6 +3401,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 			if (found)
 				break;
 		}
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 		/* If not in use then it is free to use. */
 		if (!found) {
@@ -3791,14 +3814,27 @@ void
 qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 {
 	fc_port_t *fcport;
-	struct scsi_qla_host *tvp, *vha;
+	struct scsi_qla_host *vha;
+	struct qla_hw_data *ha = base_vha->hw;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ha->vport_slock, flags);
 	/* Go with deferred removal of rport references. */
-	list_for_each_entry_safe(vha, tvp, &base_vha->hw->vp_list, list)
-		list_for_each_entry(fcport, &vha->vp_fcports, list)
+	list_for_each_entry(vha, &base_vha->hw->vp_list, list) {
+		atomic_inc(&vha->vref_count);
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (fcport && fcport->drport &&
-			    atomic_read(&fcport->state) != FCS_UNCONFIGURED)
+			    atomic_read(&fcport->state) != FCS_UNCONFIGURED) {
+				spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 				qla2x00_rport_del(fcport);
+
+				spin_lock_irqsave(&ha->vport_slock, flags);
+			}
+		}
+		atomic_dec(&vha->vref_count);
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
 
 void
@@ -3806,7 +3842,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
-	struct scsi_qla_host *tvp;
+	unsigned long flags;
 
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
@@ -3824,8 +3860,18 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 		atomic_set(&vha->loop_state, LOOP_DOWN);
 		qla2x00_mark_all_devices_lost(vha, 0);
-		list_for_each_entry_safe(vp, tvp, &base_vha->hw->vp_list, list)
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		list_for_each_entry(vp, &base_vha->hw->vp_list, list) {
+			atomic_inc(&vp->vref_count);
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 			qla2x00_mark_all_devices_lost(vp, 0);
+
+			spin_lock_irqsave(&ha->vport_slock, flags);
+			atomic_dec(&vp->vref_count);
+		}
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	} else {
 		if (!atomic_read(&vha->loop_down_timer))
 			atomic_set(&vha->loop_down_timer,
@@ -3862,8 +3908,8 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	uint8_t        status = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp;
-	struct scsi_qla_host *tvp;
 	struct req_que *req = ha->req_q_map[0];
+	unsigned long flags;
 
 	if (vha->flags.online) {
 		qla2x00_abort_isp_cleanup(vha);
@@ -3970,10 +4016,21 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		DEBUG(printk(KERN_INFO
 				"qla2x00_abort_isp(%ld): succeeded.\n",
 				vha->host_no));
-		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
-			if (vp->vp_idx)
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		list_for_each_entry(vp, &ha->vp_list, list) {
+			if (vp->vp_idx) {
+				atomic_inc(&vp->vref_count);
+				spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 				qla2x00_vp_abort_isp(vp);
+
+				spin_lock_irqsave(&ha->vport_slock, flags);
+				atomic_dec(&vp->vref_count);
+			}
 		}
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 	} else {
 		qla_printk(KERN_INFO, ha,
 			"qla2x00_abort_isp: **** FAILED ****\n");
@@ -5185,7 +5242,7 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
 	struct scsi_qla_host *vp;
-	struct scsi_qla_host *tvp;
+	unsigned long flags;
 
 	status = qla2x00_init_rings(vha);
 	if (!status) {
@@ -5272,10 +5329,21 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 		DEBUG(printk(KERN_INFO
 			"qla82xx_restart_isp(%ld): succeeded.\n",
 			vha->host_no));
-		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
-			if (vp->vp_idx)
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		list_for_each_entry(vp, &ha->vp_list, list) {
+			if (vp->vp_idx) {
+				atomic_inc(&vp->vref_count);
+				spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 				qla2x00_vp_abort_isp(vp);
+
+				spin_lock_irqsave(&ha->vport_slock, flags);
+				atomic_dec(&vp->vref_count);
+			}
 		}
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 	} else {
 		qla_printk(KERN_INFO, ha,
 			"qla82xx_restart_isp: **** FAILED ****\n");

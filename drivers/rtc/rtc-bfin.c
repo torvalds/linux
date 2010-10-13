@@ -426,7 +426,7 @@ static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 		enable_irq_wake(IRQ_RTC);
 		bfin_rtc_sync_pending(&pdev->dev);
 	} else
-		bfin_rtc_int_clear(-1);
+		bfin_rtc_int_clear(0);
 
 	return 0;
 }
@@ -435,8 +435,17 @@ static int bfin_rtc_resume(struct platform_device *pdev)
 {
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(IRQ_RTC);
-	else
-		bfin_write_RTC_ISTAT(-1);
+
+	/*
+	 * Since only some of the RTC bits are maintained externally in the
+	 * Vbat domain, we need to wait for the RTC MMRs to be synced into
+	 * the core after waking up.  This happens every RTC 1HZ.  Once that
+	 * has happened, we can go ahead and re-enable the important write
+	 * complete interrupt event.
+	 */
+	while (!(bfin_read_RTC_ISTAT() & RTC_ISTAT_SEC))
+		continue;
+	bfin_rtc_int_set(RTC_ISTAT_WRITE_COMPLETE);
 
 	return 0;
 }

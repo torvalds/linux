@@ -201,8 +201,8 @@ static void __init mxc_board_init(void)
 	if (!otg_mode_host)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
 
-#ifdef CONFIG_MACH_EUKREA_MBIMXSD_BASEBOARD
-	eukrea_mbimxsd_baseboard_init();
+#ifdef CONFIG_MACH_EUKREA_MBIMXSD35_BASEBOARD
+	eukrea_mbimxsd35_baseboard_init();
 #endif
 }
 

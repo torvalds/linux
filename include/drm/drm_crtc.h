@@ -386,7 +386,15 @@ struct drm_connector_funcs {
 	void (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
-	enum drm_connector_status (*detect)(struct drm_connector *connector);
+
+	/* Check to see if anything is attached to the connector.
+	 * @force is set to false whilst polling, true when checking the
+	 * connector due to user request. @force can be used by the driver
+	 * to avoid expensive, destructive operations during automated
+	 * probing.
+	 */
+	enum drm_connector_status (*detect)(struct drm_connector *connector,
+					    bool force);
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);

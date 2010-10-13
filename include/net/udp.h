@@ -151,6 +151,7 @@ static inline void udp_lib_hash(struct sock *sk)
 }
 
 extern void udp_lib_unhash(struct sock *sk);
+extern void udp_lib_rehash(struct sock *sk, u16 new_hash);
 
 static inline void udp_lib_close(struct sock *sk, long timeout)
 {

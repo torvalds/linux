@@ -270,7 +270,7 @@ static int hiddev_open(struct inode *inode, struct file *file)
 	struct hiddev *hiddev;
 	int res;
 
-	intf = usb_find_interface(&hiddev_driver, iminor(inode));
+	intf = usbhid_find_interface(iminor(inode));
 	if (!intf)
 		return -ENODEV;
 	hid = usb_get_intfdata(intf);

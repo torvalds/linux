@@ -56,6 +56,9 @@ struct ocfs2_alloc_context {
 	u64    ac_max_block;  /* Highest block number to allocate. 0 is
 				 is the same as ~0 - unlimited */
 
+	int    ac_find_loc_only;  /* hack for reflink operation ordering */
+	struct ocfs2_suballoc_result *ac_find_loc_priv; /* */
+
 	struct ocfs2_alloc_reservation	*ac_resv;
 };
 
@@ -197,4 +200,22 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_extent_tree *et,
 			  struct ocfs2_alloc_context **meta_ac);
 
 int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res);
+
+
+
+/*
+ * The following two interfaces are for ocfs2_create_inode_in_orphan().
+ */
+int ocfs2_find_new_inode_loc(struct inode *dir,
+			     struct buffer_head *parent_fe_bh,
+			     struct ocfs2_alloc_context *ac,
+			     u64 *fe_blkno);
+
+int ocfs2_claim_new_inode_at_loc(handle_t *handle,
+				 struct inode *dir,
+				 struct ocfs2_alloc_context *ac,
+				 u64 *suballoc_loc,
+				 u16 *suballoc_bit,
+				 u64 di_blkno);
+
 #endif /* _CHAINALLOC_H_ */

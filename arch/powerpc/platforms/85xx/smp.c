@@ -79,6 +79,7 @@ smp_85xx_kick_cpu(int nr)
 	local_irq_save(flags);
 
 	out_be32(bptr_vaddr + BOOT_ENTRY_PIR, nr);
+#ifdef CONFIG_PPC32
 	out_be32(bptr_vaddr + BOOT_ENTRY_ADDR_LOWER, __pa(__early_start));
 
 	if (!ioremappable)
@@ -88,6 +89,12 @@ smp_85xx_kick_cpu(int nr)
 	/* Wait a bit for the CPU to ack. */
 	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
 		mdelay(1);
+#else
+	out_be64((u64 *)(bptr_vaddr + BOOT_ENTRY_ADDR_UPPER),
+		__pa((u64)*((unsigned long long *) generic_secondary_smp_init)));
+
+	smp_generic_kick_cpu(nr);
+#endif
 
 	local_irq_restore(flags);
 

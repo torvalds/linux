@@ -511,6 +511,7 @@ int blk_register_queue(struct gendisk *disk)
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);
 		kobject_del(&q->kobj);
 		blk_trace_remove_sysfs(disk_to_dev(disk));
+		kobject_put(&dev->kobj);
 		return ret;
 	}
 

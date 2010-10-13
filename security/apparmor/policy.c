@@ -1151,12 +1151,14 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 		/* released below */
 		ns = aa_get_namespace(root);
 
-	write_lock(&ns->lock);
 	if (!name) {
 		/* remove namespace - can only happen if fqname[0] == ':' */
+		write_lock(&ns->parent->lock);
 		__remove_namespace(ns);
+		write_unlock(&ns->parent->lock);
 	} else {
 		/* remove profile */
+		write_lock(&ns->lock);
 		profile = aa_get_profile(__lookup_profile(&ns->base, name));
 		if (!profile) {
 			error = -ENOENT;
@@ -1165,8 +1167,8 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 		}
 		name = profile->base.hname;
 		__remove_profile(profile);
+		write_unlock(&ns->lock);
 	}
-	write_unlock(&ns->lock);
 
 	/* don't fail removal if audit fails */
 	(void) audit_policy(OP_PROF_RM, GFP_KERNEL, name, info, error);

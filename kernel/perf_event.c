@@ -402,11 +402,31 @@ static void perf_group_detach(struct perf_event *event)
 	}
 }
 
+static inline int
+event_filter_match(struct perf_event *event)
+{
+	return event->cpu == -1 || event->cpu == smp_processor_id();
+}
+
 static void
 event_sched_out(struct perf_event *event,
 		  struct perf_cpu_context *cpuctx,
 		  struct perf_event_context *ctx)
 {
+	u64 delta;
+	/*
+	 * An event which could not be activated because of
+	 * filter mismatch still needs to have its timings
+	 * maintained, otherwise bogus information is return
+	 * via read() for time_enabled, time_running:
+	 */
+	if (event->state == PERF_EVENT_STATE_INACTIVE
+	    && !event_filter_match(event)) {
+		delta = ctx->time - event->tstamp_stopped;
+		event->tstamp_running += delta;
+		event->tstamp_stopped = ctx->time;
+	}
+
 	if (event->state != PERF_EVENT_STATE_ACTIVE)
 		return;
 
@@ -432,9 +452,7 @@ group_sched_out(struct perf_event *group_event,
 		struct perf_event_context *ctx)
 {
 	struct perf_event *event;
-
-	if (group_event->state != PERF_EVENT_STATE_ACTIVE)
-		return;
+	int state = group_event->state;
 
 	event_sched_out(group_event, cpuctx, ctx);
 
@@ -444,7 +462,7 @@ group_sched_out(struct perf_event *group_event,
 	list_for_each_entry(event, &group_event->sibling_list, group_entry)
 		event_sched_out(event, cpuctx, ctx);
 
-	if (group_event->attr.exclusive)
+	if (state == PERF_EVENT_STATE_ACTIVE && group_event->attr.exclusive)
 		cpuctx->exclusive = 0;
 }
 
@@ -5743,15 +5761,15 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 
 	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
+	case CPU_DOWN_FAILED:
 		perf_event_init_cpu(cpu);
 		break;
 
+	case CPU_UP_CANCELED:
 	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
 		perf_event_exit_cpu(cpu);
 		break;
 

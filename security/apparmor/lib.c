@@ -40,6 +40,7 @@ char *aa_split_fqname(char *fqname, char **ns_name)
 	*ns_name = NULL;
 	if (name[0] == ':') {
 		char *split = strchr(&name[1], ':');
+		*ns_name = skip_spaces(&name[1]);
 		if (split) {
 			/* overwrite ':' with \0 */
 			*split = 0;
@@ -47,7 +48,6 @@ char *aa_split_fqname(char *fqname, char **ns_name)
 		} else
 			/* a ns name without a following profile is allowed */
 			name = NULL;
-		*ns_name = &name[1];
 	}
 	if (name && *name == 0)
 		name = NULL;

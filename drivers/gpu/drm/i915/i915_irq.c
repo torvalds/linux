@@ -887,6 +887,49 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 	queue_work(dev_priv->wq, &dev_priv->error_work);
 }
 
+static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_gem_object *obj_priv;
+	struct intel_unpin_work *work;
+	unsigned long flags;
+	bool stall_detected;
+
+	/* Ignore early vblank irqs */
+	if (intel_crtc == NULL)
+		return;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	work = intel_crtc->unpin_work;
+
+	if (work == NULL || work->pending || !work->enable_stall_check) {
+		/* Either the pending flip IRQ arrived, or we're too early. Don't check */
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		return;
+	}
+
+	/* Potential stall - if we see that the flip has happened, assume a missed interrupt */
+	obj_priv = to_intel_bo(work->pending_flip_obj);
+	if(IS_I965G(dev)) {
+		int dspsurf = intel_crtc->plane == 0 ? DSPASURF : DSPBSURF;
+		stall_detected = I915_READ(dspsurf) == obj_priv->gtt_offset;
+	} else {
+		int dspaddr = intel_crtc->plane == 0 ? DSPAADDR : DSPBADDR;
+		stall_detected = I915_READ(dspaddr) == (obj_priv->gtt_offset +
+							crtc->y * crtc->fb->pitch +
+							crtc->x * crtc->fb->bits_per_pixel/8);
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (stall_detected) {
+		DRM_DEBUG_DRIVER("Pageflip stall detected\n");
+		intel_prepare_page_flip(dev, intel_crtc->plane);
+	}
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -1004,15 +1047,19 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		if (pipea_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 0);
-			if (!dev_priv->flip_pending_is_done)
+			if (!dev_priv->flip_pending_is_done) {
+				i915_pageflip_stall_check(dev, 0);
 				intel_finish_page_flip(dev, 0);
+			}
 		}
 
 		if (pipeb_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 1);
-			if (!dev_priv->flip_pending_is_done)
+			if (!dev_priv->flip_pending_is_done) {
+				i915_pageflip_stall_check(dev, 1);
 				intel_finish_page_flip(dev, 1);
+			}
 		}
 
 		if ((pipea_stats & PIPE_LEGACY_BLC_EVENT_STATUS) ||
@@ -1303,17 +1350,25 @@ void i915_hangcheck_elapsed(unsigned long data)
 		i915_seqno_passed(i915_get_gem_seqno(dev,
 				&dev_priv->render_ring),
 			i915_get_tail_request(dev)->seqno)) {
+		bool missed_wakeup = false;
+
 		dev_priv->hangcheck_count = 0;
 
 		/* Issue a wake-up to catch stuck h/w. */
-		if (dev_priv->render_ring.waiting_gem_seqno |
-		    dev_priv->bsd_ring.waiting_gem_seqno) {
-			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
-			if (dev_priv->render_ring.waiting_gem_seqno)
-				DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
-			if (dev_priv->bsd_ring.waiting_gem_seqno)
-				DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+		if (dev_priv->render_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->render_ring.irq_queue)) {
+			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+			missed_wakeup = true;
 		}
+
+		if (dev_priv->bsd_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->bsd_ring.irq_queue)) {
+			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+			missed_wakeup = true;
+		}
+
+		if (missed_wakeup)
+			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
 		return;
 	}
 

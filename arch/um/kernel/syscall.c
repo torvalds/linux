@@ -60,8 +60,8 @@ int kernel_execve(const char *filename,
 
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-	ret = um_execve(filename, (char __user *__user *)argv,
-			(char __user *__user *) envp);
+	ret = um_execve(filename, (const char __user *const __user *)argv,
+			(const char __user *const __user *) envp);
 	set_fs(fs);
 
 	return ret;

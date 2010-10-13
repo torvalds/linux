@@ -35,6 +35,7 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 #define IMA_MEASURE_HTABLE_SIZE (1 << IMA_HASH_BITS)
 
 /* set during initialization */
+extern int iint_initialized;
 extern int ima_initialized;
 extern int ima_used_chip;
 extern char *ima_hash;

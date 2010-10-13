@@ -26,11 +26,11 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
-void *
+void __iomem *
 iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot);
 
 void
-iounmap_atomic(void *kvaddr, enum km_type type);
+iounmap_atomic(void __iomem *kvaddr, enum km_type type);
 
 int
 iomap_create_wc(resource_size_t base, unsigned long size, pgprot_t *prot);

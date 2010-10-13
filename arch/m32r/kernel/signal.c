@@ -28,37 +28,6 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-int do_signal(struct pt_regs *, sigset_t *);
-
-asmlinkage int
-sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
-		  unsigned long r2, unsigned long r3, unsigned long r4,
-		  unsigned long r5, unsigned long r6, struct pt_regs *regs)
-{
-	sigset_t newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, sigmask(SIGKILL)|sigmask(SIGSTOP));
-
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
-}
-
 asmlinkage int
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		unsigned long r2, unsigned long r3, unsigned long r4,
@@ -218,7 +187,7 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 	return (void __user *)((sp - frame_size) & -8ul);
 }
 
-static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			   sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
@@ -275,22 +244,34 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->pc);
 #endif
 
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
+}
+
+static int prev_insn(struct pt_regs *regs)
+{
+	u16 inst;
+	if (get_user(&inst, (u16 __user *)(regs->bpc - 2)))
+		return -EFAULT;
+	if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
+		regs->bpc -= 2;
+	else
+		regs->bpc -= 4;
+	regs->syscall_nr = -1;
+	return 0;
 }
 
 /*
  * OK, we're invoking a handler
  */
 
-static void
+static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
-	unsigned short inst;
-
 	/* Are we from a system call? */
 	if (regs->syscall_nr >= 0) {
 		/* If so, check system call restarting.. */
@@ -308,16 +289,14 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 			/* fallthrough */
 			case -ERESTARTNOINTR:
 				regs->r0 = regs->orig_r0;
-				inst = *(unsigned short *)(regs->bpc - 2);
-				if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
-					regs->bpc -= 2;
-				else
-					regs->bpc -= 4;
+				if (prev_insn(regs) < 0)
+					return -EFAULT;
 		}
 	}
 
 	/* Set up the stack frame */
-	setup_rt_frame(sig, ka, info, oldset, regs);
+	if (setup_rt_frame(sig, ka, info, oldset, regs))
+		return -EFAULT;
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -325,6 +304,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+	return 0;
 }
 
 /*
@@ -332,12 +312,12 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset)
+static void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	unsigned short inst;
+	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -346,12 +326,14 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (try_to_freeze()) 
 		goto no_signal;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
@@ -363,8 +345,10 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		 */
 
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &ka, &info, oldset, regs);
-		return 1;
+		if (handle_signal(signr, &ka, &info, oldset, regs) == 0)
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		return;
 	}
 
  no_signal:
@@ -375,31 +359,24 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		    regs->r0 == -ERESTARTSYS ||
 		    regs->r0 == -ERESTARTNOINTR) {
 			regs->r0 = regs->orig_r0;
-			inst = *(unsigned short *)(regs->bpc - 2);
-			if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
-				regs->bpc -= 2;
-			else
-				regs->bpc -= 4;
-		}
-		if (regs->r0 == -ERESTART_RESTARTBLOCK){
+			prev_insn(regs);
+		} else if (regs->r0 == -ERESTART_RESTARTBLOCK){
 			regs->r0 = regs->orig_r0;
 			regs->r7 = __NR_restart_syscall;
-			inst = *(unsigned short *)(regs->bpc - 2);
-			if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
-				regs->bpc -= 2;
-			else
-				regs->bpc -= 4;
+			prev_insn(regs);
 		}
 	}
-	return 0;
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }
 
 /*
  * notification of userspace execution resumption
  * - triggered by current->work.notify_resume
  */
-void do_notify_resume(struct pt_regs *regs, sigset_t *oldset,
-		      __u32 thread_info_flags)
+void do_notify_resume(struct pt_regs *regs, __u32 thread_info_flags)
 {
 	/* Pending single-step? */
 	if (thread_info_flags & _TIF_SINGLESTEP)
@@ -407,7 +384,7 @@ void do_notify_resume(struct pt_regs *regs, sigset_t *oldset,
 
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs,oldset);
+		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
