@@ -458,7 +458,7 @@ calc_exit_1:
 calc_exit_2:
 	/* BB FIXME what about bytes 24 through 40 of the signing key?
 	   compare with the NTLM example */
-	hmac_md5_final(ses->server->ntlmv2_hash, pctxt);
+	hmac_md5_final(ses->ntlmv2_hash, pctxt);
 
 	kfree(pctxt);
 	return rc;
@@ -502,14 +502,14 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
 	}
 	CalcNTLMv2_response(ses, resp_buf);
 
-	/* now calculate the MAC key for NTLMv2 */
-	hmac_md5_init_limK_to_64(ses->server->ntlmv2_hash, 16, &context);
+	/* now calculate the session key for NTLMv2 */
+	hmac_md5_init_limK_to_64(ses->ntlmv2_hash, 16, &context);
 	hmac_md5_update(resp_buf, 16, &context);
-	hmac_md5_final(ses->server->session_key.data.ntlmv2.key, &context);
+	hmac_md5_final(ses->auth_key.data.ntlmv2.key, &context);
 
-	memcpy(&ses->server->session_key.data.ntlmv2.resp, resp_buf,
+	memcpy(&ses->auth_key.data.ntlmv2.resp, resp_buf,
 	       sizeof(struct ntlmv2_resp));
-	ses->server->session_key.len = 16 + sizeof(struct ntlmv2_resp);
+	ses->auth_key.len = 16 + sizeof(struct ntlmv2_resp);
 
 	return 0;
 
@@ -526,8 +526,8 @@ void CalcNTLMv2_response(const struct cifsSesInfo *ses,
 {
 	struct HMACMD5Context context;
 	/* rest of v2 struct already generated */
-	memcpy(v2_session_response + 8, ses->server->cryptKey, 8);
-	hmac_md5_init_limK_to_64(ses->server->ntlmv2_hash, 16, &context);
+	memcpy(v2_session_response + 8, ses->cryptKey, 8);
+	hmac_md5_init_limK_to_64(ses->ntlmv2_hash, 16, &context);
 
 	hmac_md5_update(v2_session_response+8,
 			sizeof(struct ntlmv2_resp) - 8, &context);

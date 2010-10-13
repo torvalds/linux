@@ -173,6 +173,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		sock_release(server->ssocket);
 		server->ssocket = NULL;
 	}
+	server->sequence_number = 0;
+	server->session_estab = false;
 
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
@@ -205,7 +207,6 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			spin_lock(&GlobalMid_Lock);
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
-			server->sequence_number = 0;
 			spin_unlock(&GlobalMid_Lock);
 	/*		atomic_set(&server->inFlight,0);*/
 			wake_up(&server->response_q);
@@ -1631,6 +1632,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		volume_info->source_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	memcpy(tcp_ses->server_RFC1001_name,
 		volume_info->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
+	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
@@ -2983,14 +2985,13 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 		if ((global_secflags & CIFSSEC_MAY_LANMAN) &&
 		    (ses->server->secType == LANMAN))
-			calc_lanman_hash(tcon->password, ses->server->cryptKey,
+			calc_lanman_hash(tcon->password, ses->cryptKey,
 					 ses->server->secMode &
 					    SECMODE_PW_ENCRYPT ? true : false,
 					 bcc_ptr);
 		else
 #endif /* CIFS_WEAK_PW_HASH */
-		SMBNTencrypt(tcon->password, ses->server->cryptKey,
-			     bcc_ptr);
+		SMBNTencrypt(tcon->password, ses->cryptKey, bcc_ptr);
 
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {
@@ -3175,6 +3176,15 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *ses,
 	if (rc) {
 		cERROR(1, "Send error in SessSetup = %d", rc);
 	} else {
+		mutex_lock(&ses->server->srv_mutex);
+		if (!server->session_estab) {
+			memcpy(&server->session_key.data,
+				&ses->auth_key.data, ses->auth_key.len);
+			server->session_key.len = ses->auth_key.len;
+			ses->server->session_estab = true;
+		}
+		mutex_unlock(&server->srv_mutex);
+
 		cFYI(1, "CIFS Session Established successfully");
 		spin_lock(&GlobalMid_Lock);
 		ses->status = CifsGood;

@@ -402,7 +402,7 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 
-	memcpy(ses->server->cryptKey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
+	memcpy(ses->cryptKey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
 	/* BB we could decode pblob->NegotiateFlags; some may be useful */
 	/* In particular we can examine sign flags */
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
@@ -591,16 +591,11 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	int bytes_remaining;
 	struct key *spnego_key = NULL;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
-	bool first_time;
 	int blob_len;
 	char *ntlmsspblob = NULL;
 
 	if (ses == NULL)
 		return -EINVAL;
-
-	read_lock(&cifs_tcp_ses_lock);
-	first_time = is_first_ses_reconnect(ses);
-	read_unlock(&cifs_tcp_ses_lock);
 
 	type = ses->server->secType;
 
@@ -672,7 +667,7 @@ ssetup_ntlmssp_authenticate:
 		/* BB calculate hash with password */
 		/* and copy into bcc */
 
-		calc_lanman_hash(ses->password, ses->server->cryptKey,
+		calc_lanman_hash(ses->password, ses->cryptKey,
 				 ses->server->secMode & SECMODE_PW_ENCRYPT ?
 					true : false, lnm_session_key);
 
@@ -699,15 +694,11 @@ ssetup_ntlmssp_authenticate:
 			cpu_to_le16(CIFS_SESS_KEY_SIZE);
 
 		/* calculate session key */
-		SMBNTencrypt(ses->password, ses->server->cryptKey,
-			     ntlm_session_key);
+		SMBNTencrypt(ses->password, ses->cryptKey, ntlm_session_key);
 
-		if (first_time) /* should this be moved into common code
-				  with similar ntlmv2 path? */
-			cifs_calculate_session_key(&ses->server->session_key,
-				ntlm_session_key, ses->password);
+		cifs_calculate_session_key(&ses->auth_key,
+					ntlm_session_key, ses->password);
 		/* copy session key */
-
 		memcpy(bcc_ptr, (char *)ntlm_session_key, CIFS_SESS_KEY_SIZE);
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
 		memcpy(bcc_ptr, (char *)ntlm_session_key, CIFS_SESS_KEY_SIZE);
@@ -794,17 +785,14 @@ ssetup_ntlmssp_authenticate:
 		}
 		/* bail out if key is too long */
 		if (msg->sesskey_len >
-		    sizeof(ses->server->session_key.data.krb5)) {
+		    sizeof(ses->auth_key.data.krb5)) {
 			cERROR(1, "Kerberos signing key too long (%u bytes)",
 				msg->sesskey_len);
 			rc = -EOVERFLOW;
 			goto ssetup_exit;
 		}
-		if (first_time) {
-			ses->server->session_key.len = msg->sesskey_len;
-			memcpy(ses->server->session_key.data.krb5,
-				msg->data, msg->sesskey_len);
-		}
+		ses->auth_key.len = msg->sesskey_len;
+		memcpy(ses->auth_key.data.krb5, msg->data, msg->sesskey_len);
 		pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
 		capabilities |= CAP_EXTENDED_SECURITY;
 		pSMB->req.Capabilities = cpu_to_le32(capabilities);
