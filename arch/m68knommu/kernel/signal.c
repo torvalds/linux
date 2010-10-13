@@ -163,8 +163,8 @@ static inline int restore_fpu_state(struct sigcontext *sc)
 		goto out;
 
 	    __asm__ volatile (".chip 68k/68881\n\t"
-			      "fmovemx %0,%/fp0-%/fp1\n\t"
-			      "fmoveml %1,%/fpcr/%/fpsr/%/fpiar\n\t"
+			      "fmovemx %0,%%fp0-%%fp1\n\t"
+			      "fmoveml %1,%%fpcr/%%fpsr/%%fpiar\n\t"
 			      ".chip 68k"
 			      : /* no outputs */
 			      : "m" (*sc->sc_fpregs), "m" (*sc->sc_fpcntl));
@@ -214,8 +214,8 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 		     sizeof(fpregs)))
 			goto out;
 		__asm__ volatile (".chip 68k/68881\n\t"
-				  "fmovemx %0,%/fp0-%/fp7\n\t"
-				  "fmoveml %1,%/fpcr/%/fpsr/%/fpiar\n\t"
+				  "fmovemx %0,%%fp0-%%fp7\n\t"
+				  "fmoveml %1,%%fpcr/%%fpsr/%%fpiar\n\t"
 				  ".chip 68k"
 				  : /* no outputs */
 				  : "m" (*fpregs.f_fpregs),
@@ -408,12 +408,12 @@ static inline void save_fpu_state(struct sigcontext *sc, struct pt_regs *regs)
 	if (sc->sc_fpstate[0]) {
 		fpu_version = sc->sc_fpstate[0];
 		__asm__ volatile (".chip 68k/68881\n\t"
-				  "fmovemx %/fp0-%/fp1,%0\n\t"
-				  "fmoveml %/fpcr/%/fpsr/%/fpiar,%1\n\t"
+				  "fmovemx %%fp0-%%fp1,%0\n\t"
+				  "fmoveml %%fpcr/%%fpsr/%%fpiar,%1\n\t"
 				  ".chip 68k"
-				  : /* no outputs */
-				  : "m" (*sc->sc_fpregs),
-				    "m" (*sc->sc_fpcntl)
+				  : "=m" (*sc->sc_fpregs),
+				    "=m" (*sc->sc_fpcntl)
+				  : /* no inputs */
 				  : "memory");
 	}
 }
@@ -445,12 +445,12 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 		context_size = fpstate[1];
 		fpu_version = fpstate[0];
 		__asm__ volatile (".chip 68k/68881\n\t"
-				  "fmovemx %/fp0-%/fp7,%0\n\t"
-				  "fmoveml %/fpcr/%/fpsr/%/fpiar,%1\n\t"
+				  "fmovemx %%fp0-%%fp7,%0\n\t"
+				  "fmoveml %%fpcr/%%fpsr/%%fpiar,%1\n\t"
 				  ".chip 68k"
-				  : /* no outputs */
-				  : "m" (*fpregs.f_fpregs),
-				    "m" (*fpregs.f_fpcntl)
+				  : "=m" (*fpregs.f_fpregs),
+				    "=m" (*fpregs.f_fpcntl)
+				  : /* no inputs */
 				  : "memory");
 		err |= copy_to_user(&uc->uc_mcontext.fpregs, &fpregs,
 				    sizeof(fpregs));
