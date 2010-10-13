@@ -97,5 +97,7 @@ void	nvhost_cdma_end(struct nvmap_client *user_nvmap,
 			struct nvmap_handle **handles, unsigned int nr_handles);
 void	nvhost_cdma_update(struct nvhost_cdma *cdma);
 void	nvhost_cdma_flush(struct nvhost_cdma *cdma);
+void    nvhost_cdma_find_gather(struct nvhost_cdma *cdma, u32 dmaget,
+                u32 *addr, u32 *size);
 
 #endif

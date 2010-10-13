@@ -627,3 +627,24 @@ void nvhost_cdma_flush(struct nvhost_cdma *cdma)
 	}
 	mutex_unlock(&cdma->lock);
 }
+
+/**
+ * Find the currently executing gather in the push buffer and return
+ * its physical address and size.
+ */
+void nvhost_cdma_find_gather(struct nvhost_cdma *cdma, u32 dmaget, u32 *addr, u32 *size)
+{
+	u32 offset = dmaget - cdma->push_buffer.phys;
+
+	*addr = *size = 0;
+
+	if (offset >= 8 && offset < cdma->push_buffer.cur) {
+		u32 *p = cdma->push_buffer.mapped + (offset - 8) / 4;
+
+		/* Make sure we have a gather */
+		if ((p[0] >> 28) == 6) {
+			*addr = p[1];
+			*size = p[0] & 0x3fff;
+		}
+	}
+}

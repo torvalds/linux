@@ -86,8 +86,7 @@ static void set_charge(int flags)
 		gpio_set_value(charge_disable, 0);
 	else if (!flags)
 		gpio_set_value(charge_disable, 1);
-	else
-		BUG();
+	/* USB charging not supported on Ventana */
 }
 
 static struct resource ventana_pda_resources[] = {
@@ -139,6 +138,7 @@ static struct regulator_consumer_supply tps658621_ldo2_supply[] = {
 static struct regulator_consumer_supply tps658621_ldo3_supply[] = {
 	REGULATOR_SUPPLY("avdd_usb", NULL),
 	REGULATOR_SUPPLY("avdd_usb_pll", NULL),
+	REGULATOR_SUPPLY("avdd_lvds", NULL),
 };
 static struct regulator_consumer_supply tps658621_ldo4_supply[] = {
 	REGULATOR_SUPPLY("avdd_osc", NULL),

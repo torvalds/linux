@@ -225,12 +225,17 @@ int nvmap_pin_ids(struct nvmap_client *client,
 		if (ref) {
 			atomic_inc(&ref->pin);
 			nvmap_handle_get(h[i]);
-		} else if (!client->super && (h[i]->owner != client) &&
-			   !h[i]->global) {
-			ret = -EPERM;
 		} else {
-			nvmap_warn(client, "%s pinning unreferenced handle "
-				   "%p\n", current->group_leader->comm, h[i]);
+			struct nvmap_handle *verify;
+			nvmap_ref_unlock(client);
+			verify = nvmap_validate_get(client, ids[i]);
+			if (verify)
+				nvmap_warn(client, "%s pinning unreferenced "
+					   "handle %p\n",
+					   current->group_leader->comm, h[i]);
+			else
+				ret = -EPERM;
+			nvmap_ref_lock(client);
 		}
 	}
 	nvmap_ref_unlock(client);
