@@ -206,7 +206,7 @@ static void wl_ch_to_chanspec(int ch,
 ** information element utilities
 */
 static void wl_rst_ie(struct wl_priv *wl);
-static s32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v);
+static __used s32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v);
 static s32 wl_mrg_ie(struct wl_priv *wl, u8 *ie_stream, u16 ie_size);
 static s32 wl_cp_ie(struct wl_priv *wl, u8 *dst, u16 dst_size);
 static u32 wl_get_ielen(struct wl_priv *wl);
@@ -2297,9 +2297,15 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	mgmt->u.probe_resp.beacon_int = cpu_to_le16(bi->beacon_period);
 	mgmt->u.probe_resp.capab_info = cpu_to_le16(bi->capability);
 	wl_rst_ie(wl);
-	wl_add_ie(wl, WLAN_EID_SSID, bi->SSID_len, bi->SSID);
-	wl_add_ie(wl, WLAN_EID_SUPP_RATES, bi->rateset.count,
-		  bi->rateset.rates);
+	/*
+	* wl_add_ie is not necessary because it can only add duplicated
+	* SSID, rate information to frame_buf
+	*/
+	/*
+	* wl_add_ie(wl, WLAN_EID_SSID, bi->SSID_len, bi->SSID);
+	* wl_add_ie(wl, WLAN_EID_SUPP_RATES, bi->rateset.count,
+	* bi->rateset.rates);
+	*/
 	wl_mrg_ie(wl, ((u8 *) bi) + bi->ie_offset, bi->ie_length);
 	wl_cp_ie(wl, mgmt->u.probe_resp.variable, WL_BSS_INFO_MAX -
 		 offsetof(struct wl_cfg80211_bss_info, frame_buf));
@@ -3939,7 +3945,7 @@ static void wl_rst_ie(struct wl_priv *wl)
 	ie->offset = 0;
 }
 
-static s32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v)
+static __used s32 wl_add_ie(struct wl_priv *wl, u8 t, u8 l, u8 *v)
 {
 	struct wl_ie *ie = wl_to_ie(wl);
 	s32 err = 0;
