@@ -524,6 +524,22 @@ static const struct soc_enum dac33_fifo_mode_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(dac33_fifo_mode_texts),
 			    dac33_fifo_mode_texts);
 
+/* L/R Line Output Gain */
+static const char *lr_lineout_gain_texts[] = {
+	"Line -12dB DAC 0dB", "Line -6dB DAC 6dB",
+	"Line 0dB DAC 12dB", "Line 6dB DAC 18dB",
+};
+
+static const struct soc_enum l_lineout_gain_enum =
+	SOC_ENUM_SINGLE(DAC33_LDAC_PWR_CTRL, 0,
+			ARRAY_SIZE(lr_lineout_gain_texts),
+			lr_lineout_gain_texts);
+
+static const struct soc_enum r_lineout_gain_enum =
+	SOC_ENUM_SINGLE(DAC33_RDAC_PWR_CTRL, 0,
+			ARRAY_SIZE(lr_lineout_gain_texts),
+			lr_lineout_gain_texts);
+
 /*
  * DACL/R digital volume control:
  * from 0 dB to -63.5 in 0.5 dB steps
@@ -541,6 +557,8 @@ static const struct snd_kcontrol_new dac33_snd_controls[] = {
 		 DAC33_LDAC_DIG_VOL_CTRL, DAC33_RDAC_DIG_VOL_CTRL, 7, 1, 1),
 	SOC_DOUBLE_R("Line to Line Out Volume",
 		 DAC33_LINEL_TO_LLO_VOL, DAC33_LINER_TO_RLO_VOL, 0, 127, 1),
+	SOC_ENUM("Left Line Output Gain", l_lineout_gain_enum),
+	SOC_ENUM("Right Line Output Gain", r_lineout_gain_enum),
 };
 
 static const struct snd_kcontrol_new dac33_mode_snd_controls[] = {
