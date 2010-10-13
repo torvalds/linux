@@ -439,9 +439,53 @@ out:
 	return ret;
 }
 
+static int sel_mmap_policy_fault(struct vm_area_struct *vma,
+				 struct vm_fault *vmf)
+{
+	struct policy_load_memory *plm = vma->vm_file->private_data;
+	unsigned long offset;
+	struct page *page;
+
+	if (vmf->flags & (FAULT_FLAG_MKWRITE | FAULT_FLAG_WRITE))
+		return VM_FAULT_SIGBUS;
+
+	offset = vmf->pgoff << PAGE_SHIFT;
+	if (offset >= roundup(plm->len, PAGE_SIZE))
+		return VM_FAULT_SIGBUS;
+
+	page = vmalloc_to_page(plm->data + offset);
+	get_page(page);
+
+	vmf->page = page;
+
+	return 0;
+}
+
+static struct vm_operations_struct sel_mmap_policy_ops = {
+	.fault = sel_mmap_policy_fault,
+	.page_mkwrite = sel_mmap_policy_fault,
+};
+
+int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_SHARED) {
+		/* do not allow mprotect to make mapping writable */
+		vma->vm_flags &= ~VM_MAYWRITE;
+
+		if (vma->vm_flags & VM_WRITE)
+			return -EACCES;
+	}
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_ops = &sel_mmap_policy_ops;
+
+	return 0;
+}
+
 static const struct file_operations sel_policy_ops = {
 	.open		= sel_open_policy,
 	.read		= sel_read_policy,
+	.mmap		= sel_mmap_policy,
 	.release	= sel_release_policy,
 };
 

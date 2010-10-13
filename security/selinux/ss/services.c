@@ -3169,7 +3169,7 @@ int security_read_policy(void **data, ssize_t *len)
 
 	*len = security_policydb_len();
 
-	*data = vmalloc(*len);
+	*data = vmalloc_user(*len);
 	if (!*data)
 		return -ENOMEM;
 
