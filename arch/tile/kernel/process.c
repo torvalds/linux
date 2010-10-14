@@ -214,9 +214,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	/*
 	 * Copy the callee-saved registers from the passed pt_regs struct
 	 * into the context-switch callee-saved registers area.
-	 * We have to restore the callee-saved registers since we may
-	 * be cloning a userspace task with userspace register state,
-	 * and we won't be unwinding the same kernel frames to restore them.
+	 * This way when we start the interrupt-return sequence, the
+	 * callee-save registers will be correctly in registers, which
+	 * is how we assume the compiler leaves them as we start doing
+	 * the normal return-from-interrupt path after calling C code.
 	 * Zero out the C ABI save area to mark the top of the stack.
 	 */
 	ksp = (unsigned long) childregs;

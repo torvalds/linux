@@ -1553,6 +1553,8 @@ STD_ENTRY(_sys_clone)
  * to be available to it on entry.  It does not modify any callee-save
  * registers (including "lr").  It does not check what PL it is being
  * called at, so you'd better not call it other than at PL0.
+ * The <atomic.h> wrapper assumes it only clobbers r20-r29, so if
+ * it ever is necessary to use more registers, be aware.
  *
  * It does not use the stack, but since it might be re-interrupted by
  * a page fault which would assume the stack was valid, it does
