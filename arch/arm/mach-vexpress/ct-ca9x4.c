@@ -68,7 +68,7 @@ static void __init ct_ca9x4_init_irq(void)
 }
 
 #if 0
-static void ct_ca9x4_timer_init(void)
+static void __init ct_ca9x4_timer_init(void)
 {
 	writel(0, MMIO_P2V(CT_CA9X4_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(CT_CA9X4_TIMER1) + TIMER_CTRL);
@@ -222,12 +222,18 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
-static void ct_ca9x4_init(void)
+static void __init ct_ca9x4_init(void)
 {
 	int i;
 
 #ifdef CONFIG_CACHE_L2X0
-	l2x0_init(MMIO_P2V(CT_CA9X4_L2CC), 0x00000000, 0xfe0fffff);
+	void __iomem *l2x0_base = MMIO_P2V(CT_CA9X4_L2CC);
+
+	/* set RAM latencies to 1 cycle for this core tile. */
+	writel(0, l2x0_base + L2X0_TAG_LATENCY_CTRL);
+	writel(0, l2x0_base + L2X0_DATA_LATENCY_CTRL);
+
+	l2x0_init(l2x0_base, 0x00400000, 0xfe0fffff);
 #endif
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));

@@ -1021,11 +1021,15 @@ out_touch:
 static void ceph_dentry_release(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
-	struct inode *parent_inode = dentry->d_parent->d_inode;
-	u64 snapid = ceph_snap(parent_inode);
+	struct inode *parent_inode = NULL;
+	u64 snapid = CEPH_NOSNAP;
 
+	if (!IS_ROOT(dentry)) {
+		parent_inode = dentry->d_parent->d_inode;
+		if (parent_inode)
+			snapid = ceph_snap(parent_inode);
+	}
 	dout("dentry_release %p parent %p\n", dentry, parent_inode);
-
 	if (parent_inode && snapid != CEPH_SNAPDIR) {
 		struct ceph_inode_info *ci = ceph_inode(parent_inode);
 

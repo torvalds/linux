@@ -483,9 +483,7 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 		}
 	}
 	kfree(p);
-	if (fw) {
-		release_firmware(fw);
-	}
+	release_firmware(fw);
 	return ret;
 }
 

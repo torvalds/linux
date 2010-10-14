@@ -2428,7 +2428,7 @@ config UGETH_TX_ON_DEMAND
 
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
-	depends on MV64X60 || PPC32 || PLAT_ORION
+	depends on (MV64X60 || PPC32 || PLAT_ORION) && INET
 	select INET_LRO
 	select PHYLIB
 	help
@@ -2803,7 +2803,7 @@ config NIU
 
 config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"
-	depends on PPC_PASEMI && PCI
+	depends on PPC_PASEMI && PCI && INET
 	select PHYLIB
 	select INET_LRO
 	help

@@ -223,6 +223,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 		usb_rcvintpipe(dev, ep->bEndpointAddress),
 		buffer, buffer_len,
 		int_irq, (void *)gspca_dev, interval);
+	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	gspca_dev->int_urb = urb;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {

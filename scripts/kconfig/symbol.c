@@ -350,6 +350,7 @@ void sym_calc_value(struct symbol *sym)
 				}
 			}
 		calc_newval:
+#if 0
 			if (sym->dir_dep.tri == no && sym->rev_dep.tri != no) {
 				fprintf(stderr, "warning: (");
 				expr_fprint(sym->rev_dep.expr, stderr);
@@ -358,6 +359,7 @@ void sym_calc_value(struct symbol *sym)
 				expr_fprint(sym->dir_dep.expr, stderr);
 				fprintf(stderr, ")\n");
 			}
+#endif
 			newval.tri = EXPR_OR(newval.tri, sym->rev_dep.tri);
 		}
 		if (newval.tri == mod && sym_get_type(sym) == S_BOOLEAN)

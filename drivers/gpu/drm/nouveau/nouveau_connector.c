@@ -558,8 +558,10 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	if (nv_encoder->dcb->type == OUTPUT_LVDS &&
 	    (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
 	     dev_priv->vbios.fp_no_ddc) && nouveau_bios_fp_mode(dev, NULL)) {
-		nv_connector->native_mode = drm_mode_create(dev);
-		nouveau_bios_fp_mode(dev, nv_connector->native_mode);
+		struct drm_display_mode mode;
+
+		nouveau_bios_fp_mode(dev, &mode);
+		nv_connector->native_mode = drm_mode_duplicate(dev, &mode);
 	}
 
 	/* Find the native mode if this is a digital panel, if we didn't

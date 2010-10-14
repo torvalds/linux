@@ -329,7 +329,8 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 
 	mutex_lock(&virtio_9p_lock);
 	list_for_each_entry(chan, &virtio_chan_list, chan_list) {
-		if (!strncmp(devname, chan->tag, chan->tag_len)) {
+		if (!strncmp(devname, chan->tag, chan->tag_len) &&
+		    strlen(devname) == chan->tag_len) {
 			if (!chan->inuse) {
 				chan->inuse = true;
 				found = 1;

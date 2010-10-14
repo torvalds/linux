@@ -72,8 +72,8 @@ static const struct bug_entry *module_find_bug(unsigned long bugaddr)
 	return NULL;
 }
 
-int module_bug_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
-			struct module *mod)
+void module_bug_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+			 struct module *mod)
 {
 	char *secstrings;
 	unsigned int i;
@@ -97,8 +97,6 @@ int module_bug_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 	 * could potentially lead to deadlock and thus be counter-productive.
 	 */
 	list_add(&mod->bug_list, &module_bug_list);
-
-	return 0;
 }
 
 void module_bug_cleanup(struct module *mod)

@@ -32,6 +32,7 @@
 #include <media/v4l2-chip-ident.h>
 
 #include <media/cx25840.h>
+#include "dvb-usb-ids.h"
 #include "xc5000.h"
 
 #include "cx231xx.h"
@@ -175,6 +176,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
 	{USB_DEVICE(0x0572, 0x58A1),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
+	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000,0x4fff),
+	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{},
 };
 
@@ -226,14 +229,16 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 		     dev->board.name, dev->model);
 
 	/* set the direction for GPIO pins */
-	cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
-	cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
-	cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
+	if (dev->board.tuner_gpio) {
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
 
-	/* request some modules if any required */
+		/* request some modules if any required */
 
-	/* reset the Tuner */
-	cx231xx_gpio_set(dev, dev->board.tuner_gpio);
+		/* reset the Tuner */
+		cx231xx_gpio_set(dev, dev->board.tuner_gpio);
+	}
 
 	/* set the mode to Analog mode initially */
 	cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
