@@ -378,17 +378,6 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 	0,   /* Phy rates allowed initially */
 };
 
-static const struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX] = {
-	[ATH9K_MODE_11A] = &ar5416_11a_ratetable,
-	[ATH9K_MODE_11G] = &ar5416_11g_ratetable,
-	[ATH9K_MODE_11NA_HT20] = &ar5416_11na_ratetable,
-	[ATH9K_MODE_11NG_HT20] = &ar5416_11ng_ratetable,
-	[ATH9K_MODE_11NA_HT40PLUS] = &ar5416_11na_ratetable,
-	[ATH9K_MODE_11NA_HT40MINUS] = &ar5416_11na_ratetable,
-	[ATH9K_MODE_11NG_HT40PLUS] = &ar5416_11ng_ratetable,
-	[ATH9K_MODE_11NG_HT40MINUS] = &ar5416_11ng_ratetable,
-};
-
 static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 				struct ieee80211_tx_rate *rate);
 
@@ -1200,38 +1189,23 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 static const
 struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 					     enum ieee80211_band band,
-					     bool is_ht,
-					     bool is_cw_40)
+					     bool is_ht)
 {
-	int mode = 0;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	switch(band) {
 	case IEEE80211_BAND_2GHZ:
-		mode = ATH9K_MODE_11G;
 		if (is_ht)
-			mode = ATH9K_MODE_11NG_HT20;
-		if (is_cw_40)
-			mode = ATH9K_MODE_11NG_HT40PLUS;
-		break;
+			return &ar5416_11ng_ratetable;
+		return &ar5416_11g_ratetable;
 	case IEEE80211_BAND_5GHZ:
-		mode = ATH9K_MODE_11A;
 		if (is_ht)
-			mode = ATH9K_MODE_11NA_HT20;
-		if (is_cw_40)
-			mode = ATH9K_MODE_11NA_HT40PLUS;
-		break;
+			return &ar5416_11na_ratetable;
+		return &ar5416_11a_ratetable;
 	default:
 		ath_print(common, ATH_DBG_CONFIG, "Invalid band\n");
 		return NULL;
 	}
-
-	BUG_ON(mode >= ATH9K_MODE_MAX);
-
-	ath_print(common, ATH_DBG_CONFIG,
-		  "Choosing rate table for mode: %d\n", mode);
-
-	return hw_rate_table[mode];
 }
 
 static void ath_rc_init(struct ath_softc *sc,
@@ -1480,7 +1454,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	/* Choose rate table first */
 
 	rate_table = ath_choose_rate_table(sc, sband->band,
-	                      sta->ht_cap.ht_supported, is_cw40);
+	                      sta->ht_cap.ht_supported);
 
 	ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta, is_cw40, is_sgi);
 	ath_rc_init(sc, priv_sta, sband, sta, rate_table);
@@ -1520,8 +1494,7 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 
 		if ((local_cw40 != oper_cw40) || (local_sgi != oper_sgi)) {
 			rate_table = ath_choose_rate_table(sc, sband->band,
-						   sta->ht_cap.ht_supported,
-						   oper_cw40);
+						   sta->ht_cap.ht_supported);
 			ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta,
 						   oper_cw40, oper_sgi);
 			ath_rc_init(sc, priv_sta, sband, sta, rate_table);
