@@ -190,3 +190,23 @@ retry_sync:
 	kmem_cache_free(async_pf_cache, work);
 	return 0;
 }
+
+int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
+{
+	struct kvm_async_pf *work;
+
+	if (!list_empty(&vcpu->async_pf.done))
+		return 0;
+
+	work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
+	if (!work)
+		return -ENOMEM;
+
+	work->page = bad_page;
+	get_page(bad_page);
+	INIT_LIST_HEAD(&work->queue); /* for list_del to work */
+
+	list_add_tail(&work->link, &vcpu->async_pf.done);
+	vcpu->async_pf.queued++;
+	return 0;
+}
