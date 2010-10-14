@@ -311,7 +311,7 @@ static void __init setup_memory(void)
 #endif
 
 	/* We are using a char to hold the cpu_2_node[] mapping */
-	BUG_ON(MAX_NUMNODES > 127);
+	BUILD_BUG_ON(MAX_NUMNODES > 127);
 
 	/* Discover the ranges of memory available to us */
 	for (i = 0; ; ++i) {
