@@ -542,9 +542,11 @@ Kprobes does not use mutexes or allocate memory except during
 registration and unregistration.
 
 Probe handlers are run with preemption disabled.  Depending on the
-architecture, handlers may also run with interrupts disabled.  In any
-case, your handler should not yield the CPU (e.g., by attempting to
-acquire a semaphore).
+architecture and optimization state, handlers may also run with
+interrupts disabled (e.g., kretprobe handlers and optimized kprobe
+handlers run without interrupt disabled on x86/x86-64).  In any case,
+your handler should not yield the CPU (e.g., by attempting to acquire
+a semaphore).
 
 Since a return probe is implemented by replacing the return
 address with the trampoline's address, stack backtraces and calls
