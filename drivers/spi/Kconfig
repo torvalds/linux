@@ -353,7 +353,6 @@ config SPI_XILINX
 	tristate "Xilinx SPI controller common module"
 	depends on HAS_IOMEM && EXPERIMENTAL
 	select SPI_BITBANG
-	select SPI_XILINX_OF if (XILINX_VIRTEX || MICROBLAZE)
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.
 
@@ -361,12 +360,6 @@ config SPI_XILINX
 	  Product Specification document (DS464) for hardware details.
 
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
-
-config SPI_XILINX_OF
-	tristate "Xilinx SPI controller OF device"
-	depends on SPI_XILINX && (XILINX_VIRTEX || MICROBLAZE)
-	help
-	  This is the OF driver for the SPI controller IP from the Xilinx EDK.
 
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"

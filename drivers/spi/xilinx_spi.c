@@ -16,13 +16,12 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
-#include <linux/io.h>
-
-#include "xilinx_spi.h"
 #include <linux/spi/xilinx_spi.h>
+#include <linux/io.h>
 
 #define XILINX_SPI_NAME "xilinx_spi"
 
@@ -352,6 +351,15 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id xilinx_spi_of_match[] = {
+	{ .compatible = "xlnx,xps-spi-2.00.a", },
+	{ .compatible = "xlnx,xps-spi-2.00.b", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, xilinx_spi_of_match);
+#endif
+
 struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	u32 irq, s16 bus_num, int num_cs, int little_endian, int bits_per_word)
 {
@@ -462,13 +470,35 @@ static int __devinit xilinx_spi_probe(struct platform_device *dev)
 {
 	struct xspi_platform_data *pdata;
 	struct resource *r;
-	int irq;
+	int irq, num_cs = 0, little_endian = 0, bits_per_word = 8;
 	struct spi_master *master;
 	u8 i;
 
 	pdata = dev->dev.platform_data;
-	if (!pdata)
-		return -ENODEV;
+	if (pdata) {
+		num_cs = pdata->num_chipselect;
+		little_endian = pdata->little_endian;
+		bits_per_word = pdata->bits_per_word;
+	}
+
+#ifdef CONFIG_OF
+	if (dev->dev.of_node) {
+		const __be32 *prop;
+		int len;
+
+		/* number of slave select bits is required */
+		prop = of_get_property(dev->dev.of_node, "xlnx,num-ss-bits",
+				       &len);
+		if (prop && len >= sizeof(*prop))
+			num_cs = __be32_to_cpup(prop);
+	}
+#endif
+
+	if (!num_cs) {
+		dev_err(&dev->dev, "Missing slave select configuration data\n");
+		return -EINVAL;
+	}
+
 
 	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!r)
@@ -478,14 +508,15 @@ static int __devinit xilinx_spi_probe(struct platform_device *dev)
 	if (irq < 0)
 		return -ENXIO;
 
-	master = xilinx_spi_init(&dev->dev, r, irq, dev->id,
-				 pdata->num_chipselect, pdata->little_endian,
-				 pdata->bits_per_word);
+	master = xilinx_spi_init(&dev->dev, r, irq, dev->id, num_cs,
+				 little_endian, bits_per_word);
 	if (!master)
 		return -ENODEV;
 
-	for (i = 0; i < pdata->num_devices; i++)
-		spi_new_device(master, pdata->devices + i);
+	if (pdata) {
+		for (i = 0; i < pdata->num_devices; i++)
+			spi_new_device(master, pdata->devices + i);
+	}
 
 	platform_set_drvdata(dev, master);
 	return 0;
@@ -508,6 +539,9 @@ static struct platform_driver xilinx_spi_driver = {
 	.driver = {
 		.name = XILINX_SPI_NAME,
 		.owner = THIS_MODULE,
+#ifdef CONFIG_OF
+		.of_match_table = xilinx_spi_of_match,
+#endif
 	},
 };
 
