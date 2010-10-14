@@ -89,6 +89,6 @@
 
 #define NR_IRQS			COMBINER_IRQ(MAX_COMBINER_NR, 0)
 
-#define MAX_COMBINER_NR		39
+#define MAX_COMBINER_NR		40
 
 #endif /* __ASM_ARCH_IRQS_H */
