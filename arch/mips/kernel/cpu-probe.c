@@ -25,6 +25,8 @@
 #include <asm/system.h>
 #include <asm/watch.h>
 #include <asm/spram.h>
+#include <asm/uaccess.h>
+
 /*
  * Not all of the MIPS CPUs have the "wait" instruction available. Moreover,
  * the implementation of the "wait" feature differs between CPU families. This
@@ -987,6 +989,12 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	}
 }
 
+#ifdef CONFIG_64BIT
+/* For use by uaccess.h */
+u64 __ua_limit;
+EXPORT_SYMBOL(__ua_limit);
+#endif
+
 const char *__cpu_name[NR_CPUS];
 const char *__elf_platform;
 
@@ -1064,6 +1072,11 @@ __cpuinit void cpu_probe(void)
 		c->srsets = 1;
 
 	cpu_probe_vmbits(c);
+
+#ifdef CONFIG_64BIT
+	if (cpu == 0)
+		__ua_limit = ~((1ull << cpu_vmbits) - 1);
+#endif
 }
 
 __cpuinit void cpu_report(void)
