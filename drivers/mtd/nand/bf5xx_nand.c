@@ -682,7 +682,6 @@ static int __devinit bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
-	struct mtd_info *mtd = NULL;
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -690,11 +689,7 @@ static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 	 * and their partitions, then go through freeing the
 	 * resources used
 	 */
-	mtd = &info->mtd;
-	if (mtd) {
-		nand_release(mtd);
-		kfree(mtd);
-	}
+	nand_release(&info->mtd);
 
 	peripheral_free_list(bfin_nfc_pin_req);
 	bf5xx_nand_dma_remove(info);
@@ -710,7 +705,7 @@ static int bf5xx_nand_scan(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
-	ret = nand_scan_ident(mtd, 1);
+	ret = nand_scan_ident(mtd, 1, NULL);
 	if (ret)
 		return ret;
 

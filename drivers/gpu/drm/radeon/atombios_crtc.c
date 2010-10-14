@@ -332,6 +332,11 @@ static void atombios_crtc_set_timing(struct drm_crtc *crtc,
 	args.usV_SyncWidth =
 		cpu_to_le16(mode->crtc_vsync_end - mode->crtc_vsync_start);
 
+	args.ucOverscanRight = radeon_crtc->h_border;
+	args.ucOverscanLeft = radeon_crtc->h_border;
+	args.ucOverscanBottom = radeon_crtc->v_border;
+	args.ucOverscanTop = radeon_crtc->v_border;
+
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		misc |= ATOM_VSYNC_POLARITY;
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
@@ -533,6 +538,21 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 					pll->algo = PLL_ALGO_LEGACY;
 					pll->flags |= RADEON_PLL_PREFER_CLOSEST_LOWER;
+				}
+				/* There is some evidence (often anecdotal) that RV515/RV620 LVDS
+				 * (on some boards at least) prefers the legacy algo.  I'm not
+				 * sure whether this should handled generically or on a
+				 * case-by-case quirk basis.  Both algos should work fine in the
+				 * majority of cases.
+				 */
+				if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) &&
+				    ((rdev->family == CHIP_RV515) ||
+				     (rdev->family == CHIP_RV620))) {
+					/* allow the user to overrride just in case */
+					if (radeon_new_pll == 1)
+						pll->algo = PLL_ALGO_NEW;
+					else
+						pll->algo = PLL_ALGO_LEGACY;
 				}
 			} else {
 				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
@@ -1056,11 +1076,11 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (rdev->family >= CHIP_RV770) {
 		if (radeon_crtc->crtc_id) {
-			WREG32(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
-			WREG32(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+			WREG32(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
+			WREG32(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
 		} else {
-			WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
-			WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+			WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
+			WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
 		}
 	}
 	WREG32(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
@@ -1197,8 +1217,18 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	struct drm_encoder *encoder;
+	bool is_tvcv = false;
 
-	/* TODO color tiling */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		/* find tv std */
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			if (radeon_encoder->active_device &
+			    (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+				is_tvcv = true;
+		}
+	}
 
 	atombios_disable_ss(crtc);
 	/* always set DCPLL */
@@ -1207,9 +1237,14 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 	atombios_enable_ss(crtc);
 
-	if (ASIC_IS_AVIVO(rdev))
+	if (ASIC_IS_DCE4(rdev))
 		atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
-	else {
+	else if (ASIC_IS_AVIVO(rdev)) {
+		if (is_tvcv)
+			atombios_crtc_set_timing(crtc, adjusted_mode);
+		else
+			atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
+	} else {
 		atombios_crtc_set_timing(crtc, adjusted_mode);
 		if (radeon_crtc->crtc_id == 0)
 			atombios_set_crtc_dtd_timing(crtc, adjusted_mode);

@@ -119,6 +119,7 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 	INIT_LIST_HEAD(&realm->children);
 	INIT_LIST_HEAD(&realm->child_item);
 	INIT_LIST_HEAD(&realm->empty_item);
+	INIT_LIST_HEAD(&realm->dirty_item);
 	INIT_LIST_HEAD(&realm->inodes_with_caps);
 	spin_lock_init(&realm->inodes_with_caps_lock);
 	__insert_snap_realm(&mdsc->snap_realms, realm);
@@ -467,7 +468,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		INIT_LIST_HEAD(&capsnap->ci_item);
 		INIT_LIST_HEAD(&capsnap->flushing_item);
 
-		capsnap->follows = snapc->seq - 1;
+		capsnap->follows = snapc->seq;
 		capsnap->issued = __ceph_caps_issued(ci, NULL);
 		capsnap->dirty = dirty;
 
@@ -604,6 +605,7 @@ int ceph_update_snap_trace(struct ceph_mds_client *mdsc,
 	struct ceph_snap_realm *realm;
 	int invalidate = 0;
 	int err = -ENOMEM;
+	LIST_HEAD(dirty_realms);
 
 	dout("update_snap_trace deletion=%d\n", deletion);
 more:
@@ -626,24 +628,6 @@ more:
 		}
 	}
 
-	if (le64_to_cpu(ri->seq) > realm->seq) {
-		dout("update_snap_trace updating %llx %p %lld -> %lld\n",
-		     realm->ino, realm, realm->seq, le64_to_cpu(ri->seq));
-		/*
-		 * if the realm seq has changed, queue a cap_snap for every
-		 * inode with open caps.  we do this _before_ we update
-		 * the realm info so that we prepare for writeback under the
-		 * _previous_ snap context.
-		 *
-		 * ...unless it's a snap deletion!
-		 */
-		if (!deletion)
-			queue_realm_cap_snaps(realm);
-	} else {
-		dout("update_snap_trace %llx %p seq %lld unchanged\n",
-		     realm->ino, realm, realm->seq);
-	}
-
 	/* ensure the parent is correct */
 	err = adjust_snap_realm_parent(mdsc, realm, le64_to_cpu(ri->parent));
 	if (err < 0)
@@ -651,6 +635,8 @@ more:
 	invalidate += err;
 
 	if (le64_to_cpu(ri->seq) > realm->seq) {
+		dout("update_snap_trace updating %llx %p %lld -> %lld\n",
+		     realm->ino, realm, realm->seq, le64_to_cpu(ri->seq));
 		/* update realm parameters, snap lists */
 		realm->seq = le64_to_cpu(ri->seq);
 		realm->created = le64_to_cpu(ri->created);
@@ -668,9 +654,17 @@ more:
 		if (err < 0)
 			goto fail;
 
+		/* queue realm for cap_snap creation */
+		list_add(&realm->dirty_item, &dirty_realms);
+
 		invalidate = 1;
 	} else if (!realm->cached_context) {
+		dout("update_snap_trace %llx %p seq %lld new\n",
+		     realm->ino, realm, realm->seq);
 		invalidate = 1;
+	} else {
+		dout("update_snap_trace %llx %p seq %lld unchanged\n",
+		     realm->ino, realm, realm->seq);
 	}
 
 	dout("done with %llx %p, invalidated=%d, %p %p\n", realm->ino,
@@ -682,6 +676,14 @@ more:
 	/* invalidate when we reach the _end_ (root) of the trace */
 	if (invalidate)
 		rebuild_snap_realms(realm);
+
+	/*
+	 * queue cap snaps _after_ we've built the new snap contexts,
+	 * so that i_head_snapc can be set appropriately.
+	 */
+	list_for_each_entry(realm, &dirty_realms, dirty_item) {
+		queue_realm_cap_snaps(realm);
+	}
 
 	__cleanup_empty_realms(mdsc);
 	return 0;
@@ -715,7 +717,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		igrab(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
 		spin_lock(&inode->i_lock);
-		__ceph_flush_snaps(ci, &session);
+		__ceph_flush_snaps(ci, &session, 0);
 		spin_unlock(&inode->i_lock);
 		iput(inode);
 		spin_lock(&mdsc->snap_flush_lock);
@@ -816,6 +818,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			};
 			struct inode *inode = ceph_find_inode(sb, vino);
 			struct ceph_inode_info *ci;
+			struct ceph_snap_realm *oldrealm;
 
 			if (!inode)
 				continue;
@@ -841,18 +844,19 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			dout(" will move %p to split realm %llx %p\n",
 			     inode, realm->ino, realm);
 			/*
-			 * Remove the inode from the realm's inode
-			 * list, but don't add it to the new realm
-			 * yet.  We don't want the cap_snap to be
-			 * queued (again) by ceph_update_snap_trace()
-			 * below.  Queue it _now_, under the old context.
+			 * Move the inode to the new realm
 			 */
 			spin_lock(&realm->inodes_with_caps_lock);
 			list_del_init(&ci->i_snap_realm_item);
+			list_add(&ci->i_snap_realm_item,
+				 &realm->inodes_with_caps);
+			oldrealm = ci->i_snap_realm;
+			ci->i_snap_realm = realm;
 			spin_unlock(&realm->inodes_with_caps_lock);
 			spin_unlock(&inode->i_lock);
 
-			ceph_queue_cap_snap(ci);
+			ceph_get_snap_realm(mdsc, realm);
+			ceph_put_snap_realm(mdsc, oldrealm);
 
 			iput(inode);
 			continue;
@@ -880,43 +884,9 @@ skip_inode:
 	ceph_update_snap_trace(mdsc, p, e,
 			       op == CEPH_SNAP_OP_DESTROY);
 
-	if (op == CEPH_SNAP_OP_SPLIT) {
-		/*
-		 * ok, _now_ add the inodes into the new realm.
-		 */
-		for (i = 0; i < num_split_inos; i++) {
-			struct ceph_vino vino = {
-				.ino = le64_to_cpu(split_inos[i]),
-				.snap = CEPH_NOSNAP,
-			};
-			struct inode *inode = ceph_find_inode(sb, vino);
-			struct ceph_inode_info *ci;
-
-			if (!inode)
-				continue;
-			ci = ceph_inode(inode);
-			spin_lock(&inode->i_lock);
-			if (list_empty(&ci->i_snap_realm_item)) {
-				struct ceph_snap_realm *oldrealm =
-					ci->i_snap_realm;
-
-				dout(" moving %p to split realm %llx %p\n",
-				     inode, realm->ino, realm);
-				spin_lock(&realm->inodes_with_caps_lock);
-				list_add(&ci->i_snap_realm_item,
-					 &realm->inodes_with_caps);
-				ci->i_snap_realm = realm;
-				spin_unlock(&realm->inodes_with_caps_lock);
-				ceph_get_snap_realm(mdsc, realm);
-				ceph_put_snap_realm(mdsc, oldrealm);
-			}
-			spin_unlock(&inode->i_lock);
-			iput(inode);
-		}
-
+	if (op == CEPH_SNAP_OP_SPLIT)
 		/* we took a reference when we created the realm, above */
 		ceph_put_snap_realm(mdsc, realm);
-	}
 
 	__cleanup_empty_realms(mdsc);
 

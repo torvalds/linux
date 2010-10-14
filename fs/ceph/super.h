@@ -690,6 +690,8 @@ struct ceph_snap_realm {
 
 	struct list_head empty_item;     /* if i have ref==0 */
 
+	struct list_head dirty_item;     /* if realm needs new context */
+
 	/* the current set of snaps for this realm */
 	struct ceph_snap_context *cached_context;
 
@@ -826,7 +828,8 @@ extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
 extern void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 				       struct ceph_snap_context *snapc);
 extern void __ceph_flush_snaps(struct ceph_inode_info *ci,
-			       struct ceph_mds_session **psession);
+			       struct ceph_mds_session **psession,
+			       int again);
 extern void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 			    struct ceph_mds_session *session);
 extern void ceph_check_delayed_caps(struct ceph_mds_client *mdsc);

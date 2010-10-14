@@ -121,7 +121,7 @@ static int sport_uart_setup(struct sport_uart_port *up, int size, int baud_rate)
 	unsigned int sclk = get_sclk();
 
 	/* Set TCR1 and TCR2, TFSR is not enabled for uart */
-	SPORT_PUT_TCR1(up, (ITFS | TLSBIT | ITCLK));
+	SPORT_PUT_TCR1(up, (LATFS | ITFS | TFSR | TLSBIT | ITCLK));
 	SPORT_PUT_TCR2(up, size + 1);
 	pr_debug("%s TCR1:%x, TCR2:%x\n", __func__, SPORT_GET_TCR1(up), SPORT_GET_TCR2(up));
 

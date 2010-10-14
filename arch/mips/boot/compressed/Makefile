@@ -59,7 +59,7 @@ $(obj)/piggy.o: $(obj)/dummy.o $(obj)/vmlinux.bin.z FORCE
 hostprogs-y := calc_vmlinuz_load_addr
 
 VMLINUZ_LOAD_ADDRESS = $(shell $(obj)/calc_vmlinuz_load_addr \
-		$(objtree)/$(KBUILD_IMAGE) $(VMLINUX_LOAD_ADDRESS))
+		$(obj)/vmlinux.bin $(VMLINUX_LOAD_ADDRESS))
 
 vmlinuzobjs-y += $(obj)/piggy.o
 

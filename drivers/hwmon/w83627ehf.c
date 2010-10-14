@@ -127,6 +127,7 @@ superio_enter(int ioreg)
 static inline void
 superio_exit(int ioreg)
 {
+	outb(0xaa, ioreg);
 	outb(0x02, ioreg);
 	outb(0x02, ioreg + 1);
 }

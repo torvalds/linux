@@ -219,6 +219,7 @@ int prism2_get_key(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOENT;
 	params.key_len = len;
 	params.key = wlandev->wep_keys[key_index];
+	params.seq_len = 0;
 
 	callback(cookie, &params);
 
@@ -735,6 +736,8 @@ struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev)
 	priv->band.n_channels = ARRAY_SIZE(prism2_channels);
 	priv->band.bitrates = priv->rates;
 	priv->band.n_bitrates = ARRAY_SIZE(prism2_rates);
+	priv->band.band = IEEE80211_BAND_2GHZ;
+	priv->band.ht_cap.ht_supported = false;
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 	set_wiphy_dev(wiphy, dev);

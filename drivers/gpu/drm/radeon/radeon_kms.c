@@ -203,6 +203,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
  */
 int radeon_driver_firstopen_kms(struct drm_device *dev)
 {
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (rdev->powered_down)
+		return -EINVAL;
 	return 0;
 }
 

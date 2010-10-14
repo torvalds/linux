@@ -1,19 +1,26 @@
 /*
- * linux/kernel/workqueue.c
+ * kernel/workqueue.c - generic async execution with shared worker pool
  *
- * Generic mechanism for defining kernel helper threads for running
- * arbitrary tasks in process context.
+ * Copyright (C) 2002		Ingo Molnar
  *
- * Started by Ingo Molnar, Copyright (C) 2002
- *
- * Derived from the taskqueue/keventd code by:
- *
- *   David Woodhouse <dwmw2@infradead.org>
- *   Andrew Morton
- *   Kai Petzke <wpp@marie.physik.tu-berlin.de>
- *   Theodore Ts'o <tytso@mit.edu>
+ *   Derived from the taskqueue/keventd code by:
+ *     David Woodhouse <dwmw2@infradead.org>
+ *     Andrew Morton
+ *     Kai Petzke <wpp@marie.physik.tu-berlin.de>
+ *     Theodore Ts'o <tytso@mit.edu>
  *
  * Made to use alloc_percpu by Christoph Lameter.
+ *
+ * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
+ *
+ * This is the generic async execution mechanism.  Work items as are
+ * executed in process context.  The worker pool is shared and
+ * automatically managed.  There is one worker pool for each CPU and
+ * one extra for works which are better served by workers which are
+ * not bound to any specific CPU.
+ *
+ * Please read Documentation/workqueue.txt for details.
  */
 
 #include <linux/module.h>
@@ -90,7 +97,8 @@ enum {
 /*
  * Structure fields follow one of the following exclusion rules.
  *
- * I: Set during initialization and read-only afterwards.
+ * I: Modifiable by initialization/destruction paths and read-only for
+ *    everyone else.
  *
  * P: Preemption protected.  Disabling preemption is enough and should
  *    only be modified and accessed from the local cpu.
@@ -198,7 +206,7 @@ typedef cpumask_var_t mayday_mask_t;
 	cpumask_test_and_set_cpu((cpu), (mask))
 #define mayday_clear_cpu(cpu, mask)		cpumask_clear_cpu((cpu), (mask))
 #define for_each_mayday_cpu(cpu, mask)		for_each_cpu((cpu), (mask))
-#define alloc_mayday_mask(maskp, gfp)		alloc_cpumask_var((maskp), (gfp))
+#define alloc_mayday_mask(maskp, gfp)		zalloc_cpumask_var((maskp), (gfp))
 #define free_mayday_mask(mask)			free_cpumask_var((mask))
 #else
 typedef unsigned long mayday_mask_t;
@@ -943,9 +951,13 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	struct global_cwq *gcwq;
 	struct cpu_workqueue_struct *cwq;
 	struct list_head *worklist;
+	unsigned int work_flags;
 	unsigned long flags;
 
 	debug_work_activate(work);
+
+	if (WARN_ON_ONCE(wq->flags & WQ_DYING))
+		return;
 
 	/* determine gcwq to use */
 	if (!(wq->flags & WQ_UNBOUND)) {
@@ -989,14 +1001,17 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	BUG_ON(!list_empty(&work->entry));
 
 	cwq->nr_in_flight[cwq->work_color]++;
+	work_flags = work_color_to_flags(cwq->work_color);
 
 	if (likely(cwq->nr_active < cwq->max_active)) {
 		cwq->nr_active++;
 		worklist = gcwq_determine_ins_pos(gcwq, cwq);
-	} else
+	} else {
+		work_flags |= WORK_STRUCT_DELAYED;
 		worklist = &cwq->delayed_works;
+	}
 
-	insert_work(cwq, work, worklist, work_color_to_flags(cwq->work_color));
+	insert_work(cwq, work, worklist, work_flags);
 
 	spin_unlock_irqrestore(&gcwq->lock, flags);
 }
@@ -1215,6 +1230,7 @@ static void worker_leave_idle(struct worker *worker)
  * bound), %false if offline.
  */
 static bool worker_maybe_bind_and_lock(struct worker *worker)
+__acquires(&gcwq->lock)
 {
 	struct global_cwq *gcwq = worker->gcwq;
 	struct task_struct *task = worker->task;
@@ -1488,6 +1504,8 @@ static void gcwq_mayday_timeout(unsigned long __gcwq)
  * otherwise.
  */
 static bool maybe_create_worker(struct global_cwq *gcwq)
+__releases(&gcwq->lock)
+__acquires(&gcwq->lock)
 {
 	if (!need_to_create_worker(gcwq))
 		return false;
@@ -1662,6 +1680,7 @@ static void cwq_activate_first_delayed(struct cpu_workqueue_struct *cwq)
 	struct list_head *pos = gcwq_determine_ins_pos(cwq->gcwq, cwq);
 
 	move_linked_works(work, pos, NULL);
+	__clear_bit(WORK_STRUCT_DELAYED_BIT, work_data_bits(work));
 	cwq->nr_active++;
 }
 
@@ -1669,6 +1688,7 @@ static void cwq_activate_first_delayed(struct cpu_workqueue_struct *cwq)
  * cwq_dec_nr_in_flight - decrement cwq's nr_in_flight
  * @cwq: cwq of interest
  * @color: color of work which left the queue
+ * @delayed: for a delayed work
  *
  * A work either has completed or is removed from pending queue,
  * decrement nr_in_flight of its cwq and handle workqueue flushing.
@@ -1676,19 +1696,22 @@ static void cwq_activate_first_delayed(struct cpu_workqueue_struct *cwq)
  * CONTEXT:
  * spin_lock_irq(gcwq->lock).
  */
-static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color)
+static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color,
+				 bool delayed)
 {
 	/* ignore uncolored works */
 	if (color == WORK_NO_COLOR)
 		return;
 
 	cwq->nr_in_flight[color]--;
-	cwq->nr_active--;
 
-	if (!list_empty(&cwq->delayed_works)) {
-		/* one down, submit a delayed one */
-		if (cwq->nr_active < cwq->max_active)
-			cwq_activate_first_delayed(cwq);
+	if (!delayed) {
+		cwq->nr_active--;
+		if (!list_empty(&cwq->delayed_works)) {
+			/* one down, submit a delayed one */
+			if (cwq->nr_active < cwq->max_active)
+				cwq_activate_first_delayed(cwq);
+		}
 	}
 
 	/* is flush in progress and are we at the flushing tip? */
@@ -1725,6 +1748,8 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color)
  * spin_lock_irq(gcwq->lock) which is released and regrabbed.
  */
 static void process_one_work(struct worker *worker, struct work_struct *work)
+__releases(&gcwq->lock)
+__acquires(&gcwq->lock)
 {
 	struct cpu_workqueue_struct *cwq = get_work_cwq(work);
 	struct global_cwq *gcwq = cwq->gcwq;
@@ -1823,7 +1848,7 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	hlist_del_init(&worker->hentry);
 	worker->current_work = NULL;
 	worker->current_cwq = NULL;
-	cwq_dec_nr_in_flight(cwq, work_color);
+	cwq_dec_nr_in_flight(cwq, work_color, false);
 }
 
 /**
@@ -2388,7 +2413,8 @@ static int try_to_grab_pending(struct work_struct *work)
 			debug_work_deactivate(work);
 			list_del_init(&work->entry);
 			cwq_dec_nr_in_flight(get_work_cwq(work),
-					     get_work_color(work));
+				get_work_color(work),
+				*work_data_bits(work) & WORK_STRUCT_DELAYED);
 			ret = 1;
 		}
 	}
@@ -2791,7 +2817,6 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 		if (IS_ERR(rescuer->task))
 			goto err;
 
-		wq->rescuer = rescuer;
 		rescuer->task->flags |= PF_THREAD_BOUND;
 		wake_up_process(rescuer->task);
 	}
@@ -2833,6 +2858,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 {
 	unsigned int cpu;
 
+	wq->flags |= WQ_DYING;
 	flush_workqueue(wq);
 
 	/*
@@ -2857,6 +2883,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	if (wq->flags & WQ_RESCUER) {
 		kthread_stop(wq->rescuer->task);
 		free_mayday_mask(wq->mayday_mask);
+		kfree(wq->rescuer);
 	}
 
 	free_cwqs(wq);
@@ -3239,6 +3266,8 @@ static int __cpuinit trustee_thread(void *__gcwq)
  * multiple times.  To be used by cpu_callback.
  */
 static void __cpuinit wait_trustee_state(struct global_cwq *gcwq, int state)
+__releases(&gcwq->lock)
+__acquires(&gcwq->lock)
 {
 	if (!(gcwq->trustee_state == state ||
 	      gcwq->trustee_state == TRUSTEE_DONE)) {
@@ -3545,8 +3574,7 @@ static int __init init_workqueues(void)
 		spin_lock_init(&gcwq->lock);
 		INIT_LIST_HEAD(&gcwq->worklist);
 		gcwq->cpu = cpu;
-		if (cpu == WORK_CPU_UNBOUND)
-			gcwq->flags |= GCWQ_DISASSOCIATED;
+		gcwq->flags |= GCWQ_DISASSOCIATED;
 
 		INIT_LIST_HEAD(&gcwq->idle_list);
 		for (i = 0; i < BUSY_WORKER_HASH_SIZE; i++)
@@ -3570,6 +3598,8 @@ static int __init init_workqueues(void)
 		struct global_cwq *gcwq = get_gcwq(cpu);
 		struct worker *worker;
 
+		if (cpu != WORK_CPU_UNBOUND)
+			gcwq->flags &= ~GCWQ_DISASSOCIATED;
 		worker = create_worker(gcwq, true);
 		BUG_ON(!worker);
 		spin_lock_irq(&gcwq->lock);

@@ -24,6 +24,7 @@ static int __init example_init(void)
 {
 	int			i;
 	unsigned int		ret;
+	unsigned int		nents;
 	struct scatterlist	sg[10];
 
 	printk(KERN_INFO "DMA fifo test start\n");
@@ -61,9 +62,9 @@ static int __init example_init(void)
 	 * byte at the beginning, after the kfifo_skip().
 	 */
 	sg_init_table(sg, ARRAY_SIZE(sg));
-	ret = kfifo_dma_in_prepare(&fifo, sg, ARRAY_SIZE(sg), FIFO_SIZE);
-	printk(KERN_INFO "DMA sgl entries: %d\n", ret);
-	if (!ret) {
+	nents = kfifo_dma_in_prepare(&fifo, sg, ARRAY_SIZE(sg), FIFO_SIZE);
+	printk(KERN_INFO "DMA sgl entries: %d\n", nents);
+	if (!nents) {
 		/* fifo is full and no sgl was created */
 		printk(KERN_WARNING "error kfifo_dma_in_prepare\n");
 		return -EIO;
@@ -71,7 +72,7 @@ static int __init example_init(void)
 
 	/* receive data */
 	printk(KERN_INFO "scatterlist for receive:\n");
-	for (i = 0; i < ARRAY_SIZE(sg); i++) {
+	for (i = 0; i < nents; i++) {
 		printk(KERN_INFO
 		"sg[%d] -> "
 		"page_link 0x%.8lx offset 0x%.8x length 0x%.8x\n",
@@ -91,16 +92,16 @@ static int __init example_init(void)
 	kfifo_dma_in_finish(&fifo, ret);
 
 	/* Prepare to transmit data, example: 8 bytes */
-	ret = kfifo_dma_out_prepare(&fifo, sg, ARRAY_SIZE(sg), 8);
-	printk(KERN_INFO "DMA sgl entries: %d\n", ret);
-	if (!ret) {
+	nents = kfifo_dma_out_prepare(&fifo, sg, ARRAY_SIZE(sg), 8);
+	printk(KERN_INFO "DMA sgl entries: %d\n", nents);
+	if (!nents) {
 		/* no data was available and no sgl was created */
 		printk(KERN_WARNING "error kfifo_dma_out_prepare\n");
 		return -EIO;
 	}
 
 	printk(KERN_INFO "scatterlist for transmit:\n");
-	for (i = 0; i < ARRAY_SIZE(sg); i++) {
+	for (i = 0; i < nents; i++) {
 		printk(KERN_INFO
 		"sg[%d] -> "
 		"page_link 0x%.8lx offset 0x%.8x length 0x%.8x\n",

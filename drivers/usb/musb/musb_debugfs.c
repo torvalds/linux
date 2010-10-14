@@ -195,15 +195,14 @@ static const struct file_operations musb_regdump_fops = {
 
 static int musb_test_mode_open(struct inode *inode, struct file *file)
 {
-	file->private_data = inode->i_private;
-
 	return single_open(file, musb_test_mode_show, inode->i_private);
 }
 
 static ssize_t musb_test_mode_write(struct file *file,
 		const char __user *ubuf, size_t count, loff_t *ppos)
 {
-	struct musb		*musb = file->private_data;
+	struct seq_file		*s = file->private_data;
+	struct musb		*musb = s->private;
 	u8			test = 0;
 	char			buf[18];
 

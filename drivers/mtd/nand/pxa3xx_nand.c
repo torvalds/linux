@@ -1320,6 +1320,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		goto fail_free_irq;
 	}
 
+#ifdef CONFIG_MTD_PARTITIONS
 	if (mtd_has_cmdlinepart()) {
 		static const char *probes[] = { "cmdlinepart", NULL };
 		struct mtd_partition *parts;
@@ -1332,6 +1333,9 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	}
 
 	return add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
+#else
+	return 0;
+#endif
 
 fail_free_irq:
 	free_irq(irq, info);
@@ -1364,7 +1368,9 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	del_mtd_device(mtd);
+#ifdef CONFIG_MTD_PARTITIONS
 	del_mtd_partitions(mtd);
+#endif
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
 		free_irq(irq, info);
