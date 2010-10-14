@@ -1445,6 +1445,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	scratchpad_free(xhci);
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
+	xhci->bus_suspended = 0;
 }
 
 static int xhci_test_trb_in_td(struct xhci_hcd *xhci,

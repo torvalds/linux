@@ -357,6 +357,8 @@ struct xhci_op_regs {
 #define PORT_U2_TIMEOUT(p)	(((p) & 0xff) << 8)
 /* Bits 24:31 for port testing */
 
+/* USB2 Protocol PORTSPMSC */
+#define PORT_RWE	(1 << 0x3)
 
 /**
  * struct xhci_intr_reg - Interrupt Register Set
@@ -1191,6 +1193,11 @@ struct xhci_hcd {
 #endif
 	/* Host controller watchdog timer structures */
 	unsigned int		xhc_state;
+
+	unsigned long		bus_suspended;
+	unsigned long		next_statechange;
+
+	u32			command;
 /* Host controller is dying - not responding to commands. "I'm not dead yet!"
  *
  * xHC interrupts have been disabled and a watchdog timer will (or has already)
@@ -1460,6 +1467,8 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
+int xhci_bus_suspend(struct usb_hcd *hcd);
+int xhci_bus_resume(struct usb_hcd *hcd);
 u32 xhci_port_state_to_neutral(u32 state);
 int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port);
 void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
