@@ -89,6 +89,10 @@
 #define get_cycles_low() __insn_mfspr(SPR_CYCLE)   /* just get all 64 bits */
 #endif
 
+#if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
+int __mb_incoherent(void);  /* Helper routine for mb_incoherent(). */
+#endif
+
 /* Fence to guarantee visibility of stores to incoherent memory. */
 static inline void
 mb_incoherent(void)
@@ -97,7 +101,6 @@ mb_incoherent(void)
 
 #if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
 	{
-		int __mb_incoherent(void);
 #if CHIP_HAS_TILE_WRITE_PENDING()
 		const unsigned long WRITE_TIMEOUT_CYCLES = 400;
 		unsigned long start = get_cycles_low();
