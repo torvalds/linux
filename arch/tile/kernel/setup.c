@@ -1334,6 +1334,10 @@ static void __init pcpu_fc_populate_pte(unsigned long addr)
 	pte_t *pte;
 
 	BUG_ON(pgd_addr_invalid(addr));
+	if (addr < VMALLOC_START || addr >= VMALLOC_END)
+		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx;"
+		      " try increasing CONFIG_VMALLOC_RESERVE\n",
+		      addr, VMALLOC_START, VMALLOC_END);
 
 	pgd = swapper_pg_dir + pgd_index(addr);
 	pud = pud_offset(pgd, addr);
