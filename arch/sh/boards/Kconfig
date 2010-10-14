@@ -156,6 +156,7 @@ config SH_SDK7786
 	select SYS_SUPPORTS_PCI
 	select NO_IOPORT if !PCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select HAVE_SRAM_POOL
 	help
 	  Select SDK7786 if configuring for a Renesas Technology Europe
 	  SH7786-65nm board.
