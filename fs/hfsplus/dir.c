@@ -102,7 +102,7 @@ again:
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 	if (S_ISREG(inode->i_mode))
-		HFSPLUS_I(inode)->dev = linkid;
+		HFSPLUS_I(inode)->linkid = linkid;
 out:
 	d_add(dentry, inode);
 	return NULL;
@@ -252,6 +252,8 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 
 	if (HFSPLUS_IS_RSRC(inode))
 		return -EPERM;
+	if (!S_ISREG(inode->i_mode))
+		return -EPERM;
 
 	mutex_lock(&sbi->vh_mutex);
 	if (inode->i_ino == (u32)(unsigned long)src_dentry->d_fsdata) {
@@ -268,7 +270,7 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 			if (res != -EEXIST)
 				goto out;
 		}
-		HFSPLUS_I(inode)->dev = id;
+		HFSPLUS_I(inode)->linkid = id;
 		cnid = sbi->next_cnid++;
 		src_dentry->d_fsdata = (void *)(unsigned long)cnid;
 		res = hfsplus_create_cat(cnid, src_dir, &src_dentry->d_name, inode);

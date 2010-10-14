@@ -178,7 +178,11 @@ struct hfsplus_inode_info {
 	 */
 	struct inode *rsrc_inode;
 	__be32 create_date;
-	u32 dev;
+
+	/*
+	 * Protected by sbi->vh_mutex.
+	 */
+	u32 linkid;
 
 	/*
 	 * Protected by i_mutex.
@@ -426,7 +430,5 @@ static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 #define hfsp_mt2ut(t)		(struct timespec){ .tv_sec = __hfsp_mt2ut(t) }
 #define hfsp_ut2mt(t)		__hfsp_ut2mt((t).tv_sec)
 #define hfsp_now2mt()		__hfsp_ut2mt(get_seconds())
-
-#define kdev_t_to_nr(x)		(x)
 
 #endif

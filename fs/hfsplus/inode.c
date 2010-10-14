@@ -267,7 +267,13 @@ static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
 	perms->mode = cpu_to_be16(inode->i_mode);
 	perms->owner = cpu_to_be32(inode->i_uid);
 	perms->group = cpu_to_be32(inode->i_gid);
-	perms->dev = cpu_to_be32(HFSPLUS_I(inode)->dev);
+
+	if (S_ISREG(inode->i_mode))
+		perms->dev = cpu_to_be32(inode->i_nlink);
+	else if (S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode))
+		perms->dev = cpu_to_be32(inode->i_rdev);
+	else
+		perms->dev = 0;
 }
 
 static int hfsplus_file_open(struct inode *inode, struct file *file)
@@ -491,7 +497,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 
 	type = hfs_bnode_read_u16(fd->bnode, fd->entryoffset);
 
-	HFSPLUS_I(inode)->dev = 0;
+	HFSPLUS_I(inode)->linkid = 0;
 	if (type == HFSPLUS_FOLDER) {
 		struct hfsplus_cat_folder *folder = &entry.folder;
 
@@ -595,10 +601,6 @@ int hfsplus_cat_write_inode(struct inode *inode)
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
 					sizeof(struct hfsplus_cat_file));
 		hfsplus_inode_write_fork(inode, &file->data_fork);
-		if (S_ISREG(inode->i_mode))
-			HFSPLUS_I(inode)->dev = inode->i_nlink;
-		if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-			HFSPLUS_I(inode)->dev = kdev_t_to_nr(inode->i_rdev);
 		hfsplus_set_perms(inode, &file->permissions);
 		if ((file->permissions.rootflags | file->permissions.userflags) & HFSPLUS_FLG_IMMUTABLE)
 			file->flags |= cpu_to_be16(HFSPLUS_FILE_LOCKED);
