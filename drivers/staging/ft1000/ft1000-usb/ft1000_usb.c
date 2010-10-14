@@ -68,7 +68,8 @@ int ft1000_poll_thread(void *arg)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int ft1000_probe(struct usb_interface *interface, const struct usb_device_id *id)
+static int ft1000_probe(struct usb_interface *interface,
+			const struct usb_device_id *id)
 {
     struct usb_host_interface *iface_desc;
     struct usb_endpoint_descriptor *endpoint;
@@ -92,7 +93,8 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 
     dev = interface_to_usbdev(interface);
     DEBUG("ft1000_probe: usb device descriptor info:\n");
-    DEBUG("ft1000_probe: number of configuration is %d\n", dev->descriptor.bNumConfigurations);
+	DEBUG("ft1000_probe: number of configuration is %d\n",
+	      dev->descriptor.bNumConfigurations);
 
 	ft1000dev->dev = dev;
 	ft1000dev->status = 0;
@@ -106,32 +108,52 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
     numaltsetting = interface->num_altsetting;
     DEBUG("ft1000_probe: number of alt settings is :%d\n", numaltsetting);
     iface_desc = interface->cur_altsetting;
-    DEBUG("ft1000_probe: number of endpoints is %d\n", iface_desc->desc.bNumEndpoints);
-    DEBUG("ft1000_probe: descriptor type is %d\n", iface_desc->desc.bDescriptorType);
-    DEBUG("ft1000_probe: interface number is %d\n", iface_desc->desc.bInterfaceNumber);
-    DEBUG("ft1000_probe: alternatesetting is %d\n", iface_desc->desc.bAlternateSetting);
-    DEBUG("ft1000_probe: interface class is %d\n", iface_desc->desc.bInterfaceClass);
+	DEBUG("ft1000_probe: number of endpoints is %d\n",
+	      iface_desc->desc.bNumEndpoints);
+	DEBUG("ft1000_probe: descriptor type is %d\n",
+	      iface_desc->desc.bDescriptorType);
+	DEBUG("ft1000_probe: interface number is %d\n",
+	      iface_desc->desc.bInterfaceNumber);
+	DEBUG("ft1000_probe: alternatesetting is %d\n",
+	      iface_desc->desc.bAlternateSetting);
+	DEBUG("ft1000_probe: interface class is %d\n",
+	      iface_desc->desc.bInterfaceClass);
     DEBUG("ft1000_probe: control endpoint info:\n");
-    DEBUG("ft1000_probe: descriptor0 type -- %d\n", iface_desc->endpoint[0].desc.bmAttributes);
-    DEBUG("ft1000_probe: descriptor1 type -- %d\n", iface_desc->endpoint[1].desc.bmAttributes);
-    DEBUG("ft1000_probe: descriptor2 type -- %d\n", iface_desc->endpoint[2].desc.bmAttributes);
+	DEBUG("ft1000_probe: descriptor0 type -- %d\n",
+	      iface_desc->endpoint[0].desc.bmAttributes);
+	DEBUG("ft1000_probe: descriptor1 type -- %d\n",
+	      iface_desc->endpoint[1].desc.bmAttributes);
+	DEBUG("ft1000_probe: descriptor2 type -- %d\n",
+	      iface_desc->endpoint[2].desc.bmAttributes);
 
     for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
-		endpoint = (struct usb_endpoint_descriptor *)&iface_desc->endpoint[i].desc;
+		endpoint =
+		    (struct usb_endpoint_descriptor *)&iface_desc->endpoint[i].
+		    desc;
                 DEBUG("endpoint %d\n", i);
-                DEBUG("bEndpointAddress=%x, bmAttributes=%x\n", endpoint->bEndpointAddress, endpoint->bmAttributes);
-		if ((endpoint->bEndpointAddress & USB_DIR_IN) && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK)) {
-			ft1000dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-			DEBUG("ft1000_probe: in: %d\n", endpoint->bEndpointAddress);
+		DEBUG("bEndpointAddress=%x, bmAttributes=%x\n",
+		      endpoint->bEndpointAddress, endpoint->bmAttributes);
+		if ((endpoint->bEndpointAddress & USB_DIR_IN)
+		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_BULK)) {
+			ft1000dev->bulk_in_endpointAddr =
+				endpoint->bEndpointAddress;
+			DEBUG("ft1000_probe: in: %d\n",
+			      endpoint->bEndpointAddress);
 		}
 
-		if (!(endpoint->bEndpointAddress & USB_DIR_IN) && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK)) {
-			ft1000dev->bulk_out_endpointAddr = endpoint->bEndpointAddress;
-			DEBUG("ft1000_probe: out: %d\n", endpoint->bEndpointAddress);
+		if (!(endpoint->bEndpointAddress & USB_DIR_IN)
+		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_BULK)) {
+			ft1000dev->bulk_out_endpointAddr =
+				endpoint->bEndpointAddress;
+			DEBUG("ft1000_probe: out: %d\n",
+			      endpoint->bEndpointAddress);
 		}
     }
 
-    DEBUG("bulk_in=%d, bulk_out=%d\n", ft1000dev->bulk_in_endpointAddr, ft1000dev->bulk_out_endpointAddr);
+	DEBUG("bulk_in=%d, bulk_out=%d\n", ft1000dev->bulk_in_endpointAddr,
+	      ft1000dev->bulk_out_endpointAddr);
 
 	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
 	if (ret < 0) {
@@ -164,7 +186,8 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 	}
 
 	gPollingfailed = FALSE;
-    pft1000info->pPollThread = kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
+	pft1000info->pPollThread =
+	    kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
 	msleep(500);
 
 	while (!pft1000info->CardReady) {
