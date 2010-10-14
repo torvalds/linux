@@ -467,7 +467,8 @@ struct bdb_edp {
 	struct edp_link_params link_params[16];
 } __attribute__ ((packed));
 
-bool intel_init_bios(struct drm_device *dev);
+void intel_setup_bios(struct drm_device *dev);
+bool intel_parse_bios(struct drm_device *dev);
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in

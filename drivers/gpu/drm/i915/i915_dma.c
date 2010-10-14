@@ -1235,7 +1235,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 */
 	dev_priv->allow_batchbuffer = 1;
 
-	ret = intel_init_bios(dev);
+	ret = intel_parse_bios(dev);
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
 
@@ -2000,6 +2000,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_setup_mchbar(dev);
 	intel_setup_gmbus(dev);
 	intel_opregion_setup(dev);
+
+	/* Make sure the bios did its job and set up vital registers */
+	intel_setup_bios(dev);
 
 	i915_gem_load(dev);
 
