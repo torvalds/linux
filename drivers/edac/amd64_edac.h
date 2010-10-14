@@ -335,9 +335,6 @@
 #define K8_SCRCTRL			0x58
 
 #define F10_NB_CFG_LOW			0x88
-#define	F10_NB_CFG_LOW_ENABLE_EXT_CFG	BIT(14)
-
-#define F10_NB_CFG_HIGH			0x8C
 
 #define F10_ONLINE_SPARE		0xB0
 #define F10_ONLINE_SPARE_SWAPDONE0(x)	((x) & BIT(1))
@@ -476,7 +473,6 @@ struct amd64_pvt {
 
 	/* misc settings */
 	struct flags {
-		unsigned long cf8_extcfg:1;
 		unsigned long nb_mce_enable:1;
 		unsigned long nb_ecc_prev:1;
 	} flags;

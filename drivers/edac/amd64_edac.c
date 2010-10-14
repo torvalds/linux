@@ -1204,31 +1204,6 @@ static int f10_dbam_to_chip_select(struct amd64_pvt *pvt, int cs_mode)
 	return dbam_map[cs_mode];
 }
 
-/* Enable extended configuration access via 0xCF8 feature */
-static void amd64_setup(struct amd64_pvt *pvt)
-{
-	u32 reg;
-
-	amd64_read_pci_cfg(pvt->F3, F10_NB_CFG_HIGH, &reg);
-
-	pvt->flags.cf8_extcfg = !!(reg & F10_NB_CFG_LOW_ENABLE_EXT_CFG);
-	reg |= F10_NB_CFG_LOW_ENABLE_EXT_CFG;
-	pci_write_config_dword(pvt->F3, F10_NB_CFG_HIGH, reg);
-}
-
-/* Restore the extended configuration access via 0xCF8 feature */
-static void amd64_teardown(struct amd64_pvt *pvt)
-{
-	u32 reg;
-
-	amd64_read_pci_cfg(pvt->F3, F10_NB_CFG_HIGH, &reg);
-
-	reg &= ~F10_NB_CFG_LOW_ENABLE_EXT_CFG;
-	if (pvt->flags.cf8_extcfg)
-		reg |= F10_NB_CFG_LOW_ENABLE_EXT_CFG;
-	pci_write_config_dword(pvt->F3, F10_NB_CFG_HIGH, reg);
-}
-
 static u64 f10_get_error_address(struct mem_ctl_info *mci,
 			struct err_regs *info)
 {
@@ -1251,8 +1226,6 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 
 	/* read the 'raw' DRAM BASE Address register */
 	amd64_read_pci_cfg(pvt->F1, low_offset, &low_base);
-
-	/* Read from the ECS data register */
 	amd64_read_pci_cfg(pvt->F1, high_offset, &high_base);
 
 	/* Extract parts into separate data entries */
@@ -1271,8 +1244,6 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 
 	/* read the 'raw' LIMIT registers */
 	amd64_read_pci_cfg(pvt->F1, low_offset, &low_limit);
-
-	/* Read from the ECS data register for the HIGH portion */
 	amd64_read_pci_cfg(pvt->F1, high_offset, &high_limit);
 
 	pvt->dram_DstNode[dram] = (low_limit & 0x7);
@@ -2560,18 +2531,6 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 	return fam_type;
 }
 
-/*
- * Init stuff for this DRAM Controller device.
- *
- * Due to a hardware feature on Fam10h CPUs, the Enable Extended Configuration
- * Space feature MUST be enabled on ALL Processors prior to actually reading
- * from the ECS registers. Since the loading of the module can occur on any
- * 'core', and cores don't 'see' all the other processors ECS data when the
- * others are NOT enabled. Our solution is to first enable ECS access in this
- * routine on all processors, gather some data in a amd64_pvt structure and
- * later come back in a finish-setup function to perform that final
- * initialization. See also amd64_init_2nd_stage() for that.
- */
 static int amd64_probe_one_instance(struct pci_dev *F2)
 {
 	struct amd64_pvt *pvt = NULL;
@@ -2601,14 +2560,6 @@ static int amd64_probe_one_instance(struct pci_dev *F2)
 	err = amd64_check_ecc_enabled(pvt);
 	if (err)
 		goto err_put;
-
-	/*
-	 * Key operation here: setup of HW prior to performing ops on it. Some
-	 * setup is required to access ECS data. After this is performed, the
-	 * 'teardown' function must be called upon error and normal exit paths.
-	 */
-	if (boot_cpu_data.x86 >= 0x10)
-		amd64_setup(pvt);
 
 	/*
 	 * Save the pointer to the private data for use in 2nd initialization
@@ -2690,9 +2641,6 @@ err_exit:
 
 	amd64_restore_ecc_error_reporting(pvt);
 
-	if (boot_cpu_data.x86 > 0xf)
-		amd64_teardown(pvt);
-
 	amd64_free_mc_sibling_devices(pvt);
 
 	kfree(pvts[pvt->mc_node_id]);
@@ -2733,9 +2681,6 @@ static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
 	pvt = mci->pvt_info;
 
 	amd64_restore_ecc_error_reporting(pvt);
-
-	if (boot_cpu_data.x86 > 0xf)
-		amd64_teardown(pvt);
 
 	amd64_free_mc_sibling_devices(pvt);
 
