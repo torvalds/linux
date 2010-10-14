@@ -2190,11 +2190,9 @@ retry:
 		}
 	}
 
-	put_task_struct(task);
 	return ctx;
 
 errout:
-	put_task_struct(task);
 	return ERR_PTR(err);
 }
 
@@ -5602,7 +5600,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	ctx = find_get_context(pmu, task, cpu);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
-		goto err_group_fd;
+		goto err_task;
 	}
 
 	/*
@@ -5698,6 +5696,9 @@ SYSCALL_DEFINE5(perf_event_open,
 
 err_context:
 	put_ctx(ctx);
+err_task:
+	if (task)
+		put_task_struct(task);
 err_group_fd:
 	fput_light(group_file, fput_needed);
 	free_event(event);
