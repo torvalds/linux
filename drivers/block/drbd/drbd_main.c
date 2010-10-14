@@ -1393,17 +1393,22 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	}
 
 	if (os.disk > D_DISKLESS && ns.disk == D_DISKLESS) {
-		int c = atomic_read(&mdev->local_cnt);
+		/* We must still be diskless,
+		 * re-attach has to be serialized with this! */
+		if (mdev->state.disk != D_DISKLESS)
+			dev_err(DEV,
+				"ASSERT FAILED: disk is %s while going diskless\n",
+				drbd_disk_str(mdev->state.disk));
 
+		/* we cannot assert local_cnt == 0 here, as get_ldev_if_state
+		 * will inc/dec it frequently. Since we became D_DISKLESS, no
+		 * one has touched the protected members anymore, though, so we
+		 * are safe to free them here. */
 		if (drbd_send_state(mdev))
 			dev_warn(DEV, "Notified peer that I detached my disk.\n");
 		else
 			dev_err(DEV, "Sending state for detach failed\n");
 
-		if (c != 0) {
-			dev_err(DEV, "Logic bug, local_cnt=%d, but should be 0\n", c);
-			wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
-		}
 		lc_destroy(mdev->resync);
 		mdev->resync = NULL;
 		lc_destroy(mdev->act_log);
@@ -3723,8 +3728,10 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 {
 	D_ASSERT(mdev->state.disk == D_FAILED);
-	D_ASSERT(atomic_read(&mdev->local_cnt) == 0);
-
+	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
+	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
+	 * the protected members anymore, though, so in the after_state_ch work
+	 * it will be safe to free them. */
 	drbd_force_state(mdev, NS(disk, D_DISKLESS));
 
 	clear_bit(GO_DISKLESS, &mdev->flags);
@@ -3735,7 +3742,10 @@ void drbd_go_diskless(struct drbd_conf *mdev)
 {
 	D_ASSERT(mdev->state.disk == D_FAILED);
 	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
-		drbd_queue_work_front(&mdev->data.work, &mdev->go_diskless);
+		drbd_queue_work(&mdev->data.work, &mdev->go_diskless);
+		/* don't drbd_queue_work_front,
+		 * we need to serialize with the after_state_ch work
+		 * of the -> D_FAILED transition. */
 }
 
 /**
