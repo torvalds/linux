@@ -1,11 +1,12 @@
-//=====================================================
-// CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
-//
-//
-// This file is part of Express Card USB Driver
-//
-// $Id:
-//====================================================
+/*=====================================================
+ * CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
+ *
+ *
+ * This file is part of Express Card USB Driver
+ *
+ * $Id:
+ *====================================================
+ */
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -54,20 +55,6 @@ int ft1000_poll_thread(void *arg)
 	return STATUS_SUCCESS;
 }
 
-
-
-//---------------------------------------------------------------------------
-// Function:    ft1000_probe
-//
-// Parameters:  struct usb_interface *interface  - passed by USB core
-//              struct usb_device_id *id         - passed by USB core
-// Returns:     0 - success
-//
-// Description: This function is invoked when the express card is plugged in
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
 static int ft1000_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
@@ -219,18 +206,6 @@ err_fw:
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_disconnect
-//
-// Parameters:  struct usb_interface *interface  - passed by USB core
-//
-// Returns:     0 - success
-//
-// Description: This function is invoked when the express card is plugged out
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
 static void ft1000_disconnect(struct usb_interface *interface)
 {
     FT1000_INFO *pft1000info;
@@ -277,18 +252,6 @@ static struct usb_driver ft1000_usb_driver = {
     .id_table = id_table,
 };
 
-//---------------------------------------------------------------------------
-// Function:    usb_ft1000_init
-//
-// Parameters:  none
-//
-// Returns:     0 - success
-//
-// Description: The entry point of the module, register the usb driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
 static int __init usb_ft1000_init(void)
 {
     int ret = 0;
@@ -302,18 +265,6 @@ static int __init usb_ft1000_init(void)
     return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    usb_ft1000_exit
-//
-// Parameters:
-//
-// Returns:
-//
-// Description: Moudle unload function, deregister usb driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
 static void __exit usb_ft1000_exit(void)
 {
     DEBUG("Deregister the driver\n");
