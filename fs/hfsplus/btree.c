@@ -71,12 +71,21 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 				tree->max_key_len);
 			goto fail_page;
 		}
+		if (tree->attributes & HFS_TREE_VARIDXKEYS) {
+			printk(KERN_ERR "hfs: invalid extent btree flag\n");
+			goto fail_page;
+		}
+
 		tree->keycmp = hfsplus_ext_cmp_key;
 		break;
 	case HFSPLUS_CAT_CNID:
 		if (tree->max_key_len != HFSPLUS_CAT_KEYLEN - sizeof(u16)) {
 			printk(KERN_ERR "hfs: invalid catalog max_key_len %d\n",
 				tree->max_key_len);
+			goto fail_page;
+		}
+		if (!(tree->attributes & HFS_TREE_VARIDXKEYS)) {
+			printk(KERN_ERR "hfs: invalid catalog btree flag\n");
 			goto fail_page;
 		}
 
@@ -90,6 +99,11 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 		break;
 	default:
 		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
+		goto fail_page;
+	}
+
+	if (!(tree->attributes & HFS_TREE_BIGKEYS)) {
+		printk(KERN_ERR "hfs: invalid btree flag\n");
 		goto fail_page;
 	}
 
