@@ -213,7 +213,7 @@ static void tegra_start_next_tx(struct tegra_uart_port *t)
 	if (count == 0)
 		goto out;
 
-	if (TX_FORCE_PIO || count < TEGRA_UART_MIN_DMA)
+	if (!t->use_tx_dma || count < TEGRA_UART_MIN_DMA)
 		tegra_start_pio_tx(t, count);
 	else if (BYTES_TO_ALIGN(tail) > 0)
 		tegra_start_pio_tx(t, BYTES_TO_ALIGN(tail));
@@ -666,8 +666,10 @@ static int tegra_uart_init_rx_dma(struct tegra_uart_port *t)
 	void *rx_dma_virt;
 
 	t->rx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_CONTINUOUS);
-	if (!t->rx_dma)
+	if (!t->rx_dma) {
+		pr_err("%s: failed to allocate RX DMA.\n", __func__);
 		return -ENODEV;
+	}
 
 	memset(&t->rx_dma_req, 0, sizeof(t->rx_dma_req));
 
@@ -712,6 +714,8 @@ static int tegra_startup(struct uart_port *u)
 		t->tx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
 		if (t->tx_dma)
 			t->use_tx_dma = true;
+		else
+			pr_err("%s: failed to allocate TX DMA.\n", __func__);
 	}
 	if (t->use_tx_dma) {
 		t->tx_dma_req.instance = u->line;
@@ -733,7 +737,7 @@ static int tegra_startup(struct uart_port *u)
 	t->tx_in_progress = 0;
 
 	t->use_rx_dma = false;
-	if (!TX_FORCE_PIO) {
+	if (!RX_FORCE_PIO) {
 		if (!tegra_uart_init_rx_dma(t))
 			t->use_rx_dma = true;
 	}
