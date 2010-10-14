@@ -2068,7 +2068,7 @@ config OLPC
 
 config OLPC_XO1
 	tristate "OLPC XO-1 support"
-	depends on OLPC
+	depends on OLPC && PCI
 	---help---
 	  Add support for non-essential features of the OLPC XO-1 laptop.
 
