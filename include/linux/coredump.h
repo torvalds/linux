@@ -11,7 +11,7 @@
  */
 static inline int dump_write(struct file *file, const void *addr, int nr)
 {
-	return file->f_op->write(file, addr, nr, &file->f_pos) == nr;
+	return access_ok(VERIFY_READ, addr, nr) && file->f_op->write(file, addr, nr, &file->f_pos) == nr;
 }
 
 static inline int dump_seek(struct file *file, loff_t off)
