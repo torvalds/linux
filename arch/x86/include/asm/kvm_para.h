@@ -65,6 +65,9 @@ struct kvm_mmu_op_release_pt {
 	__u64 pt_phys;
 };
 
+#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
+#define KVM_PV_REASON_PAGE_READY 2
+
 struct kvm_vcpu_pv_apf_data {
 	__u32 reason;
 	__u8 pad[60];
@@ -171,8 +174,17 @@ static inline unsigned int kvm_arch_para_features(void)
 
 #ifdef CONFIG_KVM_GUEST
 void __init kvm_guest_init(void);
+void kvm_async_pf_task_wait(u32 token);
+void kvm_async_pf_task_wake(u32 token);
+u32 kvm_read_and_reset_pf_reason(void);
 #else
 #define kvm_guest_init() do { } while (0)
+#define kvm_async_pf_task_wait(T) do {} while(0)
+#define kvm_async_pf_task_wake(T) do {} while(0)
+static u32 kvm_read_and_reset_pf_reason(void)
+{
+	return 0;
+}
 #endif
 
 #endif /* __KERNEL__ */

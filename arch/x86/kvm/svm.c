@@ -31,6 +31,7 @@
 
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
+#include <asm/kvm_para.h>
 
 #include <asm/virtext.h>
 #include "trace.h"
@@ -133,6 +134,7 @@ struct vcpu_svm {
 
 	unsigned int3_injected;
 	unsigned long int3_rip;
+	u32 apf_reason;
 };
 
 #define MSR_INVALID			0xffffffffU
@@ -1383,16 +1385,33 @@ static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 
 static int pf_interception(struct vcpu_svm *svm)
 {
-	u64 fault_address;
+	u64 fault_address = svm->vmcb->control.exit_info_2;
 	u32 error_code;
+	int r = 1;
 
-	fault_address  = svm->vmcb->control.exit_info_2;
-	error_code = svm->vmcb->control.exit_info_1;
+	switch (svm->apf_reason) {
+	default:
+		error_code = svm->vmcb->control.exit_info_1;
 
-	trace_kvm_page_fault(fault_address, error_code);
-	if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
-		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
-	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
+		trace_kvm_page_fault(fault_address, error_code);
+		if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
+			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
+		r = kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
+		break;
+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
+		svm->apf_reason = 0;
+		local_irq_disable();
+		kvm_async_pf_task_wait(fault_address);
+		local_irq_enable();
+		break;
+	case KVM_PV_REASON_PAGE_READY:
+		svm->apf_reason = 0;
+		local_irq_disable();
+		kvm_async_pf_task_wake(fault_address);
+		local_irq_enable();
+		break;
+	}
+	return r;
 }
 
 static int db_interception(struct vcpu_svm *svm)
@@ -1836,8 +1855,8 @@ static int nested_svm_exit_special(struct vcpu_svm *svm)
 			return NESTED_EXIT_HOST;
 		break;
 	case SVM_EXIT_EXCP_BASE + PF_VECTOR:
-		/* When we're shadowing, trap PFs */
-		if (!npt_enabled)
+		/* When we're shadowing, trap PFs, but not async PF */
+		if (!npt_enabled && svm->apf_reason == 0)
 			return NESTED_EXIT_HOST;
 		break;
 	case SVM_EXIT_EXCP_BASE + NM_VECTOR:
@@ -1892,6 +1911,10 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 	case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 0x1f: {
 		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
 		if (svm->nested.intercept_exceptions & excp_bits)
+			vmexit = NESTED_EXIT_DONE;
+		/* async page fault always cause vmexit */
+		else if ((exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR) &&
+			 svm->apf_reason != 0)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
@@ -3413,6 +3436,10 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	sync_cr8_to_lapic(vcpu);
 
 	svm->next_rip = 0;
+
+	/* if exit due to PF check for async PF */
+	if (svm->vmcb->control.exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR)
+		svm->apf_reason = kvm_read_and_reset_pf_reason();
 
 	if (npt_enabled) {
 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);

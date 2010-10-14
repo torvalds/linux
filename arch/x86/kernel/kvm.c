@@ -29,8 +29,14 @@
 #include <linux/hardirq.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/hash.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/kprobes.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
+#include <asm/traps.h>
+#include <asm/desc.h>
 
 #define MMU_QUEUE_SIZE 1024
 
@@ -62,6 +68,168 @@ static struct kvm_para_state *kvm_para_state(void)
  */
 static void kvm_io_delay(void)
 {
+}
+
+#define KVM_TASK_SLEEP_HASHBITS 8
+#define KVM_TASK_SLEEP_HASHSIZE (1<<KVM_TASK_SLEEP_HASHBITS)
+
+struct kvm_task_sleep_node {
+	struct hlist_node link;
+	wait_queue_head_t wq;
+	u32 token;
+	int cpu;
+};
+
+static struct kvm_task_sleep_head {
+	spinlock_t lock;
+	struct hlist_head list;
+} async_pf_sleepers[KVM_TASK_SLEEP_HASHSIZE];
+
+static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
+						  u32 token)
+{
+	struct hlist_node *p;
+
+	hlist_for_each(p, &b->list) {
+		struct kvm_task_sleep_node *n =
+			hlist_entry(p, typeof(*n), link);
+		if (n->token == token)
+			return n;
+	}
+
+	return NULL;
+}
+
+void kvm_async_pf_task_wait(u32 token)
+{
+	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
+	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
+	struct kvm_task_sleep_node n, *e;
+	DEFINE_WAIT(wait);
+
+	spin_lock(&b->lock);
+	e = _find_apf_task(b, token);
+	if (e) {
+		/* dummy entry exist -> wake up was delivered ahead of PF */
+		hlist_del(&e->link);
+		kfree(e);
+		spin_unlock(&b->lock);
+		return;
+	}
+
+	n.token = token;
+	n.cpu = smp_processor_id();
+	init_waitqueue_head(&n.wq);
+	hlist_add_head(&n.link, &b->list);
+	spin_unlock(&b->lock);
+
+	for (;;) {
+		prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
+		if (hlist_unhashed(&n.link))
+			break;
+		local_irq_enable();
+		schedule();
+		local_irq_disable();
+	}
+	finish_wait(&n.wq, &wait);
+
+	return;
+}
+EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
+
+static void apf_task_wake_one(struct kvm_task_sleep_node *n)
+{
+	hlist_del_init(&n->link);
+	if (waitqueue_active(&n->wq))
+		wake_up(&n->wq);
+}
+
+static void apf_task_wake_all(void)
+{
+	int i;
+
+	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++) {
+		struct hlist_node *p, *next;
+		struct kvm_task_sleep_head *b = &async_pf_sleepers[i];
+		spin_lock(&b->lock);
+		hlist_for_each_safe(p, next, &b->list) {
+			struct kvm_task_sleep_node *n =
+				hlist_entry(p, typeof(*n), link);
+			if (n->cpu == smp_processor_id())
+				apf_task_wake_one(n);
+		}
+		spin_unlock(&b->lock);
+	}
+}
+
+void kvm_async_pf_task_wake(u32 token)
+{
+	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
+	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
+	struct kvm_task_sleep_node *n;
+
+	if (token == ~0) {
+		apf_task_wake_all();
+		return;
+	}
+
+again:
+	spin_lock(&b->lock);
+	n = _find_apf_task(b, token);
+	if (!n) {
+		/*
+		 * async PF was not yet handled.
+		 * Add dummy entry for the token.
+		 */
+		n = kmalloc(sizeof(*n), GFP_ATOMIC);
+		if (!n) {
+			/*
+			 * Allocation failed! Busy wait while other cpu
+			 * handles async PF.
+			 */
+			spin_unlock(&b->lock);
+			cpu_relax();
+			goto again;
+		}
+		n->token = token;
+		n->cpu = smp_processor_id();
+		init_waitqueue_head(&n->wq);
+		hlist_add_head(&n->link, &b->list);
+	} else
+		apf_task_wake_one(n);
+	spin_unlock(&b->lock);
+	return;
+}
+EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
+
+u32 kvm_read_and_reset_pf_reason(void)
+{
+	u32 reason = 0;
+
+	if (__get_cpu_var(apf_reason).enabled) {
+		reason = __get_cpu_var(apf_reason).reason;
+		__get_cpu_var(apf_reason).reason = 0;
+	}
+
+	return reason;
+}
+EXPORT_SYMBOL_GPL(kvm_read_and_reset_pf_reason);
+
+dotraplinkage void __kprobes
+do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
+{
+	switch (kvm_read_and_reset_pf_reason()) {
+	default:
+		do_page_fault(regs, error_code);
+		break;
+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
+		/* page is swapped out by the host. */
+		kvm_async_pf_task_wait((u32)read_cr2());
+		break;
+	case KVM_PV_REASON_PAGE_READY:
+		kvm_async_pf_task_wake((u32)read_cr2());
+		break;
+	}
 }
 
 static void kvm_mmu_op(void *buffer, unsigned len)
@@ -300,6 +468,7 @@ static void kvm_guest_cpu_online(void *dummy)
 static void kvm_guest_cpu_offline(void *dummy)
 {
 	kvm_pv_disable_apf(NULL);
+	apf_task_wake_all();
 }
 
 static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
@@ -327,13 +496,25 @@ static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
 };
 #endif
 
+static void __init kvm_apf_trap_init(void)
+{
+	set_intr_gate(14, &async_page_fault);
+}
+
 void __init kvm_guest_init(void)
 {
+	int i;
+
 	if (!kvm_para_available())
 		return;
 
 	paravirt_ops_setup();
 	register_reboot_notifier(&kvm_pv_reboot_nb);
+	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++)
+		spin_lock_init(&async_pf_sleepers[i].lock);
+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF))
+		x86_init.irqs.trap_init = kvm_apf_trap_init;
+
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 	register_cpu_notifier(&kvm_cpu_notifier);
