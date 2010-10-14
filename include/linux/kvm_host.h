@@ -483,8 +483,7 @@ int kvm_deassign_device(struct kvm *kvm,
 			struct kvm_assigned_dev_kernel *assigned_dev);
 #else /* CONFIG_IOMMU_API */
 static inline int kvm_iommu_map_pages(struct kvm *kvm,
-				      gfn_t base_gfn,
-				      unsigned long npages)
+				      struct kvm_memory_slot *slot)
 {
 	return 0;
 }
