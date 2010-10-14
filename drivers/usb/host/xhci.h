@@ -191,7 +191,7 @@ struct xhci_op_regs {
 /* bits 4:6 are reserved (and should be preserved on writes). */
 /* light reset (port status stays unchanged) - reset completed when this is 0 */
 #define CMD_LRESET	(1 << 7)
-/* FIXME: ignoring host controller save/restore state for now. */
+/* host controller save/restore state. */
 #define CMD_CSS		(1 << 8)
 #define CMD_CRS		(1 << 9)
 /* Enable Wrap Event - '1' means xHC generates an event when MFINDEX wraps. */
@@ -1130,6 +1130,17 @@ struct urb_priv {
 #define XHCI_STOP_EP_CMD_TIMEOUT	5
 /* XXX: Make these module parameters */
 
+struct s3_save {
+	u32	command;
+	u32	dev_nt;
+	u64	dcbaa_ptr;
+	u32	config_reg;
+	u32	irq_pending;
+	u32	irq_control;
+	u32	erst_size;
+	u64	erst_base;
+	u64	erst_dequeue;
+};
 
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
@@ -1198,6 +1209,7 @@ struct xhci_hcd {
 	unsigned long		next_statechange;
 
 	u32			command;
+	struct s3_save		s3;
 /* Host controller is dying - not responding to commands. "I'm not dead yet!"
  *
  * xHC interrupts have been disabled and a watchdog timer will (or has already)
@@ -1393,6 +1405,8 @@ int xhci_init(struct usb_hcd *hcd);
 int xhci_run(struct usb_hcd *hcd);
 void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
+int xhci_suspend(struct xhci_hcd *xhci);
+int xhci_resume(struct xhci_hcd *xhci, bool hibernated);
 int xhci_get_frame(struct usb_hcd *hcd);
 irqreturn_t xhci_irq(struct usb_hcd *hcd);
 irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd);

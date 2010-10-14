@@ -551,6 +551,216 @@ void xhci_shutdown(struct usb_hcd *hcd)
 		    xhci_readl(xhci, &xhci->op_regs->status));
 }
 
+static void xhci_save_registers(struct xhci_hcd *xhci)
+{
+	xhci->s3.command = xhci_readl(xhci, &xhci->op_regs->command);
+	xhci->s3.dev_nt = xhci_readl(xhci, &xhci->op_regs->dev_notification);
+	xhci->s3.dcbaa_ptr = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
+	xhci->s3.config_reg = xhci_readl(xhci, &xhci->op_regs->config_reg);
+	xhci->s3.irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	xhci->s3.irq_control = xhci_readl(xhci, &xhci->ir_set->irq_control);
+	xhci->s3.erst_size = xhci_readl(xhci, &xhci->ir_set->erst_size);
+	xhci->s3.erst_base = xhci_read_64(xhci, &xhci->ir_set->erst_base);
+	xhci->s3.erst_dequeue = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+}
+
+static void xhci_restore_registers(struct xhci_hcd *xhci)
+{
+	xhci_writel(xhci, xhci->s3.command, &xhci->op_regs->command);
+	xhci_writel(xhci, xhci->s3.dev_nt, &xhci->op_regs->dev_notification);
+	xhci_write_64(xhci, xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
+	xhci_writel(xhci, xhci->s3.config_reg, &xhci->op_regs->config_reg);
+	xhci_writel(xhci, xhci->s3.irq_pending, &xhci->ir_set->irq_pending);
+	xhci_writel(xhci, xhci->s3.irq_control, &xhci->ir_set->irq_control);
+	xhci_writel(xhci, xhci->s3.erst_size, &xhci->ir_set->erst_size);
+	xhci_write_64(xhci, xhci->s3.erst_base, &xhci->ir_set->erst_base);
+}
+
+/*
+ * Stop HC (not bus-specific)
+ *
+ * This is called when the machine transition into S3/S4 mode.
+ *
+ */
+int xhci_suspend(struct xhci_hcd *xhci)
+{
+	int			rc = 0;
+	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
+	u32			command;
+
+	spin_lock_irq(&xhci->lock);
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	/* step 1: stop endpoint */
+	/* skipped assuming that port suspend has done */
+
+	/* step 2: clear Run/Stop bit */
+	command = xhci_readl(xhci, &xhci->op_regs->command);
+	command &= ~CMD_RUN;
+	xhci_writel(xhci, command, &xhci->op_regs->command);
+	if (handshake(xhci, &xhci->op_regs->status,
+		      STS_HALT, STS_HALT, 100*100)) {
+		xhci_warn(xhci, "WARN: xHC CMD_RUN timeout\n");
+		spin_unlock_irq(&xhci->lock);
+		return -ETIMEDOUT;
+	}
+
+	/* step 3: save registers */
+	xhci_save_registers(xhci);
+
+	/* step 4: set CSS flag */
+	command = xhci_readl(xhci, &xhci->op_regs->command);
+	command |= CMD_CSS;
+	xhci_writel(xhci, command, &xhci->op_regs->command);
+	if (handshake(xhci, &xhci->op_regs->status, STS_SAVE, 0, 10*100)) {
+		xhci_warn(xhci, "WARN: xHC CMD_CSS timeout\n");
+		spin_unlock_irq(&xhci->lock);
+		return -ETIMEDOUT;
+	}
+	/* step 5: remove core well power */
+	xhci_cleanup_msix(xhci);
+	spin_unlock_irq(&xhci->lock);
+
+	return rc;
+}
+
+/*
+ * start xHC (not bus-specific)
+ *
+ * This is called when the machine transition from S3/S4 mode.
+ *
+ */
+int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
+{
+	u32			command, temp = 0;
+	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
+	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
+	u64	val_64;
+	int	old_state, retval;
+
+	old_state = hcd->state;
+	if (time_before(jiffies, xhci->next_statechange))
+		msleep(100);
+
+	spin_lock_irq(&xhci->lock);
+
+	if (!hibernated) {
+		/* step 1: restore register */
+		xhci_restore_registers(xhci);
+		/* step 2: initialize command ring buffer */
+		val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+		val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
+			 (xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
+					       xhci->cmd_ring->dequeue) &
+			 (u64) ~CMD_RING_RSVD_BITS) |
+			 xhci->cmd_ring->cycle_state;
+		xhci_dbg(xhci, "// Setting command ring address to 0x%llx\n",
+				(long unsigned long) val_64);
+		xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
+		/* step 3: restore state and start state*/
+		/* step 3: set CRS flag */
+		command = xhci_readl(xhci, &xhci->op_regs->command);
+		command |= CMD_CRS;
+		xhci_writel(xhci, command, &xhci->op_regs->command);
+		if (handshake(xhci, &xhci->op_regs->status,
+			      STS_RESTORE, 0, 10*100)) {
+			xhci_dbg(xhci, "WARN: xHC CMD_CSS timeout\n");
+			spin_unlock_irq(&xhci->lock);
+			return -ETIMEDOUT;
+		}
+		temp = xhci_readl(xhci, &xhci->op_regs->status);
+	}
+
+	/* If restore operation fails, re-initialize the HC during resume */
+	if ((temp & STS_SRE) || hibernated) {
+		usb_root_hub_lost_power(hcd->self.root_hub);
+
+		xhci_dbg(xhci, "Stop HCD\n");
+		xhci_halt(xhci);
+		xhci_reset(xhci);
+		if (hibernated)
+			xhci_cleanup_msix(xhci);
+		spin_unlock_irq(&xhci->lock);
+
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+		/* Tell the event ring poll function not to reschedule */
+		xhci->zombie = 1;
+		del_timer_sync(&xhci->event_ring_timer);
+#endif
+
+		xhci_dbg(xhci, "// Disabling event ring interrupts\n");
+		temp = xhci_readl(xhci, &xhci->op_regs->status);
+		xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
+		temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+		xhci_writel(xhci, ER_IRQ_DISABLE(temp),
+				&xhci->ir_set->irq_pending);
+		xhci_print_ir_set(xhci, xhci->ir_set, 0);
+
+		xhci_dbg(xhci, "cleaning up memory\n");
+		xhci_mem_cleanup(xhci);
+		xhci_dbg(xhci, "xhci_stop completed - status = %x\n",
+			    xhci_readl(xhci, &xhci->op_regs->status));
+
+		xhci_dbg(xhci, "Initialize the HCD\n");
+		retval = xhci_init(hcd);
+		if (retval)
+			return retval;
+
+		xhci_dbg(xhci, "Start the HCD\n");
+		retval = xhci_run(hcd);
+		if (!retval)
+			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+		hcd->state = HC_STATE_SUSPENDED;
+		return retval;
+	}
+
+	/* Re-setup MSI-X */
+	if (hcd->irq)
+		free_irq(hcd->irq, hcd);
+	hcd->irq = -1;
+
+	retval = xhci_setup_msix(xhci);
+	if (retval)
+		/* fall back to msi*/
+		retval = xhci_setup_msi(xhci);
+
+	if (retval) {
+		/* fall back to legacy interrupt*/
+		retval = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
+					hcd->irq_descr, hcd);
+		if (retval) {
+			xhci_err(xhci, "request interrupt %d failed\n",
+					pdev->irq);
+			return retval;
+		}
+		hcd->irq = pdev->irq;
+	}
+
+	/* step 4: set Run/Stop bit */
+	command = xhci_readl(xhci, &xhci->op_regs->command);
+	command |= CMD_RUN;
+	xhci_writel(xhci, command, &xhci->op_regs->command);
+	handshake(xhci, &xhci->op_regs->status, STS_HALT,
+		  0, 250 * 1000);
+
+	/* step 5: walk topology and initialize portsc,
+	 * portpmsc and portli
+	 */
+	/* this is done in bus_resume */
+
+	/* step 6: restart each of the previously
+	 * Running endpoints by ringing their doorbells
+	 */
+
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	if (!hibernated)
+		hcd->state = old_state;
+	else
+		hcd->state = HC_STATE_SUSPENDED;
+
+	spin_unlock_irq(&xhci->lock);
+	return 0;
+}
+
 /*-------------------------------------------------------------------------*/
 
 /**

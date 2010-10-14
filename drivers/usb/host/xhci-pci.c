@@ -116,6 +116,30 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	return xhci_pci_reinit(xhci, pdev);
 }
 
+#ifdef CONFIG_PM
+static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int	retval = 0;
+
+	if (hcd->state != HC_STATE_SUSPENDED)
+		return -EINVAL;
+
+	retval = xhci_suspend(xhci);
+
+	return retval;
+}
+
+static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
+{
+	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
+	int			retval = 0;
+
+	retval = xhci_resume(xhci, hibernated);
+	return retval;
+}
+#endif /* CONFIG_PM */
+
 static const struct hc_driver xhci_pci_hc_driver = {
 	.description =		hcd_name,
 	.product_desc =		"xHCI Host Controller",
@@ -132,7 +156,10 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	 */
 	.reset =		xhci_pci_setup,
 	.start =		xhci_run,
-	/* suspend and resume implemented later */
+#ifdef CONFIG_PM
+	.pci_suspend =          xhci_pci_suspend,
+	.pci_resume =           xhci_pci_resume,
+#endif
 	.stop =			xhci_stop,
 	.shutdown =		xhci_shutdown,
 
@@ -188,6 +215,11 @@ static struct pci_driver xhci_pci_driver = {
 	/* suspend and resume implemented later */
 
 	.shutdown = 	usb_hcd_pci_shutdown,
+#ifdef CONFIG_PM_SLEEP
+	.driver = {
+		.pm = &usb_hcd_pci_pm_ops
+	},
+#endif
 };
 
 int xhci_register_pci(void)
