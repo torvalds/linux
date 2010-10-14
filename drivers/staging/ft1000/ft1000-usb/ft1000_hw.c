@@ -55,28 +55,10 @@ static const struct net_device_ops ft1000net_ops = {
 //Jim
 
 static u8 tempbuffer[1600];
-static int gCardIndex;
+static unsigned long gCardIndex;
 
 #define MAX_RCV_LOOP   100
 
-
-static int atoi(const char *s)
-{
-        int k = 0;
-    int cnt;
-
-        k = 0;
-    cnt = 0;
-        while (*s != '\0' && *s >= '0' && *s <= '9') {
-                k = 10 * k + (*s - '0');
-                s++;
-        // Let's put a limit on this while loop to avoid deadlock scenario
-        if (cnt > 100)
-           break;
-        cnt++;
-        }
-        return k;
-}
 /****************************************************************
  *     ft1000_control_complete
  ****************************************************************/
@@ -988,8 +970,9 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     struct net_device *netdev;
     FT1000_INFO *pInfo = NULL;
     PDPRAM_BLK pdpram_blk;
-    int i;
+	int i, ret_val;
 	struct list_head *cur, *tmp;
+	char card_nr[2];
 
 	gCardIndex=0; //mbelian
 
@@ -1017,9 +1000,16 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     {
         DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
 
-        if ( strncmp(netdev->name,"eth", 3) == 0) {
-            //pInfo->CardNumber = atoi(&netdev->name[3]);
-            gCardIndex = atoi(&netdev->name[3]);
+	if ( strncmp(netdev->name,"eth", 3) == 0) {
+		card_nr[0] = netdev->name[3];
+		card_nr[1] = '\0';
+		ret_val = strict_strtoul(card_nr, 10, &gCardIndex);
+		if (ret_val) {
+			printk(KERN_ERR "Can't parse netdev\n");
+			free_netdev(netdev);
+			return STATUS_FAILURE;
+		}
+
             pInfo->CardNumber = gCardIndex;
             DEBUG("card number = %d\n", pInfo->CardNumber);
         }
