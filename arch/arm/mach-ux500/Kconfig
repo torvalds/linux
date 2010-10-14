@@ -21,9 +21,7 @@ config MACH_U8500_MOP
 	bool "U8500 Development platform"
 	select UX500_SOC_DB8500
 	help
-	  Include support for mop500 development platform
-	  based on U8500 architecture. The platform is based
-	  on early drop silicon version of 8500.
+	  Include support for the mop500 development platform.
 
 config MACH_U5500
 	bool "U5500 Development platform"
