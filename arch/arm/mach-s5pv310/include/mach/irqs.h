@@ -3,7 +3,7 @@
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
- * S5PV210 - IRQ definitions
+ * S5PV310 - IRQ definitions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -85,10 +85,15 @@
 
 #define IRQ_ONENAND_AUDI	COMBINER_IRQ(34, 0)
 
+#define MAX_COMBINER_NR		40
+
+#define S5P_IRQ_EINT_BASE	COMBINER_IRQ(MAX_COMBINER_NR, 0)
+
+#define S5P_EINT_BASE1		(S5P_IRQ_EINT_BASE + 0)
+#define S5P_EINT_BASE2		(S5P_IRQ_EINT_BASE + 16)
+
 /* Set the default NR_IRQS */
 
-#define NR_IRQS			COMBINER_IRQ(MAX_COMBINER_NR, 0)
-
-#define MAX_COMBINER_NR		40
+#define NR_IRQS			(S5P_IRQ_EINT_BASE + 32)
 
 #endif /* __ASM_ARCH_IRQS_H */
