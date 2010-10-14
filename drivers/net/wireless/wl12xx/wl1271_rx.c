@@ -48,10 +48,18 @@ static void wl1271_rx_status(struct wl1271 *wl,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
+	enum ieee80211_band desc_band;
+
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
 	status->band = wl->band;
-	status->rate_idx = wl1271_rate_to_idx(wl, desc->rate);
+
+	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
+		desc_band = IEEE80211_BAND_2GHZ;
+	else
+		desc_band = IEEE80211_BAND_5GHZ;
+
+	status->rate_idx = wl1271_rate_to_idx(desc->rate, desc_band);
 
 #ifdef CONFIG_WL1271_HT
 	/* 11n support */

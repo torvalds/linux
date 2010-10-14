@@ -2367,18 +2367,18 @@ static const struct ieee80211_ops wl1271_ops = {
 };
 
 
-u8 wl1271_rate_to_idx(struct wl1271 *wl, int rate)
+u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band)
 {
 	u8 idx;
 
-	BUG_ON(wl->band >= sizeof(wl1271_band_rate_to_idx)/sizeof(u8 *));
+	BUG_ON(band >= sizeof(wl1271_band_rate_to_idx)/sizeof(u8 *));
 
 	if (unlikely(rate >= CONF_HW_RXTX_RATE_MAX)) {
 		wl1271_error("Illegal RX rate from HW: %d", rate);
 		return 0;
 	}
 
-	idx = wl1271_band_rate_to_idx[wl->band][rate];
+	idx = wl1271_band_rate_to_idx[band][rate];
 	if (unlikely(idx == CONF_HW_RXTX_RATE_UNSUPPORTED)) {
 		wl1271_error("Unsupported RX rate from HW: %d", rate);
 		return 0;
