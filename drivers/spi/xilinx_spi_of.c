@@ -42,12 +42,11 @@ static int __devinit xilinx_spi_of_probe(struct platform_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct spi_master *master;
-	struct xspi_platform_data *pdata;
 	struct resource r_mem;
 	struct resource r_irq;
 	int rc = 0;
 	const u32 *prop;
-	int len;
+	int len, num_cs;
 
 	rc = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
 	if (rc) {
@@ -61,21 +60,15 @@ static int __devinit xilinx_spi_of_probe(struct platform_device *ofdev,
 		return -ENODEV;
 	}
 
-	ofdev->dev.platform_data =
-		kzalloc(sizeof(struct xspi_platform_data), GFP_KERNEL);
-	pdata = ofdev->dev.platform_data;
-	if (!pdata)
-		return -ENOMEM;
-
 	/* number of slave select bits is required */
 	prop = of_get_property(ofdev->dev.of_node, "xlnx,num-ss-bits", &len);
 	if (!prop || len < sizeof(*prop)) {
 		dev_warn(&ofdev->dev, "no 'xlnx,num-ss-bits' property\n");
 		return -EINVAL;
 	}
-	pdata->num_chipselect = *prop;
-	pdata->bits_per_word = 8;
-	master = xilinx_spi_init(&ofdev->dev, &r_mem, r_irq.start, -1);
+	num_cs = __be32_to_cpup(prop);
+	master = xilinx_spi_init(&ofdev->dev, &r_mem, r_irq.start, -1,
+				 num_cs, 0, 8);
 	if (!master)
 		return -ENODEV;
 
@@ -88,8 +81,6 @@ static int __devexit xilinx_spi_remove(struct platform_device *ofdev)
 {
 	xilinx_spi_deinit(dev_get_drvdata(&ofdev->dev));
 	dev_set_drvdata(&ofdev->dev, 0);
-	kfree(ofdev->dev.platform_data);
-	ofdev->dev.platform_data = NULL;
 	return 0;
 }
 

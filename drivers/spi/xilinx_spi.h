@@ -26,7 +26,7 @@
 #define XILINX_SPI_NAME "xilinx_spi"
 
 struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
-	u32 irq, s16 bus_num);
+	u32 irq, s16 bus_num, int num_cs, int little_endian, int bits_per_word);
 
 void xilinx_spi_deinit(struct spi_master *master);
 #endif

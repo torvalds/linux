@@ -54,7 +54,9 @@ static int __devinit xilinx_spi_probe(struct platform_device *dev)
 	if (irq < 0)
 		return -ENXIO;
 
-	master = xilinx_spi_init(&dev->dev, r, irq, dev->id);
+	master = xilinx_spi_init(&dev->dev, r, irq, dev->id,
+				 pdata->num_chipselect, pdata->little_endian,
+				 pdata->bits_per_word);
 	if (!master)
 		return -ENODEV;
 

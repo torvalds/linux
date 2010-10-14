@@ -351,17 +351,11 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 }
 
 struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
-	u32 irq, s16 bus_num)
+	u32 irq, s16 bus_num, int num_cs, int little_endian, int bits_per_word)
 {
 	struct spi_master *master;
 	struct xilinx_spi *xspi;
-	struct xspi_platform_data *pdata = dev->platform_data;
 	int ret;
-
-	if (!pdata) {
-		dev_err(dev, "No platform data attached\n");
-		return NULL;
-	}
 
 	master = spi_alloc_master(dev, sizeof(struct xilinx_spi));
 	if (!master)
@@ -389,21 +383,21 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	}
 
 	master->bus_num = bus_num;
-	master->num_chipselect = pdata->num_chipselect;
+	master->num_chipselect = num_cs;
 #ifdef CONFIG_OF
 	master->dev.of_node = dev->of_node;
 #endif
 
 	xspi->mem = *mem;
 	xspi->irq = irq;
-	if (pdata->little_endian) {
+	if (little_endian) {
 		xspi->read_fn = xspi_read32;
 		xspi->write_fn = xspi_write32;
 	} else {
 		xspi->read_fn = xspi_read32_be;
 		xspi->write_fn = xspi_write32_be;
 	}
-	xspi->bits_per_word = pdata->bits_per_word;
+	xspi->bits_per_word = bits_per_word;
 	if (xspi->bits_per_word == 8) {
 		xspi->tx_fn = xspi_tx8;
 		xspi->rx_fn = xspi_rx8;
