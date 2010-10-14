@@ -685,7 +685,7 @@ static void iosapic_end_irq(unsigned int irq)
 	DBG(KERN_DEBUG "end_irq(%d): eoi(%p, 0x%x)\n", irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
-	cpu_end_irq(irq);
+	cpu_eoi_irq(irq);
 }
 
 static unsigned int iosapic_startup_irq(unsigned int irq)

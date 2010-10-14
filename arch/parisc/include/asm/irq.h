@@ -43,7 +43,7 @@ extern void parisc_do_IRQ(unsigned int irq, struct irq_desc *desc);
 void no_ack_irq(unsigned int irq);
 void no_end_irq(unsigned int irq);
 void cpu_ack_irq(unsigned int irq);
-void cpu_end_irq(unsigned int irq);
+void cpu_eoi_irq(unsigned int irq);
 
 extern int txn_alloc_irq(unsigned int nbits);
 extern int txn_claim_irq(int);
