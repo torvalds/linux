@@ -2763,6 +2763,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	if (found) {
 		spin_lock(&found->lock);
 		found->total_bytes += total_bytes;
+		found->disk_total += total_bytes * factor;
 		found->bytes_used += bytes_used;
 		found->disk_used += bytes_used * factor;
 		found->full = 0;
@@ -2782,6 +2783,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 				BTRFS_BLOCK_GROUP_SYSTEM |
 				BTRFS_BLOCK_GROUP_METADATA);
 	found->total_bytes = total_bytes;
+	found->disk_total = total_bytes * factor;
 	found->bytes_used = bytes_used;
 	found->disk_used = bytes_used * factor;
 	found->bytes_pinned = 0;
@@ -8095,6 +8097,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	struct btrfs_free_cluster *cluster;
 	struct btrfs_key key;
 	int ret;
+	int factor;
 
 	root = root->fs_info->extent_root;
 
@@ -8103,6 +8106,12 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	BUG_ON(!block_group->ro);
 
 	memcpy(&key, &block_group->key, sizeof(key));
+	if (block_group->flags & (BTRFS_BLOCK_GROUP_DUP |
+				  BTRFS_BLOCK_GROUP_RAID1 |
+				  BTRFS_BLOCK_GROUP_RAID10))
+		factor = 2;
+	else
+		factor = 1;
 
 	/* make sure this block group isn't part of an allocation cluster */
 	cluster = &root->fs_info->data_alloc_cluster;
@@ -8143,6 +8152,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	spin_lock(&block_group->space_info->lock);
 	block_group->space_info->total_bytes -= block_group->key.offset;
 	block_group->space_info->bytes_readonly -= block_group->key.offset;
+	block_group->space_info->disk_total -= block_group->key.offset * factor;
 	spin_unlock(&block_group->space_info->lock);
 
 	btrfs_clear_space_info_full(root->fs_info);

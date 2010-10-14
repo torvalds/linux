@@ -675,7 +675,8 @@ struct btrfs_block_group_item {
 struct btrfs_space_info {
 	u64 flags;
 
-	u64 total_bytes;	/* total bytes in the space */
+	u64 total_bytes;	/* total bytes in the space,
+				   this doesn't take mirrors into account */
 	u64 bytes_used;		/* total bytes used,
 				   this does't take mirrors into account */
 	u64 bytes_pinned;	/* total bytes pinned, will be freed when the
@@ -687,6 +688,8 @@ struct btrfs_space_info {
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
 	u64 disk_used;		/* total bytes used on disk */
+	u64 disk_total;		/* total bytes on disk, takes mirrors into
+				   account */
 
 	int full;		/* indicates that we cannot allocate any more
 				   chunks for this space */

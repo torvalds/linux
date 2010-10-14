@@ -716,18 +716,25 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct list_head *head = &root->fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
+	u64 total_used_data = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list)
+	list_for_each_entry_rcu(found, head, list) {
+		if (found->flags & (BTRFS_BLOCK_GROUP_METADATA |
+				    BTRFS_BLOCK_GROUP_SYSTEM))
+			total_used_data += found->disk_total;
+		else
+			total_used_data += found->disk_used;
 		total_used += found->disk_used;
+	}
 	rcu_read_unlock();
 
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
 	buf->f_bfree = buf->f_blocks - (total_used >> bits);
-	buf->f_bavail = buf->f_bfree;
+	buf->f_bavail = buf->f_blocks - (total_used_data >> bits);
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 
