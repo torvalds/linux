@@ -848,6 +848,18 @@ struct clksrc_sources clk_src_group3 = {
 	.nr_sources	= ARRAY_SIZE(clk_src_group3_list),
 };
 
+static struct clksrc_clk clk_sclk_audio0 = {
+	.clk	= {
+		.name		= "sclk_audio",
+		.id		= 0,
+		.ctrlbit	= (1 << 8),
+		.enable		= s5pc100_sclk1_ctrl,
+	},
+	.sources = &clk_src_group3,
+	.reg_src = { .reg = S5P_CLK_SRC3, .shift = 12, .size = 3 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 12, .size = 4 },
+};
+
 static struct clk *clk_src_group4_list[] = {
 	[0] = &clk_mout_epll.clk,
 	[1] = &clk_div_mpll.clk,
@@ -862,6 +874,18 @@ struct clksrc_sources clk_src_group4 = {
 	.nr_sources	= ARRAY_SIZE(clk_src_group4_list),
 };
 
+static struct clksrc_clk clk_sclk_audio1 = {
+	.clk	= {
+		.name		= "sclk_audio",
+		.id		= 1,
+		.ctrlbit	= (1 << 9),
+		.enable		= s5pc100_sclk1_ctrl,
+	},
+	.sources = &clk_src_group4,
+	.reg_src = { .reg = S5P_CLK_SRC3, .shift = 16, .size = 3 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 16, .size = 4 },
+};
+
 static struct clk *clk_src_group5_list[] = {
 	[0] = &clk_mout_epll.clk,
 	[1] = &clk_div_mpll.clk,
@@ -873,6 +897,18 @@ static struct clk *clk_src_group5_list[] = {
 struct clksrc_sources clk_src_group5 = {
 	.sources	= clk_src_group5_list,
 	.nr_sources	= ARRAY_SIZE(clk_src_group5_list),
+};
+
+static struct clksrc_clk clk_sclk_audio2 = {
+	.clk	= {
+		.name		= "sclk_audio",
+		.id		= 2,
+		.ctrlbit	= (1 << 10),
+		.enable		= s5pc100_sclk1_ctrl,
+	},
+	.sources = &clk_src_group5,
+	.reg_src = { .reg = S5P_CLK_SRC3, .shift = 20, .size = 3 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 20, .size = 4 },
 };
 
 static struct clk *clk_src_group6_list[] = {
@@ -999,39 +1035,6 @@ static struct clksrc_clk clksrcs[] = {
 		},
 		.sources = &clk_src_group6,
 		.reg_src = { .reg = S5P_CLK_SRC2, .shift = 28, .size = 2 },
-	}, {
-		.clk	= {
-			.name		= "sclk_audio",
-			.id		= 0,
-			.ctrlbit	= (1 << 8),
-			.enable		= s5pc100_sclk1_ctrl,
-
-		},
-		.sources = &clk_src_group3,
-		.reg_src = { .reg = S5P_CLK_SRC3, .shift = 12, .size = 3 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 12, .size = 4 },
-	}, {
-		.clk	= {
-			.name		= "sclk_audio",
-			.id		= 1,
-			.ctrlbit	= (1 << 9),
-			.enable		= s5pc100_sclk1_ctrl,
-
-		},
-		.sources = &clk_src_group4,
-		.reg_src = { .reg = S5P_CLK_SRC3, .shift = 16, .size = 3 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 16, .size = 4 },
-	}, {
-		.clk	= {
-			.name		= "sclk_audio",
-			.id		= 2,
-			.ctrlbit	= (1 << 10),
-			.enable		= s5pc100_sclk1_ctrl,
-
-		},
-		.sources = &clk_src_group5,
-		.reg_src = { .reg = S5P_CLK_SRC3, .shift = 20, .size = 3 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 20, .size = 4 },
 	}, {
 		.clk	= {
 			.name		= "sclk_lcd",
@@ -1179,6 +1182,9 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_div_pclkd1,
 	&clk_div_cam,
 	&clk_div_hdmi,
+	&clk_sclk_audio0,
+	&clk_sclk_audio1,
+	&clk_sclk_audio2,
 };
 
 void __init_or_cpufreq s5pc100_setup_clocks(void)
