@@ -217,13 +217,6 @@ int hardwall_deactivate(struct task_struct *task);
 } while (0)
 #endif
 
-/* Invoke the simulator "syscall" mechanism (see arch/tile/kernel/entry.S). */
-extern int _sim_syscall(int syscall_num, ...);
-#define sim_syscall(syscall_num, ...) \
-	_sim_syscall(SIM_CONTROL_SYSCALL + \
-		((syscall_num) << _SIM_CONTROL_OPERATOR_BITS), \
-		## __VA_ARGS__)
-
 /*
  * Kernel threads can check to see if they need to migrate their
  * stack whenever they return from a context switch; for user

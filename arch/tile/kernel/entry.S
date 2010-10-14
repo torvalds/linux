@@ -25,28 +25,6 @@ STD_ENTRY(current_text_addr)
 	{ move r0, lr; jrp lr }
 	STD_ENDPROC(current_text_addr)
 
-STD_ENTRY(_sim_syscall)
-	/*
-	 * Wait for r0-r9 to be ready (and lr on the off chance we
-	 * want the syscall to locate its caller), then make a magic
-	 * simulator syscall.
-	 *
-	 * We carefully stall until the registers are readable in case they
-	 * are the target of a slow load, etc. so that tile-sim will
-	 * definitely be able to read all of them inside the magic syscall.
-	 *
-	 * Technically this is wrong for r3-r9 and lr, since an interrupt
-	 * could come in and restore the registers with a slow load right
-	 * before executing the mtspr. We may need to modify tile-sim to
-	 * explicitly stall for this case, but we do not yet have
-	 * a way to implement such a stall.
-	 */
-	{ and zero, lr, r9 ; and zero, r8, r7 }
-	{ and zero, r6, r5 ; and zero, r4, r3 }
-	{ and zero, r2, r1 ; mtspr SIM_CONTROL, r0 }
-	{ jrp lr }
-	STD_ENDPROC(_sim_syscall)
-
 /*
  * Implement execve().  The i386 code has a note that forking from kernel
  * space results in no copy on write until the execve, so we should be
