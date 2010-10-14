@@ -25,7 +25,7 @@
 #include "generic.h"
 #include "clock.h"
 
-extern void at91sam9g20_reset(void);
+extern void at91sam9_alt_reset(void);
 
 static struct map_desc at91sam9260_io_desc[] __initdata = {
 	{
@@ -330,7 +330,7 @@ void __init at91sam9260_initialize(unsigned long main_clock)
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
 
 	if (cpu_is_at91sam9g20())
-		at91_arch_reset = at91sam9g20_reset;
+		at91_arch_reset = at91sam9_alt_reset;
 	else
 		at91_arch_reset = at91sam9260_reset;
 
