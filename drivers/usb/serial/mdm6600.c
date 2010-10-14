@@ -50,7 +50,8 @@ static bool debug_data = false;
 #define BP_STATUS_BREAK 0x04
 #define BP_STATUS_RNG 0x08
 
-#define POOL_SZ 16
+#define READ_POOL_SZ 8
+#define WRITE_POOL_SZ 32
 
 #define MODEM_INTERFACE_NUM 4
 
@@ -65,8 +66,8 @@ MODULE_DEVICE_TABLE(usb, mdm6600_id_table);
 
 struct mdm6600_urb_write_pool {
 	spinlock_t busy_lock;  /* protects busy flags */
-	bool busy[POOL_SZ];
-	struct urb *urb[POOL_SZ];
+	bool busy[WRITE_POOL_SZ];
+	struct urb *urb[WRITE_POOL_SZ];
 	struct usb_anchor in_flight;
 	struct usb_anchor delayed;
 	int buffer_sz;  /* allocated urb buffer size */
@@ -75,7 +76,7 @@ struct mdm6600_urb_write_pool {
 };
 
 struct mdm6600_urb_read_pool {
-	struct urb *urb[POOL_SZ];
+	struct urb *urb[READ_POOL_SZ];
 	struct usb_anchor in_flight;  /* urb's owned by USB core */
 	struct work_struct work;  /* bottom half */
 	struct usb_anchor pending;  /* urb's waiting for driver bottom half */
@@ -171,7 +172,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	init_usb_anchor(&modem->write.in_flight);
 	init_usb_anchor(&modem->write.delayed);
 	modem->write.buffer_sz = le16_to_cpu(epwrite->wMaxPacketSize) * 4;
-	for (i = 0; i < POOL_SZ; i++) {
+	for (i = 0; i < WRITE_POOL_SZ; i++) {
 		struct urb *u = usb_alloc_urb(0, GFP_KERNEL);
 		if (!u)
 			return -ENOMEM;
@@ -193,7 +194,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	init_usb_anchor(&modem->read.in_flight);
 	init_usb_anchor(&modem->read.pending);
 	modem->read.buffer_sz = le16_to_cpu(epread->wMaxPacketSize) * 4;
-	for (i = 0; i < POOL_SZ; i++) {
+	for (i = 0; i < READ_POOL_SZ; i++) {
 		struct urb *u = usb_alloc_urb(0, GFP_KERNEL);
 		if (!u)
 			return -ENOMEM;
@@ -298,10 +299,12 @@ static void mdm6600_release(struct usb_serial *serial)
 	struct mdm6600_port *modem = usb_get_serial_data(serial);
 	int i;
 
-	for (i = 0; i < POOL_SZ; i++) {
+	for (i = 0; i < WRITE_POOL_SZ; i++) {
 		mdm6600_release_urb(modem->write.urb[i],
 			modem->write.buffer_sz);
 		modem->write.urb[i] = NULL;
+	}
+	for (i = 0; i < READ_POOL_SZ; i++) {
 		mdm6600_release_urb(modem->read.urb[i], modem->read.buffer_sz);
 		modem->read.urb[i] = NULL;
 	}
@@ -323,7 +326,7 @@ static int mdm6600_submit_urbs(struct mdm6600_port *modem)
 			return rc;
 		}
 	}
-	for (i = 0; i < POOL_SZ; i++) {
+	for (i = 0; i < READ_POOL_SZ; i++) {
 		usb_anchor_urb(modem->read.urb[i], &modem->read.in_flight);
 		rc = usb_submit_urb(modem->read.urb[i], GFP_KERNEL);
 		if (rc) {
@@ -382,10 +385,10 @@ static struct urb *mdm6600_get_unused_write_urb(
 
 	spin_lock_irqsave(&p->busy_lock, flags);
 
-	for (i = 0; i < POOL_SZ; i++)
+	for (i = 0; i < WRITE_POOL_SZ; i++)
 		if (!p->busy[i])
 			break;
-	if (i >= POOL_SZ)
+	if (i >= WRITE_POOL_SZ)
 		goto out;
 
 	u = p->urb[i];
@@ -405,10 +408,10 @@ static int mdm6600_mark_write_urb_unused(struct mdm6600_urb_write_pool *p,
 
 	spin_lock_irqsave(&p->busy_lock, flags);
 
-	for (i = 0; i < POOL_SZ; i++)
+	for (i = 0; i < WRITE_POOL_SZ; i++)
 		if (p->urb[i] == u)
 			break;
-	if (i >= POOL_SZ)
+	if (i >= WRITE_POOL_SZ)
 		goto out;
 
 	p->busy[i] = false;
@@ -465,7 +468,7 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	u = mdm6600_get_unused_write_urb(&modem->write);
 	if (!u) {
-		pr_info("%s: all buffers busy!\n", __func__);
+		pr_info("%s: port %d all buffers busy!\n", __func__, modem->number);
 		return 0;
 	}
 
@@ -516,7 +519,7 @@ int mdm6600_write_room(struct tty_struct *tty)
 	dbg("%s - port %d", __func__, modem->number);
 
 	spin_lock_irqsave(&modem->write.pending_lock, flags);
-	if (modem->write.pending != POOL_SZ)
+	if (modem->write.pending != WRITE_POOL_SZ)
 		room = modem->write.buffer_sz;
 	spin_unlock_irqrestore(&modem->write.pending_lock, flags);
 
