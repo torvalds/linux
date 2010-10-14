@@ -136,7 +136,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	bf = avp->av_bcbuf;
 	skb = bf->bf_mpdu;
 	if (skb) {
-		dma_unmap_single(sc->dev, bf->bf_dmacontext,
+		dma_unmap_single(sc->dev, bf->bf_buf_addr,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 	}
@@ -162,9 +162,8 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 		hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
 	}
 
-	bf->bf_buf_addr = bf->bf_dmacontext =
-		dma_map_single(sc->dev, skb->data,
-			       skb->len, DMA_TO_DEVICE);
+	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
+					 skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
@@ -252,7 +251,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 	bf = avp->av_bcbuf;
 	if (bf->bf_mpdu != NULL) {
 		skb = bf->bf_mpdu;
-		dma_unmap_single(sc->dev, bf->bf_dmacontext,
+		dma_unmap_single(sc->dev, bf->bf_buf_addr,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
@@ -296,9 +295,8 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 		avp->tsf_adjust = cpu_to_le64(0);
 
 	bf->bf_mpdu = skb;
-	bf->bf_buf_addr = bf->bf_dmacontext =
-		dma_map_single(sc->dev, skb->data,
-			       skb->len, DMA_TO_DEVICE);
+	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
+					 skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
@@ -324,7 +322,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 		bf = avp->av_bcbuf;
 		if (bf->bf_mpdu != NULL) {
 			struct sk_buff *skb = bf->bf_mpdu;
-			dma_unmap_single(sc->dev, bf->bf_dmacontext,
+			dma_unmap_single(sc->dev, bf->bf_buf_addr,
 					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
