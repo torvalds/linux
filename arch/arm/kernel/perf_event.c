@@ -1092,7 +1092,7 @@ armv6pmu_handle_irq(int irq_num,
 	 * platforms that can have the PMU interrupts raised as an NMI, this
 	 * will not work.
 	 */
-	perf_event_do_pending();
+	irq_work_run();
 
 	return IRQ_HANDLED;
 }
@@ -2068,7 +2068,7 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 	 * platforms that can have the PMU interrupts raised as an NMI, this
 	 * will not work.
 	 */
-	perf_event_do_pending();
+	irq_work_run();
 
 	return IRQ_HANDLED;
 }
@@ -2436,7 +2436,7 @@ xscale1pmu_handle_irq(int irq_num, void *dev)
 			armpmu->disable(hwc, idx);
 	}
 
-	perf_event_do_pending();
+	irq_work_run();
 
 	/*
 	 * Re-enable the PMU.
@@ -2763,7 +2763,7 @@ xscale2pmu_handle_irq(int irq_num, void *dev)
 			armpmu->disable(hwc, idx);
 	}
 
-	perf_event_do_pending();
+	irq_work_run();
 
 	/*
 	 * Re-enable the PMU.
