@@ -446,9 +446,9 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 		mask = (roundup_pow_of_two(size) / SZ_256K) - 1;
 		pci_write_reg(chan, mask << 18, SH4A_PCIEPAMR(win));
 
-		pci_write_reg(chan, RES_TO_U32_HIGH(res->start),
+		pci_write_reg(chan, upper_32_bits(res->start),
 			      SH4A_PCIEPARH(win));
-		pci_write_reg(chan, RES_TO_U32_LOW(res->start),
+		pci_write_reg(chan, lower_32_bits(res->start),
 			      SH4A_PCIEPARL(win));
 
 		mask = MASK_PARE;
