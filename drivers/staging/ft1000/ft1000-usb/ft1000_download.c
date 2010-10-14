@@ -17,7 +17,6 @@
 #include <linux/vmalloc.h>
 #include "ft1000_usb.h"
 
-#define  FIFO_DNLD               1
 
 #define  DWNLD_HANDSHAKE_LOC     0x02
 #define  DWNLD_TYPE_LOC          0x04
@@ -140,9 +139,7 @@ static ULONG check_usb_db (struct ft1000_device *ft1000dev)
       {
            DEBUG("FT1000:Got checkusb doorbell\n");
            status = ft1000_write_register (ft1000dev, 0x0080, FT1000_REG_DOORBELL);
-#if FIFO_DNLD
            status = ft1000_write_register (ft1000dev, 0x0100, FT1000_REG_DOORBELL);
-#endif
            status = ft1000_write_register (ft1000dev,  0x8000, FT1000_REG_DOORBELL);
            break;
       }
@@ -214,7 +211,6 @@ static USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_val
    while (loopcnt < 100)
    {
 
-#if FIFO_DNLD
            // Need to clear downloader doorbell if Hartley ASIC
            status = ft1000_write_register (ft1000dev,  FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
            //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
@@ -236,47 +232,6 @@ static USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_val
                 //DEBUG("get_handshake: handshake is %x\n", tempx);
                 handshake = ntohs(handshake);
                 //DEBUG("get_handshake: after swap, handshake is %x\n", handshake);
-#else
-           // Need to clear downloader doorbell if Hartley ASIC
-           status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
-           //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
-           if (temp)
-           {
-               if (temp & FT1000_DB_DNLD_RX)
-               {
-                   //DEBUG("get_handshake: write FT1000_DB_DNLD_RX to doorbell register\n");
-                   status = ft1000_write_register(ft1000dev, FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
-               }
-
-               if (pft1000info->fcodeldr)
-               {
-                   DEBUG(" get_handshake: fcodeldr is %d\n", pft1000info->fcodeldr);
-                   pft1000info->fcodeldr = 0;
-                   status = check_usb_db(ft1000dev);
-                   if (status != STATUS_SUCCESS)
-                   {
-                       DEBUG("get_handshake: check_usb_db failed\n");
-                       status = STATUS_FAILURE;
-                       break;
-                   }
-
-                   status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
-                   //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
-                   if (temp)
-                   {
-                       if (temp & FT1000_DB_DNLD_RX)
-                           status = ft1000_write_register(ft1000dev,FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
-                   }
-                }
-
-                status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (PUCHAR)&handshake, 1);
-                //DEBUG("get_handshake: handshake is %x\n", tempx);
-                handshake = ntohs(handshake);
-                //DEBUG("get_handshake: after swap, handshake is %x\n", handshake);
-
-           } //end of if temp
-#endif
-
 
         if (status)
            return HANDSHAKE_TIMEOUT_VALUE;
@@ -318,7 +273,6 @@ static void put_handshake(struct ft1000_device *ft1000dev,USHORT handshake_value
 {
     ULONG tempx;
     USHORT tempword;
-    int i;
     ULONG status;
 
 
@@ -331,23 +285,6 @@ static void put_handshake(struct ft1000_device *ft1000dev,USHORT handshake_value
         tempword = (USHORT)(tempx >> 16);
         status = ft1000_write_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, tempword, 1);
         status = ft1000_write_register(ft1000dev, FT1000_DB_DNLD_TX, FT1000_REG_DOORBELL);
-#if FIFO_DNLD
-        for (i=0; i<1000; i++);
-#else
-        for (i=0; i<10; i++)
-        {
-            status = ft1000_read_register (ft1000dev, &tempword, FT1000_REG_DOORBELL);
-            if ((tempword & FT1000_DB_DNLD_TX) == 0)
-                break;
-        }
-        if (i==10)
-        {
-            DEBUG("FT1000:put_handshake could not clear Tx doorbell\n");
-            status = ft1000_read_register (ft1000dev, &tempword, FT1000_REG_DOORBELL);
-            DEBUG("FT1000:put_handshake:doorbell = 0x%x\n",tempword);
-        }
-#endif
-
 }
 
 static USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected_value)
@@ -424,12 +361,8 @@ static USHORT get_request_type(struct ft1000_device *ft1000dev)
    }
    else
    {
-#if FIFO_DNLD
        tempx = 0;
-#else
-       status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempword, 0);
-       tempx = tempword;
-#endif
+
        status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempword, 1);
        tempx |= (tempword << 16);
        tempx = ntohl(tempx);
@@ -533,10 +466,8 @@ static long get_request_value_usb(struct ft1000_device *ft1000dev)
        value |= (tempword << 16);
        value = ntohl(value);
 
-#if FIFO_DNLD
    if (pft1000info->usbboot == 1)
        pft1000info->usbboot = 2;
-#endif
 
    //DEBUG("get_request_value_usb: value is %x\n", value);
    return value;
@@ -1056,9 +987,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                }
                break;
             case  REQUEST_DONE_CL:
-#if FIFO_DNLD
                pft1000info->usbboot = 3;
-#endif
                /* Reposition ptrs to beginning of provisioning section */
                   pUsFile = (USHORT *)(pFileStart + pFileHdr5->commands_offset);
                   pUcFile = (UCHAR *)(pFileStart + pFileHdr5->commands_offset);
@@ -1104,7 +1033,6 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 			word_length++;
 		   word_length = word_length / 2;
 
-#if FIFO_DNLD
    	       write_blk_fifo (ft1000dev, &pUsFile, &pUcFile, word_length);
                if (pft1000info->usbboot == 0)
                    pft1000info->usbboot++;
@@ -1112,10 +1040,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                    tempword = 0;
                    ft1000_write_dpram16 (ft1000dev, DWNLD_MAG1_PS_HDR_LOC, tempword, 0);
                }
-#else
-   	       write_blk (ft1000dev, &pUsFile, &pUcFile, word_length);
-   	       //ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)pUcFile, word_length);
-#endif
+
                break;
 
             case  REQUEST_MAILBOX_DATA:
