@@ -123,12 +123,12 @@ static int ft1000_control(struct ft1000_device *ft1000dev,unsigned int pipe,
     if (ft1000dev == NULL )
     {
         DEBUG("NULL ft1000dev, failure\n");
-        return STATUS_FAILURE;
+	return -ENODEV;
     }
     else if ( ft1000dev->dev == NULL )
     {
         DEBUG("NULL ft1000dev->dev, failure\n");
-        return STATUS_FAILURE;
+	return -ENODEV;
     }
 
     ret = usb_control_msg(ft1000dev->dev,
@@ -141,11 +141,8 @@ static int ft1000_control(struct ft1000_device *ft1000dev,unsigned int pipe,
                           size,
                           LARGE_TIMEOUT);
 
-    if (ret>0)
-        ret = STATUS_SUCCESS;
-    else
-        ret = STATUS_FAILURE;
-
+	if (ret > 0)
+		ret = 0;
 
     return ret;
 
@@ -186,8 +183,6 @@ u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegInd
    //DEBUG("ft1000_read_register: ret is  %d \n", ret);
 
    //DEBUG("ft1000_read_register: data is  %x \n", *Data);
-   if ( ret != STATUS_SUCCESS )
-       return STATUS_FAILURE;
 
    return ret;
 
@@ -223,9 +218,6 @@ u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRe
                            NULL,
                            0,
                            LARGE_TIMEOUT );
-
-   if ( ret != STATUS_SUCCESS )
-       return STATUS_FAILURE;
 
     return ret;
 }
@@ -265,8 +257,6 @@ u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buf
    //DEBUG("ft1000_read_dpram32: ret is  %d \n", ret);
 
    //DEBUG("ft1000_read_dpram32: ret=%d \n", ret);
-   if ( ret != STATUS_SUCCESS )
-       return STATUS_FAILURE;
 
    return ret;
 
@@ -305,11 +295,6 @@ u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR bu
                            buffer,                             //buffer
                            cnt,                                //buffer size
                            LARGE_TIMEOUT );
-
-
-   if ( ret != STATUS_SUCCESS )
-       return STATUS_FAILURE;
-
 
     return ret;
 }
@@ -357,8 +342,6 @@ u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buf
 
 
    //DEBUG("ft1000_read_dpram16: data is  %x \n", *buffer);
-   if ( ret != STATUS_SUCCESS )
-       return STATUS_FAILURE;
 
    return ret;
 
@@ -405,11 +388,6 @@ u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT va
                            NULL,                               //buffer
                            0,                                   //buffer size
                            LARGE_TIMEOUT );
-
-
-   if ( ret != STATUS_SUCCESS )
-       return STATUS_FAILURE;
-
 
     return ret;
 }
