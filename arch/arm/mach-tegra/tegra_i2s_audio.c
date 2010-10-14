@@ -43,7 +43,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
-
+#include <linux/pm.h>
 #include <mach/dma.h>
 #include <mach/iomap.h>
 #include <mach/i2s.h>
@@ -2380,12 +2380,59 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tegra_audio_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+	return 0;
+}
+
+static int tegra_audio_resume(struct platform_device *pdev)
+{
+	struct tegra_audio_platform_data *pdata = pdev->dev.platform_data;
+	struct audio_driver_state *state = pdata->driver_data;
+
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+
+	if (!state)
+		return -ENOMEM;
+
+	/* disable interrupts from I2S */
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
+	i2s_enable_fifos(state->i2s_base, 0);
+
+	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
+
+	if (state->pdata->master)
+		i2s_set_channel_bit_count(state->i2s_base, 44100,
+				state->pdata->i2s_clk_rate);
+	i2s_set_master(state->i2s_base, state->pdata->master);
+
+	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_TX, 1);
+	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_RX, 0);
+
+	if (state->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP)
+		i2s_set_bit_format(state->i2s_base, I2S_BIT_FORMAT_DSP);
+	else
+		i2s_set_bit_format(state->i2s_base, state->pdata->mode);
+	i2s_set_bit_size(state->i2s_base, state->pdata->bit_size);
+	i2s_set_fifo_format(state->i2s_base, state->pdata->fifo_fmt);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 static struct platform_driver tegra_audio_driver = {
 	.driver = {
 		.name = "i2s",
 		.owner = THIS_MODULE,
 	},
 	.probe = tegra_audio_probe,
+#ifdef CONFIG_PM
+	.suspend = tegra_audio_suspend,
+	.resume = tegra_audio_resume,
+#endif
 };
 
 static int __init tegra_audio_init(void)
