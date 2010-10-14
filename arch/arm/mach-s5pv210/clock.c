@@ -1040,6 +1040,10 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_sclk_hdmi,
 	&clk_mout_dmc0,
 	&clk_sclk_dmc0,
+	&clk_sclk_audio0,
+	&clk_sclk_audio1,
+	&clk_sclk_audio2,
+	&clk_sclk_spdif,
 };
 
 void __init_or_cpufreq s5pv210_setup_clocks(void)
