@@ -741,7 +741,11 @@ static int __init tegra_i2c_init_driver(void)
 {
 	return platform_driver_register(&tegra_i2c_driver);
 }
-module_init(tegra_i2c_init_driver);
+/*
+ * Some drivers (hdmi) depend on i2c busses already being present,
+ * so init at subsys time.
+ */
+subsys_initcall(tegra_i2c_init_driver);
 
 static void __exit tegra_i2c_exit_driver(void)
 {
