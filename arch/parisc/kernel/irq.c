@@ -418,7 +418,3 @@ void __init init_IRQ(void)
 
 }
 
-void parisc_do_IRQ(unsigned int irq, struct irq_desc *desc)
-{
-	__do_IRQ(irq);
-}

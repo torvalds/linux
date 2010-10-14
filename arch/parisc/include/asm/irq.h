@@ -32,9 +32,6 @@ static __inline__ int irq_canonicalize(int irq)
 }
 
 struct irq_chip;
-struct irq_desc;
-
-extern void parisc_do_IRQ(unsigned int irq, struct irq_desc *desc);
 
 /*
  * Some useful "we don't have to do anything here" handlers.  Should
