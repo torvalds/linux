@@ -260,7 +260,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		address = regs->pc;
 		break;
 	case INT_UNALIGN_DATA:
-#ifndef __tilegx__  /* FIXME: GX: no single-step yet */
+#ifndef __tilegx__  /* Emulated support for single step debugging */
 		if (unaligned_fixup >= 0) {
 			struct single_step_state *state =
 				current_thread_info()->step_state;

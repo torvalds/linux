@@ -1472,7 +1472,12 @@ handle_ill:
 	lw      r26, r24
 	sw      r28, r26
 
-	/* Clear TIF_SINGLESTEP */
+	/*
+	 * Clear TIF_SINGLESTEP to prevent recursion if we execute an ill.
+	 * The normal non-arch flow redundantly clears TIF_SINGLESTEP, but we
+	 * need to clear it here and can't really impose on all other arches.
+	 * So what's another write between friends?
+	 */
 	GET_THREAD_INFO(r0)
 
 	addi    r1, r0, THREAD_INFO_FLAGS_OFFSET
