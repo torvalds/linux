@@ -66,10 +66,10 @@ static noinline void force_sig_info_fault(int si_signo, int si_code,
 #ifndef __tilegx__
 /*
  * Synthesize the fault a PL0 process would get by doing a word-load of
- * an unaligned address or a high kernel address.  Called indirectly
- * from sys_cmpxchg() in kernel/intvec.S.
+ * an unaligned address or a high kernel address.
  */
-int _sys_cmpxchg_badaddr(unsigned long address, struct pt_regs *regs)
+SYSCALL_DEFINE2(cmpxchg_badaddr, unsigned long, address,
+		struct pt_regs *, regs)
 {
 	if (address >= PAGE_OFFSET)
 		force_sig_info_fault(SIGSEGV, SEGV_MAPERR, address,

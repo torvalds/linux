@@ -528,14 +528,9 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	return __switch_to(prev, next, next_current_ksp0(next));
 }
 
-long _sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-}
-
-long _sys_clone(unsigned long clone_flags, unsigned long newsp,
-		void __user *parent_tidptr, void __user *child_tidptr,
-		struct pt_regs *regs)
+SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
+		void __user *, parent_tidptr, void __user *, child_tidptr,
+		struct pt_regs *, regs)
 {
 	if (!newsp)
 		newsp = regs->sp;
@@ -543,18 +538,13 @@ long _sys_clone(unsigned long clone_flags, unsigned long newsp,
 		       parent_tidptr, child_tidptr);
 }
 
-long _sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp,
-		       regs, 0, NULL, NULL);
-}
-
 /*
  * sys_execve() executes a new program.
  */
-long _sys_execve(const char __user *path,
-		 const char __user *const __user *argv,
-		 const char __user *const __user *envp, struct pt_regs *regs)
+SYSCALL_DEFINE4(execve, const char __user *, path,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp,
+		struct pt_regs *, regs)
 {
 	long error;
 	char *filename;
@@ -570,9 +560,10 @@ out:
 }
 
 #ifdef CONFIG_COMPAT
-long _compat_sys_execve(const char __user *path,
-			const compat_uptr_t __user *argv,
-			const compat_uptr_t __user *envp, struct pt_regs *regs)
+long compat_sys_execve(const char __user *path,
+		       const compat_uptr_t __user *argv,
+		       const compat_uptr_t __user *envp,
+		       struct pt_regs *regs)
 {
 	long error;
 	char *filename;

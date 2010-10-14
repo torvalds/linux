@@ -157,6 +157,12 @@ long tile_compat_sys_msgrcv(int msqid,
 /* Pass full 64-bit values through ptrace. */
 #define compat_sys_ptrace tile_compat_sys_ptrace
 
+/* Call the trampolines to manage pt_regs where necessary. */
+#define compat_sys_execve _compat_sys_execve
+#define compat_sys_sigaltstack _compat_sys_sigaltstack
+#define compat_sys_rt_sigreturn _compat_sys_rt_sigreturn
+#define sys_clone _sys_clone
+
 /*
  * Note that we can't include <linux/unistd.h> here since the header
  * guard will defeat us; <asm/unistd.h> checks for __SYSCALL as well.

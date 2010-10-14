@@ -1524,28 +1524,23 @@ STD_ENTRY_LOCAL(bad_intr)
 
 /* Put address of pt_regs in reg and jump. */
 #define PTREGS_SYSCALL(x, reg)                          \
-	STD_ENTRY(x);                                   \
+	STD_ENTRY(_##x);                                \
 	{                                               \
 	 PTREGS_PTR(reg, PTREGS_OFFSET_BASE);           \
-	 j      _##x                                    \
+	 j      x                                       \
 	};                                              \
-	STD_ENDPROC(x)
+	STD_ENDPROC(_##x)
 
 PTREGS_SYSCALL(sys_execve, r3)
 PTREGS_SYSCALL(sys_sigaltstack, r2)
 PTREGS_SYSCALL(sys_rt_sigreturn, r0)
+PTREGS_SYSCALL(sys_cmpxchg_badaddr, r1)
 
-/* Save additional callee-saves to pt_regs, put address in reg and jump. */
-#define PTREGS_SYSCALL_ALL_REGS(x, reg)                 \
-	STD_ENTRY(x);                                   \
-	push_extra_callee_saves reg;                    \
-	j       _##x;                                   \
-	STD_ENDPROC(x)
-
-PTREGS_SYSCALL_ALL_REGS(sys_fork, r0)
-PTREGS_SYSCALL_ALL_REGS(sys_vfork, r0)
-PTREGS_SYSCALL_ALL_REGS(sys_clone, r4)
-PTREGS_SYSCALL_ALL_REGS(sys_cmpxchg_badaddr, r1)
+/* Save additional callee-saves to pt_regs, put address in r4 and jump. */
+STD_ENTRY(_sys_clone)
+	push_extra_callee_saves r4
+	j       sys_clone
+	STD_ENDPROC(_sys_clone)
 
 /*
  * This entrypoint is taken for the cmpxchg and atomic_update fast
