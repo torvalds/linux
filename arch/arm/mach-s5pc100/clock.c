@@ -323,6 +323,9 @@ static int s5pc100_epll_set_rate(struct clk *clk, unsigned long rate)
 
 	__raw_writel(epll_con, S5P_EPLL_CON);
 
+	printk(KERN_WARNING "EPLL Rate changes from %lu to %lu\n",
+			clk->rate, rate);
+
 	clk->rate = rate;
 
 	return 0;
