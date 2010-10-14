@@ -1165,17 +1165,72 @@ static void handle_vendor_event(struct xhci_hcd *xhci,
 static void handle_port_status(struct xhci_hcd *xhci,
 		union xhci_trb *event)
 {
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	u32 port_id;
+	u32 temp, temp1;
+	u32 __iomem *addr;
+	int ports;
+	int slot_id;
 
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
 		xhci_warn(xhci, "WARN: xHC returned failed port status event\n");
 		xhci->error_bitmask |= 1 << 8;
 	}
-	/* FIXME: core doesn't care about all port link state changes yet */
 	port_id = GET_PORT_ID(event->generic.field[0]);
 	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
 
+	ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	if ((port_id <= 0) || (port_id > ports)) {
+		xhci_warn(xhci, "Invalid port id %d\n", port_id);
+		goto cleanup;
+	}
+
+	addr = &xhci->op_regs->port_status_base + NUM_PORT_REGS * (port_id - 1);
+	temp = xhci_readl(xhci, addr);
+	if ((temp & PORT_CONNECT) && (hcd->state == HC_STATE_SUSPENDED)) {
+		xhci_dbg(xhci, "resume root hub\n");
+		usb_hcd_resume_root_hub(hcd);
+	}
+
+	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
+		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
+
+		temp1 = xhci_readl(xhci, &xhci->op_regs->command);
+		if (!(temp1 & CMD_RUN)) {
+			xhci_warn(xhci, "xHC is not running.\n");
+			goto cleanup;
+		}
+
+		if (DEV_SUPERSPEED(temp)) {
+			xhci_dbg(xhci, "resume SS port %d\n", port_id);
+			temp = xhci_port_state_to_neutral(temp);
+			temp &= ~PORT_PLS_MASK;
+			temp |= PORT_LINK_STROBE | XDEV_U0;
+			xhci_writel(xhci, temp, addr);
+			slot_id = xhci_find_slot_id_by_port(xhci, port_id);
+			if (!slot_id) {
+				xhci_dbg(xhci, "slot_id is zero\n");
+				goto cleanup;
+			}
+			xhci_ring_device(xhci, slot_id);
+			xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
+			/* Clear PORT_PLC */
+			temp = xhci_readl(xhci, addr);
+			temp = xhci_port_state_to_neutral(temp);
+			temp |= PORT_PLC;
+			xhci_writel(xhci, temp, addr);
+		} else {
+			xhci_dbg(xhci, "resume HS port %d\n", port_id);
+			xhci->resume_done[port_id - 1] = jiffies +
+				msecs_to_jiffies(20);
+			mod_timer(&hcd->rh_timer,
+				  xhci->resume_done[port_id - 1]);
+			/* Do the rest in GetPortStatus */
+		}
+	}
+
+cleanup:
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
 

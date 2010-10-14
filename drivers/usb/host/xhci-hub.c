@@ -123,7 +123,7 @@ static unsigned int xhci_port_speed(unsigned int port_status)
  * writing a 0 clears the bit and writing a 1 sets the bit (RWS).
  * For all other types (RW1S, RW1CS, RW, and RZ), writing a '0' has no effect.
  */
-static u32 xhci_port_state_to_neutral(u32 state)
+u32 xhci_port_state_to_neutral(u32 state)
 {
 	/* Save read-only status and port state */
 	return (state & XHCI_PORT_RO) | (state & XHCI_PORT_RWS);
@@ -132,7 +132,7 @@ static u32 xhci_port_state_to_neutral(u32 state)
 /*
  * find slot id based on port number.
  */
-static int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port)
+int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port)
 {
 	int slot_id;
 	int i;
@@ -210,7 +210,7 @@ command_cleanup:
 /*
  * Ring device, it rings the all doorbells unconditionally.
  */
-static void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
+void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 {
 	int i;
 
@@ -276,7 +276,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ports;
 	unsigned long flags;
-	u32 temp, status;
+	u32 temp, temp1, status;
 	int retval = 0;
 	u32 __iomem *addr;
 	int slot_id;
@@ -315,6 +315,34 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		if ((temp & PORT_PLS_MASK) == XDEV_U3
 			&& (temp & PORT_POWER))
 			status |= 1 << USB_PORT_FEAT_SUSPEND;
+		if ((temp & PORT_PLS_MASK) == XDEV_RESUME) {
+			if ((temp & PORT_RESET) || !(temp & PORT_PE))
+				goto error;
+			if (!DEV_SUPERSPEED(temp) && time_after_eq(jiffies,
+						xhci->resume_done[wIndex])) {
+				xhci_dbg(xhci, "Resume USB2 port %d\n",
+					wIndex + 1);
+				xhci->resume_done[wIndex] = 0;
+				temp1 = xhci_port_state_to_neutral(temp);
+				temp1 &= ~PORT_PLS_MASK;
+				temp1 |= PORT_LINK_STROBE | XDEV_U0;
+				xhci_writel(xhci, temp1, addr);
+
+				xhci_dbg(xhci, "set port %d resume\n",
+					wIndex + 1);
+				slot_id = xhci_find_slot_id_by_port(xhci,
+								 wIndex + 1);
+				if (!slot_id) {
+					xhci_dbg(xhci, "slot_id is zero\n");
+					goto error;
+				}
+				xhci_ring_device(xhci, slot_id);
+				xhci->port_c_suspend[wIndex >> 5] |=
+						1 << (wIndex & 31);
+				xhci->suspended_ports[wIndex >> 5] &=
+						~(1 << (wIndex & 31));
+			}
+		}
 		if ((temp & PORT_PLS_MASK) == XDEV_U0
 			&& (temp & PORT_POWER)
 			&& (xhci->suspended_ports[wIndex >> 5] &
@@ -500,6 +528,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	unsigned long flags;
 	u32 temp, status;
+	u32 mask;
 	int i, retval;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ports;
@@ -512,13 +541,18 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	memset(buf, 0, retval);
 	status = 0;
 
+	mask = PORT_CSC | PORT_PEC | PORT_OCC;
+
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
 	for (i = 0; i < ports; i++) {
 		addr = &xhci->op_regs->port_status_base +
 			NUM_PORT_REGS*i;
 		temp = xhci_readl(xhci, addr);
-		if (temp & (PORT_CSC | PORT_PEC | PORT_OCC)) {
+		if ((temp & mask) != 0 ||
+			(xhci->port_c_suspend[i >> 5] &	1 << (i & 31)) ||
+			(xhci->resume_done[i] && time_after_eq(
+			    jiffies, xhci->resume_done[i]))) {
 			buf[(i + 1) / 8] |= 1 << (i + 1) % 8;
 			status = 1;
 		}

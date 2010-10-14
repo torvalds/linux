@@ -1215,6 +1215,7 @@ struct xhci_hcd {
 	u32			port_c_suspend[8];	/* port suspend change*/
 	u32			suspended_ports[8];	/* which ports are
 							   suspended */
+	unsigned long		resume_done[MAX_HC_PORTS];
 };
 
 /* For testing purposes */
@@ -1459,6 +1460,9 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
+u32 xhci_port_state_to_neutral(u32 state);
+int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port);
+void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 
 /* xHCI contexts */
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
