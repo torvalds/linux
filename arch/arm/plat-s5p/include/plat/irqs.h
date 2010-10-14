@@ -94,6 +94,8 @@
 						((irq) - S5P_EINT_BASE1) : \
 						((irq) + 16 - S5P_EINT_BASE2))
 
+#define IRQ_EINT_BIT(x)		EINT_OFFSET(x)
+
 /* Typically only a few gpio chips require gpio interrupt support.
    To avoid memory waste irq descriptors are allocated only for
    S5P_GPIOINT_GROUP_COUNT chips, each with total number of
