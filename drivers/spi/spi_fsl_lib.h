@@ -18,6 +18,8 @@
 #ifndef __SPI_FSL_LIB_H__
 #define __SPI_FSL_LIB_H__
 
+#include <asm/io.h>
+
 /* SPI/eSPI Controller driver's private data. */
 struct mpc8xxx_spi {
 	struct device *dev;
