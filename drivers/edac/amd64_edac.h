@@ -461,17 +461,21 @@ struct amd64_pvt {
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
 
-	/* Save old hw registers' values before we modified them */
-	u32 nbctl_mcgctl_saved;		/* When true, following 2 are valid */
-	u32 old_nbctl;
-
 	/* DCT per-family scrubrate setting */
 	u32 min_scrubrate;
 
 	/* family name this instance is running on */
 	const char *ctl_name;
 
-	/* misc settings */
+};
+
+/*
+ * per-node ECC settings descriptor
+ */
+struct ecc_settings {
+	u32 old_nbctl;
+	bool nbctl_valid;
+
 	struct flags {
 		unsigned long nb_mce_enable:1;
 		unsigned long nb_ecc_prev:1;
