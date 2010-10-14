@@ -33,23 +33,23 @@
 			.globl	at91sam9g20_reset
 
 at91sam9g20_reset:	mov	r0, #0
-			mcr	p15, 0, r0, c7, c5, 0	@ flush I-cache
+			mcr	p15, 0, r0, c7, c5, 0		@ flush I-cache
 
 			mrc	p15, 0, r0, c1, c0, 0
 			orr	r0, r0, #CP15_CR_I
-			mcr	p15, 0, r0, c1, c0, 0	@ enable I-cache
+			mcr	p15, 0, r0, c1, c0, 0		@ enable I-cache
 
-			ldr	r0, =SDRAMC_BASE	@ preload constants
+			ldr	r0, =SDRAMC_BASE		@ preload constants
 			ldr	r1, =RSTC_BASE
 
 			mov	r2, #1
 			mov	r3, #SDRAMC_LPCB_POWER_DOWN
 			ldr	r4, =RSTC_KEY | RSTC_PERRST | RSTC_PROCRST
 
-			.balign	32			@ align to cache line
+			.balign	32				@ align to cache line
 
-			str	r2, [r0, #SDRAMC_TR]	@ disable SDRAM access
-			str	r3, [r0, #SDRAMC_LPR]	@ power down SDRAM
-			str	r4, [r1, #RSTC_CR]	@ reset processor
+			str	r2, [r0, #SDRAMC_TR]		@ disable SDRAM access
+			str	r3, [r0, #SDRAMC_LPR]		@ power down SDRAM
+			str	r4, [r1, #RSTC_CR]		@ reset processor
 
 			b	.
