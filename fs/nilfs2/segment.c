@@ -2674,6 +2674,8 @@ static int nilfs_segctor_start_thread(struct nilfs_sc_info *sci)
 }
 
 static void nilfs_segctor_kill_thread(struct nilfs_sc_info *sci)
+	__acquires(&sci->sc_state_lock)
+	__releases(&sci->sc_state_lock)
 {
 	sci->sc_state |= NILFS_SEGCTOR_QUIT;
 
