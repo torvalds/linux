@@ -3804,6 +3804,9 @@ static void drbdd(struct drbd_conf *mdev)
 	err_out:
 		drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
 	}
+	/* If we leave here, we probably want to update at least the
+	 * "Connected" indicator on stable storage. Do so explicitly here. */
+	drbd_md_sync(mdev);
 }
 
 void drbd_flush_workqueue(struct drbd_conf *mdev)
@@ -4685,10 +4688,12 @@ int drbd_asender(struct drbd_thread *thi)
 	if (0) {
 reconnect:
 		drbd_force_state(mdev, NS(conn, C_NETWORK_FAILURE));
+		drbd_md_sync(mdev);
 	}
 	if (0) {
 disconnect:
 		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+		drbd_md_sync(mdev);
 	}
 	clear_bit(SIGNAL_ASENDER, &mdev->flags);
 
