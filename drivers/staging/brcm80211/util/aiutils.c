@@ -134,7 +134,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 	case SPI_BUS:
 	case SDIO_BUS:
 #endif				/* BCMSDIO */
-		eromptr = (u32 *)erombase;
+		eromptr = (u32 *)(unsigned long)erombase;
 		break;
 
 	default:
@@ -358,8 +358,8 @@ void *ai_setcoreidx(si_t *sih, uint coreidx)
 	case SPI_BUS:
 	case SDIO_BUS:
 #endif				/* BCMSDIO */
-		sii->curmap = regs = (void *)addr;
-		sii->curwrap = (void *)wrap;
+		sii->curmap = regs = (void *)(unsigned long)addr;
+		sii->curwrap = (void *)(unsigned long)wrap;
 		break;
 
 	default:
