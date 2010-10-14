@@ -2287,15 +2287,15 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 * address given back to us by the HC.
 	 */
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
-	udev->devnum = (slot_ctx->dev_state & DEV_ADDR_MASK) + 1;
+	/* Use kernel assigned address for devices; store xHC assigned
+	 * address locally. */
+	virt_dev->address = (slot_ctx->dev_state & DEV_ADDR_MASK) + 1;
 	/* Zero the input context control for later use */
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
 	ctrl_ctx->add_flags = 0;
 	ctrl_ctx->drop_flags = 0;
 
-	xhci_dbg(xhci, "Device address = %d\n", udev->devnum);
-	/* XXX Meh, not sure if anyone else but choose_address uses this. */
-	set_bit(udev->devnum, udev->bus->devmap.devicemap);
+	xhci_dbg(xhci, "Internal device address = %d\n", virt_dev->address);
 
 	return 0;
 }
