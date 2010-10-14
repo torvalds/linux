@@ -265,19 +265,14 @@ fast_shmem_read(struct page **pages,
 		char __user *data,
 		int length)
 {
-	char __iomem *vaddr;
 	int unwritten;
+	char *vaddr;
 
 	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
-	if (vaddr == NULL)
-		return -ENOMEM;
 	unwritten = __copy_to_user_inatomic(data, vaddr + page_offset, length);
 	kunmap_atomic(vaddr, KM_USER0);
 
-	if (unwritten)
-		return -EFAULT;
-
-	return 0;
+	return unwritten ? -EFAULT : 0;
 }
 
 static int i915_gem_object_needs_bit17_swizzle(struct drm_gem_object *obj)
@@ -602,6 +597,13 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	ret = fault_in_pages_writeable((char __user *)(uintptr_t)args->data_ptr,
+				       args->size);
+	if (ret) {
+		ret = -EFAULT;
+		goto out;
+	}
+
 	if (i915_gem_object_needs_bit17_swizzle(obj)) {
 		ret = i915_gem_shmem_pread_slow(dev, obj, args, file_priv);
 	} else {
@@ -668,18 +670,14 @@ fast_shmem_write(struct page **pages,
 		 char __user *data,
 		 int length)
 {
-	char __iomem *vaddr;
-	unsigned long unwritten;
+	int unwritten;
+	char *vaddr;
 
 	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
-	if (vaddr == NULL)
-		return -ENOMEM;
 	unwritten = __copy_from_user_inatomic(vaddr + page_offset, data, length);
 	kunmap_atomic(vaddr, KM_USER0);
 
-	if (unwritten)
-		return -EFAULT;
-	return 0;
+	return unwritten ? -EFAULT : 0;
 }
 
 /**
@@ -1074,6 +1072,13 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (!access_ok(VERIFY_READ,
 		       (char __user *)(uintptr_t)args->data_ptr,
 		       args->size)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
+				      args->size);
+	if (ret) {
 		ret = -EFAULT;
 		goto out;
 	}
