@@ -404,6 +404,28 @@ static struct i2c_board_info i2c_gpio_pmic_devs[] __initdata = {
 #endif
 };
 
+/* GPIO I2C AP 1.8V */
+#define AP_I2C_GPIO_BUS_5	5
+static struct i2c_gpio_platform_data aquila_i2c_gpio5_data = {
+	.sda_pin	= S5PV210_MP05(3),	/* XM0ADDR_11 */
+	.scl_pin	= S5PV210_MP05(2),	/* XM0ADDR_10 */
+};
+
+static struct platform_device aquila_i2c_gpio5 = {
+	.name		= "i2c-gpio",
+	.id		= AP_I2C_GPIO_BUS_5,
+	.dev		= {
+		.platform_data	= &aquila_i2c_gpio5_data,
+	},
+};
+
+static struct i2c_board_info i2c_gpio5_devs[] __initdata = {
+	{
+		/* CS/ADDR = low 0x34 (FYI: high = 0x36) */
+		I2C_BOARD_INFO("wm8994", 0x1a),
+	},
+};
+
 /* PMIC Power button */
 static struct gpio_keys_button aquila_gpio_keys_table[] = {
 	{
@@ -475,6 +497,7 @@ static void aquila_setup_sdhci(void)
 
 static struct platform_device *aquila_devices[] __initdata = {
 	&aquila_i2c_gpio_pmic,
+	&aquila_i2c_gpio5,
 	&aquila_device_gpiokeys,
 	&s3c_device_fb,
 	&s5p_device_onenand,
@@ -505,6 +528,10 @@ static void __init aquila_machine_init(void)
 	s3c_fimc_setname(0, "s5p-fimc");
 	s3c_fimc_setname(1, "s5p-fimc");
 	s3c_fimc_setname(2, "s5p-fimc");
+
+	/* SOUND */
+	i2c_register_board_info(AP_I2C_GPIO_BUS_5, i2c_gpio5_devs,
+			ARRAY_SIZE(i2c_gpio5_devs));
 
 	/* FB */
 	s3c_fb_set_platdata(&aquila_lcd_pdata);

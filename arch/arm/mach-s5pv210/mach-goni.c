@@ -545,6 +545,28 @@ static struct i2c_board_info i2c_gpio_pmic_devs[] __initdata = {
 #endif
 };
 
+/* GPIO I2C AP 1.8V */
+#define AP_I2C_GPIO_BUS_5	5
+static struct i2c_gpio_platform_data goni_i2c_gpio5_data = {
+	.sda_pin	= S5PV210_MP05(3),	/* XM0ADDR_11 */
+	.scl_pin	= S5PV210_MP05(2),	/* XM0ADDR_10 */
+};
+
+static struct platform_device goni_i2c_gpio5 = {
+	.name		= "i2c-gpio",
+	.id		= AP_I2C_GPIO_BUS_5,
+	.dev		= {
+		.platform_data	= &goni_i2c_gpio5_data,
+	},
+};
+
+static struct i2c_board_info i2c_gpio5_devs[] __initdata = {
+	{
+		/* CS/ADDR = low 0x34 (FYI: high = 0x36) */
+		I2C_BOARD_INFO("wm8994", 0x1a),
+	},
+};
+
 /* PMIC Power button */
 static struct gpio_keys_button goni_gpio_keys_table[] = {
 	{
@@ -645,6 +667,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s5p_device_onenand,
 	&goni_spi_gpio,
 	&goni_i2c_gpio_pmic,
+	&goni_i2c_gpio5,
 	&mmc2_fixed_voltage,
 	&goni_device_gpiokeys,
 	&s5p_device_fimc0,
@@ -688,6 +711,10 @@ static void __init goni_machine_init(void)
 			ARRAY_SIZE(i2c_gpio_pmic_devs));
 	/* SDHCI */
 	goni_setup_sdhci();
+
+	/* SOUND */
+	i2c_register_board_info(AP_I2C_GPIO_BUS_5, i2c_gpio5_devs,
+			ARRAY_SIZE(i2c_gpio5_devs));
 
 	/* FB */
 	s3c_fb_set_platdata(&goni_lcd_pdata);
