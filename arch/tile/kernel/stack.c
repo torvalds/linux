@@ -30,6 +30,10 @@
 #include <arch/abi.h>
 #include <arch/interrupts.h>
 
+#define KBT_ONGOING	0  /* Backtrace still ongoing */
+#define KBT_DONE	1  /* Backtrace cleanly completed */
+#define KBT_RUNNING	2  /* Can't run backtrace on a running task */
+#define KBT_LOOP	3  /* Backtrace entered a loop */
 
 /* Is address on the specified kernel stack? */
 static int in_kernel_stack(struct KBacktraceIterator *kbt, VirtualAddress sp)
@@ -207,11 +211,11 @@ static int KBacktraceIterator_next_item_inclusive(
 	for (;;) {
 		do {
 			if (!KBacktraceIterator_is_sigreturn(kbt))
-				return 1;
+				return KBT_ONGOING;
 		} while (backtrace_next(&kbt->it));
 
 		if (!KBacktraceIterator_restart(kbt))
-			return 0;
+			return KBT_DONE;
 	}
 }
 
@@ -264,7 +268,7 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	kbt->pgtable = NULL;
 	kbt->verbose = 0;   /* override in caller if desired */
 	kbt->profile = 0;   /* override in caller if desired */
-	kbt->end = 0;
+	kbt->end = KBT_ONGOING;
 	kbt->new_context = 0;
 	if (is_current) {
 		HV_PhysAddr pgdir_pa = hv_inquire_context().page_table;
@@ -290,7 +294,7 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	if (regs == NULL) {
 		if (is_current || t->state == TASK_RUNNING) {
 			/* Can't do this; we need registers */
-			kbt->end = 1;
+			kbt->end = KBT_RUNNING;
 			return;
 		}
 		pc = get_switch_to_pc();
@@ -305,26 +309,29 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	}
 
 	backtrace_init(&kbt->it, read_memory_func, kbt, pc, lr, sp, r52);
-	kbt->end = !KBacktraceIterator_next_item_inclusive(kbt);
+	kbt->end = KBacktraceIterator_next_item_inclusive(kbt);
 }
 EXPORT_SYMBOL(KBacktraceIterator_init);
 
 int KBacktraceIterator_end(struct KBacktraceIterator *kbt)
 {
-	return kbt->end;
+	return kbt->end != KBT_ONGOING;
 }
 EXPORT_SYMBOL(KBacktraceIterator_end);
 
 void KBacktraceIterator_next(struct KBacktraceIterator *kbt)
 {
+	VirtualAddress old_pc = kbt->it.pc, old_sp = kbt->it.sp;
 	kbt->new_context = 0;
-	if (!backtrace_next(&kbt->it) &&
-	    !KBacktraceIterator_restart(kbt)) {
-			kbt->end = 1;
-			return;
-		}
-
-	kbt->end = !KBacktraceIterator_next_item_inclusive(kbt);
+	if (!backtrace_next(&kbt->it) && !KBacktraceIterator_restart(kbt)) {
+		kbt->end = KBT_DONE;
+		return;
+	}
+	kbt->end = KBacktraceIterator_next_item_inclusive(kbt);
+	if (old_pc == kbt->it.pc && old_sp == kbt->it.sp) {
+		/* Trapped in a loop; give up. */
+		kbt->end = KBT_LOOP;
+	}
 }
 EXPORT_SYMBOL(KBacktraceIterator_next);
 
@@ -387,6 +394,8 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 			break;
 		}
 	}
+	if (kbt->end == KBT_LOOP)
+		pr_err("Stack dump stopped; next frame identical to this one\n");
 	if (headers)
 		pr_err("Stack dump complete\n");
 }
