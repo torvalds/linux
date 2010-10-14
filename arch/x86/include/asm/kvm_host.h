@@ -422,6 +422,7 @@ struct kvm_vcpu_arch {
 		struct gfn_to_hva_cache data;
 		u64 msr_val;
 		u32 id;
+		bool send_user_only;
 	} apf;
 };
 
