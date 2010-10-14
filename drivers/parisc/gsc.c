@@ -105,7 +105,7 @@ int gsc_find_local_irq(unsigned int irq, int *global_irqs, int limit)
 	return NO_IRQ;
 }
 
-static void gsc_asic_disable_irq(unsigned int irq)
+static void gsc_asic_mask_irq(unsigned int irq)
 {
 	struct gsc_asic *irq_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, irq_dev->global_irq, 32);
@@ -120,7 +120,7 @@ static void gsc_asic_disable_irq(unsigned int irq)
 	gsc_writel(imr, irq_dev->hpa + OFFSET_IMR);
 }
 
-static void gsc_asic_enable_irq(unsigned int irq)
+static void gsc_asic_unmask_irq(unsigned int irq)
 {
 	struct gsc_asic *irq_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, irq_dev->global_irq, 32);
@@ -139,20 +139,11 @@ static void gsc_asic_enable_irq(unsigned int irq)
 	 */
 }
 
-static unsigned int gsc_asic_startup_irq(unsigned int irq)
-{
-	gsc_asic_enable_irq(irq);
-	return 0;
-}
-
 static struct irq_chip gsc_asic_interrupt_type = {
-	.name	 =	"GSC-ASIC",
-	.startup =	gsc_asic_startup_irq,
-	.shutdown =	gsc_asic_disable_irq,
-	.enable =	gsc_asic_enable_irq,
-	.disable =	gsc_asic_disable_irq,
-	.ack =		no_ack_irq,
-	.end =		no_end_irq,
+	.name	=	"GSC-ASIC",
+	.unmask	=	gsc_asic_unmask_irq,
+	.mask	=	gsc_asic_mask_irq,
+	.ack	=	no_ack_irq,
 };
 
 int gsc_assign_irq(struct irq_chip *type, void *data)
@@ -162,7 +153,7 @@ int gsc_assign_irq(struct irq_chip *type, void *data)
 	if (irq > GSC_IRQ_MAX)
 		return NO_IRQ;
 
-	set_irq_chip_and_handler(irq, type, parisc_do_IRQ);
+	set_irq_chip_and_handler(irq, type, handle_level_irq);
 	set_irq_chip_data(irq, data);
 
 	return irq++;
