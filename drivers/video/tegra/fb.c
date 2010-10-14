@@ -547,6 +547,7 @@ void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
 			      bool (*mode_filter)(struct fb_videomode *mode))
 {
 	struct fb_event event;
+	struct fb_modelist *m;
 	int i;
 
 	mutex_lock(&fb_info->info->lock);
@@ -567,6 +568,10 @@ void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
 					 &fb_info->info->modelist);
 		}
 	}
+
+	/* in case the first mode was not matched */
+	m = list_first_entry(&fb_info->info->modelist, struct fb_modelist, list);
+	m->mode.flag |= FB_MODE_IS_FIRST;
 
 	fb_info->info->mode = (struct fb_videomode *)
 		fb_find_best_display(specs, &fb_info->info->modelist);
