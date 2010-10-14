@@ -923,7 +923,7 @@ int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 		if (!modelist)
 			return -ENOMEM;
 		modelist->mode = *mode;
-		list_add(&modelist->list, head);
+		list_add_tail(&modelist->list, head);
 	}
 	return 0;
 }
