@@ -929,38 +929,51 @@ serial_hsu_set_termios(struct uart_port *port, struct ktermios *termios,
 		cval |= UART_LCR_EPAR;
 
 	/*
+	 * The base clk is 50Mhz, and the baud rate come from:
+	 *	baud = 50M * MUL / (DIV * PS * DLAB)
+	 *
 	 * For those basic low baud rate we can get the direct
-	 * scalar from 2746800, like 115200 = 2746800/24, for those
-	 * higher baud rate, we have to handle them case by case,
-	 * but DIV reg is never touched as its default value 0x3d09
+	 * scalar from 2746800, like 115200 = 2746800/24. For those
+	 * higher baud rate, we handle them case by case, mainly by
+	 * adjusting the MUL/PS registers, and DIV register is kept
+	 * as default value 0x3d09 to make things simple
 	 */
 	baud = uart_get_baud_rate(port, termios, old, 0, 4000000);
-	quot = uart_get_divisor(port, baud);
 
+	quot = 1;
 	switch (baud) {
 	case 3500000:
 		mul = 0x3345;
 		ps = 0xC;
-		quot = 1;
+		break;
+	case 3000000:
+		mul = 0x2EE0;
 		break;
 	case 2500000:
 		mul = 0x2710;
-		ps = 0x10;
-		quot = 1;
 		break;
-	case 18432000:
+	case 2000000:
+		mul = 0x1F40;
+		break;
+	case 1843200:
 		mul = 0x2400;
-		ps = 0x10;
-		quot = 1;
 		break;
 	case 1500000:
-		mul = 0x1D4C;
-		ps = 0xc;
-		quot = 1;
+		mul = 0x1770;
+		break;
+	case 1000000:
+		mul = 0xFA0;
+		break;
+	case 500000:
+		mul = 0x7D0;
 		break;
 	default:
-		;
+		/* Use uart_get_divisor to get quot for other baud rates */
+		quot = 0;
 	}
+
+	if (!quot)
+		quot = uart_get_divisor(port, baud);
 
 	if ((up->port.uartclk / quot) < (2400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_HSU_64_1B;
