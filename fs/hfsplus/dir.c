@@ -418,6 +418,9 @@ static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 	if (!inode)
 		goto out;
 
+	if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISFIFO(mode) || S_ISSOCK(mode))
+		init_special_inode(inode, mode, rdev);
+
 	res = hfsplus_create_cat(inode->i_ino, dir, &dentry->d_name, inode);
 	if (res) {
 		inode->i_nlink = 0;
@@ -425,9 +428,6 @@ static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 		iput(inode);
 		goto out;
 	}
-
-	if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISFIFO(mode) || S_ISSOCK(mode))
-		init_special_inode(inode, mode, rdev);
 
 	hfsplus_instantiate(dentry, inode, inode->i_ino);
 	mark_inode_dirty(inode);

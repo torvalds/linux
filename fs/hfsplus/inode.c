@@ -252,29 +252,6 @@ static void hfsplus_get_perms(struct inode *inode, struct hfsplus_perm *perms, i
 		inode->i_flags &= ~S_APPEND;
 }
 
-static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
-{
-	if (inode->i_flags & S_IMMUTABLE)
-		perms->rootflags |= HFSPLUS_FLG_IMMUTABLE;
-	else
-		perms->rootflags &= ~HFSPLUS_FLG_IMMUTABLE;
-	if (inode->i_flags & S_APPEND)
-		perms->rootflags |= HFSPLUS_FLG_APPEND;
-	else
-		perms->rootflags &= ~HFSPLUS_FLG_APPEND;
-	perms->userflags = HFSPLUS_I(inode)->userflags;
-	perms->mode = cpu_to_be16(inode->i_mode);
-	perms->owner = cpu_to_be32(inode->i_uid);
-	perms->group = cpu_to_be32(inode->i_gid);
-
-	if (S_ISREG(inode->i_mode))
-		perms->dev = cpu_to_be32(inode->i_nlink);
-	else if (S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode))
-		perms->dev = cpu_to_be32(inode->i_rdev);
-	else
-		perms->dev = 0;
-}
-
 static int hfsplus_file_open(struct inode *inode, struct file *file)
 {
 	if (HFSPLUS_IS_RSRC(inode))
@@ -578,7 +555,7 @@ int hfsplus_cat_write_inode(struct inode *inode)
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
 					sizeof(struct hfsplus_cat_folder));
 		/* simple node checks? */
-		hfsplus_set_perms(inode, &folder->permissions);
+		hfsplus_cat_set_perms(inode, &folder->permissions);
 		folder->access_date = hfsp_ut2mt(inode->i_atime);
 		folder->content_mod_date = hfsp_ut2mt(inode->i_mtime);
 		folder->attribute_mod_date = hfsp_ut2mt(inode->i_ctime);
@@ -600,7 +577,7 @@ int hfsplus_cat_write_inode(struct inode *inode)
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
 					sizeof(struct hfsplus_cat_file));
 		hfsplus_inode_write_fork(inode, &file->data_fork);
-		hfsplus_set_perms(inode, &file->permissions);
+		hfsplus_cat_set_perms(inode, &file->permissions);
 		if ((file->permissions.rootflags | file->permissions.userflags) & HFSPLUS_FLG_IMMUTABLE)
 			file->flags |= cpu_to_be16(HFSPLUS_FILE_LOCKED);
 		else

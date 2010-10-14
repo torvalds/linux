@@ -67,7 +67,7 @@ static void hfsplus_cat_build_key_uni(hfsplus_btree_key *key, u32 parent,
 	key->key_len = cpu_to_be16(6 + ustrlen);
 }
 
-static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
+void hfsplus_cat_set_perms(struct inode *inode, struct hfsplus_perm *perms)
 {
 	if (inode->i_flags & S_IMMUTABLE)
 		perms->rootflags |= HFSPLUS_FLG_IMMUTABLE;
@@ -77,10 +77,18 @@ static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
 		perms->rootflags |= HFSPLUS_FLG_APPEND;
 	else
 		perms->rootflags &= ~HFSPLUS_FLG_APPEND;
-	HFSPLUS_I(inode)->userflags = perms->userflags;
+
+	perms->userflags = HFSPLUS_I(inode)->userflags;
 	perms->mode = cpu_to_be16(inode->i_mode);
 	perms->owner = cpu_to_be32(inode->i_uid);
 	perms->group = cpu_to_be32(inode->i_gid);
+
+	if (S_ISREG(inode->i_mode))
+		perms->dev = cpu_to_be32(inode->i_nlink);
+	else if (S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode))
+		perms->dev = cpu_to_be32(inode->i_rdev);
+	else
+		perms->dev = 0;
 }
 
 static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct inode *inode)
@@ -99,7 +107,7 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 			folder->content_mod_date =
 			folder->attribute_mod_date =
 			folder->access_date = hfsp_now2mt();
-		hfsplus_set_perms(inode, &folder->permissions);
+		hfsplus_cat_set_perms(inode, &folder->permissions);
 		if (inode == sbi->hidden_dir)
 			/* invisible and namelocked */
 			folder->user_info.frFlags = cpu_to_be16(0x5000);
@@ -118,7 +126,7 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 			file->attribute_mod_date =
 			file->access_date = hfsp_now2mt();
 		if (cnid == inode->i_ino) {
-			hfsplus_set_perms(inode, &file->permissions);
+			hfsplus_cat_set_perms(inode, &file->permissions);
 			if (S_ISLNK(inode->i_mode)) {
 				file->user_info.fdType = cpu_to_be32(HFSP_SYMLINK_TYPE);
 				file->user_info.fdCreator = cpu_to_be32(HFSP_SYMLINK_CREATOR);

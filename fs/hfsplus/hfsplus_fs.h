@@ -326,6 +326,7 @@ int hfsplus_create_cat(u32, struct inode *, struct qstr *, struct inode *);
 int hfsplus_delete_cat(u32, struct inode *, struct qstr *);
 int hfsplus_rename_cat(u32, struct inode *, struct qstr *,
 		       struct inode *, struct qstr *);
+void hfsplus_cat_set_perms(struct inode *inode, struct hfsplus_perm *perms);
 
 /* dir.c */
 extern const struct inode_operations hfsplus_dir_inode_operations;
