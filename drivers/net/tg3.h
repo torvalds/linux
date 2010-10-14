@@ -2061,6 +2061,10 @@
 #define  MII_TG3_CTRL_AS_MASTER		0x0800
 #define  MII_TG3_CTRL_ENABLE_AS_MASTER	0x1000
 
+#define MII_TG3_MMD_CTRL		0x0d /* MMD Access Control register */
+#define MII_TG3_MMD_CTRL_DATA_NOINC	0x4000
+#define MII_TG3_MMD_ADDRESS		0x0e /* MMD Address Data register */
+
 #define MII_TG3_EXT_CTRL		0x10 /* Extended control register */
 #define  MII_TG3_EXT_CTRL_FIFO_ELASTIC	0x0001
 #define  MII_TG3_EXT_CTRL_LNK3_LED_MODE	0x0002
