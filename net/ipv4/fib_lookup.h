@@ -12,9 +12,7 @@ struct fib_alias {
 	u8			fa_type;
 	u8			fa_scope;
 	u8			fa_state;
-#ifdef CONFIG_IP_FIB_TRIE
 	struct rcu_head		rcu;
-#endif
 };
 
 #define FA_S_ACCESSED	0x01
