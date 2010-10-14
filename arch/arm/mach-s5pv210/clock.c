@@ -1082,7 +1082,8 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 
 	apll = s5p_get_pll45xx(xtal, __raw_readl(S5P_APLL_CON), pll_4508);
 	mpll = s5p_get_pll45xx(xtal, __raw_readl(S5P_MPLL_CON), pll_4502);
-	epll = s5p_get_pll45xx(xtal, __raw_readl(S5P_EPLL_CON), pll_4500);
+	epll = s5p_get_pll46xx(xtal, __raw_readl(S5P_EPLL_CON),
+				__raw_readl(S5P_EPLL_CON1), pll_4600);
 	vpllsrc = clk_get_rate(&clk_vpllsrc.clk);
 	vpll = s5p_get_pll45xx(vpllsrc, __raw_readl(S5P_VPLL_CON), pll_4502);
 
