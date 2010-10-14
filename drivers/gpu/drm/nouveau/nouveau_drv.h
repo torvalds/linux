@@ -265,7 +265,7 @@ struct nouveau_instmem_engine {
 	void	(*resume)(struct drm_device *dev);
 
 	int	(*populate)(struct drm_device *, struct nouveau_gpuobj *,
-			    uint32_t *size);
+			    u32 *size, u32 align);
 	void	(*clear)(struct drm_device *, struct nouveau_gpuobj *);
 	int	(*bind)(struct drm_device *, struct nouveau_gpuobj *);
 	int	(*unbind)(struct drm_device *, struct nouveau_gpuobj *);
@@ -1121,7 +1121,7 @@ extern void nv04_instmem_takedown(struct drm_device *);
 extern int  nv04_instmem_suspend(struct drm_device *);
 extern void nv04_instmem_resume(struct drm_device *);
 extern int  nv04_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
-				  uint32_t *size);
+				  u32 *size, u32 align);
 extern void nv04_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv04_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv04_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
@@ -1133,7 +1133,7 @@ extern void nv50_instmem_takedown(struct drm_device *);
 extern int  nv50_instmem_suspend(struct drm_device *);
 extern void nv50_instmem_resume(struct drm_device *);
 extern int  nv50_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
-				  uint32_t *size);
+				  u32 *size, u32 align);
 extern void nv50_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv50_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv50_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
@@ -1147,7 +1147,7 @@ extern void nvc0_instmem_takedown(struct drm_device *);
 extern int  nvc0_instmem_suspend(struct drm_device *);
 extern void nvc0_instmem_resume(struct drm_device *);
 extern int  nvc0_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
-				  uint32_t *size);
+				  u32 *size, u32 align);
 extern void nvc0_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nvc0_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nvc0_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);

@@ -28,7 +28,7 @@
 
 int
 nvc0_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
-		      uint32_t *size)
+		      u32 *size, u32 align)
 {
 	int ret;
 
@@ -36,8 +36,8 @@ nvc0_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
 	if (*size == 0)
 		return -EINVAL;
 
-	ret = nouveau_bo_new(dev, NULL, *size, 0, TTM_PL_FLAG_VRAM, 0, 0x0000,
-			     true, false, &gpuobj->im_backing);
+	ret = nouveau_bo_new(dev, NULL, *size, align, TTM_PL_FLAG_VRAM,
+			     0, 0x0000, true, false, &gpuobj->im_backing);
 	if (ret) {
 		NV_ERROR(dev, "error getting PRAMIN backing pages: %d\n", ret);
 		return ret;

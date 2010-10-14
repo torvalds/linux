@@ -99,7 +99,7 @@ nv04_instmem_takedown(struct drm_device *dev)
 
 int
 nv04_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
-		      uint32_t *sz)
+		      u32 *size, u32 align)
 {
 	return 0;
 }

@@ -112,7 +112,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 		NV_DEBUG(dev, "global heap\n");
 
 		/* allocate backing pages, sets vinst */
-		ret = engine->instmem.populate(dev, gpuobj, &size);
+		ret = engine->instmem.populate(dev, gpuobj, &size, align);
 		if (ret) {
 			nouveau_gpuobj_ref(NULL, &gpuobj);
 			return ret;
