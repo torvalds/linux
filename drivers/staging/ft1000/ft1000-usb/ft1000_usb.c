@@ -30,25 +30,22 @@ size_t FileLength;
 
 /* table of devices that work with this driver */
 static struct usb_device_id id_table[] = {
-    {USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
+    {USB_DEVICE(VENDOR_ID, PRODUCT_ID)},
     { },
 };
 
-MODULE_DEVICE_TABLE (usb, id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 static BOOLEAN gPollingfailed = FALSE;
 int ft1000_poll_thread(void *arg)
 {
     int ret = STATUS_SUCCESS;
 
-    while(!kthread_should_stop() )
-    {
+    while (!kthread_should_stop()) {
         msleep(10);
-        if ( ! gPollingfailed )
-        {
+        if (!gPollingfailed) {
             ret = ft1000_poll(arg);
-            if ( ret != STATUS_SUCCESS )
-            {
+            if (ret != STATUS_SUCCESS) {
                 DEBUG("ft1000_poll_thread: polling failed\n");
                 gPollingfailed = TRUE;
             }
@@ -84,11 +81,12 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 	const struct firmware *dsp_fw;
 
 
-    if(!(ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL)))
-    {
-        printk("out of memory allocating device structure\n");
-	return 0;
-    }
+	ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL);
+
+	if (!ft1000dev) {
+		printk(KERN_ERR "out of memory allocating device structure\n");
+		return 0;
+	}
 
     memset(ft1000dev, 0, sizeof(*ft1000dev));
 
@@ -106,7 +104,7 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 
     DEBUG("ft1000_probe is called\n");
     numaltsetting = interface->num_altsetting;
-    DEBUG("ft1000_probe: number of alt settings is :%d\n",numaltsetting);
+    DEBUG("ft1000_probe: number of alt settings is :%d\n", numaltsetting);
     iface_desc = interface->cur_altsetting;
     DEBUG("ft1000_probe: number of endpoints is %d\n", iface_desc->desc.bNumEndpoints);
     DEBUG("ft1000_probe: descriptor type is %d\n", iface_desc->desc.bDescriptorType);
@@ -118,19 +116,16 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
     DEBUG("ft1000_probe: descriptor1 type -- %d\n", iface_desc->endpoint[1].desc.bmAttributes);
     DEBUG("ft1000_probe: descriptor2 type -- %d\n", iface_desc->endpoint[2].desc.bmAttributes);
 
-    for (i=0; i< iface_desc->desc.bNumEndpoints;i++ )
-    {
+    for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = (struct usb_endpoint_descriptor *)&iface_desc->endpoint[i].desc;
                 DEBUG("endpoint %d\n", i);
                 DEBUG("bEndpointAddress=%x, bmAttributes=%x\n", endpoint->bEndpointAddress, endpoint->bmAttributes);
-		if ( (endpoint->bEndpointAddress & USB_DIR_IN) && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK))
-		{
+		if ((endpoint->bEndpointAddress & USB_DIR_IN) && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK)) {
 			ft1000dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
 			DEBUG("ft1000_probe: in: %d\n", endpoint->bEndpointAddress);
 		}
 
-		if (!(endpoint->bEndpointAddress & USB_DIR_IN) && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK))
-		{
+		if (!(endpoint->bEndpointAddress & USB_DIR_IN) && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK)) {
 			ft1000dev->bulk_out_endpointAddr = endpoint->bEndpointAddress;
 			DEBUG("ft1000_probe: out: %d\n", endpoint->bEndpointAddress);
 		}
@@ -159,7 +154,7 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
 
     DEBUG("ft1000_probe: start downloading dsp image...\n");
     init_ft1000_netdev(ft1000dev);
-    pft1000info = (FT1000_INFO *) netdev_priv (ft1000dev->net);
+    pft1000info = (FT1000_INFO *) netdev_priv(ft1000dev->net);
 
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
@@ -172,20 +167,16 @@ static int ft1000_probe(struct usb_interface *interface, const struct usb_device
     pft1000info->pPollThread = kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
 	msleep(500);
 
-    while (!pft1000info->CardReady)
-    {
-        if ( gPollingfailed )
-        {
-            if ( pft1000info->pPollThread )
-            {
-                kthread_stop(pft1000info->pPollThread );
-            }
-		ret = -EIO;
-		goto err_load;
-        }
-        msleep(100);
-        DEBUG("ft1000_probe::Waiting for Card Ready\n");
-    }
+	while (!pft1000info->CardReady) {
+		if (gPollingfailed) {
+			if (pft1000info->pPollThread)
+				kthread_stop(pft1000info->pPollThread);
+			ret = -EIO;
+			goto err_load;
+		}
+		msleep(100);
+		DEBUG("ft1000_probe::Waiting for Card Ready\n");
+	}
 
 
     DEBUG("ft1000_probe::Card Ready!!!! Registering network device\n");
@@ -228,18 +219,14 @@ static void ft1000_disconnect(struct usb_interface *interface)
 
 
 
-    if (pft1000info)
-    {
+    if (pft1000info) {
 		ft1000CleanupProc(pft1000info);
-        if ( pft1000info->pPollThread )
-        {
+        if (pft1000info->pPollThread)
             kthread_stop(pft1000info->pPollThread );
-        }
 
         DEBUG("ft1000_disconnect: threads are terminated\n");
 
-        if (pft1000info->pFt1000Dev->net)
-        {
+        if (pft1000info->pFt1000Dev->net) {
             DEBUG("ft1000_disconnect: destroy char driver\n");
             ft1000_DestroyDevice(pft1000info->pFt1000Dev->net);
             unregister_netdev(pft1000info->pFt1000Dev->net);
