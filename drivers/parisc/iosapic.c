@@ -615,17 +615,10 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 }
 
 
-static struct vector_info *iosapic_get_vector(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	return desc->chip_data;
-}
-
 static void iosapic_disable_irq(unsigned int irq)
 {
 	unsigned long flags;
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1;
 
 	spin_lock_irqsave(&iosapic_lock, flags);
@@ -637,7 +630,7 @@ static void iosapic_disable_irq(unsigned int irq)
 
 static void iosapic_enable_irq(unsigned int irq)
 {
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1;
 
 	/* data is initialized by fixup_irq */
@@ -688,7 +681,7 @@ printk("\n");
  */
 static void iosapic_end_irq(unsigned int irq)
 {
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	DBG(KERN_DEBUG "end_irq(%d): eoi(%p, 0x%x)\n", irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
@@ -705,7 +698,7 @@ static unsigned int iosapic_startup_irq(unsigned int irq)
 static int iosapic_set_affinity_irq(unsigned int irq,
 				     const struct cpumask *dest)
 {
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1, dummy_d0;
 	unsigned long flags;
 	int dest_cpu;

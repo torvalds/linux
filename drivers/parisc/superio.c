@@ -139,7 +139,7 @@ superio_interrupt(int parent_irq, void *devp)
 	}
 
 	/* Call the appropriate device's interrupt */
-	__do_IRQ(local_irq);
+	generic_handle_irq(local_irq);
 
 	/* set EOI - forces a new interrupt if a lower priority device
 	 * still needs service.
@@ -363,9 +363,7 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		desc->chip = &superio_interrupt_type;
+		set_irq_chip_and_handler(i, &superio_interrupt_type, parisc_do_IRQ);
 	}
 
 	/*

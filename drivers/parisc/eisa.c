@@ -233,7 +233,7 @@ static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)
 	}
 	spin_unlock_irqrestore(&eisa_irq_lock, flags);
 
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
    
 	spin_lock_irqsave(&eisa_irq_lock, flags);
 	/* unmask */
@@ -346,10 +346,10 @@ static int __init eisa_probe(struct parisc_device *dev)
 	}
 	
 	/* Reserve IRQ2 */
-	irq_to_desc(2)->action = &irq2_action;
-	
+	setup_irq(2, &irq2_action);
 	for (i = 0; i < 16; i++) {
-		irq_to_desc(i)->chip = &eisa_interrupt_type;
+		set_irq_chip_and_handler(i, &eisa_interrupt_type,
+			parisc_do_IRQ);
 	}
 	
 	EISA_bus = 1;

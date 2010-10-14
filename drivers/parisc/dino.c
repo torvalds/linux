@@ -298,8 +298,7 @@ static struct pci_port_ops dino_port_ops = {
 
 static void dino_disable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct dino_device *dino_dev = desc->chip_data;
+	struct dino_device *dino_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, irq);
@@ -311,8 +310,7 @@ static void dino_disable_irq(unsigned int irq)
 
 static void dino_enable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct dino_device *dino_dev = desc->chip_data;
+	struct dino_device *dino_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
@@ -391,7 +389,7 @@ ilr_again:
 		int irq = dino_dev->global_irq[local_irq];
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
 			__func__, irq, intr_dev, mask);
-		__do_IRQ(irq);
+		generic_handle_irq(irq);
 		mask &= ~(1 << local_irq);
 	} while (mask);
 

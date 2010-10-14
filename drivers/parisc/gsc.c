@@ -86,7 +86,7 @@ irqreturn_t gsc_asic_intr(int gsc_asic_irq, void *dev)
 	do {
 		int local_irq = __ffs(irr);
 		unsigned int irq = gsc_asic->global_irq[local_irq];
-		__do_IRQ(irq);
+		generic_handle_irq(irq);
 		irr &= ~(1 << local_irq);
 	} while (irr);
 
@@ -107,8 +107,7 @@ int gsc_find_local_irq(unsigned int irq, int *global_irqs, int limit)
 
 static void gsc_asic_disable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct gsc_asic *irq_dev = desc->chip_data;
+	struct gsc_asic *irq_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, irq_dev->global_irq, 32);
 	u32 imr;
 
@@ -123,8 +122,7 @@ static void gsc_asic_disable_irq(unsigned int irq)
 
 static void gsc_asic_enable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct gsc_asic *irq_dev = desc->chip_data;
+	struct gsc_asic *irq_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, irq_dev->global_irq, 32);
 	u32 imr;
 
@@ -160,14 +158,13 @@ static struct irq_chip gsc_asic_interrupt_type = {
 int gsc_assign_irq(struct irq_chip *type, void *data)
 {
 	static int irq = GSC_IRQ_BASE;
-	struct irq_desc *desc;
 
 	if (irq > GSC_IRQ_MAX)
 		return NO_IRQ;
 
-	desc = irq_to_desc(irq);
-	desc->chip = type;
-	desc->chip_data = data;
+	set_irq_chip_and_handler(irq, type, parisc_do_IRQ);
+	set_irq_chip_data(irq, data);
+
 	return irq++;
 }
 

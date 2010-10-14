@@ -151,7 +151,7 @@ static struct irq_chip cpu_interrupt_type = {
 	.enable		= cpu_enable_irq,
 	.disable	= cpu_disable_irq,
 	.ack		= cpu_ack_irq,
-	.end		= cpu_end_irq,
+	.eoi		= cpu_end_irq,
 #ifdef CONFIG_SMP
 	.set_affinity	= cpu_set_affinity_irq,
 #endif
@@ -247,10 +247,11 @@ int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 	if (irq_desc[irq].chip != &cpu_interrupt_type)
 		return -EBUSY;
 
+	/* for iosapic interrupts */
 	if (type) {
-		irq_desc[irq].chip = type;
-		irq_desc[irq].chip_data = data;
-		cpu_interrupt_type.enable(irq);
+		set_irq_chip_and_handler(irq, type, parisc_do_IRQ);
+		set_irq_chip_data(irq, data);
+		cpu_enable_irq(irq);
 	}
 	return 0;
 }
@@ -368,7 +369,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		goto set_out;
 	}
 #endif
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
 
  out:
 	irq_exit();
@@ -398,14 +399,14 @@ static void claim_cpu_irqs(void)
 {
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
-		irq_desc[i].chip = &cpu_interrupt_type;
+		set_irq_chip_and_handler(i, &cpu_interrupt_type, parisc_do_IRQ);
 	}
 
-	irq_desc[TIMER_IRQ].action = &timer_action;
-	irq_desc[TIMER_IRQ].status = IRQ_PER_CPU;
+	set_irq_handler(TIMER_IRQ, handle_percpu_irq);
+	setup_irq(TIMER_IRQ, &timer_action);
 #ifdef CONFIG_SMP
-	irq_desc[IPI_IRQ].action = &ipi_action;
-	irq_desc[IPI_IRQ].status = IRQ_PER_CPU;
+	set_irq_handler(IPI_IRQ, handle_percpu_irq);
+	setup_irq(IPI_IRQ, &ipi_action);
 #endif
 }
 
@@ -422,4 +423,9 @@ void __init init_IRQ(void)
 #endif
         set_eiem(cpu_eiem);	/* EIEM : enable all external intr */
 
+}
+
+void parisc_do_IRQ(unsigned int irq, struct irq_desc *desc)
+{
+	__do_IRQ(irq);
 }
