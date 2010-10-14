@@ -749,8 +749,8 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 	struct pch_spi_data *data;
 	int bpw;
 
-	dev_dbg(&data->master->dev, "%s data initialized\n", __func__);
 	data = container_of(pwork, struct pch_spi_data, work);
+	dev_dbg(&data->master->dev, "%s data initialized\n", __func__);
 
 	spin_lock(&data->lock);
 
