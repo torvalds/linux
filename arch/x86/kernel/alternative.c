@@ -637,7 +637,8 @@ void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
 	tpp.len = len;
 	atomic_set(&stop_machine_first, 1);
 	wrote_text = 0;
-	stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
+	/* Use __stop_machine() because the caller already got online_cpus. */
+	__stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
 	return addr;
 }
 
