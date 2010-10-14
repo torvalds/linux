@@ -1121,4 +1121,4 @@ static void __exit tegra_dc_module_exit(void)
 }
 
 module_exit(tegra_dc_module_exit);
-late_initcall(tegra_dc_module_init);
+module_init(tegra_dc_module_init);
