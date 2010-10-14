@@ -241,7 +241,7 @@ int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 
 	/* for iosapic interrupts */
 	if (type) {
-		set_irq_chip_and_handler(irq, type, parisc_do_IRQ);
+		set_irq_chip_and_handler(irq, type, handle_level_irq);
 		set_irq_chip_data(irq, data);
 		cpu_unmask_irq(irq);
 	}

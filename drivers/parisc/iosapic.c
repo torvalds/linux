@@ -615,7 +615,7 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 }
 
 
-static void iosapic_disable_irq(unsigned int irq)
+static void iosapic_mask_irq(unsigned int irq)
 {
 	unsigned long flags;
 	struct vector_info *vi = get_irq_chip_data(irq);
@@ -628,7 +628,7 @@ static void iosapic_disable_irq(unsigned int irq)
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 }
 
-static void iosapic_enable_irq(unsigned int irq)
+static void iosapic_unmask_irq(unsigned int irq)
 {
 	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1;
@@ -669,29 +669,7 @@ printk("\n");
 	DBG(KERN_DEBUG "enable_irq(%d): eoi(%p, 0x%x)\n", irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
-}
-
-/*
- * PARISC only supports PCI devices below I/O SAPIC.
- * PCI only supports level triggered in order to share IRQ lines.
- * ergo I/O SAPIC must always issue EOI on parisc.
- *
- * i386/ia64 support ISA devices and have to deal with
- * edge-triggered interrupts too.
- */
-static void iosapic_end_irq(unsigned int irq)
-{
-	struct vector_info *vi = get_irq_chip_data(irq);
-	DBG(KERN_DEBUG "end_irq(%d): eoi(%p, 0x%x)\n", irq,
-			vi->eoi_addr, vi->eoi_data);
-	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
 	cpu_eoi_irq(irq);
-}
-
-static unsigned int iosapic_startup_irq(unsigned int irq)
-{
-	iosapic_enable_irq(irq);
-	return 0;
 }
 
 #ifdef CONFIG_SMP
@@ -723,13 +701,10 @@ static int iosapic_set_affinity_irq(unsigned int irq,
 #endif
 
 static struct irq_chip iosapic_interrupt_type = {
-	.name	 =	"IO-SAPIC-level",
-	.startup =	iosapic_startup_irq,
-	.shutdown =	iosapic_disable_irq,
-	.enable =	iosapic_enable_irq,
-	.disable =	iosapic_disable_irq,
-	.ack =		cpu_ack_irq,
-	.end =		iosapic_end_irq,
+	.name	=	"IO-SAPIC-level",
+	.unmask	=	iosapic_unmask_irq,
+	.mask	=	iosapic_mask_irq,
+	.ack	=	cpu_ack_irq,
 #ifdef CONFIG_SMP
 	.set_affinity =	iosapic_set_affinity_irq,
 #endif
