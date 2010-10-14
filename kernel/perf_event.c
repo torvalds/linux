@@ -5551,10 +5551,18 @@ SYSCALL_DEFINE5(perf_event_open,
 			group_leader = NULL;
 	}
 
+	if (pid != -1) {
+		task = find_lively_task_by_vpid(pid);
+		if (IS_ERR(task)) {
+			err = PTR_ERR(task);
+			goto err_group_fd;
+		}
+	}
+
 	event = perf_event_alloc(&attr, cpu, group_leader, NULL, NULL);
 	if (IS_ERR(event)) {
 		err = PTR_ERR(event);
-		goto err_fd;
+		goto err_task;
 	}
 
 	/*
@@ -5586,21 +5594,13 @@ SYSCALL_DEFINE5(perf_event_open,
 		}
 	}
 
-	if (pid != -1) {
-		task = find_lively_task_by_vpid(pid);
-		if (IS_ERR(task)) {
-			err = PTR_ERR(task);
-			goto err_group_fd;
-		}
-	}
-
 	/*
 	 * Get the target context (task or percpu):
 	 */
 	ctx = find_get_context(pmu, task, cpu);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
-		goto err_task;
+		goto err_alloc;
 	}
 
 	/*
@@ -5696,12 +5696,13 @@ SYSCALL_DEFINE5(perf_event_open,
 
 err_context:
 	put_ctx(ctx);
+err_alloc:
+	free_event(event);
 err_task:
 	if (task)
 		put_task_struct(task);
 err_group_fd:
 	fput_light(group_file, fput_needed);
-	free_event(event);
 err_fd:
 	put_unused_fd(event_fd);
 	return err;
