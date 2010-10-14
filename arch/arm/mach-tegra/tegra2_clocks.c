@@ -296,6 +296,8 @@ static void tegra2_super_clk_init(struct clk *c)
 	}
 	BUG_ON(sel->input == NULL);
 	c->parent = sel->input;
+
+	INIT_LIST_HEAD(&c->u.shared_bus.list);
 }
 
 static int tegra2_super_clk_enable(struct clk *c)
@@ -1125,6 +1127,68 @@ static struct clk_ops tegra_cdev_clk_ops = {
 	.disable		= &tegra2_cdev_clk_disable,
 };
 
+/* shared bus ops */
+/*
+ * Some clocks may have multiple downstream users that need to request a
+ * higher clock rate.  Shared bus clocks provide a unique shared_bus_user
+ * clock to each user.  The frequency of the bus is set to the highest
+ * enabled shared_bus_user clock, with a minimum value set by the
+ * shared bus.
+ */
+static void tegra_clk_shared_bus_update(struct clk *bus)
+{
+	struct clk *c;
+	unsigned long rate = bus->u.shared_bus.min_rate;
+
+	list_for_each_entry(c, &bus->u.shared_bus.list, u.shared_bus_user.node)
+		if (c->u.shared_bus_user.enabled)
+			rate = max(c->u.shared_bus_user.rate, rate);
+
+	if (rate != bus->rate)
+		clk_set_rate_locked(bus, rate);
+};
+
+static void tegra_clk_shared_bus_init(struct clk *c)
+{
+	c->max_rate = c->parent->max_rate;
+	c->u.shared_bus_user.rate = c->parent->max_rate;
+	c->state = OFF;
+#ifdef CONFIG_DEBUG_FS
+	c->set = 1;
+#endif
+
+	list_add_tail(&c->u.shared_bus_user.node,
+		&c->parent->u.shared_bus.list);
+}
+
+static int tegra_clk_shared_bus_set_rate(struct clk *c, unsigned long rate)
+{
+	c->u.shared_bus_user.rate = rate;
+	tegra_clk_shared_bus_update(c->parent);
+	return 0;
+}
+
+static int tegra_clk_shared_bus_enable(struct clk *c)
+{
+	c->u.shared_bus_user.enabled = true;
+	tegra_clk_shared_bus_update(c->parent);
+	return 0;
+}
+
+static void tegra_clk_shared_bus_disable(struct clk *c)
+{
+	c->u.shared_bus_user.enabled = false;
+	tegra_clk_shared_bus_update(c->parent);
+}
+
+static struct clk_ops tegra_clk_shared_bus_ops = {
+	.init = tegra_clk_shared_bus_init,
+	.enable = tegra_clk_shared_bus_enable,
+	.disable = tegra_clk_shared_bus_disable,
+	.set_rate = tegra_clk_shared_bus_set_rate,
+};
+
+
 /* Clock definitions */
 static struct clk tegra_clk_32k = {
 	.name = "clk_32k",
@@ -1642,6 +1706,9 @@ static struct clk tegra_clk_sclk = {
 	.reg	= 0x28,
 	.ops	= &tegra_super_ops,
 	.max_rate = 240000000,
+	.u.shared_bus = {
+		.min_rate = 120000000,
+	},
 };
 
 static struct clk tegra_clk_virtual_cpu = {
@@ -1783,6 +1850,17 @@ static struct clk_mux_sel mux_clk_32k[] = {
 		},					\
 	}
 
+#define SHARED_CLK(_name, _dev, _con, _parent)		\
+	{						\
+		.name      = _name,			\
+		.lookup    = {				\
+			.dev_id    = _dev,		\
+			.con_id    = _con,		\
+		},					\
+		.ops       = &tegra_clk_shared_bus_ops,	\
+		.parent = _parent,			\
+	}
+
 struct clk tegra_list_clks[] = {
 	PERIPH_CLK("rtc",	"rtc-tegra",		NULL,	4,	0,	32768,     mux_clk_32k,			PERIPH_NO_RESET),
 	PERIPH_CLK("timer",	"timer",		NULL,	5,	0,	26000000,  mux_clk_m,			0),
@@ -1852,6 +1930,8 @@ struct clk tegra_list_clks[] = {
 	PERIPH_CLK("csi",	"tegra_camera",		"csi",	52,	0,	72000000,  mux_pllp_out3,		0),
 	PERIPH_CLK("isp",	"tegra_camera",		"isp",	23,	0,	150000000, mux_clk_m,			0), /* same frequency as VI */
 	PERIPH_CLK("csus",	"tegra_camera",		"csus",	92,	0,	150000000, mux_clk_m,			PERIPH_NO_RESET),
+
+	SHARED_CLK("avp.sclk",	"tegra-avp",		"sclk",	&tegra_clk_sclk),
 };
 
 #define CLK_DUPLICATE(_name, _dev, _con)		\

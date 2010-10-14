@@ -127,6 +127,15 @@ struct clk {
 			struct clk			*main;
 			struct clk			*backup;
 		} cpu;
+		struct {
+			struct list_head		list;
+			unsigned long			min_rate;
+		} shared_bus;
+		struct {
+			struct list_head		node;
+			bool				enabled;
+			unsigned long			rate;
+		} shared_bus_user;
 	} u;
 };
 
