@@ -1707,6 +1707,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
 
+	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
+			fault handling.
+
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
