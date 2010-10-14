@@ -4573,12 +4573,11 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 			    u32 opaque_key, u32 dest_idx_unmasked)
 {
 	struct tg3_rx_buffer_desc *desc;
-	struct ring_info *map, *src_map;
+	struct ring_info *map;
 	struct sk_buff *skb;
 	dma_addr_t mapping;
 	int skb_size, dest_idx;
 
-	src_map = NULL;
 	switch (opaque_key) {
 	case RXD_OPAQUE_RING_STD:
 		dest_idx = dest_idx_unmasked & tp->rx_std_ring_mask;
