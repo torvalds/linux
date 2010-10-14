@@ -4669,7 +4669,7 @@ static void sw_perf_event_destroy(struct perf_event *event)
 
 	WARN_ON(event->parent);
 
-	atomic_dec(&perf_swevent_enabled[event_id]);
+	jump_label_dec(&perf_swevent_enabled[event_id]);
 	swevent_hlist_put(event);
 }
 
@@ -4699,7 +4699,7 @@ static int perf_swevent_init(struct perf_event *event)
 		if (err)
 			return err;
 
-		atomic_inc(&perf_swevent_enabled[event_id]);
+		jump_label_inc(&perf_swevent_enabled[event_id]);
 		event->destroy = sw_perf_event_destroy;
 	}
 

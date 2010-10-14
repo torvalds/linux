@@ -1012,18 +1012,20 @@ static inline void perf_fetch_caller_regs(struct pt_regs *regs)
 	perf_arch_fetch_caller_regs(regs, CALLER_ADDR0);
 }
 
-static inline void
+static __always_inline void
 perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 {
-	if (atomic_read(&perf_swevent_enabled[event_id])) {
-		struct pt_regs hot_regs;
+	struct pt_regs hot_regs;
 
-		if (!regs) {
-			perf_fetch_caller_regs(&hot_regs);
-			regs = &hot_regs;
-		}
-		__perf_sw_event(event_id, nr, nmi, regs, addr);
+	JUMP_LABEL(&perf_swevent_enabled[event_id], have_event);
+	return;
+
+have_event:
+	if (!regs) {
+		perf_fetch_caller_regs(&hot_regs);
+		regs = &hot_regs;
 	}
+	__perf_sw_event(event_id, nr, nmi, regs, addr);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
