@@ -61,8 +61,8 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		return;
 
 	ret = -ENODEV;
-	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED)) {
-		mutex_lock(&dev_priv->channel->mutex);
+	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
+	    mutex_trylock(&dev_priv->channel->mutex)) {
 		if (dev_priv->card_type < NV_50)
 			ret = nv04_fbcon_fillrect(info, rect);
 		else
@@ -91,8 +91,8 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 		return;
 
 	ret = -ENODEV;
-	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED)) {
-		mutex_lock(&dev_priv->channel->mutex);
+	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
+	    mutex_trylock(&dev_priv->channel->mutex)) {
 		if (dev_priv->card_type < NV_50)
 			ret = nv04_fbcon_copyarea(info, image);
 		else
@@ -121,8 +121,8 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 
 	ret = -ENODEV;
-	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED)) {
-		mutex_lock(&dev_priv->channel->mutex);
+	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
+	    mutex_trylock(&dev_priv->channel->mutex)) {
 		if (dev_priv->card_type < NV_50)
 			ret = nv04_fbcon_imageblit(info, image);
 		else
@@ -153,7 +153,9 @@ nouveau_fbcon_sync(struct fb_info *info)
 	    info->flags & FBINFO_HWACCEL_DISABLED)
 		return 0;
 
-	mutex_lock(&chan->mutex);
+	if (!mutex_trylock(&chan->mutex))
+		return 0;
+
 	ret = RING_SPACE(chan, 4);
 	if (ret) {
 		mutex_unlock(&chan->mutex);
