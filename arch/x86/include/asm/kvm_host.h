@@ -83,11 +83,14 @@
 #define KVM_NR_FIXED_MTRR_REGION 88
 #define KVM_NR_VAR_MTRR 8
 
+#define ASYNC_PF_PER_VCPU 64
+
 extern spinlock_t kvm_lock;
 extern struct list_head vm_list;
 
 struct kvm_vcpu;
 struct kvm;
+struct kvm_async_pf;
 
 enum kvm_reg {
 	VCPU_REGS_RAX = 0,
@@ -412,6 +415,11 @@ struct kvm_vcpu_arch {
 	u64 hv_vapic;
 
 	cpumask_var_t wbinvd_dirty_mask;
+
+	struct {
+		bool halted;
+		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
+	} apf;
 };
 
 struct kvm_arch {
@@ -583,6 +591,10 @@ struct kvm_x86_ops {
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	const struct trace_print_flags *exit_reasons_str;
+};
+
+struct kvm_arch_async_pf {
+	gfn_t gfn;
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
@@ -798,5 +810,11 @@ void kvm_define_shared_msr(unsigned index, u32 msr);
 void kvm_set_shared_msr(unsigned index, u64 val, u64 mask);
 
 bool kvm_is_linear_rip(struct kvm_vcpu *vcpu, unsigned long linear_rip);
+
+void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+				     struct kvm_async_pf *work);
+void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+				 struct kvm_async_pf *work);
+extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 #endif /* _ASM_X86_KVM_HOST_H */

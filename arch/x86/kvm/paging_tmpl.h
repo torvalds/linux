@@ -568,7 +568,9 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
-	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
+
+	if (try_async_pf(vcpu, walker.gfn, addr, &pfn))
+		return 0;
 
 	/* mmio */
 	if (is_error_pfn(pfn))

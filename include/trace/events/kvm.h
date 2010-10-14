@@ -185,6 +185,96 @@ TRACE_EVENT(kvm_age_page,
 		  __entry->referenced ? "YOUNG" : "OLD")
 );
 
+#ifdef CONFIG_KVM_ASYNC_PF
+TRACE_EVENT(
+	kvm_try_async_get_page,
+	TP_PROTO(bool async, u64 pfn),
+	TP_ARGS(async, pfn),
+
+	TP_STRUCT__entry(
+		__field(__u64, pfn)
+		),
+
+	TP_fast_assign(
+		__entry->pfn = (!async) ? pfn : (u64)-1;
+		),
+
+	TP_printk("pfn %#llx", __entry->pfn)
+);
+
+TRACE_EVENT(
+	kvm_async_pf_not_present,
+	TP_PROTO(u64 gva),
+	TP_ARGS(gva),
+
+	TP_STRUCT__entry(
+		__field(__u64, gva)
+		),
+
+	TP_fast_assign(
+		__entry->gva = gva;
+		),
+
+	TP_printk("gva %#llx not present", __entry->gva)
+);
+
+TRACE_EVENT(
+	kvm_async_pf_ready,
+	TP_PROTO(u64 gva),
+	TP_ARGS(gva),
+
+	TP_STRUCT__entry(
+		__field(__u64, gva)
+		),
+
+	TP_fast_assign(
+		__entry->gva = gva;
+		),
+
+	TP_printk("gva %#llx ready", __entry->gva)
+);
+
+TRACE_EVENT(
+	kvm_async_pf_completed,
+	TP_PROTO(unsigned long address, struct page *page, u64 gva),
+	TP_ARGS(address, page, gva),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, address)
+		__field(pfn_t, pfn)
+		__field(u64, gva)
+		),
+
+	TP_fast_assign(
+		__entry->address = address;
+		__entry->pfn = page ? page_to_pfn(page) : 0;
+		__entry->gva = gva;
+		),
+
+	TP_printk("gva %#llx address %#lx pfn %#llx",  __entry->gva,
+		  __entry->address, __entry->pfn)
+);
+
+TRACE_EVENT(
+	kvm_async_pf_doublefault,
+	TP_PROTO(u64 gva, u64 gfn),
+	TP_ARGS(gva, gfn),
+
+	TP_STRUCT__entry(
+		__field(u64, gva)
+		__field(u64, gfn)
+		),
+
+	TP_fast_assign(
+		__entry->gva = gva;
+		__entry->gfn = gfn;
+		),
+
+	TP_printk("gva = %#llx, gfn = %#llx", __entry->gva, __entry->gfn)
+);
+
+#endif
+
 #endif /* _TRACE_KVM_MAIN_H */
 
 /* This part must be outside protection */

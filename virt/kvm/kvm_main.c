@@ -55,6 +55,7 @@
 #include <asm-generic/bitops/le.h>
 
 #include "coalesced_mmio.h"
+#include "async_pf.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/kvm.h>
@@ -186,6 +187,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
 	init_waitqueue_head(&vcpu->wq);
+	kvm_async_pf_vcpu_init(vcpu);
 
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page) {
@@ -946,15 +948,20 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
-static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic)
+static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
+			bool *async)
 {
 	struct page *page[1];
-	int npages;
+	int npages = 0;
 	pfn_t pfn;
 
-	if (atomic)
+	/* we can do it either atomically or asynchronously, not both */
+	BUG_ON(atomic && async);
+
+	if (atomic || async)
 		npages = __get_user_pages_fast(addr, 1, 1, page);
-	else {
+
+	if (unlikely(npages != 1) && !atomic) {
 		might_sleep();
 		npages = get_user_pages_fast(addr, 1, 1, page);
 	}
@@ -976,6 +983,9 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic)
 
 		if (vma == NULL || addr < vma->vm_start ||
 		    !(vma->vm_flags & VM_PFNMAP)) {
+			if (async && !(vma->vm_flags & VM_PFNMAP) &&
+			    (vma->vm_flags & VM_WRITE))
+				*async = true;
 			up_read(&current->mm->mmap_sem);
 return_fault_page:
 			get_page(fault_page);
@@ -993,13 +1003,16 @@ return_fault_page:
 
 pfn_t hva_to_pfn_atomic(struct kvm *kvm, unsigned long addr)
 {
-	return hva_to_pfn(kvm, addr, true);
+	return hva_to_pfn(kvm, addr, true, NULL);
 }
 EXPORT_SYMBOL_GPL(hva_to_pfn_atomic);
 
-static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic)
+static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async)
 {
 	unsigned long addr;
+
+	if (async)
+		*async = false;
 
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr)) {
@@ -1007,18 +1020,24 @@ static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic)
 		return page_to_pfn(bad_page);
 	}
 
-	return hva_to_pfn(kvm, addr, atomic);
+	return hva_to_pfn(kvm, addr, atomic, async);
 }
 
 pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
 {
-	return __gfn_to_pfn(kvm, gfn, true);
+	return __gfn_to_pfn(kvm, gfn, true, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
 
+pfn_t gfn_to_pfn_async(struct kvm *kvm, gfn_t gfn, bool *async)
+{
+	return __gfn_to_pfn(kvm, gfn, false, async);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn_async);
+
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 {
-	return __gfn_to_pfn(kvm, gfn, false);
+	return __gfn_to_pfn(kvm, gfn, false, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
 
@@ -1026,7 +1045,7 @@ pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
-	return hva_to_pfn(kvm, addr, false);
+	return hva_to_pfn(kvm, addr, false, NULL);
 }
 
 int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
@@ -2336,6 +2355,10 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 		goto out_free_5;
 	}
 
+	r = kvm_async_pf_init();
+	if (r)
+		goto out_free;
+
 	kvm_chardev_ops.owner = module;
 	kvm_vm_fops.owner = module;
 	kvm_vcpu_fops.owner = module;
@@ -2343,7 +2366,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	r = misc_register(&kvm_dev);
 	if (r) {
 		printk(KERN_ERR "kvm: misc device register failed\n");
-		goto out_free;
+		goto out_unreg;
 	}
 
 	kvm_preempt_ops.sched_in = kvm_sched_in;
@@ -2353,6 +2376,8 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 
 	return 0;
 
+out_unreg:
+	kvm_async_pf_deinit();
 out_free:
 	kmem_cache_destroy(kvm_vcpu_cache);
 out_free_5:
@@ -2385,6 +2410,7 @@ void kvm_exit(void)
 	kvm_exit_debug();
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);
+	kvm_async_pf_deinit();
 	sysdev_unregister(&kvm_sysdev);
 	sysdev_class_unregister(&kvm_sysdev_class);
 	unregister_reboot_notifier(&kvm_reboot_notifier);

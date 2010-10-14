@@ -18,9 +18,11 @@
  *
  */
 
+#include "irq.h"
 #include "mmu.h"
 #include "x86.h"
 #include "kvm_cache_regs.h"
+#include "x86.h"
 
 #include <linux/kvm_host.h>
 #include <linux/types.h>
@@ -2587,6 +2589,50 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 			     error_code & PFERR_WRITE_MASK, gfn);
 }
 
+int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
+{
+	struct kvm_arch_async_pf arch;
+	arch.gfn = gfn;
+
+	return kvm_setup_async_pf(vcpu, gva, gfn, &arch);
+}
+
+static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(!irqchip_in_kernel(vcpu->kvm) ||
+		     kvm_event_needs_reinjection(vcpu)))
+		return false;
+
+	return kvm_x86_ops->interrupt_allowed(vcpu);
+}
+
+static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+			 pfn_t *pfn)
+{
+	bool async;
+
+	*pfn = gfn_to_pfn_async(vcpu->kvm, gfn, &async);
+
+	if (!async)
+		return false; /* *pfn has correct page already */
+
+	put_page(pfn_to_page(*pfn));
+
+	if (can_do_async_pf(vcpu)) {
+		trace_kvm_try_async_get_page(async, *pfn);
+		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
+			trace_kvm_async_pf_doublefault(gva, gfn);
+			kvm_make_request(KVM_REQ_APF_HALT, vcpu);
+			return true;
+		} else if (kvm_arch_setup_async_pf(vcpu, gva, gfn))
+			return true;
+	}
+
+	*pfn = gfn_to_pfn(vcpu->kvm, gfn);
+
+	return false;
+}
+
 static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 				u32 error_code)
 {
@@ -2609,7 +2655,11 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
-	pfn = gfn_to_pfn(vcpu->kvm, gfn);
+
+	if (try_async_pf(vcpu, gfn, gpa, &pfn))
+		return 0;
+
+	/* mmio */
 	if (is_error_pfn(pfn))
 		return kvm_handle_bad_page(vcpu->kvm, gfn, pfn);
 	spin_lock(&vcpu->kvm->mmu_lock);
