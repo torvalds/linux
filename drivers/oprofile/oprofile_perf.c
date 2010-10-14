@@ -236,7 +236,7 @@ static int __init init_driverfs(void)
 	return ret;
 }
 
-static void __exit exit_driverfs(void)
+static void exit_driverfs(void)
 {
 	platform_device_unregister(oprofile_pdev);
 	platform_driver_unregister(&oprofile_driver);
