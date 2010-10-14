@@ -2394,7 +2394,7 @@ err_disable_device:
 	return ret;
 }
 
-static const struct pci_device_id pch_gbe_pcidev_id[] = {
+static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
 	 .subvendor = PCI_ANY_ID,
