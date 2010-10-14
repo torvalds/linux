@@ -927,10 +927,8 @@
 struct b43_wldev;
 
 struct b43_chanspec {
-	u8 channel;
-	u8 sideband;
-	u8 b_width;
-	u8 b_freq;
+	u16 center_freq;
+	enum nl80211_channel_type channel_type;
 };
 
 struct b43_phy_n_iq_comp {
@@ -984,7 +982,6 @@ struct b43_phy_n {
 	u16 papd_epsilon_offset[2];
 	s32 preamble_override;
 	u32 bb_mult_save;
-	struct b43_chanspec radio_chanspec;
 
 	bool gain_boost;
 	bool elna_gain_config;
