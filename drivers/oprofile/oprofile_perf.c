@@ -4,6 +4,7 @@
  * Perf-events backend for OProfile.
  */
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/oprofile.h>
 #include <linux/slab.h>
 
