@@ -421,6 +421,7 @@ struct kvm_vcpu_arch {
 		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
 		struct gfn_to_hva_cache data;
 		u64 msr_val;
+		u32 id;
 	} apf;
 };
 
@@ -596,6 +597,7 @@ struct kvm_x86_ops {
 };
 
 struct kvm_arch_async_pf {
+	u32 token;
 	gfn_t gfn;
 };
 
@@ -819,6 +821,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 				 struct kvm_async_pf *work);
 void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 			       struct kvm_async_pf *work);
+bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
 extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 #endif /* _ASM_X86_KVM_HOST_H */

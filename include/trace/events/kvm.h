@@ -204,34 +204,39 @@ TRACE_EVENT(
 
 TRACE_EVENT(
 	kvm_async_pf_not_present,
-	TP_PROTO(u64 gva),
-	TP_ARGS(gva),
+	TP_PROTO(u64 token, u64 gva),
+	TP_ARGS(token, gva),
 
 	TP_STRUCT__entry(
+		__field(__u64, token)
 		__field(__u64, gva)
 		),
 
 	TP_fast_assign(
+		__entry->token = token;
 		__entry->gva = gva;
 		),
 
-	TP_printk("gva %#llx not present", __entry->gva)
+	TP_printk("token %#llx gva %#llx not present", __entry->token,
+		  __entry->gva)
 );
 
 TRACE_EVENT(
 	kvm_async_pf_ready,
-	TP_PROTO(u64 gva),
-	TP_ARGS(gva),
+	TP_PROTO(u64 token, u64 gva),
+	TP_ARGS(token, gva),
 
 	TP_STRUCT__entry(
+		__field(__u64, token)
 		__field(__u64, gva)
 		),
 
 	TP_fast_assign(
+		__entry->token = token;
 		__entry->gva = gva;
 		),
 
-	TP_printk("gva %#llx ready", __entry->gva)
+	TP_printk("token %#llx gva %#llx ready", __entry->token, __entry->gva)
 );
 
 TRACE_EVENT(

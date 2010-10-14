@@ -124,7 +124,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 {
 	struct kvm_async_pf *work;
 
-	if (list_empty_careful(&vcpu->async_pf.done))
+	if (list_empty_careful(&vcpu->async_pf.done) ||
+	    !kvm_arch_can_inject_async_page_present(vcpu))
 		return;
 
 	spin_lock(&vcpu->async_pf.lock);
