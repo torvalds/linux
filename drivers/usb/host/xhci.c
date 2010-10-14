@@ -1943,8 +1943,13 @@ int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
  * Wait for the Reset Device command to finish.  Remove all structures
  * associated with the endpoints that were disabled.  Clear the input device
  * structure?  Cache the rings?  Reset the control endpoint 0 max packet size?
+ *
+ * If the virt_dev to be reset does not exist or does not match the udev,
+ * it means the device is lost, possibly due to the xHC restore error and
+ * re-initialization during S3/S4. In this case, call xhci_alloc_dev() to
+ * re-allocate the device.
  */
-int xhci_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
+int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	int ret, i;
 	unsigned long flags;
@@ -1955,12 +1960,36 @@ int xhci_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	int timeleft;
 	int last_freed_endpoint;
 
-	ret = xhci_check_args(hcd, udev, NULL, 0, true, __func__);
+	ret = xhci_check_args(hcd, udev, NULL, 0, false, __func__);
 	if (ret <= 0)
 		return ret;
 	xhci = hcd_to_xhci(hcd);
 	slot_id = udev->slot_id;
 	virt_dev = xhci->devs[slot_id];
+	if (!virt_dev) {
+		xhci_dbg(xhci, "The device to be reset with slot ID %u does "
+				"not exist. Re-allocate the device\n", slot_id);
+		ret = xhci_alloc_dev(hcd, udev);
+		if (ret == 1)
+			return 0;
+		else
+			return -EINVAL;
+	}
+
+	if (virt_dev->udev != udev) {
+		/* If the virt_dev and the udev does not match, this virt_dev
+		 * may belong to another udev.
+		 * Re-allocate the device.
+		 */
+		xhci_dbg(xhci, "The device to be reset with slot ID %u does "
+				"not match the udev. Re-allocate the device\n",
+				slot_id);
+		ret = xhci_alloc_dev(hcd, udev);
+		if (ret == 1)
+			return 0;
+		else
+			return -EINVAL;
+	}
 
 	xhci_dbg(xhci, "Resetting device with slot ID %u\n", slot_id);
 	/* Allocate the command structure that holds the struct completion.
@@ -2176,12 +2205,17 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	virt_dev = xhci->devs[udev->slot_id];
 
-	/* If this is a Set Address to an unconfigured device, setup ep 0 */
-	if (!udev->config)
+	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
+	/*
+	 * If this is the first Set Address since device plug-in or
+	 * virt_device realloaction after a resume with an xHCI power loss,
+	 * then set up the slot context.
+	 */
+	if (!slot_ctx->dev_info)
 		xhci_setup_addressable_virt_dev(xhci, udev);
+	/* Otherwise, update the control endpoint ring enqueue pointer. */
 	else
 		xhci_copy_ep0_dequeue_into_input_ctx(xhci, udev);
-	/* Otherwise, assume the core has the device configured how it wants */
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
 
