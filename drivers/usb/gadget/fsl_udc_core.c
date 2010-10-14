@@ -94,6 +94,25 @@ static int reset_queues(struct fsl_udc *udc);
 #define fsl_writel(val32, addr) writel(val32, addr)
 #endif
 
+/*
+ * High speed test mode packet(53 bytes).
+ * See USB 2.0 spec, section 7.1.20.
+ */
+static const u8 fsl_udc_test_packet[53] = {
+	/* JKJKJKJK x9 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* JJKKJJKK x8 */
+	0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
+	/* JJJJKKKK x8 */
+	0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee,
+	/* JJJJJJJKKKKKKK x8 */
+	0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	/* JJJJJJJK x8 */
+	0x7f, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd,
+	/* JKKKKKKK x10, JK */
+	0xfc, 0x7e, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd, 0x7e
+};
+
 /********************************************************************
  *	Internal Used Function
 ********************************************************************/
@@ -730,7 +749,7 @@ out:
  * @is_last: return flag if it is the last dTD of the request
  * return: pointer to the built dTD */
 static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
-		dma_addr_t *dma, int *is_last)
+		dma_addr_t *dma, int *is_last, gfp_t gfp_flags)
 {
 	u32 swap_temp;
 	struct ep_td_struct *dtd;
@@ -739,7 +758,7 @@ static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
 	*length = min(req->req.length - req->req.actual,
 			(unsigned)EP_MAX_LENGTH_TRANSFER);
 
-	dtd = dma_pool_alloc(udc_controller->td_pool, GFP_KERNEL, dma);
+	dtd = dma_pool_alloc(udc_controller->td_pool, gfp_flags, dma);
 	if (dtd == NULL)
 		return dtd;
 
@@ -789,7 +808,7 @@ static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
 }
 
 /* Generate dtd chain for a request */
-static int fsl_req_to_dtd(struct fsl_req *req)
+static int fsl_req_to_dtd(struct fsl_req *req, gfp_t gfp_flags)
 {
 	unsigned	count;
 	int		is_last;
@@ -798,7 +817,7 @@ static int fsl_req_to_dtd(struct fsl_req *req)
 	dma_addr_t dma;
 
 	do {
-		dtd = fsl_build_dtd(req, &count, &dma, &is_last);
+		dtd = fsl_build_dtd(req, &count, &dma, &is_last, gfp_flags);
 		if (dtd == NULL)
 			return -ENOMEM;
 
@@ -874,15 +893,13 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	req->req.actual = 0;
 	req->dtd_count = 0;
 
-	spin_lock_irqsave(&udc->lock, flags);
 
 	/* build dtds and push them to device queue */
-	if (!fsl_req_to_dtd(req)) {
-		fsl_queue_td(ep, req);
-	} else {
-		spin_unlock_irqrestore(&udc->lock, flags);
+	if (fsl_req_to_dtd(req, gfp_flags))
 		return -ENOMEM;
-	}
+
+	spin_lock_irqsave(&udc->lock, flags);
+	fsl_queue_td(ep, req);
 
 	/* Update ep0 state */
 	if ((ep_index(ep) == 0))
@@ -1254,7 +1271,7 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 	req->req.complete = NULL;
 	req->dtd_count = 0;
 
-	if (fsl_req_to_dtd(req) == 0)
+	if (fsl_req_to_dtd(req, GFP_ATOMIC) == 0)
 		fsl_queue_td(ep, req);
 	else
 		return -ENOMEM;
@@ -1332,13 +1349,114 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 	req->dtd_count = 0;
 
 	/* prime the data phase */
-	if ((fsl_req_to_dtd(req) == 0))
+	if ((fsl_req_to_dtd(req, GFP_ATOMIC) == 0))
 		fsl_queue_td(ep, req);
 	else			/* no mem */
 		goto stall;
 
 	list_add_tail(&req->queue, &ep->queue);
 	udc->ep0_state = DATA_STATE_XMIT;
+	return;
+stall:
+	ep0stall(udc);
+}
+
+static void udc_test_mode(struct fsl_udc *udc, u32 test_mode)
+{
+	struct fsl_req *req;
+	struct fsl_ep *ep;
+	u32 portsc, bitmask;
+	unsigned long timeout;
+
+	/* Ack the ep0 IN */
+	if (ep0_prime_status(udc, EP_DIR_IN))
+		ep0stall(udc);
+
+	/* get the ep0 */
+	ep = &udc->eps[0];
+	bitmask = ep_is_in(ep)
+		? (1 << (ep_index(ep) + 16))
+		: (1 << (ep_index(ep)));
+
+	timeout = jiffies + HZ;
+	/* Wait until ep0 IN endpoint txfr is complete */
+	while (!(fsl_readl(&dr_regs->endptcomplete) & bitmask)) {
+		if (time_after(jiffies, timeout)) {
+			pr_err("Timeout for Ep0 IN Ack\n");
+			break;
+		}
+		cpu_relax();
+	}
+
+	switch (test_mode << PORTSCX_PTC_BIT_POS) {
+	case PORTSCX_PTC_JSTATE:
+		VDBG("TEST_J\n");
+		break;
+	case PORTSCX_PTC_KSTATE:
+		VDBG("TEST_K\n");
+		break;
+	case PORTSCX_PTC_SEQNAK:
+		VDBG("TEST_SE0_NAK\n");
+		break;
+	case PORTSCX_PTC_PACKET:
+		VDBG("TEST_PACKET\n");
+
+		/* get the ep and configure for IN direction */
+		ep = &udc->eps[0];
+		udc->ep0_dir = USB_DIR_IN;
+
+		/* Initialize ep0 status request structure */
+		req = container_of(fsl_alloc_request(NULL, GFP_ATOMIC),
+				struct fsl_req, req);
+		/* allocate a small amount of memory to get valid address */
+		req->req.buf = kmalloc(sizeof(fsl_udc_test_packet), GFP_ATOMIC);
+		req->req.dma = virt_to_phys(req->req.buf);
+
+		/* Fill in the reqest structure */
+		memcpy(req->req.buf, fsl_udc_test_packet, sizeof(fsl_udc_test_packet));
+		req->ep = ep;
+		req->req.length = sizeof(fsl_udc_test_packet);
+		req->req.status = -EINPROGRESS;
+		req->req.actual = 0;
+		req->req.complete = NULL;
+		req->dtd_count = 0;
+		req->mapped = 0;
+
+		dma_sync_single_for_device(ep->udc->gadget.dev.parent,
+					req->req.dma, req->req.length,
+					ep_is_in(ep)
+						? DMA_TO_DEVICE
+						: DMA_FROM_DEVICE);
+
+		/* prime the data phase */
+		if ((fsl_req_to_dtd(req, GFP_ATOMIC) == 0))
+			fsl_queue_td(ep, req);
+		else			/* no mem */
+			goto stall;
+
+		list_add_tail(&req->queue, &ep->queue);
+		udc->ep0_state = DATA_STATE_XMIT;
+		break;
+	case PORTSCX_PTC_FORCE_EN:
+		VDBG("TEST_FORCE_EN\n");
+		break;
+	default:
+		ERR("udc unknown test mode[%d]!\n", test_mode);
+		goto stall;
+	}
+
+	/* read the portsc register */
+	portsc = fsl_readl(&dr_regs->portsc1);
+	/* set the test mode selector */
+	portsc |= test_mode << PORTSCX_PTC_BIT_POS;
+	fsl_writel(portsc, &dr_regs->portsc1);
+
+	/*
+	 * The device must have its power cycled to exit test mode.
+	 * See USB 2.0 spec, section 9.4.9 for test modes operation in "Set Feature"
+	 * See USB 2.0 spec, section 7.1.20 for test modes.
+	 */
+	pr_info("udc entering the test mode, power cycle to exit test mode\n");
 	return;
 stall:
 	ep0stall(udc);
@@ -1377,7 +1495,17 @@ static void setup_received_irq(struct fsl_udc *udc,
 	{
 		int rc = -EOPNOTSUPP;
 
-		if ((setup->bRequestType & (USB_RECIP_MASK | USB_TYPE_MASK))
+		if (setup->bRequestType == USB_RECIP_DEVICE &&
+				 wValue == USB_DEVICE_TEST_MODE) {
+			/*
+			 * If the feature selector is TEST_MODE, then the most
+			 * significant byte of wIndex is used to specify the specific
+			 * test mode and the lower byte of wIndex must be zero.
+			 */
+			udc_test_mode(udc, wIndex >> 8);
+			return;
+
+		} else if ((setup->bRequestType & (USB_RECIP_MASK | USB_TYPE_MASK))
 				== (USB_RECIP_ENDPOINT | USB_TYPE_STANDARD)) {
 			int pipe = get_pipe_by_windex(wIndex);
 			struct fsl_ep *ep;
@@ -2604,6 +2732,10 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
  -----------------------------------------------------------------*/
 static int fsl_udc_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	if (udc_controller->transceiver &&
+		    udc_controller->transceiver->state != OTG_STATE_B_PERIPHERAL)
+		return 0;
+
 	dr_controller_stop(udc_controller);
 	return 0;
 }
@@ -2614,6 +2746,10 @@ static int fsl_udc_suspend(struct platform_device *pdev, pm_message_t state)
  *-----------------------------------------------------------------*/
 static int fsl_udc_resume(struct platform_device *pdev)
 {
+	if (udc_controller->transceiver &&
+		    udc_controller->transceiver->state != OTG_STATE_B_PERIPHERAL)
+		return 0;
+
 	/* Enable DR irq reg and set controller Run */
 	if (udc_controller->stopped) {
 		dr_controller_setup(udc_controller);

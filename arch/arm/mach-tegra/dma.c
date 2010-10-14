@@ -341,7 +341,7 @@ EXPORT_SYMBOL(tegra_dma_enqueue_req);
 struct tegra_dma_channel *tegra_dma_allocate_channel(int mode)
 {
 	int channel;
-	struct tegra_dma_channel *ch = NULL;;
+	struct tegra_dma_channel *ch = NULL;
 
 	mutex_lock(&tegra_dma_lock);
 
@@ -351,8 +351,10 @@ struct tegra_dma_channel *tegra_dma_allocate_channel(int mode)
 	} else {
 		channel = find_first_zero_bit(channel_usage,
 			ARRAY_SIZE(dma_channels));
-		if (channel >= ARRAY_SIZE(dma_channels))
+		if (channel >= ARRAY_SIZE(dma_channels)) {
+			pr_err("%s: failed to allocate a DMA channel",__func__);
 			goto out;
+		}
 	}
 	__set_bit(channel, channel_usage);
 	ch = &dma_channels[channel];
