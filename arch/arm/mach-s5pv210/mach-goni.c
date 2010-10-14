@@ -676,11 +676,21 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
+	&s5pv210_device_iis0,
 	&s3c_device_usb_hsotg,
 	&samsung_device_keypad,
 	&s3c_device_i2c1,
 	&s3c_device_i2c2,
 };
+
+static void __init goni_sound_init(void)
+{
+	/* Ths main clock of WM8994 codec uses the output of CLKOUT pin.
+	 * The CLKOUT[9:8] set to 0x3(XUSBXTI) of 0xE010E000(OTHERS)
+	 * because it needs 24MHz clock to operate WM8994 codec.
+	 */
+	__raw_writel(__raw_readl(S5P_OTHERS) | (0x3 << 8), S5P_OTHERS);
+}
 
 static void __init goni_map_io(void)
 {
@@ -713,6 +723,7 @@ static void __init goni_machine_init(void)
 	goni_setup_sdhci();
 
 	/* SOUND */
+	goni_sound_init();
 	i2c_register_board_info(AP_I2C_GPIO_BUS_5, i2c_gpio5_devs,
 			ARRAY_SIZE(i2c_gpio5_devs));
 

@@ -507,7 +507,30 @@ static struct platform_device *aquila_devices[] __initdata = {
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
+	&s5pv210_device_iis0,
 };
+
+static void __init aquila_sound_init(void)
+{
+	unsigned int gpio;
+
+	/* CODEC_XTAL_EN
+	 *
+	 * The Aquila board have a oscillator which provide main clock
+	 * to WM8994 codec. The oscillator provide 24MHz clock to WM8994
+	 * clock. Set gpio setting of "CODEC_XTAL_EN" to enable a oscillator.
+	 * */
+	gpio = S5PV210_GPH3(2);		/* XEINT_26 */
+	gpio_request(gpio, "CODEC_XTAL_EN");
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
+
+	/* Ths main clock of WM8994 codec uses the output of CLKOUT pin.
+	 * The CLKOUT[9:8] set to 0x3(XUSBXTI) of 0xE010E000(OTHERS)
+	 * because it needs 24MHz clock to operate WM8994 codec.
+	 */
+	__raw_writel(__raw_readl(S5P_OTHERS) | (0x3 << 8), S5P_OTHERS);
+}
 
 static void __init aquila_map_io(void)
 {
@@ -530,6 +553,7 @@ static void __init aquila_machine_init(void)
 	s3c_fimc_setname(2, "s5p-fimc");
 
 	/* SOUND */
+	aquila_sound_init();
 	i2c_register_board_info(AP_I2C_GPIO_BUS_5, i2c_gpio5_devs,
 			ARRAY_SIZE(i2c_gpio5_devs));
 
