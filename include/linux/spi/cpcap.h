@@ -70,6 +70,7 @@
 #define CPCAP_WHISPER_ACCY_MASK     0xF8000000
 #define CPCAP_WHISPER_ACCY_SHFT     27
 #define CPCAP_WHISPER_ID_SIZE       16
+#define CPCAP_WHISPER_PROP_SIZE     7
 
 enum cpcap_regulator_id {
 	CPCAP_SW2,
@@ -627,6 +628,7 @@ struct cpcap_regacc {
 struct cpcap_whisper_request {
 	unsigned int cmd;
 	char dock_id[CPCAP_WHISPER_ID_SIZE];
+	char dock_prop[CPCAP_WHISPER_PROP_SIZE];
 };
 
 /*
@@ -779,8 +781,8 @@ int cpcap_uc_stop(struct cpcap_device *cpcap, enum cpcap_macro macro);
 unsigned char cpcap_uc_status(struct cpcap_device *cpcap,
 			      enum cpcap_macro macro);
 
-int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
-		       char *dock_id);
+int cpcap_accy_whisper(struct cpcap_device *cpcap,
+		       struct cpcap_whisper_request *req);
 
 void cpcap_accy_whisper_spdif_set_state(int state);
 

@@ -429,8 +429,8 @@ static long accy_ioctl(unsigned int cmd, unsigned long arg)
 				   sizeof(read_data)))
 			return -EFAULT;
 		read_data.dock_id[CPCAP_WHISPER_ID_SIZE - 1] = '\0';
-		retval = cpcap_accy_whisper(misc_cpcap, read_data.cmd,
-					    read_data.dock_id);
+		read_data.dock_prop[CPCAP_WHISPER_PROP_SIZE - 1] = '\0';
+		retval = cpcap_accy_whisper(misc_cpcap, &read_data);
 	break;
 
 	default:

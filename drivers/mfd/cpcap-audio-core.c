@@ -146,6 +146,22 @@ static inline bool is_output_headset(struct cpcap_audio_state *state)
 	return false;
 }
 
+static inline int is_output_whisper_emu(struct cpcap_audio_state *state)
+{
+	if (state->codec_primary_speaker == CPCAP_AUDIO_OUT_EMU_STEREO
+	    || state->codec_secondary_speaker == CPCAP_AUDIO_OUT_EMU_STEREO
+	    || state->stdac_primary_speaker == CPCAP_AUDIO_OUT_EMU_STEREO
+	    || state->stdac_secondary_speaker == CPCAP_AUDIO_OUT_EMU_STEREO
+	    || state->ext_primary_speaker == CPCAP_AUDIO_OUT_EMU_STEREO
+	    || state->ext_secondary_speaker == CPCAP_AUDIO_OUT_EMU_STEREO) {
+		pr_debug("%s() returning TRUE\n", __func__);
+		return 1;
+	}
+
+	pr_debug("%s() returning FALSE\n", __func__);
+	return 0;
+}
+
 static inline bool is_speaker_turning_off(struct cpcap_audio_state *state,
 					struct cpcap_audio_state *prev)
 {
@@ -248,6 +264,13 @@ static unsigned short int cpcap_audio_get_codec_output_amp_switches(
 			value |= CPCAP_BIT_ALEFT_HS_CDC_SW;
 		break;
 
+	case CPCAP_AUDIO_OUT_EMU_STEREO:
+		if (balance != CPCAP_AUDIO_BALANCE_R_ONLY)
+			value |= CPCAP_BIT_PGA_OUTR_USBDP_CDC_SW;
+		if (balance != CPCAP_AUDIO_BALANCE_L_ONLY)
+			value |= CPCAP_BIT_PGA_OUTL_USBDN_CDC_SW;
+		break;
+
 	case CPCAP_AUDIO_OUT_LINEOUT:
 		value |= CPCAP_BIT_A4_LINEOUT_R_CDC_SW |
 			CPCAP_BIT_A4_LINEOUT_L_CDC_SW;
@@ -283,6 +306,13 @@ static unsigned short int cpcap_audio_get_stdac_output_amp_switches(
 			value |= CPCAP_BIT_ALEFT_HS_DAC_SW;
 		if (balance != CPCAP_AUDIO_BALANCE_L_ONLY)
 			value |= CPCAP_BIT_ARIGHT_HS_DAC_SW;
+		break;
+
+	case CPCAP_AUDIO_OUT_EMU_STEREO:
+		if (balance != CPCAP_AUDIO_BALANCE_R_ONLY)
+			value |= CPCAP_BIT_PGA_OUTR_USBDP_DAC_SW;
+		if (balance != CPCAP_AUDIO_BALANCE_L_ONLY)
+			value |= CPCAP_BIT_PGA_OUTL_USBDN_DAC_SW;
 		break;
 
 	case CPCAP_AUDIO_OUT_LOUDSPEAKER:
@@ -325,6 +355,13 @@ static unsigned short int cpcap_audio_get_ext_output_amp_switches(
 		if (balance != CPCAP_AUDIO_BALANCE_R_ONLY)
 			value |= CPCAP_BIT_ALEFT_HS_EXT_SW |
 				CPCAP_BIT_PGA_EXT_L_EN;
+		break;
+
+	case CPCAP_AUDIO_OUT_EMU_STEREO:
+		if (balance != CPCAP_AUDIO_BALANCE_R_ONLY)
+			value |= CPCAP_BIT_PGA_OUTR_USBDP_EXT_SW;
+		if (balance != CPCAP_AUDIO_BALANCE_L_ONLY)
+			value |= CPCAP_BIT_PGA_OUTL_USBDN_EXT_SW;
 		break;
 
 	case CPCAP_AUDIO_OUT_LOUDSPEAKER:
@@ -413,9 +450,6 @@ static void cpcap_audio_set_output_amp_switches(struct cpcap_audio_state *state)
 static bool cpcap_audio_set_bits_for_speaker(int speaker, int balance,
 						unsigned short int *message)
 {
-	pr_debug("%s() called with speaker = %d\n", __func__,
-			  speaker);
-
 	/* Get the data required to enable each possible path */
 	switch (speaker) {
 	case CPCAP_AUDIO_OUT_HANDSET:
@@ -428,6 +462,13 @@ static bool cpcap_audio_set_bits_for_speaker(int speaker, int balance,
 			(*message) |= CPCAP_BIT_HS_L_EN;
 		if (balance != CPCAP_AUDIO_BALANCE_L_ONLY)
 			(*message) |= CPCAP_BIT_HS_R_EN;
+		break;
+
+	case CPCAP_AUDIO_OUT_EMU_STEREO:
+		if (balance != CPCAP_AUDIO_BALANCE_R_ONLY)
+			(*message) |= CPCAP_BIT_EMU_SPKR_R_EN;
+		if (balance != CPCAP_AUDIO_BALANCE_L_ONLY)
+			(*message) |= CPCAP_BIT_EMU_SPKR_L_EN;
 		break;
 
 	case CPCAP_AUDIO_OUT_LOUDSPEAKER:
@@ -969,6 +1010,20 @@ static void cpcap_audio_configure_power(int power)
 	previous_power = power;
 }
 
+static void cpcap_activate_whisper_emu_audio(struct cpcap_audio_state *state)
+{
+	struct cpcap_regacc reg_changes;
+
+	pr_debug("%s() called\n", __func__);
+
+	if (is_output_whisper_emu(state)) {
+		reg_changes.mask |= CPCAP_BIT_DIG_AUD_IN;
+		reg_changes.value = 0;
+		logged_cpcap_write(state->cpcap, CPCAP_REG_CDI,
+				   reg_changes.value, reg_changes.mask);
+	}
+}
+
 void cpcap_audio_state_dump(struct cpcap_audio_state *state)
 {
 	pr_info("mode = %d",  state->mode);
@@ -1026,6 +1081,8 @@ void cpcap_audio_register_dump(struct cpcap_audio_state *state)
 	printk(KERN_INFO "0x20C[524] = %x\n", reg_val);
 	cpcap_regacc_read(state->cpcap, CPCAP_REG_A2LA, &reg_val);
 	printk(KERN_INFO "0x20D[525] = %x\n", reg_val);
+	cpcap_regacc_read(state->cpcap, CPCAP_REG_USBC2, &reg_val);
+	printk(KERN_INFO "0x381[897] = %x\n", reg_val);
 }
 
 static inline bool should_power_on(struct cpcap_audio_state *state)
@@ -1116,6 +1173,8 @@ void cpcap_audio_set_audio_state(struct cpcap_audio_state *state)
 	cpcap_audio_configure_output_gains(state, prev);
 
 	cpcap_audio_configure_aud_mute(state, prev);
+
+	cpcap_activate_whisper_emu_audio(state);
 
 	if (!power_on)
 		cpcap_audio_configure_power(0);

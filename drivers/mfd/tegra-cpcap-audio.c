@@ -119,6 +119,14 @@ static void tegra_setup_audio_out_headset_and_speaker_on(void)
 	gpio_direction_output(pdata->headset_gpio, 1);
 }
 
+static void tegra_setup_audio_out_dock_headset_on(void)
+{
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_EMU_STEREO;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_EMU_STEREO;
+	cpcap_audio_set_audio_state(pdata->state);
+}
+
 static void tegra_setup_audio_in_mute(void)
 {
 	pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
@@ -212,6 +220,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EINVAL;
 			goto done;
 		}
+
 		switch (out.id) {
 		case CPCAP_AUDIO_OUT_SPEAKER:
 			pr_info("%s: setting output path to speaker\n",
@@ -241,6 +250,15 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 
 			current_output = out;
 			break;
+		case CPCAP_AUDIO_OUT_ANLG_DOCK_HEADSET:
+			pr_err("%s: setting output path to basic dock\n",
+					__func__);
+			if (out.on)
+				tegra_setup_audio_out_dock_headset_on();
+			else
+				tegra_setup_audio_output_off();
+			current_output = out;
+			break;
 		case CPCAP_AUDIO_OUT_STANDBY:
 			current_output.on = !out.on;
 			if (out.on) {
@@ -262,6 +280,11 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 				pr_info("%s: standby off (speaker + headset)",
 					__func__);
 				tegra_setup_audio_out_headset_and_speaker_on();
+				break;
+			case CPCAP_AUDIO_OUT_ANLG_DOCK_HEADSET:
+				pr_err("%s: standby off (dock headset)",
+					__func__);
+				tegra_setup_audio_out_dock_headset_on();
 				break;
 			}
 			break;
