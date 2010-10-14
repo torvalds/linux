@@ -2495,7 +2495,7 @@ static void tcp_timeout_skbs(struct sock *sk)
 /* Mark head of queue up as lost. With RFC3517 SACK, the packets is
  * is against sacked "cnt", otherwise it's against facked "cnt"
  */
-static void tcp_mark_head_lost(struct sock *sk, int packets)
+static void tcp_mark_head_lost(struct sock *sk, int packets, int mark_head)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -2503,13 +2503,13 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 	int err;
 	unsigned int mss;
 
-	if (packets == 0)
-		return;
-
 	WARN_ON(packets > tp->packets_out);
 	if (tp->lost_skb_hint) {
 		skb = tp->lost_skb_hint;
 		cnt = tp->lost_cnt_hint;
+		/* Head already handled? */
+		if (mark_head && skb != tcp_write_queue_head(sk))
+			return;
 	} else {
 		skb = tcp_write_queue_head(sk);
 		cnt = 0;
@@ -2544,6 +2544,9 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 		}
 
 		tcp_skb_mark_lost(tp, skb);
+
+		if (mark_head)
+			break;
 	}
 	tcp_verify_left_out(tp);
 }
@@ -2555,17 +2558,18 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (tcp_is_reno(tp)) {
-		tcp_mark_head_lost(sk, 1);
+		tcp_mark_head_lost(sk, 1, 1);
 	} else if (tcp_is_fack(tp)) {
 		int lost = tp->fackets_out - tp->reordering;
 		if (lost <= 0)
 			lost = 1;
-		tcp_mark_head_lost(sk, lost);
+		tcp_mark_head_lost(sk, lost, 0);
 	} else {
 		int sacked_upto = tp->sacked_out - tp->reordering;
-		if (sacked_upto < fast_rexmit)
-			sacked_upto = fast_rexmit;
-		tcp_mark_head_lost(sk, sacked_upto);
+		if (sacked_upto >= 0)
+			tcp_mark_head_lost(sk, sacked_upto, 0);
+		else if (fast_rexmit)
+			tcp_mark_head_lost(sk, 1, 1);
 	}
 
 	tcp_timeout_skbs(sk);
@@ -2971,7 +2975,7 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	    before(tp->snd_una, tp->high_seq) &&
 	    icsk->icsk_ca_state != TCP_CA_Open &&
 	    tp->fackets_out > tp->reordering) {
-		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering);
+		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering, 0);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPLOSS);
 	}
 
