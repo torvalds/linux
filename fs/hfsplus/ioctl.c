@@ -26,9 +26,9 @@ static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	unsigned int flags = 0;
 
-	if (hip->rootflags & HFSPLUS_FLG_IMMUTABLE)
+	if (inode->i_flags & S_IMMUTABLE)
 		flags |= FS_IMMUTABLE_FL;
-	if (hip->rootflags & HFSPLUS_FLG_APPEND)
+	if (inode->i_flags |= S_APPEND)
 		flags |= FS_APPEND_FL;
 	if (hip->userflags & HFSPLUS_FLG_NODUMP)
 		flags |= FS_NODUMP_FL;
@@ -59,8 +59,8 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 
 	mutex_lock(&inode->i_mutex);
 
-	if (flags & (FS_IMMUTABLE_FL|FS_APPEND_FL) ||
-	    hip->rootflags & (HFSPLUS_FLG_IMMUTABLE|HFSPLUS_FLG_APPEND)) {
+	if ((flags & (FS_IMMUTABLE_FL|FS_APPEND_FL)) ||
+	    inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
 			err = -EPERM;
 			goto out_unlock_inode;
@@ -72,20 +72,17 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 		err = -EOPNOTSUPP;
 		goto out_unlock_inode;
 	}
-	if (flags & FS_IMMUTABLE_FL) {
+
+	if (flags & FS_IMMUTABLE_FL)
 		inode->i_flags |= S_IMMUTABLE;
-		hip->rootflags |= HFSPLUS_FLG_IMMUTABLE;
-	} else {
+	else
 		inode->i_flags &= ~S_IMMUTABLE;
-		hip->rootflags &= ~HFSPLUS_FLG_IMMUTABLE;
-	}
-	if (flags & FS_APPEND_FL) {
+
+	if (flags & FS_APPEND_FL)
 		inode->i_flags |= S_APPEND;
-		hip->rootflags |= HFSPLUS_FLG_APPEND;
-	} else {
+	else
 		inode->i_flags &= ~S_APPEND;
-		hip->rootflags &= ~HFSPLUS_FLG_APPEND;
-	}
+
 	if (flags & FS_NODUMP_FL)
 		hip->userflags |= HFSPLUS_FLG_NODUMP;
 	else

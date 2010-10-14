@@ -241,7 +241,6 @@ static void hfsplus_get_perms(struct inode *inode, struct hfsplus_perm *perms, i
 		mode = S_IFREG | ((S_IRUGO|S_IWUGO) & ~(sbi->umask));
 	inode->i_mode = mode;
 
-	HFSPLUS_I(inode)->rootflags = perms->rootflags;
 	HFSPLUS_I(inode)->userflags = perms->userflags;
 	if (perms->rootflags & HFSPLUS_FLG_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;

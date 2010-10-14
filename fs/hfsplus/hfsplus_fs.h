@@ -188,7 +188,7 @@ struct hfsplus_inode_info {
 	 * Protected by i_mutex.
 	 */
 	sector_t fs_blocks;
-	u8 rootflags, userflags;	/* BSD system and user file flags */
+	u8 userflags;		/* BSD user file flags */
 	struct list_head open_dir_list;
 	loff_t phys_size;
 
