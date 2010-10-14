@@ -639,7 +639,7 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 					jack = &intelmaddata->jack[3].jack;
 					present = 1;
 					jack_event_flag = 1;
-				}	else	{
+				} else {
 					pr_debug("sst: short press detected\n");
 					/* send headphone detect/undetect */
 					jack = &intelmaddata->jack[2].jack;
@@ -649,21 +649,8 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 			}
 
 		}
-		intelmaddata->jack_prev_state  = value ;
-
+		intelmaddata->jack_prev_state = value;
 	}
-	if (is_aava() && jack) {
-		if (present) {
-			pr_debug("sst: Jack... YES\n");
-			scard_ops->set_output_dev(STEREO_HEADPHONE);
-
-		} else {
-			pr_debug("sst: Jack... NO\n");
-			scard_ops->set_output_dev(INTERNAL_SPKR);
-
-		}
-	}
-
 	if (jack_event_flag)
 		sst_mad_send_jack_report(jack, buttonpressflag, present);
 }
