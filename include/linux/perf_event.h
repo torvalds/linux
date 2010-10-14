@@ -536,6 +536,12 @@ struct hw_perf_event {
 		struct { /* breakpoint */
 			struct arch_hw_breakpoint	info;
 			struct list_head		bp_list;
+			/*
+			 * Crufty hack to avoid the chicken and egg
+			 * problem hw_breakpoint has with context
+			 * creation and event initalization.
+			 */
+			struct task_struct		*bp_target;
 		};
 #endif
 	};
@@ -693,6 +699,7 @@ struct swevent_hlist {
 
 #define PERF_ATTACH_CONTEXT	0x01
 #define PERF_ATTACH_GROUP	0x02
+#define PERF_ATTACH_TASK	0x04
 
 /**
  * struct perf_event - performance event kernel representation:
