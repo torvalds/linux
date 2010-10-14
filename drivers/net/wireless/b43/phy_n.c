@@ -2538,7 +2538,7 @@ static void b43_nphy_save_cal(struct b43_wldev *dev)
 	}
 	iqcal_chanspec->center_freq = dev->phy.channel_freq;
 	iqcal_chanspec->channel_type = dev->phy.channel_type;
-	b43_ntab_write_bulk(dev, B43_NTAB16(15, 80), 8, table);
+	b43_ntab_read_bulk(dev, B43_NTAB16(15, 80), 8, table);
 
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, 0);
