@@ -34,8 +34,6 @@ enum input_mode {
 	oldnoconfig,
 } input_mode = oldaskconfig;
 
-char *defconfig_file;
-
 static int indent = 1;
 static int valid_stdin = 1;
 static int sync_kconfig;
@@ -462,7 +460,7 @@ static struct option long_opts[] = {
 int main(int ac, char **av)
 {
 	int opt;
-	const char *name;
+	const char *name, *defconfig_file = NULL /* gcc uninit */;
 	struct stat tmpstat;
 
 	setlocale(LC_ALL, "");
