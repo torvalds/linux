@@ -1020,7 +1020,7 @@ STD_ENTRY(interrupt_return)
 
 	/* Set r1 to errno if we are returning an error, otherwise zero. */
 	{
-	 moveli r29, 1024
+	 moveli r29, 4096
 	 sub    r1, zero, r0
 	}
 	slt_u   r29, r1, r29
