@@ -139,6 +139,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
+		bf->bf_buf_addr = 0;
 	}
 
 	/* Get a new beacon from mac80211 */
@@ -167,6 +168,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
+		bf->bf_buf_addr = 0;
 		ath_print(common, ATH_DBG_FATAL,
 			  "dma_mapping_error on beaconing\n");
 		return NULL;
@@ -255,6 +257,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
+		bf->bf_buf_addr = 0;
 	}
 
 	/* NB: the beacon data buffer must be 32-bit aligned. */
@@ -300,6 +303,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
+		bf->bf_buf_addr = 0;
 		ath_print(common, ATH_DBG_FATAL,
 			  "dma_mapping_error on beacon alloc\n");
 		return -ENOMEM;
@@ -326,6 +330,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
+			bf->bf_buf_addr = 0;
 		}
 		list_add_tail(&bf->list, &sc->beacon.bbuf);
 

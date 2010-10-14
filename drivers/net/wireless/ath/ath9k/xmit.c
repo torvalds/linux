@@ -1643,6 +1643,7 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 					 skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		bf->bf_mpdu = NULL;
+		bf->bf_buf_addr = 0;
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
 			  "dma_mapping_error() on TX\n");
 		return -ENOMEM;
@@ -1912,6 +1913,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	}
 
 	dma_unmap_single(sc->dev, bf->bf_buf_addr, skb->len, DMA_TO_DEVICE);
+	bf->bf_buf_addr = 0;
 
 	if (bf->bf_state.bfs_paprd) {
 		if (time_after(jiffies,
@@ -1924,6 +1926,10 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 		ath_debug_stat_tx(sc, txq, bf, ts);
 		ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 	}
+	/* At this point, skb (bf->bf_mpdu) is consumed...make sure we don't
+	 * accidentally reference it later.
+	 */
+	bf->bf_mpdu = NULL;
 
 	/*
 	 * Return the list of ath_buf of this mpdu to free queue

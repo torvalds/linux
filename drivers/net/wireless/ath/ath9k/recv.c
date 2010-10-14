@@ -268,6 +268,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 						bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
+				bf->bf_buf_addr = 0;
 				ath_print(common, ATH_DBG_FATAL,
 					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
@@ -358,6 +359,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 							bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
+				bf->bf_buf_addr = 0;
 				ath_print(common, ATH_DBG_FATAL,
 					  "dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
@@ -392,6 +394,8 @@ void ath_rx_cleanup(struct ath_softc *sc)
 						common->rx_bufsize,
 						DMA_FROM_DEVICE);
 				dev_kfree_skb(skb);
+				bf->bf_buf_addr = 0;
+				bf->bf_mpdu = NULL;
 			}
 		}
 
@@ -1733,6 +1737,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
+			bf->bf_buf_addr = 0;
 			ath_print(common, ATH_DBG_FATAL,
 				  "dma_mapping_error() on RX\n");
 			ath_rx_send_to_mac80211(hw, sc, skb, rxs);
