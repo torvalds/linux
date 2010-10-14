@@ -507,6 +507,8 @@ int __ir_input_register(struct input_dev *input_dev,
 		}
 
 	rc = ir_register_input(input_dev);
+	if (rc < 0)
+		goto out_event;
 
 	IR_dprintk(1, "Registered input device on %s for %s remote%s.\n",
 		   driver_name, rc_tab->name,
