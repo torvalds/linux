@@ -146,7 +146,10 @@ enum {
 
 	CALLER_SP_IN_R52_BASE = 4,
 
-	CALLER_SP_OFFSET_BASE = 8
+	CALLER_SP_OFFSET_BASE = 8,
+
+	/* Marks the entry point of certain functions. */
+	ENTRY_POINT_INFO_OP = 16
 };
 
 

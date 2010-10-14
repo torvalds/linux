@@ -369,6 +369,10 @@ static void find_caller_pc_and_caller_sp(CallerLocation *location,
 					/* Weird; reserved value, ignore it. */
 					continue;
 				}
+				if (info_operand & ENTRY_POINT_INFO_OP)	{
+					/* This info op is ignored by the backtracer. */
+					continue;
+				}
 
 				/* Skip info ops which are not in the
 				 * "one_ago" mode we want right now.
