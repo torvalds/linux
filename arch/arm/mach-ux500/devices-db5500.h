@@ -57,13 +57,13 @@
 #define db5500_add_spi3(pdata) \
 	dbx500_add_spi("spi3", U5500_SPI3_BASE, IRQ_DB5500_SPI3, pdata)
 
-#define db5500_add_uart0() \
-	dbx500_add_uart("uart0", U5500_UART0_BASE, IRQ_DB5500_UART0)
-#define db5500_add_uart1() \
-	dbx500_add_uart("uart1", U5500_UART1_BASE, IRQ_DB5500_UART1)
-#define db5500_add_uart2() \
-	dbx500_add_uart("uart2", U5500_UART2_BASE, IRQ_DB5500_UART2)
-#define db5500_add_uart3() \
-	dbx500_add_uart("uart3", U5500_UART3_BASE, IRQ_DB5500_UART3)
+#define db5500_add_uart0(plat) \
+	dbx500_add_uart("uart0", U5500_UART0_BASE, IRQ_DB5500_UART0, plat)
+#define db5500_add_uart1(plat) \
+	dbx500_add_uart("uart1", U5500_UART1_BASE, IRQ_DB5500_UART1, plat)
+#define db5500_add_uart2(plat) \
+	dbx500_add_uart("uart2", U5500_UART2_BASE, IRQ_DB5500_UART2, plat)
+#define db5500_add_uart3(plat) \
+	dbx500_add_uart("uart3", U5500_UART3_BASE, IRQ_DB5500_UART3, plat)
 
 #endif

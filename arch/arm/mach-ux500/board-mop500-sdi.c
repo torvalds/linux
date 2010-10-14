@@ -13,12 +13,14 @@
 #include <linux/platform_device.h>
 
 #include <plat/pincfg.h>
+#include <plat/ste_dma40.h>
 #include <mach/devices.h>
 #include <mach/hardware.h>
 
 #include "devices-db8500.h"
 #include "pins-db8500.h"
 #include "board-mop500.h"
+#include "ste-dma40-db8500.h"
 
 static pin_cfg_t mop500_sdi_pins[] = {
 	/* SDI0 (MicroSD slot) */
@@ -86,6 +88,26 @@ static u32 mop500_sdi0_vdd_handler(struct device *dev, unsigned int vdd,
 	       MCI_DATA2DIREN | MCI_DATA31DIREN;
 }
 
+#ifdef CONFIG_STE_DMA40
+struct stedma40_chan_cfg mop500_sdi0_dma_cfg_rx = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_PERIPH_TO_MEM,
+	.src_dev_type = DB8500_DMA_DEV29_SD_MM0_RX,
+	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+	.src_info.data_width = STEDMA40_WORD_WIDTH,
+	.dst_info.data_width = STEDMA40_WORD_WIDTH,
+};
+
+static struct stedma40_chan_cfg mop500_sdi0_dma_cfg_tx = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_MEM_TO_PERIPH,
+	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
+	.dst_dev_type = DB8500_DMA_DEV29_SD_MM0_TX,
+	.src_info.data_width = STEDMA40_WORD_WIDTH,
+	.dst_info.data_width = STEDMA40_WORD_WIDTH,
+};
+#endif
+
 static struct mmci_platform_data mop500_sdi0_data = {
 	.vdd_handler	= mop500_sdi0_vdd_handler,
 	.ocr_mask	= MMC_VDD_29_30,
@@ -93,6 +115,11 @@ static struct mmci_platform_data mop500_sdi0_data = {
 	.capabilities	= MMC_CAP_4_BIT_DATA,
 	.gpio_cd	= GPIO_SDMMC_CD,
 	.gpio_wp	= -1,
+#ifdef CONFIG_STE_DMA40
+	.dma_filter	= stedma40_filter,
+	.dma_rx_param	= &mop500_sdi0_dma_cfg_rx,
+	.dma_tx_param	= &mop500_sdi0_dma_cfg_tx,
+#endif
 };
 
 void mop500_sdi_tc35892_init(void)
@@ -116,17 +143,62 @@ void mop500_sdi_tc35892_init(void)
  * SDI 2 (POP eMMC, not on DB8500ed)
  */
 
+#ifdef CONFIG_STE_DMA40
+struct stedma40_chan_cfg mop500_sdi2_dma_cfg_rx = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_PERIPH_TO_MEM,
+	.src_dev_type =  DB8500_DMA_DEV28_SD_MM2_RX,
+	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+	.src_info.data_width = STEDMA40_WORD_WIDTH,
+	.dst_info.data_width = STEDMA40_WORD_WIDTH,
+};
+
+static struct stedma40_chan_cfg mop500_sdi2_dma_cfg_tx = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_MEM_TO_PERIPH,
+	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
+	.dst_dev_type = DB8500_DMA_DEV28_SD_MM2_TX,
+	.src_info.data_width = STEDMA40_WORD_WIDTH,
+	.dst_info.data_width = STEDMA40_WORD_WIDTH,
+};
+#endif
+
 static struct mmci_platform_data mop500_sdi2_data = {
 	.ocr_mask	= MMC_VDD_165_195,
 	.f_max		= 100000000,
 	.capabilities	= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
+#ifdef CONFIG_STE_DMA40
+	.dma_filter	= stedma40_filter,
+	.dma_rx_param	= &mop500_sdi2_dma_cfg_rx,
+	.dma_tx_param	= &mop500_sdi2_dma_cfg_tx,
+#endif
 };
 
 /*
  * SDI 4 (on-board eMMC)
  */
+
+#ifdef CONFIG_STE_DMA40
+struct stedma40_chan_cfg mop500_sdi4_dma_cfg_rx = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_PERIPH_TO_MEM,
+	.src_dev_type =  DB8500_DMA_DEV42_SD_MM4_RX,
+	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+	.src_info.data_width = STEDMA40_WORD_WIDTH,
+	.dst_info.data_width = STEDMA40_WORD_WIDTH,
+};
+
+static struct stedma40_chan_cfg mop500_sdi4_dma_cfg_tx = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_MEM_TO_PERIPH,
+	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
+	.dst_dev_type = DB8500_DMA_DEV42_SD_MM4_TX,
+	.src_info.data_width = STEDMA40_WORD_WIDTH,
+	.dst_info.data_width = STEDMA40_WORD_WIDTH,
+};
+#endif
 
 static struct mmci_platform_data mop500_sdi4_data = {
 	.ocr_mask	= MMC_VDD_29_30,
@@ -135,6 +207,11 @@ static struct mmci_platform_data mop500_sdi4_data = {
 			  MMC_CAP_MMC_HIGHSPEED,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
+#ifdef CONFIG_STE_DMA40
+	.dma_filter	= stedma40_filter,
+	.dma_rx_param	= &mop500_sdi4_dma_cfg_rx,
+	.dma_tx_param	= &mop500_sdi4_dma_cfg_tx,
+#endif
 };
 
 void __init mop500_sdi_init(void)
