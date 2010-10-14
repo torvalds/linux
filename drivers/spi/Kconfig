@@ -368,13 +368,6 @@ config SPI_XILINX_OF
 	help
 	  This is the OF driver for the SPI controller IP from the Xilinx EDK.
 
-config SPI_XILINX_PLTFM
-	tristate "Xilinx SPI controller platform device"
-	depends on SPI_XILINX
-	help
-	  This is the platform driver for the SPI controller IP
-	  from the Xilinx EDK.
-
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900 && EXPERIMENTAL
