@@ -778,6 +778,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 
 	init_completion(&dev->cmd_completion);
 	INIT_LIST_HEAD(&dev->cmd_list);
+	dev->udev = udev;
 
 	/* Point to output device context in dcbaa. */
 	xhci->dcbaa->dev_context_ptrs[slot_id] = dev->out_ctx->dma;

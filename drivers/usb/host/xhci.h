@@ -731,6 +731,7 @@ struct xhci_virt_ep {
 };
 
 struct xhci_virt_device {
+	struct usb_device		*udev;
 	/*
 	 * Commands to the hardware are passed an "input context" that
 	 * tells the hardware what to change in its data structures.
