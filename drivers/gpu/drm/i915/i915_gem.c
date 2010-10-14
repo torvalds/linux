@@ -244,11 +244,16 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_unreference_unlocked(obj);
 	if (ret) {
+		drm_gem_object_release(obj);
+		i915_gem_info_remove_obj(dev->dev_private, obj->size);
+		kfree(obj);
 		return ret;
 	}
+
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference(obj);
+	trace_i915_gem_object_create(obj);
 
 	args->handle = handle;
 	return 0;
@@ -4379,8 +4384,6 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 	INIT_LIST_HEAD(&obj->list);
 	INIT_LIST_HEAD(&obj->gpu_write_list);
 	obj->madv = I915_MADV_WILLNEED;
-
-	trace_i915_gem_object_create(&obj->base);
 
 	return &obj->base;
 }
