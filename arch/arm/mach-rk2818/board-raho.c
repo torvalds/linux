@@ -1554,6 +1554,12 @@ err1:
 static int rk2818_lcd_io_deinit(void)
 {
     int ret = 0;
+
+    gpio_direction_output(LCD_CLK_PIN, 0);
+    gpio_set_value(LCD_CLK_PIN, GPIO_HIGH);
+    gpio_direction_output(LCD_TXD_PIN, 0);
+    gpio_set_value(LCD_TXD_PIN, GPIO_HIGH);
+    
     gpio_free(LCD_CS_PIN); 
     rk2818_mux_api_mode_resume(LCD_CS_MUX_NAME);
     gpio_free(LCD_CLK_PIN);   
