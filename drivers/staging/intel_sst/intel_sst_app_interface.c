@@ -812,8 +812,6 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	struct ioctl_pvt_data *data = NULL;
 	int str_id = 0, minor = 0;
 
-	lock_kernel();
-
 	data = file_ptr->private_data;
 	if (data) {
 		minor = 0;
@@ -821,10 +819,8 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	} else
 		minor = 1;
 
-	if (sst_drv_ctx->sst_state != SST_FW_RUNNING) {
-		unlock_kernel();
+	if (sst_drv_ctx->sst_state != SST_FW_RUNNING)
 		return -EBUSY;
-	}
 
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_SST_STREAM_PAUSE):
@@ -1227,7 +1223,6 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	default:
 		retval = -EINVAL;
 	}
-	unlock_kernel();
 	pr_debug("sst: intel_sst_ioctl:complete ret code = %d\n", retval);
 	return retval;
 }
