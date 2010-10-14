@@ -758,6 +758,9 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				clear_port_feature(hdev, port1,
 						   USB_PORT_FEAT_ENABLE);
 				portstatus &= ~USB_PORT_STAT_ENABLE;
+			} else {
+				/* Pretend that power was lost for USB3 devs */
+				portstatus &= ~USB_PORT_STAT_ENABLE;
 			}
 		}
 
