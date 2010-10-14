@@ -390,7 +390,7 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	if (!sema) {
 		/* Early card or broken userspace, fall back to
 		 * software sync. */
-		return nouveau_fence_wait(fence, NULL, false, false);
+		return nouveau_fence_wait(fence, NULL, true, false);
 	}
 
 	/* try to take chan's mutex, if we can't take it right away
@@ -399,7 +399,7 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	 */
 	if (!mutex_trylock(&chan->mutex)) {
 		free_semaphore(&sema->ref);
-		return nouveau_fence_wait(fence, NULL, false, false);
+		return nouveau_fence_wait(fence, NULL, true, false);
 	}
 
 	/* Make wchan wait until it gets signalled */
