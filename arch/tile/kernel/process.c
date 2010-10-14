@@ -305,15 +305,25 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 /* Allow user processes to access the DMA SPRs */
 void grant_dma_mpls(void)
 {
+#if CONFIG_KERNEL_PL == 2
+	__insn_mtspr(SPR_MPL_DMA_CPL_SET_1, 1);
+	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_1, 1);
+#else
 	__insn_mtspr(SPR_MPL_DMA_CPL_SET_0, 1);
 	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_0, 1);
+#endif
 }
 
 /* Forbid user processes from accessing the DMA SPRs */
 void restrict_dma_mpls(void)
 {
+#if CONFIG_KERNEL_PL == 2
+	__insn_mtspr(SPR_MPL_DMA_CPL_SET_2, 1);
+	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_2, 1);
+#else
 	__insn_mtspr(SPR_MPL_DMA_CPL_SET_1, 1);
 	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_1, 1);
+#endif
 }
 
 /* Pause the DMA engine, then save off its state registers. */
@@ -524,7 +534,7 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	 * Switch kernel SP, PC, and callee-saved registers.
 	 * In the context of the new task, return the old task pointer
 	 * (i.e. the task that actually called __switch_to).
-	 * Pass the value to use for SYSTEM_SAVE_1_0 when we reset our sp.
+	 * Pass the value to use for SYSTEM_SAVE_K_0 when we reset our sp.
 	 */
 	return __switch_to(prev, next, next_current_ksp0(next));
 }

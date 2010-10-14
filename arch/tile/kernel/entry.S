@@ -15,7 +15,9 @@
 #include <linux/linkage.h>
 #include <linux/unistd.h>
 #include <asm/irqflags.h>
+#include <asm/processor.h>
 #include <arch/abi.h>
+#include <arch/spr_def.h>
 
 #ifdef __tilegx__
 #define bnzt bnezt
@@ -80,7 +82,7 @@ STD_ENTRY(KBacktraceIterator_init_current)
 STD_ENTRY(cpu_idle_on_new_stack)
 	{
 	 move sp, r1
-	 mtspr SYSTEM_SAVE_1_0, r2
+	 mtspr SPR_SYSTEM_SAVE_K_0, r2
 	}
 	jal free_thread_info
 	j cpu_idle
@@ -102,15 +104,15 @@ STD_ENTRY(smp_nap)
 STD_ENTRY(_cpu_idle)
 	{
 	 lnk r0
-	 movei r1, 1
+	 movei r1, KERNEL_PL
 	}
 	{
 	 addli r0, r0, _cpu_idle_nap - .
 	 mtspr INTERRUPT_CRITICAL_SECTION, r1
 	}
-	IRQ_ENABLE(r2, r3)         /* unmask, but still with ICS set */
-	mtspr EX_CONTEXT_1_1, r1   /* PL1, ICS clear */
-	mtspr EX_CONTEXT_1_0, r0
+	IRQ_ENABLE(r2, r3)             /* unmask, but still with ICS set */
+	mtspr SPR_EX_CONTEXT_K_1, r1   /* Kernel PL, ICS clear */
+	mtspr SPR_EX_CONTEXT_K_0, r0
 	iret
 	.global _cpu_idle_nap
 _cpu_idle_nap:

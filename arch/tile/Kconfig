@@ -96,6 +96,7 @@ config HVC_TILE
 
 config TILE
 	def_bool y
+	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_FIND_NEXT_BIT
 	select USE_GENERIC_SMP_HELPERS
@@ -314,6 +315,15 @@ config HARDWALL
 	bool "Hardwall support to allow access to user dynamic network"
 	default y
 
+config KERNEL_PL
+	int "Processor protection level for kernel"
+	range 1 2
+	default "1"
+	---help---
+	  This setting determines the processor protection level the
+	  kernel will be built to run at.  Generally you should use
+	  the default value here.
+
 endmenu  # Tilera-specific configuration
 
 menu "Bus options"
@@ -354,3 +364,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/tile/kvm/Kconfig"

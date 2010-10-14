@@ -164,7 +164,7 @@ extern struct task_struct *_switch_to(struct task_struct *prev,
 /* Helper function for _switch_to(). */
 extern struct task_struct *__switch_to(struct task_struct *prev,
 				       struct task_struct *next,
-				       unsigned long new_system_save_1_0);
+				       unsigned long new_system_save_k_0);
 
 /* Address that switched-away from tasks are at. */
 extern unsigned long get_switch_to_pc(void);

@@ -212,7 +212,7 @@ void __init ipi_init(void)
 
 		tile.x = cpu_x(cpu);
 		tile.y = cpu_y(cpu);
-		if (hv_get_ipi_pte(tile, 1, &pte) != 0)
+		if (hv_get_ipi_pte(tile, KERNEL_PL, &pte) != 0)
 			panic("Failed to initialize IPI for cpu %d\n", cpu);
 
 		offset = hv_pte_get_pfn(pte) << PAGE_SHIFT;

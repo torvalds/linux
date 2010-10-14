@@ -187,11 +187,11 @@ early_param("vmalloc", parse_vmalloc);
 
 #ifdef CONFIG_HIGHMEM
 /*
- * Determine for each controller where its lowmem is mapped and how
- * much of it is mapped there.  On controller zero, the first few
- * megabytes are mapped at 0xfd000000 as code, so in principle we
- * could start our data mappings higher up, but for now we don't
- * bother, to avoid additional confusion.
+ * Determine for each controller where its lowmem is mapped and how much of
+ * it is mapped there.  On controller zero, the first few megabytes are
+ * already mapped in as code at MEM_SV_INTRPT, so in principle we could
+ * start our data mappings higher up, but for now we don't bother, to avoid
+ * additional confusion.
  *
  * One question is whether, on systems with more than 768 Mb and
  * controllers of different sizes, to map in a proportionate amount of
@@ -876,6 +876,9 @@ void __cpuinit setup_cpu(int boot)
 #if CHIP_HAS_SN_PROC()
 	raw_local_irq_unmask(INT_SNITLB_MISS);
 #endif
+#ifdef __tilegx__
+	raw_local_irq_unmask(INT_SINGLE_STEP_K);
+#endif
 
 	/*
 	 * Allow user access to many generic SPRs, like the cycle
@@ -893,11 +896,12 @@ void __cpuinit setup_cpu(int boot)
 #endif
 
 	/*
-	 * Set the MPL for interrupt control 0 to user level.
-	 * This includes access to the SYSTEM_SAVE and EX_CONTEXT SPRs,
-	 * as well as the PL 0 interrupt mask.
+	 * Set the MPL for interrupt control 0 & 1 to the corresponding
+	 * values.  This includes access to the SYSTEM_SAVE and EX_CONTEXT
+	 * SPRs, as well as the interrupt mask.
 	 */
 	__insn_mtspr(SPR_MPL_INTCTRL_0_SET_0, 1);
+	__insn_mtspr(SPR_MPL_INTCTRL_1_SET_1, 1);
 
 	/* Initialize IRQ support for this cpu. */
 	setup_irq_regs();
@@ -1033,7 +1037,7 @@ static void __init validate_va(void)
 	 * In addition, make sure we CAN'T use the end of memory, since
 	 * we use the last chunk of each pgd for the pgd_list.
 	 */
-	int i, fc_fd_ok = 0;
+	int i, user_kernel_ok = 0;
 	unsigned long max_va = 0;
 	unsigned long list_va =
 		((PGD_LIST_OFFSET / sizeof(pgd_t)) << PGDIR_SHIFT);
@@ -1044,13 +1048,13 @@ static void __init validate_va(void)
 			break;
 		if (range.start <= MEM_USER_INTRPT &&
 		    range.start + range.size >= MEM_HV_INTRPT)
-			fc_fd_ok = 1;
+			user_kernel_ok = 1;
 		if (range.start == 0)
 			max_va = range.size;
 		BUG_ON(range.start + range.size > list_va);
 	}
-	if (!fc_fd_ok)
-		early_panic("Hypervisor not configured for VAs 0xfc/0xfd\n");
+	if (!user_kernel_ok)
+		early_panic("Hypervisor not configured for user/kernel VAs\n");
 	if (max_va == 0)
 		early_panic("Hypervisor not configured for low VAs\n");
 	if (max_va < KERNEL_HIGH_VADDR)
