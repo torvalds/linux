@@ -41,6 +41,7 @@
 #include <linux/ktime.h>
 #include <linux/sysfs.h>
 #include <linux/pm_qos_params.h>
+#include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
 
@@ -85,6 +86,8 @@ struct audio_stream {
 	struct tegra_dma_req dma_req;
 
 	struct pm_qos_request_list pm_qos;
+	struct wake_lock wake_lock;
+	char wake_lock_name[100];
 };
 
 struct i2s_pio_stats {
@@ -213,6 +216,7 @@ static inline struct audio_driver_state *ads_from_in(
 static inline void prevent_suspend(struct audio_stream *as)
 {
 	pr_debug("%s\n", __func__);
+	wake_lock(&as->wake_lock);
 	pm_qos_update_request(&as->pm_qos, 0);
 }
 
@@ -220,6 +224,7 @@ static inline void allow_suspend(struct audio_stream *as)
 {
 	pr_debug("%s\n", __func__);
 	pm_qos_update_request(&as->pm_qos, PM_QOS_DEFAULT_VALUE);
+	wake_unlock(&as->wake_lock);
 }
 
 #define I2S_I2S_FIFO_TX_BUSY	I2S_I2S_STATUS_FIFO1_BSY
@@ -1798,6 +1803,8 @@ static int tegra_audio_out_release(struct inode *inode, struct file *file)
 		ads->out.opened--;
 	if (!ads->out.opened) {
 		stop_playback_if_necessary(&ads->out);
+		if (wake_lock_active(&ads->out.wake_lock))
+			pr_err("%s: wake lock is still held!\n", __func__);
 		if (kfifo_len(&ads->out.fifo))
 			pr_err("%s: output fifo is not empty (%d bytes left)\n",
 				__func__, kfifo_len(&ads->out.fifo));
@@ -1843,6 +1850,8 @@ static int tegra_audio_in_release(struct inode *inode, struct file *file)
 	if (!ads->in.opened) {
 		if (ads->in.active)
 			request_stop_nosync(&ads->in);
+		if (wake_lock_active(&ads->in.wake_lock))
+			pr_err("%s: wake lock is still held!\n", __func__);
 		if (kfifo_len(&ads->in.fifo))
 			pr_err("%s: input fifo is not empty (%d bytes left)\n",
 				__func__, kfifo_len(&ads->in.fifo));
@@ -2307,6 +2316,15 @@ static int tegra_audio_probe(struct platform_device *pdev)
 				PM_QOS_DEFAULT_VALUE);
 	pm_qos_add_request(&state->out.pm_qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
+
+	snprintf(state->in.wake_lock_name, sizeof(state->in.wake_lock_name),
+		"i2s.%d-audio-in", state->pdev->id);
+	wake_lock_init(&state->in.wake_lock, WAKE_LOCK_SUSPEND,
+			state->in.wake_lock_name);
+	snprintf(state->out.wake_lock_name, sizeof(state->out.wake_lock_name),
+		"i2s.%d-audio-out", state->pdev->id);
+	wake_lock_init(&state->out.wake_lock, WAKE_LOCK_SUSPEND,
+			state->out.wake_lock_name);
 
 	if (request_irq(state->irq, i2s_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {
