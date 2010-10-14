@@ -867,6 +867,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 			top_dev = top_dev->parent)
 		/* Found device below root hub */;
 	slot_ctx->dev_info2 |= (u32) ROOT_HUB_PORT(top_dev->portnum);
+	dev->port = top_dev->portnum;
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", top_dev->portnum);
 
 	/* Is this a LS/FS device under a HS hub? */

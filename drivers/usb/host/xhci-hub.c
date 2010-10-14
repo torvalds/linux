@@ -129,6 +129,99 @@ static u32 xhci_port_state_to_neutral(u32 state)
 	return (state & XHCI_PORT_RO) | (state & XHCI_PORT_RWS);
 }
 
+/*
+ * find slot id based on port number.
+ */
+static int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port)
+{
+	int slot_id;
+	int i;
+
+	slot_id = 0;
+	for (i = 0; i < MAX_HC_SLOTS; i++) {
+		if (!xhci->devs[i])
+			continue;
+		if (xhci->devs[i]->port == port) {
+			slot_id = i;
+			break;
+		}
+	}
+
+	return slot_id;
+}
+
+/*
+ * Stop device
+ * It issues stop endpoint command for EP 0 to 30. And wait the last command
+ * to complete.
+ * suspend will set to 1, if suspend bit need to set in command.
+ */
+static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
+{
+	struct xhci_virt_device *virt_dev;
+	struct xhci_command *cmd;
+	unsigned long flags;
+	int timeleft;
+	int ret;
+	int i;
+
+	ret = 0;
+	virt_dev = xhci->devs[slot_id];
+	cmd = xhci_alloc_command(xhci, false, true, GFP_NOIO);
+	if (!cmd) {
+		xhci_dbg(xhci, "Couldn't allocate command structure.\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	for (i = LAST_EP_INDEX; i > 0; i--) {
+		if (virt_dev->eps[i].ring && virt_dev->eps[i].ring->dequeue)
+			xhci_queue_stop_endpoint(xhci, slot_id, i, suspend);
+	}
+	cmd->command_trb = xhci->cmd_ring->enqueue;
+	list_add_tail(&cmd->cmd_list, &virt_dev->cmd_list);
+	xhci_queue_stop_endpoint(xhci, slot_id, 0, suspend);
+	xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Wait for last stop endpoint command to finish */
+	timeleft = wait_for_completion_interruptible_timeout(
+			cmd->completion,
+			USB_CTRL_SET_TIMEOUT);
+	if (timeleft <= 0) {
+		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
+				timeleft == 0 ? "Timeout" : "Signal");
+		spin_lock_irqsave(&xhci->lock, flags);
+		/* The timeout might have raced with the event ring handler, so
+		 * only delete from the list if the item isn't poisoned.
+		 */
+		if (cmd->cmd_list.next != LIST_POISON1)
+			list_del(&cmd->cmd_list);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		ret = -ETIME;
+		goto command_cleanup;
+	}
+
+command_cleanup:
+	xhci_free_command(xhci, cmd);
+	return ret;
+}
+
+/*
+ * Ring device, it rings the all doorbells unconditionally.
+ */
+static void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
+{
+	int i;
+
+	for (i = 0; i < LAST_EP_INDEX + 1; i++)
+		if (xhci->devs[slot_id]->eps[i].ring &&
+		    xhci->devs[slot_id]->eps[i].ring->dequeue)
+			xhci_ring_ep_doorbell(xhci, slot_id, i, 0);
+
+	return;
+}
+
 static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
 		u32 __iomem *addr, u32 port_status)
 {
@@ -162,6 +255,10 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 		status = PORT_PEC;
 		port_change_bit = "enable/disable";
 		break;
+	case USB_PORT_FEAT_C_SUSPEND:
+		status = PORT_PLC;
+		port_change_bit = "suspend/resume";
+		break;
 	default:
 		/* Should never happen */
 		return;
@@ -182,6 +279,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u32 temp, status;
 	int retval = 0;
 	u32 __iomem *addr;
+	int slot_id;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
@@ -211,9 +309,21 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		if ((temp & PORT_OCC))
 			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 		/*
-		 * FIXME ignoring suspend, reset, and USB 2.1/3.0 specific
+		 * FIXME ignoring reset and USB 2.1/3.0 specific
 		 * changes
 		 */
+		if ((temp & PORT_PLS_MASK) == XDEV_U3
+			&& (temp & PORT_POWER))
+			status |= 1 << USB_PORT_FEAT_SUSPEND;
+		if ((temp & PORT_PLS_MASK) == XDEV_U0
+			&& (temp & PORT_POWER)
+			&& (xhci->suspended_ports[wIndex >> 5] &
+			    (1 << (wIndex & 31)))) {
+			xhci->suspended_ports[wIndex >> 5] &=
+					~(1 << (wIndex & 31));
+			xhci->port_c_suspend[wIndex >> 5] |=
+					1 << (wIndex & 31);
+		}
 		if (temp & PORT_CONNECT) {
 			status |= USB_PORT_STAT_CONNECTION;
 			status |= xhci_port_speed(temp);
@@ -226,6 +336,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
 			status |= USB_PORT_STAT_POWER;
+		if (xhci->port_c_suspend[wIndex >> 5] & (1 << (wIndex & 31)))
+			status |= 1 << USB_PORT_FEAT_C_SUSPEND;
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		break;
@@ -238,6 +350,42 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = xhci_readl(xhci, addr);
 		temp = xhci_port_state_to_neutral(temp);
 		switch (wValue) {
+		case USB_PORT_FEAT_SUSPEND:
+			temp = xhci_readl(xhci, addr);
+			/* In spec software should not attempt to suspend
+			 * a port unless the port reports that it is in the
+			 * enabled (PED = ‘1’,PLS < ‘3’) state.
+			 */
+			if ((temp & PORT_PE) == 0 || (temp & PORT_RESET)
+				|| (temp & PORT_PLS_MASK) >= XDEV_U3) {
+				xhci_warn(xhci, "USB core suspending device "
+					  "not in U0/U1/U2.\n");
+				goto error;
+			}
+
+			slot_id = xhci_find_slot_id_by_port(xhci, wIndex + 1);
+			if (!slot_id) {
+				xhci_warn(xhci, "slot_id is zero\n");
+				goto error;
+			}
+			/* unlock to execute stop endpoint commands */
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			xhci_stop_device(xhci, slot_id, 1);
+			spin_lock_irqsave(&xhci->lock, flags);
+
+			temp = xhci_port_state_to_neutral(temp);
+			temp &= ~PORT_PLS_MASK;
+			temp |= PORT_LINK_STROBE | XDEV_U3;
+			xhci_writel(xhci, temp, addr);
+
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			msleep(10); /* wait device to enter */
+			spin_lock_irqsave(&xhci->lock, flags);
+
+			temp = xhci_readl(xhci, addr);
+			xhci->suspended_ports[wIndex >> 5] |=
+					1 << (wIndex & (31));
+			break;
 		case USB_PORT_FEAT_POWER:
 			/*
 			 * Turn on ports, even if there isn't per-port switching.
@@ -271,6 +419,52 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = xhci_readl(xhci, addr);
 		temp = xhci_port_state_to_neutral(temp);
 		switch (wValue) {
+		case USB_PORT_FEAT_SUSPEND:
+			temp = xhci_readl(xhci, addr);
+			xhci_dbg(xhci, "clear USB_PORT_FEAT_SUSPEND\n");
+			xhci_dbg(xhci, "PORTSC %04x\n", temp);
+			if (temp & PORT_RESET)
+				goto error;
+			if (temp & XDEV_U3) {
+				if ((temp & PORT_PE) == 0)
+					goto error;
+				if (DEV_SUPERSPEED(temp)) {
+					temp = xhci_port_state_to_neutral(temp);
+					temp &= ~PORT_PLS_MASK;
+					temp |= PORT_LINK_STROBE | XDEV_U0;
+					xhci_writel(xhci, temp, addr);
+					xhci_readl(xhci, addr);
+				} else {
+					temp = xhci_port_state_to_neutral(temp);
+					temp &= ~PORT_PLS_MASK;
+					temp |= PORT_LINK_STROBE | XDEV_RESUME;
+					xhci_writel(xhci, temp, addr);
+
+					spin_unlock_irqrestore(&xhci->lock,
+							       flags);
+					msleep(20);
+					spin_lock_irqsave(&xhci->lock, flags);
+
+					temp = xhci_readl(xhci, addr);
+					temp = xhci_port_state_to_neutral(temp);
+					temp &= ~PORT_PLS_MASK;
+					temp |= PORT_LINK_STROBE | XDEV_U0;
+					xhci_writel(xhci, temp, addr);
+				}
+				xhci->port_c_suspend[wIndex >> 5] |=
+						1 << (wIndex & 31);
+			}
+
+			slot_id = xhci_find_slot_id_by_port(xhci, wIndex + 1);
+			if (!slot_id) {
+				xhci_dbg(xhci, "slot_id is zero\n");
+				goto error;
+			}
+			xhci_ring_device(xhci, slot_id);
+			break;
+		case USB_PORT_FEAT_C_SUSPEND:
+			xhci->port_c_suspend[wIndex >> 5] &=
+					~(1 << (wIndex & 31));
 		case USB_PORT_FEAT_C_RESET:
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_OVER_CURRENT:

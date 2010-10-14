@@ -68,6 +68,10 @@
 #include <linux/slab.h>
 #include "xhci.h"
 
+static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct xhci_event_cmd *event);
+
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
  * address of the TRB.
@@ -313,7 +317,7 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 	xhci_readl(xhci, &xhci->dba->doorbell[0]);
 }
 
-static void ring_ep_doorbell(struct xhci_hcd *xhci,
+void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 		unsigned int slot_id,
 		unsigned int ep_index,
 		unsigned int stream_id)
@@ -353,7 +357,7 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 	/* A ring has pending URBs if its TD list is not empty */
 	if (!(ep->ep_state & EP_HAS_STREAMS)) {
 		if (!(list_empty(&ep->ring->td_list)))
-			ring_ep_doorbell(xhci, slot_id, ep_index, 0);
+			xhci_ring_ep_doorbell(xhci, slot_id, ep_index, 0);
 		return;
 	}
 
@@ -361,7 +365,8 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 			stream_id++) {
 		struct xhci_stream_info *stream_info = ep->stream_info;
 		if (!list_empty(&stream_info->stream_rings[stream_id]->td_list))
-			ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
+			xhci_ring_ep_doorbell(xhci, slot_id, ep_index,
+						stream_id);
 	}
 }
 
@@ -626,10 +631,11 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
  *     bit cleared) so that the HW will skip over them.
  */
 static void handle_stopped_endpoint(struct xhci_hcd *xhci,
-		union xhci_trb *trb)
+		union xhci_trb *trb, struct xhci_event_cmd *event)
 {
 	unsigned int slot_id;
 	unsigned int ep_index;
+	struct xhci_virt_device *virt_dev;
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_ep *ep;
 	struct list_head *entry;
@@ -637,6 +643,21 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	struct xhci_td *last_unlinked_td;
 
 	struct xhci_dequeue_state deq_state;
+
+	if (unlikely(TRB_TO_SUSPEND_PORT(
+			xhci->cmd_ring->dequeue->generic.field[3]))) {
+		slot_id = TRB_TO_SLOT_ID(
+			xhci->cmd_ring->dequeue->generic.field[3]);
+		virt_dev = xhci->devs[slot_id];
+		if (virt_dev)
+			handle_cmd_in_cmd_wait_list(xhci, virt_dev,
+				event);
+		else
+			xhci_warn(xhci, "Stop endpoint command "
+				"completion for disabled slot %u\n",
+				slot_id);
+		return;
+	}
 
 	memset(&deq_state, 0, sizeof(deq_state));
 	slot_id = TRB_TO_SLOT_ID(trb->generic.field[3]);
@@ -1091,7 +1112,7 @@ bandwidth_change:
 		complete(&xhci->addr_dev);
 		break;
 	case TRB_TYPE(TRB_STOP_RING):
-		handle_stopped_endpoint(xhci, xhci->cmd_ring->dequeue);
+		handle_stopped_endpoint(xhci, xhci->cmd_ring->dequeue, event);
 		break;
 	case TRB_TYPE(TRB_SET_DEQ):
 		handle_set_deq_completion(xhci, event, xhci->cmd_ring->dequeue);
@@ -2347,7 +2368,7 @@ static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 	 */
 	wmb();
 	start_trb->field[3] |= start_cycle;
-	ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
+	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
 }
 
 /*
@@ -2931,7 +2952,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	wmb();
 	start_trb->field[3] |= start_cycle;
 
-	ring_ep_doorbell(xhci, slot_id, ep_index, urb->stream_id);
+	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, urb->stream_id);
 	return 0;
 }
 
@@ -3108,15 +3129,20 @@ int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 			false);
 }
 
+/*
+ * Suspend is set to indicate "Stop Endpoint Command" is being issued to stop
+ * activity on an endpoint that is about to be suspended.
+ */
 int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index)
+		unsigned int ep_index, int suspend)
 {
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_STOP_RING);
+	u32 trb_suspend = SUSPEND_PORT_FOR_TRB(suspend);
 
 	return queue_command(xhci, 0, 0, 0,
-			trb_slot_id | trb_ep_index | type, false);
+			trb_slot_id | trb_ep_index | type | trb_suspend, false);
 }
 
 /* Set Transfer Ring Dequeue Pointer command.
