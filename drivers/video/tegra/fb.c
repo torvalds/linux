@@ -576,6 +576,9 @@ void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
 	fb_info->info->mode = (struct fb_videomode *)
 		fb_find_best_display(specs, &fb_info->info->modelist);
 
+	fb_videomode_to_var(&fb_info->info->var, fb_info->info->mode);
+	tegra_fb_set_par(fb_info->info);
+
 	event.info = fb_info->info;
 	fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
 	mutex_unlock(&fb_info->info->lock);
