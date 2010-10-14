@@ -68,6 +68,10 @@ static ssize_t show_protocols(struct device *d,
 	char *tmp = buf;
 	int i;
 
+	/* Device is being removed */
+	if (!ir_dev)
+		return -EINVAL;
+
 	if (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
 		enabled = ir_dev->rc_tab.ir_type;
 		allowed = ir_dev->props->allowed_protos;
@@ -122,6 +126,10 @@ static ssize_t store_protocols(struct device *d,
 	u64 mask;
 	int rc, i, count = 0;
 	unsigned long flags;
+
+	/* Device is being removed */
+	if (!ir_dev)
+		return -EINVAL;
 
 	if (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
 		type = ir_dev->rc_tab.ir_type;
@@ -310,6 +318,7 @@ void ir_unregister_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 
+	input_set_drvdata(input_dev, NULL);
 	clear_bit(ir_dev->devno, &ir_core_dev_number);
 	input_unregister_device(input_dev);
 	device_del(&ir_dev->dev);
