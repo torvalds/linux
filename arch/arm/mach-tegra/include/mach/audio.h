@@ -41,6 +41,8 @@ struct tegra_audio_platform_data {
 	int mode; /* I2S, LJM, RJM, etc. */
 	int fifo_fmt;
 	int bit_size;
+	int i2s_bus_width; /* 32-bit for 16-bit packed I2S */
+	int dsp_bus_width; /* 16-bit for DSP data format */
 
 	void *driver_data;
 };
