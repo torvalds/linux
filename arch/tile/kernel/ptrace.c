@@ -32,25 +32,6 @@ void user_disable_single_step(struct task_struct *child)
 }
 
 /*
- * This routine will put a word on the process's privileged stack.
- */
-static void putreg(struct task_struct *task,
-		   unsigned long addr, unsigned long value)
-{
-	unsigned int regno = addr / sizeof(unsigned long);
-	struct pt_regs *childregs = task_pt_regs(task);
-	childregs->regs[regno] = value;
-	childregs->flags |= PT_FLAGS_RESTORE_REGS;
-}
-
-static unsigned long getreg(struct task_struct *task, unsigned long addr)
-{
-	unsigned int regno = addr / sizeof(unsigned long);
-	struct pt_regs *childregs = task_pt_regs(task);
-	return childregs->regs[regno];
-}
-
-/*
  * Called by kernel/ptrace.c when detaching..
  */
 void ptrace_disable(struct task_struct *child)
@@ -66,59 +47,72 @@ void ptrace_disable(struct task_struct *child)
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	unsigned long __user *datap;
+	unsigned long __user *datap = (long __user __force *)data;
 	unsigned long tmp;
 	int i;
 	long ret = -EIO;
-
-#ifdef CONFIG_COMPAT
-	if (task_thread_info(current)->status & TS_COMPAT)
-		data = (u32)data;
-	if (task_thread_info(child)->status & TS_COMPAT)
-		addr = (u32)addr;
-#endif
-	datap = (unsigned long __user __force *)data;
+	unsigned long *childregs;
+	char *childreg;
 
 	switch (request) {
 
 	case PTRACE_PEEKUSR:  /* Read register from pt_regs. */
-		if (addr & (sizeof(data)-1))
-			break;
 		if (addr < 0 || addr >= PTREGS_SIZE)
 			break;
-		tmp = getreg(child, addr);   /* Read register */
-		ret = put_user(tmp, datap);
+		childreg = (char *)task_pt_regs(child) + addr;
+#ifdef CONFIG_COMPAT
+		if (is_compat_task()) {
+			if (addr & (sizeof(compat_long_t)-1))
+				break;
+			ret = put_user(*(compat_long_t *)childreg,
+				       (compat_long_t __user *)datap);
+		} else
+#endif
+		{
+			if (addr & (sizeof(long)-1))
+				break;
+			ret = put_user(*(long *)childreg, datap);
+		}
 		break;
 
 	case PTRACE_POKEUSR:  /* Write register in pt_regs. */
-		if (addr & (sizeof(data)-1))
-			break;
 		if (addr < 0 || addr >= PTREGS_SIZE)
 			break;
-		putreg(child, addr, data);   /* Write register */
+		childreg = (char *)task_pt_regs(child) + addr;
+#ifdef CONFIG_COMPAT
+		if (is_compat_task()) {
+			if (addr & (sizeof(compat_long_t)-1))
+				break;
+			*(compat_long_t *)childreg = data;
+		} else
+#endif
+		{
+			if (addr & (sizeof(long)-1))
+				break;
+			*(long *)childreg = data;
+		}
 		ret = 0;
 		break;
 
 	case PTRACE_GETREGS:  /* Get all registers from the child. */
 		if (!access_ok(VERIFY_WRITE, datap, PTREGS_SIZE))
 			break;
-		for (i = 0; i < PTREGS_SIZE; i += sizeof(long)) {
-			ret = __put_user(getreg(child, i), datap);
+		childregs = (long *)task_pt_regs(child);
+		for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i) {
+			ret = __put_user(childregs[i], &datap[i]);
 			if (ret != 0)
 				break;
-			datap++;
 		}
 		break;
 
 	case PTRACE_SETREGS:  /* Set all registers in the child. */
 		if (!access_ok(VERIFY_READ, datap, PTREGS_SIZE))
 			break;
-		for (i = 0; i < PTREGS_SIZE; i += sizeof(long)) {
-			ret = __get_user(tmp, datap);
+		childregs = (long *)task_pt_regs(child);
+		for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i) {
+			ret = __get_user(childregs[i], &datap[i]);
 			if (ret != 0)
 				break;
-			putreg(child, i, tmp);
-			datap++;
 		}
 		break;
 
