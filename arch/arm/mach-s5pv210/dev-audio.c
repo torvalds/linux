@@ -293,3 +293,43 @@ struct platform_device s5pv210_device_ac97 = {
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
+
+/* S/PDIF Controller platform_device */
+
+static int s5pv210_spdif_cfg_gpio(struct platform_device *pdev)
+{
+	s3c_gpio_cfgpin_range(S5PV210_GPC1(0), 2, S3C_GPIO_SFN(3));
+
+	return 0;
+}
+
+static struct resource s5pv210_spdif_resource[] = {
+	[0] = {
+		.start	= S5PV210_PA_SPDIF,
+		.end	= S5PV210_PA_SPDIF + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMACH_SPDIF,
+		.end	= DMACH_SPDIF,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct s3c_audio_pdata samsung_spdif_pdata = {
+	.cfg_gpio = s5pv210_spdif_cfg_gpio,
+};
+
+static u64 s5pv210_spdif_dmamask = DMA_BIT_MASK(32);
+
+struct platform_device s5pv210_device_spdif = {
+	.name		= "samsung-spdif",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s5pv210_spdif_resource),
+	.resource	= s5pv210_spdif_resource,
+	.dev = {
+		.platform_data = &samsung_spdif_pdata,
+		.dma_mask = &s5pv210_spdif_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};

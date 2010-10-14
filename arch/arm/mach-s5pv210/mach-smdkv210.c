@@ -104,6 +104,7 @@ static struct samsung_keypad_platdata smdkv210_keypad_data __initdata = {
 static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
+	&s5pv210_device_spdif,
 	&s3c_device_adc,
 	&s3c_device_cfcon,
 	&s3c_device_hsmmc0,
