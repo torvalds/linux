@@ -63,10 +63,23 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	tree->max_key_len = be16_to_cpu(head->max_key_len);
 	tree->depth = be16_to_cpu(head->depth);
 
-	/* Set the correct compare function */
-	if (id == HFSPLUS_EXT_CNID) {
+	/* Verify the tree and set the correct compare function */
+	switch (id) {
+	case HFSPLUS_EXT_CNID:
+		if (tree->max_key_len != HFSPLUS_EXT_KEYLEN - sizeof(u16)) {
+			printk(KERN_ERR "hfs: invalid extent max_key_len %d\n",
+				tree->max_key_len);
+			goto fail_page;
+		}
 		tree->keycmp = hfsplus_ext_cmp_key;
-	} else if (id == HFSPLUS_CAT_CNID) {
+		break;
+	case HFSPLUS_CAT_CNID:
+		if (tree->max_key_len != HFSPLUS_CAT_KEYLEN - sizeof(u16)) {
+			printk(KERN_ERR "hfs: invalid catalog max_key_len %d\n",
+				tree->max_key_len);
+			goto fail_page;
+		}
+
 		if (test_bit(HFSPLUS_SB_HFSX, &HFSPLUS_SB(sb)->flags) &&
 		    (head->key_type == HFSPLUS_KEY_BINARY))
 			tree->keycmp = hfsplus_cat_bin_cmp_key;
@@ -74,7 +87,8 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 			tree->keycmp = hfsplus_cat_case_cmp_key;
 			set_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
 		}
-	} else {
+		break;
+	default:
 		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
 		goto fail_page;
 	}
@@ -84,6 +98,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 		goto fail_page;
 	if (!tree->node_count)
 		goto fail_page;
+
 	tree->node_size_shift = ffs(size) - 1;
 
 	tree->pages_per_bnode = (tree->node_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
@@ -93,9 +108,9 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	return tree;
 
  fail_page:
-	tree->inode->i_mapping->a_ops = &hfsplus_aops;
 	page_cache_release(page);
  free_inode:
+	tree->inode->i_mapping->a_ops = &hfsplus_aops;
 	iput(tree->inode);
  free_tree:
 	kfree(tree);
