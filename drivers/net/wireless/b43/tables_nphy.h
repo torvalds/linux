@@ -12,17 +12,6 @@ struct b43_phy_n_sfo_cfg {
 	u16 phy_bw6;
 };
 
-struct b43_nphy_channeltab_entry_rev3 {
-	/* The channel number */
-	u8 channel;
-	/* The channel frequency in MHz */
-	u16 freq;
-	/* Radio register values on channelswitch */
-	/* TODO */
-	/* PHY register values on channelswitch */
-	struct b43_phy_n_sfo_cfg phy_regs;
-};
-
 struct b43_wldev;
 
 struct nphy_txiqcal_ladder {

@@ -30,6 +30,7 @@
 #include "phy_n.h"
 #include "tables_nphy.h"
 #include "radio_2055.h"
+#include "radio_2056.h"
 #include "main.h"
 
 struct nphy_txgains {

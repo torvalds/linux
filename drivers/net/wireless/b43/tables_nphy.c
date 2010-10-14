@@ -1,7 +1,7 @@
 /*
 
   Broadcom B43 wireless driver
-  IEEE 802.11n PHY and radio device data tables
+  IEEE 802.11n PHY data tables
 
   Copyright (c) 2008 Michael Buesch <mb@bu3sch.de>
 
@@ -26,24 +26,6 @@
 #include "tables_nphy.h"
 #include "phy_common.h"
 #include "phy_n.h"
-
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev3[] = {
-};
-
-const struct b43_nphy_channeltab_entry_rev3 *
-b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq)
-{
-	const struct b43_nphy_channeltab_entry_rev3 *e;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(b43_nphy_channeltab_rev3); i++) {
-		e = &(b43_nphy_channeltab_rev3[i]);
-		if (e->freq == freq)
-			return e;
-	}
-
-	return NULL;
-}
 
 static const u8 b43_ntab_adjustpower0[] = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
