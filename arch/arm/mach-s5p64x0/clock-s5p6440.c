@@ -85,7 +85,7 @@ static int s5p6440_epll_set_rate(struct clk *clk, unsigned long rate)
 }
 
 static struct clk_ops s5p6440_epll_ops = {
-	.get_rate = s5p64x0_epll_get_rate,
+	.get_rate = s5p_epll_get_rate,
 	.set_rate = s5p6440_epll_set_rate,
 };
 
@@ -548,7 +548,7 @@ void __init_or_cpufreq s5p6440_setup_clocks(void)
 
 	/* Set S5P6440 functions for clk_fout_epll */
 
-	clk_fout_epll.enable = s5p64x0_epll_enable;
+	clk_fout_epll.enable = s5p_epll_enable;
 	clk_fout_epll.ops = &s5p6440_epll_ops;
 
 	clk_48m.enable = s5p64x0_clk48m_ctrl;

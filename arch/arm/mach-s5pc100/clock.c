@@ -273,24 +273,6 @@ static struct clksrc_clk clk_div_hdmi = {
 	.reg_div = { .reg = S5P_CLK_DIV3, .shift = 28, .size = 4 },
 };
 
-static int s5pc100_epll_enable(struct clk *clk, int enable)
-{
-	unsigned int ctrlbit = clk->ctrlbit;
-	unsigned int epll_con = __raw_readl(S5P_EPLL_CON) & ~ctrlbit;
-
-	if (enable)
-		__raw_writel(epll_con | ctrlbit, S5P_EPLL_CON);
-	else
-		__raw_writel(epll_con, S5P_EPLL_CON);
-
-	return 0;
-}
-
-static unsigned long s5pc100_epll_get_rate(struct clk *clk)
-{
-	return clk->rate;
-}
-
 static u32 epll_div[][4] = {
 	{ 32750000,	131, 3, 4 },
 	{ 32768000,	131, 3, 4 },
@@ -347,7 +329,7 @@ static int s5pc100_epll_set_rate(struct clk *clk, unsigned long rate)
 }
 
 static struct clk_ops s5pc100_epll_ops = {
-	.get_rate = s5pc100_epll_get_rate,
+	.get_rate = s5p_epll_get_rate,
 	.set_rate = s5pc100_epll_set_rate,
 };
 
@@ -1261,7 +1243,7 @@ void __init_or_cpufreq s5pc100_setup_clocks(void)
 	unsigned int ptr;
 
 	/* Set S5PC100 functions for clk_fout_epll */
-	clk_fout_epll.enable = s5pc100_epll_enable;
+	clk_fout_epll.enable = s5p_epll_enable;
 	clk_fout_epll.ops = &s5pc100_epll_ops;
 
 	printk(KERN_DEBUG "%s: registering clocks\n", __func__);

@@ -84,4 +84,8 @@
 
 #define S5P_CLKGATE_SCLKCPU		S5P_CLKREG(0x14800)
 
+/* Compatibility defines */
+
+#define S5P_EPLL_CON			S5P_EPLL_CON0
+
 #endif /* __ASM_ARCH_REGS_CLOCK_H */
