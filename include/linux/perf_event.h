@@ -487,6 +487,7 @@ struct perf_guest_info_callbacks {
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
 #include <linux/irq_work.h>
+#include <linux/jump_label_ref.h>
 #include <asm/atomic.h>
 #include <asm/local.h>
 
@@ -895,8 +896,30 @@ extern void perf_pmu_unregister(struct pmu *pmu);
 
 extern int perf_num_counters(void);
 extern const char *perf_pmu_name(void);
-extern void perf_event_task_sched_in(struct task_struct *task);
-extern void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next);
+extern void __perf_event_task_sched_in(struct task_struct *task);
+extern void __perf_event_task_sched_out(struct task_struct *task, struct task_struct *next);
+
+extern atomic_t perf_task_events;
+
+static inline void perf_event_task_sched_in(struct task_struct *task)
+{
+	JUMP_LABEL(&perf_task_events, have_events);
+	return;
+
+have_events:
+	__perf_event_task_sched_in(task);
+}
+
+static inline
+void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next)
+{
+	JUMP_LABEL(&perf_task_events, have_events);
+	return;
+
+have_events:
+	__perf_event_task_sched_out(task, next);
+}
+
 extern int perf_event_init_task(struct task_struct *child);
 extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
