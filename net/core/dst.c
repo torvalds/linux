@@ -271,12 +271,39 @@ void dst_release(struct dst_entry *dst)
 	if (dst) {
 		int newrefcnt;
 
-		smp_mb__before_atomic_dec();
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		WARN_ON(newrefcnt < 0);
+		if (unlikely(dst->flags & DST_NOCACHE) && !newrefcnt) {
+			dst = dst_destroy(dst);
+			if (dst)
+				__dst_free(dst);
+		}
 	}
 }
 EXPORT_SYMBOL(dst_release);
+
+/**
+ * skb_dst_set_noref - sets skb dst, without a reference
+ * @skb: buffer
+ * @dst: dst entry
+ *
+ * Sets skb dst, assuming a reference was not taken on dst
+ * skb_dst_drop() should not dst_release() this dst
+ */
+void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
+{
+	WARN_ON(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
+	/* If dst not in cache, we must take a reference, because
+	 * dst_release() will destroy dst as soon as its refcount becomes zero
+	 */
+	if (unlikely(dst->flags & DST_NOCACHE)) {
+		dst_hold(dst);
+		skb_dst_set(skb, dst);
+	} else {
+		skb->_skb_refdst = (unsigned long)dst | SKB_DST_NOREF;
+	}
+}
+EXPORT_SYMBOL(skb_dst_set_noref);
 
 /* Dirty hack. We did it in 2.2 (in __dst_free),
  * we have _very_ good reasons not to repeat
