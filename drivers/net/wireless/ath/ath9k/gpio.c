@@ -310,10 +310,8 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 		timer_period = is_btscan ? btcoex->btscan_no_stomp :
 					   btcoex->btcoex_no_stomp;
-		ath9k_gen_timer_start(ah,
-				      btcoex->no_stomp_timer,
-				      (ath9k_hw_gettsf32(ah) +
-				       timer_period), timer_period * 10);
+		ath9k_gen_timer_start(ah, btcoex->no_stomp_timer, 0,
+				      timer_period * 10);
 		btcoex->hw_timer_enabled = true;
 	}
 
