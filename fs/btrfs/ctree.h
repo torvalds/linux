@@ -2082,7 +2082,7 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes);
 int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				int num_items, int *retries);
+				int num_items);
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);
 int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
@@ -2103,7 +2103,7 @@ void btrfs_add_durable_block_rsv(struct btrfs_fs_info *fs_info,
 int btrfs_block_rsv_add(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct btrfs_block_rsv *block_rsv,
-			u64 num_bytes, int *retries);
+			u64 num_bytes);
 int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv,

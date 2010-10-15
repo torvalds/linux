@@ -179,7 +179,6 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 {
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
-	int retries = 0;
 	int ret;
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
@@ -212,8 +211,7 @@ again:
 	}
 
 	if (num_items > 0) {
-		ret = btrfs_trans_reserve_metadata(h, root, num_items,
-						   &retries);
+		ret = btrfs_trans_reserve_metadata(h, root, num_items);
 		if (ret == -EAGAIN) {
 			btrfs_commit_transaction(h, root);
 			goto again;
@@ -836,7 +834,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
 	int ret;
-	int retries = 0;
 	u64 to_reserve = 0;
 	u64 index = 0;
 	u64 objectid;
@@ -858,7 +855,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	if (to_reserve > 0) {
 		ret = btrfs_block_rsv_add(trans, root, &pending->block_rsv,
-					  to_reserve, &retries);
+					  to_reserve);
 		if (ret) {
 			pending->error = ret;
 			goto fail;
