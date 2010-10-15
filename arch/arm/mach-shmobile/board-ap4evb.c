@@ -780,22 +780,22 @@ static int __init hdmi_init_pm_clock(void)
 		goto out;
 	}
 
-	ret = clk_set_parent(&pllc2_clk, &dv_clki_div2_clk);
+	ret = clk_set_parent(&sh7372_pllc2_clk, &sh7372_dv_clki_div2_clk);
 	if (ret < 0) {
-		pr_err("Cannot set PLLC2 parent: %d, %d users\n", ret, pllc2_clk.usecount);
+		pr_err("Cannot set PLLC2 parent: %d, %d users\n", ret, sh7372_pllc2_clk.usecount);
 		goto out;
 	}
 
-	pr_debug("PLLC2 initial frequency %lu\n", clk_get_rate(&pllc2_clk));
+	pr_debug("PLLC2 initial frequency %lu\n", clk_get_rate(&sh7372_pllc2_clk));
 
-	rate = clk_round_rate(&pllc2_clk, 594000000);
+	rate = clk_round_rate(&sh7372_pllc2_clk, 594000000);
 	if (rate < 0) {
 		pr_err("Cannot get suitable rate: %ld\n", rate);
 		ret = rate;
 		goto out;
 	}
 
-	ret = clk_set_rate(&pllc2_clk, rate);
+	ret = clk_set_rate(&sh7372_pllc2_clk, rate);
 	if (ret < 0) {
 		pr_err("Cannot set rate %ld: %d\n", rate, ret);
 		goto out;
@@ -803,7 +803,7 @@ static int __init hdmi_init_pm_clock(void)
 
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
-	ret = clk_set_parent(hdmi_ick, &pllc2_clk);
+	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
 	if (ret < 0) {
 		pr_err("Cannot set HDMI parent: %d\n", ret);
 		goto out;
@@ -1132,7 +1132,7 @@ static void __init ap4evb_timer_init(void)
 	shmobile_timer.init();
 
 	/* External clock source */
-	clk_set_rate(&dv_clki_clk, 27000000);
+	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 }
 
 static struct sys_timer ap4evb_timer = {

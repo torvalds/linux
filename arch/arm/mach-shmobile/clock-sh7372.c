@@ -51,7 +51,7 @@
 #define SMSTPCR4	0xe6150140
 
 /* Platforms must set frequency on their DV_CLKI pin */
-struct clk dv_clki_clk = {
+struct clk sh7372_dv_clki_clk = {
 };
 
 /* Fixed 32 KHz root clock from EXTALR pin */
@@ -86,9 +86,9 @@ static struct clk_ops div2_clk_ops = {
 };
 
 /* Divide dv_clki by two */
-struct clk dv_clki_div2_clk = {
+struct clk sh7372_dv_clki_div2_clk = {
 	.ops		= &div2_clk_ops,
-	.parent		= &dv_clki_clk,
+	.parent		= &sh7372_dv_clki_clk,
 };
 
 /* Divide extal1 by two */
@@ -150,7 +150,7 @@ static struct clk pllc1_div2_clk = {
 static struct clk *pllc2_parent[] = {
 	[0] = &extal1_div2_clk,
 	[1] = &extal2_div2_clk,
-	[2] = &dv_clki_div2_clk,
+	[2] = &sh7372_dv_clki_div2_clk,
 };
 
 /* Only multipliers 20 * 2 to 46 * 2 are valid, last entry for CPUFREQ_TABLE_END */
@@ -284,7 +284,7 @@ static struct clk_ops pllc2_clk_ops = {
 	.set_parent	= pllc2_set_parent,
 };
 
-struct clk pllc2_clk = {
+struct clk sh7372_pllc2_clk = {
 	.ops		= &pllc2_clk_ops,
 	.parent		= &extal1_div2_clk,
 	.freq_table	= pllc2_freq_table,
@@ -293,18 +293,18 @@ struct clk pllc2_clk = {
 };
 
 static struct clk *main_clks[] = {
-	&dv_clki_clk,
+	&sh7372_dv_clki_clk,
 	&r_clk,
 	&sh7372_extal1_clk,
 	&sh7372_extal2_clk,
-	&dv_clki_div2_clk,
+	&sh7372_dv_clki_div2_clk,
 	&extal1_div2_clk,
 	&extal2_div2_clk,
 	&extal2_div4_clk,
 	&pllc0_clk,
 	&pllc1_clk,
 	&pllc1_div2_clk,
-	&pllc2_clk,
+	&sh7372_pllc2_clk,
 };
 
 static void div4_kick(struct clk *clk)
@@ -382,8 +382,8 @@ enum { DIV6_HDMI, DIV6_REPARENT_NR };
 /* Indices are important - they are the actual src selecting values */
 static struct clk *hdmi_parent[] = {
 	[0] = &pllc1_div2_clk,
-	[1] = &pllc2_clk,
-	[2] = &dv_clki_clk,
+	[1] = &sh7372_pllc2_clk,
+	[2] = &sh7372_dv_clki_clk,
 	[3] = NULL,	/* pllc2_div4 not implemented yet */
 };
 
@@ -448,7 +448,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 
 static struct clk_lookup lookups[] = {
 	/* main clocks */
-	CLKDEV_CON_ID("dv_clki_div2_clk", &dv_clki_div2_clk),
+	CLKDEV_CON_ID("dv_clki_div2_clk", &sh7372_dv_clki_div2_clk),
 	CLKDEV_CON_ID("r_clk", &r_clk),
 	CLKDEV_CON_ID("extal1", &sh7372_extal1_clk),
 	CLKDEV_CON_ID("extal2", &sh7372_extal2_clk),
@@ -458,7 +458,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc0_clk", &pllc0_clk),
 	CLKDEV_CON_ID("pllc1_clk", &pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk", &pllc1_div2_clk),
-	CLKDEV_CON_ID("pllc2_clk", &pllc2_clk),
+	CLKDEV_CON_ID("pllc2_clk", &sh7372_pllc2_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk", &div4_clks[DIV4_I]),
