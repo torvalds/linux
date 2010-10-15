@@ -3547,11 +3547,9 @@ void
 qla2x00_timer(scsi_qla_host_t *vha)
 {
 	unsigned long	cpu_flags = 0;
-	fc_port_t	*fcport;
 	int		start_dpc = 0;
 	int		index;
 	srb_t		*sp;
-	int		t;
 	uint16_t        w;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
@@ -3567,34 +3565,6 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	/* Hardware read to raise pending EEH errors during mailbox waits. */
 	if (!pci_channel_offline(ha->pdev))
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
-	/*
-	 * Ports - Port down timer.
-	 *
-	 * Whenever, a port is in the LOST state we start decrementing its port
-	 * down timer every second until it reaches zero. Once  it reaches zero
-	 * the port it marked DEAD.
-	 */
-	t = 0;
-	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-		if (fcport->port_type != FCT_TARGET)
-			continue;
-
-		if (atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
-
-			if (atomic_read(&fcport->port_down_timer) == 0)
-				continue;
-
-			if (atomic_dec_and_test(&fcport->port_down_timer) != 0)
-				atomic_set(&fcport->state, FCS_DEVICE_DEAD);
-
-			DEBUG(printk("scsi(%ld): fcport-%d - port retry count: "
-			    "%d remaining\n",
-			    vha->host_no,
-			    t, atomic_read(&fcport->port_down_timer)));
-		}
-		t++;
-	} /* End of for fcport  */
-
 
 	/* Loop down handler. */
 	if (atomic_read(&vha->loop_down_timer) > 0 &&

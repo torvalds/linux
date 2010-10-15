@@ -2916,20 +2916,12 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 void
 qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
-	struct qla_hw_data *ha = vha->hw;
-
 	fcport->vha = vha;
 	fcport->login_retry = 0;
-	fcport->port_login_retry_count = ha->port_down_retry_count *
-	    PORT_RETRY_TIME;
-	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
-	    PORT_RETRY_TIME);
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
 	qla2x00_iidma_fcport(vha, fcport);
-
 	atomic_set(&fcport->state, FCS_ONLINE);
-
 	qla2x00_reg_remote_port(vha, fcport);
 }
 
