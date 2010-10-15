@@ -323,6 +323,7 @@ static void ds2781_program_alarm(struct ds2781_device_info *di, int seconds)
 
 	next = ktime_add(di->last_poll, low_interval);
 
+	alarm_cancel(&di->alarm);
 	alarm_start_range(&di->alarm, next, ktime_add(next, slack));
 }
 
