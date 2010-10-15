@@ -36,8 +36,12 @@
 #define DRV_VERSION "2.20"
 #define SYNTH_CLEAR 0x03
 #define PROCSPEECH 0x0b
-static volatile int xoff;
-#define synth_full() (xoff)
+static int xoff;
+
+static inline int synth_full(void)
+{
+	return xoff;
+}
 
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
@@ -51,14 +55,14 @@ static spinlock_t flush_lock;
 static DECLARE_WAIT_QUEUE_HEAD(flush);
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"[:dv ap 160] " }},
-	{ CAPS_STOP, .u.s = {"[:dv ap 100 ] " }},
-	{ RATE, .u.n = {"[:ra %d] ", 180, 75, 650, 0, 0, NULL }},
-	{ PITCH, .u.n = {"[:dv ap %d] ", 122, 50, 350, 0, 0, NULL }},
-	{ VOL, .u.n = {"[:dv g5 %d] ", 86, 60, 86, 0, 0, NULL }},
-	{ PUNCT, .u.n = {"[:pu %c] ", 0, 0, 2, 0, 0, "nsa" }},
-	{ VOICE, .u.n = {"[:n%c] ", 0, 0, 9, 0, 0, "phfdburwkv" }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"[:dv ap 160] " } },
+	{ CAPS_STOP, .u.s = {"[:dv ap 100 ] " } },
+	{ RATE, .u.n = {"[:ra %d] ", 180, 75, 650, 0, 0, NULL } },
+	{ PITCH, .u.n = {"[:dv ap %d] ", 122, 50, 350, 0, 0, NULL } },
+	{ VOL, .u.n = {"[:dv g5 %d] ", 86, 60, 86, 0, 0, NULL } },
+	{ PUNCT, .u.n = {"[:pu %c] ", 0, 0, 2, 0, 0, "nsa" } },
+	{ VOICE, .u.n = {"[:n%c] ", 0, 0, 9, 0, 0, "phfdburwkv" } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -160,7 +164,7 @@ static int is_indnum(u_char *ch)
 	return 0;
 }
 
-static u_char lastind = 0;
+static u_char lastind;
 
 static unsigned char get_index(void)
 {
@@ -198,7 +202,8 @@ static void read_buff_add(u_char c)
 
 static void do_catch_up(struct spk_synth *synth)
 {
-	static u_char ch = 0;
+	int synth_full_val = 0;
+	static u_char ch;
 	static u_char last = '\0';
 	unsigned long flags;
 	unsigned long jiff_max;
@@ -243,10 +248,11 @@ static void do_catch_up(struct spk_synth *synth)
 		ch = synth_buffer_peek();
 		set_current_state(TASK_INTERRUPTIBLE);
 		delay_time_val = delay_time->u.n.value;
+		synth_full_val = synth_full();
 		spk_unlock(flags);
 		if (ch == '\n')
 			ch = 0x0D;
-		if (synth_full() || !spk_serial_out(ch)) {
+		if (synth_full_val || !spk_serial_out(ch)) {
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			continue;
 		}
@@ -262,13 +268,14 @@ static void do_catch_up(struct spk_synth *synth)
 			if (!in_escape && strchr(",.!?;:", last))
 				spk_serial_out(PROCSPEECH);
 			if (jiffies >= jiff_max) {
-				if ( ! in_escape )
+				if (!in_escape)
 					spk_serial_out(PROCSPEECH);
 				spk_lock(flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
 				spk_unlock(flags);
-				schedule_timeout(msecs_to_jiffies(delay_time_val));
+				schedule_timeout(msecs_to_jiffies
+						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
 			}
 		}
