@@ -579,41 +579,75 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 {
 	struct shared_info *sh = HYPERVISOR_shared_info;
 	int cpu = smp_processor_id();
+	unsigned long *cpu_evtchn = cpu_evtchn_mask(cpu);
 	int i;
 	unsigned long flags;
 	static DEFINE_SPINLOCK(debug_lock);
+	struct vcpu_info *v;
 
 	spin_lock_irqsave(&debug_lock, flags);
 
-	printk("vcpu %d\n  ", cpu);
+	printk("\nvcpu %d\n  ", cpu);
 
 	for_each_online_cpu(i) {
-		struct vcpu_info *v = per_cpu(xen_vcpu, i);
-		printk("%d: masked=%d pending=%d event_sel %08lx\n  ", i,
-			(get_irq_regs() && i == cpu) ? xen_irqs_disabled(get_irq_regs()) : v->evtchn_upcall_mask,
-			v->evtchn_upcall_pending,
-			v->evtchn_pending_sel);
+		int pending;
+		v = per_cpu(xen_vcpu, i);
+		pending = (get_irq_regs() && i == cpu)
+			? xen_irqs_disabled(get_irq_regs())
+			: v->evtchn_upcall_mask;
+		printk("%d: masked=%d pending=%d event_sel %0*lx\n  ", i,
+		       pending, v->evtchn_upcall_pending,
+		       (int)(sizeof(v->evtchn_pending_sel)*2),
+		       v->evtchn_pending_sel);
 	}
-	printk("pending:\n   ");
-	for(i = ARRAY_SIZE(sh->evtchn_pending)-1; i >= 0; i--)
-		printk("%08lx%s", sh->evtchn_pending[i],
-			i % 8 == 0 ? "\n   " : " ");
-	printk("\nmasks:\n   ");
-	for(i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
-		printk("%08lx%s", sh->evtchn_mask[i],
-			i % 8 == 0 ? "\n   " : " ");
+	v = per_cpu(xen_vcpu, cpu);
 
-	printk("\nunmasked:\n   ");
-	for(i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
-		printk("%08lx%s", sh->evtchn_pending[i] & ~sh->evtchn_mask[i],
-			i % 8 == 0 ? "\n   " : " ");
+	printk("\npending:\n   ");
+	for (i = ARRAY_SIZE(sh->evtchn_pending)-1; i >= 0; i--)
+		printk("%0*lx%s", (int)sizeof(sh->evtchn_pending[0])*2,
+		       sh->evtchn_pending[i],
+		       i % 8 == 0 ? "\n   " : " ");
+	printk("\nglobal mask:\n   ");
+	for (i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
+		printk("%0*lx%s",
+		       (int)(sizeof(sh->evtchn_mask[0])*2),
+		       sh->evtchn_mask[i],
+		       i % 8 == 0 ? "\n   " : " ");
+
+	printk("\nglobally unmasked:\n   ");
+	for (i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
+		printk("%0*lx%s", (int)(sizeof(sh->evtchn_mask[0])*2),
+		       sh->evtchn_pending[i] & ~sh->evtchn_mask[i],
+		       i % 8 == 0 ? "\n   " : " ");
+
+	printk("\nlocal cpu%d mask:\n   ", cpu);
+	for (i = (NR_EVENT_CHANNELS/BITS_PER_LONG)-1; i >= 0; i--)
+		printk("%0*lx%s", (int)(sizeof(cpu_evtchn[0])*2),
+		       cpu_evtchn[i],
+		       i % 8 == 0 ? "\n   " : " ");
+
+	printk("\nlocally unmasked:\n   ");
+	for (i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--) {
+		unsigned long pending = sh->evtchn_pending[i]
+			& ~sh->evtchn_mask[i]
+			& cpu_evtchn[i];
+		printk("%0*lx%s", (int)(sizeof(sh->evtchn_mask[0])*2),
+		       pending, i % 8 == 0 ? "\n   " : " ");
+	}
 
 	printk("\npending list:\n");
-	for(i = 0; i < NR_EVENT_CHANNELS; i++) {
+	for (i = 0; i < NR_EVENT_CHANNELS; i++) {
 		if (sync_test_bit(i, sh->evtchn_pending)) {
-			printk("  %d: event %d -> irq %d\n",
+			int word_idx = i / BITS_PER_LONG;
+			printk("  %d: event %d -> irq %d%s%s%s\n",
 			       cpu_from_evtchn(i), i,
-			       evtchn_to_irq[i]);
+			       evtchn_to_irq[i],
+			       sync_test_bit(word_idx, &v->evtchn_pending_sel)
+					     ? "" : " l2-clear",
+			       !sync_test_bit(i, sh->evtchn_mask)
+					     ? "" : " globally-masked",
+			       sync_test_bit(i, cpu_evtchn)
+					     ? "" : " locally-masked");
 		}
 	}
 
