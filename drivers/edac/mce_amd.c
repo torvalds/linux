@@ -265,7 +265,7 @@ static void amd_decode_ic_mce(struct mce *m)
 		pr_cont("%s TLB %s.\n", LL_MSG(ec),
 			(xec ? "multimatch" : "parity error"));
 	else if (BUS_ERROR(ec)) {
-		bool k8 = (boot_cpu_data.x86 == 0xf && (m->status & BIT(58)));
+		bool k8 = (boot_cpu_data.x86 == 0xf && (m->status & BIT_64(58)));
 
 		pr_cont("during %s.\n", (k8 ? "system linefill" : "NB data read"));
 	} else if (fam_ops->ic_mce(ec))
