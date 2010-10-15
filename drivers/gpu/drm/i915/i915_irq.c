@@ -664,7 +664,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 
 	/* We need to copy these to an anonymous buffer as the simplest
-	 * method to avoid being overwritten by userpace.
+	 * method to avoid being overwritten by userspace.
 	 */
 	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
 	if (batchbuffer[1] != batchbuffer[0])
