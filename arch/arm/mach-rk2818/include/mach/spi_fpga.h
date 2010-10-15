@@ -13,7 +13,6 @@ defines of FPGA chip ICE65L08's register
 #define SPI_FPGA_STANDBY_PIN RK2818_PIN_PH7
 #define SPI_FPGA_RST_PIN RK2818_PIN_PF4
 
-#define SPI_FPGA_I2C_EVENT	1
 #define SPI_FPGA_POLL_WAIT	0
 #define SPI_FPGA_TRANS_WORK	1
 #define SPI_FPGA_TEST_DEBUG	0
@@ -95,9 +94,7 @@ struct spi_i2c
 	unsigned char interrupt;
 	unsigned char i2c_data_width[2];
 	unsigned int  speed[2];
-	#if SPI_FPGA_I2C_EVENT
 	wait_queue_head_t wait_w,wait_r;
-	#endif
 };
 
 struct spi_dpram

@@ -58,35 +58,28 @@ int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel)
 	DBG("Enter::%s,LINE=%d ret = [%d]\n",__FUNCTION__,__LINE__,ret);
 	if(INT_I2C_READ_ACK == (ret & 0x07))
 	{
-
 		port->i2c.interrupt = INT_I2C_READ_ACK;	
-	#if SPI_FPGA_I2C_EVENT
 		wake_up(&port->i2c.wait_r);
-	#endif
 	}
 	else if(INT_I2C_READ_NACK ==(ret & 0x07))
 	{
-		#if SPI_FPGA_I2C_EVENT
+		port->i2c.interrupt = INT_I2C_READ_NACK;
 		wake_up(&port->i2c.wait_r);
-		#endif
-		printk("Error::read no ack!!check the I2C slave device ret=%d \n",ret);
+		printk("err:read no ack!ch=%d\n",channel);
 	}
 	else if(INT_I2C_WRITE_ACK == (ret & 0x07))
 	{
 		port->i2c.interrupt = INT_I2C_WRITE_ACK;
-		#if SPI_FPGA_I2C_EVENT
 		wake_up(&port->i2c.wait_w);
-		#endif
 	}
 	else if(INT_I2C_WRITE_NACK == (ret & 0x07))
 	{
-		#if SPI_FPGA_I2C_EVENT
+		port->i2c.interrupt = INT_I2C_WRITE_NACK;
 		wake_up(&port->i2c.wait_w);
-		#endif
-		printk("Error::write no ack!!check the I2C slave device ret=%d \n",ret);
+		printk("err:write no ack!ch=%d\n",channel);
 	}
 	else
-		printk("Error:ack value error!!check the I2C slave device ret=%d \n",ret);
+		printk("err:fpga's ack value error!\n");
 	return port->i2c.interrupt;
 }
 
@@ -158,7 +151,6 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	reg = channel |ICE_SEL_I2C_FIFO |ICE_SEL_I2C_STOP;
 	spi_out(port,reg,len,SEL_I2C);
 
-#if SPI_FPGA_I2C_EVENT
 	ret = wait_event_timeout(port->i2c.wait_r, ((port->i2c.interrupt == INT_I2C_READ_ACK) || (port->i2c.interrupt == INT_I2C_READ_NACK)), msecs_to_jiffies(60));	
 	if(ret == 0)
 	{
@@ -170,38 +162,14 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		result = spi_in(port,channel,SEL_I2C);
 		pmsg->buf[i] = 0;
 		pmsg->buf[i] = result & 0xff ;
+		DBG("r_buf[%d]=0x%x\n",i,pmsg->buf[i]);
 	}
 	spin_lock(&port->i2c.i2c_lock);
 	port->i2c.interrupt &= INT_I2C_READ_MASK;
 	spin_unlock(&port->i2c.i2c_lock);
 	ret = pmsg->len;
-#else
-	j = I2C_COUNT;
-	while(j--)
-
-	{
-		if(port->i2c.interrupt == INT_I2C_READ_ACK)
-		{						
-			//printk("%s:line=%d\n",__FUNCTION__,__LINE__);
-			for(i = 0;i<len;i++)
-			{
-				result = spi_in(port,channel,SEL_I2C);
-				pmsg->buf[i] = 0;
-				pmsg->buf[i] = result & 0xff ;
-			}
-			spin_lock(&port->i2c.i2c_lock);
-			port->i2c.interrupt &= INT_I2C_READ_MASK;
-			spin_unlock(&port->i2c.i2c_lock);
-			ret = pmsg->len;
-			break;
-		}
-		else
-			msleep(2);
-	}
-	
-#endif
 	//for(i = 0;i<len;i++)
-		//printk("pmsg->buf[%d] = 0x%x \n",i,pmsg->buf[i]);	
+	//printk("pmsg->buf[%d] = 0x%x \n",i,pmsg->buf[i]);	
 	return ret>0 ? ret:-1;
 	
 }
@@ -243,12 +211,13 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	spi_out(port,reg,len,SEL_I2C);
 	reg = channel  |ICE_SEL_I2C_TRANS;
 	//data;
-	for(i = 0 ;i < len;i++){
+	for(i = 0 ;i < len;i++)
+	{
+		DBG("w_buf[%d]=0x%x\n",i,pmsg->buf[i]);
 		if(i==len-1 &&  pmsg->read_type == I2C_NORMAL)
 		{
 		reg = channel|ICE_SEL_I2C_STOP;
 		spi_out(port,reg,pmsg->buf[i],SEL_I2C);
-	#if SPI_FPGA_I2C_EVENT
 		ret = wait_event_timeout(port->i2c.wait_w, ((port->i2c.interrupt == INT_I2C_WRITE_ACK) || (port->i2c.interrupt == INT_I2C_WRITE_NACK)), msecs_to_jiffies(60));
 		if(ret == 0)
 		{
@@ -259,23 +228,6 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		port->i2c.interrupt &= INT_I2C_WRITE_MASK;
 		spin_unlock(&port->i2c.i2c_lock);
 		ret =  pmsg->len;
-	#else
-		j = I2C_COUNT;	
-		while(j--)
-		{		
-			if(port->i2c.interrupt  == INT_I2C_WRITE_ACK)
-			{		
-				//printk("wait num= %d,port->i2c.interrupt = 0x%x\n",i,port->i2c.interrupt);
-				spin_lock(&port->i2c.i2c_lock);
-				port->i2c.interrupt &= INT_I2C_WRITE_MASK;
-				spin_unlock(&port->i2c.i2c_lock);
-				ret =  pmsg->len;
-				break;
-			}
-			else
-				msleep(2);
-		}
-	#endif
 		}
 		else if(i==len-1 &&  pmsg->read_type == I2C_NO_STOP)
 		{					
@@ -558,11 +510,9 @@ int spi_i2c_register(struct spi_fpga_port *port,int num)
 	
 #endif
 
-#if SPI_FPGA_I2C_EVENT
 	init_waitqueue_head(&port->i2c.wait_w);
 	init_waitqueue_head(&port->i2c.wait_r);
-#endif
-
+	
 	return 0;	
 	
 }

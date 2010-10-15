@@ -235,17 +235,17 @@ int __init fpga_dl_fw(void)
 {
     printk("%s:start to load FPGA HEX.........\n",__FUNCTION__);
 
-	rk2818_mux_api_set(GPIOE0_VIPDATA0_SEL_NAME,0);
-	gpio_request(RK2818_PIN_PE0, NULL);
-	gpio_direction_output(RK2818_PIN_PE0,1);
-	udelay(2);
-	gpio_direction_output(RK2818_PIN_PE0,0);
+	//rk2818_mux_api_set(GPIOE0_VIPDATA0_SEL_NAME,0);
+	//gpio_request(RK2818_PIN_PE0, NULL);
+	//gpio_direction_output(RK2818_PIN_PE0,1);
+	//udelay(2);
+	//gpio_direction_output(RK2818_PIN_PE0,0);
 
     spi_fpga_dlfw(spibyte, CONFIGURATION_SIZE);
 
-	gpio_direction_output(RK2818_PIN_PE0,1);
-	udelay(2);
-	gpio_direction_output(RK2818_PIN_PE0,0);
+	//gpio_direction_output(RK2818_PIN_PE0,1);
+	//udelay(2);
+	//gpio_direction_output(RK2818_PIN_PE0,0);
 
 	return 0;
 }
