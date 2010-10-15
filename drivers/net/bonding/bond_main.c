@@ -2057,8 +2057,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 * First release a slave and than destroy the bond if no more slaves are left.
 * Must be under rtnl_lock when this function is called.
 */
-int  bond_release_and_destroy(struct net_device *bond_dev,
-			      struct net_device *slave_dev)
+static int  bond_release_and_destroy(struct net_device *bond_dev,
+				     struct net_device *slave_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	int ret;
