@@ -455,12 +455,12 @@ struct prov_record {
 
 #define MAX_BUF_SIZE            4096
 
-typedef struct _DRVMSG {
+struct drv_msg {
 	struct pseudo_hdr pseudo;
-        u16 type;
-        u16 length;
-        u8  data[0];
-} __attribute__ ((packed)) DRVMSG, *PDRVMSG;
+	u16 type;
+	u16 length;
+	u8  data[0];
+} __attribute__ ((packed));
 
 struct ft1000_device
 {

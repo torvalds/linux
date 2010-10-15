@@ -786,7 +786,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 	struct dsp_image_info *pDspImageInfoV6 = NULL;
    long                    requested_version;
    BOOLEAN                 bGoodVersion;
-   PDRVMSG                 pMailBoxData;
+	struct drv_msg *pMailBoxData;
    USHORT                  *pUsData = NULL;
    USHORT                  *pUsFile = NULL;
    UCHAR                   *pUcFile = NULL;
@@ -1047,7 +1047,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                // Convert length from byte count to word count. Make sure we round up.
                word_length = (long)(pft1000info->DSPInfoBlklen + 1)/2;
                put_request_value(ft1000dev, word_length);
-               pMailBoxData = (PDRVMSG)&(pft1000info->DSPInfoBlk[0]);
+		pMailBoxData = (struct drv_msg *)&(pft1000info->DSPInfoBlk[0]);
                /*
                 * Position ASIC DPRAM auto-increment pointer.
                 */

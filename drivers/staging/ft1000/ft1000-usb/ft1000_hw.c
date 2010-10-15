@@ -2082,7 +2082,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
     u16 tempword;
 	struct media_msg *pmediamsg;
 	struct dsp_init_msg *pdspinitmsg;
-    PDRVMSG pdrvmsg;
+	struct drv_msg *pdrvmsg;
     u16 i;
 	struct pseudo_hdr *ppseudo_hdr;
     PUSHORT pmsg;
@@ -2119,7 +2119,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
             }
         }
 #endif
-        pdrvmsg = (PDRVMSG)&cmdbuffer[2];
+	pdrvmsg = (struct drv_msg *)&cmdbuffer[2];
         msgtype = ntohs(pdrvmsg->type);
         DEBUG("ft1000_proc_drvmsg:Command message type = 0x%x\n", msgtype);
         switch (msgtype) {
