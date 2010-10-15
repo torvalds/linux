@@ -30,13 +30,13 @@
 #define PROCSPEECH '\r' /* process speech char */
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x05P8" }},
-	{ CAPS_STOP, .u.s = {"\x05P5" }},
-	{ RATE, .u.n = {"\x05R%d", 5, 0, 9, 0, 0, NULL }},
-	{ PITCH, .u.n = {"\x05P%d", 5, 0, 9, 0, 0, NULL }},
-	{ VOL, .u.n = {"\x05V%d", 5, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\x05T%c", 12, 0, 25, 61, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\x05P8" } },
+	{ CAPS_STOP, .u.s = {"\x05P5" } },
+	{ RATE, .u.n = {"\x05R%d", 5, 0, 9, 0, 0, NULL } },
+	{ PITCH, .u.n = {"\x05P%d", 5, 0, 9, 0, 0, NULL } },
+	{ VOL, .u.n = {"\x05V%d", 5, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\x05T%c", 12, 0, 25, 61, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 	 };
 
