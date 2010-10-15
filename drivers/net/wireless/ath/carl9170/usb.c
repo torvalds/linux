@@ -591,16 +591,23 @@ int __carl9170_exec_cmd(struct ar9170 *ar, struct carl9170_cmd *cmd,
 			const bool free_buf)
 {
 	struct urb *urb;
+	int err = 0;
 
-	if (!IS_INITIALIZED(ar))
-		return -EPERM;
+	if (!IS_INITIALIZED(ar)) {
+		err = -EPERM;
+		goto err_free;
+	}
 
-	if (WARN_ON(cmd->hdr.len > CARL9170_MAX_CMD_LEN - 4))
-		return -EINVAL;
+	if (WARN_ON(cmd->hdr.len > CARL9170_MAX_CMD_LEN - 4)) {
+		err = -EINVAL;
+		goto err_free;
+	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb)
-		return -ENOMEM;
+	if (!urb) {
+		err = -ENOMEM;
+		goto err_free;
+	}
 
 	usb_fill_int_urb(urb, ar->udev, usb_sndintpipe(ar->udev,
 		AR9170_USB_EP_CMD), cmd, cmd->hdr.len + 4,
@@ -613,6 +620,12 @@ int __carl9170_exec_cmd(struct ar9170 *ar, struct carl9170_cmd *cmd,
 	usb_free_urb(urb);
 
 	return carl9170_usb_submit_cmd_urb(ar);
+
+err_free:
+	if (free_buf)
+		kfree(cmd);
+
+	return err;
 }
 
 int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
