@@ -11,7 +11,14 @@
 #ifndef _DRIVERS_MMC_SDHCI_PLTFM_H
 #define _DRIVERS_MMC_SDHCI_PLTFM_H
 
+#include <linux/clk.h>
+#include <linux/types.h>
 #include <linux/sdhci-pltfm.h>
+
+struct sdhci_pltfm_host {
+	struct clk *clk;
+	u32 scratchpad; /* to handle quirks across io-accessor calls */
+};
 
 extern struct sdhci_pltfm_data sdhci_cns3xxx_pdata;
 
