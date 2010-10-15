@@ -224,7 +224,11 @@ nouveau_sgdma_init(struct drm_device *dev)
 	int i, ret;
 
 	if (dev_priv->card_type < NV_50) {
-		aper_size = (64 * 1024 * 1024);
+		if(dev_priv->card_type < NV_40) {
+			aper_size = (64 * 1024 * 1024);
+		} else {
+			aper_size = (512 * 1024 * 1024);
+		}
 		obj_size  = (aper_size >> NV_CTXDMA_PAGE_SHIFT) * 4;
 		obj_size += 8; /* ctxdma header */
 	} else {
