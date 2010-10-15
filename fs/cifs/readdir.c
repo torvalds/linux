@@ -528,14 +528,14 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
 		cFYI(1, "search backing up - close and restart search");
-		write_lock(&GlobalSMBSeslock);
+		spin_lock(&cifs_file_list_lock);
 		if (!cifsFile->srch_inf.endOfSearch &&
 		    !cifsFile->invalidHandle) {
 			cifsFile->invalidHandle = true;
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		} else
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 		if (cifsFile->srch_inf.ntwrk_buf_start) {
 			cFYI(1, "freeing SMB ff cache buf on search rewind");
 			if (cifsFile->srch_inf.smallBuf)

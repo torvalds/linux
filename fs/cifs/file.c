@@ -246,14 +246,14 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	atomic_set(&pCifsFile->count, 1);
 	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
 
-	write_lock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
 	list_add(&pCifsFile->tlist, &(tlink_tcon(tlink)->openFileList));
 	/* if readable file instance put first in list*/
 	if (file->f_mode & FMODE_READ)
 		list_add(&pCifsFile->flist, &pCifsInode->openFileList);
 	else
 		list_add_tail(&pCifsFile->flist, &pCifsInode->openFileList);
-	write_unlock(&GlobalSMBSeslock);
+	spin_unlock(&cifs_file_list_lock);
 
 	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 		pCifsInode->clientCanCacheAll = true;
@@ -607,13 +607,13 @@ int cifs_close(struct inode *inode, struct file *file)
 	pTcon = tlink_tcon(pSMBFile->tlink);
 	if (pSMBFile) {
 		struct cifsLockInfo *li, *tmp;
-		write_lock(&GlobalSMBSeslock);
+		spin_lock(&cifs_file_list_lock);
 		pSMBFile->closePend = true;
 		if (pTcon) {
 			/* no sense reconnecting to close a file that is
 			   already closed */
 			if (!pTcon->need_reconnect) {
-				write_unlock(&GlobalSMBSeslock);
+				spin_unlock(&cifs_file_list_lock);
 				timeout = 2;
 				while ((atomic_read(&pSMBFile->count) != 1)
 					&& (timeout <= 2048)) {
@@ -633,9 +633,9 @@ int cifs_close(struct inode *inode, struct file *file)
 					rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
 			} else
-				write_unlock(&GlobalSMBSeslock);
+				spin_unlock(&cifs_file_list_lock);
 		} else
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 
 		/* Delete any outstanding lock records.
 		   We'll lose them when the file is closed anyway. */
@@ -646,16 +646,16 @@ int cifs_close(struct inode *inode, struct file *file)
 		}
 		mutex_unlock(&pSMBFile->lock_mutex);
 
-		write_lock(&GlobalSMBSeslock);
+		spin_lock(&cifs_file_list_lock);
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
-		write_unlock(&GlobalSMBSeslock);
+		spin_unlock(&cifs_file_list_lock);
 		cifsFileInfo_put(file->private_data);
 		file->private_data = NULL;
 	} else
 		rc = -EBADF;
 
-	read_lock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
 	if (list_empty(&(CIFS_I(inode)->openFileList))) {
 		cFYI(1, "closing last open instance for inode %p", inode);
 		/* if the file is not open we do not know if we can cache info
@@ -663,7 +663,7 @@ int cifs_close(struct inode *inode, struct file *file)
 		CIFS_I(inode)->clientCanCacheRead = false;
 		CIFS_I(inode)->clientCanCacheAll  = false;
 	}
-	read_unlock(&GlobalSMBSeslock);
+	spin_unlock(&cifs_file_list_lock);
 	if ((rc == 0) && CIFS_I(inode)->write_behind_rc)
 		rc = CIFS_I(inode)->write_behind_rc;
 	FreeXid(xid);
@@ -685,18 +685,18 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		struct cifsTconInfo *pTcon = tlink_tcon(pCFileStruct->tlink);
 
 		cFYI(1, "Freeing private data in close dir");
-		write_lock(&GlobalSMBSeslock);
+		spin_lock(&cifs_file_list_lock);
 		if (!pCFileStruct->srch_inf.endOfSearch &&
 		    !pCFileStruct->invalidHandle) {
 			pCFileStruct->invalidHandle = true;
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 			rc = CIFSFindClose(xid, pTcon, pCFileStruct->netfid);
 			cFYI(1, "Closing uncompleted readdir with rc %d",
 				 rc);
 			/* not much we can do if it fails anyway, ignore rc */
 			rc = 0;
 		} else
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 		ptmp = pCFileStruct->srch_inf.ntwrk_buf_start;
 		if (ptmp) {
 			cFYI(1, "closedir free smb buf in srch struct");
@@ -1182,7 +1182,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
 		fsuid_only = false;
 
-	read_lock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
 	/* we could simply get the first_list_entry since write-only entries
 	   are always at the end of the list but since the first entry might
 	   have a close pending, we go through the whole list */
@@ -1196,7 +1196,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 				/* found a good file */
 				/* lock it so it will not be closed on us */
 				cifsFileInfo_get(open_file);
-				read_unlock(&GlobalSMBSeslock);
+				spin_unlock(&cifs_file_list_lock);
 				return open_file;
 			} /* else might as well continue, and look for
 			     another, or simply have the caller reopen it
@@ -1204,7 +1204,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 		} else /* write only file */
 			break; /* write only files are last so must be done */
 	}
-	read_unlock(&GlobalSMBSeslock);
+	spin_unlock(&cifs_file_list_lock);
 	return NULL;
 }
 #endif
@@ -1231,7 +1231,7 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
 		fsuid_only = false;
 
-	read_lock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
 refind_writable:
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (open_file->closePend)
@@ -1245,11 +1245,11 @@ refind_writable:
 
 			if (!open_file->invalidHandle) {
 				/* found a good writable file */
-				read_unlock(&GlobalSMBSeslock);
+				spin_unlock(&cifs_file_list_lock);
 				return open_file;
 			}
 
-			read_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 			/* Had to unlock since following call can block */
 			rc = cifs_reopen_file(open_file, false);
 			if (!rc) {
@@ -1257,7 +1257,7 @@ refind_writable:
 					return open_file;
 				else { /* start over in case this was deleted */
 				       /* since the list could be modified */
-					read_lock(&GlobalSMBSeslock);
+					spin_lock(&cifs_file_list_lock);
 					cifsFileInfo_put(open_file);
 					goto refind_writable;
 				}
@@ -1271,7 +1271,7 @@ refind_writable:
 			to hold up writepages here (rather than
 			in caller) with continuous retries */
 			cFYI(1, "wp failed on reopen file");
-			read_lock(&GlobalSMBSeslock);
+			spin_lock(&cifs_file_list_lock);
 			/* can not use this handle, no write
 			   pending on this one after all */
 			cifsFileInfo_put(open_file);
@@ -1292,7 +1292,7 @@ refind_writable:
 		any_available = true;
 		goto refind_writable;
 	}
-	read_unlock(&GlobalSMBSeslock);
+	spin_unlock(&cifs_file_list_lock);
 	return NULL;
 }
 
@@ -2200,16 +2200,16 @@ static int is_inode_writable(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *open_file;
 
-	read_lock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (open_file->closePend)
 			continue;
 		if (OPEN_FMODE(open_file->f_flags) & FMODE_WRITE) {
-			read_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 			return 1;
 		}
 	}
-	read_unlock(&GlobalSMBSeslock);
+	spin_unlock(&cifs_file_list_lock);
 	return 0;
 }
 
@@ -2373,8 +2373,8 @@ void cifs_oplock_break(struct work_struct *work)
 	 * finished grabbing reference for us.  Make sure it's done by
 	 * waiting for GlobalSMSSeslock.
 	 */
-	write_lock(&GlobalSMBSeslock);
-	write_unlock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
+	spin_unlock(&cifs_file_list_lock);
 
 	cifs_oplock_break_put(cfile);
 }
