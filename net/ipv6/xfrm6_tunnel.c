@@ -199,7 +199,7 @@ static void x6spi_destroy_rcu(struct rcu_head *head)
 			container_of(head, struct xfrm6_tunnel_spi, rcu_head));
 }
 
-void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
+static void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
@@ -222,8 +222,6 @@ void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
 	}
 	spin_unlock_bh(&xfrm6_tunnel_spi_lock);
 }
-
-EXPORT_SYMBOL(xfrm6_tunnel_free_spi);
 
 static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
