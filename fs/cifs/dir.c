@@ -148,7 +148,6 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	pCifsFile->uid = current_fsuid();
 	pCifsFile->dentry = dget(dentry);
 	pCifsFile->f_flags = file->f_flags;
-	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
 	pCifsFile->tlink = cifs_get_tlink(tlink);

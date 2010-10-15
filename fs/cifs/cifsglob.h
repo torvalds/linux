@@ -388,7 +388,6 @@ struct cifsFileInfo {
 	__u16 netfid;		/* file id from remote */
 	/* BB add lock scope info here if needed */ ;
 	/* lock scope id (0 if none) */
-	struct file *pfile; /* needed for writepage */
 	struct dentry *dentry;
 	unsigned int f_flags;
 	struct tcon_link *tlink;
