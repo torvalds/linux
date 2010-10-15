@@ -831,7 +831,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	srb_t *sp;
 	int ret, i;
 	unsigned int id, lun;
-	unsigned long serial;
 	unsigned long flags;
 	int wait = 0;
 	struct qla_hw_data *ha = vha->hw;
@@ -848,7 +847,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 	id = cmd->device->id;
 	lun = cmd->device->lun;
-	serial = cmd->serial_number;
 	spt = (srb_t *) CMD_SP(cmd);
 	if (!spt)
 		return SUCCESS;
@@ -866,8 +864,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		if (sp->cmd != cmd)
 			continue;
 
-		DEBUG2(printk("%s(%ld): aborting sp %p from RISC."
-		" pid=%ld.\n", __func__, vha->host_no, sp, serial));
+		DEBUG2(printk("%s(%ld): aborting sp %p from RISC.",
+		    __func__, vha->host_no, sp));
 
 		/* Get a reference to the sp and drop the lock.*/
 		sp_get(sp);
@@ -892,8 +890,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	if (wait) {
 		if (qla2x00_eh_wait_on_command(cmd) != QLA_SUCCESS) {
 			qla_printk(KERN_ERR, ha,
-			    "scsi(%ld:%d:%d): Abort handler timed out -- %lx "
-			    "%x.\n", vha->host_no, id, lun, serial, ret);
+			    "scsi(%ld:%d:%d): Abort handler timed out -- %x.\n",
+			    vha->host_no, id, lun, ret);
 			ret = FAILED;
 		}
 	}
@@ -902,8 +900,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		qla2x00_sp_compl(ha, sp);
 
 	qla_printk(KERN_INFO, ha,
-	    "scsi(%ld:%d:%d): Abort command issued -- %d %lx %x.\n",
-	    vha->host_no, id, lun, wait, serial, ret);
+	    "scsi(%ld:%d:%d): Abort command issued -- %d %x.\n",
+	    vha->host_no, id, lun, wait, ret);
 
 	return ret;
 }
@@ -1048,13 +1046,11 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
 	unsigned int id, lun;
-	unsigned long serial;
 
 	fc_block_scsi_eh(cmd);
 
 	id = cmd->device->id;
 	lun = cmd->device->lun;
-	serial = cmd->serial_number;
 
 	if (!fcport)
 		return ret;
@@ -1109,14 +1105,12 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	struct qla_hw_data *ha = vha->hw;
 	int ret = FAILED;
 	unsigned int id, lun;
-	unsigned long serial;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	fc_block_scsi_eh(cmd);
 
 	id = cmd->device->id;
 	lun = cmd->device->lun;
-	serial = cmd->serial_number;
 
 	if (!fcport)
 		return ret;
