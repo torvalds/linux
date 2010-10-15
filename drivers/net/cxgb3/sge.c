@@ -2554,7 +2554,7 @@ static inline int handle_responses(struct adapter *adap, struct sge_rspq *q)
  * The MSI-X interrupt handler for an SGE response queue for the non-NAPI case
  * (i.e., response queue serviced in hard interrupt).
  */
-irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
+static irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
 {
 	struct sge_qset *qs = cookie;
 	struct adapter *adap = qs->adap;
@@ -3319,41 +3319,4 @@ void t3_sge_prep(struct adapter *adap, struct sge_params *p)
 	}
 
 	spin_lock_init(&adap->sge.reg_lock);
-}
-
-/**
- *	t3_get_desc - dump an SGE descriptor for debugging purposes
- *	@qs: the queue set
- *	@qnum: identifies the specific queue (0..2: Tx, 3:response, 4..5: Rx)
- *	@idx: the descriptor index in the queue
- *	@data: where to dump the descriptor contents
- *
- *	Dumps the contents of a HW descriptor of an SGE queue.  Returns the
- *	size of the descriptor.
- */
-int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
-		unsigned char *data)
-{
-	if (qnum >= 6)
-		return -EINVAL;
-
-	if (qnum < 3) {
-		if (!qs->txq[qnum].desc || idx >= qs->txq[qnum].size)
-			return -EINVAL;
-		memcpy(data, &qs->txq[qnum].desc[idx], sizeof(struct tx_desc));
-		return sizeof(struct tx_desc);
-	}
-
-	if (qnum == 3) {
-		if (!qs->rspq.desc || idx >= qs->rspq.size)
-			return -EINVAL;
-		memcpy(data, &qs->rspq.desc[idx], sizeof(struct rsp_desc));
-		return sizeof(struct rsp_desc);
-	}
-
-	qnum -= 4;
-	if (!qs->fl[qnum].desc || idx >= qs->fl[qnum].size)
-		return -EINVAL;
-	memcpy(data, &qs->fl[qnum].desc[idx], sizeof(struct rx_desc));
-	return sizeof(struct rx_desc);
 }
