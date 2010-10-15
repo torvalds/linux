@@ -190,6 +190,7 @@ static void oprofile_perf_stop(void)
 }
 
 #ifdef CONFIG_PM
+
 static int oprofile_perf_suspend(struct platform_device *dev, pm_message_t state)
 {
 	mutex_lock(&oprofile_perf_mutex);
@@ -241,9 +242,12 @@ static void exit_driverfs(void)
 	platform_device_unregister(oprofile_pdev);
 	platform_driver_unregister(&oprofile_driver);
 }
+
 #else
-static int __init init_driverfs(void) { return 0; }
-#define exit_driverfs() do { } while (0)
+
+static inline int  init_driverfs(void) { return 0; }
+static inline void exit_driverfs(void) { }
+
 #endif /* CONFIG_PM */
 
 void oprofile_perf_exit(void)
