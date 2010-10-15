@@ -43,7 +43,7 @@ srm_startup_irq(unsigned int irq)
 static void
 srm_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		srm_enable_irq(irq);
 }
 
@@ -68,8 +68,8 @@ init_srm_irqs(long max, unsigned long ignore_mask)
 	for (i = 16; i < max; ++i) {
 		if (i < 64 && ((ignore_mask >> i) & 1))
 			continue;
-		irq_desc[i].status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &srm_irq_type, alpha_do_IRQ);
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 	}
 }
 

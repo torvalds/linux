@@ -64,7 +64,7 @@ mikasa_startup_irq(unsigned int irq)
 static void
 mikasa_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		mikasa_enable_irq(irq);
 }
 
@@ -115,7 +115,7 @@ mikasa_init_irq(void)
 	mikasa_update_irq_hw(0);
 
 	for (i = 16; i < 32; ++i) {
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &mikasa_irq_type, alpha_do_IRQ);
 	}
 

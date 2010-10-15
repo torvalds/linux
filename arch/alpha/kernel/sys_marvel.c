@@ -153,7 +153,7 @@ io7_startup_irq(unsigned int irq)
 static void
 io7_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		io7_enable_irq(irq);
 }
 
@@ -304,7 +304,7 @@ init_io7_irqs(struct io7 *io7,
 
 	/* Set up the lsi irqs.  */
 	for (i = 0; i < 128; ++i) {
-		irq_desc[base + i].status |= IRQ_LEVEL;
+		irq_to_desc(base + i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(base + i, lsi_ops, alpha_do_IRQ);
 	}
 
@@ -318,7 +318,7 @@ init_io7_irqs(struct io7 *io7,
 
 	/* Set up the msi irqs.  */
 	for (i = 128; i < (128 + 512); ++i) {
-		irq_desc[base + i].status |= IRQ_LEVEL;
+		irq_to_desc(base + i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(base + i, msi_ops, alpha_do_IRQ);
 	}
 

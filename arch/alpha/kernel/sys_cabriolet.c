@@ -67,7 +67,7 @@ cabriolet_startup_irq(unsigned int irq)
 static void
 cabriolet_end_irq(unsigned int irq)
 { 
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		cabriolet_enable_irq(irq);
 }
 
@@ -124,7 +124,7 @@ common_init_irq(void (*srm_dev_int)(unsigned long v))
 		for (i = 16; i < 35; ++i) {
 			set_irq_chip_and_handler(i, &cabriolet_irq_type,
 				alpha_do_IRQ);
-			irq_desc[i].status |= IRQ_LEVEL;
+			irq_to_desc(i)->status |= IRQ_LEVEL;
 		}
 	}
 

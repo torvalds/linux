@@ -68,13 +68,7 @@ jensen_local_startup(unsigned int irq)
 	/* the parport is really hw IRQ 1, silly Jensen.  */
 	if (irq == 7)
 		i8259a_startup_irq(1);
-	else
-		/*
-		 * For all true local interrupts, set the flag that prevents
-		 * the IPL from being dropped during handler processing.
-		 */
-		if (irq_desc[irq].action)
-			irq_desc[irq].action->flags |= IRQF_DISABLED;
+
 	return 0;
 }
 
@@ -158,7 +152,7 @@ jensen_device_interrupt(unsigned long vector)
 	}
 
 	/* If there is no handler yet... */
-	if (irq_desc[irq].action == NULL) {
+	if (!irq_has_action(irq)) {
 	    /* If it is a local interrupt that cannot be masked... */
 	    if (vector >= 0x900)
 	    {

@@ -68,7 +68,7 @@ rx164_startup_irq(unsigned int irq)
 static void
 rx164_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		rx164_enable_irq(irq);
 }
 
@@ -116,7 +116,7 @@ rx164_init_irq(void)
 
 	rx164_update_irq_hw(0);
 	for (i = 16; i < 40; ++i) {
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &rx164_irq_type, alpha_do_IRQ);
 	}
 

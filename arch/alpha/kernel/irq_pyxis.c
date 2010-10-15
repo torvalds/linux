@@ -50,7 +50,8 @@ pyxis_startup_irq(unsigned int irq)
 static void
 pyxis_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	struct irq_desc *desc = irq_to_desc(irq);
+	if (desc || !(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		pyxis_enable_irq(irq);
 }
 
@@ -120,7 +121,7 @@ init_pyxis_irqs(unsigned long ignore_mask)
 		if ((ignore_mask >> i) & 1)
 			continue;
 		set_irq_chip_and_handler(i, &pyxis_irq_type, alpha_do_IRQ);
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 	}
 
 	setup_irq(16+7, &isa_cascade_irqaction);

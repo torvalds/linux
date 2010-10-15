@@ -70,7 +70,7 @@ takara_startup_irq(unsigned int irq)
 static void
 takara_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		takara_enable_irq(irq);
 }
 
@@ -153,7 +153,7 @@ takara_init_irq(void)
 		takara_update_irq_hw(i, -1);
 
 	for (i = 16; i < 128; ++i) {
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &takara_irq_type, alpha_do_IRQ);
 	}
 

@@ -79,7 +79,8 @@ i8259a_startup_irq(unsigned int irq)
 void
 i8259a_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	struct irq_desc *desc = irq_to_desc(irq);
+	if (desc || !(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		i8259a_enable_irq(irq);
 }
 

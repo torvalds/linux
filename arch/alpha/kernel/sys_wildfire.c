@@ -150,10 +150,10 @@ static void
 wildfire_end_irq(unsigned int irq)
 { 
 #if 0
-	if (!irq_desc[irq].action)
+	if (!irq_has_action(irq))
 		printk("got irq %d\n", irq);
 #endif
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		wildfire_enable_irq(irq);
 }
 
@@ -198,15 +198,15 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 	for (i = 0; i < 16; ++i) {
 		if (i == 2)
 			continue;
-		irq_desc[i+irq_bias].status |= IRQ_LEVEL;
+		irq_to_desc(i+irq_bias)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
 			alpha_do_IRQ);
 	}
 
-	irq_desc[36+irq_bias].status |= IRQ_LEVEL;
+	irq_to_desc(36+irq_bias)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(36+irq_bias, &wildfire_irq_type, alpha_do_IRQ);
 	for (i = 40; i < 64; ++i) {
-		irq_desc[i+irq_bias].status |= IRQ_LEVEL;
+		irq_to_desc(i+irq_bias)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
 			alpha_do_IRQ);
 	}

@@ -125,7 +125,7 @@ dp264_startup_irq(unsigned int irq)
 static void
 dp264_end_irq(unsigned int irq)
 { 
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		dp264_enable_irq(irq);
 }
 
@@ -157,7 +157,7 @@ clipper_startup_irq(unsigned int irq)
 static void
 clipper_end_irq(unsigned int irq)
 { 
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		clipper_enable_irq(irq);
 }
 
@@ -302,7 +302,7 @@ init_tsunami_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, ops, alpha_do_IRQ);
 	}
 }

@@ -484,7 +484,7 @@ sable_lynx_startup_irq(unsigned int irq)
 static void
 sable_lynx_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		sable_lynx_enable_irq(irq);
 }
 
@@ -535,7 +535,7 @@ sable_lynx_init_irq(int nr_of_irqs)
 	long i;
 
 	for (i = 0; i < nr_of_irqs; ++i) {
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &sable_lynx_irq_type,
 			alpha_do_IRQ);
 	}

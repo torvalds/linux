@@ -85,7 +85,7 @@ alcor_isa_mask_and_ack_irq(unsigned int irq)
 static void
 alcor_end_irq(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		alcor_enable_irq(irq);
 }
 
@@ -142,8 +142,8 @@ alcor_init_irq(void)
 		   on while IRQ probing.  */
 		if (i >= 16+20 && i <= 16+30)
 			continue;
-		irq_desc[i].status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &alcor_irq_type, alpha_do_IRQ);
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 	}
 	i8259a_irq_type.ack = alcor_isa_mask_and_ack_irq;
 

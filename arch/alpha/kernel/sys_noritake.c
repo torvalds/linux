@@ -69,7 +69,7 @@ noritake_startup_irq(unsigned int irq)
 static void
 noritake_end_irq(unsigned int irq)
 {
-        if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+        if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
                 noritake_enable_irq(irq);
 }
 
@@ -144,7 +144,7 @@ noritake_init_irq(void)
 	outw(0, 0x54c);
 
 	for (i = 16; i < 48; ++i) {
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &noritake_irq_type, alpha_do_IRQ);
 	}
 

@@ -241,9 +241,13 @@ static struct irq_chip rtc_irq_type = {
 void __init
 init_rtc_irq(void)
 {
-	irq_desc[RTC_IRQ].status = IRQ_DISABLED;
-	irq_desc[RTC_IRQ].chip = &rtc_irq_type;
-	setup_irq(RTC_IRQ, &timer_irqaction);
+	struct irq_desc *desc = irq_to_desc(RTC_IRQ);
+
+	if (desc) {
+		desc->status |= IRQ_DISABLED;
+		set_irq_chip(RTC_IRQ, &rtc_irq_type);
+		setup_irq(RTC_IRQ, &timer_irqaction);
+	}
 }
 
 /* Dummy irqactions.  */
