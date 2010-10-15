@@ -88,4 +88,7 @@ static __inline__ int irq_canonicalize(int irq)
 struct pt_regs;
 extern void (*perf_irq)(unsigned long, struct pt_regs *);
 
+struct irq_desc;
+extern void alpha_do_IRQ(unsigned int irq, struct irq_desc *desc);
+
 #endif /* _ALPHA_IRQ_H */

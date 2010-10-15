@@ -135,8 +135,8 @@ eb64p_init_irq(void)
 	init_i8259a_irqs();
 
 	for (i = 16; i < 32; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &eb64p_irq_type;
+		irq_desc[i].status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, &eb64p_irq_type, alpha_do_IRQ);
 	}		
 
 	common_init_isa_dma();

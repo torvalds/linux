@@ -153,8 +153,8 @@ takara_init_irq(void)
 		takara_update_irq_hw(i, -1);
 
 	for (i = 16; i < 128; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &takara_irq_type;
+		irq_desc[i].status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, &takara_irq_type, alpha_do_IRQ);
 	}
 
 	common_init_isa_dma();

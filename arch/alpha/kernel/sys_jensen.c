@@ -206,11 +206,11 @@ jensen_init_irq(void)
 {
 	init_i8259a_irqs();
 
-	irq_desc[1].chip = &jensen_local_irq_type;
-	irq_desc[4].chip = &jensen_local_irq_type;
-	irq_desc[3].chip = &jensen_local_irq_type;
-	irq_desc[7].chip = &jensen_local_irq_type;
-	irq_desc[9].chip = &jensen_local_irq_type;
+	set_irq_chip_and_handler(1, &jensen_local_irq_type, alpha_do_IRQ);
+	set_irq_chip_and_handler(4, &jensen_local_irq_type, alpha_do_IRQ);
+	set_irq_chip_and_handler(3, &jensen_local_irq_type, alpha_do_IRQ);
+	set_irq_chip_and_handler(7, &jensen_local_irq_type, alpha_do_IRQ);
+	set_irq_chip_and_handler(9, &jensen_local_irq_type, alpha_do_IRQ);
 
 	common_init_isa_dma();
 }

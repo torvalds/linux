@@ -107,8 +107,7 @@ init_i8259a_irqs(void)
 	outb(0xff, 0xA1);	/* mask all of 8259A-2 */
 
 	for (i = 0; i < 16; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].chip = &i8259a_irq_type;
+		set_irq_chip_and_handler(i, &i8259a_irq_type, alpha_do_IRQ);
 	}
 
 	setup_irq(2, &cascade);

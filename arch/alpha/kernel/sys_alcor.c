@@ -142,8 +142,8 @@ alcor_init_irq(void)
 		   on while IRQ probing.  */
 		if (i >= 16+20 && i <= 16+30)
 			continue;
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &alcor_irq_type;
+		irq_desc[i].status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, &alcor_irq_type, alpha_do_IRQ);
 	}
 	i8259a_irq_type.ack = alcor_isa_mask_and_ack_irq;
 

@@ -304,8 +304,8 @@ init_io7_irqs(struct io7 *io7,
 
 	/* Set up the lsi irqs.  */
 	for (i = 0; i < 128; ++i) {
-		irq_desc[base + i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[base + i].chip = lsi_ops;
+		irq_desc[base + i].status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(base + i, lsi_ops, alpha_do_IRQ);
 	}
 
 	/* Disable the implemented irqs in hardware.  */
@@ -318,8 +318,8 @@ init_io7_irqs(struct io7 *io7,
 
 	/* Set up the msi irqs.  */
 	for (i = 128; i < (128 + 512); ++i) {
-		irq_desc[base + i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[base + i].chip = msi_ops;
+		irq_desc[base + i].status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(base + i, msi_ops, alpha_do_IRQ);
 	}
 
 	for (i = 0; i < 16; ++i)
@@ -336,8 +336,8 @@ marvel_init_irq(void)
 
 	/* Reserve the legacy irqs.  */
 	for (i = 0; i < 16; ++i) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].chip = &marvel_legacy_irq_type;
+		set_irq_chip_and_handler(i, &marvel_legacy_irq_type,
+			alpha_do_IRQ);
 	}
 
 	/* Init the io7 irqs.  */

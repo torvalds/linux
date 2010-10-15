@@ -119,8 +119,8 @@ init_pyxis_irqs(unsigned long ignore_mask)
 	for (i = 16; i < 48; ++i) {
 		if ((ignore_mask >> i) & 1)
 			continue;
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &pyxis_irq_type;
+		set_irq_chip_and_handler(i, &pyxis_irq_type, alpha_do_IRQ);
+		irq_desc[i].status |= IRQ_LEVEL;
 	}
 
 	setup_irq(16+7, &isa_cascade_irqaction);

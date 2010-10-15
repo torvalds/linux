@@ -122,8 +122,9 @@ common_init_irq(void (*srm_dev_int)(unsigned long v))
 		outb(0xff, 0x806);
 
 		for (i = 16; i < 35; ++i) {
-			irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-			irq_desc[i].chip = &cabriolet_irq_type;
+			set_irq_chip_and_handler(i, &cabriolet_irq_type,
+				alpha_do_IRQ);
+			irq_desc[i].status |= IRQ_LEVEL;
 		}
 	}
 

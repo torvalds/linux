@@ -159,6 +159,11 @@ handle_irq(int irq)
 	 * at IPL 0.
 	 */
 	local_irq_disable();
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
 	irq_exit();
+}
+
+void alpha_do_IRQ(unsigned int irq, struct irq_desc *desc)
+{
+	__do_IRQ(irq);
 }
