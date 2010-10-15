@@ -1405,8 +1405,15 @@ int xhci_init(struct usb_hcd *hcd);
 int xhci_run(struct usb_hcd *hcd);
 void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
+
+#ifdef	CONFIG_PM
 int xhci_suspend(struct xhci_hcd *xhci);
 int xhci_resume(struct xhci_hcd *xhci, bool hibernated);
+#else
+#define	xhci_suspend	NULL
+#define	xhci_resume	NULL
+#endif
+
 int xhci_get_frame(struct usb_hcd *hcd);
 irqreturn_t xhci_irq(struct usb_hcd *hcd);
 irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd);
@@ -1481,8 +1488,15 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
+
+#ifdef CONFIG_PM
 int xhci_bus_suspend(struct usb_hcd *hcd);
 int xhci_bus_resume(struct usb_hcd *hcd);
+#else
+#define	xhci_bus_suspend	NULL
+#define	xhci_bus_resume		NULL
+#endif	/* CONFIG_PM */
+
 u32 xhci_port_state_to_neutral(u32 state);
 int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port);
 void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);

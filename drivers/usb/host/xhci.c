@@ -761,12 +761,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	spin_unlock_irq(&xhci->lock);
 	return 0;
 }
-
-#else
-
-#define	xhci_suspend	NULL
-#define	xhci_resume	NULL
-
 #endif	/* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/

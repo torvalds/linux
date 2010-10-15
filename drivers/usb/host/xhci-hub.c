@@ -742,9 +742,4 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-#else
-
-#define	xhci_bus_suspend	NULL
-#define	xhci_bus_resume		NULL
-
-#endif
+#endif	/* CONFIG_PM */
