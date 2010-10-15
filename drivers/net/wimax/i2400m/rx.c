@@ -1244,16 +1244,16 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	int i, result;
 	struct device *dev = i2400m_dev(i2400m);
 	const struct i2400m_msg_hdr *msg_hdr;
-	size_t pl_itr, pl_size, skb_len;
+	size_t pl_itr, pl_size;
 	unsigned long flags;
-	unsigned num_pls, single_last;
+	unsigned num_pls, single_last, skb_len;
 
 	skb_len = skb->len;
-	d_fnstart(4, dev, "(i2400m %p skb %p [size %zu])\n",
+	d_fnstart(4, dev, "(i2400m %p skb %p [size %u])\n",
 		  i2400m, skb, skb_len);
 	result = -EIO;
 	msg_hdr = (void *) skb->data;
-	result = i2400m_rx_msg_hdr_check(i2400m, msg_hdr, skb->len);
+	result = i2400m_rx_msg_hdr_check(i2400m, msg_hdr, skb_len);
 	if (result < 0)
 		goto error_msg_hdr_check;
 	result = -EIO;
@@ -1261,10 +1261,10 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	pl_itr = sizeof(*msg_hdr) +	/* Check payload descriptor(s) */
 		num_pls * sizeof(msg_hdr->pld[0]);
 	pl_itr = ALIGN(pl_itr, I2400M_PL_ALIGN);
-	if (pl_itr > skb->len) {	/* got all the payload descriptors? */
+	if (pl_itr > skb_len) {	/* got all the payload descriptors? */
 		dev_err(dev, "RX: HW BUG? message too short (%u bytes) for "
 			"%u payload descriptors (%zu each, total %zu)\n",
-			skb->len, num_pls, sizeof(msg_hdr->pld[0]), pl_itr);
+			skb_len, num_pls, sizeof(msg_hdr->pld[0]), pl_itr);
 		goto error_pl_descr_short;
 	}
 	/* Walk each payload payload--check we really got it */
@@ -1272,7 +1272,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 		/* work around old gcc warnings */
 		pl_size = i2400m_pld_size(&msg_hdr->pld[i]);
 		result = i2400m_rx_pl_descr_check(i2400m, &msg_hdr->pld[i],
-						  pl_itr, skb->len);
+						  pl_itr, skb_len);
 		if (result < 0)
 			goto error_pl_descr_check;
 		single_last = num_pls == 1 || i == num_pls - 1;
@@ -1290,16 +1290,16 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	if (i < i2400m->rx_pl_min)
 		i2400m->rx_pl_min = i;
 	i2400m->rx_num++;
-	i2400m->rx_size_acc += skb->len;
-	if (skb->len < i2400m->rx_size_min)
-		i2400m->rx_size_min = skb->len;
-	if (skb->len > i2400m->rx_size_max)
-		i2400m->rx_size_max = skb->len;
+	i2400m->rx_size_acc += skb_len;
+	if (skb_len < i2400m->rx_size_min)
+		i2400m->rx_size_min = skb_len;
+	if (skb_len > i2400m->rx_size_max)
+		i2400m->rx_size_max = skb_len;
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 error_pl_descr_check:
 error_pl_descr_short:
 error_msg_hdr_check:
-	d_fnend(4, dev, "(i2400m %p skb %p [size %zu]) = %d\n",
+	d_fnend(4, dev, "(i2400m %p skb %p [size %u]) = %d\n",
 		i2400m, skb, skb_len, result);
 	return result;
 }

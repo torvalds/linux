@@ -120,6 +120,10 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x0613) },
 	/* Philips eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x0815) },
+	/* Philips/Spinel plus IR transceiver for ASUS */
+	{ USB_DEVICE(VENDOR_PHILIPS, 0x206c) },
+	/* Philips/Spinel plus IR transceiver for ASUS */
+	{ USB_DEVICE(VENDOR_PHILIPS, 0x2088) },
 	/* Realtek MCE IR Receiver */
 	{ USB_DEVICE(VENDOR_REALTEK, 0x0161) },
 	/* SMK/Toshiba G83C0004D410 */

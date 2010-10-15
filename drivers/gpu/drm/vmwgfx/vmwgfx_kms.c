@@ -898,7 +898,19 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 		save->width = vmw_read(vmw_priv, SVGA_REG_DISPLAY_WIDTH);
 		save->height = vmw_read(vmw_priv, SVGA_REG_DISPLAY_HEIGHT);
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
+		if (i == 0 && vmw_priv->num_displays == 1 &&
+		    save->width == 0 && save->height == 0) {
+
+			/*
+			 * It should be fairly safe to assume that these
+			 * values are uninitialized.
+			 */
+
+			save->width = vmw_priv->vga_width - save->pos_x;
+			save->height = vmw_priv->vga_height - save->pos_y;
+		}
 	}
+
 	return 0;
 }
 
@@ -983,4 +995,9 @@ out_free:
 out_unlock:
 	ttm_read_unlock(&vmaster->lock);
 	return ret;
+}
+
+u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
+{
+	return 0;
 }

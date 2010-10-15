@@ -827,6 +827,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	long timeo;
 	int err;
 	int ifindex, headroom, tailroom;
+	unsigned int mtu;
 	struct net_device *dev;
 
 	lock_sock(sk);
@@ -896,15 +897,23 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
 		goto out;
 	}
-	dev = dev_get_by_index(sock_net(sk), ifindex);
+
+	err = -ENODEV;
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(sock_net(sk), ifindex);
+	if (!dev) {
+		rcu_read_unlock();
+		goto out;
+	}
 	cf_sk->headroom = LL_RESERVED_SPACE_EXTRA(dev, headroom);
+	mtu = dev->mtu;
+	rcu_read_unlock();
+
 	cf_sk->tailroom = tailroom;
-	cf_sk->maxframe = dev->mtu - (headroom + tailroom);
-	dev_put(dev);
+	cf_sk->maxframe = mtu - (headroom + tailroom);
 	if (cf_sk->maxframe < 1) {
-		pr_warning("CAIF: %s(): CAIF Interface MTU too small (%d)\n",
-			__func__, dev->mtu);
-		err = -ENODEV;
+		pr_warning("CAIF: %s(): CAIF Interface MTU too small (%u)\n",
+			   __func__, mtu);
 		goto out;
 	}
 
