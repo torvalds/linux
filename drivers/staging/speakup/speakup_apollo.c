@@ -38,14 +38,14 @@
 static void do_catch_up(struct spk_synth *synth);
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"cap, " }},
-	{ CAPS_STOP, .u.s = {"" }},
-	{ RATE, .u.n = {"@W%d", 6, 1, 9, 0, 0, NULL }},
-	{ PITCH, .u.n = {"@F%x", 10, 0, 15, 0, 0, NULL }},
-	{ VOL, .u.n = {"@A%x", 10, 0, 15, 0, 0, NULL }},
-	{ VOICE, .u.n = {"@V%d", 1, 1, 6, 0, 0, NULL }},
-	{ LANG, .u.n = {"@=%d,", 1, 1, 4, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"cap, " } },
+	{ CAPS_STOP, .u.s = {"" } },
+	{ RATE, .u.n = {"@W%d", 6, 1, 9, 0, 0, NULL } },
+	{ PITCH, .u.n = {"@F%x", 10, 0, 15, 0, 0, NULL } },
+	{ VOL, .u.n = {"@A%x", 10, 0, 15, 0, 0, NULL } },
+	{ VOICE, .u.n = {"@V%d", 1, 1, 6, 0, 0, NULL } },
+	{ LANG, .u.n = {"@=%d,", 1, 1, 4, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -186,9 +186,11 @@ static void do_catch_up(struct spk_synth *synth)
 			delay_time_val = delay_time->u.n.value;
 			spk_unlock(flags);
 			if (spk_serial_out(synth->procspeech))
-				schedule_timeout(msecs_to_jiffies(delay_time_val));
+				schedule_timeout(msecs_to_jiffies
+						 (delay_time_val));
 			else
-				schedule_timeout(msecs_to_jiffies(full_time_val));
+				schedule_timeout(msecs_to_jiffies
+						 (full_time_val));
 			jiff_max = jiffies + jiffy_delta_val;
 		}
 		set_current_state(TASK_RUNNING);
