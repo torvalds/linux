@@ -140,8 +140,6 @@ struct r852_device {
 	/* interrupt handling */
 	spinlock_t irqlock;		/* IRQ protecting lock */
 	int irq;			/* irq num */
-	int insuspend;			/* device is suspended */
-
 	/* misc */
 	void *tmp_buffer;		/* temporary buffer */
 	uint8_t ctlreg;			/* cached contents of control reg */
