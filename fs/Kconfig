@@ -47,6 +47,9 @@ source "fs/nilfs2/Kconfig"
 
 endif # BLOCK
 
+config EXPORTFS
+	tristate
+
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EMBEDDED
 	default y
@@ -221,9 +224,6 @@ config LOCKD_V4
 	depends on NFSD_V3 || NFS_V3
 	depends on FILE_LOCKING
 	default y
-
-config EXPORTFS
-	tristate
 
 config NFS_ACL_SUPPORT
 	tristate
