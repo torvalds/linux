@@ -1465,8 +1465,6 @@ struct xfrm_state *xfrm_find_acq(struct net *net, struct xfrm_mark *mark,
 				 xfrm_address_t *saddr, int create,
 				 unsigned short family);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
-extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
-			  struct flowi *fl, int family, int strict);
 
 #ifdef CONFIG_XFRM_MIGRATE
 extern int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
