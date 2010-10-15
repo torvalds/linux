@@ -1344,6 +1344,13 @@ cont_alloc:
 		qla_printk(KERN_WARNING, ha, "Unable to allocate (%d KB) for "
 		    "firmware dump!!!\n", dump_size / 1024);
 
+		if (ha->fce) {
+			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, ha->fce,
+			    ha->fce_dma);
+			ha->fce = NULL;
+			ha->fce_dma = 0;
+		}
+
 		if (ha->eft) {
 			dma_free_coherent(&ha->pdev->dev, eft_size, ha->eft,
 			    ha->eft_dma);
