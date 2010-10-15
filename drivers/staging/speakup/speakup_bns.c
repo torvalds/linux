@@ -30,13 +30,13 @@
 #define PROCSPEECH '\r'
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x05\x31\x32P" }},
-	{ CAPS_STOP, .u.s = {"\x05\x38P" }},
-	{ RATE, .u.n = {"\x05%dE", 8, 1, 16, 0, 0, NULL }},
-	{ PITCH, .u.n = {"\x05%dP", 8, 0, 16, 0, 0, NULL }},
-	{ VOL, .u.n = {"\x05%dV", 8, 0, 16, 0, 0, NULL }},
-	{ TONE, .u.n = {"\x05%dT", 8, 0, 16, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\x05\x31\x32P" } },
+	{ CAPS_STOP, .u.s = {"\x05\x38P" } },
+	{ RATE, .u.n = {"\x05%dE", 8, 1, 16, 0, 0, NULL } },
+	{ PITCH, .u.n = {"\x05%dP", 8, 0, 16, 0, 0, NULL } },
+	{ VOL, .u.n = {"\x05%dV", 8, 0, 16, 0, 0, NULL } },
+	{ TONE, .u.n = {"\x05%dT", 8, 0, 16, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
