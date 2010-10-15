@@ -190,26 +190,6 @@ static int stingray_hdmi_init(void)
 	return 0;
 }
 
-static int stingray_hdmi_enable(void)
-{
-	if (!stingray_hdmi_reg) {
-		stingray_hdmi_reg = regulator_get(NULL, "vwlan2");
-		if (IS_ERR_OR_NULL(stingray_hdmi_reg)) {
-			pr_err("hdmi: couldn't get regulator vwlan2\n");
-			stingray_hdmi_reg = NULL;
-			return PTR_ERR(stingray_hdmi_reg);
-		}
-	}
-	regulator_enable(stingray_hdmi_reg);
-	return 0;
-}
-
-static int stingray_hdmi_disable(void)
-{
-	regulator_disable(stingray_hdmi_reg);
-	return 0;
-}
-
 static struct tegra_dc_out stingray_disp2_out = {
 	.type = TEGRA_DC_OUT_HDMI,
 	.flags = TEGRA_DC_OUT_HOTPLUG_HIGH,
@@ -219,9 +199,6 @@ static struct tegra_dc_out stingray_disp2_out = {
 
 	.align = TEGRA_DC_ALIGN_MSB,
 	.order = TEGRA_DC_ORDER_RED_BLUE,
-
-	.enable = stingray_hdmi_enable,
-	.disable = stingray_hdmi_disable,
 };
 
 static struct tegra_fb_data stingray_disp2_fb_data = {
