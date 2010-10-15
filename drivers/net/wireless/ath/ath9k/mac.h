@@ -237,7 +237,7 @@ struct ath_desc {
 	u32 ds_ctl1;
 	u32 ds_hw[20];
 	void *ds_vdata;
-} __packed;
+} __packed __aligned(4);
 
 #define ATH9K_TXDESC_CLRDMASK		0x0001
 #define ATH9K_TXDESC_NOACK		0x0002
@@ -307,7 +307,7 @@ struct ar5416_desc {
 			u32 status8;
 		} rx;
 	} u;
-} __packed;
+} __packed __aligned(4);
 
 #define AR5416DESC(_ds)         ((struct ar5416_desc *)(_ds))
 #define AR5416DESC_CONST(_ds)   ((const struct ar5416_desc *)(_ds))
