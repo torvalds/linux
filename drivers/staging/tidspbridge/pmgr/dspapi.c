@@ -493,8 +493,10 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 				args->args_mgr_registerobject.psz_path_name) +
 	    1;
 	psz_path_name = kmalloc(path_size, GFP_KERNEL);
-	if (!psz_path_name)
+	if (!psz_path_name) {
+		status = -ENOMEM;
 		goto func_end;
+	}
 	ret = strncpy_from_user(psz_path_name,
 				(char *)args->args_mgr_registerobject.
 				psz_path_name, path_size);
@@ -503,8 +505,10 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 		goto func_end;
 	}
 
-	if (args->args_mgr_registerobject.obj_type >= DSP_DCDMAXOBJTYPE)
-		return -EINVAL;
+	if (args->args_mgr_registerobject.obj_type >= DSP_DCDMAXOBJTYPE) {
+		status = -EINVAL;
+		goto func_end;
+	}
 
 	status = dcd_register_object(&uuid_obj,
 				     args->args_mgr_registerobject.obj_type,
