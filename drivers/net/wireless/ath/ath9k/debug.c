@@ -461,16 +461,16 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 
 	/* Put variable-length stuff down here, and check for overflows. */
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
+		struct ath_wiphy *aphy_tmp = sc->sec_wiphy[i];
+		if (aphy_tmp == NULL)
 			continue;
-		chan = aphy->hw->conf.channel;
+		chan = aphy_tmp->hw->conf.channel;
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"secondary: %s (%s chan=%d ht=%d)\n",
-			wiphy_name(aphy->hw->wiphy),
-			ath_wiphy_state_str(aphy->state),
+			wiphy_name(aphy_tmp->hw->wiphy),
+			ath_wiphy_state_str(aphy_tmp->state),
 			ieee80211_frequency_to_channel(chan->center_freq),
-			aphy->chan_is_ht);
+						       aphy_tmp->chan_is_ht);
 	}
 	if (len > sizeof(buf))
 		len = sizeof(buf);
