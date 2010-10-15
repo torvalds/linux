@@ -1267,7 +1267,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
 				drbd_uuid_new_current(mdev);
 				clear_bit(NEW_CUR_UUID, &mdev->flags);
-				drbd_md_sync(mdev);
 			}
 			spin_lock_irq(&mdev->req_lock);
 			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
@@ -3659,6 +3658,8 @@ void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local)
 
 	get_random_bytes(&val, sizeof(u64));
 	_drbd_uuid_set(mdev, UI_CURRENT, val);
+	/* get it to stable storage _now_ */
+	drbd_md_sync(mdev);
 }
 
 void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local)
