@@ -338,6 +338,10 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
          */
         if(ep->dwc_ep.num == 0)
 	        ep->dwc_ep.tx_fifo_num = 0;
+        else if(ep->dwc_ep.num == 1)
+                ep->dwc_ep.tx_fifo_num = 1;
+        else if(ep->dwc_ep.num == 3)
+                ep->dwc_ep.tx_fifo_num = 3;
         else
     	    ep->dwc_ep.tx_fifo_num = (ep->dwc_ep.num>>1)+1 ; /* 1,3,5 */
 	}		 

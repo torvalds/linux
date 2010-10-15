@@ -2298,6 +2298,9 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t *_core_if, dwc_ep_t *_ep)
 					(_ep->xfer_len + (_ep->maxpacket - 1)) /
 					_ep->maxpacket;
 			deptsiz.b.xfersize = deptsiz.b.pktcnt * _ep->maxpacket;
+			// yk@20101014
+			// actual length will be caculate by xfer_len - xfersize
+			_ep->xfer_len = deptsiz.b.xfersize;
 		}
 		dwc_write_reg32(&out_regs->doeptsiz, deptsiz.d32);
 
