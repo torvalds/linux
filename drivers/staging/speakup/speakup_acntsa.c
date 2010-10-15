@@ -28,19 +28,18 @@
 #include "speakup_acnt.h" /* local header file for Accent values */
 
 #define DRV_VERSION "2.11"
-#define synth_full() (inb_p(speakup_info.port_tts + UART_RX) == 'F')
 #define PROCSPEECH '\r'
 
 static int synth_probe(struct spk_synth *synth);
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\033P8" }},
-	{ CAPS_STOP, .u.s = {"\033P5" }},
-	{ RATE, .u.n = {"\033R%c", 9, 0, 17, 0, 0, "0123456789abcdefgh" }},
-	{ PITCH, .u.n = {"\033P%d", 5, 0, 9, 0, 0, NULL }},
-	{ VOL, .u.n = {"\033A%d", 9, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\033V%d", 5, 0, 9, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\033P8" } },
+	{ CAPS_STOP, .u.s = {"\033P5" } },
+	{ RATE, .u.n = {"\033R%c", 9, 0, 17, 0, 0, "0123456789abcdefgh" } },
+	{ PITCH, .u.n = {"\033P%d", 5, 0, 9, 0, 0, NULL } },
+	{ VOL, .u.n = {"\033A%d", 9, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\033V%d", 5, 0, 9, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
