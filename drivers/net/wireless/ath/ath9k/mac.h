@@ -104,13 +104,11 @@ struct ath_tx_status {
 	u32 ts_tstamp;
 	u16 ts_seqnum;
 	u8 ts_status;
-	u8 ts_ratecode;
 	u8 ts_rateindex;
 	int8_t ts_rssi;
 	u8 ts_shortretry;
 	u8 ts_longretry;
 	u8 ts_virtcol;
-	u8 ts_antenna;
 	u8 ts_flags;
 	int8_t ts_rssi_ctl0;
 	int8_t ts_rssi_ctl1;
@@ -121,7 +119,6 @@ struct ath_tx_status {
 	u8 qid;
 	u16 desc_id;
 	u8 tid;
-	u8 pad[2];
 	u32 ba_low;
 	u32 ba_high;
 	u32 evm0;

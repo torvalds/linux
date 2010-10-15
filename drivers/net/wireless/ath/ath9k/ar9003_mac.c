@@ -237,10 +237,12 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
 	struct ar9003_txs *ads;
+	u32 status;
 
 	ads = &ah->ts_ring[ah->ts_tail];
 
-	if ((ads->status8 & AR_TxDone) == 0)
+	status = ACCESS_ONCE(ads->status8);
+	if ((status & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
 	ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
@@ -253,57 +255,58 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 		return -EIO;
 	}
 
+	if (status & AR_TxOpExceeded)
+		ts->ts_status |= ATH9K_TXERR_XTXOP;
+	ts->ts_rateindex = MS(status, AR_FinalTxIdx);
+	ts->ts_seqnum = MS(status, AR_SeqNum);
+	ts->tid = MS(status, AR_TxTid);
+
 	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
 	ts->desc_id = MS(ads->status1, AR_TxDescId);
-	ts->ts_seqnum = MS(ads->status8, AR_SeqNum);
 	ts->ts_tstamp = ads->status4;
 	ts->ts_status = 0;
 	ts->ts_flags  = 0;
 
-	if (ads->status3 & AR_ExcessiveRetries)
-		ts->ts_status |= ATH9K_TXERR_XRETRY;
-	if (ads->status3 & AR_Filtered)
-		ts->ts_status |= ATH9K_TXERR_FILT;
-	if (ads->status3 & AR_FIFOUnderrun) {
-		ts->ts_status |= ATH9K_TXERR_FIFO;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->status8 & AR_TxOpExceeded)
-		ts->ts_status |= ATH9K_TXERR_XTXOP;
-	if (ads->status3 & AR_TxTimerExpired)
-		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
-
-	if (ads->status3 & AR_DescCfgErr)
-		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
-	if (ads->status3 & AR_TxDataUnderrun) {
-		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->status3 & AR_TxDelimUnderrun) {
-		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->status2 & AR_TxBaStatus) {
+	status = ACCESS_ONCE(ads->status2);
+	ts->ts_rssi_ctl0 = MS(status, AR_TxRSSIAnt00);
+	ts->ts_rssi_ctl1 = MS(status, AR_TxRSSIAnt01);
+	ts->ts_rssi_ctl2 = MS(status, AR_TxRSSIAnt02);
+	if (status & AR_TxBaStatus) {
 		ts->ts_flags |= ATH9K_TX_BA;
 		ts->ba_low = ads->status5;
 		ts->ba_high = ads->status6;
 	}
 
-	ts->ts_rateindex = MS(ads->status8, AR_FinalTxIdx);
+	status = ACCESS_ONCE(ads->status3);
+	if (status & AR_ExcessiveRetries)
+		ts->ts_status |= ATH9K_TXERR_XRETRY;
+	if (status & AR_Filtered)
+		ts->ts_status |= ATH9K_TXERR_FILT;
+	if (status & AR_FIFOUnderrun) {
+		ts->ts_status |= ATH9K_TXERR_FIFO;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	if (status & AR_TxTimerExpired)
+		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
+	if (status & AR_DescCfgErr)
+		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
+	if (status & AR_TxDataUnderrun) {
+		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	if (status & AR_TxDelimUnderrun) {
+		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	ts->ts_shortretry = MS(status, AR_RTSFailCnt);
+	ts->ts_longretry = MS(status, AR_DataFailCnt);
+	ts->ts_virtcol = MS(status, AR_VirtRetryCnt);
 
-	ts->ts_rssi = MS(ads->status7, AR_TxRSSICombined);
-	ts->ts_rssi_ctl0 = MS(ads->status2, AR_TxRSSIAnt00);
-	ts->ts_rssi_ctl1 = MS(ads->status2, AR_TxRSSIAnt01);
-	ts->ts_rssi_ctl2 = MS(ads->status2, AR_TxRSSIAnt02);
-	ts->ts_rssi_ext0 = MS(ads->status7, AR_TxRSSIAnt10);
-	ts->ts_rssi_ext1 = MS(ads->status7, AR_TxRSSIAnt11);
-	ts->ts_rssi_ext2 = MS(ads->status7, AR_TxRSSIAnt12);
-	ts->ts_shortretry = MS(ads->status3, AR_RTSFailCnt);
-	ts->ts_longretry = MS(ads->status3, AR_DataFailCnt);
-	ts->ts_virtcol = MS(ads->status3, AR_VirtRetryCnt);
-	ts->ts_antenna = 0;
-
-	ts->tid = MS(ads->status8, AR_TxTid);
+	status = ACCESS_ONCE(ads->status7);
+	ts->ts_rssi = MS(status, AR_TxRSSICombined);
+	ts->ts_rssi_ext0 = MS(status, AR_TxRSSIAnt10);
+	ts->ts_rssi_ext1 = MS(status, AR_TxRSSIAnt11);
+	ts->ts_rssi_ext2 = MS(status, AR_TxRSSIAnt12);
 
 	memset(ads, 0, sizeof(*ads));
 
