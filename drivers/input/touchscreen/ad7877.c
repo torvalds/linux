@@ -360,6 +360,13 @@ static int ad7877_rx(struct ad7877 *ts)
 		Rt /= z1;
 		Rt = (Rt + 2047) >> 12;
 
+		/*
+		 * Sample found inconsistent, pressure is beyond
+		 * the maximum. Don't report it to user space.
+		 */
+		if (Rt > ts->pressure_max)
+			return -EINVAL;
+
 		if (!timer_pending(&ts->timer))
 			input_report_key(input_dev, BTN_TOUCH, 1);
 
