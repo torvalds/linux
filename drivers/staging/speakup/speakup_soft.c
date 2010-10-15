@@ -40,20 +40,20 @@ static int softsynth_is_alive(struct spk_synth *synth);
 static unsigned char get_index(void);
 
 static struct miscdevice synth_device;
-static int initialized = 0;
+static int initialized;
 static int misc_registered;
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x01+3p" }},
-	{ CAPS_STOP, .u.s = {"\x01-3p" }},
-	{ RATE, .u.n = {"\x01%ds", 5, 0, 9, 0, 0, NULL }},
-	{ PITCH, .u.n = {"\x01%dp", 5, 0, 9, 0, 0, NULL }},
-	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL }},
-	{ PUNCT, .u.n = {"\x01%db", 0, 0, 2, 0, 0, NULL }},
-	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL }},
-	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\x01+3p" } },
+	{ CAPS_STOP, .u.s = {"\x01-3p" } },
+	{ RATE, .u.n = {"\x01%ds", 5, 0, 9, 0, 0, NULL } },
+	{ PITCH, .u.n = {"\x01%dp", 5, 0, 9, 0, 0, NULL } },
+	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
+	{ PUNCT, .u.n = {"\x01%db", 0, 0, 2, 0, 0, NULL } },
+	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
+	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -66,8 +66,6 @@ static struct kobj_attribute caps_stop_attribute =
 	__ATTR(caps_stop, USER_RW, spk_var_show, spk_var_store);
 static struct kobj_attribute freq_attribute =
 	__ATTR(freq, USER_RW, spk_var_show, spk_var_store);
-//static struct kobj_attribute lang_attribute =
-//	__ATTR(lang, USER_RW, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
 	__ATTR(pitch, USER_RW, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
@@ -80,6 +78,13 @@ static struct kobj_attribute voice_attribute =
 	__ATTR(voice, USER_RW, spk_var_show, spk_var_store);
 static struct kobj_attribute vol_attribute =
 	__ATTR(vol, USER_RW, spk_var_show, spk_var_store);
+
+/*
+ * We should uncomment the following definition, when we agree on a
+ * method of passing a language designation to the software synthesizer.
+ * static struct kobj_attribute lang_attribute =
+ *	__ATTR(lang, USER_RW, spk_var_show, spk_var_store);
+ */
 
 static struct kobj_attribute delay_time_attribute =
 	__ATTR(delay_time, ROOT_W, spk_var_show, spk_var_store);
@@ -100,7 +105,7 @@ static struct attribute *synth_attrs[] = {
 	&caps_start_attribute.attr,
 	&caps_stop_attribute.attr,
 	&freq_attribute.attr,
-//	&lang_attribute.attr,
+/*	&lang_attribute.attr, */
 	&pitch_attribute.attr,
 	&punct_attribute.attr,
 	&rate_attribute.attr,
@@ -161,7 +166,8 @@ static char *get_initstring(void)
 	while (var->var_id != MAXVARS) {
 		if (var->var_id != CAPS_START && var->var_id != CAPS_STOP
 			&& var->var_id != DIRECT)
-			cp = cp + sprintf(cp, var->u.n.synth_fmt, var->u.n.value);
+			cp = cp + sprintf(cp, var->u.n.synth_fmt,
+					  var->u.n.value);
 		var++;
 	}
 	cp = cp + sprintf(cp, "\n");
@@ -233,7 +239,7 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 			ch = '\x18';
 		} else if (synth_buffer_empty()) {
 			break;
-		} else if (! initialized) {
+		} else if (!initialized) {
 			if (*init) {
 				ch = *init;
 				init++;
@@ -260,20 +266,27 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 	return chars_sent;
 }
 
-static int last_index = 0;
+static int last_index;
 
 static ssize_t softsynth_write(struct file *fp, const char *buf, size_t count,
 			       loff_t *pos)
 {
+	unsigned long supplied_index = 0;
+	int converted;
 	char indbuf[5];
 	if (count >= sizeof(indbuf))
 		return -EINVAL;
 
 	if (copy_from_user(indbuf, buf, count))
 		return -EFAULT;
-	indbuf[4] = 0;
+	indbuf[count] = '\0';
 
-	last_index = simple_strtoul(indbuf, NULL, 0);
+	converted = strict_strtoul(indbuf, 0, &supplied_index);
+
+	if (converted < 0)
+		return converted;
+
+	last_index = supplied_index;
 	return count;
 }
 
@@ -285,7 +298,7 @@ static unsigned int softsynth_poll(struct file *fp,
 	poll_wait(fp, &speakup_event, wait);
 
 	spk_lock(flags);
-	if (! synth_buffer_empty() || speakup_info.flushing)
+	if (!synth_buffer_empty() || speakup_info.flushing)
 		ret = POLLIN | POLLRDNORM;
 	spk_unlock(flags);
 	return ret;
@@ -299,7 +312,7 @@ static unsigned char get_index(void)
 	return rv;
 }
 
-static struct file_operations softsynth_fops = {
+static const struct file_operations softsynth_fops = {
 	.owner = THIS_MODULE,
 	.poll = softsynth_poll,
 	.read = softsynth_read,
