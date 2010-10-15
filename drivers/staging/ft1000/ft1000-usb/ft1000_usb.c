@@ -191,7 +191,9 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	DEBUG("ft1000_probe::Card Ready!!!! Registering network device\n");
 
-	reg_ft1000_netdev(ft1000dev, interface);
+	ret = reg_ft1000_netdev(ft1000dev, interface);
+	if (ret)
+		goto err_load;
 
 	pft1000info->NetDevRegDone = 1;
 

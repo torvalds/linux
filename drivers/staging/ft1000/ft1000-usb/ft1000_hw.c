@@ -1103,7 +1103,7 @@ err_net:
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf)
+int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf)
 {
     struct net_device *netdev;
     FT1000_INFO *pInfo;
@@ -1124,7 +1124,7 @@ u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *int
     {
         DEBUG("reg_ft1000_netdev: could not register network device\n");
         free_netdev(netdev);
-        return STATUS_FAILURE;
+	return rc;
     }
 
 
@@ -1149,7 +1149,7 @@ u16 reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *int
     pInfo->CardReady = 1;
 
 
-   return STATUS_SUCCESS;
+	return 0;
 }
 
 static int ft1000_reset(struct net_device *dev)
