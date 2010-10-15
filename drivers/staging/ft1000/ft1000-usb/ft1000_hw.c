@@ -952,7 +952,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     if (!netdev )
     {
         DEBUG("init_ft1000_netdev: can not allocate network device\n");
-        return STATUS_FAILURE;
+	return -ENOMEM;
     }
 
     //pInfo = (PFT1000_INFO)netdev->priv;
@@ -975,8 +975,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 		ret_val = strict_strtoul(card_nr, 10, &gCardIndex);
 		if (ret_val) {
 			printk(KERN_ERR "Can't parse netdev\n");
-			free_netdev(netdev);
-			return STATUS_FAILURE;
+			goto err_net;
 		}
 
             pInfo->CardNumber = gCardIndex;
@@ -984,8 +983,8 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
         }
         else {
             printk(KERN_ERR "ft1000: Invalid device name\n");
-	    free_netdev(netdev);
-            return STATUS_FAILURE;
+		ret_val = -ENXIO;
+		goto err_net;
         }
     }
     else
@@ -1056,21 +1055,24 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
         for (i=0; i<NUM_OF_FREE_BUFFERS; i++) {
             // Get memory for DPRAM_DATA link list
             pdpram_blk = kmalloc ( sizeof(DPRAM_BLK), GFP_KERNEL );
-	    if (pdpram_blk == NULL)
-		goto err_free;
+		if (pdpram_blk == NULL) {
+			ret_val = -ENOMEM;
+			goto err_free;
+		}
             // Get a block of memory to store command data
             pdpram_blk->pbuffer = kmalloc ( MAX_CMD_SQSIZE, GFP_KERNEL );
-	    if (pdpram_blk->pbuffer == NULL) {
-		kfree(pdpram_blk);
-		goto err_free;
-	    }
+		if (pdpram_blk->pbuffer == NULL) {
+			ret_val = -ENOMEM;
+			kfree(pdpram_blk);
+			goto err_free;
+		}
             // link provisioning data
             list_add_tail (&pdpram_blk->list, &freercvpool);
         }
         numofmsgbuf = NUM_OF_FREE_BUFFERS;
 
 
-    return STATUS_SUCCESS;
+	return 0;
 
 
 err_free:
@@ -1080,7 +1082,9 @@ err_free:
 		kfree(pdpram_blk->pbuffer);
 		kfree(pdpram_blk);
 	}
-	return STATUS_FAILURE;
+err_net:
+	free_netdev(netdev);
+	return ret_val;
 }
 
 
