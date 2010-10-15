@@ -1548,23 +1548,6 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 	}
 }
 
-
-inline void set_flag_le16(__le16 *data, u16 flag)
-{
-	*data = cpu_to_le16(le16_to_cpu(*data) | flag);
-}
-
-inline void set_flag_le64(__le64 *data, u64 flag)
-{
-	*data = cpu_to_le64(le64_to_cpu(*data) | flag);
-}
-
-inline void reset_flag_le64(__le64 *data, u64 flag)
-{
-	*data = cpu_to_le64(le64_to_cpu(*data) & ~flag);
-}
-
-
 static void
 vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
