@@ -299,14 +299,6 @@ static void __rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
 	unregister_netdevice_many(&list_kill);
 }
 
-void rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
-{
-	rtnl_lock();
-	__rtnl_kill_links(net, ops);
-	rtnl_unlock();
-}
-EXPORT_SYMBOL_GPL(rtnl_kill_links);
-
 /**
  * __rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
  * @ops: struct rtnl_link_ops * to unregister
