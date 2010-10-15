@@ -90,13 +90,10 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		*masked = isr & ATH9K_INT_COMMON;
 
-		if (ah->config.rx_intr_mitigation) {
-			if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
-				*masked |= ATH9K_INT_RX;
-		}
-
-		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
+		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM |
+			   AR_ISR_RXOK | AR_ISR_RXERR))
 			*masked |= ATH9K_INT_RX;
+
 		if (isr &
 		    (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR |
 		     AR_ISR_TXEOL)) {
@@ -118,14 +115,6 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 				  "receive FIFO overrun interrupt\n");
 		}
 
-		if (!AR_SREV_9100(ah)) {
-			if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
-				u32 isr5 = REG_READ(ah, AR_ISR_S5_S);
-				if (isr5 & AR_ISR_S5_TIM_TIMER)
-					*masked |= ATH9K_INT_TIM_TIMER;
-			}
-		}
-
 		*masked |= mask2;
 	}
 
@@ -136,17 +125,18 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		u32 s5_s;
 
 		s5_s = REG_READ(ah, AR_ISR_S5_S);
-		if (isr & AR_ISR_GENTMR) {
-			ah->intr_gen_timer_trigger =
+		ah->intr_gen_timer_trigger =
 				MS(s5_s, AR_ISR_S5_GENTIMER_TRIG);
 
-			ah->intr_gen_timer_thresh =
-				MS(s5_s, AR_ISR_S5_GENTIMER_THRESH);
+		ah->intr_gen_timer_thresh =
+			MS(s5_s, AR_ISR_S5_GENTIMER_THRESH);
 
-			if (ah->intr_gen_timer_trigger)
-				*masked |= ATH9K_INT_GENTIMER;
+		if (ah->intr_gen_timer_trigger)
+			*masked |= ATH9K_INT_GENTIMER;
 
-		}
+		if ((s5_s & AR_ISR_S5_TIM_TIMER) &&
+		    !(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
+			*masked |= ATH9K_INT_TIM_TIMER;
 	}
 
 	if (sync_cause) {
