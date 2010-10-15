@@ -1,5 +1,5 @@
 /*
- * Driver for HP iLO/iLO2 management processor.
+ * Driver for the HP iLO management processor.
  *
  * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
  *	David Altobelli <david.altobelli@hp.com>

@@ -248,15 +248,15 @@ config CS5535_CLOCK_EVENT_SRC
 	  generic PIT, and are suitable for use as high-res timers.
 
 config HP_ILO
-	tristate "Channel interface driver for HP iLO/iLO2 processor"
+	tristate "Channel interface driver for the HP iLO processor"
 	depends on PCI
 	default n
 	help
 	  The channel interface driver allows applications to communicate
-	  with iLO/iLO2 management processors present on HP ProLiant
-	  servers.  Upon loading, the driver creates /dev/hpilo/dXccbN files,
-	  which can be used to gather data from the management processor,
-	  via read and write system calls.
+	  with iLO management processors present on HP ProLiant servers.
+	  Upon loading, the driver creates /dev/hpilo/dXccbN files, which
+	  can be used to gather data from the management processor, via
+	  read and write system calls.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hpilo.
