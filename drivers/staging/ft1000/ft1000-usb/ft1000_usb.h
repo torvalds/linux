@@ -90,10 +90,10 @@ struct app_info_block {
 	struct list_head app_sqlist;   // link list of msgs for applicaton on slow queue
 } __attribute__((packed));
 
-typedef struct _PROV_RECORD {
-    struct list_head list;
-    u8 *pprov_data;
-} PROV_RECORD, *PPROV_RECORD;
+struct prov_record {
+	struct list_head list;
+	u8 *pprov_data;
+};
 
 /*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)

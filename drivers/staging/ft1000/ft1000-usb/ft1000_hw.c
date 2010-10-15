@@ -790,7 +790,7 @@ static int ft1000_reset_card (struct net_device *dev)
     FT1000_INFO *info = netdev_priv(dev);
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
     u16 tempword;
-    PPROV_RECORD ptr;
+	struct prov_record *ptr;
 
     DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
 
@@ -802,7 +802,7 @@ static int ft1000_reset_card (struct net_device *dev)
     // Make sure we free any memory reserve for provisioning
     while (list_empty(&info->prov_list) == 0) {
         DEBUG("ft1000_hw:ft1000_reset_card:deleting provisioning record\n");
-        ptr = list_entry(info->prov_list.next, PROV_RECORD, list);
+	ptr = list_entry(info->prov_list.next, struct prov_record, list);
         list_del(&ptr->list);
         kfree(ptr->pprov_data);
         kfree(ptr);
@@ -1996,7 +1996,7 @@ static int ft1000_dsp_prov(void *arg)
     u16 tempword;
     u16 len;
     u16 i=0;
-    PPROV_RECORD ptr;
+	struct prov_record *ptr;
     PPSEUDO_HDR ppseudo_hdr;
     PUSHORT pmsg;
     u16 status;
@@ -2032,7 +2032,7 @@ static int ft1000_dsp_prov(void *arg)
             DEBUG("*** Provision Data Sent to DSP\n");
 
             // Send provisioning data
-            ptr = list_entry(info->prov_list.next, PROV_RECORD, list);
+		ptr = list_entry(info->prov_list.next, struct prov_record, list);
             len = *(u16 *)ptr->pprov_data;
             len = htons(len);
             len += PSEUDOSZ;

@@ -777,7 +777,6 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
    USHORT                  handshake;
    PPSEUDO_HDR             pHdr;
    USHORT                  usHdrLength;
-   //PPROV_RECORD            pProvRecord;
    long                    word_length;
    USHORT                  request;
    USHORT                  temp;
@@ -801,7 +800,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 
    USHORT                  dpram = 0;
    PUCHAR                  pbuffer;
-   PPROV_RECORD            pprov_record;
+	struct prov_record *pprov_record;
    FT1000_INFO *pft1000info = netdev_priv(ft1000dev->net);
 
    DEBUG("Entered   scram_dnldr...\n");
@@ -1184,7 +1183,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
             if (pbuffer) {
                 memcpy(pbuffer, (void *)pUcFile, (UINT)(usHdrLength + sizeof(PSEUDO_HDR)));
                 // link provisioning data
-                pprov_record = kmalloc( sizeof(PROV_RECORD), GFP_ATOMIC );
+		pprov_record = kmalloc(sizeof(struct prov_record), GFP_ATOMIC);
                 if (pprov_record) {
                     pprov_record->pprov_data = pbuffer;
                     list_add_tail (&pprov_record->list, &pft1000info->prov_list);
