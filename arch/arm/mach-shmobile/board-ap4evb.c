@@ -546,27 +546,6 @@ static struct platform_device *qhd_devices[] __initdata = {
 
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
-#define FSIACKCR	0xE6150018
-static void fsiackcr_init(struct clk *clk)
-{
-	u32 status = __raw_readl(clk->enable_reg);
-
-	/* use external clock */
-	status &= ~0x000000ff;
-	status |= 0x00000080;
-	__raw_writel(status, clk->enable_reg);
-}
-
-static struct clk_ops fsiackcr_clk_ops = {
-	.init = fsiackcr_init,
-};
-
-static struct clk fsiackcr_clk = {
-	.ops		= &fsiackcr_clk_ops,
-	.enable_reg	= (void __iomem *)FSIACKCR,
-	.rate		= 0, /* unknown */
-};
-
 static struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
@@ -817,6 +796,47 @@ out:
 
 device_initcall(hdmi_init_pm_clock);
 
+#define FSIACK_DUMMY_RATE 48000
+static int __init fsi_init_pm_clock(void)
+{
+	struct clk *fsia_ick;
+	int ret;
+
+	/*
+	 * FSIACK is connected to AK4642,
+	 * and the rate is depend on playing sound rate.
+	 * So, set dummy rate (= 48k) here
+	 */
+	ret = clk_set_rate(&sh7372_fsiack_clk, FSIACK_DUMMY_RATE);
+	if (ret < 0) {
+		pr_err("Cannot set FSIACK dummy rate: %d\n", ret);
+		return ret;
+	}
+
+	fsia_ick = clk_get(&fsi_device.dev, "icka");
+	if (IS_ERR(fsia_ick)) {
+		ret = PTR_ERR(fsia_ick);
+		pr_err("Cannot get FSI ICK: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_set_parent(fsia_ick, &sh7372_fsiack_clk);
+	if (ret < 0) {
+		pr_err("Cannot set FSI-A parent: %d\n", ret);
+		goto out;
+	}
+
+	ret = clk_set_rate(fsia_ick, FSIACK_DUMMY_RATE);
+	if (ret < 0)
+		pr_err("Cannot set FSI-A rate: %d\n", ret);
+
+out:
+	clk_put(fsia_ick);
+
+	return ret;
+}
+device_initcall(fsi_init_pm_clock);
+
 /*
  * FIXME !!
  *
@@ -1004,14 +1024,6 @@ static void __init ap4evb_init(void)
 	clk = clk_get(NULL, "spu_clk");
 	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 119600000));
-		clk_put(clk);
-	}
-
-	/* change parent of FSI A */
-	clk = clk_get(NULL, "fsia_clk");
-	if (!IS_ERR(clk)) {
-		clk_register(&fsiackcr_clk);
-		clk_set_parent(clk, &fsiackcr_clk);
 		clk_put(clk);
 	}
 
