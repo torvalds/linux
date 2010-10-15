@@ -149,14 +149,14 @@ static int in_escape, is_flushing;
 static int dt_stat, dma_state;
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"[:dv ap 200]" }},
-	{ CAPS_STOP, .u.s = {"[:dv ap 100]" }},
-	{ RATE, .u.n = {"[:ra %d]", 9, 0, 18, 150, 25, NULL }},
-	{ PITCH, .u.n = {"[:dv ap %d]", 80, 0, 100, 20, 0, NULL }},
-	{ VOL, .u.n = {"[:vo se %d]", 5, 0, 9, 5, 10, NULL }},
-	{ PUNCT, .u.n = {"[:pu %c]", 0, 0, 2, 0, 0, "nsa" }},
-	{ VOICE, .u.n = {"[:n%c]", 0, 0, 9, 0, 0, "phfdburwkv" }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"[:dv ap 200]" } },
+	{ CAPS_STOP, .u.s = {"[:dv ap 100]" } },
+	{ RATE, .u.n = {"[:ra %d]", 9, 0, 18, 150, 25, NULL } },
+	{ PITCH, .u.n = {"[:dv ap %d]", 80, 0, 100, 20, 0, NULL } },
+	{ VOL, .u.n = {"[:vo se %d]", 5, 0, 9, 5, 10, NULL } },
+	{ PUNCT, .u.n = {"[:pu %c]", 0, 0, 2, 0, 0, "nsa" } },
+	{ VOICE, .u.n = {"[:n%c]", 0, 0, 9, 0, 0, "phfdburwkv" } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -367,7 +367,7 @@ oops:	synth_release_region(speakup_info.port_tts, SYNTH_IO_EXTENT);
 static void do_catch_up(struct spk_synth *synth)
 {
 	u_char ch;
-	static u_char last = '\0';
+	static u_char last;
 	unsigned long flags;
 	unsigned long jiff_max;
 	struct var_t *jiffy_delta;
@@ -422,7 +422,8 @@ static void do_catch_up(struct spk_synth *synth)
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
 				spk_unlock(flags);
-				schedule_timeout(msecs_to_jiffies(delay_time_val));
+				schedule_timeout(msecs_to_jiffies
+						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
 			}
 		}
