@@ -861,6 +861,8 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 				str_info->src = SST_DRV;
 				retval = copy_to_user(&str_param->stream_id,
 						&retval, sizeof(__u32));
+				if (retval)
+					retval = -EFAULT;
 			} else {
 				if (retval == -SST_ERR_INVALID_PARAMS)
 					retval = -EINVAL;
@@ -934,7 +936,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		retval = copy_to_user((struct snd_sst_vol *)arg,
 						&get_vol, sizeof(get_vol));
 		if (retval) {
-			retval = -EIO;
+			retval = -EFAULT;
 			break;
 		}
 		/*sst_print_get_vol_info(str_id, &get_vol);*/
