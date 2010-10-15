@@ -76,7 +76,7 @@ struct clk_rate_round_data;
 struct clk_rate_round_data {
 	unsigned long rate;
 	unsigned int min, max;
-	long (*func)(unsigned int pos, struct clk_rate_round_data *arg);
+	long (*func)(unsigned int, struct clk_rate_round_data *);
 	void *arg;
 };
 
@@ -146,6 +146,26 @@ long clk_rate_table_round(struct clk *clk,
 	};
 
 	return clk_rate_round_helper(&table_round);
+}
+
+static long clk_rate_div_range_iter(unsigned int pos,
+				    struct clk_rate_round_data *rounder)
+{
+	return clk_get_rate(rounder->arg) / pos;
+}
+
+long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
+			      unsigned int div_max, unsigned long rate)
+{
+	struct clk_rate_round_data div_range_round = {
+		.min	= div_min,
+		.max	= div_max,
+		.func	= clk_rate_div_range_iter,
+		.arg	= clk_get_parent(clk),
+		.rate	= rate,
+	};
+
+	return clk_rate_round_helper(&div_range_round);
 }
 
 int clk_rate_table_find(struct clk *clk,

@@ -119,6 +119,9 @@ int clk_rate_table_find(struct clk *clk,
 			struct cpufreq_frequency_table *freq_table,
 			unsigned long rate);
 
+long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
+			      unsigned int div_max, unsigned long rate);
+
 #define SH_CLK_MSTP32(_parent, _enable_reg, _enable_bit, _flags)	\
 {									\
 	.parent		= _parent,					\
