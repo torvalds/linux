@@ -2269,18 +2269,77 @@ void __tcmfunc rk2818_soc_general_reg_suspend(void)
 		rk2818_socpm_set_gpio(RK2818_PIN_PG7,0,0);
 	#endif
 }
-void __tcmfunc rk2818_pm_set_vol(void)
+
+void __tcmfunc pmu_suspend(void)
 {
+	//struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
+	struct regulator *lilo1,*lilo2;
+	
+	/*ldo1 = regulator_get(NULL, "ldo1");
+	regulator_disable(ldo1);
+	ldo2 = regulator_get(NULL, "ldo2");
+	regulator_disable(ldo2);
+	ldo4 = regulator_get(NULL, "ldo4");
+	regulator_disable(ldo4);
+	ldo5 = regulator_get(NULL, "ldo5");
+	regulator_disable(ldo5);*/
+	
+	lilo1 = regulator_get(NULL, "lilo1");
+	regulator_set_voltage(lilo1,2800000,2800000);
+	lilo2 = regulator_get(NULL, "lilo2");
+	regulator_set_voltage(lilo2,2800000,2800000);
+}
+
+void __tcmfunc pmu_resume(void)
+{
+	//struct regulator *ldo1,*ldo2,*ldo4,*ldo5;
+	struct regulator *lilo1,*lilo2;
+
+	/*ldo1 = regulator_get(NULL, "ldo1");
+	regulator_enable(ldo1);
+
+	ldo2 = regulator_get(NULL, "ldo2");
+	regulator_enable(ldo2);
+
+	ldo4 = regulator_get(NULL, "ldo4");
+	regulator_enable(ldo4);
+
+	ldo5 = regulator_get(NULL, "ldo5");
+	regulator_enable(ldo5);*/
+	
+	lilo1 = regulator_get(NULL, "lilo1");
+	regulator_set_voltage(lilo1,3000000,3000000);
+	lilo2 = regulator_get(NULL, "lilo2");
+	regulator_set_voltage(lilo2,3000000,3000000);
+}
+
+void __tcmfunc rk2818_pm_suspend_ctr_pin(void)
+{
+	pmu_suspend( );
 	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,0);
+	//rk2818_socpm_set_gpio(RK2818_PIN_PC7,1,0);
 }
-void __tcmfunc rk2818_pm_resume_vol(void)
+void __tcmfunc rk2818_pm_resume_ctr_pin(void)
 {
+	
 	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,1);
+	//rk2818_socpm_set_gpio(RK2818_PIN_PC7,1,0);
+	pmu_resume( );
 }
+
+static struct rk2818_pm_callback_st __tcmdata callback_init={
+.scu_suspend=(pm_scu_suspend)rk2818_pm_scu_suspend,
+.general_reg_suspend=(pm_general_reg_suspend)rk2818_soc_general_reg_suspend,
+.set_pin=(pm_general_reg_suspend)rk2818_pm_suspend_ctr_pin,
+.resume_pin=(pm_resume_ctr_pin)rk2818_pm_resume_ctr_pin,
+};
 #else
-#define	pm_set_general_cpu_reg(a)
-#define	rk2818_pm_set_vol()
-#define	rk2818_pm_resume_vol()
+static struct rk2818_pm_callback_st __tcmdata callback_init={
+.scu_suspend=NULL,
+.general_reg_suspend=NULL,
+.set_pin=NULL,
+.resume_pin=NULL,
+};
 #endif
 static void __init machine_rk2818_init_irq(void)
 {
@@ -2293,8 +2352,7 @@ static void __init machine_rk2818_board_init(void)
 {	
 	printk("3x machine_rk2818_board_init\n");
 	
-	rk2818_socpm_int( (pm_scu_suspend) rk2818_pm_scu_suspend,(pm_general_reg_suspend) rk2818_soc_general_reg_suspend,
-	(pm_set_suspendvol) rk2818_pm_set_vol,(pm_resume_vol) rk2818_pm_resume_vol);
+	rk2818_socpm_init(&callback_init);
 	rk2818_power_on();
 	pm_power_off = rk2818_power_off;
 #ifdef CONFIG_SPI_FPGA_FW

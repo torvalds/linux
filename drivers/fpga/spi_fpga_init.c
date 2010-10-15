@@ -685,6 +685,16 @@ static int spi_fpga_wait_suspend(struct spi_fpga_port *port)
 
 static void fpga_close_power_support(void)
 {
+	//modem
+	#if 0
+	gpio_request(FPGA_PIO2_03, NULL); 	
+	gpio_direction_output(FPGA_PIO2_03,GPIO_LOW); 
+	gpio_free(FPGA_PIO2_03);
+	gpio_request(FPGA_PIO2_05, NULL); 	
+	gpio_direction_output(FPGA_PIO2_05,GPIO_HIGH); 
+	gpio_free(FPGA_PIO2_05);
+	#endif
+
 	//cmmb power down
 	gpio_request(FPGA_PIO4_03, NULL); 
 	gpio_direction_output(FPGA_PIO4_03,GPIO_LOW); 
@@ -704,6 +714,16 @@ static void fpga_close_power_support(void)
 
 static void fpga_open_power_support(void)
 {
+	//modem
+	#if 0
+	gpio_request(FPGA_PIO2_03, NULL); 	
+	gpio_direction_output(FPGA_PIO2_03,GPIO_HIGH); 
+	gpio_free(FPGA_PIO2_03);
+	gpio_request(FPGA_PIO2_05, NULL); 	
+	gpio_direction_output(FPGA_PIO2_05,GPIO_LOW);
+	gpio_free(FPGA_PIO2_05);	
+	#endif
+
 	//cmmb do not control here
 
 	//KEY LED resume
@@ -711,6 +731,7 @@ static void fpga_open_power_support(void)
 	gpio_direction_output(FPGA_PIO1_13,GPIO_HIGH); 
 	gpio_free(FPGA_PIO1_13);		
 }
+
 
 static int spi_fpga_suspend(struct spi_device *spi, pm_message_t state)
 {

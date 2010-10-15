@@ -75,8 +75,8 @@ ssize_t rk2818_socpm_attr_show(int type,char *buf);
 
 typedef void (*pm_scu_suspend)(unsigned int *tempdata,int regoff);
 typedef void (*pm_general_reg_suspend)(void);
-typedef void (*pm_set_suspendvol)(void);
-typedef void (*pm_resume_vol)(void);
+typedef void (*pm_suspend_ctr_pin)(void);
+typedef void (*pm_resume_ctr_pin)(void);
 
 struct rk2818_pm_soc_st{
 unsigned int *reg_save;
@@ -94,11 +94,10 @@ u8 attr_flag;
 };
 
 struct rk2818_pm_callback_st{
-int data;
 pm_scu_suspend scu_suspend;
 pm_general_reg_suspend general_reg_suspend;
-pm_set_suspendvol set_suspendvol;
-pm_resume_vol resume_vol;
+pm_suspend_ctr_pin set_pin;
+pm_resume_ctr_pin resume_pin;
 };
 
 
@@ -113,10 +112,6 @@ struct rk2818_pm_soc_st *gpio1;
 //struct rk2818_pm_callback_st *callback;
 unsigned int *save_reg;
 unsigned int *save_ch;
-pm_scu_suspend scu_suspend;
-pm_general_reg_suspend general_reg_suspend;
-pm_set_suspendvol set_suspendvol;
-pm_resume_vol resume_vol;
 };
 
 /***********************scu SCU_CLKSEL0 reg bit************************************/
@@ -124,11 +119,6 @@ pm_resume_vol resume_vol;
 #define PM_DEBUG_BIT	1
 #define PM_SET_BIT(b) (1<<b)
 #define PM_GET_BIT(val,b)	((val&(1<<b))>>b)
-
-
-
-
-
 
 /***********************scu SCU_CLKSEL0 reg bit************************************/
 
@@ -311,9 +301,8 @@ enum
 	PM_SCU_GPIO_SWPORTC_NUM
 };
 
-void rk2818_socpm_int(pm_scu_suspend scu,pm_general_reg_suspend general,
-	pm_set_suspendvol setvol,pm_resume_vol resumevol);
-	extern struct rk2818_pm_st __tcmdata rk2818_soc_pm;
+int rk2818_socpm_init(struct rk2818_pm_callback_st *call_back);
+extern struct rk2818_pm_st __tcmdata rk2818_soc_pm;
 extern int  __tcmfunc rk2818_socpm_gpio_pullupdown(unsigned int gpio,eGPIOPullType_t GPIOPullUpDown);
 extern int  __tcmfunc rk2818_socpm_set_gpio(unsigned int gpio,unsigned int output,unsigned int level);
 
@@ -322,7 +311,7 @@ extern int  __tcmfunc rk2818_socpm_set_gpio(unsigned int gpio,unsigned int outpu
 void __tcmfunc rk2818_socpm_suspend_first(void);
 void __tcmfunc rk2818_socpm_suspend(void);
 
-void __tcmfunc rk2818_socpm_resume_first(void);
+void __tcmfunc rk2818_socpm_resume_last(void);
 void __tcmfunc rk2818_socpm_resume(void);
 void rk2818_socpm_print(void);
 #else
@@ -331,7 +320,7 @@ void rk2818_socpm_print(void);
 #define rk2818_socpm_set_gpio(a,b,c)
 #define rk2818_socpm_suspend_first()
 #define rk2818_socpm_suspend()
-#define rk2818_socpm_resume_first()
+#define rk2818_socpm_resume_last()
 #define rk2818_socpm_resume()
 #define rk2818_socpm_print()
 

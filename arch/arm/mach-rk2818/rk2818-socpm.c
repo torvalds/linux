@@ -74,8 +74,6 @@ static struct rk2818_pm_soc_st __tcmdata pm_general_ctr={
 
 static unsigned int __tcmdata pm_gpio0_reg_save[PM_SCU_GPIO_SWPORTC_NUM];
 
-
-
 static struct rk2818_pm_soc_st __tcmdata pm_gpio0_ctr={
 .reg_save=&pm_gpio0_reg_save[0],
 .reg_base_addr=(unsigned int *)RK2818_GPIO0_BASE,
@@ -120,11 +118,9 @@ struct rk2818_pm_st __tcmdata rk2818_soc_pm={
 .gpio1=(struct rk2818_pm_soc_st *)&pm_gpio1_ctr.reg_save,
 .save_reg=&pm_savereg[0],
 .save_ch=&savereg_ch[0],
-.scu_suspend=NULL,
-.general_reg_suspend=NULL,
-.set_suspendvol=NULL,
-.resume_vol=NULL,
 };
+
+static struct rk2818_pm_callback_st __tcmdata *pm_ctr_callback=NULL;
 
 int __tcmfunc rk2818_socpm_set_gpio(unsigned int gpio,unsigned int output,unsigned int level)
 {
@@ -245,9 +241,9 @@ static void __tcmfunc rk2818_pm_save_reg(unsigned int *save,unsigned int *source
 static void __tcmfunc rk2818_soc_updata_scureg(unsigned int *tempdata,int regoff,int flag)
 {
 	
-	if(rk2818_soc_pm.scu_suspend&&flag)
+	if(pm_ctr_callback->scu_suspend&&flag)
 	{
-		rk2818_soc_pm.scu_suspend(tempdata,regoff);
+		pm_ctr_callback->scu_suspend(tempdata,regoff);
 	}
 	rk2818_soc_pm.scu->reg_base_addr[regoff]=*tempdata;
 	rk2818_soc_pm.scu->reg_ctrbit|=(0x1<<regoff);
@@ -278,7 +274,6 @@ static void __tcmfunc rk2818_soc_scu_suspend(void)
 	rk2818_soc_updata_scureg(tempdata,PM_SCU_CLKGATE1_CON,1);
 	tcm_udelay(1, 24);
 
-
       *tempdata=SCU_GATE2CLK_BASE_SET&(~DIS_ITCMBUS_CLK)&(~DIS_DTCM0BUS_CLK)&(~DIS_DTCM1BUS_CLK);
 	rk2818_soc_updata_scureg(tempdata,PM_SCU_CLKGATE2_CON,1);
 	tcm_udelay(1, 24);
@@ -290,13 +285,10 @@ static void __tcmfunc rk2818_soc_scu_suspend(void)
 	*tempdata=rk2818_scu_reg[PM_SCU_CPLL_CON] |CPLL_POERDOWN;    //dsp pll power down
 	rk2818_soc_updata_scureg(tempdata,PM_SCU_CPLL_CON,1);
 	tcm_udelay(1, 24);
-
-       
+ 
 	rk2818_scu_reg[PM_SCU_PMU_CON] |=LCDC_POWER_DOWN;
 	*tempdata=rk2818_scu_reg[PM_SCU_PMU_CON] |DSP_POWER_DOWN;
 	rk2818_soc_updata_scureg(tempdata,PM_SCU_PMU_CON,1);
-
-
 
 	*tempdata=rk2818_scu_reg[PM_SCU_MODE_CON] &CPU_SLOW_MODE;	//general slow mode
 	rk2818_soc_updata_scureg(tempdata,PM_SCU_MODE_CON,1);
@@ -311,7 +303,6 @@ static void __tcmfunc rk2818_soc_scu_suspend(void)
 	rk2818_soc_updata_scureg(tempdata,PM_SCU_CLKSEL0_CON,1);
 	tcm_udelay(2, 24);
 
-	
 	*tempdata=(rk2818_scu_reg[PM_CLKSEL2_CON]&(~0xf))|0xF;
 	rk2818_soc_updata_scureg(tempdata,PM_CLKSEL2_CON,1);
 
@@ -319,7 +310,6 @@ static void __tcmfunc rk2818_soc_scu_suspend(void)
 
 	//*tempdata=rk2818_scu_reg[PM_SCU_PMU_CON] |DDR_POWER_DOWN;
 	//rk2818_soc_updata_scureg(tempdata,PM_SCU_PMU_CON,0);
-
 
 	//*tempdata=rk2818_scu_reg[PM_SCU_SOFTRST_CON]|(1<<RST_DDR_BUS)|(1<<RST_DDR_CORE_LOGIC);//RST_ALL&(~(1<<RST_ARM));
 	//rk2818_soc_updata_scureg(tempdata,PM_SCU_SOFTRST_CON,1);
@@ -408,9 +398,9 @@ void __tcmfunc rk2818_socpm_suspend(void)
 	rk2818_soc_scu_suspend();
 	tcm_udelay(1, 24); //DRVDelayUs(100); 
 	
-	if(rk2818_soc_pm.general_reg_suspend)
+	if(pm_ctr_callback&&pm_ctr_callback->general_reg_suspend)
 	{
-		rk2818_soc_pm.general_reg_suspend();
+		pm_ctr_callback->general_reg_suspend();
 	}
 #ifdef RK2818_PM_PRT_CHANGED_REG
 
@@ -435,7 +425,7 @@ void __tcmfunc rk2818_socpm_resume(void)
 		rk2818_soc_resume(rk2818_soc_pm.scu->reg_save,rk2818_soc_pm.scu->reg_base_addr,
 			rk2818_soc_pm.scu->reg_ctrbit,rk2818_soc_pm.scu->reg_num);
 		tcm_udelay(2, 24);
-		if(rk2818_soc_pm.general_reg_suspend)
+		if(pm_ctr_callback->general_reg_suspend)
 		{
 
 			rk2818_soc_resume(rk2818_soc_pm.general->reg_save,rk2818_soc_pm.general->reg_base_addr,
@@ -463,25 +453,24 @@ void __tcmfunc rk2818_socpm_suspend_first(void)
 	rk2818_soc_pm.general->reg_ctrbit=0;
 	rk2818_soc_pm.gpio0->reg_ctrbit=0x6db;
 	rk2818_soc_pm.gpio1->reg_ctrbit=0x6db;
-	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,0);
+
 	//rk2818_soc_pm.save_reg[0]=rk2818_ddr_reg[82];
 	//rk2818_ddr_reg[82]=rk2818_ddr_reg[82]&(~(0xffff))&(~(0xf<<20));
 	
-		if(rk2818_soc_pm.set_suspendvol)
-			rk2818_soc_pm.set_suspendvol();
+	if(pm_ctr_callback&&pm_ctr_callback->set_pin)
+		pm_ctr_callback->set_pin();
 
 
 }
 
-void __tcmfunc rk2818_socpm_resume_first(void)
+void __tcmfunc rk2818_socpm_resume_last(void)
 {
 	//unsigned int *rk2818_ddr_reg=(unsigned int *)RK2818_SDRAMC_BASE;
-	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,1);
-	if(rk2818_soc_pm.resume_vol)
-		rk2818_soc_pm.resume_vol();
+
+	if(pm_ctr_callback&&pm_ctr_callback->resume_pin)
+		pm_ctr_callback->resume_pin();
 
 }
-
 
 void rk2818_socpm_print(void)
 {
@@ -496,20 +485,14 @@ void rk2818_socpm_print(void)
 }
 
 
-
-void rk2818_socpm_int(pm_scu_suspend scu,pm_general_reg_suspend general,
-	pm_set_suspendvol setvol,pm_resume_vol resumevol)
+int rk2818_socpm_init(struct rk2818_pm_callback_st *call_back)
 {
-		rk2818_soc_pm.scu_suspend=scu;
-		rk2818_soc_pm.general_reg_suspend=general;
-		rk2818_soc_pm.set_suspendvol=setvol;
-		rk2818_soc_pm.resume_vol=resumevol;
+	if(call_back==NULL)
+		return -1;
+	pm_ctr_callback = call_back;
+	return 0;
 
 }
-
-
-
-
 
 
 #if defined (CONFIG_RK2818_SOC_PM_DBG)
