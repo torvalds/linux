@@ -51,7 +51,7 @@
 
 
 
-typedef struct _MEDIAMSG {
+struct media_msg {
 	PSEUDO_HDR pseudo;
 	u16 type;
 	u16 length;
@@ -61,7 +61,7 @@ typedef struct _MEDIAMSG {
 	u32 gateway;
 	u32 dns_1;
 	u32 dns_2;
-} __attribute__ ((packed)) MEDIAMSG, *PMEDIAMSG;
+} __attribute__ ((packed));
 
 typedef struct _DSPINITMSG {
     PSEUDO_HDR pseudo;
@@ -97,7 +97,6 @@ typedef struct _PROV_RECORD {
 } PROV_RECORD, *PPROV_RECORD;
 
 /*end of Jim*/
-
 #define DEBUG(args...) printk(KERN_INFO args)
 
 #define UCHAR               u8

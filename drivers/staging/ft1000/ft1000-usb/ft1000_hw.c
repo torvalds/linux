@@ -2080,7 +2080,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
     u16 msgtype;
     u16 tempword;
-    PMEDIAMSG pmediamsg;
+	struct media_msg *pmediamsg;
     PDSPINITMSG pdspinitmsg;
     PDRVMSG pdrvmsg;
     u16 i;
@@ -2126,7 +2126,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
             case MEDIA_STATE: {
                 DEBUG("ft1000_proc_drvmsg:Command message type = MEDIA_STATE");
 
-                pmediamsg = (PMEDIAMSG)&cmdbuffer[0];
+		pmediamsg = (struct media_msg *)&cmdbuffer[0];
                 if (info->ProgConStat != 0xFF) {
                     if (pmediamsg->state) {
                         DEBUG("Media is up\n");
