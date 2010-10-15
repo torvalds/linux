@@ -35,9 +35,6 @@
 
 #define DRV_VERSION "2.10"
 #define PROCSPEECH 0x00
-#define synth_readable() ((synth_status = inb_p(speakup_info.port_tts + UART_RX)) & TTS_READABLE)
-#define synth_writable() ((synth_status = inb_p(speakup_info.port_tts + UART_RX)) & TTS_WRITABLE)
-#define synth_full() ((synth_status = inb_p(speakup_info.port_tts + UART_RX)) & TTS_ALMOST_FULL)
 
 static int synth_probe(struct spk_synth *synth);
 static void dtlk_release(void);
@@ -47,21 +44,22 @@ static void synth_flush(struct spk_synth *synth);
 
 static int synth_lpc;
 static int port_forced;
-static unsigned int synth_portlist[] =
-		{ 0x25e, 0x29e, 0x2de, 0x31e, 0x35e, 0x39e, 0 };
+static unsigned int synth_portlist[] = {
+		 0x25e, 0x29e, 0x2de, 0x31e, 0x35e, 0x39e, 0
+};
 static u_char synth_status;
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x01+35p" }},
-	{ CAPS_STOP, .u.s = {"\x01-35p" }},
-	{ RATE, .u.n = {"\x01%ds", 8, 0, 9, 0, 0, NULL }},
-	{ PITCH, .u.n = {"\x01%dp", 50, 0, 99, 0, 0, NULL }},
-	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL }},
-	{ PUNCT, .u.n = {"\x01%db", 7, 0, 15, 0, 0, NULL }},
-	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL }},
-	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\x01+35p" } },
+	{ CAPS_STOP, .u.s = {"\x01-35p" } },
+	{ RATE, .u.n = {"\x01%ds", 8, 0, 9, 0, 0, NULL } },
+	{ PITCH, .u.n = {"\x01%dp", 50, 0, 99, 0, 0, NULL } },
+	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
+	{ PUNCT, .u.n = {"\x01%db", 7, 0, 15, 0, 0, NULL } },
+	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
+	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -155,17 +153,35 @@ static struct spk_synth synth_dtlk = {
 	},
 };
 
+static inline bool synth_readable(void)
+{
+	synth_status = inb_p(speakup_info.port_tts + UART_RX);
+	return (synth_status & TTS_READABLE) != 0;
+}
+
+static inline bool synth_writable(void)
+{
+	synth_status = inb_p(speakup_info.port_tts + UART_RX);
+	return (synth_status & TTS_WRITABLE) != 0;
+}
+
+static inline bool synth_full(void)
+{
+	synth_status = inb_p(speakup_info.port_tts + UART_RX);
+	return (synth_status & TTS_ALMOST_FULL) != 0;
+}
+
 static void spk_out(const char ch)
 {
 	int timeout = SPK_XMITR_TIMEOUT;
-	while (synth_writable() == 0) {
+	while (!synth_writable()) {
 		if (!--timeout)
 			break;
 		udelay(1);
 	}
 	outb_p(ch, speakup_info.port_tts);
 	timeout = SPK_XMITR_TIMEOUT;
-	while (synth_writable() != 0) {
+	while (synth_writable()) {
 		if (!--timeout)
 			break;
 		udelay(1);
@@ -244,18 +260,18 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 static void synth_flush(struct spk_synth *synth)
 {
 	outb_p(SYNTH_CLEAR, speakup_info.port_tts);
-	while (synth_writable() != 0)
+	while (synth_writable())
 		cpu_relax();
 }
 
 static char synth_read_tts(void)
 {
 	u_char ch;
-	while (synth_readable() == 0)
+	while (!synth_readable())
 		cpu_relax();
 	ch = synth_status & 0x7f;
 	outb_p(ch, speakup_info.port_tts);
-	while (synth_readable() != 0)
+	while (synth_readable())
 		cpu_relax();
 	return (char) ch;
 }
