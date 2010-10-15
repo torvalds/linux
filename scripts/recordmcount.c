@@ -313,12 +313,30 @@ do_file(char const *const fname)
 int
 main(int argc, char const *argv[])
 {
+	const char ftrace[] = "kernel/trace/ftrace.o";
+	int ftrace_size = sizeof(ftrace) - 1;
 	int n_error = 0;  /* gcc-4.3.0 false positive complaint */
-	if (argc <= 1)
+
+	if (argc <= 1) {
 		fprintf(stderr, "usage: recordmcount file.o...\n");
-	else  /* Process each file in turn, allowing deep failure. */
+		return 0;
+	}
+
+	/* Process each file in turn, allowing deep failure. */
 	for (--argc, ++argv; 0 < argc; --argc, ++argv) {
 		int const sjval = setjmp(jmpenv);
+		int len;
+
+		/*
+		 * The file kernel/trace/ftrace.o references the mcount
+		 * function but does not call it. Since ftrace.o should
+		 * not be traced anyway, we just skip it.
+		 */
+		len = strlen(argv[0]);
+		if (len >= ftrace_size &&
+		    strcmp(argv[0] + (len - ftrace_size), ftrace) == 0)
+			continue;
+
 		switch (sjval) {
 		default: {
 			fprintf(stderr, "internal error: %s\n", argv[0]);
