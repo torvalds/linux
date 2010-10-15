@@ -53,6 +53,7 @@ struct clk {
 	struct dentry		*dentry;
 	struct clk_mapping	*mapping;
 	struct cpufreq_frequency_table *freq_table;
+	unsigned int		nr_freqs;
 };
 
 #define CLK_ENABLE_ON_INIT	(1 << 0)

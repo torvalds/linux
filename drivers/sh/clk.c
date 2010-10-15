@@ -45,6 +45,8 @@ void clk_rate_table_build(struct clk *clk,
 	unsigned long freq;
 	int i;
 
+	clk->nr_freqs = nr_freqs;
+
 	for (i = 0; i < nr_freqs; i++) {
 		div = 1;
 		mult = 1;
@@ -69,30 +71,39 @@ void clk_rate_table_build(struct clk *clk,
 	freq_table[i].frequency = CPUFREQ_TABLE_END;
 }
 
-long clk_rate_table_round(struct clk *clk,
-			  struct cpufreq_frequency_table *freq_table,
-			  unsigned long rate)
+struct clk_rate_round_data;
+
+struct clk_rate_round_data {
+	unsigned long rate;
+	unsigned int min, max;
+	long (*func)(unsigned int pos, struct clk_rate_round_data *arg);
+	void *arg;
+};
+
+#define for_each_frequency(pos, r, freq)			\
+	for (pos = r->min, freq = r->func(pos, r->arg);		\
+	     pos < r->max; pos++, freq = r->func(pos, r))	\
+		if (unlikely(freq == 0))			\
+			;					\
+		else
+
+static long clk_rate_round_helper(struct clk_rate_round_data *rounder)
 {
 	unsigned long rate_error, rate_error_prev = ~0UL;
-	unsigned long rate_best_fit = rate;
-	unsigned long highest, lowest;
+	unsigned long rate_best_fit = rounder->rate;
+	unsigned long highest, lowest, freq;
 	int i;
 
 	highest = 0;
 	lowest = ~0UL;
 
-	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned long freq = freq_table[i].frequency;
-
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-
+	for_each_frequency(i, rounder, freq) {
 		if (freq > highest)
 			highest = freq;
 		if (freq < lowest)
 			lowest = freq;
 
-		rate_error = abs(freq - rate);
+		rate_error = abs(freq - rounder->rate);
 		if (rate_error < rate_error_prev) {
 			rate_best_fit = freq;
 			rate_error_prev = rate_error;
@@ -102,12 +113,39 @@ long clk_rate_table_round(struct clk *clk,
 			break;
 	}
 
-	if (rate >= highest)
+	if (rounder->rate >= highest)
 		rate_best_fit = highest;
-	if (rate <= lowest)
+	if (rounder->rate <= lowest)
 		rate_best_fit = lowest;
 
 	return rate_best_fit;
+}
+
+static long clk_rate_table_iter(unsigned int pos,
+				struct clk_rate_round_data *rounder)
+{
+	struct cpufreq_frequency_table *freq_table = rounder->arg;
+	unsigned long freq = freq_table[pos].frequency;
+
+	if (freq == CPUFREQ_ENTRY_INVALID)
+		freq = 0;
+
+	return freq;
+}
+
+long clk_rate_table_round(struct clk *clk,
+			  struct cpufreq_frequency_table *freq_table,
+			  unsigned long rate)
+{
+	struct clk_rate_round_data table_round = {
+		.min	= 0,
+		.max	= clk->nr_freqs,
+		.func	= clk_rate_table_iter,
+		.arg	= freq_table,
+		.rate	= rate,
+	};
+
+	return clk_rate_round_helper(&table_round);
 }
 
 int clk_rate_table_find(struct clk *clk,
