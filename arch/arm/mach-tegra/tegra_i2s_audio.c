@@ -947,7 +947,7 @@ static int resume_dma_recording(struct audio_stream *ais)
 
 	if (ais->dma_has_it) {
 		pr_debug("%s: recording already in progress\n", __func__);
-		return 0;
+		return -EALREADY;
 	}
 
 	/* Don't send all the data yet. */
@@ -1035,7 +1035,7 @@ static int start_pio_playback(struct audio_stream *aos)
 
 	if (i2s_is_fifo_enabled(ads->i2s_base, I2S_FIFO_TX)) {
 		pr_debug("%s: playback is already in progress\n", __func__);
-		return 0;
+		return -EALREADY;
 	}
 
 	pr_debug("%s\n", __func__);
@@ -1080,7 +1080,7 @@ static int start_pio_recording(struct audio_stream *ais)
 
 	if (i2s_is_fifo_enabled(ads->i2s_base, I2S_FIFO_RX)) {
 		pr_debug("%s: already started\n", __func__);
-		return 0;
+		return -EALREADY;
 	}
 
 	pr_debug("%s: start\n", __func__);
@@ -1285,7 +1285,7 @@ again:
 	}
 
 	rc = start_playback(&ads->out);
-	if (rc < 0) {
+	if (rc < 0 && rc != -EALREADY) {
 		pr_err("%s: could not start playback: %d\n", __func__, rc);
 		goto done;
 	}
