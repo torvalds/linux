@@ -1973,6 +1973,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->bars = bars;
 	ha->mem_only = mem_only;
 	spin_lock_init(&ha->hardware_lock);
+	spin_lock_init(&ha->vport_slock);
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
