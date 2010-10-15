@@ -861,8 +861,8 @@ static int __init stingray_revision_parse(char *options)
 __setup("hw_rev=", stingray_revision_parse);
 
 static struct tegra_suspend_platform_data stingray_suspend = {
-	.cpu_timer = 5000,
-	.cpu_off_timer = 5000,
+	.cpu_timer = 1500,
+	.cpu_off_timer = 1,
 	.core_timer = 0x7e7e,
 	.core_off_timer = 0xf,
 	.separate_req = true,
