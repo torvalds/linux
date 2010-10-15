@@ -474,20 +474,6 @@ sable_lynx_disable_irq(unsigned int irq)
 #endif
 }
 
-static unsigned int
-sable_lynx_startup_irq(unsigned int irq)
-{
-	sable_lynx_enable_irq(irq);
-	return 0;
-}
-
-static void
-sable_lynx_end_irq(unsigned int irq)
-{
-	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		sable_lynx_enable_irq(irq);
-}
-
 static void
 sable_lynx_mask_and_ack_irq(unsigned int irq)
 {
@@ -503,12 +489,9 @@ sable_lynx_mask_and_ack_irq(unsigned int irq)
 
 static struct irq_chip sable_lynx_irq_type = {
 	.name		= "SABLE/LYNX",
-	.startup	= sable_lynx_startup_irq,
-	.shutdown	= sable_lynx_disable_irq,
-	.enable		= sable_lynx_enable_irq,
-	.disable	= sable_lynx_disable_irq,
-	.ack		= sable_lynx_mask_and_ack_irq,
-	.end		= sable_lynx_end_irq,
+	.unmask		= sable_lynx_enable_irq,
+	.mask		= sable_lynx_disable_irq,
+	.mask_ack	= sable_lynx_mask_and_ack_irq,
 };
 
 static void 
@@ -537,7 +520,7 @@ sable_lynx_init_irq(int nr_of_irqs)
 	for (i = 0; i < nr_of_irqs; ++i) {
 		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &sable_lynx_irq_type,
-			alpha_do_IRQ);
+			handle_level_irq);
 	}
 
 	common_init_isa_dma();

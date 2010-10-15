@@ -62,24 +62,6 @@
  * world.
  */
 
-static unsigned int
-jensen_local_startup(unsigned int irq)
-{
-	/* the parport is really hw IRQ 1, silly Jensen.  */
-	if (irq == 7)
-		i8259a_startup_irq(1);
-
-	return 0;
-}
-
-static void
-jensen_local_shutdown(unsigned int irq)
-{
-	/* the parport is really hw IRQ 1, silly Jensen.  */
-	if (irq == 7)
-		i8259a_disable_irq(1);
-}
-
 static void
 jensen_local_enable(unsigned int irq)
 {
@@ -97,29 +79,18 @@ jensen_local_disable(unsigned int irq)
 }
 
 static void
-jensen_local_ack(unsigned int irq)
+jensen_local_mask_ack(unsigned int irq)
 {
 	/* the parport is really hw IRQ 1, silly Jensen.  */
 	if (irq == 7)
 		i8259a_mask_and_ack_irq(1);
 }
 
-static void
-jensen_local_end(unsigned int irq)
-{
-	/* the parport is really hw IRQ 1, silly Jensen.  */
-	if (irq == 7)
-		i8259a_end_irq(1);
-}
-
 static struct irq_chip jensen_local_irq_type = {
 	.name		= "LOCAL",
-	.startup	= jensen_local_startup,
-	.shutdown	= jensen_local_shutdown,
-	.enable		= jensen_local_enable,
-	.disable	= jensen_local_disable,
-	.ack		= jensen_local_ack,
-	.end		= jensen_local_end,
+	.unmask		= jensen_local_enable,
+	.mask		= jensen_local_disable,
+	.mask_ack	= jensen_local_mask_ack,
 };
 
 static void 
@@ -200,11 +171,11 @@ jensen_init_irq(void)
 {
 	init_i8259a_irqs();
 
-	set_irq_chip_and_handler(1, &jensen_local_irq_type, alpha_do_IRQ);
-	set_irq_chip_and_handler(4, &jensen_local_irq_type, alpha_do_IRQ);
-	set_irq_chip_and_handler(3, &jensen_local_irq_type, alpha_do_IRQ);
-	set_irq_chip_and_handler(7, &jensen_local_irq_type, alpha_do_IRQ);
-	set_irq_chip_and_handler(9, &jensen_local_irq_type, alpha_do_IRQ);
+	set_irq_chip_and_handler(1, &jensen_local_irq_type, handle_level_irq);
+	set_irq_chip_and_handler(4, &jensen_local_irq_type, handle_level_irq);
+	set_irq_chip_and_handler(3, &jensen_local_irq_type, handle_level_irq);
+	set_irq_chip_and_handler(7, &jensen_local_irq_type, handle_level_irq);
+	set_irq_chip_and_handler(9, &jensen_local_irq_type, handle_level_irq);
 
 	common_init_isa_dma();
 }

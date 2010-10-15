@@ -33,29 +33,12 @@ srm_disable_irq(unsigned int irq)
 	spin_unlock(&srm_irq_lock);
 }
 
-static unsigned int
-srm_startup_irq(unsigned int irq)
-{
-	srm_enable_irq(irq);
-	return 0;
-}
-
-static void
-srm_end_irq(unsigned int irq)
-{
-	if (!(irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		srm_enable_irq(irq);
-}
-
 /* Handle interrupts from the SRM, assuming no additional weirdness.  */
 static struct irq_chip srm_irq_type = {
 	.name		= "SRM",
-	.startup	= srm_startup_irq,
-	.shutdown	= srm_disable_irq,
-	.enable		= srm_enable_irq,
-	.disable	= srm_disable_irq,
-	.ack		= srm_disable_irq,
-	.end		= srm_end_irq,
+	.unmask		= srm_enable_irq,
+	.mask		= srm_disable_irq,
+	.mask_ack	= srm_disable_irq,
 };
 
 void __init
@@ -68,7 +51,7 @@ init_srm_irqs(long max, unsigned long ignore_mask)
 	for (i = 16; i < max; ++i) {
 		if (i < 64 && ((ignore_mask >> i) & 1))
 			continue;
-		set_irq_chip_and_handler(i, &srm_irq_type, alpha_do_IRQ);
+		set_irq_chip_and_handler(i, &srm_irq_type, handle_level_irq);
 		irq_to_desc(i)->status |= IRQ_LEVEL;
 	}
 }

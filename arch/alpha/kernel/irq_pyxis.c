@@ -40,21 +40,6 @@ pyxis_disable_irq(unsigned int irq)
 	pyxis_update_irq_hw(cached_irq_mask &= ~(1UL << (irq - 16)));
 }
 
-static unsigned int
-pyxis_startup_irq(unsigned int irq)
-{
-	pyxis_enable_irq(irq);
-	return 0;
-}
-
-static void
-pyxis_end_irq(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	if (desc || !(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		pyxis_enable_irq(irq);
-}
-
 static void
 pyxis_mask_and_ack_irq(unsigned int irq)
 {
@@ -73,12 +58,9 @@ pyxis_mask_and_ack_irq(unsigned int irq)
 
 static struct irq_chip pyxis_irq_type = {
 	.name		= "PYXIS",
-	.startup	= pyxis_startup_irq,
-	.shutdown	= pyxis_disable_irq,
-	.enable		= pyxis_enable_irq,
-	.disable	= pyxis_disable_irq,
-	.ack		= pyxis_mask_and_ack_irq,
-	.end		= pyxis_end_irq,
+	.mask_ack	= pyxis_mask_and_ack_irq,
+	.mask		= pyxis_disable_irq,
+	.unmask		= pyxis_enable_irq,
 };
 
 void 
@@ -120,7 +102,7 @@ init_pyxis_irqs(unsigned long ignore_mask)
 	for (i = 16; i < 48; ++i) {
 		if ((ignore_mask >> i) & 1)
 			continue;
-		set_irq_chip_and_handler(i, &pyxis_irq_type, alpha_do_IRQ);
+		set_irq_chip_and_handler(i, &pyxis_irq_type, handle_level_irq);
 		irq_to_desc(i)->status |= IRQ_LEVEL;
 	}
 
