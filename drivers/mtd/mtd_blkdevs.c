@@ -176,7 +176,7 @@ static void mtd_blktrans_request(struct request_queue *rq)
 static int blktrans_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
-	int ret;
+	int ret = 0;
 
 	if (!dev)
 		return -ERESTARTSYS; /* FIXME: busy loop! -arnd*/
@@ -184,17 +184,17 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	lock_kernel();
 	mutex_lock(&dev->lock);
 
-	if (!dev->mtd) {
-		ret = -ENXIO;
+	if (dev->open++)
 		goto unlock;
+
+	kref_get(&dev->ref);
+	__module_get(dev->tr->owner);
+
+	if (dev->mtd) {
+		ret = dev->tr->open ? dev->tr->open(dev) : 0;
+		__get_mtd_device(dev->mtd);
 	}
 
-	ret = !dev->open++ && dev->tr->open ? dev->tr->open(dev) : 0;
-
-	/* Take another reference on the device so it won't go away till
-		last release */
-	if (!ret)
-		kref_get(&dev->ref);
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
@@ -205,7 +205,7 @@ unlock:
 static int blktrans_release(struct gendisk *disk, fmode_t mode)
 {
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
-	int ret = -ENXIO;
+	int ret = 0;
 
 	if (!dev)
 		return ret;
@@ -213,13 +213,16 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 	lock_kernel();
 	mutex_lock(&dev->lock);
 
-	/* Release one reference, we sure its not the last one here*/
-	kref_put(&dev->ref, blktrans_dev_release);
-
-	if (!dev->mtd)
+	if (--dev->open)
 		goto unlock;
 
-	ret = !--dev->open && dev->tr->release ? dev->tr->release(dev) : 0;
+	kref_put(&dev->ref, blktrans_dev_release);
+	module_put(dev->tr->owner);
+
+	if (dev->mtd) {
+		ret = dev->tr->release ? dev->tr->release(dev) : 0;
+		__put_mtd_device(dev->mtd);
+	}
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
@@ -385,9 +388,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	gd->queue = new->rq;
 
-	__get_mtd_device(new->mtd);
-	__module_get(tr->owner);
-
 	/* Create processing thread */
 	/* TODO: workqueue ? */
 	new->thread = kthread_run(mtd_blktrans_thread, new,
@@ -410,8 +410,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	}
 	return 0;
 error4:
-	module_put(tr->owner);
-	__put_mtd_device(new->mtd);
 	blk_cleanup_queue(new->rq);
 error3:
 	put_disk(new->disk);
@@ -448,17 +446,15 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	blk_start_queue(old->rq);
 	spin_unlock_irqrestore(&old->queue_lock, flags);
 
-	/* Ask trans driver for release to the mtd device */
+	/* If the device is currently open, tell trans driver to close it,
+		then put mtd device, and don't touch it again */
 	mutex_lock(&old->lock);
-	if (old->open && old->tr->release) {
-		old->tr->release(old);
-		old->open = 0;
+	if (old->open) {
+		if (old->tr->release)
+			old->tr->release(old);
+		__put_mtd_device(old->mtd);
 	}
 
-	__put_mtd_device(old->mtd);
-	module_put(old->tr->owner);
-
-	/* At that point, we don't touch the mtd anymore */
 	old->mtd = NULL;
 
 	mutex_unlock(&old->lock);
