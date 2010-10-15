@@ -220,6 +220,8 @@
 									\
 	BUG_TABLE							\
 									\
+	JUMP_TABLE							\
+									\
 	/* PCI quirks */						\
 	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__start_pci_fixups_early) = .;		\
@@ -562,6 +564,14 @@
 #else
 #define BUG_TABLE
 #endif
+
+#define JUMP_TABLE							\
+	. = ALIGN(8);							\
+	__jump_table : AT(ADDR(__jump_table) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start___jump_table) = .;		\
+		*(__jump_table)						\
+		VMLINUX_SYMBOL(__stop___jump_table) = .;		\
+	}
 
 #ifdef CONFIG_PM_TRACE
 #define TRACEDATA							\

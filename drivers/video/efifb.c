@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
 #include <linux/dmi.h>
-
+#include <linux/pci.h>
 #include <video/vga.h>
 
 static struct fb_var_screeninfo efifb_defined __devinitdata = {
@@ -39,17 +39,31 @@ enum {
 	M_I20,		/* 20-Inch iMac */
 	M_I20_SR,	/* 20-Inch iMac (Santa Rosa) */
 	M_I24,		/* 24-Inch iMac */
+	M_I24_8_1,	/* 24-Inch iMac, 8,1th gen */
+	M_I24_10_1,	/* 24-Inch iMac, 10,1th gen */
+	M_I27_11_1,	/* 27-Inch iMac, 11,1th gen */
 	M_MINI,		/* Mac Mini */
+	M_MINI_3_1,	/* Mac Mini, 3,1th gen */
+	M_MINI_4_1,	/* Mac Mini, 4,1th gen */
 	M_MB,		/* MacBook */
 	M_MB_2,		/* MacBook, 2nd rev. */
 	M_MB_3,		/* MacBook, 3rd rev. */
+	M_MB_5_1,	/* MacBook, 5th rev. */
+	M_MB_6_1,	/* MacBook, 6th rev. */
+	M_MB_7_1,	/* MacBook, 7th rev. */
 	M_MB_SR,	/* MacBook, 2nd gen, (Santa Rosa) */
 	M_MBA,		/* MacBook Air */
 	M_MBP,		/* MacBook Pro */
 	M_MBP_2,	/* MacBook Pro 2nd gen */
+	M_MBP_2_2,	/* MacBook Pro 2,2nd gen */
 	M_MBP_SR,	/* MacBook Pro (Santa Rosa) */
 	M_MBP_4,	/* MacBook Pro, 4th gen */
 	M_MBP_5_1,    /* MacBook Pro, 5,1th gen */
+	M_MBP_5_2,	/* MacBook Pro, 5,2th gen */
+	M_MBP_5_3,	/* MacBook Pro, 5,3rd gen */
+	M_MBP_6_1,	/* MacBook Pro, 6,1th gen */
+	M_MBP_6_2,	/* MacBook Pro, 6,2th gen */
+	M_MBP_7_1,	/* MacBook Pro, 7,1th gen */
 	M_UNKNOWN	/* placeholder */
 };
 
@@ -64,14 +78,28 @@ static struct efifb_dmi_info {
 	[M_I20] = { "i20", 0x80010000, 1728 * 4, 1680, 1050 }, /* guess */
 	[M_I20_SR] = { "imac7", 0x40010000, 1728 * 4, 1680, 1050 },
 	[M_I24] = { "i24", 0x80010000, 2048 * 4, 1920, 1200 }, /* guess */
+	[M_I24_8_1] = { "imac8", 0xc0060000, 2048 * 4, 1920, 1200 },
+	[M_I24_10_1] = { "imac10", 0xc0010000, 2048 * 4, 1920, 1080 },
+	[M_I27_11_1] = { "imac11", 0xc0010000, 2560 * 4, 2560, 1440 },
 	[M_MINI]= { "mini", 0x80000000, 2048 * 4, 1024, 768 },
+	[M_MINI_3_1] = { "mini31", 0x40010000, 1024 * 4, 1024, 768 },
+	[M_MINI_4_1] = { "mini41", 0xc0010000, 2048 * 4, 1920, 1200 },
 	[M_MB] = { "macbook", 0x80000000, 2048 * 4, 1280, 800 },
+	[M_MB_5_1] = { "macbook51", 0x80010000, 2048 * 4, 1280, 800 },
+	[M_MB_6_1] = { "macbook61", 0x80010000, 2048 * 4, 1280, 800 },
+	[M_MB_7_1] = { "macbook71", 0x80010000, 2048 * 4, 1280, 800 },
 	[M_MBA] = { "mba", 0x80000000, 2048 * 4, 1280, 800 },
 	[M_MBP] = { "mbp", 0x80010000, 1472 * 4, 1440, 900 },
 	[M_MBP_2] = { "mbp2", 0, 0, 0, 0 }, /* placeholder */
+	[M_MBP_2_2] = { "mbp22", 0x80010000, 1472 * 4, 1440, 900 },
 	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900 },
 	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200 },
 	[M_MBP_5_1] = { "mbp51", 0xc0010000, 2048 * 4, 1440, 900 },
+	[M_MBP_5_2] = { "mbp52", 0xc0010000, 2048 * 4, 1920, 1200 },
+	[M_MBP_5_3] = { "mbp53", 0xd0010000, 2048 * 4, 1440, 900 },
+	[M_MBP_6_1] = { "mbp61", 0x90030000, 2048 * 4, 1920, 1200 },
+	[M_MBP_6_2] = { "mbp62", 0x90030000, 2048 * 4, 1680, 1050 },
+	[M_MBP_7_1] = { "mbp71", 0xc0010000, 2048 * 4, 1280, 800 },
 	[M_UNKNOWN] = { NULL, 0, 0, 0, 0 }
 };
 
@@ -92,7 +120,12 @@ static const struct dmi_system_id dmi_system_table[] __initconst = {
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "iMac6,1", M_I24),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac6,1", M_I24),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac7,1", M_I20_SR),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac8,1", M_I24_8_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac10,1", M_I24_10_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac11,1", M_I27_11_1),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "Macmini1,1", M_MINI),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "Macmini3,1", M_MINI_3_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "Macmini4,1", M_MINI_4_1),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBook1,1", M_MB),
 	/* At least one of these two will be right; maybe both? */
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBook2,1", M_MB),
@@ -101,14 +134,23 @@ static const struct dmi_system_id dmi_system_table[] __initconst = {
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBook3,1", M_MB),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook3,1", M_MB),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook4,1", M_MB),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook5,1", M_MB_5_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook6,1", M_MB_6_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook7,1", M_MB_7_1),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookAir1,1", M_MBA),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro1,1", M_MBP),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro2,1", M_MBP_2),
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro2,2", M_MBP_2_2),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro2,1", M_MBP_2),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro3,1", M_MBP_SR),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro3,1", M_MBP_SR),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro4,1", M_MBP_4),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro5,1", M_MBP_5_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro5,2", M_MBP_5_2),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro5,3", M_MBP_5_3),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro6,1", M_MBP_6_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro6,2", M_MBP_6_2),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro7,1", M_MBP_7_1),
 	{},
 };
 
@@ -116,7 +158,7 @@ static int set_system(const struct dmi_system_id *id)
 {
 	struct efifb_dmi_info *info = id->driver_data;
 	if (info->base == 0)
-		return -ENODEV;
+		return 0;
 
 	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at %p "
 			 "(%dx%d, stride %d)\n", id->ident,
@@ -124,18 +166,55 @@ static int set_system(const struct dmi_system_id *id)
 			 info->stride);
 
 	/* Trust the bootloader over the DMI tables */
-	if (screen_info.lfb_base == 0)
+	if (screen_info.lfb_base == 0) {
+#if defined(CONFIG_PCI)
+		struct pci_dev *dev = NULL;
+		int found_bar = 0;
+#endif
 		screen_info.lfb_base = info->base;
-	if (screen_info.lfb_linelength == 0)
-		screen_info.lfb_linelength = info->stride;
-	if (screen_info.lfb_width == 0)
-		screen_info.lfb_width = info->width;
-	if (screen_info.lfb_height == 0)
-		screen_info.lfb_height = info->height;
-	if (screen_info.orig_video_isVGA == 0)
-		screen_info.orig_video_isVGA = VIDEO_TYPE_EFI;
 
-	return 0;
+#if defined(CONFIG_PCI)
+		/* make sure that the address in the table is actually on a
+		 * VGA device's PCI BAR */
+
+		for_each_pci_dev(dev) {
+			int i;
+			if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+				continue;
+			for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+				resource_size_t start, end;
+
+				start = pci_resource_start(dev, i);
+				if (start == 0)
+					break;
+				end = pci_resource_end(dev, i);
+				if (screen_info.lfb_base >= start &&
+						screen_info.lfb_base < end) {
+					found_bar = 1;
+				}
+			}
+		}
+		if (!found_bar)
+			screen_info.lfb_base = 0;
+#endif
+	}
+	if (screen_info.lfb_base) {
+		if (screen_info.lfb_linelength == 0)
+			screen_info.lfb_linelength = info->stride;
+		if (screen_info.lfb_width == 0)
+			screen_info.lfb_width = info->width;
+		if (screen_info.lfb_height == 0)
+			screen_info.lfb_height = info->height;
+		if (screen_info.orig_video_isVGA == 0)
+			screen_info.orig_video_isVGA = VIDEO_TYPE_EFI;
+	} else {
+		screen_info.lfb_linelength = 0;
+		screen_info.lfb_width = 0;
+		screen_info.lfb_height = 0;
+		screen_info.orig_video_isVGA = 0;
+		return 0;
+	}
+	return 1;
 }
 
 static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,

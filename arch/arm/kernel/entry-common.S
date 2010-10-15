@@ -48,6 +48,8 @@ work_pending:
 	beq	no_work_pending
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
+	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
+	movne	why, #0				@ prevent further restarts
 	bl	do_notify_resume
 	b	ret_slow_syscall		@ Check work again
 

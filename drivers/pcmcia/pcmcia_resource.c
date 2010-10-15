@@ -595,7 +595,13 @@ int pcmcia_request_io(struct pcmcia_device *p_dev)
 	if (c->io[1].end) {
 		ret = alloc_io_space(s, &c->io[1], p_dev->io_lines);
 		if (ret) {
+			struct resource tmp = c->io[0];
+			/* release the previously allocated resource */
 			release_io_space(s, &c->io[0]);
+			/* but preserve the settings, for they worked... */
+			c->io[0].end = resource_size(&tmp);
+			c->io[0].start = tmp.start;
+			c->io[0].flags = tmp.flags;
 			goto out;
 		}
 	} else

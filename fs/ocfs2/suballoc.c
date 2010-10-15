@@ -357,7 +357,7 @@ out:
 static void ocfs2_bg_discontig_add_extent(struct ocfs2_super *osb,
 					  struct ocfs2_group_desc *bg,
 					  struct ocfs2_chain_list *cl,
-					  u64 p_blkno, u32 clusters)
+					  u64 p_blkno, unsigned int clusters)
 {
 	struct ocfs2_extent_list *el = &bg->bg_list;
 	struct ocfs2_extent_rec *rec;
@@ -369,7 +369,7 @@ static void ocfs2_bg_discontig_add_extent(struct ocfs2_super *osb,
 	rec->e_blkno = cpu_to_le64(p_blkno);
 	rec->e_cpos = cpu_to_le32(le16_to_cpu(bg->bg_bits) /
 				  le16_to_cpu(cl->cl_bpc));
-	rec->e_leaf_clusters = cpu_to_le32(clusters);
+	rec->e_leaf_clusters = cpu_to_le16(clusters);
 	le16_add_cpu(&bg->bg_bits, clusters * le16_to_cpu(cl->cl_bpc));
 	le16_add_cpu(&bg->bg_free_bits_count,
 		     clusters * le16_to_cpu(cl->cl_bpc));
