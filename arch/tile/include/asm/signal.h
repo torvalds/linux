@@ -24,6 +24,7 @@
 #include <asm-generic/signal.h>
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+struct pt_regs;
 int restore_sigcontext(struct pt_regs *, struct sigcontext __user *, long *);
 int setup_sigcontext(struct sigcontext __user *, struct pt_regs *);
 void do_signal(struct pt_regs *regs);

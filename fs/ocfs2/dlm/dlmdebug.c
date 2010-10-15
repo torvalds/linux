@@ -636,8 +636,14 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 	spin_lock(&dlm->track_lock);
 	if (oldres)
 		track_list = &oldres->tracking;
-	else
+	else {
 		track_list = &dlm->tracking_list;
+		if (list_empty(track_list)) {
+			dl = NULL;
+			spin_unlock(&dlm->track_lock);
+			goto bail;
+		}
+	}
 
 	list_for_each_entry(res, track_list, tracking) {
 		if (&res->tracking == &dlm->tracking_list)
@@ -660,6 +666,7 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 	} else
 		dl = NULL;
 
+bail:
 	/* passed to seq_show */
 	return dl;
 }
@@ -775,7 +782,9 @@ static int debug_state_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 
 	/* Domain: xxxxxxxxxx  Key: 0xdfbac769 */
 	out += snprintf(db->buf + out, db->len - out,
-			"Domain: %s  Key: 0x%08x\n", dlm->name, dlm->key);
+			"Domain: %s  Key: 0x%08x  Protocol: %d.%d\n",
+			dlm->name, dlm->key, dlm->dlm_locking_proto.pv_major,
+			dlm->dlm_locking_proto.pv_minor);
 
 	/* Thread Pid: xxx  Node: xxx  State: xxxxx */
 	out += snprintf(db->buf + out, db->len - out,

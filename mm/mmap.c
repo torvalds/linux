@@ -2009,6 +2009,7 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 			removed_exe_file_vma(mm);
 		fput(new->vm_file);
 	}
+	unlink_anon_vmas(new);
  out_free_mpol:
 	mpol_put(pol);
  out_free_vma:

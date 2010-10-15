@@ -410,7 +410,6 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	union nf_inet_addr to;
 	__be16 port;
 	struct ip_vs_conn *n_cp;
-	struct nf_conn *ct;
 
 #ifdef CONFIG_IP_VS_IPV6
 	/* This application helper doesn't work with IPv6 yet,
@@ -496,11 +495,6 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		/* add its controller */
 		ip_vs_control_add(n_cp, cp);
 	}
-
-	ct = (struct nf_conn *)skb->nfct;
-	if (ct && ct != &nf_conntrack_untracked)
-		ip_vs_expect_related(skb, ct, n_cp,
-				     IPPROTO_TCP, &n_cp->dport, 1);
 
 	/*
 	 *	Move tunnel to listen state

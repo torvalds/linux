@@ -52,8 +52,6 @@ struct wb_writeback_work {
 #define CREATE_TRACE_POINTS
 #include <trace/events/writeback.h>
 
-#define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
-
 /*
  * We don't actually have pdflush, but this one is exported though /proc...
  */
@@ -69,6 +67,16 @@ int nr_pdflush_threads;
 int writeback_in_progress(struct backing_dev_info *bdi)
 {
 	return test_bit(BDI_writeback_running, &bdi->state);
+}
+
+static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+
+	if (strcmp(sb->s_type->name, "bdev") == 0)
+		return inode->i_mapping->backing_dev_info;
+
+	return sb->s_bdi;
 }
 
 static void bdi_queue_work(struct backing_dev_info *bdi,
@@ -808,7 +816,7 @@ int bdi_writeback_thread(void *data)
 			wb->last_active = jiffies;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!list_empty(&bdi->work_list)) {
+		if (!list_empty(&bdi->work_list) || kthread_should_stop()) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}

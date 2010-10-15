@@ -247,6 +247,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 	dev_stats->tx_packets = drvr_stats(adapter)->be_tx_pkts;
 	dev_stats->rx_bytes = drvr_stats(adapter)->be_rx_bytes;
 	dev_stats->tx_bytes = drvr_stats(adapter)->be_tx_bytes;
+	dev_stats->multicast = drvr_stats(adapter)->be_rx_mcast_pkt;
 
 	/* bad pkts received */
 	dev_stats->rx_errors = port_stats->rx_crc_errors +
@@ -294,7 +295,6 @@ void netdev_stats_update(struct be_adapter *adapter)
 	/* no space available in linux */
 	dev_stats->tx_dropped = 0;
 
-	dev_stats->multicast = port_stats->rx_multicast_frames;
 	dev_stats->collisions = 0;
 
 	/* detailed tx_errors */
@@ -848,7 +848,7 @@ static void be_rx_rate_update(struct be_adapter *adapter)
 }
 
 static void be_rx_stats_update(struct be_adapter *adapter,
-		u32 pktsize, u16 numfrags)
+		u32 pktsize, u16 numfrags, u8 pkt_type)
 {
 	struct be_drvr_stats *stats = drvr_stats(adapter);
 
@@ -856,6 +856,9 @@ static void be_rx_stats_update(struct be_adapter *adapter,
 	stats->be_rx_frags += numfrags;
 	stats->be_rx_bytes += pktsize;
 	stats->be_rx_pkts++;
+
+	if (pkt_type == BE_MULTICAST_PACKET)
+		stats->be_rx_mcast_pkt++;
 }
 
 static inline bool do_pkt_csum(struct be_eth_rx_compl *rxcp, bool cso)
@@ -925,9 +928,11 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 	u16 rxq_idx, i, j;
 	u32 pktsize, hdr_len, curr_frag_len, size;
 	u8 *start;
+	u8 pkt_type;
 
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
 	pktsize = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
+	pkt_type = AMAP_GET_BITS(struct amap_eth_rx_compl, cast_enc, rxcp);
 
 	page_info = get_rx_page_info(adapter, rxq_idx);
 
@@ -993,7 +998,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 	BUG_ON(j > MAX_SKB_FRAGS);
 
 done:
-	be_rx_stats_update(adapter, pktsize, num_rcvd);
+	be_rx_stats_update(adapter, pktsize, num_rcvd, pkt_type);
 }
 
 /* Process the RX completion indicated by rxcp when GRO is disabled */
@@ -1060,6 +1065,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
 	u16 i, rxq_idx = 0, vid, j;
 	u8 vtm;
+	u8 pkt_type;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 	/* Is it a flush compl that has no data */
@@ -1070,6 +1076,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
 	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+	pkt_type = AMAP_GET_BITS(struct amap_eth_rx_compl, cast_enc, rxcp);
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
@@ -1125,7 +1132,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, vid);
 	}
 
-	be_rx_stats_update(adapter, pkt_size, num_rcvd);
+	be_rx_stats_update(adapter, pkt_size, num_rcvd, pkt_type);
 }
 
 static struct be_eth_rx_compl *be_rx_compl_get(struct be_adapter *adapter)
@@ -1743,26 +1750,7 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	return 1;
 }
 
-static inline bool be_detect_ue(struct be_adapter *adapter)
-{
-	u32 online0 = 0, online1 = 0;
-
-	pci_read_config_dword(adapter->pdev, PCICFG_ONLINE0, &online0);
-
-	pci_read_config_dword(adapter->pdev, PCICFG_ONLINE1, &online1);
-
-	if (!online0 || !online1) {
-		adapter->ue_detected = true;
-		dev_err(&adapter->pdev->dev,
-			"UE Detected!! online0=%d online1=%d\n",
-			online0, online1);
-		return true;
-	}
-
-	return false;
-}
-
-void be_dump_ue(struct be_adapter *adapter)
+void be_detect_dump_ue(struct be_adapter *adapter)
 {
 	u32 ue_status_lo, ue_status_hi, ue_status_lo_mask, ue_status_hi_mask;
 	u32 i;
@@ -1778,6 +1766,11 @@ void be_dump_ue(struct be_adapter *adapter)
 
 	ue_status_lo = (ue_status_lo & (~ue_status_lo_mask));
 	ue_status_hi = (ue_status_hi & (~ue_status_hi_mask));
+
+	if (ue_status_lo || ue_status_hi) {
+		adapter->ue_detected = true;
+		dev_err(&adapter->pdev->dev, "UE Detected!!\n");
+	}
 
 	if (ue_status_lo) {
 		for (i = 0; ue_status_lo; ue_status_lo >>= 1, i++) {
@@ -1814,10 +1807,8 @@ static void be_worker(struct work_struct *work)
 		adapter->rx_post_starved = false;
 		be_post_rx_frags(adapter);
 	}
-	if (!adapter->ue_detected) {
-		if (be_detect_ue(adapter))
-			be_dump_ue(adapter);
-	}
+	if (!adapter->ue_detected)
+		be_detect_dump_ue(adapter);
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }

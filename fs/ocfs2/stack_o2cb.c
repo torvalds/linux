@@ -283,6 +283,8 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	/* for now we only have one cluster/node, make sure we see it
 	 * in the heartbeat universe */
 	if (!o2hb_check_local_node_heartbeating()) {
+		if (o2hb_global_heartbeat_active())
+			mlog(ML_ERROR, "Global heartbeat not started\n");
 		rc = -EINVAL;
 		goto out;
 	}

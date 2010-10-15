@@ -829,6 +829,8 @@ static int snd_rawmidi_control_ioctl(struct snd_card *card,
 		
 		if (get_user(device, (int __user *)argp))
 			return -EFAULT;
+		if (device >= SNDRV_RAWMIDI_DEVICES) /* next device is -1 */
+			device = SNDRV_RAWMIDI_DEVICES - 1;
 		mutex_lock(&register_mutex);
 		device = device < 0 ? 0 : device + 1;
 		while (device < SNDRV_RAWMIDI_DEVICES) {

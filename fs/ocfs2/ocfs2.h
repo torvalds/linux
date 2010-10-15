@@ -250,7 +250,7 @@ enum ocfs2_local_alloc_state
 
 enum ocfs2_mount_options
 {
-	OCFS2_MOUNT_HB_LOCAL   = 1 << 0, /* Heartbeat started in local mode */
+	OCFS2_MOUNT_HB_LOCAL = 1 << 0, /* Local heartbeat */
 	OCFS2_MOUNT_BARRIER = 1 << 1,	/* Use block barriers */
 	OCFS2_MOUNT_NOINTR  = 1 << 2,   /* Don't catch signals */
 	OCFS2_MOUNT_ERRORS_PANIC = 1 << 3, /* Panic on errors */
@@ -263,9 +263,10 @@ enum ocfs2_mount_options
 						   control lists */
 	OCFS2_MOUNT_USRQUOTA = 1 << 10, /* We support user quotas */
 	OCFS2_MOUNT_GRPQUOTA = 1 << 11, /* We support group quotas */
-
-	OCFS2_MOUNT_COHERENCY_BUFFERED = 1 << 12 /* Allow concurrent O_DIRECT
-						    writes */
+	OCFS2_MOUNT_COHERENCY_BUFFERED = 1 << 12, /* Allow concurrent O_DIRECT
+						     writes */
+	OCFS2_MOUNT_HB_NONE = 1 << 13, /* No heartbeat */
+	OCFS2_MOUNT_HB_GLOBAL = 1 << 14, /* Global heartbeat */
 };
 
 #define OCFS2_OSB_SOFT_RO			0x0001
@@ -378,6 +379,8 @@ struct ocfs2_super
 	struct ocfs2_blockcheck_stats osb_ecc_stats;
 	struct ocfs2_alloc_stats alloc_stats;
 	char dev_str[20];		/* "major,minor" of the device */
+
+	u8 osb_stackflags;
 
 	char osb_cluster_stack[OCFS2_STACK_LABEL_LEN + 1];
 	struct ocfs2_cluster_connection *cconn;
@@ -612,10 +615,35 @@ static inline int ocfs2_is_soft_readonly(struct ocfs2_super *osb)
 	return ret;
 }
 
-static inline int ocfs2_userspace_stack(struct ocfs2_super *osb)
+static inline int ocfs2_clusterinfo_valid(struct ocfs2_super *osb)
 {
 	return (osb->s_feature_incompat &
-		OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK);
+		(OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK |
+		 OCFS2_FEATURE_INCOMPAT_CLUSTERINFO));
+}
+
+static inline int ocfs2_userspace_stack(struct ocfs2_super *osb)
+{
+	if (ocfs2_clusterinfo_valid(osb) &&
+	    memcmp(osb->osb_cluster_stack, OCFS2_CLASSIC_CLUSTER_STACK,
+		   OCFS2_STACK_LABEL_LEN))
+		return 1;
+	return 0;
+}
+
+static inline int ocfs2_o2cb_stack(struct ocfs2_super *osb)
+{
+	if (ocfs2_clusterinfo_valid(osb) &&
+	    !memcmp(osb->osb_cluster_stack, OCFS2_CLASSIC_CLUSTER_STACK,
+		   OCFS2_STACK_LABEL_LEN))
+		return 1;
+	return 0;
+}
+
+static inline int ocfs2_cluster_o2cb_global_heartbeat(struct ocfs2_super *osb)
+{
+	return ocfs2_o2cb_stack(osb) &&
+		(osb->osb_stackflags & OCFS2_CLUSTER_O2CB_GLOBAL_HEARTBEAT);
 }
 
 static inline int ocfs2_mount_local(struct ocfs2_super *osb)

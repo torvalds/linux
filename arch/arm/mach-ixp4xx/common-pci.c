@@ -503,6 +503,14 @@ struct pci_bus * __devinit ixp4xx_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &ixp4xx_ops, sys);
 }
 
+int dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+	if (mask >= SZ_64M - 1)
+		return 0;
+
+	return -EIO;
+}
+
 EXPORT_SYMBOL(ixp4xx_pci_read);
 EXPORT_SYMBOL(ixp4xx_pci_write);
 

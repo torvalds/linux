@@ -204,7 +204,7 @@ struct radeon_i2c_chan {
 
 /* mostly for macs, but really any system without connector tables */
 enum radeon_connector_table {
-	CT_NONE,
+	CT_NONE = 0,
 	CT_GENERIC,
 	CT_IBOOK,
 	CT_POWERBOOK_EXTERNAL,
@@ -215,6 +215,7 @@ enum radeon_connector_table {
 	CT_IMAC_G5_ISIGHT,
 	CT_EMAC,
 	CT_RN50_POWER,
+	CT_MAC_X800,
 };
 
 enum radeon_dvo_chip {

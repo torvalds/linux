@@ -2729,7 +2729,7 @@ int r600_ib_test(struct radeon_device *rdev)
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test succeeded in %u usecs\n", i);
 	} else {
-		DRM_ERROR("radeon: ib test failed (sracth(0x%04X)=0x%08X)\n",
+		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
@@ -3528,7 +3528,8 @@ void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
 	 */
-	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
+	    rdev->vram_scratch.ptr) {
 		void __iomem *ptr = (void *)rdev->vram_scratch.ptr;
 		u32 tmp;
 

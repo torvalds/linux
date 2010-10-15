@@ -539,14 +539,15 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					pll->algo = PLL_ALGO_LEGACY;
 					pll->flags |= RADEON_PLL_PREFER_CLOSEST_LOWER;
 				}
-				/* There is some evidence (often anecdotal) that RV515 LVDS
+				/* There is some evidence (often anecdotal) that RV515/RV620 LVDS
 				 * (on some boards at least) prefers the legacy algo.  I'm not
 				 * sure whether this should handled generically or on a
 				 * case-by-case quirk basis.  Both algos should work fine in the
 				 * majority of cases.
 				 */
 				if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) &&
-				    (rdev->family == CHIP_RV515)) {
+				    ((rdev->family == CHIP_RV515) ||
+				     (rdev->family == CHIP_RV620))) {
 					/* allow the user to overrride just in case */
 					if (radeon_new_pll == 1)
 						pll->algo = PLL_ALGO_NEW;

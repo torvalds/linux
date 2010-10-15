@@ -217,6 +217,7 @@ config NET_IPIP
 
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
+	depends on IPV6 || IPV6=n
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the

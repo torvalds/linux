@@ -69,7 +69,8 @@ struct symbol_conf {
 			show_nr_samples,
 			use_callchain,
 			exclude_other,
-			show_cpu_utilization;
+			show_cpu_utilization,
+			initialized;
 	const char	*vmlinux_name,
 			*source_prefix,
 			*field_sep;

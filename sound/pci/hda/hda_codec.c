@@ -4536,7 +4536,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			cfg->hp_outs--;
 			memmove(cfg->hp_pins + i, cfg->hp_pins + i + 1,
 				sizeof(cfg->hp_pins[0]) * (cfg->hp_outs - i));
-			memmove(sequences_hp + i - 1, sequences_hp + i,
+			memmove(sequences_hp + i, sequences_hp + i + 1,
 				sizeof(sequences_hp[0]) * (cfg->hp_outs - i));
 		}
 	}

@@ -181,10 +181,6 @@ static void flush(struct dw_spi *dws)
 	wait_till_not_busy(dws);
 }
 
-static void null_cs_control(u32 command)
-{
-}
-
 static int null_writer(struct dw_spi *dws)
 {
 	u8 n_bytes = dws->n_bytes;
@@ -322,7 +318,7 @@ static void giveback(struct dw_spi *dws)
 					struct spi_transfer,
 					transfer_list);
 
-	if (!last_transfer->cs_change)
+	if (!last_transfer->cs_change && dws->cs_control)
 		dws->cs_control(MRST_SPI_DEASSERT);
 
 	msg->state = NULL;
@@ -396,6 +392,11 @@ static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct dw_spi *dws = dev_id;
+	u16 irq_status, irq_mask = 0x3f;
+
+	irq_status = dw_readw(dws, isr) & irq_mask;
+	if (!irq_status)
+		return IRQ_NONE;
 
 	if (!dws->cur_msg) {
 		spi_mask_intr(dws, SPI_INT_TXEI);
@@ -544,13 +545,13 @@ static void pump_transfers(unsigned long data)
 	 */
 	if (dws->cs_control) {
 		if (dws->rx && dws->tx)
-			chip->tmode = 0x00;
+			chip->tmode = SPI_TMOD_TR;
 		else if (dws->rx)
-			chip->tmode = 0x02;
+			chip->tmode = SPI_TMOD_RO;
 		else
-			chip->tmode = 0x01;
+			chip->tmode = SPI_TMOD_TO;
 
-		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
+		cr0 &= ~SPI_TMOD_MASK;
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	}
 
@@ -699,9 +700,6 @@ static int dw_spi_setup(struct spi_device *spi)
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
 		if (!chip)
 			return -ENOMEM;
-
-		chip->cs_control = null_cs_control;
-		chip->enable_dma = 0;
 	}
 
 	/*
@@ -883,7 +881,7 @@ int __devinit dw_spi_add_host(struct dw_spi *dws)
 	dws->dma_inited = 0;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + 0x60);
 
-	ret = request_irq(dws->irq, dw_spi_irq, 0,
+	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED,
 			"dw_spi", dws);
 	if (ret < 0) {
 		dev_err(&master->dev, "can not get IRQ\n");

@@ -43,6 +43,8 @@ extern void smp_imb(void);
 /* ??? Ought to use this in arch/alpha/kernel/signal.c too.  */
 
 #ifndef CONFIG_SMP
+#include <linux/sched.h>
+
 extern void __load_new_mm_context(struct mm_struct *);
 static inline void
 flush_icache_user_range(struct vm_area_struct *vma, struct page *page,

@@ -175,7 +175,7 @@ static struct pt_regs *valid_sigframe(struct KBacktraceIterator* kbt)
 			pr_err("  <received signal %d>\n",
 			       frame->info.si_signo);
 		}
-		return &frame->uc.uc_mcontext.regs;
+		return (struct pt_regs *)&frame->uc.uc_mcontext;
 	}
 	return NULL;
 }

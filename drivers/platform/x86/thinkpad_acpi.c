@@ -3093,7 +3093,8 @@ static const struct tpacpi_quirk tpacpi_hotkey_qtable[] __initconst = {
 	TPACPI_Q_IBM('1', 'D', TPACPI_HK_Q_INIMASK), /* X22, X23, X24 */
 };
 
-typedef u16 tpacpi_keymap_t[TPACPI_HOTKEY_MAP_LEN];
+typedef u16 tpacpi_keymap_entry_t;
+typedef tpacpi_keymap_entry_t tpacpi_keymap_t[TPACPI_HOTKEY_MAP_LEN];
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
@@ -3230,7 +3231,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	};
 
 #define TPACPI_HOTKEY_MAP_SIZE		sizeof(tpacpi_keymap_t)
-#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(tpacpi_keymap_t[0])
+#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(tpacpi_keymap_entry_t)
 
 	int res, i;
 	int status;

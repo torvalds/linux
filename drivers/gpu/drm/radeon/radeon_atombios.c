@@ -317,6 +317,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* MSI K9A2GM V2/V3 board has no HDMI or DVI */
+	if ((dev->pdev->device == 0x796e) &&
+	    (dev->pdev->subsystem_vendor == 0x1462) &&
+	    (dev->pdev->subsystem_device == 0x7302)) {
+		if ((supported_device == ATOM_DEVICE_DFP2_SUPPORT) ||
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			return false;
+	}
+
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
 	if ((dev->pdev->device == 0x7941) &&
 	    (dev->pdev->subsystem_vendor == 0x147b) &&
