@@ -49,6 +49,11 @@ config HAVE_SYSCALL_TRACEPOINTS
 	help
 	  See Documentation/trace/ftrace-design.txt
 
+config HAVE_C_RECORDMCOUNT
+	bool
+	help
+	  C version of recordmcount available?
+
 config TRACER_MAX_TRACE
 	bool
 
