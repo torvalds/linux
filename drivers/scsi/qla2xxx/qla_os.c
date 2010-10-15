@@ -830,62 +830,44 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 	srb_t *sp;
-	int ret, i;
+	int ret;
 	unsigned int id, lun;
 	unsigned long flags;
 	int wait = 0;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = vha->req;
-	srb_t *spt;
-	int got_ref = 0;
 
 	fc_block_scsi_eh(cmd);
 
 	if (!CMD_SP(cmd))
 		return SUCCESS;
 
-	ret = SUCCESS;
-
 	id = cmd->device->id;
 	lun = cmd->device->lun;
-	spt = (srb_t *) CMD_SP(cmd);
-	if (!spt)
-		return SUCCESS;
 
-	/* Check active list for command command. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (i = 1; i < MAX_OUTSTANDING_COMMANDS; i++) {
-		sp = req->outstanding_cmds[i];
-
-		if (sp == NULL)
-			continue;
-		if ((sp->ctx) && !(sp->flags & SRB_FCP_CMND_DMA_VALID) &&
-		    !IS_PROT_IO(sp))
-			continue;
-		if (sp->cmd != cmd)
-			continue;
-
-		DEBUG2(printk("%s(%ld): aborting sp %p from RISC.",
-		    __func__, vha->host_no, sp));
-
-		/* Get a reference to the sp and drop the lock.*/
-		sp_get(sp);
-		got_ref++;
-
+	sp = (srb_t *) CMD_SP(cmd);
+	if (!sp) {
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-		if (ha->isp_ops->abort_command(sp)) {
-			DEBUG2(printk("%s(%ld): abort_command "
-			"mbx failed.\n", __func__, vha->host_no));
-			ret = FAILED;
-		} else {
-			DEBUG3(printk("%s(%ld): abort_command "
-			"mbx success.\n", __func__, vha->host_no));
-			wait = 1;
-		}
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-		break;
+		return SUCCESS;
 	}
+
+	DEBUG2(printk("%s(%ld): aborting sp %p from RISC.",
+	    __func__, vha->host_no, sp));
+
+	/* Get a reference to the sp and drop the lock.*/
+	sp_get(sp);
+
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	if (ha->isp_ops->abort_command(sp)) {
+		DEBUG2(printk("%s(%ld): abort_command "
+		"mbx failed.\n", __func__, vha->host_no));
+		ret = FAILED;
+	} else {
+		DEBUG3(printk("%s(%ld): abort_command "
+		"mbx success.\n", __func__, vha->host_no));
+		wait = 1;
+	}
+	qla2x00_sp_compl(ha, sp);
 
 	/* Wait for the command to be returned. */
 	if (wait) {
@@ -896,9 +878,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 			ret = FAILED;
 		}
 	}
-
-	if (got_ref)
-		qla2x00_sp_compl(ha, sp);
 
 	qla_printk(KERN_INFO, ha,
 	    "scsi(%ld:%d:%d): Abort command issued -- %d %x.\n",
