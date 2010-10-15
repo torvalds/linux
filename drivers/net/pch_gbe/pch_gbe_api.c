@@ -97,7 +97,7 @@ static const struct pch_gbe_functions pch_gbe_ops = {
  * pch_gbe_plat_init_function_pointers - Init func ptrs
  * @hw:	Pointer to the HW structure
  */
-void pch_gbe_plat_init_function_pointers(struct pch_gbe_hw *hw)
+static void pch_gbe_plat_init_function_pointers(struct pch_gbe_hw *hw)
 {
 	/* Set PHY parameter */
 	hw->phy.reset_delay_us     = PCH_GBE_PHY_RESET_DELAY_US;

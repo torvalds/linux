@@ -85,6 +85,9 @@ const char pch_driver_version[] = DRV_VERSION;
 
 static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 
+static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
+static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
+			       int data);
 /**
  * pch_gbe_mac_read_mac_addr - Read MAC address
  * @hw:	            Pointer to the HW structure
@@ -114,7 +117,7 @@ s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
  * @reg:	Pointer of register
  * @busy:	Busy bit
  */
-void pch_gbe_wait_clr_bit(void *reg, u32 bit)
+static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 {
 	u32 tmp;
 	/* wait busy */
@@ -130,7 +133,7 @@ void pch_gbe_wait_clr_bit(void *reg, u32 bit)
  * @addr:   Pointer to the MAC address
  * @index:  MAC address array register
  */
-void pch_gbe_mac_mar_set(struct pch_gbe_hw *hw, u8 * addr, u32 index)
+static void pch_gbe_mac_mar_set(struct pch_gbe_hw *hw, u8 * addr, u32 index)
 {
 	u32 mar_low, mar_high, adrmask;
 
@@ -161,7 +164,7 @@ void pch_gbe_mac_mar_set(struct pch_gbe_hw *hw, u8 * addr, u32 index)
  * pch_gbe_mac_reset_hw - Reset hardware
  * @hw:	Pointer to the HW structure
  */
-void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
+static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 {
 	/* Read the MAC address. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
@@ -180,7 +183,7 @@ void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
  * @hw:	Pointer to the HW structure
  * @mar_count: Receive address registers
  */
-void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
+static void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
 {
 	u32 i;
 
@@ -206,9 +209,9 @@ void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
  * @mar_used_count: The first MAC Address register free to program
  * @mar_total_num:  Total number of supported MAC Address Registers
  */
-void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
-				     u8 *mc_addr_list, u32 mc_addr_count,
-				     u32 mar_used_count, u32 mar_total_num)
+static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
+					    u8 *mc_addr_list, u32 mc_addr_count,
+					    u32 mar_used_count, u32 mar_total_num)
 {
 	u32 i, adrmask;
 
@@ -285,7 +288,7 @@ s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw)
  * @hw:     Pointer to the HW structure
  * @wu_evt: Wake up event
  */
-void pch_gbe_mac_set_wol_event(struct pch_gbe_hw *hw, u32 wu_evt)
+static void pch_gbe_mac_set_wol_event(struct pch_gbe_hw *hw, u32 wu_evt)
 {
 	u32 addr_mask;
 
@@ -359,7 +362,7 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
  * pch_gbe_mac_set_pause_packet - Set pause packet
  * @hw:   Pointer to the HW structure
  */
-void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
+static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
 {
 	unsigned long tmp2, tmp3;
 
@@ -482,7 +485,7 @@ static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
  *	0:	Successfully
  *	Negative value:	Failed
  */
-int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg)
+static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
@@ -498,7 +501,8 @@ int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg)
  * @reg:    Access location
  * @data:   Write data
  */
-void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg, int data)
+static void pch_gbe_mdio_write(struct net_device *netdev,
+			       int addr, int reg, int data)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;

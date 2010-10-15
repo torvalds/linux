@@ -644,9 +644,7 @@ extern void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 extern void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 				       struct pch_gbe_rx_ring *rx_ring);
 extern void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
-extern int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
-extern void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
-				int data);
+
 /* pch_gbe_param.c */
 extern void pch_gbe_check_options(struct pch_gbe_adapter *adapter);
 
