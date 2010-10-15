@@ -192,7 +192,7 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 		} else
 			res = size ? -ERANGE : 4;
 	} else
-		res = -ENODATA;
+		res = -EOPNOTSUPP;
 out:
 	if (size)
 		hfs_find_exit(&fd);
