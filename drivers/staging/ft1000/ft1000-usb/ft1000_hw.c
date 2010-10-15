@@ -2615,8 +2615,7 @@ int ft1000_poll(void* dev_id) {
                                    }
                                }
 
-                               if (i==(MAX_NUM_APP-1)) {		// aelias [+] reason: was out of array boundary
-                                   info->app_info[i].nRxMsgMiss++;
+                               if (i == MAX_NUM_APP) {
                                    DEBUG("FT1000:ft1000_parse_dpram_msg: No application matching id = %d\n", ppseudo_hdr->portdest);
                                    // Put memory back to free pool
                                    ft1000_free_buffer(pdpram_blk, &freercvpool);
