@@ -331,11 +331,6 @@ static void serial_detach(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "serial_detach\n");
 
 	/*
-	 * Ensure any outstanding scheduled tasks are completed.
-	 */
-	flush_scheduled_work();
-
-	/*
 	 * Ensure that the ports have been released.
 	 */
 	serial_remove(link);
