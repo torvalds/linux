@@ -25,7 +25,7 @@
 #include "osd.h"
 #include "vmbus_private.h"
 
-static int IVmbusChannelOpen(struct hv_device *device, u32 sendbuffer_size,
+static int ivmbus_open(struct hv_device *device, u32 sendbuffer_size,
 			     u32 recv_ringbuffer_size, void *userdata,
 			     u32 userdatalen,
 			     void (*channel_callback)(void *context),
@@ -36,12 +36,12 @@ static int IVmbusChannelOpen(struct hv_device *device, u32 sendbuffer_size,
 				channel_callback, context);
 }
 
-static void IVmbusChannelClose(struct hv_device *device)
+static void ivmbus_close(struct hv_device *device)
 {
 	vmbus_close(device->context);
 }
 
-static int IVmbusChannelSendPacket(struct hv_device *device, const void *buffer,
+static int ivmbus_sendpacket(struct hv_device *device, const void *buffer,
 				   u32 bufferlen, u64 requestid, u32 type,
 				   u32 flags)
 {
@@ -49,7 +49,7 @@ static int IVmbusChannelSendPacket(struct hv_device *device, const void *buffer,
 				      requestid, type, flags);
 }
 
-static int IVmbusChannelSendPacketPageBuffer(struct hv_device *device,
+static int ivmbus_sendpacket_pagebuffer(struct hv_device *device,
 				struct hv_page_buffer pagebuffers[],
 				u32 pagecount, void *buffer,
 				u32 bufferlen, u64 requestid)
@@ -59,7 +59,7 @@ static int IVmbusChannelSendPacketPageBuffer(struct hv_device *device,
 						requestid);
 }
 
-static int IVmbusChannelSendPacketMultiPageBuffer(struct hv_device *device,
+static int ivmbus_sendpacket_multipagebuffer(struct hv_device *device,
 				struct hv_multipage_buffer *multi_pagebuffer,
 				void *buffer, u32 bufferlen, u64 requestid)
 {
@@ -68,7 +68,7 @@ static int IVmbusChannelSendPacketMultiPageBuffer(struct hv_device *device,
 						     bufferlen, requestid);
 }
 
-static int IVmbusChannelRecvPacket(struct hv_device *device, void *buffer,
+static int ivmbus_recvpacket(struct hv_device *device, void *buffer,
 				   u32 bufferlen, u32 *buffer_actuallen,
 				   u64 *requestid)
 {
@@ -76,7 +76,7 @@ static int IVmbusChannelRecvPacket(struct hv_device *device, void *buffer,
 				      buffer_actuallen, requestid);
 }
 
-static int IVmbusChannelRecvPacketRaw(struct hv_device *device, void *buffer,
+static int ivmbus_recvpacket_raw(struct hv_device *device, void *buffer,
 				      u32 bufferlen, u32 *buffer_actuallen,
 				      u64 *requestid)
 {
@@ -84,14 +84,14 @@ static int IVmbusChannelRecvPacketRaw(struct hv_device *device, void *buffer,
 					 buffer_actuallen, requestid);
 }
 
-static int IVmbusChannelEstablishGpadl(struct hv_device *device, void *buffer,
+static int ivmbus_establish_gpadl(struct hv_device *device, void *buffer,
 				       u32 bufferlen, u32 *gpadl_handle)
 {
 	return vmbus_establish_gpadl(device->context, buffer, bufferlen,
 					  gpadl_handle);
 }
 
-static int IVmbusChannelTeardownGpadl(struct hv_device *device,
+static int ivmbus_teardown_gpadl(struct hv_device *device,
 				      u32 gpadl_handle)
 {
 	return vmbus_teardown_gpadl(device->context, gpadl_handle);
@@ -99,7 +99,7 @@ static int IVmbusChannelTeardownGpadl(struct hv_device *device,
 }
 
 
-void GetChannelInfo(struct hv_device *device, struct hv_device_info *info)
+void get_channel_info(struct hv_device *device, struct hv_device_info *info)
 {
 	struct vmbus_channel_debug_info debug_info;
 
@@ -142,14 +142,14 @@ void GetChannelInfo(struct hv_device *device, struct hv_device_info *info)
 
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
-	.Open = IVmbusChannelOpen,
-	.Close = IVmbusChannelClose,
-	.SendPacket = IVmbusChannelSendPacket,
-	.SendPacketPageBuffer = IVmbusChannelSendPacketPageBuffer,
-	.SendPacketMultiPageBuffer = IVmbusChannelSendPacketMultiPageBuffer,
-	.RecvPacket = IVmbusChannelRecvPacket,
-	.RecvPacketRaw	= IVmbusChannelRecvPacketRaw,
-	.EstablishGpadl = IVmbusChannelEstablishGpadl,
-	.TeardownGpadl = IVmbusChannelTeardownGpadl,
-	.GetInfo = GetChannelInfo,
+	.Open = ivmbus_open,
+	.Close = ivmbus_close,
+	.SendPacket = ivmbus_sendpacket,
+	.SendPacketPageBuffer = ivmbus_sendpacket_pagebuffer,
+	.SendPacketMultiPageBuffer = ivmbus_sendpacket_multipagebuffer,
+	.RecvPacket = ivmbus_recvpacket,
+	.RecvPacketRaw	= ivmbus_recvpacket_raw,
+	.EstablishGpadl = ivmbus_establish_gpadl,
+	.TeardownGpadl = ivmbus_teardown_gpadl,
+	.GetInfo = get_channel_info,
 };

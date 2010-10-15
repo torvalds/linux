@@ -66,7 +66,7 @@ static void VmbusGetChannelOffers(void)
 static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
 				struct hv_device_info *DeviceInfo)
 {
-	GetChannelInfo(DeviceObject, DeviceInfo);
+	get_channel_info(DeviceObject, DeviceInfo);
 }
 
 /*
