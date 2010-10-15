@@ -130,54 +130,6 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-struct cifsFileInfo *
-cifs_new_fileinfo(__u16 fileHandle, struct file *file,
-		  struct tcon_link *tlink, __u32 oplock)
-{
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
-	struct cifsInodeInfo *pCifsInode = CIFS_I(inode);
-	struct cifsFileInfo *pCifsFile;
-
-	pCifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
-	if (pCifsFile == NULL)
-		return pCifsFile;
-
-	pCifsFile->netfid = fileHandle;
-	pCifsFile->pid = current->tgid;
-	pCifsFile->uid = current_fsuid();
-	pCifsFile->dentry = dget(dentry);
-	pCifsFile->f_flags = file->f_flags;
-	pCifsFile->invalidHandle = false;
-	pCifsFile->closePend = false;
-	pCifsFile->tlink = cifs_get_tlink(tlink);
-	mutex_init(&pCifsFile->fh_mutex);
-	mutex_init(&pCifsFile->lock_mutex);
-	INIT_LIST_HEAD(&pCifsFile->llist);
-	atomic_set(&pCifsFile->count, 1);
-	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
-
-	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &(tlink_tcon(tlink)->openFileList));
-	/* if readable file instance put first in list*/
-	if (file->f_mode & FMODE_READ)
-		list_add(&pCifsFile->flist, &pCifsInode->openFileList);
-	else
-		list_add_tail(&pCifsFile->flist, &pCifsInode->openFileList);
-	write_unlock(&GlobalSMBSeslock);
-
-	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-		pCifsInode->clientCanCacheAll = true;
-		pCifsInode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock inode %p", inode);
-	} else if ((oplock & 0xF) == OPLOCK_READ)
-		pCifsInode->clientCanCacheRead = true;
-
-	file->private_data = pCifsFile;
-
-	return pCifsFile;
-}
-
 static void setup_cifs_dentry(struct cifsTconInfo *tcon,
 			      struct dentry *direntry,
 			      struct inode *newinode)
