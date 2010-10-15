@@ -77,19 +77,18 @@ struct dsp_init_msg {
 } __attribute__ ((packed));
 
 
-typedef struct _APP_INFO_BLOCK
-{
-    u32 nTxMsg;                    // DPRAM msg sent to DSP with app_id
-    u32 nRxMsg;                    // DPRAM msg rcv from dsp with app_id
-    u32 nTxMsgReject;              // DPRAM msg rejected due to DSP doorbell set
-    u32 nRxMsgMiss;                // DPRAM msg dropped due to overflow
-    struct fown_struct *fileobject;// Application's file object
-    u16 app_id;                    // Application id
-    int DspBCMsgFlag;
-    int NumOfMsg;                   // number of messages queued up
-    wait_queue_head_t	wait_dpram_msg;
-    struct list_head app_sqlist;   // link list of msgs for applicaton on slow queue
-} APP_INFO_BLOCK, *PAPP_INFO_BLOCK;
+struct app_info_block {
+	u32 nTxMsg;                    // DPRAM msg sent to DSP with app_id
+	u32 nRxMsg;                    // DPRAM msg rcv from dsp with app_id
+	u32 nTxMsgReject;              // DPRAM msg rejected due to DSP doorbell set
+	u32 nRxMsgMiss;                // DPRAM msg dropped due to overflow
+	struct fown_struct *fileobject;// Application's file object
+	u16 app_id;                    // Application id
+	int DspBCMsgFlag;
+	int NumOfMsg;                   // number of messages queued up
+	wait_queue_head_t wait_dpram_msg;
+	struct list_head app_sqlist;   // link list of msgs for applicaton on slow queue
+} __attribute__((packed));
 
 typedef struct _PROV_RECORD {
     struct list_head list;
@@ -582,7 +581,7 @@ typedef struct _FT1000_INFO {
     u16 ProgConStat;
     struct list_head prov_list;
     int appcnt;
-    APP_INFO_BLOCK app_info[MAX_NUM_APP]; //Added by Jim
+	struct app_info_block app_info[MAX_NUM_APP];
     u16 DSPInfoBlklen;
     u16 DrvMsgPend;
     int (*ft1000_reset)(struct net_device *dev);
