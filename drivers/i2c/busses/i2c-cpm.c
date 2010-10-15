@@ -677,6 +677,11 @@ static int __devinit cpm_i2c_probe(struct platform_device *ofdev,
 	dev_dbg(&ofdev->dev, "hw routines for %s registered.\n",
 		cpm->adap.name);
 
+	/*
+	 * register OF I2C devices
+	 */
+	of_i2c_register_devices(&cpm->adap);
+
 	return 0;
 out_shut:
 	cpm_i2c_shutdown(cpm);

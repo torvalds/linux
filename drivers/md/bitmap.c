@@ -1000,10 +1000,11 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 				page = bitmap->sb_page;
 				offset = sizeof(bitmap_super_t);
 				if (!file)
-					read_sb_page(bitmap->mddev,
-						     bitmap->mddev->bitmap_info.offset,
-						     page,
-						     index, count);
+					page = read_sb_page(
+						bitmap->mddev,
+						bitmap->mddev->bitmap_info.offset,
+						page,
+						index, count);
 			} else if (file) {
 				page = read_page(file, index, bitmap, count);
 				offset = 0;

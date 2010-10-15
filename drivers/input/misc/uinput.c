@@ -404,6 +404,13 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 		retval = uinput_validate_absbits(dev);
 		if (retval < 0)
 			goto exit;
+		if (test_bit(ABS_MT_SLOT, dev->absbit)) {
+			int nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
+			input_mt_create_slots(dev, nslot);
+			input_set_events_per_packet(dev, 6 * nslot);
+		} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+			input_set_events_per_packet(dev, 60);
+		}
 	}
 
 	udev->state = UIST_SETUP_COMPLETE;

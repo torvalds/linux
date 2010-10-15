@@ -1138,18 +1138,14 @@ static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint32_t dp_reg_value,
 			uint8_t dp_train_pat,
-			uint8_t train_set[4],
-			bool first)
+			uint8_t train_set[4])
 {
 	struct drm_device *dev = intel_dp->base.enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.enc.crtc);
 	int ret;
 
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
 	POSTING_READ(intel_dp->output_reg);
-	if (first)
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	intel_dp_aux_native_write_1(intel_dp,
 				    DP_TRAINING_PATTERN_SET,
@@ -1174,10 +1170,15 @@ intel_dp_link_train(struct intel_dp *intel_dp)
 	uint8_t voltage;
 	bool clock_recovery = false;
 	bool channel_eq = false;
-	bool first = true;
 	int tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.enc.crtc);
+
+	/* Enable output, wait for it to become active */
+	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
+	POSTING_READ(intel_dp->output_reg);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	/* Write the link configuration data */
 	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
@@ -1210,9 +1211,8 @@ intel_dp_link_train(struct intel_dp *intel_dp)
 			reg = DP | DP_LINK_TRAIN_PAT_1;
 
 		if (!intel_dp_set_link_train(intel_dp, reg,
-					     DP_TRAINING_PATTERN_1, train_set, first))
+					     DP_TRAINING_PATTERN_1, train_set))
 			break;
-		first = false;
 		/* Set training pattern 1 */
 
 		udelay(100);
@@ -1266,8 +1266,7 @@ intel_dp_link_train(struct intel_dp *intel_dp)
 
 		/* channel eq pattern */
 		if (!intel_dp_set_link_train(intel_dp, reg,
-					     DP_TRAINING_PATTERN_2, train_set,
-					     false))
+					     DP_TRAINING_PATTERN_2, train_set))
 			break;
 
 		udelay(400);

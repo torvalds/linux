@@ -538,5 +538,8 @@ sys_call_table:
 	PTR	compat_sys_rt_tgsigqueueinfo
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
-	PTR     compat_sys_recvmmsg
+	PTR	compat_sys_recvmmsg		/* 4335 */
+	PTR	sys_fanotify_init
+	PTR	sys_32_fanotify_mark
+	PTR	sys_prlimit64
 	.size	sys_call_table,.-sys_call_table

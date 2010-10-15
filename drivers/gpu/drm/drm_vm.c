@@ -433,6 +433,25 @@ static void drm_vm_open(struct vm_area_struct *vma)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+void drm_vm_close_locked(struct vm_area_struct *vma)
+{
+	struct drm_file *priv = vma->vm_file->private_data;
+	struct drm_device *dev = priv->minor->dev;
+	struct drm_vma_entry *pt, *temp;
+
+	DRM_DEBUG("0x%08lx,0x%08lx\n",
+		  vma->vm_start, vma->vm_end - vma->vm_start);
+	atomic_dec(&dev->vma_count);
+
+	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
+		if (pt->vma == vma) {
+			list_del(&pt->head);
+			kfree(pt);
+			break;
+		}
+	}
+}
+
 /**
  * \c close method for all virtual memory types.
  *
@@ -445,20 +464,9 @@ static void drm_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_vma_entry *pt, *temp;
-
-	DRM_DEBUG("0x%08lx,0x%08lx\n",
-		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
-		if (pt->vma == vma) {
-			list_del(&pt->head);
-			kfree(pt);
-			break;
-		}
-	}
+	drm_vm_close_locked(vma);
 	mutex_unlock(&dev->struct_mutex);
 }
 
