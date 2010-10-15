@@ -66,6 +66,7 @@ struct fsl_usb2_platform_data {
 	enum fsl_usb2_operating_modes	operating_mode;
 	enum fsl_usb2_phy_modes		phy_mode;
 	unsigned int			port_enables;
+	unsigned int			workaround;
 
 	int		(*init)(struct platform_device *);
 	void		(*exit)(struct platform_device *);
@@ -83,6 +84,8 @@ struct fsl_usb2_platform_data {
 /* Flags in fsl_usb2_mph_platform_data */
 #define FSL_USB2_PORT0_ENABLED	0x00000001
 #define FSL_USB2_PORT1_ENABLED	0x00000002
+
+#define FLS_USB2_WORKAROUND_ENGCM09152	(1 << 0)
 
 struct spi_device;
 
