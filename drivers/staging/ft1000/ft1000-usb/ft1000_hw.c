@@ -1083,7 +1083,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 
 
 err_free:
-	list_for_each_safe(cur, tmp, &pdpram_blk->list) {
+	list_for_each_safe(cur, tmp, &freercvpool) {
 		pdpram_blk = list_entry(cur, DPRAM_BLK, list);
 		list_del(&pdpram_blk->list);
 		kfree(pdpram_blk->pbuffer);
