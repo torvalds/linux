@@ -181,93 +181,6 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 	return pCifsFile;
 }
 
-int cifs_posix_open(char *full_path, struct inode **pinode,
-			struct super_block *sb, int mode, int oflags,
-			__u32 *poplock, __u16 *pnetfid, int xid)
-{
-	int rc;
-	FILE_UNIX_BASIC_INFO *presp_data;
-	__u32 posix_flags = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifs_fattr fattr;
-	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
-
-	cFYI(1, "posix open %s", full_path);
-
-	presp_data = kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
-	if (presp_data == NULL)
-		return -ENOMEM;
-
-/* So far cifs posix extensions can only map the following flags.
-   There are other valid fmode oflags such as FMODE_LSEEK, FMODE_PREAD, but
-   so far we do not seem to need them, and we can treat them as local only */
-	if ((oflags & (FMODE_READ | FMODE_WRITE)) ==
-		(FMODE_READ | FMODE_WRITE))
-		posix_flags = SMB_O_RDWR;
-	else if (oflags & FMODE_READ)
-		posix_flags = SMB_O_RDONLY;
-	else if (oflags & FMODE_WRITE)
-		posix_flags = SMB_O_WRONLY;
-	if (oflags & O_CREAT)
-		posix_flags |= SMB_O_CREAT;
-	if (oflags & O_EXCL)
-		posix_flags |= SMB_O_EXCL;
-	if (oflags & O_TRUNC)
-		posix_flags |= SMB_O_TRUNC;
-	/* be safe and imply O_SYNC for O_DSYNC */
-	if (oflags & O_DSYNC)
-		posix_flags |= SMB_O_SYNC;
-	if (oflags & O_DIRECTORY)
-		posix_flags |= SMB_O_DIRECTORY;
-	if (oflags & O_NOFOLLOW)
-		posix_flags |= SMB_O_NOFOLLOW;
-	if (oflags & O_DIRECT)
-		posix_flags |= SMB_O_DIRECT;
-
-	mode &= ~current_umask();
-
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink)) {
-		rc = PTR_ERR(tlink);
-		goto posix_open_ret;
-	}
-
-	tcon = tlink_tcon(tlink);
-	rc = CIFSPOSIXCreate(xid, tcon, posix_flags, mode, pnetfid, presp_data,
-			     poplock, full_path, cifs_sb->local_nls,
-			     cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-	cifs_put_tlink(tlink);
-
-	if (rc)
-		goto posix_open_ret;
-
-	if (presp_data->Type == cpu_to_le32(-1))
-		goto posix_open_ret; /* open ok, caller does qpathinfo */
-
-	if (!pinode)
-		goto posix_open_ret; /* caller does not need info */
-
-	cifs_unix_basic_to_fattr(&fattr, presp_data, cifs_sb);
-
-	/* get new inode and set it up */
-	if (*pinode == NULL) {
-		cifs_fill_uniqueid(sb, &fattr);
-		*pinode = cifs_iget(sb, &fattr);
-		if (!*pinode) {
-			rc = -ENOMEM;
-			goto posix_open_ret;
-		}
-	} else {
-		cifs_fattr_to_inode(*pinode, &fattr);
-	}
-
-posix_open_ret:
-	kfree(presp_data);
-	return rc;
-}
-
 static void setup_cifs_dentry(struct cifsTconInfo *tcon,
 			      struct dentry *direntry,
 			      struct inode *newinode)
@@ -321,9 +234,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		oplock = REQ_OPLOCK;
 
 	if (nd && (nd->flags & LOOKUP_OPEN))
-		oflags = nd->intent.open.flags;
+		oflags = nd->intent.open.file->f_flags;
 	else
-		oflags = FMODE_READ | SMB_O_CREAT;
+		oflags = O_RDONLY | O_CREAT;
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -359,9 +272,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		/* if the file is going to stay open, then we
 		   need to set the desired access properly */
 		desiredAccess = 0;
-		if (oflags & FMODE_READ)
+		if (OPEN_FMODE(oflags) & FMODE_READ)
 			desiredAccess |= GENERIC_READ; /* is this too little? */
-		if (oflags & FMODE_WRITE)
+		if (OPEN_FMODE(oflags) & FMODE_WRITE)
 			desiredAccess |= GENERIC_WRITE;
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
@@ -716,11 +629,11 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	if (pTcon->unix_ext) {
 		if (nd && !(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
 		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
-		     (nd->intent.open.flags & O_CREAT)) {
+		     (nd->intent.open.file->f_flags & O_CREAT)) {
 			rc = cifs_posix_open(full_path, &newInode,
 					parent_dir_inode->i_sb,
 					nd->intent.open.create_mode,
-					nd->intent.open.flags, &oplock,
+					nd->intent.open.file->f_flags, &oplock,
 					&fileHandle, xid);
 			/*
 			 * The check below works around a bug in POSIX

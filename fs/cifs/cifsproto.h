@@ -111,7 +111,7 @@ extern struct cifsFileInfo *cifs_new_fileinfo(struct inode *newinode,
 				unsigned int oflags, __u32 oplock);
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 				struct super_block *sb,
-				int mode, int oflags,
+				int mode, unsigned int f_flags,
 				__u32 *poplock, __u16 *pnetfid, int xid);
 void cifs_fill_uniqueid(struct super_block *sb, struct cifs_fattr *fattr);
 extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
