@@ -52,7 +52,7 @@
 
 
 struct media_msg {
-	PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u16 state;
@@ -64,7 +64,7 @@ struct media_msg {
 } __attribute__ ((packed));
 
 struct dsp_init_msg {
-	PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u8 DspVer[DSPVERSZ];        // DSP version number
@@ -455,43 +455,8 @@ struct prov_record {
 
 #define MAX_BUF_SIZE            4096
 
-
-#if 0 //Removed by Jim
-typedef struct _PSEUDO_HDR
-
-{
-
-   unsigned short    length;
-
-   unsigned char     source;
-
-   unsigned char     destination;
-
-   unsigned char     portdest;
-
-   unsigned char     portsrc;
-
-   unsigned short    sh_str_id;
-
-   unsigned char     control;
-
-   unsigned char     rsvd1;
-
-   unsigned char     seq_num;
-
-   unsigned char     rsvd2;
-
-   unsigned short    qos_class;
-
-   unsigned short    checksum;
-
-
-
-} PSEUDO_HDR, *PPSEUDO_HDR;
-#endif //end of Jim
-
 typedef struct _DRVMSG {
-        PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
         u16 type;
         u16 length;
         u8  data[0];

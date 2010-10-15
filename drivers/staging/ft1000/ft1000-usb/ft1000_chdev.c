@@ -655,7 +655,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
             //IOCTL_DPRAM_COMMAND dpram_command;
             USHORT qtype;
             USHORT msgsz;
-            PPSEUDO_HDR ppseudo_hdr;
+		struct pseudo_hdr *ppseudo_hdr;
             PUSHORT pmsg;
             USHORT total_len;
             USHORT app_index;
@@ -768,7 +768,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
                             // Need to put sequence number plus new checksum for message
                             //pmsg = (PUSHORT)&dpram_command.dpram_blk.pseudohdr;
                             pmsg = (PUSHORT)&dpram_data->pseudohdr;
-                            ppseudo_hdr = (PPSEUDO_HDR)pmsg;
+				ppseudo_hdr = (struct pseudo_hdr *)pmsg;
                             total_len = msgsz+2;
                             if (total_len & 0x1) {
                                 total_len++;
@@ -785,7 +785,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
                                 //DEBUG("checksum = 0x%x\n", ppseudo_hdr->checksum);
                             }
                             pmsg++;
-                            ppseudo_hdr = (PPSEUDO_HDR)pmsg;
+				ppseudo_hdr = (struct pseudo_hdr *)pmsg;
 #if 0
                             ptr = dpram_data;
                             DEBUG("FT1000:ft1000_ChIoctl: Command Send\n");

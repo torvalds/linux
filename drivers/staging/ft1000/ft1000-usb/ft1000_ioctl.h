@@ -36,8 +36,7 @@
 #define MAX_DNLD_BLKSZ          1024
 
 // Standard Flarion Pseudo header
-typedef struct _PSEUDO_HDR
-{
+struct pseudo_hdr {
    unsigned short    length;           //length of msg body
    unsigned char     source;           //source address (0x10=Host 0x20=DSP)
    unsigned char     destination;      //destination address (refer to source address)
@@ -57,7 +56,7 @@ typedef struct _PSEUDO_HDR
    unsigned char     rsvd2;            //reserved
    unsigned short    qos_class;        //Quality of Service class (Not applicable on Mobile)
    unsigned short    checksum;         //Psuedo header checksum
-} __attribute__ ((packed)) PSEUDO_HDR, *PPSEUDO_HDR;
+} __attribute__ ((packed));
 
 typedef struct _IOCTL_GET_VER
 {
@@ -106,7 +105,7 @@ typedef struct _IOCTL_GET_DSP_STAT
 typedef struct _IOCTL_DPRAM_BLK
 {
     unsigned short total_len;
-    PSEUDO_HDR pseudohdr;
+	struct pseudo_hdr pseudohdr;
     unsigned char buffer[1780];
 } __attribute__ ((packed)) IOCTL_DPRAM_BLK, *PIOCTL_DPRAM_BLK;
 

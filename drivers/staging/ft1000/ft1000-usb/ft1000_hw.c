@@ -1440,7 +1440,7 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
     }
 #endif
 
-    count = sizeof (PSEUDO_HDR) + len;
+	count = sizeof(struct pseudo_hdr) + len;
     if(count > MAX_BUF_SIZE)
     {
         DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
@@ -1466,7 +1466,7 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
         checksum ^= *pTemp ++;
     }
     *pTemp++ = checksum;
-    memcpy (&(pFt1000Dev->tx_buf[sizeof(PSEUDO_HDR)]), packet, len);
+	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
 
     //usb_init_urb(pFt1000Dev->tx_urb); //mbelian
 
@@ -1685,7 +1685,7 @@ static int ft1000_copy_up_pkt (struct urb *urb)
 
 
 
-    memcpy(pbuffer, ft1000dev->rx_buf+sizeof(PSEUDO_HDR), len-sizeof(PSEUDO_HDR));
+	memcpy(pbuffer, ft1000dev->rx_buf+sizeof(struct pseudo_hdr), len-sizeof(struct pseudo_hdr));
 
     //DEBUG("ft1000_copy_up_pkt: Data passed to Protocol layer\n");
     /*for (i=0; i<len+12; i++)
@@ -1997,7 +1997,7 @@ static int ft1000_dsp_prov(void *arg)
     u16 len;
     u16 i=0;
 	struct prov_record *ptr;
-    PPSEUDO_HDR ppseudo_hdr;
+	struct pseudo_hdr *ppseudo_hdr;
     PUSHORT pmsg;
     u16 status;
     USHORT TempShortBuf [256];
@@ -2039,7 +2039,7 @@ static int ft1000_dsp_prov(void *arg)
             //len = htons(len);
 
             pmsg = (PUSHORT)ptr->pprov_data;
-            ppseudo_hdr = (PPSEUDO_HDR)pmsg;
+		ppseudo_hdr = (struct pseudo_hdr *)pmsg;
             // Insert slow queue sequence number
             ppseudo_hdr->seq_num = info->squeseqnum++;
             ppseudo_hdr->portsrc = 0;
@@ -2084,7 +2084,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 	struct dsp_init_msg *pdspinitmsg;
     PDRVMSG pdrvmsg;
     u16 i;
-    PPSEUDO_HDR ppseudo_hdr;
+	struct pseudo_hdr *ppseudo_hdr;
     PUSHORT pmsg;
     u16 status;
     //struct timeval tv; //mbelian
@@ -2255,7 +2255,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                 pmsg = (PUSHORT)info->DSPInfoBlk;
                 *pmsg++ = 0;
                 *pmsg++ = htons(info->DSPInfoBlklen+20+info->DSPInfoBlklen);
-                ppseudo_hdr = (PPSEUDO_HDR)(PUSHORT)&info->DSPInfoBlk[2];
+		ppseudo_hdr = (struct pseudo_hdr *)(PUSHORT)&info->DSPInfoBlk[2];
                 ppseudo_hdr->length = htons(info->DSPInfoBlklen+4+info->DSPInfoBlklen);
                 ppseudo_hdr->source = 0x10;
                 ppseudo_hdr->destination = 0x20;
@@ -2303,7 +2303,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                   // Put message into Slow Queue
                   // Form Pseudo header
                   pmsg = (PUSHORT)&tempbuffer[0];
-                  ppseudo_hdr = (PPSEUDO_HDR)pmsg;
+			ppseudo_hdr = (struct pseudo_hdr *)pmsg;
                   ppseudo_hdr->length = htons(0x0012);
                   ppseudo_hdr->source = 0x10;
                   ppseudo_hdr->destination = 0x20;
@@ -2377,7 +2377,7 @@ int ft1000_poll(void* dev_id) {
     USHORT portid;
     u16 nxtph;
     PDPRAM_BLK pdpram_blk;
-    PPSEUDO_HDR ppseudo_hdr;
+	struct pseudo_hdr *ppseudo_hdr;
     unsigned long flags;
 
     //DEBUG("Enter ft1000_poll...\n");
@@ -2431,7 +2431,7 @@ int ft1000_poll(void* dev_id) {
 			       pdpram_blk = ft1000_get_buffer (&freercvpool);
 			       if (pdpram_blk != NULL) {
 			           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE, &nxtph) ) {
-				       ppseudo_hdr = (PPSEUDO_HDR)pdpram_blk->pbuffer;
+					ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
 				       // Put message into the appropriate application block
 				       info->app_info[i].nRxMsg++;
 				       spin_lock_irqsave(&free_buff_lock, flags);
@@ -2461,7 +2461,7 @@ int ft1000_poll(void* dev_id) {
                         //DEBUG("Memory allocated = 0x%8x\n", (u32)pdpram_blk);
                         if (pdpram_blk != NULL) {
                            if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE, &nxtph) ) {
-                               ppseudo_hdr = (PPSEUDO_HDR)pdpram_blk->pbuffer;
+				ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
                                // Search for correct application block
                                for (i=0; i<MAX_NUM_APP; i++) {
                                    if (info->app_info[i].app_id == ppseudo_hdr->portdest) {

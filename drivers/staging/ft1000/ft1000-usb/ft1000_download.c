@@ -507,7 +507,7 @@ static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 //---------------------------------------------------------------------------
 // Function:    hdr_checksum
 //
-// Parameters:  PPSEUDO_HDR pHdr - Pseudo header pointer
+// Parameters:  struct pseudo_hdr *pHdr - Pseudo header pointer
 //
 // Returns:     checksum - success
 //
@@ -516,7 +516,7 @@ static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static USHORT hdr_checksum(PPSEUDO_HDR pHdr)
+static USHORT hdr_checksum(struct pseudo_hdr *pHdr)
 {
    USHORT   *usPtr = (USHORT *)pHdr;
    USHORT   chksum;
@@ -775,7 +775,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
    u16                     Status = STATUS_SUCCESS;
    UINT                    uiState;
    USHORT                  handshake;
-   PPSEUDO_HDR             pHdr;
+	struct pseudo_hdr *pHdr;
    USHORT                  usHdrLength;
    long                    word_length;
    USHORT                  request;
@@ -1167,7 +1167,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 
       case  STATE_SECTION_PROV:
          DEBUG("FT1000:download:STATE_SECTION_PROV\n");
-         pHdr = (PPSEUDO_HDR)pUcFile;
+		pHdr = (struct pseudo_hdr *)pUcFile;
 
          if (pHdr->checksum == hdr_checksum(pHdr))
          {
@@ -1179,16 +1179,16 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
             usHdrLength = ntohs(pHdr->length);    /* Byte length for PROV records */
 
             // Get buffer for provisioning data
-            pbuffer = kmalloc ( (usHdrLength + sizeof(PSEUDO_HDR) ), GFP_ATOMIC );
+		pbuffer = kmalloc((usHdrLength + sizeof(struct pseudo_hdr)), GFP_ATOMIC);
             if (pbuffer) {
-                memcpy(pbuffer, (void *)pUcFile, (UINT)(usHdrLength + sizeof(PSEUDO_HDR)));
+		memcpy(pbuffer, (void *)pUcFile, (UINT)(usHdrLength + sizeof(struct pseudo_hdr)));
                 // link provisioning data
 		pprov_record = kmalloc(sizeof(struct prov_record), GFP_ATOMIC);
                 if (pprov_record) {
                     pprov_record->pprov_data = pbuffer;
                     list_add_tail (&pprov_record->list, &pft1000info->prov_list);
                     // Move to next entry if available
-                    pUcFile = (UCHAR *)((unsigned long)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(PSEUDO_HDR));
+			pUcFile = (UCHAR *)((unsigned long)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));
                     if ( (unsigned long)(pUcFile) - (unsigned long)(pFileStart) >= (unsigned long)FileLength) {
                        uiState = STATE_DONE_FILE;
                     }
