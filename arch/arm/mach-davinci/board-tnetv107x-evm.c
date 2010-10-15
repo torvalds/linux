@@ -164,8 +164,6 @@ console_initcall(tnetv107x_evm_console_init);
 #endif
 
 MACHINE_START(TNETV107X, "TNETV107X EVM")
-	.phys_io	= TNETV107X_IO_BASE,
-	.io_pg_offst	= (TNETV107X_IO_VIRT >> 18) & 0xfffc,
 	.boot_params	= (TNETV107X_DDR_BASE + 0x100),
 	.map_io		= tnetv107x_init,
 	.init_irq	= cp_intc_init,

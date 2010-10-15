@@ -145,8 +145,6 @@ struct sys_timer mx1ads_timer = {
 
 MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	/* Maintainer: Sascha Hauer, Pengutronix */
-	.phys_io	= MX1_IO_BASE_ADDR,
-	.io_pg_offst	= (MX1_IO_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= MX1_PHYS_OFFSET + 0x100,
 	.map_io		= mx1_map_io,
 	.init_irq	= mx1_init_irq,
@@ -155,8 +153,6 @@ MACHINE_START(MX1ADS, "Freescale MX1ADS")
 MACHINE_END
 
 MACHINE_START(MXLADS, "Freescale MXLADS")
-	.phys_io	= MX1_IO_BASE_ADDR,
-	.io_pg_offst	= (MX1_IO_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= MX1_PHYS_OFFSET + 0x100,
 	.map_io		= mx1_map_io,
 	.init_irq	= mx1_init_irq,

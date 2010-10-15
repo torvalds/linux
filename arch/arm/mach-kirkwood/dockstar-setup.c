@@ -102,8 +102,6 @@ static void __init dockstar_init(void)
 }
 
 MACHINE_START(DOCKSTAR, "Seagate FreeAgent DockStar")
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= dockstar_init,
 	.map_io		= kirkwood_map_io,

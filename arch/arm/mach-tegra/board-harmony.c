@@ -115,8 +115,6 @@ static void __init tegra_harmony_init(void)
 
 MACHINE_START(HARMONY, "harmony")
 	.boot_params  = 0x00000100,
-	.phys_io        = IO_APB_PHYS,
-	.io_pg_offst    = ((IO_APB_VIRT) >> 18) & 0xfffc,
 	.fixup		= tegra_harmony_fixup,
 	.init_irq       = tegra_init_irq,
 	.init_machine   = tegra_harmony_init,

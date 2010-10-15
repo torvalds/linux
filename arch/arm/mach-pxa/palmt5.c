@@ -202,8 +202,6 @@ static void __init palmt5_init(void)
 }
 
 MACHINE_START(PALMT5, "Palm Tungsten|T5")
-	.phys_io	= PALMT5_PHYS_IO_START,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
 	.reserve	= palmt5_reserve,

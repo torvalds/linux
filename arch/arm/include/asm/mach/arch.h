@@ -16,14 +16,10 @@ struct sys_timer;
 
 struct machine_desc {
 	/*
-	 * Note! The first four elements are used
+	 * Note! The first two elements are used
 	 * by assembler code in head.S, head-common.S
 	 */
 	unsigned int		nr;		/* architecture number	*/
-	unsigned int		phys_io;	/* start of physical io	*/
-	unsigned int		io_pg_offst;	/* byte offset for io 
-						 * page tabe entry	*/
-
 	const char		*name;		/* architecture name	*/
 	unsigned long		boot_params;	/* tagged list		*/
 

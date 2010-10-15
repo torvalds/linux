@@ -31,8 +31,6 @@ static void __init u5500_init_machine(void)
 }
 
 MACHINE_START(U8500, "ST-Ericsson U5500 Platform")
-	.phys_io	= UX500_UART0_BASE,
-	.io_pg_offst	= (IO_ADDRESS(UX500_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= u5500_map_io,
 	.init_irq	= ux500_init_irq,

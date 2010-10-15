@@ -171,8 +171,6 @@ static void __init smdk6450_machine_init(void)
 
 MACHINE_START(SMDK6450, "SMDK6450")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
-	.phys_io	= S5P6450_PA_UART(0) & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P64X0_PA_SDRAM + 0x100,
 
 	.init_irq	= s5p6450_init_irq,

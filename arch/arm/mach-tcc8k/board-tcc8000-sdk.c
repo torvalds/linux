@@ -54,8 +54,6 @@ static void __init tcc8k_map_io(void)
 }
 
 MACHINE_START(TCC8000_SDK, "Telechips TCC8000-SDK Demo Board")
-	.phys_io	= 0x90000000,
-	.io_pg_offst	= ((0xf1000000) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= tcc8k_map_io,
 	.init_irq	= tcc8k_init_irq,

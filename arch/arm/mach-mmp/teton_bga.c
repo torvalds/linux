@@ -81,8 +81,6 @@ static void __init teton_bga_init(void)
 }
 
 MACHINE_START(TETON_BGA, "PXA168-based Teton BGA Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
 	.map_io		= mmp_map_io,
 	.nr_irqs	= IRQ_BOARD_START,
 	.init_irq       = pxa168_init_irq,

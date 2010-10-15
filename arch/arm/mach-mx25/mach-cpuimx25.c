@@ -156,8 +156,6 @@ static struct sys_timer eukrea_cpuimx25_timer = {
 
 MACHINE_START(EUKREA_CPUIMX25, "Eukrea CPUIMX25")
 	/* Maintainer: Eukrea Electromatique */
-	.phys_io	= MX25_AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((MX25_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX25_PHYS_OFFSET + 0x100,
 	.map_io         = mx25_map_io,
 	.init_irq       = mx25_init_irq,

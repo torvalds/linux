@@ -126,7 +126,6 @@ static void __init evb3_init(void)
 }
 
 MACHINE_START(TAVOREVB3, "PXA950 Evaluation Board (aka TavorEVB3)")
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
 	.map_io         = pxa_map_io,
 	.nr_irqs	= TAVOREVB3_NR_IRQS,
