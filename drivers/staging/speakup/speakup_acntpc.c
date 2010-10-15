@@ -35,9 +35,6 @@
 #include "speakup_acnt.h" /* local header file for Accent values */
 
 #define DRV_VERSION "2.10"
-#define synth_readable() (inb_p(synth_port_control) & SYNTH_READABLE)
-#define synth_writable() (inb_p(synth_port_control) & SYNTH_WRITABLE)
-#define synth_full() (inb_p(speakup_info.port_tts + UART_RX) == 'F')
 #define PROCSPEECH '\r'
 
 static int synth_probe(struct spk_synth *synth);
@@ -51,13 +48,13 @@ static int port_forced;
 static unsigned int synth_portlist[] = { 0x2a8, 0 };
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\033P8" }},
-	{ CAPS_STOP, .u.s = {"\033P5" }},
-	{ RATE, .u.n = {"\033R%c", 9, 0, 17, 0, 0, "0123456789abcdefgh" }},
-	{ PITCH, .u.n = {"\033P%d", 5, 0, 9, 0, 0, NULL }},
-	{ VOL, .u.n = {"\033A%d", 5, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\033V%d", 5, 0, 9, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\033P8" } },
+	{ CAPS_STOP, .u.s = {"\033P5" } },
+	{ RATE, .u.n = {"\033R%c", 9, 0, 17, 0, 0, "0123456789abcdefgh" } },
+	{ PITCH, .u.n = {"\033P%d", 5, 0, 9, 0, 0, NULL } },
+	{ VOL, .u.n = {"\033A%d", 5, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\033V%d", 5, 0, 9, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -141,6 +138,16 @@ static struct spk_synth synth_acntpc = {
 		.name = "acntpc",
 	},
 };
+
+static inline bool synth_writable(void)
+{
+	return inb_p(synth_port_control) & SYNTH_WRITABLE;
+}
+
+static inline bool synth_full(void)
+{
+	return inb_p(speakup_info.port_tts + UART_RX) == 'F';
+}
 
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
@@ -266,8 +273,9 @@ static int synth_probe(struct spk_synth *synth)
 		for (i = 0; synth_portlist[i]; i++) {
 			if (synth_request_region(synth_portlist[i],
 						SYNTH_IO_EXTENT)) {
-				pr_warn("request_region: failed with 0x%x, %d\n",
-					synth_portlist[i], SYNTH_IO_EXTENT);
+				pr_warn
+				    ("request_region: failed with 0x%x, %d\n",
+				     synth_portlist[i], SYNTH_IO_EXTENT);
 				continue;
 			}
 			port_val = inw(synth_portlist[i]) & 0xfffc;
