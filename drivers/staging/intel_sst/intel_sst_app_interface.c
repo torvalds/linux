@@ -1056,20 +1056,18 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 				retval = sst_capture_frame(str_id);
 			else {
 				retval = -EINVAL;
-				mutex_unlock(
-					&sst_drv_ctx->streams[str_id].lock);
+				mutex_unlock(&stream->lock);
 				break;
 			}
 			if (retval < 0) {
 				stream->status = STREAM_INIT;
-				mutex_unlock(
-					&sst_drv_ctx->streams[str_id].lock);
+				mutex_unlock(&stream->lock);
 				break;
 			}
 		} else {
 			retval = -EINVAL;
 		}
-		mutex_unlock(&sst_drv_ctx->streams[str_id].lock);
+		mutex_unlock(&stream->lock);
 		break;
 	}
 
