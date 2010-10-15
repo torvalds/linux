@@ -1688,20 +1688,13 @@ int cifs_flush(struct file *file, fl_owner_t id)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	int rc = 0;
 
-	/* Rather than do the steps manually:
-	   lock the inode for writing
-	   loop through pages looking for write behind data (dirty pages)
-	   coalesce into contiguous 16K (or smaller) chunks to write to server
-	   send to server (prefer in parallel)
-	   deal with writebehind errors
-	   unlock inode for writing
-	   filemapfdatawrite appears easier for the time being */
-
-	rc = filemap_fdatawrite(inode->i_mapping);
-	/* reset wb rc if we were able to write out dirty pages */
-	if (!rc) {
-		rc = CIFS_I(inode)->write_behind_rc;
-		CIFS_I(inode)->write_behind_rc = 0;
+	if (file->f_mode & FMODE_WRITE) {
+		rc = filemap_write_and_wait(inode->i_mapping);
+		/* reset wb rc if we were able to write out dirty pages */
+		if (!rc) {
+			rc = CIFS_I(inode)->write_behind_rc;
+			CIFS_I(inode)->write_behind_rc = 0;
+		}
 	}
 
 	cFYI(1, "Flush inode %p file %p rc %d", inode, file, rc);
