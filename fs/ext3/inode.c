@@ -2530,7 +2530,6 @@ void ext3_truncate(struct inode *inode)
 			 */
 		} else {
 			/* Shared branch grows from an indirect block */
-			BUFFER_TRACE(partial->bh, "get_write_access");
 			ext3_free_branches(handle, inode, partial->bh,
 					partial->p,
 					partial->p+1, (chain+n-1) - partial);
