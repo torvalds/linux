@@ -126,40 +126,43 @@ static u8 nvt_cir_wake_reg_read(struct nvt_dev *nvt, u8 offset)
 	return val;
 }
 
+#define pr_reg(text, ...) \
+	printk(KERN_INFO KBUILD_MODNAME ": " text, ## __VA_ARGS__)
+
 /* dump current cir register contents */
 static void cir_dump_regs(struct nvt_dev *nvt)
 {
 	nvt_efm_enable(nvt);
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
 
-	printk("%s: Dump CIR logical device registers:\n", NVT_DRIVER_NAME);
-	printk(" * CR CIR ACTIVE :   0x%x\n",
+	pr_reg("%s: Dump CIR logical device registers:\n", NVT_DRIVER_NAME);
+	pr_reg(" * CR CIR ACTIVE :   0x%x\n",
 	       nvt_cr_read(nvt, CR_LOGICAL_DEV_EN));
-	printk(" * CR CIR BASE ADDR: 0x%x\n",
+	pr_reg(" * CR CIR BASE ADDR: 0x%x\n",
 	       (nvt_cr_read(nvt, CR_CIR_BASE_ADDR_HI) << 8) |
 		nvt_cr_read(nvt, CR_CIR_BASE_ADDR_LO));
-	printk(" * CR CIR IRQ NUM:   0x%x\n",
+	pr_reg(" * CR CIR IRQ NUM:   0x%x\n",
 	       nvt_cr_read(nvt, CR_CIR_IRQ_RSRC));
 
 	nvt_efm_disable(nvt);
 
-	printk("%s: Dump CIR registers:\n", NVT_DRIVER_NAME);
-	printk(" * IRCON:     0x%x\n", nvt_cir_reg_read(nvt, CIR_IRCON));
-	printk(" * IRSTS:     0x%x\n", nvt_cir_reg_read(nvt, CIR_IRSTS));
-	printk(" * IREN:      0x%x\n", nvt_cir_reg_read(nvt, CIR_IREN));
-	printk(" * RXFCONT:   0x%x\n", nvt_cir_reg_read(nvt, CIR_RXFCONT));
-	printk(" * CP:        0x%x\n", nvt_cir_reg_read(nvt, CIR_CP));
-	printk(" * CC:        0x%x\n", nvt_cir_reg_read(nvt, CIR_CC));
-	printk(" * SLCH:      0x%x\n", nvt_cir_reg_read(nvt, CIR_SLCH));
-	printk(" * SLCL:      0x%x\n", nvt_cir_reg_read(nvt, CIR_SLCL));
-	printk(" * FIFOCON:   0x%x\n", nvt_cir_reg_read(nvt, CIR_FIFOCON));
-	printk(" * IRFIFOSTS: 0x%x\n", nvt_cir_reg_read(nvt, CIR_IRFIFOSTS));
-	printk(" * SRXFIFO:   0x%x\n", nvt_cir_reg_read(nvt, CIR_SRXFIFO));
-	printk(" * TXFCONT:   0x%x\n", nvt_cir_reg_read(nvt, CIR_TXFCONT));
-	printk(" * STXFIFO:   0x%x\n", nvt_cir_reg_read(nvt, CIR_STXFIFO));
-	printk(" * FCCH:      0x%x\n", nvt_cir_reg_read(nvt, CIR_FCCH));
-	printk(" * FCCL:      0x%x\n", nvt_cir_reg_read(nvt, CIR_FCCL));
-	printk(" * IRFSM:     0x%x\n", nvt_cir_reg_read(nvt, CIR_IRFSM));
+	pr_reg("%s: Dump CIR registers:\n", NVT_DRIVER_NAME);
+	pr_reg(" * IRCON:     0x%x\n", nvt_cir_reg_read(nvt, CIR_IRCON));
+	pr_reg(" * IRSTS:     0x%x\n", nvt_cir_reg_read(nvt, CIR_IRSTS));
+	pr_reg(" * IREN:      0x%x\n", nvt_cir_reg_read(nvt, CIR_IREN));
+	pr_reg(" * RXFCONT:   0x%x\n", nvt_cir_reg_read(nvt, CIR_RXFCONT));
+	pr_reg(" * CP:        0x%x\n", nvt_cir_reg_read(nvt, CIR_CP));
+	pr_reg(" * CC:        0x%x\n", nvt_cir_reg_read(nvt, CIR_CC));
+	pr_reg(" * SLCH:      0x%x\n", nvt_cir_reg_read(nvt, CIR_SLCH));
+	pr_reg(" * SLCL:      0x%x\n", nvt_cir_reg_read(nvt, CIR_SLCL));
+	pr_reg(" * FIFOCON:   0x%x\n", nvt_cir_reg_read(nvt, CIR_FIFOCON));
+	pr_reg(" * IRFIFOSTS: 0x%x\n", nvt_cir_reg_read(nvt, CIR_IRFIFOSTS));
+	pr_reg(" * SRXFIFO:   0x%x\n", nvt_cir_reg_read(nvt, CIR_SRXFIFO));
+	pr_reg(" * TXFCONT:   0x%x\n", nvt_cir_reg_read(nvt, CIR_TXFCONT));
+	pr_reg(" * STXFIFO:   0x%x\n", nvt_cir_reg_read(nvt, CIR_STXFIFO));
+	pr_reg(" * FCCH:      0x%x\n", nvt_cir_reg_read(nvt, CIR_FCCH));
+	pr_reg(" * FCCL:      0x%x\n", nvt_cir_reg_read(nvt, CIR_FCCL));
+	pr_reg(" * IRFSM:     0x%x\n", nvt_cir_reg_read(nvt, CIR_IRFSM));
 }
 
 /* dump current cir wake register contents */
@@ -170,59 +173,59 @@ static void cir_wake_dump_regs(struct nvt_dev *nvt)
 	nvt_efm_enable(nvt);
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
 
-	printk("%s: Dump CIR WAKE logical device registers:\n",
+	pr_reg("%s: Dump CIR WAKE logical device registers:\n",
 	       NVT_DRIVER_NAME);
-	printk(" * CR CIR WAKE ACTIVE :   0x%x\n",
+	pr_reg(" * CR CIR WAKE ACTIVE :   0x%x\n",
 	       nvt_cr_read(nvt, CR_LOGICAL_DEV_EN));
-	printk(" * CR CIR WAKE BASE ADDR: 0x%x\n",
+	pr_reg(" * CR CIR WAKE BASE ADDR: 0x%x\n",
 	       (nvt_cr_read(nvt, CR_CIR_BASE_ADDR_HI) << 8) |
-	        nvt_cr_read(nvt, CR_CIR_BASE_ADDR_LO));
-	printk(" * CR CIR WAKE IRQ NUM:   0x%x\n",
+		nvt_cr_read(nvt, CR_CIR_BASE_ADDR_LO));
+	pr_reg(" * CR CIR WAKE IRQ NUM:   0x%x\n",
 	       nvt_cr_read(nvt, CR_CIR_IRQ_RSRC));
 
 	nvt_efm_disable(nvt);
 
-	printk("%s: Dump CIR WAKE registers\n", NVT_DRIVER_NAME);
-	printk(" * IRCON:          0x%x\n",
+	pr_reg("%s: Dump CIR WAKE registers\n", NVT_DRIVER_NAME);
+	pr_reg(" * IRCON:          0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRCON));
-	printk(" * IRSTS:          0x%x\n",
+	pr_reg(" * IRSTS:          0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRSTS));
-	printk(" * IREN:           0x%x\n",
+	pr_reg(" * IREN:           0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_IREN));
-	printk(" * FIFO CMP DEEP:  0x%x\n",
+	pr_reg(" * FIFO CMP DEEP:  0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_CMP_DEEP));
-	printk(" * FIFO CMP TOL:   0x%x\n",
+	pr_reg(" * FIFO CMP TOL:   0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_CMP_TOL));
-	printk(" * FIFO COUNT:     0x%x\n",
+	pr_reg(" * FIFO COUNT:     0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_COUNT));
-	printk(" * SLCH:           0x%x\n",
+	pr_reg(" * SLCH:           0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_SLCH));
-	printk(" * SLCL:           0x%x\n",
+	pr_reg(" * SLCL:           0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_SLCL));
-	printk(" * FIFOCON:        0x%x\n",
+	pr_reg(" * FIFOCON:        0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFOCON));
-	printk(" * SRXFSTS:        0x%x\n",
+	pr_reg(" * SRXFSTS:        0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_SRXFSTS));
-	printk(" * SAMPLE RX FIFO: 0x%x\n",
+	pr_reg(" * SAMPLE RX FIFO: 0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_SAMPLE_RX_FIFO));
-	printk(" * WR FIFO DATA:   0x%x\n",
+	pr_reg(" * WR FIFO DATA:   0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_WR_FIFO_DATA));
-	printk(" * RD FIFO ONLY:   0x%x\n",
+	pr_reg(" * RD FIFO ONLY:   0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY));
-	printk(" * RD FIFO ONLY IDX: 0x%x\n",
+	pr_reg(" * RD FIFO ONLY IDX: 0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY_IDX));
-	printk(" * FIFO IGNORE:    0x%x\n",
+	pr_reg(" * FIFO IGNORE:    0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_IGNORE));
-	printk(" * IRFSM:          0x%x\n",
+	pr_reg(" * IRFSM:          0x%x\n",
 	       nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRFSM));
 
 	fifo_len = nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_COUNT);
-	printk("%s: Dump CIR WAKE FIFO (len %d)\n", NVT_DRIVER_NAME, fifo_len);
-	printk("* Contents = ");
+	pr_reg("%s: Dump CIR WAKE FIFO (len %d)\n", NVT_DRIVER_NAME, fifo_len);
+	pr_reg("* Contents = ");
 	for (i = 0; i < fifo_len; i++)
-		printk("%02x ",
+		printk(KERN_CONT "%02x ",
 		       nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY));
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 /* detect hardware features */
@@ -362,8 +365,10 @@ static void nvt_cir_regs_init(struct nvt_dev *nvt)
 	 * Enable TX and RX, specify carrier on = low, off = high, and set
 	 * sample period (currently 50us)
 	 */
-	nvt_cir_reg_write(nvt, CIR_IRCON_TXEN | CIR_IRCON_RXEN | CIR_IRCON_RXINV |
-			  CIR_IRCON_SAMPLE_PERIOD_SEL, CIR_IRCON);
+	nvt_cir_reg_write(nvt,
+			  CIR_IRCON_TXEN | CIR_IRCON_RXEN |
+			  CIR_IRCON_RXINV | CIR_IRCON_SAMPLE_PERIOD_SEL,
+			  CIR_IRCON);
 
 	/* clear hardware rx and tx fifos */
 	nvt_clear_cir_fifo(nvt);
@@ -425,7 +430,8 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 
 	nvt_cir_wake_reg_write(nvt, CIR_WAKE_IRCON_MODE0 | CIR_WAKE_IRCON_RXEN |
 			       CIR_WAKE_IRCON_R | CIR_WAKE_IRCON_RXINV |
-			       CIR_WAKE_IRCON_SAMPLE_PERIOD_SEL, CIR_WAKE_IRCON);
+			       CIR_WAKE_IRCON_SAMPLE_PERIOD_SEL,
+			       CIR_WAKE_IRCON);
 	nvt_cir_wake_reg_write(nvt, 0xff, CIR_WAKE_IRSTS);
 	nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IREN);
 }
@@ -560,10 +566,10 @@ static void nvt_dump_rx_buf(struct nvt_dev *nvt)
 {
 	int i;
 
-	printk("%s (len %d): ", __func__, nvt->pkts);
+	printk(KERN_DEBUG "%s (len %d): ", __func__, nvt->pkts);
 	for (i = 0; (i < nvt->pkts) && (i < RX_BUF_LEN); i++)
-		printk("0x%02x ", nvt->buf[i]);
-	printk("\n");
+		printk(KERN_CONT "0x%02x ", nvt->buf[i]);
+	printk(KERN_CONT "\n");
 }
 
 /*
