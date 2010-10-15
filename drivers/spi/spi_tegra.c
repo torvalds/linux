@@ -473,11 +473,6 @@ static int spi_tegra_transfer(struct spi_device *spi, struct spi_message *m)
 	return 0;
 }
 
-static void spi_tegra_cleanup(struct spi_device *spi)
-{
-	dev_dbg(&spi->dev, "cleanup\n");
-}
-
 static int __init spi_tegra_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
@@ -494,12 +489,10 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
-	if (pdev->id != -1)
-		master->bus_num = pdev->id;
+	master->bus_num = pdev->id;
 
 	master->setup = spi_tegra_setup;
 	master->transfer = spi_tegra_transfer;
-	master->cleanup = spi_tegra_cleanup;
 	master->num_chipselect = 4;
 
 	dev_set_drvdata(&pdev->dev, master);

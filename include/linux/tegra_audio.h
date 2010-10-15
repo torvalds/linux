@@ -63,20 +63,13 @@ struct tegra_audio_error_counts {
 #define TEGRA_AUDIO_OUT_GET_ERROR_COUNT	_IOR(TEGRA_AUDIO_MAGIC, 9, \
 			struct tegra_audio_error_counts *)
 
-struct tegra_audio_out_preload {
-	void *data;
-	size_t len;
-	size_t len_written;
-};
-
-#define TEGRA_AUDIO_OUT_PRELOAD_FIFO	_IOWR(TEGRA_AUDIO_MAGIC, 10, \
-			struct tegra_audio_out_preload *)
+#define TEGRA_AUDIO_OUT_FLUSH		_IO(TEGRA_AUDIO_MAGIC, 10)
 
 #define TEGRA_AUDIO_BIT_FORMAT_DEFAULT 0
 #define TEGRA_AUDIO_BIT_FORMAT_DSP 1
-#define TEGRA_AUDIO_SET_BIT_FORMAT       _IOW(TEGRA_AUDIO_MAGIC, 11, \
+#define TEGRA_AUDIO_SET_BIT_FORMAT	_IOW(TEGRA_AUDIO_MAGIC, 11, \
 			unsigned int *)
-#define TEGRA_AUDIO_GET_BIT_FORMAT       _IOR(TEGRA_AUDIO_MAGIC, 12, \
+#define TEGRA_AUDIO_GET_BIT_FORMAT	_IOR(TEGRA_AUDIO_MAGIC, 12, \
 			unsigned int *)
 
 #endif/*_CPCAP_AUDIO_H*/
