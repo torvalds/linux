@@ -28,22 +28,21 @@
 #include "speakup_dtlk.h" /* local header file for LiteTalk values */
 
 #define DRV_VERSION "2.11"
-#define synth_full( ) ( !( inb( synth_port_tts + UART_MSR ) & UART_MSR_CTS ) )
 #define PROCSPEECH 0x0d
 
 static int synth_probe(struct spk_synth *synth);
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x01+35p" }},
-	{ CAPS_STOP, .u.s = {"\x01-35p" }},
-	{ RATE, .u.n = {"\x01%ds", 8, 0, 9, 0, 0, NULL }},
-	{ PITCH, .u.n = {"\x01%dp", 50, 0, 99, 0, 0, NULL }},
-	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL }},
-	{ PUNCT, .u.n = {"\x01%db", 7, 0, 15, 0, 0, NULL }},
-	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL }},
-	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\x01+35p" } },
+	{ CAPS_STOP, .u.s = {"\x01-35p" } },
+	{ RATE, .u.n = {"\x01%ds", 8, 0, 9, 0, 0, NULL } },
+	{ PITCH, .u.n = {"\x01%dp", 50, 0, 99, 0, 0, NULL } },
+	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
+	{ PUNCT, .u.n = {"\x01%db", 7, 0, 15, 0, 0, NULL } },
+	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
+	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
