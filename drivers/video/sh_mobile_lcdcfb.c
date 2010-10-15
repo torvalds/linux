@@ -919,7 +919,7 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	    var->right_margin < 12 || var->right_margin > 240 ||
 	    var->upper_margin < 12 || var->upper_margin > 120 ||
 	    var->lower_margin < 1 || var->lower_margin > 64 ||
-	    var->hsync_len < 32 || var->hsync_len > 120 ||
+	    var->hsync_len < 32 || var->hsync_len > 240 ||
 	    var->vsync_len < 2 || var->vsync_len > 64 ||
 	    var->pixclock < 6000 || var->pixclock > 40000 ||
 	    var->xres * var->yres * (ch->cfg.bpp / 8) * 2 > info->fix.smem_len) {
