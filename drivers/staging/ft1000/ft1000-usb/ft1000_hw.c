@@ -2081,7 +2081,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
     u16 msgtype;
     u16 tempword;
 	struct media_msg *pmediamsg;
-    PDSPINITMSG pdspinitmsg;
+	struct dsp_init_msg *pdspinitmsg;
     PDRVMSG pdrvmsg;
     u16 i;
     PPSEUDO_HDR ppseudo_hdr;
@@ -2171,7 +2171,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
             case DSP_INIT_MSG: {
                 DEBUG("ft1000_proc_drvmsg:Command message type = DSP_INIT_MSG");
 
-                pdspinitmsg = (PDSPINITMSG)&cmdbuffer[2];
+		pdspinitmsg = (struct dsp_init_msg *)&cmdbuffer[2];
                 memcpy(info->DspVer, pdspinitmsg->DspVer, DSPVERSZ);
                 DEBUG("DSPVER = 0x%2x 0x%2x 0x%2x 0x%2x\n", info->DspVer[0], info->DspVer[1], info->DspVer[2], info->DspVer[3]);
                 memcpy(info->HwSerNum, pdspinitmsg->HwSerNum, HWSERNUMSZ);
@@ -2185,7 +2185,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                 dev->net->dev_addr[4] = info->eui64[6];
                 dev->net->dev_addr[5] = info->eui64[7];
 
-                if (ntohs(pdspinitmsg->length) == (sizeof(DSPINITMSG) - 20) ) {
+		if (ntohs(pdspinitmsg->length) == (sizeof(struct dsp_init_msg) - 20)) {
                     memcpy(info->ProductMode, pdspinitmsg->ProductMode, MODESZ);
                     memcpy(info->RfCalVer, pdspinitmsg->RfCalVer, CALVERSZ);
                     memcpy(info->RfCalDate, pdspinitmsg->RfCalDate, CALDATESZ);

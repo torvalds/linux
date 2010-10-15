@@ -63,18 +63,18 @@ struct media_msg {
 	u32 dns_2;
 } __attribute__ ((packed));
 
-typedef struct _DSPINITMSG {
-    PSEUDO_HDR pseudo;
-    u16 type;
-    u16 length;
-    u8 DspVer[DSPVERSZ];        // DSP version number
-    u8 HwSerNum[HWSERNUMSZ];    // Hardware Serial Number
-    u8 Sku[SKUSZ];              // SKU
-    u8 eui64[EUISZ];            // EUI64
-    u8 ProductMode[MODESZ];     // Product Mode (Market/Production)
-    u8 RfCalVer[CALVERSZ];      // Rf Calibration version
-    u8 RfCalDate[CALDATESZ];    // Rf Calibration date
-} __attribute__ ((packed)) DSPINITMSG, *PDSPINITMSG;
+struct dsp_init_msg {
+	PSEUDO_HDR pseudo;
+	u16 type;
+	u16 length;
+	u8 DspVer[DSPVERSZ];        // DSP version number
+	u8 HwSerNum[HWSERNUMSZ];    // Hardware Serial Number
+	u8 Sku[SKUSZ];              // SKU
+	u8 eui64[EUISZ];            // EUI64
+	u8 ProductMode[MODESZ];     // Product Mode (Market/Production)
+	u8 RfCalVer[CALVERSZ];      // Rf Calibration version
+	u8 RfCalDate[CALDATESZ];    // Rf Calibration date
+} __attribute__ ((packed));
 
 
 typedef struct _APP_INFO_BLOCK
