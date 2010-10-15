@@ -71,7 +71,7 @@ qla2x00_ctx_sp_free(srb_t *sp)
 	struct srb_iocb *iocb = ctx->u.iocb_cmd;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 
-	del_timer_sync(&iocb->timer);
+	del_timer(&iocb->timer);
 	kfree(iocb);
 	kfree(ctx);
 	mempool_free(sp, sp->fcport->vha->hw->srb_mempool);
