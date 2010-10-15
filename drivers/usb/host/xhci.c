@@ -551,6 +551,7 @@ void xhci_shutdown(struct usb_hcd *hcd)
 		    xhci_readl(xhci, &xhci->op_regs->status));
 }
 
+#ifdef CONFIG_PM
 static void xhci_save_registers(struct xhci_hcd *xhci)
 {
 	xhci->s3.command = xhci_readl(xhci, &xhci->op_regs->command);
@@ -760,6 +761,13 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	spin_unlock_irq(&xhci->lock);
 	return 0;
 }
+
+#else
+
+#define	xhci_suspend	NULL
+#define	xhci_resume	NULL
+
+#endif	/* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/
 
