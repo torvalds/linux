@@ -1384,6 +1384,7 @@ static void o2hb_region_release(struct config_item *item)
 	kfree(reg->hr_db_livenodes);
 	debugfs_remove(reg->hr_debug_livenodes);
 	debugfs_remove(reg->hr_debug_regnum);
+	debugfs_remove(reg->hr_debug_elapsed_time);
 	debugfs_remove(reg->hr_debug_dir);
 
 	spin_lock(&o2hb_live_lock);
