@@ -1307,6 +1307,125 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 }
 
 static int
+qla2x00_optrom_setup(struct fc_bsg_job *bsg_job, struct qla_hw_data *ha,
+	uint8_t is_update)
+{
+	uint32_t start = 0;
+	int valid = 0;
+
+	bsg_job->reply->reply_payload_rcv_len = 0;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return -EINVAL;
+
+	start = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
+	if (start > ha->optrom_size)
+		return -EINVAL;
+
+	if (ha->optrom_state != QLA_SWAITING)
+		return -EBUSY;
+
+	ha->optrom_region_start = start;
+
+	if (is_update) {
+		if (ha->optrom_size == OPTROM_SIZE_2300 && start == 0)
+			valid = 1;
+		else if (start == (ha->flt_region_boot * 4) ||
+		    start == (ha->flt_region_fw * 4))
+			valid = 1;
+		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha) ||
+		    IS_QLA8XXX_TYPE(ha))
+			valid = 1;
+		if (!valid) {
+			qla_printk(KERN_WARNING, ha,
+			    "Invalid start region 0x%x/0x%x.\n",
+			    start, bsg_job->request_payload.payload_len);
+			return -EINVAL;
+		}
+
+		ha->optrom_region_size = start +
+		    bsg_job->request_payload.payload_len > ha->optrom_size ?
+		    ha->optrom_size - start :
+		    bsg_job->request_payload.payload_len;
+		ha->optrom_state = QLA_SWRITING;
+	} else {
+		ha->optrom_region_size = start +
+		    bsg_job->reply_payload.payload_len > ha->optrom_size ?
+		    ha->optrom_size - start :
+		    bsg_job->reply_payload.payload_len;
+		ha->optrom_state = QLA_SREADING;
+	}
+
+	ha->optrom_buffer = vmalloc(ha->optrom_region_size);
+	if (!ha->optrom_buffer) {
+		qla_printk(KERN_WARNING, ha,
+		    "Read: Unable to allocate memory for optrom retrieval "
+		    "(%x).\n", ha->optrom_region_size);
+
+		ha->optrom_state = QLA_SWAITING;
+		return -ENOMEM;
+	}
+
+	memset(ha->optrom_buffer, 0, ha->optrom_region_size);
+	return 0;
+}
+
+static int
+qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int rval = 0;
+
+	rval = qla2x00_optrom_setup(bsg_job, ha, 0);
+	if (rval)
+		return rval;
+
+	ha->isp_ops->read_optrom(vha, ha->optrom_buffer,
+	    ha->optrom_region_start, ha->optrom_region_size);
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, ha->optrom_buffer,
+	    ha->optrom_region_size);
+
+	bsg_job->reply->reply_payload_rcv_len = ha->optrom_region_size;
+	bsg_job->reply->result = DID_OK;
+	vfree(ha->optrom_buffer);
+	ha->optrom_buffer = NULL;
+	ha->optrom_state = QLA_SWAITING;
+	bsg_job->job_done(bsg_job);
+	return rval;
+}
+
+static int
+qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int rval = 0;
+
+	rval = qla2x00_optrom_setup(bsg_job, ha, 1);
+	if (rval)
+		return rval;
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, ha->optrom_buffer,
+	    ha->optrom_region_size);
+
+	ha->isp_ops->write_optrom(vha, ha->optrom_buffer,
+	    ha->optrom_region_start, ha->optrom_region_size);
+
+	bsg_job->reply->result = DID_OK;
+	vfree(ha->optrom_buffer);
+	ha->optrom_buffer = NULL;
+	ha->optrom_state = QLA_SWAITING;
+	bsg_job->job_done(bsg_job);
+	return rval;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -1327,6 +1446,12 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_FCP_PRIO_CFG_CMD:
 		return qla24xx_proc_fcp_prio_cfg_cmd(bsg_job);
+
+	case QL_VND_READ_FLASH:
+		return qla2x00_read_optrom(bsg_job);
+
+	case QL_VND_UPDATE_FLASH:
+		return qla2x00_update_optrom(bsg_job);
 
 	default:
 		bsg_job->reply->result = (DID_ERROR << 16);
