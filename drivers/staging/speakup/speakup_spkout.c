@@ -33,14 +33,14 @@
 static void synth_flush(struct spk_synth *synth);
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x05P+" }},
-	{ CAPS_STOP, .u.s = {"\x05P-" }},
-	{ RATE, .u.n = {"\x05R%d", 7, 0, 9, 0, 0, NULL }},
-	{ PITCH, .u.n = {"\x05P%d", 3, 0, 9, 0, 0, NULL }},
-	{ VOL, .u.n = {"\x05V%d", 9, 0, 9, 0, 0, NULL }},
-	{ TONE, .u.n = {"\x05T%c", 8, 0, 25, 65, 0, NULL }},
-	{ PUNCT, .u.n = {"\x05M%c", 0, 0, 3, 0, 0, "nsma" }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"\x05P+" } },
+	{ CAPS_STOP, .u.s = {"\x05P-" } },
+	{ RATE, .u.n = {"\x05R%d", 7, 0, 9, 0, 0, NULL } },
+	{ PITCH, .u.n = {"\x05P%d", 3, 0, 9, 0, 0, NULL } },
+	{ VOL, .u.n = {"\x05V%d", 9, 0, 9, 0, 0, NULL } },
+	{ TONE, .u.n = {"\x05T%c", 8, 0, 25, 65, 0, NULL } },
+	{ PUNCT, .u.n = {"\x05M%c", 0, 0, 3, 0, 0, "nsma" } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
