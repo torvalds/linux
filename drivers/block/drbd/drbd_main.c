@@ -3763,6 +3763,9 @@ static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused
 	 * the protected members anymore, though, so in the after_state_ch work
 	 * it will be safe to free them. */
 	drbd_force_state(mdev, NS(disk, D_DISKLESS));
+	/* We need to wait for return of references checked out while we still
+	 * have been D_FAILED, though (drbd_md_sync, bitmap io). */
+	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 
 	clear_bit(GO_DISKLESS, &mdev->flags);
 	return 1;
