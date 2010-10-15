@@ -192,13 +192,13 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			"Found HC with no IRQ.  Check BIOS/PCI %s setup!\n",
 			pci_name(dev));
 		retval = -ENODEV;
-		goto err1;
+		goto disable_pci;
 	}
 
 	hcd = usb_create_hcd(driver, &dev->dev, pci_name(dev));
 	if (!hcd) {
 		retval = -ENOMEM;
-		goto err1;
+		goto disable_pci;
 	}
 
 	if (driver->flags & HCD_MEMORY) {
@@ -209,13 +209,13 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 				driver->description)) {
 			dev_dbg(&dev->dev, "controller already in use\n");
 			retval = -EBUSY;
-			goto err2;
+			goto clear_companion;
 		}
 		hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
 		if (hcd->regs == NULL) {
 			dev_dbg(&dev->dev, "error mapping memory\n");
 			retval = -EFAULT;
-			goto err3;
+			goto release_mem_region;
 		}
 
 	} else {
@@ -236,7 +236,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		if (region == PCI_ROM_RESOURCE) {
 			dev_dbg(&dev->dev, "no i/o regions available\n");
 			retval = -EBUSY;
-			goto err2;
+			goto clear_companion;
 		}
 	}
 
@@ -244,24 +244,24 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	retval = usb_add_hcd(hcd, dev->irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
-		goto err4;
+		goto unmap_registers;
 	set_hs_companion(dev, hcd);
 
 	if (pci_dev_run_wake(dev))
 		pm_runtime_put_noidle(&dev->dev);
 	return retval;
 
- err4:
+unmap_registers:
 	if (driver->flags & HCD_MEMORY) {
 		iounmap(hcd->regs);
- err3:
+release_mem_region:
 		release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	} else
 		release_region(hcd->rsrc_start, hcd->rsrc_len);
- err2:
+clear_companion:
 	clear_hs_companion(dev, hcd);
 	usb_put_hcd(hcd);
- err1:
+disable_pci:
 	pci_disable_device(dev);
 	dev_err(&dev->dev, "init %s fail, %d\n", pci_name(dev), retval);
 	return retval;
