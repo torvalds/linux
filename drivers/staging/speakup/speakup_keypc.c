@@ -33,9 +33,6 @@
 #define DRV_VERSION "2.10"
 #define SYNTH_IO_EXTENT	0x04
 #define SWAIT udelay(70)
-#define synth_writable() (inb_p(synth_port + UART_RX) & 0x10)
-#define synth_readable() (inb_p(synth_port + UART_RX) & 0x10)
-#define synth_full() ((inb_p(synth_port + UART_RX) & 0x80) == 0)
 #define PROCSPEECH 0x1f
 #define SYNTH_CLEAR 0x03
 
@@ -50,11 +47,11 @@ static int port_forced;
 static unsigned int synth_portlist[] = { 0x2a8, 0 };
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"[f130]" }},
-	{ CAPS_STOP, .u.s = {"[f90]" }},
-	{ RATE, .u.n = {"\04%c ", 8, 0, 10, 81, -8, NULL }},
-	{ PITCH, .u.n = {"[f%d]", 5, 0, 9, 40, 10, NULL }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"[f130]" } },
+	{ CAPS_STOP, .u.s = {"[f90]" } },
+	{ RATE, .u.n = {"\04%c ", 8, 0, 10, 81, -8, NULL } },
+	{ PITCH, .u.n = {"[f%d]", 5, 0, 9, 40, 10, NULL } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -132,6 +129,16 @@ static struct spk_synth synth_keypc = {
 		.name = "keypc",
 	},
 };
+
+static inline bool synth_writable(void)
+{
+	return (inb_p(synth_port + UART_RX) & 0x10) != 0;
+}
+
+static inline bool synth_full(void)
+{
+	return (inb_p(synth_port + UART_RX) & 0x80) == 0;
+}
 
 static char *oops(void)
 {
@@ -271,8 +278,9 @@ static int synth_probe(struct spk_synth *synth)
 		for (i = 0; synth_portlist[i]; i++) {
 			if (synth_request_region(synth_portlist[i],
 						SYNTH_IO_EXTENT)) {
-				pr_warn("request_region: failed with 0x%x, %d\n",
-					synth_portlist[i], SYNTH_IO_EXTENT);
+				pr_warn
+				    ("request_region: failed with 0x%x, %d\n",
+				     synth_portlist[i], SYNTH_IO_EXTENT);
 				continue;
 			}
 			port_val = inb(synth_portlist[i]);
