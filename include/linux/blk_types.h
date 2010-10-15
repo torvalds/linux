@@ -97,6 +97,7 @@ struct bio {
 #define BIO_NULL_MAPPED 9	/* contains invalid user pages */
 #define BIO_FS_INTEGRITY 10	/* fs owns integrity data, not block layer */
 #define BIO_QUIET	11	/* Make BIO Quiet */
+#define BIO_MAPPED_INTEGRITY 12/* integrity metadata has been remapped */
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
 /*
@@ -148,7 +149,6 @@ enum rq_flag_bits {
 	__REQ_ORDERED_COLOR,	/* is before or after barrier */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_COPY_USER,	/* contains copies of user pages */
-	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
 	__REQ_FLUSH,		/* request for cache flush */
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
@@ -190,7 +190,6 @@ enum rq_flag_bits {
 #define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
 #define REQ_ALLOCED		(1 << __REQ_ALLOCED)
 #define REQ_COPY_USER		(1 << __REQ_COPY_USER)
-#define REQ_INTEGRITY		(1 << __REQ_INTEGRITY)
 #define REQ_FLUSH		(1 << __REQ_FLUSH)
 #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
