@@ -166,6 +166,7 @@ MACHINE_START(MV88F6281GTW_GE, "Marvell 88F6281 GTW GE Board")
 	.boot_params	= 0x00000100,
 	.init_machine	= mv88f6281gtw_ge_init,
 	.map_io		= kirkwood_map_io,
+	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
 MACHINE_END

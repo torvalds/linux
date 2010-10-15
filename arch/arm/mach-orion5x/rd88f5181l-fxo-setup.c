@@ -172,6 +172,7 @@ MACHINE_START(RD88F5181L_FXO, "Marvell Orion-VoIP FXO Reference Design")
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f5181l_fxo_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

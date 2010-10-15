@@ -27,6 +27,7 @@ struct kirkwood_asoc_platform_data;
  */
 void kirkwood_map_io(void);
 void kirkwood_init(void);
+void kirkwood_init_early(void);
 void kirkwood_init_irq(void);
 
 extern struct mbus_dram_target_info kirkwood_mbus_dram_info;

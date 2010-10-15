@@ -268,6 +268,7 @@ MACHINE_START(LINKSTATION_LS_HGL, "Buffalo Linkstation LS-HGL")
 	.boot_params	= 0x00000100,
 	.init_machine	= ls_hgl_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

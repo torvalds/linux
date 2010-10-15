@@ -613,6 +613,7 @@ MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
 	.boot_params	= 0x00000100,
 	.init_machine	= ts78xx_init,
 	.map_io		= ts78xx_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 MACHINE_END

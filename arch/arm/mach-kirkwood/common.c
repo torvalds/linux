@@ -847,6 +847,11 @@ static void __init kirkwood_wdt_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+void __init kirkwood_init_early(void)
+{
+	orion_time_set_base(TIMER_VIRT_BASE);
+}
+
 int kirkwood_tclk;
 
 static int __init kirkwood_find_tclk(void)
@@ -865,7 +870,9 @@ static int __init kirkwood_find_tclk(void)
 static void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
-	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
+
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+			IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
 
 struct sys_timer kirkwood_timer = {
