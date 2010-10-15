@@ -72,6 +72,12 @@
 
 #define AK4642_CACHEREGNUM 	0x25
 
+/* PW_MGMT1*/
+#define PMVCM		(1 << 6) /* VCOM Power Management */
+#define PMMIN		(1 << 5) /* MIN Input Power Management */
+#define PMDAC		(1 << 2) /* DAC Power Management */
+#define PMADL		(1 << 0) /* MIC Amp Lch and ADC Lch Power Management */
+
 /* PW_MGMT2 */
 #define HPMTN		(1 << 6)
 #define PMHPL		(1 << 5)
@@ -82,6 +88,23 @@
 
 #define PMHP_MASK	(PMHPL | PMHPR)
 #define PMHP		PMHP_MASK
+
+/* PW_MGMT3 */
+#define PMADR		(1 << 0) /* MIC L / ADC R Power Management */
+
+/* SG_SL1 */
+#define MINS		(1 << 6) /* Switch from MIN to Speaker */
+#define DACL		(1 << 4) /* Switch from DAC to Stereo or Receiver */
+#define PMMP		(1 << 2) /* MPWR pin Power Management */
+#define MGAIN0		(1 << 0) /* MIC amp gain*/
+
+/* TIMER */
+#define ZTM(param)	((param & 0x3) << 4) /* ALC Zoro Crossing TimeOut */
+#define WTM(param)	(((param & 0x4) << 4) | ((param & 0x3) << 2))
+
+/* ALC_CTL1 */
+#define ALC		(1 << 5) /* ALC Enable */
+#define LMTH0		(1 << 0) /* ALC Limiter / Recovery Level */
 
 /* MD_CTL1 */
 #define PLL3		(1 << 7)
@@ -100,6 +123,11 @@
 #define FS3		(1 << 5)
 #define FS_MASK		(FS0 | FS1 | FS2 | FS3)
 
+/* MD_CTL3 */
+#define BST1		(1 << 3)
+
+/* MD_CTL4 */
+#define DACH		(1 << 0)
 
 /*
  * Playback Volume (table 39)
@@ -216,11 +244,12 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p97.
 		 */
-		ak4642_write(codec, 0x0f, 0x09);
-		ak4642_write(codec, 0x0e, 0x19);
-		ak4642_write(codec, 0x09, 0x91);
-		ak4642_write(codec, 0x0c, 0x91);
-		snd_soc_update_bits(codec, 0x00, 0x64, 0x64);
+		snd_soc_update_bits(codec, MD_CTL4, DACH, DACH);
+		snd_soc_update_bits(codec, MD_CTL3, BST1, BST1);
+		ak4642_write(codec, L_IVC, 0x91); /* volume */
+		ak4642_write(codec, R_IVC, 0x91); /* volume */
+		snd_soc_update_bits(codec, PW_MGMT1, PMVCM | PMMIN | PMDAC,
+						     PMVCM | PMMIN | PMDAC);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
@@ -237,13 +266,12 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p94.
 		 */
-		ak4642_write(codec, 0x02, 0x05);
-		ak4642_write(codec, 0x06, 0x3c);
-		ak4642_write(codec, 0x08, 0xe1);
-		ak4642_write(codec, 0x0b, 0x00);
-		ak4642_write(codec, 0x07, 0x21);
-		snd_soc_update_bits(codec, 0x00, 0x41, 0x41);
-		ak4642_write(codec, 0x10, 0x01);
+		ak4642_write(codec, SG_SL1, PMMP | MGAIN0);
+		ak4642_write(codec, TIMER, ZTM(0x3) | WTM(0x3));
+		ak4642_write(codec, ALC_CTL1, ALC | LMTH0);
+		snd_soc_update_bits(codec, PW_MGMT1, PMVCM | PMADL,
+						     PMVCM | PMADL);
+		snd_soc_update_bits(codec, PW_MGMT3, PMADR, PMADR);
 	}
 
 	return 0;
@@ -259,14 +287,14 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 		/* stop headphone output */
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	0);
-		snd_soc_update_bits(codec, 0x00, 0x64, 0x40);
-		ak4642_write(codec, 0x0e, 0x11);
-		ak4642_write(codec, 0x0f, 0x08);
+		snd_soc_update_bits(codec, PW_MGMT1, PMMIN | PMDAC, 0);
+		snd_soc_update_bits(codec, MD_CTL3, BST1, 0);
+		snd_soc_update_bits(codec, MD_CTL4, DACH, 0);
 	} else {
 		/* stop stereo input */
-		snd_soc_update_bits(codec, 0x00, 0x41, 0x40);
-		ak4642_write(codec, 0x10, 0x00);
-		ak4642_write(codec, 0x07, 0x01);
+		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
+		snd_soc_update_bits(codec, PW_MGMT3, PMADR, 0);
+		snd_soc_update_bits(codec, ALC_CTL1, ALC, 0);
 	}
 }
 
