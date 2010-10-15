@@ -272,8 +272,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		if (rc == 0) {
 			cFYI(1, "posix open succeeded");
 
-			pCifsFile = cifs_new_fileinfo(inode, netfid, file,
-							tlink, oplock);
+			pCifsFile = cifs_new_fileinfo(netfid, file, tlink,
+						      oplock);
 			if (pCifsFile == NULL) {
 				CIFSSMBClose(xid, tcon, netfid);
 				rc = -ENOMEM;
@@ -365,7 +365,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	if (rc != 0)
 		goto out;
 
-	pCifsFile = cifs_new_fileinfo(inode, netfid, file, tlink, oplock);
+	pCifsFile = cifs_new_fileinfo(netfid, file, tlink, oplock);
 	if (pCifsFile == NULL) {
 		rc = -ENOMEM;
 		goto out;

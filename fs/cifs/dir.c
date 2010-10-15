@@ -131,12 +131,13 @@ cifs_bp_rename_retry:
 }
 
 struct cifsFileInfo *
-cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
+cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 		  struct tcon_link *tlink, __u32 oplock)
 {
 	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+	struct cifsInodeInfo *pCifsInode = CIFS_I(inode);
 	struct cifsFileInfo *pCifsFile;
-	struct cifsInodeInfo *pCifsInode;
 
 	pCifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (pCifsFile == NULL)
@@ -158,23 +159,19 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 
 	write_lock(&GlobalSMBSeslock);
 	list_add(&pCifsFile->tlist, &(tlink_tcon(tlink)->openFileList));
-	pCifsInode = CIFS_I(newinode);
-	if (pCifsInode) {
-		/* if readable file instance put first in list*/
-		if (file->f_mode & FMODE_READ)
-			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
-		else
-			list_add_tail(&pCifsFile->flist,
-				      &pCifsInode->openFileList);
-
-		if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-			pCifsInode->clientCanCacheAll = true;
-			pCifsInode->clientCanCacheRead = true;
-			cFYI(1, "Exclusive Oplock inode %p", newinode);
-		} else if ((oplock & 0xF) == OPLOCK_READ)
-				pCifsInode->clientCanCacheRead = true;
-	}
+	/* if readable file instance put first in list*/
+	if (file->f_mode & FMODE_READ)
+		list_add(&pCifsFile->flist, &pCifsInode->openFileList);
+	else
+		list_add_tail(&pCifsFile->flist, &pCifsInode->openFileList);
 	write_unlock(&GlobalSMBSeslock);
+
+	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
+		pCifsInode->clientCanCacheAll = true;
+		pCifsInode->clientCanCacheRead = true;
+		cFYI(1, "Exclusive Oplock inode %p", inode);
+	} else if ((oplock & 0xF) == OPLOCK_READ)
+		pCifsInode->clientCanCacheRead = true;
 
 	file->private_data = pCifsFile;
 
@@ -395,8 +392,7 @@ cifs_create_set_dentry:
 			goto cifs_create_out;
 		}
 
-		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
-						tlink, oplock);
+		pfile_info = cifs_new_fileinfo(fileHandle, filp, tlink, oplock);
 		if (pfile_info == NULL) {
 			fput(filp);
 			CIFSSMBClose(xid, tcon, fileHandle);
@@ -669,8 +665,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 				goto lookup_out;
 			}
 
-			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
-						  tlink, oplock);
+			cfile = cifs_new_fileinfo(fileHandle, filp, tlink,
+						  oplock);
 			if (cfile == NULL) {
 				fput(filp);
 				CIFSSMBClose(xid, pTcon, fileHandle);
