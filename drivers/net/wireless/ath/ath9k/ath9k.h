@@ -270,7 +270,6 @@ struct ath_node {
 	struct ath_atx_ac ac[WME_NUM_AC];
 	u16 maxampdu;
 	u8 mpdudensity;
-	int last_rssi;
 };
 
 #define AGGR_CLEANUP         BIT(1)
@@ -662,6 +661,7 @@ struct ath_wiphy {
 	bool idle;
 	int chan_idx;
 	int chan_is_ht;
+	int last_rssi;
 };
 
 void ath9k_tasklet(unsigned long data);

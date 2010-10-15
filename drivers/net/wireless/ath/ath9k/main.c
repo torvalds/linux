@@ -562,7 +562,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
 		an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
-		an->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	}
 }
 
@@ -831,9 +830,11 @@ static u32 ath_get_extchanmode(struct ath_softc *sc,
 }
 
 static void ath9k_bss_assoc_info(struct ath_softc *sc,
+				 struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *bss_conf)
 {
+	struct ath_wiphy *aphy = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -857,6 +858,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_beacon_config(sc, vif);
 
 		/* Reset rssi stats */
+		aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 		sc->sc_flags |= SC_OP_ANI_RUN;
@@ -1998,7 +2000,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		ath_print(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
 			bss_conf->assoc);
-		ath9k_bss_assoc_info(sc, vif, bss_conf);
+		ath9k_bss_assoc_info(sc, hw, vif, bss_conf);
 	}
 
 	mutex_unlock(&sc->mutex);

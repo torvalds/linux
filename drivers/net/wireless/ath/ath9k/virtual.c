@@ -107,6 +107,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 	aphy->sc = sc;
 	aphy->hw = hw;
 	sc->sec_wiphy[i] = aphy;
+	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	spin_unlock_bh(&sc->wiphy_lock);
 
 	memcpy(addr, common->macaddr, ETH_ALEN);

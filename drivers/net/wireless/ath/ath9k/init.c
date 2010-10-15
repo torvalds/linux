@@ -703,6 +703,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	struct ath_wiphy *aphy = hw->priv;
 	struct ath_common *common;
 	struct ath_hw *ah;
 	int error = 0;
@@ -752,6 +753,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
+	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
 	ath_start_rfkill_poll(sc);
