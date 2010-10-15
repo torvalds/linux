@@ -237,8 +237,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	dprintk("RPC:       %s: called\n", __func__);
 
-	cancel_delayed_work(&r_xprt->rdma_connect);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&r_xprt->rdma_connect);
 
 	xprt_clear_connected(xprt);
 
@@ -448,7 +447,7 @@ xprt_rdma_connect(struct rpc_task *task)
 	} else {
 		schedule_delayed_work(&r_xprt->rdma_connect, 0);
 		if (!RPC_IS_ASYNC(task))
-			flush_scheduled_work();
+			flush_delayed_work(&r_xprt->rdma_connect);
 	}
 }
 

@@ -45,6 +45,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <linux/sunrpc/svc_rdma.h>
@@ -89,6 +90,9 @@ struct svc_xprt_class svc_rdma_class = {
 
 /* WR context cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_ctxt_cachep;
+
+/* Workqueue created in svc_rdma.c */
+extern struct workqueue_struct *svc_rdma_wq;
 
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
@@ -1187,7 +1191,7 @@ static void svc_rdma_free(struct svc_xprt *xprt)
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	INIT_WORK(&rdma->sc_work, __svc_rdma_free);
-	schedule_work(&rdma->sc_work);
+	queue_work(svc_rdma_wq, &rdma->sc_work);
 }
 
 static int svc_rdma_has_wspace(struct svc_xprt *xprt)
