@@ -159,7 +159,11 @@ static int ft1000_probe(struct usb_interface *interface,
 	release_firmware(dsp_fw);
 
 	DEBUG("ft1000_probe: start downloading dsp image...\n");
-	init_ft1000_netdev(ft1000dev);
+
+	ret = init_ft1000_netdev(ft1000dev);
+	if (ret)
+		goto err_load;
+
 	pft1000info = (FT1000_INFO *) netdev_priv(ft1000dev->net);
 
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
