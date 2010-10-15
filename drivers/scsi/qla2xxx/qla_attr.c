@@ -1538,6 +1538,10 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	/* Now that the rport has been deleted, set the fcport state to
+	   FCS_DEVICE_DEAD */
+	atomic_set(&fcport->state, FCS_DEVICE_DEAD);
+
 	/*
 	 * Transport has effectively 'deleted' the rport, clear
 	 * all local references.
@@ -1546,10 +1550,6 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	fcport->rport = fcport->drport = NULL;
 	*((fc_port_t **)rport->dd_data) = NULL;
 	spin_unlock_irq(host->host_lock);
-
-	/* Now that the rport has been deleted, set the fcport state to
-	   FCS_DEVICE_DEAD */
-	atomic_set(&fcport->state, FCS_DEVICE_DEAD);
 
 	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;

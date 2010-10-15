@@ -545,6 +545,7 @@ qla2xxx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	srb_t *sp;
 	int rval;
 
+	spin_unlock_irq(vha->host->host_lock);
 	if (ha->flags.eeh_busy) {
 		if (ha->flags.pci_channel_io_perm_failure)
 			cmd->result = DID_NO_CONNECT << 16;
@@ -559,10 +560,6 @@ qla2xxx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		goto qc24_fail_command;
 	}
 
-	/* Close window on fcport/rport state-transitioning. */
-	if (fcport->drport)
-		goto qc24_target_busy;
-
 	if (!vha->flags.difdix_supported &&
 		scsi_get_prot_op(cmd) != SCSI_PROT_NORMAL) {
 			DEBUG2(qla_printk(KERN_ERR, ha,
@@ -573,14 +570,13 @@ qla2xxx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
-		    atomic_read(&base_vha->loop_state) == LOOP_DEAD) {
+			atomic_read(&fcport->state) == FCS_DEVICE_LOST ||
+			atomic_read(&base_vha->loop_state) == LOOP_DEAD) {
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc24_fail_command;
 		}
 		goto qc24_target_busy;
 	}
-
-	spin_unlock_irq(vha->host->host_lock);
 
 	sp = qla2x00_get_new_sp(base_vha, fcport, cmd, done);
 	if (!sp)
@@ -603,9 +599,11 @@ qc24_host_busy_lock:
 	return SCSI_MLQUEUE_HOST_BUSY;
 
 qc24_target_busy:
+	spin_lock_irq(vha->host->host_lock);
 	return SCSI_MLQUEUE_TARGET_BUSY;
 
 qc24_fail_command:
+	spin_lock_irq(vha->host->host_lock);
 	done(cmd);
 
 	return 0;
@@ -2613,12 +2611,12 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
 		if (atomic_read(&fcport->state) == FCS_ONLINE) {
+			atomic_set(&fcport->state, FCS_DEVICE_LOST);
 			if (defer)
 				qla2x00_schedule_rport_del(vha, fcport, defer);
 			else if (vha->vp_idx == fcport->vp_idx)
 				qla2x00_schedule_rport_del(vha, fcport, defer);
 		}
-		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 }
 

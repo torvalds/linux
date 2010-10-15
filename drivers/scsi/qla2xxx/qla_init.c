@@ -2928,8 +2928,8 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
 	qla2x00_iidma_fcport(vha, fcport);
-	atomic_set(&fcport->state, FCS_ONLINE);
 	qla2x00_reg_remote_port(vha, fcport);
+	atomic_set(&fcport->state, FCS_ONLINE);
 }
 
 /*
