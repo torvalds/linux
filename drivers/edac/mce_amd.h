@@ -5,6 +5,8 @@
 
 #include <asm/mce.h>
 
+#define BIT_64(n)			(U64_C(1) << (n))
+
 #define ERROR_CODE(x)			((x) & 0xffff)
 #define EXT_ERROR_CODE(x)		(((x) >> 16) & 0x1f)
 
