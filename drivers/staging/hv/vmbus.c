@@ -57,7 +57,7 @@ static struct hv_device *gDevice; /* vmbus root device */
  */
 static void VmbusGetChannelOffers(void)
 {
-	VmbusChannelRequestOffers();
+	vmbus_request_offers();
 }
 
 /*
@@ -134,7 +134,7 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 {
 	int ret = 0;
 
-	VmbusChannelReleaseUnattachedChannels();
+	vmbus_release_unattached_channels();
 	VmbusDisconnect();
 	on_each_cpu(HvSynicCleanup, NULL, 1);
 	return ret;
@@ -171,7 +171,7 @@ static void VmbusOnMsgDPC(struct hv_driver *drv)
 				continue;
 
 			osd_schedule_callback(gVmbusConnection.WorkQueue,
-					      VmbusOnChannelMessage,
+					      vmbus_onmessage,
 					      (void *)copied);
 		}
 

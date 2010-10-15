@@ -698,7 +698,7 @@ void vmbus_close(struct vmbus_channel *channel)
 		list_del(&channel->ListEntry);
 		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
-		FreeVmbusChannel(channel);
+		free_channel(channel);
 	}
 }
 

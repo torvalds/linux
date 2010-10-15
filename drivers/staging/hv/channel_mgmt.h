@@ -307,14 +307,14 @@ struct vmbus_channel_msginfo {
 };
 
 
-struct vmbus_channel *AllocVmbusChannel(void);
+struct vmbus_channel *alloc_channel(void);
 
-void FreeVmbusChannel(struct vmbus_channel *Channel);
+void free_channel(struct vmbus_channel *channel);
 
-void VmbusOnChannelMessage(void *Context);
+void vmbus_onmessage(void *context);
 
-int VmbusChannelRequestOffers(void);
+int vmbus_request_offers(void);
 
-void VmbusChannelReleaseUnattachedChannels(void);
+void vmbus_release_unattached_channels(void);
 
 #endif /* _CHANNEL_MGMT_H_ */
