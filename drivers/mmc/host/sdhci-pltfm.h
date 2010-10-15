@@ -13,7 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/types.h>
-#include <linux/sdhci-pltfm.h>
+#include <linux/mmc/sdhci-pltfm.h>
 
 struct sdhci_pltfm_host {
 	struct clk *clk;
