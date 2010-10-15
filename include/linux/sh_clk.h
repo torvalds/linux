@@ -4,10 +4,19 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/cpufreq.h>
+#include <linux/types.h>
+#include <linux/kref.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
 struct clk;
+
+struct clk_mapping {
+	phys_addr_t		phys;
+	void __iomem		*base;
+	unsigned long		len;
+	struct kref		ref;
+};
 
 struct clk_ops {
 	void (*init)(struct clk *clk);
@@ -42,6 +51,7 @@ struct clk {
 	unsigned long		arch_flags;
 	void			*priv;
 	struct dentry		*dentry;
+	struct clk_mapping	*mapping;
 	struct cpufreq_frequency_table *freq_table;
 };
 

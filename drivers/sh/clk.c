@@ -25,7 +25,7 @@
 #include <linux/sysdev.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/io.h>
 #include <linux/debugfs.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
@@ -251,8 +251,88 @@ void recalculate_root_clocks(void)
 	}
 }
 
+static struct clk_mapping dummy_mapping;
+
+static struct clk *lookup_root_clock(struct clk *clk)
+{
+	while (clk->parent)
+		clk = clk->parent;
+
+	return clk;
+}
+
+static int clk_establish_mapping(struct clk *clk)
+{
+	struct clk_mapping *mapping = clk->mapping;
+
+	/*
+	 * Propagate mappings.
+	 */
+	if (!mapping) {
+		struct clk *clkp;
+
+		/*
+		 * dummy mapping for root clocks with no specified ranges
+		 */
+		if (!clk->parent) {
+			clk->mapping = &dummy_mapping;
+			return 0;
+		}
+
+		/*
+		 * If we're on a child clock and it provides no mapping of its
+		 * own, inherit the mapping from its root clock.
+		 */
+		clkp = lookup_root_clock(clk);
+		mapping = clkp->mapping;
+		BUG_ON(!mapping);
+	}
+
+	/*
+	 * Establish initial mapping.
+	 */
+	if (!mapping->base && mapping->phys) {
+		kref_init(&mapping->ref);
+
+		mapping->base = ioremap_nocache(mapping->phys, mapping->len);
+		if (unlikely(!mapping->base))
+			return -ENXIO;
+	} else if (mapping->base) {
+		/*
+		 * Bump the refcount for an existing mapping
+		 */
+		kref_get(&mapping->ref);
+	}
+
+	clk->mapping = mapping;
+	return 0;
+}
+
+static void clk_destroy_mapping(struct kref *kref)
+{
+	struct clk_mapping *mapping;
+
+	mapping = container_of(kref, struct clk_mapping, ref);
+
+	iounmap(mapping->base);
+}
+
+static void clk_teardown_mapping(struct clk *clk)
+{
+	struct clk_mapping *mapping = clk->mapping;
+
+	/* Nothing to do */
+	if (mapping == &dummy_mapping)
+		return;
+
+	kref_put(&mapping->ref, clk_destroy_mapping);
+	clk->mapping = NULL;
+}
+
 int clk_register(struct clk *clk)
 {
+	int ret;
+
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
@@ -267,6 +347,10 @@ int clk_register(struct clk *clk)
 	INIT_LIST_HEAD(&clk->children);
 	clk->usecount = 0;
 
+	ret = clk_establish_mapping(clk);
+	if (unlikely(ret))
+		goto out_unlock;
+
 	if (clk->parent)
 		list_add(&clk->sibling, &clk->parent->children);
 	else
@@ -275,9 +359,11 @@ int clk_register(struct clk *clk)
 	list_add(&clk->node, &clock_list);
 	if (clk->ops && clk->ops->init)
 		clk->ops->init(clk);
+
+out_unlock:
 	mutex_unlock(&clock_list_sem);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_register);
 
@@ -286,6 +372,7 @@ void clk_unregister(struct clk *clk)
 	mutex_lock(&clock_list_sem);
 	list_del(&clk->sibling);
 	list_del(&clk->node);
+	clk_teardown_mapping(clk);
 	mutex_unlock(&clock_list_sem);
 }
 EXPORT_SYMBOL_GPL(clk_unregister);
