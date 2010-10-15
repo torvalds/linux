@@ -315,7 +315,12 @@ static void perf_group_attach(struct perf_event *event)
 {
 	struct perf_event *group_leader = event->group_leader;
 
-	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_GROUP);
+	/*
+	 * We can have double attach due to group movement in perf_event_open.
+	 */
+	if (event->attach_state & PERF_ATTACH_GROUP)
+		return;
+
 	event->attach_state |= PERF_ATTACH_GROUP;
 
 	if (group_leader == event)
