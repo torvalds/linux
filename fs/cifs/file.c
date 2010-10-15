@@ -232,6 +232,7 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	if (pCifsFile == NULL)
 		return pCifsFile;
 
+	pCifsFile->count = 1;
 	pCifsFile->netfid = fileHandle;
 	pCifsFile->pid = current->tgid;
 	pCifsFile->uid = current_fsuid();
@@ -242,7 +243,6 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	mutex_init(&pCifsFile->fh_mutex);
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
-	atomic_set(&pCifsFile->count, 1);
 	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
 
 	spin_lock(&cifs_file_list_lock);
@@ -267,7 +267,8 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 
 /*
  * Release a reference on the file private data. This may involve closing
- * the filehandle out on the server.
+ * the filehandle out on the server. Must be called without holding
+ * cifs_file_list_lock.
  */
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
@@ -276,7 +277,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	struct cifsLockInfo *li, *tmp;
 
 	spin_lock(&cifs_file_list_lock);
-	if (!atomic_dec_and_test(&cifs_file->count)) {
+	if (--cifs_file->count > 0) {
 		spin_unlock(&cifs_file_list_lock);
 		return;
 	}
@@ -2322,6 +2323,7 @@ void cifs_oplock_break(struct work_struct *work)
 	cifs_oplock_break_put(cfile);
 }
 
+/* must be called while holding cifs_file_list_lock */
 void cifs_oplock_break_get(struct cifsFileInfo *cfile)
 {
 	cifs_sb_active(cfile->dentry->d_sb);
