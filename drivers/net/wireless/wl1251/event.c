@@ -21,10 +21,10 @@
  */
 
 #include "wl1251.h"
-#include "wl1251_reg.h"
-#include "wl1251_io.h"
-#include "wl1251_event.h"
-#include "wl1251_ps.h"
+#include "reg.h"
+#include "io.h"
+#include "event.h"
+#include "ps.h"
 
 static int wl1251_event_scan_complete(struct wl1251 *wl,
 				      struct event_mailbox *mbox)

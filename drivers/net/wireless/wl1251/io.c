@@ -20,8 +20,8 @@
  */
 
 #include "wl1251.h"
-#include "wl1251_reg.h"
-#include "wl1251_io.h"
+#include "reg.h"
+#include "io.h"
 
 /* FIXME: this is static data nowadays and the table can be removed */
 static enum wl12xx_acx_int_reg wl1251_io_reg_table[ACX_REG_TABLE_LEN] = {

@@ -22,12 +22,12 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-#include "wl1251_reg.h"
-#include "wl1251_boot.h"
-#include "wl1251_io.h"
-#include "wl1251_spi.h"
-#include "wl1251_event.h"
-#include "wl1251_acx.h"
+#include "reg.h"
+#include "boot.h"
+#include "io.h"
+#include "spi.h"
+#include "event.h"
+#include "acx.h"
 
 void wl1251_boot_target_enable_interrupts(struct wl1251 *wl)
 {

@@ -208,7 +208,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -220,7 +220,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Check if the frame was correctly uploaded
 	 */
 	if (urb->status)
-		__set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 
 	/*
 	 * Schedule the delayed work for reading the TX status
@@ -253,7 +253,10 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 			  entry->skb->data, length,
 			  rt2x00usb_interrupt_txdone, entry);
 
-	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	if (usb_submit_urb(entry_priv->urb, GFP_ATOMIC)) {
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		rt2x00lib_dmadone(entry);
+	}
 }
 
 void rt2x00usb_kick_tx_queue(struct data_queue *queue)
@@ -280,14 +283,6 @@ static void rt2x00usb_kill_tx_entry(struct queue_entry *entry)
 	if ((entry->queue->qid == QID_BEACON) &&
 	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
 		usb_kill_urb(bcn_priv->guardian_urb);
-
-	/*
-	 * We need a short delay here to wait for
-	 * the URB to be canceled
-	 */
-	do {
-		udelay(100);
-	} while (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags));
 }
 
 void rt2x00usb_kill_tx_queue(struct data_queue *queue)
@@ -363,10 +358,12 @@ void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 
 	tx_queue_for_each(rt2x00dev, queue) {
-		if (rt2x00queue_dma_timeout(queue))
-			rt2x00usb_watchdog_tx_dma(queue);
-		if (rt2x00queue_timeout(queue))
-			rt2x00usb_watchdog_tx_status(queue);
+		if (!rt2x00queue_empty(queue)) {
+			if (rt2x00queue_dma_timeout(queue))
+				rt2x00usb_watchdog_tx_dma(queue);
+			if (rt2x00queue_timeout(queue))
+				rt2x00usb_watchdog_tx_status(queue);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
@@ -398,7 +395,7 @@ static void rt2x00usb_work_rxdone(struct work_struct *work)
 		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(rt2x00dev, entry);
+		rt2x00lib_rxdone(entry);
 	}
 }
 
@@ -407,7 +404,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -421,7 +418,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * a problem.
 	 */
 	if (urb->actual_length < entry->queue->desc_size || urb->status)
-		__set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 
 	/*
 	 * Schedule the delayed work for reading the RX status
@@ -467,7 +464,10 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 				rt2x00usb_interrupt_rxdone, entry);
 
 		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+		if (usb_submit_urb(entry_priv->urb, GFP_ATOMIC)) {
+			set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+			rt2x00lib_dmadone(entry);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
@@ -542,9 +542,9 @@ static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
-static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
-			       struct data_queue *queue)
+static int rt2x00usb_alloc_entries(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
@@ -561,7 +561,7 @@ static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 	 * no guardian byte was required for the beacon,
 	 * then we are done.
 	 */
-	if (rt2x00dev->bcn != queue ||
+	if (queue->qid != QID_BEACON ||
 	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
 		return 0;
 
@@ -575,9 +575,9 @@ static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
-			       struct data_queue *queue)
+static void rt2x00usb_free_entries(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
@@ -596,7 +596,7 @@ static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 	 * no guardian byte was required for the beacon,
 	 * then we are done.
 	 */
-	if (rt2x00dev->bcn != queue ||
+	if (queue->qid != QID_BEACON ||
 	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
 		return;
 
@@ -623,7 +623,7 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 	 * Allocate DMA
 	 */
 	queue_for_each(rt2x00dev, queue) {
-		status = rt2x00usb_alloc_urb(rt2x00dev, queue);
+		status = rt2x00usb_alloc_entries(queue);
 		if (status)
 			goto exit;
 	}
@@ -642,7 +642,7 @@ void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 
 	queue_for_each(rt2x00dev, queue)
-		rt2x00usb_free_urb(rt2x00dev, queue);
+		rt2x00usb_free_entries(queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_uninitialize);
 

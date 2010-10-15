@@ -112,13 +112,12 @@ struct iwl_hcmd_utils_ops {
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
 	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
+	void (*post_scan)(struct iwl_priv *priv);
 };
 
 struct iwl_apm_ops {
 	int (*init)(struct iwl_priv *priv);
-	void (*stop)(struct iwl_priv *priv);
 	void (*config)(struct iwl_priv *priv);
-	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
 };
 
 struct iwl_debugfs_ops {
@@ -136,7 +135,6 @@ struct iwl_debugfs_ops {
 
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
-	void (*set_ct_kill)(struct iwl_priv *priv);
 };
 
 struct iwl_tt_ops {
@@ -344,6 +342,7 @@ struct iwl_ht_params {
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @need_dc_calib: need to perform init dc calibration
+ * @need_temp_offset_calib: need to perform temperature offset calibration
  * @scan_antennas: available antenna for scan operation
  *
  * We enable the driver to be backward compatible wrt API version. The
@@ -388,6 +387,7 @@ struct iwl_cfg {
 	struct iwl_bt_params *bt_params;
 	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
 	const bool need_dc_calib;	  /* if used set to true */
+	const bool need_temp_offset_calib; /* if used set to true */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 };
@@ -398,7 +398,6 @@ struct iwl_cfg {
 
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
-void iwl_activate_qos(struct iwl_priv *priv);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);
@@ -406,7 +405,6 @@ void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   int hw_decrypt);
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 int iwl_full_rxon_required(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-void iwl_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx);
 void iwl_set_flags_for_band(struct iwl_priv *priv,
@@ -432,7 +430,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
-int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
@@ -509,7 +506,6 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 ******************************************************/
 void iwl_cmd_queue_free(struct iwl_priv *priv);
 int iwl_rx_queue_alloc(struct iwl_priv *priv);
-void iwl_rx_handle(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
@@ -527,12 +523,6 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /*****************************************************
 * TX
 ******************************************************/
-void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
-				 struct iwl_tx_queue *txq,
-				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
-int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-			 struct iwl_tx_queue *txq);
 void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 		      int slots_num, u32 txq_id);
@@ -548,30 +538,8 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  * Rate
  ******************************************************************************/
 
-int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
-
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx);
-
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
-
-static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
-{
-	return BIT(ant_idx) << RATE_MCS_ANT_POS;
-}
-
-static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0xFF;
-}
-static inline u32 iwl_hw_get_rate_n_flags(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0x1FFFF;
-}
-static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
-{
-	return cpu_to_le32(flags|(u32)rate);
-}
 
 /*******************************************************************************
  * Scanning
@@ -607,13 +575,6 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
 #define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
-
-/*******************************************************************************
- * Calibrations - implemented in iwl-calib.c
- ******************************************************************************/
-int iwl_send_calib_results(struct iwl_priv *priv);
-int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len);
-void iwl_calib_free_results(struct iwl_priv *priv);
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
@@ -664,8 +625,6 @@ int iwl_pci_resume(struct pci_dev *pdev);
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 int iwl_dump_nic_event_log(struct iwl_priv *priv,
 			   bool full_log, char **buf, bool display);
-void iwl_dump_csr(struct iwl_priv *priv);
-int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
@@ -751,8 +710,6 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
-extern int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-		struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 

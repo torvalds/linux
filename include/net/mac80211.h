@@ -1478,12 +1478,14 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  *	honour this flag if possible.
  *
  * @FIF_CONTROL: pass control frames (except for PS Poll), if PROMISC_IN_BSS
- *  is not set then only those addressed to this station.
+ * 	is not set then only those addressed to this station.
  *
  * @FIF_OTHER_BSS: pass frames destined to other BSSes
  *
- * @FIF_PSPOLL: pass PS Poll frames, if PROMISC_IN_BSS  is not set then only
- *  those addressed to this station.
+ * @FIF_PSPOLL: pass PS Poll frames, if PROMISC_IN_BSS is not set then only
+ * 	those addressed to this station.
+ *
+ * @FIF_PROBE_REQ: pass probe request frames
  */
 enum ieee80211_filter_flags {
 	FIF_PROMISC_IN_BSS	= 1<<0,
@@ -1494,6 +1496,7 @@ enum ieee80211_filter_flags {
 	FIF_CONTROL		= 1<<5,
 	FIF_OTHER_BSS		= 1<<6,
 	FIF_PSPOLL		= 1<<7,
+	FIF_PROBE_REQ		= 1<<8,
 };
 
 /**

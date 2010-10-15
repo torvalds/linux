@@ -31,16 +31,16 @@
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
-#include "wl1251_reg.h"
-#include "wl1251_io.h"
-#include "wl1251_cmd.h"
-#include "wl1251_event.h"
-#include "wl1251_tx.h"
-#include "wl1251_rx.h"
-#include "wl1251_ps.h"
-#include "wl1251_init.h"
-#include "wl1251_debugfs.h"
-#include "wl1251_boot.h"
+#include "reg.h"
+#include "io.h"
+#include "cmd.h"
+#include "event.h"
+#include "tx.h"
+#include "rx.h"
+#include "ps.h"
+#include "init.h"
+#include "debugfs.h"
+#include "boot.h"
 
 void wl1251_enable_interrupts(struct wl1251 *wl)
 {

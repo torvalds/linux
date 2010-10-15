@@ -121,7 +121,6 @@ void iwl_force_scan_end(struct iwl_priv *priv)
 	clear_bit(STATUS_SCAN_ABORTING, &priv->status);
 	iwl_complete_scan(priv, true);
 }
-EXPORT_SYMBOL(iwl_force_scan_end);
 
 static void iwl_do_scan_abort(struct iwl_priv *priv)
 {
@@ -559,7 +558,6 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
 	bool aborted;
-	struct iwl_rxon_context *ctx;
 
 	IWL_DEBUG_SCAN(priv, "Completed %sscan.\n",
 		       priv->is_internal_short_scan ? "internal short " : "");
@@ -609,15 +607,7 @@ out_settings:
 	 * performing the scan, fire one off */
 	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
 
-	/*
-	 * Since setting the RXON may have been deferred while
-	 * performing the scan, fire one off if needed
-	 */
-	for_each_context(priv, ctx)
-		iwlcore_commit_rxon(priv, ctx);
-
-	if (priv->cfg->ops->hcmd->set_pan_params)
-		priv->cfg->ops->hcmd->set_pan_params(priv);
+	priv->cfg->ops->utils->post_scan(priv);
 
  out:
 	mutex_unlock(&priv->mutex);

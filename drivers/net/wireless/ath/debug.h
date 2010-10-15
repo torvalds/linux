@@ -77,4 +77,14 @@ ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
 }
 #endif /* CONFIG_ATH_DEBUG */
 
+/** Returns string describing opmode, or NULL if unknown mode. */
+#ifdef CONFIG_ATH_DEBUG
+const char *ath_opmode_to_string(enum nl80211_iftype opmode);
+#else
+static inline const char *ath_opmode_to_string(enum nl80211_iftype opmode)
+{
+	return "UNKNOWN";
+}
+#endif
+
 #endif /* ATH_DEBUG_H */

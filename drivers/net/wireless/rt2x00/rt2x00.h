@@ -338,6 +338,11 @@ struct link {
 
 	/*
 	 * Work structure for scheduling periodic watchdog monitoring.
+	 * This work must be scheduled on the kernel workqueue, while
+	 * all other work structures must be queued on the mac80211
+	 * workqueue. This guarantees that the watchdog can schedule
+	 * other work structures and wait for their completion in order
+	 * to bring the device/driver back into the desired state.
 	 */
 	struct delayed_work watchdog_work;
 };
@@ -1036,17 +1041,15 @@ static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
 
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @skb: The skb to map.
+ * @entry: Pointer to &struct queue_entry
  */
-void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+void rt2x00queue_map_txskb(struct queue_entry *entry);
 
 /**
  * rt2x00queue_unmap_skb - Unmap a skb from DMA.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @skb: The skb to unmap.
+ * @entry: Pointer to &struct queue_entry
  */
-void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+void rt2x00queue_unmap_skb(struct queue_entry *entry);
 
 /**
  * rt2x00queue_get_queue - Convert queue index to queue pointer
@@ -1093,8 +1096,7 @@ void rt2x00lib_dmadone(struct queue_entry *entry);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
 void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status);
-void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
-		      struct queue_entry *entry);
+void rt2x00lib_rxdone(struct queue_entry *entry);
 
 /*
  * mac80211 handlers.

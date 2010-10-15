@@ -207,7 +207,8 @@ static int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
  */
 unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec)
 {
-	return usec * ath5k_hw_get_clockrate(ah);
+	struct ath_common *common = ath5k_hw_common(ah);
+	return usec * common->clockrate;
 }
 
 /**
@@ -216,17 +217,19 @@ unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec)
  */
 unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock)
 {
-	return clock / ath5k_hw_get_clockrate(ah);
+	struct ath_common *common = ath5k_hw_common(ah);
+	return clock / common->clockrate;
 }
 
 /**
- * ath5k_hw_get_clockrate - Get the clock rate for current mode
+ * ath5k_hw_set_clockrate - Set common->clockrate for the current channel
  *
  * @ah: The &struct ath5k_hw
  */
-unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah)
+void ath5k_hw_set_clockrate(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
+	struct ath_common *common = ath5k_hw_common(ah);
 	int clock;
 
 	if (channel->hw_value & CHANNEL_5GHZ)
@@ -240,7 +243,7 @@ unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah)
 	if (channel->hw_value & CHANNEL_TURBO)
 		clock *= 2;
 
-	return clock;
+	common->clockrate = clock;
 }
 
 /**

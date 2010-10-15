@@ -192,8 +192,7 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
-	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
-		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+	iwl6000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
@@ -205,6 +204,8 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
 		priv->hw_params.calib_rt_cfg |= BIT(IWL_CALIB_CFG_DC_IDX);
+	if (priv->cfg->need_temp_offset_calib)
+		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
@@ -309,9 +310,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl6000_nic_config,
-		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -323,7 +322,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 		.calib_version	= iwlagn_eeprom_calib_version,
@@ -335,7 +333,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
-		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -384,9 +381,7 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl6000_nic_config,
-		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -398,7 +393,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 		.calib_version	= iwlagn_eeprom_calib_version,
@@ -410,7 +404,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
-		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -516,6 +509,28 @@ static struct iwl_base_params iwl6050_base_params = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 };
+static struct iwl_base_params iwl6000_coex_base_params = {
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.pll_cfg_val = 0,
+	.set_l0s = true,
+	.use_bsm = false,
+	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
+	.shadow_ram_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.supports_idle = true,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
+	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
+};
 
 static struct iwl_ht_params iwl6000_ht_params = {
 	.ht_greenfield_support = true,
@@ -545,6 +560,7 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 };
 
 struct iwl_cfg iwl6000g2a_2abg_cfg = {
@@ -561,6 +577,7 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 };
 
 struct iwl_cfg iwl6000g2a_2bg_cfg = {
@@ -577,6 +594,7 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 };
 
 struct iwl_cfg iwl6000g2b_2agn_cfg = {
@@ -591,10 +609,11 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -611,9 +630,10 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -630,10 +650,11 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -650,9 +671,10 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -669,10 +691,11 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -689,9 +712,10 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
+	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -756,7 +780,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
-	.ops = &iwl6000_ops,
+	.ops = &iwl6050_ops,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
 	.mod_params = &iwlagn_mod_params,
@@ -827,7 +851,7 @@ struct iwl_cfg iwl130_bgn_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
@@ -847,7 +871,7 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
 	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */

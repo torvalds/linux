@@ -236,6 +236,12 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	/*
+	 * No need to update the stats for !=STA interfaces
+	 */
+	if (!rt2x00dev->intf_sta_count)
+		return;
+
+	/*
 	 * Frame was received successfully since non-succesfull
 	 * frames would have been dropped by the hardware.
 	 */
@@ -411,8 +417,7 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev)
 	    !test_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags))
 		return;
 
-	ieee80211_queue_delayed_work(rt2x00dev->hw,
-				     &link->watchdog_work, WATCHDOG_INTERVAL);
+	schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev)
@@ -436,8 +441,7 @@ static void rt2x00link_watchdog(struct work_struct *work)
 	rt2x00dev->ops->lib->watchdog(rt2x00dev);
 
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		ieee80211_queue_delayed_work(rt2x00dev->hw,
-					     &link->watchdog_work, WATCHDOG_INTERVAL);
+		schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)

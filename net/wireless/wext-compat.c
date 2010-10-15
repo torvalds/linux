@@ -1366,6 +1366,10 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	}
 
 	wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
+	if (sinfo.filled & STATION_INFO_RX_DROP_MISC)
+		wstats.discard.misc = sinfo.rx_dropped_misc;
+	if (sinfo.filled & STATION_INFO_TX_FAILED)
+		wstats.discard.retries = sinfo.tx_failed;
 
 	return &wstats;
 }

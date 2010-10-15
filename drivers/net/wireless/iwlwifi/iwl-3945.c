@@ -87,6 +87,15 @@ const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945] = {
 	IWL_DECLARE_RATE_INFO(54, 48, INV, 48, INV, 48, INV),/* 54mbps */
 };
 
+static inline u8 iwl3945_get_prev_ieee_rate(u8 rate_index)
+{
+	u8 rate = iwl3945_rates[rate_index].prev_ieee;
+
+	if (rate == IWL_RATE_INVALID)
+		rate = rate_index;
+	return rate;
+}
+
 /* 1 = enable the iwl3945_disable_events() function */
 #define IWL_EVT_DISABLE (0)
 #define IWL_EVT_DISABLE_SIZE (1532/32)
@@ -339,7 +348,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 	IWL_DEBUG_TX_REPLY(priv, "Tx queue reclaim %d\n", index);
 	iwl3945_tx_queue_reclaim(priv, txq_id, index);
 
-	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
+	if (status & TX_ABORT_REQUIRED_MSK)
 		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
@@ -807,9 +816,12 @@ static u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate)
 	return sta_id;
 }
 
-static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
+static void iwl3945_set_pwr_vmain(struct iwl_priv *priv)
 {
-	if (src == IWL_PWR_SRC_VAUX) {
+/*
+ * (for documentation purposes)
+ * to set power to V_AUX, do
+
 		if (pci_pme_capable(priv->pci_dev, PCI_D3cold)) {
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 					APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
@@ -819,16 +831,14 @@ static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 				     CSR_GPIO_IN_VAL_VAUX_PWR_SRC,
 				     CSR_GPIO_IN_BIT_AUX_POWER, 5000);
 		}
-	} else {
-		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-				~APMG_PS_CTRL_MSK_PWR_SRC);
+ */
 
-		iwl_poll_bit(priv, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
-			     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
-	}
+	iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+			~APMG_PS_CTRL_MSK_PWR_SRC);
 
-	return 0;
+	iwl_poll_bit(priv, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
+		     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
 }
 
 static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
@@ -1022,9 +1032,7 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 	priv->cfg->ops->lib->apm_ops.init(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
-	if (rc)
-		return rc;
+	iwl3945_set_pwr_vmain(priv);
 
 	priv->cfg->ops->lib->apm_ops.config(priv);
 
@@ -1763,8 +1771,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv,
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
  */
-static int iwl3945_commit_rxon(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx)
+int iwl3945_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct iwl3945_rxon_cmd *active_rxon = (void *)&ctx->active;
@@ -2300,6 +2307,32 @@ static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
 
+static int iwl3945_add_bssid_station(struct iwl_priv *priv,
+				     const u8 *addr, u8 *sta_id_r)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	int ret;
+	u8 sta_id;
+	unsigned long flags;
+
+	if (sta_id_r)
+		*sta_id_r = IWL_INVALID_STATION;
+
+	ret = iwl_add_station_common(priv, ctx, addr, 0, NULL, &sta_id);
+	if (ret) {
+		IWL_ERR(priv, "Unable to add station %pM\n", addr);
+		return ret;
+	}
+
+	if (sta_id_r)
+		*sta_id_r = sta_id;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].used |= IWL_STA_LOCAL;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return 0;
+}
 static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
 				       struct ieee80211_vif *vif, bool add)
 {
@@ -2307,10 +2340,8 @@ static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
 	int ret;
 
 	if (add) {
-		ret = iwl_add_bssid_station(
-				priv, &priv->contexts[IWL_RXON_CTX_BSS],
-				vif->bss_conf.bssid, false,
-				&vif_priv->ibss_bssid_sta_id);
+		ret = iwl3945_add_bssid_station(priv, vif->bss_conf.bssid,
+						&vif_priv->ibss_bssid_sta_id);
 		if (ret)
 			return ret;
 
@@ -2673,9 +2704,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.dump_nic_error_log = iwl3945_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl3945_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl3945_nic_config,
-		.set_pwr_src = iwl3945_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -2687,7 +2716,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 			EEPROM_REGULATORY_BAND_NO_HT40,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwl3945_eeprom_acquire_semaphore,
 		.release_semaphore = iwl3945_eeprom_release_semaphore,
 		.query_addr = iwlcore_eeprom_query_addr,
@@ -2713,6 +2741,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
 	.tx_cmd_protection = iwlcore_tx_cmd_protection,
 	.request_scan = iwl3945_request_scan,
+	.post_scan = iwl3945_post_scan,
 };
 
 static const struct iwl_ops iwl3945_ops = {
@@ -2724,6 +2753,7 @@ static const struct iwl_ops iwl3945_ops = {
 
 static struct iwl_base_params iwl3945_base_params = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
+	.num_of_queues = IWL39_NUM_QUEUES,
 	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
 	.set_l0s = false,
 	.use_bsm = true,

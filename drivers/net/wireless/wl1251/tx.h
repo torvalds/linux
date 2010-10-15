@@ -24,7 +24,7 @@
 #define __WL1251_TX_H__
 
 #include <linux/bitops.h>
-#include "wl1251_acx.h"
+#include "acx.h"
 
 /*
  *

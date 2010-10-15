@@ -465,40 +465,6 @@ static void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
 		ath9k_hw_set_cck_nil(ah, aniState->cckNoiseImmunityLevel - 1);
 }
 
-static u8 ath9k_hw_chan_2_clockrate_mhz(struct ath_hw *ah)
-{
-	struct ath9k_channel *chan = ah->curchan;
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-	u8 clockrate; /* in MHz */
-
-	if (!ah->curchan) /* should really check for CCK instead */
-		clockrate = ATH9K_CLOCK_RATE_CCK;
-	else if (conf->channel->band == IEEE80211_BAND_2GHZ)
-		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
-	else if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-		clockrate = ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
-	else
-		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
-
-	if (conf_is_ht40(conf))
-		return clockrate * 2;
-
-	return clockrate;
-}
-
-static int32_t ath9k_hw_ani_get_listen_time(struct ath_hw *ah)
-{
-	int32_t listen_time;
-	int32_t clock_rate;
-
-	ath9k_hw_update_cycle_counters(ah);
-	clock_rate = ath9k_hw_chan_2_clockrate_mhz(ah) * 1000;
-	listen_time = ah->listen_time / clock_rate;
-	ah->listen_time = 0;
-
-	return listen_time;
-}
-
 static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 {
 	struct ar5416AniState *aniState;
@@ -667,7 +633,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
-static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
+static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar5416AniState *aniState = &ah->curchan->ani;
@@ -677,11 +643,13 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	u32 phyCnt1, phyCnt2;
 	int32_t listenTime;
 
-	listenTime = ath9k_hw_ani_get_listen_time(ah);
-	if (listenTime < 0) {
+	ath_hw_cycle_counters_update(common);
+	listenTime = ath_hw_get_listen_time(common);
+
+	if (listenTime <= 0) {
 		ah->stats.ast_ani_lneg++;
 		ath9k_ani_restart(ah);
-		return;
+		return false;
 	}
 
 	if (!use_new_ani(ah)) {
@@ -696,7 +664,7 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	phyCnt1 = REG_READ(ah, AR_PHY_ERR_1);
 	phyCnt2 = REG_READ(ah, AR_PHY_ERR_2);
 
-	if (use_new_ani(ah) && (phyCnt1 < ofdm_base || phyCnt2 < cck_base)) {
+	if (!use_new_ani(ah) && (phyCnt1 < ofdm_base || phyCnt2 < cck_base)) {
 		if (phyCnt1 < ofdm_base) {
 			ath_print(common, ATH_DBG_ANI,
 				  "phyCnt1 0x%x, resetting "
@@ -715,7 +683,7 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_ERR_MASK_2,
 				  AR_PHY_ERR_CCK_TIMING);
 		}
-		return;
+		return false;
 	}
 
 	ofdmPhyErrCnt = phyCnt1 - ofdm_base;
@@ -727,7 +695,7 @@ static void ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	ah->stats.ast_ani_cckerrs +=
 		cckPhyErrCnt - aniState->cckPhyErrCount;
 	aniState->cckPhyErrCount = cckPhyErrCnt;
-
+	return true;
 }
 
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
@@ -743,7 +711,8 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (WARN_ON(!aniState))
 		return;
 
-	ath9k_hw_ani_read_counters(ah);
+	if (!ath9k_hw_ani_read_counters(ah))
+		return;
 
 	ofdmPhyErrRate = aniState->ofdmPhyErrCount * 1000 /
 			 aniState->listenTime;
@@ -817,54 +786,6 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 	REG_WRITE(ah, AR_FILT_CCK, 0);
 }
 EXPORT_SYMBOL(ath9k_hw_disable_mib_counters);
-
-void ath9k_hw_update_cycle_counters(struct ath_hw *ah)
-{
-	struct ath_cycle_counters cc;
-	bool clear;
-
-	memcpy(&cc, &ah->cc, sizeof(cc));
-
-	/* freeze counters */
-	REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
-
-	ah->cc.cycles = REG_READ(ah, AR_CCCNT);
-	if (ah->cc.cycles < cc.cycles) {
-		clear = true;
-		goto skip;
-	}
-
-	ah->cc.rx_clear = REG_READ(ah, AR_RCCNT);
-	ah->cc.rx_frame = REG_READ(ah, AR_RFCNT);
-	ah->cc.tx_frame = REG_READ(ah, AR_TFCNT);
-
-	/* prevent wraparound */
-	if (ah->cc.cycles & BIT(31))
-		clear = true;
-
-#define CC_DELTA(_field, _reg) ah->cc_delta._field += ah->cc._field - cc._field
-	CC_DELTA(cycles, AR_CCCNT);
-	CC_DELTA(rx_frame, AR_RFCNT);
-	CC_DELTA(rx_clear, AR_RCCNT);
-	CC_DELTA(tx_frame, AR_TFCNT);
-#undef CC_DELTA
-
-	ah->listen_time += (ah->cc.cycles - cc.cycles) -
-		 ((ah->cc.rx_frame - cc.rx_frame) +
-		  (ah->cc.tx_frame - cc.tx_frame));
-
-skip:
-	if (clear) {
-		REG_WRITE(ah, AR_CCCNT, 0);
-		REG_WRITE(ah, AR_RFCNT, 0);
-		REG_WRITE(ah, AR_RCCNT, 0);
-		REG_WRITE(ah, AR_TFCNT, 0);
-		memset(&ah->cc, 0, sizeof(ah->cc));
-	}
-
-	/* unfreeze counters */
-	REG_WRITE(ah, AR_MIBC, 0);
-}
 
 /*
  * Process a MIB interrupt.  We may potentially be invoked because

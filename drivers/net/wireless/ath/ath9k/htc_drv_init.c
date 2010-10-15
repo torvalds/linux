@@ -566,7 +566,7 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 
 static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
 {
-	if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes)) {
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ) {
 		priv->sbands[IEEE80211_BAND_2GHZ].channels =
 			ath9k_2ghz_channels;
 		priv->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
@@ -577,7 +577,7 @@ static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
 			ARRAY_SIZE(ath9k_legacy_rates);
 	}
 
-	if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes)) {
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ) {
 		priv->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_channels;
 		priv->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 		priv->sbands[IEEE80211_BAND_5GHZ].n_channels =
@@ -740,18 +740,18 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	hw->extra_tx_headroom = sizeof(struct tx_frame_hdr) +
 		sizeof(struct htc_frame_hdr) + 4;
 
-	if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes))
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&priv->sbands[IEEE80211_BAND_2GHZ];
-	if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes))
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->sbands[IEEE80211_BAND_5GHZ];
 
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes))
+		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes))
+		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}

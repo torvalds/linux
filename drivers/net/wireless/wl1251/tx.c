@@ -24,10 +24,10 @@
 #include <linux/module.h>
 
 #include "wl1251.h"
-#include "wl1251_reg.h"
-#include "wl1251_tx.h"
-#include "wl1251_ps.h"
-#include "wl1251_io.h"
+#include "reg.h"
+#include "tx.h"
+#include "ps.h"
+#include "io.h"
 
 static bool wl1251_tx_double_buffer_busy(struct wl1251 *wl, u32 data_out_count)
 {

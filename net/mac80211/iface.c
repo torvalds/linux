@@ -280,8 +280,11 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			ieee80211_start_mesh(sdata);
 		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
+			local->fif_probe_req++;
 
 			ieee80211_configure_filter(local);
+		} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+			local->fif_probe_req++;
 		}
 
 		changed |= ieee80211_reset_erp_info(sdata);
@@ -428,8 +431,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	if (sdata->flags & IEEE80211_SDATA_PROMISC)
 		atomic_dec(&local->iff_promiscs);
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP)
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		local->fif_pspoll--;
+		local->fif_probe_req--;
+	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		local->fif_probe_req--;
+	}
 
 	netif_addr_lock_bh(sdata->dev);
 	spin_lock_bh(&local->filter_lock);

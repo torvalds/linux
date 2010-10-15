@@ -57,7 +57,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-sta.h"
-#include "iwl-calib.h"
+#include "iwl-agn-calib.h"
 #include "iwl-agn.h"
 
 
@@ -91,14 +91,14 @@ static int iwlagn_ant_coupling;
 static bool iwlagn_bt_ch_announce = 1;
 
 /**
- * iwl_commit_rxon - commit staging_rxon to hardware
+ * iwlagn_commit_rxon - commit staging_rxon to hardware
  *
  * The RXON command in staging_rxon is committed to the hardware and
  * the active_rxon structure is updated with the new data.  This
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
  */
-int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
+int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active_rxon = (void *)&ctx->active;
@@ -314,24 +314,26 @@ static void iwl_free_frame(struct iwl_priv *priv, struct iwl_frame *frame)
 }
 
 static u32 iwl_fill_beacon_frame(struct iwl_priv *priv,
-					  struct ieee80211_hdr *hdr,
-					  int left)
+				 struct ieee80211_hdr *hdr,
+				 int left)
 {
-	if (!priv->ibss_beacon)
+	lockdep_assert_held(&priv->mutex);
+
+	if (!priv->beacon_skb)
 		return 0;
 
-	if (priv->ibss_beacon->len > left)
+	if (priv->beacon_skb->len > left)
 		return 0;
 
-	memcpy(hdr, priv->ibss_beacon->data, priv->ibss_beacon->len);
+	memcpy(hdr, priv->beacon_skb->data, priv->beacon_skb->len);
 
-	return priv->ibss_beacon->len;
+	return priv->beacon_skb->len;
 }
 
 /* Parse the beacon frame to find the TIM element and set tim_idx & tim_size */
 static void iwl_set_beacon_tim(struct iwl_priv *priv,
-		struct iwl_tx_beacon_cmd *tx_beacon_cmd,
-		u8 *beacon, u32 frame_size)
+			       struct iwl_tx_beacon_cmd *tx_beacon_cmd,
+			       u8 *beacon, u32 frame_size)
 {
 	u16 tim_idx;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)beacon;
@@ -383,6 +385,8 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
 	if (WARN_ON_ONCE(frame_size > MAX_MPDU_SIZE))
 		return 0;
+	if (!frame_size)
+		return 0;
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
@@ -393,7 +397,7 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 
 	/* Set up TX beacon command fields */
 	iwl_set_beacon_tim(priv, tx_beacon_cmd, (u8 *)tx_beacon_cmd->frame,
-			frame_size);
+			   frame_size);
 
 	/* Set up packet rate and flags */
 	rate = iwl_rate_get_lowest_plcp(priv, priv->beacon_ctx);
@@ -648,15 +652,14 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
 	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif);
 	if (!beacon) {
-		IWL_ERR(priv, "update beacon failed\n");
+		IWL_ERR(priv, "update beacon failed -- keeping old\n");
 		goto out;
 	}
 
 	/* new beacon skb is allocated every time; dispose previous.*/
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	dev_kfree_skb(priv->beacon_skb);
 
-	priv->ibss_beacon = beacon;
+	priv->beacon_skb = beacon;
 
 	iwl_send_beacon_cmd(priv);
  out:
@@ -933,22 +936,6 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
 		wake_up_interruptible(&priv->wait_command_queue);
-}
-
-int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
-{
-	if (src == IWL_PWR_SRC_VAUX) {
-		if (pci_pme_capable(priv->pci_dev, PCI_D3cold))
-			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-					       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
-					       ~APMG_PS_CTRL_MSK_PWR_SRC);
-	} else {
-		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-				       APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-				       ~APMG_PS_CTRL_MSK_PWR_SRC);
-	}
-
-	return 0;
 }
 
 static void iwl_bg_tx_flush(struct work_struct *work)
@@ -2078,7 +2065,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	struct iwlagn_ucode_capabilities ucode_capa = {
 		.max_probe_length = 200,
 		.standard_phy_calibration_size =
-			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE,
+			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE,
 	};
 
 	memset(&pieces, 0, sizeof(pieces));
@@ -2120,18 +2107,23 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * firmware filename ... but we don't check for that and only rely
 	 * on the API version read from firmware header from here on forward
 	 */
-	if (api_ver < api_min || api_ver > api_max) {
-		IWL_ERR(priv, "Driver unable to support your firmware API. "
-			  "Driver supports v%u, firmware is v%u.\n",
-			  api_max, api_ver);
-		goto try_again;
-	}
+	/* no api version check required for experimental uCode */
+	if (priv->fw_index != UCODE_EXPERIMENTAL_INDEX) {
+		if (api_ver < api_min || api_ver > api_max) {
+			IWL_ERR(priv,
+				"Driver unable to support your firmware API. "
+				"Driver supports v%u, firmware is v%u.\n",
+				api_max, api_ver);
+			goto try_again;
+		}
 
-	if (api_ver != api_max)
-		IWL_ERR(priv, "Firmware has old API version. Expected v%u, "
-			  "got v%u. New firmware can be obtained "
-			  "from http://www.intellinuxwireless.org.\n",
-			  api_max, api_ver);
+		if (api_ver != api_max)
+			IWL_ERR(priv,
+				"Firmware has old API version. Expected v%u, "
+				"got v%u. New firmware can be obtained "
+				"from http://www.intellinuxwireless.org.\n",
+				api_max, api_ver);
+	}
 
 	if (build)
 		sprintf(buildstr, " build %u%s", build,
@@ -2820,9 +2812,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	if (priv->hw_params.calib_rt_cfg)
-		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
-
 
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
@@ -2838,6 +2827,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	if (iwl_is_rfkill(priv))
 		return;
 
+	/* download priority table before any calibration request */
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
@@ -2846,8 +2836,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
-		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC)
-			iwlagn_send_prio_tbl(priv);
+		iwlagn_send_prio_tbl(priv);
 
 		/* FIXME: w/a to force change uCode BT state machine */
 		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
@@ -2855,6 +2844,9 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
 			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 	}
+	if (priv->hw_params.calib_rt_cfg)
+		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
+
 	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = IWL_RATES_MASK;
@@ -2999,14 +2991,13 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
-	priv->ibss_beacon = NULL;
+	dev_kfree_skb(priv->beacon_skb);
+	priv->beacon_skb = NULL;
 
 	/* clear out any free frames */
 	iwl_clear_free_frames(priv);
@@ -3089,7 +3080,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	}
 
 	for_each_context(priv, ctx) {
-		ret = iwl_alloc_bcast_station(priv, ctx, true);
+		ret = iwlagn_alloc_bcast_station(priv, ctx);
 		if (ret) {
 			iwl_dealloc_bcast_stations(priv);
 			return ret;
@@ -4142,8 +4133,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	priv->ibss_beacon = NULL;
-
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
@@ -4613,7 +4602,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	 * paths to avoid running iwl_down() at all before leaving driver.
 	 * This (inexpensive) call *makes sure* device is reset.
 	 */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
 	iwl_tt_exit(priv);
 
@@ -4656,8 +4645,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	iwl_free_isr_ict(priv);
 
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	dev_kfree_skb(priv->beacon_skb);
 
 	ieee80211_free_hw(priv->hw);
 }

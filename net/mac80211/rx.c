@@ -622,6 +622,26 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 							tid_agg_rx->buf_size;
 	}
 
+	/*
+	 * Disable the reorder release timer for now.
+	 *
+	 * The current implementation lacks a proper locking scheme
+	 * which would protect vital statistic and debug counters
+	 * from being updated by two different but concurrent BHs.
+	 *
+	 * More information about the topic is available from:
+	 * - thread: http://marc.info/?t=128635927000001
+	 *
+	 * What was wrong:
+	 * =>  http://marc.info/?l=linux-wireless&m=128636170811964
+	 * "Basically the thing is that until your patch, the data
+	 *  in the struct didn't actually need locking because it
+	 *  was accessed by the RX path only which is not concurrent."
+	 *
+	 * List of what needs to be fixed:
+	 * => http://marc.info/?l=linux-wireless&m=128656352920957
+	 *
+
 	if (tid_agg_rx->stored_mpdu_num) {
 		j = index = seq_sub(tid_agg_rx->head_seq_num,
 				    tid_agg_rx->ssn) % tid_agg_rx->buf_size;
@@ -640,6 +660,10 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 	} else {
 		del_timer(&tid_agg_rx->reorder_timer);
 	}
+	*/
+
+set_release_timer:
+	return;
 }
 
 /*

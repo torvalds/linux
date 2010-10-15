@@ -88,29 +88,32 @@ static void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
 /* Helper Functions */
 /********************/
 
-static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
+static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 {
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
+	struct ath_common *common = ath9k_hw_common(ah);
+	unsigned int clockrate;
 
 	if (!ah->curchan) /* should really check for CCK instead */
-		return usecs *ATH9K_CLOCK_RATE_CCK;
-	if (conf->channel->band == IEEE80211_BAND_2GHZ)
-		return usecs *ATH9K_CLOCK_RATE_2GHZ_OFDM;
-
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
-		return usecs * ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
+		clockrate = ATH9K_CLOCK_RATE_CCK;
+	else if (conf->channel->band == IEEE80211_BAND_2GHZ)
+		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
+	else if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
+		clockrate = ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
 	else
-		return usecs * ATH9K_CLOCK_RATE_5GHZ_OFDM;
+		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
+
+	if (conf_is_ht40(conf))
+		clockrate *= 2;
+
+	common->clockrate = clockrate;
 }
 
 static u32 ath9k_hw_mac_to_clks(struct ath_hw *ah, u32 usecs)
 {
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
+	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (conf_is_ht40(conf))
-		return ath9k_hw_mac_clks(ah, usecs) * 2;
-	else
-		return ath9k_hw_mac_clks(ah, usecs);
+	return usecs * common->clockrate;
 }
 
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
@@ -1156,6 +1159,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 			  "Failed to set channel\n");
 		return false;
 	}
+	ath9k_hw_set_clockrate(ah);
 
 	ah->eep_ops->set_txpower(ah, chan,
 			     ath9k_regd_get_ctl(regulatory, chan),
@@ -1367,6 +1371,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	r = ath9k_hw_rf_set_freq(ah, chan);
 	if (r)
 		return r;
+
+	ath9k_hw_set_clockrate(ah);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -1794,37 +1800,11 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		return -EINVAL;
 	}
 
-	bitmap_zero(pCap->wireless_modes, ATH9K_MODE_MAX);
+	if (eeval & AR5416_OPFLAGS_11A)
+		pCap->hw_caps |= ATH9K_HW_CAP_5GHZ;
 
-	if (eeval & AR5416_OPFLAGS_11A) {
-		set_bit(ATH9K_MODE_11A, pCap->wireless_modes);
-		if (ah->config.ht_enable) {
-			if (!(eeval & AR5416_OPFLAGS_N_5G_HT20))
-				set_bit(ATH9K_MODE_11NA_HT20,
-					pCap->wireless_modes);
-			if (!(eeval & AR5416_OPFLAGS_N_5G_HT40)) {
-				set_bit(ATH9K_MODE_11NA_HT40PLUS,
-					pCap->wireless_modes);
-				set_bit(ATH9K_MODE_11NA_HT40MINUS,
-					pCap->wireless_modes);
-			}
-		}
-	}
-
-	if (eeval & AR5416_OPFLAGS_11G) {
-		set_bit(ATH9K_MODE_11G, pCap->wireless_modes);
-		if (ah->config.ht_enable) {
-			if (!(eeval & AR5416_OPFLAGS_N_2G_HT20))
-				set_bit(ATH9K_MODE_11NG_HT20,
-					pCap->wireless_modes);
-			if (!(eeval & AR5416_OPFLAGS_N_2G_HT40)) {
-				set_bit(ATH9K_MODE_11NG_HT40PLUS,
-					pCap->wireless_modes);
-				set_bit(ATH9K_MODE_11NG_HT40MINUS,
-					pCap->wireless_modes);
-			}
-		}
-	}
+	if (eeval & AR5416_OPFLAGS_11G)
+		pCap->hw_caps |= ATH9K_HW_CAP_2GHZ;
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
 	/*

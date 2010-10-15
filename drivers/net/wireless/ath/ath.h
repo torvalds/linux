@@ -19,6 +19,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
+#include <linux/spinlock.h>
 #include <net/mac80211.h>
 
 /*
@@ -40,6 +41,13 @@ struct ath_ani {
 	unsigned int resetcal_timer;
 	unsigned int checkani_timer;
 	struct timer_list timer;
+};
+
+struct ath_cycle_counters {
+	u32 cycles;
+	u32 rx_busy;
+	u32 rx_frame;
+	u32 tx_frame;
 };
 
 enum ath_device_state {
@@ -145,6 +153,12 @@ struct ath_common {
 	DECLARE_BITMAP(tkip_keymap, ATH_KEYMAX);
 	enum ath_crypt_caps crypt_caps;
 
+	unsigned int clockrate;
+
+	spinlock_t cc_lock;
+	struct ath_cycle_counters cc_ani;
+	struct ath_cycle_counters cc_survey;
+
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
@@ -161,5 +175,7 @@ int ath_key_config(struct ath_common *common,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key);
 bool ath_hw_keyreset(struct ath_common *common, u16 entry);
+void ath_hw_cycle_counters_update(struct ath_common *common);
+int32_t ath_hw_get_listen_time(struct ath_common *common);
 
 #endif /* ATH_H */
