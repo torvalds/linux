@@ -3111,9 +3111,10 @@ static int maybe_allocate_chunk(struct btrfs_trans_handle *trans,
  * shrink metadata reservation for delalloc
  */
 static int shrink_delalloc(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, u64 to_reclaim)
+			   struct btrfs_root *root, u64 to_reclaim, int sync)
 {
 	struct btrfs_block_rsv *block_rsv;
+	struct btrfs_space_info *space_info;
 	u64 reserved;
 	u64 max_reclaim;
 	u64 reclaimed = 0;
@@ -3122,9 +3123,10 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	int ret;
 
 	block_rsv = &root->fs_info->delalloc_block_rsv;
-	spin_lock(&block_rsv->lock);
-	reserved = block_rsv->reserved;
-	spin_unlock(&block_rsv->lock);
+	space_info = block_rsv->space_info;
+	spin_lock(&space_info->lock);
+	reserved = space_info->bytes_reserved;
+	spin_unlock(&space_info->lock);
 
 	if (reserved == 0)
 		return 0;
@@ -3132,7 +3134,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	max_reclaim = min(reserved, to_reclaim);
 
 	while (1) {
-		ret = btrfs_start_one_delalloc_inode(root, trans ? 1 : 0);
+		ret = btrfs_start_one_delalloc_inode(root, trans ? 1 : 0, sync);
 		if (!ret) {
 			if (no_reclaim > 2)
 				break;
@@ -3147,11 +3149,11 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 			pause = 1;
 		}
 
-		spin_lock(&block_rsv->lock);
-		if (reserved > block_rsv->reserved)
-			reclaimed = reserved - block_rsv->reserved;
-		reserved = block_rsv->reserved;
-		spin_unlock(&block_rsv->lock);
+		spin_lock(&space_info->lock);
+		if (reserved > space_info->bytes_reserved)
+			reclaimed += reserved - space_info->bytes_reserved;
+		reserved = space_info->bytes_reserved;
+		spin_unlock(&space_info->lock);
 
 		if (reserved == 0 || reclaimed >= max_reclaim)
 			break;
@@ -3180,7 +3182,7 @@ static int should_retry_reserve(struct btrfs_trans_handle *trans,
 	if (trans && trans->transaction->in_commit)
 		return -ENOSPC;
 
-	ret = shrink_delalloc(trans, root, num_bytes);
+	ret = shrink_delalloc(trans, root, num_bytes, 0);
 	if (ret)
 		return ret;
 
@@ -3729,7 +3731,7 @@ again:
 	block_rsv_add_bytes(block_rsv, to_reserve, 1);
 
 	if (block_rsv->size > 512 * 1024 * 1024)
-		shrink_delalloc(NULL, root, to_reserve);
+		shrink_delalloc(NULL, root, to_reserve, 0);
 
 	return 0;
 }
