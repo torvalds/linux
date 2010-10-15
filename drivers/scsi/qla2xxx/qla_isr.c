@@ -1240,12 +1240,6 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case LSC_SCODE_NPORT_USED:
 		data[0] = MBS_LOOP_ID_USED;
 		break;
-	case LSC_SCODE_CMD_FAILED:
-		if ((iop[1] & 0xff) == 0x05) {
-			data[0] = MBS_NOT_LOGGED_IN;
-			break;
-		}
-		/* Fall through. */
 	default:
 		data[0] = MBS_COMMAND_ERROR;
 		break;
