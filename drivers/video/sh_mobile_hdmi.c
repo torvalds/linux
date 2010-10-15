@@ -1051,7 +1051,8 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto egetclk;
 	}
 
-	rate = sh_hdmi_clk_configure(hdmi, pdata->lcd_chan->lcd_cfg[0].pixclock);
+	/* Some arbitrary relaxed pixclock just to get things started */
+	rate = sh_hdmi_clk_configure(hdmi, 37037);
 	if (rate < 0) {
 		ret = rate;
 		goto erate;
