@@ -49,7 +49,7 @@ config HAVE_SYSCALL_TRACEPOINTS
 	help
 	  See Documentation/trace/ftrace-design.txt
 
-config HAVE_C_MCOUNT_RECORD
+config HAVE_C_RECORDMCOUNT
 	bool
 	help
 	  C version of recordmcount available?
