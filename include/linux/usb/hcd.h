@@ -142,7 +142,7 @@ struct usb_hcd {
 	 * bandwidth_mutex should be dropped after a successful control message
 	 * to the device, or resetting the bandwidth after a failed attempt.
 	 */
-	struct mutex		bandwidth_mutex;
+	struct mutex		*bandwidth_mutex;
 
 
 #define HCD_BUFFER_POOLS	4

@@ -3776,13 +3776,13 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	if (!udev->actconfig)
 		goto done;
 
-	mutex_lock(&hcd->bandwidth_mutex);
+	mutex_lock(hcd->bandwidth_mutex);
 	ret = usb_hcd_alloc_bandwidth(udev, udev->actconfig, NULL, NULL);
 	if (ret < 0) {
 		dev_warn(&udev->dev,
 				"Busted HC?  Not enough HCD resources for "
 				"old configuration.\n");
-		mutex_unlock(&hcd->bandwidth_mutex);
+		mutex_unlock(hcd->bandwidth_mutex);
 		goto re_enumerate;
 	}
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
@@ -3793,10 +3793,10 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		dev_err(&udev->dev,
 			"can't restore configuration #%d (error=%d)\n",
 			udev->actconfig->desc.bConfigurationValue, ret);
-		mutex_unlock(&hcd->bandwidth_mutex);
+		mutex_unlock(hcd->bandwidth_mutex);
 		goto re_enumerate;
   	}
-	mutex_unlock(&hcd->bandwidth_mutex);
+	mutex_unlock(hcd->bandwidth_mutex);
 	usb_set_device_state(udev, USB_STATE_CONFIGURED);
 
 	/* Put interfaces back into the same altsettings as before.
