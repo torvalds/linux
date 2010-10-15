@@ -35,9 +35,19 @@
 #define SYNTH_CLEAR 0x03
 #define PROCSPEECH 0x0b
 static unsigned char last_char;
-#define get_last_char() ((inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR)? \
-		(last_char = inb_p(speakup_info.port_tts + UART_RX)) : last_char)
-#define synth_full() (get_last_char() == 0x13)
+
+static inline u_char get_last_char(void)
+{
+	u_char avail = inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR;
+	if (avail)
+		last_char = inb_p(speakup_info.port_tts + UART_RX);
+	return last_char;
+}
+
+static inline bool synth_full(void)
+{
+	return get_last_char() == 0x13;
+}
 
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
@@ -45,14 +55,14 @@ static void synth_flush(struct spk_synth *synth);
 static int in_escape;
 
 static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"[:dv ap 222]" }},
-	{ CAPS_STOP, .u.s = {"[:dv ap 100]" }},
-	{ RATE, .u.n = {"[:ra %d]", 7, 0, 9, 150, 25, NULL }},
-	{ PITCH, .u.n = {"[:dv ap %d]", 100, 0, 100, 0, 0, NULL }},
-	{ VOL, .u.n = {"[:dv gv %d]", 13, 0, 16, 0, 5, NULL }},
-	{ PUNCT, .u.n = {"[:pu %c]", 0, 0, 2, 0, 0, "nsa" }},
-	{ VOICE, .u.n = {"[:n%c]", 0, 0, 9, 0, 0, "phfdburwkv" }},
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL }},
+	{ CAPS_START, .u.s = {"[:dv ap 222]" } },
+	{ CAPS_STOP, .u.s = {"[:dv ap 100]" } },
+	{ RATE, .u.n = {"[:ra %d]", 7, 0, 9, 150, 25, NULL } },
+	{ PITCH, .u.n = {"[:dv ap %d]", 100, 0, 100, 0, 0, NULL } },
+	{ VOL, .u.n = {"[:dv gv %d]", 13, 0, 16, 0, 5, NULL } },
+	{ PUNCT, .u.n = {"[:pu %c]", 0, 0, 2, 0, 0, "nsa" } },
+	{ VOICE, .u.n = {"[:n%c]", 0, 0, 9, 0, 0, "phfdburwkv" } },
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -194,13 +204,14 @@ static void do_catch_up(struct spk_synth *synth)
 			if (!in_escape && strchr(",.!?;:", last))
 				spk_serial_out(PROCSPEECH);
 			if (jiffies >= jiff_max) {
-				if ( ! in_escape )
+				if (!in_escape)
 					spk_serial_out(PROCSPEECH);
 				spk_lock(flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
 				spk_unlock(flags);
-				schedule_timeout(msecs_to_jiffies(delay_time_val));
+				schedule_timeout(msecs_to_jiffies
+						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
 			}
 		}
