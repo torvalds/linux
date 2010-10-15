@@ -70,7 +70,7 @@ struct battery_status {
  * power, sample every SLOW_POLL seconds
  */
 #define FAST_POLL	(1 * 60)
-#define SLOW_POLL	(10 * 60)
+#define SLOW_POLL	(20 * 60)
 
 static DEFINE_MUTEX(battery_log_lock);
 static struct battery_status battery_log[BATTERY_LOG_MAX];
@@ -444,7 +444,8 @@ static int ds2781_suspend(struct device *dev)
 	struct ds2781_device_info *di = dev_get_drvdata(dev);
 
 	/* If on battery, reduce update rate until next resume. */
-	if (!di->status.charge_source) {
+	if ((!di->status.charge_source) &&
+	    (di->status.temp_C < TEMP_HOT)) {
 		ds2781_program_alarm(di, SLOW_POLL);
 		di->slow_poll = 1;
 	}
