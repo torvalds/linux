@@ -32,7 +32,7 @@
 //#define JDEBUG
 
 static int ft1000_reset(struct net_device *ft1000dev);
-static int ft1000_submit_rx_urb(PFT1000_INFO info);
+static int ft1000_submit_rx_urb(struct ft1000_info *info);
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ft1000_open (struct net_device *dev);
 static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev);
@@ -623,7 +623,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
     USHORT tempword;
     ULONG templong;
 
-    PFT1000_INFO pft1000info;
+	struct ft1000_info *pft1000info;
 
     pft1000info = netdev_priv(ft1000dev->net);
 
@@ -677,7 +677,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 static void ft1000_reset_asic (struct net_device *dev)
 {
-    FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
     u16 tempword;
 
@@ -717,7 +717,7 @@ static void ft1000_reset_asic (struct net_device *dev)
 //---------------------------------------------------------------------------
 static int ft1000_reset_card (struct net_device *dev)
 {
-    FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
     u16 tempword;
 	struct prov_record *ptr;
@@ -795,7 +795,7 @@ static const struct net_device_ops ftnet_ops =
 u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 {
     struct net_device *netdev;
-    FT1000_INFO *pInfo = NULL;
+	struct ft1000_info *pInfo = NULL;
 	struct dpram_blk *pdpram_blk;
 	int i, ret_val;
 	struct list_head *cur, *tmp;
@@ -806,18 +806,18 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     DEBUG("Enter init_ft1000_netdev...\n");
 
 
-    netdev = alloc_etherdev( sizeof(FT1000_INFO));
+	netdev = alloc_etherdev(sizeof(struct ft1000_info));
     if (!netdev )
     {
         DEBUG("init_ft1000_netdev: can not allocate network device\n");
 	return -ENOMEM;
     }
 
-	pInfo = (FT1000_INFO *) netdev_priv (netdev);
+	pInfo = (struct ft1000_info *) netdev_priv(netdev);
 
     //DEBUG("init_ft1000_netdev: gFt1000Info=%x, netdev=%x, ft1000dev=%x\n", gFt1000Info, netdev, ft1000dev);
 
-    memset (pInfo, 0, sizeof(FT1000_INFO));
+	memset(pInfo, 0, sizeof(struct ft1000_info));
 
     dev_alloc_name(netdev, netdev->name);
 
@@ -959,7 +959,7 @@ err_net:
 int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf)
 {
     struct net_device *netdev;
-    FT1000_INFO *pInfo;
+	struct ft1000_info *pInfo;
 	int rc;
 
     netdev = ft1000dev->net;
@@ -1169,7 +1169,7 @@ static inline u16 ft1000_read_fifo_len (struct net_device *dev)
     u16 temp;
     u16 ret;
 
-	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
 //    DEBUG("ft1000_read_fifo_len: enter ft1000dev %x\n", ft1000dev);			//aelias [-] reason: warning: format ???%x??? expects type ???unsigned int???, but argument 2 has type ???struct ft1000_device *???
     DEBUG("ft1000_read_fifo_len: enter ft1000dev %p\n", ft1000dev);	//aelias [+] reason: up
@@ -1215,7 +1215,7 @@ static inline u16 ft1000_read_fifo_len (struct net_device *dev)
 //---------------------------------------------------------------------------
 static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
 {
-    FT1000_INFO *pInfo = netdev_priv(netdev);
+	struct ft1000_info *pInfo = netdev_priv(netdev);
     struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
 
 
@@ -1320,7 +1320,7 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
 //---------------------------------------------------------------------------
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-    FT1000_INFO *pInfo = netdev_priv(dev);
+	struct ft1000_info *pInfo = netdev_priv(dev);
     struct ft1000_device *pFt1000Dev= pInfo->pFt1000Dev;
     u8 *pdata;
     int maxlen, pipe;
@@ -1396,7 +1396,7 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 //---------------------------------------------------------------------------
 static int ft1000_copy_up_pkt (struct urb *urb)
 {
-    PFT1000_INFO info = urb->context;
+	struct ft1000_info *info = urb->context;
     struct ft1000_device *ft1000dev = info->pFt1000Dev;
     struct net_device *net = ft1000dev->net;
 
@@ -1510,7 +1510,7 @@ static int ft1000_copy_up_pkt (struct urb *urb)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-static int ft1000_submit_rx_urb(PFT1000_INFO info)
+static int ft1000_submit_rx_urb(struct ft1000_info *info)
 {
     int result;
     struct ft1000_device *pFt1000Dev = info->pFt1000Dev;
@@ -1560,7 +1560,7 @@ static int ft1000_submit_rx_urb(PFT1000_INFO info)
 //---------------------------------------------------------------------------
 static int ft1000_open (struct net_device *dev)
 {
-	FT1000_INFO *pInfo = (FT1000_INFO *)netdev_priv(dev);
+	struct ft1000_info *pInfo = (struct ft1000_info *)netdev_priv(dev);
     struct timeval tv; //mbelian
 
     DEBUG("ft1000_open is called for card %d\n", pInfo->CardNumber);
@@ -1599,7 +1599,7 @@ static int ft1000_open (struct net_device *dev)
 //---------------------------------------------------------------------------
 int ft1000_close(struct net_device *net)
 {
-	FT1000_INFO *pInfo = (FT1000_INFO *) netdev_priv (net);
+	struct ft1000_info *pInfo = (struct ft1000_info *) netdev_priv(net);
     struct ft1000_device *ft1000dev = pInfo->pFt1000Dev;
 
     //DEBUG ("ft1000_close: netdev->refcnt=%d\n", net->refcnt);
@@ -1622,7 +1622,7 @@ int ft1000_close(struct net_device *net)
 
 static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
 {
-	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 
 	return &(info->stats); //mbelian
 }
@@ -1648,7 +1648,7 @@ Jim
 static int ft1000_chkcard (struct ft1000_device *dev) {
     u16 tempword;
     u16 status;
-	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
 
     if (info->fCondResetPend)
     {
@@ -1748,7 +1748,7 @@ static BOOLEAN ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int 
 static int ft1000_dsp_prov(void *arg)
 {
     struct ft1000_device *dev = (struct ft1000_device *)arg;
-	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
     u16 tempword;
     u16 len;
     u16 i=0;
@@ -1831,7 +1831,7 @@ static int ft1000_dsp_prov(void *arg)
 
 
 static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
-	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
     u16 msgtype;
     u16 tempword;
 	struct media_msg *pmediamsg;
@@ -2114,7 +2114,7 @@ out:
 int ft1000_poll(void* dev_id) {
 
     struct ft1000_device *dev = (struct ft1000_device *)dev_id;
-	FT1000_INFO *info = (FT1000_INFO *) netdev_priv (dev->net);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
 
     u16 tempword;
     u16 status;

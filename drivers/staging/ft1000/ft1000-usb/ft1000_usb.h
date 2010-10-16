@@ -486,7 +486,7 @@ struct ft1000_device
 //	struct net_device_stats stats; //mbelian
 } __attribute__ ((packed));
 
-typedef struct _FT1000_INFO {
+struct ft1000_info {
     struct ft1000_device *pFt1000Dev;
     struct net_device_stats stats;
 
@@ -558,7 +558,7 @@ typedef struct _FT1000_INFO {
 	unsigned short tempbuf[32];
 	char netdevname[IFNAMSIZ];
 	struct proc_dir_entry *ft1000_proc_dir; //mbelian
-} FT1000_INFO, *PFT1000_INFO;
+};
 
 
 struct dpram_blk {
@@ -601,7 +601,7 @@ int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *int
 int ft1000_poll(void* dev_id);
 
 void ft1000InitProc(struct net_device *dev);
-void ft1000CleanupProc(FT1000_INFO *info);
+void ft1000CleanupProc(struct ft1000_info *info);
 
 
 

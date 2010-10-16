@@ -205,7 +205,7 @@ static USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_val
    USHORT            handshake;
    int               loopcnt;
    ULONG             status=0;
-   PFT1000_INFO       pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
    loopcnt = 0;
    while (loopcnt < 100)
@@ -294,7 +294,7 @@ static USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected
    USHORT            temp;
    ULONG             status=0;
 
-   PFT1000_INFO      pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
    loopcnt = 0;
    handshake = 0;
    while (loopcnt < 100)
@@ -352,7 +352,7 @@ static USHORT get_request_type(struct ft1000_device *ft1000dev)
    ULONG    status;
    USHORT   tempword;
    ULONG    tempx;
-   PFT1000_INFO pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
    if ( pft1000info->bootmode == 1)
    {
@@ -380,7 +380,7 @@ static USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
    ULONG    status;
    USHORT   tempword;
    ULONG    tempx;
-   PFT1000_INFO pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
    if ( pft1000info->bootmode == 1)
    {
        status = fix_ft1000_read_dpram32 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempx);
@@ -423,7 +423,7 @@ static long get_request_value(struct ft1000_device *ft1000dev)
    ULONG     value;
    USHORT   tempword;
    ULONG    status;
-   PFT1000_INFO pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
 
        if ( pft1000info->bootmode == 1)
@@ -452,7 +452,7 @@ static long get_request_value_usb(struct ft1000_device *ft1000dev)
    ULONG     value;
    USHORT   tempword;
    ULONG    status;
-   PFT1000_INFO pft1000info = netdev_priv(ft1000dev->net);
+   struct ft1000_info * pft1000info = netdev_priv(ft1000dev->net);
 
        if (pft1000info->usbboot == 2) {
           value = pft1000info->tempbuf[4];
@@ -556,7 +556,7 @@ static ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR
    USHORT tempword;
    USHORT tempbuffer[64];
    USHORT resultbuffer[64];
-   PFT1000_INFO pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
    //DEBUG("FT1000:download:start word_length = %d\n",(int)word_length);
    dpram = (USHORT)DWNLD_MAG1_PS_HDR_LOC;
@@ -801,7 +801,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
    USHORT                  dpram = 0;
    PUCHAR                  pbuffer;
 	struct prov_record *pprov_record;
-   FT1000_INFO *pft1000info = netdev_priv(ft1000dev->net);
+	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
    DEBUG("Entered   scram_dnldr...\n");
 

@@ -64,7 +64,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	int i, ret = 0, size;
 
 	struct ft1000_device *ft1000dev;
-	FT1000_INFO *pft1000info;
+	struct ft1000_info *pft1000info;
 	const struct firmware *dsp_fw;
 
 	ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL);
@@ -164,7 +164,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_load;
 
-	pft1000info = (FT1000_INFO *) netdev_priv(ft1000dev->net);
+	pft1000info = (struct ft1000_info *) netdev_priv(ft1000dev->net);
 
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
@@ -210,11 +210,11 @@ err_fw:
 
 static void ft1000_disconnect(struct usb_interface *interface)
 {
-	FT1000_INFO *pft1000info;
+	struct ft1000_info *pft1000info;
 
 	DEBUG("ft1000_disconnect is called\n");
 
-	pft1000info = (PFT1000_INFO) usb_get_intfdata(interface);
+	pft1000info = (struct ft1000_info *) usb_get_intfdata(interface);
 	DEBUG("In disconnect pft1000info=%p\n", pft1000info);
 
 	if (pft1000info) {

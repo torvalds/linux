@@ -95,7 +95,7 @@ static struct file_operations ft1000fops =
 //---------------------------------------------------------------------------
 static int exec_mknod (void *pdata)
 {
-    PFT1000_INFO info;
+	struct ft1000_info *info;
     char mjnum[4];
     char minornum[4];
     char temp[32];
@@ -137,13 +137,13 @@ static int exec_mknod (void *pdata)
 static int rm_mknod (void *pdata)
 {
 
-    PFT1000_INFO info;
+	struct ft1000_info *info;
     //char *argv[4]={"rm", "-f", "/dev/FT1000", NULL};
     int retcode;
     char temp[32];
     char *argv[]={"rm", "-f", temp, NULL};
 
-    info = (PFT1000_INFO)pdata;
+	info = (struct ft1000_info *)pdata;
     DEBUG("ft1000_chdev:rm_mknod is called for device %s\n", info->DeviceName);
     sprintf(temp, "%s%s", "/dev/", info->DeviceName) ;
 
@@ -235,7 +235,7 @@ void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist)
 //---------------------------------------------------------------------------
 int ft1000_CreateDevice(struct ft1000_device *dev)
 {
-    PFT1000_INFO info = netdev_priv(dev->net);
+	struct ft1000_info *info = netdev_priv(dev->net);
     int result;
     int i;
     pid_t pid;
@@ -349,7 +349,7 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 //---------------------------------------------------------------------------
 void ft1000_DestroyDevice(struct net_device *dev)
 {
-    PFT1000_INFO info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
     int result = 0;
     pid_t pid;
 		int i;
@@ -412,7 +412,7 @@ void ft1000_DestroyDevice(struct net_device *dev)
 //---------------------------------------------------------------------------
 static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 {
-    PFT1000_INFO info;
+	struct ft1000_info *info;
     int i,num;
 
     DEBUG("ft1000_ChOpen called\n");
@@ -423,8 +423,8 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
         DEBUG("pdevobj[%d]=%p\n", i, pdevobj[i]); //aelias [+] reason: down
 
     if ( pdevobj[num] != NULL )
-        //info = (PFT1000_INFO)(pdevobj[num]->net->priv);
-    	info = (FT1000_INFO *) netdev_priv (pdevobj[num]->net);
+        //info = (struct ft1000_info *)(pdevobj[num]->net->priv);
+		info = (struct ft1000_info *)netdev_priv(pdevobj[num]->net);
     else
     {
         DEBUG("ft1000_ChOpen: can not find device object %d\n", num);
@@ -480,7 +480,7 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
 {
     struct net_device *dev = file->private_data;
-    PFT1000_INFO info;
+	struct ft1000_info *info;
     int i;
 
     //DEBUG("ft1000_ChPoll called\n");
@@ -489,7 +489,7 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
         return (-EBADF);
     }
 
-	info = (FT1000_INFO *) netdev_priv (dev);
+	info = (struct ft1000_info *) netdev_priv(dev);
 
     // Search for matching file object
     for (i=0; i<MAX_NUM_APP; i++) {
@@ -531,7 +531,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
 {
     void __user *argp = (void __user *)Argument;
     struct net_device *dev;
-    PFT1000_INFO info;
+	struct ft1000_info *info;
     struct ft1000_device *ft1000dev;
     int result=0;
     int cmd;
@@ -561,7 +561,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
     //DEBUG("FT1000:ft1000_ChIoctl:Command = 0x%x Argument = 0x%8x\n", Command, (u32)Argument);
 
     dev = File->private_data;
-	info = (FT1000_INFO *) netdev_priv (dev);
+	info = (struct ft1000_info *) netdev_priv(dev);
     ft1000dev = info->pFt1000Dev;
     cmd = _IOC_NR(Command);
     //DEBUG("FT1000:ft1000_ChIoctl:cmd = 0x%x\n", cmd);
@@ -893,7 +893,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
 //---------------------------------------------------------------------------
 static int ft1000_ChRelease (struct inode *Inode, struct file *File)
 {
-    PFT1000_INFO info;
+	struct ft1000_info *info;
     struct net_device *dev;
     int i;
 	struct dpram_blk *pdpram_blk;
@@ -901,7 +901,7 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
     DEBUG("ft1000_ChRelease called\n");
 
     dev = File->private_data;
-	info = (FT1000_INFO *) netdev_priv (dev);
+	info = (struct ft1000_info *) netdev_priv(dev);
 
     if (ft1000_flarion_cnt == 0) {
         info->appcnt--;

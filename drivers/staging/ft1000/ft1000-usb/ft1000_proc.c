@@ -52,7 +52,7 @@ ft1000ReadProc (char *page, char **start, off_t off, int count, int *eof,
   unsigned short ledStat;
   unsigned short conStat;
 
-  FT1000_INFO *info;
+	struct ft1000_info *info;
 
   char *status[] = { "Idle (Disconnect)", "Searching", "Active (Connected)",
     "Waiting for L2", "Sleep", "No Coverage", "", ""
@@ -65,7 +65,7 @@ ft1000ReadProc (char *page, char **start, off_t off, int count, int *eof,
   time_t delta;
 
   dev = (struct net_device *) data;
-  info = (FT1000_INFO *) netdev_priv (dev);
+	info = (struct ft1000_info *) netdev_priv(dev);
 
   if (off > 0)
     {
@@ -169,10 +169,10 @@ static int
 ft1000NotifyProc (struct notifier_block *this, unsigned long event, void *ptr)
 {
   struct net_device *dev = ptr;
-  FT1000_INFO *info;
+	struct ft1000_info *info;
   struct proc_dir_entry *ft1000_proc_file;
 
-  info = (FT1000_INFO *) netdev_priv (dev);
+info = (struct ft1000_info *) netdev_priv(dev);
 
 
   switch (event)
@@ -196,9 +196,9 @@ static struct notifier_block ft1000_netdev_notifier = {
 void
 ft1000InitProc (struct net_device *dev)
 {
-  FT1000_INFO *info;
+	struct ft1000_info *info;
   struct proc_dir_entry *ft1000_proc_file;
-  info = (FT1000_INFO *) netdev_priv (dev);
+	info = (struct ft1000_info *) netdev_priv(dev);
 
 
   info->ft1000_proc_dir = proc_mkdir (FT1000_PROC_DIR, FTNET_PROC);
@@ -222,7 +222,7 @@ ft1000InitProc (struct net_device *dev)
 }
 
 void
-ft1000CleanupProc (FT1000_INFO * info)
+ft1000CleanupProc(struct ft1000_info *info)
 {
   remove_proc_entry (info->netdevname, info->ft1000_proc_dir);
   remove_proc_entry (FT1000_PROC_DIR, FTNET_PROC);
