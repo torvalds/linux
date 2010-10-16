@@ -1067,8 +1067,10 @@ bad_inode:
 int __exofs_wait_obj_created(struct exofs_i_info *oi)
 {
 	if (!obj_created(oi)) {
+		EXOFS_DBGMSG("!obj_created\n");
 		BUG_ON(!obj_2bcreated(oi));
 		wait_event(oi->i_wq, obj_created(oi));
+		EXOFS_DBGMSG("wait_event done\n");
 	}
 	return unlikely(is_bad_inode(&oi->vfs_inode)) ? -EIO : 0;
 }
@@ -1102,7 +1104,6 @@ static void create_done(struct exofs_io_state *ios, void *p)
 
 	set_obj_created(oi);
 
-	atomic_dec(&inode->i_count);
 	wake_up(&oi->i_wq);
 }
 
@@ -1153,17 +1154,11 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	ios->obj.id = exofs_oi_objno(oi);
 	exofs_make_credential(oi->i_cred, &ios->obj);
 
-	/* increment the refcount so that the inode will still be around when we
-	 * reach the callback
-	 */
-	atomic_inc(&inode->i_count);
-
 	ios->done = create_done;
 	ios->private = inode;
 	ios->cred = oi->i_cred;
 	ret = exofs_sbi_create(ios);
 	if (ret) {
-		atomic_dec(&inode->i_count);
 		exofs_put_io_state(ios);
 		return ERR_PTR(ret);
 	}
@@ -1253,12 +1248,7 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 	ios->out_attr_len = 1;
 	ios->out_attr = &attr;
 
-	if (!obj_created(oi)) {
-		EXOFS_DBGMSG("!obj_created\n");
-		BUG_ON(!obj_2bcreated(oi));
-		wait_event(oi->i_wq, obj_created(oi));
-		EXOFS_DBGMSG("wait_event done\n");
-	}
+	wait_obj_created(oi);
 
 	if (!do_sync) {
 		args->sbi = sbi;
@@ -1321,12 +1311,12 @@ void exofs_evict_inode(struct inode *inode)
 	inode->i_size = 0;
 	end_writeback(inode);
 
-	/* if we are deleting an obj that hasn't been created yet, wait */
-	if (!obj_created(oi)) {
-		BUG_ON(!obj_2bcreated(oi));
-		wait_event(oi->i_wq, obj_created(oi));
-		/* ignore the error attempt a remove anyway */
-	}
+	/* if we are deleting an obj that hasn't been created yet, wait.
+	 * This also makes sure that create_done cannot be called with an
+	 * already evicted inode.
+	 */
+	wait_obj_created(oi);
+	/* ignore the error, attempt a remove anyway */
 
 	/* Now Remove the OSD objects */
 	ret = exofs_get_io_state(&sbi->layout, &ios);
