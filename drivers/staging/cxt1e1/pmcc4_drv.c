@@ -136,8 +136,8 @@ void        musycc_update_timeslots (mpi_t *);
 
 extern void musycc_update_tx_thp (mch_t *);
 extern int  log_level;
-extern int  max_mru;
-extern int  max_mtu;
+extern int  cxt1e1_max_mru;
+extern int  cxt1e1_max_mtu;
 extern int  max_rxdesc_used, max_rxdesc_default;
 extern int  max_txdesc_used, max_txdesc_default;
 
@@ -1047,7 +1047,7 @@ c4_set_port (ci_t * ci, int portnum)
                                 MUSYCC_PCD_RXDATA_RISING);
 
     /* Message length descriptor */
-    pi->regram->mld = __constant_cpu_to_le32 (max_mru | (max_mru << 16));
+       pi->regram->mld = __constant_cpu_to_le32 (cxt1e1_max_mru | (cxt1e1_max_mru << 16));
 
     /* tsm algorithm */
     for (i = 0; i < 32; i++)
@@ -1434,9 +1434,9 @@ c4_chan_up (ci_t * ci, int channum)
     ch->mdr = OS_kmalloc (sizeof (struct mdesc) * rxnum);
     ch->mdt = OS_kmalloc (sizeof (struct mdesc) * txnum);
     if (ch->p.chan_mode == CFG_CH_PROTO_TRANS)
-        tmp = __constant_cpu_to_le32 (max_mru | EOBIRQ_ENABLE);
+               tmp = __constant_cpu_to_le32 (cxt1e1_max_mru | EOBIRQ_ENABLE);
     else
-        tmp = __constant_cpu_to_le32 (max_mru);
+               tmp = __constant_cpu_to_le32 (cxt1e1_max_mru);
 
     for (i = 0, md = ch->mdr; i < rxnum; i++, md++)
     {
@@ -1449,11 +1449,11 @@ c4_chan_up (ci_t * ci, int channum)
         }
         md->next = cpu_to_le32 (OS_vtophys (md->snext));
 
-        if (!(m = OS_mem_token_alloc (max_mru)))
+               if (!(m = OS_mem_token_alloc (cxt1e1_max_mru)))
         {
             if (log_level >= LOG_MONITOR)
                 pr_info("%s: c4_chan_up[%d] - token alloc failure, size = %d.\n",
-                        ci->devname, channum, max_mru);
+                                               ci->devname, channum, cxt1e1_max_mru);
             goto errfree;
         }
         md->mem_token = m;

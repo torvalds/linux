@@ -171,17 +171,17 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
 
 #ifdef SBE_PMCC4_ENABLE
     {
-        extern int max_mru;
+               extern int cxt1e1_max_mru;
 #if 0
         extern int max_chans_used;
-        extern int max_mtu;
+        extern int cxt1e1_max_mtu;
 #endif
         extern int max_rxdesc_used, max_txdesc_used;
 
-        len += sprintf (buffer + len, "\nmax_mru:         %d\n", max_mru);
+        len += sprintf (buffer + len, "\ncxt1e1_max_mru:         %d\n", cxt1e1_max_mru);
 #if 0
         len += sprintf (buffer + len, "\nmax_chans_used:  %d\n", max_chans_used);
-        len += sprintf (buffer + len, "max_mtu:         %d\n", max_mtu);
+        len += sprintf (buffer + len, "cxt1e1_max_mtu:         %d\n", cxt1e1_max_mtu);
 #endif
         len += sprintf (buffer + len, "max_rxdesc_used: %d\n", max_rxdesc_used);
         len += sprintf (buffer + len, "max_txdesc_used: %d\n", max_txdesc_used);

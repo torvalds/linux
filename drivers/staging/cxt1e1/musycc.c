@@ -99,8 +99,8 @@ extern ci_t *c4_list;
 extern int  drvr_state;
 extern int  log_level;
 
-extern int  max_mru;
-extern int  max_mtu;
+extern int  cxt1e1_max_mru;
+extern int  cxt1e1_max_mtu;
 extern int  max_rxdesc_used;
 extern int  max_txdesc_used;
 extern ci_t *CI;                /* dummy pointr to board ZEROE's data - DEBUG
@@ -819,7 +819,7 @@ musycc_init_port (mpi_t * pi)
                                 MUSYCC_PCD_TX_DRIVEN);
 
     /* Message length descriptor */
-    pi->regram->mld = __constant_cpu_to_le32 (max_mru | (max_mru << 16));
+       pi->regram->mld = __constant_cpu_to_le32 (cxt1e1_max_mru | (cxt1e1_max_mru << 16));
     FLUSH_MEM_WRITE ();
 
     musycc_serv_req (pi, SR_GROUP_INIT | SR_RX_DIRECTION);
@@ -913,17 +913,17 @@ musycc_init (ci_t * ci)
 
     /* sanity check settable parameters */
 
-    if (max_mru > 0xffe)
+       if (cxt1e1_max_mru > 0xffe)
     {
         pr_warning("Maximum allowed MRU exceeded, resetting %d to %d.\n",
-                   max_mru, 0xffe);
-        max_mru = 0xffe;
+                                  cxt1e1_max_mru, 0xffe);
+               cxt1e1_max_mru = 0xffe;
     }
-    if (max_mtu > 0xffe)
+       if (cxt1e1_max_mtu > 0xffe)
     {
         pr_warning("Maximum allowed MTU exceeded, resetting %d to %d.\n",
-                   max_mtu, 0xffe);
-        max_mtu = 0xffe;
+                                  cxt1e1_max_mtu, 0xffe);
+               cxt1e1_max_mtu = 0xffe;
     }
 #ifdef SBE_WAN256T3_ENABLE
     for (i = 0; i < MUSYCC_NPORTS; i++)
@@ -1172,7 +1172,7 @@ musycc_bh_rx_eom (mpi_t * pi, int gchan)
 #endif                              /*** CONFIG_SBE_WAN256T3_NCOMM ***/
 
             {
-                if ((m2 = OS_mem_token_alloc (max_mru)))
+                               if ((m2 = OS_mem_token_alloc (cxt1e1_max_mru)))
                 {
                     /* substitute the mbuf+cluster */
                     md->mem_token = m2;
@@ -1204,7 +1204,7 @@ musycc_bh_rx_eom (mpi_t * pi, int gchan)
             ch->s.rx_length_errors++;
         }
         FLUSH_MEM_WRITE ();
-        status = max_mru;
+               status = cxt1e1_max_mru;
         if (ch->p.chan_mode == CFG_CH_PROTO_TRANS)
             status |= EOBIRQ_ENABLE;
         md->status = cpu_to_le32 (status);
