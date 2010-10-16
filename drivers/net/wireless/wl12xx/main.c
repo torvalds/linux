@@ -943,7 +943,8 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	if (sta &&
 	    (sta->supp_rates[conf->channel->band] !=
-	    (wl->sta_rate_set & HW_BG_RATES_MASK))) {
+	    (wl->sta_rate_set & HW_BG_RATES_MASK)) &&
+		wl->bss_type != BSS_TYPE_AP_BSS) {
 		wl->sta_rate_set = sta->supp_rates[conf->channel->band];
 		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
 	}

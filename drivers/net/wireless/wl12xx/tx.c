@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 
 #include "wl12xx.h"
 #include "io.h"
@@ -99,7 +100,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 {
 	struct timespec ts;
 	struct wl1271_tx_hw_descr *desc;
-	int pad, ac;
+	int pad, ac, rate_idx;
 	s64 hosttime;
 	u16 tx_attr;
 
@@ -117,7 +118,11 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	getnstimeofday(&ts);
 	hosttime = (timespec_to_ns(&ts) >> 10);
 	desc->start_time = cpu_to_le32(hosttime - wl->time_offset);
-	desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
+
+	if (wl->bss_type != BSS_TYPE_AP_BSS)
+		desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
+	else
+		desc->life_time = cpu_to_le16(TX_HW_AP_MODE_PKT_LIFETIME_TU);
 
 	/* configure the tx attributes */
 	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
@@ -125,7 +130,41 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	/* queue (we use same identifiers for tid's and ac's */
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	desc->tid = ac;
-	desc->aid = TX_HW_DEFAULT_AID;
+
+	if (wl->bss_type != BSS_TYPE_AP_BSS) {
+		desc->aid = TX_HW_DEFAULT_AID;
+
+		/* if the packets are destined for AP (have a STA entry)
+		   send them with AP rate policies, otherwise use default
+		   basic rates */
+		if (control->control.sta)
+			rate_idx = ACX_TX_AP_FULL_RATE;
+		else
+			rate_idx = ACX_TX_BASIC_RATE;
+	} else {
+		if (control->control.sta) {
+			struct wl1271_station *wl_sta;
+
+			wl_sta = (struct wl1271_station *)
+					control->control.sta->drv_priv;
+			desc->hlid = wl_sta->hlid;
+			rate_idx = ac;
+		} else {
+			struct ieee80211_hdr *hdr;
+
+			hdr = (struct ieee80211_hdr *)
+						(skb->data + sizeof(*desc));
+			if (ieee80211_is_mgmt(hdr->frame_control)) {
+				desc->hlid = WL1271_AP_GLOBAL_HLID;
+				rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
+			} else {
+				desc->hlid = WL1271_AP_BROADCAST_HLID;
+				rate_idx = ACX_TX_AP_MODE_BCST_RATE;
+			}
+		}
+	}
+
+	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;
 	desc->reserved = 0;
 
 	/* align the length (and store in terms of words) */
@@ -136,14 +175,12 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	pad = pad - skb->len;
 	tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
 
-	/* if the packets are destined for AP (have a STA entry) send them
-	   with AP rate policies, otherwise use default basic rates */
-	if (control->control.sta)
-		tx_attr |= ACX_TX_AP_FULL_RATE << TX_HW_ATTR_OFST_RATE_POLICY;
-
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
-	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d", pad);
+	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d hlid: %d "
+		"tx_attr: 0x%x len: %d life: %d mem: %d", pad, (int)desc->hlid,
+		(int)desc->tx_attr, (int)desc->length, (int)desc->life_time,
+		(int)desc->total_mem_blocks);
 }
 
 /* caller must hold wl->mutex */
