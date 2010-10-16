@@ -1162,11 +1162,12 @@ space_cccc_001x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
 	/*
 	 * MSR   : cccc 0011 0x10 xxxx xxxx xxxx xxxx xxxx
-	 * Undef : cccc 0011 0x00 xxxx xxxx xxxx xxxx xxxx
+	 * Undef : cccc 0011 0100 xxxx xxxx xxxx xxxx xxxx
 	 * ALU op with S bit and Rd == 15 :
 	 *	   cccc 001x xxx1 xxxx 1111 xxxx xxxx xxxx
 	 */
-	if ((insn & 0x0f900000) == 0x03200000 ||	/* MSR & Undef */
+	if ((insn & 0x0fb00000) == 0x03200000 ||	/* MSR */
+	    (insn & 0x0ff00000) == 0x03400000 ||	/* Undef */
 	    (insn & 0x0e10f000) == 0x0210f000)		/* ALU s-bit, R15  */
 		return INSN_REJECTED;
 
@@ -1177,7 +1178,7 @@ space_cccc_001x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	 * *S (bit 20) updates condition codes
 	 * ADC/SBC/RSC reads the C flag
 	 */
-	insn &= 0xfff00fff;	/* Rn = r0, Rd = r0 */
+	insn &= 0xffff0fff;	/* Rd = r0 */
 	asi->insn[0] = insn;
 	asi->insn_handler = (insn & (1 << 20)) ?  /* S-bit */
 			emulate_alu_imm_rwflags : emulate_alu_imm_rflags;

@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
+#include <linux/slab.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
 #include <linux/delay.h>

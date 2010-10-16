@@ -191,8 +191,6 @@ static int __devexit isl6271a_remove(struct i2c_client *i2c)
 	struct isl_pmic *pmic = i2c_get_clientdata(i2c);
 	int i;
 
-	i2c_set_clientdata(i2c, NULL);
-
 	for (i = 0; i < 3; i++)
 		regulator_unregister(pmic->rdev[i]);
 

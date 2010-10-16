@@ -1996,7 +1996,7 @@ static int cx25840_probe(struct i2c_client *client,
 
 		state->volume = v4l2_ctrl_new_std(&state->hdl,
 			&cx25840_audio_ctrl_ops, V4L2_CID_AUDIO_VOLUME,
-			0, 65335, 65535 / 100, default_volume);
+			0, 65535, 65535 / 100, default_volume);
 		state->mute = v4l2_ctrl_new_std(&state->hdl,
 			&cx25840_audio_ctrl_ops, V4L2_CID_AUDIO_MUTE,
 			0, 1, 1, 0);
