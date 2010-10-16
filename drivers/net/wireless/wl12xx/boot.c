@@ -232,7 +232,9 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	 */
 	if (wl->nvs_len == sizeof(struct wl1271_nvs_file) ||
 	    wl->nvs_len == WL1271_INI_LEGACY_NVS_FILE_SIZE) {
-		if (wl->nvs->general_params.dual_mode_select)
+		/* for now 11a is unsupported in AP mode */
+		if (wl->bss_type != BSS_TYPE_AP_BSS &&
+		    wl->nvs->general_params.dual_mode_select)
 			wl->enable_11a = true;
 	}
 
