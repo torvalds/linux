@@ -215,7 +215,7 @@ struct ene_device {
 
 	/* HW features */
 	int hw_revision;			/* hardware revision */
-	bool hw_use_gpio_0a;			/* gpio40 is demodulated input*/
+	bool hw_use_gpio_0a;			/* gpio0a is demodulated input*/
 	bool hw_extra_buffer;			/* hardware has 'extra buffer' */
 	bool hw_fan_input;			/* fan input is IR data source */
 	bool hw_learning_and_tx_capable;	/* learning & tx capable */
@@ -252,11 +252,11 @@ struct ene_device {
 	int transmitter_mask;
 
 	/* RX settings */
-	bool learning_enabled;			/* learning input enabled */
+	bool learning_mode_enabled;		/* learning input enabled */
 	bool carrier_detect_enabled;		/* carrier detect enabled */
 	int rx_period_adjust;
 	bool rx_enabled;
 };
 
 static int ene_irq_status(struct ene_device *dev);
-static void ene_read_hw_pointer(struct ene_device *dev);
+static void ene_rx_read_hw_pointer(struct ene_device *dev);
