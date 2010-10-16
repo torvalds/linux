@@ -133,10 +133,13 @@ static const __u8 mi_data[0x20] = {
 };
 
 /* write <len> bytes from gspca_dev->usb_buf */
-static int reg_w(struct gspca_dev *gspca_dev,
+static void reg_w(struct gspca_dev *gspca_dev,
 		 int len)
 {
 	int alen, ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 
 	ret = usb_bulk_msg(gspca_dev->dev,
 			usb_sndbulkpipe(gspca_dev->dev, 4),
@@ -144,10 +147,11 @@ static int reg_w(struct gspca_dev *gspca_dev,
 			len,
 			&alen,
 			500);	/* timeout in milliseconds */
-	if (ret < 0)
+	if (ret < 0) {
 		err("reg write [%02x] error %d",
 			gspca_dev->usb_buf[0], ret);
-	return ret;
+		gspca_dev->usb_err = ret;
+	}
 }
 
 static void mi_w(struct gspca_dev *gspca_dev,
@@ -226,7 +230,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int err_code;
 	u8 *data;
 	int i;
 
@@ -239,9 +242,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	data[0] = 0x01;		/* address */
 	data[1] = 0x01;
-	err_code = reg_w(gspca_dev, 2);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 2);
 
 	/*
 	   Initialize the MR97113 chip register
@@ -263,16 +264,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*jfm: from win trace*/
 	data[10] = 0x18;
 
-	err_code = reg_w(gspca_dev, 11);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 11);
 
 	data[0] = 0x23;		/* address */
 	data[1] = 0x09;		/* reg 35, append frame header */
 
-	err_code = reg_w(gspca_dev, 2);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 2);
 
 	data[0] = 0x3c;		/* address */
 /*	if (gspca_dev->width == 1280) */
@@ -281,9 +278,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*	else */
 	data[1] = 50;		/* 50 reg 60, pc-cam frame size
 				 *	(unit: 4KB) 200KB */
-	err_code = reg_w(gspca_dev, 2);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 2);
 
 	/* auto dark-gain */
 	data[0] = 0x5e;		/* address */
@@ -297,32 +292,24 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	data[4] = sd->ctrls[BRIGHTNESS].val; /* reg 0x61 = brightness */
 	data[5] = 0x00;
 
-	err_code = reg_w(gspca_dev, 6);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 6);
 
 	data[0] = 0x67;
 /*jfm: from win trace*/
 	data[1] = sd->ctrls[SHARPNESS].val * 4 + 3;
 	data[2] = 0x14;
-	err_code = reg_w(gspca_dev, 3);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 3);
 
 	data[0] = 0x69;
 	data[1] = 0x2f;
 	data[2] = 0x28;
 	data[3] = 0x42;
-	err_code = reg_w(gspca_dev, 4);
-	if (err_code < 0)
-		return err_code;
+	reg_w(gspca_dev, 4);
 
 	data[0] = 0x63;
 	data[1] = 0x07;
-	err_code = reg_w(gspca_dev, 2);
+	reg_w(gspca_dev, 2);
 /*jfm: win trace - many writes here to reg 0x64*/
-	if (err_code < 0)
-		return err_code;
 
 	/* initialize the MI sensor */
 	for (i = 0; i < sizeof mi_data; i++)
@@ -331,18 +318,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	data[0] = 0x00;
 	data[1] = 0x4d;		/* ISOC transfering enable... */
 	reg_w(gspca_dev, 2);
-	return 0;
+
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	int result;
-
 	gspca_dev->usb_buf[0] = 1;
 	gspca_dev->usb_buf[1] = 0;
-	result = reg_w(gspca_dev, 2);
-	if (result < 0)
-		PDEBUG(D_ERR, "Camera Stop failed");
+	reg_w(gspca_dev, 2);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
