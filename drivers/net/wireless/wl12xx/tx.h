@@ -146,5 +146,6 @@ void wl1271_tx_reset(struct wl1271 *wl);
 void wl1271_tx_flush(struct wl1271 *wl);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set);
+u32 wl1271_tx_min_rate_get(struct wl1271 *wl);
 
 #endif

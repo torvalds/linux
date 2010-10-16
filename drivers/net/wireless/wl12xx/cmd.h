@@ -140,6 +140,13 @@ enum cmd_templ {
 				  * For CTS-to-self (FastCTS) mechanism
 				  * for BT/WLAN coexistence (SoftGemini). */
 	CMD_TEMPL_ARP_RSP,
+
+	/* AP-mode specific */
+	CMD_TEMPL_AP_BEACON = 13,
+	CMD_TEMPL_AP_PROBE_RESPONSE,
+	CMD_TEMPL_AP_ARP_RSP,
+	CMD_TEMPL_DEAUTH_AP,
+
 	CMD_TEMPL_MAX = 0xff
 };
 

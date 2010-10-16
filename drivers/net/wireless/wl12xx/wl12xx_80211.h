@@ -160,4 +160,9 @@ struct wl12xx_probe_resp_template {
 	struct wl12xx_ie_country country;
 } __packed;
 
+struct wl12xx_disconn_template {
+	struct ieee80211_header header;
+	__le16 disconn_reason;
+} __packed;
+
 #endif

@@ -434,7 +434,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_init_templates_config(wl);
+	ret = wl1271_sta_init_templates_config(wl);
 	if (ret < 0)
 		return ret;
 
@@ -1363,24 +1363,6 @@ static void wl1271_set_band_rate(struct wl1271 *wl)
 		wl->basic_rate_set = wl->conf.tx.basic_rate_5;
 }
 
-static u32 wl1271_min_rate_get(struct wl1271 *wl)
-{
-	int i;
-	u32 rate = 0;
-
-	if (!wl->basic_rate_set) {
-		WARN_ON(1);
-		wl->basic_rate_set = wl->conf.tx.basic_rate;
-	}
-
-	for (i = 0; !rate; i++) {
-		if ((wl->basic_rate_set >> i) & 0x1)
-			rate = 1 << i;
-	}
-
-	return rate;
-}
-
 static int wl1271_handle_idle(struct wl1271 *wl, bool idle)
 {
 	int ret;
@@ -1391,7 +1373,7 @@ static int wl1271_handle_idle(struct wl1271 *wl, bool idle)
 			if (ret < 0)
 				goto out;
 		}
-		wl->rate_set = wl1271_min_rate_get(wl);
+		wl->rate_set = wl1271_tx_min_rate_get(wl);
 		wl->sta_rate_set = 0;
 		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
@@ -1467,7 +1449,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 			wl1271_set_band_rate(wl);
 
-		wl->basic_rate = wl1271_min_rate_get(wl);
+		wl->basic_rate = wl1271_tx_min_rate_get(wl);
 		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
 			wl1271_warning("rate policy for update channel "
@@ -1927,7 +1909,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
 						      beacon->data,
 						      beacon->len, 0,
-						      wl1271_min_rate_get(wl));
+						      wl1271_tx_min_rate_get(wl));
 
 			if (ret < 0) {
 				dev_kfree_skb(beacon);
@@ -1943,7 +1925,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 						      CMD_TEMPL_PROBE_RESPONSE,
 						      beacon->data,
 						      beacon->len, 0,
-						      wl1271_min_rate_get(wl));
+						      wl1271_tx_min_rate_get(wl));
 			dev_kfree_skb(beacon);
 			if (ret < 0)
 				goto out_sleep;
@@ -2016,7 +1998,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			rates = bss_conf->basic_rates;
 			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
 									 rates);
-			wl->basic_rate = wl1271_min_rate_get(wl);
+			wl->basic_rate = wl1271_tx_min_rate_get(wl);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out_sleep;
@@ -2070,7 +2052,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl);
-			wl->basic_rate = wl1271_min_rate_get(wl);
+			wl->basic_rate = wl1271_tx_min_rate_get(wl);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out_sleep;

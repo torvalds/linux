@@ -521,3 +521,21 @@ void wl1271_tx_flush(struct wl1271 *wl)
 
 	wl1271_warning("Unable to flush all TX buffers, timed out.");
 }
+
+u32 wl1271_tx_min_rate_get(struct wl1271 *wl)
+{
+	int i;
+	u32 rate = 0;
+
+	if (!wl->basic_rate_set) {
+		WARN_ON(1);
+		wl->basic_rate_set = wl->conf.tx.basic_rate;
+	}
+
+	for (i = 0; !rate; i++) {
+		if ((wl->basic_rate_set >> i) & 0x1)
+			rate = 1 << i;
+	}
+
+	return rate;
+}
