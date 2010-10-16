@@ -1013,7 +1013,6 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		strncpy(state->desc, cx->desc, CPUIDLE_DESC_LEN);
 		state->exit_latency = cx->latency;
 		state->target_residency = cx->latency * latency_factor;
-		state->power_usage = cx->power;
 
 		state->flags = 0;
 		switch (cx->type) {
