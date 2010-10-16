@@ -19,13 +19,13 @@
 
 #define MAXSYNTHS       16      /* Max number of synths in array. */
 static struct spk_synth *synths[MAXSYNTHS];
-struct spk_synth *synth = NULL;
+struct spk_synth *synth;
 char pitch_buff[32] = "";
 static int module_status;
 int quiet_boot;
 
 struct speakup_info_t speakup_info = {
-	.spinlock = SPIN_LOCK_UNLOCKED,
+	.spinlock = __SPIN_LOCK_UNLOCKED(speakup_info.spinlock),
 	.flushing = 0,
 };
 EXPORT_SYMBOL_GPL(speakup_info);
@@ -117,9 +117,11 @@ void spk_do_catch_up(struct spk_synth *synth)
 			full_time_val = full_time->u.n.value;
 			spk_unlock(flags);
 			if (spk_serial_out(synth->procspeech))
-				schedule_timeout(msecs_to_jiffies(delay_time_val));
+				schedule_timeout(
+					msecs_to_jiffies(delay_time_val));
 			else
-				schedule_timeout(msecs_to_jiffies(full_time_val));
+				schedule_timeout(
+					msecs_to_jiffies(full_time_val));
 			jiff_max = jiffies + jiffy_delta_val;
 		}
 		set_current_state(TASK_RUNNING);
@@ -192,7 +194,8 @@ void synth_start(void)
 	}
 	trigger_time = get_var(TRIGGER);
 	if (!timer_pending(&thread_timer))
-		mod_timer(&thread_timer, jiffies + msecs_to_jiffies(trigger_time->u.n.value));
+		mod_timer(&thread_timer, jiffies +
+			msecs_to_jiffies(trigger_time->u.n.value));
 }
 
 void do_flush(void)
@@ -235,8 +238,8 @@ void synth_printf(const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(synth_printf);
 
-static int index_count = 0;
-static int sentence_count = 0;
+static int index_count;
+static int sentence_count;
 
 void reset_index_count(int sc)
 {
@@ -283,7 +286,8 @@ void get_index_count(int *linecount, int *sentcount)
 		if ((ind / 10) <= synth->indexing.currindex)
 			index_count = synth->indexing.currindex-(ind/10);
 		else
-			index_count = synth->indexing.currindex-synth->indexing.lowindex
+			index_count = synth->indexing.currindex
+				-synth->indexing.lowindex
 				+ synth->indexing.highindex-(ind/10)+1;
 
 	}
@@ -312,10 +316,10 @@ int synth_release_region(unsigned long start, unsigned long n)
 EXPORT_SYMBOL_GPL(synth_release_region);
 
 struct var_t synth_time_vars[] = {
-	{ DELAY, .u.n = {NULL, 100, 100, 2000, 0, 0, NULL }},
-	{ TRIGGER, .u.n = {NULL, 20, 10, 2000, 0, 0, NULL }},
-	{ JIFFY, .u.n = {NULL, 50, 20, 200, 0, 0, NULL }},
-	{ FULL, .u.n = {NULL, 400, 200, 60000, 0, 0, NULL }},
+	{ DELAY, .u.n = {NULL, 100, 100, 2000, 0, 0, NULL } },
+	{ TRIGGER, .u.n = {NULL, 20, 10, 2000, 0, 0, NULL } },
+	{ JIFFY, .u.n = {NULL, 50, 20, 200, 0, 0, NULL } },
+	{ FULL, .u.n = {NULL, 400, 200, 60000, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -377,7 +381,8 @@ static int do_synth_init(struct spk_synth *in_synth)
 	synth_time_vars[3].u.n.value =
 		synth_time_vars[3].u.n.default_val = synth->full;
 	synth_printf("%s", synth->init);
-	for (var = synth->vars; (var->var_id >= 0) && (var->var_id < MAXVARS); var++)
+	for (var = synth->vars;
+		(var->var_id >= 0) && (var->var_id < MAXVARS); var++)
 		speakup_register_var(var);
 	if (!quiet_boot)
 		synth_printf("%s found\n", synth->long_name);
