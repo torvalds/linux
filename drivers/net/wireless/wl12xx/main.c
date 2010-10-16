@@ -1227,8 +1227,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
 {
-	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
-	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
+	wl1271_set_default_filters(wl);
 
 	/* combine requested filters with current filter config */
 	filters = wl->filters | filters;
@@ -2758,8 +2757,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
 	wl->rx_counter = 0;
-	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
-	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
+	wl->rx_config = WL1271_DEFAULT_STA_RX_CONFIG;
+	wl->rx_filter = WL1271_DEFAULT_STA_RX_FILTER;
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;

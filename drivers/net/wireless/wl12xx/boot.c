@@ -28,6 +28,7 @@
 #include "boot.h"
 #include "io.h"
 #include "event.h"
+#include "rx.h"
 
 static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
 	[PART_DOWN] = {
@@ -598,8 +599,7 @@ int wl1271_boot(struct wl1271 *wl)
 	wl1271_boot_enable_interrupts(wl);
 
 	/* set the wl1271 default filters */
-	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
-	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
+	wl1271_set_default_filters(wl);
 
 	wl1271_event_mbox_config(wl);
 

@@ -117,5 +117,6 @@ struct wl1271_rx_descriptor {
 
 void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
+void wl1271_set_default_filters(struct wl1271 *wl);
 
 #endif
