@@ -315,7 +315,7 @@ config SMP
 	  Management" code will be disabled if you say Y here.
 
 	  See also the SMP-HOWTO available at
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
 
