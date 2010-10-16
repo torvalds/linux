@@ -1578,7 +1578,8 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 	int ret;
 
-	wl1271_debug(DEBUG_MAC80211, "mac80211 configure filter");
+	wl1271_debug(DEBUG_MAC80211, "mac80211 configure filter changed %x"
+		     " total %x", changed, *total);
 
 	mutex_lock(&wl->mutex);
 
@@ -1592,15 +1593,16 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-
-	if (*total & FIF_ALLMULTI)
-		ret = wl1271_acx_group_address_tbl(wl, false, NULL, 0);
-	else if (fp)
-		ret = wl1271_acx_group_address_tbl(wl, fp->enabled,
-						   fp->mc_list,
-						   fp->mc_list_length);
-	if (ret < 0)
-		goto out_sleep;
+	if (wl->bss_type != BSS_TYPE_AP_BSS) {
+		if (*total & FIF_ALLMULTI)
+			ret = wl1271_acx_group_address_tbl(wl, false, NULL, 0);
+		else if (fp)
+			ret = wl1271_acx_group_address_tbl(wl, fp->enabled,
+							   fp->mc_list,
+							   fp->mc_list_length);
+		if (ret < 0)
+			goto out_sleep;
+	}
 
 	/* determine, whether supported filter values have changed */
 	if (changed == 0)
