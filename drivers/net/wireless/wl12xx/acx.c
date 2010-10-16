@@ -754,7 +754,7 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 int wl1271_acx_rate_policies(struct wl1271 *wl)
 {
 	struct acx_rate_policy *acx;
-	struct conf_tx_rate_class *c = &wl->conf.tx.rc_conf;
+	struct conf_tx_rate_class *c = &wl->conf.tx.sta_rc_conf;
 	int idx = 0;
 	int ret = 0;
 

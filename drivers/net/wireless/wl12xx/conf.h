@@ -496,6 +496,26 @@ struct conf_rx_settings {
 					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
+/*
+ * Rates supported for data packets when operating as AP. Note the absense
+ * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
+ * one. The rate dropped is not mandatory under any operating mode.
+ */
+#define CONF_TX_AP_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS | \
+	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS |      \
+	CONF_HW_BIT_RATE_6MBPS | CONF_HW_BIT_RATE_9MBPS |        \
+	CONF_HW_BIT_RATE_11MBPS | CONF_HW_BIT_RATE_12MBPS |      \
+	CONF_HW_BIT_RATE_18MBPS | CONF_HW_BIT_RATE_24MBPS |      \
+	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
+	CONF_HW_BIT_RATE_54MBPS)
+
+/*
+ * Default rates for management traffic when operating in AP mode. This
+ * should be configured according to the basic rate set of the AP
+ */
+#define CONF_TX_AP_DEFAULT_MGMT_RATES  (CONF_HW_BIT_RATE_1MBPS | \
+	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS)
+
 struct conf_tx_rate_class {
 
 	/*
@@ -636,15 +656,31 @@ struct conf_tx_settings {
 
 	/*
 	 * Configuration for rate classes for TX (currently only one
-	 * rate class supported.)
+	 * rate class supported). Used in non-AP mode.
 	 */
-	struct conf_tx_rate_class rc_conf;
+	struct conf_tx_rate_class sta_rc_conf;
 
 	/*
 	 * Configuration for access categories for TX rate control.
 	 */
 	u8 ac_conf_count;
 	struct conf_tx_ac_category ac_conf[CONF_TX_MAX_AC_COUNT];
+
+	/*
+	 * Configuration for rate classes in AP-mode. These rate classes
+	 * are for the AC TX queues
+	 */
+	struct conf_tx_rate_class ap_rc_conf[CONF_TX_MAX_AC_COUNT];
+
+	/*
+	 * Management TX rate class for AP-mode.
+	 */
+	struct conf_tx_rate_class ap_mgmt_conf;
+
+	/*
+	 * Broadcast TX rate class for AP-mode.
+	 */
+	struct conf_tx_rate_class ap_bcst_conf;
 
 	/*
 	 * Configuration for TID parameters.
@@ -687,6 +723,12 @@ struct conf_tx_settings {
 	 * Range: CONF_HW_BIT_RATE_* bit mask
 	 */
 	u32 basic_rate_5;
+
+	/*
+	 * TX retry limits for templates
+	 */
+	u8 tmpl_short_retry_limit;
+	u8 tmpl_long_retry_limit;
 };
 
 enum {

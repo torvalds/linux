@@ -116,11 +116,11 @@ static struct conf_drv_settings default_conf = {
 	},
 	.tx = {
 		.tx_energy_detection         = 0,
-		.rc_conf                     = {
+		.sta_rc_conf                 = {
 			.enabled_rates       = 0,
 			.short_retry_limit   = 10,
 			.long_retry_limit    = 10,
-			.aflags              = 0
+			.aflags              = 0,
 		},
 		.ac_conf_count               = 4,
 		.ac_conf                     = {
@@ -153,6 +153,45 @@ static struct conf_drv_settings default_conf = {
 				.tx_op_limit = 1504,
 			},
 		},
+		.ap_rc_conf                  = {
+			[0] = {
+				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
+				.short_retry_limit = 10,
+				.long_retry_limit = 10,
+				.aflags      = 0,
+			},
+			[1] = {
+				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
+				.short_retry_limit = 10,
+				.long_retry_limit = 10,
+				.aflags      = 0,
+			},
+			[2] = {
+				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
+				.short_retry_limit = 10,
+				.long_retry_limit = 10,
+				.aflags      = 0,
+			},
+			[3] = {
+				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
+				.short_retry_limit = 10,
+				.long_retry_limit = 10,
+				.aflags      = 0,
+			},
+		},
+		.ap_mgmt_conf = {
+			.enabled_rates       = CONF_TX_AP_DEFAULT_MGMT_RATES,
+			.short_retry_limit   = 10,
+			.long_retry_limit    = 10,
+			.aflags              = 0,
+		},
+		.ap_bcst_conf = {
+			.enabled_rates       = CONF_HW_BIT_RATE_1MBPS,
+			.short_retry_limit   = 10,
+			.long_retry_limit    = 10,
+			.aflags              = 0,
+		},
+
 		.tid_conf_count = 4,
 		.tid_conf = {
 			[CONF_TX_AC_BE] = {
@@ -193,6 +232,8 @@ static struct conf_drv_settings default_conf = {
 		.tx_compl_threshold          = 4,
 		.basic_rate                  = CONF_HW_BIT_RATE_1MBPS,
 		.basic_rate_5                = CONF_HW_BIT_RATE_6MBPS,
+		.tmpl_short_retry_limit      = 10,
+		.tmpl_long_retry_limit       = 10,
 	},
 	.conn = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,

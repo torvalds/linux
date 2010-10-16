@@ -490,8 +490,8 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 	cmd->len = cpu_to_le16(buf_len);
 	cmd->template_type = template_id;
 	cmd->enabled_rates = cpu_to_le32(rates);
-	cmd->short_retry_limit = wl->conf.tx.rc_conf.short_retry_limit;
-	cmd->long_retry_limit = wl->conf.tx.rc_conf.long_retry_limit;
+	cmd->short_retry_limit = wl->conf.tx.tmpl_short_retry_limit;
+	cmd->long_retry_limit = wl->conf.tx.tmpl_long_retry_limit;
 	cmd->index = index;
 
 	if (buf)
