@@ -193,10 +193,11 @@ static int ene_hw_detect(struct ene_device *dev)
 /* Sense current received carrier */
 void ene_rx_sense_carrier(struct ene_device *dev)
 {
+	DEFINE_IR_RAW_EVENT(ev);
+
+	int carrier, duty_cycle;
 	int period = ene_read_reg(dev, ENE_CIRCAR_PRD);
 	int hperiod = ene_read_reg(dev, ENE_CIRCAR_HPRD);
-	int carrier, duty_cycle;
-
 
 	if (!(period & ENE_CIRCAR_PRD_VALID))
 		return;
@@ -209,13 +210,16 @@ void ene_rx_sense_carrier(struct ene_device *dev)
 	dbg("RX: hardware carrier period = %02x", period);
 	dbg("RX: hardware carrier pulse period = %02x", hperiod);
 
-
 	carrier = 2000000 / period;
 	duty_cycle = (hperiod * 100) / period;
 	dbg("RX: sensed carrier = %d Hz, duty cycle %d%%",
-							carrier, duty_cycle);
-
-	/* TODO: Send carrier & duty cycle to IR layer */
+						carrier, duty_cycle);
+	if (dev->carrier_detect_enabled) {
+		ev.carrier_report = true;
+		ev.carrier = carrier;
+		ev.duty_cycle = duty_cycle;
+		ir_raw_event_store(dev->idev, &ev);
+	}
 }
 
 /* this enables/disables the CIR RX engine */
@@ -724,7 +728,7 @@ static irqreturn_t ene_isr(int irq, void *data)
 
 	dbg_verbose("RX interrupt");
 
-	if (dev->carrier_detect_enabled || debug)
+	if (dev->hw_learning_and_tx_capable)
 		ene_rx_sense_carrier(dev);
 
 	/* On hardware that don't support extra buffer we need to trust
@@ -897,6 +901,23 @@ static int ene_set_learning_mode(void *data, int enable)
 	return 0;
 }
 
+static int ene_set_carrier_report(void *data, int enable)
+{
+	struct ene_device *dev = (struct ene_device *)data;
+	unsigned long flags;
+
+	if (enable == dev->carrier_detect_enabled)
+		return 0;
+
+	spin_lock_irqsave(&dev->hw_lock, flags);
+	dev->carrier_detect_enabled = enable;
+	ene_rx_disable(dev);
+	ene_rx_setup(dev);
+	ene_rx_enable(dev);
+	spin_unlock_irqrestore(&dev->hw_lock, flags);
+	return 0;
+}
+
 /* outside interface: enable or disable idle mode */
 static void ene_rx_set_idle(void *data, bool idle)
 {
@@ -1029,7 +1050,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		ir_props->s_tx_mask = ene_set_tx_mask;
 		ir_props->s_tx_carrier = ene_set_tx_carrier;
 		ir_props->s_tx_duty_cycle = ene_set_tx_duty_cycle;
-		/* ir_props->s_carrier_report = ene_set_carrier_report; */
+		ir_props->s_carrier_report = ene_set_carrier_report;
 	}
 
 	ene_setup_hw_buffer(dev);
