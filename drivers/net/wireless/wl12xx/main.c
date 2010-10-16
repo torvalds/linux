@@ -658,9 +658,26 @@ out:
 static int wl1271_fetch_firmware(struct wl1271 *wl)
 {
 	const struct firmware *fw;
+	const char *fw_name;
 	int ret;
 
-	ret = request_firmware(&fw, WL1271_FW_NAME, wl1271_wl_to_dev(wl));
+	switch (wl->bss_type) {
+	case BSS_TYPE_AP_BSS:
+		fw_name = WL1271_AP_FW_NAME;
+		break;
+	case BSS_TYPE_IBSS:
+	case BSS_TYPE_STA_BSS:
+		fw_name = WL1271_FW_NAME;
+		break;
+	default:
+		wl1271_error("no compatible firmware for bss_type %d",
+			     wl->bss_type);
+		return -EINVAL;
+	}
+
+	wl1271_debug(DEBUG_BOOT, "booting firmware %s", fw_name);
+
+	ret = request_firmware(&fw, fw_name, wl1271_wl_to_dev(wl));
 
 	if (ret < 0) {
 		wl1271_error("could not get firmware: %d", ret);
@@ -674,6 +691,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 		goto out;
 	}
 
+	vfree(wl->fw);
 	wl->fw_len = fw->size;
 	wl->fw = vmalloc(wl->fw_len);
 
@@ -684,7 +702,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 	}
 
 	memcpy(wl->fw, fw->data, wl->fw_len);
-
+	wl->fw_bss_type = wl->bss_type;
 	ret = 0;
 
 out:
@@ -820,7 +838,8 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		goto out;
 	}
 
-	if (wl->fw == NULL) {
+	/* Make sure the firmware type matches the BSS type */
+	if (wl->fw == NULL || wl->fw_bss_type != wl->bss_type) {
 		ret = wl1271_fetch_firmware(wl);
 		if (ret < 0)
 			goto out;
@@ -852,6 +871,8 @@ int wl1271_plt_start(struct wl1271 *wl)
 		ret = -EBUSY;
 		goto out;
 	}
+
+	wl->bss_type = BSS_TYPE_STA_BSS;
 
 	while (retries) {
 		retries--;
@@ -1010,6 +1031,9 @@ static int wl1271_op_start(struct ieee80211_hw *hw)
 	 *
 	 * The MAC address is first known when the corresponding interface
 	 * is added. That is where we will initialize the hardware.
+	 *
+	 * In addition, we currently have different firmwares for AP and managed
+	 * operation. We will know which to boot according to interface type.
 	 */
 
 	return 0;
@@ -3183,6 +3207,9 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->flags = 0;
 	wl->sg_enabled = true;
 	wl->hw_pg_ver = -1;
+	wl->bss_type = MAX_BSS_TYPE;
+	wl->set_bss_type = MAX_BSS_TYPE;
+	wl->fw_bss_type = MAX_BSS_TYPE;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

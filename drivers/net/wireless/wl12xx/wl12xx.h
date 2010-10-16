@@ -124,6 +124,8 @@ extern u32 wl12xx_debug_level;
 
 
 #define WL1271_FW_NAME "wl1271-fw.bin"
+#define WL1271_AP_FW_NAME "wl1271-fw-ap.bin"
+
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
@@ -311,6 +313,7 @@ struct wl1271 {
 
 	u8 *fw;
 	size_t fw_len;
+	u8 fw_bss_type;
 	struct wl1271_nvs_file *nvs;
 	size_t nvs_len;
 
