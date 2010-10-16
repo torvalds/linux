@@ -1712,7 +1712,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = wl1271_cmd_set_key(wl, KEY_ADD_OR_REPLACE,
+		ret = wl1271_cmd_set_sta_key(wl, KEY_ADD_OR_REPLACE,
 					 key_conf->keyidx, key_type,
 					 key_conf->keylen, key_conf->key,
 					 addr, tx_seq_32, tx_seq_16);
@@ -1723,7 +1723,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 		/* the default WEP key needs to be configured at least once */
 		if (key_type == KEY_WEP) {
-			ret = wl1271_cmd_set_default_wep_key(wl,
+			ret = wl1271_cmd_set_sta_default_wep_key(wl,
 							     wl->default_key);
 			if (ret < 0)
 				goto out_sleep;
@@ -1738,7 +1738,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		if (!is_broadcast_ether_addr(addr))
 			break;
 
-		ret = wl1271_cmd_set_key(wl, KEY_REMOVE,
+		ret = wl1271_cmd_set_sta_key(wl, KEY_REMOVE,
 					 key_conf->keyidx, key_type,
 					 key_conf->keylen, key_conf->key,
 					 addr, 0, 0);

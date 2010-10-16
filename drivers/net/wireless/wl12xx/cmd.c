@@ -36,6 +36,7 @@
 #include "wl12xx_80211.h"
 #include "cmd.h"
 #include "event.h"
+#include "tx.h"
 
 #define WL1271_CMD_FAST_POLL_COUNT       50
 
@@ -702,9 +703,9 @@ int wl1271_build_qos_null_data(struct wl1271 *wl)
 				       wl->basic_rate);
 }
 
-int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)
+int wl1271_cmd_set_sta_default_wep_key(struct wl1271 *wl, u8 id)
 {
-	struct wl1271_cmd_set_keys *cmd;
+	struct wl1271_cmd_set_sta_keys *cmd;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_CMD, "cmd set_default_wep_key %d", id);
@@ -731,11 +732,42 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
+int wl1271_cmd_set_ap_default_wep_key(struct wl1271 *wl, u8 id)
+{
+	struct wl1271_cmd_set_ap_keys *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd set_ap_default_wep_key %d", id);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->hlid = WL1271_AP_BROADCAST_HLID;
+	cmd->key_id = id;
+	cmd->lid_key_type = WEP_DEFAULT_LID_TYPE;
+	cmd->key_action = cpu_to_le16(KEY_SET_ID);
+	cmd->key_type = KEY_WEP;
+
+	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_warning("cmd set_ap_default_wep_key failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(cmd);
+
+	return ret;
+}
+
+int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
 		       u32 tx_seq_32, u16 tx_seq_16)
 {
-	struct wl1271_cmd_set_keys *cmd;
+	struct wl1271_cmd_set_sta_keys *cmd;
 	int ret = 0;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -785,6 +817,67 @@ int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 out:
 	kfree(cmd);
 
+	return ret;
+}
+
+int wl1271_cmd_set_ap_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
+			u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
+			u16 tx_seq_16)
+{
+	struct wl1271_cmd_set_ap_keys *cmd;
+	int ret = 0;
+	u8 lid_type;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	if (hlid == WL1271_AP_BROADCAST_HLID) {
+		if (key_type == KEY_WEP)
+			lid_type = WEP_DEFAULT_LID_TYPE;
+		else
+			lid_type = BROADCAST_LID_TYPE;
+	} else {
+		lid_type = UNICAST_LID_TYPE;
+	}
+
+	wl1271_debug(DEBUG_CRYPT, "ap key action: %d id: %d lid: %d type: %d"
+		     " hlid: %d", (int)action, (int)id, (int)lid_type,
+		     (int)key_type, (int)hlid);
+
+	cmd->lid_key_type = lid_type;
+	cmd->hlid = hlid;
+	cmd->key_action = cpu_to_le16(action);
+	cmd->key_size = key_size;
+	cmd->key_type = key_type;
+	cmd->key_id = id;
+	cmd->ac_seq_num16[0] = cpu_to_le16(tx_seq_16);
+	cmd->ac_seq_num32[0] = cpu_to_le32(tx_seq_32);
+
+	if (key_type == KEY_TKIP) {
+		/*
+		 * We get the key in the following form:
+		 * TKIP (16 bytes) - TX MIC (8 bytes) - RX MIC (8 bytes)
+		 * but the target is expecting:
+		 * TKIP - RX MIC - TX MIC
+		 */
+		memcpy(cmd->key, key, 16);
+		memcpy(cmd->key + 16, key + 24, 8);
+		memcpy(cmd->key + 24, key + 16, 8);
+	} else {
+		memcpy(cmd->key, key, key_size);
+	}
+
+	wl1271_dump(DEBUG_CRYPT, "TARGET AP KEY: ", cmd, sizeof(*cmd));
+
+	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_warning("could not set ap keys");
+		goto out;
+	}
+
+out:
+	kfree(cmd);
 	return ret;
 }
 
@@ -843,6 +936,181 @@ int wl1271_cmd_set_sta_state(struct wl1271 *wl)
 		wl1271_error("failed to send set STA state command");
 		goto out_free;
 	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl1271_cmd_start_bss(struct wl1271 *wl)
+{
+	struct wl1271_cmd_bss_start *cmd;
+	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD, "cmd start bss");
+
+	/*
+	 * FIXME: We currently do not support hidden SSID. The real SSID
+	 * should be fetched from mac80211 first.
+	 */
+	if (wl->ssid_len == 0) {
+		wl1271_warning("Hidden SSID currently not supported for AP");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	memcpy(cmd->bssid, bss_conf->bssid, ETH_ALEN);
+
+	cmd->aging_period = WL1271_AP_DEF_INACTIV_SEC;
+	cmd->bss_index = WL1271_AP_BSS_INDEX;
+	cmd->global_hlid = WL1271_AP_GLOBAL_HLID;
+	cmd->broadcast_hlid = WL1271_AP_BROADCAST_HLID;
+	cmd->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->beacon_interval = cpu_to_le16(wl->beacon_int);
+	cmd->dtim_interval = bss_conf->dtim_period;
+	cmd->beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
+	cmd->channel = wl->channel;
+	cmd->ssid_len = wl->ssid_len;
+	cmd->ssid_type = SSID_TYPE_PUBLIC;
+	memcpy(cmd->ssid, wl->ssid, wl->ssid_len);
+
+	switch (wl->band) {
+	case IEEE80211_BAND_2GHZ:
+		cmd->band = RADIO_BAND_2_4GHZ;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		cmd->band = RADIO_BAND_5GHZ;
+		break;
+	default:
+		wl1271_warning("bss start - unknown band: %d", (int)wl->band);
+		cmd->band = RADIO_BAND_2_4GHZ;
+		break;
+	}
+
+	ret = wl1271_cmd_send(wl, CMD_BSS_START, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd start bss");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl1271_cmd_stop_bss(struct wl1271 *wl)
+{
+	struct wl1271_cmd_bss_start *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD, "cmd stop bss");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->bss_index = WL1271_AP_BSS_INDEX;
+
+	ret = wl1271_cmd_send(wl, CMD_BSS_STOP, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd stop bss");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl1271_cmd_add_sta(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
+{
+	struct wl1271_cmd_add_sta *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD, "cmd add sta %d", (int)hlid);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* currently we don't support UAPSD */
+	cmd->sp_len = 0;
+
+	memcpy(cmd->addr, sta->addr, ETH_ALEN);
+	cmd->bss_index = WL1271_AP_BSS_INDEX;
+	cmd->aid = sta->aid;
+	cmd->hlid = hlid;
+
+	/*
+	 * FIXME: Does STA support QOS? We need to propagate this info from
+	 * hostapd. Currently not that important since this is only used for
+	 * sending the correct flavor of null-data packet in response to a
+	 * trigger.
+	 */
+	cmd->wmm = 0;
+
+	cmd->supported_rates = cpu_to_le32(wl1271_tx_enabled_rates_get(wl,
+						sta->supp_rates[wl->band]));
+
+	wl1271_debug(DEBUG_CMD, "new sta rates: 0x%x", cmd->supported_rates);
+
+	ret = wl1271_cmd_send(wl, CMD_ADD_STA, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd add sta");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid)
+{
+	struct wl1271_cmd_remove_sta *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD, "cmd remove sta %d", (int)hlid);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->hlid = hlid;
+	/* We never send a deauth, mac80211 is in charge of this */
+	cmd->reason_opcode = 0;
+	cmd->send_deauth_flag = 0;
+
+	ret = wl1271_cmd_send(wl, CMD_REMOVE_STA, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd remove sta");
+		goto out_free;
+	}
+
+	ret = wl1271_cmd_wait_for_event(wl, STA_REMOVE_COMPLETE_EVENT_ID);
+	if (ret < 0)
+		wl1271_error("cmd remove sta event completion error");
 
 out_free:
 	kfree(cmd);

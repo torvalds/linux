@@ -170,7 +170,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 
 		/* FIXME: do we have to do this if we're not using WEP? */
 		if (unlikely(wl->default_key != idx)) {
-			ret = wl1271_cmd_set_default_wep_key(wl, idx);
+			ret = wl1271_cmd_set_sta_default_wep_key(wl, idx);
 			if (ret < 0)
 				return ret;
 			wl->default_key = idx;
