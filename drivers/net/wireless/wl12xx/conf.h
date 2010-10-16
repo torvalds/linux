@@ -683,6 +683,12 @@ struct conf_tx_settings {
 	struct conf_tx_rate_class ap_bcst_conf;
 
 	/*
+	 * AP-mode - allow this number of TX retries to a station before an
+	 * event is triggered from FW.
+	 */
+	u16 ap_max_tx_retries;
+
+	/*
 	 * Configuration for TID parameters.
 	 */
 	u8 tid_conf_count;

@@ -191,7 +191,7 @@ static struct conf_drv_settings default_conf = {
 			.long_retry_limit    = 10,
 			.aflags              = 0,
 		},
-
+		.ap_max_tx_retries = 100,
 		.tid_conf_count = 4,
 		.tid_conf = {
 			[CONF_TX_AC_BE] = {
@@ -1393,7 +1393,7 @@ static int wl1271_handle_idle(struct wl1271 *wl, bool idle)
 		}
 		wl->rate_set = wl1271_min_rate_get(wl);
 		wl->sta_rate_set = 0;
-		ret = wl1271_acx_rate_policies(wl);
+		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
 			goto out;
 		ret = wl1271_acx_keep_alive_config(
@@ -1468,7 +1468,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl1271_set_band_rate(wl);
 
 		wl->basic_rate = wl1271_min_rate_get(wl);
-		ret = wl1271_acx_rate_policies(wl);
+		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
 			wl1271_warning("rate policy for update channel "
 				       "failed %d", ret);
@@ -2017,7 +2017,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
 									 rates);
 			wl->basic_rate = wl1271_min_rate_get(wl);
-			ret = wl1271_acx_rate_policies(wl);
+			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out_sleep;
 
@@ -2071,7 +2071,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl);
 			wl->basic_rate = wl1271_min_rate_get(wl);
-			ret = wl1271_acx_rate_policies(wl);
+			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out_sleep;
 

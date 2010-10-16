@@ -747,11 +747,21 @@ struct acx_rate_class {
 #define ACX_TX_BASIC_RATE      0
 #define ACX_TX_AP_FULL_RATE    1
 #define ACX_TX_RATE_POLICY_CNT 2
-struct acx_rate_policy {
+struct acx_sta_rate_policy {
 	struct acx_header header;
 
 	__le32 rate_class_cnt;
 	struct acx_rate_class rate_class[CONF_TX_MAX_RATE_CLASSES];
+} __packed;
+
+
+#define ACX_TX_AP_MODE_MGMT_RATE 4
+#define ACX_TX_AP_MODE_BCST_RATE 5
+struct acx_ap_rate_policy {
+	struct acx_header header;
+
+	__le32 rate_policy_idx;
+	struct acx_rate_class rate_policy;
 } __packed;
 
 struct acx_ac_cfg {
@@ -1062,6 +1072,17 @@ struct wl1271_acx_fw_tsf_information {
 	u8 padding[3];
 } __packed;
 
+struct wl1271_acx_max_tx_retry {
+	struct acx_header header;
+
+	/*
+	 * the number of frames transmission failures before
+	 * issuing the aging event.
+	 */
+	__le16 max_tx_retry;
+	u8 padding_1[2];
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1119,6 +1140,7 @@ enum {
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
+	ACX_MAX_TX_FAILURE          = 0x0072,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
 	DOT11_RX_DOT11_MODE         = 0x1012,
@@ -1160,7 +1182,9 @@ int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble);
 int wl1271_acx_cts_protect(struct wl1271 *wl,
 			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
-int wl1271_acx_rate_policies(struct wl1271 *wl);
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl);
+int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
+		      u8 idx);
 int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		      u8 aifsn, u16 txop);
 int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
@@ -1186,5 +1210,6 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   u16 ht_operation_mode);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
+int wl1271_acx_max_tx_retry(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

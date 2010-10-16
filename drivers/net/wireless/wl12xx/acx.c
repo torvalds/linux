@@ -751,9 +751,9 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_rate_policies(struct wl1271 *wl)
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 {
-	struct acx_rate_policy *acx;
+	struct acx_sta_rate_policy *acx;
 	struct conf_tx_rate_class *c = &wl->conf.tx.sta_rc_conf;
 	int idx = 0;
 	int ret = 0;
@@ -786,6 +786,38 @@ int wl1271_acx_rate_policies(struct wl1271 *wl)
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of rate policies failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
+		      u8 idx)
+{
+	struct acx_ap_rate_policy *acx;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ap rate policy");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->rate_policy.enabled_rates = cpu_to_le32(c->enabled_rates);
+	acx->rate_policy.short_retry_limit = c->short_retry_limit;
+	acx->rate_policy.long_retry_limit = c->long_retry_limit;
+	acx->rate_policy.aflags = c->aflags;
+
+	acx->rate_policy_idx = idx;
+
+	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("Setting of ap rate policy failed: %d", ret);
 		goto out;
 	}
 
@@ -1333,5 +1365,29 @@ int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
 
 out:
 	kfree(tsf_info);
+	return ret;
+}
+
+int wl1271_acx_max_tx_retry(struct wl1271 *wl)
+{
+	struct wl1271_acx_max_tx_retry *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx max tx retry");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.ap_max_tx_retries);
+
+	ret = wl1271_cmd_configure(wl, ACX_MAX_TX_FAILURE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx max tx retry failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
 	return ret;
 }

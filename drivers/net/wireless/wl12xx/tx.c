@@ -303,7 +303,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 		woken_up = true;
 
 		wl->rate_set = wl1271_tx_enabled_rates_get(wl, sta_rates);
-		wl1271_acx_rate_policies(wl);
+		wl1271_acx_sta_rate_policies(wl);
 	}
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
