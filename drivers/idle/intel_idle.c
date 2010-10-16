@@ -186,13 +186,10 @@ static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state)
 	local_irq_disable();
 
 	/*
-	 * If the state flag indicates that the TLB will be flushed or if this
-	 * is the deepest c-state supported, do a voluntary leave mm to avoid
-	 * costly and mostly unnecessary wakeups for flushing the user TLB's
-	 * associated with the active mm.
+	 * leave_mm() to avoid costly and often unnecessary wakeups
+	 * for flushing the user TLB's associated with the active mm.
 	 */
-	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED ||
-	    (&dev->states[dev->state_count - 1] == state))
+	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
 		leave_mm(cpu);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
