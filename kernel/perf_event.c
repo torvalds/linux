@@ -63,6 +63,11 @@ static atomic64_t perf_event_id;
 
 void __weak perf_event_print_debug(void)	{ }
 
+extern __weak const char *perf_pmu_name(void)
+{
+	return "pmu";
+}
+
 void perf_pmu_disable(struct pmu *pmu)
 {
 	int *count = this_cpu_ptr(pmu->pmu_disable_count);
