@@ -432,12 +432,13 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		/* if there are no queued buffer, discard the whole frame */
 		if (i == atomic_read(&gspca_dev->fr_q)) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
+			gspca_dev->sequence++;
 			return;
 		}
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
 		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
-		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
+		frame->v4l2_buf.sequence = gspca_dev->sequence++;
 		gspca_dev->image = frame->data;
 		gspca_dev->image_len = 0;
 	} else {
