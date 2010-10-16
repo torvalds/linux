@@ -3363,7 +3363,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		if (ns.conn == C_MASK) {
 			ns.conn = C_CONNECTED;
 			if (mdev->state.disk == D_NEGOTIATING) {
-				drbd_force_state(mdev, NS(disk, D_DISKLESS));
+				drbd_force_state(mdev, NS(disk, D_FAILED));
 			} else if (peer_state.disk == D_NEGOTIATING) {
 				dev_err(DEV, "Disk attach process on the peer node was aborted.\n");
 				peer_state.disk = D_DISKLESS;

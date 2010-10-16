@@ -852,7 +852,8 @@ enum {
 	BITMAP_IO,		/* suspend application io;
 				   once no more io in flight, start bitmap io */
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
-	GO_DISKLESS,		/* Disk failed, local_cnt reached zero, we are going diskless */
+	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
+	WAS_IO_ERROR,		/* Local disk failed returned IO error */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
 	NET_CONGESTED,		/* The data socket is congested */
 
@@ -1281,6 +1282,7 @@ extern int drbd_bmio_set_n_write(struct drbd_conf *mdev);
 extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
 extern int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why);
 extern void drbd_go_diskless(struct drbd_conf *mdev);
+extern void drbd_ldev_destroy(struct drbd_conf *mdev);
 
 
 /* Meta data layout
@@ -1798,17 +1800,17 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach,
 	case EP_PASS_ON:
 		if (!forcedetach) {
 			if (__ratelimit(&drbd_ratelimit_state))
-				dev_err(DEV, "Local IO failed in %s."
-					     "Passing error on...\n", where);
+				dev_err(DEV, "Local IO failed in %s.\n", where);
 			break;
 		}
 		/* NOTE fall through to detach case if forcedetach set */
 	case EP_DETACH:
 	case EP_CALL_HELPER:
+		set_bit(WAS_IO_ERROR, &mdev->flags);
 		if (mdev->state.disk > D_FAILED) {
 			_drbd_set_state(_NS(mdev, disk, D_FAILED), CS_HARD, NULL);
-			dev_err(DEV, "Local IO failed in %s."
-				     "Detaching...\n", where);
+			dev_err(DEV,
+				"Local IO failed in %s. Detaching...\n", where);
 		}
 		break;
 	}
@@ -2127,7 +2129,11 @@ static inline void put_ldev(struct drbd_conf *mdev)
 	__release(local);
 	D_ASSERT(i >= 0);
 	if (i == 0) {
+		if (mdev->state.disk == D_DISKLESS)
+			/* even internal references gone, safe to destroy */
+			drbd_ldev_destroy(mdev);
 		if (mdev->state.disk == D_FAILED)
+			/* all application IO references gone. */
 			drbd_go_diskless(mdev);
 		wake_up(&mdev->misc_wait);
 	}
@@ -2137,6 +2143,10 @@ static inline void put_ldev(struct drbd_conf *mdev)
 static inline int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
 {
 	int io_allowed;
+
+	/* never get a reference while D_DISKLESS */
+	if (mdev->state.disk == D_DISKLESS)
+		return 0;
 
 	atomic_inc(&mdev->local_cnt);
 	io_allowed = (mdev->state.disk >= mins);

@@ -870,6 +870,11 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		retcode = ERR_DISK_CONFIGURED;
 		goto fail;
 	}
+	/* It may just now have detached because of IO error.  Make sure
+	 * drbd_ldev_destroy is done already, we may end up here very fast,
+	 * e.g. if someone calls attach from the on-io-error handler,
+	 * to realize a "hot spare" feature (not that I'd recommend that) */
+	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 
 	/* allocation not in the IO path, cqueue thread context */
 	nbc = kzalloc(sizeof(struct drbd_backing_dev), GFP_KERNEL);
@@ -1262,7 +1267,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
  force_diskless_dec:
 	put_ldev(mdev);
  force_diskless:
-	drbd_force_state(mdev, NS(disk, D_DISKLESS));
+	drbd_force_state(mdev, NS(disk, D_FAILED));
 	drbd_md_sync(mdev);
  release_bdev2_fail:
 	if (nbc)
@@ -1285,10 +1290,19 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	return 0;
 }
 
+/* Detaching the disk is a process in multiple stages.  First we need to lock
+ * out application IO, in-flight IO, IO stuck in drbd_al_begin_io.
+ * Then we transition to D_DISKLESS, and wait for put_ldev() to return all
+ * internal references as well.
+ * Only then we have finally detached. */
 static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			  struct drbd_nl_cfg_reply *reply)
 {
+	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
 	reply->ret_code = drbd_request_state(mdev, NS(disk, D_DISKLESS));
+	if (mdev->state.disk == D_DISKLESS)
+		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
+	drbd_resume_io(mdev);
 	return 0;
 }
 
