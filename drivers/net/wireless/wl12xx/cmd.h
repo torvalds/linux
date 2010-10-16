@@ -291,7 +291,6 @@ struct wl1271_cmd_ps_params {
 
 /* HW encryption keys */
 #define NUM_ACCESS_CATEGORIES_COPY 4
-#define MAX_KEY_SIZE 32
 
 enum wl1271_cmd_key_action {
 	KEY_ADD_OR_REPLACE = 1,

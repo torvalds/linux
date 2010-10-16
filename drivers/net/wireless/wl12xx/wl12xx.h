@@ -253,6 +253,19 @@ struct wl1271_if_operations {
 	void (*disable_irq)(struct wl1271 *wl);
 };
 
+#define MAX_NUM_KEYS 14
+#define MAX_KEY_SIZE 32
+
+struct wl1271_ap_key {
+	u8 id;
+	u8 key_type;
+	u8 key_size;
+	u8 key[MAX_KEY_SIZE];
+	u8 hlid;
+	u32 tx_seq_32;
+	u16 tx_seq_16;
+};
+
 struct wl1271 {
 	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
@@ -438,6 +451,9 @@ struct wl1271 {
 
 	/* map for HLIDs of associated stations - when operating in AP mode */
 	unsigned long ap_hlid_map[BITS_TO_LONGS(AP_MAX_STATIONS)];
+
+	/* recoreded keys for AP-mode - set here before AP startup */
+	struct wl1271_ap_key *recorded_ap_keys[MAX_NUM_KEYS];
 };
 
 struct wl1271_station {

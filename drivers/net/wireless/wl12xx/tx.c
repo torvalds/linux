@@ -31,6 +31,23 @@
 #include "ps.h"
 #include "tx.h"
 
+static int wl1271_set_default_wep_key(struct wl1271 *wl, u8 id)
+{
+	int ret;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+
+	if (is_ap)
+		ret = wl1271_cmd_set_ap_default_wep_key(wl, id);
+	else
+		ret = wl1271_cmd_set_sta_default_wep_key(wl, id);
+
+	if (ret < 0)
+		return ret;
+
+	wl1271_debug(DEBUG_CRYPT, "default wep key idx: %d", (int)id);
+	return 0;
+}
+
 static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 {
 	int id;
@@ -190,7 +207,6 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	struct ieee80211_tx_info *info;
 	u32 extra = 0;
 	int ret = 0;
-	u8 idx;
 	u32 total_len;
 
 	if (!skb)
@@ -203,11 +219,15 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 		extra = WL1271_TKIP_IV_SPACE;
 
 	if (info->control.hw_key) {
-		idx = info->control.hw_key->hw_key_idx;
+		bool is_wep;
+		u8 idx = info->control.hw_key->hw_key_idx;
+		u32 cipher = info->control.hw_key->cipher;
 
-		/* FIXME: do we have to do this if we're not using WEP? */
-		if (unlikely(wl->default_key != idx)) {
-			ret = wl1271_cmd_set_sta_default_wep_key(wl, idx);
+		is_wep = (cipher == WLAN_CIPHER_SUITE_WEP40) ||
+			 (cipher == WLAN_CIPHER_SUITE_WEP104);
+
+		if (unlikely(is_wep && wl->default_key != idx)) {
+			ret = wl1271_set_default_wep_key(wl, idx);
 			if (ret < 0)
 				return ret;
 			wl->default_key = idx;
