@@ -41,7 +41,8 @@ struct serial_state *spk_serial_init(int index)
 		__release_region(&ioport_resource, ser->port, 8);
 		err = synth_request_region(ser->port, 8);
 		if (err) {
-			pr_warn("Unable to allocate port at %lx, errno %i", ser->port, err);
+			pr_warn("Unable to allocate port at %lx, errno %i",
+				ser->port, err);
 			return NULL;
 		}
 	}
@@ -134,7 +135,8 @@ int wait_for_xmitr(void)
 {
 	int tmout = SPK_XMITR_TIMEOUT;
 	if ((synth->alive) && (timeouts >= NUM_DISABLE_TIMEOUTS)) {
-		pr_warn("%s: too many timeouts, deactivating speakup\n", synth->long_name);
+		pr_warn("%s: too many timeouts, deactivating speakup\n",
+			synth->long_name);
 		synth->alive = 0;
 		/* No synth any more, so nobody will restart TTYs, and we thus
 		 * need to do it ourselves.  Now that there is no synth we can
@@ -155,7 +157,8 @@ int wait_for_xmitr(void)
 	while (!((inb_p(speakup_info.port_tts + UART_MSR)) & UART_MSR_CTS)) {
 		/* CTS */
 		if (--tmout == 0) {
-			/* pr_warn("%s: timed out (cts)\n", synth->long_name); */
+			/* pr_warn("%s: timed out (cts)\n",
+			 * synth->long_name); */
 			timeouts++;
 			return 0;
 		}
