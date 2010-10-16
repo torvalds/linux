@@ -435,6 +435,13 @@ struct wl1271 {
 
 	/* Most recently reported noise in dBm */
 	s8 noise;
+
+	/* map for HLIDs of associated stations - when operating in AP mode */
+	unsigned long ap_hlid_map[BITS_TO_LONGS(AP_MAX_STATIONS)];
+};
+
+struct wl1271_station {
+	u8 hlid;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);
