@@ -1906,7 +1906,7 @@ failed_clock_set:
 failed_clock_get:
 	iounmap(imx21->regs);
 failed_ioremap:
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 failed_request_mem:
 	remove_debug_files(imx21);
 	usb_put_hcd(hcd);
