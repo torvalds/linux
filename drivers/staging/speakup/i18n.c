@@ -42,7 +42,8 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_GOTO] = "go to?",
 	[MSG_LEAVING_HELP] = "leaving help",
 	[MSG_IS_UNASSIGNED] = "is unassigned",
-	[MSG_HELP_INFO] = "press space to leav help, cursor up or down to scroll, or a letter to go to commands in list",
+	[MSG_HELP_INFO] =
+	"press space to exit, up or down to scroll, or a letter to go to a command",
 	[MSG_EDGE_TOP] = "top,",
 	[MSG_EDGE_BOTTOM] = "bottom,",
 	[MSG_EDGE_LEFT] = "left,",
@@ -550,8 +551,10 @@ ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
 		if (newstr) {
 			memcpy(newstr, text, length);
 			newstr[length] = '\0';
-			if ((index >= MSG_FORMATTED_START && index <= MSG_FORMATTED_END)
-				&& !fmt_validate(speakup_default_msgs[index], newstr)) {
+			if ((index >= MSG_FORMATTED_START
+			&& index <= MSG_FORMATTED_END)
+				&& !fmt_validate(speakup_default_msgs[index],
+				newstr)) {
 				return -EINVAL;
 			}
 			spk_lock(flags);
