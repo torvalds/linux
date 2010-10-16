@@ -104,7 +104,6 @@ obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 obj-$(CONFIG_OLPC)		+= olpc.o
 obj-$(CONFIG_OLPC_XO1)		+= olpc-xo1.o
 obj-$(CONFIG_OLPC_OPENFIRMWARE)	+= olpc_ofw.o
-obj-$(CONFIG_X86_MRST)		+= mrst.o
 
 microcode-y				:= microcode_core.o
 microcode-$(CONFIG_MICROCODE_INTEL)	+= microcode_intel.o
