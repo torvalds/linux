@@ -611,7 +611,7 @@ void journal_commit_transaction(journal_t *journal)
 		/* Bump b_count to prevent truncate from stumbling over
                    the shadowed buffer!  @@@ This can go if we ever get
                    rid of the BJ_IO/BJ_Shadow pairing of buffers. */
-		atomic_inc(&jh2bh(jh)->b_count);
+		get_bh(jh2bh(jh));
 
 		/* Make a temporary IO buffer with which to write it out
                    (this will requeue both the metadata buffer and the
