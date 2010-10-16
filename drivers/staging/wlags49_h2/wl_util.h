@@ -77,11 +77,6 @@ void wl_endian_translate_event( ltv_t *pLtv );
 
 int wl_has_wep( IFBP ifbp );
 
-
-#if DBG
-const char *DbgHwAddr( unsigned char *hwAddr );
-#endif // DBG
-
 hcf_8   wl_parse_ds_ie( PROBE_RESP *probe_rsp );
 hcf_8 * wl_parse_wpa_ie( PROBE_RESP *probe_rsp, hcf_16 *length );
 hcf_8 * wl_print_wpa_ie( hcf_8 *buffer, int length );
