@@ -3139,8 +3139,17 @@ void wl_process_mailbox( struct wl_private *lp )
 				//DBG_TRACE( DbgInfo, "(%s) lenType     : 0x%04x.\n",
 				//           lp->dev->name, probe_rsp->lenType );
 
-				DBG_TRACE( DbgInfo, "(%s) timeStamp   : %s\n",
-						   lp->dev->name, DbgHwAddr( probe_rsp->timeStamp ));
+				DBG_TRACE(DbgInfo, "(%s) timeStamp   : "
+						"%d.%d.%d.%d.%d.%d.%d.%d\n",
+						lp->dev->name,
+						probe_rsp->timeStamp[0],
+						probe_rsp->timeStamp[1],
+						probe_rsp->timeStamp[2],
+						probe_rsp->timeStamp[3],
+						probe_rsp->timeStamp[4],
+						probe_rsp->timeStamp[5],
+						probe_rsp->timeStamp[6],
+						probe_rsp->timeStamp[7]);
 
 				DBG_TRACE( DbgInfo, "(%s) beaconInt   : 0x%04x.\n",
 						   lp->dev->name, probe_rsp->beaconInterval );
