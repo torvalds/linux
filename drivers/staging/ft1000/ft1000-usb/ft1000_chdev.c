@@ -172,10 +172,10 @@ static int rm_mknod (void *pdata)
 // Notes:
 //
 //---------------------------------------------------------------------------
-PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist)
+struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist)
 {
     unsigned long flags;
-    PDPRAM_BLK ptr;
+	struct dpram_blk *ptr;
 
     spin_lock_irqsave(&free_buff_lock, flags);
     // Check if buffer is available
@@ -185,7 +185,7 @@ PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist)
     }
     else {
         numofmsgbuf--;
-        ptr = list_entry(bufflist->next, DPRAM_BLK, list);
+	ptr = list_entry(bufflist->next, struct dpram_blk, list);
         list_del(&ptr->list);
         //DEBUG("ft1000_get_buffer: number of free msg buffers = %d\n", numofmsgbuf);
     }
@@ -209,7 +209,7 @@ PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void ft1000_free_buffer (PDPRAM_BLK pdpram_blk, struct list_head *plist)
+void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist)
 {
     unsigned long flags;
 
@@ -299,7 +299,7 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 //        // create list of free buffers
 //        for (i=0; i<NUM_OF_FREE_BUFFERS; i++) {
 //            // Get memory for DPRAM_DATA link list
-//            pdpram_blk = kmalloc ( sizeof(DPRAM_BLK), GFP_KERNEL );
+//            pdpram_blk = kmalloc ( sizeof(struct dpram_blk), GFP_KERNEL );
 //            // Get a block of memory to store command data
 //            pdpram_blk->pbuffer = kmalloc ( MAX_CMD_SQSIZE, GFP_KERNEL );
 //            // link provisioning data
@@ -353,8 +353,8 @@ void ft1000_DestroyDevice(struct net_device *dev)
     int result = 0;
     pid_t pid;
 		int i;
-    PDPRAM_BLK pdpram_blk;
-    DPRAM_BLK *ptr;
+	struct dpram_blk *pdpram_blk;
+	struct dpram_blk *ptr;
 
     DEBUG("ft1000_chdev:ft1000_DestroyDevice called\n");
 
@@ -372,7 +372,7 @@ void ft1000_DestroyDevice(struct net_device *dev)
         // Make sure we free any memory reserve for slow Queue
         for (i=0; i<MAX_NUM_APP; i++) {
             while (list_empty(&info->app_info[i].app_sqlist) == 0) {
-                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);
+                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, struct dpram_blk, list);
                 list_del(&pdpram_blk->list);
                 ft1000_free_buffer(pdpram_blk, &freercvpool);
 
@@ -383,7 +383,7 @@ void ft1000_DestroyDevice(struct net_device *dev)
         // Remove buffer allocated for receive command data
         if (ft1000_flarion_cnt == 0) {
             while (list_empty(&freercvpool) == 0) {
-                ptr = list_entry(freercvpool.next, DPRAM_BLK, list);
+		ptr = list_entry(freercvpool.next, struct dpram_blk, list);
                 list_del(&ptr->list);
                 kfree(ptr->pbuffer);
                 kfree(ptr);
@@ -817,7 +817,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
         break;
     case IOCTL_GET_DPRAM_CMD:
         {
-            PDPRAM_BLK pdpram_blk;
+		struct dpram_blk *pdpram_blk;
             IOCTL_DPRAM_BLK __user *pioctl_dpram;
             int msglen;
 
@@ -847,7 +847,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
             if (list_empty(&info->app_info[i].app_sqlist) == 0) {
                 //DEBUG("FT1000:ft1000_ChIoctl:Message detected in slow queue\n");
                 spin_lock_irqsave(&free_buff_lock, flags);
-                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);
+                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, struct dpram_blk, list);
                 list_del(&pdpram_blk->list);
                 info->app_info[i].NumOfMsg--;
                 //DEBUG("FT1000:ft1000_ChIoctl:NumOfMsg for app %d = %d\n", i, info->app_info[i].NumOfMsg);
@@ -896,7 +896,7 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
     PFT1000_INFO info;
     struct net_device *dev;
     int i;
-    PDPRAM_BLK pdpram_blk;
+	struct dpram_blk *pdpram_blk;
 
     DEBUG("ft1000_ChRelease called\n");
 
@@ -921,7 +921,7 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
 
     while (list_empty(&info->app_info[i].app_sqlist) == 0) {
         DEBUG("Remove and free memory queue up on slow queue\n");
-        pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);
+        pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, struct dpram_blk, list);
         list_del(&pdpram_blk->list);
         ft1000_free_buffer(pdpram_blk, &freercvpool);
     }

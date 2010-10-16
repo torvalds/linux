@@ -561,10 +561,10 @@ typedef struct _FT1000_INFO {
 } FT1000_INFO, *PFT1000_INFO;
 
 
-typedef struct _DPRAM_BLK {
+struct dpram_blk {
     struct list_head list;
     u16 *pbuffer;
-} __attribute__ ((packed)) DPRAM_BLK, *PDPRAM_BLK;
+} __attribute__ ((packed));
 
 u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx);
 u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRegIndx);
@@ -589,8 +589,8 @@ int ft1000_CreateDevice(struct ft1000_device *dev);
 void ft1000_DestroyDevice(struct net_device *dev);
 extern void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int size);
 
-PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist);
-void ft1000_free_buffer (PDPRAM_BLK pdpram_blk, struct list_head *plist);
+struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
+void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);
 
 char *getfw (char *fn, size_t *pimgsz);
 

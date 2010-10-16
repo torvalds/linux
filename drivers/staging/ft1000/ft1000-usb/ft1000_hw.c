@@ -938,7 +938,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 {
     struct net_device *netdev;
     FT1000_INFO *pInfo = NULL;
-    PDPRAM_BLK pdpram_blk;
+	struct dpram_blk *pdpram_blk;
 	int i, ret_val;
 	struct list_head *cur, *tmp;
 	char card_nr[2];
@@ -1054,7 +1054,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
         // create list of free buffers
         for (i=0; i<NUM_OF_FREE_BUFFERS; i++) {
             // Get memory for DPRAM_DATA link list
-            pdpram_blk = kmalloc ( sizeof(DPRAM_BLK), GFP_KERNEL );
+		pdpram_blk = kmalloc(sizeof(struct dpram_blk), GFP_KERNEL);
 		if (pdpram_blk == NULL) {
 			ret_val = -ENOMEM;
 			goto err_free;
@@ -1077,7 +1077,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 
 err_free:
 	list_for_each_safe(cur, tmp, &freercvpool) {
-		pdpram_blk = list_entry(cur, DPRAM_BLK, list);
+		pdpram_blk = list_entry(cur, struct dpram_blk, list);
 		list_del(&pdpram_blk->list);
 		kfree(pdpram_blk->pbuffer);
 		kfree(pdpram_blk);
@@ -2380,7 +2380,7 @@ int ft1000_poll(void* dev_id) {
     USHORT modulo;
     USHORT portid;
     u16 nxtph;
-    PDPRAM_BLK pdpram_blk;
+	struct dpram_blk *pdpram_blk;
 	struct pseudo_hdr *ppseudo_hdr;
     unsigned long flags;
 
