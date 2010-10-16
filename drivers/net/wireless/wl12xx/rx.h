@@ -86,8 +86,9 @@
 /*
  * RX Descriptor status
  *
- * Bits 0-2 - status
- * Bits 3-7 - reserved
+ * Bits 0-2 - error code
+ * Bits 3-5 - process_id tag (AP mode FW)
+ * Bits 6-7 - reserved
  */
 #define WL1271_RX_DESC_STATUS_MASK      0x07
 
@@ -110,7 +111,10 @@ struct wl1271_rx_descriptor {
 	u8  snr;
 	__le32 timestamp;
 	u8  packet_class;
-	u8  process_id;
+	union {
+		u8  process_id; /* STA FW */
+		u8  hlid; /* AP FW */
+	} __packed;
 	u8  pad_len;
 	u8  reserved;
 } __packed;

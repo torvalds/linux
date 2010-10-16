@@ -116,7 +116,12 @@ struct event_mailbox {
 	u8 scheduled_scan_status;
 	u8 ps_status;
 
-	u8 reserved_5[29];
+	/* AP FW only */
+	u8 hlid_removed;
+	__le16 sta_aging_status;
+	__le16 sta_tx_retry_exceeded;
+
+	u8 reserved_5[24];
 } __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);

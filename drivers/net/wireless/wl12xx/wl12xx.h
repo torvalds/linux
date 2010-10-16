@@ -195,6 +195,11 @@ struct wl1271_stats {
 #define NUM_TX_QUEUES              4
 #define NUM_RX_PKT_DESC            8
 
+#define AP_MAX_STATIONS            5
+
+/* Broadcast and Global links + links to stations */
+#define AP_MAX_LINKS               (AP_MAX_STATIONS + 2)
+
 /* FW status registers */
 struct wl1271_fw_status {
 	__le32 intr;
@@ -205,7 +210,18 @@ struct wl1271_fw_status {
 	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
 	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
-	__le32 padding[2];
+
+	/* Next fields valid only in AP FW */
+
+	/*
+	 * A bitmap (where each bit represents a single HLID)
+	 * to indicate if the station is in PS mode.
+	 */
+	__le32 link_ps_bitmap;
+
+	/* Number of freed MBs per HLID */
+	u8 tx_lnk_free_blks[AP_MAX_LINKS];
+	u8 padding_1[1];
 } __packed;
 
 struct wl1271_rx_mem_pool_addr {
