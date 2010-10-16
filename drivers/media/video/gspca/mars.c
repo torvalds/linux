@@ -34,6 +34,8 @@ enum e_ctrl {
 	COLORS,
 	GAMMA,
 	SHARPNESS,
+	ILLUM_TOP,
+	ILLUM_BOT,
 	NCTRLS		/* number of controls */
 };
 
@@ -56,6 +58,8 @@ static void setbrightness(struct gspca_dev *gspca_dev);
 static void setcolors(struct gspca_dev *gspca_dev);
 static void setgamma(struct gspca_dev *gspca_dev);
 static void setsharpness(struct gspca_dev *gspca_dev);
+static int sd_setilluminator1(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_setilluminator2(struct gspca_dev *gspca_dev, __s32 val);
 
 static const struct ctrl sd_ctrls[NCTRLS] = {
 [BRIGHTNESS] = {
@@ -105,6 +109,32 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.default_value = 1,
 	    },
 	    .set_control = setsharpness
+	},
+[ILLUM_TOP] = {
+	    {
+		.id	 = V4L2_CID_ILLUMINATORS_1,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Top illuminator",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 0,
+		.flags = V4L2_CTRL_FLAG_UPDATE,
+	    },
+	    .set = sd_setilluminator1
+	},
+[ILLUM_BOT] = {
+	    {
+		.id	 = V4L2_CID_ILLUMINATORS_2,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Bottom illuminator",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 0,
+		.flags = V4L2_CTRL_FLAG_UPDATE,
+	    },
+	    .set = sd_setilluminator2
 	},
 };
 
@@ -205,6 +235,20 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 2);
 }
 
+static void setilluminators(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	gspca_dev->usb_buf[0] = 0x22;
+	if (sd->ctrls[ILLUM_TOP].val)
+		gspca_dev->usb_buf[1] = 0x76;
+	else if (sd->ctrls[ILLUM_BOT].val)
+		gspca_dev->usb_buf[1] = 0x7a;
+	else
+		gspca_dev->usb_buf[1] = 0x7e;
+	reg_w(gspca_dev, 2);
+}
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
@@ -224,6 +268,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	gspca_dev->ctrl_inac = (1 << ILLUM_TOP) | (1 << ILLUM_BOT);
 	return 0;
 }
 
@@ -319,11 +364,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	data[1] = 0x4d;		/* ISOC transfering enable... */
 	reg_w(gspca_dev, 2);
 
+	gspca_dev->ctrl_inac = 0; /* activate the illuminator controls */
 	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	gspca_dev->ctrl_inac = (1 << ILLUM_TOP) | (1 << ILLUM_BOT);
+	if (sd->ctrls[ILLUM_TOP].val || sd->ctrls[ILLUM_BOT].val) {
+		sd->ctrls[ILLUM_TOP].val = 0;
+		sd->ctrls[ILLUM_BOT].val = 0;
+		setilluminators(gspca_dev);
+		msleep(20);
+	}
+
 	gspca_dev->usb_buf[0] = 1;
 	gspca_dev->usb_buf[1] = 0;
 	reg_w(gspca_dev, 2);
@@ -365,6 +421,30 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+}
+
+static int sd_setilluminator1(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* only one illuminator may be on */
+	sd->ctrls[ILLUM_TOP].val = val;
+	if (val)
+		sd->ctrls[ILLUM_BOT].val = 0;
+	setilluminators(gspca_dev);
+	return gspca_dev->usb_err;
+}
+
+static int sd_setilluminator2(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* only one illuminator may be on */
+	sd->ctrls[ILLUM_BOT].val = val;
+	if (val)
+		sd->ctrls[ILLUM_TOP].val = 0;
+	setilluminators(gspca_dev);
+	return gspca_dev->usb_err;
 }
 
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
