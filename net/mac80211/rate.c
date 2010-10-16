@@ -329,6 +329,9 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 		 * if needed.
 		 */
 		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+			/* Skip invalid rates */
+			if (info->control.rates[i].idx < 0)
+				break;
 			/* Rate masking supports only legacy rates for now */
 			if (info->control.rates[i].flags & IEEE80211_TX_RC_MCS)
 				continue;
