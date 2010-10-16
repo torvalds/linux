@@ -2314,42 +2314,66 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 {
 	struct wl1271 *wl = hw->priv;
 	u8 ps_scheme;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&wl->mutex);
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
-
-	if (unlikely(wl->state == WL1271_STATE_OFF)) {
-		ret = -EAGAIN;
-		goto out;
-	}
-
-	ret = wl1271_ps_elp_wakeup(wl, false);
-	if (ret < 0)
-		goto out;
-
-	/* the txop is confed in units of 32us by the mac80211, we need us */
-	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
-				params->cw_min, params->cw_max,
-				params->aifs, params->txop << 5);
-	if (ret < 0)
-		goto out_sleep;
 
 	if (params->uapsd)
 		ps_scheme = CONF_PS_SCHEME_UPSD_TRIGGER;
 	else
 		ps_scheme = CONF_PS_SCHEME_LEGACY;
 
-	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
-				 CONF_CHANNEL_TYPE_EDCF,
-				 wl1271_tx_get_queue(queue),
-				 ps_scheme, CONF_ACK_POLICY_LEGACY, 0, 0);
-	if (ret < 0)
-		goto out_sleep;
+	if (wl->state == WL1271_STATE_OFF) {
+		/*
+		 * If the state is off, the parameters will be recorded and
+		 * configured on init. This happens in AP-mode.
+		 */
+		struct conf_tx_ac_category *conf_ac =
+			&wl->conf.tx.ac_conf[wl1271_tx_get_queue(queue)];
+		struct conf_tx_tid *conf_tid =
+			&wl->conf.tx.tid_conf[wl1271_tx_get_queue(queue)];
+
+		conf_ac->ac = wl1271_tx_get_queue(queue);
+		conf_ac->cw_min = (u8)params->cw_min;
+		conf_ac->cw_max = params->cw_max;
+		conf_ac->aifsn = params->aifs;
+		conf_ac->tx_op_limit = params->txop << 5;
+
+		conf_tid->queue_id = wl1271_tx_get_queue(queue);
+		conf_tid->channel_type = CONF_CHANNEL_TYPE_EDCF;
+		conf_tid->tsid = wl1271_tx_get_queue(queue);
+		conf_tid->ps_scheme = ps_scheme;
+		conf_tid->ack_policy = CONF_ACK_POLICY_LEGACY;
+		conf_tid->apsd_conf[0] = 0;
+		conf_tid->apsd_conf[1] = 0;
+	} else {
+		ret = wl1271_ps_elp_wakeup(wl, false);
+		if (ret < 0)
+			goto out;
+
+		/*
+		 * the txop is confed in units of 32us by the mac80211,
+		 * we need us
+		 */
+		ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
+					params->cw_min, params->cw_max,
+					params->aifs, params->txop << 5);
+		if (ret < 0)
+			goto out_sleep;
+
+		ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
+					 CONF_CHANNEL_TYPE_EDCF,
+					 wl1271_tx_get_queue(queue),
+					 ps_scheme, CONF_ACK_POLICY_LEGACY,
+					 0, 0);
+		if (ret < 0)
+			goto out_sleep;
 
 out_sleep:
-	wl1271_ps_elp_sleep(wl);
+		wl1271_ps_elp_sleep(wl);
+	}
 
 out:
 	mutex_unlock(&wl->mutex);
