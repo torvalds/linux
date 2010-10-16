@@ -23,7 +23,8 @@ static char *sel_buffer;
 
 static unsigned char sel_pos(int n)
 {
-	return inverse_translate(spk_sel_cons, screen_glyph(spk_sel_cons, n), 0);
+	return inverse_translate(spk_sel_cons,
+		screen_glyph(spk_sel_cons, n), 0);
 }
 
 void speakup_clear_selection(void)
@@ -34,7 +35,7 @@ void speakup_clear_selection(void)
 /* does screen address p correspond to character at LH/RH edge of screen? */
 static int atedge(const int p, int size_row)
 {
-	return (!(p % size_row) || !((p + 2) % size_row));
+	return !(p % size_row) || !((p + 2) % size_row);
 }
 
 /* constrain v such that v <= u */
@@ -132,20 +133,15 @@ int speakup_paste_selection(struct tty_struct *tty)
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (test_bit(TTY_THROTTLED, &tty->flags)) {
 			if (in_atomic())
-				/* can't be performed in an interrupt handler, abort */
+				/* if we are in an interrupt handler, abort */
 				break;
 			schedule();
 			continue;
 		}
 		count = sel_buffer_lth - pasted;
 		count = min_t(int, count, tty->receive_room);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-		tty->ldisc->ops->receive_buf(tty, sel_buffer + pasted, 0, count);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-		tty->ldisc.ops->receive_buf(tty, sel_buffer + pasted, 0, count);
-#else
-		tty->ldisc.receive_buf(tty, sel_buffer + pasted, 0, count);
-#endif
+		tty->ldisc->ops->receive_buf(tty, sel_buffer + pasted,
+			0, count);
 		pasted += count;
 	}
 	remove_wait_queue(&vc->paste_wait, &wait);
