@@ -57,6 +57,8 @@ enum {
 	DEBUG_SDIO	= BIT(14),
 	DEBUG_FILTERS   = BIT(15),
 	DEBUG_ADHOC     = BIT(16),
+	DEBUG_AP	= BIT(17),
+	DEBUG_MASTER	= (DEBUG_ADHOC | DEBUG_AP),
 	DEBUG_ALL	= ~0,
 };
 
@@ -284,6 +286,7 @@ struct wl1271 {
 #define WL1271_FLAG_PSPOLL_FAILURE    (12)
 #define WL1271_FLAG_STA_STATE_SENT    (13)
 #define WL1271_FLAG_FW_TX_BUSY        (14)
+#define WL1271_FLAG_AP_STARTED        (15)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
