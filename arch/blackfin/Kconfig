@@ -928,6 +928,12 @@ config ROMKERNEL
 
 endchoice
 
+# Common code uses "ROMKERNEL" or "XIP_KERNEL", so define both
+config XIP_KERNEL
+	bool
+	default y
+	depends on ROMKERNEL
+
 source "mm/Kconfig"
 
 config BFIN_GPTIMERS
