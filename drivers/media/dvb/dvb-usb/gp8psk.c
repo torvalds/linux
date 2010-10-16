@@ -311,6 +311,6 @@ module_init(gp8psk_usb_module_init);
 module_exit(gp8psk_usb_module_exit);
 
 MODULE_AUTHOR("Alan Nisota <alannisota@gamil.com>");
-MODULE_DESCRIPTION("Driver for Genpix 8psk-to-USB2 DVB-S");
+MODULE_DESCRIPTION("Driver for Genpix DVB-S");
 MODULE_VERSION("1.1");
 MODULE_LICENSE("GPL");

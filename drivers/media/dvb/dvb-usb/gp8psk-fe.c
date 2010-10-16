@@ -334,7 +334,7 @@ success:
 
 static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.info = {
-		.name			= "Genpix 8psk-to-USB2 DVB-S",
+		.name			= "Genpix DVB-S",
 		.type			= FE_QPSK,
 		.frequency_min		= 800000,
 		.frequency_max		= 2250000,
