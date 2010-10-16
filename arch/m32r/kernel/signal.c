@@ -256,7 +256,7 @@ give_sigsegv:
 static int prev_insn(struct pt_regs *regs)
 {
 	u16 inst;
-	if (get_user(&inst, (u16 __user *)(regs->bpc - 2)))
+	if (get_user(inst, (u16 __user *)(regs->bpc - 2)))
 		return -EFAULT;
 	if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
 		regs->bpc -= 2;
