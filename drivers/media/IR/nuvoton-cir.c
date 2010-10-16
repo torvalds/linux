@@ -586,7 +586,7 @@ static void nvt_dump_rx_buf(struct nvt_dev *nvt)
  */
 static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 {
-	struct ir_raw_event rawir = { .pulse = false, .duration = 0 };
+	DEFINE_IR_RAW_EVENT(rawir);
 	unsigned int count;
 	u32 carrier;
 	u8 sample;
@@ -622,6 +622,8 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 		}
 
 		rawir.duration += nvt->rawir.duration;
+
+		init_ir_raw_event(&nvt->rawir);
 		nvt->rawir.duration = 0;
 		nvt->rawir.pulse = rawir.pulse;
 
@@ -1016,6 +1018,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	spin_lock_init(&nvt->nvt_lock);
 	spin_lock_init(&nvt->tx.lock);
+	init_ir_raw_event(&nvt->rawir);
 
 	ret = -EBUSY;
 	/* now claim resources */

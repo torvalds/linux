@@ -88,6 +88,12 @@ struct ir_raw_event_ctrl {
 		struct ir_input_dev *ir_dev;
 		struct lirc_driver *drv;
 		int carrier_low;
+
+		ktime_t gap_start;
+		u64 gap_duration;
+		bool gap;
+		bool send_timeout_reports;
+
 	} lirc;
 };
 
@@ -115,9 +121,14 @@ static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration)
 		ev->duration -= duration;
 }
 
+/* Returns true if event is normal pulse/space event */
+static inline bool is_timing_event(struct ir_raw_event ev)
+{
+	return !ev.carrier_report && !ev.reset;
+}
+
 #define TO_US(duration)			DIV_ROUND_CLOSEST((duration), 1000)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
-#define IS_RESET(ev)			(ev.duration == 0)
 /*
  * Routines from ir-sysfs.c - Meant to be called only internally inside
  * ir-core

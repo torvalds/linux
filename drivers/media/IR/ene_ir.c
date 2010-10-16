@@ -697,7 +697,7 @@ static irqreturn_t ene_isr(int irq, void *data)
 	unsigned long flags;
 	irqreturn_t retval = IRQ_NONE;
 	struct ene_device *dev = (struct ene_device *)data;
-	struct ir_raw_event ev;
+	DEFINE_IR_RAW_EVENT(ev);
 
 	spin_lock_irqsave(&dev->hw_lock, flags);
 
@@ -898,7 +898,7 @@ static int ene_set_learning_mode(void *data, int enable)
 }
 
 /* outside interface: enable or disable idle mode */
-static void ene_rx_set_idle(void *data, int idle)
+static void ene_rx_set_idle(void *data, bool idle)
 {
 	struct ene_device *dev = (struct ene_device *)data;
 

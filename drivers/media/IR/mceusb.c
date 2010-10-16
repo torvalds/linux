@@ -660,7 +660,7 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
-	struct ir_raw_event rawir = { .pulse = false, .duration = 0 };
+	DEFINE_IR_RAW_EVENT(rawir);
 	int i, start_index = 0;
 	u8 hdr = MCE_CONTROL_HEADER;
 
@@ -997,6 +997,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->len_in = maxp;
 	ir->flags.microsoft_gen1 = is_microsoft_gen1;
 	ir->flags.tx_mask_inverted = tx_mask_inverted;
+	init_ir_raw_event(&ir->rawir);
 
 	/* Saving usb interface data for use by the transmitter routine */
 	ir->usb_ep_in = ep_in;

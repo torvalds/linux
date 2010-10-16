@@ -146,7 +146,7 @@ static void sz_push(struct streamzap_ir *sz, struct ir_raw_event rawir)
 static void sz_push_full_pulse(struct streamzap_ir *sz,
 			       unsigned char value)
 {
-	struct ir_raw_event rawir;
+	DEFINE_IR_RAW_EVENT(rawir);
 
 	if (sz->idle) {
 		long deltv;
@@ -193,7 +193,7 @@ static void sz_push_half_pulse(struct streamzap_ir *sz,
 static void sz_push_full_space(struct streamzap_ir *sz,
 			       unsigned char value)
 {
-	struct ir_raw_event rawir;
+	DEFINE_IR_RAW_EVENT(rawir);
 
 	rawir.pulse = false;
 	rawir.duration = ((int) value) * SZ_RESOLUTION;
@@ -270,7 +270,7 @@ static void streamzap_callback(struct urb *urb)
 			break;
 		case FullSpace:
 			if (sz->buf_in[i] == SZ_TIMEOUT) {
-				struct ir_raw_event rawir;
+				DEFINE_IR_RAW_EVENT(rawir);
 
 				rawir.pulse = false;
 				rawir.duration = timeout;

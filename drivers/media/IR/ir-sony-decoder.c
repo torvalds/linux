@@ -48,8 +48,9 @@ static int ir_sony_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_SONY))
 		return 0;
 
-	if (IS_RESET(ev)) {
-		data->state = STATE_INACTIVE;
+	if (!is_timing_event(ev)) {
+		if (ev.reset)
+			data->state = STATE_INACTIVE;
 		return 0;
 	}
 

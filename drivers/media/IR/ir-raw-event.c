@@ -174,7 +174,7 @@ int ir_raw_event_store_with_filter(struct input_dev *input_dev,
 	if (ir->idle && !ev->pulse)
 		return 0;
 	else if (ir->idle)
-		ir_raw_event_set_idle(input_dev, 0);
+		ir_raw_event_set_idle(input_dev, false);
 
 	if (!raw->this_ev.duration) {
 		raw->this_ev = *ev;
@@ -187,48 +187,35 @@ int ir_raw_event_store_with_filter(struct input_dev *input_dev,
 
 	/* Enter idle mode if nessesary */
 	if (!ev->pulse && ir->props->timeout &&
-		raw->this_ev.duration >= ir->props->timeout)
-		ir_raw_event_set_idle(input_dev, 1);
+		raw->this_ev.duration >= ir->props->timeout) {
+		ir_raw_event_set_idle(input_dev, true);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_store_with_filter);
 
-void ir_raw_event_set_idle(struct input_dev *input_dev, int idle)
+/**
+ * ir_raw_event_set_idle() - hint the ir core if device is receiving
+ * IR data or not
+ * @input_dev: the struct input_dev device descriptor
+ * @idle: the hint value
+ */
+void ir_raw_event_set_idle(struct input_dev *input_dev, bool idle)
 {
 	struct ir_input_dev *ir = input_get_drvdata(input_dev);
 	struct ir_raw_event_ctrl *raw = ir->raw;
-	ktime_t now;
-	u64 delta;
 
-	if (!ir->props)
+	if (!ir->props || !ir->raw)
 		return;
 
-	if (!ir->raw)
-		goto out;
+	IR_dprintk(2, "%s idle mode\n", idle ? "enter" : "leave");
 
 	if (idle) {
-		IR_dprintk(2, "enter idle mode\n");
-		raw->last_event = ktime_get();
-	} else {
-		IR_dprintk(2, "exit idle mode\n");
-
-		now = ktime_get();
-		delta = ktime_to_ns(ktime_sub(now, ir->raw->last_event));
-
-		WARN_ON(raw->this_ev.pulse);
-
-		raw->this_ev.duration =
-			min(raw->this_ev.duration + delta,
-						(u64)IR_MAX_DURATION);
-
+		raw->this_ev.timeout = true;
 		ir_raw_event_store(input_dev, &raw->this_ev);
-
-		if (raw->this_ev.duration == IR_MAX_DURATION)
-			ir_raw_event_reset(input_dev);
-
-		raw->this_ev.duration = 0;
+		init_ir_raw_event(&raw->this_ev);
 	}
-out:
+
 	if (ir->props->s_idle)
 		ir->props->s_idle(ir->props->priv, idle);
 	ir->idle = idle;
