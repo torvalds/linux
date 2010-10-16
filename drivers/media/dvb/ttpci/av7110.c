@@ -2889,7 +2889,7 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 
 static struct saa7146_extension av7110_extension_driver = {
-	.name		= "dvb",
+	.name		= "av7110",
 	.flags		= SAA7146_USE_I2C_IRQ,
 
 	.module		= THIS_MODULE,
