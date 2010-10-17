@@ -333,6 +333,12 @@ static __used s32 wl_update_pmklist(struct net_device *dev,
 
 static void wl_set_mpc(struct net_device *ndev, int mpc);
 
+/*
+* debufs support
+*/
+static int wl_debugfs_add_netdev_params(struct wl_priv *wl);
+static void wl_debugfs_remove_netdev(struct wl_priv *wl);
+
 #define WL_PRIV_GET() 							\
 	({								\
 	struct wl_iface *ci;						\
@@ -3814,6 +3820,8 @@ static s32 __wl_cfg80211_up(struct wl_priv *wl)
 {
 	s32 err = 0;
 
+	wl_debugfs_add_netdev_params(wl);
+
 	err = wl_config_dongle(wl, false);
 	if (unlikely(err))
 		return err;
@@ -3850,6 +3858,8 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	clear_bit(WL_STATUS_SCANNING, &wl->status);
 	clear_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
 	clear_bit(WL_STATUS_CONNECTED, &wl->status);
+
+	wl_debugfs_remove_netdev(wl);
 
 	return err;
 }
@@ -4185,4 +4195,37 @@ static void wl_set_mpc(struct net_device *ndev, int mpc)
 		return;
 	}
 	WL_DBG(("MPC : %d\n", mpc));
+}
+
+static int wl_debugfs_add_netdev_params(struct wl_priv *wl)
+{
+	char buf[10+IFNAMSIZ];
+	struct dentry *fd;
+	s32 err = 0;
+
+	sprintf(buf, "netdev:%s", wl_to_ndev(wl)->name);
+	wl->debugfsdir = debugfs_create_dir(buf, wl_to_wiphy(wl)->debugfsdir);
+
+	fd = debugfs_create_u16("beacon_int", S_IRUGO, wl->debugfsdir,
+		(u16 *)&wl->profile->beacon_interval);
+	if (!fd) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	fd = debugfs_create_u8("dtim_period", S_IRUGO, wl->debugfsdir,
+		(u8 *)&wl->profile->dtim_period);
+	if (!fd) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+err_out:
+	return err;
+}
+
+static void wl_debugfs_remove_netdev(struct wl_priv *wl)
+{
+	debugfs_remove_recursive(wl->debugfsdir);
+	wl->debugfsdir = NULL;
 }

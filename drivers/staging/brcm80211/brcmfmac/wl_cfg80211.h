@@ -341,6 +341,7 @@ struct wl_priv {
 	bool scan_tried;	/* indicates if first scan attempted */
 	u8 *ioctl_buf;	/* ioctl buffer */
 	u8 *extra_buf;	/* maily to grab assoc information */
+	struct dentry *debugfsdir;
 	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
 };
 
