@@ -2553,6 +2553,11 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 	struct cfg80211_bss *bss;
 	struct wl_bss_info *bi;
 	struct wlc_ssid *ssid;
+	struct bcm_tlv *tim;
+	u16 beacon_interval;
+	u8 dtim_period;
+	size_t ie_len;
+	u8 *ie;
 	s32 err = 0;
 
 	if (wl_is_ibssmode(wl))
@@ -2582,10 +2587,37 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 		err = wl_inform_single_bss(wl, bi);
 		if (unlikely(err))
 			goto update_bss_info_out;
+
+		ie = ((u8 *)bi) + bi->ie_offset;
+		ie_len = bi->ie_length;
+		beacon_interval = cpu_to_le16(bi->beacon_period);
 	} else {
 		WL_DBG(("Found the AP in the list - BSSID %pM\n", bss->bssid));
+		ie = bss->information_elements;
+		ie_len = bss->len_information_elements;
+		beacon_interval = bss->beacon_interval;
 		cfg80211_put_bss(bss);
 	}
+
+	tim = bcm_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
+	if (tim) {
+		dtim_period = tim->data[1];
+	} else {
+		/*
+		* active scan was done so we could not get dtim
+		* information out of probe response.
+		* so we speficially query dtim information to dongle.
+		*/
+		err = wl_dev_ioctl(wl_to_ndev(wl), WLC_GET_DTIMPRD,
+			&dtim_period, sizeof(dtim_period));
+		if (unlikely(err)) {
+			WL_ERR(("WLC_GET_DTIMPRD error (%d)\n", err));
+			goto update_bss_info_out;
+		}
+	}
+
+	wl_update_prof(wl, NULL, &beacon_interval, WL_PROF_BEACONINT);
+	wl_update_prof(wl, NULL, &dtim_period, WL_PROF_DTIMPERIOD);
 
 update_bss_info_out:
 	rtnl_unlock();
@@ -3900,7 +3932,13 @@ wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e, void *data,
 		memcpy(&wl->profile->sec, data, sizeof(wl->profile->sec));
 		break;
 	case WL_PROF_ACT:
-		wl->profile->active = *(bool *) data;
+		wl->profile->active = *(bool *)data;
+		break;
+	case WL_PROF_BEACONINT:
+		wl->profile->beacon_interval = *(u16 *)data;
+		break;
+	case WL_PROF_DTIMPERIOD:
+		wl->profile->dtim_period = *(u8 *)data;
 		break;
 	default:
 		WL_ERR(("unsupported item (%d)\n", item));

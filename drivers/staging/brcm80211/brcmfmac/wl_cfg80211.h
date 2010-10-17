@@ -136,7 +136,9 @@ enum wl_prof_list {
 	WL_PROF_IBSS,
 	WL_PROF_BAND,
 	WL_PROF_BSSID,
-	WL_PROF_ACT
+	WL_PROF_ACT,
+	WL_PROF_BEACONINT,
+	WL_PROF_DTIMPERIOD
 };
 
 /* dongle iscan state */
@@ -237,6 +239,8 @@ struct wl_profile {
 	u32 mode;
 	struct wlc_ssid ssid;
 	u8 bssid[ETHER_ADDR_LEN];
+	u16 beacon_interval;
+	u8 dtim_period;
 	struct wl_security sec;
 	struct wl_ibss ibss;
 	s32 band;
