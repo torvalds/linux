@@ -2259,8 +2259,11 @@ static int __init speakup_init(void)
 	first_console = kzalloc(sizeof(*first_console), GFP_KERNEL);
 	if (!first_console)
 		return -ENOMEM;
-	if (speakup_kobj_init() < 0)
-		return -ENOMEM;
+	err = speakup_kobj_init();
+	if (err) {
+		kfree(first_console);
+		return err;
+	}
 
 	reset_default_chars();
 	reset_default_chartab();
