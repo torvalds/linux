@@ -72,7 +72,7 @@ static struct class *lirc_class;
 /*  helper function
  *  initializes the irctl structure
  */
-static void init_irctl(struct irctl *ir)
+static void lirc_irctl_init(struct irctl *ir)
 {
 	dev_dbg(ir->d.dev, LOGHEAD "initializing irctl\n",
 		ir->d.name, ir->d.minor);
@@ -80,7 +80,7 @@ static void init_irctl(struct irctl *ir)
 	ir->d.minor = NOPLUG;
 }
 
-static void cleanup(struct irctl *ir)
+static void lirc_irctl_cleanup(struct irctl *ir)
 {
 	dev_dbg(ir->d.dev, LOGHEAD "cleaning up\n", ir->d.name, ir->d.minor);
 
@@ -97,7 +97,7 @@ static void cleanup(struct irctl *ir)
  *  reads key codes from driver and puts them into buffer
  *  returns 0 on success
  */
-static int add_to_buf(struct irctl *ir)
+static int lirc_add_to_buf(struct irctl *ir)
 {
 	if (ir->d.add_to_buf) {
 		int res = -ENODATA;
@@ -140,7 +140,7 @@ static int lirc_thread(void *irctl)
 			}
 			if (kthread_should_stop())
 				break;
-			if (!add_to_buf(ir))
+			if (!lirc_add_to_buf(ir))
 				wake_up_interruptible(&ir->buf->wait_poll);
 		} else {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -155,7 +155,7 @@ static int lirc_thread(void *irctl)
 }
 
 
-static struct file_operations fops = {
+static struct file_operations lirc_dev_fops = {
 	.owner		= THIS_MODULE,
 	.read		= lirc_dev_fop_read,
 	.write		= lirc_dev_fop_write,
@@ -177,7 +177,7 @@ static int lirc_cdev_add(struct irctl *ir)
 		cdev_init(&ir->cdev, d->fops);
 		ir->cdev.owner = d->owner;
 	} else {
-		cdev_init(&ir->cdev, &fops);
+		cdev_init(&ir->cdev, &lirc_dev_fops);
 		ir->cdev.owner = THIS_MODULE;
 	}
 	kobject_set_name(&ir->cdev.kobj, "lirc%d", d->minor);
@@ -280,7 +280,7 @@ int lirc_register_driver(struct lirc_driver *d)
 		err = -ENOMEM;
 		goto out_lock;
 	}
-	init_irctl(ir);
+	lirc_irctl_init(ir);
 	irctls[minor] = ir;
 	d->minor = minor;
 
@@ -401,7 +401,7 @@ int lirc_unregister_driver(int minor)
 		mutex_unlock(&ir->irctl_lock);
 		cdev_del(&ir->cdev);
 	} else {
-		cleanup(ir);
+		lirc_irctl_cleanup(ir);
 		cdev_del(&ir->cdev);
 		kfree(ir);
 		irctls[minor] = NULL;
@@ -484,7 +484,7 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 		ir->d.set_use_dec(ir->d.data);
 		module_put(ir->d.owner);
 	} else {
-		cleanup(ir);
+		lirc_irctl_cleanup(ir);
 		irctls[ir->d.minor] = NULL;
 		kfree(ir);
 	}
