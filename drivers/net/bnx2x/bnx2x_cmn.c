@@ -1289,8 +1289,6 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (rc) {
 		BNX2X_ERR("HW init failed, aborting\n");
 		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE, 0);
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP, 0);
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
 		goto load_error2;
 	}
 
