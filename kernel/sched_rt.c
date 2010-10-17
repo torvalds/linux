@@ -1140,7 +1140,7 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 	for_each_leaf_rt_rq(rt_rq, rq) {
 		array = &rt_rq->active;
 		idx = sched_find_first_bit(array->bitmap);
- next_idx:
+next_idx:
 		if (idx >= MAX_RT_PRIO)
 			continue;
 		if (next && next->prio < idx)
@@ -1316,7 +1316,7 @@ static int push_rt_task(struct rq *rq)
 	if (!next_task)
 		return 0;
 
- retry:
+retry:
 	if (unlikely(next_task == rq->curr)) {
 		WARN_ON(1);
 		return 0;
@@ -1464,7 +1464,7 @@ static int pull_rt_task(struct rq *this_rq)
 			 * but possible)
 			 */
 		}
- skip:
+skip:
 		double_unlock_balance(this_rq, src_rq);
 	}
 
