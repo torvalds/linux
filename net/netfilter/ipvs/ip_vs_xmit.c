@@ -222,7 +222,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 		__ret = ip_vs_confirm_conntrack(skb, cp);	\
 	if (__ret == NF_ACCEPT) {				\
 		nf_reset(skb);					\
-		(skb)->ip_summed = CHECKSUM_NONE;		\
+		skb_forward_csum(skb);				\
 	}							\
 	__ret;							\
 })
