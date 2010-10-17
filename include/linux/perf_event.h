@@ -903,21 +903,13 @@ extern atomic_t perf_task_events;
 
 static inline void perf_event_task_sched_in(struct task_struct *task)
 {
-	JUMP_LABEL(&perf_task_events, have_events);
-	return;
-
-have_events:
-	__perf_event_task_sched_in(task);
+	COND_STMT(&perf_task_events, __perf_event_task_sched_in(task));
 }
 
 static inline
 void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next)
 {
-	JUMP_LABEL(&perf_task_events, have_events);
-	return;
-
-have_events:
-	__perf_event_task_sched_out(task, next);
+	COND_STMT(&perf_task_events, __perf_event_task_sched_out(task, next));
 }
 
 extern int perf_event_init_task(struct task_struct *child);

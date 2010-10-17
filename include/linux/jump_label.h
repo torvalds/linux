@@ -61,4 +61,14 @@ static inline int jump_label_text_reserved(void *start, void *end)
 
 #endif
 
+#define COND_STMT(key, stmt)					\
+do {								\
+	__label__ jl_enabled;					\
+	JUMP_LABEL(key, jl_enabled);				\
+	if (0) {						\
+jl_enabled:							\
+		stmt;						\
+	}							\
+} while (0)
+
 #endif
