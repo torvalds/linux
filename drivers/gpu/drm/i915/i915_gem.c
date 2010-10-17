@@ -547,16 +547,16 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret = 0;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (obj == NULL)
-		return -ENOENT;
-	obj_priv = to_intel_bo(obj);
-
 	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (ret)
 		return ret;
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (obj == NULL) {
+		ret = -ENOENT;
+		goto unlock;
 	}
+	obj_priv = to_intel_bo(obj);
 
 	/* Bounds check source.  */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
@@ -601,6 +601,7 @@ out_put:
 	i915_gem_object_put_pages(obj);
 out:
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -982,16 +983,17 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret = 0;
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
 	obj = drm_gem_object_lookup(dev, file, args->handle);
-	if (obj == NULL)
-		return -ENOENT;
+	if (obj == NULL) {
+		ret = -ENOENT;
+		goto unlock;
+	}
 	obj_priv = to_intel_bo(obj);
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ret;
-	}
 
 	/* Bounds check destination. */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
@@ -1062,6 +1064,7 @@ out_put:
 
 out:
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -1098,16 +1101,16 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (write_domain != 0 && read_domains != write_domain)
 		return -EINVAL;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (obj == NULL)
-		return -ENOENT;
-	obj_priv = to_intel_bo(obj);
-
 	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (ret)
 		return ret;
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (obj == NULL) {
+		ret = -ENOENT;
+		goto unlock;
 	}
+	obj_priv = to_intel_bo(obj);
 
 	intel_mark_busy(dev, obj);
 
@@ -1139,6 +1142,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -1157,14 +1161,14 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (obj == NULL)
-		return -ENOENT;
-
 	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (ret)
 		return ret;
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (obj == NULL) {
+		ret = -ENOENT;
+		goto unlock;
 	}
 
 	/* Pinned buffers may be scanout, so flush the cache */
@@ -1172,6 +1176,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 		i915_gem_object_flush_cpu_write_domain(obj);
 
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -1469,33 +1474,27 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (obj == NULL)
-		return -ENOENT;
-
 	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (ret)
 		return ret;
-	}
 
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (obj == NULL) {
+		ret = -ENOENT;
+		goto unlock;
+	}
 	obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
-
 
 	if (!obj_priv->mmap_offset) {
 		ret = i915_gem_create_mmap_offset(obj);
-		if (ret) {
-			drm_gem_object_unreference(obj);
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
+		if (ret)
+			goto out;
 	}
 
 	args->offset = obj_priv->mmap_offset;
@@ -1506,17 +1505,15 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	 */
 	if (!obj_priv->agp_mem) {
 		ret = i915_gem_object_bind_to_gtt(obj, 0);
-		if (ret) {
-			drm_gem_object_unreference(obj);
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
+		if (ret)
+			goto out;
 	}
 
+out:
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
+	return ret;
 }
 
 static void
@@ -4100,44 +4097,36 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
-		DRM_ERROR("Bad handle in i915_gem_pin_ioctl(): %d\n",
-			  args->handle);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto unlock;
 	}
 	obj_priv = to_intel_bo(obj);
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ret;
-	}
-
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to pin a purgeable buffer\n");
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (obj_priv->pin_filp != NULL && obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	obj_priv->user_pin_count++;
 	obj_priv->pin_filp = file_priv;
 	if (obj_priv->user_pin_count == 1) {
 		ret = i915_gem_object_pin(obj, args->alignment);
-		if (ret != 0) {
-			drm_gem_object_unreference(obj);
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
+		if (ret)
+			goto out;
 	}
 
 	/* XXX - flush the CPU caches for pinned objects
@@ -4145,10 +4134,11 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	 */
 	i915_gem_object_flush_cpu_write_domain(obj);
 	args->offset = obj_priv->gtt_offset;
+out:
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
+	return ret;
 }
 
 int
@@ -4160,27 +4150,22 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
-		DRM_ERROR("Bad handle in i915_gem_unpin_ioctl(): %d\n",
-			  args->handle);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto unlock;
 	}
-
 	obj_priv = to_intel_bo(obj);
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ret;
-	}
 
 	if (obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	obj_priv->user_pin_count--;
 	if (obj_priv->user_pin_count == 0) {
@@ -4188,9 +4173,11 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 		i915_gem_object_unpin(obj);
 	}
 
+out:
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
-	return 0;
+	return ret;
 }
 
 int
@@ -4202,25 +4189,22 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
-		DRM_ERROR("Bad handle in i915_gem_busy_ioctl(): %d\n",
-			  args->handle);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto unlock;
 	}
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ret;
-	}
+	obj_priv = to_intel_bo(obj);
 
 	/* Count all active objects as busy, even if they are currently not used
 	 * by the gpu. Users of this interface expect objects to eventually
 	 * become non-busy without any further actions, therefore emit any
 	 * necessary flushes here.
 	 */
-	obj_priv = to_intel_bo(obj);
 	args->busy = obj_priv->active;
 	if (args->busy) {
 		/* Unconditionally flush objects, even when the gpu still uses this
@@ -4244,8 +4228,9 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
-	return 0;
+	return ret;
 }
 
 int
@@ -4272,26 +4257,20 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	    return -EINVAL;
 	}
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
-		DRM_ERROR("Bad handle in i915_gem_madvise_ioctl(): %d\n",
-			  args->handle);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto unlock;
 	}
 	obj_priv = to_intel_bo(obj);
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ret;
-	}
-
 	if (obj_priv->pin_count) {
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-
-		DRM_ERROR("Attempted i915_gem_madvise_ioctl() on a pinned object\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (obj_priv->madv != __I915_MADV_PURGED)
@@ -4304,10 +4283,11 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	args->retained = obj_priv->madv != __I915_MADV_PURGED;
 
+out:
 	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
+	return ret;
 }
 
 struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
