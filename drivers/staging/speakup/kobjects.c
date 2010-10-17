@@ -989,24 +989,34 @@ int speakup_kobj_init(void)
 
 	speakup_kobj = kobject_create_and_add("speakup", accessibility_kobj);
 	if (!speakup_kobj) {
-		kobject_put(accessibility_kobj);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_acc;
 	}
 
 	/* Create the files associated with this kobject */
 	retval = sysfs_create_group(speakup_kobj, &main_attr_group);
 	if (retval)
-		speakup_kobj_exit();
+		goto err_speakup;
 
 	retval = sysfs_create_group(speakup_kobj, &i18n_attr_group);
 	if (retval)
-		speakup_kobj_exit();
+		goto err_group;
 
+	return 0;
+
+err_group:
+	sysfs_remove_group(speakup_kobj, &main_attr_group);
+err_speakup:
+	kobject_put(speakup_kobj);
+err_acc:
+	kobject_put(accessibility_kobj);
 	return retval;
 }
 
 void speakup_kobj_exit(void)
 {
+	sysfs_remove_group(speakup_kobj, &i18n_attr_group);
+	sysfs_remove_group(speakup_kobj, &main_attr_group);
 	kobject_put(speakup_kobj);
 	kobject_put(accessibility_kobj);
 }
