@@ -597,11 +597,19 @@ struct ip_vs_app {
 	__be16			port;		/* port number in net order */
 	atomic_t		usecnt;		/* usage counter */
 
-	/* output hook: return false if can't linearize. diff set for TCP.  */
+	/*
+	 * output hook: Process packet in inout direction, diff set for TCP.
+	 * Return: 0=Error, 1=Payload Not Mangled/Mangled but checksum is ok,
+	 *	   2=Mangled but checksum was not updated
+	 */
 	int (*pkt_out)(struct ip_vs_app *, struct ip_vs_conn *,
 		       struct sk_buff *, int *diff);
 
-	/* input hook: return false if can't linearize. diff set for TCP. */
+	/*
+	 * input hook: Process packet in outin direction, diff set for TCP.
+	 * Return: 0=Error, 1=Payload Not Mangled/Mangled but checksum is ok,
+	 *	   2=Mangled but checksum was not updated
+	 */
 	int (*pkt_in)(struct ip_vs_app *, struct ip_vs_conn *,
 		      struct sk_buff *, int *diff);
 

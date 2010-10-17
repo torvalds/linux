@@ -242,9 +242,14 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 			ret = nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
 						       start-data, end-start,
 						       buf, buf_len);
-			if (ret)
+			if (ret) {
 				ip_vs_nfct_expect_related(skb, ct, n_cp,
 							  IPPROTO_TCP, 0, 0);
+				if (skb->ip_summed == CHECKSUM_COMPLETE)
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				/* csum is updated */
+				ret = 1;
+			}
 		}
 
 		/*

@@ -121,6 +121,7 @@ udp_snat_handler(struct sk_buff *skb,
 	struct udphdr *udph;
 	unsigned int udphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -135,6 +136,8 @@ udp_snat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
@@ -142,8 +145,13 @@ udp_snat_handler(struct sk_buff *skb,
 		/*
 		 *	Call application helper if needed
 		 */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!(ret = ip_vs_app_pkt_out(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - udphoff;
+		else
+			payload_csum = 1;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -156,12 +164,13 @@ udp_snat_handler(struct sk_buff *skb,
 		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
 					htons(oldlen),
 					htons(skb->len - udphoff));
-	} else if (!cp->app && (udph->check != 0)) {
+	} else if (!payload_csum && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		udph->check = 0;
@@ -181,6 +190,7 @@ udp_snat_handler(struct sk_buff *skb,
 							skb->csum);
 		if (udph->check == 0)
 			udph->check = CSUM_MANGLED_0;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, udph->check,
 			  (char*)&(udph->check) - (char*)udph);
@@ -196,6 +206,7 @@ udp_dnat_handler(struct sk_buff *skb,
 	struct udphdr *udph;
 	unsigned int udphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -210,6 +221,8 @@ udp_dnat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
@@ -218,8 +231,13 @@ udp_dnat_handler(struct sk_buff *skb,
 		 *	Attempt ip_vs_app call.
 		 *	It will fix ip_vs_conn
 		 */
-		if (!ip_vs_app_pkt_in(cp, skb))
+		if (!(ret = ip_vs_app_pkt_in(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - udphoff;
+		else
+			payload_csum = 1;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -232,12 +250,13 @@ udp_dnat_handler(struct sk_buff *skb,
 		udp_partial_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 					htons(oldlen),
 					htons(skb->len - udphoff));
-	} else if (!cp->app && (udph->check != 0)) {
+	} else if (!payload_csum && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		udph->check = 0;

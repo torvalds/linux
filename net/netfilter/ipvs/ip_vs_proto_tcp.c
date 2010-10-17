@@ -120,6 +120,7 @@ tcp_snat_handler(struct sk_buff *skb,
 	struct tcphdr *tcph;
 	unsigned int tcphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -134,13 +135,20 @@ tcp_snat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!(ret = ip_vs_app_pkt_out(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - tcphoff;
+		else
+			payload_csum = 1;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -151,12 +159,13 @@ tcp_snat_handler(struct sk_buff *skb,
 		tcp_partial_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 					htons(oldlen),
 					htons(skb->len - tcphoff));
-	} else if (!cp->app) {
+	} else if (!payload_csum) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		tcph->check = 0;
@@ -174,6 +183,7 @@ tcp_snat_handler(struct sk_buff *skb,
 							skb->len - tcphoff,
 							cp->protocol,
 							skb->csum);
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, tcph->check,
@@ -190,6 +200,7 @@ tcp_dnat_handler(struct sk_buff *skb,
 	struct tcphdr *tcph;
 	unsigned int tcphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -204,6 +215,8 @@ tcp_dnat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
@@ -212,8 +225,13 @@ tcp_dnat_handler(struct sk_buff *skb,
 		 *	Attempt ip_vs_app call.
 		 *	It will fix ip_vs_conn and iph ack_seq stuff
 		 */
-		if (!ip_vs_app_pkt_in(cp, skb))
+		if (!(ret = ip_vs_app_pkt_in(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - tcphoff;
+		else
+			payload_csum = 1;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -226,12 +244,13 @@ tcp_dnat_handler(struct sk_buff *skb,
 		tcp_partial_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 					htons(oldlen),
 					htons(skb->len - tcphoff));
-	} else if (!cp->app) {
+	} else if (!payload_csum) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		tcph->check = 0;
