@@ -1521,6 +1521,12 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 {
 	u16 pmcsr;
 
+	/* If there is no power capability, silently succeed */
+	if (!bp->pm_cap) {
+		DP(NETIF_MSG_HW, "No power capability. Breaking.\n");
+		return 0;
+	}
+
 	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmcsr);
 
 	switch (state) {
