@@ -94,14 +94,14 @@ static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev,
 	l2cache_size = *prop;
 
 	sram_params.sram_size  = get_cache_sram_size();
-	if (sram_params.sram_size <= 0) {
+	if ((int)sram_params.sram_size <= 0) {
 		dev_err(&dev->dev,
 			"Entire L2 as cache, Aborting Cache-SRAM stuff\n");
 		return -EINVAL;
 	}
 
 	sram_params.sram_offset  = get_cache_sram_offset();
-	if (sram_params.sram_offset <= 0) {
+	if ((int64_t)sram_params.sram_offset <= 0) {
 		dev_err(&dev->dev,
 			"Entire L2 as cache, provide a valid sram offset\n");
 		return -EINVAL;
