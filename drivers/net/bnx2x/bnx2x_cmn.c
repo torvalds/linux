@@ -507,8 +507,11 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			len = le16_to_cpu(cqe->fast_path_cqe.pkt_len);
 			pad = cqe->fast_path_cqe.placement_offset;
 
-			/* If CQE is marked both TPA_START and TPA_END
-			   it is a non-TPA CQE */
+			/* - If CQE is marked both TPA_START and TPA_END it is
+			 *   a non-TPA CQE.
+			 * - FP CQE will always have either TPA_START or/and
+			 *   TPA_STOP flags set.
+			 */
 			if ((!fp->disable_tpa) &&
 			    (TPA_TYPE(cqe_fp_flags) !=
 					(TPA_TYPE_START | TPA_TYPE_END))) {
@@ -526,9 +529,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 					bnx2x_set_skb_rxhash(bp, cqe, skb);
 
 					goto next_rx;
-				}
-
-				if (TPA_TYPE(cqe_fp_flags) == TPA_TYPE_END) {
+				} else { /* TPA_STOP */
 					DP(NETIF_MSG_RX_STATUS,
 					   "calling tpa_stop on queue %d\n",
 					   queue);
