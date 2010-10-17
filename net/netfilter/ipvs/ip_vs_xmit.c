@@ -11,6 +11,16 @@
  *
  * Changes:
  *
+ * Description of forwarding methods:
+ * - all transmitters are called from LOCAL_IN (remote clients) and
+ * LOCAL_OUT (local clients) but for ICMP can be called from FORWARD
+ * - not all connections have destination server, for example,
+ * connections in backup server when fwmark is used
+ * - bypass connections use daddr from packet
+ * LOCAL_OUT rules:
+ * - skb->dev is NULL, skb->protocol is not set (both are set in POST_ROUTING)
+ * - skb->pkt_type is not set yet
+ * - the only place where we can see skb->sk != NULL
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -452,8 +462,13 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
 	if (skb->len > mtu) {
-		dst_release(&rt->dst);
+		if (!skb->dev) {
+			struct net *net = dev_net(skb_dst(skb)->dev);
+
+			skb->dev = net->loopback_dev;
+		}
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		dst_release(&rt->dst);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
 	}
@@ -659,6 +674,11 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
 	if (skb->len > mtu) {
+		if (!skb->dev) {
+			struct net *net = dev_net(skb_dst(skb)->dev);
+
+			skb->dev = net->loopback_dev;
+		}
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL_PKT(0, pp, skb, 0,
 				 "ip_vs_nat_xmit_v6(): frag needed for");
@@ -747,13 +767,6 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	int ret;
 
 	EnterFunction(10);
-
-	if (skb->protocol != htons(ETH_P_IP)) {
-		IP_VS_DBG_RL("%s(): protocol error, "
-			     "ETH_P_IP: %d, skb protocol: %d\n",
-			     __func__, htons(ETH_P_IP), skb->protocol);
-		goto tx_error;
-	}
 
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
 				      RT_TOS(tos), 1|2)))
@@ -869,13 +882,6 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	EnterFunction(10);
 
-	if (skb->protocol != htons(ETH_P_IPV6)) {
-		IP_VS_DBG_RL("%s(): protocol error, "
-			     "ETH_P_IPV6: %d, skb protocol: %d\n",
-			     __func__, htons(ETH_P_IPV6), skb->protocol);
-		goto tx_error;
-	}
-
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6,
 					 &saddr, 1, 1|2)))
 		goto tx_error_icmp;
@@ -896,6 +902,11 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 	if (mtu < ntohs(old_iph->payload_len) + sizeof(struct ipv6hdr)) {
+		if (!skb->dev) {
+			struct net *net = dev_net(skb_dst(skb)->dev);
+
+			skb->dev = net->loopback_dev;
+		}
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;
@@ -1053,6 +1064,11 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
 	if (skb->len > mtu) {
+		if (!skb->dev) {
+			struct net *net = dev_net(skb_dst(skb)->dev);
+
+			skb->dev = net->loopback_dev;
+		}
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		dst_release(&rt->dst);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
@@ -1271,6 +1287,11 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
 	if (skb->len > mtu) {
+		if (!skb->dev) {
+			struct net *net = dev_net(skb_dst(skb)->dev);
+
+			skb->dev = net->loopback_dev;
+		}
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;

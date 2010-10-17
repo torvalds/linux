@@ -529,9 +529,14 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	 * ICMP_PORT_UNREACH is sent here no matter it is TCP/UDP. --WZ
 	 */
 #ifdef CONFIG_IP_VS_IPV6
-	if (svc->af == AF_INET6)
+	if (svc->af == AF_INET6) {
+		if (!skb->dev) {
+			struct net *net = dev_net(skb_dst(skb)->dev);
+
+			skb->dev = net->loopback_dev;
+		}
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
-	else
+	} else
 #endif
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
@@ -1065,57 +1070,61 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	 */
 	cp = pp->conn_out_get(af, skb, pp, &iph, iph.len, 0);
 
-	if (unlikely(!cp)) {
-		if (sysctl_ip_vs_nat_icmp_send &&
-		    (pp->protocol == IPPROTO_TCP ||
-		     pp->protocol == IPPROTO_UDP ||
-		     pp->protocol == IPPROTO_SCTP)) {
-			__be16 _ports[2], *pptr;
+	if (likely(cp))
+		return handle_response(af, skb, pp, cp, iph.len);
+	if (sysctl_ip_vs_nat_icmp_send &&
+	    (pp->protocol == IPPROTO_TCP ||
+	     pp->protocol == IPPROTO_UDP ||
+	     pp->protocol == IPPROTO_SCTP)) {
+		__be16 _ports[2], *pptr;
 
-			pptr = skb_header_pointer(skb, iph.len,
-						  sizeof(_ports), _ports);
-			if (pptr == NULL)
-				return NF_ACCEPT;	/* Not for me */
-			if (ip_vs_lookup_real_service(af, iph.protocol,
-						      &iph.saddr,
-						      pptr[0])) {
-				/*
-				 * Notify the real server: there is no
-				 * existing entry if it is not RST
-				 * packet or not TCP packet.
-				 */
-				if ((iph.protocol != IPPROTO_TCP &&
-				     iph.protocol != IPPROTO_SCTP)
-				     || ((iph.protocol == IPPROTO_TCP
-					  && !is_tcp_reset(skb, iph.len))
-					 || (iph.protocol == IPPROTO_SCTP
-						&& !is_sctp_abort(skb,
-							iph.len)))) {
+		pptr = skb_header_pointer(skb, iph.len,
+					  sizeof(_ports), _ports);
+		if (pptr == NULL)
+			return NF_ACCEPT;	/* Not for me */
+		if (ip_vs_lookup_real_service(af, iph.protocol,
+					      &iph.saddr,
+					      pptr[0])) {
+			/*
+			 * Notify the real server: there is no
+			 * existing entry if it is not RST
+			 * packet or not TCP packet.
+			 */
+			if ((iph.protocol != IPPROTO_TCP &&
+			     iph.protocol != IPPROTO_SCTP)
+			     || ((iph.protocol == IPPROTO_TCP
+				  && !is_tcp_reset(skb, iph.len))
+				 || (iph.protocol == IPPROTO_SCTP
+					&& !is_sctp_abort(skb,
+						iph.len)))) {
 #ifdef CONFIG_IP_VS_IPV6
-					if (af == AF_INET6)
-						icmpv6_send(skb,
-							    ICMPV6_DEST_UNREACH,
-							    ICMPV6_PORT_UNREACH,
-							    0);
-					else
+				if (af == AF_INET6) {
+					struct net *net =
+						dev_net(skb_dst(skb)->dev);
+
+					if (!skb->dev)
+						skb->dev = net->loopback_dev;
+					icmpv6_send(skb,
+						    ICMPV6_DEST_UNREACH,
+						    ICMPV6_PORT_UNREACH,
+						    0);
+				} else
 #endif
-						icmp_send(skb,
-							  ICMP_DEST_UNREACH,
-							  ICMP_PORT_UNREACH, 0);
-					return NF_DROP;
-				}
+					icmp_send(skb,
+						  ICMP_DEST_UNREACH,
+						  ICMP_PORT_UNREACH, 0);
+				return NF_DROP;
 			}
 		}
-		IP_VS_DBG_PKT(12, pp, skb, 0,
-			      "packet continues traversal as normal");
-		return NF_ACCEPT;
 	}
-
-	return handle_response(af, skb, pp, cp, iph.len);
+	IP_VS_DBG_PKT(12, pp, skb, 0,
+		      "ip_vs_out: packet continues traversal as normal");
+	return NF_ACCEPT;
 }
 
 /*
- *	It is hooked at the NF_INET_FORWARD chain, used only for VS/NAT.
+ *	It is hooked at the NF_INET_FORWARD and NF_INET_LOCAL_IN chain,
+ *	used only for VS/NAT.
  *	Check if packet is reply for established ip_vs_conn.
  */
 static unsigned int
@@ -1147,7 +1156,8 @@ ip_vs_local_reply4(unsigned int hooknum, struct sk_buff *skb,
 #ifdef CONFIG_IP_VS_IPV6
 
 /*
- *	It is hooked at the NF_INET_FORWARD chain, used only for VS/NAT.
+ *	It is hooked at the NF_INET_FORWARD and NF_INET_LOCAL_IN chain,
+ *	used only for VS/NAT.
  *	Check if packet is reply for established ip_vs_conn.
  */
 static unsigned int
@@ -1404,33 +1414,42 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
  *	and send it on its way...
  */
 static unsigned int
-ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
-	 const struct net_device *in, const struct net_device *out,
-	 int (*okfn)(struct sk_buff *))
+ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 {
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
-	int ret, restart, af, pkts;
+	int ret, restart, pkts;
 
 	/* Already marked as IPVS request or reply? */
 	if (skb->ipvs_property)
 		return NF_ACCEPT;
 
-	af = (skb->protocol == htons(ETH_P_IP)) ? AF_INET : AF_INET6;
-
+	/*
+	 *	Big tappo:
+	 *	- remote client: only PACKET_HOST
+	 *	- route: used for struct net when skb->dev is unset
+	 */
+	if (unlikely((skb->pkt_type != PACKET_HOST &&
+		      hooknum != NF_INET_LOCAL_OUT) ||
+		     !skb_dst(skb))) {
+		ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
+		IP_VS_DBG_BUF(12, "packet type=%d proto=%d daddr=%s"
+			      " ignored in hook %u\n",
+			      skb->pkt_type, iph.protocol,
+			      IP_VS_DBG_ADDR(af, &iph.daddr), hooknum);
+		return NF_ACCEPT;
+	}
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 
-	/*
-	 *	Big tappo: only PACKET_HOST, including loopback for local client
-	 *	Don't handle local packets on IPv6 for now
-	 */
-	if (unlikely(skb->pkt_type != PACKET_HOST)) {
-		IP_VS_DBG_BUF(12, "packet type=%d proto=%d daddr=%s ignored\n",
-			      skb->pkt_type,
-			      iph.protocol,
-			      IP_VS_DBG_ADDR(af, &iph.daddr));
-		return NF_ACCEPT;
+	/* Bad... Do not break raw sockets */
+	if (unlikely(skb->sk != NULL && hooknum == NF_INET_LOCAL_OUT &&
+		     af == AF_INET)) {
+		struct sock *sk = skb->sk;
+		struct inet_sock *inet = inet_sk(skb->sk);
+
+		if (inet && sk->sk_family == PF_INET && inet->nodefrag)
+			return NF_ACCEPT;
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1467,11 +1486,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	if (unlikely(!cp)) {
 		int v;
 
-		/* For local client packets, it could be a response */
-		cp = pp->conn_out_get(af, skb, pp, &iph, iph.len, 0);
-		if (cp)
-			return handle_response(af, skb, pp, cp, iph.len);
-
 		if (!pp->conn_schedule(af, skb, pp, &v, &cp))
 			return v;
 	}
@@ -1479,7 +1493,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	if (unlikely(!cp)) {
 		/* sorry, all this trouble for a no-hit :) */
 		IP_VS_DBG_PKT(12, pp, skb, 0,
-			      "packet continues traversal as normal");
+			      "ip_vs_in: packet continues traversal as normal");
 		return NF_ACCEPT;
 	}
 
@@ -1550,6 +1564,72 @@ out:
 	return ret;
 }
 
+/*
+ *	AF_INET handler in NF_INET_LOCAL_IN chain
+ *	Schedule and forward packets from remote clients
+ */
+static unsigned int
+ip_vs_remote_request4(unsigned int hooknum, struct sk_buff *skb,
+		      const struct net_device *in,
+		      const struct net_device *out,
+		      int (*okfn)(struct sk_buff *))
+{
+	return ip_vs_in(hooknum, skb, AF_INET);
+}
+
+/*
+ *	AF_INET handler in NF_INET_LOCAL_OUT chain
+ *	Schedule and forward packets from local clients
+ */
+static unsigned int
+ip_vs_local_request4(unsigned int hooknum, struct sk_buff *skb,
+		     const struct net_device *in, const struct net_device *out,
+		     int (*okfn)(struct sk_buff *))
+{
+	unsigned int verdict;
+
+	/* Disable BH in LOCAL_OUT until all places are fixed */
+	local_bh_disable();
+	verdict = ip_vs_in(hooknum, skb, AF_INET);
+	local_bh_enable();
+	return verdict;
+}
+
+#ifdef CONFIG_IP_VS_IPV6
+
+/*
+ *	AF_INET6 handler in NF_INET_LOCAL_IN chain
+ *	Schedule and forward packets from remote clients
+ */
+static unsigned int
+ip_vs_remote_request6(unsigned int hooknum, struct sk_buff *skb,
+		      const struct net_device *in,
+		      const struct net_device *out,
+		      int (*okfn)(struct sk_buff *))
+{
+	return ip_vs_in(hooknum, skb, AF_INET6);
+}
+
+/*
+ *	AF_INET6 handler in NF_INET_LOCAL_OUT chain
+ *	Schedule and forward packets from local clients
+ */
+static unsigned int
+ip_vs_local_request6(unsigned int hooknum, struct sk_buff *skb,
+		     const struct net_device *in, const struct net_device *out,
+		     int (*okfn)(struct sk_buff *))
+{
+	unsigned int verdict;
+
+	/* Disable BH in LOCAL_OUT until all places are fixed */
+	local_bh_disable();
+	verdict = ip_vs_in(hooknum, skb, AF_INET6);
+	local_bh_enable();
+	return verdict;
+}
+
+#endif
+
 
 /*
  *	It is hooked at the NF_INET_FORWARD chain, in order to catch ICMP
@@ -1590,15 +1670,23 @@ ip_vs_forward_icmp_v6(unsigned int hooknum, struct sk_buff *skb,
 
 
 static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
+	/* After packet filtering, change source only for VS/NAT */
+	{
+		.hook		= ip_vs_reply4,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= 99,
+	},
 	/* After packet filtering, forward packet through VS/DR, VS/TUN,
 	 * or VS/NAT(change destination), so that filtering rules can be
 	 * applied to IPVS. */
 	{
-		.hook		= ip_vs_in,
+		.hook		= ip_vs_remote_request4,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum        = NF_INET_LOCAL_IN,
-		.priority       = 100,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= 101,
 	},
 	/* Before ip_vs_in, change source only for VS/NAT */
 	{
@@ -1608,14 +1696,22 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= -99,
 	},
+	/* After mangle, schedule and forward local requests */
+	{
+		.hook		= ip_vs_local_request4,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= -98,
+	},
 	/* After packet filtering (but before ip_vs_out_icmp), catch icmp
 	 * destined for 0.0.0.0/0, which is for incoming IPVS connections */
 	{
 		.hook		= ip_vs_forward_icmp,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum        = NF_INET_FORWARD,
-		.priority       = 99,
+		.hooknum	= NF_INET_FORWARD,
+		.priority	= 99,
 	},
 	/* After packet filtering, change source only for VS/NAT */
 	{
@@ -1626,15 +1722,23 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.priority	= 100,
 	},
 #ifdef CONFIG_IP_VS_IPV6
+	/* After packet filtering, change source only for VS/NAT */
+	{
+		.hook		= ip_vs_reply6,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= 99,
+	},
 	/* After packet filtering, forward packet through VS/DR, VS/TUN,
 	 * or VS/NAT(change destination), so that filtering rules can be
 	 * applied to IPVS. */
 	{
-		.hook		= ip_vs_in,
+		.hook		= ip_vs_remote_request6,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum        = NF_INET_LOCAL_IN,
-		.priority       = 100,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= 101,
 	},
 	/* Before ip_vs_in, change source only for VS/NAT */
 	{
@@ -1644,14 +1748,22 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= -99,
 	},
+	/* After mangle, schedule and forward local requests */
+	{
+		.hook		= ip_vs_local_request6,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= -98,
+	},
 	/* After packet filtering (but before ip_vs_out_icmp), catch icmp
 	 * destined for 0.0.0.0/0, which is for incoming IPVS connections */
 	{
 		.hook		= ip_vs_forward_icmp_v6,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum        = NF_INET_FORWARD,
-		.priority       = 99,
+		.hooknum	= NF_INET_FORWARD,
+		.priority	= 99,
 	},
 	/* After packet filtering, change source only for VS/NAT */
 	{
