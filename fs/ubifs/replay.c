@@ -839,6 +839,11 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 	if (IS_ERR(sleb)) {
 		if (PTR_ERR(sleb) != -EUCLEAN || !c->need_recovery)
 			return PTR_ERR(sleb);
+		/*
+		 * Note, the below function will recover this log LEB only if
+		 * it is the last, because unclean reboots can possibly corrupt
+		 * only the tail of the log.
+		 */
 		sleb = ubifs_recover_log_leb(c, lnum, offs, sbuf);
 		if (IS_ERR(sleb))
 			return PTR_ERR(sleb);
@@ -850,7 +855,6 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 	}
 
 	node = sleb->buf;
-
 	snod = list_entry(sleb->nodes.next, struct ubifs_scan_node, list);
 	if (c->cs_sqnum == 0) {
 		/*
@@ -897,7 +901,6 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 	}
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
-
 		cond_resched();
 
 		if (snod->sqnum >= SQNUM_WATERMARK) {
@@ -1030,9 +1033,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 		return -ENOMEM;
 
 	dbg_mnt("start replaying the journal");
-
 	c->replaying = 1;
-
 	lnum = c->ltail_lnum = c->lhead_lnum;
 	offs = c->lhead_offs;
 

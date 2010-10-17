@@ -772,7 +772,8 @@ out_free:
  * @sbuf: LEB-sized buffer to use
  *
  * This function does a scan of a LEB, but caters for errors that might have
- * been caused by the unclean unmount from which we are attempting to recover.
+ * been caused by unclean reboots from which we are attempting to recover
+ * (assume that only the last log LEB can be corrupted by an unclean reboot).
  *
  * This function returns %0 on success and a negative error code on failure.
  */
