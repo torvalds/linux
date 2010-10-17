@@ -777,20 +777,6 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	conn_flags = udest->conn_flags & IP_VS_CONN_F_DEST_MASK;
 	conn_flags |= IP_VS_CONN_F_INACTIVE;
 
-	/* check if local node and update the flags */
-#ifdef CONFIG_IP_VS_IPV6
-	if (svc->af == AF_INET6) {
-		if (__ip_vs_addr_is_local_v6(&udest->addr.in6)) {
-			conn_flags = (conn_flags & ~IP_VS_CONN_F_FWD_MASK)
-				| IP_VS_CONN_F_LOCALNODE;
-		}
-	} else
-#endif
-		if (inet_addr_type(&init_net, udest->addr.ip) == RTN_LOCAL) {
-			conn_flags = (conn_flags & ~IP_VS_CONN_F_FWD_MASK)
-				| IP_VS_CONN_F_LOCALNODE;
-		}
-
 	/* set the IP_VS_CONN_F_NOOUTPUT flag if not masquerading/NAT */
 	if ((conn_flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ) {
 		conn_flags |= IP_VS_CONN_F_NOOUTPUT;
@@ -823,6 +809,10 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		dest->flags &= ~IP_VS_DEST_F_OVERLOAD;
 	dest->u_threshold = udest->u_threshold;
 	dest->l_threshold = udest->l_threshold;
+
+	spin_lock(&dest->dst_lock);
+	ip_vs_dst_reset(dest);
+	spin_unlock(&dest->dst_lock);
 
 	if (add)
 		ip_vs_new_estimator(&dest->stats);
