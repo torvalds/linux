@@ -2284,35 +2284,31 @@ void bnx2x_rxq_set_mac_filters(struct bnx2x *bp, u16 cl_id, u32 filters)
 
 void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 {
-	if (FUNC_CONFIG(p->func_flgs)) {
-		struct tstorm_eth_function_common_config tcfg = {0};
+	struct tstorm_eth_function_common_config tcfg = {0};
+	u16 rss_flgs;
 
-		/* tpa */
-		if (p->func_flgs & FUNC_FLG_TPA)
-			tcfg.config_flags |=
-			TSTORM_ETH_FUNCTION_COMMON_CONFIG_ENABLE_TPA;
+	/* tpa */
+	if (p->func_flgs & FUNC_FLG_TPA)
+		tcfg.config_flags |=
+		TSTORM_ETH_FUNCTION_COMMON_CONFIG_ENABLE_TPA;
 
-		/* set rss flags */
-		if (p->func_flgs & FUNC_FLG_RSS) {
-			u16 rss_flgs = (p->rss->mode <<
-			TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT);
+	/* set rss flags */
+	rss_flgs = (p->rss->mode <<
+		TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT);
 
-			if (p->rss->cap & RSS_IPV4_CAP)
-				rss_flgs |= RSS_IPV4_CAP_MASK;
-			if (p->rss->cap & RSS_IPV4_TCP_CAP)
-				rss_flgs |= RSS_IPV4_TCP_CAP_MASK;
-			if (p->rss->cap & RSS_IPV6_CAP)
-				rss_flgs |= RSS_IPV6_CAP_MASK;
-			if (p->rss->cap & RSS_IPV6_TCP_CAP)
-				rss_flgs |= RSS_IPV6_TCP_CAP_MASK;
+	if (p->rss->cap & RSS_IPV4_CAP)
+		rss_flgs |= RSS_IPV4_CAP_MASK;
+	if (p->rss->cap & RSS_IPV4_TCP_CAP)
+		rss_flgs |= RSS_IPV4_TCP_CAP_MASK;
+	if (p->rss->cap & RSS_IPV6_CAP)
+		rss_flgs |= RSS_IPV6_CAP_MASK;
+	if (p->rss->cap & RSS_IPV6_TCP_CAP)
+		rss_flgs |= RSS_IPV6_TCP_CAP_MASK;
 
-			tcfg.config_flags |= rss_flgs;
-			tcfg.rss_result_mask = p->rss->result_mask;
+	tcfg.config_flags |= rss_flgs;
+	tcfg.rss_result_mask = p->rss->result_mask;
 
-		}
-
-		storm_memset_func_cfg(bp, &tcfg, p->func_id);
-	}
+	storm_memset_func_cfg(bp, &tcfg, p->func_id);
 
 	/* Enable the function in the FW */
 	storm_memset_vf_to_pf(bp, p->func_id, p->pf_id);
@@ -2479,23 +2475,17 @@ void bnx2x_pf_init(struct bnx2x *bp)
 	else
 		flags |= FUNC_FLG_TPA;
 
+	/* function setup */
+
 	/**
 	 * Although RSS is meaningless when there is a single HW queue we
 	 * still need it enabled in order to have HW Rx hash generated.
-	 *
-	 * if (is_eth_multi(bp))
-	 *	flags |= FUNC_FLG_RSS;
 	 */
-	flags |= FUNC_FLG_RSS;
-
-	/* function setup */
-	if (flags & FUNC_FLG_RSS) {
-		rss.cap = (RSS_IPV4_CAP | RSS_IPV4_TCP_CAP |
-			   RSS_IPV6_CAP | RSS_IPV6_TCP_CAP);
-		rss.mode = bp->multi_mode;
-		rss.result_mask = MULTI_MASK;
-		func_init.rss = &rss;
-	}
+	rss.cap = (RSS_IPV4_CAP | RSS_IPV4_TCP_CAP |
+		   RSS_IPV6_CAP | RSS_IPV6_TCP_CAP);
+	rss.mode = bp->multi_mode;
+	rss.result_mask = MULTI_MASK;
+	func_init.rss = &rss;
 
 	func_init.func_flgs = flags;
 	func_init.pf_id = BP_FUNC(bp);

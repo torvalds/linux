@@ -1180,15 +1180,10 @@ struct bnx2x {
 	TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY
 
 /* func init flags */
-#define FUNC_FLG_RSS		0x0001
-#define FUNC_FLG_STATS		0x0002
-/* removed  FUNC_FLG_UNMATCHED	0x0004 */
-#define FUNC_FLG_TPA		0x0008
-#define FUNC_FLG_SPQ		0x0010
-#define FUNC_FLG_LEADING	0x0020	/* PF only */
-
-#define FUNC_CONFIG(flgs)	((flgs) & (FUNC_FLG_RSS | FUNC_FLG_TPA | \
-					FUNC_FLG_LEADING))
+#define FUNC_FLG_STATS		0x0001
+#define FUNC_FLG_TPA		0x0002
+#define FUNC_FLG_SPQ		0x0004
+#define FUNC_FLG_LEADING	0x0008	/* PF only */
 
 struct rxq_pause_params {
 	u16		bd_th_lo;
