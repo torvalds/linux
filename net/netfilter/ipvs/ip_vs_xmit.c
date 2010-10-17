@@ -217,6 +217,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 ({								\
 	int __ret = NF_ACCEPT;					\
 								\
+	(skb)->ipvs_property = 1;				\
 	if (unlikely((cp)->flags & IP_VS_CONN_F_NFCT))		\
 		__ret = ip_vs_confirm_conntrack(skb, cp);	\
 	if (__ret == NF_ACCEPT) {				\
@@ -228,8 +229,9 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 
 #define IP_VS_XMIT_NAT(pf, skb, cp)				\
 do {							\
+	(skb)->ipvs_property = 1;			\
 	if (likely(!((cp)->flags & IP_VS_CONN_F_NFCT)))	\
-		(skb)->ipvs_property = 1;		\
+		ip_vs_notrack(skb);			\
 	else						\
 		ip_vs_update_conntrack(skb, cp, 1);	\
 	skb_forward_csum(skb);				\
@@ -239,8 +241,9 @@ do {							\
 
 #define IP_VS_XMIT(pf, skb, cp)				\
 do {							\
+	(skb)->ipvs_property = 1;			\
 	if (likely(!((cp)->flags & IP_VS_CONN_F_NFCT)))	\
-		(skb)->ipvs_property = 1;		\
+		ip_vs_notrack(skb);			\
 	skb_forward_csum(skb);				\
 	NF_HOOK(pf, NF_INET_LOCAL_OUT, (skb), NULL,	\
 		skb_dst(skb)->dev, dst_output);		\

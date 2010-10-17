@@ -507,23 +507,6 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	return NF_DROP;
 }
 
-/*
- * It is hooked before NF_IP_PRI_NAT_SRC at the NF_INET_POST_ROUTING
- * chain and is used to avoid double NAT and confirmation when we do
- * not want to keep the conntrack structure
- */
-static unsigned int ip_vs_post_routing(unsigned int hooknum,
-				       struct sk_buff *skb,
-				       const struct net_device *in,
-				       const struct net_device *out,
-				       int (*okfn)(struct sk_buff *))
-{
-	if (!skb->ipvs_property)
-		return NF_ACCEPT;
-	/* The packet was sent from IPVS, exit this chain */
-	return NF_STOP;
-}
-
 __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 {
 	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
@@ -682,8 +665,9 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 	/* do the statistics and put it back */
 	ip_vs_out_stats(cp, skb);
 
+	skb->ipvs_property = 1;
 	if (!(cp->flags & IP_VS_CONN_F_NFCT))
-		skb->ipvs_property = 1;
+		ip_vs_notrack(skb);
 	else
 		ip_vs_update_conntrack(skb, cp, 0);
 	verdict = NF_ACCEPT;
@@ -929,8 +913,9 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 	ip_vs_out_stats(cp, skb);
 	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
+	skb->ipvs_property = 1;
 	if (!(cp->flags & IP_VS_CONN_F_NFCT))
-		skb->ipvs_property = 1;
+		ip_vs_notrack(skb);
 	else
 		ip_vs_update_conntrack(skb, cp, 0);
 	ip_vs_conn_put(cp);
@@ -1496,14 +1481,6 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.hooknum        = NF_INET_FORWARD,
 		.priority       = 99,
 	},
-	/* Before the netfilter connection tracking, exit from POST_ROUTING */
-	{
-		.hook		= ip_vs_post_routing,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
-		.hooknum        = NF_INET_POST_ROUTING,
-		.priority       = NF_IP_PRI_NAT_SRC-1,
-	},
 #ifdef CONFIG_IP_VS_IPV6
 	/* After packet filtering, forward packet through VS/DR, VS/TUN,
 	 * or VS/NAT(change destination), so that filtering rules can be
@@ -1531,14 +1508,6 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.pf		= PF_INET6,
 		.hooknum        = NF_INET_FORWARD,
 		.priority       = 99,
-	},
-	/* Before the netfilter connection tracking, exit from POST_ROUTING */
-	{
-		.hook		= ip_vs_post_routing,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET6,
-		.hooknum        = NF_INET_POST_ROUTING,
-		.priority       = NF_IP6_PRI_NAT_SRC-1,
 	},
 #endif
 };

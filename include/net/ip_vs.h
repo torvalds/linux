@@ -25,7 +25,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>			/* for ipv6_addr_copy */
-#ifdef CONFIG_IP_VS_NFCT
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netfilter/nf_conntrack.h>
 #endif
 
@@ -1019,6 +1019,24 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 	__be16 diff[2] = { ~old, new };
 
 	return csum_partial(diff, sizeof(diff), oldsum);
+}
+
+/*
+ * Forget current conntrack (unconfirmed) and attach notrack entry
+ */
+static inline void ip_vs_notrack(struct sk_buff *skb)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = ct = nf_ct_get(skb, &ctinfo);
+
+	if (!ct || !nf_ct_is_untracked(ct)) {
+		nf_reset(skb);
+		skb->nfct = &nf_ct_untracked_get()->ct_general;
+		skb->nfctinfo = IP_CT_NEW;
+		nf_conntrack_get(skb->nfct);
+	}
+#endif
 }
 
 #ifdef CONFIG_IP_VS_NFCT
