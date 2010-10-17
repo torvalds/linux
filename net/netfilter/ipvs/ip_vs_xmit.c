@@ -543,7 +543,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		struct nf_conn *ct = ct = nf_ct_get(skb, &ctinfo);
 
 		if (ct && !nf_ct_is_untracked(ct)) {
-			IP_VS_DBG_RL_PKT(10, pp, skb, 0, "ip_vs_nat_xmit(): "
+			IP_VS_DBG_RL_PKT(10, AF_INET, pp, skb, 0,
+					 "ip_vs_nat_xmit(): "
 					 "stopping DNAT to local address");
 			goto tx_error_put;
 		}
@@ -552,7 +553,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* From world but DNAT to loopback address? */
 	if (local && ipv4_is_loopback(rt->rt_dst) && skb_rtable(skb)->fl.iif) {
-		IP_VS_DBG_RL_PKT(1, pp, skb, 0, "ip_vs_nat_xmit(): "
+		IP_VS_DBG_RL_PKT(1, AF_INET, pp, skb, 0, "ip_vs_nat_xmit(): "
 				 "stopping DNAT to loopback address");
 		goto tx_error_put;
 	}
@@ -561,7 +562,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	mtu = dst_mtu(&rt->dst);
 	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF))) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
-		IP_VS_DBG_RL_PKT(0, pp, skb, 0, "ip_vs_nat_xmit(): frag needed for");
+		IP_VS_DBG_RL_PKT(0, AF_INET, pp, skb, 0,
+				 "ip_vs_nat_xmit(): frag needed for");
 		goto tx_error_put;
 	}
 
@@ -593,7 +595,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 			goto tx_error;
 	}
 
-	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
+	IP_VS_DBG_PKT(10, AF_INET, pp, skb, 0, "After DNAT");
 
 	/* FIXME: when application helper enlarges the packet and the length
 	   is larger than the MTU of outgoing device, there will be still
@@ -654,7 +656,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		struct nf_conn *ct = ct = nf_ct_get(skb, &ctinfo);
 
 		if (ct && !nf_ct_is_untracked(ct)) {
-			IP_VS_DBG_RL_PKT(10, pp, skb, 0,
+			IP_VS_DBG_RL_PKT(10, AF_INET6, pp, skb, 0,
 					 "ip_vs_nat_xmit_v6(): "
 					 "stopping DNAT to local address");
 			goto tx_error_put;
@@ -665,7 +667,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* From world but DNAT to loopback address? */
 	if (local && skb->dev && !(skb->dev->flags & IFF_LOOPBACK) &&
 	    ipv6_addr_type(&rt->rt6i_dst.addr) & IPV6_ADDR_LOOPBACK) {
-		IP_VS_DBG_RL_PKT(1, pp, skb, 0,
+		IP_VS_DBG_RL_PKT(1, AF_INET6, pp, skb, 0,
 				 "ip_vs_nat_xmit_v6(): "
 				 "stopping DNAT to loopback address");
 		goto tx_error_put;
@@ -680,7 +682,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 			skb->dev = net->loopback_dev;
 		}
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
-		IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+		IP_VS_DBG_RL_PKT(0, AF_INET6, pp, skb, 0,
 				 "ip_vs_nat_xmit_v6(): frag needed for");
 		goto tx_error_put;
 	}
@@ -706,7 +708,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		dst_release(&rt->dst);
 	}
 
-	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
+	IP_VS_DBG_PKT(10, AF_INET6, pp, skb, 0, "After DNAT");
 
 	/* FIXME: when application helper enlarges the packet and the length
 	   is larger than the MTU of outgoing device, there will be still

@@ -176,7 +176,7 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
-		IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+		IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 				"Failed checksum for");
 		return 0;
 	}

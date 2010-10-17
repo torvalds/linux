@@ -117,54 +117,6 @@ ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	return 0;
 }
 
-
-static void
-ah_esp_debug_packet_v4(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		       int offset, const char *msg)
-{
-	char buf[256];
-	struct iphdr _iph, *ih;
-
-	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
-	if (ih == NULL)
-		sprintf(buf, "TRUNCATED");
-	else
-		sprintf(buf, "%pI4->%pI4", &ih->saddr, &ih->daddr);
-
-	pr_debug("%s: %s %s\n", msg, pp->name, buf);
-}
-
-#ifdef CONFIG_IP_VS_IPV6
-static void
-ah_esp_debug_packet_v6(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		       int offset, const char *msg)
-{
-	char buf[256];
-	struct ipv6hdr _iph, *ih;
-
-	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
-	if (ih == NULL)
-		sprintf(buf, "TRUNCATED");
-	else
-		sprintf(buf, "%pI6->%pI6", &ih->saddr, &ih->daddr);
-
-	pr_debug("%s: %s %s\n", msg, pp->name, buf);
-}
-#endif
-
-static void
-ah_esp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		    int offset, const char *msg)
-{
-#ifdef CONFIG_IP_VS_IPV6
-	if (skb->protocol == htons(ETH_P_IPV6))
-		ah_esp_debug_packet_v6(pp, skb, offset, msg);
-	else
-#endif
-		ah_esp_debug_packet_v4(pp, skb, offset, msg);
-}
-
-
 static void ah_esp_init(struct ip_vs_protocol *pp)
 {
 	/* nothing to do now */
@@ -195,7 +147,7 @@ struct ip_vs_protocol ip_vs_protocol_ah = {
 	.register_app =		NULL,
 	.unregister_app =	NULL,
 	.app_conn_bind =	NULL,
-	.debug_packet =		ah_esp_debug_packet,
+	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
 	.set_state_timeout =	NULL,
 };
@@ -219,7 +171,7 @@ struct ip_vs_protocol ip_vs_protocol_esp = {
 	.register_app =		NULL,
 	.unregister_app =	NULL,
 	.app_conn_bind =	NULL,
-	.debug_packet =		ah_esp_debug_packet,
+	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
 };
 #endif

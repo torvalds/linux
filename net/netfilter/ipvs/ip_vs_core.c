@@ -365,7 +365,8 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	 * with persistence the connection is created on SYN+ACK.
 	 */
 	if (pptr[0] == FTPDATA) {
-		IP_VS_DBG_PKT(12, pp, skb, 0, "Not scheduling FTPDATA");
+		IP_VS_DBG_PKT(12, svc->af, pp, skb, 0,
+			      "Not scheduling FTPDATA");
 		return NULL;
 	}
 
@@ -376,7 +377,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	if ((!skb->dev || skb->dev->flags & IFF_LOOPBACK) &&
 	    (svc->flags & IP_VS_SVC_F_PERSISTENT || svc->fwmark) &&
 	    (cp = pp->conn_in_get(svc->af, skb, pp, &iph, iph.len, 1))) {
-		IP_VS_DBG_PKT(12, pp, skb, 0,
+		IP_VS_DBG_PKT(12, svc->af, pp, skb, 0,
 			      "Not scheduling reply for existing connection");
 		__ip_vs_conn_put(cp);
 		return NULL;
@@ -617,10 +618,10 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (inout)
-		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
+		IP_VS_DBG_PKT(11, AF_INET, pp, skb, (void *)ciph - (void *)iph,
 			"Forwarding altered outgoing ICMP");
 	else
-		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
+		IP_VS_DBG_PKT(11, AF_INET, pp, skb, (void *)ciph - (void *)iph,
 			"Forwarding altered incoming ICMP");
 }
 
@@ -662,11 +663,13 @@ void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
 	if (inout)
-		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
-			"Forwarding altered outgoing ICMPv6");
+		IP_VS_DBG_PKT(11, AF_INET6, pp, skb,
+			      (void *)ciph - (void *)iph,
+			      "Forwarding altered outgoing ICMPv6");
 	else
-		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
-			"Forwarding altered incoming ICMPv6");
+		IP_VS_DBG_PKT(11, AF_INET6, pp, skb,
+			      (void *)ciph - (void *)iph,
+			      "Forwarding altered incoming ICMPv6");
 }
 #endif
 
@@ -798,7 +801,8 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
-	IP_VS_DBG_PKT(11, pp, skb, offset, "Checking outgoing ICMP for");
+	IP_VS_DBG_PKT(11, AF_INET, pp, skb, offset,
+		      "Checking outgoing ICMP for");
 
 	offset += cih->ihl * 4;
 
@@ -874,7 +878,8 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 	if (unlikely(cih->nexthdr == IPPROTO_FRAGMENT && pp->dont_defrag))
 		return NF_ACCEPT;
 
-	IP_VS_DBG_PKT(11, pp, skb, offset, "Checking outgoing ICMPv6 for");
+	IP_VS_DBG_PKT(11, AF_INET6, pp, skb, offset,
+		      "Checking outgoing ICMPv6 for");
 
 	offset += sizeof(struct ipv6hdr);
 
@@ -922,7 +927,7 @@ static unsigned int
 handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		struct ip_vs_conn *cp, int ihl)
 {
-	IP_VS_DBG_PKT(11, pp, skb, 0, "Outgoing packet");
+	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Outgoing packet");
 
 	if (!skb_make_writable(skb, ihl))
 		goto drop;
@@ -967,7 +972,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		    ip_route_me_harder(skb, RTN_LOCAL) != 0)
 			goto drop;
 
-	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
+	IP_VS_DBG_PKT(10, af, pp, skb, 0, "After SNAT");
 
 	ip_vs_out_stats(cp, skb);
 	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
@@ -1117,7 +1122,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 			}
 		}
 	}
-	IP_VS_DBG_PKT(12, pp, skb, 0,
+	IP_VS_DBG_PKT(12, af, pp, skb, 0,
 		      "ip_vs_out: packet continues traversal as normal");
 	return NF_ACCEPT;
 }
@@ -1253,7 +1258,8 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
-	IP_VS_DBG_PKT(11, pp, skb, offset, "Checking incoming ICMP for");
+	IP_VS_DBG_PKT(11, AF_INET, pp, skb, offset,
+		      "Checking incoming ICMP for");
 
 	offset += cih->ihl * 4;
 
@@ -1364,7 +1370,8 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (unlikely(cih->nexthdr == IPPROTO_FRAGMENT && pp->dont_defrag))
 		return NF_ACCEPT;
 
-	IP_VS_DBG_PKT(11, pp, skb, offset, "Checking incoming ICMPv6 for");
+	IP_VS_DBG_PKT(11, AF_INET6, pp, skb, offset,
+		      "Checking incoming ICMPv6 for");
 
 	offset += sizeof(struct ipv6hdr);
 
@@ -1492,12 +1499,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 
 	if (unlikely(!cp)) {
 		/* sorry, all this trouble for a no-hit :) */
-		IP_VS_DBG_PKT(12, pp, skb, 0,
+		IP_VS_DBG_PKT(12, af, pp, skb, 0,
 			      "ip_vs_in: packet continues traversal as normal");
 		return NF_ACCEPT;
 	}
 
-	IP_VS_DBG_PKT(11, pp, skb, 0, "Incoming packet");
+	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Incoming packet");
 
 	/* Check the server status */
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {

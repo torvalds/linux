@@ -314,7 +314,7 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 						    skb->len - udphoff,
 						    ipv6_hdr(skb)->nexthdr,
 						    skb->csum)) {
-					IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+					IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 							 "Failed checksum for");
 					return 0;
 				}
@@ -325,7 +325,7 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 						      skb->len - udphoff,
 						      ip_hdr(skb)->protocol,
 						      skb->csum)) {
-					IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+					IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 							 "Failed checksum for");
 					return 0;
 				}

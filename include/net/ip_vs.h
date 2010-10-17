@@ -136,24 +136,24 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 		if (net_ratelimit())					\
 			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
 	} while (0)
-#define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)				\
+#define IP_VS_DBG_PKT(level, af, pp, skb, ofs, msg)			\
 	do {								\
 		if (level <= ip_vs_get_debug_level())			\
-			pp->debug_packet(pp, skb, ofs, msg);		\
+			pp->debug_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
-#define IP_VS_DBG_RL_PKT(level, pp, skb, ofs, msg)			\
+#define IP_VS_DBG_RL_PKT(level, af, pp, skb, ofs, msg)			\
 	do {								\
 		if (level <= ip_vs_get_debug_level() &&			\
 		    net_ratelimit())					\
-			pp->debug_packet(pp, skb, ofs, msg);		\
+			pp->debug_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
 #else	/* NO DEBUGGING at ALL */
 #define IP_VS_DBG_BUF(level, msg...)  do {} while (0)
 #define IP_VS_ERR_BUF(msg...)  do {} while (0)
 #define IP_VS_DBG(level, msg...)  do {} while (0)
 #define IP_VS_DBG_RL(msg...)  do {} while (0)
-#define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)		do {} while (0)
-#define IP_VS_DBG_RL_PKT(level, pp, skb, ofs, msg)	do {} while (0)
+#define IP_VS_DBG_PKT(level, af, pp, skb, ofs, msg)	do {} while (0)
+#define IP_VS_DBG_RL_PKT(level, af, pp, skb, ofs, msg)	do {} while (0)
 #endif
 
 #define IP_VS_BUG() BUG()
@@ -345,7 +345,7 @@ struct ip_vs_protocol {
 
 	int (*app_conn_bind)(struct ip_vs_conn *cp);
 
-	void (*debug_packet)(struct ip_vs_protocol *pp,
+	void (*debug_packet)(int af, struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
 			     const char *msg);
@@ -828,7 +828,8 @@ extern int
 ip_vs_set_state_timeout(int *table, int num, const char *const *names,
 			const char *name, int to);
 extern void
-ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
+ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
+			  const struct sk_buff *skb,
 			  int offset, const char *msg);
 
 extern struct ip_vs_protocol ip_vs_protocol_tcp;
