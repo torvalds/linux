@@ -3108,18 +3108,10 @@ static s32 wl_init_priv(struct wl_priv *wl)
 
 	wl->scan_request = NULL;
 	wl->pwr_save = !!(wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT);
-#ifndef WL_ISCAN_DISABLED
 	wl->iscan_on = true;	/* iscan on & off switch.
 				 we enable iscan per default */
-#else
-	wl->iscan_on = false;
-#endif				/* WL_ISCAN_DISABLED */
-#ifndef WL_ROAM_DISABLED
-	wl->roam_on = true;	/* roam on & off switch.
+	wl->roam_on = false;	/* roam on & off switch.
 				 we enable roam per default */
-#else
-	wl->roam_on = false;
-#endif				/* WL_ROAM_DISABLED */
 
 	wl->iscan_kickstart = false;
 	wl->active_scan = true;	/* we do active scan for
