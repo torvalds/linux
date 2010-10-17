@@ -1032,6 +1032,4 @@ static inline void storm_memset_cmng(struct bnx2x *bp,
 void bnx2x_acquire_phy_lock(struct bnx2x *bp);
 void bnx2x_release_phy_lock(struct bnx2x *bp);
 
-#define BNX2X_FW_IP_HDR_ALIGN_PAD	2 /* FW places hdr with this padding */
-
 #endif /* BNX2X_CMN_H */
