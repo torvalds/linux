@@ -702,6 +702,17 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 #endif
 		ip_vs_nat_icmp(skb, pp, cp, 1);
 
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		if (sysctl_ip_vs_snat_reroute && ip6_route_me_harder(skb) != 0)
+			goto out;
+	} else
+#endif
+		if ((sysctl_ip_vs_snat_reroute ||
+		     skb_rtable(skb)->rt_flags & RTCF_LOCAL) &&
+		    ip_route_me_harder(skb, RTN_LOCAL) != 0)
+			goto out;
+
 	/* do the statistics and put it back */
 	ip_vs_out_stats(cp, skb);
 
@@ -940,16 +951,16 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	 * if it came from this machine itself.  So re-compute
 	 * the routing information.
 	 */
-	if (sysctl_ip_vs_snat_reroute) {
 #ifdef CONFIG_IP_VS_IPV6
-		if (af == AF_INET6) {
-			if (ip6_route_me_harder(skb) != 0)
-				goto drop;
-		} else
+	if (af == AF_INET6) {
+		if (sysctl_ip_vs_snat_reroute && ip6_route_me_harder(skb) != 0)
+			goto drop;
+	} else
 #endif
-			if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
-				goto drop;
-	}
+		if ((sysctl_ip_vs_snat_reroute ||
+		     skb_rtable(skb)->rt_flags & RTCF_LOCAL) &&
+		    ip_route_me_harder(skb, RTN_LOCAL) != 0)
+			goto drop;
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
 
@@ -1001,13 +1012,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 			int verdict = ip_vs_out_icmp_v6(skb, &related,
 							hooknum);
 
-			if (related) {
-				if (sysctl_ip_vs_snat_reroute &&
-					NF_ACCEPT == verdict &&
-					ip6_route_me_harder(skb))
-					verdict = NF_DROP;
+			if (related)
 				return verdict;
-			}
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 	} else
@@ -1016,13 +1022,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 			int related;
 			int verdict = ip_vs_out_icmp(skb, &related, hooknum);
 
-			if (related) {
-				if (sysctl_ip_vs_snat_reroute &&
-					NF_ACCEPT == verdict &&
-					ip_route_me_harder(skb, RTN_LOCAL))
-					verdict = NF_DROP;
+			if (related)
 				return verdict;
-			}
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 
