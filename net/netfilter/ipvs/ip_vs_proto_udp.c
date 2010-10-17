@@ -102,15 +102,15 @@ udp_partial_csum_update(int af, struct udphdr *uhdr,
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
 		uhdr->check =
-			csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
+			~csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
 					 ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(uhdr->check))));
+						csum_unfold(uhdr->check))));
 	else
 #endif
 	uhdr->check =
-		csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
+		~csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
 				ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(uhdr->check))));
+						csum_unfold(uhdr->check))));
 }
 
 
@@ -229,7 +229,7 @@ udp_dnat_handler(struct sk_buff *skb,
 	 *	Adjust UDP checksums
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
+		udp_partial_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 					htons(oldlen),
 					htons(skb->len - udphoff));
 	} else if (!cp->app && (udph->check != 0)) {

@@ -101,15 +101,15 @@ tcp_partial_csum_update(int af, struct tcphdr *tcph,
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
 		tcph->check =
-			csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
+			~csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
 					 ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(tcph->check))));
+						csum_unfold(tcph->check))));
 	else
 #endif
 	tcph->check =
-		csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
+		~csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
 				ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(tcph->check))));
+						csum_unfold(tcph->check))));
 }
 
 
@@ -223,7 +223,7 @@ tcp_dnat_handler(struct sk_buff *skb,
 	 *	Adjust TCP checksums
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		tcp_partial_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
+		tcp_partial_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 					htons(oldlen),
 					htons(skb->len - tcphoff));
 	} else if (!cp->app) {
