@@ -6138,6 +6138,20 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 }
 EXPORT_SYMBOL_GPL(kvm_set_rflags);
 
+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
+{
+	int r;
+
+	if (!vcpu->arch.mmu.direct_map || is_error_page(work->page))
+		return;
+
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		return;
+
+	vcpu->arch.mmu.page_fault(vcpu, work->gva, 0, true);
+}
+
 static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)
 {
 	return hash_32(gfn & 0xffffffff, order_base_2(ASYNC_PF_PER_VCPU));

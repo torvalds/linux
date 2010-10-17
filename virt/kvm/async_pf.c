@@ -132,6 +132,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 	list_del(&work->link);
 	spin_unlock(&vcpu->async_pf.lock);
 
+	if (work->page)
+		kvm_arch_async_page_ready(vcpu, work);
 	kvm_arch_async_page_present(vcpu, work);
 
 	list_del(&work->queue);
