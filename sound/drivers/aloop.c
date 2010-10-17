@@ -171,6 +171,10 @@ static void loopback_timer_start(struct loopback_pcm *dpcm)
 		dpcm->pcm_rate_shift = rate_shift;
 		dpcm->period_size_frac = frac_pos(dpcm, dpcm->pcm_period_size);
 	}
+	if (dpcm->period_size_frac <= dpcm->irq_pos) {
+		dpcm->irq_pos %= dpcm->period_size_frac;
+		dpcm->period_update_pending = 1;
+	}
 	tick = dpcm->period_size_frac - dpcm->irq_pos;
 	tick = (tick + dpcm->pcm_bps - 1) / dpcm->pcm_bps;
 	dpcm->timer.expires = jiffies + tick;
@@ -531,7 +535,9 @@ static struct snd_pcm_hardware loopback_pcm_hardware =
 	.channels_max =		32,
 	.buffer_bytes_max =	2 * 1024 * 1024,
 	.period_bytes_min =	64,
-	.period_bytes_max =	2 * 1024 * 1024,
+	/* note check overflow in frac_pos() using pcm_rate_shift before
+	   changing period_bytes_max value */
+	.period_bytes_max =	1024 * 1024,
 	.periods_min =		1,
 	.periods_max =		1024,
 	.fifo_size =		0,
