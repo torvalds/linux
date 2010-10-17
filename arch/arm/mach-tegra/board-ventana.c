@@ -169,6 +169,7 @@ static struct platform_device *ventana_devices[] __initdata = {
 	&pmu_device,
 	&tegra_udc_device,
 	&tegra_gart_device,
+	&tegra_aes_device,
 	&ventana_keys_device,
 };
 
