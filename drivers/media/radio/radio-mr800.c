@@ -284,9 +284,13 @@ static void usb_amradio_disconnect(struct usb_interface *intf)
 	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
+	/* increase the device node's refcount */
+	get_device(&radio->videodev.dev);
 	v4l2_device_disconnect(&radio->v4l2_dev);
-	mutex_unlock(&radio->lock);
 	video_unregister_device(&radio->videodev);
+	mutex_unlock(&radio->lock);
+	/* decrease the device node's refcount, allowing it to be released */
+	put_device(&radio->videodev.dev);
 }
 
 /* vidioc_querycap - query device capabilities */
@@ -515,7 +519,8 @@ static int usb_amradio_close(struct file *file)
 {
 	struct amradio_device *radio = file->private_data;
 
-	usb_autopm_put_interface(radio->intf);
+	if (video_is_registered(&radio->videodev))
+		usb_autopm_put_interface(radio->intf);
 	return 0;
 }
 
@@ -524,10 +529,12 @@ static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
+	mutex_lock(&radio->lock);
 	if (!radio->muted && radio->initialized) {
 		amradio_set_mute(radio, AMRADIO_STOP);
 		radio->muted = 0;
 	}
+	mutex_unlock(&radio->lock);
 
 	dev_info(&intf->dev, "going into suspend..\n");
 	return 0;
@@ -538,8 +545,9 @@ static int usb_amradio_resume(struct usb_interface *intf)
 {
 	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
+	mutex_lock(&radio->lock);
 	if (unlikely(!radio->initialized))
-		return 0;
+		goto unlock;
 
 	if (radio->stereo)
 		amradio_set_stereo(radio, WANT_STEREO);
@@ -550,6 +558,9 @@ static int usb_amradio_resume(struct usb_interface *intf)
 
 	if (!radio->muted)
 		amradio_set_mute(radio, AMRADIO_START);
+
+unlock:
+	mutex_unlock(&radio->lock);
 
 	dev_info(&intf->dev, "coming out of suspend..\n");
 	return 0;
