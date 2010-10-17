@@ -342,7 +342,8 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
  *  Protocols supported: TCP, UDP
  */
 struct ip_vs_conn *
-ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb)
+ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
+	       struct ip_vs_protocol *pp, int *ignored)
 {
 	struct ip_vs_conn *cp = NULL;
 	struct ip_vs_iphdr iph;
@@ -350,16 +351,43 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb)
 	__be16 _ports[2], *pptr;
 	unsigned int flags;
 
+	*ignored = 1;
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
 	if (pptr == NULL)
 		return NULL;
 
 	/*
+	 * FTPDATA needs this check when using local real server.
+	 * Never schedule Active FTPDATA connections from real server.
+	 * For LVS-NAT they must be already created. For other methods
+	 * with persistence the connection is created on SYN+ACK.
+	 */
+	if (pptr[0] == FTPDATA) {
+		IP_VS_DBG_PKT(12, pp, skb, 0, "Not scheduling FTPDATA");
+		return NULL;
+	}
+
+	/*
+	 * Do not schedule replies from local real server. It is risky
+	 * for fwmark services but mostly for persistent services.
+	 */
+	if ((!skb->dev || skb->dev->flags & IFF_LOOPBACK) &&
+	    (svc->flags & IP_VS_SVC_F_PERSISTENT || svc->fwmark) &&
+	    (cp = pp->conn_in_get(svc->af, skb, pp, &iph, iph.len, 1))) {
+		IP_VS_DBG_PKT(12, pp, skb, 0,
+			      "Not scheduling reply for existing connection");
+		__ip_vs_conn_put(cp);
+		return NULL;
+	}
+
+	/*
 	 *    Persistent service
 	 */
-	if (svc->flags & IP_VS_SVC_F_PERSISTENT)
+	if (svc->flags & IP_VS_SVC_F_PERSISTENT) {
+		*ignored = 0;
 		return ip_vs_sched_persist(svc, skb, pptr);
+	}
 
 	/*
 	 *    Non-persistent service
@@ -371,6 +399,8 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb)
 			       "check your ipvs configuration\n");
 		return NULL;
 	}
+
+	*ignored = 0;
 
 	dest = svc->scheduler->schedule(svc, skb);
 	if (dest == NULL) {

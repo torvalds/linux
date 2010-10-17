@@ -31,6 +31,8 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	if ((sch->type == SCTP_CID_INIT) &&
 	    (svc = ip_vs_service_get(af, skb->mark, iph.protocol,
 				     &iph.daddr, sh->dest))) {
+		int ignored;
+
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.
@@ -44,8 +46,8 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb);
-		if (!*cpp) {
+		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
+		if (!*cpp && !ignored) {
 			*verdict = ip_vs_leave(svc, skb, pp);
 			return 0;
 		}
