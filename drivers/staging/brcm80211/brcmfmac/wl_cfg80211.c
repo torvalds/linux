@@ -732,6 +732,7 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 	struct wl_iscan_ctrl *iscan = wl_to_iscan(wl);
 	struct net_device *ndev = wl_to_ndev(wl);
 	struct wlc_ssid ssid;
+	s32 passive_scan;
 	s32 err = 0;
 
 	/* Broadcast scan by default */
@@ -739,15 +740,12 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 
 	iscan->state = WL_ISCAN_STATE_SCANING;
 
-	if (wl->active_scan) {
-		s32 passive_scan = 0;
-		/* make it active scan */
-		err = wl_dev_ioctl(wl_to_ndev(wl), WLC_SET_PASSIVE_SCAN,
-				&passive_scan, sizeof(passive_scan));
-		if (unlikely(err)) {
-			WL_DBG(("error (%d)\n", err));
-			return err;
-		}
+	passive_scan = wl->active_scan ? 0 : 1;
+	err = wl_dev_ioctl(wl_to_ndev(wl), WLC_SET_PASSIVE_SCAN,
+			&passive_scan, sizeof(passive_scan));
+	if (unlikely(err)) {
+		WL_DBG(("error (%d)\n", err));
+		return err;
 	}
 	wl_set_mpc(ndev, 0);
 	wl->iscan_kickstart = true;
@@ -766,6 +764,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	struct wl_priv *wl = ndev_to_wl(ndev);
 	struct cfg80211_ssid *ssids;
 	struct wl_scan_req *sr = wl_to_sr(wl);
+	s32 passive_scan;
 	bool iscan_req;
 	bool spec_scan;
 	s32 err = 0;
@@ -823,16 +822,12 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			WL_DBG(("Broadcast scan\n"));
 		}
 		WL_DBG(("sr->ssid.SSID_len (%d)\n", sr->ssid.SSID_len));
-		if (wl->active_scan) {
-			s32 pssive_scan = 0;
-			/* make it active scan */
-			err = wl_dev_ioctl(ndev, WLC_SET_PASSIVE_SCAN,
-					&pssive_scan, sizeof(pssive_scan));
-			if (unlikely(err)) {
-				WL_ERR(("WLC_SET_PASSIVE_SCAN error (%d)\n",
-					err));
-				goto scan_out;
-			}
+		passive_scan = wl->active_scan ? 0 : 1;
+		err = wl_dev_ioctl(ndev, WLC_SET_PASSIVE_SCAN,
+				&passive_scan, sizeof(passive_scan));
+		if (unlikely(err)) {
+			WL_ERR(("WLC_SET_PASSIVE_SCAN error (%d)\n", err));
+			goto scan_out;
 		}
 		wl_set_mpc(ndev, 0);
 		err = wl_dev_ioctl(ndev, WLC_SCAN, &sr->ssid,
@@ -2264,6 +2259,8 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	struct ieee80211_supported_band *band;
 	struct wl_cfg80211_bss_info *notif_bss_info;
 	struct wl_scan_req *sr = wl_to_sr(wl);
+	struct beacon_proberesp *beacon_proberesp;
+	s32 mgmt_type;
 	u32 signal;
 	u32 freq;
 	s32 err = 0;
@@ -2289,13 +2286,18 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 		band = wiphy->bands[IEEE80211_BAND_5GHZ];
 	notif_bss_info->rssi = bi->RSSI;
 	memcpy(mgmt->bssid, &bi->BSSID, ETHER_ADDR_LEN);
+	mgmt_type = wl->active_scan ?
+		IEEE80211_STYPE_PROBE_RESP : IEEE80211_STYPE_BEACON;
 	if (!memcmp(bi->SSID, sr->ssid.SSID, bi->SSID_len)) {
 		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-						  IEEE80211_STYPE_PROBE_RESP);
+							mgmt_type);
 	}
-	mgmt->u.probe_resp.timestamp = 0;
-	mgmt->u.probe_resp.beacon_int = cpu_to_le16(bi->beacon_period);
-	mgmt->u.probe_resp.capab_info = cpu_to_le16(bi->capability);
+	beacon_proberesp = wl->active_scan ?
+		(struct beacon_proberesp *)&mgmt->u.probe_resp :
+		(struct beacon_proberesp *)&mgmt->u.beacon;
+	beacon_proberesp->timestamp = 0;
+	beacon_proberesp->beacon_int = cpu_to_le16(bi->beacon_period);
+	beacon_proberesp->capab_info = cpu_to_le16(bi->capability);
 	wl_rst_ie(wl);
 	/*
 	* wl_add_ie is not necessary because it can only add duplicated
@@ -2307,18 +2309,18 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	* bi->rateset.rates);
 	*/
 	wl_mrg_ie(wl, ((u8 *) bi) + bi->ie_offset, bi->ie_length);
-	wl_cp_ie(wl, mgmt->u.probe_resp.variable, WL_BSS_INFO_MAX -
+	wl_cp_ie(wl, beacon_proberesp->variable, WL_BSS_INFO_MAX -
 		 offsetof(struct wl_cfg80211_bss_info, frame_buf));
 	notif_bss_info->frame_len =
 	    offsetof(struct ieee80211_mgmt,
-		     u.probe_resp.variable) + wl_get_ielen(wl);
+		     u.beacon.variable) + wl_get_ielen(wl);
 	freq = ieee80211_channel_to_frequency(notif_bss_info->channel);
 	channel = ieee80211_get_channel(wiphy, freq);
 
 	WL_DBG(("SSID : \"%s\", rssi %d, channel %d, capability : 0x04%x, bssid %pM\n",
 		bi->SSID,
 		notif_bss_info->rssi, notif_bss_info->channel,
-		mgmt->u.probe_resp.capab_info, &bi->BSSID));
+		mgmt->u.beacon.capab_info, &bi->BSSID));
 
 	signal = notif_bss_info->rssi * 100;
 	if (unlikely(!cfg80211_inform_bss_frame(wiphy, channel, mgmt,

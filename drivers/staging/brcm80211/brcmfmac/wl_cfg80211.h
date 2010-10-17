@@ -151,6 +151,14 @@ enum wl_fw_status {
 	WL_NVRAM_LOADING_DONE
 };
 
+/* beacon / probe_response */
+struct beacon_proberesp {
+	__le64 timestamp;
+	__le16 beacon_int;
+	__le16 capab_info;
+	u8 variable[0];
+} __attribute__ ((packed));
+
 /* dongle configuration */
 struct wl_conf {
 	u32 mode;		/* adhoc , infrastructure or ap */
