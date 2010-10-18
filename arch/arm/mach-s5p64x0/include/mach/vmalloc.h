@@ -1,4 +1,7 @@
-/* arch/arm/mach-s5p6440/include/mach/vmalloc.h
+/* linux/arch/arm/mach-s5p64x0/include/mach/vmalloc.h
+ *
+ * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * Copyright 2010 Ben Dooks <ben-linux@fluff.org>
  *

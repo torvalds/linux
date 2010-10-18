@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5p6440/include/mach/memory.h
+/* linux/arch/arm/mach-s5p64x0/include/mach/memory.h
  *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
- * S5P6440 - Memory definitions
+ * S5P64X0 - Memory definitions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,9 +11,9 @@
 */
 
 #ifndef __ASM_ARCH_MEMORY_H
-#define __ASM_ARCH_MEMORY_H
+#define __ASM_ARCH_MEMORY_H __FILE__
 
-#define PHYS_OFFSET     	UL(0x20000000)
+#define PHYS_OFFSET		UL(0x20000000)
 #define CONSISTENT_DMA_SIZE	SZ_8M
 
 #endif /* __ASM_ARCH_MEMORY_H */

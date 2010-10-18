@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5p6440/include/mach/hardware.h
+/* linux/arch/arm/mach-s5p64x0/include/mach/hardware.h
  *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
- * S5P6440 - Hardware support
+ * S5P64X0 - Hardware support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
