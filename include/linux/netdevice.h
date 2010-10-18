@@ -1696,8 +1696,8 @@ static inline int netif_is_multiqueue(const struct net_device *dev)
 	return dev->num_tx_queues > 1;
 }
 
-extern void netif_set_real_num_tx_queues(struct net_device *dev,
-					 unsigned int txq);
+extern int netif_set_real_num_tx_queues(struct net_device *dev,
+					unsigned int txq);
 
 #ifdef CONFIG_RPS
 extern int netif_set_real_num_rx_queues(struct net_device *dev,
