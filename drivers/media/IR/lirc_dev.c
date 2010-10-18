@@ -58,13 +58,12 @@ struct irctl {
 
 	struct task_struct *task;
 	long jiffies_to_wait;
-
-	struct cdev cdev;
 };
 
 static DEFINE_MUTEX(lirc_dev_lock);
 
 static struct irctl *irctls[MAX_IRCTL_DEVICES];
+static struct cdev cdevs[MAX_IRCTL_DEVICES];
 
 /* Only used for sysfs but defined to void otherwise */
 static struct class *lirc_class;
@@ -170,19 +169,20 @@ static int lirc_cdev_add(struct irctl *ir)
 {
 	int retval;
 	struct lirc_driver *d = &ir->d;
+	struct cdev *cdev = &cdevs[d->minor];
 
 	if (d->fops) {
-		cdev_init(&ir->cdev, d->fops);
-		ir->cdev.owner = d->owner;
+		cdev_init(cdev, d->fops);
+		cdev->owner = d->owner;
 	} else {
-		cdev_init(&ir->cdev, &lirc_dev_fops);
-		ir->cdev.owner = THIS_MODULE;
+		cdev_init(cdev, &lirc_dev_fops);
+		cdev->owner = THIS_MODULE;
 	}
-	kobject_set_name(&ir->cdev.kobj, "lirc%d", d->minor);
+	kobject_set_name(&cdev->kobj, "lirc%d", d->minor);
 
-	retval = cdev_add(&ir->cdev, MKDEV(MAJOR(lirc_base_dev), d->minor), 1);
+	retval = cdev_add(cdev, MKDEV(MAJOR(lirc_base_dev), d->minor), 1);
 	if (retval)
-		kobject_put(&ir->cdev.kobj);
+		kobject_put(&cdev->kobj);
 
 	return retval;
 }
@@ -363,6 +363,7 @@ EXPORT_SYMBOL(lirc_register_driver);
 int lirc_unregister_driver(int minor)
 {
 	struct irctl *ir;
+	struct cdev *cdev;
 
 	if (minor < 0 || minor >= MAX_IRCTL_DEVICES) {
 		printk(KERN_ERR "lirc_dev: %s: minor (%d) must be between "
@@ -376,6 +377,8 @@ int lirc_unregister_driver(int minor)
 		       "for minor %d!\n", __func__, minor);
 		return -ENOENT;
 	}
+
+	cdev = &cdevs[minor];
 
 	mutex_lock(&lirc_dev_lock);
 
@@ -400,11 +403,11 @@ int lirc_unregister_driver(int minor)
 		wake_up_interruptible(&ir->buf->wait_poll);
 		mutex_lock(&ir->irctl_lock);
 		ir->d.set_use_dec(ir->d.data);
-		module_put(ir->cdev.owner);
+		module_put(cdev->owner);
 		mutex_unlock(&ir->irctl_lock);
 	} else {
 		lirc_irctl_cleanup(ir);
-		cdev_del(&ir->cdev);
+		cdev_del(cdev);
 		kfree(ir);
 		irctls[minor] = NULL;
 	}
@@ -418,6 +421,7 @@ EXPORT_SYMBOL(lirc_unregister_driver);
 int lirc_dev_fop_open(struct inode *inode, struct file *file)
 {
 	struct irctl *ir;
+	struct cdev *cdev;
 	int retval = 0;
 
 	if (iminor(inode) >= MAX_IRCTL_DEVICES) {
@@ -447,13 +451,14 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		goto error;
 	}
 
-	if (try_module_get(ir->cdev.owner)) {
-		++ir->open;
+	cdev = &cdevs[iminor(inode)];
+	if (try_module_get(cdev->owner)) {
+		ir->open++;
 		retval = ir->d.set_use_inc(ir->d.data);
 
 		if (retval) {
-			module_put(ir->cdev.owner);
-			--ir->open;
+			module_put(cdev->owner);
+			ir->open--;
 		} else {
 			lirc_buffer_clear(ir->buf);
 		}
@@ -475,6 +480,7 @@ EXPORT_SYMBOL(lirc_dev_fop_open);
 int lirc_dev_fop_close(struct inode *inode, struct file *file)
 {
 	struct irctl *ir = irctls[iminor(inode)];
+	struct cdev *cdev = &cdevs[iminor(inode)];
 
 	if (!ir) {
 		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
@@ -488,10 +494,10 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 	ir->open--;
 	if (ir->attached) {
 		ir->d.set_use_dec(ir->d.data);
-		module_put(ir->cdev.owner);
+		module_put(cdev->owner);
 	} else {
 		lirc_irctl_cleanup(ir);
-		cdev_del(&ir->cdev);
+		cdev_del(cdev);
 		irctls[ir->d.minor] = NULL;
 		kfree(ir);
 	}
