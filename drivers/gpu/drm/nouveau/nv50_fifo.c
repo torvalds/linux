@@ -292,9 +292,22 @@ void
 nv50_fifo_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_gpuobj *ramfc = NULL;
+	unsigned long flags;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	pfifo->reassign(dev, false);
+
+	/* Unload the context if it's the currently active one */
+	if (pfifo->channel_id(dev) == chan->id) {
+		pfifo->disable(dev);
+		pfifo->unload_context(dev);
+		pfifo->enable(dev);
+	}
 
 	/* This will ensure the channel is seen as disabled. */
 	nouveau_gpuobj_ref(chan->ramfc, &ramfc);
@@ -306,6 +319,10 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 		nv50_fifo_channel_disable(dev, 127);
 	nv50_fifo_playlist_update(dev);
 
+	pfifo->reassign(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the channel resources */
 	nouveau_gpuobj_ref(NULL, &ramfc);
 	nouveau_gpuobj_ref(NULL, &chan->cache);
 }

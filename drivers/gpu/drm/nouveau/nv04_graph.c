@@ -412,10 +412,25 @@ int nv04_graph_create_context(struct nouveau_channel *chan)
 
 void nv04_graph_destroy_context(struct nouveau_channel *chan)
 {
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
+	unsigned long flags;
 
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	pgraph->fifo_access(dev, false);
+
+	/* Unload the context if it's the currently active one */
+	if (pgraph->channel(dev) == chan)
+		pgraph->unload_context(dev);
+
+	/* Free the context resources */
 	kfree(pgraph_ctx);
 	chan->pgraph_ctx = NULL;
+
+	pgraph->fifo_access(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 }
 
 int nv04_graph_load_context(struct nouveau_channel *chan)

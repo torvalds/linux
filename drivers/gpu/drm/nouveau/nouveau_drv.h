@@ -998,14 +998,12 @@ extern int  nv04_fifo_unload_context(struct drm_device *);
 extern int  nv10_fifo_init(struct drm_device *);
 extern int  nv10_fifo_channel_id(struct drm_device *);
 extern int  nv10_fifo_create_context(struct nouveau_channel *);
-extern void nv10_fifo_destroy_context(struct nouveau_channel *);
 extern int  nv10_fifo_load_context(struct nouveau_channel *);
 extern int  nv10_fifo_unload_context(struct drm_device *);
 
 /* nv40_fifo.c */
 extern int  nv40_fifo_init(struct drm_device *);
 extern int  nv40_fifo_create_context(struct nouveau_channel *);
-extern void nv40_fifo_destroy_context(struct nouveau_channel *);
 extern int  nv40_fifo_load_context(struct nouveau_channel *);
 extern int  nv40_fifo_unload_context(struct drm_device *);
 

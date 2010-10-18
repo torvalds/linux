@@ -242,16 +242,27 @@ nv50_graph_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
+	unsigned long flags;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
 	if (!chan->ramin)
 		return;
 
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	pgraph->fifo_access(dev, false);
+
+	if (pgraph->channel(dev) == chan)
+		pgraph->unload_context(dev);
+
 	for (i = hdr; i < hdr + 24; i += 4)
 		nv_wo32(chan->ramin, i, 0);
 	dev_priv->engine.instmem.flush(dev);
+
+	pgraph->fifo_access(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
 }

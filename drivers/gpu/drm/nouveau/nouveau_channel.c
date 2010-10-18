@@ -313,31 +313,19 @@ nouveau_channel_put(struct nouveau_channel **pchan)
 	/* boot it off the hardware */
 	pfifo->reassign(dev, false);
 
-	/* We want to give pgraph a chance to idle and get rid of all potential
-	 * errors. We need to do this before the lock, otherwise the irq handler
-	 * is unable to process them.
+	/* We want to give pgraph a chance to idle and get rid of all
+	 * potential errors. We need to do this without the context
+	 * switch lock held, otherwise the irq handler is unable to
+	 * process them.
 	 */
 	if (pgraph->channel(dev) == chan)
 		nouveau_wait_for_idle(dev);
 
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-
-	pgraph->fifo_access(dev, false);
-	if (pgraph->channel(dev) == chan)
-		pgraph->unload_context(dev);
-	pgraph->destroy_context(chan);
-	pgraph->fifo_access(dev, true);
-
-	if (pfifo->channel_id(dev) == chan->id) {
-		pfifo->disable(dev);
-		pfifo->unload_context(dev);
-		pfifo->enable(dev);
-	}
+	/* destroy the engine specific contexts */
 	pfifo->destroy_context(chan);
+	pgraph->destroy_context(chan);
 
 	pfifo->reassign(dev, true);
-
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* aside from its resources, the channel should now be dead,
 	 * remove it from the channel list

@@ -70,17 +70,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 	return 0;
 }
 
-void
-nv40_fifo_destroy_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-
-	nv_wr32(dev, NV04_PFIFO_MODE,
-		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
-
-	nouveau_gpuobj_ref(NULL, &chan->ramfc);
-}
-
 static void
 nv40_fifo_do_load_context(struct drm_device *dev, int chid)
 {

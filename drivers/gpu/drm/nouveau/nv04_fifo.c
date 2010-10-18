@@ -151,10 +151,27 @@ void
 nv04_fifo_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	unsigned long flags;
 
-	nv_wr32(dev, NV04_PFIFO_MODE,
-		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	pfifo->reassign(dev, false);
 
+	/* Unload the context if it's the currently active one */
+	if (pfifo->channel_id(dev) == chan->id) {
+		pfifo->disable(dev);
+		pfifo->unload_context(dev);
+		pfifo->enable(dev);
+	}
+
+	/* Keep it from being rescheduled */
+	nv_mask(dev, NV04_PFIFO_MODE, 1 << chan->id, 0);
+
+	pfifo->reassign(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the channel resources */
 	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 

@@ -137,7 +137,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.cache_pull		= nv04_fifo_cache_pull;
 		engine->fifo.channel_id		= nv10_fifo_channel_id;
 		engine->fifo.create_context	= nv10_fifo_create_context;
-		engine->fifo.destroy_context	= nv10_fifo_destroy_context;
+		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
 		engine->fifo.load_context	= nv10_fifo_load_context;
 		engine->fifo.unload_context	= nv10_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
@@ -191,7 +191,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.cache_pull		= nv04_fifo_cache_pull;
 		engine->fifo.channel_id		= nv10_fifo_channel_id;
 		engine->fifo.create_context	= nv10_fifo_create_context;
-		engine->fifo.destroy_context	= nv10_fifo_destroy_context;
+		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
 		engine->fifo.load_context	= nv10_fifo_load_context;
 		engine->fifo.unload_context	= nv10_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
@@ -245,7 +245,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.cache_pull		= nv04_fifo_cache_pull;
 		engine->fifo.channel_id		= nv10_fifo_channel_id;
 		engine->fifo.create_context	= nv10_fifo_create_context;
-		engine->fifo.destroy_context	= nv10_fifo_destroy_context;
+		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
 		engine->fifo.load_context	= nv10_fifo_load_context;
 		engine->fifo.unload_context	= nv10_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
@@ -302,7 +302,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.cache_pull		= nv04_fifo_cache_pull;
 		engine->fifo.channel_id		= nv10_fifo_channel_id;
 		engine->fifo.create_context	= nv40_fifo_create_context;
-		engine->fifo.destroy_context	= nv40_fifo_destroy_context;
+		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
 		engine->fifo.load_context	= nv40_fifo_load_context;
 		engine->fifo.unload_context	= nv40_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;

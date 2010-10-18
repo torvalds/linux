@@ -79,6 +79,22 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 void
 nv40_graph_destroy_context(struct nouveau_channel *chan)
 {
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	pgraph->fifo_access(dev, false);
+
+	/* Unload the context if it's the currently active one */
+	if (pgraph->channel(dev) == chan)
+		pgraph->unload_context(dev);
+
+	pgraph->fifo_access(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the context resources */
 	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
 }
 
