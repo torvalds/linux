@@ -302,9 +302,6 @@ static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 
 	/* call ehci shut down */
 	ehci_shutdown(hcd);
-
-	/* we are ready to shut down, powerdown the phy */
-	tegra_ehci_power_down(hcd);
 }
 
 static int tegra_ehci_setup(struct usb_hcd *hcd)

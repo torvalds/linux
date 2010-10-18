@@ -530,7 +530,8 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&tspi->queue);
 
-	tspi->rx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
+	tspi->rx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT |
+		TEGRA_DMA_SHARED);
 	if (!tspi->rx_dma) {
 		dev_err(&pdev->dev, "can not allocate rx dma channel\n");
 		ret = -ENODEV;
