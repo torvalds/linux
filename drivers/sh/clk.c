@@ -82,7 +82,7 @@ struct clk_rate_round_data {
 
 #define for_each_frequency(pos, r, freq)			\
 	for (pos = r->min, freq = r->func(pos, r);		\
-	     pos < r->max; pos++, freq = r->func(pos, r))	\
+	     pos <= r->max; pos++, freq = r->func(pos, r))	\
 		if (unlikely(freq == 0))			\
 			;					\
 		else
@@ -139,11 +139,14 @@ long clk_rate_table_round(struct clk *clk,
 {
 	struct clk_rate_round_data table_round = {
 		.min	= 0,
-		.max	= clk->nr_freqs,
+		.max	= clk->nr_freqs - 1,
 		.func	= clk_rate_table_iter,
 		.arg	= freq_table,
 		.rate	= rate,
 	};
+
+	if (clk->nr_freqs < 1)
+		return 0;
 
 	return clk_rate_round_helper(&table_round);
 }
