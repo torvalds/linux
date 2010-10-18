@@ -606,11 +606,27 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 	}
 }
 
+static unsigned long tegra_dc_pclk_round_rate(struct tegra_dc *dc, int pclk)
+{
+	unsigned long rate;
+	unsigned long div;
+
+	rate = clk_get_rate(dc->clk);
+
+	div = DIV_ROUND_CLOSEST(rate * 2, pclk);
+
+	if (div < 2)
+		return 0;
+
+	return rate * 2 / div;
+}
+
 static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 {
 	unsigned long val;
 	unsigned long rate;
 	unsigned long div;
+	unsigned long pclk;
 
 	tegra_dc_writel(dc, 0x0, DC_DISP_DISP_TIMING_OPTIONS);
 	tegra_dc_writel(dc, mode->h_ref_to_sync | (mode->v_ref_to_sync << 16),
@@ -645,17 +661,18 @@ static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode
 
 	rate = clk_get_rate(dc->clk);
 
-	div = ((rate * 2 + mode->pclk / 2) / mode->pclk) - 2;
-
-	if (rate * 2 / (div + 2) < (mode->pclk / 100 * 99) ||
-	    rate * 2 / (div + 2) > (mode->pclk / 100 * 109)) {
+	pclk = tegra_dc_pclk_round_rate(dc, mode->pclk);
+	if (pclk < (mode->pclk / 100 * 99) ||
+	    pclk > (mode->pclk / 100 * 109)) {
 		dev_err(&dc->ndev->dev,
 			"can't divide %ld clock to %d -1/+9%% %ld %d %d\n",
 			rate, mode->pclk,
-			rate / div, (mode->pclk / 100 * 99),
+			pclk, (mode->pclk / 100 * 99),
 			(mode->pclk / 100 * 109));
 		return -EINVAL;
 	}
+
+	div = (rate * 2 / pclk) - 2;
 
 	tegra_dc_writel(dc, 0x00010001,
 			DC_DISP_SHIFT_CLOCK_OPTIONS);
@@ -820,6 +837,8 @@ static void tegra_dc_init(struct tegra_dc *dc)
 
 static bool _tegra_dc_enable(struct tegra_dc *dc)
 {
+	int pclk;
+
 	if (dc->mode.pclk == 0)
 		return false;
 
@@ -829,6 +848,9 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 		dc->out->enable();
 
 	tegra_dc_setup_clk(dc, dc->clk);
+
+	pclk = tegra_dc_pclk_round_rate(dc, dc->mode.pclk);
+	tegra_dvfs_set_rate(dc->clk, pclk);
 
 	clk_enable(dc->clk);
 	enable_irq(dc->irq);
@@ -861,6 +883,7 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 
 	disable_irq(dc->irq);
 	clk_disable(dc->clk);
+	tegra_dvfs_set_rate(dc->clk, 0);
 
 	if (dc->out && dc->out->disable)
 		dc->out->disable();
