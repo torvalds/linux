@@ -880,7 +880,7 @@ void *t4_alloc_mem(size_t size)
 /*
  * Free memory allocated through alloc_mem().
  */
-void t4_free_mem(void *addr)
+static void t4_free_mem(void *addr)
 {
 	if (is_vmalloc_addr(addr))
 		vfree(addr);
@@ -2206,8 +2206,8 @@ static void mk_tid_release(struct sk_buff *skb, unsigned int chan,
  * Queue a TID release request and if necessary schedule a work queue to
  * process it.
  */
-void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
-			     unsigned int tid)
+static void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
+				    unsigned int tid)
 {
 	void **p = &t->tid_tab[tid];
 	struct adapter *adap = container_of(t, struct adapter, tids);
@@ -2222,7 +2222,6 @@ void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
 	}
 	spin_unlock_bh(&adap->tid_release_lock);
 }
-EXPORT_SYMBOL(cxgb4_queue_tid_release);
 
 /*
  * Process the list of pending TID release requests.
@@ -2355,48 +2354,6 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 EXPORT_SYMBOL(cxgb4_create_server);
 
 /**
- *	cxgb4_create_server6 - create an IPv6 server
- *	@dev: the device
- *	@stid: the server TID
- *	@sip: local IPv6 address to bind server to
- *	@sport: the server's TCP port
- *	@queue: queue to direct messages from this server to
- *
- *	Create an IPv6 server for the given port and address.
- *	Returns <0 on error and one of the %NET_XMIT_* values on success.
- */
-int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
-			 const struct in6_addr *sip, __be16 sport,
-			 unsigned int queue)
-{
-	unsigned int chan;
-	struct sk_buff *skb;
-	struct adapter *adap;
-	struct cpl_pass_open_req6 *req;
-
-	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
-	adap = netdev2adap(dev);
-	req = (struct cpl_pass_open_req6 *)__skb_put(skb, sizeof(*req));
-	INIT_TP_WR(req, 0);
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ6, stid));
-	req->local_port = sport;
-	req->peer_port = htons(0);
-	req->local_ip_hi = *(__be64 *)(sip->s6_addr);
-	req->local_ip_lo = *(__be64 *)(sip->s6_addr + 8);
-	req->peer_ip_hi = cpu_to_be64(0);
-	req->peer_ip_lo = cpu_to_be64(0);
-	chan = rxq_to_chan(&adap->sge, queue);
-	req->opt0 = cpu_to_be64(TX_CHAN(chan));
-	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
-				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
-	return t4_mgmt_tx(adap, skb);
-}
-EXPORT_SYMBOL(cxgb4_create_server6);
-
-/**
  *	cxgb4_best_mtu - find the entry in the MTU table closest to an MTU
  *	@mtus: the HW MTU table
  *	@mtu: the target MTU
@@ -2454,25 +2411,6 @@ unsigned int cxgb4_port_idx(const struct net_device *dev)
 	return netdev2pinfo(dev)->port_id;
 }
 EXPORT_SYMBOL(cxgb4_port_idx);
-
-/**
- *	cxgb4_netdev_by_hwid - return the net device of a HW port
- *	@pdev: identifies the adapter
- *	@id: the HW port id
- *
- *	Return the net device associated with the interface with the given HW
- *	id.
- */
-struct net_device *cxgb4_netdev_by_hwid(struct pci_dev *pdev, unsigned int id)
-{
-	const struct adapter *adap = pci_get_drvdata(pdev);
-
-	if (!adap || id >= NCHAN)
-		return NULL;
-	id = adap->chan_map[id];
-	return id < MAX_NPORTS ? adap->port[id] : NULL;
-}
-EXPORT_SYMBOL(cxgb4_netdev_by_hwid);
 
 void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6)
