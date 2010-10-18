@@ -44,7 +44,7 @@
 #include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
-
+#include <linux/pm.h>
 #include <mach/dma.h>
 #include <mach/iomap.h>
 #include <mach/i2s.h>
@@ -840,7 +840,10 @@ static void setup_dma_tx_request(struct tegra_dma_req *req,
 	req->to_memory = false;
 	req->dest_addr = i2s_get_fifo_phy_base(ads->i2s_phys, I2S_FIFO_TX);
 	req->dest_wrap = 4;
-	req->dest_bus_width = 16;
+	if (ads->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP)
+		req->dest_bus_width = ads->pdata->dsp_bus_width;
+	else
+		req->dest_bus_width = ads->pdata->i2s_bus_width;
 	req->source_bus_width = 32;
 	req->source_wrap = 0;
 	req->req_sel = ads->dma_req_sel;
@@ -859,7 +862,10 @@ static void setup_dma_rx_request(struct tegra_dma_req *req,
 	req->to_memory = true;
 	req->source_addr = i2s_get_fifo_phy_base(ads->i2s_phys, I2S_FIFO_RX);
 	req->source_wrap = 4;
-	req->source_bus_width = 16;
+	if (ads->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP)
+		req->source_bus_width = ads->pdata->dsp_bus_width;
+	else
+		req->source_bus_width = ads->pdata->i2s_bus_width;
 	req->dest_bus_width = 32;
 	req->dest_wrap = 0;
 	req->req_sel = ads->dma_req_sel;
@@ -1380,15 +1386,20 @@ static long tegra_audio_ioctl(struct file *file,
 	int rc = 0;
 	struct audio_driver_state *ads = ads_from_misc_ctl(file);
 	unsigned int mode;
+	bool dma_restart = false;
+
+	mutex_lock(&ads->out.lock);
+	mutex_lock(&ads->in.lock);
 
 	switch (cmd) {
 	case TEGRA_AUDIO_SET_BIT_FORMAT:
 		if (copy_from_user(&mode, (const void __user *)arg,
 					sizeof(mode))) {
 			rc = -EFAULT;
-			break;
+			goto done;
 		}
-		switch(mode) {
+		dma_restart = (mode != ads->bit_format);
+		switch (mode) {
 		case TEGRA_AUDIO_BIT_FORMAT_DEFAULT:
 			i2s_set_bit_format(ads->i2s_base, ads->pdata->mode);
 			ads->bit_format = mode;
@@ -1400,16 +1411,31 @@ static long tegra_audio_ioctl(struct file *file,
 		default:
 			pr_err("%s: Invald PCM mode %d", __func__, mode);
 			rc = -EINVAL;
-			break;
+			goto done;
 		}
 		break;
 	case TEGRA_AUDIO_GET_BIT_FORMAT:
 		if (copy_to_user((void __user *)arg, &ads->bit_format,
-				sizeof(mode))) {
+				sizeof(mode)))
 			rc = -EFAULT;
-		}
-		break;
+		goto done;
 	}
+
+	if (dma_restart && ads->using_dma) {
+		pr_debug("%s: Restarting DMA due to configuration change.\n",
+			__func__);
+		if (kfifo_len(&ads->out.fifo) || ads->in.active) {
+			pr_err("%s: dma busy, cannot restart.\n", __func__);
+			rc = -EBUSY;
+			goto done;
+		}
+		sound_ops->tear_down(ads);
+		sound_ops->setup(ads);
+	}
+
+done:
+	mutex_unlock(&ads->in.lock);
+	mutex_unlock(&ads->out.lock);
 	return rc;
 }
 
@@ -2398,12 +2424,59 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tegra_audio_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+	return 0;
+}
+
+static int tegra_audio_resume(struct platform_device *pdev)
+{
+	struct tegra_audio_platform_data *pdata = pdev->dev.platform_data;
+	struct audio_driver_state *state = pdata->driver_data;
+
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+
+	if (!state)
+		return -ENOMEM;
+
+	/* disable interrupts from I2S */
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
+	i2s_enable_fifos(state->i2s_base, 0);
+
+	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
+
+	if (state->pdata->master)
+		i2s_set_channel_bit_count(state->i2s_base, 44100,
+				state->pdata->i2s_clk_rate);
+	i2s_set_master(state->i2s_base, state->pdata->master);
+
+	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_TX, 1);
+	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_RX, 0);
+
+	if (state->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP)
+		i2s_set_bit_format(state->i2s_base, I2S_BIT_FORMAT_DSP);
+	else
+		i2s_set_bit_format(state->i2s_base, state->pdata->mode);
+	i2s_set_bit_size(state->i2s_base, state->pdata->bit_size);
+	i2s_set_fifo_format(state->i2s_base, state->pdata->fifo_fmt);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 static struct platform_driver tegra_audio_driver = {
 	.driver = {
 		.name = "i2s",
 		.owner = THIS_MODULE,
 	},
 	.probe = tegra_audio_probe,
+#ifdef CONFIG_PM
+	.suspend = tegra_audio_suspend,
+	.resume = tegra_audio_resume,
+#endif
 };
 
 static int __init tegra_audio_init(void)

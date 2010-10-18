@@ -828,7 +828,6 @@ static void _tegra_dc_enable(struct tegra_dc *dc)
 	tegra_dc_setup_clk(dc, dc->clk);
 
 	clk_enable(dc->clk);
-	tegra_periph_reset_deassert(dc->clk);
 	enable_irq(dc->irq);
 
 	tegra_dc_init(dc);
@@ -858,7 +857,6 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 		dc->out_ops->disable(dc);
 
 	disable_irq(dc->irq);
-	tegra_periph_reset_assert(dc->clk);
 	clk_disable(dc->clk);
 
 	if (dc->out && dc->out->disable)
