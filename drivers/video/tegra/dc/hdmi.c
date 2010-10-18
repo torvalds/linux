@@ -457,8 +457,8 @@ static void tegra_dc_hdmi_detect_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), struct tegra_dc_hdmi_data, work);
 	struct tegra_dc *dc = hdmi->dc;
 
-	if (tegra_dc_hdmi_hpd(dc))
-		tegra_dc_hdmi_detect(dc);
+	if (!tegra_dc_hdmi_detect(dc))
+		tegra_dc_disable(dc);
 }
 
 static irqreturn_t tegra_dc_hdmi_irq(int irq, void *ptr)
@@ -467,7 +467,9 @@ static irqreturn_t tegra_dc_hdmi_irq(int irq, void *ptr)
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 
 	if (tegra_dc_hdmi_hpd(dc))
-		schedule_delayed_work(&hdmi->work, msecs_to_jiffies(2000));
+		schedule_delayed_work(&hdmi->work, msecs_to_jiffies(100));
+	else
+		schedule_delayed_work(&hdmi->work, msecs_to_jiffies(0));
 
 	return IRQ_HANDLED;
 }
