@@ -125,7 +125,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	chan->vram_handle = vram_handle;
 	chan->gart_handle = gart_handle;
 
-	atomic_set(&chan->refcount, 1);
+	kref_init(&chan->ref);
+	atomic_set(&chan->users, 1);
 	mutex_init(&chan->mutex);
 	mutex_lock(&chan->mutex);
 
@@ -133,7 +134,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	for (chan->id = 0; chan->id < pfifo->channels; chan->id++) {
 		if (!dev_priv->channels.ptr[chan->id]) {
-			dev_priv->channels.ptr[chan->id] = chan;
+			nouveau_channel_ref(chan, &dev_priv->channels.ptr[chan->id]);
 			break;
 		}
 	}
@@ -240,10 +241,12 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 struct nouveau_channel *
 nouveau_channel_get_unlocked(struct nouveau_channel *ref)
 {
-	if (likely(ref && atomic_inc_not_zero(&ref->refcount)))
-		return ref;
+	struct nouveau_channel *chan = NULL;
 
-	return NULL;
+	if (likely(ref && atomic_inc_not_zero(&ref->users)))
+		nouveau_channel_ref(ref, &chan);
+
+	return chan;
 }
 
 struct nouveau_channel *
@@ -281,15 +284,14 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	int ret;
 
 	/* decrement the refcount, and we're done if there's still refs */
-	if (likely(!atomic_dec_and_test(&chan->refcount))) {
-		*pchan = NULL;
+	if (likely(!atomic_dec_and_test(&chan->users))) {
+		nouveau_channel_ref(NULL, pchan);
 		return;
 	}
 
 	/* noone wants the channel anymore */
 	NV_DEBUG(dev, "freeing channel %d\n", chan->id);
 	nouveau_debugfs_channel_fini(chan);
-	*pchan = NULL;
 
 	/* give it chance to idle */
 	nouveau_fence_update(chan);
@@ -333,7 +335,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	 * remove it from the channel list
 	 */
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	dev_priv->channels.ptr[chan->id] = NULL;
+	nouveau_channel_ref(NULL, &dev_priv->channels.ptr[chan->id]);
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 
 	/* destroy any resources the channel owned */
@@ -345,10 +347,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	}
 	nouveau_gpuobj_channel_takedown(chan);
 	nouveau_notifier_takedown_channel(chan);
-	if (chan->user)
-		iounmap(chan->user);
 
-	kfree(chan);
+	nouveau_channel_ref(NULL, pchan);
 }
 
 void
@@ -356,6 +356,31 @@ nouveau_channel_put(struct nouveau_channel **pchan)
 {
 	mutex_unlock(&(*pchan)->mutex);
 	nouveau_channel_put_unlocked(pchan);
+}
+
+static void
+nouveau_channel_del(struct kref *ref)
+{
+	struct nouveau_channel *chan =
+		container_of(ref, struct nouveau_channel, ref);
+
+	if (chan->user)
+		iounmap(chan->user);
+
+	kfree(chan);
+}
+
+void
+nouveau_channel_ref(struct nouveau_channel *chan,
+		    struct nouveau_channel **pchan)
+{
+	if (chan)
+		kref_get(&chan->ref);
+
+	if (*pchan)
+		kref_put(&(*pchan)->ref, nouveau_channel_del);
+
+	*pchan = chan;
 }
 
 /* cleans up all the fifos from file_priv */
@@ -373,7 +398,7 @@ nouveau_channel_cleanup(struct drm_device *dev, struct drm_file *file_priv)
 		if (IS_ERR(chan))
 			continue;
 
-		atomic_dec(&chan->refcount);
+		atomic_dec(&chan->users);
 		nouveau_channel_put(&chan);
 	}
 }
@@ -427,7 +452,7 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 				    &init->notifier_handle);
 
 	if (ret == 0)
-		atomic_inc(&chan->refcount); /* userspace reference */
+		atomic_inc(&chan->users); /* userspace reference */
 	nouveau_channel_put(&chan);
 	return ret;
 }
@@ -443,7 +468,7 @@ nouveau_ioctl_fifo_free(struct drm_device *dev, void *data,
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	atomic_dec(&chan->refcount);
+	atomic_dec(&chan->users);
 	nouveau_channel_put(&chan);
 	return 0;
 }

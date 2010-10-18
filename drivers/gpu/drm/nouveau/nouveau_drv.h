@@ -165,7 +165,11 @@ struct nouveau_channel {
 	struct drm_device *dev;
 	int id;
 
-	atomic_t refcount;
+	/* references to the channel data structure */
+	struct kref ref;
+	/* users of the hardware channel resources, the hardware
+	 * context will be kicked off when it reaches zero. */
+	atomic_t users;
 	struct mutex mutex;
 
 	/* owner of this fifo */
@@ -808,6 +812,8 @@ extern struct nouveau_channel *
 nouveau_channel_get(struct drm_device *, struct drm_file *, int id);
 extern void nouveau_channel_put_unlocked(struct nouveau_channel **);
 extern void nouveau_channel_put(struct nouveau_channel **);
+extern void nouveau_channel_ref(struct nouveau_channel *chan,
+				struct nouveau_channel **pchan);
 
 /* nouveau_object.c */
 extern int  nouveau_gpuobj_early_init(struct drm_device *);
