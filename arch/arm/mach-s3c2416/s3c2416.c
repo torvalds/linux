@@ -101,7 +101,7 @@ void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
 	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, no);
 
-	s3c_nand_setname("s3c2416-nand");
+	s3c_nand_setname("s3c2412-nand");
 }
 
 /* s3c2416_map_io
