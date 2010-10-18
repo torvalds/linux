@@ -1772,6 +1772,10 @@ static void ubifs_put_super(struct super_block *sb)
 				 */
 				ubifs_err("failed to write master node, "
 					  "error %d", err);
+		} else {
+			for (i = 0; i < c->jhead_cnt; i++)
+				/* Make sure write-buffer timers are canceled */
+				hrtimer_cancel(&c->jheads[i].wbuf.timer);
 		}
 	}
 
