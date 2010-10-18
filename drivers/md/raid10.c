@@ -1820,7 +1820,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	int disk;
 	int i;
 	int max_sync;
-	int sync_blocks;
+	sector_t sync_blocks;
 
 	sector_t sectors_skipped = 0;
 	int chunks_skipped = 0;

@@ -4360,7 +4360,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	raid5_conf_t *conf = mddev->private;
 	struct stripe_head *sh;
 	sector_t max_sector = mddev->dev_sectors;
-	int sync_blocks;
+	sector_t sync_blocks;
 	int still_degraded = 0;
 	int i;
 

@@ -1101,7 +1101,7 @@ static void bitmap_count_page(struct bitmap *bitmap, sector_t offset, int inc)
 	bitmap_checkfree(bitmap, page);
 }
 static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
-					    sector_t offset, int *blocks,
+					    sector_t offset, sector_t *blocks,
 					    int create);
 
 /*
@@ -1115,7 +1115,7 @@ void bitmap_daemon_work(mddev_t *mddev)
 	unsigned long j;
 	unsigned long flags;
 	struct page *page = NULL, *lastpage = NULL;
-	int blocks;
+	sector_t blocks;
 	void *paddr;
 	struct dm_dirty_log *log = mddev->bitmap_info.log;
 
@@ -1258,7 +1258,7 @@ void bitmap_daemon_work(mddev_t *mddev)
 }
 
 static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
-					    sector_t offset, int *blocks,
+					    sector_t offset, sector_t *blocks,
 					    int create)
 __releases(bitmap->lock)
 __acquires(bitmap->lock)
@@ -1316,7 +1316,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 	}
 
 	while (sectors) {
-		int blocks;
+		sector_t blocks;
 		bitmap_counter_t *bmc;
 
 		spin_lock_irq(&bitmap->lock);
@@ -1381,7 +1381,7 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 		success = 0;
 
 	while (sectors) {
-		int blocks;
+		sector_t blocks;
 		unsigned long flags;
 		bitmap_counter_t *bmc;
 
@@ -1423,7 +1423,7 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 }
 EXPORT_SYMBOL(bitmap_endwrite);
 
-static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks,
 			       int degraded)
 {
 	bitmap_counter_t *bmc;
@@ -1452,7 +1452,7 @@ static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *bloc
 	return rv;
 }
 
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks,
 		      int degraded)
 {
 	/* bitmap_start_sync must always report on multiples of whole
@@ -1463,7 +1463,7 @@ int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
 	 * Return the 'or' of the result.
 	 */
 	int rv = 0;
-	int blocks1;
+	sector_t blocks1;
 
 	*blocks = 0;
 	while (*blocks < (PAGE_SIZE>>9)) {
@@ -1476,7 +1476,7 @@ int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
 }
 EXPORT_SYMBOL(bitmap_start_sync);
 
-void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int aborted)
+void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted)
 {
 	bitmap_counter_t *bmc;
 	unsigned long flags;
@@ -1515,7 +1515,7 @@ void bitmap_close_sync(struct bitmap *bitmap)
 	 * RESYNC bit wherever it is still on
 	 */
 	sector_t sector = 0;
-	int blocks;
+	sector_t blocks;
 	if (!bitmap)
 		return;
 	while (sector < bitmap->mddev->resync_max_sectors) {
@@ -1528,7 +1528,7 @@ EXPORT_SYMBOL(bitmap_close_sync);
 void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 {
 	sector_t s = 0;
-	int blocks;
+	sector_t blocks;
 
 	if (!bitmap)
 		return;
@@ -1562,7 +1562,7 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int n
 	 * be 0 at this point
 	 */
 
-	int secs;
+	sector_t secs;
 	bitmap_counter_t *bmc;
 	spin_lock_irq(&bitmap->lock);
 	bmc = bitmap_get_counter(bitmap, offset, &secs, 1);
@@ -1790,7 +1790,7 @@ int bitmap_load(mddev_t *mddev)
 	 * All chunks should be clean, but some might need_sync.
 	 */
 	while (sector < mddev->resync_max_sectors) {
-		int blocks;
+		sector_t blocks;
 		bitmap_start_sync(bitmap, sector, &blocks, 0);
 		sector += blocks;
 	}

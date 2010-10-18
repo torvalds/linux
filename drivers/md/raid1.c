@@ -1245,7 +1245,7 @@ static void end_sync_write(struct bio *bio, int error)
 			break;
 		}
 	if (!uptodate) {
-		int sync_blocks = 0;
+		sector_t sync_blocks = 0;
 		sector_t s = r1_bio->sector;
 		long sectors_to_go = r1_bio->sectors;
 		/* make sure these bits doesn't get cleared. */
@@ -1705,7 +1705,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	int i;
 	int wonly = -1;
 	int write_targets = 0, read_targets = 0;
-	int sync_blocks;
+	sector_t sync_blocks;
 	int still_degraded = 0;
 
 	if (!conf->r1buf_pool)
