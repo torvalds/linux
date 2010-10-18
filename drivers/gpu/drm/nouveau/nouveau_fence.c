@@ -490,6 +490,8 @@ nouveau_fence_channel_fini(struct nouveau_channel *chan)
 {
 	struct nouveau_fence *tmp, *fence;
 
+	spin_lock(&chan->fence.lock);
+
 	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
 		fence->signalled = true;
 		list_del(&fence->entry);
@@ -499,6 +501,8 @@ nouveau_fence_channel_fini(struct nouveau_channel *chan)
 
 		kref_put(&fence->refcount, nouveau_fence_del);
 	}
+
+	spin_unlock(&chan->fence.lock);
 }
 
 int
