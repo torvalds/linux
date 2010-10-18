@@ -38,14 +38,14 @@
  * static struct mcp251x_platform_data mcp251x_info = {
  *         .oscillator_frequency = 8000000,
  *         .board_specific_setup = &mcp251x_setup,
- *         .model = CAN_MCP251X_MCP2510,
  *         .power_enable = mcp251x_power_enable,
  *         .transceiver_enable = NULL,
  * };
  *
  * static struct spi_board_info spi_board_info[] = {
  *         {
- *                 .modalias = "mcp251x",
+ *                 .modalias = "mcp2510",
+ *			// or "mcp2515" depending on your controller
  *                 .platform_data = &mcp251x_info,
  *                 .irq = IRQ_EINT13,
  *                 .max_speed_hz = 2*1000*1000,
@@ -224,10 +224,16 @@ static struct can_bittiming_const mcp251x_bittiming_const = {
 	.brp_inc = 1,
 };
 
+enum mcp251x_model {
+	CAN_MCP251X_MCP2510	= 0x2510,
+	CAN_MCP251X_MCP2515	= 0x2515,
+};
+
 struct mcp251x_priv {
 	struct can_priv	   can;
 	struct net_device *net;
 	struct spi_device *spi;
+	enum mcp251x_model model;
 
 	struct mutex mcp_lock; /* SPI device lock */
 
@@ -362,10 +368,9 @@ static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
 static void mcp251x_hw_tx_frame(struct spi_device *spi, u8 *buf,
 				int len, int tx_buf_idx)
 {
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
 
-	if (pdata->model == CAN_MCP251X_MCP2510) {
+	if (priv->model == CAN_MCP251X_MCP2510) {
 		int i;
 
 		for (i = 1; i < TXBDAT_OFF + len; i++)
@@ -408,9 +413,8 @@ static void mcp251x_hw_rx_frame(struct spi_device *spi, u8 *buf,
 				int buf_idx)
 {
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 
-	if (pdata->model == CAN_MCP251X_MCP2510) {
+	if (priv->model == CAN_MCP251X_MCP2510) {
 		int i, len;
 
 		for (i = 1; i < RXBDAT_OFF; i++)
@@ -951,15 +955,11 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 	struct net_device *net;
 	struct mcp251x_priv *priv;
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
-	int model = spi_get_device_id(spi)->driver_data;
 	int ret = -ENODEV;
 
 	if (!pdata)
 		/* Platform data is required for osc freq */
 		goto error_out;
-
-	if (model)
-		pdata->model = model;
 
 	/* Allocate can/net device */
 	net = alloc_candev(sizeof(struct mcp251x_priv), TX_ECHO_SKB_MAX);
@@ -977,6 +977,7 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 	priv->can.clock.freq = pdata->oscillator_frequency / 2;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
 		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY;
+	priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;
 	dev_set_drvdata(&spi->dev, priv);
 
@@ -1150,8 +1151,7 @@ static int mcp251x_can_resume(struct spi_device *spi)
 #define mcp251x_can_resume NULL
 #endif
 
-static struct spi_device_id mcp251x_id_table[] = {
-	{ "mcp251x", 	0 /* Use pdata.model */ },
+static const struct spi_device_id mcp251x_id_table[] = {
 	{ "mcp2510",	CAN_MCP251X_MCP2510 },
 	{ "mcp2515",	CAN_MCP251X_MCP2515 },
 	{ },
