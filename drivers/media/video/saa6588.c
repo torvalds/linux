@@ -429,7 +429,7 @@ static int saa6588_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct saa6588 *s = to_saa6588(sd);
 
-	vt->capability |= V4L2_TUNER_CAP_RDS;
+	vt->capability |= V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO;
 	if (s->sync)
 		vt->rxsubchans |= V4L2_TUNER_SUB_RDS;
 	return 0;

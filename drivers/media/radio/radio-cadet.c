@@ -374,7 +374,8 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	switch (v->index) {
 	case 0:
 		strlcpy(v->name, "FM", sizeof(v->name));
-		v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS;
+		v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS |
+			V4L2_TUNER_CAP_RDS_BLOCK_IO;
 		v->rangelow = 1400;     /* 87.5 MHz */
 		v->rangehigh = 1728;    /* 108.0 MHz */
 		v->rxsubchans = cadet_getstereo(dev);
