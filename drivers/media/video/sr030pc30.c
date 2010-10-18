@@ -326,7 +326,7 @@ static inline struct sr030pc30_info *to_sr030pc30(struct v4l2_subdev *sd)
 static inline int set_i2c_page(struct sr030pc30_info *info,
 			       struct i2c_client *client, unsigned int reg)
 {
-	int ret;
+	int ret = 0;
 	u32 page = reg >> 8 & 0xFF;
 
 	if (info->i2c_reg_page != page && (reg & 0xFF) != 0x03) {
