@@ -135,7 +135,7 @@ cpu_pj4_name:
 
 	.align
 
-	__INIT
+	__CPUINIT
 
 /*
  *	__v6_setup
@@ -193,6 +193,8 @@ __v6_setup:
 v6_crval:
 	crval	clear=0x01e0fb7f, mmuset=0x00c0387d, ucset=0x00c0187c
 
+	__INITDATA
+
 	.type	v6_processor_functions, #object
 ENTRY(v6_processor_functions)
 	.word	v6_early_abort
@@ -205,6 +207,8 @@ ENTRY(v6_processor_functions)
 	.word	cpu_v6_switch_mm
 	.word	cpu_v6_set_pte_ext
 	.size	v6_processor_functions, . - v6_processor_functions
+
+	.section ".rodata"
 
 	.type	cpu_arch_name, #object
 cpu_arch_name:
