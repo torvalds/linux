@@ -39,7 +39,7 @@
 #include <mach/regs-ost.h>
 #endif
 
-#define RTC_DEF_DIVIDER		32768 - 1
+#define RTC_DEF_DIVIDER		(32768 - 1)
 #define RTC_DEF_TRIM		0
 
 static unsigned long rtc_freq = 1024;
@@ -61,7 +61,8 @@ static inline int rtc_periodic_alarm(struct rtc_time *tm)
  * Calculate the next alarm time given the requested alarm time mask
  * and the current time.
  */
-static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now, struct rtc_time *alrm)
+static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
+	struct rtc_time *alrm)
 {
 	unsigned long next_time;
 	unsigned long now_time;
@@ -178,7 +179,7 @@ static int sa1100_rtc_read_callback(struct device *dev, int data)
 		 * Here we compare (match - OSCR) 8 instead of 0 --
 		 * see comment in pxa_timer_interrupt() for explanation.
 		 */
-		while( (signed long)((osmr1 = OSMR1) - OSCR) <= 8 ) {
+		while ((signed long)((osmr1 = OSMR1) - OSCR) <= 8) {
 			data += 0x100;
 			OSSR = OSSR_M1;	/* clear match on timer 1 */
 			OSMR1 = osmr1 + period;
@@ -192,19 +193,19 @@ static int sa1100_rtc_open(struct device *dev)
 	int ret;
 
 	ret = request_irq(IRQ_RTC1Hz, sa1100_rtc_interrupt, IRQF_DISABLED,
-				"rtc 1Hz", dev);
+		"rtc 1Hz", dev);
 	if (ret) {
 		dev_err(dev, "IRQ %d already in use.\n", IRQ_RTC1Hz);
 		goto fail_ui;
 	}
 	ret = request_irq(IRQ_RTCAlrm, sa1100_rtc_interrupt, IRQF_DISABLED,
-				"rtc Alrm", dev);
+		"rtc Alrm", dev);
 	if (ret) {
 		dev_err(dev, "IRQ %d already in use.\n", IRQ_RTCAlrm);
 		goto fail_ai;
 	}
 	ret = request_irq(IRQ_OST1, timer1_interrupt, IRQF_DISABLED,
-				"rtc timer", dev);
+		"rtc timer", dev);
 	if (ret) {
 		dev_err(dev, "IRQ %d already in use.\n", IRQ_OST1);
 		goto fail_pi;
@@ -236,7 +237,7 @@ static void sa1100_rtc_release(struct device *dev)
 static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 		unsigned long arg)
 {
-	switch(cmd) {
+	switch (cmd) {
 	case RTC_AIE_OFF:
 		spin_lock_irq(&sa1100_rtc_lock);
 		RTSR &= ~RTSR_ALE;
@@ -364,7 +365,8 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	 */
 	if (RTTR == 0) {
 		RTTR = RTC_DEF_DIVIDER + (RTC_DEF_TRIM << 16);
-		dev_warn(&pdev->dev, "warning: initializing default clock divider/trim value\n");
+		dev_warn(&pdev->dev, "warning: "
+			"initializing default clock divider/trim value\n");
 		/* The current RTC value probably doesn't make sense either */
 		RCNR = 0;
 	}
@@ -386,7 +388,7 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
- 	if (rtc)
+	if (rtc)
 		rtc_device_unregister(rtc);
 
 	return 0;
