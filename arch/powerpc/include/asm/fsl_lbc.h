@@ -248,6 +248,7 @@ struct fsl_upm {
 	int width;
 };
 
+extern u32 fsl_lbc_addr(phys_addr_t addr_base);
 extern int fsl_lbc_find(phys_addr_t addr_base);
 extern int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm);
 

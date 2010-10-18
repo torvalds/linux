@@ -34,6 +34,27 @@ struct fsl_lbc_ctrl *fsl_lbc_ctrl_dev;
 EXPORT_SYMBOL(fsl_lbc_ctrl_dev);
 
 /**
+ * fsl_lbc_addr - convert the base address
+ * @addr_base:	base address of the memory bank
+ *
+ * This function converts a base address of lbc into the right format for the
+ * BR register. If the SOC has eLBC then it returns 32bit physical address
+ * else it convers a 34bit local bus physical address to correct format of
+ * 32bit address for BR register (Example: MPC8641).
+ */
+u32 fsl_lbc_addr(phys_addr_t addr_base)
+{
+	struct device_node *np = fsl_lbc_ctrl_dev->dev->of_node;
+	u32 addr = addr_base & 0xffff8000;
+
+	if (of_device_is_compatible(np, "fsl,elbc"))
+		return addr;
+
+	return addr | ((addr_base & 0x300000000ull) >> 19);
+}
+EXPORT_SYMBOL(fsl_lbc_addr);
+
+/**
  * fsl_lbc_find - find Localbus bank
  * @addr_base:	base address of the memory bank
  *
@@ -55,7 +76,7 @@ int fsl_lbc_find(phys_addr_t addr_base)
 		__be32 br = in_be32(&lbc->bank[i].br);
 		__be32 or = in_be32(&lbc->bank[i].or);
 
-		if (br & BR_V && (br & or & BR_BA) == addr_base)
+		if (br & BR_V && (br & or & BR_BA) == fsl_lbc_addr(addr_base))
 			return i;
 	}
 
