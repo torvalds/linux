@@ -1256,18 +1256,8 @@ struct netxen_adapter {
 	const struct firmware *fw;
 };
 
-int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
-
 int nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val);
 int nx_fw_cmd_set_phy(struct netxen_adapter *adapter, u32 reg, u32 val);
-
-/* Functions available from netxen_nic_hw.c */
-int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
-int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
-
-int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
-int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
 
 #define NXRD32(adapter, off) \
 	(adapter->crb_read(adapter, off))
@@ -1348,11 +1338,8 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 		struct nx_host_rds_ring *rds_ring);
 int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 int netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max);
-void netxen_p2_nic_set_multi(struct net_device *netdev);
-void netxen_p3_nic_set_multi(struct net_device *netdev);
+
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
-int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode);
-int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);
 int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd);
@@ -1366,9 +1353,6 @@ int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable);
 int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable);
 int netxen_send_lro_cleanup(struct netxen_adapter *adapter);
-
-int netxen_nic_set_mac(struct net_device *netdev, void *p);
-struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
 void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring);

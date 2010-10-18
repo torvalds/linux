@@ -95,6 +95,8 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
+static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
+static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
@@ -455,7 +457,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	return 0;
 }
 
-int netxen_nic_set_mac(struct net_device *netdev, void *p)
+static int netxen_nic_set_mac(struct net_device *netdev, void *p)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
@@ -2052,7 +2054,7 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;
