@@ -64,6 +64,7 @@ nouveau_fence_del(struct kref *ref)
 	struct nouveau_fence *fence =
 		container_of(ref, struct nouveau_fence, refcount);
 
+	nouveau_channel_ref(NULL, &fence->channel);
 	kfree(fence);
 }
 
@@ -113,7 +114,7 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence,
 	if (!fence)
 		return -ENOMEM;
 	kref_init(&fence->refcount);
-	fence->channel = chan;
+	nouveau_channel_ref(chan, &fence->channel);
 
 	if (emit)
 		ret = nouveau_fence_emit(fence);
