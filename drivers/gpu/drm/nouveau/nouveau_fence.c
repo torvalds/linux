@@ -128,7 +128,7 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence,
 struct nouveau_channel *
 nouveau_fence_channel(struct nouveau_fence *fence)
 {
-	return fence ? fence->channel : NULL;
+	return fence ? nouveau_channel_get_unlocked(fence->channel) : NULL;
 }
 
 int
@@ -381,17 +381,18 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	struct nouveau_channel *chan = nouveau_fence_channel(fence);
 	struct drm_device *dev = wchan->dev;
 	struct nouveau_semaphore *sema;
-	int ret;
+	int ret = 0;
 
-	if (likely(!fence || chan == wchan ||
+	if (likely(!chan || chan == wchan ||
 		   nouveau_fence_signalled(fence, NULL)))
-		return 0;
+		goto out;
 
 	sema = alloc_semaphore(dev);
 	if (!sema) {
 		/* Early card or broken userspace, fall back to
 		 * software sync. */
-		return nouveau_fence_wait(fence, NULL, true, false);
+		ret = nouveau_fence_wait(fence, NULL, true, false);
+		goto out;
 	}
 
 	/* try to take chan's mutex, if we can't take it right away
@@ -399,20 +400,25 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	 * order issues
 	 */
 	if (!mutex_trylock(&chan->mutex)) {
-		free_semaphore(&sema->ref);
-		return nouveau_fence_wait(fence, NULL, true, false);
+		ret = nouveau_fence_wait(fence, NULL, true, false);
+		goto out_unref;
 	}
 
 	/* Make wchan wait until it gets signalled */
 	ret = emit_semaphore(wchan, NV_SW_SEMAPHORE_ACQUIRE, sema);
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	/* Signal the semaphore from chan */
 	ret = emit_semaphore(chan, NV_SW_SEMAPHORE_RELEASE, sema);
+
+out_unlock:
 	mutex_unlock(&chan->mutex);
-out:
+out_unref:
 	kref_put(&sema->ref, free_semaphore);
+out:
+	if (chan)
+		nouveau_channel_put_unlocked(&chan);
 	return ret;
 }
 
