@@ -402,7 +402,6 @@ int lirc_unregister_driver(int minor)
 		ir->d.set_use_dec(ir->d.data);
 		module_put(ir->cdev.owner);
 		mutex_unlock(&ir->irctl_lock);
-		cdev_del(&ir->cdev);
 	} else {
 		lirc_irctl_cleanup(ir);
 		cdev_del(&ir->cdev);
@@ -492,6 +491,7 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 		module_put(ir->cdev.owner);
 	} else {
 		lirc_irctl_cleanup(ir);
+		cdev_del(&ir->cdev);
 		irctls[ir->d.minor] = NULL;
 		kfree(ir);
 	}
