@@ -27,7 +27,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_DA7210 if I2C
 	select SND_SOC_JZ4740 if SOC_JZ4740
-	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_SPDIF
@@ -158,9 +157,6 @@ config SND_SOC_L3
 
 config SND_SOC_DA7210
         tristate
-
-config SND_SOC_MAX98088
-       tristate
 
 config SND_SOC_PCM3008
        tristate
