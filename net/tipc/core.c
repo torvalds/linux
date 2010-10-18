@@ -96,11 +96,6 @@ int tipc_net_id;
 int tipc_remote_management;
 
 
-static int tipc_get_mode(void)
-{
-	return tipc_mode;
-}
-
 /**
  * tipc_buf_acquire - creates a TIPC message buffer
  * @size: message size (including TIPC header)
@@ -246,7 +241,6 @@ MODULE_VERSION(TIPC_MOD_VER);
 
 EXPORT_SYMBOL(tipc_attach);
 EXPORT_SYMBOL(tipc_detach);
-EXPORT_SYMBOL(tipc_get_mode);
 EXPORT_SYMBOL(tipc_createport);
 EXPORT_SYMBOL(tipc_deleteport);
 EXPORT_SYMBOL(tipc_ownidentity);
