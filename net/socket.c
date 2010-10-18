@@ -209,8 +209,8 @@ int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr *kaddr)
  *	specified. Zero is returned for a success.
  */
 
-int move_addr_to_user(struct sockaddr *kaddr, int klen, void __user *uaddr,
-		      int __user *ulen)
+static int move_addr_to_user(struct sockaddr *kaddr, int klen,
+			     void __user *uaddr, int __user *ulen)
 {
 	int err;
 	int len;
@@ -661,7 +661,8 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(__sock_recv_timestamp);
 
-inline void sock_recv_drops(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
+static inline void sock_recv_drops(struct msghdr *msg, struct sock *sk,
+				   struct sk_buff *skb)
 {
 	if (sock_flag(sk, SOCK_RXQ_OVFL) && skb && skb->dropcount)
 		put_cmsg(msg, SOL_SOCKET, SO_RXQ_OVFL,
