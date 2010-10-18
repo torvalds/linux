@@ -2672,6 +2672,16 @@ static struct uart_ops serial8250_pops = {
 
 static struct uart_8250_port serial8250_ports[UART_NR];
 
+static void (*serial8250_isa_config)(int port, struct uart_port *up,
+	unsigned short *capabilities);
+
+void serial8250_set_isa_configurator(
+	void (*v)(int port, struct uart_port *up, unsigned short *capabilities))
+{
+	serial8250_isa_config = v;
+}
+EXPORT_SYMBOL(serial8250_set_isa_configurator);
+
 static void __init serial8250_isa_init_ports(void)
 {
 	struct uart_8250_port *up;
@@ -2717,6 +2727,9 @@ static void __init serial8250_isa_init_ports(void)
 		up->port.regshift = old_serial_port[i].iomem_reg_shift;
 		set_io_from_upio(&up->port);
 		up->port.irqflags |= irqflag;
+		if (serial8250_isa_config != NULL)
+			serial8250_isa_config(i, &up->port, &up->capabilities);
+
 	}
 }
 
@@ -3177,6 +3190,10 @@ int serial8250_register_port(struct uart_port *port)
 			uart->port.set_termios = port->set_termios;
 		if (port->pm)
 			uart->port.pm = port->pm;
+
+		if (serial8250_isa_config != NULL)
+			serial8250_isa_config(0, &uart->port,
+					&uart->capabilities);
 
 		ret = uart_add_one_port(&serial8250_reg, &uart->port);
 		if (ret == 0)

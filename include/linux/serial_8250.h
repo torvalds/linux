@@ -81,4 +81,8 @@ extern void serial8250_do_set_termios(struct uart_port *port,
 extern void serial8250_do_pm(struct uart_port *port, unsigned int state,
 			     unsigned int oldstate);
 
+extern void serial8250_set_isa_configurator(void (*v)
+					(int port, struct uart_port *up,
+						unsigned short *capabilities));
+
 #endif
