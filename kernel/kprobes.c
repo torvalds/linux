@@ -1145,17 +1145,13 @@ int __kprobes register_kprobe(struct kprobe *p)
 	if (ret)
 		return ret;
 
-	preempt_disable();
 	jump_label_lock();
+	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr) ||
 	    ftrace_text_reserved(p->addr, p->addr) ||
-	    jump_label_text_reserved(p->addr, p->addr)) {
-		preempt_enable();
-		jump_label_unlock();
-		return -EINVAL;
-	}
-	jump_label_unlock();
+	    jump_label_text_reserved(p->addr, p->addr))
+		goto fail_with_jump_label;
 
 	/* User can pass only KPROBE_FLAG_DISABLED to register_kprobe */
 	p->flags &= KPROBE_FLAG_DISABLED;
@@ -1169,10 +1165,9 @@ int __kprobes register_kprobe(struct kprobe *p)
 		 * We must hold a refcount of the probed module while updating
 		 * its code to prohibit unexpected unloading.
 		 */
-		if (unlikely(!try_module_get(probed_mod))) {
-			preempt_enable();
-			return -EINVAL;
-		}
+		if (unlikely(!try_module_get(probed_mod)))
+			goto fail_with_jump_label;
+
 		/*
 		 * If the module freed .init.text, we couldn't insert
 		 * kprobes in there.
@@ -1180,11 +1175,11 @@ int __kprobes register_kprobe(struct kprobe *p)
 		if (within_module_init((unsigned long)p->addr, probed_mod) &&
 		    probed_mod->state != MODULE_STATE_COMING) {
 			module_put(probed_mod);
-			preempt_enable();
-			return -EINVAL;
+			goto fail_with_jump_label;
 		}
 	}
 	preempt_enable();
+	jump_label_unlock();
 
 	p->nmissed = 0;
 	INIT_LIST_HEAD(&p->list);
@@ -1226,6 +1221,11 @@ out:
 		module_put(probed_mod);
 
 	return ret;
+
+fail_with_jump_label:
+	preempt_enable();
+	jump_label_unlock();
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(register_kprobe);
 
