@@ -117,48 +117,12 @@
 /*
  * The following interrupts are for board specific purposes. Since
  * the kernel can only run on one machine at a time, we can re-use
- * these.  There will be 16 IRQs by default.  If it is not enough,
- * IRQ_BOARD_END is allowed be customized for each board, but keep
- * the numbers within sensible limits and in descending order, so
- * when multiple config options are selected, the maximum will be
- * used.
+ * these.
+ * By default, no board IRQ is reserved. It should be finished in
+ * custom board since sparse IRQ is already enabled.
  */
 #define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_GPIO_IRQ_NUM)
 
-#if defined(CONFIG_MACH_H4700)
-#define IRQ_BOARD_END		(IRQ_BOARD_START + 70)
-#elif defined(CONFIG_MACH_ZYLONITE)
-#define IRQ_BOARD_END		(IRQ_BOARD_START + 32)
-#elif defined(CONFIG_PXA_EZX)
-#define IRQ_BOARD_END		(IRQ_BOARD_START + 23)
-#else
-#define IRQ_BOARD_END		(IRQ_BOARD_START + 16)
-#endif
-
-/*
- * Figure out the MAX IRQ number.
- *
- * If we have an SA1111, the max IRQ is S1_BVD1_STSCHG+1.
- * If we have an LoCoMo, the max IRQ is IRQ_LOCOMO_SPI_TEND+1
- * Otherwise, we have the standard IRQs only.
- */
-#ifdef CONFIG_SA1111
-#define NR_IRQS			(IRQ_BOARD_END + 55)
-#elif defined(CONFIG_PXA_HAVE_BOARD_IRQS)
-#define NR_IRQS			(IRQ_BOARD_END)
-#else
 #define NR_IRQS			(IRQ_BOARD_START)
-#endif
-
-/* add IT8152 IRQs beyond BOARD_END */
-#ifdef CONFIG_PCI_HOST_ITE8152
-#define IT8152_LAST_IRQ         (IRQ_BOARD_END + 40)
-
-#if NR_IRQS < (IT8152_LAST_IRQ+1)
-#undef NR_IRQS
-#define NR_IRQS (IT8152_LAST_IRQ+1)
-#endif
-
-#endif /* CONFIG_PCI_HOST_ITE8152 */
 
 #endif /* __ASM_MACH_IRQS_H */

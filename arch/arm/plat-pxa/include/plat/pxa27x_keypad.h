@@ -25,6 +25,13 @@
  *
  * 4. matrix key and direct key will use the same debounce_interval by
  *    default, which should be sufficient in most cases
+ *
+ * pxa168 keypad platform specific parameter
+ *
+ * NOTE:
+ * clear_wakeup_event callback is a workaround required to clear the
+ * keypad interrupt. The keypad wake must be cleared in addition to
+ * reading the MI/DI bits in the KPC register.
  */
 struct pxa27x_keypad_platform_data {
 
@@ -52,6 +59,9 @@ struct pxa27x_keypad_platform_data {
 
 	/* key debounce interval */
 	unsigned int	debounce_interval;
+
+	/* clear wakeup event requirement for pxa168 */
+	void		(*clear_wakeup_event)(void);
 };
 
 extern void pxa_set_keypad_info(struct pxa27x_keypad_platform_data *info);

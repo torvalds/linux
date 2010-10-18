@@ -29,6 +29,7 @@
 
 #include <mach/pxa25x.h>
 #include <mach/eseries-gpio.h>
+#include <mach/eseries-irq.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
 #include <mach/udc.h>
@@ -183,6 +184,7 @@ MACHINE_START(E330, "Toshiba e330")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e330_init,
@@ -233,6 +235,7 @@ MACHINE_START(E350, "Toshiba e350")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e350_init,
@@ -356,6 +359,7 @@ MACHINE_START(E400, "Toshiba e400")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e400_init,
@@ -545,6 +549,7 @@ MACHINE_START(E740, "Toshiba e740")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e740_init,
@@ -737,6 +742,7 @@ MACHINE_START(E750, "Toshiba e750")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e750_init,
@@ -933,6 +939,7 @@ MACHINE_START(E800, "Toshiba e800")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e800_init,
