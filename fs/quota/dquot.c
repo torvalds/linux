@@ -1386,6 +1386,9 @@ static void __dquot_initialize(struct inode *inode, int type)
 		/* Avoid races with quotaoff() */
 		if (!sb_has_quota_active(sb, cnt))
 			continue;
+		/* We could race with quotaon or dqget() could have failed */
+		if (!got[cnt])
+			continue;
 		if (!inode->i_dquot[cnt]) {
 			inode->i_dquot[cnt] = got[cnt];
 			got[cnt] = NULL;
