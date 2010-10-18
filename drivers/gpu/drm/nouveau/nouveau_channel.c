@@ -238,33 +238,39 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 }
 
 struct nouveau_channel *
+nouveau_channel_get_unlocked(struct nouveau_channel *ref)
+{
+	if (likely(ref && atomic_inc_not_zero(&ref->refcount)))
+		return ref;
+
+	return NULL;
+}
+
+struct nouveau_channel *
 nouveau_channel_get(struct drm_device *dev, struct drm_file *file_priv, int id)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = ERR_PTR(-ENODEV);
+	struct nouveau_channel *chan;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	chan = dev_priv->channels.ptr[id];
-
-	if (unlikely(!chan || (file_priv && chan->file_priv != file_priv))) {
-		spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (unlikely(!atomic_inc_not_zero(&chan->refcount))) {
-		spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
-		return ERR_PTR(-EINVAL);
-	}
-
+	chan = nouveau_channel_get_unlocked(dev_priv->channels.ptr[id]);
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
+
+	if (unlikely(!chan))
+		return ERR_PTR(-EINVAL);
+
+	if (unlikely(file_priv && chan->file_priv != file_priv)) {
+		nouveau_channel_put_unlocked(&chan);
+		return ERR_PTR(-EINVAL);
+	}
 
 	mutex_lock(&chan->mutex);
 	return chan;
 }
 
 void
-nouveau_channel_put(struct nouveau_channel **pchan)
+nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 {
 	struct nouveau_channel *chan = *pchan;
 	struct drm_device *dev = chan->dev;
@@ -273,9 +279,6 @@ nouveau_channel_put(struct nouveau_channel **pchan)
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	unsigned long flags;
 	int ret;
-
-	/* unlock the channel */
-	mutex_unlock(&chan->mutex);
 
 	/* decrement the refcount, and we're done if there's still refs */
 	if (likely(!atomic_dec_and_test(&chan->refcount))) {
@@ -346,6 +349,13 @@ nouveau_channel_put(struct nouveau_channel **pchan)
 		iounmap(chan->user);
 
 	kfree(chan);
+}
+
+void
+nouveau_channel_put(struct nouveau_channel **pchan)
+{
+	mutex_unlock(&(*pchan)->mutex);
+	nouveau_channel_put_unlocked(pchan);
 }
 
 /* cleans up all the fifos from file_priv */

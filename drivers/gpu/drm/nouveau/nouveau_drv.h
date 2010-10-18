@@ -803,7 +803,10 @@ extern int  nouveau_channel_alloc(struct drm_device *dev,
 				  struct drm_file *file_priv,
 				  uint32_t fb_ctxdma, uint32_t tt_ctxdma);
 extern struct nouveau_channel *
+nouveau_channel_get_unlocked(struct nouveau_channel *);
+extern struct nouveau_channel *
 nouveau_channel_get(struct drm_device *, struct drm_file *, int id);
+extern void nouveau_channel_put_unlocked(struct nouveau_channel **);
 extern void nouveau_channel_put(struct nouveau_channel **);
 
 /* nouveau_object.c */
