@@ -1013,7 +1013,6 @@ out:
 int ubifs_replay_journal(struct ubifs_info *c)
 {
 	int err, i, lnum, offs, free;
-	void *sbuf = NULL;
 
 	BUILD_BUG_ON(UBIFS_TRUN_KEY > 5);
 
@@ -1027,10 +1026,6 @@ int ubifs_replay_journal(struct ubifs_info *c)
 			  c->ihead_offs);
 		return -EINVAL;
 	}
-
-	sbuf = vmalloc(c->leb_size);
-	if (!sbuf)
-		return -ENOMEM;
 
 	dbg_mnt("start replaying the journal");
 	c->replaying = 1;
@@ -1046,7 +1041,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 			lnum = UBIFS_LOG_LNUM;
 			offs = 0;
 		}
-		err = replay_log_leb(c, lnum, offs, sbuf);
+		err = replay_log_leb(c, lnum, offs, c->sbuf);
 		if (err == 1)
 			/* We hit the end of the log */
 			break;
@@ -1079,7 +1074,6 @@ int ubifs_replay_journal(struct ubifs_info *c)
 out:
 	destroy_replay_tree(c);
 	destroy_bud_list(c);
-	vfree(sbuf);
 	c->replaying = 0;
 	return err;
 }
