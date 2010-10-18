@@ -391,7 +391,17 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 static int c4iw_get_mib(struct ib_device *ibdev,
 			union rdma_protocol_stats *stats)
 {
-	return -ENOSYS;
+	struct tp_tcp_stats v4, v6;
+	struct c4iw_dev *c4iw_dev = to_c4iw_dev(ibdev);
+
+	cxgb4_get_tcp_stats(c4iw_dev->rdev.lldi.pdev, &v4, &v6);
+	memset(stats, 0, sizeof *stats);
+	stats->iw.tcpInSegs = v4.tcpInSegs + v6.tcpInSegs;
+	stats->iw.tcpOutSegs = v4.tcpOutSegs + v6.tcpOutSegs;
+	stats->iw.tcpRetransSegs = v4.tcpRetransSegs + v6.tcpRetransSegs;
+	stats->iw.tcpOutRsts = v4.tcpOutRsts + v6.tcpOutSegs;
+
+	return 0;
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
