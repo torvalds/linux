@@ -899,6 +899,4 @@ static void __exit acpi_processor_exit(void)
 module_init(acpi_processor_init);
 module_exit(acpi_processor_exit);
 
-EXPORT_SYMBOL(acpi_processor_set_thermal_limit);
-
 MODULE_ALIAS("processor");

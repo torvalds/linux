@@ -780,16 +780,6 @@ void acpi_os_wait_events_complete(void *context)
 EXPORT_SYMBOL(acpi_os_wait_events_complete);
 
 /*
- * Allocate the memory for a spinlock and initialize it.
- */
-acpi_status acpi_os_create_lock(acpi_spinlock * handle)
-{
-	spin_lock_init(*handle);
-
-	return AE_OK;
-}
-
-/*
  * Deallocate the memory for a spinlock.
  */
 void acpi_os_delete_lock(acpi_spinlock handle)
@@ -1151,21 +1141,6 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 	return acpi_check_resource_conflict(&res);
 }
 EXPORT_SYMBOL(acpi_check_region);
-
-int acpi_check_mem_region(resource_size_t start, resource_size_t n,
-		      const char *name)
-{
-	struct resource res = {
-		.start = start,
-		.end   = start + n - 1,
-		.name  = name,
-		.flags = IORESOURCE_MEM,
-	};
-
-	return acpi_check_resource_conflict(&res);
-
-}
-EXPORT_SYMBOL(acpi_check_mem_region);
 
 /*
  * Let drivers know whether the resource checks are effective
