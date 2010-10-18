@@ -39,6 +39,7 @@
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
+#include <sound/info.h>
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -184,6 +185,7 @@ static void loopback_timer_start(struct loopback_pcm *dpcm)
 static inline void loopback_timer_stop(struct loopback_pcm *dpcm)
 {
 	del_timer(&dpcm->timer);
+	dpcm->timer.expires = 0;
 }
 
 #define CABLE_VALID_PLAYBACK	(1 << SNDRV_PCM_STREAM_PLAYBACK)
@@ -1011,6 +1013,86 @@ static int __devinit loopback_mixer_new(struct loopback *loopback, int notify)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
+
+static void print_dpcm_info(struct snd_info_buffer *buffer,
+			    struct loopback_pcm *dpcm,
+			    const char *id)
+{
+	snd_iprintf(buffer, "  %s\n", id);
+	if (dpcm == NULL) {
+		snd_iprintf(buffer, "    inactive\n");
+		return;
+	}
+	snd_iprintf(buffer, "    buffer_size:\t%u\n", dpcm->pcm_buffer_size);
+	snd_iprintf(buffer, "    buffer_pos:\t\t%u\n", dpcm->buf_pos);
+	snd_iprintf(buffer, "    silent_size:\t%u\n", dpcm->silent_size);
+	snd_iprintf(buffer, "    period_size:\t%u\n", dpcm->pcm_period_size);
+	snd_iprintf(buffer, "    bytes_per_sec:\t%u\n", dpcm->pcm_bps);
+	snd_iprintf(buffer, "    sample_align:\t%u\n", dpcm->pcm_salign);
+	snd_iprintf(buffer, "    rate_shift:\t\t%u\n", dpcm->pcm_rate_shift);
+	snd_iprintf(buffer, "    update_pending:\t%u\n",
+						dpcm->period_update_pending);
+	snd_iprintf(buffer, "    irq_pos:\t\t%u\n", dpcm->irq_pos);
+	snd_iprintf(buffer, "    period_frac:\t%u\n", dpcm->period_size_frac);
+	snd_iprintf(buffer, "    last_jiffies:\t%lu (%lu)\n",
+					dpcm->last_jiffies, jiffies);
+	snd_iprintf(buffer, "    timer_expires:\t%lu\n", dpcm->timer.expires);
+}
+
+static void print_substream_info(struct snd_info_buffer *buffer,
+				 struct loopback *loopback,
+				 int sub,
+				 int num)
+{
+	struct loopback_cable *cable = loopback->cables[sub][num];
+
+	snd_iprintf(buffer, "Cable %i substream %i:\n", num, sub);
+	if (cable == NULL) {
+		snd_iprintf(buffer, "  inactive\n");
+		return;
+	}
+	snd_iprintf(buffer, "  valid: %u\n", cable->valid);
+	snd_iprintf(buffer, "  running: %u\n", cable->running);
+	print_dpcm_info(buffer, cable->streams[0], "Playback");
+	print_dpcm_info(buffer, cable->streams[1], "Capture");
+}
+
+static void print_cable_info(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	struct loopback *loopback = entry->private_data;
+	int sub, num;
+
+	mutex_lock(&loopback->cable_lock);
+	num = entry->name[strlen(entry->name)-1];
+	num = num == '0' ? 0 : 1;
+	for (sub = 0; sub < MAX_PCM_SUBSTREAMS; sub++)
+		print_substream_info(buffer, loopback, sub, num);
+	mutex_unlock(&loopback->cable_lock);
+}
+
+static int __devinit loopback_proc_new(struct loopback *loopback, int cidx)
+{
+	char name[32];
+	struct snd_info_entry *entry;
+	int err;
+
+	snprintf(name, sizeof(name), "cable#%d", cidx);
+	err = snd_card_proc_new(loopback->card, name, &entry);
+	if (err < 0)
+		return err;
+
+	snd_info_set_text_ops(entry, loopback, print_cable_info);
+	return 0;
+}
+
+#else /* !CONFIG_PROC_FS */
+
+#define loopback_proc_new(loopback, cidx) do { } while (0)
+
+#endif
+
 static int __devinit loopback_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
@@ -1041,6 +1123,8 @@ static int __devinit loopback_probe(struct platform_device *devptr)
 	err = loopback_mixer_new(loopback, pcm_notify[dev] ? 1 : 0);
 	if (err < 0)
 		goto __nodev;
+	loopback_proc_new(loopback, 0);
+	loopback_proc_new(loopback, 1);
 	strcpy(card->driver, "Loopback");
 	strcpy(card->shortname, "Loopback");
 	sprintf(card->longname, "Loopback %i", dev + 1);
