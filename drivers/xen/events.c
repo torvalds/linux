@@ -586,8 +586,7 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
 	 * we are using the !xen_initial_domain() to drop in the function.*/
 	if (identity_mapped_irq(gsi) || !xen_initial_domain()) {
 		irq = gsi;
-		irq_to_desc_alloc_node(irq, 0);
-		dynamic_irq_init(irq);
+		irq_alloc_desc_at(irq, 0);
 	} else
 		irq = find_unbound_irq();
 
@@ -602,7 +601,7 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
 	 * this in the priv domain. */
 	if (xen_initial_domain() &&
 	    HYPERVISOR_physdev_op(PHYSDEVOP_alloc_irq_vector, &irq_op)) {
-		dynamic_irq_cleanup(irq);
+		irq_free_desc(irq);
 		irq = -ENOSPC;
 		goto out;
 	}
@@ -629,7 +628,7 @@ int xen_destroy_irq(int irq)
 
 	irq_info[irq] = mk_unbound_info();
 
-	dynamic_irq_cleanup(irq);
+	irq_free_desc(irq);
 
 out:
 	spin_unlock(&irq_mapping_update_lock);
