@@ -1583,11 +1583,11 @@ int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 {
 	int rc;
 
+	if (rxq < 1 || rxq > dev->num_rx_queues)
+		return -EINVAL;
+
 	if (dev->reg_state == NETREG_REGISTERED) {
 		ASSERT_RTNL();
-
-		if (rxq > dev->num_rx_queues)
-			return -EINVAL;
 
 		rc = net_rx_queue_update_kobjects(dev, dev->real_num_rx_queues,
 						  rxq);
@@ -5013,25 +5013,23 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 {
 #ifdef CONFIG_RPS
 	unsigned int i, count = dev->num_rx_queues;
+	struct netdev_rx_queue *rx;
 
-	if (count) {
-		struct netdev_rx_queue *rx;
+	BUG_ON(count < 1);
 
-		rx = kcalloc(count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
-		if (!rx) {
-			pr_err("netdev: Unable to allocate %u rx queues.\n",
-			       count);
-			return -ENOMEM;
-		}
-		dev->_rx = rx;
-
-		/*
-		 * Set a pointer to first element in the array which holds the
-		 * reference count.
-		 */
-		for (i = 0; i < count; i++)
-			rx[i].first = rx;
+	rx = kcalloc(count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
+	if (!rx) {
+		pr_err("netdev: Unable to allocate %u rx queues.\n", count);
+		return -ENOMEM;
 	}
+	dev->_rx = rx;
+
+	/*
+	 * Set a pointer to first element in the array which holds the
+	 * reference count.
+	 */
+	for (i = 0; i < count; i++)
+		rx[i].first = rx;
 #endif
 	return 0;
 }
