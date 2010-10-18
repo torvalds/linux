@@ -132,10 +132,10 @@ config IP6_NF_MATCH_RT
 # The targets
 config IP6_NF_TARGET_HL
 	tristate '"HL" hoplimit target support'
-	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_ADVANCED && IP6_NF_MANGLE
 	select NETFILTER_XT_TARGET_HL
 	---help---
-	This is a backwards-compat option for the user's convenience
+	This is a backwards-compatible option for the user's convenience
 	(e.g. when running oldconfig). It selects
 	CONFIG_NETFILTER_XT_TARGET_HL.
 
