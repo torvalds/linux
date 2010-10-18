@@ -683,7 +683,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		}
 	}
 
-	if (_IOC_DIR(cmd) == _IOC_READ) {
+	if (_IOC_DIR(cmd) == _IOC_WRITE) {
 
 		if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
 
