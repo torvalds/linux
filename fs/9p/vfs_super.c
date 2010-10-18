@@ -122,6 +122,10 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	fid = v9fs_session_init(v9ses, dev_name, data);
 	if (IS_ERR(fid)) {
 		retval = PTR_ERR(fid);
+		/*
+		 * we need to call session_close to tear down some
+		 * of the data structure setup by session_init
+		 */
 		goto close_session;
 	}
 
@@ -144,7 +148,6 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		retval = -ENOMEM;
 		goto release_sb;
 	}
-
 	sb->s_root = root;
 
 	if (v9fs_proto_dotl(v9ses)) {
@@ -152,7 +155,7 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
 		if (IS_ERR(st)) {
 			retval = PTR_ERR(st);
-			goto clunk_fid;
+			goto release_sb;
 		}
 
 		v9fs_stat2inode_dotl(st, root->d_inode);
@@ -162,7 +165,7 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		st = p9_client_stat(fid);
 		if (IS_ERR(st)) {
 			retval = PTR_ERR(st);
-			goto clunk_fid;
+			goto release_sb;
 		}
 
 		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
@@ -174,19 +177,24 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 
 	v9fs_fid_add(root, fid);
 
-P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
+	P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
 
 clunk_fid:
 	p9_client_clunk(fid);
-
 close_session:
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
 	return retval;
-
 release_sb:
+	/*
+	 * we will do the session_close and root dentry release
+	 * in the below call. But we need to clunk fid, because we haven't
+	 * attached the fid to dentry so it won't get clunked
+	 * automatically.
+	 */
+	p9_client_clunk(fid);
 	deactivate_locked_super(sb);
 	return retval;
 }

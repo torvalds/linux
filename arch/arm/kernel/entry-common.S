@@ -48,6 +48,8 @@ work_pending:
 	beq	no_work_pending
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
+	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
+	movne	why, #0				@ prevent further restarts
 	bl	do_notify_resume
 	b	ret_slow_syscall		@ Check work again
 
@@ -127,30 +129,58 @@ ENDPROC(ret_from_fork)
  * clobber the ip register.  This is OK because the ARM calling convention
  * allows it to be clobbered in subroutines and doesn't use it to hold
  * parameters.)
+ *
+ * When using dynamic ftrace, we patch out the mcount call by a "mov r0, r0"
+ * for the mcount case, and a "pop {lr}" for the __gnu_mcount_nc case (see
+ * arch/arm/kernel/ftrace.c).
  */
+
+#ifndef CONFIG_OLD_MCOUNT
+#if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error Ftrace requires CONFIG_FRAME_POINTER=y with GCC older than 4.4.0.
+#endif
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
-ENTRY(mcount)
+ENTRY(__gnu_mcount_nc)
+	mov	ip, lr
+	ldmia	sp!, {lr}
+	mov	pc, ip
+ENDPROC(__gnu_mcount_nc)
+
+ENTRY(ftrace_caller)
 	stmdb	sp!, {r0-r3, lr}
 	mov	r0, lr
 	sub	r0, r0, #MCOUNT_INSN_SIZE
+	ldr	r1, [sp, #20]
 
-	.globl mcount_call
-mcount_call:
+	.global	ftrace_call
+ftrace_call:
 	bl	ftrace_stub
-	ldr	lr, [fp, #-4]			@ restore lr
-	ldmia	sp!, {r0-r3, pc}
+	ldmia	sp!, {r0-r3, ip, lr}
+	mov	pc, ip
+ENDPROC(ftrace_caller)
 
-ENTRY(ftrace_caller)
+#ifdef CONFIG_OLD_MCOUNT
+ENTRY(mcount)
+	stmdb	sp!, {lr}
+	ldr	lr, [fp, #-4]
+	ldmia	sp!, {pc}
+ENDPROC(mcount)
+
+ENTRY(ftrace_caller_old)
 	stmdb	sp!, {r0-r3, lr}
 	ldr	r1, [fp, #-4]
 	mov	r0, lr
 	sub	r0, r0, #MCOUNT_INSN_SIZE
 
-	.globl ftrace_call
-ftrace_call:
+	.globl ftrace_call_old
+ftrace_call_old:
 	bl	ftrace_stub
 	ldr	lr, [fp, #-4]			@ restore lr
 	ldmia	sp!, {r0-r3, pc}
+ENDPROC(ftrace_caller_old)
+#endif
 
 #else
 
@@ -158,7 +188,7 @@ ENTRY(__gnu_mcount_nc)
 	stmdb	sp!, {r0-r3, lr}
 	ldr	r0, =ftrace_trace_function
 	ldr	r2, [r0]
-	adr	r0, ftrace_stub
+	adr	r0, .Lftrace_stub
 	cmp	r0, r2
 	bne	gnu_trace
 	ldmia	sp!, {r0-r3, ip, lr}
@@ -168,11 +198,19 @@ gnu_trace:
 	ldr	r1, [sp, #20]			@ lr of instrumented routine
 	mov	r0, lr
 	sub	r0, r0, #MCOUNT_INSN_SIZE
-	mov	lr, pc
+	adr	lr, BSYM(1f)
 	mov	pc, r2
+1:
 	ldmia	sp!, {r0-r3, ip, lr}
 	mov	pc, ip
+ENDPROC(__gnu_mcount_nc)
 
+#ifdef CONFIG_OLD_MCOUNT
+/*
+ * This is under an ifdef in order to force link-time errors for people trying
+ * to build with !FRAME_POINTER with a GCC which doesn't use the new-style
+ * mcount.
+ */
 ENTRY(mcount)
 	stmdb	sp!, {r0-r3, lr}
 	ldr	r0, =ftrace_trace_function
@@ -191,12 +229,15 @@ trace:
 	mov	pc, r2
 	ldr	lr, [fp, #-4]			@ restore lr
 	ldmia	sp!, {r0-r3, pc}
+ENDPROC(mcount)
+#endif
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
-	.globl ftrace_stub
-ftrace_stub:
+ENTRY(ftrace_stub)
+.Lftrace_stub:
 	mov	pc, lr
+ENDPROC(ftrace_stub)
 
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -418,11 +459,13 @@ ENDPROC(sys_clone_wrapper)
 
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
 		b	sys_sigreturn
 ENDPROC(sys_sigreturn_wrapper)
 
 sys_rt_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
 		b	sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn_wrapper)
 

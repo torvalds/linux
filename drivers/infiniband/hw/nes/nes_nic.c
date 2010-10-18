@@ -1446,14 +1446,14 @@ static int nes_netdev_set_pauseparam(struct net_device *netdev,
 				NES_IDX_MAC_TX_CONFIG + (nesdev->mac_index*0x200));
 		u32temp |= NES_IDX_MAC_TX_CONFIG_ENABLE_PAUSE;
 		nes_write_indexed(nesdev,
-				NES_IDX_MAC_TX_CONFIG_ENABLE_PAUSE + (nesdev->mac_index*0x200), u32temp);
+				NES_IDX_MAC_TX_CONFIG + (nesdev->mac_index*0x200), u32temp);
 		nesdev->disable_tx_flow_control = 0;
 	} else if ((et_pauseparam->tx_pause == 0) && (nesdev->disable_tx_flow_control == 0)) {
 		u32temp = nes_read_indexed(nesdev,
 				NES_IDX_MAC_TX_CONFIG + (nesdev->mac_index*0x200));
 		u32temp &= ~NES_IDX_MAC_TX_CONFIG_ENABLE_PAUSE;
 		nes_write_indexed(nesdev,
-				NES_IDX_MAC_TX_CONFIG_ENABLE_PAUSE + (nesdev->mac_index*0x200), u32temp);
+				NES_IDX_MAC_TX_CONFIG + (nesdev->mac_index*0x200), u32temp);
 		nesdev->disable_tx_flow_control = 1;
 	}
 	if ((et_pauseparam->rx_pause == 1) && (nesdev->disable_rx_flow_control == 1)) {

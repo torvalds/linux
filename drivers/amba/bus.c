@@ -298,7 +298,7 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 
 		amba_put_disable_pclk(dev);
 
-		if (cid == 0xb105f00d)
+		if (cid == AMBA_CID)
 			dev->periphid = pid;
 
 		if (!dev->periphid)

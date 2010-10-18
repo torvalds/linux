@@ -126,7 +126,7 @@ static void snd_usb_stream_disconnect(struct list_head *head)
 	for (idx = 0; idx < 2; idx++) {
 		subs = &as->substream[idx];
 		if (!subs->num_formats)
-			return;
+			continue;
 		snd_usb_release_substream_urbs(subs, 1);
 		subs->interface = -1;
 	}
@@ -216,6 +216,11 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 	}
 
 	switch (protocol) {
+	default:
+		snd_printdd(KERN_WARNING "unknown interface protocol %#02x, assuming v1\n",
+			    protocol);
+		/* fall through */
+
 	case UAC_VERSION_1: {
 		struct uac1_ac_header_descriptor *h1 = control_header;
 
@@ -253,10 +258,6 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 
 		break;
 	}
-
-	default:
-		snd_printk(KERN_ERR "unknown protocol version 0x%02x\n", protocol);
-		return -EINVAL;
 	}
 
 	return 0;
@@ -465,7 +466,13 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 			goto __error;
 	}
 
-	chip->ctrl_intf = alts;
+	/*
+	 * For devices with more than one control interface, we assume the
+	 * first contains the audio controls. We might need a more specific
+	 * check here in the future.
+	 */
+	if (!chip->ctrl_intf)
+		chip->ctrl_intf = alts;
 
 	if (err > 0) {
 		/* create normal USB audio interfaces */

@@ -765,4 +765,7 @@ sys_call_table:
 	.long sys_set_thread_area
 	.long sys_atomic_cmpxchg_32	/* 335 */
 	.long sys_atomic_barrier
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64
 

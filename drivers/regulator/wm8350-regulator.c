@@ -1129,7 +1129,7 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 			mode = REGULATOR_MODE_NORMAL;
 	} else if (!active && !sleep)
 		mode = REGULATOR_MODE_IDLE;
-	else if (!sleep)
+	else if (sleep)
 		mode = REGULATOR_MODE_STANDBY;
 
 	return mode;

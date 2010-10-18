@@ -86,6 +86,9 @@ ENTRY(stext)
 	movs	r8, r5				@ invalid machine (r5=0)?
 	beq	__error_a			@ yes, error 'a'
 	bl	__vet_atags
+#ifdef CONFIG_SMP_ON_UP
+	bl	__fixup_smp
+#endif
 	bl	__create_page_tables
 
 	/*
@@ -332,5 +335,52 @@ __create_page_tables:
 	mov	pc, lr
 ENDPROC(__create_page_tables)
 	.ltorg
+
+#ifdef CONFIG_SMP_ON_UP
+__fixup_smp:
+	mov	r7, #0x00070000
+	orr	r6, r7, #0xff000000	@ mask 0xff070000
+	orr	r7, r7, #0x41000000	@ val 0x41070000
+	and	r0, r9, r6
+	teq	r0, r7			@ ARM CPU and ARMv6/v7?
+	bne	__fixup_smp_on_up	@ no, assume UP
+
+	orr	r6, r6, #0x0000ff00
+	orr	r6, r6, #0x000000f0	@ mask 0xff07fff0
+	orr	r7, r7, #0x0000b000
+	orr	r7, r7, #0x00000020	@ val 0x4107b020
+	and	r0, r9, r6
+	teq	r0, r7			@ ARM 11MPCore?
+	moveq	pc, lr			@ yes, assume SMP
+
+	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
+	tst	r0, #1 << 31
+	movne	pc, lr			@ bit 31 => SMP
+
+__fixup_smp_on_up:
+	adr	r0, 1f
+	ldmia	r0, {r3, r6, r7}
+	sub	r3, r0, r3
+	add	r6, r6, r3
+	add	r7, r7, r3
+2:	cmp	r6, r7
+	ldmia	r6!, {r0, r4}
+	strlo	r4, [r0, r3]
+	blo	2b
+	mov	pc, lr
+ENDPROC(__fixup_smp)
+
+1:	.word	.
+	.word	__smpalt_begin
+	.word	__smpalt_end
+
+	.pushsection .data
+	.globl	smp_on_up
+smp_on_up:
+	ALT_SMP(.long	1)
+	ALT_UP(.long	0)
+	.popsection
+
+#endif
 
 #include "head-common.S"

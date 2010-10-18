@@ -63,20 +63,20 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 	unsigned long flags;
 	bool ret = false;
 
-	rcu_read_lock_bh();
+	local_irq_save(flags);
 	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
 	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
 		goto out;
 
-	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	spin_lock(&npinfo->rx_lock);
 	/* check rx_flags again with the lock held */
 	if (npinfo->rx_flags && __netpoll_rx(skb))
 		ret = true;
-	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+	spin_unlock(&npinfo->rx_lock);
 
 out:
-	rcu_read_unlock_bh();
+	local_irq_restore(flags);
 	return ret;
 }
 

@@ -23,7 +23,7 @@
 
 #include "internal.h"
 
-#ifndef CONFIG_CRYPTO_MANAGER_TESTS
+#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 
 /* a perfect nop */
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
@@ -2542,6 +2542,6 @@ non_fips_alg:
 	return -EINVAL;
 }
 
-#endif /* CONFIG_CRYPTO_MANAGER_TESTS */
+#endif /* CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */
 
 EXPORT_SYMBOL_GPL(alg_test);

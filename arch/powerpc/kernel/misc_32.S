@@ -810,6 +810,9 @@ relocate_new_kernel:
 	isync
 	sync
 
+	mfspr	r3, SPRN_PIR /* current core we are running on */
+	mr	r4, r5 /* load physical address of chunk called */
+
 	/* jump to the entry point, usually the setup routine */
 	mtlr	r5
 	blrl

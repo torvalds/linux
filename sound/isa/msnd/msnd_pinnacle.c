@@ -764,9 +764,9 @@ static long io[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
 static long mem[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 
+#ifndef MSND_CLASSIC
 static long cfg[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 
-#ifndef MSND_CLASSIC
 /* Extra Peripheral Configuration (Default: Disable) */
 static long ide_io0[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static long ide_io1[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
@@ -894,7 +894,11 @@ static int __devinit snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 	struct snd_card *card;
 	struct snd_msnd *chip;
 
-	if (has_isapnp(idx) || cfg[idx] == SNDRV_AUTO_PORT) {
+	if (has_isapnp(idx)
+#ifndef MSND_CLASSIC
+	    || cfg[idx] == SNDRV_AUTO_PORT
+#endif
+	    ) {
 		printk(KERN_INFO LOGNAME ": Assuming PnP mode\n");
 		return -ENODEV;
 	}

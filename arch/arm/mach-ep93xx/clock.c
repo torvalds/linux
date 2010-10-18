@@ -560,4 +560,4 @@ static int __init ep93xx_clock_init(void)
 	clkdev_add_table(clocks, ARRAY_SIZE(clocks));
 	return 0;
 }
-arch_initcall(ep93xx_clock_init);
+postcore_initcall(ep93xx_clock_init);

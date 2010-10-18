@@ -312,8 +312,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	freqs.cpu = policy->cpu;
 
 	if (freq_debug)
-		pr_debug(KERN_INFO "Changing CPU frequency to %d Mhz, "
-			 "(SDRAM %d Mhz)\n",
+		pr_debug("Changing CPU frequency to %d Mhz, (SDRAM %d Mhz)\n",
 			 freqs.new / 1000, (pxa_freq_settings[idx].div2) ?
 			 (new_freq_mem / 2000) : (new_freq_mem / 1000));
 
@@ -398,7 +397,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
+static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int i;
 	unsigned int freq;

@@ -19,6 +19,8 @@ config ARM
 	select HAVE_KPROBES if (!XIP_KERNEL)
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
+	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
+	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
@@ -26,6 +28,7 @@ config ARM
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V7))
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -144,6 +147,9 @@ config ARCH_HAS_CPUFREQ
 	  Internal node to signify that the ARCH has CPUFREQ support
 	  and that the relevant menu configurations are displayed for
 	  it.
+
+config ARCH_HAS_CPU_IDLE_WAIT
+       def_bool y
 
 config GENERIC_HWEIGHT
 	bool
@@ -271,7 +277,6 @@ config ARCH_AT91
 	bool "Atmel AT91"
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
-	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
@@ -1003,7 +1008,7 @@ endif
 
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
-	depends on CPU_V6 && !SMP
+	depends on CPU_V6
 	help
 	  Invalidation of the Instruction Cache operation can
 	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
@@ -1050,6 +1055,32 @@ config ARM_ERRATA_460075
 	  workaround disables the write-allocate mode for the L2 cache via the
 	  ACTLR register. Note that setting specific bits in the ACTLR register
 	  may not be available in non-secure mode.
+
+config ARM_ERRATA_742230
+	bool "ARM errata: DMB operation may be faulty"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742230 Cortex-A9
+	  (r1p0..r2p2) erratum. Under rare circumstances, a DMB instruction
+	  between two write operations may not ensure the correct visibility
+	  ordering of the two writes. This workaround sets a specific bit in
+	  the diagnostic register of the Cortex-A9 which causes the DMB
+	  instruction to behave as a DSB, ensuring the correct behaviour of
+	  the two writes.
+
+config ARM_ERRATA_742231
+	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742231 Cortex-A9
+	  (r2p0..r2p2) erratum. Under certain conditions, specific to the
+	  Cortex-A9 MPCore micro-architecture, two CPUs working in SMP mode,
+	  accessing some data located in the same cache line, may get corrupted
+	  data due to bad handling of the address hazard when the line gets
+	  replaced from one of the CPUs at the same time as another CPU is
+	  accessing it. This workaround sets specific bits in the diagnostic
+	  register of the Cortex-A9 which reduces the linefill issuing
+	  capabilities of the processor.
 
 config PL310_ERRATA_588369
 	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
@@ -1142,13 +1173,13 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
-		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 ||\
-		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	depends on EXPERIMENTAL
 	depends on GENERIC_CLOCKEVENTS
+	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
+		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 ||\
+		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4
 	select USE_GENERIC_SMP_HELPERS
-	select HAVE_ARM_SCU if ARCH_REALVIEW || ARCH_OMAP4 || ARCH_S5PV310 ||\
-		 ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4
+	select HAVE_ARM_SCU
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1165,6 +1196,19 @@ config SMP
 	  <http://www.linuxdoc.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config SMP_ON_UP
+	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on SMP && !XIP && !THUMB2_KERNEL
+	default y
+	help
+	  SMP kernels contain instructions which fail on non-SMP processors.
+	  Enabling this option allows the kernel to modify itself to make
+	  these instructions safe.  Disabling it allows about 1K of space
+	  savings.
+
+	  If you don't know what to do here, say Y.
 
 config HAVE_ARM_SCU
 	bool
@@ -1216,12 +1260,9 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
-		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
-		ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	depends on SMP
 	default y
-	select HAVE_ARM_TWD if ARCH_REALVIEW || ARCH_OMAP4 || ARCH_S5PV310 || \
-		ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS
+	select HAVE_ARM_TWD
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1575,96 +1616,6 @@ config AUTO_ZRELADDR
 	  will be determined at run-time by masking the current IP with
 	  0xf8000000. This assumes the zImage being placed in the first 128MB
 	  from start of memory.
-
-config ZRELADDR
-	hex "Physical address of the decompressed kernel image"
-	depends on !AUTO_ZRELADDR
-	default 0x00008000 if ARCH_BCMRING ||\
-		ARCH_CNS3XXX ||\
-		ARCH_DOVE ||\
-		ARCH_EBSA110 ||\
-		ARCH_FOOTBRIDGE ||\
-		ARCH_INTEGRATOR ||\
-		ARCH_IOP13XX ||\
-		ARCH_IOP33X ||\
-		ARCH_IXP2000 ||\
-		ARCH_IXP23XX ||\
-		ARCH_IXP4XX ||\
-		ARCH_KIRKWOOD ||\
-		ARCH_KS8695 ||\
-		ARCH_LOKI ||\
-		ARCH_MMP ||\
-		ARCH_MV78XX0 ||\
-		ARCH_NOMADIK ||\
-		ARCH_NUC93X ||\
-		ARCH_NS9XXX ||\
-		ARCH_ORION5X ||\
-		ARCH_SPEAR3XX ||\
-		ARCH_SPEAR6XX ||\
-		ARCH_U8500 ||\
-		ARCH_VERSATILE ||\
-		ARCH_W90X900
-	default 0x08008000 if ARCH_MX1 ||\
-		ARCH_SHARK
-	default 0x10008000 if ARCH_MSM ||\
-		ARCH_OMAP1 ||\
-		ARCH_RPC
-	default 0x20008000 if ARCH_S5P6440 ||\
-		ARCH_S5P6442 ||\
-		ARCH_S5PC100 ||\
-		ARCH_S5PV210
-	default 0x30008000 if ARCH_S3C2410 ||\
-		ARCH_S3C2400 ||\
-		ARCH_S3C2412 ||\
-		ARCH_S3C2416 ||\
-		ARCH_S3C2440 ||\
-		ARCH_S3C2443
-	default 0x40008000 if ARCH_STMP378X ||\
-		ARCH_STMP37XX ||\
-		ARCH_SH7372 ||\
-		ARCH_SH7377 ||\
-		ARCH_S5PV310
-	default 0x50008000 if ARCH_S3C64XX ||\
-		ARCH_SH7367
-	default 0x60008000 if ARCH_VEXPRESS
-	default 0x80008000 if ARCH_MX25 ||\
-		ARCH_MX3 ||\
-		ARCH_NETX ||\
-		ARCH_OMAP2PLUS ||\
-		ARCH_PNX4008
-	default 0x90008000 if ARCH_MX5 ||\
-		ARCH_MX91231
-	default 0xa0008000 if ARCH_IOP32X ||\
-		ARCH_PXA ||\
-		MACH_MX27
-	default 0xc0008000 if ARCH_LH7A40X ||\
-		MACH_MX21
-	default 0xf0008000 if ARCH_AAEC2000 ||\
-		ARCH_L7200
-	default 0xc0028000 if ARCH_CLPS711X
-	default 0x70008000 if ARCH_AT91 && (ARCH_AT91CAP9 || ARCH_AT91SAM9G45)
-	default 0x20008000 if ARCH_AT91 && !(ARCH_AT91CAP9 || ARCH_AT91SAM9G45)
-	default 0xc0008000 if ARCH_DAVINCI && ARCH_DAVINCI_DA8XX
-	default 0x80008000 if ARCH_DAVINCI && !ARCH_DAVINCI_DA8XX
-	default 0x00008000 if ARCH_EP93XX && EP93XX_SDCE3_SYNC_PHYS_OFFSET
-	default 0xc0008000 if ARCH_EP93XX && EP93XX_SDCE0_PHYS_OFFSET
-	default 0xd0008000 if ARCH_EP93XX && EP93XX_SDCE1_PHYS_OFFSET
-	default 0xe0008000 if ARCH_EP93XX && EP93XX_SDCE2_PHYS_OFFSET
-	default 0xf0008000 if ARCH_EP93XX && EP93XX_SDCE3_ASYNC_PHYS_OFFSET
-	default 0x00008000 if ARCH_GEMINI && GEMINI_MEM_SWAP
-	default 0x10008000 if ARCH_GEMINI && !GEMINI_MEM_SWAP
-	default 0x70008000 if ARCH_REALVIEW && REALVIEW_HIGH_PHYS_OFFSET
-	default 0x00008000 if ARCH_REALVIEW && !REALVIEW_HIGH_PHYS_OFFSET
-	default 0xc0208000 if ARCH_SA1100 && SA1111
-	default 0xc0008000 if ARCH_SA1100 && !SA1111
-	default 0x30108000 if ARCH_S3C2410 && PM_H1940
-	default 0x28E08000 if ARCH_U300 && MACH_U300_SINGLE_RAM
-	default 0x48008000 if ARCH_U300 && !MACH_U300_SINGLE_RAM
-	help
-	  ZRELADDR is the physical address where the decompressed kernel
-	  image will be placed. ZRELADDR has to be specified when the
-	  assumption of AUTO_ZRELADDR is not valid, or when ZBOOT_ROM is
-	  selected.
 
 endmenu
 

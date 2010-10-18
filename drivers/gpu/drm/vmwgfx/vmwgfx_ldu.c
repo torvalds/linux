@@ -335,7 +335,8 @@ static void vmw_ldu_connector_restore(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-	vmw_ldu_connector_detect(struct drm_connector *connector)
+	vmw_ldu_connector_detect(struct drm_connector *connector,
+				 bool force)
 {
 	if (vmw_connector_to_ldu(connector)->pref_active)
 		return connector_status_connected;
@@ -516,7 +517,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
-	connector->status = vmw_ldu_connector_detect(connector);
+	connector->status = vmw_ldu_connector_detect(connector, true);
 
 	drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
 			 DRM_MODE_ENCODER_LVDS);
@@ -610,7 +611,7 @@ int vmw_kms_ldu_update_layout(struct vmw_private *dev_priv, unsigned num,
 			ldu->pref_height = 600;
 			ldu->pref_active = false;
 		}
-		con->status = vmw_ldu_connector_detect(con);
+		con->status = vmw_ldu_connector_detect(con, true);
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);

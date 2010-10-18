@@ -32,7 +32,7 @@
 
 #include "mach-smartq.h"
 
-static struct gpio_led smartq5_leds[] __initdata = {
+static struct gpio_led smartq5_leds[] = {
 	{
 		.name			= "smartq5:green",
 		.active_low		= 1,

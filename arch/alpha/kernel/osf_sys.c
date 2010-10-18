@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
@@ -69,7 +68,6 @@ SYSCALL_DEFINE4(osf_set_program_attributes, unsigned long, text_start,
 {
 	struct mm_struct *mm;
 
-	lock_kernel();
 	mm = current->mm;
 	mm->end_code = bss_start + bss_len;
 	mm->start_brk = bss_start + bss_len;
@@ -78,7 +76,6 @@ SYSCALL_DEFINE4(osf_set_program_attributes, unsigned long, text_start,
 	printk("set_program_attributes(%lx %lx %lx %lx)\n",
 		text_start, text_len, bss_start, bss_len);
 #endif
-	unlock_kernel();
 	return 0;
 }
 
@@ -517,7 +514,6 @@ SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
 	long error;
 	int __user *min_buf_size_ptr;
 
-	lock_kernel();
 	switch (code) {
 	case PL_SET:
 		if (get_user(error, &args->set.nbytes))
@@ -547,7 +543,6 @@ SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
 		error = -EOPNOTSUPP;
 		break;
 	};
-	unlock_kernel();
 	return error;
 }
 
@@ -594,7 +589,7 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 
 SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 {
-	char *sysinfo_table[] = {
+	const char *sysinfo_table[] = {
 		utsname()->sysname,
 		utsname()->nodename,
 		utsname()->release,
@@ -606,7 +601,7 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 		"dummy",	/* secure RPC domain */
 	};
 	unsigned long offset;
-	char *res;
+	const char *res;
 	long len, err = -EINVAL;
 
 	offset = command-1;

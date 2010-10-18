@@ -30,6 +30,21 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Shishkin");
 
+/*
+ * ETM tracer state
+ */
+struct tracectx {
+	unsigned int	etb_bufsz;
+	void __iomem	*etb_regs;
+	void __iomem	*etm_regs;
+	unsigned long	flags;
+	int		ncmppairs;
+	int		etm_portsz;
+	struct device	*dev;
+	struct clk	*emu_clk;
+	struct mutex	mutex;
+};
+
 static struct tracectx tracer;
 
 static inline bool trace_isrunning(struct tracectx *t)

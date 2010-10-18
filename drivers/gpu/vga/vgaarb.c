@@ -598,7 +598,7 @@ static inline void vga_update_device_decodes(struct vga_device *vgadev,
 	pr_debug("vgaarb: decoding count now is: %d\n", vga_decode_count);
 }
 
-void __vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes, bool userspace)
+static void __vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes, bool userspace)
 {
 	struct vga_device *vgadev;
 	unsigned long flags;

@@ -579,7 +579,7 @@ static int snd_ps3_delay_to_bytes(struct snd_pcm_substream *substream,
 				  rate * delay_ms / 1000)
 		* substream->runtime->channels;
 
-	pr_debug(KERN_ERR "%s: time=%d rate=%d bytes=%ld, frames=%d, ret=%d\n",
+	pr_debug("%s: time=%d rate=%d bytes=%ld, frames=%d, ret=%d\n",
 		 __func__,
 		 delay_ms,
 		 rate,

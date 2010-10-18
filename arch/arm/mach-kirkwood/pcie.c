@@ -117,7 +117,7 @@ static void __init pcie0_ioresources_init(struct pcie_port *pp)
 	 * IORESOURCE_IO
 	 */
 	pp->res[0].name = "PCIe 0 I/O Space";
-	pp->res[0].start = KIRKWOOD_PCIE_IO_PHYS_BASE;
+	pp->res[0].start = KIRKWOOD_PCIE_IO_BUS_BASE;
 	pp->res[0].end = pp->res[0].start + KIRKWOOD_PCIE_IO_SIZE - 1;
 	pp->res[0].flags = IORESOURCE_IO;
 
@@ -139,7 +139,7 @@ static void __init pcie1_ioresources_init(struct pcie_port *pp)
 	 * IORESOURCE_IO
 	 */
 	pp->res[0].name = "PCIe 1 I/O Space";
-	pp->res[0].start = KIRKWOOD_PCIE1_IO_PHYS_BASE;
+	pp->res[0].start = KIRKWOOD_PCIE1_IO_BUS_BASE;
 	pp->res[0].end = pp->res[0].start + KIRKWOOD_PCIE1_IO_SIZE - 1;
 	pp->res[0].flags = IORESOURCE_IO;
 

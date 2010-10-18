@@ -2284,7 +2284,7 @@ static unsigned int mv_qc_issue_fis(struct ata_queued_cmd *qc)
 	}
 
 	if (qc->tf.flags & ATA_TFLAG_POLLING)
-		ata_sff_queue_pio_task(ap, 0);
+		ata_sff_queue_pio_task(link, 0);
 	return 0;
 }
 

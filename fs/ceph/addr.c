@@ -411,8 +411,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	if (i_size < page_off + len)
 		len = i_size - page_off;
 
-	dout("writepage %p page %p index %lu on %llu~%u\n",
-	     inode, page, page->index, page_off, len);
+	dout("writepage %p page %p index %lu on %llu~%u snapc %p\n",
+	     inode, page, page->index, page_off, len, snapc);
 
 	writeback_stat = atomic_long_inc_return(&client->writeback_count);
 	if (writeback_stat >
@@ -766,7 +766,8 @@ get_more_pages:
 			/* ok */
 			if (locked_pages == 0) {
 				/* prepare async write request */
-				offset = page->index << PAGE_CACHE_SHIFT;
+				offset = (unsigned long long)page->index
+					<< PAGE_CACHE_SHIFT;
 				len = wsize;
 				req = ceph_osdc_new_request(&client->osdc,
 					    &ci->i_layout,

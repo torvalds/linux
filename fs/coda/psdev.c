@@ -184,8 +184,8 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	}
 
 	/* adjust outsize. is this useful ?? */
-        req->uc_outSize = nbytes;	
-        req->uc_flags |= REQ_WRITE;
+	req->uc_outSize = nbytes;
+	req->uc_flags |= CODA_REQ_WRITE;
 	count = nbytes;
 
 	/* Convert filedescriptor into a file handle */
