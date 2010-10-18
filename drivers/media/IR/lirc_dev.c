@@ -74,8 +74,6 @@ static struct class *lirc_class;
  */
 static void lirc_irctl_init(struct irctl *ir)
 {
-	dev_dbg(ir->d.dev, LOGHEAD "initializing irctl\n",
-		ir->d.name, ir->d.minor);
 	mutex_init(&ir->irctl_lock);
 	ir->d.minor = NOPLUG;
 }
@@ -205,6 +203,12 @@ int lirc_register_driver(struct lirc_driver *d)
 		goto out;
 	}
 
+	if (!d->dev) {
+		printk(KERN_ERR "%s: dev pointer not filled in!\n", __func__);
+		err = -EINVAL;
+		goto out;
+	}
+
 	if (MAX_IRCTL_DEVICES <= d->minor) {
 		dev_err(d->dev, "lirc_dev: lirc_register_driver: "
 			"\"minor\" must be between 0 and %d (%d)!\n",
@@ -319,7 +323,6 @@ int lirc_register_driver(struct lirc_driver *d)
 		d->features = LIRC_CAN_REC_LIRCCODE;
 
 	ir->d = *d;
-	ir->d.minor = minor;
 
 	device_create(lirc_class, ir->d.dev,
 		      MKDEV(MAJOR(lirc_base_dev), ir->d.minor), NULL,
@@ -474,11 +477,16 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 {
 	struct irctl *ir = irctls[iminor(inode)];
 
+	if (!ir) {
+		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
+		return -EINVAL;
+	}
+
 	dev_dbg(ir->d.dev, LOGHEAD "close called\n", ir->d.name, ir->d.minor);
 
 	WARN_ON(mutex_lock_killable(&lirc_dev_lock));
 
-	--ir->open;
+	ir->open--;
 	if (ir->attached) {
 		ir->d.set_use_dec(ir->d.data);
 		module_put(ir->cdev.owner);
@@ -498,6 +506,11 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 {
 	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
 	unsigned int ret;
+
+	if (!ir) {
+		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
+		return POLLERR;
+	}
 
 	dev_dbg(ir->d.dev, LOGHEAD "poll called\n", ir->d.name, ir->d.minor);
 
@@ -613,11 +626,20 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			  loff_t *ppos)
 {
 	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
-	unsigned char buf[ir->chunk_size];
+	unsigned char *buf;
 	int ret = 0, written = 0;
 	DECLARE_WAITQUEUE(wait, current);
 
+	if (!ir) {
+		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
+		return -ENODEV;
+	}
+
 	dev_dbg(ir->d.dev, LOGHEAD "read called\n", ir->d.name, ir->d.minor);
+
+	buf = kzalloc(ir->chunk_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	if (mutex_lock_interruptible(&ir->irctl_lock))
 		return -ERESTARTSYS;
@@ -690,6 +712,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 	mutex_unlock(&ir->irctl_lock);
 
 out_unlocked:
+	kfree(buf);
 	dev_dbg(ir->d.dev, LOGHEAD "read result = %s (%d)\n",
 		ir->d.name, ir->d.minor, ret ? "-EFAULT" : "OK", ret);
 
@@ -717,6 +740,11 @@ ssize_t lirc_dev_fop_write(struct file *file, const char *buffer,
 			   size_t length, loff_t *ppos)
 {
 	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
+
+	if (!ir) {
+		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
+		return -ENODEV;
+	}
 
 	dev_dbg(ir->d.dev, LOGHEAD "write called\n", ir->d.name, ir->d.minor);
 
