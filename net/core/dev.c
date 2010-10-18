@@ -5511,6 +5511,12 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
+	if (queue_count < 1) {
+		pr_err("alloc_netdev: Unable to allocate device "
+		       "with zero queues.\n");
+		return NULL;
+	}
+
 	alloc_size = sizeof(struct net_device);
 	if (sizeof_priv) {
 		/* ensure 32-byte alignment of private area */
