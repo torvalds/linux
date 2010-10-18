@@ -670,7 +670,7 @@ require use of the stronger protocol */
  *  GlobalMid_Lock protects:
  *	list operations on pending_mid_q and oplockQ
  *      updates to XID counters, multiplex id  and SMB sequence numbers
- *  GlobalSMBSesLock protects:
+ *  cifs_file_list_lock protects:
  *	list operations on tcp and SMB session lists and tCon lists
  *  f_owner.lock protects certain per file struct operations
  *  mapping->page_lock protects certain per page operations

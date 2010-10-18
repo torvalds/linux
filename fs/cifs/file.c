@@ -2291,7 +2291,7 @@ void cifs_oplock_break(struct work_struct *work)
 	/*
 	 * We might have kicked in before is_valid_oplock_break()
 	 * finished grabbing reference for us.  Make sure it's done by
-	 * waiting for GlobalSMSSeslock.
+	 * waiting for cifs_file_list_lock.
 	 */
 	spin_lock(&cifs_file_list_lock);
 	spin_unlock(&cifs_file_list_lock);
