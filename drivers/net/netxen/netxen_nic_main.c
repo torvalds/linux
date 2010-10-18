@@ -125,11 +125,6 @@ netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring)
 {
 	NXWRIO(adapter, tx_ring->crb_cmd_producer, tx_ring->producer);
-
-	if (netxen_tx_avail(tx_ring) <= TX_STOP_THRESH) {
-		netif_stop_queue(adapter->netdev);
-		smp_mb();
-	}
 }
 
 static uint32_t crb_cmd_consumer[4] = {
@@ -1209,7 +1204,7 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 		adapter->max_mc_count = 16;
 
 	netdev->netdev_ops	   = &netxen_netdev_ops;
-	netdev->watchdog_timeo     = 2*HZ;
+	netdev->watchdog_timeo     = 5*HZ;
 
 	netxen_nic_change_mtu(netdev, netdev->mtu);
 
@@ -1825,9 +1820,13 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2 > netxen_tx_avail(tx_ring))) {
+	if (unlikely(netxen_tx_avail(tx_ring) <= TX_STOP_THRESH)) {
 		netif_stop_queue(netdev);
-		return NETDEV_TX_BUSY;
+		smp_mb();
+		if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+			netif_start_queue(netdev);
+		else
+			return NETDEV_TX_BUSY;
 	}
 
 	producer = tx_ring->producer;
