@@ -191,13 +191,12 @@ struct ad7877 {
 	struct spi_message	msg;
 
 	struct mutex		mutex;
-	unsigned		disabled:1;	/* P: mutex */
-	unsigned		gpio3:1;	/* P: mutex */
-	unsigned		gpio4:1;	/* P: mutex */
+	bool			disabled;	/* P: mutex */
+	bool			gpio3;		/* P: mutex */
+	bool			gpio4;		/* P: mutex */
 
 	spinlock_t		lock;
 	struct timer_list	timer;		/* P: lock */
-	unsigned		pending:1;	/* P: lock */
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -333,7 +332,7 @@ static int ad7877_read_adc(struct spi_device *spi, unsigned command)
 	return status ? : sample;
 }
 
-static int ad7877_rx(struct ad7877 *ts)
+static int ad7877_process_data(struct ad7877 *ts)
 {
 	struct input_dev *input_dev = ts->input;
 	unsigned Rt;
@@ -374,6 +373,7 @@ static int ad7877_rx(struct ad7877 *ts)
 		input_report_abs(input_dev, ABS_Y, y);
 		input_report_abs(input_dev, ABS_PRESSURE, Rt);
 		input_sync(input_dev);
+
 		return 0;
 	}
 
@@ -392,45 +392,33 @@ static inline void ad7877_ts_event_release(struct ad7877 *ts)
 static void ad7877_timer(unsigned long handle)
 {
 	struct ad7877 *ts = (void *)handle;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ts->lock, flags);
 	ad7877_ts_event_release(ts);
+	spin_unlock_irqrestore(&ts->lock, flags);
 }
 
 static irqreturn_t ad7877_irq(int irq, void *handle)
 {
 	struct ad7877 *ts = handle;
 	unsigned long flags;
-	int status;
+	int error;
 
-	/*
-	 * The repeated conversion sequencer controlled by TMR kicked off
-	 * too fast. We ignore the last and process the sample sequence
-	 * currently in the queue. It can't be older than 9.4ms, and we
-	 * need to avoid that ts->msg doesn't get issued twice while in work.
-	 */
+	error = spi_sync(ts->spi, &ts->msg);
+	if (error) {
+		dev_err(&ts->spi->dev, "spi_sync --> %d\n", error);
+		goto out;
+	}
 
 	spin_lock_irqsave(&ts->lock, flags);
-	if (!ts->pending) {
-		ts->pending = 1;
-
-		status = spi_async(ts->spi, &ts->msg);
-		if (status)
-			dev_err(&ts->spi->dev, "spi_sync --> %d\n", status);
-	}
+	error = ad7877_process_data(ts);
+	if (!error)
+		mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
 	spin_unlock_irqrestore(&ts->lock, flags);
 
+out:
 	return IRQ_HANDLED;
-}
-
-static void ad7877_callback(void *_ts)
-{
-	struct ad7877 *ts = _ts;
-
-	spin_lock_irq(&ts->lock);
-	if (!ad7877_rx(ts))
-		mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
-	ts->pending = 0;
-	spin_unlock_irq(&ts->lock);
 }
 
 static void ad7877_disable(struct ad7877 *ts)
@@ -438,18 +426,15 @@ static void ad7877_disable(struct ad7877 *ts)
 	mutex_lock(&ts->mutex);
 
 	if (!ts->disabled) {
-		ts->disabled = 1;
+		ts->disabled = true;
 		disable_irq(ts->spi->irq);
-
-		/* Wait for spi_async callback */
-		while (ts->pending)
-			msleep(1);
 
 		if (del_timer_sync(&ts->timer))
 			ad7877_ts_event_release(ts);
 	}
 
-	/* we know the chip's in lowpower mode since we always
+	/*
+	 * We know the chip's in lowpower mode since we always
 	 * leave it that way after every request
 	 */
 
@@ -461,7 +446,7 @@ static void ad7877_enable(struct ad7877 *ts)
 	mutex_lock(&ts->mutex);
 
 	if (ts->disabled) {
-		ts->disabled = 0;
+		ts->disabled = false;
 		enable_irq(ts->spi->irq);
 	}
 
@@ -672,7 +657,6 @@ static void ad7877_setup_ts_def_msg(struct spi_device *spi, struct ad7877 *ts)
 
 	spi_message_init(m);
 
-	m->complete = ad7877_callback;
 	m->context = ts;
 
 	ts->xfer[0].tx_buf = &ts->cmd_crtl1;
@@ -795,8 +779,9 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 	/* Request AD7877 /DAV GPIO interrupt */
 
-	err = request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_FALLING,
-			spi->dev.driver->name, ts);
+	err = request_threaded_irq(spi->irq, NULL, ad7877_irq,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				   spi->dev.driver->name, ts);
 	if (err) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		goto err_free_mem;
