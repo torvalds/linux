@@ -198,5 +198,6 @@ static inline void serio_continue_rx(struct serio *serio)
 #define SERIO_W8001	0x39
 #define SERIO_DYNAPRO	0x3a
 #define SERIO_HAMPSHIRE	0x3b
+#define SERIO_PS2MULT	0x3c
 
 #endif
