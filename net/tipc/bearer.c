@@ -556,8 +556,6 @@ restart:
 	}
 
 	b_ptr = &tipc_bearers[bearer_id];
-	memset(b_ptr, 0, sizeof(struct bearer));
-
 	strcpy(b_ptr->publ.name, name);
 	res = m_ptr->enable_bearer(&b_ptr->publ);
 	if (res) {
