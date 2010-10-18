@@ -95,10 +95,7 @@ static unsigned fpos_off(loff_t p)
  */
 static int __dcache_readdir(struct file *filp,
 			    void *dirent, filldir_t filldir)
-		__releases(inode->i_lock)
-		__acquires(inode->i_lock)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
 	struct ceph_file_info *fi = filp->private_data;
 	struct dentry *parent = filp->f_dentry;
 	struct inode *dir = parent->d_inode;
@@ -154,7 +151,6 @@ more:
 
 	atomic_inc(&dentry->d_count);
 	spin_unlock(&dcache_lock);
-	spin_unlock(&inode->i_lock);
 
 	dout(" %llu (%llu) dentry %p %.*s %p\n", di->offset, filp->f_pos,
 	     dentry, dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
@@ -172,35 +168,30 @@ more:
 		} else {
 			dput(last);
 		}
-		last = NULL;
 	}
-
-	spin_lock(&inode->i_lock);
-	spin_lock(&dcache_lock);
-
 	last = dentry;
 
 	if (err < 0)
-		goto out_unlock;
+		goto out;
 
-	p = p->prev;
 	filp->f_pos++;
 
 	/* make sure a dentry wasn't dropped while we didn't have dcache_lock */
-	if ((ceph_inode(dir)->i_ceph_flags & CEPH_I_COMPLETE))
-		goto more;
-	dout(" lost I_COMPLETE on %p; falling back to mds\n", dir);
-	err = -EAGAIN;
+	if (!ceph_i_test(dir, CEPH_I_COMPLETE)) {
+		dout(" lost I_COMPLETE on %p; falling back to mds\n", dir);
+		err = -EAGAIN;
+		goto out;
+	}
+
+	spin_lock(&dcache_lock);
+	p = p->prev;	/* advance to next dentry */
+	goto more;
 
 out_unlock:
 	spin_unlock(&dcache_lock);
-
-	if (last) {
-		spin_unlock(&inode->i_lock);
+out:
+	if (last)
 		dput(last);
-		spin_lock(&inode->i_lock);
-	}
-
 	return err;
 }
 
@@ -272,13 +263,13 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	    ceph_snap(inode) != CEPH_SNAPDIR &&
 	    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
 	    __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1)) {
+		spin_unlock(&inode->i_lock);
 		err = __dcache_readdir(filp, dirent, filldir);
-		if (err != -EAGAIN) {
-			spin_unlock(&inode->i_lock);
+		if (err != -EAGAIN)
 			return err;
-		}
+	} else {
+		spin_unlock(&inode->i_lock);
 	}
-	spin_unlock(&inode->i_lock);
 	if (fi->dentry) {
 		err = note_last_dentry(fi, fi->dentry->d_name.name,
 				       fi->dentry->d_name.len);
