@@ -2452,11 +2452,11 @@ static void l2cap_add_conf_opt(void **ptr, u8 type, u8 len, unsigned long val)
 		break;
 
 	case 2:
-		put_unaligned_le16(cpu_to_le16(val), opt->val);
+		put_unaligned_le16(val, opt->val);
 		break;
 
 	case 4:
-		put_unaligned_le32(cpu_to_le32(val), opt->val);
+		put_unaligned_le32(val, opt->val);
 		break;
 
 	default:
