@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.3 2010/09/10 21:30:16 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.4 2010/09/22 21:21:15 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1909,6 +1909,9 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr)
 					__FUNCTION__, i, err));
 				return err;
 			}
+			else
+				DHD_ERROR(("%s set OK with PNO time=%d\n", __FUNCTION__, \
+								pfn_param.scan_freq));
 		}
 		else DHD_ERROR(("%s failed err=%d\n", __FUNCTION__, err));
 	}

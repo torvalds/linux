@@ -225,9 +225,9 @@ extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
 
 #define PNO_TLV_PREFIX			'S'
-#define PNO_TLV_VERSION			1
-#define PNO_TLV_SUBVERSION 		1
-#define PNO_TLV_RESERVED		0
+#define PNO_TLV_VERSION			'1'
+#define PNO_TLV_SUBVERSION 		'2'
+#define PNO_TLV_RESERVED		'0'
 #define PNO_TLV_TYPE_SSID_IE		'S'
 #define PNO_TLV_TYPE_TIME		'T'
 #define  PNO_EVENT_UP			"PNO_EVENT"
