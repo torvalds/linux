@@ -714,7 +714,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	if (!engine->graph.accel_blocked) {
 		nouveau_fence_fini(dev);
-		nouveau_channel_put(&dev_priv->channel);
+		nouveau_channel_put_unlocked(&dev_priv->channel);
 	}
 
 	if (!nouveau_noaccel) {
