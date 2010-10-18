@@ -2394,6 +2394,10 @@ jme_set_settings(struct net_device *netdev,
 	if (ecmd->speed == SPEED_1000 && ecmd->autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
 
+	/*
+	 * Check If user changed duplex only while force_media.
+	 * Hardware would not generate link change interrupt.
+	 */
 	if (jme->mii_if.force_media &&
 	ecmd->autoneg != AUTONEG_ENABLE &&
 	(jme->mii_if.full_duplex != ecmd->duplex))
@@ -2403,10 +2407,9 @@ jme_set_settings(struct net_device *netdev,
 	rc = mii_ethtool_sset(&(jme->mii_if), ecmd);
 	spin_unlock_bh(&jme->phy_lock);
 
-	if (!rc && fdc)
-		jme_reset_link(jme);
-
 	if (!rc) {
+		if (fdc)
+			jme_reset_link(jme);
 		set_bit(JME_FLAG_SSET, &jme->flags);
 		jme->old_ecmd = *ecmd;
 	}
