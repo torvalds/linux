@@ -3,4 +3,4 @@ config FSNOTIFY
 
 source "fs/notify/dnotify/Kconfig"
 source "fs/notify/inotify/Kconfig"
-source "fs/notify/fanotify/Kconfig"
+#source "fs/notify/fanotify/Kconfig"

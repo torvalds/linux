@@ -40,6 +40,11 @@ static char *mixer = HOSTAUDIO_DEV_MIXER;
 "    This is used to specify the host mixer device to the hostaudio driver.\n"\
 "    The default is \"" HOSTAUDIO_DEV_MIXER "\".\n\n"
 
+module_param(dsp, charp, 0644);
+MODULE_PARM_DESC(dsp, DSP_HELP);
+module_param(mixer, charp, 0644);
+MODULE_PARM_DESC(mixer, MIXER_HELP);
+
 #ifndef MODULE
 static int set_dsp(char *name, int *add)
 {
@@ -56,15 +61,6 @@ static int set_mixer(char *name, int *add)
 }
 
 __uml_setup("mixer=", set_mixer, "mixer=<mixer device>\n" MIXER_HELP);
-
-#else /*MODULE*/
-
-module_param(dsp, charp, 0644);
-MODULE_PARM_DESC(dsp, DSP_HELP);
-
-module_param(mixer, charp, 0644);
-MODULE_PARM_DESC(mixer, MIXER_HELP);
-
 #endif
 
 /* /dev/dsp file operations */

@@ -1137,7 +1137,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 		WREG32(RCU_IND_INDEX, 0x203);
 		efuse_straps_3 = RREG32(RCU_IND_DATA);
-		efuse_box_bit_127_124 = (u8)(efuse_straps_3 & 0xF0000000) >> 28;
+		efuse_box_bit_127_124 = (u8)((efuse_straps_3 & 0xF0000000) >> 28);
 
 		switch(efuse_box_bit_127_124) {
 		case 0x0:
@@ -1407,6 +1407,7 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
@@ -1520,7 +1521,7 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 {
 	u32 tmp;
 
-	WREG32(CP_INT_CNTL, 0);
+	WREG32(CP_INT_CNTL, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 	WREG32(GRBM_INT_CNTL, 0);
 	WREG32(INT_MASK + EVERGREEN_CRTC0_REGISTER_OFFSET, 0);
 	WREG32(INT_MASK + EVERGREEN_CRTC1_REGISTER_OFFSET, 0);

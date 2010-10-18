@@ -1558,39 +1558,39 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev)
 		switch (tv_info->ucTV_BootUpDefaultStandard) {
 		case ATOM_TV_NTSC:
 			tv_std = TV_STD_NTSC;
-			DRM_INFO("Default TV standard: NTSC\n");
+			DRM_DEBUG_KMS("Default TV standard: NTSC\n");
 			break;
 		case ATOM_TV_NTSCJ:
 			tv_std = TV_STD_NTSC_J;
-			DRM_INFO("Default TV standard: NTSC-J\n");
+			DRM_DEBUG_KMS("Default TV standard: NTSC-J\n");
 			break;
 		case ATOM_TV_PAL:
 			tv_std = TV_STD_PAL;
-			DRM_INFO("Default TV standard: PAL\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL\n");
 			break;
 		case ATOM_TV_PALM:
 			tv_std = TV_STD_PAL_M;
-			DRM_INFO("Default TV standard: PAL-M\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-M\n");
 			break;
 		case ATOM_TV_PALN:
 			tv_std = TV_STD_PAL_N;
-			DRM_INFO("Default TV standard: PAL-N\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-N\n");
 			break;
 		case ATOM_TV_PALCN:
 			tv_std = TV_STD_PAL_CN;
-			DRM_INFO("Default TV standard: PAL-CN\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-CN\n");
 			break;
 		case ATOM_TV_PAL60:
 			tv_std = TV_STD_PAL_60;
-			DRM_INFO("Default TV standard: PAL-60\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-60\n");
 			break;
 		case ATOM_TV_SECAM:
 			tv_std = TV_STD_SECAM;
-			DRM_INFO("Default TV standard: SECAM\n");
+			DRM_DEBUG_KMS("Default TV standard: SECAM\n");
 			break;
 		default:
 			tv_std = TV_STD_NTSC;
-			DRM_INFO("Unknown TV standard; defaulting to NTSC\n");
+			DRM_DEBUG_KMS("Unknown TV standard; defaulting to NTSC\n");
 			break;
 		}
 	}

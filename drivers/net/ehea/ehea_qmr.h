@@ -150,6 +150,7 @@ struct ehea_rwqe {
 #define EHEA_CQE_TYPE_RQ           0x60
 #define EHEA_CQE_STAT_ERR_MASK     0x700F
 #define EHEA_CQE_STAT_FAT_ERR_MASK 0xF
+#define EHEA_CQE_BLIND_CKSUM       0x8000
 #define EHEA_CQE_STAT_ERR_TCP      0x4000
 #define EHEA_CQE_STAT_ERR_IP       0x2000
 #define EHEA_CQE_STAT_ERR_CRC      0x1000
