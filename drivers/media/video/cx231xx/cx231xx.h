@@ -953,10 +953,6 @@ extern struct usb_device_id cx231xx_id_table[];
 extern const unsigned int cx231xx_bcount;
 int cx231xx_tuner_callback(void *ptr, int component, int command, int arg);
 
-/* Provided by cx231xx-input.c */
-int cx231xx_ir_init(struct cx231xx *dev);
-int cx231xx_ir_fini(struct cx231xx *dev);
-
 /* cx23885-417.c                                               */
 extern int cx231xx_417_register(struct cx231xx *dev);
 extern void cx231xx_417_unregister(struct cx231xx *dev);

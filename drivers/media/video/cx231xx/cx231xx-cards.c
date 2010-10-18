@@ -578,11 +578,6 @@ void cx231xx_card_setup(struct cx231xx *dev)
 		else
 			cx231xx_config_tuner(dev);
 	}
-
-#if 0
-	/* TBD  IR will be added later */
-	cx231xx_ir_init(dev);
-#endif
 }
 
 /*
@@ -616,12 +611,6 @@ void cx231xx_config_i2c(struct cx231xx *dev)
 */
 void cx231xx_release_resources(struct cx231xx *dev)
 {
-
-#if 0		/* TBD IR related  */
-	if (dev->ir)
-		cx231xx_ir_fini(dev);
-#endif
-
 	cx231xx_release_analog_resources(dev);
 
 	cx231xx_remove_from_devlist(dev);
