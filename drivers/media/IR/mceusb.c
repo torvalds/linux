@@ -104,6 +104,7 @@ static int debug;
 #define VENDOR_NORTHSTAR	0x04eb
 #define VENDOR_REALTEK		0x0bda
 #define VENDOR_TIVO		0x105a
+#define VENDOR_CONEXANT		0x0572
 
 static struct usb_device_id mceusb_dev_table[] = {
 	/* Original Microsoft MCE IR Transceiver (often HP-branded) */
@@ -198,6 +199,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_NORTHSTAR, 0xe004) },
 	/* TiVo PC IR Receiver */
 	{ USB_DEVICE(VENDOR_TIVO, 0x2000) },
+	/* Conexant SDK */
+	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a1) },
 	/* Terminating entry */
 	{ }
 };
@@ -226,6 +229,11 @@ static struct usb_device_id std_tx_mask_list[] = {
 	{ USB_DEVICE(VENDOR_TOPSEED, 0x000a) },
 	{ USB_DEVICE(VENDOR_TOPSEED, 0x0011) },
 	{ USB_DEVICE(VENDOR_PINNACLE, 0x0225) },
+	{}
+};
+
+static struct usb_device_id cx_polaris_list[] = {
+	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a1) },
 	{}
 };
 
@@ -929,6 +937,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	bool is_gen3;
 	bool is_microsoft_gen1;
 	bool tx_mask_inverted;
+	bool is_polaris;
 
 	dev_dbg(&intf->dev, ": %s called\n", __func__);
 
@@ -937,6 +946,13 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	is_gen3 = usb_match_id(intf, gen3_list) ? 1 : 0;
 	is_microsoft_gen1 = usb_match_id(intf, microsoft_gen1_list) ? 1 : 0;
 	tx_mask_inverted = usb_match_id(intf, std_tx_mask_list) ? 0 : 1;
+	is_polaris = usb_match_id(intf, cx_polaris_list) ? 1 : 0;
+
+	if (is_polaris) {
+		/* Interface 0 is IR */
+		if (idesc->desc.bInterfaceNumber)
+			return -ENODEV;
+	}
 
 	/* step through the endpoints to find first bulk in and out endpoint */
 	for (i = 0; i < idesc->desc.bNumEndpoints; ++i) {
