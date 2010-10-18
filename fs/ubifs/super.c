@@ -1686,10 +1686,8 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 
 	dbg_save_space_info(c);
 
-	for (i = 0; i < c->jhead_cnt; i++) {
+	for (i = 0; i < c->jhead_cnt; i++)
 		ubifs_wbuf_sync(&c->jheads[i].wbuf);
-		hrtimer_cancel(&c->jheads[i].wbuf.timer);
-	}
 
 	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
 	c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
@@ -1754,9 +1752,8 @@ static void ubifs_put_super(struct super_block *sb)
 			int err;
 
 			/* Synchronize write-buffers */
-			if (c->jheads)
-				for (i = 0; i < c->jhead_cnt; i++)
-					ubifs_wbuf_sync(&c->jheads[i].wbuf);
+			for (i = 0; i < c->jhead_cnt; i++)
+				ubifs_wbuf_sync(&c->jheads[i].wbuf);
 
 			/*
 			 * We are being cleanly unmounted which means the
