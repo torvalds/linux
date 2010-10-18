@@ -4666,7 +4666,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 				       desc_idx, *post_ptr);
 		drop_it_no_recycle:
 			/* Other statistics kept track of by card. */
-			tp->net_stats.rx_dropped++;
+			tp->rx_dropped++;
 			goto next_pkt;
 		}
 
@@ -4726,7 +4726,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		if (len > (tp->dev->mtu + ETH_HLEN) &&
 		    skb->protocol != htons(ETH_P_8021Q)) {
 			dev_kfree_skb(skb);
-			goto next_pkt;
+			goto drop_it_no_recycle;
 		}
 
 		if (desc->type_flags & RXD_FLAG_VLAN &&
@@ -9239,6 +9239,8 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 
 	stats->rx_missed_errors = old_stats->rx_missed_errors +
 		get_stat64(&hw_stats->rx_discards);
+
+	stats->rx_dropped = tp->rx_dropped;
 
 	return stats;
 }

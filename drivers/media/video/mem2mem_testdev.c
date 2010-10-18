@@ -239,7 +239,7 @@ static int device_process(struct m2mtest_ctx *ctx,
 		return -EFAULT;
 	}
 
-	if (in_buf->vb.size < out_buf->vb.size) {
+	if (in_buf->vb.size > out_buf->vb.size) {
 		v4l2_err(&dev->v4l2_dev, "Output buffer is too small\n");
 		return -EINVAL;
 	}
@@ -1014,6 +1014,7 @@ static int m2mtest_remove(struct platform_device *pdev)
 	v4l2_m2m_release(dev->m2m_dev);
 	del_timer_sync(&dev->timer);
 	video_unregister_device(dev->vfd);
+	video_device_release(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 

@@ -298,8 +298,8 @@ static void set_dma_control0(struct pxa168fb_info *fbi)
 	 * Set bit to enable graphics DMA.
 	 */
 	x = readl(fbi->reg_base + LCD_SPU_DMA_CTRL0);
-	x |= fbi->active ? 0x00000100 : 0;
-	fbi->active = 0;
+	x &= ~CFG_GRA_ENA_MASK;
+	x |= fbi->active ? CFG_GRA_ENA(1) : CFG_GRA_ENA(0);
 
 	/*
 	 * If we are in a pseudo-color mode, we need to enable
