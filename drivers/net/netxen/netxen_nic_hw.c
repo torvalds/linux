@@ -1822,13 +1822,13 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	if (netxen_rom_fast_read(adapter, offset, &board_type))
 		return -EIO;
 
-	adapter->ahw.board_type = board_type;
-
 	if (board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
 		u32 gpio = NXRD32(adapter, NETXEN_ROMUSB_GLB_PAD_GPIO_I);
 		if ((gpio & 0x8000) == 0)
 			board_type = NETXEN_BRDTYPE_P3_10G_TP;
 	}
+
+	adapter->ahw.board_type = board_type;
 
 	switch (board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
