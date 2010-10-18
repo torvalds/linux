@@ -334,6 +334,7 @@ static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
 			(OIER & OIER_E1) ? "yes" : "no");
 	seq_printf(seq, "periodic_freq\t: %ld\n", rtc_freq);
+	seq_printf(seq, "RTSR\t\t: 0x%08x\n", (u32)RTSR);
 
 	return 0;
 }
