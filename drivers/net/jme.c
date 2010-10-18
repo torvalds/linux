@@ -989,6 +989,7 @@ jme_process_receive(struct jme_adapter *jme, int limit)
 			goto out;
 		--limit;
 
+		rmb();
 		desccnt = rxdesc->descwb.desccnt & RXWBDCNT_DCNT;
 
 		if (unlikely(desccnt > 1 ||
