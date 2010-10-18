@@ -381,25 +381,6 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 				struct ieee80211_tx_rate *rate);
 
-static inline int8_t median(int8_t a, int8_t b, int8_t c)
-{
-	if (a >= b) {
-		if (b >= c)
-			return b;
-		else if (a > c)
-			return c;
-		else
-			return a;
-	} else {
-		if (a >= c)
-			return a;
-		else if (b >= c)
-			return c;
-		else
-			return b;
-	}
-}
-
 static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 				   struct ath_rate_priv *ath_rc_priv)
 {
