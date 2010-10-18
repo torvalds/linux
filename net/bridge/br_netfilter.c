@@ -215,7 +215,7 @@ static inline void nf_bridge_update_protocol(struct sk_buff *skb)
  * expected format
  */
 
-int br_parse_ip_options(struct sk_buff *skb)
+static int br_parse_ip_options(struct sk_buff *skb)
 {
 	struct ip_options *opt;
 	struct iphdr *iph;
