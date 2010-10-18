@@ -1,5 +1,5 @@
 /*
- * drivers/sh/clk.c - SuperH clock framework
+ * SuperH clock framework
  *
  *  Copyright (C) 2005 - 2010  Paul Mundt
  *

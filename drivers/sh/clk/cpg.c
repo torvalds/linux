@@ -1,3 +1,12 @@
+/*
+ * Helper routines for SuperH Clock Pulse Generator blocks (CPG).
+ *
+ *  Copyright (C) 2010  Magnus Damm
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ */
 #include <linux/clk.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
