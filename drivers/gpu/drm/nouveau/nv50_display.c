@@ -218,9 +218,9 @@ nv50_display_init(struct drm_device *dev)
 	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_channel *evo = dev_priv->evo;
 	struct drm_connector *connector;
-	uint32_t val, ram_amount;
-	uint64_t start;
 	int ret, i;
+	u64 start;
+	u32 val;
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -261,17 +261,6 @@ nv50_display_init(struct drm_device *dev)
 			NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING);
 		nv_wr32(dev, NV50_PDISPLAY_DAC_CLK_CTRL1(i), 0x00000001);
 	}
-
-	/* This used to be in crtc unblank, but seems out of place there. */
-	nv_wr32(dev, NV50_PDISPLAY_UNK_380, 0);
-	/* RAM is clamped to 256 MiB. */
-	ram_amount = dev_priv->vram_size;
-	NV_DEBUG_KMS(dev, "ram_amount %d\n", ram_amount);
-	if (ram_amount > 256*1024*1024)
-		ram_amount = 256*1024*1024;
-	nv_wr32(dev, NV50_PDISPLAY_RAM_AMOUNT, ram_amount - 1);
-	nv_wr32(dev, NV50_PDISPLAY_UNK_388, 0x150000);
-	nv_wr32(dev, NV50_PDISPLAY_UNK_38C, 0);
 
 	/* The precise purpose is unknown, i suspect it has something to do
 	 * with text mode.
