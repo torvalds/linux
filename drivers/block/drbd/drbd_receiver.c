@@ -1995,10 +1995,11 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 		break;
 	}
 
-	if (mdev->state.pdsk == D_DISKLESS) {
+	if (mdev->state.pdsk < D_INCONSISTENT) {
 		/* In case we have the only disk of the cluster, */
 		drbd_set_out_of_sync(mdev, e->sector, e->size);
 		e->flags |= EE_CALL_AL_COMPLETE_IO;
+		e->flags &= ~EE_MAY_SET_IN_SYNC;
 		drbd_al_begin_io(mdev, e->sector);
 	}
 

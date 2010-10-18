@@ -284,18 +284,32 @@ w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	u32 xor_sum = 0;
 
 	if (!get_ldev(mdev)) {
-		dev_err(DEV, "get_ldev() failed in w_al_write_transaction\n");
+		dev_err(DEV,
+			"disk is %s, cannot start al transaction (-%d +%d)\n",
+			drbd_disk_str(mdev->state.disk), evicted, new_enr);
 		complete(&((struct update_al_work *)w)->event);
 		return 1;
 	}
 	/* do we have to do a bitmap write, first?
 	 * TODO reduce maximum latency:
 	 * submit both bios, then wait for both,
-	 * instead of doing two synchronous sector writes. */
+	 * instead of doing two synchronous sector writes.
+	 * For now, we must not write the transaction,
+	 * if we cannot write out the bitmap of the evicted extent. */
 	if (mdev->state.conn < C_CONNECTED && evicted != LC_FREE)
 		drbd_bm_write_sect(mdev, evicted/AL_EXT_PER_BM_SECT);
 
-	mutex_lock(&mdev->md_io_mutex); /* protects md_io_page, al_tr_cycle, ... */
+	/* The bitmap write may have failed, causing a state change. */
+	if (mdev->state.disk < D_INCONSISTENT) {
+		dev_err(DEV,
+			"disk is %s, cannot write al transaction (-%d +%d)\n",
+			drbd_disk_str(mdev->state.disk), evicted, new_enr);
+		complete(&((struct update_al_work *)w)->event);
+		put_ldev(mdev);
+		return 1;
+	}
+
+	mutex_lock(&mdev->md_io_mutex); /* protects md_io_buffer, al_tr_cycle, ... */
 	buffer = (struct al_transaction *)page_address(mdev->md_io_page);
 
 	buffer->magic = __constant_cpu_to_be32(DRBD_MAGIC);
@@ -739,7 +753,7 @@ void drbd_al_apply_to_bm(struct drbd_conf *mdev)
 	unsigned int enr;
 	unsigned long add = 0;
 	char ppb[10];
-	int i;
+	int i, tmp;
 
 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
 
@@ -747,7 +761,9 @@ void drbd_al_apply_to_bm(struct drbd_conf *mdev)
 		enr = lc_element_by_index(mdev->act_log, i)->lc_number;
 		if (enr == LC_FREE)
 			continue;
-		add += drbd_bm_ALe_set_all(mdev, enr);
+		tmp = drbd_bm_ALe_set_all(mdev, enr);
+		dynamic_dev_dbg(DEV, "AL: set %d bits in extent %u\n", tmp, enr);
+		add += tmp;
 	}
 
 	lc_unlock(mdev->act_log);

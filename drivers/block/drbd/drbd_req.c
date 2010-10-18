@@ -942,12 +942,21 @@ allocate_barrier:
 	if (local) {
 		req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
 
-		if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
-				     : rw == READ  ? DRBD_FAULT_DT_RD
-				     :               DRBD_FAULT_DT_RA))
+		/* State may have changed since we grabbed our reference on the
+		 * mdev->ldev member. Double check, and short-circuit to endio.
+		 * In case the last activity log transaction failed to get on
+		 * stable storage, and this is a WRITE, we may not even submit
+		 * this bio. */
+		if (get_ldev(mdev)) {
+			if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
+					     : rw == READ  ? DRBD_FAULT_DT_RD
+					     :               DRBD_FAULT_DT_RA))
+				bio_endio(req->private_bio, -EIO);
+			else
+				generic_make_request(req->private_bio);
+			put_ldev(mdev);
+		} else
 			bio_endio(req->private_bio, -EIO);
-		else
-			generic_make_request(req->private_bio);
 	}
 
 	/* we need to plug ALWAYS since we possibly need to kick lo_dev.
