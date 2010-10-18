@@ -41,6 +41,7 @@
 #include "cx88.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -977,6 +978,7 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 	const struct cx88_ctrl *c = NULL;
 	u32 value,mask;
 	int i;
+	struct v4l2_control client_ctl;
 
 	for (i = 0; i < CX8800_CTLS; i++) {
 		if (cx8800_ctls[i].v.id == ctl->id) {
@@ -990,6 +992,27 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		ctl->value = c->v.minimum;
 	if (ctl->value > c->v.maximum)
 		ctl->value = c->v.maximum;
+
+	/* Pass changes onto any WM8775 */
+	client_ctl.id = ctl->id;
+	switch (ctl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		client_ctl.value = ctl->value;
+		break;
+	case V4L2_CID_AUDIO_VOLUME:
+		client_ctl.value = (ctl->value) ?
+			(0x90 + ctl->value) << 8 : 0;
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		client_ctl.value = ctl->value << 9;
+		break;
+	default:
+		client_ctl.id = 0;
+		break;
+	}
+	if (client_ctl.id)
+		call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
+
 	mask=c->mask;
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
@@ -1536,7 +1559,9 @@ static int radio_queryctrl (struct file *file, void *priv,
 	if (c->id <  V4L2_CID_BASE ||
 		c->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE) {
+	if (c->id == V4L2_CID_AUDIO_MUTE ||
+		c->id == V4L2_CID_AUDIO_VOLUME ||
+		c->id == V4L2_CID_AUDIO_BALANCE) {
 		for (i = 0; i < CX8800_CTLS; i++) {
 			if (cx8800_ctls[i].v.id == c->id)
 				break;
