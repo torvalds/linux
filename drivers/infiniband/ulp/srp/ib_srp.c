@@ -1442,6 +1442,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 static int srp_send_tsk_mgmt(struct srp_target_port *target,
 			     struct srp_request *req, u8 func)
 {
+	struct ib_device *dev = target->srp_host->srp_dev->dev;
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
 
@@ -1459,6 +1460,8 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 	if (!iu)
 		goto out;
 
+	ib_dma_sync_single_for_cpu(dev, iu->dma, sizeof *tsk_mgmt,
+				   DMA_TO_DEVICE);
 	tsk_mgmt = iu->buf;
 	memset(tsk_mgmt, 0, sizeof *tsk_mgmt);
 
@@ -1468,6 +1471,8 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 	tsk_mgmt->tsk_mgmt_func = func;
 	tsk_mgmt->task_tag 	= req->index;
 
+	ib_dma_sync_single_for_device(dev, iu->dma, sizeof *tsk_mgmt,
+				      DMA_TO_DEVICE);
 	if (__srp_post_send(target, iu, sizeof *tsk_mgmt))
 		goto out;
 
