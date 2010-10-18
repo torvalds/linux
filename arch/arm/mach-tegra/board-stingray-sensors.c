@@ -26,6 +26,7 @@
 #include <linux/led-lm3559.h>
 #include <linux/max9635.h>
 #include <linux/moto_bmp085.h>
+#include <linux/cap_prox.h>
 #include <media/ov5650.h>
 #include <media/soc2030.h>
 #include <linux/platform_device.h>
@@ -47,6 +48,7 @@
 #define OV5650_PWRDN_GPIO	TEGRA_GPIO_PBB1
 #define SOC2030_RESETN_GPIO	TEGRA_GPIO_PD5
 #define SOC2030_PWRDN_GPIO	TEGRA_GPIO_PBB5
+#define CAP_PROX_IRQ_GPIO	TEGRA_GPIO_PZ3
 
 static int stingray_ov5650_power_on(void)
 {
@@ -221,6 +223,44 @@ static void stingray_kxtf9_init(void)
 	gpio_direction_input(KXTF9_IRQ_GPIO);
 }
 
+struct cap_prox_platform_data stingray_cap_prox_pdata = {
+	.poll_interval			= 10000,
+	.min_poll_interval		= 200,
+	.key1_ref_drift_thres_l		= 5,
+	.key3_ref_drift_thres_l		= 5,
+	.key1_ref_drift_thres_h		= 30,
+	.key3_ref_drift_thres_h 	= 30,
+	.ref_drift_diff_thres 		= 9,
+	.key1_save_drift_thres 		= 90,
+	.key3_save_drift_thres 		= 110,
+	.save_drift_diff_thres 		= 24,
+	.plat_cap_prox_cfg = {
+		.lp_mode		= 0x00,
+		.address_ptr		= 0x10,
+		.reset			= 0x20,
+		.key_enable_mask 	= 0x3F,
+		.data_integration 	= 0x40,
+		.neg_drift_rate		= 0x50,
+		.pos_drift_rate		= 0x60,
+		.force_detect		= 0x75,
+		.calibrate		= 0x80,
+		.thres_key1		= 0x92,
+		.ref_backup		= 0xaa,
+		.thres_key2		= 0xb2,
+		.reserved12		= 0xc0,
+		.drift_hold_time	= 0xd0,
+		.reserved14		= 0xe0,
+		.reserved15		= 0xf0,
+	},
+};
+
+static void stingray_cap_prox_init(void)
+{
+	tegra_gpio_enable(CAP_PROX_IRQ_GPIO);
+	gpio_request(CAP_PROX_IRQ_GPIO, "cap_prox_irq");
+	gpio_direction_input(CAP_PROX_IRQ_GPIO);
+}
+
 struct max9635_platform_data stingray_max9635_pdata = {
 	.configure = 0x80,
 	.threshold_timer = 0x19,
@@ -316,6 +356,11 @@ static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("nct1008", 0x4C),
 	},
+	{
+		I2C_BOARD_INFO("cap-prox", 0x12),
+		.platform_data = &stingray_cap_prox_pdata,
+		.irq = TEGRA_GPIO_TO_IRQ(CAP_PROX_IRQ_GPIO),
+	},
 };
 
 static struct i2c_board_info __initdata stingray_i2c_bus1_sensor_info[] = {
@@ -368,6 +413,7 @@ int __init stingray_sensors_init(void)
 	stingray_lm3559_init();
 	stingray_ov5650_init();
 	stingray_soc2030_init();
+	stingray_cap_prox_init();
 
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
