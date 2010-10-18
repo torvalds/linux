@@ -347,7 +347,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 				if (current_fsuid() != treeCon->ses->linux_uid) {
 					cFYI(1, "Multiuser mode and UID "
 						 "did not match tcon uid");
-					read_lock(&cifs_tcp_ses_lock);
+					spin_lock(&cifs_tcp_ses_lock);
 					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
 						ses = list_entry(temp_item, struct cifsSesInfo, smb_ses_list);
 						if (ses->linux_uid == current_fsuid()) {
@@ -361,7 +361,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 							}
 						}
 					}
-					read_unlock(&cifs_tcp_ses_lock);
+					spin_unlock(&cifs_tcp_ses_lock);
 				}
 			}
 		}
@@ -551,7 +551,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 		return false;
 
 	/* look up tcon based on tid & uid */
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &srv->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
 		list_for_each(tmp1, &ses->tcon_list) {
@@ -573,7 +573,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				 */
 				if (netfile->closePend) {
 					spin_unlock(&cifs_file_list_lock);
-					read_unlock(&cifs_tcp_ses_lock);
+					spin_unlock(&cifs_tcp_ses_lock);
 					return true;
 				}
 
@@ -595,16 +595,16 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				netfile->oplock_break_cancelled = false;
 
 				spin_unlock(&cifs_file_list_lock);
-				read_unlock(&cifs_tcp_ses_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
 				return true;
 			}
 			spin_unlock(&cifs_file_list_lock);
-			read_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			cFYI(1, "No matching file for oplock break");
 			return true;
 		}
 	}
-	read_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	cFYI(1, "Can not process oplock break for non-existent connection");
 	return true;
 }

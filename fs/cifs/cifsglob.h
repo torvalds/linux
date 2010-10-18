@@ -703,7 +703,7 @@ GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
  * the reference counters for the server, smb session, and tcon. Finally,
  * changes to the tcon->tidStatus should be done while holding this lock.
  */
-GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
+GLOBAL_EXTERN spinlock_t		cifs_tcp_ses_lock;
 
 /*
  * This lock protects the cifs_file->llist and cifs_file->flist

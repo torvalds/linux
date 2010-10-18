@@ -80,7 +80,7 @@ static __le16 get_next_vcnum(struct cifsSesInfo *ses)
 	if (max_vcs < 2)
 		max_vcs = 0xFFFF;
 
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	if ((ses->need_reconnect) && is_first_ses_reconnect(ses))
 			goto get_vc_num_exit;  /* vcnum will be zero */
 	for (i = ses->server->srv_count - 1; i < max_vcs; i++) {
@@ -112,7 +112,7 @@ static __le16 get_next_vcnum(struct cifsSesInfo *ses)
 		vcnum = i;
 	ses->vcnum = vcnum;
 get_vc_num_exit:
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	return cpu_to_le16(vcnum);
 }

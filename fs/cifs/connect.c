@@ -150,7 +150,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 	/* before reconnecting the tcp session, mark the smb session (uid)
 		and the tid bad so they are not used until reconnected */
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
 		ses->need_reconnect = true;
@@ -160,7 +160,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			tcon->need_reconnect = true;
 		}
 	}
-	read_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	/* do not want to be sending data on a socket we are freeing */
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
@@ -637,9 +637,9 @@ multi_t2_fnd:
 	} /* end while !EXITING */
 
 	/* take it off the list, if it's not already */
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_del_init(&server->tcp_ses_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
@@ -677,7 +677,7 @@ multi_t2_fnd:
 	 * BB: we shouldn't have to do any of this. It shouldn't be
 	 * possible to exit from the thread with active SMB sessions
 	 */
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	if (list_empty(&server->pending_mid_q)) {
 		/* loop through server session structures attached to this and
 		    mark them dead */
@@ -687,7 +687,7 @@ multi_t2_fnd:
 			ses->status = CifsExiting;
 			ses->server = NULL;
 		}
-		read_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		/* although we can not zero the server struct pointer yet,
 		since there are active requests which may depnd on them,
@@ -710,7 +710,7 @@ multi_t2_fnd:
 			}
 		}
 		spin_unlock(&GlobalMid_Lock);
-		read_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		/* 1/8th of sec is more than enough time for them to exit */
 		msleep(125);
 	}
@@ -733,12 +733,12 @@ multi_t2_fnd:
 	if a crazy root user tried to kill cifsd
 	kernel thread explicitly this might happen) */
 	/* BB: This shouldn't be necessary, see above */
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
 		ses->server = NULL;
 	}
-	read_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	kfree(server->hostname);
 	task_to_wake = xchg(&server->tsk, NULL);
@@ -1524,7 +1524,7 @@ cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 {
 	struct TCP_Server_Info *server;
 
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
 		if (!match_address(server, addr,
 				   (struct sockaddr *)&vol->srcaddr))
@@ -1534,11 +1534,11 @@ cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 			continue;
 
 		++server->srv_count;
-		write_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		cFYI(1, "Existing tcp session with server found");
 		return server;
 	}
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	return NULL;
 }
 
@@ -1547,14 +1547,14 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 {
 	struct task_struct *task;
 
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	if (--server->srv_count > 0) {
-		write_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}
 
 	list_del_init(&server->tcp_ses_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
@@ -1679,9 +1679,9 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	}
 
 	/* thread spawned, put it on the list */
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&tcp_ses->tcp_ses_list, &cifs_tcp_ses_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	cifs_fscache_get_client_cookie(tcp_ses);
 
@@ -1703,7 +1703,7 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 {
 	struct cifsSesInfo *ses;
 
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 		switch (server->secType) {
 		case Kerberos:
@@ -1723,10 +1723,10 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 				continue;
 		}
 		++ses->ses_count;
-		write_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		return ses;
 	}
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	return NULL;
 }
 
@@ -1737,14 +1737,14 @@ cifs_put_smb_ses(struct cifsSesInfo *ses)
 	struct TCP_Server_Info *server = ses->server;
 
 	cFYI(1, "%s: ses_count=%d\n", __func__, ses->ses_count);
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	if (--ses->ses_count > 0) {
-		write_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}
 
 	list_del_init(&ses->smb_ses_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	if (ses->status == CifsGood) {
 		xid = GetXid();
@@ -1841,9 +1841,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		goto get_ses_fail;
 
 	/* success, put it on the list */
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	FreeXid(xid);
 	return ses;
@@ -1860,7 +1860,7 @@ cifs_find_tcon(struct cifsSesInfo *ses, const char *unc)
 	struct list_head *tmp;
 	struct cifsTconInfo *tcon;
 
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &ses->tcon_list) {
 		tcon = list_entry(tmp, struct cifsTconInfo, tcon_list);
 		if (tcon->tidStatus == CifsExiting)
@@ -1869,10 +1869,10 @@ cifs_find_tcon(struct cifsSesInfo *ses, const char *unc)
 			continue;
 
 		++tcon->tc_count;
-		write_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		return tcon;
 	}
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	return NULL;
 }
 
@@ -1883,14 +1883,14 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	struct cifsSesInfo *ses = tcon->ses;
 
 	cFYI(1, "%s: tc_count=%d\n", __func__, tcon->tc_count);
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	if (--tcon->tc_count > 0) {
-		write_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}
 
 	list_del_init(&tcon->tcon_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	xid = GetXid();
 	CIFSSMBTDis(xid, tcon);
@@ -1963,9 +1963,9 @@ cifs_get_tcon(struct cifsSesInfo *ses, struct smb_vol *volume_info)
 	tcon->nocase = volume_info->nocase;
 	tcon->local_lease = volume_info->local_lease;
 
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&tcon->tcon_list, &ses->tcon_list);
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	cifs_fscache_get_super_cookie(tcon);
 
@@ -3225,9 +3225,9 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
 	vol_info->secFlg = CIFSSEC_MUST_KRB5;
 
 	/* get a reference for the same TCP session */
-	write_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	++master_tcon->ses->server->srv_count;
-	write_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	ses = cifs_get_smb_ses(master_tcon->ses->server, vol_info);
 	if (IS_ERR(ses)) {

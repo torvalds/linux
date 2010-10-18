@@ -593,9 +593,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			rc = -EIO;
 			goto neg_err_exit;
 		}
-		read_lock(&cifs_tcp_ses_lock);
+		spin_lock(&cifs_tcp_ses_lock);
 		if (server->srv_count > 1) {
-			read_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			if (memcmp(server->server_GUID,
 				   pSMBr->u.extended_response.
 				   GUID, 16) != 0) {
@@ -605,7 +605,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 					16);
 			}
 		} else {
-			read_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			memcpy(server->server_GUID,
 			       pSMBr->u.extended_response.GUID, 16);
 		}
