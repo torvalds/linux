@@ -6,10 +6,10 @@
  * Datasheets available at:
  *
  * f75375:
- * http://www.fintek.com.tw/files/productfiles/2005111152950.pdf
+ * http://www.fintek.com.tw/files/productfiles/F75375_V026P.pdf 
  *
  * f75373:
- * http://www.fintek.com.tw/files/productfiles/2005111153128.pdf
+ * http://www.fintek.com.tw/files/productfiles/F75373_V025P.pdf
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

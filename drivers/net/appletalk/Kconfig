@@ -18,7 +18,7 @@ config ATALK
 
 	  General information about how to connect Linux, Windows machines and
 	  Macs is on the WWW at <http://www.eats.com/linux_mac_win.html>.  The
-	  NET-3-HOWTO, available from
+	  NET3-4-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, contains valuable
 	  information as well.
 

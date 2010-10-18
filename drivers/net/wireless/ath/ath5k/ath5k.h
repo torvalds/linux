@@ -351,7 +351,7 @@ struct ath5k_srev_name {
 /*
  * Some of this information is based on Documentation from:
  *
- * http://madwifi.org/wiki/ChipsetFeatures/SuperAG
+ * http://madwifi-project.org/wiki/ChipsetFeatures/SuperAG 
  *
  * Modulation for Atheros' eXtended Range - range enhancing extension that is
  * supposed to double the distance an Atheros client device can keep a

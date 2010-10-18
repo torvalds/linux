@@ -62,7 +62,7 @@ invalid ramWidth is Very Bad.
 V. References
 
 http://www.scyld.com/expert/NWay.html
-http://www.national.com/pf/DP/DP83840.html
+http://www.national.com/opf/DP/DP83840A.html
 
 Thanks to Terry Murphy of 3Com for providing development information for
 earlier 3Com products.

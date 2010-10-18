@@ -13,7 +13,6 @@
 #include <media/rc-map.h>
 
 /* Michael Tokarev <mjt@tls.msk.ru>
-   http://www.corpit.ru/mjt/beholdTV/remote_control.jpg
    keytable is used by MANLI MTV00[0x0c] and BeholdTV 40[13] at
    least, and probably other cards too.
    The "ascii-art picture" below (in comments, first row

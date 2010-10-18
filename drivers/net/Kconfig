@@ -921,7 +921,7 @@ config SMC91X
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
 	  compiled into the kernel, and read the file
 	  <file:Documentation/networking/smc9.txt>  and the Ethernet-HOWTO,
-	  available from  <http://www.linuxdoc.org/docs.html#howto>.
+	  available from  <http://www.tldp.org/docs.html#howto>.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
@@ -1021,7 +1021,7 @@ config SMC911X
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
 	  Say Y if you want it compiled into the kernel, 
 	  and read the Ethernet-HOWTO, available from
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  This driver is also available as a module. The module will be 
 	  called smc911x.  If you want to compile it as a module, say M 
@@ -1503,7 +1503,7 @@ config E100
 
 	  For the latest Intel PRO/100 network driver for Linux, see:
 
-	  <http://appsr.intel.com/scripts-df/support_intel.asp>
+	  <http://www.intel.com/p/en_US/support/highlights/network/pro100plus>
 
 	  More specific information on configuring the driver is in 
 	  <file:Documentation/networking/e100.txt>.
@@ -1529,9 +1529,8 @@ config FEALNX
 	select CRC32
 	select MII
 	help
-	  Say Y here to support the Mysom MTD-800 family of PCI-based Ethernet
-	  cards. Specifications and data at
-	  <http://www.myson.com.hk/mtd/datasheet/>.
+	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet 
+	  cards. <http://www.myson.com.tw/>
 
 config NATSEMI
 	tristate "National Semiconductor DP8381x series PCI Ethernet support"
@@ -1705,7 +1704,7 @@ config SMSC9420
 	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
 	  Say Y if you want it compiled into the kernel,
 	  and read the Ethernet-HOWTO, available from
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  This driver is also available as a module. The module will be
 	  called smsc9420.  If you want to compile it as a module, say M
@@ -2540,7 +2539,7 @@ config CHELSIO_T1
           our website at <http://www.chelsio.com>.
 
           For customer support, please visit our customer support page at
-          <http://www.chelsio.com/support.htm>.
+          <http://www.chelsio.com/support.html>.
 
           Please send feedback to <linux-bugs@chelsio.com>.
 
@@ -2572,7 +2571,7 @@ config CHELSIO_T3
 	  our website at <http://www.chelsio.com>.
 
 	  For customer support, please visit our customer support page at
-	  <http://www.chelsio.com/support.htm>.
+	  <http://www.chelsio.com/support.html>.
 
 	  Please send feedback to <linux-bugs@chelsio.com>.
 
@@ -2597,7 +2596,7 @@ config CHELSIO_T4
 	  our website at <http://www.chelsio.com>.
 
 	  For customer support, please visit our customer support page at
-	  <http://www.chelsio.com/support.htm>.
+	  <http://www.chelsio.com/support.html>.
 
 	  Please send feedback to <linux-bugs@chelsio.com>.
 
@@ -2620,7 +2619,7 @@ config CHELSIO_T4VF
 	  our website at <http://www.chelsio.com>.
 
 	  For customer support, please visit our customer support page at
-	  <http://www.chelsio.com/support.htm>.
+	  <http://www.chelsio.com/support.html>.
 
 	  Please send feedback to <linux-bugs@chelsio.com>.
 

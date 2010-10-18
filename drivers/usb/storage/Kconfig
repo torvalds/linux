@@ -36,7 +36,7 @@ config USB_STORAGE_DATAFAB
 	depends on USB_STORAGE
 	help
 	  Support for certain Datafab CompactFlash readers.
-	  Datafab has a web page at <http://www.datafabusa.com/>.
+	  Datafab has a web page at <http://www.datafab.com/>.
 
 	  If this driver is compiled as a module, it will be named ums-datafab.
 

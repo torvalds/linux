@@ -26,7 +26,6 @@
  * Atheros presentations and papers like these:
  *
  * 5210 - http://nova.stanford.edu/~bbaas/ps/isscc2002_slides.pdf
- *        http://www.it.iitb.ac.in/~janak/wifire/01222734.pdf
  *
  * 5211 - http://www.hotchips.org/archives/hc14/3_Tue/16_mcfarland.pdf
  *

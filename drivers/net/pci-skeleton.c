@@ -78,7 +78,7 @@ that almost all frames will need to be copied to an alignment buffer.
 
 IVb. References
 
-http://www.realtek.com.tw/cn/cn.html
+http://www.realtek.com.tw/
 http://www.scyld.com/expert/NWay.html
 
 IVc. Errata
