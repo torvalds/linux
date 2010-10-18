@@ -898,6 +898,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
+		ret = -ENODEV;
 		goto err_release_region;
 	}
 
@@ -912,6 +913,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
+		ret = -ENODEV;
 		goto err_release_region;
 	}
 
