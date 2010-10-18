@@ -6502,8 +6502,8 @@ struct l2_fhdr {
 #define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
 #define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
 
-#define MAX_RX_RINGS	4
-#define MAX_RX_PG_RINGS	16
+#define MAX_RX_RINGS	8
+#define MAX_RX_PG_RINGS	32
 #define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
 #define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
