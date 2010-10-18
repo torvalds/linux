@@ -88,10 +88,6 @@ extern int efx_reconfigure_port(struct efx_nic *efx);
 extern int __efx_reconfigure_port(struct efx_nic *efx);
 
 /* Ethtool support */
-extern int efx_ethtool_get_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd);
-extern int efx_ethtool_set_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd);
 extern const struct ethtool_ops efx_ethtool_ops;
 
 /* Reset handling */
@@ -107,9 +103,7 @@ extern void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs,
 /* Dummy PHY ops for PHY drivers */
 extern int efx_port_dummy_op_int(struct efx_nic *efx);
 extern void efx_port_dummy_op_void(struct efx_nic *efx);
-extern void
-efx_port_dummy_op_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
-extern bool efx_port_dummy_op_poll(struct efx_nic *efx);
+
 
 /* MTD */
 #ifdef CONFIG_SFC_MTD
@@ -121,8 +115,6 @@ static inline int efx_mtd_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_mtd_rename(struct efx_nic *efx) {}
 static inline void efx_mtd_remove(struct efx_nic *efx) {}
 #endif
-
-extern unsigned int efx_monitor_interval;
 
 static inline void efx_schedule_channel(struct efx_channel *channel)
 {

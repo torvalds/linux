@@ -68,14 +68,6 @@ const char *efx_loopback_mode_names[] = {
 	[LOOPBACK_PHYXS_WS]  	= "PHYXS_WS",
 };
 
-/* Interrupt mode names (see INT_MODE())) */
-const unsigned int efx_interrupt_mode_max = EFX_INT_MODE_MAX;
-const char *efx_interrupt_mode_names[] = {
-	[EFX_INT_MODE_MSIX]   = "MSI-X",
-	[EFX_INT_MODE_MSI]    = "MSI",
-	[EFX_INT_MODE_LEGACY] = "legacy",
-};
-
 const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
 const char *efx_reset_type_names[] = {
 	[RESET_TYPE_INVISIBLE]     = "INVISIBLE",
@@ -128,7 +120,7 @@ static int napi_weight = 64;
  * - Check the on-board hardware monitor;
  * - Poll the link state and reconfigure the hardware as necessary.
  */
-unsigned int efx_monitor_interval = 1 * HZ;
+static unsigned int efx_monitor_interval = 1 * HZ;
 
 /* This controls whether or not the driver will initialise devices
  * with invalid MAC addresses stored in the EEPROM or flash.  If true,
@@ -2180,10 +2172,8 @@ int efx_port_dummy_op_int(struct efx_nic *efx)
 	return 0;
 }
 void efx_port_dummy_op_void(struct efx_nic *efx) {}
-void efx_port_dummy_op_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
-{
-}
-bool efx_port_dummy_op_poll(struct efx_nic *efx)
+
+static bool efx_port_dummy_op_poll(struct efx_nic *efx)
 {
 	return false;
 }

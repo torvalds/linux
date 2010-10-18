@@ -187,8 +187,8 @@ static int efx_ethtool_phys_id(struct net_device *net_dev, u32 count)
 }
 
 /* This must be called with rtnl_lock held. */
-int efx_ethtool_get_settings(struct net_device *net_dev,
-			     struct ethtool_cmd *ecmd)
+static int efx_ethtool_get_settings(struct net_device *net_dev,
+				    struct ethtool_cmd *ecmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_link_state *link_state = &efx->link_state;
@@ -211,8 +211,8 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 }
 
 /* This must be called with rtnl_lock held. */
-int efx_ethtool_set_settings(struct net_device *net_dev,
-			     struct ethtool_cmd *ecmd)
+static int efx_ethtool_set_settings(struct net_device *net_dev,
+				    struct ethtool_cmd *ecmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -891,7 +891,7 @@ static int efx_ethtool_set_wol(struct net_device *net_dev,
 	return efx->type->set_wol(efx, wol->wolopts);
 }
 
-extern int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
+static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	enum reset_type method;
