@@ -332,6 +332,7 @@
 #define NV04_PGRAPH_BSWIZZLE5                              0x004006A0
 #define NV03_PGRAPH_STATUS                                 0x004006B0
 #define NV04_PGRAPH_STATUS                                 0x00400700
+#    define NV40_PGRAPH_STATUS_SYNC_STALL                  0x00004000
 #define NV04_PGRAPH_TRAPPED_ADDR                           0x00400704
 #define NV04_PGRAPH_TRAPPED_DATA                           0x00400708
 #define NV04_PGRAPH_SURFACE                                0x0040070C
