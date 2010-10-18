@@ -247,17 +247,16 @@ nouveau_channel_get(struct drm_device *dev, struct drm_file *file_priv, int id)
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	chan = dev_priv->channels.ptr[id];
 
-	if (unlikely(!chan || atomic_read(&chan->refcount) == 0)) {
+	if (unlikely(!chan || (file_priv && chan->file_priv != file_priv))) {
 		spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (unlikely(file_priv && chan->file_priv != file_priv)) {
+	if (unlikely(!atomic_inc_not_zero(&chan->refcount))) {
 		spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 		return ERR_PTR(-EINVAL);
 	}
 
-	atomic_inc(&chan->refcount);
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 
 	mutex_lock(&chan->mutex);
