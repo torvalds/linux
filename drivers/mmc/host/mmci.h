@@ -177,6 +177,9 @@ struct mmci_host {
 	struct timer_list	timer;
 	unsigned int		oldstat;
 
+	bool			blockend;
+	bool			dataend;
+
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
