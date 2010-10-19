@@ -272,7 +272,8 @@ out:
 }
 
 /* the caller has to hold the sock lock */
-int rds_tcp_read_sock(struct rds_connection *conn, gfp_t gfp, enum km_type km)
+static int rds_tcp_read_sock(struct rds_connection *conn, gfp_t gfp,
+			     enum km_type km)
 {
 	struct rds_tcp_connection *tc = conn->c_transport_data;
 	struct socket *sock = tc->t_sock;

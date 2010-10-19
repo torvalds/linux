@@ -265,13 +265,10 @@ static inline void rds_ib_dma_sync_sg_for_device(struct ib_device *dev,
 
 /* ib.c */
 extern struct rds_transport rds_ib_transport;
-extern void rds_ib_add_one(struct ib_device *device);
-extern void rds_ib_remove_one(struct ib_device *device);
 struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device);
 void rds_ib_dev_put(struct rds_ib_device *rds_ibdev);
 extern struct ib_client rds_ib_client;
 
-extern unsigned int fmr_pool_size;
 extern unsigned int fmr_message_size;
 extern unsigned int rds_ib_retry_count;
 
@@ -374,6 +371,5 @@ extern unsigned long rds_ib_sysctl_max_unsig_wrs;
 extern unsigned long rds_ib_sysctl_max_unsig_bytes;
 extern unsigned long rds_ib_sysctl_max_recv_allocation;
 extern unsigned int rds_ib_sysctl_flow_control;
-extern ctl_table rds_ib_sysctl_table[];
 
 #endif

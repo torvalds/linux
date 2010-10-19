@@ -52,6 +52,8 @@ static int send_batch_count = 64;
 module_param(send_batch_count, int, 0444);
 MODULE_PARM_DESC(send_batch_count, " batch factor when working the send queue");
 
+static void rds_send_remove_from_sock(struct list_head *messages, int status);
+
 /*
  * Reset the send state.  Callers must ensure that this doesn't race with
  * rds_send_xmit().
@@ -555,7 +557,7 @@ EXPORT_SYMBOL_GPL(rds_send_get_message);
  * removing the messages from the 'messages' list regardless of if it found
  * the messages on the socket list or not.
  */
-void rds_send_remove_from_sock(struct list_head *messages, int status)
+static void rds_send_remove_from_sock(struct list_head *messages, int status)
 {
 	unsigned long flags;
 	struct rds_sock *rs = NULL;

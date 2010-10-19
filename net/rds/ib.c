@@ -42,7 +42,7 @@
 #include "rds.h"
 #include "ib.h"
 
-unsigned int fmr_pool_size = RDS_FMR_POOL_SIZE;
+static unsigned int fmr_pool_size = RDS_FMR_POOL_SIZE;
 unsigned int fmr_message_size = RDS_FMR_SIZE + 1; /* +1 allows for unaligned MRs */
 unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
@@ -65,7 +65,7 @@ struct list_head rds_ib_devices;
 DEFINE_SPINLOCK(ib_nodev_conns_lock);
 LIST_HEAD(ib_nodev_conns);
 
-void rds_ib_nodev_connect(void)
+static void rds_ib_nodev_connect(void)
 {
 	struct rds_ib_connection *ic;
 
@@ -75,7 +75,7 @@ void rds_ib_nodev_connect(void)
 	spin_unlock(&ib_nodev_conns_lock);
 }
 
-void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
+static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
 {
 	struct rds_ib_connection *ic;
 	unsigned long flags;
@@ -118,7 +118,7 @@ void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 		queue_work(rds_wq, &rds_ibdev->free_work);
 }
 
-void rds_ib_add_one(struct ib_device *device)
+static void rds_ib_add_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
 	struct ib_device_attr *dev_attr;
@@ -229,7 +229,7 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
  *
  * This can be called at any time and can be racing with any other RDS path.
  */
-void rds_ib_remove_one(struct ib_device *device)
+static void rds_ib_remove_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
 

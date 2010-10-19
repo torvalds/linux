@@ -41,7 +41,7 @@
 /* only for info exporting */
 static DEFINE_SPINLOCK(rds_tcp_tc_list_lock);
 static LIST_HEAD(rds_tcp_tc_list);
-unsigned int rds_tcp_tc_count;
+static unsigned int rds_tcp_tc_count;
 
 /* Track rds_tcp_connection structs so they can be cleaned up */
 static DEFINE_SPINLOCK(rds_tcp_conn_lock);
@@ -243,7 +243,7 @@ static void rds_tcp_destroy_conns(void)
 	}
 }
 
-void rds_tcp_exit(void)
+static void rds_tcp_exit(void)
 {
 	rds_info_deregister_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
 	rds_tcp_listen_stop();
@@ -274,7 +274,7 @@ struct rds_transport rds_tcp_transport = {
 	.t_prefer_loopback	= 1,
 };
 
-int rds_tcp_init(void)
+static int rds_tcp_init(void)
 {
 	int ret;
 

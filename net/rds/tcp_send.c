@@ -63,7 +63,7 @@ void rds_tcp_xmit_complete(struct rds_connection *conn)
 }
 
 /* the core send_sem serializes this with other xmit and shutdown */
-int rds_tcp_sendmsg(struct socket *sock, void *data, unsigned int len)
+static int rds_tcp_sendmsg(struct socket *sock, void *data, unsigned int len)
 {
 	struct kvec vec = {
                 .iov_base = data,

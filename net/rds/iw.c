@@ -56,7 +56,7 @@ struct list_head rds_iw_devices;
 DEFINE_SPINLOCK(iw_nodev_conns_lock);
 LIST_HEAD(iw_nodev_conns);
 
-void rds_iw_add_one(struct ib_device *device)
+static void rds_iw_add_one(struct ib_device *device)
 {
 	struct rds_iw_device *rds_iwdev;
 	struct ib_device_attr *dev_attr;
@@ -124,7 +124,7 @@ free_attr:
 	kfree(dev_attr);
 }
 
-void rds_iw_remove_one(struct ib_device *device)
+static void rds_iw_remove_one(struct ib_device *device)
 {
 	struct rds_iw_device *rds_iwdev;
 	struct rds_iw_cm_id *i_cm_id, *next;

@@ -43,8 +43,6 @@ struct rds_tcp_statistics {
 };
 
 /* tcp.c */
-int rds_tcp_init(void);
-void rds_tcp_exit(void);
 void rds_tcp_tune(struct socket *sock);
 void rds_tcp_nonagle(struct socket *sock);
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn);

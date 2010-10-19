@@ -106,8 +106,8 @@ void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 }
 EXPORT_SYMBOL_GPL(rds_message_populate_header);
 
-int rds_message_add_extension(struct rds_header *hdr,
-		unsigned int type, const void *data, unsigned int len)
+int rds_message_add_extension(struct rds_header *hdr, unsigned int type,
+			      const void *data, unsigned int len)
 {
 	unsigned int ext_len = sizeof(u8) + len;
 	unsigned char *dst;
@@ -175,26 +175,6 @@ none:
 	*pos = RDS_HEADER_EXT_SPACE;
 	*buflen = 0;
 	return RDS_EXTHDR_NONE;
-}
-
-int rds_message_add_version_extension(struct rds_header *hdr, unsigned int version)
-{
-	struct rds_ext_header_version ext_hdr;
-
-	ext_hdr.h_version = cpu_to_be32(version);
-	return rds_message_add_extension(hdr, RDS_EXTHDR_VERSION, &ext_hdr, sizeof(ext_hdr));
-}
-
-int rds_message_get_version_extension(struct rds_header *hdr, unsigned int *version)
-{
-	struct rds_ext_header_version ext_hdr;
-	unsigned int pos = 0, len = sizeof(ext_hdr);
-
-	/* We assume the version extension is the only one present */
-	if (rds_message_next_extension(hdr, &pos, &ext_hdr, &len) != RDS_EXTHDR_VERSION)
-		return 0;
-	*version = be32_to_cpu(ext_hdr.h_version);
-	return 1;
 }
 
 int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 offset)
