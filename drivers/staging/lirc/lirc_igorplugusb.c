@@ -527,6 +527,8 @@ static void igorplugusb_remote_disconnect(struct usb_interface *intf)
 static struct usb_device_id igorplugusb_remote_id_table[] = {
 	/* Igor Plug USB (Atmel's Manufact. ID) */
 	{ USB_DEVICE(0x03eb, 0x0002) },
+	/* Fit PC2 Infrared Adapter */
+	{ USB_DEVICE(0x03eb, 0x21fe) },
 
 	/* Terminating entry */
 	{ }
