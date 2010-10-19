@@ -626,6 +626,12 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 		} else if (mcspi_wait_for_reg_bit(chstat_reg,
 				OMAP2_MCSPI_CHSTAT_EOT) < 0)
 			dev_err(&spi->dev, "EOT timed out\n");
+
+		/* disable chan to purge rx datas received in TX_ONLY transfer,
+		 * otherwise these rx datas will affect the direct following
+		 * RX_ONLY transfer.
+		 */
+		omap2_mcspi_set_enable(spi, 0);
 	}
 out:
 	omap2_mcspi_set_enable(spi, 1);
