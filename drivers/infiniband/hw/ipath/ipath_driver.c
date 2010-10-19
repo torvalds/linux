@@ -755,7 +755,7 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	 */
 	ipath_shutdown_device(dd);
 
-	flush_scheduled_work();
+	flush_workqueue(ib_wq);
 
 	if (dd->verbs_dev)
 		ipath_unregister_ib_device(dd->verbs_dev);

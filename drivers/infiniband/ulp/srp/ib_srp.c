@@ -638,7 +638,7 @@ err:
 	if (target->state == SRP_TARGET_CONNECTING) {
 		target->state = SRP_TARGET_DEAD;
 		INIT_WORK(&target->work, srp_remove_work);
-		schedule_work(&target->work);
+		queue_work(ib_wq, &target->work);
 	}
 	spin_unlock_irq(&target->lock);
 
@@ -2199,7 +2199,7 @@ static void srp_remove_one(struct ib_device *device)
 		 * started before we marked our target ports as
 		 * removed, and any target port removal tasks.
 		 */
-		flush_scheduled_work();
+		flush_workqueue(ib_wq);
 
 		list_for_each_entry_safe(target, tmp_target,
 					 &host->target_list, list) {
