@@ -300,7 +300,6 @@ static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
 
 static int pipe_handler_enable_pipe(struct sock *sk, int enable)
 {
-	struct pep_sock *pn = pep_sk(sk);
 	int utid, req;
 
 	if (enable) {
