@@ -435,39 +435,6 @@ int __weak arch_get_memory_phys_device(unsigned long start_pfn)
 	return 0;
 }
 
-static int add_memory_block(int nid, struct mem_section *section,
-			unsigned long state, enum mem_add_context context)
-{
-	struct memory_block *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-	unsigned long start_pfn;
-	int ret = 0;
-
-	if (!mem)
-		return -ENOMEM;
-
-	mem->phys_index = __section_nr(section);
-	mem->state = state;
-	mutex_init(&mem->state_mutex);
-	start_pfn = section_nr_to_pfn(mem->phys_index);
-	mem->phys_device = arch_get_memory_phys_device(start_pfn);
-
-	ret = register_memory(mem, section);
-	if (!ret)
-		ret = mem_create_simple_file(mem, phys_index);
-	if (!ret)
-		ret = mem_create_simple_file(mem, state);
-	if (!ret)
-		ret = mem_create_simple_file(mem, phys_device);
-	if (!ret)
-		ret = mem_create_simple_file(mem, removable);
-	if (!ret) {
-		if (context == HOTPLUG)
-			ret = register_mem_sect_under_node(mem, nid);
-	}
-
-	return ret;
-}
-
 struct memory_block *find_memory_block_hinted(struct mem_section *section,
 					      struct memory_block *hint)
 {
@@ -505,6 +472,39 @@ struct memory_block *find_memory_block_hinted(struct mem_section *section,
 struct memory_block *find_memory_block(struct mem_section *section)
 {
 	return find_memory_block_hinted(section, NULL);
+}
+
+static int add_memory_block(int nid, struct mem_section *section,
+			unsigned long state, enum mem_add_context context)
+{
+	struct memory_block *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	unsigned long start_pfn;
+	int ret = 0;
+
+	if (!mem)
+		return -ENOMEM;
+
+	mem->phys_index = __section_nr(section);
+	mem->state = state;
+	mutex_init(&mem->state_mutex);
+	start_pfn = section_nr_to_pfn(mem->phys_index);
+	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+
+	ret = register_memory(mem, section);
+	if (!ret)
+		ret = mem_create_simple_file(mem, phys_index);
+	if (!ret)
+		ret = mem_create_simple_file(mem, state);
+	if (!ret)
+		ret = mem_create_simple_file(mem, phys_device);
+	if (!ret)
+		ret = mem_create_simple_file(mem, removable);
+	if (!ret) {
+		if (context == HOTPLUG)
+			ret = register_mem_sect_under_node(mem, nid);
+	}
+
+	return ret;
 }
 
 int remove_memory_block(unsigned long node_id, struct mem_section *section,
