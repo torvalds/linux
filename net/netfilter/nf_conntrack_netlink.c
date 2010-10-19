@@ -1632,17 +1632,20 @@ ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct sk_buff *skb;
-	unsigned int type;
+	unsigned int type, group;
 	int flags = 0;
 
-	if (events & (1 << IPEXP_NEW)) {
+	if (events & (1 << IPEXP_DESTROY)) {
+		type = IPCTNL_MSG_EXP_DELETE;
+		group = NFNLGRP_CONNTRACK_EXP_DESTROY;
+	} else if (events & (1 << IPEXP_NEW)) {
 		type = IPCTNL_MSG_EXP_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
+		group = NFNLGRP_CONNTRACK_EXP_NEW;
 	} else
 		return 0;
 
-	if (!item->report &&
-	    !nfnetlink_has_listeners(net, NFNLGRP_CONNTRACK_EXP_NEW))
+	if (!item->report && !nfnetlink_has_listeners(net, group))
 		return 0;
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
@@ -1665,8 +1668,7 @@ ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);
-	nfnetlink_send(skb, net, item->pid, NFNLGRP_CONNTRACK_EXP_NEW,
-		       item->report, GFP_ATOMIC);
+	nfnetlink_send(skb, net, item->pid, group, item->report, GFP_ATOMIC);
 	return 0;
 
 nla_put_failure:
@@ -1849,7 +1851,13 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		}
 
 		/* after list removal, usage count == 1 */
-		nf_ct_unexpect_related(exp);
+		spin_lock_bh(&nf_conntrack_lock);
+		if (del_timer(&exp->timeout)) {
+			nf_ct_unlink_expect_report(exp, NETLINK_CB(skb).pid,
+						   nlmsg_report(nlh));
+			nf_ct_expect_put(exp);
+		}
+		spin_unlock_bh(&nf_conntrack_lock);
 		/* have to put what we 'get' above.
 		 * after this line usage count == 0 */
 		nf_ct_expect_put(exp);
@@ -1866,7 +1874,9 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 				m_help = nfct_help(exp->master);
 				if (!strcmp(m_help->helper->name, name) &&
 				    del_timer(&exp->timeout)) {
-					nf_ct_unlink_expect(exp);
+					nf_ct_unlink_expect_report(exp,
+							NETLINK_CB(skb).pid,
+							nlmsg_report(nlh));
 					nf_ct_expect_put(exp);
 				}
 			}
@@ -1880,7 +1890,9 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 						  &net->ct.expect_hash[i],
 						  hnode) {
 				if (del_timer(&exp->timeout)) {
-					nf_ct_unlink_expect(exp);
+					nf_ct_unlink_expect_report(exp,
+							NETLINK_CB(skb).pid,
+							nlmsg_report(nlh));
 					nf_ct_expect_put(exp);
 				}
 			}

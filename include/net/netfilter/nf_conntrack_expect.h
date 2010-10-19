@@ -82,7 +82,13 @@ struct nf_conntrack_expect *
 nf_ct_find_expectation(struct net *net, u16 zone,
 		       const struct nf_conntrack_tuple *tuple);
 
-void nf_ct_unlink_expect(struct nf_conntrack_expect *exp);
+void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
+				u32 pid, int report);
+static inline void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
+{
+	nf_ct_unlink_expect_report(exp, 0, 0);
+}
+
 void nf_ct_remove_expectations(struct nf_conn *ct);
 void nf_ct_unexpect_related(struct nf_conntrack_expect *exp);
 void nf_ct_remove_userspace_expectations(void);

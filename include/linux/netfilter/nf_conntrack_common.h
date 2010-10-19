@@ -98,6 +98,7 @@ enum ip_conntrack_events {
 
 enum ip_conntrack_expect_events {
 	IPEXP_NEW,		/* new expectation */
+	IPEXP_DESTROY,		/* destroyed expectation */
 };
 
 /* expectation flags */

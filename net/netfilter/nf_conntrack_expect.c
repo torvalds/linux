@@ -41,7 +41,8 @@ static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
 static HLIST_HEAD(nf_ct_userspace_expect_list);
 
 /* nf_conntrack_expect helper functions */
-void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
+void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
+				u32 pid, int report)
 {
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 	struct net *net = nf_ct_exp_net(exp);
@@ -55,11 +56,12 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	if (!(exp->flags & NF_CT_EXPECT_USERSPACE))
 		master_help->expecting[exp->class]--;
 
+	nf_ct_expect_event_report(IPEXP_DESTROY, exp, pid, report);
 	nf_ct_expect_put(exp);
 
 	NF_CT_STAT_INC(net, expect_delete);
 }
-EXPORT_SYMBOL_GPL(nf_ct_unlink_expect);
+EXPORT_SYMBOL_GPL(nf_ct_unlink_expect_report);
 
 static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 {
