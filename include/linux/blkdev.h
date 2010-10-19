@@ -115,6 +115,7 @@ struct request {
 	void *elevator_private3;
 
 	struct gendisk *rq_disk;
+	struct hd_struct *part;
 	unsigned long start_time;
 #ifdef CONFIG_BLK_CGROUP
 	unsigned long long start_time_ns;
