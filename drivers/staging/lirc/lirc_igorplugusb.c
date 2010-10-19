@@ -54,7 +54,7 @@
 
 
 /* module identification */
-#define DRIVER_VERSION		"0.1"
+#define DRIVER_VERSION		"0.2"
 #define DRIVER_AUTHOR		\
 	"Jan M. Hochstein <hochstein@algo.informatik.tu-darmstadt.de>"
 #define DRIVER_DESC		"Igorplug USB remote driver for LIRC"
@@ -276,6 +276,25 @@ static void set_use_dec(void *data)
 	dprintk(DRIVER_NAME "[%d]: set use dec\n", ir->devnum);
 }
 
+static void send_fragment(struct igorplug *ir, struct lirc_buffer *buf,
+			   int i, int max)
+{
+	int code;
+
+	/* MODE2: pulse/space (PULSE_BIT) in 1us units */
+	while (i < max) {
+		/* 1 Igor-tick = 85.333333 us */
+		code = (unsigned int)ir->buf_in[i] * 85 +
+			(unsigned int)ir->buf_in[i] / 3;
+		ir->last_time.tv_usec += code;
+		if (ir->in_space)
+			code |= PULSE_BIT;
+		lirc_buffer_write(buf, (unsigned char *)&code);
+		/* 1 chunk = CODE_LENGTH bytes */
+		ir->in_space ^= 1;
+		++i;
+	}
+}
 
 /**
  * Called in user context.
@@ -299,23 +318,15 @@ static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 			      ir->buf_in, ir->len_in,
 			      /*timeout*/HZ * USB_CTRL_GET_TIMEOUT);
 	if (ret > 0) {
-		int i = DEVICE_HEADERLEN;
 		int code, timediff;
 		struct timeval now;
 
-		if (ret <= 1)  /* ACK packet has 1 byte --> ignore */
+		/* ACK packet has 1 byte --> ignore */
+		if (ret < DEVICE_HEADERLEN)
 			return -ENODATA;
 
 		dprintk(DRIVER_NAME ": Got %d bytes. Header: %02x %02x %02x\n",
 			ret, ir->buf_in[0], ir->buf_in[1], ir->buf_in[2]);
-
-		if (ir->buf_in[2] != 0) {
-			printk(DRIVER_NAME "[%d]: Device buffer overrun.\n",
-				ir->devnum);
-			/* start at earliest byte */
-			i = DEVICE_HEADERLEN + ir->buf_in[2];
-			/* where are we now? space, gap or pulse? */
-		}
 
 		do_gettimeofday(&now);
 		timediff = now.tv_sec - ir->last_time.tv_sec;
@@ -333,18 +344,20 @@ static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 		lirc_buffer_write(buf, (unsigned char *)&code);
 		ir->in_space = 1;   /* next comes a pulse */
 
-		/* MODE2: pulse/space (PULSE_BIT) in 1us units */
-
-		while (i < ret) {
-			/* 1 Igor-tick = 85.333333 us */
-			code = (unsigned int)ir->buf_in[i] * 85
-				+ (unsigned int)ir->buf_in[i] / 3;
-			if (ir->in_space)
-				code |= PULSE_BIT;
-			lirc_buffer_write(buf, (unsigned char *)&code);
-			/* 1 chunk = CODE_LENGTH bytes */
-			ir->in_space ^= 1;
-			++i;
+		if (ir->buf_in[2] == 0)
+			send_fragment(ir, buf, DEVICE_HEADERLEN, ret);
+		else {
+			printk(KERN_WARNING DRIVER_NAME
+			       "[%d]: Device buffer overrun.\n", ir->devnum);
+			/* HHHNNNNNNNNNNNOOOOOOOO H = header
+			      <---[2]--->         N = newer
+			   <---------ret--------> O = older */
+			ir->buf_in[2] %= ret - DEVICE_HEADERLEN; /* sanitize */
+			/* keep even-ness to not desync pulse/pause */
+			send_fragment(ir, buf, DEVICE_HEADERLEN +
+				      ir->buf_in[2] - (ir->buf_in[2] & 1), ret);
+			send_fragment(ir, buf, DEVICE_HEADERLEN,
+				      DEVICE_HEADERLEN + ir->buf_in[2]);
 		}
 
 		ret = usb_control_msg(
@@ -444,7 +457,7 @@ mem_failure_switch:
 
 	switch (mem_failure) {
 	case 9:
-		usb_free_coherent(dev, DEVICE_BUFLEN+DEVICE_HEADERLEN,
+		usb_free_coherent(dev, DEVICE_BUFLEN + DEVICE_HEADERLEN,
 			ir->buf_in, ir->dma_in);
 	case 3:
 		kfree(driver);
@@ -460,7 +473,7 @@ mem_failure_switch:
 	ir->d = driver;
 	ir->devnum = devnum;
 	ir->usbdev = dev;
-	ir->len_in = DEVICE_BUFLEN+DEVICE_HEADERLEN;
+	ir->len_in = DEVICE_BUFLEN + DEVICE_HEADERLEN;
 	ir->in_space = 1; /* First mode2 event is a space. */
 	do_gettimeofday(&ir->last_time);
 
