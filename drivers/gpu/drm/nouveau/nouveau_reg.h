@@ -747,15 +747,11 @@
 #define NV50_PDISPLAY_CURSOR_CURSOR_CTRL2_STATUS                     0x00030000
 #define NV50_PDISPLAY_CURSOR_CURSOR_CTRL2_STATUS_ACTIVE              0x00010000
 
-#define NV50_PDISPLAY_CTRL_STATE                                     0x00610300
-#define NV50_PDISPLAY_CTRL_STATE_PENDING                             0x80000000
-#define NV50_PDISPLAY_CTRL_STATE_METHOD                              0x00001ffc
-#define NV50_PDISPLAY_CTRL_STATE_ENABLE                              0x00000001
-#define NV50_PDISPLAY_CTRL_VAL                                       0x00610304
-#define NV50_PDISPLAY_UNK_380                                        0x00610380
-#define NV50_PDISPLAY_RAM_AMOUNT                                     0x00610384
-#define NV50_PDISPLAY_UNK_388                                        0x00610388
-#define NV50_PDISPLAY_UNK_38C                                        0x0061038c
+#define NV50_PDISPLAY_PIO_CTRL                                       0x00610300
+#define NV50_PDISPLAY_PIO_CTRL_PENDING                               0x80000000
+#define NV50_PDISPLAY_PIO_CTRL_MTHD                                  0x00001ffc
+#define NV50_PDISPLAY_PIO_CTRL_ENABLED                               0x00000001
+#define NV50_PDISPLAY_PIO_DATA                                       0x00610304
 
 #define NV50_PDISPLAY_CRTC_P(i, r)        ((i) * 0x540 + NV50_PDISPLAY_CRTC_##r)
 #define NV50_PDISPLAY_CRTC_C(i, r)    (4 + (i) * 0x540 + NV50_PDISPLAY_CRTC_##r)

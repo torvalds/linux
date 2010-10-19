@@ -225,6 +225,7 @@ nv50_display_init(struct drm_device *dev)
 	NV_DEBUG_KMS(dev, "\n");
 
 	nv_wr32(dev, 0x00610184, nv_rd32(dev, 0x00614004));
+
 	/*
 	 * I think the 0x006101XX range is some kind of main control area
 	 * that enables things.
@@ -240,16 +241,19 @@ nv50_display_init(struct drm_device *dev)
 		val = nv_rd32(dev, 0x0061610c + (i * 0x800));
 		nv_wr32(dev, 0x0061019c + (i * 0x10), val);
 	}
+
 	/* DAC */
 	for (i = 0; i < 3; i++) {
 		val = nv_rd32(dev, 0x0061a000 + (i * 0x800));
 		nv_wr32(dev, 0x006101d0 + (i * 0x04), val);
 	}
+
 	/* SOR */
 	for (i = 0; i < nv50_sor_nr(dev); i++) {
 		val = nv_rd32(dev, 0x0061c000 + (i * 0x800));
 		nv_wr32(dev, 0x006101e0 + (i * 0x04), val);
 	}
+
 	/* EXT */
 	for (i = 0; i < 3; i++) {
 		val = nv_rd32(dev, 0x0061e000 + (i * 0x800));
@@ -276,37 +280,6 @@ nv50_display_init(struct drm_device *dev)
 		}
 	}
 
-	/* taken from nv bug #12637, attempts to un-wedge the hw if it's
-	 * stuck in some unspecified state
-	 */
-	start = ptimer->read(dev);
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x2b00);
-	while ((val = nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0))) & 0x1e0000) {
-		if ((val & 0x9f0000) == 0x20000)
-			nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-							val | 0x800000);
-
-		if ((val & 0x3f0000) == 0x30000)
-			nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-							val | 0x200000);
-
-		if (ptimer->read(dev) - start > 1000000000ULL) {
-			NV_ERROR(dev, "timeout: (0x610200 & 0x1e0000) != 0\n");
-			NV_ERROR(dev, "0x610200 = 0x%08x\n", val);
-			return -EBUSY;
-		}
-	}
-
-	nv_wr32(dev, NV50_PDISPLAY_CTRL_STATE, NV50_PDISPLAY_CTRL_STATE_ENABLE);
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x1000b03);
-	if (!nv_wait(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-		     0x40000000, 0x40000000)) {
-		NV_ERROR(dev, "timeout: (0x610200 & 0x40000000) == 0x40000000\n");
-		NV_ERROR(dev, "0x610200 = 0x%08x\n",
-			  nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0)));
-		return -EBUSY;
-	}
-
 	for (i = 0; i < 2; i++) {
 		nv_wr32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i), 0x2000);
 		if (!nv_wait(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i),
@@ -331,6 +304,54 @@ nv50_display_init(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
+	nv_wr32(dev, NV50_PDISPLAY_PIO_CTRL, 0x00000000);
+	nv_wr32(dev, 0x610028, 0x00000000);
+	nv_mask(dev, NV50_PDISPLAY_INTR_0, 0x00000000, 0x00000000);
+	nv_mask(dev, NV50_PDISPLAY_INTR_1, 0x00000000, 0x00000000);
+	nv_wr32(dev, NV50_PDISPLAY_INTR_EN,
+		     NV50_PDISPLAY_INTR_EN_CLK_UNK10 |
+		     NV50_PDISPLAY_INTR_EN_CLK_UNK20 |
+		     NV50_PDISPLAY_INTR_EN_CLK_UNK40);
+
+	/* enable hotplug interrupts */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+
+		if (conn->dcb->gpio_tag == 0xff)
+			continue;
+
+		pgpio->irq_enable(dev, conn->dcb->gpio_tag, true);
+	}
+
+	/* taken from nv bug #12637, attempts to un-wedge the hw if it's
+	 * stuck in some unspecified state
+	 */
+	start = ptimer->read(dev);
+	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x2b00);
+	while ((val = nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0))) & 0x1e0000) {
+		if ((val & 0x9f0000) == 0x20000)
+			nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
+							val | 0x800000);
+
+		if ((val & 0x3f0000) == 0x30000)
+			nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
+							val | 0x200000);
+
+		if (ptimer->read(dev) - start > 1000000000ULL) {
+			NV_ERROR(dev, "timeout: (0x610200 & 0x1e0000) != 0\n");
+			NV_ERROR(dev, "0x610200 = 0x%08x\n", val);
+			return -EBUSY;
+		}
+	}
+
+	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x1000b03);
+	if (!nv_wait(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
+		     0x40000000, 0x40000000)) {
+		NV_ERROR(dev, "timeout: (0x610200 & 0x40000000) == 0x40000000\n");
+		NV_ERROR(dev, "0x610200 = 0x%08x\n",
+			  nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0)));
+		return -EBUSY;
+	}
 
 	/* initialise fifo */
 	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_DMA_CB(0),
@@ -350,7 +371,9 @@ nv50_display_init(struct drm_device *dev)
 	nv_wr32(dev, NV50_PDISPLAY_USER_PUT(0), 0);
 	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x01000003 |
 		NV50_PDISPLAY_CHANNEL_STAT_DMA_ENABLED);
-	nv_wr32(dev, 0x610300, nv_rd32(dev, 0x610300) & ~1);
+
+	/* enable error reporting on the channel */
+	nv_mask(dev, 0x610028, 0x00000000, 0x00010001 << 0);
 
 	evo->dma.max = (4096/4) - 2;
 	evo->dma.put = 0;
@@ -382,21 +405,6 @@ nv50_display_init(struct drm_device *dev)
 	if (!nv_wait(dev, 0x640004, 0xffffffff, evo->dma.put << 2))
 		NV_ERROR(dev, "evo pushbuf stalled\n");
 
-	/* enable clock change interrupts. */
-	nv_wr32(dev, 0x610028, 0x00010001);
-	nv_wr32(dev, NV50_PDISPLAY_INTR_EN, (NV50_PDISPLAY_INTR_EN_CLK_UNK10 |
-					     NV50_PDISPLAY_INTR_EN_CLK_UNK20 |
-					     NV50_PDISPLAY_INTR_EN_CLK_UNK40));
-
-	/* enable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
-
-		if (conn->dcb->gpio_tag == 0xff)
-			continue;
-
-		pgpio->irq_enable(dev, conn->dcb->gpio_tag, true);
-	}
 
 	return 0;
 }
@@ -442,7 +450,6 @@ static int nv50_display_disable(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0);
-	nv_wr32(dev, NV50_PDISPLAY_CTRL_STATE, 0);
 	if (!nv_wait(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x1e0000, 0)) {
 		NV_ERROR(dev, "timeout: (0x610200 & 0x1e0000) == 0\n");
 		NV_ERROR(dev, "0x610200 = 0x%08x\n",
