@@ -22,29 +22,29 @@
 #include "bfa_cs.h"
 #include "bfi.h"
 
-/**
+/*
  * BFA timer declarations
  */
 typedef void (*bfa_timer_cbfn_t)(void *);
 
-/**
+/*
  * BFA timer data structure
  */
 struct bfa_timer_s {
 	struct list_head	qe;
 	bfa_timer_cbfn_t timercb;
 	void		*arg;
-	int		timeout;	/**< in millisecs. */
+	int		timeout;	/* in millisecs */
 };
 
-/**
+/*
  * Timer module structure
  */
 struct bfa_timer_mod_s {
 	struct list_head timer_q;
 };
 
-#define BFA_TIMER_FREQ 200 /**< specified in millisecs */
+#define BFA_TIMER_FREQ 200 /* specified in millisecs */
 
 void bfa_timer_beat(struct bfa_timer_mod_s *mod);
 void bfa_timer_init(struct bfa_timer_mod_s *mod);
@@ -53,7 +53,7 @@ void bfa_timer_begin(struct bfa_timer_mod_s *mod, struct bfa_timer_s *timer,
 			unsigned int timeout);
 void bfa_timer_stop(struct bfa_timer_s *timer);
 
-/**
+/*
  * Generic Scatter Gather Element used by driver
  */
 struct bfa_sge_s {
@@ -80,17 +80,17 @@ struct bfa_sge_s {
 #define bfa_sgaddr_le(_x)	(_x)
 #endif
 
-/**
+/*
  * PCI device information required by IOC
  */
 struct bfa_pcidev_s {
 	int		pci_slot;
 	u8		pci_func;
-	u16	device_id;
-	void __iomem 	*pci_bar_kva;
+	u16		device_id;
+	void __iomem	*pci_bar_kva;
 };
 
-/**
+/*
  * Structure used to remember the DMA-able memory block's KVA and Physical
  * Address
  */
@@ -102,7 +102,7 @@ struct bfa_dma_s {
 #define BFA_DMA_ALIGN_SZ	256
 #define BFA_ROUNDUP(_l, _s)	(((_l) + ((_s) - 1)) & ~((_s) - 1))
 
-/**
+/*
  * smem size for Crossbow and Catapult
  */
 #define BFI_SMEM_CB_SIZE	0x200000U	/* ! 2MB for crossbow	*/
@@ -156,7 +156,7 @@ struct bfa_ioc_regs_s {
 #define bfa_mem_read(_raddr, _off)	swab32(readl(((_raddr) + (_off))))
 #define bfa_mem_write(_raddr, _off, _val)	\
 			writel(swab32((_val)), ((_raddr) + (_off)))
-/**
+/*
  * IOC Mailbox structures
  */
 struct bfa_mbox_cmd_s {
@@ -164,7 +164,7 @@ struct bfa_mbox_cmd_s {
 	u32	msg[BFI_IOC_MSGSZ];
 };
 
-/**
+/*
  * IOC mailbox module
  */
 typedef void (*bfa_ioc_mbox_mcfunc_t)(void *cbarg, struct bfi_mbmsg_s *m);
@@ -177,7 +177,7 @@ struct bfa_ioc_mbox_mod_s {
 	} mbhdlr[BFI_MC_MAX];
 };
 
-/**
+/*
  * IOC callback function interfaces
  */
 typedef void (*bfa_ioc_enable_cbfn_t)(void *bfa, enum bfa_status status);
@@ -191,7 +191,7 @@ struct bfa_ioc_cbfn_s {
 	bfa_ioc_reset_cbfn_t	reset_cbfn;
 };
 
-/**
+/*
  * Heartbeat failure notification queue element.
  */
 struct bfa_ioc_hbfail_notify_s {
@@ -200,7 +200,7 @@ struct bfa_ioc_hbfail_notify_s {
 	void			*cbarg;
 };
 
-/**
+/*
  * Initialize a heartbeat failure notification structure
  */
 #define bfa_ioc_hbfail_init(__notify, __cbfn, __cbarg) do {	\
@@ -285,7 +285,7 @@ struct bfa_ioc_hwif_s {
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
 
-/**
+/*
  * IOC mailbox interface
  */
 void bfa_ioc_mbox_queue(struct bfa_ioc_s *ioc, struct bfa_mbox_cmd_s *cmd);
@@ -297,7 +297,7 @@ void bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg);
 void bfa_ioc_mbox_regisr(struct bfa_ioc_s *ioc, enum bfi_mclass mc,
 		bfa_ioc_mbox_mcfunc_t cbfn, void *cbarg);
 
-/**
+/*
  * IOC interfaces
  */
 
@@ -439,7 +439,7 @@ bfa_cb_image_get_size(int type)
 	}
 }
 
-/**
+/*
  * CNA TRCMOD declaration
  */
 /*

@@ -22,12 +22,12 @@
 #include "bfi_ms.h"
 
 
-/**
+/*
  * Scatter-gather DMA related defines
  */
 #define BFA_SGPG_MIN	(16)
 
-/**
+/*
  * Alignment macro for SG page allocation
  */
 #define BFA_SGPG_ROUNDUP(_l) (((_l) + (sizeof(struct bfi_sgpg_s) - 1))	\
@@ -48,7 +48,7 @@ struct bfa_sgpg_s {
 	union bfi_addr_u sgpg_pa;	/*  pa of SG page		*/
 };
 
-/**
+/*
  * Given number of SG elements, BFA_SGPG_NPAGE() returns the number of
  * SG pages required.
  */
@@ -75,7 +75,7 @@ void bfa_sgpg_wait(struct bfa_s *bfa, struct bfa_sgpg_wqe_s *wqe, int nsgpgs);
 void bfa_sgpg_wcancel(struct bfa_s *bfa, struct bfa_sgpg_wqe_s *wqe);
 
 
-/**
+/*
  * FCXP related defines
  */
 #define BFA_FCXP_MIN		(1)
@@ -115,12 +115,12 @@ typedef void (*bfa_fcxp_alloc_cbfn_t) (void *cbarg, struct bfa_fcxp_s *fcxp);
 
 
 
-/**
+/*
  * Information needed for a FCXP request
  */
 struct bfa_fcxp_req_info_s {
 	struct bfa_rport_s *bfa_rport;
-					/** Pointer to the bfa rport that was
+					/* Pointer to the bfa rport that was
 					 * returned from bfa_rport_create().
 					 * This could be left NULL for WKA or
 					 * for FCXP interactions before the
@@ -137,11 +137,10 @@ struct bfa_fcxp_req_info_s {
 
 struct bfa_fcxp_rsp_info_s {
 	struct fchs_s	rsp_fchs;
-				/** !< Response frame's FC header will
+				/* Response frame's FC header will
 				 * be sent back in this field */
 	u8		rsp_timeout;
-				/** !< timeout in seconds, 0-no response
-				 */
+				/* timeout in seconds, 0-no response */
 	u8		rsvd2[3];
 	u32	rsp_maxlen;	/*  max response length expected */
 };
@@ -218,7 +217,7 @@ struct bfa_fcxp_wqe_s {
 void	bfa_fcxp_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 
 
-/**
+/*
  * RPORT related defines
  */
 #define BFA_RPORT_MIN	4
@@ -232,7 +231,7 @@ struct bfa_rport_mod_s {
 
 #define BFA_RPORT_MOD(__bfa)	(&(__bfa)->modules.rport_mod)
 
-/**
+/*
  * Convert rport tag to RPORT
  */
 #define BFA_RPORT_FROM_TAG(__bfa, _tag)				\
@@ -244,7 +243,7 @@ struct bfa_rport_mod_s {
  */
 void	bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 
-/**
+/*
  *	BFA rport information.
  */
 struct bfa_rport_info_s {
@@ -259,7 +258,7 @@ struct bfa_rport_info_s {
 	enum bfa_port_speed speed;	/*  Rport's current speed	    */
 };
 
-/**
+/*
  * BFA rport data structure
  */
 struct bfa_rport_s {
@@ -282,7 +281,7 @@ struct bfa_rport_s {
 #define BFA_RPORT_FC_COS(_rport)	((_rport)->rport_info.fc_class)
 
 
-/**
+/*
  * UF - unsolicited receive related defines
  */
 
@@ -305,7 +304,7 @@ struct bfa_uf_s {
 	struct bfa_sge_s sges[BFI_SGE_INLINE_MAX];
 };
 
-/**
+/*
  *      Callback prototype for unsolicited frame receive handler.
  *
  * @param[in]           cbarg           callback arg for receive handler
@@ -338,7 +337,7 @@ void	bfa_uf_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 
 #define BFA_UF_BUFSZ	(2 * 1024 + 256)
 
-/**
+/*
  * @todo private
  */
 struct bfa_uf_buf_s {
@@ -346,7 +345,7 @@ struct bfa_uf_buf_s {
 };
 
 
-/**
+/*
  * LPS - bfa lport login/logout service interface
  */
 struct bfa_lps_s {
@@ -397,14 +396,14 @@ struct bfa_lps_mod_s {
 void	bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 
 
-/**
+/*
  * FCPORT related defines
  */
 
 #define BFA_FCPORT(_bfa)	(&((_bfa)->modules.port))
 typedef void (*bfa_cb_port_t) (void *cbarg, enum bfa_status status);
 
-/**
+/*
  * Link notification data structure
  */
 struct bfa_fcport_ln_s {
@@ -418,7 +417,7 @@ struct bfa_fcport_trunk_s {
 	struct bfa_trunk_attr_s	attr;
 };
 
-/**
+/*
  * BFA FC port data structure
  */
 struct bfa_fcport_s {
@@ -613,7 +612,7 @@ void bfa_uf_recv_register(struct bfa_s *bfa, bfa_cb_uf_recv_t ufrecv,
 			  void *cbarg);
 void bfa_uf_free(struct bfa_uf_s *uf);
 
-/**
+/*
  * bfa lport service api
  */
 

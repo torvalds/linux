@@ -15,11 +15,11 @@
  * General Public License for more details.
  */
 
-/**
+/*
  * Contains base driver definitions.
  */
 
-/**
+/*
  *  bfa_drv.h Linux driver data structures.
  */
 

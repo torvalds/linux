@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfa_cs.h BFA common services
  */
 
@@ -24,7 +24,7 @@
 
 #include "bfa_os_inc.h"
 
-/**
+/*
  * BFA TRC
  */
 
@@ -73,7 +73,7 @@ enum {
 #define BFA_TRC_MOD_SH	10
 #define BFA_TRC_MOD(__mod)	((BFA_TRC_ ## __mod) << BFA_TRC_MOD_SH)
 
-/**
+/*
  * Define a new tracing file (module). Module should match one defined above.
  */
 #define BFA_TRC_FILE(__mod, __submod)					\
@@ -155,7 +155,7 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 #define bfa_trc_fp(_trcp, _data)
 #endif
 
-/**
+/*
  * @ BFA LOG interfaces
  */
 #define bfa_assert(__cond)	do {					\
@@ -249,13 +249,13 @@ bfa_q_is_on_q_func(struct list_head *q, struct list_head *qe)
 #define bfa_q_is_on_q(_q, _qe)      \
 	bfa_q_is_on_q_func(_q, (struct list_head *)(_qe))
 
-/**
+/*
  * @ BFA state machine interfaces
  */
 
 typedef void (*bfa_sm_t)(void *sm, int event);
 
-/**
+/*
  * oc - object class eg. bfa_ioc
  * st - state, eg. reset
  * otype - object type, eg. struct bfa_ioc_s
@@ -269,7 +269,7 @@ typedef void (*bfa_sm_t)(void *sm, int event);
 #define bfa_sm_get_state(_sm)		((_sm)->sm)
 #define bfa_sm_cmp_state(_sm, _state)	((_sm)->sm == (bfa_sm_t)(_state))
 
-/**
+/*
  * For converting from state machine function to state encoding.
  */
 struct bfa_sm_table_s {
@@ -279,12 +279,12 @@ struct bfa_sm_table_s {
 };
 #define BFA_SM(_sm)	((bfa_sm_t)(_sm))
 
-/**
+/*
  * State machine with entry actions.
  */
 typedef void (*bfa_fsm_t)(void *fsm, int event);
 
-/**
+/*
  * oc - object class eg. bfa_ioc
  * st - state, eg. reset
  * otype - object type, eg. struct bfa_ioc_s
@@ -314,7 +314,7 @@ bfa_sm_to_state(struct bfa_sm_table_s *smt, bfa_sm_t sm)
 	return smt[i].state;
 }
 
-/**
+/*
  * @ Generic wait counter.
  */
 
@@ -340,7 +340,7 @@ bfa_wc_down(struct bfa_wc_s *wc)
 		wc->wc_resume(wc->wc_cbarg);
 }
 
-/**
+/*
  * Initialize a waiting counter.
  */
 static inline void
@@ -352,7 +352,7 @@ bfa_wc_init(struct bfa_wc_s *wc, bfa_wc_resume_t wc_resume, void *wc_cbarg)
 	bfa_wc_up(wc);
 }
 
-/**
+/*
  * Wait for counter to reach zero
  */
 static inline void

@@ -104,7 +104,7 @@ struct bfa_fcpim_mod_s {
 	bfa_fcpim_profile_t     profile_start;
 };
 
-/**
+/*
  * BFA IO (initiator mode)
  */
 struct bfa_ioim_s {
@@ -137,7 +137,7 @@ struct bfa_ioim_sp_s {
 	struct bfa_tskim_s	*tskim;		/*  Relevant TM cmd	*/
 };
 
-/**
+/*
  * BFA Task management command (initiator mode)
  */
 struct bfa_tskim_s {
@@ -160,7 +160,7 @@ struct bfa_tskim_s {
 };
 
 
-/**
+/*
  * BFA i-t-n (initiator mode)
  */
 struct bfa_itnim_s {
@@ -303,7 +303,7 @@ bfa_status_t	bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
 		struct bfa_itnim_ioprofile_s *ioprofile);
 #define bfa_itnim_get_reqq(__ioim) (((struct bfa_ioim_s *)__ioim)->itnim->reqq)
 
-/**
+/*
  *	BFA completion callback for bfa_itnim_online().
  *
  * @param[in]		itnim		FCS or driver itnim instance
@@ -312,7 +312,7 @@ bfa_status_t	bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
  */
 void	bfa_cb_itnim_online(void *itnim);
 
-/**
+/*
  *	BFA completion callback for bfa_itnim_offline().
  *
  * @param[in]		itnim		FCS or driver itnim instance
@@ -323,7 +323,7 @@ void	bfa_cb_itnim_offline(void *itnim);
 void	bfa_cb_itnim_tov_begin(void *itnim);
 void	bfa_cb_itnim_tov(void *itnim);
 
-/**
+/*
  *	BFA notification to FCS/driver for second level error recovery.
  *
  * Atleast one I/O request has timedout and target is unresponsive to
@@ -351,7 +351,7 @@ void		bfa_ioim_delayed_comp(struct bfa_ioim_s *ioim,
 				      bfa_boolean_t iotov);
 
 
-/**
+/*
  *	I/O completion notification.
  *
  * @param[in]		dio			driver IO structure
@@ -368,7 +368,7 @@ void	bfa_cb_ioim_done(void *bfad, struct bfad_ioim_s *dio,
 				  u8 scsi_status, int sns_len,
 				  u8 *sns_info, s32 residue);
 
-/**
+/*
  *	I/O good completion notification.
  *
  * @param[in]		dio			driver IO structure
@@ -377,7 +377,7 @@ void	bfa_cb_ioim_done(void *bfad, struct bfad_ioim_s *dio,
  */
 void	bfa_cb_ioim_good_comp(void *bfad, struct bfad_ioim_s *dio);
 
-/**
+/*
  *	I/O abort completion notification
  *
  * @param[in]		dio			driver IO that was aborted

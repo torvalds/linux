@@ -90,13 +90,13 @@ do {									\
 	({						\
 		struct timeval tv;			\
 							\
-		do_gettimeofday(&tv);      		\
+		do_gettimeofday(&tv);			\
 		(tv.tv_sec*1000000+tv.tv_usec);		\
 	 })
 
 #define boolean_t int
 
-/**
+/*
  * For current time stamp, OS API will fill-in
  */
 struct bfa_timeval_s {
