@@ -28,7 +28,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-#include <asm/attrib_alloc.h>
+#include <asm/cacheflush.h>
+#include <asm/outercache.h>
 #include <asm/pgtable.h>
 
 #include <mach/iovmm.h>
@@ -38,7 +39,11 @@
 #include "nvmap_mru.h"
 
 #define NVMAP_SECURE_HEAPS	(NVMAP_HEAP_CARVEOUT_IRAM | NVMAP_HEAP_IOVMM)
+#ifdef CONFIG_NVMAP_HIGHMEM_ONLY
 #define GFP_NVMAP		(__GFP_HIGHMEM | __GFP_NOWARN)
+#else
+#define GFP_NVMAP		(GFP_KERNEL | __GFP_HIGHMEM | __GFP_NOWARN)
+#endif
 /* handles may be arbitrarily large (16+MiB), and any handle allocated from
  * the kernel (i.e., not a carveout handle) includes its array of pages. to
  * preserve kmalloc space, if the array of pages exceeds PAGELIST_VMALLOC_MIN,
@@ -90,13 +95,43 @@ void _nvmap_handle_free(struct nvmap_handle *h)
 		tegra_iovmm_free_vm(h->pgalloc.area);
 
 	for (i = 0; i < nr_page; i++)
-		arm_attrib_free_page(h->pgalloc.pages[i]);
+		__free_page(h->pgalloc.pages[i]);
 
 	altfree(h->pgalloc.pages, nr_page * sizeof(struct page *));
 
 out:
 	kfree(h);
 	nvmap_client_put(client);
+}
+
+extern void __flush_dcache_page(struct address_space *, struct page *);
+
+static struct page *nvmap_alloc_pages_exact(gfp_t gfp, size_t size)
+{
+	struct page *page, *p, *e;
+	unsigned int order;
+	unsigned long base;
+
+	size = PAGE_ALIGN(size);
+	order = get_order(size);
+	page = alloc_pages(gfp, order);
+
+	if (!page)
+		return NULL;
+
+	split_page(page, order);
+
+	e = page + (1 << order);
+	for (p = page + (size >> PAGE_SHIFT); p < e; p++)
+		__free_page(p);
+
+	e = page + (size >> PAGE_SHIFT);
+	for (p = page; p < e; p++)
+		__flush_dcache_page(page_mapping(p), p);
+
+	base = page_to_phys(page);
+	outer_flush_range(base, base + size);
+	return page;
 }
 
 static int handle_page_alloc(struct nvmap_client *client,
@@ -120,14 +155,16 @@ static int handle_page_alloc(struct nvmap_client *client,
 	h->pgalloc.area = NULL;
 	if (contiguous) {
 		struct page *page;
-		page = arm_attrib_alloc_pages_exact(GFP_NVMAP, size, prot);
+		page = nvmap_alloc_pages_exact(GFP_NVMAP, size);
+		if (!page)
+			goto fail;
 
 		for (i = 0; i < nr_page; i++)
 			pages[i] = nth_page(page, i);
 
 	} else {
 		for (i = 0; i < nr_page; i++) {
-			pages[i] = arm_attrib_alloc_page(GFP_NVMAP, prot);
+			pages[i] = nvmap_alloc_pages_exact(GFP_NVMAP, PAGE_SIZE);
 			if (!pages[i])
 				goto fail;
 		}
@@ -151,7 +188,7 @@ static int handle_page_alloc(struct nvmap_client *client,
 
 fail:
 	while (i--)
-		arm_attrib_free_page(pages[i]);
+		__free_page(pages[i]);
 	altfree(pages, nr_page * sizeof(*pages));
 	return -ENOMEM;
 }
@@ -210,7 +247,9 @@ static void alloc_handle(struct nvmap_client *client, size_t align,
  * sub-page splinters */
 static const unsigned int heap_policy_small[] = {
 	NVMAP_HEAP_CARVEOUT_IRAM,
+#ifdef CONFIG_NVMAP_ALLOW_SYSMEM
 	NVMAP_HEAP_SYSMEM,
+#endif
 	NVMAP_HEAP_CARVEOUT_MASK,
 	NVMAP_HEAP_IOVMM,
 	0,
@@ -220,7 +259,9 @@ static const unsigned int heap_policy_large[] = {
 	NVMAP_HEAP_CARVEOUT_IRAM,
 	NVMAP_HEAP_IOVMM,
 	NVMAP_HEAP_CARVEOUT_MASK,
+#ifdef CONFIG_NVMAP_ALLOW_SYSMEM
 	NVMAP_HEAP_SYSMEM,
+#endif
 	0,
 };
 
