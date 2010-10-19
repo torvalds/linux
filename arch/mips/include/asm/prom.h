@@ -12,10 +12,6 @@
 #define __ASM_MIPS_PROM_H
 
 #ifdef CONFIG_OF
-#include <linux/init.h>
-
-#include <asm/setup.h>
-#include <asm/irq.h>
 #include <asm/bootinfo.h>
 
 /* which is compatible with the flattened device tree (FDT) */
@@ -27,9 +23,9 @@ extern int early_init_dt_scan_memory_arch(unsigned long node,
 extern int reserve_mem_mach(unsigned long addr, unsigned long size);
 extern void free_mem_mach(unsigned long addr, unsigned long size);
 
-extern void __init device_tree_init(void);
+extern void device_tree_init(void);
 #else /* CONFIG_OF */
-static inline void __init device_tree_init(void) { }
+static inline void device_tree_init(void) { }
 #endif /* CONFIG_OF */
 
 #endif /* _ASM_MIPS_PROM_H */
