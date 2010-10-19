@@ -548,6 +548,17 @@ typedef struct drm_i915_private {
 		struct list_head shrink_list;
 
 		/**
+		 * List of objects currently involved in rendering.
+		 *
+		 * Includes buffers having the contents of their GPU caches
+		 * flushed, not necessarily primitives.  last_rendering_seqno
+		 * represents when the rendering involved will be completed.
+		 *
+		 * A reference is held on the buffer while on this list.
+		 */
+		struct list_head active_list;
+
+		/**
 		 * List of objects which are not in the ringbuffer but which
 		 * still have a write_domain which needs to be flushed before
 		 * unbinding.
@@ -714,7 +725,8 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *gtt_space;
 
 	/** This object's place on the active/flushing/inactive lists */
-	struct list_head list;
+	struct list_head ring_list;
+	struct list_head mm_list;
 	/** This object's place on GPU write list */
 	struct list_head gpu_write_list;
 	/** This object's place on eviction list */

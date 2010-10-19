@@ -608,9 +608,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	batchbuffer[0] = NULL;
 	batchbuffer[1] = NULL;
 	count = 0;
-	list_for_each_entry(obj_priv,
-			&dev_priv->render_ring.active_list, list) {
-
+	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
 		struct drm_gem_object *obj = &obj_priv->base;
 
 		if (batchbuffer[0] == NULL &&
@@ -627,7 +625,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 	/* Scan the other lists for completeness for those bizarre errors. */
 	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, mm_list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			if (batchbuffer[0] == NULL &&
@@ -645,7 +643,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		}
 	}
 	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, mm_list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			if (batchbuffer[0] == NULL &&
@@ -686,8 +684,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	if (error->active_bo) {
 		int i = 0;
-		list_for_each_entry(obj_priv,
-				&dev_priv->render_ring.active_list, list) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			error->active_bo[i].size = obj->size;
