@@ -35,10 +35,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/ir-core.h>
-#if defined(CONFIG_VIDEO_CX231XX_DVB) || \
-	defined(CONFIG_VIDEO_CX231XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>
-#endif
 
 #include "cx231xx-reg.h"
 #include "cx231xx-pcb-cfg.h"
