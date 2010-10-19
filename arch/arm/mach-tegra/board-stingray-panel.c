@@ -29,6 +29,7 @@
 #include <mach/nvhost.h>
 #include <linux/regulator/consumer.h>
 
+#include "board.h"
 #include "board-stingray.h"
 #include "gpio-names.h"
 
@@ -53,8 +54,7 @@ static struct resource stingray_disp1_resources[] = {
 	},
 	{
 		.name	= "fbmem",
-		.start	= 0x1c038000,
-		.end	= 0x1c038000 + 0x500000 - 1,
+		/* .start and .end to be filled in later */
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -74,8 +74,7 @@ static struct resource stingray_disp2_resources[] = {
 	},
 	{
 		.name	= "fbmem",
-		.start	= 0x1c600000,
-		.end	= 0x1c600000 + 0x1000000 - 1,
+		/* .start and .end to be filled in later */
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -312,6 +311,8 @@ static struct regulator *stingray_csi_reg;
 
 int __init stingray_panel_init(void)
 {
+	struct resource *res;
+
 	if (stingray_revision() < STINGRAY_REVISION_P1) {
 		tegra_gpio_enable(STINGRAY_AUO_DISP_BL);
 		gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
@@ -343,6 +344,17 @@ int __init stingray_panel_init(void)
 	stingray_panel_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	register_early_suspend(&stingray_panel_early_suspender);
 #endif
+
+
+	res = nvhost_get_resource_byname(&stingray_disp1_device,
+		IORESOURCE_MEM, "fbmem");
+	res->start = tegra_fb_start;
+	res->end = tegra_fb_start + tegra_fb_size - 1;
+
+	res = nvhost_get_resource_byname(&stingray_disp2_device,
+		IORESOURCE_MEM, "fbmem");
+	res->start = tegra_fb2_start;
+	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 
 	nvhost_device_register(&stingray_disp1_device);
 	return  nvhost_device_register(&stingray_disp2_device);

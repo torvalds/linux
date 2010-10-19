@@ -96,6 +96,9 @@ static int __init parse_tag_nvidia(const struct tag *tag)
 }
 __tagtable(ATAG_NVIDIA, parse_tag_nvidia);
 
+static unsigned long ramconsole_start = SZ_512M - SZ_1M;
+static unsigned long ramconsole_size = SZ_1M;
+
 static struct plat_serial8250_port hs_uarta_platform_data[] = {
 	{
 		.mapbase	= TEGRA_UARTA_BASE,
@@ -545,8 +548,7 @@ static struct tegra_w1_platform_data tegra_w1_pdata = {
 
 static struct resource ram_console_resources[] = {
 	{
-		.start  = SZ_1G - SZ_256K,
-		.end    = SZ_1G - 1,
+		/* .start and .end filled in later */
 		.flags  = IORESOURCE_MEM,
 	},
 };
@@ -569,8 +571,7 @@ static struct nvmap_platform_carveout stingray_carveouts[] = {
 	[1] = {
 		.name		= "generic-0",
 		.usage_mask	= NVMAP_HEAP_CARVEOUT_GENERIC,
-		.base		= 0x18000000,
-		.size		= SZ_64M,
+		/* .base and .size to be filled in later */
 		.buddy_size	= SZ_32K,
 	},
 };
@@ -790,16 +791,6 @@ static void stingray_usb_init(void)
 	platform_device_register(&androidusb_device);
 }
 
-static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *tags,
-				 char **cmdline, struct meminfo *mi)
-{
-	mi->nr_banks = 2;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].size = 448 * SZ_1M;
-	mi->bank[1].start = SZ_512M;
-	mi->bank[1].size = SZ_512M - SZ_256K;
-}
-
 static void stingray_reset(char mode, const char *cmd)
 {
 	/* Signal to CPCAP to stop the uC. */
@@ -914,6 +905,7 @@ static void init_dac2(bool bluetooth)
 static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;
+	struct resource *res;
 
 	tegra_common_init();
 	tegra_init_suspend(&stingray_suspend);
@@ -1011,6 +1003,13 @@ static void __init tegra_stingray_init(void)
 
 	tegra_ehci1_device.dev.platform_data = &tegra_ehci_pdata[0];
 
+	res = platform_get_resource(&ram_console_device, IORESOURCE_MEM, 0);
+	res->start = ramconsole_start;
+	res->end = ramconsole_start + ramconsole_size - 1;
+
+	stingray_carveouts[1].base = tegra_carveout_start;
+	stingray_carveouts[1].size = tegra_carveout_size;
+
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
 	stingray_i2c_init();
@@ -1032,17 +1031,38 @@ void __init stingray_map_io(void)
 	tegra_map_common_io();
 }
 
+static int __init stingray_ramconsole_arg(char *options)
+{
+	char *p = options;
+
+	ramconsole_size = memparse(p, &p);
+	if (*p == '@')
+		ramconsole_start = memparse(p+1, &p);
+
+	return 0;
+}
+early_param("ramconsole", stingray_ramconsole_arg);
+
 void __init stingray_reserve(void)
 {
+	long ret;
 	if (memblock_reserve(0x0, 4096) < 0)
 		pr_warn("Cannot reserve first 4K of memory for safety\n");
+
+	ret = memblock_remove(SZ_512M - SZ_2M, SZ_2M);
+	if (ret)
+		pr_info("Failed to remove ram console\n");
+	else
+		pr_info("Reserved %08lx@%08lx for ram console\n",
+			ramconsole_start, ramconsole_size);
+
+	tegra_reserve(SZ_128M, SZ_8M, SZ_16M);
 }
 
 MACHINE_START(STINGRAY, "stingray")
 	.boot_params	= 0x00000100,
 	.phys_io	= IO_APB_PHYS,
 	.io_pg_offst	= ((IO_APB_VIRT) >> 18) & 0xfffc,
-	.fixup		= tegra_stingray_fixup,
 	.init_irq	= tegra_init_irq,
 	.init_machine	= tegra_stingray_init,
 	.map_io		= stingray_map_io,
