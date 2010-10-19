@@ -1186,7 +1186,7 @@ static int nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state 
 	int err;
 	do {
 		err = _nfs4_do_open_reclaim(ctx, state);
-		if (err != -NFS4ERR_DELAY && err != -EKEYEXPIRED)
+		if (err != -NFS4ERR_DELAY)
 			break;
 		nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
@@ -1256,6 +1256,13 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
 				nfs4_state_mark_reclaim_nograce(server->nfs_client, state);
+			case -EKEYEXPIRED:
+				/*
+				 * User RPCSEC_GSS context has expired.
+				 * We cannot recover this stateid now, so
+				 * skip it and allow recovery thread to
+				 * proceed.
+				 */
 			case -ENOMEM:
 				err = 0;
 				goto out;
@@ -1603,7 +1610,6 @@ static int nfs4_do_open_expired(struct nfs_open_context *ctx, struct nfs4_state 
 			goto out;
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
-		case -EKEYEXPIRED:
 			nfs4_handle_exception(server, err, &exception);
 			err = 0;
 		}
@@ -3544,7 +3550,6 @@ int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 			case -NFS4ERR_RESOURCE:
 				/* The IBM lawyers misread another document! */
 			case -NFS4ERR_DELAY:
-			case -EKEYEXPIRED:
 				err = nfs4_delay(clp->cl_rpcclient, &timeout);
 		}
 	} while (err == 0);
@@ -4156,7 +4161,7 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 		if (test_bit(NFS_DELEGATED_STATE, &state->flags) != 0)
 			return 0;
 		err = _nfs4_do_setlk(state, F_SETLK, request, NFS_LOCK_RECLAIM);
-		if (err != -NFS4ERR_DELAY && err != -EKEYEXPIRED)
+		if (err != -NFS4ERR_DELAY)
 			break;
 		nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
@@ -4181,7 +4186,6 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 			goto out;
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
-		case -EKEYEXPIRED:
 			nfs4_handle_exception(server, err, &exception);
 			err = 0;
 		}
@@ -4327,13 +4331,21 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 				nfs4_state_mark_reclaim_nograce(server->nfs_client, state);
 				err = 0;
 				goto out;
+			case -EKEYEXPIRED:
+				/*
+				 * User RPCSEC_GSS context has expired.
+				 * We cannot recover this stateid now, so
+				 * skip it and allow recovery thread to
+				 * proceed.
+				 */
+				err = 0;
+				goto out;
 			case -ENOMEM:
 			case -NFS4ERR_DENIED:
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 				err = 0;
 				goto out;
 			case -NFS4ERR_DELAY:
-			case -EKEYEXPIRED:
 				break;
 		}
 		err = nfs4_handle_exception(server, err, &exception);
@@ -4562,7 +4574,6 @@ static void nfs4_get_lease_time_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case -NFS4ERR_DELAY:
 	case -NFS4ERR_GRACE:
-	case -EKEYEXPIRED:
 		dprintk("%s Retry: tk_status %d\n", __func__, task->tk_status);
 		rpc_delay(task, NFS4_POLL_RETRY_MIN);
 		task->tk_status = 0;
@@ -5025,7 +5036,6 @@ static int nfs41_sequence_handle_errors(struct rpc_task *task, struct nfs_client
 {
 	switch(task->tk_status) {
 	case -NFS4ERR_DELAY:
-	case -EKEYEXPIRED:
 		rpc_delay(task, NFS4_POLL_RETRY_MAX);
 		return -EAGAIN;
 	default:
@@ -5167,7 +5177,6 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 	case -NFS4ERR_WRONG_CRED: /* What to do here? */
 		break;
 	case -NFS4ERR_DELAY:
-	case -EKEYEXPIRED:
 		rpc_delay(task, NFS4_POLL_RETRY_MAX);
 		return -EAGAIN;
 	default:
