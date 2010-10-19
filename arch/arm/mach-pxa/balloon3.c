@@ -567,27 +567,29 @@ static inline void balloon3_i2c_init(void) {}
  * NAND
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_PLATFORM)||defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
-static uint16_t balloon3_ctl =
-	BALLOON3_NAND_CONTROL_FLCE0 | BALLOON3_NAND_CONTROL_FLCE1 |
-	BALLOON3_NAND_CONTROL_FLCE2 | BALLOON3_NAND_CONTROL_FLCE3 |
-	BALLOON3_NAND_CONTROL_FLWP;
-
 static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
 	struct nand_chip *this = mtd->priv;
+	uint8_t balloon3_ctl_set = 0, balloon3_ctl_clr = 0;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
 		if (ctrl & NAND_CLE)
-			balloon3_ctl |= BALLOON3_NAND_CONTROL_FLCLE;
+			balloon3_ctl_set |= BALLOON3_NAND_CONTROL_FLCLE;
 		else
-			balloon3_ctl &= ~BALLOON3_NAND_CONTROL_FLCLE;
+			balloon3_ctl_clr |= BALLOON3_NAND_CONTROL_FLCLE;
 
 		if (ctrl & NAND_ALE)
-			balloon3_ctl |= BALLOON3_NAND_CONTROL_FLALE;
+			balloon3_ctl_set |= BALLOON3_NAND_CONTROL_FLALE;
 		else
-			balloon3_ctl &= ~BALLOON3_NAND_CONTROL_FLALE;
+			balloon3_ctl_clr |= BALLOON3_NAND_CONTROL_FLALE;
 
-		__raw_writel(balloon3_ctl, BALLOON3_NAND_CONTROL_REG);
+		if (balloon3_ctl_clr)
+			__raw_writel(balloon3_ctl_clr,
+				BALLOON3_NAND_CONTROL_REG);
+		if (balloon3_ctl_set)
+			__raw_writel(balloon3_ctl_set,
+				BALLOON3_NAND_CONTROL_REG |
+				BALLOON3_FPGA_SETnCLR);
 	}
 
 	if (cmd != NAND_CMD_NONE)
@@ -599,15 +601,15 @@ static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
 	if (chip < 0 || chip > 3)
 		return;
 
-	balloon3_ctl |= BALLOON3_NAND_CONTROL_FLCE0 |
-			BALLOON3_NAND_CONTROL_FLCE1 |
-			BALLOON3_NAND_CONTROL_FLCE2 |
-			BALLOON3_NAND_CONTROL_FLCE3;
+	/* Assert all nCE lines */
+	__raw_writew(
+		BALLOON3_NAND_CONTROL_FLCE0 | BALLOON3_NAND_CONTROL_FLCE1 |
+		BALLOON3_NAND_CONTROL_FLCE2 | BALLOON3_NAND_CONTROL_FLCE3,
+		BALLOON3_NAND_CONTROL_REG | BALLOON3_FPGA_SETnCLR);
 
 	/* Deassert correct nCE line */
-	balloon3_ctl &= ~(BALLOON3_NAND_CONTROL_FLCE0 << chip);
-
-	__raw_writew(balloon3_ctl, BALLOON3_NAND_CONTROL_REG);
+	__raw_writew(BALLOON3_NAND_CONTROL_FLCE0 << chip,
+		BALLOON3_NAND_CONTROL_REG);
 }
 
 static int balloon3_nand_probe(struct platform_device *pdev)
@@ -616,11 +618,12 @@ static int balloon3_nand_probe(struct platform_device *pdev)
 	uint16_t ver;
 	int ret;
 
-	__raw_writew(BALLOON3_NAND_CONTROL2_16BIT, BALLOON3_NAND_CONTROL2_REG);
+	__raw_writew(BALLOON3_NAND_CONTROL2_16BIT,
+		BALLOON3_NAND_CONTROL2_REG | BALLOON3_FPGA_SETnCLR);
 
 	ver = __raw_readw(BALLOON3_FPGA_VER);
-	if (ver > 0x0201)
-		pr_warn("The FPGA code, version 0x%04x, is newer than rel-0.3. "
+	if (ver < 0x4f08)
+		pr_warn("The FPGA code, version 0x%04x, is too old. "
 			"NAND support might be broken in this version!", ver);
 
 	/* Power up the NAND chips */
@@ -635,7 +638,11 @@ static int balloon3_nand_probe(struct platform_device *pdev)
 	gpio_set_value(BALLOON3_GPIO_RUN_NAND, 1);
 
 	/* Deassert all nCE lines and write protect line */
-	__raw_writel(balloon3_ctl, BALLOON3_NAND_CONTROL_REG);
+	__raw_writel(
+		BALLOON3_NAND_CONTROL_FLCE0 | BALLOON3_NAND_CONTROL_FLCE1 |
+		BALLOON3_NAND_CONTROL_FLCE2 | BALLOON3_NAND_CONTROL_FLCE3 |
+		BALLOON3_NAND_CONTROL_FLWP,
+		BALLOON3_NAND_CONTROL_REG | BALLOON3_FPGA_SETnCLR);
 	return 0;
 
 err2:

@@ -26,6 +26,8 @@ enum balloon3_features {
 #define BALLOON3_FPGA_VIRT	(0xf1000000)	/* as per balloon2 */
 #define BALLOON3_FPGA_LENGTH	0x01000000
 
+#define	BALLOON3_FPGA_SETnCLR		(0x1000)
+
 /* FPGA / CPLD registers for CF socket */
 #define	BALLOON3_CF_STATUS_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
 #define	BALLOON3_CF_CONTROL_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
