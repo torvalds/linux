@@ -841,6 +841,9 @@ config CRYPTO_ANSI_CPRNG
 	  ANSI X9.31 A.2.4. Note that this option must be enabled if
 	  CRYPTO_FIPS is selected
 
+config CRYPTO_USER_API
+	tristate
+
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
