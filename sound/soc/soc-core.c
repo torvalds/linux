@@ -2929,7 +2929,7 @@ static inline char *fmt_single_name(struct device *dev, int *id)
 			char tmp[NAME_SIZE];
 
 			/* create unique ID number from I2C addr and bus */
-			*id = ((id1 && 0xffff) << 16) + id2;
+			*id = ((id1 & 0xffff) << 16) + id2;
 
 			/* sanitize component name for DAI link creation */
 			snprintf(tmp, NAME_SIZE, "%s.%s", dev->driver->name, name);
