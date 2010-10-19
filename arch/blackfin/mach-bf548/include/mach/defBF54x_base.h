@@ -35,6 +35,7 @@
 
 /* SIC Registers */
 
+#define                        SIC_RVECT  0xffc00108
 #define                       SIC_IMASK0  0xffc0010c   /* System Interrupt Mask Register 0 */
 #define                       SIC_IMASK1  0xffc00110   /* System Interrupt Mask Register 1 */
 #define                       SIC_IMASK2  0xffc00114   /* System Interrupt Mask Register 2 */

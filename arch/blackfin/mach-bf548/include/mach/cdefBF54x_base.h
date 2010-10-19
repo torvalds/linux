@@ -40,6 +40,8 @@
 
 /* SIC Registers */
 
+#define bfin_read_SIC_RVECT()		bfin_read32(SIC_RVECT)
+#define bfin_write_SIC_RVECT(val)	bfin_write32(SIC_RVECT, val)
 #define bfin_read_SIC_IMASK0()		bfin_read32(SIC_IMASK0)
 #define bfin_write_SIC_IMASK0(val)	bfin_write32(SIC_IMASK0, val)
 #define bfin_read_SIC_IMASK1()		bfin_read32(SIC_IMASK1)
