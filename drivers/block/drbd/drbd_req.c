@@ -813,7 +813,8 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 			     mdev->state.conn >= C_CONNECTED));
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
-		dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
+		if (__ratelimit(&drbd_ratelimit_state))
+			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
 		goto fail_free_complete;
 	}
 
