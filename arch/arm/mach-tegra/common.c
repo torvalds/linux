@@ -34,6 +34,8 @@
 #include "clock.h"
 #include "fuse.h"
 
+#define MC_SECURITY_CFG2 0x7c
+
 unsigned long tegra_bootloader_fb_start;
 unsigned long tegra_bootloader_fb_size;
 unsigned long tegra_fb_start;
@@ -44,6 +46,7 @@ unsigned long tegra_carveout_start;
 unsigned long tegra_carveout_size;
 unsigned long tegra_lp0_vec_start;
 unsigned long tegra_lp0_vec_size;
+unsigned long tegra_grhost_aperture;
 
 void (*tegra_reset)(char mode, const char *cmd);
 
@@ -124,6 +127,23 @@ static int __init tegra_lp0_vec_arg(char *options)
 }
 early_param("lp0_vec", tegra_lp0_vec_arg);
 
+/*
+ * Tegra has a protected aperture that prevents access by most non-CPU
+ * memory masters to addresses above the aperture value.  Enabling it
+ * secures the CPU's memory from the GPU, except through the GART.
+ */
+void __init tegra_protected_aperture_init(unsigned long aperture)
+{
+#ifndef CONFIG_NVMAP_ALLOW_SYSMEM
+	void __iomem *mc_base = IO_ADDRESS(TEGRA_MC_BASE);
+	pr_info("Enabling Tegra protected aperture at 0x%08lx\n", aperture);
+	writel(aperture, mc_base + MC_SECURITY_CFG2);
+#else
+	pr_err("Tegra protected aperture disabled because nvmap is using "
+		"system memory\n");
+#endif
+}
+
 void __init tegra_reserve(unsigned long carveout_size, unsigned long fb_size,
 	unsigned long fb2_size)
 {
@@ -156,6 +176,15 @@ void __init tegra_reserve(unsigned long carveout_size, unsigned long fb_size,
 			tegra_fb_start, fb_size);
 	else
 		tegra_fb_size = fb_size;
+
+	if (tegra_fb_size)
+		tegra_grhost_aperture = tegra_fb_start;
+
+	if (tegra_fb2_size && tegra_fb2_start < tegra_grhost_aperture)
+		tegra_grhost_aperture = tegra_fb2_start;
+
+	if (tegra_carveout_size && tegra_carveout_start < tegra_grhost_aperture)
+		tegra_grhost_aperture = tegra_carveout_start;
 
 	/*
 	 * TODO: We should copy the bootloader's framebuffer to the framebuffer
