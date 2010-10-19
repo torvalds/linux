@@ -885,41 +885,39 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case _IOC_NR(SNDRV_SST_SET_VOL): {
-		struct snd_sst_vol *set_vol;
-		struct snd_sst_vol *rec_vol = (struct snd_sst_vol *)arg;
-		pr_debug("sst: SET_VOLUME recieved for %d!\n",
-				rec_vol->stream_id);
-		if (minor == STREAM_MODULE && rec_vol->stream_id == 0) {
-			pr_debug("sst: invalid operation!\n");
-			retval = -EPERM;
-			break;
-		}
-		set_vol = kzalloc(sizeof(*set_vol), GFP_ATOMIC);
-		if (!set_vol) {
-			pr_debug("sst: mem allocation failed\n");
-			retval = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(set_vol, rec_vol, sizeof(*set_vol))) {
+		struct snd_sst_vol set_vol;
+
+		if (copy_from_user(&set_vol, (void __user *)arg,
+				sizeof(set_vol))) {
 			pr_debug("sst: copy failed\n");
 			retval = -EFAULT;
 			break;
 		}
-		retval = sst_set_vol(set_vol);
-		kfree(set_vol);
-		break;
-	}
-	case _IOC_NR(SNDRV_SST_GET_VOL): {
-		struct snd_sst_vol *rec_vol = (struct snd_sst_vol *)arg;
-		struct snd_sst_vol get_vol;
-		pr_debug("sst: IOCTL_GET_VOLUME recieved for stream = %d!\n",
-				rec_vol->stream_id);
-		if (minor == STREAM_MODULE && rec_vol->stream_id == 0) {
+		pr_debug("sst: SET_VOLUME recieved for %d!\n",
+				set_vol.stream_id);
+		if (minor == STREAM_MODULE && set_vol.stream_id == 0) {
 			pr_debug("sst: invalid operation!\n");
 			retval = -EPERM;
 			break;
 		}
-		get_vol.stream_id = rec_vol->stream_id;
+		retval = sst_set_vol(&set_vol);
+		break;
+	}
+	case _IOC_NR(SNDRV_SST_GET_VOL): {
+		struct snd_sst_vol get_vol;
+
+		if (copy_from_user(&get_vol, (void __user *)arg,
+				sizeof(get_vol))) {
+			retval = -EFAULT;
+			break;
+		}
+		pr_debug("sst: IOCTL_GET_VOLUME recieved for stream = %d!\n",
+				get_vol.stream_id);
+		if (minor == STREAM_MODULE && get_vol.stream_id == 0) {
+			pr_debug("sst: invalid operation!\n");
+			retval = -EPERM;
+			break;
+		}
 		retval = sst_get_vol(&get_vol);
 		if (retval) {
 			retval = -EIO;
@@ -938,25 +936,20 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	}
 
 	case _IOC_NR(SNDRV_SST_MUTE): {
-		struct snd_sst_mute *set_mute;
-		struct snd_sst_vol *rec_mute = (struct snd_sst_vol *)arg;
-		pr_debug("sst: SNDRV_SST_SET_VOLUME recieved for %d!\n",
-			rec_mute->stream_id);
-		if (minor == STREAM_MODULE && rec_mute->stream_id == 0) {
-			retval = -EPERM;
-			break;
-		}
-		set_mute = kzalloc(sizeof(*set_mute), GFP_ATOMIC);
-		if (!set_mute) {
-			retval = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(set_mute, rec_mute, sizeof(*set_mute))) {
+		struct snd_sst_mute set_mute;
+
+		if (copy_from_user(&set_mute, (void __user *)arg,
+				sizeof(set_mute))) {
 			retval = -EFAULT;
 			break;
 		}
-		retval = sst_set_mute(set_mute);
-		kfree(set_mute);
+		pr_debug("sst: SNDRV_SST_SET_VOLUME recieved for %d!\n",
+			set_mute.stream_id);
+		if (minor == STREAM_MODULE && set_mute.stream_id == 0) {
+			retval = -EPERM;
+			break;
+		}
+		retval = sst_set_mute(&set_mute);
 		break;
 	}
 	case _IOC_NR(SNDRV_SST_STREAM_GET_PARAMS): {
