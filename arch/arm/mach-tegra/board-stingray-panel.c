@@ -356,6 +356,9 @@ int __init stingray_panel_init(void)
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 
+	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
+		min(tegra_fb_size, tegra_bootloader_fb_size));
+
 	nvhost_device_register(&stingray_disp1_device);
 	return  nvhost_device_register(&stingray_disp2_device);
 }

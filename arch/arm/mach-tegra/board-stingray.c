@@ -1026,6 +1026,14 @@ static void __init tegra_stingray_init(void)
 	stingray_usb_init();
 }
 
+int __init stingray_protected_aperture_init(void)
+{
+	tegra_protected_aperture_init(tegra_grhost_aperture);
+	memblock_free(tegra_bootloader_fb_start, tegra_bootloader_fb_size);
+	return 0;
+}
+late_initcall(stingray_protected_aperture_init);
+
 void __init stingray_map_io(void)
 {
 	tegra_map_common_io();
