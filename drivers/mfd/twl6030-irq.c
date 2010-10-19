@@ -38,6 +38,8 @@
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
 
+#include "twl-core.h"
+
 /*
  * TWL6030 (unlike its predecessors, which had two level interrupt handling)
  * three interrupt registers INT_STS_A, INT_STS_B and INT_STS_C.

@@ -35,6 +35,7 @@
 
 #include <linux/i2c/twl.h>
 
+#include "twl-core.h"
 
 /*
  * TWL4030 IRQ handling has two stages in hardware, and thus in software.
