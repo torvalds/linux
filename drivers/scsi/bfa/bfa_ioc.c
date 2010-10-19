@@ -1133,7 +1133,7 @@ bfa_ioc_sem_get(bfa_os_addr_t sem_reg)
 
 	while (r32 && (cnt < BFA_SEM_SPINCNT)) {
 		cnt++;
-		bfa_os_udelay(2);
+		udelay(2);
 		r32 = bfa_reg_read(sem_reg);
 	}
 
@@ -2293,7 +2293,7 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	bfa_ioc_get_adapter_fw_ver(ioc, ad_attr->fw_ver);
 	bfa_ioc_get_adapter_optrom_ver(ioc, ad_attr->optrom_ver);
 	bfa_ioc_get_adapter_manufacturer(ioc, ad_attr->manufacturer);
-	bfa_os_memcpy(&ad_attr->vpd, &ioc_attr->vpd,
+	memcpy(&ad_attr->vpd, &ioc_attr->vpd,
 		      sizeof(struct bfa_mfg_vpd_s));
 
 	ad_attr->nports = bfa_ioc_get_nports(ioc);
@@ -2343,8 +2343,8 @@ bfa_ioc_get_type(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_get_adapter_serial_num(struct bfa_ioc_s *ioc, char *serial_num)
 {
-	bfa_os_memset((void *)serial_num, 0, BFA_ADAPTER_SERIAL_NUM_LEN);
-	bfa_os_memcpy((void *)serial_num,
+	memset((void *)serial_num, 0, BFA_ADAPTER_SERIAL_NUM_LEN);
+	memcpy((void *)serial_num,
 			(void *)ioc->attr->brcd_serialnum,
 			BFA_ADAPTER_SERIAL_NUM_LEN);
 }
@@ -2352,8 +2352,8 @@ bfa_ioc_get_adapter_serial_num(struct bfa_ioc_s *ioc, char *serial_num)
 void
 bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver)
 {
-	bfa_os_memset((void *)fw_ver, 0, BFA_VERSION_LEN);
-	bfa_os_memcpy(fw_ver, ioc->attr->fw_version, BFA_VERSION_LEN);
+	memset((void *)fw_ver, 0, BFA_VERSION_LEN);
+	memcpy(fw_ver, ioc->attr->fw_version, BFA_VERSION_LEN);
 }
 
 void
@@ -2361,7 +2361,7 @@ bfa_ioc_get_pci_chip_rev(struct bfa_ioc_s *ioc, char *chip_rev)
 {
 	bfa_assert(chip_rev);
 
-	bfa_os_memset((void *)chip_rev, 0, BFA_IOC_CHIP_REV_LEN);
+	memset((void *)chip_rev, 0, BFA_IOC_CHIP_REV_LEN);
 
 	chip_rev[0] = 'R';
 	chip_rev[1] = 'e';
@@ -2374,16 +2374,16 @@ bfa_ioc_get_pci_chip_rev(struct bfa_ioc_s *ioc, char *chip_rev)
 void
 bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc_s *ioc, char *optrom_ver)
 {
-	bfa_os_memset((void *)optrom_ver, 0, BFA_VERSION_LEN);
-	bfa_os_memcpy(optrom_ver, ioc->attr->optrom_version,
+	memset((void *)optrom_ver, 0, BFA_VERSION_LEN);
+	memcpy(optrom_ver, ioc->attr->optrom_version,
 		      BFA_VERSION_LEN);
 }
 
 void
 bfa_ioc_get_adapter_manufacturer(struct bfa_ioc_s *ioc, char *manufacturer)
 {
-	bfa_os_memset((void *)manufacturer, 0, BFA_ADAPTER_MFG_NAME_LEN);
-	bfa_os_memcpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
+	memset((void *)manufacturer, 0, BFA_ADAPTER_MFG_NAME_LEN);
+	memcpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
 }
 
 void
@@ -2392,14 +2392,14 @@ bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
 	struct bfi_ioc_attr_s	*ioc_attr;
 
 	bfa_assert(model);
-	bfa_os_memset((void *)model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
+	memset((void *)model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
 
 	ioc_attr = ioc->attr;
 
 	/**
 	 * model name
 	 */
-	bfa_os_snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
+	snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
 		BFA_MFG_NAME, ioc_attr->card_type);
 }
 
@@ -2446,7 +2446,7 @@ bfa_ioc_get_state(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 {
-	bfa_os_memset((void *)ioc_attr, 0, sizeof(struct bfa_ioc_attr_s));
+	memset((void *)ioc_attr, 0, sizeof(struct bfa_ioc_attr_s));
 
 	ioc_attr->state = bfa_ioc_get_state(ioc);
 	ioc_attr->port_id = ioc->port_id;
@@ -2541,7 +2541,7 @@ bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
 	if (tlen > ioc->dbg_fwsave_len)
 		tlen = ioc->dbg_fwsave_len;
 
-	bfa_os_memcpy(trcdata, ioc->dbg_fwsave, tlen);
+	memcpy(trcdata, ioc->dbg_fwsave, tlen);
 	*trclen = tlen;
 	return BFA_STATUS_OK;
 }

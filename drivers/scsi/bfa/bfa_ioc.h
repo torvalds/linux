@@ -267,7 +267,7 @@ struct bfa_ioc_hwif_s {
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\
-		bfa_os_memset(&(__ioc)->stats, 0, sizeof((__ioc)->stats))
+		memset(&(__ioc)->stats, 0, sizeof((__ioc)->stats))
 #define bfa_ioc_maxfrsize(__ioc)	((__ioc)->attr->maxfrsize)
 #define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
 #define bfa_ioc_speed_sup(__ioc)	\

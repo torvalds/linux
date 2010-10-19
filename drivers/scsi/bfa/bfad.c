@@ -716,30 +716,6 @@ ext:
 	return rc;
 }
 
-/**
- * Create a vf and its base vport implicitely.
- */
-bfa_status_t
-bfad_vf_create(struct bfad_s *bfad, u16 vf_id,
-	       struct bfa_lport_cfg_s *port_cfg)
-{
-	struct bfad_vf_s      *vf;
-	int		rc = BFA_STATUS_OK;
-
-	vf = kzalloc(sizeof(struct bfad_vf_s), GFP_KERNEL);
-	if (!vf) {
-		rc = BFA_STATUS_FAILED;
-		goto ext;
-	}
-
-	rc = bfa_fcs_vf_create(&vf->fcs_vf, &bfad->bfa_fcs, vf_id, port_cfg,
-			       vf);
-	if (rc != BFA_STATUS_OK)
-		kfree(vf);
-ext:
-	return rc;
-}
-
 void
 bfad_bfa_tmo(unsigned long data)
 {

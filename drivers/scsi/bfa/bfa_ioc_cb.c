@@ -217,7 +217,7 @@ bfa_ioc_cb_pll_init(bfa_os_addr_t rb, bfa_boolean_t fcmode)
 	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
 			  __APP_PLL_400_BYPASS |
 			  __APP_PLL_400_LOGIC_SOFT_RESET);
-	bfa_os_udelay(2);
+	udelay(2);
 	bfa_reg_write(rb + APP_PLL_212_CTL_REG,
 			  __APP_PLL_212_LOGIC_SOFT_RESET);
 	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
@@ -226,7 +226,7 @@ bfa_ioc_cb_pll_init(bfa_os_addr_t rb, bfa_boolean_t fcmode)
 			  pll_sclk | __APP_PLL_212_LOGIC_SOFT_RESET);
 	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
 			  pll_fclk | __APP_PLL_400_LOGIC_SOFT_RESET);
-	bfa_os_udelay(2000);
+	udelay(2000);
 	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
 	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
 	bfa_reg_write((rb + APP_PLL_212_CTL_REG), pll_sclk);

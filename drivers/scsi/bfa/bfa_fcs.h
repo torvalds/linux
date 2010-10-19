@@ -680,19 +680,6 @@ void		bfa_fcs_start(struct bfa_fcs_s *fcs);
 /**
  * bfa fcs vf public functions
  */
-bfa_status_t bfa_fcs_vf_mode_enable(struct bfa_fcs_s *fcs, u16 vf_id);
-bfa_status_t bfa_fcs_vf_mode_disable(struct bfa_fcs_s *fcs);
-bfa_status_t bfa_fcs_vf_create(bfa_fcs_vf_t *vf, struct bfa_fcs_s *fcs,
-			       u16 vf_id, struct bfa_lport_cfg_s *port_cfg,
-			       struct bfad_vf_s *vf_drv);
-bfa_status_t bfa_fcs_vf_delete(bfa_fcs_vf_t *vf);
-void bfa_fcs_vf_list(struct bfa_fcs_s *fcs, u16 *vf_ids, int *nvfs);
-void bfa_fcs_vf_list_all(struct bfa_fcs_s *fcs, u16 *vf_ids, int *nvfs);
-void bfa_fcs_vf_get_attr(bfa_fcs_vf_t *vf, struct bfa_vf_attr_s *vf_attr);
-void bfa_fcs_vf_get_stats(bfa_fcs_vf_t *vf,
-			  struct bfa_vf_stats_s *vf_stats);
-void bfa_fcs_vf_clear_stats(bfa_fcs_vf_t *vf);
-void bfa_fcs_vf_get_ports(bfa_fcs_vf_t *vf, wwn_t vpwwn[], int *nports);
 bfa_fcs_vf_t *bfa_fcs_vf_lookup(struct bfa_fcs_s *fcs, u16 vf_id);
 u16 bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric);
 

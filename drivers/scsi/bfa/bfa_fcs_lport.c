@@ -479,7 +479,7 @@ static void
 bfa_fs_port_get_gen_topo_data(struct bfa_fcs_lport_s *port,
 			struct fc_rnid_general_topology_data_s *gen_topo_data)
 {
-	bfa_os_memset(gen_topo_data, 0,
+	memset(gen_topo_data, 0,
 		      sizeof(struct fc_rnid_general_topology_data_s));
 
 	gen_topo_data->asso_type = bfa_os_htonl(RNID_ASSOCIATED_TYPE_HOST);
@@ -878,7 +878,7 @@ bfa_fcs_lport_init(struct bfa_fcs_lport_s *lport,
 	struct bfad_s *bfad = (struct bfad_s *)lport->fcs->bfad;
 	char    lpwwn_buf[BFA_STRING_32];
 
-	bfa_os_assign(lport->port_cfg, *port_cfg);
+	lport->port_cfg = *port_cfg;
 
 	lport->bfad_port = bfa_fcb_lport_new(lport->fcs->bfad, lport,
 					lport->port_cfg.roles,
@@ -1549,7 +1549,7 @@ bfa_fcs_lport_fdmi_send_rhba(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	fdmi->fcxp = fcxp;
 
 	pyld = bfa_fcxp_get_reqbuf(fcxp);
-	bfa_os_memset(pyld, 0, FC_MAX_PDUSZ);
+	memset(pyld, 0, FC_MAX_PDUSZ);
 
 	len = fc_fdmi_reqhdr_build(&fchs, pyld, bfa_fcs_lport_get_fcid(port),
 				   FDMI_RHBA);
@@ -1861,7 +1861,7 @@ bfa_fcs_lport_fdmi_send_rprt(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	fdmi->fcxp = fcxp;
 
 	pyld = bfa_fcxp_get_reqbuf(fcxp);
-	bfa_os_memset(pyld, 0, FC_MAX_PDUSZ);
+	memset(pyld, 0, FC_MAX_PDUSZ);
 
 	len = fc_fdmi_reqhdr_build(&fchs, pyld, bfa_fcs_lport_get_fcid(port),
 				   FDMI_RPRT);
@@ -2086,7 +2086,7 @@ bfa_fcs_lport_fdmi_send_rpa(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	fdmi->fcxp = fcxp;
 
 	pyld = bfa_fcxp_get_reqbuf(fcxp);
-	bfa_os_memset(pyld, 0, FC_MAX_PDUSZ);
+	memset(pyld, 0, FC_MAX_PDUSZ);
 
 	len = fc_fdmi_reqhdr_build(&fchs, pyld, bfa_fcs_lport_get_fcid(port),
 				   FDMI_RPA);
@@ -2170,7 +2170,7 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	struct bfa_fcs_lport_s *port = fdmi->ms->port;
 	struct bfa_fcs_driver_info_s  *driver_info = &port->fcs->driver_info;
 
-	bfa_os_memset(hba_attr, 0, sizeof(struct bfa_fcs_fdmi_hba_attr_s));
+	memset(hba_attr, 0, sizeof(struct bfa_fcs_fdmi_hba_attr_s));
 
 	bfa_ioc_get_adapter_manufacturer(&port->fcs->bfa->ioc,
 					hba_attr->manufacturer);
@@ -2215,7 +2215,7 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	struct bfa_fcs_driver_info_s  *driver_info = &port->fcs->driver_info;
 	struct bfa_port_attr_s pport_attr;
 
-	bfa_os_memset(port_attr, 0, sizeof(struct bfa_fcs_fdmi_port_attr_s));
+	memset(port_attr, 0, sizeof(struct bfa_fcs_fdmi_port_attr_s));
 
 	/*
 	 * get pport attributes from hal
@@ -3738,7 +3738,7 @@ bfa_fcs_lport_ns_send_rspn_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	u8         symbl[256];
 	u8         *psymbl = &symbl[0];
 
-	bfa_os_memset(symbl, 0, sizeof(symbl));
+	memset(symbl, 0, sizeof(symbl));
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
@@ -4943,7 +4943,7 @@ bfa_fcs_lport_get_stats(struct bfa_fcs_lport_s *fcs_port,
 void
 bfa_fcs_lport_clear_stats(struct bfa_fcs_lport_s *fcs_port)
 {
-	bfa_os_memset(&fcs_port->stats, 0, sizeof(struct bfa_lport_stats_s));
+	memset(&fcs_port->stats, 0, sizeof(struct bfa_lport_stats_s));
 }
 
 /**
@@ -5672,7 +5672,7 @@ bfa_fcs_vport_get_attr(struct bfa_fcs_vport_s *vport,
 	if (vport == NULL || attr == NULL)
 		return;
 
-	bfa_os_memset(attr, 0, sizeof(struct bfa_vport_attr_s));
+	memset(attr, 0, sizeof(struct bfa_vport_attr_s));
 
 	bfa_fcs_lport_get_attr(&vport->lport, &attr->port_attr);
 	attr->vport_state = bfa_sm_to_state(vport_sm_table, vport->sm);
@@ -5703,7 +5703,7 @@ bfa_fcs_vport_get_stats(struct bfa_fcs_vport_s *vport,
 void
 bfa_fcs_vport_clr_stats(struct bfa_fcs_vport_s *vport)
 {
-	bfa_os_memset(&vport->vport_stats, 0, sizeof(struct bfa_vport_stats_s));
+	memset(&vport->vport_stats, 0, sizeof(struct bfa_vport_stats_s));
 }
 
 /**

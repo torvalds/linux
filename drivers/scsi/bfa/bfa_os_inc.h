@@ -15,10 +15,6 @@
  * General Public License for more details.
  */
 
-/**
- * Contains declarations all OS Specific files needed for BFA layer
- */
-
 #ifndef __BFA_OS_INC_H__
 #define __BFA_OS_INC_H__
 
@@ -44,11 +40,6 @@
 #define __BIGENDIAN
 #endif
 
-static inline u64 bfa_os_get_clock(void)
-{
-	return jiffies;
-}
-
 static inline u64 bfa_os_get_log_time(void)
 {
 	u64 system_time = 0;
@@ -62,13 +53,6 @@ static inline u64 bfa_os_get_log_time(void)
 
 #define bfa_io_lat_clock_res_div HZ
 #define bfa_io_lat_clock_res_mul 1000
-
-#define BFA_ASSERT(p) do {						\
-	if (!(p)) {      \
-		printk(KERN_ERR "assert(%s) failed at %s:%d\n",		\
-		#p, __FILE__, __LINE__);      \
-	}								\
-} while (0)
 
 #define BFA_LOG(level, bfad, mask, fmt, arg...)				\
 do {									\
@@ -134,13 +118,6 @@ do {									\
 
 #define bfa_os_u32(__pa64) ((__pa64) >> 32)
 
-#define bfa_os_memset	memset
-#define bfa_os_memcpy	memcpy
-#define bfa_os_udelay	udelay
-#define bfa_os_vsprintf vsprintf
-#define bfa_os_snprintf snprintf
-
-#define bfa_os_assign(__t, __s) __t = __s
 #define bfa_os_addr_t void __iomem *
 
 #define bfa_os_reg_read(_raddr) readl(_raddr)

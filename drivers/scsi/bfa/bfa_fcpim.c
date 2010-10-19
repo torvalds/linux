@@ -463,7 +463,7 @@ bfa_fcpim_port_iostats(struct bfa_s *bfa, struct bfa_itnim_iostats_s *stats,
 	struct bfa_itnim_s *itnim;
 
 	/* accumulate IO stats from itnim */
-	bfa_os_memset(stats, 0, sizeof(struct bfa_itnim_iostats_s));
+	memset(stats, 0, sizeof(struct bfa_itnim_iostats_s));
 	list_for_each_safe(qe, qen, &fcpim->itnim_q) {
 		itnim = (struct bfa_itnim_s *) qe;
 		if (itnim->rport->rport_info.lp_tag != lp_tag)
@@ -480,7 +480,7 @@ bfa_fcpim_get_modstats(struct bfa_s *bfa, struct bfa_itnim_iostats_s *modstats)
 	struct bfa_itnim_s *itnim;
 
 	/* accumulate IO stats from itnim */
-	bfa_os_memset(modstats, 0, sizeof(struct bfa_itnim_iostats_s));
+	memset(modstats, 0, sizeof(struct bfa_itnim_iostats_s));
 	list_for_each_safe(qe, qen, &fcpim->itnim_q) {
 		itnim = (struct bfa_itnim_s *) qe;
 		bfa_fcpim_add_stats(modstats, &(itnim->stats));
@@ -560,7 +560,7 @@ bfa_fcpim_clr_modstats(struct bfa_s *bfa)
 		itnim = (struct bfa_itnim_s *) qe;
 		bfa_itnim_clear_stats(itnim);
 	}
-	bfa_os_memset(&fcpim->del_itn_stats, 0,
+	memset(&fcpim->del_itn_stats, 0,
 		sizeof(struct bfa_fcpim_del_itn_stats_s));
 
 	return BFA_STATUS_OK;
@@ -1229,7 +1229,7 @@ bfa_itnim_attach(struct bfa_fcpim_mod_s *fcpim, struct bfa_meminfo_s *minfo)
 	fcpim->itnim_arr = itnim;
 
 	for (i = 0; i < fcpim->num_itnims; i++, itnim++) {
-		bfa_os_memset(itnim, 0, sizeof(struct bfa_itnim_s));
+		memset(itnim, 0, sizeof(struct bfa_itnim_s));
 		itnim->bfa = bfa;
 		itnim->fcpim = fcpim;
 		itnim->reqq = BFA_REQQ_QOS_LO;
@@ -1597,8 +1597,8 @@ void
 bfa_itnim_clear_stats(struct bfa_itnim_s *itnim)
 {
 	int j;
-	bfa_os_memset(&itnim->stats, 0, sizeof(itnim->stats));
-	bfa_os_memset(&itnim->ioprofile, 0, sizeof(itnim->ioprofile));
+	memset(&itnim->stats, 0, sizeof(itnim->stats));
+	memset(&itnim->ioprofile, 0, sizeof(itnim->ioprofile));
 	for (j = 0; j < BFA_IOBUCKET_MAX; j++)
 		itnim->ioprofile.io_latency.min[j] = ~0;
 }
@@ -2390,11 +2390,10 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	/**
 	 * set up I/O command parameters
 	 */
-	bfa_os_assign(m->cmnd, cmnd_z0);
+	m->cmnd = cmnd_z0;
 	m->cmnd.lun = bfa_cb_ioim_get_lun(ioim->dio);
 	m->cmnd.iodir = bfa_cb_ioim_get_iodir(ioim->dio);
-	bfa_os_assign(m->cmnd.cdb,
-			*(scsi_cdb_t *)bfa_cb_ioim_get_cdb(ioim->dio));
+	m->cmnd.cdb = *(scsi_cdb_t *)bfa_cb_ioim_get_cdb(ioim->dio);
 	fcp_dl = bfa_cb_ioim_get_size(ioim->dio);
 	m->cmnd.fcp_dl = bfa_os_htonl(fcp_dl);
 
@@ -2433,7 +2432,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	m->cmnd.addl_cdb_len = (bfa_cb_ioim_get_cdblen(ioim->dio) -
 					FCP_CMND_CDB_LEN) / sizeof(u32);
 	if (m->cmnd.addl_cdb_len) {
-		bfa_os_memcpy(&m->cmnd.cdb + 1, (scsi_cdb_t *)
+		memcpy(&m->cmnd.cdb + 1, (scsi_cdb_t *)
 				bfa_cb_ioim_get_cdb(ioim->dio) + 1,
 				m->cmnd.addl_cdb_len * sizeof(u32));
 		fcp_cmnd_fcpdl(&m->cmnd) =
@@ -2706,7 +2705,7 @@ bfa_ioim_attach(struct bfa_fcpim_mod_s *fcpim, struct bfa_meminfo_s *minfo)
 		/*
 		 * initialize IOIM
 		 */
-		bfa_os_memset(ioim, 0, sizeof(struct bfa_ioim_s));
+		memset(ioim, 0, sizeof(struct bfa_ioim_s));
 		ioim->iotag   = i;
 		ioim->bfa     = fcpim->bfa;
 		ioim->fcpim   = fcpim;
@@ -2750,7 +2749,7 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	bfa_trc(ioim->bfa, rsp->reuse_io_tag);
 
 	if (bfa_sm_cmp_state(ioim, bfa_ioim_sm_active))
-		bfa_os_assign(ioim->iosp->comp_rspmsg, *m);
+		ioim->iosp->comp_rspmsg = *m;
 
 	switch (rsp->io_status) {
 	case BFI_IOIM_STS_OK:
@@ -2837,7 +2836,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 void
 bfa_ioim_profile_start(struct bfa_ioim_s *ioim)
 {
-	ioim->start_time = bfa_os_get_clock();
+	ioim->start_time = jiffies;
 }
 
 void
@@ -2845,7 +2844,7 @@ bfa_ioim_profile_comp(struct bfa_ioim_s *ioim)
 {
 	u32 fcp_dl = bfa_cb_ioim_get_size(ioim->dio);
 	u32 index = bfa_ioim_get_index(fcp_dl);
-	u64 end_time = bfa_os_get_clock();
+	u64 end_time = jiffies;
 	struct bfa_itnim_latency_s *io_lat =
 			&(ioim->itnim->ioprofile.io_latency);
 	u32 val = (u32)(end_time - ioim->start_time);
@@ -3507,7 +3506,7 @@ bfa_tskim_attach(struct bfa_fcpim_mod_s *fcpim, struct bfa_meminfo_s *minfo)
 		/*
 		 * initialize TSKIM
 		 */
-		bfa_os_memset(tskim, 0, sizeof(struct bfa_tskim_s));
+		memset(tskim, 0, sizeof(struct bfa_tskim_s));
 		tskim->tsk_tag = i;
 		tskim->bfa	= fcpim->bfa;
 		tskim->fcpim	= fcpim;

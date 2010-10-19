@@ -440,7 +440,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	iocfc->bfa = bfa;
 	iocfc->action = BFA_IOCFC_ACT_NONE;
 
-	bfa_os_assign(iocfc->cfg, *cfg);
+	iocfc->cfg = *cfg;
 
 	/**
 	 * Initialize chip specific handlers.
@@ -503,13 +503,13 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
 	for (i = 0; i < cfg->fwcfg.num_cqs; i++) {
 		iocfc->req_cq_ba[i].kva = dm_kva;
 		iocfc->req_cq_ba[i].pa = dm_pa;
-		bfa_os_memset(dm_kva, 0, per_reqq_sz);
+		memset(dm_kva, 0, per_reqq_sz);
 		dm_kva += per_reqq_sz;
 		dm_pa += per_reqq_sz;
 
 		iocfc->rsp_cq_ba[i].kva = dm_kva;
 		iocfc->rsp_cq_ba[i].pa = dm_pa;
-		bfa_os_memset(dm_kva, 0, per_rspq_sz);
+		memset(dm_kva, 0, per_rspq_sz);
 		dm_kva += per_rspq_sz;
 		dm_pa += per_rspq_sz;
 	}
@@ -1038,7 +1038,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo)
 
 	bfa_assert((cfg != NULL) && (meminfo != NULL));
 
-	bfa_os_memset((void *)meminfo, 0, sizeof(struct bfa_meminfo_s));
+	memset((void *)meminfo, 0, sizeof(struct bfa_meminfo_s));
 	meminfo->meminfo[BFA_MEM_TYPE_KVA - 1].mem_type =
 		BFA_MEM_TYPE_KVA;
 	meminfo->meminfo[BFA_MEM_TYPE_DMA - 1].mem_type =

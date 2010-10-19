@@ -2674,7 +2674,7 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	bfa_fcs_lport_t *port = rport->port;
 	bfa_port_speed_t rport_speed = rport->rpf.rpsc_speed;
 
-	bfa_os_memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
+	memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
 
 	rport_attr->pid = rport->pid;
 	rport_attr->pwwn = rport->pwwn;
@@ -2717,7 +2717,7 @@ bfa_fcs_rport_get_stats(struct bfa_fcs_rport_s *rport,
 void
 bfa_fcs_rport_clear_stats(struct bfa_fcs_rport_s *rport)
 {
-	bfa_os_memset((char *)&rport->stats, 0,
+	memset((char *)&rport->stats, 0,
 			sizeof(struct bfa_rport_stats_s));
 }
 

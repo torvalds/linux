@@ -736,7 +736,7 @@ bfa_fcs_itnim_stats_get(struct bfa_fcs_lport_s *port, wwn_t rpwwn,
 	if (itnim == NULL)
 		return BFA_STATUS_NO_FCPIM_NEXUS;
 
-	bfa_os_memcpy(stats, &itnim->stats, sizeof(struct bfa_itnim_stats_s));
+	memcpy(stats, &itnim->stats, sizeof(struct bfa_itnim_stats_s));
 
 	return BFA_STATUS_OK;
 }
@@ -753,7 +753,7 @@ bfa_fcs_itnim_stats_clear(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	if (itnim == NULL)
 		return BFA_STATUS_NO_FCPIM_NEXUS;
 
-	bfa_os_memset(&itnim->stats, 0, sizeof(struct bfa_itnim_stats_s));
+	memset(&itnim->stats, 0, sizeof(struct bfa_itnim_stats_s));
 	return BFA_STATUS_OK;
 }
 
