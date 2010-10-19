@@ -148,6 +148,30 @@ static void release_bts_buffer(int cpu)
 	ds->bts_buffer_base = 0;
 }
 
+static int alloc_ds_buffer(int cpu)
+{
+	struct debug_store *ds;
+
+	ds = kzalloc(sizeof(*ds), GFP_KERNEL);
+	if (unlikely(!ds))
+		return -ENOMEM;
+
+	per_cpu(cpu_hw_events, cpu).ds = ds;
+
+	return 0;
+}
+
+static void release_ds_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+
+	if (!ds)
+		return;
+
+	per_cpu(cpu_hw_events, cpu).ds = NULL;
+	kfree(ds);
+}
+
 static void release_ds_buffers(void)
 {
 	int cpu;
@@ -160,16 +184,9 @@ static void release_ds_buffers(void)
 		fini_debug_store_on_cpu(cpu);
 
 	for_each_possible_cpu(cpu) {
-		struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-
-		if (!ds)
-			continue;
-
 		release_pebs_buffer(cpu);
 		release_bts_buffer(cpu);
-
-		per_cpu(cpu_hw_events, cpu).ds = NULL;
-		kfree(ds);
+		release_ds_buffer(cpu);
 	}
 	put_online_cpus();
 }
@@ -184,13 +201,8 @@ static int reserve_ds_buffers(void)
 	get_online_cpus();
 
 	for_each_possible_cpu(cpu) {
-		struct debug_store *ds;
-
-		err = -ENOMEM;
-		ds = kzalloc(sizeof(*ds), GFP_KERNEL);
-		if (unlikely(!ds))
+		if (alloc_ds_buffer(cpu))
 			break;
-		per_cpu(cpu_hw_events, cpu).ds = ds;
 
 		if (alloc_bts_buffer(cpu))
 			break;
