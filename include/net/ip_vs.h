@@ -529,6 +529,10 @@ struct ip_vs_dest {
 	spinlock_t		dst_lock;	/* lock of dst_cache */
 	struct dst_entry	*dst_cache;	/* destination cache entry */
 	u32			dst_rtos;	/* RT_TOS(tos) for dst */
+	u32			dst_cookie;
+#ifdef CONFIG_IP_VS_IPV6
+	struct in6_addr		dst_saddr;
+#endif
 
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
