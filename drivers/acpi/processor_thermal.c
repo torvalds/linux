@@ -44,47 +44,6 @@
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_thermal");
 
-/* --------------------------------------------------------------------------
-                                 Limit Interface
-   -------------------------------------------------------------------------- */
-static int acpi_processor_apply_limit(struct acpi_processor *pr)
-{
-	int result = 0;
-	u16 px = 0;
-	u16 tx = 0;
-
-
-	if (!pr)
-		return -EINVAL;
-
-	if (!pr->flags.limit)
-		return -ENODEV;
-
-	if (pr->flags.throttling) {
-		if (pr->limit.user.tx > tx)
-			tx = pr->limit.user.tx;
-		if (pr->limit.thermal.tx > tx)
-			tx = pr->limit.thermal.tx;
-
-		result = acpi_processor_set_throttling(pr, tx, false);
-		if (result)
-			goto end;
-	}
-
-	pr->limit.state.px = px;
-	pr->limit.state.tx = tx;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Processor [%d] limit set to (P%d:T%d)\n", pr->id,
-			  pr->limit.state.px, pr->limit.state.tx));
-
-      end:
-	if (result)
-		printk(KERN_ERR PREFIX "Unable to set limit\n");
-
-	return result;
-}
-
 #ifdef CONFIG_CPU_FREQ
 
 /* If a passive cooling situation is detected, primarily CPUfreq is used, as it
@@ -105,36 +64,6 @@ static int cpu_has_cpufreq(unsigned int cpu)
 	if (!acpi_thermal_cpufreq_is_init || cpufreq_get_policy(&policy, cpu))
 		return 0;
 	return 1;
-}
-
-static int acpi_thermal_cpufreq_increase(unsigned int cpu)
-{
-	if (!cpu_has_cpufreq(cpu))
-		return -ENODEV;
-
-	if (per_cpu(cpufreq_thermal_reduction_pctg, cpu) <
-		CPUFREQ_THERMAL_MAX_STEP) {
-		per_cpu(cpufreq_thermal_reduction_pctg, cpu)++;
-		cpufreq_update_policy(cpu);
-		return 0;
-	}
-
-	return -ERANGE;
-}
-
-static int acpi_thermal_cpufreq_decrease(unsigned int cpu)
-{
-	if (!cpu_has_cpufreq(cpu))
-		return -ENODEV;
-
-	if (per_cpu(cpufreq_thermal_reduction_pctg, cpu) >
-		(CPUFREQ_THERMAL_MIN_STEP + 1))
-		per_cpu(cpufreq_thermal_reduction_pctg, cpu)--;
-	else
-		per_cpu(cpufreq_thermal_reduction_pctg, cpu) = 0;
-	cpufreq_update_policy(cpu);
-	/* We reached max freq again and can leave passive mode */
-	return !per_cpu(cpufreq_thermal_reduction_pctg, cpu);
 }
 
 static int acpi_thermal_cpufreq_notifier(struct notifier_block *nb,
