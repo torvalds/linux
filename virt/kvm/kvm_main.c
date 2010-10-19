@@ -952,6 +952,12 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
+static pfn_t get_fault_pfn(void)
+{
+	get_page(fault_page);
+	return fault_pfn;
+}
+
 static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
 			bool *async)
 {
@@ -974,7 +980,7 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
 		struct vm_area_struct *vma;
 
 		if (atomic)
-			goto return_fault_page;
+			return get_fault_pfn();
 
 		down_read(&current->mm->mmap_sem);
 		if (is_hwpoison_address(addr)) {
@@ -983,22 +989,20 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
 			return page_to_pfn(hwpoison_page);
 		}
 
-		vma = find_vma(current->mm, addr);
+		vma = find_vma_intersection(current->mm, addr, addr+1);
 
-		if (vma == NULL || addr < vma->vm_start ||
-		    !(vma->vm_flags & VM_PFNMAP)) {
-			if (async && !(vma->vm_flags & VM_PFNMAP) &&
-			    (vma->vm_flags & VM_WRITE))
+		if (vma == NULL)
+			pfn = get_fault_pfn();
+		else if ((vma->vm_flags & VM_PFNMAP)) {
+			pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+				vma->vm_pgoff;
+			BUG_ON(!kvm_is_mmio_pfn(pfn));
+		} else {
+			if (async && (vma->vm_flags & VM_WRITE))
 				*async = true;
-			up_read(&current->mm->mmap_sem);
-return_fault_page:
-			get_page(fault_page);
-			return page_to_pfn(fault_page);
+			pfn = get_fault_pfn();
 		}
-
-		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 		up_read(&current->mm->mmap_sem);
-		BUG_ON(!kvm_is_mmio_pfn(pfn));
 	} else
 		pfn = page_to_pfn(page[0]);
 
