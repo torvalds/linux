@@ -13,11 +13,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
- *
  */
+#include "gpiomux.h"
 
-#if defined(CONFIG_ARM_GIC)
-#include <mach/entry-macro-qgic.S>
-#else
-#include <mach/entry-macro-vic.S>
-#endif
+struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {};

@@ -1,5 +1,4 @@
-/* arch/arm/mach-msm7200/include/mach/debug-macro.S
- *
+/*
  * Copyright (C) 2007 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
  *
@@ -14,41 +13,25 @@
  *
  */
 
-
-
-#include <mach/hardware.h>
 #include <mach/msm_iomap.h>
 
-#ifdef CONFIG_HAS_MSM_DEBUG_UART_PHYS
-	.macro	addruart, rx, tmp
-	@ see if the MMU is enabled and select appropriate base address
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1
-	ldreq	\rx, =MSM_DEBUG_UART_PHYS
-	ldrne	\rx, =MSM_DEBUG_UART_BASE
+	.macro	disable_fiq
 	.endm
 
-	.macro	senduart,rd,rx
-	teq	\rx, #0
-	strne	\rd, [\rx, #0x0C]
+	.macro	get_irqnr_preamble, base, tmp
+	@ enable imprecise aborts
+	cpsie	a
+	mov	\base, #MSM_VIC_BASE
 	.endm
 
-	.macro	waituart,rd,rx
-	@ wait for TX_READY
-1001:	ldr	\rd, [\rx, #0x08]
-	tst	\rd, #0x04
-	beq	1001b
-	.endm
-#else
-	.macro	addruart, rx, tmp
+	.macro	arch_ret_to_user, tmp1, tmp2
 	.endm
 
-	.macro	senduart,rd,rx
-	.endm
-
-	.macro	waituart,rd,rx
-	.endm
-#endif
-
-	.macro	busyuart,rd,rx
+	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
+	@ 0xD0 has irq# or old irq# if the irq has been handled
+	@ 0xD4 has irq# or -1 if none pending *but* if you just
+	@ read 0xD4 you never get the first irq for some reason
+	ldr	\irqnr, [\base, #0xD0]
+	ldr	\irqnr, [\base, #0xD4]
+	cmp	\irqnr, #0xffffffff
 	.endm

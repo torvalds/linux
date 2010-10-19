@@ -15,9 +15,40 @@
  * 02110-1301, USA.
  *
  */
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/module.h>
 
-#if defined(CONFIG_ARM_GIC)
-#include <mach/entry-macro-qgic.S>
-#else
-#include <mach/entry-macro-vic.S>
-#endif
+struct clk *clk_get(struct device *dev, const char *id)
+{
+	return ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL(clk_get);
+
+int clk_enable(struct clk *clk)
+{
+	return -ENOENT;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_disable);
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return -ENOENT;
+}
+EXPORT_SYMBOL(clk_set_rate);
+
+void clk_put(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_put);

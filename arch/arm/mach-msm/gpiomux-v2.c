@@ -13,11 +13,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
- *
  */
+#include <linux/io.h>
+#include <mach/msm_iomap.h>
+#include "gpiomux.h"
 
-#if defined(CONFIG_ARM_GIC)
-#include <mach/entry-macro-qgic.S>
-#else
-#include <mach/entry-macro-vic.S>
-#endif
+void __msm_gpiomux_write(unsigned gpio, gpiomux_config_t val)
+{
+	writel(val & ~GPIOMUX_CTL_MASK,
+	       MSM_TLMM_BASE + 0x1000 + (0x10 * gpio));
+}
