@@ -1418,6 +1418,7 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 	write_unlock_bh(&in_dev->mc_list_lock);
 }
 
+/* RTNL is locked */
 static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 {
 	struct flowi fl = { .nl_u = { .ip4_u =
@@ -1433,10 +1434,9 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 		return idev;
 	}
 	if (imr->imr_address.s_addr) {
-		dev = ip_dev_find(net, imr->imr_address.s_addr);
+		dev = __ip_dev_find(net, imr->imr_address.s_addr, false);
 		if (!dev)
 			return NULL;
-		dev_put(dev);
 	}
 
 	if (!dev && !ip_route_output_key(net, &rt, &fl)) {

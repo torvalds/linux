@@ -153,7 +153,7 @@ static void fib_flush(struct net *net)
  * @addr: the source address
  * @devref: if true, take a reference on the found device
  *
- * If a caller uses devref=false, it should be protected by RCU
+ * If a caller uses devref=false, it should be protected by RCU, or RTNL
  */
 struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 {
