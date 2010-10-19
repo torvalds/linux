@@ -36,11 +36,13 @@
 #include <mach/regs-srom.h>
 #include <mach/s3c6410.h>
 
+#include <plat/adc.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/nand.h>
 #include <plat/regs-serial.h>
+#include <plat/ts.h>
 
 #include <video/platform_lcd.h>
 
@@ -191,6 +193,14 @@ static struct platform_device *real6410_devices[] __initdata = {
 	&s3c_device_hsmmc1,
 	&s3c_device_fb,
 	&s3c_device_nand,
+	&s3c_device_adc,
+	&s3c_device_ts,
+};
+
+static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
+	.delay			= 10000,
+	.presc			= 49,
+	.oversampling_shift	= 2,
 };
 
 static void __init real6410_map_io(void)
@@ -289,6 +299,7 @@ static void __init real6410_machine_init(void)
 
 	s3c_fb_set_platdata(&real6410_lcd_pdata);
 	s3c_nand_set_platdata(&real6410_nand_info);
+	s3c24xx_ts_set_platdata(&s3c_ts_platform);
 
 	/* configure nCS1 width to 16 bits */
 
