@@ -47,6 +47,7 @@
 /* device id */
 #define TPS6586X_VERSIONCRC	0xcd
 #define TPS658621A_VERSIONCRC	0x15
+#define TPS658621C_VERSIONCRC	0x2c
 
 struct tps6586x_irq_data {
 	u8	mask_reg;
@@ -497,7 +498,8 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	if (ret != TPS658621A_VERSIONCRC) {
+	if ((ret != TPS658621A_VERSIONCRC) &&
+	    (ret != TPS658621C_VERSIONCRC)) {
 		dev_err(&client->dev, "Unsupported chip ID: %x\n", ret);
 		return -ENODEV;
 	}
