@@ -113,7 +113,7 @@ bfa_intx(struct bfa_s *bfa)
 	u32 intr, qintr;
 	int queue;
 
-	intr = bfa_reg_read(bfa->iocfc.bfa_regs.intr_status);
+	intr = readl(bfa->iocfc.bfa_regs.intr_status);
 	if (!intr)
 		return BFA_FALSE;
 
@@ -121,7 +121,7 @@ bfa_intx(struct bfa_s *bfa)
 	 * RME completion queue interrupt
 	 */
 	qintr = intr & __HFN_INT_RME_MASK;
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, qintr);
+	writel(qintr, bfa->iocfc.bfa_regs.intr_status);
 
 	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
 		if (intr & (__HFN_INT_RME_Q0 << queue))
@@ -135,7 +135,7 @@ bfa_intx(struct bfa_s *bfa)
 	 * CPE completion queue interrupt
 	 */
 	qintr = intr & __HFN_INT_CPE_MASK;
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, qintr);
+	writel(qintr, bfa->iocfc.bfa_regs.intr_status);
 
 	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
 		if (intr & (__HFN_INT_CPE_Q0 << queue))
@@ -153,13 +153,13 @@ bfa_intx(struct bfa_s *bfa)
 void
 bfa_intx_enable(struct bfa_s *bfa)
 {
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_mask, bfa->iocfc.intr_mask);
+	writel(bfa->iocfc.intr_mask, bfa->iocfc.bfa_regs.intr_mask);
 }
 
 void
 bfa_intx_disable(struct bfa_s *bfa)
 {
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_mask, -1L);
+	writel(-1L, bfa->iocfc.bfa_regs.intr_mask);
 }
 
 void
@@ -188,8 +188,8 @@ bfa_isr_enable(struct bfa_s *bfa)
 				__HFN_INT_RME_Q6 | __HFN_INT_RME_Q7 |
 				__HFN_INT_MBOX_LPU1);
 
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, intr_unmask);
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_mask, ~intr_unmask);
+	writel(intr_unmask, bfa->iocfc.bfa_regs.intr_status);
+	writel(~intr_unmask, bfa->iocfc.bfa_regs.intr_mask);
 	bfa->iocfc.intr_mask = ~intr_unmask;
 	bfa_isr_mode_set(bfa, bfa->msix.nvecs != 0);
 }
@@ -198,7 +198,7 @@ void
 bfa_isr_disable(struct bfa_s *bfa)
 {
 	bfa_isr_mode_set(bfa, BFA_FALSE);
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_mask, -1L);
+	writel(-1L, bfa->iocfc.bfa_regs.intr_mask);
 	bfa_msix_uninstall(bfa);
 }
 
@@ -263,7 +263,7 @@ bfa_msix_rspq(struct bfa_s *bfa, int qid)
 	 * update CI
 	 */
 	bfa_rspq_ci(bfa, qid) = pi;
-	bfa_reg_write(bfa->iocfc.bfa_regs.rme_q_ci[qid], pi);
+	writel(pi, bfa->iocfc.bfa_regs.rme_q_ci[qid]);
 	mmiowb();
 
 	/**
@@ -279,7 +279,7 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 {
 	u32 intr, curr_value;
 
-	intr = bfa_reg_read(bfa->iocfc.bfa_regs.intr_status);
+	intr = readl(bfa->iocfc.bfa_regs.intr_status);
 
 	if (intr & (__HFN_INT_MBOX_LPU0 | __HFN_INT_MBOX_LPU1))
 		bfa_msix_lpu(bfa);
@@ -294,9 +294,9 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 			 * Register needs to be cleared as well so Interrupt
 			 * Status Register will be cleared.
 			 */
-			curr_value = bfa_reg_read(bfa->ioc.ioc_regs.ll_halt);
+			curr_value = readl(bfa->ioc.ioc_regs.ll_halt);
 			curr_value &= ~__FW_INIT_HALT_P;
-			bfa_reg_write(bfa->ioc.ioc_regs.ll_halt, curr_value);
+			writel(curr_value, bfa->ioc.ioc_regs.ll_halt);
 		}
 
 		if (intr & __HFN_INT_ERR_PSS) {
@@ -305,14 +305,14 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 			 * interrups are shared so driver's interrupt handler is
 			 * still called eventhough it is already masked out.
 			 */
-			curr_value = bfa_reg_read(
+			curr_value = readl(
 					bfa->ioc.ioc_regs.pss_err_status_reg);
 			curr_value &= __PSS_ERR_STATUS_SET;
-			bfa_reg_write(bfa->ioc.ioc_regs.pss_err_status_reg,
-					curr_value);
+			writel(curr_value,
+				bfa->ioc.ioc_regs.pss_err_status_reg);
 		}
 
-		bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, intr);
+		writel(intr, bfa->iocfc.bfa_regs.intr_status);
 		bfa_msix_errint(bfa, intr);
 	}
 }

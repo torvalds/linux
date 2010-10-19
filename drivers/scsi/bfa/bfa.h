@@ -59,8 +59,8 @@ void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 		(__bfa)->iocfc.req_cq_pi[__reqq]++;			\
 		(__bfa)->iocfc.req_cq_pi[__reqq] &=			\
 			((__bfa)->iocfc.cfg.drvcfg.num_reqq_elems - 1);      \
-		bfa_reg_write((__bfa)->iocfc.bfa_regs.cpe_q_pi[__reqq],	\
-			      (__bfa)->iocfc.req_cq_pi[__reqq]);      \
+		writel((__bfa)->iocfc.req_cq_pi[__reqq], 		\
+			(__bfa)->iocfc.bfa_regs.cpe_q_pi[__reqq]);	\
 		mmiowb();      \
 	} while (0)
 
@@ -202,16 +202,16 @@ struct bfa_meminfo_s {
 	((_m)->meminfo[BFA_MEM_TYPE_DMA - 1].dma_curp)
 
 struct bfa_iocfc_regs_s {
-	bfa_os_addr_t   intr_status;
-	bfa_os_addr_t   intr_mask;
-	bfa_os_addr_t   cpe_q_pi[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   cpe_q_ci[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   cpe_q_depth[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   cpe_q_ctrl[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_ci[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_pi[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_depth[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_ctrl[BFI_IOC_MAX_CQS];
+	void __iomem	*intr_status;
+	void __iomem 	*intr_mask;
+	void __iomem	*cpe_q_pi[BFI_IOC_MAX_CQS];
+	void __iomem	*cpe_q_ci[BFI_IOC_MAX_CQS];
+	void __iomem	*cpe_q_depth[BFI_IOC_MAX_CQS];
+	void __iomem	*cpe_q_ctrl[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_ci[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_pi[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_depth[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_ctrl[BFI_IOC_MAX_CQS];
 };
 
 /**

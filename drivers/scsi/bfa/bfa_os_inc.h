@@ -65,12 +65,6 @@ do {									\
 	((_x) & 0x00ff00) |			\
 	(((_x) & 0xff0000) >> 16))
 
-#define bfa_os_swap32(_x)			\
-	((((_x) & 0xff) << 24)		|	\
-	(((_x) & 0x0000ff00) << 8)	|	\
-	(((_x) & 0x00ff0000) >> 8)	|	\
-	(((_x) & 0xff000000) >> 24))
-
 #define bfa_os_swap_sgaddr(_x)  ((u64)(                                 \
 	(((u64)(_x) & (u64)0x00000000000000ffull) << 32)        |       \
 	(((u64)(_x) & (u64)0x000000000000ff00ull) << 32)        |       \
@@ -82,7 +76,7 @@ do {									\
 	(((u64)(_x) & (u64)0xff00000000000000ull) >> 32)))
 
 #ifndef __BIGENDIAN
-#define bfa_os_hton3b(_x)	bfa_swap_3b(_x)
+#define bfa_os_hton3b(_x)  bfa_swap_3b(_x)
 #define bfa_os_sgaddr(_x)  (_x)
 #else
 #define bfa_os_hton3b(_x)  (_x)
@@ -91,22 +85,14 @@ do {									\
 
 #define bfa_os_ntoh3b(_x)  bfa_os_hton3b(_x)
 #define bfa_os_u32(__pa64) ((__pa64) >> 32)
-#define bfa_os_addr_t void __iomem *
 
-#define bfa_os_reg_read(_raddr) readl(_raddr)
-#define bfa_os_reg_write(_raddr, _val) writel((_val), (_raddr))
-#define bfa_os_mem_read(_raddr, _off)					\
-	bfa_os_swap32(readl(((_raddr) + (_off))))
-#define bfa_os_mem_write(_raddr, _off, _val)				\
-	writel(bfa_os_swap32((_val)), ((_raddr) + (_off)))
-
-#define BFA_TRC_TS(_trcm)						\
-			({						\
-				struct timeval tv;			\
-									\
-				do_gettimeofday(&tv);      \
-				(tv.tv_sec*1000000+tv.tv_usec);      \
-			 })
+#define BFA_TRC_TS(_trcm)				\
+	({						\
+		struct timeval tv;			\
+							\
+		do_gettimeofday(&tv);      		\
+		(tv.tv_sec*1000000+tv.tv_usec);		\
+	 })
 
 #define boolean_t int
 

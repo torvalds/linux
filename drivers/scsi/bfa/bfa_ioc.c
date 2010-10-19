@@ -73,7 +73,7 @@ BFA_TRC_FILE(CNA, IOC);
 
 #define bfa_ioc_mbox_cmd_pending(__ioc)		\
 			(!list_empty(&((__ioc)->mbox_mod.cmd_q)) || \
-			bfa_reg_read((__ioc)->ioc_regs.hfn_mbox_cmd))
+			readl((__ioc)->ioc_regs.hfn_mbox_cmd))
 
 bfa_boolean_t bfa_auto_recover = BFA_TRUE;
 
@@ -866,8 +866,7 @@ bfa_iocpf_sm_enabling(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 	case IOCPF_E_TIMEOUT:
 		iocpf->retry_count++;
 		if (iocpf->retry_count < BFA_IOC_HWINIT_MAX) {
-			bfa_reg_write(ioc->ioc_regs.ioc_fwstate,
-				      BFI_IOC_UNINIT);
+			writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
 			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_hwinit);
 			break;
 		}
@@ -968,7 +967,7 @@ bfa_iocpf_sm_disabling(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 		 */
 
 	case IOCPF_E_TIMEOUT:
-		bfa_reg_write(ioc->ioc_regs.ioc_fwstate, BFI_IOC_FAIL);
+		writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
 		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabled);
 		break;
 
@@ -1057,7 +1056,7 @@ bfa_iocpf_sm_fail_entry(struct bfa_iocpf_s *iocpf)
 	 * Mark IOC as failed in hardware and stop firmware.
 	 */
 	bfa_ioc_lpu_stop(iocpf->ioc);
-	bfa_reg_write(iocpf->ioc->ioc_regs.ioc_fwstate, BFI_IOC_FAIL);
+	writel(BFI_IOC_FAIL, iocpf->ioc->ioc_regs.ioc_fwstate);
 
 	/**
 	 * Notify other functions on HB failure.
@@ -1123,18 +1122,18 @@ bfa_ioc_disable_comp(struct bfa_ioc_s *ioc)
 }
 
 bfa_boolean_t
-bfa_ioc_sem_get(bfa_os_addr_t sem_reg)
+bfa_ioc_sem_get(void __iomem *sem_reg)
 {
 	u32 r32;
 	int cnt = 0;
 #define BFA_SEM_SPINCNT	3000
 
-	r32 = bfa_reg_read(sem_reg);
+	r32 = readl(sem_reg);
 
 	while (r32 && (cnt < BFA_SEM_SPINCNT)) {
 		cnt++;
 		udelay(2);
-		r32 = bfa_reg_read(sem_reg);
+		r32 = readl(sem_reg);
 	}
 
 	if (r32 == 0)
@@ -1145,9 +1144,9 @@ bfa_ioc_sem_get(bfa_os_addr_t sem_reg)
 }
 
 void
-bfa_ioc_sem_release(bfa_os_addr_t sem_reg)
+bfa_ioc_sem_release(void __iomem *sem_reg)
 {
-	bfa_reg_write(sem_reg, 1);
+	writel(1, sem_reg);
 }
 
 static void
@@ -1159,7 +1158,7 @@ bfa_ioc_hw_sem_get(struct bfa_ioc_s *ioc)
 	 * First read to the semaphore register will return 0, subsequent reads
 	 * will return 1. Semaphore is released by writing 1 to the register
 	 */
-	r32 = bfa_reg_read(ioc->ioc_regs.ioc_sem_reg);
+	r32 = readl(ioc->ioc_regs.ioc_sem_reg);
 	if (r32 == 0) {
 		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_SEMLOCKED);
 		return;
@@ -1171,7 +1170,7 @@ bfa_ioc_hw_sem_get(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_hw_sem_release(struct bfa_ioc_s *ioc)
 {
-	bfa_reg_write(ioc->ioc_regs.ioc_sem_reg, 1);
+	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
 static void
@@ -1190,7 +1189,7 @@ bfa_ioc_lmem_init(struct bfa_ioc_s *ioc)
 	int		i;
 #define PSS_LMEM_INIT_TIME  10000
 
-	pss_ctl = bfa_reg_read(ioc->ioc_regs.pss_ctl_reg);
+	pss_ctl = readl(ioc->ioc_regs.pss_ctl_reg);
 	pss_ctl &= ~__PSS_LMEM_RESET;
 	pss_ctl |= __PSS_LMEM_INIT_EN;
 
@@ -1198,14 +1197,14 @@ bfa_ioc_lmem_init(struct bfa_ioc_s *ioc)
 	 * i2c workaround 12.5khz clock
 	 */
 	pss_ctl |= __PSS_I2C_CLK_DIV(3UL);
-	bfa_reg_write(ioc->ioc_regs.pss_ctl_reg, pss_ctl);
+	writel(pss_ctl, ioc->ioc_regs.pss_ctl_reg);
 
 	/**
 	 * wait for memory initialization to be complete
 	 */
 	i = 0;
 	do {
-		pss_ctl = bfa_reg_read(ioc->ioc_regs.pss_ctl_reg);
+		pss_ctl = readl(ioc->ioc_regs.pss_ctl_reg);
 		i++;
 	} while (!(pss_ctl & __PSS_LMEM_INIT_DONE) && (i < PSS_LMEM_INIT_TIME));
 
@@ -1217,7 +1216,7 @@ bfa_ioc_lmem_init(struct bfa_ioc_s *ioc)
 	bfa_trc(ioc, pss_ctl);
 
 	pss_ctl &= ~(__PSS_LMEM_INIT_DONE | __PSS_LMEM_INIT_EN);
-	bfa_reg_write(ioc->ioc_regs.pss_ctl_reg, pss_ctl);
+	writel(pss_ctl, ioc->ioc_regs.pss_ctl_reg);
 }
 
 static void
@@ -1228,10 +1227,10 @@ bfa_ioc_lpu_start(struct bfa_ioc_s *ioc)
 	/**
 	 * Take processor out of reset.
 	 */
-	pss_ctl = bfa_reg_read(ioc->ioc_regs.pss_ctl_reg);
+	pss_ctl = readl(ioc->ioc_regs.pss_ctl_reg);
 	pss_ctl &= ~__PSS_LPU0_RESET;
 
-	bfa_reg_write(ioc->ioc_regs.pss_ctl_reg, pss_ctl);
+	writel(pss_ctl, ioc->ioc_regs.pss_ctl_reg);
 }
 
 static void
@@ -1242,10 +1241,10 @@ bfa_ioc_lpu_stop(struct bfa_ioc_s *ioc)
 	/**
 	 * Put processors in reset.
 	 */
-	pss_ctl = bfa_reg_read(ioc->ioc_regs.pss_ctl_reg);
+	pss_ctl = readl(ioc->ioc_regs.pss_ctl_reg);
 	pss_ctl |= (__PSS_LPU0_RESET | __PSS_LPU1_RESET);
 
-	bfa_reg_write(ioc->ioc_regs.pss_ctl_reg, pss_ctl);
+	writel(pss_ctl, ioc->ioc_regs.pss_ctl_reg);
 }
 
 /**
@@ -1261,7 +1260,7 @@ bfa_ioc_fwver_get(struct bfa_ioc_s *ioc, struct bfi_ioc_image_hdr_s *fwhdr)
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
 	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr_s) / sizeof(u32));
 	     i++) {
@@ -1321,7 +1320,7 @@ bfa_ioc_fwver_valid(struct bfa_ioc_s *ioc, u32 boot_env)
 		return BFA_FALSE;
 	}
 
-	if (bfa_os_swap32(fwhdr.param) != boot_env) {
+	if (swab32(fwhdr.param) != boot_env) {
 		bfa_trc(ioc, fwhdr.param);
 		bfa_trc(ioc, boot_env);
 		return BFA_FALSE;
@@ -1338,9 +1337,9 @@ bfa_ioc_msgflush(struct bfa_ioc_s *ioc)
 {
 	u32	r32;
 
-	r32 = bfa_reg_read(ioc->ioc_regs.lpu_mbox_cmd);
+	r32 = readl(ioc->ioc_regs.lpu_mbox_cmd);
 	if (r32)
-		bfa_reg_write(ioc->ioc_regs.lpu_mbox_cmd, 1);
+		writel(1, ioc->ioc_regs.lpu_mbox_cmd);
 }
 
 
@@ -1352,7 +1351,7 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 	u32 boot_type;
 	u32 boot_env;
 
-	ioc_fwstate = bfa_reg_read(ioc->ioc_regs.ioc_fwstate);
+	ioc_fwstate = readl(ioc->ioc_regs.ioc_fwstate);
 
 	if (force)
 		ioc_fwstate = BFI_IOC_UNINIT;
@@ -1449,17 +1448,17 @@ bfa_ioc_mbox_send(struct bfa_ioc_s *ioc, void *ioc_msg, int len)
 	 * first write msg to mailbox registers
 	 */
 	for (i = 0; i < len / sizeof(u32); i++)
-		bfa_reg_write(ioc->ioc_regs.hfn_mbox + i * sizeof(u32),
-			      cpu_to_le32(msgp[i]));
+		writel(cpu_to_le32(msgp[i]),
+			ioc->ioc_regs.hfn_mbox + i * sizeof(u32));
 
 	for (; i < BFI_IOC_MSGLEN_MAX / sizeof(u32); i++)
-		bfa_reg_write(ioc->ioc_regs.hfn_mbox + i * sizeof(u32), 0);
+		writel(0, ioc->ioc_regs.hfn_mbox + i * sizeof(u32));
 
 	/*
 	 * write 1 to mailbox CMD to trigger LPU event
 	 */
-	bfa_reg_write(ioc->ioc_regs.hfn_mbox_cmd, 1);
-	(void) bfa_reg_read(ioc->ioc_regs.hfn_mbox_cmd);
+	writel(1, ioc->ioc_regs.hfn_mbox_cmd);
+	(void) readl(ioc->ioc_regs.hfn_mbox_cmd);
 }
 
 static void
@@ -1503,7 +1502,7 @@ bfa_ioc_hb_check(void *cbarg)
 	struct bfa_ioc_s  *ioc = cbarg;
 	u32	hb_count;
 
-	hb_count = bfa_reg_read(ioc->ioc_regs.heartbeat);
+	hb_count = readl(ioc->ioc_regs.heartbeat);
 	if (ioc->hb_count == hb_count) {
 		printk(KERN_CRIT "Firmware heartbeat failure at %d", hb_count);
 		bfa_ioc_recover(ioc);
@@ -1519,7 +1518,7 @@ bfa_ioc_hb_check(void *cbarg)
 static void
 bfa_ioc_hb_monitor(struct bfa_ioc_s *ioc)
 {
-	ioc->hb_count = bfa_reg_read(ioc->ioc_regs.heartbeat);
+	ioc->hb_count = readl(ioc->ioc_regs.heartbeat);
 	bfa_hb_timer_start(ioc);
 }
 
@@ -1554,7 +1553,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
 	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
 
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)); i++) {
 
@@ -1578,21 +1577,19 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 		loff = PSS_SMEM_PGOFF(loff);
 		if (loff == 0) {
 			pgnum++;
-			bfa_reg_write(ioc->ioc_regs.host_page_num_fn,
-				      pgnum);
+			writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 		}
 	}
 
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn,
-		      bfa_ioc_smem_pgnum(ioc, 0));
+	writel(bfa_ioc_smem_pgnum(ioc, 0), ioc->ioc_regs.host_page_num_fn);
 
 	/*
 	 * Set boot type and boot param at the end.
 	*/
 	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_BOOT_TYPE_OFF,
-			bfa_os_swap32(boot_type));
+			swab32(boot_type));
 	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_BOOT_LOADER_OFF,
-			bfa_os_swap32(boot_env));
+			swab32(boot_env));
 }
 
 static void
@@ -1651,7 +1648,7 @@ bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc)
 	/**
 	 * If previous command is not yet fetched by firmware, do nothing
 	 */
-	stat = bfa_reg_read(ioc->ioc_regs.hfn_mbox_cmd);
+	stat = readl(ioc->ioc_regs.hfn_mbox_cmd);
 	if (stat)
 		return;
 
@@ -1704,7 +1701,7 @@ bfa_ioc_smem_read(struct bfa_ioc_s *ioc, void *tbuf, u32 soff, u32 sz)
 		return BFA_STATUS_FAILED;
 	}
 
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	len = sz/sizeof(u32);
 	bfa_trc(ioc, len);
@@ -1719,11 +1716,10 @@ bfa_ioc_smem_read(struct bfa_ioc_s *ioc, void *tbuf, u32 soff, u32 sz)
 		loff = PSS_SMEM_PGOFF(loff);
 		if (loff == 0) {
 			pgnum++;
-			bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
+			writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 		}
 	}
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn,
-		      bfa_ioc_smem_pgnum(ioc, 0));
+	writel(bfa_ioc_smem_pgnum(ioc, 0), ioc->ioc_regs.host_page_num_fn);
 	/*
 	 *  release semaphore.
 	 */
@@ -1760,7 +1756,7 @@ bfa_ioc_smem_clr(struct bfa_ioc_s *ioc, u32 soff, u32 sz)
 		return BFA_STATUS_FAILED;
 	}
 
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	len = sz/sizeof(u32); /* len in words */
 	bfa_trc(ioc, len);
@@ -1774,11 +1770,10 @@ bfa_ioc_smem_clr(struct bfa_ioc_s *ioc, u32 soff, u32 sz)
 		loff = PSS_SMEM_PGOFF(loff);
 		if (loff == 0) {
 			pgnum++;
-			bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
+			writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 		}
 	}
-	bfa_reg_write(ioc->ioc_regs.host_page_num_fn,
-		      bfa_ioc_smem_pgnum(ioc, 0));
+	writel(bfa_ioc_smem_pgnum(ioc, 0), ioc->ioc_regs.host_page_num_fn);
 
 	/*
 	 *  release semaphore.
@@ -1855,7 +1850,7 @@ bfa_ioc_pll_init(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_env)
 {
-	bfa_os_addr_t	rb;
+	void __iomem *rb;
 
 	bfa_ioc_stats(ioc, ioc_boots);
 
@@ -1867,11 +1862,11 @@ bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_env)
 	 */
 	rb = ioc->pcidev.pci_bar_kva;
 	if (boot_type == BFI_BOOT_TYPE_MEMTEST) {
-		bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_MEMTEST);
-		bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_MEMTEST);
+		writel(BFI_IOC_MEMTEST, (rb + BFA_IOC0_STATE_REG));
+		writel(BFI_IOC_MEMTEST, (rb + BFA_IOC1_STATE_REG));
 	} else {
-		bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_INITING);
-		bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_INITING);
+		writel(BFI_IOC_INITING, (rb + BFA_IOC0_STATE_REG));
+		writel(BFI_IOC_INITING, (rb + BFA_IOC1_STATE_REG));
 	}
 
 	bfa_ioc_msgflush(ioc);
@@ -1904,7 +1899,7 @@ bfa_ioc_is_operational(struct bfa_ioc_s *ioc)
 bfa_boolean_t
 bfa_ioc_is_initialized(struct bfa_ioc_s *ioc)
 {
-	u32 r32 = bfa_reg_read(ioc->ioc_regs.ioc_fwstate);
+	u32 r32 = readl(ioc->ioc_regs.ioc_fwstate);
 
 	return ((r32 != BFI_IOC_UNINIT) &&
 		(r32 != BFI_IOC_INITING) &&
@@ -1923,7 +1918,7 @@ bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg)
 	 */
 	for (i = 0; i < (sizeof(union bfi_ioc_i2h_msg_u) / sizeof(u32));
 	     i++) {
-		r32 = bfa_reg_read(ioc->ioc_regs.lpu_mbox +
+		r32 = readl(ioc->ioc_regs.lpu_mbox +
 				   i * sizeof(u32));
 		msgp[i] = cpu_to_be32(r32);
 	}
@@ -1931,8 +1926,8 @@ bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg)
 	/**
 	 * turn off mailbox interrupt by clearing mailbox status
 	 */
-	bfa_reg_write(ioc->ioc_regs.lpu_mbox_cmd, 1);
-	bfa_reg_read(ioc->ioc_regs.lpu_mbox_cmd);
+	writel(1, ioc->ioc_regs.lpu_mbox_cmd);
+	readl(ioc->ioc_regs.lpu_mbox_cmd);
 }
 
 void
@@ -2162,7 +2157,7 @@ bfa_ioc_mbox_queue(struct bfa_ioc_s *ioc, struct bfa_mbox_cmd_s *cmd)
 	/**
 	 * If mailbox is busy, queue command for poll timer
 	 */
-	stat = bfa_reg_read(ioc->ioc_regs.hfn_mbox_cmd);
+	stat = readl(ioc->ioc_regs.hfn_mbox_cmd);
 	if (stat) {
 		list_add_tail(&cmd->qe, &mod->cmd_q);
 		return;
@@ -2251,17 +2246,17 @@ bfa_boolean_t
 bfa_ioc_adapter_is_disabled(struct bfa_ioc_s *ioc)
 {
 	u32	ioc_state;
-	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
+	void __iomem *rb = ioc->pcidev.pci_bar_kva;
 
 	if (!bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabled))
 		return BFA_FALSE;
 
-	ioc_state = bfa_reg_read(rb + BFA_IOC0_STATE_REG);
+	ioc_state = readl(rb + BFA_IOC0_STATE_REG);
 	if (!bfa_ioc_state_disabled(ioc_state))
 		return BFA_FALSE;
 
 	if (ioc->pcidev.device_id != BFA_PCI_DEVICE_ID_FC_8G1P) {
-		ioc_state = bfa_reg_read(rb + BFA_IOC1_STATE_REG);
+		ioc_state = readl(rb + BFA_IOC1_STATE_REG);
 		if (!bfa_ioc_state_disabled(ioc_state))
 			return BFA_FALSE;
 	}
