@@ -9,8 +9,6 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#define DEBUG
-#define VERBOSE_DEBUG
 
 #include <linux/slab.h>
 #include <linux/module.h>
