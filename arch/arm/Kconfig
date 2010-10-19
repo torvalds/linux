@@ -680,8 +680,8 @@ config ARCH_S3C64XX
 	help
 	  Samsung S3C64XX series based systems
 
-config ARCH_S5P6440
-	bool "Samsung S5P6440"
+config ARCH_S5P64X0
+	bool "Samsung S5P6440 S5P6450"
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
@@ -690,7 +690,8 @@ config ARCH_S5P6440
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
 	help
-	  Samsung S5P6440 CPU based systems
+	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
+	  SMDK6450.
 
 config ARCH_S5P6442
 	bool "Samsung S5P6442"
@@ -941,7 +942,7 @@ if ARCH_S3C64XX
 source "arch/arm/mach-s3c64xx/Kconfig"
 endif
 
-source "arch/arm/mach-s5p6440/Kconfig"
+source "arch/arm/mach-s5p64x0/Kconfig"
 
 source "arch/arm/mach-s5p6442/Kconfig"
 
@@ -1114,6 +1115,20 @@ config ARM_ERRATA_720789
 	  invalidated are not, resulting in an incoherency in the system page
 	  tables. The workaround changes the TLB flushing routines to invalidate
 	  entries regardless of the ASID.
+
+config ARM_ERRATA_743622
+	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 743622 Cortex-A9
+	  (r2p0..r2p2) erratum. Under very rare conditions, a faulty
+	  optimisation in the Cortex-A9 Store Buffer may lead to data
+	  corruption. This workaround sets a specific bit in the diagnostic
+	  register of the Cortex-A9 which disables the Store Buffer
+	  optimisation, preventing the defect from occurring. This has no
+	  visible impact on the overall performance or power consumption of the
+	  processor.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
@@ -1270,7 +1285,7 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || \
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
 		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_S5PV310
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91

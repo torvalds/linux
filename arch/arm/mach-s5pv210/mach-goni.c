@@ -456,7 +456,7 @@ static void goni_setup_sdhci(void)
 
 static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
-	&s5pc110_device_onenand,
+	&s5p_device_onenand,
 	&goni_i2c_gpio_pmic,
 	&goni_device_gpiokeys,
 	&s5p_device_fimc0,

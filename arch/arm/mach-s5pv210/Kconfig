@@ -53,11 +53,6 @@ config S5PV210_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
-config S5PC110_DEV_ONENAND
-	bool
-	help
-	  Compile in platform device definition for OneNAND1 controller
-
 menu "S5PC110 Machines"
 
 config MACH_AQUILA
@@ -71,7 +66,7 @@ config MACH_AQUILA
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
-	select S5PC110_DEV_ONENAND
+	select S5P_DEV_ONENAND
 	select S5PV210_SETUP_FB_24BPP
 	select S5PV210_SETUP_SDHCI
 	help
@@ -88,7 +83,7 @@ config MACH_GONI
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
-	select S5PC110_DEV_ONENAND
+	select S5P_DEV_ONENAND
 	select S5PV210_SETUP_FB_24BPP
 	select S5PV210_SETUP_SDHCI
 	help

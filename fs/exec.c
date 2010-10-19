@@ -2014,3 +2014,41 @@ fail_creds:
 fail:
 	return;
 }
+
+/*
+ * Core dumping helper functions.  These are the only things you should
+ * do on a core-file: use only these functions to write out all the
+ * necessary info.
+ */
+int dump_write(struct file *file, const void *addr, int nr)
+{
+	return access_ok(VERIFY_READ, addr, nr) && file->f_op->write(file, addr, nr, &file->f_pos) == nr;
+}
+
+int dump_seek(struct file *file, loff_t off)
+{
+	int ret = 1;
+
+	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+		if (file->f_op->llseek(file, off, SEEK_CUR) < 0)
+			return 0;
+	} else {
+		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
+
+		if (!buf)
+			return 0;
+		while (off > 0) {
+			unsigned long n = off;
+
+			if (n > PAGE_SIZE)
+				n = PAGE_SIZE;
+			if (!dump_write(file, buf, n)) {
+				ret = 0;
+				break;
+			}
+			off -= n;
+		}
+		free_page((unsigned long)buf);
+	}
+	return ret;
+}
