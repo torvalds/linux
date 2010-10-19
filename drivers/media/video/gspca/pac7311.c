@@ -672,9 +672,8 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->contrast = val;
-	if (gspca_dev->streaming) {
+	if (gspca_dev->streaming)
 		setcontrast(gspca_dev);
-	}
 	return gspca_dev->usb_err;
 }
 

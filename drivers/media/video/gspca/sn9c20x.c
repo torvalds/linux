@@ -1270,7 +1270,8 @@ static int soi968_init_sensor(struct gspca_dev *gspca_dev)
 		}
 	}
 	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << EXPOSURE_IDX);
+	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX)
+				| (1 << EXPOSURE_IDX);
 	sd->hstart = 60;
 	sd->vstart = 11;
 	return 0;
@@ -1349,7 +1350,9 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 				return -ENODEV;
 			}
 		}
-		gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+		gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX)
+					| (1 << AUTOGAIN_IDX)
+					| (1 << GAIN_IDX);
 		sd->hstart = 2;
 		sd->vstart = 2;
 		sd->sensor = SENSOR_MT9V111;
@@ -1393,7 +1396,8 @@ static int mt9m112_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
-	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX)
+				| (1 << GAIN_IDX);
 	sd->hstart = 0;
 	sd->vstart = 2;
 	return 0;
@@ -1410,7 +1414,8 @@ static int mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
-	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX)
+				| (1 << GAIN_IDX);
 	sd->hstart = 0;
 	sd->vstart = 2;
 	return 0;

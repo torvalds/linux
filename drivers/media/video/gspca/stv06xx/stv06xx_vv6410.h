@@ -157,8 +157,8 @@
 /* Audio Amplifier Setup Register */
 #define VV6410_AT1			0x79
 
-#define VV6410_HFLIP 			(1 << 3)
-#define VV6410_VFLIP 			(1 << 4)
+#define VV6410_HFLIP			(1 << 3)
+#define VV6410_VFLIP			(1 << 4)
 
 #define VV6410_LOW_POWER_MODE		(1 << 0)
 #define VV6410_SOFT_RESET		(1 << 2)

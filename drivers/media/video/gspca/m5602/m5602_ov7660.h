@@ -80,7 +80,7 @@
 
 #define OV7660_DEFAULT_GAIN		0x0e
 #define OV7660_DEFAULT_RED_GAIN		0x80
-#define OV7660_DEFAULT_BLUE_GAIN 	0x80
+#define OV7660_DEFAULT_BLUE_GAIN	0x80
 #define OV7660_DEFAULT_SATURATION	0x00
 #define OV7660_DEFAULT_EXPOSURE		0x20
 
@@ -105,8 +105,7 @@ static const struct m5602_sensor ov7660 = {
 	.disconnect = ov7660_disconnect,
 };
 
-static const unsigned char preinit_ov7660[][4] =
-{
+static const unsigned char preinit_ov7660[][4] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
@@ -140,8 +139,7 @@ static const unsigned char preinit_ov7660[][4] =
 	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00}
 };
 
-static const unsigned char init_ov7660[][4] =
-{
+static const unsigned char init_ov7660[][4] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
@@ -259,5 +257,4 @@ static const unsigned char init_ov7660[][4] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 };
-
 #endif

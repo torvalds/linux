@@ -463,7 +463,7 @@ static void setup_qtable(struct gspca_dev *gspca_dev,
 
 	/* loop over y components */
 	for (i = 0; i < 64; i++)
-		 reg_w_riv(gspca_dev, 0x00, 0x2800 + i, qtable[0][i]);
+		reg_w_riv(gspca_dev, 0x00, 0x2800 + i, qtable[0][i]);
 
 	/* loop over c components */
 	for (i = 0; i < 64; i++)
@@ -712,8 +712,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->subtype = id->driver_info;
 
 	if (sd->subtype == AiptekMiniPenCam13) {
-/* try to get the firmware as some cam answer 2.0.1.2.2
- * and should be a spca504b then overwrite that setting */
+
+		/* try to get the firmware as some cam answer 2.0.1.2.2
+		 * and should be a spca504b then overwrite that setting */
 		reg_r(gspca_dev, 0x20, 0, 1);
 		switch (gspca_dev->usb_buf[0]) {
 		case 1:
@@ -733,7 +734,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*	case BRIDGE_SPCA504: */
 /*	case BRIDGE_SPCA536: */
 		cam->cam_mode = vga_mode;
-		cam->nmodes =ARRAY_SIZE(vga_mode);
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 		break;
 	case BRIDGE_SPCA533:
 		cam->cam_mode = custom_mode;

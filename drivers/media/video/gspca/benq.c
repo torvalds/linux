@@ -152,7 +152,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x003c, 0x0005);
 	reg_w(gspca_dev, 0x003c, 0x0006);
 	reg_w(gspca_dev, 0x003c, 0x0007);
-	usb_set_interface(gspca_dev->dev, gspca_dev->iface, gspca_dev->nbalt - 1);
+	usb_set_interface(gspca_dev->dev, gspca_dev->iface,
+					gspca_dev->nbalt - 1);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

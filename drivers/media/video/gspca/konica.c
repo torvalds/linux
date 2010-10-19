@@ -89,7 +89,7 @@ static const struct ctrl sd_ctrls[] = {
 	    {
 		.id = V4L2_CID_CONTRAST,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "contrast",
+		.name = "Contrast",
 		.minimum = 0,
 		.maximum = 9,
 		.step = 4,
@@ -121,7 +121,7 @@ static const struct ctrl sd_ctrls[] = {
 	    {
 		.id = V4L2_CID_WHITE_BALANCE_TEMPERATURE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Whitebalance ",
+		.name = "White Balance",
 		.minimum = 0,
 		.maximum = 33,
 		.step = 1,

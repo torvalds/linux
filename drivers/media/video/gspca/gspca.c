@@ -1358,7 +1358,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 				continue;
 			if (idx >= 0
 			 && gspca_dev->sd_desc->ctrls[i].qctrl.id
-					> gspca_dev->sd_desc->ctrls[idx].qctrl.id)
+				    > gspca_dev->sd_desc->ctrls[idx].qctrl.id)
 				continue;
 			idx = i;
 		}

@@ -45,7 +45,7 @@ MODULE_LICENSE("GPL");
 
 #define PAC207_GAIN_MIN			0
 #define PAC207_GAIN_MAX			31
-#define PAC207_GAIN_DEFAULT         	9 /* power on default: 9 */
+#define PAC207_GAIN_DEFAULT		9 /* power on default: 9 */
 #define PAC207_GAIN_KNEE		31
 
 #define PAC207_AUTOGAIN_DEADZONE	30

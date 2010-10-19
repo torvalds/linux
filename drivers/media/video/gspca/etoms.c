@@ -710,9 +710,9 @@ static void Et_setgainG(struct gspca_dev *gspca_dev, __u8 gain)
 }
 
 #define BLIMIT(bright) \
-	(__u8)((bright > 0x1f)?0x1f:((bright < 4)?3:bright))
+	(u8)((bright > 0x1f) ? 0x1f : ((bright < 4) ? 3 : bright))
 #define LIMIT(color) \
-	(unsigned char)((color > 0xff)?0xff:((color < 0)?0:color))
+	(u8)((color > 0xff) ? 0xff : ((color < 0) ? 0 : color))
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {

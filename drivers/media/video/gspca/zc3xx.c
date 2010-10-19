@@ -2951,7 +2951,7 @@ static const struct usb_action mc501cb_Initial[] = {
 	{}
 };
 
-static const struct usb_action mc501cb_InitialScale[] = {	 /* 320x240 */
+static const struct usb_action mc501cb_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT}, /* 00,02,10,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -3729,7 +3729,6 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xaa, 0x0d, 0x0000},
 	{0xaa, 0x0e, 0x0002},
 	{0xaa, 0x14, 0x0081},
-
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 /* Frame retreiving */
@@ -3783,7 +3782,6 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xa0, 0x05, ZC3XX_R185_WINYWIDTH},
 	{0xa0, 0x14, ZC3XX_R186_WINYCENTER},
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
-
 /* Auto exposure and white balance */
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0x03, ZC3XX_R191_EXPOSURELIMITMID},
@@ -3847,7 +3845,6 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xaa, 0x0d, 0x0000},
 	{0xaa, 0x0e, 0x0002},
 	{0xaa, 0x14, 0x0081},
-
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 /* Frame retreiving */
@@ -6307,8 +6304,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		if (chipset_revision_sensor[i].revision == retword) {
 			sd->chip_revision = retword;
 			send_unknown(gspca_dev, SENSOR_PB0330);
-			return chipset_revision_sensor[i]
-						.internal_sensor_id;
+			return chipset_revision_sensor[i].internal_sensor_id;
 		}
 	}
 
@@ -6787,7 +6783,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* fall thru */
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
-/*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN);  * (from win traces) */
+/*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN); in win traces */
 		reg_r(gspca_dev, 0x0180);
 		break;
 	case SENSOR_OV7620:
@@ -6795,7 +6791,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x15, 0x01ae);
 		i2c_read(gspca_dev, 0x13);	/*fixme: returns 0xa3 */
 		i2c_write(gspca_dev, 0x13, 0xa3, 0x00);
-					 /*fixme: returned value to send? */
+					/*fixme: returned value to send? */
 		reg_w(gspca_dev, 0x40, 0x0117);
 		reg_r(gspca_dev, 0x0180);
 		break;
@@ -6838,7 +6834,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* remove the webcam's header:
 		 * ff d8 ff fe 00 0e 00 00 ss ss 00 01 ww ww hh hh pp pp
 		 *	- 'ss ss' is the frame sequence number (BE)
-		 * 	- 'ww ww' and 'hh hh' are the window dimensions (BE)
+		 *	- 'ww ww' and 'hh hh' are the window dimensions (BE)
 		 *	- 'pp pp' is the packet sequence number (BE)
 		 */
 		data += 18;

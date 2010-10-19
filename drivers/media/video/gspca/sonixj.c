@@ -321,6 +321,7 @@ static const __u32 ctrl_dis[] = {
 [SENSOR_PO2030N] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
 			(1 << FREQ),
+
 [SENSOR_SOI768] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
 			(1 << HFLIP) |
@@ -1712,7 +1713,6 @@ static void ov7648_probe(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_PO1030;
 		return;
 	}
-
 	err("Unknown sensor %04x", val);
 }
 
@@ -2677,7 +2677,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 					/* ?? {0x1e, 0xdd, 0x2d, 0xe7} */
 		break;
 	}
-
 
 	/* here change size mode 0 -> VGA; 1 -> CIF */
 	sd->reg18 = sn9c1xx[0x18] | (mode << 4) | 0x40;

@@ -92,8 +92,7 @@ static const struct v4l2_pix_format sif_mode[] = {
  * Initialization data: this is the first set-up data written to the
  * device (before the open data).
  */
-static const u16 spca508_init_data[][2] =
-{
+static const u16 spca508_init_data[][2] = {
 	{0x0000, 0x870b},
 
 	{0x0020, 0x8112},	/* Video drop enable, ISO streaming disable */

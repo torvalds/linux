@@ -67,7 +67,7 @@ static int reg_w(struct sd *sd, __u16 index, __u16 value);
   --------------------------------------------------------------------------*/
 static int w9968cf_write_fsb(struct sd *sd, u16* data)
 {
-	struct usb_device* udev = sd->gspca_dev.dev;
+	struct usb_device *udev = sd->gspca_dev.dev;
 	u16 value;
 	int ret;
 

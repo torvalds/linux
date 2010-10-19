@@ -323,10 +323,9 @@ static const __u8 initOv6650[] = {
 	0x00, 0x01, 0x01, 0x0a, 0x16, 0x12, 0x68, 0x8b,
 	0x10, 0x1d, 0x10, 0x02, 0x02, 0x09, 0x07
 };
-static const __u8 ov6650_sensor_init[][8] =
-{
+static const __u8 ov6650_sensor_init[][8] = {
 	/* Bright, contrast, etc are set through SCBB interface.
-	 * AVCAP on win2 do not send any data on this 	controls. */
+	 * AVCAP on win2 do not send any data on this controls. */
 	/* Anyway, some registers appears to alter bright and constrat */
 
 	/* Reset sensor */
@@ -544,7 +543,7 @@ static const __u8 initTas5130[] = {
 	0x18, 0x10, 0x04, 0x03, 0x11, 0x0c
 };
 static const __u8 tas5130_sensor_init[][8] = {
-/* 	{0x30, 0x11, 0x00, 0x40, 0x47, 0x00, 0x00, 0x10},
+/*	{0x30, 0x11, 0x00, 0x40, 0x47, 0x00, 0x00, 0x10},
 					* shutter 0x47 short exposure? */
 	{0x30, 0x11, 0x00, 0x40, 0x01, 0x00, 0x00, 0x10},
 					/* shutter 0x01 long exposure */
@@ -861,7 +860,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		i2c[4] |= reg11 - 1;
 
 		/* If register 11 didn't change, don't change it */
-		if (sd->reg11 == reg11 )
+		if (sd->reg11 == reg11)
 			i2c[0] = 0xa0;
 
 		if (i2c_w(gspca_dev, i2c) == 0)

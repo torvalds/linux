@@ -415,10 +415,10 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 
 /* Registers common to OV511 / OV518 */
 #define R51x_FIFO_PSIZE			0x30	/* 2 bytes wide w/ OV518(+) */
-#define R51x_SYS_RESET          	0x50
+#define R51x_SYS_RESET			0x50
 	/* Reset type flags */
 	#define	OV511_RESET_OMNICE	0x08
-#define R51x_SYS_INIT         		0x53
+#define R51x_SYS_INIT			0x53
 #define R51x_SYS_SNAP			0x52
 #define R51x_SYS_CUST_ID		0x5F
 #define R51x_COMP_LUT_BEGIN		0x80
@@ -603,13 +603,11 @@ struct ov_i2c_regvals {
 };
 
 /* Settings for OV2610 camera chip */
-static const struct ov_i2c_regvals norm_2610[] =
-{
+static const struct ov_i2c_regvals norm_2610[] = {
 	{ 0x12, 0x80 },	/* reset */
 };
 
-static const struct ov_i2c_regvals norm_3620b[] =
-{
+static const struct ov_i2c_regvals norm_3620b[] = {
 	/*
 	 * From the datasheet: "Note that after writing to register COMH
 	 * (0x12) to change the sensor mode, registers related to the
@@ -2779,7 +2777,7 @@ static int ov511_configure(struct gspca_dev *gspca_dev)
 	};
 
 	const struct ov_regvals norm_511[] = {
-		{ R511_DRAM_FLOW_CTL, 	0x01 },
+		{ R511_DRAM_FLOW_CTL,	0x01 },
 		{ R51x_SYS_SNAP,	0x00 },
 		{ R51x_SYS_SNAP,	0x02 },
 		{ R51x_SYS_SNAP,	0x00 },
@@ -2863,7 +2861,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 	const struct ov_regvals norm_518[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
-		{ 0x31, 		0x0f },
+		{ 0x31,			0x0f },
 		{ 0x5d,			0x03 },
 		{ 0x24,			0x9f },
 		{ 0x25,			0x90 },
@@ -2876,7 +2874,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 	const struct ov_regvals norm_518_p[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
-		{ 0x31, 		0x0f },
+		{ 0x31,			0x0f },
 		{ 0x5d,			0x03 },
 		{ 0x24,			0x9f },
 		{ 0x25,			0x90 },
@@ -3653,7 +3651,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		break;
 	case SEN_OV7610:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
-		i2c_w(sd, 0x35, qvga?0x1e:0x9e);
+		i2c_w(sd, 0x35, qvga ? 0x1e : 0x9e);
 		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
 		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
