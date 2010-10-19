@@ -315,14 +315,19 @@ config MFD_WM8400
 	  the functionality of the device.
 
 config MFD_WM831X
-	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
+	bool
+	depends on GENERIC_HARDIRQS
+
+config MFD_WM831X_I2C
+	bool "Support Wolfson Microelectronics WM831x/2x PMICs with I2C"
 	select MFD_CORE
+	select MFD_WM831X
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
-	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs.
-	  This driver provides common support for accessing the device,
-	  additional drivers must be enabled in order to use the
-	  functionality of the device.
+	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
+	  when controlled using I2C.  This driver provides common support
+	  for accessing the device, additional drivers must be enabled in
+	  order to use the functionality of the device.
 
 config MFD_WM8350
 	bool
