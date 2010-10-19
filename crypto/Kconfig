@@ -844,6 +844,14 @@ config CRYPTO_ANSI_CPRNG
 config CRYPTO_USER_API
 	tristate
 
+config CRYPTO_USER_API_HASH
+	tristate "User-space interface for hash algorithms"
+	select CRYPTO_HASH
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for hash
+	  algorithms.
+
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
