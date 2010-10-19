@@ -455,6 +455,13 @@ int osd_req_write_sg(struct osd_request *or,
 int osd_req_read_sg(struct osd_request *or,
 	const struct osd_obj_id *obj, struct bio *bio,
 	const struct osd_sg_entry *sglist, unsigned numentries);
+int osd_req_write_sg_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, void **buff,
+	const struct osd_sg_entry *sglist, unsigned numentries);
+int osd_req_read_sg_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, void **buff,
+	const struct osd_sg_entry *sglist, unsigned numentries);
+
 /*
  * Root/Partition/Collection/Object Attributes commands
  */

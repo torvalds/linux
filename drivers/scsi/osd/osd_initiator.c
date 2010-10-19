@@ -1015,6 +1015,77 @@ int osd_req_read_sg(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_req_read_sg);
 
+/* SG-list write/read Kern API
+ *
+ * osd_req_{write,read}_sg_kern takes an array of @buff pointers and an array
+ * of sg_entries. @numentries indicates how many pointers and sg_entries there
+ * are.  By requiring an array of buff pointers. This allows a caller to do a
+ * single write/read and scatter into multiple buffers.
+ * NOTE: Each buffer + len should not cross a page boundary.
+ */
+static struct bio *_create_sg_bios(struct osd_request *or,
+	void **buff, const struct osd_sg_entry *sglist, unsigned numentries)
+{
+	struct request_queue *q = osd_request_queue(or->osd_dev);
+	struct bio *bio;
+	unsigned i;
+
+	bio = bio_kmalloc(GFP_KERNEL, numentries);
+	if (unlikely(!bio)) {
+		OSD_DEBUG("Faild to allocate BIO size=%u\n", numentries);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for (i = 0; i < numentries; i++) {
+		unsigned offset = offset_in_page(buff[i]);
+		struct page *page = virt_to_page(buff[i]);
+		unsigned len = sglist[i].len;
+		unsigned added_len;
+
+		BUG_ON(offset + len > PAGE_SIZE);
+		added_len = bio_add_pc_page(q, bio, page, len, offset);
+		if (unlikely(len != added_len)) {
+			OSD_DEBUG("bio_add_pc_page len(%d) != added_len(%d)\n",
+				  len, added_len);
+			bio_put(bio);
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	return bio;
+}
+
+int osd_req_write_sg_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, void **buff,
+	const struct osd_sg_entry *sglist, unsigned numentries)
+{
+	struct bio *bio = _create_sg_bios(or, buff, sglist, numentries);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	bio->bi_rw |= REQ_WRITE;
+	osd_req_write_sg(or, obj, bio, sglist, numentries);
+
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_write_sg_kern);
+
+int osd_req_read_sg_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, void **buff,
+	const struct osd_sg_entry *sglist, unsigned numentries)
+{
+	struct bio *bio = _create_sg_bios(or, buff, sglist, numentries);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	osd_req_read_sg(or, obj, bio, sglist, numentries);
+
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_read_sg_kern);
+
+
+
 void osd_req_get_attributes(struct osd_request *or,
 	const struct osd_obj_id *obj)
 {
