@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/dmi.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -46,6 +47,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include "ov7670.h"
 #include "cafe_ccic-regs.h"
 
 #define CAFE_VERSION 0x000002
@@ -1974,11 +1976,33 @@ static irqreturn_t cafe_irq(int irq, void *data)
  * PCI interface stuff.
  */
 
+static const struct dmi_system_id olpc_xo1_dmi[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "OLPC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1"),
+		},
+	},
+	{ }
+};
+
 static int cafe_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	int ret;
 	struct cafe_camera *cam;
+	struct ov7670_config sensor_cfg = {
+		/* This controller only does SMBUS */
+		.use_smbus = true,
+
+		/*
+		 * Exclude QCIF mode, because it only captures a tiny portion
+		 * of the sensor FOV
+		 */
+		.min_width = 320,
+		.min_height = 240,
+	};
 
 	/*
 	 * Start putting together one of our big camera structures.
@@ -2036,6 +2060,10 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_freeirq;
 
+	/* Apply XO-1 clock speed */
+	if (dmi_check_system(olpc_xo1_dmi))
+		sensor_cfg.clock_speed = 45;
+
 	cam->sensor_addr = 0x42;
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
 			NULL, "ov7670", cam->sensor_addr, NULL);
@@ -2043,6 +2071,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		ret = -ENODEV;
 		goto out_smbus;
 	}
+
 	ret = cafe_cam_init(cam);
 	if (ret)
 		goto out_smbus;
