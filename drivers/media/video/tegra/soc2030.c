@@ -35,101 +35,120 @@ struct soc2030_info {
  * 1600X1200 15fps (Max), 800X600 30fps (Max)
  */
 static struct soc2030_regs base_mode[] = {
-	{WRITE_REG_DATA, 0x321C, 0x0000},	/*By Pass TxFIFO = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x2703},	/*Output Width (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0320},	/*      = 800*/
-	{WRITE_REG_DATA, 0x098C, 0x2705},	/*Output Height (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0258},	/*      = 600*/
-	{WRITE_REG_DATA, 0x098C, 0x2707},	/*Output Width (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0640},	/*      = 1600*/
-	{WRITE_REG_DATA, 0x098C, 0x2709},	/*Output Height (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x04B0},	/*      = 1200*/
-	{WRITE_REG_DATA, 0x098C, 0x270D},	/*Row Start (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x270F},	/*Column Start (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x2711},	/*Row End (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x4BD},	/*      = 1213*/
-	{WRITE_REG_DATA, 0x098C, 0x2713},	/*Column End (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x64D},	/*      = 1613*/
-	{WRITE_REG_DATA, 0x098C, 0x2715},	/*Row Speed (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0111},	/*      = 273*/
-	{WRITE_REG_DATA, 0x098C, 0x2717},	/*Read Mode (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x046C},	/*      = 1132*/
-	{WRITE_REG_DATA, 0x098C, 0x2719},	/*sensor_fine_correction (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x005A},	/*      = 90*/
-	{WRITE_REG_DATA, 0x098C, 0x271B},	/*sensor_fine_IT_min (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x01BE},	/*      = 446*/
-	{WRITE_REG_DATA, 0x098C, 0x271D},	/*sensor_fine_IT_max_margin(A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0131},	/*      = 305*/
-	{WRITE_REG_DATA, 0x098C, 0x271F},	/*Frame Lines (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x02B3},	/*      = 691*/
-	{WRITE_REG_DATA, 0x098C, 0x2721},	/*Line Length (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0853},	/*      = 2131*/
-	{WRITE_REG_DATA, 0x098C, 0x2723},	/*Row Start (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x004},	/*      = 4*/
-	{WRITE_REG_DATA, 0x098C, 0x2725},	/*Column Start (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x004},	/*      = 4*/
-	{WRITE_REG_DATA, 0x098C, 0x2727},	/*Row End (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x4BB},	/*      = 1211*/
-	{WRITE_REG_DATA, 0x098C, 0x2729},	/*Column End (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x64B},	/*      = 1611*/
-	{WRITE_REG_DATA, 0x098C, 0x272B},	/*Row Speed (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0111},	/*      = 273*/
-	{WRITE_REG_DATA, 0x098C, 0x272D},	/*Read Mode (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0024},	/*      = 36*/
-	{WRITE_REG_DATA, 0x098C, 0x272F},	/*sensor_fine_correction (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x003A},	/*      = 58*/
-	{WRITE_REG_DATA, 0x098C, 0x2731},	/*sensor_fine_IT_min (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x00F6},	/*      = 246*/
-	{WRITE_REG_DATA, 0x098C, 0x2733},	/*sensor_fine_IT_max_margin(B)*/
-	{WRITE_REG_DATA, 0x0990, 0x008B},	/*      = 139*/
-	{WRITE_REG_DATA, 0x098C, 0x2735},	/*Frame Lines (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x050D},	/*      = 1293*/
-	{WRITE_REG_DATA, 0x098C, 0x2737},	/*Line Length (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x085A},	/*      = 2138*/
-	{WRITE_REG_DATA, 0x098C, 0x2739},	/*Crop_X0 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x273B},	/*Crop_X1 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x031F},	/*      = 799*/
-	{WRITE_REG_DATA, 0x098C, 0x273D},	/*Crop_Y0 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x273F},	/*Crop_Y1 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0257},	/*      = 599*/
-	{WRITE_REG_DATA, 0x098C, 0x2747},	/*Crop_X0 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x2749},	/*Crop_X1 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x063F},	/*      = 1599*/
-	{WRITE_REG_DATA, 0x098C, 0x274B},	/*Crop_Y0 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x274D},	/*Crop_Y1 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x04AF},	/*      = 1199*/
-	{WRITE_REG_DATA, 0x098C, 0x222D},	/*R9 Step*/
-	{WRITE_REG_DATA, 0x0990, 0x009E},	/*      = 158*/
-	{WRITE_REG_DATA, 0x098C, 0xA408},	/*search_f1_50*/
-	{WRITE_REG_DATA, 0x0990, 0x26},	/*      = 38*/
-	{WRITE_REG_DATA, 0x098C, 0xA409},	/*search_f2_50*/
-	{WRITE_REG_DATA, 0x0990, 0x28},	/*      = 40*/
-	{WRITE_REG_DATA, 0x098C, 0xA40A},	/*search_f1_60*/
-	{WRITE_REG_DATA, 0x0990, 0x2E},	/*      = 46*/
-	{WRITE_REG_DATA, 0x098C, 0xA40B},	/*search_f2_60*/
-	{WRITE_REG_DATA, 0x0990, 0x30},	/*      = 48*/
-	{WRITE_REG_DATA, 0x098C, 0x2411},	/*R9_Step_60 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x009E},	/*      = 158*/
-	{WRITE_REG_DATA, 0x098C, 0x2413},	/*R9_Step_50 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x00BE},	/*      = 190*/
-	{WRITE_REG_DATA, 0x098C, 0x2415},	/*R9_Step_60 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x009E},	/*      = 158*/
-	{WRITE_REG_DATA, 0x098C, 0x2417},	/*R9_Step_50 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x00BD},	/*      = 189*/
-	{WRITE_REG_DATA, 0x098C, 0xA404},	/*FD Mode*/
-	{WRITE_REG_DATA, 0x0990, 0x10},	/*      = 16*/
-	{WRITE_REG_DATA, 0x098C, 0xA40D},	/*Stat_min*/
-	{WRITE_REG_DATA, 0x0990, 0x02},	/*      = 2*/
-	{WRITE_REG_DATA, 0x098C, 0xA40E},	/*Stat_max*/
-	{WRITE_REG_DATA, 0x0990, 0x03},	/*      = 3*/
-	{WRITE_REG_DATA, 0x098C, 0xA410},	/*Min_amplitude*/
-	{WRITE_REG_DATA, 0x0990, 0x0A},	/*      = 10*/
+	{WRITE_REG_DATA, 0x98C, 0x2703},	/*Output Width (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0320},	/*      = 800*/
+	{WRITE_REG_DATA, 0x98C, 0x2705},	/*Output Height (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0258},	/*      = 600*/
+	{WRITE_REG_DATA, 0x98C, 0x2707},	/*Output Width (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0640},	/*      = 1600*/
+	{WRITE_REG_DATA, 0x98C, 0x2709},	/*Output Height (B)*/
+	{WRITE_REG_DATA, 0x990, 0x04B0},	/*      = 1200*/
+	{WRITE_REG_DATA, 0x98C, 0x270D},	/*Row Start (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x270F},	/*Column Start (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x2711},	/*Row End (A)*/
+	{WRITE_REG_DATA, 0x990, 0x04BD},	/*      = 1213*/
+	{WRITE_REG_DATA, 0x98C, 0x2713},	/*Column End (A)*/
+	{WRITE_REG_DATA, 0x990, 0x064D},	/*      = 1613*/
+	{WRITE_REG_DATA, 0x98C, 0x2715},	/*Row Speed (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0111},	/*      = 273*/
+	{WRITE_REG_DATA, 0x98C, 0x2717},	/*Read Mode (A)*/
+	{WRITE_REG_DATA, 0x990, 0x046C},	/*      = 1132*/
+	{WRITE_REG_DATA, 0x98C, 0x2719},	/*fine_corr (A)*/
+	{WRITE_REG_DATA, 0x990, 0x005A},	/*      = 90*/
+	{WRITE_REG_DATA, 0x98C, 0x271B},	/*sensor_fine_IT_min (A)*/
+	{WRITE_REG_DATA, 0x990, 0x01BE},	/*      = 446*/
+	{WRITE_REG_DATA, 0x98C, 0x271D},	/*fine_IT_max_mrgn (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0131},	/*      = 305*/
+	{WRITE_REG_DATA, 0x98C, 0x271F},	/*Frame Lines (A)*/
+	{WRITE_REG_DATA, 0x990, 0x02B3},	/*      = 691*/
+	{WRITE_REG_DATA, 0x98C, 0x2721},	/*Line Length (A)*/
+	{WRITE_REG_DATA, 0x990, 0x07EA},	/*      = 2026*/
+	{WRITE_REG_DATA, 0x98C, 0x2723},	/*Row Start (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0004},	/*      = 4*/
+	{WRITE_REG_DATA, 0x98C, 0x2725},	/*Column Start (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0004},	/*      = 4*/
+	{WRITE_REG_DATA, 0x98C, 0x2727},	/*Row End (B)*/
+	{WRITE_REG_DATA, 0x990, 0x04BB},	/*      = 1211*/
+	{WRITE_REG_DATA, 0x98C, 0x2729},	/*Column End (B)*/
+	{WRITE_REG_DATA, 0x990, 0x064B},	/*      = 1611*/
+	{WRITE_REG_DATA, 0x98C, 0x272B},	/*Row Speed (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0111},	/*      = 273*/
+	{WRITE_REG_DATA, 0x98C, 0x272D},	/*Read Mode (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0024},	/*      = 36*/
+	{WRITE_REG_DATA, 0x98C, 0x272F},	/*sfine_corr (B)*/
+	{WRITE_REG_DATA, 0x990, 0x003A},	/*      = 58*/
+	{WRITE_REG_DATA, 0x98C, 0x2731},	/*fine_IT_min (B)*/
+	{WRITE_REG_DATA, 0x990, 0x00F6},	/*      = 246*/
+	{WRITE_REG_DATA, 0x98C, 0x2733},	/*fine_IT_max_mrgn (B)*/
+	{WRITE_REG_DATA, 0x990, 0x008B},	/*      = 139*/
+	{WRITE_REG_DATA, 0x98C, 0x2735},	/*Frame Lines (B)*/
+	{WRITE_REG_DATA, 0x990, 0x050D},	/*      = 1293*/
+	{WRITE_REG_DATA, 0x98C, 0x2737},	/*Line Length (B)*/
+	{WRITE_REG_DATA, 0x990, 0x08A9},	/*      = 2217*/
+	{WRITE_REG_DATA, 0x98C, 0x2739},	/*Crop_X0 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x273B},	/*Crop_X1 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x031F},	/*      = 799*/
+	{WRITE_REG_DATA, 0x98C, 0x273D},	/*Crop_Y0 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x273F},	/*Crop_Y1 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0257},	/*      = 599*/
+	{WRITE_REG_DATA, 0x98C, 0x2747},	/*Crop_X0 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x2749},	/*Crop_X1 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x063F},	/*      = 1599*/
+	{WRITE_REG_DATA, 0x98C, 0x274B},	/*Crop_Y0 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x274D},	/*Crop_Y1 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x04AF},	/*      = 1199*/
+	{WRITE_REG_DATA, 0x98C, 0x222D},	/*R9 Step*/
+	{WRITE_REG_DATA, 0x990, 0x00AD},	/*      = 173*/
+	{WRITE_REG_DATA, 0x98C, 0xA408},	/*search_f1_50*/
+	{WRITE_REG_DATA, 0x990, 0x002A},	/*      = 42*/
+	{WRITE_REG_DATA, 0x98C, 0xA409},	/*search_f2_50*/
+	{WRITE_REG_DATA, 0x990, 0x002C},	/*      = 44*/
+	{WRITE_REG_DATA, 0x98C, 0xA40A},	/*search_f1_60*/
+	{WRITE_REG_DATA, 0x990, 0x0032},	/*      = 50*/
+	{WRITE_REG_DATA, 0x98C, 0xA40B},	/*search_f2_60*/
+	{WRITE_REG_DATA, 0x990, 0x0034},	/*      = 52*/
+	{WRITE_REG_DATA, 0x98C, 0x2411},	/*R9_Step_60 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00AD},	/*      = 173*/
+	{WRITE_REG_DATA, 0x98C, 0x2413},	/*R9_Step_50 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00CF},	/*      = 207*/
+	{WRITE_REG_DATA, 0x98C, 0x2415},	/*R9_Step_60 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x009E},	/*      = 158*/
+	{WRITE_REG_DATA, 0x98C, 0x2417},	/*R9_Step_50 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x00BD},	/*      = 189*/
+	{WRITE_REG_DATA, 0x98C, 0xA404},	/*FD Mode*/
+	{WRITE_REG_DATA, 0x990, 0x0010},	/*      = 16*/
+	{WRITE_REG_DATA, 0x98C, 0xA40D},	/*Stat_min*/
+	{WRITE_REG_DATA, 0x990, 0x0002},	/*      = 2*/
+	{WRITE_REG_DATA, 0x98C, 0xA40E},	/*Stat_max*/
+	{WRITE_REG_DATA, 0x990, 0x0003},	/*      = 3*/
+	{WRITE_REG_DATA, 0x98C, 0xA410},	/*Min_amplitude*/
+	{WRITE_REG_DATA, 0x990, 0x000A},	/*      = 10*/
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+/*
+ * Refresh Sequencer Mode
+ */
+static struct soc2030_regs refresh_mode[] = {
+	{WRITE_REG_DATA, 0x098C, 0xa103},	/* Refresh Mode */
+	{WRITE_REG_DATA, 0x0990, 0x0006},
+	{POLL_VAR_DATA, 0xa103, 0x0000},
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+/*
+ * Refresh Sequencer State
+ */
+static struct soc2030_regs refresh_state[] = {
+	{WRITE_REG_DATA, 0x098C, 0xa103},	/* Refresh Seq */
+	{WRITE_REG_DATA, 0x0990, 0x0005},
+	{POLL_VAR_DATA, 0xa103, 0x0000},
 	{REG_TABLE_END, 0x0000, 0x0000}
 };
 
@@ -137,15 +156,67 @@ static struct soc2030_regs base_mode[] = {
  * SetMode Sequence for context A (800X600, preview).
  * Phase 0. Sensor Dependent.
  * This is usually given by the FAE or the sensor vendor.
- * 800X600 15fps fixed
+ * 800X600 30fps fixed
  */
 static struct soc2030_regs mode_800x600[] = {
-	{WRITE_REG_DATA, 0x098C, 0xA115},
+	{WRITE_REG_DATA, 0x98C, 0x2703},	/*Output Width (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0320},	/*      = 800*/
+	{WRITE_REG_DATA, 0x98C, 0x2705},	/*Output Height (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0258},	/*      = 600*/
+	{WRITE_REG_DATA, 0x98C, 0x270D},	/*Row Start (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x270F},	/*Column Start (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x2711},	/*Row End (A)*/
+	{WRITE_REG_DATA, 0x990, 0x04BD},	/*      = 1213*/
+	{WRITE_REG_DATA, 0x98C, 0x2713},	/*Column End (A)*/
+	{WRITE_REG_DATA, 0x990, 0x064D},	/*     = 1613*/
+	{WRITE_REG_DATA, 0x98C, 0x2715},	/*Row Speed (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0111},	/*      = 273*/
+	{WRITE_REG_DATA, 0x98C, 0x2717},	/*Read Mode (A)*/
+	{WRITE_REG_DATA, 0x990, 0x046C},	/*      = 1132*/
+	{WRITE_REG_DATA, 0x98C, 0x2719},	/*fine_corr (A)*/
+	{WRITE_REG_DATA, 0x990, 0x005A},	/*      = 90*/
+	{WRITE_REG_DATA, 0x98C, 0x271B},	/*_fine_IT_min (A)*/
+	{WRITE_REG_DATA, 0x990, 0x01BE},	/*      = 446*/
+	{WRITE_REG_DATA, 0x98C, 0x271D},	/*fine_IT_max_mrgn (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0131},	/*      = 305*/
+	{WRITE_REG_DATA, 0x98C, 0x271F},	/*Frame Lines (A)*/
+	{WRITE_REG_DATA, 0x990, 0x02B3},	/*      = 691*/
+	{WRITE_REG_DATA, 0x98C, 0x2721},	/*Line Length (A)*/
+	{WRITE_REG_DATA, 0x990, 0x07EA},	/*      = 2026*/
+	{WRITE_REG_DATA, 0x98C, 0x2739},	/*Crop_X0 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x273B},	/*Crop_X1 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x031F},	/*      = 799*/
+	{WRITE_REG_DATA, 0x98C, 0x273D},	/*Crop_Y0 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x273F},	/*Crop_Y1 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0257},	/*      = 599*/
+	{WRITE_REG_DATA, 0x98C, 0x222D},	/*R9 Step*/
+	{WRITE_REG_DATA, 0x990, 0x00AD},	/*      = 173*/
+	{WRITE_REG_DATA, 0x98C, 0xA408},	/*search_f1_50*/
+	{WRITE_REG_DATA, 0x990, 0x002A},	/*      = 42*/
+	{WRITE_REG_DATA, 0x98C, 0xA409},	/*search_f2_50*/
+	{WRITE_REG_DATA, 0x990, 0x002C},	/*      = 44*/
+	{WRITE_REG_DATA, 0x98C, 0xA40A},	/*search_f1_60*/
+	{WRITE_REG_DATA, 0x990, 0x0032},	/*      = 50*/
+	{WRITE_REG_DATA, 0x98C, 0xA40B},	/*search_f2_60*/
+	{WRITE_REG_DATA, 0x990, 0x0034},	/*      = 52*/
+	{WRITE_REG_DATA, 0x98C, 0x2411},	/*R9_Step_60 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00AD},	/*      = 173*/
+	{WRITE_REG_DATA, 0x98C, 0x2413},	/*R9_Step_50 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00CF},	/*      = 207*/
+	{WRITE_REG_BIT_L, 0x3040, 0x1000},	/* Disable Bin Sum */
+	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
+	{WRITE_REG_DATA, 0x0990, 0x0003},
+	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
+	{WRITE_REG_DATA, 0x0990, 0x0004},	/* 30 FPS fixed */
+	{WRITE_REG_DATA, 0x098C, 0xA115},	/* ISP off in cntx B */
 	{WRITE_REG_DATA, 0x0990, 0x0000},
-	{WRITE_REG_DATA, 0x098C, 0xA103},
+	{WRITE_REG_DATA, 0x098C, 0xA103},	/* Context A preview */
 	{WRITE_REG_DATA, 0x0990, 0x0001},
-	{WRITE_REG_DATA, 0x098C, 0xA215},
-	{WRITE_REG_DATA, 0x0990, 0x0001},
+	{POLL_VAR_DATA, 0xa104, 0x0003},
 	{REG_TABLE_END, 0x0000, 0x0000}
 };
 
@@ -156,10 +227,16 @@ static struct soc2030_regs mode_800x600[] = {
  * 1600X1200 15fps (Max)
  */
 static struct soc2030_regs mode_1600x1200[] = {
-	{WRITE_REG_DATA, 0x098C, 0xA115},
+	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
+	{WRITE_REG_DATA, 0x0990, 0x000F},
+	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
+	{WRITE_REG_DATA, 0x0990, 0x0010},	/* 7.5 FPS MIN */
+	{WRITE_REG_DATA, 0x098C, 0xA115},	/* ISP in Context B */
 	{WRITE_REG_DATA, 0x0990, 0x0072},
-	{WRITE_REG_DATA, 0x098C, 0xA103},
+	{WRITE_REG_DATA, 0x098C, 0xA103},	/* Context B full */
 	{WRITE_REG_DATA, 0x0990, 0x0002},
+	{POLL_VAR_DATA, 0xa104, 0x0007},
+	{POLL_VAR_DATA, 0xa103, 0x0000},
 	{REG_TABLE_END, 0x0000, 0x0000}
 };
 
@@ -170,115 +247,80 @@ static struct soc2030_regs mode_1600x1200[] = {
  * 1280X720 30fps (Fixed)
  */
 static struct soc2030_regs mode_1280x720[] = {
-	{WRITE_REG_DATA, 0x321C, 0x0000},	/*By Pass TxFIFO = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x2703},	/*Output Width (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0500},	/*      = 1280*/
-	{WRITE_REG_DATA, 0x098C, 0x2705},	/*Output Height (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x02D0},	/*      = 720*/
-	{WRITE_REG_DATA, 0x098C, 0x2707},	/*Output Width (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0500},	/*      = 1280*/
-	{WRITE_REG_DATA, 0x098C, 0x2709},	/*Output Height (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x02D0},	/*      = 720*/
-	{WRITE_REG_DATA, 0x098C, 0x270D},	/*Row Start (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0F6},	/*      = 246*/
-	{WRITE_REG_DATA, 0x098C, 0x270F},	/*Column Start (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0A6},	/*      = 166*/
-	{WRITE_REG_DATA, 0x098C, 0x2711},	/*Row End (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x3CD},	/*      = 973*/
-	{WRITE_REG_DATA, 0x098C, 0x2713},	/*Column End (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x5AD},	/*      = 1453*/
-	{WRITE_REG_DATA, 0x098C, 0x2715},	/*Row Speed (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0111},	/*      = 273*/
-	{WRITE_REG_DATA, 0x098C, 0x2717},	/*Read Mode (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0024},	/*      = 36*/
-	{WRITE_REG_DATA, 0x098C, 0x2719},	/*sensor_fine_correction (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x003A},	/*      = 58*/
-	{WRITE_REG_DATA, 0x098C, 0x271B},	/*sensor_fine_IT_min (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x00F6},	/*      = 246*/
-	{WRITE_REG_DATA, 0x098C, 0x271D},	/*sensor_fine_IT_max_margin(A)*/
-	{WRITE_REG_DATA, 0x0990, 0x008B},	/*      = 139*/
-	{WRITE_REG_DATA, 0x098C, 0x271F},	/*Frame Lines (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x032D},	/*      = 813*/
-	{WRITE_REG_DATA, 0x098C, 0x2721},	/*Line Length (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x067C},	/*      = 1660*/
-	{WRITE_REG_DATA, 0x098C, 0x2723},	/*Row Start (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0F6},	/*      = 246*/
-	{WRITE_REG_DATA, 0x098C, 0x2725},	/*Column Start (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0A6},	/*      = 166*/
-	{WRITE_REG_DATA, 0x098C, 0x2727},	/*Row End (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x3CD},	/*      = 973*/
-	{WRITE_REG_DATA, 0x098C, 0x2729},	/*Column End (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x5AD},	/*      = 1453*/
-	{WRITE_REG_DATA, 0x098C, 0x272B},	/*Row Speed (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0111},	/*      = 273*/
-	{WRITE_REG_DATA, 0x098C, 0x272D},	/*Read Mode (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0024},	/*      = 36*/
-	{WRITE_REG_DATA, 0x098C, 0x272F},	/*sensor_fine_correction (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x003A},	/*      = 58*/
-	{WRITE_REG_DATA, 0x098C, 0x2731},	/*sensor_fine_IT_min (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x00F6},	/*      = 246*/
-	{WRITE_REG_DATA, 0x098C, 0x2733},	/*sensor_fine_IT_max_margin(B)*/
-	{WRITE_REG_DATA, 0x0990, 0x008B},	/*      = 139*/
-	{WRITE_REG_DATA, 0x098C, 0x2735},	/*Frame Lines (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x032D},	/*      = 813*/
-	{WRITE_REG_DATA, 0x098C, 0x2737},	/*Line Length (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x067C},	/*      = 1660*/
-	{WRITE_REG_DATA, 0x098C, 0x2739},	/*Crop_X0 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x273B},	/*Crop_X1 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x04FF},	/*      = 1279*/
-	{WRITE_REG_DATA, 0x098C, 0x273D},	/*Crop_Y0 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x273F},	/*Crop_Y1 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x02CF},	/*      = 719*/
-	{WRITE_REG_DATA, 0x098C, 0x2747},	/*Crop_X0 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x2749},	/*Crop_X1 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x04FF},	/*      = 1279*/
-	{WRITE_REG_DATA, 0x098C, 0x274B},	/*Crop_Y0 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x0000},	/*      = 0*/
-	{WRITE_REG_DATA, 0x098C, 0x274D},	/*Crop_Y1 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x02CF},	/*      = 719*/
-	{WRITE_REG_DATA, 0x098C, 0x222D},	/*R9 Step*/
-	{WRITE_REG_DATA, 0x0990, 0x00CB},	/*      = 203*/
-	{WRITE_REG_DATA, 0x098C, 0xA408},	/*search_f1_50*/
-	{WRITE_REG_DATA, 0x0990, 0x31},	/*      = 49*/
-	{WRITE_REG_DATA, 0x098C, 0xA409},	/*search_f2_50*/
-	{WRITE_REG_DATA, 0x0990, 0x33},	/*      = 51*/
-	{WRITE_REG_DATA, 0x098C, 0xA40A},	/*search_f1_60*/
-	{WRITE_REG_DATA, 0x0990, 0x3C},	/*      = 60*/
-	{WRITE_REG_DATA, 0x098C, 0xA40B},	/*search_f2_60*/
-	{WRITE_REG_DATA, 0x0990, 0x3E},	/*      = 62*/
-	{WRITE_REG_DATA, 0x098C, 0x2411},	/*R9_Step_60 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x00CB},	/*      = 203*/
-	{WRITE_REG_DATA, 0x098C, 0x2413},	/*R9_Step_50 (A)*/
-	{WRITE_REG_DATA, 0x0990, 0x00F4},	/*      = 244*/
-	{WRITE_REG_DATA, 0x098C, 0x2415},	/*R9_Step_60 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x00CB},	/*      = 203*/
-	{WRITE_REG_DATA, 0x098C, 0x2417},	/*R9_Step_50 (B)*/
-	{WRITE_REG_DATA, 0x0990, 0x00F4},	/*      = 244*/
-	{WRITE_REG_DATA, 0x098C, 0xA404},	/*FD Mode*/
-	{WRITE_REG_DATA, 0x0990, 0x10},	/*      = 16*/
-	{WRITE_REG_DATA, 0x098C, 0xA40D},	/*Stat_min*/
-	{WRITE_REG_DATA, 0x0990, 0x02},	/*      = 2*/
-	{WRITE_REG_DATA, 0x098C, 0xA40E},	/*Stat_max*/
-	{WRITE_REG_DATA, 0x0990, 0x03},	/*      = 3*/
-	{WRITE_REG_DATA, 0x098C, 0xA410},	/*Min_amplitude*/
-	{WRITE_REG_DATA, 0x0990, 0x0A},	/*      = 10*/
-
-	{WRITE_REG_DATA, 0x098C, 0xa103},
-	{WRITE_REG_DATA, 0x0990, 0x0006},
-	{POLL_VAR_DATA, 0xa103, 0x0000},
-	{WRITE_REG_DATA, 0x098C, 0xa103},
-	{WRITE_REG_DATA, 0x0990, 0x0005},
-	{POLL_VAR_DATA, 0xa103, 0x0000},
-
-	{WRITE_REG_DATA, 0x098C, 0xA115},
+	{WRITE_REG_DATA, 0x98C, 0x2703},	/*Output Width (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0500},	/*      = 1280*/
+	{WRITE_REG_DATA, 0x98C, 0x2705},	/*Output Height (A)*/
+	{WRITE_REG_DATA, 0x990, 0x02D0},	/*      = 720*/
+	{WRITE_REG_DATA, 0x98C, 0x270D},	/*Row Start (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00F6},	/*      = 246*/
+	{WRITE_REG_DATA, 0x98C, 0x270F},	/*Column Start (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00A6},	/*      = 166*/
+	{WRITE_REG_DATA, 0x98C, 0x2711},	/*Row End (A)*/
+	{WRITE_REG_DATA, 0x990, 0x03CD},	/*      = 973*/
+	{WRITE_REG_DATA, 0x98C, 0x2713},	/*Column End (A)*/
+	{WRITE_REG_DATA, 0x990, 0x05AD},	/*      = 1453*/
+	{WRITE_REG_DATA, 0x98C, 0x2715},	/*Row Speed (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0111},	/*      = 273*/
+	{WRITE_REG_DATA, 0x98C, 0x2717},	/*Read Mode (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0024},	/*      = 36*/
+	{WRITE_REG_DATA, 0x98C, 0x2719},	/*_fine_correction (A)*/
+	{WRITE_REG_DATA, 0x990, 0x003A},	/*      = 58*/
+	{WRITE_REG_DATA, 0x98C, 0x271B},	/*fine_IT_min (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00F6},	/*      = 246*/
+	{WRITE_REG_DATA, 0x98C, 0x271D},	/*fine_IT_max_mrgn (A)*/
+	{WRITE_REG_DATA, 0x990, 0x008B},	/*      = 139*/
+	{WRITE_REG_DATA, 0x98C, 0x271F},	/*Frame Lines (A)*/
+	{WRITE_REG_DATA, 0x990, 0x032D},	/*      = 813*/
+	{WRITE_REG_DATA, 0x98C, 0x2721},	/*Line Length (A)*/
+	{WRITE_REG_DATA, 0x990, 0x06BA},	/*      = 1722*/
+	{WRITE_REG_DATA, 0x98C, 0x2739},	/*Crop_X0 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x273B},	/*Crop_X1 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x04FF},	/*      = 1279*/
+	{WRITE_REG_DATA, 0x98C, 0x273D},	/*Crop_Y0 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x273F},	/*Crop_Y1 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x02CF},	/*      = 719*/
+	{WRITE_REG_DATA, 0x98C, 0x2747},	/*Crop_X0 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x2749},	/*Crop_X1 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x063F},	/*      = 1599*/
+	{WRITE_REG_DATA, 0x98C, 0x274B},	/*Crop_Y0 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x0000},	/*      = 0*/
+	{WRITE_REG_DATA, 0x98C, 0x274D},	/*Crop_Y1 (B)*/
+	{WRITE_REG_DATA, 0x990, 0x04AF},	/*      = 1199*/
+	{WRITE_REG_DATA, 0x98C, 0x222D},	/*R9 Step*/
+	{WRITE_REG_DATA, 0x990, 0x00CB},	/*      = 203*/
+	{WRITE_REG_DATA, 0x98C, 0xA408},	/*search_f1_50*/
+	{WRITE_REG_DATA, 0x990, 0x0031},	/*      = 49*/
+	{WRITE_REG_DATA, 0x98C, 0xA409},	/*search_f2_50*/
+	{WRITE_REG_DATA, 0x990, 0x0033},	/*      = 51*/
+	{WRITE_REG_DATA, 0x98C, 0xA40A},	/*search_f1_60*/
+	{WRITE_REG_DATA, 0x990, 0x003C},	/*      = 60*/
+	{WRITE_REG_DATA, 0x98C, 0xA40B},	/*search_f2_60*/
+	{WRITE_REG_DATA, 0x990, 0x003E},	/*      = 62*/
+	{WRITE_REG_DATA, 0x98C, 0x2411},	/*R9_Step_60 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00CB},	/*      = 203*/
+	{WRITE_REG_DATA, 0x98C, 0x2413},	/*R9_Step_50 (A)*/
+	{WRITE_REG_DATA, 0x990, 0x00F4},	/*      = 244*/
+	{WRITE_REG_DATA, 0x98C, 0xA404},	/*FD Mode*/
+	{WRITE_REG_DATA, 0x990, 0x0010},	/*      = 16*/
+	{WRITE_REG_DATA, 0x98C, 0xA40D},	/*Stat_min*/
+	{WRITE_REG_DATA, 0x990, 0x0002},	/*      = 2*/
+	{WRITE_REG_DATA, 0x98C, 0xA40E},	/*Stat_max*/
+	{WRITE_REG_DATA, 0x990, 0x0003},	/*      = 3*/
+	{WRITE_REG_DATA, 0x98C, 0xA410},	/*Min_amplitude*/
+	{WRITE_REG_DATA, 0x990, 0x000A},	/*      = 10*/
+	{WRITE_REG_BIT_H, 0x3040, 0x1000},	/* Enable Bin Summing */
+	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
+	{WRITE_REG_DATA, 0x0990, 0x0003},
+	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
+	{WRITE_REG_DATA, 0x0990, 0x0004},	/* 30 FPS fixed */
+	{WRITE_REG_DATA, 0x098C, 0xA115},	/* ISP off in cntx B */
 	{WRITE_REG_DATA, 0x0990, 0x0000},
-	{WRITE_REG_DATA, 0x098C, 0xA103},
+	{WRITE_REG_DATA, 0x098C, 0xA103},	/* Context A preview */
 	{WRITE_REG_DATA, 0x0990, 0x0001},
-	{WRITE_REG_DATA, 0x098C, 0xA215},
-	{WRITE_REG_DATA, 0x0990, 0x0001},
+	{POLL_VAR_DATA, 0xa104, 0x0003},
 	{REG_TABLE_END, 0x0000, 0x0000}
 };
 
@@ -290,13 +332,34 @@ static struct soc2030_regs mode_1280x720[] = {
  */
 static struct soc2030_regs pll_table[] = {
 	{WRITE_REG_DATA, 0x001e, 0x0503},	/*Pad Slew rate*/
-	{WRITE_REG_DATA, 0x0014, 0x21F9},	/*PLL_CONTROL*/
-	{WRITE_REG_DATA, 0x0010, 0x011B},	/*PLL_DIVIDERS*/
+	{WRITE_REG_DATA, 0x0014, 0x2545},	/*PLL_CONTROL*/
+	{WRITE_REG_DATA, 0x0010, 0x011C},	/*PLL_DIVIDERS*/
 	{WRITE_REG_DATA, 0x0012, 0x10F7},	/*PLL_P_DIVIDERS*/
-	{WRITE_REG_DATA, 0x0014, 0x21FB},	/*PLL_CONTROL*/
-	{WRITE_REG_DATA, 0x0014, 0x20FB},	/*PLL_CONTROL*/
+	{WRITE_REG_DATA, 0x0014, 0x2547},	/*PLL_CONTROL*/
+	{WRITE_REG_DATA, 0x0014, 0x2447},	/*PLL_CONTROL*/
+	{DELAY_MS, 0x0000, 0x0010},		/*wait for pll lck*/
+	{WRITE_REG_DATA, 0x0014, 0x2047},	/*PLL_CONTROL*/
+	{WRITE_REG_BIT_L, 0x0014, 0x0001},	/*enable the pll*/
+	{WRITE_REG_BIT_H, 0x001a, 0x0200},	/*en parallel out*/
+	{WRITE_REG_BIT_L, 0x001a, 0x0004},	/*disable mipi*/
+	{WRITE_REG_BIT_H, 0x0018, 0x0004},	/*disable mcu*/
+	{WRITE_REG_BIT_L, 0x0018, 0x0001},	/*leave standby*/
+	{POLL_REG_BIT_L, 0x0018, 0x4000},	/*wait for !stdby*/
+	{WRITE_REG_DATA, 0x321C, 0x0000},	/*By Pass TxFIFO = 0*/
 	{REG_TABLE_END, 0x0000, 0x0000}
+};
 
+/*
+ * SetMode Sequence for errata. Phase 0. Sensor Dependent.
+ * This is usually given by the FAE or the sensor vendor.
+ */
+static struct soc2030_regs WakeMcuSequence[] = {
+	{WRITE_VAR_DATA, 0x2755, 0x0200},	/*Invert Pclk*/
+	{WRITE_VAR_DATA, 0x2757, 0x0200},	/*Invert Pclk*/
+	{WRITE_REG_BIT_L, 0x0018, 0x0004},	/*enable the MCU*/
+	{POLL_VAR_DATA, 0xa104, 0x0003},	/*wait for preview*/
+	{POLL_REG_BIT_L, 0x0018, 0x4000},	/*wait for !stdby*/
+	{REG_TABLE_END, 0x0000, 0x0000}
 };
 
 /*
@@ -554,6 +617,140 @@ static struct soc2030_regs SetRev3PatchSequence[] = {
 	{REG_TABLE_END, 0x0000, 0x0000}
 };
 
+/*
+ * Stock AWB CCM from Aptina Demo2 Dev kit.
+ */
+static struct soc2030_regs WbAutoSequence[] = {
+	{WRITE_REG_DATA, 0x098C, 0x2306},	/* [AWB_CCM_L_0] */
+	{WRITE_REG_DATA, 0x0990, 0x0180},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2308},	/* [AWB_CCM_L_1] */
+	{WRITE_REG_DATA, 0x0990, 0xFF00},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x230A},	/* [AWB_CCM_L_2] */
+	{WRITE_REG_DATA, 0x0990, 0x0080},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x230C},	/* [AWB_CCM_L_3] */
+	{WRITE_REG_DATA, 0x0990, 0xFF66},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x230E},	/* [AWB_CCM_L_4] */
+	{WRITE_REG_DATA, 0x0990, 0x0180},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2310},	/* [AWB_CCM_L_5] */
+	{WRITE_REG_DATA, 0x0990, 0xFFEE},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2312},	/* [AWB_CCM_L_6] */
+	{WRITE_REG_DATA, 0x0990, 0xFFCD},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2314},	/* [AWB_CCM_L_7] */
+	{WRITE_REG_DATA, 0x0990, 0xFECD},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2316},	/* [AWB_CCM_L_8] */
+	{WRITE_REG_DATA, 0x0990, 0x019A},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2318},	/* [AWB_CCM_L_9] */
+	{WRITE_REG_DATA, 0x0990, 0x0020},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x231A},	/* [AWB_CCM_L_10] */
+	{WRITE_REG_DATA, 0x0990, 0x0033},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x231C},	/* [AWB_CCM_RL_0] */
+	{WRITE_REG_DATA, 0x0990, 0x0100},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x231E},	/* [AWB_CCM_RL_1] */
+	{WRITE_REG_DATA, 0x0990, 0xFF9A},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2320},	/* [AWB_CCM_RL_2] */
+	{WRITE_REG_DATA, 0x0990, 0x0000},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2322},	/* [AWB_CCM_RL_3] */
+	{WRITE_REG_DATA, 0x0990, 0x004D},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2324},	/* [AWB_CCM_RL_4] */
+	{WRITE_REG_DATA, 0x0990, 0xFFCD},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2326},	/* [AWB_CCM_RL_5] */
+	{WRITE_REG_DATA, 0x0990, 0xFFB8},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2328},	/* [AWB_CCM_RL_6] */
+	{WRITE_REG_DATA, 0x0990, 0x004D},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x232A},	/* [AWB_CCM_RL_7] */
+	{WRITE_REG_DATA, 0x0990, 0x0080},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x232C},	/* [AWB_CCM_RL_8] */
+	{WRITE_REG_DATA, 0x0990, 0xFF66},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x232E},	/* [AWB_CCM_RL_9] */
+	{WRITE_REG_DATA, 0x0990, 0x0008},	/* MCU_DATA_0 */
+	{WRITE_REG_DATA, 0x098C, 0x2330},	/* [AWB_CCM_RL_10] */
+	{WRITE_REG_DATA, 0x0990, 0xFFF7},	/* MCU_DATA_0 */
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs WbIncandescentSequence[] = {
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs WbFluorescentSequence[] = {
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs WbDaylightSequence[] = {
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs WbCloudydaylightSequence[] = {
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs WbNightSequence[] = {
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs *wb_table[] = {
+	[WB_AUTO] = WbAutoSequence,
+	[WB_INCANDESCENT] = WbIncandescentSequence,
+	[WB_FLUORESCENT] = WbFluorescentSequence,
+	[WB_DAYLIGHT] = WbDaylightSequence,
+	[WB_CLOUDYDAYLIGHT] = WbCloudydaylightSequence,
+	[WB_NIGHT] = WbNightSequence,
+};
+
+static struct soc2030_regs EffectNoneSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x6440},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x6440},	/*EFFECTS_B*/
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs EffectBwSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x6441},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x6441},	/*EFFECTS_B*/
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs EffectNegativeSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x6443},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x6443},	/*EFFECTS_B*/
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs EffectPosterizeSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x2044},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x2044},	/*EFFECTS_B*/
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs EffectSepiaSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x6442},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x6442},	/*EFFECTS_B*/
+	{WRITE_VAR_DATA, 0x2763, 0xB023},
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs EffectSolarizeSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x4444},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x4444},	/*EFFECTS_B*/
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs EffectAquaSequence[] = {
+	{WRITE_VAR_DATA, 0x2759, 0x6442},	/*EFFECTS_A*/
+	{WRITE_VAR_DATA, 0x275B, 0x6442},	/*EFFECTS_B*/
+	{WRITE_VAR_DATA, 0x2763, 0x1DE3},
+	{REG_TABLE_END, 0x0000, 0x0000}
+};
+
+static struct soc2030_regs *effect_table[] = {
+	[EFFECT_NONE] = EffectNoneSequence,
+	[EFFECT_BW] = EffectBwSequence,
+	[EFFECT_NEGATIVE] = EffectNegativeSequence,
+	[EFFECT_POSTERIZE] = EffectPosterizeSequence,
+	[EFFECT_SEPIA] = EffectSepiaSequence,
+	[EFFECT_SOLARIZE] = EffectSolarizeSequence,
+	[EFFECT_AQUA] = EffectAquaSequence,
+};
+
 static struct soc2030_mode modes[] = {
 	{800, 600, 30, mode_800x600},
 	{1600, 1200, 15, mode_1600x1200},
@@ -718,8 +915,11 @@ static int soc2030_poll_xdma_reg(struct i2c_client *client, u16 addr,
 		err = soc2030_read_xdma_reg(client, addr, &val);
 		if (err)
 			return err;
-		if (expected == val)
+		if (expected == val) {
+			pr_info("poll success %x: %x == %x\n", addr,
+				expected, val);
 			return 0;
+		}
 		msleep(SOC2030_POLL_WAITMS);
 	}
 	pr_err("soc2030: xdma poll for %x == ([%x]=%x) failed\n", expected,
@@ -784,6 +984,14 @@ static int soc2030_write_table(struct i2c_client *client,
 				return err;
 			break;
 		}
+		case WRITE_VAR_DATA:
+		{
+			err = soc2030_write_xdma_reg(client, next->addr,
+				next->val);
+			if (err)
+				return err;
+			break;
+		}
 		case POLL_VAR_DATA:
 		{
 			err = soc2030_poll_xdma_reg(client, next->addr,
@@ -798,6 +1006,8 @@ static int soc2030_write_table(struct i2c_client *client,
 			break;
 		}
 		default:
+			pr_err("%s: invalid operation 0x%x\n", __func__,
+				next->op);
 			return err;
 		}
 	}
@@ -825,102 +1035,81 @@ static int soc2030_set_mode(struct soc2030_info *info,
 	}
 	sensor_mode = index;
 
-	/* write the pll table */
-	soc2030_write_table(info->i2c_client, pll_table);
+	if (info->mode == -1) {
 
-	/* wait for pll lock */
-	err = soc2030_poll_bit_set(info->i2c_client, 0x0014, 0x8000);
-	if (err)
-		return err;
+		/* write the pll table */
+		soc2030_write_table(info->i2c_client, pll_table);
 
-	/* enable the pll */
-	soc2030_clear_bits(info->i2c_client, 0x0014, 0x0001);
-	/* enable parallel output */
-	soc2030_set_bits(info->i2c_client, 0x001a, 0x200);
-	/* disable mipi */
-	soc2030_clear_bits(info->i2c_client, 0x001a, 0x4);
-	/* disable mcu */
-	soc2030_set_bits(info->i2c_client, 0x0018, 0x4);
-	/* leave standby */
-	soc2030_clear_bits(info->i2c_client, 0x0018, 0x1);
-	/* wait to complete leave standby */
-	soc2030_poll_bit_clear(info->i2c_client, 0x0018, 0x4000);
+		err = soc2030_write_table(info->i2c_client, base_mode);
+		if (err)
+			return err;
 
-	err = soc2030_write_table(info->i2c_client, base_mode);
-	if (err)
-		return err;
+		/* load errata settings */
+		err = soc2030_write_table(info->i2c_client,
+						SetRev2ErrataSequence);
+		if (err)
+			return err;
 
-	/* load errata settings */
-	err = soc2030_write_table(info->i2c_client, SetRev2ErrataSequence);
-	if (err)
-		return err;
+		/* load lens correction */
+		err = soc2030_write_table(info->i2c_client,
+						SetLensCorrectionSequence);
+		if (err)
+			return err;
 
-	/* load lens correction */
-	err = soc2030_write_table(info->i2c_client, SetLensCorrectionSequence);
-	if (err)
-		return err;
+		/* low light optimization settings */
+		err = soc2030_write_table(info->i2c_client,
+						SetLowLightSequence);
+		if (err)
+			return err;
 
-	/* low light optimization settings */
-	err = soc2030_write_table(info->i2c_client, SetLowLightSequence);
-	if (err)
-		return err;
+		/* Base denoise settings (for all resolutions) */
+		err = soc2030_write_table(info->i2c_client,
+						SetDenoiseSequence);
+		if (err)
+			return err;
 
-	/* Base denoise settings (for all resolutions) */
-	err = soc2030_write_table(info->i2c_client, SetDenoiseSequence);
-	if (err)
-		return err;
+		/* white balance common settings */
+		err = soc2030_write_table(info->i2c_client,
+						SetCCMCommonSequence);
+		if (err)
+			return err;
 
-	/* white balance common settings */
-	err = soc2030_write_table(info->i2c_client, SetCCMCommonSequence);
-	if (err)
-		return err;
+		/* auto white balance settings */
+		err = soc2030_write_table(info->i2c_client,
+						SetCCMAutoSequence);
+		if (err)
+			return err;
 
-	/* auto white balance settings */
-	err = soc2030_write_table(info->i2c_client, SetCCMAutoSequence);
-	if (err)
-		return err;
+		/* load patch */
+		err = soc2030_write_table(info->i2c_client,
+						SetRev3PatchSequence);
+		if (err)
+			return err;
 
-	/* load patch */
-	err = soc2030_write_table(info->i2c_client, SetRev3PatchSequence);
-	if (err)
-		return err;
-
-	/* invert the pixel clock */
-	soc2030_write_xdma_reg(info->i2c_client, 0x2755, 0x0200);
-	soc2030_write_xdma_reg(info->i2c_client, 0x2757, 0x0200);
-
-	/* enable mcu */
-	soc2030_clear_bits(info->i2c_client, 0x0018, 0x4);
-
-	/* wait for preview state */
-	soc2030_poll_xdma_reg(info->i2c_client, 0xa104, 0x3);
-
-	/* refresh the sequencer mode */
-	soc2030_write_xdma_reg(info->i2c_client, 0xa103, 0x0006);
-
-	/* wait for cmd complete */
-	soc2030_poll_xdma_reg(info->i2c_client, 0xa103, 0x0);
-
-	/* refresh sequencer state */
-	soc2030_write_xdma_reg(info->i2c_client, 0xa103, 0x0005);
-
-	/* wait for cmd complete */
-	soc2030_poll_xdma_reg(info->i2c_client, 0xa103, 0x0);
-
-	/* wait to complete leave standby */
-	soc2030_poll_bit_clear(info->i2c_client, 0x0018, 0x4000);
-
-	/* enable bin summing for preview */
-	soc2030_set_bits(info->i2c_client, 0x3040, 0x1000);
+		/* Wake MCU */
+		err = soc2030_write_table(info->i2c_client,
+						WakeMcuSequence);
+		if (err)
+			return err;
+	}
 
 	/* set context */
 	err = soc2030_write_table(info->i2c_client, modes[sensor_mode].regset);
 	if (err)
 		return err;
 
+	err = soc2030_write_table(info->i2c_client, refresh_mode);
+	if (err)
+		return err;
+
+	err = soc2030_write_table(info->i2c_client, refresh_state);
+	if (err)
+		return err;
+
 	info->mode = sensor_mode;
 	return 0;
 }
+
 
 static int soc2030_get_status(struct soc2030_info *info, u16 *status)
 {
@@ -1026,6 +1215,99 @@ static long soc2030_ioctl(struct file *file,
 		}
 		return 0;
 	}
+	case SOC2030_IOCTL_SET_EFFECT:
+	{
+		int err;
+
+		if ((unsigned int)arg >= EFFECT_MAX)
+			return -EINVAL;
+		err = soc2030_write_table(info->i2c_client,
+				effect_table[(unsigned int)arg]);
+		if (err)
+			return -EFAULT;
+		err = soc2030_write_table(info->i2c_client, refresh_state);
+		if (err)
+			return -EFAULT;
+		return 0;
+	}
+	case SOC2030_IOCTL_SET_WHITEBALANCE:
+	{
+		int err;
+
+		if ((unsigned int)arg >= WB_MAX)
+			return -EINVAL;
+
+		/* Re-set context, this insures MAX AE Index is set correctly */
+		/* As night mode may have been previously set */
+		err = soc2030_write_table(info->i2c_client,
+				modes[info->mode].regset);
+		if (err)
+			return -EFAULT;
+
+		err = soc2030_write_table(info->i2c_client,
+				SetCCMCommonSequence);
+		if (err)
+			return -EFAULT;
+		err = soc2030_write_table(info->i2c_client,
+				wb_table[(unsigned int)arg]);
+		if (err)
+			return -EFAULT;
+		return 0;
+	}
+
+	case SOC2030_IOCTL_SET_EXP_COMP:
+	{
+		int err;
+		int req_ev = (int)arg;
+		int step;
+		int step_size = 0;
+		int ev_step = 0;
+		int new_target = EXP_TARGET;
+
+		if ((req_ev > SOC_EV_MAX) || (req_ev < SOC_EV_MIN)) {
+			pr_err("%s: Invalid exposure parameter %i\n",
+				__func__, req_ev);
+			return -EINVAL;
+		}
+
+		if (req_ev < 0) {
+			ev_step = -EXP_TARGET;
+			/* step a little less than 1 f-stop */
+			step_size = 2;
+		} else if (req_ev > 0) {
+			ev_step = 0x100 - EXP_TARGET;
+			/* step 1/2  f-stop */
+			step_size = 4;
+		}
+
+		new_target = EXP_TARGET;
+
+		/* adjust exposure target by 1 f-stop for each requested step */
+		for (step = 1; step <= abs(req_ev); step++) {
+			ev_step /= step_size;
+			new_target += ev_step;
+		}
+		if (new_target < 0) {
+			pr_err("%s: Bad exposure target %i (0x%x)\n",
+				__func__, new_target,
+			       (u16)new_target);
+			return -EFAULT;
+		}
+
+		err = soc2030_write_xdma_reg(info->i2c_client,
+						0xA24F, (u16)new_target);
+		if (err) {
+			pr_err("%s: Failed to update EV parameter\n", __func__);
+			return -EFAULT;
+		}
+		err = soc2030_write_table(info->i2c_client, refresh_state);
+		if (err) {
+			pr_err("%s: Failed to update EV parameter\n", __func__);
+			return -EFAULT;
+		}
+		return 0;
+	}
+
 	default:
 		return -ENOTTY;
 	}
@@ -1036,6 +1318,7 @@ static struct soc2030_info *info;
 
 static int soc2030_open(struct inode *inode, struct file *file)
 {
+	info->mode = -1;
 	file->private_data = info;
 	if (info->pdata && info->pdata->power_on)
 		info->pdata->power_on();
@@ -1086,7 +1369,6 @@ static int soc2030_probe(struct i2c_client *client,
 
 	info->pdata = client->dev.platform_data;
 	info->i2c_client = client;
-
 	i2c_set_clientdata(client, info);
 	return 0;
 }
