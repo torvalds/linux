@@ -82,7 +82,7 @@ static struct s3c_pl330_platdata s5p6442_pdma_pdata = {
 
 static struct platform_device s5p6442_device_pdma = {
 	.name		= "s3c-pl330",
-	.id		= 1,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s5p6442_pdma_resource),
 	.resource	= s5p6442_pdma_resource,
 	.dev		= {
