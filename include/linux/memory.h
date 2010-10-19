@@ -23,6 +23,8 @@
 struct memory_block {
 	unsigned long phys_index;
 	unsigned long state;
+	int section_count;
+
 	/*
 	 * This serializes all state change requests.  It isn't
 	 * held during creation because the control files are
