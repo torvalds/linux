@@ -498,6 +498,7 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 		return -EINVAL;
 	if (conn->cb_minorversion) {
 		args.bc_xprt = conn->cb_xprt;
+		args.prognumber = clp->cl_cb_session->se_cb_prog;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
 	}
 	/* Create RPC client */

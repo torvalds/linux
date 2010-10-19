@@ -96,7 +96,8 @@ struct nfs4_cb_conn {
 	/* SETCLIENTID info */
 	struct sockaddr_storage	cb_addr;
 	size_t			cb_addrlen;
-	u32                     cb_prog;
+	u32                     cb_prog; /* used only in 4.0 case;
+					    per-session otherwise */
 	u32			cb_minorversion;
 	u32                     cb_ident;	/* minorversion 0 only */
 	struct svc_xprt		*cb_xprt;	/* minorversion 1 only */
@@ -172,6 +173,7 @@ struct nfsd4_session {
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_channel_attrs se_bchannel;
 	struct list_head	se_conns;
+	u32			se_cb_prog;
 	u32			se_cb_seq_nr;
 	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };

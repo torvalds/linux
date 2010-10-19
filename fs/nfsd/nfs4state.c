@@ -760,6 +760,7 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 
 	new->se_cb_seq_nr = 1;
 	new->se_flags = cses->flags;
+	new->se_cb_prog = cses->callback_prog;
 	kref_init(&new->se_ref);
 	idx = hash_sessionid(&new->se_sessionid);
 	spin_lock(&client_lock);
@@ -782,7 +783,6 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
 		clp->cl_cb_conn.cb_minorversion = 1;
-		clp->cl_cb_conn.cb_prog = cses->callback_prog;
 		nfsd4_probe_callback(clp, &clp->cl_cb_conn);
 	}
 	return new;
