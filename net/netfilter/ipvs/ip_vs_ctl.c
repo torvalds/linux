@@ -3400,6 +3400,16 @@ int __init ip_vs_control_init(void)
 
 	EnterFunction(2);
 
+	/* Initialize ip_vs_svc_table, ip_vs_svc_fwm_table, ip_vs_rtable */
+	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++)  {
+		INIT_LIST_HEAD(&ip_vs_svc_table[idx]);
+		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);
+	}
+	for(idx = 0; idx < IP_VS_RTAB_SIZE; idx++)  {
+		INIT_LIST_HEAD(&ip_vs_rtable[idx]);
+	}
+	smp_wmb();
+
 	ret = nf_register_sockopt(&ip_vs_sockopts);
 	if (ret) {
 		pr_err("cannot register sockopt.\n");
@@ -3417,15 +3427,6 @@ int __init ip_vs_control_init(void)
 	proc_net_fops_create(&init_net, "ip_vs_stats",0, &ip_vs_stats_fops);
 
 	sysctl_header = register_sysctl_paths(net_vs_ctl_path, vs_vars);
-
-	/* Initialize ip_vs_svc_table, ip_vs_svc_fwm_table, ip_vs_rtable */
-	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++)  {
-		INIT_LIST_HEAD(&ip_vs_svc_table[idx]);
-		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);
-	}
-	for(idx = 0; idx < IP_VS_RTAB_SIZE; idx++)  {
-		INIT_LIST_HEAD(&ip_vs_rtable[idx]);
-	}
 
 	ip_vs_new_estimator(&ip_vs_stats);
 
