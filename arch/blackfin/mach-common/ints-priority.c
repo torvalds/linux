@@ -1299,7 +1299,7 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(SIC_ISR0) || defined(SICA_ISR0)
+#if defined(SIC_ISR0)
 		unsigned long sic_status[3];
 
 		if (smp_processor_id()) {
@@ -1379,7 +1379,7 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	if (likely(vec == EVT_IVTMR_P))
 		irq = IRQ_CORETMR;
 	else {
-#if defined(SIC_ISR0) || defined(SICA_ISR0)
+#if defined(SIC_ISR0)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();

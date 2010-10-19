@@ -28,32 +28,29 @@
 #define CHIPID                 0xFFC00014       /* Chip ID Register */
 
 /* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
-#define SWRST                   SICA_SWRST
-#define SYSCR                   SICA_SYSCR
 #define DOUBLE_FAULT            (DOUBLE_FAULT_B|DOUBLE_FAULT_A)
 #define RESET_DOUBLE            (SWRST_DBL_FAULT_B|SWRST_DBL_FAULT_A)
 #define RESET_WDOG              (SWRST_WDT_B|SWRST_WDT_A)
 #define RESET_SOFTWARE          (SWRST_OCCURRED)
 
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
-#define SICA_SWRST              0xFFC00100	/* Software Reset register */
-#define SICA_SYSCR              0xFFC00104	/* System Reset Configuration register */
-#define SICA_RVECT              0xFFC00108	/* SIC Reset Vector Address Register */
-#define SICA_IMASK              0xFFC0010C	/* SIC Interrupt Mask register 0 - hack to fix old tests */
-#define SICA_IMASK0             0xFFC0010C	/* SIC Interrupt Mask register 0 */
-#define SICA_IMASK1             0xFFC00110	/* SIC Interrupt Mask register 1 */
-#define SICA_IAR0               0xFFC00124	/* SIC Interrupt Assignment Register 0 */
-#define SICA_IAR1               0xFFC00128	/* SIC Interrupt Assignment Register 1 */
-#define SICA_IAR2               0xFFC0012C	/* SIC Interrupt Assignment Register 2 */
-#define SICA_IAR3               0xFFC00130	/* SIC Interrupt Assignment Register 3 */
-#define SICA_IAR4               0xFFC00134	/* SIC Interrupt Assignment Register 4 */
-#define SICA_IAR5               0xFFC00138	/* SIC Interrupt Assignment Register 5 */
-#define SICA_IAR6               0xFFC0013C	/* SIC Interrupt Assignment Register 6 */
-#define SICA_IAR7               0xFFC00140	/* SIC Interrupt Assignment Register 7 */
-#define SICA_ISR0               0xFFC00114	/* SIC Interrupt Status register 0 */
-#define SICA_ISR1               0xFFC00118	/* SIC Interrupt Status register 1 */
-#define SICA_IWR0               0xFFC0011C	/* SIC Interrupt Wakeup-Enable register 0 */
-#define SICA_IWR1               0xFFC00120	/* SIC Interrupt Wakeup-Enable register 1 */
+#define SWRST                   0xFFC00100	/* Software Reset register */
+#define SYSCR                   0xFFC00104	/* System Reset Configuration register */
+#define SIC_RVECT               0xFFC00108	/* SIC Reset Vector Address Register */
+#define SIC_IMASK0              0xFFC0010C	/* SIC Interrupt Mask register 0 */
+#define SIC_IMASK1              0xFFC00110	/* SIC Interrupt Mask register 1 */
+#define SIC_IAR0                0xFFC00124	/* SIC Interrupt Assignment Register 0 */
+#define SIC_IAR1                0xFFC00128	/* SIC Interrupt Assignment Register 1 */
+#define SIC_IAR2                0xFFC0012C	/* SIC Interrupt Assignment Register 2 */
+#define SIC_IAR3                0xFFC00130	/* SIC Interrupt Assignment Register 3 */
+#define SIC_IAR4                0xFFC00134	/* SIC Interrupt Assignment Register 4 */
+#define SIC_IAR5                0xFFC00138	/* SIC Interrupt Assignment Register 5 */
+#define SIC_IAR6                0xFFC0013C	/* SIC Interrupt Assignment Register 6 */
+#define SIC_IAR7                0xFFC00140	/* SIC Interrupt Assignment Register 7 */
+#define SIC_ISR0                0xFFC00114	/* SIC Interrupt Status register 0 */
+#define SIC_ISR1                0xFFC00118	/* SIC Interrupt Status register 1 */
+#define SIC_IWR0                0xFFC0011C	/* SIC Interrupt Wakeup-Enable register 0 */
+#define SIC_IWR1                0xFFC00120	/* SIC Interrupt Wakeup-Enable register 1 */
 
 /* System Reset and Interrupt Controller registers for Core B (0xFFC0 1100-0xFFC0 11FF) */
 #define SICB_SWRST              0xFFC01100	/* reserved */

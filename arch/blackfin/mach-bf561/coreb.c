@@ -29,10 +29,10 @@ coreb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case CMD_COREB_START:
-		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~0x0020);
+		bfin_write_SYSCR(bfin_read_SYSCR() & ~0x0020);
 		break;
 	case CMD_COREB_STOP:
-		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() | 0x0020);
+		bfin_write_SYSCR(bfin_read_SYSCR() | 0x0020);
 		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | 0x0080);
 		break;
 	case CMD_COREB_RESET:
