@@ -239,6 +239,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	device_init_wakeup(&serial->dev->dev, 1);
 	serial->interface->needs_remote_wakeup = 1;
 	serial->dev->autosuspend_delay = MODEM_AUTOSUSPEND_DELAY;
+	serial->dev->parent->autosuspend_delay = 0;
 
 	return 0;
 }
