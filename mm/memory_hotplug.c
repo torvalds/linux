@@ -840,7 +840,6 @@ repeat:
 	ret = 0;
 	if (drain) {
 		lru_add_drain_all();
-		flush_scheduled_work();
 		cond_resched();
 		drain_all_pages();
 	}
@@ -862,7 +861,6 @@ repeat:
 	}
 	/* drain all zone's lru pagevec, this is asyncronous... */
 	lru_add_drain_all();
-	flush_scheduled_work();
 	yield();
 	/* drain pcp pages , this is synchrouns. */
 	drain_all_pages();
