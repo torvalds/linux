@@ -1057,6 +1057,19 @@ void __init stingray_reserve(void)
 			ramconsole_start, ramconsole_size);
 
 	tegra_reserve(SZ_128M, SZ_8M, SZ_16M);
+
+	/*
+	 * Bootloader 1021 passes the wrong address for the bootloader's
+	 * framebuffer, so just reserve the location its using manually.
+	 */
+	tegra_bootloader_fb_start = 0x18018000;
+	tegra_bootloader_fb_size = 0x500000;
+	if (memblock_reserve(tegra_bootloader_fb_start, tegra_bootloader_fb_size))
+		pr_info("Failed to reserve old framebuffer location\n");
+	else
+		pr_info("HACK: Old framebuffer:  %08lx - %08lx\n",
+			tegra_bootloader_fb_start,
+			tegra_bootloader_fb_start + tegra_bootloader_fb_size - 1);
 }
 
 MACHINE_START(STINGRAY, "stingray")
