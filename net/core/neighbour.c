@@ -1588,8 +1588,7 @@ int neigh_table_clear(struct neigh_table *tbl)
 	struct neigh_table **tp;
 
 	/* It is not clean... Fix it to unload IPv6 module safely */
-	cancel_delayed_work(&tbl->gc_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&tbl->gc_work);
 	del_timer_sync(&tbl->proxy_timer);
 	pneigh_queue_purge(&tbl->proxy_queue);
 	neigh_ifdown(tbl, NULL);
