@@ -193,36 +193,66 @@ static void release_ds_buffers(void)
 
 static int reserve_ds_buffers(void)
 {
-	int cpu, err = 0;
+	int bts_err = 0, pebs_err = 0;
+	int cpu;
+
+	x86_pmu.bts_active = 0;
+	x86_pmu.pebs_active = 0;
 
 	if (!x86_pmu.bts && !x86_pmu.pebs)
 		return 0;
 
+	if (!x86_pmu.bts)
+		bts_err = 1;
+
+	if (!x86_pmu.pebs)
+		pebs_err = 1;
+
 	get_online_cpus();
 
 	for_each_possible_cpu(cpu) {
-		if (alloc_ds_buffer(cpu))
-			break;
+		if (alloc_ds_buffer(cpu)) {
+			bts_err = 1;
+			pebs_err = 1;
+		}
 
-		if (alloc_bts_buffer(cpu))
-			break;
+		if (!bts_err && alloc_bts_buffer(cpu))
+			bts_err = 1;
 
-		if (alloc_pebs_buffer(cpu))
-			break;
+		if (!pebs_err && alloc_pebs_buffer(cpu))
+			pebs_err = 1;
 
-		err = 0;
+		if (bts_err && pebs_err)
+			break;
 	}
 
-	if (err)
-		release_ds_buffers();
-	else {
+	if (bts_err) {
+		for_each_possible_cpu(cpu)
+			release_bts_buffer(cpu);
+	}
+
+	if (pebs_err) {
+		for_each_possible_cpu(cpu)
+			release_pebs_buffer(cpu);
+	}
+
+	if (bts_err && pebs_err) {
+		for_each_possible_cpu(cpu)
+			release_ds_buffer(cpu);
+	} else {
+		if (x86_pmu.bts && !bts_err)
+			x86_pmu.bts_active = 1;
+
+		if (x86_pmu.pebs && !pebs_err)
+			x86_pmu.pebs_active = 1;
+
 		for_each_online_cpu(cpu)
 			init_debug_store_on_cpu(cpu);
 	}
 
 	put_online_cpus();
 
-	return err;
+	return 0;
 }
 
 /*
@@ -287,7 +317,7 @@ static int intel_pmu_drain_bts_buffer(void)
 	if (!event)
 		return 0;
 
-	if (!ds)
+	if (!x86_pmu.bts_active)
 		return 0;
 
 	at  = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
@@ -557,7 +587,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	struct pebs_record_core *at, *top;
 	int n;
 
-	if (!ds || !x86_pmu.pebs)
+	if (!x86_pmu.pebs_active)
 		return;
 
 	at  = (struct pebs_record_core *)(unsigned long)ds->pebs_buffer_base;
@@ -599,7 +629,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	u64 status = 0;
 	int bit, n;
 
-	if (!ds || !x86_pmu.pebs)
+	if (!x86_pmu.pebs_active)
 		return;
 
 	at  = (struct pebs_record_nhm *)(unsigned long)ds->pebs_buffer_base;

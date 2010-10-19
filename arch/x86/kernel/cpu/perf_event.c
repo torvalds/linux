@@ -238,6 +238,7 @@ struct x86_pmu {
 	 * Intel DebugStore bits
 	 */
 	int		bts, pebs;
+	int		bts_active, pebs_active;
 	int		pebs_record_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
 	struct event_constraint *pebs_constraints;
@@ -478,7 +479,7 @@ static int x86_setup_perfctr(struct perf_event *event)
 	if ((attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
 	    (hwc->sample_period == 1)) {
 		/* BTS is not supported by this architecture. */
-		if (!x86_pmu.bts)
+		if (!x86_pmu.bts_active)
 			return -EOPNOTSUPP;
 
 		/* BTS is currently only allowed for user-mode. */
@@ -497,7 +498,7 @@ static int x86_pmu_hw_config(struct perf_event *event)
 		int precise = 0;
 
 		/* Support for constant skid */
-		if (x86_pmu.pebs) {
+		if (x86_pmu.pebs_active) {
 			precise++;
 
 			/* Support for IP fixup */
