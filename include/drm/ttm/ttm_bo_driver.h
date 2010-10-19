@@ -214,8 +214,6 @@ struct ttm_mem_type_manager_func {
 			 struct ttm_mem_reg *mem);
 	void (*put_node)(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem);
-	void (*put_node_locked)(struct ttm_mem_type_manager *man,
-				struct ttm_mem_reg *mem);
 	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
 };
 

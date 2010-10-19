@@ -434,36 +434,25 @@ out_err:
 }
 
 /**
- * Call bo::reserved and with the lru lock held.
+ * Call bo::reserved.
  * Will release GPU memory type usage on destruction.
- * This is the place to put in driver specific hooks.
- * Will release the bo::reserved lock and the
- * lru lock on exit.
+ * This is the place to put in driver specific hooks to release
+ * driver private resources.
+ * Will release the bo::reserved lock.
  */
 
 static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 {
-	struct ttm_bo_global *glob = bo->glob;
-
 	if (bo->ttm) {
-
-		/**
-		 * Release the lru_lock, since we don't want to have
-		 * an atomic requirement on ttm_tt[unbind|destroy].
-		 */
-
-		spin_unlock(&glob->lru_lock);
 		ttm_tt_unbind(bo->ttm);
 		ttm_tt_destroy(bo->ttm);
 		bo->ttm = NULL;
-		spin_lock(&glob->lru_lock);
 	}
 
-	ttm_bo_mem_put_locked(bo, &bo->mem);
+	ttm_bo_mem_put(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
 	wake_up_all(&bo->event_queue);
-	spin_unlock(&glob->lru_lock);
 }
 
 
@@ -528,7 +517,7 @@ retry:
 			list_del_init(&bo->ddestroy);
 			++put_count;
 		}
-
+		spin_unlock(&glob->lru_lock);
 		ttm_bo_cleanup_memtype_use(bo);
 
 		while (put_count--)
@@ -783,15 +772,6 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
 		(*man->func->put_node)(man, mem);
 }
 EXPORT_SYMBOL(ttm_bo_mem_put);
-
-void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
-{
-	struct ttm_mem_type_manager *man = &bo->bdev->man[mem->mem_type];
-
-	if (mem->mm_node)
-		(*man->func->put_node_locked)(man, mem);
-}
-EXPORT_SYMBOL(ttm_bo_mem_put_locked);
 
 /**
  * Repeatedly evict memory from the LRU for @mem_type until we create enough
