@@ -2676,13 +2676,15 @@ int schedule_delayed_work_on(int cpu,
 EXPORT_SYMBOL(schedule_delayed_work_on);
 
 /**
- * schedule_on_each_cpu - call a function on each online CPU from keventd
+ * schedule_on_each_cpu - execute a function synchronously on each online CPU
  * @func: the function to call
  *
- * Returns zero on success.
- * Returns -ve errno on failure.
- *
+ * schedule_on_each_cpu() executes @func on each online CPU using the
+ * system workqueue and blocks until all CPUs have completed.
  * schedule_on_each_cpu() is very slow.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
  */
 int schedule_on_each_cpu(work_func_t func)
 {
