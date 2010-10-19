@@ -550,7 +550,7 @@ int set_callback_cred(void)
 
 static struct workqueue_struct *callback_wq;
 
-void do_probe_callback(struct nfs4_client *clp)
+static void do_probe_callback(struct nfs4_client *clp)
 {
 	struct nfsd4_callback *cb = &clp->cl_cb_null;
 
@@ -568,17 +568,22 @@ void do_probe_callback(struct nfs4_client *clp)
 }
 
 /*
- * Set up the callback client and put a NFSPROC4_CB_NULL on the wire...
+ * Poke the callback thread to process any updates to the callback
+ * parameters, and send a null probe.
  */
-void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
+void nfsd4_probe_callback(struct nfs4_client *clp)
+{
+	set_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_cb_flags);
+	do_probe_callback(clp);
+}
+
+void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
 	BUG_ON(atomic_read(&clp->cl_cb_set));
 
 	spin_lock(&clp->cl_lock);
 	memcpy(&clp->cl_cb_conn, conn, sizeof(struct nfs4_cb_conn));
-	set_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_cb_flags);
 	spin_unlock(&clp->cl_lock);
-	do_probe_callback(clp);
 }
 
 /*

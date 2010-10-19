@@ -783,7 +783,7 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
 		clp->cl_cb_conn.cb_minorversion = 1;
-		nfsd4_probe_callback(clp, &clp->cl_cb_conn);
+		nfsd4_probe_callback(clp);
 	}
 	return new;
 }
@@ -1912,7 +1912,8 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			status = nfserr_clid_inuse;
 		else {
 			atomic_set(&conf->cl_cb_set, 0);
-			nfsd4_probe_callback(conf, &unconf->cl_cb_conn);
+			nfsd4_change_callback(conf, &unconf->cl_cb_conn);
+			nfsd4_probe_callback(conf);
 			expire_client(unconf);
 			status = nfs_ok;
 
@@ -1946,7 +1947,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			}
 			move_to_confirmed(unconf);
 			conf = unconf;
-			nfsd4_probe_callback(conf, &conf->cl_cb_conn);
+			nfsd4_probe_callback(conf);
 			status = nfs_ok;
 		}
 	} else if ((!conf || (conf && !same_verf(&conf->cl_confirm, &confirm)))
