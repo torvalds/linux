@@ -915,12 +915,16 @@ bfad_im_slave_alloc(struct scsi_device *sdev)
 static u32
 bfad_im_supported_speeds(struct bfa_s *bfa)
 {
-	struct bfa_ioc_attr_s ioc_attr;
+	struct bfa_ioc_attr_s *ioc_attr;
 	u32 supported_speed = 0;
 
-	bfa_get_attr(bfa, &ioc_attr);
-	if (ioc_attr.adapter_attr.max_speed == BFA_PORT_SPEED_8GBPS) {
-		if (ioc_attr.adapter_attr.is_mezz) {
+	ioc_attr = kzalloc(sizeof(struct bfa_ioc_attr_s), GFP_KERNEL);
+	if (!ioc_attr)
+		return 0;
+
+	bfa_get_attr(bfa, ioc_attr);
+	if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_8GBPS) {
+		if (ioc_attr->adapter_attr.is_mezz) {
 			supported_speed |= FC_PORTSPEED_8GBIT |
 				FC_PORTSPEED_4GBIT |
 				FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
@@ -929,12 +933,13 @@ bfad_im_supported_speeds(struct bfa_s *bfa)
 				FC_PORTSPEED_4GBIT |
 				FC_PORTSPEED_2GBIT;
 		}
-	} else if (ioc_attr.adapter_attr.max_speed == BFA_PORT_SPEED_4GBPS) {
+	} else if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_4GBPS) {
 		supported_speed |=  FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
 				FC_PORTSPEED_1GBIT;
-	} else if (ioc_attr.adapter_attr.max_speed == BFA_PORT_SPEED_10GBPS) {
+	} else if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_10GBPS) {
 		supported_speed |= FC_PORTSPEED_10GBIT;
 	}
+	kfree(ioc_attr);
 	return supported_speed;
 }
 
@@ -944,9 +949,8 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	struct Scsi_Host *host = im_port->shost;
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfad_port_s    *port = im_port->port;
-	struct bfa_port_attr_s pattr;
-	struct bfa_lport_attr_s port_attr;
 	char symname[BFA_SYMNAME_MAXLEN];
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
 
 	fc_host_node_name(host) =
 		cpu_to_be64((bfa_fcs_lport_get_nwwn(port->fcs_port)));
@@ -964,15 +968,12 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	/* For fibre channel services type 0x20 */
 	fc_host_supported_fc4s(host)[7] = 1;
 
-	bfa_fcs_lport_get_attr(&bfad->bfa_fcs.fabric.bport, &port_attr);
-	strncpy(symname, port_attr.port_cfg.sym_name.symname,
+	strncpy(symname, bfad->bfa_fcs.fabric.bport.port_cfg.sym_name.symname,
 		BFA_SYMNAME_MAXLEN);
 	sprintf(fc_host_symbolic_name(host), "%s", symname);
 
 	fc_host_supported_speeds(host) = bfad_im_supported_speeds(&bfad->bfa);
-
-	bfa_fcport_get_attr(&bfad->bfa, &pattr);
-	fc_host_maxframe_size(host) = pattr.pport_cfg.maxfrsize;
+	fc_host_maxframe_size(host) = fcport->cfg.maxfrsize;  
 }
 
 static void

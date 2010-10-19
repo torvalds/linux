@@ -861,20 +861,6 @@ bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 	pci_set_drvdata(pdev, NULL);
 }
 
-void
-bfad_fcs_port_cfg(struct bfad_s *bfad)
-{
-	struct bfa_lport_cfg_s  port_cfg;
-	struct bfa_port_attr_s attr;
-	char		symname[BFA_SYMNAME_MAXLEN];
-
-	sprintf(symname, "%s-%d", BFAD_DRIVER_NAME, bfad->inst_no);
-	memcpy(port_cfg.sym_name.symname, symname, strlen(symname));
-	bfa_fcport_get_attr(&bfad->bfa, &attr);
-	port_cfg.nwwn = attr.nwwn;
-	port_cfg.pwwn = attr.pwwn;
-}
-
 bfa_status_t
 bfad_drv_init(struct bfad_s *bfad)
 {
@@ -1064,9 +1050,6 @@ bfad_start_ops(struct bfad_s *bfad) {
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
 	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-
-	/* PPORT FCS config */
-	bfad_fcs_port_cfg(bfad);
 
 	retval = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
 	if (retval != BFA_STATUS_OK) {
