@@ -430,8 +430,4 @@ extern bool freeze_workqueues_busy(void);
 extern void thaw_workqueues(void);
 #endif /* CONFIG_FREEZER */
 
-#ifdef CONFIG_LOCKDEP
-int in_workqueue_context(struct workqueue_struct *wq);
-#endif
-
 #endif
