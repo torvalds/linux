@@ -573,6 +573,27 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
 /**
+ * xdr_inline_peek - Allow read-ahead in the XDR data stream
+ * @xdr: pointer to xdr_stream struct
+ * @nbytes: number of bytes of data to decode
+ *
+ * Check if the input buffer is long enough to enable us to decode
+ * 'nbytes' more bytes of data starting at the current position.
+ * If so return the current pointer without updating the current
+ * pointer position.
+ */
+__be32 * xdr_inline_peek(struct xdr_stream *xdr, size_t nbytes)
+{
+	__be32 *p = xdr->p;
+	__be32 *q = p + XDR_QUADLEN(nbytes);
+
+	if (unlikely(q > xdr->end || q < p))
+		return NULL;
+	return p;
+}
+EXPORT_SYMBOL_GPL(xdr_inline_peek);
+
+/**
  * xdr_inline_decode - Retrieve non-page XDR data to decode
  * @xdr: pointer to xdr_stream struct
  * @nbytes: number of bytes of data to decode
