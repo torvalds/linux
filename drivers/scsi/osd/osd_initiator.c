@@ -452,10 +452,6 @@ void osd_end_request(struct osd_request *or)
 {
 	struct request *rq = or->request;
 
-	_osd_free_seg(or, &or->set_attr);
-	_osd_free_seg(or, &or->enc_get_attr);
-	_osd_free_seg(or, &or->get_attr);
-
 	if (rq) {
 		if (rq->next_rq) {
 			_put_request(rq->next_rq);
@@ -464,6 +460,11 @@ void osd_end_request(struct osd_request *or)
 
 		_put_request(rq);
 	}
+
+	_osd_free_seg(or, &or->get_attr);
+	_osd_free_seg(or, &or->enc_get_attr);
+	_osd_free_seg(or, &or->set_attr);
+
 	_osd_request_free(or);
 }
 EXPORT_SYMBOL(osd_end_request);
