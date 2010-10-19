@@ -1608,8 +1608,11 @@ void r600_gpu_init(struct radeon_device *rdev)
 	rdev->config.r600.tiling_npipes = rdev->config.r600.max_tile_pipes;
 	rdev->config.r600.tiling_nbanks = 4 << ((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= BANK_TILING((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
-	tiling_config |= GROUP_SIZE(0);
-	rdev->config.r600.tiling_group_size = 256;
+	tiling_config |= GROUP_SIZE((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
+	if ((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT)
+		rdev->config.r600.tiling_group_size = 512;
+	else
+		rdev->config.r600.tiling_group_size = 256;
 	tmp = (ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 	if (tmp > 3) {
 		tiling_config |= ROW_TILING(3);
