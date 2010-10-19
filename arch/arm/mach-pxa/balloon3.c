@@ -612,9 +612,13 @@ static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
 		BALLOON3_NAND_CONTROL_REG);
 }
 
+static int balloon3_nand_dev_ready(struct mtd_info *mtd)
+{
+	return __raw_readl(BALLOON3_NAND_STAT_REG) & BALLOON3_NAND_STAT_RNB;
+}
+
 static int balloon3_nand_probe(struct platform_device *pdev)
 {
-	void __iomem *temp_map;
 	uint16_t ver;
 	int ret;
 
@@ -684,7 +688,7 @@ struct platform_nand_data balloon3_nand_pdata = {
 	},
 	.ctrl = {
 		.hwcontrol	= 0,
-		.dev_ready	= 0,
+		.dev_ready	= balloon3_nand_dev_ready,
 		.select_chip	= balloon3_nand_select_chip,
 		.cmd_ctrl	= balloon3_nand_cmd_ctl,
 		.probe		= balloon3_nand_probe,
