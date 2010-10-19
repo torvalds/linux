@@ -2078,7 +2078,7 @@ static void rb_start_commit(struct ring_buffer_per_cpu *cpu_buffer)
 	local_inc(&cpu_buffer->commits);
 }
 
-static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
+static inline void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	unsigned long commits;
 
@@ -2193,13 +2193,9 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 #define TRACE_RECURSIVE_DEPTH 16
 
-static int trace_recursive_lock(void)
+/* Keep this code out of the fast path cache */
+static noinline void trace_recursive_fail(void)
 {
-	current->trace_recursion++;
-
-	if (likely(current->trace_recursion < TRACE_RECURSIVE_DEPTH))
-		return 0;
-
 	/* Disable all tracing before we do anything else */
 	tracing_off_permanent();
 
@@ -2211,10 +2207,21 @@ static int trace_recursive_lock(void)
 		    in_nmi());
 
 	WARN_ON_ONCE(1);
+}
+
+static inline int trace_recursive_lock(void)
+{
+	current->trace_recursion++;
+
+	if (likely(current->trace_recursion < TRACE_RECURSIVE_DEPTH))
+		return 0;
+
+	trace_recursive_fail();
+
 	return -1;
 }
 
-static void trace_recursive_unlock(void)
+static inline void trace_recursive_unlock(void)
 {
 	WARN_ON_ONCE(!current->trace_recursion);
 
