@@ -160,8 +160,8 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 static void send_packet(struct forw_packet *forw_packet)
 {
 	struct batman_if *batman_if;
-	struct net_device *soft_iface = forw_packet->if_incoming->soft_iface;
-	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	struct net_device *soft_iface;
+	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->skb->data);
 	unsigned char directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
@@ -171,6 +171,9 @@ static void send_packet(struct forw_packet *forw_packet)
 		       "specified\n");
 		return;
 	}
+
+	soft_iface = forw_packet->if_incoming->soft_iface;
+	bat_priv = netdev_priv(soft_iface);
 
 	if (forw_packet->if_incoming->if_status != IF_ACTIVE)
 		return;
