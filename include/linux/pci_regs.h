@@ -510,6 +510,8 @@
 #define  PCI_EXP_DEVCAP2_ARI	0x20	/* Alternative Routing-ID */
 #define PCI_EXP_DEVCTL2		40	/* Device Control 2 */
 #define  PCI_EXP_DEVCTL2_ARI	0x20	/* Alternative Routing-ID */
+#define  PCI_EXP_IDO_REQ_EN	0x100	/* ID-based ordering request enable */
+#define  PCI_EXP_IDO_CMP_EN	0x200	/* ID-based ordering completion enable */
 #define PCI_EXP_LNKCTL2		48	/* Link Control 2 */
 #define PCI_EXP_SLTCTL2		56	/* Slot Control 2 */
 

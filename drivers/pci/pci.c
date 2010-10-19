@@ -1834,6 +1834,59 @@ void pci_enable_ari(struct pci_dev *dev)
 	bridge->ari_enabled = 1;
 }
 
+/**
+ * pci_enable_ido - enable ID-based ordering on a device
+ * @dev: the PCI device
+ * @type: which types of IDO to enable
+ *
+ * Enable ID-based ordering on @dev.  @type can contain the bits
+ * %PCI_EXP_IDO_REQUEST and/or %PCI_EXP_IDO_COMPLETION to indicate
+ * which types of transactions are allowed to be re-ordered.
+ */
+void pci_enable_ido(struct pci_dev *dev, unsigned long type)
+{
+	int pos;
+	u16 ctrl;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	if (type & PCI_EXP_IDO_REQUEST)
+		ctrl |= PCI_EXP_IDO_REQ_EN;
+	if (type & PCI_EXP_IDO_COMPLETION)
+		ctrl |= PCI_EXP_IDO_CMP_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_enable_ido);
+
+/**
+ * pci_disable_ido - disable ID-based ordering on a device
+ * @dev: the PCI device
+ * @type: which types of IDO to disable
+ */
+void pci_disable_ido(struct pci_dev *dev, unsigned long type)
+{
+	int pos;
+	u16 ctrl;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	if (type & PCI_EXP_IDO_REQUEST)
+		ctrl &= ~PCI_EXP_IDO_REQ_EN;
+	if (type & PCI_EXP_IDO_COMPLETION)
+		ctrl &= ~PCI_EXP_IDO_CMP_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_disable_ido);
+
 static int pci_acs_enable;
 
 /**
