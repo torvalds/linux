@@ -108,13 +108,15 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		src |= 1 << D40_SREG_CFG_LOG_GIM_POS;
 	}
 
-	if (cfg->channel_type & STEDMA40_HIGH_PRIORITY_CHANNEL) {
+	if (cfg->high_priority) {
 		src |= 1 << D40_SREG_CFG_PRI_POS;
 		dst |= 1 << D40_SREG_CFG_PRI_POS;
 	}
 
-	src |= cfg->src_info.endianess << D40_SREG_CFG_LBE_POS;
-	dst |= cfg->dst_info.endianess << D40_SREG_CFG_LBE_POS;
+	if (cfg->src_info.big_endian)
+		src |= 1 << D40_SREG_CFG_LBE_POS;
+	if (cfg->dst_info.big_endian)
+		dst |= 1 << D40_SREG_CFG_LBE_POS;
 
 	*src_cfg = src;
 	*dst_cfg = dst;

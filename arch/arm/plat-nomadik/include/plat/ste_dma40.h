@@ -18,37 +18,20 @@
 #define STEDMA40_DEV_DST_MEMORY (-1)
 #define	STEDMA40_DEV_SRC_MEMORY (-1)
 
-/*
- * Description of bitfields of channel_type variable is available in
- * the info structure.
- */
+enum stedma40_mode {
+	STEDMA40_MODE_LOGICAL = 0,
+	STEDMA40_MODE_PHYSICAL,
+	STEDMA40_MODE_OPERATION,
+};
 
-/* Priority */
-#define STEDMA40_INFO_PRIO_TYPE_POS 2
-#define STEDMA40_HIGH_PRIORITY_CHANNEL (0x1 << STEDMA40_INFO_PRIO_TYPE_POS)
-#define STEDMA40_LOW_PRIORITY_CHANNEL (0x2 << STEDMA40_INFO_PRIO_TYPE_POS)
-
-/* Mode  */
-#define STEDMA40_INFO_CH_MODE_TYPE_POS 6
-#define STEDMA40_CHANNEL_IN_PHY_MODE (0x1 << STEDMA40_INFO_CH_MODE_TYPE_POS)
-#define STEDMA40_CHANNEL_IN_LOG_MODE (0x2 << STEDMA40_INFO_CH_MODE_TYPE_POS)
-#define STEDMA40_CHANNEL_IN_OPER_MODE (0x3 << STEDMA40_INFO_CH_MODE_TYPE_POS)
-
-/* Mode options */
-#define STEDMA40_INFO_CH_MODE_OPT_POS 8
-#define STEDMA40_PCHAN_BASIC_MODE (0x1 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_PCHAN_MODULO_MODE (0x2 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_PCHAN_DOUBLE_DST_MODE (0x3 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_LCHAN_SRC_PHY_DST_LOG (0x1 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_LCHAN_SRC_LOG_DST_PHS (0x2 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_LCHAN_SRC_LOG_DST_LOG (0x3 << STEDMA40_INFO_CH_MODE_OPT_POS)
-
-/* Interrupt */
-#define STEDMA40_INFO_TIM_POS 10
-#define STEDMA40_NO_TIM_FOR_LINK (0x0 << STEDMA40_INFO_TIM_POS)
-#define STEDMA40_TIM_FOR_LINK (0x1 << STEDMA40_INFO_TIM_POS)
-
-/* End of channel_type configuration */
+enum stedma40_mode_opt {
+	STEDMA40_PCHAN_BASIC_MODE = 0,
+	STEDMA40_LCHAN_SRC_LOG_DST_LOG = 0,
+	STEDMA40_PCHAN_MODULO_MODE,
+	STEDMA40_PCHAN_DOUBLE_DST_MODE,
+	STEDMA40_LCHAN_SRC_PHY_DST_LOG,
+	STEDMA40_LCHAN_SRC_LOG_DST_PHY,
+};
 
 #define STEDMA40_ESIZE_8_BIT  0x0
 #define STEDMA40_ESIZE_16_BIT 0x1
@@ -79,11 +62,6 @@ enum stedma40_flow_ctrl {
 	STEDMA40_FLOW_CTRL,
 };
 
-enum stedma40_endianess {
-	STEDMA40_LITTLE_ENDIAN,
-	STEDMA40_BIG_ENDIAN
-};
-
 enum stedma40_periph_data_width {
 	STEDMA40_BYTE_WIDTH = STEDMA40_ESIZE_8_BIT,
 	STEDMA40_HALFWORD_WIDTH = STEDMA40_ESIZE_16_BIT,
@@ -102,13 +80,13 @@ enum stedma40_xfer_dir {
 /**
  * struct stedma40_chan_cfg - dst/src channel configuration
  *
- * @endianess: Endianess of the src/dst hardware
+ * @big_endian: true if the src/dst should be read as big endian
  * @data_width: Data width of the src/dst hardware
  * @p_size: Burst size
  * @flow_ctrl: Flow control on/off.
  */
 struct stedma40_half_channel_info {
-	enum stedma40_endianess endianess;
+	bool big_endian;
 	enum stedma40_periph_data_width data_width;
 	int psize;
 	enum stedma40_flow_ctrl flow_ctrl;
@@ -118,7 +96,9 @@ struct stedma40_half_channel_info {
  * struct stedma40_chan_cfg - Structure to be filled by client drivers.
  *
  * @dir: MEM 2 MEM, PERIPH 2 MEM , MEM 2 PERIPH, PERIPH 2 PERIPH
- * @channel_type: priority, mode, mode options and interrupt configuration.
+ * @high_priority: true if high-priority
+ * @mode: channel mode: physical, logical, or operation
+ * @mode_opt: options for the chosen channel mode
  * @src_dev_type: Src device type
  * @dst_dev_type: Dst device type
  * @src_info: Parameters for dst half channel
@@ -131,7 +111,9 @@ struct stedma40_half_channel_info {
  */
 struct stedma40_chan_cfg {
 	enum stedma40_xfer_dir			 dir;
-	unsigned int				 channel_type;
+	bool					 high_priority;
+	enum stedma40_mode			 mode;
+	enum stedma40_mode_opt			 mode_opt;
 	int					 src_dev_type;
 	int					 dst_dev_type;
 	struct stedma40_half_channel_info	 src_info;

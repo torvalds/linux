@@ -175,6 +175,7 @@ struct d40_base;
  * @active: Active descriptor.
  * @queue: Queued jobs.
  * @dma_cfg: The client configuration of this dma channel.
+ * @configured: whether the dma_cfg configuration is valid
  * @base: Pointer to the device instance struct.
  * @src_def_cfg: Default cfg register setting for src.
  * @dst_def_cfg: Default cfg register setting for dst.
@@ -198,6 +199,7 @@ struct d40_chan {
 	struct list_head		 active;
 	struct list_head		 queue;
 	struct stedma40_chan_cfg	 dma_cfg;
+	bool				 configured;
 	struct d40_base			*base;
 	/* Default register configurations */
 	u32				 src_def_cfg;
@@ -691,6 +693,31 @@ static u32 d40_chan_has_events(struct d40_chan *d40c)
 	return val;
 }
 
+static u32 d40_get_prmo(struct d40_chan *d40c)
+{
+	static const unsigned int phy_map[] = {
+		[STEDMA40_PCHAN_BASIC_MODE]
+			= D40_DREG_PRMO_PCHAN_BASIC,
+		[STEDMA40_PCHAN_MODULO_MODE]
+			= D40_DREG_PRMO_PCHAN_MODULO,
+		[STEDMA40_PCHAN_DOUBLE_DST_MODE]
+			= D40_DREG_PRMO_PCHAN_DOUBLE_DST,
+	};
+	static const unsigned int log_map[] = {
+		[STEDMA40_LCHAN_SRC_PHY_DST_LOG]
+			= D40_DREG_PRMO_LCHAN_SRC_PHY_DST_LOG,
+		[STEDMA40_LCHAN_SRC_LOG_DST_PHY]
+			= D40_DREG_PRMO_LCHAN_SRC_LOG_DST_PHY,
+		[STEDMA40_LCHAN_SRC_LOG_DST_LOG]
+			= D40_DREG_PRMO_LCHAN_SRC_LOG_DST_LOG,
+	};
+
+	if (d40c->log_num == D40_PHY_CHAN)
+		return phy_map[d40c->dma_cfg.mode_opt];
+	else
+		return log_map[d40c->dma_cfg.mode_opt];
+}
+
 static void d40_config_write(struct d40_chan *d40c)
 {
 	u32 addr_base;
@@ -704,8 +731,7 @@ static void d40_config_write(struct d40_chan *d40c)
 	writel(var, d40c->base->virtbase + D40_DREG_PRMSE + addr_base);
 
 	/* Setup operational mode option register */
-	var = ((d40c->dma_cfg.channel_type >> STEDMA40_INFO_CH_MODE_OPT_POS) &
-	       0x3) << D40_CHAN_POS(d40c->phy_chan->num);
+	var = d40_get_prmo(d40c) << D40_CHAN_POS(d40c->phy_chan->num);
 
 	writel(var, d40c->base->virtbase + D40_DREG_PRMOE + addr_base);
 
@@ -1149,8 +1175,7 @@ static int d40_validate_conf(struct d40_chan *d40c,
 	int res = 0;
 	u32 dst_event_group = D40_TYPE_TO_GROUP(conf->dst_dev_type);
 	u32 src_event_group = D40_TYPE_TO_GROUP(conf->src_dev_type);
-	bool is_log = (conf->channel_type & STEDMA40_CHANNEL_IN_OPER_MODE)
-		== STEDMA40_CHANNEL_IN_LOG_MODE;
+	bool is_log = conf->mode == STEDMA40_MODE_LOGICAL;
 
 	if (!conf->dir) {
 		dev_err(&d40c->chan.dev->device, "[%s] Invalid direction.\n",
@@ -1314,10 +1339,7 @@ static int d40_allocate_channel(struct d40_chan *d40c)
 	int j;
 	int log_num;
 	bool is_src;
-	bool is_log = (d40c->dma_cfg.channel_type &
-		       STEDMA40_CHANNEL_IN_OPER_MODE)
-		== STEDMA40_CHANNEL_IN_LOG_MODE;
-
+	bool is_log = d40c->dma_cfg.mode == STEDMA40_MODE_LOGICAL;
 
 	phys = d40c->base->phy_res;
 
@@ -1518,8 +1540,7 @@ static int d40_free_dma(struct d40_chan *d40c)
 		return res;
 	}
 	d40c->phy_chan = NULL;
-	/* Invalidate channel type */
-	d40c->dma_cfg.channel_type = 0;
+	d40c->configured = false;
 	d40c->base->lookup_phy_chans[phy->num] = NULL;
 
 	return 0;
@@ -1704,6 +1725,9 @@ bool stedma40_filter(struct dma_chan *chan, void *data)
 	} else
 		err = d40_config_memcpy(d40c);
 
+	if (!err)
+		d40c->configured = true;
+
 	return err == 0;
 }
 EXPORT_SYMBOL(stedma40_filter);
@@ -1720,12 +1744,8 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 
 	d40c->completed = chan->cookie = 1;
 
-	/*
-	 * If no dma configuration is set (channel_type == 0)
-	 * use default configuration (memcpy)
-	 */
-	if (d40c->dma_cfg.channel_type == 0) {
-
+	/* If no dma configuration is set use default configuration (memcpy) */
+	if (!d40c->configured) {
 		err = d40_config_memcpy(d40c);
 		if (err) {
 			dev_err(&d40c->chan.dev->device,
@@ -2231,11 +2251,11 @@ static void d40_set_runtime_config(struct dma_chan *chan,
 	/* Set up all the endpoint configs */
 	cfg->src_info.data_width = addr_width;
 	cfg->src_info.psize = psize;
-	cfg->src_info.endianess = STEDMA40_LITTLE_ENDIAN;
+	cfg->src_info.big_endian = false;
 	cfg->src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL;
 	cfg->dst_info.data_width = addr_width;
 	cfg->dst_info.psize = psize;
-	cfg->dst_info.endianess = STEDMA40_LITTLE_ENDIAN;
+	cfg->dst_info.big_endian = false;
 	cfg->dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL;
 
 	/* Fill in register values */
