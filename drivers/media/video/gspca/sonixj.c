@@ -40,6 +40,7 @@ enum e_ctrl {
 	RED,
 	GAMMA,
 	AUTOGAIN,
+	HFLIP,
 	VFLIP,
 	SHARPNESS,
 	INFRARED,
@@ -102,7 +103,7 @@ static void setcolors(struct gspca_dev *gspca_dev);
 static void setredblue(struct gspca_dev *gspca_dev);
 static void setgamma(struct gspca_dev *gspca_dev);
 static void setautogain(struct gspca_dev *gspca_dev);
-static void setvflip(struct gspca_dev *gspca_dev);
+static void sethvflip(struct gspca_dev *gspca_dev);
 static void setsharpness(struct gspca_dev *gspca_dev);
 static void setinfrared(struct gspca_dev *gspca_dev);
 static void setfreq(struct gspca_dev *gspca_dev);
@@ -195,7 +196,18 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 	    },
 	    .set_control = setautogain
 	},
-/* ov7630/ov7648 only */
+[HFLIP] = {
+	    {
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Mirror",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 0,
+	    },
+	    .set_control = sethvflip
+	},
 [VFLIP] = {
 	    {
 		.id      = V4L2_CID_VFLIP,
@@ -206,7 +218,7 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.step    = 1,
 		.default_value = 0,
 	    },
-	    .set_control = setvflip
+	    .set_control = sethvflip
 	},
 [SHARPNESS] = {
 	    {
@@ -252,59 +264,72 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 static const __u32 ctrl_dis[] = {
 [SENSOR_ADCM1700] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_GC0307] =	(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_HV7131R] =	(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << FREQ),
 
 [SENSOR_MI0360] =	(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_MI0360B] =	(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_MO4000] =	(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MT9V111] =	(1 << VFLIP) |
+[SENSOR_MT9V111] =	(1 << HFLIP) |
+			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_OM6802] =	(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_OV7630] =	(1 << INFRARED),
+[SENSOR_OV7630] =	(1 << INFRARED) |
+			(1 << HFLIP),
 
-[SENSOR_OV7648] =	(1 << INFRARED),
+[SENSOR_OV7648] =	(1 << INFRARED) |
+			(1 << HFLIP),
 
 [SENSOR_OV7660] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP),
 
 [SENSOR_PO1030] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_PO2030N] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
-			(1 << VFLIP) |
 			(1 << FREQ),
 [SENSOR_SOI768] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_SP80708] =	(1 << AUTOGAIN) |
 			(1 << INFRARED) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 };
@@ -2237,14 +2262,11 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = -1;
 }
 
-/* hv7131r/ov7630/ov7648 only */
-static void setvflip(struct gspca_dev *gspca_dev)
+static void sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 comn;
 
-	if (gspca_dev->ctrl_dis & (1 << VFLIP))
-		return;
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		comn = 0x18;			/* clkdiv = 1, ablcen = 1 */
@@ -2258,12 +2280,27 @@ static void setvflip(struct gspca_dev *gspca_dev)
 			comn |= 0x80;
 		i2c_w1(gspca_dev, 0x75, comn);
 		break;
-	default:
-/*	case SENSOR_OV7648: */
+	case SENSOR_OV7648:
 		comn = 0x06;
 		if (sd->ctrls[VFLIP].val)
 			comn |= 0x80;
 		i2c_w1(gspca_dev, 0x75, comn);
+		break;
+	case SENSOR_PO2030N:
+		/* Reg. 0x1E: Timing Generator Control Register 2 (Tgcontrol2)
+		 * (reset value: 0x0A)
+		 * bit7: HM: Horizontal Mirror: 0: disable, 1: enable
+		 * bit6: VM: Vertical Mirror: 0: disable, 1: enable
+		 * bit5: ST: Shutter Selection: 0: electrical, 1: mechanical
+		 * bit4: FT: Single Frame Transfer: 0: disable, 1: enable
+		 * bit3-0: X
+		 */
+		comn = 0x0a;
+		if (sd->ctrls[HFLIP].val)
+			comn |= 0x80;
+		if (sd->ctrls[VFLIP].val)
+			comn |= 0x40;
+		i2c_w1(&sd->gspca_dev, 0x1e, comn);
 		break;
 	}
 }
@@ -2650,7 +2687,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg_w1(gspca_dev, 0x01, reg1);
 
-	setvflip(gspca_dev);
+	sethvflip(gspca_dev);
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 	setcolors(gspca_dev);
