@@ -44,8 +44,7 @@ static void cifs_dfs_expire_automounts(struct work_struct *work)
 void cifs_dfs_release_automount_timer(void)
 {
 	BUG_ON(!list_empty(&cifs_dfs_automount_list));
-	cancel_delayed_work(&cifs_dfs_automount_task);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&cifs_dfs_automount_task);
 }
 
 /**
