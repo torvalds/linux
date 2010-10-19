@@ -195,6 +195,7 @@ static struct platform_device *real6410_devices[] __initdata = {
 	&s3c_device_nand,
 	&s3c_device_adc,
 	&s3c_device_ts,
+	&s3c_device_ohci,
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
