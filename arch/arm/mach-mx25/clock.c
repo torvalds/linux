@@ -72,7 +72,7 @@ unsigned long get_rate_arm(struct clk *clk)
 	unsigned long rate = get_rate_mpll();
 
 	if (cctl & (1 << 14))
-		rate = (rate * 3) >> 1;
+		rate = (rate * 3) >> 2;
 
 	return rate / ((cctl >> 30) + 1);
 }
@@ -99,7 +99,7 @@ static unsigned long get_rate_per(int per)
 	if (readl(CRM_BASE + 0x64) & (1 << per))
 		fref = get_rate_upll();
 	else
-		fref = get_rate_ipg(NULL);
+		fref = get_rate_ahb(NULL);
 
 	return fref / (val + 1);
 }
@@ -261,7 +261,7 @@ DEFINE_CLOCK(esdhc2_clk,  1, CCM_CGCR1, 14, get_rate_esdhc2, NULL,
 DEFINE_CLOCK(audmux_clk, 0, CCM_CGCR1, 0, NULL, NULL, NULL);
 DEFINE_CLOCK(csi_clk,    0, CCM_CGCR1,  4, get_rate_csi, NULL,  &csi_per_clk);
 DEFINE_CLOCK(can1_clk,	 0, CCM_CGCR1,  2, get_rate_ipg, NULL, NULL);
-DEFINE_CLOCK(can2_clk,	 0, CCM_CGCR1,  3, get_rate_ipg, NULL, NULL);
+DEFINE_CLOCK(can2_clk,	 1, CCM_CGCR1,  3, get_rate_ipg, NULL, NULL);
 
 #define _REGISTER_CLOCK(d, n, c)	\
 	{				\

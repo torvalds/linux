@@ -49,7 +49,7 @@
 
 static const struct fb_videomode fb_modedb[] = {
 	{
-		.name		= "CMO_QVGA",
+		.name		= "CMO-QVGA",
 		.refresh	= 60,
 		.xres		= 320,
 		.yres		= 240,
@@ -64,6 +64,40 @@ static const struct fb_videomode fb_modedb[] = {
 		.vmode		= FB_VMODE_NONINTERLACED,
 		.flag		= 0,
 	},
+	{
+		.name		= "DVI-VGA",
+		.refresh	= 60,
+		.xres		= 640,
+		.yres		= 480,
+		.pixclock	= 32000,
+		.left_margin	= 100,
+		.right_margin	= 100,
+		.upper_margin	= 7,
+		.lower_margin	= 100,
+		.hsync_len	= 7,
+		.vsync_len	= 7,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT |
+				  FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
+	{
+		.name		= "DVI-SVGA",
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 600,
+		.pixclock	= 25000,
+		.left_margin	= 75,
+		.right_margin	= 75,
+		.upper_margin	= 7,
+		.lower_margin	= 75,
+		.hsync_len	= 7,
+		.vsync_len	= 7,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT |
+				  FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
 };
 
 static struct ipu_platform_data mx3_ipu_data = {
@@ -72,7 +106,7 @@ static struct ipu_platform_data mx3_ipu_data = {
 
 static struct mx3fb_platform_data mx3fb_pdata = {
 	.dma_dev	= &mx3_ipu.dev,
-	.name		= "CMO_QVGA",
+	.name		= "CMO-QVGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
 };
@@ -255,7 +289,7 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	imx35_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_esdhc0(NULL);
+	imx35_add_esdhc(0, NULL);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);
@@ -267,7 +301,7 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 
 	gpio_request(GPIO_LCDPWR, "LCDPWR");
 	gpio_direction_output(GPIO_LCDPWR, 1);
-	gpio_free(GPIO_SWITCH1);
+	gpio_free(GPIO_LCDPWR);
 
 	i2c_register_board_info(0, eukrea_mbimxsd_i2c_devices,
 				ARRAY_SIZE(eukrea_mbimxsd_i2c_devices));

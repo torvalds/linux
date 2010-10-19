@@ -122,4 +122,8 @@ config ARCH_MXC_AUDMUX_V1
 config ARCH_MXC_AUDMUX_V2
 	bool
 
+config IRAM_ALLOC
+	bool
+	select GENERIC_ALLOCATOR
+
 endif

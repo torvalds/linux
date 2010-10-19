@@ -41,6 +41,36 @@ static struct clk usboh3_clk;
 
 #define MAX_DPLL_WAIT_TRIES	1000 /* 1000 * udelay(1) = 1ms */
 
+/* calculate best pre and post dividers to get the required divider */
+static void __calc_pre_post_dividers(u32 div, u32 *pre, u32 *post,
+	u32 max_pre, u32 max_post)
+{
+	if (div >= max_pre * max_post) {
+		*pre = max_pre;
+		*post = max_post;
+	} else if (div >= max_pre) {
+		u32 min_pre, temp_pre, old_err, err;
+		min_pre = DIV_ROUND_UP(div, max_post);
+		old_err = max_pre;
+		for (temp_pre = max_pre; temp_pre >= min_pre; temp_pre--) {
+			err = div % temp_pre;
+			if (err == 0) {
+				*pre = temp_pre;
+				break;
+			}
+			err = temp_pre - err;
+			if (err < old_err) {
+				old_err = err;
+				*pre = temp_pre;
+			}
+		}
+		*post = DIV_ROUND_UP(div, *pre);
+	} else {
+		*pre = div;
+		*post = 1;
+	}
+}
+
 static void _clk_ccgr_setclk(struct clk *clk, unsigned mode)
 {
 	u32 reg = __raw_readl(clk->enable_reg);
@@ -544,35 +574,6 @@ static int _clk_ipg_per_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static unsigned long clk_uart_get_rate(struct clk *clk)
-{
-	u32 reg, prediv, podf;
-	unsigned long parent_rate;
-
-	parent_rate = clk_get_rate(clk->parent);
-
-	reg = __raw_readl(MXC_CCM_CSCDR1);
-	prediv = ((reg & MXC_CCM_CSCDR1_UART_CLK_PRED_MASK) >>
-		  MXC_CCM_CSCDR1_UART_CLK_PRED_OFFSET) + 1;
-	podf = ((reg & MXC_CCM_CSCDR1_UART_CLK_PODF_MASK) >>
-		MXC_CCM_CSCDR1_UART_CLK_PODF_OFFSET) + 1;
-
-	return parent_rate / (prediv * podf);
-}
-
-static int _clk_uart_set_parent(struct clk *clk, struct clk *parent)
-{
-	u32 reg, mux;
-
-	mux = _get_mux(parent, &pll1_sw_clk, &pll2_sw_clk, &pll3_sw_clk,
-		       &lp_apm_clk);
-	reg = __raw_readl(MXC_CCM_CSCMR1) & ~MXC_CCM_CSCMR1_UART_CLK_SEL_MASK;
-	reg |= mux << MXC_CCM_CSCMR1_UART_CLK_SEL_OFFSET;
-	__raw_writel(reg, MXC_CCM_CSCMR1);
-
-	return 0;
-}
-
 #define clk_nfc_set_parent	NULL
 
 static unsigned long clk_nfc_get_rate(struct clk *clk)
@@ -627,35 +628,6 @@ static int clk_nfc_set_rate(struct clk *clk, unsigned long rate)
 	while (__raw_readl(MXC_CCM_CDHIPR) &
 			MXC_CCM_CDHIPR_NFC_IPG_INT_MEM_PODF_BUSY){
 	}
-
-	return 0;
-}
-
-static unsigned long clk_usboh3_get_rate(struct clk *clk)
-{
-	u32 reg, prediv, podf;
-	unsigned long parent_rate;
-
-	parent_rate = clk_get_rate(clk->parent);
-
-	reg = __raw_readl(MXC_CCM_CSCDR1);
-	prediv = ((reg & MXC_CCM_CSCDR1_USBOH3_CLK_PRED_MASK) >>
-		  MXC_CCM_CSCDR1_USBOH3_CLK_PRED_OFFSET) + 1;
-	podf = ((reg & MXC_CCM_CSCDR1_USBOH3_CLK_PODF_MASK) >>
-		MXC_CCM_CSCDR1_USBOH3_CLK_PODF_OFFSET) + 1;
-
-	return parent_rate / (prediv * podf);
-}
-
-static int _clk_usboh3_set_parent(struct clk *clk, struct clk *parent)
-{
-	u32 reg, mux;
-
-	mux = _get_mux(parent, &pll1_sw_clk, &pll2_sw_clk, &pll3_sw_clk,
-		       &lp_apm_clk);
-	reg = __raw_readl(MXC_CCM_CSCMR1) & ~MXC_CCM_CSCMR1_USBOH3_CLK_SEL_MASK;
-	reg |= mux << MXC_CCM_CSCMR1_USBOH3_CLK_SEL_OFFSET;
-	__raw_writel(reg, MXC_CCM_CSCMR1);
 
 	return 0;
 }
@@ -786,18 +758,6 @@ static struct clk ipg_perclk = {
 	.set_parent = _clk_ipg_per_set_parent,
 };
 
-static struct clk uart_root_clk = {
-	.parent = &pll2_sw_clk,
-	.get_rate = clk_uart_get_rate,
-	.set_parent = _clk_uart_set_parent,
-};
-
-static struct clk usboh3_clk = {
-	.parent = &pll2_sw_clk,
-	.get_rate = clk_usboh3_get_rate,
-	.set_parent = _clk_usboh3_set_parent,
-};
-
 static struct clk ahb_max_clk = {
 	.parent = &ahb_clk,
 	.enable_reg = MXC_CCM_CCGR0,
@@ -842,7 +802,7 @@ static struct clk emi_slow_clk = {
 	.get_rate = clk_emi_slow_get_rate,
 };
 
-#define DEFINE_CLOCK1(name, i, er, es, pfx, p, s)	\
+#define DEFINE_CLOCK_CCGR(name, i, er, es, pfx, p, s)	\
 	static struct clk name = {			\
 		.id		= i,			\
 		.enable_reg	= er,			\
@@ -857,41 +817,119 @@ static struct clk emi_slow_clk = {
 		.secondary	= s,			\
 	}
 
+#define DEFINE_CLOCK_MAX(name, i, er, es, pfx, p, s)	\
+	static struct clk name = {			\
+		.id		= i,			\
+		.enable_reg	= er,			\
+		.enable_shift	= es,			\
+		.get_rate	= pfx##_get_rate,	\
+		.set_rate	= pfx##_set_rate,	\
+		.set_parent	= pfx##_set_parent,	\
+		.enable		= _clk_max_enable,	\
+		.disable	= _clk_max_disable,	\
+		.parent		= p,			\
+		.secondary	= s,			\
+	}
+
+#define CLK_GET_RATE(name, nr, bitsname)				\
+static unsigned long clk_##name##_get_rate(struct clk *clk)		\
+{									\
+	u32 reg, pred, podf;						\
+									\
+	reg = __raw_readl(MXC_CCM_CSCDR##nr);				\
+	pred = (reg & MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PRED_MASK)	\
+		>> MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PRED_OFFSET;	\
+	podf = (reg & MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PODF_MASK)	\
+		>> MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PODF_OFFSET;	\
+									\
+	return DIV_ROUND_CLOSEST(clk_get_rate(clk->parent),		\
+			(pred + 1) * (podf + 1));			\
+}
+
+#define CLK_SET_PARENT(name, nr, bitsname)				\
+static int clk_##name##_set_parent(struct clk *clk, struct clk *parent)	\
+{									\
+	u32 reg, mux;							\
+									\
+	mux = _get_mux(parent, &pll1_sw_clk, &pll2_sw_clk,		\
+			&pll3_sw_clk, &lp_apm_clk);			\
+	reg = __raw_readl(MXC_CCM_CSCMR##nr) &				\
+		~MXC_CCM_CSCMR##nr##_##bitsname##_CLK_SEL_MASK;		\
+	reg |= mux << MXC_CCM_CSCMR##nr##_##bitsname##_CLK_SEL_OFFSET;	\
+	__raw_writel(reg, MXC_CCM_CSCMR##nr);				\
+									\
+	return 0;							\
+}
+
+#define CLK_SET_RATE(name, nr, bitsname)				\
+static int clk_##name##_set_rate(struct clk *clk, unsigned long rate)	\
+{									\
+	u32 reg, div, parent_rate;					\
+	u32 pre = 0, post = 0;						\
+									\
+	parent_rate = clk_get_rate(clk->parent);			\
+	div = parent_rate / rate;					\
+									\
+	if ((parent_rate / div) != rate)				\
+		return -EINVAL;						\
+									\
+	__calc_pre_post_dividers(div, &pre, &post,			\
+		(MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PRED_MASK >>	\
+		MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PRED_OFFSET) + 1,	\
+		(MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PODF_MASK >>	\
+		MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PODF_OFFSET) + 1);\
+									\
+	/* Set sdhc1 clock divider */					\
+	reg = __raw_readl(MXC_CCM_CSCDR##nr) &				\
+		~(MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PRED_MASK	\
+		| MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PODF_MASK);	\
+	reg |= (post - 1) <<						\
+		MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PODF_OFFSET;	\
+	reg |= (pre - 1) <<						\
+		MXC_CCM_CSCDR##nr##_##bitsname##_CLK_PRED_OFFSET;	\
+	__raw_writel(reg, MXC_CCM_CSCDR##nr);				\
+									\
+	return 0;							\
+}
+
+/* UART */
+CLK_GET_RATE(uart, 1, UART)
+CLK_SET_PARENT(uart, 1, UART)
+
+static struct clk uart_root_clk = {
+	.parent = &pll2_sw_clk,
+	.get_rate = clk_uart_get_rate,
+	.set_parent = clk_uart_set_parent,
+};
+
+/* USBOH3 */
+CLK_GET_RATE(usboh3, 1, USBOH3)
+CLK_SET_PARENT(usboh3, 1, USBOH3)
+
+static struct clk usboh3_clk = {
+	.parent = &pll2_sw_clk,
+	.get_rate = clk_usboh3_get_rate,
+	.set_parent = clk_usboh3_set_parent,
+};
+
 /* eCSPI */
-static unsigned long clk_ecspi_get_rate(struct clk *clk)
-{
-	u32 reg, pred, podf;
-
-	reg = __raw_readl(MXC_CCM_CSCDR2);
-
-	pred = (reg & MXC_CCM_CSCDR2_CSPI_CLK_PRED_MASK) >>
-			MXC_CCM_CSCDR2_CSPI_CLK_PRED_OFFSET;
-	podf = (reg & MXC_CCM_CSCDR2_CSPI_CLK_PODF_MASK) >>
-			MXC_CCM_CSCDR2_CSPI_CLK_PODF_OFFSET;
-
-	return DIV_ROUND_CLOSEST(clk_get_rate(clk->parent),
-			(pred + 1) * (podf + 1));
-}
-
-static int clk_ecspi_set_parent(struct clk *clk, struct clk *parent)
-{
-	u32 reg, mux;
-
-	mux = _get_mux(parent, &pll1_sw_clk, &pll2_sw_clk, &pll3_sw_clk,
-			&lp_apm_clk);
-
-	reg = __raw_readl(MXC_CCM_CSCMR1) & ~MXC_CCM_CSCMR1_CSPI_CLK_SEL_MASK;
-	reg |= mux << MXC_CCM_CSCMR1_CSPI_CLK_SEL_OFFSET;
-	__raw_writel(reg, MXC_CCM_CSCMR1);
-
-	return 0;
-}
+CLK_GET_RATE(ecspi, 2, CSPI)
+CLK_SET_PARENT(ecspi, 1, CSPI)
 
 static struct clk ecspi_main_clk = {
 	.parent = &pll3_sw_clk,
 	.get_rate = clk_ecspi_get_rate,
 	.set_parent = clk_ecspi_set_parent,
 };
+
+/* eSDHC */
+CLK_GET_RATE(esdhc1, 1, ESDHC1_MSHC1)
+CLK_SET_PARENT(esdhc1, 1, ESDHC1_MSHC1)
+CLK_SET_RATE(esdhc1, 1, ESDHC1_MSHC1)
+
+CLK_GET_RATE(esdhc2, 1, ESDHC2_MSHC2)
+CLK_SET_PARENT(esdhc2, 1, ESDHC2_MSHC2)
+CLK_SET_RATE(esdhc2, 1, ESDHC2_MSHC2)
 
 #define DEFINE_CLOCK_FULL(name, i, er, es, gr, sr, e, d, p, s)		\
 	static struct clk name = {					\
@@ -946,7 +984,7 @@ DEFINE_CLOCK(fec_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG12_OFFSET,
 	NULL,  NULL, &ipg_clk, NULL);
 
 /* NFC */
-DEFINE_CLOCK1(nfc_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG10_OFFSET,
+DEFINE_CLOCK_CCGR(nfc_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG10_OFFSET,
 	clk_nfc, &emi_slow_clk, NULL);
 
 /* SSI */
@@ -981,6 +1019,16 @@ DEFINE_CLOCK(cspi_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG13_OFFSET,
 DEFINE_CLOCK(sdma_clk, 1, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG15_OFFSET,
 		NULL, NULL, &ahb_clk, NULL);
 
+/* eSDHC */
+DEFINE_CLOCK_FULL(esdhc1_ipg_clk, 0, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG0_OFFSET,
+	NULL,  NULL, _clk_max_enable, _clk_max_disable, &ipg_clk, NULL);
+DEFINE_CLOCK_MAX(esdhc1_clk, 0, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG1_OFFSET,
+	clk_esdhc1, &pll2_sw_clk, &esdhc1_ipg_clk);
+DEFINE_CLOCK_FULL(esdhc2_ipg_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG2_OFFSET,
+	NULL,  NULL, _clk_max_enable, _clk_max_disable, &ipg_clk, NULL);
+DEFINE_CLOCK_MAX(esdhc2_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG3_OFFSET,
+	clk_esdhc2, &pll2_sw_clk, &esdhc2_ipg_clk);
+
 #define _REGISTER_CLOCK(d, n, c) \
        { \
 		.dev_id = d, \
@@ -1014,6 +1062,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
 	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
 	_REGISTER_CLOCK("imx51-cspi.0", NULL, cspi_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
 };
 
 static void clk_tree_init(void)
@@ -1056,6 +1106,14 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 
 	/* set the usboh3_clk parent to pll2_sw_clk */
 	clk_set_parent(&usboh3_clk, &pll2_sw_clk);
+
+	/* Set SDHC parents to be PLL2 */
+	clk_set_parent(&esdhc1_clk, &pll2_sw_clk);
+	clk_set_parent(&esdhc2_clk, &pll2_sw_clk);
+
+	/* set SDHC root clock as 166.25MHZ*/
+	clk_set_rate(&esdhc1_clk, 166250000);
+	clk_set_rate(&esdhc2_clk, 166250000);
 
 	/* System timer */
 	mxc_timer_init(&gpt_clk, MX51_IO_ADDRESS(MX51_GPT1_BASE_ADDR),

@@ -65,6 +65,7 @@ const struct imx_imx_i2c_data imx35_imx_i2c_data[] __initconst = {
 	imx_imx_i2c_data_entry(MX35, _id, _hwid, SZ_4K)
 	imx35_imx_i2c_data_entry(0, 1),
 	imx35_imx_i2c_data_entry(1, 2),
+	imx35_imx_i2c_data_entry(2, 3),
 };
 #endif /* ifdef CONFIG_ARCH_MX35 */
 

@@ -395,7 +395,7 @@ static void __init mxc_board_init(void)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_esdhc0(NULL);
+	imx35_add_esdhc(0, NULL);
 }
 
 static void __init pcm043_timer_init(void)

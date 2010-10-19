@@ -146,6 +146,13 @@ static struct pad_desc eukrea_cpuimx51_pads[] = {
 	MX51_PAD_USBH1_STP__USBH1_STP,
 };
 
+static const struct mxc_nand_platform_data
+		eukrea_cpuimx51_nand_board_info __initconst = {
+	.width		= 1,
+	.hw_ecc		= 1,
+	.flash_bbt	= 1,
+};
+
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -239,6 +246,8 @@ static void __init eukrea_cpuimx51_init(void)
 					ARRAY_SIZE(eukrea_cpuimx51_pads));
 
 	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_mxc_nand(&eukrea_cpuimx51_nand_board_info);
+
 	gpio_request(CPUIMX51_QUARTA_GPIO, "quarta_irq");
 	gpio_direction_input(CPUIMX51_QUARTA_GPIO);
 	gpio_free(CPUIMX51_QUARTA_GPIO);

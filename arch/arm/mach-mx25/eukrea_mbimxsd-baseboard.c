@@ -116,6 +116,38 @@ static struct imx_fb_videomode eukrea_mximxsd_modes[] = {
 		},
 		.bpp	= 16,
 		.pcr	= 0xCAD08B80,
+	}, {
+		.mode = {
+			.name		= "DVI-VGA",
+			.refresh	= 60,
+			.xres		= 640,
+			.yres		= 480,
+			.pixclock	= 32000,
+			.hsync_len	= 7,
+			.left_margin	= 100,
+			.right_margin	= 100,
+			.vsync_len	= 7,
+			.upper_margin	= 7,
+			.lower_margin	= 100,
+		},
+		.pcr		= 0xFA208B80,
+		.bpp		= 16,
+	}, {
+		.mode = {
+			.name		= "DVI-SVGA",
+			.refresh	= 60,
+			.xres		= 800,
+			.yres		= 600,
+			.pixclock	= 25000,
+			.hsync_len	= 7,
+			.left_margin	= 75,
+			.right_margin	= 75,
+			.vsync_len	= 7,
+			.upper_margin	= 7,
+			.lower_margin	= 75,
+		},
+		.pcr		= 0xFA208B80,
+		.bpp		= 16,
 	},
 };
 
@@ -245,7 +277,7 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
 	imx25_add_flexcan1(NULL);
-	imx25_add_esdhc0(NULL);
+	imx25_add_esdhc(0, NULL);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);

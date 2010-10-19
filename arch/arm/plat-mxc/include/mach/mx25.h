@@ -54,6 +54,7 @@
 #define MX25_ESDHC2_BASE_ADDR		0x53fb8000
 #define MX25_LCDC_BASE_ADDR		0x53fbc000
 #define MX25_KPP_BASE_ADDR		0x43fa8000
+#define MX25_SDMA_BASE_ADDR		0x53fd4000
 #define MX25_OTG_BASE_ADDR		0x53ff4000
 #define MX25_CSI_BASE_ADDR		0x53ff8000
 
@@ -61,8 +62,8 @@
 #define MX25_INT_I2C1		3
 #define MX25_INT_I2C2		4
 #define MX25_INT_UART4		5
-#define MX25_INT_MMC_SDHC2	8
-#define MX25_INT_MMC_SDHC1	9
+#define MX25_INT_ESDHC2		8
+#define MX25_INT_ESDHC1		9
 #define MX25_INT_I2C3		10
 #define MX25_INT_SSI2		11
 #define MX25_INT_SSI1		12
@@ -74,6 +75,7 @@
 #define MX25_INT_DRYICE		25
 #define MX25_INT_UART2		32
 #define MX25_INT_NFC		33
+#define MX25_INT_SDMA		34
 #define MX25_INT_LCDC		39
 #define MX25_INT_UART5		40
 #define MX25_INT_CAN1		43

@@ -19,6 +19,7 @@
 
 #include "pcm037.h"
 #include "devices.h"
+#include "devices-imx31.h"
 
 static unsigned int pcm037_eet_pins[] = {
 	/* Reserve and hardwire GPIO 57 high - S6E63D6 chipselect */
@@ -181,7 +182,7 @@ static int eet_init_devices(void)
 	/* SPI */
 	spi_register_board_info(pcm037_spi_dev, ARRAY_SIZE(pcm037_spi_dev));
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
-	imx35_add_spi_imx0(&pcm037_spi1_pdata);
+	imx31_add_spi_imx0(&pcm037_spi1_pdata);
 #endif
 
 	platform_device_register(&pcm037_gpio_keys_device);
