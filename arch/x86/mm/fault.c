@@ -230,7 +230,7 @@ void vmalloc_sync_all(void)
 		spin_lock_irqsave(&pgd_lock, flags);
 		list_for_each_entry(page, &pgd_list, lru) {
 			spinlock_t *pgt_lock;
-			int ret;
+			pmd_t *ret;
 
 			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
 
