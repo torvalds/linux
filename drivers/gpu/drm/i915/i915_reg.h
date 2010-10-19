@@ -263,6 +263,7 @@
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
+#define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		((base)+0x30)
 #define RING_HEAD(base)		((base)+0x34)
 #define RING_START(base)	((base)+0x38)
@@ -2561,6 +2562,7 @@
 #define GT_USER_INTERRUPT       (1 << 0)
 #define GT_BSD_USER_INTERRUPT   (1 << 5)
 #define GT_GEN6_BSD_USER_INTERRUPT	(1 << 12)
+#define GT_BLT_USER_INTERRUPT	(1 << 22)
 
 #define GTISR   0x44010
 #define GTIMR   0x44014

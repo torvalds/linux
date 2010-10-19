@@ -383,9 +383,9 @@ static int init_bsd_ring(struct drm_device *dev,
 }
 
 static u32
-bsd_ring_add_request(struct drm_device *dev,
-		     struct intel_ring_buffer *ring,
-		     u32 flush_domains)
+ring_add_request(struct drm_device *dev,
+		 struct intel_ring_buffer *ring,
+		 u32 flush_domains)
 {
 	u32 seqno;
 
@@ -418,18 +418,18 @@ bsd_ring_put_user_irq(struct drm_device *dev,
 }
 
 static u32
-bsd_ring_get_seqno(struct drm_device *dev,
-		   struct intel_ring_buffer *ring)
+ring_status_page_get_seqno(struct drm_device *dev,
+			   struct intel_ring_buffer *ring)
 {
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
 static int
-bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
-				 struct intel_ring_buffer *ring,
-				 struct drm_i915_gem_execbuffer2 *exec,
-				 struct drm_clip_rect *cliprects,
-				 uint64_t exec_offset)
+ring_dispatch_gem_execbuffer(struct drm_device *dev,
+			     struct intel_ring_buffer *ring,
+			     struct drm_i915_gem_execbuffer2 *exec,
+			     struct drm_clip_rect *cliprects,
+			     uint64_t exec_offset)
 {
 	uint32_t exec_start;
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
@@ -440,7 +440,6 @@ bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 	intel_ring_advance(dev, ring);
 	return 0;
 }
-
 
 static int
 render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
@@ -758,11 +757,11 @@ static const struct intel_ring_buffer bsd_ring = {
 	.init			= init_bsd_ring,
 	.set_tail		= ring_set_tail,
 	.flush			= bsd_ring_flush,
-	.add_request		= bsd_ring_add_request,
-	.get_seqno		= bsd_ring_get_seqno,
+	.add_request		= ring_add_request,
+	.get_seqno		= ring_status_page_get_seqno,
 	.user_irq_get		= bsd_ring_get_user_irq,
 	.user_irq_put		= bsd_ring_put_user_irq,
-	.dispatch_gem_execbuffer = bsd_ring_dispatch_gem_execbuffer,
+	.dispatch_gem_execbuffer = ring_dispatch_gem_execbuffer,
 };
 
 
@@ -789,10 +788,10 @@ static void gen6_bsd_ring_set_tail(struct drm_device *dev,
 	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
 }
 
-static void gen6_bsd_ring_flush(struct drm_device *dev,
-				struct intel_ring_buffer *ring,
-				u32 invalidate_domains,
-				u32 flush_domains)
+static void gen6_ring_flush(struct drm_device *dev,
+			    struct intel_ring_buffer *ring,
+			    u32 invalidate_domains,
+			    u32 flush_domains)
 {
        intel_ring_begin(dev, ring, 4);
        intel_ring_emit(dev, ring, MI_FLUSH_DW);
@@ -803,11 +802,11 @@ static void gen6_bsd_ring_flush(struct drm_device *dev,
 }
 
 static int
-gen6_bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
-				      struct intel_ring_buffer *ring,
-				      struct drm_i915_gem_execbuffer2 *exec,
-				      struct drm_clip_rect *cliprects,
-				      uint64_t exec_offset)
+gen6_ring_dispatch_gem_execbuffer(struct drm_device *dev,
+				  struct intel_ring_buffer *ring,
+				  struct drm_i915_gem_execbuffer2 *exec,
+				  struct drm_clip_rect *cliprects,
+				  uint64_t exec_offset)
 {
        uint32_t exec_start;
 
@@ -831,12 +830,42 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .size			= 32 * PAGE_SIZE,
        .init			= init_bsd_ring,
        .set_tail		= gen6_bsd_ring_set_tail,
-       .flush			= gen6_bsd_ring_flush,
-       .add_request		= bsd_ring_add_request,
-       .get_seqno		= bsd_ring_get_seqno,
+       .flush			= gen6_ring_flush,
+       .add_request		= ring_add_request,
+       .get_seqno		= ring_status_page_get_seqno,
        .user_irq_get		= bsd_ring_get_user_irq,
        .user_irq_put		= bsd_ring_put_user_irq,
-       .dispatch_gem_execbuffer	= gen6_bsd_ring_dispatch_gem_execbuffer,
+       .dispatch_gem_execbuffer	= gen6_ring_dispatch_gem_execbuffer,
+};
+
+/* Blitter support (SandyBridge+) */
+
+static void
+blt_ring_get_user_irq(struct drm_device *dev,
+		      struct intel_ring_buffer *ring)
+{
+	/* do nothing */
+}
+static void
+blt_ring_put_user_irq(struct drm_device *dev,
+		      struct intel_ring_buffer *ring)
+{
+	/* do nothing */
+}
+
+static const struct intel_ring_buffer gen6_blt_ring = {
+       .name			= "blt ring",
+       .id			= RING_BLT,
+       .mmio_base		= BLT_RING_BASE,
+       .size			= 32 * PAGE_SIZE,
+       .init			= init_ring_common,
+       .set_tail		= ring_set_tail,
+       .flush			= gen6_ring_flush,
+       .add_request		= ring_add_request,
+       .get_seqno		= ring_status_page_get_seqno,
+       .user_irq_get		= blt_ring_get_user_irq,
+       .user_irq_put		= blt_ring_put_user_irq,
+       .dispatch_gem_execbuffer	= gen6_ring_dispatch_gem_execbuffer,
 };
 
 int intel_init_render_ring_buffer(struct drm_device *dev)
@@ -865,4 +894,13 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		dev_priv->bsd_ring = bsd_ring;
 
 	return intel_init_ring_buffer(dev, &dev_priv->bsd_ring);
+}
+
+int intel_init_blt_ring_buffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	dev_priv->blt_ring = gen6_blt_ring;
+
+	return intel_init_ring_buffer(dev, &dev_priv->blt_ring);
 }

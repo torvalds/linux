@@ -22,6 +22,7 @@ struct  intel_ring_buffer {
 	enum intel_ring_id {
 		RING_RENDER = 0x1,
 		RING_BSD = 0x2,
+		RING_BLT = 0x4,
 	} id;
 	u32		mmio_base;
 	unsigned long	size;
@@ -124,6 +125,7 @@ u32 intel_ring_get_seqno(struct drm_device *dev,
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
+int intel_init_blt_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct drm_device *dev,
 			       struct intel_ring_buffer *ring);

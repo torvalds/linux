@@ -1800,6 +1800,7 @@ void i915_gem_reset(struct drm_device *dev)
 
 	i915_gem_reset_ring_lists(dev_priv, &dev_priv->render_ring);
 	i915_gem_reset_ring_lists(dev_priv, &dev_priv->bsd_ring);
+	i915_gem_reset_ring_lists(dev_priv, &dev_priv->blt_ring);
 
 	/* Remove anything from the flushing lists. The GPU cache is likely
 	 * to be lost on reset along with the data, so simply move the
@@ -1922,6 +1923,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 
 	i915_gem_retire_requests_ring(dev, &dev_priv->render_ring);
 	i915_gem_retire_requests_ring(dev, &dev_priv->bsd_ring);
+	i915_gem_retire_requests_ring(dev, &dev_priv->blt_ring);
 }
 
 static void
@@ -1944,7 +1946,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	if (!dev_priv->mm.suspended &&
 		(!list_empty(&dev_priv->render_ring.request_list) ||
-		 !list_empty(&dev_priv->bsd_ring.request_list)))
+		 !list_empty(&dev_priv->bsd_ring.request_list) ||
+		 !list_empty(&dev_priv->blt_ring.request_list)))
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -2062,6 +2065,10 @@ i915_gem_flush(struct drm_device *dev,
 		if (flush_rings & RING_BSD)
 			i915_gem_flush_ring(dev, file_priv,
 					    &dev_priv->bsd_ring,
+					    invalidate_domains, flush_domains);
+		if (flush_rings & RING_BLT)
+			i915_gem_flush_ring(dev, file_priv,
+					    &dev_priv->blt_ring,
 					    invalidate_domains, flush_domains);
 	}
 }
@@ -2182,7 +2189,8 @@ i915_gpu_idle(struct drm_device *dev)
 
 	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->render_ring.active_list) &&
-		       list_empty(&dev_priv->bsd_ring.active_list));
+		       list_empty(&dev_priv->bsd_ring.active_list) &&
+		       list_empty(&dev_priv->blt_ring.active_list));
 	if (lists_empty)
 		return 0;
 
@@ -2192,6 +2200,10 @@ i915_gpu_idle(struct drm_device *dev)
 		return ret;
 
 	ret = i915_ring_idle(dev, &dev_priv->bsd_ring);
+	if (ret)
+		return ret;
+
+	ret = i915_ring_idle(dev, &dev_priv->blt_ring);
 	if (ret)
 		return ret;
 
@@ -3609,14 +3621,29 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
 		  (int) args->buffers_ptr, args->buffer_count, args->batch_len);
 #endif
-	if (args->flags & I915_EXEC_BSD) {
+	switch (args->flags & I915_EXEC_RING_MASK) {
+	case I915_EXEC_DEFAULT:
+	case I915_EXEC_RENDER:
+		ring = &dev_priv->render_ring;
+		break;
+	case I915_EXEC_BSD:
 		if (!HAS_BSD(dev)) {
-			DRM_ERROR("execbuf with wrong flag\n");
+			DRM_ERROR("execbuf with invalid ring (BSD)\n");
 			return -EINVAL;
 		}
 		ring = &dev_priv->bsd_ring;
-	} else {
-		ring = &dev_priv->render_ring;
+		break;
+	case I915_EXEC_BLT:
+		if (!HAS_BLT(dev)) {
+			DRM_ERROR("execbuf with invalid ring (BLT)\n");
+			return -EINVAL;
+		}
+		ring = &dev_priv->blt_ring;
+		break;
+	default:
+		DRM_ERROR("execbuf with unknown ring: %d\n",
+			  (int)(args->flags & I915_EXEC_RING_MASK));
+		return -EINVAL;
 	}
 
 	if (args->buffer_count < 1) {
@@ -4482,10 +4509,18 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 			goto cleanup_render_ring;
 	}
 
+	if (HAS_BLT(dev)) {
+		ret = intel_init_blt_ring_buffer(dev);
+		if (ret)
+			goto cleanup_bsd_ring;
+	}
+
 	dev_priv->next_seqno = 1;
 
 	return 0;
 
+cleanup_bsd_ring:
+	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
 cleanup_render_ring:
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
 cleanup_pipe_control:
@@ -4501,6 +4536,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
 	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(dev, &dev_priv->blt_ring);
 	if (HAS_PIPE_CONTROL(dev))
 		i915_gem_cleanup_pipe_control(dev);
 }
@@ -4532,10 +4568,12 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!list_empty(&dev_priv->render_ring.active_list));
 	BUG_ON(!list_empty(&dev_priv->bsd_ring.active_list));
+	BUG_ON(!list_empty(&dev_priv->blt_ring.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->render_ring.request_list));
 	BUG_ON(!list_empty(&dev_priv->bsd_ring.request_list));
+	BUG_ON(!list_empty(&dev_priv->blt_ring.request_list));
 	mutex_unlock(&dev->struct_mutex);
 
 	ret = drm_irq_install(dev);
@@ -4594,6 +4632,8 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->render_ring.request_list);
 	INIT_LIST_HEAD(&dev_priv->bsd_ring.active_list);
 	INIT_LIST_HEAD(&dev_priv->bsd_ring.request_list);
+	INIT_LIST_HEAD(&dev_priv->blt_ring.active_list);
+	INIT_LIST_HEAD(&dev_priv->blt_ring.request_list);
 	for (i = 0; i < 16; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
@@ -4857,7 +4897,8 @@ i915_gpu_is_active(struct drm_device *dev)
 
 	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
 		      list_empty(&dev_priv->render_ring.active_list) &&
-		      list_empty(&dev_priv->bsd_ring.active_list);
+		      list_empty(&dev_priv->bsd_ring.active_list) &&
+		      list_empty(&dev_priv->blt_ring.active_list);
 
 	return !lists_empty;
 }

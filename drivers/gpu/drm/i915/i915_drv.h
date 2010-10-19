@@ -216,6 +216,7 @@ struct intel_device_info {
 	u8 overlay_needs_physical : 1;
 	u8 supports_tv : 1;
 	u8 has_bsd_ring : 1;
+	u8 has_blt_ring : 1;
 };
 
 enum no_fbc_reason {
@@ -255,6 +256,7 @@ typedef struct drm_i915_private {
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer render_ring;
 	struct intel_ring_buffer bsd_ring;
+	struct intel_ring_buffer blt_ring;
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
@@ -1300,6 +1302,7 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
 
 #define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
+#define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)

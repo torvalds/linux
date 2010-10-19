@@ -133,6 +133,7 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
 	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(dev, &dev_priv->blt_ring);
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
@@ -762,6 +763,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_BSD:
 		value = HAS_BSD(dev);
+		break;
+	case I915_PARAM_HAS_BLT:
+		value = HAS_BLT(dev);
 		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",

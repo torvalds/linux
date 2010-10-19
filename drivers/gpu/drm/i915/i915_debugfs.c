@@ -80,6 +80,8 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(has_overlay);
 	B(overlay_needs_physical);
 	B(supports_tv);
+	B(has_bsd_ring);
+	B(has_blt_ring);
 #undef B
 
 	return 0;
