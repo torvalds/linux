@@ -842,8 +842,6 @@ extern int nouveau_gpuobj_gart_dma_new(struct nouveau_channel *,
 				       uint32_t *o_ret);
 extern int nouveau_gpuobj_gr_new(struct nouveau_channel *, int class,
 				 struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_sw_new(struct nouveau_channel *, int class,
-				 struct nouveau_gpuobj **);
 extern int nouveau_ioctl_grobj_alloc(struct drm_device *, void *data,
 				     struct drm_file *);
 extern int nouveau_ioctl_gpuobj_free(struct drm_device *, void *data,

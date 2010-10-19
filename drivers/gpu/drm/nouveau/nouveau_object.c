@@ -495,15 +495,59 @@ nouveau_gpuobj_gart_dma_new(struct nouveau_channel *chan,
    entry[5]:
    set to 0?
 */
+static int
+nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
+		      struct nouveau_gpuobj **gpuobj_ret)
+{
+	struct drm_nouveau_private *dev_priv;
+	struct nouveau_gpuobj *gpuobj;
+
+	if (!chan || !gpuobj_ret || *gpuobj_ret != NULL)
+		return -EINVAL;
+	dev_priv = chan->dev->dev_private;
+
+	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
+	if (!gpuobj)
+		return -ENOMEM;
+	gpuobj->dev = chan->dev;
+	gpuobj->engine = NVOBJ_ENGINE_SW;
+	gpuobj->class = class;
+	kref_init(&gpuobj->refcount);
+	gpuobj->cinst = 0x40;
+
+	spin_lock(&dev_priv->ramin_lock);
+	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
+	*gpuobj_ret = gpuobj;
+	return 0;
+}
+
 int
 nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 		      struct nouveau_gpuobj **gpuobj)
 {
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_pgraph_object_class *grc;
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int ret;
 
 	NV_DEBUG(dev, "ch%d class=0x%04x\n", chan->id, class);
+
+	grc = pgraph->grclass;
+	while (grc->id) {
+		if (grc->id == class)
+			break;
+		grc++;
+	}
+
+	if (!grc->id) {
+		NV_ERROR(dev, "illegal object class: 0x%x\n", class);
+		return -EINVAL;
+	}
+
+	if (grc->engine == NVOBJ_ENGINE_SW)
+		return nouveau_gpuobj_sw_new(chan, class, gpuobj);
 
 	ret = nouveau_gpuobj_new(dev, chan,
 				 nouveau_gpuobj_class_instmem_size(dev, class),
@@ -511,7 +555,7 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 				 NVOBJ_FLAG_ZERO_ALLOC | NVOBJ_FLAG_ZERO_FREE,
 				 gpuobj);
 	if (ret) {
-		NV_ERROR(dev, "Error creating gpuobj: %d\n", ret);
+		NV_ERROR(dev, "error creating gpuobj: %d\n", ret);
 		return ret;
 	}
 
@@ -541,35 +585,8 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	(*gpuobj)->engine = NVOBJ_ENGINE_GR;
+	(*gpuobj)->engine = grc->engine;
 	(*gpuobj)->class  = class;
-	return 0;
-}
-
-int
-nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
-		      struct nouveau_gpuobj **gpuobj_ret)
-{
-	struct drm_nouveau_private *dev_priv;
-	struct nouveau_gpuobj *gpuobj;
-
-	if (!chan || !gpuobj_ret || *gpuobj_ret != NULL)
-		return -EINVAL;
-	dev_priv = chan->dev->dev_private;
-
-	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
-	if (!gpuobj)
-		return -ENOMEM;
-	gpuobj->dev = chan->dev;
-	gpuobj->engine = NVOBJ_ENGINE_SW;
-	gpuobj->class = class;
-	kref_init(&gpuobj->refcount);
-	gpuobj->cinst = 0x40;
-
-	spin_lock(&dev_priv->ramin_lock);
-	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
-	spin_unlock(&dev_priv->ramin_lock);
-	*gpuobj_ret = gpuobj;
 	return 0;
 }
 
@@ -868,28 +885,13 @@ nouveau_gpuobj_resume(struct drm_device *dev)
 int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_nouveau_grobj_alloc *init = data;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_pgraph_object_class *grc;
 	struct nouveau_gpuobj *gr = NULL;
 	struct nouveau_channel *chan;
 	int ret;
 
 	if (init->handle == ~0)
 		return -EINVAL;
-
-	grc = pgraph->grclass;
-	while (grc->id) {
-		if (grc->id == init->class)
-			break;
-		grc++;
-	}
-
-	if (!grc->id) {
-		NV_ERROR(dev, "Illegal object class: 0x%x\n", init->class);
-		return -EPERM;
-	}
 
 	chan = nouveau_channel_get(dev, file_priv, init->channel);
 	if (IS_ERR(chan))
@@ -900,10 +902,7 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (grc->engine != NVOBJ_ENGINE_SW)
-		ret = nouveau_gpuobj_gr_new(chan, grc->id, &gr);
-	else
-		ret = nouveau_gpuobj_sw_new(chan, grc->id, &gr);
+	ret = nouveau_gpuobj_gr_new(chan, init->class, &gr);
 	if (ret) {
 		NV_ERROR(dev, "Error creating object: %d (%d/0x%08x)\n",
 			 ret, init->channel, init->handle);

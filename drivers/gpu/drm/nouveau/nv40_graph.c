@@ -409,6 +409,7 @@ void nv40_graph_takedown(struct drm_device *dev)
 }
 
 struct nouveau_pgraph_object_class nv40_graph_grclass[] = {
+	{ 0x506e, NVOBJ_ENGINE_SW, NULL }, /* nvsw */
 	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
 	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
 	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
