@@ -105,6 +105,7 @@ config MACH_MINI6410
 	select S3C_DEV_HSMMC1
 	select S3C64XX_SETUP_SDHCI
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Machine support for the FriendlyARM MINI6410
 
