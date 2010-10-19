@@ -191,7 +191,7 @@ static void release_ds_buffers(void)
 	put_online_cpus();
 }
 
-static int reserve_ds_buffers(void)
+static void reserve_ds_buffers(void)
 {
 	int bts_err = 0, pebs_err = 0;
 	int cpu;
@@ -200,7 +200,7 @@ static int reserve_ds_buffers(void)
 	x86_pmu.pebs_active = 0;
 
 	if (!x86_pmu.bts && !x86_pmu.pebs)
-		return 0;
+		return;
 
 	if (!x86_pmu.bts)
 		bts_err = 1;
@@ -251,8 +251,6 @@ static int reserve_ds_buffers(void)
 	}
 
 	put_online_cpus();
-
-	return 0;
 }
 
 /*
@@ -714,9 +712,8 @@ static void intel_ds_init(void)
 
 #else /* CONFIG_CPU_SUP_INTEL */
 
-static int reserve_ds_buffers(void)
+static void reserve_ds_buffers(void)
 {
-	return 0;
 }
 
 static void release_ds_buffers(void)
