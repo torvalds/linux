@@ -35,6 +35,7 @@
 #include <drm_edid.h>
 #include <drm_dp_helper.h>
 #include <drm_fixed.h>
+#include <drm_crtc_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
@@ -139,10 +140,16 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_NO_ODD_POST_DIV      (1 << 1)
 #define RADEON_PLL_USE_REF_DIV          (1 << 2)
 #define RADEON_PLL_LEGACY               (1 << 3)
-#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 4)
-#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 5)
-#define RADEON_PLL_USE_POST_DIV         (1 << 6)
-#define RADEON_PLL_IS_LCD               (1 << 7)
+#define RADEON_PLL_PREFER_LOW_REF_DIV   (1 << 4)
+#define RADEON_PLL_PREFER_HIGH_REF_DIV  (1 << 5)
+#define RADEON_PLL_PREFER_LOW_FB_DIV    (1 << 6)
+#define RADEON_PLL_PREFER_HIGH_FB_DIV   (1 << 7)
+#define RADEON_PLL_PREFER_LOW_POST_DIV  (1 << 8)
+#define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
+#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
+#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
+#define RADEON_PLL_USE_POST_DIV         (1 << 12)
+#define RADEON_PLL_IS_LCD               (1 << 13)
 
 struct radeon_pll {
 	/* reference frequency */
@@ -255,7 +262,6 @@ struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
 	u16 lut_r[256], lut_g[256], lut_b[256];
-	u16 lut_r_copy[256], lut_g_copy[256], lut_b_copy[256];
 	bool enabled;
 	bool can_tile;
 	uint32_t crtc_offset;
@@ -517,13 +523,12 @@ extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
 extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);
-extern void radeon_crtc_save_lut(struct drm_crtc *crtc);
-extern void radeon_crtc_restore_lut(struct drm_crtc *crtc);
 extern int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				   struct drm_framebuffer *old_fb);
 extern int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
-					 int x, int y, int enter);
+					 int x, int y,
+					 enum mode_set_atomic state);
 extern int atombios_crtc_mode_set(struct drm_crtc *crtc,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode,
@@ -535,7 +540,8 @@ extern int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				 struct drm_framebuffer *old_fb);
 extern int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 				       struct drm_framebuffer *fb,
-				       int x, int y, int enter);
+				       int x, int y,
+				       enum mode_set_atomic state);
 extern int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 				   struct drm_framebuffer *fb,
 				   int x, int y, int atomic);

@@ -90,6 +90,15 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
+static void ttm_bo_man_put_node_locked(struct ttm_mem_type_manager *man,
+				       struct ttm_mem_reg *mem)
+{
+	if (mem->mm_node) {
+		drm_mm_put_block(mem->mm_node);
+		mem->mm_node = NULL;
+	}
+}
+
 static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
 			   unsigned long p_size)
 {
@@ -143,6 +152,7 @@ const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
 	ttm_bo_man_takedown,
 	ttm_bo_man_get_node,
 	ttm_bo_man_put_node,
+	ttm_bo_man_put_node_locked,
 	ttm_bo_man_debug
 };
 EXPORT_SYMBOL(ttm_bo_manager_func);

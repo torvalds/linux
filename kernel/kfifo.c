@@ -365,8 +365,6 @@ static unsigned int setup_sgl(struct __kfifo *fifo, struct scatterlist *sgl,
 	n = setup_sgl_buf(sgl, fifo->data + off, nents, l);
 	n += setup_sgl_buf(sgl + n, fifo->data, nents - n, len - l);
 
-	if (n)
-		sg_mark_end(sgl + n - 1);
 	return n;
 }
 

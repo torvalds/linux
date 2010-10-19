@@ -138,38 +138,6 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 		legacy_crtc_load_lut(crtc);
 }
 
-void radeon_crtc_save_lut(struct drm_crtc *crtc)
-{
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i;
-
-	if (!crtc->enabled)
-		return;
-
-	for (i = 0; i < 256; i++) {
-		radeon_crtc->lut_r_copy[i] = radeon_crtc->lut_r[i];
-		radeon_crtc->lut_g_copy[i] = radeon_crtc->lut_g[i];
-		radeon_crtc->lut_b_copy[i] = radeon_crtc->lut_b[i];
-	}
-}
-
-void radeon_crtc_restore_lut(struct drm_crtc *crtc)
-{
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i;
-
-	if (!crtc->enabled)
-		return;
-
-	for (i = 0; i < 256; i++) {
-		radeon_crtc->lut_r[i] = radeon_crtc->lut_r_copy[i];
-		radeon_crtc->lut_g[i] = radeon_crtc->lut_g_copy[i];
-		radeon_crtc->lut_b[i] = radeon_crtc->lut_b_copy[i];
-	}
-
-	radeon_crtc_load_lut(crtc);
-}
-
 /** Sets the color ramps on behalf of fbcon */
 void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			      u16 blue, int regno)
@@ -611,8 +579,7 @@ void radeon_compute_pll(struct radeon_pll *pll,
 					if ((best_vco == 0 && error < best_error) ||
 					    (best_vco != 0 &&
 					     ((best_error > 100 && error < best_error - 100) ||
-					      (abs(error - best_error) < 100 &&
-					       vco_diff < best_vco_diff)))) {
+					      (abs(error - best_error) < 100 && vco_diff < best_vco_diff)))) {
 						best_post_div = post_div;
 						best_ref_div = ref_div;
 						best_feedback_div = feedback_div;
@@ -620,6 +587,29 @@ void radeon_compute_pll(struct radeon_pll *pll,
 						best_freq = current_freq;
 						best_error = error;
 						best_vco_diff = vco_diff;
+					} else if (current_freq == freq) {
+						if (best_freq == -1) {
+							best_post_div = post_div;
+							best_ref_div = ref_div;
+							best_feedback_div = feedback_div;
+							best_frac_feedback_div = frac_feedback_div;
+							best_freq = current_freq;
+							best_error = error;
+							best_vco_diff = vco_diff;
+						} else if (((pll->flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
+							best_post_div = post_div;
+							best_ref_div = ref_div;
+							best_feedback_div = feedback_div;
+							best_frac_feedback_div = frac_feedback_div;
+							best_freq = current_freq;
+							best_error = error;
+							best_vco_diff = vco_diff;
+						}
 					}
 					if (current_freq < freq)
 						min_frac_feed_div = frac_feedback_div + 1;

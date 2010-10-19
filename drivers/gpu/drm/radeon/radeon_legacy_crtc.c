@@ -353,13 +353,8 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
-				int x, int y, int enter)
+				int x, int y, enum mode_set_atomic state)
 {
-	if (enter)
-		radeon_crtc_save_lut(crtc);
-	else
-		radeon_crtc_restore_lut(crtc);
-
 	return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
 }
 
@@ -744,6 +739,11 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		pll = &rdev->clock.p1pll;
 
 	pll->flags = RADEON_PLL_LEGACY;
+
+	if (mode->clock > 200000) /* range limits??? */
+		pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
+	else
+		pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {

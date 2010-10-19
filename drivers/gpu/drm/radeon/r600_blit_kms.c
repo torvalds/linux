@@ -545,6 +545,7 @@ done:
 		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
 		return r;
 	}
+	rdev->mc.active_vram_size = rdev->mc.real_vram_size;
 	return 0;
 }
 
@@ -552,6 +553,7 @@ void r600_blit_fini(struct radeon_device *rdev)
 {
 	int r;
 
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	if (rdev->r600_blit.shader_obj == NULL)
 		return;
 	/* If we can't reserve the bo, unref should be enough to destroy
@@ -661,8 +663,8 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 			int src_x = src_gpu_addr & 255;
 			int dst_x = dst_gpu_addr & 255;
 			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255;
-			dst_gpu_addr = dst_gpu_addr & ~255;
+			src_gpu_addr = src_gpu_addr & ~255ULL;
+			dst_gpu_addr = dst_gpu_addr & ~255ULL;
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
@@ -744,8 +746,8 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 			int src_x = (src_gpu_addr & 255);
 			int dst_x = (dst_gpu_addr & 255);
 			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255;
-			dst_gpu_addr = dst_gpu_addr & ~255;
+			src_gpu_addr = src_gpu_addr & ~255ULL;
+			dst_gpu_addr = dst_gpu_addr & ~255ULL;
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);

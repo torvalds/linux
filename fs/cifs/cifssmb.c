@@ -232,7 +232,7 @@ static int
 small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 		void **request_buf)
 {
-	int rc = 0;
+	int rc;
 
 	rc = cifs_reconnect_tcon(tcon, smb_command);
 	if (rc)
@@ -250,7 +250,7 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	if (tcon != NULL)
 		cifs_stats_inc(&tcon->num_smbs_sent);
 
-	return rc;
+	return 0;
 }
 
 int
@@ -281,16 +281,9 @@ small_smb_init_no_tc(const int smb_command, const int wct,
 
 /* If the return code is zero, this function must fill in request_buf pointer */
 static int
-smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
-	 void **request_buf /* returned */ ,
-	 void **response_buf /* returned */ )
+__smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
+			void **request_buf, void **response_buf)
 {
-	int rc = 0;
-
-	rc = cifs_reconnect_tcon(tcon, smb_command);
-	if (rc)
-		return rc;
-
 	*request_buf = cifs_buf_get();
 	if (*request_buf == NULL) {
 		/* BB should we add a retry in here if not a writepage? */
@@ -309,7 +302,31 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	if (tcon != NULL)
 		cifs_stats_inc(&tcon->num_smbs_sent);
 
-	return rc;
+	return 0;
+}
+
+/* If the return code is zero, this function must fill in request_buf pointer */
+static int
+smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
+	 void **request_buf, void **response_buf)
+{
+	int rc;
+
+	rc = cifs_reconnect_tcon(tcon, smb_command);
+	if (rc)
+		return rc;
+
+	return __smb_init(smb_command, wct, tcon, request_buf, response_buf);
+}
+
+static int
+smb_init_no_reconnect(int smb_command, int wct, struct cifsTconInfo *tcon,
+			void **request_buf, void **response_buf)
+{
+	if (tcon->ses->need_reconnect || tcon->need_reconnect)
+		return -EHOSTDOWN;
+
+	return __smb_init(smb_command, wct, tcon, request_buf, response_buf);
 }
 
 static int validate_t2(struct smb_t2_rsp *pSMB)
@@ -4534,8 +4551,8 @@ CIFSSMBQFSUnixInfo(const int xid, struct cifsTconInfo *tcon)
 
 	cFYI(1, "In QFSUnixInfo");
 QFSUnixRetry:
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, tcon,
+				   (void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
 
@@ -4604,8 +4621,8 @@ CIFSSMBSetFSUnixInfo(const int xid, struct cifsTconInfo *tcon, __u64 cap)
 	cFYI(1, "In SETFSUnixInfo");
 SETFSUnixRetry:
 	/* BB switch to small buf init to save memory */
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, tcon,
+					(void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
 
