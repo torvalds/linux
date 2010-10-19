@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/memblock.h>
 
 #include <asm/hardware/cache-l2x0.h>
 
@@ -32,6 +33,17 @@
 #include "board.h"
 #include "clock.h"
 #include "fuse.h"
+
+unsigned long tegra_bootloader_fb_start;
+unsigned long tegra_bootloader_fb_size;
+unsigned long tegra_fb_start;
+unsigned long tegra_fb_size;
+unsigned long tegra_fb2_start;
+unsigned long tegra_fb2_size;
+unsigned long tegra_carveout_start;
+unsigned long tegra_carveout_size;
+unsigned long tegra_lp0_vec_start;
+unsigned long tegra_lp0_vec_size;
 
 void (*tegra_reset)(char mode, const char *cmd);
 
@@ -83,4 +95,92 @@ void __init tegra_common_init(void)
 #ifdef CONFIG_TEGRA_SYSTEM_DMA
 	tegra_dma_init();
 #endif
+}
+
+static int __init tegra_bootloader_fb_arg(char *options)
+{
+	char *p = options;
+
+	tegra_bootloader_fb_size = memparse(p, &p);
+	if (*p == '@')
+		tegra_bootloader_fb_start = memparse(p+1, &p);
+
+	pr_info("Found tegra_fbmem: %08lx@%08lx\n",
+		tegra_bootloader_fb_size, tegra_bootloader_fb_start);
+
+	return 0;
+}
+early_param("tegra_fbmem", tegra_bootloader_fb_arg);
+
+static int __init tegra_lp0_vec_arg(char *options)
+{
+	char *p = options;
+
+	tegra_lp0_vec_size = memparse(p, &p);
+	if (*p == '@')
+		tegra_lp0_vec_start = memparse(p+1, &p);
+
+	return 0;
+}
+early_param("lp0_vec", tegra_lp0_vec_arg);
+
+void __init tegra_reserve(unsigned long carveout_size, unsigned long fb_size,
+	unsigned long fb2_size)
+{
+	if (tegra_lp0_vec_size)
+		if (memblock_reserve(tegra_lp0_vec_start, tegra_lp0_vec_size))
+			pr_err("Failed to reserve lp0_vec %08lx@%08lx\n",
+				tegra_lp0_vec_size, tegra_lp0_vec_start);
+
+
+	tegra_carveout_start = memblock_end_of_DRAM() - carveout_size;
+	if (memblock_remove(tegra_carveout_start, carveout_size))
+		pr_err("Failed to remove carveout %08lx@%08lx from memory "
+			"map\n",
+			tegra_carveout_start, carveout_size);
+	else
+		tegra_carveout_size = carveout_size;
+
+	tegra_fb2_start = memblock_end_of_DRAM() - fb2_size;
+	if (memblock_remove(tegra_fb2_start, fb2_size))
+		pr_err("Failed to remove second framebuffer %08lx@%08lx from "
+			"memory map\n",
+			tegra_fb2_start, fb2_size);
+	else
+		tegra_fb2_size = fb2_size;
+
+	tegra_fb_start = memblock_end_of_DRAM() - fb_size;
+	if (memblock_remove(tegra_fb_start, fb_size))
+		pr_err("Failed to remove framebuffer %08lx@%08lx from memory "
+			"map\n",
+			tegra_fb_start, fb_size);
+	else
+		tegra_fb_size = fb_size;
+
+	/*
+	 * TODO: We should copy the bootloader's framebuffer to the framebuffer
+	 * allocated above, and then free this one.
+	 */
+	if (tegra_bootloader_fb_size)
+		if (memblock_reserve(tegra_bootloader_fb_start,
+				tegra_bootloader_fb_size))
+			pr_err("Failed to reserve lp0_vec %08lx@%08lx\n",
+				tegra_lp0_vec_size, tegra_lp0_vec_start);
+
+	pr_info("Tegra reserved memory:\n"
+		"LP0:                    %08lx - %08lx\n"
+		"Bootloader framebuffer: %08lx - %08lx\n"
+		"Framebuffer:            %08lx - %08lx\n"
+		"2nd Framebuffer:         %08lx - %08lx\n"
+		"Carveout:               %08lx - %08lx\n",
+		tegra_lp0_vec_start,
+		tegra_lp0_vec_start + tegra_lp0_vec_size - 1,
+		tegra_bootloader_fb_start,
+		tegra_bootloader_fb_start + tegra_bootloader_fb_size - 1,
+		tegra_fb_start,
+		tegra_fb_start + tegra_fb_size - 1,
+		tegra_fb2_start,
+		tegra_fb2_start + tegra_fb2_size - 1,
+		tegra_carveout_start,
+		tegra_carveout_start + tegra_carveout_size - 1);
 }

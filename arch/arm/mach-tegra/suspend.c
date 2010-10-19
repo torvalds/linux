@@ -49,6 +49,7 @@
 #include <mach/legacy_irq.h>
 #include <mach/suspend.h>
 
+#include "board.h"
 #include "power.h"
 
 /* NOTE: only add elements to the end of this structure, since the assembly
@@ -543,21 +544,6 @@ static struct platform_suspend_ops tegra_suspend_ops = {
 };
 #endif
 
-static unsigned long lp0_vec_orig_start = 0;
-static unsigned long lp0_vec_orig_size = 0;
-
-static int __init tegra_lp0_vec_arg(char *options)
-{
-	char *p = options;
-
-	lp0_vec_orig_size = memparse(p, &p);
-	if (*p == '@')
-		lp0_vec_orig_start = memparse(p+1, &p);
-
-	return 0;
-}
-__setup("lp0_vec=", tegra_lp0_vec_arg);
-
 void __init tegra_init_suspend(struct tegra_suspend_platform_data *plat)
 {
 	u32 reg, mode;
@@ -568,32 +554,9 @@ void __init tegra_init_suspend(struct tegra_suspend_platform_data *plat)
 	(void)reg;
 	(void)mode;
 
-	if (plat->suspend_mode == TEGRA_SUSPEND_LP0 &&
-			lp0_vec_orig_size && lp0_vec_orig_start) {
-		unsigned char *reloc_lp0;
-		unsigned long tmp;
-		void __iomem *orig;
-		reloc_lp0 = kmalloc(lp0_vec_orig_size+L1_CACHE_BYTES-1,
-				    GFP_KERNEL);
-		WARN_ON(!reloc_lp0);
-		if (!reloc_lp0)
-			goto out;
-
-		orig = ioremap(lp0_vec_orig_start, lp0_vec_orig_size);
-		WARN_ON(!orig);
-		if (!orig) {
-			kfree(reloc_lp0);
-			goto out;
-		}
-		tmp = (unsigned long) reloc_lp0;
-		tmp = (tmp + L1_CACHE_BYTES - 1) & ~(L1_CACHE_BYTES-1);
-		reloc_lp0 = (unsigned char *)tmp;
-		memcpy(reloc_lp0, orig, lp0_vec_orig_size);
-		iounmap(orig);
-		wb0_restore = virt_to_phys(reloc_lp0);
-	}
-out:
-	if (plat->suspend_mode == TEGRA_SUSPEND_LP0 && !wb0_restore) {
+	if (plat->suspend_mode == TEGRA_SUSPEND_LP0 && tegra_lp0_vec_size) {
+		wb0_restore = tegra_lp0_vec_start;
+	} else {
 		pr_warning("Suspend mode LP0 requested, but missing lp0_vec\n");
 		pr_warning("Disabling LP0\n");
 		plat->suspend_mode = TEGRA_SUSPEND_LP1;
