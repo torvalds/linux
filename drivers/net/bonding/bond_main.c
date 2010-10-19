@@ -2082,7 +2082,6 @@ static int bond_release_all(struct net_device *bond_dev)
 	struct net_device *slave_dev;
 	struct sockaddr addr;
 
-	block_netpoll_tx();
 	write_lock_bh(&bond->lock);
 
 	netif_carrier_off(bond_dev);
@@ -2181,8 +2180,6 @@ static int bond_release_all(struct net_device *bond_dev)
 
 out:
 	write_unlock_bh(&bond->lock);
-	unblock_netpoll_tx();
-
 	return 0;
 }
 
