@@ -12,7 +12,11 @@ musb_hdrc-$(CONFIG_ARCH_DAVINCI_DMx)		+= davinci.o
 musb_hdrc-$(CONFIG_ARCH_DAVINCI_DA8XX)		+= da8xx.o
 musb_hdrc-$(CONFIG_USB_TUSB6010)		+= tusb6010.o
 musb_hdrc-$(CONFIG_ARCH_OMAP2430)		+= omap2430.o
-musb_hdrc-$(CONFIG_ARCH_OMAP3430)		+= omap2430.o
+ifeq ($(CONFIG_USB_MUSB_AM35X),y)
+	musb_hdrc-$(CONFIG_ARCH_OMAP3430)	+= am35x.o
+else
+	musb_hdrc-$(CONFIG_ARCH_OMAP3430)	+= omap2430.o
+endif
 musb_hdrc-$(CONFIG_ARCH_OMAP4)			+= omap2430.o
 musb_hdrc-$(CONFIG_BF54x)			+= blackfin.o
 musb_hdrc-$(CONFIG_BF52x)			+= blackfin.o

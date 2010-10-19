@@ -330,6 +330,7 @@ struct musb {
 	/* device lock */
 	spinlock_t		lock;
 	struct clk		*clock;
+	struct clk		*phy_clock;
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
 	u16			hwvers;
