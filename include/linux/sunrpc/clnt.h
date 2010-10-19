@@ -30,7 +30,7 @@ struct rpc_inode;
  * The high-level client handle
  */
 struct rpc_clnt {
-	struct kref		cl_kref;	/* Number of references */
+	atomic_t		cl_count;	/* Number of references */
 	struct list_head	cl_clients;	/* Global list of clients */
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */

@@ -828,6 +828,7 @@ config PATA_SAMSUNG_CF
 config PATA_WINBOND_VLB
 	tristate "Winbond W83759A VLB PATA support (Experimental)"
 	depends on ISA && EXPERIMENTAL
+	select PATA_LEGACY
 	help
 	  Support for the Winbond W83759A controller on Vesa Local Bus
 	  systems.

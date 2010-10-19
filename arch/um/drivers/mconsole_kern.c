@@ -690,7 +690,7 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 static void sysrq_proc(void *arg)
 {
 	char *op = arg;
-	handle_sysrq(*op, NULL);
+	handle_sysrq(*op);
 }
 
 void mconsole_sysrq(struct mc_request *req)

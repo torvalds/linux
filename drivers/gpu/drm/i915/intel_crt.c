@@ -188,7 +188,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 	if (wait_for((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
 		     1000, 1))
-		DRM_ERROR("timed out waiting for FORCE_TRIGGER");
+		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 
 	if (turn_off_dac) {
 		I915_WRITE(PCH_ADPA, temp);
@@ -245,7 +245,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 		if (wait_for((I915_READ(PORT_HOTPLUG_EN) &
 			      CRT_HOTPLUG_FORCE_DETECT) == 0,
 			     1000, 1))
-			DRM_ERROR("timed out waiting for FORCE_DETECT to go off");
+			DRM_DEBUG_KMS("timed out waiting for FORCE_DETECT to go off");
 	}
 
 	stat = I915_READ(PORT_HOTPLUG_STAT);
@@ -400,7 +400,8 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 	return status;
 }
 
-static enum drm_connector_status intel_crt_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_crt_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
@@ -418,6 +419,9 @@ static enum drm_connector_status intel_crt_detect(struct drm_connector *connecto
 
 	if (intel_crt_detect_ddc(encoder))
 		return connector_status_connected;
+
+	if (!force)
+		return connector->status;
 
 	/* for pre-945g platforms use load detect */
 	if (encoder->crtc && encoder->crtc->enabled) {

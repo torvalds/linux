@@ -30,6 +30,7 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 {
 	uint32_t vp_id;
 	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
 
 	/* Find an empty slot and assign an vp_id */
 	mutex_lock(&ha->vport_lock);
@@ -44,7 +45,11 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	set_bit(vp_id, ha->vp_idx_map);
 	ha->num_vhosts++;
 	vha->vp_idx = vp_id;
+
+	spin_lock_irqsave(&ha->vport_slock, flags);
 	list_add_tail(&vha->list, &ha->vp_list);
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 	mutex_unlock(&ha->vport_lock);
 	return vp_id;
 }
@@ -54,12 +59,31 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 {
 	uint16_t vp_id;
 	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags = 0;
 
 	mutex_lock(&ha->vport_lock);
+	/*
+	 * Wait for all pending activities to finish before removing vport from
+	 * the list.
+	 * Lock needs to be held for safe removal from the list (it
+	 * ensures no active vp_list traversal while the vport is removed
+	 * from the queue)
+	 */
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	while (atomic_read(&vha->vref_count)) {
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+		msleep(500);
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+	}
+	list_del(&vha->list);
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 	vp_id = vha->vp_idx;
 	ha->num_vhosts--;
 	clear_bit(vp_id, ha->vp_idx_map);
-	list_del(&vha->list);
+
 	mutex_unlock(&ha->vport_lock);
 }
 
@@ -68,12 +92,17 @@ qla24xx_find_vhost_by_name(struct qla_hw_data *ha, uint8_t *port_name)
 {
 	scsi_qla_host_t *vha;
 	struct scsi_qla_host *tvha;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ha->vport_slock, flags);
 	/* Locate matching device in database. */
 	list_for_each_entry_safe(vha, tvha, &ha->vp_list, list) {
-		if (!memcmp(port_name, vha->port_name, WWN_SIZE))
+		if (!memcmp(port_name, vha->port_name, WWN_SIZE)) {
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
 			return vha;
+		}
 	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 	return NULL;
 }
 
@@ -93,6 +122,12 @@ qla24xx_find_vhost_by_name(struct qla_hw_data *ha, uint8_t *port_name)
 static void
 qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 {
+	/*
+	 * !!! NOTE !!!
+	 * This function, if called in contexts other than vp create, disable
+	 * or delete, please make sure this is synchronized with the
+	 * delete thread.
+	 */
 	fc_port_t *fcport;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
@@ -100,7 +135,6 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 		    "loop_id=0x%04x :%x\n",
 		    vha->host_no, fcport->loop_id, fcport->vp_idx));
 
-		atomic_set(&fcport->state, FCS_DEVICE_DEAD);
 		qla2x00_mark_device_lost(vha, fcport, 0, 0);
 		atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	}
@@ -194,12 +228,17 @@ qla24xx_configure_vp(scsi_qla_host_t *vha)
 void
 qla2x00_alert_all_vps(struct rsp_que *rsp, uint16_t *mb)
 {
-	scsi_qla_host_t *vha, *tvha;
+	scsi_qla_host_t *vha;
 	struct qla_hw_data *ha = rsp->hw;
 	int i = 0;
+	unsigned long flags;
 
-	list_for_each_entry_safe(vha, tvha, &ha->vp_list, list) {
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vha, &ha->vp_list, list) {
 		if (vha->vp_idx) {
+			atomic_inc(&vha->vref_count);
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 			switch (mb[0]) {
 			case MBA_LIP_OCCURRED:
 			case MBA_LOOP_UP:
@@ -215,9 +254,13 @@ qla2x00_alert_all_vps(struct rsp_que *rsp, uint16_t *mb)
 				qla2x00_async_event(vha, rsp, mb);
 				break;
 			}
+
+			spin_lock_irqsave(&ha->vport_slock, flags);
+			atomic_dec(&vha->vref_count);
 		}
 		i++;
 	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
 
 int
@@ -297,7 +340,7 @@ qla2x00_do_dpc_all_vps(scsi_qla_host_t *vha)
 	int ret;
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *vp;
-	struct scsi_qla_host *tvp;
+	unsigned long flags = 0;
 
 	if (vha->vp_idx)
 		return;
@@ -309,10 +352,19 @@ qla2x00_do_dpc_all_vps(scsi_qla_host_t *vha)
 	if (!(ha->current_topology & ISP_CFG_F))
 		return;
 
-	list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
-		if (vp->vp_idx)
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		if (vp->vp_idx) {
+			atomic_inc(&vp->vref_count);
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 			ret = qla2x00_do_dpc_vp(vp);
+
+			spin_lock_irqsave(&ha->vport_slock, flags);
+			atomic_dec(&vp->vref_count);
+		}
 	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
 
 int

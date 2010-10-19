@@ -350,6 +350,7 @@ void sym_calc_value(struct symbol *sym)
 				}
 			}
 		calc_newval:
+#if 0
 			if (sym->dir_dep.tri == no && sym->rev_dep.tri != no) {
 				fprintf(stderr, "warning: (");
 				expr_fprint(sym->rev_dep.expr, stderr);
@@ -358,6 +359,7 @@ void sym_calc_value(struct symbol *sym)
 				expr_fprint(sym->dir_dep.expr, stderr);
 				fprintf(stderr, ")\n");
 			}
+#endif
 			newval.tri = EXPR_OR(newval.tri, sym->rev_dep.tri);
 		}
 		if (newval.tri == mod && sym_get_type(sym) == S_BOOLEAN)
@@ -937,6 +939,8 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 		sym = stack->sym;
 		next_sym = stack->next ? stack->next->sym : last_sym;
 		prop = stack->prop;
+		if (prop == NULL)
+			prop = stack->sym->prop;
 
 		/* for choice values find the menu entry (used below) */
 		if (sym_is_choice(sym) || sym_is_choice_value(sym)) {

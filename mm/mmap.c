@@ -1716,9 +1716,6 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
  * PA-RISC uses this for its stack; IA64 for its Register Backing Store.
  * vma is the last one with address > vma->vm_end.  Have to extend vma.
  */
-#ifndef CONFIG_IA64
-static
-#endif
 int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 {
 	int error;
@@ -2012,6 +2009,7 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 			removed_exe_file_vma(mm);
 		fput(new->vm_file);
 	}
+	unlink_anon_vmas(new);
  out_free_mpol:
 	mpol_put(pol);
  out_free_vma:

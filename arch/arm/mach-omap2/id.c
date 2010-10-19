@@ -284,8 +284,8 @@ static void __init omap3_check_revision(void)
 		default:
 			omap_revision =  OMAP3630_REV_ES1_2;
 			omap_chip.oc |= CHIP_IS_OMAP3630ES1_2;
-			break;
 		}
+		break;
 	default:
 		/* Unknown default to latest silicon rev as default*/
 		omap_revision =  OMAP3630_REV_ES1_2;

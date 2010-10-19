@@ -848,6 +848,15 @@ static int b44_poll(struct napi_struct *napi, int budget)
 		b44_tx(bp);
 		/* spin_unlock(&bp->tx_lock); */
 	}
+	if (bp->istat & ISTAT_RFO) {	/* fast recovery, in ~20msec */
+		bp->istat &= ~ISTAT_RFO;
+		b44_disable_ints(bp);
+		ssb_device_enable(bp->sdev, 0); /* resets ISTAT_RFO */
+		b44_init_rings(bp);
+		b44_init_hw(bp, B44_FULL_RESET_SKIP_PHY);
+		netif_wake_queue(bp->dev);
+	}
+
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	work_done = 0;
@@ -2161,8 +2170,6 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	dev->irq = sdev->irq;
 	SET_ETHTOOL_OPS(dev, &b44_ethtool_ops);
 
-	netif_carrier_off(dev);
-
 	err = ssb_bus_powerup(sdev->bus, 0);
 	if (err) {
 		dev_err(sdev->dev,
@@ -2203,6 +2210,8 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 		dev_err(sdev->dev, "Cannot register net device, aborting\n");
 		goto err_out_powerdown;
 	}
+
+	netif_carrier_off(dev);
 
 	ssb_set_drvdata(sdev, dev);
 

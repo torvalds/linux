@@ -1248,6 +1248,7 @@ int r600_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -1917,6 +1918,7 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
  */
 void r600_cp_stop(struct radeon_device *rdev)
 {
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
 }
 
@@ -2119,10 +2121,7 @@ int r600_cp_start(struct radeon_device *rdev)
 	}
 	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
 	radeon_ring_write(rdev, 0x1);
-	if (rdev->family >= CHIP_CEDAR) {
-		radeon_ring_write(rdev, 0x0);
-		radeon_ring_write(rdev, rdev->config.evergreen.max_hw_contexts - 1);
-	} else if (rdev->family >= CHIP_RV770) {
+	if (rdev->family >= CHIP_RV770) {
 		radeon_ring_write(rdev, 0x0);
 		radeon_ring_write(rdev, rdev->config.rv770.max_hw_contexts - 1);
 	} else {
@@ -2489,11 +2488,6 @@ int r600_resume(struct radeon_device *rdev)
 	 */
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
-	/* Initialize clocks */
-	r = radeon_clocks_init(rdev);
-	if (r) {
-		return r;
-	}
 
 	r = r600_startup(rdev);
 	if (r) {
@@ -2586,9 +2580,6 @@ int r600_init(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
-	r = radeon_clocks_init(rdev);
-	if (r)
-		return r;
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
@@ -2663,7 +2654,6 @@ void r600_fini(struct radeon_device *rdev)
 	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_clocks_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
@@ -2741,7 +2731,7 @@ int r600_ib_test(struct radeon_device *rdev)
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test succeeded in %u usecs\n", i);
 	} else {
-		DRM_ERROR("radeon: ib test failed (sracth(0x%04X)=0x%08X)\n",
+		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
@@ -2922,7 +2912,7 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 {
 	u32 tmp;
 
-	WREG32(CP_INT_CNTL, 0);
+	WREG32(CP_INT_CNTL, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 	WREG32(GRBM_INT_CNTL, 0);
 	WREG32(DxMODE_INT_MASK, 0);
 	if (ASIC_IS_DCE3(rdev)) {
@@ -3540,8 +3530,9 @@ void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
 	 */
-	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
-		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
+	    rdev->vram_scratch.ptr) {
+		void __iomem *ptr = (void *)rdev->vram_scratch.ptr;
 		u32 tmp;
 
 		WREG32(HDP_DEBUG1, 0);

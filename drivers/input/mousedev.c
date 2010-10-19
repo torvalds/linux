@@ -138,8 +138,8 @@ static void mousedev_touchpad_event(struct input_dev *dev,
 
 		fx(0) = value;
 		if (mousedev->touch && mousedev->pkt_count >= 2) {
-			size = input_abs_get_min(dev, ABS_X) -
-					input_abs_get_max(dev, ABS_X);
+			size = input_abs_get_max(dev, ABS_X) -
+					input_abs_get_min(dev, ABS_X);
 			if (size == 0)
 				size = 256 * 2;
 
@@ -155,8 +155,8 @@ static void mousedev_touchpad_event(struct input_dev *dev,
 		fy(0) = value;
 		if (mousedev->touch && mousedev->pkt_count >= 2) {
 			/* use X size for ABS_Y to keep the same scale */
-			size = input_abs_get_min(dev, ABS_X) -
-					input_abs_get_max(dev, ABS_X);
+			size = input_abs_get_max(dev, ABS_X) -
+					input_abs_get_min(dev, ABS_X);
 			if (size == 0)
 				size = 256 * 2;
 

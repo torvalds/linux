@@ -3002,7 +3002,8 @@ _xfs_log_force(
 
 	XFS_STATS_INC(xs_log_force);
 
-	xlog_cil_push(log, 1);
+	if (log->l_cilp)
+		xlog_cil_force(log);
 
 	spin_lock(&log->l_icloglock);
 
@@ -3154,7 +3155,7 @@ _xfs_log_force_lsn(
 	XFS_STATS_INC(xs_log_force);
 
 	if (log->l_cilp) {
-		lsn = xlog_cil_push_lsn(log, lsn);
+		lsn = xlog_cil_force_lsn(log, lsn);
 		if (lsn == NULLCOMMITLSN)
 			return 0;
 	}
@@ -3711,7 +3712,7 @@ xfs_log_force_umount(
 	 * call below.
 	 */
 	if (!logerror && (mp->m_flags & XFS_MOUNT_DELAYLOG))
-		xlog_cil_push(log, 1);
+		xlog_cil_force(log);
 
 	/*
 	 * We must hold both the GRANT lock and the LOG lock,

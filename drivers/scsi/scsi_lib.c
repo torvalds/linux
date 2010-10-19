@@ -1011,8 +1011,8 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 
 err_exit:
 	scsi_release_buffers(cmd);
-	scsi_put_command(cmd);
 	cmd->request->special = NULL;
+	scsi_put_command(cmd);
 	return error;
 }
 EXPORT_SYMBOL(scsi_init_io);

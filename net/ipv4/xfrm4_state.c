@@ -21,21 +21,25 @@ static int xfrm4_init_flags(struct xfrm_state *x)
 }
 
 static void
-__xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
-		     struct xfrm_tmpl *tmpl,
-		     xfrm_address_t *daddr, xfrm_address_t *saddr)
+__xfrm4_init_tempsel(struct xfrm_selector *sel, struct flowi *fl)
 {
-	x->sel.daddr.a4 = fl->fl4_dst;
-	x->sel.saddr.a4 = fl->fl4_src;
-	x->sel.dport = xfrm_flowi_dport(fl);
-	x->sel.dport_mask = htons(0xffff);
-	x->sel.sport = xfrm_flowi_sport(fl);
-	x->sel.sport_mask = htons(0xffff);
-	x->sel.family = AF_INET;
-	x->sel.prefixlen_d = 32;
-	x->sel.prefixlen_s = 32;
-	x->sel.proto = fl->proto;
-	x->sel.ifindex = fl->oif;
+	sel->daddr.a4 = fl->fl4_dst;
+	sel->saddr.a4 = fl->fl4_src;
+	sel->dport = xfrm_flowi_dport(fl);
+	sel->dport_mask = htons(0xffff);
+	sel->sport = xfrm_flowi_sport(fl);
+	sel->sport_mask = htons(0xffff);
+	sel->family = AF_INET;
+	sel->prefixlen_d = 32;
+	sel->prefixlen_s = 32;
+	sel->proto = fl->proto;
+	sel->ifindex = fl->oif;
+}
+
+static void
+xfrm4_init_temprop(struct xfrm_state *x, struct xfrm_tmpl *tmpl,
+		   xfrm_address_t *daddr, xfrm_address_t *saddr)
+{
 	x->id = tmpl->id;
 	if (x->id.daddr.a4 == 0)
 		x->id.daddr.a4 = daddr->a4;
@@ -70,6 +74,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.owner			= THIS_MODULE,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
+	.init_temprop		= xfrm4_init_temprop,
 	.output			= xfrm4_output,
 	.extract_input		= xfrm4_extract_input,
 	.extract_output		= xfrm4_extract_output,

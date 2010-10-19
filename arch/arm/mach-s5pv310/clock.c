@@ -30,6 +30,16 @@ static struct clk clk_sclk_hdmi27m = {
 	.rate		= 27000000,
 };
 
+static int s5pv310_clksrc_mask_peril0_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLKSRC_MASK_PERIL0, clk, enable);
+}
+
+static int s5pv310_clk_ip_peril_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLKGATE_IP_PERIL, clk, enable);
+}
+
 /* Core list of CMU_CPU side */
 
 static struct clksrc_clk clk_mout_apll = {
@@ -39,6 +49,14 @@ static struct clksrc_clk clk_mout_apll = {
 	},
 	.sources	= &clk_src_apll,
 	.reg_src	= { .reg = S5P_CLKSRC_CPU, .shift = 0, .size = 1 },
+};
+
+static struct clksrc_clk clk_sclk_apll = {
+	.clk	= {
+		.name		= "sclk_apll",
+		.id		= -1,
+		.parent		= &clk_mout_apll.clk,
+	},
 	.reg_div	= { .reg = S5P_CLKDIV_CPU, .shift = 24, .size = 3 },
 };
 
@@ -61,7 +79,7 @@ static struct clksrc_clk clk_mout_mpll = {
 };
 
 static struct clk *clkset_moutcore_list[] = {
-	[0] = &clk_mout_apll.clk,
+	[0] = &clk_sclk_apll.clk,
 	[1] = &clk_mout_mpll.clk,
 };
 
@@ -154,7 +172,7 @@ static struct clksrc_clk clk_pclk_dbg = {
 
 static struct clk *clkset_corebus_list[] = {
 	[0] = &clk_mout_mpll.clk,
-	[1] = &clk_mout_apll.clk,
+	[1] = &clk_sclk_apll.clk,
 };
 
 static struct clksrc_sources clkset_mout_corebus = {
@@ -220,7 +238,7 @@ static struct clksrc_clk clk_pclk_acp = {
 
 static struct clk *clkset_aclk_top_list[] = {
 	[0] = &clk_mout_mpll.clk,
-	[1] = &clk_mout_apll.clk,
+	[1] = &clk_sclk_apll.clk,
 };
 
 static struct clksrc_sources clkset_aclk_200 = {
@@ -321,11 +339,6 @@ static struct clksrc_clk clk_sclk_vpll = {
 	.reg_src	= { .reg = S5P_CLKSRC_TOP0, .shift = 8, .size = 1 },
 };
 
-static int s5pv310_clk_ip_peril_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(S5P_CLKGATE_IP_PERIL, clk, enable);
-}
-
 static struct clk init_clocks_disable[] = {
 	{
 		.name		= "timers",
@@ -337,7 +350,37 @@ static struct clk init_clocks_disable[] = {
 };
 
 static struct clk init_clocks[] = {
-	/* Nothing here yet */
+	{
+		.name		= "uart",
+		.id		= 0,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 0),
+	}, {
+		.name		= "uart",
+		.id		= 1,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 1),
+	}, {
+		.name		= "uart",
+		.id		= 2,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 2),
+	}, {
+		.name		= "uart",
+		.id		= 3,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 3),
+	}, {
+		.name		= "uart",
+		.id		= 4,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "uart",
+		.id		= 5,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 5),
+	}
 };
 
 static struct clk *clkset_group_list[] = {
@@ -359,8 +402,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk	= {
 			.name		= "uclk1",
 			.id		= 0,
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
 			.ctrlbit	= (1 << 0),
-			.enable		= s5pv310_clk_ip_peril_ctrl,
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 0, .size = 4 },
@@ -369,8 +412,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "uclk1",
 			.id		= 1,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
-			.ctrlbit	= (1 << 1),
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
+			.ctrlbit	= (1 << 4),
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 4, .size = 4 },
@@ -379,8 +422,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "uclk1",
 			.id		= 2,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
-			.ctrlbit	= (1 << 2),
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
+			.ctrlbit	= (1 << 8),
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 8, .size = 4 },
@@ -389,8 +432,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "uclk1",
 			.id		= 3,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
-			.ctrlbit	= (1 << 3),
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
+			.ctrlbit	= (1 << 12),
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 12, .size = 4 },
@@ -399,7 +442,7 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "sclk_pwm",
 			.id		= -1,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
 			.ctrlbit	= (1 << 24),
 		},
 		.sources = &clkset_group,
@@ -411,6 +454,7 @@ static struct clksrc_clk clksrcs[] = {
 /* Clock initialization code */
 static struct clksrc_clk *sysclks[] = {
 	&clk_mout_apll,
+	&clk_sclk_apll,
 	&clk_mout_epll,
 	&clk_mout_mpll,
 	&clk_moutcore,
@@ -470,11 +514,11 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 	apll = s5p_get_pll45xx(xtal, __raw_readl(S5P_APLL_CON0), pll_4508);
 	mpll = s5p_get_pll45xx(xtal, __raw_readl(S5P_MPLL_CON0), pll_4508);
 	epll = s5p_get_pll46xx(xtal, __raw_readl(S5P_EPLL_CON0),
-				__raw_readl(S5P_EPLL_CON1), pll_4500);
+				__raw_readl(S5P_EPLL_CON1), pll_4600);
 
 	vpllsrc = clk_get_rate(&clk_vpllsrc.clk);
 	vpll = s5p_get_pll46xx(vpllsrc, __raw_readl(S5P_VPLL_CON0),
-				__raw_readl(S5P_VPLL_CON1), pll_4502);
+				__raw_readl(S5P_VPLL_CON1), pll_4650);
 
 	clk_fout_apll.rate = apll;
 	clk_fout_mpll.rate = mpll;

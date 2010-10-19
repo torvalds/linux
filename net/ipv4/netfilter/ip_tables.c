@@ -1751,6 +1751,9 @@ translate_compat_table(struct net *net,
 		if (ret != 0)
 			break;
 		++i;
+		if (strcmp(ipt_get_target(iter1)->u.user.name,
+		    XT_ERROR_TARGET) == 0)
+			++newinfo->stacksize;
 	}
 	if (ret) {
 		/*

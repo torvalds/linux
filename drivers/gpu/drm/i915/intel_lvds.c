@@ -445,7 +445,8 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
  * connected and closed means disconnected.  We also send hotplug events as
  * needed, using lid status notification from the input layer.
  */
-static enum drm_connector_status intel_lvds_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
@@ -540,7 +541,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 * the LID nofication event.
 	 */
 	if (connector)
-		connector->status = connector->funcs->detect(connector);
+		connector->status = connector->funcs->detect(connector,
+							     false);
+
 	/* Don't force modeset on machines where it causes a GPU lockup */
 	if (dmi_check_system(intel_no_modeset_on_lid))
 		return NOTIFY_OK;
@@ -875,8 +878,6 @@ void intel_lvds_init(struct drm_device *dev)
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
 	intel_encoder->crtc_mask = (1 << 1);
-	if (IS_I965G(dev))
-		intel_encoder->crtc_mask |= (1 << 0);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

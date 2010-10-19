@@ -160,29 +160,11 @@ static const struct attribute_group ads7871_group = {
 
 static int __devinit ads7871_probe(struct spi_device *spi)
 {
-	int status, ret, err = 0;
+	int ret, err;
 	uint8_t val;
 	struct ads7871_data *pdata;
 
 	dev_dbg(&spi->dev, "probe\n");
-
-	pdata = kzalloc(sizeof(struct ads7871_data), GFP_KERNEL);
-	if (!pdata) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	status = sysfs_create_group(&spi->dev.kobj, &ads7871_group);
-	if (status < 0)
-		goto error_free;
-
-	pdata->hwmon_dev = hwmon_device_register(&spi->dev);
-	if (IS_ERR(pdata->hwmon_dev)) {
-		err = PTR_ERR(pdata->hwmon_dev);
-		goto error_remove;
-	}
-
-	spi_set_drvdata(spi, pdata);
 
 	/* Configure the SPI bus */
 	spi->mode = (SPI_MODE_0);
@@ -201,6 +183,24 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 	we need to make sure we really have a chip*/
 	if (val != ret) {
 		err = -ENODEV;
+		goto exit;
+	}
+
+	pdata = kzalloc(sizeof(struct ads7871_data), GFP_KERNEL);
+	if (!pdata) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	err = sysfs_create_group(&spi->dev.kobj, &ads7871_group);
+	if (err < 0)
+		goto error_free;
+
+	spi_set_drvdata(spi, pdata);
+
+	pdata->hwmon_dev = hwmon_device_register(&spi->dev);
+	if (IS_ERR(pdata->hwmon_dev)) {
+		err = PTR_ERR(pdata->hwmon_dev);
 		goto error_remove;
 	}
 

@@ -554,13 +554,12 @@ static int s5pc110_dma_ops(void *dst, void *src, size_t count, int direction)
 
 	do {
 		status = readl(base + S5PC110_DMA_TRANS_STATUS);
+		if (status & S5PC110_DMA_TRANS_STATUS_TE) {
+			writel(S5PC110_DMA_TRANS_CMD_TEC,
+					base + S5PC110_DMA_TRANS_CMD);
+			return -EIO;
+		}
 	} while (!(status & S5PC110_DMA_TRANS_STATUS_TD));
-
-	if (status & S5PC110_DMA_TRANS_STATUS_TE) {
-		writel(S5PC110_DMA_TRANS_CMD_TEC, base + S5PC110_DMA_TRANS_CMD);
-		writel(S5PC110_DMA_TRANS_CMD_TDC, base + S5PC110_DMA_TRANS_CMD);
-		return -EIO;
-	}
 
 	writel(S5PC110_DMA_TRANS_CMD_TDC, base + S5PC110_DMA_TRANS_CMD);
 
@@ -571,13 +570,12 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		unsigned char *buffer, int offset, size_t count)
 {
 	struct onenand_chip *this = mtd->priv;
-	void __iomem *bufferram;
 	void __iomem *p;
 	void *buf = (void *) buffer;
 	dma_addr_t dma_src, dma_dst;
 	int err;
 
-	p = bufferram = this->base + area;
+	p = this->base + area;
 	if (ONENAND_CURRENT_BUFFERRAM(this)) {
 		if (area == ONENAND_DATARAM)
 			p += this->writesize;
@@ -621,7 +619,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 normal:
 	if (count != mtd->writesize) {
 		/* Copy the bufferram to memory to prevent unaligned access */
-		memcpy(this->page_buf, bufferram, mtd->writesize);
+		memcpy(this->page_buf, p, mtd->writesize);
 		p = this->page_buf + offset;
 	}
 

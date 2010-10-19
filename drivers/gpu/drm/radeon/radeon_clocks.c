@@ -327,6 +327,14 @@ void radeon_get_clock_info(struct drm_device *dev)
 	mpll->max_feedback_div = 0xff;
 	mpll->best_vco = 0;
 
+	if (!rdev->clock.default_sclk)
+		rdev->clock.default_sclk = radeon_get_engine_clock(rdev);
+	if ((!rdev->clock.default_mclk) && rdev->asic->get_memory_clock)
+		rdev->clock.default_mclk = radeon_get_memory_clock(rdev);
+
+	rdev->pm.current_sclk = rdev->clock.default_sclk;
+	rdev->pm.current_mclk = rdev->clock.default_mclk;
+
 }
 
 /* 10 khz */
@@ -897,53 +905,3 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 	}
 }
 
-static void radeon_apply_clock_quirks(struct radeon_device *rdev)
-{
-	uint32_t tmp;
-
-	/* XXX make sure engine is idle */
-
-	if (rdev->family < CHIP_RS600) {
-		tmp = RREG32_PLL(RADEON_SCLK_CNTL);
-		if (ASIC_IS_R300(rdev) || ASIC_IS_RV100(rdev))
-			tmp |= RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_VIP;
-		if ((rdev->family == CHIP_RV250)
-		    || (rdev->family == CHIP_RV280))
-			tmp |=
-			    RADEON_SCLK_FORCE_DISP1 | RADEON_SCLK_FORCE_DISP2;
-		if ((rdev->family == CHIP_RV350)
-		    || (rdev->family == CHIP_RV380))
-			tmp |= R300_SCLK_FORCE_VAP;
-		if (rdev->family == CHIP_R420)
-			tmp |= R300_SCLK_FORCE_PX | R300_SCLK_FORCE_TX;
-		WREG32_PLL(RADEON_SCLK_CNTL, tmp);
-	} else if (rdev->family < CHIP_R600) {
-		tmp = RREG32_PLL(AVIVO_CP_DYN_CNTL);
-		tmp |= AVIVO_CP_FORCEON;
-		WREG32_PLL(AVIVO_CP_DYN_CNTL, tmp);
-
-		tmp = RREG32_PLL(AVIVO_E2_DYN_CNTL);
-		tmp |= AVIVO_E2_FORCEON;
-		WREG32_PLL(AVIVO_E2_DYN_CNTL, tmp);
-
-		tmp = RREG32_PLL(AVIVO_IDCT_DYN_CNTL);
-		tmp |= AVIVO_IDCT_FORCEON;
-		WREG32_PLL(AVIVO_IDCT_DYN_CNTL, tmp);
-	}
-}
-
-int radeon_static_clocks_init(struct drm_device *dev)
-{
-	struct radeon_device *rdev = dev->dev_private;
-
-	/* XXX make sure engine is idle */
-
-	if (radeon_dynclks != -1) {
-		if (radeon_dynclks) {
-			if (rdev->asic->set_clock_gating)
-				radeon_set_clock_gating(rdev, 1);
-		}
-	}
-	radeon_apply_clock_quirks(rdev);
-	return 0;
-}

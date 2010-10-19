@@ -728,7 +728,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.regs = childregs;
 		if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_PPC64
-			if (!test_thread_flag(TIF_32BIT))
+			if (!is_32bit_task())
 				childregs->gpr[13] = childregs->gpr[6];
 			else
 #endif
@@ -823,7 +823,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->nip = start;
 	regs->msr = MSR_USER;
 #else
-	if (!test_thread_flag(TIF_32BIT)) {
+	if (!is_32bit_task()) {
 		unsigned long entry, toc;
 
 		/* start is a relocated pointer to the function descriptor for
@@ -995,7 +995,7 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
 	if (usp == 0)
 		usp = regs->gpr[1];	/* stack pointer for child */
 #ifdef CONFIG_PPC64
-	if (test_thread_flag(TIF_32BIT)) {
+	if (is_32bit_task()) {
 		parent_tidp = TRUNC_PTR(parent_tidp);
 		child_tidp = TRUNC_PTR(child_tidp);
 	}
@@ -1199,19 +1199,17 @@ void ppc64_runlatch_on(void)
 	}
 }
 
-void ppc64_runlatch_off(void)
+void __ppc64_runlatch_off(void)
 {
 	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL) && test_thread_flag(TIF_RUNLATCH)) {
-		HMT_medium();
+	HMT_medium();
 
-		clear_thread_flag(TIF_RUNLATCH);
+	clear_thread_flag(TIF_RUNLATCH);
 
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl &= ~CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-	}
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl &= ~CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
 }
 #endif
 

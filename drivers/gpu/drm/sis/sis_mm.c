@@ -320,12 +320,12 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 }
 
 struct drm_ioctl_desc sis_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_FB_FREE, sis_drm_free, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_SIS_AGP_ALLOC, sis_ioctl_agp_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_AGP_FREE, sis_drm_free, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_FB_FREE, sis_drm_free, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(SIS_AGP_ALLOC, sis_ioctl_agp_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_AGP_FREE, sis_drm_free, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 };
 
 int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);

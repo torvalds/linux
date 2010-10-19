@@ -94,10 +94,11 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_conn
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 	struct drm_fb_helper_cmdline_mode *cmdline_mode;
-	struct drm_connector *connector = fb_helper_conn->connector;
+	struct drm_connector *connector;
 
 	if (!fb_helper_conn)
 		return false;
+	connector = fb_helper_conn->connector;
 
 	cmdline_mode = &fb_helper_conn->cmdline_mode;
 	if (!mode_option)
@@ -369,7 +370,7 @@ static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 }
 static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
 
-static void drm_fb_helper_sysrq(int dummy1, struct tty_struct *dummy3)
+static void drm_fb_helper_sysrq(int dummy1)
 {
 	schedule_work(&drm_fb_helper_restore_work);
 }

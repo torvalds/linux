@@ -30,7 +30,6 @@
 #include "hash.h"
 
 #include <linux/if_arp.h>
-#include <linux/netfilter_bridge.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
@@ -129,6 +128,9 @@ static bool hardif_is_iface_up(struct batman_if *batman_if)
 
 static void update_mac_addresses(struct batman_if *batman_if)
 {
+	if (!batman_if || !batman_if->packet_buff)
+		return;
+
 	addr_to_string(batman_if->addr_str, batman_if->net_dev->dev_addr);
 
 	memcpy(((struct batman_packet *)(batman_if->packet_buff))->orig,
@@ -194,8 +196,6 @@ static void hardif_activate_interface(struct net_device *net_dev,
 	if (batman_if->if_status != IF_INACTIVE)
 		return;
 
-	dev_hold(batman_if->net_dev);
-
 	update_mac_addresses(batman_if);
 	batman_if->if_status = IF_TO_BE_ACTIVATED;
 
@@ -221,8 +221,6 @@ static void hardif_deactivate_interface(struct net_device *net_dev,
 	if ((batman_if->if_status != IF_ACTIVE) &&
 	   (batman_if->if_status != IF_TO_BE_ACTIVATED))
 		return;
-
-	dev_put(batman_if->net_dev);
 
 	batman_if->if_status = IF_INACTIVE;
 
@@ -318,11 +316,13 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	if (ret != 1)
 		goto out;
 
+	dev_hold(net_dev);
+
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_ATOMIC);
 	if (!batman_if) {
 		pr_err("Can't add interface (%s): out of memory\n",
 		       net_dev->name);
-		goto out;
+		goto release_dev;
 	}
 
 	batman_if->dev = kstrdup(net_dev->name, GFP_ATOMIC);
@@ -336,6 +336,7 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	batman_if->if_num = -1;
 	batman_if->net_dev = net_dev;
 	batman_if->if_status = IF_NOT_IN_USE;
+	batman_if->packet_buff = NULL;
 	INIT_LIST_HEAD(&batman_if->list);
 
 	check_known_mac_addr(batman_if->net_dev->dev_addr);
@@ -346,6 +347,8 @@ free_dev:
 	kfree(batman_if->dev);
 free_if:
 	kfree(batman_if);
+release_dev:
+	dev_put(net_dev);
 out:
 	return NULL;
 }
@@ -374,6 +377,7 @@ static void hardif_remove_interface(struct batman_if *batman_if)
 	batman_if->if_status = IF_TO_BE_REMOVED;
 	list_del_rcu(&batman_if->list);
 	sysfs_del_hardif(&batman_if->hardif_obj);
+	dev_put(batman_if->net_dev);
 	call_rcu(&batman_if->rcu, hardif_free_interface);
 }
 
@@ -393,15 +397,13 @@ static int hard_if_event(struct notifier_block *this,
 	/* FIXME: each batman_if will be attached to a softif */
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
-	if (!batman_if)
-		batman_if = hardif_add_interface(net_dev);
+	if (!batman_if && event == NETDEV_REGISTER)
+			batman_if = hardif_add_interface(net_dev);
 
 	if (!batman_if)
 		goto out;
 
 	switch (event) {
-	case NETDEV_REGISTER:
-		break;
 	case NETDEV_UP:
 		hardif_activate_interface(soft_device, bat_priv, batman_if);
 		break;
@@ -428,11 +430,6 @@ out:
 	return NOTIFY_DONE;
 }
 
-static int batman_skb_recv_finish(struct sk_buff *skb)
-{
-	return NF_ACCEPT;
-}
-
 /* receive a packet with the batman ethertype coming on a hard
  * interface */
 int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
@@ -442,8 +439,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_packet *batman_packet;
 	struct batman_if *batman_if;
-	struct net_device_stats *stats;
-	struct rtnl_link_stats64 temp;
 	int ret;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -454,13 +449,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto err_free;
-
-	/* if netfilter/ebtables wants to block incoming batman
-	 * packets then give them a chance to do so here */
-	ret = NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, dev, NULL,
-		      batman_skb_recv_finish);
-	if (ret != 1)
-		goto err_out;
 
 	/* packet should hold at least type and version */
 	if (unlikely(skb_headlen(skb) < 2))
@@ -478,12 +466,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/* discard frames on not active interfaces */
 	if (batman_if->if_status != IF_ACTIVE)
 		goto err_free;
-
-	stats = (struct net_device_stats *)dev_get_stats(skb->dev, &temp);
-	if (stats) {
-		stats->rx_packets++;
-		stats->rx_bytes += skb->len;
-	}
 
 	batman_packet = (struct batman_packet *)skb->data;
 

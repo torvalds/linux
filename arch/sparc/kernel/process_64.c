@@ -303,7 +303,7 @@ void arch_trigger_all_cpu_backtrace(void)
 
 #ifdef CONFIG_MAGIC_SYSRQ
 
-static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+static void sysrq_handle_globreg(int key)
 {
 	arch_trigger_all_cpu_backtrace();
 }

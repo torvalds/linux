@@ -259,7 +259,7 @@ static void __init eukrea_cpuimx27_init(void)
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));
 
-	imx27_add_i2c_imx1(&cpuimx27_i2c1_data);
+	imx27_add_i2c_imx0(&cpuimx27_i2c1_data);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
@@ -279,13 +279,13 @@ static void __init eukrea_cpuimx27_init(void)
 #if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 		mxc_register_device(&mxc_otg_host, &otg_pdata);
 	}
 
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 #endif

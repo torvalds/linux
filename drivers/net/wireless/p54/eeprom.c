@@ -167,7 +167,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 	}
 
 	if (j == 0) {
-		wiphy_err(dev->wiphy, "disabling totally damaged %d GHz band\n",
+		wiphy_err(dev->wiphy, "Disabling totally damaged %d GHz band\n",
 			  (band == IEEE80211_BAND_2GHZ) ? 2 : 5);
 
 		ret = -ENODATA;
@@ -695,12 +695,12 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		u8 perm_addr[ETH_ALEN];
 
 		wiphy_warn(dev->wiphy,
-			   "invalid hwaddr! using randomly generated mac addr\n");
+			   "Invalid hwaddr! Using randomly generated MAC addr\n");
 		random_ether_addr(perm_addr);
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
 
-	wiphy_info(dev->wiphy, "hwaddr %pm, mac:isl38%02x rf:%s\n",
+	wiphy_info(dev->wiphy, "hwaddr %pM, MAC:isl38%02x RF:%s\n",
 		   dev->wiphy->perm_addr, priv->version,
 		   p54_rf_chips[priv->rxhw]);
 

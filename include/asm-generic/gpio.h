@@ -16,15 +16,27 @@
  * While the GPIO programming interface defines valid GPIO numbers
  * to be in the range 0..MAX_INT, this library restricts them to the
  * smaller range 0..ARCH_NR_GPIOS-1.
+ *
+ * ARCH_NR_GPIOS is somewhat arbitrary; it usually reflects the sum of
+ * builtin/SoC GPIOs plus a number of GPIOs on expanders; the latter is
+ * actually an estimate of a board-specific value.
  */
 
 #ifndef ARCH_NR_GPIOS
 #define ARCH_NR_GPIOS		256
 #endif
 
+/*
+ * "valid" GPIO numbers are nonnegative and may be passed to
+ * setup routines like gpio_request().  only some valid numbers
+ * can successfully be requested and used.
+ *
+ * Invalid GPIO numbers are useful for indicating no-such-GPIO in
+ * platform data and other tables.
+ */
+
 static inline int gpio_is_valid(int number)
 {
-	/* only some non-negative numbers are valid */
 	return ((unsigned)number) < ARCH_NR_GPIOS;
 }
 

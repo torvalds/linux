@@ -732,7 +732,7 @@ static int adm8211_rf_set_channel(struct ieee80211_hw *dev, unsigned int chan)
 
 	/* Nothing to do for ADMtek BBP */
 	} else if (priv->bbp_type != ADM8211_TYPE_ADMTEK)
-		wiphy_debug(dev->wiphy, "unsupported bbp type %d\n",
+		wiphy_debug(dev->wiphy, "unsupported BBP type %d\n",
 			    priv->bbp_type);
 
 	ADM8211_RESTORE();
@@ -1032,7 +1032,7 @@ static int adm8211_hw_init_bbp(struct ieee80211_hw *dev)
 			break;
 		}
 	} else
-		wiphy_debug(dev->wiphy, "unsupported bbp %d\n", priv->bbp_type);
+		wiphy_debug(dev->wiphy, "unsupported BBP %d\n", priv->bbp_type);
 
 	ADM8211_CSR_WRITE(SYNRF, 0);
 
@@ -1525,7 +1525,7 @@ static int adm8211_start(struct ieee80211_hw *dev)
 	retval = request_irq(priv->pdev->irq, adm8211_interrupt,
 			     IRQF_SHARED, "adm8211", dev);
 	if (retval) {
-		wiphy_err(dev->wiphy, "failed to register irq handler\n");
+		wiphy_err(dev->wiphy, "failed to register IRQ handler\n");
 		goto fail;
 	}
 
@@ -1902,7 +1902,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 		goto err_free_eeprom;
 	}
 
-	wiphy_info(dev->wiphy, "hwaddr %pm, rev 0x%02x\n",
+	wiphy_info(dev->wiphy, "hwaddr %pM, Rev 0x%02x\n",
 		   dev->wiphy->perm_addr, pdev->revision);
 
 	return 0;

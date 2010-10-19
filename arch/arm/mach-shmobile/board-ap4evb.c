@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -39,6 +40,7 @@
 #include <linux/sh_clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
 
@@ -307,6 +309,7 @@ static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
 	.tmio_ocr_mask	= MMC_VDD_165_195,
+	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
 };
 
 static struct resource sdhi1_resources[] = {
@@ -558,7 +561,7 @@ static struct resource fsi_resources[] = {
 
 static struct platform_device fsi_device = {
 	.name		= "sh_fsi2",
-	.id		= 0,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(fsi_resources),
 	.resource	= fsi_resources,
 	.dev	= {
@@ -650,7 +653,44 @@ static struct platform_device hdmi_device = {
 	},
 };
 
+static struct gpio_led ap4evb_leds[] = {
+	{
+		.name			= "led4",
+		.gpio			= GPIO_PORT185,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name			= "led2",
+		.gpio			= GPIO_PORT186,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name			= "led3",
+		.gpio			= GPIO_PORT187,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name			= "led1",
+		.gpio			= GPIO_PORT188,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}
+};
+
+static struct gpio_led_platform_data ap4evb_leds_pdata = {
+	.num_leds = ARRAY_SIZE(ap4evb_leds),
+	.leds = ap4evb_leds,
+};
+
+static struct platform_device leds_device = {
+	.name = "leds-gpio",
+	.id = 0,
+	.dev = {
+		.platform_data  = &ap4evb_leds_pdata,
+	},
+};
+
 static struct platform_device *ap4evb_devices[] __initdata = {
+	&leds_device,
 	&nor_flash_device,
 	&smc911x_device,
 	&sdhi0_device,
@@ -839,20 +879,6 @@ static void __init ap4evb_init(void)
 	/* enable SMSC911X */
 	gpio_request(GPIO_FN_CS5A,	NULL);
 	gpio_request(GPIO_FN_IRQ6_39,	NULL);
-
-	/* enable LED 1 - 4 */
-	gpio_request(GPIO_PORT185, NULL);
-	gpio_request(GPIO_PORT186, NULL);
-	gpio_request(GPIO_PORT187, NULL);
-	gpio_request(GPIO_PORT188, NULL);
-	gpio_direction_output(GPIO_PORT185, 1);
-	gpio_direction_output(GPIO_PORT186, 1);
-	gpio_direction_output(GPIO_PORT187, 1);
-	gpio_direction_output(GPIO_PORT188, 1);
-	gpio_export(GPIO_PORT185, 0);
-	gpio_export(GPIO_PORT186, 0);
-	gpio_export(GPIO_PORT187, 0);
-	gpio_export(GPIO_PORT188, 0);
 
 	/* enable Debug switch (S6) */
 	gpio_request(GPIO_PORT32, NULL);

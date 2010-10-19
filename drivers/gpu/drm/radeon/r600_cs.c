@@ -1170,9 +1170,8 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 	/* using get ib will give us the offset into the mipmap bo */
 	word0 = radeon_get_ib_value(p, idx + 3) << 8;
 	if ((mipmap_size + word0) > radeon_bo_size(mipmap)) {
-		dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
-			w0, h0, bpe, blevel, nlevels, word0, mipmap_size, radeon_bo_size(texture));
-		return -EINVAL;
+		/*dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
+		  w0, h0, bpe, blevel, nlevels, word0, mipmap_size, radeon_bo_size(texture));*/
 	}
 	return 0;
 }

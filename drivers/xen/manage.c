@@ -237,7 +237,7 @@ static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 		goto again;
 
 	if (sysrq_key != '\0')
-		handle_sysrq(sysrq_key, NULL);
+		handle_sysrq(sysrq_key);
 }
 
 static struct xenbus_watch sysrq_watch = {

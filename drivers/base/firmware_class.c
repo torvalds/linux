@@ -568,7 +568,7 @@ static int _request_firmware(const struct firmware **firmware_p,
 out:
 	if (retval) {
 		release_firmware(firmware);
-		firmware_p = NULL;
+		*firmware_p = NULL;
 	}
 
 	return retval;

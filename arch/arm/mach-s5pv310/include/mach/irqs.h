@@ -15,12 +15,14 @@
 
 #include <plat/irqs.h>
 
-/* Private Peripheral Interrupt */
+/* PPI: Private Peripheral Interrupt */
+
 #define IRQ_PPI(x)		S5P_IRQ(x+16)
 
 #define IRQ_LOCALTIMER		IRQ_PPI(13)
 
-/* Shared Peripheral Interrupt */
+/* SPI: Shared Peripheral Interrupt */
+
 #define IRQ_SPI(x)		S5P_IRQ(x+32)
 
 #define IRQ_EINT0		IRQ_SPI(40)
@@ -36,7 +38,7 @@
 #define IRQ_PCIE		IRQ_SPI(50)
 #define IRQ_SYSTEM_TIMER	IRQ_SPI(51)
 #define IRQ_MFC			IRQ_SPI(52)
-#define IRQ_WTD			IRQ_SPI(53)
+#define IRQ_WDT			IRQ_SPI(53)
 #define IRQ_AUDIO_SS		IRQ_SPI(54)
 #define IRQ_AC97		IRQ_SPI(55)
 #define IRQ_SPDIF		IRQ_SPI(56)
@@ -67,8 +69,9 @@
 #define IRQ_IIC			COMBINER_IRQ(27, 0)
 
 /* Set the default NR_IRQS */
+
 #define NR_IRQS			COMBINER_IRQ(MAX_COMBINER_NR, 0)
 
 #define MAX_COMBINER_NR		39
 
-#endif /* ASM_ARCH_IRQS_H */
+#endif /* __ASM_ARCH_IRQS_H */

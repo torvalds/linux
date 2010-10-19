@@ -81,14 +81,16 @@ TRACE_EVENT(timer_expire_entry,
 	TP_STRUCT__entry(
 		__field( void *,	timer	)
 		__field( unsigned long,	now	)
+		__field( void *,	function)
 	),
 
 	TP_fast_assign(
 		__entry->timer		= timer;
 		__entry->now		= jiffies;
+		__entry->function	= timer->function;
 	),
 
-	TP_printk("timer=%p now=%lu", __entry->timer, __entry->now)
+	TP_printk("timer=%p function=%pf now=%lu", __entry->timer, __entry->function,__entry->now)
 );
 
 /**
@@ -200,14 +202,16 @@ TRACE_EVENT(hrtimer_expire_entry,
 	TP_STRUCT__entry(
 		__field( void *,	hrtimer	)
 		__field( s64,		now	)
+		__field( void *,	function)
 	),
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
 		__entry->now		= now->tv64;
+		__entry->function	= hrtimer->function;
 	),
 
-	TP_printk("hrtimer=%p now=%llu", __entry->hrtimer,
+	TP_printk("hrtimer=%p function=%pf now=%llu", __entry->hrtimer, __entry->function,
 		  (unsigned long long)ktime_to_ns((ktime_t) { .tv64 = __entry->now }))
  );
 

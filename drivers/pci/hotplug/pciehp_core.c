@@ -59,7 +59,7 @@ module_param(pciehp_force, bool, 0644);
 MODULE_PARM_DESC(pciehp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
-MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if _OSC and OSHP are missing");
+MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if OSHP is missing");
 
 #define PCIE_MODULE_NAME "pciehp"
 
@@ -235,7 +235,7 @@ static int pciehp_probe(struct pcie_device *dev)
 		dev_info(&dev->device,
 			 "Bypassing BIOS check for pciehp use on %s\n",
 			 pci_name(dev->port));
-	else if (pciehp_get_hp_hw_control_from_firmware(dev->port))
+	else if (pciehp_acpi_slot_detection_check(dev->port))
 		goto err_out_none;
 
 	ctrl = pcie_init(dev);

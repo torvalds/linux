@@ -664,7 +664,7 @@ xfs_vn_fiemap(
 					fieinfo->fi_extents_max + 1;
 	bm.bmv_count = min_t(__s32, bm.bmv_count,
 			     (PAGE_SIZE * 16 / sizeof(struct getbmapx)));
-	bm.bmv_iflags = BMV_IF_PREALLOC;
+	bm.bmv_iflags = BMV_IF_PREALLOC | BMV_IF_NO_HOLES;
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
 		bm.bmv_iflags |= BMV_IF_ATTRFORK;
 	if (!(fieinfo->fi_flags & FIEMAP_FLAG_SYNC))

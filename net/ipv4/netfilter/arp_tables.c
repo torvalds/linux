@@ -1420,6 +1420,9 @@ static int translate_compat_table(const char *name,
 		if (ret != 0)
 			break;
 		++i;
+		if (strcmp(arpt_get_target(iter1)->u.user.name,
+		    XT_ERROR_TARGET) == 0)
+			++newinfo->stacksize;
 	}
 	if (ret) {
 		/*

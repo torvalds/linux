@@ -349,6 +349,8 @@ static void radeon_print_display_setup(struct drm_device *dev)
 					DRM_INFO("    DFP4: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP5_SUPPORT)
 					DRM_INFO("    DFP5: %s\n", encoder_names[radeon_encoder->encoder_id]);
+				if (devices & ATOM_DEVICE_DFP6_SUPPORT)
+					DRM_INFO("    DFP6: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_TV1_SUPPORT)
 					DRM_INFO("    TV1: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_CV_SUPPORT)
@@ -841,8 +843,9 @@ static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
 
-	if (radeon_fb->obj)
+	if (radeon_fb->obj) {
 		drm_gem_object_unreference_unlocked(radeon_fb->obj);
+	}
 	drm_framebuffer_cleanup(fb);
 	kfree(radeon_fb);
 }
@@ -1094,6 +1097,18 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	radeon_i2c_fini(rdev);
 }
 
+static bool is_hdtv_mode(struct drm_display_mode *mode)
+{
+	/* try and guess if this is a tv or a monitor */
+	if ((mode->vdisplay == 480 && mode->hdisplay == 720) || /* 480p */
+	    (mode->vdisplay == 576) || /* 576p */
+	    (mode->vdisplay == 720) || /* 720p */
+	    (mode->vdisplay == 1080)) /* 1080p */
+		return true;
+	else
+		return false;
+}
+
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -1128,20 +1143,22 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				radeon_crtc->rmx_type = radeon_encoder->rmx_type;
 			else
 				radeon_crtc->rmx_type = RMX_OFF;
-			src_v = crtc->mode.vdisplay;
-			dst_v = radeon_crtc->native_mode.vdisplay;
-			src_h = crtc->mode.hdisplay;
-			dst_h = radeon_crtc->native_mode.vdisplay;
 			/* copy native mode */
 			memcpy(&radeon_crtc->native_mode,
 			       &radeon_encoder->native_mode,
 				sizeof(struct drm_display_mode));
+			src_v = crtc->mode.vdisplay;
+			dst_v = radeon_crtc->native_mode.vdisplay;
+			src_h = crtc->mode.hdisplay;
+			dst_h = radeon_crtc->native_mode.hdisplay;
 
 			/* fix up for overscan on hdmi */
 			if (ASIC_IS_AVIVO(rdev) &&
+			    (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
 			    ((radeon_encoder->underscan_type == UNDERSCAN_ON) ||
 			     ((radeon_encoder->underscan_type == UNDERSCAN_AUTO) &&
-			      drm_detect_hdmi_monitor(radeon_connector->edid)))) {
+			      drm_detect_hdmi_monitor(radeon_connector->edid) &&
+			      is_hdtv_mode(mode)))) {
 				radeon_crtc->h_border = (mode->hdisplay >> 5) + 16;
 				radeon_crtc->v_border = (mode->vdisplay >> 5) + 16;
 				radeon_crtc->rmx_type = RMX_FULL;

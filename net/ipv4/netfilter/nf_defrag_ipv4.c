@@ -66,9 +66,11 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 					  const struct net_device *out,
 					  int (*okfn)(struct sk_buff *))
 {
+	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(skb->sk);
 
-	if (inet && inet->nodefrag)
+	if (sk && (sk->sk_family == PF_INET) &&
+	    inet->nodefrag)
 		return NF_ACCEPT;
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)

@@ -1059,7 +1059,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	if (!dma_window)
 		return NULL;
 
-	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
 	if (tbl == NULL)
 		return NULL;
 
@@ -1072,6 +1072,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
 	tbl->it_busno = 0;
 	tbl->it_type = TCE_VB;
+	tbl->it_blocksize = 16;
 
 	return iommu_init_table(tbl, -1);
 }

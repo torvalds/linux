@@ -1244,6 +1244,7 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
 		}
 		info->flags = ((info->flags & ~ROCKET_USR_MASK) | (new_serial.flags & ROCKET_USR_MASK));
 		configure_r_port(tty, info, NULL);
+		mutex_unlock(&info->port.mutex);
 		return 0;
 	}
 

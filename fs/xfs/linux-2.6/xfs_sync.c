@@ -34,6 +34,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
+#include "xfs_fsops.h"
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -341,38 +342,6 @@ xfs_sync_attr(
 }
 
 STATIC int
-xfs_commit_dummy_trans(
-	struct xfs_mount	*mp,
-	uint			flags)
-{
-	struct xfs_inode	*ip = mp->m_rootip;
-	struct xfs_trans	*tp;
-	int			error;
-
-	/*
-	 * Put a dummy transaction in the log to tell recovery
-	 * that all others are OK.
-	 */
-	tp = xfs_trans_alloc(mp, XFS_TRANS_DUMMY1);
-	error = xfs_trans_reserve(tp, 0, XFS_ICHANGE_LOG_RES(mp), 0, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-
-	xfs_trans_ijoin(tp, ip);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	error = xfs_trans_commit(tp, 0);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
-	/* the log force ensures this transaction is pushed to disk */
-	xfs_log_force(mp, (flags & SYNC_WAIT) ? XFS_LOG_SYNC : 0);
-	return error;
-}
-
-STATIC int
 xfs_sync_fsdata(
 	struct xfs_mount	*mp)
 {
@@ -432,7 +401,7 @@ xfs_quiesce_data(
 
 	/* mark the log as covered if needed */
 	if (xfs_log_need_covered(mp))
-		error2 = xfs_commit_dummy_trans(mp, SYNC_WAIT);
+		error2 = xfs_fs_log_dummy(mp, SYNC_WAIT);
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
@@ -563,7 +532,7 @@ xfs_flush_inodes(
 /*
  * Every sync period we need to unpin all items, reclaim inodes and sync
  * disk quotas.  We might need to cover the log to indicate that the
- * filesystem is idle.
+ * filesystem is idle and not frozen.
  */
 STATIC void
 xfs_sync_worker(
@@ -577,8 +546,9 @@ xfs_sync_worker(
 		xfs_reclaim_inodes(mp, 0);
 		/* dgc: errors ignored here */
 		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
-		if (xfs_log_need_covered(mp))
-			error = xfs_commit_dummy_trans(mp, 0);
+		if (mp->m_super->s_frozen == SB_UNFROZEN &&
+		    xfs_log_need_covered(mp))
+			error = xfs_fs_log_dummy(mp, 0);
 	}
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
@@ -698,14 +668,11 @@ xfs_inode_set_reclaim_tag(
 	xfs_perag_put(pag);
 }
 
-void
-__xfs_inode_clear_reclaim_tag(
-	xfs_mount_t	*mp,
+STATIC void
+__xfs_inode_clear_reclaim(
 	xfs_perag_t	*pag,
 	xfs_inode_t	*ip)
 {
-	radix_tree_tag_clear(&pag->pag_ici_root,
-			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
 	pag->pag_ici_reclaimable--;
 	if (!pag->pag_ici_reclaimable) {
 		/* clear the reclaim tag from the perag radix tree */
@@ -717,6 +684,17 @@ __xfs_inode_clear_reclaim_tag(
 		trace_xfs_perag_clear_reclaim(ip->i_mount, pag->pag_agno,
 							-1, _RET_IP_);
 	}
+}
+
+void
+__xfs_inode_clear_reclaim_tag(
+	xfs_mount_t	*mp,
+	xfs_perag_t	*pag,
+	xfs_inode_t	*ip)
+{
+	radix_tree_tag_clear(&pag->pag_ici_root,
+			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+	__xfs_inode_clear_reclaim(pag, ip);
 }
 
 /*
@@ -868,6 +846,7 @@ reclaim:
 	if (!radix_tree_delete(&pag->pag_ici_root,
 				XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino)))
 		ASSERT(0);
+	__xfs_inode_clear_reclaim(pag, ip);
 	write_unlock(&pag->pag_ici_lock);
 
 	/*

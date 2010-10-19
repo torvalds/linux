@@ -131,7 +131,7 @@ static void next_trb(struct xhci_hcd *xhci,
 		*seg = (*seg)->next;
 		*trb = ((*seg)->trbs);
 	} else {
-		*trb = (*trb)++;
+		(*trb)++;
 	}
 }
 
@@ -1551,6 +1551,10 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	/* calc actual length */
 	if (ep->skip) {
 		td->urb->iso_frame_desc[idx].actual_length = 0;
+		/* Update ring dequeue pointer */
+		while (ep_ring->dequeue != td->last_trb)
+			inc_deq(xhci, ep_ring, false);
+		inc_deq(xhci, ep_ring, false);
 		return finish_td(xhci, td, event_trb, event, ep, status, true);
 	}
 

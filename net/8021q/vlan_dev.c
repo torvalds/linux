@@ -510,7 +510,8 @@ static int vlan_dev_open(struct net_device *dev)
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_join(dev);
 
-	netif_carrier_on(dev);
+	if (netif_carrier_ok(real_dev))
+		netif_carrier_on(dev);
 	return 0;
 
 clear_allmulti:

@@ -15,7 +15,7 @@ config CAIF_TTY
 
 config CAIF_SPI_SLAVE
 	tristate "CAIF SPI transport driver for slave interface"
-	depends on CAIF
+	depends on CAIF && HAS_DMA
 	default n
 	---help---
 	The CAIF Link layer SPI Protocol driver for Slave SPI interface.

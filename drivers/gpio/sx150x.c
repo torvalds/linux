@@ -459,16 +459,32 @@ static int sx150x_init_io(struct sx150x_chip *chip, u8 base, u16 cfg)
 	return err;
 }
 
+static int sx150x_reset(struct sx150x_chip *chip)
+{
+	int err;
+
+	err = i2c_smbus_write_byte_data(chip->client,
+					chip->dev_cfg->reg_reset,
+					0x12);
+	if (err < 0)
+		return err;
+
+	err = i2c_smbus_write_byte_data(chip->client,
+					chip->dev_cfg->reg_reset,
+					0x34);
+	return err;
+}
+
 static int sx150x_init_hw(struct sx150x_chip *chip,
 			struct sx150x_platform_data *pdata)
 {
 	int err = 0;
 
-	err = i2c_smbus_write_word_data(chip->client,
-					chip->dev_cfg->reg_reset,
-					0x3412);
-	if (err < 0)
-		return err;
+	if (pdata->reset_during_probe) {
+		err = sx150x_reset(chip);
+		if (err < 0)
+			return err;
+	}
 
 	err = sx150x_i2c_write(chip->client,
 			chip->dev_cfg->reg_misc,

@@ -121,8 +121,8 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
 }
 
 /* return true if the task is not adequate as candidate victim task. */
-static bool oom_unkillable_task(struct task_struct *p, struct mem_cgroup *mem,
-			   const nodemask_t *nodemask)
+static bool oom_unkillable_task(struct task_struct *p,
+		const struct mem_cgroup *mem, const nodemask_t *nodemask)
 {
 	if (is_global_init(p))
 		return true;
@@ -208,8 +208,13 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 	 */
 	points += p->signal->oom_score_adj;
 
-	if (points < 0)
-		return 0;
+	/*
+	 * Never return 0 for an eligible task that may be killed since it's
+	 * possible that no single user task uses more than 0.1% of memory and
+	 * no single admin tasks uses more than 3.0%.
+	 */
+	if (points <= 0)
+		return 1;
 	return (points < 1000) ? points : 1000;
 }
 
@@ -339,26 +344,24 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 /**
  * dump_tasks - dump current memory state of all system tasks
  * @mem: current's memory controller, if constrained
+ * @nodemask: nodemask passed to page allocator for mempolicy ooms
  *
- * Dumps the current memory state of all system tasks, excluding kernel threads.
+ * Dumps the current memory state of all eligible tasks.  Tasks not in the same
+ * memcg, not in the same cpuset, or bound to a disjoint set of mempolicy nodes
+ * are not shown.
  * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
  * value, oom_score_adj value, and name.
  *
- * If the actual is non-NULL, only tasks that are a member of the mem_cgroup are
- * shown.
- *
  * Call with tasklist_lock read-locked.
  */
-static void dump_tasks(const struct mem_cgroup *mem)
+static void dump_tasks(const struct mem_cgroup *mem, const nodemask_t *nodemask)
 {
 	struct task_struct *p;
 	struct task_struct *task;
 
 	pr_info("[ pid ]   uid  tgid total_vm      rss cpu oom_adj oom_score_adj name\n");
 	for_each_process(p) {
-		if (p->flags & PF_KTHREAD)
-			continue;
-		if (mem && !task_in_mem_cgroup(p, mem))
+		if (oom_unkillable_task(p, mem, nodemask))
 			continue;
 
 		task = find_lock_task_mm(p);
@@ -381,7 +384,7 @@ static void dump_tasks(const struct mem_cgroup *mem)
 }
 
 static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
-							struct mem_cgroup *mem)
+			struct mem_cgroup *mem, const nodemask_t *nodemask)
 {
 	task_lock(current);
 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
@@ -394,7 +397,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 	mem_cgroup_print_oom_info(mem, p);
 	show_mem();
 	if (sysctl_oom_dump_tasks)
-		dump_tasks(mem);
+		dump_tasks(mem, nodemask);
 }
 
 #define K(x) ((x) << (PAGE_SHIFT-10))
@@ -436,7 +439,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	unsigned int victim_points = 0;
 
 	if (printk_ratelimit())
-		dump_header(p, gfp_mask, order, mem);
+		dump_header(p, gfp_mask, order, mem, nodemask);
 
 	/*
 	 * If the task is already exiting, don't alarm the sysadmin or kill
@@ -482,7 +485,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
  */
 static void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
-				int order)
+				int order, const nodemask_t *nodemask)
 {
 	if (likely(!sysctl_panic_on_oom))
 		return;
@@ -496,7 +499,7 @@ static void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
 			return;
 	}
 	read_lock(&tasklist_lock);
-	dump_header(NULL, gfp_mask, order, NULL);
+	dump_header(NULL, gfp_mask, order, NULL, nodemask);
 	read_unlock(&tasklist_lock);
 	panic("Out of memory: %s panic_on_oom is enabled\n",
 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
@@ -509,7 +512,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 	unsigned int points = 0;
 	struct task_struct *p;
 
-	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0);
+	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
 	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
 	read_lock(&tasklist_lock);
 retry:
@@ -641,6 +644,7 @@ static void clear_system_oom(void)
 void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		int order, nodemask_t *nodemask)
 {
+	const nodemask_t *mpol_mask;
 	struct task_struct *p;
 	unsigned long totalpages;
 	unsigned long freed = 0;
@@ -670,7 +674,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	 */
 	constraint = constrained_alloc(zonelist, gfp_mask, nodemask,
 						&totalpages);
-	check_panic_on_oom(constraint, gfp_mask, order);
+	mpol_mask = (constraint == CONSTRAINT_MEMORY_POLICY) ? nodemask : NULL;
+	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask);
 
 	read_lock(&tasklist_lock);
 	if (sysctl_oom_kill_allocating_task &&
@@ -688,15 +693,13 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	}
 
 retry:
-	p = select_bad_process(&points, totalpages, NULL,
-			constraint == CONSTRAINT_MEMORY_POLICY ? nodemask :
-								 NULL);
+	p = select_bad_process(&points, totalpages, NULL, mpol_mask);
 	if (PTR_ERR(p) == -1UL)
 		goto out;
 
 	/* Found nothing?!?! Either we hang forever, or we panic. */
 	if (!p) {
-		dump_header(NULL, gfp_mask, order, NULL);
+		dump_header(NULL, gfp_mask, order, NULL, mpol_mask);
 		read_unlock(&tasklist_lock);
 		panic("Out of memory and no killable processes...\n");
 	}

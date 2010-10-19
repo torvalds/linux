@@ -62,10 +62,12 @@ long sys_fork(void);
 long _sys_fork(struct pt_regs *regs);
 long sys_vfork(void);
 long _sys_vfork(struct pt_regs *regs);
-long sys_execve(char __user *filename, char __user * __user *argv,
-		char __user * __user *envp);
-long _sys_execve(char __user *filename, char __user * __user *argv,
-		 char __user * __user *envp, struct pt_regs *regs);
+long sys_execve(const char __user *filename,
+		const char __user *const __user *argv,
+		const char __user *const __user *envp);
+long _sys_execve(const char __user *filename,
+		 const char __user *const __user *argv,
+		 const char __user *const __user *envp, struct pt_regs *regs);
 
 /* kernel/signal.c */
 long sys_sigaltstack(const stack_t __user *, stack_t __user *);
@@ -86,10 +88,13 @@ int _sys_cmpxchg_badaddr(unsigned long address, struct pt_regs *);
 #endif
 
 #ifdef CONFIG_COMPAT
-long compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp);
-long _compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
-			compat_uptr_t __user *envp, struct pt_regs *regs);
+long compat_sys_execve(const char __user *path,
+		       const compat_uptr_t __user *argv,
+		       const compat_uptr_t __user *envp);
+long _compat_sys_execve(const char __user *path,
+			const compat_uptr_t __user *argv,
+			const compat_uptr_t __user *envp,
+			struct pt_regs *regs);
 long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 			    struct compat_sigaltstack __user *uoss_ptr);
 long _compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,

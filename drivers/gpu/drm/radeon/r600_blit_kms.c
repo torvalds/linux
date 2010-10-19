@@ -1,3 +1,28 @@
+/*
+ * Copyright 2009 Advanced Micro Devices, Inc.
+ * Copyright 2009 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_drm.h"
@@ -507,6 +532,7 @@ int r600_blit_init(struct radeon_device *rdev)
 	memcpy(ptr + rdev->r600_blit.ps_offset, r6xx_ps, r6xx_ps_size * 4);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	rdev->mc.active_vram_size = rdev->mc.real_vram_size;
 	return 0;
 }
 
@@ -514,6 +540,7 @@ void r600_blit_fini(struct radeon_device *rdev)
 {
 	int r;
 
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	if (rdev->r600_blit.shader_obj == NULL)
 		return;
 	/* If we can't reserve the bo, unref should be enough to destroy

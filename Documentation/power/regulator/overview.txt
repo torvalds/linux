@@ -13,7 +13,7 @@ regulators (where voltage output is controllable) and current sinks (where
 current limit is controllable).
 
 (C) 2008  Wolfson Microelectronics PLC.
-Author: Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Author: Liam Girdwood <lrg@slimlogic.co.uk>
 
 
 Nomenclature

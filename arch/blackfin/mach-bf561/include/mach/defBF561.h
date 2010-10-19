@@ -1007,66 +1007,6 @@
 #define IREN_P	0x01
 #define UCEN_P	0x00
 
-/* **********  SERIAL PORT MASKS  ********************** */
-
-/* SPORTx_TCR1 Masks */
-#define TSPEN    0x0001		/* TX enable  */
-#define ITCLK    0x0002		/* Internal TX Clock Select  */
-#define TDTYPE   0x000C		/* TX Data Formatting Select */
-#define TLSBIT   0x0010		/* TX Bit Order */
-#define ITFS     0x0200		/* Internal TX Frame Sync Select  */
-#define TFSR     0x0400		/* TX Frame Sync Required Select  */
-#define DITFS    0x0800		/* Data Independent TX Frame Sync Select  */
-#define LTFS     0x1000		/* Low TX Frame Sync Select  */
-#define LATFS    0x2000		/* Late TX Frame Sync Select  */
-#define TCKFE    0x4000		/* TX Clock Falling Edge Select  */
-
-/* SPORTx_TCR2 Masks */
-#define SLEN	    0x001F	/*TX Word Length  */
-#define TXSE        0x0100	/*TX Secondary Enable */
-#define TSFSE       0x0200	/*TX Stereo Frame Sync Enable */
-#define TRFST       0x0400	/*TX Right-First Data Order  */
-
-/* SPORTx_RCR1 Masks */
-#define RSPEN    0x0001		/* RX enable  */
-#define IRCLK    0x0002		/* Internal RX Clock Select  */
-#define RDTYPE   0x000C		/* RX Data Formatting Select */
-#define RULAW    0x0008		/* u-Law enable  */
-#define RALAW    0x000C		/* A-Law enable  */
-#define RLSBIT   0x0010		/* RX Bit Order */
-#define IRFS     0x0200		/* Internal RX Frame Sync Select  */
-#define RFSR     0x0400		/* RX Frame Sync Required Select  */
-#define LRFS     0x1000		/* Low RX Frame Sync Select  */
-#define LARFS    0x2000		/* Late RX Frame Sync Select  */
-#define RCKFE    0x4000		/* RX Clock Falling Edge Select  */
-
-/* SPORTx_RCR2 Masks */
-#define SLEN	    0x001F	/*RX Word Length  */
-#define RXSE        0x0100	/*RX Secondary Enable */
-#define RSFSE       0x0200	/*RX Stereo Frame Sync Enable */
-#define RRFST       0x0400	/*Right-First Data Order  */
-
-/*SPORTx_STAT Masks */
-#define RXNE		0x0001	/*RX FIFO Not Empty Status */
-#define RUVF	    	0x0002	/*RX Underflow Status */
-#define ROVF		0x0004	/*RX Overflow Status */
-#define TXF		0x0008	/*TX FIFO Full Status */
-#define TUVF         	0x0010	/*TX Underflow Status */
-#define TOVF         	0x0020	/*TX Overflow Status */
-#define TXHRE        	0x0040	/*TX Hold Register Empty */
-
-/*SPORTx_MCMC1 Masks */
-#define SP_WSIZE		0x0000F000	/*Multichannel Window Size Field */
-#define SP_WOFF		0x000003FF	/*Multichannel Window Offset Field */
-
-/*SPORTx_MCMC2 Masks */
-#define MCCRM		0x00000003	/*Multichannel Clock Recovery Mode */
-#define MCDTXPE		0x00000004	/*Multichannel DMA Transmit Packing */
-#define MCDRXPE		0x00000008	/*Multichannel DMA Receive Packing */
-#define MCMEN		0x00000010	/*Multichannel Frame Mode Enable */
-#define FSDR		0x00000080	/*Multichannel Frame Sync to Data Relationship */
-#define MFD		0x0000F000	/*Multichannel Frame Delay    */
-
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
 /*  PPI_CONTROL Masks         */

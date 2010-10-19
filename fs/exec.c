@@ -376,6 +376,9 @@ static int count(const char __user * const __user * argv, int max)
 			argv++;
 			if (i++ >= max)
 				return -E2BIG;
+
+			if (fatal_signal_pending(current))
+				return -ERESTARTNOHAND;
 			cond_resched();
 		}
 	}
@@ -418,6 +421,12 @@ static int copy_strings(int argc, const char __user *const __user *argv,
 
 		while (len > 0) {
 			int offset, bytes_to_copy;
+
+			if (fatal_signal_pending(current)) {
+				ret = -ERESTARTNOHAND;
+				goto out;
+			}
+			cond_resched();
 
 			offset = pos % PAGE_SIZE;
 			if (offset == 0)
@@ -594,6 +603,11 @@ int setup_arg_pages(struct linux_binprm *bprm,
 #else
 	stack_top = arch_align_stack(stack_top);
 	stack_top = PAGE_ALIGN(stack_top);
+
+	if (unlikely(stack_top < mmap_min_addr) ||
+	    unlikely(vma->vm_end - vma->vm_start >= stack_top - mmap_min_addr))
+		return -ENOMEM;
+
 	stack_shift = vma->vm_end - stack_top;
 
 	bprm->p -= stack_shift;
@@ -1999,4 +2013,42 @@ fail_creds:
 	put_cred(cred);
 fail:
 	return;
+}
+
+/*
+ * Core dumping helper functions.  These are the only things you should
+ * do on a core-file: use only these functions to write out all the
+ * necessary info.
+ */
+int dump_write(struct file *file, const void *addr, int nr)
+{
+	return access_ok(VERIFY_READ, addr, nr) && file->f_op->write(file, addr, nr, &file->f_pos) == nr;
+}
+
+int dump_seek(struct file *file, loff_t off)
+{
+	int ret = 1;
+
+	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+		if (file->f_op->llseek(file, off, SEEK_CUR) < 0)
+			return 0;
+	} else {
+		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
+
+		if (!buf)
+			return 0;
+		while (off > 0) {
+			unsigned long n = off;
+
+			if (n > PAGE_SIZE)
+				n = PAGE_SIZE;
+			if (!dump_write(file, buf, n)) {
+				ret = 0;
+				break;
+			}
+			off -= n;
+		}
+		free_page((unsigned long)buf);
+	}
+	return ret;
 }

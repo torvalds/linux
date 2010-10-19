@@ -138,7 +138,7 @@ static void __init eukrea_cpuimx25_init(void)
 #if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 		mxc_register_device(&mxc_otg, &otg_pdata);
 	}
@@ -147,8 +147,8 @@ static void __init eukrea_cpuimx25_init(void)
 	if (!otg_mode_host)
 		mxc_register_device(&otg_udc_device, &otg_device_pdata);
 
-#ifdef CONFIG_MACH_EUKREA_MBIMXSD_BASEBOARD
-	eukrea_mbimxsd_baseboard_init();
+#ifdef CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD
+	eukrea_mbimxsd25_baseboard_init();
 #endif
 }
 

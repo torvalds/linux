@@ -3667,6 +3667,49 @@ out_exit:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static void iwlagn_configure_filter(struct ieee80211_hw *hw,
+				    unsigned int changed_flags,
+				    unsigned int *total_flags,
+				    u64 multicast)
+{
+	struct iwl_priv *priv = hw->priv;
+	__le32 filter_or = 0, filter_nand = 0;
+
+#define CHK(test, flag)	do { \
+	if (*total_flags & (test))		\
+		filter_or |= (flag);		\
+	else					\
+		filter_nand |= (flag);		\
+	} while (0)
+
+	IWL_DEBUG_MAC80211(priv, "Enter: changed: 0x%x, total: 0x%x\n",
+			changed_flags, *total_flags);
+
+	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
+	CHK(FIF_CONTROL, RXON_FILTER_CTL2HOST_MSK);
+	CHK(FIF_BCN_PRBRESP_PROMISC, RXON_FILTER_BCON_AWARE_MSK);
+
+#undef CHK
+
+	mutex_lock(&priv->mutex);
+
+	priv->staging_rxon.filter_flags &= ~filter_nand;
+	priv->staging_rxon.filter_flags |= filter_or;
+
+	iwlcore_commit_rxon(priv);
+
+	mutex_unlock(&priv->mutex);
+
+	/*
+	 * Receiving all multicast frames is always enabled by the
+	 * default flags setup in iwl_connection_init_rx_config()
+	 * since we currently do not support programming multicast
+	 * filters into the device.
+	 */
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
+			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
+}
+
 static void iwl_mac_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -3867,7 +3910,7 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
 	.config = iwl_mac_config,
-	.configure_filter = iwl_configure_filter,
+	.configure_filter = iwlagn_configure_filter,
 	.set_key = iwl_mac_set_key,
 	.update_tkip_key = iwl_mac_update_tkip_key,
 	.conf_tx = iwl_mac_conf_tx,
