@@ -1621,7 +1621,7 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 		if (skb_queue_len(&priv->rx_recycle) < priv->rx_ring_size &&
 				skb_recycle_check(skb, priv->rx_buffer_size +
 					RXBUF_ALIGNMENT))
-			__skb_queue_head(&priv->rx_recycle, skb);
+			skb_queue_head(&priv->rx_recycle, skb);
 		else
 			dev_kfree_skb_any(skb);
 
@@ -1703,7 +1703,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb = NULL;
 
-	skb = __skb_dequeue(&priv->rx_recycle);
+	skb = skb_dequeue(&priv->rx_recycle);
 	if (!skb)
 		skb = netdev_alloc_skb(dev,
 				priv->rx_buffer_size + RXBUF_ALIGNMENT);
@@ -1862,7 +1862,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 				 * recycle list.
 				 */
 				skb->data = skb->head + NET_SKB_PAD;
-				__skb_queue_head(&priv->rx_recycle, skb);
+				skb_queue_head(&priv->rx_recycle, skb);
 			}
 		} else {
 			/* Increment the number of packets */
