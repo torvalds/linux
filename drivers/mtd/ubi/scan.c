@@ -330,12 +330,18 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 			return 1;
 		}
 	} else {
-		pnum = seb->pnum;
+		if (!seb->copy_flag) {
+			/* It is not a copy, so it is newer */
+			dbg_bld("first PEB %d is newer, copy_flag is unset",
+				pnum);
+			return bitflips << 1;
+		}
 
 		vh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 		if (!vh)
 			return -ENOMEM;
 
+		pnum = seb->pnum;
 		err = ubi_io_read_vid_hdr(ubi, pnum, vh, 0);
 		if (err) {
 			if (err == UBI_IO_BITFLIPS)
@@ -348,14 +354,6 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 
 				goto out_free_vidh;
 			}
-		}
-
-		if (!vh->copy_flag) {
-			/* It is not a copy, so it is newer */
-			dbg_bld("first PEB %d is newer, copy_flag is unset",
-				pnum);
-			err = bitflips << 1;
-			goto out_free_vidh;
 		}
 
 		vid_hdr = vh;
@@ -516,6 +514,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			seb->ec = ec;
 			seb->pnum = pnum;
 			seb->scrub = ((cmp_res & 2) || bitflips);
+			seb->copy_flag = vid_hdr->copy_flag;
 			seb->sqnum = sqnum;
 
 			if (sv->highest_lnum == lnum)
@@ -549,8 +548,9 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	seb->ec = ec;
 	seb->pnum = pnum;
 	seb->lnum = lnum;
-	seb->sqnum = sqnum;
 	seb->scrub = bitflips;
+	seb->copy_flag = vid_hdr->copy_flag;
+	seb->sqnum = sqnum;
 
 	if (sv->highest_lnum <= lnum) {
 		sv->highest_lnum = lnum;

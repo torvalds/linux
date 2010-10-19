@@ -30,6 +30,7 @@
  * @pnum: physical eraseblock number
  * @lnum: logical eraseblock number
  * @scrub: if this physical eraseblock needs scrubbing
+ * @copy_flag: this LEB is a copy (@copy_flag is set in VID header of this LEB)
  * @sqnum: sequence number
  * @u: unions RB-tree or @list links
  * @u.rb: link in the per-volume RB-tree of &struct ubi_scan_leb objects
@@ -42,7 +43,8 @@ struct ubi_scan_leb {
 	int ec;
 	int pnum;
 	int lnum;
-	int scrub;
+	unsigned int scrub:1;
+	unsigned int copy_flag:1;
 	unsigned long long sqnum;
 	union {
 		struct rb_node rb;
