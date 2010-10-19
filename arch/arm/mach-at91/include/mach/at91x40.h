@@ -52,4 +52,10 @@
 #define AT91_DBGU_CIDR	(AT91_SF + 0)	/* CIDR in PS segment */
 #define AT91_DBGU_EXID	(AT91_SF + 4)	/* EXID in PS segment */
 
+/*
+ * Support defines for the simple Power Controller module.
+ */
+#define	AT91_PS_CR	(AT91_PS + 0)	/* PS Control register */
+#define	AT91_PS_CR_CPU	(1 << 0)	/* CPU clock disable bit */
+
 #endif /* AT91X40_H */

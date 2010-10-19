@@ -48,6 +48,7 @@ struct videobuf_dmabuf {
 
 	/* for userland buffer */
 	int                 offset;
+	size_t		    size;
 	struct page         **pages;
 
 	/* for kernel buffers */

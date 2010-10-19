@@ -45,7 +45,7 @@
 
 #include <mach/pxa27x.h>
 #include <mach/regs-rtc.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>

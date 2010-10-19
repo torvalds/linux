@@ -10,6 +10,8 @@ config ARCH_MSM7X00A
 	select MSM_SMD
 	select MSM_SMD_PKG3
 	select CPU_V6
+	select MSM_PROC_COMM
+	select HAS_MSM_DEBUG_UART_PHYS
 
 config ARCH_MSM7X30
 	bool "MSM7x30"
@@ -18,6 +20,9 @@ config ARCH_MSM7X30
 	select MSM_VIC
 	select CPU_V7
 	select MSM_REMOTE_SPINLOCK_DEKKERS
+	select MSM_GPIOMUX
+	select MSM_PROC_COMM
+	select HAS_MSM_DEBUG_UART_PHYS
 
 config ARCH_QSD8X50
 	bool "QSD8X50"
@@ -26,6 +31,19 @@ config ARCH_QSD8X50
 	select MSM_VIC
 	select CPU_V7
 	select MSM_REMOTE_SPINLOCK_LDREX
+	select MSM_GPIOMUX
+	select MSM_PROC_COMM
+	select HAS_MSM_DEBUG_UART_PHYS
+
+config ARCH_MSM8X60
+	bool "MSM8X60"
+	select ARM_GIC
+	select CPU_V7
+	select MSM_V2_TLMM
+	select MSM_GPIOMUX
+	select MACH_MSM8X60_SURF if (!MACH_MSM8X60_RUMI3 && !MACH_MSM8X60_SIM \
+				  && !MACH_MSM8X60_FFA)
+
 endchoice
 
 config MSM_SOC_REV_A
@@ -34,6 +52,9 @@ config MSM_SOC_REV_A
 config  ARCH_MSM_ARM11
 	bool
 config  ARCH_MSM_SCORPION
+	bool
+
+config HAS_MSM_DEBUG_UART_PHYS
 	bool
 
 config  MSM_VIC
@@ -74,6 +95,30 @@ config MACH_QSD8X50A_ST1_5
 	help
 	  Support for the Qualcomm ST1.5.
 
+config MACH_MSM8X60_RUMI3
+	depends on ARCH_MSM8X60
+	bool "MSM8x60 RUMI3"
+	help
+	  Support for the Qualcomm MSM8x60 RUMI3 emulator.
+
+config MACH_MSM8X60_SURF
+	depends on ARCH_MSM8X60
+	bool "MSM8x60 SURF"
+	help
+	  Support for the Qualcomm MSM8x60 SURF eval board.
+
+config MACH_MSM8X60_SIM
+	depends on ARCH_MSM8X60
+	bool "MSM8x60 Simulator"
+	help
+	  Support for the Qualcomm MSM8x60 simulator.
+
+config MACH_MSM8X60_FFA
+	depends on ARCH_MSM8X60
+	bool "MSM8x60 FFA"
+	help
+	  Support for the Qualcomm MSM8x60 FFA eval board.
+
 endmenu
 
 config MSM_DEBUG_UART
@@ -82,6 +127,7 @@ config MSM_DEBUG_UART
 	default 2 if MSM_DEBUG_UART2
 	default 3 if MSM_DEBUG_UART3
 
+if HAS_MSM_DEBUG_UART_PHYS
 choice
 	prompt "Debug UART"
 
@@ -99,11 +145,20 @@ choice
 	config MSM_DEBUG_UART3
 		bool "UART3"
 endchoice
+endif
 
 config MSM_SMD_PKG3
+	bool
+
+config MSM_PROC_COMM
 	bool
 
 config MSM_SMD
 	bool
 
+config MSM_GPIOMUX
+	bool
+
+config MSM_V2_TLMM
+	bool
 endif

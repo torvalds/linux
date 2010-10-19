@@ -48,7 +48,7 @@ SYSCALL_DEFINE2(osf_sigprocmask, int, how, unsigned long, newmask)
 	sigset_t mask;
 	unsigned long res;
 
-	siginitset(&mask, newmask & ~_BLOCKABLE);
+	siginitset(&mask, newmask & _BLOCKABLE);
 	res = sigprocmask(how, &mask, &oldmask);
 	if (!res) {
 		force_successful_syscall_return();

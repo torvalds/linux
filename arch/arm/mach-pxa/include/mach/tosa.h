@@ -20,6 +20,7 @@
 /* Jacket Scoop */
 #define TOSA_SCOOP_PHYS  	(PXA_CS5_PHYS + 0x00800000)
 
+#define TOSA_NR_IRQS		(IRQ_BOARD_START + TC6393XB_NR_IRQS)
 /*
  * SCOOP2 internal GPIOs
  */

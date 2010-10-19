@@ -30,7 +30,7 @@
 #define tc_lsize	32
 
 extern unsigned long icache_way_size, dcache_way_size;
-unsigned long tcache_size;
+static unsigned long tcache_size;
 
 #include <asm/r4kcache.h>
 

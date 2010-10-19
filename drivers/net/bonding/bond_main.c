@@ -5164,6 +5164,15 @@ int bond_create(struct net *net, const char *name)
 		res = dev_alloc_name(bond_dev, "bond%d");
 		if (res < 0)
 			goto out;
+	} else {
+		/*
+		 * If we're given a name to register
+		 * we need to ensure that its not already
+		 * registered
+		 */
+		res = -EEXIST;
+		if (__dev_get_by_name(net, name) != NULL)
+			goto out;
 	}
 
 	res = register_netdevice(bond_dev);

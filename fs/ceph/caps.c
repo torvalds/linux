@@ -2283,7 +2283,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int mds = session->s_mds;
-	int seq = le32_to_cpu(grant->seq);
+	unsigned seq = le32_to_cpu(grant->seq);
+	unsigned issue_seq = le32_to_cpu(grant->issue_seq);
 	int newcaps = le32_to_cpu(grant->caps);
 	int issued, implemented, used, wanted, dirty;
 	u64 size = le64_to_cpu(grant->size);
@@ -2295,8 +2296,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int revoked_rdcache = 0;
 	int queue_invalidate = 0;
 
-	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
-	     inode, cap, mds, seq, ceph_cap_string(newcaps));
+	dout("handle_cap_grant inode %p cap %p mds%d seq %u/%u %s\n",
+	     inode, cap, mds, seq, issue_seq, ceph_cap_string(newcaps));
 	dout(" size %llu max_size %llu, i_size %llu\n", size, max_size,
 		inode->i_size);
 
@@ -2392,6 +2393,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	}
 
 	cap->seq = seq;
+	cap->issue_seq = issue_seq;
 
 	/* file layout may have changed */
 	ci->i_layout = grant->layout;
@@ -2774,15 +2776,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		if (op == CEPH_CAP_OP_IMPORT)
 			__queue_cap_release(session, vino.ino, cap_id,
 					    mseq, seq);
-
-		/*
-		 * send any full release message to try to move things
-		 * along for the mds (who clearly thinks we still have this
-		 * cap).
-		 */
-		ceph_add_cap_releases(mdsc, session);
-		ceph_send_cap_releases(mdsc, session);
-		goto done;
+		goto flush_cap_releases;
 	}
 
 	/* these will work even if we don't have a cap yet */
@@ -2810,7 +2804,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		dout(" no cap on %p ino %llx.%llx from mds%d\n",
 		     inode, ceph_ino(inode), ceph_snap(inode), mds);
 		spin_unlock(&inode->i_lock);
-		goto done;
+		goto flush_cap_releases;
 	}
 
 	/* note that each of these drops i_lock for us */
@@ -2833,6 +2827,17 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		pr_err("ceph_handle_caps: unknown cap op %d %s\n", op,
 		       ceph_cap_op_name(op));
 	}
+
+	goto done;
+
+flush_cap_releases:
+	/*
+	 * send any full release message to try to move things
+	 * along for the mds (who clearly thinks we still have this
+	 * cap).
+	 */
+	ceph_add_cap_releases(mdsc, session);
+	ceph_send_cap_releases(mdsc, session);
 
 done:
 	mutex_unlock(&session->s_mutex);

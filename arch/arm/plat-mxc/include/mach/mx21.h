@@ -120,7 +120,7 @@
 #define MX21_INT_GPT1		26
 #define MX21_INT_WDOG		27
 #define MX21_INT_PCMCIA		28
-#define MX21_INT_NANDFC		29
+#define MX21_INT_NFC		29
 #define MX21_INT_BMI		30
 #define MX21_INT_CSI		31
 #define MX21_INT_DMACH0		32

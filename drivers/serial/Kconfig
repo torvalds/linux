@@ -458,6 +458,7 @@ config SERIAL_SAMSUNG_UARTS
 	int
 	depends on ARM && PLAT_SAMSUNG
 	default 2 if ARCH_S3C2400
+	default 6 if ARCH_S5P6450
 	default 4 if SERIAL_SAMSUNG_UARTS_4
 	default 3
 	help
@@ -526,12 +527,12 @@ config SERIAL_S3C24A0
 	  Serial port support for the Samsung S3C24A0 SoC
 
 config SERIAL_S3C6400
-	tristate "Samsung S3C6400/S3C6410/S5P6440/S5PC100 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410 || CPU_S5P6440 || CPU_S5PC100)
+	tristate "Samsung S3C6400/S3C6410/S5P6440/S5P6450/S5PC100 Serial port support"
+	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410 || CPU_S5P6440 || CPU_S5P6450 || CPU_S5PC100)
 	select SERIAL_SAMSUNG_UARTS_4
 	default y
 	help
-	  Serial port support for the Samsung S3C6400, S3C6410, S5P6440
+	  Serial port support for the Samsung S3C6400, S3C6410, S5P6440, S5P6450
 	  and S5PC100 SoCs
 
 config SERIAL_S5PV210

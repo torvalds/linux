@@ -405,9 +405,15 @@ xlog_cil_push(
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_SLEEP|KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
-	/* lock out transaction commit, but don't block on background push */
+	/*
+	 * Lock out transaction commit, but don't block for background pushes
+	 * unless we are well over the CIL space limit. See the definition of
+	 * XLOG_CIL_HARD_SPACE_LIMIT() for the full explanation of the logic
+	 * used here.
+	 */
 	if (!down_write_trylock(&cil->xc_ctx_lock)) {
-		if (!push_seq)
+		if (!push_seq &&
+		    cil->xc_ctx->space_used < XLOG_CIL_HARD_SPACE_LIMIT(log))
 			goto out_free_ticket;
 		down_write(&cil->xc_ctx_lock);
 	}
@@ -422,7 +428,7 @@ xlog_cil_push(
 		goto out_skip;
 
 	/* check for a previously pushed seqeunce */
-	if (push_seq < cil->xc_ctx->sequence)
+	if (push_seq && push_seq < cil->xc_ctx->sequence)
 		goto out_skip;
 
 	/*

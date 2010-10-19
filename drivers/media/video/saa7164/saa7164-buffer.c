@@ -136,10 +136,11 @@ ret:
 int saa7164_buffer_dealloc(struct saa7164_tsport *port,
 	struct saa7164_buffer *buf)
 {
-	struct saa7164_dev *dev = port->dev;
+	struct saa7164_dev *dev;
 
-	if ((buf == 0) || (port == 0))
+	if (!buf || !port)
 		return SAA_ERR_BAD_PARAMETER;
+	dev = port->dev;
 
 	dprintk(DBGLVL_BUF, "%s() deallocating buffer @ 0x%p\n", __func__, buf);
 

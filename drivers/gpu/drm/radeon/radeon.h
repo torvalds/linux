@@ -344,6 +344,7 @@ struct radeon_mc {
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	u64			active_vram_size;
 	u64			gtt_size;
 	u64			gtt_start;
 	u64			gtt_end;

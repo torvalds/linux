@@ -5,11 +5,15 @@ struct sys_timer;
 
 extern struct sys_timer pxa168_timer;
 extern void __init pxa168_init_irq(void);
+extern void pxa168_clear_keypad_wakeup(void);
 
 #include <linux/i2c.h>
 #include <mach/devices.h>
 #include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
+#include <video/pxa168fb.h>
+#include <plat/pxa27x_keypad.h>
+#include <mach/cputype.h>
 
 extern struct pxa_device_desc pxa168_device_uart1;
 extern struct pxa_device_desc pxa168_device_uart2;
@@ -25,6 +29,8 @@ extern struct pxa_device_desc pxa168_device_ssp3;
 extern struct pxa_device_desc pxa168_device_ssp4;
 extern struct pxa_device_desc pxa168_device_ssp5;
 extern struct pxa_device_desc pxa168_device_nand;
+extern struct pxa_device_desc pxa168_device_fb;
+extern struct pxa_device_desc pxa168_device_keypad;
 
 static inline int pxa168_add_uart(int id)
 {
@@ -97,4 +103,18 @@ static inline int pxa168_add_nand(struct pxa3xx_nand_platform_data *info)
 {
 	return pxa_register_device(&pxa168_device_nand, info, sizeof(*info));
 }
+
+static inline int pxa168_add_fb(struct pxa168fb_mach_info *mi)
+{
+	return pxa_register_device(&pxa168_device_fb, mi, sizeof(*mi));
+}
+
+static inline int pxa168_add_keypad(struct pxa27x_keypad_platform_data *data)
+{
+	if (cpu_is_pxa168())
+		data->clear_wakeup_event = pxa168_clear_keypad_wakeup;
+
+	return pxa_register_device(&pxa168_device_keypad, data, sizeof(*data));
+}
+
 #endif /* __ASM_MACH_PXA168_H */
