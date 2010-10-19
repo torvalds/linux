@@ -77,13 +77,14 @@ static void fini_debug_store_on_cpu(int cpu)
 static int alloc_pebs_buffer(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	int node = cpu_to_node(cpu);
 	int max, thresh = 1; /* always use a single PEBS record */
 	void *buffer;
 
 	if (!x86_pmu.pebs)
 		return 0;
 
-	buffer = kzalloc(PEBS_BUFFER_SIZE, GFP_KERNEL);
+	buffer = kmalloc_node(PEBS_BUFFER_SIZE, GFP_KERNEL | __GFP_ZERO, node);
 	if (unlikely(!buffer))
 		return -ENOMEM;
 
@@ -114,13 +115,14 @@ static void release_pebs_buffer(int cpu)
 static int alloc_bts_buffer(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	int node = cpu_to_node(cpu);
 	int max, thresh;
 	void *buffer;
 
 	if (!x86_pmu.bts)
 		return 0;
 
-	buffer = kzalloc(BTS_BUFFER_SIZE, GFP_KERNEL);
+	buffer = kmalloc_node(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_ZERO, node);
 	if (unlikely(!buffer))
 		return -ENOMEM;
 
@@ -150,9 +152,10 @@ static void release_bts_buffer(int cpu)
 
 static int alloc_ds_buffer(int cpu)
 {
+	int node = cpu_to_node(cpu);
 	struct debug_store *ds;
 
-	ds = kzalloc(sizeof(*ds), GFP_KERNEL);
+	ds = kmalloc_node(sizeof(*ds), GFP_KERNEL | __GFP_ZERO, node);
 	if (unlikely(!ds))
 		return -ENOMEM;
 
