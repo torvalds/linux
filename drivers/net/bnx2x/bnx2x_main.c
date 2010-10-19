@@ -5457,7 +5457,8 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	struct bnx2x_ilt *ilt = BP_ILT(bp);
 	u16 cdu_ilt_start;
 	u32 addr, val;
-	int i;
+	u32 main_mem_base, main_mem_size, main_mem_prty_clr;
+	int i, main_mem_width;
 
 	DP(BNX2X_MSG_MCP, "starting func init  func %d\n", func);
 
@@ -5705,6 +5706,31 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	bnx2x_init_block(bp, DBG_BLOCK, FUNC0_STAGE + func);
 	bnx2x_init_block(bp, MCP_BLOCK, FUNC0_STAGE + func);
 	bnx2x_init_block(bp, DMAE_BLOCK, FUNC0_STAGE + func);
+
+	if (CHIP_IS_E1x(bp)) {
+		main_mem_size = HC_REG_MAIN_MEMORY_SIZE / 2; /*dwords*/
+		main_mem_base = HC_REG_MAIN_MEMORY +
+				BP_PORT(bp) * (main_mem_size * 4);
+		main_mem_prty_clr = HC_REG_HC_PRTY_STS_CLR;
+		main_mem_width = 8;
+
+		val = REG_RD(bp, main_mem_prty_clr);
+		if (val)
+			DP(BNX2X_MSG_MCP, "Hmmm... Parity errors in HC "
+					  "block during "
+					  "function init (0x%x)!\n", val);
+
+		/* Clear "false" parity errors in MSI-X table */
+		for (i = main_mem_base;
+		     i < main_mem_base + main_mem_size * 4;
+		     i += main_mem_width) {
+			bnx2x_read_dmae(bp, i, main_mem_width / 4);
+			bnx2x_write_dmae(bp, bnx2x_sp_mapping(bp, wb_data),
+					 i, main_mem_width / 4);
+		}
+		/* Clear HC parity attention */
+		REG_RD(bp, main_mem_prty_clr);
+	}
 
 	bnx2x_phy_probe(&bp->link_params);
 

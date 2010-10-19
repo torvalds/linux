@@ -800,9 +800,13 @@
 #define HC_REG_HC_PRTY_MASK					 0x1080a0
 /* [R 3] Parity register #0 read */
 #define HC_REG_HC_PRTY_STS					 0x108094
-#define HC_REG_INT_MASK 					 0x108108
+/* [RC 3] Parity register #0 read clear */
+#define HC_REG_HC_PRTY_STS_CLR					 0x108098
+#define HC_REG_INT_MASK						 0x108108
 #define HC_REG_LEADING_EDGE_0					 0x108040
 #define HC_REG_LEADING_EDGE_1					 0x108048
+#define HC_REG_MAIN_MEMORY					 0x108800
+#define HC_REG_MAIN_MEMORY_SIZE					 152
 #define HC_REG_P0_PROD_CONS					 0x108200
 #define HC_REG_P1_PROD_CONS					 0x108400
 #define HC_REG_PBA_COMMAND					 0x108140
