@@ -114,7 +114,7 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 		      (gpuobj->engine << NV40_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else {
 		if (gpuobj->engine == NVOBJ_ENGINE_DISPLAY) {
-			ctx = (gpuobj->cinst << 10) | 2;
+			ctx = (gpuobj->cinst << 10) | chan->id;
 		} else {
 			ctx = (gpuobj->cinst >> 4) |
 			      ((gpuobj->engine <<
