@@ -74,6 +74,28 @@ static void fini_debug_store_on_cpu(int cpu)
 	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
 }
 
+static void release_pebs_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+
+	if (!ds || !x86_pmu.pebs)
+		return;
+
+	kfree((void *)(unsigned long)ds->pebs_buffer_base);
+	ds->pebs_buffer_base = 0;
+}
+
+static void release_bts_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+
+	if (!ds || !x86_pmu.bts)
+		return;
+
+	kfree((void *)(unsigned long)ds->bts_buffer_base);
+	ds->bts_buffer_base = 0;
+}
+
 static void release_ds_buffers(void)
 {
 	int cpu;
@@ -82,7 +104,6 @@ static void release_ds_buffers(void)
 		return;
 
 	get_online_cpus();
-
 	for_each_online_cpu(cpu)
 		fini_debug_store_on_cpu(cpu);
 
@@ -92,13 +113,12 @@ static void release_ds_buffers(void)
 		if (!ds)
 			continue;
 
-		per_cpu(cpu_hw_events, cpu).ds = NULL;
+		release_pebs_buffer(cpu);
+		release_bts_buffer(cpu);
 
-		kfree((void *)(unsigned long)ds->pebs_buffer_base);
-		kfree((void *)(unsigned long)ds->bts_buffer_base);
+		per_cpu(cpu_hw_events, cpu).ds = NULL;
 		kfree(ds);
 	}
-
 	put_online_cpus();
 }
 
