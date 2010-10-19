@@ -852,6 +852,14 @@ config CRYPTO_USER_API_HASH
 	  This option enables the user-spaces interface for hash
 	  algorithms.
 
+config CRYPTO_USER_API_SKCIPHER
+	tristate "User-space interface for symmetric key cipher algorithms"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for symmetric
+	  key cipher algorithms.
+
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
