@@ -548,11 +548,9 @@ static int wm8580_set_paif_dai_fmt(struct snd_soc_dai *codec_dai,
 				      unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
 	unsigned int aifa;
 	unsigned int aifb;
 	int can_invert_lrclk;
-	int sysclk;
 
 	aifa = snd_soc_read(codec, WM8580_PAIF1 + codec_dai->driver->id);
 	aifb = snd_soc_read(codec, WM8580_PAIF3 + codec_dai->driver->id);
@@ -620,8 +618,6 @@ static int wm8580_set_paif_dai_fmt(struct snd_soc_dai *codec_dai,
 	default:
 		return -EINVAL;
 	}
-
-	sysclk = wm8580->sysclk[codec_dai->driver->id];
 
 	snd_soc_write(codec, WM8580_PAIF1 + codec_dai->driver->id, aifa);
 	snd_soc_write(codec, WM8580_PAIF3 + codec_dai->driver->id, aifb);
