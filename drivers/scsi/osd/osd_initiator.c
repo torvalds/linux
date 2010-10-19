@@ -464,6 +464,7 @@ void osd_end_request(struct osd_request *or)
 	_osd_free_seg(or, &or->get_attr);
 	_osd_free_seg(or, &or->enc_get_attr);
 	_osd_free_seg(or, &or->set_attr);
+	_osd_free_seg(or, &or->cdb_cont);
 
 	_osd_request_free(or);
 }
@@ -546,6 +547,12 @@ static int _osd_realloc_seg(struct osd_request *or,
 	seg->buff = buff;
 	seg->alloc_size = max_bytes;
 	return 0;
+}
+
+static int _alloc_cdb_cont(struct osd_request *or, unsigned total_bytes)
+{
+	OSD_DEBUG("total_bytes=%d\n", total_bytes);
+	return _osd_realloc_seg(or, &or->cdb_cont, total_bytes);
 }
 
 static int _alloc_set_attr_list(struct osd_request *or,
@@ -885,6 +892,128 @@ int osd_req_read_kern(struct osd_request *or,
 	return 0;
 }
 EXPORT_SYMBOL(osd_req_read_kern);
+
+static int _add_sg_continuation_descriptor(struct osd_request *or,
+	const struct osd_sg_entry *sglist, unsigned numentries, u64 *len)
+{
+	struct osd_sg_continuation_descriptor *oscd;
+	u32 oscd_size;
+	unsigned i;
+	int ret;
+
+	oscd_size = sizeof(*oscd) + numentries * sizeof(oscd->entries[0]);
+
+	if (!or->cdb_cont.total_bytes) {
+		/* First time, jump over the header, we will write to:
+		 *	cdb_cont.buff + cdb_cont.total_bytes
+		 */
+		or->cdb_cont.total_bytes =
+				sizeof(struct osd_continuation_segment_header);
+	}
+
+	ret = _alloc_cdb_cont(or, or->cdb_cont.total_bytes + oscd_size);
+	if (unlikely(ret))
+		return ret;
+
+	oscd = or->cdb_cont.buff + or->cdb_cont.total_bytes;
+	oscd->hdr.type = cpu_to_be16(SCATTER_GATHER_LIST);
+	oscd->hdr.pad_length = 0;
+	oscd->hdr.length = cpu_to_be32(oscd_size - sizeof(*oscd));
+
+	*len = 0;
+	/* copy the sg entries and convert to network byte order */
+	for (i = 0; i < numentries; i++) {
+		oscd->entries[i].offset = cpu_to_be64(sglist[i].offset);
+		oscd->entries[i].len    = cpu_to_be64(sglist[i].len);
+		*len += sglist[i].len;
+	}
+
+	or->cdb_cont.total_bytes += oscd_size;
+	OSD_DEBUG("total_bytes=%d oscd_size=%d numentries=%d\n",
+		  or->cdb_cont.total_bytes, oscd_size, numentries);
+	return 0;
+}
+
+static int _osd_req_finalize_cdb_cont(struct osd_request *or, const u8 *cap_key)
+{
+	struct request_queue *req_q = osd_request_queue(or->osd_dev);
+	struct bio *bio;
+	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
+	struct osd_continuation_segment_header *cont_seg_hdr;
+
+	if (!or->cdb_cont.total_bytes)
+		return 0;
+
+	cont_seg_hdr = or->cdb_cont.buff;
+	cont_seg_hdr->format = CDB_CONTINUATION_FORMAT_V2;
+	cont_seg_hdr->service_action = cdbh->varlen_cdb.service_action;
+
+	/* create a bio for continuation segment */
+	bio = bio_map_kern(req_q, or->cdb_cont.buff, or->cdb_cont.total_bytes,
+			   GFP_KERNEL);
+	if (unlikely(!bio))
+		return -ENOMEM;
+
+	bio->bi_rw |= REQ_WRITE;
+
+	/* integrity check the continuation before the bio is linked
+	 * with the other data segments since the continuation
+	 * integrity is separate from the other data segments.
+	 */
+	osd_sec_sign_data(cont_seg_hdr->integrity_check, bio, cap_key);
+
+	cdbh->v2.cdb_continuation_length = cpu_to_be32(or->cdb_cont.total_bytes);
+
+	/* we can't use _req_append_segment, because we need to link in the
+	 * continuation bio to the head of the bio list - the
+	 * continuation segment (if it exists) is always the first segment in
+	 * the out data buffer.
+	 */
+	bio->bi_next = or->out.bio;
+	or->out.bio = bio;
+	or->out.total_bytes += or->cdb_cont.total_bytes;
+
+	return 0;
+}
+
+/* osd_req_write_sg: Takes a @bio that points to the data out buffer and an
+ * @sglist that has the scatter gather entries. Scatter-gather enables a write
+ * of multiple none-contiguous areas of an object, in a single call. The extents
+ * may overlap and/or be in any order. The only constrain is that:
+ *	total_bytes(sglist) >= total_bytes(bio)
+ */
+int osd_req_write_sg(struct osd_request *or,
+	const struct osd_obj_id *obj, struct bio *bio,
+	const struct osd_sg_entry *sglist, unsigned numentries)
+{
+	u64 len;
+	int ret = _add_sg_continuation_descriptor(or, sglist, numentries, &len);
+
+	if (ret)
+		return ret;
+	osd_req_write(or, obj, 0, bio, len);
+
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_write_sg);
+
+/* osd_req_read_sg: Read multiple extents of an object into @bio
+ * See osd_req_write_sg
+ */
+int osd_req_read_sg(struct osd_request *or,
+	const struct osd_obj_id *obj, struct bio *bio,
+	const struct osd_sg_entry *sglist, unsigned numentries)
+{
+	u64 len;
+	int ret = _add_sg_continuation_descriptor(or, sglist, numentries, &len);
+
+	if (ret)
+		return ret;
+	osd_req_read(or, obj, 0, bio, len);
+
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_read_sg);
 
 void osd_req_get_attributes(struct osd_request *or,
 	const struct osd_obj_id *obj)
@@ -1281,7 +1410,8 @@ static inline void osd_sec_parms_set_in_offset(bool is_v1,
 }
 
 static int _osd_req_finalize_data_integrity(struct osd_request *or,
-	bool has_in, bool has_out, u64 out_data_bytes, const u8 *cap_key)
+	bool has_in, bool has_out, struct bio *out_data_bio, u64 out_data_bytes,
+	const u8 *cap_key)
 {
 	struct osd_security_parameters *sec_parms = _osd_req_sec_params(or);
 	int ret;
@@ -1312,7 +1442,7 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 		or->out.last_seg = NULL;
 
 		/* they are now all chained to request sign them all together */
-		osd_sec_sign_data(&or->out_data_integ, or->out.req->bio,
+		osd_sec_sign_data(&or->out_data_integ, out_data_bio,
 				  cap_key);
 	}
 
@@ -1408,6 +1538,8 @@ int osd_finalize_request(struct osd_request *or,
 {
 	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
 	bool has_in, has_out;
+	 /* Save for data_integrity without the cdb_continuation */
+	struct bio *out_data_bio = or->out.bio;
 	u64 out_data_bytes = or->out.total_bytes;
 	int ret;
 
@@ -1423,9 +1555,14 @@ int osd_finalize_request(struct osd_request *or,
 	osd_set_caps(&or->cdb, cap);
 
 	has_in = or->in.bio || or->get_attr.total_bytes;
-	has_out = or->out.bio || or->set_attr.total_bytes ||
-		or->enc_get_attr.total_bytes;
+	has_out = or->out.bio || or->cdb_cont.total_bytes ||
+		or->set_attr.total_bytes || or->enc_get_attr.total_bytes;
 
+	ret = _osd_req_finalize_cdb_cont(or, cap_key);
+	if (ret) {
+		OSD_DEBUG("_osd_req_finalize_cdb_cont failed\n");
+		return ret;
+	}
 	ret = _init_blk_request(or, has_in, has_out);
 	if (ret) {
 		OSD_DEBUG("_init_blk_request failed\n");
@@ -1463,7 +1600,8 @@ int osd_finalize_request(struct osd_request *or,
 	}
 
 	ret = _osd_req_finalize_data_integrity(or, has_in, has_out,
-					       out_data_bytes, cap_key);
+					       out_data_bio, out_data_bytes,
+					       cap_key);
 	if (ret)
 		return ret;
 
