@@ -3206,13 +3206,31 @@ static int ath5k_get_survey(struct ieee80211_hw *hw, int idx,
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ath_common *common = ath5k_hw_common(sc->ah);
+	struct ath_cycle_counters *cc = &common->cc_survey;
+	unsigned int div = common->clockrate * 1000;
 
-	 if (idx != 0)
+	if (idx != 0)
 		return -ENOENT;
 
 	survey->channel = conf->channel;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = sc->ah->ah_noise_floor;
+
+	spin_lock_bh(&common->cc_lock);
+	ath_hw_cycle_counters_update(common);
+	if (cc->cycles > 0) {
+		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
+			SURVEY_INFO_CHANNEL_TIME_BUSY |
+			SURVEY_INFO_CHANNEL_TIME_RX |
+			SURVEY_INFO_CHANNEL_TIME_TX;
+		survey->channel_time += cc->cycles / div;
+		survey->channel_time_busy += cc->rx_busy / div;
+		survey->channel_time_rx += cc->rx_frame / div;
+		survey->channel_time_tx += cc->tx_frame / div;
+	}
+	memset(cc, 0, sizeof(*cc));
+	spin_unlock_bh(&common->cc_lock);
 
 	return 0;
 }
