@@ -3301,7 +3301,7 @@ gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(napi_gro_receive);
 
-void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
+static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 {
 	__skb_pull(skb, skb_headlen(skb));
 	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
@@ -3309,7 +3309,6 @@ void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 
 	napi->skb = skb;
 }
-EXPORT_SYMBOL(napi_reuse_skb);
 
 struct sk_buff *napi_get_frags(struct napi_struct *napi)
 {
