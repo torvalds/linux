@@ -132,7 +132,7 @@ enum nouveau_flags {
 
 #define NVOBJ_ENGINE_SW		0
 #define NVOBJ_ENGINE_GR		1
-#define NVOBJ_ENGINE_DISPLAY	2
+#define NVOBJ_ENGINE_DISPLAY	0xcafe0001
 #define NVOBJ_ENGINE_INT	0xdeadbeef
 
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
@@ -324,7 +324,7 @@ struct nouveau_pgraph_object_method {
 
 struct nouveau_pgraph_object_class {
 	int id;
-	bool software;
+	u32 engine;
 	struct nouveau_pgraph_object_method *methods;
 };
 

@@ -900,7 +900,7 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (!grc->software)
+	if (grc->engine != NVOBJ_ENGINE_SW)
 		ret = nouveau_gpuobj_gr_new(chan, grc->id, &gr);
 	else
 		ret = nouveau_gpuobj_sw_new(chan, grc->id, &gr);

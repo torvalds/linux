@@ -409,23 +409,23 @@ void nv40_graph_takedown(struct drm_device *dev)
 }
 
 struct nouveau_pgraph_object_class nv40_graph_grclass[] = {
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x0039, false, NULL }, /* m2mf */
-	{ 0x004a, false, NULL }, /* gdirect */
-	{ 0x009f, false, NULL }, /* imageblit (nv12) */
-	{ 0x008a, false, NULL }, /* ifc */
-	{ 0x0089, false, NULL }, /* sifm */
-	{ 0x3089, false, NULL }, /* sifm (nv40) */
-	{ 0x0062, false, NULL }, /* surf2d */
-	{ 0x3062, false, NULL }, /* surf2d (nv40) */
-	{ 0x0043, false, NULL }, /* rop */
-	{ 0x0012, false, NULL }, /* beta1 */
-	{ 0x0072, false, NULL }, /* beta4 */
-	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0044, false, NULL }, /* pattern */
-	{ 0x309e, false, NULL }, /* swzsurf */
-	{ 0x4097, false, NULL }, /* curie (nv40) */
-	{ 0x4497, false, NULL }, /* curie (nv44) */
+	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
+	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
+	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
+	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
+	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
+	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
+	{ 0x3089, NVOBJ_ENGINE_GR, NULL }, /* sifm (nv40) */
+	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
+	{ 0x3062, NVOBJ_ENGINE_GR, NULL }, /* surf2d (nv40) */
+	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
+	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
+	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
+	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
+	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
+	{ 0x309e, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
+	{ 0x4097, NVOBJ_ENGINE_GR, NULL }, /* curie (nv40) */
+	{ 0x4497, NVOBJ_ENGINE_GR, NULL }, /* curie (nv44) */
 	{}
 };
 

@@ -1091,48 +1091,48 @@ static struct nouveau_pgraph_object_method nv04_graph_mthds_surf3d[] = {
 };
 
 struct nouveau_pgraph_object_class nv04_graph_grclass[] = {
-	{ 0x0038, false, NULL }, /* dvd subpicture */
-	{ 0x0039, false, NULL }, /* m2mf */
-	{ 0x004b, false, nv04_graph_mthds_nv03_gdirect }, /* nv03 gdirect */
-	{ 0x004a, false, nv04_graph_mthds_nv04_gdirect }, /* nv04 gdirect */
-	{ 0x001f, false, nv04_graph_mthds_nv01_imageblit }, /* nv01 imageblit */
-	{ 0x005f, false, nv04_graph_mthds_nv04_imageblit_ifc }, /* nv04 imageblit */
-	{ 0x0060, false, nv04_graph_mthds_nv04_iifc }, /* nv04 iifc */
-	{ 0x0064, false, NULL }, /* nv05 iifc */
-	{ 0x0021, false, nv04_graph_mthds_nv01_ifc }, /* nv01 ifc */
-	{ 0x0061, false, nv04_graph_mthds_nv04_imageblit_ifc }, /* nv04 ifc */
-	{ 0x0065, false, NULL }, /* nv05 ifc */
-	{ 0x0036, false, nv04_graph_mthds_nv03_sifc }, /* nv03 sifc */
-	{ 0x0076, false, nv04_graph_mthds_nv04_sifc }, /* nv04 sifc */
-	{ 0x0066, false, NULL }, /* nv05 sifc */
-	{ 0x0037, false, nv04_graph_mthds_nv03_sifm }, /* nv03 sifm */
-	{ 0x0077, false, nv04_graph_mthds_nv04_sifm }, /* nv04 sifm */
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x0042, false, NULL }, /* surf2d */
-	{ 0x0043, false, NULL }, /* rop */
-	{ 0x0012, false, NULL }, /* beta1 */
-	{ 0x0072, false, NULL }, /* beta4 */
-	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0018, false, NULL }, /* nv01 pattern */
-	{ 0x0044, false, NULL }, /* nv04 pattern */
-	{ 0x0052, false, NULL }, /* swzsurf */
-	{ 0x0053, false, nv04_graph_mthds_surf3d }, /* surf3d */
-	{ 0x0048, false, nv04_graph_mthds_nv03_tex_tri }, /* nv03 tex_tri */
-	{ 0x0054, false, NULL }, /* tex_tri */
-	{ 0x0055, false, NULL }, /* multitex_tri */
-	{ 0x0017, false, NULL }, /* nv01 chroma */
-	{ 0x0057, false, NULL }, /* nv04 chroma */
-	{ 0x0058, false, NULL }, /* surf_dst */
-	{ 0x0059, false, NULL }, /* surf_src */
-	{ 0x005a, false, NULL }, /* surf_color */
-	{ 0x005b, false, NULL }, /* surf_zeta */
-	{ 0x001c, false, nv04_graph_mthds_nv01_shape }, /* nv01 line */
-	{ 0x005c, false, nv04_graph_mthds_nv04_shape }, /* nv04 line */
-	{ 0x001d, false, nv04_graph_mthds_nv01_shape }, /* nv01 tri */
-	{ 0x005d, false, nv04_graph_mthds_nv04_shape }, /* nv04 tri */
-	{ 0x001e, false, nv04_graph_mthds_nv01_shape }, /* nv01 rect */
-	{ 0x005e, false, nv04_graph_mthds_nv04_shape }, /* nv04 rect */
-	{ 0x506e, true, nv04_graph_mthds_sw },
+	{ 0x0038, NVOBJ_ENGINE_GR, NULL }, /* dvd subpicture */
+	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
+	{ 0x004b, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv03_gdirect }, /* nv03 gdirect */
+	{ 0x004a, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_gdirect }, /* nv04 gdirect */
+	{ 0x001f, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv01_imageblit }, /* nv01 imageblit */
+	{ 0x005f, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_imageblit_ifc }, /* nv04 imageblit */
+	{ 0x0060, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_iifc }, /* nv04 iifc */
+	{ 0x0064, NVOBJ_ENGINE_GR, NULL }, /* nv05 iifc */
+	{ 0x0021, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv01_ifc }, /* nv01 ifc */
+	{ 0x0061, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_imageblit_ifc }, /* nv04 ifc */
+	{ 0x0065, NVOBJ_ENGINE_GR, NULL }, /* nv05 ifc */
+	{ 0x0036, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv03_sifc }, /* nv03 sifc */
+	{ 0x0076, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_sifc }, /* nv04 sifc */
+	{ 0x0066, NVOBJ_ENGINE_GR, NULL }, /* nv05 sifc */
+	{ 0x0037, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv03_sifm }, /* nv03 sifm */
+	{ 0x0077, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_sifm }, /* nv04 sifm */
+	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
+	{ 0x0042, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
+	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
+	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
+	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
+	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
+	{ 0x0018, NVOBJ_ENGINE_GR, NULL }, /* nv01 pattern */
+	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* nv04 pattern */
+	{ 0x0052, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
+	{ 0x0053, NVOBJ_ENGINE_GR, nv04_graph_mthds_surf3d }, /* surf3d */
+	{ 0x0048, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv03_tex_tri }, /* nv03 tex_tri */
+	{ 0x0054, NVOBJ_ENGINE_GR, NULL }, /* tex_tri */
+	{ 0x0055, NVOBJ_ENGINE_GR, NULL }, /* multitex_tri */
+	{ 0x0017, NVOBJ_ENGINE_GR, NULL }, /* nv01 chroma */
+	{ 0x0057, NVOBJ_ENGINE_GR, NULL }, /* nv04 chroma */
+	{ 0x0058, NVOBJ_ENGINE_GR, NULL }, /* surf_dst */
+	{ 0x0059, NVOBJ_ENGINE_GR, NULL }, /* surf_src */
+	{ 0x005a, NVOBJ_ENGINE_GR, NULL }, /* surf_color */
+	{ 0x005b, NVOBJ_ENGINE_GR, NULL }, /* surf_zeta */
+	{ 0x001c, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv01_shape }, /* nv01 line */
+	{ 0x005c, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_shape }, /* nv04 line */
+	{ 0x001d, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv01_shape }, /* nv01 tri */
+	{ 0x005d, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_shape }, /* nv04 tri */
+	{ 0x001e, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv01_shape }, /* nv01 rect */
+	{ 0x005e, NVOBJ_ENGINE_GR, nv04_graph_mthds_nv04_shape }, /* nv04 rect */
+	{ 0x506e, NVOBJ_ENGINE_SW, nv04_graph_mthds_sw },
 	{}
 };
 

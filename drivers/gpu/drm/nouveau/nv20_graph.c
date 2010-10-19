@@ -757,45 +757,45 @@ nv30_graph_init(struct drm_device *dev)
 }
 
 struct nouveau_pgraph_object_class nv20_graph_grclass[] = {
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x0039, false, NULL }, /* m2mf */
-	{ 0x004a, false, NULL }, /* gdirect */
-	{ 0x009f, false, NULL }, /* imageblit (nv12) */
-	{ 0x008a, false, NULL }, /* ifc */
-	{ 0x0089, false, NULL }, /* sifm */
-	{ 0x0062, false, NULL }, /* surf2d */
-	{ 0x0043, false, NULL }, /* rop */
-	{ 0x0012, false, NULL }, /* beta1 */
-	{ 0x0072, false, NULL }, /* beta4 */
-	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0044, false, NULL }, /* pattern */
-	{ 0x009e, false, NULL }, /* swzsurf */
-	{ 0x0096, false, NULL }, /* celcius */
-	{ 0x0097, false, NULL }, /* kelvin (nv20) */
-	{ 0x0597, false, NULL }, /* kelvin (nv25) */
+	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
+	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
+	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
+	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
+	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
+	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
+	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
+	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
+	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
+	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
+	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
+	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
+	{ 0x009e, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
+	{ 0x0096, NVOBJ_ENGINE_GR, NULL }, /* celcius */
+	{ 0x0097, NVOBJ_ENGINE_GR, NULL }, /* kelvin (nv20) */
+	{ 0x0597, NVOBJ_ENGINE_GR, NULL }, /* kelvin (nv25) */
 	{}
 };
 
 struct nouveau_pgraph_object_class nv30_graph_grclass[] = {
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x0039, false, NULL }, /* m2mf */
-	{ 0x004a, false, NULL }, /* gdirect */
-	{ 0x009f, false, NULL }, /* imageblit (nv12) */
-	{ 0x008a, false, NULL }, /* ifc */
-	{ 0x038a, false, NULL }, /* ifc (nv30) */
-	{ 0x0089, false, NULL }, /* sifm */
-	{ 0x0389, false, NULL }, /* sifm (nv30) */
-	{ 0x0062, false, NULL }, /* surf2d */
-	{ 0x0362, false, NULL }, /* surf2d (nv30) */
-	{ 0x0043, false, NULL }, /* rop */
-	{ 0x0012, false, NULL }, /* beta1 */
-	{ 0x0072, false, NULL }, /* beta4 */
-	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0044, false, NULL }, /* pattern */
-	{ 0x039e, false, NULL }, /* swzsurf */
-	{ 0x0397, false, NULL }, /* rankine (nv30) */
-	{ 0x0497, false, NULL }, /* rankine (nv35) */
-	{ 0x0697, false, NULL }, /* rankine (nv34) */
+	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
+	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
+	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
+	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
+	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
+	{ 0x038a, NVOBJ_ENGINE_GR, NULL }, /* ifc (nv30) */
+	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
+	{ 0x0389, NVOBJ_ENGINE_GR, NULL }, /* sifm (nv30) */
+	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
+	{ 0x0362, NVOBJ_ENGINE_GR, NULL }, /* surf2d (nv30) */
+	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
+	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
+	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
+	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
+	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
+	{ 0x039e, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
+	{ 0x0397, NVOBJ_ENGINE_GR, NULL }, /* rankine (nv30) */
+	{ 0x0497, NVOBJ_ENGINE_GR, NULL }, /* rankine (nv35) */
+	{ 0x0697, NVOBJ_ENGINE_GR, NULL }, /* rankine (nv34) */
 	{}
 };
 

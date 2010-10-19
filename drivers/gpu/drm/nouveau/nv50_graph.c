@@ -401,16 +401,16 @@ static struct nouveau_pgraph_object_method nv50_graph_nvsw_methods[] = {
 };
 
 struct nouveau_pgraph_object_class nv50_graph_grclass[] = {
-	{ 0x506e, true, nv50_graph_nvsw_methods }, /* nvsw */
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x5039, false, NULL }, /* m2mf */
-	{ 0x502d, false, NULL }, /* 2d */
-	{ 0x50c0, false, NULL }, /* compute */
-	{ 0x85c0, false, NULL }, /* compute (nva3, nva5, nva8) */
-	{ 0x5097, false, NULL }, /* tesla (nv50) */
-	{ 0x8297, false, NULL }, /* tesla (nv8x/nv9x) */
-	{ 0x8397, false, NULL }, /* tesla (nva0, nvaa, nvac) */
-	{ 0x8597, false, NULL }, /* tesla (nva3, nva5, nva8) */
+	{ 0x506e, NVOBJ_ENGINE_SW, nv50_graph_nvsw_methods }, /* nvsw */
+	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
+	{ 0x5039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
+	{ 0x502d, NVOBJ_ENGINE_GR, NULL }, /* 2d */
+	{ 0x50c0, NVOBJ_ENGINE_GR, NULL }, /* compute */
+	{ 0x85c0, NVOBJ_ENGINE_GR, NULL }, /* compute (nva3, nva5, nva8) */
+	{ 0x5097, NVOBJ_ENGINE_GR, NULL }, /* tesla (nv50) */
+	{ 0x8297, NVOBJ_ENGINE_GR, NULL }, /* tesla (nv8x/nv9x) */
+	{ 0x8397, NVOBJ_ENGINE_GR, NULL }, /* tesla (nva0, nvaa, nvac) */
+	{ 0x8597, NVOBJ_ENGINE_GR, NULL }, /* tesla (nva3, nva5, nva8) */
 	{}
 };
 
