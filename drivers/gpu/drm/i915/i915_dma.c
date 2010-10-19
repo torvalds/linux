@@ -132,8 +132,7 @@ static int i915_dma_cleanup(struct drm_device * dev)
 
 	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
-	if (HAS_BSD(dev))
-		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
@@ -1199,9 +1198,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	/* Basic memrange allocator for stolen space (aka mm.vram) */
 	drm_mm_init(&dev_priv->mm.vram, 0, prealloc_size);
 
-	/* We're off and running w/KMS */
-	dev_priv->mm.suspended = 0;
-
 	/* Let GEM Manage from end of prealloc space to end of aperture.
 	 *
 	 * However, leave one page at the end still bound to the scratch page.
@@ -1271,6 +1267,10 @@ static int i915_load_modeset_init(struct drm_device *dev,
 		goto cleanup_irq;
 
 	drm_kms_helper_poll_init(dev);
+
+	/* We're off and running w/KMS */
+	dev_priv->mm.suspended = 0;
+
 	return 0;
 
 cleanup_irq:

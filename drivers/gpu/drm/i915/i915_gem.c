@@ -1795,8 +1795,7 @@ void i915_gem_reset(struct drm_device *dev)
 	int i;
 
 	i915_gem_reset_ring_lists(dev_priv, &dev_priv->render_ring);
-	if (HAS_BSD(dev))
-		i915_gem_reset_ring_lists(dev_priv, &dev_priv->bsd_ring);
+	i915_gem_reset_ring_lists(dev_priv, &dev_priv->bsd_ring);
 
 	/* Remove anything from the flushing lists. The GPU cache is likely
 	 * to be lost on reset along with the data, so simply move the
@@ -1918,8 +1917,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 	}
 
 	i915_gem_retire_requests_ring(dev, &dev_priv->render_ring);
-	if (HAS_BSD(dev))
-		i915_gem_retire_requests_ring(dev, &dev_priv->bsd_ring);
+	i915_gem_retire_requests_ring(dev, &dev_priv->bsd_ring);
 }
 
 static void
@@ -1942,8 +1940,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	if (!dev_priv->mm.suspended &&
 		(!list_empty(&dev_priv->render_ring.request_list) ||
-			(HAS_BSD(dev) &&
-			 !list_empty(&dev_priv->bsd_ring.request_list))))
+		 !list_empty(&dev_priv->bsd_ring.request_list)))
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -2181,8 +2178,7 @@ i915_gpu_idle(struct drm_device *dev)
 
 	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->render_ring.active_list) &&
-		       (!HAS_BSD(dev) ||
-			list_empty(&dev_priv->bsd_ring.active_list)));
+		       list_empty(&dev_priv->bsd_ring.active_list));
 	if (lists_empty)
 		return 0;
 
@@ -2191,11 +2187,9 @@ i915_gpu_idle(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	if (HAS_BSD(dev)) {
-		ret = i915_ring_idle(dev, &dev_priv->bsd_ring);
-		if (ret)
-			return ret;
-	}
+	ret = i915_ring_idle(dev, &dev_priv->bsd_ring);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -4349,10 +4343,7 @@ i915_gem_idle(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (dev_priv->mm.suspended ||
-			(dev_priv->render_ring.gem_object == NULL) ||
-			(HAS_BSD(dev) &&
-			 dev_priv->bsd_ring.gem_object == NULL)) {
+	if (dev_priv->mm.suspended) {
 		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
@@ -4491,8 +4482,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
-	if (HAS_BSD(dev))
-		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
 	if (HAS_PIPE_CONTROL(dev))
 		i915_gem_cleanup_pipe_control(dev);
 }
@@ -4522,11 +4512,11 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	}
 
 	BUG_ON(!list_empty(&dev_priv->render_ring.active_list));
-	BUG_ON(HAS_BSD(dev) && !list_empty(&dev_priv->bsd_ring.active_list));
+	BUG_ON(!list_empty(&dev_priv->bsd_ring.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->render_ring.request_list));
-	BUG_ON(HAS_BSD(dev) && !list_empty(&dev_priv->bsd_ring.request_list));
+	BUG_ON(!list_empty(&dev_priv->bsd_ring.request_list));
 	mutex_unlock(&dev->struct_mutex);
 
 	ret = drm_irq_install(dev);
@@ -4582,10 +4572,8 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.active_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.request_list);
-	if (HAS_BSD(dev)) {
-		INIT_LIST_HEAD(&dev_priv->bsd_ring.active_list);
-		INIT_LIST_HEAD(&dev_priv->bsd_ring.request_list);
-	}
+	INIT_LIST_HEAD(&dev_priv->bsd_ring.active_list);
+	INIT_LIST_HEAD(&dev_priv->bsd_ring.request_list);
 	for (i = 0; i < 16; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
@@ -4848,9 +4836,8 @@ i915_gpu_is_active(struct drm_device *dev)
 	int lists_empty;
 
 	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
-		      list_empty(&dev_priv->render_ring.active_list);
-	if (HAS_BSD(dev))
-		lists_empty &= list_empty(&dev_priv->bsd_ring.active_list);
+		      list_empty(&dev_priv->render_ring.active_list) &&
+		      list_empty(&dev_priv->bsd_ring.active_list);
 
 	return !lists_empty;
 }
