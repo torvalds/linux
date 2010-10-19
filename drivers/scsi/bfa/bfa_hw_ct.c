@@ -39,7 +39,7 @@ bfa_hwct_msix_lpu_err_set(struct bfa_s *bfa, bfa_boolean_t msix, int vec)
 		writel(0, kva + __ct_msix_err_vec_reg[fn]);
 }
 
-/**
+/*
  * Dummy interrupt handler for handling spurious interrupt during chip-reinit.
  */
 static void
@@ -110,7 +110,7 @@ bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 	*num_vecs = BFA_MSIX_CT_MAX;
 }
 
-/**
+/*
  * Setup MSI-X vector for catapult
  */
 void
@@ -156,7 +156,7 @@ bfa_hwct_msix_uninstall(struct bfa_s *bfa)
 		bfa->msix.handler[i] = bfa_hwct_msix_dummy;
 }
 
-/**
+/*
  * Enable MSI-X vectors
  */
 void

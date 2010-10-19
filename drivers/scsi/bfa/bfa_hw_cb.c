@@ -102,7 +102,7 @@ bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 	*num_vecs = __HFN_NUMINTS;
 }
 
-/**
+/*
  * No special setup required for crossbow -- vector assignments are implicit.
  */
 void
@@ -129,7 +129,7 @@ bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
 		bfa->msix.handler[i] = bfa_msix_lpu_err;
 }
 
-/**
+/*
  * Crossbow -- dummy, interrupts are masked
  */
 void
@@ -142,7 +142,7 @@ bfa_hwcb_msix_uninstall(struct bfa_s *bfa)
 {
 }
 
-/**
+/*
  * No special enable/disable -- vector assignments are implicit.
  */
 void

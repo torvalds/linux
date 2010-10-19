@@ -150,7 +150,7 @@ fc_gs_fchdr_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u32 ox_id)
 	fchs->s_id = (s_id);
 	fchs->ox_id = cpu_to_be16(ox_id);
 
-	/**
+	/*
 	 * @todo no need to set ox_id for request
 	 *       no need to set rx_id for response
 	 */

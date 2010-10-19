@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfad_im.c Linux driver IM module.
  */
 
@@ -164,10 +164,10 @@ bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 		wake_up(wq);
 }
 
-/**
+/*
  *  Scsi_Host_template SCSI host template
  */
-/**
+/*
  * Scsi_Host template entry, returns BFAD PCI info.
  */
 static const char *
@@ -196,7 +196,7 @@ bfad_im_info(struct Scsi_Host *shost)
 	return bfa_buf;
 }
 
-/**
+/*
  * Scsi_Host template entry, aborts the specified SCSI command.
  *
  * Returns: SUCCESS or FAILED.
@@ -280,7 +280,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * Scsi_Host template entry, resets a LUN and abort its all commands.
  *
  * Returns: SUCCESS or FAILED.
@@ -319,7 +319,7 @@ bfad_im_reset_lun_handler(struct scsi_cmnd *cmnd)
 		goto out;
 	}
 
-	/**
+	/*
 	 * Set host_scribble to NULL to avoid aborting a task command
 	 * if happens.
 	 */
@@ -346,7 +346,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * Scsi_Host template entry, resets the bus and abort all commands.
  */
 static int
@@ -396,7 +396,7 @@ bfad_im_reset_bus_handler(struct scsi_cmnd *cmnd)
 	return SUCCESS;
 }
 
-/**
+/*
  * Scsi_Host template entry slave_destroy.
  */
 static void
@@ -406,11 +406,11 @@ bfad_im_slave_destroy(struct scsi_device *sdev)
 	return;
 }
 
-/**
+/*
  *  BFA FCS itnim callbacks
  */
 
-/**
+/*
  * BFA FCS itnim alloc callback, after successful PRLI
  * Context: Interrupt
  */
@@ -433,7 +433,7 @@ bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
 	bfad->bfad_flags |= BFAD_RPORT_ONLINE;
 }
 
-/**
+/*
  * BFA FCS itnim free callback.
  * Context: Interrupt. bfad_lock is held
  */
@@ -471,7 +471,7 @@ bfa_fcb_itnim_free(struct bfad_s *bfad, struct bfad_itnim_s *itnim_drv)
 		queue_work(im->drv_workq, &itnim_drv->itnim_work);
 }
 
-/**
+/*
  * BFA FCS itnim online callback.
  * Context: Interrupt. bfad_lock is held
  */
@@ -492,7 +492,7 @@ bfa_fcb_itnim_online(struct bfad_itnim_s *itnim_drv)
 		queue_work(im->drv_workq, &itnim_drv->itnim_work);
 }
 
-/**
+/*
  * BFA FCS itnim offline callback.
  * Context: Interrupt. bfad_lock is held
  */
@@ -519,7 +519,7 @@ bfa_fcb_itnim_offline(struct bfad_itnim_s *itnim_drv)
 		queue_work(im->drv_workq, &itnim_drv->itnim_work);
 }
 
-/**
+/*
  * Allocate a Scsi_Host for a port.
  */
 int
@@ -751,7 +751,7 @@ bfad_os_thread_workq(struct bfad_s *bfad)
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  * Scsi_Host template entry.
  *
  * Description:
@@ -896,7 +896,7 @@ bfad_os_get_itnim(struct bfad_im_port_s *im_port, int id)
 	return NULL;
 }
 
-/**
+/*
  * Scsi_Host template entry slave_alloc
  */
 static int
@@ -973,7 +973,7 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	sprintf(fc_host_symbolic_name(host), "%s", symname);
 
 	fc_host_supported_speeds(host) = bfad_im_supported_speeds(&bfad->bfa);
-	fc_host_maxframe_size(host) = fcport->cfg.maxfrsize;  
+	fc_host_maxframe_size(host) = fcport->cfg.maxfrsize;
 }
 
 static void
@@ -1016,7 +1016,7 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 	return;
 }
 
-/**
+/*
  * Work queue handler using FC transport service
 * Context: kernel
  */
@@ -1116,7 +1116,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-/**
+/*
  * Scsi_Host template entry, queue a SCSI command to the BFAD.
  */
 static int

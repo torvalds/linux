@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfad.c Linux driver PCI interface module.
  */
 #include <linux/module.h>
@@ -151,7 +151,7 @@ bfad_sm_failed(struct bfad_s *bfad, enum bfad_sm_event event);
 static void
 bfad_sm_fcs_exit(struct bfad_s *bfad, enum bfad_sm_event event);
 
-/**
+/*
  * Beginning state for the driver instance, awaiting the pci_probe event
  */
 static void
@@ -181,7 +181,7 @@ bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event)
 	}
 }
 
-/**
+/*
  * Driver Instance is created, awaiting event INIT to initialize the bfad
  */
 static void
@@ -364,7 +364,7 @@ bfad_sm_stopping(struct bfad_s *bfad, enum bfad_sm_event event)
 	}
 }
 
-/**
+/*
  *  BFA callbacks
  */
 void
@@ -376,7 +376,7 @@ bfad_hcb_comp(void *arg, bfa_status_t status)
 	complete(&fcomp->comp);
 }
 
-/**
+/*
  * bfa_init callback
  */
 void
@@ -401,7 +401,7 @@ bfa_cb_init(void *drv, bfa_status_t init_status)
 	complete(&bfad->comp);
 }
 
-/**
+/*
  *  BFA_FCS callbacks
  */
 struct bfad_port_s *
@@ -457,7 +457,7 @@ bfa_fcb_lport_delete(struct bfad_s *bfad, enum bfa_lport_role roles,
 	}
 }
 
-/**
+/*
  * FCS RPORT alloc callback, after successful PLOGI by FCS
  */
 bfa_status_t
@@ -478,7 +478,7 @@ ext:
 	return rc;
 }
 
-/**
+/*
  * FCS PBC VPORT Create
  */
 void
@@ -663,7 +663,7 @@ ext:
 	return rc;
 }
 
-/**
+/*
  * Create a vport under a vf.
  */
 bfa_status_t
@@ -1140,7 +1140,7 @@ bfad_worker(void *ptr)
 	return 0;
 }
 
-/**
+/*
  *  BFA driver interrupt functions
  */
 irqreturn_t
@@ -1199,7 +1199,7 @@ bfad_msix(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * Initialize the MSIX entry table.
  */
 static void
@@ -1252,7 +1252,7 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 	return 0;
 }
 
-/**
+/*
  * Setup MSIX based interrupt.
  */
 int
@@ -1333,7 +1333,7 @@ bfad_remove_intr(struct bfad_s *bfad)
 	}
 }
 
-/**
+/*
  * PCI probe entry.
  */
 int
@@ -1419,7 +1419,7 @@ out:
 	return error;
 }
 
-/**
+/*
  * PCI remove entry.
  */
 void
@@ -1500,7 +1500,7 @@ static struct pci_driver bfad_pci_driver = {
 	.remove = __devexit_p(bfad_pci_remove),
 };
 
-/**
+/*
  * Driver module init.
  */
 static int __init
@@ -1540,7 +1540,7 @@ ext:
 	return error;
 }
 
-/**
+/*
  * Driver module exit.
  */
 static void __exit

@@ -34,7 +34,7 @@ static void bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc);
 
 struct bfa_ioc_hwif_s hwif_ct;
 
-/**
+/*
  * Called from bfa_ioc_attach() to map asic specific calls.
  */
 void
@@ -52,7 +52,7 @@ bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc)
 	ioc->ioc_hwif = &hwif_ct;
 }
 
-/**
+/*
  * Return true if firmware of current driver matches the running firmware.
  */
 static bfa_boolean_t
@@ -62,13 +62,13 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	u32 usecnt;
 	struct bfi_ioc_image_hdr_s fwhdr;
 
-	/**
+	/*
 	 * Firmware match check is relevant only for CNA.
 	 */
 	if (!ioc->cna)
 		return BFA_TRUE;
 
-	/**
+	/*
 	 * If bios boot (flash based) -- do not increment usage count
 	 */
 	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
@@ -78,7 +78,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
 
-	/**
+	/*
 	 * If usage count is 0, always return TRUE.
 	 */
 	if (usecnt == 0) {
@@ -91,12 +91,12 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	ioc_fwstate = readl(ioc->ioc_regs.ioc_fwstate);
 	bfa_trc(ioc, ioc_fwstate);
 
-	/**
+	/*
 	 * Use count cannot be non-zero and chip in uninitialized state.
 	 */
 	bfa_assert(ioc_fwstate != BFI_IOC_UNINIT);
 
-	/**
+	/*
 	 * Check if another driver with a different firmware is active
 	 */
 	bfa_ioc_fwver_get(ioc, &fwhdr);
@@ -106,7 +106,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 		return BFA_FALSE;
 	}
 
-	/**
+	/*
 	 * Same firmware version. Increment the reference count.
 	 */
 	usecnt++;
@@ -121,20 +121,20 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 {
 	u32 usecnt;
 
-	/**
+	/*
 	 * Firmware lock is relevant only for CNA.
 	 */
 	if (!ioc->cna)
 		return;
 
-	/**
+	/*
 	 * If bios boot (flash based) -- do not decrement usage count
 	 */
 	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
 						BFA_IOC_FWIMG_MINSZ)
 		return;
 
-	/**
+	/*
 	 * decrement usage count
 	 */
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
@@ -148,7 +148,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
-/**
+/*
  * Notify other functions on HB failure.
  */
 static void
@@ -164,7 +164,7 @@ bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc)
 	}
 }
 
-/**
+/*
  * Host to LPU mailbox message addresses
  */
 static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
@@ -174,7 +174,7 @@ static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
 	{ HOSTFN3_LPU_MBOX0_8, LPU_HOSTFN3_MBOX0_8, HOST_PAGE_NUM_FN3 }
 };
 
-/**
+/*
  * Host <-> LPU mailbox command/status registers - port 0
  */
 static struct { u32 hfn, lpu; } iocreg_mbcmd_p0[] = {
@@ -184,7 +184,7 @@ static struct { u32 hfn, lpu; } iocreg_mbcmd_p0[] = {
 	{ HOSTFN3_LPU0_MBOX0_CMD_STAT, LPU0_HOSTFN3_MBOX0_CMD_STAT }
 };
 
-/**
+/*
  * Host <-> LPU mailbox command/status registers - port 1
  */
 static struct { u32 hfn, lpu; } iocreg_mbcmd_p1[] = {
@@ -236,7 +236,7 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.ioc_init_sem_reg = (rb + HOST_SEM2_REG);
 	ioc->ioc_regs.ioc_usage_reg = (rb + BFA_FW_USE_COUNT);
 
-	/**
+	/*
 	 * sram memory access
 	 */
 	ioc->ioc_regs.smem_page_start = (rb + PSS_SMEM_PAGE_START);
@@ -248,7 +248,7 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.err_set = (rb + ERR_SET_REG);
 }
 
-/**
+/*
  * Initialize IOC to port mapping.
  */
 
@@ -259,7 +259,7 @@ bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc)
 	void __iomem *rb = ioc->pcidev.pci_bar_kva;
 	u32	r32;
 
-	/**
+	/*
 	 * For catapult, base port id on personality register and IOC type
 	 */
 	r32 = readl(rb + FNC_PERS_REG);
@@ -270,7 +270,7 @@ bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc)
 	bfa_trc(ioc, ioc->port_id);
 }
 
-/**
+/*
  * Set interrupt mode for a function: INTX or MSIX
  */
 static void
@@ -285,7 +285,7 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 	mode = (r32 >> FNC_PERS_FN_SHIFT(bfa_ioc_pcifn(ioc))) &
 		__F0_INTX_STATUS;
 
-	/**
+	/*
 	 * If already in desired mode, do not change anything
 	 */
 	if (!msix && mode)
@@ -303,7 +303,7 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 	writel(r32, rb + FNC_PERS_REG);
 }
 
-/**
+/*
  * Cleanup hw semaphore and usecnt registers
  */
 static void
