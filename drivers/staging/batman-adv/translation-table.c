@@ -59,6 +59,7 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	struct hna_global_entry *hna_global_entry;
 	struct hashtable_t *swaphash;
 	unsigned long flags;
+	int required_bytes;
 
 	spin_lock_irqsave(&bat_priv->hna_lhash_lock, flags);
 	hna_local_entry =
@@ -74,8 +75,12 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	/* only announce as many hosts as possible in the batman-packet and
 	   space in batman_packet->num_hna That also should give a limit to
 	   MAC-flooding. */
-	if ((bat_priv->num_local_hna + 1 > (ETH_DATA_LEN - BAT_PACKET_LEN)
-								/ ETH_ALEN) ||
+	required_bytes = (bat_priv->num_local_hna + 1) * ETH_ALEN;
+	required_bytes += BAT_PACKET_LEN;
+
+	if ((required_bytes > ETH_DATA_LEN) ||
+	    (atomic_read(&bat_priv->aggregation_enabled) &&
+	     required_bytes > MAX_AGGREGATION_BYTES) ||
 	    (bat_priv->num_local_hna + 1 > 255)) {
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Can't add new local hna entry (%pM): "
