@@ -579,6 +579,8 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 	va_start(ap, fmt);
 	err = p9pdu_vwritef(req->tc, c->proto_version, fmt, ap);
 	va_end(ap);
+	if (err)
+		goto reterr;
 	p9pdu_finalize(req->tc);
 
 	err = c->trans_mod->request(c, req);
