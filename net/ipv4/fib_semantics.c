@@ -590,32 +590,29 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		if (!dev)
 			goto out;
 		dev_hold(dev);
-		err = -ENETDOWN;
-		if (!(dev->flags & IFF_UP))
-			goto out;
-		err = 0;
-out:
-		rcu_read_unlock();
-		return err;
+		err = (dev->flags & IFF_UP) ? 0 : -ENETDOWN;
 	} else {
 		struct in_device *in_dev;
 
 		if (nh->nh_flags & (RTNH_F_PERVASIVE | RTNH_F_ONLINK))
 			return -EINVAL;
 
+		rcu_read_lock();
+		err = -ENODEV;
 		in_dev = inetdev_by_index(net, nh->nh_oif);
 		if (in_dev == NULL)
-			return -ENODEV;
-		if (!(in_dev->dev->flags & IFF_UP)) {
-			in_dev_put(in_dev);
-			return -ENETDOWN;
-		}
+			goto out;
+		err = -ENETDOWN;
+		if (!(in_dev->dev->flags & IFF_UP))
+			goto out;
 		nh->nh_dev = in_dev->dev;
 		dev_hold(nh->nh_dev);
 		nh->nh_scope = RT_SCOPE_HOST;
-		in_dev_put(in_dev);
+		err = 0;
 	}
-	return 0;
+out:
+	rcu_read_unlock();
+	return err;
 }
 
 static inline unsigned int fib_laddr_hashfn(__be32 val)

@@ -1429,8 +1429,6 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 
 	if (imr->imr_ifindex) {
 		idev = inetdev_by_index(net, imr->imr_ifindex);
-		if (idev)
-			__in_dev_put(idev);
 		return idev;
 	}
 	if (imr->imr_address.s_addr) {
