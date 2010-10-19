@@ -156,15 +156,8 @@ static void poll_napi(struct net_device *dev)
 {
 	struct napi_struct *napi;
 	int budget = 16;
-	struct softnet_data *sd = &__get_cpu_var(softnet_data);
-	struct list_head *nlist;
 
-	if (dev->flags & IFF_MASTER)
-		nlist = &sd->poll_list;
-	else
-		nlist = &dev->napi_list;
-
-	list_for_each_entry(napi, nlist, dev_list) {
+	list_for_each_entry(napi, &dev->napi_list, dev_list) {
 		if (napi->poll_owner != smp_processor_id() &&
 		    spin_trylock(&napi->poll_lock)) {
 			budget = poll_one_napi(dev->npinfo, napi, budget);
