@@ -74,6 +74,32 @@ static void fini_debug_store_on_cpu(int cpu)
 	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
 }
 
+static int alloc_pebs_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	int max, thresh = 1; /* always use a single PEBS record */
+	void *buffer;
+
+	if (!x86_pmu.pebs)
+		return 0;
+
+	buffer = kzalloc(PEBS_BUFFER_SIZE, GFP_KERNEL);
+	if (unlikely(!buffer))
+		return -ENOMEM;
+
+	max = PEBS_BUFFER_SIZE / x86_pmu.pebs_record_size;
+
+	ds->pebs_buffer_base = (u64)(unsigned long)buffer;
+	ds->pebs_index = ds->pebs_buffer_base;
+	ds->pebs_absolute_maximum = ds->pebs_buffer_base +
+		max * x86_pmu.pebs_record_size;
+
+	ds->pebs_interrupt_threshold = ds->pebs_buffer_base +
+		thresh * x86_pmu.pebs_record_size;
+
+	return 0;
+}
+
 static void release_pebs_buffer(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
@@ -83,6 +109,32 @@ static void release_pebs_buffer(int cpu)
 
 	kfree((void *)(unsigned long)ds->pebs_buffer_base);
 	ds->pebs_buffer_base = 0;
+}
+
+static int alloc_bts_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	int max, thresh;
+	void *buffer;
+
+	if (!x86_pmu.bts)
+		return 0;
+
+	buffer = kzalloc(BTS_BUFFER_SIZE, GFP_KERNEL);
+	if (unlikely(!buffer))
+		return -ENOMEM;
+
+	max = BTS_BUFFER_SIZE / BTS_RECORD_SIZE;
+	thresh = max / 16;
+
+	ds->bts_buffer_base = (u64)(unsigned long)buffer;
+	ds->bts_index = ds->bts_buffer_base;
+	ds->bts_absolute_maximum = ds->bts_buffer_base +
+		max * BTS_RECORD_SIZE;
+	ds->bts_interrupt_threshold = ds->bts_absolute_maximum -
+		thresh * BTS_RECORD_SIZE;
+
+	return 0;
 }
 
 static void release_bts_buffer(int cpu)
@@ -133,8 +185,6 @@ static int reserve_ds_buffers(void)
 
 	for_each_possible_cpu(cpu) {
 		struct debug_store *ds;
-		void *buffer;
-		int max, thresh;
 
 		err = -ENOMEM;
 		ds = kzalloc(sizeof(*ds), GFP_KERNEL);
@@ -142,39 +192,11 @@ static int reserve_ds_buffers(void)
 			break;
 		per_cpu(cpu_hw_events, cpu).ds = ds;
 
-		if (x86_pmu.bts) {
-			buffer = kzalloc(BTS_BUFFER_SIZE, GFP_KERNEL);
-			if (unlikely(!buffer))
-				break;
+		if (alloc_bts_buffer(cpu))
+			break;
 
-			max = BTS_BUFFER_SIZE / BTS_RECORD_SIZE;
-			thresh = max / 16;
-
-			ds->bts_buffer_base = (u64)(unsigned long)buffer;
-			ds->bts_index = ds->bts_buffer_base;
-			ds->bts_absolute_maximum = ds->bts_buffer_base +
-				max * BTS_RECORD_SIZE;
-			ds->bts_interrupt_threshold = ds->bts_absolute_maximum -
-				thresh * BTS_RECORD_SIZE;
-		}
-
-		if (x86_pmu.pebs) {
-			buffer = kzalloc(PEBS_BUFFER_SIZE, GFP_KERNEL);
-			if (unlikely(!buffer))
-				break;
-
-			max = PEBS_BUFFER_SIZE / x86_pmu.pebs_record_size;
-
-			ds->pebs_buffer_base = (u64)(unsigned long)buffer;
-			ds->pebs_index = ds->pebs_buffer_base;
-			ds->pebs_absolute_maximum = ds->pebs_buffer_base +
-				max * x86_pmu.pebs_record_size;
-			/*
-			 * Always use single record PEBS
-			 */
-			ds->pebs_interrupt_threshold = ds->pebs_buffer_base +
-				x86_pmu.pebs_record_size;
-		}
+		if (alloc_pebs_buffer(cpu))
+			break;
 
 		err = 0;
 	}
