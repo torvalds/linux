@@ -793,13 +793,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	char *speed;
 	char descr[255] = "";
 	struct usb_interface *lif = NULL;
-	int skip_interface = 0;
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-	if (!ifnum) {
+	if (ifnum == 1) {
 		/*
 		 * Interface number 0 - IR interface
 		 */
@@ -886,13 +885,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		     le16_to_cpu(udev->descriptor.idVendor),
 		     le16_to_cpu(udev->descriptor.idProduct),
 		     dev->max_iad_interface_count);
-	} else {
-		/* Get dev structure first */
-		dev = usb_get_intfdata(udev->actconfig->interface[0]);
-		if (dev == NULL) {
-			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
-			return -ENODEV;
-		}
 
 		/* store the interface 0 back */
 		lif = udev->actconfig->interface[0];
@@ -903,34 +895,20 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		/* get device number */
 		nr = dev->devno;
 
-		/*
-		 * set skip interface, for all interfaces but
-		 * interface 1 and the last one
-		 */
-		if ((ifnum != 1) && ((ifnum)
-				     != dev->max_iad_interface_count))
-			skip_interface = 1;
-
-		if (ifnum == 1) {
-			assoc_desc = udev->actconfig->intf_assoc[0];
-			if (assoc_desc->bFirstInterface != ifnum) {
-				cx231xx_err(DRIVER_NAME ": Not found "
-					    "matching IAD interface\n");
-				return -ENODEV;
-			}
+		assoc_desc = udev->actconfig->intf_assoc[0];
+		if (assoc_desc->bFirstInterface != ifnum) {
+			cx231xx_err(DRIVER_NAME ": Not found "
+				    "matching IAD interface\n");
+			return -ENODEV;
 		}
-	}
-
-	if (skip_interface)
+	} else {
 		return -ENODEV;
+	}
 
 	cx231xx_info("registering interface %d\n", ifnum);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(lif, dev);
-
-	if ((ifnum) != dev->max_iad_interface_count)
-		return 0;
 
 	/*
 	 * AV device initialization - only done at the last interface
