@@ -464,6 +464,7 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
    maximum possible size is fixed and small, making this approach cleaner.
    This function returns the length of the data in the blob */
 static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
+					u16 *buflen,
 				   struct cifsSesInfo *ses,
 				   const struct nls_table *nls_cp)
 {
@@ -558,7 +559,8 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	sec_blob->SessionKey.MaximumLength = 0;
 
 setup_ntlmv2_ret:
-	return tmp - pbuffer;
+	*buflen = tmp - pbuffer;
+	return rc;
 }
 
 
@@ -591,7 +593,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	int bytes_remaining;
 	struct key *spnego_key = NULL;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
-	int blob_len;
+	u16 blob_len;
 	char *ntlmsspblob = NULL;
 
 	if (ses == NULL)
@@ -848,8 +850,10 @@ ssetup_ntlmssp_authenticate:
 					goto ssetup_exit;
 				}
 
-				blob_len = build_ntlmssp_auth_blob(ntlmsspblob,
-							ses, nls_cp);
+				rc = build_ntlmssp_auth_blob(ntlmsspblob,
+							&blob_len, ses, nls_cp);
+				if (rc)
+					goto ssetup_exit;
 				iov[1].iov_len = blob_len;
 				iov[1].iov_base = ntlmsspblob;
 				pSMB->req.SecurityBlobLength =
@@ -927,7 +931,6 @@ ssetup_ntlmssp_authenticate:
 	bcc_ptr = pByteArea(smb_buf);
 
 	if (smb_buf->WordCount == 4) {
-		__u16 blob_len;
 		blob_len = le16_to_cpu(pSMB->resp.SecurityBlobLength);
 		if (blob_len > bytes_remaining) {
 			cERROR(1, "bad security blob length %d", blob_len);
