@@ -782,7 +782,6 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 		svc_xprt_get(rqstp->rq_xprt);
 		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
-		clp->cl_cb_conn.cb_minorversion = 1;
 		nfsd4_probe_callback(clp);
 	}
 	return new;
@@ -1200,7 +1199,6 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
 	if (conn->cb_addr.ss_family == AF_INET6)
 		((struct sockaddr_in6 *)&conn->cb_addr)->sin6_scope_id = scopeid;
 
-	conn->cb_minorversion = 0;
 	conn->cb_prog = se->se_callback_prog;
 	conn->cb_ident = se->se_callback_ident;
 	return;
@@ -1541,6 +1539,11 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	}
 
 	/*
+	 * XXX: we should probably set this at creation time, and check
+	 * for consistent minorversion use throughout:
+	 */
+	conf->cl_minorversion = 1;
+	/*
 	 * We do not support RDMA or persistent sessions
 	 */
 	cr_ses->flags &= ~SESSION4_PERSIST;
@@ -1857,6 +1860,11 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 		gen_clid(new);
 	}
+	/*
+	 * XXX: we should probably set this at creation time, and check
+	 * for consistent minorversion use throughout:
+	 */
+	new->cl_minorversion = 0;
 	gen_callback(new, setclid, rpc_get_scope_id(sa));
 	add_to_unconfirmed(new, strhashval);
 	setclid->se_clientid.cl_boot = new->cl_clientid.cl_boot;

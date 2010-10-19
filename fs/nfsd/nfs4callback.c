@@ -496,7 +496,7 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 
 	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 		return -EINVAL;
-	if (conn->cb_minorversion) {
+	if (clp->cl_minorversion) {
 		args.bc_xprt = conn->cb_xprt;
 		args.prognumber = clp->cl_cb_session->se_cb_prog;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
@@ -620,7 +620,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 	struct nfs4_client *clp = dp->dl_client;
-	u32 minorversion = clp->cl_cb_conn.cb_minorversion;
+	u32 minorversion = clp->cl_minorversion;
 	int status = 0;
 
 	cb->cb_minorversion = minorversion;
@@ -645,9 +645,9 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 	struct nfs4_client *clp = dp->dl_client;
 
 	dprintk("%s: minorversion=%d\n", __func__,
-		clp->cl_cb_conn.cb_minorversion);
+		clp->cl_minorversion);
 
-	if (clp->cl_cb_conn.cb_minorversion) {
+	if (clp->cl_minorversion) {
 		/* No need for lock, access serialized in nfsd4_cb_prepare */
 		++clp->cl_cb_session->se_cb_seq_nr;
 		clear_bit(0, &clp->cl_cb_slot_busy);
