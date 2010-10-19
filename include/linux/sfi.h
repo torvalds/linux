@@ -70,9 +70,6 @@
 #define SFI_SIG_APIC		"APIC"
 #define SFI_SIG_XSDT		"XSDT"
 #define SFI_SIG_WAKE		"WAKE"
-#define SFI_SIG_SPIB		"SPIB"
-#define SFI_SIG_I2CB		"I2CB"
-#define SFI_SIG_GPEM		"GPEM"
 #define SFI_SIG_DEVS		"DEVS"
 #define SFI_SIG_GPIO		"GPIO"
 
@@ -166,27 +163,6 @@ struct sfi_gpio_table_entry {
 	char	controller_name[16];
 	u16	pin_no;
 	char	pin_name[16];
-} __packed;
-
-struct sfi_spi_table_entry {
-	u16	host_num;	/* attached to host 0, 1...*/
-	u16	cs;		/* chip select */
-	u16	irq_info;
-	char	name[16];
-	u8	dev_info[10];
-} __packed;
-
-struct sfi_i2c_table_entry {
-	u16	host_num;
-	u16	addr;		/* slave addr */
-	u16	irq_info;
-	char	name[16];
-	u8	dev_info[10];
-} __packed;
-
-struct sfi_gpe_table_entry {
-	u16	logical_id;	/* logical id */
-	u16	phys_id;	/* physical GPE id */
 } __packed;
 
 typedef int (*sfi_table_handler) (struct sfi_table_header *table);
