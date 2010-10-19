@@ -465,6 +465,7 @@ static int __devinit ezx_pcap_probe(struct spi_device *spi)
 	pcap->irq_base = pdata->irq_base;
 	pcap->workqueue = create_singlethread_workqueue("pcapd");
 	if (!pcap->workqueue) {
+		ret = -ENOMEM;
 		dev_err(&spi->dev, "cant create pcap thread\n");
 		goto free_pcap;
 	}
