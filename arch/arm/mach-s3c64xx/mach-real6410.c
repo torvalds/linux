@@ -19,6 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/dm9000.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/types.h>
@@ -37,6 +39,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
+#include <plat/nand.h>
 #include <plat/regs-serial.h>
 
 #include <video/platform_lcd.h>
@@ -147,11 +150,47 @@ static struct s3c_fb_platdata real6410_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 };
 
+static struct mtd_partition real6410_nand_part[] = {
+	[0] = {
+		.name	= "uboot",
+		.size	= SZ_1M,
+		.offset	= 0,
+	},
+	[1] = {
+		.name	= "kernel",
+		.size	= SZ_2M,
+		.offset	= SZ_1M,
+	},
+	[2] = {
+		.name	= "rootfs",
+		.size	= MTDPART_SIZ_FULL,
+		.offset	= SZ_1M + SZ_2M,
+	},
+};
+
+static struct s3c2410_nand_set real6410_nand_sets[] = {
+	[0] = {
+		.name		= "nand",
+		.nr_chips	= 1,
+		.nr_partitions	= ARRAY_SIZE(real6410_nand_part),
+		.partitions	= real6410_nand_part,
+	},
+};
+
+static struct s3c2410_platform_nand real6410_nand_info = {
+	.tacls		= 25,
+	.twrph0		= 55,
+	.twrph1		= 40,
+	.nr_sets	= ARRAY_SIZE(real6410_nand_sets),
+	.sets		= real6410_nand_sets,
+};
+
 static struct platform_device *real6410_devices[] __initdata = {
 	&real6410_device_eth,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_fb,
+	&s3c_device_nand,
 };
 
 static void __init real6410_map_io(void)
@@ -249,6 +288,7 @@ static void __init real6410_machine_init(void)
 		real6410_lcd_pdata.win[0]->win_mode.yres);
 
 	s3c_fb_set_platdata(&real6410_lcd_pdata);
+	s3c_nand_set_platdata(&real6410_nand_info);
 
 	/* configure nCS1 width to 16 bits */
 

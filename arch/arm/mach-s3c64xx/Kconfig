@@ -106,6 +106,7 @@ config MACH_REAL6410
 	select S3C64XX_SETUP_SDHCI
 	select S3C_DEV_FB
 	select S3C64XX_SETUP_FB_24BPP
+	select S3C_DEV_NAND
 	help
 	  Machine support for the CoreWind REAL6410
 
