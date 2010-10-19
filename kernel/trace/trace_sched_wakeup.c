@@ -130,6 +130,7 @@ static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = wakeup_tracer_call,
 };
+#endif /* CONFIG_FUNCTION_TRACER */
 
 static int start_func_tracer(int graph)
 {
@@ -158,8 +159,6 @@ static void stop_func_tracer(int graph)
 	else
 		unregister_ftrace_graph();
 }
-
-#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int wakeup_set_flag(u32 old_flags, u32 bit, int set)
