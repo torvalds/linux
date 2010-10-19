@@ -46,159 +46,6 @@ nv50_sor_nr(struct drm_device *dev)
 	return 4;
 }
 
-static void
-nv50_evo_channel_del(struct nouveau_channel **pchan)
-{
-	struct nouveau_channel *chan = *pchan;
-
-	if (!chan)
-		return;
-	*pchan = NULL;
-
-	nouveau_gpuobj_channel_takedown(chan);
-	nouveau_bo_unmap(chan->pushbuf_bo);
-	nouveau_bo_ref(NULL, &chan->pushbuf_bo);
-
-	if (chan->user)
-		iounmap(chan->user);
-
-	kfree(chan);
-}
-
-static int
-nv50_evo_dmaobj_new(struct nouveau_channel *evo, uint32_t class, uint32_t name,
-		    uint32_t tile_flags, uint32_t magic_flags,
-		    uint32_t offset, uint32_t limit)
-{
-	struct drm_nouveau_private *dev_priv = evo->dev->dev_private;
-	struct drm_device *dev = evo->dev;
-	struct nouveau_gpuobj *obj = NULL;
-	int ret;
-
-	ret = nouveau_gpuobj_new(dev, evo, 6*4, 32, 0, &obj);
-	if (ret)
-		return ret;
-	obj->engine = NVOBJ_ENGINE_DISPLAY;
-
-	nv_wo32(obj,  0, (tile_flags << 22) | (magic_flags << 16) | class);
-	nv_wo32(obj,  4, limit);
-	nv_wo32(obj,  8, offset);
-	nv_wo32(obj, 12, 0x00000000);
-	nv_wo32(obj, 16, 0x00000000);
-	if (dev_priv->card_type < NV_C0)
-		nv_wo32(obj, 20, 0x00010000);
-	else
-		nv_wo32(obj, 20, 0x00020000);
-	dev_priv->engine.instmem.flush(dev);
-
-	ret = nouveau_ramht_insert(evo, name, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
-	if (ret) {
-		return ret;
-	}
-
-	return 0;
-}
-
-static int
-nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *ramht = NULL;
-	struct nouveau_channel *chan;
-	int ret;
-
-	chan = kzalloc(sizeof(struct nouveau_channel), GFP_KERNEL);
-	if (!chan)
-		return -ENOMEM;
-	*pchan = chan;
-
-	chan->id = -1;
-	chan->dev = dev;
-	chan->user_get = 4;
-	chan->user_put = 0;
-
-	ret = nouveau_gpuobj_new(dev, NULL, 32768, 0x1000,
-				 NVOBJ_FLAG_ZERO_ALLOC, &chan->ramin);
-	if (ret) {
-		NV_ERROR(dev, "Error allocating EVO channel memory: %d\n", ret);
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	ret = drm_mm_init(&chan->ramin_heap, 0, 32768);
-	if (ret) {
-		NV_ERROR(dev, "Error initialising EVO PRAMIN heap: %d\n", ret);
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	ret = nouveau_gpuobj_new(dev, chan, 4096, 16, 0, &ramht);
-	if (ret) {
-		NV_ERROR(dev, "Unable to allocate EVO RAMHT: %d\n", ret);
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	ret = nouveau_ramht_new(dev, ramht, &chan->ramht);
-	nouveau_gpuobj_ref(NULL, &ramht);
-	if (ret) {
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	if (dev_priv->chipset != 0x50) {
-		ret = nv50_evo_dmaobj_new(chan, 0x3d, NvEvoFB16, 0x70, 0x19,
-					  0, 0xffffffff);
-		if (ret) {
-			nv50_evo_channel_del(pchan);
-			return ret;
-		}
-
-
-		ret = nv50_evo_dmaobj_new(chan, 0x3d, NvEvoFB32, 0x7a, 0x19,
-					  0, 0xffffffff);
-		if (ret) {
-			nv50_evo_channel_del(pchan);
-			return ret;
-		}
-	}
-
-	ret = nv50_evo_dmaobj_new(chan, 0x3d, NvEvoVRAM, 0, 0x19,
-				  0, dev_priv->vram_size);
-	if (ret) {
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	ret = nouveau_bo_new(dev, NULL, 4096, 0, TTM_PL_FLAG_VRAM, 0, 0,
-			     false, true, &chan->pushbuf_bo);
-	if (ret == 0)
-		ret = nouveau_bo_pin(chan->pushbuf_bo, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		NV_ERROR(dev, "Error creating EVO DMA push buffer: %d\n", ret);
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	ret = nouveau_bo_map(chan->pushbuf_bo);
-	if (ret) {
-		NV_ERROR(dev, "Error mapping EVO DMA push buffer: %d\n", ret);
-		nv50_evo_channel_del(pchan);
-		return ret;
-	}
-
-	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
-					NV50_PDISPLAY_USER(0), PAGE_SIZE);
-	if (!chan->user) {
-		NV_ERROR(dev, "Error mapping EVO control regs.\n");
-		nv50_evo_channel_del(pchan);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
 int
 nv50_display_early_init(struct drm_device *dev)
 {
@@ -214,12 +61,10 @@ int
 nv50_display_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
-	struct nouveau_channel *evo = dev_priv->evo;
 	struct drm_connector *connector;
+	struct nouveau_channel *evo;
 	int ret, i;
-	u64 start;
 	u32 val;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -303,7 +148,6 @@ nv50_display_init(struct drm_device *dev)
 		}
 	}
 
-	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 	nv_wr32(dev, NV50_PDISPLAY_PIO_CTRL, 0x00000000);
 	nv_wr32(dev, 0x610028, 0x00000000);
 	nv_mask(dev, NV50_PDISPLAY_INTR_0, 0x00000000, 0x00000000);
@@ -323,69 +167,12 @@ nv50_display_init(struct drm_device *dev)
 		pgpio->irq_enable(dev, conn->dcb->gpio_tag, true);
 	}
 
-	/* taken from nv bug #12637, attempts to un-wedge the hw if it's
-	 * stuck in some unspecified state
-	 */
-	start = ptimer->read(dev);
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x2b00);
-	while ((val = nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0))) & 0x1e0000) {
-		if ((val & 0x9f0000) == 0x20000)
-			nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-							val | 0x800000);
-
-		if ((val & 0x3f0000) == 0x30000)
-			nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-							val | 0x200000);
-
-		if (ptimer->read(dev) - start > 1000000000ULL) {
-			NV_ERROR(dev, "timeout: (0x610200 & 0x1e0000) != 0\n");
-			NV_ERROR(dev, "0x610200 = 0x%08x\n", val);
-			return -EBUSY;
-		}
-	}
-
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x1000b03);
-	if (!nv_wait(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-		     0x40000000, 0x40000000)) {
-		NV_ERROR(dev, "timeout: (0x610200 & 0x40000000) == 0x40000000\n");
-		NV_ERROR(dev, "0x610200 = 0x%08x\n",
-			  nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0)));
-		return -EBUSY;
-	}
-
-	/* initialise fifo */
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_DMA_CB(0),
-		((evo->pushbuf_bo->bo.mem.start << PAGE_SHIFT) >> 8) |
-		NV50_PDISPLAY_CHANNEL_DMA_CB_LOCATION_VRAM |
-		NV50_PDISPLAY_CHANNEL_DMA_CB_VALID);
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_UNK2(0), 0x00010000);
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_UNK3(0), 0x00000002);
-	if (!nv_wait(dev, 0x610200, 0x80000000, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x610200 & 0x80000000) == 0\n");
-		NV_ERROR(dev, "0x610200 = 0x%08x\n", nv_rd32(dev, 0x610200));
-		return -EBUSY;
-	}
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0),
-		(nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0)) & ~0x00000003) |
-		 NV50_PDISPLAY_CHANNEL_STAT_DMA_ENABLED);
-	nv_wr32(dev, NV50_PDISPLAY_USER_PUT(0), 0);
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x01000003 |
-		NV50_PDISPLAY_CHANNEL_STAT_DMA_ENABLED);
-
-	/* enable error reporting on the channel */
-	nv_mask(dev, 0x610028, 0x00000000, 0x00010001 << 0);
-
-	evo->dma.max = (4096/4) - 2;
-	evo->dma.put = 0;
-	evo->dma.cur = evo->dma.put;
-	evo->dma.free = evo->dma.max - evo->dma.cur;
-
-	ret = RING_SPACE(evo, NOUVEAU_DMA_SKIPS);
+	ret = nv50_evo_init(dev);
 	if (ret)
 		return ret;
+	evo = dev_priv->evo;
 
-	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
-		OUT_RING(evo, 0);
+	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 
 	ret = RING_SPACE(evo, 11);
 	if (ret)
@@ -449,12 +236,7 @@ static int nv50_display_disable(struct drm_device *dev)
 		}
 	}
 
-	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0);
-	if (!nv_wait(dev, NV50_PDISPLAY_CHANNEL_STAT(0), 0x1e0000, 0)) {
-		NV_ERROR(dev, "timeout: (0x610200 & 0x1e0000) == 0\n");
-		NV_ERROR(dev, "0x610200 = 0x%08x\n",
-			  nv_rd32(dev, NV50_PDISPLAY_CHANNEL_STAT(0)));
-	}
+	nv50_evo_fini(dev);
 
 	for (i = 0; i < 3; i++) {
 		if (!nv_wait(dev, NV50_PDISPLAY_SOR_DPMS_STATE(i),
@@ -503,13 +285,6 @@ int nv50_display_create(struct drm_device *dev)
 	dev->mode_config.max_height = 8192;
 
 	dev->mode_config.fb_base = dev_priv->fb_phys;
-
-	/* Create EVO channel */
-	ret = nv50_evo_channel_new(dev, &dev_priv->evo);
-	if (ret) {
-		NV_ERROR(dev, "Error creating EVO channel: %d\n", ret);
-		return ret;
-	}
 
 	/* Create CRTC objects */
 	for (i = 0; i < 2; i++)
@@ -565,14 +340,11 @@ int nv50_display_create(struct drm_device *dev)
 void
 nv50_display_destroy(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
 	NV_DEBUG_KMS(dev, "\n");
 
 	drm_mode_config_cleanup(dev);
 
 	nv50_display_disable(dev);
-	nv50_evo_channel_del(&dev_priv->evo);
 }
 
 static u16

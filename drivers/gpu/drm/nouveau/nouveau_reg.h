@@ -729,17 +729,17 @@
 #define NV50_PDISPLAY_UNK30_CTRL_PENDING                             0x80000000
 #define NV50_PDISPLAY_TRAPPED_ADDR                                   0x00610080
 #define NV50_PDISPLAY_TRAPPED_DATA                                   0x00610084
-#define NV50_PDISPLAY_CHANNEL_STAT(i)                  ((i) * 0x10 + 0x00610200)
-#define NV50_PDISPLAY_CHANNEL_STAT_DMA                               0x00000010
-#define NV50_PDISPLAY_CHANNEL_STAT_DMA_DISABLED                      0x00000000
-#define NV50_PDISPLAY_CHANNEL_STAT_DMA_ENABLED                       0x00000010
-#define NV50_PDISPLAY_CHANNEL_DMA_CB(i)                ((i) * 0x10 + 0x00610204)
-#define NV50_PDISPLAY_CHANNEL_DMA_CB_LOCATION                        0x00000002
-#define NV50_PDISPLAY_CHANNEL_DMA_CB_LOCATION_VRAM                   0x00000000
-#define NV50_PDISPLAY_CHANNEL_DMA_CB_LOCATION_SYSTEM                 0x00000002
-#define NV50_PDISPLAY_CHANNEL_DMA_CB_VALID                           0x00000001
-#define NV50_PDISPLAY_CHANNEL_UNK2(i)                  ((i) * 0x10 + 0x00610208)
-#define NV50_PDISPLAY_CHANNEL_UNK3(i)                  ((i) * 0x10 + 0x0061020c)
+#define NV50_PDISPLAY_EVO_CTRL(i)                      ((i) * 0x10 + 0x00610200)
+#define NV50_PDISPLAY_EVO_CTRL_DMA                                   0x00000010
+#define NV50_PDISPLAY_EVO_CTRL_DMA_DISABLED                          0x00000000
+#define NV50_PDISPLAY_EVO_CTRL_DMA_ENABLED                           0x00000010
+#define NV50_PDISPLAY_EVO_DMA_CB(i)                    ((i) * 0x10 + 0x00610204)
+#define NV50_PDISPLAY_EVO_DMA_CB_LOCATION                            0x00000002
+#define NV50_PDISPLAY_EVO_DMA_CB_LOCATION_VRAM                       0x00000000
+#define NV50_PDISPLAY_EVO_DMA_CB_LOCATION_SYSTEM                     0x00000002
+#define NV50_PDISPLAY_EVO_DMA_CB_VALID                               0x00000001
+#define NV50_PDISPLAY_EVO_UNK2(i)                      ((i) * 0x10 + 0x00610208)
+#define NV50_PDISPLAY_EVO_HASH_TAG(i)                  ((i) * 0x10 + 0x0061020c)
 
 #define NV50_PDISPLAY_CURSOR                                         0x00610270
 #define NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i)           ((i) * 0x10 + 0x00610270)
