@@ -24,10 +24,6 @@
 
 /*** Includes ***/
 
-#ifdef CONFIG_SMP
-#error "--- Sorry, this driver is not SMP safe. ---"
-#endif
-
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
@@ -578,28 +574,6 @@ static struct lirc_driver driver = {
 
 static int pf(void *handle);
 static void kf(void *handle);
-
-static struct timer_list poll_timer;
-static void poll_state(unsigned long ignored);
-
-static void poll_state(unsigned long ignored)
-{
-	printk(KERN_NOTICE "%s: time\n",
-	       LIRC_DRIVER_NAME);
-	del_timer(&poll_timer);
-	if (is_claimed)
-		return;
-	kf(NULL);
-	if (!is_claimed) {
-		printk(KERN_NOTICE "%s: could not claim port, giving up\n",
-		       LIRC_DRIVER_NAME);
-		init_timer(&poll_timer);
-		poll_timer.expires = jiffies + HZ;
-		poll_timer.data = (unsigned long)current;
-		poll_timer.function = poll_state;
-		add_timer(&poll_timer);
-	}
-}
 
 static int pf(void *handle)
 {

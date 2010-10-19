@@ -53,7 +53,7 @@ config LIRC_ITE8709
 
 config LIRC_PARALLEL
 	tristate "Homebrew Parallel Port Receiver"
-	depends on LIRC_STAGING && PARPORT && !SMP
+	depends on LIRC_STAGING && PARPORT
 	help
 	  Driver for Homebrew Parallel Port Receivers
 
