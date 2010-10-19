@@ -482,9 +482,9 @@ bfa_fs_port_get_gen_topo_data(struct bfa_fcs_lport_s *port,
 	memset(gen_topo_data, 0,
 		      sizeof(struct fc_rnid_general_topology_data_s));
 
-	gen_topo_data->asso_type = bfa_os_htonl(RNID_ASSOCIATED_TYPE_HOST);
+	gen_topo_data->asso_type = cpu_to_be32(RNID_ASSOCIATED_TYPE_HOST);
 	gen_topo_data->phy_port_num = 0;	/* @todo */
-	gen_topo_data->num_attached_nodes = bfa_os_htonl(1);
+	gen_topo_data->num_attached_nodes = cpu_to_be32(1);
 }
 
 static void
@@ -1584,7 +1584,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	bfa_fcs_fdmi_get_hbaattr(fdmi, fcs_hba_attr);
 
 	rhba->hba_id = bfa_fcs_lport_get_pwwn(port);
-	rhba->port_list.num_ports = bfa_os_htonl(1);
+	rhba->port_list.num_ports = cpu_to_be32(1);
 	rhba->port_list.port_entry = bfa_fcs_lport_get_pwwn(port);
 
 	len = sizeof(rhba->hba_id) + sizeof(rhba->port_list);
@@ -1601,21 +1601,21 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 * Node Name
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_NODENAME);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_NODENAME);
 	attr->len = sizeof(wwn_t);
 	memcpy(attr->value, &bfa_fcs_lport_get_nwwn(port), attr->len);
 	curr_ptr += sizeof(attr->type) + sizeof(attr->len) + attr->len;
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * Manufacturer
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_MANUFACTURER);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_MANUFACTURER);
 	attr->len = (u16) strlen(fcs_hba_attr->manufacturer);
 	memcpy(attr->value, fcs_hba_attr->manufacturer, attr->len);
 	attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1626,14 +1626,14 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * Serial Number
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_SERIALNUM);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_SERIALNUM);
 	attr->len = (u16) strlen(fcs_hba_attr->serial_num);
 	memcpy(attr->value, fcs_hba_attr->serial_num, attr->len);
 	attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1644,14 +1644,14 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * Model
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_MODEL);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_MODEL);
 	attr->len = (u16) strlen(fcs_hba_attr->model);
 	memcpy(attr->value, fcs_hba_attr->model, attr->len);
 	attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1662,14 +1662,14 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * Model Desc
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_MODEL_DESC);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_MODEL_DESC);
 	attr->len = (u16) strlen(fcs_hba_attr->model_desc);
 	memcpy(attr->value, fcs_hba_attr->model_desc, attr->len);
 	attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1680,7 +1680,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
@@ -1688,7 +1688,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 */
 	if (fcs_hba_attr->hw_version[0] != '\0') {
 		attr = (struct fdmi_attr_s *) curr_ptr;
-		attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_HW_VERSION);
+		attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_HW_VERSION);
 		attr->len = (u16) strlen(fcs_hba_attr->hw_version);
 		memcpy(attr->value, fcs_hba_attr->hw_version, attr->len);
 		attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1699,7 +1699,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 		len += attr->len;
 		count++;
 		attr->len =
-			bfa_os_htons(attr->len + sizeof(attr->type) +
+			cpu_to_be16(attr->len + sizeof(attr->type) +
 					 sizeof(attr->len));
 	}
 
@@ -1707,7 +1707,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 * Driver Version
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_DRIVER_VERSION);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_DRIVER_VERSION);
 	attr->len = (u16) strlen(fcs_hba_attr->driver_version);
 	memcpy(attr->value, fcs_hba_attr->driver_version, attr->len);
 	attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1718,7 +1718,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += attr->len;;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
@@ -1726,7 +1726,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 */
 	if (fcs_hba_attr->option_rom_ver[0] != '\0') {
 		attr = (struct fdmi_attr_s *) curr_ptr;
-		attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_ROM_VERSION);
+		attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_ROM_VERSION);
 		attr->len = (u16) strlen(fcs_hba_attr->option_rom_ver);
 		memcpy(attr->value, fcs_hba_attr->option_rom_ver, attr->len);
 		attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1737,7 +1737,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 		len += attr->len;
 		count++;
 		attr->len =
-			bfa_os_htons(attr->len + sizeof(attr->type) +
+			cpu_to_be16(attr->len + sizeof(attr->type) +
 					 sizeof(attr->len));
 	}
 
@@ -1745,7 +1745,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 * f/w Version = driver version
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_FW_VERSION);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_FW_VERSION);
 	attr->len = (u16) strlen(fcs_hba_attr->driver_version);
 	memcpy(attr->value, fcs_hba_attr->driver_version, attr->len);
 	attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1756,7 +1756,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
@@ -1764,7 +1764,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 */
 	if (fcs_hba_attr->os_name[0] != '\0') {
 		attr = (struct fdmi_attr_s *) curr_ptr;
-		attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_OS_NAME);
+		attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_OS_NAME);
 		attr->len = (u16) strlen(fcs_hba_attr->os_name);
 		memcpy(attr->value, fcs_hba_attr->os_name, attr->len);
 		attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1775,7 +1775,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 		len += attr->len;
 		count++;
 		attr->len =
-			bfa_os_htons(attr->len + sizeof(attr->type) +
+			cpu_to_be16(attr->len + sizeof(attr->type) +
 					sizeof(attr->len));
 	}
 
@@ -1783,13 +1783,13 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	 * MAX_CT_PAYLOAD
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_HBA_ATTRIB_MAX_CT);
+	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_MAX_CT);
 	attr->len = sizeof(fcs_hba_attr->max_ct_pyld);
 	memcpy(attr->value, &fcs_hba_attr->max_ct_pyld, attr->len);
 	len += attr->len;
 	count++;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
@@ -1798,7 +1798,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += ((sizeof(attr->type) +
 		 sizeof(attr->len)) * count);
 
-	rhba->hba_attr_blk.attr_count = bfa_os_htonl(count);
+	rhba->hba_attr_blk.attr_count = cpu_to_be32(count);
 	return len;
 }
 
@@ -1825,7 +1825,7 @@ bfa_fcs_lport_fdmi_rhba_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		bfa_sm_send_event(fdmi, FDMISM_EVENT_RSP_OK);
@@ -1909,56 +1909,56 @@ bfa_fcs_lport_fdmi_build_portattr_block(struct bfa_fcs_lport_fdmi_s *fdmi,
 	 * FC4 Types
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_PORT_ATTRIB_FC4_TYPES);
+	attr->type = cpu_to_be16(FDMI_PORT_ATTRIB_FC4_TYPES);
 	attr->len = sizeof(fcs_port_attr.supp_fc4_types);
 	memcpy(attr->value, fcs_port_attr.supp_fc4_types, attr->len);
 	curr_ptr += sizeof(attr->type) + sizeof(attr->len) + attr->len;
 	len += attr->len;
 	++count;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * Supported Speed
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_PORT_ATTRIB_SUPP_SPEED);
+	attr->type = cpu_to_be16(FDMI_PORT_ATTRIB_SUPP_SPEED);
 	attr->len = sizeof(fcs_port_attr.supp_speed);
 	memcpy(attr->value, &fcs_port_attr.supp_speed, attr->len);
 	curr_ptr += sizeof(attr->type) + sizeof(attr->len) + attr->len;
 	len += attr->len;
 	++count;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * current Port Speed
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_PORT_ATTRIB_PORT_SPEED);
+	attr->type = cpu_to_be16(FDMI_PORT_ATTRIB_PORT_SPEED);
 	attr->len = sizeof(fcs_port_attr.curr_speed);
 	memcpy(attr->value, &fcs_port_attr.curr_speed, attr->len);
 	curr_ptr += sizeof(attr->type) + sizeof(attr->len) + attr->len;
 	len += attr->len;
 	++count;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
 	 * max frame size
 	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
-	attr->type = bfa_os_htons(FDMI_PORT_ATTRIB_FRAME_SIZE);
+	attr->type = cpu_to_be16(FDMI_PORT_ATTRIB_FRAME_SIZE);
 	attr->len = sizeof(fcs_port_attr.max_frm_size);
 	memcpy(attr->value, &fcs_port_attr.max_frm_size, attr->len);
 	curr_ptr += sizeof(attr->type) + sizeof(attr->len) + attr->len;
 	len += attr->len;
 	++count;
 	attr->len =
-		bfa_os_htons(attr->len + sizeof(attr->type) +
+		cpu_to_be16(attr->len + sizeof(attr->type) +
 			     sizeof(attr->len));
 
 	/*
@@ -1966,7 +1966,7 @@ bfa_fcs_lport_fdmi_build_portattr_block(struct bfa_fcs_lport_fdmi_s *fdmi,
 	 */
 	if (fcs_port_attr.os_device_name[0] != '\0') {
 		attr = (struct fdmi_attr_s *) curr_ptr;
-		attr->type = bfa_os_htons(FDMI_PORT_ATTRIB_DEV_NAME);
+		attr->type = cpu_to_be16(FDMI_PORT_ATTRIB_DEV_NAME);
 		attr->len = (u16) strlen(fcs_port_attr.os_device_name);
 		memcpy(attr->value, fcs_port_attr.os_device_name, attr->len);
 		attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1977,7 +1977,7 @@ bfa_fcs_lport_fdmi_build_portattr_block(struct bfa_fcs_lport_fdmi_s *fdmi,
 		len += attr->len;
 		++count;
 		attr->len =
-			bfa_os_htons(attr->len + sizeof(attr->type) +
+			cpu_to_be16(attr->len + sizeof(attr->type) +
 					sizeof(attr->len));
 	}
 	/*
@@ -1985,7 +1985,7 @@ bfa_fcs_lport_fdmi_build_portattr_block(struct bfa_fcs_lport_fdmi_s *fdmi,
 	 */
 	if (fcs_port_attr.host_name[0] != '\0') {
 		attr = (struct fdmi_attr_s *) curr_ptr;
-		attr->type = bfa_os_htons(FDMI_PORT_ATTRIB_HOST_NAME);
+		attr->type = cpu_to_be16(FDMI_PORT_ATTRIB_HOST_NAME);
 		attr->len = (u16) strlen(fcs_port_attr.host_name);
 		memcpy(attr->value, fcs_port_attr.host_name, attr->len);
 		attr->len = fc_roundup(attr->len, sizeof(u32));	/* variable
@@ -1996,14 +1996,14 @@ bfa_fcs_lport_fdmi_build_portattr_block(struct bfa_fcs_lport_fdmi_s *fdmi,
 		len += attr->len;
 		++count;
 		attr->len =
-			bfa_os_htons(attr->len + sizeof(attr->type) +
+			cpu_to_be16(attr->len + sizeof(attr->type) +
 				sizeof(attr->len));
 	}
 
 	/*
 	 * Update size of payload
 	 */
-	port_attrib->attr_count = bfa_os_htonl(count);
+	port_attrib->attr_count = cpu_to_be32(count);
 	len += ((sizeof(attr->type) +
 		 sizeof(attr->len)) * count);
 	return len;
@@ -2050,7 +2050,7 @@ bfa_fcs_lport_fdmi_rprt_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		bfa_sm_send_event(fdmi, FDMISM_EVENT_RSP_OK);
@@ -2143,7 +2143,7 @@ bfa_fcs_lport_fdmi_rpa_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		bfa_sm_send_event(fdmi, FDMISM_EVENT_RSP_OK);
@@ -2204,7 +2204,7 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 				sizeof(driver_info->host_os_patch));
 	}
 
-	hba_attr->max_ct_pyld = bfa_os_htonl(FC_MAX_PDUSZ);
+	hba_attr->max_ct_pyld = cpu_to_be32(FC_MAX_PDUSZ);
 }
 
 void
@@ -2230,17 +2230,17 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	/*
 	 * Supported Speeds
 	 */
-	port_attr->supp_speed = bfa_os_htonl(BFA_FCS_FDMI_SUPORTED_SPEEDS);
+	port_attr->supp_speed = cpu_to_be32(BFA_FCS_FDMI_SUPORTED_SPEEDS);
 
 	/*
 	 * Current Speed
 	 */
-	port_attr->curr_speed = bfa_os_htonl(pport_attr.speed);
+	port_attr->curr_speed = cpu_to_be32(pport_attr.speed);
 
 	/*
 	 * Max PDU Size.
 	 */
-	port_attr->max_frm_size = bfa_os_htonl(FC_MAX_PDUSZ);
+	port_attr->max_frm_size = cpu_to_be32(FC_MAX_PDUSZ);
 
 	/*
 	 * OS device Name
@@ -2657,12 +2657,12 @@ bfa_fcs_lport_ms_gmal_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		gmal_resp = (struct fcgs_gmal_resp_s *)(cthdr + 1);
 
-		num_entries = bfa_os_ntohl(gmal_resp->ms_len);
+		num_entries = be32_to_cpu(gmal_resp->ms_len);
 		if (num_entries == 0) {
 			bfa_sm_send_event(ms, MSSM_EVENT_RSP_ERROR);
 			return;
@@ -2853,7 +2853,7 @@ bfa_fcs_lport_ms_gfn_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		gfn_resp = (wwn_t *)(cthdr + 1);
@@ -3815,7 +3815,7 @@ bfa_fcs_lport_ns_rspn_id_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		port->stats.ns_rspnid_accepts++;
@@ -3887,7 +3887,7 @@ bfa_fcs_lport_ns_rft_id_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		port->stats.ns_rftid_accepts++;
@@ -3964,7 +3964,7 @@ bfa_fcs_lport_ns_rff_id_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		port->stats.ns_rffid_accepts++;
@@ -4058,7 +4058,7 @@ bfa_fcs_lport_ns_gid_ft_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	}
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	switch (cthdr->cmd_rsp_code) {
 
@@ -4624,7 +4624,7 @@ bfa_fcs_lport_scn_process_rscn(struct bfa_fcs_lport_s *port,
 	int             i = 0, j;
 
 	num_entries =
-		(bfa_os_ntohs(rscn->payldlen) -
+		(be16_to_cpu(rscn->payldlen) -
 		 sizeof(u32)) / sizeof(rscn->event[0]);
 
 	bfa_trc(port->fcs, num_entries);

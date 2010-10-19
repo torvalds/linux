@@ -2260,11 +2260,11 @@ __bfa_cb_ioim_comp(void *cbarg, bfa_boolean_t complete)
 		 * setup residue value correctly for normal completions
 		 */
 		if (m->resid_flags == FCP_RESID_UNDER) {
-			residue = bfa_os_ntohl(m->residue);
+			residue = be32_to_cpu(m->residue);
 			bfa_stats(ioim->itnim, iocomp_underrun);
 		}
 		if (m->resid_flags == FCP_RESID_OVER) {
-			residue = bfa_os_ntohl(m->residue);
+			residue = be32_to_cpu(m->residue);
 			residue = -residue;
 			bfa_stats(ioim->itnim, iocomp_overrun);
 		}
@@ -2357,7 +2357,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	/**
 	 * build i/o request message next
 	 */
-	m->io_tag = bfa_os_htons(ioim->iotag);
+	m->io_tag = cpu_to_be16(ioim->iotag);
 	m->rport_hdl = ioim->itnim->rport->fw_handle;
 	m->io_timeout = bfa_cb_ioim_get_timeout(ioim->dio);
 
@@ -2395,7 +2395,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	m->cmnd.iodir = bfa_cb_ioim_get_iodir(ioim->dio);
 	m->cmnd.cdb = *(scsi_cdb_t *)bfa_cb_ioim_get_cdb(ioim->dio);
 	fcp_dl = bfa_cb_ioim_get_size(ioim->dio);
-	m->cmnd.fcp_dl = bfa_os_htonl(fcp_dl);
+	m->cmnd.fcp_dl = cpu_to_be32(fcp_dl);
 
 	/**
 	 * set up I/O message header
@@ -2436,7 +2436,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 				bfa_cb_ioim_get_cdb(ioim->dio) + 1,
 				m->cmnd.addl_cdb_len * sizeof(u32));
 		fcp_cmnd_fcpdl(&m->cmnd) =
-				bfa_os_htonl(bfa_cb_ioim_get_size(ioim->dio));
+				cpu_to_be32(bfa_cb_ioim_get_size(ioim->dio));
 	}
 #endif
 
@@ -2564,7 +2564,7 @@ bfa_ioim_send_abort(struct bfa_ioim_s *ioim)
 		msgop = BFI_IOIM_H2I_IOCLEANUP_REQ;
 
 	bfi_h2i_set(m->mh, BFI_MC_IOIM, msgop, bfa_lpuid(ioim->bfa));
-	m->io_tag    = bfa_os_htons(ioim->iotag);
+	m->io_tag    = cpu_to_be16(ioim->iotag);
 	m->abort_tag = ++ioim->abort_tag;
 
 	/**
@@ -2739,7 +2739,7 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	u16	iotag;
 	enum bfa_ioim_event evt = BFA_IOIM_SM_COMP;
 
-	iotag = bfa_os_ntohs(rsp->io_tag);
+	iotag = be16_to_cpu(rsp->io_tag);
 
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
 	bfa_assert(ioim->iotag == iotag);
@@ -2822,7 +2822,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	struct bfa_ioim_s *ioim;
 	u16	iotag;
 
-	iotag = bfa_os_ntohs(rsp->io_tag);
+	iotag = be16_to_cpu(rsp->io_tag);
 
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
 	bfa_assert(ioim->iotag == iotag);
@@ -3380,7 +3380,7 @@ bfa_tskim_send(struct bfa_tskim_s *tskim)
 	bfi_h2i_set(m->mh, BFI_MC_TSKIM, BFI_TSKIM_H2I_TM_REQ,
 			bfa_lpuid(tskim->bfa));
 
-	m->tsk_tag = bfa_os_htons(tskim->tsk_tag);
+	m->tsk_tag = cpu_to_be16(tskim->tsk_tag);
 	m->itn_fhdl = tskim->itnim->rport->fw_handle;
 	m->t_secs = tskim->tsecs;
 	m->lun = tskim->lun;
@@ -3415,7 +3415,7 @@ bfa_tskim_send_abort(struct bfa_tskim_s *tskim)
 	bfi_h2i_set(m->mh, BFI_MC_TSKIM, BFI_TSKIM_H2I_ABORT_REQ,
 			bfa_lpuid(tskim->bfa));
 
-	m->tsk_tag  = bfa_os_htons(tskim->tsk_tag);
+	m->tsk_tag  = cpu_to_be16(tskim->tsk_tag);
 
 	/**
 	 * queue I/O message to firmware
@@ -3535,7 +3535,7 @@ bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
 	struct bfi_tskim_rsp_s *rsp = (struct bfi_tskim_rsp_s *) m;
 	struct bfa_tskim_s *tskim;
-	u16	tsk_tag = bfa_os_ntohs(rsp->tsk_tag);
+	u16	tsk_tag = be16_to_cpu(rsp->tsk_tag);
 
 	tskim = BFA_TSKIM_FROM_TAG(fcpim, tsk_tag);
 	bfa_assert(tskim->tsk_tag == tsk_tag);

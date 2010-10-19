@@ -37,11 +37,11 @@ bfa_port_stats_swap(struct bfa_port_s *port, union bfa_port_stats_u *stats)
 		t0 = dip[i];
 		t1 = dip[i + 1];
 #ifdef __BIGENDIAN
-		dip[i] = bfa_os_ntohl(t0);
-		dip[i + 1] = bfa_os_ntohl(t1);
+		dip[i] = be32_to_cpu(t0);
+		dip[i + 1] = be32_to_cpu(t1);
 #else
-		dip[i] = bfa_os_ntohl(t1);
-		dip[i + 1] = bfa_os_ntohl(t0);
+		dip[i] = be32_to_cpu(t1);
+		dip[i + 1] = be32_to_cpu(t0);
 #endif
 	}
 }

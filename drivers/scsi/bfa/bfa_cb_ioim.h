@@ -37,7 +37,7 @@ bfad_int_to_lun(u32 luno)
 	} lun;
 
 	lun.bfa_lun     = 0;
-	lun.scsi_lun[0] = bfa_os_htons(luno);
+	lun.scsi_lun[0] = cpu_to_be16(luno);
 
 	return lun.bfa_lun;
 }

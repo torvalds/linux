@@ -1621,7 +1621,7 @@ bfa_fcs_rport_gidpn_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	bfa_trc(rport->fcs, rport->pwwn);
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		/* Check if the pid is the same as before. */
@@ -1691,7 +1691,7 @@ bfa_fcs_rport_gpnid_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	bfa_trc(rport->fcs, rport->pwwn);
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		bfa_sm_send_event(rport, RPSM_EVENT_ACCEPTED);
@@ -2123,9 +2123,9 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 	 * - MAX receive frame size
 	 */
 	rport->cisc = plogi->csp.cisc;
-	rport->maxfrsize = bfa_os_ntohs(plogi->class3.rxsz);
+	rport->maxfrsize = be16_to_cpu(plogi->class3.rxsz);
 
-	bfa_trc(port->fcs, bfa_os_ntohs(plogi->csp.bbcred));
+	bfa_trc(port->fcs, be16_to_cpu(plogi->csp.bbcred));
 	bfa_trc(port->fcs, port->fabric->bb_credit);
 	/**
 	 * Direct Attach P2P mode :
@@ -2136,12 +2136,12 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 	 * in PLOGI.
 	 */
 	if ((!bfa_fcs_fabric_is_switched(port->fabric))	 &&
-		(bfa_os_ntohs(plogi->csp.bbcred) < port->fabric->bb_credit)) {
+		(be16_to_cpu(plogi->csp.bbcred) < port->fabric->bb_credit)) {
 
-		bfa_trc(port->fcs, bfa_os_ntohs(plogi->csp.bbcred));
+		bfa_trc(port->fcs, be16_to_cpu(plogi->csp.bbcred));
 		bfa_trc(port->fcs, port->fabric->bb_credit);
 
-		port->fabric->bb_credit = bfa_os_ntohs(plogi->csp.bbcred);
+		port->fabric->bb_credit = be16_to_cpu(plogi->csp.bbcred);
 		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
 					  port->fabric->bb_credit);
 	}
@@ -3090,16 +3090,16 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	rpsc2_acc = (struct fc_rpsc2_acc_s *) BFA_FCXP_RSP_PLD(fcxp);
 	if (rpsc2_acc->els_cmd == FC_ELS_ACC) {
 		rport->stats.rpsc_accs++;
-		num_ents = bfa_os_ntohs(rpsc2_acc->num_pids);
+		num_ents = be16_to_cpu(rpsc2_acc->num_pids);
 		bfa_trc(rport->fcs, num_ents);
 		if (num_ents > 0) {
 			bfa_assert(rpsc2_acc->port_info[0].pid != rport->pid);
 			bfa_trc(rport->fcs,
-				bfa_os_ntohs(rpsc2_acc->port_info[0].pid));
+				be16_to_cpu(rpsc2_acc->port_info[0].pid));
 			bfa_trc(rport->fcs,
-				bfa_os_ntohs(rpsc2_acc->port_info[0].speed));
+				be16_to_cpu(rpsc2_acc->port_info[0].speed));
 			bfa_trc(rport->fcs,
-				bfa_os_ntohs(rpsc2_acc->port_info[0].index));
+				be16_to_cpu(rpsc2_acc->port_info[0].index));
 			bfa_trc(rport->fcs,
 				rpsc2_acc->port_info[0].type);
 
@@ -3109,7 +3109,7 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 			}
 
 			rpf->rpsc_speed = fc_rpsc_operspeed_to_bfa_speed(
-				bfa_os_ntohs(rpsc2_acc->port_info[0].speed));
+				be16_to_cpu(rpsc2_acc->port_info[0].speed));
 
 			bfa_sm_send_event(rpf, RPFSM_EVENT_RPSC_COMP);
 		}

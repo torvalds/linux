@@ -400,14 +400,14 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 		bfa_dma_be_addr_set(cfg_info->req_shadow_ci[i],
 				    iocfc->req_cq_shadow_ci[i].pa);
 		cfg_info->req_cq_elems[i] =
-			bfa_os_htons(cfg->drvcfg.num_reqq_elems);
+			cpu_to_be16(cfg->drvcfg.num_reqq_elems);
 
 		bfa_dma_be_addr_set(cfg_info->rsp_cq_ba[i],
 				    iocfc->rsp_cq_ba[i].pa);
 		bfa_dma_be_addr_set(cfg_info->rsp_shadow_pi[i],
 				    iocfc->rsp_cq_shadow_pi[i].pa);
 		cfg_info->rsp_cq_elems[i] =
-			bfa_os_htons(cfg->drvcfg.num_rspq_elems);
+			cpu_to_be16(cfg->drvcfg.num_rspq_elems);
 	}
 
 	/**
@@ -634,11 +634,11 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	struct bfa_iocfc_fwcfg_s	*fwcfg	 = &cfgrsp->fwcfg;
 
 	fwcfg->num_cqs	      = fwcfg->num_cqs;
-	fwcfg->num_ioim_reqs  = bfa_os_ntohs(fwcfg->num_ioim_reqs);
-	fwcfg->num_tskim_reqs = bfa_os_ntohs(fwcfg->num_tskim_reqs);
-	fwcfg->num_fcxp_reqs  = bfa_os_ntohs(fwcfg->num_fcxp_reqs);
-	fwcfg->num_uf_bufs    = bfa_os_ntohs(fwcfg->num_uf_bufs);
-	fwcfg->num_rports     = bfa_os_ntohs(fwcfg->num_rports);
+	fwcfg->num_ioim_reqs  = be16_to_cpu(fwcfg->num_ioim_reqs);
+	fwcfg->num_tskim_reqs = be16_to_cpu(fwcfg->num_tskim_reqs);
+	fwcfg->num_fcxp_reqs  = be16_to_cpu(fwcfg->num_fcxp_reqs);
+	fwcfg->num_uf_bufs    = be16_to_cpu(fwcfg->num_uf_bufs);
+	fwcfg->num_rports     = be16_to_cpu(fwcfg->num_rports);
 
 	iocfc->cfgdone = BFA_TRUE;
 
@@ -876,12 +876,12 @@ bfa_iocfc_get_attr(struct bfa_s *bfa, struct bfa_iocfc_attr_s *attr)
 	attr->intr_attr.coalesce = iocfc->cfginfo->intr_attr.coalesce;
 
 	attr->intr_attr.delay = iocfc->cfginfo->intr_attr.delay ?
-				bfa_os_ntohs(iocfc->cfginfo->intr_attr.delay) :
-				bfa_os_ntohs(iocfc->cfgrsp->intr_attr.delay);
+				be16_to_cpu(iocfc->cfginfo->intr_attr.delay) :
+				be16_to_cpu(iocfc->cfgrsp->intr_attr.delay);
 
 	attr->intr_attr.latency = iocfc->cfginfo->intr_attr.latency ?
-			bfa_os_ntohs(iocfc->cfginfo->intr_attr.latency) :
-			bfa_os_ntohs(iocfc->cfgrsp->intr_attr.latency);
+			be16_to_cpu(iocfc->cfginfo->intr_attr.latency) :
+			be16_to_cpu(iocfc->cfgrsp->intr_attr.latency);
 
 	attr->config	= iocfc->cfg;
 }
@@ -893,8 +893,8 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 	struct bfi_iocfc_set_intr_req_s *m;
 
 	iocfc->cfginfo->intr_attr.coalesce = attr->coalesce;
-	iocfc->cfginfo->intr_attr.delay = bfa_os_htons(attr->delay);
-	iocfc->cfginfo->intr_attr.latency = bfa_os_htons(attr->latency);
+	iocfc->cfginfo->intr_attr.delay = cpu_to_be16(attr->delay);
+	iocfc->cfginfo->intr_attr.latency = cpu_to_be16(attr->latency);
 
 	if (!bfa_iocfc_is_operational(bfa))
 		return BFA_STATUS_OK;

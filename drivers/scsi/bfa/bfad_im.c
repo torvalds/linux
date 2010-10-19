@@ -949,9 +949,9 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	char symname[BFA_SYMNAME_MAXLEN];
 
 	fc_host_node_name(host) =
-		bfa_os_htonll((bfa_fcs_lport_get_nwwn(port->fcs_port)));
+		cpu_to_be64((bfa_fcs_lport_get_nwwn(port->fcs_port)));
 	fc_host_port_name(host) =
-		bfa_os_htonll((bfa_fcs_lport_get_pwwn(port->fcs_port)));
+		cpu_to_be64((bfa_fcs_lport_get_pwwn(port->fcs_port)));
 	fc_host_max_npiv_vports(host) = bfa_lps_get_max_vport(&bfad->bfa);
 
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
@@ -983,9 +983,9 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 	struct bfad_itnim_data_s *itnim_data;
 
 	rport_ids.node_name =
-		bfa_os_htonll(bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim));
+		cpu_to_be64(bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim));
 	rport_ids.port_name =
-		bfa_os_htonll(bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim));
+		cpu_to_be64(bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim));
 	rport_ids.port_id =
 		bfa_os_hton3b(bfa_fcs_itnim_get_fcid(&itnim->fcs_itnim));
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;

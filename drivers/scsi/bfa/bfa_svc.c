@@ -740,11 +740,11 @@ hal_fcxp_send_comp(struct bfa_s *bfa, struct bfi_fcxp_send_rsp_s *fcxp_rsp)
 {
 	struct bfa_fcxp_mod_s	*mod = BFA_FCXP_MOD(bfa);
 	struct bfa_fcxp_s	*fcxp;
-	u16		fcxp_tag = bfa_os_ntohs(fcxp_rsp->fcxp_tag);
+	u16		fcxp_tag = be16_to_cpu(fcxp_rsp->fcxp_tag);
 
 	bfa_trc(bfa, fcxp_tag);
 
-	fcxp_rsp->rsp_len = bfa_os_ntohl(fcxp_rsp->rsp_len);
+	fcxp_rsp->rsp_len = be32_to_cpu(fcxp_rsp->rsp_len);
 
 	/**
 	 * @todo f/w should not set residue to non-0 when everything
@@ -753,7 +753,7 @@ hal_fcxp_send_comp(struct bfa_s *bfa, struct bfi_fcxp_send_rsp_s *fcxp_rsp)
 	if (fcxp_rsp->req_status == BFA_STATUS_OK)
 		fcxp_rsp->residue_len = 0;
 	else
-		fcxp_rsp->residue_len = bfa_os_ntohl(fcxp_rsp->residue_len);
+		fcxp_rsp->residue_len = be32_to_cpu(fcxp_rsp->residue_len);
 
 	fcxp = BFA_FCXP_FROM_TAG(mod, fcxp_tag);
 
@@ -884,26 +884,26 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 	bfi_h2i_set(send_req->mh, BFI_MC_FCXP, BFI_FCXP_H2I_SEND_REQ,
 		    bfa_lpuid(bfa));
 
-	send_req->fcxp_tag = bfa_os_htons(fcxp->fcxp_tag);
+	send_req->fcxp_tag = cpu_to_be16(fcxp->fcxp_tag);
 	if (rport) {
 		send_req->rport_fw_hndl = rport->fw_handle;
-		send_req->max_frmsz = bfa_os_htons(rport->rport_info.max_frmsz);
+		send_req->max_frmsz = cpu_to_be16(rport->rport_info.max_frmsz);
 		if (send_req->max_frmsz == 0)
-			send_req->max_frmsz = bfa_os_htons(FC_MAX_PDUSZ);
+			send_req->max_frmsz = cpu_to_be16(FC_MAX_PDUSZ);
 	} else {
 		send_req->rport_fw_hndl = 0;
-		send_req->max_frmsz = bfa_os_htons(FC_MAX_PDUSZ);
+		send_req->max_frmsz = cpu_to_be16(FC_MAX_PDUSZ);
 	}
 
-	send_req->vf_id = bfa_os_htons(reqi->vf_id);
+	send_req->vf_id = cpu_to_be16(reqi->vf_id);
 	send_req->lp_tag = reqi->lp_tag;
 	send_req->class = reqi->class;
 	send_req->rsp_timeout = rspi->rsp_timeout;
 	send_req->cts = reqi->cts;
 	send_req->fchs = reqi->fchs;
 
-	send_req->req_len = bfa_os_htonl(reqi->req_tot_len);
-	send_req->rsp_maxlen = bfa_os_htonl(rspi->rsp_maxlen);
+	send_req->req_len = cpu_to_be32(reqi->req_tot_len);
+	send_req->rsp_maxlen = cpu_to_be32(rspi->rsp_maxlen);
 
 	/*
 	 * setup req sgles
@@ -1549,7 +1549,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 		lps->fport	= rsp->f_port;
 		lps->npiv_en	= rsp->npiv_en;
 		lps->lp_pid	= rsp->lp_pid;
-		lps->pr_bbcred	= bfa_os_ntohs(rsp->bb_credit);
+		lps->pr_bbcred	= be16_to_cpu(rsp->bb_credit);
 		lps->pr_pwwn	= rsp->port_name;
 		lps->pr_nwwn	= rsp->node_name;
 		lps->auth_req	= rsp->auth_req;
@@ -1647,7 +1647,7 @@ bfa_lps_send_login(struct bfa_lps_s *lps)
 
 	m->lp_tag	= lps->lp_tag;
 	m->alpa		= lps->alpa;
-	m->pdu_size	= bfa_os_htons(lps->pdusz);
+	m->pdu_size	= cpu_to_be16(lps->pdusz);
 	m->pwwn		= lps->pwwn;
 	m->nwwn		= lps->nwwn;
 	m->fdisc	= lps->fdisc;
@@ -2995,7 +2995,7 @@ bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 		trunk->attr.state = BFA_TRUNK_DISABLED;
 
 	/* update FCoE specific */
-	fcport->fcoe_vlan = bfa_os_ntohs(pevent->link_state.vc_fcf.fcf.vlan);
+	fcport->fcoe_vlan = be16_to_cpu(pevent->link_state.vc_fcf.fcf.vlan);
 
 	bfa_trc(fcport->bfa, fcport->speed);
 	bfa_trc(fcport->bfa, fcport->topology);
@@ -3038,7 +3038,7 @@ bfa_fcport_send_enable(struct bfa_fcport_s *fcport)
 	m->pwwn = fcport->pwwn;
 	m->port_cfg = fcport->cfg;
 	m->msgtag = fcport->msgtag;
-	m->port_cfg.maxfrsize = bfa_os_htons(fcport->cfg.maxfrsize);
+	m->port_cfg.maxfrsize = cpu_to_be16(fcport->cfg.maxfrsize);
 	bfa_dma_be_addr_set(m->stats_dma_addr, fcport->stats_pa);
 	bfa_trc(fcport->bfa, m->stats_dma_addr.a32.addr_lo);
 	bfa_trc(fcport->bfa, m->stats_dma_addr.a32.addr_hi);
@@ -3114,7 +3114,7 @@ bfa_fcport_send_txcredit(void *port_cbarg)
 
 	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_SET_SVC_PARAMS_REQ,
 			bfa_lpuid(fcport->bfa));
-	m->tx_bbcredit = bfa_os_htons((u16)fcport->cfg.tx_bbcredit);
+	m->tx_bbcredit = cpu_to_be16((u16)fcport->cfg.tx_bbcredit);
 
 	/**
 	 * queue I/O message to firmware
@@ -3132,7 +3132,7 @@ bfa_fcport_qos_stats_swap(struct bfa_qos_stats_s *d,
 
 	/* Now swap the 32 bit fields */
 	for (i = 0; i < (sizeof(struct bfa_qos_stats_s)/sizeof(u32)); ++i)
-		dip[i] = bfa_os_ntohl(sip[i]);
+		dip[i] = be32_to_cpu(sip[i]);
 }
 
 static void
@@ -3146,11 +3146,11 @@ bfa_fcport_fcoe_stats_swap(struct bfa_fcoe_stats_s *d,
 	for (i = 0; i < ((sizeof(struct bfa_fcoe_stats_s))/sizeof(u32));
 	     i = i + 2) {
 #ifdef __BIGENDIAN
-		dip[i] = bfa_os_ntohl(sip[i]);
-		dip[i + 1] = bfa_os_ntohl(sip[i + 1]);
+		dip[i] = be32_to_cpu(sip[i]);
+		dip[i + 1] = be32_to_cpu(sip[i + 1]);
 #else
-		dip[i] = bfa_os_ntohl(sip[i + 1]);
-		dip[i + 1] = bfa_os_ntohl(sip[i]);
+		dip[i] = be32_to_cpu(sip[i + 1]);
+		dip[i + 1] = be32_to_cpu(sip[i]);
 #endif
 	}
 }
@@ -3325,7 +3325,7 @@ bfa_trunk_scn(struct bfa_fcport_s *fcport, struct bfi_fcport_trunk_scn_s *scn)
 		lattr->trunk_wwn  = tlink->trunk_wwn;
 		lattr->fctl	  = tlink->fctl;
 		lattr->speed	  = tlink->speed;
-		lattr->deskew	  = bfa_os_ntohl(tlink->deskew);
+		lattr->deskew	  = be32_to_cpu(tlink->deskew);
 
 		if (tlink->state == BFA_TRUNK_LINK_STATE_UP) {
 			fcport->speed	 = tlink->speed;
@@ -3874,7 +3874,7 @@ bfa_fcport_qos_get_attr(struct bfa_s *bfa, struct bfa_qos_attr_s *qos_attr)
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
 	qos_attr->state = fcport->qos_attr.state;
-	qos_attr->total_bb_cr = bfa_os_ntohl(fcport->qos_attr.total_bb_cr);
+	qos_attr->total_bb_cr = be32_to_cpu(fcport->qos_attr.total_bb_cr);
 }
 
 void
@@ -3885,10 +3885,10 @@ bfa_fcport_qos_get_vc_attr(struct bfa_s *bfa,
 	struct bfa_qos_vc_attr_s *bfa_vc_attr = &fcport->qos_vc_attr;
 	u32 i = 0;
 
-	qos_vc_attr->total_vc_count = bfa_os_ntohs(bfa_vc_attr->total_vc_count);
-	qos_vc_attr->shared_credit  = bfa_os_ntohs(bfa_vc_attr->shared_credit);
+	qos_vc_attr->total_vc_count = be16_to_cpu(bfa_vc_attr->total_vc_count);
+	qos_vc_attr->shared_credit  = be16_to_cpu(bfa_vc_attr->shared_credit);
 	qos_vc_attr->elp_opmode_flags  =
-			bfa_os_ntohl(bfa_vc_attr->elp_opmode_flags);
+			be32_to_cpu(bfa_vc_attr->elp_opmode_flags);
 
 	/* Individual VC info */
 	while (i < qos_vc_attr->total_vc_count) {
@@ -4273,9 +4273,9 @@ bfa_rport_sm_online(struct bfa_rport_s *rp, enum bfa_rport_event event)
 		bfa_trc(rp->bfa, qos_scn->new_qos_attr.qos_priority);
 
 		qos_scn->old_qos_attr.qos_flow_id  =
-			bfa_os_ntohl(qos_scn->old_qos_attr.qos_flow_id);
+			be32_to_cpu(qos_scn->old_qos_attr.qos_flow_id);
 		qos_scn->new_qos_attr.qos_flow_id  =
-			bfa_os_ntohl(qos_scn->new_qos_attr.qos_flow_id);
+			be32_to_cpu(qos_scn->new_qos_attr.qos_flow_id);
 
 		if (qos_scn->old_qos_attr.qos_flow_id !=
 			qos_scn->new_qos_attr.qos_flow_id)
@@ -4697,7 +4697,7 @@ bfa_rport_send_fwcreate(struct bfa_rport_s *rp)
 	bfi_h2i_set(m->mh, BFI_MC_RPORT, BFI_RPORT_H2I_CREATE_REQ,
 			bfa_lpuid(rp->bfa));
 	m->bfa_handle = rp->rport_tag;
-	m->max_frmsz = bfa_os_htons(rp->rport_info.max_frmsz);
+	m->max_frmsz = cpu_to_be16(rp->rport_info.max_frmsz);
 	m->pid = rp->rport_info.pid;
 	m->lp_tag = rp->rport_info.lp_tag;
 	m->local_pid = rp->rport_info.local_pid;
@@ -4888,7 +4888,7 @@ bfa_rport_get_qos_attr(struct bfa_rport_s *rport,
 					struct bfa_rport_qos_attr_s *qos_attr)
 {
 	qos_attr->qos_priority  = rport->qos_attr.qos_priority;
-	qos_attr->qos_flow_id  = bfa_os_ntohl(rport->qos_attr.qos_flow_id);
+	qos_attr->qos_flow_id  = be32_to_cpu(rport->qos_attr.qos_flow_id);
 
 }
 
@@ -5155,7 +5155,7 @@ claim_uf_post_msgs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 
 		uf_bp_msg->buf_tag = i;
 		buf_len = sizeof(struct bfa_uf_buf_s);
-		uf_bp_msg->buf_len = bfa_os_htons(buf_len);
+		uf_bp_msg->buf_len = cpu_to_be16(buf_len);
 		bfi_h2i_set(uf_bp_msg->mh, BFI_MC_UF, BFI_UF_H2I_BUF_POST,
 			    bfa_lpuid(ufm->bfa));
 
@@ -5308,8 +5308,8 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 	u8 *buf = &uf_buf->d[0];
 	struct fchs_s *fchs;
 
-	m->frm_len = bfa_os_ntohs(m->frm_len);
-	m->xfr_len = bfa_os_ntohs(m->xfr_len);
+	m->frm_len = be16_to_cpu(m->frm_len);
+	m->xfr_len = be16_to_cpu(m->xfr_len);
 
 	fchs = (struct fchs_s *)uf_buf;
 

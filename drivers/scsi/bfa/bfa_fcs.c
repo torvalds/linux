@@ -1329,7 +1329,7 @@ bfa_fcs_fabric_process_flogi(struct bfa_fcs_fabric_s *fabric,
 		return;
 	}
 
-	fabric->bb_credit = bfa_os_ntohs(flogi->csp.bbcred);
+	fabric->bb_credit = be16_to_cpu(flogi->csp.bbcred);
 	bport->port_topo.pn2n.rem_port_wwn = flogi->port_name;
 	bport->port_topo.pn2n.reply_oxid = fchs->ox_id;
 

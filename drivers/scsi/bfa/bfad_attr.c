@@ -70,7 +70,7 @@ bfad_im_get_starget_node_name(struct scsi_target *starget)
 	if (itnim)
 		node_name = bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim);
 
-	fc_starget_node_name(starget) = bfa_os_htonll(node_name);
+	fc_starget_node_name(starget) = cpu_to_be64(node_name);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
@@ -96,7 +96,7 @@ bfad_im_get_starget_port_name(struct scsi_target *starget)
 	if (itnim)
 		port_name = bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim);
 
-	fc_starget_port_name(starget) = bfa_os_htonll(port_name);
+	fc_starget_port_name(starget) = cpu_to_be64(port_name);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
@@ -249,7 +249,7 @@ bfad_im_get_host_fabric_name(struct Scsi_Host *shost)
 
 	fabric_nwwn = bfa_fcs_lport_get_fabric_name(port->fcs_port);
 
-	fc_host_fabric_name(shost) = bfa_os_htonll(fabric_nwwn);
+	fc_host_fabric_name(shost) = cpu_to_be64(fabric_nwwn);
 
 }
 
@@ -733,7 +733,7 @@ bfad_im_node_name_show(struct device *dev, struct device_attribute *attr,
 	u64        nwwn;
 
 	nwwn = bfa_fcs_lport_get_nwwn(port->fcs_port);
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n", bfa_os_htonll(nwwn));
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n", cpu_to_be64(nwwn));
 }
 
 static ssize_t

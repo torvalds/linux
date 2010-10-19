@@ -1450,7 +1450,7 @@ bfa_ioc_mbox_send(struct bfa_ioc_s *ioc, void *ioc_msg, int len)
 	 */
 	for (i = 0; i < len / sizeof(u32); i++)
 		bfa_reg_write(ioc->ioc_regs.hfn_mbox + i * sizeof(u32),
-			      bfa_os_wtole(msgp[i]));
+			      cpu_to_le32(msgp[i]));
 
 	for (; i < BFI_IOC_MSGLEN_MAX / sizeof(u32); i++)
 		bfa_reg_write(ioc->ioc_regs.hfn_mbox + i * sizeof(u32), 0);
@@ -1472,7 +1472,7 @@ bfa_ioc_send_enable(struct bfa_ioc_s *ioc)
 		    bfa_ioc_portid(ioc));
 	enable_req.ioc_class = ioc->ioc_mc;
 	bfa_os_gettimeofday(&tv);
-	enable_req.tv_sec = bfa_os_ntohl(tv.tv_sec);
+	enable_req.tv_sec = be32_to_cpu(tv.tv_sec);
 	bfa_ioc_mbox_send(ioc, &enable_req, sizeof(struct bfi_ioc_ctrl_req_s));
 }
 
@@ -1609,9 +1609,9 @@ bfa_ioc_getattr_reply(struct bfa_ioc_s *ioc)
 {
 	struct bfi_ioc_attr_s	*attr = ioc->attr;
 
-	attr->adapter_prop  = bfa_os_ntohl(attr->adapter_prop);
-	attr->card_type     = bfa_os_ntohl(attr->card_type);
-	attr->maxfrsize	    = bfa_os_ntohs(attr->maxfrsize);
+	attr->adapter_prop  = be32_to_cpu(attr->adapter_prop);
+	attr->card_type     = be32_to_cpu(attr->card_type);
+	attr->maxfrsize	    = be16_to_cpu(attr->maxfrsize);
 
 	bfa_fsm_send_event(ioc, IOC_E_FWRSP_GETATTR);
 }
@@ -1710,7 +1710,7 @@ bfa_ioc_smem_read(struct bfa_ioc_s *ioc, void *tbuf, u32 soff, u32 sz)
 	bfa_trc(ioc, len);
 	for (i = 0; i < len; i++) {
 		r32 = bfa_mem_read(ioc->ioc_regs.smem_page_start, loff);
-		buf[i] = bfa_os_ntohl(r32);
+		buf[i] = be32_to_cpu(r32);
 		loff += sizeof(u32);
 
 		/**
@@ -1925,7 +1925,7 @@ bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg)
 	     i++) {
 		r32 = bfa_reg_read(ioc->ioc_regs.lpu_mbox +
 				   i * sizeof(u32));
-		msgp[i] = bfa_os_htonl(r32);
+		msgp[i] = cpu_to_be32(r32);
 	}
 
 	/**
