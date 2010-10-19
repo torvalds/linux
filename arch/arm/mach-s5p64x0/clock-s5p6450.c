@@ -189,6 +189,12 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5p64x0_hclk0_ctrl,
 		.ctrlbit	= (1 << 3),
 	}, {
+		.name		= "pdma",
+		.id		= -1,
+		.parent		= &clk_hclk_low.clk,
+		.enable		= s5p64x0_hclk0_ctrl,
+		.ctrlbit	= (1 << 12),
+	}, {
 		.name		= "hsmmc",
 		.id		= 0,
 		.parent		= &clk_hclk_low.clk,
@@ -285,12 +291,6 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_hclk.clk,
 		.enable		= s5p64x0_hclk0_ctrl,
 		.ctrlbit	= (1 << 21),
-	}, {
-		.name		= "dma",
-		.id		= -1,
-		.parent		= &clk_hclk_low.clk,
-		.enable		= s5p64x0_hclk0_ctrl,
-		.ctrlbit	= (1 << 12),
 	}, {
 		.name		= "uart",
 		.id		= 0,
