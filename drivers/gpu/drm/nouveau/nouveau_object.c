@@ -272,6 +272,7 @@ nouveau_gpuobj_init(struct drm_device *dev)
 	NV_DEBUG(dev, "\n");
 
 	INIT_LIST_HEAD(&dev_priv->gpuobj_list);
+	INIT_LIST_HEAD(&dev_priv->classes);
 	spin_lock_init(&dev_priv->ramin_lock);
 	dev_priv->ramin_base = ~0;
 
@@ -686,7 +687,7 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
 	/* Base amount for object storage (4KiB enough?) */
-	size = 0x1000;
+	size = 0x2000;
 	base = 0;
 
 	/* PGRAPH context */

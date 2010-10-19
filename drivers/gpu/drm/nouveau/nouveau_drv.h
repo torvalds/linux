@@ -132,6 +132,11 @@ enum nouveau_flags {
 
 #define NVOBJ_ENGINE_SW		0
 #define NVOBJ_ENGINE_GR		1
+#define NVOBJ_ENGINE_PPP	2
+#define NVOBJ_ENGINE_COPY	3
+#define NVOBJ_ENGINE_VP		4
+#define NVOBJ_ENGINE_CRYPT      5
+#define NVOBJ_ENGINE_BSP	6
 #define NVOBJ_ENGINE_DISPLAY	0xcafe0001
 #define NVOBJ_ENGINE_INT	0xdeadbeef
 
@@ -208,6 +213,7 @@ struct nouveau_channel {
 	/* PGRAPH context */
 	/* XXX may be merge 2 pointers as private data ??? */
 	struct nouveau_gpuobj *ramin_grctx;
+	struct nouveau_gpuobj *crypt_ctx;
 	void *pgraph_ctx;
 
 	/* NV50 VM */
@@ -444,6 +450,16 @@ struct nouveau_pm_engine {
 	int (*temp_get)(struct drm_device *);
 };
 
+struct nouveau_crypt_engine {
+	bool registered;
+
+	int  (*init)(struct drm_device *);
+	void (*takedown)(struct drm_device *);
+	int  (*create_context)(struct nouveau_channel *);
+	void (*destroy_context)(struct nouveau_channel *);
+	void (*tlb_flush)(struct drm_device *dev);
+};
+
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
 	struct nouveau_mc_engine      mc;
@@ -454,6 +470,7 @@ struct nouveau_engine {
 	struct nouveau_display_engine display;
 	struct nouveau_gpio_engine    gpio;
 	struct nouveau_pm_engine      pm;
+	struct nouveau_crypt_engine   crypt;
 };
 
 struct nouveau_pll_vals {
@@ -1112,6 +1129,13 @@ extern int  nvc0_graph_create_context(struct nouveau_channel *);
 extern void nvc0_graph_destroy_context(struct nouveau_channel *);
 extern int  nvc0_graph_load_context(struct nouveau_channel *);
 extern int  nvc0_graph_unload_context(struct drm_device *);
+
+/* nv84_crypt.c */
+extern int  nv84_crypt_init(struct drm_device *dev);
+extern void nv84_crypt_fini(struct drm_device *dev);
+extern int  nv84_crypt_create_context(struct nouveau_channel *);
+extern void nv84_crypt_destroy_context(struct nouveau_channel *);
+extern void nv84_crypt_tlb_flush(struct drm_device *dev);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);

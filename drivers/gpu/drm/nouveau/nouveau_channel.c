@@ -112,6 +112,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_crypt_engine *pcrypt = &dev_priv->engine.crypt;
 	struct nouveau_channel *chan;
 	unsigned long flags;
 	int user, ret;
@@ -214,6 +215,14 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
+	if (pcrypt->create_context) {
+		ret = pcrypt->create_context(chan);
+		if (ret) {
+			nouveau_channel_put(&chan);
+			return ret;
+		}
+	}
+
 	/* Construct inital RAMFC for new channel */
 	ret = pfifo->create_context(chan);
 	if (ret) {
@@ -280,6 +289,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_crypt_engine *pcrypt = &dev_priv->engine.crypt;
 	unsigned long flags;
 	int ret;
 
@@ -328,6 +338,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	/* destroy the engine specific contexts */
 	pfifo->destroy_context(chan);
 	pgraph->destroy_context(chan);
+	if (pcrypt->destroy_context)
+		pcrypt->destroy_context(chan);
 
 	pfifo->reassign(dev, true);
 

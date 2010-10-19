@@ -98,6 +98,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_get		= nv04_pm_clock_get;
 		engine->pm.clock_pre		= nv04_pm_clock_pre;
 		engine->pm.clock_set		= nv04_pm_clock_set;
+		engine->crypt.init		= nouveau_stub_init;
+		engine->crypt.takedown		= nouveau_stub_takedown;
 		break;
 	case 0x10:
 		engine->instmem.init		= nv04_instmem_init;
@@ -151,6 +153,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_get		= nv04_pm_clock_get;
 		engine->pm.clock_pre		= nv04_pm_clock_pre;
 		engine->pm.clock_set		= nv04_pm_clock_set;
+		engine->crypt.init		= nouveau_stub_init;
+		engine->crypt.takedown		= nouveau_stub_takedown;
 		break;
 	case 0x20:
 		engine->instmem.init		= nv04_instmem_init;
@@ -204,6 +208,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_get		= nv04_pm_clock_get;
 		engine->pm.clock_pre		= nv04_pm_clock_pre;
 		engine->pm.clock_set		= nv04_pm_clock_set;
+		engine->crypt.init		= nouveau_stub_init;
+		engine->crypt.takedown		= nouveau_stub_takedown;
 		break;
 	case 0x30:
 		engine->instmem.init		= nv04_instmem_init;
@@ -259,6 +265,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_set		= nv04_pm_clock_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
+		engine->crypt.init		= nouveau_stub_init;
+		engine->crypt.takedown		= nouveau_stub_takedown;
 		break;
 	case 0x40:
 	case 0x60:
@@ -316,6 +324,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		engine->pm.temp_get		= nv40_temp_get;
+		engine->crypt.init		= nouveau_stub_init;
+		engine->crypt.takedown		= nouveau_stub_takedown;
 		break;
 	case 0x50:
 	case 0x80: /* gotta love NVIDIA's consistency.. */
@@ -380,18 +390,22 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.set		= nv50_gpio_set;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		switch (dev_priv->chipset) {
-		case 0xa3:
-		case 0xa5:
-		case 0xa8:
-		case 0xaf:
-			engine->pm.clock_get	= nva3_pm_clock_get;
-			engine->pm.clock_pre	= nva3_pm_clock_pre;
-			engine->pm.clock_set	= nva3_pm_clock_set;
-			break;
-		default:
+		case 0x84:
+		case 0x86:
+		case 0x92:
+		case 0x94:
+		case 0x96:
+		case 0x98:
+		case 0xa0:
+		case 0x50:
 			engine->pm.clock_get	= nv50_pm_clock_get;
 			engine->pm.clock_pre	= nv50_pm_clock_pre;
 			engine->pm.clock_set	= nv50_pm_clock_set;
+			break;
+		default:
+			engine->pm.clock_get	= nva3_pm_clock_get;
+			engine->pm.clock_pre	= nva3_pm_clock_pre;
+			engine->pm.clock_set	= nva3_pm_clock_set;
 			break;
 		}
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
@@ -400,6 +414,23 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->pm.temp_get	= nv84_temp_get;
 		else
 			engine->pm.temp_get	= nv40_temp_get;
+		switch (dev_priv->chipset) {
+		case 0x84:
+		case 0x86:
+		case 0x92:
+		case 0x94:
+		case 0x96:
+		case 0xa0:
+			engine->crypt.init	= nv84_crypt_init;
+			engine->crypt.takedown	= nv84_crypt_fini;
+			engine->crypt.create_context = nv84_crypt_create_context;
+			engine->crypt.destroy_context = nv84_crypt_destroy_context;
+			break;
+		default:
+			engine->crypt.init	= nouveau_stub_init;
+			engine->crypt.takedown	= nouveau_stub_takedown;
+			break;
+		}
 		break;
 	case 0xC0:
 		engine->instmem.init		= nvc0_instmem_init;
@@ -447,6 +478,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv50_gpio_get;
 		engine->gpio.set		= nv50_gpio_set;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
+		engine->crypt.init		= nouveau_stub_init;
+		engine->crypt.takedown		= nouveau_stub_takedown;
 		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
@@ -619,10 +652,15 @@ nouveau_card_init(struct drm_device *dev)
 		if (ret)
 			goto out_fb;
 
+		/* PCRYPT */
+		ret = engine->crypt.init(dev);
+		if (ret)
+			goto out_graph;
+
 		/* PFIFO */
 		ret = engine->fifo.init(dev);
 		if (ret)
-			goto out_graph;
+			goto out_crypt;
 	}
 
 	ret = engine->display.create(dev);
@@ -669,6 +707,9 @@ out_display:
 out_fifo:
 	if (!nouveau_noaccel)
 		engine->fifo.takedown(dev);
+out_crypt:
+	if (!nouveau_noaccel)
+		engine->crypt.takedown(dev);
 out_graph:
 	if (!nouveau_noaccel)
 		engine->graph.takedown(dev);
@@ -712,6 +753,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	if (!nouveau_noaccel) {
 		engine->fifo.takedown(dev);
+		engine->crypt.takedown(dev);
 		engine->graph.takedown(dev);
 	}
 	engine->fb.takedown(dev);

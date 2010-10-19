@@ -299,6 +299,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	engine->timer.init(dev);
 	engine->fb.init(dev);
 	engine->graph.init(dev);
+	engine->crypt.init(dev);
 	engine->fifo.init(dev);
 
 	NV_INFO(dev, "Restoring GPU objects...\n");
