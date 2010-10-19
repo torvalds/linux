@@ -1218,17 +1218,18 @@ int osd_req_add_get_attr_page(struct osd_request *or,
 	or->get_attr.buff = attar_page;
 	or->get_attr.total_bytes = max_page_len;
 
-	or->set_attr.buff = set_one_attr->val_ptr;
-	or->set_attr.total_bytes = set_one_attr->len;
-
 	cdbh->attrs_page.get_attr_page = cpu_to_be32(page_id);
 	cdbh->attrs_page.get_attr_alloc_length = cpu_to_be32(max_page_len);
-	/* ocdb->attrs_page.get_attr_offset; */
+
+	if (!set_one_attr || !set_one_attr->attr_page)
+		return 0; /* The set is optional */
+
+	or->set_attr.buff = set_one_attr->val_ptr;
+	or->set_attr.total_bytes = set_one_attr->len;
 
 	cdbh->attrs_page.set_attr_page = cpu_to_be32(set_one_attr->attr_page);
 	cdbh->attrs_page.set_attr_id = cpu_to_be32(set_one_attr->attr_id);
 	cdbh->attrs_page.set_attr_length = cpu_to_be32(set_one_attr->len);
-	/* ocdb->attrs_page.set_attr_offset; */
 	return 0;
 }
 EXPORT_SYMBOL(osd_req_add_get_attr_page);
@@ -1248,11 +1249,14 @@ static int _osd_req_finalize_attr_page(struct osd_request *or)
 	if (ret)
 		return ret;
 
+	if (or->set_attr.total_bytes == 0)
+		return 0;
+
 	/* set one value */
 	cdbh->attrs_page.set_attr_offset =
 		osd_req_encode_offset(or, or->out.total_bytes, &out_padding);
 
-	ret = _req_append_segment(or, out_padding, &or->enc_get_attr, NULL,
+	ret = _req_append_segment(or, out_padding, &or->set_attr, NULL,
 				  &or->out);
 	return ret;
 }
