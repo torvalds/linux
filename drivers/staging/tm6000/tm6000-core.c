@@ -30,7 +30,7 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
-#define USB_TIMEOUT	5*HZ /* ms */
+#define USB_TIMEOUT	(5 * HZ) /* ms */
 
 int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 			  u16 value, u16 index, u8 *buf, u16 len)
