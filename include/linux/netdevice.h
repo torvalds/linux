@@ -2248,9 +2248,17 @@ static inline int skb_gso_ok(struct sk_buff *skb, int features)
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
-	return skb_is_gso(skb) &&
-	       (!skb_gso_ok(skb, dev->features) ||
-		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+	if (skb_is_gso(skb)) {
+		int features = dev->features;
+
+		if (skb->protocol == htons(ETH_P_8021Q) || skb->vlan_tci)
+			features &= dev->vlan_features;
+
+		return (!skb_gso_ok(skb, features) ||
+			unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+	}
+
+	return 0;
 }
 
 static inline void netif_set_gso_max_size(struct net_device *dev,
