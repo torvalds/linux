@@ -596,7 +596,7 @@ static struct resource lcdc1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0x17a0),
+		.start	= intcs_evt2irq(0x1780),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
