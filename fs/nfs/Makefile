@@ -20,4 +20,4 @@ nfs-$(CONFIG_SYSCTL) += sysctl.o
 nfs-$(CONFIG_NFS_FSCACHE) += fscache.o fscache-index.o
 
 obj-$(CONFIG_PNFS_FILE_LAYOUT) += nfs_layout_nfsv41_files.o
-nfs_layout_nfsv41_files-y := nfs4filelayout.o
+nfs_layout_nfsv41_files-y := nfs4filelayout.o nfs4filelayoutdev.o

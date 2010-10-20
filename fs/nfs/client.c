@@ -255,6 +255,7 @@ void nfs_put_client(struct nfs_client *clp)
 		nfs_free_client(clp);
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_put_client);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /*
