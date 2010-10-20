@@ -965,10 +965,11 @@ static void __exit lirc_it87_exit(void)
 	printk(KERN_INFO LIRC_DRIVER_NAME ": Uninstalled.\n");
 }
 
-/* SECTION: PNP for ITE8704/18 */
+/* SECTION: PNP for ITE8704/13/18 */
 
 static const struct pnp_device_id pnp_dev_table[] = {
 	{"ITE8704", 0},
+	{"ITE8713", 0},
 	{}
 };
 
