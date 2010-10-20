@@ -758,6 +758,8 @@ struct perf_event {
 	u64				shadow_ctx_time;
 
 	struct perf_event_attr		attr;
+	u16				header_size;
+	u16				read_size;
 	struct hw_perf_event		hw;
 
 	struct perf_event_context	*ctx;
