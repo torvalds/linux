@@ -315,7 +315,6 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	int last_seen_secs;
 	int last_seen_msecs;
 	unsigned long flags;
-	char orig_str[ETH_STR_LEN], router_str[ETH_STR_LEN];
 
 	if ((!bat_priv->primary_if) ||
 	    (bat_priv->primary_if->if_status != IF_ACTIVE)) {
@@ -329,10 +328,10 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 				  net_dev->name);
 	}
 
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)]\n",
+	seq_printf(seq, "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
 		   SOURCE_VERSION, REVISION_VERSION_STR,
 		   bat_priv->primary_if->net_dev->name,
-		   bat_priv->primary_if->addr_str, net_dev->name);
+		   bat_priv->primary_if->net_dev->dev_addr, net_dev->name);
 	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
 		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", "Potential nexthops");
@@ -349,21 +348,18 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 		if (orig_node->router->tq_avg == 0)
 			continue;
 
-		addr_to_string(orig_str, orig_node->orig);
-		addr_to_string(router_str, orig_node->router->addr);
 		last_seen_secs = jiffies_to_msecs(jiffies -
 						orig_node->last_valid) / 1000;
 		last_seen_msecs = jiffies_to_msecs(jiffies -
 						orig_node->last_valid) % 1000;
 
-		seq_printf(seq, "%-17s %4i.%03is   (%3i) %17s [%10s]:",
-			   orig_str, last_seen_secs, last_seen_msecs,
-			   orig_node->router->tq_avg, router_str,
+		seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
+			   orig_node->orig, last_seen_secs, last_seen_msecs,
+			   orig_node->router->tq_avg, orig_node->router->addr,
 			   orig_node->router->if_incoming->net_dev->name);
 
 		list_for_each_entry(neigh_node, &orig_node->neigh_list, list) {
-			addr_to_string(orig_str, neigh_node->addr);
-			seq_printf(seq, " %17s (%3i)", orig_str,
+			seq_printf(seq, " %pM (%3i)", neigh_node->addr,
 					   neigh_node->tq_avg);
 		}
 

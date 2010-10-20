@@ -130,15 +130,13 @@ static ssize_t vis_data_read_prim_sec(char *buff, struct hlist_head *if_list)
 {
 	struct if_list_entry *entry;
 	struct hlist_node *pos;
-	char tmp_addr_str[ETH_STR_LEN];
 	size_t len = 0;
 
 	hlist_for_each_entry(entry, pos, if_list, list) {
 		if (entry->primary)
 			len += sprintf(buff + len, "PRIMARY, ");
 		else {
-			addr_to_string(tmp_addr_str, entry->addr);
-			len += sprintf(buff + len,  "SEC %s, ", tmp_addr_str);
+			len += sprintf(buff + len,  "SEC %pM, ", entry->addr);
 		}
 	}
 
@@ -165,14 +163,12 @@ static size_t vis_data_count_prim_sec(struct hlist_head *if_list)
 static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
 				   uint8_t *src, bool primary)
 {
-	char to[18];
-
 	/* maximal length: max(4+17+2, 3+17+1+3+2) == 26 */
-	addr_to_string(to, entry->dest);
 	if (primary && entry->quality == 0)
-		return sprintf(buff, "HNA %s, ", to);
+		return sprintf(buff, "HNA %pM, ", entry->dest);
 	else if (compare_orig(entry->src, src))
-		return sprintf(buff, "TQ %s %d, ", to, entry->quality);
+		return sprintf(buff, "TQ %pM %d, ", entry->dest,
+			       entry->quality);
 
 	return 0;
 }
@@ -190,7 +186,6 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 	struct if_list_entry *entry;
 	struct hlist_node *pos, *n;
 	int i;
-	char tmp_addr_str[ETH_STR_LEN];
 	unsigned long flags;
 	int vis_server = atomic_read(&bat_priv->vis_mode);
 	size_t buff_pos, buf_size;
@@ -255,9 +250,8 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 		}
 
 		hlist_for_each_entry(entry, pos, &vis_if_list, list) {
-			addr_to_string(tmp_addr_str, entry->addr);
-			buff_pos += sprintf(buff + buff_pos, "%s,",
-					    tmp_addr_str);
+			buff_pos += sprintf(buff + buff_pos, "%pM,",
+					    entry->addr);
 
 			for (i = 0; i < packet->entries; i++)
 				buff_pos += vis_data_read_entry(buff + buff_pos,

@@ -554,11 +554,11 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 					    batman_packet->orig) ? 1 : 0);
 
 	bat_dbg(DBG_BATMAN, bat_priv,
-		"Received BATMAN packet via NB: %pM, IF: %s [%s] "
+		"Received BATMAN packet via NB: %pM, IF: %s [%pM] "
 		"(from OG: %pM, via prev OG: %pM, seqno %d, tq %d, "
 		"TTL %d, V %d, IDF %d)\n",
 		ethhdr->h_source, if_incoming->net_dev->name,
-		if_incoming->addr_str, batman_packet->orig,
+		if_incoming->net_dev->dev_addr, batman_packet->orig,
 		batman_packet->prev_sender, batman_packet->seqno,
 		batman_packet->tq, batman_packet->ttl, batman_packet->version,
 		has_directlink_flag);

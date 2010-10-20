@@ -37,7 +37,6 @@ struct batman_if {
 	struct list_head list;
 	int16_t if_num;
 	char if_status;
-	char addr_str[ETH_STR_LEN];
 	struct net_device *net_dev;
 	atomic_t seqno;
 	atomic_t frag_seqno;

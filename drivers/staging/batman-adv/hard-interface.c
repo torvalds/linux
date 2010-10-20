@@ -159,8 +159,6 @@ static bool hardif_is_iface_up(struct batman_if *batman_if)
 
 static void update_mac_addresses(struct batman_if *batman_if)
 {
-	addr_to_string(batman_if->addr_str, batman_if->net_dev->dev_addr);
-
 	memcpy(((struct batman_packet *)(batman_if->packet_buff))->orig,
 	       batman_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(((struct batman_packet *)(batman_if->packet_buff))->prev_sender,

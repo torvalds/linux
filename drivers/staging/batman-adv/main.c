@@ -145,11 +145,6 @@ void dec_module_count(void)
 	module_put(THIS_MODULE);
 }
 
-int addr_to_string(char *buff, uint8_t *addr)
-{
-	return sprintf(buff, "%pM", addr);
-}
-
 /* returns 1 if they are the same originator */
 
 int compare_orig(void *data1, void *data2)
