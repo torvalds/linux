@@ -2428,7 +2428,7 @@ static int enic_dev_init(struct enic *enic)
 
 	err = enic_dev_set_ig_vlan_rewrite_mode(enic);
 	if (err) {
-		netdev_err(netdev,
+		dev_err(dev,
 			"Failed to set ingress vlan rewrite mode, aborting.\n");
 		goto err_out_free_vnic_resources;
 	}
