@@ -351,6 +351,9 @@ static int mdm6600_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	WARN_ON_ONCE(modem->port != port);
 
+	if (tty)
+		tty->low_latency = 1;
+
 	modem->tiocm_status = 0;
 
 	modem->opened = 1;
@@ -738,8 +741,8 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 		c = mdm6600_pass_to_tty(tty, u->transfer_buffer,
 			u->actual_length);
 		if (c != u->actual_length)
-			pr_warn("%s: dropped %u of %u bytes\n",
-				__func__, u->actual_length - c,
+			pr_warn("%s: port %d: dropped %u of %u bytes\n",
+				__func__, modem->number, u->actual_length - c,
 				u->actual_length);
 		tty_kref_put(tty);
 
