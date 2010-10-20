@@ -1558,7 +1558,7 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
 
-	if (myaddr.ss_family == PF_INET)
+	if (myaddr.ss_family == AF_INET)
 		dprintk("RPC:       %s %pI4:%u: %s (%d)\n", __func__,
 				&((struct sockaddr_in *)&myaddr)->sin_addr,
 				port, err ? "failed" : "ok", err);
@@ -1594,10 +1594,14 @@ static inline void xs_reclassify_socket6(struct socket *sock)
 
 static inline void xs_reclassify_socket(int family, struct socket *sock)
 {
-	if (family == PF_INET)
+	switch (family) {
+	case AF_INET:
 		xs_reclassify_socket4(sock);
-	else
+		break;
+	case AF_INET6:
 		xs_reclassify_socket6(sock);
+		break;
+	}
 }
 #else
 static inline void xs_reclassify_socket4(struct socket *sock)
