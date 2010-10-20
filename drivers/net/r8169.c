@@ -3974,8 +3974,11 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 
 	mapping = dma_map_single(d, rtl8169_align(data), rx_buf_sz,
 				 DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(d, mapping)))
+	if (unlikely(dma_mapping_error(d, mapping))) {
+		if (net_ratelimit())
+			netif_err(tp, drv, tp->dev, "Failed to map RX DMA!\n");
 		goto err_out;
+	}
 
 	rtl8169_map_to_asic(desc, mapping, rx_buf_sz);
 	return data;
@@ -4203,8 +4206,12 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 		len = frag->size;
 		addr = ((void *) page_address(frag->page)) + frag->page_offset;
 		mapping = dma_map_single(d, addr, len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(d, mapping)))
+		if (unlikely(dma_mapping_error(d, mapping))) {
+			if (net_ratelimit())
+				netif_err(tp, drv, tp->dev,
+					  "Failed to map TX fragments DMA!\n");
 			goto err_out;
+		}
 
 		/* anti gcc 2.95.3 bugware (sic) */
 		status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
@@ -4270,8 +4277,11 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	len = skb_headlen(skb);
 	mapping = dma_map_single(d, skb->data, len, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(d, mapping)))
+	if (unlikely(dma_mapping_error(d, mapping))) {
+		if (net_ratelimit())
+			netif_err(tp, drv, dev, "Failed to map TX DMA!\n");
 		goto err_dma_0;
+	}
 
 	tp->tx_skb[entry].len = len;
 	txd->addr = cpu_to_le64(mapping);
