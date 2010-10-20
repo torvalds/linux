@@ -30,6 +30,8 @@
 #include "nouveau_ramht.h"
 #include "nouveau_grctx.h"
 
+static int nv50_graph_register(struct drm_device *);
+
 static void
 nv50_graph_init_reset(struct drm_device *dev)
 {
@@ -145,12 +147,15 @@ nv50_graph_init(struct drm_device *dev)
 	nv50_graph_init_reset(dev);
 	nv50_graph_init_regs__nv(dev);
 	nv50_graph_init_regs(dev);
-	nv50_graph_init_intr(dev);
 
 	ret = nv50_graph_init_ctxctl(dev);
 	if (ret)
 		return ret;
 
+	ret = nv50_graph_register(dev);
+	if (ret)
+		return ret;
+	nv50_graph_init_intr(dev);
 	return 0;
 }
 
@@ -333,8 +338,8 @@ nv50_graph_context_switch(struct drm_device *dev)
 }
 
 static int
-nv50_graph_nvsw_dma_vblsem(struct nouveau_channel *chan, int grclass,
-			   int mthd, uint32_t data)
+nv50_graph_nvsw_dma_vblsem(struct nouveau_channel *chan,
+			   u32 class, u32 mthd, u32 data)
 {
 	struct nouveau_gpuobj *gpuobj;
 
@@ -351,8 +356,8 @@ nv50_graph_nvsw_dma_vblsem(struct nouveau_channel *chan, int grclass,
 }
 
 static int
-nv50_graph_nvsw_vblsem_offset(struct nouveau_channel *chan, int grclass,
-			      int mthd, uint32_t data)
+nv50_graph_nvsw_vblsem_offset(struct nouveau_channel *chan,
+			      u32 class, u32 mthd, u32 data)
 {
 	if (nouveau_notifier_offset(chan->nvsw.vblsem, &data))
 		return -ERANGE;
@@ -362,16 +367,16 @@ nv50_graph_nvsw_vblsem_offset(struct nouveau_channel *chan, int grclass,
 }
 
 static int
-nv50_graph_nvsw_vblsem_release_val(struct nouveau_channel *chan, int grclass,
-				   int mthd, uint32_t data)
+nv50_graph_nvsw_vblsem_release_val(struct nouveau_channel *chan,
+				   u32 class, u32 mthd, u32 data)
 {
 	chan->nvsw.vblsem_rval = data;
 	return 0;
 }
 
 static int
-nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan, int grclass,
-			       int mthd, uint32_t data)
+nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan,
+			       u32 class, u32 mthd, u32 data)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -392,27 +397,53 @@ nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan, int grclass,
 	return 0;
 }
 
-static struct nouveau_pgraph_object_method nv50_graph_nvsw_methods[] = {
-	{ 0x018c, nv50_graph_nvsw_dma_vblsem },
-	{ 0x0400, nv50_graph_nvsw_vblsem_offset },
-	{ 0x0404, nv50_graph_nvsw_vblsem_release_val },
-	{ 0x0408, nv50_graph_nvsw_vblsem_release },
-	{}
-};
+static int
+nv50_graph_register(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-struct nouveau_pgraph_object_class nv50_graph_grclass[] = {
-	{ 0x506e, NVOBJ_ENGINE_SW, nv50_graph_nvsw_methods }, /* nvsw */
-	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
-	{ 0x5039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
-	{ 0x502d, NVOBJ_ENGINE_GR, NULL }, /* 2d */
-	{ 0x50c0, NVOBJ_ENGINE_GR, NULL }, /* compute */
-	{ 0x85c0, NVOBJ_ENGINE_GR, NULL }, /* compute (nva3, nva5, nva8) */
-	{ 0x5097, NVOBJ_ENGINE_GR, NULL }, /* tesla (nv50) */
-	{ 0x8297, NVOBJ_ENGINE_GR, NULL }, /* tesla (nv8x/nv9x) */
-	{ 0x8397, NVOBJ_ENGINE_GR, NULL }, /* tesla (nva0, nvaa, nvac) */
-	{ 0x8597, NVOBJ_ENGINE_GR, NULL }, /* tesla (nva3, nva5, nva8) */
-	{}
-};
+	if (dev_priv->engine.graph.registered)
+		return 0;
+
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_MTHD (dev, 0x506e, 0x018c, nv50_graph_nvsw_dma_vblsem);
+	NVOBJ_MTHD (dev, 0x506e, 0x0400, nv50_graph_nvsw_vblsem_offset);
+	NVOBJ_MTHD (dev, 0x506e, 0x0404, nv50_graph_nvsw_vblsem_release_val);
+	NVOBJ_MTHD (dev, 0x506e, 0x0408, nv50_graph_nvsw_vblsem_release);
+
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x5039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x502d, GR); /* 2d */
+	NVOBJ_CLASS(dev, 0x50c0, GR); /* compute */
+	NVOBJ_CLASS(dev, 0x85c0, GR); /* compute (nva3, nva5, nva8) */
+
+	/* tesla */
+	if (dev_priv->chipset == 0x50)
+		NVOBJ_CLASS(dev, 0x5097, GR); /* tesla (nv50) */
+	else
+	if (dev_priv->chipset < 0xa0)
+		NVOBJ_CLASS(dev, 0x8297, GR); /* tesla (nv8x/nv9x) */
+	else {
+		switch (dev_priv->chipset) {
+		case 0xa0:
+		case 0xaa:
+		case 0xac:
+			NVOBJ_CLASS(dev, 0x8397, GR);
+			break;
+		case 0xa3:
+		case 0xa5:
+		case 0xa8:
+			NVOBJ_CLASS(dev, 0x8597, GR);
+			break;
+		case 0xaf:
+			NVOBJ_CLASS(dev, 0x8697, GR);
+			break;
+		}
+	}
+
+	dev_priv->engine.graph.registered = true;
+	return 0;
+}
 
 void
 nv50_graph_tlb_flush(struct drm_device *dev)

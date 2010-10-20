@@ -27,6 +27,8 @@
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
 
+static int nv10_graph_register(struct drm_device *);
+
 #define NV10_FIFO_NUMBER 32
 
 struct pipe_state {
@@ -914,12 +916,16 @@ int nv10_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
-	int i;
+	int ret, i;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
 			~NV_PMC_ENABLE_PGRAPH);
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) |
 			 NV_PMC_ENABLE_PGRAPH);
+
+	ret = nv10_graph_register(dev);
+	if (ret)
+		return ret;
 
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
@@ -966,8 +972,8 @@ void nv10_graph_takedown(struct drm_device *dev)
 }
 
 static int
-nv17_graph_mthd_lma_window(struct nouveau_channel *chan, int grclass,
-			   int mthd, uint32_t data)
+nv17_graph_mthd_lma_window(struct nouveau_channel *chan,
+			   u32 class, u32 mthd, u32 data)
 {
 	struct drm_device *dev = chan->dev;
 	struct graph_state *ctx = chan->pgraph_ctx;
@@ -1046,8 +1052,8 @@ nv17_graph_mthd_lma_window(struct nouveau_channel *chan, int grclass,
 }
 
 static int
-nv17_graph_mthd_lma_enable(struct nouveau_channel *chan, int grclass,
-			   int mthd, uint32_t data)
+nv17_graph_mthd_lma_enable(struct nouveau_channel *chan,
+			   u32 class, u32 mthd, u32 data)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -1065,36 +1071,48 @@ nv17_graph_mthd_lma_enable(struct nouveau_channel *chan, int grclass,
 	return 0;
 }
 
-static struct nouveau_pgraph_object_method nv17_graph_celsius_mthds[] = {
-	{ 0x1638, nv17_graph_mthd_lma_window },
-	{ 0x163c, nv17_graph_mthd_lma_window },
-	{ 0x1640, nv17_graph_mthd_lma_window },
-	{ 0x1644, nv17_graph_mthd_lma_window },
-	{ 0x1658, nv17_graph_mthd_lma_enable },
-	{}
-};
+static int
+nv10_graph_register(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-struct nouveau_pgraph_object_class nv10_graph_grclass[] = {
-	{ 0x506e, NVOBJ_ENGINE_SW, NULL }, /* nvsw */
-	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
-	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
-	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
-	{ 0x005f, NVOBJ_ENGINE_GR, NULL }, /* imageblit */
-	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
-	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
-	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
-	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
-	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
-	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
-	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
-	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
-	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
-	{ 0x0052, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
-	{ 0x0093, NVOBJ_ENGINE_GR, NULL }, /* surf3d */
-	{ 0x0094, NVOBJ_ENGINE_GR, NULL }, /* tex_tri */
-	{ 0x0095, NVOBJ_ENGINE_GR, NULL }, /* multitex_tri */
-	{ 0x0056, NVOBJ_ENGINE_GR, NULL }, /* celcius (nv10) */
-	{ 0x0096, NVOBJ_ENGINE_GR, NULL }, /* celcius (nv11) */
-	{ 0x0099, NVOBJ_ENGINE_GR, nv17_graph_celsius_mthds }, /* celcius (nv17) */
-	{}
-};
+	if (dev_priv->engine.graph.registered)
+		return 0;
+
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x005f, GR); /* imageblit */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x0052, GR); /* swzsurf */
+	NVOBJ_CLASS(dev, 0x0093, GR); /* surf3d */
+	NVOBJ_CLASS(dev, 0x0094, GR); /* tex_tri */
+	NVOBJ_CLASS(dev, 0x0095, GR); /* multitex_tri */
+
+	/* celcius */
+	if (dev_priv->chipset <= 0x10) {
+		NVOBJ_CLASS(dev, 0x0056, GR);
+	} else
+	if (dev_priv->chipset <= 0x17 || dev_priv->chipset == 0x1a) {
+		NVOBJ_CLASS(dev, 0x0096, GR);
+	} else {
+		NVOBJ_CLASS(dev, 0x0099, GR);
+		NVOBJ_MTHD (dev, 0x0099, 0x1638, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x163c, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x1640, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x1644, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x1658, nv17_graph_mthd_lma_enable);
+	}
+
+	dev_priv->engine.graph.registered = true;
+	return 0;
+}

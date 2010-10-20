@@ -36,6 +36,83 @@
 #include "nouveau_drm.h"
 #include "nouveau_ramht.h"
 
+struct nouveau_gpuobj_method {
+	struct list_head head;
+	u32 mthd;
+	int (*exec)(struct nouveau_channel *, u32 class, u32 mthd, u32 data);
+};
+
+struct nouveau_gpuobj_class {
+	struct list_head head;
+	struct list_head methods;
+	u32 id;
+	u32 engine;
+};
+
+int
+nouveau_gpuobj_class_new(struct drm_device *dev, u32 class, u32 engine)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj_class *oc;
+
+	oc = kzalloc(sizeof(*oc), GFP_KERNEL);
+	if (!oc)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&oc->methods);
+	oc->id = class;
+	oc->engine = engine;
+	list_add(&oc->head, &dev_priv->classes);
+	return 0;
+}
+
+int
+nouveau_gpuobj_mthd_new(struct drm_device *dev, u32 class, u32 mthd,
+			int (*exec)(struct nouveau_channel *, u32, u32, u32))
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj_method *om;
+	struct nouveau_gpuobj_class *oc;
+
+	list_for_each_entry(oc, &dev_priv->classes, head) {
+		if (oc->id == class)
+			goto found;
+	}
+
+	return -EINVAL;
+
+found:
+	om = kzalloc(sizeof(*om), GFP_KERNEL);
+	if (!om)
+		return -ENOMEM;
+
+	om->mthd = mthd;
+	om->exec = exec;
+	list_add(&om->head, &oc->methods);
+	return 0;
+}
+
+int
+nouveau_gpuobj_mthd_call(struct nouveau_channel *chan,
+			 u32 class, u32 mthd, u32 data)
+{
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nouveau_gpuobj_method *om;
+	struct nouveau_gpuobj_class *oc;
+
+	list_for_each_entry(oc, &dev_priv->classes, head) {
+		if (oc->id != class)
+			continue;
+
+		list_for_each_entry(om, &oc->methods, head) {
+			if (om->mthd == mthd)
+				return om->exec(chan, class, mthd, data);
+		}
+	}
+
+	return -ENOENT;
+}
+
 /* NVidia uses context objects to drive drawing operations.
 
    Context objects can be selected into 8 subchannels in the FIFO,
@@ -205,8 +282,19 @@ void
 nouveau_gpuobj_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj_method *om, *tm;
+	struct nouveau_gpuobj_class *oc, *tc;
 
 	NV_DEBUG(dev, "\n");
+
+	list_for_each_entry_safe(oc, tc, &dev_priv->classes, head) {
+		list_for_each_entry_safe(om, tm, &oc->methods, head) {
+			list_del(&om->head);
+			kfree(om);
+		}
+		list_del(&oc->head);
+		kfree(oc);
+	}
 
 	BUG_ON(!list_empty(&dev_priv->gpuobj_list));
 }
@@ -527,26 +615,22 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 		      struct nouveau_gpuobj **gpuobj)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_pgraph_object_class *grc;
 	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj_class *oc;
 	int ret;
 
 	NV_DEBUG(dev, "ch%d class=0x%04x\n", chan->id, class);
 
-	grc = pgraph->grclass;
-	while (grc->id) {
-		if (grc->id == class)
-			break;
-		grc++;
+	list_for_each_entry(oc, &dev_priv->classes, head) {
+		if (oc->id == class)
+			goto found;
 	}
 
-	if (!grc->id) {
-		NV_ERROR(dev, "illegal object class: 0x%x\n", class);
-		return -EINVAL;
-	}
+	NV_ERROR(dev, "illegal object class: 0x%x\n", class);
+	return -EINVAL;
 
-	if (grc->engine == NVOBJ_ENGINE_SW)
+found:
+	if (oc->engine == NVOBJ_ENGINE_SW)
 		return nouveau_gpuobj_sw_new(chan, class, gpuobj);
 
 	ret = nouveau_gpuobj_new(dev, chan,
@@ -585,8 +669,8 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	(*gpuobj)->engine = grc->engine;
-	(*gpuobj)->class  = class;
+	(*gpuobj)->engine = oc->engine;
+	(*gpuobj)->class  = oc->id;
 	return 0;
 }
 

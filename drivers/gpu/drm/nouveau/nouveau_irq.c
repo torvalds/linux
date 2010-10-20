@@ -80,33 +80,6 @@ nouveau_irq_uninstall(struct drm_device *dev)
 	nv_wr32(dev, NV03_PMC_INTR_EN_0, 0);
 }
 
-static int
-nouveau_call_method(struct nouveau_channel *chan, int class, int mthd, int data)
-{
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nouveau_pgraph_object_method *grm;
-	struct nouveau_pgraph_object_class *grc;
-
-	grc = dev_priv->engine.graph.grclass;
-	while (grc->id) {
-		if (grc->id == class)
-			break;
-		grc++;
-	}
-
-	if (grc->id != class || !grc->methods)
-		return -ENOENT;
-
-	grm = grc->methods;
-	while (grm->id) {
-		if (grm->id == mthd)
-			return grm->exec(chan, class, mthd, data);
-		grm++;
-	}
-
-	return -ENOENT;
-}
-
 static bool
 nouveau_fifo_swmthd(struct drm_device *dev, u32 chid, u32 addr, u32 data)
 {
@@ -142,8 +115,8 @@ nouveau_fifo_swmthd(struct drm_device *dev, u32 chid, u32 addr, u32 data)
 		if (unlikely(((engine >> (subc * 4)) & 0xf) != 0))
 			break;
 
-		if (!nouveau_call_method(chan, chan->sw_subchannel[subc],
-					 mthd, data))
+		if (!nouveau_gpuobj_mthd_call(chan, chan->sw_subchannel[subc],
+					      mthd, data))
 			handled = true;
 		break;
 	}
@@ -541,6 +514,7 @@ nouveau_pgraph_intr_swmthd(struct drm_device *dev,
 			   struct nouveau_pgraph_trap *trap)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan;
 	unsigned long flags;
 	int ret = -EINVAL;
 
@@ -548,8 +522,8 @@ nouveau_pgraph_intr_swmthd(struct drm_device *dev,
 	if (trap->channel > 0 &&
 	    trap->channel < dev_priv->engine.fifo.channels &&
 	    dev_priv->channels.ptr[trap->channel]) {
-		ret = nouveau_call_method(dev_priv->channels.ptr[trap->channel],
-					  trap->class, trap->mthd, trap->data);
+		chan = dev_priv->channels.ptr[trap->channel];
+		ret = nouveau_gpuobj_mthd_call(chan, trap->class, trap->mthd, trap->data);
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 

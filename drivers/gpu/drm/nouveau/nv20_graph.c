@@ -32,6 +32,9 @@
 #define NV34_GRCTX_SIZE    (18140)
 #define NV35_36_GRCTX_SIZE (22396)
 
+static int nv20_graph_register(struct drm_device *);
+static int nv30_graph_register(struct drm_device *);
+
 static void
 nv20_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
@@ -572,6 +575,12 @@ nv20_graph_init(struct drm_device *dev)
 
 	nv20_graph_rdi(dev);
 
+	ret = nv20_graph_register(dev);
+	if (ret) {
+		nouveau_gpuobj_ref(NULL, &pgraph->ctx_table);
+		return ret;
+	}
+
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
@@ -696,6 +705,12 @@ nv30_graph_init(struct drm_device *dev)
 			return ret;
 	}
 
+	ret = nv30_graph_register(dev);
+	if (ret) {
+		nouveau_gpuobj_ref(NULL, &pgraph->ctx_table);
+		return ret;
+	}
+
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE,
 		     pgraph->ctx_table->pinst >> 4);
 
@@ -756,48 +771,76 @@ nv30_graph_init(struct drm_device *dev)
 	return 0;
 }
 
-struct nouveau_pgraph_object_class nv20_graph_grclass[] = {
-	{ 0x506e, NVOBJ_ENGINE_SW, NULL }, /* nvsw */
-	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
-	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
-	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
-	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
-	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
-	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
-	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
-	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
-	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
-	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
-	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
-	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
-	{ 0x009e, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
-	{ 0x0096, NVOBJ_ENGINE_GR, NULL }, /* celcius */
-	{ 0x0097, NVOBJ_ENGINE_GR, NULL }, /* kelvin (nv20) */
-	{ 0x0597, NVOBJ_ENGINE_GR, NULL }, /* kelvin (nv25) */
-	{}
-};
+static int
+nv20_graph_register(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-struct nouveau_pgraph_object_class nv30_graph_grclass[] = {
-	{ 0x506e, NVOBJ_ENGINE_SW, NULL }, /* nvsw */
-	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
-	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
-	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
-	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
-	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
-	{ 0x038a, NVOBJ_ENGINE_GR, NULL }, /* ifc (nv30) */
-	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
-	{ 0x0389, NVOBJ_ENGINE_GR, NULL }, /* sifm (nv30) */
-	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
-	{ 0x0362, NVOBJ_ENGINE_GR, NULL }, /* surf2d (nv30) */
-	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
-	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
-	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
-	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
-	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
-	{ 0x039e, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
-	{ 0x0397, NVOBJ_ENGINE_GR, NULL }, /* rankine (nv30) */
-	{ 0x0497, NVOBJ_ENGINE_GR, NULL }, /* rankine (nv35) */
-	{ 0x0697, NVOBJ_ENGINE_GR, NULL }, /* rankine (nv34) */
-	{}
-};
+	if (dev_priv->engine.graph.registered)
+		return 0;
 
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x009e, GR); /* swzsurf */
+	NVOBJ_CLASS(dev, 0x0096, GR); /* celcius */
+
+	/* kelvin */
+	if (dev_priv->chipset < 0x25)
+		NVOBJ_CLASS(dev, 0x0097, GR);
+	else
+		NVOBJ_CLASS(dev, 0x0597, GR);
+
+	dev_priv->engine.graph.registered = true;
+	return 0;
+}
+
+static int
+nv30_graph_register(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->engine.graph.registered)
+		return 0;
+
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x038a, GR); /* ifc (nv30) */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x0389, GR); /* sifm (nv30) */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x0362, GR); /* surf2d (nv30) */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x039e, GR); /* swzsurf */
+
+	/* rankine */
+	if (0x00000003 & (1 << (dev_priv->chipset & 0x0f)))
+		NVOBJ_CLASS(dev, 0x0397, GR);
+	else
+	if (0x00000010 & (1 << (dev_priv->chipset & 0x0f)))
+		NVOBJ_CLASS(dev, 0x0697, GR);
+	else
+	if (0x000001e0 & (1 << (dev_priv->chipset & 0x0f)))
+		NVOBJ_CLASS(dev, 0x0497, GR);
+
+	dev_priv->engine.graph.registered = true;
+	return 0;
+}

@@ -29,6 +29,8 @@
 #include "nouveau_drv.h"
 #include "nouveau_grctx.h"
 
+static int nv40_graph_register(struct drm_device *);
+
 struct nouveau_channel *
 nv40_graph_channel(struct drm_device *dev)
 {
@@ -248,7 +250,7 @@ nv40_graph_init(struct drm_device *dev)
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nouveau_grctx ctx = {};
 	uint32_t vramsz, *cp;
-	int i, j;
+	int ret, i, j;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
 			~NV_PMC_ENABLE_PGRAPH);
@@ -271,6 +273,10 @@ nv40_graph_init(struct drm_device *dev)
 		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
 
 	kfree(cp);
+
+	ret = nv40_graph_register(dev);
+	if (ret)
+		return ret;
 
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
@@ -408,25 +414,38 @@ void nv40_graph_takedown(struct drm_device *dev)
 {
 }
 
-struct nouveau_pgraph_object_class nv40_graph_grclass[] = {
-	{ 0x506e, NVOBJ_ENGINE_SW, NULL }, /* nvsw */
-	{ 0x0030, NVOBJ_ENGINE_GR, NULL }, /* null */
-	{ 0x0039, NVOBJ_ENGINE_GR, NULL }, /* m2mf */
-	{ 0x004a, NVOBJ_ENGINE_GR, NULL }, /* gdirect */
-	{ 0x009f, NVOBJ_ENGINE_GR, NULL }, /* imageblit (nv12) */
-	{ 0x008a, NVOBJ_ENGINE_GR, NULL }, /* ifc */
-	{ 0x0089, NVOBJ_ENGINE_GR, NULL }, /* sifm */
-	{ 0x3089, NVOBJ_ENGINE_GR, NULL }, /* sifm (nv40) */
-	{ 0x0062, NVOBJ_ENGINE_GR, NULL }, /* surf2d */
-	{ 0x3062, NVOBJ_ENGINE_GR, NULL }, /* surf2d (nv40) */
-	{ 0x0043, NVOBJ_ENGINE_GR, NULL }, /* rop */
-	{ 0x0012, NVOBJ_ENGINE_GR, NULL }, /* beta1 */
-	{ 0x0072, NVOBJ_ENGINE_GR, NULL }, /* beta4 */
-	{ 0x0019, NVOBJ_ENGINE_GR, NULL }, /* cliprect */
-	{ 0x0044, NVOBJ_ENGINE_GR, NULL }, /* pattern */
-	{ 0x309e, NVOBJ_ENGINE_GR, NULL }, /* swzsurf */
-	{ 0x4097, NVOBJ_ENGINE_GR, NULL }, /* curie (nv40) */
-	{ 0x4497, NVOBJ_ENGINE_GR, NULL }, /* curie (nv44) */
-	{}
-};
+static int
+nv40_graph_register(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
+	if (dev_priv->engine.graph.registered)
+		return 0;
+
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x3089, GR); /* sifm (nv40) */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x3062, GR); /* surf2d (nv40) */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x309e, GR); /* swzsurf */
+
+	/* curie */
+	if (dev_priv->chipset >= 0x60 ||
+	    0x00005450 & (1 << (dev_priv->chipset & 0x0f)))
+		NVOBJ_CLASS(dev, 0x4497, GR);
+	else
+		NVOBJ_CLASS(dev, 0x4097, GR);
+
+	dev_priv->engine.graph.registered = true;
+	return 0;
+}
