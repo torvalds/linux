@@ -182,7 +182,7 @@ u32 kvm_read_and_reset_pf_reason(void);
 #define kvm_guest_init() do { } while (0)
 #define kvm_async_pf_task_wait(T) do {} while(0)
 #define kvm_async_pf_task_wake(T) do {} while(0)
-static u32 kvm_read_and_reset_pf_reason(void)
+static inline u32 kvm_read_and_reset_pf_reason(void)
 {
 	return 0;
 }
