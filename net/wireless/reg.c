@@ -720,7 +720,9 @@ EXPORT_SYMBOL(freq_reg_info);
  * on the wiphy with the target_bw specified. Then we can simply use
  * that below for the desired_bw_khz below.
  */
-static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
+static void handle_channel(struct wiphy *wiphy,
+			   enum nl80211_reg_initiator initiator,
+			   enum ieee80211_band band,
 			   unsigned int chan_idx)
 {
 	int r;
@@ -784,7 +786,9 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 		chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
-static void handle_band(struct wiphy *wiphy, enum ieee80211_band band)
+static void handle_band(struct wiphy *wiphy,
+			enum ieee80211_band band,
+			enum nl80211_reg_initiator initiator)
 {
 	unsigned int i;
 	struct ieee80211_supported_band *sband;
@@ -793,7 +797,7 @@ static void handle_band(struct wiphy *wiphy, enum ieee80211_band band)
 	sband = wiphy->bands[band];
 
 	for (i = 0; i < sband->n_channels; i++)
-		handle_channel(wiphy, band, i);
+		handle_channel(wiphy, initiator, band, i);
 }
 
 static bool ignore_reg_update(struct wiphy *wiphy,
@@ -1030,7 +1034,7 @@ void wiphy_update_regulatory(struct wiphy *wiphy,
 		goto out;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
-			handle_band(wiphy, band);
+			handle_band(wiphy, band, initiator);
 	}
 out:
 	reg_process_beacons(wiphy);
