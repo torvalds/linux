@@ -339,12 +339,14 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int i;
 
+	sysfs_remove_group(&client->dev.kobj, &pcf_attr_group);
 	pcf50633_irq_free(pcf);
 
 	platform_device_unregister(pcf->input_pdev);
 	platform_device_unregister(pcf->rtc_pdev);
 	platform_device_unregister(pcf->mbc_pdev);
 	platform_device_unregister(pcf->adc_pdev);
+	platform_device_unregister(pcf->bl_pdev);
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++)
 		platform_device_unregister(pcf->regulator_pdev[i]);
