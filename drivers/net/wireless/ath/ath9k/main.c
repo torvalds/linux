@@ -182,6 +182,9 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 	struct ath_cycle_counters *cc = &common->cc_survey;
 	unsigned int div = common->clockrate * 1000;
 
+	if (!ah->curchan)
+		return;
+
 	if (ah->power_mode == ATH9K_PM_AWAKE)
 		ath_hw_cycle_counters_update(common);
 
