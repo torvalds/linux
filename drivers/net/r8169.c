@@ -3992,11 +3992,18 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct pci_dev *pdev,
 		if (!data)
 			return NULL;
 	}
+
 	mapping = dma_map_single(&pdev->dev, rtl8169_align(data), rx_buf_sz,
 				 PCI_DMA_FROMDEVICE);
+	if (unlikely(dma_mapping_error(&pdev->dev, mapping)))
+		goto err_out;
 
 	rtl8169_map_to_asic(desc, mapping, rx_buf_sz);
 	return data;
+
+err_out:
+	kfree(data);
+	return NULL;
 }
 
 static void rtl8169_rx_clear(struct rtl8169_private *tp)
@@ -4080,12 +4087,13 @@ static void rtl8169_unmap_tx_skb(struct pci_dev *pdev, struct ring_info *tx_skb,
 	tx_skb->len = 0;
 }
 
-static void rtl8169_tx_clear(struct rtl8169_private *tp)
+static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
+				   unsigned int n)
 {
 	unsigned int i;
 
-	for (i = tp->dirty_tx; i < tp->dirty_tx + NUM_TX_DESC; i++) {
-		unsigned int entry = i % NUM_TX_DESC;
+	for (i = 0; i < n; i++) {
+		unsigned int entry = (start + i) % NUM_TX_DESC;
 		struct ring_info *tx_skb = tp->tx_skb + entry;
 		unsigned int len = tx_skb->len;
 
@@ -4101,6 +4109,11 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
 			tp->dev->stats.tx_dropped++;
 		}
 	}
+}
+
+static void rtl8169_tx_clear(struct rtl8169_private *tp)
+{
+	rtl8169_tx_clear_range(tp, tp->dirty_tx, NUM_TX_DESC);
 	tp->cur_tx = tp->dirty_tx = 0;
 }
 
@@ -4219,6 +4232,8 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 		addr = ((void *) page_address(frag->page)) + frag->page_offset;
 		mapping = dma_map_single(&tp->pci_dev->dev, addr, len,
 					 PCI_DMA_TODEVICE);
+		if (unlikely(dma_mapping_error(&tp->pci_dev->dev, mapping)))
+			goto err_out;
 
 		/* anti gcc 2.95.3 bugware (sic) */
 		status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
@@ -4235,6 +4250,10 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 	}
 
 	return cur_frag;
+
+err_out:
+	rtl8169_tx_clear_range(tp, tp->cur_tx + 1, cur_frag);
+	return -EIO;
 }
 
 static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
@@ -4261,39 +4280,43 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	unsigned int frags, entry = tp->cur_tx % NUM_TX_DESC;
+	unsigned int entry = tp->cur_tx % NUM_TX_DESC;
 	struct TxDesc *txd = tp->TxDescArray + entry;
 	void __iomem *ioaddr = tp->mmio_addr;
 	dma_addr_t mapping;
 	u32 status, len;
 	u32 opts1;
+	int frags;
 
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
-		goto err_stop;
+		goto err_stop_0;
 	}
 
 	if (unlikely(le32_to_cpu(txd->opts1) & DescOwn))
-		goto err_stop;
+		goto err_stop_0;
 
-	opts1 = DescOwn | rtl8169_tso_csum(skb, dev);
-
-	frags = rtl8169_xmit_frags(tp, skb, opts1);
-	if (frags) {
-		len = skb_headlen(skb);
-		opts1 |= FirstFrag;
-	} else {
-		len = skb->len;
-		opts1 |= FirstFrag | LastFrag;
-		tp->tx_skb[entry].skb = skb;
-	}
-
+	len = skb_headlen(skb);
 	mapping = dma_map_single(&tp->pci_dev->dev, skb->data, len,
 				 PCI_DMA_TODEVICE);
+	if (unlikely(dma_mapping_error(&tp->pci_dev->dev, mapping)))
+		goto err_dma_0;
 
 	tp->tx_skb[entry].len = len;
 	txd->addr = cpu_to_le64(mapping);
 	txd->opts2 = cpu_to_le32(rtl8169_tx_vlan_tag(tp, skb));
+
+	opts1 = DescOwn | rtl8169_tso_csum(skb, dev);
+
+	frags = rtl8169_xmit_frags(tp, skb, opts1);
+	if (frags < 0)
+		goto err_dma_1;
+	else if (frags)
+		opts1 |= FirstFrag;
+	else {
+		opts1 |= FirstFrag | LastFrag;
+		tp->tx_skb[entry].skb = skb;
+	}
 
 	wmb();
 
@@ -4316,7 +4339,14 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	return NETDEV_TX_OK;
 
-err_stop:
+err_dma_1:
+	rtl8169_unmap_tx_skb(tp->pci_dev, tp->tx_skb + entry, txd);
+err_dma_0:
+	dev_kfree_skb(skb);
+	dev->stats.tx_dropped++;
+	return NETDEV_TX_OK;
+
+err_stop_0:
 	netif_stop_queue(dev);
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_BUSY;
