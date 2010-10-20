@@ -1098,7 +1098,7 @@ static int s3c_pm_ops_suspend(struct device *dev)
 	struct onenand_chip *this = mtd->priv;
 
 	this->wait(mtd, FL_PM_SUSPENDED);
-	return mtd->suspend(mtd);
+	return 0;
 }
 
 static  int s3c_pm_ops_resume(struct device *dev)
@@ -1107,7 +1107,6 @@ static  int s3c_pm_ops_resume(struct device *dev)
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct onenand_chip *this = mtd->priv;
 
-	mtd->resume(mtd);
 	this->unlock_all(mtd);
 	return 0;
 }
