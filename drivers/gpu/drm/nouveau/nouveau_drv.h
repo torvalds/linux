@@ -166,6 +166,13 @@ struct nouveau_gpuobj {
 	void *priv;
 };
 
+struct nouveau_page_flip_state {
+	struct list_head head;
+	struct drm_pending_vblank_event *event;
+	int crtc, bpp, pitch, x, y;
+	uint64_t offset;
+};
+
 struct nouveau_channel {
 	struct drm_device *dev;
 	int id;
@@ -253,6 +260,7 @@ struct nouveau_channel {
 		uint32_t vblsem_offset;
 		uint32_t vblsem_rval;
 		struct list_head vbl_wait;
+		struct list_head flip;
 	} nvsw;
 
 	struct {
@@ -1076,6 +1084,8 @@ extern void nv04_graph_destroy_context(struct nouveau_channel *);
 extern int  nv04_graph_load_context(struct nouveau_channel *);
 extern int  nv04_graph_unload_context(struct drm_device *);
 extern void nv04_graph_context_switch(struct drm_device *);
+extern int  nv04_graph_mthd_page_flip(struct nouveau_channel *chan,
+				      u32 class, u32 mthd, u32 data);
 
 /* nv10_graph.c */
 extern int  nv10_graph_init(struct drm_device *);
@@ -1249,6 +1259,7 @@ extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
+extern void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *);
 
 /* nouveau_fence.c */
 struct nouveau_fence;
@@ -1315,6 +1326,10 @@ extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 /* nouveau_display.c */
 int nouveau_vblank_enable(struct drm_device *dev, int crtc);
 void nouveau_vblank_disable(struct drm_device *dev, int crtc);
+int nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			   struct drm_pending_vblank_event *event);
+int nouveau_finish_page_flip(struct nouveau_channel *,
+			     struct nouveau_page_flip_state *);
 
 /* nv10_gpio.c */
 int nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
@@ -1514,5 +1529,6 @@ nv_match_device(struct drm_device *dev, unsigned device,
 #define NV_SW_VBLSEM_OFFSET                                          0x00000400
 #define NV_SW_VBLSEM_RELEASE_VALUE                                   0x00000404
 #define NV_SW_VBLSEM_RELEASE                                         0x00000408
+#define NV_SW_PAGE_FLIP                                              0x00000500
 
 #endif /* __NOUVEAU_DRV_H__ */

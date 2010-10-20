@@ -1090,6 +1090,9 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_HAS_BO_USAGE:
 		getparam->value = 1;
 		break;
+	case NOUVEAU_GETPARAM_HAS_PAGEFLIP:
+		getparam->value = (dev_priv->card_type < NV_50);
+		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		/* NV40 and NV50 versions are quite different, but register
 		 * address is the same. User is supposed to know the card

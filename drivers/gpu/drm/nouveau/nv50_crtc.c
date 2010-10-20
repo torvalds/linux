@@ -437,6 +437,7 @@ static const struct drm_crtc_funcs nv50_crtc_funcs = {
 	.cursor_move = nv50_crtc_cursor_move,
 	.gamma_set = nv50_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
+	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv50_crtc_destroy,
 };
 

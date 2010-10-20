@@ -1113,6 +1113,10 @@ nv10_graph_register(struct drm_device *dev)
 		NVOBJ_MTHD (dev, 0x0099, 0x1658, nv17_graph_mthd_lma_enable);
 	}
 
+	/* nvsw */
+	NVOBJ_CLASS(dev, 0x506e, SW);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
+
 	dev_priv->engine.graph.registered = true;
 	return 0;
 }

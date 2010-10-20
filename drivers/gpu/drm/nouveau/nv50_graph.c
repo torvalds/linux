@@ -29,6 +29,8 @@
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
 #include "nouveau_grctx.h"
+#include "nouveau_dma.h"
+#include "nv50_evo.h"
 
 static int nv50_graph_register(struct drm_device *);
 
@@ -390,6 +392,19 @@ nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan,
 }
 
 static int
+nv50_graph_nvsw_mthd_page_flip(struct nouveau_channel *chan,
+			       u32 class, u32 mthd, u32 data)
+{
+	struct nouveau_page_flip_state s;
+
+	if (!nouveau_finish_page_flip(chan, &s)) {
+		/* XXX - Do something here */
+	}
+
+	return 0;
+}
+
+static int
 nv50_graph_register(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -402,6 +417,7 @@ nv50_graph_register(struct drm_device *dev)
 	NVOBJ_MTHD (dev, 0x506e, 0x0400, nv50_graph_nvsw_vblsem_offset);
 	NVOBJ_MTHD (dev, 0x506e, 0x0404, nv50_graph_nvsw_vblsem_release_val);
 	NVOBJ_MTHD (dev, 0x506e, 0x0408, nv50_graph_nvsw_vblsem_release);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv50_graph_nvsw_mthd_page_flip);
 
 	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
 	NVOBJ_CLASS(dev, 0x5039, GR); /* m2mf */

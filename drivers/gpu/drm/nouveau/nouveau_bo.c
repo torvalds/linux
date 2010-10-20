@@ -942,6 +942,18 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	return ttm_bo_validate(bo, &nvbo->placement, false, true, false);
 }
 
+void
+nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
+{
+	spin_lock(&nvbo->bo.bdev->fence_lock);
+	__nouveau_fence_unref(&nvbo->bo.sync_obj);
+
+	if (likely(fence))
+		nvbo->bo.sync_obj = nouveau_fence_ref(fence);
+
+	spin_unlock(&nvbo->bo.bdev->fence_lock);
+}
+
 struct ttm_bo_driver nouveau_bo_driver = {
 	.create_ttm_backend_entry = nouveau_bo_create_ttm_backend_entry,
 	.invalidate_caches = nouveau_bo_invalidate_caches,

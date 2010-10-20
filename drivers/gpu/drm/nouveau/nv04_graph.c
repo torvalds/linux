@@ -26,6 +26,7 @@
 #include "drm.h"
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_hw.h"
 
 static int nv04_graph_register(struct drm_device *dev);
 
@@ -550,6 +551,20 @@ nv04_graph_mthd_set_ref(struct nouveau_channel *chan,
 			u32 class, u32 mthd, u32 data)
 {
 	atomic_set(&chan->fence.last_sequence_irq, data);
+	return 0;
+}
+
+int
+nv04_graph_mthd_page_flip(struct nouveau_channel *chan,
+			  u32 class, u32 mthd, u32 data)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_page_flip_state s;
+
+	if (!nouveau_finish_page_flip(chan, &s))
+		nv_set_crtc_base(dev, s.crtc,
+				 s.offset + s.y * s.pitch + s.x * s.bpp / 8);
+
 	return 0;
 }
 
@@ -1204,6 +1219,7 @@ nv04_graph_register(struct drm_device *dev)
 	/* nvsw */
 	NVOBJ_CLASS(dev, 0x506e, SW);
 	NVOBJ_MTHD (dev, 0x506e, 0x0150, nv04_graph_mthd_set_ref);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
 
 	dev_priv->engine.graph.registered = true;
 	return 0;

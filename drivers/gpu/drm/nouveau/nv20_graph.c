@@ -801,6 +801,10 @@ nv20_graph_register(struct drm_device *dev)
 	else
 		NVOBJ_CLASS(dev, 0x0597, GR);
 
+	/* nvsw */
+	NVOBJ_CLASS(dev, 0x506e, SW);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
+
 	dev_priv->engine.graph.registered = true;
 	return 0;
 }
@@ -840,6 +844,10 @@ nv30_graph_register(struct drm_device *dev)
 	else
 	if (0x000001e0 & (1 << (dev_priv->chipset & 0x0f)))
 		NVOBJ_CLASS(dev, 0x0497, GR);
+
+	/* nvsw */
+	NVOBJ_CLASS(dev, 0x506e, SW);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
 
 	dev_priv->engine.graph.registered = true;
 	return 0;

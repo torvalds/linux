@@ -148,6 +148,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	NV_DEBUG(dev, "initialising channel %d\n", chan->id);
 	INIT_LIST_HEAD(&chan->nvsw.vbl_wait);
+	INIT_LIST_HEAD(&chan->nvsw.flip);
 	INIT_LIST_HEAD(&chan->fence.pending);
 
 	/* Allocate DMA push buffer */

@@ -231,15 +231,8 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 
 	list_for_each_safe(entry, tmp, list) {
 		nvbo = list_entry(entry, struct nouveau_bo, entry);
-		if (likely(fence)) {
-			struct nouveau_fence *prev_fence;
 
-			spin_lock(&nvbo->bo.bdev->fence_lock);
-			prev_fence = nvbo->bo.sync_obj;
-			nvbo->bo.sync_obj = nouveau_fence_ref(fence);
-			spin_unlock(&nvbo->bo.bdev->fence_lock);
-			nouveau_fence_unref(&prev_fence);
-		}
+		nouveau_bo_fence(nvbo, fence);
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);
