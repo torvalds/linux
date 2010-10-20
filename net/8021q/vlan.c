@@ -135,7 +135,7 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 		vlan_gvrp_uninit_applicant(real_dev);
 
 		rcu_assign_pointer(real_dev->vlgrp, NULL);
-		if (real_dev->features & NETIF_F_HW_VLAN_RX)
+		if (ops->ndo_vlan_rx_register)
 			ops->ndo_vlan_rx_register(real_dev, NULL);
 
 		/* Free the group, after all cpu's are done. */
@@ -153,11 +153,6 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		pr_info("8021q: VLANs not supported on %s\n", name);
-		return -EOPNOTSUPP;
-	}
-
-	if ((real_dev->features & NETIF_F_HW_VLAN_RX) && !ops->ndo_vlan_rx_register) {
-		pr_info("8021q: device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
@@ -213,7 +208,7 @@ int register_vlan_dev(struct net_device *dev)
 	grp->nr_vlans++;
 
 	if (ngrp) {
-		if (real_dev->features & NETIF_F_HW_VLAN_RX)
+		if (ops->ndo_vlan_rx_register)
 			ops->ndo_vlan_rx_register(real_dev, ngrp);
 		rcu_assign_pointer(real_dev->vlgrp, ngrp);
 	}
