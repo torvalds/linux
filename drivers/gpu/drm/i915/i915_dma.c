@@ -1787,9 +1787,9 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	div_u64(diff, diff1);
+	diff = div_u64(diff, diff1);
 	ret = ((m * diff) + c);
-	div_u64(ret, 10);
+	ret = div_u64(ret, 10);
 
 	dev_priv->last_count1 = total_count;
 	dev_priv->last_time1 = now;
@@ -1858,7 +1858,7 @@ void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 
 	/* More magic constants... */
 	diff = diff * 1181;
-	div_u64(diff, diffms * 10);
+	diff = div_u64(diff, diffms * 10);
 	dev_priv->gfx_power = diff;
 }
 
@@ -2230,6 +2230,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	i915_mch_dev = dev_priv;
 	dev_priv->mchdev_lock = &mchdev_lock;
 	spin_unlock(&mchdev_lock);
+
+	/* XXX Prevent module unload due to memory corruption bugs. */
+	__module_get(THIS_MODULE);
 
 	return 0;
 
