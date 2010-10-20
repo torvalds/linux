@@ -28,6 +28,7 @@
  */
 
 #include <linux/nfs_fs.h>
+#include "internal.h"
 #include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
@@ -183,8 +184,86 @@ put_layout_hdr_locked(struct pnfs_layout_hdr *lo)
 	lo->refcount--;
 	if (!lo->refcount) {
 		dprintk("%s: freeing layout cache %p\n", __func__, lo);
+		BUG_ON(!list_empty(&lo->layouts));
 		NFS_I(lo->inode)->layout = NULL;
 		kfree(lo);
+	}
+}
+
+static void
+put_layout_hdr(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	put_layout_hdr_locked(NFS_I(inode)->layout);
+	spin_unlock(&inode->i_lock);
+}
+
+static void
+init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg)
+{
+	INIT_LIST_HEAD(&lseg->fi_list);
+	kref_init(&lseg->kref);
+	lseg->layout = lo;
+}
+
+/* Called without i_lock held, as the free_lseg call may sleep */
+static void
+destroy_lseg(struct kref *kref)
+{
+	struct pnfs_layout_segment *lseg =
+		container_of(kref, struct pnfs_layout_segment, kref);
+	struct inode *ino = lseg->layout->inode;
+
+	dprintk("--> %s\n", __func__);
+	kfree(lseg);
+	/* Matched by get_layout_hdr_locked in pnfs_insert_layout */
+	put_layout_hdr(ino);
+}
+
+static void
+put_lseg(struct pnfs_layout_segment *lseg)
+{
+	if (!lseg)
+		return;
+
+	dprintk("%s: lseg %p ref %d\n", __func__, lseg,
+		atomic_read(&lseg->kref.refcount));
+	kref_put(&lseg->kref, destroy_lseg);
+}
+
+static void
+pnfs_clear_lseg_list(struct pnfs_layout_hdr *lo, struct list_head *tmp_list)
+{
+	struct pnfs_layout_segment *lseg, *next;
+	struct nfs_client *clp;
+
+	dprintk("%s:Begin lo %p\n", __func__, lo);
+
+	assert_spin_locked(&lo->inode->i_lock);
+	list_for_each_entry_safe(lseg, next, &lo->segs, fi_list) {
+		dprintk("%s: freeing lseg %p\n", __func__, lseg);
+		list_move(&lseg->fi_list, tmp_list);
+	}
+	clp = NFS_SERVER(lo->inode)->nfs_client;
+	spin_lock(&clp->cl_lock);
+	/* List does not take a reference, so no need for put here */
+	list_del_init(&lo->layouts);
+	spin_unlock(&clp->cl_lock);
+
+	dprintk("%s:Return\n", __func__);
+}
+
+static void
+pnfs_free_lseg_list(struct list_head *tmp_list)
+{
+	struct pnfs_layout_segment *lseg;
+
+	while (!list_empty(tmp_list)) {
+		lseg = list_entry(tmp_list->next, struct pnfs_layout_segment,
+				fi_list);
+		dprintk("%s calling put_lseg on %p\n", __func__, lseg);
+		list_del(&lseg->fi_list);
+		put_lseg(lseg);
 	}
 }
 
@@ -192,29 +271,102 @@ void
 pnfs_destroy_layout(struct nfs_inode *nfsi)
 {
 	struct pnfs_layout_hdr *lo;
+	LIST_HEAD(tmp_list);
 
 	spin_lock(&nfsi->vfs_inode.i_lock);
 	lo = nfsi->layout;
 	if (lo) {
+		pnfs_clear_lseg_list(lo, &tmp_list);
 		/* Matched by refcount set to 1 in alloc_init_layout_hdr */
 		put_layout_hdr_locked(lo);
 	}
 	spin_unlock(&nfsi->vfs_inode.i_lock);
+	pnfs_free_lseg_list(&tmp_list);
 }
 
-/* STUB - pretend LAYOUTGET to server failed */
+/*
+ * Called by the state manger to remove all layouts established under an
+ * expired lease.
+ */
+void
+pnfs_destroy_all_layouts(struct nfs_client *clp)
+{
+	struct pnfs_layout_hdr *lo;
+	LIST_HEAD(tmp_list);
+
+	spin_lock(&clp->cl_lock);
+	list_splice_init(&clp->cl_layouts, &tmp_list);
+	spin_unlock(&clp->cl_lock);
+
+	while (!list_empty(&tmp_list)) {
+		lo = list_entry(tmp_list.next, struct pnfs_layout_hdr,
+				layouts);
+		dprintk("%s freeing layout for inode %lu\n", __func__,
+			lo->inode->i_ino);
+		pnfs_destroy_layout(NFS_I(lo->inode));
+	}
+}
+
+static void pnfs_insert_layout(struct pnfs_layout_hdr *lo,
+			       struct pnfs_layout_segment *lseg);
+
+/* Get layout from server. */
 static struct pnfs_layout_segment *
 send_layoutget(struct pnfs_layout_hdr *lo,
 	   struct nfs_open_context *ctx,
 	   u32 iomode)
 {
 	struct inode *ino = lo->inode;
+	struct pnfs_layout_segment *lseg;
 
-	set_bit(lo_fail_bit(iomode), &lo->state);
+	/* Lets pretend we sent LAYOUTGET and got a response */
+	lseg = kzalloc(sizeof(*lseg), GFP_KERNEL);
+	if (!lseg) {
+		set_bit(lo_fail_bit(iomode), &lo->state);
+		spin_lock(&ino->i_lock);
+		put_layout_hdr_locked(lo);
+		spin_unlock(&ino->i_lock);
+		return NULL;
+	}
+	init_lseg(lo, lseg);
+	lseg->iomode = IOMODE_RW;
 	spin_lock(&ino->i_lock);
+	pnfs_insert_layout(lo, lseg);
 	put_layout_hdr_locked(lo);
 	spin_unlock(&ino->i_lock);
-	return NULL;
+	return lseg;
+}
+
+static void
+pnfs_insert_layout(struct pnfs_layout_hdr *lo,
+		   struct pnfs_layout_segment *lseg)
+{
+	dprintk("%s:Begin\n", __func__);
+
+	assert_spin_locked(&lo->inode->i_lock);
+	if (list_empty(&lo->segs)) {
+		struct nfs_client *clp = NFS_SERVER(lo->inode)->nfs_client;
+
+		spin_lock(&clp->cl_lock);
+		BUG_ON(!list_empty(&lo->layouts));
+		list_add_tail(&lo->layouts, &clp->cl_layouts);
+		spin_unlock(&clp->cl_lock);
+	}
+	get_layout_hdr_locked(lo);
+	/* STUB - add the constructed lseg if necessary */
+	if (list_empty(&lo->segs)) {
+		list_add_tail(&lseg->fi_list, &lo->segs);
+		dprintk("%s: inserted lseg %p iomode %d at tail\n",
+			__func__, lseg, lseg->iomode);
+	} else {
+		/* There is no harm for the moment in calling this
+		 * with the lock held, and the call will be removed
+		 * with the STUB.
+		 */
+		put_lseg(lseg);
+	}
+
+	dprintk("%s:Return\n", __func__);
 }
 
 static struct pnfs_layout_hdr *
@@ -226,6 +378,8 @@ alloc_init_layout_hdr(struct inode *ino)
 	if (!lo)
 		return NULL;
 	lo->refcount = 1;
+	INIT_LIST_HEAD(&lo->layouts);
+	INIT_LIST_HEAD(&lo->segs);
 	lo->inode = ino;
 	return lo;
 }

@@ -30,6 +30,13 @@
 #ifndef FS_NFS_PNFS_H
 #define FS_NFS_PNFS_H
 
+struct pnfs_layout_segment {
+	struct list_head fi_list;
+	u32 iomode;
+	struct kref kref;
+	struct pnfs_layout_hdr *layout;
+};
+
 #ifdef CONFIG_NFS_V4_1
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
@@ -51,6 +58,8 @@ struct pnfs_layoutdriver_type {
 
 struct pnfs_layout_hdr {
 	unsigned long		refcount;
+	struct list_head	layouts;   /* other client layouts */
+	struct list_head	segs;      /* layout segments list */
 	unsigned long		state;
 	struct inode		*inode;
 };
@@ -64,6 +73,7 @@ pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 void pnfs_destroy_layout(struct nfs_inode *);
+void pnfs_destroy_all_layouts(struct nfs_client *);
 
 
 static inline int lo_fail_bit(u32 iomode)
@@ -79,6 +89,10 @@ static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 }
 
 #else  /* CONFIG_NFS_V4_1 */
+
+static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
+{
+}
 
 static inline void pnfs_destroy_layout(struct nfs_inode *nfsi)
 {
