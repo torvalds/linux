@@ -6507,10 +6507,10 @@ F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
 
 XEN HYPERVISOR INTERFACE
-M:	Jeremy Fitzhardinge <jeremy@xensource.com>
-M:	Chris Wright <chrisw@sous-sol.org>
+M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+L:	xen-devel@lists.xen.org
 L:	virtualization@lists.osdl.org
-L:	xen-devel@lists.xensource.com
 S:	Supported
 F:	arch/x86/xen/
 F:	drivers/*/xen-*front.c
