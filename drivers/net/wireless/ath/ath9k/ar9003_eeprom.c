@@ -2133,6 +2133,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					u8 twiceMaxRegulatoryPower,
 					u8 powerLimit)
 {
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
 	u8 targetPowerValT2[ar9300RateSize];
 	unsigned int i = 0;
@@ -2180,6 +2181,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 		i = ALL_TARGET_HT20_0_8_16; /* ht20 */
 
 	ah->txpower_limit = targetPowerValT2[i];
+	regulatory->max_power_level = ratesArray[i];
 
 	ar9003_hw_calibration_apply(ah, chan->channel);
 }
