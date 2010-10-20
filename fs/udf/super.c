@@ -1773,6 +1773,8 @@ static void udf_open_lvid(struct super_block *sb)
 
 	if (!bh)
 		return;
+
+	mutex_lock(&sbi->s_alloc_mutex);
 	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
 	lvidiu = udf_sb_lvidiu(sbi);
 
@@ -1789,6 +1791,7 @@ static void udf_open_lvid(struct super_block *sb)
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 	mark_buffer_dirty(bh);
 	sbi->s_lvid_dirty = 0;
+	mutex_unlock(&sbi->s_alloc_mutex);
 }
 
 static void udf_close_lvid(struct super_block *sb)
@@ -1801,6 +1804,7 @@ static void udf_close_lvid(struct super_block *sb)
 	if (!bh)
 		return;
 
+	mutex_lock(&sbi->s_alloc_mutex);
 	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
 	lvidiu = udf_sb_lvidiu(sbi);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
@@ -1821,6 +1825,7 @@ static void udf_close_lvid(struct super_block *sb)
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 	mark_buffer_dirty(bh);
 	sbi->s_lvid_dirty = 0;
+	mutex_unlock(&sbi->s_alloc_mutex);
 }
 
 u64 lvid_get_unique_id(struct super_block *sb)
