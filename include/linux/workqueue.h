@@ -127,11 +127,19 @@ struct execute_work {
 	.timer = TIMER_INITIALIZER(NULL, 0, 0),			\
 	}
 
+#define __DEFERRED_WORK_INITIALIZER(n, f) {			\
+	.work = __WORK_INITIALIZER((n).work, (f)),		\
+	.timer = TIMER_DEFERRED_INITIALIZER(NULL, 0, 0),	\
+	}
+
 #define DECLARE_WORK(n, f)					\
 	struct work_struct n = __WORK_INITIALIZER(n, f)
 
 #define DECLARE_DELAYED_WORK(n, f)				\
 	struct delayed_work n = __DELAYED_WORK_INITIALIZER(n, f)
+
+#define DECLARE_DEFERRED_WORK(n, f)				\
+	struct delayed_work n = __DEFERRED_WORK_INITIALIZER(n, f)
 
 /*
  * initialize a work item's function pointer

@@ -88,18 +88,6 @@ struct tvec_base boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
 static DEFINE_PER_CPU(struct tvec_base *, tvec_bases) = &boot_tvec_bases;
 
-/*
- * Note that all tvec_bases are 2 byte aligned and lower bit of
- * base in timer_list is guaranteed to be zero. Use the LSB to
- * indicate whether the timer is deferrable.
- *
- * A deferrable timer will work normally when the system is busy, but
- * will not cause a CPU to come out of idle just to service it; instead,
- * the timer will be serviced when the CPU eventually wakes up with a
- * subsequent non-deferrable timer.
- */
-#define TBASE_DEFERRABLE_FLAG		(0x1)
-
 /* Functions below help us manage 'deferrable' flag */
 static inline unsigned int tbase_get_deferrable(struct tvec_base *base)
 {
@@ -113,8 +101,7 @@ static inline struct tvec_base *tbase_get_base(struct tvec_base *base)
 
 static inline void timer_set_deferrable(struct timer_list *timer)
 {
-	timer->base = ((struct tvec_base *)((unsigned long)(timer->base) |
-				       TBASE_DEFERRABLE_FLAG));
+	timer->base = TBASE_MAKE_DEFERRED(timer->base);
 }
 
 static inline void

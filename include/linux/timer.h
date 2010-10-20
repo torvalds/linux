@@ -48,6 +48,18 @@ extern struct tvec_base boot_tvec_bases;
 #define __TIMER_LOCKDEP_MAP_INITIALIZER(_kn)
 #endif
 
+/*
+ * Note that all tvec_bases are 2 byte aligned and lower bit of
+ * base in timer_list is guaranteed to be zero. Use the LSB to
+ * indicate whether the timer is deferrable.
+ *
+ * A deferrable timer will work normally when the system is busy, but
+ * will not cause a CPU to come out of idle just to service it; instead,
+ * the timer will be serviced when the CPU eventually wakes up with a
+ * subsequent non-deferrable timer.
+ */
+#define TBASE_DEFERRABLE_FLAG		(0x1)
+
 #define TIMER_INITIALIZER(_function, _expires, _data) {		\
 		.entry = { .prev = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
@@ -55,6 +67,19 @@ extern struct tvec_base boot_tvec_bases;
 		.data = (_data),				\
 		.base = &boot_tvec_bases,			\
 		.slack = -1,					\
+		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
+			__FILE__ ":" __stringify(__LINE__))	\
+	}
+
+#define TBASE_MAKE_DEFERRED(ptr) ((struct tvec_base *)		\
+		  ((unsigned char *)(ptr) + TBASE_DEFERRABLE_FLAG))
+
+#define TIMER_DEFERRED_INITIALIZER(_function, _expires, _data) {\
+		.entry = { .prev = TIMER_ENTRY_STATIC },	\
+		.function = (_function),			\
+		.expires = (_expires),				\
+		.data = (_data),				\
+		.base = TBASE_MAKE_DEFERRED(&boot_tvec_bases),	\
 		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
 			__FILE__ ":" __stringify(__LINE__))	\
 	}
