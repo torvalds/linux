@@ -1629,7 +1629,6 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
 				protocol, -err);
 		goto out;
 	}
-	transport->srcaddr.ss_family = family;
 	xs_reclassify_socket(family, sock);
 
 	if (xs_bind(transport, sock)) {
@@ -2136,6 +2135,31 @@ static struct rpc_xprt_ops bc_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
+static int xs_init_anyaddr(const int family, struct sockaddr *sap)
+{
+	static const struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= htonl(INADDR_ANY),
+	};
+	static const struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+	};
+
+	switch (family) {
+	case AF_INET:
+		memcpy(sap, &sin, sizeof(sin));
+		break;
+	case AF_INET6:
+		memcpy(sap, &sin6, sizeof(sin6));
+		break;
+	default:
+		dprintk("RPC:       %s: Bad address family\n", __func__);
+		return -EAFNOSUPPORT;
+	}
+	return 0;
+}
+
 static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 				      unsigned int slot_table_size)
 {
@@ -2159,6 +2183,13 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 	xprt->addrlen = args->addrlen;
 	if (args->srcaddr)
 		memcpy(&new->srcaddr, args->srcaddr, args->addrlen);
+	else {
+		int err;
+		err = xs_init_anyaddr(args->dstaddr->sa_family,
+					(struct sockaddr *)&new->srcaddr);
+		if (err != 0)
+			return ERR_PTR(err);
+	}
 
 	return xprt;
 }
