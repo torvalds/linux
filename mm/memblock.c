@@ -196,6 +196,10 @@ static long memblock_add_region(struct memblock_region *rgn, u64 base, u64 size)
 long memblock_add(u64 base, u64 size)
 {
 	struct memblock_region *_rgn = &memblock.memory;
+	u64 end = base + size;
+
+	base = PAGE_ALIGN(base);
+	size = (end & PAGE_MASK) - base;
 
 	/* On pSeries LPAR systems, the first MEMBLOCK is our RMO region. */
 	if (base == 0)

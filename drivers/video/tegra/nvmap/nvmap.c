@@ -543,14 +543,6 @@ unsigned long nvmap_pin(struct nvmap_client *client,
 
 	atomic_inc(&ref->pin);
 
-#ifdef CONFIG_NVMAP_RECLAIM_UNPINNED_VM
-	/* if IOVMM reclaiming is enabled, IOVMM-backed allocations should
-	 * only be pinned through the nvmap_pin_array mechanism, since that
-	 * interface guarantees that handles are unpinned when the pinning
-	 * command buffers have completed. */
-	WARN_ON(h->heap_pgalloc && !h->pgalloc.contig);
-#endif
-
 	if (WARN_ON(mutex_lock_interruptible(&client->share->pin_lock))) {
 		ret = -EINTR;
 	} else {
