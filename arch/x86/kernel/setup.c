@@ -83,7 +83,6 @@
 #include <asm/dmi.h>
 #include <asm/io_apic.h>
 #include <asm/ist.h>
-#include <asm/vmi.h>
 #include <asm/setup_arch.h>
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
@@ -734,10 +733,10 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
 
-	/* VMI may relocate the fixmap; do this before touching ioremap area */
-	vmi_init();
-
-	/* OFW also may relocate the fixmap */
+	/*
+	 * If we have OLPC OFW, we might end up relocating the fixmap due to
+	 * reserve_top(), so do this before touching the ioremap area.
+	 */
 	olpc_ofw_detect();
 
 	early_trap_init();
@@ -837,9 +836,6 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	x86_report_nx();
-
-	/* Must be before kernel pagetables are setup */
-	vmi_activate();
 
 	/* after early param, so could get panic from serial */
 	reserve_early_setup_data();
