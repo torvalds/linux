@@ -42,6 +42,7 @@ static const char *r8a66597_ep_name[] = {
 	"ep8", "ep9",
 };
 
+static void init_controller(struct r8a66597 *r8a66597);
 static void disable_controller(struct r8a66597 *r8a66597);
 static void irq_ep0_write(struct r8a66597_ep *ep, struct r8a66597_request *req);
 static void irq_packet_write(struct r8a66597_ep *ep,
@@ -104,6 +105,8 @@ __acquires(r8a66597->lock)
 	spin_lock(&r8a66597->lock);
 
 	disable_controller(r8a66597);
+	init_controller(r8a66597);
+	r8a66597_bset(r8a66597, VBSE, INTENB0);
 	INIT_LIST_HEAD(&r8a66597->ep[0].queue);
 }
 
