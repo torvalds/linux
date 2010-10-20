@@ -500,25 +500,56 @@ err_unmap:
 	goto out;
 }
 
-__be32 *
-nfs_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
+static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
 {
-	if (!*p++) {
-		if (!*p)
+	dprintk("nfs: %s: prematurely hit end of receive buffer. "
+		"Remaining buffer length is %tu words.\n",
+		func, xdr->end - xdr->p);
+}
+
+__be32 *
+nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, int plus)
+{
+	__be32 *p;
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	if (!ntohl(*p++)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
+		if (!ntohl(*p++))
 			return ERR_PTR(-EAGAIN);
 		entry->eof = 1;
 		return ERR_PTR(-EBADCOOKIE);
 	}
 
+	p = xdr_inline_decode(xdr, 8);
+	if (unlikely(!p))
+		goto out_overflow;
+
 	entry->ino	  = ntohl(*p++);
 	entry->len	  = ntohl(*p++);
+
+	p = xdr_inline_decode(xdr, entry->len + 4);
+	if (unlikely(!p))
+		goto out_overflow;
 	entry->name	  = (const char *) p;
 	p		 += XDR_QUADLEN(entry->len);
 	entry->prev_cookie	  = entry->cookie;
 	entry->cookie	  = ntohl(*p++);
-	entry->eof	  = !p[0] && p[1];
+
+	p = xdr_inline_peek(xdr, 8);
+	if (p != NULL)
+		entry->eof = !p[0] && p[1];
+	else
+		entry->eof = 0;
 
 	return p;
+
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return ERR_PTR(-EIO);
 }
 
 /*

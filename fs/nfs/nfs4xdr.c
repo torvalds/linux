@@ -3950,13 +3950,13 @@ static int decode_lock_denied (struct xdr_stream *xdr, struct file_lock *fl)
 	__be32 *p;
 	uint32_t namelen, type;
 
-	p = xdr_inline_decode(xdr, 32);
+	p = xdr_inline_decode(xdr, 32); /* read 32 bytes */
 	if (unlikely(!p))
 		goto out_overflow;
-	p = xdr_decode_hyper(p, &offset);
+	p = xdr_decode_hyper(p, &offset); /* read 2 8-byte long words */
 	p = xdr_decode_hyper(p, &length);
-	type = be32_to_cpup(p++);
-	if (fl != NULL) {
+	type = be32_to_cpup(p++); /* 4 byte read */
+	if (fl != NULL) { /* manipulate file lock */
 		fl->fl_start = (loff_t)offset;
 		fl->fl_end = fl->fl_start + (loff_t)length - 1;
 		if (length == ~(uint64_t)0)
@@ -3966,9 +3966,9 @@ static int decode_lock_denied (struct xdr_stream *xdr, struct file_lock *fl)
 			fl->fl_type = F_RDLCK;
 		fl->fl_pid = 0;
 	}
-	p = xdr_decode_hyper(p, &clientid);
-	namelen = be32_to_cpup(p);
-	p = xdr_inline_decode(xdr, namelen);
+	p = xdr_decode_hyper(p, &clientid); /* read 8 bytes */
+	namelen = be32_to_cpup(p); /* read 4 bytes */  /* have read all 32 bytes now */
+	p = xdr_inline_decode(xdr, namelen); /* variable size field */
 	if (likely(p))
 		return -NFS4ERR_DENIED;
 out_overflow:
@@ -5755,21 +5755,33 @@ static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp, uint32_t *p,
 }
 #endif /* CONFIG_NFS_V4_1 */
 
-__be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
+__be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, int plus)
 {
 	uint32_t bitmap[2] = {0};
 	uint32_t len;
-
-	if (!*p++) {
-		if (!*p)
+	__be32 *p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	if (!ntohl(*p++)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
+		if (!ntohl(*p++))
 			return ERR_PTR(-EAGAIN);
 		entry->eof = 1;
 		return ERR_PTR(-EBADCOOKIE);
 	}
 
+	p = xdr_inline_decode(xdr, 12);
+	if (unlikely(!p))
+		goto out_overflow;
 	entry->prev_cookie = entry->cookie;
 	p = xdr_decode_hyper(p, &entry->cookie);
 	entry->len = ntohl(*p++);
+
+	p = xdr_inline_decode(xdr, entry->len + 4);
+	if (unlikely(!p))
+		goto out_overflow;
 	entry->name = (const char *) p;
 	p += XDR_QUADLEN(entry->len);
 
@@ -5782,29 +5794,54 @@ __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 
 	len = ntohl(*p++);		/* bitmap length */
 	if (len-- > 0) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
 		bitmap[0] = ntohl(*p++);
 		if (len-- > 0) {
+			p = xdr_inline_decode(xdr, 4);
+			if (unlikely(!p))
+				goto out_overflow;
 			bitmap[1] = ntohl(*p++);
 			p += len;
 		}
 	}
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
 	len = XDR_QUADLEN(ntohl(*p++));	/* attribute buffer length */
 	if (len > 0) {
 		if (bitmap[0] & FATTR4_WORD0_RDATTR_ERROR) {
 			bitmap[0] &= ~FATTR4_WORD0_RDATTR_ERROR;
 			/* Ignore the return value of rdattr_error for now */
-			p++;
-			len--;
+			p = xdr_inline_decode(xdr, 4);
+			if (unlikely(!p))
+				goto out_overflow;
 		}
-		if (bitmap[0] == 0 && bitmap[1] == FATTR4_WORD1_MOUNTED_ON_FILEID)
+		if (bitmap[0] == 0 && bitmap[1] == FATTR4_WORD1_MOUNTED_ON_FILEID) {
+			p = xdr_inline_decode(xdr, 8);
+			if (unlikely(!p))
+				goto out_overflow;
 			xdr_decode_hyper(p, &entry->ino);
-		else if (bitmap[0] == FATTR4_WORD0_FILEID)
+		} else if (bitmap[0] == FATTR4_WORD0_FILEID) {
+			p = xdr_inline_decode(xdr, 8);
+			if (unlikely(!p))
+				goto out_overflow;
 			xdr_decode_hyper(p, &entry->ino);
-		p += len;
+		}
 	}
 
-	entry->eof = !p[0] && p[1];
+	p = xdr_inline_peek(xdr, 8);
+	if (p != NULL)
+		entry->eof = !p[0] && p[1];
+	else
+		entry->eof = 0;
+
 	return p;
+
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return ERR_PTR(-EIO);
 }
 
 /*

@@ -171,7 +171,7 @@ struct nfs_cache_array {
 
 #define MAX_READDIR_ARRAY ((PAGE_SIZE - sizeof(struct nfs_cache_array)) / sizeof(struct nfs_cache_array_entry))
 
-typedef __be32 * (*decode_dirent_t)(__be32 *, struct nfs_entry *, int);
+typedef __be32 * (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, int);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
@@ -357,13 +357,11 @@ error:
 
 /* Fill in an entry based on the xdr code stored in desc->page */
 static
-int xdr_decode(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry, __be32 **ptr)
+int xdr_decode(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry, struct xdr_stream *stream)
 {
-	__be32	*p = *ptr;
-	p = desc->decode(p, entry, desc->plus);
+	__be32 *p = desc->decode(stream, entry, desc->plus);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
-	*ptr = p;
 
 	entry->fattr->time_start = desc->timestamp;
 	entry->fattr->gencount = desc->gencount;
@@ -438,10 +436,23 @@ out:
 /* Perform conversion from xdr to cache array */
 static
 void nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry,
-				struct page *xdr_page, struct page *page)
+				struct page *xdr_page, struct page *page, unsigned int buflen)
 {
+	struct xdr_stream stream;
+	struct xdr_buf buf;
 	__be32 *ptr = kmap(xdr_page);
-	while (xdr_decode(desc, entry, &ptr) == 0) {
+
+	buf.head->iov_base = xdr_page;
+	buf.head->iov_len = buflen;
+	buf.tail->iov_len = 0;
+	buf.page_base = 0;
+	buf.page_len = 0;
+	buf.buflen = buf.head->iov_len;
+	buf.len = buf.head->iov_len;
+
+	xdr_init_decode(&stream, &buf, ptr);
+
+	while (xdr_decode(desc, entry, &stream) == 0) {
 		if (nfs_readdir_add_to_array(entry, page) == -1)
 			break;
 		if (desc->plus == 1)
@@ -458,6 +469,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	struct file	*file = desc->file;
 	struct nfs_cache_array *array;
 	int status = 0;
+	unsigned int array_size = 1;
 
 	entry.prev_cookie = 0;
 	entry.cookie = *desc->dir_cookie;
@@ -476,9 +488,10 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 		goto out_release_array;
 	do {
 		status = nfs_readdir_xdr_filler(xdr_page, desc, &entry, file, inode);
+
 		if (status < 0)
 			break;
-		nfs_readdir_page_filler(desc, &entry, xdr_page, page);
+		nfs_readdir_page_filler(desc, &entry, xdr_page, page, array_size * PAGE_SIZE);
 	} while (array->eof_index < 0 && array->size < MAX_READDIR_ARRAY);
 
 	put_page(xdr_page);
