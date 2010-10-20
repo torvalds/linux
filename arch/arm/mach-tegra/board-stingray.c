@@ -653,11 +653,13 @@ static struct tegra_i2c_platform_data stingray_i2c2_platform_data = {
 static struct tegra_i2c_platform_data stingray_i2c3_platform_data = {
 	.adapter_nr   = 2,
 	.bus_count    = 1,
+	.bus_clk_rate = { 400000 },
 };
 
 static struct tegra_i2c_platform_data stingray_i2c4_platform_data = {
 	.adapter_nr   = 3,
 	.bus_count    = 1,
+	.bus_clk_rate = { 400000 },
 	.is_dvc       = true,
 };
 
