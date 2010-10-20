@@ -237,7 +237,7 @@ EXPORT_SYMBOL(hv_cb_utils);
 /*
  * alloc_channel - Allocate and initialize a vmbus channel object
  */
-struct vmbus_channel *alloc_channel(void)
+static struct vmbus_channel *alloc_channel(void)
 {
 	struct vmbus_channel *channel;
 

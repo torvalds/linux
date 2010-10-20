@@ -307,8 +307,6 @@ struct vmbus_channel_msginfo {
 };
 
 
-struct vmbus_channel *alloc_channel(void);
-
 void free_channel(struct vmbus_channel *channel);
 
 void vmbus_onmessage(void *context);
