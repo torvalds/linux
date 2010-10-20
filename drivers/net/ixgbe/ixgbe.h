@@ -28,11 +28,13 @@
 #ifndef _IXGBE_H_
 #define _IXGBE_H_
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/cpumask.h>
 #include <linux/aer.h>
+#include <linux/if_vlan.h>
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
@@ -287,7 +289,7 @@ struct ixgbe_q_vector {
 /* board specific private data structure */
 struct ixgbe_adapter {
 	struct timer_list watchdog_timer;
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbe_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
