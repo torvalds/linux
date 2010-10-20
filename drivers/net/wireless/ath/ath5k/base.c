@@ -566,8 +566,8 @@ static void ath_do_set_opmode(struct ath5k_softc *sc)
 		  sc->opmode, ath_opmode_to_string(sc->opmode));
 }
 
-void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
-					struct ieee80211_vif *vif)
+static void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
+					       struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath5k_hw_common(sc->ah);
 	struct ath_vif_iter_data iter_data;
