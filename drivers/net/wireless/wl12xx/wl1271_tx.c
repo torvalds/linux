@@ -261,6 +261,11 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 	/* if rates have changed, re-configure the rate policy */
 	if (unlikely(sta_rates)) {
+		ret = wl1271_ps_elp_wakeup(wl, false);
+		if (ret < 0)
+			goto out;
+		woken_up = true;
+
 		wl->rate_set = wl1271_tx_enabled_rates_get(wl, sta_rates);
 		wl1271_acx_rate_policies(wl);
 	}
