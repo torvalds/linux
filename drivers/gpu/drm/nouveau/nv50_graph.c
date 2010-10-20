@@ -216,7 +216,7 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 0x1000,
+	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 0,
 				 NVOBJ_FLAG_ZERO_ALLOC |
 				 NVOBJ_FLAG_ZERO_FREE, &chan->ramin_grctx);
 	if (ret)
