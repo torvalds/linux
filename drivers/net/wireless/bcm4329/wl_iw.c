@@ -1165,15 +1165,15 @@ wl_iw_set_pno_set(
 	wlc_ssid_t ssids_local[MAX_PFN_LIST_COUNT];
 	int nssid = 0;
 	cmd_tlv_t *cmd_tlv_temp;
-	char type;
 	char *str_ptr;
+	char *str_ptr_end;
 	int tlv_size_left;
 	int pno_time;
 
 #ifdef PNO_SET_DEBUG
 	int i;
 	char pno_in_example[] = {'P', 'N', 'O', 'S', 'E', 'T', 'U', 'P', ' ', \
-							'S', 0x01, 0x01, 0x00,
+							'S', '1', '2', '0',
 							'S',
 							0x04,
 							'B', 'R', 'C', 'M',
@@ -1181,8 +1181,8 @@ wl_iw_set_pno_set(
 							0x04,
 							'G', 'O', 'O', 'G',
 							'T',
-							0x00,
-							0x0A
+							'1','E',
+							0x00
 							};
 #endif
 
@@ -1239,29 +1239,15 @@ wl_iw_set_pno_set(
 			goto exit_proc;
 		}
 		else {
-			while (tlv_size_left > 0)
-			{
-				type = str_ptr[0];
-				switch (type) {
-					case PNO_TLV_TYPE_TIME:
-
-					if ((res = wl_iw_parse_data_tlv(&str_ptr, \
-						&pno_time, \
-						sizeof(pno_time), \
-						type, sizeof(short), &tlv_size_left)) == -1) {
-							WL_ERROR(("%s return %d\n", \
-							__FUNCTION__, res));
-							goto exit_proc;
-					}
-					break;
-
-					default:
-						WL_ERROR(("%s get unkwown type %X\n", \
-							__FUNCTION__, type));
-						goto exit_proc;
-					break;
-				}
+			if ((str_ptr[0] != PNO_TLV_TYPE_TIME) || (tlv_size_left <= 1)) {
+				WL_ERROR(("%s scan duration corrupted field size %d\n", \
+						__FUNCTION__, tlv_size_left));
+				goto exit_proc;
 			}
+			str_ptr++;
+			pno_time = simple_strtoul(str_ptr, &str_ptr_end, 16);
+			WL_ERROR((" got %d bytes left pno_time %d or %#x\n", \
+					tlv_size_left, pno_time, pno_time));
 		}
 	}
 	else {
@@ -1300,19 +1286,24 @@ wl_iw_get_rssi(
 		error = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t));
 		if (error) {
 			WL_ERROR(("%s: Fails %d\n", __FUNCTION__, error));
-			net_os_wake_unlock(dev);
-			return error;
-		}
-		rssi = dtoh32(scb_val.val);
+		} else {
+			rssi = dtoh32(scb_val.val);
 
-		error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid));
-		if (!error) {
-			ssid.SSID_len = dtoh32(ssid.SSID_len);
-			wl_format_ssid(ssidbuf, ssid.SSID, dtoh32(ssid.SSID_len));
+			error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid));
+			if (!error) {
+				ssid.SSID_len = dtoh32(ssid.SSID_len);
+				wl_format_ssid(ssidbuf, ssid.SSID, dtoh32(ssid.SSID_len));
+			}
 		}
 	}
 
-	p += snprintf(p, MAX_WX_STRING, "%s rssi %d ", ssidbuf, rssi);
+	WL_ASSOC(("%s ssid_len:%d, rssi:%d\n", __FUNCTION__, ssid.SSID_len, rssi));
+
+	if (error || (ssid.SSID_len == 0)) {
+		p += snprintf(p, MAX_WX_STRING, "FAIL");
+	} else {
+		p += snprintf(p, MAX_WX_STRING, "%s rssi %d ", ssidbuf, rssi);
+	}
 	wrqu->data.length = p - extra + 1;
 
 	net_os_wake_unlock(dev);
@@ -3431,6 +3422,7 @@ wl_iw_get_scan_prep(
 	wl_bss_info_t *bi = NULL;
 	char *event = extra, *end = extra + max_size - WE_ADD_EVENT_FIX, *value;
 	int	ret = 0;
+	int channel;
 
 	ASSERT(list);
 
@@ -3468,8 +3460,9 @@ wl_iw_get_scan_prep(
 
 		
 		iwe.cmd = SIOCGIWFREQ;
-		iwe.u.freq.m = wf_channel2mhz(CHSPEC_CHANNEL(bi->chanspec),
-			CHSPEC_CHANNEL(bi->chanspec) <= CH_MAX_2G_CHANNEL ?
+		channel = (bi->ctl_ch == 0) ? CHSPEC_CHANNEL(bi->chanspec) : bi->ctl_ch;
+		iwe.u.freq.m = wf_channel2mhz(channel,
+			channel <= CH_MAX_2G_CHANNEL ?
 			WF_CHAN_FACTOR_2_4_G : WF_CHAN_FACTOR_5_G);
 		iwe.u.freq.e = 6;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_FREQ_LEN);
@@ -7312,10 +7305,14 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 		cmd = IWEVREGISTERED;
 		break;
 	case WLC_E_ROAM:
-		if (status != WLC_E_STATUS_SUCCESS) {
+		if (status == WLC_E_STATUS_SUCCESS) {
+			memcpy(wrqu.addr.sa_data, &e->addr.octet, ETHER_ADDR_LEN);
+			wrqu.addr.sa_family = ARPHRD_ETHER;
+			cmd = SIOCGIWAP;
+		}
+		else if (status == WLC_E_STATUS_NO_NETWORKS) {
 			roam_no_success++;
-			if ((roam_no_success == 3) && (roam_no_success_send == FALSE)) {
-
+			if ((roam_no_success == 5) && (roam_no_success_send == FALSE)) {
 				roam_no_success_send = TRUE;
 				bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 				bzero(&extra, ETHER_ADDR_LEN);
@@ -7326,10 +7323,6 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 				WL_TRACE(("##### ROAMING did not succeeded %d\n", roam_no_success));
 				goto wl_iw_event_end;
 			}
-		} else {
-			memcpy(wrqu.addr.sa_data, &e->addr.octet, ETHER_ADDR_LEN);
-			wrqu.addr.sa_family = ARPHRD_ETHER;
-			cmd = SIOCGIWAP;
 		}
 		break;
 	case WLC_E_DEAUTH_IND:
