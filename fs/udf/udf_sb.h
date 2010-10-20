@@ -129,6 +129,8 @@ struct udf_sb_info {
 	uid_t			s_uid;
 	mode_t			s_fmode;
 	mode_t			s_dmode;
+	/* Lock protecting consistency of above permission settings */
+	rwlock_t		s_cred_lock;
 
 	/* Root Info */
 	struct timespec		s_record_time;

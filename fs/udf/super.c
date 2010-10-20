@@ -568,12 +568,14 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 		return -EINVAL;
 
 	lock_kernel();
+	write_lock(&sbi->s_cred_lock);
 	sbi->s_flags = uopt.flags;
 	sbi->s_uid   = uopt.uid;
 	sbi->s_gid   = uopt.gid;
 	sbi->s_umask = uopt.umask;
 	sbi->s_fmode = uopt.fmode;
 	sbi->s_dmode = uopt.dmode;
+	write_unlock(&sbi->s_cred_lock);
 
 	if (sbi->s_lvid_bh) {
 		int write_rev = le16_to_cpu(udf_sb_lvidiu(sbi)->minUDFWriteRev);
@@ -1960,6 +1962,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sbi->s_fmode = uopt.fmode;
 	sbi->s_dmode = uopt.dmode;
 	sbi->s_nls_map = uopt.nls_map;
+	rwlock_init(&sbi->s_cred_lock);
 
 	if (uopt.session == 0xFFFFFFFF)
 		sbi->s_session = udf_get_last_session(sb);
