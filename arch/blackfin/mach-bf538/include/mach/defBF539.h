@@ -32,6 +32,7 @@
 /* System Interrupt Controller (0xFFC00100 - 0xFFC001FF) */
 #define	SWRST			0xFFC00100  /* Software	Reset Register (16-bit) */
 #define	SYSCR			0xFFC00104  /* System Configuration registe */
+#define	SIC_RVECT		0xFFC00108
 #define	SIC_IMASK0		0xFFC0010C  /* Interrupt Mask Register */
 #define	SIC_IAR0		0xFFC00110  /* Interrupt Assignment Register 0 */
 #define	SIC_IAR1		0xFFC00114  /* Interrupt Assignment Register 1 */
