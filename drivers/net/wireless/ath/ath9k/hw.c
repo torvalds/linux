@@ -1166,7 +1166,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 			     channel->max_antenna_gain * 2,
 			     channel->max_power * 2,
 			     min((u32) MAX_RATE_POWER,
-			     (u32) regulatory->power_limit));
+			     (u32) regulatory->power_limit), false);
 
 	ath9k_hw_rfbus_done(ah);
 
@@ -2165,7 +2165,7 @@ bool ath9k_hw_disable(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable);
 
-void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
+void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath9k_channel *chan = ah->curchan;
@@ -2178,7 +2178,7 @@ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
 				 channel->max_antenna_gain * 2,
 				 channel->max_power * 2,
 				 min((u32) MAX_RATE_POWER,
-				 (u32) regulatory->power_limit));
+				 (u32) regulatory->power_limit), test);
 }
 EXPORT_SYMBOL(ath9k_hw_set_txpowerlimit);
 

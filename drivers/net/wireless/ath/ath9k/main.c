@@ -23,7 +23,7 @@ static void ath_update_txpow(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 
 	if (sc->curtxpow != sc->config.txpowlimit) {
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit);
+		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
 		/* read back in case value is clamped */
 		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 	}

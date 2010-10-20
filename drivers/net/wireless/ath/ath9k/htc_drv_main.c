@@ -29,7 +29,7 @@ static void ath_update_txpow(struct ath9k_htc_priv *priv)
 	struct ath_hw *ah = priv->ah;
 
 	if (priv->curtxpow != priv->txpowlimit) {
-		ath9k_hw_set_txpowerlimit(ah, priv->txpowlimit);
+		ath9k_hw_set_txpowerlimit(ah, priv->txpowlimit, false);
 		/* read back in case value is clamped */
 		priv->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 	}
