@@ -2501,7 +2501,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		htons((skb_is_gso(skb) ? BNA_TXQ_WI_SEND_LSO :
 		       BNA_TXQ_WI_SEND));
 
-	if (bnad->vlan_grp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		vlan_tag = (u16) vlan_tx_tag_get(skb);
 		flags |= (BNA_TXQ_WI_CF_INS_PRIO | BNA_TXQ_WI_CF_INS_VLAN);
 	}

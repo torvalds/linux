@@ -430,7 +430,7 @@ static inline void wrb_fill(struct be_eth_wrb *wrb, u64 addr, int len)
 }
 
 static void wrb_fill_hdr(struct be_eth_hdr_wrb *hdr, struct sk_buff *skb,
-		bool vlan, u32 wrb_cnt, u32 len)
+		u32 wrb_cnt, u32 len)
 {
 	memset(hdr, 0, sizeof(*hdr));
 
@@ -449,7 +449,7 @@ static void wrb_fill_hdr(struct be_eth_hdr_wrb *hdr, struct sk_buff *skb,
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, udpcs, hdr, 1);
 	}
 
-	if (vlan && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan, hdr, 1);
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag,
 			hdr, vlan_tx_tag_get(skb));
@@ -532,8 +532,7 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 		queue_head_inc(txq);
 	}
 
-	wrb_fill_hdr(hdr, first_skb, adapter->vlan_grp ? true : false,
-		wrb_cnt, copied);
+	wrb_fill_hdr(hdr, first_skb, wrb_cnt, copied);
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
 
 	return copied;

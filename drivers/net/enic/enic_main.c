@@ -805,7 +805,7 @@ static inline void enic_queue_wq_skb(struct enic *enic,
 	int vlan_tag_insert = 0;
 	int loopback = 0;
 
-	if (enic->vlan_group && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		/* VLAN tag from trunking driver */
 		vlan_tag_insert = 1;
 		vlan_tag = vlan_tx_tag_get(skb);

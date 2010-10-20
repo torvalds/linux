@@ -2321,14 +2321,11 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
 
 	/* vlan tag */
-	if (likely(!np->vlangrp)) {
+	if (vlan_tx_tag_present(skb))
+		start_tx->txvlan = cpu_to_le32(NV_TX3_VLAN_TAG_PRESENT |
+					vlan_tx_tag_get(skb));
+	else
 		start_tx->txvlan = 0;
-	} else {
-		if (vlan_tx_tag_present(skb))
-			start_tx->txvlan = cpu_to_le32(NV_TX3_VLAN_TAG_PRESENT | vlan_tx_tag_get(skb));
-		else
-			start_tx->txvlan = 0;
-	}
 
 	spin_lock_irqsave(&np->lock, flags);
 

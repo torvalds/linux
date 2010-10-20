@@ -1034,7 +1034,7 @@ static int rtl8169_set_rx_csum(struct net_device *dev, u32 data)
 static inline u32 rtl8169_tx_vlan_tag(struct rtl8169_private *tp,
 				      struct sk_buff *skb)
 {
-	return (tp->vlgrp && vlan_tx_tag_present(skb)) ?
+	return (vlan_tx_tag_present(skb)) ?
 		TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
 }
 
