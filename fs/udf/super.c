@@ -2207,8 +2207,6 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 	uint16_t ident;
 	struct spaceBitmapDesc *bm;
 
-	lock_kernel();
-
 	loc.logicalBlockNum = bitmap->s_extPosition;
 	loc.partitionReferenceNum = UDF_SB(sb)->s_partition;
 	bh = udf_read_ptagged(sb, &loc, 0, &ident);
@@ -2245,10 +2243,7 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 		}
 	}
 	brelse(bh);
-
 out:
-	unlock_kernel();
-
 	return accum;
 }
 
@@ -2261,8 +2256,7 @@ static unsigned int udf_count_free_table(struct super_block *sb,
 	int8_t etype;
 	struct extent_position epos;
 
-	lock_kernel();
-
+	mutex_lock(&UDF_SB(sb)->s_alloc_mutex);
 	epos.block = UDF_I(table)->i_location;
 	epos.offset = sizeof(struct unallocSpaceEntry);
 	epos.bh = NULL;
@@ -2271,8 +2265,7 @@ static unsigned int udf_count_free_table(struct super_block *sb,
 		accum += (elen >> table->i_sb->s_blocksize_bits);
 
 	brelse(epos.bh);
-
-	unlock_kernel();
+	mutex_unlock(&UDF_SB(sb)->s_alloc_mutex);
 
 	return accum;
 }
