@@ -365,7 +365,8 @@ struct tegra_dma_channel *tegra_dma_allocate_channel(int mode)
 		channel = find_first_zero_bit(channel_usage,
 			ARRAY_SIZE(dma_channels));
 		if (channel >= ARRAY_SIZE(dma_channels)) {
-			pr_err("%s: failed to allocate a DMA channel",__func__);
+			pr_err("%s: failed to allocate a DMA channel",
+				__func__);
 			goto out;
 		}
 	}
@@ -574,18 +575,20 @@ static void handle_continuous_dma(struct tegra_dma_channel *ch)
 	if (req) {
 		if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_EMPTY) {
 			bool is_dma_ping_complete;
-			is_dma_ping_complete = (readl(ch->addr + APB_DMA_CHAN_STA)
-						& STA_PING_PONG) ? true : false;
-			if( req->to_memory )
+			is_dma_ping_complete =
+				!!(readl(ch->addr + APB_DMA_CHAN_STA) &
+					STA_PING_PONG);
+			if (req->to_memory)
 				is_dma_ping_complete = !is_dma_ping_complete;
 			/* Out of sync - Release current buffer */
-			if( !is_dma_ping_complete ) {
+			if (!is_dma_ping_complete) {
 				int bytes_transferred;
 
 				bytes_transferred = ch->req_transfer_count;
 				bytes_transferred += 1;
 				bytes_transferred <<= 3;
-				req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
+				req->buffer_status =
+						TEGRA_DMA_REQ_BUF_STATUS_FULL;
 				req->bytes_transferred = bytes_transferred;
 				req->status = TEGRA_DMA_REQ_SUCCESS;
 				tegra_dma_stop(ch);
@@ -598,13 +601,14 @@ static void handle_continuous_dma(struct tegra_dma_channel *ch)
 
 				list_del(&req->node);
 
-				/* DMA lock is NOT held when callbak is called */
+				/* DMA lock is NOT held when callbak is
+				 * called. */
 				spin_unlock_irqrestore(&ch->lock, irq_flags);
 				req->complete(req);
 				return;
 			}
-			/* Load the next request into the hardware, if available
-			 * */
+			/* Load the next request into the hardware, if
+			 * available. */
 			if (!list_is_last(&req->node, &ch->list)) {
 				next_req = list_entry(req->node.next,
 					typeof(*next_req), node);
@@ -637,8 +641,10 @@ static void handle_continuous_dma(struct tegra_dma_channel *ch)
 				/* It may be possible that req came after
 				 * half dma complete so it need to start
 				 * immediately */
-				next_req = list_entry(req->node.next, typeof(*next_req), node);
-				if (next_req->status != TEGRA_DMA_REQ_INFLIGHT) {
+				next_req = list_entry(req->node.next,
+						typeof(*next_req), node);
+				if (next_req->status !=
+						TEGRA_DMA_REQ_INFLIGHT) {
 					tegra_dma_stop(ch);
 					tegra_dma_update_hw(ch, next_req);
 				}
