@@ -621,7 +621,12 @@ int kgdb_arch_init(void)
 static void kgdb_hw_overflow_handler(struct perf_event *event, int nmi,
 		struct perf_sample_data *data, struct pt_regs *regs)
 {
-	kgdb_ll_trap(DIE_DEBUG, "debug", regs, 0, 0, SIGTRAP);
+	struct task_struct *tsk = current;
+	int i;
+
+	for (i = 0; i < 4; i++)
+		if (breakinfo[i].enabled)
+			tsk->thread.debugreg6 |= (DR_TRAP0 << i);
 }
 
 void kgdb_arch_late(void)
