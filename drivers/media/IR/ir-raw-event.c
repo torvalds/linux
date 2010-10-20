@@ -89,7 +89,7 @@ int ir_raw_event_store(struct input_dev *input_dev, struct ir_raw_event *ev)
 	if (!ir->raw)
 		return -EINVAL;
 
-	IR_dprintk(2, "sample: (05%dus %s)\n",
+	IR_dprintk(2, "sample: (%05dus %s)\n",
 		TO_US(ev->duration), TO_STR(ev->pulse));
 
 	if (kfifo_in(&ir->raw->kfifo, ev, sizeof(*ev)) != sizeof(*ev))
