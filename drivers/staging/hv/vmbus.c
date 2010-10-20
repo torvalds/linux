@@ -262,7 +262,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->OnMsgDpc		= VmbusOnMsgDPC;
 	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
-	driver->GetChannelInfo		= get_channel_info;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = HvInit();

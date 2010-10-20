@@ -32,6 +32,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
+#include "channel_interface.h"
 
 
 /* FIXME! We need to do this dynamically for PIC and APIC system */
@@ -470,9 +471,7 @@ EXPORT_SYMBOL(vmbus_get_interface);
 static void vmbus_child_device_get_info(struct hv_device *device_obj,
 					struct hv_device_info *device_info)
 {
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
-
-	vmbus_drv_obj->GetChannelInfo(device_obj, device_info);
+	get_channel_info(device_obj, device_info);
 }
 
 /*

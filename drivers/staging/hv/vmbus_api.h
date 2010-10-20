@@ -183,9 +183,6 @@ struct vmbus_driver {
 	void (*OnMsgDpc)(struct hv_driver *driver);
 	void (*OnEventDpc)(struct hv_driver *driver);
 	void (*GetChannelOffers)(void);
-
-	void (*GetChannelInfo)(struct hv_device *dev,
-			       struct hv_device_info *devinfo);
 };
 
 int VmbusInitialize(struct hv_driver *drv);
