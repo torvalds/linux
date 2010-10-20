@@ -121,14 +121,16 @@ static struct tegra_fb_data stingray_fb_data_p0 = {
 	.win		= 0,
 	.xres		= 1280,
 	.yres		= 720,
-	.bits_per_pixel	= 32,
+	.bits_per_pixel	= 16,
+	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
 
 static struct tegra_fb_data stingray_fb_data = {
 	.win		= 0,
 	.xres		= 1280,
 	.yres		= 800,
-	.bits_per_pixel	= 32,
+	.bits_per_pixel	= 16,
+	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
 
 static int stingray_panel_enable(void)
