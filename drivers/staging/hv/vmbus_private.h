@@ -29,7 +29,6 @@
 #include "vmbus_api.h"
 #include "channel.h"
 #include "channel_mgmt.h"
-#include "channel_interface.h"
 #include "ring_buffer.h"
 #include <linux/list.h>
 

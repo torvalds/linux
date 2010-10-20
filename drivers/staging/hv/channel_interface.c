@@ -98,48 +98,6 @@ static int ivmbus_teardown_gpadl(struct hv_device *device,
 
 }
 
-
-void get_channel_info(struct hv_device *device, struct hv_device_info *info)
-{
-	struct vmbus_channel_debug_info debug_info;
-
-	if (!device->context)
-		return;
-
-	vmbus_get_debug_info(device->context, &debug_info);
-
-	info->ChannelId = debug_info.RelId;
-	info->ChannelState = debug_info.State;
-	memcpy(&info->ChannelType, &debug_info.InterfaceType,
-	       sizeof(struct hv_guid));
-	memcpy(&info->ChannelInstance, &debug_info.InterfaceInstance,
-	       sizeof(struct hv_guid));
-
-	info->MonitorId = debug_info.MonitorId;
-
-	info->ServerMonitorPending = debug_info.ServerMonitorPending;
-	info->ServerMonitorLatency = debug_info.ServerMonitorLatency;
-	info->ServerMonitorConnectionId = debug_info.ServerMonitorConnectionId;
-
-	info->ClientMonitorPending = debug_info.ClientMonitorPending;
-	info->ClientMonitorLatency = debug_info.ClientMonitorLatency;
-	info->ClientMonitorConnectionId = debug_info.ClientMonitorConnectionId;
-
-	info->Inbound.InterruptMask = debug_info.Inbound.CurrentInterruptMask;
-	info->Inbound.ReadIndex = debug_info.Inbound.CurrentReadIndex;
-	info->Inbound.WriteIndex = debug_info.Inbound.CurrentWriteIndex;
-	info->Inbound.BytesAvailToRead = debug_info.Inbound.BytesAvailToRead;
-	info->Inbound.BytesAvailToWrite = debug_info.Inbound.BytesAvailToWrite;
-
-	info->Outbound.InterruptMask = debug_info.Outbound.CurrentInterruptMask;
-	info->Outbound.ReadIndex = debug_info.Outbound.CurrentReadIndex;
-	info->Outbound.WriteIndex = debug_info.Outbound.CurrentWriteIndex;
-	info->Outbound.BytesAvailToRead = debug_info.Outbound.BytesAvailToRead;
-	info->Outbound.BytesAvailToWrite =
-		debug_info.Outbound.BytesAvailToWrite;
-}
-
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
 	.Open = ivmbus_open,

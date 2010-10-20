@@ -32,7 +32,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
-#include "channel_interface.h"
+#include "channel.h"
 
 
 /* FIXME! We need to do this dynamically for PIC and APIC system */
@@ -128,6 +128,47 @@ static struct vmbus_driver_context g_vmbus_drv = {
 	.bus.uevent =		vmbus_uevent,
 	.bus.dev_attrs =	vmbus_device_attrs,
 };
+
+static void get_channel_info(struct hv_device *device,
+			     struct hv_device_info *info)
+{
+	struct vmbus_channel_debug_info debug_info;
+
+	if (!device->context)
+		return;
+
+	vmbus_get_debug_info(device->context, &debug_info);
+
+	info->ChannelId = debug_info.RelId;
+	info->ChannelState = debug_info.State;
+	memcpy(&info->ChannelType, &debug_info.InterfaceType,
+	       sizeof(struct hv_guid));
+	memcpy(&info->ChannelInstance, &debug_info.InterfaceInstance,
+	       sizeof(struct hv_guid));
+
+	info->MonitorId = debug_info.MonitorId;
+
+	info->ServerMonitorPending = debug_info.ServerMonitorPending;
+	info->ServerMonitorLatency = debug_info.ServerMonitorLatency;
+	info->ServerMonitorConnectionId = debug_info.ServerMonitorConnectionId;
+
+	info->ClientMonitorPending = debug_info.ClientMonitorPending;
+	info->ClientMonitorLatency = debug_info.ClientMonitorLatency;
+	info->ClientMonitorConnectionId = debug_info.ClientMonitorConnectionId;
+
+	info->Inbound.InterruptMask = debug_info.Inbound.CurrentInterruptMask;
+	info->Inbound.ReadIndex = debug_info.Inbound.CurrentReadIndex;
+	info->Inbound.WriteIndex = debug_info.Inbound.CurrentWriteIndex;
+	info->Inbound.BytesAvailToRead = debug_info.Inbound.BytesAvailToRead;
+	info->Inbound.BytesAvailToWrite = debug_info.Inbound.BytesAvailToWrite;
+
+	info->Outbound.InterruptMask = debug_info.Outbound.CurrentInterruptMask;
+	info->Outbound.ReadIndex = debug_info.Outbound.CurrentReadIndex;
+	info->Outbound.WriteIndex = debug_info.Outbound.CurrentWriteIndex;
+	info->Outbound.BytesAvailToRead = debug_info.Outbound.BytesAvailToRead;
+	info->Outbound.BytesAvailToWrite =
+		debug_info.Outbound.BytesAvailToWrite;
+}
 
 /*
  * vmbus_show_device_attr - Show the device attribute in sysfs.
