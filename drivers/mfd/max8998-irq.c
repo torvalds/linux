@@ -250,6 +250,9 @@ int max8998_irq_init(struct max8998_dev *max8998)
 
 void max8998_irq_exit(struct max8998_dev *max8998)
 {
+	if (max8998->ono)
+		free_irq(max8998->ono, max8998);
+
 	if (max8998->irq)
 		free_irq(max8998->irq, max8998);
 }
