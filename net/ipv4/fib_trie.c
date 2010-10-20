@@ -1838,7 +1838,8 @@ void fib_table_select_default(struct fib_table *tb,
 		if (!next_fi->fib_nh[0].nh_gw ||
 		    next_fi->fib_nh[0].nh_scope != RT_SCOPE_LINK)
 			continue;
-		fa->fa_state |= FA_S_ACCESSED;
+
+		fib_alias_accessed(fa);
 
 		if (fi == NULL) {
 			if (next_fi != res->fi)

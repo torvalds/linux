@@ -17,6 +17,13 @@ struct fib_alias {
 
 #define FA_S_ACCESSED	0x01
 
+/* Dont write on fa_state unless needed, to keep it shared on all cpus */
+static inline void fib_alias_accessed(struct fib_alias *fa)
+{
+	if (!(fa->fa_state & FA_S_ACCESSED))
+		fa->fa_state |= FA_S_ACCESSED;
+}
+
 /* Exported by fib_semantics.c */
 extern int fib_semantic_match(struct list_head *head,
 			      const struct flowi *flp,

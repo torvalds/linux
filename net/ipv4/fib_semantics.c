@@ -901,7 +901,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 		if (fa->fa_scope < flp->fl4_scope)
 			continue;
 
-		fa->fa_state |= FA_S_ACCESSED;
+		fib_alias_accessed(fa);
 
 		err = fib_props[fa->fa_type].error;
 		if (err == 0) {
