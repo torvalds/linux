@@ -36,7 +36,16 @@
 
 /* Per-layout driver specific registration structure */
 struct pnfs_layoutdriver_type {
+	struct list_head pnfs_tblid;
+	const u32 id;
+	const char *name;
+	struct module *owner;
+	int (*initialize_mountpoint) (struct nfs_server *);
+	int (*uninitialize_mountpoint) (struct nfs_server *);
 };
+
+extern int pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *);
+extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);
 
 void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
