@@ -567,7 +567,6 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	if (!udf_parse_options(options, &uopt, true))
 		return -EINVAL;
 
-	lock_kernel();
 	write_lock(&sbi->s_cred_lock);
 	sbi->s_flags = uopt.flags;
 	sbi->s_uid   = uopt.uid;
@@ -592,7 +591,6 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 		udf_open_lvid(sb);
 
 out_unlock:
-	unlock_kernel();
 	return error;
 }
 
@@ -2132,8 +2130,6 @@ static void udf_put_super(struct super_block *sb)
 
 	sbi = UDF_SB(sb);
 
-	lock_kernel();
-
 	if (sbi->s_vat_inode)
 		iput(sbi->s_vat_inode);
 	if (sbi->s_partitions)
@@ -2149,8 +2145,6 @@ static void udf_put_super(struct super_block *sb)
 	kfree(sbi->s_partmaps);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static int udf_sync_fs(struct super_block *sb, int wait)
