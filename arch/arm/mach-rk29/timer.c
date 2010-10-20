@@ -48,11 +48,11 @@
 #define RK_TIMER_INT_CLEAR(n)		readl(RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_EOI)
 
 #define TIMER_CLKEVT			2	/* timer2 */
-#define IRQ_NR_TIMER_CLKEVT		IRQ_NR_TIMER2
+#define IRQ_NR_TIMER_CLKEVT		IRQ_TIMER2
 #define TIMER_CLKEVT_NAME		"timer2"
 
 #define TIMER_CLKSRC			3	/* timer3 */
-#define IRQ_NR_TIMER_CLKSRC		IRQ_NR_TIMER3
+#define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER3
 #define TIMER_CLKSRC_NAME		"timer3"
 
 static struct clk *timer_clk;

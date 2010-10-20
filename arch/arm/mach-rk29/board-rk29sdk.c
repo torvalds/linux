@@ -28,9 +28,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
+#include <asm/hardware/gic.h>
 
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
+
 
 
 #include <linux/mtd/nand.h>
@@ -72,9 +74,15 @@ static struct map_desc rk29_io_desc[] __initdata = {
 	
 };
 
+static void __init rk29_gic_init_irq(void)
+{
+	gic_dist_init(0, RK29_GICPERI_BASE, 32);
+	gic_cpu_init(0, RK29_GICCPU_BASE);
+}
+
 static void __init machine_rk29_init_irq(void)
 {
-	//rk29_init_irq();
+	rk29_gic_init_irq();
 	//rk29_gpio_init(rk29_gpioBank, 8);
 	//rk29_gpio_irq_setup();
 }

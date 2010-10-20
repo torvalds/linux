@@ -722,6 +722,7 @@ config ARCH_RK29
 	select CPU_V7
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+        select ARM_GIC
 	help
 	  Support for Rockchip RK29 soc.
 
