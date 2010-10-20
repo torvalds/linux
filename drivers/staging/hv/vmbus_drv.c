@@ -76,8 +76,6 @@ static void vmbus_child_device_destroy(struct hv_device *device_obj);
 static int vmbus_child_device_register(struct hv_device *root_device_obj,
 				       struct hv_device *child_device_obj);
 static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
-static void vmbus_child_device_get_info(struct hv_device *device_obj,
-					struct hv_device_info *device_info);
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf);
@@ -146,7 +144,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 
 	memset(&device_info, 0, sizeof(struct hv_device_info));
 
-	vmbus_child_device_get_info(&device_ctx->device_obj, &device_info);
+	get_channel_info(&device_ctx->device_obj, &device_info);
 
 	if (!strcmp(dev_attr->attr.name, "class_id")) {
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
@@ -462,17 +460,6 @@ void vmbus_get_interface(struct vmbus_channel_interface *interface)
 	*interface = vmbus_ops;
 }
 EXPORT_SYMBOL(vmbus_get_interface);
-
-/*
- * vmbus_child_device_get_info - Get the vmbus child device info.
- *
- * This is invoked to display various device attributes in sysfs.
- */
-static void vmbus_child_device_get_info(struct hv_device *device_obj,
-					struct hv_device_info *device_info)
-{
-	get_channel_info(device_obj, device_info);
-}
 
 /*
  * vmbus_child_device_create - Creates and registers a new child device
