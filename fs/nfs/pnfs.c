@@ -166,3 +166,143 @@ pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *ld_type)
 	spin_unlock(&pnfs_spinlock);
 }
 EXPORT_SYMBOL_GPL(pnfs_unregister_layoutdriver);
+
+static void
+get_layout_hdr_locked(struct pnfs_layout_hdr *lo)
+{
+	assert_spin_locked(&lo->inode->i_lock);
+	lo->refcount++;
+}
+
+static void
+put_layout_hdr_locked(struct pnfs_layout_hdr *lo)
+{
+	assert_spin_locked(&lo->inode->i_lock);
+	BUG_ON(lo->refcount == 0);
+
+	lo->refcount--;
+	if (!lo->refcount) {
+		dprintk("%s: freeing layout cache %p\n", __func__, lo);
+		NFS_I(lo->inode)->layout = NULL;
+		kfree(lo);
+	}
+}
+
+void
+pnfs_destroy_layout(struct nfs_inode *nfsi)
+{
+	struct pnfs_layout_hdr *lo;
+
+	spin_lock(&nfsi->vfs_inode.i_lock);
+	lo = nfsi->layout;
+	if (lo) {
+		/* Matched by refcount set to 1 in alloc_init_layout_hdr */
+		put_layout_hdr_locked(lo);
+	}
+	spin_unlock(&nfsi->vfs_inode.i_lock);
+}
+
+/* STUB - pretend LAYOUTGET to server failed */
+static struct pnfs_layout_segment *
+send_layoutget(struct pnfs_layout_hdr *lo,
+	   struct nfs_open_context *ctx,
+	   u32 iomode)
+{
+	struct inode *ino = lo->inode;
+
+	set_bit(lo_fail_bit(iomode), &lo->state);
+	spin_lock(&ino->i_lock);
+	put_layout_hdr_locked(lo);
+	spin_unlock(&ino->i_lock);
+	return NULL;
+}
+
+static struct pnfs_layout_hdr *
+alloc_init_layout_hdr(struct inode *ino)
+{
+	struct pnfs_layout_hdr *lo;
+
+	lo = kzalloc(sizeof(struct pnfs_layout_hdr), GFP_KERNEL);
+	if (!lo)
+		return NULL;
+	lo->refcount = 1;
+	lo->inode = ino;
+	return lo;
+}
+
+static struct pnfs_layout_hdr *
+pnfs_find_alloc_layout(struct inode *ino)
+{
+	struct nfs_inode *nfsi = NFS_I(ino);
+	struct pnfs_layout_hdr *new = NULL;
+
+	dprintk("%s Begin ino=%p layout=%p\n", __func__, ino, nfsi->layout);
+
+	assert_spin_locked(&ino->i_lock);
+	if (nfsi->layout)
+		return nfsi->layout;
+
+	spin_unlock(&ino->i_lock);
+	new = alloc_init_layout_hdr(ino);
+	spin_lock(&ino->i_lock);
+
+	if (likely(nfsi->layout == NULL))	/* Won the race? */
+		nfsi->layout = new;
+	else
+		kfree(new);
+	return nfsi->layout;
+}
+
+/* STUB - LAYOUTGET never succeeds, so cache is empty */
+static struct pnfs_layout_segment *
+pnfs_has_layout(struct pnfs_layout_hdr *lo, u32 iomode)
+{
+	return NULL;
+}
+
+/*
+ * Layout segment is retreived from the server if not cached.
+ * The appropriate layout segment is referenced and returned to the caller.
+ */
+struct pnfs_layout_segment *
+pnfs_update_layout(struct inode *ino,
+		   struct nfs_open_context *ctx,
+		   enum pnfs_iomode iomode)
+{
+	struct nfs_inode *nfsi = NFS_I(ino);
+	struct pnfs_layout_hdr *lo;
+	struct pnfs_layout_segment *lseg = NULL;
+
+	if (!pnfs_enabled_sb(NFS_SERVER(ino)))
+		return NULL;
+	spin_lock(&ino->i_lock);
+	lo = pnfs_find_alloc_layout(ino);
+	if (lo == NULL) {
+		dprintk("%s ERROR: can't get pnfs_layout_hdr\n", __func__);
+		goto out_unlock;
+	}
+
+	/* Check to see if the layout for the given range already exists */
+	lseg = pnfs_has_layout(lo, iomode);
+	if (lseg) {
+		dprintk("%s: Using cached lseg %p for iomode %d)\n",
+			__func__, lseg, iomode);
+		goto out_unlock;
+	}
+
+	/* if LAYOUTGET already failed once we don't try again */
+	if (test_bit(lo_fail_bit(iomode), &nfsi->layout->state))
+		goto out_unlock;
+
+	get_layout_hdr_locked(lo);
+	spin_unlock(&ino->i_lock);
+
+	lseg = send_layoutget(lo, ctx, iomode);
+out:
+	dprintk("%s end, state 0x%lx lseg %p\n", __func__,
+		nfsi->layout->state, lseg);
+	return lseg;
+out_unlock:
+	spin_unlock(&ino->i_lock);
+	goto out;
+}
