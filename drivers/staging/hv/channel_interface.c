@@ -151,5 +151,4 @@ const struct vmbus_channel_interface vmbus_ops = {
 	.RecvPacketRaw	= ivmbus_recvpacket_raw,
 	.EstablishGpadl = ivmbus_establish_gpadl,
 	.TeardownGpadl = ivmbus_teardown_gpadl,
-	.GetInfo = get_channel_info,
 };
