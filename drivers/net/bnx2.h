@@ -6742,10 +6742,6 @@ struct bnx2 {
 
 	struct bnx2_napi	bnx2_napi[BNX2_MAX_MSIX_VEC];
 
-#ifdef BCM_VLAN
-	struct			vlan_group *vlgrp;
-#endif
-
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */
 	u32			rx_copy_thresh;
