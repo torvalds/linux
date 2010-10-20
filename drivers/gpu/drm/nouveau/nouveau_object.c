@@ -634,6 +634,29 @@ found:
 	if (oc->engine == NVOBJ_ENGINE_SW)
 		return nouveau_gpuobj_sw_new(chan, class, gpuobj);
 
+	switch (oc->engine) {
+	case NVOBJ_ENGINE_GR:
+		if (dev_priv->card_type >= NV_50 && !chan->ramin_grctx) {
+			struct nouveau_pgraph_engine *pgraph =
+				&dev_priv->engine.graph;
+
+			ret = pgraph->create_context(chan);
+			if (ret)
+				return ret;
+		}
+		break;
+	case NVOBJ_ENGINE_CRYPT:
+		if (!chan->crypt_ctx) {
+			struct nouveau_crypt_engine *pcrypt =
+				&dev_priv->engine.crypt;
+
+			ret = pcrypt->create_context(chan);
+			if (ret)
+				return ret;
+		}
+		break;
+	}
+
 	ret = nouveau_gpuobj_new(dev, chan,
 				 nouveau_gpuobj_class_instmem_size(dev, class),
 				 16,
