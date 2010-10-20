@@ -580,15 +580,25 @@ static void cpcap_audio_configure_codec(struct cpcap_audio_state *state,
 	if (state->rat_type != CPCAP_AUDIO_RAT_NONE)
 		cdai_changes.value |= CPCAP_BIT_CLK_IN_SEL;
 
-	cdai_changes.value |= CPCAP_BIT_CDC_PLL_SEL | CPCAP_BIT_CLK_INV;
+	cdai_changes.value |= CPCAP_BIT_CDC_PLL_SEL;
 #if 0
 	cdai_changes.value |= CPCAP_BIT_DIG_AUD_IN;
 #endif
 
+#ifdef CODEC_IS_I2S_MODE
+	cdai_changes.value |= CPCAP_BIT_CLK_INV;
 	/* Setting I2S mode */
 	cdai_changes.value |= CPCAP_BIT_CDC_DIG_AUD_FS0 |
 			CPCAP_BIT_CDC_DIG_AUD_FS1 |
 			CPCAP_BIT_MIC2_TIMESLOT0;
+#else
+	/* Setting CODEC mode */
+	/* FS:  Not inverted.
+	 * Clk: Not inverted.
+	 * TS2/TS1/TS0 not set, using timeslot 0 for mic1.
+	 */
+	cdai_changes.value |= CPCAP_BIT_CDC_DIG_AUD_FS0;
+#endif
 
 	/* OK, now start paranoid codec sequence */
 	/* FIRST, make sure the frequency config is right... */
