@@ -31,6 +31,9 @@
 #define I2S_FIFO_TX             FIFO1
 #define I2S_FIFO_RX             FIFO2
 
+#define TEGRA_AUDIO_ENABLE_TX	1
+#define TEGRA_AUDIO_ENABLE_RX	2
+
 struct tegra_audio_platform_data {
 	bool master;
 	bool dma_on;
@@ -43,6 +46,8 @@ struct tegra_audio_platform_data {
 	int bit_size;
 	int i2s_bus_width; /* 32-bit for 16-bit packed I2S */
 	int dsp_bus_width; /* 16-bit for DSP data format */
+
+	int mask; /* enable tx and rx? */
 
 	void *driver_data;
 };

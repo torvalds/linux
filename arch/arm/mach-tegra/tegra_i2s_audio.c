@@ -668,46 +668,58 @@ static int setup_dma(struct audio_driver_state *ads)
 	int rc;
 	pr_info("%s\n", __func__);
 
-	/* setup audio playback */
-	ads->out.buf_phys = dma_map_single(&ads->pdev->dev, ads->out.buffer,
-				1 << PCM_BUFFER_MAX_SIZE_ORDER, DMA_TO_DEVICE);
-	BUG_ON(!ads->out.buf_phys);
-	setup_dma_tx_request(&ads->out.dma_req, &ads->out);
-	ads->out.dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
-	if (!ads->out.dma_chan) {
-		pr_err("%s: could not allocate output I2S DMA channel: %ld\n",
-			__func__, PTR_ERR(ads->out.dma_chan));
-		rc = -ENODEV;
-		goto fail_tx;
+	if ((ads->pdata->mask & TEGRA_AUDIO_ENABLE_TX)) {
+		/* setup audio playback */
+		ads->out.buf_phys = dma_map_single(&ads->pdev->dev,
+					ads->out.buffer,
+					1 << PCM_BUFFER_MAX_SIZE_ORDER,
+					DMA_TO_DEVICE);
+		BUG_ON(!ads->out.buf_phys);
+		setup_dma_tx_request(&ads->out.dma_req, &ads->out);
+		ads->out.dma_chan =
+			tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
+		if (!ads->out.dma_chan) {
+			pr_err("%s: error allocating output DMA channel: %ld\n",
+				__func__, PTR_ERR(ads->out.dma_chan));
+			rc = -ENODEV;
+			goto fail_tx;
+		}
 	}
 
-	/* setup audio recording */
-	ads->in.buf_phys = dma_map_single(&ads->pdev->dev, ads->in.buffer,
-				1 << PCM_BUFFER_MAX_SIZE_ORDER,
-				DMA_FROM_DEVICE);
-	BUG_ON(!ads->in.buf_phys);
-	setup_dma_rx_request(&ads->in.dma_req, &ads->in);
-	ads->in.dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
-	if (!ads->in.dma_chan) {
-		pr_err("%s: could not allocate input I2S DMA channel: %ld\n",
-			__func__, PTR_ERR(ads->in.dma_chan));
-		rc = -ENODEV;
-		goto fail_rx;
+	if ((ads->pdata->mask & TEGRA_AUDIO_ENABLE_RX)) {
+		/* setup audio recording */
+		ads->in.buf_phys = dma_map_single(&ads->pdev->dev,
+					ads->in.buffer,
+					1 << PCM_BUFFER_MAX_SIZE_ORDER,
+					DMA_FROM_DEVICE);
+		BUG_ON(!ads->in.buf_phys);
+		setup_dma_rx_request(&ads->in.dma_req, &ads->in);
+		ads->in.dma_chan =
+			tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
+		if (!ads->in.dma_chan) {
+			pr_err("%s: error allocating input DMA channel: %ld\n",
+				__func__, PTR_ERR(ads->in.dma_chan));
+			rc = -ENODEV;
+			goto fail_rx;
+		}
 	}
 
 	return 0;
 
 fail_rx:
-	dma_unmap_single(&ads->pdev->dev, ads->in.buf_phys,
+	if ((ads->pdata->mask & TEGRA_AUDIO_ENABLE_RX)) {
+		dma_unmap_single(&ads->pdev->dev, ads->in.buf_phys,
 			1 << PCM_BUFFER_MAX_SIZE_ORDER, DMA_FROM_DEVICE);
-	tegra_dma_free_channel(ads->in.dma_chan);
-	ads->in.dma_chan = 0;
-
+		tegra_dma_free_channel(ads->in.dma_chan);
+		ads->in.dma_chan = 0;
+	}
 fail_tx:
-	dma_unmap_single(&ads->pdev->dev, ads->out.buf_phys,
+	if ((ads->pdata->mask & TEGRA_AUDIO_ENABLE_TX)) {
+		dma_unmap_single(&ads->pdev->dev, ads->out.buf_phys,
 			1 << PCM_BUFFER_MAX_SIZE_ORDER, DMA_TO_DEVICE);
-	tegra_dma_free_channel(ads->out.dma_chan);
-	ads->out.dma_chan = 0;
+		tegra_dma_free_channel(ads->out.dma_chan);
+		ads->out.dma_chan = 0;
+	}
 
 	return rc;
 }
@@ -2204,6 +2216,12 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	state->pdata->driver_data = state;
 	BUG_ON(!state->pdata);
 
+	if (!(state->pdata->mask &
+			(TEGRA_AUDIO_ENABLE_TX | TEGRA_AUDIO_ENABLE_RX))) {
+		dev_err(&pdev->dev, "neither tx nor rx is enabled!\n");
+		return -EIO;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no mem resource!\n");
@@ -2222,9 +2240,6 @@ static int tegra_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot remap iomem!\n");
 		return -EIO;
 	}
-
-	state->out.i2s_fifo_atn_level = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
-	state->in.i2s_fifo_atn_level = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
@@ -2273,66 +2288,93 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	}
 	clk_enable(audio_sync_clk);
 
+	i2s_enable_fifos(state->i2s_base, 0);
 	/* disable interrupts from I2S */
 	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
 	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
-	i2s_enable_fifos(state->i2s_base, 0);
-
 	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
-
 	if (state->pdata->master)
 		i2s_set_channel_bit_count(state->i2s_base, 44100,
 				clk_get_rate(i2s_clk));
 	i2s_set_master(state->i2s_base, state->pdata->master);
-
 	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_TX, 1);
 	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_RX, 0);
-
 	i2s_set_bit_format(state->i2s_base, state->pdata->mode);
 	i2s_set_bit_size(state->i2s_base, state->pdata->bit_size);
 	i2s_set_fifo_format(state->i2s_base, state->pdata->fifo_fmt);
 
-	state->out.opened = 0;
-	state->out.active = false;
-	mutex_init(&state->out.lock);
-	init_completion(&state->out.fifo_completion);
-	init_completion(&state->out.stop_completion);
-	spin_lock_init(&state->out.dma_req_lock);
-	state->out.buf_phys = 0;
-	state->out.dma_chan = NULL;
-	state->out.dma_has_it = false;
+	if ((state->pdata->mask & TEGRA_AUDIO_ENABLE_TX)) {
+		state->out.opened = 0;
+		state->out.active = false;
+		mutex_init(&state->out.lock);
+		init_completion(&state->out.fifo_completion);
+		init_completion(&state->out.stop_completion);
+		spin_lock_init(&state->out.dma_req_lock);
+		state->out.buf_phys = 0;
+		state->out.dma_chan = NULL;
+		state->out.dma_has_it = false;
 
-	state->in.opened = 0;
-	state->in.active = false;
-	mutex_init(&state->in.lock);
-	init_completion(&state->in.fifo_completion);
-	init_completion(&state->in.stop_completion);
-	spin_lock_init(&state->in.dma_req_lock);
-	state->in.buf_phys = 0;
-	state->in.dma_chan = NULL;
-	state->in.dma_has_it = false;
+		state->out.i2s_fifo_atn_level = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
+		state->out.buffer = 0;
+		state->out.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
+		state->out.buf_config.threshold = PCM_BUFFER_THRESHOLD_ORDER;
+		state->out.buf_config.chunk = PCM_BUFFER_DMA_CHUNK_SIZE_ORDER;
+		rc = init_stream_buffer(&state->out, &state->out.buf_config, 0);
+		if (rc < 0)
+			return rc;
 
-	state->out.buffer = 0;
-	state->out.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
-	state->out.buf_config.threshold = PCM_BUFFER_THRESHOLD_ORDER;
-	state->out.buf_config.chunk = PCM_BUFFER_DMA_CHUNK_SIZE_ORDER;
-	rc = init_stream_buffer(&state->out, &state->out.buf_config, 0);
-	if (rc < 0)
-		return rc;
-
-	state->in.buffer = 0;
-	state->in.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
-	state->in.buf_config.threshold = PCM_BUFFER_THRESHOLD_ORDER;
-	state->in.buf_config.chunk = PCM_BUFFER_DMA_CHUNK_SIZE_ORDER;
-	rc = init_stream_buffer(&state->in, &state->in.buf_config,
-			PCM_IN_BUFFER_PADDING);
-	if (rc < 0)
-		return rc;
-
-	pm_qos_add_request(&state->in.pm_qos, PM_QOS_CPU_DMA_LATENCY,
+		pm_qos_add_request(&state->out.pm_qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
-	pm_qos_add_request(&state->out.pm_qos, PM_QOS_CPU_DMA_LATENCY,
-				PM_QOS_DEFAULT_VALUE);
+
+		rc = setup_misc_device(&state->misc_out,
+			&tegra_audio_out_fops,
+			"audio%d_out", state->pdev->id);
+		if (rc < 0)
+			return rc;
+
+		rc = setup_misc_device(&state->misc_out_ctl,
+				&tegra_audio_out_ctl_fops,
+				"audio%d_out_ctl", state->pdev->id);
+		if (rc < 0)
+			return rc;
+	}
+
+	if ((state->pdata->mask & TEGRA_AUDIO_ENABLE_RX)) {
+		state->in.opened = 0;
+		state->in.active = false;
+		mutex_init(&state->in.lock);
+		init_completion(&state->in.fifo_completion);
+		init_completion(&state->in.stop_completion);
+		spin_lock_init(&state->in.dma_req_lock);
+		state->in.buf_phys = 0;
+		state->in.dma_chan = NULL;
+		state->in.dma_has_it = false;
+
+		state->in.i2s_fifo_atn_level = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
+		state->in.buffer = 0;
+		state->in.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
+		state->in.buf_config.threshold = PCM_BUFFER_THRESHOLD_ORDER;
+		state->in.buf_config.chunk = PCM_BUFFER_DMA_CHUNK_SIZE_ORDER;
+		rc = init_stream_buffer(&state->in, &state->in.buf_config,
+				PCM_IN_BUFFER_PADDING);
+		if (rc < 0)
+			return rc;
+
+		pm_qos_add_request(&state->in.pm_qos, PM_QOS_CPU_DMA_LATENCY,
+					PM_QOS_DEFAULT_VALUE);
+
+		rc = setup_misc_device(&state->misc_in,
+			&tegra_audio_in_fops,
+			"audio%d_in", state->pdev->id);
+		if (rc < 0)
+			return rc;
+
+		rc = setup_misc_device(&state->misc_in_ctl,
+			&tegra_audio_in_ctl_fops,
+			"audio%d_in_ctl", state->pdev->id);
+		if (rc < 0)
+			return rc;
+	}
 
 	if (request_irq(state->irq, i2s_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {
@@ -2341,30 +2383,6 @@ static int tegra_audio_probe(struct platform_device *pdev)
 			__func__, state->irq);
 		return -EIO;
 	}
-
-	rc = setup_misc_device(&state->misc_out,
-			&tegra_audio_out_fops,
-			"audio%d_out", state->pdev->id);
-	if (rc < 0)
-		return rc;
-
-	rc = setup_misc_device(&state->misc_out_ctl,
-			&tegra_audio_out_ctl_fops,
-			"audio%d_out_ctl", state->pdev->id);
-	if (rc < 0)
-		return rc;
-
-	rc = setup_misc_device(&state->misc_in,
-			&tegra_audio_in_fops,
-			"audio%d_in", state->pdev->id);
-	if (rc < 0)
-		return rc;
-
-	rc = setup_misc_device(&state->misc_in_ctl,
-			&tegra_audio_in_ctl_fops,
-			"audio%d_in_ctl", state->pdev->id);
-	if (rc < 0)
-		return rc;
 
 	rc = setup_misc_device(&state->misc_ctl,
 			&tegra_audio_ctl_fops,
