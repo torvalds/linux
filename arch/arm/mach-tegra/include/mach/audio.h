@@ -46,9 +46,8 @@ struct tegra_audio_platform_data {
 	int bit_size;
 	int i2s_bus_width; /* 32-bit for 16-bit packed I2S */
 	int dsp_bus_width; /* 16-bit for DSP data format */
-
 	int mask; /* enable tx and rx? */
-
+	bool stereo_capture; /* True if hardware supports stereo */
 	void *driver_data;
 };
 

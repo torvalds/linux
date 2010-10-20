@@ -59,6 +59,11 @@
 
 #define PCM_IN_BUFFER_PADDING		(1<<6) /* bytes */
 
+#define TEGRA_AUDIO_DSP_NONE		0
+#define TEGRA_AUDIO_DSP_PCM		1
+#define TEGRA_AUDIO_DSP_NETWORK		2
+#define TEGRA_AUDIO_DSP_TDM		3
+
 /* per stream (input/output) */
 struct audio_stream {
 	int opened;
@@ -365,6 +370,51 @@ static void i2s_set_master(unsigned long base, int master)
 	i2s_writel(base, val, I2S_I2S_CTRL_0);
 }
 
+static int i2s_set_dsp_mode(unsigned long base, unsigned int mode)
+{
+	u32 val;
+	if (mode > TEGRA_AUDIO_DSP_TDM) {
+		pr_err("%s: invalid mode %d.\n", __func__, mode);
+		return -EINVAL;
+	}
+	if (mode == TEGRA_AUDIO_DSP_TDM) {
+		pr_err("TEGRA_AUDIO_DSP_TDM not implemented.\n");
+		return -EINVAL;
+	}
+
+	/* Disable unused modes */
+	if (mode != TEGRA_AUDIO_DSP_PCM) {
+		/* Disable PCM mode */
+		val = i2s_readl(base, I2S_I2S_PCM_CTRL_0);
+		val &= ~(I2S_I2S_PCM_CTRL_TRM_MODE|I2S_I2S_PCM_CTRL_RCV_MODE);
+		i2s_writel(base, val, I2S_I2S_PCM_CTRL_0);
+	}
+	if (mode != TEGRA_AUDIO_DSP_NETWORK) {
+		/* Disable Network mode */
+		val = i2s_readl(base, I2S_I2S_NW_CTRL_0);
+		val &= ~(I2S_I2S_NW_CTRL_TRM_TLPHY_MODE|I2S_I2S_NW_CTRL_RCV_TLPHY_MODE);
+		i2s_writel(base, val, I2S_I2S_NW_CTRL_0);
+	}
+
+	/* Enable the selected mode. */
+	switch (mode) {
+	case TEGRA_AUDIO_DSP_NETWORK:
+		/* Set DSP Network (Telephony) Mode */
+		val = i2s_readl(base, I2S_I2S_NW_CTRL_0);
+		val |= I2S_I2S_NW_CTRL_TRM_TLPHY_MODE|I2S_I2S_NW_CTRL_RCV_TLPHY_MODE;
+		i2s_writel(base, val, I2S_I2S_NW_CTRL_0);
+		break;
+	case TEGRA_AUDIO_DSP_PCM:
+		/* Set DSP PCM Mode */
+		val = i2s_readl(base, I2S_I2S_PCM_CTRL_0);
+		val |= I2S_I2S_PCM_CTRL_TRM_MODE|I2S_I2S_PCM_CTRL_RCV_MODE;
+		i2s_writel(base, val, I2S_I2S_PCM_CTRL_0);
+		break;
+	}
+
+	return 0;
+}
+
 static int i2s_set_bit_format(unsigned long base, unsigned fmt)
 {
 	u32 val;
@@ -378,12 +428,12 @@ static int i2s_set_bit_format(unsigned long base, unsigned fmt)
 	val &= ~I2S_I2S_CTRL_BIT_FORMAT_MASK;
 	val |= fmt << I2S_BIT_FORMAT_SHIFT;
 	i2s_writel(base, val, I2S_I2S_CTRL_0);
-
-	if (fmt == I2S_BIT_FORMAT_DSP) {
-		val = i2s_readl(base, I2S_I2S_PCM_CTRL_0);
-		val |= I2S_I2S_PCM_CTRL_TRM_MODE|I2S_I2S_PCM_CTRL_RCV_MODE;
-		i2s_writel(base, val, I2S_I2S_PCM_CTRL_0);
-	}
+	/* For DSP format, select DSP PCM mode. */
+	/* PCM mode and Network Mode slot 0 are effectively identical. */
+	if (fmt == I2S_BIT_FORMAT_DSP)
+		i2s_set_dsp_mode(base, TEGRA_AUDIO_DSP_PCM);
+	else
+		i2s_set_dsp_mode(base, TEGRA_AUDIO_DSP_NONE);
 
 	return 0;
 }
@@ -1481,6 +1531,7 @@ static long tegra_audio_in_ioctl(struct file *file,
 			break;
 		}
 
+#ifdef SAMPLE_RATE_CONVERTER_IN_DRIVER
 		switch (cfg.rate) {
 		case 8000:
 			ads->in_divs = divs_8000;
@@ -1508,7 +1559,12 @@ static long tegra_audio_in_ioctl(struct file *file,
 			rc = -EINVAL;
 			break;
 		}
-
+#endif
+		if(cfg.stereo && !ads->pdata->stereo_capture) {
+			pr_err("%s: not capable of stereo capture.",
+				__func__);
+			rc = -EINVAL;
+		}
 		if (!rc) {
 			pr_info("%s: setting input sampling rate to %d, %s\n",
 				__func__, cfg.rate,
@@ -1560,6 +1616,23 @@ static long tegra_audio_in_ioctl(struct file *file,
 	return rc;
 }
 
+static ssize_t __i2s_copy_to_user(struct audio_driver_state *ads,
+				void __user *dst, int dst_size,
+				void *src, int src_size,
+				int *num_consumed)
+{
+	int bytes_written = dst_size < src_size ? dst_size : src_size;
+	*num_consumed = bytes_written;
+	if (copy_to_user(dst, src, bytes_written)) {
+		pr_err("%s: error copying %d bytes to user\n", __func__,
+			bytes_written);
+		return -EFAULT;
+	}
+	return bytes_written;
+}
+
+#ifdef SAMPLE_RATE_CONVERTER_IN_DRIVER
+
 /* downsample a 16-bit 44.1kHz PCM stereo stream to stereo or mono 16-bit PCM
  * stream.
  */
@@ -1570,6 +1643,7 @@ static int downsample(const s16 *in, int in_len,
 		const int *divs, int divs_len,
 		bool out_stereo)
 {
+	/* Todo: Handle mono source streams */
 	int i, j;
 	int lsum, rsum;
 	int di, div;
@@ -1632,6 +1706,7 @@ static ssize_t __downsample_to_user(struct audio_driver_state *ads,
 
 	return bytes_ds;
 }
+#endif /*SAMPLE_RATE_CONVERTER_IN_DRIVER*/
 
 static ssize_t downsample_to_user(struct audio_driver_state *ads,
 			void __user *buf,
@@ -1668,7 +1743,12 @@ static ssize_t downsample_to_user(struct audio_driver_state *ads,
 		BUG_ON(!sgl[i].length);
 
 again:
-		ds_now = __downsample_to_user(ads,
+#ifdef SAMPLE_RATE_CONVERTER_IN_DRIVER
+		ds_now = __downsample_to_user(
+#else
+		ds_now = __i2s_copy_to_user(
+#endif
+					ads,
 					buf, size,
 					sg_virt(&sgl[i]), sgl[i].length,
 					&bc_now);
