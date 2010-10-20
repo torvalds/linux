@@ -641,7 +641,7 @@ static int ibmveth_open(struct net_device *netdev)
 	if (!adapter->bounce_buffer) {
 		netdev_err(netdev, "unable to allocate bounce buffer\n");
 		rc = -ENOMEM;
-		goto err_out;
+		goto err_out_free_irq;
 	}
 	adapter->bounce_buffer_dma =
 	    dma_map_single(&adapter->vdev->dev, adapter->bounce_buffer,
@@ -649,7 +649,7 @@ static int ibmveth_open(struct net_device *netdev)
 	if (dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
 		netdev_err(netdev, "unable to map bounce buffer\n");
 		rc = -ENOMEM;
-		goto err_out;
+		goto err_out_free_irq;
 	}
 
 	netdev_dbg(netdev, "initial replenish cycle\n");
@@ -661,6 +661,8 @@ static int ibmveth_open(struct net_device *netdev)
 
 	return 0;
 
+err_out_free_irq:
+	free_irq(netdev->irq, netdev);
 err_out:
 	ibmveth_cleanup(adapter);
 	napi_disable(&adapter->napi);
