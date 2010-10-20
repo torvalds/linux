@@ -158,7 +158,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	vlan_id = vlan_tci & VLAN_VID_MASK;
 
 	rcu_read_lock();
-	vlan_dev = __find_vlan_dev(dev, vlan_id);
+	vlan_dev = vlan_find_dev(dev, vlan_id);
 
 	/* If the VLAN device is defined, we use it.
 	 * If not, and the VID is 0, it is a 802.1p packet (not

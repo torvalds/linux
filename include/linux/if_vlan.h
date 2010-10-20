@@ -16,6 +16,7 @@
 #ifdef __KERNEL__
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 
 #define VLAN_HLEN	4		/* The additional bytes (on top of the Ethernet header)
 					 * that VLAN requires.
@@ -114,6 +115,18 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 #define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+/* Must be invoked with rcu_read_lock or with RTNL. */
+static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
+					       u16 vlan_id)
+{
+	struct vlan_group *grp = rcu_dereference_rtnl(real_dev->vlgrp);
+
+	if (grp)
+		return vlan_group_get_device(grp, vlan_id);
+
+	return NULL;
+}
+
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
@@ -128,6 +141,12 @@ vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	       unsigned int vlan_tci);
 
 #else
+static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
+					       u16 vlan_id)
+{
+	return NULL;
+}
+
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
 	BUG();

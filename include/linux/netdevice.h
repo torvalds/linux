@@ -942,7 +942,10 @@ struct net_device {
 
 
 	/* Protocol specific pointers */
-	
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	struct vlan_group	*vlgrp;		/* VLAN group */
+#endif
 #ifdef CONFIG_NET_DSA
 	void			*dsa_ptr;	/* dsa specific data */
 #endif
