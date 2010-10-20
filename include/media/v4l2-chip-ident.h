@@ -115,6 +115,10 @@ enum {
 	V4L2_IDENT_VPX3216B = 3216,
 	V4L2_IDENT_VPX3220A = 3220,
 
+	/* VX855 just ident 3409 */
+	/* Other via devs could use 3314, 3324, 3327, 3336, 3364, 3353 */
+	V4L2_IDENT_VIA_VX855 = 3409,
+
 	/* module tvp5150 */
 	V4L2_IDENT_TVP5150 = 5150,
 

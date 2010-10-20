@@ -122,6 +122,8 @@ obj-$(CONFIG_VIDEO_CX2341X) += cx2341x.o
 
 obj-$(CONFIG_VIDEO_CAFE_CCIC) += cafe_ccic.o
 
+obj-$(CONFIG_VIDEO_VIA_CAMERA) += via-camera.o
+
 obj-$(CONFIG_USB_DABUSB)        += dabusb.o
 obj-$(CONFIG_USB_SE401)         += se401.o
 obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
