@@ -182,8 +182,9 @@ struct ixgbe_ring {
 					 */
 
 	struct ixgbe_queue_stats stats;
-	unsigned long reinit_state;
+	struct u64_stats_sync syncp;
 	int numa_node;
+	unsigned long reinit_state;
 	u64 rsc_count;			/* stat for coalesced packets */
 	u64 rsc_flush;			/* stats for flushed packets */
 	u32 restart_queue;		/* track tx queue restarts */
