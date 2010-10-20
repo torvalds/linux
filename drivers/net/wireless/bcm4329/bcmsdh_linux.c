@@ -581,8 +581,6 @@ bcmsdh_unregister(void)
 #endif /* BCMPLATFORM_BUS */
 }
 
-
-
 #if defined(OOB_INTR_ONLY)
 void bcmsdh_oob_intr_set(bool enable)
 {
@@ -623,6 +621,9 @@ int bcmsdh_register_oob_intr(void * dhdp)
 	int error = 0;
 
 	SDLX_MSG(("%s Enter\n", __FUNCTION__));
+
+/* Example of  HW_OOB for HW2: please refer to your host  specifiction */
+/* sdhcinfo->oob_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE; */
 
 	dev_set_drvdata(sdhcinfo->dev, dhdp);
 
