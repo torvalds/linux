@@ -349,7 +349,7 @@ int tm6000_xc5000_callback(void *ptr, int component, int command, int arg)
 			       dev->gpio.tuner_reset, 0x01);
 		break;
 	}
-	return (rc);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(tm6000_xc5000_callback);
 
