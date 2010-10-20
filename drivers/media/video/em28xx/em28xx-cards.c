@@ -1660,6 +1660,22 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = terratec_av350_unmute_gpio,
 		} },
 	},
+
+	[EM2860_BOARD_ELGATO_VIDEO_CAPTURE] = {
+		.name         = "Elgato Video Capture",
+		.decoder      = EM28XX_SAA711X,
+		.tuner_type   = TUNER_ABSENT,   /* Capture only device */
+		.input        = { {
+			.type  = EM28XX_VMUX_COMPOSITE1,
+			.vmux  = SAA7115_COMPOSITE0,
+			.amux  = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type  = EM28XX_VMUX_SVIDEO,
+			.vmux  = SAA7115_SVIDEO3,
+			.amux  = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+
 	[EM2882_BOARD_EVGA_INDTUBE] = {
 		.name         = "Evga inDtube",
 		.tuner_type   = TUNER_XC2028,
@@ -1784,6 +1800,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
+	{ USB_DEVICE(0x0fd9, 0x0033),
+			.driver_info = EM2860_BOARD_ELGATO_VIDEO_CAPTURE},
 	{ USB_DEVICE(0x185b, 0x2870),
 			.driver_info = EM2870_BOARD_COMPRO_VIDEOMATE },
 	{ USB_DEVICE(0x185b, 0x2041),
