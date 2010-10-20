@@ -21,6 +21,7 @@
 #include <linux/leds-lp8550.h>
 #include <linux/platform_device.h>
 #include <linux/earlysuspend.h>
+#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -133,9 +134,31 @@ static struct tegra_fb_data stingray_fb_data = {
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
 
+#define LCD_MANFID_MAX_LEN 3
+static char lcd_manfid[LCD_MANFID_MAX_LEN + 1];
+int __init board_lcd_manfid_init(char *s)
+{
+	strncpy(lcd_manfid, s, LCD_MANFID_MAX_LEN);
+	lcd_manfid[LCD_MANFID_MAX_LEN] = '\0';
+	printk(KERN_INFO "lcd_manfid=%s\n", lcd_manfid);
+	return 1;
+}
+__setup("lcd_manfid=", board_lcd_manfid_init);
+
 static int stingray_panel_enable(void)
 {
+	struct i2c_adapter *adapter = NULL;
+	if (!strncmp(lcd_manfid, "SHP", 3) && (adapter = i2c_get_adapter(0)))
+		i2c_lock_adapter(adapter);
+
 	gpio_set_value(STINGRAY_LVDS_SHDN_B, 1);
+
+	if (adapter)
+	{
+		msleep(200);
+		i2c_unlock_adapter(adapter);
+		i2c_put_adapter(adapter);
+	}
 	return 0;
 }
 
