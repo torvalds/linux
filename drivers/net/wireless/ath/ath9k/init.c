@@ -642,6 +642,37 @@ err_hw:
 	return ret;
 }
 
+static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	int i;
+
+	sband = &sc->sbands[band];
+	for (i = 0; i < sband->n_channels; i++) {
+		chan = &sband->channels[i];
+		ah->curchan = &ah->channels[chan->hw_value];
+		ath9k_cmn_update_ichannel(ah->curchan, chan, NL80211_CHAN_HT20);
+		ath9k_hw_set_txpowerlimit(ah, MAX_RATE_POWER, true);
+		chan->max_power = reg->max_power_level / 2;
+	}
+}
+
+static void ath9k_init_txpower_limits(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_channel *curchan = ah->curchan;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
+		ath9k_init_band_txpower(sc, IEEE80211_BAND_2GHZ);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
+		ath9k_init_band_txpower(sc, IEEE80211_BAND_5GHZ);
+
+	ah->curchan = curchan;
+}
+
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -735,6 +766,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	error = ath_rx_init(sc, ATH_RXBUF);
 	if (error != 0)
 		goto error_rx;
+
+	ath9k_init_txpower_limits(sc);
 
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);

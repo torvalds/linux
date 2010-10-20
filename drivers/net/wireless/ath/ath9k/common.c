@@ -107,12 +107,10 @@ static u32 ath9k_get_extchanmode(struct ieee80211_channel *chan,
 /*
  * Update internal channel flags.
  */
-void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
-			       struct ath9k_channel *ichan)
+void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type channel_type)
 {
-	struct ieee80211_channel *chan = hw->conf.channel;
-	struct ieee80211_conf *conf = &hw->conf;
-
 	ichan->channel = chan->center_freq;
 	ichan->chan = chan;
 
@@ -124,9 +122,8 @@ void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
 		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
 	}
 
-	if (conf_is_ht(conf))
-		ichan->chanmode = ath9k_get_extchanmode(chan,
-							conf->channel_type);
+	if (channel_type != NL80211_CHAN_NO_HT)
+		ichan->chanmode = ath9k_get_extchanmode(chan, channel_type);
 }
 EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
 
@@ -142,7 +139,7 @@ struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 
 	chan_idx = curchan->hw_value;
 	channel = &ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(hw, channel);
+	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
 
 	return channel;
 }
