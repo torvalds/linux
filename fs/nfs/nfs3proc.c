@@ -630,7 +630,7 @@ out:
  */
 static int
 nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
-		  u64 cookie, struct page *page, unsigned int count, int plus)
+		  u64 cookie, struct page **pages, unsigned int count, int plus)
 {
 	struct inode		*dir = dentry->d_inode;
 	__be32			*verf = NFS_COOKIEVERF(dir);
@@ -640,7 +640,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.verf		= {verf[0], verf[1]},
 		.plus		= plus,
 		.count		= count,
-		.pages		= &page
+		.pages		= pages
 	};
 	struct nfs3_readdirres	res = {
 		.verf		= verf,
