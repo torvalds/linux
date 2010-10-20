@@ -3908,31 +3908,11 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int ret = 0;
-
 	if (new_mtu < ETH_ZLEN || new_mtu > SafeMtu)
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
-
-	if (!netif_running(dev))
-		goto out;
-
-	rtl8169_down(dev);
-
-	ret = rtl8169_init_ring(dev);
-	if (ret < 0)
-		goto out;
-
-	napi_enable(&tp->napi);
-
-	rtl_hw_start(dev);
-
-	rtl8169_request_timer(dev);
-
-out:
-	return ret;
+	return 0;
 }
 
 static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
@@ -4684,7 +4664,6 @@ static void rtl8169_down(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned int intrmask;
 
 	rtl8169_delete_timer(dev);
 
@@ -4692,11 +4671,14 @@ static void rtl8169_down(struct net_device *dev)
 
 	napi_disable(&tp->napi);
 
-core_down:
 	spin_lock_irq(&tp->lock);
 
 	rtl8169_asic_down(ioaddr);
-
+	/*
+	 * At this point device interrupts can not be enabled in any function,
+	 * as netif_running is not true (rtl8169_interrupt, rtl8169_reset_task,
+	 * rtl8169_reinit_task) and napi is disabled (rtl8169_poll).
+	 */
 	rtl8169_rx_missed(dev, ioaddr);
 
 	spin_unlock_irq(&tp->lock);
@@ -4705,23 +4687,6 @@ core_down:
 
 	/* Give a racing hard_start_xmit a few cycles to complete. */
 	synchronize_sched();  /* FIXME: should this be synchronize_irq()? */
-
-	/*
-	 * And now for the 50k$ question: are IRQ disabled or not ?
-	 *
-	 * Two paths lead here:
-	 * 1) dev->close
-	 *    -> netif_running() is available to sync the current code and the
-	 *       IRQ handler. See rtl8169_interrupt for details.
-	 * 2) dev->change_mtu
-	 *    -> rtl8169_poll can not be issued again and re-enable the
-	 *       interruptions. Let's simply issue the IRQ down sequence again.
-	 *
-	 * No loop if hotpluged or major error (0xffff).
-	 */
-	intrmask = RTL_R16(IntrMask);
-	if (intrmask && (intrmask != 0xffff))
-		goto core_down;
 
 	rtl8169_tx_clear(tp);
 
