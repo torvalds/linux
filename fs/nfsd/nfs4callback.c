@@ -481,22 +481,24 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 	};
 	struct rpc_create_args args = {
 		.net		= &init_net,
-		.protocol	= XPRT_TRANSPORT_TCP,
 		.address	= (struct sockaddr *) &conn->cb_addr,
 		.addrsize	= conn->cb_addrlen,
 		.timeout	= &timeparms,
 		.program	= &cb_program,
-		.prognumber	= conn->cb_prog,
 		.version	= 0,
 		.authflavor	= clp->cl_flavor,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
-		.client_name    = clp->cl_principal,
 	};
 	struct rpc_clnt *client;
 
-	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
-		return -EINVAL;
-	if (clp->cl_minorversion) {
+	if (clp->cl_minorversion == 0) {
+		if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
+			return -EINVAL;
+		args.client_name = clp->cl_principal;
+		args.prognumber	= conn->cb_prog,
+		args.protocol = XPRT_TRANSPORT_TCP;
+		clp->cl_cb_ident = conn->cb_ident;
+	} else {
 		args.bc_xprt = conn->cb_xprt;
 		args.prognumber = clp->cl_cb_session->se_cb_prog;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
@@ -508,7 +510,6 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 			PTR_ERR(client));
 		return PTR_ERR(client);
 	}
-	clp->cl_cb_ident = conn->cb_ident;
 	clp->cl_cb_client = client;
 	return 0;
 
