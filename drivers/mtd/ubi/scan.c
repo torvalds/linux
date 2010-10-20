@@ -784,7 +784,7 @@ static int check_data_ff(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       ubi->peb_buf1, ubi->leb_size, 1);
 	mutex_unlock(&ubi->buf_mutex);
-	return -EINVAL;
+	return 1;
 }
 
 /**
@@ -936,7 +936,10 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * have to check what is in the data area.
 			 */
 			err = check_data_ff(ubi, vidh, pnum);
-		if (!err)
+
+		if (err < 0)
+			return err;
+		else if (!err)
 			/* This corruption is caused by a power cut */
 			err = add_to_list(si, pnum, ec, 1, &si->erase);
 		else
