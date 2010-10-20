@@ -764,6 +764,8 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 				u16 frame_type, const u8 *match_data,
 				int match_len)
 {
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
@@ -810,22 +812,37 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 	nreg->frame_type = cpu_to_le16(frame_type);
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 
+	if (rdev->ops->mgmt_frame_register)
+		rdev->ops->mgmt_frame_register(wiphy, wdev->netdev,
+					       frame_type, true);
+
  out:
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+
 	return err;
 }
 
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 {
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *tmp;
 
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
 
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
-		if (reg->nlpid == nlpid) {
-			list_del(&reg->list);
-			kfree(reg);
+		if (reg->nlpid != nlpid)
+			continue;
+
+		if (rdev->ops->mgmt_frame_register) {
+			u16 frame_type = le16_to_cpu(reg->frame_type);
+
+			rdev->ops->mgmt_frame_register(wiphy, wdev->netdev,
+						       frame_type, false);
 		}
+
+		list_del(&reg->list);
+		kfree(reg);
 	}
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);

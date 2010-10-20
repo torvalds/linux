@@ -282,13 +282,6 @@ struct iwl_channel_info {
  */
 #define IWL_IPAN_MCAST_QUEUE		8
 
-/* Power management (not Tx power) structures */
-
-enum iwl_pwr_src {
-	IWL_PWR_SRC_VMAIN,
-	IWL_PWR_SRC_VAUX,
-};
-
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
@@ -732,7 +725,6 @@ struct iwl_hw_params {
  *
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
-extern int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
@@ -843,6 +835,7 @@ enum iwl_calib {
 	IWL_CALIB_TX_IQ,
 	IWL_CALIB_TX_IQ_PERD,
 	IWL_CALIB_BASE_BAND,
+	IWL_CALIB_TEMP_OFFSET,
 	IWL_CALIB_MAX
 };
 
@@ -1390,8 +1383,6 @@ struct iwl_priv {
 
 	enum nl80211_iftype iw_mode;
 
-	struct sk_buff *ibss_beacon;
-
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
 
@@ -1503,8 +1494,10 @@ struct iwl_priv {
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
+
 	struct work_struct beacon_update;
 	struct iwl_rxon_context *beacon_ctx;
+	struct sk_buff *beacon_skb;
 
 	struct work_struct tt_work;
 	struct work_struct ct_enter;
@@ -1566,7 +1559,6 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-const char *iwl_get_tx_fail_reason(u32 status);
 /*
  * iwl_get_debug_level: Return active debug level for device
  *
@@ -1582,8 +1574,6 @@ static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 		return iwl_debug_level;
 }
 #else
-static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
-
 static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 {
 	return iwl_debug_level;

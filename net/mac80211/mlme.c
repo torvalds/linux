@@ -1864,10 +1864,12 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 
 		else if (ifmgd->probe_send_count < IEEE80211_MAX_PROBE_TRIES) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			printk(KERN_DEBUG "No probe response from AP %pM"
-				" after %dms, try %d\n", bssid,
-				(1000 * IEEE80211_PROBE_WAIT)/HZ,
-				ifmgd->probe_send_count);
+			wiphy_debug(local->hw.wiphy,
+				    "%s: No probe response from AP %pM"
+				    " after %dms, try %d\n",
+				    sdata->name,
+				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ,
+				    ifmgd->probe_send_count);
 #endif
 			ieee80211_mgd_probe_ap_send(sdata);
 		} else {
@@ -1877,9 +1879,11 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			 */
 			ifmgd->flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 					  IEEE80211_STA_BEACON_POLL);
-			printk(KERN_DEBUG "No probe response from AP %pM"
-				" after %dms, disconnecting.\n",
-				bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
+			wiphy_debug(local->hw.wiphy,
+				    "%s: No probe response from AP %pM"
+				    " after %dms, disconnecting.\n",
+				    sdata->name,
+				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
 			ieee80211_set_disassoc(sdata, true, true);
 			mutex_unlock(&ifmgd->mtx);
 			mutex_lock(&local->mtx);

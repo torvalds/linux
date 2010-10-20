@@ -23,9 +23,9 @@
 #ifndef __WL1251_SPI_H__
 #define __WL1251_SPI_H__
 
-#include "wl1251_cmd.h"
-#include "wl1251_acx.h"
-#include "wl1251_reg.h"
+#include "cmd.h"
+#include "acx.h"
+#include "reg.h"
 
 #define WSPI_CMD_READ                 0x40000000
 #define WSPI_CMD_WRITE                0x00000000

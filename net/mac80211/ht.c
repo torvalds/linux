@@ -291,6 +291,8 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 	if (WARN_ON(smps_mode == IEEE80211_SMPS_OFF))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
+	sdata->u.mgd.driver_smps_mode = smps_mode;
+
 	ieee80211_queue_work(&sdata->local->hw,
 			     &sdata->u.mgd.request_smps_work);
 }

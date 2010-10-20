@@ -253,6 +253,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
 void rt2x00lib_dmadone(struct queue_entry *entry)
 {
+	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmadone);
@@ -273,7 +274,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Unmap the skb.
 	 */
-	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
+	rt2x00queue_unmap_skb(entry);
 
 	/*
 	 * Remove the extra tx headroom from the skb.
@@ -432,42 +433,50 @@ static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_supported_band *sband;
 	const struct rt2x00_rate *rate;
 	unsigned int i;
-	int signal;
-	int type;
+	int signal = rxdesc->signal;
+	int type = (rxdesc->dev_flags & RXDONE_SIGNAL_MASK);
 
-	/*
-	 * For non-HT rates the MCS value needs to contain the
-	 * actually used rate modulation (CCK or OFDM).
-	 */
-	if (rxdesc->dev_flags & RXDONE_SIGNAL_MCS)
-		signal = RATE_MCS(rxdesc->rate_mode, rxdesc->signal);
-	else
-		signal = rxdesc->signal;
+	switch (rxdesc->rate_mode) {
+	case RATE_MODE_CCK:
+	case RATE_MODE_OFDM:
+		/*
+		 * For non-HT rates the MCS value needs to contain the
+		 * actually used rate modulation (CCK or OFDM).
+		 */
+		if (rxdesc->dev_flags & RXDONE_SIGNAL_MCS)
+			signal = RATE_MCS(rxdesc->rate_mode, signal);
 
-	type = (rxdesc->dev_flags & RXDONE_SIGNAL_MASK);
-
-	sband = &rt2x00dev->bands[rt2x00dev->curr_band];
-	for (i = 0; i < sband->n_bitrates; i++) {
-		rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
-
-		if (((type == RXDONE_SIGNAL_PLCP) &&
-		     (rate->plcp == signal)) ||
-		    ((type == RXDONE_SIGNAL_BITRATE) &&
-		      (rate->bitrate == signal)) ||
-		    ((type == RXDONE_SIGNAL_MCS) &&
-		      (rate->mcs == signal))) {
-			return i;
+		sband = &rt2x00dev->bands[rt2x00dev->curr_band];
+		for (i = 0; i < sband->n_bitrates; i++) {
+			rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
+			if (((type == RXDONE_SIGNAL_PLCP) &&
+			     (rate->plcp == signal)) ||
+			    ((type == RXDONE_SIGNAL_BITRATE) &&
+			      (rate->bitrate == signal)) ||
+			    ((type == RXDONE_SIGNAL_MCS) &&
+			      (rate->mcs == signal))) {
+				return i;
+			}
 		}
+		break;
+	case RATE_MODE_HT_MIX:
+	case RATE_MODE_HT_GREENFIELD:
+		if (signal >= 0 && signal <= 76)
+			return signal;
+		break;
+	default:
+		break;
 	}
 
 	WARNING(rt2x00dev, "Frame received with unrecognized signal, "
-		"signal=0x%.4x, type=%d.\n", signal, type);
+		"mode=0x%.4x, signal=0x%.4x, type=%d.\n",
+		rxdesc->rate_mode, signal, type);
 	return 0;
 }
 
-void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
-		      struct queue_entry *entry)
+void rt2x00lib_rxdone(struct queue_entry *entry)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct rxdone_entry_desc rxdesc;
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status;
@@ -481,14 +490,14 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
 	 * received frame and reuse the existing buffer.
 	 */
-	skb = rt2x00queue_alloc_rxskb(rt2x00dev, entry);
+	skb = rt2x00queue_alloc_rxskb(entry);
 	if (!skb)
-		return;
+		goto submit_entry;
 
 	/*
 	 * Unmap the skb.
 	 */
-	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
+	rt2x00queue_unmap_skb(entry);
 
 	/*
 	 * Extract the RXD details.
@@ -523,18 +532,12 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	skb_trim(entry->skb, rxdesc.size);
 
 	/*
-	 * Check if the frame was received using HT. In that case,
-	 * the rate is the MCS index and should be passed to mac80211
-	 * directly. Otherwise we need to translate the signal to
-	 * the correct bitrate index.
+	 * Translate the signal to the correct bitrate index.
 	 */
-	if (rxdesc.rate_mode == RATE_MODE_CCK ||
-	    rxdesc.rate_mode == RATE_MODE_OFDM) {
-		rate_idx = rt2x00lib_rxdone_read_signal(rt2x00dev, &rxdesc);
-	} else {
+	rate_idx = rt2x00lib_rxdone_read_signal(rt2x00dev, &rxdesc);
+	if (rxdesc.rate_mode == RATE_MODE_HT_MIX ||
+	    rxdesc.rate_mode == RATE_MODE_HT_GREENFIELD)
 		rxdesc.flags |= RX_FLAG_HT;
-		rate_idx = rxdesc.signal;
-	}
 
 	/*
 	 * Update extra components

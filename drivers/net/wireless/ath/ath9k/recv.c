@@ -268,6 +268,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 						bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
+				bf->bf_buf_addr = 0;
 				ath_print(common, ATH_DBG_FATAL,
 					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
@@ -358,12 +359,12 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 							bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
+				bf->bf_buf_addr = 0;
 				ath_print(common, ATH_DBG_FATAL,
 					  "dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				goto err;
 			}
-			bf->bf_dmacontext = bf->bf_buf_addr;
 		}
 		sc->rx.rxlink = NULL;
 	}
@@ -393,6 +394,8 @@ void ath_rx_cleanup(struct ath_softc *sc)
 						common->rx_bufsize,
 						DMA_FROM_DEVICE);
 				dev_kfree_skb(skb);
+				bf->bf_buf_addr = 0;
+				bf->bf_mpdu = NULL;
 			}
 		}
 
@@ -430,8 +433,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		| ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
 		| ATH9K_RX_FILTER_MCAST;
 
-	/* If not a STA, enable processing of Probe Requests */
-	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
+	if (sc->rx.rxfilter & FIF_PROBE_REQ)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/*
@@ -1735,12 +1737,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
+			bf->bf_buf_addr = 0;
 			ath_print(common, ATH_DBG_FATAL,
 				  "dma_mapping_error() on RX\n");
 			ath_rx_send_to_mac80211(hw, sc, skb, rxs);
 			break;
 		}
-		bf->bf_dmacontext = bf->bf_buf_addr;
 
 		/*
 		 * change the default rx antenna if rx diversity chooses the

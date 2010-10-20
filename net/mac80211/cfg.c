@@ -329,7 +329,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			STATION_INFO_TX_PACKETS |
 			STATION_INFO_TX_RETRIES |
 			STATION_INFO_TX_FAILED |
-			STATION_INFO_TX_BITRATE;
+			STATION_INFO_TX_BITRATE |
+			STATION_INFO_RX_DROP_MISC;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 	sinfo->rx_bytes = sta->rx_bytes;
@@ -338,6 +339,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	sinfo->tx_packets = sta->tx_packets;
 	sinfo->tx_retries = sta->tx_retry_count;
 	sinfo->tx_failed = sta->tx_retry_failed;
+	sinfo->rx_dropped_misc = sta->rx_dropped;
 
 	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
 	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
@@ -1602,6 +1604,23 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
+					  struct net_device *dev,
+					  u16 frame_type, bool reg)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (frame_type != (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ))
+		return;
+
+	if (reg)
+		local->probe_req_reg++;
+	else
+		local->probe_req_reg--;
+
+	ieee80211_queue_work(&local->hw, &local->reconfig_filter);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1653,4 +1672,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
 	.mgmt_tx = ieee80211_mgmt_tx,
 	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
+	.mgmt_frame_register = ieee80211_mgmt_frame_register,
 };

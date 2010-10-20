@@ -1254,13 +1254,12 @@ void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 		  "** BB mode: BB_gen_controls=0x%08x **\n",
 		  REG_READ(ah, AR_PHY_GEN_CTRL));
 
-	ath9k_hw_update_cycle_counters(ah);
-#define PCT(_field) (ah->cc_delta._field * 100 / ah->cc_delta.cycles)
-	if (ah->cc_delta.cycles)
+#define PCT(_field) (common->cc_survey._field * 100 / common->cc_survey.cycles)
+	if (common->cc_survey.cycles)
 		ath_print(common, ATH_DBG_RESET,
 			  "** BB busy times: rx_clear=%d%%, "
 			  "rx_frame=%d%%, tx_frame=%d%% **\n",
-			  PCT(rx_clear), PCT(rx_frame), PCT(tx_frame));
+			  PCT(rx_busy), PCT(rx_frame), PCT(tx_frame));
 
 	ath_print(common, ATH_DBG_RESET,
 		  "==== BB update: done ====\n\n");

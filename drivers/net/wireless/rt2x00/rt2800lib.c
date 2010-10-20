@@ -499,7 +499,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_write_tx_data);
 
-static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxwi_w2)
+static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 {
 	int rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
 	int rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);

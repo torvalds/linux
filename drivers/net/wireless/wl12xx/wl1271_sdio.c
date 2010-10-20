@@ -30,6 +30,7 @@
 #include <linux/mmc/card.h>
 #include <linux/gpio.h>
 #include <linux/wl12xx.h>
+#include <linux/pm_runtime.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
@@ -160,12 +161,19 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 static int wl1271_sdio_power_on(struct wl1271 *wl)
 {
 	struct sdio_func *func = wl_to_func(wl);
+	int ret;
+
+	/* Power up the card */
+	ret = pm_runtime_get_sync(&func->dev);
+	if (ret < 0)
+		goto out;
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);
 	sdio_release_host(func);
 
-	return 0;
+out:
+	return ret;
 }
 
 static int wl1271_sdio_power_off(struct wl1271 *wl)
@@ -176,15 +184,12 @@ static int wl1271_sdio_power_off(struct wl1271 *wl)
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	return 0;
+	/* Power down the card */
+	return pm_runtime_put_sync(&func->dev);
 }
 
 static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 {
-	/* Let the SDIO stack handle wlan_enable control, so we
-	 * keep host claimed while wlan is in use to keep wl1271
-	 * alive.
-	 */
 	if (enable)
 		return wl1271_sdio_power_on(wl);
 	else
@@ -256,6 +261,9 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
 	sdio_set_drvdata(func, wl);
 
+	/* Tell PM core that we don't need the card to be powered now */
+	pm_runtime_put_noidle(&func->dev);
+
 	wl1271_notice("initialized");
 
 	return 0;
@@ -274,16 +282,39 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 {
 	struct wl1271 *wl = sdio_get_drvdata(func);
 
+	/* Undo decrement done above in wl1271_probe */
+	pm_runtime_get_noresume(&func->dev);
+
 	wl1271_unregister_hw(wl);
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
 }
+
+static int wl1271_suspend(struct device *dev)
+{
+	/* Tell MMC/SDIO core it's OK to power down the card
+	 * (if it isn't already), but not to remove it completely */
+	return 0;
+}
+
+static int wl1271_resume(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops wl1271_sdio_pm_ops = {
+	.suspend	= wl1271_suspend,
+	.resume		= wl1271_resume,
+};
 
 static struct sdio_driver wl1271_sdio_driver = {
 	.name		= "wl1271_sdio",
 	.id_table	= wl1271_devices,
 	.probe		= wl1271_probe,
 	.remove		= __devexit_p(wl1271_remove),
+	.drv = {
+		.pm = &wl1271_sdio_pm_ops,
+	},
 };
 
 static int __init wl1271_init(void)

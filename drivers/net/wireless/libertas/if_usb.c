@@ -487,11 +487,12 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
  */
 static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb)
 {
-	int ret = -1;
+	int ret;
 
 	/* check if device is removed */
 	if (cardp->surprise_removed) {
 		lbs_deb_usbd(&cardp->udev->dev, "Device removed\n");
+		ret = -ENODEV;
 		goto tx_ret;
 	}
 
@@ -504,7 +505,6 @@ static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb
 
 	if ((ret = usb_submit_urb(cardp->tx_urb, GFP_ATOMIC))) {
 		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed: %d\n", ret);
-		ret = -1;
 	} else {
 		lbs_deb_usb2(&cardp->udev->dev, "usb_submit_urb success\n");
 		ret = 0;

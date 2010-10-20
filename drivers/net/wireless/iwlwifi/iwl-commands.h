@@ -3784,7 +3784,8 @@ struct iwl_enhance_sensitivity_cmd {
  */
 
 /* Phy calibration command for series */
-
+/* The default calibrate table size if not specified by firmware */
+#define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
 	IWL_PHY_CALIBRATE_DIFF_GAIN_CMD		= 7,
 	IWL_PHY_CALIBRATE_DC_CMD		= 8,
@@ -3793,7 +3794,8 @@ enum {
 	IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD	= 15,
 	IWL_PHY_CALIBRATE_BASE_BAND_CMD		= 16,
 	IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
-	IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 18,
+	IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD	= 18,
+	IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 19,
 };
 
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
@@ -3861,6 +3863,13 @@ struct iwl_calib_xtal_freq_cmd {
 	u8 cap_pin1;
 	u8 cap_pin2;
 	u8 pad[2];
+} __packed;
+
+#define DEFAULT_RADIO_SENSOR_OFFSET    2700
+struct iwl_calib_temperature_offset_cmd {
+	struct iwl_calib_hdr hdr;
+	s16 radio_sensor_offset;
+	s16 reserved;
 } __packed;
 
 /* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */

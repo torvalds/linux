@@ -573,7 +573,7 @@ static void rt2800pci_kick_tx_queue(struct data_queue *queue)
 {
 	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	unsigned int qidx = 0;
+	unsigned int qidx;
 
 	if (queue->qid == QID_MGMT)
 		qidx = 5;
@@ -676,7 +676,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_TYPE) - 1;
+		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
 		if (qid >= QID_RX) {
 			/*
 			 * Unknown queue, this shouldn't happen. Just drop

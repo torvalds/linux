@@ -74,6 +74,9 @@
 #define	AR9170_RX_STATUS_MPDU_MIDDLE		0x30
 #define	AR9170_RX_STATUS_MPDU_LAST		0x10
 
+#define	AR9170_RX_STATUS_CONT_AGGR		0x40
+#define	AR9170_RX_STATUS_TOTAL_ERROR		0x80
+
 #define	AR9170_RX_ERROR_RXTO			0x01
 #define	AR9170_RX_ERROR_OVERRUN			0x02
 #define	AR9170_RX_ERROR_DECRYPT			0x04
@@ -81,7 +84,6 @@
 #define	AR9170_RX_ERROR_WRONG_RA		0x10
 #define	AR9170_RX_ERROR_PLCP			0x20
 #define	AR9170_RX_ERROR_MMIC			0x40
-#define	AR9170_RX_ERROR_FATAL			0x80
 
 /* these are either-or */
 #define	AR9170_TX_MAC_PROT_RTS			0x0001
@@ -329,12 +331,14 @@ struct _carl9170_tx_superframe {
 
 #define	CARL9170_TX_SUPERDESC_LEN		24
 #define	AR9170_TX_HWDESC_LEN			8
-#define	AR9170_TX_SUPERFRAME_LEN		(CARL9170_TX_HWDESC_LEN + \
-						 AR9170_TX_SUPERDESC_LEN)
+#define	CARL9170_TX_SUPERFRAME_LEN		(CARL9170_TX_SUPERDESC_LEN + \
+						 AR9170_TX_HWDESC_LEN)
 
 struct ar9170_rx_head {
 	u8 plcp[12];
 } __packed;
+
+#define	AR9170_RX_HEAD_LEN			12
 
 struct ar9170_rx_phystatus {
 	union {
@@ -350,11 +354,15 @@ struct ar9170_rx_phystatus {
 	u8 phy_err;
 } __packed;
 
+#define	AR9170_RX_PHYSTATUS_LEN			20
+
 struct ar9170_rx_macstatus {
 	u8 SAidx, DAidx;
 	u8 error;
 	u8 status;
 } __packed;
+
+#define	AR9170_RX_MACSTATUS_LEN			4
 
 struct ar9170_rx_frame_single {
 	struct ar9170_rx_head phy_head;

@@ -317,15 +317,15 @@ unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
 				int left)
 {
 
-	if (!iwl_is_associated(priv, IWL_RXON_CTX_BSS) || !priv->ibss_beacon)
+	if (!iwl_is_associated(priv, IWL_RXON_CTX_BSS) || !priv->beacon_skb)
 		return 0;
 
-	if (priv->ibss_beacon->len > left)
+	if (priv->beacon_skb->len > left)
 		return 0;
 
-	memcpy(hdr, priv->ibss_beacon->data, priv->ibss_beacon->len);
+	memcpy(hdr, priv->beacon_skb->data, priv->beacon_skb->len);
 
-	return priv->ibss_beacon->len;
+	return priv->beacon_skb->len;
 }
 
 static int iwl3945_send_beacon_cmd(struct iwl_priv *priv)
@@ -813,10 +813,10 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 	/* new beacon skb is allocated every time; dispose previous.*/
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
 
-	priv->ibss_beacon = beacon;
+	priv->beacon_skb = beacon;
 	mutex_unlock(&priv->mutex);
 
 	iwl3945_send_beacon_cmd(priv);
@@ -2547,7 +2547,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	priv->cfg->ops->hcmd->send_bt_config(priv);
 
 	/* Configure the adapter for unassociated operation */
-	iwlcore_commit_rxon(priv, ctx);
+	iwl3945_commit_rxon(priv, ctx);
 
 	iwl3945_reg_txpower_periodic(priv);
 
@@ -2637,14 +2637,14 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	udelay(5);
 
 	/* Stop the device, and put it in low power state */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
-	priv->ibss_beacon = NULL;
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
+	priv->beacon_skb = NULL;
 
 	/* clear out any free frames */
 	iwl3945_clear_free_frames(priv);
@@ -2661,12 +2661,33 @@ static void iwl3945_down(struct iwl_priv *priv)
 
 #define MAX_HW_RESTARTS 5
 
+static int iwl3945_alloc_bcast_station(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	unsigned long flags;
+	u8 sta_id;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	sta_id = iwl_prep_station(priv, ctx, iwl_bcast_addr, false, NULL);
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Unable to prepare broadcast station\n");
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+		return -EINVAL;
+	}
+
+	priv->stations[sta_id].used |= IWL_STA_DRIVER_ACTIVE;
+	priv->stations[sta_id].used |= IWL_STA_BCAST;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return 0;
+}
+
 static int __iwl3945_up(struct iwl_priv *priv)
 {
 	int rc, i;
 
-	rc = iwl_alloc_bcast_station(priv, &priv->contexts[IWL_RXON_CTX_BSS],
-				     false);
+	rc = iwl3945_alloc_bcast_station(priv);
 	if (rc)
 		return rc;
 
@@ -2917,24 +2938,24 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate = IWL_RATE_1M_PLCP;
-		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
 		break;
 	case IEEE80211_BAND_5GHZ:
 		scan->tx_cmd.rate = IWL_RATE_6M_PLCP;
-		/*
-		 * If active scaning is requested but a certain channel
-		 * is marked passive, we can do active scanning if we
-		 * detect transmissions.
-		 */
-		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
-						IWL_GOOD_CRC_TH_DISABLED;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	default:
 		IWL_WARN(priv, "Invalid scan band\n");
 		return -EIO;
 	}
+
+	/*
+	 * If active scaning is requested but a certain channel
+	 * is marked passive, we can do active scanning if we
+	 * detect transmissions.
+	 */
+	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+					IWL_GOOD_CRC_TH_DISABLED;
 
 	if (!priv->is_internal_short_scan) {
 		scan->tx_cmd.len = cpu_to_le16(
@@ -2981,6 +3002,18 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (ret)
 		clear_bit(STATUS_SCAN_HW, &priv->status);
 	return ret;
+}
+
+void iwl3945_post_scan(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
+	/*
+	 * Since setting the RXON may have been deferred while
+	 * performing the scan, fire one off if needed
+	 */
+	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
+		iwl3945_commit_rxon(priv, ctx);
 }
 
 static void iwl3945_bg_restart(struct work_struct *data)
@@ -3049,7 +3082,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	conf = ieee80211_get_hw_conf(priv->hw);
 
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwlcore_commit_rxon(priv, ctx);
+	iwl3945_commit_rxon(priv, ctx);
 
 	rc = iwl_send_rxon_timing(priv, ctx);
 	if (rc)
@@ -3075,7 +3108,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
-	iwlcore_commit_rxon(priv, ctx);
+	iwl3945_commit_rxon(priv, ctx);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -3214,7 +3247,7 @@ void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		/* RXON - unassoc (to set timing command) */
 		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv, ctx);
+		iwl3945_commit_rxon(priv, ctx);
 
 		/* RXON Timing */
 		rc = iwl_send_rxon_timing(priv, ctx);
@@ -3241,7 +3274,7 @@ void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		}
 		/* restore RXON assoc */
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv, ctx);
+		iwl3945_commit_rxon(priv, ctx);
 	}
 	iwl3945_send_beacon_cmd(priv);
 
@@ -3507,7 +3540,7 @@ static ssize_t store_flags(struct device *d,
 			IWL_DEBUG_INFO(priv, "Committing rxon.flags = 0x%04X\n",
 				       flags);
 			ctx->staging.flags = cpu_to_le32(flags);
-			iwlcore_commit_rxon(priv, ctx);
+			iwl3945_commit_rxon(priv, ctx);
 		}
 	}
 	mutex_unlock(&priv->mutex);
@@ -3545,7 +3578,7 @@ static ssize_t store_filter_flags(struct device *d,
 				       "0x%04X\n", filter_flags);
 			ctx->staging.filter_flags =
 				cpu_to_le32(filter_flags);
-			iwlcore_commit_rxon(priv, ctx);
+			iwl3945_commit_rxon(priv, ctx);
 		}
 	}
 	mutex_unlock(&priv->mutex);
@@ -3815,7 +3848,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 
 	priv->retry_rate = 1;
-	priv->ibss_beacon = NULL;
+	priv->beacon_skb = NULL;
 
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
@@ -4179,7 +4212,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	 * paths to avoid running iwl_down() at all before leaving driver.
 	 * This (inexpensive) call *makes sure* device is reset.
 	 */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
 	/* make sure we flush any pending irq or
 	 * tasklet for the driver
@@ -4223,8 +4256,8 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	iwl_free_channel_map(priv);
 	iwlcore_free_geos(priv);
 	kfree(priv->scan_cmd);
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
+	if (priv->beacon_skb)
+		dev_kfree_skb(priv->beacon_skb);
 
 	ieee80211_free_hw(priv->hw);
 }

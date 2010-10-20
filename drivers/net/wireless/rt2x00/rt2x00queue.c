@@ -33,9 +33,9 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
-					struct queue_entry *entry)
+struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	unsigned int frame_size;
@@ -97,41 +97,42 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 	return skb;
 }
 
-void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
+void rt2x00queue_map_txskb(struct queue_entry *entry)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+	struct device *dev = entry->queue->rt2x00dev->dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 
 	skbdesc->skb_dma =
-	    dma_map_single(rt2x00dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
+	    dma_map_single(dev, entry->skb->data, entry->skb->len, DMA_TO_DEVICE);
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
 
-void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
+void rt2x00queue_unmap_skb(struct queue_entry *entry)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+	struct device *dev = entry->queue->rt2x00dev->dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 
 	if (skbdesc->flags & SKBDESC_DMA_MAPPED_RX) {
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
+		dma_unmap_single(dev, skbdesc->skb_dma, entry->skb->len,
 				 DMA_FROM_DEVICE);
 		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_RX;
-	}
-
-	if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
+	} else if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
+		dma_unmap_single(dev, skbdesc->skb_dma, entry->skb->len,
 				 DMA_TO_DEVICE);
 		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_TX;
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_unmap_skb);
 
-void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
+void rt2x00queue_free_skb(struct queue_entry *entry)
 {
-	if (!skb)
+	if (!entry->skb)
 		return;
 
-	rt2x00queue_unmap_skb(rt2x00dev, skb);
-	dev_kfree_skb_any(skb);
+	rt2x00queue_unmap_skb(entry);
+	dev_kfree_skb_any(entry->skb);
+	entry->skb = NULL;
 }
 
 void rt2x00queue_align_frame(struct sk_buff *skb)
@@ -440,7 +441,7 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	 * Map the skb to DMA.
 	 */
 	if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags))
-		rt2x00queue_map_txskb(rt2x00dev, entry->skb);
+		rt2x00queue_map_txskb(entry);
 
 	return 0;
 }
@@ -491,7 +492,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	if (unlikely(rt2x00queue_full(queue)))
 		return -ENOBUFS;
 
-	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
+	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
+				      &entry->flags))) {
 		ERROR(queue->rt2x00dev,
 		      "Arrived at non-free entry in the non-full queue %d.\n"
 		      "Please file bug report to %s.\n",
@@ -586,8 +588,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Clean up the beacon skb.
 	 */
-	rt2x00queue_free_skb(rt2x00dev, intf->beacon->skb);
-	intf->beacon->skb = NULL;
+	rt2x00queue_free_skb(intf->beacon);
 
 	if (!enable_beacon) {
 		rt2x00dev->ops->lib->kill_tx_queue(intf->beacon->queue);
@@ -828,8 +829,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	return 0;
 }
 
-static void rt2x00queue_free_skbs(struct rt2x00_dev *rt2x00dev,
-				  struct data_queue *queue)
+static void rt2x00queue_free_skbs(struct data_queue *queue)
 {
 	unsigned int i;
 
@@ -837,19 +837,17 @@ static void rt2x00queue_free_skbs(struct rt2x00_dev *rt2x00dev,
 		return;
 
 	for (i = 0; i < queue->limit; i++) {
-		if (queue->entries[i].skb)
-			rt2x00queue_free_skb(rt2x00dev, queue->entries[i].skb);
+		rt2x00queue_free_skb(&queue->entries[i]);
 	}
 }
 
-static int rt2x00queue_alloc_rxskbs(struct rt2x00_dev *rt2x00dev,
-				    struct data_queue *queue)
+static int rt2x00queue_alloc_rxskbs(struct data_queue *queue)
 {
 	unsigned int i;
 	struct sk_buff *skb;
 
 	for (i = 0; i < queue->limit; i++) {
-		skb = rt2x00queue_alloc_rxskb(rt2x00dev, &queue->entries[i]);
+		skb = rt2x00queue_alloc_rxskb(&queue->entries[i]);
 		if (!skb)
 			return -ENOMEM;
 		queue->entries[i].skb = skb;
@@ -884,7 +882,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 			goto exit;
 	}
 
-	status = rt2x00queue_alloc_rxskbs(rt2x00dev, rt2x00dev->rx);
+	status = rt2x00queue_alloc_rxskbs(rt2x00dev->rx);
 	if (status)
 		goto exit;
 
@@ -902,7 +900,7 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 
-	rt2x00queue_free_skbs(rt2x00dev, rt2x00dev->rx);
+	rt2x00queue_free_skbs(rt2x00dev->rx);
 
 	queue_for_each(rt2x00dev, queue) {
 		kfree(queue->entries);

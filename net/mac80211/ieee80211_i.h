@@ -707,7 +707,9 @@ struct ieee80211_local {
 	int open_count;
 	int monitors, cooked_mntrs;
 	/* number of interfaces with corresponding FIF_ flags */
-	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll;
+	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll,
+	    fif_probe_req;
+	int probe_req_reg;
 	unsigned int filter_flags; /* FIF_* */
 
 	bool wiphy_ciphers_allocated;

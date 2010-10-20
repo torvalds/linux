@@ -299,7 +299,6 @@ enum {
 #define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
 
 extern const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
-extern const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945];
 
 enum iwl_table_type {
 	LQ_NONE,
@@ -452,15 +451,6 @@ static inline u8 first_antenna(u8 mask)
 	return ANT_C;
 }
 
-
-static inline u8 iwl3945_get_prev_ieee_rate(u8 rate_index)
-{
-	u8 rate = iwl3945_rates[rate_index].prev_ieee;
-
-	if (rate == IWL_RATE_INVALID)
-		rate = rate_index;
-	return rate;
-}
 
 /**
  * iwl3945_rate_scale_init - Initialize the rate scale table based on assoc info

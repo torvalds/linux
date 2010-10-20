@@ -38,6 +38,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
+#include "iwl-agn-calib.h"
 
 static const s8 iwlagn_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_VO,
@@ -214,6 +215,25 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 			     (u8 *)&cmd, sizeof(cmd));
 }
 
+static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
+{
+	struct iwl_calib_temperature_offset_cmd cmd;
+	__le16 *offset_calib =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
+	cmd.hdr.op_code = IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD;
+	cmd.hdr.first_group = 0;
+	cmd.hdr.groups_num = 1;
+	cmd.hdr.data_valid = 1;
+	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
+	if (!(cmd.radio_sensor_offset))
+		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
+	cmd.reserved = 0;
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
+			cmd.radio_sensor_offset);
+	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
+			     (u8 *)&cmd, sizeof(cmd));
+}
+
 static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 {
 	struct iwl_calib_cfg_cmd calib_cfg_cmd;
@@ -320,6 +340,14 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 
 	}
 	iwlagn_send_calib_cfg(priv);
+
+	/**
+	 * temperature offset calibration is only needed for runtime ucode,
+	 * so prepare the value now.
+	 */
+	if (priv->cfg->need_temp_offset_calib)
+		iwlagn_set_temperature_offset_calib(priv);
+
 	return;
 
 restart:
