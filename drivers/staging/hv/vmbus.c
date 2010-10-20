@@ -61,15 +61,6 @@ static void VmbusGetChannelOffers(void)
 }
 
 /*
- * VmbusGetChannelInfo - Get the device info for the specified device object
- */
-static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
-				struct hv_device_info *DeviceInfo)
-{
-	get_channel_info(DeviceObject, DeviceInfo);
-}
-
-/*
  * VmbusCreateChildDevice - Creates the child device on the bus that represents the channel offer
  */
 struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
@@ -271,7 +262,7 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->OnMsgDpc		= VmbusOnMsgDPC;
 	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
-	driver->GetChannelInfo		= VmbusGetChannelInfo;
+	driver->GetChannelInfo		= get_channel_info;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = HvInit();
