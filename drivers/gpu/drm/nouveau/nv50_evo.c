@@ -234,7 +234,7 @@ nv50_evo_create(struct drm_device *dev)
 	 * use this also as there's no per-channel support on the
 	 * hardware
 	 */
-	ret = nouveau_gpuobj_new(dev, NULL, 32768, 0x1000,
+	ret = nouveau_gpuobj_new(dev, NULL, 32768, 65536,
 				 NVOBJ_FLAG_ZERO_ALLOC, &evo->ramin);
 	if (ret) {
 		NV_ERROR(dev, "Error allocating EVO channel memory: %d\n", ret);
