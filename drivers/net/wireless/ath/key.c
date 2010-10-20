@@ -108,9 +108,9 @@ static bool ath_hw_keysetmac(struct ath_common *common,
 	return true;
 }
 
-bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
-				 const struct ath_keyval *k,
-				 const u8 *mac)
+static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
+				      const struct ath_keyval *k,
+				      const u8 *mac)
 {
 	void *ah = common->ah;
 	u32 key0, key1, key2, key3, key4;
