@@ -3162,7 +3162,7 @@ F:	drivers/net/ioc3-eth.c
 
 IOC3 SERIAL DRIVER
 M:	Pat Gefre <pfg@sgi.com>
-L:	linux-mips@linux-mips.org
+L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/serial/ioc3_serial.c
 

@@ -445,10 +445,10 @@ sys_call_table:
 	PTR	compat_sys_futex
 	PTR	compat_sys_sched_setaffinity
 	PTR	compat_sys_sched_getaffinity	/* 4240 */
-	PTR	sys_io_setup
+	PTR	compat_sys_io_setup
 	PTR	sys_io_destroy
-	PTR	sys_io_getevents
-	PTR	sys_io_submit
+	PTR	compat_sys_io_getevents
+	PTR	compat_sys_io_submit
 	PTR	sys_io_cancel			/* 4245 */
 	PTR	sys_exit_group
 	PTR	sys32_lookup_dcookie

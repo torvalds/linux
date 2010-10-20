@@ -322,10 +322,10 @@ EXPORT(sysn32_call_table)
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
 	PTR	sys_sysmips
-	PTR	sys_io_setup			/* 6200 */
+	PTR	compat_sys_io_setup			/* 6200 */
 	PTR	sys_io_destroy
-	PTR	sys_io_getevents
-	PTR	sys_io_submit
+	PTR	compat_sys_io_getevents
+	PTR	compat_sys_io_submit
 	PTR	sys_io_cancel
 	PTR	sys_exit_group			/* 6205 */
 	PTR	sys_lookup_dcookie
