@@ -705,7 +705,7 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 
 	skb = alloc_can_err_skb(net, &frame);
 	if (skb) {
-		frame->can_id = can_id;
+		frame->can_id |= can_id;
 		frame->data[1] = data1;
 		netif_rx_ni(skb);
 	} else {
