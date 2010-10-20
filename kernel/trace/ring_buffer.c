@@ -1829,7 +1829,7 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 static noinline struct ring_buffer_event *
 rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	     unsigned long length, unsigned long tail,
-	     struct buffer_page *tail_page, u64 *ts)
+	     struct buffer_page *tail_page, u64 ts)
 {
 	struct buffer_page *commit_page = cpu_buffer->commit_page;
 	struct ring_buffer *buffer = cpu_buffer->buffer;
@@ -1912,8 +1912,8 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 		 * Nested commits always have zero deltas, so
 		 * just reread the time stamp
 		 */
-		*ts = rb_time_stamp(buffer);
-		next_page->page->time_stamp = *ts;
+		ts = rb_time_stamp(buffer);
+		next_page->page->time_stamp = ts;
 	}
 
  out_again:
@@ -1932,7 +1932,7 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 
 static struct ring_buffer_event *
 __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
-		  unsigned type, unsigned long length, u64 *ts)
+		  unsigned type, unsigned long length, u64 ts)
 {
 	struct buffer_page *tail_page;
 	struct ring_buffer_event *event;
@@ -1965,7 +1965,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	 * its timestamp.
 	 */
 	if (!tail)
-		tail_page->page->time_stamp = *ts;
+		tail_page->page->time_stamp = ts;
 
 	return event;
 }
@@ -2008,7 +2008,7 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 
 static int
 rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
-		  u64 *ts, u64 *delta)
+		  u64 ts, u64 *delta)
 {
 	struct ring_buffer_event *event;
 	int ret;
@@ -2016,7 +2016,7 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 	WARN_ONCE(*delta > (1ULL << 59),
 		  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n",
 		  (unsigned long long)*delta,
-		  (unsigned long long)*ts,
+		  (unsigned long long)ts,
 		  (unsigned long long)cpu_buffer->write_stamp);
 
 	/*
@@ -2051,7 +2051,7 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 				event->array[0] = 0;
 			}
 		}
-		cpu_buffer->write_stamp = *ts;
+		cpu_buffer->write_stamp = ts;
 		/* let the caller know this was the commit */
 		ret = 1;
 	} else {
@@ -2175,7 +2175,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		delta = diff;
 		if (unlikely(test_time_stamp(delta))) {
 
-			commit = rb_add_time_stamp(cpu_buffer, &ts, &delta);
+			commit = rb_add_time_stamp(cpu_buffer, ts, &delta);
 			if (commit == -EBUSY)
 				goto out_fail;
 
@@ -2187,7 +2187,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	}
 
  get_event:
-	event = __rb_reserve_next(cpu_buffer, 0, length, &ts);
+	event = __rb_reserve_next(cpu_buffer, 0, length, ts);
 	if (unlikely(PTR_ERR(event) == -EAGAIN))
 		goto again;
 
