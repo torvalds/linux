@@ -54,8 +54,9 @@ enum tm6000_devtype {
 };
 
 /* ------------------------------------------------------------------
-	Basic structures
-   ------------------------------------------------------------------*/
+ *	Basic structures
+ * ------------------------------------------------------------------
+ */
 
 struct tm6000_fmt {
 	char  *name;
@@ -256,9 +257,9 @@ struct tm6000_fh {
 	enum v4l2_buf_type           type;
 };
 
-#define TM6000_STD	V4L2_STD_PAL|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|    \
+#define TM6000_STD	(V4L2_STD_PAL|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|    \
 			V4L2_STD_PAL_M|V4L2_STD_PAL_60|V4L2_STD_NTSC_M| \
-			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM
+			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM)
 
 /* In tm6000-cards.c */
 
