@@ -45,14 +45,26 @@
  *    many warnings and error messages. The idea is that we do not lose
  *    important data in these case - we may lose only the data which was being
  *    written to the media just before the power cut happened, and the upper
- *    layers are supposed to handle these situations. UBI puts these PEBs to
- *    the head of the @erase list and they are scheduled for erasure.
+ *    layers (e.g., UBIFS) are supposed to handle these situations. UBI puts
+ *    these PEBs to the head of the @erase list and they are scheduled for
+ *    erasure.
  *
  * 2. Unexpected corruptions which are not caused by power cuts. During
  *    scanning, such PEBs are put to the @corr list and UBI preserves them.
  *    Obviously, this lessens the amount of available PEBs, and if at some
  *    point UBI runs out of free PEBs, it switches to R/O mode. UBI also loudly
  *    informs about such PEBs every time the MTD device is attached.
+ *
+ * However, it is difficult to reliably distinguish between these types of
+ * corruptions and UBI's strategy is as follows. UBI assumes (2.) if the VID
+ * header is corrupted and the data area does not contain all 0xFFs, and there
+ * were not bit-flips or integrity errors while reading the data area. Otherwise
+ * UBI assumes (1.). The assumptions are:
+ *   o if the data area contains only 0xFFs, there is no data, and it is safe
+ *     to just erase this PEB.
+ *   o if the data area has bit-flips and data integrity errors (ECC errors on
+ *     NAND), it is probably a PEB which was being erased when power cut
+ *     happened.
  */
 
 #include <linux/err.h>
@@ -741,24 +753,24 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 }
 
 /**
- * check_data_ff - make sure PEB contains only 0xFF data.
+ * check_corruption - check the data area of PEB.
  * @ubi: UBI device description object
  * @vid_hrd: the (corrupted) VID header of this PEB
  * @pnum: the physical eraseblock number to check
  *
  * This is a helper function which is used to distinguish between VID header
  * corruptions caused by power cuts and other reasons. If the PEB contains only
- * 0xFF bytes at the data area, the VID header is most probably corrupted
+ * 0xFF bytes in the data area, the VID header is most probably corrupted
  * because of a power cut (%0 is returned in this case). Otherwise, it was
- * corrupted for some other reasons (%1 is returned in this case). A negative
- * error code is returned if a read error occurred.
+ * probably corrupted for some other reasons (%1 is returned in this case). A
+ * negative error code is returned if a read error occurred.
  *
  * If the corruption reason was a power cut, UBI can safely erase this PEB.
  * Otherwise, it should preserve it to avoid possibly destroying important
  * information.
  */
-static int check_data_ff(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
-			 int pnum)
+static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
+			    int pnum)
 {
 	int err;
 
@@ -767,7 +779,18 @@ static int check_data_ff(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 
 	err = ubi_io_read(ubi, ubi->peb_buf1, pnum, ubi->leb_start,
 			  ubi->leb_size);
-	if (err && err != UBI_IO_BITFLIPS && err != -EBADMSG)
+	if (err == UBI_IO_BITFLIPS || err == -EBADMSG) {
+		/*
+		 * Bit-flips or integrity errors while reading the data area.
+		 * It is difficult to say for sure what type of corruption is
+		 * this, but presumably a power cut happened while this PEB was
+		 * erased, so it became unstable and corrupted, and should be
+		 * erased.
+		 */
+		return 0;
+	}
+
+	if (err)
 		return err;
 
 	if (ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->leb_size)) {
@@ -926,7 +949,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * that this a valid UBI PEB which has corresponding
 			 * LEB, but the headers are corrupted. However, it is
 			 * impossible to distinguish it from a PEB which just
-			 * contains garbage because a power cut during erase
+			 * contains garbage because of a power cut during erase
 			 * operation. So we just schedule this PEB for erasure.
 			 */
 			err = 0;
@@ -935,7 +958,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * The EC was OK, but the VID header is corrupted. We
 			 * have to check what is in the data area.
 			 */
-			err = check_data_ff(ubi, vidh, pnum);
+			err = check_corruption(ubi, vidh, pnum);
 
 		if (err < 0)
 			return err;
