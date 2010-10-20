@@ -118,10 +118,10 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 	 * 0 - The null VLAN ID.
 	 * 1 - The default Port VID (PVID)
 	 * 0x0FFF - Reserved for implementation use.
-	 * if_vlan.h: VLAN_GROUP_ARRAY_LEN 4096. */
+	 * if_vlan.h: VLAN_N_VID 4096. */
 	if (GET_BITMASK(EBT_VLAN_ID)) {
 		if (!!info->id) { /* if id!=0 => check vid range */
-			if (info->id > VLAN_GROUP_ARRAY_LEN) {
+			if (info->id > VLAN_N_VID) {
 				pr_debug("id %d is out of range (1-4096)\n",
 					 info->id);
 				return -EINVAL;

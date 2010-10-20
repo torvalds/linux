@@ -1820,7 +1820,7 @@ static void qeth_l3_add_vlan_mc(struct qeth_card *card)
 		return;
 
 	vg = card->vlangrp;
-	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
+	for (i = 0; i < VLAN_N_VID; i++) {
 		struct net_device *netdev = vlan_group_get_device(vg, i);
 		if (netdev == NULL ||
 		    !(netdev->flags & IFF_UP))
@@ -1883,7 +1883,7 @@ static void qeth_l3_add_vlan_mc6(struct qeth_card *card)
 		return;
 
 	vg = card->vlangrp;
-	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
+	for (i = 0; i < VLAN_N_VID; i++) {
 		struct net_device *netdev = vlan_group_get_device(vg, i);
 		if (netdev == NULL ||
 		    !(netdev->flags & IFF_UP))
@@ -2247,7 +2247,7 @@ static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 	if (!vg)
 		return rc;
 
-	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
+	for (i = 0; i < VLAN_N_VID; i++) {
 		if (vlan_group_get_device(vg, i) == dev) {
 			rc = QETH_VLAN_CARD;
 			break;

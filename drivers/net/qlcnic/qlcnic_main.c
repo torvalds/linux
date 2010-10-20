@@ -4093,7 +4093,7 @@ qlcnic_restore_indev_addr(struct net_device *netdev, unsigned long event)
 	if (!adapter->vlgrp)
 		return;
 
-	for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+	for (vid = 0; vid < VLAN_N_VID; vid++) {
 		dev = vlan_group_get_device(adapter->vlgrp, vid);
 		if (!dev)
 			continue;

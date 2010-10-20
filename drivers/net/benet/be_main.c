@@ -626,7 +626,7 @@ static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 
 	if (adapter->vlans_added <= adapter->max_vlans)  {
 		/* Construct VLAN Table to give to HW */
-		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
+		for (i = 0; i < VLAN_N_VID; i++) {
 			if (adapter->vlan_tag[i]) {
 				vtag[ntags] = cpu_to_le16(i);
 				ntags++;

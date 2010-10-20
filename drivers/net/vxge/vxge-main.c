@@ -1862,7 +1862,7 @@ enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath)
 
 	if (vdev->vlgrp && vpath->is_open) {
 
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (!vlan_group_get_device(vdev->vlgrp, vid))
 				continue;
 			/* Add these vlan to the vid table */

@@ -1634,7 +1634,7 @@ vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
 		u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
 		bool activeVlan = false;
 
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (vlan_group_get_device(adapter->vlan_grp, vid)) {
 				VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
 				activeVlan = true;
