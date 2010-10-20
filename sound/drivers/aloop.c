@@ -263,13 +263,17 @@ static int loopback_trigger(struct snd_pcm_substream *substream, int cmd)
 			return err;
 		dpcm->last_jiffies = jiffies;
 		dpcm->pcm_rate_shift = 0;
-		loopback_timer_start(dpcm);
+		spin_lock(&cable->lock);	
 		cable->running |= (1 << substream->stream);
+		spin_unlock(&cable->lock);
+		loopback_timer_start(dpcm);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			loopback_active_notify(dpcm);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		spin_lock(&cable->lock);	
 		cable->running &= ~(1 << substream->stream);
+		spin_unlock(&cable->lock);
 		loopback_timer_stop(dpcm);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			loopback_active_notify(dpcm);
@@ -454,28 +458,30 @@ static void loopback_bytepos_update(struct loopback_pcm *dpcm,
 	}
 }
 
-static void loopback_pos_update(struct loopback_cable *cable)
+static unsigned int loopback_pos_update(struct loopback_cable *cable)
 {
 	struct loopback_pcm *dpcm_play =
 			cable->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	struct loopback_pcm *dpcm_capt =
 			cable->streams[SNDRV_PCM_STREAM_CAPTURE];
 	unsigned long delta_play = 0, delta_capt = 0;
+	unsigned int running;
 
 	spin_lock(&cable->lock);	
-	if (cable->running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) {
+	running = cable->running;
+	if (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) {
 		delta_play = jiffies - dpcm_play->last_jiffies;
 		dpcm_play->last_jiffies += delta_play;
 	}
 
-	if (cable->running & (1 << SNDRV_PCM_STREAM_CAPTURE)) {
+	if (running & (1 << SNDRV_PCM_STREAM_CAPTURE)) {
 		delta_capt = jiffies - dpcm_capt->last_jiffies;
 		dpcm_capt->last_jiffies += delta_capt;
 	}
 
 	if (delta_play == 0 && delta_capt == 0) {
 		spin_unlock(&cable->lock);
-		return;
+		return running;
 	}
 		
 	if (delta_play > delta_capt) {
@@ -490,27 +496,27 @@ static void loopback_pos_update(struct loopback_cable *cable)
 
 	if (delta_play == 0 && delta_capt == 0) {
 		spin_unlock(&cable->lock);
-		return;
+		return running;
 	}
 	/* note delta_capt == delta_play at this moment */
 	loopback_bytepos_update(dpcm_capt, delta_capt, BYTEPOS_UPDATE_COPY);
 	loopback_bytepos_update(dpcm_play, delta_play, BYTEPOS_UPDATE_POSONLY);
 	spin_unlock(&cable->lock);
+	return running;
 }
 
 static void loopback_timer_function(unsigned long data)
 {
 	struct loopback_pcm *dpcm = (struct loopback_pcm *)data;
-	int stream;
+	unsigned int running;
 
-	loopback_pos_update(dpcm->cable);
-	stream = dpcm->substream->stream;
-	if (dpcm->cable->running & (1 << stream))
+	running = loopback_pos_update(dpcm->cable);
+	if (running & (1 << dpcm->substream->stream)) {
 		loopback_timer_start(dpcm);
-	if (dpcm->period_update_pending) {
-		dpcm->period_update_pending = 0;
-		if (dpcm->cable->running & (1 << stream))
+		if (dpcm->period_update_pending) {
+			dpcm->period_update_pending = 0;
 			snd_pcm_period_elapsed(dpcm->substream);
+		}
 	}
 }
 
