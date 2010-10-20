@@ -149,13 +149,13 @@ nv50_display_init(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, NV50_PDISPLAY_PIO_CTRL, 0x00000000);
-	nv_wr32(dev, 0x610028, 0x00000000);
 	nv_mask(dev, NV50_PDISPLAY_INTR_0, 0x00000000, 0x00000000);
+	nv_wr32(dev, NV50_PDISPLAY_INTR_EN_0, 0x00000000);
 	nv_mask(dev, NV50_PDISPLAY_INTR_1, 0x00000000, 0x00000000);
-	nv_wr32(dev, NV50_PDISPLAY_INTR_EN,
-		     NV50_PDISPLAY_INTR_EN_CLK_UNK10 |
-		     NV50_PDISPLAY_INTR_EN_CLK_UNK20 |
-		     NV50_PDISPLAY_INTR_EN_CLK_UNK40);
+	nv_wr32(dev, NV50_PDISPLAY_INTR_EN_1,
+		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK10 |
+		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK20 |
+		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK40);
 
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -248,7 +248,7 @@ static int nv50_display_disable(struct drm_device *dev)
 	}
 
 	/* disable interrupts. */
-	nv_wr32(dev, NV50_PDISPLAY_INTR_EN, 0x00000000);
+	nv_wr32(dev, NV50_PDISPLAY_INTR_EN_1, 0x00000000);
 
 	/* disable hotplug interrupts */
 	nv_wr32(dev, 0xe054, 0xffffffff);
@@ -451,8 +451,7 @@ nv50_display_vblank_handler(struct drm_device *dev, uint32_t intr)
 	if (intr & NV50_PDISPLAY_INTR_1_VBLANK_CRTC_1)
 		nv50_display_vblank_crtc_handler(dev, 1);
 
-	nv_wr32(dev, NV50_PDISPLAY_INTR_EN, nv_rd32(dev,
-		     NV50_PDISPLAY_INTR_EN) & ~intr);
+	nv_mask(dev, NV50_PDISPLAY_INTR_EN_1, intr, 0x00000000);
 	nv_wr32(dev, NV50_PDISPLAY_INTR_1, intr);
 }
 
@@ -779,16 +778,23 @@ nv50_display_irq_handler_bh(struct work_struct *work)
 static void
 nv50_display_error_handler(struct drm_device *dev)
 {
-	uint32_t addr, data;
+	u32 channels = (nv_rd32(dev, NV50_PDISPLAY_INTR_0) & 0x001f0000) >> 16;
+	u32 addr, data;
+	int chid;
 
-	nv_wr32(dev, NV50_PDISPLAY_INTR_0, 0x00010000);
-	addr = nv_rd32(dev, NV50_PDISPLAY_TRAPPED_ADDR);
-	data = nv_rd32(dev, NV50_PDISPLAY_TRAPPED_DATA);
+	for (chid = 0; chid < 5; chid++) {
+		if (!(channels & (1 << chid)))
+			continue;
 
-	NV_ERROR(dev, "EvoCh %d Mthd 0x%04x Data 0x%08x (0x%04x 0x%02x)\n",
-		 0, addr & 0xffc, data, addr >> 16, (addr >> 12) & 0xf);
+		nv_wr32(dev, NV50_PDISPLAY_INTR_0, 0x00010000 << chid);
+		addr = nv_rd32(dev, NV50_PDISPLAY_TRAPPED_ADDR(chid));
+		data = nv_rd32(dev, NV50_PDISPLAY_TRAPPED_DATA(chid));
+		NV_ERROR(dev, "EvoCh %d Mthd 0x%04x Data 0x%08x "
+			      "(0x%04x 0x%02x)\n", chid,
+			 addr & 0xffc, data, addr >> 16, (addr >> 12) & 0xf);
 
-	nv_wr32(dev, NV50_PDISPLAY_TRAPPED_ADDR, 0x90000000);
+		nv_wr32(dev, NV50_PDISPLAY_TRAPPED_ADDR(chid), 0x90000000);
+	}
 }
 
 void
@@ -891,9 +897,9 @@ nv50_display_irq_handler(struct drm_device *dev)
 		if (!intr0 && !(intr1 & ~delayed))
 			break;
 
-		if (intr0 & 0x00010000) {
+		if (intr0 & 0x001f0000) {
 			nv50_display_error_handler(dev);
-			intr0 &= ~0x00010000;
+			intr0 &= ~0x001f0000;
 		}
 
 		if (intr1 & NV50_PDISPLAY_INTR_1_VBLANK_CRTC) {
