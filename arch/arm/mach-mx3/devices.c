@@ -72,24 +72,24 @@ struct platform_device mxc_w1_master_device = {
 #ifdef CONFIG_ARCH_MX31
 static struct resource mxcsdhc0_resources[] = {
 	{
-		.start = MMC_SDHC1_BASE_ADDR,
-		.end = MMC_SDHC1_BASE_ADDR + SZ_16K - 1,
+		.start = MX31_MMC_SDHC1_BASE_ADDR,
+		.end = MX31_MMC_SDHC1_BASE_ADDR + SZ_16K - 1,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = MXC_INT_MMC_SDHC1,
-		.end = MXC_INT_MMC_SDHC1,
+		.start = MX31_INT_MMC_SDHC1,
+		.end = MX31_INT_MMC_SDHC1,
 		.flags = IORESOURCE_IRQ,
 	},
 };
 
 static struct resource mxcsdhc1_resources[] = {
 	{
-		.start = MMC_SDHC2_BASE_ADDR,
-		.end = MMC_SDHC2_BASE_ADDR + SZ_16K - 1,
+		.start = MX31_MMC_SDHC2_BASE_ADDR,
+		.end = MX31_MMC_SDHC2_BASE_ADDR + SZ_16K - 1,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = MXC_INT_MMC_SDHC2,
-		.end = MXC_INT_MMC_SDHC2,
+		.start = MX31_INT_MMC_SDHC2,
+		.end = MX31_INT_MMC_SDHC2,
 		.flags = IORESOURCE_IRQ,
 	},
 };
