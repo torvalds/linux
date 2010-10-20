@@ -515,14 +515,8 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 		uart->padconf = padconf;
 	} else if (cpu_is_omap24xx()) {
 		u32 wk_mask = 0;
+		u32 wk_en = PM_WKEN1, wk_st = PM_WKST1;
 
-		if (cpu_is_omap2430()) {
-			uart->wk_en = OMAP2430_PRM_REGADDR(CORE_MOD, PM_WKEN1);
-			uart->wk_st = OMAP2430_PRM_REGADDR(CORE_MOD, PM_WKST1);
-		} else if (cpu_is_omap2420()) {
-			uart->wk_en = OMAP2420_PRM_REGADDR(CORE_MOD, PM_WKEN1);
-			uart->wk_st = OMAP2420_PRM_REGADDR(CORE_MOD, PM_WKST1);
-		}
 		switch (uart->num) {
 		case 0:
 			wk_mask = OMAP24XX_ST_UART1_MASK;
@@ -531,10 +525,19 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 			wk_mask = OMAP24XX_ST_UART2_MASK;
 			break;
 		case 2:
+			wk_en = OMAP24XX_PM_WKEN2;
+			wk_st = OMAP24XX_PM_WKST2;
 			wk_mask = OMAP24XX_ST_UART3_MASK;
 			break;
 		}
 		uart->wk_mask = wk_mask;
+		if (cpu_is_omap2430()) {
+			uart->wk_en = OMAP2430_PRM_REGADDR(CORE_MOD, wk_en);
+			uart->wk_st = OMAP2430_PRM_REGADDR(CORE_MOD, wk_st);
+		} else if (cpu_is_omap2420()) {
+			uart->wk_en = OMAP2420_PRM_REGADDR(CORE_MOD, wk_en);
+			uart->wk_st = OMAP2420_PRM_REGADDR(CORE_MOD, wk_st);
+		}
 	} else {
 		uart->wk_en = NULL;
 		uart->wk_st = NULL;
