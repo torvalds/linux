@@ -2008,14 +2008,14 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 
 static int
 rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
-		  u64 ts, u64 *delta)
+		  u64 ts, u64 delta)
 {
 	struct ring_buffer_event *event;
 	int ret;
 
-	WARN_ONCE(*delta > (1ULL << 59),
+	WARN_ONCE(delta > (1ULL << 59),
 		  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n",
-		  (unsigned long long)*delta,
+		  (unsigned long long)delta,
 		  (unsigned long long)ts,
 		  (unsigned long long)cpu_buffer->write_stamp);
 
@@ -2041,8 +2041,8 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		 * and if we can't just make it zero.
 		 */
 		if (rb_event_index(event)) {
-			event->time_delta = *delta & TS_MASK;
-			event->array[0] = *delta >> TS_SHIFT;
+			event->time_delta = delta & TS_MASK;
+			event->array[0] = delta >> TS_SHIFT;
 		} else {
 			/* try to discard, since we do not need this */
 			if (!rb_try_to_discard(cpu_buffer, event)) {
@@ -2063,8 +2063,6 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		}
 		ret = 0;
 	}
-
-	*delta = 0;
 
 	return ret;
 }
@@ -2175,7 +2173,9 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		delta = diff;
 		if (unlikely(test_time_stamp(delta))) {
 
-			commit = rb_add_time_stamp(cpu_buffer, ts, &delta);
+			commit = rb_add_time_stamp(cpu_buffer, ts, delta);
+			delta = 0;
+
 			if (commit == -EBUSY)
 				goto out_fail;
 
