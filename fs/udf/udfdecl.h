@@ -125,6 +125,7 @@ static inline void udf_updated_lvid(struct super_block *sb)
 	sb->s_dirt = 1;
 	UDF_SB(sb)->s_lvid_dirty = 1;
 }
+extern u64 lvid_get_unique_id(struct super_block *sb);
 
 /* namei.c */
 extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
