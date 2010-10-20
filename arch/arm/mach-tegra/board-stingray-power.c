@@ -252,7 +252,7 @@ static struct platform_device cpcap_privacy_led = {
 static struct cpcap_led stingray_notification_led ={
 	.blink_able = 1,
 	.cpcap_register = CPCAP_REG_ADLC,
-	.cpcap_reg_mask = 0x1FFF,
+	.cpcap_reg_mask = 0x7FFF,
 	.cpcap_reg_period = 0x0000,
 	.cpcap_reg_duty_cycle = 0x07F0,
 	.cpcap_reg_current = 0x0008,
@@ -295,7 +295,7 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 	{CPCAP_REG_USBC1,     0x1201},
 	{CPCAP_REG_USBC3,     0x7DFB},
 	{CPCAP_REG_OWDC,      0x0003},
-	{CPCAP_REG_ADLC,      0x6000},
+	{CPCAP_REG_ADLC,      0x0000},
 };
 
 unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
