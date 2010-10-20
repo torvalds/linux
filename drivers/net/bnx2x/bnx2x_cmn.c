@@ -16,15 +16,12 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <linux/firmware.h>
 #include "bnx2x_cmn.h"
-
-#ifdef BCM_VLAN
-#include <linux/if_vlan.h>
-#endif
 
 #include "bnx2x_init.h"
 
@@ -346,13 +343,6 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
 		/* (no need to map the new skb) */
-#ifdef BCM_VLAN
-		int is_vlan_cqe =
-			(le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
-			 PARSING_FLAGS_VLAN);
-		int is_not_hwaccel_vlan_cqe =
-			(is_vlan_cqe && (!(bp->flags & HW_VLAN_RX_FLAG)));
-#endif
 
 		prefetch(skb);
 		prefetch(((char *)(skb)) + L1_CACHE_BYTES);
@@ -377,28 +367,18 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			struct iphdr *iph;
 
 			iph = (struct iphdr *)skb->data;
-#ifdef BCM_VLAN
-			/* If there is no Rx VLAN offloading -
-			   take VLAN tag into an account */
-			if (unlikely(is_not_hwaccel_vlan_cqe))
-				iph = (struct iphdr *)((u8 *)iph + VLAN_HLEN);
-#endif
 			iph->check = 0;
 			iph->check = ip_fast_csum((u8 *)iph, iph->ihl);
 		}
 
 		if (!bnx2x_fill_frag_skb(bp, fp, skb,
 					 &cqe->fast_path_cqe, cqe_idx)) {
-#ifdef BCM_VLAN
-			if ((bp->vlgrp != NULL) &&
-				(le16_to_cpu(cqe->fast_path_cqe.
-				pars_flags.flags) & PARSING_FLAGS_VLAN))
-				vlan_gro_receive(&fp->napi, bp->vlgrp,
+			if ((le16_to_cpu(cqe->fast_path_cqe.
+			    pars_flags.flags) & PARSING_FLAGS_VLAN))
+				__vlan_hwaccel_put_tag(skb,
 						 le16_to_cpu(cqe->fast_path_cqe.
-							     vlan_tag), skb);
-			else
-#endif
-				napi_gro_receive(&fp->napi, skb);
+							     vlan_tag));
+			napi_gro_receive(&fp->napi, skb);
 		} else {
 			DP(NETIF_MSG_RX_STATUS, "Failed to allocate new pages"
 			   " - dropping packet!\n");
@@ -633,15 +613,11 @@ reuse_rx:
 
 		skb_record_rx_queue(skb, fp->index);
 
-#ifdef BCM_VLAN
-		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
-		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
-		     PARSING_FLAGS_VLAN))
-			vlan_gro_receive(&fp->napi, bp->vlgrp,
-				le16_to_cpu(cqe->fast_path_cqe.vlan_tag), skb);
-		else
-#endif
-			napi_gro_receive(&fp->napi, skb);
+		if (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
+		     PARSING_FLAGS_VLAN)
+			__vlan_hwaccel_put_tag(skb,
+				le16_to_cpu(cqe->fast_path_cqe.vlan_tag));
+		napi_gro_receive(&fp->napi, skb);
 
 
 next_rx:
@@ -2025,14 +2001,12 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   "sending pkt %u @%p  next_idx %u  bd %u @%p\n",
 	   pkt_prod, tx_buf, fp->tx_pkt_prod, bd_prod, tx_start_bd);
 
-#ifdef BCM_VLAN
 	if (vlan_tx_tag_present(skb)) {
 		tx_start_bd->vlan_or_ethertype =
 		    cpu_to_le16(vlan_tx_tag_get(skb));
 		tx_start_bd->bd_flags.as_bitfield |=
 		    (X_ETH_OUTBAND_VLAN << ETH_TX_BD_FLAGS_VLAN_MODE_SHIFT);
 	} else
-#endif
 		tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
 
 	/* turn on parsing and get a BD */
@@ -2316,18 +2290,6 @@ void bnx2x_tx_timeout(struct net_device *dev)
 	/* This allows the netif to be shutdown gracefully before resetting */
 	schedule_delayed_work(&bp->reset_task, 0);
 }
-
-#ifdef BCM_VLAN
-/* called with rtnl_lock */
-void bnx2x_vlan_rx_register(struct net_device *dev,
-				   struct vlan_group *vlgrp)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-
-	bp->vlgrp = vlgrp;
-}
-
-#endif
 
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 {

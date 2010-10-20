@@ -2371,10 +2371,8 @@ static inline u16 bnx2x_get_cl_flags(struct bnx2x *bp,
 	flags |= QUEUE_FLG_HC;
 	flags |= IS_MF(bp) ? QUEUE_FLG_OV : 0;
 
-#ifdef BCM_VLAN
 	flags |= QUEUE_FLG_VLAN;
 	DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
-#endif
 
 	if (!fp->disable_tpa)
 		flags |= QUEUE_FLG_TPA;
@@ -8630,9 +8628,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_do_ioctl		= bnx2x_ioctl,
 	.ndo_change_mtu		= bnx2x_change_mtu,
 	.ndo_tx_timeout		= bnx2x_tx_timeout,
-#ifdef BCM_VLAN
-	.ndo_vlan_rx_register	= bnx2x_vlan_rx_register,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
@@ -8764,9 +8759,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->features |= NETIF_F_TSO6;
-#ifdef BCM_VLAN
 	dev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-	bp->flags |= (HW_VLAN_RX_FLAG | HW_VLAN_TX_FLAG);
 
 	dev->vlan_features |= NETIF_F_SG;
 	dev->vlan_features |= NETIF_F_HW_CSUM;
@@ -8774,7 +8767,6 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->vlan_features |= NETIF_F_HIGHDMA;
 	dev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->vlan_features |= NETIF_F_TSO6;
-#endif
 
 	/* get_port_hwinfo() will set prtad and mmds properly */
 	bp->mdio.prtad = MDIO_PRTAD_NONE;

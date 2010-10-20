@@ -24,10 +24,6 @@
 #define DRV_MODULE_RELDATE      "2010/10/19"
 #define BNX2X_BC_VER            0x040200
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define BCM_VLAN			1
-#endif
-
 #define BNX2X_MULTI_QUEUE
 
 #define BNX2X_NEW_NAPI
@@ -858,10 +854,6 @@ struct bnx2x {
 
 	int			tx_ring_size;
 
-#ifdef BCM_VLAN
-	struct vlan_group	*vlgrp;
-#endif
-
 	u32			rx_csum;
 	u32			rx_buf_size;
 /* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
@@ -925,8 +917,6 @@ struct bnx2x {
 #define NO_MCP_FLAG			0x100
 #define DISABLE_MSI_FLAG		0x200
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
-#define HW_VLAN_TX_FLAG			0x400
-#define HW_VLAN_RX_FLAG			0x800
 #define MF_FUNC_DIS			0x1000
 
 	int			pf_num;	/* absolute PF number */
