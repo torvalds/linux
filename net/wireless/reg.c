@@ -750,8 +750,26 @@ static void handle_channel(struct wiphy *wiphy,
 			  desired_bw_khz,
 			  &reg_rule);
 
-	if (r)
+	if (r) {
+		/*
+		 * We will disable all channels that do not match our
+		 * recieved regulatory rule unless the hint is coming
+		 * from a Country IE and the Country IE had no information
+		 * about a band. The IEEE 802.11 spec allows for an AP
+		 * to send only a subset of the regulatory rules allowed,
+		 * so an AP in the US that only supports 2.4 GHz may only send
+		 * a country IE with information for the 2.4 GHz band
+		 * while 5 GHz is still supported.
+		 */
+		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+		    r == -ERANGE)
+			return;
+
+		REG_DBG_PRINT("cfg80211: Disabling freq %d MHz\n",
+			      chan->center_freq);
+		chan->flags = IEEE80211_CHAN_DISABLED;
 		return;
+	}
 
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
