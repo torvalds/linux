@@ -274,11 +274,11 @@ static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
 
 extern void add_timer(struct timer_list *timer);
 
+extern int try_to_del_timer_sync(struct timer_list *timer);
+
 #ifdef CONFIG_SMP
-  extern int try_to_del_timer_sync(struct timer_list *timer);
   extern int del_timer_sync(struct timer_list *timer);
 #else
-# define try_to_del_timer_sync(t)	del_timer(t)
 # define del_timer_sync(t)		del_timer(t)
 #endif
 
