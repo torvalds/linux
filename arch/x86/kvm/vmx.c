@@ -3890,33 +3890,17 @@ static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 #define Q "l"
 #endif
 
-static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
+/*
+ * We put this into a separate noinline function to prevent the compiler
+ * from duplicating the code. This is needed because this code
+ * uses non local labels that cannot be duplicated.
+ * Do not put any flow control into this function.
+ * Better would be to put this whole monstrosity into a .S file.
+ */
+static void noinline do_vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	/* Record the guest's net vcpu time for enforced NMI injections. */
-	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked))
-		vmx->entry_time = ktime_get();
-
-	/* Don't enter VMX if guest state is invalid, let the exit handler
-	   start emulation until we arrive back to a valid state */
-	if (vmx->emulation_required && emulate_invalid_guest_state)
-		return;
-
-	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
-		vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
-	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
-		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
-
-	/* When single-stepping over STI and MOV SS, we must clear the
-	 * corresponding interruptibility bits in the guest state. Otherwise
-	 * vmentry fails as it then expects bit 14 (BS) in pending debug
-	 * exceptions being set, but that's not correct for the guest debugging
-	 * case. */
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		vmx_set_interrupt_shadow(vcpu, 0);
-
-	asm(
+	asm volatile(
 		/* Store host registers */
 		"push %%"R"dx; push %%"R"bp;"
 		"push %%"R"cx \n\t"
@@ -4011,6 +3995,35 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #endif
 	      );
+}
+
+static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	/* Record the guest's net vcpu time for enforced NMI injections. */
+	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked))
+		vmx->entry_time = ktime_get();
+
+	/* Don't enter VMX if guest state is invalid, let the exit handler
+	   start emulation until we arrive back to a valid state */
+	if (vmx->emulation_required && emulate_invalid_guest_state)
+		return;
+
+	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
+		vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
+	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
+		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
+
+	/* When single-stepping over STI and MOV SS, we must clear the
+	 * corresponding interruptibility bits in the guest state. Otherwise
+	 * vmentry fails as it then expects bit 14 (BS) in pending debug
+	 * exceptions being set, but that's not correct for the guest debugging
+	 * case. */
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		vmx_set_interrupt_shadow(vcpu, 0);
+
+	do_vmx_vcpu_run(vcpu);
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
 				  | (1 << VCPU_EXREG_PDPTR));
