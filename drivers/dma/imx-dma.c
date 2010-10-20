@@ -335,8 +335,10 @@ static int __init imxdma_probe(struct platform_device *pdev)
 
 		imxdmac->imxdma_channel = imx_dma_request_by_prio("dmaengine",
 				DMA_PRIO_MEDIUM);
-		if (imxdmac->channel < 0)
+		if ((int)imxdmac->channel < 0) {
+			ret = -ENODEV;
 			goto err_init;
+		}
 
 		imx_dma_setup_handlers(imxdmac->imxdma_channel,
 		       imxdma_irq_handler, imxdma_err_handler, imxdmac);
