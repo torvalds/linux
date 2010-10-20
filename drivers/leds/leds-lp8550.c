@@ -399,32 +399,6 @@ static int ld_lp8550_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int lp8550_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	struct lp8550_data *led_data = i2c_get_clientdata(client);
-
-	if (lp8550_debug)
-		pr_info("%s: Suspending\n", __func__);
-
-	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-        led_data->led_pdata->dev_ctrl_config & LD_LP8550_ON_OFF_MASK);
-
-	return 0;
-}
-
-static int lp8550_resume(struct i2c_client *client)
-{
-	struct lp8550_data *led_data = i2c_get_clientdata(client);
-
-	if (lp8550_debug)
-		pr_info("%s: Resuming with brightness %i\n",
-			__func__, led_data->brightness);
-
-	lp8550_brightness_write(led_data);
-
-	return 0;
-}
-
 static const struct i2c_device_id lp8550_id[] = {
 	{LD_LP8550_NAME, 0},
 	{}
@@ -433,8 +407,6 @@ static const struct i2c_device_id lp8550_id[] = {
 static struct i2c_driver ld_lp8550_i2c_driver = {
 	.probe = ld_lp8550_probe,
 	.remove = ld_lp8550_remove,
-	.suspend	= lp8550_suspend,
-	.resume		= lp8550_resume,
 	.id_table = lp8550_id,
 	.driver = {
 		   .name = LD_LP8550_NAME,
