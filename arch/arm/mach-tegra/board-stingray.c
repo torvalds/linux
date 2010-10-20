@@ -288,17 +288,11 @@ static struct tegra_audio_platform_data tegra_audio2_pdata = {
 	.i2s_clk_rate	= 240000000,
 	.dap_clk	= "clk_dev1",
 	.audio_sync_clk = "audio_2x",
-	.mode		= I2S_BIT_FORMAT_I2S,
-	/* TODO: Figure out how to capture data without left/right swaps,
-	 * or capture mono.
-	 * nVidia reports packed 16 bit I2S capture isn't working right.
-	 * Check for Bluetooth SCO impact before changing.
-	 * Also change I2S bus width to match.
-	 */
+	.mode		= I2S_BIT_FORMAT_DSP, /* Using COCEC in network mode */
 	.fifo_fmt	= I2S_FIFO_16_LSB,
 	.bit_size	= I2S_BIT_SIZE_16,
-	.i2s_bus_width = 16, /* Using 16 bit LSB format data, the dma is 16 bit. */
-	.dsp_bus_width = 16, /* When using DSP mode, this should be 16 bit. */
+	.i2s_bus_width = 16, /* Capturing a single timeslot, mono 16 bits */
+	.dsp_bus_width = 16,
 };
 
 static char *usb_functions_mtp[] = { "mtp" };
