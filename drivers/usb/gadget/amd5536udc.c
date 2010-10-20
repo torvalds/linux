@@ -3383,8 +3383,10 @@ static int udc_probe(struct udc *dev)
 	udc = dev;
 
 	retval = device_register(&dev->gadget.dev);
-	if (retval)
+	if (retval) {
+		put_device(&dev->gadget.dev);
 		goto finished;
+	}
 
 	/* timer init */
 	init_timer(&udc_timer);
