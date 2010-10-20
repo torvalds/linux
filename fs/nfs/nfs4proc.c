@@ -130,6 +130,7 @@ const u32 nfs4_fsinfo_bitmap[2] = { FATTR4_WORD0_MAXFILESIZE
 			| FATTR4_WORD0_MAXWRITE
 			| FATTR4_WORD0_LEASE_TIME,
 			FATTR4_WORD1_TIME_DELTA
+			| FATTR4_WORD1_FS_LAYOUT_TYPES
 };
 
 const u32 nfs4_fs_locations_bitmap[2] = {

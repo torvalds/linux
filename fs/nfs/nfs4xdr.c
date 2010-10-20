@@ -3978,6 +3978,61 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 	return decode_getfattr_generic(xdr, fattr, NULL, server, may_sleep);
 }
 
+/*
+ * Decode potentially multiple layout types. Currently we only support
+ * one layout driver per file system.
+ */
+static int decode_first_pnfs_layout_type(struct xdr_stream *xdr,
+					 uint32_t *layouttype)
+{
+	uint32_t *p;
+	int num;
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	num = be32_to_cpup(p);
+
+	/* pNFS is not supported by the underlying file system */
+	if (num == 0) {
+		*layouttype = 0;
+		return 0;
+	}
+	if (num > 1)
+		printk(KERN_INFO "%s: Warning: Multiple pNFS layout drivers "
+			"per filesystem not supported\n", __func__);
+
+	/* Decode and set first layout type, move xdr->p past unused types */
+	p = xdr_inline_decode(xdr, num * 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	*layouttype = be32_to_cpup(p);
+	return 0;
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return -EIO;
+}
+
+/*
+ * The type of file system exported.
+ * Note we must ensure that layouttype is set in any non-error case.
+ */
+static int decode_attr_pnfstype(struct xdr_stream *xdr, uint32_t *bitmap,
+				uint32_t *layouttype)
+{
+	int status = 0;
+
+	dprintk("%s: bitmap is %x\n", __func__, bitmap[1]);
+	if (unlikely(bitmap[1] & (FATTR4_WORD1_FS_LAYOUT_TYPES - 1U)))
+		return -EIO;
+	if (bitmap[1] & FATTR4_WORD1_FS_LAYOUT_TYPES) {
+		status = decode_first_pnfs_layout_type(xdr, layouttype);
+		bitmap[1] &= ~FATTR4_WORD1_FS_LAYOUT_TYPES;
+	} else
+		*layouttype = 0;
+	return status;
+}
+
 static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 {
 	__be32 *savep;
@@ -4004,6 +4059,9 @@ static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 		goto xdr_error;
 	fsinfo->wtpref = fsinfo->wtmax;
 	status = decode_attr_time_delta(xdr, bitmap, &fsinfo->time_delta);
+	if (status != 0)
+		goto xdr_error;
+	status = decode_attr_pnfstype(xdr, bitmap, &fsinfo->layouttype);
 	if (status != 0)
 		goto xdr_error;
 

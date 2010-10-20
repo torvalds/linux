@@ -114,6 +114,7 @@ struct nfs_fsinfo {
 	__u64			maxfilesize;
 	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
+	__u32			layouttype; /* supported pnfs layout driver */
 };
 
 struct nfs_fsstat {
