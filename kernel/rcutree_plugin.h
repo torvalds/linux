@@ -774,11 +774,11 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 }
 
 /*
- * Move preemptable RCU's callbacks to ->orphan_cbs_list.
+ * Move preemptable DYING RCU's callbacks to other online CPU.
  */
-static void rcu_preempt_send_cbs_to_orphanage(void)
+static void rcu_preempt_send_cbs_to_online(void)
 {
-	rcu_send_cbs_to_orphanage(&rcu_preempt_state);
+	rcu_send_cbs_to_online(&rcu_preempt_state);
 }
 
 /*
@@ -1002,7 +1002,7 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 /*
  * Because there is no preemptable RCU, there are no callbacks to move.
  */
-static void rcu_preempt_send_cbs_to_orphanage(void)
+static void rcu_preempt_send_cbs_to_online(void)
 {
 }
 
