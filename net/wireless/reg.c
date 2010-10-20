@@ -813,6 +813,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	 * desired regulatory domain set
 	 */
 	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY && !wiphy->regd &&
+	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    !is_world_regdom(last_request->alpha2))
 		return true;
 	return false;
