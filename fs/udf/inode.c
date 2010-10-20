@@ -51,6 +51,7 @@ MODULE_LICENSE("GPL");
 static mode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
 static void udf_fill_inode(struct inode *, struct buffer_head *);
+static int udf_sync_inode(struct inode *inode);
 static int udf_alloc_i_data(struct inode *inode, size_t size);
 static struct buffer_head *inode_getblk(struct inode *, sector_t, int *,
 					sector_t *, int *);
@@ -79,9 +80,7 @@ void udf_evict_inode(struct inode *inode)
 		want_delete = 1;
 		inode->i_size = 0;
 		udf_truncate(inode);
-		lock_kernel();
 		udf_update_inode(inode, IS_SYNC(inode));
-		unlock_kernel();
 	}
 	invalidate_inode_buffers(inode);
 	end_writeback(inode);
@@ -1373,16 +1372,10 @@ static mode_t udf_convert_permissions(struct fileEntry *fe)
 
 int udf_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	int ret;
-
-	lock_kernel();
-	ret = udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
-	unlock_kernel();
-
-	return ret;
+	return udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 }
 
-int udf_sync_inode(struct inode *inode)
+static int udf_sync_inode(struct inode *inode)
 {
 	return udf_update_inode(inode, 1);
 }
