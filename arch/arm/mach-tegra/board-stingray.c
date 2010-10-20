@@ -282,6 +282,7 @@ static struct tegra_audio_platform_data tegra_audio_pdata = {
 	.bit_size	= I2S_BIT_SIZE_16,
 	.i2s_bus_width = 32, /* Using Packed 16 bit data, the dma is 32 bit. */
 	.dsp_bus_width = 16, /* When using DSP mode (unused), this should be 16 bit. */
+	.mask		= TEGRA_AUDIO_ENABLE_TX,
 };
 
 /* Connected to CPCAP CODEC - Switchable to Bluetooth Audio. */
@@ -296,6 +297,7 @@ static struct tegra_audio_platform_data tegra_audio2_pdata = {
 	.bit_size	= I2S_BIT_SIZE_16,
 	.i2s_bus_width = 16, /* Capturing a single timeslot, mono 16 bits */
 	.dsp_bus_width = 16,
+	.mask		= TEGRA_AUDIO_ENABLE_TX | TEGRA_AUDIO_ENABLE_RX,
 };
 
 static char *usb_functions_mtp[] = { "mtp" };
