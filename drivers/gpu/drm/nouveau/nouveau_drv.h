@@ -1264,12 +1264,35 @@ extern void nouveau_fence_work(struct nouveau_fence *fence,
 			       void (*work)(void *priv, bool signalled),
 			       void *priv);
 struct nouveau_channel *nouveau_fence_channel(struct nouveau_fence *);
-extern bool nouveau_fence_signalled(void *obj, void *arg);
-extern int nouveau_fence_wait(void *obj, void *arg, bool lazy, bool intr);
+
+extern bool __nouveau_fence_signalled(void *obj, void *arg);
+extern int __nouveau_fence_wait(void *obj, void *arg, bool lazy, bool intr);
+extern int __nouveau_fence_flush(void *obj, void *arg);
+extern void __nouveau_fence_unref(void **obj);
+extern void *__nouveau_fence_ref(void *obj);
+
+static inline bool nouveau_fence_signalled(struct nouveau_fence *obj)
+{
+	return __nouveau_fence_signalled(obj, NULL);
+}
+static inline int
+nouveau_fence_wait(struct nouveau_fence *obj, bool lazy, bool intr)
+{
+	return __nouveau_fence_wait(obj, NULL, lazy, intr);
+}
 extern int nouveau_fence_sync(struct nouveau_fence *, struct nouveau_channel *);
-extern int nouveau_fence_flush(void *obj, void *arg);
-extern void nouveau_fence_unref(void **obj);
-extern void *nouveau_fence_ref(void *obj);
+static inline int nouveau_fence_flush(struct nouveau_fence *obj)
+{
+	return __nouveau_fence_flush(obj, NULL);
+}
+static inline void nouveau_fence_unref(struct nouveau_fence **obj)
+{
+	__nouveau_fence_unref((void **)obj);
+}
+static inline struct nouveau_fence *nouveau_fence_ref(struct nouveau_fence *obj)
+{
+	return __nouveau_fence_ref(obj);
+}
 
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, struct nouveau_channel *,

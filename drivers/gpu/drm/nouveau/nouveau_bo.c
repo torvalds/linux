@@ -487,7 +487,7 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 
 	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL, evict,
 					no_wait_reserve, no_wait_gpu, new_mem);
-	nouveau_fence_unref((void *)&fence);
+	nouveau_fence_unref(&fence);
 	return ret;
 }
 
@@ -949,11 +949,11 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.evict_flags = nouveau_bo_evict_flags,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
-	.sync_obj_signaled = nouveau_fence_signalled,
-	.sync_obj_wait = nouveau_fence_wait,
-	.sync_obj_flush = nouveau_fence_flush,
-	.sync_obj_unref = nouveau_fence_unref,
-	.sync_obj_ref = nouveau_fence_ref,
+	.sync_obj_signaled = __nouveau_fence_signalled,
+	.sync_obj_wait = __nouveau_fence_wait,
+	.sync_obj_flush = __nouveau_fence_flush,
+	.sync_obj_unref = __nouveau_fence_unref,
+	.sync_obj_ref = __nouveau_fence_ref,
 	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,

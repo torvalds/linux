@@ -54,7 +54,7 @@ nv10_mem_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
 	tile->addr = addr;
 	tile->size = size;
 	tile->used = !!pitch;
-	nouveau_fence_unref((void **)&tile->fence);
+	nouveau_fence_unref(&tile->fence);
 
 	pfifo->reassign(dev, false);
 	pfifo->cache_pull(dev, false);
@@ -87,7 +87,7 @@ nv10_mem_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
 			continue;
 
 		if (tile->fence &&
-		    !nouveau_fence_signalled(tile->fence, NULL))
+		    !nouveau_fence_signalled(tile->fence))
 			/* Pending tile region. */
 			continue;
 

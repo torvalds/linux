@@ -120,7 +120,7 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence,
 		ret = nouveau_fence_emit(fence);
 
 	if (ret)
-		nouveau_fence_unref((void *)&fence);
+		nouveau_fence_unref(&fence);
 	*pfence = fence;
 	return ret;
 }
@@ -183,7 +183,7 @@ nouveau_fence_work(struct nouveau_fence *fence,
 }
 
 void
-nouveau_fence_unref(void **sync_obj)
+__nouveau_fence_unref(void **sync_obj)
 {
 	struct nouveau_fence *fence = nouveau_fence(*sync_obj);
 
@@ -193,7 +193,7 @@ nouveau_fence_unref(void **sync_obj)
 }
 
 void *
-nouveau_fence_ref(void *sync_obj)
+__nouveau_fence_ref(void *sync_obj)
 {
 	struct nouveau_fence *fence = nouveau_fence(sync_obj);
 
@@ -202,7 +202,7 @@ nouveau_fence_ref(void *sync_obj)
 }
 
 bool
-nouveau_fence_signalled(void *sync_obj, void *sync_arg)
+__nouveau_fence_signalled(void *sync_obj, void *sync_arg)
 {
 	struct nouveau_fence *fence = nouveau_fence(sync_obj);
 	struct nouveau_channel *chan = fence->channel;
@@ -215,13 +215,13 @@ nouveau_fence_signalled(void *sync_obj, void *sync_arg)
 }
 
 int
-nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
+__nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 {
 	unsigned long timeout = jiffies + (3 * DRM_HZ);
 	int ret = 0;
 
 	while (1) {
-		if (nouveau_fence_signalled(sync_obj, sync_arg))
+		if (__nouveau_fence_signalled(sync_obj, sync_arg))
 			break;
 
 		if (time_after_eq(jiffies, timeout)) {
@@ -369,7 +369,7 @@ emit_semaphore(struct nouveau_channel *chan, int method,
 
 	kref_get(&sema->ref);
 	nouveau_fence_work(fence, semaphore_work, sema);
-	nouveau_fence_unref((void *)&fence);
+	nouveau_fence_unref(&fence);
 
 	return 0;
 }
@@ -384,14 +384,14 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	int ret = 0;
 
 	if (likely(!chan || chan == wchan ||
-		   nouveau_fence_signalled(fence, NULL)))
+		   nouveau_fence_signalled(fence)))
 		goto out;
 
 	sema = alloc_semaphore(dev);
 	if (!sema) {
 		/* Early card or broken userspace, fall back to
 		 * software sync. */
-		ret = nouveau_fence_wait(fence, NULL, true, false);
+		ret = nouveau_fence_wait(fence, true, false);
 		goto out;
 	}
 
@@ -400,7 +400,7 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	 * order issues
 	 */
 	if (!mutex_trylock(&chan->mutex)) {
-		ret = nouveau_fence_wait(fence, NULL, true, false);
+		ret = nouveau_fence_wait(fence, true, false);
 		goto out_unref;
 	}
 
@@ -423,7 +423,7 @@ out:
 }
 
 int
-nouveau_fence_flush(void *sync_obj, void *sync_arg)
+__nouveau_fence_flush(void *sync_obj, void *sync_arg)
 {
 	return 0;
 }

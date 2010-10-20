@@ -205,8 +205,8 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 
 		ret = nouveau_fence_new(chan, &fence, true);
 		if (ret == 0) {
-			ret = nouveau_fence_wait(fence, NULL, false, false);
-			nouveau_fence_unref((void *)&fence);
+			ret = nouveau_fence_wait(fence, false, false);
+			nouveau_fence_unref(&fence);
 		}
 
 		if (ret) {

@@ -238,7 +238,7 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 			prev_fence = nvbo->bo.sync_obj;
 			nvbo->bo.sync_obj = nouveau_fence_ref(fence);
 			spin_unlock(&nvbo->bo.bdev->fence_lock);
-			nouveau_fence_unref((void *)&prev_fence);
+			nouveau_fence_unref(&prev_fence);
 		}
 
 		if (unlikely(nvbo->validate_mapped)) {
@@ -728,7 +728,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 out:
 	validate_fini(&op, fence);
-	nouveau_fence_unref((void**)&fence);
+	nouveau_fence_unref(&fence);
 	kfree(bo);
 	kfree(push);
 
