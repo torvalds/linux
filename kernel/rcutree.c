@@ -1668,7 +1668,9 @@ static void _rcu_barrier(struct rcu_state *rsp,
 	 * decrement rcu_barrier_cpu_count -- otherwise the first CPU
 	 * might complete its grace period before all of the other CPUs
 	 * did their increment, causing this function to return too
-	 * early.
+	 * early.  Note that on_each_cpu() disables irqs, which prevents
+	 * any CPUs from coming online or going offline until each online
+	 * CPU has queued its RCU-barrier callback.
 	 */
 	atomic_set(&rcu_barrier_cpu_count, 1);
 	on_each_cpu(rcu_barrier_func, (void *)call_rcu_func, 1);
@@ -1797,9 +1799,9 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 	case CPU_DYING:
 	case CPU_DYING_FROZEN:
 		/*
-		 * The whole machine is "stopped" except this cpu, so we can
-		 * touch any data without introducing corruption. And we send
-		 * the callbacks to an attribute chosen online cpu.
+		 * The whole machine is "stopped" except this CPU, so we can
+		 * touch any data without introducing corruption. We send the
+		 * dying CPU's callbacks to an arbitrarily chosen online CPU.
 		 */
 		rcu_send_cbs_to_online(&rcu_bh_state);
 		rcu_send_cbs_to_online(&rcu_sched_state);
