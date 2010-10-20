@@ -3399,6 +3399,15 @@ i915_gem_execbuffer_relocate(struct drm_i915_gem_object *obj,
 			iowrite32(reloc.delta, reloc_entry);
 			io_mapping_unmap_atomic(reloc_page, KM_USER0);
 		}
+
+		/* and update the user's relocation entry */
+		reloc.presumed_offset = target_offset;
+		if (__copy_to_user_inatomic(&user_relocs[i].presumed_offset,
+					      &reloc.presumed_offset,
+					      sizeof(reloc.presumed_offset))) {
+		    ret = -EFAULT;
+		    break;
+		}
 	}
 
 	drm_gem_object_unreference(target_obj);
@@ -3558,6 +3567,10 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		size_t length = exec[i].relocation_count * sizeof(struct drm_i915_gem_relocation_entry);
 
 		if (!access_ok(VERIFY_READ, ptr, length))
+			return -EFAULT;
+
+		/* we may also need to update the presumed offsets */
+		if (!access_ok(VERIFY_WRITE, ptr, length))
 			return -EFAULT;
 
 		if (fault_in_pages_readable(ptr, length))
