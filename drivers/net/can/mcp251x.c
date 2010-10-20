@@ -125,8 +125,9 @@
 #  define CANINTF_TX0IF 0x04
 #  define CANINTF_RX1IF 0x02
 #  define CANINTF_RX0IF 0x01
-#  define CANINTF_ERR_TX \
-	(CANINTF_ERRIF | CANINTF_TX2IF | CANINTF_TX1IF | CANINTF_TX0IF)
+#  define CANINTF_RX (CANINTF_RX0IF | CANINTF_RX1IF)
+#  define CANINTF_TX (CANINTF_TX2IF | CANINTF_TX1IF | CANINTF_TX0IF)
+#  define CANINTF_ERR (CANINTF_ERRIF)
 #define EFLG	      0x2d
 #  define EFLG_EWARN	0x01
 #  define EFLG_RXWAR	0x02
@@ -790,6 +791,9 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 
 		mcp251x_read_2regs(spi, CANINTF, &intf, &eflag);
 
+		/* mask out flags we don't care about */
+		intf &= CANINTF_RX | CANINTF_TX | CANINTF_ERR;
+
 		/* receive buffer 0 */
 		if (intf & CANINTF_RX0IF) {
 			mcp251x_hw_rx(spi, 0);
@@ -810,8 +814,8 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		}
 
 		/* any error or tx interrupt we need to clear? */
-		if (intf & CANINTF_ERR_TX)
-			clear_intf |= intf & CANINTF_ERR_TX;
+		if (intf & (CANINTF_ERR | CANINTF_TX))
+			clear_intf |= intf & (CANINTF_ERR | CANINTF_TX);
 		if (clear_intf)
 			mcp251x_write_bits(spi, CANINTF, clear_intf, 0x00);
 
@@ -887,7 +891,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (intf == 0)
 			break;
 
-		if (intf & (CANINTF_TX2IF | CANINTF_TX1IF | CANINTF_TX0IF)) {
+		if (intf & CANINTF_TX) {
 			net->stats.tx_packets++;
 			net->stats.tx_bytes += priv->tx_len - 1;
 			if (priv->tx_len) {
