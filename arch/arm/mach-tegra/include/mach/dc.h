@@ -143,7 +143,11 @@ struct tegra_fb_data {
 	int		xres;
 	int		yres;
 	int		bits_per_pixel;
+
+	unsigned long	flags;
 };
+
+#define TEGRA_FB_FLIP_ON_PROBE		(1 << 0)
 
 struct tegra_dc_platform_data {
 	unsigned long		flags;

@@ -703,6 +703,11 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 
 	dev_info(&ndev->dev, "probed\n");
 
+	if (fb_data->flags & TEGRA_FB_FLIP_ON_PROBE) {
+		tegra_dc_update_windows(&tegra_fb->win, 1);
+		tegra_dc_sync_windows(&tegra_fb->win, 1);
+	}
+
 	return tegra_fb;
 
 err_iounmap_fb:
