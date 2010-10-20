@@ -30,7 +30,7 @@
 #define ENIC_MIN_RQ_DESCS		64
 #define ENIC_MAX_RQ_DESCS		4096
 
-#define ENIC_MIN_MTU			576  /* minimum for IPv4 */
+#define ENIC_MIN_MTU			68
 #define ENIC_MAX_MTU			9000
 
 #define ENIC_MULTICAST_PERFECT_FILTERS	32
