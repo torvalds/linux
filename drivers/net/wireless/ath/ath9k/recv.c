@@ -533,13 +533,11 @@ bool ath_stoprecv(struct ath_softc *sc)
 
 void ath_flushrecv(struct ath_softc *sc)
 {
-	spin_lock_bh(&sc->rx.pcu_lock);
 	sc->sc_flags |= SC_OP_RXFLUSH;
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ath_rx_tasklet(sc, 1, true);
 	ath_rx_tasklet(sc, 1, false);
 	sc->sc_flags &= ~SC_OP_RXFLUSH;
-	spin_unlock_bh(&sc->rx.pcu_lock);
 }
 
 static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
