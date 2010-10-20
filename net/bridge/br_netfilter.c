@@ -64,22 +64,24 @@ static int brnf_filter_pppoe_tagged __read_mostly = 0;
 
 static inline __be16 vlan_proto(const struct sk_buff *skb)
 {
-	return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
+	if (vlan_tx_tag_present(skb))
+		return skb->protocol;
+	else if (skb->protocol == htons(ETH_P_8021Q))
+		return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
+	else
+		return 0;
 }
 
 #define IS_VLAN_IP(skb) \
-	(skb->protocol == htons(ETH_P_8021Q) && \
-	 vlan_proto(skb) == htons(ETH_P_IP) && 	\
+	(vlan_proto(skb) == htons(ETH_P_IP) && \
 	 brnf_filter_vlan_tagged)
 
 #define IS_VLAN_IPV6(skb) \
-	(skb->protocol == htons(ETH_P_8021Q) && \
-	 vlan_proto(skb) == htons(ETH_P_IPV6) &&\
+	(vlan_proto(skb) == htons(ETH_P_IPV6) && \
 	 brnf_filter_vlan_tagged)
 
 #define IS_VLAN_ARP(skb) \
-	(skb->protocol == htons(ETH_P_8021Q) &&	\
-	 vlan_proto(skb) == htons(ETH_P_ARP) &&	\
+	(vlan_proto(skb) == htons(ETH_P_ARP) &&	\
 	 brnf_filter_vlan_tagged)
 
 static inline __be16 pppoe_proto(const struct sk_buff *skb)
