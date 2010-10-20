@@ -84,7 +84,7 @@ static int __init reboot_setup(char *str)
 			}
 				/* we will leave sorting out the final value
 				   when we are ready to reboot, since we might not
-				   have set up boot_cpu_id or smp_num_cpu */
+				   have detected BSP APIC ID or smp_num_cpu */
 			break;
 #endif /* CONFIG_SMP */
 
