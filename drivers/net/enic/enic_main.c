@@ -1787,7 +1787,7 @@ static int enic_dev_enable(struct enic *enic)
 	int err;
 
 	spin_lock(&enic->devcmd_lock);
-	err = vnic_dev_enable(enic->vdev);
+	err = vnic_dev_enable_wait(enic->vdev);
 	spin_unlock(&enic->devcmd_lock);
 
 	return err;
