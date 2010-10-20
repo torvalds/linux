@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/highmem.h>
 #include <linux/memblock.h>
 
 #include <asm/hardware/cache-l2x0.h>
@@ -142,6 +143,58 @@ void __init tegra_protected_aperture_init(unsigned long aperture)
 	pr_err("Tegra protected aperture disabled because nvmap is using "
 		"system memory\n");
 #endif
+}
+
+/*
+ * Due to conflicting restrictions on the placement of the framebuffer,
+ * the bootloader is likely to leave the framebuffer pointed at a location
+ * in memory that is outside the grhost aperture.  This function will move
+ * the framebuffer contents from a physical address that is anywher (lowmem,
+ * highmem, or outside the memory map) to a physical address that is outside
+ * the memory map.
+ */
+void tegra_move_framebuffer(unsigned long to, unsigned long from,
+	unsigned long size)
+{
+	struct page *page;
+	void __iomem *to_io;
+	void *from_virt;
+	unsigned long i;
+
+	BUG_ON(PAGE_ALIGN((unsigned long)to) != (unsigned long)to);
+	BUG_ON(PAGE_ALIGN(from) != from);
+	BUG_ON(PAGE_ALIGN(size) != size);
+
+	to_io = ioremap(to, size);
+	if (!to_io) {
+		pr_err("%s: Failed to map target framebuffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s: %08lx %08lx %08lx %p", __func__, to, from, size, to_io);
+
+	if (pfn_valid(page_to_pfn(phys_to_page(from)))) {
+		for (i = 0 ; i < size; i += PAGE_SIZE) {
+			page = phys_to_page(from + i);
+			from_virt = kmap(page);
+			memcpy_toio(to_io + i, from_virt, PAGE_SIZE);
+			kunmap(page);
+		}
+	} else {
+		void __iomem *from_io = ioremap(from, size);
+		if (!from_io) {
+			pr_err("%s: Failed to map source framebuffer\n",
+				__func__);
+			goto out;
+		}
+
+		for (i = 0; i < size; i+= 4)
+			writel(readl(from_io + i), to_io + i);
+
+		iounmap(from_io);
+	}
+out:
+	iounmap(to_io);
 }
 
 void __init tegra_reserve(unsigned long carveout_size, unsigned long fb_size,
