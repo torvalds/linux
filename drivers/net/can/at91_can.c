@@ -243,6 +243,12 @@ static void at91_setup_mailboxes(struct net_device *dev)
 		set_mb_mode(priv, i, AT91_MB_MODE_RX);
 	set_mb_mode(priv, AT91_MB_RX_LAST, AT91_MB_MODE_RX_OVRWR);
 
+	/* reset acceptance mask and id register */
+	for (i = AT91_MB_RX_FIRST; i <= AT91_MB_RX_LAST; i++) {
+		at91_write(priv, AT91_MAM(i), 0x0 );
+		at91_write(priv, AT91_MID(i), AT91_MID_MIDE);
+	}
+
 	/* The last 4 mailboxes are used for transmitting. */
 	for (i = AT91_MB_TX_FIRST; i <= AT91_MB_TX_LAST; i++)
 		set_mb_mode_prio(priv, i, AT91_MB_MODE_TX, 0);
@@ -479,6 +485,9 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 
 	*(u32 *)(cf->data + 0) = at91_read(priv, AT91_MDL(mb));
 	*(u32 *)(cf->data + 4) = at91_read(priv, AT91_MDH(mb));
+
+	/* allow RX of extended frames */
+	at91_write(priv, AT91_MID(mb), AT91_MID_MIDE);
 
 	if (unlikely(mb == AT91_MB_RX_LAST && reg_msr & AT91_MSR_MMI))
 		at91_rx_overflow_err(dev);
