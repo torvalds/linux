@@ -62,12 +62,8 @@ static void tegra_setup_audio_output_off(void)
 	gpio_direction_output(pdata->speaker_gpio, 0);
 	gpio_direction_output(pdata->headset_gpio, 0);
 
-	if (!current_input.on) {
-		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
-		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
-		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
-		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
-	}
+	pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
 
 	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_NONE;
 	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_NONE;
@@ -80,10 +76,10 @@ static void tegra_setup_audio_out_speaker_on(void)
 	gpio_direction_output(pdata->speaker_gpio, 0);
 	gpio_direction_output(pdata->headset_gpio, 0);
 
-	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
 	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
-	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_LOUDSPEAKER;
-	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
+	/* Using an external amp, lineout is the loudspeaker. */
+	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_NONE;
 	cpcap_audio_set_audio_state(pdata->state);
 
 	/* turn on the amplifier */
@@ -97,10 +93,9 @@ static void tegra_setup_audio_out_headset_on(void)
 	gpio_direction_output(pdata->speaker_gpio, 0);
 	gpio_direction_output(pdata->headset_gpio, 0);
 
-	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
 	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
 	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_STEREO_HEADSET;
-	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_NONE;
 	cpcap_audio_set_audio_state(pdata->state);
 
 	/* turn on the amplifier */
@@ -114,7 +109,6 @@ static void tegra_setup_audio_out_headset_and_speaker_on(void)
 	gpio_direction_output(pdata->speaker_gpio, 0);
 	gpio_direction_output(pdata->headset_gpio, 0);
 
-	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
 	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
 	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_STEREO_HEADSET;
 	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
@@ -127,12 +121,8 @@ static void tegra_setup_audio_out_headset_and_speaker_on(void)
 
 static void tegra_setup_audio_in_mute(void)
 {
-	if (!current_output.on) {
-		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
-		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
-		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
-		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
-	}
+	pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
+	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
 
 	pdata->state->microphone = CPCAP_AUDIO_IN_NONE;
 
@@ -142,9 +132,7 @@ static void tegra_setup_audio_in_mute(void)
 static void tegra_setup_audio_in_handset_on(void)
 {
 	pdata->state->codec_mute = CPCAP_AUDIO_CODEC_UNMUTE;
-	pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_UNMUTE;
 	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
-	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
 
 	pdata->state->microphone = CPCAP_AUDIO_IN_HANDSET;
 	cpcap_audio_set_audio_state(pdata->state);
@@ -153,9 +141,7 @@ static void tegra_setup_audio_in_handset_on(void)
 static void tegra_setup_audio_in_headset_on(void)
 {
 	pdata->state->codec_mute = CPCAP_AUDIO_CODEC_UNMUTE;
-	pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_UNMUTE;
 	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
-	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
 
 	pdata->state->microphone = CPCAP_AUDIO_IN_HEADSET;
 	cpcap_audio_set_audio_state(pdata->state);

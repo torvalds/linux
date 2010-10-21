@@ -787,9 +787,9 @@ static void cpcap_audio_configure_output_gains(
 		unsigned int temp_output_gain = state->output_gain & 0x0000000F;
 
 		reg_changes.value |=
-		    ((temp_output_gain << 2) | (temp_output_gain << 8) |
-		     (temp_output_gain << 12));
-
+		    ((temp_output_gain << 2) | (temp_output_gain << 8));
+		/* VOL_EXTx is disabled, it's not connected, disable to reduce noise. */
+		/* If you need it, add | (temp_output_gain << 12) */
 		reg_changes.mask = 0xFF3C;
 
 		logged_cpcap_write(state->cpcap, CPCAP_REG_RXVC,
