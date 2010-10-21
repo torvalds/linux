@@ -41,7 +41,7 @@ static int cnmips_cu2_call(struct notifier_block *nfb, unsigned long action,
 	return NOTIFY_OK;		/* Let default notifier send signals */
 }
 
-static int cnmips_cu2_setup(void)
+static int __init cnmips_cu2_setup(void)
 {
 	return cu2_notifier(cnmips_cu2_call, 0);
 }

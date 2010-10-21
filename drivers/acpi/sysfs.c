@@ -100,7 +100,7 @@ static const struct acpi_dlevel acpi_debug_levels[] = {
 	ACPI_DEBUG_INIT(ACPI_LV_EVENTS),
 };
 
-static int param_get_debug_layer(char *buffer, struct kernel_param *kp)
+static int param_get_debug_layer(char *buffer, const struct kernel_param *kp)
 {
 	int result = 0;
 	int i;
@@ -128,7 +128,7 @@ static int param_get_debug_layer(char *buffer, struct kernel_param *kp)
 	return result;
 }
 
-static int param_get_debug_level(char *buffer, struct kernel_param *kp)
+static int param_get_debug_level(char *buffer, const struct kernel_param *kp)
 {
 	int result = 0;
 	int i;
@@ -149,10 +149,18 @@ static int param_get_debug_level(char *buffer, struct kernel_param *kp)
 	return result;
 }
 
-module_param_call(debug_layer, param_set_uint, param_get_debug_layer,
-		  &acpi_dbg_layer, 0644);
-module_param_call(debug_level, param_set_uint, param_get_debug_level,
-		  &acpi_dbg_level, 0644);
+static struct kernel_param_ops param_ops_debug_layer = {
+	.set = param_set_uint,
+	.get = param_get_debug_layer,
+};
+
+static struct kernel_param_ops param_ops_debug_level = {
+	.set = param_set_uint,
+	.get = param_get_debug_level,
+};
+
+module_param_cb(debug_layer, &param_ops_debug_layer, &acpi_dbg_layer, 0644);
+module_param_cb(debug_level, &param_ops_debug_level, &acpi_dbg_level, 0644);
 
 static char trace_method_name[6];
 module_param_string(trace_method_name, trace_method_name, 6, 0644);

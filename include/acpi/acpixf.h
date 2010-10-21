@@ -55,7 +55,7 @@
 extern u8 acpi_gbl_permanent_mmap;
 
 /*
- * Globals that are publically available, allowing for
+ * Globals that are publicly available, allowing for
  * run time configuration
  */
 extern u32 acpi_dbg_level;
