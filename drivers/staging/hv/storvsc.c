@@ -735,8 +735,7 @@ static int StorVscOnIORequest(struct hv_device *Device,
 		   vstorPacket->VmSrb.CdbLength);
 
 	if (requestExtension->Request->DataBuffer.Length) {
-		ret = Device->Driver->VmbusChannelInterface.
-			SendPacketMultiPageBuffer(Device,
+		ret = vmbus_sendpacket_multipagebuffer(Device->channel,
 				&requestExtension->Request->DataBuffer,
 				vstorPacket,
 				sizeof(struct vstor_packet),
