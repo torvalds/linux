@@ -5303,8 +5303,8 @@ F:	drivers/*/*s3c2410*
 F:	drivers/*/*/*s3c2410*
 
 TI DAVINCI MACHINE SUPPORT
-P:	Kevin Hilman
-M:	davinci-linux-open-source@linux.davincidsp.com
+M:	Kevin Hilman <khilman@deeprootsystems.com>
+L:	davinci-linux-open-source@linux.davincidsp.com (subscribers-only)
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
 F:	arch/arm/mach-davinci
