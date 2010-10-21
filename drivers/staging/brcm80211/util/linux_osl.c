@@ -14,19 +14,18 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
+#include <linux/delay.h>
+#include <linux/fs.h>
+#ifdef mips
+#include <asm/paccess.h>
+#endif				/* mips */
 #include <bcmendian.h>
 #include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
-#include <linux/delay.h>
-#ifdef mips
-#include <asm/paccess.h>
-#endif				/* mips */
 #include <pcicfg.h>
 
-#include <linux/fs.h>
 
 #define PCI_CFG_RETRY 		10
 

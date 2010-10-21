@@ -17,8 +17,6 @@
 #ifndef __QMATH_H__
 #define __QMATH_H__
 
-#include <typedefs.h>
-
 s16 qm_sat32(s32 op);
 
 s32 qm_mul321616(s16 op1, s16 op2);

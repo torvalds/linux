@@ -18,11 +18,10 @@
 #define _wl_cfg80211_h_
 
 #include <linux/wireless.h>
-#include <typedefs.h>
-#include <proto/ethernet.h>
-#include <wlioctl.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
+#include <proto/ethernet.h>
+#include <wlioctl.h>
 
 struct wl_conf;
 struct wl_iface;

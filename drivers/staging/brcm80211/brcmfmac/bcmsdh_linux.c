@@ -20,7 +20,6 @@
 
 #define __UNDEF_NO_VERSION__
 
-#include <typedefs.h>
 #include <linuxver.h>
 
 #include <linux/pci.h>

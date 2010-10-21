@@ -17,7 +17,6 @@
 #ifndef _BCM_RPC_H_
 #define _BCM_RPC_H_
 
-#include <typedefs.h>
 #include <rpc_osl.h>
 
 typedef struct rpc_info rpc_info_t;

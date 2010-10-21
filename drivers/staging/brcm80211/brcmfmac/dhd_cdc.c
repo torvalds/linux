@@ -14,7 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
+#include <linux/types.h>
+#include <bcmdefs.h>
 #include <osl.h>
 
 #include <bcmutils.h>

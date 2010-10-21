@@ -13,10 +13,10 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <typedefs.h>
-#include <osl.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <bcmdefs.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
 #include <dngl_stats.h>

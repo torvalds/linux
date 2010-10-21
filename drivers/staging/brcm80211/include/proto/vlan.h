@@ -17,7 +17,6 @@
 #ifndef _vlan_h_
 #define _vlan_h_
 
-#include <typedefs.h>
 #include <packed_section_start.h>
 
 #define VLAN_VID_MASK		0xfff

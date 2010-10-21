@@ -17,7 +17,6 @@
 #ifndef _wlc_phy_h_
 #define _wlc_phy_h_
 
-#include <typedefs.h>
 #include <wlioctl.h>
 #include <siutils.h>
 #include <d11.h>

@@ -47,8 +47,6 @@
 
 #ifndef	_LANGUAGE_ASSEMBLY
 
-#include <typedefs.h>
-
 typedef struct _trap_struct {
 	u32 type;
 	u32 epc;

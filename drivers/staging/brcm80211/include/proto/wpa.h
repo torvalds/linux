@@ -17,7 +17,6 @@
 #ifndef _proto_wpa_h_
 #define _proto_wpa_h_
 
-#include <typedefs.h>
 #include <proto/ethernet.h>
 
 #include <packed_section_start.h>

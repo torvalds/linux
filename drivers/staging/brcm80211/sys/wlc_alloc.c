@@ -13,11 +13,10 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-#include <wlc_cfg.h>
-#include <typedefs.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <bcmdefs.h>
+#include <wlc_cfg.h>
 #include <linuxver.h>
 #include <osl.h>
 #include <bcmutils.h>

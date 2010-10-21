@@ -17,7 +17,6 @@
 #ifndef _802_11_H_
 #define _802_11_H_
 
-#include <typedefs.h>
 #include <proto/wpa.h>
 #include <packed_section_start.h>
 

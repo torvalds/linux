@@ -19,7 +19,6 @@
 
 #include <linux/wireless.h>
 
-#include <typedefs.h>
 #include <proto/ethernet.h>
 #include <wlioctl.h>
 

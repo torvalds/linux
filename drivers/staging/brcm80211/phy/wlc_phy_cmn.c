@@ -16,10 +16,10 @@
 
 #include <wlc_cfg.h>
 
-#include <typedefs.h>
-#include <osl.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <bcmdefs.h>
+#include <osl.h>
 #include <linuxver.h>
 #include <bcmendian.h>
 #include <bcmnvram.h>

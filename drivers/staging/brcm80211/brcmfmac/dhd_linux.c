@@ -17,10 +17,6 @@
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #include <linux/platform_device.h>
 #endif
-#include <typedefs.h>
-#include <linuxver.h>
-#include <osl.h>
-
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -34,8 +30,10 @@
 #include <linux/ethtool.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>
-
 #include <linux/uaccess.h>
+#include <bcmdefs.h>
+#include <linuxver.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
 

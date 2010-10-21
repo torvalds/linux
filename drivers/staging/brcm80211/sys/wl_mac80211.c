@@ -16,13 +16,13 @@
 
 #define __UNDEF_NO_VERSION__
 
-#include <typedefs.h>
-#include <linuxver.h>
-#include <osl.h>
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/string.h>
 #include <linux/pci_ids.h>
+#include <bcmdefs.h>
+#include <linuxver.h>
+#include <osl.h>
 #define WLC_MAXBSSCFG		1	/* single BSS configs */
 
 #include <wlc_cfg.h>

@@ -17,8 +17,6 @@
 #ifndef	_MSGTRACE_H
 #define	_MSGTRACE_H
 
-#include <typedefs.h>
-
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
 

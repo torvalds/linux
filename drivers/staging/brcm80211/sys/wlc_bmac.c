@@ -18,12 +18,11 @@
 #error "This file needs WLC_LOW"
 #endif
 
+#include <linux/kernel.h>
 #include <wlc_cfg.h>
-#include <typedefs.h>
 #include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
-#include <linux/kernel.h>
 #include <proto/802.11.h>
 #include <bcmwifi.h>
 #include <bcmutils.h>

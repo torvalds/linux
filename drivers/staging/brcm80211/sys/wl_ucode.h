@@ -14,7 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
 typedef struct d11init {
 	u16 addr;
 	u16 size;

@@ -17,8 +17,6 @@
 #ifndef _dhdioctl_h_
 #define	_dhdioctl_h_
 
-#include <typedefs.h>
-
 /* require default structure packing */
 #define BWL_DEFAULT_PACKING
 #include <packed_section_start.h>

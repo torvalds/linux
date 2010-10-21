@@ -17,7 +17,6 @@
 #ifndef _wlioctl_h_
 #define	_wlioctl_h_
 
-#include <typedefs.h>
 #include <proto/ethernet.h>
 #ifdef BRCM_FULLMAC
 #include <proto/bcmeth.h>

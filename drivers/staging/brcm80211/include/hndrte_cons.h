@@ -14,8 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
-
 #define CBUF_LEN	(128)
 
 #define LOG_BUF_LEN	1024

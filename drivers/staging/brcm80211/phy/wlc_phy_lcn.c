@@ -14,14 +14,14 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/bitops.h>
 #include <wlc_cfg.h>
 #include <qmath.h>
 #include <osl.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
 #include <linuxver.h>
 #include <siutils.h>
-#include <linux/bitops.h>
 #include <hndpmu.h>
 
 #include <wlc_phy_radio.h>

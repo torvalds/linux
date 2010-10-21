@@ -15,7 +15,8 @@
  */
 
 typedef struct wl_info wl_info_t;
-#include <typedefs.h>
+#include <linux/types.h>
+#include <bcmdefs.h>
 #include <d11ucode_ext.h>
 #include <wl_ucode.h>
 

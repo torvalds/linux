@@ -17,8 +17,6 @@
 #ifndef _wlc_phy_lcn_h_
 #define _wlc_phy_lcn_h_
 
-#include <typedefs.h>
-
 struct phy_info_lcnphy {
 	int lcnphy_txrf_sp_9_override;
 	u8 lcnphy_full_cal_channel;

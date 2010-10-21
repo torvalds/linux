@@ -14,13 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
-#include <bcmdefs.h>
-#include <stdarg.h>
-#include <osl.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <bcmdefs.h>
+#include <stdarg.h>
+#include <osl.h>
 #include <linuxver.h>
 #include <bcmutils.h>
 #include <siutils.h>

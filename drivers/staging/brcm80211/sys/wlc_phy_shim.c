@@ -21,12 +21,11 @@
  *   access to wlc_hw pointer.
  */
 
-#include <wlc_cfg.h>
-#include <typedefs.h>
-#include <linuxver.h>
 #include <linux/kernel.h>
-#include <bcmutils.h>
 #include <bcmdefs.h>
+#include <wlc_cfg.h>
+#include <linuxver.h>
+#include <bcmutils.h>
 #include <osl.h>
 
 #include <proto/802.11.h>

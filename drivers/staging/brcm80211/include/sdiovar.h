@@ -17,8 +17,6 @@
 #ifndef _sdiovar_h_
 #define _sdiovar_h_
 
-#include <typedefs.h>
-
 /* require default structure packing */
 #define BWL_DEFAULT_PACKING
 #include <packed_section_start.h>

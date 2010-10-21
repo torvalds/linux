@@ -17,7 +17,8 @@
 #ifndef _wlc_phy_int_h_
 #define _wlc_phy_int_h_
 
-#include <typedefs.h>
+#include <linux/kernel.h>
+#include <bcmdefs.h>
 #include <bcmutils.h>
 
 #include <bcmsrom_fmt.h>

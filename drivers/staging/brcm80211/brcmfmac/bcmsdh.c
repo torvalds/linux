@@ -15,7 +15,8 @@
  */
 /* ****************** BCMSDH Interface Functions *************************** */
 
-#include <typedefs.h>
+#include <linux/types.h>
+#include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmendian.h>
 #include <bcmutils.h>

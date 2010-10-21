@@ -17,8 +17,6 @@
 #ifndef _BCMENDIAN_H_
 #define _BCMENDIAN_H_
 
-#include <typedefs.h>
-
 /* Reverse the bytes in a 16-bit value */
 #define BCMSWAP16(val) \
 	((u16)((((u16)(val) & (u16)0x00ffU) << 8) | \

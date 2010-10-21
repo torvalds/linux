@@ -24,10 +24,17 @@
 #define JTAG_BUS		4
 #define USB_BUS			5
 #define SPI_BUS			6
-/*
- * One doesn't need to include this file explicitly, gets included automatically if
- * typedefs.h is included.
- */
+
+
+#ifndef OFF
+#define	OFF	0
+#endif
+
+#ifndef ON
+#define	ON	1		/* ON = 1 */
+#endif
+
+#define	AUTO	(-1)		/* Auto = -1 */
 
 #ifdef mips
 #define BCMFASTPATH		__attribute__ ((__section__(".text.fastpath")))

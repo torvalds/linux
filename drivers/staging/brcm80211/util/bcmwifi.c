@@ -13,12 +13,9 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-#include <typedefs.h>
-
-#include <osl.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
 

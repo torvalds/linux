@@ -15,9 +15,8 @@
  */
 
 #include <linux/slab.h>
-#include <typedefs.h>
-#include <bcmdefs.h>
 #include <linux/string.h>
+#include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>

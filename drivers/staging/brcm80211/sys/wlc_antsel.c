@@ -18,7 +18,6 @@
 
 #ifdef WLANTSEL
 
-#include <typedefs.h>
 #include <linux/kernel.h>
 #include <linuxver.h>
 #include <bcmdefs.h>

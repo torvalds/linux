@@ -17,8 +17,6 @@
 #ifndef __DBUS_H__
 #define __DBUS_H__
 
-#include "typedefs.h"
-
 #ifdef BCMDBG
 #define DBUSERR(args)        do { if (net_ratelimit()) printf args; } while (0)
 #define DBUSTRACE(args)

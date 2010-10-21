@@ -17,7 +17,7 @@
 #ifndef	_D11_H
 #define	_D11_H
 
-#include <typedefs.h>
+#include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <hndsoc.h>
 #include <sbhndpio.h>

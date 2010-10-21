@@ -17,9 +17,6 @@
 #ifndef _linux_osl_h_
 #define _linux_osl_h_
 
-#ifdef BRCM_FULLMAC
-#include <typedefs.h>
-#endif
 
 /* Linux Kernel: File Operations: start */
 extern void *osl_os_open_image(char *filename);

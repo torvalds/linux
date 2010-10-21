@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
+#include <linux/kernel.h>
 
 #include <wlc_phy_int.h>
 #include <wlc_phytbl_n.h>

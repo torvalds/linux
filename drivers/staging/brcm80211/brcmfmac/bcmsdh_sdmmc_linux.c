@@ -13,14 +13,13 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-#include <typedefs.h>
+#include <linux/types.h>
+#include <linux/sched.h>	/* request_irq() */
+#include <bcmdefs.h>
 #include <bcmutils.h>
 #include <sdio.h>		/* SDIO Specs */
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* to get msglevel bit values */
-
-#include <linux/sched.h>	/* request_irq() */
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>

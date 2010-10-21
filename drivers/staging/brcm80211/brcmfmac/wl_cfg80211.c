@@ -14,16 +14,15 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <typedefs.h>
+#include <linux/kernel.h>
+#include <linux/if_arp.h>
 #include <linuxver.h>
 #include <osl.h>
-#include <linux/kernel.h>
 
 #include <bcmutils.h>
 #include <bcmendian.h>
 #include <proto/ethernet.h>
 
-#include <linux/if_arp.h>
 #include <asm/uaccess.h>
 
 #include <dngl_stats.h>
@@ -35,7 +34,6 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 
-#include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>

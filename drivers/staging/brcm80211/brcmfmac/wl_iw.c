@@ -14,12 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <wlioctl.h>
-
-#include <typedefs.h>
-#include <linuxver.h>
 #include <linux/kthread.h>
+#include <bcmdefs.h>
+#include <linuxver.h>
 #include <osl.h>
+#include <wlioctl.h>
 
 #include <bcmutils.h>
 #include <bcmendian.h>
