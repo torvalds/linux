@@ -166,7 +166,7 @@ static struct irq_chip s3c2443_irq_dma = {
 
 static void s3c2443_irq_demux_uart3(unsigned int irq, struct irq_desc *desc)
 {
-	s3c2443_irq_demux(IRQ_S3C2443_UART3, 3);
+	s3c2443_irq_demux(IRQ_S3C2443_RX3, 3);
 }
 
 #define INTMSK_UART3	(1UL << (IRQ_S3C2443_UART3 - IRQ_EINT0))
