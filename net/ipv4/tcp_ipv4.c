@@ -1422,7 +1422,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (!newsk)
-		goto exit;
+		goto exit_nonewsk;
 
 	newsk->sk_gso_type = SKB_GSO_TCPV4;
 	sk_setup_caps(newsk, dst);
@@ -1469,16 +1469,20 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
+	if (__inet_inherit_port(sk, newsk) < 0) {
+		sock_put(newsk);
+		goto exit;
+	}
 	__inet_hash_nolisten(newsk, NULL);
-	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
 exit_overflow:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
+exit_nonewsk:
+	dst_release(dst);
 exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
-	dst_release(dst);
 	return NULL;
 }
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);

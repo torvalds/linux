@@ -73,7 +73,7 @@ static struct inet_frags nf_frags;
 static struct netns_frags nf_init_frags;
 
 #ifdef CONFIG_SYSCTL
-struct ctl_table nf_ct_ipv6_sysctl_table[] = {
+struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
 		.data		= &nf_init_frags.timeout,
@@ -97,6 +97,8 @@ struct ctl_table nf_ct_ipv6_sysctl_table[] = {
 	},
 	{ }
 };
+
+static struct ctl_table_header *nf_ct_frag6_sysctl_header;
 #endif
 
 static unsigned int nf_hashfn(struct inet_frag_queue *q)
@@ -623,11 +625,21 @@ int nf_ct_frag6_init(void)
 	inet_frags_init_net(&nf_init_frags);
 	inet_frags_init(&nf_frags);
 
+	nf_ct_frag6_sysctl_header = register_sysctl_paths(nf_net_netfilter_sysctl_path,
+							  nf_ct_frag6_sysctl_table);
+	if (!nf_ct_frag6_sysctl_header) {
+		inet_frags_fini(&nf_frags);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
 void nf_ct_frag6_cleanup(void)
 {
+	unregister_sysctl_table(nf_ct_frag6_sysctl_header);
+	nf_ct_frag6_sysctl_header = NULL;
+
 	inet_frags_fini(&nf_frags);
 
 	nf_init_frags.low_thresh = 0;
