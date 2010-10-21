@@ -891,7 +891,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(vmbus_sendpacket_multipagebuffer);
 
 /**
  * vmbus_recvpacket() - Retrieve the user packet on the specified channel
