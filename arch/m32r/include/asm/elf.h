@@ -82,9 +82,9 @@ typedef elf_fpreg_t elf_fpregset_t;
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS32
-#if defined(__LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN__)
 #define ELF_DATA	ELFDATA2LSB
-#elif defined(__BIG_ENDIAN)
+#elif defined(__BIG_ENDIAN__)
 #define ELF_DATA	ELFDATA2MSB
 #else
 #error no endian defined

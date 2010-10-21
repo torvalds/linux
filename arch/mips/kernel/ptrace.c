@@ -536,7 +536,7 @@ asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	/* do the secure computing check first */
 	if (!entryexit)
-		secure_computing(regs->regs[0]);
+		secure_computing(regs->regs[2]);
 
 	if (unlikely(current->audit_context) && entryexit)
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[2]),
@@ -565,7 +565,7 @@ asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 
 out:
 	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(audit_arch(), regs->regs[0],
+		audit_syscall_entry(audit_arch(), regs->regs[2],
 				    regs->regs[4], regs->regs[5],
 				    regs->regs[6], regs->regs[7]);
 }
