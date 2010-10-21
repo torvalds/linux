@@ -1123,7 +1123,7 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 	}
 
 	if (!(data & ETH_FLAG_RXVLAN))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	if ((data & ETH_FLAG_LRO) && bp->rx_csum && bp->disable_tpa)
 		return -EINVAL;

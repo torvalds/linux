@@ -7528,7 +7528,7 @@ bnx2_set_flags(struct net_device *dev, u32 data)
 
 	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN) &&
 	    !(data & ETH_FLAG_RXVLAN))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	rc = ethtool_op_set_flags(dev, data, ETH_FLAG_RXHASH | ETH_FLAG_RXVLAN |
 				  ETH_FLAG_TXVLAN);
