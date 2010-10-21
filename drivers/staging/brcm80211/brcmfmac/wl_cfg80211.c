@@ -52,8 +52,8 @@ static struct wl_dev *wl_cfg80211_dev;
 
 u32 wl_dbg_level = WL_DBG_ERR | WL_DBG_INFO;
 
-#define WL_4329_FW_FILE "brcm/bcm4329-fullmac-4-218-248-5.bin"
-#define WL_4329_NVRAM_FILE "brcm/bcm4329-fullmac-4-218-248-5.txt"
+#define WL_4329_FW_FILE "brcm/bcm4329-fullmac-4.bin"
+#define WL_4329_NVRAM_FILE "brcm/bcm4329-fullmac-4.txt"
 
 /*
 ** cfg80211_ops api/callback list
