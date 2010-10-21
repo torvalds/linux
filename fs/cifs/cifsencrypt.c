@@ -541,6 +541,119 @@ setup_ntlmv2_rsp_ret:
 	return rc;
 }
 
+int
+calc_seckey(struct cifsSesInfo *ses)
+{
+	int rc;
+	struct crypto_blkcipher *tfm_arc4;
+	struct scatterlist sgin, sgout;
+	struct blkcipher_desc desc;
+	unsigned char sec_key[CIFS_SESS_KEY_SIZE]; /* a nonce */
+
+	get_random_bytes(sec_key, CIFS_SESS_KEY_SIZE);
+
+	tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	if (!tfm_arc4 || IS_ERR(tfm_arc4)) {
+		cERROR(1, "could not allocate crypto API arc4\n");
+		return PTR_ERR(tfm_arc4);
+	}
+
+	desc.tfm = tfm_arc4;
+
+	crypto_blkcipher_setkey(tfm_arc4, ses->auth_key.response,
+					CIFS_SESS_KEY_SIZE);
+
+	sg_init_one(&sgin, sec_key, CIFS_SESS_KEY_SIZE);
+	sg_init_one(&sgout, ses->ntlmssp.ciphertext, CIFS_CPHTXT_SIZE);
+
+	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, CIFS_CPHTXT_SIZE);
+	if (rc) {
+		cERROR(1, "could not encrypt session key rc: %d\n", rc);
+		crypto_free_blkcipher(tfm_arc4);
+		return rc;
+	}
+
+	/* make secondary_key/nonce as session key */
+	memcpy(ses->auth_key.response, sec_key, CIFS_SESS_KEY_SIZE);
+	/* and make len as that of session key only */
+	ses->auth_key.len = CIFS_SESS_KEY_SIZE;
+
+	crypto_free_blkcipher(tfm_arc4);
+
+	return 0;
+}
+
+void
+cifs_crypto_shash_release(struct TCP_Server_Info *server)
+{
+	if (server->secmech.md5)
+		crypto_free_shash(server->secmech.md5);
+
+	if (server->secmech.hmacmd5)
+		crypto_free_shash(server->secmech.hmacmd5);
+
+	kfree(server->secmech.sdeschmacmd5);
+
+	kfree(server->secmech.sdescmd5);
+}
+
+int
+cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
+{
+	int rc;
+	unsigned int size;
+
+	server->secmech.hmacmd5 = crypto_alloc_shash("hmac(md5)", 0, 0);
+	if (!server->secmech.hmacmd5 ||
+			IS_ERR(server->secmech.hmacmd5)) {
+		cERROR(1, "could not allocate crypto hmacmd5\n");
+		return PTR_ERR(server->secmech.hmacmd5);
+	}
+
+	server->secmech.md5 = crypto_alloc_shash("md5", 0, 0);
+	if (!server->secmech.md5 || IS_ERR(server->secmech.md5)) {
+		cERROR(1, "could not allocate crypto md5\n");
+		rc = PTR_ERR(server->secmech.md5);
+		goto crypto_allocate_md5_fail;
+	}
+
+	size = sizeof(struct shash_desc) +
+			crypto_shash_descsize(server->secmech.hmacmd5);
+	server->secmech.sdeschmacmd5 = kmalloc(size, GFP_KERNEL);
+	if (!server->secmech.sdeschmacmd5) {
+		cERROR(1, "cifs_crypto_shash_allocate: can't alloc hmacmd5\n");
+		rc = -ENOMEM;
+		goto crypto_allocate_hmacmd5_sdesc_fail;
+	}
+	server->secmech.sdeschmacmd5->shash.tfm = server->secmech.hmacmd5;
+	server->secmech.sdeschmacmd5->shash.flags = 0x0;
+
+
+	size = sizeof(struct shash_desc) +
+			crypto_shash_descsize(server->secmech.md5);
+	server->secmech.sdescmd5 = kmalloc(size, GFP_KERNEL);
+	if (!server->secmech.sdescmd5) {
+		cERROR(1, "cifs_crypto_shash_allocate: can't alloc md5\n");
+		rc = -ENOMEM;
+		goto crypto_allocate_md5_sdesc_fail;
+	}
+	server->secmech.sdescmd5->shash.tfm = server->secmech.md5;
+	server->secmech.sdescmd5->shash.flags = 0x0;
+
+	return 0;
+
+crypto_allocate_md5_sdesc_fail:
+	kfree(server->secmech.sdeschmacmd5);
+
+crypto_allocate_hmacmd5_sdesc_fail:
+	crypto_free_shash(server->secmech.md5);
+
+crypto_allocate_md5_fail:
+	crypto_free_shash(server->secmech.hmacmd5);
+
+	return rc;
+}
+
 void CalcNTLMv2_response(const struct cifsSesInfo *ses)
 {
 	unsigned int offset = CIFS_SESS_KEY_SIZE + 8;

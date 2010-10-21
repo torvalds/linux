@@ -368,6 +368,10 @@ extern void SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
 extern int setup_ntlm_response(struct cifsSesInfo *);
 extern void CalcNTLMv2_response(const struct cifsSesInfo *);
 extern int setup_ntlmv2_rsp(struct cifsSesInfo *, const struct nls_table *);
+extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
+extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
+extern int calc_seckey(struct cifsSesInfo *);
+
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);

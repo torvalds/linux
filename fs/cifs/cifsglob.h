@@ -25,6 +25,9 @@
 #include <linux/workqueue.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
+#include <crypto/internal/hash.h>
+#include <linux/scatterlist.h>
+
 /*
  * The sizes of various internal tables and strings
  */
@@ -100,6 +103,27 @@ enum protocolEnum {
 struct session_key {
 	unsigned int len;
 	char *response;
+};
+
+/* crypto security descriptor definition */
+struct sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
+/* crypto hashing related structure/fields, not speicific to a sec mech */
+struct cifs_secmech {
+	struct crypto_shash *hmacmd5; /* hmac-md5 hash function */
+	struct crypto_shash *md5; /* md5 hash function */
+	struct sdesc *sdeschmacmd5;  /* ctxt to generate ntlmv2 hash, CR1 */
+	struct sdesc *sdescmd5; /* ctxt to generate cifs/smb signature */
+};
+
+/* per smb connection structure/fields */
+struct ntlmssp_auth {
+	__u32 client_flags; /* sent by client in type 1 ntlmsssp exchange */
+	__u32 server_flags; /* sent by server in type 2 ntlmssp exchange */
+	unsigned char ciphertext[CIFS_CPHTXT_SIZE]; /* sent to server */
 };
 
 struct cifs_cred {
@@ -178,6 +202,7 @@ struct TCP_Server_Info {
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	u16 dialect; /* dialect index that server chose */
+	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 	/* extended security flavors that server supports */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
@@ -220,6 +245,7 @@ struct cifsSesInfo {
 	char ntlmv2_hash[16];
 	unsigned int tilen; /* length of the target info blob */
 	unsigned char *tiblob; /* target info blob in challenge response */
+	struct ntlmssp_auth ntlmssp; /* ciphertext, flags */
 	bool need_reconnect:1; /* connection reset, uid now invalid */
 };
 /* no more than one of the following three session flags may be set */
