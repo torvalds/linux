@@ -101,8 +101,6 @@
 #define TEGRA_SYSTEM_DMA_CH_MAX	\
 	(TEGRA_SYSTEM_DMA_CH_NR - TEGRA_SYSTEM_DMA_AVP_CH_NUM - 1)
 
-#define NV_DMA_MAX_TRASFER_SIZE 0x10000
-
 const unsigned int ahb_addr_wrap_table[8] = {
 	0, 32, 64, 128, 256, 512, 1024, 2048
 };
@@ -326,7 +324,7 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	unsigned long irq_flags;
 	int start_dma = 0;
 
-	if (req->size > NV_DMA_MAX_TRASFER_SIZE ||
+	if (req->size > TEGRA_DMA_MAX_TRANSFER_SIZE ||
 		req->source_addr & 0x3 || req->dest_addr & 0x3) {
 		pr_err("Invalid DMA request for channel %d\n", ch->id);
 		return -EINVAL;
