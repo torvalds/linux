@@ -285,6 +285,7 @@ static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
 	hkey = buffer.pointer;
 	if (!hkey || (hkey->type != ACPI_TYPE_PACKAGE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid HKEY.SINF\n"));
+		status = AE_ERROR;
 		goto end;
 	}
 
@@ -596,6 +597,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				 "Couldn't retrieve BIOS data\n"));
+		result = -EIO;
 		goto out_input;
 	}
 	/* initialize backlight */
