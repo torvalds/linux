@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/highuid.h>
-#include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
@@ -157,8 +156,6 @@ static int qnx4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *sb = dentry->d_sb;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
-	lock_kernel();
-
 	buf->f_type    = sb->s_magic;
 	buf->f_bsize   = sb->s_blocksize;
 	buf->f_blocks  = le32_to_cpu(qnx4_sb(sb)->BitMap->di_size) * 8;
@@ -167,8 +164,6 @@ static int qnx4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_namelen = QNX4_NAME_MAX;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
-
-	unlock_kernel();
 
 	return 0;
 }
@@ -234,13 +229,9 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	struct qnx4_sb_info *qs;
 	int ret = -EINVAL;
 
-	lock_kernel();
-
 	qs = kzalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
-	if (!qs) {
-		unlock_kernel();
+	if (!qs)
 		return -ENOMEM;
-	}
 	s->s_fs_info = qs;
 
 	sb_set_blocksize(s, QNX4_BLOCK_SIZE);
@@ -287,8 +278,6 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
  		goto outi;
 
 	brelse(bh);
-
-	unlock_kernel();
 	return 0;
 
       outi:
@@ -298,7 +287,6 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
       outnobh:
 	kfree(qs);
 	s->s_fs_info = NULL;
-	unlock_kernel();
 	return ret;
 }
 

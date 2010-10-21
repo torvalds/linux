@@ -12,7 +12,6 @@
  * 04-07-1998 by Frank Denis : first step for rmdir/unlink.
  */
 
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include "qnx4.h"
 
@@ -109,7 +108,6 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, struct nam
 	int len = dentry->d_name.len;
 	struct inode *foundinode = NULL;
 
-	lock_kernel();
 	if (!(bh = qnx4_find_entry(len, dir, name, &de, &ino)))
 		goto out;
 	/* The entry is linked, let's get the real info */
@@ -123,13 +121,11 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, struct nam
 
 	foundinode = qnx4_iget(dir->i_sb, ino);
 	if (IS_ERR(foundinode)) {
-		unlock_kernel();
 		QNX4DEBUG((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
 			   PTR_ERR(foundinode)));
 		return ERR_CAST(foundinode);
 	}
 out:
-	unlock_kernel();
 	d_add(dentry, foundinode);
 
 	return NULL;
