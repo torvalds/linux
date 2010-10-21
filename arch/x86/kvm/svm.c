@@ -125,6 +125,9 @@ struct vcpu_svm {
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
 	struct {
+		u16 fs;
+		u16 gs;
+		u16 ldt;
 		u64 gs_base;
 	} host;
 
@@ -183,6 +186,9 @@ static int nested_svm_intercept(struct vcpu_svm *svm);
 static int nested_svm_vmexit(struct vcpu_svm *svm);
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
+
+static void save_host_msrs(struct kvm_vcpu *vcpu);
+static void load_host_msrs(struct kvm_vcpu *vcpu);
 
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
@@ -996,6 +1002,11 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		svm->asid_generation = 0;
 	}
 
+	save_host_msrs(vcpu);
+	savesegment(fs, svm->host.fs);
+	savesegment(gs, svm->host.gs);
+	svm->host.ldt = kvm_read_ldt();
+
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
@@ -1006,6 +1017,14 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	int i;
 
 	++vcpu->stat.host_state_reload;
+	kvm_load_ldt(svm->host.ldt);
+#ifdef CONFIG_X86_64
+	loadsegment(fs, svm->host.fs);
+	load_gs_index(svm->host.gs);
+	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
+#else
+	loadsegment(gs, svm->host.gs);
+#endif
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
@@ -3314,9 +3333,6 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	u16 fs_selector;
-	u16 gs_selector;
-	u16 ldt_selector;
 
 	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
 	svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
@@ -3333,10 +3349,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	sync_lapic_to_cr8(vcpu);
 
-	save_host_msrs(vcpu);
-	savesegment(fs, fs_selector);
-	savesegment(gs, gs_selector);
-	ldt_selector = kvm_read_ldt();
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
 	clgi();
@@ -3415,13 +3427,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		);
 
 	load_host_msrs(vcpu);
-	kvm_load_ldt(ldt_selector);
-	loadsegment(fs, fs_selector);
-#ifdef CONFIG_X86_64
-	load_gs_index(gs_selector);
-	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
-#else
-	loadsegment(gs, gs_selector);
+#ifndef CONFIG_X86_64
+	loadsegment(fs, svm->host.fs);
 #endif
 
 	reload_tss(vcpu);
