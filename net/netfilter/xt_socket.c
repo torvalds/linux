@@ -142,7 +142,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 #endif
 
 	sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), protocol,
-				   saddr, daddr, sport, dport, par->in, false);
+				   saddr, daddr, sport, dport, par->in, NFT_LOOKUP_ANY);
 	if (sk != NULL) {
 		bool wildcard;
 		bool transparent = true;

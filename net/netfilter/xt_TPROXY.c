@@ -24,6 +24,57 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/nf_tproxy_core.h>
 
+/**
+ * tproxy_handle_time_wait() - handle TCP TIME_WAIT reopen redirections
+ * @skb:	The skb being processed.
+ * @par:	Iptables target parameters.
+ * @sk:		The TIME_WAIT TCP socket found by the lookup.
+ *
+ * We have to handle SYN packets arriving to TIME_WAIT sockets
+ * differently: instead of reopening the connection we should rather
+ * redirect the new connection to the proxy if there's a listener
+ * socket present.
+ *
+ * tproxy_handle_time_wait() consumes the socket reference passed in.
+ *
+ * Returns the listener socket if there's one, the TIME_WAIT socket if
+ * no such listener is found, or NULL if the TCP header is incomplete.
+ */
+static struct sock *
+tproxy_handle_time_wait(struct sk_buff *skb, const struct xt_action_param *par, struct sock *sk)
+{
+	const struct iphdr *iph = ip_hdr(skb);
+	const struct xt_tproxy_target_info *tgi = par->targinfo;
+	struct tcphdr _hdr, *hp;
+
+	hp = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_hdr), &_hdr);
+	if (hp == NULL) {
+		inet_twsk_put(inet_twsk(sk));
+		return NULL;
+	}
+
+	if (hp->syn && !hp->rst && !hp->ack && !hp->fin) {
+		/* SYN to a TIME_WAIT socket, we'd rather redirect it
+		 * to a listener socket if there's one */
+		struct sock *sk2;
+
+		sk2 = nf_tproxy_get_sock_v4(dev_net(skb->dev), iph->protocol,
+					    iph->saddr, tgi->laddr ? tgi->laddr : iph->daddr,
+					    hp->source, tgi->lport ? tgi->lport : hp->dest,
+					    par->in, NFT_LOOKUP_LISTENER);
+		if (sk2) {
+			/* yeah, there's one, let's kill the TIME_WAIT
+			 * socket and redirect to the listener
+			 */
+			inet_twsk_deschedule(inet_twsk(sk), &tcp_death_row);
+			inet_twsk_put(inet_twsk(sk));
+			sk = sk2;
+		}
+	}
+
+	return sk;
+}
+
 static unsigned int
 tproxy_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
@@ -37,11 +88,18 @@ tproxy_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		return NF_DROP;
 
 	sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), iph->protocol,
-				   iph->saddr,
-				   tgi->laddr ? tgi->laddr : iph->daddr,
-				   hp->source,
-				   tgi->lport ? tgi->lport : hp->dest,
-				   par->in, true);
+				   iph->saddr, iph->daddr,
+				   hp->source, hp->dest,
+				   par->in, NFT_LOOKUP_ESTABLISHED);
+
+	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	if (sk && sk->sk_state == TCP_TIME_WAIT)
+		sk = tproxy_handle_time_wait(skb, par, sk);
+	else if (!sk)
+		sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), iph->protocol,
+					   iph->saddr, tgi->laddr ? tgi->laddr : iph->daddr,
+					   hp->source, tgi->lport ? tgi->lport : hp->dest,
+					   par->in, NFT_LOOKUP_LISTENER);
 
 	/* NOTE: assign_sock consumes our sk reference */
 	if (sk && nf_tproxy_assign_sock(skb, sk)) {
