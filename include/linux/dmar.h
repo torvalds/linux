@@ -57,15 +57,15 @@ extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 
 /* Intel IOMMU detection */
-extern void detect_intel_iommu(void);
+extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
 
 extern int parse_ioapics_under_ir(void);
 extern int alloc_iommu(struct dmar_drhd_unit *);
 #else
-static inline void detect_intel_iommu(void)
+static inline int detect_intel_iommu(void)
 {
-	return;
+	return -ENODEV;
 }
 
 static inline int dmar_table_init(void)

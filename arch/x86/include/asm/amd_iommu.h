@@ -24,11 +24,11 @@
 
 #ifdef CONFIG_AMD_IOMMU
 
-extern void amd_iommu_detect(void);
+extern int amd_iommu_detect(void);
 
 #else
 
-static inline void amd_iommu_detect(void) { }
+static inline int amd_iommu_detect(void) { return -ENODEV; }
 
 #endif
 
