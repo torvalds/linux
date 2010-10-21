@@ -1261,9 +1261,8 @@ static void NetVscOnChannelCallback(void *Context)
 	}
 
 	do {
-		ret = device->Driver->VmbusChannelInterface.RecvPacketRaw(
-						device, buffer, bufferlen,
-						&bytesRecvd, &requestId);
+		ret = vmbus_recvpacket_raw(device->channel, buffer, bufferlen,
+					   &bytesRecvd, &requestId);
 		if (ret == 0) {
 			if (bytesRecvd > 0) {
 				DPRINT_DBG(NETVSC, "receive %d bytes, tid %llx",
