@@ -300,16 +300,16 @@ int spi_add_device(struct spi_device *spi)
 	 */
 	status = spi_setup(spi);
 	if (status < 0) {
-		dev_err(dev, "can't %s %s, status %d\n",
-				"setup", dev_name(&spi->dev), status);
+		dev_err(dev, "can't setup %s, status %d\n",
+				dev_name(&spi->dev), status);
 		goto done;
 	}
 
 	/* Device may be bound to an active driver when this returns */
 	status = device_add(&spi->dev);
 	if (status < 0)
-		dev_err(dev, "can't %s %s, status %d\n",
-				"add", dev_name(&spi->dev), status);
+		dev_err(dev, "can't add %s, status %d\n",
+				dev_name(&spi->dev), status);
 	else
 		dev_dbg(dev, "registered child %s\n", dev_name(&spi->dev));
 
@@ -658,7 +658,7 @@ int spi_setup(struct spi_device *spi)
 	 */
 	bad_bits = spi->mode & ~spi->master->mode_bits;
 	if (bad_bits) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
+		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
 			bad_bits);
 		return -EINVAL;
 	}
