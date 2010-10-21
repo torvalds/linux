@@ -187,6 +187,8 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
  *    / \      / \         /           /
  *  p2m p2m p2m p2m p2m p2m p2m ...
  *
+ * The p2m_mid_mfn pages are mapped by p2m_top_mfn_p.
+ *
  * The p2m_top and p2m_top_mfn levels are limited to 1 page, so the
  * maximum representable pseudo-physical address space is:
  *  P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE pages
@@ -211,6 +213,7 @@ static RESERVE_BRK_ARRAY(unsigned long, p2m_mid_missing_mfn, P2M_MID_PER_PAGE);
 
 static RESERVE_BRK_ARRAY(unsigned long **, p2m_top, P2M_TOP_PER_PAGE);
 static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn, P2M_TOP_PER_PAGE);
+static RESERVE_BRK_ARRAY(unsigned long *, p2m_top_mfn_p, P2M_TOP_PER_PAGE);
 
 RESERVE_BRK(p2m_mid, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 RESERVE_BRK(p2m_mid_mfn, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
@@ -245,6 +248,14 @@ static void p2m_top_mfn_init(unsigned long *top)
 
 	for (i = 0; i < P2M_TOP_PER_PAGE; i++)
 		top[i] = virt_to_mfn(p2m_mid_missing_mfn);
+}
+
+static void p2m_top_mfn_p_init(unsigned long **top)
+{
+	unsigned i;
+
+	for (i = 0; i < P2M_TOP_PER_PAGE; i++)
+		top[i] = p2m_mid_missing_mfn;
 }
 
 static void p2m_mid_init(unsigned long **mid)
@@ -283,33 +294,43 @@ static void p2m_init(unsigned long *p2m)
  */
 void xen_build_mfn_list_list(void)
 {
-	unsigned pfn;
+	unsigned long pfn;
 
 	/* Pre-initialize p2m_top_mfn to be completely missing */
 	if (p2m_top_mfn == NULL) {
 		p2m_mid_missing_mfn = extend_brk(PAGE_SIZE, PAGE_SIZE);
 		p2m_mid_mfn_init(p2m_mid_missing_mfn);
 
+		p2m_top_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
+		p2m_top_mfn_p_init(p2m_top_mfn_p);
+
 		p2m_top_mfn = extend_brk(PAGE_SIZE, PAGE_SIZE);
 		p2m_top_mfn_init(p2m_top_mfn);
+	} else {
+		/* Reinitialise, mfn's all change after migration */
+		p2m_mid_mfn_init(p2m_mid_missing_mfn);
 	}
 
 	for (pfn = 0; pfn < xen_max_p2m_pfn; pfn += P2M_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
 		unsigned mididx = p2m_mid_index(pfn);
 		unsigned long **mid;
-		unsigned long mid_mfn;
 		unsigned long *mid_mfn_p;
 
 		mid = p2m_top[topidx];
+		mid_mfn_p = p2m_top_mfn_p[topidx];
 
 		/* Don't bother allocating any mfn mid levels if
-		   they're just missing */
-		if (mid[mididx] == p2m_missing)
+		 * they're just missing, just update the stored mfn,
+		 * since all could have changed over a migrate.
+		 */
+		if (mid == p2m_mid_missing) {
+			BUG_ON(mididx);
+			BUG_ON(mid_mfn_p != p2m_mid_missing_mfn);
+			p2m_top_mfn[topidx] = virt_to_mfn(p2m_mid_missing_mfn);
+			pfn += (P2M_MID_PER_PAGE - 1) * P2M_PER_PAGE;
 			continue;
-
-		mid_mfn = p2m_top_mfn[topidx];
-		mid_mfn_p = mfn_to_virt(mid_mfn);
+		}
 
 		if (mid_mfn_p == p2m_mid_missing_mfn) {
 			/*
@@ -321,11 +342,10 @@ void xen_build_mfn_list_list(void)
 			mid_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
 			p2m_mid_mfn_init(mid_mfn_p);
 
-			mid_mfn = virt_to_mfn(mid_mfn_p);
-			
-			p2m_top_mfn[topidx] = mid_mfn;
+			p2m_top_mfn_p[topidx] = mid_mfn_p;
 		}
 
+		p2m_top_mfn[topidx] = virt_to_mfn(mid_mfn_p);
 		mid_mfn_p[mididx] = virt_to_mfn(mid[mididx]);
 	}
 }
@@ -344,7 +364,7 @@ void __init xen_build_dynamic_phys_to_machine(void)
 {
 	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
 	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
-	unsigned pfn;
+	unsigned long pfn;
 
 	xen_max_p2m_pfn = max_pfn;
 
@@ -434,7 +454,9 @@ static bool alloc_p2m(unsigned long pfn)
 	}
 
 	top_mfn_p = &p2m_top_mfn[topidx];
-	mid_mfn = mfn_to_virt(*top_mfn_p);
+	mid_mfn = p2m_top_mfn_p[topidx];
+
+	BUG_ON(virt_to_mfn(mid_mfn) != *top_mfn_p);
 
 	if (mid_mfn == p2m_mid_missing_mfn) {
 		/* Separately check the mid mfn level */
@@ -446,11 +468,13 @@ static bool alloc_p2m(unsigned long pfn)
 			return false;
 
 		p2m_mid_mfn_init(mid_mfn);
-		
+
 		missing_mfn = virt_to_mfn(p2m_mid_missing_mfn);
 		mid_mfn_mfn = virt_to_mfn(mid_mfn);
 		if (cmpxchg(top_mfn_p, missing_mfn, mid_mfn_mfn) != missing_mfn)
 			free_p2m_page(mid_mfn);
+		else
+			p2m_top_mfn_p[topidx] = mid_mfn;
 	}
 
 	if (p2m_top[topidx][mididx] == p2m_missing) {
