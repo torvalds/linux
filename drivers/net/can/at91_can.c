@@ -2,7 +2,7 @@
  * at91_can.c - CAN network driver for AT91 SoC CAN controller
  *
  * (C) 2007 by Hans J. Koch <hjk@linutronix.de>
- * (C) 2008, 2009 by Marc Kleine-Budde <kernel@pengutronix.de>
+ * (C) 2008, 2009, 2010 by Marc Kleine-Budde <kernel@pengutronix.de>
  *
  * This software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2 as distributed in the 'COPYING'
@@ -257,8 +257,8 @@ static int at91_set_bittiming(struct net_device *dev)
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	u32 reg_br;
 
-	reg_br = ((priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES) << 24) |
-		((bt->brp - 1) << 16) |	((bt->sjw - 1) << 12) |
+	reg_br = ((priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES) ? 1 << 24 : 0) |
+		((bt->brp - 1) << 16) | ((bt->sjw - 1) << 12) |
 		((bt->prop_seg - 1) << 8) | ((bt->phase_seg1 - 1) << 4) |
 		((bt->phase_seg2 - 1) << 0);
 
