@@ -5,6 +5,7 @@
 struct of_irq;
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/irq.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 
