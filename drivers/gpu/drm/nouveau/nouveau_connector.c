@@ -213,6 +213,24 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	}
 }
 
+static bool
+nouveau_connector_poll_allowed(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	bool spare_crtc = false;
+
+	if (dev_priv->card_type >= NV_50) {
+		return true;
+	} else {
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+			spare_crtc |= !crtc->enabled;
+
+		return spare_crtc;
+	}
+}
+
 static enum drm_connector_status
 nouveau_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -281,7 +299,8 @@ detect_analog:
 	nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG);
 	if (!nv_encoder && !nouveau_tv_disable)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_TV);
-	if (nv_encoder) {
+	if (nv_encoder &&
+	    (force || nouveau_connector_poll_allowed(connector))) {
 		struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 		struct drm_encoder_helper_funcs *helper =
 						encoder->helper_private;
@@ -724,44 +743,6 @@ nouveau_connector_best_encoder(struct drm_connector *connector)
 	return NULL;
 }
 
-void
-nouveau_connector_set_polling(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	bool spare_crtc = false;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		spare_crtc |= !crtc->enabled;
-
-	connector->polled = 0;
-
-	switch (connector->connector_type) {
-	case DRM_MODE_CONNECTOR_VGA:
-	case DRM_MODE_CONNECTOR_TV:
-		if (dev_priv->card_type >= NV_50 ||
-		    (nv_gf4_disp_arch(dev) && spare_crtc))
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-		break;
-
-	case DRM_MODE_CONNECTOR_DVII:
-	case DRM_MODE_CONNECTOR_DVID:
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_DisplayPort:
-	case DRM_MODE_CONNECTOR_eDP:
-		if (dev_priv->card_type >= NV_50)
-			connector->polled = DRM_CONNECTOR_POLL_HPD;
-		else if (connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
-			 spare_crtc)
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-		break;
-
-	default:
-		break;
-	}
-}
-
 static const struct drm_connector_helper_funcs
 nouveau_connector_helper_funcs = {
 	.get_modes = nouveau_connector_get_modes,
@@ -892,6 +873,9 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	case DCB_CONNECTOR_TV_1:
 	case DCB_CONNECTOR_TV_3:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_NONE;
+
+		if (nv_gf4_disp_arch(dev))
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	default:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
@@ -903,10 +887,13 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				dev->mode_config.dithering_mode_property,
 				nv_connector->use_dithering ?
 				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
+
+		if (dev_priv->card_type >= NV_50)
+			connector->polled = DRM_CONNECTOR_POLL_HPD;
+		else
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	}
-
-	nouveau_connector_set_polling(connector);
 
 	drm_sysfs_connector_add(connector);
 	dcb->drm = connector;
