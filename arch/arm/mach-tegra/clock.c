@@ -511,6 +511,30 @@ int __init tegra_init_dvfs(void)
 
 late_initcall(tegra_init_dvfs);
 
+int __init tegra_disable_boot_clocks(void)
+{
+	unsigned long flags;
+
+	struct clk *c;
+
+	spin_lock_irqsave(&clock_lock, flags);
+
+	list_for_each_entry(c, &clocks, node) {
+		if (c->refcnt == 0 && c->state == ON &&
+				c->ops && c->ops->disable) {
+			pr_warning("Disabling clock %s left on by bootloader\n",
+				c->name);
+			c->ops->disable(c);
+			c->state = OFF;
+		}
+	}
+
+	spin_unlock_irqrestore(&clock_lock, flags);
+
+	return 0;
+}
+late_initcall(tegra_disable_boot_clocks);
+
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *clk_debugfs_root;
 
