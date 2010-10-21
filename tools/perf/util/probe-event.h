@@ -90,6 +90,12 @@ struct line_range {
 	struct list_head	line_list;	/* Visible lines */
 };
 
+/* List of variables */
+struct variable_list {
+	struct probe_trace_point	point;	/* Actual probepoint */
+	struct strlist			*vars;	/* Available variables */
+};
+
 /* Command string to events */
 extern int parse_perf_probe_command(const char *cmd,
 				    struct perf_probe_event *pev);
@@ -115,6 +121,8 @@ extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 extern int del_perf_probe_events(struct strlist *dellist);
 extern int show_perf_probe_events(void);
 extern int show_line_range(struct line_range *lr);
+extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
+			       int max_probe_points);
 
 
 /* Maximum index number of event-name postfix */

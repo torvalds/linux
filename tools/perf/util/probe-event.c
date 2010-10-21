@@ -378,6 +378,72 @@ end:
 	return ret;
 }
 
+static int show_available_vars_at(int fd, struct perf_probe_event *pev,
+				  int max_vls)
+{
+	char *buf;
+	int ret, i;
+	struct str_node *node;
+	struct variable_list *vls = NULL, *vl;
+
+	buf = synthesize_perf_probe_point(&pev->point);
+	if (!buf)
+		return -EINVAL;
+	pr_debug("Searching variables at %s\n", buf);
+
+	ret = find_available_vars_at(fd, pev, &vls, max_vls);
+	if (ret > 0) {
+		/* Some variables were found */
+		fprintf(stdout, "Available variables at %s\n", buf);
+		for (i = 0; i < ret; i++) {
+			vl = &vls[i];
+			/*
+			 * A probe point might be converted to
+			 * several trace points.
+			 */
+			fprintf(stdout, "\t@<%s+%lu>\n", vl->point.symbol,
+				vl->point.offset);
+			free(vl->point.symbol);
+			if (vl->vars) {
+				strlist__for_each(node, vl->vars)
+					fprintf(stdout, "\t\t%s\n", node->s);
+				strlist__delete(vl->vars);
+			} else
+				fprintf(stdout, "(No variables)\n");
+		}
+		free(vls);
+	} else
+		pr_err("Failed to find variables at %s (%d)\n", buf, ret);
+
+	free(buf);
+	return ret;
+}
+
+/* Show available variables on given probe point */
+int show_available_vars(struct perf_probe_event *pevs, int npevs,
+			int max_vls)
+{
+	int i, fd, ret = 0;
+
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
+
+	fd = open_vmlinux();
+	if (fd < 0) {
+		pr_warning("Failed to open debuginfo file.\n");
+		return fd;
+	}
+
+	setup_pager();
+
+	for (i = 0; i < npevs && ret >= 0; i++)
+		ret = show_available_vars_at(fd, &pevs[i], max_vls);
+
+	close(fd);
+	return ret;
+}
+
 #else	/* !DWARF_SUPPORT */
 
 static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
@@ -409,6 +475,12 @@ int show_line_range(struct line_range *lr __unused)
 	return -ENOSYS;
 }
 
+int show_available_vars(struct perf_probe_event *pevs __unused,
+			int npevs __unused, int max_probe_points __unused)
+{
+	pr_warning("Debuginfo-analysis is not supported.\n");
+	return -ENOSYS;
+}
 #endif
 
 int parse_line_range_desc(const char *arg, struct line_range *lr)

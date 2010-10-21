@@ -17,6 +17,8 @@ or
 'perf probe' --list
 or
 'perf probe' --line='FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]'
+or
+'perf probe' --vars='PROBEPOINT'
 
 DESCRIPTION
 -----------
@@ -56,6 +58,11 @@ OPTIONS
 --line=::
 	Show source code lines which can be probed. This needs an argument
 	which specifies a range of the source code. (see LINE SYNTAX for detail)
+
+-V::
+--vars=::
+	Show available local variables at given probe point. The argument
+	syntax is same as PROBE SYNTAX, but NO ARGs.
 
 -f::
 --force::
