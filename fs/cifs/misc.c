@@ -567,16 +567,6 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				if (pSMB->Fid != netfile->netfid)
 					continue;
 
-				/*
-				 * don't do anything if file is about to be
-				 * closed anyway.
-				 */
-				if (netfile->closePend) {
-					spin_unlock(&cifs_file_list_lock);
-					spin_unlock(&cifs_tcp_ses_lock);
-					return true;
-				}
-
 				cFYI(1, "file id match, oplock break");
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 				pCifsInode->clientCanCacheAll = false;

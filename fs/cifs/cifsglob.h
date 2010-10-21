@@ -393,7 +393,6 @@ struct cifsFileInfo {
 	struct tcon_link *tlink;
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
-	bool closePend:1;	/* file is marked to close */
 	bool invalidHandle:1;	/* file closed via session abend */
 	bool oplock_break_cancelled:1;
 	atomic_t count;		/* reference count */
