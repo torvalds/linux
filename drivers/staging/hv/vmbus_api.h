@@ -91,7 +91,6 @@ struct hv_device_info {
  * @SendPacket:        Send a packet over the channel
  * @SendPacketPageBuffer:      Send a single page buffer over the channel
  * @SendPacketMultiPageBuffer: Send a multiple page buffers
- * @RecvPacket:        Receive packet
  *
  * This structure contains function pointer to control vmbus channel
  * behavior. None of these functions is externally callable, but they
@@ -115,8 +114,6 @@ struct vmbus_channel_interface {
 					 void *Buffer,
 					 u32 BufferLen,
 					 u64 RequestId);
-	int (*RecvPacket)(struct hv_device *dev, void *buf, u32 buflen,
-			  u32 *BufferActualLen, u64 *RequestId);
 };
 
 extern const struct vmbus_channel_interface vmbus_ops;
