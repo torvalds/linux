@@ -160,26 +160,35 @@ static bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 	return name ? (strcmp(tname, name) == 0) : false;
 }
 
+/* Get type die */
+static Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
+{
+	Dwarf_Attribute attr;
+
+	if (dwarf_attr_integrate(vr_die, DW_AT_type, &attr) &&
+	    dwarf_formref_die(&attr, die_mem))
+		return die_mem;
+	else
+		return NULL;
+}
+
 /* Get type die, but skip qualifiers and typedef */
 static Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 {
-	Dwarf_Attribute attr;
 	int tag;
 
 	do {
-		if (dwarf_attr(vr_die, DW_AT_type, &attr) == NULL ||
-		    dwarf_formref_die(&attr, die_mem) == NULL)
-			return NULL;
-
-		tag = dwarf_tag(die_mem);
-		vr_die = die_mem;
+		vr_die = die_get_type(vr_die, die_mem);
+		if (!vr_die)
+			break;
+		tag = dwarf_tag(vr_die);
 	} while (tag == DW_TAG_const_type ||
 		 tag == DW_TAG_restrict_type ||
 		 tag == DW_TAG_volatile_type ||
 		 tag == DW_TAG_shared_type ||
 		 tag == DW_TAG_typedef);
 
-	return die_mem;
+	return vr_die;
 }
 
 static bool die_is_signed_type(Dwarf_Die *tp_die)
