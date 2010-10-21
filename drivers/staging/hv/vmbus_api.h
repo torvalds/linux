@@ -87,7 +87,6 @@ struct hv_device_info {
 /**
  * struct vmbus_channel_interface - Contains member functions for vmbus channel
  * @Open:      Open the channel
- * @Close:     Close the channel
  *
  * This structure contains function pointer to control vmbus channel
  * behavior. None of these functions is externally callable, but they
@@ -99,7 +98,6 @@ struct vmbus_channel_interface {
 		    u32 RecvRingBufferSize, void *UserData, u32 UserDataLen,
 		    void (*ChannelCallback)(void *context),
 		    void *Context);
-	void (*Close)(struct hv_device *device);
 };
 
 extern const struct vmbus_channel_interface vmbus_ops;
