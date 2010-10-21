@@ -94,6 +94,9 @@ static DEFINE_PCI_DEVICE_TABLE(qlge_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, qlge_pci_tbl);
 
+static int ql_wol(struct ql_adapter *qdev);
+static void qlge_set_multicast_list(struct net_device *ndev);
+
 /* This hardware semaphore causes exclusive access to
  * resources shared between the NIC driver, MPI firmware,
  * FCOE firmware and the FC driver.
@@ -3842,7 +3845,7 @@ static void ql_display_dev_info(struct net_device *ndev)
 		   "MAC address %pM\n", ndev->dev_addr);
 }
 
-int ql_wol(struct ql_adapter *qdev)
+static int ql_wol(struct ql_adapter *qdev)
 {
 	int status = 0;
 	u32 wol = MB_WOL_DISABLE;
@@ -4242,7 +4245,7 @@ static struct net_device_stats *qlge_get_stats(struct net_device
 	return &ndev->stats;
 }
 
-void qlge_set_multicast_list(struct net_device *ndev)
+static void qlge_set_multicast_list(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
 	struct netdev_hw_addr *ha;
