@@ -38,10 +38,14 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
+#include <mach/irqs.h>
+#include <mach/3ds_debugboard.h>
 #include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
+
+#define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 1)
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -148,6 +152,10 @@ static void __init mxc_board_init(void)
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 	imx35_add_esdhc(0, NULL);
+
+	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+		pr_warn("Init of the debugboard failed, all "
+				"devices on the debugboard are unusable.\n");
 }
 
 static void __init mx35pdk_timer_init(void)
