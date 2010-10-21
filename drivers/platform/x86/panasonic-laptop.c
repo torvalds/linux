@@ -267,7 +267,7 @@ static inline int acpi_pcc_get_sqty(struct acpi_device *device)
 	}
 }
 
-static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
+static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -299,12 +299,12 @@ static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
 	for (i = 0; i < hkey->package.count; i++) {
 		union acpi_object *element = &(hkey->package.elements[i]);
 		if (likely(element->type == ACPI_TYPE_INTEGER)) {
-			sinf[i] = element->integer.value;
+			pcc->sinf[i] = element->integer.value;
 		} else
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					 "Invalid HKEY.SINF data\n"));
 	}
-	sinf[hkey->package.count] = -1;
+	pcc->sinf[hkey->package.count] = -1;
 
 end:
 	kfree(buffer.pointer);
@@ -322,7 +322,7 @@ static int bl_get(struct backlight_device *bd)
 {
 	struct pcc_acpi *pcc = bl_get_data(bd);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return pcc->sinf[SINF_AC_CUR_BRIGHT];
@@ -334,7 +334,7 @@ static int bl_set_status(struct backlight_device *bd)
 	int bright = bd->props.brightness;
 	int rc;
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	if (bright < pcc->sinf[SINF_AC_MIN_BRIGHT])
@@ -368,7 +368,7 @@ static ssize_t show_numbatt(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
@@ -380,7 +380,7 @@ static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
@@ -392,7 +392,7 @@ static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_MUTE]);
@@ -404,7 +404,7 @@ static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
@@ -594,7 +594,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		goto out_sinf;
 	}
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf)) {
+	if (!acpi_pcc_retrieve_biosdata(pcc)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				 "Couldn't retrieve BIOS data\n"));
 		result = -EIO;
