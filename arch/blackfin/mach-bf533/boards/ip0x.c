@@ -22,6 +22,7 @@
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
+#include <mach/fio_flag.h>
 
 /*
  * Name the Board for the /proc/cpuinfo

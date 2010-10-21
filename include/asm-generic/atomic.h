@@ -43,6 +43,7 @@
  */
 #define atomic_set(v, i) (((v)->counter) = (i))
 
+#include <linux/irqflags.h>
 #include <asm/system.h>
 
 /**
@@ -57,7 +58,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	unsigned long flags;
 	int temp;
 
-	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
+	raw_local_irq_save(flags); /* Don't trace it in an irqsoff handler */
 	temp = v->counter;
 	temp += i;
 	v->counter = temp;
@@ -78,7 +79,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	unsigned long flags;
 	int temp;
 
-	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
+	raw_local_irq_save(flags); /* Don't trace it in an irqsoff handler */
 	temp = v->counter;
 	temp -= i;
 	v->counter = temp;

@@ -65,11 +65,11 @@ static void default_idle(void)
 #ifdef CONFIG_IPIPE
 	ipipe_suspend_domain();
 #endif
-	local_irq_disable_hw();
+	hard_local_irq_disable();
 	if (!need_resched())
 		idle_with_irq_disabled();
 
-	local_irq_enable_hw();
+	hard_local_irq_enable();
 }
 
 /*

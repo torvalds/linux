@@ -468,7 +468,7 @@ sclp_sync_wait(void)
 	cr0_sync &= 0xffff00a0;
 	cr0_sync |= 0x00000200;
 	__ctl_load(cr0_sync, 0, 0);
-	__raw_local_irq_stosm(0x01);
+	__arch_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
 		/* Check for expired request timer */

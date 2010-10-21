@@ -8,7 +8,6 @@
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
 #include <asm/hardirq.h>
-#include <asm/system.h>
 
 /*
  * We put the hardirq and softirq counter into the preemption

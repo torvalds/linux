@@ -116,7 +116,7 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
-notrace void raw_local_irq_restore(unsigned long en)
+notrace void arch_local_irq_restore(unsigned long en)
 {
 	/*
 	 * get_paca()->soft_enabled = en;
@@ -192,7 +192,7 @@ notrace void raw_local_irq_restore(unsigned long en)
 
 	__hard_irq_enable();
 }
-EXPORT_SYMBOL(raw_local_irq_restore);
+EXPORT_SYMBOL(arch_local_irq_restore);
 #endif /* CONFIG_PPC64 */
 
 static int show_other_interrupts(struct seq_file *p, int prec)

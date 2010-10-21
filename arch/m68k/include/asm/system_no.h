@@ -2,6 +2,7 @@
 #define _M68KNOMMU_SYSTEM_H
 
 #include <linux/linkage.h>
+#include <linux/irqflags.h>
 #include <asm/segment.h>
 #include <asm/entry.h>
 
@@ -45,54 +46,6 @@ asmlinkage void resume(void);
        : "cc", "d0", "d1", "d2", "d3", "d4", "d5", "a0", "a1");	\
   (last) = _last;						\
 }
-
-#ifdef CONFIG_COLDFIRE
-#define local_irq_enable() __asm__ __volatile__ (		\
-	"move %/sr,%%d0\n\t"					\
-	"andi.l #0xf8ff,%%d0\n\t"				\
-	"move %%d0,%/sr\n"					\
-	: /* no outputs */					\
-	:							\
-        : "cc", "%d0", "memory")
-#define local_irq_disable() __asm__ __volatile__ (		\
-	"move %/sr,%%d0\n\t"					\
-	"ori.l #0x0700,%%d0\n\t"				\
-	"move %%d0,%/sr\n"					\
-	: /* no outputs */					\
-	:							\
-	: "cc", "%d0", "memory")
-/* For spinlocks etc */
-#define local_irq_save(x) __asm__ __volatile__ (		\
-	"movew %%sr,%0\n\t"					\
-	"movew #0x0700,%%d0\n\t"				\
-	"or.l  %0,%%d0\n\t"					\
-	"movew %%d0,%/sr"					\
-	: "=d" (x)						\
-	:							\
-	: "cc", "%d0", "memory")
-#else
-
-/* portable version */ /* FIXME - see entry.h*/
-#define ALLOWINT 0xf8ff
-
-#define local_irq_enable() asm volatile ("andiw %0,%%sr": : "i" (ALLOWINT) : "memory")
-#define local_irq_disable() asm volatile ("oriw  #0x0700,%%sr": : : "memory")
-#endif
-
-#define local_save_flags(x) asm volatile ("movew %%sr,%0":"=d" (x) : : "memory")
-#define local_irq_restore(x) asm volatile ("movew %0,%%sr": :"d" (x) : "memory")
-
-/* For spinlocks etc */
-#ifndef local_irq_save
-#define local_irq_save(x) do { local_save_flags(x); local_irq_disable(); } while (0)
-#endif
-
-#define	irqs_disabled()			\
-({					\
-	unsigned long flags;		\
-	local_save_flags(flags);	\
-	((flags & 0x0700) == 0x0700);	\
-})
 
 #define iret() __asm__ __volatile__ ("rte": : :"memory", "sp", "cc")
 
@@ -205,13 +158,5 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #define arch_align_stack(x) (x)
 
-
-static inline int irqs_disabled_flags(unsigned long flags)
-{
-	if (flags & 0x0700)
-		return 0;
-	else
-		return 1;
-}
 
 #endif /* _M68KNOMMU_SYSTEM_H */
