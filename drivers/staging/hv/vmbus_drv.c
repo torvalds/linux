@@ -485,23 +485,6 @@ void vmbus_child_driver_unregister(struct driver_context *driver_ctx)
 }
 EXPORT_SYMBOL(vmbus_child_driver_unregister);
 
-/**
- * vmbus_get_interface() - Get the vmbus channel interface.
- * @interface: Pointer to channel interface structure
- *
- * Get the Hyper-V channel used for the driver.
- *
- * @interface is of type &struct vmbus_channel_interface
- * This is invoked by child/client driver that sits above vmbus.
- *
- * Mainly used by Hyper-V drivers.
- */
-void vmbus_get_interface(struct vmbus_channel_interface *interface)
-{
-	*interface = vmbus_ops;
-}
-EXPORT_SYMBOL(vmbus_get_interface);
-
 /*
  * vmbus_child_device_create - Creates and registers a new child device
  * on the vmbus.

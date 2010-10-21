@@ -492,8 +492,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
 	int ret;
 
-	vmbus_get_interface(&net_drv_obj->Base.VmbusChannelInterface);
-
 	net_drv_obj->RingBufferSize = ring_size * PAGE_SIZE;
 	net_drv_obj->OnReceiveCallback = netvsc_recv_callback;
 	net_drv_obj->OnLinkStatusChanged = netvsc_linkstatus_callback;

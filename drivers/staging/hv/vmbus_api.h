@@ -84,20 +84,6 @@ struct hv_device_info {
 	struct hv_dev_port_info Outbound;
 };
 
-/**
- * struct vmbus_channel_interface - Contains member functions for vmbus channel
- *
- * This structure contains function pointer to control vmbus channel
- * behavior. None of these functions is externally callable, but they
- * are used for normal vmbus channel internal behavior.
- * Only used by Hyper-V drivers.
- */
-struct vmbus_channel_interface {
-};
-
-extern const struct vmbus_channel_interface vmbus_ops;
-
-
 /* Base driver object */
 struct hv_driver {
 	const char *name;
@@ -108,8 +94,6 @@ struct hv_driver {
 	int (*OnDeviceAdd)(struct hv_device *device, void *data);
 	int (*OnDeviceRemove)(struct hv_device *device);
 	void (*OnCleanup)(struct hv_driver *driver);
-
-	struct vmbus_channel_interface VmbusChannelInterface;
 };
 
 /* Base device object */
