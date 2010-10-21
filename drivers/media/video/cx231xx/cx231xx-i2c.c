@@ -372,7 +372,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			rc = cx231xx_i2c_check_for_device(i2c_adap, &msgs[i]);
 			if (rc < 0) {
 				dprintk2(2, " no device\n");
-				mutex_lock(&dev->i2c_lock);
+				mutex_unlock(&dev->i2c_lock);
 				return rc;
 			}
 
