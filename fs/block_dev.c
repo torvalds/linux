@@ -59,7 +59,7 @@ static void bdev_inode_switch_bdi(struct inode *inode,
 	spin_lock(&inode_lock);
 	inode->i_data.backing_dev_info = dst;
 	if (inode->i_state & I_DIRTY)
-		list_move(&inode->i_list, &dst->wb.b_dirty);
+		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
 	spin_unlock(&inode_lock);
 }
 

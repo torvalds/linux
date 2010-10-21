@@ -74,11 +74,11 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 
 	nr_wb = nr_dirty = nr_io = nr_more_io = 0;
 	spin_lock(&inode_lock);
-	list_for_each_entry(inode, &wb->b_dirty, i_list)
+	list_for_each_entry(inode, &wb->b_dirty, i_wb_list)
 		nr_dirty++;
-	list_for_each_entry(inode, &wb->b_io, i_list)
+	list_for_each_entry(inode, &wb->b_io, i_wb_list)
 		nr_io++;
-	list_for_each_entry(inode, &wb->b_more_io, i_list)
+	list_for_each_entry(inode, &wb->b_more_io, i_wb_list)
 		nr_more_io++;
 	spin_unlock(&inode_lock);
 

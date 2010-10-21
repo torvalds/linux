@@ -71,7 +71,7 @@ static unsigned int i_hash_shift __read_mostly;
  * allowing for low-overhead inode sync() operations.
  */
 
-static LIST_HEAD(inode_unused);
+static LIST_HEAD(inode_lru);
 static struct hlist_head *inode_hashtable __read_mostly;
 
 /*
@@ -271,6 +271,7 @@ EXPORT_SYMBOL(__destroy_inode);
 
 static void destroy_inode(struct inode *inode)
 {
+	BUG_ON(!list_empty(&inode->i_lru));
 	__destroy_inode(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
@@ -289,7 +290,8 @@ void inode_init_once(struct inode *inode)
 	INIT_HLIST_NODE(&inode->i_hash);
 	INIT_LIST_HEAD(&inode->i_dentry);
 	INIT_LIST_HEAD(&inode->i_devices);
-	INIT_LIST_HEAD(&inode->i_list);
+	INIT_LIST_HEAD(&inode->i_wb_list);
+	INIT_LIST_HEAD(&inode->i_lru);
 	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
 	spin_lock_init(&inode->i_data.tree_lock);
 	spin_lock_init(&inode->i_data.i_mmap_lock);
@@ -330,16 +332,16 @@ EXPORT_SYMBOL(ihold);
 
 static void inode_lru_list_add(struct inode *inode)
 {
-	if (list_empty(&inode->i_list)) {
-		list_add(&inode->i_list, &inode_unused);
+	if (list_empty(&inode->i_lru)) {
+		list_add(&inode->i_lru, &inode_lru);
 		percpu_counter_inc(&nr_inodes_unused);
 	}
 }
 
 static void inode_lru_list_del(struct inode *inode)
 {
-	if (!list_empty(&inode->i_list)) {
-		list_del_init(&inode->i_list);
+	if (!list_empty(&inode->i_lru)) {
+		list_del_init(&inode->i_lru);
 		percpu_counter_dec(&nr_inodes_unused);
 	}
 }
@@ -460,8 +462,8 @@ static void dispose_list(struct list_head *head)
 	while (!list_empty(head)) {
 		struct inode *inode;
 
-		inode = list_first_entry(head, struct inode, i_list);
-		list_del_init(&inode->i_list);
+		inode = list_first_entry(head, struct inode, i_lru);
+		list_del_init(&inode->i_lru);
 
 		evict(inode);
 
@@ -507,8 +509,14 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 			continue;
 		}
 
-		list_move(&inode->i_list, dispose);
 		inode->i_state |= I_FREEING;
+
+		/*
+		 * Move the inode off the IO lists and LRU once I_FREEING is
+		 * set so that it won't get moved back on there if it is dirty.
+		 */
+		list_move(&inode->i_lru, dispose);
+		list_del_init(&inode->i_wb_list);
 		if (!(inode->i_state & (I_DIRTY | I_SYNC)))
 			percpu_counter_dec(&nr_inodes_unused);
 	}
@@ -580,10 +588,10 @@ static void prune_icache(int nr_to_scan)
 	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
 		struct inode *inode;
 
-		if (list_empty(&inode_unused))
+		if (list_empty(&inode_lru))
 			break;
 
-		inode = list_entry(inode_unused.prev, struct inode, i_list);
+		inode = list_entry(inode_lru.prev, struct inode, i_lru);
 
 		/*
 		 * Referenced or dirty inodes are still in use. Give them
@@ -591,14 +599,14 @@ static void prune_icache(int nr_to_scan)
 		 */
 		if (atomic_read(&inode->i_count) ||
 		    (inode->i_state & ~I_REFERENCED)) {
-			list_del_init(&inode->i_list);
+			list_del_init(&inode->i_lru);
 			percpu_counter_dec(&nr_inodes_unused);
 			continue;
 		}
 
 		/* recently referenced inodes get one more pass */
 		if (inode->i_state & I_REFERENCED) {
-			list_move(&inode->i_list, &inode_unused);
+			list_move(&inode->i_lru, &inode_lru);
 			inode->i_state &= ~I_REFERENCED;
 			continue;
 		}
@@ -611,15 +619,21 @@ static void prune_icache(int nr_to_scan)
 			iput(inode);
 			spin_lock(&inode_lock);
 
-			if (inode != list_entry(inode_unused.next,
-						struct inode, i_list))
+			if (inode != list_entry(inode_lru.next,
+						struct inode, i_lru))
 				continue;	/* wrong inode or list_empty */
 			if (!can_unuse(inode))
 				continue;
 		}
-		list_move(&inode->i_list, &freeable);
 		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state |= I_FREEING;
+
+		/*
+		 * Move the inode off the IO lists and LRU once I_FREEING is
+		 * set so that it won't get moved back on there if it is dirty.
+		 */
+		list_move(&inode->i_lru, &freeable);
+		list_del_init(&inode->i_wb_list);
 		percpu_counter_dec(&nr_inodes_unused);
 	}
 	if (current_is_kswapd())
@@ -1340,15 +1354,16 @@ static void iput_final(struct inode *inode)
 		inode->i_state &= ~I_WILL_FREE;
 		__remove_inode_hash(inode);
 	}
+
 	WARN_ON(inode->i_state & I_NEW);
 	inode->i_state |= I_FREEING;
 
 	/*
-	 * After we delete the inode from the LRU here, we avoid moving dirty
-	 * inodes back onto the LRU now because I_FREEING is set and hence
-	 * writeback_single_inode() won't move the inode around.
+	 * Move the inode off the IO lists and LRU once I_FREEING is
+	 * set so that it won't get moved back on there if it is dirty.
 	 */
 	inode_lru_list_del(inode);
+	list_del_init(&inode->i_wb_list);
 
 	__inode_sb_list_del(inode);
 	spin_unlock(&inode_lock);

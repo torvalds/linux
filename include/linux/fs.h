@@ -723,7 +723,8 @@ struct posix_acl;
 
 struct inode {
 	struct hlist_node	i_hash;
-	struct list_head	i_list;		/* backing dev IO list */
+	struct list_head	i_wb_list;	/* backing dev IO list */
+	struct list_head	i_lru;		/* inode LRU list */
 	struct list_head	i_sb_list;
 	struct list_head	i_dentry;
 	unsigned long		i_ino;
