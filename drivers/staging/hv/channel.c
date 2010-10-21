@@ -305,6 +305,7 @@ errorout:
 	kfree(openInfo);
 	return err;
 }
+EXPORT_SYMBOL_GPL(vmbus_open);
 
 /*
  * dump_gpadl_body - Dump the gpadl body message to the console for
