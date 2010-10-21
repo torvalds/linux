@@ -378,10 +378,16 @@ static void tegra2_cpu_clk_disable(struct clk *c)
 static int tegra2_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret;
+	/*
+	 * Take an extra reference to the main pll so it doesn't turn
+	 * off when we move the cpu off of it
+	 */
+	clk_enable_locked(c->main);
+
 	ret = clk_set_parent_locked(c->parent, c->backup);
 	if (ret) {
 		pr_err("Failed to switch cpu to clock %s\n", c->backup->name);
-		return ret;
+		goto out;
 	}
 
 	if (rate == c->backup->rate)
@@ -390,17 +396,18 @@ static int tegra2_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 	ret = clk_set_rate_locked(c->main, rate);
 	if (ret) {
 		pr_err("Failed to change cpu pll to %lu\n", rate);
-		return ret;
+		goto out;
 	}
 
 	ret = clk_set_parent_locked(c->parent, c->main);
 	if (ret) {
 		pr_err("Failed to switch cpu to clock %s\n", c->main->name);
-		return ret;
+		goto out;
 	}
 
 out:
-	return 0;
+	clk_disable_locked(c->main);
+	return ret;
 }
 
 static struct clk_ops tegra_cpu_ops = {
