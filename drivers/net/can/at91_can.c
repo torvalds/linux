@@ -299,6 +299,7 @@ static void at91_chip_start(struct net_device *dev)
 	reg_mr = at91_read(priv, AT91_MR);
 	at91_write(priv, AT91_MR, reg_mr & ~AT91_MR_CANEN);
 
+	at91_set_bittiming(dev);
 	at91_setup_mailboxes(dev);
 	at91_transceiver_switch(priv, 1);
 
@@ -1086,7 +1087,6 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->can.clock.freq = clk_get_rate(clk);
 	priv->can.bittiming_const = &at91_bittiming_const;
-	priv->can.do_set_bittiming = at91_set_bittiming;
 	priv->can.do_set_mode = at91_set_mode;
 	priv->can.do_get_berr_counter = at91_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
