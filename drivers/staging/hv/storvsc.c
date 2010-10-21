@@ -213,12 +213,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 
 	DPRINT_INFO(STORVSC, "BEGIN_INITIALIZATION_OPERATION...");
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send BEGIN_INITIALIZATION_OPERATION");
@@ -245,12 +244,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 	vstorPacket->Version.MajorMinor = VMSTOR_PROTOCOL_VERSION_CURRENT;
 	FILL_VMSTOR_REVISION(vstorPacket->Version.Revision);
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send BEGIN_INITIALIZATION_OPERATION");
@@ -277,12 +275,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 	vstorPacket->StorageChannelProperties.PortNumber =
 					storDevice->PortNumber;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
@@ -314,12 +311,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 	vstorPacket->Operation = VStorOperationEndInitialization;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
@@ -638,12 +634,11 @@ int StorVscOnHostReset(struct hv_device *Device)
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 	vstorPacket->VmSrb.PathId = storDevice->PathId;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)&storDevice->ResetRequest,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)&storDevice->ResetRequest,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC, "Unable to send reset packet %p ret %d",
 			   vstorPacket, ret);
@@ -741,12 +736,11 @@ static int StorVscOnIORequest(struct hv_device *Device,
 				sizeof(struct vstor_packet),
 				(unsigned long)requestExtension);
 	} else {
-		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)requestExtension,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(Device->channel, vstorPacket,
+				       sizeof(struct vstor_packet),
+				       (unsigned long)requestExtension,
+				       VmbusPacketTypeDataInBand,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
 
 	if (ret != 0) {
