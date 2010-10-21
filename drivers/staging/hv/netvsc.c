@@ -240,10 +240,9 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 	 * channel.  Note: This call uses the vmbus connection rather
 	 * than the channel to establish the gpadl handle.
 	 */
-	ret = Device->Driver->VmbusChannelInterface.EstablishGpadl(Device,
-					netDevice->ReceiveBuffer,
-					netDevice->ReceiveBufferSize,
-					&netDevice->ReceiveBufferGpadlHandle);
+	ret = vmbus_establish_gpadl(Device->context, netDevice->ReceiveBuffer,
+				    netDevice->ReceiveBufferSize,
+				    &netDevice->ReceiveBufferGpadlHandle);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to establish receive buffer's gpadl");
@@ -369,10 +368,9 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 	 * channel.  Note: This call uses the vmbus connection rather
 	 * than the channel to establish the gpadl handle.
 	 */
-	ret = Device->Driver->VmbusChannelInterface.EstablishGpadl(Device,
-					netDevice->SendBuffer,
-					netDevice->SendBufferSize,
-					&netDevice->SendBufferGpadlHandle);
+	ret = vmbus_establish_gpadl(Device->context, netDevice->SendBuffer,
+				    netDevice->SendBufferSize,
+				    &netDevice->SendBufferGpadlHandle);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to establish send buffer's gpadl");
 		goto Cleanup;
