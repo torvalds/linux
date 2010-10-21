@@ -329,25 +329,35 @@ static Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 	return die_find_child(sp_die, __die_find_inline_cb, &addr, die_mem);
 }
 
+struct __find_variable_param {
+	const char *name;
+	Dwarf_Addr addr;
+};
+
 static int __die_find_variable_cb(Dwarf_Die *die_mem, void *data)
 {
-	const char *name = data;
+	struct __find_variable_param *fvp = data;
 	int tag;
 
 	tag = dwarf_tag(die_mem);
 	if ((tag == DW_TAG_formal_parameter ||
 	     tag == DW_TAG_variable) &&
-	    die_compare_name(die_mem, name))
+	    die_compare_name(die_mem, fvp->name))
 		return DIE_FIND_CB_FOUND;
 
-	return DIE_FIND_CB_CONTINUE;
+	if (dwarf_haspc(die_mem, fvp->addr))
+		return DIE_FIND_CB_CONTINUE;
+	else
+		return DIE_FIND_CB_SIBLING;
 }
 
-/* Find a variable called 'name' */
-static Dwarf_Die *die_find_variable(Dwarf_Die *sp_die, const char *name,
-				    Dwarf_Die *die_mem)
+/* Find a variable called 'name' at given address */
+static Dwarf_Die *die_find_variable_at(Dwarf_Die *sp_die, const char *name,
+				       Dwarf_Addr addr, Dwarf_Die *die_mem)
 {
-	return die_find_child(sp_die, __die_find_variable_cb, (void *)name,
+	struct __find_variable_param fvp = { .name = name, .addr = addr};
+
+	return die_find_child(sp_die, __die_find_variable_cb, (void *)&fvp,
 			      die_mem);
 }
 
@@ -731,7 +741,7 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 	pr_debug("Searching '%s' variable in context.\n",
 		 pf->pvar->var);
 	/* Search child die for local variables and parameters. */
-	if (die_find_variable(sp_die, pf->pvar->var, &vr_die))
+	if (die_find_variable_at(sp_die, pf->pvar->var, pf->addr, &vr_die))
 		ret = convert_variable(&vr_die, pf);
 	else {
 		/* Search upper class */
