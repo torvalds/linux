@@ -4991,9 +4991,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	obj_priv = to_intel_bo(work->pending_flip_obj);
-
-	/* Initial scanout buffer will have a 0 pending flip count */
+	obj_priv = to_intel_bo(work->old_fb_obj);
 	atomic_clear_mask(1 << intel_crtc->plane,
 			  &obj_priv->pending_flip.counter);
 	if (atomic_read(&obj_priv->pending_flip) == 0)
@@ -5092,9 +5090,14 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_objs;
 
-	obj_priv = to_intel_bo(obj);
-	atomic_add(1 << intel_crtc->plane, &obj_priv->pending_flip);
+	/* Block clients from rendering to the new back buffer until
+	 * the flip occurs and the object is no longer visible.
+	 */
+	atomic_add(1 << intel_crtc->plane,
+		   &to_intel_bo(work->old_fb_obj)->pending_flip);
+
 	work->pending_flip_obj = obj;
+	obj_priv = to_intel_bo(obj);
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
 		u32 flip_mask;
