@@ -18,3 +18,12 @@ config SND_KIRKWOOD_SOC_OPENRD
 	  Say Y if you want to add support for SoC audio on
 	  Openrd Client.
 
+config SND_KIRKWOOD_SOC_T5325
+	tristate "SoC Audio support for HP t5325"
+	depends on SND_KIRKWOOD_SOC && MACH_T5325
+	select SND_KIRKWOOD_SOC_I2S
+	select SND_SOC_ALC5623
+	help
+	  Say Y if you want to add support for SoC audio on
+	  the HP t5325 thin client.
+
