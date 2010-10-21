@@ -31,21 +31,21 @@ static int ivmbus_open(struct hv_device *device, u32 sendbuffer_size,
 			     void (*channel_callback)(void *context),
 			     void *context)
 {
-	return vmbus_open(device->context, sendbuffer_size,
+	return vmbus_open(device->channel, sendbuffer_size,
 				recv_ringbuffer_size, userdata, userdatalen,
 				channel_callback, context);
 }
 
 static void ivmbus_close(struct hv_device *device)
 {
-	vmbus_close(device->context);
+	vmbus_close(device->channel);
 }
 
 static int ivmbus_sendpacket(struct hv_device *device, const void *buffer,
 				   u32 bufferlen, u64 requestid, u32 type,
 				   u32 flags)
 {
-	return vmbus_sendpacket(device->context, buffer, bufferlen,
+	return vmbus_sendpacket(device->channel, buffer, bufferlen,
 				      requestid, type, flags);
 }
 
@@ -54,7 +54,7 @@ static int ivmbus_sendpacket_pagebuffer(struct hv_device *device,
 				u32 pagecount, void *buffer,
 				u32 bufferlen, u64 requestid)
 {
-	return vmbus_sendpacket_pagebuffer(device->context, pagebuffers,
+	return vmbus_sendpacket_pagebuffer(device->channel, pagebuffers,
 						pagecount, buffer, bufferlen,
 						requestid);
 }
@@ -63,7 +63,7 @@ static int ivmbus_sendpacket_multipagebuffer(struct hv_device *device,
 				struct hv_multipage_buffer *multi_pagebuffer,
 				void *buffer, u32 bufferlen, u64 requestid)
 {
-	return vmbus_sendpacket_multipagebuffer(device->context,
+	return vmbus_sendpacket_multipagebuffer(device->channel,
 						     multi_pagebuffer, buffer,
 						     bufferlen, requestid);
 }
@@ -72,7 +72,7 @@ static int ivmbus_recvpacket(struct hv_device *device, void *buffer,
 				   u32 bufferlen, u32 *buffer_actuallen,
 				   u64 *requestid)
 {
-	return vmbus_recvpacket(device->context, buffer, bufferlen,
+	return vmbus_recvpacket(device->channel, buffer, bufferlen,
 				      buffer_actuallen, requestid);
 }
 
@@ -80,7 +80,7 @@ static int ivmbus_recvpacket_raw(struct hv_device *device, void *buffer,
 				      u32 bufferlen, u32 *buffer_actuallen,
 				      u64 *requestid)
 {
-	return vmbus_recvpacket_raw(device->context, buffer, bufferlen,
+	return vmbus_recvpacket_raw(device->channel, buffer, bufferlen,
 					 buffer_actuallen, requestid);
 }
 

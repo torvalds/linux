@@ -104,7 +104,7 @@ extern struct VMBUS_CONNECTION gVmbusConnection;
 
 struct hv_device *VmbusChildDeviceCreate(struct hv_guid *deviceType,
 					 struct hv_guid *deviceInstance,
-					 void *context);
+					 struct vmbus_channel *channel);
 
 int VmbusChildDeviceAdd(struct hv_device *Device);
 

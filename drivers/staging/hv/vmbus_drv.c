@@ -71,7 +71,7 @@ static void vmbus_bus_release(struct device *device);
 
 static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 						   struct hv_guid *instance,
-						   void *context);
+						   struct vmbus_channel *channel);
 static void vmbus_child_device_destroy(struct hv_device *device_obj);
 static int vmbus_child_device_register(struct hv_device *root_device_obj,
 				       struct hv_device *child_device_obj);
@@ -134,10 +134,10 @@ static void get_channel_info(struct hv_device *device,
 {
 	struct vmbus_channel_debug_info debug_info;
 
-	if (!device->context)
+	if (!device->channel)
 		return;
 
-	vmbus_get_debug_info(device->context, &debug_info);
+	vmbus_get_debug_info(device->channel, &debug_info);
 
 	info->ChannelId = debug_info.RelId;
 	info->ChannelState = debug_info.State;
@@ -508,7 +508,7 @@ EXPORT_SYMBOL(vmbus_get_interface);
  */
 static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 						   struct hv_guid *instance,
-						   void *context)
+						   struct vmbus_channel *channel)
 {
 	struct vm_device *child_device_ctx;
 	struct hv_device *child_device_obj;
@@ -541,7 +541,7 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 		instance->data[14], instance->data[15]);
 
 	child_device_obj = &child_device_ctx->device_obj;
-	child_device_obj->context = context;
+	child_device_obj->channel = channel;
 	memcpy(&child_device_obj->deviceType, type, sizeof(struct hv_guid));
 	memcpy(&child_device_obj->deviceInstance, instance,
 	       sizeof(struct hv_guid));

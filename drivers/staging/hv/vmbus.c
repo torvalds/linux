@@ -65,12 +65,12 @@ static void VmbusGetChannelOffers(void)
  */
 struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
 					 struct hv_guid *DeviceInstance,
-					 void *Context)
+					 struct vmbus_channel *channel)
 {
 	struct vmbus_driver *vmbusDriver = (struct vmbus_driver *)gDriver;
 
 	return vmbusDriver->OnChildDeviceCreate(DeviceType, DeviceInstance,
-						Context);
+						channel);
 }
 
 /*

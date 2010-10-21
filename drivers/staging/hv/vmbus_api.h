@@ -152,7 +152,7 @@ struct hv_device {
 	/* the device instance id of this device */
 	struct hv_guid deviceInstance;
 
-	struct vmbus_channel *context;
+	struct vmbus_channel *channel;
 
 	/* Device extension; */
 	void *Extension;
@@ -167,7 +167,7 @@ struct vmbus_driver {
 	/* Set by the caller */
 	struct hv_device * (*OnChildDeviceCreate)(struct hv_guid *DeviceType,
 						struct hv_guid *DeviceInstance,
-						void *Context);
+						struct vmbus_channel *channel);
 	void (*OnChildDeviceDestroy)(struct hv_device *device);
 	int (*OnChildDeviceAdd)(struct hv_device *RootDevice,
 				struct hv_device *ChildDevice);

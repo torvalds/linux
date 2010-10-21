@@ -240,7 +240,7 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 	 * channel.  Note: This call uses the vmbus connection rather
 	 * than the channel to establish the gpadl handle.
 	 */
-	ret = vmbus_establish_gpadl(Device->context, netDevice->ReceiveBuffer,
+	ret = vmbus_establish_gpadl(Device->channel, netDevice->ReceiveBuffer,
 				    netDevice->ReceiveBufferSize,
 				    &netDevice->ReceiveBufferGpadlHandle);
 	if (ret != 0) {
@@ -368,7 +368,7 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 	 * channel.  Note: This call uses the vmbus connection rather
 	 * than the channel to establish the gpadl handle.
 	 */
-	ret = vmbus_establish_gpadl(Device->context, netDevice->SendBuffer,
+	ret = vmbus_establish_gpadl(Device->channel, netDevice->SendBuffer,
 				    netDevice->SendBufferSize,
 				    &netDevice->SendBufferGpadlHandle);
 	if (ret != 0) {
@@ -467,7 +467,7 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 	if (NetDevice->ReceiveBufferGpadlHandle) {
 		DPRINT_INFO(NETVSC, "Tearing down receive buffer's GPADL...");
 
-		ret = vmbus_teardown_gpadl(NetDevice->Device->context,
+		ret = vmbus_teardown_gpadl(NetDevice->Device->channel,
 					   NetDevice->ReceiveBufferGpadlHandle);
 
 		/* If we failed here, we might as well return and have a leak rather than continue and a bugchk */
@@ -538,7 +538,7 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 	/* Teardown the gpadl on the vsp end */
 	if (NetDevice->SendBufferGpadlHandle) {
 		DPRINT_INFO(NETVSC, "Tearing down send buffer's GPADL...");
-		ret = vmbus_teardown_gpadl(NetDevice->Device->context,
+		ret = vmbus_teardown_gpadl(NetDevice->Device->channel,
 					   NetDevice->SendBufferGpadlHandle);
 
 		/*
