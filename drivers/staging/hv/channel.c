@@ -584,6 +584,7 @@ Cleanup:
 	kfree(msginfo);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
 
 /*
  * vmbus_teardown_gpadl -Teardown the specified GPADL handle
