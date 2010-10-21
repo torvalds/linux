@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2007, 2010 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2008 Juergen Beisert (kernel@pengutronix.de)
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,8 @@
 
 #ifndef __ASM_ARCH_MXC_H__
 #define __ASM_ARCH_MXC_H__
+
+#include <linux/types.h>
 
 #ifndef __ASM_ARCH_MXC_HARDWARE_H__
 #error "Do not include directly."
@@ -131,6 +133,15 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mxc91231()	(mxc_cpu_type == MXC_CPU_MXC91231)
 #else
 # define cpu_is_mxc91231()	(0)
+#endif
+
+#ifndef __ASSEMBLY__
+
+struct cpu_op {
+	u32 cpu_rate;
+};
+
+extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif
 
 #if defined(CONFIG_ARCH_MX3) || defined(CONFIG_ARCH_MX2)

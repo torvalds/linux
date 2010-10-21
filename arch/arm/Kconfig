@@ -1584,6 +1584,12 @@ if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
 
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_MXC && CPU_FREQ
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
+
 config CPU_FREQ_SA1100
 	bool
 
