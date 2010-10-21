@@ -499,7 +499,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 	}
 
 
-	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+	if (IS_G4X(dev) || IS_GEN5(dev)) {
 		BEGIN_LP_RING(2);
 		OUT_RING(MI_FLUSH | MI_NO_WRITE_FLUSH | MI_INVALIDATE_ISP);
 		OUT_RING(MI_NOOP);
@@ -1995,7 +1995,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev)) {
+	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
@@ -2019,7 +2019,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	if (IS_PINEVIEW(dev))
 		i915_pineview_get_mem_freq(dev);
-	else if (IS_IRONLAKE(dev))
+	else if (IS_GEN5(dev))
 		i915_ironlake_get_mem_freq(dev);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the

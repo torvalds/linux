@@ -265,10 +265,10 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->lvds_use_ssc = general->enable_ssc;
 
 		if (dev_priv->lvds_use_ssc) {
-			if (IS_I85X(dev_priv->dev))
+			if (IS_I85X(dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
-			else if (IS_IRONLAKE(dev_priv->dev) || IS_GEN6(dev))
+			else if (IS_GEN5(dev) || IS_GEN6(dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 120;
 			else

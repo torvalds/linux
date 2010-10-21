@@ -71,7 +71,6 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(is_pineview);
 	B(is_broadwater);
 	B(is_crestline);
-	B(is_ironlake);
 	B(has_fbc);
 	B(has_rc6);
 	B(has_pipe_cxsr);
@@ -795,7 +794,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool sr_enabled = false;
 
-	if (IS_IRONLAKE(dev))
+	if (IS_GEN5(dev))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
 	else if (IS_CRESTLINE(dev) || IS_I945G(dev) || IS_I945GM(dev))
 		sr_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;

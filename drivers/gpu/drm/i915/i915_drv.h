@@ -206,7 +206,6 @@ struct intel_device_info {
 	u8 is_pineview : 1;
 	u8 is_broadwater : 1;
 	u8 is_crestline : 1;
-	u8 is_ironlake : 1;
 	u8 has_fbc : 1;
 	u8 has_rc6 : 1;
 	u8 has_pipe_cxsr : 1;
@@ -1292,7 +1291,6 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
 #define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
-#define IS_IRONLAKE(dev)	(INTEL_INFO(dev)->is_ironlake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
 #define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
@@ -1314,8 +1312,8 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define HAS_128_BYTE_Y_TILING(dev) (!IS_GEN2(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
 #define SUPPORTS_DIGITAL_OUTPUTS(dev)	(!IS_GEN2(dev) && !IS_PINEVIEW(dev))
-#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
-#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_GEN5(dev))
+#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_GEN5(dev))
 #define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
 #define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
 #define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
@@ -1327,9 +1325,8 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 #define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
 
-#define HAS_PCH_SPLIT(dev) (IS_IRONLAKE(dev) ||	\
-			    IS_GEN6(dev))
-#define HAS_PIPE_CONTROL(dev) (IS_IRONLAKE(dev) || IS_GEN6(dev))
+#define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev))
+#define HAS_PIPE_CONTROL(dev) (IS_GEN5(dev) || IS_GEN6(dev))
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)

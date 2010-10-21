@@ -4152,7 +4152,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_wait_for_vblank(dev, pipe);
 
-	if (IS_IRONLAKE(dev)) {
+	if (IS_GEN5(dev)) {
 		/* enable address swizzle for tiling buffer */
 		temp = I915_READ(DISP_ARB_CTL);
 		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
@@ -5736,7 +5736,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
 
-		if (IS_IRONLAKE(dev)) {
+		if (IS_GEN5(dev)) {
 			/* Required for FBC */
 			dspclk_gate |= DPFDUNIT_CLOCK_GATE_DISABLE;
 			/* Required for CxSR */
@@ -5763,7 +5763,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 		 * The bit 5 of 0x42020
 		 * The bit 15 of 0x45000
 		 */
-		if (IS_IRONLAKE(dev)) {
+		if (IS_GEN5(dev)) {
 			I915_WRITE(ILK_DISPLAY_CHICKEN2,
 					(I915_READ(ILK_DISPLAY_CHICKEN2) |
 					ILK_DPARB_GATE | ILK_VSDPFD_FULL));
@@ -5939,7 +5939,7 @@ static void intel_init_display(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
-		if (IS_IRONLAKE(dev)) {
+		if (IS_GEN5(dev)) {
 			if (I915_READ(MLTR_ILK) & ILK_SRLT_MASK)
 				dev_priv->display.update_wm = ironlake_update_wm;
 			else {

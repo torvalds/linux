@@ -143,13 +143,13 @@ static const struct intel_device_info intel_pineview_info = {
 };
 
 static const struct intel_device_info intel_ironlake_d_info = {
-	.gen = 5, .is_ironlake = 1,
+	.gen = 5,
 	.need_gfx_hws = 1, .has_pipe_cxsr = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
-	.gen = 5, .is_ironlake = 1, .is_mobile = 1,
+	.gen = 5, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
