@@ -1,5 +1,5 @@
 #include "amd64_edac.h"
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 static struct edac_pci_ctl_info *amd64_ctl_pci;
 
@@ -2927,7 +2927,7 @@ static int __init amd64_edac_init(void)
 	 * to finish initialization of the MC instances.
 	 */
 	err = -ENODEV;
-	for (nb = 0; nb < num_k8_northbridges; nb++) {
+	for (nb = 0; nb < k8_northbridges.num; nb++) {
 		if (!pvt_lookup[nb])
 			continue;
 

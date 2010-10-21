@@ -22,7 +22,7 @@
 #include <asm/numa.h>
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 static struct bootnode __initdata nodes[8];
 static nodemask_t __initdata nodes_parsed = NODE_MASK_NONE;

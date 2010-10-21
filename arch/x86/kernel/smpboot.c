@@ -397,6 +397,19 @@ void __cpuinit smp_store_cpu_info(int id)
 		identify_secondary_cpu(c);
 }
 
+static void __cpuinit link_thread_siblings(int cpu1, int cpu2)
+{
+	struct cpuinfo_x86 *c1 = &cpu_data(cpu1);
+	struct cpuinfo_x86 *c2 = &cpu_data(cpu2);
+
+	cpumask_set_cpu(cpu1, cpu_sibling_mask(cpu2));
+	cpumask_set_cpu(cpu2, cpu_sibling_mask(cpu1));
+	cpumask_set_cpu(cpu1, cpu_core_mask(cpu2));
+	cpumask_set_cpu(cpu2, cpu_core_mask(cpu1));
+	cpumask_set_cpu(cpu1, c2->llc_shared_map);
+	cpumask_set_cpu(cpu2, c1->llc_shared_map);
+}
+
 
 void __cpuinit set_cpu_sibling_map(int cpu)
 {
@@ -409,14 +422,13 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		for_each_cpu(i, cpu_sibling_setup_mask) {
 			struct cpuinfo_x86 *o = &cpu_data(i);
 
-			if (c->phys_proc_id == o->phys_proc_id &&
-			    c->cpu_core_id == o->cpu_core_id) {
-				cpumask_set_cpu(i, cpu_sibling_mask(cpu));
-				cpumask_set_cpu(cpu, cpu_sibling_mask(i));
-				cpumask_set_cpu(i, cpu_core_mask(cpu));
-				cpumask_set_cpu(cpu, cpu_core_mask(i));
-				cpumask_set_cpu(i, c->llc_shared_map);
-				cpumask_set_cpu(cpu, o->llc_shared_map);
+			if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
+				if (c->phys_proc_id == o->phys_proc_id &&
+				    c->compute_unit_id == o->compute_unit_id)
+					link_thread_siblings(cpu, i);
+			} else if (c->phys_proc_id == o->phys_proc_id &&
+				   c->cpu_core_id == o->cpu_core_id) {
+				link_thread_siblings(cpu, i);
 			}
 		}
 	} else {
