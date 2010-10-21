@@ -599,7 +599,7 @@ static int StorVscOnDeviceRemove(struct hv_device *Device)
 	DPRINT_INFO(STORVSC, "storage device (%p) safe to remove", storDevice);
 
 	/* Close the channel */
-	Device->Driver->VmbusChannelInterface.Close(Device);
+	vmbus_close(Device->channel);
 
 	FreeStorDevice(storDevice);
 	return 0;
