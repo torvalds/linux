@@ -82,7 +82,12 @@ struct be_mcc_compl {
  */
 #define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
+#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
+#define ASYNC_EVENT_CODE_GRP_5		0x5
+#define ASYNC_EVENT_QOS_SPEED		0x1
+#define ASYNC_EVENT_COS_PRIORITY	0x2
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -105,6 +110,30 @@ struct be_async_event_link_state {
 	struct be_async_event_trailer trailer;
 } __packed;
 
+/* When the event code of an async trailer is GRP-5 and event_type is QOS_SPEED
+ * the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_qos_link_speed {
+	u8 physical_port;
+	u8 rsvd[5];
+	u16 qos_link_speed;
+	u32 event_tag;
+	struct be_async_event_trailer trailer;
+} __packed;
+
+/* When the event code of an async trailer is GRP5 and event type is
+ * CoS-Priority, the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_cos_priority {
+	u8 physical_port;
+	u8 available_priority_bmap;
+	u8 reco_default_priority;
+	u8 valid;
+	u8 rsvd0;
+	u8 event_tag;
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_compl compl;
@@ -123,8 +152,9 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_WRITE_FLASHROM			7
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
-#define OPCODE_COMMON_MCC_CREATE        		21
+#define OPCODE_COMMON_MCC_CREATE			21
 #define OPCODE_COMMON_SET_QOS				28
+#define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_SEEPROM_READ			30
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
@@ -338,6 +368,7 @@ struct be_cmd_req_mcc_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 rsvd0;
+	u32 async_event_bitmap[1];
 	u8 context[sizeof(struct amap_mcc_context) / 8];
 	struct phys_addr pages[8];
 } __packed;

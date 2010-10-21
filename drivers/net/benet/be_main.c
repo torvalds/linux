@@ -429,9 +429,12 @@ static inline void wrb_fill(struct be_eth_wrb *wrb, u64 addr, int len)
 	wrb->frag_len = len & ETH_WRB_FRAG_LEN_MASK;
 }
 
-static void wrb_fill_hdr(struct be_eth_hdr_wrb *hdr, struct sk_buff *skb,
-		u32 wrb_cnt, u32 len)
+static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
+		struct sk_buff *skb, u32 wrb_cnt, u32 len)
 {
+	u8 vlan_prio = 0;
+	u16 vlan_tag = 0;
+
 	memset(hdr, 0, sizeof(*hdr));
 
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, crc, hdr, 1);
@@ -449,10 +452,15 @@ static void wrb_fill_hdr(struct be_eth_hdr_wrb *hdr, struct sk_buff *skb,
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, udpcs, hdr, 1);
 	}
 
-	if (vlan_tx_tag_present(skb)) {
+	if (adapter->vlan_grp && vlan_tx_tag_present(skb)) {
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan, hdr, 1);
-		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag,
-			hdr, vlan_tx_tag_get(skb));
+		vlan_tag = vlan_tx_tag_get(skb);
+		vlan_prio = (vlan_tag & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+		/* If vlan priority provided by OS is NOT in available bmap */
+		if (!(adapter->vlan_prio_bmap & (1 << vlan_prio)))
+			vlan_tag = (vlan_tag & ~VLAN_PRIO_MASK) |
+					adapter->recommended_prio;
+		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag, hdr, vlan_tag);
 	}
 
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, event, hdr, 1);
@@ -532,7 +540,7 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 		queue_head_inc(txq);
 	}
 
-	wrb_fill_hdr(hdr, first_skb, wrb_cnt, copied);
+	wrb_fill_hdr(adapter, hdr, first_skb, wrb_cnt, copied);
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
 
 	return copied;

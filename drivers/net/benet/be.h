@@ -264,6 +264,8 @@ struct be_adapter {
 	u16 vlans_added;
 	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_N_VID];
+	u8 vlan_prio_bmap;	/* Available Priority BitMap */
+	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem mc_cmd_mem;
 
 	struct be_dma_mem stats_cmd;
