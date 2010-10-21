@@ -764,7 +764,7 @@ static void at91_irq_err_state(struct net_device *dev,
 		struct can_frame *cf, enum can_state new_state)
 {
 	struct at91_priv *priv = netdev_priv(dev);
-	u32 reg_idr, reg_ier, reg_ecr;
+	u32 reg_idr = 0, reg_ier = 0, reg_ecr;
 	u8 tec, rec;
 
 	reg_ecr = at91_read(priv, AT91_ECR);
