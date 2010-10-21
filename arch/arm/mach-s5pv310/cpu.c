@@ -15,6 +15,7 @@
 #include <asm/mach/irq.h>
 
 #include <asm/proc-fns.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
@@ -147,6 +148,28 @@ static int __init s5pv310_core_init(void)
 }
 
 core_initcall(s5pv310_core_init);
+
+#ifdef CONFIG_CACHE_L2X0
+static int __init s5pv310_l2x0_cache_init(void)
+{
+	/* TAG, Data Latency Control: 2cycle */
+	__raw_writel(0x110, S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
+	__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+
+	/* L2X0 Prefetch Control */
+	__raw_writel(0x30000007, S5P_VA_L2CC + L2X0_PREFETCH_CTRL);
+
+	/* L2X0 Power Control */
+	__raw_writel(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN,
+		     S5P_VA_L2CC + L2X0_POWER_CTRL);
+
+	l2x0_init(S5P_VA_L2CC, 0x7C070001, 0xC200ffff);
+
+	return 0;
+}
+
+early_initcall(s5pv310_l2x0_cache_init);
+#endif
 
 int __init s5pv310_init(void)
 {
