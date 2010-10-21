@@ -489,7 +489,7 @@ static void parse_digital(struct hda_codec *codec)
 	if (cfg->dig_outs &&
 	    snd_hda_get_connections(codec, cfg->dig_out_pins[0],
 				    &spec->dig_out, 1) == 1)
-		spec->multiout.dig_out_nid = cfg->dig_out_pins[0];
+		spec->multiout.dig_out_nid = spec->dig_out;
 }
 
 static int ca0110_parse_auto_config(struct hda_codec *codec)
