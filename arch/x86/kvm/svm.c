@@ -124,7 +124,9 @@ struct vcpu_svm {
 	u64 next_rip;
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
-	u64 host_gs_base;
+	struct {
+		u64 gs_base;
+	} host;
 
 	u32 *msrpm;
 
@@ -1353,14 +1355,14 @@ static void svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 static void load_host_msrs(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	wrmsrl(MSR_GS_BASE, to_svm(vcpu)->host_gs_base);
+	wrmsrl(MSR_GS_BASE, to_svm(vcpu)->host.gs_base);
 #endif
 }
 
 static void save_host_msrs(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	rdmsrl(MSR_GS_BASE, to_svm(vcpu)->host_gs_base);
+	rdmsrl(MSR_GS_BASE, to_svm(vcpu)->host.gs_base);
 #endif
 }
 
