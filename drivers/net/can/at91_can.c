@@ -275,6 +275,18 @@ static int at91_set_bittiming(struct net_device *dev)
 	return 0;
 }
 
+static int at91_get_berr_counter(const struct net_device *dev,
+		struct can_berr_counter *bec)
+{
+	const struct at91_priv *priv = netdev_priv(dev);
+	u32 reg_ecr = at91_read(priv, AT91_ECR);
+
+	bec->rxerr = reg_ecr & 0xff;
+	bec->txerr = reg_ecr >> 16;
+
+	return 0;
+}
+
 static void at91_chip_start(struct net_device *dev)
 {
 	struct at91_priv *priv = netdev_priv(dev);
@@ -764,12 +776,10 @@ static void at91_irq_err_state(struct net_device *dev,
 		struct can_frame *cf, enum can_state new_state)
 {
 	struct at91_priv *priv = netdev_priv(dev);
-	u32 reg_idr = 0, reg_ier = 0, reg_ecr;
-	u8 tec, rec;
+	u32 reg_idr = 0, reg_ier = 0;
+	struct can_berr_counter bec;
 
-	reg_ecr = at91_read(priv, AT91_ECR);
-	rec = reg_ecr & 0xff;
-	tec = reg_ecr >> 16;
+	at91_get_berr_counter(dev, &bec);
 
 	switch (priv->can.state) {
 	case CAN_STATE_ERROR_ACTIVE:
@@ -784,7 +794,7 @@ static void at91_irq_err_state(struct net_device *dev,
 			priv->can.can_stats.error_warning++;
 
 			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (tec > rec) ?
+			cf->data[1] = (bec.txerr > bec.rxerr) ?
 				CAN_ERR_CRTL_TX_WARNING :
 				CAN_ERR_CRTL_RX_WARNING;
 		}
@@ -800,7 +810,7 @@ static void at91_irq_err_state(struct net_device *dev,
 			priv->can.can_stats.error_passive++;
 
 			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (tec > rec) ?
+			cf->data[1] = (bec.txerr > bec.rxerr) ?
 				CAN_ERR_CRTL_TX_PASSIVE :
 				CAN_ERR_CRTL_RX_PASSIVE;
 		}
@@ -1078,6 +1088,7 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	priv->can.bittiming_const = &at91_bittiming_const;
 	priv->can.do_set_bittiming = at91_set_bittiming;
 	priv->can.do_set_mode = at91_set_mode;
+	priv->can.do_get_berr_counter = at91_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 	priv->reg_base = addr;
 	priv->dev = dev;
