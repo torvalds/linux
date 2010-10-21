@@ -146,7 +146,6 @@ Include Files
 #include <linux/ioport.h>
 #include <linux/bitops.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -435,13 +434,6 @@ static const struct net_device_ops mace_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/* ----------------------------------------------------------------------------
-nmclan_attach
-	Creates an "instance" of the driver, allocating local data
-	structures for one device.  The device is registered with Card
-	Services.
----------------------------------------------------------------------------- */
-
 static int nmclan_probe(struct pcmcia_device *link)
 {
     mace_private *lp;
@@ -460,10 +452,9 @@ static int nmclan_probe(struct pcmcia_device *link)
     spin_lock_init(&lp->bank_lock);
     link->resource[0]->end = 32;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 1;
-    link->conf.Present = PRESENT_OPTION;
+    link->config_flags |= CONF_ENABLE_IRQ;
+    link->config_index = 1;
+    link->config_regs = PRESENT_OPTION;
 
     lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
@@ -473,14 +464,6 @@ static int nmclan_probe(struct pcmcia_device *link)
 
     return nmclan_config(link);
 } /* nmclan_attach */
-
-/* ----------------------------------------------------------------------------
-nmclan_detach
-	This deletes a driver "instance".  The device is de-registered
-	with Card Services.  If it has been released, all local data
-	structures are freed.  Otherwise, the structures will be freed
-	when the device is released.
----------------------------------------------------------------------------- */
 
 static void nmclan_detach(struct pcmcia_device *link)
 {
@@ -625,13 +608,6 @@ static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
   return 0;
 } /* mace_init */
 
-/* ----------------------------------------------------------------------------
-nmclan_config
-	This routine is scheduled to run after a CARD_INSERTION event
-	is received, to configure the PCMCIA socket, and to make the
-	ethernet device available to the system.
----------------------------------------------------------------------------- */
-
 static int nmclan_config(struct pcmcia_device *link)
 {
   struct net_device *dev = link->priv;
@@ -650,7 +626,7 @@ static int nmclan_config(struct pcmcia_device *link)
   ret = pcmcia_request_exclusive_irq(link, mace_interrupt);
   if (ret)
 	  goto failed;
-  ret = pcmcia_request_configuration(link, &link->conf);
+  ret = pcmcia_enable_device(link);
   if (ret)
 	  goto failed;
 
@@ -712,12 +688,6 @@ failed:
 	return -ENODEV;
 } /* nmclan_config */
 
-/* ----------------------------------------------------------------------------
-nmclan_release
-	After a card is removed, nmclan_release() will unregister the
-	net device, and release the PCMCIA configuration.  If the device
-	is still open, this will be postponed until it is closed.
----------------------------------------------------------------------------- */
 static void nmclan_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "nmclan_release\n");
@@ -1535,9 +1505,7 @@ MODULE_DEVICE_TABLE(pcmcia, nmclan_ids);
 
 static struct pcmcia_driver nmclan_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "nmclan_cs",
-	},
+	.name		= "nmclan_cs",
 	.probe		= nmclan_probe,
 	.remove		= nmclan_detach,
 	.id_table       = nmclan_ids,

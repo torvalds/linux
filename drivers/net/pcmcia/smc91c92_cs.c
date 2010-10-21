@@ -44,7 +44,6 @@
 #include <linux/jiffies.h>
 #include <linux/firmware.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -300,14 +299,6 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/*======================================================================
-
-  smc91c92_attach() creates an "instance" of the driver, allocating
-  local data structures for one device.  The device is registered
-  with Card Services.
-
-======================================================================*/
-
 static int smc91c92_probe(struct pcmcia_device *link)
 {
     struct smc_private *smc;
@@ -324,10 +315,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     spin_lock_init(&smc->lock);
-    link->resource[0]->end = 16;
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The SMC91c92-specific entries in the device structure. */
     dev->netdev_ops = &smc_netdev_ops;
@@ -342,15 +329,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
 
     return smc91c92_config(link);
 } /* smc91c92_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void smc91c92_detach(struct pcmcia_device *link)
 {
@@ -412,26 +390,28 @@ static int mhz_3288_power(struct pcmcia_device *link)
     mdelay(200);
 
     /* Now read and write the COR... */
-    tmp = readb(smc->base + link->conf.ConfigBase + CISREG_COR);
+    tmp = readb(smc->base + link->config_base + CISREG_COR);
     udelay(5);
-    writeb(tmp, smc->base + link->conf.ConfigBase + CISREG_COR);
+    writeb(tmp, smc->base + link->config_base + CISREG_COR);
 
     return 0;
 }
 
-static int mhz_mfc_config_check(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cf,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
-				void *priv_data)
+static int mhz_mfc_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int k;
-	p_dev->resource[1]->start = cf->io.win[0].base;
+	p_dev->io_lines = 16;
+	p_dev->resource[1]->start = p_dev->resource[0]->start;
+	p_dev->resource[1]->end = 8;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[0]->end = 16;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	for (k = 0; k < 0x400; k += 0x10) {
 		if (k & 0x80)
 			continue;
 		p_dev->resource[0]->start = k ^ 0x300;
-		p_dev->io_lines = 16;
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
@@ -442,14 +422,11 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
-    win_req_t req;
     unsigned int offset;
     int i;
 
-    link->conf.Attributes |= CONF_ENABLE_SPKR;
-    link->conf.Status = CCSR_AUDIO_ENA;
-    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-    link->resource[1]->end = 8;
+    link->config_flags |= CONF_ENABLE_SPKR | CONF_ENABLE_IRQ |
+	    CONF_AUTO_SET_IO;
 
     /* The Megahertz combo cards have modem-like CIS entries, so
        we have to explicitly try a bunch of port combinations. */
@@ -459,16 +436,16 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     dev->base_addr = link->resource[0]->start;
 
     /* Allocate a memory window, for accessing the ISR */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	    return -ENODEV;
 
-    smc->base = ioremap(req.Base, req.Size);
-    offset = (smc->manfid == MANFID_MOTOROLA) ? link->conf.ConfigBase : 0;
-    i = pcmcia_map_mem_page(link, link->win, offset);
+    smc->base = ioremap(link->resource[2]->start,
+		    resource_size(link->resource[2]));
+    offset = (smc->manfid == MANFID_MOTOROLA) ? link->config_base : 0;
+    i = pcmcia_map_mem_page(link, link->resource[2], offset);
     if ((i == 0) &&
 	(smc->manfid == MANFID_MEGAHERTZ) &&
 	(smc->cardid == PRODID_MEGAHERTZ_EM3288))
@@ -591,14 +568,12 @@ static int mot_setup(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static int smc_configcheck(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cf,
-			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
-			   void *priv_data)
+static int smc_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	p_dev->resource[0]->start = cf->io.win[0].base;
-	p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->end = 16;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+
 	return pcmcia_request_io(p_dev);
 }
 
@@ -607,7 +582,8 @@ static int smc_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     int i;
 
-    link->resource[0]->end = 16;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
     i = pcmcia_loop_config(link, smc_configcheck, NULL);
     if (!i)
 	    dev->base_addr = link->resource[0]->start;
@@ -640,15 +616,14 @@ static int osi_config(struct pcmcia_device *link)
     static const unsigned int com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
     int i, j;
 
-    link->conf.Attributes |= CONF_ENABLE_SPKR;
-    link->conf.Status = CCSR_AUDIO_ENA;
+    link->config_flags |= CONF_ENABLE_SPKR | CONF_ENABLE_IRQ;
     link->resource[0]->end = 64;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[1]->end = 8;
 
     /* Enable Hard Decode, LAN, Modem */
-    link->conf.ConfigIndex = 0x23;
     link->io_lines = 16;
+    link->config_index = 0x23;
 
     for (i = j = 0; j < 4; j++) {
 	link->resource[1]->start = com[j];
@@ -658,7 +633,7 @@ static int osi_config(struct pcmcia_device *link)
     }
     if (i != 0) {
 	/* Fallback: turn off hard decode */
-	link->conf.ConfigIndex = 0x03;
+	link->config_index = 0x03;
 	link->resource[1]->end = 0;
 	i = pcmcia_request_io(link);
     }
@@ -817,26 +792,15 @@ static int check_sig(struct pcmcia_device *link)
     }
 
     if (width) {
-	    modconf_t mod = {
-		    .Attributes = CONF_IO_CHANGE_WIDTH,
-	    };
 	    printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
 
 	    smc91c92_suspend(link);
-	    pcmcia_modify_configuration(link, &mod);
+	    pcmcia_fixup_iowidth(link);
 	    smc91c92_resume(link);
 	    return check_sig(link);
     }
     return -ENODEV;
 }
-
-/*======================================================================
-
-    smc91c92_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int smc91c92_config(struct pcmcia_device *link)
 {
@@ -869,7 +833,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     i = pcmcia_request_irq(link, smc_interrupt);
     if (i)
 	    goto config_failed;
-    i = pcmcia_request_configuration(link, &link->conf);
+    i = pcmcia_enable_device(link);
     if (i)
 	    goto config_failed;
 
@@ -988,18 +952,10 @@ config_failed:
     return -ENODEV;
 } /* smc91c92_config */
 
-/*======================================================================
-
-    After a card is removed, smc91c92_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
 static void smc91c92_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "smc91c92_release\n");
-	if (link->win) {
+	if (link->resource[2]->end) {
 		struct net_device *dev = link->priv;
 		struct smc_private *smc = netdev_priv(dev);
 		iounmap(smc->base);
@@ -2101,9 +2057,7 @@ MODULE_DEVICE_TABLE(pcmcia, smc91c92_ids);
 
 static struct pcmcia_driver smc91c92_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "smc91c92_cs",
-	},
+	.name		= "smc91c92_cs",
 	.probe		= smc91c92_probe,
 	.remove		= smc91c92_detach,
 	.id_table       = smc91c92_ids,

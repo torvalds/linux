@@ -39,7 +39,6 @@
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -140,14 +139,6 @@ static const struct net_device_ops axnet_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/*======================================================================
-
-    axnet_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int axnet_probe(struct pcmcia_device *link)
 {
     axnet_dev_t *info;
@@ -166,8 +157,7 @@ static int axnet_probe(struct pcmcia_device *link)
     info = PRIV(dev);
     info->p_dev = link;
     link->priv = dev;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     dev->netdev_ops = &axnet_netdev_ops;
 
@@ -176,15 +166,6 @@ static int axnet_probe(struct pcmcia_device *link)
 
     return axnet_config(link);
 } /* axnet_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void axnet_detach(struct pcmcia_device *link)
 {
@@ -231,7 +212,7 @@ static int get_prom(struct pcmcia_device *link)
     };
 
     /* Not much of a test, but the alternatives are messy */
-    if (link->conf.ConfigBase != 0x03c0)
+    if (link->config_base != 0x03c0)
 	return 0;
 
     axnet_reset_8390(dev);
@@ -247,14 +228,6 @@ static int get_prom(struct pcmcia_device *link)
     }
     return 1;
 } /* get_prom */
-
-/*======================================================================
-
-    axnet_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int try_io_port(struct pcmcia_device *link)
 {
@@ -286,35 +259,16 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static int axnet_configcheck(struct pcmcia_device *p_dev,
-			     cistpl_cftable_entry_t *cfg,
-			     cistpl_cftable_entry_t *dflt,
-			     unsigned int vcc,
-			     void *priv_data)
+static int axnet_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	int i;
-	cistpl_io_t *io = &cfg->io;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	if (cfg->index == 0 || cfg->io.nwin == 0)
+	p_dev->config_index = 0x05;
+	if (p_dev->resource[0]->end + p_dev->resource[1]->end < 32)
 		return -ENODEV;
 
-	p_dev->conf.ConfigIndex = 0x05;
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-		i = (io->win[1].len > io->win[0].len);
-		p_dev->resource[1]->start = io->win[1-i].base;
-		p_dev->resource[1]->end = io->win[1-i].len;
-	} else {
-		i = p_dev->resource[1]->end = 0;
-	}
-	p_dev->resource[0]->start = io->win[i].base;
-	p_dev->resource[0]->end = io->win[i].len;
-	p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-	if (p_dev->resource[0]->end + p_dev->resource[1]->end >= 32)
-		return try_io_port(p_dev);
-
-	return -ENODEV;
+	return try_io_port(p_dev);
 }
 
 static int axnet_config(struct pcmcia_device *link)
@@ -326,20 +280,19 @@ static int axnet_config(struct pcmcia_device *link)
     dev_dbg(&link->dev, "axnet_config(0x%p)\n", link);
 
     /* don't trust the CIS on this; Linksys got it wrong */
-    link->conf.Present = 0x63;
+    link->config_regs = 0x63;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
     ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
     if (ret != 0)
 	goto failed;
 
     if (!link->irq)
 	    goto failed;
+
+    if (resource_size(link->resource[1]) == 8)
+	link->config_flags |= CONF_ENABLE_SPKR;
     
-    if (resource_size(link->resource[1]) == 8) {
-	link->conf.Attributes |= CONF_ENABLE_SPKR;
-	link->conf.Status = CCSR_AUDIO_ENA;
-    }
-    
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -413,14 +366,6 @@ failed:
     axnet_release(link);
     return -ENODEV;
 } /* axnet_config */
-
-/*======================================================================
-
-    After a card is removed, axnet_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void axnet_release(struct pcmcia_device *link)
 {
@@ -783,9 +728,7 @@ MODULE_DEVICE_TABLE(pcmcia, axnet_ids);
 
 static struct pcmcia_driver axnet_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "axnet_cs",
-	},
+	.name		= "axnet_cs",
 	.probe		= axnet_probe,
 	.remove		= axnet_detach,
 	.id_table       = axnet_ids,

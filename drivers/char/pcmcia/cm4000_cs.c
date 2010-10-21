@@ -34,7 +34,6 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -54,8 +53,6 @@
 		dev_dbg(reader_to_dev(rdr), "%s:" x, 	\
 			   __func__ , ## args);		\
 	} while (0)
-
-static char *version = "cm4000_cs.c v2.4.0gm6 - All bugs added by Harald Welte";
 
 #define	T_1SEC		(HZ)
 #define	T_10MSEC	msecs_to_jiffies(10)
@@ -1742,20 +1739,8 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 
 /*==== Interface to PCMCIA Layer =======================================*/
 
-static int cm4000_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int cm4000_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (!cfg->io.nwin)
-		return -ENODEV;
-
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
-	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
-	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-
 	return pcmcia_request_io(p_dev);
 }
 
@@ -1763,13 +1748,13 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 {
 	struct cm4000_dev *dev;
 
+	link->config_flags |= CONF_AUTO_SET_IO;
+
 	/* read the config-tuples */
 	if (pcmcia_loop_config(link, cm4000_config_check, NULL))
 		goto cs_release;
 
-	link->conf.IntType = 00000002;
-
-	if (pcmcia_request_configuration(link, &link->conf))
+	if (pcmcia_enable_device(link))
 		goto cs_release;
 
 	dev = link->priv;
@@ -1829,7 +1814,6 @@ static int cm4000_probe(struct pcmcia_device *link)
 
 	dev->p_dev = link;
 	link->priv = dev;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
 	init_waitqueue_head(&dev->devq);
@@ -1891,9 +1875,7 @@ MODULE_DEVICE_TABLE(pcmcia, cm4000_ids);
 
 static struct pcmcia_driver cm4000_driver = {
 	.owner	  = THIS_MODULE,
-	.drv	  = {
-		.name = "cm4000_cs",
-		},
+	.name	  = "cm4000_cs",
 	.probe    = cm4000_probe,
 	.remove   = cm4000_detach,
 	.suspend  = cm4000_suspend,
@@ -1904,8 +1886,6 @@ static struct pcmcia_driver cm4000_driver = {
 static int __init cmm_init(void)
 {
 	int rc;
-
-	printk(KERN_INFO "%s\n", version);
 
 	cmm_class = class_create(THIS_MODULE, "cardman_4000");
 	if (IS_ERR(cmm_class))
@@ -1931,7 +1911,6 @@ static int __init cmm_init(void)
 
 static void __exit cmm_exit(void)
 {
-	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&cm4000_driver);
 	unregister_chrdev(major, DEVICE_NAME);
 	class_destroy(cmm_class);

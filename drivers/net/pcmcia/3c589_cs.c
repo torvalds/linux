@@ -41,7 +41,6 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -176,14 +175,6 @@ static const struct ethtool_ops netdev_ethtool_ops;
 
 static void tc589_detach(struct pcmcia_device *p_dev);
 
-/*======================================================================
-
-    tc589_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static const struct net_device_ops el3_netdev_ops = {
 	.ndo_open		= el3_open,
 	.ndo_stop		= el3_close,
@@ -216,9 +207,8 @@ static int tc589_probe(struct pcmcia_device *link)
     link->resource[0]->end = 16;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 1;
+    link->config_flags |= CONF_ENABLE_IRQ;
+    link->config_index = 1;
 
     dev->netdev_ops = &el3_netdev_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
@@ -226,16 +216,7 @@ static int tc589_probe(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     return tc589_config(link);
-} /* tc589_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
+}
 
 static void tc589_detach(struct pcmcia_device *link)
 {
@@ -249,14 +230,6 @@ static void tc589_detach(struct pcmcia_device *link)
 
     free_netdev(dev);
 } /* tc589_detach */
-
-/*======================================================================
-
-    tc589_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int tc589_config(struct pcmcia_device *link)
 {
@@ -294,7 +267,7 @@ static int tc589_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -351,14 +324,6 @@ failed:
     tc589_release(link);
     return -ENODEV;
 } /* tc589_config */
-
-/*======================================================================
-
-    After a card is removed, tc589_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void tc589_release(struct pcmcia_device *link)
 {
@@ -955,9 +920,7 @@ MODULE_DEVICE_TABLE(pcmcia, tc589_ids);
 
 static struct pcmcia_driver tc589_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "3c589_cs",
-	},
+	.name		= "3c589_cs",
 	.probe		= tc589_probe,
 	.remove		= tc589_detach,
 	.id_table	= tc589_ids,

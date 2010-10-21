@@ -42,7 +42,6 @@
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -238,14 +237,6 @@ static const struct net_device_ops pcnet_netdev_ops = {
 #endif
 };
 
-/*======================================================================
-
-    pcnet_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int pcnet_probe(struct pcmcia_device *link)
 {
     pcnet_dev_t *info;
@@ -260,22 +251,12 @@ static int pcnet_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = dev;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     dev->netdev_ops = &pcnet_netdev_ops;
 
     return pcnet_config(link);
 } /* pcnet_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void pcnet_detach(struct pcmcia_device *link)
 {
@@ -300,22 +281,22 @@ static void pcnet_detach(struct pcmcia_device *link)
 static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    win_req_t req;
     u_char __iomem *base, *virt;
     int i, j;
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags |= WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = 0; link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	return NULL;
 
-    virt = ioremap(req.Base, req.Size);
+    virt = ioremap(link->resource[2]->start,
+	    resource_size(link->resource[2]));
     for (i = 0; i < NR_INFO; i++) {
-	pcmcia_map_mem_page(link, link->win, hw_info[i].offset & ~(req.Size-1));
-	base = &virt[hw_info[i].offset & (req.Size-1)];
+	pcmcia_map_mem_page(link, link->resource[2],
+		hw_info[i].offset & ~(resource_size(link->resource[2])-1));
+	base = &virt[hw_info[i].offset & (resource_size(link->resource[2])-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
 	    (readb(base+4) == hw_info[i].a2)) {
@@ -326,7 +307,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     }
 
     iounmap(virt);
-    j = pcmcia_release_window(link, link->win);
+    j = pcmcia_release_window(link, link->resource[2]);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
@@ -421,7 +402,7 @@ static hw_info_t *get_ax88190(struct pcmcia_device *link)
     int i, j;
 
     /* Not much of a test, but the alternatives are messy */
-    if (link->conf.ConfigBase != 0x03c0)
+    if (link->config_base != 0x03c0)
 	return NULL;
 
     outb_p(0x01, ioaddr + EN0_DCFG);	/* Set word-wide access. */
@@ -463,14 +444,6 @@ static hw_info_t *get_hwired(struct pcmcia_device *link)
     return &default_info;
 } /* get_hwired */
 
-/*======================================================================
-
-    pcnet_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
-
 static int try_io_port(struct pcmcia_device *link)
 {
     int j, ret;
@@ -502,43 +475,22 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static int pcnet_confcheck(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
-			   void *priv_data)
+static int pcnet_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *priv = priv_data;
 	int try = (*priv & 0x1);
-	int i;
-	cistpl_io_t *io = &cfg->io;
 
-	if (cfg->index == 0 || cfg->io.nwin == 0)
+	*priv &= (p_dev->resource[2]->end >= 0x4000) ? 0x10 : ~0x10;
+
+	if (p_dev->config_index == 0)
 		return -EINVAL;
 
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-		i = (io->win[1].len > io->win[0].len);
-		p_dev->resource[1]->start = io->win[1-i].base;
-		p_dev->resource[1]->end = io->win[1-i].len;
-	} else {
-		i = p_dev->resource[1]->end = 0;
-	}
+	if (p_dev->resource[0]->end + p_dev->resource[1]->end < 32)
+		return -EINVAL;
 
-	*priv &= ((cfg->mem.nwin == 1) &&
-		  (cfg->mem.win[0].len >= 0x4000)) ? 0x10 : ~0x10;
-
-	p_dev->resource[0]->start = io->win[i].base;
-	p_dev->resource[0]->end = io->win[i].len;
-	if (!try)
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-	else
+	if (try)
 		p_dev->io_lines = 16;
-	if (p_dev->resource[0]->end + p_dev->resource[1]->end >= 32)
-		return try_io_port(p_dev);
-
-	return -EINVAL;
+	return try_io_port(p_dev);
 }
 
 static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
@@ -560,15 +512,14 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 	if (!link->irq)
 		return NULL;
 
-	if (resource_size(link->resource[1]) == 8) {
-		link->conf.Attributes |= CONF_ENABLE_SPKR;
-		link->conf.Status = CCSR_AUDIO_ENA;
-	}
+	if (resource_size(link->resource[1]) == 8)
+		link->config_flags |= CONF_ENABLE_SPKR;
+
 	if ((link->manf_id == MANFID_IBM) &&
 	    (link->card_id == PRODID_IBM_HOME_AND_AWAY))
-		link->conf.ConfigIndex |= 0x10;
+		link->config_index |= 0x10;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		return NULL;
 
@@ -583,7 +534,7 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 	} else
 		dev->if_port = 0;
 
-	if ((link->conf.ConfigBase == 0x03c0) &&
+	if ((link->config_base == 0x03c0) &&
 	    (link->manf_id == 0x149) && (link->card_id == 0xc1ab)) {
 		dev_info(&link->dev,
 			"this is an AX88190 card - use axnet_cs instead.\n");
@@ -689,14 +640,6 @@ failed:
     return -ENODEV;
 } /* pcnet_config */
 
-/*======================================================================
-
-    After a card is removed, pcnet_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
 static void pcnet_release(struct pcmcia_device *link)
 {
 	pcnet_dev_t *info = PRIV(link->priv);
@@ -708,15 +651,6 @@ static void pcnet_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
 
 static int pcnet_suspend(struct pcmcia_device *link)
 {
@@ -1486,7 +1420,6 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
 {
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
-    win_req_t req;
     int i, window_size, offset, ret;
 
     window_size = (stop_pg - start_pg) << 8;
@@ -1497,22 +1430,22 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     window_size = roundup_pow_of_two(window_size);
 
     /* Allocate a memory window */
-    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
-    req.Base = 0; req.Size = window_size;
-    req.AccessSpeed = mem_speed;
-    ret = pcmcia_request_window(link, &req, &link->win);
+    link->resource[3]->flags |= WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
+    link->resource[3]->flags |= WIN_USE_WAIT;
+    link->resource[3]->start = 0; link->resource[3]->end = window_size;
+    ret = pcmcia_request_window(link, link->resource[3], mem_speed);
     if (ret)
 	    goto failed;
 
     offset = (start_pg << 8) + cm_offset;
     offset -= offset % window_size;
-    ret = pcmcia_map_mem_page(link, link->win, offset);
+    ret = pcmcia_map_mem_page(link, link->resource[3], offset);
     if (ret)
 	    goto failed;
 
     /* Try scribbling on the buffer */
-    info->base = ioremap(req.Base, window_size);
+    info->base = ioremap(link->resource[3]->start,
+			resource_size(link->resource[3]));
     for (i = 0; i < (TX_PAGES<<8); i += 2)
 	__raw_writew((i>>1), info->base+offset+i);
     udelay(100);
@@ -1521,19 +1454,20 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     pcnet_reset_8390(dev);
     if (i != (TX_PAGES<<8)) {
 	iounmap(info->base);
-	pcmcia_release_window(link, link->win);
-	info->base = NULL; link->win = 0;
+	pcmcia_release_window(link, link->resource[3]);
+	info->base = NULL;
 	goto failed;
     }
 
     ei_status.mem = info->base + offset;
-    ei_status.priv = req.Size;
+    ei_status.priv = resource_size(link->resource[3]);
     dev->mem_start = (u_long)ei_status.mem;
-    dev->mem_end = dev->mem_start + req.Size;
+    dev->mem_end = dev->mem_start + resource_size(link->resource[3]);
 
     ei_status.tx_start_page = start_pg;
     ei_status.rx_start_page = start_pg + TX_PAGES;
-    ei_status.stop_page = start_pg + ((req.Size - offset) >> 8);
+    ei_status.stop_page = start_pg + (
+	    (resource_size(link->resource[3]) - offset) >> 8);
 
     /* set up block i/o functions */
     ei_status.get_8390_hdr = &shmem_get_8390_hdr;
@@ -1772,9 +1706,7 @@ MODULE_FIRMWARE("cis/PE-200.cis");
 MODULE_FIRMWARE("cis/tamarack.cis");
 
 static struct pcmcia_driver pcnet_driver = {
-	.drv		= {
-		.name	= "pcnet_cs",
-	},
+	.name		= "pcnet_cs",
 	.probe		= pcnet_probe,
 	.remove		= pcnet_detach,
 	.owner		= THIS_MODULE,

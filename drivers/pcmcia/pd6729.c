@@ -18,7 +18,6 @@
 #include <linux/io.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 
 #include <asm/system.h>
 

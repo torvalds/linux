@@ -20,7 +20,6 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/slab.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 

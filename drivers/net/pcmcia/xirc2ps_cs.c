@@ -82,7 +82,6 @@
 #include <linux/bitops.h>
 #include <linux/mii.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -267,32 +266,10 @@ static unsigned mii_rd(unsigned int ioaddr, u_char phyaddr, u_char phyreg);
 static void mii_wr(unsigned int ioaddr, u_char phyaddr, u_char phyreg,
 		   unsigned data, int len);
 
-/*
- * The event() function is this driver's Card Services event handler.
- * It will be called by Card Services when an appropriate card status
- * event is received.  The config() and release() entry points are
- * used to configure or release a socket, in response to card insertion
- * and ejection events.  They are invoked from the event handler.
- */
-
 static int has_ce2_string(struct pcmcia_device * link);
 static int xirc2ps_config(struct pcmcia_device * link);
 static void xirc2ps_release(struct pcmcia_device * link);
-
-/****************
- * The attach() and detach() entry points are used to create and destroy
- * "instances" of the driver, where each instance represents everything
- * needed to manage one actual PCMCIA card.
- */
-
 static void xirc2ps_detach(struct pcmcia_device *p_dev);
-
-/****************
- * You'll also need to prototype all the functions that will actually
- * be used to talk to your device.  See 'pcmem_cs' for a good example
- * of a fully self-sufficient driver; the other drivers rely more or
- * less on other parts of the kernel.
- */
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
@@ -501,16 +478,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/****************
- * xirc2ps_attach() creates an "instance" of the driver, allocating
- * local data structures for one device.  The device is registered
- * with Card Services.
- *
- * The dev_link structure is initialized, but we don't actually
- * configure the card at this point -- we wait until we receive a
- * card insertion event.
- */
-
 static int
 xirc2ps_probe(struct pcmcia_device *link)
 {
@@ -529,9 +496,7 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     /* General socket configuration */
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 1;
+    link->config_index = 1;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;
@@ -541,13 +506,6 @@ xirc2ps_probe(struct pcmcia_device *link)
 
     return xirc2ps_config(link);
 } /* xirc2ps_attach */
-
-/****************
- *  This deletes a driver "instance".  The device is de-registered
- *  with Card Services.  If it has been released, all local data
- *  structures are freed.  Otherwise, the structures will be freed
- *  when the device is released.
- */
 
 static void
 xirc2ps_detach(struct pcmcia_device *link)
@@ -667,44 +625,53 @@ has_ce2_string(struct pcmcia_device * p_dev)
 }
 
 static int
-xirc2ps_config_modem(struct pcmcia_device *p_dev,
-		     cistpl_cftable_entry_t *cf,
-		     cistpl_cftable_entry_t *dflt,
-		     unsigned int vcc,
-		     void *priv_data)
+xirc2ps_config_modem(struct pcmcia_device *p_dev, void *priv_data)
 {
 	unsigned int ioaddr;
 
-	if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
-		for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-			p_dev->resource[1]->start = cf->io.win[0].base;
-			p_dev->resource[0]->start = ioaddr;
-			if (!pcmcia_request_io(p_dev))
-				return 0;
-		}
+	if ((p_dev->resource[0]->start & 0xf) == 8)
+		return -ENODEV;
+
+	p_dev->resource[0]->end = 16;
+	p_dev->resource[1]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->io_lines = 10;
+
+	p_dev->resource[1]->start = p_dev->resource[0]->start;
+	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
+		p_dev->resource[0]->start = ioaddr;
+		if (!pcmcia_request_io(p_dev))
+			return 0;
 	}
 	return -ENODEV;
 }
 
 static int
-xirc2ps_config_check(struct pcmcia_device *p_dev,
-		     cistpl_cftable_entry_t *cf,
-		     cistpl_cftable_entry_t *dflt,
-		     unsigned int vcc,
-		     void *priv_data)
+xirc2ps_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *pass = priv_data;
+	resource_size_t tmp = p_dev->resource[1]->start;
 
-	if (cf->io.nwin > 0 && (cf->io.win[0].base & 0xf) == 8) {
-		p_dev->resource[1]->start = cf->io.win[0].base;
-		p_dev->resource[0]->start = p_dev->resource[1]->start
-			+ (*pass ? (cf->index & 0x20 ? -24:8)
-			   : (cf->index & 0x20 ?   8:-24));
-		if (!pcmcia_request_io(p_dev))
-			return 0;
-	}
-	return -ENODEV;
+	tmp += (*pass ? (p_dev->config_index & 0x20 ? -24 : 8)
+		: (p_dev->config_index & 0x20 ?   8 : -24));
 
+	if ((p_dev->resource[0]->start & 0xf) == 8)
+		return -ENODEV;
+
+	p_dev->resource[0]->end = 18;
+	p_dev->resource[1]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->io_lines = 10;
+
+	p_dev->resource[1]->start = p_dev->resource[0]->start;
+	p_dev->resource[0]->start = tmp;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -727,11 +694,6 @@ static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
 };
 
 
-/****************
- * xirc2ps_config() is scheduled to run after a CARD_INSERTION event
- * is received, to configure the PCMCIA socket, and to make the
- * ethernet device available to the system.
- */
 static int
 xirc2ps_config(struct pcmcia_device * link)
 {
@@ -807,32 +769,24 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto failure;
     }
 
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-    link->io_lines = 10;
     if (local->modem) {
 	int pass;
+	link->config_flags |= CONF_AUTO_SET_IO;
 
-	if (do_sound) {
-	    link->conf.Attributes |= CONF_ENABLE_SPKR;
-	    link->conf.Status |= CCSR_AUDIO_ENA;
-	}
-	link->resource[1]->end = 8;
-	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
 	    /* Take the Modem IO port from the CIS and scan for a free
 	     * Ethernet port */
-	    link->resource[0]->end = 16; /* no Mako stuff anymore */
 	    if (!pcmcia_loop_config(link, xirc2ps_config_modem, NULL))
 		    goto port_found;
 	} else {
-	    link->resource[0]->end = 18;
 	    /* We do 2 passes here: The first one uses the regular mapping and
 	     * the second tries again, thereby considering that the 32 ports are
 	     * mirrored every 32 bytes. Actually we use a mirrored port for
 	     * the Mako if (on the first pass) the COR bit 5 is set.
 	     */
 	    for (pass=0; pass < 2; pass++)
-		    if (!pcmcia_loop_config(link, xirc2ps_config_check, &pass))
+		    if (!pcmcia_loop_config(link, xirc2ps_config_check,
+						    &pass))
 			    goto port_found;
 	    /* if special option:
 	     * try to configure as Ethernet only.
@@ -840,7 +794,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
+	link->io_lines = 10;
 	link->resource[0]->end = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->resource[0]->start = ioaddr;
 	    if (!(err = pcmcia_request_io(link)))
@@ -861,16 +817,14 @@ xirc2ps_config(struct pcmcia_device * link)
     if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
 	goto config_error;
 
-    /****************
-     * This actually configures the PCMCIA socket -- setting up
-     * the I/O windows and the interrupt mapping.
-     */
-    if ((err=pcmcia_request_configuration(link, &link->conf)))
+    link->config_flags |= CONF_ENABLE_IRQ;
+    if (do_sound)
+	    link->config_flags |= CONF_ENABLE_SPKR;
+
+    if ((err = pcmcia_enable_device(link)))
 	goto config_error;
 
     if (local->dingo) {
-	win_req_t req;
-
 	/* Reset the modem's BAR to the correct value
 	 * This is necessary because in the RequestConfiguration call,
 	 * the base address of the ethernet port (BasePort1) is written
@@ -890,14 +844,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	 * is at 0x0800. So we allocate a window into the attribute
 	 * memory and write direct to the CIS registers
 	 */
-	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-	req.Base = req.Size = 0;
-	req.AccessSpeed = 0;
-	if ((err = pcmcia_request_window(link, &req, &link->win)))
+	link->resource[2]->flags = WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_AM |
+					WIN_ENABLE;
+	link->resource[2]->start = link->resource[2]->end = 0;
+	if ((err = pcmcia_request_window(link, link->resource[2], 0)))
 	    goto config_error;
 
-	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
-	if ((err = pcmcia_map_mem_page(link, link->win, 0)))
+	local->dingo_ccr = ioremap(link->resource[2]->start, 0x1000) + 0x0800;
+	if ((err = pcmcia_map_mem_page(link, link->resource[2], 0)))
 	    goto config_error;
 
 	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
@@ -978,17 +932,12 @@ xirc2ps_config(struct pcmcia_device * link)
     return -ENODEV;
 } /* xirc2ps_config */
 
-/****************
- * After a card is removed, xirc2ps_release() will unregister the net
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
 static void
 xirc2ps_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "release\n");
 
-	if (link->win) {
+	if (link->resource[2]->end) {
 		struct net_device *dev = link->priv;
 		local_info_t *local = netdev_priv(dev);
 		if (local->dingo)
@@ -1830,9 +1779,7 @@ MODULE_DEVICE_TABLE(pcmcia, xirc2ps_ids);
 
 static struct pcmcia_driver xirc2ps_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "xirc2ps_cs",
-	},
+	.name		= "xirc2ps_cs",
 	.probe		= xirc2ps_probe,
 	.remove		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,

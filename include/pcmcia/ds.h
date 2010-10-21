@@ -24,8 +24,10 @@
 
 #ifdef __KERNEL__
 #include <linux/device.h>
+#include <linux/interrupt.h>
 #include <pcmcia/ss.h>
 #include <asm/atomic.h>
+
 
 /*
  * PCMCIA device drivers (16-bit cards only; 32-bit cards require CardBus
@@ -36,8 +38,6 @@ struct pcmcia_device;
 struct config_t;
 struct net_device;
 
-typedef struct resource *window_handle_t;
-
 /* dynamic device IDs for PCMCIA device drivers. See
  * Documentation/pcmcia/driver.txt for details.
 */
@@ -47,6 +47,8 @@ struct pcmcia_dynids {
 };
 
 struct pcmcia_driver {
+	const char		*name;
+
 	int (*probe)		(struct pcmcia_device *dev);
 	void (*remove)		(struct pcmcia_device *dev);
 
@@ -90,15 +92,17 @@ struct pcmcia_device {
 
 	struct list_head	socket_device_list;
 
-	/* deprecated, will be cleaned up soon */
-	config_req_t		conf;
-	window_handle_t		win;
-
 	/* device setup */
 	unsigned int		irq;
 	struct resource		*resource[PCMCIA_NUM_RESOURCES];
+	resource_size_t		card_addr;	/* for the 1st IOMEM resource */
+	unsigned int		vpp;
 
-	unsigned int		io_lines; /* number of I/O lines */
+	unsigned int		config_flags;	/* CONF_ENABLE_ flags below */
+	unsigned int		config_base;
+	unsigned int		config_index;
+	unsigned int		config_regs;	/* PRESENT_ flags below */
+	unsigned int		io_lines;	/* number of I/O lines */
 
 	/* Is the device suspended? */
 	u16			suspended:1;
@@ -174,9 +178,6 @@ int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse);
 /* loop CIS entries for valid configuration */
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
-						 cistpl_cftable_entry_t *cf,
-						 cistpl_cftable_entry_t *dflt,
-						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data);
 
@@ -206,16 +207,17 @@ pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
 int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
 				irq_handler_t handler);
 
-int pcmcia_request_configuration(struct pcmcia_device *p_dev,
-				 config_req_t *req);
+int pcmcia_enable_device(struct pcmcia_device *p_dev);
 
-int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req,
-			  window_handle_t *wh);
-int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t win);
-int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t win,
+int pcmcia_request_window(struct pcmcia_device *p_dev, struct resource *res,
+			unsigned int speed);
+int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res);
+int pcmcia_map_mem_page(struct pcmcia_device *p_dev, struct resource *res,
 			unsigned int offset);
 
-int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
+int pcmcia_fixup_vpp(struct pcmcia_device *p_dev, unsigned char new_vpp);
+int pcmcia_fixup_iowidth(struct pcmcia_device *p_dev);
+
 void pcmcia_disable_device(struct pcmcia_device *p_dev);
 
 /* IO ports */
@@ -224,15 +226,46 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev);
 #define IO_DATA_PATH_WIDTH_16	0x08
 #define IO_DATA_PATH_WIDTH_AUTO	0x10
 
-/* convert flag found in cfgtable to data path width parameter */
-static inline int pcmcia_io_cfg_data_width(unsigned int flags)
-{
-	if (!(flags & CISTPL_IO_8BIT))
-		return IO_DATA_PATH_WIDTH_16;
-	if (!(flags & CISTPL_IO_16BIT))
-		return IO_DATA_PATH_WIDTH_8;
-	return IO_DATA_PATH_WIDTH_AUTO;
-}
+/* IO memory */
+#define WIN_MEMORY_TYPE_CM	0x00 /* default */
+#define WIN_MEMORY_TYPE_AM	0x20 /* MAP_ATTRIB */
+#define WIN_DATA_WIDTH_8	0x00 /* default */
+#define WIN_DATA_WIDTH_16	0x02 /* MAP_16BIT */
+#define WIN_ENABLE		0x01 /* MAP_ACTIVE */
+#define WIN_USE_WAIT		0x40 /* MAP_USE_WAIT */
+
+#define WIN_FLAGS_MAP		0x63 /* MAP_ATTRIB | MAP_16BIT | MAP_ACTIVE |
+					MAP_USE_WAIT */
+#define WIN_FLAGS_REQ		0x1c /* mapping to socket->win[i]:
+					0x04 -> 0
+					0x08 -> 1
+					0x0c -> 2
+					0x10 -> 3 */
+
+/* config_reg{ister}s present for this PCMCIA device */
+#define PRESENT_OPTION		0x001
+#define PRESENT_STATUS		0x002
+#define PRESENT_PIN_REPLACE	0x004
+#define PRESENT_COPY		0x008
+#define PRESENT_EXT_STATUS	0x010
+#define PRESENT_IOBASE_0	0x020
+#define PRESENT_IOBASE_1	0x040
+#define PRESENT_IOBASE_2	0x080
+#define PRESENT_IOBASE_3	0x100
+#define PRESENT_IOSIZE		0x200
+
+/* flags to be passed to pcmcia_enable_device() */
+#define CONF_ENABLE_IRQ         0x0001
+#define CONF_ENABLE_SPKR        0x0002
+#define CONF_ENABLE_PULSE_IRQ   0x0004
+#define CONF_ENABLE_ESR         0x0008
+
+/* flags used by pcmcia_loop_config() autoconfiguration */
+#define CONF_AUTO_CHECK_VCC	0x0100 /* check for matching Vcc? */
+#define CONF_AUTO_SET_VPP	0x0200 /* set Vpp? */
+#define CONF_AUTO_AUDIO		0x0400 /* enable audio line? */
+#define CONF_AUTO_SET_IO	0x0800 /* set ->resource[0,1] */
+#define CONF_AUTO_SET_IOMEM	0x1000 /* set ->resource[2] */
 
 #endif /* __KERNEL__ */
 

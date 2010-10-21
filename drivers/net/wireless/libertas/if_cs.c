@@ -28,7 +28,6 @@
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -761,15 +760,6 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 }
 
 
-/********************************************************************/
-/* Card Services                                                    */
-/********************************************************************/
-
-/*
- * After a card is removed, if_cs_release() will unregister the
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
 static void if_cs_release(struct pcmcia_device *p_dev)
 {
 	struct if_cs_card *card = p_dev->priv;
@@ -785,31 +775,12 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 }
 
 
-/*
- * This creates an "instance" of the driver, allocating local data
- * structures for one device.  The device is registered with Card
- * Services.
- *
- * The dev_link structure is initialized, but we don't actually
- * configure the card at this point -- we wait until we receive a card
- * insertion event.
- */
-
-static int if_cs_ioprobe(struct pcmcia_device *p_dev,
-			 cistpl_cftable_entry_t *cfg,
-			 cistpl_cftable_entry_t *dflt,
-			 unsigned int vcc,
-			 void *priv_data)
+static int if_cs_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
 {
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
 
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	if (cfg->io.nwin != 1) {
+	if (p_dev->resource[1]->end) {
 		lbs_pr_err("wrong CIS (check number of IO windows)\n");
 		return -ENODEV;
 	}
@@ -835,14 +806,12 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	card->p_dev = p_dev;
 	p_dev->priv = card;
 
-	p_dev->conf.Attributes = 0;
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
+	p_dev->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	if (pcmcia_loop_config(p_dev, if_cs_ioprobe, NULL)) {
 		lbs_pr_err("error in pcmcia_loop_config\n");
 		goto out1;
 	}
-
 
 	/*
 	 * Allocate an interrupt line.  Note that this does not assign
@@ -861,14 +830,9 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out1;
 	}
 
-	/*
-	 * This actually configures the PCMCIA socket -- setting up
-	 * the I/O windows and the interrupt mapping, and putting the
-	 * card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(p_dev, &p_dev->conf);
+	ret = pcmcia_enable_device(p_dev);
 	if (ret) {
-		lbs_pr_err("error in pcmcia_request_configuration\n");
+		lbs_pr_err("error in pcmcia_enable_device\n");
 		goto out2;
 	}
 
@@ -962,12 +926,6 @@ out:
 }
 
 
-/*
- * This deletes a driver "instance".  The device is de-registered with
- * Card Services.  If it has been released, all local data structures
- * are freed.  Otherwise, the structures will be freed when the device
- * is released.
- */
 static void if_cs_detach(struct pcmcia_device *p_dev)
 {
 	struct if_cs_card *card = p_dev->priv;
@@ -1000,9 +958,7 @@ MODULE_DEVICE_TABLE(pcmcia, if_cs_ids);
 
 static struct pcmcia_driver lbs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= DRV_NAME,
-	},
+	.name		= DRV_NAME,
 	.probe		= if_cs_probe,
 	.remove		= if_cs_detach,
 	.id_table       = if_cs_ids,

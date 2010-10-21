@@ -70,7 +70,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -550,9 +549,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     /* Initialize the struct pcmcia_device structure */
 
-    link->conf.Attributes = 0;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-
     ret = mgslpc_config(link);
     if (ret)
 	    return ret;
@@ -565,20 +561,8 @@ static int mgslpc_probe(struct pcmcia_device *link)
 /* Card has been inserted.
  */
 
-static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
-			  cistpl_cftable_entry_t *cfg,
-			  cistpl_cftable_entry_t *dflt,
-			  unsigned int vcc,
-			  void *priv_data)
+static int mgslpc_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (!cfg->io.nwin)
-		return -ENODEV;
-
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
-	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
-	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-
 	return pcmcia_request_io(p_dev);
 }
 
@@ -590,32 +574,24 @@ static int mgslpc_config(struct pcmcia_device *link)
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_config(0x%p)\n", link);
 
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
     ret = pcmcia_loop_config(link, mgslpc_ioprobe, NULL);
     if (ret != 0)
 	    goto failed;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 8;
-    link->conf.Present = PRESENT_OPTION;
+    link->config_index = 8;
+    link->config_regs = PRESENT_OPTION;
 
     ret = pcmcia_request_irq(link, mgslpc_isr);
     if (ret)
 	    goto failed;
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
     info->io_base = link->resource[0]->start;
     info->irq_level = link->irq;
-
-    dev_info(&link->dev, "index 0x%02x:",
-	    link->conf.ConfigIndex);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	    printk(", irq %d", link->irq);
-    if (link->resource[0])
-	    printk(", io %pR", link->resource[0]);
-    printk("\n");
     return 0;
 
 failed:
@@ -2797,9 +2773,7 @@ MODULE_DEVICE_TABLE(pcmcia, mgslpc_ids);
 
 static struct pcmcia_driver mgslpc_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "synclink_cs",
-	},
+	.name		= "synclink_cs",
 	.probe		= mgslpc_probe,
 	.remove		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
@@ -2835,8 +2809,6 @@ static void synclink_cs_cleanup(void)
 {
 	int rc;
 
-	printk("Unloading %s: version %s\n", driver_name, driver_version);
-
 	while(mgslpc_device_list)
 		mgslpc_remove_device(mgslpc_device_list);
 
@@ -2858,8 +2830,6 @@ static int __init synclink_cs_init(void)
 	    mgslpc_get_text_ptr();
 	    BREAKPOINT();
     }
-
-    printk("%s %s\n", driver_name, driver_version);
 
     if ((rc = pcmcia_register_driver(&mgslpc_driver)) < 0)
 	    return rc;
@@ -4126,6 +4096,8 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
+
+	memset(&new_line, 0, size);
 
 	switch(ifr->ifr_settings.type) {
 	case IF_GET_IFACE: /* return current sync_serial_settings */

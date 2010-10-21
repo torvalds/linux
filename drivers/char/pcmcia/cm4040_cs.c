@@ -29,7 +29,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -48,9 +47,6 @@
 		dev_dbg(reader_to_dev(rdr), "%s:" x, 	\
 			   __func__ , ## args);		\
 	} while (0)
-
-static char *version =
-"OMNIKEY CardMan 4040 v1.1.0gm5 - All bugs added by Harald Welte";
 
 #define	CCID_DRIVER_BULK_DEFAULT_TIMEOUT  	(150*HZ)
 #define	CCID_DRIVER_ASYNC_POWERUP_TIMEOUT 	(35*HZ)
@@ -516,26 +512,9 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 	return;
 }
 
-static int cm4040_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int cm4040_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	int rc;
-	if (!cfg->io.nwin)
-		return -ENODEV;
-
-	/* Get the IOaddr */
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
-	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
-	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-	rc = pcmcia_request_io(p_dev);
-
-	dev_printk(KERN_INFO, &p_dev->dev,
-		   "pcmcia_request_io returned 0x%x\n", rc);
-	return rc;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -544,15 +523,15 @@ static int reader_config(struct pcmcia_device *link, int devno)
 	struct reader_dev *dev;
 	int fail_rc;
 
+	link->config_flags |= CONF_AUTO_SET_IO;
+
 	if (pcmcia_loop_config(link, cm4040_config_check, NULL))
 		goto cs_release;
 
-	link->conf.IntType = 00000002;
-
-	fail_rc = pcmcia_request_configuration(link, &link->conf);
+	fail_rc = pcmcia_enable_device(link);
 	if (fail_rc != 0) {
 		dev_printk(KERN_INFO, &link->dev,
-			   "pcmcia_request_configuration failed 0x%x\n",
+			   "pcmcia_enable_device failed 0x%x\n",
 			   fail_rc);
 		goto cs_release;
 	}
@@ -599,7 +578,6 @@ static int reader_probe(struct pcmcia_device *link)
 	link->priv = dev;
 	dev->p_dev = link;
 
-	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
 	init_waitqueue_head(&dev->devq);
@@ -662,9 +640,7 @@ MODULE_DEVICE_TABLE(pcmcia, cm4040_ids);
 
 static struct pcmcia_driver reader_driver = {
   	.owner		= THIS_MODULE,
-  	.drv		= {
-		.name	= "cm4040_cs",
-	},
+	.name		= "cm4040_cs",
 	.probe		= reader_probe,
 	.remove		= reader_detach,
 	.id_table	= cm4040_ids,
@@ -674,7 +650,6 @@ static int __init cm4040_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO "%s\n", version);
 	cmx_class = class_create(THIS_MODULE, "cardman_4040");
 	if (IS_ERR(cmx_class))
 		return PTR_ERR(cmx_class);
@@ -699,7 +674,6 @@ static int __init cm4040_init(void)
 
 static void __exit cm4040_exit(void)
 {
-	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&reader_driver);
 	unregister_chrdev(major, DEVICE_NAME);
 	class_destroy(cmx_class);

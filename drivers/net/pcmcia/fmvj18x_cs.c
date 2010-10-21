@@ -49,7 +49,6 @@
 #include <linux/ioport.h>
 #include <linux/crc32.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -252,8 +251,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     /* General socket configuration */
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     dev->netdev_ops = &fjn_netdev_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
@@ -313,7 +311,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
 	ret = pcmcia_request_io(link);
 	if (ret == 0) {
 	    /* calculate ConfigIndex value */
-	    link->conf.ConfigIndex = 
+	    link->config_index =
 		((link->resource[0]->start & 0x0f0) >> 3) | 0x22;
 	    return ret;
 	}
@@ -321,11 +319,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
     return ret;	/* RequestIO failed */
 }
 
-static int fmvj18x_ioprobe(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
-			   void *priv_data)
+static int fmvj18x_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
 {
 	return 0; /* strange, but that's what the code did already before... */
 }
@@ -362,28 +356,28 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		link->card_id == PRODID_TDK_NP9610 ||
 		link->card_id == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
-		link->conf.ConfigBase = 0x800;
-		link->conf.ConfigIndex = 0x47;
+		link->config_base = 0x800;
+		link->config_index = 0x47;
 		link->resource[1]->end = 8;
 	    }
 	    break;
 	case MANFID_NEC:
 	    cardtype = NEC; /* MultiFunction Card */
-	    link->conf.ConfigBase = 0x800;
-	    link->conf.ConfigIndex = 0x47;
+	    link->config_base = 0x800;
+	    link->config_index = 0x47;
 	    link->resource[1]->end = 8;
 	    break;
 	case MANFID_KME:
 	    cardtype = KME; /* MultiFunction Card */
-	    link->conf.ConfigBase = 0x800;
-	    link->conf.ConfigIndex = 0x47;
+	    link->config_base = 0x800;
+	    link->config_index = 0x47;
 	    link->resource[1]->end = 8;
 	    break;
 	case MANFID_CONTEC:
 	    cardtype = CONTEC;
 	    break;
 	case MANFID_FUJITSU:
-	    if (link->conf.ConfigBase == 0x0fe0)
+	    if (link->config_base == 0x0fe0)
 		cardtype = MBH10302;
 	    else if (link->card_id == PRODID_FUJITSU_MBH10302) 
                 /* RATOC REX-5588/9822/4886's PRODID are 0004(=MBH10302),
@@ -403,10 +397,10 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	case MANFID_FUJITSU:
 	    if (link->card_id == PRODID_FUJITSU_MBH10304) {
 		cardtype = XXX10304;    /* MBH10304 with buggy CIS */
-	        link->conf.ConfigIndex = 0x20;
+		link->config_index = 0x20;
 	    } else {
 		cardtype = MBH10302;    /* NextCom NC5310, etc. */
-		link->conf.ConfigIndex = 1;
+		link->config_index = 1;
 	    }
 	    break;
 	case MANFID_UNGERMANN:
@@ -414,7 +408,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    break;
 	default:
 	    cardtype = MBH10302;
-	    link->conf.ConfigIndex = 1;
+	    link->config_index = 1;
 	}
     }
 
@@ -432,7 +426,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     ret = pcmcia_request_irq(link, fjn_interrupt);
     if (ret)
 	    goto failed;
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -544,20 +538,18 @@ failed:
 
 static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 {
-    win_req_t req;
     u_char __iomem *base;
     int i, j;
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags |= WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = 0; link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	return -1;
 
-    base = ioremap(req.Base, req.Size);
-    pcmcia_map_mem_page(link, link->win, 0);
+    base = ioremap(link->resource[2]->start, resource_size(link->resource[2]));
+    pcmcia_map_mem_page(link, link->resource[2], 0);
 
     /*
      *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
@@ -582,7 +574,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     }
 
     iounmap(base);
-    j = pcmcia_release_window(link, link->win);
+    j = pcmcia_release_window(link, link->resource[2]);
     return (i != 0x200) ? 0 : -1;
 
 } /* fmvj18x_get_hwinfo */
@@ -590,27 +582,26 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 
 static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 {
-    win_req_t req;
     int i;
     struct net_device *dev = link->priv;
     unsigned int ioaddr;
     local_info_t *lp = netdev_priv(dev);
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[3]->flags = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[3]->start = link->resource[3]->end = 0;
+    i = pcmcia_request_window(link, link->resource[3], 0);
     if (i != 0)
 	return -1;
 
-    lp->base = ioremap(req.Base, req.Size);
+    lp->base = ioremap(link->resource[3]->start,
+		       resource_size(link->resource[3]));
     if (lp->base == NULL) {
 	printk(KERN_NOTICE "fmvj18x_cs: ioremap failed\n");
 	return -1;
     }
 
-    i = pcmcia_map_mem_page(link, link->win, 0);
+    i = pcmcia_map_mem_page(link, link->resource[3], 0);
     if (i != 0) {
 	iounmap(lp->base);
 	lp->base = NULL;
@@ -638,7 +629,6 @@ static void fmvj18x_release(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
     u_char __iomem *tmp;
-    int j;
 
     dev_dbg(&link->dev, "fmvj18x_release\n");
 
@@ -646,7 +636,6 @@ static void fmvj18x_release(struct pcmcia_device *link)
 	tmp = lp->base;
 	lp->base = NULL;    /* set NULL before iounmap */
 	iounmap(tmp);
-	j = pcmcia_release_window(link, link->win);
     }
 
     pcmcia_disable_device(link);
@@ -708,9 +697,7 @@ MODULE_DEVICE_TABLE(pcmcia, fmvj18x_ids);
 
 static struct pcmcia_driver fmvj18x_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "fmvj18x_cs",
-	},
+	.name		= "fmvj18x_cs",
 	.probe		= fmvj18x_probe,
 	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,

@@ -46,7 +46,6 @@
 #include <linux/ethtool.h>
 #include <linux/ieee80211.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -169,13 +168,6 @@ static int bc;
  */
 static char *phy_addr = NULL;
 
-
-/* A struct pcmcia_device structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a struct pcmcia_device structure can be used to point to
-   a device-specific private data structure, like this.
-*/
 static unsigned int ray_mem_speed = 500;
 
 /* WARNING: THIS DRIVER IS NOT CAPABLE OF HANDLING MULTIPLE DEVICES! */
@@ -290,14 +282,6 @@ static const struct net_device_ops ray_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/*=============================================================================
-    ray_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-=============================================================================*/
 static int ray_probe(struct pcmcia_device *p_dev)
 {
 	ray_dev_t *local;
@@ -318,9 +302,8 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
-	p_dev->conf.Attributes = CONF_ENABLE_IRQ;
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
-	p_dev->conf.ConfigIndex = 1;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
+	p_dev->config_index = 1;
 
 	p_dev->priv = dev;
 
@@ -353,12 +336,6 @@ fail_alloc_dev:
 	return -ENOMEM;
 } /* ray_attach */
 
-/*=============================================================================
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-=============================================================================*/
 static void ray_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev;
@@ -381,17 +358,11 @@ static void ray_detach(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "ray_cs ray_detach ending\n");
 } /* ray_detach */
 
-/*=============================================================================
-    ray_config() is run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-=============================================================================*/
 #define MAX_TUPLE_SIZE 128
 static int ray_config(struct pcmcia_device *link)
 {
 	int ret = 0;
 	int i;
-	win_req_t req;
 	struct net_device *dev = (struct net_device *)link->priv;
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -412,54 +383,50 @@ static int ray_config(struct pcmcia_device *link)
 		goto failed;
 	dev->irq = link->irq;
 
-	/* This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
 /*** Set up 32k window for shared memory (transmit and control) ************/
-	req.Attributes =
-	    WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
-	req.Base = 0;
-	req.Size = 0x8000;
-	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(link, &req, &link->win);
+	link->resource[2]->flags |= WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
+	link->resource[2]->start = 0;
+	link->resource[2]->end = 0x8000;
+	ret = pcmcia_request_window(link, link->resource[2], ray_mem_speed);
 	if (ret)
 		goto failed;
-	ret = pcmcia_map_mem_page(link, link->win, 0);
+	ret = pcmcia_map_mem_page(link, link->resource[2], 0);
 	if (ret)
 		goto failed;
-	local->sram = ioremap(req.Base, req.Size);
+	local->sram = ioremap(link->resource[2]->start,
+			resource_size(link->resource[2]));
 
 /*** Set up 16k window for shared memory (receive buffer) ***************/
-	req.Attributes =
+	link->resource[3]->flags |=
 	    WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
-	req.Base = 0;
-	req.Size = 0x4000;
-	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(link, &req, &local->rmem_handle);
+	link->resource[3]->start = 0;
+	link->resource[3]->end = 0x4000;
+	ret = pcmcia_request_window(link, link->resource[3], ray_mem_speed);
 	if (ret)
 		goto failed;
-	ret = pcmcia_map_mem_page(link, local->rmem_handle, 0x8000);
+	ret = pcmcia_map_mem_page(link, link->resource[3], 0x8000);
 	if (ret)
 		goto failed;
-	local->rmem = ioremap(req.Base, req.Size);
+	local->rmem = ioremap(link->resource[3]->start,
+			resource_size(link->resource[3]));
 
 /*** Set up window for attribute memory ***********************************/
-	req.Attributes =
+	link->resource[4]->flags |=
 	    WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_AM | WIN_ENABLE | WIN_USE_WAIT;
-	req.Base = 0;
-	req.Size = 0x1000;
-	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(link, &req, &local->amem_handle);
+	link->resource[4]->start = 0;
+	link->resource[4]->end = 0x1000;
+	ret = pcmcia_request_window(link, link->resource[4], ray_mem_speed);
 	if (ret)
 		goto failed;
-	ret = pcmcia_map_mem_page(link, local->amem_handle, 0);
+	ret = pcmcia_map_mem_page(link, link->resource[4], 0);
 	if (ret)
 		goto failed;
-	local->amem = ioremap(req.Base, req.Size);
+	local->amem = ioremap(link->resource[4]->start,
+			resource_size(link->resource[4]));
 
 	dev_dbg(&link->dev, "ray_config sram=%p\n", local->sram);
 	dev_dbg(&link->dev, "ray_config rmem=%p\n", local->rmem);
@@ -775,11 +742,7 @@ static void join_net(u_long data)
 	local->card_status = CARD_DOING_ACQ;
 }
 
-/*============================================================================
-    After a card is removed, ray_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-=============================================================================*/
+
 static void ray_release(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
@@ -2847,9 +2810,7 @@ MODULE_DEVICE_TABLE(pcmcia, ray_ids);
 
 static struct pcmcia_driver ray_driver = {
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ray_cs",
-		},
+	.name = "ray_cs",
 	.probe = ray_probe,
 	.remove = ray_detach,
 	.id_table = ray_ids,
