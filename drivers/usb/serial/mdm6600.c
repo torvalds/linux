@@ -210,17 +210,6 @@ static int mdm6600_attach(struct usb_serial *serial)
 		modem->read.urb[i] = u;
 	}
 
-	if (modem->number == MODEM_INTERFACE_NUM) {
-		status = request_irq(mdm6600_wake_irq, mdm6600_irq_handler,
-				IRQ_TYPE_EDGE_FALLING, "usb_wake_host", modem);
-		if (status) {
-			pr_err("request_irq failed; err=%d", status);
-			return -ENXIO;
-		}
-		enable_irq_wake(mdm6600_wake_irq);
-		disable_irq(mdm6600_wake_irq);
-	}
-
 	spin_lock_init(&modem->susp_lock);
 	spin_lock_init(&modem->write.pending_lock);
 
@@ -240,6 +229,17 @@ static int mdm6600_attach(struct usb_serial *serial)
 	serial->interface->needs_remote_wakeup = 1;
 	serial->dev->autosuspend_delay = MODEM_AUTOSUSPEND_DELAY;
 	serial->dev->parent->autosuspend_delay = 0;
+
+	if (modem->number == MODEM_INTERFACE_NUM) {
+		status = request_irq(mdm6600_wake_irq, mdm6600_irq_handler,
+				IRQ_TYPE_EDGE_FALLING, "usb_wake_host", modem);
+		if (status) {
+			pr_err("request_irq failed; err=%d", status);
+			return -ENXIO;
+		}
+		enable_irq_wake(mdm6600_wake_irq);
+		disable_irq(mdm6600_wake_irq);
+	}
 
 	return 0;
 }
