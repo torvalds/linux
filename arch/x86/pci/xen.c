@@ -133,11 +133,6 @@ int __init pci_xen_init(void)
 	acpi_noirq = 1;
 #endif
 
-#ifdef CONFIG_ISAPNP
-	/* Stop isapnp from probing */
-	isapnp_disable = 1;
-#endif
-
 #ifdef CONFIG_PCI_MSI
 	x86_msi.setup_msi_irqs = xen_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
