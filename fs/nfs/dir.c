@@ -556,7 +556,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 {
 	struct inode	*inode = desc->file->f_path.dentry->d_inode;
 
-	if (nfs_readdir_xdr_to_array(desc, page, inode) == -1)
+	if (nfs_readdir_xdr_to_array(desc, page, inode) < 0)
 		goto error;
 	SetPageUptodate(page);
 
