@@ -826,7 +826,7 @@ static void bfin_dev_select(struct ata_port *ap, unsigned int device)
  *	@ctl: value to write
  */
 
-static u8 bfin_set_devctl(struct ata_port *ap, u8 ctl)
+static void bfin_set_devctl(struct ata_port *ap, u8 ctl)
 {
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
 	write_atapi_register(base, ATA_REG_CTRL, ctl);
