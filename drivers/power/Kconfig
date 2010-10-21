@@ -185,4 +185,14 @@ config CHARGER_TWL4030
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
+config CHARGER_GPIO
+	tristate "GPIO charger"
+	depends on GPIOLIB
+	help
+	  Say Y to include support for chargers which report their online status
+	  through a GPIO pin.
+
+	  This driver can be build as a module. If so, the module will be
+	  called gpio-charger.
+
 endif # POWER_SUPPLY
