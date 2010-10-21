@@ -1101,7 +1101,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 	return 0;
 
  exit_free:
-	free_netdev(dev);
+	free_candev(dev);
  exit_iounmap:
 	iounmap(addr);
  exit_release:
@@ -1122,14 +1122,14 @@ static int __devexit at91_can_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_netdev(dev);
-
 	iounmap(priv->reg_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
 	clk_put(priv->clk);
+
+	free_candev(dev);
 
 	return 0;
 }
