@@ -188,8 +188,10 @@ static int show_file_hash(unsigned int value)
 static int show_dev_hash(unsigned int value)
 {
 	int match = 0;
-	struct list_head *entry = dpm_list.prev;
+	struct list_head *entry;
 
+	device_pm_lock();
+	entry = dpm_list.prev;
 	while (entry != &dpm_list) {
 		struct device * dev = to_device(entry);
 		unsigned int hash = hash_string(DEVSEED, dev_name(dev), DEVHASH);
@@ -199,10 +201,42 @@ static int show_dev_hash(unsigned int value)
 		}
 		entry = entry->prev;
 	}
+	device_pm_unlock();
 	return match;
 }
 
 static unsigned int hash_value_early_read;
+
+int show_trace_dev_match(char *buf, size_t size)
+{
+	unsigned int value = hash_value_early_read / (USERHASH * FILEHASH);
+	int ret = 0;
+	struct list_head *entry;
+
+	/*
+	 * It's possible that multiple devices will match the hash and we can't
+	 * tell which is the culprit, so it's best to output them all.
+	 */
+	device_pm_lock();
+	entry = dpm_list.prev;
+	while (size && entry != &dpm_list) {
+		struct device *dev = to_device(entry);
+		unsigned int hash = hash_string(DEVSEED, dev_name(dev),
+						DEVHASH);
+		if (hash == value) {
+			int len = snprintf(buf, size, "%s\n",
+					    dev_driver_string(dev));
+			if (len > size)
+				len = size;
+			buf += len;
+			ret += len;
+			size -= len;
+		}
+		entry = entry->prev;
+	}
+	device_pm_unlock();
+	return ret;
+}
 
 static int early_resume_init(void)
 {

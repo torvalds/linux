@@ -77,3 +77,91 @@ Description:
 		devices this attribute is set to "enabled" by bus type code or
 		device drivers and in that cases it should be safe to leave the
 		default value.
+
+What:		/sys/devices/.../power/wakeup_count
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_count attribute contains the number
+		of signaled wakeup events associated with the device.  This
+		attribute is read-only.  If the device is not enabled to wake up
+		the system from sleep states, this attribute is empty.
+
+What:		/sys/devices/.../power/wakeup_active_count
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_active_count attribute contains the
+		number of times the processing of wakeup events associated with
+		the device was completed (at the kernel level).  This attribute
+		is read-only.  If the device is not enabled to wake up the
+		system from sleep states, this attribute is empty.
+
+What:		/sys/devices/.../power/wakeup_hit_count
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_hit_count attribute contains the
+		number of times the processing of a wakeup event associated with
+		the device might prevent the system from entering a sleep state.
+		This attribute is read-only.  If the device is not enabled to
+		wake up the system from sleep states, this attribute is empty.
+
+What:		/sys/devices/.../power/wakeup_active
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_active attribute contains either 1,
+		or 0, depending on whether or not a wakeup event associated with
+		the device is being processed (1).  This attribute is read-only.
+		If the device is not enabled to wake up the system from sleep
+		states, this attribute is empty.
+
+What:		/sys/devices/.../power/wakeup_total_time_ms
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_total_time_ms attribute contains
+		the total time of processing wakeup events associated with the
+		device, in milliseconds.  This attribute is read-only.  If the
+		device is not enabled to wake up the system from sleep states,
+		this attribute is empty.
+
+What:		/sys/devices/.../power/wakeup_max_time_ms
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_max_time_ms attribute contains
+		the maximum time of processing a single wakeup event associated
+		with the device, in milliseconds.  This attribute is read-only.
+		If the device is not enabled to wake up the system from sleep
+		states, this attribute is empty.
+
+What:		/sys/devices/.../power/wakeup_last_time_ms
+Date:		September 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../wakeup_last_time_ms attribute contains
+		the value of the monotonic clock corresponding to the time of
+		signaling the last wakeup event associated with the device, in
+		milliseconds.  This attribute is read-only.  If the device is
+		not enabled to wake up the system from sleep states, this
+		attribute is empty.
+
+What:		/sys/devices/.../power/autosuspend_delay_ms
+Date:		September 2010
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		The /sys/devices/.../power/autosuspend_delay_ms attribute
+		contains the autosuspend delay value (in milliseconds).  Some
+		drivers do not want their device to suspend as soon as it
+		becomes idle at run time; they want the device to remain
+		inactive for a certain minimum period of time first.  That
+		period is called the autosuspend delay.  Negative values will
+		prevent the device from being suspended at run time (similar
+		to writing "on" to the power/control attribute).  Values >=
+		1000 will cause the autosuspend timer expiration to be rounded
+		up to the nearest second.
+
+		Not all drivers support this attribute.  If it isn't supported,
+		attempts to read or write it will yield I/O errors.
