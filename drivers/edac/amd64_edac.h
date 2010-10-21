@@ -153,8 +153,8 @@
 #define K8_REV_F			4
 
 /* Hardware limit on ChipSelect rows per MC and processors per system */
-#define MAX_CS_COUNT			8
-#define DRAM_REG_COUNT			8
+#define NUM_CHIPSELECTS			8
+#define DRAM_RANGES			8
 
 #define ON true
 #define OFF false
@@ -167,8 +167,14 @@
 /*
  * Function 1 - Address Map
  */
-#define K8_DRAM_BASE_LOW		0x40
-#define K8_DRAM_LIMIT_LOW		0x44
+#define DRAM_BASE_LO			0x40
+#define DRAM_LIMIT_LO			0x44
+
+#define dram_intlv_en(pvt, i)		((pvt->ranges[i].base.lo >> 8) & 0x7)
+#define dram_rw(pvt, i)			(pvt->ranges[i].base.lo & 0x3)
+#define dram_intlv_sel(pvt, i)		((pvt->ranges[i].lim.lo >> 8) & 0x7)
+#define dram_dst_node(pvt, i)		(pvt->ranges[i].lim.lo & 0x7)
+
 #define K8_DHAR				0xf0
 
 #define DHAR_VALID			BIT(0)
@@ -186,9 +192,8 @@
 
 #define DCT_CFG_SEL			0x10C
 
-/* F10 High BASE/LIMIT registers */
-#define F10_DRAM_BASE_HIGH		0x140
-#define F10_DRAM_LIMIT_HIGH		0x144
+#define DRAM_BASE_HI			0x140
+#define DRAM_LIMIT_HI			0x144
 
 
 /*
@@ -395,6 +400,19 @@ struct error_injection {
 	u32	bit_map;
 };
 
+/* low and high part of PCI config space regs */
+struct reg_pair {
+	u32 lo, hi;
+};
+
+/*
+ * See F1x[1, 0][7C:40] DRAM Base/Limit Registers
+ */
+struct dram_range {
+	struct reg_pair base;
+	struct reg_pair lim;
+};
+
 struct amd64_pvt {
 	struct low_ops *ops;
 
@@ -418,23 +436,15 @@ struct amd64_pvt {
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */
 
 	/* DRAM CS Base Address Registers F2x[1,0][5C:40] */
-	u32 dcsb0[MAX_CS_COUNT];
-	u32 dcsb1[MAX_CS_COUNT];
+	u32 dcsb0[NUM_CHIPSELECTS];
+	u32 dcsb1[NUM_CHIPSELECTS];
 
 	/* DRAM CS Mask Registers F2x[1,0][6C:60] */
-	u32 dcsm0[MAX_CS_COUNT];
-	u32 dcsm1[MAX_CS_COUNT];
+	u32 dcsm0[NUM_CHIPSELECTS];
+	u32 dcsm1[NUM_CHIPSELECTS];
 
-	/*
-	 * Decoded parts of DRAM BASE and LIMIT Registers
-	 * F1x[78,70,68,60,58,50,48,40]
-	 */
-	u64 dram_base[DRAM_REG_COUNT];
-	u64 dram_limit[DRAM_REG_COUNT];
-	u8  dram_IntlvSel[DRAM_REG_COUNT];
-	u8  dram_IntlvEn[DRAM_REG_COUNT];
-	u8  dram_DstNode[DRAM_REG_COUNT];
-	u8  dram_rw_en[DRAM_REG_COUNT];
+	/* DRAM base and limit pairs F1x[78,70,68,60,58,50,48,40] */
+	struct dram_range ranges[DRAM_RANGES];
 
 	/*
 	 * The following fields are set at (load) run time, after CPU revision
@@ -471,6 +481,26 @@ struct amd64_pvt {
 	const char *ctl_name;
 
 };
+
+static inline u64 get_dram_base(struct amd64_pvt *pvt, unsigned i)
+{
+	u64 addr = ((u64)pvt->ranges[i].base.lo & 0xffff0000) << 8;
+
+	if (boot_cpu_data.x86 == 0xf)
+		return addr;
+
+	return (((u64)pvt->ranges[i].base.hi & 0x000000ff) << 40) | addr;
+}
+
+static inline u64 get_dram_limit(struct amd64_pvt *pvt, unsigned i)
+{
+	u64 lim = (((u64)pvt->ranges[i].lim.lo & 0xffff0000) << 8) | 0x00ffffff;
+
+	if (boot_cpu_data.x86 == 0xf)
+		return lim;
+
+	return (((u64)pvt->ranges[i].lim.hi & 0x000000ff) << 40) | lim;
+}
 
 /*
  * per-node ECC settings descriptor
@@ -517,7 +547,6 @@ struct low_ops {
 
 	u64 (*get_error_address)	(struct mem_ctl_info *mci,
 					 struct err_regs *info);
-	void (*read_dram_base_limit)	(struct amd64_pvt *pvt, int dram);
 	void (*read_dram_ctl_register)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci,
 					 struct err_regs *info, u64 SystemAddr);
