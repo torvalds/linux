@@ -27,6 +27,7 @@
 #include "logging.h"
 #include "netvsc.h"
 #include "rndis_filter.h"
+#include "channel.h"
 
 
 /* Globals */
@@ -468,9 +469,8 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 	if (NetDevice->ReceiveBufferGpadlHandle) {
 		DPRINT_INFO(NETVSC, "Tearing down receive buffer's GPADL...");
 
-		ret = NetDevice->Device->Driver->VmbusChannelInterface.TeardownGpadl(
-					NetDevice->Device,
-					NetDevice->ReceiveBufferGpadlHandle);
+		ret = vmbus_teardown_gpadl(NetDevice->Device->context,
+					   NetDevice->ReceiveBufferGpadlHandle);
 
 		/* If we failed here, we might as well return and have a leak rather than continue and a bugchk */
 		if (ret != 0) {
@@ -540,8 +540,8 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 	/* Teardown the gpadl on the vsp end */
 	if (NetDevice->SendBufferGpadlHandle) {
 		DPRINT_INFO(NETVSC, "Tearing down send buffer's GPADL...");
-
-		ret = NetDevice->Device->Driver->VmbusChannelInterface.TeardownGpadl(NetDevice->Device, NetDevice->SendBufferGpadlHandle);
+		ret = vmbus_teardown_gpadl(NetDevice->Device->context,
+					   NetDevice->SendBufferGpadlHandle);
 
 		/*
 		 * If we failed here, we might as well return and have a leak
