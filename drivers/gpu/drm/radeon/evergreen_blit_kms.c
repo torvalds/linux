@@ -230,7 +230,7 @@ draw_auto(struct radeon_device *rdev)
 
 }
 
-/* emits 20 */
+/* emits 30 */
 static void
 set_default_state(struct radeon_device *rdev)
 {
@@ -243,8 +243,6 @@ set_default_state(struct radeon_device *rdev)
 	int num_hs_threads, num_ls_threads;
 	int num_ps_stack_entries, num_vs_stack_entries, num_gs_stack_entries, num_es_stack_entries;
 	int num_hs_stack_entries, num_ls_stack_entries;
-	u64 gpu_addr;
-	int dwords;
 
 	switch (rdev->family) {
 	case CHIP_CEDAR:
@@ -369,13 +367,9 @@ set_default_state(struct radeon_device *rdev)
 	sq_stack_resource_mgmt_3 = (NUM_HS_STACK_ENTRIES(num_hs_stack_entries) |
 				    NUM_LS_STACK_ENTRIES(num_ls_stack_entries));
 
-	/* emit an IB pointing at default state */
-	dwords = ALIGN(rdev->r600_blit.state_len, 0x10);
-	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.state_offset;
-	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	radeon_ring_write(rdev, gpu_addr & 0xFFFFFFFC);
-	radeon_ring_write(rdev, upper_32_bits(gpu_addr) & 0xFF);
-	radeon_ring_write(rdev, dwords);
+	/* set clear context state */
+	radeon_ring_write(rdev, PACKET3(PACKET3_CLEAR_STATE, 0));
+	radeon_ring_write(rdev, 0);
 
 	/* disable dyn gprs */
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
@@ -396,6 +390,25 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(rdev, sq_stack_resource_mgmt_1);
 	radeon_ring_write(rdev, sq_stack_resource_mgmt_2);
 	radeon_ring_write(rdev, sq_stack_resource_mgmt_3);
+
+	/* CONTEXT_CONTROL */
+	radeon_ring_write(rdev, 0xc0012800);
+	radeon_ring_write(rdev, 0x80000000);
+	radeon_ring_write(rdev, 0x80000000);
+
+	/* SQ_VTX_BASE_VTX_LOC */
+	radeon_ring_write(rdev, 0xc0026f00);
+	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(rdev, 0x00000000);
+
+	/* SET_SAMPLER */
+	radeon_ring_write(rdev, 0xc0036e00);
+	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(rdev, 0x00000012);
+	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(rdev, 0x00000000);
+
 }
 
 static inline uint32_t i2f(uint32_t input)
@@ -426,10 +439,8 @@ static inline uint32_t i2f(uint32_t input)
 int evergreen_blit_init(struct radeon_device *rdev)
 {
 	u32 obj_size;
-	int r, dwords;
+	int r;
 	void *ptr;
-	u32 packet2s[16];
-	int num_packet2s = 0;
 
 	/* pin copy shader into vram if already initialized */
 	if (rdev->r600_blit.shader_obj)
@@ -437,17 +448,8 @@ int evergreen_blit_init(struct radeon_device *rdev)
 
 	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
-
-	rdev->r600_blit.state_len = evergreen_default_size;
-
-	dwords = rdev->r600_blit.state_len;
-	while (dwords & 0xf) {
-		packet2s[num_packet2s++] = PACKET2(0);
-		dwords++;
-	}
-
-	obj_size = dwords * 4;
-	obj_size = ALIGN(obj_size, 256);
+	rdev->r600_blit.state_len = 0;
+	obj_size = 0;
 
 	rdev->r600_blit.vs_offset = obj_size;
 	obj_size += evergreen_vs_size * 4;
@@ -477,12 +479,6 @@ int evergreen_blit_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	memcpy_toio(ptr + rdev->r600_blit.state_offset,
-		    evergreen_default_state, rdev->r600_blit.state_len * 4);
-
-	if (num_packet2s)
-		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
-			    packet2s, num_packet2s * 4);
 	memcpy(ptr + rdev->r600_blit.vs_offset, evergreen_vs, evergreen_vs_size * 4);
 	memcpy(ptr + rdev->r600_blit.ps_offset, evergreen_ps, evergreen_ps_size * 4);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
@@ -566,7 +562,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
-	ring_size += 36; /* shaders + def state */
+	ring_size += 46; /* shaders + def state */
 	ring_size += 10; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
 	ring_size += 10; /* fence emit for done copy */
@@ -574,7 +570,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	if (r)
 		return r;
 
-	set_default_state(rdev); /* 20 */
+	set_default_state(rdev); /* 30 */
 	set_shaders(rdev); /* 16 */
 	return 0;
 }

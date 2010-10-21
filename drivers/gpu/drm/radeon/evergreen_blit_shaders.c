@@ -39,10 +39,6 @@
 
 const u32 evergreen_default_state[] =
 {
-	0xc0012800, /* CONTEXT_CONTROL */
-	0x80000000,
-	0x80000000,
-
 	0xc0016900,
 	0x0000023b,
 	0x00000000, /* SQ_LDS_ALLOC_PS */
@@ -63,16 +59,10 @@ const u32 evergreen_default_state[] =
 	0x00000000,
 	0x00000000,
 
-	0xc0026f00,
-	0x00000000,
-	0x00000000, /* SQ_VTX_BASE_VTX_LOC */
-	0x00000000,
-
 	0xc0026900,
 	0x00000010,
 	0x00000000, /* DB_Z_INFO */
 	0x00000000, /* DB_STENCIL_INFO */
-
 
 	0xc0016900,
 	0x00000200,
@@ -303,11 +293,10 @@ const u32 evergreen_default_state[] =
 	0x00000000, /*  */
 	0x00000000, /*  */
 
-	0xc0036e00, /* SET_SAMPLER */
-	0x00000000,
-	0x00000012,
-	0x00000000,
-	0x00000000,
+	0xc0026900,
+	0x00000316,
+	0x0000000e, /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	0x00000010, /*  */
 };
 
 const u32 evergreen_vs[] =

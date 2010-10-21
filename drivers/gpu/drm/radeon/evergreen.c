@@ -32,6 +32,7 @@
 #include "atom.h"
 #include "avivod.h"
 #include "evergreen_reg.h"
+#include "evergreen_blit_shaders.h"
 
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
@@ -1112,7 +1113,7 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 
 static int evergreen_cp_start(struct radeon_device *rdev)
 {
-	int r;
+	int r, i;
 	uint32_t cp_me;
 
 	r = radeon_ring_lock(rdev, 7);
@@ -1132,16 +1133,39 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	cp_me = 0xff;
 	WREG32(CP_ME_CNTL, cp_me);
 
-	r = radeon_ring_lock(rdev, 4);
+	r = radeon_ring_lock(rdev, evergreen_default_size + 15);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
 	}
-	/* init some VGT regs */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
-	radeon_ring_write(rdev, (VGT_VERTEX_REUSE_BLOCK_CNTL - PACKET3_SET_CONTEXT_REG_START) >> 2);
-	radeon_ring_write(rdev, 0xe);
-	radeon_ring_write(rdev, 0x10);
+
+	/* setup clear context state */
+	radeon_ring_write(rdev, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(rdev, PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
+
+	for (i = 0; i < evergreen_default_size; i++)
+		radeon_ring_write(rdev, evergreen_default_state[i]);
+
+	radeon_ring_write(rdev, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(rdev, PACKET3_PREAMBLE_END_CLEAR_STATE);
+
+	/* set clear context state */
+	radeon_ring_write(rdev, PACKET3(PACKET3_CLEAR_STATE, 0));
+	radeon_ring_write(rdev, 0);
+
+	/* SQ_VTX_BASE_VTX_LOC */
+	radeon_ring_write(rdev, 0xc0026f00);
+	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(rdev, 0x00000000);
+
+	/* Clear consts */
+	radeon_ring_write(rdev, 0xc0036f00);
+	radeon_ring_write(rdev, 0x00000bc4);
+	radeon_ring_write(rdev, 0xffffffff);
+	radeon_ring_write(rdev, 0xffffffff);
+	radeon_ring_write(rdev, 0xffffffff);
+
 	radeon_ring_unlock_commit(rdev);
 
 	return 0;
