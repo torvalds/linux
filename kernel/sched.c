@@ -4645,7 +4645,7 @@ recheck:
 	}
 
 	if (user) {
-		retval = security_task_setscheduler(p, policy, param);
+		retval = security_task_setscheduler(p);
 		if (retval)
 			return retval;
 	}
@@ -4887,7 +4887,7 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	if (!check_same_owner(p) && !capable(CAP_SYS_NICE))
 		goto out_unlock;
 
-	retval = security_task_setscheduler(p, 0, NULL);
+	retval = security_task_setscheduler(p);
 	if (retval)
 		goto out_unlock;
 

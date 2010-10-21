@@ -719,14 +719,11 @@ static int cap_safe_nice(struct task_struct *p)
 /**
  * cap_task_setscheduler - Detemine if scheduler policy change is permitted
  * @p: The task to affect
- * @policy: The policy to effect
- * @lp: The parameters to the scheduling policy
  *
  * Detemine if the requested scheduler policy change is permitted for the
  * specified task, returning 0 if permission is granted, -ve if denied.
  */
-int cap_task_setscheduler(struct task_struct *p, int policy,
-			   struct sched_param *lp)
+int cap_task_setscheduler(struct task_struct *p)
 {
 	return cap_safe_nice(p);
 }

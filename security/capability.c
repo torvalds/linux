@@ -677,7 +677,18 @@ static void cap_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 {
 }
 
+static int cap_secmark_relabel_packet(u32 secid)
+{
+	return 0;
+}
 
+static void cap_secmark_refcount_inc(void)
+{
+}
+
+static void cap_secmark_refcount_dec(void)
+{
+}
 
 static void cap_req_classify_flow(const struct request_sock *req,
 				  struct flowi *fl)
@@ -777,7 +788,8 @@ static int cap_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 static int cap_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
-	return -EOPNOTSUPP;
+	*secid = 0;
+	return 0;
 }
 
 static void cap_release_secctx(char *secdata, u32 seclen)
@@ -1018,6 +1030,9 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, inet_conn_request);
 	set_to_cap_if_null(ops, inet_csk_clone);
 	set_to_cap_if_null(ops, inet_conn_established);
+	set_to_cap_if_null(ops, secmark_relabel_packet);
+	set_to_cap_if_null(ops, secmark_refcount_inc);
+	set_to_cap_if_null(ops, secmark_refcount_dec);
 	set_to_cap_if_null(ops, req_classify_flow);
 	set_to_cap_if_null(ops, tun_dev_create);
 	set_to_cap_if_null(ops, tun_dev_post_create);
