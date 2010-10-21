@@ -3658,7 +3658,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi->rx_offload = RX_CSO;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
-		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 
 		netdev->features |= NETIF_F_SG | TSO_FLAGS;
@@ -3730,6 +3729,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 			__set_bit(i, &adapter->registered_device_map);
 			adapter->chan_map[adap2pinfo(adapter, i)->tx_chan] = i;
+			netif_tx_stop_all_queues(adapter->port[i]);
 		}
 	}
 	if (!adapter->registered_device_map) {
