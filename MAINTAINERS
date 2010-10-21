@@ -969,6 +969,16 @@ L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-s5p*/
 
+ARM/SAMSUNG S5P SERIES FIMC SUPPORT
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	arch/arm/plat-s5p/dev-fimc*
+F:	arch/arm/plat-samsung/include/plat/*fimc*
+F:	drivers/media/video/s5p-fimc/
+
 ARM/SHMOBILE ARM ARCHITECTURE
 M:	Paul Mundt <lethal@linux-sh.org>
 M:	Magnus Damm <magnus.damm@gmail.com>
@@ -2535,7 +2545,7 @@ S:	Supported
 F:	drivers/scsi/gdt*
 
 GENERIC GPIO I2C DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-gpio.c
 F:	include/linux/i2c-gpio.h
@@ -3063,16 +3073,27 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ixp2000/
 
-INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/igbvf/ixgb/ixgbe)
+INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/igbvf/ixgb/ixgbe/ixgbevf)
 M:	Jeff Kirsher <jeffrey.t.kirsher@intel.com>
 M:	Jesse Brandeburg <jesse.brandeburg@intel.com>
 M:	Bruce Allan <bruce.w.allan@intel.com>
-M:	Alex Duyck <alexander.h.duyck@intel.com>
+M:	Carolyn Wyborny <carolyn.wyborny@intel.com>
+M:	Don Skidmore <donald.c.skidmore@intel.com>
+M:	Greg Rose <gregory.v.rose@intel.com>
 M:	PJ Waskiewicz <peter.p.waskiewicz.jr@intel.com>
+M:	Alex Duyck <alexander.h.duyck@intel.com>
 M:	John Ronciak <john.ronciak@intel.com>
 L:	e1000-devel@lists.sourceforge.net
 W:	http://e1000.sourceforge.net/
 S:	Supported
+F:	Documentation/networking/e100.txt
+F:	Documentation/networking/e1000.txt
+F:	Documentation/networking/e1000e.txt
+F:	Documentation/networking/igb.txt
+F:	Documentation/networking/igbvf.txt
+F:	Documentation/networking/ixgb.txt
+F:	Documentation/networking/ixgbe.txt
+F:	Documentation/networking/ixgbevf.txt
 F:	drivers/net/e100.c
 F:	drivers/net/e1000/
 F:	drivers/net/e1000e/
@@ -3080,6 +3101,7 @@ F:	drivers/net/igb/
 F:	drivers/net/igbvf/
 F:	drivers/net/ixgb/
 F:	drivers/net/ixgbe/
+F:	drivers/net/ixgbevf/
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
 L:	linux-wireless@vger.kernel.org
@@ -3140,7 +3162,7 @@ F:	drivers/net/ioc3-eth.c
 
 IOC3 SERIAL DRIVER
 M:	Pat Gefre <pfg@sgi.com>
-L:	linux-mips@linux-mips.org
+L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/serial/ioc3_serial.c
 
@@ -5008,6 +5030,12 @@ F:	drivers/media/common/saa7146*
 F:	drivers/media/video/*7146*
 F:	include/media/*7146*
 
+SAMSUNG AUDIO (ASoC) DRIVERS
+M:	Jassi Brar <jassi.brar@samsung.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Supported
+F:	sound/soc/s3c24xx
+
 TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
 M:	Kang Yong <kangyong@telegent.com>
@@ -6450,8 +6478,10 @@ F:	include/linux/wm97xx.h
 WOLFSON MICROELECTRONICS DRIVERS
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 M:	Ian Lartey <ian@opensource.wolfsonmicro.com>
+M:	Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
+T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
-W:	http://opensource.wolfsonmicro.com/node/8
+W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices
 S:	Supported
 F:	Documentation/hwmon/wm83??
 F:	drivers/leds/leds-wm83*.c

@@ -2759,7 +2759,7 @@ struct tg3 {
 
 
 	/* begin "everything else" cacheline(s) section */
-	struct rtnl_link_stats64	net_stats;
+	unsigned long			rx_dropped;
 	struct rtnl_link_stats64	net_stats_prev;
 	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;

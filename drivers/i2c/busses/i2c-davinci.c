@@ -331,21 +331,16 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	INIT_COMPLETION(dev->cmd_complete);
 	dev->cmd_err = 0;
 
-	/* Take I2C out of reset, configure it as master and set the
-	 * start bit */
-	flag = DAVINCI_I2C_MDR_IRS | DAVINCI_I2C_MDR_MST | DAVINCI_I2C_MDR_STT;
+	/* Take I2C out of reset and configure it as master */
+	flag = DAVINCI_I2C_MDR_IRS | DAVINCI_I2C_MDR_MST;
 
 	/* if the slave address is ten bit address, enable XA bit */
 	if (msg->flags & I2C_M_TEN)
 		flag |= DAVINCI_I2C_MDR_XA;
 	if (!(msg->flags & I2C_M_RD))
 		flag |= DAVINCI_I2C_MDR_TRX;
-	if (stop)
-		flag |= DAVINCI_I2C_MDR_STP;
-	if (msg->len == 0) {
+	if (msg->len == 0)
 		flag |= DAVINCI_I2C_MDR_RM;
-		flag &= ~DAVINCI_I2C_MDR_STP;
-	}
 
 	/* Enable receive or transmit interrupts */
 	w = davinci_i2c_read_reg(dev, DAVINCI_I2C_IMR_REG);
@@ -358,17 +353,28 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	dev->terminate = 0;
 
 	/*
+	 * Write mode register first as needed for correct behaviour
+	 * on OMAP-L138, but don't set STT yet to avoid a race with XRDY
+	 * occuring before we have loaded DXR
+	 */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
+
+	/*
 	 * First byte should be set here, not after interrupt,
 	 * because transmit-data-ready interrupt can come before
 	 * NACK-interrupt during sending of previous message and
 	 * ICDXR may have wrong data
+	 * It also saves us one interrupt, slightly faster
 	 */
 	if ((!(msg->flags & I2C_M_RD)) && dev->buf_len) {
 		davinci_i2c_write_reg(dev, DAVINCI_I2C_DXR_REG, *dev->buf++);
 		dev->buf_len--;
 	}
 
-	/* write the data into mode register; start transmitting */
+	/* Set STT to begin transmit now DXR is loaded */
+	flag |= DAVINCI_I2C_MDR_STT;
+	if (stop && msg->len != 0)
+		flag |= DAVINCI_I2C_MDR_STP;
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 
 	r = wait_for_completion_interruptible_timeout(&dev->cmd_complete,

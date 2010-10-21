@@ -19,6 +19,7 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
