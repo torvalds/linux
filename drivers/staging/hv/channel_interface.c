@@ -84,13 +84,6 @@ static int ivmbus_recvpacket_raw(struct hv_device *device, void *buffer,
 					 buffer_actuallen, requestid);
 }
 
-static int ivmbus_establish_gpadl(struct hv_device *device, void *buffer,
-				       u32 bufferlen, u32 *gpadl_handle)
-{
-	return vmbus_establish_gpadl(device->context, buffer, bufferlen,
-					  gpadl_handle);
-}
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
 	.Open = ivmbus_open,
@@ -100,5 +93,4 @@ const struct vmbus_channel_interface vmbus_ops = {
 	.SendPacketMultiPageBuffer = ivmbus_sendpacket_multipagebuffer,
 	.RecvPacket = ivmbus_recvpacket,
 	.RecvPacketRaw	= ivmbus_recvpacket_raw,
-	.EstablishGpadl = ivmbus_establish_gpadl,
 };
