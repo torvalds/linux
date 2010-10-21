@@ -1856,8 +1856,7 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x01, 0x43);
 		reg_w1(gspca_dev, 0x17, 0x61);
 		reg_w1(gspca_dev, 0x01, 0x42);
-		if (sd->sensor == SENSOR_HV7131R
-		    && sd->bridge == BRIDGE_SN9C102P)
+		if (sd->sensor == SENSOR_HV7131R)
 			hv7131r_probe(gspca_dev);
 		break;
 	}
