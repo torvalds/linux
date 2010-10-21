@@ -458,6 +458,7 @@ enum {
 	AZX_DRIVER_ULI,
 	AZX_DRIVER_NVIDIA,
 	AZX_DRIVER_TERA,
+	AZX_DRIVER_CTX,
 	AZX_DRIVER_GENERIC,
 	AZX_NUM_DRIVERS, /* keep this as last entry */
 };
@@ -473,6 +474,7 @@ static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_ULI] = "HDA ULI M5461",
 	[AZX_DRIVER_NVIDIA] = "HDA NVidia",
 	[AZX_DRIVER_TERA] = "HDA Teradici", 
+	[AZX_DRIVER_CTX] = "HDA Creative", 
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
@@ -563,7 +565,10 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* reset the rirb hw write pointer */
 	azx_writew(chip, RIRBWP, ICH6_RIRBWP_RST);
 	/* set N=1, get RIRB response interrupt for new entry */
-	azx_writew(chip, RINTCNT, 1);
+	if (chip->driver_type == AZX_DRIVER_CTX)
+		azx_writew(chip, RINTCNT, 0xc0);
+	else
+		azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN | ICH6_RBCTL_IRQ_EN);
 	spin_unlock_irq(&chip->reg_lock);
@@ -1136,8 +1141,11 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	/* clear rirb int */
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
-		if (status & RIRB_INT_RESPONSE)
+		if (status & RIRB_INT_RESPONSE) {
+			if (chip->driver_type == AZX_DRIVER_CTX)
+				udelay(80);
 			azx_update_rirb(chip);
+		}
 		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 	}
 
@@ -2784,10 +2792,10 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
-	  .driver_data = AZX_DRIVER_GENERIC },
+	  .driver_data = AZX_DRIVER_CTX },
 #else
 	/* this entry seems still valid -- i.e. without emu20kx chip */
-	{ PCI_DEVICE(0x1102, 0x0009), .driver_data = AZX_DRIVER_GENERIC },
+	{ PCI_DEVICE(0x1102, 0x0009), .driver_data = AZX_DRIVER_CTX },
 #endif
 	/* Vortex86MX */
 	{ PCI_DEVICE(0x17f3, 0x3010), .driver_data = AZX_DRIVER_GENERIC },
