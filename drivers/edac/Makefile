@@ -17,6 +17,9 @@ ifdef CONFIG_PCI
 edac_core-objs	+= edac_pci.o edac_pci_sysfs.o
 endif
 
+obj-$(CONFIG_EDAC_MCE_INJ)		+= mce_amd_inj.o
+
+edac_mce_amd-objs			:= mce_amd.o
 obj-$(CONFIG_EDAC_DECODE_MCE)		+= edac_mce_amd.o
 
 obj-$(CONFIG_EDAC_AMD76X)		+= amd76x_edac.o

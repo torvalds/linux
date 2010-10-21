@@ -1,11 +1,14 @@
 #ifndef _EDAC_MCE_AMD_H
 #define _EDAC_MCE_AMD_H
 
+#include <linux/notifier.h>
+
 #include <asm/mce.h>
+
+#define BIT_64(n)			(U64_C(1) << (n))
 
 #define ERROR_CODE(x)			((x) & 0xffff)
 #define EXT_ERROR_CODE(x)		(((x) >> 16) & 0x1f)
-#define EXT_ERR_MSG(x)			ext_msgs[EXT_ERROR_CODE(x)]
 
 #define LOW_SYNDROME(x)			(((x) >> 15) & 0xff)
 #define HIGH_SYNDROME(x)		(((x) >> 24) & 0xff)
@@ -20,12 +23,13 @@
 #define II_MSG(x)			ii_msgs[II(x)]
 #define LL(x)				(((x) >> 0) & 0x3)
 #define LL_MSG(x)			ll_msgs[LL(x)]
-#define RRRR(x)				(((x) >> 4) & 0xf)
-#define RRRR_MSG(x)			rrrr_msgs[RRRR(x)]
 #define TO(x)				(((x) >> 8) & 0x1)
 #define TO_MSG(x)			to_msgs[TO(x)]
 #define PP(x)				(((x) >> 9) & 0x3)
 #define PP_MSG(x)			pp_msgs[PP(x)]
+
+#define RRRR(x)				(((x) >> 4) & 0xf)
+#define RRRR_MSG(x)			((RRRR(x) < 9) ?  rrrr_msgs[RRRR(x)] : "Wrong R4!")
 
 #define K8_NBSH				0x4C
 
@@ -41,13 +45,45 @@
 #define K8_NBSH_UECC			BIT(13)
 #define K8_NBSH_ERR_SCRUBER		BIT(8)
 
+enum tt_ids {
+	TT_INSTR = 0,
+	TT_DATA,
+	TT_GEN,
+	TT_RESV,
+};
+
+enum ll_ids {
+	LL_RESV = 0,
+	LL_L1,
+	LL_L2,
+	LL_LG,
+};
+
+enum ii_ids {
+	II_MEM = 0,
+	II_RESV,
+	II_IO,
+	II_GEN,
+};
+
+enum rrrr_ids {
+	R4_GEN	= 0,
+	R4_RD,
+	R4_WR,
+	R4_DRD,
+	R4_DWR,
+	R4_IRD,
+	R4_PREF,
+	R4_EVICT,
+	R4_SNOOP,
+};
+
 extern const char *tt_msgs[];
 extern const char *ll_msgs[];
 extern const char *rrrr_msgs[];
 extern const char *pp_msgs[];
 extern const char *to_msgs[];
 extern const char *ii_msgs[];
-extern const char *ext_msgs[];
 
 /*
  * relevant NB regs
@@ -60,10 +96,19 @@ struct err_regs {
 	u32 nbeal;
 };
 
+/*
+ * per-family decoder ops
+ */
+struct amd_decoder_ops {
+	bool (*dc_mce)(u16);
+	bool (*ic_mce)(u16);
+	bool (*nb_mce)(u16, u8);
+};
 
 void amd_report_gart_errors(bool);
-void amd_register_ecc_decoder(void (*f)(int, struct err_regs *));
-void amd_unregister_ecc_decoder(void (*f)(int, struct err_regs *));
-void amd_decode_nb_mce(int, struct err_regs *, int);
+void amd_register_ecc_decoder(void (*f)(int, struct mce *, u32));
+void amd_unregister_ecc_decoder(void (*f)(int, struct mce *, u32));
+void amd_decode_nb_mce(int, struct mce *, u32);
+int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data);
 
 #endif /* _EDAC_MCE_AMD_H */
