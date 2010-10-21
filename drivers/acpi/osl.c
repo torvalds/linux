@@ -199,36 +199,6 @@ static int __init acpi_reserve_resources(void)
 }
 device_initcall(acpi_reserve_resources);
 
-acpi_status __init acpi_os_initialize(void)
-{
-	return AE_OK;
-}
-
-acpi_status acpi_os_initialize1(void)
-{
-	kacpid_wq = create_workqueue("kacpid");
-	kacpi_notify_wq = create_workqueue("kacpi_notify");
-	kacpi_hotplug_wq = create_workqueue("kacpi_hotplug");
-	BUG_ON(!kacpid_wq);
-	BUG_ON(!kacpi_notify_wq);
-	BUG_ON(!kacpi_hotplug_wq);
-	return AE_OK;
-}
-
-acpi_status acpi_os_terminate(void)
-{
-	if (acpi_irq_handler) {
-		acpi_os_remove_interrupt_handler(acpi_irq_irq,
-						 acpi_irq_handler);
-	}
-
-	destroy_workqueue(kacpid_wq);
-	destroy_workqueue(kacpi_notify_wq);
-	destroy_workqueue(kacpi_hotplug_wq);
-
-	return AE_OK;
-}
-
 void acpi_os_printf(const char *fmt, ...)
 {
 	va_list args;
@@ -1598,5 +1568,44 @@ acpi_os_validate_address (
 	}
 	return AE_OK;
 }
-
 #endif
+
+acpi_status __init acpi_os_initialize(void)
+{
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe0_block);
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe1_block);
+
+	return AE_OK;
+}
+
+acpi_status acpi_os_initialize1(void)
+{
+	kacpid_wq = create_workqueue("kacpid");
+	kacpi_notify_wq = create_workqueue("kacpi_notify");
+	kacpi_hotplug_wq = create_workqueue("kacpi_hotplug");
+	BUG_ON(!kacpid_wq);
+	BUG_ON(!kacpi_notify_wq);
+	BUG_ON(!kacpi_hotplug_wq);
+	return AE_OK;
+}
+
+acpi_status acpi_os_terminate(void)
+{
+	if (acpi_irq_handler) {
+		acpi_os_remove_interrupt_handler(acpi_irq_irq,
+						 acpi_irq_handler);
+	}
+
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe1_block);
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe0_block);
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
+
+	destroy_workqueue(kacpid_wq);
+	destroy_workqueue(kacpi_notify_wq);
+	destroy_workqueue(kacpi_hotplug_wq);
+
+	return AE_OK;
+}
