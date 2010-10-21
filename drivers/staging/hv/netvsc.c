@@ -263,12 +263,11 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 	initPacket->Messages.Version1Messages.SendReceiveBuffer.Id = NETVSC_RECEIVE_BUFFER_ID;
 
 	/* Send the gpadl notification request */
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				initPacket,
-				sizeof(struct nvsp_message),
-				(unsigned long)initPacket,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, initPacket,
+			       sizeof(struct nvsp_message),
+			       (unsigned long)initPacket,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send receive buffer's gpadl to netvsp");
@@ -390,11 +389,11 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 	initPacket->Messages.Version1Messages.SendReceiveBuffer.Id = NETVSC_SEND_BUFFER_ID;
 
 	/* Send the gpadl notification request */
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				initPacket, sizeof(struct nvsp_message),
-				(unsigned long)initPacket,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, initPacket,
+			       sizeof(struct nvsp_message),
+			       (unsigned long)initPacket,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send receive buffer's gpadl to netvsp");
@@ -446,12 +445,10 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 		revokePacket->Header.MessageType = NvspMessage1TypeRevokeReceiveBuffer;
 		revokePacket->Messages.Version1Messages.RevokeReceiveBuffer.Id = NETVSC_RECEIVE_BUFFER_ID;
 
-		ret = NetDevice->Device->Driver->VmbusChannelInterface.SendPacket(
-						NetDevice->Device,
-						revokePacket,
-						sizeof(struct nvsp_message),
-						(unsigned long)revokePacket,
-						VmbusPacketTypeDataInBand, 0);
+		ret = vmbus_sendpacket(NetDevice->Device->channel, revokePacket,
+				       sizeof(struct nvsp_message),
+				       (unsigned long)revokePacket,
+				       VmbusPacketTypeDataInBand, 0);
 		/*
 		 * If we failed here, we might as well return and
 		 * have a leak rather than continue and a bugchk
@@ -519,11 +516,10 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 		revokePacket->Header.MessageType = NvspMessage1TypeRevokeSendBuffer;
 		revokePacket->Messages.Version1Messages.RevokeSendBuffer.Id = NETVSC_SEND_BUFFER_ID;
 
-		ret = NetDevice->Device->Driver->VmbusChannelInterface.SendPacket(NetDevice->Device,
-					revokePacket,
-					sizeof(struct nvsp_message),
-					(unsigned long)revokePacket,
-					VmbusPacketTypeDataInBand, 0);
+		ret = vmbus_sendpacket(NetDevice->Device->channel, revokePacket,
+				       sizeof(struct nvsp_message),
+				       (unsigned long)revokePacket,
+				       VmbusPacketTypeDataInBand, 0);
 		/*
 		 * If we failed here, we might as well return and have a leak
 		 * rather than continue and a bugchk
@@ -590,12 +586,11 @@ static int NetVscConnectToVsp(struct hv_device *Device)
 	DPRINT_INFO(NETVSC, "Sending NvspMessageTypeInit...");
 
 	/* Send the init request */
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				initPacket,
-				sizeof(struct nvsp_message),
-				(unsigned long)initPacket,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, initPacket,
+			       sizeof(struct nvsp_message),
+			       (unsigned long)initPacket,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to send NvspMessageTypeInit");
@@ -640,11 +635,10 @@ static int NetVscConnectToVsp(struct hv_device *Device)
 				ndisVersion & 0xFFFF;
 
 	/* Send the init request */
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-					initPacket,
-					sizeof(struct nvsp_message),
-					(unsigned long)initPacket,
-					VmbusPacketTypeDataInBand, 0);
+	ret = vmbus_sendpacket(Device->channel, initPacket,
+			       sizeof(struct nvsp_message),
+			       (unsigned long)initPacket,
+			       VmbusPacketTypeDataInBand, 0);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send NvspMessage1TypeSendNdisVersion");
@@ -919,12 +913,11 @@ static int NetVscOnSend(struct hv_device *Device,
 						  sizeof(struct nvsp_message),
 						  (unsigned long)Packet);
 	} else {
-		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				&sendMessage,
-				sizeof(struct nvsp_message),
-				(unsigned long)Packet,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(Device->channel, &sendMessage,
+				       sizeof(struct nvsp_message),
+				       (unsigned long)Packet,
+				       VmbusPacketTypeDataInBand,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	}
 
@@ -1152,11 +1145,9 @@ static void NetVscSendReceiveCompletion(struct hv_device *Device,
 
 retry_send_cmplt:
 	/* Send the completion */
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-					&recvcompMessage,
-					sizeof(struct nvsp_message),
-					TransactionId,
-					VmbusPacketTypeCompletion, 0);
+	ret = vmbus_sendpacket(Device->channel, &recvcompMessage,
+			       sizeof(struct nvsp_message), TransactionId,
+			       VmbusPacketTypeCompletion, 0);
 	if (ret == 0) {
 		/* success */
 		/* no-op */
