@@ -1017,6 +1017,7 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);
 
 /*
  * vmbus_onchannel_event - Channel event callback
