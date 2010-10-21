@@ -811,10 +811,10 @@ static void ican3_to_can_frame(struct ican3_dev *mod,
 
 		cf->can_id |= desc->data[0] << 3;
 		cf->can_id |= (desc->data[1] & 0xe0) >> 5;
-		cf->can_dlc = desc->data[1] & ICAN3_CAN_DLC_MASK;
-		memcpy(cf->data, &desc->data[2], sizeof(cf->data));
+		cf->can_dlc = get_can_dlc(desc->data[1] & ICAN3_CAN_DLC_MASK);
+		memcpy(cf->data, &desc->data[2], cf->can_dlc);
 	} else {
-		cf->can_dlc = desc->data[0] & ICAN3_CAN_DLC_MASK;
+		cf->can_dlc = get_can_dlc(desc->data[0] & ICAN3_CAN_DLC_MASK);
 		if (desc->data[0] & ICAN3_EFF_RTR)
 			cf->can_id |= CAN_RTR_FLAG;
 
@@ -829,7 +829,7 @@ static void ican3_to_can_frame(struct ican3_dev *mod,
 			cf->can_id |= desc->data[3] >> 5;  /* 2-0   */
 		}
 
-		memcpy(cf->data, &desc->data[6], sizeof(cf->data));
+		memcpy(cf->data, &desc->data[6], cf->can_dlc);
 	}
 }
 
@@ -861,7 +861,7 @@ static void can_frame_to_ican3(struct ican3_dev *mod,
 	}
 
 	/* copy the data bits into the descriptor */
-	memcpy(&desc->data[6], cf->data, sizeof(cf->data));
+	memcpy(&desc->data[6], cf->data, cf->can_dlc);
 }
 
 /*
