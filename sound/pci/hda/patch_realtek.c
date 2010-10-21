@@ -19309,6 +19309,7 @@ static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
 	int err, board_config;
+	int coef;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -19320,12 +19321,15 @@ static int patch_alc662(struct hda_codec *codec)
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
-	if (alc_read_coef_idx(codec, 0) == 0x8020)
+	coef = alc_read_coef_idx(codec, 0);
+	if (coef == 0x8020 || coef == 0x8011)
 		alc_codec_rename(codec, "ALC661");
-	else if ((alc_read_coef_idx(codec, 0) & (1 << 14)) &&
-		 codec->bus->pci->subsystem_vendor == 0x1025 &&
-		 spec->cdefine.platform_type == 1)
+	else if (coef & (1 << 14) &&
+		codec->bus->pci->subsystem_vendor == 0x1025 &&
+		spec->cdefine.platform_type == 1)
 		alc_codec_rename(codec, "ALC272X");
+	else if (coef == 0x4011)
+		alc_codec_rename(codec, "ALC656");
 
 	board_config = snd_hda_check_board_config(codec, ALC662_MODEL_LAST,
 						  alc662_models,
