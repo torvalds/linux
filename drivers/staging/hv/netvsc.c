@@ -717,12 +717,9 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	}
 
 	/* Open the channel */
-	ret = Device->Driver->VmbusChannelInterface.Open(Device,
-						netDriver->RingBufferSize,
-						netDriver->RingBufferSize,
-						NULL, 0,
-						NetVscOnChannelCallback,
-						Device);
+	ret = vmbus_open(Device->channel, netDriver->RingBufferSize,
+			 netDriver->RingBufferSize, NULL, 0,
+			 NetVscOnChannelCallback, Device);
 
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to open channel: %d", ret);
