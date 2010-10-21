@@ -152,7 +152,7 @@ struct hv_device {
 	/* the device instance id of this device */
 	struct hv_guid deviceInstance;
 
-	void *context;
+	struct vmbus_channel *context;
 
 	/* Device extension; */
 	void *Extension;
