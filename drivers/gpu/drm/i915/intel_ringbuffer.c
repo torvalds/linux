@@ -476,7 +476,7 @@ render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 			intel_ring_emit(dev, ring, exec_start + exec_len - 4);
 			intel_ring_emit(dev, ring, 0);
 		} else {
-			intel_ring_begin(dev, ring, 4);
+			intel_ring_begin(dev, ring, 2);
 			if (INTEL_INFO(dev)->gen >= 4) {
 				intel_ring_emit(dev, ring,
 						MI_BATCH_BUFFER_START | (2 << 6)
