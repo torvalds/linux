@@ -182,12 +182,27 @@ config SPI_MPC512x_PSC
 	  This enables using the Freescale MPC5121 Programmable Serial
 	  Controller in SPI master mode.
 
-config SPI_MPC8xxx
-	tristate "Freescale MPC8xxx SPI controller"
+config SPI_FSL_LIB
+	tristate
 	depends on FSL_SOC
+
+config SPI_FSL_SPI
+	tristate "Freescale SPI controller"
+	depends on FSL_SOC
+	select SPI_FSL_LIB
 	help
-	  This enables using the Freescale MPC8xxx SPI controllers in master
-	  mode.
+	  This enables using the Freescale SPI controllers in master mode.
+	  MPC83xx platform uses the controller in cpu mode or CPM/QE mode.
+	  MPC8569 uses the controller in QE mode, MPC8610 in cpu mode.
+
+config SPI_FSL_ESPI
+	tristate "Freescale eSPI controller"
+	depends on FSL_SOC
+	select SPI_FSL_LIB
+	help
+	  This enables using the Freescale eSPI controllers in master mode.
+	  From MPC8536, 85xx platform uses the controller, and all P10xx,
+	  P20xx, P30xx,P40xx, P50xx uses this controller.
 
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
@@ -297,6 +312,13 @@ config SPI_STMP3XXX
 	depends on ARCH_STMP3XXX && SPI_MASTER
 	help
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
+
+config SPI_TOPCLIFF_PCH
+	tristate "Topcliff PCH SPI Controller"
+	depends on PCI
+	help
+	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
+	  used in some x86 embedded processors.
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"

@@ -55,19 +55,13 @@ static void ab4500_spi_cs_control(u32 command)
 }
 
 struct pl022_config_chip ab4500_chip_info = {
-	.lbm = LOOPBACK_DISABLED,
 	.com_mode = INTERRUPT_TRANSFER,
 	.iface = SSP_INTERFACE_MOTOROLA_SPI,
 	/* we can act as master only */
 	.hierarchy = SSP_MASTER,
 	.slave_tx_disable = 0,
-	.endian_rx = SSP_RX_MSB,
-	.endian_tx = SSP_TX_MSB,
-	.data_size = SSP_DATA_BITS_24,
 	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
 	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
-	.clk_phase = SSP_CLK_SECOND_EDGE,
-	.clk_pol = SSP_CLK_POL_IDLE_HIGH,
 	.cs_control = ab4500_spi_cs_control,
 };
 
@@ -83,7 +77,7 @@ static struct spi_board_info u8500_spi_devices[] = {
 		.max_speed_hz = 12000000,
 		.bus_num = 0,
 		.chip_select = 0,
-		.mode = SPI_MODE_0,
+		.mode = SPI_MODE_3,
 		.irq = IRQ_DB8500_AB8500,
 	},
 };
