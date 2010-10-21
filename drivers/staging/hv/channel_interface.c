@@ -41,17 +41,8 @@ static void ivmbus_close(struct hv_device *device)
 	vmbus_close(device->channel);
 }
 
-static int ivmbus_sendpacket(struct hv_device *device, const void *buffer,
-				   u32 bufferlen, u64 requestid, u32 type,
-				   u32 flags)
-{
-	return vmbus_sendpacket(device->channel, buffer, bufferlen,
-				      requestid, type, flags);
-}
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
 	.Open = ivmbus_open,
 	.Close = ivmbus_close,
-	.SendPacket = ivmbus_sendpacket,
 };
