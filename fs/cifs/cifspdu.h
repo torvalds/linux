@@ -131,9 +131,14 @@
 #define CIFS_CRYPTO_KEY_SIZE (8)
 
 /*
+ * Size of the ntlm client response
+ */
+#define CIFS_AUTH_RESP_SIZE (24)
+
+/*
  * Size of the session key (crypto key encrypted with the password
  */
-#define CIFS_SESS_KEY_SIZE (24)
+#define CIFS_SESS_KEY_SIZE (16)
 
 /*
  * Maximum user name length

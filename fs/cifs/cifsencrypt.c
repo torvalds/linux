@@ -43,15 +43,16 @@ extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 		       unsigned char *p24);
 
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
-				const struct session_key *key, char *signature)
+				struct TCP_Server_Info *server, char *signature)
 {
 	struct	MD5Context context;
 
-	if ((cifs_pdu == NULL) || (signature == NULL) || (key == NULL))
+	if (cifs_pdu == NULL || signature == NULL || server == NULL)
 		return -EINVAL;
 
 	cifs_MD5_init(&context);
-	cifs_MD5_update(&context, (char *)&key->data, key->len);
+	cifs_MD5_update(&context, server->session_key.response,
+			server->session_key.len);
 	cifs_MD5_update(&context, cifs_pdu->Protocol, cifs_pdu->smb_buf_length);
 
 	cifs_MD5_final(signature, &context);
@@ -79,8 +80,7 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calculate_signature(cifs_pdu, &server->session_key,
-				      smb_signature);
+	rc = cifs_calculate_signature(cifs_pdu, server, smb_signature);
 	if (rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
 	else
@@ -90,16 +90,17 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 }
 
 static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
-				const struct session_key *key, char *signature)
+				struct TCP_Server_Info *server, char *signature)
 {
 	struct  MD5Context context;
 	int i;
 
-	if ((iov == NULL) || (signature == NULL) || (key == NULL))
+	if (iov == NULL || signature == NULL || server == NULL)
 		return -EINVAL;
 
 	cifs_MD5_init(&context);
-	cifs_MD5_update(&context, (char *)&key->data, key->len);
+	cifs_MD5_update(&context, server->session_key.response,
+				server->session_key.len);
 	for (i = 0; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
@@ -146,8 +147,7 @@ int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calc_signature2(iov, n_vec, &server->session_key,
-				      smb_signature);
+	rc = cifs_calc_signature2(iov, n_vec, server, smb_signature);
 	if (rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
 	else
@@ -157,14 +157,14 @@ int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 }
 
 int cifs_verify_signature(struct smb_hdr *cifs_pdu,
-			  const struct session_key *session_key,
+			  struct TCP_Server_Info *server,
 			  __u32 expected_sequence_number)
 {
 	unsigned int rc;
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
 
-	if (cifs_pdu == NULL || session_key == NULL)
+	if (cifs_pdu == NULL || server == NULL)
 		return -EINVAL;
 
 	if (cifs_pdu->Command == SMB_COM_NEGOTIATE)
@@ -193,7 +193,7 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 					cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
-	rc = cifs_calculate_signature(cifs_pdu, session_key,
+	rc = cifs_calculate_signature(cifs_pdu, server,
 		what_we_think_sig_should_be);
 
 	if (rc)
@@ -209,18 +209,28 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 
 }
 
-/* We fill in key by putting in 40 byte array which was allocated by caller */
-int cifs_calculate_session_key(struct session_key *key, const char *rn,
-			   const char *password)
+/* first calculate 24 bytes ntlm response and then 16 byte session key */
+int setup_ntlm_response(struct cifsSesInfo *ses)
 {
-	char temp_key[16];
-	if ((key == NULL) || (rn == NULL))
+	unsigned int temp_len = CIFS_SESS_KEY_SIZE + CIFS_AUTH_RESP_SIZE;
+	char temp_key[CIFS_SESS_KEY_SIZE];
+
+	if (!ses)
 		return -EINVAL;
 
-	E_md4hash(password, temp_key);
-	mdfour(key->data.ntlm, temp_key, 16);
-	memcpy(key->data.ntlm+16, rn, CIFS_SESS_KEY_SIZE);
-	key->len = 40;
+	ses->auth_key.response = kmalloc(temp_len, GFP_KERNEL);
+	if (!ses->auth_key.response) {
+		cERROR(1, "NTLM can't allocate (%u bytes) memory", temp_len);
+		return -ENOMEM;
+	}
+	ses->auth_key.len = temp_len;
+
+	SMBNTencrypt(ses->password, ses->cryptKey,
+			ses->auth_key.response + CIFS_SESS_KEY_SIZE);
+
+	E_md4hash(ses->password, temp_key);
+	mdfour(ses->auth_key.response, temp_key, CIFS_SESS_KEY_SIZE);
+
 	return 0;
 }
 
@@ -465,18 +475,12 @@ calc_exit_2:
 }
 
 int
-setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
-		      const struct nls_table *nls_cp)
+setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 {
 	int rc;
-	struct ntlmv2_resp *buf = (struct ntlmv2_resp *)resp_buf;
+	int baselen;
+	struct ntlmv2_resp *buf;
 	struct HMACMD5Context context;
-
-	buf->blob_signature = cpu_to_le32(0x00000101);
-	buf->reserved = 0;
-	buf->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
-	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal));
-	buf->reserved2 = 0;
 
 	if (ses->server->secType == RawNTLMSSP) {
 		if (!ses->domainName) {
@@ -494,22 +498,38 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
 		}
 	}
 
+	baselen = CIFS_SESS_KEY_SIZE + sizeof(struct ntlmv2_resp);
+	ses->auth_key.len = baselen + ses->tilen;
+	ses->auth_key.response = kmalloc(ses->auth_key.len, GFP_KERNEL);
+	if (!ses->auth_key.response) {
+		rc = ENOMEM;
+		cERROR(1, "%s: Can't allocate auth blob", __func__);
+		goto setup_ntlmv2_rsp_ret;
+	}
+
+	buf = (struct ntlmv2_resp *)
+			(ses->auth_key.response + CIFS_SESS_KEY_SIZE);
+	buf->blob_signature = cpu_to_le32(0x00000101);
+	buf->reserved = 0;
+	buf->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal));
+	buf->reserved2 = 0;
+
+	memcpy(ses->auth_key.response + baselen, ses->tiblob, ses->tilen);
+
 	/* calculate buf->ntlmv2_hash */
 	rc = calc_ntlmv2_hash(ses, nls_cp);
 	if (rc) {
 		cERROR(1, "could not get v2 hash rc %d", rc);
 		goto setup_ntlmv2_rsp_ret;
 	}
-	CalcNTLMv2_response(ses, resp_buf);
+	CalcNTLMv2_response(ses);
 
 	/* now calculate the session key for NTLMv2 */
 	hmac_md5_init_limK_to_64(ses->ntlmv2_hash, 16, &context);
-	hmac_md5_update(resp_buf, 16, &context);
-	hmac_md5_final(ses->auth_key.data.ntlmv2.key, &context);
-
-	memcpy(&ses->auth_key.data.ntlmv2.resp, resp_buf,
-	       sizeof(struct ntlmv2_resp));
-	ses->auth_key.len = 16 + sizeof(struct ntlmv2_resp);
+	hmac_md5_update(ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+				16, &context);
+	hmac_md5_final(ses->auth_key.response, &context);
 
 	return 0;
 
@@ -521,20 +541,17 @@ setup_ntlmv2_rsp_ret:
 	return rc;
 }
 
-void CalcNTLMv2_response(const struct cifsSesInfo *ses,
-			 char *v2_session_response)
+void CalcNTLMv2_response(const struct cifsSesInfo *ses)
 {
+	unsigned int offset = CIFS_SESS_KEY_SIZE + 8;
 	struct HMACMD5Context context;
+
 	/* rest of v2 struct already generated */
-	memcpy(v2_session_response + 8, ses->cryptKey, 8);
+	memcpy(ses->auth_key.response + offset, ses->cryptKey, 8);
 	hmac_md5_init_limK_to_64(ses->ntlmv2_hash, 16, &context);
 
-	hmac_md5_update(v2_session_response+8,
-			sizeof(struct ntlmv2_resp) - 8, &context);
+	hmac_md5_update(ses->auth_key.response + offset,
+			ses->auth_key.len - offset, &context);
 
-	if (ses->tilen)
-		hmac_md5_update(ses->tiblob, ses->tilen, &context);
-
-	hmac_md5_final(v2_session_response, &context);
-/*	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); */
+	hmac_md5_final(ses->auth_key.response + CIFS_SESS_KEY_SIZE, &context);
 }

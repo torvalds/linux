@@ -99,14 +99,7 @@ enum protocolEnum {
 
 struct session_key {
 	unsigned int len;
-	union {
-		char ntlm[CIFS_SESS_KEY_SIZE + 16];
-		char krb5[CIFS_SESS_KEY_SIZE + 16]; /* BB: length correct? */
-		struct {
-			char key[16];
-			struct ntlmv2_resp resp;
-		} ntlmv2;
-	} data;
+	char *response;
 };
 
 struct cifs_cred {

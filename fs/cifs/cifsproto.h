@@ -362,13 +362,12 @@ extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
 extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
 extern int cifs_verify_signature(struct smb_hdr *,
-				 const struct session_key *session_key,
+				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
-extern int cifs_calculate_session_key(struct session_key *key, const char *rn,
-				 const char *pass);
-extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
-extern int setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
-			     const struct nls_table *);
+extern void SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
+extern int setup_ntlm_response(struct cifsSesInfo *);
+extern void CalcNTLMv2_response(const struct cifsSesInfo *);
+extern int setup_ntlmv2_rsp(struct cifsSesInfo *, const struct nls_table *);
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);
