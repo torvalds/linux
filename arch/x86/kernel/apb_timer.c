@@ -398,7 +398,7 @@ static int apbt_cpuhp_notify(struct notifier_block *n,
 		}
 		break;
 	default:
-		pr_debug(KERN_INFO "APBT notified %lu, no action\n", action);
+		pr_debug("APBT notified %lu, no action\n", action);
 	}
 	return NOTIFY_OK;
 }
@@ -552,7 +552,7 @@ bad_count:
 		pr_debug("APB CS going back %lx:%lx:%lx ",
 			 t2, last_read, t2 - last_read);
 bad_count_x3:
-		pr_debug(KERN_INFO "tripple check enforced\n");
+		pr_debug("triple check enforced\n");
 		t0 = apbt_readl(phy_cs_timer_id,
 				APBTMR_N_CURRENT_VALUE);
 		udelay(1);
