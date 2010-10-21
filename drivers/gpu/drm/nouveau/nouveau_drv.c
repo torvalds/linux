@@ -115,6 +115,10 @@ MODULE_PARM_DESC(perflvl_wr, "Allow perflvl changes (warning: dangerous!)\n");
 int nouveau_perflvl_wr;
 module_param_named(perflvl_wr, nouveau_perflvl_wr, int, 0400);
 
+MODULE_PARM_DESC(msi, "Enable MSI (default: off)\n");
+int nouveau_msi;
+module_param_named(msi, nouveau_msi, int, 0400);
+
 int nouveau_fbpercrtc;
 #if 0
 module_param_named(fbpercrtc, nouveau_fbpercrtc, int, 0400);

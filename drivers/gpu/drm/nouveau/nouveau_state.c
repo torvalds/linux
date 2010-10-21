@@ -667,10 +667,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_fifo;
 
-	/* this call irq_preinstall, register irq handler and
-	 * call irq_postinstall
-	 */
-	ret = drm_irq_install(dev);
+	ret = nouveau_irq_init(dev);
 	if (ret)
 		goto out_display;
 
@@ -701,7 +698,7 @@ nouveau_card_init(struct drm_device *dev)
 out_fence:
 	nouveau_fence_fini(dev);
 out_irq:
-	drm_irq_uninstall(dev);
+	nouveau_irq_fini(dev);
 out_display:
 	engine->display.destroy(dev);
 out_fifo:
@@ -772,7 +769,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	nouveau_gpuobj_takedown(dev);
 	nouveau_mem_vram_fini(dev);
 
-	drm_irq_uninstall(dev);
+	nouveau_irq_fini(dev);
 
 	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);

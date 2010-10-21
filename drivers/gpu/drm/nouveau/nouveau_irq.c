@@ -68,8 +68,13 @@ nouveau_irq_preinstall(struct drm_device *dev)
 int
 nouveau_irq_postinstall(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
 	/* Master enable */
 	nv_wr32(dev, NV03_PMC_INTR_EN_0, NV_PMC_INTR_EN_0_MASTER_ENABLE);
+	if (dev_priv->msi_enabled)
+		nv_wr08(dev, 0x00088068, 0xff);
+
 	return 0;
 }
 
@@ -1263,5 +1268,35 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
+	if (dev_priv->msi_enabled)
+		nv_wr08(dev, 0x00088068, 0xff);
+
 	return IRQ_HANDLED;
+}
+
+int
+nouveau_irq_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int ret;
+
+	if (nouveau_msi != 0 && dev_priv->card_type >= NV_50) {
+		ret = pci_enable_msi(dev->pdev);
+		if (ret == 0) {
+			NV_INFO(dev, "enabled MSI\n");
+			dev_priv->msi_enabled = true;
+		}
+	}
+
+	return drm_irq_install(dev);
+}
+
+void
+nouveau_irq_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	drm_irq_uninstall(dev);
+	if (dev_priv->msi_enabled)
+		pci_disable_msi(dev->pdev);
 }
