@@ -187,9 +187,6 @@ static int nested_svm_vmexit(struct vcpu_svm *svm);
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
 
-static void save_host_msrs(struct kvm_vcpu *vcpu);
-static void load_host_msrs(struct kvm_vcpu *vcpu);
-
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_svm, vcpu);
@@ -1002,7 +999,9 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		svm->asid_generation = 0;
 	}
 
-	save_host_msrs(vcpu);
+#ifdef CONFIG_X86_64
+	rdmsrl(MSR_GS_BASE, to_svm(vcpu)->host.gs_base);
+#endif
 	savesegment(fs, svm->host.fs);
 	savesegment(gs, svm->host.gs);
 	svm->host.ldt = kvm_read_ldt();
@@ -1369,20 +1368,6 @@ static void svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 		svm->vmcb->save.dr7 = vcpu->arch.dr7;
 
 	update_db_intercept(vcpu);
-}
-
-static void load_host_msrs(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_X86_64
-	wrmsrl(MSR_GS_BASE, to_svm(vcpu)->host.gs_base);
-#endif
-}
-
-static void save_host_msrs(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_X86_64
-	rdmsrl(MSR_GS_BASE, to_svm(vcpu)->host.gs_base);
-#endif
 }
 
 static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
@@ -3426,8 +3411,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 		);
 
-	load_host_msrs(vcpu);
-#ifndef CONFIG_X86_64
+#ifdef CONFIG_X86_64
+	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
+#else
 	loadsegment(fs, svm->host.fs);
 #endif
 
