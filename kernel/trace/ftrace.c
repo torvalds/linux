@@ -884,10 +884,8 @@ enum {
 	FTRACE_ENABLE_CALLS		= (1 << 0),
 	FTRACE_DISABLE_CALLS		= (1 << 1),
 	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
-	FTRACE_ENABLE_MCOUNT		= (1 << 3),
-	FTRACE_DISABLE_MCOUNT		= (1 << 4),
-	FTRACE_START_FUNC_RET		= (1 << 5),
-	FTRACE_STOP_FUNC_RET		= (1 << 6),
+	FTRACE_START_FUNC_RET		= (1 << 3),
+	FTRACE_STOP_FUNC_RET		= (1 << 4),
 };
 
 static int ftrace_filtered;
@@ -1226,8 +1224,6 @@ static void ftrace_shutdown(int command)
 
 static void ftrace_startup_sysctl(void)
 {
-	int command = FTRACE_ENABLE_MCOUNT;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -1235,23 +1231,17 @@ static void ftrace_startup_sysctl(void)
 	saved_ftrace_func = NULL;
 	/* ftrace_start_up is true if we want ftrace running */
 	if (ftrace_start_up)
-		command |= FTRACE_ENABLE_CALLS;
-
-	ftrace_run_update_code(command);
+		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 }
 
 static void ftrace_shutdown_sysctl(void)
 {
-	int command = FTRACE_DISABLE_MCOUNT;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
 	/* ftrace_start_up is true if ftrace is running */
 	if (ftrace_start_up)
-		command |= FTRACE_DISABLE_CALLS;
-
-	ftrace_run_update_code(command);
+		ftrace_run_update_code(FTRACE_DISABLE_CALLS);
 }
 
 static cycle_t		ftrace_update_time;
@@ -1368,24 +1358,29 @@ enum {
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
-	struct ftrace_page	*pg;
-	int			hidx;
-	int			idx;
-	unsigned		flags;
-	struct trace_parser	parser;
+	loff_t				pos;
+	loff_t				func_pos;
+	struct ftrace_page		*pg;
+	struct dyn_ftrace		*func;
+	struct ftrace_func_probe	*probe;
+	struct trace_parser		parser;
+	int				hidx;
+	int				idx;
+	unsigned			flags;
 };
 
 static void *
-t_hash_next(struct seq_file *m, void *v, loff_t *pos)
+t_hash_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct hlist_node *hnd = v;
+	struct hlist_node *hnd = NULL;
 	struct hlist_head *hhd;
 
-	WARN_ON(!(iter->flags & FTRACE_ITER_HASH));
-
 	(*pos)++;
+	iter->pos = *pos;
 
+	if (iter->probe)
+		hnd = &iter->probe->node;
  retry:
 	if (iter->hidx >= FTRACE_FUNC_HASHSIZE)
 		return NULL;
@@ -1408,7 +1403,12 @@ t_hash_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	}
 
-	return hnd;
+	if (WARN_ON_ONCE(!hnd))
+		return NULL;
+
+	iter->probe = hlist_entry(hnd, struct ftrace_func_probe, node);
+
+	return iter;
 }
 
 static void *t_hash_start(struct seq_file *m, loff_t *pos)
@@ -1417,26 +1417,32 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 	void *p = NULL;
 	loff_t l;
 
-	if (!(iter->flags & FTRACE_ITER_HASH))
-		*pos = 0;
-
-	iter->flags |= FTRACE_ITER_HASH;
+	if (iter->func_pos > *pos)
+		return NULL;
 
 	iter->hidx = 0;
-	for (l = 0; l <= *pos; ) {
-		p = t_hash_next(m, p, &l);
+	for (l = 0; l <= (*pos - iter->func_pos); ) {
+		p = t_hash_next(m, &l);
 		if (!p)
 			break;
 	}
-	return p;
+	if (!p)
+		return NULL;
+
+	/* Only set this if we have an item */
+	iter->flags |= FTRACE_ITER_HASH;
+
+	return iter;
 }
 
-static int t_hash_show(struct seq_file *m, void *v)
+static int
+t_hash_show(struct seq_file *m, struct ftrace_iterator *iter)
 {
 	struct ftrace_func_probe *rec;
-	struct hlist_node *hnd = v;
 
-	rec = hlist_entry(hnd, struct ftrace_func_probe, node);
+	rec = iter->probe;
+	if (WARN_ON_ONCE(!rec))
+		return -EIO;
 
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
@@ -1457,12 +1463,13 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	struct dyn_ftrace *rec = NULL;
 
 	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_next(m, v, pos);
+		return t_hash_next(m, pos);
 
 	(*pos)++;
+	iter->pos = *pos;
 
 	if (iter->flags & FTRACE_ITER_PRINTALL)
-		return NULL;
+		return t_hash_start(m, pos);
 
  retry:
 	if (iter->idx >= iter->pg->index) {
@@ -1491,7 +1498,20 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	}
 
-	return rec;
+	if (!rec)
+		return t_hash_start(m, pos);
+
+	iter->func_pos = *pos;
+	iter->func = rec;
+
+	return iter;
+}
+
+static void reset_iter_read(struct ftrace_iterator *iter)
+{
+	iter->pos = 0;
+	iter->func_pos = 0;
+	iter->flags &= ~(FTRACE_ITER_PRINTALL & FTRACE_ITER_HASH);
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
@@ -1501,6 +1521,12 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	loff_t l;
 
 	mutex_lock(&ftrace_lock);
+	/*
+	 * If an lseek was done, then reset and start from beginning.
+	 */
+	if (*pos < iter->pos)
+		reset_iter_read(iter);
+
 	/*
 	 * For set_ftrace_filter reading, if we have the filter
 	 * off, we can short cut and just print out that all
@@ -1518,6 +1544,11 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_start(m, pos);
 
+	/*
+	 * Unfortunately, we need to restart at ftrace_pages_start
+	 * every time we let go of the ftrace_mutex. This is because
+	 * those pointers can change without the lock.
+	 */
 	iter->pg = ftrace_pages_start;
 	iter->idx = 0;
 	for (l = 0; l <= *pos; ) {
@@ -1526,10 +1557,14 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 			break;
 	}
 
-	if (!p && iter->flags & FTRACE_ITER_FILTER)
-		return t_hash_start(m, pos);
+	if (!p) {
+		if (iter->flags & FTRACE_ITER_FILTER)
+			return t_hash_start(m, pos);
 
-	return p;
+		return NULL;
+	}
+
+	return iter;
 }
 
 static void t_stop(struct seq_file *m, void *p)
@@ -1540,15 +1575,17 @@ static void t_stop(struct seq_file *m, void *p)
 static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct dyn_ftrace *rec = v;
+	struct dyn_ftrace *rec;
 
 	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_show(m, v);
+		return t_hash_show(m, iter);
 
 	if (iter->flags & FTRACE_ITER_PRINTALL) {
 		seq_printf(m, "#### all functions enabled ####\n");
 		return 0;
 	}
+
+	rec = iter->func;
 
 	if (!rec)
 		return 0;
@@ -1601,8 +1638,8 @@ ftrace_failures_open(struct inode *inode, struct file *file)
 
 	ret = ftrace_avail_open(inode, file);
 	if (!ret) {
-		m = (struct seq_file *)file->private_data;
-		iter = (struct ftrace_iterator *)m->private;
+		m = file->private_data;
+		iter = m->private;
 		iter->flags = FTRACE_ITER_FAILURES;
 	}
 
@@ -2418,7 +2455,7 @@ static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = seq_read,
 	.write = ftrace_filter_write,
-	.llseek = no_llseek,
+	.llseek = ftrace_regex_lseek,
 	.release = ftrace_filter_release,
 };
 

@@ -79,14 +79,17 @@ static ssize_t depth_write(struct file *file, char const __user *buf, size_t cou
 	if (*offset)
 		return -EINVAL;
 
+	if (!oprofile_ops.backtrace)
+		return -EINVAL;
+
 	retval = oprofilefs_ulong_from_user(&val, buf, count);
 	if (retval)
 		return retval;
 
-	retval = oprofile_set_backtrace(val);
-
+	retval = oprofile_set_ulong(&oprofile_backtrace_depth, val);
 	if (retval)
 		return retval;
+
 	return count;
 }
 

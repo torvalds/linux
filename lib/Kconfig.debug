@@ -482,6 +482,7 @@ config PROVE_LOCKING
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
 	select DEBUG_LOCK_ALLOC
+	select TRACE_IRQFLAGS
 	default n
 	help
 	 This feature enables the kernel to prove that all locking
@@ -596,11 +597,10 @@ config DEBUG_LOCKDEP
 	  of more runtime overhead.
 
 config TRACE_IRQFLAGS
-	depends on DEBUG_KERNEL
 	bool
-	default y
-	depends on TRACE_IRQFLAGS_SUPPORT
-	depends on PROVE_LOCKING
+	help
+	  Enables hooks to interrupt enabling and disabling for
+	  either tracing or lock debugging.
 
 config DEBUG_SPINLOCK_SLEEP
 	bool "Spinlock debugging: sleep-inside-spinlock checking"

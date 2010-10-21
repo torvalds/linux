@@ -1,16 +1,6 @@
-#define _GNU_SOURCE
-#include <stdio.h>
-#undef _GNU_SOURCE
-/*
- * slang versions <= 2.0.6 have a "#if HAVE_LONG_LONG" that breaks
- * the build if it isn't defined. Use the equivalent one that glibc
- * has on features.h.
- */
-#include <features.h>
-#ifndef HAVE_LONG_LONG
-#define HAVE_LONG_LONG __GLIBC_HAVE_LONG_LONG
-#endif
 #include <slang.h>
+#include "libslang.h"
+#include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdlib.h>
@@ -19,17 +9,9 @@
 #include "helpline.h"
 #include "../color.h"
 #include "../util.h"
+#include <stdio.h>
 
-#if SLANG_VERSION < 20104
-#define sltt_set_color(obj, name, fg, bg) \
-	SLtt_set_color(obj,(char *)name, (char *)fg, (char *)bg)
-#else
-#define sltt_set_color SLtt_set_color
-#endif
-
-newtComponent newt_form__new(void);
-
-int ui_browser__percent_color(double percent, bool current)
+static int ui_browser__percent_color(double percent, bool current)
 {
 	if (current)
 		return HE_COLORSET_SELECTED;
@@ -38,6 +20,23 @@ int ui_browser__percent_color(double percent, bool current)
 	if (percent >= MIN_GREEN)
 		return HE_COLORSET_MEDIUM;
 	return HE_COLORSET_NORMAL;
+}
+
+void ui_browser__set_color(struct ui_browser *self __used, int color)
+{
+	SLsmg_set_color(color);
+}
+
+void ui_browser__set_percent_color(struct ui_browser *self,
+				   double percent, bool current)
+{
+	 int color = ui_browser__percent_color(percent, current);
+	 ui_browser__set_color(self, color);
+}
+
+void ui_browser__gotorc(struct ui_browser *self, int y, int x)
+{
+	SLsmg_gotorc(self->y + y, self->x + x);
 }
 
 void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whence)
@@ -111,7 +110,7 @@ unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
 	nd = self->top;
 
 	while (nd != NULL) {
-		SLsmg_gotorc(self->y + row, self->x);
+		ui_browser__gotorc(self, row, 0);
 		self->write(self, nd, row);
 		if (++row == self->height)
 			break;
@@ -131,13 +130,10 @@ void ui_browser__refresh_dimensions(struct ui_browser *self)
 	int cols, rows;
 	newtGetScreenSize(&cols, &rows);
 
-	if (self->width > cols - 4)
-		self->width = cols - 4;
-	self->height = rows - 5;
-	if (self->height > self->nr_entries)
-		self->height = self->nr_entries;
-	self->y  = (rows - self->height) / 2;
-	self->x = (cols - self->width) / 2;
+	self->width = cols - 1;
+	self->height = rows - 2;
+	self->y = 1;
+	self->x = 0;
 }
 
 void ui_browser__reset_index(struct ui_browser *self)
@@ -146,34 +142,48 @@ void ui_browser__reset_index(struct ui_browser *self)
 	self->seek(self, 0, SEEK_SET);
 }
 
+void ui_browser__add_exit_key(struct ui_browser *self, int key)
+{
+	newtFormAddHotKey(self->form, key);
+}
+
+void ui_browser__add_exit_keys(struct ui_browser *self, int keys[])
+{
+	int i = 0;
+
+	while (keys[i] && i < 64) {
+		ui_browser__add_exit_key(self, keys[i]);
+		++i;
+	}
+}
+
 int ui_browser__show(struct ui_browser *self, const char *title,
 		     const char *helpline, ...)
 {
 	va_list ap;
+	int keys[] = { NEWT_KEY_UP, NEWT_KEY_DOWN, NEWT_KEY_PGUP,
+		       NEWT_KEY_PGDN, NEWT_KEY_HOME, NEWT_KEY_END, ' ',
+		       NEWT_KEY_LEFT, NEWT_KEY_ESCAPE, 'q', CTRL('c'), 0 };
 
-	if (self->form != NULL) {
+	if (self->form != NULL)
 		newtFormDestroy(self->form);
-		newtPopWindow();
-	}
+
 	ui_browser__refresh_dimensions(self);
-	newtCenteredWindow(self->width, self->height, title);
-	self->form = newt_form__new();
+	self->form = newtForm(NULL, NULL, 0);
 	if (self->form == NULL)
 		return -1;
 
-	self->sb = newtVerticalScrollbar(self->width, 0, self->height,
+	self->sb = newtVerticalScrollbar(self->width, 1, self->height,
 					 HE_COLORSET_NORMAL,
 					 HE_COLORSET_SELECTED);
 	if (self->sb == NULL)
 		return -1;
 
-	newtFormAddHotKey(self->form, NEWT_KEY_UP);
-	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
-	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
-	newtFormAddHotKey(self->form, NEWT_KEY_END);
-	newtFormAddHotKey(self->form, ' ');
+	SLsmg_gotorc(0, 0);
+	ui_browser__set_color(self, NEWT_COLORSET_ROOT);
+	slsmg_write_nstring(title, self->width);
+
+	ui_browser__add_exit_keys(self, keys);
 	newtFormAddComponent(self->form, self->sb);
 
 	va_start(ap, helpline);
@@ -185,7 +195,6 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 void ui_browser__hide(struct ui_browser *self)
 {
 	newtFormDestroy(self->form);
-	newtPopWindow();
 	self->form = NULL;
 	ui_helpline__pop();
 }
@@ -196,28 +205,28 @@ int ui_browser__refresh(struct ui_browser *self)
 
 	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
 	row = self->refresh(self);
-	SLsmg_set_color(HE_COLORSET_NORMAL);
+	ui_browser__set_color(self, HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->y + row, self->x,
 			  self->height - row, self->width, ' ');
 
 	return 0;
 }
 
-int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
+int ui_browser__run(struct ui_browser *self)
 {
+	struct newtExitStruct es;
+
 	if (ui_browser__refresh(self) < 0)
 		return -1;
 
 	while (1) {
 		off_t offset;
 
-		newtFormRun(self->form, es);
+		newtFormRun(self->form, &es);
 
-		if (es->reason != NEWT_EXIT_HOTKEY)
+		if (es.reason != NEWT_EXIT_HOTKEY)
 			break;
-		if (is_exit_key(es->u.key))
-			return es->u.key;
-		switch (es->u.key) {
+		switch (es.u.key) {
 		case NEWT_KEY_DOWN:
 			if (self->index == self->nr_entries - 1)
 				break;
@@ -274,12 +283,12 @@ int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 			self->seek(self, -offset, SEEK_END);
 			break;
 		default:
-			return es->u.key;
+			return es.u.key;
 		}
 		if (ui_browser__refresh(self) < 0)
 			return -1;
 	}
-	return 0;
+	return -1;
 }
 
 unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
@@ -294,7 +303,7 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
 	pos = self->top;
 
 	list_for_each_from(pos, head) {
-		SLsmg_gotorc(self->y + row, self->x);
+		ui_browser__gotorc(self, row, 0);
 		self->write(self, pos, row);
 		if (++row == self->height)
 			break;

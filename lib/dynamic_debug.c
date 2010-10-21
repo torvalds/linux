@@ -26,18 +26,10 @@
 #include <linux/dynamic_debug.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/jump_label.h>
 
 extern struct _ddebug __start___verbose[];
 extern struct _ddebug __stop___verbose[];
-
-/* dynamic_debug_enabled, and dynamic_debug_enabled2 are bitmasks in which
- * bit n is set to 1 if any modname hashes into the bucket n, 0 otherwise. They
- * use independent hash functions, to reduce the chance of false positives.
- */
-long long dynamic_debug_enabled;
-EXPORT_SYMBOL_GPL(dynamic_debug_enabled);
-long long dynamic_debug_enabled2;
-EXPORT_SYMBOL_GPL(dynamic_debug_enabled2);
 
 struct ddebug_table {
 	struct list_head link;
@@ -85,26 +77,6 @@ static char *ddebug_describe_flags(struct _ddebug *dp, char *buf,
 	*p = '\0';
 
 	return buf;
-}
-
-/*
- * must be called with ddebug_lock held
- */
-
-static int disabled_hash(char hash, bool first_table)
-{
-	struct ddebug_table *dt;
-	char table_hash_value;
-
-	list_for_each_entry(dt, &ddebug_tables, link) {
-		if (first_table)
-			table_hash_value = dt->ddebugs->primary_hash;
-		else
-			table_hash_value = dt->ddebugs->secondary_hash;
-		if (dt->num_enabled && (hash == table_hash_value))
-			return 0;
-	}
-	return 1;
 }
 
 /*
@@ -170,17 +142,9 @@ static void ddebug_change(const struct ddebug_query *query,
 				dt->num_enabled++;
 			dp->flags = newflags;
 			if (newflags) {
-				dynamic_debug_enabled |=
-						(1LL << dp->primary_hash);
-				dynamic_debug_enabled2 |=
-						(1LL << dp->secondary_hash);
+				jump_label_enable(&dp->enabled);
 			} else {
-				if (disabled_hash(dp->primary_hash, true))
-					dynamic_debug_enabled &=
-						~(1LL << dp->primary_hash);
-				if (disabled_hash(dp->secondary_hash, false))
-					dynamic_debug_enabled2 &=
-						~(1LL << dp->secondary_hash);
+				jump_label_disable(&dp->enabled);
 			}
 			if (verbose)
 				printk(KERN_INFO
