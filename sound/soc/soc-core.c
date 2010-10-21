@@ -3299,6 +3299,7 @@ found:
 
 	if (codec->reg_cache)
 		kfree(codec->reg_cache);
+	kfree(codec->name);
 	kfree(codec);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
