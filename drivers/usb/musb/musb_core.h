@@ -253,6 +253,34 @@ enum musb_g_ep0_state {
 
 /******************************** TYPES *************************************/
 
+/**
+ * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
+ * @init:	turns on clocks, sets up platform-specific registers, etc
+ * @exit:	undoes @init
+ * @suspend:	platform-specific suspend, e.g. context save
+ * @resume:	platform-specific resume, e.g. context restore
+ * @set_mode:	forcefully changes operating mode
+ * @try_ilde:	tries to idle the IP
+ * @vbus_status: returns vbus status if possible
+ * @set_vbus:	forces vbus status
+ */
+struct musb_platform_ops {
+	int	(*init)(struct musb *musb);
+	int	(*exit)(struct musb *musb);
+
+	int	(*suspend)(struct musb *musb);
+	int	(*resume)(struct musb *musb);
+
+	void	(*enable)(struct musb *musb);
+	void	(*disable)(struct musb *musb);
+
+	int	(*set_mode)(struct musb *musb, u8 mode);
+	void	(*try_idle)(struct musb *musb, unsigned long timeout);
+
+	int	(*vbus_status)(struct musb *musb);
+	void	(*set_vbus)(struct musb *musb, int on);
+};
+
 /*
  * struct musb_hw_ep - endpoint hardware (bidirectional)
  *
