@@ -40,7 +40,6 @@
 
 #include <mach/board.h>
 
-#define DRV_NAME		"at91_can"
 #define AT91_NAPI_WEIGHT	12
 
 /*
@@ -172,6 +171,7 @@ struct at91_priv {
 };
 
 static struct can_bittiming_const at91_bittiming_const = {
+	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 4,
 	.tseg1_max	= 16,
 	.tseg2_min	= 2,
@@ -1148,7 +1148,7 @@ static struct platform_driver at91_can_driver = {
 	.probe		= at91_can_probe,
 	.remove		= __devexit_p(at91_can_remove),
 	.driver		= {
-		.name	= DRV_NAME,
+		.name	= KBUILD_MODNAME,
 		.owner	= THIS_MODULE,
 	},
 };
@@ -1168,4 +1168,4 @@ module_exit(at91_can_module_exit);
 
 MODULE_AUTHOR("Marc Kleine-Budde <mkl@pengutronix.de>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION(DRV_NAME " CAN netdevice driver");
+MODULE_DESCRIPTION(KBUILD_MODNAME " CAN netdevice driver");
