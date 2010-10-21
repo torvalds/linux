@@ -1102,7 +1102,7 @@ nv10_graph_register(struct drm_device *dev)
 	if (dev_priv->chipset <= 0x10) {
 		NVOBJ_CLASS(dev, 0x0056, GR);
 	} else
-	if (dev_priv->chipset <= 0x17 || dev_priv->chipset == 0x1a) {
+	if (dev_priv->chipset < 0x17 || dev_priv->chipset == 0x1a) {
 		NVOBJ_CLASS(dev, 0x0096, GR);
 	} else {
 		NVOBJ_CLASS(dev, 0x0099, GR);
