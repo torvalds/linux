@@ -704,16 +704,21 @@ void __init early_cpu_init(void)
 }
 
 /*
- * The NOPL instruction is supposed to exist on all CPUs with
- * family >= 6; unfortunately, that's not true in practice because
- * of early VIA chips and (more importantly) broken virtualizers that
- * are not easy to detect.  In the latter case it doesn't even *fail*
- * reliably, so probing for it doesn't even work.  Disable it completely
+ * The NOPL instruction is supposed to exist on all CPUs of family >= 6;
+ * unfortunately, that's not true in practice because of early VIA
+ * chips and (more importantly) broken virtualizers that are not easy
+ * to detect. In the latter case it doesn't even *fail* reliably, so
+ * probing for it doesn't even work. Disable it completely on 32-bit
  * unless we can find a reliable way to detect all the broken cases.
+ * Enable it explicitly on 64-bit for non-constant inputs of cpu_has().
  */
 static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_X86_32
 	clear_cpu_cap(c, X86_FEATURE_NOPL);
+#else
+	set_cpu_cap(c, X86_FEATURE_NOPL);
+#endif
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
