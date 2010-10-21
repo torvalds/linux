@@ -613,7 +613,7 @@ static int max98088_volatile_register(unsigned int reg)
 /*
  * Load equalizer DSP coefficient configurations registers
  */
-void m98088_eq_band(struct snd_soc_codec *codec, unsigned int dai,
+static void m98088_eq_band(struct snd_soc_codec *codec, unsigned int dai,
                    unsigned int band, u16 *coefs)
 {
        unsigned int eq_reg;
