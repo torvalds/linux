@@ -18,54 +18,6 @@
 #include <net/udp.h>
 #include <net/netfilter/nf_tproxy_core.h>
 
-struct sock *
-nf_tproxy_get_sock_v4(struct net *net, const u8 protocol,
-		      const __be32 saddr, const __be32 daddr,
-		      const __be16 sport, const __be16 dport,
-		      const struct net_device *in, int lookup_type)
-{
-	struct sock *sk;
-
-	/* look up socket */
-	switch (protocol) {
-	case IPPROTO_TCP:
-		switch (lookup_type) {
-		case NFT_LOOKUP_ANY:
-			sk = __inet_lookup(net, &tcp_hashinfo,
-					   saddr, sport, daddr, dport,
-					   in->ifindex);
-			break;
-		case NFT_LOOKUP_LISTENER:
-			sk = inet_lookup_listener(net, &tcp_hashinfo,
-						    daddr, dport,
-						    in->ifindex);
-			break;
-		case NFT_LOOKUP_ESTABLISHED:
-			sk = inet_lookup_established(net, &tcp_hashinfo,
-						    saddr, sport, daddr, dport,
-						    in->ifindex);
-			break;
-		default:
-			WARN_ON(1);
-			sk = NULL;
-			break;
-		}
-		break;
-	case IPPROTO_UDP:
-		sk = udp4_lib_lookup(net, saddr, sport, daddr, dport,
-				     in->ifindex);
-		break;
-	default:
-		WARN_ON(1);
-		sk = NULL;
-	}
-
-	pr_debug("tproxy socket lookup: proto %u %08x:%u -> %08x:%u, lookup type: %d, sock %p\n",
-		 protocol, ntohl(saddr), ntohs(sport), ntohl(daddr), ntohs(dport), lookup_type, sk);
-
-	return sk;
-}
-EXPORT_SYMBOL_GPL(nf_tproxy_get_sock_v4);
 
 static void
 nf_tproxy_destructor(struct sk_buff *skb)
