@@ -59,20 +59,10 @@ static int ivmbus_sendpacket_pagebuffer(struct hv_device *device,
 						requestid);
 }
 
-static int ivmbus_sendpacket_multipagebuffer(struct hv_device *device,
-				struct hv_multipage_buffer *multi_pagebuffer,
-				void *buffer, u32 bufferlen, u64 requestid)
-{
-	return vmbus_sendpacket_multipagebuffer(device->channel,
-						     multi_pagebuffer, buffer,
-						     bufferlen, requestid);
-}
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
 	.Open = ivmbus_open,
 	.Close = ivmbus_close,
 	.SendPacket = ivmbus_sendpacket,
 	.SendPacketPageBuffer = ivmbus_sendpacket_pagebuffer,
-	.SendPacketMultiPageBuffer = ivmbus_sendpacket_multipagebuffer,
 };

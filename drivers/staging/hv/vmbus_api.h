@@ -90,7 +90,6 @@ struct hv_device_info {
  * @Close:     Close the channel
  * @SendPacket:        Send a packet over the channel
  * @SendPacketPageBuffer:      Send a single page buffer over the channel
- * @SendPacketMultiPageBuffer: Send a multiple page buffers
  *
  * This structure contains function pointer to control vmbus channel
  * behavior. None of these functions is externally callable, but they
@@ -109,11 +108,6 @@ struct vmbus_channel_interface {
 				    struct hv_page_buffer PageBuffers[],
 				    u32 PageCount, void *Buffer, u32 BufferLen,
 				    u64 RequestId);
-	int (*SendPacketMultiPageBuffer)(struct hv_device *device,
-					 struct hv_multipage_buffer *mpb,
-					 void *Buffer,
-					 u32 BufferLen,
-					 u64 RequestId);
 };
 
 extern const struct vmbus_channel_interface vmbus_ops;
