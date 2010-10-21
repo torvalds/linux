@@ -90,7 +90,7 @@ static u32 _sb_coresba(si_info_t *sii)
 	switch (BUSTYPE(sii->pub.bustype)) {
 	case SPI_BUS:
 	case SDIO_BUS:
-		sbaddr = (u32) (uintptr) sii->curmap;
+		sbaddr = (u32)(unsigned long)sii->curmap;
 		break;
 	default:
 		ASSERT(0);

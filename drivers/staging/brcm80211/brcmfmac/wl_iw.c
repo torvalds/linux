@@ -903,11 +903,11 @@ wl_iw_get_aplist(struct net_device *dev,
 
 	for (i = 0, dwrq->length = 0;
 	     i < list->count && dwrq->length < IW_MAX_AP; i++) {
-		bi = bi ? (wl_bss_info_t *) ((uintptr) bi +
+		bi = bi ? (wl_bss_info_t *) ((unsigned long)bi +
 					     dtoh32(bi->length)) : list->
 		    bss_info;
-		ASSERT(((uintptr) bi + dtoh32(bi->length)) <=
-		       ((uintptr) list + buflen));
+		ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
+		       ((unsigned long)list + buflen));
 
 		if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
 			continue;
@@ -976,11 +976,11 @@ wl_iw_iscan_get_aplist(struct net_device *dev,
 		bi = NULL;
 		for (i = 0, dwrq->length = 0;
 		     i < list->count && dwrq->length < IW_MAX_AP; i++) {
-			bi = bi ? (wl_bss_info_t *) ((uintptr) bi +
+			bi = bi ? (wl_bss_info_t *) ((unsigned long)bi +
 						     dtoh32(bi->length)) :
 			    list->bss_info;
-			ASSERT(((uintptr) bi + dtoh32(bi->length)) <=
-			       ((uintptr) list + WLC_IW_ISCAN_MAXLEN));
+			ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
+			       ((unsigned long)list + WLC_IW_ISCAN_MAXLEN));
 
 			if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
 				continue;
@@ -1508,7 +1508,7 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 			return ret;
 		}
 
-		bi = bi ? (wl_bss_info_t *) ((uintptr) bi +
+		bi = bi ? (wl_bss_info_t *)((unsigned long)bi +
 					     dtoh32(bi->length)) : list->
 		    bss_info;
 
@@ -1568,7 +1568,7 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 
 		if (bi->rateset.count) {
 			if (((event - extra) +
-				IW_EV_LCP_LEN) <= (uintptr) end) {
+				IW_EV_LCP_LEN) <= (unsigned long)end) {
 				value = event + IW_EV_LCP_LEN;
 				iwe.cmd = SIOCGIWRATE;
 				iwe.u.bitrate.fixed = iwe.u.bitrate.disabled =
@@ -1774,11 +1774,11 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 		bi = NULL;
 		for (ii = 0; ii < list->count && apcnt < IW_MAX_AP;
 		     apcnt++, ii++) {
-			bi = bi ? (wl_bss_info_t *) ((uintptr) bi +
+			bi = bi ? (wl_bss_info_t *)((unsigned long)bi +
 						     dtoh32(bi->length)) :
 			    list->bss_info;
-			ASSERT(((uintptr) bi + dtoh32(bi->length)) <=
-			       ((uintptr) list + WLC_IW_ISCAN_MAXLEN));
+			ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
+			       ((unsigned long)list + WLC_IW_ISCAN_MAXLEN));
 
 			if (event + ETHER_ADDR_LEN + bi->SSID_len +
 			    IW_EV_UINT_LEN + IW_EV_FREQ_LEN + IW_EV_QUAL_LEN >=

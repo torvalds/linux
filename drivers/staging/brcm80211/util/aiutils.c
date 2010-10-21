@@ -123,7 +123,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 
 	case PCI_BUS:
 		/* Set wrappers address */
-		sii->curwrap = (void *)((uintptr) regs + SI_CORE_SIZE);
+		sii->curwrap = (void *)((unsigned long)regs + SI_CORE_SIZE);
 
 		/* Now point the window at the erom */
 		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_BAR0_WIN, 4, erombase);

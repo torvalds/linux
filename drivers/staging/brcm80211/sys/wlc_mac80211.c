@@ -3516,12 +3516,12 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		if (r->size == sizeof(u32))
 			r->val =
 			    R_REG(osh,
-				  (u32 *) ((unsigned char *) (uintptr) regs +
+				  (u32 *)((unsigned char *)(unsigned long)regs +
 					      r->byteoff));
 		else if (r->size == sizeof(u16))
 			r->val =
 			    R_REG(osh,
-				  (u16 *) ((unsigned char *) (uintptr) regs +
+				  (u16 *)((unsigned char *)(unsigned long)regs +
 					      r->byteoff));
 		else
 			bcmerror = BCME_BADADDR;
@@ -3551,11 +3551,11 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		}
 		if (r->size == sizeof(u32))
 			W_REG(osh,
-			      (u32 *) ((unsigned char *) (uintptr) regs +
+			      (u32 *)((unsigned char *)(unsigned long) regs +
 					  r->byteoff), r->val);
 		else if (r->size == sizeof(u16))
 			W_REG(osh,
-			      (u16 *) ((unsigned char *) (uintptr) regs +
+			      (u16 *)((unsigned char *)(unsigned long) regs +
 					  r->byteoff), r->val);
 		else
 			bcmerror = BCME_BADADDR;
@@ -4607,7 +4607,7 @@ wlc_iovar_op(wlc_info_t *wlc, const char *name,
 	ASSERT(!set || (!params && !p_len));
 
 	if (!set && (len == sizeof(int)) &&
-	    !(IS_ALIGNED((uintptr) (arg), (uint) sizeof(int)))) {
+	    !(IS_ALIGNED((unsigned long)(arg), (uint) sizeof(int)))) {
 		WL_ERROR(("wl%d: %s unaligned get ptr for %s\n",
 			  wlc->pub->unit, __func__, name));
 		ASSERT(0);
@@ -4755,7 +4755,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		bcopy(params, &int_val, sizeof(int_val));
 
 	if (p_len >= (int)sizeof(int_val) * 2)
-		bcopy((void *)((uintptr) params + sizeof(int_val)), &int_val2,
+		bcopy((void *)((unsigned long)params + sizeof(int_val)), &int_val2,
 		      sizeof(int_val));
 
 	/* convenience int ptr for 4-byte gets (requires int aligned arg) */
@@ -6318,7 +6318,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 		}
 
 		/* RTS PLCP header */
-		ASSERT(IS_ALIGNED((uintptr) txh->RTSPhyHeader, sizeof(u16)));
+		ASSERT(IS_ALIGNED((unsigned long)txh->RTSPhyHeader, sizeof(u16)));
 		rts_plcp = txh->RTSPhyHeader;
 		if (use_cts)
 			rts_phylen = DOT11_CTS_LEN + DOT11_FCS_LEN;
@@ -7164,7 +7164,7 @@ wlc_recvctl(wlc_info_t *wlc, osl_t *osh, d11rxhdr_t *rxh, void *p)
 	ASSERT(!PKTNEXT(p));
 	ASSERT(!PKTLINK(p));
 
-	ASSERT(IS_ALIGNED((uintptr) skb->data, 2));
+	ASSERT(IS_ALIGNED((unsigned long)skb->data, 2));
 
 	memcpy(IEEE80211_SKB_RXCB(p), &rx_status, sizeof(rx_status));
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);

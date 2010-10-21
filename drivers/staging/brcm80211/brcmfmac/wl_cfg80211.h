@@ -364,7 +364,7 @@ static inline struct wl_bss_info *next_bss(struct wl_scan_results *list,
 					   struct wl_bss_info *bss)
 {
 	return bss = bss ?
-		(struct wl_bss_info *)((uintptr) bss +
+		(struct wl_bss_info *)((unsigned long)bss +
 				       dtoh32(bss->length)) : list->bss_info;
 }
 

@@ -1476,7 +1476,7 @@ int dhd_iscan_print_cache(iscan_buf_t *iscan_skip)
 				   bi->BSSID.octet[2], bi->BSSID.octet[3],
 				   bi->BSSID.octet[4], bi->BSSID.octet[5]));
 
-			bi = (wl_bss_info_t *) ((uintptr) bi +
+			bi = (wl_bss_info_t *)((unsigned long)bi +
 						dtoh32(bi->length));
 		}
 		iscan_cur = iscan_cur->next;
@@ -1541,7 +1541,7 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 					bi->BSSID.octet[5]));
 
 					bi_new = bi;
-					bi = (wl_bss_info_t *) ((uintptr) bi +
+					bi = (wl_bss_info_t *)((unsigned long)bi +
 								dtoh32
 								(bi->length));
 /*
@@ -1567,17 +1567,14 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 							bi->BSSID.octet[5]));
 
 							bi_next =
-							    (wl_bss_info_t
-							     *) ((uintptr) bi +
+							    (wl_bss_info_t *)((unsigned long)bi +
 								 dtoh32
 								 (bi->length));
 							bcopy(bi, bi_new,
 							      dtoh32
 							      (bi->length));
 							bi_new =
-							    (wl_bss_info_t
-							     *) ((uintptr)
-								 bi_new +
+							    (wl_bss_info_t *)((unsigned long)bi_new +
 								 dtoh32
 								 (bi_new->
 								  length));
@@ -1594,7 +1591,7 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 					}
 					break;
 				}
-				bi = (wl_bss_info_t *) ((uintptr) bi +
+				bi = (wl_bss_info_t *)((unsigned long)bi +
 							dtoh32(bi->length));
 			}
 		}
@@ -1649,7 +1646,7 @@ int dhd_iscan_remove_duplicates(void *dhdp, iscan_buf_t *iscan_cur)
 
 		dhd_iscan_delete_bss(dhdp, bi->BSSID.octet, iscan_cur);
 
-		bi = (wl_bss_info_t *) ((uintptr) bi + dtoh32(bi->length));
+		bi = (wl_bss_info_t *)((unsigned long)bi + dtoh32(bi->length));
 	}
 
 done:

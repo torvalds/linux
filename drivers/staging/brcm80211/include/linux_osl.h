@@ -131,8 +131,8 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #ifdef BRCM_FULLMAC
 #include <bcmsdh.h>
 #endif
-#define OSL_WRITE_REG(osh, r, v) (bcmsdh_reg_write(NULL, (uintptr)(r), sizeof(*(r)), (v)))
-#define OSL_READ_REG(osh, r) (bcmsdh_reg_read(NULL, (uintptr)(r), sizeof(*(r))))
+#define OSL_WRITE_REG(osh, r, v) (bcmsdh_reg_write(NULL, (unsigned long)(r), sizeof(*(r)), (v)))
+#define OSL_READ_REG(osh, r) (bcmsdh_reg_read(NULL, (unsigned long)(r), sizeof(*(r))))
 #endif
 
 #if defined(BCMSDIO)

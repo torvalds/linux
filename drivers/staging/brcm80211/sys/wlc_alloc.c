@@ -206,7 +206,7 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 
 		for (i = 1; i < MAXBANDS; i++) {
 			wlc->hw->bandstate[i] = (wlc_hwband_t *)
-			    ((uintptr) wlc->hw->bandstate[0] +
+			    ((unsigned long)wlc->hw->bandstate[0] +
 			     (sizeof(wlc_hwband_t) * i));
 		}
 	}
@@ -249,7 +249,7 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 		int i;
 		for (i = 1; i < WLC_DEFAULT_KEYS; i++) {
 			wlc->wsec_def_keys[i] = (wsec_key_t *)
-			    ((uintptr) wlc->wsec_def_keys[0] +
+			    ((unsigned long)wlc->wsec_def_keys[0] +
 			     (sizeof(wsec_key_t) * i));
 		}
 	}
@@ -277,7 +277,7 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 
 		for (i = 1; i < MAXBANDS; i++) {
 			wlc->bandstate[i] =
-			    (wlcband_t *) ((uintptr) wlc->bandstate[0] +
+			    (wlcband_t *) ((unsigned long)wlc->bandstate[0] +
 					   (sizeof(wlcband_t) * i));
 		}
 	}

@@ -358,7 +358,7 @@ extern void bcmsdh_enable_hw_oob_intr(void *sdh, bool enable);
 #define PKTALIGN(osh, p, len, align)					\
 	do {								\
 		uint datalign;						\
-		datalign = (uintptr)PKTDATA((p));		\
+		datalign = (unsigned long)PKTDATA((p));			\
 		datalign = roundup(datalign, (align)) - datalign;	\
 		ASSERT(datalign < (align));				\
 		ASSERT(PKTLEN((p)) >= ((len) + datalign));	\
@@ -924,7 +924,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	frame = (u8 *) PKTDATA(pkt);
 
 	/* Add alignment padding, allocate new packet if needed */
-	pad = ((uintptr) frame % DHD_SDALIGN);
+	pad = ((unsigned long)frame % DHD_SDALIGN);
 	if (pad) {
 		if (PKTHEADROOM(pkt) < pad) {
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
@@ -947,7 +947,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 			free_pkt = true;
 			pkt = new;
 			frame = (u8 *) PKTDATA(pkt);
-			ASSERT(((uintptr) frame % DHD_SDALIGN) == 0);
+			ASSERT(((unsigned long)frame % DHD_SDALIGN) == 0);
 			pad = 0;
 		} else {
 			PKTPUSH(pkt, pad);
@@ -1087,7 +1087,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 
 	/* Add space for the header */
 	PKTPUSH(pkt, SDPCM_HDRLEN);
-	ASSERT(IS_ALIGNED((uintptr) PKTDATA(pkt), 2));
+	ASSERT(IS_ALIGNED((unsigned long)PKTDATA(pkt), 2));
 
 	prec = PRIO2PREC((PKTPRIO(pkt) & PRIOMASK));
 
@@ -1241,7 +1241,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	/* Add alignment padding (optional for ctl frames) */
 	if (dhd_alignctl) {
-		doff = ((uintptr) frame % DHD_SDALIGN);
+		doff = ((unsigned long)frame % DHD_SDALIGN);
 		if (doff) {
 			frame -= doff;
 			len += doff;
@@ -1265,7 +1265,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	if (forcealign && (len & (ALIGNMENT - 1)))
 		len = roundup(len, ALIGNMENT);
 
-	ASSERT(IS_ALIGNED((uintptr) frame, 2));
+	ASSERT(IS_ALIGNED((unsigned long)frame, 2));
 
 	/* Need to lock here to protect txseq and SDIO tx calls */
 	dhd_os_sdlock(bus->dhd);
@@ -2336,7 +2336,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 			sd_ptr = (sdreg_t *) params;
 
-			addr = (uintptr) bus->regs + sd_ptr->offset;
+			addr = (unsigned long)bus->regs + sd_ptr->offset;
 			size = sd_ptr->func;
 			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
@@ -2352,7 +2352,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 			sd_ptr = (sdreg_t *) params;
 
-			addr = (uintptr) bus->regs + sd_ptr->offset;
+			addr = (unsigned long)bus->regs + sd_ptr->offset;
 			size = sd_ptr->func;
 			bcmsdh_reg_write(bus->sdh, addr, size, sd_ptr->value);
 			if (bcmsdh_regfail(bus->sdh))
@@ -3086,7 +3086,7 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 	bus->rxctl = bus->rxbuf;
 	if (dhd_alignctl) {
 		bus->rxctl += firstread;
-		pad = ((uintptr) bus->rxctl % DHD_SDALIGN);
+		pad = ((unsigned long)bus->rxctl % DHD_SDALIGN);
 		if (pad)
 			bus->rxctl += (DHD_SDALIGN - pad);
 		bus->rxctl -= firstread;
@@ -3681,7 +3681,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					bus->rxctl = bus->rxbuf;
 					if (dhd_alignctl) {
 						bus->rxctl += firstread;
-						pad = ((uintptr) bus->rxctl %
+						pad = ((unsigned long)bus->rxctl %
 						      DHD_SDALIGN);
 						if (pad)
 							bus->rxctl +=
@@ -5091,7 +5091,7 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	DHD_INFO(("%s: venid 0x%04x devid 0x%04x\n", __func__, venid, devid));
 
 	/* We make assumptions about address window mappings */
-	ASSERT((uintptr) regsva == SI_ENUM_BASE);
+	ASSERT((unsigned long)regsva == SI_ENUM_BASE);
 
 	/* BCMSDH passes venid and devid based on CIS parsing -- but
 	 * low-power start
@@ -5363,7 +5363,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 	pktq_init(&bus->txq, (PRIOMASK + 1), QLEN);
 
 	/* Locate an appropriately-aligned portion of hdrbuf */
-	bus->rxhdr = (u8 *) roundup((uintptr)&bus->hdrbuf[0], DHD_SDALIGN);
+	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], DHD_SDALIGN);
 
 	/* Set the poll and/or interrupt flags */
 	bus->intr = (bool) dhd_intr;
@@ -5405,10 +5405,10 @@ static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 	}
 
 	/* Align the buffer */
-	if ((uintptr) bus->databuf % DHD_SDALIGN)
+	if ((unsigned long)bus->databuf % DHD_SDALIGN)
 		bus->dataptr =
 		    bus->databuf + (DHD_SDALIGN -
-				    ((uintptr) bus->databuf % DHD_SDALIGN));
+				    ((unsigned long)bus->databuf % DHD_SDALIGN));
 	else
 		bus->dataptr = bus->databuf;
 
@@ -5739,9 +5739,9 @@ static int dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 			   __func__, MEMBLOCK));
 		goto err;
 	}
-	if ((u32) (uintptr) memblock % DHD_SDALIGN)
+	if ((u32)(unsigned long)memblock % DHD_SDALIGN)
 		memptr +=
-		    (DHD_SDALIGN - ((u32) (uintptr) memblock % DHD_SDALIGN));
+		    (DHD_SDALIGN - ((u32)(unsigned long)memblock % DHD_SDALIGN));
 
 	/* Download image */
 	while ((len =

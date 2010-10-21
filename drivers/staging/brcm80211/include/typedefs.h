@@ -19,17 +19,6 @@
 
 #include <linux/types.h>
 
-#if defined(__x86_64__)
-#define TYPEDEF_UINTPTR
-typedef unsigned long long int uintptr;
-#endif
-
-#ifndef TYPEDEF_UINTPTR
-typedef unsigned int uintptr;
-#endif
-
-#undef TYPEDEF_UINTPTR
-
 #ifndef OFF
 #define	OFF	0
 #endif

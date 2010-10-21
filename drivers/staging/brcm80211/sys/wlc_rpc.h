@@ -448,7 +448,7 @@ wlc_rpc_id_get(struct rpc_info *rpc, rpc_buf_t *buf)
 	bcm_xdr_buf_init(&b, bcm_rpc_buf_data(bcm_rpc_tp_get(rpc), buf),
 			 sizeof(u32));
 
-	bcm_xdr_unpack_u32(&b, (u32 *) ((uintptr) & rpc_id));
+	bcm_xdr_unpack_u32(&b, (u32 *)((unsigned long) & rpc_id));
 	return rpc_id;
 }
 #endif

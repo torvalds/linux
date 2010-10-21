@@ -442,7 +442,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		SDLX_MSG(("%s: Cannot enable PCI device\n", __func__));
 		goto err;
 	}
-	sdh = bcmsdh_attach(osh, (void *)(uintptr) pci_resource_start(pdev, 0),
+	sdh = bcmsdh_attach(osh, (void *)(unsigned long)pci_resource_start(pdev, 0),
 			(void **)&regs, pdev->irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));

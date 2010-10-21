@@ -413,7 +413,7 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 	}
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
-	if ((uintptr) (&cdc->msg + 1) != (uintptr) cdc->buf) {
+	if ((unsigned long)(&cdc->msg + 1) != (unsigned long)cdc->buf) {
 		DHD_ERROR(("dhd_prot_t is not correctly defined\n"));
 		goto fail;
 	}

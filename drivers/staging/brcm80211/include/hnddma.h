@@ -54,7 +54,7 @@ typedef void *(*di_rx_t) (hnddma_t *dmah);
 typedef bool(*di_rxfill_t) (hnddma_t *dmah);
 typedef void (*di_txreclaim_t) (hnddma_t *dmah, txd_range_t range);
 typedef void (*di_rxreclaim_t) (hnddma_t *dmah);
-typedef uintptr(*di_getvar_t) (hnddma_t *dmah, const char *name);
+typedef unsigned long (*di_getvar_t) (hnddma_t *dmah, const char *name);
 typedef void *(*di_getnexttxp_t) (hnddma_t *dmah, txd_range_t range);
 typedef void *(*di_getnextrxp_t) (hnddma_t *dmah, bool forceall);
 typedef void *(*di_peeknexttxp_t) (hnddma_t *dmah);

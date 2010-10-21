@@ -218,7 +218,7 @@ static uint _dma_txcommitted(dma_info_t *di);
 
 static void *_dma_peeknexttxp(dma_info_t *di);
 static void *_dma_peeknextrxp(dma_info_t *di);
-static uintptr _dma_getvar(dma_info_t *di, const char *name);
+static unsigned long _dma_getvar(dma_info_t *di, const char *name);
 static void _dma_counterreset(dma_info_t *di);
 static void _dma_fifoloopbackenable(dma_info_t *di);
 static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags);
@@ -1363,10 +1363,10 @@ static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags)
 }
 
 /* get the address of the var in order to change later */
-static uintptr _dma_getvar(dma_info_t *di, const char *name)
+static unsigned long _dma_getvar(dma_info_t *di, const char *name)
 {
 	if (!strcmp(name, "&txavail"))
-		return (uintptr) &(di->hnddma.txavail);
+		return (unsigned long)&(di->hnddma.txavail);
 	else {
 		ASSERT(0);
 	}
@@ -1409,7 +1409,7 @@ static void *dma_ringalloc(osl_t *osh, u32 boundary, uint size,
 	if (NULL == va)
 		return NULL;
 
-	desc_strtaddr = (u32) roundup((uintptr) va, alignbytes);
+	desc_strtaddr = (u32) roundup((unsigned long)va, alignbytes);
 	if (((desc_strtaddr + size - 1) & boundary) != (desc_strtaddr
 							& boundary)) {
 		*alignbits = dma_align_sizetobits(size);
@@ -1534,7 +1534,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->txdpa, 0);
 		ASSERT(PHYSADDRHI(di->txdpaorig) == 0);
-		di->txd32 = (dma32dd_t *) roundup((uintptr) va, align);
+		di->txd32 = (dma32dd_t *) roundup((unsigned long)va, align);
 		di->txdalign =
 		    (uint) ((s8 *)di->txd32 - (s8 *) va);
 
@@ -1544,7 +1544,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		ASSERT(PHYSADDRLO(di->txdpa) >= PHYSADDRLO(di->txdpaorig));
 
 		di->txdalloc = alloced;
-		ASSERT(IS_ALIGNED((uintptr) di->txd32, align));
+		ASSERT(IS_ALIGNED((unsigned long)di->txd32, align));
 	} else {
 		va = dma_ringalloc(di->osh, D32RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
@@ -1555,7 +1555,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->rxdpa, 0);
 		ASSERT(PHYSADDRHI(di->rxdpaorig) == 0);
-		di->rxd32 = (dma32dd_t *) roundup((uintptr) va, align);
+		di->rxd32 = (dma32dd_t *) roundup((unsigned long)va, align);
 		di->rxdalign =
 		    (uint) ((s8 *)di->rxd32 - (s8 *) va);
 
@@ -1564,7 +1564,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		/* Make sure that alignment didn't overflow */
 		ASSERT(PHYSADDRLO(di->rxdpa) >= PHYSADDRLO(di->rxdpaorig));
 		di->rxdalloc = alloced;
-		ASSERT(IS_ALIGNED((uintptr) di->rxd32, align));
+		ASSERT(IS_ALIGNED((unsigned long)di->rxd32, align));
 	}
 
 	return true;
@@ -2100,7 +2100,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 			return false;
 		}
 		align = (1 << align_bits);
-		di->txd64 = (dma64dd_t *) roundup((uintptr) va, align);
+		di->txd64 = (dma64dd_t *) roundup((unsigned long)va, align);
 		di->txdalign = (uint) ((s8 *)di->txd64 - (s8 *) va);
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
@@ -2109,7 +2109,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->txdpa, PHYSADDRHI(di->txdpaorig));
 		di->txdalloc = alloced;
-		ASSERT(IS_ALIGNED((uintptr) di->txd64, align));
+		ASSERT(IS_ALIGNED((unsigned long)di->txd64, align));
 	} else {
 		va = dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
@@ -2118,7 +2118,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 			return false;
 		}
 		align = (1 << align_bits);
-		di->rxd64 = (dma64dd_t *) roundup((uintptr) va, align);
+		di->rxd64 = (dma64dd_t *) roundup((unsigned long)va, align);
 		di->rxdalign = (uint) ((s8 *)di->rxd64 - (s8 *) va);
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);
@@ -2127,7 +2127,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 
 		PHYSADDRHISET(di->rxdpa, PHYSADDRHI(di->rxdpaorig));
 		di->rxdalloc = alloced;
-		ASSERT(IS_ALIGNED((uintptr) di->rxd64, align));
+		ASSERT(IS_ALIGNED((unsigned long)di->rxd64, align));
 	}
 
 	return true;

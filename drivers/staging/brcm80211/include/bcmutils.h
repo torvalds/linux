@@ -436,7 +436,7 @@
 #ifdef __i386__
 			   1 ||
 #endif
-			   (((uintptr) src1 | (uintptr) src2 | (uintptr) dst) &
+			   (((unsigned long) src1 | (unsigned long) src2 | (unsigned long) dst) &
 			    3) == 0) {
 			/* ARM CM3 rel time: 1229 (727 if alignment check could be omitted) */
 			/* x86 supports unaligned.  This version runs 6x-9x faster on x86. */
