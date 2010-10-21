@@ -301,8 +301,8 @@ struct vmxnet3_adapter {
 	struct net_device              *netdev;
 	struct pci_dev                 *pdev;
 
-	u8				*hw_addr0; /* for BAR 0 */
-	u8				*hw_addr1; /* for BAR 1 */
+	u8			__iomem *hw_addr0; /* for BAR 0 */
+	u8			__iomem *hw_addr1; /* for BAR 1 */
 
 	/* feature control */
 	bool				rxcsum;
