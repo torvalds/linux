@@ -38,7 +38,6 @@
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/stat.h>
 #include <linux/vfs.h>
 #include <linux/mount.h>
@@ -81,16 +80,12 @@ vxfs_put_super(struct super_block *sbp)
 {
 	struct vxfs_sb_info	*infp = VXFS_SBI(sbp);
 
-	lock_kernel();
-
 	vxfs_put_fake_inode(infp->vsi_fship);
 	vxfs_put_fake_inode(infp->vsi_ilist);
 	vxfs_put_fake_inode(infp->vsi_stilist);
 
 	brelse(infp->vsi_bp);
 	kfree(infp);
-
-	unlock_kernel();
 }
 
 /**
@@ -159,14 +154,11 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	struct inode *root;
 	int ret = -EINVAL;
 
-	lock_kernel();
-
 	sbp->s_flags |= MS_RDONLY;
 
 	infp = kzalloc(sizeof(*infp), GFP_KERNEL);
 	if (!infp) {
 		printk(KERN_WARNING "vxfs: unable to allocate incore superblock\n");
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -239,7 +231,6 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out_free_ilist;
 	}
 
-	unlock_kernel();
 	return 0;
 	
 out_free_ilist:
@@ -249,7 +240,6 @@ out_free_ilist:
 out:
 	brelse(bp);
 	kfree(infp);
-	unlock_kernel();
 	return ret;
 }
 
