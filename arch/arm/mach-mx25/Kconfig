@@ -6,6 +6,7 @@ config MACH_MX25_3DS
 	bool "Support MX25PDK (3DS) Platform"
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_ESDHC
 
 config MACH_EUKREA_CPUIMX25
 	bool "Support Eukrea CPUIMX25 Platform"
