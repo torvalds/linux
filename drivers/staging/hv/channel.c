@@ -703,6 +703,7 @@ void vmbus_close(struct vmbus_channel *channel)
 		free_channel(channel);
 	}
 }
+EXPORT_SYMBOL_GPL(vmbus_close);
 
 /**
  * vmbus_sendpacket() - Send the specified buffer on the given channel
