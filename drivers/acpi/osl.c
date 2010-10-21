@@ -244,13 +244,13 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 	}
 }
 
-/* Must be called with 'acpi_ioremap_lock' lock held. */
+/* Must be called with 'acpi_ioremap_lock' or RCU read lock held. */
 static void __iomem *
 acpi_map_vaddr_lookup(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
-	list_for_each_entry(map, &acpi_ioremaps, list)
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list)
 		if (map->phys <= phys &&
 		    phys + size <= map->phys + map->size)
 			return map->virt + (phys - map->phys);
@@ -258,13 +258,13 @@ acpi_map_vaddr_lookup(acpi_physical_address phys, acpi_size size)
 	return NULL;
 }
 
-/* Must be called with 'acpi_ioremap_lock' lock held. */
+/* Must be called with 'acpi_ioremap_lock' or RCU read lock held. */
 static struct acpi_ioremap *
 acpi_map_lookup_virt(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
-	list_for_each_entry(map, &acpi_ioremaps, list)
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list)
 		if (map->virt == virt && map->size == size)
 			return map;
 
@@ -302,7 +302,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 	map->size = size;
 
 	spin_lock_irqsave(&acpi_ioremap_lock, flags);
-	list_add_tail(&map->list, &acpi_ioremaps);
+	list_add_tail_rcu(&map->list, &acpi_ioremaps);
 	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
 
 	return virt;
@@ -328,9 +328,10 @@ void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		return;
 	}
 
-	list_del(&map->list);
+	list_del_rcu(&map->list);
 	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
 
+	synchronize_rcu();
 	iounmap(map->virt);
 	kfree(map);
 }
@@ -584,11 +585,10 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 	u32 dummy;
 	void __iomem *virt_addr;
 	int size = width / 8, unmap = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	rcu_read_lock();
 	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
-	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+	rcu_read_unlock();
 	if (!virt_addr) {
 		virt_addr = ioremap(phys_addr, size);
 		unmap = 1;
@@ -621,11 +621,10 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 {
 	void __iomem *virt_addr;
 	int size = width / 8, unmap = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	rcu_read_lock();
 	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
-	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+	rcu_read_unlock();
 	if (!virt_addr) {
 		virt_addr = ioremap(phys_addr, size);
 		unmap = 1;
