@@ -1113,7 +1113,6 @@ bandwidth_change:
 		handle_set_deq_completion(xhci, event, xhci->cmd_ring->dequeue);
 		break;
 	case TRB_TYPE(TRB_CMD_NOOP):
-		++xhci->noops_handled;
 		break;
 	case TRB_TYPE(TRB_RESET_EP):
 		handle_reset_ep_completion(xhci, event, xhci->cmd_ring->dequeue);
@@ -3123,24 +3122,6 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
 	queue_trb(xhci, xhci->cmd_ring, false, false, field1, field2, field3,
 			field4 | xhci->cmd_ring->cycle_state);
 	return 0;
-}
-
-/* Queue a no-op command on the command ring */
-static int queue_cmd_noop(struct xhci_hcd *xhci)
-{
-	return queue_command(xhci, 0, 0, 0, TRB_TYPE(TRB_CMD_NOOP), false);
-}
-
-/*
- * Place a no-op command on the command ring to test the command and
- * event ring.
- */
-void *xhci_setup_one_noop(struct xhci_hcd *xhci)
-{
-	if (queue_cmd_noop(xhci) < 0)
-		return NULL;
-	xhci->noops_submitted++;
-	return xhci_ring_cmd_db;
 }
 
 /* Queue a slot enable or disable request on the command ring */

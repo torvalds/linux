@@ -1243,8 +1243,6 @@ struct xhci_hcd {
  */
 #define XHCI_STATE_DYING	(1 << 0)
 	/* Statistics */
-	int			noops_submitted;
-	int			noops_handled;
 	int			error_bitmask;
 	unsigned int		quirks;
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
@@ -1263,9 +1261,6 @@ struct xhci_hcd {
 	u32 __iomem		**usb2_ports;
 	unsigned int		num_usb2_ports;
 };
-
-/* For testing purposes */
-#define NUM_TEST_NOOPS	0
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct xhci_hcd *hcd_to_xhci(struct usb_hcd *hcd)
@@ -1471,7 +1466,6 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 		dma_addr_t suspect_dma);
 int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
-void *xhci_setup_one_noop(struct xhci_hcd *xhci);
 int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);

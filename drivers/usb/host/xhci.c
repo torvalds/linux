@@ -350,7 +350,6 @@ void xhci_event_ring_work(unsigned long arg)
 
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	xhci_dbg(xhci, "ir_set 0 pending = 0x%x\n", temp);
-	xhci_dbg(xhci, "No-op commands handled = %d\n", xhci->noops_handled);
 	xhci_dbg(xhci, "HC error bitmask = 0x%x\n", xhci->error_bitmask);
 	xhci->error_bitmask = 0;
 	xhci_dbg(xhci, "Event ring:\n");
@@ -370,10 +369,6 @@ void xhci_event_ring_work(unsigned long arg)
 			xhci_dbg_ep_rings(xhci, i, j, &xhci->devs[i]->eps[j]);
 		}
 	}
-
-	if (xhci->noops_submitted != NUM_TEST_NOOPS)
-		if (xhci_setup_one_noop(xhci))
-			xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (!xhci->zombie)
@@ -402,7 +397,6 @@ int xhci_run(struct usb_hcd *hcd)
 	u32 ret;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
-	void (*doorbell)(struct xhci_hcd *) = NULL;
 
 	hcd->uses_new_polling = 1;
 
@@ -475,8 +469,6 @@ int xhci_run(struct usb_hcd *hcd)
 			&xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, xhci->ir_set, 0);
 
-	if (NUM_TEST_NOOPS > 0)
-		doorbell = xhci_setup_one_noop(xhci);
 	if (xhci->quirks & XHCI_NEC_HOST)
 		xhci_queue_vendor_command(xhci, 0, 0, 0,
 				TRB_TYPE(TRB_NEC_GET_FW));
@@ -486,8 +478,6 @@ int xhci_run(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
-	if (doorbell)
-		(*doorbell)(xhci);
 	if (xhci->quirks & XHCI_NEC_HOST)
 		xhci_ring_cmd_db(xhci);
 
