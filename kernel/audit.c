@@ -506,7 +506,7 @@ int audit_send_list(void *_dest)
 }
 
 struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
-				 int multi, void *payload, int size)
+				 int multi, const void *payload, int size)
 {
 	struct sk_buff	*skb;
 	struct nlmsghdr	*nlh;
@@ -555,8 +555,8 @@ static int audit_send_reply_thread(void *arg)
  * Allocates an skb, builds the netlink message, and sends it to the pid.
  * No failure notifications.
  */
-void audit_send_reply(int pid, int seq, int type, int done, int multi,
-		      void *payload, int size)
+static void audit_send_reply(int pid, int seq, int type, int done, int multi,
+			     const void *payload, int size)
 {
 	struct sk_buff *skb;
 	struct task_struct *tsk;
