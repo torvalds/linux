@@ -25,18 +25,6 @@
 #include "osd.h"
 #include "vmbus_private.h"
 
-static int ivmbus_open(struct hv_device *device, u32 sendbuffer_size,
-			     u32 recv_ringbuffer_size, void *userdata,
-			     u32 userdatalen,
-			     void (*channel_callback)(void *context),
-			     void *context)
-{
-	return vmbus_open(device->channel, sendbuffer_size,
-				recv_ringbuffer_size, userdata, userdatalen,
-				channel_callback, context);
-}
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
-	.Open = ivmbus_open,
 };

@@ -86,7 +86,6 @@ struct hv_device_info {
 
 /**
  * struct vmbus_channel_interface - Contains member functions for vmbus channel
- * @Open:      Open the channel
  *
  * This structure contains function pointer to control vmbus channel
  * behavior. None of these functions is externally callable, but they
@@ -94,10 +93,6 @@ struct hv_device_info {
  * Only used by Hyper-V drivers.
  */
 struct vmbus_channel_interface {
-	int (*Open)(struct hv_device *Device, u32 SendBufferSize,
-		    u32 RecvRingBufferSize, void *UserData, u32 UserDataLen,
-		    void (*ChannelCallback)(void *context),
-		    void *Context);
 };
 
 extern const struct vmbus_channel_interface vmbus_ops;
