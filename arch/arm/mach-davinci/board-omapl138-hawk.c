@@ -54,8 +54,6 @@ static void __init omapl138_hawk_map_io(void)
 }
 
 MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
-	.phys_io	= IO_PHYS,
-	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= omapl138_hawk_map_io,
 	.init_irq	= cp_intc_init,

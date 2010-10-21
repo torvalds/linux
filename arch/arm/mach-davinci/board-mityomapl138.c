@@ -414,8 +414,6 @@ static void __init mityomapl138_map_io(void)
 }
 
 MACHINE_START(MITYOMAPL138, "MityDSP-L138/MityARM-1808")
-	.phys_io	= IO_PHYS,
-	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= mityomapl138_map_io,
 	.init_irq	= cp_intc_init,
