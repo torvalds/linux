@@ -11006,6 +11006,8 @@ static int patch_alc882(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC882_AUTO)
 		spec->init_hook = alc882_auto_init;
+
+	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc882_loopbacks;
@@ -12914,6 +12916,8 @@ static int patch_alc262(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC262_AUTO)
 		spec->init_hook = alc262_auto_init;
+
+	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc262_loopbacks;
@@ -13993,6 +13997,8 @@ static int patch_alc268(struct hda_codec *codec)
 	if (board_config == ALC268_AUTO)
 		spec->init_hook = alc268_auto_init;
 
+	alc_init_jacks(codec);
+
 	return 0;
 }
 
@@ -14359,6 +14365,7 @@ static void alc269_speaker_automute(struct hda_codec *codec)
 				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
 				 HDA_AMP_MUTE, bits);
+	alc_report_jack(codec, nid);
 }
 
 /* unsolicited event for HP jack sensing */
@@ -14695,7 +14702,6 @@ static void alc269_auto_init(struct hda_codec *codec)
 	alc269_auto_init_hp_out(codec);
 	alc269_auto_init_analog_input(codec);
 	alc_auto_init_digital(codec);
-	alc_init_jacks(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
 }
@@ -15128,6 +15134,8 @@ static int patch_alc269(struct hda_codec *codec)
 #endif
 	if (board_config == ALC269_AUTO)
 		spec->init_hook = alc269_auto_init;
+
+	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc269_loopbacks;
@@ -19392,6 +19400,8 @@ static int patch_alc662(struct hda_codec *codec)
 		spec->init_hook = alc662_auto_init;
 		alc_pick_fixup(codec, alc662_fixup_tbl, alc662_fixups, 0);
 	}
+
+	alc_init_jacks(codec);
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
