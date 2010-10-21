@@ -63,7 +63,6 @@
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
 #include <asm/mwait.h>
-#include <asm/vmi.h>
 #include <asm/apic.h>
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
@@ -312,7 +311,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	__flush_tlb_all();
 #endif
 
-	vmi_bringup();
 	cpu_init();
 	preempt_disable();
 	smp_callin();
