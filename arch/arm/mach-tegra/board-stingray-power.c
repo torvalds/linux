@@ -352,6 +352,7 @@ unsigned short cpcap_regulator_off_mode_values[CPCAP_NUM_REGULATORS] = {
 
 struct regulator_consumer_supply cpcap_sw2_consumers[] = {
 	REGULATOR_CONSUMER("sw2", NULL),
+	REGULATOR_CONSUMER("vdd_core", NULL),
 };
 
 struct regulator_consumer_supply cpcap_sw4_consumers[] = {
