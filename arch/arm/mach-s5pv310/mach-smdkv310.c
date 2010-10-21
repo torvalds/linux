@@ -15,7 +15,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/cache-l2x0.h>
 
 #include <plat/regs-serial.h>
 #include <plat/s5pv310.h>
@@ -128,10 +127,6 @@ static void __init smdkv310_machine_init(void)
 	s3c_sdhci1_set_platdata(&smdkv310_hsmmc1_pdata);
 	s3c_sdhci2_set_platdata(&smdkv310_hsmmc2_pdata);
 	s3c_sdhci3_set_platdata(&smdkv310_hsmmc3_pdata);
-
-#ifdef CONFIG_CACHE_L2X0
-	l2x0_init(S5P_VA_L2CC, 1 << 28, 0xffffffff);
-#endif
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
 }

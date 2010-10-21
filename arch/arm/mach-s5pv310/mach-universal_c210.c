@@ -16,7 +16,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/cache-l2x0.h>
 
 #include <plat/regs-serial.h>
 #include <plat/s5pv310.h>
@@ -141,10 +140,6 @@ static void __init universal_map_io(void)
 
 static void __init universal_machine_init(void)
 {
-#ifdef CONFIG_CACHE_L2X0
-	l2x0_init(S5P_VA_L2CC, 1 << 28, 0xffffffff);
-#endif
-
 	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
 	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
 
