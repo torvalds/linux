@@ -60,6 +60,11 @@ static inline void synchronize_rcu_bh_expedited(void)
 	synchronize_sched();
 }
 
+static inline void synchronize_sched_expedited(void)
+{
+	synchronize_sched();
+}
+
 #ifdef CONFIG_TINY_RCU
 
 static inline void rcu_preempt_note_context_switch(void)
