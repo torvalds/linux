@@ -738,7 +738,7 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to connect to NetVSP - %d", ret);
 		ret = -1;
-		goto Close;
+		goto close;
 	}
 
 	DPRINT_INFO(NETVSC, "*** NetVSC channel handshake result - %d ***",
@@ -746,9 +746,9 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	return ret;
 
-Close:
+close:
 	/* Now, we can close the channel safely */
-	Device->Driver->VmbusChannelInterface.Close(Device);
+	vmbus_close(Device->channel);
 
 Cleanup:
 
@@ -810,7 +810,7 @@ static int NetVscOnDeviceRemove(struct hv_device *Device)
 	DPRINT_INFO(NETVSC, "net device (%p) safe to remove", netDevice);
 
 	/* Now, we can close the channel safely */
-	Device->Driver->VmbusChannelInterface.Close(Device);
+	vmbus_close(Device->channel);
 
 	/* Release all resources */
 	list_for_each_entry_safe(netvscPacket, pos,
