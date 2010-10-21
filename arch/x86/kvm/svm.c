@@ -3412,11 +3412,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 		);
 
-	vcpu->arch.cr2 = svm->vmcb->save.cr2;
-	vcpu->arch.regs[VCPU_REGS_RAX] = svm->vmcb->save.rax;
-	vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
-	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
-
 	load_host_msrs(vcpu);
 	kvm_load_ldt(ldt_selector);
 	loadsegment(fs, fs_selector);
@@ -3432,6 +3427,11 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_disable();
 
 	stgi();
+
+	vcpu->arch.cr2 = svm->vmcb->save.cr2;
+	vcpu->arch.regs[VCPU_REGS_RAX] = svm->vmcb->save.rax;
+	vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
+	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 
 	sync_cr8_to_lapic(vcpu);
 
