@@ -372,6 +372,44 @@ void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		__acpi_unmap_table(virt, size);
 }
 
+int acpi_os_map_generic_address(struct acpi_generic_address *addr)
+{
+	void __iomem *virt;
+
+	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		return 0;
+
+	if (!addr->address || !addr->bit_width)
+		return -EINVAL;
+
+	virt = acpi_os_map_memory(addr->address, addr->bit_width / 8);
+	if (!virt)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_os_map_generic_address);
+
+void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
+{
+	void __iomem *virt;
+	unsigned long flags;
+	acpi_size size = addr->bit_width / 8;
+
+	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		return;
+
+	if (!addr->address || !addr->bit_width)
+		return;
+
+	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	virt = acpi_map_vaddr_lookup(addr->address, size);
+	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+
+	acpi_os_unmap_memory(virt, size);
+}
+EXPORT_SYMBOL_GPL(acpi_os_unmap_generic_address);
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_os_get_physical_address(void *virt, acpi_physical_address * phys)
