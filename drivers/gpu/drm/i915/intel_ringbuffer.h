@@ -116,10 +116,6 @@ static inline void intel_ring_emit(struct drm_device *dev,
 	ring->tail += 4;
 }
 
-void intel_fill_struct(struct drm_device *dev,
-		struct intel_ring_buffer *ring,
-		void *data,
-		unsigned int len);
 void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring);
 

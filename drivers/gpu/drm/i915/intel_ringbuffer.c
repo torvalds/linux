@@ -733,21 +733,6 @@ void intel_ring_advance(struct drm_device *dev,
 	ring->set_tail(dev, ring, ring->tail);
 }
 
-void intel_fill_struct(struct drm_device *dev,
-		       struct intel_ring_buffer *ring,
-		       void *data,
-		       unsigned int len)
-{
-	unsigned int *virt = ring->virtual_start + ring->tail;
-	BUG_ON((len&~(4-1)) != 0);
-	intel_ring_begin(dev, ring, len/4);
-	memcpy(virt, data, len);
-	ring->tail += len;
-	ring->tail &= ring->size - 1;
-	ring->space -= len;
-	intel_ring_advance(dev, ring);
-}
-
 static const struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
 	.id			= RING_RENDER,
