@@ -513,12 +513,14 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 		cf->can_id = (reg_mid >> 18) & CAN_SFF_MASK;
 
 	reg_msr = at91_read(priv, AT91_MSR(mb));
-	if (reg_msr & AT91_MSR_MRTR)
-		cf->can_id |= CAN_RTR_FLAG;
 	cf->can_dlc = get_can_dlc((reg_msr >> 16) & 0xf);
 
-	*(u32 *)(cf->data + 0) = at91_read(priv, AT91_MDL(mb));
-	*(u32 *)(cf->data + 4) = at91_read(priv, AT91_MDH(mb));
+	if (reg_msr & AT91_MSR_MRTR)
+		cf->can_id |= CAN_RTR_FLAG;
+	else {
+		*(u32 *)(cf->data + 0) = at91_read(priv, AT91_MDL(mb));
+		*(u32 *)(cf->data + 4) = at91_read(priv, AT91_MDH(mb));
+	}
 
 	/* allow RX of extended frames */
 	at91_write(priv, AT91_MID(mb), AT91_MID_MIDE);
