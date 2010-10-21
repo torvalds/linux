@@ -26,7 +26,6 @@ obj-$(CONFIG_MACH_GONI)		+= mach-goni.o
 
 obj-y				+= dev-audio.o
 obj-$(CONFIG_S3C64XX_DEV_SPI)	+= dev-spi.o
-obj-$(CONFIG_S5PC110_DEV_ONENAND) += dev-onenand.o
 
 obj-$(CONFIG_S5PV210_SETUP_FB_24BPP)	+= setup-fb-24bpp.o
 obj-$(CONFIG_S5PV210_SETUP_I2C1) 	+= setup-i2c1.o

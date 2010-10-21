@@ -168,7 +168,7 @@ static inline void mx31_setup_weimcs(size_t cs,
 #define MX31_INT_POWER_FAIL	30
 #define MX31_INT_CCM_DVFS	31
 #define MX31_INT_UART2		32
-#define MX31_INT_NANDFC		33
+#define MX31_INT_NFC		33
 #define MX31_INT_SDMA		34
 #define MX31_INT_USB1		35
 #define MX31_INT_USB2		36
@@ -196,6 +196,15 @@ static inline void mx31_setup_weimcs(size_t cs,
 #define MX31_INT_EXT_SENSOR61	61
 #define MX31_INT_EXT_WDOG	62
 #define MX31_INT_EXT_TV		63
+
+#define MX31_DMA_REQ_SSI2_RX1	22
+#define MX31_DMA_REQ_SSI2_TX1	23
+#define MX31_DMA_REQ_SSI2_RX0	24
+#define MX31_DMA_REQ_SSI2_TX0	25
+#define MX31_DMA_REQ_SSI1_RX1	26
+#define MX31_DMA_REQ_SSI1_TX1	27
+#define MX31_DMA_REQ_SSI1_RX0	28
+#define MX31_DMA_REQ_SSI1_TX0	29
 
 #define MX31_PROD_SIGNATURE		0x1	/* For MX31 */
 

@@ -15,6 +15,8 @@
 #ifndef _MACH_ZEUS_H
 #define _MACH_ZEUS_H
 
+#define ZEUS_NR_IRQS		(IRQ_BOARD_START + 48)
+
 /* Physical addresses */
 #define ZEUS_FLASH_PHYS		PXA_CS0_PHYS
 #define ZEUS_ETH0_PHYS		PXA_CS1_PHYS

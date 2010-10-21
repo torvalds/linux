@@ -95,8 +95,6 @@ static void __init aaed2000_map_io(void)
 
 MACHINE_START(AAED2000, "Agilent AAED-2000 Development Platform")
 	/* Maintainer: Nicolas Bellido Y Ortega */
-	.phys_io	= PIO_BASE,
-	.io_pg_offst	= ((VIO_BASE) >> 18) & 0xfffc,
 	.map_io		= aaed2000_map_io,
 	.init_irq	= aaed2000_init_irq,
 	.timer		= &aaec2000_timer,

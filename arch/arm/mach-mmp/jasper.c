@@ -18,15 +18,17 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max8649.h>
 #include <linux/mfd/max8925.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/addr-map.h>
 #include <mach/mfp-mmp2.h>
 #include <mach/mmp2.h>
-#include <mach/irqs.h>
 
 #include "common.h"
+
+#define JASPER_NR_IRQS		(IRQ_BOARD_START + 48)
 
 static unsigned long jasper_pin_config[] __initdata = {
 	/* UART1 */
@@ -134,9 +136,8 @@ static void __init jasper_init(void)
 }
 
 MACHINE_START(MARVELL_JASPER, "Jasper Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
 	.map_io		= mmp_map_io,
+	.nr_irqs	= JASPER_NR_IRQS,
 	.init_irq       = mmp2_init_irq,
 	.timer          = &mmp2_timer,
 	.init_machine   = jasper_init,

@@ -580,8 +580,6 @@ static void __init rx1950_reserve(void)
 
 MACHINE_START(RX1950, "HP iPAQ RX1950")
     /* Maintainers: Vasily Khoruzhick */
-    .phys_io = S3C2410_PA_UART,
-	.io_pg_offst = (((u32) S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params = S3C2410_SDRAM_PA + 0x100,
 	.map_io = rx1950_map_io,
 	.reserve	= rx1950_reserve,

@@ -169,7 +169,7 @@ ENTRY(cpu_sa1100_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__sa1100_setup, #function
 __sa1100_setup:

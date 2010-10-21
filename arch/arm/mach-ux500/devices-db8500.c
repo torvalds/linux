@@ -110,6 +110,82 @@ struct platform_device u8500_i2c4_device = {
 	.num_resources	= ARRAY_SIZE(u8500_i2c4_resources),
 };
 
+/*
+ * SD/MMC
+ */
+
+struct amba_device u8500_sdi0_device = {
+	.dev		= {
+		.init_name = "sdi0",
+	},
+	.res		= {
+		.start	= U8500_SDI0_BASE,
+		.end	= U8500_SDI0_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC0, NO_IRQ},
+};
+
+struct amba_device u8500_sdi1_device = {
+	.dev		= {
+		.init_name = "sdi1",
+	},
+	.res		= {
+		.start	= U8500_SDI1_BASE,
+		.end	= U8500_SDI1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC1, NO_IRQ},
+};
+
+struct amba_device u8500_sdi2_device = {
+	.dev		= {
+		.init_name = "sdi2",
+	},
+	.res		= {
+		.start	= U8500_SDI2_BASE,
+		.end	= U8500_SDI2_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC2, NO_IRQ},
+};
+
+struct amba_device u8500_sdi3_device = {
+	.dev		= {
+		.init_name = "sdi3",
+	},
+	.res		= {
+		.start	= U8500_SDI3_BASE,
+		.end	= U8500_SDI3_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC3, NO_IRQ},
+};
+
+struct amba_device u8500_sdi4_device = {
+	.dev		= {
+		.init_name = "sdi4",
+	},
+	.res		= {
+		.start	= U8500_SDI4_BASE,
+		.end	= U8500_SDI4_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC4, NO_IRQ},
+};
+
+struct amba_device u8500_sdi5_device = {
+	.dev		= {
+		.init_name = "sdi5",
+	},
+	.res		= {
+		.start	= U8500_SDI5_BASE,
+		.end	= U8500_SDI5_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC5, NO_IRQ},
+};
+
 static struct resource dma40_resources[] = {
 	[0] = {
 		.start = U8500_DMA_BASE,
@@ -170,23 +246,23 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
  * Mapping between destination event lines and physical device address.
  * The event line is tied to a device and therefor the address is constant.
  */
-static const dma_addr_t dma40_tx_map[STEDMA40_NR_DEV];
+static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV];
 
 /* Mapping between source event lines and physical device address */
-static const dma_addr_t dma40_rx_map[STEDMA40_NR_DEV];
+static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV];
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {
-	STEDMA40_MEMCPY_TX_0,
-	STEDMA40_MEMCPY_TX_1,
-	STEDMA40_MEMCPY_TX_2,
-	STEDMA40_MEMCPY_TX_3,
-	STEDMA40_MEMCPY_TX_4,
-	STEDMA40_MEMCPY_TX_5,
+	DB8500_DMA_MEMCPY_TX_0,
+	DB8500_DMA_MEMCPY_TX_1,
+	DB8500_DMA_MEMCPY_TX_2,
+	DB8500_DMA_MEMCPY_TX_3,
+	DB8500_DMA_MEMCPY_TX_4,
+	DB8500_DMA_MEMCPY_TX_5,
 };
 
 static struct stedma40_platform_data dma40_plat_data = {
-	.dev_len = STEDMA40_NR_DEV,
+	.dev_len = DB8500_DMA_NR_DEV,
 	.dev_rx = dma40_rx_map,
 	.dev_tx = dma40_tx_map,
 	.memcpy = dma40_memcpy_event,

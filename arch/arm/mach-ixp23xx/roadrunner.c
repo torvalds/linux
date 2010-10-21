@@ -171,8 +171,6 @@ static void __init roadrunner_init(void)
 
 MACHINE_START(ROADRUNNER, "ADI Engineering RoadRunner Development Platform")
 	/* Maintainer: Deepak Saxena */
-	.phys_io	= IXP23XX_PERIPHERAL_PHYS,
-	.io_pg_offst	= ((IXP23XX_PERIPHERAL_VIRT >> 18)) & 0xfffc,
 	.map_io		= ixp23xx_map_io,
 	.init_irq	= ixp23xx_init_irq,
 	.timer		= &ixp23xx_timer,

@@ -14,11 +14,9 @@
 #include <mach/hardware.h>
 #include <mach/at91_dbgu.h>
 
-	.macro	addruart, rx, tmp
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1						@ MMU enabled?
-	ldreq	\rx, =(AT91_BASE_SYS + AT91_DBGU)		@ System peripherals (phys address)
-	ldrne	\rx, =(AT91_VA_BASE_SYS	+ AT91_DBGU)		@ System peripherals (virt address)
+	.macro	addruart, rp, rv
+	ldr	\rp, =(AT91_BASE_SYS + AT91_DBGU)		@ System peripherals (phys address)
+	ldr	\rv, =(AT91_VA_BASE_SYS	+ AT91_DBGU)		@ System peripherals (virt address)
 	.endm
 
 	.macro	senduart,rd,rx

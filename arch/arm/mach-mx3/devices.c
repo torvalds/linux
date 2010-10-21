@@ -281,65 +281,6 @@ struct platform_device mxc_usbh2 = {
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 
-#if defined(CONFIG_ARCH_MX35)
-static struct resource mxc_fec_resources[] = {
-	{
-		.start	= MXC_FEC_BASE_ADDR,
-		.end	= MXC_FEC_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MXC_INT_FEC,
-		.end	= MXC_INT_FEC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_fec_device = {
-	.name = "fec",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_fec_resources),
-	.resource = mxc_fec_resources,
-};
-#endif
-
-static struct resource imx_ssi_resources0[] = {
-	{
-		.start	= SSI1_BASE_ADDR,
-		.end	= SSI1_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MX31_INT_SSI1,
-		.end	= MX31_INT_SSI1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct resource imx_ssi_resources1[] = {
-	{
-		.start	= SSI2_BASE_ADDR,
-		.end	= SSI2_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM
-	}, {
-		.start	= MX31_INT_SSI2,
-		.end	= MX31_INT_SSI2,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device imx_ssi_device0 = {
-	.name = "imx-ssi",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
-	.resource = imx_ssi_resources0,
-};
-
-struct platform_device imx_ssi_device1 = {
-	.name = "imx-ssi",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
-	.resource = imx_ssi_resources1,
-};
-
 static struct resource imx_wdt_resources[] = {
 	{
 		.flags = IORESOURCE_MEM,
@@ -410,10 +351,6 @@ static int __init mx3_devices_init(void)
 		mxc_usbh1_resources[0].end = MX35_OTG_BASE_ADDR + 0x5ff;
 		mxc_usbh1_resources[1].start = MXC_INT_USBHS;
 		mxc_usbh1_resources[1].end = MXC_INT_USBHS;
-		imx_ssi_resources0[1].start = MX35_INT_SSI1;
-		imx_ssi_resources0[1].end = MX35_INT_SSI1;
-		imx_ssi_resources1[1].start = MX35_INT_SSI2;
-		imx_ssi_resources1[1].end = MX35_INT_SSI2;
 		imx_wdt_resources[0].start = MX35_WDOG_BASE_ADDR;
 		imx_wdt_resources[0].end = MX35_WDOG_BASE_ADDR + 0x3fff;
 	}

@@ -322,6 +322,9 @@ static int __devinit tc35892_gpio_probe(struct platform_device *pdev)
 		goto out_freeirq;
 	}
 
+	if (pdata->setup)
+		pdata->setup(tc35892, tc35892_gpio->chip.base);
+
 	platform_set_drvdata(pdev, tc35892_gpio);
 
 	return 0;
@@ -338,8 +341,13 @@ out_free:
 static int __devexit tc35892_gpio_remove(struct platform_device *pdev)
 {
 	struct tc35892_gpio *tc35892_gpio = platform_get_drvdata(pdev);
+	struct tc35892 *tc35892 = tc35892_gpio->tc35892;
+	struct tc35892_gpio_platform_data *pdata = tc35892->pdata->gpio;
 	int irq = platform_get_irq(pdev, 0);
 	int ret;
+
+	if (pdata->remove)
+		pdata->remove(tc35892, tc35892_gpio->chip.base);
 
 	ret = gpiochip_remove(&tc35892_gpio->chip);
 	if (ret < 0) {

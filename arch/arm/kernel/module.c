@@ -69,20 +69,31 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 {
 #ifdef CONFIG_ARM_UNWIND
 	Elf_Shdr *s, *sechdrs_end = sechdrs + hdr->e_shnum;
+	struct arm_unwind_mapping *maps = mod->arch.map;
 
 	for (s = sechdrs; s < sechdrs_end; s++) {
-		if (strcmp(".ARM.exidx.init.text", secstrings + s->sh_name) == 0)
-			mod->arch.unw_sec_init = s;
-		else if (strcmp(".ARM.exidx.devinit.text", secstrings + s->sh_name) == 0)
-			mod->arch.unw_sec_devinit = s;
-		else if (strcmp(".ARM.exidx", secstrings + s->sh_name) == 0)
-			mod->arch.unw_sec_core = s;
-		else if (strcmp(".init.text", secstrings + s->sh_name) == 0)
-			mod->arch.sec_init_text = s;
-		else if (strcmp(".devinit.text", secstrings + s->sh_name) == 0)
-			mod->arch.sec_devinit_text = s;
-		else if (strcmp(".text", secstrings + s->sh_name) == 0)
-			mod->arch.sec_core_text = s;
+		char const *secname = secstrings + s->sh_name;
+
+		if (strcmp(".ARM.exidx.init.text", secname) == 0)
+			maps[ARM_SEC_INIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx.devinit.text", secname) == 0)
+			maps[ARM_SEC_DEVINIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx", secname) == 0)
+			maps[ARM_SEC_CORE].unw_sec = s;
+		else if (strcmp(".ARM.exidx.exit.text", secname) == 0)
+			maps[ARM_SEC_EXIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx.devexit.text", secname) == 0)
+			maps[ARM_SEC_DEVEXIT].unw_sec = s;
+		else if (strcmp(".init.text", secname) == 0)
+			maps[ARM_SEC_INIT].sec_text = s;
+		else if (strcmp(".devinit.text", secname) == 0)
+			maps[ARM_SEC_DEVINIT].sec_text = s;
+		else if (strcmp(".text", secname) == 0)
+			maps[ARM_SEC_CORE].sec_text = s;
+		else if (strcmp(".exit.text", secname) == 0)
+			maps[ARM_SEC_EXIT].sec_text = s;
+		else if (strcmp(".devexit.text", secname) == 0)
+			maps[ARM_SEC_DEVEXIT].sec_text = s;
 	}
 #endif
 	return 0;
@@ -292,31 +303,22 @@ apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 #ifdef CONFIG_ARM_UNWIND
 static void register_unwind_tables(struct module *mod)
 {
-	if (mod->arch.unw_sec_init && mod->arch.sec_init_text)
-		mod->arch.unwind_init =
-			unwind_table_add(mod->arch.unw_sec_init->sh_addr,
-					 mod->arch.unw_sec_init->sh_size,
-					 mod->arch.sec_init_text->sh_addr,
-					 mod->arch.sec_init_text->sh_size);
-	if (mod->arch.unw_sec_devinit && mod->arch.sec_devinit_text)
-		mod->arch.unwind_devinit =
-			unwind_table_add(mod->arch.unw_sec_devinit->sh_addr,
-					 mod->arch.unw_sec_devinit->sh_size,
-					 mod->arch.sec_devinit_text->sh_addr,
-					 mod->arch.sec_devinit_text->sh_size);
-	if (mod->arch.unw_sec_core && mod->arch.sec_core_text)
-		mod->arch.unwind_core =
-			unwind_table_add(mod->arch.unw_sec_core->sh_addr,
-					 mod->arch.unw_sec_core->sh_size,
-					 mod->arch.sec_core_text->sh_addr,
-					 mod->arch.sec_core_text->sh_size);
+	int i;
+	for (i = 0; i < ARM_SEC_MAX; ++i) {
+		struct arm_unwind_mapping *map = &mod->arch.map[i];
+		if (map->unw_sec && map->sec_text)
+			map->unwind = unwind_table_add(map->unw_sec->sh_addr,
+						       map->unw_sec->sh_size,
+						       map->sec_text->sh_addr,
+						       map->sec_text->sh_size);
+	}
 }
 
 static void unregister_unwind_tables(struct module *mod)
 {
-	unwind_table_del(mod->arch.unwind_init);
-	unwind_table_del(mod->arch.unwind_devinit);
-	unwind_table_del(mod->arch.unwind_core);
+	int i = ARM_SEC_MAX;
+	while (--i >= 0)
+		unwind_table_del(mod->arch.map[i].unwind);
 }
 #else
 static inline void register_unwind_tables(struct module *mod) { }

@@ -207,8 +207,6 @@ static void __init colibri_pxa270_income_init(void)
 }
 
 MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= COLIBRI_SDRAM_BASE + 0x100,
 	.init_machine	= colibri_pxa270_init,
 	.map_io		= pxa_map_io,
@@ -217,8 +215,6 @@ MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
 MACHINE_END
 
 MACHINE_START(INCOME, "Income s.r.o. SH-Dmaster PXA270 SBC")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.init_machine	= colibri_pxa270_income_init,
 	.map_io		= pxa_map_io,

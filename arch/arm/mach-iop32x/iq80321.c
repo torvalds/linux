@@ -186,8 +186,6 @@ static void __init iq80321_init_machine(void)
 
 MACHINE_START(IQ80321, "Intel IQ80321")
 	/* Maintainer: Intel Corp. */
-	.phys_io	= IQ80321_UART,
-	.io_pg_offst	= ((IQ80321_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= iq80321_map_io,
 	.init_irq	= iop32x_init_irq,

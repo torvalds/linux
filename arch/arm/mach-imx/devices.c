@@ -314,27 +314,6 @@ struct platform_device mxc_fb_device = {
 	},
 };
 
-#ifdef CONFIG_MACH_MX27
-static struct resource mxc_fec_resources[] = {
-	{
-		.start = MX27_FEC_BASE_ADDR,
-		.end = MX27_FEC_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX27_INT_FEC,
-		.end = MX27_INT_FEC,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_fec_device = {
-	.name = "fec",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_fec_resources),
-	.resource = mxc_fec_resources,
-};
-#endif
-
 static struct resource mxc_pwm_resources[] = {
 	{
 		.start = MX2x_PWM_BASE_ADDR,
@@ -479,41 +458,6 @@ struct platform_device mxc_usbh2 = {
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 #endif
-
-#define DEFINE_IMX_SSI_DMARES(_name, ssin, suffix)			\
-	{								\
-		.name = _name,						\
-		.start = MX2x_DMA_REQ_SSI ## ssin ## _ ## suffix,	\
-		.end = MX2x_DMA_REQ_SSI ## ssin ## _ ## suffix,		\
-		.flags = IORESOURCE_DMA,				\
-	}
-
-#define DEFINE_IMX_SSI_DEVICE(n, ssin, baseaddr, irq)			\
-	static struct resource imx_ssi_resources ## n[] = {		\
-		{							\
-			.start = MX2x_SSI ## ssin ## _BASE_ADDR,	\
-			.end = MX2x_SSI ## ssin ## _BASE_ADDR + 0x6f,	\
-			.flags = IORESOURCE_MEM,			\
-		}, {							\
-			.start = MX2x_INT_SSI1,				\
-			.end = MX2x_INT_SSI1,				\
-			.flags = IORESOURCE_IRQ,			\
-		},							\
-		DEFINE_IMX_SSI_DMARES("tx0", ssin, TX0),		\
-		DEFINE_IMX_SSI_DMARES("rx0", ssin, RX0),		\
-		DEFINE_IMX_SSI_DMARES("tx1", ssin, TX1),		\
-		DEFINE_IMX_SSI_DMARES("rx1", ssin, RX1),		\
-	};								\
-									\
-	struct platform_device imx_ssi_device ## n = {			\
-		.name = "imx-ssi",					\
-		.id = n,						\
-		.num_resources = ARRAY_SIZE(imx_ssi_resources ## n),	\
-		.resource = imx_ssi_resources ## n,			\
-	}
-
-DEFINE_IMX_SSI_DEVICE(0, 1, MX2x_SSI1_BASE_ADDR, MX2x_INT_SSI1);
-DEFINE_IMX_SSI_DEVICE(1, 2, MX2x_SSI1_BASE_ADDR, MX2x_INT_SSI1);
 
 /* GPIO port description */
 #define DEFINE_MXC_GPIO_PORT_IRQ(SOC, n, _irq)				\

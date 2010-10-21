@@ -21,18 +21,22 @@
 #define D_CACHE_LINE_SIZE	32
 #define BTB_FLUSH_SIZE		8
 
-#ifdef CONFIG_ARM_ERRATA_411920
 /*
- * Invalidate the entire I cache (this code is a workaround for the ARM1136
- * erratum 411920 - Invalidate Instruction Cache operation can fail. This
- * erratum is present in 1136, 1156 and 1176. It does not affect the MPCore.
+ *	v6_flush_icache_all()
  *
- * Registers:
- *   r0 - set to 0
- *   r1 - corrupted
+ *	Flush the whole I-cache.
+ *
+ *	ARM1136 erratum 411920 - Invalidate Instruction Cache operation can fail.
+ *	This erratum is present in 1136, 1156 and 1176. It does not affect the
+ *	MPCore.
+ *
+ *	Registers:
+ *	r0 - set to 0
+ *	r1 - corrupted
  */
-ENTRY(v6_icache_inval_all)
+ENTRY(v6_flush_icache_all)
 	mov	r0, #0
+#ifdef CONFIG_ARM_ERRATA_411920
 	mrs	r1, cpsr
 	cpsid	ifa				@ disable interrupts
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate entire I-cache
@@ -43,8 +47,11 @@ ENTRY(v6_icache_inval_all)
 	.rept	11				@ ARM Ltd recommends at least
 	nop					@ 11 NOPs
 	.endr
-	mov	pc, lr
+#else
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I-cache
 #endif
+	mov	pc, lr
+ENDPROC(v6_flush_icache_all)
 
 /*
  *	v6_flush_cache_all()
@@ -60,7 +67,7 @@ ENTRY(v6_flush_kern_cache_all)
 #ifndef CONFIG_ARM_ERRATA_411920
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
 #else
-	b	v6_icache_inval_all
+	b	v6_flush_icache_all
 #endif
 #else
 	mcr	p15, 0, r0, c7, c15, 0		@ Cache clean+invalidate
@@ -138,7 +145,7 @@ ENTRY(v6_coherent_user_range)
 #ifndef CONFIG_ARM_ERRATA_411920
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
 #else
-	b	v6_icache_inval_all
+	b	v6_flush_icache_all
 #endif
 #else
 	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
@@ -312,6 +319,7 @@ ENDPROC(v6_dma_unmap_area)
 
 	.type	v6_cache_fns, #object
 ENTRY(v6_cache_fns)
+	.long	v6_flush_icache_all
 	.long	v6_flush_kern_cache_all
 	.long	v6_flush_user_cache_all
 	.long	v6_flush_user_cache_range

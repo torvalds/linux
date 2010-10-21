@@ -817,8 +817,6 @@ static void __init da850_evm_map_io(void)
 }
 
 MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138 EVM")
-	.phys_io	= IO_PHYS,
-	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= da850_evm_map_io,
 	.init_irq	= cp_intc_init,

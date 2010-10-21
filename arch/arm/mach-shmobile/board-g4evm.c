@@ -392,8 +392,6 @@ static struct sys_timer g4evm_timer = {
 };
 
 MACHINE_START(G4EVM, "g4evm")
-	.phys_io	= 0xe6000000,
-	.io_pg_offst	= ((0xe6000000) >> 18) & 0xfffc,
 	.map_io		= g4evm_map_io,
 	.init_irq	= sh7377_init_irq,
 	.init_machine	= g4evm_init,

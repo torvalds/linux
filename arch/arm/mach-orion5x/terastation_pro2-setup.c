@@ -358,8 +358,6 @@ static void __init tsp2_init(void)
 
 MACHINE_START(TERASTATION_PRO2, "Buffalo Terastation Pro II/Live")
 	/* Maintainer:  Sylver Bruneau <sylver.bruneau@googlemail.com> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= tsp2_init,
 	.map_io		= orion5x_map_io,

@@ -10,16 +10,16 @@
  * published by the Free Software Foundation.
 */
 
-                .macro  addruart, rx, tmp
-                mrc     p15, 0, \rx, c1, c0
-                tst     \rx, #1                 @ MMU enabled?
-                moveq   \rx, #0xc8000000
-                movne   \rx, #0xff000000
-		orrne	\rx, \rx, #0x00b00000
+                .macro  addruart, rp, rv
 #ifdef __ARMEB__
-                add     \rx,\rx,#3              @ Uart regs are at off set of 3 if
-						@ byte writes used - Big Endian.
+                mov     \rp, #3         @ Uart regs are at off set of 3 if
+					@ byte writes used - Big Endian.
+#else
+		mov	\rp, #0
 #endif
+                orr     \rv, \rp, #0xff000000	@ virtual
+		orr	\rv, \rv, #0x00b00000
+                orr     \rp, \rp, #0xc8000000	@ physical
                 .endm
 
 #define UART_SHIFT	2

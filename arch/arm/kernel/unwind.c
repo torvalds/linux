@@ -146,6 +146,8 @@ static struct unwind_idx *unwind_find_idx(unsigned long addr)
 			    addr < table->end_addr) {
 				idx = search_index(addr, table->start,
 						   table->stop - 1);
+				/* Move-to-front to exploit common traces */
+				list_move(&table->list, &unwind_tables);
 				break;
 			}
 		}

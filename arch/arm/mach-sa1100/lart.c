@@ -61,8 +61,6 @@ static void __init lart_map_io(void)
 }
 
 MACHINE_START(LART, "LART")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= lart_map_io,
 	.init_irq	= sa1100_init_irq,

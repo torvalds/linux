@@ -95,7 +95,7 @@ static struct platform_device dm9000x_device = {
 	}
 };
 
-static int mxc_uart1_pins[] = {
+static const int mxc_uart1_pins[] = {
 	PC9_PF_UART1_CTS,
 	PC10_PF_UART1_RTS,
 	PC11_PF_UART1_TXD,
@@ -147,8 +147,6 @@ static struct sys_timer scb9328_timer = {
 
 MACHINE_START(SCB9328, "Synertronixx scb9328")
     /* Sascha Hauer */
-	.phys_io	= 0x00200000,
-	.io_pg_offst	= ((0xe0200000) >> 18) & 0xfffc,
 	.boot_params	= 0x08000100,
 	.map_io		= mx1_map_io,
 	.init_irq	= mx1_init_irq,

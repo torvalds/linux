@@ -32,7 +32,11 @@ static inline void arch_idle(void)
 	 * Disable the processor clock.  The processor will be automatically
 	 * re-enabled by an interrupt or by a reset.
 	 */
+#ifdef AT91_PS
+	at91_sys_write(AT91_PS_CR, AT91_PS_CR_CPU);
+#else
 	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+#endif
 #ifndef CONFIG_CPU_ARM920T
 	/*
 	 * Set the processor (CP15) into 'Wait for Interrupt' mode.
