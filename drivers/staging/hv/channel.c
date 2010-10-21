@@ -637,6 +637,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	kfree(info);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vmbus_teardown_gpadl);
 
 /*
  * vmbus_close - Close the specified channel
