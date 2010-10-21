@@ -237,13 +237,15 @@ static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	status = ACCESS_ONCE(ads->ds_txstatus1);
 	if (status & AR_FrmXmitOK)
 		ts->ts_status |= ATH9K_TX_ACKED;
-	if (status & AR_ExcessiveRetries)
-		ts->ts_status |= ATH9K_TXERR_XRETRY;
-	if (status & AR_Filtered)
-		ts->ts_status |= ATH9K_TXERR_FILT;
-	if (status & AR_FIFOUnderrun) {
-		ts->ts_status |= ATH9K_TXERR_FIFO;
-		ath9k_hw_updatetxtriglevel(ah, true);
+	else {
+		if (status & AR_ExcessiveRetries)
+			ts->ts_status |= ATH9K_TXERR_XRETRY;
+		if (status & AR_Filtered)
+			ts->ts_status |= ATH9K_TXERR_FILT;
+		if (status & AR_FIFOUnderrun) {
+			ts->ts_status |= ATH9K_TXERR_FIFO;
+			ath9k_hw_updatetxtriglevel(ah, true);
+		}
 	}
 	if (status & AR_TxTimerExpired)
 		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
