@@ -2832,6 +2832,7 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.pgbase = 0,
 		.count = count,
 		.bitmask = NFS_SERVER(dentry->d_inode)->attr_bitmask,
+		.plus = plus,
 	};
 	struct nfs4_readdir_res res;
 	struct rpc_message msg = {

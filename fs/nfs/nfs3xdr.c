@@ -590,7 +590,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 }
 
 __be32 *
-nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, int plus)
+nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_server *server, int plus)
 {
 	__be32 *p;
 	struct nfs_entry old = *entry;

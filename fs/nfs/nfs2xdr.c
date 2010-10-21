@@ -454,7 +454,7 @@ static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
 }
 
 __be32 *
-nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, int plus)
+nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_server *server, int plus)
 {
 	__be32 *p;
 	p = xdr_inline_decode(xdr, 4);

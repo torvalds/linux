@@ -172,7 +172,7 @@ struct nfs_cache_array {
 
 #define MAX_READDIR_ARRAY ((PAGE_SIZE - sizeof(struct nfs_cache_array)) / sizeof(struct nfs_cache_array_entry))
 
-typedef __be32 * (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, int);
+typedef __be32 * (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
@@ -360,7 +360,7 @@ error:
 static
 int xdr_decode(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry, struct xdr_stream *stream)
 {
-	__be32 *p = desc->decode(stream, entry, desc->plus);
+	__be32 *p = desc->decode(stream, entry, NFS_SERVER(desc->file->f_path.dentry->d_inode), desc->plus);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
