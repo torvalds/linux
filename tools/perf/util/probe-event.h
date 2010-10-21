@@ -117,7 +117,7 @@ extern int parse_line_range_desc(const char *cmd, struct line_range *lr);
 
 
 extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-				 bool force_add, int max_probe_points);
+				 int max_probe_points, bool force_add);
 extern int del_perf_probe_events(struct strlist *dellist);
 extern int show_perf_probe_events(void);
 extern int show_line_range(struct line_range *lr);
