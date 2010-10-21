@@ -2236,6 +2236,46 @@ void usb_put_hcd (struct usb_hcd *hcd)
 }
 EXPORT_SYMBOL_GPL(usb_put_hcd);
 
+static int usb_hcd_request_irqs(struct usb_hcd *hcd,
+		unsigned int irqnum, unsigned long irqflags)
+{
+	int retval;
+
+	if (hcd->driver->irq) {
+
+		/* IRQF_DISABLED doesn't work as advertised when used together
+		 * with IRQF_SHARED. As usb_hcd_irq() will always disable
+		 * interrupts we can remove it here.
+		 */
+		if (irqflags & IRQF_SHARED)
+			irqflags &= ~IRQF_DISABLED;
+
+		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
+				hcd->driver->description, hcd->self.busnum);
+		retval = request_irq(irqnum, &usb_hcd_irq, irqflags,
+				hcd->irq_descr, hcd);
+		if (retval != 0) {
+			dev_err(hcd->self.controller,
+					"request interrupt %d failed\n",
+					irqnum);
+			return retval;
+		}
+		hcd->irq = irqnum;
+		dev_info(hcd->self.controller, "irq %d, %s 0x%08llx\n", irqnum,
+				(hcd->driver->flags & HCD_MEMORY) ?
+					"io mem" : "io base",
+					(unsigned long long)hcd->rsrc_start);
+	} else {
+		hcd->irq = -1;
+		if (hcd->rsrc_start)
+			dev_info(hcd->self.controller, "%s 0x%08llx\n",
+					(hcd->driver->flags & HCD_MEMORY) ?
+					"io mem" : "io base",
+					(unsigned long long)hcd->rsrc_start);
+	}
+	return 0;
+}
+
 /**
  * usb_add_hcd - finish generic HCD structure initialization and register
  * @hcd: the usb_hcd structure to initialize
@@ -2317,38 +2357,9 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 
 	/* enable irqs just before we start the controller */
-	if (hcd->driver->irq) {
-
-		/* IRQF_DISABLED doesn't work as advertised when used together
-		 * with IRQF_SHARED. As usb_hcd_irq() will always disable
-		 * interrupts we can remove it here.
-		 */
-		if (irqflags & IRQF_SHARED)
-			irqflags &= ~IRQF_DISABLED;
-
-		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
-				hcd->driver->description, hcd->self.busnum);
-		retval = request_irq(irqnum, &usb_hcd_irq, irqflags,
-				hcd->irq_descr, hcd);
-		if (retval != 0) {
-			dev_err(hcd->self.controller,
-					"request interrupt %d failed\n",
-					irqnum);
-			goto err_request_irq;
-		}
-		hcd->irq = irqnum;
-		dev_info(hcd->self.controller, "irq %d, %s 0x%08llx\n", irqnum,
-				(hcd->driver->flags & HCD_MEMORY) ?
-					"io mem" : "io base",
-					(unsigned long long)hcd->rsrc_start);
-	} else {
-		hcd->irq = -1;
-		if (hcd->rsrc_start)
-			dev_info(hcd->self.controller, "%s 0x%08llx\n",
-					(hcd->driver->flags & HCD_MEMORY) ?
-					"io mem" : "io base",
-					(unsigned long long)hcd->rsrc_start);
-	}
+	retval = usb_hcd_request_irqs(hcd, irqnum, irqflags);
+	if (retval)
+		goto err_request_irq;
 
 	hcd->state = HC_STATE_RUNNING;
 	retval = hcd->driver->start(hcd);
