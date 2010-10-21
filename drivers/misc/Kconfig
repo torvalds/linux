@@ -351,6 +351,14 @@ config SENSORS_AK8975
 	  If you say yes here you get support for Asahi Kasei's
 	  orientation sensor AK8975.
 
+config SENSORS_CAP_PROX
+	tristate "Motorola Capacitive Proximity Sensor"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Motorola
+	 Capacitive Proximity Sensor driver.
+
 config SENSORS_KXTF9
 	tristate "KXTF9 Accelerometer"
 	default n
