@@ -397,6 +397,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		case 0x96:
 		case 0x98:
 		case 0xa0:
+		case 0xaa:
+		case 0xac:
 		case 0x50:
 			engine->pm.clock_get	= nv50_pm_clock_get;
 			engine->pm.clock_pre	= nv50_pm_clock_pre;
