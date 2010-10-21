@@ -1200,11 +1200,15 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 static void
 nouveau_crtc_irq_handler(struct drm_device *dev, int crtc)
 {
-	if (crtc & 1)
+	if (crtc & 1) {
 		nv_wr32(dev, NV_CRTC0_INTSTAT, NV_CRTC_INTR_VBLANK);
+		drm_handle_vblank(dev, 0);
+	}
 
-	if (crtc & 2)
+	if (crtc & 2) {
 		nv_wr32(dev, NV_CRTC1_INTSTAT, NV_CRTC_INTR_VBLANK);
+		drm_handle_vblank(dev, 1);
+	}
 }
 
 irqreturn_t

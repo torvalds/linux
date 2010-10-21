@@ -428,31 +428,29 @@ static void
 nv50_display_vblank_crtc_handler(struct drm_device *dev, int crtc)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan;
-	struct list_head *entry, *tmp;
+	struct nouveau_channel *chan, *tmp;
 
-	list_for_each_safe(entry, tmp, &dev_priv->vbl_waiting) {
-		chan = list_entry(entry, struct nouveau_channel, nvsw.vbl_wait);
-
+	list_for_each_entry_safe(chan, tmp, &dev_priv->vbl_waiting,
+				 nvsw.vbl_wait) {
 		nouveau_bo_wr32(chan->notifier_bo, chan->nvsw.vblsem_offset,
 						chan->nvsw.vblsem_rval);
 		list_del(&chan->nvsw.vbl_wait);
+		drm_vblank_put(dev, crtc);
 	}
+
+	drm_handle_vblank(dev, crtc);
 }
 
 static void
 nv50_display_vblank_handler(struct drm_device *dev, uint32_t intr)
 {
-	intr &= NV50_PDISPLAY_INTR_1_VBLANK_CRTC;
-
 	if (intr & NV50_PDISPLAY_INTR_1_VBLANK_CRTC_0)
 		nv50_display_vblank_crtc_handler(dev, 0);
 
 	if (intr & NV50_PDISPLAY_INTR_1_VBLANK_CRTC_1)
 		nv50_display_vblank_crtc_handler(dev, 1);
 
-	nv_mask(dev, NV50_PDISPLAY_INTR_EN_1, intr, 0x00000000);
-	nv_wr32(dev, NV50_PDISPLAY_INTR_1, intr);
+	nv_wr32(dev, NV50_PDISPLAY_INTR_1, NV50_PDISPLAY_INTR_1_VBLANK_CRTC);
 }
 
 static void

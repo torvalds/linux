@@ -669,13 +669,13 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_fifo;
 
+	ret = drm_vblank_init(dev, nv_two_heads(dev) ? 2 : 1);
+	if (ret)
+		goto out_vblank;
+
 	ret = nouveau_irq_init(dev);
 	if (ret)
-		goto out_display;
-
-	ret = drm_vblank_init(dev, 0);
-	if (ret)
-		goto out_irq;
+		goto out_vblank;
 
 	/* what about PVIDEO/PCRTC/PRAMDAC etc? */
 
@@ -701,7 +701,8 @@ out_fence:
 	nouveau_fence_fini(dev);
 out_irq:
 	nouveau_irq_fini(dev);
-out_display:
+out_vblank:
+	drm_vblank_cleanup(dev);
 	engine->display.destroy(dev);
 out_fifo:
 	if (!nouveau_noaccel)
@@ -772,6 +773,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	nouveau_mem_vram_fini(dev);
 
 	nouveau_irq_fini(dev);
+	drm_vblank_cleanup(dev);
 
 	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);

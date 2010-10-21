@@ -1017,8 +1017,9 @@ nv_load_state_ext(struct drm_device *dev, int head,
 
 	NVWriteCRTC(dev, head, NV_PCRTC_START, regp->fb_start);
 
-	/* Setting 1 on this value gives you interrupts for every vblank period. */
-	NVWriteCRTC(dev, head, NV_PCRTC_INTR_EN_0, 0);
+	/* Enable vblank interrupts. */
+	NVWriteCRTC(dev, head, NV_PCRTC_INTR_EN_0,
+		    (dev->vblank_enabled[head] ? 1 : 0));
 	NVWriteCRTC(dev, head, NV_PCRTC_INTR_0, NV_PCRTC_INTR_0_VBLANK);
 }
 

@@ -29,6 +29,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_hw.h"
 
 static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
@@ -104,3 +105,29 @@ const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.output_poll_changed = nouveau_fbcon_output_poll_changed,
 };
 
+int
+nouveau_vblank_enable(struct drm_device *dev, int crtc)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->card_type >= NV_50)
+		nv_mask(dev, NV50_PDISPLAY_INTR_EN_1, 0,
+			NV50_PDISPLAY_INTR_EN_1_VBLANK_CRTC_(crtc));
+	else
+		NVWriteCRTC(dev, crtc, NV_PCRTC_INTR_EN_0,
+			    NV_PCRTC_INTR_0_VBLANK);
+
+	return 0;
+}
+
+void
+nouveau_vblank_disable(struct drm_device *dev, int crtc)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->card_type >= NV_50)
+		nv_mask(dev, NV50_PDISPLAY_INTR_EN_1,
+			NV50_PDISPLAY_INTR_EN_1_VBLANK_CRTC_(crtc), 0);
+	else
+		NVWriteCRTC(dev, crtc, NV_PCRTC_INTR_EN_0, 0);
+}

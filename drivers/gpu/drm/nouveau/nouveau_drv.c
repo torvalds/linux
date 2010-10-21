@@ -397,6 +397,9 @@ static struct drm_driver driver = {
 	.irq_postinstall = nouveau_irq_postinstall,
 	.irq_uninstall = nouveau_irq_uninstall,
 	.irq_handler = nouveau_irq_handler,
+	.get_vblank_counter = drm_vblank_count,
+	.enable_vblank = nouveau_vblank_enable,
+	.disable_vblank = nouveau_vblank_disable,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = nouveau_ioctls,
 	.fops = {
@@ -407,6 +410,7 @@ static struct drm_driver driver = {
 		.mmap = nouveau_ttm_mmap,
 		.poll = drm_poll,
 		.fasync = drm_fasync,
+		.read = drm_read,
 #if defined(CONFIG_COMPAT)
 		.compat_ioctl = nouveau_compat_ioctl,
 #endif
