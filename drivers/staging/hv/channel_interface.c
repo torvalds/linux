@@ -91,13 +91,6 @@ static int ivmbus_establish_gpadl(struct hv_device *device, void *buffer,
 					  gpadl_handle);
 }
 
-static int ivmbus_teardown_gpadl(struct hv_device *device,
-				      u32 gpadl_handle)
-{
-	return vmbus_teardown_gpadl(device->context, gpadl_handle);
-
-}
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
 	.Open = ivmbus_open,
@@ -108,5 +101,4 @@ const struct vmbus_channel_interface vmbus_ops = {
 	.RecvPacket = ivmbus_recvpacket,
 	.RecvPacketRaw	= ivmbus_recvpacket_raw,
 	.EstablishGpadl = ivmbus_establish_gpadl,
-	.TeardownGpadl = ivmbus_teardown_gpadl,
 };
