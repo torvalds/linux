@@ -2299,9 +2299,6 @@ static int be_clear(struct be_adapter *adapter)
 
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
-char flash_cookie[2][16] =	{"*** SE FLAS",
-				"H DIRECTORY *** "};
-
 static bool be_flash_redboot(struct be_adapter *adapter,
 			const u8 *p, u32 img_start, int image_size,
 			int hdr_size)
