@@ -28,6 +28,7 @@
 #include "storvsc_api.h"
 #include "vmbus_packet_format.h"
 #include "vstorage.h"
+#include "channel.h"
 
 
 struct storvsc_request_extension {
@@ -451,10 +452,9 @@ static void StorVscOnChannelCallback(void *context)
 	}
 
 	do {
-		ret = device->Driver->VmbusChannelInterface.RecvPacket(device,
-				packet,
-				ALIGN_UP(sizeof(struct vstor_packet), 8),
-				&bytesRecvd, &requestId);
+		ret = vmbus_recvpacket(device->channel, packet,
+				       ALIGN_UP(sizeof(struct vstor_packet), 8),
+				       &bytesRecvd, &requestId);
 		if (ret == 0 && bytesRecvd > 0) {
 			DPRINT_DBG(STORVSC, "receive %d bytes - tid %llx",
 				   bytesRecvd, requestId);
