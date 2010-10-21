@@ -1674,7 +1674,7 @@ static inline bool do_gro(struct be_adapter *adapter, struct be_rx_obj *rxo,
 	return (tcp_frame && !err) ? true : false;
 }
 
-int be_poll_rx(struct napi_struct *napi, int budget)
+static int be_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct be_eq_obj *rx_eq = container_of(napi, struct be_eq_obj, napi);
 	struct be_rx_obj *rxo = container_of(rx_eq, struct be_rx_obj, rx_eq);
