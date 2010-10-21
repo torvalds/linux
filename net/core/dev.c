@@ -1484,7 +1484,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	nf_reset(skb);
 
 	if (unlikely(!(dev->flags & IFF_UP) ||
-		     (skb->len > (dev->mtu + dev->hard_header_len)))) {
+		     (skb->len > (dev->mtu + dev->hard_header_len + VLAN_HLEN)))) {
 		atomic_long_inc(&dev->rx_dropped);
 		kfree_skb(skb);
 		return NET_RX_DROP;

@@ -42,32 +42,37 @@ struct ceph_nfs_confh {
 static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 			  int connectable)
 {
+	int type;
 	struct ceph_nfs_fh *fh = (void *)rawfh;
 	struct ceph_nfs_confh *cfh = (void *)rawfh;
 	struct dentry *parent = dentry->d_parent;
 	struct inode *inode = dentry->d_inode;
-	int type;
+	int connected_handle_length = sizeof(*cfh)/4;
+	int handle_length = sizeof(*fh)/4;
 
 	/* don't re-export snaps */
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EINVAL;
 
-	if (*max_len >= sizeof(*cfh)) {
+	if (*max_len >= connected_handle_length) {
 		dout("encode_fh %p connectable\n", dentry);
 		cfh->ino = ceph_ino(dentry->d_inode);
 		cfh->parent_ino = ceph_ino(parent->d_inode);
 		cfh->parent_name_hash = parent->d_name.hash;
-		*max_len = sizeof(*cfh);
+		*max_len = connected_handle_length;
 		type = 2;
-	} else if (*max_len > sizeof(*fh)) {
-		if (connectable)
-			return -ENOSPC;
+	} else if (*max_len >= handle_length) {
+		if (connectable) {
+			*max_len = connected_handle_length;
+			return 255;
+		}
 		dout("encode_fh %p\n", dentry);
 		fh->ino = ceph_ino(dentry->d_inode);
-		*max_len = sizeof(*fh);
+		*max_len = handle_length;
 		type = 1;
 	} else {
-		return -ENOSPC;
+		*max_len = handle_length;
+		return 255;
 	}
 	return type;
 }

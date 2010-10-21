@@ -157,13 +157,13 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C5 */ },
 	{ /* MWAIT C6 */
 		.name = "ATM-C6",
-		.desc = "MWAIT 0x40",
-		.driver_data = (void *) 0x40,
+		.desc = "MWAIT 0x52",
+		.driver_data = (void *) 0x52,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
-		.exit_latency = 200,
+		.exit_latency = 140,
 		.power_usage = 150,
-		.target_residency = 800,
-		.enter = NULL },	/* disabled */
+		.target_residency = 560,
+		.enter = &intel_idle },
 };
 
 /**
