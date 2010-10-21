@@ -75,7 +75,7 @@ void
 unset_pnfs_layoutdriver(struct nfs_server *nfss)
 {
 	if (nfss->pnfs_curr_ld) {
-		nfss->pnfs_curr_ld->uninitialize_mountpoint(nfss);
+		nfss->pnfs_curr_ld->clear_layoutdriver(nfss);
 		module_put(nfss->pnfs_curr_ld->owner);
 	}
 	nfss->pnfs_curr_ld = NULL;
@@ -115,7 +115,7 @@ set_pnfs_layoutdriver(struct nfs_server *server, u32 id)
 		goto out_no_driver;
 	}
 	server->pnfs_curr_ld = ld_type;
-	if (ld_type->initialize_mountpoint(server)) {
+	if (ld_type->set_layoutdriver(server)) {
 		printk(KERN_ERR
 		       "%s: Error initializing mount point for layout driver %u.\n",
 		       __func__, id);

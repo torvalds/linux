@@ -40,8 +40,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dean Hildebrand <dhildebz@umich.edu>");
 MODULE_DESCRIPTION("The NFSv4 file layout driver");
 
-int
-filelayout_initialize_mountpoint(struct nfs_server *nfss)
+static int
+filelayout_set_layoutdriver(struct nfs_server *nfss)
 {
 	int status = pnfs_alloc_init_deviceid_cache(nfss->nfs_client,
 						nfs4_fl_free_deviceid_callback);
@@ -55,9 +55,9 @@ filelayout_initialize_mountpoint(struct nfs_server *nfss)
 	return 0;
 }
 
-/* Uninitialize a mountpoint by destroying its device list */
-int
-filelayout_uninitialize_mountpoint(struct nfs_server *nfss)
+/* Clear out the layout by destroying its device list */
+static int
+filelayout_clear_layoutdriver(struct nfs_server *nfss)
 {
 	dprintk("--> %s\n", __func__);
 
@@ -256,8 +256,8 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.id = LAYOUT_NFSV4_1_FILES,
 	.name = "LAYOUT_NFSV4_1_FILES",
 	.owner = THIS_MODULE,
-	.initialize_mountpoint   = filelayout_initialize_mountpoint,
-	.uninitialize_mountpoint = filelayout_uninitialize_mountpoint,
+	.set_layoutdriver = filelayout_set_layoutdriver,
+	.clear_layoutdriver = filelayout_clear_layoutdriver,
 	.alloc_lseg              = filelayout_alloc_lseg,
 	.free_lseg               = filelayout_free_lseg,
 };

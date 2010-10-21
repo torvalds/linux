@@ -53,8 +53,8 @@ struct pnfs_layoutdriver_type {
 	const u32 id;
 	const char *name;
 	struct module *owner;
-	int (*initialize_mountpoint) (struct nfs_server *);
-	int (*uninitialize_mountpoint) (struct nfs_server *);
+	int (*set_layoutdriver) (struct nfs_server *);
+	int (*clear_layoutdriver) (struct nfs_server *);
 	struct pnfs_layout_segment * (*alloc_lseg) (struct pnfs_layout_hdr *layoutid, struct nfs4_layoutget_res *lgr);
 	void (*free_lseg) (struct pnfs_layout_segment *lseg);
 };
