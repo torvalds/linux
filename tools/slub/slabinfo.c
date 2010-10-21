@@ -607,7 +607,7 @@ static int debug_opt_scan(char *opt)
 	}
 
 	for ( ; *opt; opt++)
-	 	switch (*opt) {
+		switch (*opt) {
 		case 'F' : case 'f':
 			if (sanity)
 				return 0;
@@ -1127,7 +1127,7 @@ static void read_slab_dir(void)
 				continue;
 		switch (de->d_type) {
 		   case DT_LNK:
-		   	alias->name = strdup(de->d_name);
+			alias->name = strdup(de->d_name);
 			count = readlink(de->d_name, buffer, sizeof(buffer));
 
 			if (count < 0)
@@ -1143,7 +1143,7 @@ static void read_slab_dir(void)
 		   case DT_DIR:
 			if (chdir(de->d_name))
 				fatal("Unable to access slab %s\n", slab->name);
-		   	slab->name = strdup(de->d_name);
+			slab->name = strdup(de->d_name);
 			slab->alias = 0;
 			slab->refs = 0;
 			slab->aliases = get_obj("aliases");
