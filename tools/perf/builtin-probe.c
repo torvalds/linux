@@ -57,6 +57,7 @@ static struct {
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
 	struct line_range line_range;
+	const char *target_module;
 	int max_probe_points;
 } params;
 
@@ -162,8 +163,8 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
 #ifdef DWARF_SUPPORT
-	"perf probe --line 'LINEDESC'",
-	"perf probe [--externs] --vars 'PROBEPOINT'",
+	"perf probe [<options>] --line 'LINEDESC'",
+	"perf probe [<options>] --vars 'PROBEPOINT'",
 #endif
 	NULL
 };
@@ -214,6 +215,8 @@ static const struct option options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
 		   "directory", "path to kernel source"),
+	OPT_STRING('m', "module", &params.target_module,
+		   "modname", "target module name"),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
@@ -278,7 +281,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			usage_with_options(probe_usage, options);
 		}
 
-		ret = show_line_range(&params.line_range);
+		ret = show_line_range(&params.line_range, params.target_module);
 		if (ret < 0)
 			pr_err("  Error: Failed to show lines. (%d)\n", ret);
 		return ret;
@@ -291,6 +294,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		}
 		ret = show_available_vars(params.events, params.nevents,
 					  params.max_probe_points,
+					  params.target_module,
 					  params.show_ext_vars);
 		if (ret < 0)
 			pr_err("  Error: Failed to show vars. (%d)\n", ret);
@@ -310,6 +314,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	if (params.nevents) {
 		ret = add_perf_probe_events(params.events, params.nevents,
 					    params.max_probe_points,
+					    params.target_module,
 					    params.force_add);
 		if (ret < 0) {
 			pr_err("  Error: Failed to add events. (%d)\n", ret);

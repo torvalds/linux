@@ -22,7 +22,7 @@ extern int find_probe_trace_events(int fd, struct perf_probe_event *pev,
 				    int max_tevs);
 
 /* Find a perf_probe_point from debuginfo */
-extern int find_perf_probe_point(int fd, unsigned long addr,
+extern int find_perf_probe_point(unsigned long addr,
 				 struct perf_probe_point *ppt);
 
 /* Find a line range */
@@ -35,6 +35,7 @@ extern int find_available_vars_at(int fd, struct perf_probe_event *pev,
 
 #include <dwarf.h>
 #include <libdw.h>
+#include <libdwfl.h>
 #include <version.h>
 
 struct probe_finder {

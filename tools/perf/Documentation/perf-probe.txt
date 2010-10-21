@@ -16,9 +16,9 @@ or
 or
 'perf probe' --list
 or
-'perf probe' --line='FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]'
+'perf probe' [options] --line='FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]'
 or
-'perf probe' [--externs] --vars='PROBEPOINT'
+'perf probe' [options] --vars='PROBEPOINT'
 
 DESCRIPTION
 -----------
@@ -32,6 +32,11 @@ OPTIONS
 -k::
 --vmlinux=PATH::
 	Specify vmlinux path which has debuginfo (Dwarf binary).
+
+-m::
+--module=MODNAME::
+	Specify module name in which perf-probe searches probe points
+	or lines.
 
 -s::
 --source=PATH::
