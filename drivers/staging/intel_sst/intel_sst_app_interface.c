@@ -27,6 +27,8 @@
  *  Upper layer interfaces (MAD driver, MMF) to SST driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/uio.h>
@@ -59,14 +61,14 @@ static int intel_sst_check_device(void)
 {
 	int retval = 0;
 	if (sst_drv_ctx->pmic_state != SND_MAD_INIT_DONE) {
-		pr_warn("sst: Sound card not availble\n ");
+		pr_warn("Sound card not available\n");
 		return -EIO;
 	}
 	if (sst_drv_ctx->sst_state == SST_SUSPENDED) {
-		pr_debug("sst: Resuming from Suspended state\n");
+		pr_debug("Resuming from Suspended state\n");
 		retval = intel_sst_resume(sst_drv_ctx->pci);
 		if (retval) {
-			pr_debug("sst: Resume Failed= %#x,abort\n", retval);
+			pr_debug("Resume Failed= %#x,abort\n", retval);
 			return retval;
 		}
 	}
@@ -116,7 +118,7 @@ int intel_sst_open(struct inode *i_node, struct file *file_ptr)
 		data->pvt_id = sst_assign_pvt_id(sst_drv_ctx);
 		data->str_id = 0;
 		file_ptr->private_data = (void *)data;
-		pr_debug("sst: pvt_id handle = %d!\n", data->pvt_id);
+		pr_debug("pvt_id handle = %d!\n", data->pvt_id);
 	} else {
 		retval = -EUSERS;
 		mutex_unlock(&sst_drv_ctx->stream_lock);
@@ -145,7 +147,7 @@ int intel_sst_open_cntrl(struct inode *i_node, struct file *file_ptr)
 	mutex_lock(&sst_drv_ctx->stream_lock);
 	if (sst_drv_ctx->am_cnt < MAX_AM_HANDLES) {
 		sst_drv_ctx->am_cnt++;
-		pr_debug("sst: AM handle opened...\n");
+		pr_debug("AM handle opened...\n");
 		file_ptr->private_data = NULL;
 	} else
 		retval = -EACCES;
@@ -167,7 +169,7 @@ int intel_sst_release(struct inode *i_node, struct file *file_ptr)
 {
 	struct ioctl_pvt_data *data = file_ptr->private_data;
 
-	pr_debug("sst: Release called, closing app handle\n");
+	pr_debug("Release called, closing app handle\n");
 	mutex_lock(&sst_drv_ctx->stream_lock);
 	sst_drv_ctx->encoded_cnt--;
 	sst_drv_ctx->stream_cnt--;
@@ -183,7 +185,7 @@ int intel_sst_release_cntrl(struct inode *i_node, struct file *file_ptr)
 	mutex_lock(&sst_drv_ctx->stream_lock);
 	sst_drv_ctx->am_cnt--;
 	mutex_unlock(&sst_drv_ctx->stream_lock);
-	pr_debug("sst: AM handle closed\n");
+	pr_debug("AM handle closed\n");
 	return 0;
 }
 
@@ -209,7 +211,7 @@ int intel_sst_mmap(struct file *file_ptr, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	length = vma->vm_end - vma->vm_start;
-	pr_debug("sst: called for stream %d length 0x%x\n", str_id, length);
+	pr_debug("called for stream %d length 0x%x\n", str_id, length);
 
 	if (length > sst_drv_ctx->mmap_len)
 		return -ENOMEM;
@@ -232,7 +234,7 @@ int intel_sst_mmap(struct file *file_ptr, struct vm_area_struct *vma)
 	else
 		sst_drv_ctx->streams[str_id].mmapped = true;
 
-	pr_debug("sst: mmap ret 0x%x\n", retval);
+	pr_debug("mmap ret 0x%x\n", retval);
 	return retval;
 }
 
@@ -245,7 +247,7 @@ static int intel_sst_mmap_play_capture(u32 str_id,
 	struct stream_info *stream;
 	struct snd_sst_mmap_buff_entry *buf_entry;
 
-	pr_debug("sst:called for str_id %d\n", str_id);
+	pr_debug("called for str_id %d\n", str_id);
 	retval = sst_validate_strid(str_id);
 	if (retval)
 		return -EINVAL;
@@ -262,7 +264,7 @@ static int intel_sst_mmap_play_capture(u32 str_id,
 	stream->curr_bytes = 0;
 	stream->cumm_bytes = 0;
 
-	pr_debug("sst:new buffers count %d status %d\n",
+	pr_debug("new buffers count %d status %d\n",
 			mmap_buf->entries, stream->status);
 	buf_entry = mmap_buf->buff;
 	for (i = 0; i < mmap_buf->entries; i++) {
@@ -291,13 +293,13 @@ static int intel_sst_mmap_play_capture(u32 str_id,
 		stream->status = STREAM_RUNNING;
 		if (stream->ops == STREAM_OPS_PLAYBACK) {
 			if (sst_play_frame(str_id) < 0) {
-				pr_warn("sst: play frames fail\n");
+				pr_warn("play frames fail\n");
 				mutex_unlock(&stream->lock);
 				return -EIO;
 			}
 		} else if (stream->ops == STREAM_OPS_CAPTURE) {
 			if (sst_capture_frame(str_id) < 0) {
-				pr_warn("sst: capture frame fail\n");
+				pr_warn("capture frame fail\n");
 				mutex_unlock(&stream->lock);
 				return -EIO;
 			}
@@ -313,7 +315,7 @@ static int intel_sst_mmap_play_capture(u32 str_id,
 
 	if (retval >= 0)
 		retval = stream->cumm_bytes;
-	pr_debug("sst:end of play/rec ioctl bytes = %d!!\n", retval);
+	pr_debug("end of play/rec ioctl bytes = %d!!\n", retval);
 	return retval;
 }
 
@@ -335,7 +337,7 @@ static int intel_sst_play_capture(struct stream_info *stream, int str_id)
 
 	if (stream->status == STREAM_INIT && stream->prev == STREAM_UN_INIT) {
 		/* stream is not started yet */
-		pr_debug("sst: Stream isn't in started state %d, prev %d\n",
+		pr_debug("Stream isn't in started state %d, prev %d\n",
 			stream->status, stream->prev);
 	} else if ((stream->status == STREAM_RUNNING ||
 			stream->status == STREAM_PAUSED) &&
@@ -344,13 +346,13 @@ static int intel_sst_play_capture(struct stream_info *stream, int str_id)
 		if (stream->ops == STREAM_OPS_PLAYBACK ||
 				stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 			if (sst_play_frame(str_id) < 0) {
-				pr_warn("sst: play frames failed\n");
+				pr_warn("play frames failed\n");
 				mutex_unlock(&stream->lock);
 				return -EIO;
 			}
 		} else if (stream->ops == STREAM_OPS_CAPTURE) {
 			if (sst_capture_frame(str_id) < 0) {
-				pr_warn("sst: capture frames failed\n ");
+				pr_warn("capture frames failed\n");
 				mutex_unlock(&stream->lock);
 				return -EIO;
 			}
@@ -365,7 +367,7 @@ static int intel_sst_play_capture(struct stream_info *stream, int str_id)
 	retval = sst_wait_interruptible(sst_drv_ctx, &stream->data_blk);
 	if (retval) {
 		stream->status = STREAM_INIT;
-		pr_debug("sst: wait returned error...\n");
+		pr_debug("wait returned error...\n");
 	}
 	return retval;
 }
@@ -463,7 +465,7 @@ static int snd_sst_fill_kernel_list(struct stream_info *stream,
 		if (((unsigned long)iovec[index].iov_base
 				+ iovec[index].iov_len) <
 				((unsigned long)iovec[index].iov_base)) {
-			pr_debug("sst: Buffer overflows");
+			pr_debug("Buffer overflows\n");
 			kfree(stream_bufs);
 			return -EINVAL;
 		}
@@ -476,7 +478,7 @@ static int snd_sst_fill_kernel_list(struct stream_info *stream,
 		}
 
 		copied_size += size;
-		pr_debug("sst: copied_size - %lx\n", copied_size);
+		pr_debug("copied_size - %lx\n", copied_size);
 		if ((copied_size >= mmap_len) ||
 				(stream->sg_index == nr_segs)) {
 			add_to_list = 1;
@@ -506,7 +508,7 @@ static int snd_sst_copy_userbuf_capture(struct stream_info *stream,
 	int retval = 0;
 
 	/* copy sent buffers */
-	pr_debug("sst: capture stream copying to user now...\n");
+	pr_debug("capture stream copying to user now...\n");
 	list_for_each_entry_safe(kbufs, _kbufs, &stream->bufs, node) {
 		if (kbufs->in_use == true) {
 			/* copy to user */
@@ -526,7 +528,7 @@ static int snd_sst_copy_userbuf_capture(struct stream_info *stream,
 			}
 		}
 	}
-	pr_debug("sst: end of cap copy\n");
+	pr_debug("end of cap copy\n");
 	return retval;
 }
 
@@ -578,7 +580,7 @@ static int intel_sst_read_write(unsigned int str_id, char __user *buf,
 		return -EINVAL;
 	stream = &sst_drv_ctx->streams[str_id];
 	if (stream->mmapped == true) {
-		pr_warn("sst: user write and stream is mapped");
+		pr_warn("user write and stream is mapped\n");
 		return -EIO;
 	}
 	if (!count)
@@ -586,7 +588,7 @@ static int intel_sst_read_write(unsigned int str_id, char __user *buf,
 	stream->curr_bytes = 0;
 	stream->cumm_bytes = 0;
 	/* copy user buf details */
-	pr_debug("sst: new buffers %p, copy size %d, status %d\n" ,
+	pr_debug("new buffers %p, copy size %d, status %d\n" ,
 			buf, (int) count, (int) stream->status);
 
 	stream->buf_type = SST_BUF_USER_STATIC;
@@ -606,7 +608,7 @@ static int intel_sst_read_write(unsigned int str_id, char __user *buf,
 	stream->cur_ptr = NULL;
 	if (retval >= 0)
 		retval = stream->cumm_bytes;
-	pr_debug("sst: end of play/rec bytes = %d!!\n", retval);
+	pr_debug("end of play/rec bytes = %d!!\n", retval);
 	return retval;
 }
 
@@ -627,7 +629,7 @@ int intel_sst_write(struct file *file_ptr, const char __user *buf,
 	int str_id = data->str_id;
 	struct stream_info *stream = &sst_drv_ctx->streams[str_id];
 
-	pr_debug("sst: called for %d\n", str_id);
+	pr_debug("called for %d\n", str_id);
 	if (stream->status == STREAM_UN_INIT ||
 		stream->status == STREAM_DECODE) {
 		return -EBADRQC;
@@ -653,12 +655,12 @@ ssize_t intel_sst_aio_write(struct kiocb *kiocb, const struct iovec *iov,
 	int str_id = data->str_id;
 	struct stream_info *stream;
 
-	pr_debug("sst: entry - %ld\n", nr_segs);
+	pr_debug("entry - %ld\n", nr_segs);
 
 	if (is_sync_kiocb(kiocb) == false)
 		return -EINVAL;
 
-	pr_debug("sst: called for str_id %d\n", str_id);
+	pr_debug("called for str_id %d\n", str_id);
 	retval = sst_validate_strid(str_id);
 	if (retval)
 		return -EINVAL;
@@ -671,7 +673,7 @@ ssize_t intel_sst_aio_write(struct kiocb *kiocb, const struct iovec *iov,
 	}
 	stream->curr_bytes = 0;
 	stream->cumm_bytes = 0;
-	pr_debug("sst: new segs %ld, offset %d, status %d\n" ,
+	pr_debug("new segs %ld, offset %d, status %d\n" ,
 			nr_segs, (int) offset, (int) stream->status);
 	stream->buf_type = SST_BUF_USER_STATIC;
 	do {
@@ -686,7 +688,7 @@ ssize_t intel_sst_aio_write(struct kiocb *kiocb, const struct iovec *iov,
 	stream->cur_ptr = NULL;
 	if (retval >= 0)
 		retval = stream->cumm_bytes;
-	pr_debug("sst: end of play/rec bytes = %d!!\n", retval);
+	pr_debug("end of play/rec bytes = %d!!\n", retval);
 	return retval;
 }
 
@@ -707,7 +709,7 @@ int intel_sst_read(struct file *file_ptr, char __user *buf,
 	int str_id = data->str_id;
 	struct stream_info *stream = &sst_drv_ctx->streams[str_id];
 
-	pr_debug("sst: called for %d\n", str_id);
+	pr_debug("called for %d\n", str_id);
 	if (stream->status == STREAM_UN_INIT ||
 			stream->status == STREAM_DECODE)
 		return -EBADRQC;
@@ -732,14 +734,14 @@ ssize_t intel_sst_aio_read(struct kiocb *kiocb, const struct iovec *iov,
 	int str_id = data->str_id;
 	struct stream_info *stream;
 
-	pr_debug("sst: entry - %ld\n", nr_segs);
+	pr_debug("entry - %ld\n", nr_segs);
 
 	if (is_sync_kiocb(kiocb) == false) {
-		pr_debug("sst: aio_read from user space is not allowed\n");
+		pr_debug("aio_read from user space is not allowed\n");
 		return -EINVAL;
 	}
 
-	pr_debug("sst: called for str_id %d\n", str_id);
+	pr_debug("called for str_id %d\n", str_id);
 	retval = sst_validate_strid(str_id);
 	if (retval)
 		return -EINVAL;
@@ -752,7 +754,7 @@ ssize_t intel_sst_aio_read(struct kiocb *kiocb, const struct iovec *iov,
 	stream->curr_bytes = 0;
 	stream->cumm_bytes = 0;
 
-	pr_debug("sst: new segs %ld, offset %d, status %d\n" ,
+	pr_debug("new segs %ld, offset %d, status %d\n" ,
 			nr_segs, (int) offset, (int) stream->status);
 	stream->buf_type = SST_BUF_USER_STATIC;
 	do {
@@ -767,34 +769,34 @@ ssize_t intel_sst_aio_read(struct kiocb *kiocb, const struct iovec *iov,
 	stream->cur_ptr = NULL;
 	if (retval >= 0)
 		retval = stream->cumm_bytes;
-	pr_debug("sst: end of play/rec bytes = %d!!\n", retval);
+	pr_debug("end of play/rec bytes = %d!!\n", retval);
 	return retval;
 }
 
 /* sst_print_stream_params - prints the stream parameters (debug fn)*/
 static void sst_print_stream_params(struct snd_sst_get_stream_params *get_prm)
 {
-	pr_debug("sst: codec params:result =%d\n",
+	pr_debug("codec params:result = %d\n",
 				get_prm->codec_params.result);
-	pr_debug("sst: codec params:stream = %d\n",
+	pr_debug("codec params:stream = %d\n",
 				get_prm->codec_params.stream_id);
-	pr_debug("sst: codec params:codec = %d\n",
+	pr_debug("codec params:codec = %d\n",
 				get_prm->codec_params.codec);
-	pr_debug("sst: codec params:ops = %d\n",
+	pr_debug("codec params:ops = %d\n",
 				get_prm->codec_params.ops);
-	pr_debug("sst: codec params:stream_type= %d\n",
+	pr_debug("codec params:stream_type = %d\n",
 				get_prm->codec_params.stream_type);
-	pr_debug("sst: pcmparams:sfreq= %d\n",
+	pr_debug("pcmparams:sfreq = %d\n",
 				get_prm->pcm_params.sfreq);
-	pr_debug("sst: pcmparams:num_chan= %d\n",
+	pr_debug("pcmparams:num_chan = %d\n",
 				get_prm->pcm_params.num_chan);
-	pr_debug("sst: pcmparams:pcm_wd_sz= %d\n",
+	pr_debug("pcmparams:pcm_wd_sz = %d\n",
 				get_prm->pcm_params.pcm_wd_sz);
 	return;
 }
 
 /**
- * intel_sst_ioctl - recieves the device ioctl's
+ * intel_sst_ioctl - receives the device ioctl's
  * @file_ptr:pointer to file
  * @cmd:Ioctl cmd
  * @arg:data
@@ -820,7 +822,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_SST_STREAM_PAUSE):
-		pr_debug("sst: IOCTL_PAUSE recieved for %d!\n", str_id);
+		pr_debug("IOCTL_PAUSE received for %d!\n", str_id);
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -829,7 +831,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		break;
 
 	case _IOC_NR(SNDRV_SST_STREAM_RESUME):
-		pr_debug("sst: SNDRV_SST_IOCTL_RESUME recieved!\n");
+		pr_debug("SNDRV_SST_IOCTL_RESUME received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -840,7 +842,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_STREAM_SET_PARAMS): {
 		struct snd_sst_params *str_param = (struct snd_sst_params *)arg;
 
-		pr_debug("sst: IOCTL_SET_PARAMS recieved!\n");
+		pr_debug("IOCTL_SET_PARAMS received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -864,7 +866,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 					retval = -EINVAL;
 			}
 		} else {
-			pr_debug("sst: SET_STREAM_PARAMS recieved!\n");
+			pr_debug("SET_STREAM_PARAMS received!\n");
 			/* allocated set params only */
 			retval = sst_set_stream_param(str_id, str_param);
 			/* Block the call for reply */
@@ -887,21 +889,21 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_SET_VOL): {
 		struct snd_sst_vol *set_vol;
 		struct snd_sst_vol *rec_vol = (struct snd_sst_vol *)arg;
-		pr_debug("sst: SET_VOLUME recieved for %d!\n",
+		pr_debug("SET_VOLUME received for %d!\n",
 				rec_vol->stream_id);
 		if (minor == STREAM_MODULE && rec_vol->stream_id == 0) {
-			pr_debug("sst: invalid operation!\n");
+			pr_debug("invalid operation!\n");
 			retval = -EPERM;
 			break;
 		}
 		set_vol = kzalloc(sizeof(*set_vol), GFP_ATOMIC);
 		if (!set_vol) {
-			pr_debug("sst: mem allocation failed\n");
+			pr_debug("mem allocation failed\n");
 			retval = -ENOMEM;
 			break;
 		}
 		if (copy_from_user(set_vol, rec_vol, sizeof(*set_vol))) {
-			pr_debug("sst: copy failed\n");
+			pr_debug("copy failed\n");
 			retval = -EFAULT;
 			break;
 		}
@@ -912,10 +914,10 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_GET_VOL): {
 		struct snd_sst_vol *rec_vol = (struct snd_sst_vol *)arg;
 		struct snd_sst_vol get_vol;
-		pr_debug("sst: IOCTL_GET_VOLUME recieved for stream = %d!\n",
+		pr_debug("IOCTL_GET_VOLUME received for stream = %d!\n",
 				rec_vol->stream_id);
 		if (minor == STREAM_MODULE && rec_vol->stream_id == 0) {
-			pr_debug("sst: invalid operation!\n");
+			pr_debug("invalid operation!\n");
 			retval = -EPERM;
 			break;
 		}
@@ -925,7 +927,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 			retval = -EIO;
 			break;
 		}
-		pr_debug("sst: id:%d\n, vol:%d, ramp_dur:%d, ramp_type:%d\n",
+		pr_debug("id:%d\n, vol:%d, ramp_dur:%d, ramp_type:%d\n",
 				get_vol.stream_id, get_vol.volume,
 				get_vol.ramp_duration, get_vol.ramp_type);
 		if (copy_to_user((struct snd_sst_vol *)arg,
@@ -940,7 +942,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_MUTE): {
 		struct snd_sst_mute *set_mute;
 		struct snd_sst_vol *rec_mute = (struct snd_sst_vol *)arg;
-		pr_debug("sst: SNDRV_SST_SET_VOLUME recieved for %d!\n",
+		pr_debug("SNDRV_SST_SET_VOLUME received for %d!\n",
 			rec_mute->stream_id);
 		if (minor == STREAM_MODULE && rec_mute->stream_id == 0) {
 			retval = -EPERM;
@@ -962,7 +964,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_STREAM_GET_PARAMS): {
 		struct snd_sst_get_stream_params get_params;
 
-		pr_debug("sst: IOCTL_GET_PARAMS recieved!\n");
+		pr_debug("IOCTL_GET_PARAMS received!\n");
 		if (minor != 0) {
 			retval = -EBADRQC;
 			break;
@@ -984,7 +986,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 
 	case _IOC_NR(SNDRV_SST_MMAP_PLAY):
 	case _IOC_NR(SNDRV_SST_MMAP_CAPTURE):
-		pr_debug("sst: SNDRV_SST_MMAP_PLAY/CAPTURE recieved!\n");
+		pr_debug("SNDRV_SST_MMAP_PLAY/CAPTURE received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -994,7 +996,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		break;
 
 	case _IOC_NR(SNDRV_SST_STREAM_DROP):
-		pr_debug("sst: SNDRV_SST_IOCTL_DROP recieved!\n");
+		pr_debug("SNDRV_SST_IOCTL_DROP received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EINVAL;
 			break;
@@ -1007,7 +1009,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		struct snd_sst_tstamp tstamp = {0};
 		unsigned long long time, freq, mod;
 
-		pr_debug("sst: SNDRV_SST_STREAM_GET_TSTAMP recieved!\n");
+		pr_debug("SNDRV_SST_STREAM_GET_TSTAMP received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -1028,7 +1030,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_STREAM_START):{
 		struct stream_info *stream;
 
-		pr_debug("sst: SNDRV_SST_STREAM_START recieved!\n");
+		pr_debug("SNDRV_SST_STREAM_START received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EINVAL;
 			break;
@@ -1067,7 +1069,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_SET_TARGET_DEVICE): {
 		struct snd_sst_target_device *target_device;
 
-		pr_debug("sst: SET_TARGET_DEVICE recieved!\n");
+		pr_debug("SET_TARGET_DEVICE received!\n");
 		target_device =	(struct snd_sst_target_device *)arg;
 		BUG_ON(!target_device);
 		if (minor != AM_MODULE) {
@@ -1082,7 +1084,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		struct snd_sst_driver_info *info =
 			(struct snd_sst_driver_info *)arg;
 
-		pr_debug("sst: SNDRV_SST_DRIVER_INFO recived\n");
+		pr_debug("SNDRV_SST_DRIVER_INFO received\n");
 		info->version = SST_VERSION_NUM;
 		/* hard coding, shud get sumhow later */
 		info->active_pcm_streams = sst_drv_ctx->stream_cnt -
@@ -1102,7 +1104,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		struct snd_sst_buff_entry ibuf_temp[param->ibufs->entries],
 				obuf_temp[param->obufs->entries];
 
-		pr_debug("sst: SNDRV_SST_STREAM_DECODE recived\n");
+		pr_debug("SNDRV_SST_STREAM_DECODE received\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -1155,7 +1157,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	}
 
 	case _IOC_NR(SNDRV_SST_STREAM_DRAIN):
-		pr_debug("sst: SNDRV_SST_STREAM_DRAIN recived\n");
+		pr_debug("SNDRV_SST_STREAM_DRAIN received\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EINVAL;
 			break;
@@ -1167,7 +1169,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 		unsigned long long *bytes = (unsigned long long *)arg;
 		struct snd_sst_tstamp tstamp = {0};
 
-		pr_debug("sst: STREAM_BYTES_DECODED recieved!\n");
+		pr_debug("STREAM_BYTES_DECODED received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EINVAL;
 			break;
@@ -1184,7 +1186,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_FW_INFO): {
 		struct snd_sst_fw_info *fw_info;
 
-		pr_debug("sst: SNDRV_SST_FW_INFO recived\n");
+		pr_debug("SNDRV_SST_FW_INFO received\n");
 
 		fw_info = kzalloc(sizeof(*fw_info), GFP_ATOMIC);
 		if (!fw_info) {
@@ -1210,7 +1212,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	default:
 		retval = -EINVAL;
 	}
-	pr_debug("sst: intel_sst_ioctl:complete ret code = %d\n", retval);
+	pr_debug("intel_sst_ioctl:complete ret code = %d\n", retval);
 	return retval;
 }
 

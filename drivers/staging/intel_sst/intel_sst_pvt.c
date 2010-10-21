@@ -29,6 +29,8 @@
  *  This file contains all private functions
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/firmware.h>
@@ -60,7 +62,7 @@ int sst_get_block_stream(struct intel_sst_drv *sst_drv_ctx)
 		}
 	}
 	if (i == MAX_ACTIVE_STREAM) {
-		pr_err("sst: max alloc_stream reached");
+		pr_err("max alloc_stream reached\n");
 		i = -EBUSY; /* active stream limit reached */
 	}
 	return i;
@@ -84,14 +86,14 @@ int sst_wait_interruptible(struct intel_sst_drv *sst_drv_ctx,
 				block->condition)) {
 		/* event wake */
 		if (block->ret_code < 0) {
-			pr_err("sst: stream failed %d\n", block->ret_code);
+			pr_err("stream failed %d\n", block->ret_code);
 			retval = -EBUSY;
 		} else {
-			pr_debug("sst: event up\n");
+			pr_debug("event up\n");
 			retval = 0;
 		}
 	} else {
-		pr_err("sst: signal interrupted\n");
+		pr_err("signal interrupted\n");
 		retval = -EINTR;
 	}
 	return retval;
@@ -115,18 +117,18 @@ int sst_wait_interruptible_timeout(
 {
 	int retval = 0;
 
-	pr_debug("sst: sst_wait_interruptible_timeout - waiting....\n");
+	pr_debug("sst_wait_interruptible_timeout - waiting....\n");
 	if (wait_event_interruptible_timeout(sst_drv_ctx->wait_queue,
 						block->condition,
 						msecs_to_jiffies(timeout))) {
 		if (block->ret_code < 0)
-			pr_err("sst: stream failed %d\n", block->ret_code);
+			pr_err("stream failed %d\n", block->ret_code);
 		else
-			pr_debug("sst: event up\n");
+			pr_debug("event up\n");
 		retval = block->ret_code;
 	} else {
 		block->on = false;
-		pr_err("sst: timeout occured...\n");
+		pr_err("timeout occurred...\n");
 		/*setting firmware state as uninit so that the
 		firmware will get re-downloaded on next request
 		this is because firmare not responding for 5 sec
@@ -156,18 +158,18 @@ int sst_wait_timeout(struct intel_sst_drv *sst_drv_ctx,
 	/* NOTE:
 	Observed that FW processes the alloc msg and replies even
 	before the alloc thread has finished execution */
-	pr_debug("sst: waiting for %x, condition %x\n",
+	pr_debug("waiting for %x, condition %x\n",
 		       block->sst_id, block->ops_block.condition);
 	if (wait_event_interruptible_timeout(sst_drv_ctx->wait_queue,
 				block->ops_block.condition,
 				msecs_to_jiffies(SST_BLOCK_TIMEOUT))) {
 		/* event wake */
-		pr_debug("sst: Event wake %x\n", block->ops_block.condition);
-		pr_debug("sst: message ret: %d\n", block->ops_block.ret_code);
+		pr_debug("Event wake %x\n", block->ops_block.condition);
+		pr_debug("message ret: %d\n", block->ops_block.ret_code);
 		retval = block->ops_block.ret_code;
 	} else {
 		block->ops_block.on = false;
-		pr_err("sst: Wait timed-out %x\n", block->ops_block.condition);
+		pr_err("Wait timed-out %x\n", block->ops_block.condition);
 		/* settign firmware state as uninit so that the
 		firmware will get redownloaded on next request
 		this is because firmare not responding for 5 sec
@@ -192,14 +194,14 @@ int sst_create_large_msg(struct ipc_post **arg)
 
 	msg = kzalloc(sizeof(struct ipc_post), GFP_ATOMIC);
 	if (!msg) {
-		pr_err("sst: kzalloc msg failed\n");
+		pr_err("kzalloc msg failed\n");
 		return -ENOMEM;
 	}
 
 	msg->mailbox_data = kzalloc(SST_MAILBOX_SIZE, GFP_ATOMIC);
 	if (!msg->mailbox_data) {
 		kfree(msg);
-		pr_err("sst: kzalloc mailbox_data failed");
+		pr_err("kzalloc mailbox_data failed");
 		return -ENOMEM;
 	};
 	*arg = msg;
@@ -219,7 +221,7 @@ int sst_create_short_msg(struct ipc_post **arg)
 
 	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg) {
-		pr_err("sst: kzalloc msg failed\n");
+		pr_err("kzalloc msg failed\n");
 		return -ENOMEM;
 	}
 	msg->mailbox_data = NULL;
@@ -290,10 +292,10 @@ int sst_enable_rx_timeslot(int status)
 	struct ipc_post *msg = NULL;
 
 	if (sst_create_short_msg(&msg)) {
-		pr_err("sst: mem allocation failed\n");
+		pr_err("mem allocation failed\n");
 			return -ENOMEM;
 	}
-	pr_debug("sst: ipc message sending: ENABLE_RX_TIME_SLOT\n");
+	pr_debug("ipc message sending: ENABLE_RX_TIME_SLOT\n");
 	sst_fill_header(&msg->header, IPC_IA_ENABLE_RX_TIME_SLOT, 0, 0);
 	msg->header.part.data = status;
 	sst_drv_ctx->hs_info_blk.condition = false;

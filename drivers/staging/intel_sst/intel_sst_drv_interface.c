@@ -26,6 +26,8 @@
  *  Upper layer interfaces (MAD driver, MMF) to SST driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/fs.h>
@@ -52,10 +54,10 @@ int sst_download_fw(void)
 		name = SST_FW_FILENAME_MRST;
 	else
 		name = SST_FW_FILENAME_MFLD;
-	pr_debug("sst: Downloading %s FW now...\n", name);
+	pr_debug("Downloading %s FW now...\n", name);
 	retval = request_firmware(&fw_sst, name, &sst_drv_ctx->pci->dev);
 	if (retval) {
-		pr_err("sst: request fw failed %d\n", retval);
+		pr_err("request fw failed %d\n", retval);
 		return retval;
 	}
 	sst_drv_ctx->alloc_block[0].sst_id = FW_DWNL_ID;
@@ -66,7 +68,7 @@ int sst_download_fw(void)
 
 	retval = sst_wait_timeout(sst_drv_ctx, &sst_drv_ctx->alloc_block[0]);
 	if (retval)
-		pr_err("sst: fw download failed %d\n" , retval);
+		pr_err("fw download failed %d\n" , retval);
 end_restore:
 	release_firmware(fw_sst);
 	sst_drv_ctx->alloc_block[0].sst_id = BLOCK_UNINIT;
@@ -90,7 +92,7 @@ int sst_stalled(void)
 
 		retry--;
 	}
-	pr_debug("sst: in Stalled State\n");
+	pr_debug("in Stalled State\n");
 	return retval;
 }
 
@@ -138,23 +140,23 @@ int sst_get_stream_allocated(struct snd_sst_params *str_param,
 	retval = sst_alloc_stream((char *) &str_param->sparams, str_param->ops,
 				str_param->codec, str_param->device_type);
 	if (retval < 0) {
-		pr_err("sst: sst_alloc_stream failed %d\n", retval);
+		pr_err("sst_alloc_stream failed %d\n", retval);
 		return retval;
 	}
-	pr_debug("sst: Stream allocated %d\n", retval);
+	pr_debug("Stream allocated %d\n", retval);
 	str_id = retval;
 	str_info = &sst_drv_ctx->streams[str_id];
 	/* Block the call for reply */
 	retval = sst_wait_interruptible_timeout(sst_drv_ctx,
 			&str_info->ctrl_blk, SST_BLOCK_TIMEOUT);
 	if ((retval != 0) || (str_info->ctrl_blk.ret_code != 0)) {
-		pr_debug("sst: FW alloc failed retval %d, ret_code %d\n",
+		pr_debug("FW alloc failed retval %d, ret_code %d\n",
 				retval, str_info->ctrl_blk.ret_code);
 		str_id = -str_info->ctrl_blk.ret_code; /*return error*/
 		*lib_dnld = str_info->ctrl_blk.data;
 		sst_clean_stream(str_info);
 	} else
-		pr_debug("sst: FW Stream allocated sucess\n");
+		pr_debug("FW Stream allocated success\n");
 	return str_id; /*will ret either error (in above if) or correct str id*/
 }
 
@@ -196,14 +198,14 @@ int sst_get_stream(struct snd_sst_params *str_param)
 		/* codec download is required */
 		struct snd_sst_alloc_response *response;
 
-		pr_debug("sst: Codec is required.... trying that\n");
+		pr_debug("Codec is required.... trying that\n");
 		if (lib_dnld == NULL) {
-			pr_err("sst: lib download null!!! abort\n");
+			pr_err("lib download null!!! abort\n");
 			return -EIO;
 		}
 		i = sst_get_block_stream(sst_drv_ctx);
 		response = sst_drv_ctx->alloc_block[i].ops_block.data;
-		pr_debug("sst: alloc block allocated = %d\n", i);
+		pr_debug("alloc block allocated = %d\n", i);
 		if (i < 0) {
 			kfree(lib_dnld);
 			return -ENOMEM;
@@ -213,15 +215,15 @@ int sst_get_stream(struct snd_sst_params *str_param)
 
 		sst_drv_ctx->alloc_block[i].sst_id = BLOCK_UNINIT;
 		if (!retval) {
-			pr_debug("sst: codec was downloaded sucesfully\n");
+			pr_debug("codec was downloaded successfully\n");
 
 			retval = sst_get_stream_allocated(str_param, &lib_dnld);
 			if (retval <= 0)
 				goto err;
 
-			pr_debug("sst: Alloc done stream id %d\n", retval);
+			pr_debug("Alloc done stream id %d\n", retval);
 		} else {
-			pr_debug("sst: codec download failed\n");
+			pr_debug("codec download failed\n");
 			retval = -EIO;
 			goto err;
 		}
@@ -279,10 +281,10 @@ void sst_process_mad_ops(struct work_struct *work)
 		retval = sst_start_stream(mad_ops->stream_id);
 		break;
 	case SST_SND_STREAM_PROCESS:
-		pr_debug("sst: play/capt frames...\n");
+		pr_debug("play/capt frames...\n");
 		break;
 	default:
-		pr_err("sst:  wrong control_ops reported\n");
+		pr_err(" wrong control_ops reported\n");
 	}
 	return;
 }
@@ -301,19 +303,19 @@ int sst_control_set(int control_element, void *value)
 
 	if (sst_drv_ctx->sst_state == SST_SUSPENDED) {
 		/*LPE is suspended, resume it before proceding*/
-		pr_debug("sst: Resuming from Suspended state\n");
+		pr_debug("Resuming from Suspended state\n");
 		retval = intel_sst_resume(sst_drv_ctx->pci);
 		if (retval) {
-			pr_err("sst: Resume Failed = %#x, abort\n", retval);
+			pr_err("Resume Failed = %#x, abort\n", retval);
 			return retval;
 		}
 	}
 	if (sst_drv_ctx->sst_state == SST_UN_INIT) {
 		/* FW is not downloaded */
-		pr_debug("sst: DSP Downloading FW now...\n");
+		pr_debug("DSP Downloading FW now...\n");
 		retval = sst_download_fw();
 		if (retval) {
-			pr_err("sst: FW download fail %x, abort\n", retval);
+			pr_err("FW download fail %x, abort\n", retval);
 			return retval;
 		}
 		if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID &&
@@ -361,7 +363,7 @@ int sst_control_set(int control_element, void *value)
 		struct pcm_stream_info *str_info;
 		struct stream_info *stream;
 
-		pr_debug("sst: stream init called\n");
+		pr_debug("stream init called\n");
 		str_info = (struct pcm_stream_info *)value;
 		str_id = str_info->str_id;
 		retval = sst_validate_strid(str_id);
@@ -369,7 +371,7 @@ int sst_control_set(int control_element, void *value)
 			break;
 
 		stream = &sst_drv_ctx->streams[str_id];
-		pr_debug("sst: setting the period ptrs\n");
+		pr_debug("setting the period ptrs\n");
 		stream->pcm_substream = str_info->mad_substream;
 		stream->period_elapsed = str_info->period_elapsed;
 		stream->sfreq = str_info->sfreq;
@@ -398,14 +400,14 @@ int sst_control_set(int control_element, void *value)
 			+(str_id * sizeof(fw_tstamp))),
 			sizeof(fw_tstamp));
 
-		pr_debug("sst: Pointer Query on strid = %d ops %d\n",
+		pr_debug("Pointer Query on strid = %d ops %d\n",
 						str_id, stream->ops);
 
 		if (stream->ops == STREAM_OPS_PLAYBACK)
 			stream_info->buffer_ptr = fw_tstamp.samples_rendered;
 		else
 			stream_info->buffer_ptr = fw_tstamp.samples_processed;
-		pr_debug("sst: Samples rendered = %llu, buffer ptr %llu\n",
+		pr_debug("Samples rendered = %llu, buffer ptr %llu\n",
 			fw_tstamp.samples_rendered, stream_info->buffer_ptr);
 		break;
 	}
@@ -417,7 +419,7 @@ int sst_control_set(int control_element, void *value)
 	}
 	default:
 		/* Illegal case */
-		pr_warn("sst: illegal req\n");
+		pr_warn("illegal req\n");
 		return -EINVAL;
 	}
 
@@ -439,12 +441,12 @@ struct intel_sst_card_ops sst_pmic_ops = {
 int register_sst_card(struct intel_sst_card_ops *card)
 {
 	if (!sst_drv_ctx) {
-		pr_err("sst: No SST driver register card reject\n");
+		pr_err("No SST driver register card reject\n");
 		return -ENODEV;
 	}
 
 	if (!card || !card->module_name) {
-		pr_err("sst: Null Pointer Passed\n");
+		pr_err("Null Pointer Passed\n");
 		return -EINVAL;
 	}
 	if (sst_drv_ctx->pmic_state == SND_MAD_UN_INIT) {
@@ -460,13 +462,13 @@ int register_sst_card(struct intel_sst_card_ops *card)
 			sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 			return 0;
 		} else {
-			pr_err("sst: strcmp fail %s\n", card->module_name);
+			pr_err("strcmp fail %s\n", card->module_name);
 			return -EINVAL;
 		}
 
 	} else {
 		/* already registered a driver */
-		pr_err("sst: Repeat for registeration..denied\n");
+		pr_err("Repeat for registration..denied\n");
 		return -EBADRQC;
 	}
 	return 0;
@@ -486,7 +488,7 @@ void unregister_sst_card(struct intel_sst_card_ops *card)
 		/* unreg */
 		sst_pmic_ops.module_name = "";
 		sst_drv_ctx->pmic_state = SND_MAD_UN_INIT;
-		pr_debug("sst: Unregistered %s\n", card->module_name);
+		pr_debug("Unregistered %s\n", card->module_name);
 	}
 	return;
 }
