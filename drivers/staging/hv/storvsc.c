@@ -499,13 +499,11 @@ static int StorVscConnectToVsp(struct hv_device *Device)
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
-	ret = Device->Driver->VmbusChannelInterface.Open(Device,
-			storDriver->RingBufferSize,
-			storDriver->RingBufferSize,
-			(void *)&props,
-			sizeof(struct vmstorage_channel_properties),
-			StorVscOnChannelCallback,
-			Device);
+	ret = vmbus_open(Device->channel,
+			 storDriver->RingBufferSize, storDriver->RingBufferSize,
+			 (void *)&props,
+			 sizeof(struct vmstorage_channel_properties),
+			 StorVscOnChannelCallback, Device);
 
 	DPRINT_DBG(STORVSC, "storage props: path id %d, tgt id %d, max xfer %d",
 		   props.PathId, props.TargetId, props.MaxTransferBytes);
