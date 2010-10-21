@@ -1320,16 +1320,18 @@ static int fimc_m2m_open(struct file *file)
 	 * is already opened.
 	 */
 	if (fimc->vid_cap.refcnt > 0) {
-		mutex_unlock(&fimc->lock);
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_unlock;
 	}
 
 	fimc->m2m.refcnt++;
 	set_bit(ST_OUTDMA_RUN, &fimc->state);
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	if (!ctx) {
+		err = -ENOMEM;
+		goto err_unlock;
+	}
 
 	file->private_data = ctx;
 	ctx->fimc_dev = fimc;
@@ -1349,6 +1351,7 @@ static int fimc_m2m_open(struct file *file)
 		kfree(ctx);
 	}
 
+err_unlock:
 	mutex_unlock(&fimc->lock);
 	return err;
 }
