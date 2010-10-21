@@ -49,20 +49,9 @@ static int ivmbus_sendpacket(struct hv_device *device, const void *buffer,
 				      requestid, type, flags);
 }
 
-static int ivmbus_sendpacket_pagebuffer(struct hv_device *device,
-				struct hv_page_buffer pagebuffers[],
-				u32 pagecount, void *buffer,
-				u32 bufferlen, u64 requestid)
-{
-	return vmbus_sendpacket_pagebuffer(device->channel, pagebuffers,
-						pagecount, buffer, bufferlen,
-						requestid);
-}
-
 /* vmbus interface function pointer table */
 const struct vmbus_channel_interface vmbus_ops = {
 	.Open = ivmbus_open,
 	.Close = ivmbus_close,
 	.SendPacket = ivmbus_sendpacket,
-	.SendPacketPageBuffer = ivmbus_sendpacket_pagebuffer,
 };
