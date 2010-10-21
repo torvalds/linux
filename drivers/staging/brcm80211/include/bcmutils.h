@@ -155,13 +155,6 @@
 	extern uint pktsegcnt(osl_t *osh, void *p);
 	extern uint pkttotlen(osl_t *osh, void *p);
 
-/* Get priority from a packet and pass it back in scb (or equiv) */
-	extern uint pktsetprio(void *pkt, bool update_vtag);
-#define	PKTPRIO_VDSCP	0x100	/* DSCP prio found after VLAN tag */
-#define	PKTPRIO_VLAN	0x200	/* VLAN prio found */
-#define	PKTPRIO_UPD	0x400	/* DSCP used to update VLAN prio */
-#define	PKTPRIO_DSCP	0x800	/* DSCP prio found */
-
 /* ethernet address */
 	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);
 

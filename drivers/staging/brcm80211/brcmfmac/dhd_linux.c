@@ -1039,10 +1039,6 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 			atomic_inc(&dhd->pend_8021x_cnt);
 	}
 
-	/* Look into the packet and update the packet priority */
-	if ((PKTPRIO(pktbuf) == 0))
-		pktsetprio(pktbuf, false);
-
 	/* If the protocol uses a data header, apply it */
 	dhd_prot_hdrpush(dhdp, ifidx, pktbuf);
 
