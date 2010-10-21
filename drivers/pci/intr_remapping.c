@@ -46,109 +46,24 @@ static __init int setup_intremap(char *str)
 }
 early_param("intremap", setup_intremap);
 
-struct irq_2_iommu {
-	struct intel_iommu *iommu;
-	u16 irte_index;
-	u16 sub_handle;
-	u8  irte_mask;
-};
-
-#ifdef CONFIG_GENERIC_HARDIRQS
-static struct irq_2_iommu *get_one_free_irq_2_iommu(int node)
-{
-	struct irq_2_iommu *iommu;
-
-	iommu = kzalloc_node(sizeof(*iommu), GFP_ATOMIC, node);
-	printk(KERN_DEBUG "alloc irq_2_iommu on node %d\n", node);
-
-	return iommu;
-}
-
-static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	if (WARN_ON_ONCE(!desc))
-		return NULL;
-
-	return desc->irq_2_iommu;
-}
-
-static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
-{
-	struct irq_desc *desc;
-	struct irq_2_iommu *irq_iommu;
-
-	desc = irq_to_desc(irq);
-	if (!desc) {
-		printk(KERN_INFO "can not get irq_desc for %d\n", irq);
-		return NULL;
-	}
-
-	irq_iommu = desc->irq_2_iommu;
-
-	if (!irq_iommu)
-		desc->irq_2_iommu = get_one_free_irq_2_iommu(irq_node(irq));
-
-	return desc->irq_2_iommu;
-}
-
-#else /* !CONFIG_SPARSE_IRQ */
-
-static struct irq_2_iommu irq_2_iommuX[NR_IRQS];
-
-static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
-{
-	if (irq < nr_irqs)
-		return &irq_2_iommuX[irq];
-
-	return NULL;
-}
-static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
-{
-	return irq_2_iommu(irq);
-}
-#endif
-
 static DEFINE_SPINLOCK(irq_2_ir_lock);
 
-static struct irq_2_iommu *valid_irq_2_iommu(unsigned int irq)
+static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	struct irq_2_iommu *irq_iommu;
-
-	irq_iommu = irq_2_iommu(irq);
-
-	if (!irq_iommu)
-		return NULL;
-
-	if (!irq_iommu->iommu)
-		return NULL;
-
-	return irq_iommu;
-}
-
-int irq_remapped(int irq)
-{
-	return valid_irq_2_iommu(irq) != NULL;
+	struct irq_cfg *cfg = get_irq_chip_data(irq);
+	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 
 int get_irte(int irq, struct irte *entry)
 {
-	int index;
-	struct irq_2_iommu *irq_iommu;
+	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	unsigned long flags;
+	int index;
 
-	if (!entry)
+	if (!entry || !irq_iommu)
 		return -1;
 
 	spin_lock_irqsave(&irq_2_ir_lock, flags);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		return -1;
-	}
 
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	*entry = *(irq_iommu->iommu->ir_table->base + index);
@@ -160,20 +75,14 @@ int get_irte(int irq, struct irte *entry)
 int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 {
 	struct ir_table *table = iommu->ir_table;
-	struct irq_2_iommu *irq_iommu;
+	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	u16 index, start_index;
 	unsigned int mask = 0;
 	unsigned long flags;
 	int i;
 
-	if (!count)
+	if (!count || !irq_iommu)
 		return -1;
-
-#ifndef CONFIG_SPARSE_IRQ
-	/* protect irq_2_iommu_alloc later */
-	if (irq >= nr_irqs)
-		return -1;
-#endif
 
 	/*
 	 * start the IRTE search from index 0.
@@ -214,13 +123,6 @@ int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	for (i = index; i < index + count; i++)
 		table->base[i].present = 1;
 
-	irq_iommu = irq_2_iommu_alloc(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		printk(KERN_ERR "can't allocate irq_2_iommu\n");
-		return -1;
-	}
-
 	irq_iommu->iommu = iommu;
 	irq_iommu->irte_index =  index;
 	irq_iommu->sub_handle = 0;
@@ -244,17 +146,14 @@ static int qi_flush_iec(struct intel_iommu *iommu, int index, int mask)
 
 int map_irq_to_irte_handle(int irq, u16 *sub_handle)
 {
-	int index;
-	struct irq_2_iommu *irq_iommu;
+	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	unsigned long flags;
+	int index;
+
+	if (!irq_iommu)
+		return -1;
 
 	spin_lock_irqsave(&irq_2_ir_lock, flags);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		return -1;
-	}
-
 	*sub_handle = irq_iommu->sub_handle;
 	index = irq_iommu->irte_index;
 	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
@@ -263,18 +162,13 @@ int map_irq_to_irte_handle(int irq, u16 *sub_handle)
 
 int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index, u16 subhandle)
 {
-	struct irq_2_iommu *irq_iommu;
+	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	unsigned long flags;
 
-	spin_lock_irqsave(&irq_2_ir_lock, flags);
-
-	irq_iommu = irq_2_iommu_alloc(irq);
-
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		printk(KERN_ERR "can't allocate irq_2_iommu\n");
+	if (!irq_iommu)
 		return -1;
-	}
+
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 
 	irq_iommu->iommu = iommu;
 	irq_iommu->irte_index = index;
@@ -286,43 +180,18 @@ int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index, u16 subhandle)
 	return 0;
 }
 
-int clear_irte_irq(int irq, struct intel_iommu *iommu, u16 index)
-{
-	struct irq_2_iommu *irq_iommu;
-	unsigned long flags;
-
-	spin_lock_irqsave(&irq_2_ir_lock, flags);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		return -1;
-	}
-
-	irq_iommu->iommu = NULL;
-	irq_iommu->irte_index = 0;
-	irq_iommu->sub_handle = 0;
-	irq_2_iommu(irq)->irte_mask = 0;
-
-	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-
-	return 0;
-}
-
 int modify_irte(int irq, struct irte *irte_modified)
 {
-	int rc;
-	int index;
-	struct irte *irte;
+	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	struct intel_iommu *iommu;
-	struct irq_2_iommu *irq_iommu;
 	unsigned long flags;
+	struct irte *irte;
+	int rc, index;
+
+	if (!irq_iommu)
+		return -1;
 
 	spin_lock_irqsave(&irq_2_ir_lock, flags);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		return -1;
-	}
 
 	iommu = irq_iommu->iommu;
 
@@ -334,31 +203,6 @@ int modify_irte(int irq, struct irte *irte_modified)
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
-	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-
-	return rc;
-}
-
-int flush_irte(int irq)
-{
-	int rc;
-	int index;
-	struct intel_iommu *iommu;
-	struct irq_2_iommu *irq_iommu;
-	unsigned long flags;
-
-	spin_lock_irqsave(&irq_2_ir_lock, flags);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		return -1;
-	}
-
-	iommu = irq_iommu->iommu;
-
-	index = irq_iommu->irte_index + irq_iommu->sub_handle;
-
-	rc = qi_flush_iec(iommu, index, irq_iommu->irte_mask);
 	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return rc;
@@ -420,16 +264,14 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
 
 int free_irte(int irq)
 {
-	int rc = 0;
-	struct irq_2_iommu *irq_iommu;
+	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	unsigned long flags;
+	int rc;
+
+	if (!irq_iommu)
+		return -1;
 
 	spin_lock_irqsave(&irq_2_ir_lock, flags);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-		return -1;
-	}
 
 	rc = clear_entries(irq_iommu);
 

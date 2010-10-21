@@ -323,9 +323,9 @@ notrace static void __cpuinit start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	if (nmi_watchdog == NMI_IO_APIC) {
-		legacy_pic->chip->mask(0);
+		legacy_pic->mask(0);
 		enable_NMI_through_LVT0();
-		legacy_pic->chip->unmask(0);
+		legacy_pic->unmask(0);
 	}
 
 	/* This must be done before setting cpu_online_mask */

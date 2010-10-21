@@ -131,7 +131,8 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block;
 	struct thresh_restart tr;
-	u8 lvt_off;
+	int lvt_off = -1;
+	u8 offset;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
@@ -162,8 +163,28 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			if (shared_bank[bank] && c->cpu_core_id)
 				break;
 #endif
-			lvt_off = setup_APIC_eilvt_mce(THRESHOLD_APIC_VECTOR,
-						       APIC_EILVT_MSG_FIX, 0);
+			offset = (high & MASK_LVTOFF_HI) >> 20;
+			if (lvt_off < 0) {
+				if (setup_APIC_eilvt(offset,
+						     THRESHOLD_APIC_VECTOR,
+						     APIC_EILVT_MSG_FIX, 0)) {
+					pr_err(FW_BUG "cpu %d, failed to "
+					       "setup threshold interrupt "
+					       "for bank %d, block %d "
+					       "(MSR%08X=0x%x%08x)",
+					       smp_processor_id(), bank, block,
+					       address, high, low);
+					continue;
+				}
+				lvt_off = offset;
+			} else if (lvt_off != offset) {
+				pr_err(FW_BUG "cpu %d, invalid threshold "
+				       "interrupt offset %d for bank %d,"
+				       "block %d (MSR%08X=0x%x%08x)",
+				       smp_processor_id(), lvt_off, bank,
+				       block, address, high, low);
+				continue;
+			}
 
 			high &= ~MASK_LVTOFF_HI;
 			high |= lvt_off << 20;
