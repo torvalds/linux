@@ -68,8 +68,8 @@ MACHINE_START(RK29, "RK29board")
 
 /* UART for LL DEBUG */
 	.phys_io	= RK29_UART1_PHYS, 
-	.io_pg_offst	= ((RK29_ADDR_BASE0) >> 18) & 0xfffc,
-	.boot_params	= RK29_SDRAM_PHYS + 0xf8000,
+	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
+	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.map_io		= machine_rk29_mapio,
 	.init_irq	= machine_rk29_init_irq,
 	.init_machine	= machine_rk29_board_init,
