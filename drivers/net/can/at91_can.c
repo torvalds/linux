@@ -1027,7 +1027,7 @@ static const struct net_device_ops at91_netdev_ops = {
 	.ndo_start_xmit	= at91_start_xmit,
 };
 
-static int __init at91_can_probe(struct platform_device *pdev)
+static int __devinit at91_can_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct at91_priv *priv;
