@@ -912,12 +912,12 @@ static int NetVscOnSend(struct hv_device *Device,
 	sendMessage.Messages.Version1Messages.SendRNDISPacket.SendBufferSectionSize = 0;
 
 	if (Packet->PageBufferCount) {
-		ret = Device->Driver->VmbusChannelInterface.SendPacketPageBuffer(
-					Device, Packet->PageBuffers,
-					Packet->PageBufferCount,
-					&sendMessage,
-					sizeof(struct nvsp_message),
-					(unsigned long)Packet);
+		ret = vmbus_sendpacket_pagebuffer(Device->channel,
+						  Packet->PageBuffers,
+						  Packet->PageBufferCount,
+						  &sendMessage,
+						  sizeof(struct nvsp_message),
+						  (unsigned long)Packet);
 	} else {
 		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 				&sendMessage,
