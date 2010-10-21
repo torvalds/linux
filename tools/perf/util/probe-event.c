@@ -379,7 +379,7 @@ end:
 }
 
 static int show_available_vars_at(int fd, struct perf_probe_event *pev,
-				  int max_vls)
+				  int max_vls, bool externs)
 {
 	char *buf;
 	int ret, i;
@@ -391,7 +391,7 @@ static int show_available_vars_at(int fd, struct perf_probe_event *pev,
 		return -EINVAL;
 	pr_debug("Searching variables at %s\n", buf);
 
-	ret = find_available_vars_at(fd, pev, &vls, max_vls);
+	ret = find_available_vars_at(fd, pev, &vls, max_vls, externs);
 	if (ret > 0) {
 		/* Some variables were found */
 		fprintf(stdout, "Available variables at %s\n", buf);
@@ -421,7 +421,7 @@ static int show_available_vars_at(int fd, struct perf_probe_event *pev,
 
 /* Show available variables on given probe point */
 int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			int max_vls)
+			int max_vls, bool externs)
 {
 	int i, fd, ret = 0;
 
@@ -438,7 +438,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	setup_pager();
 
 	for (i = 0; i < npevs && ret >= 0; i++)
-		ret = show_available_vars_at(fd, &pevs[i], max_vls);
+		ret = show_available_vars_at(fd, &pevs[i], max_vls, externs);
 
 	close(fd);
 	return ret;

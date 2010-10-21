@@ -51,6 +51,7 @@ static struct {
 	bool force_add;
 	bool show_lines;
 	bool show_vars;
+	bool show_ext_vars;
 	bool mod_events;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
@@ -162,7 +163,7 @@ static const char * const probe_usage[] = {
 	"perf probe --list",
 #ifdef DWARF_SUPPORT
 	"perf probe --line 'LINEDESC'",
-	"perf probe --vars 'PROBEPOINT'",
+	"perf probe [--externs] --vars 'PROBEPOINT'",
 #endif
 	NULL
 };
@@ -207,6 +208,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('V', "vars", NULL,
 		     "FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT",
 		     "Show accessible variables on PROBEDEF", opt_show_vars),
+	OPT_BOOLEAN('\0', "externs", &params.show_ext_vars,
+		    "Show external variables too (with --vars only)"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
@@ -287,7 +290,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			usage_with_options(probe_usage, options);
 		}
 		ret = show_available_vars(params.events, params.nevents,
-					  params.max_probe_points);
+					  params.max_probe_points,
+					  params.show_ext_vars);
 		if (ret < 0)
 			pr_err("  Error: Failed to show vars. (%d)\n", ret);
 		return ret;

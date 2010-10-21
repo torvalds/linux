@@ -1312,12 +1312,13 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 						af->pf.fb_ops, NULL);
 		if (ret == 0) {
 			ret = die_get_varname(die_mem, buf, MAX_VAR_LEN);
+			pr_debug2("Add new var: %s\n", buf);
 			if (ret > 0)
 				strlist__add(vl->vars, buf);
 		}
 	}
 
-	if (dwarf_haspc(die_mem, af->pf.addr))
+	if (af->child && dwarf_haspc(die_mem, af->pf.addr))
 		return DIE_FIND_CB_CONTINUE;
 	else
 		return DIE_FIND_CB_SIBLING;
@@ -1329,8 +1330,8 @@ static int add_available_vars(Dwarf_Die *sp_die, struct probe_finder *pf)
 	struct available_var_finder *af =
 			container_of(pf, struct available_var_finder, pf);
 	struct variable_list *vl;
-	Dwarf_Die die_mem;
-	int ret;
+	Dwarf_Die die_mem, *scopes = NULL;
+	int ret, nscopes;
 
 	/* Check number of tevs */
 	if (af->nvls == af->max_vls) {
@@ -1351,8 +1352,22 @@ static int add_available_vars(Dwarf_Die *sp_die, struct probe_finder *pf)
 	vl->vars = strlist__new(true, NULL);
 	if (vl->vars == NULL)
 		return -ENOMEM;
+	af->child = true;
 	die_find_child(sp_die, collect_variables_cb, (void *)af, &die_mem);
 
+	/* Find external variables */
+	if (!af->externs)
+		goto out;
+	/* Don't need to search child DIE for externs. */
+	af->child = false;
+	nscopes = dwarf_getscopes_die(sp_die, &scopes);
+	while (nscopes-- > 1)
+		die_find_child(&scopes[nscopes], collect_variables_cb,
+			       (void *)af, &die_mem);
+	if (scopes)
+		free(scopes);
+
+out:
 	if (strlist__empty(vl->vars)) {
 		strlist__delete(vl->vars);
 		vl->vars = NULL;
@@ -1363,11 +1378,12 @@ static int add_available_vars(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 /* Find available variables at given probe point */
 int find_available_vars_at(int fd, struct perf_probe_event *pev,
-			   struct variable_list **vls, int max_vls)
+			   struct variable_list **vls, int max_vls,
+			   bool externs)
 {
 	struct available_var_finder af = {
 			.pf = {.pev = pev, .callback = add_available_vars},
-			.max_vls = max_vls};
+			.max_vls = max_vls, .externs = externs};
 	int ret;
 
 	/* Allocate result vls array */

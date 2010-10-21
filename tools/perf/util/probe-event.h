@@ -122,7 +122,7 @@ extern int del_perf_probe_events(struct strlist *dellist);
 extern int show_perf_probe_events(void);
 extern int show_line_range(struct line_range *lr);
 extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			       int max_probe_points);
+			       int max_probe_points, bool externs);
 
 
 /* Maximum index number of event-name postfix */

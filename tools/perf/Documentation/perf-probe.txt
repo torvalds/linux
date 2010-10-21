@@ -18,7 +18,7 @@ or
 or
 'perf probe' --line='FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]'
 or
-'perf probe' --vars='PROBEPOINT'
+'perf probe' [--externs] --vars='PROBEPOINT'
 
 DESCRIPTION
 -----------
@@ -63,6 +63,10 @@ OPTIONS
 --vars=::
 	Show available local variables at given probe point. The argument
 	syntax is same as PROBE SYNTAX, but NO ARGs.
+
+--externs::
+	(Only for --vars) Show external defined variables in addition to local
+	variables.
 
 -f::
 --force::

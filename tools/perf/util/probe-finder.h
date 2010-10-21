@@ -30,7 +30,8 @@ extern int find_line_range(int fd, struct line_range *lr);
 
 /* Find available variables */
 extern int find_available_vars_at(int fd, struct perf_probe_event *pev,
-				  struct variable_list **vls, int max_points);
+				  struct variable_list **vls, int max_points,
+				  bool externs);
 
 #include <dwarf.h>
 #include <libdw.h>
@@ -70,6 +71,8 @@ struct available_var_finder {
 	struct variable_list	*vls;		/* Found variable lists */
 	int			nvls;		/* Number of variable lists */
 	int			max_vls;	/* Max no. of variable lists */
+	bool			externs;	/* Find external vars too */
+	bool			child;		/* Search child scopes */
 };
 
 struct line_finder {
