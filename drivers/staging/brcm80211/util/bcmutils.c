@@ -27,8 +27,6 @@
 #include <bcmendian.h>
 #include <bcmdevs.h>
 #include <proto/ethernet.h>
-#include <proto/vlan.h>
-#include <proto/bcmip.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
 
