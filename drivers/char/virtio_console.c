@@ -459,9 +459,12 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
 
 	/*
 	 * Wait till the host acknowledges it pushed out the data we
-	 * sent.  This is done for ports in blocking mode or for data
-	 * from the hvc_console; the tty operations are performed with
-	 * spinlocks held so we can't sleep here.
+	 * sent.  This is done for data from the hvc_console; the tty
+	 * operations are performed with spinlocks held so we can't
+	 * sleep here.  An alternative would be to copy the data to a
+	 * buffer and relax the spinning requirement.  The downside is
+	 * we need to kmalloc a GFP_ATOMIC buffer each time the
+	 * console driver writes something out.
 	 */
 	while (!virtqueue_get_buf(out_vq, &len))
 		cpu_relax();
@@ -626,6 +629,14 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 		goto free_buf;
 	}
 
+	/*
+	 * We now ask send_buf() to not spin for generic ports -- we
+	 * can re-use the same code path that non-blocking file
+	 * descriptors take for blocking file descriptors since the
+	 * wait is already done and we're certain the write will go
+	 * through to the host.
+	 */
+	nonblock = true;
 	ret = send_buf(port, buf, count, nonblock);
 
 	if (nonblock && ret > 0)

@@ -204,6 +204,23 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		},
 	},
 	{
+	/*
+	 * There have a NVIF method in MSI GX723 DSDT need call by Nvidia
+	 * driver (e.g. nouveau) when user press brightness hotkey.
+	 * Currently, nouveau driver didn't do the job and it causes there
+	 * have a infinite while loop in DSDT when user press hotkey.
+	 * We add MSI GX723's dmi information to this table for workaround
+	 * this issue.
+	 * Will remove MSI GX723 from the table after nouveau grows support.
+	 */
+	.callback = dmi_disable_osi_vista,
+	.ident = "MSI GX723",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "GX723"),
+		},
+	},
+	{
 	.callback = dmi_disable_osi_vista,
 	.ident = "Sony VGN-NS10J_S",
 	.matches = {

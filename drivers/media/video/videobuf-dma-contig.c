@@ -393,8 +393,10 @@ void videobuf_dma_contig_free(struct videobuf_queue *q,
 	}
 
 	/* read() method */
-	dma_free_coherent(q->dev, mem->size, mem->vaddr, mem->dma_handle);
-	mem->vaddr = NULL;
+	if (mem->vaddr) {
+		dma_free_coherent(q->dev, mem->size, mem->vaddr, mem->dma_handle);
+		mem->vaddr = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(videobuf_dma_contig_free);
 
