@@ -818,8 +818,11 @@ static void tegra_dc_init(struct tegra_dc *dc)
 		tegra_dc_program_mode(dc, &dc->mode);
 }
 
-static void _tegra_dc_enable(struct tegra_dc *dc)
+static bool _tegra_dc_enable(struct tegra_dc *dc)
 {
+	if (dc->mode.pclk == 0)
+		return false;
+
 	tegra_dc_io_start(dc);
 
 	if (dc->out && dc->out->enable)
@@ -837,16 +840,16 @@ static void _tegra_dc_enable(struct tegra_dc *dc)
 
 	/* force a full blending update */
 	dc->blend.z[0] = -1;
+
+	return true;
 }
 
 void tegra_dc_enable(struct tegra_dc *dc)
 {
 	mutex_lock(&dc->lock);
 
-	if (!dc->enabled) {
-		_tegra_dc_enable(dc);
-		dc->enabled = true;
-	}
+	if (!dc->enabled)
+		dc->enabled = _tegra_dc_enable(dc);
 
 	mutex_unlock(&dc->lock);
 }
