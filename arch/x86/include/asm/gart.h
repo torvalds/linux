@@ -17,6 +17,7 @@ extern int fix_aperture;
 #define GARTEN		(1<<0)
 #define DISGARTCPU	(1<<4)
 #define DISGARTIO	(1<<5)
+#define DISTLBWALKPRB	(1<<6)
 
 /* GART cache control register bits. */
 #define INVGART		(1<<0)
@@ -27,7 +28,6 @@ extern int fix_aperture;
 #define AMD64_GARTAPERTUREBASE	0x94
 #define AMD64_GARTTABLEBASE	0x98
 #define AMD64_GARTCACHECTL	0x9c
-#define AMD64_GARTEN		(1<<0)
 
 #ifdef CONFIG_GART_IOMMU
 extern int gart_iommu_aperture;
@@ -56,6 +56,19 @@ static inline void gart_iommu_hole_init(void)
 #endif
 
 extern int agp_amd64_init(void);
+
+static inline void gart_set_size_and_enable(struct pci_dev *dev, u32 order)
+{
+	u32 ctl;
+
+	/*
+	 * Don't enable translation but enable GART IO and CPU accesses.
+	 * Also, set DISTLBWALKPRB since GART tables memory is UC.
+	 */
+	ctl = DISTLBWALKPRB | order << 1;
+
+	pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
+}
 
 static inline void enable_gart_translation(struct pci_dev *dev, u64 addr)
 {
