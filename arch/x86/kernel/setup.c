@@ -619,79 +619,7 @@ static __init void reserve_ibft_region(void)
 		reserve_early_overlap_ok(addr, addr + size, "ibft");
 }
 
-#ifdef CONFIG_X86_RESERVE_LOW_64K
-static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
-{
-	printk(KERN_NOTICE
-		"%s detected: BIOS may corrupt low RAM, working around it.\n",
-		d->ident);
-
-	e820_update_range(0, 0x10000, E820_RAM, E820_RESERVED);
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
-
-	return 0;
-}
-#endif
-
-/* List of systems that have known low memory corruption BIOS problems */
-static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
-#ifdef CONFIG_X86_RESERVE_LOW_64K
-	{
-		.callback = dmi_low_memory_corruption,
-		.ident = "AMI BIOS",
-		.matches = {
-			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
-		},
-	},
-	{
-		.callback = dmi_low_memory_corruption,
-		.ident = "Phoenix BIOS",
-		.matches = {
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies"),
-		},
-	},
-	{
-		.callback = dmi_low_memory_corruption,
-		.ident = "Phoenix/MSC BIOS",
-		.matches = {
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix/MSC"),
-		},
-	},
-	/*
-	 * AMI BIOS with low memory corruption was found on Intel DG45ID and
-	 * DG45FC boards.
-	 * It has a different DMI_BIOS_VENDOR = "Intel Corp.", for now we will
-	 * match only DMI_BOARD_NAME and see if there is more bad products
-	 * with this vendor.
-	 */
-	{
-		.callback = dmi_low_memory_corruption,
-		.ident = "AMI BIOS",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "DG45ID"),
-		},
-	},
-	{
-		.callback = dmi_low_memory_corruption,
-		.ident = "AMI BIOS",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "DG45FC"),
-		},
-	},
-	/*
-	 * The Dell Inspiron Mini 1012 has DMI_BIOS_VENDOR = "Dell Inc.", so
-	 * match on the product name.
-	 */
-	{
-		.callback = dmi_low_memory_corruption,
-		.ident = "Phoenix BIOS",
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1012"),
-		},
-	},
-#endif
-	{}
-};
+static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
 
 static void __init trim_bios_range(void)
 {
@@ -699,8 +627,14 @@ static void __init trim_bios_range(void)
 	 * A special case is the first 4Kb of memory;
 	 * This is a BIOS owned area, not kernel ram, but generally
 	 * not listed as such in the E820 table.
+	 *
+	 * This typically reserves additional memory (64KiB by default)
+	 * since some BIOSes are known to corrupt low memory.  See the
+	 * Kconfig help text for X86_RESERVE_LOW.
 	 */
-	e820_update_range(0, PAGE_SIZE, E820_RAM, E820_RESERVED);
+	e820_update_range(0, ALIGN(reserve_low, PAGE_SIZE),
+			  E820_RAM, E820_RESERVED);
+
 	/*
 	 * special case: Some BIOSen report the PC BIOS
 	 * area (640->1Mb) as ram even though it is not.
@@ -709,6 +643,28 @@ static void __init trim_bios_range(void)
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }
+
+static int __init parse_reservelow(char *p)
+{
+	unsigned long long size;
+
+	if (!p)
+		return -EINVAL;
+
+	size = memparse(p, &p);
+
+	if (size < 4096)
+		size = 4096;
+
+	if (size > 640*1024)
+		size = 640*1024;
+
+	reserve_low = size;
+
+	return 0;
+}
+
+early_param("reservelow", parse_reservelow);
 
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
@@ -864,8 +820,6 @@ void __init setup_arch(char **cmdline_p)
 		efi_init();
 
 	dmi_scan_machine();
-
-	dmi_check_system(bad_bios_dmi_table);
 
 	/*
 	 * VMware detection requires dmi to be available, so this
