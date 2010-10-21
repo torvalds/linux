@@ -47,7 +47,7 @@
  * - 2.4.0 - add crtc id query
  * - 2.5.0 - add get accel 2 to work around ddx breakage for evergreen
  * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
- *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change)
+ *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change), add eg dyn gpr regs
  */
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	7
