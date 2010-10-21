@@ -1628,33 +1628,25 @@ out:
 	return status;
 }
 
-static struct nfsd4_conn *__nfsd4_find_conn(struct svc_rqst *r, struct nfsd4_session *s)
+static struct nfsd4_conn *__nfsd4_find_conn(struct svc_xprt *xpt, struct nfsd4_session *s)
 {
 	struct nfsd4_conn *c;
 
 	list_for_each_entry(c, &s->se_conns, cn_persession) {
-		if (c->cn_xprt == r->rq_xprt) {
+		if (c->cn_xprt == xpt) {
 			return c;
 		}
 	}
 	return NULL;
 }
 
-static void nfsd4_sequence_check_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_session *ses)
 {
 	struct nfs4_client *clp = ses->se_client;
-	struct nfsd4_conn *c, *new = NULL;
+	struct nfsd4_conn *c;
 
 	spin_lock(&clp->cl_lock);
-	c = __nfsd4_find_conn(rqstp, ses);
-	spin_unlock(&clp->cl_lock);
-	if (c)
-		return;
-
-	new = alloc_conn(rqstp, NFS4_CDFC4_FORE);
-
-	spin_lock(&clp->cl_lock);
-	c = __nfsd4_find_conn(rqstp, ses);
+	c = __nfsd4_find_conn(new->cn_xprt, ses);
 	if (c) {
 		spin_unlock(&clp->cl_lock);
 		free_conn(new);
@@ -1674,10 +1666,19 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	struct nfsd4_session *session;
 	struct nfsd4_slot *slot;
+	struct nfsd4_conn *conn;
 	int status;
 
 	if (resp->opcnt != 1)
 		return nfserr_sequence_pos;
+
+	/*
+	 * Will be either used or freed by nfsd4_sequence_check_conn
+	 * below.
+	 */
+	conn = alloc_conn(rqstp, NFS4_CDFC4_FORE);
+	if (!conn)
+		return nfserr_jukebox;
 
 	spin_lock(&client_lock);
 	status = nfserr_badsession;
@@ -1710,7 +1711,8 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	if (status)
 		goto out;
 
-	nfsd4_sequence_check_conn(rqstp, session);
+	nfsd4_sequence_check_conn(conn, session);
+	conn = NULL;
 
 	/* Success! bump slot seqid */
 	slot->sl_inuse = true;
@@ -1726,6 +1728,7 @@ out:
 		nfsd4_get_session(cstate->session);
 		atomic_inc(&session->se_client->cl_refcount);
 	}
+	kfree(conn);
 	spin_unlock(&client_lock);
 	dprintk("%s: return %d\n", __func__, ntohl(status));
 	return status;
