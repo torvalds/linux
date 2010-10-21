@@ -823,6 +823,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);
 
 /*
  * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
