@@ -70,11 +70,13 @@ enum ATH_DEBUG {
 #ifdef CONFIG_ATH_DEBUG
 void ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
+#define ATH_DBG_WARN(foo, arg...) WARN(foo, arg)
 #else
 static inline void __attribute__ ((format (printf, 3, 4)))
 ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
 {
 }
+#define ATH_DBG_WARN(foo, arg)
 #endif /* CONFIG_ATH_DEBUG */
 
 /** Returns string describing opmode, or NULL if unknown mode. */
