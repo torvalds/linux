@@ -258,7 +258,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		if (!hlist_unhashed(&req->colision))
 			hlist_del(&req->colision);
 		else
-			D_ASSERT((s & RQ_NET_MASK) == 0);
+			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
 
 		/* for writes we need to do some extra housekeeping */
 		if (rw == WRITE)
