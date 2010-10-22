@@ -412,6 +412,19 @@
 #define		SOFT_RESET_REGBB		       	(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
+/* display watermarks */
+#define	DC_LB_MEMORY_SPLIT				  0x6b0c
+#define	PRIORITY_A_CNT			                  0x6b18
+#define		PRIORITY_MARK_MASK			  0x7fff
+#define		PRIORITY_OFF				  (1 << 16)
+#define		PRIORITY_ALWAYS_ON			  (1 << 20)
+#define	PRIORITY_B_CNT			                  0x6b1c
+#define	PIPE0_ARBITRATION_CONTROL3			  0x0bf0
+#       define LATENCY_WATERMARK_MASK(x)                  ((x) << 16)
+#define	PIPE0_LATENCY_CONTROL			          0x0bf4
+#       define LATENCY_LOW_WATERMARK(x)                   ((x) << 0)
+#       define LATENCY_HIGH_WATERMARK(x)                  ((x) << 16)
+
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
 #       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
