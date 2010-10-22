@@ -1590,6 +1590,19 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (changes & (BSS_CHANGED_BSSID | BSS_CHANGED_ASSOC |
+		       BSS_CHANGED_BEACON_ENABLED)) {
+		/*
+		 * If there is currently a HW scan going on in the
+		 * background then we need to cancel it else the RXON
+		 * below in post_associate or set_no_assoc can fail.
+		 */
+		if (iwl_scan_cancel_timeout(priv, 200)) {
+			IWL_WARN(priv, "Can not cancel scan\n");
+			goto out;
+		}
+	}
+
 	if (changes & BSS_CHANGED_QOS) {
 		unsigned long flags;
 
@@ -1621,18 +1634,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_BSSID) {
 		IWL_DEBUG_MAC80211(priv, "BSSID %pM\n", bss_conf->bssid);
-
-		/*
-		 * If there is currently a HW scan going on in the
-		 * background then we need to cancel it else the RXON
-		 * below/in post_associate will fail.
-		 */
-		if (iwl_scan_cancel_timeout(priv, 100)) {
-			IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
-			IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
-			mutex_unlock(&priv->mutex);
-			return;
-		}
 
 		/* mac80211 only sets assoc when in STATION mode */
 		if (vif->type == NL80211_IFTYPE_ADHOC || bss_conf->assoc) {
@@ -1752,6 +1753,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			IWL_ERR(priv, "failed to update PAN params\n");
 	}
 
+out:
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
