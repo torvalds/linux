@@ -576,6 +576,15 @@ config INTEL_SCU_IPC
 	  some embedded Intel x86 platforms. This is not needed for PC-type
 	  machines.
 
+config INTEL_SCU_IPC_UTIL
+	tristate "Intel SCU IPC utility driver"
+	depends on INTEL_SCU_IPC
+	default y
+	---help---
+	  The IPC Util driver provides an interface with the SCU enabling
+	  low level access for debug work and updating the firmware. Say
+	  N unless you will be doing this on an Intel MID platform.
+
 config GPIO_INTEL_PMIC
 	bool "Intel PMIC GPIO support"
 	depends on INTEL_SCU_IPC && GPIOLIB
