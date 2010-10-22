@@ -60,7 +60,7 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/amifdreg.h>
 #include <linux/amifd.h>
 #include <linux/buffer_head.h>
@@ -109,6 +109,7 @@
 #define FD_HD_3 	0x55555555  /* high-density 3.5" (1760K) drive */
 #define FD_DD_5 	0xaaaaaaaa  /* double-density 5.25" (440K) drive */
 
+static DEFINE_MUTEX(amiflop_mutex);
 static unsigned long int fd_def_df0 = FD_DD_3;     /* default for df0 if it doesn't identify */
 
 module_param(fd_def_df0, ulong, 0);
@@ -1506,9 +1507,9 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&amiflop_mutex);
 	ret = fd_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
+	mutex_unlock(&amiflop_mutex);
 
 	return ret;
 }
@@ -1555,11 +1556,11 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int old_dev;
 	unsigned long flags;
 
-	lock_kernel();
+	mutex_lock(&amiflop_mutex);
 	old_dev = fd_device[drive];
 
 	if (fd_ref[drive] && old_dev != system) {
-		unlock_kernel();
+		mutex_unlock(&amiflop_mutex);
 		return -EBUSY;
 	}
 
@@ -1575,7 +1576,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			rel_fdc();
 
 			if (wrprot) {
-				unlock_kernel();
+				mutex_unlock(&amiflop_mutex);
 				return -EROFS;
 			}
 		}
@@ -1594,7 +1595,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	printk(KERN_INFO "fd%d: accessing %s-disk with %s-layout\n",drive,
 	       unit[drive].type->name, data_types[system].name);
 
-	unlock_kernel();
+	mutex_unlock(&amiflop_mutex);
 	return 0;
 }
 
@@ -1603,7 +1604,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	struct amiga_floppy_struct *p = disk->private_data;
 	int drive = p - unit;
 
-	lock_kernel();
+	mutex_lock(&amiflop_mutex);
 	if (unit[drive].dirty == 1) {
 		del_timer (flush_track_timer + drive);
 		non_int_flush_track (drive);
@@ -1617,7 +1618,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 /* the mod_use counter is handled this way */
 	floppy_off (drive | 0x40000000);
 #endif
-	unlock_kernel();
+	mutex_unlock(&amiflop_mutex);
 	return 0;
 }
 

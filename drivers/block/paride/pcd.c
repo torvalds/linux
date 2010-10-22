@@ -138,9 +138,10 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/cdrom.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
+static DEFINE_MUTEX(pcd_mutex);
 static DEFINE_SPINLOCK(pcd_lock);
 
 module_param(verbose, bool, 0644);
@@ -227,9 +228,9 @@ static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&pcd_mutex);
 	ret = cdrom_open(&cd->info, bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&pcd_mutex);
 
 	return ret;
 }
@@ -237,9 +238,9 @@ static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 static int pcd_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pcd_unit *cd = disk->private_data;
-	lock_kernel();
+	mutex_lock(&pcd_mutex);
 	cdrom_release(&cd->info, mode);
-	unlock_kernel();
+	mutex_unlock(&pcd_mutex);
 	return 0;
 }
 
@@ -249,9 +250,9 @@ static int pcd_block_ioctl(struct block_device *bdev, fmode_t mode,
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&pcd_mutex);
 	ret = cdrom_ioctl(&cd->info, bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&pcd_mutex);
 
 	return ret;
 }

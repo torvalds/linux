@@ -33,7 +33,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
@@ -3557,7 +3556,6 @@ static void megasas_shutdown(struct pci_dev *pdev)
  */
 static int megasas_mgmt_open(struct inode *inode, struct file *filep)
 {
-	cycle_kernel_lock();
 	/*
 	 * Allow only those users with admin rights
 	 */

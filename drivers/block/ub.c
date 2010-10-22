@@ -28,7 +28,7 @@
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
@@ -248,6 +248,7 @@ struct ub_completion {
 	spinlock_t lock;
 };
 
+static DEFINE_MUTEX(ub_mutex);
 static inline void ub_init_completion(struct ub_completion *x)
 {
 	x->done = 0;
@@ -1715,9 +1716,9 @@ static int ub_bd_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ub_mutex);
 	ret = ub_bd_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&ub_mutex);
 
 	return ret;
 }
@@ -1730,9 +1731,9 @@ static int ub_bd_release(struct gendisk *disk, fmode_t mode)
 	struct ub_lun *lun = disk->private_data;
 	struct ub_dev *sc = lun->udev;
 
-	lock_kernel();
+	mutex_lock(&ub_mutex);
 	ub_put(sc);
-	unlock_kernel();
+	mutex_unlock(&ub_mutex);
 
 	return 0;
 }
@@ -1747,9 +1748,9 @@ static int ub_bd_ioctl(struct block_device *bdev, fmode_t mode,
 	void __user *usermem = (void __user *) arg;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ub_mutex);
 	ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, usermem);
-	unlock_kernel();
+	mutex_unlock(&ub_mutex);
 
 	return ret;
 }

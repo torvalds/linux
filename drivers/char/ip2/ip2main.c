@@ -98,7 +98,7 @@
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
@@ -138,6 +138,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+static DEFINE_MUTEX(ip2_mutex);
 static const struct file_operations ip2mem_proc_fops;
 static const struct file_operations ip2_proc_fops;
 
@@ -2897,7 +2898,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 	printk (KERN_DEBUG "IP2IPL: ioctl cmd %d, arg %ld\n", cmd, arg );
 #endif
 
-	lock_kernel();
+	mutex_lock(&ip2_mutex);
 
 	switch ( iplminor ) {
 	case 0:	    // IPL device
@@ -2961,7 +2962,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 		rc = -ENODEV;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&ip2_mutex);
 	return rc;
 }
 
@@ -2982,7 +2983,6 @@ ip2_ipl_open( struct inode *pInode, struct file *pFile )
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: open\n" );
 #endif
-	cycle_kernel_lock();
 	return 0;
 }
 

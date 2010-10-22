@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/phantom.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -38,6 +38,7 @@
 #define PHB_RUNNING		1
 #define PHB_NOT_OH		2
 
+static DEFINE_MUTEX(phantom_mutex);
 static struct class *phantom_class;
 static int phantom_major;
 
@@ -215,17 +216,17 @@ static int phantom_open(struct inode *inode, struct file *file)
 	struct phantom_device *dev = container_of(inode->i_cdev,
 			struct phantom_device, cdev);
 
-	lock_kernel();
+	mutex_lock(&phantom_mutex);
 	nonseekable_open(inode, file);
 
 	if (mutex_lock_interruptible(&dev->open_lock)) {
-		unlock_kernel();
+		mutex_unlock(&phantom_mutex);
 		return -ERESTARTSYS;
 	}
 
 	if (dev->opened) {
 		mutex_unlock(&dev->open_lock);
-		unlock_kernel();
+		mutex_unlock(&phantom_mutex);
 		return -EINVAL;
 	}
 
@@ -236,7 +237,7 @@ static int phantom_open(struct inode *inode, struct file *file)
 	atomic_set(&dev->counter, 0);
 	dev->opened++;
 	mutex_unlock(&dev->open_lock);
-	unlock_kernel();
+	mutex_unlock(&phantom_mutex);
 	return 0;
 }
 

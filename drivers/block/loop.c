@@ -67,7 +67,7 @@
 #include <linux/compat.h>
 #include <linux/suspend.h>
 #include <linux/freezer.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>		/* for invalidate_bdev() */
 #include <linux/completion.h>
@@ -77,6 +77,7 @@
 
 #include <asm/uaccess.h>
 
+static DEFINE_MUTEX(loop_mutex);
 static LIST_HEAD(loop_devices);
 static DEFINE_MUTEX(loop_devices_mutex);
 
@@ -1409,11 +1410,11 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 {
 	struct loop_device *lo = bdev->bd_disk->private_data;
 
-	lock_kernel();
+	mutex_lock(&loop_mutex);
 	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
 	mutex_unlock(&lo->lo_ctl_mutex);
-	unlock_kernel();
+	mutex_unlock(&loop_mutex);
 
 	return 0;
 }
@@ -1423,7 +1424,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 	struct loop_device *lo = disk->private_data;
 	int err;
 
-	lock_kernel();
+	mutex_lock(&loop_mutex);
 	mutex_lock(&lo->lo_ctl_mutex);
 
 	if (--lo->lo_refcnt)
@@ -1448,7 +1449,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 out:
 	mutex_unlock(&lo->lo_ctl_mutex);
 out_unlocked:
-	lock_kernel();
+	mutex_unlock(&loop_mutex);
 	return 0;
 }
 

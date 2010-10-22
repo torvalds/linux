@@ -39,7 +39,6 @@ static const char *verstr = "20081215";
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/dma.h>
@@ -76,6 +75,7 @@ static const char *verstr = "20081215";
 #include "st_options.h"
 #include "st.h"
 
+static DEFINE_MUTEX(st_mutex);
 static int buffer_kbs;
 static int max_sg_segs;
 static int try_direct_io = TRY_DIRECT_IO;
@@ -1180,7 +1180,7 @@ static int st_open(struct inode *inode, struct file *filp)
 	int dev = TAPE_NR(inode);
 	char *name;
 
-	lock_kernel();
+	mutex_lock(&st_mutex);
 	/*
 	 * We really want to do nonseekable_open(inode, filp); here, but some
 	 * versions of tar incorrectly call lseek on tapes and bail out if that
@@ -1189,7 +1189,7 @@ static int st_open(struct inode *inode, struct file *filp)
 	filp->f_mode &= ~(FMODE_PREAD | FMODE_PWRITE);
 
 	if (!(STp = scsi_tape_get(dev))) {
-		unlock_kernel();
+		mutex_unlock(&st_mutex);
 		return -ENXIO;
 	}
 
@@ -1200,7 +1200,7 @@ static int st_open(struct inode *inode, struct file *filp)
 	if (STp->in_use) {
 		write_unlock(&st_dev_arr_lock);
 		scsi_tape_put(STp);
-		unlock_kernel();
+		mutex_unlock(&st_mutex);
 		DEB( printk(ST_DEB_MSG "%s: Device already in use.\n", name); )
 		return (-EBUSY);
 	}
@@ -1249,14 +1249,14 @@ static int st_open(struct inode *inode, struct file *filp)
 			retval = (-EIO);
 		goto err_out;
 	}
-	unlock_kernel();
+	mutex_unlock(&st_mutex);
 	return 0;
 
  err_out:
 	normalize_buffer(STp->buffer);
 	STp->in_use = 0;
 	scsi_tape_put(STp);
-	unlock_kernel();
+	mutex_unlock(&st_mutex);
 	return retval;
 
 }

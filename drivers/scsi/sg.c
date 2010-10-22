@@ -49,7 +49,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/blktrace_api.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -102,6 +102,8 @@ static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 
 static int sg_add(struct device *, struct class_interface *);
 static void sg_remove(struct device *, struct class_interface *);
+
+static DEFINE_MUTEX(sg_mutex);
 
 static DEFINE_IDR(sg_index_idr);
 static DEFINE_RWLOCK(sg_index_lock);	/* Also used to lock
@@ -229,7 +231,7 @@ sg_open(struct inode *inode, struct file *filp)
 	int res;
 	int retval;
 
-	lock_kernel();
+	mutex_lock(&sg_mutex);
 	nonseekable_open(inode, filp);
 	SCSI_LOG_TIMEOUT(3, printk("sg_open: dev=%d, flags=0x%x\n", dev, flags));
 	sdp = sg_get_dev(dev);
@@ -314,7 +316,7 @@ sdp_put:
 sg_put:
 	if (sdp)
 		sg_put_dev(sdp);
-	unlock_kernel();
+	mutex_unlock(&sg_mutex);
 	return retval;
 }
 
@@ -1092,9 +1094,9 @@ sg_unlocked_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&sg_mutex);
 	ret = sg_ioctl(filp, cmd_in, arg);
-	unlock_kernel();
+	mutex_unlock(&sg_mutex);
 
 	return ret;
 }

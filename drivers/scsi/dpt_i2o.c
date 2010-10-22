@@ -49,7 +49,6 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/kernel.h>	/* for printk */
 #include <linux/sched.h>
 #include <linux/reboot.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 
@@ -76,6 +75,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
  * Needed for our management apps
  *============================================================================
  */
+static DEFINE_MUTEX(adpt_mutex);
 static dpt_sig_S DPTI_sig = {
 	{'d', 'P', 't', 'S', 'i', 'G'}, SIG_VERSION,
 #ifdef __i386__
@@ -1732,12 +1732,12 @@ static int adpt_open(struct inode *inode, struct file *file)
 	int minor;
 	adpt_hba* pHba;
 
-	lock_kernel();
+	mutex_lock(&adpt_mutex);
 	//TODO check for root access
 	//
 	minor = iminor(inode);
 	if (minor >= hba_count) {
-		unlock_kernel();
+		mutex_unlock(&adpt_mutex);
 		return -ENXIO;
 	}
 	mutex_lock(&adpt_configuration_lock);
@@ -1748,7 +1748,7 @@ static int adpt_open(struct inode *inode, struct file *file)
 	}
 	if (pHba == NULL) {
 		mutex_unlock(&adpt_configuration_lock);
-		unlock_kernel();
+		mutex_unlock(&adpt_mutex);
 		return -ENXIO;
 	}
 
@@ -1759,7 +1759,7 @@ static int adpt_open(struct inode *inode, struct file *file)
 
 	pHba->in_use = 1;
 	mutex_unlock(&adpt_configuration_lock);
-	unlock_kernel();
+	mutex_unlock(&adpt_mutex);
 
 	return 0;
 }
@@ -2160,9 +2160,9 @@ static long adpt_unlocked_ioctl(struct file *file, uint cmd, ulong arg)
  
 	inode = file->f_dentry->d_inode;
  
-	lock_kernel();
+	mutex_lock(&adpt_mutex);
 	ret = adpt_ioctl(inode, file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&adpt_mutex);
 
 	return ret;
 }
@@ -2176,7 +2176,7 @@ static long compat_adpt_ioctl(struct file *file,
  
 	inode = file->f_dentry->d_inode;
  
-	lock_kernel();
+	mutex_lock(&adpt_mutex);
  
 	switch(cmd) {
 		case DPT_SIGNATURE:
@@ -2194,7 +2194,7 @@ static long compat_adpt_ioctl(struct file *file,
 			ret =  -ENOIOCTLCMD;
 	}
  
-	unlock_kernel();
+	mutex_unlock(&adpt_mutex);
  
 	return ret;
 }

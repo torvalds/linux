@@ -15,7 +15,6 @@
 #include <linux/blkpg.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
-#include <linux/smp_lock.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
@@ -33,6 +32,7 @@
 #define DM_COOKIE_ENV_VAR_NAME "DM_COOKIE"
 #define DM_COOKIE_LENGTH 24
 
+static DEFINE_MUTEX(dm_mutex);
 static const char *_name = DM_NAME;
 
 static unsigned int major = 0;
@@ -344,7 +344,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
-	lock_kernel();
+	mutex_lock(&dm_mutex);
 	spin_lock(&_minor_lock);
 
 	md = bdev->bd_disk->private_data;
@@ -362,7 +362,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 
 out:
 	spin_unlock(&_minor_lock);
-	unlock_kernel();
+	mutex_unlock(&dm_mutex);
 
 	return md ? 0 : -ENXIO;
 }
@@ -371,10 +371,10 @@ static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md = disk->private_data;
 
-	lock_kernel();
+	mutex_lock(&dm_mutex);
 	atomic_dec(&md->open_count);
 	dm_put(md);
-	unlock_kernel();
+	mutex_unlock(&dm_mutex);
 
 	return 0;
 }

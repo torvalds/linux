@@ -178,7 +178,6 @@ static int print_unex = 1;
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/bio.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <linux/fcntl.h>
@@ -199,6 +198,7 @@ static int print_unex = 1;
  * It's been recommended that take about 1/4 of the default speed
  * in some more extreme cases.
  */
+static DEFINE_MUTEX(floppy_mutex);
 static int slow_floppy;
 
 #include <asm/dma.h>
@@ -3553,9 +3553,9 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&floppy_mutex);
 	ret = fd_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
+	mutex_unlock(&floppy_mutex);
 
 	return ret;
 }
@@ -3616,7 +3616,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	int drive = (long)disk->private_data;
 
-	lock_kernel();
+	mutex_lock(&floppy_mutex);
 	mutex_lock(&open_lock);
 	if (UDRS->fd_ref < 0)
 		UDRS->fd_ref = 0;
@@ -3627,7 +3627,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
 	mutex_unlock(&open_lock);
-	unlock_kernel();
+	mutex_unlock(&floppy_mutex);
 
 	return 0;
 }
@@ -3645,7 +3645,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int res = -EBUSY;
 	char *tmp;
 
-	lock_kernel();
+	mutex_lock(&floppy_mutex);
 	mutex_lock(&open_lock);
 	old_dev = UDRS->fd_device;
 	if (opened_bdev[drive] && opened_bdev[drive] != bdev)
@@ -3722,7 +3722,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			goto out;
 	}
 	mutex_unlock(&open_lock);
-	unlock_kernel();
+	mutex_unlock(&floppy_mutex);
 	return 0;
 out:
 	if (UDRS->fd_ref < 0)
@@ -3733,7 +3733,7 @@ out:
 		opened_bdev[drive] = NULL;
 out2:
 	mutex_unlock(&open_lock);
-	unlock_kernel();
+	mutex_unlock(&floppy_mutex);
 	return res;
 }
 
