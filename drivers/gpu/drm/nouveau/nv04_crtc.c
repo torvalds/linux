@@ -831,7 +831,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	/* Update the framebuffer location. */
 	regp->fb_start = nv_crtc->fb.offset & ~3;
 	regp->fb_start += (y * drm_fb->pitch) + (x * drm_fb->bits_per_pixel / 8);
-	NVWriteCRTC(dev, nv_crtc->index, NV_PCRTC_START, regp->fb_start);
+	nv_set_crtc_base(dev, nv_crtc->index, regp->fb_start);
 
 	/* Update the arbitration parameters. */
 	nouveau_calc_arb(dev, crtc->mode.clock, drm_fb->bits_per_pixel,
