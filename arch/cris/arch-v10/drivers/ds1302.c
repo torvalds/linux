@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/bcd.h>
 #include <linux/capability.h>
 
@@ -34,6 +34,7 @@
 
 #define RTC_MAJOR_NR 121 /* local major, change later */
 
+static DEFINE_MUTEX(ds1302_mutex);
 static const char ds1302_name[] = "ds1302";
 
 /* The DS1302 might be connected to different bits on different products. 
@@ -357,9 +358,9 @@ static long rtc_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lon
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ds1302_mutex);
 	ret = rtc_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ds1302_mutex);
 
 	return ret;
 }

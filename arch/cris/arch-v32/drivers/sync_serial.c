@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/major.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -145,6 +145,7 @@ typedef struct sync_port
 	spinlock_t lock;
 } sync_port;
 
+static DEFINE_MUTEX(sync_serial_mutex);
 static int etrax_sync_serial_init(void);
 static void initialize_port(int portnbr);
 static inline int sync_data_avail(struct sync_port *port);
@@ -434,7 +435,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 	reg_dma_rw_cfg cfg = {.en = regk_dma_yes};
 	reg_dma_rw_intr_mask intr_mask = {.data = regk_dma_yes};
 
-	lock_kernel();
+	mutex_lock(&sync_serial_mutex);
 	DEBUG(printk(KERN_DEBUG "Open sync serial port %d\n", dev));
 
 	if (dev < 0 || dev >= NBR_PORTS || !ports[dev].enabled)
@@ -583,7 +584,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 	port->busy++;
 	ret = 0;
 out:
-	unlock_kernel();
+	mutex_unlock(&sync_serial_mutex);
 	return ret;
 }
 
@@ -966,9 +967,9 @@ static long sync_serial_ioctl(struct file *file,
 {
        long ret;
 
-       lock_kernel();
+       mutex_lock(&sync_serial_mutex);
        ret = sync_serial_ioctl_unlocked(file, cmd, arg);
-       unlock_kernel();
+       mutex_unlock(&sync_serial_mutex);
 
        return ret;
 }

@@ -3139,9 +3139,9 @@ cryptocop_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
        struct inode *inode = file->f_path.dentry->d_inode;
        long ret;
 
-       lock_kernel();
+       mutex_lock(&cryptocop_mutex);
        ret = cryptocop_ioctl_unlocked(inode, filp, cmd, arg);
-       unlock_kernel();
+       mutex_unlock(&cryptocop_mutex);
 
        return ret;
 }
