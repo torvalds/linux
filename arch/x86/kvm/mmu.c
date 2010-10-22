@@ -2069,6 +2069,16 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 				 spte_to_pfn(*sptep), pfn);
 			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
+		/*
+		 * If we overwrite a writable spte with a read-only one,
+		 * drop it and flush remote TLBs. Otherwise rmap_write_protect
+		 * will find a read-only spte, even though the writable spte
+		 * might be cached on a CPU's TLB.
+		 */
+		} else if (is_writable_pte(*sptep) &&
+			  (!(pte_access & ACC_WRITE_MASK) || !dirty)) {
+			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
+			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else
 			was_rmapped = 1;
 	}
