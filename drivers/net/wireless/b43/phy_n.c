@@ -241,10 +241,13 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 static void b43_radio_init2055(struct b43_wldev *dev)
 {
 	b43_radio_init2055_pre(dev);
-	if (b43_status(dev) < B43_STAT_INITIALIZED)
-		b2055_upload_inittab(dev, 0, 1);
-	else
-		b2055_upload_inittab(dev, 0/*FIXME on 5ghz band*/, 0);
+	if (b43_status(dev) < B43_STAT_INITIALIZED) {
+		/* Follow wl, not specs. Do not force uploading all regs */
+		b2055_upload_inittab(dev, 0, 0);
+	} else {
+		bool ghz5 = b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ;
+		b2055_upload_inittab(dev, ghz5, 0);
+	}
 	b43_radio_init2055_post(dev);
 }
 
