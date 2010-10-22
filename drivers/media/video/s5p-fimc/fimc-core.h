@@ -222,10 +222,10 @@ struct fimc_effect {
  * @real_height:	source pixel (height - offset)
  */
 struct fimc_scaler {
-	int	scaleup_h:1;
-	int	scaleup_v:1;
-	int	copy_mode:1;
-	int	enabled:1;
+	unsigned int scaleup_h:1;
+	unsigned int scaleup_v:1;
+	unsigned int copy_mode:1;
+	unsigned int enabled:1;
 	u32	hfactor;
 	u32	vfactor;
 	u32	pre_hratio;
