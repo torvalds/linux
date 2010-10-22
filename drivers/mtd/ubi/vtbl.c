@@ -366,7 +366,7 @@ write_error:
 		 * Probably this physical eraseblock went bad, try to pick
 		 * another one.
 		 */
-		list_add_tail(&new_seb->u.list, &si->corr);
+		list_add(&new_seb->u.list, &si->erase);
 		goto retry;
 	}
 	kfree(new_seb);
@@ -662,9 +662,13 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 	ubi->vol_count += 1;
 	vol->ubi = ubi;
 
-	if (reserved_pebs > ubi->avail_pebs)
+	if (reserved_pebs > ubi->avail_pebs) {
 		ubi_err("not enough PEBs, required %d, available %d",
 			reserved_pebs, ubi->avail_pebs);
+		if (ubi->corr_peb_count)
+			ubi_err("%d PEBs are corrupted and not used",
+				ubi->corr_peb_count);
+	}
 	ubi->rsvd_pebs += reserved_pebs;
 	ubi->avail_pebs -= reserved_pebs;
 
@@ -837,7 +841,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 			return PTR_ERR(ubi->vtbl);
 	}
 
-	ubi->avail_pebs = ubi->good_peb_count;
+	ubi->avail_pebs = ubi->good_peb_count - ubi->corr_peb_count;
 
 	/*
 	 * The layout volume is OK, initialize the corresponding in-RAM data
