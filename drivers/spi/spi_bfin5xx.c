@@ -504,6 +504,15 @@ static irqreturn_t bfin_spi_dma_irq_handler(int irq, void *dev_id)
 		"in dma_irq_handler dmastat:0x%x spistat:0x%x\n",
 		dmastat, spistat);
 
+	if (drv_data->rx != NULL) {
+		u16 cr = read_CTRL(drv_data);
+		/* discard old RX data and clear RXS */
+		bfin_spi_dummy_read(drv_data);
+		write_CTRL(drv_data, cr & ~BIT_CTL_ENABLE); /* Disable SPI */
+		write_CTRL(drv_data, cr & ~BIT_CTL_TIMOD); /* Restore State */
+		write_STAT(drv_data, BIT_STAT_CLR); /* Clear Status */
+	}
+
 	clear_dma_irqstat(drv_data->dma_channel);
 
 	/*
