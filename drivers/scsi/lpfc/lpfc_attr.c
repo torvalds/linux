@@ -3789,8 +3789,13 @@ sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 			break;
 		case MBX_SECURITY_MGMT:
 		case MBX_AUTH_PORT:
-			if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
+			if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
+				printk(KERN_WARNING "mbox_read:Command 0x%x "
+				       "is not permitted\n", pmb->mbxCommand);
+				sysfs_mbox_idle(phba);
+				spin_unlock_irq(&phba->hbalock);
 				return -EPERM;
+			}
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:
