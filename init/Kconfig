@@ -332,6 +332,8 @@ config AUDIT_TREE
 	depends on AUDITSYSCALL
 	select FSNOTIFY
 
+source "kernel/irq/Kconfig"
+
 menu "RCU Subsystem"
 
 choice
