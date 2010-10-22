@@ -46,6 +46,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/ratelimit.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 
