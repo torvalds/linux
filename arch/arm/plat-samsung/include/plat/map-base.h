@@ -14,7 +14,7 @@
 #ifndef __ASM_PLAT_MAP_H
 #define __ASM_PLAT_MAP_H __FILE__
 
-/* Fit all our registers in at 0xF4000000 upwards, trying to use as
+/* Fit all our registers in at 0xF6000000 upwards, trying to use as
  * little of the VA space as possible so vmalloc and friends have a
  * better chance of getting memory.
  *
@@ -22,7 +22,7 @@
  * an single MOVS instruction (ie, only 8 bits of set data)
  */
 
-#define S3C_ADDR_BASE	(0xF4000000)
+#define S3C_ADDR_BASE	0xF6000000
 
 #ifndef __ASSEMBLY__
 #define S3C_ADDR(x)	((void __iomem __force *)S3C_ADDR_BASE + (x))
