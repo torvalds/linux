@@ -3983,7 +3983,11 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	for_each_context(priv, ctx) {
 		ctx->staging.filter_flags &= ~filter_nand;
 		ctx->staging.filter_flags |= filter_or;
-		iwlcore_commit_rxon(priv, ctx);
+
+		/*
+		 * Not committing directly because hardware can perform a scan,
+		 * but we'll eventually commit the filter flags change anyway.
+		 */
 	}
 
 	mutex_unlock(&priv->mutex);

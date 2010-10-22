@@ -3407,9 +3407,9 @@ static void iwl3945_configure_filter(struct ieee80211_hw *hw,
 	ctx->staging.filter_flags |= filter_or;
 
 	/*
-	 * Committing directly here breaks for some reason,
-	 * but we'll eventually commit the filter flags
-	 * change anyway.
+	 * Not committing directly because hardware can perform a scan,
+	 * but even if hw is ready, committing here breaks for some reason,
+	 * we'll eventually commit the filter flags change anyway.
 	 */
 
 	mutex_unlock(&priv->mutex);
