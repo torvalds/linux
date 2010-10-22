@@ -1735,6 +1735,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host *shost;
 	uint16_t rpi, vpi;
 	int rc;
 
@@ -1746,7 +1747,8 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
-	    (phba->sli_rev == LPFC_SLI_REV4))
+	    (phba->sli_rev == LPFC_SLI_REV4) &&
+	    (pmb->u.mb.un.varUnregLogin.rsvd1 == 0x0))
 		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
 
 	/*
@@ -1765,16 +1767,14 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			return;
 	}
 
-	/* Unreg VPI, if the REG_VPI succeed after VLink failure */
 	if ((pmb->u.mb.mbxCommand == MBX_REG_VPI) &&
 		!(phba->pport->load_flag & FC_UNLOADING) &&
 		!pmb->u.mb.mbxStatus) {
-		lpfc_unreg_vpi(phba, pmb->u.mb.un.varRegVpi.vpi, pmb);
-		pmb->vport = vport;
-		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-		if (rc != MBX_NOT_FINISHED)
-			return;
+		shost = lpfc_shost_from_vport(vport);
+		spin_lock_irq(shost->host_lock);
+		vport->vpi_state |= LPFC_VPI_REGISTERED;
+		vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
+		spin_unlock_irq(shost->host_lock);
 	}
 
 	if (pmb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
@@ -7257,25 +7257,26 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 }
 
 /**
- * lpfc_sli_issue_abort_iotag - Abort function for a command iocb
+ * lpfc_sli_abort_iotag_issue - Issue abort for a command iocb
  * @phba: Pointer to HBA context object.
  * @pring: Pointer to driver SLI ring object.
  * @cmdiocb: Pointer to driver command iocb object.
  *
- * This function issues an abort iocb for the provided command
- * iocb. This function is called with hbalock held.
- * The function returns 0 when it fails due to memory allocation
- * failure or when the command iocb is an abort request.
+ * This function issues an abort iocb for the provided command iocb down to
+ * the port. Other than the case the outstanding command iocb is an abort
+ * request, this function issues abort out unconditionally. This function is
+ * called with hbalock held. The function returns 0 when it fails due to
+ * memory allocation failure or when the command iocb is an abort request.
  **/
-int
-lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+static int
+lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			   struct lpfc_iocbq *cmdiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct lpfc_iocbq *abtsiocbp;
 	IOCB_t *icmd = NULL;
 	IOCB_t *iabt = NULL;
-	int retval = IOCB_ERROR;
+	int retval;
 
 	/*
 	 * There are certain command types we don't want to abort.  And we
@@ -7287,18 +7288,6 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	    icmd->ulpCommand == CMD_CLOSE_XRI_CN ||
 	    (cmdiocb->iocb_flag & LPFC_DRIVER_ABORTED) != 0)
 		return 0;
-
-	/* If we're unloading, don't abort iocb on the ELS ring, but change the
-	 * callback so that nothing happens when it finishes.
-	 */
-	if ((vport->load_flag & FC_UNLOADING) &&
-	    (pring->ringno == LPFC_ELS_RING)) {
-		if (cmdiocb->iocb_flag & LPFC_IO_FABRIC)
-			cmdiocb->fabric_iocb_cmpl = lpfc_ignore_els_cmpl;
-		else
-			cmdiocb->iocb_cmpl = lpfc_ignore_els_cmpl;
-		goto abort_iotag_exit;
-	}
 
 	/* issue ABTS for this IOCB based on iotag */
 	abtsiocbp = __lpfc_sli_get_iocbq(phba);
@@ -7344,6 +7333,63 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if (retval)
 		__lpfc_sli_release_iocbq(phba, abtsiocbp);
+
+	/*
+	 * Caller to this routine should check for IOCB_ERROR
+	 * and handle it properly.  This routine no longer removes
+	 * iocb off txcmplq and call compl in case of IOCB_ERROR.
+	 */
+	return retval;
+}
+
+/**
+ * lpfc_sli_issue_abort_iotag - Abort function for a command iocb
+ * @phba: Pointer to HBA context object.
+ * @pring: Pointer to driver SLI ring object.
+ * @cmdiocb: Pointer to driver command iocb object.
+ *
+ * This function issues an abort iocb for the provided command iocb. In case
+ * of unloading, the abort iocb will not be issued to commands on the ELS
+ * ring. Instead, the callback function shall be changed to those commands
+ * so that nothing happens when them finishes. This function is called with
+ * hbalock held. The function returns 0 when the command iocb is an abort
+ * request.
+ **/
+int
+lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+			   struct lpfc_iocbq *cmdiocb)
+{
+	struct lpfc_vport *vport = cmdiocb->vport;
+	int retval = IOCB_ERROR;
+	IOCB_t *icmd = NULL;
+
+	/*
+	 * There are certain command types we don't want to abort.  And we
+	 * don't want to abort commands that are already in the process of
+	 * being aborted.
+	 */
+	icmd = &cmdiocb->iocb;
+	if (icmd->ulpCommand == CMD_ABORT_XRI_CN ||
+	    icmd->ulpCommand == CMD_CLOSE_XRI_CN ||
+	    (cmdiocb->iocb_flag & LPFC_DRIVER_ABORTED) != 0)
+		return 0;
+
+	/*
+	 * If we're unloading, don't abort iocb on the ELS ring, but change
+	 * the callback so that nothing happens when it finishes.
+	 */
+	if ((vport->load_flag & FC_UNLOADING) &&
+	    (pring->ringno == LPFC_ELS_RING)) {
+		if (cmdiocb->iocb_flag & LPFC_IO_FABRIC)
+			cmdiocb->fabric_iocb_cmpl = lpfc_ignore_els_cmpl;
+		else
+			cmdiocb->iocb_cmpl = lpfc_ignore_els_cmpl;
+		goto abort_iotag_exit;
+	}
+
+	/* Now, we try to issue the abort to the cmdiocb out */
+	retval = lpfc_sli_abort_iotag_issue(phba, pring, cmdiocb);
+
 abort_iotag_exit:
 	/*
 	 * Caller to this routine should check for IOCB_ERROR
@@ -7351,6 +7397,62 @@ abort_iotag_exit:
 	 * iocb off txcmplq and call compl in case of IOCB_ERROR.
 	 */
 	return retval;
+}
+
+/**
+ * lpfc_sli_iocb_ring_abort - Unconditionally abort all iocbs on an iocb ring
+ * @phba: Pointer to HBA context object.
+ * @pring: Pointer to driver SLI ring object.
+ *
+ * This function aborts all iocbs in the given ring and frees all the iocb
+ * objects in txq. This function issues abort iocbs unconditionally for all
+ * the iocb commands in txcmplq. The iocbs in the txcmplq is not guaranteed
+ * to complete before the return of this function. The caller is not required
+ * to hold any locks.
+ **/
+static void
+lpfc_sli_iocb_ring_abort(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
+{
+	LIST_HEAD(completions);
+	struct lpfc_iocbq *iocb, *next_iocb;
+
+	if (pring->ringno == LPFC_ELS_RING)
+		lpfc_fabric_abort_hba(phba);
+
+	spin_lock_irq(&phba->hbalock);
+
+	/* Take off all the iocbs on txq for cancelling */
+	list_splice_init(&pring->txq, &completions);
+	pring->txq_cnt = 0;
+
+	/* Next issue ABTS for everything on the txcmplq */
+	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list)
+		lpfc_sli_abort_iotag_issue(phba, pring, iocb);
+
+	spin_unlock_irq(&phba->hbalock);
+
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
+}
+
+/**
+ * lpfc_sli_hba_iocb_abort - Abort all iocbs to an hba.
+ * @phba: pointer to lpfc HBA data structure.
+ *
+ * This routine will abort all pending and outstanding iocbs to an HBA.
+ **/
+void
+lpfc_sli_hba_iocb_abort(struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
+	int i;
+
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		lpfc_sli_iocb_ring_abort(phba, pring);
+	}
 }
 
 /**

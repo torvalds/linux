@@ -794,6 +794,8 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 					     : NLP_EVT_DEVICE_RECOVERY);
 	}
 	if (phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) {
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_unreg_all_rpis(vport);
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
@@ -4080,6 +4082,11 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 	LPFC_MBOXQ_t     *mbox;
 	int rc;
 
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		lpfc_sli4_unreg_all_rpis(vport);
+		return;
+	}
+
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
 		lpfc_unreg_login(phba, vport->vpi, 0xffff, mbox);
@@ -5354,6 +5361,8 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 			if (ndlp)
 				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
 			lpfc_cleanup_pending_mbox(vports[i]);
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				lpfc_sli4_unreg_all_rpis(vports[i]);
 			lpfc_mbx_unreg_vpi(vports[i]);
 			shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);

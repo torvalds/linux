@@ -580,6 +580,10 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_unreg_rpi(vport, np);
 		}
 		lpfc_cleanup_pending_mbox(vport);
+
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_unreg_all_rpis(vport);
+
 		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
@@ -6482,6 +6486,8 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 		default:
 			/* Try to recover from this error */
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				lpfc_sli4_unreg_all_rpis(vport);
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
@@ -6749,6 +6755,10 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_unreg_rpi(vport, np);
 		}
 		lpfc_cleanup_pending_mbox(vport);
+
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_unreg_all_rpis(vport);
+
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;

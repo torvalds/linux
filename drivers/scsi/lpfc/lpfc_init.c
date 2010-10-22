@@ -813,6 +813,7 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 
 	return 0;
 }
+
 /**
  * lpfc_hba_down_post_s4 - Perform lpfc uninitialization after HBA reset
  * @phba: pointer to lpfc HBA data structure.
@@ -7267,6 +7268,51 @@ lpfc_sli4_unset_hba(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_xri_exchange_busy_wait - Wait for device XRI exchange busy
+ * @phba: Pointer to HBA context object.
+ *
+ * This function is called in the SLI4 code path to wait for completion
+ * of device's XRIs exchange busy. It will check the XRI exchange busy
+ * on outstanding FCP and ELS I/Os every 10ms for up to 10 seconds; after
+ * that, it will check the XRI exchange busy on outstanding FCP and ELS
+ * I/Os every 30 seconds, log error message, and wait forever. Only when
+ * all XRI exchange busy complete, the driver unload shall proceed with
+ * invoking the function reset ioctl mailbox command to the CNA and the
+ * the rest of the driver unload resource release.
+ **/
+static void
+lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
+{
+	int wait_time = 0;
+	int fcp_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
+	int els_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
+
+	while (!fcp_xri_cmpl || !els_xri_cmpl) {
+		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
+			if (!fcp_xri_cmpl)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"2877 FCP XRI exchange busy "
+						"wait time: %d seconds.\n",
+						wait_time/1000);
+			if (!els_xri_cmpl)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"2878 ELS XRI exchange busy "
+						"wait time: %d seconds.\n",
+						wait_time/1000);
+			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T2);
+			wait_time += LPFC_XRI_EXCH_BUSY_WAIT_T2;
+		} else {
+			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T1);
+			wait_time += LPFC_XRI_EXCH_BUSY_WAIT_T1;
+		}
+		fcp_xri_cmpl =
+			list_empty(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
+		els_xri_cmpl =
+			list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
+	}
+}
+
+/**
  * lpfc_sli4_hba_unset - Unset the fcoe hba
  * @phba: Pointer to HBA context object.
  *
@@ -7310,6 +7356,12 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 		phba->sli.mbox_active = NULL;
 		spin_unlock_irq(&phba->hbalock);
 	}
+
+	/* Abort all iocbs associated with the hba */
+	lpfc_sli_hba_iocb_abort(phba);
+
+	/* Wait for completion of device XRI exchange busy */
+	lpfc_sli4_xri_exchange_busy_wait(phba);
 
 	/* Disable PCI subsystem interrupt */
 	lpfc_sli4_disable_intr(phba);

@@ -19,6 +19,9 @@
  *******************************************************************/
 
 #define LPFC_ACTIVE_MBOX_WAIT_CNT               100
+#define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
+#define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
+#define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
