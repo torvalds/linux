@@ -421,26 +421,28 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 }
 
 static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
-				 int len, bool out)
+				 int offset, int len, bool out)
 {
 	char codes[USB_BUFLEN * 3 + 1];
 	char inout[9];
-	int i;
 	u8 cmd, subcmd, data1, data2;
 	struct device *dev = ir->dev;
-	int idx = 0;
+	int i, start, skip = 0;
+
+	if (!debug)
+		return;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
 	if (ir->flags.microsoft_gen1 && !out)
-		idx = 2;
+		skip = 2;
 
-	if (len <= idx)
+	if (len <= skip)
 		return;
 
 	for (i = 0; i < len && i < USB_BUFLEN; i++)
-		snprintf(codes + i * 3, 4, "%02x ", buf[i] & 0xff);
+		snprintf(codes + i * 3, 4, "%02x ", buf[i + offset] & 0xff);
 
-	dev_info(dev, "%sx data: %s (length=%d)\n",
+	dev_info(dev, "%sx data: %s(length=%d)\n",
 		 (out ? "t" : "r"), codes, len);
 
 	if (out)
@@ -448,10 +450,11 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	else
 		strcpy(inout, "Got\0");
 
-	cmd    = buf[idx] & 0xff;
-	subcmd = buf[idx + 1] & 0xff;
-	data1  = buf[idx + 2] & 0xff;
-	data2  = buf[idx + 3] & 0xff;
+	start  = offset + skip;
+	cmd    = buf[start] & 0xff;
+	subcmd = buf[start + 1] & 0xff;
+	data1  = buf[start + 2] & 0xff;
+	data2  = buf[start + 3] & 0xff;
 
 	switch (cmd) {
 	case MCE_COMMAND_NULL:
@@ -470,7 +473,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			else
 				dev_info(dev, "hw/sw rev 0x%02x 0x%02x "
 					 "0x%02x 0x%02x\n", data1, data2,
-					 buf[idx + 4], buf[idx + 5]);
+					 buf[start + 4], buf[start + 5]);
 			break;
 		case MCE_CMD_DEVICE_RESET:
 			dev_info(dev, "Device reset requested\n");
@@ -543,6 +546,12 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	default:
 		break;
 	}
+
+	if (cmd == MCE_IRDATA_TRAILER)
+		dev_info(dev, "End of raw IR data\n");
+	else if ((cmd != MCE_COMMAND_HEADER) &&
+		 ((cmd & MCE_COMMAND_MASK) == MCE_COMMAND_IRDATA))
+		dev_info(dev, "Raw IR data, %d pulse/space samples\n", ir->rem);
 }
 
 static void mce_async_callback(struct urb *urb, struct pt_regs *regs)
@@ -560,9 +569,7 @@ static void mce_async_callback(struct urb *urb, struct pt_regs *regs)
 		dev_dbg(ir->dev, "callback called (status=%d len=%d)\n",
 			urb->status, len);
 
-		if (debug)
-			mceusb_dev_printdata(ir, urb->transfer_buffer,
-					     len, true);
+		mceusb_dev_printdata(ir, urb->transfer_buffer, 0, len, true);
 	}
 
 }
@@ -788,6 +795,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 		switch (ir->parser_state) {
 		case SUBCMD:
 			ir->rem = mceusb_cmdsize(ir->cmd, ir->buf_in[i]);
+			mceusb_dev_printdata(ir, ir->buf_in, i - 1,
+					     ir->rem + 2, false);
 			ir->parser_state = CMD_DATA;
 			break;
 		case PARSE_IRDATA:
@@ -830,8 +839,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				continue;
 			}
 			ir->rem = (ir->cmd & MCE_PACKET_LENGTH_MASK);
-			dev_dbg(ir->dev, "Processing RX data: len = %d\n",
-				ir->rem);
+			mceusb_dev_printdata(ir, ir->buf_in, i, ir->rem + 1, false);
 			if (ir->rem) {
 				ir->parser_state = PARSE_IRDATA;
 				break;
@@ -867,9 +875,6 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 	}
 
 	buf_len = urb->actual_length;
-
-	if (debug)
-		mceusb_dev_printdata(ir, urb->transfer_buffer, buf_len, false);
 
 	if (ir->send_flags == RECV_FLAG_IN_PROGRESS) {
 		ir->send_flags = SEND_FLAG_COMPLETE;
