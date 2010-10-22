@@ -15,7 +15,7 @@
 struct pd6729_socket {
 	int	number;
 	int	card_irq;
-	unsigned long io_base; 	/* base io address of the socket */
+	unsigned long io_base;	/* base io address of the socket */
 	struct pcmcia_socket socket;
 	struct timer_list poll_timer;
 };
