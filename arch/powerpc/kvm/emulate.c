@@ -145,7 +145,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
-	pr_debug(KERN_INFO "Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
+	pr_debug("Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
 
 	switch (get_op(inst)) {
 	case OP_TRAP:
@@ -275,7 +275,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			{
 				u64 jd = get_tb() - vcpu->arch.dec_jiffies;
 				kvmppc_set_gpr(vcpu, rt, vcpu->arch.dec - jd);
-				pr_debug(KERN_INFO "mfDEC: %x - %llx = %lx\n",
+				pr_debug("mfDEC: %x - %llx = %lx\n",
 					 vcpu->arch.dec, jd,
 					 kvmppc_get_gpr(vcpu, rt));
 				break;

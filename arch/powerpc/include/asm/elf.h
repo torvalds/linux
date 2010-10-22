@@ -250,7 +250,7 @@ do {								\
  * the 64bit ABI has never had these issues dont enable the workaround
  * even if we have an executable stack.
  */
-# define elf_read_implies_exec(ex, exec_stk) (test_thread_flag(TIF_32BIT) ? \
+# define elf_read_implies_exec(ex, exec_stk) (is_32bit_task() ? \
 		(exec_stk == EXSTACK_DEFAULT) : 0)
 #else 
 # define SET_PERSONALITY(ex) \

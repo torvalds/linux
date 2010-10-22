@@ -61,7 +61,7 @@
 #endif
 #endif
 
-#if defined(CONFIG_FSL_BOOKE)
+#if defined(CONFIG_PPC_FSL_BOOK3E)
 #include "../mm/mmu_decl.h"
 #endif
 
@@ -181,17 +181,19 @@ int main(void)
 	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].vsid));
 	DEFINE(SLBSHADOW_STACKESID,
 	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].esid));
+	DEFINE(SLBSHADOW_SAVEAREA, offsetof(struct slb_shadow, save_area));
 	DEFINE(LPPACASRR0, offsetof(struct lppaca, saved_srr0));
 	DEFINE(LPPACASRR1, offsetof(struct lppaca, saved_srr1));
 	DEFINE(LPPACAANYINT, offsetof(struct lppaca, int_dword.any_int));
 	DEFINE(LPPACADECRINT, offsetof(struct lppaca, int_dword.fields.decr_int));
-	DEFINE(SLBSHADOW_SAVEAREA, offsetof(struct slb_shadow, save_area));
+	DEFINE(LPPACA_DTLIDX, offsetof(struct lppaca, dtl_idx));
+	DEFINE(PACA_DTL_RIDX, offsetof(struct paca_struct, dtl_ridx));
 #endif /* CONFIG_PPC_STD_MMU_64 */
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
 	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
-	DEFINE(PACA_STARTPURR, offsetof(struct paca_struct, startpurr));
-	DEFINE(PACA_STARTSPURR, offsetof(struct paca_struct, startspurr));
+	DEFINE(PACA_STARTTIME, offsetof(struct paca_struct, starttime));
+	DEFINE(PACA_STARTTIME_USER, offsetof(struct paca_struct, starttime_user));
 	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));
 	DEFINE(PACA_SYSTEM_TIME, offsetof(struct paca_struct, system_time));
 	DEFINE(PACA_TRAP_SAVE, offsetof(struct paca_struct, trap_save));
@@ -468,7 +470,7 @@ int main(void)
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
 #endif
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_FSL_BOOK3E
 	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
 	DEFINE(TLBCAM_MAS0, offsetof(struct tlbcam, MAS0));
 	DEFINE(TLBCAM_MAS1, offsetof(struct tlbcam, MAS1));

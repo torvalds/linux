@@ -154,8 +154,8 @@ extern void enable_kernel_spe(void);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
 extern int fix_alignment(struct pt_regs *);
-extern void cvt_fd(float *from, double *to, struct thread_struct *thread);
-extern void cvt_df(double *from, float *to, struct thread_struct *thread);
+extern void cvt_fd(float *from, double *to);
+extern void cvt_df(double *from, float *to);
 
 #ifndef CONFIG_SMP
 extern void discard_lazy_cpu_state(void);

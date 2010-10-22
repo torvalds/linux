@@ -957,11 +957,31 @@ config PIKA_WDT
 	  the Warp platform.
 
 config BOOKE_WDT
-	bool "PowerPC Book-E Watchdog Timer"
+	tristate "PowerPC Book-E Watchdog Timer"
 	depends on BOOKE || 4xx
 	---help---
+	  Watchdog driver for PowerPC Book-E chips, such as the Freescale
+	  MPC85xx SOCs and the IBM PowerPC 440.
+
 	  Please see Documentation/watchdog/watchdog-api.txt for
 	  more information.
+
+config BOOKE_WDT_DEFAULT_TIMEOUT
+	int "PowerPC Book-E Watchdog Timer Default Timeout"
+	depends on BOOKE_WDT
+	default 38 if FSL_BOOKE
+	range 0 63 if FSL_BOOKE
+	default 3 if !FSL_BOOKE
+	range 0 3 if !FSL_BOOKE
+	help
+	  Select the default watchdog timer period to be used by the PowerPC
+	  Book-E watchdog driver.  A watchdog "event" occurs when the bit
+	  position represented by this number transitions from zero to one.
+
+	  For Freescale Book-E processors, this is a number between 0 and 63.
+	  For other Book-E processors, this is a number between 0 and 3.
+
+	  The value can be overidden by the wdt_period command-line parameter.
 
 # PPC64 Architecture
 
