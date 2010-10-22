@@ -32,6 +32,7 @@
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/jack.h>
+#include <sound/tlv.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_beep.h"
@@ -1145,7 +1146,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		/* correct volume offset */
 		vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
 		/* minimum value is actually mute */
-		vmaster_tlv[3] |= 0x1000;
+		vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
 					  vmaster_tlv, slave_vols);
 		if (err < 0)
