@@ -2068,7 +2068,10 @@ send_last:
 			goto nack_op_err;
 		if (!ret)
 			goto rnr_nak;
-		goto send_last_imm;
+		wc.ex.imm_data = ohdr->u.rc.imm_data;
+		hdrsize += 4;
+		wc.wc_flags = IB_WC_WITH_IMM;
+		goto send_last;
 
 	case OP(RDMA_READ_REQUEST): {
 		struct qib_ack_entry *e;
