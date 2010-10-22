@@ -2234,10 +2234,9 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 void
 __lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 {
-	/* Clear pending FCF rediscovery wait and failover in progress flags */
-	phba->fcf.fcf_flag &= ~(FCF_REDISC_PEND |
-				FCF_DEAD_DISC |
-				FCF_ACVL_DISC);
+	/* Clear pending FCF rediscovery wait flag */
+	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
+
 	/* Now, try to stop the timer */
 	del_timer(&phba->fcf.redisc_wait);
 }
@@ -2261,6 +2260,8 @@ lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 		return;
 	}
 	__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
+	/* Clear failover in progress flags */
+	phba->fcf.fcf_flag &= ~(FCF_DEAD_DISC | FCF_ACVL_DISC);
 	spin_unlock_irq(&phba->hbalock);
 }
 

@@ -1803,6 +1803,16 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		if ((phba->fcf.fcf_flag & FCF_IN_USE) &&
 		    lpfc_sli4_fcf_record_match(phba, &phba->fcf.current_rec,
 		    new_fcf_record, LPFC_FCOE_IGNORE_VID)) {
+			if (bf_get(lpfc_fcf_record_fcf_index, new_fcf_record) !=
+			    phba->fcf.current_rec.fcf_indx) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+					"2862 FCF (x%x) matches property "
+					"of in-use FCF (x%x)\n",
+					bf_get(lpfc_fcf_record_fcf_index,
+					       new_fcf_record),
+					phba->fcf.current_rec.fcf_indx);
+				goto read_next_fcf;
+			}
 			/*
 			 * In case the current in-use FCF record becomes
 			 * invalid/unavailable during FCF discovery that
@@ -1844,22 +1854,29 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (phba->fcf.fcf_flag & FCF_IN_USE) {
 		if (lpfc_sli4_fcf_record_match(phba, &phba->fcf.current_rec,
 		    new_fcf_record, vlan_id)) {
-			phba->fcf.fcf_flag |= FCF_AVAILABLE;
-			if (phba->fcf.fcf_flag & FCF_REDISC_PEND)
-				/* Stop FCF redisc wait timer if pending */
-				__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
-			else if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
-				/* If in fast failover, mark it's completed */
-				phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
-			spin_unlock_irq(&phba->hbalock);
-			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-					"2836 The new FCF record (x%x) "
-					"matches the in-use FCF record "
-					"(x%x)\n",
-					phba->fcf.current_rec.fcf_indx,
+			if (bf_get(lpfc_fcf_record_fcf_index, new_fcf_record) ==
+			    phba->fcf.current_rec.fcf_indx) {
+				phba->fcf.fcf_flag |= FCF_AVAILABLE;
+				if (phba->fcf.fcf_flag & FCF_REDISC_PEND)
+					/* Stop FCF redisc wait timer */
+					__lpfc_sli4_stop_fcf_redisc_wait_timer(
+									phba);
+				else if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
+					/* Fast failover, mark completed */
+					phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
+				spin_unlock_irq(&phba->hbalock);
+				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+						"2836 New FCF matches in-use "
+						"FCF (x%x)\n",
+						phba->fcf.current_rec.fcf_indx);
+				goto out;
+			} else
+				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+					"2863 New FCF (x%x) matches "
+					"property of in-use FCF (x%x)\n",
 					bf_get(lpfc_fcf_record_fcf_index,
-					       new_fcf_record));
-			goto out;
+					       new_fcf_record),
+					phba->fcf.current_rec.fcf_indx);
 		}
 		/*
 		 * Read next FCF record from HBA searching for the matching
@@ -2069,28 +2086,6 @@ read_next_fcf:
 						LPFC_FCOE_FCF_GET_FIRST);
 				return;
 			}
-
-			/*
-			 * Otherwise, initial scan or post linkdown rescan,
-			 * register with the best FCF record found so far
-			 * through the FCF scanning process.
-			 */
-
-			/*
-			 * Mark the initial FCF discovery completed and
-			 * the start of the first round of the roundrobin
-			 * FCF failover.
-			 */
-			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &=
-					~(FCF_INIT_DISC | FCF_REDISC_RRU);
-			spin_unlock_irq(&phba->hbalock);
-			/*
-			 * Set up the initial registered FCF index for FLOGI
-			 * round robin FCF failover
-			 */
-			phba->fcf.fcf_rr_init_indx =
-					phba->fcf.current_rec.fcf_indx;
 			/* Register to the new FCF record */
 			lpfc_register_fcf(phba);
 		}
@@ -3992,6 +3987,16 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	}
 
 	spin_lock_irq(&phba->hbalock);
+	/* Cleanup REG_LOGIN completions which are not yet processed */
+	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
+		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
+			(ndlp != (struct lpfc_nodelist *) mb->context2))
+			continue;
+
+		mb->context2 = NULL;
+		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	}
+
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		    (ndlp == (struct lpfc_nodelist *) mb->context2)) {
