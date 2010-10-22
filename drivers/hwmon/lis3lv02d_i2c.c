@@ -66,6 +66,14 @@ static inline s32 lis3_i2c_read(struct lis3lv02d *lis3, int reg, u8 *v)
 	return 0;
 }
 
+static inline s32 lis3_i2c_blockread(struct lis3lv02d *lis3, int reg, int len,
+				u8 *v)
+{
+	struct i2c_client *c = lis3->bus_priv;
+	reg |= (1 << 7); /* 7th bit enables address auto incrementation */
+	return i2c_smbus_read_i2c_block_data(c, reg, len, v);
+}
+
 static int lis3_i2c_init(struct lis3lv02d *lis3)
 {
 	u8 reg;
@@ -101,6 +109,11 @@ static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 		/* Regulator control is optional */
 		if (pdata->driver_features & LIS3_USE_REGULATOR_CTRL)
 			lis3_dev.reg_ctrl = lis3_reg_ctrl;
+
+		if ((pdata->driver_features & LIS3_USE_BLOCK_READ) &&
+			(i2c_check_functionality(client->adapter,
+						I2C_FUNC_SMBUS_I2C_BLOCK)))
+			lis3_dev.blkread  = lis3_i2c_blockread;
 
 		if (pdata->axis_x)
 			lis3lv02d_axis_map.x = pdata->axis_x;

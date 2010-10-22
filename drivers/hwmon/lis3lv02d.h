@@ -244,6 +244,7 @@ struct lis3lv02d {
 	int (*init) (struct lis3lv02d *lis3);
 	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
 	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
+	int (*blkread) (struct lis3lv02d *lis3, int reg, int len, u8 *ret);
 	int (*reg_ctrl) (struct lis3lv02d *lis3, bool state);
 
 	int                     *odrs;     /* Supported output data rates */

@@ -154,9 +154,24 @@ static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 	int position[3];
 	int i;
 
-	position[0] = lis3->read_data(lis3, OUTX);
-	position[1] = lis3->read_data(lis3, OUTY);
-	position[2] = lis3->read_data(lis3, OUTZ);
+	if (lis3->blkread) {
+		if (lis3_dev.whoami == WAI_12B) {
+			u16 data[3];
+			lis3->blkread(lis3, OUTX_L, 6, (u8 *)data);
+			for (i = 0; i < 3; i++)
+				position[i] = (s16)le16_to_cpu(data[i]);
+		} else {
+			u8 data[5];
+			/* Data: x, dummy, y, dummy, z */
+			lis3->blkread(lis3, OUTX, 5, data);
+			for (i = 0; i < 3; i++)
+				position[i] = (s8)data[i * 2];
+		}
+	} else {
+		position[0] = lis3->read_data(lis3, OUTX);
+		position[1] = lis3->read_data(lis3, OUTY);
+		position[2] = lis3->read_data(lis3, OUTZ);
+	}
 
 	for (i = 0; i < 3; i++)
 		position[i] = (position[i] * lis3->scale) / LIS3_ACCURACY;
