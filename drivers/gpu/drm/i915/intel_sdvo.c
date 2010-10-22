@@ -120,12 +120,6 @@ struct intel_sdvo {
 	 */
 	struct drm_display_mode *sdvo_lvds_fixed_mode;
 
-	/*
-	 * supported encoding mode, used to determine whether HDMI is
-	 * supported
-	 */
-	struct intel_sdvo_encode encode;
-
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
 
@@ -799,17 +793,13 @@ static void intel_sdvo_get_mode_from_dtd(struct drm_display_mode * mode,
 		mode->flags |= DRM_MODE_FLAG_PVSYNC;
 }
 
-static bool intel_sdvo_get_supp_encode(struct intel_sdvo *intel_sdvo,
-				       struct intel_sdvo_encode *encode)
+static bool intel_sdvo_check_supp_encode(struct intel_sdvo *intel_sdvo)
 {
-	if (intel_sdvo_get_value(intel_sdvo,
-				  SDVO_CMD_GET_SUPP_ENCODE,
-				  encode, sizeof(*encode)))
-		return true;
+	struct intel_sdvo_encode encode;
 
-	/* non-support means DVI */
-	memset(encode, 0, sizeof(*encode));
-	return false;
+	return intel_sdvo_get_value(intel_sdvo,
+				  SDVO_CMD_GET_SUPP_ENCODE,
+				  &encode, sizeof(encode));
 }
 
 static bool intel_sdvo_set_encode(struct intel_sdvo *intel_sdvo,
@@ -1958,12 +1948,22 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 }
 
 static bool
-intel_sdvo_get_digital_encoding_mode(struct intel_sdvo *intel_sdvo, int device)
+intel_sdvo_is_hdmi_connector(struct intel_sdvo *intel_sdvo, int device)
 {
-	return intel_sdvo_set_target_output(intel_sdvo,
-					    device == 0 ? SDVO_OUTPUT_TMDS0 : SDVO_OUTPUT_TMDS1) &&
-		intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ENCODE,
-				     &intel_sdvo->is_hdmi, 1);
+	int is_hdmi;
+
+	if (!intel_sdvo_check_supp_encode(intel_sdvo))
+		return false;
+
+	if (!intel_sdvo_set_target_output(intel_sdvo,
+					  device == 0 ? SDVO_OUTPUT_TMDS0 : SDVO_OUTPUT_TMDS1))
+		return false;
+
+	is_hdmi = 0;
+	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ENCODE, &is_hdmi, 1))
+		return false;
+
+	return !!is_hdmi;
 }
 
 static u8
@@ -2064,14 +2064,13 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
-	if (intel_sdvo_get_supp_encode(intel_sdvo, &intel_sdvo->encode)
-		&& intel_sdvo_get_digital_encoding_mode(intel_sdvo, device)
-		&& intel_sdvo->is_hdmi) {
+	if (intel_sdvo_is_hdmi_connector(intel_sdvo, device)) {
 		/* enable hdmi encoding mode if supported */
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
+		intel_sdvo->is_hdmi = true;
 	}
 	intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
