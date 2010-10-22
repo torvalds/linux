@@ -64,6 +64,8 @@ struct lis3lv02d_platform_data {
 	s8 axis_x;
 	s8 axis_y;
 	s8 axis_z;
+#define LIS3_USE_REGULATOR_CTRL 0x01
+	u16 driver_features;
 	int (*setup_resources)(void);
 	int (*release_resources)(void);
 	/* Limits for selftest are specified in chip data sheet */

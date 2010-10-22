@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
@@ -257,10 +258,46 @@ fail:
 	return ret;
 }
 
+/*
+ * Order of registers in the list affects to order of the restore process.
+ * Perhaps it is a good idea to set interrupt enable register as a last one
+ * after all other configurations
+ */
+static u8 lis3_wai8_regs[] = { FF_WU_CFG_1, FF_WU_THS_1, FF_WU_DURATION_1,
+			       FF_WU_CFG_2, FF_WU_THS_2, FF_WU_DURATION_2,
+			       CLICK_CFG, CLICK_SRC, CLICK_THSY_X, CLICK_THSZ,
+			       CLICK_TIMELIMIT, CLICK_LATENCY, CLICK_WINDOW,
+			       CTRL_REG1, CTRL_REG2, CTRL_REG3};
+
+static u8 lis3_wai12_regs[] = {FF_WU_CFG, FF_WU_THS_L, FF_WU_THS_H,
+			       FF_WU_DURATION, DD_CFG, DD_THSI_L, DD_THSI_H,
+			       DD_THSE_L, DD_THSE_H,
+			       CTRL_REG1, CTRL_REG3, CTRL_REG2};
+
+static inline void lis3_context_save(struct lis3lv02d *lis3)
+{
+	int i;
+	for (i = 0; i < lis3->regs_size; i++)
+		lis3->read(lis3, lis3->regs[i], &lis3->reg_cache[i]);
+	lis3->regs_stored = true;
+}
+
+static inline void lis3_context_restore(struct lis3lv02d *lis3)
+{
+	int i;
+	if (lis3->regs_stored)
+		for (i = 0; i < lis3->regs_size; i++)
+			lis3->write(lis3, lis3->regs[i], lis3->reg_cache[i]);
+}
+
 void lis3lv02d_poweroff(struct lis3lv02d *lis3)
 {
+	if (lis3->reg_ctrl)
+		lis3_context_save(lis3);
 	/* disable X,Y,Z axis and power down */
 	lis3->write(lis3, CTRL_REG1, 0x00);
+	if (lis3->reg_ctrl)
+		lis3->reg_ctrl(lis3, LIS3_REG_OFF);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweroff);
 
@@ -283,6 +320,8 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 		reg |= CTRL2_BDU;
 		lis3->write(lis3, CTRL_REG2, reg);
 	}
+	if (lis3->reg_ctrl)
+		lis3_context_restore(lis3);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
@@ -674,6 +713,7 @@ int lis3lv02d_remove_fs(struct lis3lv02d *lis3)
 		pm_runtime_disable(lis3->pm_dev);
 		pm_runtime_set_suspended(lis3->pm_dev);
 	}
+	kfree(lis3->reg_cache);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
@@ -753,6 +793,8 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->odrs = lis3_12_rates;
 		dev->odr_mask = CTRL1_DF0 | CTRL1_DF1;
 		dev->scale = LIS3_SENSITIVITY_12B;
+		dev->regs = lis3_wai12_regs;
+		dev->regs_size = ARRAY_SIZE(lis3_wai12_regs);
 		break;
 	case WAI_8B:
 		printk(KERN_INFO DRIVER_NAME ": 8 bits sensor found\n");
@@ -762,6 +804,8 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->odrs = lis3_8_rates;
 		dev->odr_mask = CTRL1_DR;
 		dev->scale = LIS3_SENSITIVITY_8B;
+		dev->regs = lis3_wai8_regs;
+		dev->regs_size = ARRAY_SIZE(lis3_wai8_regs);
 		break;
 	case WAI_3DC:
 		printk(KERN_INFO DRIVER_NAME ": 8 bits 3DC sensor found\n");
@@ -776,6 +820,14 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		printk(KERN_ERR DRIVER_NAME
 			": unknown sensor type 0x%X\n", dev->whoami);
 		return -EINVAL;
+	}
+
+	dev->reg_cache = kzalloc(max(sizeof(lis3_wai8_regs),
+				     sizeof(lis3_wai12_regs)), GFP_KERNEL);
+
+	if (dev->reg_cache == NULL) {
+		printk(KERN_ERR DRIVER_NAME "out of memory\n");
+		return -ENOMEM;
 	}
 
 	mutex_init(&dev->mutex);

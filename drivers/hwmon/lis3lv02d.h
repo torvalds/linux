@@ -20,6 +20,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/input-polldev.h>
+#include <linux/regulator/consumer.h>
 
 /*
  * This driver tries to support the "digital" accelerometer chips from
@@ -223,11 +224,17 @@ enum lis3lv02d_click_src_8b {
 	CLICK_IA	= 0x40,
 };
 
+enum lis3lv02d_reg_state {
+	LIS3_REG_OFF	= 0x00,
+	LIS3_REG_ON	= 0x01,
+};
+
 union axis_conversion {
 	struct {
 		int x, y, z;
 	};
 	int as_array[3];
+
 };
 
 struct lis3lv02d {
@@ -236,8 +243,13 @@ struct lis3lv02d {
 	int (*init) (struct lis3lv02d *lis3);
 	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
 	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
+	int (*reg_ctrl) (struct lis3lv02d *lis3, bool state);
 
 	int                     *odrs;     /* Supported output data rates */
+	u8			*regs;	   /* Regs to store / restore */
+	int			regs_size;
+	u8                      *reg_cache;
+	bool			regs_stored;
 	u8                      odr_mask;  /* ODR bit mask */
 	u8			whoami;    /* indicates measurement precision */
 	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
@@ -250,6 +262,7 @@ struct lis3lv02d {
 
 	struct input_polled_dev	*idev;     /* input device */
 	struct platform_device	*pdev;     /* platform device */
+	struct regulator_bulk_data regulators[2];
 	atomic_t		count;     /* interrupt count after last read */
 	union axis_conversion	ac;        /* hw -> logical axis */
 	int			mapped_btns[3];
