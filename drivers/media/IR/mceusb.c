@@ -123,10 +123,7 @@ struct mceusb_model {
 	u32 tx_mask_inverted:1;
 	u32 is_polaris:1;
 
-	/*
-	 * Allow specify a per-board extra data, like
-	 * device names, and per-device rc_maps
-	 */
+	const char *rc_map;	/* Allow specify a per-board map */
 };
 
 static const struct mceusb_model mceusb_model[] = {
@@ -147,6 +144,12 @@ static const struct mceusb_model mceusb_model[] = {
 	},
 	[POLARIS_EVK] = {
 		.is_polaris = 1,
+		/*
+		 * In fact, the EVK is shipped without
+		 * remotes, but we should have something handy,
+		 * to allow testing it
+		 */
+		.rc_map = RC_MAP_RC5_HAUPPAUGE_NEW,
 	},
 };
 
@@ -951,6 +954,7 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	struct input_dev *idev;
 	struct ir_dev_props *props;
 	struct device *dev = ir->dev;
+	const char *rc_map = RC_MAP_RC6_MCE;
 	int ret = -ENODEV;
 
 	idev = input_allocate_device();
@@ -985,7 +989,10 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 
 	ir->props = props;
 
-	ret = ir_input_register(idev, RC_MAP_RC6_MCE, props, DRIVER_NAME);
+	if (mceusb_model[ir->model].rc_map)
+		rc_map = mceusb_model[ir->model].rc_map;
+
+	ret = ir_input_register(idev, rc_map, props, DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev, "remote input device register failed\n");
 		goto irdev_failed;
