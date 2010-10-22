@@ -50,7 +50,7 @@ static int lis3_spi_init(struct lis3lv02d *lis3)
 	if (ret < 0)
 		return ret;
 
-	reg |= CTRL1_PD0;
+	reg |= CTRL1_PD0 | CTRL1_Xen | CTRL1_Yen | CTRL1_Zen;
 	return lis3->write(lis3, CTRL_REG1, reg);
 }
 
