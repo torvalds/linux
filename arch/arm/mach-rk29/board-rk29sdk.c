@@ -38,7 +38,16 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include "devices.h"
+
 extern struct sys_timer rk29_timer;
+
+static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_UART1_RK29	
+	&rk29_device_uart1,
+#endif	
+
+};
 
 static void __init rk29_gic_init_irq(void)
 {
@@ -54,7 +63,7 @@ static void __init machine_rk29_init_irq(void)
 }
 static void __init machine_rk29_board_init(void)
 { 
-	
+	platform_add_devices(devices, ARRAY_SIZE(devices));	
 }
 
 static void __init machine_rk29_mapio(void)

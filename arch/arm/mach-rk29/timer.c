@@ -56,19 +56,12 @@
 #define TIMER_CLKSRC_NAME		"timer1"
 
 //static struct clk *timer_clk;
-static volatile unsigned long timer_mult; /* timer count = cycle * timer_mult */
 
-void rk29_timer_update_mult(void)
-{
-	//if (timer_clk)
-	//	timer_mult = clk_get_rate(timer_clk) / 1000000;
-	timer_mult = 24000000 / 1000000;
-}
 
 static int rk29_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
-	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles * timer_mult);
+	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles );
 	RK_TIMER_ENABLE(TIMER_CLKEVT);
 
 	return 0;
@@ -117,41 +110,17 @@ static struct irqaction rk29_timer_clockevent_irq = {
 	.dev_id		= &rk29_timer_clockevent,
 };
 
-static int rk29_timer_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
-{
-	if (val == CPUFREQ_POSTCHANGE) {
-		rk29_timer_update_mult();
-	}
-
-	return 0;
-}
-
-static struct notifier_block rk29_timer_cpufreq_notifier_block = {
-	.notifier_call	= rk29_timer_cpufreq_notifier,
-	.priority	= 0x7ffffff,
-};
-
-static __init int rk29_timer_init_cpufreq(void)
-{
-	cpufreq_register_notifier(&rk29_timer_cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
-	return 0;
-}
-
-arch_initcall_sync(rk29_timer_init_cpufreq);
-
 static __init int rk29_timer_init_clockevent(void)
 {
 	struct clock_event_device *ce = &rk29_timer_clockevent;
 
 	//timer_clk = clk_get(NULL, "timer");
-	rk29_timer_update_mult();
-
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
 
 	setup_irq(rk29_timer_clockevent_irq.irq, &rk29_timer_clockevent_irq);
 
-	ce->mult = div_sc(1000000, NSEC_PER_SEC, ce->shift);
-	ce->max_delta_ns = clockevent_delta2ns(0xFFFFFFFFUL / 256, ce); // max pclk < 256MHz
+	ce->mult = div_sc(24000000, NSEC_PER_SEC, ce->shift);
+	ce->max_delta_ns = clockevent_delta2ns(0xFFFFFFFFUL, ce); // max pclk < 256MHz
 	ce->min_delta_ns = clockevent_delta2ns(1, ce) + 1;
 
 	ce->cpumask = cpumask_of(0);

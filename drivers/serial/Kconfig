@@ -1502,6 +1502,30 @@ config SERIAL_RK2818_CONSOLE
 	bool "Rockchip rk2818 serial console support"
 	depends on SERIAL_RK2818=y
 	select SERIAL_CORE_CONSOLE
+	
+config SERIAL_RK29
+	bool "RockChip rk29 serial port support"
+	depends on ARM && ARCH_RK29
+	select SERIAL_CORE
+	
+config UART0_RK29
+	bool "RockChip rk29 serial port 0 support"
+	depends on SERIAL_RK29
+	
+config UART1_RK29
+	bool "RockChip rk29 serial port 1 support"
+	depends on SERIAL_RK29
+	
+config UART2_RK29
+	bool "RockChip rk29 serial port 2 support"
+	depends on SERIAL_RK29
+	
+config UART3_RK29
+	bool "RockChip rk29 serial port 3 support"
+	depends on SERIAL_RK29
 
-
+config SERIAL_RK29_CONSOLE
+	bool "Rockchip rk29 serial console support"
+	depends on SERIAL_RK29=y
+	select SERIAL_CORE_CONSOLE
 endmenu

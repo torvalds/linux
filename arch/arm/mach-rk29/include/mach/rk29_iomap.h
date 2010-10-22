@@ -103,6 +103,7 @@
 #define RK29_CRU_SIZE				SZ_16K
 #define RK29_PMU_PHYS          		0x20004000
 #define RK29_PMU_SIZE				SZ_16K
+#define RK29_GRF_BASE				(RK29_ADDR_BASE1+0x8000)
 #define RK29_GRF_PHYS          		0x20008000
 #define RK29_GRF_SIZE				SZ_16K
 #define RK29_RTC_PHYS          		0x2000C000
