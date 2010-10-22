@@ -4006,18 +4006,31 @@ static int __devinit cciss_pci_find_memory_BAR(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
-static int __devinit cciss_wait_for_board_ready(ctlr_info_t *h)
+static int __devinit cciss_wait_for_board_state(struct pci_dev *pdev,
+	void __iomem *vaddr, int wait_for_ready)
+#define BOARD_READY 1
+#define BOARD_NOT_READY 0
 {
-	int i;
+	int i, iterations;
 	u32 scratchpad;
 
-	for (i = 0; i < CCISS_BOARD_READY_ITERATIONS; i++) {
-		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (scratchpad == CCISS_FIRMWARE_READY)
-			return 0;
+	if (wait_for_ready)
+		iterations = CCISS_BOARD_READY_ITERATIONS;
+	else
+		iterations = CCISS_BOARD_NOT_READY_ITERATIONS;
+
+	for (i = 0; i < iterations; i++) {
+		scratchpad = readl(vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (wait_for_ready) {
+			if (scratchpad == CCISS_FIRMWARE_READY)
+				return 0;
+		} else {
+			if (scratchpad != CCISS_FIRMWARE_READY)
+				return 0;
+		}
 		msleep(CCISS_BOARD_READY_POLL_INTERVAL_MSECS);
 	}
-	dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
+	dev_warn(&pdev->dev, "board not ready, timed out.\n");
 	return -ENODEV;
 }
 
@@ -4183,7 +4196,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *h)
 		err = -ENOMEM;
 		goto err_out_free_res;
 	}
-	err = cciss_wait_for_board_ready(h);
+	err = cciss_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY);
 	if (err)
 		goto err_out_free_res;
 	err = cciss_find_cfgtables(h);
@@ -4533,6 +4546,20 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	/* Some devices (notably the HP Smart Array 5i Controller)
 	   need a little pause here */
 	msleep(CCISS_POST_RESET_PAUSE_MSECS);
+
+	/* Wait for board to become not ready, then ready. */
+	dev_info(&pdev->dev, "Waiting for board to become ready.\n");
+	rc = cciss_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
+	if (rc) /* Don't bail, might be E500, etc. which can't be reset */
+		dev_warn(&pdev->dev,
+			"failed waiting for board to become not ready\n");
+	rc = cciss_wait_for_board_state(pdev, vaddr, BOARD_READY);
+	if (rc) {
+		dev_warn(&pdev->dev,
+			"failed waiting for board to become ready\n");
+		goto unmap_cfgtable;
+	}
+	dev_info(&pdev->dev, "board ready.\n");
 
 	/* Controller should be in simple mode at this point.  If it's not,
 	 * It means we're on one of those controllers which doesn't support
