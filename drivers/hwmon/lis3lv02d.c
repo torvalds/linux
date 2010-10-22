@@ -307,19 +307,22 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 
 	lis3->init(lis3);
 
-	/* LIS3 power on delay is quite long */
-	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
-
 	/*
 	 * Common configuration
 	 * BDU: (12 bits sensors only) LSB and MSB values are not updated until
 	 *      both have been read. So the value read will always be correct.
+	 * Set BOOT bit to refresh factory tuning values.
 	 */
-	if (lis3->whoami ==  WAI_12B) {
-		lis3->read(lis3, CTRL_REG2, &reg);
-		reg |= CTRL2_BDU;
-		lis3->write(lis3, CTRL_REG2, reg);
-	}
+	lis3->read(lis3, CTRL_REG2, &reg);
+	if (lis3->whoami ==  WAI_12B)
+		reg |= CTRL2_BDU | CTRL2_BOOT;
+	else
+		reg |= CTRL2_BOOT_8B;
+	lis3->write(lis3, CTRL_REG2, reg);
+
+	/* LIS3 power on delay is quite long */
+	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+
 	if (lis3->reg_ctrl)
 		lis3_context_restore(lis3);
 }

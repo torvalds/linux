@@ -150,6 +150,7 @@ enum lis3lv02d_ctrl4_3dc {
 enum lis302d_ctrl2 {
 	HP_FF_WU2	= 0x08,
 	HP_FF_WU1	= 0x04,
+	CTRL2_BOOT_8B   = 0x40,
 };
 
 enum lis3lv02d_ctrl3 {
