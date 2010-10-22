@@ -196,7 +196,6 @@ static struct percpu_counter kvm_total_used_mmu_pages;
 
 static u64 __read_mostly shadow_trap_nonpresent_pte;
 static u64 __read_mostly shadow_notrap_nonpresent_pte;
-static u64 __read_mostly shadow_base_present_pte;
 static u64 __read_mostly shadow_nx_mask;
 static u64 __read_mostly shadow_x_mask;	/* mutual exclusive with nx_mask */
 static u64 __read_mostly shadow_user_mask;
@@ -214,12 +213,6 @@ void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte)
 	shadow_notrap_nonpresent_pte = notrap_pte;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_nonpresent_ptes);
-
-void kvm_mmu_set_base_ptes(u64 base_pte)
-{
-	shadow_base_present_pte = base_pte;
-}
-EXPORT_SYMBOL_GPL(kvm_mmu_set_base_ptes);
 
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask)
@@ -1975,7 +1968,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	 * whether the guest actually used the pte (in order to detect
 	 * demand paging).
 	 */
-	spte = shadow_base_present_pte;
+	spte = PT_PRESENT_MASK;
 	if (!speculative)
 		spte |= shadow_accessed_mask;
 	if (!dirty)
