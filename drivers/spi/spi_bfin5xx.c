@@ -1108,12 +1108,15 @@ static int bfin_spi_setup(struct spi_device *spi)
 	}
 
 	if (chip->chip_select_num >= MAX_CTRL_CS) {
-		ret = gpio_request(chip->cs_gpio, spi->modalias);
-		if (ret) {
-			dev_err(&spi->dev, "gpio_request() error\n");
-			goto pin_error;
+		/* Only request on first setup */
+		if (spi_get_ctldata(spi) == NULL) {
+			ret = gpio_request(chip->cs_gpio, spi->modalias);
+			if (ret) {
+				dev_err(&spi->dev, "gpio_request() error\n");
+				goto pin_error;
+			}
+			gpio_direction_output(chip->cs_gpio, 1);
 		}
-		gpio_direction_output(chip->cs_gpio, 1);
 	}
 
 	dev_dbg(&spi->dev, "setup spi chip %s, width is %d, dma is %d\n",
