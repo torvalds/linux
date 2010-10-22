@@ -669,6 +669,7 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 {
 	struct snd_soc_codec *codec = dac33->codec;
+	unsigned int delay;
 
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
@@ -684,8 +685,9 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 		dac33_write16(codec, DAC33_PREFILL_MSB,
 				DAC33_THRREG(dac33->alarm_threshold));
 		/* Enable Alarm Threshold IRQ with a delay */
-		udelay(SAMPLES_TO_US(dac33->burst_rate,
-				     dac33->alarm_threshold));
+		delay = SAMPLES_TO_US(dac33->burst_rate,
+				     dac33->alarm_threshold) + 1000;
+		usleep_range(delay, delay + 500);
 		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MAT);
 		break;
 	case DAC33_FIFO_MODE7:
@@ -785,11 +787,11 @@ static irqreturn_t dac33_interrupt_handler(int irq, void *dev)
 
 static void dac33_oscwait(struct snd_soc_codec *codec)
 {
-	int timeout = 20;
+	int timeout = 60;
 	u8 reg;
 
 	do {
-		msleep(1);
+		usleep_range(1000, 2000);
 		dac33_read(codec, DAC33_INT_OSC_STATUS, &reg);
 	} while (((reg & 0x03) != DAC33_OSCSTATUS_NORMAL) && timeout--);
 	if ((reg & 0x03) != DAC33_OSCSTATUS_NORMAL)
