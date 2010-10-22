@@ -5921,7 +5921,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
  * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
  * @phba: Pointer to HBA context object.
  *
- * This routine performs a round robin SCSI command to SLI4 FCP WQ index
+ * This routine performs a roundrobin SCSI command to SLI4 FCP WQ index
  * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
  * held.
  *
@@ -12242,13 +12242,15 @@ lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, uint16_t fcf_index)
 	/* Issue the mailbox command asynchronously */
 	mboxq->vport = phba->pport;
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_fcf_scan_read_fcf_rec;
+
+	spin_lock_irq(&phba->hbalock);
+	phba->hba_flag |= FCF_TS_INPROG;
+	spin_unlock_irq(&phba->hbalock);
+
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		error = -EIO;
 	else {
-		spin_lock_irq(&phba->hbalock);
-		phba->hba_flag |= FCF_DISC_INPROGRESS;
-		spin_unlock_irq(&phba->hbalock);
 		/* Reset eligible FCF count for new scan */
 		if (fcf_index == LPFC_FCOE_FCF_GET_FIRST)
 			phba->fcf.eligible_fcf_cnt = 0;
@@ -12258,21 +12260,21 @@ fail_fcf_scan:
 	if (error) {
 		if (mboxq)
 			lpfc_sli4_mbox_cmd_free(phba, mboxq);
-		/* FCF scan failed, clear FCF_DISC_INPROGRESS flag */
+		/* FCF scan failed, clear FCF_TS_INPROG flag */
 		spin_lock_irq(&phba->hbalock);
-		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		phba->hba_flag &= ~FCF_TS_INPROG;
 		spin_unlock_irq(&phba->hbalock);
 	}
 	return error;
 }
 
 /**
- * lpfc_sli4_fcf_rr_read_fcf_rec - Read hba fcf record for round robin fcf.
+ * lpfc_sli4_fcf_rr_read_fcf_rec - Read hba fcf record for roundrobin fcf.
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: FCF table entry offset.
  *
  * This routine is invoked to read an FCF record indicated by @fcf_index
- * and to use it for FLOGI round robin FCF failover.
+ * and to use it for FLOGI roundrobin FCF failover.
  *
  * Return 0 if the mailbox command is submitted sucessfully, none 0
  * otherwise.
@@ -12318,7 +12320,7 @@ fail_fcf_read:
  * @fcf_index: FCF table entry offset.
  *
  * This routine is invoked to read an FCF record indicated by @fcf_index to
- * determine whether it's eligible for FLOGI round robin failover list.
+ * determine whether it's eligible for FLOGI roundrobin failover list.
  *
  * Return 0 if the mailbox command is submitted sucessfully, none 0
  * otherwise.
@@ -12364,7 +12366,7 @@ fail_fcf_read:
  *
  * This routine is to get the next eligible FCF record index in a round
  * robin fashion. If the next eligible FCF record index equals to the
- * initial round robin FCF record index, LPFC_FCOE_FCF_NEXT_NONE (0xFFFF)
+ * initial roundrobin FCF record index, LPFC_FCOE_FCF_NEXT_NONE (0xFFFF)
  * shall be returned, otherwise, the next eligible FCF record's index
  * shall be returned.
  **/
@@ -12392,28 +12394,10 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 		return LPFC_FCOE_FCF_NEXT_NONE;
 	}
 
-	/* Check roundrobin failover index bmask stop condition */
-	if (next_fcf_index == phba->fcf.fcf_rr_init_indx) {
-		if (!(phba->fcf.fcf_flag & FCF_REDISC_RRU)) {
-			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
-					"2847 Round robin failover FCF index "
-					"search hit stop condition:x%x\n",
-					next_fcf_index);
-			return LPFC_FCOE_FCF_NEXT_NONE;
-		}
-		/* The roundrobin failover index bmask updated, start over */
-		lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-				"2848 Round robin failover FCF index bmask "
-				"updated, start over\n");
-		spin_lock_irq(&phba->hbalock);
-		phba->fcf.fcf_flag &= ~FCF_REDISC_RRU;
-		spin_unlock_irq(&phba->hbalock);
-		return phba->fcf.fcf_rr_init_indx;
-	}
-
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-			"2845 Get next round robin failover "
-			"FCF index x%x\n", next_fcf_index);
+			"2845 Get next roundrobin failover FCF (x%x)\n",
+			next_fcf_index);
+
 	return next_fcf_index;
 }
 
@@ -12422,7 +12406,7 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine sets the FCF record index in to the eligible bmask for
- * round robin failover search. It checks to make sure that the index
+ * roundrobin failover search. It checks to make sure that the index
  * does not go beyond the range of the driver allocated bmask dimension
  * before setting the bit.
  *
@@ -12434,22 +12418,16 @@ lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *phba, uint16_t fcf_index)
 {
 	if (fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
-				"2610 HBA FCF index reached driver's "
-				"book keeping dimension: fcf_index:%d, "
-				"driver_bmask_max:%d\n",
+				"2610 FCF (x%x) reached driver's book "
+				"keeping dimension:x%x\n",
 				fcf_index, LPFC_SLI4_FCF_TBL_INDX_MAX);
 		return -EINVAL;
 	}
 	/* Set the eligible FCF record index bmask */
 	set_bit(fcf_index, phba->fcf.fcf_rr_bmask);
 
-	/* Set the roundrobin index bmask updated */
-	spin_lock_irq(&phba->hbalock);
-	phba->fcf.fcf_flag |= FCF_REDISC_RRU;
-	spin_unlock_irq(&phba->hbalock);
-
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-			"2790 Set FCF index x%x to round robin failover "
+			"2790 Set FCF (x%x) to roundrobin FCF failover "
 			"bmask\n", fcf_index);
 
 	return 0;
@@ -12460,7 +12438,7 @@ lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *phba, uint16_t fcf_index)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine clears the FCF record index from the eligible bmask for
- * round robin failover search. It checks to make sure that the index
+ * roundrobin failover search. It checks to make sure that the index
  * does not go beyond the range of the driver allocated bmask dimension
  * before clearing the bit.
  **/
@@ -12469,9 +12447,8 @@ lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
 {
 	if (fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
-				"2762 HBA FCF index goes beyond driver's "
-				"book keeping dimension: fcf_index:%d, "
-				"driver_bmask_max:%d\n",
+				"2762 FCF (x%x) reached driver's book "
+				"keeping dimension:x%x\n",
 				fcf_index, LPFC_SLI4_FCF_TBL_INDX_MAX);
 		return;
 	}
@@ -12479,7 +12456,7 @@ lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
 	clear_bit(fcf_index, phba->fcf.fcf_rr_bmask);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-			"2791 Clear FCF index x%x from round robin failover "
+			"2791 Clear FCF (x%x) from roundrobin failover "
 			"bmask\n", fcf_index);
 }
 
@@ -12530,8 +12507,7 @@ lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 		}
 	} else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-				"2775 Start FCF rediscovery quiescent period "
-				"wait timer before scaning FCF table\n");
+				"2775 Start FCF rediscover quiescent timer\n");
 		/*
 		 * Start FCF rediscovery wait timer for pending FCF
 		 * before rescan FCF record table.

@@ -229,6 +229,7 @@ void lpfc_sli4_fcf_dead_failthrough(struct lpfc_hba *);
 uint16_t lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *);
 int lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *, uint16_t);
 void lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *, uint16_t);
 
 int lpfc_mem_alloc(struct lpfc_hba *, int align);
 void lpfc_mem_free(struct lpfc_hba *);

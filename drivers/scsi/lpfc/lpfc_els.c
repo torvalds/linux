@@ -795,7 +795,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (irsp->ulpStatus) {
 		/*
-		 * In case of FIP mode, perform round robin FCF failover
+		 * In case of FIP mode, perform roundrobin FCF failover
 		 * due to new FCF discovery
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
@@ -803,48 +803,16 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    (irsp->ulpStatus != IOSTAT_LOCAL_REJECT) &&
 		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
-					"2611 FLOGI failed on registered "
-					"FCF record fcf_index(%d), status: "
-					"x%x/x%x, tmo:x%x, trying to perform "
-					"round robin failover\n",
+					"2611 FLOGI failed on FCF (x%x), "
+					"status:x%x/x%x, tmo:x%x, perform "
+					"roundrobin FCF failover\n",
 					phba->fcf.current_rec.fcf_indx,
 					irsp->ulpStatus, irsp->un.ulpWord[4],
 					irsp->ulpTimeout);
 			fcf_index = lpfc_sli4_fcf_rr_next_index_get(phba);
-			if (fcf_index == LPFC_FCOE_FCF_NEXT_NONE) {
-				/*
-				 * Exhausted the eligible FCF record list,
-				 * fail through to retry FLOGI on current
-				 * FCF record.
-				 */
-				lpfc_printf_log(phba, KERN_WARNING,
-						LOG_FIP | LOG_ELS,
-						"2760 Completed one round "
-						"of FLOGI FCF round robin "
-						"failover list, retry FLOGI "
-						"on currently registered "
-						"FCF index:%d\n",
-						phba->fcf.current_rec.fcf_indx);
-			} else {
-				lpfc_printf_log(phba, KERN_INFO,
-						LOG_FIP | LOG_ELS,
-						"2794 FLOGI FCF round robin "
-						"failover to FCF index x%x\n",
-						fcf_index);
-				rc = lpfc_sli4_fcf_rr_read_fcf_rec(phba,
-								   fcf_index);
-				if (rc)
-					lpfc_printf_log(phba, KERN_WARNING,
-							LOG_FIP | LOG_ELS,
-							"2761 FLOGI round "
-							"robin FCF failover "
-							"read FCF failed "
-							"rc:x%x, fcf_index:"
-							"%d\n", rc,
-						phba->fcf.current_rec.fcf_indx);
-				else
-					goto out;
-			}
+			rc = lpfc_sli4_fcf_rr_next_proc(vport, fcf_index);
+			if (rc)
+				goto out;
 		}
 
 		/* FLOGI failure */
@@ -934,6 +902,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_nlp_put(ndlp);
 			spin_lock_irq(&phba->hbalock);
 			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+			phba->hba_flag &= ~(FCF_RR_INPROG | HBA_DEVLOSS_TMO);
 			spin_unlock_irq(&phba->hbalock);
 			goto out;
 		}
@@ -942,13 +911,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (phba->hba_flag & HBA_FIP_SUPPORT)
 				lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP |
 						LOG_ELS,
-						"2769 FLOGI successful on FCF "
-						"record: current_fcf_index:"
-						"x%x, terminate FCF round "
-						"robin failover process\n",
+						"2769 FLOGI to FCF (x%x) "
+						"completed successfully\n",
 						phba->fcf.current_rec.fcf_indx);
 			spin_lock_irq(&phba->hbalock);
 			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+			phba->hba_flag &= ~(FCF_RR_INPROG | HBA_DEVLOSS_TMO);
 			spin_unlock_irq(&phba->hbalock);
 			goto out;
 		}
