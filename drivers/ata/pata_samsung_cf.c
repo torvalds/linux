@@ -322,7 +322,7 @@ static int pata_s3c_wait_after_reset(struct ata_link *link,
 {
 	int rc;
 
-	msleep(ATA_WAIT_AFTER_RESET);
+	ata_msleep(link->ap, ATA_WAIT_AFTER_RESET);
 
 	/* always check readiness of the master device */
 	rc = ata_sff_wait_ready(link, deadline);
