@@ -207,10 +207,16 @@ static int af9015_write_reg(struct dvb_usb_device *d, u16 addr, u8 val)
 	return af9015_write_regs(d, addr, &val, 1);
 }
 
+static int af9015_read_regs(struct dvb_usb_device *d, u16 addr, u8 *val, u8 len)
+{
+	struct req_t req = {READ_MEMORY, AF9015_I2C_DEMOD, addr, 0, 0, len,
+		val};
+	return af9015_ctrl_msg(d, &req);
+}
+
 static int af9015_read_reg(struct dvb_usb_device *d, u16 addr, u8 *val)
 {
-	struct req_t req = {READ_MEMORY, AF9015_I2C_DEMOD, addr, 0, 0, 1, val};
-	return af9015_ctrl_msg(d, &req);
+	return af9015_read_regs(d, addr, val, 1);
 }
 
 static int af9015_write_reg_i2c(struct dvb_usb_device *d, u8 addr, u16 reg,
@@ -787,10 +793,13 @@ static void af9015_set_remote_config(struct usb_device *udev,
 				af9015_rc_setup_modparam);
 		}
 	}
+
+	/* finally load "empty" just for leaving IR receiver enabled */
+	if (!props->rc.core.rc_codes)
+		props->rc.core.rc_codes = RC_MAP_EMPTY;
+
 	return;
 }
-
-static int af9015_rc_query(struct dvb_usb_device *d);
 
 static int af9015_read_config(struct usb_device *udev)
 {
@@ -815,12 +824,10 @@ static int af9015_read_config(struct usb_device *udev)
 
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
-		if (val == AF9015_IR_MODE_DISABLED) {
-			af9015_properties[i].rc.core.rc_query = NULL;
-		} else {
-			af9015_properties[i].rc.core.rc_query = af9015_rc_query;
+		if (val == AF9015_IR_MODE_DISABLED)
+			af9015_properties[i].rc.core.rc_codes = NULL;
+		else
 			af9015_set_remote_config(udev, &af9015_properties[i]);
-		}
 	}
 
 	/* TS mode - one or two receivers */
@@ -1005,67 +1012,43 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 {
 	struct af9015_state *priv = d->priv;
 	int ret;
-	u8 repeat, keycode[4];
+	u8 buf[16];
 
 	/* read registers needed to detect remote controller code */
-	/* TODO: Implement read multiple registers to reduce idle USB traffic.
-	   Currently three reads are needed for one idle rc polling. */
-	ret = af9015_read_reg(d, 0x98df, &repeat);
+	ret = af9015_read_regs(d, 0x98d9, buf, sizeof(buf));
 	if (ret)
 		goto error;
 
-	ret = af9015_read_reg(d, 0x98e7, &keycode[2]);
-	if (ret)
-		goto error;
+	if (buf[14] || buf[15]) {
+		deb_rc("%s: key pressed %02x %02x %02x %02x\n", __func__,
+			buf[12], buf[13], buf[14], buf[15]);
 
-	ret = af9015_read_reg(d, 0x98e8, &keycode[3]);
-	if (ret)
-		goto error;
-
-	if (keycode[2] || keycode[3]) {
-		/* read 1st address byte */
-		ret = af9015_read_reg(d, 0x98e5, &keycode[0]);
+		/* clean IR code from mem */
+		ret = af9015_write_regs(d, 0x98e5, "\x00\x00\x00\x00", 4);
 		if (ret)
 			goto error;
 
-		/* read 2nd address byte */
-		ret = af9015_read_reg(d, 0x98e6, &keycode[1]);
-		if (ret)
-			goto error;
-
-		deb_rc("%s: key pressed ", __func__);
-		debug_dump(keycode, sizeof(keycode), deb_rc);
-
-		/* clean data bytes from mem */
-		ret = af9015_write_reg(d, 0x98e7, 0);
-		if (ret)
-			goto error;
-
-		ret = af9015_write_reg(d, 0x98e8, 0);
-		if (ret)
-			goto error;
-
-		if (keycode[2] == (u8) ~keycode[3]) {
-			if (keycode[0] == (u8) ~keycode[1]) {
+		if (buf[14] == (u8) ~buf[15]) {
+			if (buf[12] == (u8) ~buf[13]) {
 				/* NEC */
-				priv->rc_keycode = keycode[0] << 8 | keycode[2];
+				priv->rc_keycode = buf[12] << 8 | buf[14];
 			} else {
 				/* NEC extended*/
-				priv->rc_keycode = keycode[0] << 16 |
-					keycode[1] << 8 | keycode[2];
+				priv->rc_keycode = buf[12] << 16 |
+					buf[13] << 8 | buf[14];
 			}
 			ir_keydown(d->rc_input_dev, priv->rc_keycode, 0);
 		} else {
 			priv->rc_keycode = 0; /* clear just for sure */
 		}
-	} else if (priv->rc_repeat != repeat) {
+	} else if (priv->rc_repeat != buf[6] || buf[0]) {
 		deb_rc("%s: key repeated\n", __func__);
 		ir_keydown(d->rc_input_dev, priv->rc_keycode, 0);
 	} else {
 		deb_rc("%s: no key press\n", __func__);
 	}
 
-	priv->rc_repeat = repeat;
+	priv->rc_repeat = buf[6];
 
 error:
 	if (ret)
@@ -1358,6 +1341,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.rc.core = {
 			.protocol         = IR_TYPE_NEC,
 			.module_name      = "af9015",
+			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
 			.rc_props = {
 				.allowed_protos = IR_TYPE_NEC,
@@ -1486,6 +1470,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.rc.core = {
 			.protocol         = IR_TYPE_NEC,
 			.module_name      = "af9015",
+			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
 			.rc_props = {
 				.allowed_protos = IR_TYPE_NEC,
@@ -1599,6 +1584,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.rc.core = {
 			.protocol         = IR_TYPE_NEC,
 			.module_name      = "af9015",
+			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
 			.rc_props = {
 				.allowed_protos = IR_TYPE_NEC,
