@@ -1170,8 +1170,7 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
 	if (dso->has_build_id) {
 		u8 build_id[BUILD_ID_SIZE];
 
-		if (elf_read_build_id(elf, build_id,
-				      BUILD_ID_SIZE) != BUILD_ID_SIZE)
+		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0)
 			goto out_elf_end;
 
 		if (!dso__build_id_equal(dso, build_id))
@@ -1443,8 +1442,8 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 	ptr = data->d_buf;
 	while (ptr < (data->d_buf + data->d_size)) {
 		GElf_Nhdr *nhdr = ptr;
-		int namesz = NOTE_ALIGN(nhdr->n_namesz),
-		    descsz = NOTE_ALIGN(nhdr->n_descsz);
+		size_t namesz = NOTE_ALIGN(nhdr->n_namesz),
+		       descsz = NOTE_ALIGN(nhdr->n_descsz);
 		const char *name;
 
 		ptr += sizeof(*nhdr);
@@ -1453,8 +1452,10 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 		if (nhdr->n_type == NT_GNU_BUILD_ID &&
 		    nhdr->n_namesz == sizeof("GNU")) {
 			if (memcmp(name, "GNU", sizeof("GNU")) == 0) {
-				memcpy(bf, ptr, BUILD_ID_SIZE);
-				err = BUILD_ID_SIZE;
+				size_t sz = min(size, descsz);
+				memcpy(bf, ptr, sz);
+				memset(bf + sz, 0, size - sz);
+				err = descsz;
 				break;
 			}
 		}
@@ -1506,7 +1507,7 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 	while (1) {
 		char bf[BUFSIZ];
 		GElf_Nhdr nhdr;
-		int namesz, descsz;
+		size_t namesz, descsz;
 
 		if (read(fd, &nhdr, sizeof(nhdr)) != sizeof(nhdr))
 			break;
@@ -1515,15 +1516,16 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 		descsz = NOTE_ALIGN(nhdr.n_descsz);
 		if (nhdr.n_type == NT_GNU_BUILD_ID &&
 		    nhdr.n_namesz == sizeof("GNU")) {
-			if (read(fd, bf, namesz) != namesz)
+			if (read(fd, bf, namesz) != (ssize_t)namesz)
 				break;
 			if (memcmp(bf, "GNU", sizeof("GNU")) == 0) {
-				if (read(fd, build_id,
-				    BUILD_ID_SIZE) == BUILD_ID_SIZE) {
+				size_t sz = min(descsz, size);
+				if (read(fd, build_id, sz) == (ssize_t)sz) {
+					memset(build_id + sz, 0, size - sz);
 					err = 0;
 					break;
 				}
-			} else if (read(fd, bf, descsz) != descsz)
+			} else if (read(fd, bf, descsz) != (ssize_t)descsz)
 				break;
 		} else {
 			int n = namesz + descsz;
