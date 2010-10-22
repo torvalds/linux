@@ -1682,8 +1682,7 @@ cifs_invalidate_mapping(struct inode *inode)
 	/* write back any cached data */
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc)
-			cifs_i->write_behind_rc = rc;
+		mapping_set_error(inode->i_mapping, rc);
 	}
 	invalidate_remote_inode(inode);
 	cifs_fscache_reset_inode_cookie(inode);
@@ -1943,10 +1942,8 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	 * the flush returns error?
 	 */
 	rc = filemap_write_and_wait(inode->i_mapping);
-	if (rc != 0) {
-		cifsInode->write_behind_rc = rc;
-		rc = 0;
-	}
+	mapping_set_error(inode->i_mapping, rc);
+	rc = 0;
 
 	if (attrs->ia_valid & ATTR_SIZE) {
 		rc = cifs_set_file_size(inode, attrs, xid, full_path);
@@ -2087,10 +2084,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	 * the flush returns error?
 	 */
 	rc = filemap_write_and_wait(inode->i_mapping);
-	if (rc != 0) {
-		cifsInode->write_behind_rc = rc;
-		rc = 0;
-	}
+	mapping_set_error(inode->i_mapping, rc);
+	rc = 0;
 
 	if (attrs->ia_valid & ATTR_SIZE) {
 		rc = cifs_set_file_size(inode, attrs, xid, full_path);

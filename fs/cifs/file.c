@@ -131,8 +131,7 @@ static inline int cifs_open_inode_helper(struct inode *inode,
 			/* BB no need to lock inode until after invalidate
 			since namei code should already have it locked? */
 			rc = filemap_write_and_wait(inode->i_mapping);
-			if (rc != 0)
-				pCifsInode->write_behind_rc = rc;
+			mapping_set_error(inode->i_mapping, rc);
 		}
 		cFYI(1, "invalidating remote inode since open detected it "
 			 "changed");
@@ -606,8 +605,7 @@ reopen_success:
 
 	if (can_flush) {
 		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc != 0)
-			CIFS_I(inode)->write_behind_rc = rc;
+		mapping_set_error(inode->i_mapping, rc);
 
 		pCifsInode->clientCanCacheAll = false;
 		pCifsInode->clientCanCacheRead = false;
@@ -1489,12 +1487,7 @@ retry:
 			if (rc || bytes_written < bytes_to_write) {
 				cERROR(1, "Write2 ret %d, wrote %d",
 					  rc, bytes_written);
-				/* BB what if continued retry is
-				   requested via mount flags? */
-				if (rc == -ENOSPC)
-					set_bit(AS_ENOSPC, &mapping->flags);
-				else
-					set_bit(AS_EIO, &mapping->flags);
+				mapping_set_error(mapping, rc);
 			} else {
 				cifs_stats_bytes_written(tcon, bytes_written);
 			}
@@ -1639,11 +1632,10 @@ int cifs_fsync(struct file *file, int datasync)
 
 	rc = filemap_write_and_wait(inode->i_mapping);
 	if (rc == 0) {
-		rc = CIFS_I(inode)->write_behind_rc;
-		CIFS_I(inode)->write_behind_rc = 0;
+		struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+
 		tcon = tlink_tcon(smbfile->tlink);
-		if (!rc && tcon && smbfile &&
-		   !(CIFS_SB(inode->i_sb)->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
+		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
 			rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
 	}
 
@@ -1688,14 +1680,8 @@ int cifs_flush(struct file *file, fl_owner_t id)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	int rc = 0;
 
-	if (file->f_mode & FMODE_WRITE) {
+	if (file->f_mode & FMODE_WRITE)
 		rc = filemap_write_and_wait(inode->i_mapping);
-		/* reset wb rc if we were able to write out dirty pages */
-		if (!rc) {
-			rc = CIFS_I(inode)->write_behind_rc;
-			CIFS_I(inode)->write_behind_rc = 0;
-		}
-	}
 
 	cFYI(1, "Flush inode %p file %p rc %d", inode, file, rc);
 
@@ -2274,7 +2260,7 @@ void cifs_oplock_break(struct work_struct *work)
 						  oplock_break);
 	struct inode *inode = cfile->dentry->d_inode;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
-	int rc, waitrc = 0;
+	int rc = 0;
 
 	if (inode && S_ISREG(inode->i_mode)) {
 		if (cinode->clientCanCacheRead)
@@ -2283,13 +2269,10 @@ void cifs_oplock_break(struct work_struct *work)
 			break_lease(inode, O_WRONLY);
 		rc = filemap_fdatawrite(inode->i_mapping);
 		if (cinode->clientCanCacheRead == 0) {
-			waitrc = filemap_fdatawait(inode->i_mapping);
+			rc = filemap_fdatawait(inode->i_mapping);
+			mapping_set_error(inode->i_mapping, rc);
 			invalidate_remote_inode(inode);
 		}
-		if (!rc)
-			rc = waitrc;
-		if (rc)
-			cinode->write_behind_rc = rc;
 		cFYI(1, "Oplock flush inode %p rc %d", inode, rc);
 	}
 

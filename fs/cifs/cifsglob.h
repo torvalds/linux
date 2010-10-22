@@ -420,7 +420,6 @@ struct cifsInodeInfo {
 	struct list_head lockList;
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
-	int write_behind_rc;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	unsigned long time;	/* jiffies of last update/check of inode */
 	bool clientCanCacheRead:1;	/* read oplock */
