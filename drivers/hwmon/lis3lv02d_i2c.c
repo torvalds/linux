@@ -160,7 +160,12 @@ static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 
 	if (lis3_dev.reg_ctrl)
 		lis3_reg_ctrl(&lis3_dev, LIS3_REG_OFF);
+
+	if (ret == 0)
+		return 0;
 fail:
+	if (pdata && pdata->release_resources)
+		pdata->release_resources();
 	return ret;
 }
 
