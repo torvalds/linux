@@ -287,25 +287,44 @@
  * are masked. This is nice, means we don't have to CLI before state save
  */
 C_ENTRY(_user_exception):
-	addi	r14, r14, 4	/* return address is 4 byte after call */
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
+	addi	r14, r14, 4	/* return address is 4 byte after call */
 
+	mfs	r1, rmsr
+	nop
+	andi	r1, r1, MSR_UMS
+	bnei	r1, 1f
+
+/* Kernel-mode state save - kernel execve */
+	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
+	tophys(r1,r1);
+
+	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack. */
+	SAVE_REGS
+
+	swi	r1, r1, PTO + PT_MODE; /* pt_regs -> kernel mode */
+	brid	2f;
+	nop;				/* Fill delay slot */
+
+/* User-mode state save.  */
+1:
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
 	tophys(r1,r1);
 	lwi	r1, r1, TS_THREAD_INFO;	/* get stack from task_struct */
-	/* MS these three instructions can be added to one */
-	/* addik	r1, r1, THREAD_SIZE; */
-	/* tophys(r1,r1); */
-	/* addik	r1, r1, -STATE_SAVE_SIZE; */
-	addik r1, r1, THREAD_SIZE + CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE;
+/* calculate kernel stack pointer from task struct 8k */
+	addik	r1, r1, THREAD_SIZE;
+	tophys(r1,r1);
+
+	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
 	SAVE_REGS
 	swi	r0, r1, PTO + PT_R3
 	swi	r0, r1, PTO + PT_R4
 
+	swi	r0, r1, PTO + PT_MODE;			/* Was in user-mode. */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
 	clear_ums;
-	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
+2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
 	swi	r12, r1, PTO+PT_R0;
 	tovirt(r1,r1)
@@ -375,6 +394,9 @@ C_ENTRY(ret_from_trap):
 	swi	r3, r1, PTO + PT_R3
 	swi	r4, r1, PTO + PT_R4
 
+	lwi	r11, r1, PTO + PT_MODE;
+/* See if returning to kernel mode, if so, skip resched &c.  */
+	bnei	r11, 2f;
 	/* We're returning to user mode, so check for various conditions that
 	 * trigger rescheduling. */
 	/* FIXME: Restructure all these flag checks. */
@@ -417,6 +439,16 @@ C_ENTRY(ret_from_trap):
 	RESTORE_REGS;
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
 	lwi	r1, r1, PT_R1 - PT_SIZE;/* Restore user stack pointer. */
+	bri	6f;
+
+/* Return to kernel state.  */
+2:	set_bip;			/*  Ints masked for state restore */
+	VM_OFF;
+	tophys(r1,r1);
+	RESTORE_REGS;
+	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
+	tovirt(r1,r1);
+6:
 TRAP_return:		/* Make global symbol for debugging */
 	rtbd	r14, 0;	/* Instructions to return from an IRQ */
 	nop;
