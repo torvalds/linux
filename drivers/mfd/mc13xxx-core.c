@@ -795,6 +795,8 @@ static int __devexit mc13xxx_remove(struct spi_device *spi)
 
 	mfd_remove_devices(&spi->dev);
 
+	kfree(mc13xxx);
+
 	return 0;
 }
 
