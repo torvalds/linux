@@ -247,6 +247,7 @@ static struct file_operations snd_fops = {
 	.open		= snd_open,
 	.release	= snd_release,
 	.unlocked_ioctl	= snd_ioctl,
+	.llseek		= noop_llseek,
 };
 
 struct miscdevice snd_misc = {

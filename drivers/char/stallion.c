@@ -608,6 +608,7 @@ static unsigned int	sc26198_baudtable[] = {
 static const struct file_operations	stl_fsiomem = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= stl_memioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct class *stallion_class;

@@ -292,6 +292,7 @@ static const struct file_operations raw_fops = {
 	.open		= raw_open,
 	.release	= raw_release,
 	.unlocked_ioctl = raw_ioctl,
+	.llseek		= default_llseek,
 	.owner		= THIS_MODULE,
 };
 
@@ -302,6 +303,7 @@ static const struct file_operations raw_ctl_fops = {
 #endif
 	.open		= raw_open,
 	.owner		= THIS_MODULE,
+	.llseek		= noop_llseek,
 };
 
 static struct cdev raw_cdev;

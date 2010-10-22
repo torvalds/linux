@@ -1468,6 +1468,7 @@ static const struct file_operations dvb_net_fops = {
 	.unlocked_ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
 	.release = dvb_net_close,
+	.llseek = noop_llseek,
 };
 
 static struct dvb_device dvbdev_net = {

@@ -32,6 +32,7 @@ static ssize_t key_##name##_read(struct file *file,			\
 static const struct file_operations key_ ##name## _ops = {		\
 	.read = key_##name##_read,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define KEY_FILE(name, format)						\
@@ -46,6 +47,7 @@ static const struct file_operations key_ ##name## _ops = {		\
 static const struct file_operations key_ ##name## _ops = {		\
 	.read = key_conf_##name##_read,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define KEY_CONF_FILE(name, format)					\

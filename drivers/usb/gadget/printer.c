@@ -884,7 +884,8 @@ static const struct file_operations printer_io_operations = {
 	.fsync =	printer_fsync,
 	.poll =		printer_poll,
 	.unlocked_ioctl = printer_ioctl,
-	.release =	printer_close
+	.release =	printer_close,
+	.llseek =	noop_llseek,
 };
 
 /*-------------------------------------------------------------------------*/

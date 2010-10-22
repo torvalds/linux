@@ -2462,6 +2462,7 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = simple_attr_read,					\
 	.write	 = simple_attr_write,					\
+	.llseek	 = generic_file_llseek,					\
 };
 
 static inline void __attribute__((format(printf, 1, 2)))

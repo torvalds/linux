@@ -76,6 +76,7 @@ static const struct file_operations lsi_fops = {
 	.compat_ioctl = mraid_mm_compat_ioctl,
 #endif
 	.owner	= THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice megaraid_mm_dev = {

@@ -179,6 +179,7 @@ static int proc_root_readdir(struct file * filp,
 static const struct file_operations proc_root_operations = {
 	.read		 = generic_read_dir,
 	.readdir	 = proc_root_readdir,
+	.llseek		= default_llseek,
 };
 
 /*

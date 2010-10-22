@@ -981,6 +981,7 @@ static const struct file_operations changer_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ch_ioctl_compat,
 #endif
+	.llseek		= noop_llseek,
 };
 
 static int __init init_ch_module(void)

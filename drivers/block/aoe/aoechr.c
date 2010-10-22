@@ -266,6 +266,7 @@ static const struct file_operations aoe_fops = {
 	.open = aoechr_open,
 	.release = aoechr_rel,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static char *aoe_devnode(struct device *dev, mode_t *mode)

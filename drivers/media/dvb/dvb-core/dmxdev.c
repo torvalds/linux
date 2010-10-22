@@ -1143,6 +1143,7 @@ static const struct file_operations dvb_demux_fops = {
 	.open = dvb_demux_open,
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_demux = {
@@ -1212,6 +1213,7 @@ static const struct file_operations dvb_dvr_fops = {
 	.open = dvb_dvr_open,
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_dvr = {

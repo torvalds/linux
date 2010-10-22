@@ -1631,6 +1631,7 @@ static const struct file_operations keypad_fops = {
 	.read    = keypad_read,		/* read */
 	.open    = keypad_open,		/* open */
 	.release = keypad_release,	/* close */
+	.llseek  = default_llseek,
 };
 
 static struct miscdevice keypad_dev = {

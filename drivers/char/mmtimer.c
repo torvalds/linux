@@ -73,6 +73,7 @@ static const struct file_operations mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	mmtimer_mmap,
 	.unlocked_ioctl = mmtimer_ioctl,
+	.llseek = noop_llseek,
 };
 
 /*

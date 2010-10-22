@@ -6677,7 +6677,8 @@ static const struct file_operations ixj_fops =
         .poll           = ixj_poll,
         .unlocked_ioctl = ixj_ioctl,
         .release        = ixj_release,
-        .fasync         = ixj_fasync
+        .fasync         = ixj_fasync,
+        .llseek	 = default_llseek,
 };
 
 static int ixj_linetest(IXJ *j)

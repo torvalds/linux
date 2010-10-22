@@ -267,6 +267,7 @@ static const struct file_operations tlclk_fops = {
 	.read = tlclk_read,
 	.open = tlclk_open,
 	.release = tlclk_release,
+	.llseek = noop_llseek,
 
 };
 

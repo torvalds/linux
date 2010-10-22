@@ -873,6 +873,7 @@ static ssize_t iwl3945_sta_dbgfs_stats_table_read(struct file *file,
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.read = iwl3945_sta_dbgfs_stats_table_read,
 	.open = iwl3945_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static void iwl3945_add_debugfs(void *priv, void *priv_sta,

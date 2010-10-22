@@ -730,6 +730,7 @@ static const struct file_operations dvb_osd_fops = {
 	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_generic_open,
 	.release	= dvb_generic_release,
+	.llseek		= noop_llseek,
 };
 
 static struct dvb_device dvbdev_osd = {

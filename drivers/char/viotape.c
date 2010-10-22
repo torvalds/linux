@@ -805,6 +805,7 @@ const struct file_operations viotap_fops = {
 	.unlocked_ioctl =	viotap_unlocked_ioctl,
 	.open =			viotap_open,
 	.release =		viotap_release,
+	.llseek = 		noop_llseek,
 };
 
 /* Handle interrupt events for tape */

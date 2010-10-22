@@ -932,6 +932,7 @@ static const struct file_operations ftrace_enable_fops = {
 	.open = tracing_open_generic,
 	.read = event_enable_read,
 	.write = event_enable_write,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations ftrace_event_format_fops = {
@@ -944,29 +945,34 @@ static const struct file_operations ftrace_event_format_fops = {
 static const struct file_operations ftrace_event_id_fops = {
 	.open = tracing_open_generic,
 	.read = event_id_read,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations ftrace_event_filter_fops = {
 	.open = tracing_open_generic,
 	.read = event_filter_read,
 	.write = event_filter_write,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations ftrace_subsystem_filter_fops = {
 	.open = tracing_open_generic,
 	.read = subsystem_filter_read,
 	.write = subsystem_filter_write,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations ftrace_system_enable_fops = {
 	.open = tracing_open_generic,
 	.read = system_enable_read,
 	.write = system_enable_write,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations ftrace_show_header_fops = {
 	.open = tracing_open_generic,
 	.read = show_header,
+	.llseek = default_llseek,
 };
 
 static struct dentry *event_trace_events_dir(void)

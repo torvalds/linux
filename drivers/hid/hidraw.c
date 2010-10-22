@@ -340,6 +340,7 @@ static const struct file_operations hidraw_ops = {
 	.open =         hidraw_open,
 	.release =      hidraw_release,
 	.unlocked_ioctl = hidraw_ioctl,
+	.llseek =	noop_llseek,
 };
 
 void hidraw_report_event(struct hid_device *hid, u8 *data, int len)

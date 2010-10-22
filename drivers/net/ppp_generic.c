@@ -856,7 +856,8 @@ static const struct file_operations ppp_device_fops = {
 	.poll		= ppp_poll,
 	.unlocked_ioctl	= ppp_ioctl,
 	.open		= ppp_open,
-	.release	= ppp_release
+	.release	= ppp_release,
+	.llseek		= noop_llseek,
 };
 
 static __net_init int ppp_init_net(struct net *net)

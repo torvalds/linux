@@ -325,6 +325,7 @@ static const struct file_operations blk_dropped_fops = {
 	.owner =	THIS_MODULE,
 	.open =		blk_dropped_open,
 	.read =		blk_dropped_read,
+	.llseek =	default_llseek,
 };
 
 static int blk_msg_open(struct inode *inode, struct file *filp)
@@ -364,6 +365,7 @@ static const struct file_operations blk_msg_fops = {
 	.owner =	THIS_MODULE,
 	.open =		blk_msg_open,
 	.write =	blk_msg_write,
+	.llseek =	noop_llseek,
 };
 
 /*

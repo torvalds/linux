@@ -640,6 +640,7 @@ static const struct file_operations ilo_fops = {
 	.poll		= ilo_poll,
 	.open 		= ilo_open,
 	.release 	= ilo_close,
+	.llseek		= noop_llseek,
 };
 
 static irqreturn_t ilo_isr(int irq, void *data)

@@ -1622,6 +1622,7 @@ static const struct file_operations dvb_ca_fops = {
 	.open = dvb_ca_en50221_io_open,
 	.release = dvb_ca_en50221_io_release,
 	.poll = dvb_ca_en50221_io_poll,
+	.llseek = noop_llseek,
 };
 
 static struct dvb_device dvbdev_ca = {

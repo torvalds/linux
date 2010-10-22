@@ -38,6 +38,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 static const struct file_operations proc_atm_dev_ops = {
 	.owner =	THIS_MODULE,
 	.read =		proc_dev_atm_read,
+	.llseek =	noop_llseek,
 };
 
 static void add_stats(struct seq_file *seq, const char *aal,

@@ -7063,7 +7063,8 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 
 static const struct file_operations DAC960_gam_fops = {
 	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= DAC960_gam_ioctl
+	.unlocked_ioctl	= DAC960_gam_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice DAC960_gam_dev = {

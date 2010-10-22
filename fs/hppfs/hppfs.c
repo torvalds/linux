@@ -598,6 +598,7 @@ static const struct file_operations hppfs_dir_fops = {
 	.readdir	= hppfs_readdir,
 	.open		= hppfs_dir_open,
 	.fsync		= hppfs_fsync,
+	.llseek		= default_llseek,
 };
 
 static int hppfs_statfs(struct dentry *dentry, struct kstatfs *sf)

@@ -36,6 +36,7 @@ static ssize_t sta_ ##name## _read(struct file *file,			\
 static const struct file_operations sta_ ##name## _ops = {		\
 	.read = sta_##name##_read,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define STA_OPS_RW(name)						\
@@ -43,6 +44,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 	.read = sta_##name##_read,					\
 	.write = sta_##name##_write,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define STA_FILE(name, field, format)					\

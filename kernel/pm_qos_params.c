@@ -110,6 +110,7 @@ static const struct file_operations pm_qos_power_fops = {
 	.write = pm_qos_power_write,
 	.open = pm_qos_power_open,
 	.release = pm_qos_power_release,
+	.llseek = noop_llseek,
 };
 
 /* unlocked internal variant */

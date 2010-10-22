@@ -245,6 +245,7 @@ static const struct file_operations mmc_dbg_ext_csd_fops = {
 	.open		= mmc_ext_csd_open,
 	.read		= mmc_ext_csd_read,
 	.release	= mmc_ext_csd_release,
+	.llseek		= default_llseek,
 };
 
 void mmc_add_card_debugfs(struct mmc_card *card)

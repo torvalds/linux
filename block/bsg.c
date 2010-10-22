@@ -965,6 +965,7 @@ static const struct file_operations bsg_fops = {
 	.release	=	bsg_release,
 	.unlocked_ioctl	=	bsg_ioctl,
 	.owner		=	THIS_MODULE,
+	.llseek		=	default_llseek,
 };
 
 void bsg_unregister_queue(struct request_queue *q)

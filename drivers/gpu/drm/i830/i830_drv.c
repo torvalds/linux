@@ -74,6 +74,7 @@ static struct drm_driver driver = {
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .llseek = noop_llseek,
 	},
 
 	.pci_driver = {

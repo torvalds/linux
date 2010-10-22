@@ -948,6 +948,7 @@ static struct file_operations audio_mp3_fops = {
 	.read		= audio_read,
 	.write		= audio_write,
 	.unlocked_ioctl	= audio_ioctl,
+	.llseek		= noop_llseek,
 };
 
 struct miscdevice audio_mp3_misc = {

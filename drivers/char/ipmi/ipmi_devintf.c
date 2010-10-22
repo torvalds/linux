@@ -850,6 +850,7 @@ static const struct file_operations ipmi_fops = {
 	.release	= ipmi_release,
 	.fasync		= ipmi_fasync,
 	.poll		= ipmi_poll,
+	.llseek		= noop_llseek,
 };
 
 #define DEVICE_NAME     "ipmidev"

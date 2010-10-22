@@ -780,6 +780,7 @@ static const struct file_operations lparcfg_fops = {
 	.write		= lparcfg_write,
 	.open		= lparcfg_open,
 	.release	= single_release,
+	.llseek		= seq_lseek,
 };
 
 static int __init lparcfg_init(void)

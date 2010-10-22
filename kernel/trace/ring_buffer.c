@@ -3974,6 +3974,7 @@ static const struct file_operations rb_simple_fops = {
 	.open		= tracing_open_generic,
 	.read		= rb_simple_read,
 	.write		= rb_simple_write,
+	.llseek		= default_llseek,
 };
 
 

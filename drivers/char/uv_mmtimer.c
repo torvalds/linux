@@ -52,6 +52,7 @@ static const struct file_operations uv_mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	uv_mmtimer_mmap,
 	.unlocked_ioctl = uv_mmtimer_ioctl,
+	.llseek = noop_llseek,
 };
 
 /**

@@ -843,6 +843,7 @@ static ssize_t mconsole_proc_write(struct file *file,
 static const struct file_operations mconsole_proc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= mconsole_proc_write,
+	.llseek		= noop_llseek,
 };
 
 static int create_proc_mconsole(void)

@@ -877,6 +877,7 @@ static const struct file_operations vhost_net_fops = {
 	.compat_ioctl   = vhost_net_compat_ioctl,
 #endif
 	.open           = vhost_net_open,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice vhost_net_misc = {

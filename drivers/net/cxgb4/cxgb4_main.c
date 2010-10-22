@@ -2026,6 +2026,7 @@ static const struct file_operations mem_debugfs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = mem_open,
 	.read    = mem_read,
+	.llseek  = default_llseek,
 };
 
 static void __devinit add_debugfs_mem(struct adapter *adap, const char *name,

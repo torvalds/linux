@@ -1902,6 +1902,7 @@ static const struct file_operations idetape_fops = {
 	.unlocked_ioctl	= idetape_chrdev_ioctl,
 	.open		= idetape_chrdev_open,
 	.release	= idetape_chrdev_release,
+	.llseek		= noop_llseek,
 };
 
 static int idetape_open(struct block_device *bdev, fmode_t mode)
