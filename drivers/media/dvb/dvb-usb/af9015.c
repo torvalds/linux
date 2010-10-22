@@ -752,6 +752,8 @@ static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
 		RC_MAP_AVERMEDIA_M135A },
 	{ (USB_VID_AFATECH << 16) + USB_PID_TREKSTOR_DVBT,
 		RC_MAP_TREKSTOR },
+	{ (USB_VID_KWORLD_2 << 16) + USB_PID_TINYTWIN_2,
+		RC_MAP_DIGITALNOW_TINYTWIN },
 	{ }
 };
 
