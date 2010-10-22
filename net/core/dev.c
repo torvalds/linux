@@ -1696,22 +1696,18 @@ static bool can_checksum_protocol(unsigned long features, __be16 protocol)
 
 static bool dev_can_checksum(struct net_device *dev, struct sk_buff *skb)
 {
+	__be16 protocol = skb->protocol;
 	int features = dev->features;
 
-	if (vlan_tx_tag_present(skb))
+	if (vlan_tx_tag_present(skb)) {
 		features &= dev->vlan_features;
-
-	if (can_checksum_protocol(features, skb->protocol))
-		return true;
-
-	if (skb->protocol == htons(ETH_P_8021Q)) {
+	} else if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
-		if (can_checksum_protocol(dev->features & dev->vlan_features,
-					  veh->h_vlan_encapsulated_proto))
-			return true;
+		protocol = veh->h_vlan_encapsulated_proto;
+		features &= dev->vlan_features;
 	}
 
-	return false;
+	return can_checksum_protocol(features, protocol);
 }
 
 /**
