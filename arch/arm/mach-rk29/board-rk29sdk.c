@@ -42,8 +42,8 @@ extern struct sys_timer rk29_timer;
 
 static void __init rk29_gic_init_irq(void)
 {
-	gic_dist_init(0, RK29_GICPERI_BASE, 32);
-	gic_cpu_init(0, RK29_GICCPU_BASE);
+	gic_dist_init(0, (void __iomem *)RK29_GICPERI_BASE, 32);
+	gic_cpu_init(0, (void __iomem *)RK29_GICCPU_BASE);
 }
 
 static void __init machine_rk29_init_irq(void)
@@ -53,7 +53,7 @@ static void __init machine_rk29_init_irq(void)
 	//rk29_gpio_irq_setup();
 }
 static void __init machine_rk29_board_init(void)
-{
+{ 
 	
 }
 

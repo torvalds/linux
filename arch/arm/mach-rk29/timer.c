@@ -55,7 +55,7 @@
 #define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER1
 #define TIMER_CLKSRC_NAME		"timer1"
 
-static struct clk *timer_clk;
+//static struct clk *timer_clk;
 static volatile unsigned long timer_mult; /* timer count = cycle * timer_mult */
 
 void rk29_timer_update_mult(void)
