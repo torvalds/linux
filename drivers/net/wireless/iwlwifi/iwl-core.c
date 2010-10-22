@@ -1206,8 +1206,16 @@ EXPORT_SYMBOL(iwl_apm_init);
 
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
-	int ret = 0;
-	s8 prev_tx_power = priv->tx_power_user_lmt;
+	int ret;
+	s8 prev_tx_power;
+
+	lockdep_assert_held(&priv->mutex);
+
+	if (priv->tx_power_user_lmt == tx_power && !force)
+		return 0;
+
+	if (!priv->cfg->ops->lib->send_tx_power)
+		return -EOPNOTSUPP;
 
 	if (tx_power < IWLAGN_TX_POWER_TARGET_POWER_MIN) {
 		IWL_WARN(priv,
@@ -1224,30 +1232,26 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (priv->tx_power_user_lmt != tx_power)
-		force = true;
+	if (!iwl_is_ready_rf(priv))
+		return -EIO;
 
-	/* if nic is not up don't send command */
-	if (iwl_is_ready_rf(priv)) {
-		priv->tx_power_user_lmt = tx_power;
-		if (force && priv->cfg->ops->lib->send_tx_power)
-			ret = priv->cfg->ops->lib->send_tx_power(priv);
-		else if (!priv->cfg->ops->lib->send_tx_power)
-			ret = -EOPNOTSUPP;
-		/*
-		 * if fail to set tx_power, restore the orig. tx power
-		 */
-		if (ret)
-			priv->tx_power_user_lmt = prev_tx_power;
+	/* scan complete use tx_power_next, need to be updated */
+	priv->tx_power_next = tx_power;
+	if (test_bit(STATUS_SCANNING, &priv->status) && !force) {
+		IWL_DEBUG_INFO(priv, "Deferring tx power set while scanning\n");
+		return 0;
 	}
 
-	/*
-	 * Even this is an async host command, the command
-	 * will always report success from uCode
-	 * So once driver can placing the command into the queue
-	 * successfully, driver can use priv->tx_power_user_lmt
-	 * to reflect the current tx power
-	 */
+	prev_tx_power = priv->tx_power_user_lmt;
+	priv->tx_power_user_lmt = tx_power;
+
+	ret = priv->cfg->ops->lib->send_tx_power(priv);
+
+	/* if fail to set tx_power, restore the orig. tx power */
+	if (ret) {
+		priv->tx_power_user_lmt = prev_tx_power;
+		priv->tx_power_next = prev_tx_power;
+	}
 	return ret;
 }
 EXPORT_SYMBOL(iwl_set_tx_power);
@@ -2016,7 +2020,9 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		IWL_DEBUG_MAC80211(priv, "TX Power old=%d new=%d\n",
 			priv->tx_power_user_lmt, conf->power_level);
 
-		iwl_set_tx_power(priv, conf->power_level, false);
+		ret = iwl_set_tx_power(priv, conf->power_level, false);
+		if (ret)
+			IWL_ERR(priv, "Error sending TX power (%d)\n", ret);
 	}
 
 	if (!iwl_is_ready(priv)) {

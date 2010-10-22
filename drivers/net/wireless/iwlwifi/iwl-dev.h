@@ -1517,6 +1517,7 @@ struct iwl_priv {
 	s8 tx_power_user_lmt;
 	s8 tx_power_device_lmt;
 	s8 tx_power_lmt_in_half_dbm; /* max tx power in half-dBm format */
+	s8 tx_power_next;
 
 
 #ifdef CONFIG_IWLWIFI_DEBUG

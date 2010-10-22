@@ -603,13 +603,15 @@ out_settings:
 	if (!iwl_is_ready_rf(priv))
 		goto out;
 
-	/* Since setting the TXPOWER may have been deferred while
-	 * performing the scan, fire one off */
-	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	/*
+	 * We do not commit power settings while scan is pending,
+	 * do it now if the settings changed.
+	 */
+	iwl_set_tx_power(priv, priv->tx_power_next, false);
 
 	priv->cfg->ops->utils->post_scan(priv);
 
- out:
+out:
 	mutex_unlock(&priv->mutex);
 }
 

@@ -245,13 +245,10 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
-	if (ret) {
+	ret = priv->cfg->ops->lib->send_tx_power(priv);
+	if (ret)
 		IWL_ERR(priv, "Error sending TX power (%d)\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void iwl_update_chain_flags(struct iwl_priv *priv)
@@ -4179,6 +4176,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	 * this value will get overwritten by channel max power avg
 	 * from eeprom */
 	priv->tx_power_user_lmt = IWLAGN_TX_POWER_TARGET_POWER_MIN;
+	priv->tx_power_next = IWLAGN_TX_POWER_TARGET_POWER_MIN;
 
 	ret = iwl_init_channel_map(priv);
 	if (ret) {
