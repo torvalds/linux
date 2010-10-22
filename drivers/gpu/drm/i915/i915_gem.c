@@ -3349,7 +3349,7 @@ i915_gem_execbuffer_relocate(struct drm_i915_gem_object *obj,
 		}
 
 		target_obj->pending_read_domains |= reloc.read_domains;
-		target_obj->pending_write_domain = reloc.write_domain;
+		target_obj->pending_write_domain |= reloc.write_domain;
 
 		/* If the relocation already has the right value in it, no
 		 * more work needs to be done.
