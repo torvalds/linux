@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
@@ -215,14 +214,10 @@ static void bfs_put_super(struct super_block *s)
 	if (!info)
 		return;
 
-	lock_kernel();
-
 	mutex_destroy(&info->bfs_lock);
 	kfree(info->si_imap);
 	kfree(info);
 	s->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)

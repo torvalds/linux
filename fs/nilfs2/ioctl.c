@@ -22,7 +22,6 @@
 
 #include <linux/fs.h>
 #include <linux/wait.h>
-#include <linux/smp_lock.h>	/* lock_kernel(), unlock_kernel() */
 #include <linux/slab.h>
 #include <linux/capability.h>	/* capable() */
 #include <linux/uaccess.h>	/* copy_from_user(), copy_to_user() */

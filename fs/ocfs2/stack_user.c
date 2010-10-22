@@ -22,7 +22,6 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/reboot.h>
 #include <asm/uaccess.h>
 
@@ -612,12 +611,10 @@ static int ocfs2_control_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	p->op_this_node = -1;
 
-	lock_kernel();
 	mutex_lock(&ocfs2_control_lock);
 	file->private_data = p;
 	list_add(&p->op_list, &ocfs2_control_private_list);
 	mutex_unlock(&ocfs2_control_lock);
-	unlock_kernel();
 
 	return 0;
 }

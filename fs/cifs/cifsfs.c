@@ -35,7 +35,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-#include <linux/smp_lock.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -200,8 +199,6 @@ cifs_put_super(struct super_block *sb)
 		return;
 	}
 
-	lock_kernel();
-
 	rc = cifs_umount(sb, cifs_sb);
 	if (rc)
 		cERROR(1, "cifs_umount failed with return code %d", rc);
@@ -215,8 +212,6 @@ cifs_put_super(struct super_block *sb)
 	unload_nls(cifs_sb->local_nls);
 	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb);
-
-	unlock_kernel();
 }
 
 static int
@@ -514,7 +509,9 @@ cifs_get_sb(struct file_system_type *fs_type,
 	    int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	int rc;
-	struct super_block *sb = sget(fs_type, NULL, set_anon_super, NULL);
+	struct super_block *sb;
+
+	sb = sget(fs_type, NULL, set_anon_super, NULL);
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
@@ -565,8 +562,8 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 {
-	/* note that this is called by vfs setlease with the BKL held
-	   although I doubt that BKL is needed here in cifs */
+	/* note that this is called by vfs setlease with lock_flocks held
+	   to protect *lease from going away */
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	if (!(S_ISREG(inode->i_mode)))

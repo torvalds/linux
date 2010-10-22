@@ -477,11 +477,15 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	int o;
 
+	lock_kernel();
+
 	save_mount_options(s, options);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	s->s_fs_info = sbi;
 
 	sbi->sb_bmp_dir = NULL;
@@ -666,6 +670,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 			root->i_blocks = 5;
 		hpfs_brelse4(&qbh);
 	}
+	unlock_kernel();
 	return 0;
 
 bail4:	brelse(bh2);
@@ -677,6 +682,7 @@ bail0:
 	kfree(sbi->sb_cp_table);
 	s->s_fs_info = NULL;
 	kfree(sbi);
+	unlock_kernel();
 	return -EINVAL;
 }
 
