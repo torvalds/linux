@@ -46,9 +46,9 @@ struct  intel_ring_buffer {
 	int		(*init)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
 
-	void		(*set_tail)(struct drm_device *dev,
-				    struct intel_ring_buffer *ring,
-				    u32 value);
+	void		(*write_tail)(struct drm_device *dev,
+				      struct intel_ring_buffer *ring,
+				      u32 value);
 	void		(*flush)(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
 			u32	invalidate_domains,

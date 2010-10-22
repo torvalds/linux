@@ -119,12 +119,12 @@ render_ring_flush(struct drm_device *dev,
 	}
 }
 
-static void ring_set_tail(struct drm_device *dev,
-			  struct intel_ring_buffer *ring,
-			  u32 value)
+static void ring_write_tail(struct drm_device *dev,
+			    struct intel_ring_buffer *ring,
+			    u32 value)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE_TAIL(ring, ring->tail);
+	I915_WRITE_TAIL(ring, value);
 }
 
 u32 intel_ring_get_active_head(struct drm_device *dev,
@@ -148,7 +148,7 @@ static int init_ring_common(struct drm_device *dev,
 	/* Stop the ring if it's running. */
 	I915_WRITE_CTL(ring, 0);
 	I915_WRITE_HEAD(ring, 0);
-	ring->set_tail(dev, ring, 0);
+	ring->write_tail(dev, ring, 0);
 
 	/* Initialize the ring. */
 	I915_WRITE_START(ring, obj_priv->gtt_offset);
@@ -729,7 +729,7 @@ void intel_ring_advance(struct drm_device *dev,
 			struct intel_ring_buffer *ring)
 {
 	ring->tail &= ring->size - 1;
-	ring->set_tail(dev, ring, ring->tail);
+	ring->write_tail(dev, ring, ring->tail);
 }
 
 static const struct intel_ring_buffer render_ring = {
@@ -738,7 +738,7 @@ static const struct intel_ring_buffer render_ring = {
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_render_ring,
-	.set_tail		= ring_set_tail,
+	.write_tail		= ring_write_tail,
 	.flush			= render_ring_flush,
 	.add_request		= render_ring_add_request,
 	.get_seqno		= render_ring_get_seqno,
@@ -755,7 +755,7 @@ static const struct intel_ring_buffer bsd_ring = {
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_bsd_ring,
-	.set_tail		= ring_set_tail,
+	.write_tail		= ring_write_tail,
 	.flush			= bsd_ring_flush,
 	.add_request		= ring_add_request,
 	.get_seqno		= ring_status_page_get_seqno,
@@ -765,9 +765,9 @@ static const struct intel_ring_buffer bsd_ring = {
 };
 
 
-static void gen6_bsd_ring_set_tail(struct drm_device *dev,
-				   struct intel_ring_buffer *ring,
-				   u32 value)
+static void gen6_bsd_ring_write_tail(struct drm_device *dev,
+				     struct intel_ring_buffer *ring,
+				     u32 value)
 {
        drm_i915_private_t *dev_priv = dev->dev_private;
 
@@ -829,7 +829,7 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
        .init			= init_bsd_ring,
-       .set_tail		= gen6_bsd_ring_set_tail,
+       .write_tail		= gen6_bsd_ring_write_tail,
        .flush			= gen6_ring_flush,
        .add_request		= ring_add_request,
        .get_seqno		= ring_status_page_get_seqno,
@@ -859,7 +859,7 @@ static const struct intel_ring_buffer gen6_blt_ring = {
        .mmio_base		= BLT_RING_BASE,
        .size			= 32 * PAGE_SIZE,
        .init			= init_ring_common,
-       .set_tail		= ring_set_tail,
+       .write_tail		= ring_write_tail,
        .flush			= gen6_ring_flush,
        .add_request		= ring_add_request,
        .get_seqno		= ring_status_page_get_seqno,
