@@ -42,29 +42,29 @@
  */
 static struct map_desc mxc_io_desc[] __initdata = {
 	{
-		.virtual	= X_MEMC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(X_MEMC_BASE_ADDR),
-		.length		= X_MEMC_SIZE,
-		.type		= MT_DEVICE
+		.virtual = MX3x_X_MEMC_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX3x_X_MEMC_BASE_ADDR),
+		.length = MX3x_X_MEMC_SIZE,
+		.type = MT_DEVICE
 	}, {
-		.virtual	= AVIC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AVIC_BASE_ADDR),
-		.length		= AVIC_SIZE,
-		.type		= MT_DEVICE_NONSHARED
+		.virtual = MX3x_AVIC_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX3x_AVIC_BASE_ADDR),
+		.length = MX3x_AVIC_SIZE,
+		.type = MT_DEVICE_NONSHARED
 	}, {
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
+		.virtual = MX3x_AIPS1_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX3x_AIPS1_BASE_ADDR),
+		.length = MX3x_AIPS1_SIZE,
+		.type = MT_DEVICE_NONSHARED
 	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
+		.virtual = MX3x_AIPS2_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX3x_AIPS2_BASE_ADDR),
+		.length = MX3x_AIPS2_SIZE,
+		.type = MT_DEVICE_NONSHARED
 	}, {
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
+		.virtual = MX3x_SPBA0_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX3x_SPBA0_BASE_ADDR),
+		.length = MX3x_SPBA0_SIZE,
 		.type = MT_DEVICE_NONSHARED
 	},
 };
@@ -77,7 +77,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 void __init mx31_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
-	mxc_arch_reset_init(IO_ADDRESS(WDOG_BASE_ADDR));
+	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
@@ -86,8 +86,8 @@ void __init mx31_map_io(void)
 void __init mx35_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
-	mxc_iomux_v3_init(IO_ADDRESS(IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(IO_ADDRESS(WDOG_BASE_ADDR));
+	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX3x_WDOG_BASE_ADDR));
 
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
@@ -97,7 +97,7 @@ int imx3x_register_gpios(void);
 
 void __init mx31_init_irq(void)
 {
-	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
+	mxc_init_irq(MX31_IO_ADDRESS(MX3x_AVIC_BASE_ADDR));
 	imx3x_register_gpios();
 }
 
@@ -129,7 +129,7 @@ static int mxc_init_l2x0(void)
 		pr_err("L2 cache: Cannot fix timing. Trying to continue without\n");
 	}
 
-	l2x0_base = ioremap(L2CC_BASE_ADDR, 4096);
+	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);
 	if (IS_ERR(l2x0_base)) {
 		printk(KERN_ERR "remapping L2 cache area failed with %ld\n",
 				PTR_ERR(l2x0_base));
