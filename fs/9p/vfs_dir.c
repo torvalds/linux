@@ -315,4 +315,5 @@ const struct file_operations v9fs_dir_operations_dotl = {
 	.readdir = v9fs_dir_readdir_dotl,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
+        .fsync = v9fs_file_fsync_dotl,
 };

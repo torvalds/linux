@@ -491,7 +491,7 @@ static int v9fs_file_fsync(struct file *filp, int datasync)
 	return retval;
 }
 
-static int v9fs_file_fsync_dotl(struct file *filp, int datasync)
+int v9fs_file_fsync_dotl(struct file *filp, int datasync)
 {
 	struct p9_fid *fid;
 	int retval;
@@ -501,7 +501,7 @@ static int v9fs_file_fsync_dotl(struct file *filp, int datasync)
 
 	fid = filp->private_data;
 
-	retval = p9_client_fsync(fid);
+	retval = p9_client_fsync(fid, datasync);
 	return retval;
 }
 
