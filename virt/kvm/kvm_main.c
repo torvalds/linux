@@ -959,7 +959,7 @@ static pfn_t get_fault_pfn(void)
 }
 
 static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
-			bool *async)
+			bool *async, bool write_fault, bool *writable)
 {
 	struct page *page[1];
 	int npages = 0;
@@ -968,12 +968,34 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
 	/* we can do it either atomically or asynchronously, not both */
 	BUG_ON(atomic && async);
 
+	BUG_ON(!write_fault && !writable);
+
+	if (writable)
+		*writable = true;
+
 	if (atomic || async)
 		npages = __get_user_pages_fast(addr, 1, 1, page);
 
 	if (unlikely(npages != 1) && !atomic) {
 		might_sleep();
-		npages = get_user_pages_fast(addr, 1, 1, page);
+
+		if (writable)
+			*writable = write_fault;
+
+		npages = get_user_pages_fast(addr, 1, write_fault, page);
+
+		/* map read fault as writable if possible */
+		if (unlikely(!write_fault) && npages == 1) {
+			struct page *wpage[1];
+
+			npages = __get_user_pages_fast(addr, 1, 1, wpage);
+			if (npages == 1) {
+				*writable = true;
+				put_page(page[0]);
+				page[0] = wpage[0];
+			}
+			npages = 1;
+		}
 	}
 
 	if (unlikely(npages != 1)) {
@@ -1011,11 +1033,12 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
 
 pfn_t hva_to_pfn_atomic(struct kvm *kvm, unsigned long addr)
 {
-	return hva_to_pfn(kvm, addr, true, NULL);
+	return hva_to_pfn(kvm, addr, true, NULL, true, NULL);
 }
 EXPORT_SYMBOL_GPL(hva_to_pfn_atomic);
 
-static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async)
+static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async,
+			  bool write_fault, bool *writable)
 {
 	unsigned long addr;
 
@@ -1028,32 +1051,40 @@ static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async)
 		return page_to_pfn(bad_page);
 	}
 
-	return hva_to_pfn(kvm, addr, atomic, async);
+	return hva_to_pfn(kvm, addr, atomic, async, write_fault, writable);
 }
 
 pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
 {
-	return __gfn_to_pfn(kvm, gfn, true, NULL);
+	return __gfn_to_pfn(kvm, gfn, true, NULL, true, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
 
-pfn_t gfn_to_pfn_async(struct kvm *kvm, gfn_t gfn, bool *async)
+pfn_t gfn_to_pfn_async(struct kvm *kvm, gfn_t gfn, bool *async,
+		       bool write_fault, bool *writable)
 {
-	return __gfn_to_pfn(kvm, gfn, false, async);
+	return __gfn_to_pfn(kvm, gfn, false, async, write_fault, writable);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_async);
 
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 {
-	return __gfn_to_pfn(kvm, gfn, false, NULL);
+	return __gfn_to_pfn(kvm, gfn, false, NULL, true, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
+
+pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
+		      bool *writable)
+{
+	return __gfn_to_pfn(kvm, gfn, false, NULL, write_fault, writable);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn_prot);
 
 pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
-	return hva_to_pfn(kvm, addr, false, NULL);
+	return hva_to_pfn(kvm, addr, false, NULL, true, NULL);
 }
 
 int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,

@@ -334,8 +334,11 @@ void kvm_set_page_accessed(struct page *page);
 
 pfn_t hva_to_pfn_atomic(struct kvm *kvm, unsigned long addr);
 pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn);
-pfn_t gfn_to_pfn_async(struct kvm *kvm, gfn_t gfn, bool *async);
+pfn_t gfn_to_pfn_async(struct kvm *kvm, gfn_t gfn, bool *async,
+		       bool write_fault, bool *writable);
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn);
+pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
+		      bool *writable);
 pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn);
 int memslot_id(struct kvm *kvm, gfn_t gfn);

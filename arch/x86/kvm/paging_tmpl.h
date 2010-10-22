@@ -427,7 +427,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 struct guest_walker *gw,
 			 int user_fault, int write_fault, int hlevel,
-			 int *ptwrite, pfn_t pfn)
+			 int *ptwrite, pfn_t pfn, bool map_writable)
 {
 	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *sp = NULL;
@@ -501,7 +501,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
 		     user_fault, write_fault, dirty, ptwrite, it.level,
-		     gw->gfn, pfn, false, true);
+		     gw->gfn, pfn, false, map_writable);
 	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 
 	return it.sptep;
@@ -539,6 +539,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	pfn_t pfn;
 	int level = PT_PAGE_TABLE_LEVEL;
 	unsigned long mmu_seq;
+	bool map_writable;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 
@@ -569,12 +570,16 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 
-	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn))
+	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn, write_fault,
+			 &map_writable))
 		return 0;
 
 	/* mmio */
 	if (is_error_pfn(pfn))
 		return kvm_handle_bad_page(vcpu->kvm, walker.gfn, pfn);
+
+	if (!map_writable)
+		walker.pte_access &= ~ACC_WRITE_MASK;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
@@ -583,7 +588,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
 	kvm_mmu_free_some_pages(vcpu);
 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
-			     level, &write_pt, pfn);
+			     level, &write_pt, pfn, map_writable);
 	(void)sptep;
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __func__,
 		 sptep, *sptep, write_pt);

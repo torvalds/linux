@@ -2216,7 +2216,7 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 }
 
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
-			int level, gfn_t gfn, pfn_t pfn)
+			int map_writable, int level, gfn_t gfn, pfn_t pfn)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
@@ -2225,9 +2225,13 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 
 	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
 		if (iterator.level == level) {
-			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, ACC_ALL,
+			unsigned pte_access = ACC_ALL;
+
+			if (!map_writable)
+				pte_access &= ~ACC_WRITE_MASK;
+			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, pte_access,
 				     0, write, 1, &pt_write,
-				     level, gfn, pfn, false, true);
+				     level, gfn, pfn, false, map_writable);
 			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
 			break;
@@ -2288,6 +2292,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	int level;
 	pfn_t pfn;
 	unsigned long mmu_seq;
+	bool map_writable;
 
 	level = mapping_level(vcpu, gfn);
 
@@ -2302,7 +2307,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
-	pfn = gfn_to_pfn(vcpu->kvm, gfn);
+	pfn = gfn_to_pfn_prot(vcpu->kvm, gfn, write, &map_writable);
 
 	/* mmio */
 	if (is_error_pfn(pfn))
@@ -2312,7 +2317,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
-	r = __direct_map(vcpu, v, write, level, gfn, pfn);
+	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 
@@ -2611,11 +2616,11 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
 }
 
 static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
-			 gva_t gva, pfn_t *pfn)
+			 gva_t gva, pfn_t *pfn, bool write, bool *writable)
 {
 	bool async;
 
-	*pfn = gfn_to_pfn_async(vcpu->kvm, gfn, &async);
+	*pfn = gfn_to_pfn_async(vcpu->kvm, gfn, &async, write, writable);
 
 	if (!async)
 		return false; /* *pfn has correct page already */
@@ -2632,7 +2637,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
 			return true;
 	}
 
-	*pfn = gfn_to_pfn(vcpu->kvm, gfn);
+	*pfn = gfn_to_pfn_prot(vcpu->kvm, gfn, write, writable);
 
 	return false;
 }
@@ -2645,6 +2650,8 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	int level;
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	unsigned long mmu_seq;
+	int write = error_code & PFERR_WRITE_MASK;
+	bool map_writable;
 
 	ASSERT(vcpu);
 	ASSERT(VALID_PAGE(vcpu->arch.mmu.root_hpa));
@@ -2660,7 +2667,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 
-	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn))
+	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn, write, &map_writable))
 		return 0;
 
 	/* mmio */
@@ -2670,7 +2677,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
-	r = __direct_map(vcpu, gpa, error_code & PFERR_WRITE_MASK,
+	r = __direct_map(vcpu, gpa, write, map_writable,
 			 level, gfn, pfn);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
