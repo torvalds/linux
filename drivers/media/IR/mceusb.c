@@ -56,14 +56,16 @@
 #define MCE_CODE_LENGTH	5 /* Normal length of packet (with header) */
 #define MCE_PACKET_SIZE	4 /* Normal length of packet (without header) */
 #define MCE_PACKET_HEADER 0x84 /* Actual header format is 0x80 + num_bytes */
-#define MCE_CONTROL_HEADER 0x9F /* MCE status header */
+#define MCE_CONTROL_HEADER 0x9f /* MCE status header */
 #define MCE_TX_HEADER_LENGTH 3 /* # of bytes in the initializing tx header */
 #define MCE_MAX_CHANNELS 2 /* Two transmitters, hardware dependent? */
 #define MCE_DEFAULT_TX_MASK 0x03 /* Val opts: TX1=0x01, TX2=0x02, ALL=0x03 */
 #define MCE_PULSE_BIT	0x80 /* Pulse bit, MSB set == PULSE else SPACE */
-#define MCE_PULSE_MASK	0x7F /* Pulse mask */
-#define MCE_MAX_PULSE_LENGTH 0x7F /* Longest transmittable pulse symbol */
-#define MCE_PACKET_LENGTH_MASK  0x1F /* Packet length mask */
+#define MCE_PULSE_MASK	0x7f /* Pulse mask */
+#define MCE_MAX_PULSE_LENGTH 0x7f /* Longest transmittable pulse symbol */
+#define MCE_COMMAND_MASK 0xe0 /* Mask out command bits */
+#define MCE_PACKET_LENGTH_MASK  0x1f /* Packet length mask */
+#define MCE_COMMAND_IRDATA 0x80 /* buf & MCE_COMMAND_MASK == 0x80 -> IR data */
 
 
 /* module parameters */
@@ -256,8 +258,15 @@ struct mceusb_dev {
 	/* buffers and dma */
 	unsigned char *buf_in;
 	unsigned int len_in;
-	u8 cmd;		/* MCE command type */
-	u8 rem;		/* Remaining IR data bytes in packet */
+
+	enum {
+		CMD_HEADER = 0,
+		SUBCMD,
+		CMD_DATA,
+		PARSE_IRDATA,
+	} parser_state;
+	u8 cmd, rem;		/* Remaining IR data bytes in packet */
+
 	dma_addr_t dma_in;
 	dma_addr_t dma_out;
 
@@ -302,18 +311,50 @@ struct mceusb_dev {
 static char DEVICE_RESET[]	= {0x00, 0xff, 0xaa};
 static char GET_REVISION[]	= {0xff, 0x0b};
 static char GET_UNKNOWN[]	= {0xff, 0x18};
-static char GET_UNKNOWN2[]	= {0x9f, 0x05};
-static char GET_CARRIER_FREQ[]	= {0x9f, 0x07};
-static char GET_RX_TIMEOUT[]	= {0x9f, 0x0d};
-static char GET_TX_BITMASK[]	= {0x9f, 0x13};
-static char GET_RX_SENSOR[]	= {0x9f, 0x15};
+static char GET_UNKNOWN2[]	= {MCE_CONTROL_HEADER, 0x05};
+static char GET_CARRIER_FREQ[]	= {MCE_CONTROL_HEADER, 0x07};
+static char GET_RX_TIMEOUT[]	= {MCE_CONTROL_HEADER, 0x0d};
+static char GET_TX_BITMASK[]	= {MCE_CONTROL_HEADER, 0x13};
+static char GET_RX_SENSOR[]	= {MCE_CONTROL_HEADER, 0x15};
 /* sub in desired values in lower byte or bytes for full command */
 /* FIXME: make use of these for transmit.
-static char SET_CARRIER_FREQ[]	= {0x9f, 0x06, 0x00, 0x00};
-static char SET_TX_BITMASK[]	= {0x9f, 0x08, 0x00};
-static char SET_RX_TIMEOUT[]	= {0x9f, 0x0c, 0x00, 0x00};
-static char SET_RX_SENSOR[]	= {0x9f, 0x14, 0x00};
+static char SET_CARRIER_FREQ[]	= {MCE_CONTROL_HEADER, 0x06, 0x00, 0x00};
+static char SET_TX_BITMASK[]	= {MCE_CONTROL_HEADER, 0x08, 0x00};
+static char SET_RX_TIMEOUT[]	= {MCE_CONTROL_HEADER, 0x0c, 0x00, 0x00};
+static char SET_RX_SENSOR[]	= {MCE_CONTROL_HEADER, 0x14, 0x00};
 */
+
+static int mceusb_cmdsize(u8 cmd, u8 subcmd)
+{
+	int datasize = 0;
+
+	switch (cmd) {
+	case 0x00:
+		if (subcmd == 0xff)
+			datasize = 1;
+		break;
+	case 0xff:
+		switch (subcmd) {
+		case 0x0b:
+			datasize = 2;
+			break;
+		}
+	case MCE_CONTROL_HEADER:
+		switch (subcmd) {
+		case 0x04:
+		case 0x06:
+		case 0x0c:
+		case 0x15:
+			datasize = 2;
+			break;
+		case 0x08:
+		case 0x14:
+			datasize = 1;
+			break;
+		}
+	}
+	return datasize;
+}
 
 static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 				 int len, bool out)
@@ -380,7 +421,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		}
 		break;
-	case 0x9f:
+	case MCE_CONTROL_HEADER:
 		switch (subcmd) {
 		case 0x03:
 			dev_info(dev, "Ping\n");
@@ -629,7 +670,7 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 	struct mceusb_dev *ir = priv;
 	int clk = 10000000;
 	int prescaler = 0, divisor = 0;
-	unsigned char cmdbuf[4] = { 0x9f, 0x06, 0x00, 0x00 };
+	unsigned char cmdbuf[4] = { MCE_CONTROL_HEADER, 0x06, 0x00, 0x00 };
 
 	/* Carrier has changed */
 	if (ir->carrier != carrier) {
@@ -669,46 +710,33 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
-	int i, start_index = 0;
-	u8 hdr = MCE_CONTROL_HEADER;
+	int i = 0;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
 	if (ir->flags.microsoft_gen1)
-		start_index = 2;
+		i = 2;
 
-	for (i = start_index; i < buf_len;) {
-		if (ir->rem == 0) {
-			/* decode mce packets of the form (84),AA,BB,CC,DD */
-			/* IR data packets can span USB messages - rem */
-			hdr = ir->buf_in[i];
-			ir->rem = (hdr & MCE_PACKET_LENGTH_MASK);
-			ir->cmd = (hdr & ~MCE_PACKET_LENGTH_MASK);
-			dev_dbg(ir->dev, "New data. rem: 0x%02x, cmd: 0x%02x\n",
-				ir->rem, ir->cmd);
-			i++;
-		}
-
-		/* don't process MCE commands */
-		if (hdr == MCE_CONTROL_HEADER || hdr == 0xff) {
-			ir->rem = 0;
-			return;
-		}
-
-		for (; (ir->rem > 0) && (i < buf_len); i++) {
+	for (; i < buf_len; i++) {
+		switch (ir->parser_state) {
+		case SUBCMD:
+			ir->rem = mceusb_cmdsize(ir->cmd, ir->buf_in[i]);
+			ir->parser_state = CMD_DATA;
+			break;
+		case PARSE_IRDATA:
 			ir->rem--;
-
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
 					 * MCE_TIME_UNIT * 1000;
 
 			if ((ir->buf_in[i] & MCE_PULSE_MASK) == 0x7f) {
-				if (ir->rawir.pulse == rawir.pulse)
+				if (ir->rawir.pulse == rawir.pulse) {
 					ir->rawir.duration += rawir.duration;
-				else {
+				} else {
 					ir->rawir.duration = rawir.duration;
 					ir->rawir.pulse = rawir.pulse;
 				}
-				continue;
+				if (ir->rem)
+					break;
 			}
 			rawir.duration += ir->rawir.duration;
 			ir->rawir.duration = 0;
@@ -719,14 +747,40 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				rawir.duration);
 
 			ir_raw_event_store(ir->idev, &rawir);
+			break;
+		case CMD_DATA:
+			ir->rem--;
+			break;
+		case CMD_HEADER:
+			/* decode mce packets of the form (84),AA,BB,CC,DD */
+			/* IR data packets can span USB messages - rem */
+			ir->cmd = ir->buf_in[i];
+			if ((ir->cmd == MCE_CONTROL_HEADER) ||
+			    ((ir->cmd & MCE_COMMAND_MASK) != MCE_COMMAND_IRDATA)) {
+				ir->parser_state = SUBCMD;
+				continue;
+			}
+			ir->rem = (ir->cmd & MCE_PACKET_LENGTH_MASK);
+			dev_dbg(ir->dev, "Processing RX data: len = %d\n",
+				ir->rem);
+			if (ir->rem) {
+				ir->parser_state = PARSE_IRDATA;
+				break;
+			}
+			/*
+			 * a package with len=0 (e. g. 0x80) means end of
+			 * data. We could use it to do the call to
+			 * ir_raw_event_handle(). For now, we don't need to
+			 * use it.
+			 */
+			break;
 		}
 
-		if (ir->buf_in[i] == 0x80 || ir->buf_in[i] == 0x9f)
-			ir->rem = 0;
-
-		dev_dbg(ir->dev, "calling ir_raw_event_handle\n");
-		ir_raw_event_handle(ir->idev);
+		if (ir->parser_state != CMD_HEADER && !ir->rem)
+			ir->parser_state = CMD_HEADER;
 	}
+	dev_dbg(ir->dev, "processed IR data, calling ir_raw_event_handle\n");
+	ir_raw_event_handle(ir->idev);
 }
 
 static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
@@ -768,6 +822,7 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 
 	case -EPIPE:
 	default:
+		dev_dbg(ir->dev, "Error: urb status = %d\n", urb->status);
 		break;
 	}
 
