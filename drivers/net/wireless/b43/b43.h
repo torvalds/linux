@@ -153,6 +153,19 @@
 #define B43_BFH_FEM_BT			0x0040	/* has FEM and switch to share antenna
 						 * with bluetooth */
 
+/* SPROM boardflags2_lo values */
+#define B43_BFL2_RXBB_INT_REG_DIS	0x0001	/* external RX BB regulator present */
+#define B43_BFL2_APLL_WAR		0x0002	/* alternative A-band PLL settings implemented */
+#define B43_BFL2_TXPWRCTRL_EN 		0x0004	/* permits enabling TX Power Control */
+#define B43_BFL2_2X4_DIV		0x0008	/* 2x4 diversity switch */
+#define B43_BFL2_5G_PWRGAIN		0x0010	/* supports 5G band power gain */
+#define B43_BFL2_PCIEWAR_OVR		0x0020	/* overrides ASPM and Clkreq settings */
+#define B43_BFL2_CAESERS_BRD		0x0040	/* is Caesers board (unused) */
+#define B43_BFL2_BTC3WIRE		0x0080	/* used 3-wire bluetooth coexist */
+#define B43_BFL2_SKWRKFEM_BRD		0x0100	/* 4321mcm93 uses Skyworks FEM */
+#define B43_BFL2_SPUR_WAR		0x0200	/* has a workaround for clock-harmonic spurs */
+#define B43_BFL2_GPLL_WAR		0x0400	/* altenative G-band PLL settings implemented */
+
 /* GPIO register offset, in both ChipCommon and PCI core. */
 #define B43_GPIO_CONTROL		0x6c
 
