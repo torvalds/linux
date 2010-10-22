@@ -3785,7 +3785,7 @@ static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
 	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
 		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
 			break;
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 }
 
