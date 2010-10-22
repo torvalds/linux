@@ -346,6 +346,11 @@ static void lis3lv02d_joystick_open(struct input_polled_dev *pidev)
 
 	if (lis3_dev.pdata && lis3_dev.whoami == WAI_8B && lis3_dev.idev)
 		atomic_set(&lis3_dev.wake_thread, 1);
+	/*
+	 * Update coordinates for the case where poll interval is 0 and
+	 * the chip in running purely under interrupt control
+	 */
+	lis3lv02d_joystick_poll(pidev);
 }
 
 static void lis3lv02d_joystick_close(struct input_polled_dev *pidev)
