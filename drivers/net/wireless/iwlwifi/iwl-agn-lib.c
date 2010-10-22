@@ -1887,6 +1887,11 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	struct iwl_rxon_context *ctx;
 	int smps_request = -1;
 
+	/*
+	 * Note: bt_traffic_load can be overridden by scan complete and
+	 * coex profile notifications. Ignore that since only bad consequence
+	 * can be not matching debug print with actual state.
+	 */
 	IWL_DEBUG_INFO(priv, "BT traffic load changes: %d\n",
 		       priv->bt_traffic_load);
 
@@ -1909,6 +1914,16 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
+	/*
+	 * We can not send command to firmware while scanning. When the scan
+	 * complete we will schedule this work again. We do check with mutex
+	 * locked to prevent new scan request to arrive. We do not check
+	 * STATUS_SCANNING to avoid race when queue_work two times from
+	 * different notifications, but quit and not perform any work at all.
+	 */
+	if (test_bit(STATUS_SCAN_HW, &priv->status))
+		goto out;
+
 	if (priv->cfg->ops->lib->update_chain_flags)
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
@@ -1918,7 +1933,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 				ieee80211_request_smps(ctx->vif, smps_request);
 		}
 	}
-
+out:
 	mutex_unlock(&priv->mutex);
 }
 
