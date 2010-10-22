@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/pm_runtime.h>
 #include "lis3lv02d.h"
 
 #define DRV_NAME 	"lis3lv02d_i2c"
@@ -94,6 +95,7 @@ static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 	lis3_dev.write	  = lis3_i2c_write;
 	lis3_dev.irq	  = client->irq;
 	lis3_dev.ac	  = lis3lv02d_axis_map;
+	lis3_dev.pm_dev	  = &client->dev;
 
 	i2c_set_clientdata(client, &lis3_dev);
 	ret = lis3lv02d_init_device(&lis3_dev);
@@ -103,21 +105,20 @@ fail:
 
 static int __devexit lis3lv02d_i2c_remove(struct i2c_client *client)
 {
-	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 	struct lis3lv02d_platform_data *pdata = client->dev.platform_data;
 
 	if (pdata && pdata->release_resources)
 		pdata->release_resources();
 
 	lis3lv02d_joystick_disable();
-	lis3lv02d_poweroff(lis3);
 
 	return lis3lv02d_remove_fs(&lis3_dev);
 }
 
 #ifdef CONFIG_PM
-static int lis3lv02d_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
+static int lis3lv02d_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 
 	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
@@ -125,24 +126,45 @@ static int lis3lv02d_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int lis3lv02d_i2c_resume(struct i2c_client *client)
+static int lis3lv02d_i2c_resume(struct device *dev)
 {
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 
-	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
+	/*
+	 * pm_runtime documentation says that devices should always
+	 * be powered on at resume. Pm_runtime turns them off after system
+	 * wide resume is complete.
+	 */
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags ||
+		pm_runtime_suspended(dev))
 		lis3lv02d_poweron(lis3);
-	return 0;
-}
 
-static void lis3lv02d_i2c_shutdown(struct i2c_client *client)
-{
-	lis3lv02d_i2c_suspend(client, PMSG_SUSPEND);
+	return 0;
 }
 #else
 #define lis3lv02d_i2c_suspend	NULL
 #define lis3lv02d_i2c_resume	NULL
 #define lis3lv02d_i2c_shutdown	NULL
 #endif
+
+static int lis3_i2c_runtime_suspend(struct device *dev)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
+
+	lis3lv02d_poweroff(lis3);
+	return 0;
+}
+
+static int lis3_i2c_runtime_resume(struct device *dev)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
+
+	lis3lv02d_poweron(lis3);
+	return 0;
+}
 
 static const struct i2c_device_id lis3lv02d_id[] = {
 	{"lis3lv02d", 0 },
@@ -151,14 +173,20 @@ static const struct i2c_device_id lis3lv02d_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, lis3lv02d_id);
 
+static const struct dev_pm_ops lis3_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(lis3lv02d_i2c_suspend,
+				lis3lv02d_i2c_resume)
+	SET_RUNTIME_PM_OPS(lis3_i2c_runtime_suspend,
+			   lis3_i2c_runtime_resume,
+			   NULL)
+};
+
 static struct i2c_driver lis3lv02d_i2c_driver = {
 	.driver	 = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
+		.pm     = &lis3_pm_ops,
 	},
-	.suspend = lis3lv02d_i2c_suspend,
-	.shutdown = lis3lv02d_i2c_shutdown,
-	.resume = lis3lv02d_i2c_resume,
 	.probe	= lis3lv02d_i2c_probe,
 	.remove	= __devexit_p(lis3lv02d_i2c_remove),
 	.id_table = lis3lv02d_id,

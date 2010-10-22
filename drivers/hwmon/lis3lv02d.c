@@ -34,6 +34,7 @@
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
+#include <linux/pm_runtime.h>
 #include <asm/atomic.h>
 #include "lis3lv02d.h"
 
@@ -43,6 +44,9 @@
 #define MDPS_POLL_INTERVAL 50
 #define MDPS_POLL_MIN	   0
 #define MDPS_POLL_MAX	   2000
+
+#define LIS3_SYSFS_POWERDOWN_DELAY 5000 /* In milliseconds */
+
 /*
  * The sensor can also generate interrupts (DRDY) but it's pretty pointless
  * because they are generated even if the data do not change. So it's better
@@ -296,6 +300,18 @@ static void lis3lv02d_joystick_poll(struct input_polled_dev *pidev)
 	mutex_unlock(&lis3_dev.mutex);
 }
 
+static void lis3lv02d_joystick_open(struct input_polled_dev *pidev)
+{
+	if (lis3_dev.pm_dev)
+		pm_runtime_get_sync(lis3_dev.pm_dev);
+}
+
+static void lis3lv02d_joystick_close(struct input_polled_dev *pidev)
+{
+	if (lis3_dev.pm_dev)
+		pm_runtime_put(lis3_dev.pm_dev);
+}
+
 static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
 {
 	if (!test_bit(0, &lis3_dev.misc_opened))
@@ -390,6 +406,9 @@ static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(0, &lis3_dev.misc_opened))
 		return -EBUSY; /* already open */
 
+	if (lis3_dev.pm_dev)
+		pm_runtime_get_sync(lis3_dev.pm_dev);
+
 	atomic_set(&lis3_dev.count, 0);
 	return 0;
 }
@@ -398,6 +417,8 @@ static int lis3lv02d_misc_release(struct inode *inode, struct file *file)
 {
 	fasync_helper(-1, file, 0, &lis3_dev.async_queue);
 	clear_bit(0, &lis3_dev.misc_opened); /* release the device */
+	if (lis3_dev.pm_dev)
+		pm_runtime_put(lis3_dev.pm_dev);
 	return 0;
 }
 
@@ -494,6 +515,8 @@ int lis3lv02d_joystick_enable(void)
 		return -ENOMEM;
 
 	lis3_dev.idev->poll = lis3lv02d_joystick_poll;
+	lis3_dev.idev->open = lis3lv02d_joystick_open;
+	lis3_dev.idev->close = lis3lv02d_joystick_close;
 	lis3_dev.idev->poll_interval = MDPS_POLL_INTERVAL;
 	lis3_dev.idev->poll_interval_min = MDPS_POLL_MIN;
 	lis3_dev.idev->poll_interval_max = MDPS_POLL_MAX;
@@ -546,12 +569,30 @@ void lis3lv02d_joystick_disable(void)
 EXPORT_SYMBOL_GPL(lis3lv02d_joystick_disable);
 
 /* Sysfs stuff */
+static void lis3lv02d_sysfs_poweron(struct lis3lv02d *lis3)
+{
+	/*
+	 * SYSFS functions are fast visitors so put-call
+	 * immediately after the get-call. However, keep
+	 * chip running for a while and schedule delayed
+	 * suspend. This way periodic sysfs calls doesn't
+	 * suffer from relatively long power up time.
+	 */
+
+	if (lis3->pm_dev) {
+		pm_runtime_get_sync(lis3->pm_dev);
+		pm_runtime_put_noidle(lis3->pm_dev);
+		pm_schedule_suspend(lis3->pm_dev, LIS3_SYSFS_POWERDOWN_DELAY);
+	}
+}
+
 static ssize_t lis3lv02d_selftest_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int result;
 	s16 values[3];
 
+	lis3lv02d_sysfs_poweron(&lis3_dev);
 	result = lis3lv02d_selftest(&lis3_dev, values);
 	return sprintf(buf, "%s %d %d %d\n", result == 0 ? "OK" : "FAIL",
 		values[0], values[1], values[2]);
@@ -562,6 +603,7 @@ static ssize_t lis3lv02d_position_show(struct device *dev,
 {
 	int x, y, z;
 
+	lis3lv02d_sysfs_poweron(&lis3_dev);
 	mutex_lock(&lis3_dev.mutex);
 	lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
 	mutex_unlock(&lis3_dev.mutex);
@@ -571,6 +613,7 @@ static ssize_t lis3lv02d_position_show(struct device *dev,
 static ssize_t lis3lv02d_rate_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
+	lis3lv02d_sysfs_poweron(&lis3_dev);
 	return sprintf(buf, "%d\n", lis3lv02d_get_odr());
 }
 
@@ -583,6 +626,7 @@ static ssize_t lis3lv02d_rate_set(struct device *dev,
 	if (strict_strtoul(buf, 0, &rate))
 		return -EINVAL;
 
+	lis3lv02d_sysfs_poweron(&lis3_dev);
 	if (lis3lv02d_set_odr(rate))
 		return -EINVAL;
 
@@ -619,6 +663,17 @@ int lis3lv02d_remove_fs(struct lis3lv02d *lis3)
 {
 	sysfs_remove_group(&lis3->pdev->dev.kobj, &lis3lv02d_attribute_group);
 	platform_device_unregister(lis3->pdev);
+	if (lis3->pm_dev) {
+		/* Barrier after the sysfs remove */
+		pm_runtime_barrier(lis3->pm_dev);
+
+		/* SYSFS may have left chip running. Turn off if necessary */
+		if (!pm_runtime_suspended(lis3->pm_dev))
+			lis3lv02d_poweroff(&lis3_dev);
+
+		pm_runtime_disable(lis3->pm_dev);
+		pm_runtime_set_suspended(lis3->pm_dev);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
@@ -727,6 +782,11 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 
 	lis3lv02d_add_fs(dev);
 	lis3lv02d_poweron(dev);
+
+	if (dev->pm_dev) {
+		pm_runtime_set_active(dev->pm_dev);
+		pm_runtime_enable(dev->pm_dev);
+	}
 
 	if (lis3lv02d_joystick_enable())
 		printk(KERN_ERR DRIVER_NAME ": joystick initialization failed\n");

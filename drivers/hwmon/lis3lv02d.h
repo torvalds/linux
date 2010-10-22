@@ -232,6 +232,7 @@ union axis_conversion {
 
 struct lis3lv02d {
 	void			*bus_priv; /* used by the bus layer only */
+	struct device		*pm_dev; /* for pm_runtime purposes */
 	int (*init) (struct lis3lv02d *lis3);
 	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
 	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
