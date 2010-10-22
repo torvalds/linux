@@ -343,10 +343,14 @@ static void lis3lv02d_joystick_open(struct input_polled_dev *pidev)
 {
 	if (lis3_dev.pm_dev)
 		pm_runtime_get_sync(lis3_dev.pm_dev);
+
+	if (lis3_dev.pdata && lis3_dev.whoami == WAI_8B && lis3_dev.idev)
+		atomic_set(&lis3_dev.wake_thread, 1);
 }
 
 static void lis3lv02d_joystick_close(struct input_polled_dev *pidev)
 {
+	atomic_set(&lis3_dev.wake_thread, 0);
 	if (lis3_dev.pm_dev)
 		pm_runtime_put(lis3_dev.pm_dev);
 }
@@ -366,8 +370,7 @@ static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
 	wake_up_interruptible(&lis3_dev.misc_wait);
 	kill_fasync(&lis3_dev.async_queue, SIGIO, POLL_IN);
 out:
-	if (lis3_dev.pdata && lis3_dev.whoami == WAI_8B && lis3_dev.idev &&
-	    lis3_dev.idev->input->users)
+	if (atomic_read(&lis3_dev.wake_thread))
 		return IRQ_WAKE_THREAD;
 	return IRQ_HANDLED;
 }
@@ -398,31 +401,15 @@ static void lis302dl_interrupt_handle_click(struct lis3lv02d *lis3)
 	mutex_unlock(&lis3->mutex);
 }
 
-static void lis302dl_interrupt_handle_ff_wu(struct lis3lv02d *lis3)
-{
-	u8 wu1_src;
-	u8 wu2_src;
-
-	lis3->read(lis3, FF_WU_SRC_1, &wu1_src);
-	lis3->read(lis3, FF_WU_SRC_2, &wu2_src);
-
-	wu1_src = wu1_src & FF_WU_SRC_IA ? wu1_src : 0;
-	wu2_src = wu2_src & FF_WU_SRC_IA ? wu2_src : 0;
-
-	/* joystick poll is internally protected by the lis3->mutex. */
-	if (wu1_src || wu2_src)
-		lis3lv02d_joystick_poll(lis3_dev.idev);
-}
-
 static irqreturn_t lis302dl_interrupt_thread1_8b(int irq, void *data)
 {
 
 	struct lis3lv02d *lis3 = data;
 
-	if ((lis3->pdata->irq_cfg & LIS3_IRQ1_MASK) == LIS3_IRQ1_CLICK)
+	if ((lis3->irq_cfg & LIS3_IRQ1_MASK) == LIS3_IRQ1_CLICK)
 		lis302dl_interrupt_handle_click(lis3);
 	else
-		lis302dl_interrupt_handle_ff_wu(lis3);
+		lis3lv02d_joystick_poll(lis3->idev);
 
 	return IRQ_HANDLED;
 }
@@ -432,10 +419,10 @@ static irqreturn_t lis302dl_interrupt_thread2_8b(int irq, void *data)
 
 	struct lis3lv02d *lis3 = data;
 
-	if ((lis3->pdata->irq_cfg & LIS3_IRQ2_MASK) == LIS3_IRQ2_CLICK)
+	if ((lis3->irq_cfg & LIS3_IRQ2_MASK) == LIS3_IRQ2_CLICK)
 		lis302dl_interrupt_handle_click(lis3);
 	else
-		lis302dl_interrupt_handle_ff_wu(lis3);
+		lis3lv02d_joystick_poll(lis3->idev);
 
 	return IRQ_HANDLED;
 }
@@ -831,6 +818,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	}
 
 	mutex_init(&dev->mutex);
+	atomic_set(&dev->wake_thread, 0);
 
 	lis3lv02d_add_fs(dev);
 	lis3lv02d_poweron(dev);
@@ -851,6 +839,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		if (dev->whoami == WAI_8B)
 			lis3lv02d_8b_configure(dev, p);
 
+		dev->irq_cfg = p->irq_cfg;
 		if (p->irq_cfg)
 			dev->write(dev, CTRL_REG3, p->irq_cfg);
 	}
