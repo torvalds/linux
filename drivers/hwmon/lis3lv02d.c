@@ -740,16 +740,16 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 	if (p->wakeup_flags) {
 		dev->write(dev, FF_WU_CFG_1, p->wakeup_flags);
 		dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
-		/* default to 2.5ms for now */
-		dev->write(dev, FF_WU_DURATION_1, 1);
+		/* pdata value + 1 to keep this backward compatible*/
+		dev->write(dev, FF_WU_DURATION_1, p->duration1 + 1);
 		ctrl2 ^= HP_FF_WU1; /* Xor to keep compatible with old pdata*/
 	}
 
 	if (p->wakeup_flags2) {
 		dev->write(dev, FF_WU_CFG_2, p->wakeup_flags2);
 		dev->write(dev, FF_WU_THS_2, p->wakeup_thresh2 & 0x7f);
-		/* default to 2.5ms for now */
-		dev->write(dev, FF_WU_DURATION_2, 1);
+		/* pdata value + 1 to keep this backward compatible*/
+		dev->write(dev, FF_WU_DURATION_2, p->duration2 + 1);
 		ctrl2 ^= HP_FF_WU2; /* Xor to keep compatible with old pdata*/
 	}
 	/* Configure hipass filters */
@@ -759,8 +759,8 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 		err = request_threaded_irq(p->irq2,
 					NULL,
 					lis302dl_interrupt_thread2_8b,
-					IRQF_TRIGGER_RISING |
-					IRQF_ONESHOT,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT |
+					(p->irq_flags2 & IRQF_TRIGGER_MASK),
 					DRIVER_NAME, &lis3_dev);
 		if (err < 0)
 			printk(KERN_ERR DRIVER_NAME
@@ -776,6 +776,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 {
 	int err;
 	irq_handler_t thread_fn;
+	int irq_flags = 0;
 
 	dev->whoami = lis3lv02d_read_8(dev, WHO_AM_I);
 
@@ -847,9 +848,14 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		if (dev->whoami == WAI_8B)
 			lis3lv02d_8b_configure(dev, p);
 
+		irq_flags = p->irq_flags1 & IRQF_TRIGGER_MASK;
+
 		dev->irq_cfg = p->irq_cfg;
 		if (p->irq_cfg)
 			dev->write(dev, CTRL_REG3, p->irq_cfg);
+
+		if (p->default_rate)
+			lis3lv02d_set_odr(p->default_rate);
 	}
 
 	/* bail if we did not get an IRQ from the bus layer */
@@ -877,7 +883,8 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 
 	err = request_threaded_irq(dev->irq, lis302dl_interrupt,
 				thread_fn,
-				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT |
+				irq_flags,
 				DRIVER_NAME, &lis3_dev);
 
 	if (err < 0) {

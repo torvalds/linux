@@ -36,7 +36,10 @@ struct lis3lv02d_platform_data {
 #define LIS3_IRQ_OPEN_DRAIN	(1 << 6)
 #define LIS3_IRQ_ACTIVE_LOW	(1 << 7)
 	unsigned char irq_cfg;
-
+	unsigned char irq_flags1; /* Additional irq edge / level flags */
+	unsigned char irq_flags2; /* Additional irq edge / level flags */
+	unsigned char duration1;
+	unsigned char duration2;
 #define LIS3_WAKEUP_X_LO	(1 << 0)
 #define LIS3_WAKEUP_X_HI	(1 << 1)
 #define LIS3_WAKEUP_Y_LO	(1 << 2)
@@ -66,6 +69,7 @@ struct lis3lv02d_platform_data {
 	s8 axis_z;
 #define LIS3_USE_REGULATOR_CTRL 0x01
 	u16 driver_features;
+	int default_rate;
 	int (*setup_resources)(void);
 	int (*release_resources)(void);
 	/* Limits for selftest are specified in chip data sheet */
