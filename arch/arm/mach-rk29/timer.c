@@ -37,23 +37,23 @@
 
 #define CHECK_VBUS_MS			1000	/* ms */
 
-#define RK_TIMER_ENABLE(n)		writel(TIMER_ENABLE, RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_CONTROL_REG)
-#define RK_TIMER_ENABLE_FREE_RUNNING(n)	writel(TIMER_ENABLE_FREE_RUNNING, RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_CONTROL_REG)
-#define RK_TIMER_DISABLE(n)		writel(TIMER_DISABLE, RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_CONTROL_REG)
+#define RK_TIMER_ENABLE(n)		writel(TIMER_ENABLE, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
+#define RK_TIMER_ENABLE_FREE_RUNNING(n)	writel(TIMER_ENABLE_FREE_RUNNING, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
+#define RK_TIMER_DISABLE(n)		writel(TIMER_DISABLE, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
 
-#define RK_TIMER_SETCOUNT(n, count)	writel(count, RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_LOAD_COUNT)
-#define RK_TIMER_GETCOUNT(n)		readl(RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_LOAD_COUNT)
+#define RK_TIMER_SETCOUNT(n, count)	writel(count, RK29_TIMER0_BASE + 0x2000 * n + TIMER_LOAD_COUNT)
+#define RK_TIMER_GETCOUNT(n)		readl(RK29_TIMER0_BASE + 0x2000 * n + TIMER_LOAD_COUNT)
 
-#define RK_TIMER_READVALUE(n)		readl(RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_CUR_VALUE)
-#define RK_TIMER_INT_CLEAR(n)		readl(RK29_TIMER0_BASE + 0x14 * (n - 1) + TIMER_EOI)
+#define RK_TIMER_READVALUE(n)		readl(RK29_TIMER0_BASE + 0x2000 * n + TIMER_CUR_VALUE)
+#define RK_TIMER_INT_CLEAR(n)		readl(RK29_TIMER0_BASE + 0x2000 * n + TIMER_EOI)
 
-#define TIMER_CLKEVT			2	/* timer2 */
-#define IRQ_NR_TIMER_CLKEVT		IRQ_TIMER2
-#define TIMER_CLKEVT_NAME		"timer2"
+#define TIMER_CLKEVT			0	/* timer0 */
+#define IRQ_NR_TIMER_CLKEVT		IRQ_TIMER0
+#define TIMER_CLKEVT_NAME		"timer0"
 
-#define TIMER_CLKSRC			3	/* timer3 */
-#define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER3
-#define TIMER_CLKSRC_NAME		"timer3"
+#define TIMER_CLKSRC			1	/* timer1 */
+#define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER1
+#define TIMER_CLKSRC_NAME		"timer1"
 
 static struct clk *timer_clk;
 static volatile unsigned long timer_mult; /* timer count = cycle * timer_mult */
@@ -62,6 +62,7 @@ void rk29_timer_update_mult(void)
 {
 	//if (timer_clk)
 	//	timer_mult = clk_get_rate(timer_clk) / 1000000;
+	timer_mult = 24000000 / 1000000;
 }
 
 static int rk29_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
