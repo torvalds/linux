@@ -607,6 +607,7 @@ out_settings:
 	 * We do not commit power settings while scan is pending,
 	 * do it now if the settings changed.
 	 */
+	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
 	iwl_set_tx_power(priv, priv->tx_power_next, false);
 
 	priv->cfg->ops->utils->post_scan(priv);
