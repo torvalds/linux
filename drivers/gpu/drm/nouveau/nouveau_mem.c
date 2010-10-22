@@ -175,11 +175,10 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			}
 		}
 	}
-	dev_priv->engine.instmem.flush(dev);
 
-	nv50_vm_flush(dev, 5);
-	nv50_vm_flush(dev, 0);
-	nv50_vm_flush(dev, 4);
+	dev_priv->engine.instmem.flush(dev);
+	dev_priv->engine.fifo.tlb_flush(dev);
+	dev_priv->engine.graph.tlb_flush(dev);
 	nv50_vm_flush(dev, 6);
 	return 0;
 }
@@ -209,11 +208,10 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 			pte++;
 		}
 	}
-	dev_priv->engine.instmem.flush(dev);
 
-	nv50_vm_flush(dev, 5);
-	nv50_vm_flush(dev, 0);
-	nv50_vm_flush(dev, 4);
+	dev_priv->engine.instmem.flush(dev);
+	dev_priv->engine.fifo.tlb_flush(dev);
+	dev_priv->engine.graph.tlb_flush(dev);
 	nv50_vm_flush(dev, 6);
 }
 

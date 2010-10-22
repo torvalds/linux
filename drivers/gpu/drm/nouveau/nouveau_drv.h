@@ -307,6 +307,7 @@ struct nouveau_fifo_engine {
 	void (*destroy_context)(struct nouveau_channel *);
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
+	void (*tlb_flush)(struct drm_device *dev);
 };
 
 struct nouveau_pgraph_object_method {
@@ -339,6 +340,7 @@ struct nouveau_pgraph_engine {
 	void (*destroy_context)(struct nouveau_channel *);
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
+	void (*tlb_flush)(struct drm_device *dev);
 
 	void (*set_region_tiling)(struct drm_device *dev, int i, uint32_t addr,
 				  uint32_t size, uint32_t pitch);
@@ -1014,6 +1016,7 @@ extern int  nv50_fifo_create_context(struct nouveau_channel *);
 extern void nv50_fifo_destroy_context(struct nouveau_channel *);
 extern int  nv50_fifo_load_context(struct nouveau_channel *);
 extern int  nv50_fifo_unload_context(struct drm_device *);
+extern void nv50_fifo_tlb_flush(struct drm_device *dev);
 
 /* nvc0_fifo.c */
 extern int  nvc0_fifo_init(struct drm_device *);
@@ -1091,6 +1094,8 @@ extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
 extern void nv50_graph_context_switch(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
+extern void nv50_graph_tlb_flush(struct drm_device *dev);
+extern void nv86_graph_tlb_flush(struct drm_device *dev);
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_init(struct drm_device *);

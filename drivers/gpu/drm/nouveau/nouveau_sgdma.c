@@ -120,8 +120,8 @@ nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 	dev_priv->engine.instmem.flush(nvbe->dev);
 
 	if (dev_priv->card_type == NV_50) {
-		nv50_vm_flush(dev, 5); /* PGRAPH */
-		nv50_vm_flush(dev, 0); /* PFIFO */
+		dev_priv->engine.fifo.tlb_flush(dev);
+		dev_priv->engine.graph.tlb_flush(dev);
 	}
 
 	nvbe->bound = true;
@@ -162,8 +162,8 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 	dev_priv->engine.instmem.flush(nvbe->dev);
 
 	if (dev_priv->card_type == NV_50) {
-		nv50_vm_flush(dev, 5);
-		nv50_vm_flush(dev, 0);
+		dev_priv->engine.fifo.tlb_flush(dev);
+		dev_priv->engine.graph.tlb_flush(dev);
 	}
 
 	nvbe->bound = false;
