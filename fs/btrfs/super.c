@@ -629,7 +629,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	if (IS_ERR(root)) {
 		error = PTR_ERR(root);
 		deactivate_locked_super(s);
-		goto error;
+		goto error_free_subvol_name;
 	}
 	/* if they gave us a subvolume name bind mount into that */
 	if (strcmp(subvol_name, ".")) {
@@ -643,14 +643,14 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			deactivate_locked_super(s);
 			error = PTR_ERR(new_root);
 			dput(root);
-			goto error_close_devices;
+			goto error_free_subvol_name;
 		}
 		if (!new_root->d_inode) {
 			dput(root);
 			dput(new_root);
 			deactivate_locked_super(s);
 			error = -ENXIO;
-			goto error_close_devices;
+			goto error_free_subvol_name;
 		}
 		dput(root);
 		root = new_root;
@@ -668,7 +668,6 @@ error_close_devices:
 	btrfs_close_devices(fs_devices);
 error_free_subvol_name:
 	kfree(subvol_name);
-error:
 	return error;
 }
 
