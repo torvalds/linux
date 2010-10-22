@@ -1216,6 +1216,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	struct hda_codec *c;
 	struct hda_cvt_setup *p;
 	unsigned int oldval, newval;
+	int type;
 	int i;
 
 	if (!nid)
@@ -1254,10 +1255,12 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	p->dirty = 0;
 
 	/* make other inactive cvts with the same stream-tag dirty */
+	type = get_wcaps_type(get_wcaps(codec, nid));
 	list_for_each_entry(c, &codec->bus->codec_list, list) {
 		for (i = 0; i < c->cvt_setups.used; i++) {
 			p = snd_array_elem(&c->cvt_setups, i);
-			if (!p->active && p->stream_tag == stream_tag)
+			if (!p->active && p->stream_tag == stream_tag &&
+			    get_wcaps_type(get_wcaps(codec, p->nid)) == type)
 				p->dirty = 1;
 		}
 	}

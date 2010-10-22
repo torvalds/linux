@@ -1652,7 +1652,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int bufsize, period_bytes, format_val;
+	unsigned int bufsize, period_bytes, format_val, stream_tag;
 	int err;
 
 	azx_stream_reset(chip, azx_dev);
@@ -1694,7 +1694,12 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	else
 		azx_dev->fifo_size = 0;
 
-	return snd_hda_codec_prepare(apcm->codec, hinfo, azx_dev->stream_tag,
+	stream_tag = azx_dev->stream_tag;
+	/* CA-IBG chips need the playback stream starting from 1 */
+	if (chip->driver_type == AZX_DRIVER_CTX &&
+	    stream_tag > chip->capture_streams)
+		stream_tag -= chip->capture_streams;
+	return snd_hda_codec_prepare(apcm->codec, hinfo, stream_tag,
 				     azx_dev->format_val, substream);
 }
 
