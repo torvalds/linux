@@ -124,6 +124,7 @@ struct mceusb_model {
 	u32 is_polaris:1;
 
 	const char *rc_map;	/* Allow specify a per-board map */
+	const char *name;	/* per-board name */
 };
 
 static const struct mceusb_model mceusb_model[] = {
@@ -150,6 +151,7 @@ static const struct mceusb_model mceusb_model[] = {
 		 * to allow testing it
 		 */
 		.rc_map = RC_MAP_RC5_HAUPPAUGE_NEW,
+		.name = "cx231xx MCE IR",
 	},
 };
 
@@ -955,6 +957,7 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	struct ir_dev_props *props;
 	struct device *dev = ir->dev;
 	const char *rc_map = RC_MAP_RC6_MCE;
+	const char *name = "Media Center Ed. eHome Infrared Remote Transceiver";
 	int ret = -ENODEV;
 
 	idev = input_allocate_device();
@@ -970,8 +973,11 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 		goto props_alloc_failed;
 	}
 
-	snprintf(ir->name, sizeof(ir->name), "Media Center Ed. eHome "
-		 "Infrared Remote Transceiver (%04x:%04x)",
+	if (mceusb_model[ir->model].name)
+		name = mceusb_model[ir->model].name;
+
+	snprintf(ir->name, sizeof(ir->name), "%s (%04x:%04x)",
+		 name,
 		 le16_to_cpu(ir->usbdev->descriptor.idVendor),
 		 le16_to_cpu(ir->usbdev->descriptor.idProduct));
 
