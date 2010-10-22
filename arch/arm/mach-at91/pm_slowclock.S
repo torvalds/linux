@@ -124,6 +124,7 @@ ENTRY(at91_slow_clock)
 	ldr	r5, .at91_va_base_ramc1
 
 	/* Drain write buffer */
+	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4
 
 #ifdef CONFIG_ARCH_AT91RM9200
