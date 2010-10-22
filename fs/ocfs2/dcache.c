@@ -40,6 +40,14 @@
 #include "inode.h"
 #include "super.h"
 
+void ocfs2_dentry_attach_gen(struct dentry *dentry)
+{
+	unsigned long gen =
+		OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+	BUG_ON(dentry->d_inode);
+	dentry->d_fsdata = (void *)gen;
+}
+
 
 static int ocfs2_dentry_revalidate(struct dentry *dentry,
 				   struct nameidata *nd)
@@ -51,11 +59,20 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 		   dentry->d_name.len, dentry->d_name.name);
 
-	/* Never trust a negative dentry - force a new lookup. */
+	/* For a negative dentry -
+	 * check the generation number of the parent and compare with the
+	 * one stored in the inode.
+	 */
 	if (inode == NULL) {
-		mlog(0, "negative dentry: %.*s\n", dentry->d_name.len,
-		     dentry->d_name.name);
-		goto bail;
+		unsigned long gen = (unsigned long) dentry->d_fsdata;
+		unsigned long pgen =
+			OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+		mlog(0, "negative dentry: %.*s parent gen: %lu "
+			"dentry gen: %lu\n",
+			dentry->d_name.len, dentry->d_name.name, pgen, gen);
+		if (gen != pgen)
+			goto bail;
+		goto valid;
 	}
 
 	BUG_ON(!osb);
@@ -96,6 +113,7 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 		goto bail;
 	}
 
+valid:
 	ret = 1;
 
 bail:
@@ -226,6 +244,12 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	 */
 	if (!inode)
 		return 0;
+
+	if (!dentry->d_inode && dentry->d_fsdata) {
+		/* Converting a negative dentry to positive
+		   Clear dentry->d_fsdata */
+		dentry->d_fsdata = dl = NULL;
+	}
 
 	if (dl) {
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
@@ -452,6 +476,7 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 
 out:
 	iput(inode);
+	ocfs2_dentry_attach_gen(dentry);
 }
 
 /*

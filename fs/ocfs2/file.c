@@ -64,12 +64,6 @@
 
 #include "buffer_head_io.h"
 
-static int ocfs2_sync_inode(struct inode *inode)
-{
-	filemap_fdatawrite(inode->i_mapping);
-	return sync_mapping_buffers(inode->i_mapping);
-}
-
 static int ocfs2_init_file_private(struct inode *inode, struct file *file)
 {
 	struct ocfs2_file_private *fp;
@@ -180,16 +174,12 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 {
 	int err = 0;
 	journal_t *journal;
-	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", file, dentry, datasync,
-		   dentry->d_name.len, dentry->d_name.name);
-
-	err = ocfs2_sync_inode(dentry->d_inode);
-	if (err)
-		goto bail;
+	mlog_entry("(0x%p, %d, 0x%p, '%.*s')\n", file, datasync,
+		   file->f_path.dentry, file->f_path.dentry->d_name.len,
+		   file->f_path.dentry->d_name.name);
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC)) {
 		/*
@@ -370,7 +360,7 @@ static int ocfs2_cow_file_pos(struct inode *inode,
 	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
 		goto out;
 
-	return ocfs2_refcount_cow(inode, fe_bh, cpos, 1, cpos+1);
+	return ocfs2_refcount_cow(inode, NULL, fe_bh, cpos, 1, cpos+1);
 
 out:
 	return status;
@@ -913,8 +903,8 @@ static int ocfs2_zero_extend_get_range(struct inode *inode,
 		zero_clusters = last_cpos - zero_cpos;
 
 	if (needs_cow) {
-		rc = ocfs2_refcount_cow(inode, di_bh, zero_cpos, zero_clusters,
-					UINT_MAX);
+		rc = ocfs2_refcount_cow(inode, NULL, di_bh, zero_cpos,
+					zero_clusters, UINT_MAX);
 		if (rc) {
 			mlog_errno(rc);
 			goto out;
@@ -2062,6 +2052,7 @@ out:
 }
 
 static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
+					    struct file *file,
 					    loff_t pos, size_t count,
 					    int *meta_level)
 {
@@ -2079,7 +2070,7 @@ static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
 
 	*meta_level = 1;
 
-	ret = ocfs2_refcount_cow(inode, di_bh, cpos, clusters, UINT_MAX);
+	ret = ocfs2_refcount_cow(inode, file, di_bh, cpos, clusters, UINT_MAX);
 	if (ret)
 		mlog_errno(ret);
 out:
@@ -2087,7 +2078,7 @@ out:
 	return ret;
 }
 
-static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
+static int ocfs2_prepare_inode_for_write(struct file *file,
 					 loff_t *ppos,
 					 size_t count,
 					 int appending,
@@ -2095,6 +2086,7 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 					 int *has_refcount)
 {
 	int ret = 0, meta_level = 0;
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	loff_t saved_pos, end;
 
@@ -2150,6 +2142,7 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 			meta_level = -1;
 
 			ret = ocfs2_prepare_inode_for_refcount(inode,
+							       file,
 							       saved_pos,
 							       count,
 							       &meta_level);
@@ -2232,6 +2225,8 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int full_coherency = !(osb->s_mount_opt &
+			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 
 	mlog_entry("(0x%p, %u, '%.*s')\n", file,
 		   (unsigned int)nr_segs,
@@ -2255,16 +2250,39 @@ relock:
 		have_alloc_sem = 1;
 	}
 
-	/* concurrent O_DIRECT writes are allowed */
-	rw_level = !direct_io;
+	/*
+	 * Concurrent O_DIRECT writes are allowed with
+	 * mount_option "coherency=buffered".
+	 */
+	rw_level = (!direct_io || full_coherency);
+
 	ret = ocfs2_rw_lock(inode, rw_level);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_sems;
 	}
 
+	/*
+	 * O_DIRECT writes with "coherency=full" need to take EX cluster
+	 * inode_lock to guarantee coherency.
+	 */
+	if (direct_io && full_coherency) {
+		/*
+		 * We need to take and drop the inode lock to force
+		 * other nodes to drop their caches.  Buffered I/O
+		 * already does this in write_begin().
+		 */
+		ret = ocfs2_inode_lock(inode, NULL, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out_sems;
+		}
+
+		ocfs2_inode_unlock(inode, 1);
+	}
+
 	can_do_direct = direct_io;
-	ret = ocfs2_prepare_inode_for_write(file->f_path.dentry, ppos,
+	ret = ocfs2_prepare_inode_for_write(file, ppos,
 					    iocb->ki_left, appending,
 					    &can_do_direct, &has_refcount);
 	if (ret < 0) {
@@ -2312,17 +2330,6 @@ relock:
 		written = generic_file_direct_write(iocb, iov, &nr_segs, *ppos,
 						    ppos, count, ocount);
 		if (written < 0) {
-			/*
-			 * direct write may have instantiated a few
-			 * blocks outside i_size. Trim these off again.
-			 * Don't need i_size_read because we hold i_mutex.
-			 *
-			 * XXX(truncate): this looks buggy because ocfs2 did not
-			 * actually implement ->truncate.  Take a look at
-			 * the new truncate sequence and update this accordingly
-			 */
-			if (*ppos + count > inode->i_size)
-				truncate_setsize(inode, inode->i_size);
 			ret = written;
 			goto out_dio;
 		}
@@ -2394,7 +2401,7 @@ static int ocfs2_splice_to_file(struct pipe_inode_info *pipe,
 {
 	int ret;
 
-	ret = ocfs2_prepare_inode_for_write(out->f_path.dentry,	&sd->pos,
+	ret = ocfs2_prepare_inode_for_write(out, &sd->pos,
 					    sd->total_len, 0, NULL, NULL);
 	if (ret < 0) {
 		mlog_errno(ret);

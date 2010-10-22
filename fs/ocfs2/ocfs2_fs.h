@@ -101,7 +101,8 @@
 					 | OCFS2_FEATURE_INCOMPAT_META_ECC \
 					 | OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS \
 					 | OCFS2_FEATURE_INCOMPAT_REFCOUNT_TREE \
-					 | OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG)
+					 | OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	\
+					 | OCFS2_FEATURE_INCOMPAT_CLUSTERINFO)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	(OCFS2_FEATURE_RO_COMPAT_UNWRITTEN \
 					 | OCFS2_FEATURE_RO_COMPAT_USRQUOTA \
 					 | OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)
@@ -168,6 +169,13 @@
 
 /* Discontigous block groups */
 #define OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	0x2000
+
+/*
+ * Incompat bit to indicate useable clusterinfo with stackflags for all
+ * cluster stacks (userspace adnd o2cb). If this bit is set,
+ * INCOMPAT_USERSPACE_STACK becomes superfluous and thus should not be set.
+ */
+#define OCFS2_FEATURE_INCOMPAT_CLUSTERINFO	0x4000
 
 /*
  * backup superblock flag is used to indicate that this volume
@@ -292,9 +300,12 @@
 #define OCFS2_VOL_UUID_LEN		16
 #define OCFS2_MAX_VOL_LABEL_LEN		64
 
-/* The alternate, userspace stack fields */
+/* The cluster stack fields */
 #define OCFS2_STACK_LABEL_LEN		4
 #define OCFS2_CLUSTER_NAME_LEN		16
+
+/* Classic (historically speaking) cluster stack */
+#define OCFS2_CLASSIC_CLUSTER_STACK	"o2cb"
 
 /* Journal limits (in bytes) */
 #define OCFS2_MIN_JOURNAL_SIZE		(4 * 1024 * 1024)
@@ -304,6 +315,11 @@
  * The value chosen should be aligned to 16 byte boundaries.
  */
 #define OCFS2_MIN_XATTR_INLINE_SIZE     256
+
+/*
+ * Cluster info flags (ocfs2_cluster_info.ci_stackflags)
+ */
+#define OCFS2_CLUSTER_O2CB_GLOBAL_HEARTBEAT	(0x01)
 
 struct ocfs2_system_inode_info {
 	char	*si_name;
@@ -322,6 +338,7 @@ enum {
 	USER_QUOTA_SYSTEM_INODE,
 	GROUP_QUOTA_SYSTEM_INODE,
 #define OCFS2_LAST_GLOBAL_SYSTEM_INODE GROUP_QUOTA_SYSTEM_INODE
+#define OCFS2_FIRST_LOCAL_SYSTEM_INODE ORPHAN_DIR_SYSTEM_INODE
 	ORPHAN_DIR_SYSTEM_INODE,
 	EXTENT_ALLOC_SYSTEM_INODE,
 	INODE_ALLOC_SYSTEM_INODE,
@@ -330,8 +347,12 @@ enum {
 	TRUNCATE_LOG_SYSTEM_INODE,
 	LOCAL_USER_QUOTA_SYSTEM_INODE,
 	LOCAL_GROUP_QUOTA_SYSTEM_INODE,
+#define OCFS2_LAST_LOCAL_SYSTEM_INODE LOCAL_GROUP_QUOTA_SYSTEM_INODE
 	NUM_SYSTEM_INODES
 };
+#define NUM_GLOBAL_SYSTEM_INODES OCFS2_LAST_GLOBAL_SYSTEM_INODE
+#define NUM_LOCAL_SYSTEM_INODES	\
+		(NUM_SYSTEM_INODES - OCFS2_FIRST_LOCAL_SYSTEM_INODE)
 
 static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 	/* Global system inodes (single copy) */
@@ -360,6 +381,7 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 /* Parameter passed from mount.ocfs2 to module */
 #define OCFS2_HB_NONE			"heartbeat=none"
 #define OCFS2_HB_LOCAL			"heartbeat=local"
+#define OCFS2_HB_GLOBAL			"heartbeat=global"
 
 /*
  * OCFS2 directory file types.  Only the low 3 bits are used.  The
@@ -566,9 +588,21 @@ struct ocfs2_slot_map_extended {
  */
 };
 
+/*
+ * ci_stackflags is only valid if the incompat bit
+ * OCFS2_FEATURE_INCOMPAT_CLUSTERINFO is set.
+ */
 struct ocfs2_cluster_info {
 /*00*/	__u8   ci_stack[OCFS2_STACK_LABEL_LEN];
-	__le32 ci_reserved;
+	union {
+		__le32 ci_reserved;
+		struct {
+			__u8 ci_stackflags;
+			__u8 ci_reserved1;
+			__u8 ci_reserved2;
+			__u8 ci_reserved3;
+		};
+	};
 /*08*/	__u8   ci_cluster[OCFS2_CLUSTER_NAME_LEN];
 /*18*/
 };
@@ -605,9 +639,9 @@ struct ocfs2_super_block {
 					 * group header */
 /*50*/	__u8  s_label[OCFS2_MAX_VOL_LABEL_LEN];	/* Label for mounting, etc. */
 /*90*/	__u8  s_uuid[OCFS2_VOL_UUID_LEN];	/* 128-bit uuid */
-/*A0*/  struct ocfs2_cluster_info s_cluster_info; /* Selected userspace
-						     stack.  Only valid
-						     with INCOMPAT flag. */
+/*A0*/  struct ocfs2_cluster_info s_cluster_info; /* Only valid if either
+						     userspace or clusterinfo
+						     INCOMPAT flag set. */
 /*B8*/	__le16 s_xattr_inline_size;	/* extended attribute inline size
 					   for this fs*/
 	__le16 s_reserved0;

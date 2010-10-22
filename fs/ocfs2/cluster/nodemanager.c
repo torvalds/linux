@@ -711,6 +711,8 @@ static struct config_item *o2nm_node_group_make_item(struct config_group *group,
 	config_item_init_type_name(&node->nd_item, name, &o2nm_node_type);
 	spin_lock_init(&node->nd_lock);
 
+	mlog(ML_CLUSTER, "o2nm: Registering node %s\n", name);
+
 	return &node->nd_item;
 }
 
@@ -743,6 +745,9 @@ static void o2nm_node_group_drop_item(struct config_group *group,
 		clear_bit(node->nd_num, cluster->cl_nodes_bitmap);
 	}
 	write_unlock(&cluster->cl_nodes_lock);
+
+	mlog(ML_CLUSTER, "o2nm: Unregistered node %s\n",
+	     config_item_name(&node->nd_item));
 
 	config_item_put(item);
 }
