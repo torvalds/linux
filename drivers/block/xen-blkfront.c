@@ -1067,8 +1067,15 @@ static void blkfront_connect(struct blkfront_info *info)
 	 * If there are barriers, then we use flush.
 	 */
 	info->feature_flush = 0;
+
+	/*
+	 * The driver doesn't properly handled empty flushes, so
+	 * lets disable barrier support for now.
+	 */
+#if 0
 	if (!err && barrier)
 		info->feature_flush = REQ_FLUSH;
+#endif
 
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
