@@ -551,7 +551,10 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	if (dev_priv->card_type >= NV_30)
 		regp->gpio_ext = NVReadCRTC(dev, 0, NV_PCRTC_GPIO_EXT);
 
-	regp->crtc_cfg = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	if (dev_priv->card_type >= NV_10)
+		regp->crtc_cfg = NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	else
+		regp->crtc_cfg = NV04_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
 	/* Some misc regs */
 	if (dev_priv->card_type == NV_40) {

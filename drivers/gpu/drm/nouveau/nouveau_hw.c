@@ -953,7 +953,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 			NVWriteCRTC(dev, head, NV_PCRTC_850, regp->crtc_850);
 
 			reg900 = NVReadRAMDAC(dev, head, NV_PRAMDAC_900);
-			if (regp->crtc_cfg == NV_PCRTC_CONFIG_START_ADDRESS_HSYNC)
+			if (regp->crtc_cfg == NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC)
 				NVWriteRAMDAC(dev, head, NV_PRAMDAC_900, reg900 | 0x10000);
 			else
 				NVWriteRAMDAC(dev, head, NV_PRAMDAC_900, reg900 & ~0x10000);
