@@ -505,7 +505,7 @@ static int write_exec(struct page_collect *pcol)
 
 	pcol_copy = kmalloc(sizeof(*pcol_copy), GFP_KERNEL);
 	if (!pcol_copy) {
-		EXOFS_ERR("write_exec: Faild to kmalloc(pcol)\n");
+		EXOFS_ERR("write_exec: Failed to kmalloc(pcol)\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -521,7 +521,7 @@ static int write_exec(struct page_collect *pcol)
 
 	ret = exofs_oi_write(oi, ios);
 	if (unlikely(ret)) {
-		EXOFS_ERR("write_exec: exofs_oi_write() Faild\n");
+		EXOFS_ERR("write_exec: exofs_oi_write() Failed\n");
 		goto err;
 	}
 
@@ -622,7 +622,7 @@ try_again:
 		/* split the request, next loop will start again */
 		ret = write_exec(pcol);
 		if (unlikely(ret)) {
-			EXOFS_DBGMSG("write_exec faild => %d", ret);
+			EXOFS_DBGMSG("write_exec failed => %d", ret);
 			goto fail;
 		}
 
@@ -713,7 +713,7 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 		ret = simple_write_begin(file, mapping, pos, len, flags, pagep,
 					 fsdata);
 		if (ret) {
-			EXOFS_DBGMSG("simple_write_begin faild\n");
+			EXOFS_DBGMSG("simple_write_begin failed\n");
 			goto out;
 		}
 
@@ -726,7 +726,7 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 		if (ret) {
 			/*SetPageError was done by _readpage. Is it ok?*/
 			unlock_page(page);
-			EXOFS_DBGMSG("__readpage_filler faild\n");
+			EXOFS_DBGMSG("__readpage_filler failed\n");
 		}
 	}
 out:
@@ -1090,7 +1090,7 @@ static void create_done(struct exofs_io_state *ios, void *p)
 	atomic_dec(&sbi->s_curr_pending);
 
 	if (unlikely(ret)) {
-		EXOFS_ERR("object=0x%llx creation faild in pid=0x%llx",
+		EXOFS_ERR("object=0x%llx creation failed in pid=0x%llx",
 			  _LLU(exofs_oi_objno(oi)), _LLU(sbi->layout.s_pid));
 		/*TODO: When FS is corrupted creation can fail, object already
 		 * exist. Get rid of this asynchronous creation, if exist
@@ -1211,7 +1211,7 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 
 	args = kzalloc(sizeof(*args), GFP_KERNEL);
 	if (!args) {
-		EXOFS_DBGMSG("Faild kzalloc of args\n");
+		EXOFS_DBGMSG("Failed kzalloc of args\n");
 		return -ENOMEM;
 	}
 
