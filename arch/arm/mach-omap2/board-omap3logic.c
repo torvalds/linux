@@ -225,8 +225,6 @@ static void __init omap3logic_init(void)
 }
 
 MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.init_irq	= omap3logic_init_irq,
@@ -235,8 +233,6 @@ MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 MACHINE_END
 
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.init_irq	= omap3logic_init_irq,
