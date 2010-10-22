@@ -46,26 +46,58 @@
 			"device driver"
 #define DRIVER_NAME	"mceusb"
 
-#define USB_BUFLEN	32	/* USB reception buffer length */
-#define USB_CTRL_MSG_SZ	2	/* Size of usb ctrl msg on gen1 hw */
-#define MCE_G1_INIT_MSGS 40	/* Init messages on gen1 hw to throw out */
+#define USB_BUFLEN		32 /* USB reception buffer length */
+#define USB_CTRL_MSG_SZ		2  /* Size of usb ctrl msg on gen1 hw */
+#define MCE_G1_INIT_MSGS	40 /* Init messages on gen1 hw to throw out */
 
 /* MCE constants */
-#define MCE_CMDBUF_SIZE	384 /* MCE Command buffer length */
-#define MCE_TIME_UNIT	50 /* Approx 50us resolution */
-#define MCE_CODE_LENGTH	5 /* Normal length of packet (with header) */
-#define MCE_PACKET_SIZE	4 /* Normal length of packet (without header) */
-#define MCE_PACKET_HEADER 0x84 /* Actual header format is 0x80 + num_bytes */
-#define MCE_CONTROL_HEADER 0x9f /* MCE status header */
-#define MCE_TX_HEADER_LENGTH 3 /* # of bytes in the initializing tx header */
-#define MCE_MAX_CHANNELS 2 /* Two transmitters, hardware dependent? */
-#define MCE_DEFAULT_TX_MASK 0x03 /* Val opts: TX1=0x01, TX2=0x02, ALL=0x03 */
-#define MCE_PULSE_BIT	0x80 /* Pulse bit, MSB set == PULSE else SPACE */
-#define MCE_PULSE_MASK	0x7f /* Pulse mask */
-#define MCE_MAX_PULSE_LENGTH 0x7f /* Longest transmittable pulse symbol */
-#define MCE_COMMAND_MASK 0xe0 /* Mask out command bits */
-#define MCE_PACKET_LENGTH_MASK  0x1f /* Packet length mask */
-#define MCE_COMMAND_IRDATA 0x80 /* buf & MCE_COMMAND_MASK == 0x80 -> IR data */
+#define MCE_CMDBUF_SIZE		384  /* MCE Command buffer length */
+#define MCE_TIME_UNIT		50   /* Approx 50us resolution */
+#define MCE_CODE_LENGTH		5    /* Normal length of packet (with header) */
+#define MCE_PACKET_SIZE		4    /* Normal length of packet (without header) */
+#define MCE_IRDATA_HEADER	0x84 /* Actual header format is 0x80 + num_bytes */
+#define MCE_IRDATA_TRAILER	0x80 /* End of IR data */
+#define MCE_TX_HEADER_LENGTH	3    /* # of bytes in the initializing tx header */
+#define MCE_MAX_CHANNELS	2    /* Two transmitters, hardware dependent? */
+#define MCE_DEFAULT_TX_MASK	0x03 /* Vals: TX1=0x01, TX2=0x02, ALL=0x03 */
+#define MCE_PULSE_BIT		0x80 /* Pulse bit, MSB set == PULSE else SPACE */
+#define MCE_PULSE_MASK		0x7f /* Pulse mask */
+#define MCE_MAX_PULSE_LENGTH	0x7f /* Longest transmittable pulse symbol */
+
+#define MCE_HW_CMD_HEADER	0xff	/* MCE hardware command header */
+#define MCE_COMMAND_HEADER	0x9f	/* MCE command header */
+#define MCE_COMMAND_MASK	0xe0	/* Mask out command bits */
+#define MCE_COMMAND_NULL	0x00	/* These show up various places... */
+/* if buf[i] & MCE_COMMAND_MASK == 0x80 and buf[i] != MCE_COMMAND_HEADER,
+ * then we're looking at a raw IR data sample */
+#define MCE_COMMAND_IRDATA	0x80
+#define MCE_PACKET_LENGTH_MASK	0x1f /* Packet length mask */
+
+/* Sub-commands, which follow MCE_COMMAND_HEADER or MCE_HW_CMD_HEADER */
+#define MCE_CMD_PING		0x03	/* Ping device */
+#define MCE_CMD_UNKNOWN		0x04	/* Unknown */
+#define MCE_CMD_UNKNOWN2	0x05	/* Unknown */
+#define MCE_CMD_S_CARRIER	0x06	/* Set TX carrier frequency */
+#define MCE_CMD_G_CARRIER	0x07	/* Get TX carrier frequency */
+#define MCE_CMD_S_TXMASK	0x08	/* Set TX port bitmask */
+#define MCE_CMD_UNKNOWN3	0x09	/* Unknown */
+#define MCE_CMD_UNKNOWN4	0x0a	/* Unknown */
+#define MCE_CMD_G_REVISION	0x0b	/* Get hw/sw revision */
+#define MCE_CMD_S_TIMEOUT	0x0c	/* Set RX timeout value */
+#define MCE_CMD_G_TIMEOUT	0x0d	/* Get RX timeout value */
+#define MCE_CMD_UNKNOWN5	0x0e	/* Unknown */
+#define MCE_CMD_UNKNOWN6	0x0f	/* Unknown */
+#define MCE_CMD_G_RXPORTSTS	0x11	/* Get RX port status */
+#define MCE_CMD_G_TXMASK	0x13	/* Set TX port bitmask */
+#define MCE_CMD_S_RXSENSOR	0x14	/* Set RX sensor (std/learning) */
+#define MCE_CMD_G_RXSENSOR	0x15	/* Get RX sensor (std/learning) */
+#define MCE_CMD_TX_PORTS	0x16	/* Get number of TX ports */
+#define MCE_CMD_G_WAKESRC	0x17	/* Get wake source */
+#define MCE_CMD_UNKNOWN7	0x18	/* Unknown */
+#define MCE_CMD_UNKNOWN8	0x19	/* Unknown */
+#define MCE_CMD_UNKNOWN9	0x1b	/* Unknown */
+#define MCE_CMD_DEVICE_RESET	0xaa	/* Reset the hardware */
+#define MCE_RSP_CMD_INVALID	0xfe	/* Invalid command issued */
 
 
 /* module parameters */
@@ -336,20 +368,24 @@ struct mceusb_dev {
  * - SET_RX_TIMEOUT sets the receiver timeout
  * - SET_RX_SENSOR sets which receiver sensor to use
  */
-static char DEVICE_RESET[]	= {0x00, 0xff, 0xaa};
-static char GET_REVISION[]	= {0xff, 0x0b};
-static char GET_UNKNOWN[]	= {0xff, 0x18};
-static char GET_UNKNOWN2[]	= {MCE_CONTROL_HEADER, 0x05};
-static char GET_CARRIER_FREQ[]	= {MCE_CONTROL_HEADER, 0x07};
-static char GET_RX_TIMEOUT[]	= {MCE_CONTROL_HEADER, 0x0d};
-static char GET_TX_BITMASK[]	= {MCE_CONTROL_HEADER, 0x13};
-static char GET_RX_SENSOR[]	= {MCE_CONTROL_HEADER, 0x15};
+static char DEVICE_RESET[]	= {MCE_COMMAND_NULL, MCE_HW_CMD_HEADER,
+				   MCE_CMD_DEVICE_RESET};
+static char GET_REVISION[]	= {MCE_HW_CMD_HEADER, MCE_CMD_G_REVISION};
+static char GET_UNKNOWN[]	= {MCE_HW_CMD_HEADER, MCE_CMD_UNKNOWN7};
+static char GET_UNKNOWN2[]	= {MCE_COMMAND_HEADER, MCE_CMD_UNKNOWN2};
+static char GET_CARRIER_FREQ[]	= {MCE_COMMAND_HEADER, MCE_CMD_G_CARRIER};
+static char GET_RX_TIMEOUT[]	= {MCE_COMMAND_HEADER, MCE_CMD_G_TIMEOUT};
+static char GET_TX_BITMASK[]	= {MCE_COMMAND_HEADER, MCE_CMD_G_TXMASK};
+static char GET_RX_SENSOR[]	= {MCE_COMMAND_HEADER, MCE_CMD_G_RXSENSOR};
 /* sub in desired values in lower byte or bytes for full command */
 /* FIXME: make use of these for transmit.
-static char SET_CARRIER_FREQ[]	= {MCE_CONTROL_HEADER, 0x06, 0x00, 0x00};
-static char SET_TX_BITMASK[]	= {MCE_CONTROL_HEADER, 0x08, 0x00};
-static char SET_RX_TIMEOUT[]	= {MCE_CONTROL_HEADER, 0x0c, 0x00, 0x00};
-static char SET_RX_SENSOR[]	= {MCE_CONTROL_HEADER, 0x14, 0x00};
+static char SET_CARRIER_FREQ[]	= {MCE_COMMAND_HEADER,
+				   MCE_CMD_S_CARRIER, 0x00, 0x00};
+static char SET_TX_BITMASK[]	= {MCE_COMMAND_HEADER, MCE_CMD_S_TXMASK, 0x00};
+static char SET_RX_TIMEOUT[]	= {MCE_COMMAND_HEADER,
+				   MCE_CMD_S_TIMEOUT, 0x00, 0x00};
+static char SET_RX_SENSOR[]	= {MCE_COMMAND_HEADER,
+				   MCE_CMD_S_RXSENSOR, 0x00};
 */
 
 static int mceusb_cmdsize(u8 cmd, u8 subcmd)
@@ -357,26 +393,26 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 	int datasize = 0;
 
 	switch (cmd) {
-	case 0x00:
-		if (subcmd == 0xff)
+	case MCE_COMMAND_NULL:
+		if (subcmd == MCE_HW_CMD_HEADER)
 			datasize = 1;
 		break;
-	case 0xff:
+	case MCE_HW_CMD_HEADER:
 		switch (subcmd) {
-		case 0x0b:
+		case MCE_CMD_G_REVISION:
 			datasize = 2;
 			break;
 		}
-	case MCE_CONTROL_HEADER:
+	case MCE_COMMAND_HEADER:
 		switch (subcmd) {
-		case 0x04:
-		case 0x06:
-		case 0x0c:
-		case 0x15:
+		case MCE_CMD_UNKNOWN:
+		case MCE_CMD_S_CARRIER:
+		case MCE_CMD_S_TIMEOUT:
+		case MCE_CMD_G_RXSENSOR:
 			datasize = 2;
 			break;
-		case 0x08:
-		case 0x14:
+		case MCE_CMD_S_TXMASK:
+		case MCE_CMD_S_RXSENSOR:
 			datasize = 1;
 			break;
 		}
@@ -402,7 +438,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		return;
 
 	for (i = 0; i < len && i < USB_BUFLEN; i++)
-		snprintf(codes + i * 3, 4, "%02x ", buf[i] & 0xFF);
+		snprintf(codes + i * 3, 4, "%02x ", buf[i] & 0xff);
 
 	dev_info(dev, "%sx data: %s (length=%d)\n",
 		 (out ? "t" : "r"), codes, len);
@@ -418,16 +454,17 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	data2  = buf[idx + 3] & 0xff;
 
 	switch (cmd) {
-	case 0x00:
-		if (subcmd == 0xff && data1 == 0xaa)
+	case MCE_COMMAND_NULL:
+		if ((subcmd == MCE_HW_CMD_HEADER) &&
+		    (data1 == MCE_CMD_DEVICE_RESET))
 			dev_info(dev, "Device reset requested\n");
 		else
 			dev_info(dev, "Unknown command 0x%02x 0x%02x\n",
 				 cmd, subcmd);
 		break;
-	case 0xff:
+	case MCE_HW_CMD_HEADER:
 		switch (subcmd) {
-		case 0x0b:
+		case MCE_CMD_G_REVISION:
 			if (len == 2)
 				dev_info(dev, "Get hw/sw rev?\n");
 			else
@@ -435,68 +472,68 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 					 "0x%02x 0x%02x\n", data1, data2,
 					 buf[idx + 4], buf[idx + 5]);
 			break;
-		case 0xaa:
+		case MCE_CMD_DEVICE_RESET:
 			dev_info(dev, "Device reset requested\n");
 			break;
-		case 0xfe:
+		case MCE_RSP_CMD_INVALID:
 			dev_info(dev, "Previous command not supported\n");
 			break;
-		case 0x18:
-		case 0x1b:
+		case MCE_CMD_UNKNOWN7:
+		case MCE_CMD_UNKNOWN9:
 		default:
 			dev_info(dev, "Unknown command 0x%02x 0x%02x\n",
 				 cmd, subcmd);
 			break;
 		}
 		break;
-	case MCE_CONTROL_HEADER:
+	case MCE_COMMAND_HEADER:
 		switch (subcmd) {
-		case 0x03:
+		case MCE_CMD_PING:
 			dev_info(dev, "Ping\n");
 			break;
-		case 0x04:
+		case MCE_CMD_UNKNOWN:
 			dev_info(dev, "Resp to 9f 05 of 0x%02x 0x%02x\n",
 				 data1, data2);
 			break;
-		case 0x06:
+		case MCE_CMD_S_CARRIER:
 			dev_info(dev, "%s carrier mode and freq of "
 				 "0x%02x 0x%02x\n", inout, data1, data2);
 			break;
-		case 0x07:
+		case MCE_CMD_G_CARRIER:
 			dev_info(dev, "Get carrier mode and freq\n");
 			break;
-		case 0x08:
+		case MCE_CMD_S_TXMASK:
 			dev_info(dev, "%s transmit blaster mask of 0x%02x\n",
 				 inout, data1);
 			break;
-		case 0x0c:
+		case MCE_CMD_S_TIMEOUT:
 			/* value is in units of 50us, so x*50/100 or x/2 ms */
 			dev_info(dev, "%s receive timeout of %d ms\n",
 				 inout, ((data1 << 8) | data2) / 2);
 			break;
-		case 0x0d:
+		case MCE_CMD_G_TIMEOUT:
 			dev_info(dev, "Get receive timeout\n");
 			break;
-		case 0x13:
+		case MCE_CMD_G_TXMASK:
 			dev_info(dev, "Get transmit blaster mask\n");
 			break;
-		case 0x14:
+		case MCE_CMD_S_RXSENSOR:
 			dev_info(dev, "%s %s-range receive sensor in use\n",
 				 inout, data1 == 0x02 ? "short" : "long");
 			break;
-		case 0x15:
+		case MCE_CMD_G_RXSENSOR:
 			if (len == 2)
 				dev_info(dev, "Get receive sensor\n");
 			else
 				dev_info(dev, "Received pulse count is %d\n",
 					 ((data1 << 8) | data2));
 			break;
-		case 0xfe:
+		case MCE_RSP_CMD_INVALID:
 			dev_info(dev, "Error! Hardware is likely wedged...\n");
 			break;
-		case 0x05:
-		case 0x09:
-		case 0x0f:
+		case MCE_CMD_UNKNOWN2:
+		case MCE_CMD_UNKNOWN3:
+		case MCE_CMD_UNKNOWN5:
 		default:
 			dev_info(dev, "Unknown command 0x%02x 0x%02x\n",
 				 cmd, subcmd);
@@ -613,8 +650,8 @@ static int mceusb_tx_ir(void *priv, int *txbuf, u32 n)
 		return -ENOMEM;
 
 	/* MCE tx init header */
-	cmdbuf[cmdcount++] = MCE_CONTROL_HEADER;
-	cmdbuf[cmdcount++] = 0x08;
+	cmdbuf[cmdcount++] = MCE_COMMAND_HEADER;
+	cmdbuf[cmdcount++] = MCE_CMD_S_TXMASK;
 	cmdbuf[cmdcount++] = ir->tx_mask;
 
 	/* Generate mce packet data */
@@ -628,7 +665,7 @@ static int mceusb_tx_ir(void *priv, int *txbuf, u32 n)
 			if ((cmdcount < MCE_CMDBUF_SIZE) &&
 			    (cmdcount - MCE_TX_HEADER_LENGTH) %
 			     MCE_CODE_LENGTH == 0)
-				cmdbuf[cmdcount++] = MCE_PACKET_HEADER;
+				cmdbuf[cmdcount++] = MCE_IRDATA_HEADER;
 
 			/* Insert mce packet data */
 			if (cmdcount < MCE_CMDBUF_SIZE)
@@ -647,7 +684,8 @@ static int mceusb_tx_ir(void *priv, int *txbuf, u32 n)
 
 	/* Fix packet length in last header */
 	cmdbuf[cmdcount - (cmdcount - MCE_TX_HEADER_LENGTH) % MCE_CODE_LENGTH] =
-		0x80 + (cmdcount - MCE_TX_HEADER_LENGTH) % MCE_CODE_LENGTH - 1;
+		MCE_COMMAND_IRDATA + (cmdcount - MCE_TX_HEADER_LENGTH) %
+		MCE_CODE_LENGTH - 1;
 
 	/* Check if we have room for the empty packet at the end */
 	if (cmdcount >= MCE_CMDBUF_SIZE) {
@@ -656,7 +694,7 @@ static int mceusb_tx_ir(void *priv, int *txbuf, u32 n)
 	}
 
 	/* All mce commands end with an empty packet (0x80) */
-	cmdbuf[cmdcount++] = 0x80;
+	cmdbuf[cmdcount++] = MCE_IRDATA_TRAILER;
 
 	/* Transmit the command to the mce device */
 	mce_async_out(ir, cmdbuf, cmdcount);
@@ -685,7 +723,8 @@ static int mceusb_set_tx_mask(void *priv, u32 mask)
 	struct mceusb_dev *ir = priv;
 
 	if (ir->flags.tx_mask_inverted)
-		ir->tx_mask = (mask != 0x03 ? mask ^ 0x03 : mask) << 1;
+		ir->tx_mask = (mask != MCE_DEFAULT_TX_MASK ?
+				mask ^ MCE_DEFAULT_TX_MASK : mask) << 1;
 	else
 		ir->tx_mask = mask;
 
@@ -698,7 +737,8 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 	struct mceusb_dev *ir = priv;
 	int clk = 10000000;
 	int prescaler = 0, divisor = 0;
-	unsigned char cmdbuf[4] = { MCE_CONTROL_HEADER, 0x06, 0x00, 0x00 };
+	unsigned char cmdbuf[4] = { MCE_COMMAND_HEADER,
+				    MCE_CMD_S_CARRIER, 0x00, 0x00 };
 
 	/* Carrier has changed */
 	if (ir->carrier != carrier) {
@@ -706,7 +746,7 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 		if (carrier == 0) {
 			ir->carrier = carrier;
 			cmdbuf[2] = 0x01;
-			cmdbuf[3] = 0x80;
+			cmdbuf[3] = MCE_IRDATA_TRAILER;
 			dev_dbg(ir->dev, "%s: disabling carrier "
 				"modulation\n", __func__);
 			mce_async_out(ir, cmdbuf, sizeof(cmdbuf));
@@ -715,7 +755,7 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 
 		for (prescaler = 0; prescaler < 4; ++prescaler) {
 			divisor = (clk >> (2 * prescaler)) / carrier;
-			if (divisor <= 0xFF) {
+			if (divisor <= 0xff) {
 				ir->carrier = carrier;
 				cmdbuf[2] = prescaler;
 				cmdbuf[3] = divisor;
@@ -783,8 +823,9 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			/* decode mce packets of the form (84),AA,BB,CC,DD */
 			/* IR data packets can span USB messages - rem */
 			ir->cmd = ir->buf_in[i];
-			if ((ir->cmd == MCE_CONTROL_HEADER) ||
-			    ((ir->cmd & MCE_COMMAND_MASK) != MCE_COMMAND_IRDATA)) {
+			if ((ir->cmd == MCE_COMMAND_HEADER) ||
+			    ((ir->cmd & MCE_COMMAND_MASK) !=
+			     MCE_COMMAND_IRDATA)) {
 				ir->parser_state = SUBCMD;
 				continue;
 			}
