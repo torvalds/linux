@@ -337,7 +337,8 @@ static void musb_platform_reg_init(struct musb *musb)
 	}
 
 	/* Configure PLL oscillator register */
-	bfin_write_USB_PLLOSC_CTRL(0x30a8);
+	bfin_write_USB_PLLOSC_CTRL(0x3080 |
+			((480/musb->config->clkin) << 1));
 	SSYNC();
 
 	bfin_write_USB_SRP_CLKDIV((get_sclk()/1000) / 32 - 1);
