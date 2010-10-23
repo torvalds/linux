@@ -2883,12 +2883,8 @@ static int decode_attr_filehandle(struct xdr_stream *xdr, uint32_t *bitmap, stru
 	__be32 *p;
 	int len;
 
-	if (fh == NULL) {
-		bitmap[0] &= ~FATTR4_WORD0_FILEHANDLE;
-		return 0;
-	}
-
-	memset(fh, 0, sizeof(*fh));
+	if (fh != NULL)
+		memset(fh, 0, sizeof(*fh));
 
 	if (unlikely(bitmap[0] & (FATTR4_WORD0_FILEHANDLE - 1U)))
 		return -EIO;
@@ -2899,11 +2895,13 @@ static int decode_attr_filehandle(struct xdr_stream *xdr, uint32_t *bitmap, stru
 		len = be32_to_cpup(p);
 		if (len > NFS4_FHSIZE)
 			return -EIO;
-		fh->size = len;
 		p = xdr_inline_decode(xdr, len);
 		if (unlikely(!p))
 			goto out_overflow;
-		memcpy(fh->data, p, len);
+		if (fh != NULL) {
+			memcpy(fh->data, p, len);
+			fh->size = len;
+		}
 		bitmap[0] &= ~FATTR4_WORD0_FILEHANDLE;
 	}
 	return 0;
