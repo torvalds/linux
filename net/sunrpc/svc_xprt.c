@@ -330,12 +330,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 		       "svc_xprt_enqueue: "
 		       "threads and transports both waiting??\n");
 
-	if (test_bit(XPT_DEAD, &xprt->xpt_flags)) {
-		/* Don't enqueue dead transports */
-		dprintk("svc: transport %p is dead, not enqueued\n", xprt);
-		goto out_unlock;
-	}
-
 	pool->sp_stats.packets++;
 
 	/* Mark transport as busy. It will remain in this state until
