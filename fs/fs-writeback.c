@@ -723,7 +723,7 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 	wb->last_old_flush = jiffies;
 	nr_pages = global_page_state(NR_FILE_DIRTY) +
 			global_page_state(NR_UNSTABLE_NFS) +
-			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
+			get_nr_dirty_inodes();
 
 	if (nr_pages) {
 		struct wb_writeback_work work = {
@@ -1090,8 +1090,7 @@ void writeback_inodes_sb(struct super_block *sb)
 
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 
-	work.nr_pages = nr_dirty + nr_unstable +
-			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
+	work.nr_pages = nr_dirty + nr_unstable + get_nr_dirty_inodes();
 
 	bdi_queue_work(sb->s_bdi, &work);
 	wait_for_completion(&done);
