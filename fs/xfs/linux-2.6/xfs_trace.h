@@ -325,7 +325,6 @@ DEFINE_BUF_EVENT(xfs_buf_lock);
 DEFINE_BUF_EVENT(xfs_buf_lock_done);
 DEFINE_BUF_EVENT(xfs_buf_cond_lock);
 DEFINE_BUF_EVENT(xfs_buf_unlock);
-DEFINE_BUF_EVENT(xfs_buf_ordered_retry);
 DEFINE_BUF_EVENT(xfs_buf_iowait);
 DEFINE_BUF_EVENT(xfs_buf_iowait_done);
 DEFINE_BUF_EVENT(xfs_buf_delwri_queue);

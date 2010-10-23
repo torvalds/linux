@@ -135,12 +135,12 @@ struct inodes_stat_t {
  *			immediately after submission. The write equivalent
  *			of READ_SYNC.
  * WRITE_ODIRECT_PLUG	Special case write for O_DIRECT only.
- * WRITE_BARRIER	Like WRITE_SYNC, but tells the block layer that all
- *			previously submitted writes must be safely on storage
- *			before this one is started. Also guarantees that when
- *			this write is complete, it itself is also safely on
- *			storage. Prevents reordering of writes on both sides
- *			of this IO.
+ * WRITE_FLUSH		Like WRITE_SYNC but with preceding cache flush.
+ * WRITE_FUA		Like WRITE_SYNC but data is guaranteed to be on
+ *			non-volatile media on completion.
+ * WRITE_FLUSH_FUA	Combination of WRITE_FLUSH and FUA. The IO is preceded
+ *			by a cache flush and data is guaranteed to be on
+ *			non-volatile media on completion.
  *
  */
 #define RW_MASK			REQ_WRITE
@@ -156,16 +156,12 @@ struct inodes_stat_t {
 #define WRITE_SYNC		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
 #define WRITE_ODIRECT_PLUG	(WRITE | REQ_SYNC)
 #define WRITE_META		(WRITE | REQ_META)
-#define WRITE_BARRIER		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
-				 REQ_HARDBARRIER)
-
-/*
- * These aren't really reads or writes, they pass down information about
- * parts of device that are now unused by the file system.
- */
-#define DISCARD_NOBARRIER	(WRITE | REQ_DISCARD)
-#define DISCARD_BARRIER		(WRITE | REQ_DISCARD | REQ_HARDBARRIER)
-#define DISCARD_SECURE		(DISCARD_NOBARRIER | REQ_SECURE)
+#define WRITE_FLUSH		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_FLUSH)
+#define WRITE_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_FUA)
+#define WRITE_FLUSH_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_FLUSH | REQ_FUA)
 
 #define SEL_IN		1
 #define SEL_OUT		2

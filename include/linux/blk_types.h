@@ -146,7 +146,6 @@ enum rq_flag_bits {
 	__REQ_FAILED,		/* set if the request failed */
 	__REQ_QUIET,		/* don't worry about errors */
 	__REQ_PREEMPT,		/* set for "ide_preempt" requests */
-	__REQ_ORDERED_COLOR,	/* is before or after barrier */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_FLUSH,		/* request for cache flush */
@@ -170,7 +169,8 @@ enum rq_flag_bits {
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 #define REQ_COMMON_MASK \
 	(REQ_WRITE | REQ_FAILFAST_MASK | REQ_HARDBARRIER | REQ_SYNC | \
-	 REQ_META| REQ_DISCARD | REQ_NOIDLE)
+	 REQ_META | REQ_DISCARD | REQ_NOIDLE | REQ_FLUSH | REQ_FUA)
+#define REQ_CLONE_MASK		REQ_COMMON_MASK
 
 #define REQ_UNPLUG		(1 << __REQ_UNPLUG)
 #define REQ_RAHEAD		(1 << __REQ_RAHEAD)
@@ -187,7 +187,6 @@ enum rq_flag_bits {
 #define REQ_FAILED		(1 << __REQ_FAILED)
 #define REQ_QUIET		(1 << __REQ_QUIET)
 #define REQ_PREEMPT		(1 << __REQ_PREEMPT)
-#define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
 #define REQ_ALLOCED		(1 << __REQ_ALLOCED)
 #define REQ_COPY_USER		(1 << __REQ_COPY_USER)
 #define REQ_FLUSH		(1 << __REQ_FLUSH)

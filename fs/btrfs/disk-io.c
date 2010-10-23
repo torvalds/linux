@@ -2063,7 +2063,7 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		if (!buffer_eopnotsupp(bh) && printk_ratelimit()) {
+		if (printk_ratelimit()) {
 			printk(KERN_WARNING "lost page write due to "
 					"I/O error on %s\n",
 				       bdevname(bh->b_bdev, b));
@@ -2200,21 +2200,10 @@ static int write_dev_supers(struct btrfs_device *device,
 			bh->b_end_io = btrfs_end_buffer_write_sync;
 		}
 
-		if (i == last_barrier && do_barriers && device->barriers) {
-			ret = submit_bh(WRITE_BARRIER, bh);
-			if (ret == -EOPNOTSUPP) {
-				printk("btrfs: disabling barriers on dev %s\n",
-				       device->name);
-				set_buffer_uptodate(bh);
-				device->barriers = 0;
-				/* one reference for submit_bh */
-				get_bh(bh);
-				lock_buffer(bh);
-				ret = submit_bh(WRITE_SYNC, bh);
-			}
-		} else {
+		if (i == last_barrier && do_barriers)
+			ret = submit_bh(WRITE_FLUSH_FUA, bh);
+		else
 			ret = submit_bh(WRITE_SYNC, bh);
-		}
 
 		if (ret)
 			errors++;

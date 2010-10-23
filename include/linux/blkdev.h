@@ -360,12 +360,14 @@ struct request_queue
 	struct blk_trace	*blk_trace;
 #endif
 	/*
-	 * reserved for flush operations
+	 * for flush operations
 	 */
-	unsigned int		ordered, next_ordered, ordseq;
-	int			orderr, ordcolor;
-	struct request		pre_flush_rq, bar_rq, post_flush_rq;
-	struct request		*orig_bar_rq;
+	unsigned int		flush_flags;
+	unsigned int		flush_seq;
+	int			flush_err;
+	struct request		flush_rq;
+	struct request		*orig_flush_rq;
+	struct list_head	pending_flushes;
 
 	struct mutex		sysfs_lock;
 
@@ -472,56 +474,6 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	__clear_bit(flag, &q->queue_flags);
 }
 
-enum {
-	/*
-	 * Hardbarrier is supported with one of the following methods.
-	 *
-	 * NONE		: hardbarrier unsupported
-	 * DRAIN	: ordering by draining is enough
-	 * DRAIN_FLUSH	: ordering by draining w/ pre and post flushes
-	 * DRAIN_FUA	: ordering by draining w/ pre flush and FUA write
-	 * TAG		: ordering by tag is enough
-	 * TAG_FLUSH	: ordering by tag w/ pre and post flushes
-	 * TAG_FUA	: ordering by tag w/ pre flush and FUA write
-	 */
-	QUEUE_ORDERED_BY_DRAIN		= 0x01,
-	QUEUE_ORDERED_BY_TAG		= 0x02,
-	QUEUE_ORDERED_DO_PREFLUSH	= 0x10,
-	QUEUE_ORDERED_DO_BAR		= 0x20,
-	QUEUE_ORDERED_DO_POSTFLUSH	= 0x40,
-	QUEUE_ORDERED_DO_FUA		= 0x80,
-
-	QUEUE_ORDERED_NONE		= 0x00,
-
-	QUEUE_ORDERED_DRAIN		= QUEUE_ORDERED_BY_DRAIN |
-					  QUEUE_ORDERED_DO_BAR,
-	QUEUE_ORDERED_DRAIN_FLUSH	= QUEUE_ORDERED_DRAIN |
-					  QUEUE_ORDERED_DO_PREFLUSH |
-					  QUEUE_ORDERED_DO_POSTFLUSH,
-	QUEUE_ORDERED_DRAIN_FUA		= QUEUE_ORDERED_DRAIN |
-					  QUEUE_ORDERED_DO_PREFLUSH |
-					  QUEUE_ORDERED_DO_FUA,
-
-	QUEUE_ORDERED_TAG		= QUEUE_ORDERED_BY_TAG |
-					  QUEUE_ORDERED_DO_BAR,
-	QUEUE_ORDERED_TAG_FLUSH		= QUEUE_ORDERED_TAG |
-					  QUEUE_ORDERED_DO_PREFLUSH |
-					  QUEUE_ORDERED_DO_POSTFLUSH,
-	QUEUE_ORDERED_TAG_FUA		= QUEUE_ORDERED_TAG |
-					  QUEUE_ORDERED_DO_PREFLUSH |
-					  QUEUE_ORDERED_DO_FUA,
-
-	/*
-	 * Ordered operation sequence
-	 */
-	QUEUE_ORDSEQ_STARTED	= 0x01,	/* flushing in progress */
-	QUEUE_ORDSEQ_DRAIN	= 0x02,	/* waiting for the queue to be drained */
-	QUEUE_ORDSEQ_PREFLUSH	= 0x04,	/* pre-flushing in progress */
-	QUEUE_ORDSEQ_BAR	= 0x08,	/* original barrier req in progress */
-	QUEUE_ORDSEQ_POSTFLUSH	= 0x10,	/* post-flushing in progress */
-	QUEUE_ORDSEQ_DONE	= 0x20,
-};
-
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
@@ -531,7 +483,6 @@ enum {
 #define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
 #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
 #define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
-#define blk_queue_flushing(q)	((q)->ordseq)
 #define blk_queue_stackable(q)	\
 	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
@@ -602,7 +553,8 @@ static inline void blk_clear_queue_full(struct request_queue *q, int sync)
  * it already be started by driver.
  */
 #define RQ_NOMERGE_FLAGS	\
-	(REQ_NOMERGE | REQ_STARTED | REQ_HARDBARRIER | REQ_SOFTBARRIER)
+	(REQ_NOMERGE | REQ_STARTED | REQ_HARDBARRIER | REQ_SOFTBARRIER | \
+	 REQ_FLUSH | REQ_FUA)
 #define rq_mergeable(rq)	\
 	(!((rq)->cmd_flags & RQ_NOMERGE_FLAGS) && \
 	 (((rq)->cmd_flags & REQ_DISCARD) || \
@@ -891,12 +843,8 @@ extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_softirq_done(struct request_queue *, softirq_done_fn *);
 extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
+extern void blk_queue_flush(struct request_queue *q, unsigned int flush);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
-extern int blk_queue_ordered(struct request_queue *, unsigned);
-extern bool blk_do_ordered(struct request_queue *, struct request **);
-extern unsigned blk_ordered_cur_seq(struct request_queue *);
-extern unsigned blk_ordered_req_seq(struct request *);
-extern bool blk_ordered_complete_seq(struct request_queue *, unsigned, int);
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);
@@ -929,27 +877,20 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 		return NULL;
 	return bqt->tag_index[tag];
 }
-enum{
-	BLKDEV_WAIT,	/* wait for completion */
-	BLKDEV_BARRIER,	/* issue request with barrier */
-	BLKDEV_SECURE,	/* secure discard */
-};
-#define BLKDEV_IFL_WAIT		(1 << BLKDEV_WAIT)
-#define BLKDEV_IFL_BARRIER	(1 << BLKDEV_BARRIER)
-#define BLKDEV_IFL_SECURE	(1 << BLKDEV_SECURE)
-extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *,
-			unsigned long);
+
+#define BLKDEV_DISCARD_SECURE  0x01    /* secure discard */
+
+extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
 extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-			sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
-static inline int sb_issue_discard(struct super_block *sb,
-				   sector_t block, sector_t nr_blocks)
+			sector_t nr_sects, gfp_t gfp_mask);
+static inline int sb_issue_discard(struct super_block *sb, sector_t block,
+		sector_t nr_blocks, gfp_t gfp_mask, unsigned long flags)
 {
-	block <<= (sb->s_blocksize_bits - 9);
-	nr_blocks <<= (sb->s_blocksize_bits - 9);
-	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_NOFS,
-				   BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
+	return blkdev_issue_discard(sb->s_bdev, block << (sb->s_blocksize_bits - 9),
+				    nr_blocks << (sb->s_blocksize_bits - 9),
+				    gfp_mask, flags);
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
