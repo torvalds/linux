@@ -1004,7 +1004,7 @@ int imon_ir_change_protocol(void *priv, u64 ir_type)
 	case IR_TYPE_UNKNOWN:
 	case IR_TYPE_OTHER:
 		dev_dbg(dev, "Configuring IR receiver for iMON protocol\n");
-		if (pad_stabilize)
+		if (pad_stabilize && !nomouse)
 			pad_mouse = true;
 		else {
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
@@ -1016,7 +1016,7 @@ int imon_ir_change_protocol(void *priv, u64 ir_type)
 	default:
 		dev_warn(dev, "Unsupported IR protocol specified, overriding "
 			 "to iMON IR protocol\n");
-		if (pad_stabilize)
+		if (pad_stabilize && !nomouse)
 			pad_mouse = true;
 		else {
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
