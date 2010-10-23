@@ -20,7 +20,6 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
-#include <linux/cpufreq.h>
 
 #include <asm/mach/time.h>
 #include <mach/rk29_iomap.h>
@@ -35,8 +34,6 @@
 #define TIMER_ENABLE			3
 #define TIMER_ENABLE_FREE_RUNNING	1
 
-#define CHECK_VBUS_MS			1000	/* ms */
-
 #define RK_TIMER_ENABLE(n)		writel(TIMER_ENABLE, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
 #define RK_TIMER_ENABLE_FREE_RUNNING(n)	writel(TIMER_ENABLE_FREE_RUNNING, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
 #define RK_TIMER_DISABLE(n)		writel(TIMER_DISABLE, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
@@ -47,6 +44,8 @@
 #define RK_TIMER_READVALUE(n)		readl(RK29_TIMER0_BASE + 0x2000 * n + TIMER_CUR_VALUE)
 #define RK_TIMER_INT_CLEAR(n)		readl(RK29_TIMER0_BASE + 0x2000 * n + TIMER_EOI)
 
+#define RK_TIMER_INT_STATUS(n)		readl(RK29_TIMER0_BASE + 0x2000 * n + TIMER_INT_STATUS)
+
 #define TIMER_CLKEVT			0	/* timer0 */
 #define IRQ_NR_TIMER_CLKEVT		IRQ_TIMER0
 #define TIMER_CLKEVT_NAME		"timer0"
@@ -55,13 +54,10 @@
 #define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER1
 #define TIMER_CLKSRC_NAME		"timer1"
 
-//static struct clk *timer_clk;
-
-
 static int rk29_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
-	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles );
+	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles);
 	RK_TIMER_ENABLE(TIMER_CLKEVT);
 
 	return 0;
@@ -113,14 +109,18 @@ static struct irqaction rk29_timer_clockevent_irq = {
 static __init int rk29_timer_init_clockevent(void)
 {
 	struct clock_event_device *ce = &rk29_timer_clockevent;
+	struct clk *clk = clk_get(NULL, TIMER_CLKEVT_NAME);
+	struct clk *xin24m = clk_get(NULL, "xin24m");
 
-	//timer_clk = clk_get(NULL, "timer");
+	clk_set_parent(clk, xin24m);
+	clk_enable(clk);
+
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
 
 	setup_irq(rk29_timer_clockevent_irq.irq, &rk29_timer_clockevent_irq);
 
 	ce->mult = div_sc(24000000, NSEC_PER_SEC, ce->shift);
-	ce->max_delta_ns = clockevent_delta2ns(0xFFFFFFFFUL, ce); // max pclk < 256MHz
+	ce->max_delta_ns = clockevent_delta2ns(0xFFFFFFFFUL, ce);
 	ce->min_delta_ns = clockevent_delta2ns(1, ce) + 1;
 
 	ce->cpumask = cpumask_of(0);
@@ -148,6 +148,11 @@ static void __init rk29_timer_init_clocksource(void)
 {
 	static char err[] __initdata = KERN_ERR "%s: can't register clocksource!\n";
 	struct clocksource *cs = &rk29_timer_clocksource;
+	struct clk *clk = clk_get(NULL, TIMER_CLKSRC_NAME);
+	struct clk *xin24m = clk_get(NULL, "xin24m");
+
+	clk_set_parent(clk, xin24m);
+	clk_enable(clk);
 
 	RK_TIMER_DISABLE(TIMER_CLKSRC);
 	RK_TIMER_SETCOUNT(TIMER_CLKSRC, 0xFFFFFFFF);
@@ -156,7 +161,6 @@ static void __init rk29_timer_init_clocksource(void)
 	cs->mult = clocksource_hz2mult(24000000, cs->shift);
 	if (clocksource_register(cs))
 		printk(err, cs->name);
-
 }
 
 static void __init rk29_timer_init(void)
@@ -168,9 +172,4 @@ static void __init rk29_timer_init(void)
 struct sys_timer rk29_timer = {
 	.init = rk29_timer_init
 };
-
-
-
-
-
 

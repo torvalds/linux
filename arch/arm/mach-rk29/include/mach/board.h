@@ -18,5 +18,6 @@
 #include <linux/types.h>
 
 void __init rk29_map_common_io(void);
+void __init rk29_clock_init(void);
 
 #endif

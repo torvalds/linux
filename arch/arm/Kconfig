@@ -720,6 +720,8 @@ config ARCH_RK29
 	bool "Rockchip Soc Rk29"
 	select HAVE_CLK
 	select CPU_V7
+	select HAVE_CLK
+	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
         select ARM_GIC

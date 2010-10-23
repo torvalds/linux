@@ -69,7 +69,7 @@ static void __init machine_rk29_board_init(void)
 static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
-	//rk29_clock_init();
+	rk29_clock_init();
 	//rk29_iomux_init();	
 }
 
