@@ -1162,6 +1162,8 @@ struct iwl_rxon_context {
 	 */
 	bool always_active, is_active;
 
+	bool ht_need_multiple_chains;
+
 	enum iwl_rxon_context_id ctxid;
 
 	u32 interface_modes, exclusive_interface_modes;

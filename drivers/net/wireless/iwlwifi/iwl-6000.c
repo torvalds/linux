@@ -328,14 +328,10 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.post_associate = iwl_post_associate,
 	.isr = iwl_isr_ict,
-	.config_ap = iwl_config_ap,
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -399,14 +395,10 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.post_associate = iwl_post_associate,
 	.isr = iwl_isr_ict,
-	.config_ap = iwl_config_ap,
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,

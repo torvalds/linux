@@ -264,10 +264,8 @@ void iwl3945_reply_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
-extern void iwl3945_post_associate(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif);
-extern void iwl3945_config_ap(struct iwl_priv *priv,
-			      struct ieee80211_vif *vif);
+extern void iwl3945_post_associate(struct iwl_priv *priv);
+extern void iwl3945_config_ap(struct iwl_priv *priv);
 
 extern int iwl3945_commit_rxon(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx);

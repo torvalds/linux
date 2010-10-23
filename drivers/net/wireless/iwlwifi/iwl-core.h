@@ -193,9 +193,6 @@ struct iwl_lib_ops {
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-	void (*post_associate)(struct iwl_priv *priv,
-			       struct ieee80211_vif *vif);
-	void (*config_ap)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 	irqreturn_t (*isr) (int irq, void *data);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
@@ -203,10 +200,6 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
-	/* station management */
-	int (*manage_ibss_station)(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif, bool add);
-	int (*update_bcast_stations)(struct iwl_priv *priv);
 	/* recover from tx queue stall */
 	void (*recover_from_tx_stall)(unsigned long data);
 	/* check for plcp health */
@@ -235,12 +228,22 @@ struct iwl_nic_ops {
 	void (*additional_nic_config)(struct iwl_priv *priv);
 };
 
+struct iwl_legacy_ops {
+	void (*post_associate)(struct iwl_priv *priv);
+	void (*config_ap)(struct iwl_priv *priv);
+	/* station management */
+	int (*update_bcast_stations)(struct iwl_priv *priv);
+	int (*manage_ibss_station)(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif, bool add);
+};
+
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_led_ops *led;
 	const struct iwl_nic_ops *nic;
+	const struct iwl_legacy_ops *legacy;
 	const struct ieee80211_ops *ieee80211_ops;
 };
 
@@ -425,18 +428,10 @@ int iwl_set_decrypted_flag(struct iwl_priv *priv,
 			   u32 decrypt_res,
 			   struct ieee80211_rx_status *stats);
 void iwl_irq_handle_error(struct iwl_priv *priv);
-void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif);
-void iwl_bss_info_changed(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_bss_conf *bss_conf,
-				     u32 changes);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif);
-int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
-void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif);
-void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
 int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
 void iwlcore_tx_cmd_protection(struct iwl_priv *priv,
@@ -731,11 +726,6 @@ static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
 				      struct iwl_rxon_context *ctx)
 {
 	return priv->cfg->ops->hcmd->commit_rxon(priv, ctx);
-}
-static inline void iwlcore_config_ap(struct iwl_priv *priv,
-				     struct ieee80211_vif *vif)
-{
-	priv->cfg->ops->lib->config_ap(priv, vif);
 }
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
