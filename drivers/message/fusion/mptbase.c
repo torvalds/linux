@@ -5945,8 +5945,10 @@ mpt_findImVolumes(MPT_ADAPTER *ioc)
 		goto out;
 
 	mem = kmalloc(iocpage2sz, GFP_KERNEL);
-	if (!mem)
+	if (!mem) {
+		rc = -ENOMEM;
 		goto out;
+	}
 
 	memcpy(mem, (u8 *)pIoc2, iocpage2sz);
 	ioc->raid_data.pIocPg2 = (IOCPage2_t *) mem;

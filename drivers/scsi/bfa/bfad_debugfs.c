@@ -17,8 +17,8 @@
 
 #include <linux/debugfs.h>
 
-#include <bfad_drv.h>
-#include <bfad_im.h>
+#include "bfad_drv.h"
+#include "bfad_im.h"
 
 /*
  * BFA debufs interface
@@ -28,7 +28,7 @@
  * mount -t debugfs none /sys/kernel/debug
  *
  * BFA Hierarchy:
- * 	- bfa/host#
+ *	- bfa/host#
  * where the host number corresponds to the one under /sys/class/scsi_host/host#
  *
  * Debugging service available per host:
@@ -217,7 +217,7 @@ bfad_debugfs_read(struct file *file, char __user *buf,
 #define BFA_REG_ADDRSZ(__bfa)	\
 	((bfa_ioc_devid(&(__bfa)->ioc) == BFA_PCI_DEVICE_ID_CT) ?	\
 		BFA_REG_CT_ADDRSZ : BFA_REG_CB_ADDRSZ)
-#define BFA_REG_ADDRMSK(__bfa)  ((uint32_t)(BFA_REG_ADDRSZ(__bfa) - 1))
+#define BFA_REG_ADDRMSK(__bfa)  ((u32)(BFA_REG_ADDRSZ(__bfa) - 1))
 
 static bfa_status_t
 bfad_reg_offset_check(struct bfa_s *bfa, u32 offset, u32 len)
@@ -359,7 +359,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 		return -EINVAL;
 	}
 
-	reg_addr = (uint32_t *) ((uint8_t *) bfa_ioc_bar0(ioc) + addr);
+	reg_addr = (u32 *) ((u8 *) bfa_ioc_bar0(ioc) + addr);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_reg_write(reg_addr, val);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);

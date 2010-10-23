@@ -1380,6 +1380,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_INIT_VFI        0xA3
 #define MBX_INIT_VPI        0xA4
 
+#define MBX_AUTH_PORT       0xF8
+#define MBX_SECURITY_MGMT   0xF9
+
 /* IOCB Commands */
 
 #define CMD_RCV_SEQUENCE_CX     0x01
@@ -1502,7 +1505,8 @@ typedef struct {		/* FireFly BIU registers */
 #define MBXERR_DMA_ERROR            15
 #define MBXERR_ERROR                16
 #define MBXERR_LINK_DOWN            0x33
-#define MBX_NOT_FINISHED           255
+#define MBXERR_SEC_NO_PERMISSION    0xF02
+#define MBX_NOT_FINISHED            255
 
 #define MBX_BUSY                   0xffffff /* Attempted cmd to busy Mailbox */
 #define MBX_TIMEOUT                0xfffffe /* time-out expired waiting for */

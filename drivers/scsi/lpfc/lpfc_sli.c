@@ -1677,6 +1677,8 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_RESUME_RPI:
 	case MBX_READ_EVENT_LOG_STATUS:
 	case MBX_READ_EVENT_LOG:
+	case MBX_SECURITY_MGMT:
+	case MBX_AUTH_PORT:
 		ret = mbxCommand;
 		break;
 	default:
@@ -1730,10 +1732,11 @@ lpfc_sli_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
+	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_dmabuf *mp;
+	struct lpfc_nodelist *ndlp;
 	uint16_t rpi, vpi;
 	int rc;
-	struct lpfc_vport  *vport = pmb->vport;
 
 	mp = (struct lpfc_dmabuf *) (pmb->context1);
 
@@ -1773,6 +1776,19 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		if (rc != MBX_NOT_FINISHED)
 			return;
 	}
+
+	if (pmb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+		ndlp = (struct lpfc_nodelist *)pmb->context2;
+		lpfc_nlp_put(ndlp);
+		pmb->context2 = NULL;
+	}
+
+	/* Check security permission status on INIT_LINK mailbox command */
+	if ((pmb->u.mb.mbxCommand == MBX_INIT_LINK) &&
+	    (pmb->u.mb.mbxStatus == MBXERR_SEC_NO_PERMISSION))
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+				"2860 SLI authentication is required "
+				"for INIT_LINK but has not done yet\n");
 
 	if (bf_get(lpfc_mqe_command, &pmb->u.mqe) == MBX_SLI4_CONFIG)
 		lpfc_sli4_mbox_cmd_free(phba, pmb);
@@ -3651,11 +3667,15 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 	i = 0;
 	while ((status & (HS_FFRDY | HS_MBRDY)) != (HS_FFRDY | HS_MBRDY)) {
 
-		/* Check every 100ms for 5 retries, then every 500ms for 5, then
-		 * every 2.5 sec for 5, then reset board and every 2.5 sec for
-		 * 4.
+		/* Check every 10ms for 10 retries, then every 100ms for 90
+		 * retries, then every 1 sec for 50 retires for a total of
+		 * ~60 seconds before reset the board again and check every
+		 * 1 sec for 50 retries. The up to 60 seconds before the
+		 * board ready is required by the Falcon FIPS zeroization
+		 * complete, and any reset the board in between shall cause
+		 * restart of zeroization, further delay the board ready.
 		 */
-		if (i++ >= 20) {
+		if (i++ >= 200) {
 			/* Adapter failed to init, timeout, status reg
 			   <status> */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -3683,16 +3703,15 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			return -EIO;
 		}
 
-		if (i <= 5) {
+		if (i <= 10)
 			msleep(10);
-		} else if (i <= 10) {
-			msleep(500);
-		} else {
-			msleep(2500);
-		}
+		else if (i <= 100)
+			msleep(100);
+		else
+			msleep(1000);
 
-		if (i == 15) {
-				/* Do post */
+		if (i == 150) {
+			/* Do post */
 			phba->pport->port_state = LPFC_VPORT_UNKNOWN;
 			lpfc_sli_brdrestart(phba);
 		}
@@ -4186,7 +4205,7 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - could not allocated memory.
+ * 	-ENOMEM - could not allocated memory.
  **/
 static int
 lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
@@ -5943,6 +5962,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	uint8_t command_type = ELS_COMMAND_NON_FIP;
 	uint8_t cmnd;
 	uint16_t xritag;
+	uint16_t abrt_iotag;
+	struct lpfc_iocbq *abrtiocbq;
 	struct ulp_bde64 *bpl = NULL;
 	uint32_t els_id = ELS_ID_DEFAULT;
 	int numBdes, i;
@@ -6155,9 +6176,17 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	case CMD_ABORT_XRI_CX:
 		/* words 0-2 memcpy should be 0 rserved */
 		/* port will send abts */
-		if (iocbq->iocb.ulpCommand == CMD_CLOSE_XRI_CN)
+		abrt_iotag = iocbq->iocb.un.acxri.abortContextTag;
+		if (abrt_iotag != 0 && abrt_iotag <= phba->sli.last_iotag) {
+			abrtiocbq = phba->sli.iocbq_lookup[abrt_iotag];
+			fip = abrtiocbq->iocb_flag & LPFC_FIP_ELS_ID_MASK;
+		} else
+			fip = 0;
+
+		if ((iocbq->iocb.ulpCommand == CMD_CLOSE_XRI_CN) || fip)
 			/*
-			 * The link is down so the fw does not need to send abts
+			 * The link is down, or the command was ELS_FIP
+			 * so the fw does not need to send abts
 			 * on the wire.
 			 */
 			bf_set(abort_cmd_ia, &wqe->abort_cmd, 1);
@@ -6896,37 +6925,6 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	spin_lock_irqsave(&phba->pport->work_port_lock, flags);
 	phba->pport->work_port_events &= ~WORKER_MBOX_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, flags);
-
-	return 1;
-}
-
-/**
- * lpfc_sli4_hba_down - PCI function resource cleanup for the SLI4 HBA
- * @phba: Pointer to HBA context object.
- *
- * This function cleans up all queues, iocb, buffers, mailbox commands while
- * shutting down the SLI4 HBA FCoE function. This function is called with no
- * lock held and always returns 1.
- *
- * This function does the following to cleanup driver FCoE function resources:
- * - Free discovery resources for each virtual port
- * - Cleanup any pending fabric iocbs
- * - Iterate through the iocb txq and free each entry in the list.
- * - Free up any buffer posted to the HBA.
- * - Clean up all the queue entries: WQ, RQ, MQ, EQ, CQ, etc.
- * - Free mailbox commands in the mailbox queue.
- **/
-int
-lpfc_sli4_hba_down(struct lpfc_hba *phba)
-{
-	/* Stop the SLI4 device port */
-	lpfc_stop_port(phba);
-
-	/* Tear down the queues in the HBA */
-	lpfc_sli4_queue_unset(phba);
-
-	/* unregister default FCFI from the HBA */
-	lpfc_sli4_fcfi_unreg(phba, phba->fcf.fcfi);
 
 	return 1;
 }
@@ -7888,7 +7886,7 @@ lpfc_sli_eratt_read(struct lpfc_hba *phba)
 		/* Check if there is a deferred error condition is active */
 		if ((HS_FFER1 & phba->work_hs) &&
 		    ((HS_FFER2 | HS_FFER3 | HS_FFER4 | HS_FFER5 |
-		     HS_FFER6 | HS_FFER7) & phba->work_hs)) {
+		      HS_FFER6 | HS_FFER7 | HS_FFER8) & phba->work_hs)) {
 			phba->hba_flag |= DEFER_ERATT;
 			/* Clear all interrupt enable conditions */
 			writel(0, phba->HCregaddr);
@@ -8204,7 +8202,8 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 			 */
 			if ((HS_FFER1 & phba->work_hs) &&
 				((HS_FFER2 | HS_FFER3 | HS_FFER4 | HS_FFER5 |
-				HS_FFER6 | HS_FFER7) & phba->work_hs)) {
+				  HS_FFER6 | HS_FFER7 | HS_FFER8) &
+				  phba->work_hs)) {
 				phba->hba_flag |= DEFER_ERATT;
 				/* Clear all interrupt enable conditions */
 				writel(0, phba->HCregaddr);
@@ -8476,7 +8475,7 @@ lpfc_sli_intr_handler(int irq, void *dev_id)
 	 * If there is deferred error attention, do not check for any interrupt.
 	 */
 	if (unlikely(phba->hba_flag & DEFER_ERATT)) {
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock(&phba->hbalock);
 		return IRQ_NONE;
 	}
 
@@ -9724,8 +9723,8 @@ out_fail:
  * command to finish before continuing.
  *
  * On success this function will return a zero. If unable to allocate enough
- * memory this function will return ENOMEM. If the queue create mailbox command
- * fails this function will return ENXIO.
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint16_t imax)
@@ -9840,8 +9839,8 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint16_t imax)
  * command to finish before continuing.
  *
  * On success this function will return a zero. If unable to allocate enough
- * memory this function will return ENOMEM. If the queue create mailbox command
- * fails this function will return ENXIO.
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
@@ -10011,8 +10010,8 @@ lpfc_mq_create_fb_init(struct lpfc_hba *phba, struct lpfc_queue *mq,
  * command to finish before continuing.
  *
  * On success this function will return a zero. If unable to allocate enough
- * memory this function will return ENOMEM. If the queue create mailbox command
- * fails this function will return ENXIO.
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
  **/
 int32_t
 lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
@@ -10146,8 +10145,8 @@ out:
  * command to finish before continuing.
  *
  * On success this function will return a zero. If unable to allocate enough
- * memory this function will return ENOMEM. If the queue create mailbox command
- * fails this function will return ENXIO.
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
@@ -10234,8 +10233,8 @@ out:
  * mailbox command to finish before continuing.
  *
  * On success this function will return a zero. If unable to allocate enough
- * memory this function will return ENOMEM. If the queue create mailbox command
- * fails this function will return ENXIO.
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
@@ -10403,7 +10402,7 @@ out:
  * The @eq struct is used to get the queue ID of the queue to destroy.
  *
  * On success this function will return a zero. If the queue destroy mailbox
- * command fails this function will return ENXIO.
+ * command fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_eq_destroy(struct lpfc_hba *phba, struct lpfc_queue *eq)
@@ -10458,7 +10457,7 @@ lpfc_eq_destroy(struct lpfc_hba *phba, struct lpfc_queue *eq)
  * The @cq struct is used to get the queue ID of the queue to destroy.
  *
  * On success this function will return a zero. If the queue destroy mailbox
- * command fails this function will return ENXIO.
+ * command fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_cq_destroy(struct lpfc_hba *phba, struct lpfc_queue *cq)
@@ -10511,7 +10510,7 @@ lpfc_cq_destroy(struct lpfc_hba *phba, struct lpfc_queue *cq)
  * The @mq struct is used to get the queue ID of the queue to destroy.
  *
  * On success this function will return a zero. If the queue destroy mailbox
- * command fails this function will return ENXIO.
+ * command fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_mq_destroy(struct lpfc_hba *phba, struct lpfc_queue *mq)
@@ -10564,7 +10563,7 @@ lpfc_mq_destroy(struct lpfc_hba *phba, struct lpfc_queue *mq)
  * The @wq struct is used to get the queue ID of the queue to destroy.
  *
  * On success this function will return a zero. If the queue destroy mailbox
- * command fails this function will return ENXIO.
+ * command fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
@@ -10616,7 +10615,7 @@ lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
  * The @rq struct is used to get the queue ID of the queue to destroy.
  *
  * On success this function will return a zero. If the queue destroy mailbox
- * command fails this function will return ENXIO.
+ * command fails this function will return -ENXIO.
  **/
 uint32_t
 lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
@@ -10757,51 +10756,6 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 		rc = -ENXIO;
 	}
 	return 0;
-}
-/**
- * lpfc_sli4_remove_all_sgl_pages - Post scatter gather list for an XRI to HBA
- * @phba: The virtual port for which this call being executed.
- *
- * This routine will remove all of the sgl pages registered with the hba.
- *
- * Return codes:
- * 	0 - Success
- * 	-ENXIO, -ENOMEM - Failure
- **/
-int
-lpfc_sli4_remove_all_sgl_pages(struct lpfc_hba *phba)
-{
-	LPFC_MBOXQ_t *mbox;
-	int rc;
-	uint32_t shdr_status, shdr_add_status;
-	union lpfc_sli4_cfg_shdr *shdr;
-
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox)
-		return -ENOMEM;
-
-	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
-			LPFC_MBOX_OPCODE_FCOE_REMOVE_SGL_PAGES, 0,
-			LPFC_SLI4_MBX_EMBED);
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	else
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
-	/* The IOCTL status is embedded in the mailbox subheader. */
-	shdr = (union lpfc_sli4_cfg_shdr *)
-		&mbox->u.mqe.un.sli4_config.header.cfg_shdr;
-	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
-	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
-	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2512 REMOVE_ALL_SGL_PAGES mailbox failed with "
-				"status x%x add_status x%x, mbx status x%x\n",
-				shdr_status, shdr_add_status, rc);
-		rc = -ENXIO;
-	}
-	return rc;
 }
 
 /**
@@ -11819,7 +11773,7 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
  *
  * Return codes
  * 	0 - successful
- *      EIO - The mailbox failed to complete successfully.
+ *      -EIO - The mailbox failed to complete successfully.
  * 	When this error occurs, the driver is not guaranteed
  *	to have any rpi regions posted to the device and
  *	must either attempt to repost the regions or take a
@@ -11857,8 +11811,8 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No available memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No available memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
@@ -12805,8 +12759,11 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *act_mbx_ndlp = NULL;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
+	LIST_HEAD(mbox_cmd_list);
 
+	/* Clean up internally queued mailbox commands with the vport */
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if (mb->vport != vport)
@@ -12816,6 +12773,28 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			(mb->u.mb.mbxCommand != MBX_REG_VPI))
 			continue;
 
+		list_del(&mb->list);
+		list_add_tail(&mb->list, &mbox_cmd_list);
+	}
+	/* Clean up active mailbox command with the vport */
+	mb = phba->sli.mbox_active;
+	if (mb && (mb->vport == vport)) {
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) ||
+			(mb->u.mb.mbxCommand == MBX_REG_VPI))
+			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+			act_mbx_ndlp = (struct lpfc_nodelist *)mb->context2;
+			/* Put reference count for delayed processing */
+			act_mbx_ndlp = lpfc_nlp_get(act_mbx_ndlp);
+			/* Unregister the RPI when mailbox complete */
+			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
+		}
+	}
+	spin_unlock_irq(&phba->hbalock);
+
+	/* Release the cleaned-up mailbox commands */
+	while (!list_empty(&mbox_cmd_list)) {
+		list_remove_head(&mbox_cmd_list, mb, LPFC_MBOXQ_t, list);
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 			if (phba->sli_rev == LPFC_SLI_REV4)
 				__lpfc_sli4_free_rpi(phba,
@@ -12826,36 +12805,24 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 				kfree(mp);
 			}
 			ndlp = (struct lpfc_nodelist *) mb->context2;
+			mb->context2 = NULL;
 			if (ndlp) {
-				spin_lock_irq(shost->host_lock);
+				spin_lock(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-				spin_unlock_irq(shost->host_lock);
+				spin_unlock(shost->host_lock);
 				lpfc_nlp_put(ndlp);
-				mb->context2 = NULL;
 			}
 		}
-		list_del(&mb->list);
 		mempool_free(mb, phba->mbox_mem_pool);
 	}
-	mb = phba->sli.mbox_active;
-	if (mb && (mb->vport == vport)) {
-		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) ||
-			(mb->u.mb.mbxCommand == MBX_REG_VPI))
-			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-			ndlp = (struct lpfc_nodelist *) mb->context2;
-			if (ndlp) {
-				spin_lock_irq(shost->host_lock);
-				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-				spin_unlock_irq(shost->host_lock);
-				lpfc_nlp_put(ndlp);
-				mb->context2 = NULL;
-			}
-			/* Unregister the RPI when mailbox complete */
-			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
-		}
+
+	/* Release the ndlp with the cleaned-up active mailbox command */
+	if (act_mbx_ndlp) {
+		spin_lock(shost->host_lock);
+		act_mbx_ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
+		spin_unlock(shost->host_lock);
+		lpfc_nlp_put(act_mbx_ndlp);
 	}
-	spin_unlock_irq(&phba->hbalock);
 }
 
 /**

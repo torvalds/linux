@@ -56,7 +56,6 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	struct ccw_device *cdev;
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
-	struct zfcp_unit *unit;
 
 	cdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
 	if (!cdev)
@@ -72,17 +71,11 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
 	if (!port)
 		goto out_port;
+	flush_work(&port->rport_work);
 
-	unit = zfcp_unit_enqueue(port, lun);
-	if (IS_ERR(unit))
-		goto out_unit;
-
-	zfcp_erp_unit_reopen(unit, 0, "auidc_1", NULL);
-	zfcp_erp_wait(adapter);
-	flush_work(&unit->scsi_work);
-
-out_unit:
+	zfcp_unit_add(port, lun);
 	put_device(&port->dev);
+
 out_port:
 	zfcp_ccw_adapter_put(adapter);
 out_ccw_device:
@@ -158,6 +151,9 @@ static int __init zfcp_module_init(void)
 		fc_attach_transport(&zfcp_transport_functions);
 	if (!zfcp_data.scsi_transport_template)
 		goto out_transport;
+	scsi_transport_reserve_device(zfcp_data.scsi_transport_template,
+				      sizeof(struct zfcp_scsi_dev));
+
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval) {
@@ -211,30 +207,6 @@ static void __exit zfcp_module_exit(void)
 module_exit(zfcp_module_exit);
 
 /**
- * zfcp_get_unit_by_lun - find unit in unit list of port by FCP LUN
- * @port: pointer to port to search for unit
- * @fcp_lun: FCP LUN to search for
- *
- * Returns: pointer to zfcp_unit or NULL
- */
-struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
-{
-	unsigned long flags;
-	struct zfcp_unit *unit;
-
-	read_lock_irqsave(&port->unit_list_lock, flags);
-	list_for_each_entry(unit, &port->unit_list, list)
-		if (unit->fcp_lun == fcp_lun) {
-			if (!get_device(&unit->dev))
-				unit = NULL;
-			read_unlock_irqrestore(&port->unit_list_lock, flags);
-			return unit;
-		}
-	read_unlock_irqrestore(&port->unit_list_lock, flags);
-	return NULL;
-}
-
-/**
  * zfcp_get_port_by_wwpn - find port in port list of adapter by wwpn
  * @adapter: pointer to adapter to search for port
  * @wwpn: wwpn to search for
@@ -257,92 +229,6 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 		}
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 	return NULL;
-}
-
-/**
- * zfcp_unit_release - dequeue unit
- * @dev: pointer to device
- *
- * waits until all work is done on unit and removes it then from the unit->list
- * of the associated port.
- */
-static void zfcp_unit_release(struct device *dev)
-{
-	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit, dev);
-
-	put_device(&unit->port->dev);
-	kfree(unit);
-}
-
-/**
- * zfcp_unit_enqueue - enqueue unit to unit list of a port.
- * @port: pointer to port where unit is added
- * @fcp_lun: FCP LUN of unit to be enqueued
- * Returns: pointer to enqueued unit on success, ERR_PTR on error
- *
- * Sets up some unit internal structures and creates sysfs entry.
- */
-struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
-{
-	struct zfcp_unit *unit;
-	int retval = -ENOMEM;
-
-	get_device(&port->dev);
-
-	unit = zfcp_get_unit_by_lun(port, fcp_lun);
-	if (unit) {
-		put_device(&unit->dev);
-		retval = -EEXIST;
-		goto err_out;
-	}
-
-	unit = kzalloc(sizeof(struct zfcp_unit), GFP_KERNEL);
-	if (!unit)
-		goto err_out;
-
-	unit->port = port;
-	unit->fcp_lun = fcp_lun;
-	unit->dev.parent = &port->dev;
-	unit->dev.release = zfcp_unit_release;
-
-	if (dev_set_name(&unit->dev, "0x%016llx",
-			 (unsigned long long) fcp_lun)) {
-		kfree(unit);
-		goto err_out;
-	}
-	retval = -EINVAL;
-
-	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan_work);
-
-	spin_lock_init(&unit->latencies.lock);
-	unit->latencies.write.channel.min = 0xFFFFFFFF;
-	unit->latencies.write.fabric.min = 0xFFFFFFFF;
-	unit->latencies.read.channel.min = 0xFFFFFFFF;
-	unit->latencies.read.fabric.min = 0xFFFFFFFF;
-	unit->latencies.cmd.channel.min = 0xFFFFFFFF;
-	unit->latencies.cmd.fabric.min = 0xFFFFFFFF;
-
-	if (device_register(&unit->dev)) {
-		put_device(&unit->dev);
-		goto err_out;
-	}
-
-	if (sysfs_create_group(&unit->dev.kobj, &zfcp_sysfs_unit_attrs))
-		goto err_out_put;
-
-	write_lock_irq(&port->unit_list_lock);
-	list_add_tail(&unit->list, &port->unit_list);
-	write_unlock_irq(&port->unit_list_lock);
-
-	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &unit->status);
-
-	return unit;
-
-err_out_put:
-	device_unregister(&unit->dev);
-err_out:
-	put_device(&port->dev);
-	return ERR_PTR(retval);
 }
 
 static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)

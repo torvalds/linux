@@ -316,7 +316,8 @@ config SCSI_ISCSI_ATTRS
 
 config SCSI_SAS_ATTRS
 	tristate "SAS Transport Attributes"
-	depends on SCSI && BLK_DEV_BSG
+	depends on SCSI
+	select BLK_DEV_BSG
 	help
 	  If you wish to export transport-specific information about
 	  each attached SAS device to sysfs, say Y.
@@ -378,7 +379,7 @@ config ISCSI_BOOT_SYSFS
 	  via sysfs to userspace. If you wish to export this information,
 	  say Y. Otherwise, say N.
 
-source "drivers/scsi/cxgb3i/Kconfig"
+source "drivers/scsi/cxgbi/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
 source "drivers/scsi/be2iscsi/Kconfig"
 

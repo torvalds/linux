@@ -335,7 +335,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 		if (ready)
 			break;
 
-		if (cnt > 6000000) {
+		if (cnt > 12000000) {
 			dev_err(&ctrl->pdev->dev, "mbox_db poll timed out\n");
 			return -EBUSY;
 		}

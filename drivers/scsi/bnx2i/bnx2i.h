@@ -753,7 +753,7 @@ extern int bnx2i_send_iscsi_tmf(struct bnx2i_conn *conn,
 extern int bnx2i_send_iscsi_scsicmd(struct bnx2i_conn *conn,
 				    struct bnx2i_cmd *cmnd);
 extern int bnx2i_send_iscsi_nopout(struct bnx2i_conn *conn,
-				   struct iscsi_task *mtask, u32 ttt,
+				   struct iscsi_task *mtask,
 				   char *datap, int data_len, int unsol);
 extern int bnx2i_send_iscsi_logout(struct bnx2i_conn *conn,
 				   struct iscsi_task *mtask);

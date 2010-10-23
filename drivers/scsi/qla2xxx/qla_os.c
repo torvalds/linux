@@ -1295,17 +1295,12 @@ static int
 qla2xxx_slave_configure(struct scsi_device *sdev)
 {
 	scsi_qla_host_t *vha = shost_priv(sdev->host);
-	struct qla_hw_data *ha = vha->hw;
-	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 	struct req_que *req = vha->req;
 
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, req->max_q_depth);
 	else
 		scsi_deactivate_tcq(sdev, req->max_q_depth);
-
-	rport->dev_loss_tmo = ha->port_down_retry_count;
-
 	return 0;
 }
 
@@ -2141,8 +2136,16 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		base_vha->mgmt_svr_loop_id = MANAGEMENT_SERVER +
 						base_vha->vp_idx;
-	if (IS_QLA2100(ha))
-		host->sg_tablesize = 32;
+
+	/* Set the SG table size based on ISP type */
+	if (!IS_FWI2_CAPABLE(ha)) {
+		if (IS_QLA2100(ha))
+			host->sg_tablesize = 32;
+	} else {
+		if (!IS_QLA82XX(ha))
+			host->sg_tablesize = QLA_SG_ALL;
+	}
+
 	host->max_id = max_id;
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
@@ -3553,6 +3556,11 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
 
+	if (ha->flags.eeh_busy) {
+		qla2x00_restart_timer(vha, WATCH_INTERVAL);
+		return;
+	}
+
 	if (IS_QLA82XX(ha))
 		qla82xx_watchdog(vha);
 
@@ -3782,8 +3790,21 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
 		ha->flags.eeh_busy = 1;
+		/* For ISP82XX complete any pending mailbox cmd */
+		if (IS_QLA82XX(ha)) {
+			ha->flags.fw_hung = 1;
+			if (ha->flags.mbox_busy) {
+				ha->flags.mbox_int = 1;
+				DEBUG2(qla_printk(KERN_ERR, ha,
+					"Due to pci channel io frozen, doing premature "
+					"completion of mbx command\n"));
+				complete(&ha->mbx_intr_comp);
+			}
+		}
 		qla2x00_free_irqs(vha);
 		pci_disable_device(pdev);
+		/* Return back all IOs */
+		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		ha->flags.pci_channel_io_perm_failure = 1;
@@ -3803,6 +3824,9 @@ qla2xxx_pci_mmio_enabled(struct pci_dev *pdev)
 	struct qla_hw_data *ha = base_vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
+
+	if (IS_QLA82XX(ha))
+		return PCI_ERS_RESULT_RECOVERED;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (IS_QLA2100(ha) || IS_QLA2200(ha)){
@@ -3828,6 +3852,109 @@ qla2xxx_pci_mmio_enabled(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_NEED_RESET;
 	} else
 		return PCI_ERS_RESULT_RECOVERED;
+}
+
+uint32_t qla82xx_error_recovery(scsi_qla_host_t *base_vha)
+{
+	uint32_t rval = QLA_FUNCTION_FAILED;
+	uint32_t drv_active = 0;
+	struct qla_hw_data *ha = base_vha->hw;
+	int fn;
+	struct pci_dev *other_pdev = NULL;
+
+	DEBUG17(qla_printk(KERN_INFO, ha,
+	    "scsi(%ld): In qla82xx_error_recovery\n", base_vha->host_no));
+
+	set_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
+
+	if (base_vha->flags.online) {
+		/* Abort all outstanding commands,
+		 * so as to be requeued later */
+		qla2x00_abort_isp_cleanup(base_vha);
+	}
+
+
+	fn = PCI_FUNC(ha->pdev->devfn);
+	while (fn > 0) {
+		fn--;
+		DEBUG17(qla_printk(KERN_INFO, ha,
+		    "Finding pci device at function = 0x%x\n", fn));
+		other_pdev =
+		    pci_get_domain_bus_and_slot(pci_domain_nr(ha->pdev->bus),
+		    ha->pdev->bus->number, PCI_DEVFN(PCI_SLOT(ha->pdev->devfn),
+		    fn));
+
+		if (!other_pdev)
+			continue;
+		if (atomic_read(&other_pdev->enable_cnt)) {
+			DEBUG17(qla_printk(KERN_INFO, ha,
+			    "Found PCI func availabe and enabled at 0x%x\n",
+			    fn));
+			pci_dev_put(other_pdev);
+			break;
+		}
+		pci_dev_put(other_pdev);
+	}
+
+	if (!fn) {
+		/* Reset owner */
+		DEBUG17(qla_printk(KERN_INFO, ha,
+		    "This devfn is reset owner = 0x%x\n", ha->pdev->devfn));
+		qla82xx_idc_lock(ha);
+
+		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+		    QLA82XX_DEV_INITIALIZING);
+
+		qla82xx_wr_32(ha, QLA82XX_CRB_DRV_IDC_VERSION,
+		    QLA82XX_IDC_VERSION);
+
+		drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
+		DEBUG17(qla_printk(KERN_INFO, ha,
+		    "drv_active = 0x%x\n", drv_active));
+
+		qla82xx_idc_unlock(ha);
+		/* Reset if device is not already reset
+		 * drv_active would be 0 if a reset has already been done
+		 */
+		if (drv_active)
+			rval = qla82xx_start_firmware(base_vha);
+		else
+			rval = QLA_SUCCESS;
+		qla82xx_idc_lock(ha);
+
+		if (rval != QLA_SUCCESS) {
+			qla_printk(KERN_INFO, ha, "HW State: FAILED\n");
+			qla82xx_clear_drv_active(ha);
+			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+			    QLA82XX_DEV_FAILED);
+		} else {
+			qla_printk(KERN_INFO, ha, "HW State: READY\n");
+			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+			    QLA82XX_DEV_READY);
+			qla82xx_idc_unlock(ha);
+			ha->flags.fw_hung = 0;
+			rval = qla82xx_restart_isp(base_vha);
+			qla82xx_idc_lock(ha);
+			/* Clear driver state register */
+			qla82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, 0);
+			qla82xx_set_drv_active(base_vha);
+		}
+		qla82xx_idc_unlock(ha);
+	} else {
+		DEBUG17(qla_printk(KERN_INFO, ha,
+		    "This devfn is not reset owner = 0x%x\n", ha->pdev->devfn));
+		if ((qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE) ==
+		    QLA82XX_DEV_READY)) {
+			ha->flags.fw_hung = 0;
+			rval = qla82xx_restart_isp(base_vha);
+			qla82xx_idc_lock(ha);
+			qla82xx_set_drv_active(base_vha);
+			qla82xx_idc_unlock(ha);
+		}
+	}
+	clear_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
+
+	return rval;
 }
 
 static pci_ers_result_t
@@ -3862,15 +3989,23 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 	if (rc) {
 		qla_printk(KERN_WARNING, ha,
 		    "Can't re-enable PCI device after reset.\n");
-		return ret;
+		goto exit_slot_reset;
 	}
 
 	rsp = ha->rsp_q_map[0];
 	if (qla2x00_request_irqs(ha, rsp))
-		return ret;
+		goto exit_slot_reset;
 
 	if (ha->isp_ops->pci_config(base_vha))
-		return ret;
+		goto exit_slot_reset;
+
+	if (IS_QLA82XX(ha)) {
+		if (qla82xx_error_recovery(base_vha) == QLA_SUCCESS) {
+			ret = PCI_ERS_RESULT_RECOVERED;
+			goto exit_slot_reset;
+		} else
+			goto exit_slot_reset;
+	}
 
 	while (ha->flags.mbox_busy && retries--)
 		msleep(1000);
@@ -3881,6 +4016,7 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 	clear_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
 
 
+exit_slot_reset:
 	DEBUG17(qla_printk(KERN_WARNING, ha,
 	    "slot_reset-return:ret=%x\n", ret));
 
