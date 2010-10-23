@@ -72,6 +72,18 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	return ret;
 }
 
+static int iwlagn_update_beacon(struct iwl_priv *priv,
+				struct ieee80211_vif *vif)
+{
+	lockdep_assert_held(&priv->mutex);
+
+	dev_kfree_skb(priv->beacon_skb);
+	priv->beacon_skb = ieee80211_beacon_get(priv->hw, vif);
+	if (!priv->beacon_skb)
+		return -ENOMEM;
+	return iwlagn_send_beacon_cmd(priv);
+}
+
 /**
  * iwlagn_commit_rxon - commit staging_rxon to hardware
  *
@@ -201,17 +213,19 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 
 	if (new_assoc) {
-		if (ctx->vif && (ctx->vif->type == NL80211_IFTYPE_AP ||
-				 ctx->vif->type == NL80211_IFTYPE_ADHOC)) {
-			/*
-			 * We'll run into this code path when beaconing is
-			 * enabled, but then we also need to send the beacon
-			 * to the device.
-			 */
-			dev_kfree_skb(priv->beacon_skb);
-			priv->beacon_skb = ieee80211_beacon_get(priv->hw,
-								ctx->vif);
-			iwlagn_send_beacon_cmd(priv);
+		/*
+		 * We'll run into this code path when beaconing is
+		 * enabled, but then we also need to send the beacon
+		 * to the device.
+		 */
+		if (ctx->vif && (ctx->vif->type == NL80211_IFTYPE_AP)) {
+			ret = iwlagn_update_beacon(priv, ctx->vif);
+			if (ret) {
+				IWL_ERR(priv,
+					"Error sending required beacon (%d)!\n",
+					ret);
+				return ret;
+			}
 		}
 
 		priv->start_calib = 0;
@@ -228,6 +242,11 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			return ret;
 		}
 		memcpy(active, &ctx->staging, sizeof(*active));
+
+		/* IBSS beacon needs to be sent after setting assoc */
+		if (ctx->vif && (ctx->vif->type == NL80211_IFTYPE_ADHOC))
+			if (iwlagn_update_beacon(priv, ctx->vif))
+				IWL_ERR(priv, "Error sending IBSS beacon\n");
 	}
 
 	iwl_print_rx_config_cmd(priv, ctx);
@@ -556,6 +575,12 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			IWL_ERR(priv, "failed to %s IBSS station %pM\n",
 				bss_conf->ibss_joined ? "add" : "remove",
 				bss_conf->bssid);
+	}
+
+	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_ADHOC &&
+	    priv->beacon_ctx) {
+		if (iwlagn_update_beacon(priv, vif))
+			IWL_ERR(priv, "Error sending IBSS beacon\n");
 	}
 
 	mutex_unlock(&priv->mutex);
