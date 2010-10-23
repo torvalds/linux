@@ -536,3 +536,12 @@ Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 
 ----------------------------
 
+What:	iwlwifi disable_hw_scan module parameters
+When:	2.6.40
+Why:	Hareware scan is the prefer method for iwlwifi devices for
+	scanning operation. Remove software scan support for all the
+	iwlwifi devices.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------

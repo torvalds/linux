@@ -96,16 +96,10 @@ static char *media[MAX_UNITS];
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#ifndef _COMPAT_WITH_OLD_KERNEL
+#include <linux/dma-mapping.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#else
-#include "crc32.h"
-#include "ethtool.h"
-#include "mii.h"
-#include "compat.h"
-#endif
 
 /* These identify the driver base version and may not be removed. */
 static const char version[] __devinitconst =
@@ -369,9 +363,21 @@ struct netdev_private {
         dma_addr_t tx_ring_dma;
         dma_addr_t rx_ring_dma;
 	struct timer_list timer;		/* Media monitoring timer. */
+	/* ethtool extra stats */
+	struct {
+		u64 tx_multiple_collisions;
+		u64 tx_single_collisions;
+		u64 tx_late_collisions;
+		u64 tx_deferred;
+		u64 tx_deferred_excessive;
+		u64 tx_aborted;
+		u64 tx_bcasts;
+		u64 rx_bcasts;
+		u64 tx_mcasts;
+		u64 rx_mcasts;
+	} xstats;
 	/* Frequently used values: keep some adjacent for cache effect. */
 	spinlock_t lock;
-	spinlock_t rx_lock;			/* Group with Tx control cache line. */
 	int msg_enable;
 	int chip_id;
 	unsigned int cur_rx, dirty_rx;		/* Producer/consumer ring indices */
@@ -396,6 +402,7 @@ struct netdev_private {
 	unsigned char phys[MII_CNT];		/* MII device addresses, only first one used. */
 	struct pci_dev *pci_dev;
 	void __iomem *base;
+	spinlock_t statlock;
 };
 
 /* The station address location in the EEPROM. */
@@ -520,16 +527,19 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	np->chip_id = chip_idx;
 	np->msg_enable = (1 << debug) - 1;
 	spin_lock_init(&np->lock);
+	spin_lock_init(&np->statlock);
 	tasklet_init(&np->rx_tasklet, rx_poll, (unsigned long)dev);
 	tasklet_init(&np->tx_tasklet, tx_poll, (unsigned long)dev);
 
-	ring_space = pci_alloc_consistent(pdev, TX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, TX_TOTAL_SIZE,
+			&ring_dma, GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_cleardev;
 	np->tx_ring = (struct netdev_desc *)ring_space;
 	np->tx_ring_dma = ring_dma;
 
-	ring_space = pci_alloc_consistent(pdev, RX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, RX_TOTAL_SIZE,
+			&ring_dma, GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_unmap_tx;
 	np->rx_ring = (struct netdev_desc *)ring_space;
@@ -663,9 +673,11 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 err_out_unregister:
 	unregister_netdev(dev);
 err_out_unmap_rx:
-        pci_free_consistent(pdev, RX_TOTAL_SIZE, np->rx_ring, np->rx_ring_dma);
+	dma_free_coherent(&pdev->dev, RX_TOTAL_SIZE,
+		np->rx_ring, np->rx_ring_dma);
 err_out_unmap_tx:
-        pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
+	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE,
+		np->tx_ring, np->tx_ring_dma);
 err_out_cleardev:
 	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
@@ -874,7 +886,7 @@ static int netdev_open(struct net_device *dev)
 	init_timer(&np->timer);
 	np->timer.expires = jiffies + 3*HZ;
 	np->timer.data = (unsigned long)dev;
-	np->timer.function = &netdev_timer;				/* timer handler */
+	np->timer.function = netdev_timer;				/* timer handler */
 	add_timer(&np->timer);
 
 	/* Enable interrupts by setting the interrupt mask. */
@@ -1011,8 +1023,14 @@ static void init_ring(struct net_device *dev)
 		skb->dev = dev;		/* Mark as being used by this device. */
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
 		np->rx_ring[i].frag[0].addr = cpu_to_le32(
-			pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz,
-				PCI_DMA_FROMDEVICE));
+			dma_map_single(&np->pci_dev->dev, skb->data,
+				np->rx_buf_sz, DMA_FROM_DEVICE));
+		if (dma_mapping_error(&np->pci_dev->dev,
+					np->rx_ring[i].frag[0].addr)) {
+			dev_kfree_skb(skb);
+			np->rx_skbuff[i] = NULL;
+			break;
+		}
 		np->rx_ring[i].frag[0].length = cpu_to_le32(np->rx_buf_sz | LastFrag);
 	}
 	np->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
@@ -1063,9 +1081,11 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 
 	txdesc->next_desc = 0;
 	txdesc->status = cpu_to_le32 ((entry << 2) | DisableAlign);
-	txdesc->frag[0].addr = cpu_to_le32 (pci_map_single (np->pci_dev, skb->data,
-							skb->len,
-							PCI_DMA_TODEVICE));
+	txdesc->frag[0].addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
+				skb->data, skb->len, DMA_TO_DEVICE));
+	if (dma_mapping_error(&np->pci_dev->dev,
+				txdesc->frag[0].addr))
+			goto drop_frame;
 	txdesc->frag[0].length = cpu_to_le32 (skb->len | LastFrag);
 
 	/* Increment cur_tx before tasklet_schedule() */
@@ -1087,6 +1107,12 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 			dev->name, np->cur_tx, entry);
 	}
 	return NETDEV_TX_OK;
+
+drop_frame:
+	dev_kfree_skb(skb);
+	np->tx_skbuff[entry] = NULL;
+	dev->stats.tx_dropped++;
+	return NETDEV_TX_OK;
 }
 
 /* Reset hardware tx and free all of tx buffers */
@@ -1097,7 +1123,6 @@ reset_tx (struct net_device *dev)
 	void __iomem *ioaddr = np->base;
 	struct sk_buff *skb;
 	int i;
-	int irq = in_interrupt();
 
 	/* Reset tx logic, TxListPtr will be cleaned */
 	iowrite16 (TxDisable, ioaddr + MACCtrl1);
@@ -1109,13 +1134,10 @@ reset_tx (struct net_device *dev)
 
 		skb = np->tx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(np->pci_dev,
+			dma_unmap_single(&np->pci_dev->dev,
 				le32_to_cpu(np->tx_ring[i].frag[0].addr),
-				skb->len, PCI_DMA_TODEVICE);
-			if (irq)
-				dev_kfree_skb_irq (skb);
-			else
-				dev_kfree_skb (skb);
+				skb->len, DMA_TO_DEVICE);
+			dev_kfree_skb_any(skb);
 			np->tx_skbuff[i] = NULL;
 			dev->stats.tx_dropped++;
 		}
@@ -1233,9 +1255,9 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 						break;
 				skb = np->tx_skbuff[entry];
 				/* Free the original skb. */
-				pci_unmap_single(np->pci_dev,
+				dma_unmap_single(&np->pci_dev->dev,
 					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
-					skb->len, PCI_DMA_TODEVICE);
+					skb->len, DMA_TO_DEVICE);
 				dev_kfree_skb_irq (np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
 				np->tx_ring[entry].frag[0].addr = 0;
@@ -1252,9 +1274,9 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 					break;
 				skb = np->tx_skbuff[entry];
 				/* Free the original skb. */
-				pci_unmap_single(np->pci_dev,
+				dma_unmap_single(&np->pci_dev->dev,
 					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
-					skb->len, PCI_DMA_TODEVICE);
+					skb->len, DMA_TO_DEVICE);
 				dev_kfree_skb_irq (np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
 				np->tx_ring[entry].frag[0].addr = 0;
@@ -1334,22 +1356,18 @@ static void rx_poll(unsigned long data)
 			if (pkt_len < rx_copybreak &&
 			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
-				pci_dma_sync_single_for_cpu(np->pci_dev,
-							    le32_to_cpu(desc->frag[0].addr),
-							    np->rx_buf_sz,
-							    PCI_DMA_FROMDEVICE);
-
+				dma_sync_single_for_cpu(&np->pci_dev->dev,
+						le32_to_cpu(desc->frag[0].addr),
+						np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_copy_to_linear_data(skb, np->rx_skbuff[entry]->data, pkt_len);
-				pci_dma_sync_single_for_device(np->pci_dev,
-							       le32_to_cpu(desc->frag[0].addr),
-							       np->rx_buf_sz,
-							       PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(&np->pci_dev->dev,
+						le32_to_cpu(desc->frag[0].addr),
+						np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_put(skb, pkt_len);
 			} else {
-				pci_unmap_single(np->pci_dev,
+				dma_unmap_single(&np->pci_dev->dev,
 					le32_to_cpu(desc->frag[0].addr),
-					np->rx_buf_sz,
-					PCI_DMA_FROMDEVICE);
+					np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_put(skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			}
@@ -1396,8 +1414,14 @@ static void refill_rx (struct net_device *dev)
 			skb->dev = dev;		/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 			np->rx_ring[entry].frag[0].addr = cpu_to_le32(
-				pci_map_single(np->pci_dev, skb->data,
-					np->rx_buf_sz, PCI_DMA_FROMDEVICE));
+				dma_map_single(&np->pci_dev->dev, skb->data,
+					np->rx_buf_sz, DMA_FROM_DEVICE));
+			if (dma_mapping_error(&np->pci_dev->dev,
+				    np->rx_ring[entry].frag[0].addr)) {
+			    dev_kfree_skb_irq(skb);
+			    np->rx_skbuff[entry] = NULL;
+			    break;
+			}
 		}
 		/* Perhaps we need not reset this field. */
 		np->rx_ring[entry].frag[0].length =
@@ -1475,26 +1499,40 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
-	int i;
+	unsigned long flags;
+	u8 late_coll, single_coll, mult_coll;
 
-	/* We should lock this segment of code for SMP eventually, although
-	   the vulnerability window is very small and statistics are
-	   non-critical. */
+	spin_lock_irqsave(&np->statlock, flags);
 	/* The chip only need report frame silently dropped. */
 	dev->stats.rx_missed_errors	+= ioread8(ioaddr + RxMissed);
 	dev->stats.tx_packets += ioread16(ioaddr + TxFramesOK);
 	dev->stats.rx_packets += ioread16(ioaddr + RxFramesOK);
-	dev->stats.collisions += ioread8(ioaddr + StatsLateColl);
-	dev->stats.collisions += ioread8(ioaddr + StatsMultiColl);
-	dev->stats.collisions += ioread8(ioaddr + StatsOneColl);
 	dev->stats.tx_carrier_errors += ioread8(ioaddr + StatsCarrierError);
-	ioread8(ioaddr + StatsTxDefer);
-	for (i = StatsTxDefer; i <= StatsMcastRx; i++)
-		ioread8(ioaddr + i);
+
+	mult_coll = ioread8(ioaddr + StatsMultiColl);
+	np->xstats.tx_multiple_collisions += mult_coll;
+	single_coll = ioread8(ioaddr + StatsOneColl);
+	np->xstats.tx_single_collisions += single_coll;
+	late_coll = ioread8(ioaddr + StatsLateColl);
+	np->xstats.tx_late_collisions += late_coll;
+	dev->stats.collisions += mult_coll
+		+ single_coll
+		+ late_coll;
+
+	np->xstats.tx_deferred += ioread8(ioaddr + StatsTxDefer);
+	np->xstats.tx_deferred_excessive += ioread8(ioaddr + StatsTxXSDefer);
+	np->xstats.tx_aborted += ioread8(ioaddr + StatsTxAbort);
+	np->xstats.tx_bcasts += ioread8(ioaddr + StatsBcastTx);
+	np->xstats.rx_bcasts += ioread8(ioaddr + StatsBcastRx);
+	np->xstats.tx_mcasts += ioread8(ioaddr + StatsMcastTx);
+	np->xstats.rx_mcasts += ioread8(ioaddr + StatsMcastRx);
+
 	dev->stats.tx_bytes += ioread16(ioaddr + TxOctetsLow);
 	dev->stats.tx_bytes += ioread16(ioaddr + TxOctetsHigh) << 16;
 	dev->stats.rx_bytes += ioread16(ioaddr + RxOctetsLow);
 	dev->stats.rx_bytes += ioread16(ioaddr + RxOctetsHigh) << 16;
+
+	spin_unlock_irqrestore(&np->statlock, flags);
 
 	return &dev->stats;
 }
@@ -1554,6 +1592,21 @@ static int __set_mac_addr(struct net_device *dev)
 	return 0;
 }
 
+static const struct {
+	const char name[ETH_GSTRING_LEN];
+} sundance_stats[] = {
+	{ "tx_multiple_collisions" },
+	{ "tx_single_collisions" },
+	{ "tx_late_collisions" },
+	{ "tx_deferred" },
+	{ "tx_deferred_excessive" },
+	{ "tx_aborted" },
+	{ "tx_bcasts" },
+	{ "rx_bcasts" },
+	{ "tx_mcasts" },
+	{ "rx_mcasts" },
+};
+
 static int check_if_running(struct net_device *dev)
 {
 	if (!netif_running(dev))
@@ -1612,6 +1665,42 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	np->msg_enable = val;
 }
 
+static void get_strings(struct net_device *dev, u32 stringset,
+		u8 *data)
+{
+	if (stringset == ETH_SS_STATS)
+		memcpy(data, sundance_stats, sizeof(sundance_stats));
+}
+
+static int get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(sundance_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void get_ethtool_stats(struct net_device *dev,
+		struct ethtool_stats *stats, u64 *data)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	int i = 0;
+
+	get_stats(dev);
+	data[i++] = np->xstats.tx_multiple_collisions;
+	data[i++] = np->xstats.tx_single_collisions;
+	data[i++] = np->xstats.tx_late_collisions;
+	data[i++] = np->xstats.tx_deferred;
+	data[i++] = np->xstats.tx_deferred_excessive;
+	data[i++] = np->xstats.tx_aborted;
+	data[i++] = np->xstats.tx_bcasts;
+	data[i++] = np->xstats.rx_bcasts;
+	data[i++] = np->xstats.tx_mcasts;
+	data[i++] = np->xstats.rx_mcasts;
+}
+
 static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = get_drvinfo,
@@ -1621,6 +1710,9 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link = get_link,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
+	.get_strings = get_strings,
+	.get_sset_count = get_sset_count,
+	.get_ethtool_stats = get_ethtool_stats,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1715,9 +1807,9 @@ static int netdev_close(struct net_device *dev)
 		np->rx_ring[i].status = 0;
 		skb = np->rx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(np->pci_dev,
+			dma_unmap_single(&np->pci_dev->dev,
 				le32_to_cpu(np->rx_ring[i].frag[0].addr),
-				np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+				np->rx_buf_sz, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 		}
@@ -1727,9 +1819,9 @@ static int netdev_close(struct net_device *dev)
 		np->tx_ring[i].next_desc = 0;
 		skb = np->tx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(np->pci_dev,
+			dma_unmap_single(&np->pci_dev->dev,
 				le32_to_cpu(np->tx_ring[i].frag[0].addr),
-				skb->len, PCI_DMA_TODEVICE);
+				skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb(skb);
 			np->tx_skbuff[i] = NULL;
 		}
@@ -1743,25 +1835,72 @@ static void __devexit sundance_remove1 (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		struct netdev_private *np = netdev_priv(dev);
-
-		unregister_netdev(dev);
-        	pci_free_consistent(pdev, RX_TOTAL_SIZE, np->rx_ring,
-			np->rx_ring_dma);
-	        pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring,
-			np->tx_ring_dma);
-		pci_iounmap(pdev, np->base);
-		pci_release_regions(pdev);
-		free_netdev(dev);
-		pci_set_drvdata(pdev, NULL);
+	    struct netdev_private *np = netdev_priv(dev);
+	    unregister_netdev(dev);
+	    dma_free_coherent(&pdev->dev, RX_TOTAL_SIZE,
+		    np->rx_ring, np->rx_ring_dma);
+	    dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE,
+		    np->tx_ring, np->tx_ring_dma);
+	    pci_iounmap(pdev, np->base);
+	    pci_release_regions(pdev);
+	    free_netdev(dev);
+	    pci_set_drvdata(pdev, NULL);
 	}
 }
+
+#ifdef CONFIG_PM
+
+static int sundance_suspend(struct pci_dev *pci_dev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pci_dev);
+
+	if (!netif_running(dev))
+		return 0;
+
+	netdev_close(dev);
+	netif_device_detach(dev);
+
+	pci_save_state(pci_dev);
+	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
+
+	return 0;
+}
+
+static int sundance_resume(struct pci_dev *pci_dev)
+{
+	struct net_device *dev = pci_get_drvdata(pci_dev);
+	int err = 0;
+
+	if (!netif_running(dev))
+		return 0;
+
+	pci_set_power_state(pci_dev, PCI_D0);
+	pci_restore_state(pci_dev);
+
+	err = netdev_open(dev);
+	if (err) {
+		printk(KERN_ERR "%s: Can't resume interface!\n",
+				dev->name);
+		goto out;
+	}
+
+	netif_device_attach(dev);
+
+out:
+	return err;
+}
+
+#endif /* CONFIG_PM */
 
 static struct pci_driver sundance_driver = {
 	.name		= DRV_NAME,
 	.id_table	= sundance_pci_tbl,
 	.probe		= sundance_probe1,
 	.remove		= __devexit_p(sundance_remove1),
+#ifdef CONFIG_PM
+	.suspend	= sundance_suspend,
+	.resume		= sundance_resume,
+#endif /* CONFIG_PM */
 };
 
 static int __init sundance_init(void)

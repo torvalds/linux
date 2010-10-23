@@ -5,8 +5,8 @@ ath9k-y +=	beacon.o \
 		recv.o \
 		xmit.o \
 		virtual.o \
-		rc.o
 
+ath9k-$(CONFIG_ATH9K_RATE_CONTROL) += rc.o
 ath9k-$(CONFIG_PCI) += pci.o
 ath9k-$(CONFIG_ATHEROS_AR71XX) += ahb.o
 ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
@@ -46,6 +46,7 @@ ath9k_htc-y +=	htc_hst.o \
 		htc_drv_txrx.o \
 		htc_drv_main.o \
 		htc_drv_beacon.o \
-		htc_drv_init.o
+		htc_drv_init.o \
+		htc_drv_gpio.o
 
 obj-$(CONFIG_ATH9K_HTC) += ath9k_htc.o

@@ -16,6 +16,9 @@
 #include <linux/rcupdate.h>
 #include <net/mac80211.h>
 
+#define NUM_DEFAULT_KEYS 4
+#define NUM_DEFAULT_MGMT_KEYS 2
+
 #define WEP_IV_LEN		4
 #define WEP_ICV_LEN		4
 #define ALG_TKIP_KEY_LEN	32
@@ -123,18 +126,16 @@ struct ieee80211_key {
 	struct ieee80211_key_conf conf;
 };
 
-struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
-					  int idx,
-					  size_t key_len,
+struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 					  const u8 *key_data,
 					  size_t seq_len, const u8 *seq);
 /*
  * Insert a key into data structures (sdata, sta if necessary)
  * to make it used, free old key.
  */
-void ieee80211_key_link(struct ieee80211_key *key,
-			struct ieee80211_sub_if_data *sdata,
-			struct sta_info *sta);
+int __must_check ieee80211_key_link(struct ieee80211_key *key,
+				    struct ieee80211_sub_if_data *sdata,
+				    struct sta_info *sta);
 void ieee80211_key_free(struct ieee80211_local *local,
 			struct ieee80211_key *key);
 void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx);

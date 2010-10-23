@@ -97,6 +97,17 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_TX_POWER_DBM_CMD);
 		IWL_CMD(TEMPERATURE_NOTIFICATION);
 		IWL_CMD(TX_ANT_CONFIGURATION_CMD);
+		IWL_CMD(REPLY_BT_COEX_PROFILE_NOTIF);
+		IWL_CMD(REPLY_BT_COEX_PRIO_TABLE);
+		IWL_CMD(REPLY_BT_COEX_PROT_ENV);
+		IWL_CMD(REPLY_WIPAN_PARAMS);
+		IWL_CMD(REPLY_WIPAN_RXON);
+		IWL_CMD(REPLY_WIPAN_RXON_TIMING);
+		IWL_CMD(REPLY_WIPAN_RXON_ASSOC);
+		IWL_CMD(REPLY_WIPAN_QOS_PARAM);
+		IWL_CMD(REPLY_WIPAN_WEPKEY);
+		IWL_CMD(REPLY_WIPAN_P2P_CHANNEL_SWITCH);
+		IWL_CMD(REPLY_WIPAN_NOA_NOTIFICATION);
 	default:
 		return "UNKNOWN";
 
@@ -229,7 +240,7 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		priv->txq[IWL_CMD_QUEUE_NUM].meta[cmd_idx].flags &=
+		priv->txq[priv->cmd_queue].meta[cmd_idx].flags &=
 							~CMD_WANT_SKB;
 	}
 fail:

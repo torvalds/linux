@@ -3234,7 +3234,7 @@ prism54_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	switch (cmd) {
 		case PRISM54_HOSTAPD:
 		if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
+			return -EPERM;
 		ret = prism54_hostapd(ndev, &wrq->u.data);
 		return ret;
 	}

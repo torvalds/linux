@@ -1024,7 +1024,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 				 &data) != DFX_K_SUCCESS) {
 		printk("%s: Could not read adapter factory MAC address!\n",
 		       print_name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 	}
 	le32 = cpu_to_le32(data);
 	memcpy(&bp->factory_mac_addr[0], &le32, sizeof(u32));
@@ -1033,7 +1033,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 				 &data) != DFX_K_SUCCESS) {
 		printk("%s: Could not read adapter factory MAC address!\n",
 		       print_name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 	}
 	le32 = cpu_to_le32(data);
 	memcpy(&bp->factory_mac_addr[4], &le32, sizeof(u16));
@@ -1075,7 +1075,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 	if (top_v == NULL) {
 		printk("%s: Could not allocate memory for host buffers "
 		       "and structures!\n", print_name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 	}
 	memset(top_v, 0, alloc_size);	/* zero out memory before continuing */
 	top_p = bp->kmalloced_dma;	/* get physical address of buffer */
@@ -1145,7 +1145,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 	DBG_printk("%s: Consumer block virt = %0lX, phys = %0X\n",
 		   print_name, (long)bp->cons_block_virt, bp->cons_block_phys);
 
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 }
 
 
@@ -1195,7 +1195,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_hw_dma_uninit(bp, bp->reset_type) != DFX_K_SUCCESS)
 		{
 		printk("%s: Could not uninitialize/reset adapter!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1229,7 +1229,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 							NULL) != DFX_K_SUCCESS)
 		{
 		printk("%s: Could not set adapter burst size!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1246,7 +1246,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 							NULL) != DFX_K_SUCCESS)
 		{
 		printk("%s: Could not set consumer block address!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1278,7 +1278,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: DMA command request failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Set the initial values for eFDXEnable and MACTReq MIB objects */
@@ -1294,7 +1294,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: DMA command request failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Initialize adapter CAM */
@@ -1302,7 +1302,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: Adapter CAM update failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Initialize adapter filters */
@@ -1310,7 +1310,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_ctl_update_filters(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: Adapter filters update failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1328,7 +1328,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 		printk("%s: Receive buffer allocation failed\n", bp->dev->name);
 		if (get_buffers)
 			dfx_rcv_flush(bp);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Issue START command and bring adapter to LINK_(UN)AVAILABLE state */
@@ -1339,13 +1339,13 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 		printk("%s: Start command failed\n", bp->dev->name);
 		if (get_buffers)
 			dfx_rcv_flush(bp);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Initialization succeeded, reenable PDQ interrupts */
 
 	dfx_port_write_long(bp, PI_PDQ_K_REG_HOST_INT_ENB, PI_HOST_INT_K_ENABLE_DEF_INTS);
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -1434,7 +1434,7 @@ static int dfx_open(struct net_device *dev)
 
 	/* Set device structure info */
 	netif_start_queue(dev);
-	return(0);
+	return 0;
 }
 
 
@@ -1526,7 +1526,7 @@ static int dfx_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 
-	return(0);
+	return 0;
 }
 
 
@@ -2027,7 +2027,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 
 	bp->cmd_req_virt->cmd_type = PI_CMD_K_SMT_MIB_GET;
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return((struct net_device_stats *) &bp->stats);
+		return (struct net_device_stats *)&bp->stats;
 
 	/* Fill the bp->stats structure with the SMT MIB object values */
 
@@ -2128,7 +2128,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 
 	bp->cmd_req_virt->cmd_type = PI_CMD_K_CNTRS_GET;
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return((struct net_device_stats *) &bp->stats);
+		return (struct net_device_stats *)&bp->stats;
 
 	/* Fill the bp->stats structure with the FDDI counter values */
 
@@ -2144,7 +2144,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 	bp->stats.port_lem_cts[0]			= bp->cmd_rsp_virt->cntrs_get.cntrs.link_errors[0].ls;
 	bp->stats.port_lem_cts[1]			= bp->cmd_rsp_virt->cntrs_get.cntrs.link_errors[1].ls;
 
-	return((struct net_device_stats *) &bp->stats);
+	return (struct net_device_stats *)&bp->stats;
 	}
 
 
@@ -2354,7 +2354,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 		{
 		DBG_printk("%s: Adapter CAM updated with new MAC address\n", dev->name);
 		}
-	return(0);			/* always return zero */
+	return 0;			/* always return zero */
 	}
 
 
@@ -2438,8 +2438,8 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
 	/* Issue command to update adapter CAM, then return */
 
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return(DFX_K_FAILURE);
-	return(DFX_K_SUCCESS);
+		return DFX_K_FAILURE;
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2504,8 +2504,8 @@ static int dfx_ctl_update_filters(DFX_board_t *bp)
 	/* Issue command to update adapter filters, then return */
 
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return(DFX_K_FAILURE);
-	return(DFX_K_SUCCESS);
+		return DFX_K_FAILURE;
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2561,7 +2561,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 		(status == PI_STATE_K_HALTED)		||
 		(status == PI_STATE_K_DMA_UNAVAIL)	||
 		(status == PI_STATE_K_UPGRADE))
-		return(DFX_K_OUTSTATE);
+		return DFX_K_OUTSTATE;
 
 	/* Put response buffer on the command response queue */
 
@@ -2599,7 +2599,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 		udelay(100);			/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
+		return DFX_K_HW_TIMEOUT;
 
 	/* Bump (and wrap) the completion index and write out to register */
 
@@ -2619,14 +2619,14 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 		udelay(100);			/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
+		return DFX_K_HW_TIMEOUT;
 
 	/* Bump (and wrap) the completion index and write out to register */
 
 	bp->cmd_rsp_reg.index.comp += 1;
 	bp->cmd_rsp_reg.index.comp &= PI_CMD_RSP_K_NUM_ENTRIES-1;
 	dfx_port_write_long(bp, PI_PDQ_K_REG_CMD_RSP_PROD, bp->cmd_rsp_reg.lword);
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2700,7 +2700,7 @@ static int dfx_hw_port_ctrl_req(
 		udelay(100);			/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
+		return DFX_K_HW_TIMEOUT;
 
 	/*
 	 * If the address of host_data is non-zero, assume caller has supplied a
@@ -2710,7 +2710,7 @@ static int dfx_hw_port_ctrl_req(
 
 	if (host_data != NULL)
 		dfx_port_read_long(bp, PI_PDQ_K_REG_HOST_DATA, host_data);
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2800,7 +2800,7 @@ static int dfx_hw_adap_state_rd(DFX_board_t *bp)
 	PI_UINT32 port_status;		/* Port Status register value */
 
 	dfx_port_read_long(bp, PI_PDQ_K_REG_PORT_STATUS, &port_status);
-	return((port_status & PI_PSTATUS_M_STATE) >> PI_PSTATUS_V_STATE);
+	return (port_status & PI_PSTATUS_M_STATE) >> PI_PSTATUS_V_STATE;
 	}
 
 
@@ -2852,8 +2852,8 @@ static int dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type)
 		udelay(100);					/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
-	return(DFX_K_SUCCESS);
+		return DFX_K_HW_TIMEOUT;
+	return DFX_K_SUCCESS;
 	}
 
 /*

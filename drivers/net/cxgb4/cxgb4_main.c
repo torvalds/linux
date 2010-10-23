@@ -175,16 +175,26 @@ enum {
 
 static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	CH_DEVICE(0xa000, 0),  /* PE10K */
-	CH_DEVICE(0x4001, 0),
-	CH_DEVICE(0x4002, 0),
-	CH_DEVICE(0x4003, 0),
-	CH_DEVICE(0x4004, 0),
-	CH_DEVICE(0x4005, 0),
-	CH_DEVICE(0x4006, 0),
-	CH_DEVICE(0x4007, 0),
-	CH_DEVICE(0x4008, 0),
-	CH_DEVICE(0x4009, 0),
-	CH_DEVICE(0x400a, 0),
+	CH_DEVICE(0x4001, -1),
+	CH_DEVICE(0x4002, -1),
+	CH_DEVICE(0x4003, -1),
+	CH_DEVICE(0x4004, -1),
+	CH_DEVICE(0x4005, -1),
+	CH_DEVICE(0x4006, -1),
+	CH_DEVICE(0x4007, -1),
+	CH_DEVICE(0x4008, -1),
+	CH_DEVICE(0x4009, -1),
+	CH_DEVICE(0x400a, -1),
+	CH_DEVICE(0x4401, 4),
+	CH_DEVICE(0x4402, 4),
+	CH_DEVICE(0x4403, 4),
+	CH_DEVICE(0x4404, 4),
+	CH_DEVICE(0x4405, 4),
+	CH_DEVICE(0x4406, 4),
+	CH_DEVICE(0x4407, 4),
+	CH_DEVICE(0x4408, 4),
+	CH_DEVICE(0x4409, 4),
+	CH_DEVICE(0x440a, 4),
 	{ 0, }
 };
 
@@ -423,10 +433,11 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (likely(opcode == CPL_SGE_EGR_UPDATE)) {
 		const struct cpl_sge_egr_update *p = (void *)rsp;
 		unsigned int qid = EGR_QID(ntohl(p->opcode_qid));
-		struct sge_txq *txq = q->adap->sge.egr_map[qid];
+		struct sge_txq *txq;
 
+		txq = q->adap->sge.egr_map[qid - q->adap->sge.egr_start];
 		txq->restarts++;
-		if ((u8 *)txq < (u8 *)q->adap->sge.ethrxq) {
+		if ((u8 *)txq < (u8 *)q->adap->sge.ofldtxq) {
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
@@ -658,6 +669,15 @@ static int setup_rss(struct adapter *adap)
 }
 
 /*
+ * Return the channel of the ingress queue with the given qid.
+ */
+static unsigned int rxq_to_chan(const struct sge *p, unsigned int qid)
+{
+	qid -= p->ingr_start;
+	return netdev2pinfo(p->ingr_map[qid]->netdev)->tx_chan;
+}
+
+/*
  * Wait until all NAPI handlers are descheduled.
  */
 static void quiesce_rx(struct adapter *adap)
@@ -860,7 +880,7 @@ void *t4_alloc_mem(size_t size)
 /*
  * Free memory allocated through alloc_mem().
  */
-void t4_free_mem(void *addr)
+static void t4_free_mem(void *addr)
 {
 	if (is_vmalloc_addr(addr))
 		vfree(addr);
@@ -1671,27 +1691,41 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	return 0;
 }
 
-/*
- * Translate a physical EEPROM address to virtual.  The first 1K is accessed
- * through virtual addresses starting at 31K, the rest is accessed through
- * virtual addresses starting at 0.  This mapping is correct only for PF0.
+/**
+ *	eeprom_ptov - translate a physical EEPROM address to virtual
+ *	@phys_addr: the physical EEPROM address
+ *	@fn: the PCI function number
+ *	@sz: size of function-specific area
+ *
+ *	Translate a physical EEPROM address to virtual.  The first 1K is
+ *	accessed through virtual addresses starting at 31K, the rest is
+ *	accessed through virtual addresses starting at 0.
+ *
+ *	The mapping is as follows:
+ *	[0..1K) -> [31K..32K)
+ *	[1K..1K+A) -> [31K-A..31K)
+ *	[1K+A..ES) -> [0..ES-A-1K)
+ *
+ *	where A = @fn * @sz, and ES = EEPROM size.
  */
-static int eeprom_ptov(unsigned int phys_addr)
+static int eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz)
 {
+	fn *= sz;
 	if (phys_addr < 1024)
 		return phys_addr + (31 << 10);
+	if (phys_addr < 1024 + fn)
+		return 31744 - fn + phys_addr - 1024;
 	if (phys_addr < EEPROMSIZE)
-		return phys_addr - 1024;
+		return phys_addr - 1024 - fn;
 	return -EINVAL;
 }
 
 /*
  * The next two routines implement eeprom read/write from physical addresses.
- * The physical->virtual translation is correct only for PF0.
  */
 static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 {
-	int vaddr = eeprom_ptov(phys_addr);
+	int vaddr = eeprom_ptov(phys_addr, adap->fn, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_read_vpd(adap->pdev, vaddr, sizeof(u32), v);
@@ -1700,7 +1734,7 @@ static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 
 static int eeprom_wr_phys(struct adapter *adap, unsigned int phys_addr, u32 v)
 {
-	int vaddr = eeprom_ptov(phys_addr);
+	int vaddr = eeprom_ptov(phys_addr, adap->fn, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_write_vpd(adap->pdev, vaddr, sizeof(u32), &v);
@@ -1742,6 +1776,14 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 	aligned_offset = eeprom->offset & ~3;
 	aligned_len = (eeprom->len + (eeprom->offset & 3) + 3) & ~3;
+
+	if (adapter->fn > 0) {
+		u32 start = 1024 + adapter->fn * EEPROMPFSIZE;
+
+		if (aligned_offset < start ||
+		    aligned_offset + aligned_len > start + EEPROMPFSIZE)
+			return -EPERM;
+	}
 
 	if (aligned_offset != eeprom->offset || aligned_len != eeprom->len) {
 		/*
@@ -2165,8 +2207,8 @@ static void mk_tid_release(struct sk_buff *skb, unsigned int chan,
  * Queue a TID release request and if necessary schedule a work queue to
  * process it.
  */
-void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
-			     unsigned int tid)
+static void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
+				    unsigned int tid)
 {
 	void **p = &t->tid_tab[tid];
 	struct adapter *adap = container_of(t, struct adapter, tids);
@@ -2181,7 +2223,6 @@ void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
 	}
 	spin_unlock_bh(&adap->tid_release_lock);
 }
-EXPORT_SYMBOL(cxgb4_queue_tid_release);
 
 /*
  * Process the list of pending TID release requests.
@@ -2305,55 +2346,13 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 	req->peer_port = htons(0);
 	req->local_ip = sip;
 	req->peer_ip = htonl(0);
-	chan = netdev2pinfo(adap->sge.ingr_map[queue]->netdev)->tx_chan;
+	chan = rxq_to_chan(&adap->sge, queue);
 	req->opt0 = cpu_to_be64(TX_CHAN(chan));
 	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
 				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
 	return t4_mgmt_tx(adap, skb);
 }
 EXPORT_SYMBOL(cxgb4_create_server);
-
-/**
- *	cxgb4_create_server6 - create an IPv6 server
- *	@dev: the device
- *	@stid: the server TID
- *	@sip: local IPv6 address to bind server to
- *	@sport: the server's TCP port
- *	@queue: queue to direct messages from this server to
- *
- *	Create an IPv6 server for the given port and address.
- *	Returns <0 on error and one of the %NET_XMIT_* values on success.
- */
-int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
-			 const struct in6_addr *sip, __be16 sport,
-			 unsigned int queue)
-{
-	unsigned int chan;
-	struct sk_buff *skb;
-	struct adapter *adap;
-	struct cpl_pass_open_req6 *req;
-
-	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
-	adap = netdev2adap(dev);
-	req = (struct cpl_pass_open_req6 *)__skb_put(skb, sizeof(*req));
-	INIT_TP_WR(req, 0);
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ6, stid));
-	req->local_port = sport;
-	req->peer_port = htons(0);
-	req->local_ip_hi = *(__be64 *)(sip->s6_addr);
-	req->local_ip_lo = *(__be64 *)(sip->s6_addr + 8);
-	req->peer_ip_hi = cpu_to_be64(0);
-	req->peer_ip_lo = cpu_to_be64(0);
-	chan = netdev2pinfo(adap->sge.ingr_map[queue]->netdev)->tx_chan;
-	req->opt0 = cpu_to_be64(TX_CHAN(chan));
-	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
-				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
-	return t4_mgmt_tx(adap, skb);
-}
-EXPORT_SYMBOL(cxgb4_create_server6);
 
 /**
  *	cxgb4_best_mtu - find the entry in the MTU table closest to an MTU
@@ -2413,25 +2412,6 @@ unsigned int cxgb4_port_idx(const struct net_device *dev)
 	return netdev2pinfo(dev)->port_id;
 }
 EXPORT_SYMBOL(cxgb4_port_idx);
-
-/**
- *	cxgb4_netdev_by_hwid - return the net device of a HW port
- *	@pdev: identifies the adapter
- *	@id: the HW port id
- *
- *	Return the net device associated with the interface with the given HW
- *	id.
- */
-struct net_device *cxgb4_netdev_by_hwid(struct pci_dev *pdev, unsigned int id)
-{
-	const struct adapter *adap = pci_get_drvdata(pdev);
-
-	if (!adap || id >= NCHAN)
-		return NULL;
-	id = adap->chan_map[id];
-	return id < MAX_NPORTS ? adap->port[id] : NULL;
-}
-EXPORT_SYMBOL(cxgb4_netdev_by_hwid);
 
 void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6)
@@ -2722,7 +2702,10 @@ static int cxgb_open(struct net_device *dev)
 			return err;
 	}
 
-	dev->real_num_tx_queues = pi->nqsets;
+	netif_set_real_num_tx_queues(dev, pi->nqsets);
+	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
+	if (err)
+		return err;
 	err = link_start(dev);
 	if (!err)
 		netif_tx_start_all_queues(dev);
@@ -3062,12 +3045,16 @@ static int adap_init0(struct adapter *adap)
 	params[2] = FW_PARAM_PFVF(L2T_END);
 	params[3] = FW_PARAM_PFVF(FILTER_START);
 	params[4] = FW_PARAM_PFVF(FILTER_END);
-	ret = t4_query_params(adap, adap->fn, adap->fn, 0, 5, params, val);
+	params[5] = FW_PARAM_PFVF(IQFLINT_START);
+	params[6] = FW_PARAM_PFVF(EQ_START);
+	ret = t4_query_params(adap, adap->fn, adap->fn, 0, 7, params, val);
 	if (ret < 0)
 		goto bye;
 	port_vec = val[0];
 	adap->tids.ftid_base = val[3];
 	adap->tids.nftids = val[4] - val[3] + 1;
+	adap->sge.ingr_start = val[5];
+	adap->sge.egr_start = val[6];
 
 	if (c.ofldcaps) {
 		/* query offload-related parameters */
@@ -3815,7 +3802,7 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		pci_disable_device(pdev);
 		pci_release_regions(pdev);
 		pci_set_drvdata(pdev, NULL);
-	} else if (PCI_FUNC(pdev->devfn) > 0)
+	} else
 		pci_release_regions(pdev);
 }
 

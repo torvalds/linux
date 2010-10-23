@@ -19,6 +19,7 @@
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 #include <linux/slab.h>
 
 /*
@@ -131,7 +132,8 @@ EXPORT_SYMBOL(ethtool_op_set_ufo);
  * NETIF_F_xxx values in include/linux/netdevice.h
  */
 static const u32 flags_dup_features =
-	(ETH_FLAG_LRO | ETH_FLAG_NTUPLE | ETH_FLAG_RXHASH);
+	(ETH_FLAG_LRO | ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN | ETH_FLAG_NTUPLE |
+	 ETH_FLAG_RXHASH);
 
 u32 ethtool_op_get_flags(struct net_device *dev)
 {
@@ -205,18 +207,24 @@ static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 	struct ethtool_drvinfo info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 
-	if (!ops->get_drvinfo)
-		return -EOPNOTSUPP;
-
 	memset(&info, 0, sizeof(info));
 	info.cmd = ETHTOOL_GDRVINFO;
-	ops->get_drvinfo(dev, &info);
+	if (ops && ops->get_drvinfo) {
+		ops->get_drvinfo(dev, &info);
+	} else if (dev->dev.parent && dev->dev.parent->driver) {
+		strlcpy(info.bus_info, dev_name(dev->dev.parent),
+			sizeof(info.bus_info));
+		strlcpy(info.driver, dev->dev.parent->driver->name,
+			sizeof(info.driver));
+	} else {
+		return -EOPNOTSUPP;
+	}
 
 	/*
 	 * this method of obtaining string set info is deprecated;
 	 * Use ETHTOOL_GSSET_INFO instead.
 	 */
-	if (ops->get_sset_count) {
+	if (ops && ops->get_sset_count) {
 		int rc;
 
 		rc = ops->get_sset_count(dev, ETH_SS_TEST);
@@ -229,9 +237,9 @@ static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 		if (rc >= 0)
 			info.n_priv_flags = rc;
 	}
-	if (ops->get_regs_len)
+	if (ops && ops->get_regs_len)
 		info.regdump_len = ops->get_regs_len(dev);
-	if (ops->get_eeprom_len)
+	if (ops && ops->get_eeprom_len)
 		info.eedump_len = ops->get_eeprom_len(dev);
 
 	if (copy_to_user(useraddr, &info, sizeof(info)))
@@ -479,6 +487,38 @@ static void __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
 	list->count++;
 }
 
+/*
+ * ethtool does not (or did not) set masks for flow parameters that are
+ * not specified, so if both value and mask are 0 then this must be
+ * treated as equivalent to a mask with all bits set.  Implement that
+ * here rather than in drivers.
+ */
+static void rx_ntuple_fix_masks(struct ethtool_rx_ntuple_flow_spec *fs)
+{
+	struct ethtool_tcpip4_spec *entry = &fs->h_u.tcp_ip4_spec;
+	struct ethtool_tcpip4_spec *mask = &fs->m_u.tcp_ip4_spec;
+
+	if (fs->flow_type != TCP_V4_FLOW &&
+	    fs->flow_type != UDP_V4_FLOW &&
+	    fs->flow_type != SCTP_V4_FLOW)
+		return;
+
+	if (!(entry->ip4src | mask->ip4src))
+		mask->ip4src = htonl(0xffffffff);
+	if (!(entry->ip4dst | mask->ip4dst))
+		mask->ip4dst = htonl(0xffffffff);
+	if (!(entry->psrc | mask->psrc))
+		mask->psrc = htons(0xffff);
+	if (!(entry->pdst | mask->pdst))
+		mask->pdst = htons(0xffff);
+	if (!(entry->tos | mask->tos))
+		mask->tos = 0xff;
+	if (!(fs->vlan_tag | fs->vlan_tag_mask))
+		fs->vlan_tag_mask = 0xffff;
+	if (!(fs->data | fs->data_mask))
+		fs->data_mask = 0xffffffffffffffffULL;
+}
+
 static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev,
 						    void __user *useraddr)
 {
@@ -492,6 +532,8 @@ static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev,
 
 	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
 		return -EFAULT;
+
+	rx_ntuple_fix_masks(&cmd.fs);
 
 	/*
 	 * Cache filter in dev struct for GET operation only if
@@ -667,19 +709,19 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 			break;
 		case IP_USER_FLOW:
 			sprintf(p, "\tSrc IP addr: 0x%x\n",
-				fsc->fs.h_u.raw_ip4_spec.ip4src);
+				fsc->fs.h_u.usr_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc IP mask: 0x%x\n",
-				fsc->fs.m_u.raw_ip4_spec.ip4src);
+				fsc->fs.m_u.usr_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP addr: 0x%x\n",
-				fsc->fs.h_u.raw_ip4_spec.ip4dst);
+				fsc->fs.h_u.usr_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP mask: 0x%x\n",
-				fsc->fs.m_u.raw_ip4_spec.ip4dst);
+				fsc->fs.m_u.usr_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;
@@ -775,7 +817,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (regs.len > reglen)
 		regs.len = reglen;
 
-	regbuf = kzalloc(reglen, GFP_USER);
+	regbuf = vmalloc(reglen);
 	if (!regbuf)
 		return -ENOMEM;
 
@@ -790,7 +832,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	ret = 0;
 
  out:
-	kfree(regbuf);
+	vfree(regbuf);
 	return ret;
 }
 
@@ -1175,8 +1217,11 @@ static int ethtool_set_gro(struct net_device *dev, char __user *useraddr)
 		return -EFAULT;
 
 	if (edata.data) {
-		if (!dev->ethtool_ops->get_rx_csum ||
-		    !dev->ethtool_ops->get_rx_csum(dev))
+		u32 rxcsum = dev->ethtool_ops->get_rx_csum ?
+				dev->ethtool_ops->get_rx_csum(dev) :
+				ethtool_op_get_rx_csum(dev);
+
+		if (!rxcsum)
 			return -EINVAL;
 		dev->features |= NETIF_F_GRO;
 	} else
@@ -1402,14 +1447,22 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	if (!dev || !netif_device_present(dev))
 		return -ENODEV;
 
-	if (!dev->ethtool_ops)
-		return -EOPNOTSUPP;
-
 	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
 		return -EFAULT;
 
+	if (!dev->ethtool_ops) {
+		/* ETHTOOL_GDRVINFO does not require any driver support.
+		 * It is also unprivileged and does not change anything,
+		 * so we can take a shortcut to it. */
+		if (ethcmd == ETHTOOL_GDRVINFO)
+			return ethtool_get_drvinfo(dev, useraddr);
+		else
+			return -EOPNOTSUPP;
+	}
+
 	/* Allow some commands to be done by anyone */
 	switch (ethcmd) {
+	case ETHTOOL_GSET:
 	case ETHTOOL_GDRVINFO:
 	case ETHTOOL_GMSGLVL:
 	case ETHTOOL_GCOALESCE:

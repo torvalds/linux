@@ -2033,7 +2033,7 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 			skb->csum = htons(csum);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		} else {
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 		}
 
 		/* send it up */

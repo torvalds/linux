@@ -3,6 +3,9 @@ config IWLWIFI
 	depends on PCI && MAC80211
 	select FW_LOADER
 
+menu "Debugging Options"
+	depends on IWLWIFI
+
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
 	depends on IWLWIFI
@@ -36,6 +39,12 @@ config IWLWIFI_DEBUGFS
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.
 
+config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+        bool "Experimental uCode support"
+        depends on IWLWIFI && IWLWIFI_DEBUG
+        ---help---
+	  Enable use of experimental ucode for testing and debugging.
+
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
 	depends on IWLWIFI
@@ -53,6 +62,7 @@ config IWLWIFI_DEVICE_TRACING
 
 	  If unsure, say Y so we can help you better when problems
 	  occur.
+endmenu
 
 config IWLAGN
 	tristate "Intel Wireless WiFi Next Gen AGN (iwlagn)"

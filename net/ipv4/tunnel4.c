@@ -14,8 +14,8 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm_tunnel *tunnel4_handlers;
-static struct xfrm_tunnel *tunnel64_handlers;
+static struct xfrm_tunnel *tunnel4_handlers __read_mostly;
+static struct xfrm_tunnel *tunnel64_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel4_mutex);
 
 static inline struct xfrm_tunnel **fam_handlers(unsigned short family)
@@ -39,7 +39,7 @@ int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family)
 	}
 
 	handler->next = *pprev;
-	*pprev = handler;
+	rcu_assign_pointer(*pprev, handler);
 
 	ret = 0;
 
@@ -73,6 +73,11 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 }
 EXPORT_SYMBOL(xfrm4_tunnel_deregister);
 
+#define for_each_tunnel_rcu(head, handler)		\
+	for (handler = rcu_dereference(head);		\
+	     handler != NULL;				\
+	     handler = rcu_dereference(handler->next))	\
+	
 static int tunnel4_rcv(struct sk_buff *skb)
 {
 	struct xfrm_tunnel *handler;
@@ -80,7 +85,7 @@ static int tunnel4_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto drop;
 
-	for (handler = tunnel4_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel4_handlers, handler)
 		if (!handler->handler(skb))
 			return 0;
 
@@ -99,7 +104,7 @@ static int tunnel64_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	for (handler = tunnel64_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel64_handlers, handler)
 		if (!handler->handler(skb))
 			return 0;
 
@@ -115,7 +120,7 @@ static void tunnel4_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
-	for (handler = tunnel4_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel4_handlers, handler)
 		if (!handler->err_handler(skb, info))
 			break;
 }
@@ -125,7 +130,7 @@ static void tunnel64_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
-	for (handler = tunnel64_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel64_handlers, handler)
 		if (!handler->err_handler(skb, info))
 			break;
 }

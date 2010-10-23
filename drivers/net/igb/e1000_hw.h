@@ -54,6 +54,8 @@ struct e1000_hw;
 #define E1000_DEV_ID_82580_SERDES             0x1510
 #define E1000_DEV_ID_82580_SGMII              0x1511
 #define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
+#define E1000_DEV_ID_DH89XXCC_SGMII           0x0436
+#define E1000_DEV_ID_DH89XXCC_SERDES          0x0438
 #define E1000_DEV_ID_I350_COPPER              0x1521
 #define E1000_DEV_ID_I350_FIBER               0x1522
 #define E1000_DEV_ID_I350_SERDES              0x1523

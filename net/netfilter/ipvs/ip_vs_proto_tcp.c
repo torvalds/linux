@@ -43,9 +43,12 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 	}
 
+	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
 	if (th->syn &&
 	    (svc = ip_vs_service_get(af, skb->mark, iph.protocol, &iph.daddr,
 				     th->dest))) {
+		int ignored;
+
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.
@@ -60,8 +63,8 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb);
-		if (!*cpp) {
+		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
+		if (!*cpp && !ignored) {
 			*verdict = ip_vs_leave(svc, skb, pp);
 			return 0;
 		}
@@ -101,15 +104,15 @@ tcp_partial_csum_update(int af, struct tcphdr *tcph,
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
 		tcph->check =
-			csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
+			~csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
 					 ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(tcph->check))));
+						csum_unfold(tcph->check))));
 	else
 #endif
 	tcph->check =
-		csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
+		~csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
 				ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(tcph->check))));
+						csum_unfold(tcph->check))));
 }
 
 
@@ -120,6 +123,7 @@ tcp_snat_handler(struct sk_buff *skb,
 	struct tcphdr *tcph;
 	unsigned int tcphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -134,13 +138,20 @@ tcp_snat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!(ret = ip_vs_app_pkt_out(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - tcphoff;
+		else
+			payload_csum = 1;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -151,12 +162,13 @@ tcp_snat_handler(struct sk_buff *skb,
 		tcp_partial_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 					htons(oldlen),
 					htons(skb->len - tcphoff));
-	} else if (!cp->app) {
+	} else if (!payload_csum) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		tcph->check = 0;
@@ -174,6 +186,7 @@ tcp_snat_handler(struct sk_buff *skb,
 							skb->len - tcphoff,
 							cp->protocol,
 							skb->csum);
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, tcph->check,
@@ -190,6 +203,7 @@ tcp_dnat_handler(struct sk_buff *skb,
 	struct tcphdr *tcph;
 	unsigned int tcphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -204,6 +218,8 @@ tcp_dnat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
@@ -212,8 +228,13 @@ tcp_dnat_handler(struct sk_buff *skb,
 		 *	Attempt ip_vs_app call.
 		 *	It will fix ip_vs_conn and iph ack_seq stuff
 		 */
-		if (!ip_vs_app_pkt_in(cp, skb))
+		if (!(ret = ip_vs_app_pkt_in(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - tcphoff;
+		else
+			payload_csum = 1;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -223,15 +244,16 @@ tcp_dnat_handler(struct sk_buff *skb,
 	 *	Adjust TCP checksums
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		tcp_partial_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
+		tcp_partial_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 					htons(oldlen),
 					htons(skb->len - tcphoff));
-	} else if (!cp->app) {
+	} else if (!payload_csum) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		tcph->check = 0;
@@ -278,7 +300,7 @@ tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 					    skb->len - tcphoff,
 					    ipv6_hdr(skb)->nexthdr,
 					    skb->csum)) {
-				IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+				IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 						 "Failed checksum for");
 				return 0;
 			}
@@ -289,7 +311,7 @@ tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 					      skb->len - tcphoff,
 					      ip_hdr(skb)->protocol,
 					      skb->csum)) {
-				IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+				IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 						 "Failed checksum for");
 				return 0;
 			}

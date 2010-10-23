@@ -142,7 +142,7 @@ static unsigned long rfkill_last_scheduled;
 static unsigned long rfkill_ratelimit(const unsigned long last)
 {
 	const unsigned long delay = msecs_to_jiffies(RFKILL_OPS_DELAY);
-	return (time_after(jiffies, last + delay)) ? 0 : delay;
+	return time_after(jiffies, last + delay) ? 0 : delay;
 }
 
 static void rfkill_schedule_ratelimited(void)

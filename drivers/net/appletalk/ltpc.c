@@ -727,7 +727,7 @@ static int sendup_buffer (struct net_device *dev)
 
 	if (ltc->command != LT_RCVLAP) {
 		printk("unknown command 0x%02x from ltpc card\n",ltc->command);
-		return(-1);
+		return -1;
 	}
 	dnode = ltc->dnode;
 	snode = ltc->snode;

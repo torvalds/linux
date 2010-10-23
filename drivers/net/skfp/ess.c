@@ -135,7 +135,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 	 */
 	if (!(p = (void *) sm_to_para(smc,sm,SMT_P0015))) {
 		DB_ESS("ESS: RAF frame error, parameter type not found\n",0,0) ;
-		return(fs) ;
+		return fs;
 	}
 	msg_res_type = ((struct smt_p_0015 *)p)->res_type ;
 
@@ -147,7 +147,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * error in frame: para ESS command was not found
 		 */
 		 DB_ESS("ESS: RAF frame error, parameter command not found\n",0,0);
-		 return(fs) ;
+		 return fs;
 	}
 
 	DB_ESSN(2,"fc %x	ft %x\n",sm->smt_class,sm->smt_type) ;
@@ -175,12 +175,12 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			 * local and no static allocation is used
 			 */
 			if (!local || smc->mib.fddiESSPayload)
-				return(fs) ;
+				return fs;
 			
 			p = (void *) sm_to_para(smc,sm,SMT_P0019)  ;
 			for (i = 0; i < 5; i++) {
 				if (((struct smt_p_0019 *)p)->alloc_addr.a[i]) {
-					return(fs) ;
+					return fs;
 				}
 			}
 
@@ -199,10 +199,10 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			sm->smt_dest = smt_sba_da ;
 
 			if (smc->ess.local_sba_active)
-				return(fs | I_INDICATOR) ;
+				return fs | I_INDICATOR;
 
 			if (!(db = smt_get_mbuf(smc)))
-				return(fs) ;
+				return fs;
 
 			db->sm_len = mb->sm_len ;
 			db->sm_off = mb->sm_off ;
@@ -212,7 +212,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 				(struct smt_header *)(db->sm_data+db->sm_off),
 				"RAF") ;
 			smt_send_frame(smc,db,FC_SMT_INFO,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -221,7 +221,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		if (smt_check_para(smc,sm,plist_raf_alc_res)) {
 			DB_ESS("ESS: RAF with para problem, ignoring\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -242,7 +242,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			(sm->smt_tid != smc->ess.alloc_trans_id)) {
 
 			DB_ESS("ESS: Allocation Responce not accepted\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -268,7 +268,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		(void)process_bw_alloc(smc,(long)payload,(long)overhead) ;
 
-		return(fs) ;
+		return fs;
 		/* end of Process Allocation Request */
 
 	/*
@@ -280,7 +280,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		if (sm->smt_type != SMT_REQUEST) {
 			DB_ESS("ESS: Do not process Change Responses\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -288,7 +288,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		if (smt_check_para(smc,sm,plist_raf_chg_req)) {
 			DB_ESS("ESS: RAF with para problem, ignoring\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -300,7 +300,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		if ((((struct smt_p_320b *)sm_to_para(smc,sm,SMT_P320B))->path_index
 			!= PRIMARY_RING) || (msg_res_type != SYNC_BW)) {
 			DB_ESS("ESS: RAF frame with para problem, ignoring\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -319,14 +319,14 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * process the bandwidth allocation
 		 */
 		if(!process_bw_alloc(smc,(long)payload,(long)overhead))
-			return(fs) ;
+			return fs;
 
 		/*
 		 * send an RAF Change Reply
 		 */
 		ess_send_response(smc,sm,CHANGE_ALLOCATION) ;
 
-		return(fs) ;
+		return fs;
 		/* end of Process Change Request */
 
 	/*
@@ -338,7 +338,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		if (sm->smt_type != SMT_REQUEST) {
 			DB_ESS("ESS: Do not process a Report Reply\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		DB_ESSN(2,"ESS: Report Request from %s\n",
@@ -349,7 +349,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		if (msg_res_type != SYNC_BW) {
 			DB_ESS("ESS: ignoring RAF with para problem\n",0,0) ;
-			return(fs) ;
+			return fs;
 		}
 
 		/*
@@ -357,7 +357,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		ess_send_response(smc,sm,REPORT_ALLOCATION) ;
 
-		return(fs) ;
+		return fs;
 		/* end of Process Report Request */
 
 	default:
@@ -368,7 +368,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		break ;
 	}
 
-	return(fs) ;
+	return fs;
 }
 
 /*
@@ -418,17 +418,17 @@ static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhe
 	 */
 /*	if (smt_set_obj(smc,SMT_P320F,payload,S_SET)) {
 		DB_ESS("ESS: SMT does not accept the payload value\n",0,0) ;
-		return(FALSE) ;
+		return FALSE;
 	}
 	if (smt_set_obj(smc,SMT_P3210,overhead,S_SET)) {
 		DB_ESS("ESS: SMT does not accept the overhead value\n",0,0) ;
-		return(FALSE) ;
+		return FALSE;
 	} */
 
 	/* premliminary */
 	if (payload > MAX_PAYLOAD || overhead > 5000) {
 		DB_ESS("ESS: payload / overhead not accepted\n",0,0) ;
-		return(FALSE) ;
+		return FALSE;
 	}
 
 	/*
@@ -468,7 +468,7 @@ static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhe
 
 	ess_config_fifo(smc) ;
 	set_formac_tsync(smc,smc->ess.sync_bw) ;
-	return(TRUE) ;
+	return TRUE;
 }
 
 static void ess_send_response(struct s_smc *smc, struct smt_header *sm,

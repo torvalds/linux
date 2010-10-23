@@ -114,7 +114,7 @@ static int rose_send_frame(struct sk_buff *skb, struct rose_neigh *neigh)
 	if (ax25s)
 		ax25_cb_put(ax25s);
 
-	return (neigh->ax25 != NULL);
+	return neigh->ax25 != NULL;
 }
 
 /*
@@ -137,7 +137,7 @@ static int rose_link_up(struct rose_neigh *neigh)
 	if (ax25s)
 		ax25_cb_put(ax25s);
 
-	return (neigh->ax25 != NULL);
+	return neigh->ax25 != NULL;
 }
 
 /*

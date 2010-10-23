@@ -465,7 +465,7 @@ rio_open (struct net_device *dev)
 	init_timer (&np->timer);
 	np->timer.expires = jiffies + 1*HZ;
 	np->timer.data = (unsigned long) dev;
-	np->timer.function = &rio_timer;
+	np->timer.function = rio_timer;
 	add_timer (&np->timer);
 
 	/* Start Tx/Rx */

@@ -29,7 +29,6 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
-#include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
@@ -1403,15 +1402,6 @@ static struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
-{
-	strlcpy(info->driver, "wl3501_cs", sizeof(info->driver));
-}
-
-static const struct ethtool_ops ops = {
-	.get_drvinfo = wl3501_get_drvinfo
-};
-
 /**
  * wl3501_detach - deletes a driver "instance"
  * @link - FILL_IN
@@ -1887,7 +1877,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	this->p_dev = p_dev;
 	dev->wireless_data	= &this->wireless_data;
 	dev->wireless_handlers	= &wl3501_handler_def;
-	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);
 	p_dev->priv = dev;
 

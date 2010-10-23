@@ -279,16 +279,12 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 				      struct zfcp_qdio *qdio)
 {
-
+	memset(id, 0, sizeof(*id));
 	id->cdev = qdio->adapter->ccw_device;
 	id->q_format = QDIO_ZFCP_QFMT;
 	memcpy(id->adapter_name, dev_name(&id->cdev->dev), 8);
 	ASCEBC(id->adapter_name, 8);
 	id->qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
-	id->qib_param_field_format = 0;
-	id->qib_param_field = NULL;
-	id->input_slib_elements = NULL;
-	id->output_slib_elements = NULL;
 	id->no_input_qs = 1;
 	id->no_output_qs = 1;
 	id->input_handler = zfcp_qdio_int_resp;

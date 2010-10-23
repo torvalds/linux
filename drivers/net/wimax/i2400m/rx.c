@@ -922,7 +922,7 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
  * rx_roq_refcount becomes zero. This routine gets executed when
  * rx_roq_refcount becomes zero.
  */
-void i2400m_rx_roq_destroy(struct kref *ref)
+static void i2400m_rx_roq_destroy(struct kref *ref)
 {
 	unsigned itr;
 	struct i2400m *i2400m

@@ -79,6 +79,7 @@ enum ieee80211_sta_info_flags {
  * @dialog_token: dialog token for aggregation session
  * @state: session state (see above)
  * @stop_initiator: initiator of a session stop
+ * @tx_stop: TX DelBA frame when stopping
  *
  * This structure is protected by RCU and the per-station
  * spinlock. Assignments to the array holding it must hold
@@ -95,6 +96,7 @@ struct tid_ampdu_tx {
 	unsigned long state;
 	u8 dialog_token;
 	u8 stop_initiator;
+	bool tx_stop;
 };
 
 /**
@@ -103,6 +105,7 @@ struct tid_ampdu_tx {
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @reorder_timer: releases expired frames from the reorder buffer.
  * @head_seq_num: head sequence number in reordering buffer.
  * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
@@ -110,20 +113,25 @@ struct tid_ampdu_tx {
  * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
  * @rcu_head: RCU head used for freeing this struct
+ * @reorder_lock: serializes access to reorder buffer, see below.
  *
  * This structure is protected by RCU and the per-station
  * spinlock. Assignments to the array holding it must hold
- * the spinlock, only the RX path can access it under RCU
- * lock-free. The RX path, since it is single-threaded,
- * can even modify the structure without locking since the
- * only other modifications to it are done when the struct
- * can not yet or no longer be found by the RX path.
+ * the spinlock.
+ *
+ * The @reorder_lock is used to protect the variables and
+ * arrays such as @reorder_buf, @reorder_time, @head_seq_num,
+ * @stored_mpdu_num and @reorder_time from being corrupted by
+ * concurrent access of the RX path and the expired frame
+ * release timer.
  */
 struct tid_ampdu_rx {
 	struct rcu_head rcu_head;
+	spinlock_t reorder_lock;
 	struct sk_buff **reorder_buf;
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
+	struct timer_list reorder_timer;
 	u16 head_seq_num;
 	u16 stored_mpdu_num;
 	u16 ssn;
@@ -191,7 +199,8 @@ enum plink_state {
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
- * @key: peer key negotiated with this station, if any
+ * @ptk: peer key negotiated with this station, if any
+ * @gtk: group keys negotiated with this station, if any
  * @rate_ctrl: rate control algorithm reference
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
@@ -246,7 +255,8 @@ struct sta_info {
 	struct sta_info *hnext;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_key *key;
+	struct ieee80211_key *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
+	struct ieee80211_key *ptk;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
 	spinlock_t lock;

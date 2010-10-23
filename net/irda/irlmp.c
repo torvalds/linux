@@ -939,7 +939,7 @@ struct irda_device_info *irlmp_get_discoveries(int *pn, __u16 mask, int nslots)
 	}
 
 	/* Return current cached discovery log */
-	return(irlmp_copy_discoveries(irlmp->cachelog, pn, mask, TRUE));
+	return irlmp_copy_discoveries(irlmp->cachelog, pn, mask, TRUE);
 }
 EXPORT_SYMBOL(irlmp_get_discoveries);
 

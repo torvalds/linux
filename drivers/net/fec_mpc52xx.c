@@ -771,11 +771,6 @@ static void mpc52xx_fec_reset(struct net_device *dev)
 
 
 /* ethtool interface */
-static void mpc52xx_fec_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, DRIVER_NAME);
-}
 
 static int mpc52xx_fec_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
@@ -810,7 +805,6 @@ static void mpc52xx_fec_set_msglevel(struct net_device *dev, u32 level)
 }
 
 static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
-	.get_drvinfo = mpc52xx_fec_get_drvinfo,
 	.get_settings = mpc52xx_fec_get_settings,
 	.set_settings = mpc52xx_fec_set_settings,
 	.get_link = ethtool_op_get_link,

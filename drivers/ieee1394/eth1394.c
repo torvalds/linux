@@ -58,7 +58,6 @@
 #include <linux/tcp.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
-#include <linux/ethtool.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/unaligned.h>
@@ -172,8 +171,6 @@ static void ether1394_header_cache_update(struct hh_cache *hh,
 static netdev_tx_t ether1394_tx(struct sk_buff *skb,
 				struct net_device *dev);
 static void ether1394_iso(struct hpsb_iso *iso);
-
-static const struct ethtool_ops ethtool_ops;
 
 static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 			   quadlet_t *data, u64 addr, size_t len, u16 flags);
@@ -524,8 +521,6 @@ static void ether1394_init_dev(struct net_device *dev)
 
 	dev->header_ops		= &ether1394_header_ops;
 	dev->netdev_ops		= &ether1394_netdev_ops;
-
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
 	dev->watchdog_timeo	= ETHER1394_TIMEOUT;
 	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
@@ -1694,17 +1689,6 @@ fail:
 
 	return NETDEV_TX_OK;
 }
-
-static void ether1394_get_drvinfo(struct net_device *dev,
-				  struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, driver_name);
-	strcpy(info->bus_info, "ieee1394"); /* FIXME provide more detail? */
-}
-
-static const struct ethtool_ops ethtool_ops = {
-	.get_drvinfo = ether1394_get_drvinfo
-};
 
 static int __init ether1394_init_module(void)
 {

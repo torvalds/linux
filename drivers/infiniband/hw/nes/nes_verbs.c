@@ -785,7 +785,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 
 	nes_debug(NES_DBG_PD, "nesvnic=%p, netdev=%p %s, ibdev=%p, context=%p, netdev refcnt=%u\n",
 			nesvnic, nesdev->netdev[0], nesdev->netdev[0]->name, ibdev, context,
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_pds,
 			nesadapter->max_pd, &pd_num, &nesadapter->next_pd);
@@ -1416,7 +1416,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
 	nes_debug(NES_DBG_QP, "netdev refcnt=%u\n",
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	return &nesqp->ibqp;
 }

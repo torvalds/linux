@@ -1182,12 +1182,13 @@ F01_E */
 
 		skb = dev_alloc_skb(len + 1 - 4);
 		/*
-		 * if frame size,data ptr,or skb ptr are wrong ,the get next
+		 * if frame size, data ptr, or skb ptr are wrong, then get next
 		 * entry.
 		 */
 		if ((skb == NULL) || (skb->data == NULL) ||
 		    (self->rx_buff.data == NULL) || (len < 6)) {
 			self->netdev->stats.rx_dropped++;
+			kfree_skb(skb);
 			return TRUE;
 		}
 		skb_reserve(skb, 1);

@@ -34,11 +34,10 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 {
 	struct fib_lookup_arg arg = {
 		.lookup_ptr = lookup,
+		.flags = FIB_LOOKUP_NOREF,
 	};
 
 	fib_rules_lookup(net->ipv6.fib6_rules_ops, fl, flags, &arg);
-	if (arg.rule)
-		fib_rule_put(arg.rule);
 
 	if (arg.result)
 		return arg.result;

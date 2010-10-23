@@ -105,7 +105,7 @@ static struct pci_driver airo_driver = {
    of statistics in the /proc filesystem */
 
 #define IGNLABEL(comment) NULL
-static char *statsLabels[] = {
+static const char *statsLabels[] = {
 	"RxOverrun",
 	IGNLABEL("RxPlcpCrcErr"),
 	IGNLABEL("RxPlcpFormatErr"),
@@ -217,7 +217,6 @@ static char *statsLabels[] = {
    (no spaces) list of rates (up to 8). */
 
 static int rates[8];
-static int basic_rate;
 static char *ssids[3];
 
 static int io[4];
@@ -250,7 +249,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340/350");
 module_param_array(io, int, NULL, 0);
 module_param_array(irq, int, NULL, 0);
-module_param(basic_rate, int, 0);
 module_param_array(rates, int, NULL, 0);
 module_param_array(ssids, charp, NULL, 0);
 module_param(auto_wep, int, 0);
@@ -932,7 +930,7 @@ typedef struct aironet_ioctl {
 	unsigned char __user *data;	// d-data
 } aironet_ioctl;
 
-static char swversion[] = "2.1";
+static const char swversion[] = "2.1";
 #endif /* CISCO_EXT */
 
 #define NUM_MODULES       2
@@ -1374,7 +1372,7 @@ static int micsetup(struct airo_info *ai) {
 	return SUCCESS;
 }
 
-static char micsnap[] = {0xAA,0xAA,0x03,0x00,0x40,0x96,0x00,0x02};
+static const u8 micsnap[] = {0xAA,0xAA,0x03,0x00,0x40,0x96,0x00,0x02};
 
 /*===========================================================================
  * Description: Mic a packet
@@ -2723,9 +2721,8 @@ static int airo_networks_allocate(struct airo_info *ai)
 	if (ai->networks)
 		return 0;
 
-	ai->networks =
-	    kzalloc(AIRO_MAX_NETWORK_COUNT * sizeof(BSSListElement),
-		    GFP_KERNEL);
+	ai->networks = kcalloc(AIRO_MAX_NETWORK_COUNT, sizeof(BSSListElement),
+			       GFP_KERNEL);
 	if (!ai->networks) {
 		airo_print_warn("", "Out of memory allocating beacons");
 		return -ENOMEM;
@@ -3884,15 +3881,6 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 				ai->config.rates[i] = rates[i];
 			}
 		}
-		if ( basic_rate > 0 ) {
-			for( i = 0; i < 8; i++ ) {
-				if ( ai->config.rates[i] == basic_rate ||
-				     !ai->config.rates ) {
-					ai->config.rates[i] = basic_rate | 0x80;
-					break;
-				}
-			}
-		}
 		set_bit (FLAG_COMMIT, &ai->flags);
 	}
 
@@ -5032,7 +5020,7 @@ static void proc_config_on_close(struct inode *inode, struct file *file)
 	airo_config_commit(dev, NULL, NULL, NULL);
 }
 
-static char *get_rmode(__le16 mode)
+static const char *get_rmode(__le16 mode)
 {
         switch(mode & RXMODE_MASK) {
         case RXMODE_RFMON:  return "rfmon";

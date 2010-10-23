@@ -30,8 +30,8 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm6_tunnel *tunnel6_handlers;
-static struct xfrm6_tunnel *tunnel46_handlers;
+static struct xfrm6_tunnel *tunnel6_handlers __read_mostly;
+static struct xfrm6_tunnel *tunnel46_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel6_mutex);
 
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family)
@@ -51,7 +51,7 @@ int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family)
 	}
 
 	handler->next = *pprev;
-	*pprev = handler;
+	rcu_assign_pointer(*pprev, handler);
 
 	ret = 0;
 
@@ -88,6 +88,11 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 
 EXPORT_SYMBOL(xfrm6_tunnel_deregister);
 
+#define for_each_tunnel_rcu(head, handler)		\
+	for (handler = rcu_dereference(head);		\
+	     handler != NULL;				\
+	     handler = rcu_dereference(handler->next))	\
+
 static int tunnel6_rcv(struct sk_buff *skb)
 {
 	struct xfrm6_tunnel *handler;
@@ -95,7 +100,7 @@ static int tunnel6_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	for (handler = tunnel6_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel6_handlers, handler)
 		if (!handler->handler(skb))
 			return 0;
 
@@ -113,7 +118,7 @@ static int tunnel46_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto drop;
 
-	for (handler = tunnel46_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel46_handlers, handler)
 		if (!handler->handler(skb))
 			return 0;
 
@@ -129,7 +134,7 @@ static void tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 {
 	struct xfrm6_tunnel *handler;
 
-	for (handler = tunnel6_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel6_handlers, handler)
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			break;
 }

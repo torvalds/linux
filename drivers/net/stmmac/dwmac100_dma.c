@@ -31,14 +31,22 @@
 #include "dwmac100.h"
 #include "dwmac_dma.h"
 
-static int dwmac100_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
+static int dwmac100_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
 			     u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	int limit;
+
 	/* DMA SW reset */
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
-	do {} while ((readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET));
+	limit = 15000;
+	while (limit--) {
+		if (!(readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET))
+			break;
+	}
+	if (limit < 0)
+		return -EBUSY;
 
 	/* Enable Application Access by writing to DMA CSR0 */
 	writel(DMA_BUS_MODE_DEFAULT | (pbl << DMA_BUS_MODE_PBL_SHIFT),
@@ -58,7 +66,7 @@ static int dwmac100_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
 /* Store and Forward capability is not used at all..
  * The transmit threshold can be programmed by
  * setting the TTC bits in the DMA control register.*/
-static void dwmac100_dma_operation_mode(unsigned long ioaddr, int txmode,
+static void dwmac100_dma_operation_mode(void __iomem *ioaddr, int txmode,
 					int rxmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
@@ -73,7 +81,7 @@ static void dwmac100_dma_operation_mode(unsigned long ioaddr, int txmode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac100_dump_dma_regs(unsigned long ioaddr)
+static void dwmac100_dump_dma_regs(void __iomem *ioaddr)
 {
 	int i;
 
@@ -91,7 +99,7 @@ static void dwmac100_dump_dma_regs(unsigned long ioaddr)
 /* DMA controller has two counters to track the number of
  * the receive missed frames. */
 static void dwmac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
-				       unsigned long ioaddr)
+				       void __iomem *ioaddr)
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 	u32 csr8 = readl(ioaddr + DMA_MISSED_FRAME_CTR);
@@ -118,7 +126,7 @@ static void dwmac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
 	}
 }
 
-struct stmmac_dma_ops dwmac100_dma_ops = {
+const struct stmmac_dma_ops dwmac100_dma_ops = {
 	.init = dwmac100_dma_init,
 	.dump_regs = dwmac100_dump_dma_regs,
 	.dma_mode = dwmac100_dma_operation_mode,

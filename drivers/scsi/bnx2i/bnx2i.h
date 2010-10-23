@@ -58,6 +58,8 @@
 #define MAX_PAGES_PER_CTRL_STRUCT_POOL	8
 #define BNX2I_RESERVED_SLOW_PATH_CMD_SLOTS	4
 
+#define BNX2I_5771X_DBELL_PAGE_SIZE	128
+
 /* 5706/08 hardware has limit on maximum buffer size per BD it can handle */
 #define MAX_BD_LENGTH			65535
 #define BD_SPLIT_SIZE			32768

@@ -414,7 +414,7 @@ static inline int l2cap_tx_window_full(struct sock *sk)
 	if (sub < 0)
 		sub += 64;
 
-	return (sub == pi->remote_tx_win);
+	return sub == pi->remote_tx_win;
 }
 
 #define __get_txseq(ctrl) ((ctrl) & L2CAP_CTRL_TXSEQ) >> 1

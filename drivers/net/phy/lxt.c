@@ -223,7 +223,7 @@ static void __exit lxt_exit(void)
 module_init(lxt_init);
 module_exit(lxt_exit);
 
-static struct mdio_device_id lxt_tbl[] = {
+static struct mdio_device_id __maybe_unused lxt_tbl[] = {
 	{ 0x78100000, 0xfffffff0 },
 	{ 0x001378e0, 0xfffffff0 },
 	{ 0x00137a10, 0xfffffff0 },

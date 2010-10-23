@@ -198,7 +198,8 @@ static ssize_t sta_agg_status_write(struct file *file, const char __user *userbu
 		else
 			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid);
 	} else {
-		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT, 3);
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+					       3, true);
 		ret = 0;
 	}
 
@@ -302,7 +303,7 @@ STA_OPS(ht_capa);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
-	struct dentry *stations_dir = sta->local->debugfs.stations;
+	struct dentry *stations_dir = sta->sdata->debugfs.subdir_stations;
 	u8 mac[3*ETH_ALEN];
 
 	sta->debugfs.add_has_run = true;

@@ -832,7 +832,7 @@ static u16 __devinit read_eeprom(long ioaddr, int location)
 	outl(0, ee_addr);
 	eeprom_delay();
 
-	return (retval);
+	return retval;
 }
 
 /* Read and write the MII management registers using software-generated
@@ -1042,7 +1042,7 @@ sis900_open(struct net_device *net_dev)
 	init_timer(&sis_priv->timer);
 	sis_priv->timer.expires = jiffies + HZ;
 	sis_priv->timer.data = (unsigned long)net_dev;
-	sis_priv->timer.function = &sis900_timer;
+	sis_priv->timer.function = sis900_timer;
 	add_timer(&sis_priv->timer);
 
 	return 0;
@@ -2247,9 +2247,9 @@ static inline u16 sis900_mcast_bitnr(u8 *addr, u8 revision)
 
 	/* leave 8 or 7 most siginifant bits */
 	if ((revision >= SIS635A_900_REV) || (revision == SIS900B_900_REV))
-		return ((int)(crc >> 24));
+		return (int)(crc >> 24);
 	else
-		return ((int)(crc >> 25));
+		return (int)(crc >> 25);
 }
 
 /**

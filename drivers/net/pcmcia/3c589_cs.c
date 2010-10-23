@@ -19,6 +19,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DRV_NAME	"3c589_cs"
 #define DRV_VERSION	"1.162-ac"
 
@@ -237,7 +239,7 @@ static int tc589_config(struct pcmcia_device *link)
     __be16 *phys_addr;
     int ret, i, j, multi = 0, fifo;
     unsigned int ioaddr;
-    char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+    static const char * const ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
     u8 *buf;
     size_t len;
 
@@ -246,8 +248,7 @@ static int tc589_config(struct pcmcia_device *link)
     phys_addr = (__be16 *)dev->dev_addr;
     /* Is this a 3c562? */
     if (link->manf_id != MANFID_3COM)
-	    printk(KERN_INFO "3c589_cs: hmmm, is this really a "
-		   "3Com card??\n");
+	    dev_info(&link->dev, "hmmm, is this really a 3Com card??\n");
     multi = (link->card_id == PRODID_3COM_3C562);
 
     link->io_lines = 16;
@@ -288,8 +289,8 @@ static int tc589_config(struct pcmcia_device *link)
 	for (i = 0; i < 3; i++)
 	    phys_addr[i] = htons(read_eeprom(ioaddr, i));
 	if (phys_addr[0] == htons(0x6060)) {
-	    printk(KERN_ERR "3c589_cs: IO port conflict at 0x%03lx"
-		   "-0x%03lx\n", dev->base_addr, dev->base_addr+15);
+	    dev_err(&link->dev, "IO port conflict at 0x%03lx-0x%03lx\n",
+		    dev->base_addr, dev->base_addr+15);
 	    goto failed;
 	}
     }
@@ -303,12 +304,12 @@ static int tc589_config(struct pcmcia_device *link)
     if ((if_port >= 0) && (if_port <= 3))
 	dev->if_port = if_port;
     else
-	printk(KERN_ERR "3c589_cs: invalid if_port requested\n");
+	dev_err(&link->dev, "invalid if_port requested\n");
 
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	printk(KERN_ERR "3c589_cs: register_netdev() failed\n");
+	    dev_err(&link->dev, "register_netdev() failed\n");
 	goto failed;
     }
 
@@ -502,7 +503,7 @@ static int el3_open(struct net_device *dev)
 
     tc589_reset(dev);
     init_timer(&lp->media);
-    lp->media.function = &media_check;
+    lp->media.function = media_check;
     lp->media.data = (unsigned long) dev;
     lp->media.expires = jiffies + HZ;
     add_timer(&lp->media);

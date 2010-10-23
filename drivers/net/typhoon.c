@@ -541,7 +541,7 @@ cleanup:
 
 	indexes->respCleared = cpu_to_le32(cleared);
 	wmb();
-	return (resp_save == NULL);
+	return resp_save == NULL;
 }
 
 static inline int
@@ -962,35 +962,33 @@ typhoon_do_get_stats(struct typhoon *tp)
 	 * The extra status reported would be a good candidate for
 	 * ethtool_ops->get_{strings,stats}()
 	 */
-	stats->tx_packets = le32_to_cpu(s->txPackets);
-	stats->tx_bytes = le64_to_cpu(s->txBytes);
-	stats->tx_errors = le32_to_cpu(s->txCarrierLost);
-	stats->tx_carrier_errors = le32_to_cpu(s->txCarrierLost);
-	stats->collisions = le32_to_cpu(s->txMultipleCollisions);
-	stats->rx_packets = le32_to_cpu(s->rxPacketsGood);
-	stats->rx_bytes = le64_to_cpu(s->rxBytesGood);
-	stats->rx_fifo_errors = le32_to_cpu(s->rxFifoOverruns);
+	stats->tx_packets = le32_to_cpu(s->txPackets) +
+			saved->tx_packets;
+	stats->tx_bytes = le64_to_cpu(s->txBytes) +
+			saved->tx_bytes;
+	stats->tx_errors = le32_to_cpu(s->txCarrierLost) +
+			saved->tx_errors;
+	stats->tx_carrier_errors = le32_to_cpu(s->txCarrierLost) +
+			saved->tx_carrier_errors;
+	stats->collisions = le32_to_cpu(s->txMultipleCollisions) +
+			saved->collisions;
+	stats->rx_packets = le32_to_cpu(s->rxPacketsGood) +
+			saved->rx_packets;
+	stats->rx_bytes = le64_to_cpu(s->rxBytesGood) +
+			saved->rx_bytes;
+	stats->rx_fifo_errors = le32_to_cpu(s->rxFifoOverruns) +
+			saved->rx_fifo_errors;
 	stats->rx_errors = le32_to_cpu(s->rxFifoOverruns) +
-			le32_to_cpu(s->BadSSD) + le32_to_cpu(s->rxCrcErrors);
-	stats->rx_crc_errors = le32_to_cpu(s->rxCrcErrors);
-	stats->rx_length_errors = le32_to_cpu(s->rxOversized);
+			le32_to_cpu(s->BadSSD) + le32_to_cpu(s->rxCrcErrors) +
+			saved->rx_errors;
+	stats->rx_crc_errors = le32_to_cpu(s->rxCrcErrors) +
+			saved->rx_crc_errors;
+	stats->rx_length_errors = le32_to_cpu(s->rxOversized) +
+			saved->rx_length_errors;
 	tp->speed = (s->linkStatus & TYPHOON_LINK_100MBPS) ?
 			SPEED_100 : SPEED_10;
 	tp->duplex = (s->linkStatus & TYPHOON_LINK_FULL_DUPLEX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
-
-	/* add in the saved statistics
-	 */
-	stats->tx_packets += saved->tx_packets;
-	stats->tx_bytes += saved->tx_bytes;
-	stats->tx_errors += saved->tx_errors;
-	stats->collisions += saved->collisions;
-	stats->rx_packets += saved->rx_packets;
-	stats->rx_bytes += saved->rx_bytes;
-	stats->rx_fifo_errors += saved->rx_fifo_errors;
-	stats->rx_errors += saved->rx_errors;
-	stats->rx_crc_errors += saved->rx_crc_errors;
-	stats->rx_length_errors += saved->rx_length_errors;
 
 	return 0;
 }
@@ -1762,7 +1760,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * read
 		   (TYPHOON_RX_IP_CHK_GOOD | TYPHOON_RX_UDP_CHK_GOOD)) {
 			new_skb->ip_summed = CHECKSUM_UNNECESSARY;
 		} else
-			new_skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(new_skb);
 
 		spin_lock(&tp->state_lock);
 		if(tp->vlgrp != NULL && rx->rxStatus & TYPHOON_RX_VLAN)

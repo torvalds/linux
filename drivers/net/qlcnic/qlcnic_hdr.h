@@ -556,18 +556,18 @@ enum {
 #define XG_LINK_UP	0x10
 #define XG_LINK_DOWN	0x20
 
-#define XG_LINK_UP_P3	0x01
-#define XG_LINK_DOWN_P3	0x02
-#define XG_LINK_STATE_P3_MASK 0xf
-#define XG_LINK_STATE_P3(pcifn, val) \
-	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3_MASK)
+#define XG_LINK_UP_P3P	0x01
+#define XG_LINK_DOWN_P3P	0x02
+#define XG_LINK_STATE_P3P_MASK 0xf
+#define XG_LINK_STATE_P3P(pcifn, val) \
+	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3P_MASK)
 
-#define P3_LINK_SPEED_MHZ	100
-#define P3_LINK_SPEED_MASK	0xff
-#define P3_LINK_SPEED_REG(pcifn)	\
+#define P3P_LINK_SPEED_MHZ	100
+#define P3P_LINK_SPEED_MASK	0xff
+#define P3P_LINK_SPEED_REG(pcifn)	\
 	(CRB_PF_LINK_SPEED_1 + (((pcifn) / 4) * 4))
-#define P3_LINK_SPEED_VAL(pcifn, reg)	\
-	(((reg) >> (8 * ((pcifn) & 0x3))) & P3_LINK_SPEED_MASK)
+#define P3P_LINK_SPEED_VAL(pcifn, reg)	\
+	(((reg) >> (8 * ((pcifn) & 0x3))) & P3P_LINK_SPEED_MASK)
 
 #define QLCNIC_CAM_RAM_BASE	(QLCNIC_CRB_CAM + 0x02000)
 #define QLCNIC_CAM_RAM(reg)	(QLCNIC_CAM_RAM_BASE + (reg))
@@ -592,7 +592,7 @@ enum {
 #define CRB_CMDPEG_STATE		(QLCNIC_REG(0x50))
 #define CRB_RCVPEG_STATE		(QLCNIC_REG(0x13c))
 
-#define CRB_XG_STATE_P3 		(QLCNIC_REG(0x98))
+#define CRB_XG_STATE_P3P		(QLCNIC_REG(0x98))
 #define CRB_PF_LINK_SPEED_1		(QLCNIC_REG(0xe8))
 #define CRB_PF_LINK_SPEED_2		(QLCNIC_REG(0xec))
 
@@ -698,7 +698,7 @@ enum {
 #define QLCNIC_PEG_ALIVE_COUNTER	(QLCNIC_CAM_RAM(0xb0))
 #define QLCNIC_PEG_HALT_STATUS1 	(QLCNIC_CAM_RAM(0xa8))
 #define QLCNIC_PEG_HALT_STATUS2 	(QLCNIC_CAM_RAM(0xac))
-#define QLCNIC_CRB_DEV_REF_COUNT	(QLCNIC_CAM_RAM(0x138))
+#define QLCNIC_CRB_DRV_ACTIVE	(QLCNIC_CAM_RAM(0x138))
 #define QLCNIC_CRB_DEV_STATE		(QLCNIC_CAM_RAM(0x140))
 
 #define QLCNIC_CRB_DRV_STATE		(QLCNIC_CAM_RAM(0x144))
@@ -718,8 +718,9 @@ enum {
 #define QLCNIC_DEV_FAILED		0x6
 #define QLCNIC_DEV_QUISCENT		0x7
 
-#define QLCNIC_DEV_NPAR_NOT_RDY	0
-#define QLCNIC_DEV_NPAR_RDY		1
+#define QLCNIC_DEV_NPAR_NON_OPER	0 /* NON Operational */
+#define QLCNIC_DEV_NPAR_OPER		1 /* NPAR Operational */
+#define QLCNIC_DEV_NPAR_OPER_TIMEO	30 /* Operational time out */
 
 #define QLC_DEV_CHECK_ACTIVE(VAL, FN)		((VAL) &= (1 << (FN * 4)))
 #define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))
@@ -743,6 +744,15 @@ enum {
 
 #define FW_POLL_DELAY		(1 * HZ)
 #define FW_FAIL_THRESH		2
+
+#define QLCNIC_RESET_TIMEOUT_SECS	10
+#define QLCNIC_INIT_TIMEOUT_SECS	30
+#define QLCNIC_RCVPEG_CHECK_RETRY_COUNT	2000
+#define QLCNIC_RCVPEG_CHECK_DELAY	10
+#define QLCNIC_CMDPEG_CHECK_RETRY_COUNT	60
+#define QLCNIC_CMDPEG_CHECK_DELAY	500
+#define QLCNIC_HEARTBEAT_PERIOD_MSECS	200
+#define QLCNIC_HEARTBEAT_CHECK_RETRY_COUNT	45
 
 #define	ISR_MSI_INT_TRIGGER(FUNC) (QLCNIC_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
 #define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)
@@ -770,12 +780,19 @@ struct qlcnic_legacy_intr_set {
 #define QLCNIC_DRV_OP_MODE	0x1b2170
 #define QLCNIC_MSIX_BASE	0x132110
 #define QLCNIC_MAX_PCI_FUNC	8
+#define QLCNIC_MAX_VLAN_FILTERS	64
 
 /* PCI function operational mode */
 enum {
 	QLCNIC_MGMT_FUNC	= 0,
 	QLCNIC_PRIV_FUNC	= 1,
 	QLCNIC_NON_PRIV_FUNC	= 2
+};
+
+enum {
+	QLCNIC_PORT_DEFAULTS	= 0,
+	QLCNIC_ADD_VLAN	= 1,
+	QLCNIC_DEL_VLAN	= 2
 };
 
 #define QLC_DEV_DRV_DEFAULT 0x11111111

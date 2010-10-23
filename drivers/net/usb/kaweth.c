@@ -759,14 +759,6 @@ static int kaweth_close(struct net_device *net)
 	return 0;
 }
 
-static void kaweth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
-{
-	struct kaweth_device *kaweth = netdev_priv(dev);
-
-	strlcpy(info->driver, driver_name, sizeof(info->driver));
-	usb_make_path(kaweth->dev, info->bus_info, sizeof (info->bus_info));
-}
-
 static u32 kaweth_get_link(struct net_device *dev)
 {
 	struct kaweth_device *kaweth = netdev_priv(dev);
@@ -775,7 +767,6 @@ static u32 kaweth_get_link(struct net_device *dev)
 }
 
 static const struct ethtool_ops ops = {
-	.get_drvinfo	= kaweth_get_drvinfo,
 	.get_link	= kaweth_get_link
 };
 

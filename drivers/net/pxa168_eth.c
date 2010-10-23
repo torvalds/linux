@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2010 Marvell International Ltd.
  *		Sachin Sanap <ssanap@marvell.com>
+ *		Zhangfei Gao <zgao6@marvell.com>
  *		Philip Rakity <prakity@marvell.com>
  *		Mark Brown <markb@marvell.com>
  *
@@ -42,8 +43,6 @@
 #include <linux/types.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <linux/pxa168_eth.h>
 
@@ -850,7 +849,6 @@ static int rxq_process(struct net_device *dev, int budget)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_receive_skb(skb);
 		}
-		dev->last_rx = jiffies;
 	}
 	/* Fill RX ring with skb's */
 	rxq_refill(dev);

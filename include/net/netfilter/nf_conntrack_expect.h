@@ -67,9 +67,6 @@ struct nf_conntrack_expect_policy {
 
 #define NF_CT_EXPECT_CLASS_DEFAULT	0
 
-#define NF_CT_EXPECT_PERMANENT	0x1
-#define NF_CT_EXPECT_INACTIVE	0x2
-
 int nf_conntrack_expect_init(struct net *net);
 void nf_conntrack_expect_fini(struct net *net);
 
@@ -85,9 +82,16 @@ struct nf_conntrack_expect *
 nf_ct_find_expectation(struct net *net, u16 zone,
 		       const struct nf_conntrack_tuple *tuple);
 
-void nf_ct_unlink_expect(struct nf_conntrack_expect *exp);
+void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
+				u32 pid, int report);
+static inline void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
+{
+	nf_ct_unlink_expect_report(exp, 0, 0);
+}
+
 void nf_ct_remove_expectations(struct nf_conn *ct);
 void nf_ct_unexpect_related(struct nf_conntrack_expect *exp);
+void nf_ct_remove_userspace_expectations(void);
 
 /* Allocate space for an expectation: this is mandatory before calling
    nf_ct_expect_related.  You will have to call put afterwards. */

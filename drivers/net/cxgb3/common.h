@@ -673,7 +673,6 @@ void t3_xgm_intr_enable(struct adapter *adapter, int idx);
 void t3_xgm_intr_disable(struct adapter *adapter, int idx);
 void t3_port_intr_enable(struct adapter *adapter, int idx);
 void t3_port_intr_disable(struct adapter *adapter, int idx);
-void t3_port_intr_clear(struct adapter *adapter, int idx);
 int t3_slow_intr_handler(struct adapter *adapter);
 int t3_phy_intr_handler(struct adapter *adapter);
 
@@ -689,14 +688,10 @@ int t3_check_tpsram_version(struct adapter *adapter);
 int t3_check_tpsram(struct adapter *adapter, const u8 *tp_ram,
 		    unsigned int size);
 int t3_set_proto_sram(struct adapter *adap, const u8 *data);
-int t3_read_flash(struct adapter *adapter, unsigned int addr,
-		  unsigned int nwords, u32 *data, int byte_oriented);
 int t3_load_fw(struct adapter *adapter, const u8 * fw_data, unsigned int size);
 int t3_get_fw_version(struct adapter *adapter, u32 *vers);
 int t3_check_fw_version(struct adapter *adapter);
 int t3_init_hw(struct adapter *adapter, u32 fw_params);
-void mac_prep(struct cmac *mac, struct adapter *adapter, int index);
-void early_hw_init(struct adapter *adapter, const struct adapter_info *ai);
 int t3_reset_adapter(struct adapter *adapter);
 int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		    int reset);
@@ -706,8 +701,6 @@ void t3_fatal_err(struct adapter *adapter);
 void t3_set_vlan_accel(struct adapter *adapter, unsigned int ports, int on);
 void t3_config_rss(struct adapter *adapter, unsigned int rss_config,
 		   const u8 * cpus, const u16 *rspq);
-int t3_read_rss(struct adapter *adapter, u8 * lkup, u16 *map);
-int t3_mps_set_active_ports(struct adapter *adap, unsigned int port_mask);
 int t3_cim_ctl_blk_read(struct adapter *adap, unsigned int addr,
 			unsigned int n, unsigned int *valp);
 int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
@@ -731,19 +724,12 @@ void t3_mc5_prep(struct adapter *adapter, struct mc5 *mc5, int mode);
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 		unsigned int nroutes);
 void t3_mc5_intr_handler(struct mc5 *mc5);
-int t3_read_mc5_range(const struct mc5 *mc5, unsigned int start, unsigned int n,
-		      u32 *buf);
 
-int t3_tp_set_coalescing_size(struct adapter *adap, unsigned int size, int psh);
-void t3_tp_set_max_rxsize(struct adapter *adap, unsigned int size);
 void t3_tp_set_offload_mode(struct adapter *adap, int enable);
 void t3_tp_get_mib_stats(struct adapter *adap, struct tp_mib_stats *tps);
 void t3_load_mtus(struct adapter *adap, unsigned short mtus[NMTUS],
 		  unsigned short alpha[NCCTRL_WIN],
 		  unsigned short beta[NCCTRL_WIN], unsigned short mtu_cap);
-void t3_read_hw_mtus(struct adapter *adap, unsigned short mtus[NMTUS]);
-void t3_get_cong_cntl_tab(struct adapter *adap,
-			  unsigned short incr[NMTUS][NCCTRL_WIN]);
 void t3_config_trace_filter(struct adapter *adapter,
 			    const struct trace_params *tp, int filter_index,
 			    int invert, int enable);
@@ -769,10 +755,6 @@ int t3_sge_enable_ecntxt(struct adapter *adapter, unsigned int id, int enable);
 int t3_sge_disable_fl(struct adapter *adapter, unsigned int id);
 int t3_sge_disable_rspcntxt(struct adapter *adapter, unsigned int id);
 int t3_sge_disable_cqcntxt(struct adapter *adapter, unsigned int id);
-int t3_sge_read_ecntxt(struct adapter *adapter, unsigned int id, u32 data[4]);
-int t3_sge_read_fl(struct adapter *adapter, unsigned int id, u32 data[4]);
-int t3_sge_read_cq(struct adapter *adapter, unsigned int id, u32 data[4]);
-int t3_sge_read_rspq(struct adapter *adapter, unsigned int id, u32 data[4]);
 int t3_sge_cqcntxt_op(struct adapter *adapter, unsigned int id, unsigned int op,
 		      unsigned int credits);
 

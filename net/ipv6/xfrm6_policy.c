@@ -199,7 +199,7 @@ static inline int xfrm6_garbage_collect(struct dst_ops *ops)
 	struct net *net = container_of(ops, struct net, xfrm.xfrm6_dst_ops);
 
 	xfrm6_policy_afinfo.garbage_collect(net);
-	return (atomic_read(&ops->entries) > ops->gc_thresh * 2);
+	return dst_entries_get_fast(ops) > ops->gc_thresh * 2;
 }
 
 static void xfrm6_update_pmtu(struct dst_entry *dst, u32 mtu)
@@ -255,7 +255,6 @@ static struct dst_ops xfrm6_dst_ops = {
 	.ifdown =		xfrm6_dst_ifdown,
 	.local_out =		__ip6_local_out,
 	.gc_thresh =		1024,
-	.entries =		ATOMIC_INIT(0),
 };
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
@@ -312,11 +311,13 @@ int __init xfrm6_init(void)
 	 */
 	gc_thresh = FIB6_TABLE_HASHSZ * 8;
 	xfrm6_dst_ops.gc_thresh = (gc_thresh < 1024) ? 1024 : gc_thresh;
+	dst_entries_init(&xfrm6_dst_ops);
 
 	ret = xfrm6_policy_init();
-	if (ret)
+	if (ret) {
+		dst_entries_destroy(&xfrm6_dst_ops);
 		goto out;
-
+	}
 	ret = xfrm6_state_init();
 	if (ret)
 		goto out_policy;
@@ -341,4 +342,5 @@ void xfrm6_fini(void)
 	//xfrm6_input_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
+	dst_entries_destroy(&xfrm6_dst_ops);
 }

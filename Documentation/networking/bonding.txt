@@ -765,6 +765,14 @@ xmit_hash_policy
 	does not exist, and the layer2 policy is the only policy.  The
 	layer2+3 value was added for bonding version 3.2.2.
 
+resend_igmp
+
+	Specifies the number of IGMP membership reports to be issued after
+	a failover event. One membership report is issued immediately after
+	the failover, subsequent packets are sent in each 200ms interval.
+
+	The valid range is 0 - 255; the default value is 1. This option
+	was added for bonding version 3.7.0.
 
 3. Configuring Bonding Devices
 ==============================

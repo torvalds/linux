@@ -180,6 +180,13 @@ config NET_SB1000
 
 source "drivers/net/arcnet/Kconfig"
 
+config MII
+	tristate "Generic Media Independent Interface device support"
+	help
+	  Most ethernet controllers have MII transceiver either as an external
+	  or internal device.  It is safe to say Y or M here even if your
+	  ethernet card lacks MII.
+
 source "drivers/net/phy/Kconfig"
 
 #
@@ -214,13 +221,6 @@ menuconfig NET_ETHERNET
 	  the questions about Ethernet network cards. If unsure, say N.
 
 if NET_ETHERNET
-
-config MII
-	tristate "Generic Media Independent Interface device support"
-	help
-	  Most ethernet controllers have MII transceiver either as an external
-	  or internal device.  It is safe to say Y or M here even if your
-	  ethernet card lack MII.
 
 config MACB
 	tristate "Atmel MACB support"
@@ -2518,6 +2518,18 @@ config S6GMAC
 
 source "drivers/net/stmmac/Kconfig"
 
+config PCH_GBE
+	tristate "PCH Gigabit Ethernet"
+	depends on PCI
+	---help---
+	  This is a gigabit ethernet driver for Topcliff PCH.
+	  Topcliff PCH is the platform controller hub that is used in Intel's
+	  general embedded platform.
+	  Topcliff PCH has Gigabit Ethernet interface.
+	  Using this interface, it is able to access system devices connected
+	  to Gigabit Ethernet.
+	  This driver enables Gigabit Ethernet function.
+
 endif # NETDEV_1000
 
 #
@@ -2872,6 +2884,20 @@ config QLGE
 	  To compile this driver as a module, choose M here: the module
 	  will be called qlge.
 
+config BNA
+        tristate "Brocade 1010/1020 10Gb Ethernet Driver support"
+        depends on PCI
+        ---help---
+          This driver supports Brocade 1010/1020 10Gb CEE capable Ethernet
+          cards.
+          To compile this driver as a module, choose M here: the module
+          will be called bna.
+
+          For general information and support, go to the Brocade support
+          website at:
+
+          <http://support.brocade.com>
+
 source "drivers/net/sfc/Kconfig"
 
 source "drivers/net/benet/Kconfig"
@@ -3204,6 +3230,17 @@ config PPPOE
 	  RoaringPenguin package (<http://www.roaringpenguin.com/pppoe>)
 	  which contains instruction on how to use this driver (under 
 	  the heading "Kernel mode PPPoE").
+
+config PPTP
+	tristate "PPP over IPv4 (PPTP) (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PPP && NET_IPGRE_DEMUX
+	help
+	  Support for PPP over IPv4.(Point-to-Point Tunneling Protocol)
+
+	  This driver requires pppd plugin to work in client mode or
+	  modified pptpd (poptop) to work in server mode.
+	  See http://accel-pptp.sourceforge.net/ for information how to
+	  utilize this module.
 
 config PPPOATM
 	tristate "PPP over ATM"

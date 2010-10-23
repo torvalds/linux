@@ -562,7 +562,6 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hci_dev_lock_bh(hdev);
 	inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
-	hci_blacklist_clear(hdev);
 	hci_dev_unlock_bh(hdev);
 
 	hci_notify(hdev, HCI_DEV_DOWN);

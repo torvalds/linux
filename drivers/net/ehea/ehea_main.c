@@ -180,7 +180,7 @@ static void ehea_update_firmware_handles(void)
 			 num_portres * EHEA_NUM_PORTRES_FW_HANDLES;
 
 	if (num_fw_handles) {
-		arr = kzalloc(num_fw_handles * sizeof(*arr), GFP_KERNEL);
+		arr = kcalloc(num_fw_handles, sizeof(*arr), GFP_KERNEL);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -265,7 +265,7 @@ static void ehea_update_bcmc_registrations(void)
 		}
 
 	if (num_registrations) {
-		arr = kzalloc(num_registrations * sizeof(*arr), GFP_ATOMIC);
+		arr = kcalloc(num_registrations, sizeof(*arr), GFP_ATOMIC);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -793,6 +793,7 @@ static void reset_sq_restart_flag(struct ehea_port *port)
 		struct ehea_port_res *pr = &port->port_res[i];
 		pr->sq_restart_flag = 0;
 	}
+	wake_up(&port->restart_wq);
 }
 
 static void check_sqs(struct ehea_port *port)
@@ -803,6 +804,7 @@ static void check_sqs(struct ehea_port *port)
 
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		struct ehea_port_res *pr = &port->port_res[i];
+		int ret;
 		k = 0;
 		swqe = ehea_get_swqe(pr->qp, &swqe_index);
 		memset(swqe, 0, SWQE_HEADER_SIZE);
@@ -816,17 +818,16 @@ static void check_sqs(struct ehea_port *port)
 
 		ehea_post_swqe(pr->qp, swqe);
 
-		while (pr->sq_restart_flag == 0) {
-			msleep(5);
-			if (++k == 100) {
-				ehea_error("HW/SW queues out of sync");
-				ehea_schedule_port_reset(pr->port);
-				return;
-			}
+		ret = wait_event_timeout(port->restart_wq,
+					 pr->sq_restart_flag == 0,
+					 msecs_to_jiffies(100));
+
+		if (!ret) {
+			ehea_error("HW/SW queues out of sync");
+			ehea_schedule_port_reset(pr->port);
+			return;
 		}
 	}
-
-	return;
 }
 
 
@@ -897,6 +898,7 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 		pr->queue_stopped = 0;
 	}
 	spin_unlock_irqrestore(&pr->netif_queue, flags);
+	wake_up(&pr->port->swqe_avail_wq);
 
 	return cqe;
 }
@@ -1923,7 +1925,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	struct hcp_ehea_port_cb7 *cb7;
 	u64 hret;
 
-	if ((enable && port->promisc) || (!enable && !port->promisc))
+	if (enable == port->promisc)
 		return;
 
 	cb7 = (void *)get_zeroed_page(GFP_ATOMIC);
@@ -2277,7 +2279,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	pr->swqe_id_counter += 1;
 
-	if (port->vgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		swqe->tx_control |= EHEA_SWQE_VLAN_INSERT;
 		swqe->vlan_tag = vlan_tx_tag_get(skb);
 	}
@@ -2661,6 +2663,9 @@ static int ehea_open(struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
+	init_waitqueue_head(&port->swqe_avail_wq);
+	init_waitqueue_head(&port->restart_wq);
+
 	mutex_unlock(&port->port_lock);
 
 	return ret;
@@ -2733,13 +2738,15 @@ static void ehea_flush_sq(struct ehea_port *port)
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		struct ehea_port_res *pr = &port->port_res[i];
 		int swqe_max = pr->sq_skba_size - 2 - pr->swqe_ll_count;
-		int k = 0;
-		while (atomic_read(&pr->swqe_avail) < swqe_max) {
-			msleep(5);
-			if (++k == 20) {
-				ehea_error("WARNING: sq not flushed completely");
-				break;
-			}
+		int ret;
+
+		ret = wait_event_timeout(port->swqe_avail_wq,
+			 atomic_read(&pr->swqe_avail) >= swqe_max,
+			 msecs_to_jiffies(100));
+
+		if (!ret) {
+			ehea_error("WARNING: sq not flushed completely");
+			break;
 		}
 	}
 }
@@ -3728,7 +3735,7 @@ int __init ehea_module_init(void)
 	if (ret)
 		ehea_info("failed registering memory remove notifier");
 
-	ret = crash_shutdown_register(&ehea_crash_handler);
+	ret = crash_shutdown_register(ehea_crash_handler);
 	if (ret)
 		ehea_info("failed registering crash handler");
 
@@ -3753,7 +3760,7 @@ out3:
 out2:
 	unregister_memory_notifier(&ehea_mem_nb);
 	unregister_reboot_notifier(&ehea_reboot_nb);
-	crash_shutdown_unregister(&ehea_crash_handler);
+	crash_shutdown_unregister(ehea_crash_handler);
 out:
 	return ret;
 }
@@ -3766,7 +3773,7 @@ static void __exit ehea_module_exit(void)
 	driver_remove_file(&ehea_driver.driver, &driver_attr_capabilities);
 	ibmebus_unregister_driver(&ehea_driver);
 	unregister_reboot_notifier(&ehea_reboot_nb);
-	ret = crash_shutdown_unregister(&ehea_crash_handler);
+	ret = crash_shutdown_unregister(ehea_crash_handler);
 	if (ret)
 		ehea_info("failed unregistering crash handler");
 	unregister_memory_notifier(&ehea_mem_nb);
