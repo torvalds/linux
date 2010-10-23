@@ -37,7 +37,6 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 {
 	int          ret, i;
 	unsigned int pipe;
-	static int   ini = 0, last = 0, n = 0;
 	u8	     *data = NULL;
 
 	if (len)
@@ -52,19 +51,12 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	}
 
 	if (tm6000_debug & V4L2_DEBUG_I2C) {
-		if (!ini)
-			last = ini = jiffies;
+		printk("(dev %p, pipe %08x): ", dev->udev, pipe);
 
-		printk("%06i (dev %p, pipe %08x): ", n, dev->udev, pipe);
-
-		printk("%s: %06u ms %06u ms %02x %02x %02x %02x %02x %02x %02x %02x ",
+		printk("%s: %02x %02x %02x %02x %02x %02x %02x %02x ",
 			(req_type & USB_DIR_IN) ? " IN" : "OUT",
-			jiffies_to_msecs(jiffies-last),
-			jiffies_to_msecs(jiffies-ini),
 			req_type, req, value&0xff, value>>8, index&0xff,
 			index>>8, len&0xff, len>>8);
-		last = jiffies;
-		n++;
 
 		if (!(req_type & USB_DIR_IN)) {
 			printk(">>> ");
