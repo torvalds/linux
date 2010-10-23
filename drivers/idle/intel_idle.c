@@ -81,7 +81,7 @@ static int max_cstate = MWAIT_MAX_NUM_CSTATES - 1;
 static unsigned int mwait_substates;
 
 /* Reliable LAPIC Timer States, bit 1 for C1 etc.  */
-static unsigned int lapic_timer_reliable_states;
+static unsigned int lapic_timer_reliable_states = (1 << 1);	 /* Default to only C1 */
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state);
@@ -118,6 +118,42 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.target_residency = 800,
+		.enter = &intel_idle },
+};
+
+static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
+	{ /* MWAIT C0 */ },
+	{ /* MWAIT C1 */
+		.name = "SNB-C1",
+		.desc = "MWAIT 0x00",
+		.driver_data = (void *) 0x00,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 1,
+		.target_residency = 4,
+		.enter = &intel_idle },
+	{ /* MWAIT C2 */
+		.name = "SNB-C3",
+		.desc = "MWAIT 0x10",
+		.driver_data = (void *) 0x10,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 80,
+		.target_residency = 160,
+		.enter = &intel_idle },
+	{ /* MWAIT C3 */
+		.name = "SNB-C6",
+		.desc = "MWAIT 0x20",
+		.driver_data = (void *) 0x20,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 104,
+		.target_residency = 208,
+		.enter = &intel_idle },
+	{ /* MWAIT C4 */
+		.name = "SNB-C7",
+		.desc = "MWAIT 0x30",
+		.driver_data = (void *) 0x30,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 109,
+		.target_residency = 300,
 		.enter = &intel_idle },
 };
 
@@ -268,6 +304,11 @@ static int intel_idle_probe(void)
 	case 0x26:	/* 38 - Lincroft Atom Processor */
 		lapic_timer_reliable_states = (1 << 2) | (1 << 1); /* C2, C1 */
 		cpuidle_state_table = atom_cstates;
+		break;
+
+	case 0x2A:	/* SNB */
+	case 0x2D:	/* SNB Xeon */
+		cpuidle_state_table = snb_cstates;
 		break;
 #ifdef FUTURE_USE
 	case 0x17:	/* 23 - Core 2 Duo */
