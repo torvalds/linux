@@ -65,7 +65,7 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 				"report descriptor\n");
 		rdesc[33] = rdesc[50] = 0x02;
 	}
-	if ((quirks & LG_FF4) && rsize >= 101 &&
+	if ((quirks & LG_FF4) && *rsize >= 101 &&
 			rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
 			rdesc[47] == 0x05 && rdesc[48] == 0x09) {
 		dev_info(&hdev->dev, "fixing up Logitech Speed Force Wireless "
