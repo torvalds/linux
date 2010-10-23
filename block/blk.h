@@ -110,10 +110,6 @@ void blk_queue_congestion_threshold(struct request_queue *q);
 
 int blk_dev_init(void);
 
-void elv_quiesce_start(struct request_queue *q);
-void elv_quiesce_end(struct request_queue *q);
-
-
 /*
  * Return the threshold (number of used requests) at which the queue is
  * considered to be congested.  It include a little hysteresis to keep the
@@ -131,14 +127,6 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 {
 	return q->nr_congestion_off;
 }
-
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-
-#define rq_for_each_integrity_segment(bvl, _rq, _iter)		\
-	__rq_for_each_bio(_iter.bio, _rq)			\
-		bip_for_each_vec(bvl, _iter.bio->bi_integrity, _iter.i)
-
-#endif /* BLK_DEV_INTEGRITY */
 
 static inline int blk_cpu_to_group(int cpu)
 {

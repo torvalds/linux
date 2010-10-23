@@ -681,6 +681,7 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
 		mask |= SHOST_DIX_TYPE1_PROTECTION;
 		scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);
+		shost->sg_prot_tablesize = ZFCP_QDIO_MAX_SBALES_PER_REQ / 2;
 		shost->sg_tablesize = ZFCP_QDIO_MAX_SBALES_PER_REQ / 2;
 		shost->max_sectors = ZFCP_QDIO_MAX_SBALES_PER_REQ * 8 / 2;
 	}

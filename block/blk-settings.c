@@ -111,6 +111,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 void blk_set_default_limits(struct queue_limits *lim)
 {
 	lim->max_segments = BLK_MAX_SEGMENTS;
+	lim->max_integrity_segments = 0;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
@@ -213,7 +214,7 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 	 */
 	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
-	q->limits.bounce_pfn = max_low_pfn;
+	q->limits.bounce_pfn = max(max_low_pfn, b_pfn);
 #else
 	if (b_pfn < blk_max_low_pfn)
 		dma = 1;
@@ -343,7 +344,7 @@ EXPORT_SYMBOL(blk_queue_logical_block_size);
  *   hardware can operate on without reverting to read-modify-write
  *   operations.
  */
-void blk_queue_physical_block_size(struct request_queue *q, unsigned short size)
+void blk_queue_physical_block_size(struct request_queue *q, unsigned int size)
 {
 	q->limits.physical_block_size = size;
 
@@ -455,11 +456,6 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
 
-/*
- * Returns the minimum that is _not_ zero, unless both are zero.
- */
-#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
-
 /**
  * blk_queue_stack_limits - inherit underlying queue limits for stacked drivers
  * @t:	the stacking driver (top)
@@ -514,6 +510,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					    b->seg_boundary_mask);
 
 	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
+	t->max_integrity_segments = min_not_zero(t->max_integrity_segments,
+						 b->max_integrity_segments);
 
 	t->max_segment_size = min_not_zero(t->max_segment_size,
 					   b->max_segment_size);

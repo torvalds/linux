@@ -541,13 +541,15 @@ void add_disk(struct gendisk *disk)
 	disk->major = MAJOR(devt);
 	disk->first_minor = MINOR(devt);
 
+	/* Register BDI before referencing it from bdev */ 
+	bdi = &disk->queue->backing_dev_info;
+	bdi_register_dev(bdi, disk_devt(disk));
+
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
 			    exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
 
-	bdi = &disk->queue->backing_dev_info;
-	bdi_register_dev(bdi, disk_devt(disk));
 	retval = sysfs_create_link(&disk_to_dev(disk)->kobj, &bdi->dev->kobj,
 				   "bdi");
 	WARN_ON(retval);
@@ -642,6 +644,7 @@ void __init printk_all_partitions(void)
 		struct hd_struct *part;
 		char name_buf[BDEVNAME_SIZE];
 		char devt_buf[BDEVT_SIZE];
+		u8 uuid[PARTITION_META_INFO_UUIDLTH * 2 + 1];
 
 		/*
 		 * Don't show empty devices or things that have been
@@ -660,10 +663,14 @@ void __init printk_all_partitions(void)
 		while ((part = disk_part_iter_next(&piter))) {
 			bool is_part0 = part == &disk->part0;
 
-			printk("%s%s %10llu %s", is_part0 ? "" : "  ",
+			uuid[0] = 0;
+			if (part->info)
+				part_unpack_uuid(part->info->uuid, uuid);
+
+			printk("%s%s %10llu %s %s", is_part0 ? "" : "  ",
 			       bdevt_str(part_devt(part), devt_buf),
 			       (unsigned long long)part->nr_sects >> 1,
-			       disk_name(disk, part->partno, name_buf));
+			       disk_name(disk, part->partno, name_buf), uuid);
 			if (is_part0) {
 				if (disk->driverfs_dev != NULL &&
 				    disk->driverfs_dev->driver != NULL)
@@ -925,8 +932,15 @@ static void disk_free_ptbl_rcu_cb(struct rcu_head *head)
 {
 	struct disk_part_tbl *ptbl =
 		container_of(head, struct disk_part_tbl, rcu_head);
+	struct gendisk *disk = ptbl->disk;
+	struct request_queue *q = disk->queue;
+	unsigned long flags;
 
 	kfree(ptbl);
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	elv_quiesce_end(q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
 /**
@@ -944,11 +958,17 @@ static void disk_replace_part_tbl(struct gendisk *disk,
 				  struct disk_part_tbl *new_ptbl)
 {
 	struct disk_part_tbl *old_ptbl = disk->part_tbl;
+	struct request_queue *q = disk->queue;
 
 	rcu_assign_pointer(disk->part_tbl, new_ptbl);
 
 	if (old_ptbl) {
 		rcu_assign_pointer(old_ptbl->last_lookup, NULL);
+
+		spin_lock_irq(q->queue_lock);
+		elv_quiesce_start(q);
+		spin_unlock_irq(q->queue_lock);
+
 		call_rcu(&old_ptbl->rcu_head, disk_free_ptbl_rcu_cb);
 	}
 }
@@ -989,6 +1009,7 @@ int disk_expand_part_tbl(struct gendisk *disk, int partno)
 		return -ENOMEM;
 
 	new_ptbl->len = target;
+	new_ptbl->disk = disk;
 
 	for (i = 0; i < len; i++)
 		rcu_assign_pointer(new_ptbl->part[i], old_ptbl->part[i]);
@@ -1004,6 +1025,7 @@ static void disk_release(struct device *dev)
 	kfree(disk->random);
 	disk_replace_part_tbl(disk, NULL);
 	free_part_stats(&disk->part0);
+	free_part_info(&disk->part0);
 	kfree(disk);
 }
 struct class block_class = {

@@ -64,13 +64,15 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		return;
 
 	cpu = part_stat_lock();
-	part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
 
-	if (!new_io)
+	if (!new_io) {
+		part = rq->part;
 		part_stat_inc(cpu, part, merges[rw]);
-	else {
+	} else {
+		part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
 		part_round_stats(cpu, part);
 		part_inc_in_flight(part, rw);
+		rq->part = part;
 	}
 
 	part_stat_unlock();
@@ -128,6 +130,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->ref_count = 1;
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
+	rq->part = NULL;
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -382,6 +385,7 @@ void blk_sync_queue(struct request_queue *q)
 	del_timer_sync(&q->unplug_timer);
 	del_timer_sync(&q->timeout);
 	cancel_work_sync(&q->unplug_work);
+	throtl_shutdown_timer_wq(q);
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -459,6 +463,8 @@ void blk_cleanup_queue(struct request_queue *q)
 	if (q->elevator)
 		elevator_exit(q->elevator);
 
+	blk_throtl_exit(q);
+
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
@@ -511,6 +517,11 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	err = bdi_init(&q->backing_dev_info);
 	if (err) {
+		kmem_cache_free(blk_requestq_cachep, q);
+		return NULL;
+	}
+
+	if (blk_throtl_init(q)) {
 		kmem_cache_free(blk_requestq_cachep, q);
 		return NULL;
 	}
@@ -796,11 +807,16 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	rl->starved[is_sync] = 0;
 
 	priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
-	if (priv)
+	if (priv) {
 		rl->elvpriv++;
 
-	if (blk_queue_io_stat(q))
-		rw_flags |= REQ_IO_STAT;
+		/*
+		 * Don't do stats for non-priv requests
+		 */
+		if (blk_queue_io_stat(q))
+			rw_flags |= REQ_IO_STAT;
+	}
+
 	spin_unlock_irq(q->queue_lock);
 
 	rq = blk_alloc_request(q, rw_flags, priv, gfp_mask);
@@ -1522,6 +1538,15 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
+		blk_throtl_bio(q, &bio);
+
+		/*
+		 * If bio = NULL, bio has been throttled and will be submitted
+		 * later.
+		 */
+		if (!bio)
+			break;
+
 		trace_block_bio_queue(q, bio);
 
 		ret = q->make_request_fn(q, bio);
@@ -1612,11 +1637,12 @@ void submit_bio(int rw, struct bio *bio)
 
 		if (unlikely(block_dump)) {
 			char b[BDEVNAME_SIZE];
-			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s\n",
+			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
 			current->comm, task_pid_nr(current),
 				(rw & WRITE) ? "WRITE" : "READ",
 				(unsigned long long)bio->bi_sector,
-				bdevname(bio->bi_bdev, b));
+				bdevname(bio->bi_bdev, b),
+				count);
 		}
 	}
 
@@ -1759,7 +1785,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
+		part = req->part;
 		part_stat_add(cpu, part, sectors[rw], bytes >> 9);
 		part_stat_unlock();
 	}
@@ -1779,7 +1805,7 @@ static void blk_account_io_done(struct request *req)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
+		part = req->part;
 
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);
@@ -2578,6 +2604,13 @@ int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 	return queue_work(kblockd_workqueue, work);
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
+
+int kblockd_schedule_delayed_work(struct request_queue *q,
+			struct delayed_work *dwork, unsigned long delay)
+{
+	return queue_delayed_work(kblockd_workqueue, dwork, delay);
+}
+EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 
 int __init blk_dev_init(void)
 {

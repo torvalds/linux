@@ -15,6 +15,14 @@
 
 #include <linux/cgroup.h>
 
+enum blkio_policy_id {
+	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
+	BLKIO_POLICY_THROTL,		/* Throttling */
+};
+
+/* Max limits for throttle policy */
+#define THROTL_IOPS_MAX		UINT_MAX
+
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 
 #ifndef CONFIG_BLK_CGROUP
@@ -65,6 +73,35 @@ enum blkg_state_flags {
 	BLKG_empty,
 };
 
+/* cgroup files owned by proportional weight policy */
+enum blkcg_file_name_prop {
+	BLKIO_PROP_weight = 1,
+	BLKIO_PROP_weight_device,
+	BLKIO_PROP_io_service_bytes,
+	BLKIO_PROP_io_serviced,
+	BLKIO_PROP_time,
+	BLKIO_PROP_sectors,
+	BLKIO_PROP_io_service_time,
+	BLKIO_PROP_io_wait_time,
+	BLKIO_PROP_io_merged,
+	BLKIO_PROP_io_queued,
+	BLKIO_PROP_avg_queue_size,
+	BLKIO_PROP_group_wait_time,
+	BLKIO_PROP_idle_time,
+	BLKIO_PROP_empty_time,
+	BLKIO_PROP_dequeue,
+};
+
+/* cgroup files owned by throttle policy */
+enum blkcg_file_name_throtl {
+	BLKIO_THROTL_read_bps_device,
+	BLKIO_THROTL_write_bps_device,
+	BLKIO_THROTL_read_iops_device,
+	BLKIO_THROTL_write_iops_device,
+	BLKIO_THROTL_io_service_bytes,
+	BLKIO_THROTL_io_serviced,
+};
+
 struct blkio_cgroup {
 	struct cgroup_subsys_state css;
 	unsigned int weight;
@@ -112,6 +149,8 @@ struct blkio_group {
 	char path[128];
 	/* The device MKDEV(major, minor), this group has been created for */
 	dev_t dev;
+	/* policy which owns this blk group */
+	enum blkio_policy_id plid;
 
 	/* Need to serialize the stats in the case of reset/update */
 	spinlock_t stats_lock;
@@ -121,24 +160,60 @@ struct blkio_group {
 struct blkio_policy_node {
 	struct list_head node;
 	dev_t dev;
-	unsigned int weight;
+	/* This node belongs to max bw policy or porportional weight policy */
+	enum blkio_policy_id plid;
+	/* cgroup file to which this rule belongs to */
+	int fileid;
+
+	union {
+		unsigned int weight;
+		/*
+		 * Rate read/write in terms of byptes per second
+		 * Whether this rate represents read or write is determined
+		 * by file type "fileid".
+		 */
+		u64 bps;
+		unsigned int iops;
+	} val;
 };
 
 extern unsigned int blkcg_get_weight(struct blkio_cgroup *blkcg,
 				     dev_t dev);
+extern uint64_t blkcg_get_read_bps(struct blkio_cgroup *blkcg,
+				     dev_t dev);
+extern uint64_t blkcg_get_write_bps(struct blkio_cgroup *blkcg,
+				     dev_t dev);
+extern unsigned int blkcg_get_read_iops(struct blkio_cgroup *blkcg,
+				     dev_t dev);
+extern unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg,
+				     dev_t dev);
 
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
-typedef void (blkio_update_group_weight_fn) (struct blkio_group *blkg,
-						unsigned int weight);
+
+typedef void (blkio_update_group_weight_fn) (void *key,
+			struct blkio_group *blkg, unsigned int weight);
+typedef void (blkio_update_group_read_bps_fn) (void * key,
+			struct blkio_group *blkg, u64 read_bps);
+typedef void (blkio_update_group_write_bps_fn) (void *key,
+			struct blkio_group *blkg, u64 write_bps);
+typedef void (blkio_update_group_read_iops_fn) (void *key,
+			struct blkio_group *blkg, unsigned int read_iops);
+typedef void (blkio_update_group_write_iops_fn) (void *key,
+			struct blkio_group *blkg, unsigned int write_iops);
 
 struct blkio_policy_ops {
 	blkio_unlink_group_fn *blkio_unlink_group_fn;
 	blkio_update_group_weight_fn *blkio_update_group_weight_fn;
+	blkio_update_group_read_bps_fn *blkio_update_group_read_bps_fn;
+	blkio_update_group_write_bps_fn *blkio_update_group_write_bps_fn;
+	blkio_update_group_read_iops_fn *blkio_update_group_read_iops_fn;
+	blkio_update_group_write_iops_fn *blkio_update_group_write_iops_fn;
 };
 
 struct blkio_policy_type {
 	struct list_head list;
 	struct blkio_policy_ops ops;
+	enum blkio_policy_id plid;
 };
 
 /* Blkio controller policy registration */
@@ -212,7 +287,8 @@ static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-			struct blkio_group *blkg, void *key, dev_t dev);
+	struct blkio_group *blkg, void *key, dev_t dev,
+	enum blkio_policy_id plid);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
@@ -234,7 +310,8 @@ static inline struct blkio_cgroup *
 cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 
 static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-			struct blkio_group *blkg, void *key, dev_t dev) {}
+		struct blkio_group *blkg, void *key, dev_t dev,
+		enum blkio_policy_id plid) {}
 
 static inline int
 blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }

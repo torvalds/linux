@@ -661,11 +661,14 @@ config BLK_CGROUP
 
 	Currently, CFQ IO scheduler uses it to recognize task groups and
 	control disk bandwidth allocation (proportional time slice allocation)
-	to such task groups.
+	to such task groups. It is also used by bio throttling logic in
+	block layer to implement upper limit in IO rates on a device.
 
 	This option only enables generic Block IO controller infrastructure.
-	One needs to also enable actual IO controlling logic in CFQ for it
-	to take effect. (CONFIG_CFQ_GROUP_IOSCHED=y).
+	One needs to also enable actual IO controlling logic/policy. For
+	enabling proportional weight division of disk bandwidth in CFQ seti
+	CONFIG_CFQ_GROUP_IOSCHED=y and for enabling throttling policy set
+	CONFIG_BLK_THROTTLE=y.
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
 
