@@ -832,7 +832,7 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		if (err < 0)
 			return err;
 	}
-	if (emu->details->spi_dac == 1)
+	if (emu->details->spi_dac)
 		ADD_CTLS(emu, snd_ca0106_volume_spi_dac_ctls);
 
 	/* Create virtual master controls */
@@ -845,7 +845,7 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		return err;
 	add_slaves(card, vmaster, slave_vols);
 
-	if (emu->details->spi_dac == 1) {
+	if (emu->details->spi_dac) {
 		vmaster = snd_ctl_make_virtual_master("Master Playback Switch",
 						      NULL);
 		if (!vmaster)

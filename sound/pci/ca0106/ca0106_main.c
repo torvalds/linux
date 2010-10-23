@@ -227,7 +227,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "Audigy SE [SB0570]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1,
-	   .spi_dac = 1 } ,
+	   .spi_dac = 0x4021 } ,
 	 /* New Audigy LS. Has a different DAC. */
 	 /* SB0570:
 	  * CTRL:CA0106-DAT
@@ -238,7 +238,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "Audigy SE OEM [SB0570a]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1,
-	   .spi_dac = 1 } ,
+	   .spi_dac = 0x4021 } ,
 	/* Sound Blaster 5.1vx
 	 * Tested: Playback on front, rear, center/lfe speakers
 	 * Not-Tested: Capture
@@ -247,7 +247,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	  .name   = "Sound Blaster 5.1vx [SB1070]",
 	  .gpio_type = 1,
 	  .i2c_adc = 0,
-	  .spi_dac = 1
+	  .spi_dac = 0x0124
 	 } ,
 	 /* MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97 */
 	 /* SB0438
@@ -264,7 +264,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "MSI K8N Diamond MB",
 	   .gpio_type = 2,
 	   .i2c_adc = 1,
-	   .spi_dac = 1 } ,
+	   .spi_dac = 0x4021 } ,
 	/* Giga-byte GA-G1975X mobo
 	 * Novell bnc#395807
 	 */
@@ -520,12 +520,18 @@ static int snd_ca0106_channel_dac(struct snd_ca0106_details *details,
 				  int channel_id)
 {
 	switch (channel_id) {
-	case PCM_FRONT_CHANNEL:		return 4;
-	case PCM_REAR_CHANNEL:		return 0;
-	case PCM_CENTER_LFE_CHANNEL:	return 2;
-	case PCM_UNKNOWN_CHANNEL:	return 1;
+	case PCM_FRONT_CHANNEL:
+		return (details->spi_dac & 0xf000) >> (4 * 3);
+	case PCM_REAR_CHANNEL:
+		return (details->spi_dac & 0x0f00) >> (4 * 2);
+	case PCM_CENTER_LFE_CHANNEL:
+		return (details->spi_dac & 0x00f0) >> (4 * 1);
+	case PCM_UNKNOWN_CHANNEL:
+		return (details->spi_dac & 0x000f) >> (4 * 0);
+	default:
+		snd_printk(KERN_DEBUG "ca0106: unknown channel_id %d\n",
+			   channel_id);
 	}
-	snd_printk(KERN_DEBUG "ca0106: unknown channel_id %d\n", channel_id);
 	return 0;
 }
 
@@ -1582,7 +1588,7 @@ static void ca0106_init_chip(struct snd_ca0106 *chip, int resume)
 		/* snd_ca0106_i2c_write(chip, ADC_MUX, ADC_MUX_LINEIN); */
 	}
 
-	if (chip->details->spi_dac == 1) {
+	if (chip->details->spi_dac) {
 		/* The SB0570 use SPI to control DAC. */
 		int size, n;
 
