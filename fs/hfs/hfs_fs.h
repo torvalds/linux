@@ -147,8 +147,6 @@ struct hfs_sb_info {
 	u16 blockoffset;
 
 	int fs_div;
-
-	struct hlist_head rsrc_inodes;
 };
 
 #define HFS_FLG_BITMAP_DIRTY	0
