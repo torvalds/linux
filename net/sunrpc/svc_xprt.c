@@ -936,10 +936,7 @@ void svc_close_xprt(struct svc_xprt *xprt)
 		/* someone else will have to effect the close */
 		return;
 
-	svc_xprt_get(xprt);
 	svc_delete_xprt(xprt);
-	clear_bit(XPT_BUSY, &xprt->xpt_flags);
-	svc_xprt_put(xprt);
 }
 EXPORT_SYMBOL_GPL(svc_close_xprt);
 
