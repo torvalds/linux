@@ -2510,6 +2510,27 @@ static int edge_tiocmget(struct tty_struct *tty, struct file *file)
 	return result;
 }
 
+static int edge_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
+	struct async_icount *ic = &edge_port->icount;
+
+	icount->cts = ic->cts;
+	icount->dsr = ic->dsr;
+	icount->rng = ic->rng;
+	icount->dcd = ic->dcd;
+	icount->tx = ic->tx;
+        icount->rx = ic->rx;
+        icount->frame = ic->frame;
+        icount->parity = ic->parity;
+        icount->overrun = ic->overrun;
+        icount->brk = ic->brk;
+        icount->buf_overrun = ic->buf_overrun;
+	return 0;
+}
+
 static int get_serial_info(struct edgeport_port *edge_port,
 				struct serial_struct __user *retinfo)
 {
@@ -2572,13 +2593,6 @@ static int edge_ioctl(struct tty_struct *tty, struct file *file,
 		}
 		/* not reached */
 		break;
-	case TIOCGICOUNT:
-		dbg("%s - (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
-		     port->number, edge_port->icount.rx, edge_port->icount.tx);
-		if (copy_to_user((void __user *)arg, &edge_port->icount,
-				sizeof(edge_port->icount)))
-			return -EFAULT;
-		return 0;
 	}
 	return -ENOIOCTLCMD;
 }
@@ -2758,6 +2772,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
+	.get_icount		= edge_get_icount,
 	.write			= edge_write,
 	.write_room		= edge_write_room,
 	.chars_in_buffer	= edge_chars_in_buffer,

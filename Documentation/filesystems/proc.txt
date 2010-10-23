@@ -1075,6 +1075,7 @@ Table 1-11: Files in /proc/tty
  drivers       list of drivers and their usage                
  ldiscs        registered line disciplines                    
  driver/serial usage statistic and status of single tty lines 
+ consoles      registered system console lines
 ..............................................................................
 
 To see  which  tty's  are  currently in use, you can simply look into the file
@@ -1092,6 +1093,37 @@ To see  which  tty's  are  currently in use, you can simply look into the file
   /dev/console         /dev/console    5       1 system:console 
   /dev/tty             /dev/tty        5       0 system:/dev/tty 
   unknown              /dev/tty        4    1-63 console 
+
+To see which character device lines are currently used for the system console
+/dev/console, you may simply look into the file /proc/tty/consoles:
+
+  > cat /proc/tty/consoles
+  tty0                 -WU (ECp)       4:7
+  ttyS0                -W- (Ep)        4:64
+
+The columns are:
+
+  device               name of the device
+  operations           R = can do read operations
+                       W = can do write operations
+                       U = can do unblank
+  flags                E = it is enabled
+                       C = it is prefered console
+                       B = it is primary boot console
+                       p = it is used for printk buffer
+                       b = it is not a TTY but a Braille device
+                       a = it is safe to use when cpu is offline
+                       * = it is standard input of the reading process
+  major:minor          major and minor number of the device separated by a colon
+
+If the reading process holds /dev/console open at the regular standard input
+stream the active device will be marked by an asterisk:
+
+  > cat /proc/tty/consoles < /dev/console
+  tty0                 -WU (ECp*)      4:7
+  ttyS0                -W- (Ep)        4:64
+  > tty
+  /dev/pts/3
 
 
 1.8 Miscellaneous kernel statistics in /proc/stat
