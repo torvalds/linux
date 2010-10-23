@@ -903,7 +903,7 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 
 	/* Only do this once */
 	if (test_and_set_bit(XPT_DEAD, &xprt->xpt_flags))
-		return;
+		BUG();
 
 	dprintk("svc: svc_delete_xprt(%p)\n", xprt);
 	xprt->xpt_ops->xpo_detach(xprt);
