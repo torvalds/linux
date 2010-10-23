@@ -136,16 +136,9 @@ static struct mtd_partition igep2_onenand_partitions[] = {
 	},
 };
 
-static int igep2_onenand_setup(void __iomem *onenand_base, int freq)
-{
-       /* nothing is required to be setup for onenand as of now */
-       return 0;
-}
-
 static struct omap_onenand_platform_data igep2_onenand_data = {
 	.parts = igep2_onenand_partitions,
 	.nr_parts = ARRAY_SIZE(igep2_onenand_partitions),
-	.onenand_setup = igep2_onenand_setup,
 	.dma_channel	= -1,	/* disable DMA in OMAP OneNAND driver */
 };
 
