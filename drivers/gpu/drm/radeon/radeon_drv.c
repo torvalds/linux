@@ -66,6 +66,10 @@ int radeon_resume_kms(struct drm_device *dev);
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc);
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc);
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc);
+int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+				    int *max_error,
+				    struct timeval *vblank_time,
+				    unsigned flags);
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
@@ -74,6 +78,8 @@ int radeon_dma_ioctl_kms(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int radeon_gem_object_init(struct drm_gem_object *obj);
 void radeon_gem_object_free(struct drm_gem_object *obj);
+extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
+				      int *vpos, int *hpos);
 extern struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -277,6 +283,8 @@ static struct drm_driver kms_driver = {
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,
 	.disable_vblank = radeon_disable_vblank_kms,
+	.get_vblank_timestamp = radeon_get_vblank_timestamp_kms,
+	.get_scanout_position = radeon_get_crtc_scanoutpos,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = radeon_debugfs_init,
 	.debugfs_cleanup = radeon_debugfs_cleanup,

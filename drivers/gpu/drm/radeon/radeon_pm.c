@@ -720,9 +720,9 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev)
 	 */
 	for (crtc = 0; (crtc < rdev->num_crtc) && in_vbl; crtc++) {
 		if (rdev->pm.active_crtcs & (1 << crtc)) {
-			vbl_status = radeon_get_crtc_scanoutpos(rdev, crtc, &vpos, &hpos);
-			if ((vbl_status & RADEON_SCANOUTPOS_VALID) &&
-			    !(vbl_status & RADEON_SCANOUTPOS_INVBL))
+			vbl_status = radeon_get_crtc_scanoutpos(rdev->ddev, crtc, &vpos, &hpos);
+			if ((vbl_status & DRM_SCANOUTPOS_VALID) &&
+			    !(vbl_status & DRM_SCANOUTPOS_INVBL))
 				in_vbl = false;
 		}
 	}

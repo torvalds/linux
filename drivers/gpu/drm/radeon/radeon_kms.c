@@ -277,6 +277,27 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 	radeon_irq_set(rdev);
 }
 
+int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+				    int *max_error,
+				    struct timeval *vblank_time,
+				    unsigned flags)
+{
+	struct drm_crtc *drmcrtc;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc >= dev->num_crtcs) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	/* Get associated drm_crtc: */
+	drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
+
+	/* Helper routine in DRM core does all the work: */
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+						     vblank_time, flags,
+						     drmcrtc);
+}
 
 /*
  * IOCTL.
