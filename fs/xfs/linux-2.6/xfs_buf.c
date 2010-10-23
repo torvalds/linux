@@ -1921,7 +1921,7 @@ xfs_buf_init(void)
 		goto out;
 
 	xfslogd_workqueue = alloc_workqueue("xfslogd",
-					WQ_RESCUER | WQ_HIGHPRI, 1);
+					WQ_MEM_RECLAIM | WQ_HIGHPRI, 1);
 	if (!xfslogd_workqueue)
 		goto out_free_buf_zone;
 
