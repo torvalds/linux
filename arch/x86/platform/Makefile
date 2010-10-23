@@ -4,3 +4,4 @@ obj-y	+= mrst/
 obj-y	+= scx200/
 obj-y	+= sfi/
 obj-y	+= visws/
+obj-y	+= uv/
