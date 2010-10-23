@@ -324,7 +324,7 @@ static void loopback_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __ref loopback_bind_config(struct usb_configuration *c)
+static int __init loopback_bind_config(struct usb_configuration *c)
 {
 	struct f_loopback	*loop;
 	int			status;
@@ -346,10 +346,9 @@ static int __ref loopback_bind_config(struct usb_configuration *c)
 	return status;
 }
 
-static  struct usb_configuration loopback_driver = {
+static struct usb_configuration loopback_driver = {
 	.label		= "loopback",
 	.strings	= loopback_strings,
-	.bind		= loopback_bind_config,
 	.bConfigurationValue = 2,
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
 	/* .iConfiguration = DYNAMIC */
@@ -382,5 +381,5 @@ int __init loopback_add(struct usb_composite_dev *cdev, bool autoresume)
 		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return usb_add_config(cdev, &loopback_driver);
+	return usb_add_config(cdev, &loopback_driver, loopback_bind_config);
 }

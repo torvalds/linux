@@ -2554,7 +2554,10 @@ Your cooperation is appreciated.
 		175 = /dev/usb/legousbtower15	16th USB Legotower device
 		176 = /dev/usb/usbtmc1	First USB TMC device
 		   ...
-		192 = /dev/usb/usbtmc16	16th USB TMC device
+		191 = /dev/usb/usbtmc16	16th USB TMC device
+		192 = /dev/usb/yurex1	First USB Yurex device
+		   ...
+		209 = /dev/usb/yurex16	16th USB Yurex device
 		240 = /dev/usb/dabusb0	First daubusb device
 		    ...
 		243 = /dev/usb/dabusb3	Fourth dabusb device

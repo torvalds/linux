@@ -2102,7 +2102,8 @@ static inline int machine_without_vbus_sense(void)
 		);
 }
 
-int usb_gadget_register_driver (struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	int		status = -ENODEV;
 	struct omap_ep	*ep;
@@ -2114,8 +2115,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (!driver
 			// FIXME if otg, check:  driver->is_otg
 			|| driver->speed < USB_SPEED_FULL
-			|| !driver->bind
-			|| !driver->setup)
+			|| !bind || !driver->setup)
 		return -EINVAL;
 
 	spin_lock_irqsave(&udc->lock, flags);
@@ -2145,7 +2145,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
 
-	status = driver->bind (&udc->gadget);
+	status = bind(&udc->gadget);
 	if (status) {
 		DBG("bind to %s --> %d\n", driver->driver.name, status);
 		udc->gadget.dev.driver = NULL;
@@ -2186,7 +2186,7 @@ done:
 		omap_udc_enable_clock(0);
 	return status;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 {

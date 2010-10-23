@@ -2769,7 +2769,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
         ftdi->sequence_num = ++ftdi_instances;
         mutex_unlock(&ftdi_module_lock);
         ftdi_elan_init_kref(ftdi);
-        init_MUTEX(&ftdi->sw_lock);
+	sema_init(&ftdi->sw_lock, 1);
         ftdi->udev = usb_get_dev(interface_to_usbdev(interface));
         ftdi->interface = interface;
         mutex_init(&ftdi->u132_lock);

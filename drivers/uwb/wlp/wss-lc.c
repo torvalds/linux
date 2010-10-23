@@ -791,11 +791,8 @@ int wlp_wss_prep_hdr(struct wlp *wlp, struct wlp_eda_node *eda_entry,
 	} else {
 		if (printk_ratelimit())
 			dev_err(dev, "WLP: Destination neighbor (Ethernet: "
-				"%02x:%02x:%02x:%02x:%02x:%02x, Dev: "
-				"%02x:%02x) is not connected. \n", eth_addr[0],
-				eth_addr[1], eth_addr[2], eth_addr[3],
-				eth_addr[4], eth_addr[5], dev_addr->data[1],
-				dev_addr->data[0]);
+				"%pM, Dev: %02x:%02x) is not connected.\n",
+				eth_addr, dev_addr->data[1], dev_addr->data[0]);
 		result = -EINVAL;
 	}
 	return result;

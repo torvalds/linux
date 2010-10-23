@@ -5,20 +5,21 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-EXTRA_CFLAGS	:= -Idrivers/scsi
+ccflags-y := -Idrivers/scsi
 
+obj-$(CONFIG_USB_UAS)		+= uas.o
 obj-$(CONFIG_USB_STORAGE)	+= usb-storage.o
 
-usb-storage-obj-$(CONFIG_USB_STORAGE_DEBUG)	+= debug.o
+usb-storage-y := scsiglue.o protocol.o transport.o usb.o
+usb-storage-y += initializers.o sierra_ms.o option_ms.o
 
-usb-storage-objs :=	scsiglue.o protocol.o transport.o usb.o \
-			initializers.o sierra_ms.o option_ms.o $(usb-storage-obj-y)
+usb-storage-$(CONFIG_USB_STORAGE_DEBUG) += debug.o
 
 ifeq ($(CONFIG_USB_LIBUSUAL),)
-	usb-storage-objs	+= usual-tables.o
+	usb-storage-y		+= usual-tables.o
 else
 	obj-$(CONFIG_USB)	+= usb-libusual.o
-	usb-libusual-objs	:= libusual.o usual-tables.o
+	usb-libusual-y		:= libusual.o usual-tables.o
 endif
 
 obj-$(CONFIG_USB_STORAGE_ALAUDA)	+= ums-alauda.o
@@ -33,14 +34,14 @@ obj-$(CONFIG_USB_STORAGE_SDDR09)	+= ums-sddr09.o
 obj-$(CONFIG_USB_STORAGE_SDDR55)	+= ums-sddr55.o
 obj-$(CONFIG_USB_STORAGE_USBAT)		+= ums-usbat.o
 
-ums-alauda-objs		:= alauda.o
-ums-cypress-objs	:= cypress_atacb.o
-ums-datafab-objs	:= datafab.o
-ums-freecom-objs	:= freecom.o
-ums-isd200-objs		:= isd200.o
-ums-jumpshot-objs	:= jumpshot.o
-ums-karma-objs		:= karma.o
-ums-onetouch-objs	:= onetouch.o
-ums-sddr09-objs		:= sddr09.o
-ums-sddr55-objs		:= sddr55.o
-ums-usbat-objs		:= shuttle_usbat.o
+ums-alauda-y		:= alauda.o
+ums-cypress-y		:= cypress_atacb.o
+ums-datafab-y		:= datafab.o
+ums-freecom-y		:= freecom.o
+ums-isd200-y		:= isd200.o
+ums-jumpshot-y		:= jumpshot.o
+ums-karma-y		:= karma.o
+ums-onetouch-y		:= onetouch.o
+ums-sddr09-y		:= sddr09.o
+ums-sddr55-y		:= sddr55.o
+ums-usbat-y		:= shuttle_usbat.o

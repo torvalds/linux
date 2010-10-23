@@ -118,6 +118,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	spin_lock_init(&data->susp_lock);
 
+	usb_enable_autosuspend(serial->dev);
+
 	switch (nintf) {
 	case 1:
 		/* QDL mode */
@@ -150,7 +152,22 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	case 3:
 	case 4:
 		/* Composite mode */
-		if (ifnum == 2) {
+		/* ifnum == 0 is a broadband network adapter */
+		if (ifnum == 1) {
+			/*
+			 * Diagnostics Monitor (serial line 9600 8N1)
+			 * Qualcomm DM protocol
+			 * use "libqcdm" (ModemManager) for communication
+			 */
+			dbg("Diagnostics Monitor found");
+			retval = usb_set_interface(serial->dev, ifnum, 0);
+			if (retval < 0) {
+				dev_err(&serial->dev->dev,
+					"Could not set interface, error %d\n",
+					retval);
+				retval = -ENODEV;
+			}
+		} else if (ifnum == 2) {
 			dbg("Modem port found");
 			retval = usb_set_interface(serial->dev, ifnum, 0);
 			if (retval < 0) {
@@ -161,6 +178,20 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 				kfree(data);
 			}
 			return retval;
+		} else if (ifnum==3) {
+			/*
+			 * NMEA (serial line 9600 8N1)
+			 * # echo "\$GPS_START" > /dev/ttyUSBx
+			 * # echo "\$GPS_STOP"  > /dev/ttyUSBx
+			 */
+			dbg("NMEA GPS interface found");
+			retval = usb_set_interface(serial->dev, ifnum, 0);
+			if (retval < 0) {
+				dev_err(&serial->dev->dev,
+					"Could not set interface, error %d\n",
+					retval);
+				retval = -ENODEV;
+			}
 		}
 		break;
 
