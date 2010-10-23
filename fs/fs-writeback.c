@@ -408,16 +408,13 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 			 * completion.
 			 */
 			redirty_tail(inode);
-		} else if (atomic_read(&inode->i_count)) {
-			/*
-			 * The inode is clean, inuse
-			 */
-			list_move(&inode->i_list, &inode_in_use);
 		} else {
 			/*
-			 * The inode is clean, unused
+			 * The inode is clean.  At this point we either have
+			 * a reference to the inode or it's on it's way out.
+			 * No need to add it back to the LRU.
 			 */
-			list_move(&inode->i_list, &inode_unused);
+			list_del_init(&inode->i_list);
 		}
 	}
 	inode_sync_complete(inode);
