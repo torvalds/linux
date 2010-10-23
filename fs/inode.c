@@ -28,7 +28,6 @@
 /*
  * This is needed for the following functions:
  *  - inode_has_buffers
- *  - invalidate_inode_buffers
  *  - invalidate_bdev
  *
  * FIXME: remove all knowledge of the buffer layer from this file
@@ -503,16 +502,15 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 		inode = list_entry(tmp, struct inode, i_sb_list);
 		if (inode->i_state & I_NEW)
 			continue;
-		invalidate_inode_buffers(inode);
-		if (!atomic_read(&inode->i_count)) {
-			list_move(&inode->i_list, dispose);
-			WARN_ON(inode->i_state & I_NEW);
-			inode->i_state |= I_FREEING;
-			if (!(inode->i_state & (I_DIRTY | I_SYNC)))
-				percpu_counter_dec(&nr_inodes_unused);
+		if (atomic_read(&inode->i_count)) {
+			busy = 1;
 			continue;
 		}
-		busy = 1;
+
+		list_move(&inode->i_list, dispose);
+		inode->i_state |= I_FREEING;
+		if (!(inode->i_state & (I_DIRTY | I_SYNC)))
+			percpu_counter_dec(&nr_inodes_unused);
 	}
 	return busy;
 }
