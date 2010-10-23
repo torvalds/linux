@@ -74,7 +74,7 @@
  * CIFS vfs client Status information (based on what we know.)
  */
 
- /* associated with each tcp and smb session */
+/* associated with each tcp and smb session */
 enum statusEnum {
 	CifsNew = 0,
 	CifsGood,
@@ -395,7 +395,7 @@ struct cifsFileInfo {
 	struct list_head llist; /* list of byte range locks we have. */
 	bool invalidHandle:1;	/* file closed via session abend */
 	bool oplock_break_cancelled:1;
-	int count;		/* refcount -- protected by cifs_file_list_lock */
+	int count;		/* refcount protected by cifs_file_list_lock */
 	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
 	struct work_struct oplock_break; /* work for oplock breaks */
