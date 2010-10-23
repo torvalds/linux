@@ -528,48 +528,6 @@ static void __init pagetable_init(void)
 	permanent_kmaps_init(pgd_base);
 }
 
-#ifdef CONFIG_ACPI_SLEEP
-/*
- * ACPI suspend needs this for resume, because things like the intel-agp
- * driver might have split up a kernel 4MB mapping.
- */
-char swsusp_pg_dir[PAGE_SIZE]
-	__attribute__ ((aligned(PAGE_SIZE)));
-
-static inline void save_pg_dir(void)
-{
-	copy_page(swsusp_pg_dir, swapper_pg_dir);
-}
-#else /* !CONFIG_ACPI_SLEEP */
-static inline void save_pg_dir(void)
-{
-}
-#endif /* !CONFIG_ACPI_SLEEP */
-
-void zap_low_mappings(bool early)
-{
-	int i;
-
-	/*
-	 * Zap initial low-memory mappings.
-	 *
-	 * Note that "pgd_clear()" doesn't do it for
-	 * us, because pgd_clear() is a no-op on i386.
-	 */
-	for (i = 0; i < KERNEL_PGD_BOUNDARY; i++) {
-#ifdef CONFIG_X86_PAE
-		set_pgd(swapper_pg_dir+i, __pgd(1 + __pa(empty_zero_page)));
-#else
-		set_pgd(swapper_pg_dir+i, __pgd(0));
-#endif
-	}
-
-	if (early)
-		__flush_tlb();
-	else
-		flush_tlb_all();
-}
-
 pteval_t __supported_pte_mask __read_mostly = ~(_PAGE_NX | _PAGE_GLOBAL | _PAGE_IOMAP);
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
@@ -882,9 +840,6 @@ void __init mem_init(void)
 
 	if (boot_cpu_data.wp_works_ok < 0)
 		test_wp_bit();
-
-	save_pg_dir();
-	zap_low_mappings(true);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
