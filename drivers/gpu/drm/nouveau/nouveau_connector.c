@@ -888,10 +888,12 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				nv_connector->use_dithering ?
 				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
 
-		if (dev_priv->card_type >= NV_50)
-			connector->polled = DRM_CONNECTOR_POLL_HPD;
-		else
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+		if (dcb->type != DCB_CONNECTOR_LVDS) {
+			if (dev_priv->card_type >= NV_50)
+				connector->polled = DRM_CONNECTOR_POLL_HPD;
+			else
+				connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+		}
 		break;
 	}
 
