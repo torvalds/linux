@@ -48,7 +48,7 @@
 #include <linux/usb.h>
 #ifdef CONFIG_CARL9170_LEDS
 #include <linux/leds.h>
-#endif /* CONFIG_CARL170_LEDS */
+#endif /* CONFIG_CARL9170_LEDS */
 #ifdef CONFIG_CARL9170_WPC
 #include <linux/input.h>
 #endif /* CONFIG_CARL9170_WPC */

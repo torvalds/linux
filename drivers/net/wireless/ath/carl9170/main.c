@@ -1828,7 +1828,7 @@ int carl9170_register(struct ar9170 *ar)
 	err = carl9170_led_register(ar);
 	if (err)
 		goto err_unreg;
-#endif /* CONFIG_CAR9L170_LEDS */
+#endif /* CONFIG_CARL9170_LEDS */
 
 #ifdef CONFIG_CARL9170_WPC
 	err = carl9170_register_wps_button(ar);
