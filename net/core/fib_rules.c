@@ -373,6 +373,11 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	fib_rule_get(rule);
 
+	if (last)
+		list_add_rcu(&rule->list, &last->list);
+	else
+		list_add_rcu(&rule->list, &ops->rules_list);
+
 	if (ops->unresolved_rules) {
 		/*
 		 * There are unresolved goto rules in the list, check if
@@ -394,11 +399,6 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (unresolved)
 		ops->unresolved_rules++;
-
-	if (last)
-		list_add_rcu(&rule->list, &last->list);
-	else
-		list_add_rcu(&rule->list, &ops->rules_list);
 
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
 	flush_route_cache(ops);
