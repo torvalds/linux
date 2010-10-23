@@ -105,7 +105,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	int ret;
 	bool new_assoc =
 		!!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
-	bool old_assoc = !!(ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK);
 
 	if (!iwl_is_alive(priv))
 		return -EBUSY;
@@ -185,19 +184,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		       ctx->staging.bssid_addr);
 
 	iwl_set_rxon_hwcrypto(priv, ctx, !priv->cfg->mod_params->sw_crypto);
-
-	if (!old_assoc) {
-		/*
-		 * First of all, before setting associated, we need to
-		 * send RXON timing so the device knows about the DTIM
-		 * period and other timing values
-		 */
-		ret = iwl_send_rxon_timing(priv, ctx);
-		if (ret) {
-			IWL_ERR(priv, "Error setting RXON timing!\n");
-			return ret;
-		}
-	}
 
 	if (priv->cfg->ops->hcmd->set_pan_params) {
 		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
