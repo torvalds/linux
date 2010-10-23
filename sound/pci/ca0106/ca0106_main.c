@@ -514,6 +514,23 @@ static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
 	}
 }
 
+static int snd_ca0106_pcm_power_dac(struct snd_ca0106 *chip, int channel_id,
+				    int power)
+{
+	if (chip->details->spi_dac) {
+		const int reg = spi_dacd_reg[channel_id];
+
+		if (power)
+			/* Power up */
+			chip->spi_dac_reg[reg] &= ~spi_dacd_bit[channel_id];
+		else
+			/* Power down */
+			chip->spi_dac_reg[reg] |= spi_dacd_bit[channel_id];
+		return snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	}
+	return 0;
+}
+
 /* open_playback callback */
 static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substream,
 						int channel_id)
@@ -553,12 +570,9 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
                 return err;
 	snd_pcm_set_sync(substream);
 
-	if (chip->details->spi_dac && channel_id != PCM_FRONT_CHANNEL) {
-		const int reg = spi_dacd_reg[channel_id];
-
-		/* Power up dac */
-		chip->spi_dac_reg[reg] &= ~spi_dacd_bit[channel_id];
-		err = snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	/* Front channel dac should already be on */
+	if (channel_id != PCM_FRONT_CHANNEL) {
+		err = snd_ca0106_pcm_power_dac(chip, channel_id, 1);
 		if (err < 0)
 			return err;
 	}
@@ -578,13 +592,14 @@ static int snd_ca0106_pcm_close_playback(struct snd_pcm_substream *substream)
 
 	restore_spdif_bits(chip, epcm->channel_id);
 
-	if (chip->details->spi_dac && epcm->channel_id != PCM_FRONT_CHANNEL) {
-		const int reg = spi_dacd_reg[epcm->channel_id];
-
-		/* Power down DAC */
-		chip->spi_dac_reg[reg] |= spi_dacd_bit[epcm->channel_id];
-		snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	/* Front channel dac should stay on */
+	if (epcm->channel_id != PCM_FRONT_CHANNEL) {
+		int err;
+		err = snd_ca0106_pcm_power_dac(chip, epcm->channel_id, 0);
+		if (err < 0)
+			return err;
 	}
+
 	/* FIXME: maybe zero others */
 	return 0;
 }
