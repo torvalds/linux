@@ -1897,7 +1897,10 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 
 	switch (priv->bt_traffic_load) {
 	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
-		smps_request = IEEE80211_SMPS_AUTOMATIC;
+		if (priv->bt_status)
+			smps_request = IEEE80211_SMPS_DYNAMIC;
+		else
+			smps_request = IEEE80211_SMPS_AUTOMATIC;
 		break;
 	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
 		smps_request = IEEE80211_SMPS_DYNAMIC;
