@@ -3078,7 +3078,8 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
  *		drm_agp_chipset_flush
  */
 static void
-i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
+				  struct intel_ring_buffer *ring)
 {
 	struct drm_device		*dev = obj->dev;
 	struct drm_i915_private		*dev_priv = dev->dev_private;
@@ -3132,8 +3133,10 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 
 	dev->invalidate_domains |= invalidate_domains;
 	dev->flush_domains |= flush_domains;
-	if (obj_priv->ring)
+	if (flush_domains & I915_GEM_GPU_DOMAINS)
 		dev_priv->mm.flush_rings |= obj_priv->ring->id;
+	if (invalidate_domains & I915_GEM_GPU_DOMAINS)
+		dev_priv->mm.flush_rings |= ring->id;
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -3765,7 +3768,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		struct drm_gem_object *obj = object_list[i];
 
 		/* Compute new gpu domains and update invalidate/flush */
-		i915_gem_object_set_to_gpu_domain(obj);
+		i915_gem_object_set_to_gpu_domain(obj, ring);
 	}
 
 	if (dev->invalidate_domains | dev->flush_domains) {
