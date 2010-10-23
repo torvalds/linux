@@ -225,33 +225,42 @@ int nfs_readdir_clear_array(struct page *page, gfp_t mask)
  * nfs_clear_readdir_array()
  */
 static
-void nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int len)
+int nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int len)
 {
 	string->len = len;
 	string->name = kmemdup(name, len, GFP_KERNEL);
-	string->hash = full_name_hash(string->name, string->len);
+	if (string->name == NULL)
+		return -ENOMEM;
+	string->hash = full_name_hash(name, len);
+	return 0;
 }
 
 static
 int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 {
 	struct nfs_cache_array *array = nfs_readdir_get_array(page);
+	struct nfs_cache_array_entry *cache_entry;
+	int ret;
+
 	if (IS_ERR(array))
 		return PTR_ERR(array);
-	if (array->size >= MAX_READDIR_ARRAY) {
-		nfs_readdir_release_array(page);
-		return -EIO;
-	}
+	ret = -EIO;
+	if (array->size >= MAX_READDIR_ARRAY)
+		goto out;
 
-	array->array[array->size].cookie = entry->prev_cookie;
+	cache_entry = &array->array[array->size];
+	cache_entry->cookie = entry->prev_cookie;
+	cache_entry->ino = entry->ino;
+	ret = nfs_readdir_make_qstr(&cache_entry->string, entry->name, entry->len);
+	if (ret)
+		goto out;
 	array->last_cookie = entry->cookie;
-	array->array[array->size].ino = entry->ino;
-	nfs_readdir_make_qstr(&array->array[array->size].string, entry->name, entry->len);
 	if (entry->eof == 1)
 		array->eof_index = array->size;
 	array->size++;
+out:
 	nfs_readdir_release_array(page);
-	return 0;
+	return ret;
 }
 
 static
@@ -388,21 +397,24 @@ different:
 static
 void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 {
-	struct qstr filename;
-	struct dentry *dentry = NULL;
-	struct dentry *alias = NULL;
+	struct qstr filename = {
+		.len = entry->len,
+		.name = entry->name,
+	};
+	struct dentry *dentry;
+	struct dentry *alias;
 	struct inode *dir = parent->d_inode;
 	struct inode *inode;
 
-	nfs_readdir_make_qstr(&filename, entry->name, entry->len);
-	if (filename.len == 1 && filename.name[0] == '.')
-		dentry = dget(parent);
-	else if (filename.len == 2 && filename.name[0] == '.'
-				   && filename.name[1] == '.')
-		dentry = dget_parent(parent);
-	else
-		dentry = d_lookup(parent, &filename);
+	if (filename.name[0] == '.') {
+		if (filename.len == 1)
+			return;
+		if (filename.len == 2 && filename.name[1] == '.')
+			return;
+	}
+	filename.hash = full_name_hash(filename.name, filename.len);
 
+	dentry = d_lookup(parent, &filename);
 	if (dentry != NULL) {
 		if (nfs_same_file(dentry, entry)) {
 			nfs_refresh_inode(dentry->d_inode, entry->fattr);
@@ -414,6 +426,9 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 	}
 
 	dentry = d_alloc(parent, &filename);
+	if (dentry == NULL)
+		return;
+
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 	inode = nfs_fhget(dentry->d_sb, entry->fh, entry->fattr);
 	if (IS_ERR(inode))
@@ -430,8 +445,6 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 
 out:
 	dput(dentry);
-	kfree(filename.name);
-	return;
 }
 
 /* Perform conversion from xdr to cache array */
@@ -508,7 +521,7 @@ void *nfs_readdir_large_page(struct page **pages, unsigned int npages)
 		pages[i] = page;
 	}
 
-	ptr = vm_map_ram(pages, NFS_MAX_READDIR_PAGES, 0, PAGE_KERNEL);
+	ptr = vm_map_ram(pages, npages, 0, PAGE_KERNEL);
 	if (!IS_ERR_OR_NULL(ptr))
 		return ptr;
 out_freepages:
