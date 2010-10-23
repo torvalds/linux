@@ -336,6 +336,28 @@ static void inode_lru_list_del(struct inode *inode)
 	}
 }
 
+static inline void __inode_sb_list_add(struct inode *inode)
+{
+	list_add(&inode->i_sb_list, &inode->i_sb->s_inodes);
+}
+
+/**
+ * inode_sb_list_add - add inode to the superblock list of inodes
+ * @inode: inode to add
+ */
+void inode_sb_list_add(struct inode *inode)
+{
+	spin_lock(&inode_lock);
+	__inode_sb_list_add(inode);
+	spin_unlock(&inode_lock);
+}
+EXPORT_SYMBOL_GPL(inode_sb_list_add);
+
+static inline void __inode_sb_list_del(struct inode *inode)
+{
+	list_del_init(&inode->i_sb_list);
+}
+
 static unsigned long hash(struct super_block *sb, unsigned long hashval)
 {
 	unsigned long tmp;
@@ -356,9 +378,10 @@ static unsigned long hash(struct super_block *sb, unsigned long hashval)
  */
 void __insert_inode_hash(struct inode *inode, unsigned long hashval)
 {
-	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
+	struct hlist_head *b = inode_hashtable + hash(inode->i_sb, hashval);
+
 	spin_lock(&inode_lock);
-	hlist_add_head(&inode->i_hash, head);
+	hlist_add_head(&inode->i_hash, b);
 	spin_unlock(&inode_lock);
 }
 EXPORT_SYMBOL(__insert_inode_hash);
@@ -436,7 +459,7 @@ static void dispose_list(struct list_head *head)
 
 		spin_lock(&inode_lock);
 		__remove_inode_hash(inode);
-		list_del_init(&inode->i_sb_list);
+		__inode_sb_list_del(inode);
 		spin_unlock(&inode_lock);
 
 		wake_up_inode(inode);
@@ -685,37 +708,6 @@ repeat:
 	return NULL;
 }
 
-static inline void
-__inode_add_to_lists(struct super_block *sb, struct hlist_head *head,
-			struct inode *inode)
-{
-	list_add(&inode->i_sb_list, &sb->s_inodes);
-	if (head)
-		hlist_add_head(&inode->i_hash, head);
-}
-
-/**
- * inode_add_to_lists - add a new inode to relevant lists
- * @sb: superblock inode belongs to
- * @inode: inode to mark in use
- *
- * When an inode is allocated it needs to be accounted for, added to the in use
- * list, the owning superblock and the inode hash. This needs to be done under
- * the inode_lock, so export a function to do this rather than the inode lock
- * itself. We calculate the hash list to add to here so it is all internal
- * which requires the caller to have already set up the inode number in the
- * inode to add.
- */
-void inode_add_to_lists(struct super_block *sb, struct inode *inode)
-{
-	struct hlist_head *head = inode_hashtable + hash(sb, inode->i_ino);
-
-	spin_lock(&inode_lock);
-	__inode_add_to_lists(sb, head, inode);
-	spin_unlock(&inode_lock);
-}
-EXPORT_SYMBOL_GPL(inode_add_to_lists);
-
 /**
  *	new_inode 	- obtain an inode
  *	@sb: superblock
@@ -743,7 +735,7 @@ struct inode *new_inode(struct super_block *sb)
 	inode = alloc_inode(sb);
 	if (inode) {
 		spin_lock(&inode_lock);
-		__inode_add_to_lists(sb, NULL, inode);
+		__inode_sb_list_add(inode);
 		inode->i_ino = ++last_ino;
 		inode->i_state = 0;
 		spin_unlock(&inode_lock);
@@ -812,7 +804,8 @@ static struct inode *get_new_inode(struct super_block *sb,
 			if (set(inode, data))
 				goto set_failed;
 
-			__inode_add_to_lists(sb, head, inode);
+			hlist_add_head(&inode->i_hash, head);
+			__inode_sb_list_add(inode);
 			inode->i_state = I_NEW;
 			spin_unlock(&inode_lock);
 
@@ -858,7 +851,8 @@ static struct inode *get_new_inode_fast(struct super_block *sb,
 		old = find_inode_fast(sb, head, ino);
 		if (!old) {
 			inode->i_ino = ino;
-			__inode_add_to_lists(sb, head, inode);
+			hlist_add_head(&inode->i_hash, head);
+			__inode_sb_list_add(inode);
 			inode->i_state = I_NEW;
 			spin_unlock(&inode_lock);
 
@@ -1318,7 +1312,7 @@ static void iput_final(struct inode *inode)
 	 */
 	inode_lru_list_del(inode);
 
-	list_del_init(&inode->i_sb_list);
+	__inode_sb_list_del(inode);
 	spin_unlock(&inode_lock);
 	evict(inode);
 	remove_inode_hash(inode);
