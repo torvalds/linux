@@ -462,8 +462,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	if (q->elevator)
 		elevator_exit(q->elevator);
 
-	blk_throtl_exit(q);
-
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
