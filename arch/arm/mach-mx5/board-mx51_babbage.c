@@ -18,6 +18,8 @@
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
 #include <linux/fec.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -38,6 +40,7 @@
 #define BABBAGE_USBH1_STP	(0*32 + 27)	/* GPIO_1_27 */
 #define BABBAGE_PHY_RESET	(1*32 + 5)	/* GPIO_2_5 */
 #define BABBAGE_FEC_PHY_RESET	(1*32 + 14)	/* GPIO_2_14 */
+#define BABBAGE_POWER_KEY	(1*32 + 21)	/* GPIO_2_21 */
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET			0x10
@@ -46,6 +49,21 @@
 #define	MX51_USB_PLLDIV_12_MHZ		0x00
 #define	MX51_USB_PLL_DIV_19_2_MHZ	0x01
 #define	MX51_USB_PLL_DIV_24_MHZ	0x02
+
+static struct gpio_keys_button babbage_buttons[] = {
+	{
+		.gpio		= BABBAGE_POWER_KEY,
+		.code		= BTN_0,
+		.desc		= "PWR",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+};
+
+static const struct gpio_keys_platform_data imx_button_data __initconst = {
+	.buttons	= babbage_buttons,
+	.nbuttons	= ARRAY_SIZE(babbage_buttons),
+};
 
 static struct pad_desc mx51babbage_pads[] = {
 	/* UART1 */
@@ -298,6 +316,7 @@ __setup("otg_mode=", babbage_otg_mode);
 static void __init mxc_board_init(void)
 {
 	struct pad_desc usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
+	struct pad_desc power_key = MX51_PAD_EIM_A27__GPIO_2_21;
 
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;
@@ -307,6 +326,11 @@ static void __init mxc_board_init(void)
 	mxc_init_imx_uart();
 	babbage_fec_reset();
 	imx51_add_fec(NULL);
+
+	/* Set the PAD settings for the pwr key. */
+	power_key.pad_ctrl = MX51_GPIO_PAD_CTRL_2;
+	mxc_iomux_v3_setup_pad(&power_key);
+	imx51_add_gpio_keys(&imx_button_data);
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);
