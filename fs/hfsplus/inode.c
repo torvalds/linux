@@ -211,7 +211,7 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	 * appear hashed, but do not put on any lists.  hlist_del()
 	 * will work fine and require no locking.
 	 */
-	inode->i_hash.pprev = &inode->i_hash.next;
+	hlist_add_fake(&inode->i_hash);
 
 	mark_inode_dirty(inode);
 out:
