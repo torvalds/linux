@@ -3824,7 +3824,7 @@ static struct attribute_group iwl3945_attribute_group = {
 	.attrs = iwl3945_sysfs_entries,
 };
 
-static struct ieee80211_ops iwl3945_hw_ops = {
+struct ieee80211_ops iwl3945_hw_ops = {
 	.tx = iwl3945_mac_tx,
 	.start = iwl3945_mac_start,
 	.stop = iwl3945_mac_stop,
@@ -3966,7 +3966,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* mac80211 allocates memory for this device instance, including
 	 *   space for this driver's private structure */
-	hw = iwl_alloc_all(cfg, &iwl3945_hw_ops);
+	hw = iwl_alloc_all(cfg);
 	if (hw == NULL) {
 		pr_err("Can not allocate network device\n");
 		err = -ENOMEM;

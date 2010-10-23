@@ -282,6 +282,8 @@ extern int iwl3945_commit_rxon(struct iwl_priv *priv,
  */
 extern u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
 
+extern struct ieee80211_ops iwl3945_hw_ops;
+
 /*
  * Forward declare iwl-3945.c functions for iwl-base.c
  */

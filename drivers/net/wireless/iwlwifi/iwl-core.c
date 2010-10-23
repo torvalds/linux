@@ -77,15 +77,15 @@ EXPORT_SYMBOL(iwl_bcast_addr);
 
 
 /* This function both allocates and initializes hw and priv. */
-struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
-		struct ieee80211_ops *hw_ops)
+struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
 {
 	struct iwl_priv *priv;
-
 	/* mac80211 allocates memory for this device instance, including
 	 *   space for this driver's private structure */
-	struct ieee80211_hw *hw =
-		ieee80211_alloc_hw(sizeof(struct iwl_priv), hw_ops);
+	struct ieee80211_hw *hw;
+
+	hw = ieee80211_alloc_hw(sizeof(struct iwl_priv),
+				cfg->ops->ieee80211_ops);
 	if (hw == NULL) {
 		pr_err("%s: Can not allocate network device\n",
 		       cfg->name);

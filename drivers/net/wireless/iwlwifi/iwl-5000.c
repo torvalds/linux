@@ -485,6 +485,7 @@ static const struct iwl_ops iwl5000_ops = {
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl5150_ops = {
@@ -492,6 +493,7 @@ static const struct iwl_ops iwl5150_ops = {
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl5000_base_params = {

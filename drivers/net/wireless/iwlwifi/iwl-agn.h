@@ -102,6 +102,8 @@ extern struct iwl_hcmd_ops iwlagn_hcmd;
 extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
+extern struct ieee80211_ops iwlagn_hw_ops;
+
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
 int iwl_alloc_isr_ict(struct iwl_priv *priv);

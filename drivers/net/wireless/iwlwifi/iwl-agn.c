@@ -4211,7 +4211,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	kfree(priv->scan_cmd);
 }
 
-static struct ieee80211_ops iwl_hw_ops = {
+struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwl_mac_tx,
 	.start = iwl_mac_start,
 	.stop = iwl_mac_stop,
@@ -4300,10 +4300,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cfg->mod_params->disable_hw_scan) {
 		dev_printk(KERN_DEBUG, &(pdev->dev),
 			"sw scan support is deprecated\n");
-		iwl_hw_ops.hw_scan = NULL;
+		iwlagn_hw_ops.hw_scan = NULL;
 	}
 
-	hw = iwl_alloc_all(cfg, &iwl_hw_ops);
+	hw = iwl_alloc_all(cfg);
 	if (!hw) {
 		err = -ENOMEM;
 		goto out;

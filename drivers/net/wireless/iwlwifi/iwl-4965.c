@@ -2305,6 +2305,7 @@ static const struct iwl_ops iwl4965_ops = {
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl4965_base_params = {

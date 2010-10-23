@@ -241,6 +241,7 @@ struct iwl_ops {
 	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_led_ops *led;
 	const struct iwl_nic_ops *nic;
+	const struct ieee80211_ops *ieee80211_ops;
 };
 
 struct iwl_mod_params {
@@ -396,8 +397,7 @@ struct iwl_cfg {
  *   L i b                 *
  ***************************/
 
-struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
-		struct ieee80211_ops *hw_ops);
+struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);
