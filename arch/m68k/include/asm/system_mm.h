@@ -182,9 +182,7 @@ static inline unsigned long __cmpxchg(volatile void *p, unsigned long old,
 	((__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o),\
 			(unsigned long)(n), sizeof(*(ptr))))
 
-#ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
-#endif
 
 #endif
 
