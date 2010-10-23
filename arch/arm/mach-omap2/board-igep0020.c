@@ -152,35 +152,34 @@ static struct platform_device igep2_onenand_device = {
 
 static void __init igep2_flash_init(void)
 {
-	u8		cs = 0;
-	u8		onenandcs = GPMC_CS_NUM + 1;
+	u8 cs = 0;
+	u8 onenandcs = GPMC_CS_NUM + 1;
 
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
+	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
+		u32 ret;
 		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
 
 		/* Check if NAND/oneNAND is configured */
 		if ((ret & 0xC00) == 0x800)
 			/* NAND found */
-			pr_err("IGEP v2: Unsupported NAND found\n");
+			pr_err("IGEP2: Unsupported NAND found\n");
 		else {
 			ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
 			if ((ret & 0x3F) == (ONENAND_MAP >> 24))
 				/* ONENAND found */
 				onenandcs = cs;
 		}
-		cs++;
 	}
+
 	if (onenandcs > GPMC_CS_NUM) {
-		pr_err("IGEP v2: Unable to find configuration in GPMC\n");
+		pr_err("IGEP2: Unable to find configuration in GPMC\n");
 		return;
 	}
 
-	if (onenandcs < GPMC_CS_NUM) {
-		igep2_onenand_data.cs = onenandcs;
-		if (platform_device_register(&igep2_onenand_device) < 0)
-			pr_err("IGEP v2: Unable to register OneNAND device\n");
-	}
+	igep2_onenand_data.cs = onenandcs;
+
+	if (platform_device_register(&igep2_onenand_device) < 0)
+		pr_err("IGEP2: Unable to register OneNAND device\n");
 }
 
 #else
