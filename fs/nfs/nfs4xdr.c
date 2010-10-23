@@ -3912,7 +3912,7 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 	status = decode_attr_mounted_on_fileid(xdr, bitmap, &fileid);
 	if (status < 0)
 		goto xdr_error;
-	if (status != 0) {
+	if (status != 0 && !(fattr->valid & status)) {
 		fattr->fileid = fileid;
 		fattr->valid |= status;
 	}
