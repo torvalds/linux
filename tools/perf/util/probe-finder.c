@@ -1731,7 +1731,8 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 	struct line_finder *lf = param->data;
 	struct line_range *lr = lf->lr;
 
-	pr_debug("find (%lx) %s\n", dwarf_dieoffset(sp_die),
+	pr_debug("find (%llx) %s\n",
+		 (unsigned long long)dwarf_dieoffset(sp_die),
 		 dwarf_diename(sp_die));
 	if (dwarf_tag(sp_die) == DW_TAG_subprogram &&
 	    die_compare_name(sp_die, lr->function)) {
