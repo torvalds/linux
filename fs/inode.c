@@ -634,9 +634,6 @@ static struct shrinker icache_shrinker = {
 static void __wait_on_freeing_inode(struct inode *inode);
 /*
  * Called with the inode lock held.
- * NOTE: we are not increasing the inode-refcount, you must call __iget()
- * by hand after calling find_inode now! This simplifies iunique and won't
- * add any additional branch in the common code.
  */
 static struct inode *find_inode(struct super_block *sb,
 				struct hlist_head *head,
@@ -656,9 +653,10 @@ repeat:
 			__wait_on_freeing_inode(inode);
 			goto repeat;
 		}
-		break;
+		__iget(inode);
+		return inode;
 	}
-	return node ? inode : NULL;
+	return NULL;
 }
 
 /*
@@ -681,9 +679,10 @@ repeat:
 			__wait_on_freeing_inode(inode);
 			goto repeat;
 		}
-		break;
+		__iget(inode);
+		return inode;
 	}
-	return node ? inode : NULL;
+	return NULL;
 }
 
 static inline void
@@ -828,7 +827,6 @@ static struct inode *get_new_inode(struct super_block *sb,
 		 * us. Use the old inode instead of the one we just
 		 * allocated.
 		 */
-		__iget(old);
 		spin_unlock(&inode_lock);
 		destroy_inode(inode);
 		inode = old;
@@ -875,7 +873,6 @@ static struct inode *get_new_inode_fast(struct super_block *sb,
 		 * us. Use the old inode instead of the one we just
 		 * allocated.
 		 */
-		__iget(old);
 		spin_unlock(&inode_lock);
 		destroy_inode(inode);
 		inode = old;
@@ -989,7 +986,6 @@ static struct inode *ifind(struct super_block *sb,
 	spin_lock(&inode_lock);
 	inode = find_inode(sb, head, test, data);
 	if (inode) {
-		__iget(inode);
 		spin_unlock(&inode_lock);
 		if (likely(wait))
 			wait_on_inode(inode);
@@ -1022,7 +1018,6 @@ static struct inode *ifind_fast(struct super_block *sb,
 	spin_lock(&inode_lock);
 	inode = find_inode_fast(sb, head, ino);
 	if (inode) {
-		__iget(inode);
 		spin_unlock(&inode_lock);
 		wait_on_inode(inode);
 		return inode;
