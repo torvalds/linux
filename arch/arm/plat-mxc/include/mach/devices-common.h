@@ -29,6 +29,10 @@ struct platform_device *__init imx_add_flexcan(int id,
 		resource_size_t irq,
 		const struct flexcan_platform_data *pdata);
 
+#include <linux/gpio_keys.h>
+struct platform_device *__init imx_add_gpio_keys(
+		const struct gpio_keys_platform_data *pdata);
+
 #include <mach/i2c.h>
 struct imx_imx_i2c_data {
 	int id;
