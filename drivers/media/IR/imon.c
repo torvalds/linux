@@ -1477,7 +1477,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	bool norelease = false;
 	int i;
 	u64 scancode;
-	struct input_dev *idev = NULL;
+	struct input_dev *rdev = NULL;
 	struct ir_input_dev *irdev = NULL;
 	int press_type = 0;
 	int msec;
@@ -1485,8 +1485,8 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	static struct timeval prev_time = { 0, 0 };
 	u8 ktype;
 
-	idev = ictx->idev;
-	irdev = input_get_drvdata(idev);
+	rdev = ictx->rdev;
+	irdev = input_get_drvdata(rdev);
 
 	/* filter out junk data on the older 0xffdc imon devices */
 	if ((buf[0] == 0xff) && (buf[1] == 0xff) && (buf[2] == 0xff))
@@ -1570,8 +1570,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 		if (press_type == 0)
 			ir_keyup(irdev);
 		else {
-			ir_keydown(ictx->rdev, ictx->rc_scancode,
-				   ictx->rc_toggle);
+			ir_keydown(rdev, ictx->rc_scancode, ictx->rc_toggle);
 			spin_lock_irqsave(&ictx->kc_lock, flags);
 			ictx->last_keycode = ictx->kc;
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
@@ -1587,7 +1586,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 		do_gettimeofday(&t);
 		msec = tv2int(&t, &prev_time);
 		prev_time = t;
-		if (msec < idev->rep[REP_DELAY]) {
+		if (msec < ictx->idev->rep[REP_DELAY]) {
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
 			return;
 		}
@@ -1596,12 +1595,12 @@ static void imon_incoming_packet(struct imon_context *ictx,
 
 	spin_unlock_irqrestore(&ictx->kc_lock, flags);
 
-	input_report_key(idev, kc, press_type);
-	input_sync(idev);
+	input_report_key(ictx->idev, kc, press_type);
+	input_sync(ictx->idev);
 
 	/* panel keys don't generate a release */
-	input_report_key(idev, kc, 0);
-	input_sync(idev);
+	input_report_key(ictx->idev, kc, 0);
+	input_sync(ictx->idev);
 
 	ictx->last_keycode = kc;
 
