@@ -686,40 +686,42 @@ config MM_OWNER
 	bool
 
 config SYSFS_DEPRECATED
-	bool
-
-config SYSFS_DEPRECATED_V2
 	bool "enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
 	default n
-	select SYSFS_DEPRECATED
 	help
-	  This option switches the layout of sysfs to the deprecated
-	  version. Do not use it on recent distributions.
+	  This option adds code that switches the layout of the "block" class
+	  devices, to not show up in /sys/class/block/, but only in
+	  /sys/block/.
 
-	  The current sysfs layout features a unified device tree at
-	  /sys/devices/, which is able to express a hierarchy between
-	  class devices. If the deprecated option is set to Y, the
-	  unified device tree is split into a bus device tree at
-	  /sys/devices/ and several individual class device trees at
-	  /sys/class/. The class and bus devices will be connected by
-	  "<subsystem>:<name>" and the "device" links. The "block"
-	  class devices, will not show up in /sys/class/block/. Some
-	  subsystems will suppress the creation of some devices which
-	  depend on the unified device tree.
+	  This switch is only active when the sysfs.deprecated=1 boot option is
+	  passed or the SYSFS_DEPRECATED_V2 option is set.
 
-	  This option is not a pure compatibility option that can
-	  be safely enabled on newer distributions. It will change the
-	  layout of sysfs to the non-extensible deprecated version,
-	  and disable some features, which can not be exported without
-	  confusing older userspace tools. Since 2007/2008 all major
-	  distributions do not enable this option, and ship no tools which
-	  depend on the deprecated layout or this option.
+	  This option allows new kernels to run on old distributions and tools,
+	  which might get confused by /sys/class/block/. Since 2007/2008 all
+	  major distributions and tools handle this just fine.
 
-	  If you are using a new kernel on an older distribution, or use
-	  older userspace tools, you might need to say Y here. Do not say Y,
-	  if the original kernel, that came with your distribution, has
-	  this option set to N.
+	  Recent distributions and userspace tools after 2009/2010 depend on
+	  the existence of /sys/class/block/, and will not work with this
+	  option enabled.
+
+	  Only if you are using a new kernel on an old distribution, you might
+	  need to say Y here.
+
+config SYSFS_DEPRECATED_V2
+	bool "enabled deprecated sysfs features by default"
+	default n
+	depends on SYSFS
+	depends on SYSFS_DEPRECATED
+	help
+	  Enable deprecated sysfs by default.
+
+	  See the CONFIG_SYSFS_DEPRECATED option for more details about this
+	  option.
+
+	  Only if you are using a new kernel on an old distribution, you might
+	  need to say Y here. Even then, odds are you would not need it
+	  enabled, you can always pass the boot option if absolutely necessary.
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
