@@ -41,6 +41,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 #include <mach/iomap.h>
@@ -68,13 +69,11 @@ struct suspend_context
 
 volatile struct suspend_context tegra_sctx;
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
 static void __iomem *clk_rst = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
 static void __iomem *flow_ctrl = IO_ADDRESS(TEGRA_FLOW_CTRL_BASE);
 static void __iomem *evp_reset = IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE)+0x100;
 static void __iomem *tmrus = IO_ADDRESS(TEGRA_TMRUS_BASE);
-#endif
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_LATCH_WAKEUPS	(1 << 5)
@@ -111,6 +110,10 @@ static void __iomem *tmrus = IO_ADDRESS(TEGRA_TMRUS_BASE);
 
 #define FLOW_CTRL_CPU_CSR	0x8
 #define FLOW_CTRL_CPU1_CSR	0x18
+
+unsigned long tegra_pgd_phys;  /* pgd used by hotplug & LP2 bootup */
+static pgd_t *tegra_pgd;
+void *tegra_context_area = NULL;
 
 static struct clk *tegra_pclk = NULL;
 static const struct tegra_suspend_platform_data *pdata = NULL;
@@ -166,6 +169,67 @@ static void set_power_timers(unsigned long us_on, unsigned long us_off,
 	last_pclk = pclk;
 }
 
+static int create_suspend_pgtable(void)
+{
+	int i;
+	pmd_t *pmd;
+	/* arrays of virtual-to-physical mappings which must be
+	 * present to safely boot hotplugged / LP2-idled CPUs.
+	 * tegra_hotplug_startup (hotplug reset vector) is mapped
+	 * VA=PA so that the translation post-MMU is the same as
+	 * pre-MMU, IRAM is mapped VA=PA so that SDRAM self-refresh
+	 * can safely disable the MMU */
+	unsigned long addr_v[] = {
+		PHYS_OFFSET,
+		IO_IRAM_PHYS,
+		(unsigned long)tegra_context_area,
+#ifdef CONFIG_HOTPLUG_CPU
+		(unsigned long)virt_to_phys(tegra_hotplug_startup),
+#endif
+		(unsigned long)__cortex_a9_restore,
+		(unsigned long)virt_to_phys(__shut_off_mmu),
+	};
+	unsigned long addr_p[] = {
+		PHYS_OFFSET,
+		IO_IRAM_PHYS,
+		(unsigned long)virt_to_phys(tegra_context_area),
+#ifdef CONFIG_HOTPLUG_CPU
+		(unsigned long)virt_to_phys(tegra_hotplug_startup),
+#endif
+		(unsigned long)virt_to_phys(__cortex_a9_restore),
+		(unsigned long)virt_to_phys(__shut_off_mmu),
+	};
+	unsigned int flags = PMD_TYPE_SECT | PMD_SECT_AP_WRITE |
+		PMD_SECT_WBWA | PMD_SECT_S;
+
+	tegra_pgd = pgd_alloc(&init_mm);
+	if (!tegra_pgd)
+		return -ENOMEM;
+
+	for (i=0; i<ARRAY_SIZE(addr_p); i++) {
+		unsigned long v = addr_v[i];
+		pmd = pmd_offset(tegra_pgd + pgd_index(v), v);
+		*pmd = __pmd((addr_p[i] & PGDIR_MASK) | flags);
+		flush_pmd_entry(pmd);
+		outer_clean_range(__pa(pmd), __pa(pmd + 1));
+	}
+
+	tegra_pgd_phys = virt_to_phys(tegra_pgd);
+	__cpuc_flush_dcache_area(&tegra_pgd_phys,
+		sizeof(tegra_pgd_phys));
+	outer_clean_range(__pa(&tegra_pgd_phys),
+		__pa(&tegra_pgd_phys+1));
+
+	__cpuc_flush_dcache_area(&tegra_context_area,
+		sizeof(tegra_context_area));
+	outer_clean_range(__pa(&tegra_context_area),
+		__pa(&tegra_context_area+1));
+
+	return 0;
+}
+
+
+
 /*
  * suspend_cpu_complex
  *
@@ -199,8 +263,10 @@ static noinline void restore_cpu_complex(void)
 	writel(reg, flow_ctrl + FLOW_CTRL_CPU_CSR);
 	wmb();
 
+#ifdef CONFIG_HAVE_ARM_TWD
 	writel(tegra_sctx.twd_ctrl, twd_base + 0x8);
 	writel(tegra_sctx.twd_load, twd_base + 0);
+#endif
 
 	gic_dist_restore(0);
 	get_irq_chip(IRQ_LOCALTIMER)->unmask(IRQ_LOCALTIMER);
@@ -224,9 +290,11 @@ static noinline void suspend_cpu_complex(void)
 	tegra_sctx.pllx_misc = readl(clk_rst + CLK_RESET_PLLX_MISC);
 	tegra_sctx.cclk_divider = readl(clk_rst + CLK_RESET_CCLK_DIVIDER);
 
+#ifdef CONFIG_HAVE_ARM_TWD
 	tegra_sctx.twd_ctrl = readl(twd_base + 0x8);
 	tegra_sctx.twd_load = readl(twd_base + 0);
 	local_timer_stop();
+#endif
 
 	reg = readl(flow_ctrl + FLOW_CTRL_CPU_CSR);
 	/* clear any pending events, set the WFE bitmap to specify just
@@ -563,6 +631,14 @@ void __init tegra_init_suspend(struct tegra_suspend_platform_data *plat)
 		pr_warning("Suspend mode LP0 requested, but missing lp0_vec\n");
 		pr_warning("Disabling LP0\n");
 		plat->suspend_mode = TEGRA_SUSPEND_LP1;
+	}
+
+	tegra_context_area = kzalloc(CONTEXT_SIZE_BYTES * NR_CPUS, GFP_KERNEL);
+	pr_info("%s: %p\n", __func__, tegra_context_area);
+
+	if (tegra_context_area && create_suspend_pgtable()) {
+		kfree(tegra_context_area);
+		tegra_context_area = NULL;
 	}
 
 #ifdef CONFIG_PM

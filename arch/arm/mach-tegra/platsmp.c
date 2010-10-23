@@ -33,7 +33,6 @@
 #include <asm/smp_scu.h>
 #include <asm/cpu.h>
 #include <asm/mmu_context.h>
-#include <asm/pgalloc.h>
 
 #include <mach/iomap.h>
 
@@ -43,8 +42,6 @@ extern void tegra_secondary_startup(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 static void __iomem *scu_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE);
-extern void __cortex_a9_restore(void);
-extern void __shut_off_mmu(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
 static DEFINE_PER_CPU(struct completion, cpu_killed);
@@ -63,10 +60,6 @@ const struct cpumask *const cpu_init_mask = to_cpumask(cpu_init_bits);
 	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x340)
 #define CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR \
 	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x344)
-
-unsigned long tegra_pgd_phys;  /* pgd used by hotplug & LP2 bootup */
-static pgd_t *tegra_pgd;
-void *tegra_context_area = NULL;
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
@@ -150,61 +143,6 @@ void __init smp_init_cpus(void)
 		cpu_set(i, cpu_possible_map);
 }
 
-static int create_suspend_pgtable(void)
-{
-	int i;
-	pmd_t *pmd;
-	/* arrays of virtual-to-physical mappings which must be
-	 * present to safely boot hotplugged / LP2-idled CPUs.
-	 * tegra_hotplug_startup (hotplug reset vector) is mapped
-	 * VA=PA so that the translation post-MMU is the same as
-	 * pre-MMU, IRAM is mapped VA=PA so that SDRAM self-refresh
-	 * can safely disable the MMU */
-	unsigned long addr_v[] = {
-		PHYS_OFFSET,
-		IO_IRAM_PHYS,
-		(unsigned long)tegra_context_area,
-		(unsigned long)virt_to_phys(tegra_hotplug_startup),
-		(unsigned long)__cortex_a9_restore,
-		(unsigned long)virt_to_phys(__shut_off_mmu),
-	};
-	unsigned long addr_p[] = {
-		PHYS_OFFSET,
-		IO_IRAM_PHYS,
-		(unsigned long)virt_to_phys(tegra_context_area),
-		(unsigned long)virt_to_phys(tegra_hotplug_startup),
-		(unsigned long)virt_to_phys(__cortex_a9_restore),
-		(unsigned long)virt_to_phys(__shut_off_mmu),
-	};
-	unsigned int flags = PMD_TYPE_SECT | PMD_SECT_AP_WRITE |
-		PMD_SECT_WBWA | PMD_SECT_S;
-
-	tegra_pgd = pgd_alloc(&init_mm);
-	if (!tegra_pgd)
-		return -ENOMEM;
-
-	for (i=0; i<ARRAY_SIZE(addr_p); i++) {
-		unsigned long v = addr_v[i];
-		pmd = pmd_offset(tegra_pgd + pgd_index(v), v);
-		*pmd = __pmd((addr_p[i] & PGDIR_MASK) | flags);
-		flush_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
-	}
-
-	tegra_pgd_phys = virt_to_phys(tegra_pgd);
-	__cpuc_flush_dcache_area(&tegra_pgd_phys,
-		sizeof(tegra_pgd_phys));
-	outer_clean_range(__pa(&tegra_pgd_phys),
-		__pa(&tegra_pgd_phys+1));
-
-	__cpuc_flush_dcache_area(&tegra_context_area,
-		sizeof(tegra_context_area));
-	outer_clean_range(__pa(&tegra_context_area),
-		__pa(&tegra_context_area+1));
-
-	return 0;
-}
-
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int ncores = scu_get_core_count(scu_base);
@@ -218,13 +156,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	if (max_cpus > ncores)
 		max_cpus = ncores;
-
-	tegra_context_area = kzalloc(CONTEXT_SIZE_BYTES * ncores, GFP_KERNEL);
-
-	if (tegra_context_area && create_suspend_pgtable()) {
-		kfree(tegra_context_area);
-		tegra_context_area = NULL;
-	}
 
 	/*
 	 * Initialise the present map, which describes the set of CPUs

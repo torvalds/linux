@@ -24,10 +24,9 @@ obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= tegra2_save.o
 obj-$(CONFIG_CPU_V7)			+= cortex-a9.o
 
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= pinmux-t2-tables.o
-ifeq ($(CONFIG_SMP),y)
-obj-y                                   += platsmp.o localtimer.o
+obj-$(CONFIG_SMP)                       += localtimer.o
+obj-$(CONFIG_SMP)                       += platsmp.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += headsmp-t2.o
-endif
 obj-$(CONFIG_TEGRA_SYSTEM_DMA)		+= dma.o
 obj-$(CONFIG_CPU_FREQ)                  += cpu-tegra.o
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
