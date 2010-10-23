@@ -320,6 +320,15 @@ void __iget(struct inode *inode)
 	atomic_inc(&inode->i_count);
 }
 
+/*
+ * get additional reference to inode; caller must already hold one.
+ */
+void ihold(struct inode *inode)
+{
+	WARN_ON(atomic_inc_return(&inode->i_count) < 2);
+}
+EXPORT_SYMBOL(ihold);
+
 static void inode_lru_list_add(struct inode *inode)
 {
 	if (list_empty(&inode->i_list)) {

@@ -569,7 +569,7 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 		return -EMLINK;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	inode->i_nlink++;
 	mark_inode_dirty_sync(inode);
 

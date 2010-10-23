@@ -4758,7 +4758,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	btrfs_set_trans_block_group(trans, dir);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	err = btrfs_add_nondir(trans, dentry, inode, 1, index);
 

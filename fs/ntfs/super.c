@@ -2911,8 +2911,8 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
 	if ((sb->s_root = d_alloc_root(vol->root_ino))) {
-		/* We increment i_count simulating an ntfs_iget(). */
-		atomic_inc(&vol->root_ino->i_count);
+		/* We grab a reference, simulating an ntfs_iget(). */
+		ihold(vol->root_ino);
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);

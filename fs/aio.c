@@ -1553,10 +1553,9 @@ static void aio_batch_add(struct address_space *mapping,
 	 *
 	 * When we're called, we always have a reference
 	 * on the file, so we must always have a reference
-	 * on the inode, so igrab must always just
-	 * bump the count and move on.
+	 * on the inode, so ihold() is safe here.
 	 */
-	atomic_inc(&mapping->host->i_count);
+	ihold(mapping->host);
 	abe->mapping = mapping;
 	hlist_add_head(&abe->list, &batch_hash[bucket]);
 	return;
