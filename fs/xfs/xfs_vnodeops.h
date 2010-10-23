@@ -2,7 +2,6 @@
 #define _XFS_VNODEOPS_H 1
 
 struct attrlist_cursor_kern;
-struct cred;
 struct file;
 struct iattr;
 struct inode;
@@ -26,7 +25,7 @@ int xfs_inactive(struct xfs_inode *ip);
 int xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 		struct xfs_inode **ipp, struct xfs_name *ci_name);
 int xfs_create(struct xfs_inode *dp, struct xfs_name *name, mode_t mode,
-		xfs_dev_t rdev, struct xfs_inode **ipp, cred_t *credp);
+		xfs_dev_t rdev, struct xfs_inode **ipp);
 int xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
 		struct xfs_inode *ip);
 int xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
@@ -34,8 +33,7 @@ int xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
 int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 		       xfs_off_t *offset, filldir_t filldir);
 int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
-		const char *target_path, mode_t mode, struct xfs_inode **ipp,
-		cred_t *credp);
+		const char *target_path, mode_t mode, struct xfs_inode **ipp);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
 int xfs_change_file_space(struct xfs_inode *ip, int cmd,
 		xfs_flock64_t *bf, xfs_off_t offset, int attr_flags);
