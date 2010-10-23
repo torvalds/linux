@@ -754,6 +754,8 @@ static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
 		RC_MAP_TREKSTOR },
 	{ (USB_VID_KWORLD_2 << 16) + USB_PID_TINYTWIN_2,
 		RC_MAP_DIGITALNOW_TINYTWIN },
+	{ (USB_VID_GTEK << 16) + USB_PID_TINYTWIN_3,
+		RC_MAP_DIGITALNOW_TINYTWIN },
 	{ }
 };
 
@@ -1285,6 +1287,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_TERRATEC,
 		USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
 /* 35 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T)},
+	{USB_DEVICE(USB_VID_GTEK,      USB_PID_TINYTWIN_3)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1380,7 +1383,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "DigitalNow TinyTwin DVB-T Receiver",
 				.cold_ids = {&af9015_usb_table[5],
-					     &af9015_usb_table[28], NULL},
+					     &af9015_usb_table[28],
+					     &af9015_usb_table[36], NULL},
 				.warm_ids = {NULL},
 			},
 			{
