@@ -35,6 +35,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/ir-core.h>
+#include <media/ir-kbd-i2c.h>
 #include <media/videobuf-dvb.h>
 
 #include "cx231xx-reg.h"
@@ -345,6 +346,10 @@ struct cx231xx_board {
 	/* i2c masters */
 	u8 tuner_i2c_master;
 	u8 demod_i2c_master;
+	u8 ir_i2c_master;
+
+	/* for devices with I2C chips for IR */
+	char *rc_map;
 
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
@@ -597,6 +602,17 @@ struct cx231xx_tsport {
 	void                       *port_priv;
 };
 
+struct cx231xx_ir_t {
+	struct input_dev *input_dev;
+	char name[40];
+	char phys[32];
+
+	struct ir_dev_props props;
+
+	/* I2C keyboard data */
+	struct IR_i2c_init_data    init_data;
+};
+
 /* main device struct */
 struct cx231xx {
 	/* generic device properties */
@@ -605,6 +621,9 @@ struct cx231xx {
 	int devno;		/* marks the number of this device */
 
 	struct cx231xx_board board;
+
+	/* For I2C IR support */
+	struct cx231xx_ir_t ir;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int vbi_stream_on:1;	/* Locks streams for VBI */
@@ -616,8 +635,6 @@ struct cx231xx {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_subdev *sd_cx25840;
 	struct v4l2_subdev *sd_tuner;
-
-	struct cx231xx_IR *ir;
 
 	struct work_struct wq_trigger;		/* Trigger to start/stop audio for alsa module */
 	atomic_t	   stream_started;	/* stream should be running if true */
@@ -954,6 +971,17 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg);
 /* cx23885-417.c                                               */
 extern int cx231xx_417_register(struct cx231xx *dev);
 extern void cx231xx_417_unregister(struct cx231xx *dev);
+
+/* cx23885-input.c                                             */
+
+#if defined(CONFIG_VIDEO_CX231XX_RC)
+int cx231xx_ir_init(struct cx231xx *dev);
+void cx231xx_ir_exit(struct cx231xx *dev);
+#else
+#define cx231xx_ir_init(dev)	(0)
+#define cx231xx_ir_exit(dev)	(0)
+#endif
+
 
 /* printk macros */
 

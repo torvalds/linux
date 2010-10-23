@@ -14,6 +14,19 @@ config VIDEO_CX231XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx231xx
 
+config VIDEO_CX231XX_RC
+	bool "Conexant cx231xx Remote Controller additional support"
+	depends on VIDEO_IR
+	depends on VIDEO_CX231XX
+	default y
+	---help---
+	  cx231xx hardware has a builtin RX/TX support. However, a few
+	  designs opted to not use it, but, instead, some other hardware.
+	  This module enables the usage of those other hardware, like the
+	  ones used with ISDB-T boards.
+
+	  On most cases, all you need for IR is mceusb module.
+
 config VIDEO_CX231XX_ALSA
 	tristate "Conexant Cx231xx ALSA audio module"
 	depends on VIDEO_CX231XX && SND

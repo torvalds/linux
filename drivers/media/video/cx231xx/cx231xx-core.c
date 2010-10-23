@@ -1289,7 +1289,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	/* Internal Master 3 Bus */
 	dev->i2c_bus[2].nr = 2;
 	dev->i2c_bus[2].dev = dev;
-	dev->i2c_bus[2].i2c_period = I2C_SPEED_400K;	/* 400kHz */
+	dev->i2c_bus[2].i2c_period = I2C_SPEED_100K;	/* 100kHz */
 	dev->i2c_bus[2].i2c_nostop = 0;
 	dev->i2c_bus[2].i2c_reserve = 0;
 

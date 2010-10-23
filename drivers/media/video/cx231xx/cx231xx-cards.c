@@ -663,7 +663,10 @@ void cx231xx_release_resources(struct cx231xx *dev)
 
 	cx231xx_remove_from_devlist(dev);
 
+	/* Release I2C buses */
 	cx231xx_dev_uninit(dev);
+
+	cx231xx_ir_exit(dev);
 
 	usb_put_dev(dev->udev);
 
@@ -781,6 +784,8 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 		cx231xx_release_resources(dev);
 		goto fail_reg_devices;
 	}
+
+	cx231xx_ir_init(dev);
 
 	cx231xx_init_extension(dev);
 
