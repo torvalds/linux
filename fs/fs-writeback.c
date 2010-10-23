@@ -962,7 +962,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 		 * dirty list.  Add blockdev inodes as well.
 		 */
 		if (!S_ISBLK(inode->i_mode)) {
-			if (hlist_unhashed(&inode->i_hash))
+			if (inode_unhashed(inode))
 				goto out;
 		}
 		if (inode->i_state & I_FREEING)

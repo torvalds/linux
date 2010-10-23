@@ -786,6 +786,11 @@ struct inode {
 	void			*i_private; /* fs or device private pointer */
 };
 
+static inline int inode_unhashed(struct inode *inode)
+{
+	return hlist_unhashed(&inode->i_hash);
+}
+
 /*
  * inode->i_mutex nesting subclasses for the lock validator:
  *

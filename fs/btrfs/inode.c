@@ -3849,7 +3849,7 @@ again:
 	p = &root->inode_tree.rb_node;
 	parent = NULL;
 
-	if (hlist_unhashed(&inode->i_hash))
+	if (inode_unhashed(inode))
 		return;
 
 	spin_lock(&root->inode_lock);
