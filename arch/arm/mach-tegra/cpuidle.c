@@ -78,6 +78,8 @@ static struct {
 	unsigned int lp2_completed_count;
 	unsigned int lp2_count_bin[32];
 	unsigned int lp2_completed_count_bin[32];
+	unsigned int lp2_int_count[NR_IRQS];
+	unsigned int last_lp2_int_count[NR_IRQS];
 } idle_stats;
 
 struct cpuidle_driver tegra_idle = {
@@ -98,17 +100,7 @@ static DEFINE_PER_CPU(struct cpuidle_device *, idle_devices);
 
 static inline unsigned int time_to_bin(unsigned int time)
 {
-	unsigned int bin = 0;
-	int i;
-
-	for (i = 4; i >= 0; i--) {
-		if (time > (1 << (1 << i)) - 1) {
-			time >>= (1 << i);
-			bin += (1 << i);
-		}
-	}
-
-	return bin;
+	return fls(time);
 }
 
 static inline void tegra_unmask_irq(int irq)
@@ -308,6 +300,8 @@ restart:
 
 		if (tegra_suspend_lp2(sleep_time) == 0)
 			sleep_completed = true;
+		else
+			idle_stats.lp2_int_count[tegra_pending_interrupt()]++;
 	}
 
 	/* Bring CPU1 out of LP2 */
@@ -618,6 +612,7 @@ module_exit(tegra_cpuidle_exit);
 static int tegra_lp2_debug_show(struct seq_file *s, void *data)
 {
 	int bin;
+	int i;
 	seq_printf(s, "                                    cpu0     cpu1\n");
 	seq_printf(s, "-------------------------------------------------\n");
 	seq_printf(s, "cpu ready:                      %8u %8u\n",
@@ -665,6 +660,21 @@ static int tegra_lp2_debug_show(struct seq_file *s, void *data)
 				idle_stats.lp2_count_bin[bin]);
 	}
 
+	seq_printf(s, "\n");
+	seq_printf(s, "%3s %20s %6s %10s\n",
+		"int", "name", "count", "last count");
+	seq_printf(s, "--------------------------------------------\n");
+	for (i = 0; i < NR_IRQS; i++) {
+		if (idle_stats.lp2_int_count[i] == 0)
+			continue;
+		seq_printf(s, "%3d %20s %6d %10d\n",
+			i, irq_to_desc(i)->action ?
+				irq_to_desc(i)->action->name ?: "???" : "???",
+			idle_stats.lp2_int_count[i],
+			idle_stats.lp2_int_count[i] -
+				idle_stats.last_lp2_int_count[i]);
+		idle_stats.last_lp2_int_count[i] = idle_stats.lp2_int_count[i];
+	};
 	return 0;
 }
 
