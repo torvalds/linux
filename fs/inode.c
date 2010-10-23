@@ -884,6 +884,27 @@ static struct inode *get_new_inode_fast(struct super_block *sb,
 	return inode;
 }
 
+/*
+ * search the inode cache for a matching inode number.
+ * If we find one, then the inode number we are trying to
+ * allocate is not unique and so we should not use it.
+ *
+ * Returns 1 if the inode number is unique, 0 if it is not.
+ */
+static int test_inode_iunique(struct super_block *sb, unsigned long ino)
+{
+	struct hlist_head *b = inode_hashtable + hash(sb, ino);
+	struct hlist_node *node;
+	struct inode *inode;
+
+	hlist_for_each_entry(inode, node, b, i_hash) {
+		if (inode->i_ino == ino && inode->i_sb == sb)
+			return 0;
+	}
+
+	return 1;
+}
+
 /**
  *	iunique - get a unique inode number
  *	@sb: superblock
@@ -905,19 +926,18 @@ ino_t iunique(struct super_block *sb, ino_t max_reserved)
 	 * error if st_ino won't fit in target struct field. Use 32bit counter
 	 * here to attempt to avoid that.
 	 */
+	static DEFINE_SPINLOCK(iunique_lock);
 	static unsigned int counter;
-	struct inode *inode;
-	struct hlist_head *head;
 	ino_t res;
 
 	spin_lock(&inode_lock);
+	spin_lock(&iunique_lock);
 	do {
 		if (counter <= max_reserved)
 			counter = max_reserved + 1;
 		res = counter++;
-		head = inode_hashtable + hash(sb, res);
-		inode = find_inode_fast(sb, head, res);
-	} while (inode != NULL);
+	} while (!test_inode_iunique(sb, res));
+	spin_unlock(&iunique_lock);
 	spin_unlock(&inode_lock);
 
 	return res;
