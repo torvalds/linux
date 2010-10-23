@@ -580,7 +580,7 @@ void ath_hw_check(struct work_struct *work)
 
 		msleep(1);
 	}
-	ath_reset(sc, false);
+	ath_reset(sc, true);
 
 out:
 	ath9k_ps_restore(sc);
@@ -598,7 +598,7 @@ void ath9k_tasklet(unsigned long data)
 	ath9k_ps_wakeup(sc);
 
 	if (status & ATH9K_INT_FATAL) {
-		ath_reset(sc, false);
+		ath_reset(sc, true);
 		ath9k_ps_restore(sc);
 		return;
 	}
