@@ -245,10 +245,8 @@ static int __init zoom2_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_omap_zoom2()) {
-		pr_debug("Not Zoom2!\n");
+	if (!machine_is_omap_zoom2())
 		return -ENODEV;
-	}
 	printk(KERN_INFO "Zoom2 SoC init\n");
 
 	zoom2_snd_device = platform_device_alloc("soc-audio", -1);

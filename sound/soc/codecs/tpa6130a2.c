@@ -98,16 +98,21 @@ static u8 tpa6130a2_read(int reg)
 	return data->regs[reg];
 }
 
-static void tpa6130a2_initialize(void)
+static int tpa6130a2_initialize(void)
 {
 	struct tpa6130a2_data *data;
-	int i;
+	int i, ret = 0;
 
 	BUG_ON(tpa6130a2_client == NULL);
 	data = i2c_get_clientdata(tpa6130a2_client);
 
-	for (i = 1; i < TPA6130A2_REG_VERSION; i++)
-		tpa6130a2_i2c_write(i, data->regs[i]);
+	for (i = 1; i < TPA6130A2_REG_VERSION; i++) {
+		ret = tpa6130a2_i2c_write(i, data->regs[i]);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
 }
 
 static int tpa6130a2_power(int power)
@@ -133,7 +138,16 @@ static int tpa6130a2_power(int power)
 		}
 
 		data->power_state = 1;
-		tpa6130a2_initialize();
+		ret = tpa6130a2_initialize();
+		if (ret < 0) {
+			dev_err(&tpa6130a2_client->dev,
+				"Failed to initialize chip\n");
+			if (data->power_gpio >= 0)
+				gpio_set_value(data->power_gpio, 0);
+			regulator_disable(data->supply);
+			data->power_state = 0;
+			goto exit;
+		}
 
 		/* Clear SWS */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
@@ -375,7 +389,9 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 {
 	struct	tpa6130a2_data *data;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (tpa6130a2_client == NULL)
+		return -ENODEV;
+
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	snd_soc_dapm_new_controls(codec, tpa6130a2_dapm_widgets,

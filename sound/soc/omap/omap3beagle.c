@@ -112,10 +112,8 @@ static int __init omap3beagle_soc_init(void)
 {
 	int ret;
 
-	if (!(machine_is_omap3_beagle() || machine_is_devkit8000())) {
-		pr_debug("Not OMAP3 Beagle or Devkit8000!\n");
+	if (!(machine_is_omap3_beagle() || machine_is_devkit8000()))
 		return -ENODEV;
-	}
 	pr_info("OMAP3 Beagle/Devkit8000 SoC init\n");
 
 	omap3beagle_snd_device = platform_device_alloc("soc-audio", -1);
