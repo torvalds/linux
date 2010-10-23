@@ -1086,6 +1086,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	struct dentry *res = NULL;
 	struct inode *inode;
 	int open_flags;
+	int err;
 
 	dfprintk(VFS, "NFS: atomic_lookup(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
@@ -1119,9 +1120,8 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		if (!IS_POSIXACL(dir))
 			attr.ia_mode &= ~current_umask();
 	} else {
-		open_flags &= ~O_EXCL;
+		open_flags &= ~(O_EXCL | O_CREAT);
 		attr.ia_valid = 0;
-		BUG_ON(open_flags & O_CREAT);
 	}
 
 	/* Open the file on the server */
@@ -1150,13 +1150,18 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		}
 	}
 	res = d_add_unique(dentry, inode);
+	nfs_unblock_sillyrename(dentry->d_parent);
 	if (res != NULL) {
 		dput(ctx->path.dentry);
 		ctx->path.dentry = dget(res);
 		dentry = res;
 	}
-	nfs_intent_set_file(nd, ctx);
-	nfs_unblock_sillyrename(dentry->d_parent);
+	err = nfs_intent_set_file(nd, ctx);
+	if (err < 0) {
+		if (res != NULL)
+			dput(res);
+		return ERR_PTR(err);
+	}
 out:
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	return res;
@@ -1221,11 +1226,13 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 		}
 	}
 	iput(inode);
-	if (inode == dentry->d_inode) {
-		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-		nfs_intent_set_file(nd, ctx);
-	} else
+	if (inode != dentry->d_inode)
 		goto out_drop;
+
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+	ret = nfs_intent_set_file(nd, ctx);
+	if (ret >= 0)
+		ret = 1;
 out:
 	dput(parent);
 	return ret;
@@ -1262,20 +1269,24 @@ static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode,
 		ctx = nameidata_to_nfs_open_context(dentry, nd);
 		error = PTR_ERR(ctx);
 		if (IS_ERR(ctx))
-			goto out_err;
+			goto out_err_drop;
 	}
 
 	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, ctx);
 	if (error != 0)
 		goto out_put_ctx;
-	if (ctx != NULL)
-		nfs_intent_set_file(nd, ctx);
+	if (ctx != NULL) {
+		error = nfs_intent_set_file(nd, ctx);
+		if (error < 0)
+			goto out_err;
+	}
 	return 0;
 out_put_ctx:
 	if (ctx != NULL)
 		put_nfs_open_context(ctx);
-out_err:
+out_err_drop:
 	d_drop(dentry);
+out_err:
 	return error;
 }
 
