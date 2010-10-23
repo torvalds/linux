@@ -3832,6 +3832,7 @@ struct ieee80211_ops iwl3945_hw_ops = {
 	.stop = iwl3945_mac_stop,
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
+	.change_interface = iwl_mac_change_interface,
 	.config = iwl_legacy_mac_config,
 	.configure_filter = iwl3945_configure_filter,
 	.set_key = iwl3945_mac_set_key,

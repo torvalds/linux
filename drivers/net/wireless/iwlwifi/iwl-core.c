@@ -1427,10 +1427,8 @@ int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(iwl_mac_tx_last_beacon);
 
-static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
+static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
-	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-
 	iwl_connection_init_rx_config(priv, ctx);
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
@@ -1439,12 +1437,49 @@ static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	return iwlcore_commit_rxon(priv, ctx);
 }
 
+static int iwl_setup_interface(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx)
+{
+	struct ieee80211_vif *vif = ctx->vif;
+	int err;
+
+	lockdep_assert_held(&priv->mutex);
+
+	/*
+	 * This variable will be correct only when there's just
+	 * a single context, but all code using it is for hardware
+	 * that supports only one context.
+	 */
+	priv->iw_mode = vif->type;
+
+	ctx->is_active = true;
+
+	err = iwl_set_mode(priv, ctx);
+	if (err) {
+		if (!ctx->always_active)
+			ctx->is_active = false;
+		return err;
+	}
+
+	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist &&
+	    vif->type == NL80211_IFTYPE_ADHOC) {
+		/*
+		 * pretend to have high BT traffic as long as we
+		 * are operating in IBSS mode, as this will cause
+		 * the rate scaling etc. to behave as intended.
+		 */
+		priv->bt_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
+	}
+
+	return 0;
+}
+
 int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_rxon_context *tmp, *ctx = NULL;
-	int err = 0;
+	int err;
 
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
 			   vif->type, vif->addr);
@@ -1486,36 +1521,11 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	vif_priv->ctx = ctx;
 	ctx->vif = vif;
-	/*
-	 * This variable will be correct only when there's just
-	 * a single context, but all code using it is for hardware
-	 * that supports only one context.
-	 */
-	priv->iw_mode = vif->type;
 
-	ctx->is_active = true;
+	err = iwl_setup_interface(priv, ctx);
+	if (!err)
+		goto out;
 
-	err = iwl_set_mode(priv, vif);
-	if (err) {
-		if (!ctx->always_active)
-			ctx->is_active = false;
-		goto out_err;
-	}
-
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
-	    vif->type == NL80211_IFTYPE_ADHOC) {
-		/*
-		 * pretend to have high BT traffic as long as we
-		 * are operating in IBSS mode, as this will cause
-		 * the rate scaling etc. to behave as intended.
-		 */
-		priv->bt_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
-	}
-
-	goto out;
-
- out_err:
 	ctx->vif = NULL;
 	priv->iw_mode = NL80211_IFTYPE_STATION;
  out:
@@ -1525,6 +1535,36 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return err;
 }
 EXPORT_SYMBOL(iwl_mac_add_interface);
+
+static void iwl_teardown_interface(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif,
+				   bool mode_change)
+{
+	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+
+	lockdep_assert_held(&priv->mutex);
+
+	if (priv->scan_vif == vif) {
+		iwl_scan_cancel_timeout(priv, 200);
+		iwl_force_scan_end(priv);
+	}
+
+	if (!mode_change) {
+		iwl_set_mode(priv, ctx);
+		if (!ctx->always_active)
+			ctx->is_active = false;
+	}
+
+	/*
+	 * When removing the IBSS interface, overwrite the
+	 * BT traffic load with the stored one from the last
+	 * notification, if any. If this is a device that
+	 * doesn't implement this, this has no effect since
+	 * both values are the same and zero.
+	 */
+	if (vif->type == NL80211_IFTYPE_ADHOC)
+		priv->bt_traffic_load = priv->notif_bt_traffic_load;
+}
 
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
@@ -1539,24 +1579,7 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(ctx->vif != vif);
 	ctx->vif = NULL;
 
-	if (priv->scan_vif == vif) {
-		iwl_scan_cancel_timeout(priv, 200);
-		iwl_force_scan_end(priv);
-	}
-	iwl_set_mode(priv, vif);
-
-	if (!ctx->always_active)
-		ctx->is_active = false;
-
-	/*
-	 * When removing the IBSS interface, overwrite the
-	 * BT traffic load with the stored one from the last
-	 * notification, if any. If this is a device that
-	 * doesn't implement this, this has no effect since
-	 * both values are the same and zero.
-	 */
-	if (vif->type == NL80211_IFTYPE_ADHOC)
-		priv->bt_traffic_load = priv->notif_bt_traffic_load;
+	iwl_teardown_interface(priv, vif, false);
 
 	memset(priv->bssid, 0, ETH_ALEN);
 	mutex_unlock(&priv->mutex);
@@ -1907,6 +1930,63 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 	}
 	return 0;
 }
+
+int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     enum nl80211_iftype newtype, bool newp2p)
+{
+	struct iwl_priv *priv = hw->priv;
+	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+	struct iwl_rxon_context *tmp;
+	u32 interface_modes;
+	int err;
+
+	newtype = ieee80211_iftype_p2p(newtype, newp2p);
+
+	mutex_lock(&priv->mutex);
+
+	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
+
+	if (!(interface_modes & BIT(newtype))) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (ctx->exclusive_interface_modes & BIT(newtype)) {
+		for_each_context(priv, tmp) {
+			if (ctx == tmp)
+				continue;
+
+			if (!tmp->vif)
+				continue;
+
+			/*
+			 * The current mode switch would be exclusive, but
+			 * another context is active ... refuse the switch.
+			 */
+			err = -EBUSY;
+			goto out;
+		}
+	}
+
+	/* success */
+	iwl_teardown_interface(priv, vif, true);
+	vif->type = newtype;
+	err = iwl_setup_interface(priv, ctx);
+	WARN_ON(err);
+	/*
+	 * We've switched internally, but submitting to the
+	 * device may have failed for some reason. Mask this
+	 * error, because otherwise mac80211 will not switch
+	 * (and set the interface type back) and we'll be
+	 * out of sync with it.
+	 */
+	err = 0;
+
+ out:
+	mutex_unlock(&priv->mutex);
+	return err;
+}
+EXPORT_SYMBOL(iwl_mac_change_interface);
 
 /**
  * iwl_bg_monitor_recover - Timer callback to check for stuck queue and recover

@@ -3909,6 +3909,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.stop = iwlagn_mac_stop,
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
+	.change_interface = iwl_mac_change_interface,
 	.config = iwlagn_mac_config,
 	.configure_filter = iwlagn_configure_filter,
 	.set_key = iwlagn_mac_set_key,

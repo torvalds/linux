@@ -432,6 +432,9 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif);
+int iwl_mac_change_interface(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     enum nl80211_iftype newtype, bool newp2p);
 int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
 void iwlcore_tx_cmd_protection(struct iwl_priv *priv,
