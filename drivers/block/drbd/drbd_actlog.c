@@ -965,29 +965,30 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	 * ok, (capacity & 7) != 0 sometimes, but who cares...
 	 * we count rs_{total,left} in bits, not sectors.
 	 */
-	spin_lock_irqsave(&mdev->al_lock, flags);
 	count = drbd_bm_clear_bits(mdev, sbnr, ebnr);
-	if (count) {
-		/* we need the lock for drbd_try_clear_on_disk_bm */
-		if (jiffies - mdev->rs_mark_time > HZ*10) {
-			/* should be rolling marks,
-			 * but we estimate only anyways. */
-			if (mdev->rs_mark_left != drbd_bm_total_weight(mdev) &&
+	if (count && get_ldev(mdev)) {
+		unsigned long now = jiffies;
+		unsigned long last = mdev->rs_mark_time[mdev->rs_last_mark];
+		int next = (mdev->rs_last_mark + 1) % DRBD_SYNC_MARKS;
+		if (time_after_eq(now, last + DRBD_SYNC_MARK_STEP)) {
+			unsigned long tw = drbd_bm_total_weight(mdev);
+			if (mdev->rs_mark_left[mdev->rs_last_mark] != tw &&
 			    mdev->state.conn != C_PAUSED_SYNC_T &&
 			    mdev->state.conn != C_PAUSED_SYNC_S) {
-				mdev->rs_mark_time = jiffies;
-				mdev->rs_mark_left = drbd_bm_total_weight(mdev);
+				mdev->rs_mark_time[next] = now;
+				mdev->rs_mark_left[next] = tw;
+				mdev->rs_last_mark = next;
 			}
 		}
-		if (get_ldev(mdev)) {
-			drbd_try_clear_on_disk_bm(mdev, sector, count, TRUE);
-			put_ldev(mdev);
-		}
+		spin_lock_irqsave(&mdev->al_lock, flags);
+		drbd_try_clear_on_disk_bm(mdev, sector, count, TRUE);
+		spin_unlock_irqrestore(&mdev->al_lock, flags);
+
 		/* just wake_up unconditional now, various lc_chaged(),
 		 * lc_put() in drbd_try_clear_on_disk_bm(). */
 		wake_up = 1;
+		put_ldev(mdev);
 	}
-	spin_unlock_irqrestore(&mdev->al_lock, flags);
 	if (wake_up)
 		wake_up(&mdev->al_wait);
 }
@@ -1118,7 +1119,7 @@ static int _is_in_al(struct drbd_conf *mdev, unsigned int enr)
  * @mdev:	DRBD device.
  * @sector:	The sector number.
  *
- * This functions sleeps on al_wait. Returns 1 on success, 0 if interrupted.
+ * This functions sleeps on al_wait. Returns 0 on success, -EINTR if interrupted.
  */
 int drbd_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 {
@@ -1129,10 +1130,10 @@ int drbd_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 	sig = wait_event_interruptible(mdev->al_wait,
 			(bm_ext = _bme_get(mdev, enr)));
 	if (sig)
-		return 0;
+		return -EINTR;
 
 	if (test_bit(BME_LOCKED, &bm_ext->flags))
-		return 1;
+		return 0;
 
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
 		sig = wait_event_interruptible(mdev->al_wait,
@@ -1145,13 +1146,11 @@ int drbd_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 				wake_up(&mdev->al_wait);
 			}
 			spin_unlock_irq(&mdev->al_lock);
-			return 0;
+			return -EINTR;
 		}
 	}
-
 	set_bit(BME_LOCKED, &bm_ext->flags);
-
-	return 1;
+	return 0;
 }
 
 /**
