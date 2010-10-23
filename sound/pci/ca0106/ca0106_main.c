@@ -493,16 +493,18 @@ static void snd_ca0106_pcm_free_substream(struct snd_pcm_runtime *runtime)
 }
 
 static const int spi_dacd_reg[] = {
-	[PCM_FRONT_CHANNEL]	= SPI_DACD4_REG,
-	[PCM_REAR_CHANNEL]	= SPI_DACD0_REG,
-	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_REG,
-	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_REG,
+	SPI_DACD0_REG,
+	SPI_DACD1_REG,
+	SPI_DACD2_REG,
+	0,
+	SPI_DACD4_REG,
 };
 static const int spi_dacd_bit[] = {
-	[PCM_FRONT_CHANNEL]	= SPI_DACD4_BIT,
-	[PCM_REAR_CHANNEL]	= SPI_DACD0_BIT,
-	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_BIT,
-	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_BIT,
+	SPI_DACD0_BIT,
+	SPI_DACD1_BIT,
+	SPI_DACD2_BIT,
+	0,
+	SPI_DACD4_BIT,
 };
 
 static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
@@ -514,18 +516,34 @@ static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
 	}
 }
 
+static int snd_ca0106_channel_dac(struct snd_ca0106_details *details,
+				  int channel_id)
+{
+	switch (channel_id) {
+	case PCM_FRONT_CHANNEL:		return 4;
+	case PCM_REAR_CHANNEL:		return 0;
+	case PCM_CENTER_LFE_CHANNEL:	return 2;
+	case PCM_UNKNOWN_CHANNEL:	return 1;
+	}
+	snd_printk(KERN_DEBUG "ca0106: unknown channel_id %d\n", channel_id);
+	return 0;
+}
+
 static int snd_ca0106_pcm_power_dac(struct snd_ca0106 *chip, int channel_id,
 				    int power)
 {
 	if (chip->details->spi_dac) {
-		const int reg = spi_dacd_reg[channel_id];
+		const int dac = snd_ca0106_channel_dac(chip->details,
+						       channel_id);
+		const int reg = spi_dacd_reg[dac];
+		const int bit = spi_dacd_bit[dac];
 
 		if (power)
 			/* Power up */
-			chip->spi_dac_reg[reg] &= ~spi_dacd_bit[channel_id];
+			chip->spi_dac_reg[reg] &= ~bit;
 		else
 			/* Power down */
-			chip->spi_dac_reg[reg] |= spi_dacd_bit[channel_id];
+			chip->spi_dac_reg[reg] |= bit;
 		return snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
 	}
 	return 0;
