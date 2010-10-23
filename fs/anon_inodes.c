@@ -193,6 +193,7 @@ static struct inode *anon_inode_mkinode(void)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+	inode->i_ino = get_next_ino();
 	inode->i_fop = &anon_inode_fops;
 
 	inode->i_mapping->a_ops = &anon_aops;

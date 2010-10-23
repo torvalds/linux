@@ -735,7 +735,7 @@ repeat:
 #define LAST_INO_BATCH 1024
 static DEFINE_PER_CPU(unsigned int, last_ino);
 
-static unsigned int get_next_ino(void)
+unsigned int get_next_ino(void)
 {
 	unsigned int *p = &get_cpu_var(last_ino);
 	unsigned int res = *p;
@@ -753,6 +753,7 @@ static unsigned int get_next_ino(void)
 	put_cpu_var(last_ino);
 	return res;
 }
+EXPORT_SYMBOL(get_next_ino);
 
 /**
  *	new_inode 	- obtain an inode
@@ -776,7 +777,6 @@ struct inode *new_inode(struct super_block *sb)
 	if (inode) {
 		spin_lock(&inode_lock);
 		__inode_sb_list_add(inode);
-		inode->i_ino = get_next_ino();
 		inode->i_state = 0;
 		spin_unlock(&inode_lock);
 	}

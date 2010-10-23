@@ -1586,6 +1586,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 	inode = new_inode(sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_blocks = 0;
 		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
