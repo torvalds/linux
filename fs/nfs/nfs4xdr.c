@@ -1386,6 +1386,7 @@ static void encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args,
 static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req, struct compound_hdr *hdr)
 {
 	uint32_t attrs[2] = {0, 0};
+	uint32_t dircount = readdir->count >> 1;
 	__be32 *p;
 
 	if (readdir->plus) {
@@ -1395,25 +1396,23 @@ static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg
 			FATTR4_WORD1_OWNER_GROUP|FATTR4_WORD1_RAWDEV|
 			FATTR4_WORD1_SPACE_USED|FATTR4_WORD1_TIME_ACCESS|
 			FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
+		dircount >>= 1;
 	}
 	attrs[0] |= FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID;
 	attrs[1] |= FATTR4_WORD1_MOUNTED_ON_FILEID;
+	/* Switch to mounted_on_fileid if the server supports it */
+	if (readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
+		attrs[0] &= ~FATTR4_WORD0_FILEID;
+	else
+		attrs[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
 
 	p = reserve_space(xdr, 12+NFS4_VERIFIER_SIZE+20);
 	*p++ = cpu_to_be32(OP_READDIR);
 	p = xdr_encode_hyper(p, readdir->cookie);
 	p = xdr_encode_opaque_fixed(p, readdir->verifier.data, NFS4_VERIFIER_SIZE);
-	*p++ = cpu_to_be32(readdir->count >> 1);  /* We're not doing readdirplus */
+	*p++ = cpu_to_be32(dircount);
 	*p++ = cpu_to_be32(readdir->count);
 	*p++ = cpu_to_be32(2);
-
-	if (!readdir->plus) {
-		/* Switch to mounted_on_fileid if the server supports it */
-		if (readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
-			attrs[0] &= ~FATTR4_WORD0_FILEID;
-		else
-			attrs[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
-	}
 
 	*p++ = cpu_to_be32(attrs[0] & readdir->bitmask[0]);
 	*p = cpu_to_be32(attrs[1] & readdir->bitmask[1]);
