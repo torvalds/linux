@@ -3021,21 +3021,6 @@ iput_tmp_ino_err_out_now:
 	if (vol->mft_ino && vol->mft_ino != tmp_ino)
 		iput(vol->mft_ino);
 	vol->mft_ino = NULL;
-	/*
-	 * This is needed to get ntfs_clear_extent_inode() called for each
-	 * inode we have ever called ntfs_iget()/iput() on, otherwise we A)
-	 * leak resources and B) a subsequent mount fails automatically due to
-	 * ntfs_iget() never calling down into our ntfs_read_locked_inode()
-	 * method again... FIXME: Do we need to do this twice now because of
-	 * attribute inodes? I think not, so leave as is for now... (AIA)
-	 */
-	if (invalidate_inodes(sb)) {
-		ntfs_error(sb, "Busy inodes left. This is most likely a NTFS "
-				"driver bug.");
-		/* Copied from fs/super.c. I just love this message. (-; */
-		printk("NTFS: Busy inodes after umount. Self-destruct in 5 "
-				"seconds.  Have a nice day...\n");
-	}
 	/* Errors at this stage are irrelevant. */
 err_out_now:
 	sb->s_fs_info = NULL;
