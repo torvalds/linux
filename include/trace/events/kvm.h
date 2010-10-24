@@ -6,6 +6,36 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
 
+#define ERSN(x) { KVM_EXIT_##x, "KVM_EXIT_" #x }
+
+#define kvm_trace_exit_reason						\
+	ERSN(UNKNOWN), ERSN(EXCEPTION), ERSN(IO), ERSN(HYPERCALL),	\
+	ERSN(DEBUG), ERSN(HLT), ERSN(MMIO), ERSN(IRQ_WINDOW_OPEN),	\
+	ERSN(SHUTDOWN), ERSN(FAIL_ENTRY), ERSN(INTR), ERSN(SET_TPR),	\
+	ERSN(TPR_ACCESS), ERSN(S390_SIEIC), ERSN(S390_RESET), ERSN(DCR),\
+	ERSN(NMI), ERSN(INTERNAL_ERROR), ERSN(OSI)
+
+TRACE_EVENT(kvm_userspace_exit,
+	    TP_PROTO(__u32 reason, int errno),
+	    TP_ARGS(reason, errno),
+
+	TP_STRUCT__entry(
+		__field(	__u32,		reason		)
+		__field(	int,		errno		)
+	),
+
+	TP_fast_assign(
+		__entry->reason		= reason;
+		__entry->errno		= errno;
+	),
+
+	TP_printk("reason %s (%d)",
+		  __entry->errno < 0 ?
+		  (__entry->errno == -EINTR ? "restart" : "error") :
+		  __print_symbolic(__entry->reason, kvm_trace_exit_reason),
+		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
+);
+
 #if defined(__KVM_HAVE_IOAPIC)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
