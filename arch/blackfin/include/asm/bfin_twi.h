@@ -40,4 +40,6 @@ struct bfin_twi_regs {
 	__BFP(rcv_data16);
 };
 
+#undef __BFP
+
 #endif
