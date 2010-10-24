@@ -1657,12 +1657,11 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 	struct drm_i915_gem_object *obj_priv, *next;
 
 	list_for_each_entry_safe(obj_priv, next,
-				 &dev_priv->mm.gpu_write_list,
+				 &ring->gpu_write_list,
 				 gpu_write_list) {
 		struct drm_gem_object *obj = &obj_priv->base;
 
-		if (obj->write_domain & flush_domains &&
-		    obj_priv->ring == ring) {
+		if (obj->write_domain & flush_domains) {
 			uint32_t old_write_domain = obj->write_domain;
 
 			obj->write_domain = 0;
@@ -2173,6 +2172,9 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 static int i915_ring_idle(struct drm_device *dev,
 			  struct intel_ring_buffer *ring)
 {
+	if (list_empty(&ring->gpu_write_list))
+		return 0;
+
 	i915_gem_flush_ring(dev, NULL, ring,
 			    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	return i915_wait_request(dev,
@@ -3786,14 +3788,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 		uint32_t old_write_domain = obj->write_domain;
-
 		obj->write_domain = obj->pending_write_domain;
-		if (obj->write_domain)
-			list_move_tail(&obj_priv->gpu_write_list,
-				       &dev_priv->mm.gpu_write_list);
-
 		trace_i915_gem_object_change_domain(obj,
 						    obj->read_domains,
 						    old_write_domain);
@@ -3858,9 +3854,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		obj_priv = to_intel_bo(obj);
 
 		i915_gem_object_move_to_active(obj, ring);
+		if (obj->write_domain)
+			list_move_tail(&to_intel_bo(obj)->gpu_write_list,
+				       &ring->gpu_write_list);
 	}
 
 	i915_add_request(dev, file, request, ring);
@@ -4618,6 +4616,14 @@ i915_gem_lastclose(struct drm_device *dev)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
 }
 
+static void
+init_ring_lists(struct intel_ring_buffer *ring)
+{
+	INIT_LIST_HEAD(&ring->active_list);
+	INIT_LIST_HEAD(&ring->request_list);
+	INIT_LIST_HEAD(&ring->gpu_write_list);
+}
+
 void
 i915_gem_load(struct drm_device *dev)
 {
@@ -4626,17 +4632,13 @@ i915_gem_load(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
-	INIT_LIST_HEAD(&dev_priv->mm.gpu_write_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.pinned_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
-	INIT_LIST_HEAD(&dev_priv->render_ring.active_list);
-	INIT_LIST_HEAD(&dev_priv->render_ring.request_list);
-	INIT_LIST_HEAD(&dev_priv->bsd_ring.active_list);
-	INIT_LIST_HEAD(&dev_priv->bsd_ring.request_list);
-	INIT_LIST_HEAD(&dev_priv->blt_ring.active_list);
-	INIT_LIST_HEAD(&dev_priv->blt_ring.request_list);
+	init_ring_lists(&dev_priv->render_ring);
+	init_ring_lists(&dev_priv->bsd_ring);
+	init_ring_lists(&dev_priv->blt_ring);
 	for (i = 0; i < 16; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,

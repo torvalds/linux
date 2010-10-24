@@ -580,6 +580,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
+	INIT_LIST_HEAD(&ring->gpu_write_list);
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(dev, ring);

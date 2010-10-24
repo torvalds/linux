@@ -83,6 +83,15 @@ struct  intel_ring_buffer {
 	struct list_head request_list;
 
 	/**
+	 * List of objects currently pending a GPU write flush.
+	 *
+	 * All elements on this list will belong to either the
+	 * active_list or flushing_list, last_rendering_seqno can
+	 * be used to differentiate between the two elements.
+	 */
+	struct list_head gpu_write_list;
+
+	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
 	bool outstanding_lazy_request;

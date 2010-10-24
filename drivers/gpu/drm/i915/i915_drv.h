@@ -571,15 +571,6 @@ typedef struct drm_i915_private {
 		struct list_head flushing_list;
 
 		/**
-		 * List of objects currently pending a GPU write flush.
-		 *
-		 * All elements on this list will belong to either the
-		 * active_list or flushing_list, last_rendering_seqno can
-		 * be used to differentiate between the two elements.
-		 */
-		struct list_head gpu_write_list;
-
-		/**
 		 * LRU list of objects which are not in the ringbuffer and
 		 * are ready to unbind, but are still in the GTT.
 		 *
