@@ -118,7 +118,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv10_fb_init;
 		engine->fb.takedown		= nv10_fb_takedown;
-		engine->fb.set_region_tiling	= nv10_fb_set_region_tiling;
+		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
+		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
+		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
 		engine->graph.init		= nv10_graph_init;
 		engine->graph.takedown		= nv10_graph_takedown;
 		engine->graph.channel		= nv10_graph_channel;
@@ -127,7 +129,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.fifo_access	= nv04_graph_fifo_access;
 		engine->graph.load_context	= nv10_graph_load_context;
 		engine->graph.unload_context	= nv10_graph_unload_context;
-		engine->graph.set_region_tiling	= nv10_graph_set_region_tiling;
+		engine->graph.set_tile_region	= nv10_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nouveau_stub_takedown;
@@ -173,7 +175,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv10_fb_init;
 		engine->fb.takedown		= nv10_fb_takedown;
-		engine->fb.set_region_tiling	= nv10_fb_set_region_tiling;
+		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
+		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
+		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
 		engine->graph.init		= nv20_graph_init;
 		engine->graph.takedown		= nv20_graph_takedown;
 		engine->graph.channel		= nv10_graph_channel;
@@ -182,7 +186,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.fifo_access	= nv04_graph_fifo_access;
 		engine->graph.load_context	= nv20_graph_load_context;
 		engine->graph.unload_context	= nv20_graph_unload_context;
-		engine->graph.set_region_tiling	= nv20_graph_set_region_tiling;
+		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nouveau_stub_takedown;
@@ -228,7 +232,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv30_fb_init;
 		engine->fb.takedown		= nv30_fb_takedown;
-		engine->fb.set_region_tiling	= nv10_fb_set_region_tiling;
+		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
+		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
+		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
 		engine->graph.init		= nv30_graph_init;
 		engine->graph.takedown		= nv20_graph_takedown;
 		engine->graph.fifo_access	= nv04_graph_fifo_access;
@@ -237,7 +243,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv20_graph_destroy_context;
 		engine->graph.load_context	= nv20_graph_load_context;
 		engine->graph.unload_context	= nv20_graph_unload_context;
-		engine->graph.set_region_tiling	= nv20_graph_set_region_tiling;
+		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nouveau_stub_takedown;
@@ -286,7 +292,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv40_fb_init;
 		engine->fb.takedown		= nv40_fb_takedown;
-		engine->fb.set_region_tiling	= nv40_fb_set_region_tiling;
+		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
+		engine->fb.set_tile_region	= nv40_fb_set_tile_region;
+		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
 		engine->graph.init		= nv40_graph_init;
 		engine->graph.takedown		= nv40_graph_takedown;
 		engine->graph.fifo_access	= nv04_graph_fifo_access;
@@ -295,7 +303,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv40_graph_destroy_context;
 		engine->graph.load_context	= nv40_graph_load_context;
 		engine->graph.unload_context	= nv40_graph_unload_context;
-		engine->graph.set_region_tiling	= nv40_graph_set_region_tiling;
+		engine->graph.set_tile_region	= nv40_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv40_fifo_init;
 		engine->fifo.takedown		= nouveau_stub_takedown;
@@ -596,6 +604,7 @@ nouveau_card_init(struct drm_device *dev)
 		goto out;
 	engine = &dev_priv->engine;
 	spin_lock_init(&dev_priv->channels.lock);
+	spin_lock_init(&dev_priv->tile.lock);
 	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Make the CRTCs and I2C buses accessible */

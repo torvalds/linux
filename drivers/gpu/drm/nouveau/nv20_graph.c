@@ -511,24 +511,21 @@ nv20_graph_rdi(struct drm_device *dev)
 }
 
 void
-nv20_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			     uint32_t size, uint32_t pitch)
+nv20_graph_set_tile_region(struct drm_device *dev, int i)
 {
-	uint32_t limit = max(1u, addr + size) - 1;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
-	if (pitch)
-		addr |= 1;
-
-	nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
-	nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
-	nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
+	nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
+	nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
+	nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
 
 	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0030 + 4 * i);
-	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, limit);
+	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, tile->limit);
 	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0050 + 4 * i);
-	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, pitch);
+	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, tile->pitch);
 	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
-	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, addr);
+	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, tile->addr);
 }
 
 int
@@ -612,7 +609,7 @@ nv20_graph_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
-		nv20_graph_set_region_tiling(dev, i, 0, 0, 0);
+		nv20_graph_set_tile_region(dev, i);
 
 	for (i = 0; i < 8; i++) {
 		nv_wr32(dev, 0x400980 + i * 4, nv_rd32(dev, 0x100300 + i * 4));
@@ -751,7 +748,7 @@ nv30_graph_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
-		nv20_graph_set_region_tiling(dev, i, 0, 0, 0);
+		nv20_graph_set_tile_region(dev, i);
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
 	nv_wr32(dev, NV10_PGRAPH_STATE      , 0xFFFFFFFF);

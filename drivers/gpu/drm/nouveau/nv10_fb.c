@@ -4,22 +4,40 @@
 #include "nouveau_drm.h"
 
 void
-nv10_fb_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			  uint32_t size, uint32_t pitch)
+nv10_fb_init_tile_region(struct drm_device *dev, int i, uint32_t addr,
+			 uint32_t size, uint32_t pitch, uint32_t flags)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t limit = max(1u, addr + size) - 1;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
-	if (pitch) {
-		if (dev_priv->card_type >= NV_20)
-			addr |= 1;
-		else
-			addr |= 1 << 31;
-	}
+	tile->addr = addr;
+	tile->limit = max(1u, addr + size) - 1;
+	tile->pitch = pitch;
 
-	nv_wr32(dev, NV10_PFB_TLIMIT(i), limit);
-	nv_wr32(dev, NV10_PFB_TSIZE(i), pitch);
-	nv_wr32(dev, NV10_PFB_TILE(i), addr);
+	if (dev_priv->card_type == NV_20)
+		tile->addr |= 1;
+	else
+		tile->addr |= 1 << 31;
+}
+
+void
+nv10_fb_free_tile_region(struct drm_device *dev, int i)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	tile->addr = tile->limit = tile->pitch = 0;
+}
+
+void
+nv10_fb_set_tile_region(struct drm_device *dev, int i)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	nv_wr32(dev, NV10_PFB_TLIMIT(i), tile->limit);
+	nv_wr32(dev, NV10_PFB_TSIZE(i), tile->pitch);
+	nv_wr32(dev, NV10_PFB_TILE(i), tile->addr);
 }
 
 int
@@ -33,7 +51,7 @@ nv10_fb_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
-		pfb->set_region_tiling(dev, i, 0, 0, 0);
+		pfb->set_tile_region(dev, i);
 
 	return 0;
 }

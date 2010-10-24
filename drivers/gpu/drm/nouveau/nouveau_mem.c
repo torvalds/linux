@@ -42,83 +42,104 @@
  */
 
 static void
-nv10_mem_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			   uint32_t size, uint32_t pitch)
+nv10_mem_update_tile_region(struct drm_device *dev,
+			    struct nouveau_tile_reg *tile, uint32_t addr,
+			    uint32_t size, uint32_t pitch, uint32_t flags)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_tile_reg *tile = &dev_priv->tile[i];
+	int i = tile - dev_priv->tile.reg;
+	unsigned long save;
 
-	tile->addr = addr;
-	tile->size = size;
-	tile->used = !!pitch;
 	nouveau_fence_unref(&tile->fence);
 
+	if (tile->pitch)
+		pfb->free_tile_region(dev, i);
+
+	if (pitch)
+		pfb->init_tile_region(dev, i, addr, size, pitch, flags);
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, save);
 	pfifo->reassign(dev, false);
 	pfifo->cache_pull(dev, false);
 
 	nouveau_wait_for_idle(dev);
 
-	pgraph->set_region_tiling(dev, i, addr, size, pitch);
-	pfb->set_region_tiling(dev, i, addr, size, pitch);
+	pfb->set_tile_region(dev, i);
+	pgraph->set_tile_region(dev, i);
 
 	pfifo->cache_pull(dev, true);
 	pfifo->reassign(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, save);
+}
+
+static struct nouveau_tile_reg *
+nv10_mem_get_tile_region(struct drm_device *dev, int i)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	spin_lock(&dev_priv->tile.lock);
+
+	if (!tile->used &&
+	    (!tile->fence || nouveau_fence_signalled(tile->fence)))
+		tile->used = true;
+	else
+		tile = NULL;
+
+	spin_unlock(&dev_priv->tile.lock);
+	return tile;
+}
+
+void
+nv10_mem_put_tile_region(struct drm_device *dev, struct nouveau_tile_reg *tile,
+			 struct nouveau_fence *fence)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (tile) {
+		spin_lock(&dev_priv->tile.lock);
+		if (fence) {
+			/* Mark it as pending. */
+			tile->fence = fence;
+			nouveau_fence_ref(fence);
+		}
+
+		tile->used = false;
+		spin_unlock(&dev_priv->tile.lock);
+	}
 }
 
 struct nouveau_tile_reg *
 nv10_mem_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
-		    uint32_t pitch)
+		    uint32_t pitch, uint32_t flags)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	struct nouveau_tile_reg *found = NULL;
-	unsigned long i, flags;
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	struct nouveau_tile_reg *tile, *found = NULL;
+	int i;
 
 	for (i = 0; i < pfb->num_tiles; i++) {
-		struct nouveau_tile_reg *tile = &dev_priv->tile[i];
-
-		if (tile->used)
-			/* Tile region in use. */
-			continue;
-
-		if (tile->fence &&
-		    !nouveau_fence_signalled(tile->fence))
-			/* Pending tile region. */
-			continue;
-
-		if (max(tile->addr, addr) <
-		    min(tile->addr + tile->size, addr + size))
-			/* Kill an intersecting tile region. */
-			nv10_mem_set_region_tiling(dev, i, 0, 0, 0);
+		tile = nv10_mem_get_tile_region(dev, i);
 
 		if (pitch && !found) {
-			/* Free tile region. */
-			nv10_mem_set_region_tiling(dev, i, addr, size, pitch);
 			found = tile;
+			continue;
+
+		} else if (tile && tile->pitch) {
+			/* Kill an unused tile region. */
+			nv10_mem_update_tile_region(dev, tile, 0, 0, 0, 0);
 		}
+
+		nv10_mem_put_tile_region(dev, tile, NULL);
 	}
 
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
+	if (found)
+		nv10_mem_update_tile_region(dev, found, addr, size,
+					    pitch, flags);
 	return found;
-}
-
-void
-nv10_mem_expire_tiling(struct drm_device *dev, struct nouveau_tile_reg *tile,
-		       struct nouveau_fence *fence)
-{
-	if (fence) {
-		/* Mark it as pending. */
-		tile->fence = fence;
-		nouveau_fence_ref(fence);
-	}
-
-	tile->used = false;
 }
 
 /*

@@ -899,17 +899,14 @@ void nv10_graph_destroy_context(struct nouveau_channel *chan)
 }
 
 void
-nv10_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			     uint32_t size, uint32_t pitch)
+nv10_graph_set_tile_region(struct drm_device *dev, int i)
 {
-	uint32_t limit = max(1u, addr + size) - 1;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
-	if (pitch)
-		addr |= 1 << 31;
-
-	nv_wr32(dev, NV10_PGRAPH_TLIMIT(i), limit);
-	nv_wr32(dev, NV10_PGRAPH_TSIZE(i), pitch);
-	nv_wr32(dev, NV10_PGRAPH_TILE(i), addr);
+	nv_wr32(dev, NV10_PGRAPH_TLIMIT(i), tile->limit);
+	nv_wr32(dev, NV10_PGRAPH_TSIZE(i), tile->pitch);
+	nv_wr32(dev, NV10_PGRAPH_TILE(i), tile->addr);
 }
 
 int nv10_graph_init(struct drm_device *dev)
@@ -949,7 +946,7 @@ int nv10_graph_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
-		nv10_graph_set_region_tiling(dev, i, 0, 0, 0);
+		nv10_graph_set_tile_region(dev, i);
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(0), 0x00000000);
 	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(1), 0x00000000);

@@ -192,43 +192,39 @@ nv40_graph_unload_context(struct drm_device *dev)
 }
 
 void
-nv40_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			     uint32_t size, uint32_t pitch)
+nv40_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t limit = max(1u, addr + size) - 1;
-
-	if (pitch)
-		addr |= 1;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
 	switch (dev_priv->chipset) {
 	case 0x44:
 	case 0x4a:
 	case 0x4e:
-		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
-		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
-		nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
+		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
 		break;
 
 	case 0x46:
 	case 0x47:
 	case 0x49:
 	case 0x4b:
-		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), pitch);
-		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), limit);
-		nv_wr32(dev, NV47_PGRAPH_TILE(i), addr);
-		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), pitch);
-		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), limit);
-		nv_wr32(dev, NV40_PGRAPH_TILE1(i), addr);
+		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV47_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tile->pitch);
+		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tile->limit);
+		nv_wr32(dev, NV40_PGRAPH_TILE1(i), tile->addr);
 		break;
 
 	default:
-		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
-		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
-		nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
-		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), pitch);
-		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), limit);
-		nv_wr32(dev, NV40_PGRAPH_TILE1(i), addr);
+		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tile->pitch);
+		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tile->limit);
+		nv_wr32(dev, NV40_PGRAPH_TILE1(i), tile->addr);
 		break;
 	}
 }
@@ -369,7 +365,7 @@ nv40_graph_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
-		nv40_graph_set_region_tiling(dev, i, 0, 0, 0);
+		nv40_graph_set_tile_region(dev, i);
 
 	/* begin RAM config */
 	vramsz = pci_resource_len(dev->pdev, 0) - 1;

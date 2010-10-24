@@ -66,10 +66,11 @@ struct nouveau_grctx;
 #define NV50_VM_VRAM_NR  (NV50_VM_MAX_VRAM / NV50_VM_BLOCK)
 
 struct nouveau_tile_reg {
-	struct nouveau_fence *fence;
-	uint32_t addr;
-	uint32_t size;
 	bool used;
+	uint32_t addr;
+	uint32_t limit;
+	uint32_t pitch;
+	struct nouveau_fence *fence;
 };
 
 struct nouveau_bo {
@@ -309,8 +310,11 @@ struct nouveau_fb_engine {
 	int  (*init)(struct drm_device *dev);
 	void (*takedown)(struct drm_device *dev);
 
-	void (*set_region_tiling)(struct drm_device *dev, int i, uint32_t addr,
-				 uint32_t size, uint32_t pitch);
+	void (*init_tile_region)(struct drm_device *dev, int i,
+				 uint32_t addr, uint32_t size,
+				 uint32_t pitch, uint32_t flags);
+	void (*set_tile_region)(struct drm_device *dev, int i);
+	void (*free_tile_region)(struct drm_device *dev, int i);
 };
 
 struct nouveau_fifo_engine {
@@ -356,8 +360,7 @@ struct nouveau_pgraph_engine {
 	int  (*unload_context)(struct drm_device *);
 	void (*tlb_flush)(struct drm_device *dev);
 
-	void (*set_region_tiling)(struct drm_device *dev, int i, uint32_t addr,
-				  uint32_t size, uint32_t pitch);
+	void (*set_tile_region)(struct drm_device *dev, int i);
 };
 
 struct nouveau_display_engine {
@@ -668,7 +671,10 @@ struct drm_nouveau_private {
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
-	struct nouveau_tile_reg tile[NOUVEAU_MAX_TILE_NR];
+	struct {
+		struct nouveau_tile_reg reg[NOUVEAU_MAX_TILE_NR];
+		spinlock_t lock;
+	} tile;
 
 	/* VRAM/fb configuration */
 	uint64_t vram_size;
@@ -798,13 +804,12 @@ extern void nouveau_mem_gart_fini(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
-extern struct nouveau_tile_reg *nv10_mem_set_tiling(struct drm_device *dev,
-						    uint32_t addr,
-						    uint32_t size,
-						    uint32_t pitch);
-extern void nv10_mem_expire_tiling(struct drm_device *dev,
-				   struct nouveau_tile_reg *tile,
-				   struct nouveau_fence *fence);
+extern struct nouveau_tile_reg *nv10_mem_set_tiling(
+	struct drm_device *dev, uint32_t addr, uint32_t size,
+	uint32_t pitch, uint32_t flags);
+extern void nv10_mem_put_tile_region(struct drm_device *dev,
+				     struct nouveau_tile_reg *tile,
+				     struct nouveau_fence *fence);
 extern int  nv50_mem_vm_bind_linear(struct drm_device *, uint64_t virt,
 				    uint32_t size, uint32_t flags,
 				    uint64_t phys);
@@ -1011,18 +1016,25 @@ extern void nv04_fb_takedown(struct drm_device *);
 /* nv10_fb.c */
 extern int  nv10_fb_init(struct drm_device *);
 extern void nv10_fb_takedown(struct drm_device *);
-extern void nv10_fb_set_region_tiling(struct drm_device *, int, uint32_t,
-				      uint32_t, uint32_t);
+extern void nv10_fb_init_tile_region(struct drm_device *dev, int i,
+				     uint32_t addr, uint32_t size,
+				     uint32_t pitch, uint32_t flags);
+extern void nv10_fb_set_tile_region(struct drm_device *dev, int i);
+extern void nv10_fb_free_tile_region(struct drm_device *dev, int i);
 
 /* nv30_fb.c */
 extern int  nv30_fb_init(struct drm_device *);
 extern void nv30_fb_takedown(struct drm_device *);
+extern void nv30_fb_init_tile_region(struct drm_device *dev, int i,
+				     uint32_t addr, uint32_t size,
+				     uint32_t pitch, uint32_t flags);
+extern void nv30_fb_free_tile_region(struct drm_device *dev, int i);
 
 /* nv40_fb.c */
 extern int  nv40_fb_init(struct drm_device *);
 extern void nv40_fb_takedown(struct drm_device *);
-extern void nv40_fb_set_region_tiling(struct drm_device *, int, uint32_t,
-				      uint32_t, uint32_t);
+extern void nv40_fb_set_tile_region(struct drm_device *dev, int i);
+
 /* nv50_fb.c */
 extern int  nv50_fb_init(struct drm_device *);
 extern void nv50_fb_takedown(struct drm_device *);
@@ -1102,8 +1114,7 @@ extern void nv10_graph_destroy_context(struct nouveau_channel *);
 extern int  nv10_graph_load_context(struct nouveau_channel *);
 extern int  nv10_graph_unload_context(struct drm_device *);
 extern void nv10_graph_context_switch(struct drm_device *);
-extern void nv10_graph_set_region_tiling(struct drm_device *, int, uint32_t,
-					 uint32_t, uint32_t);
+extern void nv10_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv20_graph.c */
 extern int  nv20_graph_create_context(struct nouveau_channel *);
@@ -1113,8 +1124,7 @@ extern int  nv20_graph_unload_context(struct drm_device *);
 extern int  nv20_graph_init(struct drm_device *);
 extern void nv20_graph_takedown(struct drm_device *);
 extern int  nv30_graph_init(struct drm_device *);
-extern void nv20_graph_set_region_tiling(struct drm_device *, int, uint32_t,
-					 uint32_t, uint32_t);
+extern void nv20_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv40_graph.c */
 extern int  nv40_graph_init(struct drm_device *);
@@ -1125,8 +1135,7 @@ extern void nv40_graph_destroy_context(struct nouveau_channel *);
 extern int  nv40_graph_load_context(struct nouveau_channel *);
 extern int  nv40_graph_unload_context(struct drm_device *);
 extern void nv40_grctx_init(struct nouveau_grctx *);
-extern void nv40_graph_set_region_tiling(struct drm_device *, int, uint32_t,
-					 uint32_t, uint32_t);
+extern void nv40_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv50_graph.c */
 extern int  nv50_graph_init(struct drm_device *);

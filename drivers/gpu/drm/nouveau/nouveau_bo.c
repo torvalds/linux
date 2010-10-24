@@ -46,9 +46,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
-	if (nvbo->tile)
-		nv10_mem_expire_tiling(dev, nvbo->tile, NULL);
-
+	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
 	kfree(nvbo);
 }
 
@@ -792,7 +790,8 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 
 	} else if (dev_priv->card_type >= NV_10) {
 		*new_tile = nv10_mem_set_tiling(dev, offset, new_mem->size,
-						nvbo->tile_mode);
+						nvbo->tile_mode,
+						nvbo->tile_flags);
 	}
 
 	return 0;
@@ -808,9 +807,7 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 
 	if (dev_priv->card_type >= NV_10 &&
 	    dev_priv->card_type < NV_50) {
-		if (*old_tile)
-			nv10_mem_expire_tiling(dev, *old_tile, bo->sync_obj);
-
+		nv10_mem_put_tile_region(dev, *old_tile, bo->sync_obj);
 		*old_tile = new_tile;
 	}
 }
