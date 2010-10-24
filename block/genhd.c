@@ -929,15 +929,8 @@ static void disk_free_ptbl_rcu_cb(struct rcu_head *head)
 {
 	struct disk_part_tbl *ptbl =
 		container_of(head, struct disk_part_tbl, rcu_head);
-	struct gendisk *disk = ptbl->disk;
-	struct request_queue *q = disk->queue;
-	unsigned long flags;
 
 	kfree(ptbl);
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	elv_quiesce_end(q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
 /**
@@ -955,17 +948,11 @@ static void disk_replace_part_tbl(struct gendisk *disk,
 				  struct disk_part_tbl *new_ptbl)
 {
 	struct disk_part_tbl *old_ptbl = disk->part_tbl;
-	struct request_queue *q = disk->queue;
 
 	rcu_assign_pointer(disk->part_tbl, new_ptbl);
 
 	if (old_ptbl) {
 		rcu_assign_pointer(old_ptbl->last_lookup, NULL);
-
-		spin_lock_irq(q->queue_lock);
-		elv_quiesce_start(q);
-		spin_unlock_irq(q->queue_lock);
-
 		call_rcu(&old_ptbl->rcu_head, disk_free_ptbl_rcu_cb);
 	}
 }
@@ -1006,7 +993,6 @@ int disk_expand_part_tbl(struct gendisk *disk, int partno)
 		return -ENOMEM;
 
 	new_ptbl->len = target;
-	new_ptbl->disk = disk;
 
 	for (i = 0; i < len; i++)
 		rcu_assign_pointer(new_ptbl->part[i], old_ptbl->part[i]);

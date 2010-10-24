@@ -365,25 +365,17 @@ struct device_type part_type = {
 static void delete_partition_rcu_cb(struct rcu_head *head)
 {
 	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
-	struct gendisk *disk = part_to_disk(part);
-	struct request_queue *q = disk->queue;
-	unsigned long flags;
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
 	part_stat_set_all(part, 0);
 	put_device(part_to_dev(part));
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	elv_quiesce_end(q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
 void delete_partition(struct gendisk *disk, int partno)
 {
 	struct disk_part_tbl *ptbl = disk->part_tbl;
 	struct hd_struct *part;
-	struct request_queue *q = disk->queue;
 
 	if (partno >= ptbl->len)
 		return;
@@ -397,10 +389,6 @@ void delete_partition(struct gendisk *disk, int partno)
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
-
-	spin_lock_irq(q->queue_lock);
-	elv_quiesce_start(q);
-	spin_unlock_irq(q->queue_lock);
 
 	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
 }

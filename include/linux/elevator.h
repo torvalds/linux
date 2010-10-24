@@ -122,8 +122,6 @@ extern void elv_completed_request(struct request_queue *, struct request *);
 extern int elv_set_request(struct request_queue *, struct request *, gfp_t);
 extern void elv_put_request(struct request_queue *, struct request *);
 extern void elv_drain_elevator(struct request_queue *);
-extern void elv_quiesce_start(struct request_queue *);
-extern void elv_quiesce_end(struct request_queue *);
 
 /*
  * io scheduler registration
