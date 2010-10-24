@@ -353,6 +353,7 @@ static const struct pci_id_table pci_dev_table[] = {
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_i7core_nehalem),
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_lynnfield),
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_i7core_westmere),
+	{0,}			/* 0 terminated list. */
 };
 
 /*
@@ -1409,14 +1410,13 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 
 static int i7core_get_all_devices(void)
 {
-	int i, j, rc, last_bus;
+	int i, rc, last_bus;
 	struct pci_dev *pdev = NULL;
-	const struct pci_id_table *table;
+	const struct pci_id_table *table = pci_dev_table;
 
 	last_bus = i7core_pci_lastbus();
 
-	for (j = 0; j < ARRAY_SIZE(pci_dev_table); j++) {
-		table = &pci_dev_table[j];
+	while (table && table->descr) {
 		for (i = 0; i < table->n_devs; i++) {
 			pdev = NULL;
 			do {
@@ -1432,6 +1432,7 @@ static int i7core_get_all_devices(void)
 				}
 			} while (pdev);
 		}
+		table++;
 	}
 
 	return 0;
