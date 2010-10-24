@@ -139,7 +139,7 @@ Example:
 
 Running
 
-	make coccicheck MODE=report COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=report COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
@@ -177,7 +177,7 @@ identified.
 Example:
 
 Running
-	make coccicheck MODE=patch COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=patch COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
@@ -221,7 +221,7 @@ NOTE: The diff-like output generated is NOT an applicable patch. The
 Example:
 
 Running
-	make coccicheck MODE=context COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=context COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
@@ -256,7 +256,7 @@ diff -u -p /home/user/linux/crypto/ctr.c /tmp/nothing
 Example:
 
 Running
-	make coccicheck MODE=org COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=org COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
