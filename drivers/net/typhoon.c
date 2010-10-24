@@ -936,7 +936,7 @@ typhoon_set_rx_mode(struct net_device *dev)
 		filter |= TYPHOON_RX_FILTER_MCAST_HASH;
 	}
 
-	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_SET_RX_FILTER);
+	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_SET_RX_FILTER);
 	xp_cmd.parm1 = filter;
 	typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
 }
