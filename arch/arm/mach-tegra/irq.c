@@ -19,10 +19,12 @@
 
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/seq_file.h>
 
 #include <asm/hardware/gic.h>
 
@@ -45,6 +47,8 @@ static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
 static u32 tegra_lp0_wake_enb;
 static u32 tegra_lp0_wake_level;
 static u32 tegra_lp0_wake_level_any;
+
+static unsigned int tegra_wake_irq_count[32];
 
 /* ensures that sufficient time is passed for a register write to
  * serialize into the 32KHz domain */
@@ -165,6 +169,8 @@ static void tegra_irq_handle_wake(void)
 		pr_info("Resume caused by WAKE%d, %s\n", wake,
 			desc->action->name);
 
+		tegra_wake_irq_count[wake]++;
+
 		generic_handle_irq(irq);
 	}
 }
@@ -255,3 +261,63 @@ void tegra_irq_resume(void)
 	tegra_legacy_irq_resume();
 	tegra_irq_handle_wake();
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int tegra_wake_irq_debug_show(struct seq_file *s, void *data)
+{
+	int wake;
+	int irq;
+	struct irq_desc *desc;
+	const char *irq_name;
+
+	seq_printf(s, "wake  irq  count  name\n");
+	seq_printf(s, "----------------------\n");
+	for (wake = 0; wake < 32; wake++) {
+		irq = tegra_wake_to_irq(wake);
+		if (irq < 0)
+			continue;
+
+		desc = irq_to_desc(irq);
+		if (tegra_wake_irq_count[wake] == 0 && desc->action == NULL)
+			continue;
+
+		if (!(desc->status & IRQ_WAKEUP))
+			continue;
+
+		irq_name = (desc->action && desc->action->name) ?
+			desc->action->name : "???";
+
+		seq_printf(s, "%4d  %3d  %5d  %s\n",
+			wake, irq, tegra_wake_irq_count[wake], irq_name);
+	}
+	return 0;
+}
+
+static int tegra_wake_irq_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tegra_wake_irq_debug_show, NULL);
+}
+
+static const struct file_operations tegra_wake_irq_debug_fops = {
+	.open		= tegra_wake_irq_debug_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init tegra_irq_debug_init(void)
+{
+	struct dentry *d;
+
+	d = debugfs_create_file("wake_irq", 0755, NULL, NULL,
+		&tegra_wake_irq_debug_fops);
+	if (!d) {
+		pr_info("Failed to create suspend_mode debug file\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+late_initcall(tegra_irq_debug_init);
+#endif
