@@ -343,6 +343,7 @@ int viafb_setup_engine(struct fb_info *info)
 		break;
 	case UNICHROME_VX800:
 	case UNICHROME_VX855:
+	case UNICHROME_VX900:
 		viapar->shared->hw_bitblt = hw_bitblt_2;
 		break;
 	default:
@@ -402,6 +403,7 @@ void viafb_reset_engine(struct viafb_par *viapar)
 	case UNICHROME_P4M900:
 	case UNICHROME_VX800:
 	case UNICHROME_VX855:
+	case UNICHROME_VX900:
 		writel(0x00100000, engine + VIA_REG_CR_TRANSET);
 		writel(0x680A0000, engine + VIA_REG_CR_TRANSPACE);
 		writel(0x02000000, engine + VIA_REG_CR_TRANSPACE);
@@ -438,6 +440,7 @@ void viafb_reset_engine(struct viafb_par *viapar)
 	case UNICHROME_P4M900:
 	case UNICHROME_VX800:
 	case UNICHROME_VX855:
+	case UNICHROME_VX900:
 		vq_start_low |= 0x20000000;
 		vq_end_low |= 0x20000000;
 		vq_high |= 0x20000000;

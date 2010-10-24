@@ -1429,6 +1429,15 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active)
 			    VX855_IGA1_DISPLAY_QUEUE_EXPIRE_NUM;
 		}
 
+		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_VX900) {
+			iga1_fifo_max_depth = VX900_IGA1_FIFO_MAX_DEPTH;
+			iga1_fifo_threshold = VX900_IGA1_FIFO_THRESHOLD;
+			iga1_fifo_high_threshold =
+			    VX900_IGA1_FIFO_HIGH_THRESHOLD;
+			iga1_display_queue_expire_num =
+			    VX900_IGA1_DISPLAY_QUEUE_EXPIRE_NUM;
+		}
+
 		/* Set Display FIFO Depath Select */
 		reg_value = IGA1_FIFO_DEPTH_SELECT_FORMULA(iga1_fifo_max_depth);
 		viafb_load_reg_num =
@@ -1569,6 +1578,15 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active)
 			    VX855_IGA2_DISPLAY_QUEUE_EXPIRE_NUM;
 		}
 
+		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_VX900) {
+			iga2_fifo_max_depth = VX900_IGA2_FIFO_MAX_DEPTH;
+			iga2_fifo_threshold = VX900_IGA2_FIFO_THRESHOLD;
+			iga2_fifo_high_threshold =
+			    VX900_IGA2_FIFO_HIGH_THRESHOLD;
+			iga2_display_queue_expire_num =
+			    VX900_IGA2_DISPLAY_QUEUE_EXPIRE_NUM;
+		}
+
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_K800) {
 			/* Set Display FIFO Depath Select */
 			reg_value =
@@ -1689,6 +1707,7 @@ u32 viafb_get_clk_value(int clk)
 			break;
 
 		case UNICHROME_VX855:
+		case UNICHROME_VX900:
 			value = vx855_encode_pll(pll_value[i].vx855_pll);
 			break;
 		}
@@ -1722,6 +1741,7 @@ void viafb_set_vclock(u32 clk, int set_iga)
 		case UNICHROME_P4M900:
 		case UNICHROME_VX800:
 		case UNICHROME_VX855:
+		case UNICHROME_VX900:
 			via_write_reg(VIASR, SR44, (clk & 0x0000FF));
 			via_write_reg(VIASR, SR45, (clk & 0x00FF00) >> 8);
 			via_write_reg(VIASR, SR46, (clk & 0xFF0000) >> 16);
@@ -1748,6 +1768,7 @@ void viafb_set_vclock(u32 clk, int set_iga)
 		case UNICHROME_P4M900:
 		case UNICHROME_VX800:
 		case UNICHROME_VX855:
+		case UNICHROME_VX900:
 			via_write_reg(VIASR, SR4A, (clk & 0x0000FF));
 			via_write_reg(VIASR, SR4B, (clk & 0x00FF00) >> 8);
 			via_write_reg(VIASR, SR4C, (clk & 0xFF0000) >> 16);
@@ -2179,6 +2200,7 @@ static void __devinit init_gfx_chip_info(int chip_type)
 	switch (viaparinfo->chip_info->gfx_chip_name) {
 	case UNICHROME_VX800:
 	case UNICHROME_VX855:
+	case UNICHROME_VX900:
 		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_M1;
 		break;
 	case UNICHROME_K8M890:
@@ -2403,6 +2425,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		break;
 
 	case UNICHROME_VX855:
+	case UNICHROME_VX900:
 		viafb_write_regx(VX855_ModeXregs, NUM_TOTAL_VX855_ModeXregs);
 		break;
 	}

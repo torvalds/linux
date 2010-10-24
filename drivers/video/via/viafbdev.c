@@ -57,7 +57,7 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 static struct fb_ops viafb_ops;
 
 /* supported output devices on each IGP
- * only CX700, VX800, VX855 were documented
+ * only CX700, VX800, VX855, VX900 were documented
  * VIA_CRT should be everywhere
  * VIA_6C can be onle pre-CX700 (probably only on CLE266) as 6C is used for PLL
  * source selection on CX700 and later
@@ -80,6 +80,7 @@ static const u32 supported_odev_map[] = {
 	[UNICHROME_P4M900]	= VIA_CRT | VIA_DVP1 | VIA_LVDS1 | VIA_LVDS2,
 	[UNICHROME_VX800]	= VIA_CRT | VIA_DVP1 | VIA_LVDS1 | VIA_LVDS2,
 	[UNICHROME_VX855]	= VIA_CRT | VIA_DVP1 | VIA_LVDS1 | VIA_LVDS2,
+	[UNICHROME_VX900]	= VIA_CRT | VIA_DVP1 | VIA_LVDS1 | VIA_LVDS2,
 };
 
 static void viafb_fill_var_color_info(struct fb_var_screeninfo *var, u8 depth)
@@ -812,7 +813,8 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		bg_color = cursor->image.bg_color;
 		if (chip_name == UNICHROME_CX700 ||
 			chip_name == UNICHROME_VX800 ||
-			chip_name == UNICHROME_VX855) {
+			chip_name == UNICHROME_VX855 ||
+			chip_name == UNICHROME_VX900) {
 			fg_color =
 				((info->cmap.red[fg_color] & 0xFFC0) << 14) |
 				((info->cmap.green[fg_color] & 0xFFC0) << 4) |

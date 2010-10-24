@@ -333,7 +333,7 @@ EXPORT_SYMBOL_GPL(viafb_dma_copy_out_sg);
 static u16 via_function3[] = {
 	CLE266_FUNCTION3, KM400_FUNCTION3, CN400_FUNCTION3, CN700_FUNCTION3,
 	CX700_FUNCTION3, KM800_FUNCTION3, KM890_FUNCTION3, P4M890_FUNCTION3,
-	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3,
+	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3, VX900_FUNCTION3,
 };
 
 /* Get the BIOS-configured framebuffer size from PCI configuration space
@@ -370,6 +370,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 		case P4M900_FUNCTION3:
 		case VX800_FUNCTION3:
 		case VX855_FUNCTION3:
+		case VX900_FUNCTION3:
 		/*case CN750_FUNCTION3: */
 			offset = 0xA0;
 			break;
@@ -474,7 +475,10 @@ static int __devinit via_pci_setup_mmio(struct viafb_dev *vdev)
 	 * Eventually we want to move away from mapping this
 	 * entire region.
 	 */
-	vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
+	if (vdev->chip_type == UNICHROME_VX900)
+		vdev->fbmem_start = pci_resource_start(vdev->pdev, 2);
+	else
+		vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
 	ret = vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
 	if (ret < 0)
 		goto out_unmap;
@@ -635,6 +639,8 @@ static struct pci_device_id via_pci_table[] __devinitdata = {
 	  .driver_data = UNICHROME_VX800 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX855_DID),
 	  .driver_data = UNICHROME_VX855 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX900_DID),
+	  .driver_data = UNICHROME_VX900 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, via_pci_table);

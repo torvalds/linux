@@ -362,6 +362,17 @@ is reserved, so it may have problem to set 1600x1200 on IGA2. */
 #define VX855_IGA2_FIFO_HIGH_THRESHOLD          160
 #define VX855_IGA2_DISPLAY_QUEUE_EXPIRE_NUM     320
 
+/* For VT3410 */
+#define VX900_IGA1_FIFO_MAX_DEPTH               400
+#define VX900_IGA1_FIFO_THRESHOLD               320
+#define VX900_IGA1_FIFO_HIGH_THRESHOLD          320
+#define VX900_IGA1_DISPLAY_QUEUE_EXPIRE_NUM     160
+
+#define VX900_IGA2_FIFO_MAX_DEPTH               192
+#define VX900_IGA2_FIFO_THRESHOLD               160
+#define VX900_IGA2_FIFO_HIGH_THRESHOLD          160
+#define VX900_IGA2_DISPLAY_QUEUE_EXPIRE_NUM     320
+
 #define IGA1_FIFO_DEPTH_SELECT_REG_NUM          1
 #define IGA1_FIFO_THRESHOLD_REG_NUM             2
 #define IGA1_FIFO_HIGH_THRESHOLD_REG_NUM        2
@@ -879,6 +890,8 @@ struct iga2_crtc_timing {
 #define VX800_FUNCTION3     0x3353
 /* VT3409 chipset*/
 #define VX855_FUNCTION3     0x3409
+/* VT3410 chipset*/
+#define VX900_FUNCTION3     0x3410
 
 #define NUM_TOTAL_PLL_TABLE ARRAY_SIZE(pll_value)
 
