@@ -387,7 +387,6 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 static inline int i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {
 	return adapter->dev.parent != NULL
-		&& adapter->dev.parent->bus == &i2c_bus_type
 		&& adapter->dev.parent->type == &i2c_adapter_type;
 }
 
