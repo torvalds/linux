@@ -5815,6 +5815,7 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	 * since glibc seems to choke on it...)
 	 */
 	entry->ino = 1;
+	entry->fattr->valid = 0;
 
 	len = ntohl(*p++);		/* bitmap length */
 	if (len-- > 0) {
