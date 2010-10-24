@@ -120,6 +120,13 @@ static const struct tegra_suspend_platform_data *pdata = NULL;
 static unsigned long wb0_restore = 0;
 static enum tegra_suspend_mode current_suspend_mode;
 
+static unsigned int tegra_time_in_suspend[32];
+
+static inline unsigned int time_to_bin(unsigned int time)
+{
+	return fls(time);
+}
+
 unsigned long tegra_cpu_power_good_time(void)
 {
 	if (WARN_ON_ONCE(!pdata))
@@ -541,6 +548,10 @@ static int tegra_suspend_enter(suspend_state_t state)
 	bool do_lp0 = (current_suspend_mode == TEGRA_SUSPEND_LP0);
 	bool do_lp2 = (current_suspend_mode == TEGRA_SUSPEND_LP2);
 	int lp_state;
+	u64 rtc_before;
+	u64 rtc_after;
+	u64 secs;
+	u32 ms;
 
 	if (do_lp2)
 		lp_state = 2;
@@ -573,10 +584,14 @@ static int tegra_suspend_enter(suspend_state_t state)
 		}
 	}
 
+	rtc_before = tegra_rtc_read_ms();
+
 	if (do_lp2)
 		tegra_suspend_lp2(0);
 	else
 		tegra_suspend_dram(do_lp0);
+
+	rtc_after = tegra_rtc_read_ms();
 
 	for_each_irq_desc(irq, desc) {
 		if ((desc->status & IRQ_WAKEUP) &&
@@ -601,6 +616,12 @@ static int tegra_suspend_enter(suspend_state_t state)
 		tegra_dma_resume();
 		tegra_irq_resume();
 	}
+
+	secs = rtc_after - rtc_before;
+	ms = do_div(secs, 1000);
+	pr_info("Suspended for %llu.%03u seconds\n", secs, ms);
+
+	tegra_time_in_suspend[time_to_bin(secs)]++;
 
 	local_irq_restore(flags);
 
@@ -748,6 +769,33 @@ static const struct file_operations tegra_suspend_debug_fops = {
 	.release	= single_release,
 };
 
+static int tegra_suspend_time_debug_show(struct seq_file *s, void *data)
+{
+	int bin;
+	seq_printf(s, "time (secs)  count\n");
+	seq_printf(s, "------------------\n");
+	for (bin = 0; bin < 32; bin++) {
+		if (tegra_time_in_suspend[bin] == 0)
+			continue;
+		seq_printf(s, "%4d - %4d %4u\n",
+			bin ? 1 << (bin - 1) : 0, 1 << bin,
+			tegra_time_in_suspend[bin]);
+	}
+	return 0;
+}
+
+static int tegra_suspend_time_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tegra_suspend_time_debug_show, NULL);
+}
+
+static const struct file_operations tegra_suspend_time_debug_fops = {
+	.open		= tegra_suspend_time_debug_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int __init tegra_suspend_debug_init(void)
 {
 	struct dentry *d;
@@ -756,6 +804,13 @@ static int __init tegra_suspend_debug_init(void)
 		(void *)&current_suspend_mode, &tegra_suspend_debug_fops);
 	if (!d) {
 		pr_info("Failed to create suspend_mode debug file\n");
+		return -ENOMEM;
+	}
+
+	d = debugfs_create_file("suspend_time", 0755, NULL, NULL,
+		&tegra_suspend_time_debug_fops);
+	if (!d) {
+		pr_info("Failed to create suspend_time debug file\n");
 		return -ENOMEM;
 	}
 
