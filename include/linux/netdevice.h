@@ -1072,7 +1072,7 @@ struct net_device {
 		struct pcpu_dstats __percpu	*dstats; /* dummy stats */
 	};
 	/* GARP */
-	struct garp_port	*garp_port;
+	struct garp_port __rcu	*garp_port;
 
 	/* class/net/name entry */
 	struct device		dev;
