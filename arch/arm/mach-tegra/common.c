@@ -180,8 +180,6 @@ void tegra_move_framebuffer(unsigned long to, unsigned long from,
 		return;
 	}
 
-	pr_info("%s: %08lx %08lx %08lx %p", __func__, to, from, size, to_io);
-
 	if (pfn_valid(page_to_pfn(phys_to_page(from)))) {
 		for (i = 0 ; i < size; i += PAGE_SIZE) {
 			page = phys_to_page(from + i);
