@@ -384,10 +384,15 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 	dev_set_drvdata(&dev->dev, data);
 }
 
-static inline int i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
+static inline struct i2c_adapter *
+i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {
-	return adapter->dev.parent != NULL
-		&& adapter->dev.parent->type == &i2c_adapter_type;
+	struct device *parent = adapter->dev.parent;
+
+	if (parent != NULL && parent->type == &i2c_adapter_type)
+		return to_i2c_adapter(parent);
+	else
+		return NULL;
 }
 
 /* Adapter locking functions, exported for shared pin cases */
