@@ -316,6 +316,7 @@ struct hid_item {
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 #define HID_QUIRK_NO_INIT_REPORTS		0x20000000
 #define HID_QUIRK_NO_IGNORE			0x40000000
+#define HID_QUIRK_NO_INPUT_SYNC			0x80000000
 
 /*
  * This is the global environment of the parser. This information is
@@ -626,8 +627,8 @@ struct hid_driver {
 	int (*event)(struct hid_device *hdev, struct hid_field *field,
 			struct hid_usage *usage, __s32 value);
 
-	void (*report_fixup)(struct hid_device *hdev, __u8 *buf,
-			unsigned int size);
+	__u8 *(*report_fixup)(struct hid_device *hdev, __u8 *buf,
+			unsigned int *size);
 
 	int (*input_mapping)(struct hid_device *hdev,
 			struct hid_input *hidinput, struct hid_field *field,

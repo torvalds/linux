@@ -7,6 +7,7 @@
  *  Copyright (c) 2006-2007 Jiri Kosina
  *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
+ *  Copyright (c) 2010 Hendrik Iben
  */
 
 /*
@@ -19,6 +20,9 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/random.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 
 #include "hid-ids.h"
 #include "hid-lg.h"
@@ -35,31 +39,43 @@
 #define LG_FF2			0x400
 #define LG_RDESC_REL_ABS	0x800
 #define LG_FF3			0x1000
+#define LG_FF4			0x2000
 
 /*
  * Certain Logitech keyboards send in report #3 keys which are far
  * above the logical maximum described in descriptor. This extends
  * the original value of 0x28c of logical maximum to 0x104d
  */
-static void lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
 
-	if ((quirks & LG_RDESC) && rsize >= 90 && rdesc[83] == 0x26 &&
+	if ((quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
 		dev_info(&hdev->dev, "fixing up Logitech keyboard report "
 				"descriptor\n");
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
-	if ((quirks & LG_RDESC_REL_ABS) && rsize >= 50 &&
+	if ((quirks & LG_RDESC_REL_ABS) && *rsize >= 50 &&
 			rdesc[32] == 0x81 && rdesc[33] == 0x06 &&
 			rdesc[49] == 0x81 && rdesc[50] == 0x06) {
 		dev_info(&hdev->dev, "fixing up rel/abs in Logitech "
 				"report descriptor\n");
 		rdesc[33] = rdesc[50] = 0x02;
 	}
+	if ((quirks & LG_FF4) && *rsize >= 101 &&
+			rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
+			rdesc[47] == 0x05 && rdesc[48] == 0x09) {
+		dev_info(&hdev->dev, "fixing up Logitech Speed Force Wireless "
+			"button descriptor\n");
+		rdesc[41] = 0x05;
+		rdesc[42] = 0x09;
+		rdesc[47] = 0x95;
+		rdesc[48] = 0x0B;
+	}
+	return rdesc;
 }
 
 #define lg_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
@@ -285,12 +301,33 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_free;
 	}
 
+	if (quirks & LG_FF4) {
+		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+
+		if (ret >= 0) {
+			/* insert a little delay of 10 jiffies ~ 40ms */
+			wait_queue_head_t wait;
+			init_waitqueue_head (&wait);
+			wait_event_interruptible_timeout(wait, 0, 10);
+
+			/* Select random Address */
+			buf[1] = 0xB2;
+			get_random_bytes(&buf[2], 2);
+
+			ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+		}
+	}
+
 	if (quirks & LG_FF)
 		lgff_init(hdev);
 	if (quirks & LG_FF2)
 		lg2ff_init(hdev);
 	if (quirks & LG_FF3)
 		lg3ff_init(hdev);
+	if (quirks & LG_FF4)
+		lg4ff_init(hdev);
 
 	return 0;
 err_free:
@@ -325,6 +362,8 @@ static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL),
 		.driver_data = LG_NOGET | LG_FF },
 
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD_CORD),
+		.driver_data = LG_FF2 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2_2),
@@ -339,6 +378,8 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G25_WHEEL),
 		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WII_WHEEL),
+		.driver_data = LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG ),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
