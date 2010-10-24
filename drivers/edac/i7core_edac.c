@@ -2046,7 +2046,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	 */
 	if (unlikely(probed >= 1)) {
 		mutex_unlock(&i7core_edac_lock);
-		return -EINVAL;
+		return -ENODEV;
 	}
 	probed++;
 
