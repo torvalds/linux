@@ -5803,11 +5803,10 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	p = xdr_decode_hyper(p, &entry->cookie);
 	entry->len = ntohl(*p++);
 
-	p = xdr_inline_decode(xdr, entry->len + 4);
+	p = xdr_inline_decode(xdr, entry->len);
 	if (unlikely(!p))
 		goto out_overflow;
 	entry->name = (const char *) p;
-	p += XDR_QUADLEN(entry->len);
 
 	/*
 	 * In case the server doesn't return an inode number,
@@ -5817,30 +5816,19 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	entry->ino = 1;
 	entry->fattr->valid = 0;
 
-	len = ntohl(*p++);		/* bitmap length */
-	if (len-- > 0) {
-		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			goto out_overflow;
-		bitmap[0] = ntohl(*p++);
-		if (len-- > 0) {
-			p = xdr_inline_decode(xdr, 4);
-			if (unlikely(!p))
-				goto out_overflow;
-			bitmap[1] = ntohl(*p++);
-			p += len;
-		}
-	}
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
+	if (decode_attr_bitmap(xdr, bitmap) < 0)
 		goto out_overflow;
-	len = XDR_QUADLEN(ntohl(*p++));	/* attribute buffer length */
-	if (len > 0) {
-		if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh, server, 1) < 0)
-			goto out_overflow;
-		if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
-			entry->ino = entry->fattr->fileid;
-	}
+
+	if (decode_attr_length(xdr, &len, &p) < 0)
+		goto out_overflow;
+
+	if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh, server, 1) < 0)
+		goto out_overflow;
+	if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
+		entry->ino = entry->fattr->fileid;
+
+	if (verify_attr_len(xdr, p, len) < 0)
+		goto out_overflow;
 
 	p = xdr_inline_peek(xdr, 8);
 	if (p != NULL)
