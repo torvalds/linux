@@ -98,7 +98,7 @@
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
@@ -138,6 +138,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+static DEFINE_MUTEX(ip2_mutex);
 static const struct file_operations ip2mem_proc_fops;
 static const struct file_operations ip2_proc_fops;
 
@@ -183,6 +184,8 @@ static void ip2_hangup(PTTY);
 static int  ip2_tiocmget(struct tty_struct *tty, struct file *file);
 static int  ip2_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
+static int ip2_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount);
 
 static void set_irq(int, int);
 static void ip2_interrupt_bh(struct work_struct *work);
@@ -236,6 +239,7 @@ static const struct file_operations ip2_ipl = {
 	.write		= ip2_ipl_write,
 	.unlocked_ioctl	= ip2_ipl_ioctl,
 	.open		= ip2_ipl_open,
+	.llseek		= noop_llseek,
 }; 
 
 static unsigned long irq_counter;
@@ -454,6 +458,7 @@ static const struct tty_operations ip2_ops = {
 	.hangup          = ip2_hangup,
 	.tiocmget	 = ip2_tiocmget,
 	.tiocmset	 = ip2_tiocmset,
+	.get_icount	 = ip2_get_icount,
 	.proc_fops	 = &ip2_proc_fops,
 };
 
@@ -2128,7 +2133,6 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	i2ChanStrPtr pCh = DevTable[tty->index];
 	i2eBordStrPtr pB;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
-	struct serial_icounter_struct __user *p_cuser;
 	int rc = 0;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
@@ -2297,34 +2301,6 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 		break;
 
 	/*
-	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-	 * Return: write counters to the user passed counter struct
-	 * NB: both 1->0 and 0->1 transitions are counted except for RI where
-	 * only 0->1 is counted. The controller is quite capable of counting
-	 * both, but this done to preserve compatibility with the standard
-	 * serial driver.
-	 */
-	case TIOCGICOUNT:
-		ip2trace (CHANN, ITRC_IOCTL, 11, 1, rc );
-
-		write_lock_irqsave(&pB->read_fifo_spinlock, flags);
-		cnow = pCh->icount;
-		write_unlock_irqrestore(&pB->read_fifo_spinlock, flags);
-		p_cuser = argp;
-		rc = put_user(cnow.cts, &p_cuser->cts);
-		rc = put_user(cnow.dsr, &p_cuser->dsr);
-		rc = put_user(cnow.rng, &p_cuser->rng);
-		rc = put_user(cnow.dcd, &p_cuser->dcd);
-		rc = put_user(cnow.rx, &p_cuser->rx);
-		rc = put_user(cnow.tx, &p_cuser->tx);
-		rc = put_user(cnow.frame, &p_cuser->frame);
-		rc = put_user(cnow.overrun, &p_cuser->overrun);
-		rc = put_user(cnow.parity, &p_cuser->parity);
-		rc = put_user(cnow.brk, &p_cuser->brk);
-		rc = put_user(cnow.buf_overrun, &p_cuser->buf_overrun);
-		break;
-
-	/*
 	 * The rest are not supported by this driver. By returning -ENOIOCTLCMD they
 	 * will be passed to the line discipline for it to handle.
 	 */
@@ -2346,6 +2322,46 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	ip2trace (CHANN, ITRC_IOCTL, ITRC_RETURN, 0 );
 
 	return rc;
+}
+
+static int ip2_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount)
+{
+	i2ChanStrPtr pCh = DevTable[tty->index];
+	i2eBordStrPtr pB;
+	struct async_icount cnow;	/* kernel counter temp */
+	unsigned long flags;
+
+	if ( pCh == NULL )
+		return -ENODEV;
+
+	pB = pCh->pMyBord;
+
+	/*
+	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+	 * Return: write counters to the user passed counter struct
+	 * NB: both 1->0 and 0->1 transitions are counted except for RI where
+	 * only 0->1 is counted. The controller is quite capable of counting
+	 * both, but this done to preserve compatibility with the standard
+	 * serial driver.
+	 */
+
+	write_lock_irqsave(&pB->read_fifo_spinlock, flags);
+	cnow = pCh->icount;
+	write_unlock_irqrestore(&pB->read_fifo_spinlock, flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+	return 0;
 }
 
 /******************************************************************************/
@@ -2897,7 +2913,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 	printk (KERN_DEBUG "IP2IPL: ioctl cmd %d, arg %ld\n", cmd, arg );
 #endif
 
-	lock_kernel();
+	mutex_lock(&ip2_mutex);
 
 	switch ( iplminor ) {
 	case 0:	    // IPL device
@@ -2961,7 +2977,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 		rc = -ENODEV;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&ip2_mutex);
 	return rc;
 }
 
@@ -2982,7 +2998,6 @@ ip2_ipl_open( struct inode *pInode, struct file *pFile )
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: open\n" );
 #endif
-	cycle_kernel_lock();
 	return 0;
 }
 

@@ -44,7 +44,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 
@@ -122,6 +122,7 @@ more than 512 ports.... */
 
 
 /* These constants are derived from SCO Source */
+static DEFINE_MUTEX(rio_fw_mutex);
 static struct Conf
  RIOConf = {
 	/* locator */ "RIO Config here",
@@ -241,6 +242,7 @@ static struct real_driver rio_real_driver = {
 static const struct file_operations rio_fw_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = rio_fw_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice rio_fw_device = {
@@ -566,9 +568,9 @@ static long rio_fw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	func_enter();
 
 	/* The "dev" argument isn't used. */
-	lock_kernel();
+	mutex_lock(&rio_fw_mutex);
 	rc = riocontrol(p, 0, cmd, arg, capable(CAP_SYS_ADMIN));
-	unlock_kernel();
+	mutex_unlock(&rio_fw_mutex);
 
 	func_exit();
 	return rc;

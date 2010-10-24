@@ -310,8 +310,7 @@ static void osdblk_rq_fn(struct request_queue *q)
 			break;
 
 		/* filter out block requests we don't understand */
-		if (rq->cmd_type != REQ_TYPE_FS &&
-		    !(rq->cmd_flags & REQ_HARDBARRIER)) {
+		if (rq->cmd_type != REQ_TYPE_FS) {
 			blk_end_request_all(rq, 0);
 			continue;
 		}
@@ -439,7 +438,7 @@ static int osdblk_init_disk(struct osdblk_device *osdev)
 	blk_queue_stack_limits(q, osd_request_queue(osdev->osd));
 
 	blk_queue_prep_rq(q, blk_queue_start_tag);
-	blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH);
+	blk_queue_flush(q, REQ_FLUSH);
 
 	disk->queue = q;
 

@@ -968,6 +968,7 @@ static ssize_t smk_write_doi(struct file *file, const char __user *buf,
 static const struct file_operations smk_doi_ops = {
 	.read		= smk_read_doi,
 	.write		= smk_write_doi,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1031,6 +1032,7 @@ static ssize_t smk_write_direct(struct file *file, const char __user *buf,
 static const struct file_operations smk_direct_ops = {
 	.read		= smk_read_direct,
 	.write		= smk_write_direct,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1112,6 +1114,7 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 static const struct file_operations smk_ambient_ops = {
 	.read		= smk_read_ambient,
 	.write		= smk_write_ambient,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1191,6 +1194,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 static const struct file_operations smk_onlycap_ops = {
 	.read		= smk_read_onlycap,
 	.write		= smk_write_onlycap,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1255,6 +1259,7 @@ static ssize_t smk_write_logging(struct file *file, const char __user *buf,
 static const struct file_operations smk_logging_ops = {
 	.read		= smk_read_logging,
 	.write		= smk_write_logging,
+	.llseek		= default_llseek,
 };
 /**
  * smk_fill_super - fill the /smackfs superblock

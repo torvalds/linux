@@ -1051,6 +1051,7 @@ static const struct file_operations hid_debug_events_fops = {
 	.read           = hid_debug_events_read,
 	.poll		= hid_debug_events_poll,
 	.release        = hid_debug_events_release,
+	.llseek		= noop_llseek,
 };
 
 

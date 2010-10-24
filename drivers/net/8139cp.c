@@ -561,7 +561,7 @@ rx_status_loop:
 		if (cp_rx_csum_ok(status))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 
 		skb_put(skb, len);
 
@@ -754,7 +754,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	}
 
 #if CP_VLAN_TAG_USED
-	if (cp->vlgrp && vlan_tx_tag_present(skb))
+	if (vlan_tx_tag_present(skb))
 		vlan_tag = TxVlanTag | swab16(vlan_tx_tag_get(skb));
 #endif
 

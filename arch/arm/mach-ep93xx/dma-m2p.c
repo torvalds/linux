@@ -276,7 +276,7 @@ static void channel_disable(struct m2p_channel *ch)
 	v &= ~(M2P_CONTROL_STALL_IRQ_EN | M2P_CONTROL_NFB_IRQ_EN);
 	m2p_set_control(ch, v);
 
-	while (m2p_channel_state(ch) == STATE_ON)
+	while (m2p_channel_state(ch) >= STATE_ON)
 		cpu_relax();
 
 	m2p_set_control(ch, 0x0);

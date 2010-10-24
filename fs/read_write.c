@@ -124,7 +124,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t retval;
 
-	lock_kernel();
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case SEEK_END:
 			offset += i_size_read(file->f_path.dentry->d_inode);
@@ -145,7 +145,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 		retval = offset;
 	}
 out:
-	unlock_kernel();
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return retval;
 }
 EXPORT_SYMBOL(default_llseek);
@@ -156,7 +156,6 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
 
 	fn = no_llseek;
 	if (file->f_mode & FMODE_LSEEK) {
-		fn = default_llseek;
 		if (file->f_op && file->f_op->llseek)
 			fn = file->f_op->llseek;
 	}

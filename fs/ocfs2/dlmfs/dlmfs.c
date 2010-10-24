@@ -612,6 +612,7 @@ static const struct file_operations dlmfs_file_operations = {
 	.poll		= dlmfs_file_poll,
 	.read		= dlmfs_file_read,
 	.write		= dlmfs_file_write,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations dlmfs_dir_inode_operations = {

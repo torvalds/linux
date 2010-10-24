@@ -730,8 +730,6 @@ static void __init dns323_init(void)
 /* Warning: D-Link uses a wrong mach-type (=526) in their bootloader */
 MACHINE_START(DNS323, "D-Link DNS-323")
 	/* Maintainer: Herbert Valerio Riedel <hvr@gnu.org> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= dns323_init,
 	.map_io		= orion5x_map_io,

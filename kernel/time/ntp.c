@@ -149,10 +149,18 @@ static void ntp_update_offset(long offset)
 	time_reftime = get_seconds();
 
 	offset64    = offset;
-	freq_adj    = (offset64 * secs) <<
-			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant));
+	freq_adj    = ntp_update_offset_fll(offset64, secs);
 
-	freq_adj    += ntp_update_offset_fll(offset64, secs);
+	/*
+	 * Clamp update interval to reduce PLL gain with low
+	 * sampling rate (e.g. intermittent network connection)
+	 * to avoid instability.
+	 */
+	if (unlikely(secs > 1 << (SHIFT_PLL + 1 + time_constant)))
+		secs = 1 << (SHIFT_PLL + 1 + time_constant);
+
+	freq_adj    += (offset64 * secs) <<
+			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant));
 
 	freq_adj    = min(freq_adj + time_freq, MAXFREQ_SCALED);
 

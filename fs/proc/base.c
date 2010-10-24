@@ -1151,6 +1151,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 static const struct file_operations proc_oom_score_adj_operations = {
 	.read		= oom_score_adj_read,
 	.write		= oom_score_adj_write,
+	.llseek		= default_llseek,
 };
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -2039,11 +2040,13 @@ static ssize_t proc_fdinfo_read(struct file *file, char __user *buf,
 static const struct file_operations proc_fdinfo_file_operations = {
 	.open           = nonseekable_open,
 	.read		= proc_fdinfo_read,
+	.llseek		= no_llseek,
 };
 
 static const struct file_operations proc_fd_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_readfd,
+	.llseek		= default_llseek,
 };
 
 /*
@@ -2112,6 +2115,7 @@ static int proc_readfdinfo(struct file *filp, void *dirent, filldir_t filldir)
 static const struct file_operations proc_fdinfo_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_readfdinfo,
+	.llseek		= default_llseek,
 };
 
 /*
@@ -2343,6 +2347,7 @@ static int proc_attr_dir_readdir(struct file * filp,
 static const struct file_operations proc_attr_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_attr_dir_readdir,
+	.llseek		= default_llseek,
 };
 
 static struct dentry *proc_attr_dir_lookup(struct inode *dir,
@@ -2675,7 +2680,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	INF("auxv",       S_IRUSR, proc_pid_auxv),
 	ONE("status",     S_IRUGO, proc_pid_status),
 	ONE("personality", S_IRUSR, proc_pid_personality),
-	INF("limits",	  S_IRUSR, proc_pid_limits),
+	INF("limits",	  S_IRUGO, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",      S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
@@ -2751,6 +2756,7 @@ static int proc_tgid_base_readdir(struct file * filp,
 static const struct file_operations proc_tgid_base_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_tgid_base_readdir,
+	.llseek		= default_llseek,
 };
 
 static struct dentry *proc_tgid_base_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd){
@@ -3011,7 +3017,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	INF("auxv",      S_IRUSR, proc_pid_auxv),
 	ONE("status",    S_IRUGO, proc_pid_status),
 	ONE("personality", S_IRUSR, proc_pid_personality),
-	INF("limits",	 S_IRUSR, proc_pid_limits),
+	INF("limits",	 S_IRUGO, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
@@ -3088,6 +3094,7 @@ static struct dentry *proc_tid_base_lookup(struct inode *dir, struct dentry *den
 static const struct file_operations proc_tid_base_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_tid_base_readdir,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations proc_tid_base_inode_operations = {
@@ -3324,4 +3331,5 @@ static const struct inode_operations proc_task_inode_operations = {
 static const struct file_operations proc_task_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_task_readdir,
+	.llseek		= default_llseek,
 };

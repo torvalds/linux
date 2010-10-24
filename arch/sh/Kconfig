@@ -16,6 +16,7 @@ config SUPERH
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_KERNEL_GZIP
@@ -248,6 +249,11 @@ config ARCH_SHMOBILE
 	select ARCH_SUSPEND_POSSIBLE
 	select PM
 	select PM_RUNTIME
+
+config CPU_HAS_PMU
+       depends on CPU_SH4 || CPU_SH4A
+       default y
+       bool
 
 if SUPERH32
 
@@ -737,6 +743,14 @@ config GUSA_RB
 	  store-conditional (LLSC). On machines which do not have hardware
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
+
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && CPU_HAS_PMU
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
 
 source "drivers/sh/Kconfig"
 

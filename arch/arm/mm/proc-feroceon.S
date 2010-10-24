@@ -494,7 +494,7 @@ ENTRY(cpu_feroceon_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__feroceon_setup, #function
 __feroceon_setup:

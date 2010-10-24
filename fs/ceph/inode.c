@@ -1,4 +1,4 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -13,7 +13,8 @@
 #include <linux/pagevec.h>
 
 #include "super.h"
-#include "decode.h"
+#include "mds_client.h"
+#include <linux/ceph/decode.h>
 
 /*
  * Ceph inode operations
@@ -384,7 +385,7 @@ void ceph_destroy_inode(struct inode *inode)
 	 */
 	if (ci->i_snap_realm) {
 		struct ceph_mds_client *mdsc =
-			&ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
+			ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
 		struct ceph_snap_realm *realm = ci->i_snap_realm;
 
 		dout(" dropping residual ref to snap realm %p\n", realm);
@@ -685,7 +686,7 @@ static int fill_inode(struct inode *inode,
 		}
 
 		/* it may be better to set st_size in getattr instead? */
-		if (ceph_test_opt(ceph_sb_to_client(inode->i_sb), RBYTES))
+		if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb), RBYTES))
 			inode->i_size = ci->i_rbytes;
 		break;
 	default:
@@ -901,7 +902,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	struct inode *in = NULL;
 	struct ceph_mds_reply_inode *ininfo;
 	struct ceph_vino vino;
-	struct ceph_client *client = ceph_sb_to_client(sb);
+	struct ceph_fs_client *fsc = ceph_sb_to_client(sb);
 	int i = 0;
 	int err = 0;
 
@@ -965,7 +966,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	 */
 	if (rinfo->head->is_dentry && !req->r_aborted &&
 	    (rinfo->head->is_target || strncmp(req->r_dentry->d_name.name,
-					       client->mount_args->snapdir_name,
+					       fsc->mount_options->snapdir_name,
 					       req->r_dentry->d_name.len))) {
 		/*
 		 * lookup link rename   : null -> possibly existing inode
@@ -1533,7 +1534,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *parent_inode = dentry->d_parent->d_inode;
 	const unsigned int ia_valid = attr->ia_valid;
 	struct ceph_mds_request *req;
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(dentry->d_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(dentry->d_sb)->mdsc;
 	int issued;
 	int release = 0, dirtied = 0;
 	int mask = 0;
@@ -1728,8 +1729,8 @@ out:
  */
 int ceph_do_getattr(struct inode *inode, int mask)
 {
-	struct ceph_client *client = ceph_sb_to_client(inode->i_sb);
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	int err;
 

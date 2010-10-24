@@ -54,8 +54,6 @@ MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atheros AR9170 802.11n USB wireless");
 MODULE_FIRMWARE("ar9170.fw");
-MODULE_FIRMWARE("ar9170-1.fw");
-MODULE_FIRMWARE("ar9170-2.fw");
 
 enum ar9170_requirements {
 	AR9170_REQ_FW1_ONLY = 1,

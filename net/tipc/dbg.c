@@ -52,7 +52,7 @@ static struct print_buf null_buf = { NULL, 0, NULL, 0 };
 struct print_buf *const TIPC_NULL = &null_buf;
 
 static struct print_buf cons_buf = { NULL, 0, NULL, 1 };
-struct print_buf *const TIPC_CONS = &cons_buf;
+static struct print_buf *const TIPC_CONS = &cons_buf;
 
 static struct print_buf log_buf = { NULL, 0, NULL, 1 };
 struct print_buf *const TIPC_LOG = &log_buf;
@@ -76,6 +76,10 @@ struct print_buf *const TIPC_LOG = &log_buf;
 static char print_string[TIPC_PB_MAX_STR];
 static DEFINE_SPINLOCK(print_lock);
 
+static void tipc_printbuf_reset(struct print_buf *pb);
+static int  tipc_printbuf_empty(struct print_buf *pb);
+static void tipc_printbuf_move(struct print_buf *pb_to,
+			       struct print_buf *pb_from);
 
 #define FORMAT(PTR,LEN,FMT) \
 {\
@@ -116,7 +120,7 @@ void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 size)
  * @pb: pointer to print buffer structure
  */
 
-void tipc_printbuf_reset(struct print_buf *pb)
+static void tipc_printbuf_reset(struct print_buf *pb)
 {
 	if (pb->buf) {
 		pb->crs = pb->buf;
@@ -132,9 +136,9 @@ void tipc_printbuf_reset(struct print_buf *pb)
  * Returns non-zero if print buffer is empty.
  */
 
-int tipc_printbuf_empty(struct print_buf *pb)
+static int tipc_printbuf_empty(struct print_buf *pb)
 {
-	return (!pb->buf || (pb->crs == pb->buf));
+	return !pb->buf || (pb->crs == pb->buf);
 }
 
 /**
@@ -169,7 +173,7 @@ int tipc_printbuf_validate(struct print_buf *pb)
 			tipc_printf(pb, err);
 		}
 	}
-	return (pb->crs - pb->buf + 1);
+	return pb->crs - pb->buf + 1;
 }
 
 /**
@@ -181,7 +185,8 @@ int tipc_printbuf_validate(struct print_buf *pb)
  * Source print buffer becomes empty if a successful move occurs.
  */
 
-void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from)
+static void tipc_printbuf_move(struct print_buf *pb_to,
+			       struct print_buf *pb_from)
 {
 	int len;
 

@@ -1742,7 +1742,7 @@ vortex_open(struct net_device *dev)
 
 	/* Use the now-standard shared IRQ implementation. */
 	if ((retval = request_irq(dev->irq, vp->full_bus_master_rx ?
-				&boomerang_interrupt : &vortex_interrupt, IRQF_SHARED, dev->name, dev))) {
+				boomerang_interrupt : vortex_interrupt, IRQF_SHARED, dev->name, dev))) {
 		pr_err("%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
 		goto err;
 	}

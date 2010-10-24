@@ -175,10 +175,10 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	switch (resp->result) {
 	case SMP_RESP_PHY_VACANT:
 		phy->phy_state = PHY_VACANT;
-		return;
+		break;
 	default:
 		phy->phy_state = PHY_NOT_PRESENT;
-		return;
+		break;
 	case SMP_RESP_FUNC_ACC:
 		phy->phy_state = PHY_EMPTY; /* do not know yet */
 		break;
@@ -209,7 +209,10 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->phy->negotiated_linkrate = phy->linkrate;
 
 	if (!rediscover)
-		sas_phy_add(phy->phy);
+		if (sas_phy_add(phy->phy)) {
+			sas_phy_free(phy->phy);
+			return;
+		}
 
 	SAS_DPRINTK("ex %016llx phy%02d:%c attached: %016llx\n",
 		    SAS_ADDR(dev->sas_addr), phy->phy_id,
@@ -1724,6 +1727,7 @@ static void sas_unregister_ex_tree(struct domain_device *dev)
 	struct domain_device *child, *n;
 
 	list_for_each_entry_safe(child, n, &ex->children, siblings) {
+		child->gone = 1;
 		if (child->dev_type == EDGE_DEV ||
 		    child->dev_type == FANOUT_DEV)
 			sas_unregister_ex_tree(child);
@@ -1744,6 +1748,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 			&ex_dev->children, siblings) {
 			if (SAS_ADDR(child->sas_addr) ==
 			    SAS_ADDR(phy->attached_sas_addr)) {
+				child->gone = 1;
 				if (child->dev_type == EDGE_DEV ||
 				    child->dev_type == FANOUT_DEV)
 					sas_unregister_ex_tree(child);
@@ -1752,6 +1757,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 				break;
 			}
 		}
+		parent->gone = 1;
 		sas_disable_routing(parent, phy->attached_sas_addr);
 	}
 	memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);

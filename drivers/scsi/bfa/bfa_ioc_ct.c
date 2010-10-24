@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2009 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
  * All rights reserved
  * www.brocade.com
  *
@@ -15,22 +15,15 @@
  * General Public License for more details.
  */
 
-#include <bfa.h>
-#include <bfa_ioc.h>
-#include <bfa_fwimg_priv.h>
-#include <cna/bfa_cna_trcmod.h>
-#include <cs/bfa_debug.h>
-#include <bfi/bfi_ioc.h>
-#include <bfi/bfi_ctreg.h>
-#include <log/bfa_log_hal.h>
-#include <defs/bfa_defs_pci.h>
+#include "bfa_ioc.h"
+#include "bfi_ctreg.h"
+#include "bfa_defs.h"
 
 BFA_TRC_FILE(CNA, IOC_CT);
 
 /*
  * forward declarations
  */
-static bfa_status_t bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc);
@@ -78,7 +71,8 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	/**
 	 * If bios boot (flash based) -- do not increment usage count
 	 */
-	if (bfi_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) < BFA_IOC_FWIMG_MINSZ)
+	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
+						BFA_IOC_FWIMG_MINSZ)
 		return BFA_TRUE;
 
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
@@ -136,7 +130,8 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	/**
 	 * If bios boot (flash based) -- do not decrement usage count
 	 */
-	if (bfi_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) < BFA_IOC_FWIMG_MINSZ)
+	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
+						BFA_IOC_FWIMG_MINSZ)
 		return;
 
 	/**
@@ -308,111 +303,6 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 	bfa_reg_write(rb + FNC_PERS_REG, r32);
 }
 
-static bfa_status_t
-bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
-{
-	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
-	u32	pll_sclk, pll_fclk, r32;
-
-	/*
-	 *  Hold semaphore so that nobody can access the chip during init.
-	 */
-	bfa_ioc_sem_get(ioc->ioc_regs.ioc_init_sem_reg);
-
-	pll_sclk = __APP_PLL_312_LRESETN | __APP_PLL_312_ENARST |
-		__APP_PLL_312_RSEL200500 | __APP_PLL_312_P0_1(3U) |
-		__APP_PLL_312_JITLMT0_1(3U) |
-		__APP_PLL_312_CNTLMT0_1(1U);
-	pll_fclk = __APP_PLL_425_LRESETN | __APP_PLL_425_ENARST |
-		__APP_PLL_425_RSEL200500 | __APP_PLL_425_P0_1(3U) |
-		__APP_PLL_425_JITLMT0_1(3U) |
-		__APP_PLL_425_CNTLMT0_1(1U);
-
-	/**
-	 *	For catapult, choose operational mode FC/FCoE
-	 */
-	if (ioc->fcmode) {
-		bfa_reg_write((rb + OP_MODE), 0);
-		bfa_reg_write((rb + ETH_MAC_SER_REG),
-				__APP_EMS_CMLCKSEL |
-				__APP_EMS_REFCKBUFEN2 |
-				__APP_EMS_CHANNEL_SEL);
-	} else {
-		ioc->pllinit = BFA_TRUE;
-		bfa_reg_write((rb + OP_MODE), __GLOBAL_FCOE_MODE);
-		bfa_reg_write((rb + ETH_MAC_SER_REG),
-				 __APP_EMS_REFCKBUFEN1);
-	}
-
-	bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_UNINIT);
-	bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_UNINIT);
-
-	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
-
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk |
-		__APP_PLL_312_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
-		__APP_PLL_425_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk |
-		__APP_PLL_312_LOGIC_SOFT_RESET | __APP_PLL_312_ENABLE);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
-		__APP_PLL_425_LOGIC_SOFT_RESET | __APP_PLL_425_ENABLE);
-
-	/**
-	 * Wait for PLLs to lock.
-	 */
-	bfa_reg_read(rb + HOSTFN0_INT_MSK);
-	bfa_os_udelay(2000);
-	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
-
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk |
-		__APP_PLL_312_ENABLE);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
-		__APP_PLL_425_ENABLE);
-
-	/**
-	 * PSS memory reset is asserted at power-on-reset. Need to clear
-	 * this before running EDRAM BISTR
-	 */
-	if (ioc->cna) {
-		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), __PMM_1T_RESET_P);
-		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), __PMM_1T_RESET_P);
-	}
-
-	r32 = bfa_reg_read((rb + PSS_CTL_REG));
-	r32 &= ~__PSS_LMEM_RESET;
-	bfa_reg_write((rb + PSS_CTL_REG), r32);
-	bfa_os_udelay(1000);
-
-	if (ioc->cna) {
-		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), 0);
-		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), 0);
-	}
-
-	bfa_reg_write((rb + MBIST_CTL_REG), __EDRAM_BISTR_START);
-	bfa_os_udelay(1000);
-	r32 = bfa_reg_read((rb + MBIST_STAT_REG));
-	bfa_trc(ioc, r32);
-
-	/**
-	 * Clear BISTR
-	 */
-	bfa_reg_write((rb + MBIST_CTL_REG), 0);
-
-	/*
-	 *  release semaphore.
-	 */
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_init_sem_reg);
-
-	return BFA_STATUS_OK;
-}
-
 /**
  * Cleanup hw semaphore and usecnt registers
  */
@@ -433,4 +323,87 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	 */
 	bfa_reg_read(ioc->ioc_regs.ioc_sem_reg);
 	bfa_ioc_hw_sem_release(ioc);
+}
+
+
+
+/*
+ * Check the firmware state to know if pll_init has been completed already
+ */
+bfa_boolean_t
+bfa_ioc_ct_pll_init_complete(bfa_os_addr_t rb)
+{
+	if ((bfa_reg_read(rb + BFA_IOC0_STATE_REG) == BFI_IOC_OP) ||
+	  (bfa_reg_read(rb + BFA_IOC1_STATE_REG) == BFI_IOC_OP))
+		return BFA_TRUE;
+
+	return BFA_FALSE;
+}
+
+bfa_status_t
+bfa_ioc_ct_pll_init(bfa_os_addr_t rb, bfa_boolean_t fcmode)
+{
+	u32	pll_sclk, pll_fclk, r32;
+
+	pll_sclk = __APP_PLL_312_LRESETN | __APP_PLL_312_ENARST |
+		__APP_PLL_312_RSEL200500 | __APP_PLL_312_P0_1(3U) |
+		__APP_PLL_312_JITLMT0_1(3U) |
+		__APP_PLL_312_CNTLMT0_1(1U);
+	pll_fclk = __APP_PLL_425_LRESETN | __APP_PLL_425_ENARST |
+		__APP_PLL_425_RSEL200500 | __APP_PLL_425_P0_1(3U) |
+		__APP_PLL_425_JITLMT0_1(3U) |
+		__APP_PLL_425_CNTLMT0_1(1U);
+	if (fcmode) {
+		bfa_reg_write((rb + OP_MODE), 0);
+		bfa_reg_write((rb + ETH_MAC_SER_REG),
+				__APP_EMS_CMLCKSEL |
+				__APP_EMS_REFCKBUFEN2 |
+				__APP_EMS_CHANNEL_SEL);
+	} else {
+		bfa_reg_write((rb + OP_MODE), __GLOBAL_FCOE_MODE);
+		bfa_reg_write((rb + ETH_MAC_SER_REG),
+				__APP_EMS_REFCKBUFEN1);
+	}
+	bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_UNINIT);
+	bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_UNINIT);
+	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
+	bfa_reg_write(rb + APP_PLL_312_CTL_REG, pll_sclk |
+		__APP_PLL_312_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_425_CTL_REG, pll_fclk |
+		__APP_PLL_425_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_312_CTL_REG, pll_sclk |
+		__APP_PLL_312_LOGIC_SOFT_RESET | __APP_PLL_312_ENABLE);
+	bfa_reg_write(rb + APP_PLL_425_CTL_REG, pll_fclk |
+		__APP_PLL_425_LOGIC_SOFT_RESET | __APP_PLL_425_ENABLE);
+	bfa_reg_read(rb + HOSTFN0_INT_MSK);
+	bfa_os_udelay(2000);
+	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
+	bfa_reg_write(rb + APP_PLL_312_CTL_REG, pll_sclk |
+		__APP_PLL_312_ENABLE);
+	bfa_reg_write(rb + APP_PLL_425_CTL_REG, pll_fclk |
+		__APP_PLL_425_ENABLE);
+	if (!fcmode) {
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), __PMM_1T_RESET_P);
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), __PMM_1T_RESET_P);
+	}
+	r32 = bfa_reg_read((rb + PSS_CTL_REG));
+	r32 &= ~__PSS_LMEM_RESET;
+	bfa_reg_write((rb + PSS_CTL_REG), r32);
+	bfa_os_udelay(1000);
+	if (!fcmode) {
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), 0);
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), 0);
+	}
+
+	bfa_reg_write((rb + MBIST_CTL_REG), __EDRAM_BISTR_START);
+	bfa_os_udelay(1000);
+	r32 = bfa_reg_read((rb + MBIST_STAT_REG));
+	bfa_reg_write((rb + MBIST_CTL_REG), 0);
+	return BFA_STATUS_OK;
 }

@@ -55,6 +55,7 @@
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
+#include <linux/jump_label.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
@@ -1537,6 +1538,7 @@ static int __unlink_module(void *_mod)
 {
 	struct module *mod = _mod;
 	list_del(&mod->list);
+	module_bug_cleanup(mod);
 	return 0;
 }
 
@@ -2308,6 +2310,11 @@ static void find_module_sections(struct module *mod, struct load_info *info)
 					sizeof(*mod->tracepoints),
 					&mod->num_tracepoints);
 #endif
+#ifdef HAVE_JUMP_LABEL
+	mod->jump_entries = section_objs(info, "__jump_table",
+					sizeof(*mod->jump_entries),
+					&mod->num_jump_entries);
+#endif
 #ifdef CONFIG_EVENT_TRACING
 	mod->trace_events = section_objs(info, "_ftrace_events",
 					 sizeof(*mod->trace_events),
@@ -2625,6 +2632,7 @@ static struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto ddebug;
 
+	module_bug_finalize(info.hdr, info.sechdrs, mod);
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
 
@@ -2650,6 +2658,8 @@ static struct module *load_module(void __user *umod,
 	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
+	module_bug_cleanup(mod);
+
  ddebug:
 	if (!mod->taints)
 		dynamic_debug_remove(info.debug);

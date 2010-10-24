@@ -662,12 +662,16 @@ static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
+	lock_super(sb);
 	res = fat_fill_super(sb, data, silent, &msdos_dir_inode_operations, 0);
-	if (res)
+	if (res) {
+		unlock_super(sb);
 		return res;
+	}
 
 	sb->s_flags |= MS_NOATIME;
 	sb->s_root->d_op = &msdos_dentry_operations;
+	unlock_super(sb);
 	return 0;
 }
 

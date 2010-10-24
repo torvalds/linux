@@ -1331,7 +1331,7 @@ static inline void atl1e_rx_checksum(struct atl1e_adapter *adapter,
 	u16 pkt_flags;
 	u16 err_flags;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 	pkt_flags = prrs->pkt_flag;
 	err_flags = prrs->err_flag;
 	if (((pkt_flags & RRS_IS_IPV4) || (pkt_flags & RRS_IS_IPV6)) &&
@@ -1814,7 +1814,7 @@ static netdev_tx_t atl1e_xmit_frame(struct sk_buff *skb,
 
 	tpd = atl1e_get_tpd(adapter);
 
-	if (unlikely(adapter->vlgrp && vlan_tx_tag_present(skb))) {
+	if (unlikely(vlan_tx_tag_present(skb))) {
 		u16 vlan_tag = vlan_tx_tag_get(skb);
 		u16 atl1e_vlan_tag;
 
@@ -2316,7 +2316,7 @@ static int __devinit atl1e_probe(struct pci_dev *pdev,
 	netif_napi_add(netdev, &adapter->napi, atl1e_clean, 64);
 
 	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl1e_phy_config;
+	adapter->phy_config_timer.function = atl1e_phy_config;
 	adapter->phy_config_timer.data = (unsigned long) adapter;
 
 	/* get user settings */

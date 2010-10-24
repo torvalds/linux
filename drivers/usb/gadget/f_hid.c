@@ -451,6 +451,7 @@ const struct file_operations f_hidg_fops = {
 	.write		= f_hidg_write,
 	.read		= f_hidg_read,
 	.poll		= f_hidg_poll,
+	.llseek		= noop_llseek,
 };
 
 static int __init hidg_bind(struct usb_configuration *c, struct usb_function *f)

@@ -2,7 +2,7 @@
  * Driver for Digigram VXpocket V2/440 soundcards
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
+
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -162,10 +162,9 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	link->resource[0]->end = 16;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.ConfigIndex = 1;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_index = 1;
+	link->config_regs = PRESENT_OPTION;
 
 	*chip_ret = vxp;
 	return 0;
@@ -234,7 +233,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -359,9 +358,7 @@ MODULE_DEVICE_TABLE(pcmcia, vxp_ids);
 
 static struct pcmcia_driver vxp_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "snd-vxpocket",
-	},
+	.name		= "snd-vxpocket",
 	.probe		= vxpocket_probe,
 	.remove		= vxpocket_detach,
 	.id_table	= vxp_ids,

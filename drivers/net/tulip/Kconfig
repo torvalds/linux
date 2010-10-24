@@ -11,8 +11,8 @@ menuconfig NET_TULIP
 if NET_TULIP
 
 config DE2104X
-	tristate "Early DECchip Tulip (dc2104x) PCI support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Early DECchip Tulip (dc2104x) PCI support"
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver is developed for the SMC EtherPower series Ethernet

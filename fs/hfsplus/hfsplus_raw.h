@@ -200,6 +200,7 @@ struct hfsplus_cat_key {
 	struct hfsplus_unistr name;
 } __packed;
 
+#define HFSPLUS_CAT_KEYLEN	(sizeof(struct hfsplus_cat_key))
 
 /* Structs from hfs.h */
 struct hfsp_point {
@@ -323,7 +324,7 @@ struct hfsplus_ext_key {
 	__be32 start_block;
 } __packed;
 
-#define HFSPLUS_EXT_KEYLEN 12
+#define HFSPLUS_EXT_KEYLEN	sizeof(struct hfsplus_ext_key)
 
 /* HFS+ generic BTree key */
 typedef union {

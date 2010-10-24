@@ -1177,6 +1177,7 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 	unsigned long time = get_seconds();
 
 	dbg_tnc("search key %s", DBGKEY(key));
+	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
 
 	znode = c->zroot.znode;
 	if (unlikely(!znode)) {
@@ -2966,7 +2967,7 @@ static struct ubifs_znode *right_znode(struct ubifs_info *c,
  *
  * This function searches an indexing node by its first key @key and its
  * address @lnum:@offs. It looks up the indexing tree by pulling all indexing
- * nodes it traverses to TNC. This function is called fro indexing nodes which
+ * nodes it traverses to TNC. This function is called for indexing nodes which
  * were found on the media by scanning, for example when garbage-collecting or
  * when doing in-the-gaps commit. This means that the indexing node which is
  * looked for does not have to have exactly the same leftmost key @key, because
@@ -2987,6 +2988,8 @@ static struct ubifs_znode *lookup_znode(struct ubifs_info *c,
 {
 	struct ubifs_znode *znode, *zn;
 	int n, nn;
+
+	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
 
 	/*
 	 * The arguments have probably been read off flash, so don't assume

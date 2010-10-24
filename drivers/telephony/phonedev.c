@@ -130,6 +130,7 @@ static const struct file_operations phone_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= phone_open,
+	.llseek		= noop_llseek,
 };
 
 /*

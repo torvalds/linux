@@ -9,6 +9,10 @@
  * Maintained by: Eilon Greenstein <eilong@broadcom.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
+ * UDP CSUM errata workaround by Arik Gendelman
+ * Slowpath and fastpath rework by Vladislav Zolotarov
+ * Statistics and Link management by Yitchak Gertner
+ *
  */
 
 #ifndef BNX2X_STATS_H
@@ -228,12 +232,8 @@ struct bnx2x_eth_stats {
 /* Forward declaration */
 struct bnx2x;
 
-
 void bnx2x_stats_init(struct bnx2x *bp);
 
 extern const u32 dmae_reg_go_c[];
-extern int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
-			 u32 data_hi, u32 data_lo, int common);
-
 
 #endif /* BNX2X_STATS_H */

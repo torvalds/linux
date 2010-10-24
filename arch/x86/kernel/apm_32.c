@@ -1926,6 +1926,7 @@ static const struct file_operations apm_bios_fops = {
 	.unlocked_ioctl	= do_ioctl,
 	.open		= do_open,
 	.release	= do_release,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice apm_device = {

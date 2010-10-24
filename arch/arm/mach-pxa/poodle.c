@@ -465,10 +465,9 @@ static void __init fixup_poodle(struct machine_desc *desc,
 }
 
 MACHINE_START(POODLE, "SHARP Poodle")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_poodle,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= POODLE_NR_IRQS,	/* 4 for LoCoMo */
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,

@@ -98,7 +98,7 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 
 static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 {
-	struct sk_buff *buf = buf_acquire(LONG_H_SIZE + size);
+	struct sk_buff *buf = tipc_buf_acquire(LONG_H_SIZE + size);
 	struct tipc_msg *msg;
 
 	if (buf != NULL) {

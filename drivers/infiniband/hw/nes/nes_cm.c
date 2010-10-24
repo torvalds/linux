@@ -2701,7 +2701,7 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 	nesibdev = nesvnic->nesibdev;
 
 	nes_debug(NES_DBG_CM, "netdev refcnt = %u.\n",
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	if (nesqp->active_conn) {
 
@@ -2791,7 +2791,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	atomic_inc(&cm_accepts);
 
 	nes_debug(NES_DBG_CM, "netdev refcnt = %u.\n",
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	/* allocate the ietf frame and space for private data */
 	nesqp->ietf_frame = pci_alloc_consistent(nesdev->pcidev,

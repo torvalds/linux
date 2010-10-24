@@ -149,8 +149,6 @@ subsys_initcall(ts41x_pci_init);
 
 MACHINE_START(TS41X, "QNAP TS-41x")
 	/* Maintainer: Martin Michlmayr <tbm@cyrius.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts41x_init,
 	.map_io		= kirkwood_map_io,

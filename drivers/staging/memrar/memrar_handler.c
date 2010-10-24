@@ -890,6 +890,7 @@ static const struct file_operations memrar_fops = {
 	.mmap           = memrar_mmap,
 	.open           = memrar_open,
 	.release        = memrar_release,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice memrar_miscdev = {

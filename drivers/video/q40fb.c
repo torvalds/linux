@@ -28,7 +28,7 @@
 
 #define Q40_PHYS_SCREEN_ADDR 0xFE800000
 
-static struct fb_fix_screeninfo q40fb_fix __initdata = {
+static struct fb_fix_screeninfo q40fb_fix __devinitdata = {
 	.id		= "Q40",
 	.smem_len	= 1024*1024,
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -37,7 +37,7 @@ static struct fb_fix_screeninfo q40fb_fix __initdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo q40fb_var __initdata = {
+static struct fb_var_screeninfo q40fb_var __devinitdata = {
 	.xres		= 1024,
 	.yres		= 512,
 	.xres_virtual	= 1024,

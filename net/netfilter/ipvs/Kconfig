@@ -3,7 +3,7 @@
 #
 menuconfig IP_VS
 	tristate "IP virtual server support"
-	depends on NET && INET && NETFILTER && NF_CONNTRACK
+	depends on NET && INET && NETFILTER
 	---help---
 	  IP Virtual Server support will let you build a high-performance
 	  virtual server based on cluster of two or more real servers. This
@@ -235,7 +235,8 @@ comment 'IPVS application helper'
 
 config	IP_VS_FTP
   	tristate "FTP protocol helper"
-        depends on IP_VS_PROTO_TCP && NF_NAT
+        depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT
+	select IP_VS_NFCT
 	---help---
 	  FTP is a protocol that transfers IP address and/or port number in
 	  the payload. In the virtual server via Network Address Translation,
@@ -246,5 +247,20 @@ config	IP_VS_FTP
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
+
+config	IP_VS_NFCT
+	bool "Netfilter connection tracking"
+	depends on NF_CONNTRACK
+	---help---
+	  The Netfilter connection tracking support allows the IPVS
+	  connection state to be exported to the Netfilter framework
+	  for filtering purposes.
+
+config	IP_VS_PE_SIP
+	tristate "SIP persistence engine"
+        depends on IP_VS_PROTO_UDP
+	depends on NF_CONNTRACK_SIP
+	---help---
+	  Allow persistence based on the SIP Call-ID
 
 endif # IP_VS

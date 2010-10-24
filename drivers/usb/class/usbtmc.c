@@ -987,6 +987,7 @@ static const struct file_operations fops = {
 	.open		= usbtmc_open,
 	.release	= usbtmc_release,
 	.unlocked_ioctl	= usbtmc_ioctl,
+	.llseek		= default_llseek,
 };
 
 static struct usb_class_driver usbtmc_class = {

@@ -1,9 +1,11 @@
+ccflags-$(CONFIG_USB_WUSB_CBAF_DEBUG) := -DDEBUG
+
 obj-$(CONFIG_USB_WUSB)		+= wusbcore.o
 obj-$(CONFIG_USB_HWA_HCD)	+= wusb-wa.o
 obj-$(CONFIG_USB_WUSB_CBAF)	+= wusb-cbaf.o
 
 
-wusbcore-objs := 	\
+wusbcore-y :=		\
 	crypto.o	\
 	devconnect.o	\
 	dev-sysfs.o	\
@@ -14,13 +16,10 @@ wusbcore-objs := 	\
 	security.o	\
 	wusbhc.o
 
-wusb-cbaf-objs := cbaf.o
+wusb-cbaf-y := cbaf.o
 
-wusb-wa-objs :=	wa-hc.o		\
-		wa-nep.o	\
-		wa-rpipe.o	\
-		wa-xfer.o
-
-ifeq ($(CONFIG_USB_WUSB_CBAF_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+wusb-wa-y :=		\
+	wa-hc.o		\
+	wa-nep.o	\
+	wa-rpipe.o	\
+	wa-xfer.o

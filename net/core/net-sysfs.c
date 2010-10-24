@@ -515,7 +515,7 @@ static ssize_t rx_queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	return attribute->store(queue, attribute, buf, count);
 }
 
-static struct sysfs_ops rx_queue_sysfs_ops = {
+static const struct sysfs_ops rx_queue_sysfs_ops = {
 	.show = rx_queue_attr_show,
 	.store = rx_queue_attr_store,
 };
@@ -726,6 +726,7 @@ static struct kobj_type rx_queue_ktype = {
 static int rx_queue_add_kobject(struct net_device *net, int index)
 {
 	struct netdev_rx_queue *queue = net->_rx + index;
+	struct netdev_rx_queue *first = queue->first;
 	struct kobject *kobj = &queue->kobj;
 	int error = 0;
 
@@ -738,38 +739,43 @@ static int rx_queue_add_kobject(struct net_device *net, int index)
 	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
+	atomic_inc(&first->count);
+
+	return error;
+}
+
+int
+net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
+{
+	int i;
+	int error = 0;
+
+	for (i = old_num; i < new_num; i++) {
+		error = rx_queue_add_kobject(net, i);
+		if (error) {
+			new_num = old_num;
+			break;
+		}
+	}
+
+	while (--i >= new_num)
+		kobject_put(&net->_rx[i].kobj);
 
 	return error;
 }
 
 static int rx_queue_register_kobjects(struct net_device *net)
 {
-	int i;
-	int error = 0;
-
 	net->queues_kset = kset_create_and_add("queues",
 	    NULL, &net->dev.kobj);
 	if (!net->queues_kset)
 		return -ENOMEM;
-	for (i = 0; i < net->num_rx_queues; i++) {
-		error = rx_queue_add_kobject(net, i);
-		if (error)
-			break;
-	}
-
-	if (error)
-		while (--i >= 0)
-			kobject_put(&net->_rx[i].kobj);
-
-	return error;
+	return net_rx_queue_update_kobjects(net, 0, net->real_num_rx_queues);
 }
 
 static void rx_queue_remove_kobjects(struct net_device *net)
 {
-	int i;
-
-	for (i = 0; i < net->num_rx_queues; i++)
-		kobject_put(&net->_rx[i].kobj);
+	net_rx_queue_update_kobjects(net, net->real_num_rx_queues, 0);
 	kset_unregister(net->queues_kset);
 }
 #endif /* CONFIG_RPS */
@@ -789,12 +795,13 @@ static const void *net_netlink_ns(struct sock *sk)
 	return sock_net(sk);
 }
 
-static struct kobj_ns_type_operations net_ns_type_operations = {
+struct kobj_ns_type_operations net_ns_type_operations = {
 	.type = KOBJ_NS_TYPE_NET,
 	.current_ns = net_current_ns,
 	.netlink_ns = net_netlink_ns,
 	.initial_ns = net_initial_ns,
 };
+EXPORT_SYMBOL_GPL(net_ns_type_operations);
 
 static void net_kobj_ns_exit(struct net *net)
 {

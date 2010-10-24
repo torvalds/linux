@@ -1213,7 +1213,7 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 
 	skb_put(skb, framelen);
 	skb->protocol = eth_type_trans(skb, dev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 	netif_rx(skb);
 	sp->rx_buff[entry] = NULL;
 }
@@ -1278,7 +1278,7 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 				jumbo->skb->protocol =
 				    eth_type_trans(jumbo->skb, dev);
 
-				jumbo->skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(jumbo->skb);
 				netif_rx(jumbo->skb);
 			}
 		}
@@ -1476,7 +1476,7 @@ static int ipg_nic_rx(struct net_device *dev)
 			 * IP/TCP/UDP frame was received. Let the
 			 * upper layer decide.
 			 */
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 
 			/* Hand off frame for higher layer processing.
 			 * The function netif_rx() releases the sk_buff

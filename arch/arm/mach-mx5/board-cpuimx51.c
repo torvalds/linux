@@ -28,9 +28,7 @@
 #include <mach/eukrea-baseboards.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx51.h>
-#include <mach/i2c.h>
 #include <mach/mxc_ehci.h>
 
 #include <asm/irq.h>
@@ -39,6 +37,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
 #define CPUIMX51_USBH1_STP	(0*32 + 27)
@@ -109,7 +108,6 @@ static struct platform_device serial_device = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-	&mxc_fec_device,
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 	&serial_device,
 #endif
@@ -148,11 +146,19 @@ static struct pad_desc eukrea_cpuimx51_pads[] = {
 	MX51_PAD_USBH1_STP__USBH1_STP,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct mxc_nand_platform_data
+		eukrea_cpuimx51_nand_board_info __initconst = {
+	.width		= 1,
+	.hw_ecc		= 1,
+	.flash_bbt	= 1,
+};
+
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct imxi2c_platform_data eukrea_cpuimx51_i2c_data = {
+static const
+struct imxi2c_platform_data eukrea_cpuimx51_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -239,7 +245,9 @@ static void __init eukrea_cpuimx51_init(void)
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx51_pads,
 					ARRAY_SIZE(eukrea_cpuimx51_pads));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_mxc_nand(&eukrea_cpuimx51_nand_board_info);
+
 	gpio_request(CPUIMX51_QUARTA_GPIO, "quarta_irq");
 	gpio_direction_input(CPUIMX51_QUARTA_GPIO);
 	gpio_free(CPUIMX51_QUARTA_GPIO);
@@ -253,9 +261,10 @@ static void __init eukrea_cpuimx51_init(void)
 	gpio_direction_input(CPUIMX51_QUARTD_GPIO);
 	gpio_free(CPUIMX51_QUARTD_GPIO);
 
+	imx51_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_i2c_device1, &eukrea_cpuimx51_i2c_data);
+	imx51_add_imx_i2c(1, &eukrea_cpuimx51_i2c_data);
 	i2c_register_board_info(1, eukrea_cpuimx51_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx51_i2c_devices));
 
@@ -283,8 +292,6 @@ static struct sys_timer mxc_timer = {
 
 MACHINE_START(EUKREA_CPUIMX51, "Eukrea CPUIMX51 Module")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
-	.phys_io = MX51_AIPS1_BASE_ADDR,
-	.io_pg_offst = ((MX51_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params = PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
 	.init_irq = mx51_init_irq,

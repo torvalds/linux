@@ -1749,13 +1749,13 @@ static int kdb_go(int argc, const char **argv)
 	int nextarg;
 	long offset;
 
+	if (raw_smp_processor_id() != kdb_initial_cpu) {
+		kdb_printf("go must execute on the entry cpu, "
+			   "please use \"cpu %d\" and then execute go\n",
+			   kdb_initial_cpu);
+		return KDB_BADCPUNUM;
+	}
 	if (argc == 1) {
-		if (raw_smp_processor_id() != kdb_initial_cpu) {
-			kdb_printf("go <address> must be issued from the "
-				   "initial cpu, do cpu %d first\n",
-				   kdb_initial_cpu);
-			return KDB_ARGCOUNT;
-		}
 		nextarg = 1;
 		diag = kdbgetaddrarg(argc, argv, &nextarg,
 				     &addr, &offset, NULL);
@@ -2783,6 +2783,8 @@ int kdb_register_repeat(char *cmd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(kdb_register_repeat);
+
 
 /*
  * kdb_register - Compatibility register function for commands that do
@@ -2805,6 +2807,7 @@ int kdb_register(char *cmd,
 	return kdb_register_repeat(cmd, func, usage, help, minlen,
 				   KDB_REPEAT_NONE);
 }
+EXPORT_SYMBOL_GPL(kdb_register);
 
 /*
  * kdb_unregister - This function is used to unregister a kernel
@@ -2823,7 +2826,7 @@ int kdb_unregister(char *cmd)
 	/*
 	 *  find the command.
 	 */
-	for (i = 0, kp = kdb_commands; i < kdb_max_commands; i++, kp++) {
+	for_each_kdbcmd(kp, i) {
 		if (kp->cmd_name && (strcmp(kp->cmd_name, cmd) == 0)) {
 			kp->cmd_name = NULL;
 			return 0;
@@ -2833,6 +2836,7 @@ int kdb_unregister(char *cmd)
 	/* Couldn't find it.  */
 	return 1;
 }
+EXPORT_SYMBOL_GPL(kdb_unregister);
 
 /* Initialize the kdb command table. */
 static void __init kdb_inittab(void)

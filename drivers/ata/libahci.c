@@ -56,9 +56,8 @@ MODULE_PARM_DESC(skip_host_reset, "skip global host reset (0=don't skip, 1=skip)
 module_param_named(ignore_sss, ahci_ignore_sss, int, 0444);
 MODULE_PARM_DESC(ignore_sss, "Ignore staggered spinup flag (0=don't ignore, 1=ignore)");
 
-static int ahci_enable_alpm(struct ata_port *ap,
-		enum link_pm policy);
-static void ahci_disable_alpm(struct ata_port *ap);
+static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+			unsigned hints);
 static ssize_t ahci_led_show(struct ata_port *ap, char *buf);
 static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 			      size_t size);
@@ -164,8 +163,7 @@ struct ata_port_operations ahci_ops = {
 	.pmp_attach		= ahci_pmp_attach,
 	.pmp_detach		= ahci_pmp_detach,
 
-	.enable_pm		= ahci_enable_alpm,
-	.disable_pm		= ahci_disable_alpm,
+	.set_lpm		= ahci_set_lpm,
 	.em_show		= ahci_led_show,
 	.em_store		= ahci_led_store,
 	.sw_activity_show	= ahci_activity_show,
@@ -569,7 +567,7 @@ int ahci_stop_engine(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_CMD);
 
 	/* wait for engine to stop. This could be as long as 500 msec */
-	tmp = ata_wait_register(port_mmio + PORT_CMD,
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD,
 				PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
 	if (tmp & PORT_CMD_LIST_ON)
 		return -EIO;
@@ -616,7 +614,7 @@ static int ahci_stop_fis_rx(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_CMD);
 
 	/* wait for completion, spec says 500ms, give it 1000 */
-	tmp = ata_wait_register(port_mmio + PORT_CMD, PORT_CMD_FIS_ON,
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD, PORT_CMD_FIS_ON,
 				PORT_CMD_FIS_ON, 10, 1000);
 	if (tmp & PORT_CMD_FIS_ON)
 		return -EBUSY;
@@ -642,127 +640,56 @@ static void ahci_power_up(struct ata_port *ap)
 	writel(cmd | PORT_CMD_ICC_ACTIVE, port_mmio + PORT_CMD);
 }
 
-static void ahci_disable_alpm(struct ata_port *ap)
+static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+			unsigned int hints)
 {
+	struct ata_port *ap = link->ap;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
-	void __iomem *port_mmio = ahci_port_base(ap);
-	u32 cmd;
 	struct ahci_port_priv *pp = ap->private_data;
-
-	/* IPM bits should be disabled by libata-core */
-	/* get the existing command bits */
-	cmd = readl(port_mmio + PORT_CMD);
-
-	/* disable ALPM and ASP */
-	cmd &= ~PORT_CMD_ASP;
-	cmd &= ~PORT_CMD_ALPE;
-
-	/* force the interface back to active */
-	cmd |= PORT_CMD_ICC_ACTIVE;
-
-	/* write out new cmd value */
-	writel(cmd, port_mmio + PORT_CMD);
-	cmd = readl(port_mmio + PORT_CMD);
-
-	/* wait 10ms to be sure we've come out of any low power state */
-	msleep(10);
-
-	/* clear out any PhyRdy stuff from interrupt status */
-	writel(PORT_IRQ_PHYRDY, port_mmio + PORT_IRQ_STAT);
-
-	/* go ahead and clean out PhyRdy Change from Serror too */
-	ahci_scr_write(&ap->link, SCR_ERROR, ((1 << 16) | (1 << 18)));
-
-	/*
-	 * Clear flag to indicate that we should ignore all PhyRdy
-	 * state changes
-	 */
-	hpriv->flags &= ~AHCI_HFLAG_NO_HOTPLUG;
-
-	/*
-	 * Enable interrupts on Phy Ready.
-	 */
-	pp->intr_mask |= PORT_IRQ_PHYRDY;
-	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
-
-	/*
-	 * don't change the link pm policy - we can be called
-	 * just to turn of link pm temporarily
-	 */
-}
-
-static int ahci_enable_alpm(struct ata_port *ap,
-	enum link_pm policy)
-{
-	struct ahci_host_priv *hpriv = ap->host->private_data;
 	void __iomem *port_mmio = ahci_port_base(ap);
-	u32 cmd;
-	struct ahci_port_priv *pp = ap->private_data;
-	u32 asp;
 
-	/* Make sure the host is capable of link power management */
-	if (!(hpriv->cap & HOST_CAP_ALPM))
-		return -EINVAL;
-
-	switch (policy) {
-	case MAX_PERFORMANCE:
-	case NOT_AVAILABLE:
+	if (policy != ATA_LPM_MAX_POWER) {
 		/*
-		 * if we came here with NOT_AVAILABLE,
-		 * it just means this is the first time we
-		 * have tried to enable - default to max performance,
-		 * and let the user go to lower power modes on request.
+		 * Disable interrupts on Phy Ready. This keeps us from
+		 * getting woken up due to spurious phy ready
+		 * interrupts.
 		 */
-		ahci_disable_alpm(ap);
-		return 0;
-	case MIN_POWER:
-		/* configure HBA to enter SLUMBER */
-		asp = PORT_CMD_ASP;
-		break;
-	case MEDIUM_POWER:
-		/* configure HBA to enter PARTIAL */
-		asp = 0;
-		break;
-	default:
-		return -EINVAL;
+		pp->intr_mask &= ~PORT_IRQ_PHYRDY;
+		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+
+		sata_link_scr_lpm(link, policy, false);
 	}
 
-	/*
-	 * Disable interrupts on Phy Ready. This keeps us from
-	 * getting woken up due to spurious phy ready interrupts
-	 * TBD - Hot plug should be done via polling now, is
-	 * that even supported?
-	 */
-	pp->intr_mask &= ~PORT_IRQ_PHYRDY;
-	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+	if (hpriv->cap & HOST_CAP_ALPM) {
+		u32 cmd = readl(port_mmio + PORT_CMD);
 
-	/*
-	 * Set a flag to indicate that we should ignore all PhyRdy
-	 * state changes since these can happen now whenever we
-	 * change link state
-	 */
-	hpriv->flags |= AHCI_HFLAG_NO_HOTPLUG;
+		if (policy == ATA_LPM_MAX_POWER || !(hints & ATA_LPM_HIPM)) {
+			cmd &= ~(PORT_CMD_ASP | PORT_CMD_ALPE);
+			cmd |= PORT_CMD_ICC_ACTIVE;
 
-	/* get the existing command bits */
-	cmd = readl(port_mmio + PORT_CMD);
+			writel(cmd, port_mmio + PORT_CMD);
+			readl(port_mmio + PORT_CMD);
 
-	/*
-	 * Set ASP based on Policy
-	 */
-	cmd |= asp;
+			/* wait 10ms to be sure we've come out of LPM state */
+			ata_msleep(ap, 10);
+		} else {
+			cmd |= PORT_CMD_ALPE;
+			if (policy == ATA_LPM_MIN_POWER)
+				cmd |= PORT_CMD_ASP;
 
-	/*
-	 * Setting this bit will instruct the HBA to aggressively
-	 * enter a lower power link state when it's appropriate and
-	 * based on the value set above for ASP
-	 */
-	cmd |= PORT_CMD_ALPE;
+			/* write out new cmd value */
+			writel(cmd, port_mmio + PORT_CMD);
+		}
+	}
 
-	/* write out new cmd value */
-	writel(cmd, port_mmio + PORT_CMD);
-	cmd = readl(port_mmio + PORT_CMD);
+	if (policy == ATA_LPM_MAX_POWER) {
+		sata_link_scr_lpm(link, policy, false);
 
-	/* IPM bits should be set by libata-core */
+		/* turn PHYRDY IRQ back on */
+		pp->intr_mask |= PORT_IRQ_PHYRDY;
+		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+	}
+
 	return 0;
 }
 
@@ -813,7 +740,7 @@ static void ahci_start_port(struct ata_port *ap)
 							       emp->led_state,
 							       4);
 				if (rc == -EBUSY)
-					msleep(1);
+					ata_msleep(ap, 1);
 				else
 					break;
 			}
@@ -872,7 +799,7 @@ int ahci_reset_controller(struct ata_host *host)
 		 * reset must complete within 1 second, or
 		 * the hardware should be considered fried.
 		 */
-		tmp = ata_wait_register(mmio + HOST_CTL, HOST_RESET,
+		tmp = ata_wait_register(NULL, mmio + HOST_CTL, HOST_RESET,
 					HOST_RESET, 10, 1000);
 
 		if (tmp & HOST_RESET) {
@@ -1252,7 +1179,7 @@ int ahci_kick_engine(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_CMD);
 
 	rc = 0;
-	tmp = ata_wait_register(port_mmio + PORT_CMD,
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD,
 				PORT_CMD_CLO, PORT_CMD_CLO, 1, 500);
 	if (tmp & PORT_CMD_CLO)
 		rc = -EIO;
@@ -1282,8 +1209,8 @@ static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
 	writel(1, port_mmio + PORT_CMD_ISSUE);
 
 	if (timeout_msec) {
-		tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1,
-					1, timeout_msec);
+		tmp = ata_wait_register(ap, port_mmio + PORT_CMD_ISSUE,
+					0x1, 0x1, 1, timeout_msec);
 		if (tmp & 0x1) {
 			ahci_kick_engine(ap);
 			return -EBUSY;
@@ -1330,7 +1257,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	}
 
 	/* spec says at least 5us, but be generous and sleep for 1ms */
-	msleep(1);
+	ata_msleep(ap, 1);
 
 	/* issue the second D2H Register FIS */
 	tf.ctl &= ~ATA_SRST;
@@ -1660,15 +1587,10 @@ static void ahci_port_intr(struct ata_port *ap)
 	if (unlikely(resetting))
 		status &= ~PORT_IRQ_BAD_PMP;
 
-	/* If we are getting PhyRdy, this is
-	 * just a power state change, we should
-	 * clear out this, plus the PhyRdy/Comm
-	 * Wake bits from Serror
-	 */
-	if ((hpriv->flags & AHCI_HFLAG_NO_HOTPLUG) &&
-		(status & PORT_IRQ_PHYRDY)) {
+	/* if LPM is enabled, PHYRDY doesn't mean anything */
+	if (ap->link.lpm_policy > ATA_LPM_MAX_POWER) {
 		status &= ~PORT_IRQ_PHYRDY;
-		ahci_scr_write(&ap->link, SCR_ERROR, ((1 << 16) | (1 << 18)));
+		ahci_scr_write(&ap->link, SCR_ERROR, SERR_PHYRDY_CHG);
 	}
 
 	if (unlikely(status & PORT_IRQ_ERROR)) {
@@ -1830,12 +1752,24 @@ static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct ahci_port_priv *pp = qc->ap->private_data;
-	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
+	u8 *rx_fis = pp->rx_fis;
 
 	if (pp->fbs_enabled)
-		d2h_fis += qc->dev->link->pmp * AHCI_RX_FIS_SZ;
+		rx_fis += qc->dev->link->pmp * AHCI_RX_FIS_SZ;
 
-	ata_tf_from_fis(d2h_fis, &qc->result_tf);
+	/*
+	 * After a successful execution of an ATA PIO data-in command,
+	 * the device doesn't send D2H Reg FIS to update the TF and
+	 * the host should take TF and E_Status from the preceding PIO
+	 * Setup FIS.
+	 */
+	if (qc->tf.protocol == ATA_PROT_PIO && qc->dma_dir == DMA_FROM_DEVICE &&
+	    !(qc->flags & ATA_QCFLAG_FAILED)) {
+		ata_tf_from_fis(rx_fis + RX_FIS_PIO_SETUP, &qc->result_tf);
+		qc->result_tf.command = (rx_fis + RX_FIS_PIO_SETUP)[15];
+	} else
+		ata_tf_from_fis(rx_fis + RX_FIS_D2H_REG, &qc->result_tf);
+
 	return true;
 }
 

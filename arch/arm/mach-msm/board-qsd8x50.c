@@ -35,20 +35,49 @@
 
 extern struct sys_timer msm_timer;
 
-static struct msm_gpio uart3_config_data[] = {
-	{ GPIO_CFG(86, 1, GPIO_INPUT,   GPIO_PULL_DOWN, GPIO_2MA), "UART2_Rx"},
-	{ GPIO_CFG(87, 1, GPIO_OUTPUT,  GPIO_PULL_DOWN, GPIO_2MA), "UART2_Tx"},
+static const resource_size_t qsd8x50_surf_smc91x_base __initdata = 0x70000300;
+static const unsigned        qsd8x50_surf_smc91x_gpio __initdata = 156;
+
+/* Leave smc91x resources empty here, as we'll fill them in
+ * at run-time: they vary from board to board, and the true
+ * configuration won't be known until boot.
+ */
+static struct resource smc91x_resources[] __initdata = {
+	[0] = {
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.flags = IORESOURCE_IRQ,
+	},
 };
+
+static struct platform_device smc91x_device __initdata = {
+	.name           = "smc91x",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(smc91x_resources),
+	.resource       = smc91x_resources,
+};
+
+static int __init msm_init_smc91x(void)
+{
+	if (machine_is_qsd8x50_surf()) {
+		smc91x_resources[0].start = qsd8x50_surf_smc91x_base;
+		smc91x_resources[0].end   = qsd8x50_surf_smc91x_base + 0xff;
+		smc91x_resources[1].start =
+			gpio_to_irq(qsd8x50_surf_smc91x_gpio);
+		smc91x_resources[1].end   =
+			gpio_to_irq(qsd8x50_surf_smc91x_gpio);
+		platform_device_register(&smc91x_device);
+	}
+
+	return 0;
+}
+module_init(msm_init_smc91x);
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
+	&msm_device_smd,
 };
-
-static void msm8x50_init_uart3(void)
-{
-	msm_gpios_request_enable(uart3_config_data,
-				ARRAY_SIZE(uart3_config_data));
-}
 
 static void __init qsd8x50_map_io(void)
 {
@@ -64,14 +93,11 @@ static void __init qsd8x50_init_irq(void)
 
 static void __init qsd8x50_init(void)
 {
-	msm8x50_init_uart3();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 MACHINE_START(QSD8X50_SURF, "QCT QSD8X50 SURF")
 #ifdef CONFIG_MSM_DEBUG_UART
-	.phys_io  = MSM_DEBUG_UART_PHYS,
-	.io_pg_offst = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
 	.boot_params = PHYS_OFFSET + 0x100,
 	.map_io = qsd8x50_map_io,
@@ -82,8 +108,6 @@ MACHINE_END
 
 MACHINE_START(QSD8X50A_ST1_5, "QCT QSD8X50A ST1.5")
 #ifdef CONFIG_MSM_DEBUG_UART
-	.phys_io  = MSM_DEBUG_UART_PHYS,
-	.io_pg_offst = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
 	.boot_params = PHYS_OFFSET + 0x100,
 	.map_io = qsd8x50_map_io,

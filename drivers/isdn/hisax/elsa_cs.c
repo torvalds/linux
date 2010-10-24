@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -64,26 +63,8 @@ MODULE_LICENSE("Dual MPL/GPL");
 static int protocol = 2;        /* EURO-ISDN Default */
 module_param(protocol, int, 0);
 
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card insertion
-   and ejection events.  They are invoked from the elsa_cs event
-   handler.
-*/
-
 static int elsa_cs_config(struct pcmcia_device *link) __devinit ;
 static void elsa_cs_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static void elsa_cs_detach(struct pcmcia_device *p_dev) __devexit;
 
 typedef struct local_info_t {
@@ -91,18 +72,6 @@ typedef struct local_info_t {
     int                 busy;
     int			cardnr;
 } local_info_t;
-
-/*======================================================================
-
-    elsa_cs_attach() creates an "instance" of the driver, allocatingx
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int __devinit elsa_cs_probe(struct pcmcia_device *link)
 {
@@ -119,30 +88,8 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
 
     local->cardnr = -1;
 
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
-    link->resource[0]->end = 8;
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-
     return elsa_cs_config(link);
 } /* elsa_cs_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void __devexit elsa_cs_detach(struct pcmcia_device *link)
 {
@@ -156,27 +103,17 @@ static void __devexit elsa_cs_detach(struct pcmcia_device *link)
 	kfree(info);
 } /* elsa_cs_detach */
 
-/*======================================================================
-
-    elsa_cs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
-static int elsa_cs_configcheck(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cf,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int elsa_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int j;
 
 	p_dev->io_lines = 3;
+	p_dev->resource[0]->end = 8;
+	p_dev->resource[0]->flags &= IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
-	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
+	if ((p_dev->resource[0]->end) && p_dev->resource[0]->start) {
 		printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
-		p_dev->resource[0]->start = cf->io.win[0].base;
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	} else {
@@ -199,6 +136,8 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
     dev_dbg(&link->dev, "elsa_config(0x%p)\n", link);
     dev = link->priv;
 
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
     i = pcmcia_loop_config(link, elsa_cs_configcheck, NULL);
     if (i != 0)
 	goto failed;
@@ -206,20 +145,9 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
     if (!link->irq)
 	goto failed;
 
-    i = pcmcia_request_configuration(link, &link->conf);
+    i = pcmcia_enable_device(link);
     if (i != 0)
 	goto failed;
-
-    /* Finally, report what we've done */
-    dev_info(&link->dev, "index 0x%02x: ",
-	    link->conf.ConfigIndex);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq);
-    if (link->resource[0])
-	printk(" & %pR", link->resource[0]);
-    if (link->resource[1])
-	printk(" & %pR", link->resource[1]);
-    printk("\n");
 
     icard.para[0] = link->irq;
     icard.para[1] = link->resource[0]->start;
@@ -239,14 +167,6 @@ failed:
     elsa_cs_release(link);
     return -ENODEV;
 } /* elsa_cs_config */
-
-/*======================================================================
-
-    After a card is removed, elsa_cs_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void elsa_cs_release(struct pcmcia_device *link)
 {
@@ -291,9 +211,7 @@ MODULE_DEVICE_TABLE(pcmcia, elsa_ids);
 
 static struct pcmcia_driver elsa_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "elsa_cs",
-	},
+	.name		= "elsa_cs",
 	.probe		= elsa_cs_probe,
 	.remove		= __devexit_p(elsa_cs_detach),
 	.id_table	= elsa_ids,

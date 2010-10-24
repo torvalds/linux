@@ -826,7 +826,7 @@ static void bfin_dev_select(struct ata_port *ap, unsigned int device)
  *	@ctl: value to write
  */
 
-static u8 bfin_set_devctl(struct ata_port *ap, u8 ctl)
+static void bfin_set_devctl(struct ata_port *ap, u8 ctl)
 {
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
 	write_atapi_register(base, ATA_REG_CTRL, ctl);
@@ -1046,7 +1046,7 @@ static void bfin_bus_post_reset(struct ata_port *ap, unsigned int devmask)
 			dev1 = 0;
 			break;
 		}
-		msleep(50);	/* give drive a breather */
+		ata_msleep(ap, 50);	/* give drive a breather */
 	}
 	if (dev1)
 		ata_sff_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
@@ -1087,7 +1087,7 @@ static unsigned int bfin_bus_softreset(struct ata_port *ap,
 	 *
 	 * Old drivers/ide uses the 2mS rule and then waits for ready
 	 */
-	msleep(150);
+	ata_msleep(ap, 150);
 
 	/* Before we perform post reset processing we want to see if
 	 * the bus shows 0xFF because the odd clown forgets the D7

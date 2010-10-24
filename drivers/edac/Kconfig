@@ -39,7 +39,7 @@ config EDAC_DEBUG
 	  there're four debug levels (x=0,1,2,3 from low to high).
 	  Usually you should select 'N'.
 
- config EDAC_DECODE_MCE
+config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
 	depends on CPU_SUP_AMD && X86_MCE
 	default y
@@ -50,6 +50,16 @@ config EDAC_DEBUG
 	  You should definitely say Y here in case you want to decode MCEs
 	  which occur really early upon boot, before the module infrastructure
 	  has been initialized.
+
+config EDAC_MCE_INJ
+	tristate "Simple MCE injection interface over /sysfs"
+	depends on EDAC_DECODE_MCE
+	default n
+	help
+	  This is a simple interface to inject MCEs over /sysfs and test
+	  the MCE decoding code in EDAC.
+
+	  This is currently AMD-only.
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
@@ -66,13 +76,13 @@ config EDAC_MCE
 
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h, F11h"
-	depends on EDAC_MM_EDAC && K8_NB && X86_64 && PCI && EDAC_DECODE_MCE
+	depends on EDAC_MM_EDAC && AMD_NB && X86_64 && PCI && EDAC_DECODE_MCE
 	help
 	  Support for error detection and correction on the AMD 64
 	  Families of Memory Controllers (K8, F10h and F11h)
 
 config EDAC_AMD64_ERROR_INJECTION
-	bool "Sysfs Error Injection facilities"
+	bool "Sysfs HW Error injection facilities"
 	depends on EDAC_AMD64
 	help
 	  Recent Opterons (Family 10h and later) provide for Memory Error

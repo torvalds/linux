@@ -174,6 +174,8 @@ enum balloon3_features {
 #define BALLOON3_CODEC_IRQ	IRQ_GPIO(BALLOON3_GPIO_CODEC_IRQ)
 #define BALLOON3_S0_CD_IRQ	IRQ_GPIO(BALLOON3_GPIO_S0_CD)
 
+#define BALLOON3_NR_IRQS	(IRQ_BOARD_START + 4)
+
 extern int balloon3_has(enum balloon3_features feature);
 
 #endif

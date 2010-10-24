@@ -60,6 +60,7 @@
 
 #include "base.h"
 #include "debug.h"
+#include "../debug.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
@@ -70,8 +71,6 @@ module_param_named(debug, ath5k_debug, uint, 0);
 #include <linux/seq_file.h>
 #include "reg.h"
 #include "ani.h"
-
-static struct dentry *ath5k_global_debugfs;
 
 static int ath5k_debugfs_open(struct inode *inode, struct file *file)
 {
@@ -271,6 +270,7 @@ static const struct file_operations fops_beacon = {
 	.write = write_file_beacon,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -290,6 +290,7 @@ static const struct file_operations fops_reset = {
 	.write = write_file_reset,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 
@@ -312,6 +313,7 @@ static const struct {
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
 	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
+	{ ATH5K_DEBUG_DESC,	"desc",		"descriptor chains" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
 };
 
@@ -369,6 +371,7 @@ static const struct file_operations fops_debug = {
 	.write = write_file_debug,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -480,6 +483,61 @@ static const struct file_operations fops_antenna = {
 	.write = write_file_antenna,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+/* debugfs: misc */
+
+static ssize_t read_file_misc(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	char buf[700];
+	unsigned int len = 0;
+	u32 filt = ath5k_hw_get_rx_filter(sc->ah);
+
+	len += snprintf(buf+len, sizeof(buf)-len, "bssid-mask: %pM\n",
+			sc->bssidmask);
+	len += snprintf(buf+len, sizeof(buf)-len, "filter-flags: 0x%x ",
+			filt);
+	if (filt & AR5K_RX_FILTER_UCAST)
+		len += snprintf(buf+len, sizeof(buf)-len, " UCAST");
+	if (filt & AR5K_RX_FILTER_MCAST)
+		len += snprintf(buf+len, sizeof(buf)-len, " MCAST");
+	if (filt & AR5K_RX_FILTER_BCAST)
+		len += snprintf(buf+len, sizeof(buf)-len, " BCAST");
+	if (filt & AR5K_RX_FILTER_CONTROL)
+		len += snprintf(buf+len, sizeof(buf)-len, " CONTROL");
+	if (filt & AR5K_RX_FILTER_BEACON)
+		len += snprintf(buf+len, sizeof(buf)-len, " BEACON");
+	if (filt & AR5K_RX_FILTER_PROM)
+		len += snprintf(buf+len, sizeof(buf)-len, " PROM");
+	if (filt & AR5K_RX_FILTER_XRPOLL)
+		len += snprintf(buf+len, sizeof(buf)-len, " XRPOLL");
+	if (filt & AR5K_RX_FILTER_PROBEREQ)
+		len += snprintf(buf+len, sizeof(buf)-len, " PROBEREQ");
+	if (filt & AR5K_RX_FILTER_PHYERR_5212)
+		len += snprintf(buf+len, sizeof(buf)-len, " PHYERR-5212");
+	if (filt & AR5K_RX_FILTER_RADARERR_5212)
+		len += snprintf(buf+len, sizeof(buf)-len, " RADARERR-5212");
+	if (filt & AR5K_RX_FILTER_PHYERR_5211)
+		snprintf(buf+len, sizeof(buf)-len, " PHYERR-5211");
+	if (filt & AR5K_RX_FILTER_RADARERR_5211)
+		len += snprintf(buf+len, sizeof(buf)-len, " RADARERR-5211");
+
+	len += snprintf(buf+len, sizeof(buf)-len, "\nopmode: %s (%d)\n",
+			ath_opmode_to_string(sc->opmode), sc->opmode);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_misc = {
+	.read = read_file_misc,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
 };
 
 
@@ -533,6 +591,8 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 				st->rxerr_jumbo*100/st->rx_all_count : 0);
 	len += snprintf(buf+len, sizeof(buf)-len, "[RX all\t%d]\n",
 			st->rx_all_count);
+	len += snprintf(buf+len, sizeof(buf)-len, "RX-all-bytes\t%d\n",
+			st->rx_bytes_count);
 
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"\nTX\n---------------------\n");
@@ -550,6 +610,8 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 				st->txerr_filt*100/st->tx_all_count : 0);
 	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%d]\n",
 			st->tx_all_count);
+	len += snprintf(buf+len, sizeof(buf)-len, "TX-all-bytes\t%d\n",
+			st->tx_bytes_count);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -591,6 +653,7 @@ static const struct file_operations fops_frameerrors = {
 	.write = write_file_frameerrors,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -657,20 +720,21 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"beacon RSSI average:\t%d\n",
 			sc->ah->ah_beacon_rssi_avg.avg);
+
+#define CC_PRINT(_struct, _field) \
+	_struct._field, \
+	_struct.cycles > 0 ? \
+	_struct._field*100/_struct.cycles : 0
+
 	len += snprintf(buf+len, sizeof(buf)-len, "profcnt tx\t\t%u\t(%d%%)\n",
-			as->pfc_tx,
-			as->pfc_cycles > 0 ?
-			as->pfc_tx*100/as->pfc_cycles : 0);
+			CC_PRINT(as->last_cc, tx_frame));
 	len += snprintf(buf+len, sizeof(buf)-len, "profcnt rx\t\t%u\t(%d%%)\n",
-			as->pfc_rx,
-			as->pfc_cycles > 0 ?
-			as->pfc_rx*100/as->pfc_cycles : 0);
+			CC_PRINT(as->last_cc, rx_frame));
 	len += snprintf(buf+len, sizeof(buf)-len, "profcnt busy\t\t%u\t(%d%%)\n",
-			as->pfc_busy,
-			as->pfc_cycles > 0 ?
-			as->pfc_busy*100/as->pfc_cycles : 0);
+			CC_PRINT(as->last_cc, rx_busy));
+#undef CC_PRINT
 	len += snprintf(buf+len, sizeof(buf)-len, "profcnt cycles\t\t%u\n",
-			as->pfc_cycles);
+			as->last_cc.cycles);
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"listen time\t\t%d\tlast: %d\n",
 			as->listen_time, as->last_listen);
@@ -748,6 +812,7 @@ static const struct file_operations fops_ani = {
 	.write = write_file_ani,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -762,7 +827,7 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 
 	struct ath5k_txq *txq;
 	struct ath5k_buf *bf, *bf0;
-	int i, n = 0;
+	int i, n;
 
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"available txbuffers: %d\n", sc->txbuf_len);
@@ -776,9 +841,16 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 		if (!txq->setup)
 			continue;
 
+		n = 0;
+		spin_lock_bh(&txq->lock);
 		list_for_each_entry_safe(bf, bf0, &txq->q, list)
 			n++;
-		len += snprintf(buf+len, sizeof(buf)-len, "  len: %d\n", n);
+		spin_unlock_bh(&txq->lock);
+
+		len += snprintf(buf+len, sizeof(buf)-len,
+				"  len: %d bufs: %d\n", txq->txq_len, n);
+		len += snprintf(buf+len, sizeof(buf)-len,
+				"  stuck: %d\n", txq->txq_stuck);
 	}
 
 	if (len > sizeof(buf))
@@ -811,24 +883,17 @@ static const struct file_operations fops_queue = {
 	.write = write_file_queue,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
-
-/* init */
-
-void
-ath5k_debug_init(void)
-{
-	ath5k_global_debugfs = debugfs_create_dir("ath5k", NULL);
-}
 
 void
 ath5k_debug_init_device(struct ath5k_softc *sc)
 {
 	sc->debug.level = ath5k_debug;
 
-	sc->debug.debugfs_phydir = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
-				ath5k_global_debugfs);
+	sc->debug.debugfs_phydir = debugfs_create_dir("ath5k",
+				sc->hw->wiphy->debugfsdir);
 
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
 				S_IWUSR | S_IRUSR,
@@ -848,6 +913,10 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc, &fops_antenna);
 
+	sc->debug.debugfs_misc = debugfs_create_file("misc",
+				S_IRUSR,
+				sc->debug.debugfs_phydir, sc, &fops_misc);
+
 	sc->debug.debugfs_frameerrors = debugfs_create_file("frameerrors",
 				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc,
@@ -865,12 +934,6 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 }
 
 void
-ath5k_debug_finish(void)
-{
-	debugfs_remove(ath5k_global_debugfs);
-}
-
-void
 ath5k_debug_finish_device(struct ath5k_softc *sc)
 {
 	debugfs_remove(sc->debug.debugfs_debug);
@@ -878,6 +941,7 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 	debugfs_remove(sc->debug.debugfs_beacon);
 	debugfs_remove(sc->debug.debugfs_reset);
 	debugfs_remove(sc->debug.debugfs_antenna);
+	debugfs_remove(sc->debug.debugfs_misc);
 	debugfs_remove(sc->debug.debugfs_frameerrors);
 	debugfs_remove(sc->debug.debugfs_ani);
 	debugfs_remove(sc->debug.debugfs_queue);
@@ -955,7 +1019,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 	struct ath5k_rx_status rs = {};
 	int status;
 
-	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
+	if (likely(!(sc->debug.level & ATH5K_DEBUG_DESC)))
 		return;
 
 	printk(KERN_DEBUG "rxdp %x, rxlink %p\n",
@@ -997,7 +1061,7 @@ ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	struct ath5k_tx_status ts = {};
 	int done;
 
-	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
+	if (likely(!(sc->debug.level & ATH5K_DEBUG_DESC)))
 		return;
 
 	done = sc->ah->ah_proc_tx_desc(sc->ah, bf->desc, &ts);

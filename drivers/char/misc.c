@@ -162,6 +162,7 @@ static struct class *misc_class;
 static const struct file_operations misc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= misc_open,
+	.llseek		= noop_llseek,
 };
 
 /**

@@ -301,7 +301,6 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 {
 	int status = 0;
 	unsigned int flushed;
-	unsigned long old_id;
 	struct ocfs2_journal *journal = NULL;
 
 	mlog_entry_void();
@@ -326,7 +325,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 		goto finally;
 	}
 
-	old_id = ocfs2_inc_trans_id(journal);
+	ocfs2_inc_trans_id(journal);
 
 	flushed = atomic_read(&journal->j_num_trans);
 	atomic_set(&journal->j_num_trans, 0);
@@ -342,9 +341,6 @@ finally:
 	return status;
 }
 
-/* pass it NULL and it will allocate a new handle object for you.  If
- * you pass it a handle however, it may still return error, in which
- * case it has free'd the passed handle for you. */
 handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 {
 	journal_t *journal = osb->journal->j_journal;
@@ -1888,6 +1884,8 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 
 	os = &osb->osb_orphan_scan;
 
+	mlog(0, "Begin orphan scan\n");
+
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
 		goto out;
 
@@ -1920,6 +1918,7 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 unlock:
 	ocfs2_orphan_scan_unlock(osb, seqno);
 out:
+	mlog(0, "Orphan scan completed\n");
 	return;
 }
 

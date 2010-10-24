@@ -270,8 +270,6 @@ static void __init fsg_init(void)
 
 MACHINE_START(FSG, "Freecom FSG-3")
 	/* Maintainer: www.nslu2-linux.org */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,

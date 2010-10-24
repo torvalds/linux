@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/irq.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>

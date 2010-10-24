@@ -229,7 +229,16 @@ void vmalloc_sync_all(void)
 
 		spin_lock_irqsave(&pgd_lock, flags);
 		list_for_each_entry(page, &pgd_list, lru) {
-			if (!vmalloc_sync_one(page_address(page), address))
+			spinlock_t *pgt_lock;
+			pmd_t *ret;
+
+			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+
+			spin_lock(pgt_lock);
+			ret = vmalloc_sync_one(page_address(page), address);
+			spin_unlock(pgt_lock);
+
+			if (!ret)
 				break;
 		}
 		spin_unlock_irqrestore(&pgd_lock, flags);
@@ -250,6 +259,8 @@ static noinline __kprobes int vmalloc_fault(unsigned long address)
 	/* Make sure we are in vmalloc area: */
 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
 		return -1;
+
+	WARN_ON_ONCE(in_nmi());
 
 	/*
 	 * Synchronize this task's top level page-table
@@ -326,29 +337,7 @@ out:
 
 void vmalloc_sync_all(void)
 {
-	unsigned long address;
-
-	for (address = VMALLOC_START & PGDIR_MASK; address <= VMALLOC_END;
-	     address += PGDIR_SIZE) {
-
-		const pgd_t *pgd_ref = pgd_offset_k(address);
-		unsigned long flags;
-		struct page *page;
-
-		if (pgd_none(*pgd_ref))
-			continue;
-
-		spin_lock_irqsave(&pgd_lock, flags);
-		list_for_each_entry(page, &pgd_list, lru) {
-			pgd_t *pgd;
-			pgd = (pgd_t *)page_address(page) + pgd_index(address);
-			if (pgd_none(*pgd))
-				set_pgd(pgd, *pgd_ref);
-			else
-				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-		}
-		spin_unlock_irqrestore(&pgd_lock, flags);
-	}
+	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
 }
 
 /*
@@ -368,6 +357,8 @@ static noinline __kprobes int vmalloc_fault(unsigned long address)
 	/* Make sure we are in vmalloc area: */
 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
 		return -1;
+
+	WARN_ON_ONCE(in_nmi());
 
 	/*
 	 * Copy kernel mappings over when needed. This can also
@@ -894,8 +885,14 @@ spurious_fault(unsigned long error_code, unsigned long address)
 	if (pmd_large(*pmd))
 		return spurious_fault_check(error_code, (pte_t *) pmd);
 
+	/*
+	 * Note: don't use pte_present() here, since it returns true
+	 * if the _PAGE_PROTNONE bit is set.  However, this aliases the
+	 * _PAGE_GLOBAL bit, which for kernel pages give false positives
+	 * when CONFIG_DEBUG_PAGEALLOC is used.
+	 */
 	pte = pte_offset_kernel(pmd, address);
-	if (!pte_present(*pte))
+	if (!(pte_flags(*pte) & _PAGE_PRESENT))
 		return 0;
 
 	ret = spurious_fault_check(error_code, pte);

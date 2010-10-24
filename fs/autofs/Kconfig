@@ -1,5 +1,6 @@
 config AUTOFS_FS
 	tristate "Kernel automounter support"
+	depends on BKL # unfixable, just use autofs4
 	help
 	  The automounter is a tool to automatically mount remote file systems
 	  on demand. This implementation is partially kernel-based to reduce

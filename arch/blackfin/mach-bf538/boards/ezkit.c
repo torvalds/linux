@@ -695,7 +695,7 @@ static struct platform_device bf538_spi_master0 = {
 };
 
 static struct bfin5xx_spi_master bf538_spi_master_info1 = {
-	.num_chipselect = 8,
+	.num_chipselect = 2,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
@@ -711,7 +711,7 @@ static struct platform_device bf538_spi_master1 = {
 };
 
 static struct bfin5xx_spi_master bf538_spi_master_info2 = {
-	.num_chipselect = 8,
+	.num_chipselect = 2,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI2_SCK, P_SPI2_MISO, P_SPI2_MOSI, 0},
 };

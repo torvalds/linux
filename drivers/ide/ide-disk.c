@@ -516,10 +516,10 @@ static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 	return ide_no_data_taskfile(drive, &cmd);
 }
 
-static void update_ordered(ide_drive_t *drive)
+static void update_flush(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
-	unsigned ordered = QUEUE_ORDERED_NONE;
+	unsigned flush = 0;
 
 	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
@@ -543,13 +543,12 @@ static void update_ordered(ide_drive_t *drive)
 		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
-			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
+			flush = REQ_FLUSH;
 			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
 		}
-	} else
-		ordered = QUEUE_ORDERED_DRAIN;
+	}
 
-	blk_queue_ordered(drive->queue, ordered);
+	blk_queue_flush(drive->queue, flush);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);
@@ -572,7 +571,7 @@ static int set_wcache(ide_drive_t *drive, int arg)
 		}
 	}
 
-	update_ordered(drive);
+	update_flush(drive);
 
 	return err;
 }

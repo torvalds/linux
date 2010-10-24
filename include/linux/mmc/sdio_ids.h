@@ -18,6 +18,7 @@
 #define SDIO_CLASS_PHS		0x06	/* PHS standard interface */
 #define SDIO_CLASS_WLAN		0x07	/* WLAN interface */
 #define SDIO_CLASS_ATA		0x08	/* Embedded SDIO-ATA std interface */
+#define SDIO_CLASS_BT_AMP	0x09	/* Type-A Bluetooth AMP interface */
 
 /*
  * Vendors and devices.  Sort key: vendor first, device next.

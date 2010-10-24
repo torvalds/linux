@@ -447,6 +447,7 @@ static const struct file_operations mon_fops = {
 	.release = &mon_close,
 	.read    = &mon_read,
 	.poll    = &mon_poll,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice mon_dev = {

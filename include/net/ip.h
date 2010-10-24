@@ -53,7 +53,7 @@ struct ipcm_cookie {
 	__be32			addr;
 	int			oif;
 	struct ip_options	*opt;
-	union skb_shared_tx	shtx;
+	__u8			tx_flags;
 };
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
@@ -238,9 +238,9 @@ int ip_decrease_ttl(struct iphdr *iph)
 static inline
 int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 {
-	return (inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
+	return  inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
 		(inet_sk(sk)->pmtudisc == IP_PMTUDISC_WANT &&
-		 !(dst_metric_locked(dst, RTAX_MTU))));
+		 !(dst_metric_locked(dst, RTAX_MTU)));
 }
 
 extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);

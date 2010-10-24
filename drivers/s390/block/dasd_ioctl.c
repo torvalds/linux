@@ -16,7 +16,6 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <asm/compat.h>
 #include <asm/ccwdev.h>
@@ -370,9 +369,8 @@ static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
 	return ret;
 }
 
-static int
-dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
-	      unsigned int cmd, unsigned long arg)
+int dasd_ioctl(struct block_device *bdev, fmode_t mode,
+	       unsigned int cmd, unsigned long arg)
 {
 	struct dasd_block *block = bdev->bd_disk->private_data;
 	void __user *argp;
@@ -429,15 +427,4 @@ dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
 
 		return -EINVAL;
 	}
-}
-
-int dasd_ioctl(struct block_device *bdev, fmode_t mode,
-	       unsigned int cmd, unsigned long arg)
-{
-	int rc;
-
-	lock_kernel();
-	rc = dasd_do_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
-	return rc;
 }

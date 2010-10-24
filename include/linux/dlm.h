@@ -48,10 +48,10 @@ typedef void dlm_lockspace_t;
  *
  * 0 if lock request was successful
  * -EAGAIN if request would block and is flagged DLM_LKF_NOQUEUE
- * -ENOMEM if there is no memory to process request
- * -EINVAL if there are invalid parameters
  * -DLM_EUNLOCK if unlock request was successful
  * -DLM_ECANCEL if a cancel completed successfully
+ * -EDEADLK if a deadlock was detected
+ * -ETIMEDOUT if the lock request was canceled due to a timeout
  */
 
 #define DLM_SBF_DEMOTED		0x01

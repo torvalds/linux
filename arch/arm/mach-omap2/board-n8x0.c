@@ -674,8 +674,6 @@ static void __init n8x0_init_machine(void)
 }
 
 MACHINE_START(NOKIA_N800, "Nokia N800")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
@@ -685,8 +683,6 @@ MACHINE_START(NOKIA_N800, "Nokia N800")
 MACHINE_END
 
 MACHINE_START(NOKIA_N810, "Nokia N810")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
@@ -696,8 +692,6 @@ MACHINE_START(NOKIA_N810, "Nokia N810")
 MACHINE_END
 
 MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,

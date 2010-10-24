@@ -800,12 +800,13 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	int chunk_sects = conf->chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
+	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
 	struct bio_list bl;
 	unsigned long flags;
 	mdk_rdev_t *blocked_rdev;
 
-	if (unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
-		md_barrier_request(mddev, bio);
+	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+		md_flush_request(mddev, bio);
 		return 0;
 	}
 
@@ -965,7 +966,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 			conf->mirrors[d].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
 		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync;
+		mbio->bi_rw = WRITE | do_sync | do_fua;
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);

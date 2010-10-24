@@ -660,7 +660,8 @@ xfs_dinode_from_disk(
 	to->di_uid = be32_to_cpu(from->di_uid);
 	to->di_gid = be32_to_cpu(from->di_gid);
 	to->di_nlink = be32_to_cpu(from->di_nlink);
-	to->di_projid = be16_to_cpu(from->di_projid);
+	to->di_projid_lo = be16_to_cpu(from->di_projid_lo);
+	to->di_projid_hi = be16_to_cpu(from->di_projid_hi);
 	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 	to->di_flushiter = be16_to_cpu(from->di_flushiter);
 	to->di_atime.t_sec = be32_to_cpu(from->di_atime.t_sec);
@@ -695,7 +696,8 @@ xfs_dinode_to_disk(
 	to->di_uid = cpu_to_be32(from->di_uid);
 	to->di_gid = cpu_to_be32(from->di_gid);
 	to->di_nlink = cpu_to_be32(from->di_nlink);
-	to->di_projid = cpu_to_be16(from->di_projid);
+	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
+	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
 	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 	to->di_flushiter = cpu_to_be16(from->di_flushiter);
 	to->di_atime.t_sec = cpu_to_be32(from->di_atime.t_sec);
@@ -874,7 +876,7 @@ xfs_iread(
 	if (ip->i_d.di_version == 1) {
 		ip->i_d.di_nlink = ip->i_d.di_onlink;
 		ip->i_d.di_onlink = 0;
-		ip->i_d.di_projid = 0;
+		xfs_set_projid(ip, 0);
 	}
 
 	ip->i_delayed_blks = 0;
@@ -982,8 +984,7 @@ xfs_ialloc(
 	mode_t		mode,
 	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
-	cred_t		*cr,
-	xfs_prid_t	prid,
+	prid_t		prid,
 	int		okalloc,
 	xfs_buf_t	**ialloc_context,
 	boolean_t	*call_again,
@@ -1027,7 +1028,7 @@ xfs_ialloc(
 	ASSERT(ip->i_d.di_nlink == nlink);
 	ip->i_d.di_uid = current_fsuid();
 	ip->i_d.di_gid = current_fsgid();
-	ip->i_d.di_projid = prid;
+	xfs_set_projid(ip, prid);
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 
 	/*
@@ -2725,7 +2726,7 @@ cluster_corrupt_out:
 			XFS_BUF_UNDONE(bp);
 			XFS_BUF_STALE(bp);
 			XFS_BUF_ERROR(bp,EIO);
-			xfs_biodone(bp);
+			xfs_buf_ioend(bp, 0);
 		} else {
 			XFS_BUF_STALE(bp);
 			xfs_buf_relse(bp);
@@ -3008,7 +3009,7 @@ xfs_iflush_int(
 			memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 			memset(&(dip->di_pad[0]), 0,
 			      sizeof(dip->di_pad));
-			ASSERT(ip->i_d.di_projid == 0);
+			ASSERT(xfs_get_projid(ip) == 0);
 		}
 	}
 

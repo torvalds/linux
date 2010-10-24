@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 
 #include <net/mac80211.h>
+#include <linux/crc-ccitt.h>
 
 #include "p54.h"
 #include "eeprom.h"
@@ -260,8 +261,10 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 	list->max_entries = max_channel_num;
 	list->channels = kzalloc(sizeof(struct p54_channel_entry) *
 				 max_channel_num, GFP_KERNEL);
-	if (!list->channels)
+	if (!list->channels) {
+		ret = -ENOMEM;
 		goto free;
+	}
 
 	for (i = 0; i < max_channel_num; i++) {
 		if (i < priv->iq_autocal_len) {
@@ -540,6 +543,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	int err;
 	u8 *end = (u8 *)eeprom + len;
 	u16 synth = 0;
+	u16 crc16 = ~0;
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
 	entry = (void *)wrap->data + le16_to_cpu(wrap->len);
@@ -655,16 +659,29 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			}
 			break;
 		case PDR_END:
-			/* make it overrun */
-			entry_len = len;
+			crc16 = ~crc_ccitt(crc16, (u8 *) entry, sizeof(*entry));
+			if (crc16 != le16_to_cpup((__le16 *)entry->data)) {
+				wiphy_err(dev->wiphy, "eeprom failed checksum "
+					 "test!\n");
+				err = -ENOMSG;
+				goto err;
+			} else {
+				goto good_eeprom;
+			}
 			break;
 		default:
 			break;
 		}
 
-		entry = (void *)entry + (entry_len + 1)*2;
+		crc16 = crc_ccitt(crc16, (u8 *)entry, (entry_len + 1) * 2);
+		entry = (void *)entry + (entry_len + 1) * 2;
 	}
 
+	wiphy_err(dev->wiphy, "unexpected end of eeprom data.\n");
+	err = -ENODATA;
+	goto err;
+
+good_eeprom:
 	if (!synth || !priv->iq_autocal || !priv->output_limit ||
 	    !priv->curve_data) {
 		wiphy_err(dev->wiphy,

@@ -232,6 +232,7 @@ static const struct file_operations microcode_fops = {
 	.owner			= THIS_MODULE,
 	.write			= microcode_write,
 	.open			= microcode_open,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice microcode_dev = {

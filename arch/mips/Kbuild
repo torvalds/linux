@@ -7,6 +7,10 @@ subdir-ccflags-y := -Werror
 include arch/mips/Kbuild.platforms
 obj-y := $(platform-y)
 
+# make clean traverses $(obj-) without having included .config, so
+# everything ends up here
+obj- := $(platform-)
+
 # mips object files
 # The object files are linked as core-y files would be linked
 

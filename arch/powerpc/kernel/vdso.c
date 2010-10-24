@@ -159,7 +159,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 {
 	int i;
 
-	if (!vma || test_thread_flag(TIF_32BIT)) {
+	if (!vma || is_32bit_task()) {
 		printk("vDSO32 @ %016lx:\n", (unsigned long)vdso32_kbase);
 		for (i=0; i<vdso32_pages; i++) {
 			struct page *pg = virt_to_page(vdso32_kbase +
@@ -170,7 +170,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 			dump_one_vdso_page(pg, upg);
 		}
 	}
-	if (!vma || !test_thread_flag(TIF_32BIT)) {
+	if (!vma || !is_32bit_task()) {
 		printk("vDSO64 @ %016lx:\n", (unsigned long)vdso64_kbase);
 		for (i=0; i<vdso64_pages; i++) {
 			struct page *pg = virt_to_page(vdso64_kbase +
@@ -200,7 +200,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return 0;
 
 #ifdef CONFIG_PPC64
-	if (test_thread_flag(TIF_32BIT)) {
+	if (is_32bit_task()) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
 		vdso_base = VDSO32_MBASE;

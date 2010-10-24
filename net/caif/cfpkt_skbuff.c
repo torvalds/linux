@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/hardirq.h>
@@ -12,11 +14,12 @@
 #define PKT_PREFIX  48
 #define PKT_POSTFIX 2
 #define PKT_LEN_WHEN_EXTENDING 128
-#define PKT_ERROR(pkt, errmsg) do {	   \
-    cfpkt_priv(pkt)->erronous = true;	   \
-    skb_reset_tail_pointer(&pkt->skb);	   \
-    pr_warning("CAIF: " errmsg);\
-  } while (0)
+#define PKT_ERROR(pkt, errmsg)		   \
+do {					   \
+	cfpkt_priv(pkt)->erronous = true;  \
+	skb_reset_tail_pointer(&pkt->skb); \
+	pr_warn(errmsg);		   \
+} while (0)
 
 struct cfpktq {
 	struct sk_buff_head head;
@@ -130,13 +133,13 @@ int cfpkt_extr_head(struct cfpkt *pkt, void *data, u16 len)
 		return -EPROTO;
 
 	if (unlikely(len > skb->len)) {
-		PKT_ERROR(pkt, "cfpkt_extr_head read beyond end of packet\n");
+		PKT_ERROR(pkt, "read beyond end of packet\n");
 		return -EPROTO;
 	}
 
 	if (unlikely(len > skb_headlen(skb))) {
 		if (unlikely(skb_linearize(skb) != 0)) {
-			PKT_ERROR(pkt, "cfpkt_extr_head linearize failed\n");
+			PKT_ERROR(pkt, "linearize failed\n");
 			return -EPROTO;
 		}
 	}
@@ -156,11 +159,11 @@ int cfpkt_extr_trail(struct cfpkt *pkt, void *dta, u16 len)
 		return -EPROTO;
 
 	if (unlikely(skb_linearize(skb) != 0)) {
-		PKT_ERROR(pkt, "cfpkt_extr_trail linearize failed\n");
+		PKT_ERROR(pkt, "linearize failed\n");
 		return -EPROTO;
 	}
 	if (unlikely(skb->data + len > skb_tail_pointer(skb))) {
-		PKT_ERROR(pkt, "cfpkt_extr_trail read beyond end of packet\n");
+		PKT_ERROR(pkt, "read beyond end of packet\n");
 		return -EPROTO;
 	}
 	from = skb_tail_pointer(skb) - len;
@@ -202,7 +205,7 @@ int cfpkt_add_body(struct cfpkt *pkt, const void *data, u16 len)
 
 		/* Make sure data is writable */
 		if (unlikely(skb_cow_data(skb, addlen, &lastskb) < 0)) {
-			PKT_ERROR(pkt, "cfpkt_add_body: cow failed\n");
+			PKT_ERROR(pkt, "cow failed\n");
 			return -EPROTO;
 		}
 		/*
@@ -211,8 +214,7 @@ int cfpkt_add_body(struct cfpkt *pkt, const void *data, u16 len)
 		 * lengths of the top SKB.
 		 */
 		if (lastskb != skb) {
-			pr_warning("CAIF: %s(): Packet is non-linear\n",
-				   __func__);
+			pr_warn("Packet is non-linear\n");
 			skb->len += len;
 			skb->data_len += len;
 		}
@@ -242,14 +244,14 @@ int cfpkt_add_head(struct cfpkt *pkt, const void *data2, u16 len)
 	if (unlikely(is_erronous(pkt)))
 		return -EPROTO;
 	if (unlikely(skb_headroom(skb) < len)) {
-		PKT_ERROR(pkt, "cfpkt_add_head: no headroom\n");
+		PKT_ERROR(pkt, "no headroom\n");
 		return -EPROTO;
 	}
 
 	/* Make sure data is writable */
 	ret = skb_cow_data(skb, 0, &lastskb);
 	if (unlikely(ret < 0)) {
-		PKT_ERROR(pkt, "cfpkt_add_head: cow failed\n");
+		PKT_ERROR(pkt, "cow failed\n");
 		return ret;
 	}
 
@@ -283,7 +285,7 @@ inline u16 cfpkt_iterate(struct cfpkt *pkt,
 	if (unlikely(is_erronous(pkt)))
 		return -EPROTO;
 	if (unlikely(skb_linearize(&pkt->skb) != 0)) {
-		PKT_ERROR(pkt, "cfpkt_iterate: linearize failed\n");
+		PKT_ERROR(pkt, "linearize failed\n");
 		return -EPROTO;
 	}
 	return iter_func(data, pkt->skb.data, cfpkt_getlen(pkt));
@@ -309,7 +311,7 @@ int cfpkt_setlen(struct cfpkt *pkt, u16 len)
 
 	/* Need to expand SKB */
 	if (unlikely(!cfpkt_pad_trail(pkt, len - skb->len)))
-		PKT_ERROR(pkt, "cfpkt_setlen: skb_pad_trail failed\n");
+		PKT_ERROR(pkt, "skb_pad_trail failed\n");
 
 	return cfpkt_getlen(pkt);
 }
@@ -380,8 +382,7 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 		return NULL;
 
 	if (skb->data + pos > skb_tail_pointer(skb)) {
-		PKT_ERROR(pkt,
-			  "cfpkt_split: trying to split beyond end of packet");
+		PKT_ERROR(pkt, "trying to split beyond end of packet\n");
 		return NULL;
 	}
 
@@ -455,17 +456,17 @@ int cfpkt_raw_append(struct cfpkt *pkt, void **buf, unsigned int buflen)
 		return -EPROTO;
 	/* Make sure SKB is writable */
 	if (unlikely(skb_cow_data(skb, 0, &lastskb) < 0)) {
-		PKT_ERROR(pkt, "cfpkt_raw_append: skb_cow_data failed\n");
+		PKT_ERROR(pkt, "skb_cow_data failed\n");
 		return -EPROTO;
 	}
 
 	if (unlikely(skb_linearize(skb) != 0)) {
-		PKT_ERROR(pkt, "cfpkt_raw_append: linearize failed\n");
+		PKT_ERROR(pkt, "linearize failed\n");
 		return -EPROTO;
 	}
 
 	if (unlikely(skb_tailroom(skb) < buflen)) {
-		PKT_ERROR(pkt, "cfpkt_raw_append: buffer too short - failed\n");
+		PKT_ERROR(pkt, "buffer too short - failed\n");
 		return -EPROTO;
 	}
 
@@ -483,14 +484,13 @@ int cfpkt_raw_extract(struct cfpkt *pkt, void **buf, unsigned int buflen)
 		return -EPROTO;
 
 	if (unlikely(buflen > skb->len)) {
-		PKT_ERROR(pkt, "cfpkt_raw_extract: buflen too large "
-				"- failed\n");
+		PKT_ERROR(pkt, "buflen too large - failed\n");
 		return -EPROTO;
 	}
 
 	if (unlikely(buflen > skb_headlen(skb))) {
 		if (unlikely(skb_linearize(skb) != 0)) {
-			PKT_ERROR(pkt, "cfpkt_raw_extract: linearize failed\n");
+			PKT_ERROR(pkt, "linearize failed\n");
 			return -EPROTO;
 		}
 	}

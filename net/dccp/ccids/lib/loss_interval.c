@@ -116,7 +116,7 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 	cur->li_length = len;
 	tfrc_lh_calc_i_mean(lh);
 
-	return (lh->i_mean < old_i_mean);
+	return lh->i_mean < old_i_mean;
 }
 
 /* Determine if `new_loss' does begin a new loss interval [RFC 4342, 10.2] */

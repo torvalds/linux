@@ -61,7 +61,7 @@
  *
  * Transition to state DISCONNECTING/DOWN:
  *  -	Inside the shutdown worker; synchronizes with xmit path
- *	through c_send_lock, and with connection management callbacks
+ *	through RDS_IN_XMIT, and with connection management callbacks
  *	via c_cm_lock.
  *
  *	For receive callbacks, we rely on the underlying transport
@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(rds_connect_complete);
  * We should *always* start with a random backoff; otherwise a broken connection
  * will always take several iterations to be re-established.
  */
-static void rds_queue_reconnect(struct rds_connection *conn)
+void rds_queue_reconnect(struct rds_connection *conn)
 {
 	unsigned long rand;
 
@@ -154,58 +154,6 @@ void rds_connect_worker(struct work_struct *work)
 				rds_conn_error(conn, "RDS: connect failed\n");
 		}
 	}
-}
-
-void rds_shutdown_worker(struct work_struct *work)
-{
-	struct rds_connection *conn = container_of(work, struct rds_connection, c_down_w);
-
-	/* shut it down unless it's down already */
-	if (!rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_DOWN)) {
-		/*
-		 * Quiesce the connection mgmt handlers before we start tearing
-		 * things down. We don't hold the mutex for the entire
-		 * duration of the shutdown operation, else we may be
-		 * deadlocking with the CM handler. Instead, the CM event
-		 * handler is supposed to check for state DISCONNECTING
-		 */
-		mutex_lock(&conn->c_cm_lock);
-		if (!rds_conn_transition(conn, RDS_CONN_UP, RDS_CONN_DISCONNECTING) &&
-		    !rds_conn_transition(conn, RDS_CONN_ERROR, RDS_CONN_DISCONNECTING)) {
-			rds_conn_error(conn, "shutdown called in state %d\n",
-					atomic_read(&conn->c_state));
-			mutex_unlock(&conn->c_cm_lock);
-			return;
-		}
-		mutex_unlock(&conn->c_cm_lock);
-
-		mutex_lock(&conn->c_send_lock);
-		conn->c_trans->conn_shutdown(conn);
-		rds_conn_reset(conn);
-		mutex_unlock(&conn->c_send_lock);
-
-		if (!rds_conn_transition(conn, RDS_CONN_DISCONNECTING, RDS_CONN_DOWN)) {
-			/* This can happen - eg when we're in the middle of tearing
-			 * down the connection, and someone unloads the rds module.
-			 * Quite reproduceable with loopback connections.
-			 * Mostly harmless.
-			 */
-			rds_conn_error(conn,
-				"%s: failed to transition to state DOWN, "
-				"current state is %d\n",
-				__func__,
-				atomic_read(&conn->c_state));
-			return;
-		}
-	}
-
-	/* Then reconnect if it's still live.
-	 * The passive side of an IB loopback connection is never added
-	 * to the conn hash, so we never trigger a reconnect on this
-	 * conn - the reconnect is always triggered by the active peer. */
-	cancel_delayed_work(&conn->c_conn_w);
-	if (!hlist_unhashed(&conn->c_hash_node))
-		rds_queue_reconnect(conn);
 }
 
 void rds_send_worker(struct work_struct *work)
@@ -252,15 +200,22 @@ void rds_recv_worker(struct work_struct *work)
 	}
 }
 
+void rds_shutdown_worker(struct work_struct *work)
+{
+	struct rds_connection *conn = container_of(work, struct rds_connection, c_down_w);
+
+	rds_conn_shutdown(conn);
+}
+
 void rds_threads_exit(void)
 {
 	destroy_workqueue(rds_wq);
 }
 
-int __init rds_threads_init(void)
+int rds_threads_init(void)
 {
-	rds_wq = create_workqueue("krdsd");
-	if (rds_wq == NULL)
+	rds_wq = create_singlethread_workqueue("krdsd");
+	if (!rds_wq)
 		return -ENOMEM;
 
 	return 0;

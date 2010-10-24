@@ -171,7 +171,8 @@ bail_add:
 			ret = ERR_PTR(status);
 			goto bail_unlock;
 		}
-	}
+	} else
+		ocfs2_dentry_attach_gen(dentry);
 
 bail_unlock:
 	/* Don't drop the cluster lock until *after* the d_add --

@@ -818,12 +818,12 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 	/*
 	 * hash_page couldn't handle it, set soft interrupt enable back
-	 * to what it was before the trap.  Note that .raw_local_irq_restore
+	 * to what it was before the trap.  Note that .arch_local_irq_restore
 	 * handles any interrupts pending at this point.
 	 */
 	ld	r3,SOFTE(r1)
 	TRACE_AND_RESTORE_IRQ_PARTIAL(r3, 11f)
-	bl	.raw_local_irq_restore
+	bl	.arch_local_irq_restore
 	b	11f
 
 /* We have a data breakpoint exception - handle it */

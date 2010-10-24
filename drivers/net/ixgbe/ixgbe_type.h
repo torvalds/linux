@@ -871,6 +871,8 @@
 #define IXGBE_RDRXCTL_MVMEN         0x00000020
 #define IXGBE_RDRXCTL_DMAIDONE      0x00000008 /* DMA init cycle done */
 #define IXGBE_RDRXCTL_AGGDIS        0x00010000 /* Aggregation disable */
+#define IXGBE_RDRXCTL_RSCACKC       0x02000000 /* must set 1 when RSC enabled */
+#define IXGBE_RDRXCTL_FCOE_WRFIX    0x04000000 /* must set 1 when RSC enabled */
 
 /* RQTC Bit Masks and Shifts */
 #define IXGBE_RQTC_SHIFT_TC(_i)     ((_i) * 4)

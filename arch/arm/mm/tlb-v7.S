@@ -13,6 +13,7 @@
  */
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
@@ -41,20 +42,15 @@ ENTRY(v7wbi_flush_user_tlb_range)
 	orr	r0, r3, r0, lsl #PAGE_SHIFT	@ Create initial MVA
 	mov	r1, r1, lsl #PAGE_SHIFT
 1:
-#ifdef CONFIG_SMP
-	mcr	p15, 0, r0, c8, c3, 1		@ TLB invalidate U MVA (shareable) 
-#else
-	mcr	p15, 0, r0, c8, c7, 1		@ TLB invalidate U MVA
-#endif
+	ALT_SMP(mcr	p15, 0, r0, c8, c3, 1)	@ TLB invalidate U MVA (shareable)
+	ALT_UP(mcr	p15, 0, r0, c8, c7, 1)	@ TLB invalidate U MVA
+
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
 	blo	1b
 	mov	ip, #0
-#ifdef CONFIG_SMP
-	mcr	p15, 0, ip, c7, c1, 6		@ flush BTAC/BTB Inner Shareable
-#else
-	mcr	p15, 0, ip, c7, c5, 6		@ flush BTAC/BTB
-#endif
+	ALT_SMP(mcr	p15, 0, ip, c7, c1, 6)	@ flush BTAC/BTB Inner Shareable
+	ALT_UP(mcr	p15, 0, ip, c7, c5, 6)	@ flush BTAC/BTB
 	dsb
 	mov	pc, lr
 ENDPROC(v7wbi_flush_user_tlb_range)
@@ -74,20 +70,14 @@ ENTRY(v7wbi_flush_kern_tlb_range)
 	mov	r0, r0, lsl #PAGE_SHIFT
 	mov	r1, r1, lsl #PAGE_SHIFT
 1:
-#ifdef CONFIG_SMP
-	mcr	p15, 0, r0, c8, c3, 1		@ TLB invalidate U MVA (shareable)
-#else
-	mcr	p15, 0, r0, c8, c7, 1		@ TLB invalidate U MVA
-#endif
+	ALT_SMP(mcr	p15, 0, r0, c8, c3, 1)	@ TLB invalidate U MVA (shareable)
+	ALT_UP(mcr	p15, 0, r0, c8, c7, 1)	@ TLB invalidate U MVA
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
 	blo	1b
 	mov	r2, #0
-#ifdef CONFIG_SMP
-	mcr	p15, 0, r2, c7, c1, 6		@ flush BTAC/BTB Inner Shareable
-#else
-	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
-#endif
+	ALT_SMP(mcr	p15, 0, r2, c7, c1, 6)	@ flush BTAC/BTB Inner Shareable
+	ALT_UP(mcr	p15, 0, r2, c7, c5, 6)	@ flush BTAC/BTB
 	dsb
 	isb
 	mov	pc, lr
@@ -99,5 +89,6 @@ ENDPROC(v7wbi_flush_kern_tlb_range)
 ENTRY(v7wbi_tlb_fns)
 	.long	v7wbi_flush_user_tlb_range
 	.long	v7wbi_flush_kern_tlb_range
-	.long	v7wbi_tlb_flags
+	ALT_SMP(.long	v7wbi_tlb_flags_smp)
+	ALT_UP(.long	v7wbi_tlb_flags_up)
 	.size	v7wbi_tlb_fns, . - v7wbi_tlb_fns

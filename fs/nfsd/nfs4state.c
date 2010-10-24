@@ -33,7 +33,7 @@
 */
 
 #include <linux/file.h>
-#include <linux/smp_lock.h>
+#include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/swap.h>
@@ -3895,7 +3895,7 @@ check_for_locks(struct nfs4_file *filp, struct nfs4_stateowner *lowner)
 	struct inode *inode = filp->fi_inode;
 	int status = 0;
 
-	lock_kernel();
+	lock_flocks();
 	for (flpp = &inode->i_flock; *flpp != NULL; flpp = &(*flpp)->fl_next) {
 		if ((*flpp)->fl_owner == (fl_owner_t)lowner) {
 			status = 1;
@@ -3903,7 +3903,7 @@ check_for_locks(struct nfs4_file *filp, struct nfs4_stateowner *lowner)
 		}
 	}
 out:
-	unlock_kernel();
+	unlock_flocks();
 	return status;
 }
 

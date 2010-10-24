@@ -162,6 +162,7 @@ static const struct file_operations d7s_fops = {
 	.compat_ioctl =		d7s_ioctl,
 	.open =			d7s_open,
 	.release =		d7s_release,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice d7s_miscdev = {

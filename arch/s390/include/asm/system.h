@@ -97,7 +97,6 @@ static inline void restore_access_regs(unsigned int *acrs)
 
 extern void account_vtime(struct task_struct *, struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
-extern void account_system_vtime(struct task_struct *);
 
 #ifdef CONFIG_PFAULT
 extern void pfault_irq_init(void);
@@ -399,7 +398,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 static inline void
 __set_psw_mask(unsigned long mask)
 {
-	__load_psw_mask(mask | (__raw_local_irq_stosm(0x00) & ~(-1UL >> 8)));
+	__load_psw_mask(mask | (arch_local_save_flags() & ~(-1UL >> 8)));
 }
 
 #define local_mcck_enable()  __set_psw_mask(psw_kernel_bits)

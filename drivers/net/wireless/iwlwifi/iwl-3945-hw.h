@@ -62,7 +62,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-3945-hw.h) only for hardware-related definitions.
- * Please use iwl-3945-commands.h for uCode API definitions.
+ * Please use iwl-commands.h for uCode API definitions.
  * Please use iwl-3945.h for driver implementation definitions.
  */
 
@@ -226,6 +226,7 @@ struct iwl3945_eeprom {
 
 /* 4 DATA + 1 CMD. There are 2 HCCA queues that are not used. */
 #define IWL39_NUM_QUEUES        5
+#define IWL39_CMD_QUEUE_NUM	4
 
 #define IWL_DEFAULT_TX_RETRY  15
 

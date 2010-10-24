@@ -12,6 +12,7 @@
 #include <linux/memblock.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
+#include <asm/machdep.h>
 
 /*
  * Generic direct DMA implementation
@@ -89,7 +90,7 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= (memblock_end_of_DRAM() - 1);
+	return mask >= get_dma_offset(dev) + (memblock_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif
@@ -153,6 +154,23 @@ struct dma_map_ops dma_direct_ops = {
 EXPORT_SYMBOL(dma_direct_ops);
 
 #define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
+
+int dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+
+	if (ppc_md.dma_set_mask)
+		return ppc_md.dma_set_mask(dev, dma_mask);
+	if (unlikely(dma_ops == NULL))
+		return -EIO;
+	if (dma_ops->set_dma_mask != NULL)
+		return dma_ops->set_dma_mask(dev, dma_mask);
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+	*dev->dma_mask = dma_mask;
+	return 0;
+}
+EXPORT_SYMBOL(dma_set_mask);
 
 static int __init dma_init(void)
 {

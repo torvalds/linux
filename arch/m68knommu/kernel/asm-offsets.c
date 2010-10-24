@@ -74,8 +74,6 @@ int main(void)
 
 	DEFINE(PT_PTRACED, PT_PTRACED);
 
-	DEFINE(THREAD_SIZE, THREAD_SIZE);
-
 	/* Offsets in thread_info structure */
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));

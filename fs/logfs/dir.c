@@ -827,4 +827,5 @@ const struct file_operations logfs_dir_fops = {
 	.unlocked_ioctl	= logfs_ioctl,
 	.readdir	= logfs_readdir,
 	.read		= generic_read_dir,
+	.llseek		= default_llseek,
 };

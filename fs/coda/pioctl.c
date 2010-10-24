@@ -39,6 +39,7 @@ const struct inode_operations coda_ioctl_inode_operations = {
 const struct file_operations coda_ioctl_operations = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= coda_pioctl,
+	.llseek		= noop_llseek,
 };
 
 /* the coda pioctl inode ops */

@@ -545,6 +545,7 @@ static const struct file_operations sbprof_tb_fops = {
 	.unlocked_ioctl	= sbprof_tb_ioctl,
 	.compat_ioctl	= sbprof_tb_ioctl,
 	.mmap		= NULL,
+	.llseek		= default_llseek,
 };
 
 static struct class *tb_class;

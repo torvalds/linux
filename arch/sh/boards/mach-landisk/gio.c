@@ -128,6 +128,7 @@ static const struct file_operations gio_fops = {
 	.open = gio_open,	/* open */
 	.release = gio_close,	/* release */
 	.unlocked_ioctl = gio_ioctl,
+	.llseek = noop_llseek,
 };
 
 static int __init gio_init(void)

@@ -818,7 +818,7 @@ static int b44_rx(struct b44 *bp, int budget)
 							 copy_skb->data, len);
 			skb = copy_skb;
 		}
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		netif_receive_skb(skb);
 		received++;
@@ -2170,8 +2170,6 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	dev->irq = sdev->irq;
 	SET_ETHTOOL_OPS(dev, &b44_ethtool_ops);
 
-	netif_carrier_off(dev);
-
 	err = ssb_bus_powerup(sdev->bus, 0);
 	if (err) {
 		dev_err(sdev->dev,
@@ -2212,6 +2210,8 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 		dev_err(sdev->dev, "Cannot register net device, aborting\n");
 		goto err_out_powerdown;
 	}
+
+	netif_carrier_off(dev);
 
 	ssb_set_drvdata(sdev, dev);
 
@@ -2296,18 +2296,27 @@ static int b44_resume(struct ssb_device *sdev)
 	if (!netif_running(dev))
 		return 0;
 
+	spin_lock_irq(&bp->lock);
+	b44_init_rings(bp);
+	b44_init_hw(bp, B44_FULL_RESET);
+	spin_unlock_irq(&bp->lock);
+
+	/*
+	 * As a shared interrupt, the handler can be called immediately. To be
+	 * able to check the interrupt status the hardware must already be
+	 * powered back on (b44_init_hw).
+	 */
 	rc = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc) {
 		netdev_err(dev, "request_irq failed\n");
+		spin_lock_irq(&bp->lock);
+		b44_halt(bp);
+		b44_free_rings(bp);
+		spin_unlock_irq(&bp->lock);
 		return rc;
 	}
 
-	spin_lock_irq(&bp->lock);
-
-	b44_init_rings(bp);
-	b44_init_hw(bp, B44_FULL_RESET);
 	netif_device_attach(bp->dev);
-	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
 	netif_wake_queue(dev);

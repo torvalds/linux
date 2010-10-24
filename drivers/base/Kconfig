@@ -71,7 +71,6 @@ config PREVENT_FIRMWARE_BUILD
 
 config FW_LOADER
 	tristate "Userspace firmware loading support" if EMBEDDED
-	depends on HOTPLUG
 	default y
 	---help---
 	  This option is provided for the case where no in-kernel-tree modules

@@ -414,25 +414,6 @@ extern memimage fw_image;            // firmware image to be downloaded
 #endif /* HCF_STA */
 
 
-/*******************************************************************************
- *	wl_insert()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      wl_insert() is scheduled to run after a CARD_INSERTION event is
- *  received, to configure the PCMCIA socket, and to make the ethernet device
- *  available to the system.
- *
- *  PARAMETERS:
- *
- *      dev - a pointer to the net_device struct of the wireless device
- *
- *  RETURNS:
- *
- *      TRUE or FALSE
- *
- ******************************************************************************/
 int wl_insert( struct net_device *dev )
 {
 	int                     result = 0;

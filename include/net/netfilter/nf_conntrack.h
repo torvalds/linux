@@ -75,7 +75,7 @@ struct nf_conntrack_helper;
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {
 	/* Helper. if any */
-	struct nf_conntrack_helper *helper;
+	struct nf_conntrack_helper __rcu *helper;
 
 	union nf_conntrack_help help;
 

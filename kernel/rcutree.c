@@ -143,6 +143,11 @@ module_param(blimit, int, 0);
 module_param(qhimark, int, 0);
 module_param(qlowmark, int, 0);
 
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+int rcu_cpu_stall_suppress __read_mostly = RCU_CPU_STALL_SUPPRESS_INIT;
+module_param(rcu_cpu_stall_suppress, int, 0644);
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed);
 static int rcu_pending(int cpu);
 
@@ -450,7 +455,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 
-int rcu_cpu_stall_panicking __read_mostly;
+int rcu_cpu_stall_suppress __read_mostly;
 
 static void record_gp_stall_check_time(struct rcu_state *rsp)
 {
@@ -482,8 +487,11 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 	rcu_print_task_stall(rnp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 
-	/* OK, time to rat on our buddy... */
-
+	/*
+	 * OK, time to rat on our buddy...
+	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * RCU CPU stall warnings.
+	 */
 	printk(KERN_ERR "INFO: %s detected stalls on CPUs/tasks: {",
 	       rsp->name);
 	rcu_for_each_leaf_node(rsp, rnp) {
@@ -512,6 +520,11 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	unsigned long flags;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
+	/*
+	 * OK, time to rat on ourselves...
+	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * RCU CPU stall warnings.
+	 */
 	printk(KERN_ERR "INFO: %s detected stall on CPU %d (t=%lu jiffies)\n",
 	       rsp->name, smp_processor_id(), jiffies - rsp->gp_start);
 	trigger_all_cpu_backtrace();
@@ -530,11 +543,11 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	long delta;
 	struct rcu_node *rnp;
 
-	if (rcu_cpu_stall_panicking)
+	if (rcu_cpu_stall_suppress)
 		return;
-	delta = jiffies - rsp->jiffies_stall;
+	delta = jiffies - ACCESS_ONCE(rsp->jiffies_stall);
 	rnp = rdp->mynode;
-	if ((rnp->qsmask & rdp->grpmask) && delta >= 0) {
+	if ((ACCESS_ONCE(rnp->qsmask) & rdp->grpmask) && delta >= 0) {
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(rsp);
@@ -548,8 +561,24 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 
 static int rcu_panic(struct notifier_block *this, unsigned long ev, void *ptr)
 {
-	rcu_cpu_stall_panicking = 1;
+	rcu_cpu_stall_suppress = 1;
 	return NOTIFY_DONE;
+}
+
+/**
+ * rcu_cpu_stall_reset - prevent further stall warnings in current grace period
+ *
+ * Set the stall-warning timeout way off into the future, thus preventing
+ * any RCU CPU stall-warning messages from appearing in the current set of
+ * RCU grace periods.
+ *
+ * The caller must disable hard irqs.
+ */
+void rcu_cpu_stall_reset(void)
+{
+	rcu_sched_state.jiffies_stall = jiffies + ULONG_MAX / 2;
+	rcu_bh_state.jiffies_stall = jiffies + ULONG_MAX / 2;
+	rcu_preempt_stall_reset();
 }
 
 static struct notifier_block rcu_panic_block = {
@@ -568,6 +597,10 @@ static void record_gp_stall_check_time(struct rcu_state *rsp)
 }
 
 static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
+{
+}
+
+void rcu_cpu_stall_reset(void)
 {
 }
 
@@ -712,7 +745,7 @@ static void
 rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	__releases(rcu_get_root(rsp)->lock)
 {
-	struct rcu_data *rdp = rsp->rda[smp_processor_id()];
+	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	if (!cpu_needs_another_gp(rsp, rdp) || rsp->fqs_active) {
@@ -960,7 +993,7 @@ rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
 static void rcu_send_cbs_to_orphanage(struct rcu_state *rsp)
 {
 	int i;
-	struct rcu_data *rdp = rsp->rda[smp_processor_id()];
+	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
 	if (rdp->nxtlist == NULL)
 		return;  /* irqs disabled, so comparison is stable. */
@@ -971,6 +1004,7 @@ static void rcu_send_cbs_to_orphanage(struct rcu_state *rsp)
 	for (i = 0; i < RCU_NEXT_SIZE; i++)
 		rdp->nxttail[i] = &rdp->nxtlist;
 	rsp->orphan_qlen += rdp->qlen;
+	rdp->n_cbs_orphaned += rdp->qlen;
 	rdp->qlen = 0;
 	raw_spin_unlock(&rsp->onofflock);  /* irqs remain disabled. */
 }
@@ -984,7 +1018,7 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp)
 	struct rcu_data *rdp;
 
 	raw_spin_lock_irqsave(&rsp->onofflock, flags);
-	rdp = rsp->rda[smp_processor_id()];
+	rdp = this_cpu_ptr(rsp->rda);
 	if (rsp->orphan_cbs_list == NULL) {
 		raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
 		return;
@@ -992,6 +1026,7 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp)
 	*rdp->nxttail[RCU_NEXT_TAIL] = rsp->orphan_cbs_list;
 	rdp->nxttail[RCU_NEXT_TAIL] = rsp->orphan_cbs_tail;
 	rdp->qlen += rsp->orphan_qlen;
+	rdp->n_cbs_adopted += rsp->orphan_qlen;
 	rsp->orphan_cbs_list = NULL;
 	rsp->orphan_cbs_tail = &rsp->orphan_cbs_list;
 	rsp->orphan_qlen = 0;
@@ -1007,7 +1042,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	unsigned long flags;
 	unsigned long mask;
 	int need_report = 0;
-	struct rcu_data *rdp = rsp->rda[cpu];
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp;
 
 	/* Exclude any attempts to start a new grace period. */
@@ -1123,6 +1158,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Update count, and requeue any remaining callbacks. */
 	rdp->qlen -= count;
+	rdp->n_cbs_invoked += count;
 	if (list != NULL) {
 		*tail = rdp->nxtlist;
 		rdp->nxtlist = list;
@@ -1226,7 +1262,8 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 		cpu = rnp->grplo;
 		bit = 1;
 		for (; cpu <= rnp->grphi; cpu++, bit <<= 1) {
-			if ((rnp->qsmask & bit) != 0 && f(rsp->rda[cpu]))
+			if ((rnp->qsmask & bit) != 0 &&
+			    f(per_cpu_ptr(rsp->rda, cpu)))
 				mask |= bit;
 		}
 		if (mask != 0) {
@@ -1402,7 +1439,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	 * a quiescent state betweentimes.
 	 */
 	local_irq_save(flags);
-	rdp = rsp->rda[smp_processor_id()];
+	rdp = this_cpu_ptr(rsp->rda);
 	rcu_process_gp_end(rsp, rdp);
 	check_for_new_grace_period(rsp, rdp);
 
@@ -1701,7 +1738,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
 	int i;
-	struct rcu_data *rdp = rsp->rda[cpu];
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	/* Set up local state, ensuring consistent view of global state. */
@@ -1729,7 +1766,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptable)
 {
 	unsigned long flags;
 	unsigned long mask;
-	struct rcu_data *rdp = rsp->rda[cpu];
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	/* Set up local state, ensuring consistent view of global state. */
@@ -1865,7 +1902,8 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 /*
  * Helper function for rcu_init() that initializes one rcu_state structure.
  */
-static void __init rcu_init_one(struct rcu_state *rsp)
+static void __init rcu_init_one(struct rcu_state *rsp,
+		struct rcu_data __percpu *rda)
 {
 	static char *buf[] = { "rcu_node_level_0",
 			       "rcu_node_level_1",
@@ -1918,37 +1956,23 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 		}
 	}
 
+	rsp->rda = rda;
 	rnp = rsp->level[NUM_RCU_LVLS - 1];
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)
 			rnp++;
-		rsp->rda[i]->mynode = rnp;
+		per_cpu_ptr(rsp->rda, i)->mynode = rnp;
 		rcu_boot_init_percpu_data(i, rsp);
 	}
 }
-
-/*
- * Helper macro for __rcu_init() and __rcu_init_preempt().  To be used
- * nowhere else!  Assigns leaf node pointers into each CPU's rcu_data
- * structure.
- */
-#define RCU_INIT_FLAVOR(rsp, rcu_data) \
-do { \
-	int i; \
-	\
-	for_each_possible_cpu(i) { \
-		(rsp)->rda[i] = &per_cpu(rcu_data, i); \
-	} \
-	rcu_init_one(rsp); \
-} while (0)
 
 void __init rcu_init(void)
 {
 	int cpu;
 
 	rcu_bootup_announce();
-	RCU_INIT_FLAVOR(&rcu_sched_state, rcu_sched_data);
-	RCU_INIT_FLAVOR(&rcu_bh_state, rcu_bh_data);
+	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
+	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
 	__rcu_init_preempt();
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 

@@ -186,6 +186,10 @@ struct mlx4_caps {
 	int			eth_mtu_cap[MLX4_MAX_PORTS + 1];
 	int			gid_table_len[MLX4_MAX_PORTS + 1];
 	int			pkey_table_len[MLX4_MAX_PORTS + 1];
+	int			trans_type[MLX4_MAX_PORTS + 1];
+	int			vendor_oui[MLX4_MAX_PORTS + 1];
+	int			wavelength[MLX4_MAX_PORTS + 1];
+	u64			trans_code[MLX4_MAX_PORTS + 1];
 	int			local_ca_ack_delay;
 	int			num_uars;
 	int			bf_reg_size;
@@ -229,6 +233,8 @@ struct mlx4_caps {
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
+	int			udp_rss;
+	int			loopback_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
@@ -480,5 +486,6 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 		    u32 *lkey, u32 *rkey);
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
+int mlx4_test_interrupts(struct mlx4_dev *dev);
 
 #endif /* MLX4_DEVICE_H */

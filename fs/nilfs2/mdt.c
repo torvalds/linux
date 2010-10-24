@@ -36,7 +36,6 @@
 
 #define NILFS_MDT_MAX_RA_BLOCKS		(16 - 1)
 
-#define INIT_UNUSED_INODE_FIELDS
 
 static int
 nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
@@ -78,24 +77,10 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 						     struct buffer_head *,
 						     void *))
 {
-	struct the_nilfs *nilfs = NILFS_MDT(inode)->mi_nilfs;
 	struct super_block *sb = inode->i_sb;
 	struct nilfs_transaction_info ti;
 	struct buffer_head *bh;
 	int err;
-
-	if (!sb) {
-		/*
-		 * Make sure this function is not called from any
-		 * read-only context.
-		 */
-		if (!nilfs->ns_writer) {
-			WARN_ON(1);
-			err = -EROFS;
-			goto out;
-		}
-		sb = nilfs->ns_writer->s_super;
-	}
 
 	nilfs_transaction_begin(sb, &ti, 0);
 
@@ -112,7 +97,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 	if (buffer_uptodate(bh))
 		goto failed_bh;
 
-	bh->b_bdev = nilfs->ns_bdev;
+	bh->b_bdev = sb->s_bdev;
 	err = nilfs_mdt_insert_new_block(inode, block, bh, init_block);
 	if (likely(!err)) {
 		get_bh(bh);
@@ -129,7 +114,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 		err = nilfs_transaction_commit(sb);
 	else
 		nilfs_transaction_abort(sb);
- out:
+
 	return err;
 }
 
@@ -167,9 +152,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 		unlock_buffer(bh);
 		goto failed_bh;
 	}
-	bh->b_bdev = NILFS_MDT(inode)->mi_nilfs->ns_bdev;
-	bh->b_blocknr = (sector_t)blknum;
-	set_buffer_mapped(bh);
+	map_bh(bh, inode->i_sb, (sector_t)blknum);
 
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
@@ -398,35 +381,24 @@ int nilfs_mdt_fetch_dirty(struct inode *inode)
 static int
 nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 {
-	struct inode *inode = container_of(page->mapping,
-					   struct inode, i_data);
-	struct super_block *sb = inode->i_sb;
-	struct the_nilfs *nilfs = NILFS_MDT(inode)->mi_nilfs;
-	struct nilfs_sb_info *writer = NULL;
+	struct inode *inode;
+	struct super_block *sb;
 	int err = 0;
 
 	redirty_page_for_writepage(wbc, page);
 	unlock_page(page);
 
-	if (page->mapping->assoc_mapping)
-		return 0; /* Do not request flush for shadow page cache */
-	if (!sb) {
-		down_read(&nilfs->ns_writer_sem);
-		writer = nilfs->ns_writer;
-		if (!writer) {
-			up_read(&nilfs->ns_writer_sem);
-			return -EROFS;
-		}
-		sb = writer->s_super;
-	}
+	inode = page->mapping->host;
+	if (!inode)
+		return 0;
+
+	sb = inode->i_sb;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		err = nilfs_construct_segment(sb);
 	else if (wbc->for_reclaim)
 		nilfs_flush_segment(sb, inode->i_ino);
 
-	if (writer)
-		up_read(&nilfs->ns_writer_sem);
 	return err;
 }
 
@@ -439,105 +411,27 @@ static const struct address_space_operations def_mdt_aops = {
 static const struct inode_operations def_mdt_iops;
 static const struct file_operations def_mdt_fops;
 
-/*
- * NILFS2 uses pseudo inodes for meta data files such as DAT, cpfile, sufile,
- * ifile, or gcinodes.  This allows the B-tree code and segment constructor
- * to treat them like regular files, and this helps to simplify the
- * implementation.
- *   On the other hand, some of the pseudo inodes have an irregular point:
- * They don't have valid inode->i_sb pointer because their lifetimes are
- * longer than those of the super block structs; they may continue for
- * several consecutive mounts/umounts.  This would need discussions.
- */
-/**
- * nilfs_mdt_new_common - allocate a pseudo inode for metadata file
- * @nilfs: nilfs object
- * @sb: super block instance the metadata file belongs to
- * @ino: inode number
- * @gfp_mask: gfp mask for data pages
- * @objsz: size of the private object attached to inode->i_private
- */
-struct inode *
-nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
-		     ino_t ino, gfp_t gfp_mask, size_t objsz)
+
+int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 {
-	struct inode *inode = nilfs_alloc_inode_common(nilfs);
+	struct nilfs_mdt_info *mi;
 
-	if (!inode)
-		return NULL;
-	else {
-		struct address_space * const mapping = &inode->i_data;
-		struct nilfs_mdt_info *mi;
+	mi = kzalloc(max(sizeof(*mi), objsz), GFP_NOFS);
+	if (!mi)
+		return -ENOMEM;
 
-		mi = kzalloc(max(sizeof(*mi), objsz), GFP_NOFS);
-		if (!mi) {
-			nilfs_destroy_inode(inode);
-			return NULL;
-		}
-		mi->mi_nilfs = nilfs;
-		init_rwsem(&mi->mi_sem);
+	init_rwsem(&mi->mi_sem);
+	inode->i_private = mi;
 
-		inode->i_sb = sb; /* sb may be NULL for some meta data files */
-		inode->i_blkbits = nilfs->ns_blocksize_bits;
-		inode->i_flags = 0;
-		atomic_set(&inode->i_count, 1);
-		inode->i_nlink = 1;
-		inode->i_ino = ino;
-		inode->i_mode = S_IFREG;
-		inode->i_private = mi;
-
-#ifdef INIT_UNUSED_INODE_FIELDS
-		atomic_set(&inode->i_writecount, 0);
-		inode->i_size = 0;
-		inode->i_blocks = 0;
-		inode->i_bytes = 0;
-		inode->i_generation = 0;
-#ifdef CONFIG_QUOTA
-		memset(&inode->i_dquot, 0, sizeof(inode->i_dquot));
-#endif
-		inode->i_pipe = NULL;
-		inode->i_bdev = NULL;
-		inode->i_cdev = NULL;
-		inode->i_rdev = 0;
-#ifdef CONFIG_SECURITY
-		inode->i_security = NULL;
-#endif
-		inode->dirtied_when = 0;
-
-		INIT_LIST_HEAD(&inode->i_list);
-		INIT_LIST_HEAD(&inode->i_sb_list);
-		inode->i_state = 0;
-#endif
-
-		spin_lock_init(&inode->i_lock);
-		mutex_init(&inode->i_mutex);
-		init_rwsem(&inode->i_alloc_sem);
-
-		mapping->host = NULL;  /* instead of inode */
-		mapping->flags = 0;
-		mapping_set_gfp_mask(mapping, gfp_mask);
-		mapping->assoc_mapping = NULL;
-		mapping->backing_dev_info = nilfs->ns_bdi;
-
-		inode->i_mapping = mapping;
-	}
-
-	return inode;
-}
-
-struct inode *nilfs_mdt_new(struct the_nilfs *nilfs, struct super_block *sb,
-			    ino_t ino, size_t objsz)
-{
-	struct inode *inode;
-
-	inode = nilfs_mdt_new_common(nilfs, sb, ino, NILFS_MDT_GFP, objsz);
-	if (!inode)
-		return NULL;
+	inode->i_mode = S_IFREG;
+	mapping_set_gfp_mask(inode->i_mapping, gfp_mask);
+	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
 	inode->i_op = &def_mdt_iops;
 	inode->i_fop = &def_mdt_fops;
 	inode->i_mapping->a_ops = &def_mdt_aops;
-	return inode;
+
+	return 0;
 }
 
 void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
@@ -550,34 +444,159 @@ void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
 	mi->mi_first_entry_offset = DIV_ROUND_UP(header_size, entry_size);
 }
 
-void nilfs_mdt_set_shadow(struct inode *orig, struct inode *shadow)
+static const struct address_space_operations shadow_map_aops = {
+	.sync_page		= block_sync_page,
+};
+
+/**
+ * nilfs_mdt_setup_shadow_map - setup shadow map and bind it to metadata file
+ * @inode: inode of the metadata file
+ * @shadow: shadow mapping
+ */
+int nilfs_mdt_setup_shadow_map(struct inode *inode,
+			       struct nilfs_shadow_map *shadow)
 {
-	shadow->i_mapping->assoc_mapping = orig->i_mapping;
-	NILFS_I(shadow)->i_btnode_cache.assoc_mapping =
-		&NILFS_I(orig)->i_btnode_cache;
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct backing_dev_info *bdi = inode->i_sb->s_bdi;
+
+	INIT_LIST_HEAD(&shadow->frozen_buffers);
+	nilfs_mapping_init_once(&shadow->frozen_data);
+	nilfs_mapping_init(&shadow->frozen_data, bdi, &shadow_map_aops);
+	nilfs_mapping_init_once(&shadow->frozen_btnodes);
+	nilfs_mapping_init(&shadow->frozen_btnodes, bdi, &shadow_map_aops);
+	mi->mi_shadow = shadow;
+	return 0;
 }
 
-static void nilfs_mdt_clear(struct inode *inode)
+/**
+ * nilfs_mdt_save_to_shadow_map - copy bmap and dirty pages to shadow map
+ * @inode: inode of the metadata file
+ */
+int nilfs_mdt_save_to_shadow_map(struct inode *inode)
 {
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_shadow_map *shadow = mi->mi_shadow;
+	int ret;
 
-	invalidate_mapping_pages(inode->i_mapping, 0, -1);
-	truncate_inode_pages(inode->i_mapping, 0);
+	ret = nilfs_copy_dirty_pages(&shadow->frozen_data, inode->i_mapping);
+	if (ret)
+		goto out;
 
-	if (test_bit(NILFS_I_BMAP, &ii->i_state))
-		nilfs_bmap_clear(ii->i_bmap);
-	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
+	ret = nilfs_copy_dirty_pages(&shadow->frozen_btnodes,
+				     &ii->i_btnode_cache);
+	if (ret)
+		goto out;
+
+	nilfs_bmap_save(ii->i_bmap, &shadow->bmap_store);
+ out:
+	return ret;
 }
 
-void nilfs_mdt_destroy(struct inode *inode)
+int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh)
 {
-	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+	struct nilfs_shadow_map *shadow = NILFS_MDT(inode)->mi_shadow;
+	struct buffer_head *bh_frozen;
+	struct page *page;
+	int blkbits = inode->i_blkbits;
+	int ret = -ENOMEM;
 
-	if (mdi->mi_palloc_cache)
-		nilfs_palloc_destroy_cache(inode);
-	nilfs_mdt_clear(inode);
+	page = grab_cache_page(&shadow->frozen_data, bh->b_page->index);
+	if (!page)
+		return ret;
 
-	kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
-	kfree(mdi);
-	nilfs_destroy_inode(inode);
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, 1 << blkbits, 0);
+
+	bh_frozen = nilfs_page_get_nth_block(page, bh_offset(bh) >> blkbits);
+	if (bh_frozen) {
+		if (!buffer_uptodate(bh_frozen))
+			nilfs_copy_buffer(bh_frozen, bh);
+		if (list_empty(&bh_frozen->b_assoc_buffers)) {
+			list_add_tail(&bh_frozen->b_assoc_buffers,
+				      &shadow->frozen_buffers);
+			set_buffer_nilfs_redirected(bh);
+		} else {
+			brelse(bh_frozen); /* already frozen */
+		}
+		ret = 0;
+	}
+	unlock_page(page);
+	page_cache_release(page);
+	return ret;
+}
+
+struct buffer_head *
+nilfs_mdt_get_frozen_buffer(struct inode *inode, struct buffer_head *bh)
+{
+	struct nilfs_shadow_map *shadow = NILFS_MDT(inode)->mi_shadow;
+	struct buffer_head *bh_frozen = NULL;
+	struct page *page;
+	int n;
+
+	page = find_lock_page(&shadow->frozen_data, bh->b_page->index);
+	if (page) {
+		if (page_has_buffers(page)) {
+			n = bh_offset(bh) >> inode->i_blkbits;
+			bh_frozen = nilfs_page_get_nth_block(page, n);
+		}
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	return bh_frozen;
+}
+
+static void nilfs_release_frozen_buffers(struct nilfs_shadow_map *shadow)
+{
+	struct list_head *head = &shadow->frozen_buffers;
+	struct buffer_head *bh;
+
+	while (!list_empty(head)) {
+		bh = list_first_entry(head, struct buffer_head,
+				      b_assoc_buffers);
+		list_del_init(&bh->b_assoc_buffers);
+		brelse(bh); /* drop ref-count to make it releasable */
+	}
+}
+
+/**
+ * nilfs_mdt_restore_from_shadow_map - restore dirty pages and bmap state
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_restore_from_shadow_map(struct inode *inode)
+{
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_shadow_map *shadow = mi->mi_shadow;
+
+	down_write(&mi->mi_sem);
+
+	if (mi->mi_palloc_cache)
+		nilfs_palloc_clear_cache(inode);
+
+	nilfs_clear_dirty_pages(inode->i_mapping);
+	nilfs_copy_back_pages(inode->i_mapping, &shadow->frozen_data);
+
+	nilfs_clear_dirty_pages(&ii->i_btnode_cache);
+	nilfs_copy_back_pages(&ii->i_btnode_cache, &shadow->frozen_btnodes);
+
+	nilfs_bmap_restore(ii->i_bmap, &shadow->bmap_store);
+
+	up_write(&mi->mi_sem);
+}
+
+/**
+ * nilfs_mdt_clear_shadow_map - truncate pages in shadow map caches
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_clear_shadow_map(struct inode *inode)
+{
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct nilfs_shadow_map *shadow = mi->mi_shadow;
+
+	down_write(&mi->mi_sem);
+	nilfs_release_frozen_buffers(shadow);
+	truncate_inode_pages(&shadow->frozen_data, 0);
+	truncate_inode_pages(&shadow->frozen_btnodes, 0);
+	up_write(&mi->mi_sem);
 }

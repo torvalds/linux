@@ -92,6 +92,18 @@ config MXC_DEBUG_BOARD
 	  data/address de-multiplexing and decode, signal level shift,
 	  interrupt control and various board functions.
 
+config HAVE_EPIT
+	bool
+
+config MXC_USE_EPIT
+	bool "Use EPIT instead of GPT"
+	depends on HAVE_EPIT
+	help
+	  Use EPIT as the system timer on systems that have it. Normally you
+	  don't have a reason to do so as the EPIT has the same features and
+	  uses the same clocks as the GPT. Anyway, on some systems the GPT
+	  may be in use for other purposes.
+
 config MXC_ULPI
 	bool
 
@@ -109,5 +121,9 @@ config ARCH_MXC_AUDMUX_V1
 
 config ARCH_MXC_AUDMUX_V2
 	bool
+
+config IRAM_ALLOC
+	bool
+	select GENERIC_ALLOCATOR
 
 endif

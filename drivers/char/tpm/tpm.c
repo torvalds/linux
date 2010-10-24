@@ -47,6 +47,16 @@ enum tpm_duration {
 #define TPM_MAX_PROTECTED_ORDINAL 12
 #define TPM_PROTECTED_ORDINAL_MASK 0xFF
 
+/*
+ * Bug workaround - some TPM's don't flush the most
+ * recently changed pcr on suspend, so force the flush
+ * with an extend to the selected _unused_ non-volatile pcr.
+ */
+static int tpm_suspend_pcr;
+module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
+MODULE_PARM_DESC(suspend_pcr,
+		 "PCR to use for dummy writes to faciltate flush on suspend.");
+
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
 static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
@@ -1076,18 +1086,6 @@ static struct tpm_input_header savestate_header = {
 	.length = cpu_to_be32(10),
 	.ordinal = TPM_ORD_SAVESTATE
 };
-
-/* Bug workaround - some TPM's don't flush the most
- * recently changed pcr on suspend, so force the flush
- * with an extend to the selected _unused_ non-volatile pcr.
- */
-static int tpm_suspend_pcr;
-static int __init tpm_suspend_setup(char *str)
-{
-	get_option(&str, &tpm_suspend_pcr);
-	return 1;
-}
-__setup("tpm_suspend_pcr=", tpm_suspend_setup);
 
 /*
  * We are about to suspend. Save the TPM state

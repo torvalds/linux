@@ -194,8 +194,6 @@ static void __init idp_map_io(void)
 
 MACHINE_START(PXA_IDP, "Vibren PXA255 IDP")
 	/* Maintainer: Vibren Technologies */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= idp_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,

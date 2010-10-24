@@ -32,7 +32,7 @@
 
 #include "mach-smartq.h"
 
-static struct gpio_led smartq7_leds[] __initdata = {
+static struct gpio_led smartq7_leds[] = {
 	{
 		.name			= "smartq7:red",
 		.active_low		= 1,
@@ -162,8 +162,6 @@ static void __init smartq7_machine_init(void)
 
 MACHINE_START(SMARTQ7, "SmartQ 7")
 	/* Maintainer: Maurus Cuelenaere <mcuelenaere AT gmail DOT com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smartq_map_io,

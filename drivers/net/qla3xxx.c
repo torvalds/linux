@@ -2029,7 +2029,7 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 			 dma_unmap_len(lrg_buf_cb2, maplen),
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb->data);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 	skb->protocol = eth_type_trans(skb, qdev->ndev);
 
 	netif_receive_skb(skb);
@@ -2076,7 +2076,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb2->data);
 
-	skb2->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb2);
 	if (qdev->device_id == QL3022_DEVICE_ID) {
 		/*
 		 * Copy the ethhdr from first buffer to second. This

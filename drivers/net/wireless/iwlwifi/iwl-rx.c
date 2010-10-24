@@ -36,7 +36,6 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-io.h"
-#include "iwl-calib.h"
 #include "iwl-helpers.h"
 /************************** RX-FUNCTIONS ****************************/
 /*
@@ -228,7 +227,7 @@ void iwl_recover_from_statistics(struct iwl_priv *priv,
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
-	if (iwl_is_associated(priv)) {
+	if (iwl_is_any_associated(priv)) {
 		if (priv->cfg->ops->lib->check_ack_health) {
 			if (!priv->cfg->ops->lib->check_ack_health(
 			    priv, pkt)) {
@@ -266,7 +265,12 @@ int iwl_set_decrypted_flag(struct iwl_priv *priv,
 {
 	u16 fc = le16_to_cpu(hdr->frame_control);
 
-	if (priv->active_rxon.filter_flags & RXON_FILTER_DIS_DECRYPT_MSK)
+	/*
+	 * All contexts have the same setting here due to it being
+	 * a module parameter, so OK to check any context.
+	 */
+	if (priv->contexts[IWL_RXON_CTX_BSS].active.filter_flags &
+						RXON_FILTER_DIS_DECRYPT_MSK)
 		return 0;
 
 	if (!(fc & IEEE80211_FCTL_PROTECTED))

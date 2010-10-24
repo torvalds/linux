@@ -138,8 +138,6 @@ enum iwl3945_antenna {
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-#include "iwl-agn-rs.h"
-
 #define IWL_TX_FIFO_AC0	0
 #define IWL_TX_FIFO_AC1	1
 #define IWL_TX_FIFO_AC2	2
@@ -271,6 +269,9 @@ extern void iwl3945_post_associate(struct iwl_priv *priv,
 extern void iwl3945_config_ap(struct iwl_priv *priv,
 			      struct ieee80211_vif *vif);
 
+extern int iwl3945_commit_rxon(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx);
+
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID
  * @bssid: MAC address of station ID to find
@@ -295,7 +296,11 @@ extern const struct iwl_channel_info *iwl3945_get_channel_info(
 extern int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate);
 
 /* scanning */
-void iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
+int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
+void iwl3945_post_scan(struct iwl_priv *priv);
+
+/* rates */
+extern const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945];
 
 /* Requires full declaration of iwl_priv before including */
 #include "iwl-io.h"

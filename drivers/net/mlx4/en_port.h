@@ -84,6 +84,20 @@ enum {
 	MLX4_MCAST_ENABLE       = 2,
 };
 
+struct mlx4_en_query_port_context {
+	u8 link_up;
+#define MLX4_EN_LINK_UP_MASK	0x80
+	u8 reserved;
+	__be16 mtu;
+	u8 reserved2;
+	u8 link_speed;
+#define MLX4_EN_SPEED_MASK	0x3
+#define MLX4_EN_1G_SPEED	0x2
+	u16 reserved3[5];
+	__be64 mac;
+	u8 transceiver;
+};
+
 
 struct mlx4_en_stat_out_mbox {
 	/* Received frames with a length of 64 octets */

@@ -43,7 +43,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
@@ -72,17 +71,6 @@ static int ide_config(struct pcmcia_device *);
 
 static void ide_detach(struct pcmcia_device *p_dev);
 
-
-
-
-/*======================================================================
-
-    ide_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int ide_probe(struct pcmcia_device *link)
 {
     ide_info_t *info;
@@ -97,22 +85,11 @@ static int ide_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = info;
 
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO |
+	    CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC;
 
     return ide_config(link);
 } /* ide_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void ide_detach(struct pcmcia_device *link)
 {
@@ -187,79 +164,31 @@ out_release:
     return NULL;
 }
 
-/*======================================================================
-
-    ide_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ide device available to the system.
-
-======================================================================*/
-
-struct pcmcia_config_check {
-	unsigned long ctl_base;
-	int skip_vcc;
-	int is_kme;
-};
-
-static int pcmcia_check_one_config(struct pcmcia_device *pdev,
-				   cistpl_cftable_entry_t *cfg,
-				   cistpl_cftable_entry_t *dflt,
-				   unsigned int vcc,
-				   void *priv_data)
+static int pcmcia_check_one_config(struct pcmcia_device *pdev, void *priv_data)
 {
-	struct pcmcia_config_check *stk = priv_data;
+	int *is_kme = priv_data;
 
-	/* Check for matching Vcc, unless we're desperate */
-	if (!stk->skip_vcc) {
-		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		}
+	if (!(pdev->resource[0]->flags & IO_DATA_PATH_WIDTH_8)) {
+		pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	}
+	pdev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	pdev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		pdev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-
-		pdev->conf.ConfigIndex = cfg->index;
-		pdev->resource[0]->start = io->win[0].base;
-		if (!(io->flags & CISTPL_IO_16BIT)) {
-			pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-			pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-		}
-		if (io->nwin == 2) {
-			pdev->resource[0]->end = 8;
-			pdev->resource[1]->start = io->win[1].base;
-			pdev->resource[1]->end = (stk->is_kme) ? 2 : 1;
-			if (pcmcia_request_io(pdev) != 0)
-				return -ENODEV;
-			stk->ctl_base = pdev->resource[1]->start;
-		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-			pdev->resource[0]->end = io->win[0].len;
-			pdev->resource[1]->end = 0;
-			if (pcmcia_request_io(pdev) != 0)
-				return -ENODEV;
-			stk->ctl_base = pdev->resource[0]->start + 0x0e;
-		} else
+	if (pdev->resource[1]->end) {
+		pdev->resource[0]->end = 8;
+		pdev->resource[1]->end = (*is_kme) ? 2 : 1;
+	} else {
+		if (pdev->resource[0]->end < 16)
 			return -ENODEV;
-		/* If we've got this far, we're done */
-		return 0;
 	}
-	return -ENODEV;
+
+	return pcmcia_request_io(pdev);
 }
 
 static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    struct pcmcia_config_check *stk = NULL;
     int ret = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     struct ide_host *host;
@@ -270,23 +199,21 @@ static int ide_config(struct pcmcia_device *link)
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||
 	       (link->card_id == PRODID_KME_KXLC005_B)));
 
-    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
-    if (!stk)
-	    goto err_mem;
-    stk->is_kme = is_kme;
-    stk->skip_vcc = io_base = ctl_base = 0;
-
-    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk)) {
-	    stk->skip_vcc = 1;
-	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
+    if (pcmcia_loop_config(link, pcmcia_check_one_config, &is_kme)) {
+	    link->config_flags &= ~CONF_AUTO_CHECK_VCC;
+	    if (pcmcia_loop_config(link, pcmcia_check_one_config, &is_kme))
 		    goto failed; /* No suitable config found */
     }
     io_base = link->resource[0]->start;
-    ctl_base = stk->ctl_base;
+    if (link->resource[1]->end)
+	    ctl_base = link->resource[1]->start;
+    else
+	    ctl_base = link->resource[0]->start + 0x0e;
 
     if (!link->irq)
 	    goto failed;
-    ret = pcmcia_request_configuration(link, &link->conf);
+
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -311,28 +238,14 @@ static int ide_config(struct pcmcia_device *link)
     info->host = host;
     dev_info(&link->dev, "ide-cs: hd%c: Vpp = %d.%d\n",
 	    'a' + host->ports[0]->index * 2,
-	    link->conf.Vpp / 10, link->conf.Vpp % 10);
+	    link->vpp / 10, link->vpp % 10);
 
-    kfree(stk);
     return 0;
 
-err_mem:
-    printk(KERN_NOTICE "ide-cs: ide_config failed memory allocation\n");
-    goto failed;
-
 failed:
-    kfree(stk);
     ide_release(link);
     return -ENODEV;
 } /* ide_config */
-
-/*======================================================================
-
-    After a card is removed, ide_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void ide_release(struct pcmcia_device *link)
 {
@@ -358,15 +271,6 @@ static void ide_release(struct pcmcia_device *link)
     pcmcia_disable_device(link);
 } /* ide_release */
 
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the ide drivers from
-    talking to the ports.
-
-======================================================================*/
 
 static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(4),
@@ -440,9 +344,7 @@ MODULE_DEVICE_TABLE(pcmcia, ide_ids);
 
 static struct pcmcia_driver ide_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "ide-cs",
-	},
+	.name		= "ide-cs",
 	.probe		= ide_probe,
 	.remove		= ide_detach,
 	.id_table       = ide_ids,

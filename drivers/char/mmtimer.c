@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/math64.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
@@ -59,6 +59,7 @@ extern unsigned long sn_rtc_cycles_per_second;
 
 #define rtc_time()              (*RTC_COUNTER_ADDR)
 
+static DEFINE_MUTEX(mmtimer_mutex);
 static long mmtimer_ioctl(struct file *file, unsigned int cmd,
 						unsigned long arg);
 static int mmtimer_mmap(struct file *file, struct vm_area_struct *vma);
@@ -72,6 +73,7 @@ static const struct file_operations mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	mmtimer_mmap,
 	.unlocked_ioctl = mmtimer_ioctl,
+	.llseek = noop_llseek,
 };
 
 /*
@@ -371,7 +373,7 @@ static long mmtimer_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&mmtimer_mutex);
 
 	switch (cmd) {
 	case MMTIMER_GETOFFSET:	/* offset of the counter */
@@ -414,7 +416,7 @@ static long mmtimer_ioctl(struct file *file, unsigned int cmd,
 		ret = -ENOTTY;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&mmtimer_mutex);
 	return ret;
 }
 

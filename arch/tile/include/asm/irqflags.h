@@ -103,55 +103,57 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 #define INITIAL_INTERRUPTS_ENABLED INT_MASK(INT_MEM_ERROR)
 
 /* Disable interrupts. */
-#define raw_local_irq_disable() \
+#define arch_local_irq_disable() \
 	interrupt_mask_set_mask(LINUX_MASKABLE_INTERRUPTS)
 
 /* Disable all interrupts, including NMIs. */
-#define raw_local_irq_disable_all() \
+#define arch_local_irq_disable_all() \
 	interrupt_mask_set_mask(-1UL)
 
 /* Re-enable all maskable interrupts. */
-#define raw_local_irq_enable() \
+#define arch_local_irq_enable() \
 	interrupt_mask_reset_mask(__get_cpu_var(interrupts_enabled_mask))
 
 /* Disable or enable interrupts based on flag argument. */
-#define raw_local_irq_restore(disabled) do { \
+#define arch_local_irq_restore(disabled) do { \
 	if (disabled) \
-		raw_local_irq_disable(); \
+		arch_local_irq_disable(); \
 	else \
-		raw_local_irq_enable(); \
+		arch_local_irq_enable(); \
 } while (0)
 
 /* Return true if "flags" argument means interrupts are disabled. */
-#define raw_irqs_disabled_flags(flags) ((flags) != 0)
+#define arch_irqs_disabled_flags(flags) ((flags) != 0)
 
 /* Return true if interrupts are currently disabled. */
-#define raw_irqs_disabled() interrupt_mask_check(INT_MEM_ERROR)
+#define arch_irqs_disabled() interrupt_mask_check(INT_MEM_ERROR)
 
 /* Save whether interrupts are currently disabled. */
-#define raw_local_save_flags(flags) ((flags) = raw_irqs_disabled())
+#define arch_local_save_flags() arch_irqs_disabled()
 
 /* Save whether interrupts are currently disabled, then disable them. */
-#define raw_local_irq_save(flags) \
-	do { raw_local_save_flags(flags); raw_local_irq_disable(); } while (0)
+#define arch_local_irq_save() ({ \
+	unsigned long __flags = arch_local_save_flags(); \
+	arch_local_irq_disable(); \
+	__flags; })
 
 /* Prevent the given interrupt from being enabled next time we enable irqs. */
-#define raw_local_irq_mask(interrupt) \
+#define arch_local_irq_mask(interrupt) \
 	(__get_cpu_var(interrupts_enabled_mask) &= ~INT_MASK(interrupt))
 
 /* Prevent the given interrupt from being enabled immediately. */
-#define raw_local_irq_mask_now(interrupt) do { \
-	raw_local_irq_mask(interrupt); \
+#define arch_local_irq_mask_now(interrupt) do { \
+	arch_local_irq_mask(interrupt); \
 	interrupt_mask_set(interrupt); \
 } while (0)
 
 /* Allow the given interrupt to be enabled next time we enable irqs. */
-#define raw_local_irq_unmask(interrupt) \
+#define arch_local_irq_unmask(interrupt) \
 	(__get_cpu_var(interrupts_enabled_mask) |= INT_MASK(interrupt))
 
 /* Allow the given interrupt to be enabled immediately, if !irqs_disabled. */
-#define raw_local_irq_unmask_now(interrupt) do { \
-	raw_local_irq_unmask(interrupt); \
+#define arch_local_irq_unmask_now(interrupt) do { \
+	arch_local_irq_unmask(interrupt); \
 	if (!irqs_disabled()) \
 		interrupt_mask_reset(interrupt); \
 } while (0)

@@ -135,12 +135,12 @@ struct inodes_stat_t {
  *			immediately after submission. The write equivalent
  *			of READ_SYNC.
  * WRITE_ODIRECT_PLUG	Special case write for O_DIRECT only.
- * WRITE_BARRIER	Like WRITE_SYNC, but tells the block layer that all
- *			previously submitted writes must be safely on storage
- *			before this one is started. Also guarantees that when
- *			this write is complete, it itself is also safely on
- *			storage. Prevents reordering of writes on both sides
- *			of this IO.
+ * WRITE_FLUSH		Like WRITE_SYNC but with preceding cache flush.
+ * WRITE_FUA		Like WRITE_SYNC but data is guaranteed to be on
+ *			non-volatile media on completion.
+ * WRITE_FLUSH_FUA	Combination of WRITE_FLUSH and FUA. The IO is preceded
+ *			by a cache flush and data is guaranteed to be on
+ *			non-volatile media on completion.
  *
  */
 #define RW_MASK			REQ_WRITE
@@ -156,16 +156,12 @@ struct inodes_stat_t {
 #define WRITE_SYNC		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
 #define WRITE_ODIRECT_PLUG	(WRITE | REQ_SYNC)
 #define WRITE_META		(WRITE | REQ_META)
-#define WRITE_BARRIER		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
-				 REQ_HARDBARRIER)
-
-/*
- * These aren't really reads or writes, they pass down information about
- * parts of device that are now unused by the file system.
- */
-#define DISCARD_NOBARRIER	(WRITE | REQ_DISCARD)
-#define DISCARD_BARRIER		(WRITE | REQ_DISCARD | REQ_HARDBARRIER)
-#define DISCARD_SECURE		(DISCARD_NOBARRIER | REQ_SECURE)
+#define WRITE_FLUSH		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_FLUSH)
+#define WRITE_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_FUA)
+#define WRITE_FLUSH_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_FLUSH | REQ_FUA)
 
 #define SEL_IN		1
 #define SEL_OUT		2
@@ -1093,10 +1089,6 @@ struct file_lock {
 
 #include <linux/fcntl.h>
 
-/* temporary stubs for BKL removal */
-#define lock_flocks() lock_kernel()
-#define unlock_flocks() unlock_kernel()
-
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
 #ifdef CONFIG_FILE_LOCKING
@@ -1135,6 +1127,8 @@ extern int vfs_setlease(struct file *, long, struct file_lock **);
 extern int lease_modify(struct file_lock **, int);
 extern int lock_may_read(struct inode *, loff_t start, unsigned long count);
 extern int lock_may_write(struct inode *, loff_t start, unsigned long count);
+extern void lock_flocks(void);
+extern void unlock_flocks(void);
 #else /* !CONFIG_FILE_LOCKING */
 static inline int fcntl_getlk(struct file *file, struct flock __user *user)
 {
@@ -1277,6 +1271,14 @@ static inline int lock_may_write(struct inode *inode, loff_t start,
 	return 1;
 }
 
+static inline void lock_flocks(void)
+{
+}
+
+static inline void unlock_flocks(void)
+{
+}
+
 #endif /* !CONFIG_FILE_LOCKING */
 
 
@@ -1384,7 +1386,7 @@ struct super_block {
 	 * Saved mount options for lazy filesystems using
 	 * generic_show_options()
 	 */
-	char *s_options;
+	char __rcu *s_options;
 };
 
 extern struct timespec current_fs_time(struct super_block *sb);
@@ -2378,6 +2380,8 @@ extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 
 extern int generic_file_fsync(struct file *, int);
 
+extern int generic_check_addressable(unsigned, u64);
+
 #ifdef CONFIG_MIGRATION
 extern int buffer_migrate_page(struct address_space *,
 				struct page *, struct page *);
@@ -2454,6 +2458,7 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = simple_attr_read,					\
 	.write	 = simple_attr_write,					\
+	.llseek	 = generic_file_llseek,					\
 };
 
 static inline void __attribute__((format(printf, 1, 2)))

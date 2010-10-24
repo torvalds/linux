@@ -956,9 +956,9 @@ static void gelic_net_pass_skb_up(struct gelic_descr *descr,
 		    (!(data_error & GELIC_DESCR_DATA_ERROR_CHK_MASK)))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	/* update netdevice statistics */
 	netdev->stats.rx_packets++;

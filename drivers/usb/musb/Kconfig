@@ -45,6 +45,9 @@ config USB_MUSB_SOC
 comment "DaVinci 35x and 644x USB support"
 	depends on USB_MUSB_HDRC && ARCH_DAVINCI_DMx
 
+comment "DA8xx/OMAP-L1x USB support"
+	depends on USB_MUSB_HDRC && ARCH_DAVINCI_DA8XX
+
 comment "OMAP 243x high speed USB support"
 	depends on USB_MUSB_HDRC && ARCH_OMAP2430
 
@@ -56,6 +59,17 @@ comment "OMAP 44xx high speed USB support"
 
 comment "Blackfin high speed USB Support"
 	depends on USB_MUSB_HDRC && ((BF54x && !BF544) || (BF52x && !BF522 && !BF523))
+
+config USB_MUSB_AM35X
+	bool
+	depends on USB_MUSB_HDRC && !ARCH_OMAP2430 && !ARCH_OMAP4
+	select NOP_USB_XCEIV
+	default MACH_OMAP3517EVM
+	help
+	  Select this option if your platform is based on AM35x. As
+	  AM35x has an updated MUSB with CPPI4.1 DMA so this config
+	  is introduced to differentiate musb ip between OMAP3x and
+	  AM35x platforms.
 
 config USB_TUSB6010
 	boolean "TUSB 6010 support"
@@ -144,7 +158,7 @@ config USB_MUSB_HDRC_HCD
 config MUSB_PIO_ONLY
 	bool 'Disable DMA (always use PIO)'
 	depends on USB_MUSB_HDRC
-	default y if USB_TUSB6010
+	default USB_TUSB6010 || ARCH_DAVINCI_DA8XX || USB_MUSB_AM35X
 	help
 	  All data is copied between memory and FIFO by the CPU.
 	  DMA controllers are ignored.

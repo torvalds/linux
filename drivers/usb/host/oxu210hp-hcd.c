@@ -3696,7 +3696,7 @@ static void oxu_configuration(struct platform_device *pdev, void *base)
 static int oxu_verify_id(struct platform_device *pdev, void *base)
 {
 	u32 id;
-	char *bo[] = {
+	static const char * const bo[] = {
 		"reserved",
 		"128-pin LQFP",
 		"84-pin TFBGA",

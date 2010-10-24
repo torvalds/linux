@@ -118,6 +118,36 @@ xfs_trans_ijoin_ref(
 }
 
 /*
+ * Transactional inode timestamp update. Requires the inode to be locked and
+ * joined to the transaction supplied. Relies on the transaction subsystem to
+ * track dirty state and update/writeback the inode accordingly.
+ */
+void
+xfs_trans_ichgtime(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	int			flags)
+{
+	struct inode		*inode = VFS_I(ip);
+	timespec_t		tv;
+
+	ASSERT(tp);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	ASSERT(ip->i_transp == tp);
+
+	tv = current_fs_time(inode->i_sb);
+
+	if ((flags & XFS_ICHGTIME_MOD) &&
+	    !timespec_equal(&inode->i_mtime, &tv)) {
+		inode->i_mtime = tv;
+	}
+	if ((flags & XFS_ICHGTIME_CHG) &&
+	    !timespec_equal(&inode->i_ctime, &tv)) {
+		inode->i_ctime = tv;
+	}
+}
+
+/*
  * This is called to mark the fields indicated in fieldmask as needing
  * to be logged when the transaction is committed.  The inode must
  * already be associated with the given transaction.

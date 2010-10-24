@@ -43,7 +43,7 @@
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/pxa2xx_spi.h>
@@ -1301,8 +1301,6 @@ static void __init em_x270_init(void)
 
 MACHINE_START(EM_X270, "Compulab EM-X270")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
@@ -1311,8 +1309,6 @@ MACHINE_END
 
 MACHINE_START(EXEDA, "Compulab eXeda")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,

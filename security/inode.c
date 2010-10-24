@@ -53,6 +53,7 @@ static const struct file_operations default_file_ops = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
+	.llseek =	noop_llseek,
 };
 
 static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)

@@ -47,6 +47,7 @@
 #include <asm/rio.h>
 #include <asm/bios_ebda.h>
 #include <asm/x86_init.h>
+#include <asm/iommu_table.h>
 
 #ifdef CONFIG_CALGARY_IOMMU_ENABLED_BY_DEFAULT
 int use_calgary __read_mostly = 1;
@@ -1364,7 +1365,7 @@ static int __init calgary_iommu_init(void)
 	return 0;
 }
 
-void __init detect_calgary(void)
+int __init detect_calgary(void)
 {
 	int bus;
 	void *tbl;
@@ -1378,13 +1379,13 @@ void __init detect_calgary(void)
 	 * another HW IOMMU already, bail out.
 	 */
 	if (no_iommu || iommu_detected)
-		return;
+		return -ENODEV;
 
 	if (!use_calgary)
-		return;
+		return -ENODEV;
 
 	if (!early_pci_allowed())
-		return;
+		return -ENODEV;
 
 	printk(KERN_DEBUG "Calgary: detecting Calgary via BIOS EBDA area\n");
 
@@ -1410,13 +1411,13 @@ void __init detect_calgary(void)
 	if (!rio_table_hdr) {
 		printk(KERN_DEBUG "Calgary: Unable to locate Rio Grande table "
 		       "in EBDA - bailing!\n");
-		return;
+		return -ENODEV;
 	}
 
 	ret = build_detail_arrays();
 	if (ret) {
 		printk(KERN_DEBUG "Calgary: build_detail_arrays ret %d\n", ret);
-		return;
+		return -ENOMEM;
 	}
 
 	specified_table_size = determine_tce_table_size((is_kdump_kernel() ?
@@ -1464,7 +1465,7 @@ void __init detect_calgary(void)
 
 		x86_init.iommu.iommu_init = calgary_iommu_init;
 	}
-	return;
+	return calgary_found;
 
 cleanup:
 	for (--bus; bus >= 0; --bus) {
@@ -1473,6 +1474,7 @@ cleanup:
 		if (info->tce_space)
 			free_tce_table(info->tce_space);
 	}
+	return -ENOMEM;
 }
 
 static int __init calgary_parse_options(char *p)
@@ -1594,3 +1596,5 @@ static int __init calgary_fixup_tce_spaces(void)
  * and before device_initcall.
  */
 rootfs_initcall(calgary_fixup_tce_spaces);
+
+IOMMU_INIT_POST(detect_calgary);

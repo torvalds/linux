@@ -25,7 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -89,6 +89,7 @@ struct cpwd {
 	} devs[WD_NUMDEVS];
 };
 
+static DEFINE_MUTEX(cpwd_mutex);
 static struct cpwd *cpwd_device;
 
 /* Sun uses Altera PLD EPF8820ATC144-4
@@ -368,7 +369,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 {
 	struct cpwd *p = cpwd_device;
 
-	lock_kernel();
+	mutex_lock(&cpwd_mutex);
 	switch (iminor(inode)) {
 	case WD0_MINOR:
 	case WD1_MINOR:
@@ -376,7 +377,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 		break;
 
 	default:
-		unlock_kernel();
+		mutex_unlock(&cpwd_mutex);
 		return -ENODEV;
 	}
 
@@ -386,13 +387,13 @@ static int cpwd_open(struct inode *inode, struct file *f)
 				IRQF_SHARED, DRIVER_NAME, p)) {
 			printk(KERN_ERR PFX "Cannot register IRQ %d\n",
 				p->irq);
-			unlock_kernel();
+			mutex_unlock(&cpwd_mutex);
 			return -EBUSY;
 		}
 		p->initialized = true;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&cpwd_mutex);
 
 	return nonseekable_open(inode, f);
 }
@@ -482,9 +483,9 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
 	case WIOCSTART:
 	case WIOCSTOP:
 	case WIOCGSTAT:
-		lock_kernel();
+		mutex_lock(&cpwd_mutex);
 		rval = cpwd_ioctl(file, cmd, arg);
-		unlock_kernel();
+		mutex_unlock(&cpwd_mutex);
 		break;
 
 	/* everything else is handled by the generic compat layer */
@@ -524,6 +525,7 @@ static const struct file_operations cpwd_fops = {
 	.write =		cpwd_write,
 	.read =			cpwd_read,
 	.release =		cpwd_release,
+	.llseek =		no_llseek,
 };
 
 static int __devinit cpwd_probe(struct platform_device *op,

@@ -369,18 +369,21 @@ static const struct file_operations debug_async_fops = {
 	.open		= debug_async_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_periodic_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_periodic_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_registers_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_registers_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_lpm_fops = {
 	.owner		= THIS_MODULE,
@@ -388,6 +391,7 @@ static const struct file_operations debug_lpm_fops = {
 	.read		= debug_lpm_read,
 	.write		= debug_lpm_write,
 	.release	= debug_lpm_close,
+	.llseek		= noop_llseek,
 };
 
 static struct dentry *ehci_debug_root;

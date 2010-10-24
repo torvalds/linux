@@ -1557,8 +1557,6 @@ static int isp116x_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
-
 static int __devinit isp116x_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
@@ -1597,7 +1595,7 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 		ret = -EBUSY;
 		goto err1;
 	}
-	addr_reg = ioremap(addr->start, resource_len(addr));
+	addr_reg = ioremap(addr->start, resource_size(addr));
 	if (addr_reg == NULL) {
 		ret = -ENOMEM;
 		goto err2;
@@ -1606,7 +1604,7 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 		ret = -EBUSY;
 		goto err3;
 	}
-	data_reg = ioremap(data->start, resource_len(data));
+	data_reg = ioremap(data->start, resource_size(data));
 	if (data_reg == NULL) {
 		ret = -ENOMEM;
 		goto err4;

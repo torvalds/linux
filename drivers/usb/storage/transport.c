@@ -642,7 +642,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * unless the operation involved a data-in transfer.  Devices
 	 * can signal most data-in errors by stalling the bulk-in pipe.
 	 */
-	if ((us->protocol == US_PR_CB || us->protocol == US_PR_DPCM_USB) &&
+	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_DPCM_USB) &&
 			srb->sc_data_direction != DMA_FROM_DEVICE) {
 		US_DEBUGP("-- CB transport device requiring auto-sense\n");
 		need_auto_sense = 1;
@@ -701,8 +701,8 @@ Retry_Sense:
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sense_size);
 
 		/* FIXME: we must do the protocol translation here */
-		if (us->subclass == US_SC_RBC || us->subclass == US_SC_SCSI ||
-				us->subclass == US_SC_CYP_ATACB)
+		if (us->subclass == USB_SC_RBC || us->subclass == USB_SC_SCSI ||
+				us->subclass == USB_SC_CYP_ATACB)
 			srb->cmd_len = 6;
 		else
 			srb->cmd_len = 12;
@@ -926,7 +926,7 @@ int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* NOTE: CB does not have a status stage.  Silly, I know.  So
 	 * we have to catch this at a higher level.
 	 */
-	if (us->protocol != US_PR_CBI)
+	if (us->protocol != USB_PR_CBI)
 		return USB_STOR_TRANSPORT_GOOD;
 
 	result = usb_stor_intr_transfer(us, us->iobuf, 2);
@@ -942,7 +942,7 @@ int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * that this means we could be ignoring a real error on these
 	 * commands, but that can't be helped.
 	 */
-	if (us->subclass == US_SC_UFI) {
+	if (us->subclass == USB_SC_UFI) {
 		if (srb->cmnd[0] == REQUEST_SENSE ||
 		    srb->cmnd[0] == INQUIRY)
 			return USB_STOR_TRANSPORT_GOOD;

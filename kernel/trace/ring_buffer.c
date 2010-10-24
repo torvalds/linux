@@ -405,7 +405,7 @@ static inline int test_time_stamp(u64 delta)
 #define BUF_MAX_DATA_SIZE (BUF_PAGE_SIZE - (sizeof(u32) * 2))
 
 /* Max number of timestamps that can fit on a page */
-#define RB_TIMESTAMPS_PER_PAGE	(BUF_PAGE_SIZE / RB_LEN_TIME_STAMP)
+#define RB_TIMESTAMPS_PER_PAGE	(BUF_PAGE_SIZE / RB_LEN_TIME_EXTEND)
 
 int ring_buffer_print_page_header(struct trace_seq *s)
 {
@@ -2606,6 +2606,19 @@ void ring_buffer_record_enable_cpu(struct ring_buffer *buffer, int cpu)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_record_enable_cpu);
 
+/*
+ * The total entries in the ring buffer is the running counter
+ * of entries entered into the ring buffer, minus the sum of
+ * the entries read from the ring buffer and the number of
+ * entries that were overwritten.
+ */
+static inline unsigned long
+rb_num_of_entries(struct ring_buffer_per_cpu *cpu_buffer)
+{
+	return local_read(&cpu_buffer->entries) -
+		(local_read(&cpu_buffer->overrun) + cpu_buffer->read);
+}
+
 /**
  * ring_buffer_entries_cpu - get the number of entries in a cpu buffer
  * @buffer: The ring buffer
@@ -2614,16 +2627,13 @@ EXPORT_SYMBOL_GPL(ring_buffer_record_enable_cpu);
 unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
-	unsigned long ret;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return 0;
 
 	cpu_buffer = buffer->buffers[cpu];
-	ret = (local_read(&cpu_buffer->entries) - local_read(&cpu_buffer->overrun))
-		- cpu_buffer->read;
 
-	return ret;
+	return rb_num_of_entries(cpu_buffer);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_entries_cpu);
 
@@ -2684,8 +2694,7 @@ unsigned long ring_buffer_entries(struct ring_buffer *buffer)
 	/* if you care about this being correct, lock the buffer */
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
-		entries += (local_read(&cpu_buffer->entries) -
-			    local_read(&cpu_buffer->overrun)) - cpu_buffer->read;
+		entries += rb_num_of_entries(cpu_buffer);
 	}
 
 	return entries;
@@ -3965,6 +3974,7 @@ static const struct file_operations rb_simple_fops = {
 	.open		= tracing_open_generic,
 	.read		= rb_simple_read,
 	.write		= rb_simple_write,
+	.llseek		= default_llseek,
 };
 
 

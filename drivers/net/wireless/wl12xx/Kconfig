@@ -5,40 +5,6 @@ menuconfig WL12XX
 	  This will enable TI wl12xx driver support. The drivers make
 	  use of the mac80211 stack.
 
-config WL1251
-	tristate "TI wl1251 support"
-	depends on WL12XX && GENERIC_HARDIRQS
-	select FW_LOADER
-	select CRC7
-	---help---
-	  This module adds support for wireless adapters based on
-	  TI wl1251 chipset.
-
-	  If you choose to build a module, it'll be called wl1251. Say
-	  N if unsure.
-
-config WL1251_SPI
-	tristate "TI wl1251 SPI support"
-	depends on WL1251 && SPI_MASTER
-	---help---
-	  This module adds support for the SPI interface of adapters using
-	  TI wl1251 chipset.  Select this if your platform is using
-	  the SPI bus.
-
-	  If you choose to build a module, it'll be called wl1251_spi.
-	  Say N if unsure.
-
-config WL1251_SDIO
-	tristate "TI wl1251 SDIO support"
-	depends on WL1251 && MMC
-	---help---
-	  This module adds support for the SDIO interface of adapters using
-	  TI wl1251 chipset.  Select this if your platform is using
-	  the SDIO bus.
-
-	  If you choose to build a module, it'll be called
-	  wl1251_sdio. Say N if unsure.
-
 config WL1271
 	tristate "TI wl1271 support"
 	depends on WL12XX && GENERIC_HARDIRQS
@@ -74,4 +40,7 @@ config WL1271_SDIO
 	  If you choose to build a module, it'll be called
 	  wl1271_sdio. Say N if unsure.
 
-
+config WL12XX_PLATFORM_DATA
+	bool
+	depends on WL1271_SDIO != n
+	default y

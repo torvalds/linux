@@ -219,6 +219,7 @@ static struct drm_driver driver_old = {
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = radeon_compat_ioctl,
 #endif
+		 .llseek = noop_llseek,
 	},
 
 	.pci_driver = {

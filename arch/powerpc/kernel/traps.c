@@ -538,6 +538,11 @@ int machine_check_e500(struct pt_regs *regs)
 
 	return 0;
 }
+
+int machine_check_generic(struct pt_regs *regs)
+{
+	return 0;
+}
 #elif defined(CONFIG_E200)
 int machine_check_e200(struct pt_regs *regs)
 {

@@ -43,10 +43,11 @@ parameter is applicable:
 	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
-	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
+	DRM	Direct Rendering Management support is enabled.
+	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	FB	The frame buffer device is enabled.
 	GCOV	GCOV profiling is enabled.
 	HW	Appropriate hardware is enabled.
@@ -455,7 +456,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			[ARM] imx_timer1,OSTS,netx_timer,mpu_timer2,
 				pxa_timer,timer3,32k_counter,timer0_1
 			[AVR32] avr32
-			[X86-32] pit,hpet,tsc,vmi-timer;
+			[X86-32] pit,hpet,tsc;
 				scx200_hrt on Geode; cyclone on IBM x440
 			[MIPS] MIPS
 			[PARISC] cr16
@@ -569,6 +570,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			(one device per port)
 			Format: <port#>,<type>
 			See also Documentation/input/joystick-parport.txt
+
+	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
+			time. See Documentation/dynamic-debug-howto.txt for
+			details.
 
 	debug		[KNL] Enable kernel debugging (events log level).
 
@@ -2153,6 +2158,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			Reserves a hole at the top of the kernel virtual
 			address space.
 
+	reservelow=	[X86]
+			Format: nn[K]
+			Set the amount of memory to reserve for BIOS at
+			the bottom of the address space.
+
 	reset_devices	[KNL] Force drivers to reset the underlying device
 			during initialization.
 
@@ -2164,6 +2174,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			given by "resume=" at which the swap header is located,
 			in <PAGE_SIZE> units (needed only for swap files).
 			See  Documentation/power/swsusp-and-swap-files.txt
+
+	hibernate=	[HIBERNATION]
+		noresume	Don't check if there's a hibernation image
+				present during boot.
+		nocompress	Don't compress/decompress hibernation images.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
@@ -2360,6 +2375,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	switches=	[HW,M68k]
 
+	sysfs.deprecated=0|1 [KNL]
+			Enable/disable old style sysfs layout for old udev
+			on older distributions. When this option is enabled
+			very new udev will not work anymore. When this option
+			is disabled (or CONFIG_SYSFS_DEPRECATED not compiled)
+			in older udev will not work anymore.
+			Default depends on CONFIG_SYSFS_DEPRECATED_V2 set in
+			the kernel configuration.
+
 	sysrq_always_enabled
 			[KNL]
 			Ignore sysrq setting - this boot parameter will
@@ -2435,6 +2459,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			disables clocksource verification at runtime.
 			Used to enable high-resolution timer mode on older
 			hardware, and in virtualized environment.
+			[x86] noirqtime: Do not use TSC to do irq accounting.
+			Used to run time disable IRQ_TIME_ACCOUNTING on any
+			platforms where RDTSC is slow and this accounting
+			can add overhead.
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface

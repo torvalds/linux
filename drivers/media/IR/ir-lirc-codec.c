@@ -235,6 +235,7 @@ static struct file_operations lirc_fops = {
 	.poll		= lirc_dev_fop_poll,
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
+	.llseek		= no_llseek,
 };
 
 static int ir_lirc_register(struct input_dev *input_dev)
@@ -267,7 +268,7 @@ static int ir_lirc_register(struct input_dev *input_dev)
 			features |= LIRC_CAN_SET_SEND_CARRIER;
 
 		if (ir_dev->props->s_tx_duty_cycle)
-			features |= LIRC_CAN_SET_REC_DUTY_CYCLE;
+			features |= LIRC_CAN_SET_SEND_DUTY_CYCLE;
 	}
 
 	if (ir_dev->props->s_rx_carrier_range)

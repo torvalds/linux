@@ -495,7 +495,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 	lp->options |= options;
 	mutex_unlock(&lp->indirect_mutex);
 
-	return (0);
+	return 0;
 }
 
 /* Initialize temac */
@@ -761,7 +761,7 @@ static void ll_temac_recv(struct net_device *ndev)
 		skb_put(skb, length);
 		skb->dev = ndev;
 		skb->protocol = eth_type_trans(skb, ndev);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 		/* if we're doing rx csum offload, set it up */
 		if (((lp->temac_features & TEMAC_FEATURE_RX_CSUM) != 0) &&

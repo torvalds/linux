@@ -105,7 +105,7 @@ static inline void write_cr8(unsigned long x)
 }
 #endif
 
-static inline void raw_safe_halt(void)
+static inline void arch_safe_halt(void)
 {
 	PVOP_VCALL0(pv_irq_ops.safe_halt);
 }
@@ -416,11 +416,6 @@ static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)
 	PVOP_VCALL2(pv_mmu_ops.alloc_pmd, mm, pfn);
 }
 
-static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
-					    unsigned long start, unsigned long count)
-{
-	PVOP_VCALL4(pv_mmu_ops.alloc_pmd_clone, pfn, clonepfn, start, count);
-}
 static inline void paravirt_release_pmd(unsigned long pfn)
 {
 	PVOP_VCALL1(pv_mmu_ops.release_pmd, pfn);
@@ -829,32 +824,32 @@ static __always_inline void arch_spin_unlock(struct arch_spinlock *lock)
 #define __PV_IS_CALLEE_SAVE(func)			\
 	((struct paravirt_callee_save) { func })
 
-static inline unsigned long __raw_local_save_flags(void)
+static inline unsigned long arch_local_save_flags(void)
 {
 	return PVOP_CALLEE0(unsigned long, pv_irq_ops.save_fl);
 }
 
-static inline void raw_local_irq_restore(unsigned long f)
+static inline void arch_local_irq_restore(unsigned long f)
 {
 	PVOP_VCALLEE1(pv_irq_ops.restore_fl, f);
 }
 
-static inline void raw_local_irq_disable(void)
+static inline void arch_local_irq_disable(void)
 {
 	PVOP_VCALLEE0(pv_irq_ops.irq_disable);
 }
 
-static inline void raw_local_irq_enable(void)
+static inline void arch_local_irq_enable(void)
 {
 	PVOP_VCALLEE0(pv_irq_ops.irq_enable);
 }
 
-static inline unsigned long __raw_local_irq_save(void)
+static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long f;
 
-	f = __raw_local_save_flags();
-	raw_local_irq_disable();
+	f = arch_local_save_flags();
+	arch_local_irq_disable();
 	return f;
 }
 

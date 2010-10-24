@@ -81,9 +81,9 @@ struct dm_region_hash {
 	struct list_head failed_recovered_regions;
 
 	/*
-	 * If there was a barrier failure no regions can be marked clean.
+	 * If there was a flush failure no regions can be marked clean.
 	 */
-	int barrier_failure;
+	int flush_failure;
 
 	void *context;
 	sector_t target_begin;
@@ -217,7 +217,7 @@ struct dm_region_hash *dm_region_hash_create(
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
 	INIT_LIST_HEAD(&rh->failed_recovered_regions);
-	rh->barrier_failure = 0;
+	rh->flush_failure = 0;
 
 	rh->region_pool = mempool_create_kmalloc_pool(MIN_REGIONS,
 						      sizeof(struct dm_region));
@@ -399,8 +399,8 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	region_t region = dm_rh_bio_to_region(rh, bio);
 	int recovering = 0;
 
-	if (bio_empty_barrier(bio)) {
-		rh->barrier_failure = 1;
+	if (bio->bi_rw & REQ_FLUSH) {
+		rh->flush_failure = 1;
 		return;
 	}
 
@@ -524,7 +524,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 	struct bio *bio;
 
 	for (bio = bios->head; bio; bio = bio->bi_next) {
-		if (bio_empty_barrier(bio))
+		if (bio->bi_rw & REQ_FLUSH)
 			continue;
 		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
 	}
@@ -555,9 +555,9 @@ void dm_rh_dec(struct dm_region_hash *rh, region_t region)
 		 */
 
 		/* do nothing for DM_RH_NOSYNC */
-		if (unlikely(rh->barrier_failure)) {
+		if (unlikely(rh->flush_failure)) {
 			/*
-			 * If a write barrier failed some time ago, we
+			 * If a write flush failed some time ago, we
 			 * don't know whether or not this write made it
 			 * to the disk, so we must resync the device.
 			 */

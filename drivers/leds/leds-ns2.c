@@ -141,10 +141,12 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buff, size_t count)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct ns2_led_data *led_dat =
+		container_of(led_cdev, struct ns2_led_data, cdev);
 	int ret;
 	unsigned long enable;
 	enum ns2_led_modes mode;
-	struct ns2_led_data *led_dat = dev_get_drvdata(dev);
 
 	ret = strict_strtoul(buff, 10, &enable);
 	if (ret < 0)
@@ -172,7 +174,9 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 static ssize_t ns2_led_sata_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct ns2_led_data *led_dat = dev_get_drvdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct ns2_led_data *led_dat =
+		container_of(led_cdev, struct ns2_led_data, cdev);
 
 	return sprintf(buf, "%d\n", led_dat->sata);
 }
@@ -234,7 +238,6 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	if (ret < 0)
 		goto err_free_slow;
 
-	dev_set_drvdata(led_dat->cdev.dev, led_dat);
 	ret = device_create_file(led_dat->cdev.dev, &dev_attr_sata);
 	if (ret < 0)
 		goto err_free_cdev;

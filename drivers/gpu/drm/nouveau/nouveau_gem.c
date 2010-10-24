@@ -167,11 +167,9 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 		goto out;
 
 	ret = drm_gem_handle_create(file_priv, nvbo->gem, &req->info.handle);
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(nvbo->gem);
 out:
-	drm_gem_object_handle_unreference_unlocked(nvbo->gem);
-
-	if (ret)
-		drm_gem_object_unreference_unlocked(nvbo->gem);
 	return ret;
 }
 

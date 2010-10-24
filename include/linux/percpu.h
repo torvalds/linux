@@ -39,6 +39,15 @@
 	preempt_enable();				\
 } while (0)
 
+#define get_cpu_ptr(var) ({				\
+	preempt_disable();				\
+	this_cpu_ptr(var); })
+
+#define put_cpu_ptr(var) do {				\
+	(void)(var);					\
+	preempt_enable();				\
+} while (0)
+
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
 

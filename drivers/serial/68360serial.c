@@ -1381,6 +1381,30 @@ static void send_break(ser_info_t *info, unsigned int duration)
 }
 
 
+/*
+ * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+ * Return: write counters to the user passed counter struct
+ * NB: both 1->0 and 0->1 transitions are counted except for
+ *     RI where only 0->1 is counted.
+ */
+static int rs_360_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	ser_info_t *info = (ser_info_t *)tty->driver_data;
+	struct async_icount cnow;
+
+	local_irq_disable();
+	cnow = info->state->icount;
+	local_irq_enable();
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+
+	return 0;
+}
+
 static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
@@ -1394,7 +1418,7 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
@@ -1477,31 +1501,6 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 			return 0;
 #endif
 
-		/* 
-		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-		 * Return: write counters to the user passed counter struct
-		 * NB: both 1->0 and 0->1 transitions are counted except for
-		 *     RI where only 0->1 is counted.
-		 */
-		case TIOCGICOUNT:
-			local_irq_disable();
-			cnow = info->state->icount;
-			local_irq_enable();
-			p_cuser = (struct serial_icounter_struct *) arg;
-/* 			error = put_user(cnow.cts, &p_cuser->cts); */
-/* 			if (error) return error; */
-/* 			error = put_user(cnow.dsr, &p_cuser->dsr); */
-/* 			if (error) return error; */
-/* 			error = put_user(cnow.rng, &p_cuser->rng); */
-/* 			if (error) return error; */
-/* 			error = put_user(cnow.dcd, &p_cuser->dcd); */
-/* 			if (error) return error; */
-
-			put_user(cnow.cts, &p_cuser->cts);
-			put_user(cnow.dsr, &p_cuser->dsr);
-			put_user(cnow.rng, &p_cuser->rng);
-			put_user(cnow.dcd, &p_cuser->dcd);
-			return 0;
 
 		default:
 			return -ENOIOCTLCMD;

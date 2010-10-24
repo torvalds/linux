@@ -123,10 +123,14 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		bootrec = (struct bootrec *)&bootrec->data[len];
 	}
 
-	if (fw_version)
+	if (fw_version) {
 		wiphy_info(priv->hw->wiphy,
 			   "FW rev %s - Softmac protocol %x.%x\n",
 			   fw_version, priv->fw_var >> 8, priv->fw_var & 0xff);
+		snprintf(dev->wiphy->fw_version, sizeof(dev->wiphy->fw_version),
+				"%s - %x.%x", fw_version,
+				priv->fw_var >> 8, priv->fw_var & 0xff);
+	}
 
 	if (priv->fw_var < 0x500)
 		wiphy_info(priv->hw->wiphy,

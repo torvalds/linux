@@ -446,8 +446,6 @@ static void __init h3_map_io(void)
 
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	/* Maintainer: Texas Instruments, Inc. */
-	.phys_io	= 0xfff00000,
-	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= h3_map_io,
 	.reserve	= omap_reserve,

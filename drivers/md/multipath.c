@@ -142,8 +142,8 @@ static int multipath_make_request(mddev_t *mddev, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
-	if (unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
-		md_barrier_request(mddev, bio);
+	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+		md_flush_request(mddev, bio);
 		return 0;
 	}
 

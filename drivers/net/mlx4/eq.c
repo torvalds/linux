@@ -699,3 +699,47 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 
 	kfree(priv->eq_table.uar_map);
 }
+
+/* A test that verifies that we can accept interrupts on all
+ * the irq vectors of the device.
+ * Interrupts are checked using the NOP command.
+ */
+int mlx4_test_interrupts(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i;
+	int err;
+
+	err = mlx4_NOP(dev);
+	/* When not in MSI_X, there is only one irq to check */
+	if (!(dev->flags & MLX4_FLAG_MSI_X))
+		return err;
+
+	/* A loop over all completion vectors, for each vector we will check
+	 * whether it works by mapping command completions to that vector
+	 * and performing a NOP command
+	 */
+	for(i = 0; !err && (i < dev->caps.num_comp_vectors); ++i) {
+		/* Temporary use polling for command completions */
+		mlx4_cmd_use_polling(dev);
+
+		/* Map the new eq to handle all asyncronous events */
+		err = mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+				  priv->eq_table.eq[i].eqn);
+		if (err) {
+			mlx4_warn(dev, "Failed mapping eq for interrupt test\n");
+			mlx4_cmd_use_events(dev);
+			break;
+		}
+
+		/* Go back to using events */
+		mlx4_cmd_use_events(dev);
+		err = mlx4_NOP(dev);
+	}
+
+	/* Return to default */
+	mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+		    priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_test_interrupts);

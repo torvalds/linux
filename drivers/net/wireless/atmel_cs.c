@@ -42,7 +42,6 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -64,23 +63,8 @@ MODULE_SUPPORTED_DEVICE("Atmel at76c50x PCMCIA cards");
 
 /*====================================================================*/
 
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the atmel_cs
-   event handler.
-*/
-
 static int atmel_config(struct pcmcia_device *link);
 static void atmel_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
 
 static void atmel_detach(struct pcmcia_device *p_dev);
 
@@ -88,33 +72,11 @@ typedef struct local_info_t {
 	struct net_device *eth_dev;
 } local_info_t;
 
-/*======================================================================
-
-  atmel_attach() creates an "instance" of the driver, allocating
-  local data structures for one device.  The device is registered
-  with Card Services.
-
-  The dev_link structure is initialized, but we don't actually
-  configure the card at this point -- we wait until we receive a
-  card insertion event.
-
-  ======================================================================*/
-
 static int atmel_probe(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 
 	dev_dbg(&p_dev->dev, "atmel_attach()\n");
-
-	/*
-	  General socket configuration defaults can go here.  In this
-	  client, we assume very little, and rely on the CIS for almost
-	  everything.  In most clients, many details (i.e., number, sizes,
-	  and attributes of IO windows) are fixed by the nature of the
-	  device, and can be hard-wired here.
-	*/
-	p_dev->conf.Attributes = 0;
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
@@ -127,15 +89,6 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 	return atmel_config(p_dev);
 } /* atmel_attach */
 
-/*======================================================================
-
-  This deletes a driver "instance".  The device is de-registered
-  with Card Services.  If it has been released, all local data
-  structures are freed.  Otherwise, the structures will be freed
-  when the device is released.
-
-  ======================================================================*/
-
 static void atmel_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "atmel_detach\n");
@@ -144,14 +97,6 @@ static void atmel_detach(struct pcmcia_device *link)
 
 	kfree(link->priv);
 }
-
-/*======================================================================
-
-  atmel_config() is scheduled to run after a CARD_INSERTION event
-  is received, to configure the PCMCIA socket, and to make the
-  device available to the system.
-
-  ======================================================================*/
 
 /* Call-back function to interrogate PCMCIA-specific information
    about the current existance of the card */
@@ -165,47 +110,11 @@ static int card_present(void *arg)
 	return 0;
 }
 
-static int atmel_config_check(struct pcmcia_device *p_dev,
-			      cistpl_cftable_entry_t *cfg,
-			      cistpl_cftable_entry_t *dflt,
-			      unsigned int vcc,
-			      void *priv_data)
+static int atmel_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
-
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-					pcmcia_io_cfg_data_width(io->flags);
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-	}
-
-	/* This reserves IO space but doesn't actually enable it */
 	return pcmcia_request_io(p_dev);
 }
 
@@ -220,18 +129,9 @@ static int atmel_config(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "atmel_config\n");
 
-	/*
-	  In this loop, we scan the CIS for configuration table entries,
-	  each of which describes a valid card configuration, including
-	  voltage, IO window, memory window, and interrupt settings.
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
+		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
 
-	  We make no assumptions about the card to be configured: we use
-	  just the information available in the CIS.  In an ideal world,
-	  this would work for any PCMCIA card, but it requires a complete
-	  and accurate CIS.  In practice, a driver usually "knows" most of
-	  these things without consulting the CIS, and most client drivers
-	  will only use the CIS to fill in implementation-defined details.
-	*/
 	if (pcmcia_loop_config(link, atmel_config_check, NULL))
 		goto failed;
 
@@ -240,12 +140,7 @@ static int atmel_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	  This actually configures the PCMCIA socket -- setting up
-	  the I/O windows and the interrupt mapping, and putting the
-	  card and host interface into "Memory and IO" mode.
-	*/
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -266,14 +161,6 @@ static int atmel_config(struct pcmcia_device *link)
 	atmel_release(link);
 	return -ENODEV;
 }
-
-/*======================================================================
-
-  After a card is removed, atmel_release() will unregister the
-  device, and release the PCMCIA configuration.  If the device is
-  still open, this will be postponed until it is closed.
-
-  ======================================================================*/
 
 static void atmel_release(struct pcmcia_device *link)
 {
@@ -353,9 +240,7 @@ MODULE_DEVICE_TABLE(pcmcia, atmel_ids);
 
 static struct pcmcia_driver atmel_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "atmel_cs",
-        },
+	.name		= "atmel_cs",
 	.probe          = atmel_probe,
 	.remove		= atmel_detach,
 	.id_table	= atmel_ids,
@@ -363,12 +248,12 @@ static struct pcmcia_driver atmel_driver = {
 	.resume		= atmel_resume,
 };
 
-static int atmel_cs_init(void)
+static int __init atmel_cs_init(void)
 {
         return pcmcia_register_driver(&atmel_driver);
 }
 
-static void atmel_cs_cleanup(void)
+static void __exit atmel_cs_cleanup(void)
 {
         pcmcia_unregister_driver(&atmel_driver);
 }

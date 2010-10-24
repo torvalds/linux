@@ -197,6 +197,8 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 	wdev->wext.connect.ssid_len = len;
 
 	wdev->wext.connect.crypto.control_port = false;
+	wdev->wext.connect.crypto.control_port_ethertype =
+					cpu_to_be16(ETH_P_PAE);
 
 	err = cfg80211_mgd_wext_connect(rdev, wdev);
  out:

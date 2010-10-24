@@ -257,7 +257,7 @@
 #include <linux/fs.h>		/* everything... */
 #include <linux/errno.h>	/* error codes */
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -277,6 +277,7 @@
 #define TYPE(inode) (iminor(inode) >> 4)
 #define NUM(inode) (iminor(inode) & 0xf)
 
+static DEFINE_MUTEX(ixj_mutex);
 static int ixjdebug;
 static int hertz = HZ;
 static int samplerate = 100;
@@ -6655,9 +6656,9 @@ static long do_ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long ar
 static long ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&ixj_mutex);
 	ret = do_ixj_ioctl(file_p, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ixj_mutex);
 	return ret;
 }
 
@@ -6676,7 +6677,8 @@ static const struct file_operations ixj_fops =
         .poll           = ixj_poll,
         .unlocked_ioctl = ixj_ioctl,
         .release        = ixj_release,
-        .fasync         = ixj_fasync
+        .fasync         = ixj_fasync,
+        .llseek	 = default_llseek,
 };
 
 static int ixj_linetest(IXJ *j)

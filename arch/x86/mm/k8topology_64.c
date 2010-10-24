@@ -11,6 +11,8 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/nodemask.h>
+#include <linux/memblock.h>
+
 #include <asm/io.h>
 #include <linux/pci_ids.h>
 #include <linux/acpi.h>
@@ -22,7 +24,7 @@
 #include <asm/numa.h>
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 static struct bootnode __initdata nodes[8];
 static nodemask_t __initdata nodes_parsed = NODE_MASK_NONE;
@@ -54,8 +56,8 @@ static __init int find_northbridge(void)
 static __init void early_get_boot_cpu_id(void)
 {
 	/*
-	 * need to get boot_cpu_id so can use that to create apicid_to_node
-	 * in k8_scan_nodes()
+	 * need to get the APIC ID of the BSP so can use that to
+	 * create apicid_to_node in k8_scan_nodes()
 	 */
 #ifdef CONFIG_X86_MPPARSE
 	/*
@@ -212,7 +214,7 @@ int __init k8_scan_nodes(void)
 	bits = boot_cpu_data.x86_coreid_bits;
 	cores = (1<<bits);
 	apicid_base = 0;
-	/* need to get boot_cpu_id early for system with apicid lifting */
+	/* get the APIC ID of the BSP early for systems with apicid lifting */
 	early_get_boot_cpu_id();
 	if (boot_cpu_physical_apicid > 0) {
 		pr_info("BSP APIC ID: %02x\n", boot_cpu_physical_apicid);
@@ -222,7 +224,7 @@ int __init k8_scan_nodes(void)
 	for_each_node_mask(i, node_possible_map) {
 		int j;
 
-		e820_register_active_regions(i,
+		memblock_x86_register_active_regions(i,
 				nodes[i].start >> PAGE_SHIFT,
 				nodes[i].end >> PAGE_SHIFT);
 		for (j = apicid_base; j < cores + apicid_base; j++)

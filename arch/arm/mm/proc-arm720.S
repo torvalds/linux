@@ -113,7 +113,7 @@ ENTRY(cpu_arm720_reset)
 		mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 		mov	pc, r0
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm710_setup, #function
 __arm710_setup:

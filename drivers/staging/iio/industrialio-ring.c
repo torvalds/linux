@@ -133,6 +133,7 @@ static const struct file_operations iio_ring_fileops = {
 	.release = iio_ring_release,
 	.open = iio_ring_open,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 /**

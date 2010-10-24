@@ -52,19 +52,19 @@ int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	/* Clone setup for peripheral interrupt sources from CoreA. */
-	bfin_write_SICB_IMASK0(bfin_read_SICA_IMASK0());
-	bfin_write_SICB_IMASK1(bfin_read_SICA_IMASK1());
+	bfin_write_SICB_IMASK0(bfin_read_SIC_IMASK0());
+	bfin_write_SICB_IMASK1(bfin_read_SIC_IMASK1());
 	SSYNC();
 
 	/* Clone setup for IARs from CoreA. */
-	bfin_write_SICB_IAR0(bfin_read_SICA_IAR0());
-	bfin_write_SICB_IAR1(bfin_read_SICA_IAR1());
-	bfin_write_SICB_IAR2(bfin_read_SICA_IAR2());
-	bfin_write_SICB_IAR3(bfin_read_SICA_IAR3());
-	bfin_write_SICB_IAR4(bfin_read_SICA_IAR4());
-	bfin_write_SICB_IAR5(bfin_read_SICA_IAR5());
-	bfin_write_SICB_IAR6(bfin_read_SICA_IAR6());
-	bfin_write_SICB_IAR7(bfin_read_SICA_IAR7());
+	bfin_write_SICB_IAR0(bfin_read_SIC_IAR0());
+	bfin_write_SICB_IAR1(bfin_read_SIC_IAR1());
+	bfin_write_SICB_IAR2(bfin_read_SIC_IAR2());
+	bfin_write_SICB_IAR3(bfin_read_SIC_IAR3());
+	bfin_write_SICB_IAR4(bfin_read_SIC_IAR4());
+	bfin_write_SICB_IAR5(bfin_read_SIC_IAR5());
+	bfin_write_SICB_IAR6(bfin_read_SIC_IAR6());
+	bfin_write_SICB_IAR7(bfin_read_SIC_IAR7());
 	bfin_write_SICB_IWR0(IWR_DISABLE_ALL);
 	bfin_write_SICB_IWR1(IWR_DISABLE_ALL);
 	SSYNC();
@@ -86,12 +86,12 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 
 	spin_lock(&boot_lock);
 
-	if ((bfin_read_SICA_SYSCR() & COREB_SRAM_INIT) == 0) {
+	if ((bfin_read_SIC_SYSCR() & COREB_SRAM_INIT) == 0) {
 		/* CoreB already running, sending ipi to wakeup it */
 		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
 	} else {
 		/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
-		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~COREB_SRAM_INIT);
+		bfin_write_SIC_SYSCR(bfin_read_SIC_SYSCR() & ~COREB_SRAM_INIT);
 		SSYNC();
 	}
 

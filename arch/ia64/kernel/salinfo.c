@@ -354,6 +354,7 @@ retry:
 static const struct file_operations salinfo_event_fops = {
 	.open  = salinfo_event_open,
 	.read  = salinfo_event_read,
+	.llseek = noop_llseek,
 };
 
 static int
@@ -571,6 +572,7 @@ static const struct file_operations salinfo_data_fops = {
 	.release = salinfo_log_release,
 	.read    = salinfo_log_read,
 	.write   = salinfo_log_write,
+	.llseek  = default_llseek,
 };
 
 static int __cpuinit
@@ -642,7 +644,7 @@ salinfo_init(void)
 	for (i = 0; i < ARRAY_SIZE(salinfo_log_name); i++) {
 		data = salinfo_data + i;
 		data->type = i;
-		init_MUTEX(&data->mutex);
+		sema_init(&data->mutex, 1);
 		dir = proc_mkdir(salinfo_log_name[i], salinfo_dir);
 		if (!dir)
 			continue;

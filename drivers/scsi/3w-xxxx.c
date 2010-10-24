@@ -199,7 +199,6 @@
 
 #include <linux/module.h>
 #include <linux/reboot.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
@@ -221,6 +220,7 @@
 
 /* Globals */
 #define TW_DRIVER_VERSION "1.26.02.003"
+static DEFINE_MUTEX(tw_mutex);
 static TW_Device_Extension *tw_device_extension_list[TW_MAX_SLOT];
 static int tw_device_extension_count = 0;
 static int twe_major = -1;
@@ -900,10 +900,10 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
 	dprintk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl()\n");
 
-	lock_kernel();
+	mutex_lock(&tw_mutex);
 	/* Only let one of these through at a time */
 	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
-		unlock_kernel();
+		mutex_unlock(&tw_mutex);
 		return -EINTR;
 	}
 
@@ -1034,7 +1034,7 @@ out2:
 	dma_free_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted+sizeof(TW_New_Ioctl) - 1, cpu_addr, dma_handle);
 out:
 	mutex_unlock(&tw_dev->ioctl_lock);
-	unlock_kernel();
+	mutex_unlock(&tw_mutex);
 	return retval;
 } /* End tw_chrdev_ioctl() */
 
@@ -1044,7 +1044,6 @@ static int tw_chrdev_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor_number;
 
-	cycle_kernel_lock();
 	dprintk(KERN_WARNING "3w-xxxx: tw_ioctl_open()\n");
 
 	minor_number = iminor(inode);
@@ -1059,7 +1058,8 @@ static const struct file_operations tw_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= tw_chrdev_ioctl,
 	.open		= tw_chrdev_open,
-	.release	= NULL
+	.release	= NULL,
+	.llseek		= noop_llseek,
 };
 
 /* This function will free up device extension resources */

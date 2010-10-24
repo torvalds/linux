@@ -25,14 +25,17 @@ config X86
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS if (!M386 && !M486)
+	select HAVE_IRQ_WORK
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
+	select HAVE_MEMBLOCK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_DMA_ATTRS
 	select HAVE_KRETPROBES
 	select HAVE_OPTPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_C_RECORDMCOUNT
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -59,6 +62,12 @@ config X86
 	select ANON_INODES
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_USER_RETURN_NOTIFIER
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_TEXT_POKE_SMP
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_SPARSE_IRQ
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PENDING_IRQ if SMP
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -193,26 +202,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config HAVE_EARLY_RES
-	def_bool y
-
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on EXPERIMENTAL && DMAR && ACPI
-
-# Use the generic interrupt handling code in kernel/irq/:
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-       def_bool y
-
-config GENERIC_IRQ_PROBE
-	def_bool y
-
-config GENERIC_PENDING_IRQ
-	def_bool y
-	depends on GENERIC_HARDIRQS && SMP
 
 config USE_GENERIC_SMP_HELPERS
 	def_bool y
@@ -295,23 +287,6 @@ config X86_X2APIC
 	  and accesses the local apic via MSRs not via mmio.
 
 	  If you don't know what to do here, say N.
-
-config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on PCI_MSI || HT_IRQ
-	---help---
-	  This enables support for sparse irqs. This is useful for distro
-	  kernels that want to define a high CONFIG_NR_CPUS value but still
-	  want to have low kernel memory footprint on smaller machines.
-
-	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
-	    out the irq_desc[] array in a more NUMA-friendly way. )
-
-	  If you don't know what to do here, say N.
-
-config NUMA_IRQ_DESC
-	def_bool y
-	depends on SPARSE_IRQ && NUMA
 
 config X86_MPPARSE
 	bool "Enable MPS table" if ACPI
@@ -517,25 +492,6 @@ if PARAVIRT_GUEST
 
 source "arch/x86/xen/Kconfig"
 
-config VMI
-	bool "VMI Guest support (DEPRECATED)"
-	select PARAVIRT
-	depends on X86_32
-	---help---
-	  VMI provides a paravirtualized interface to the VMware ESX server
-	  (it could be used by other hypervisors in theory too, but is not
-	  at the moment), by linking the kernel to a GPL-ed ROM module
-	  provided by the hypervisor.
-
-	  As of September 2009, VMware has started a phased retirement
-	  of this feature from VMware's products. Please see
-	  feature-removal-schedule.txt for details.  If you are
-	  planning to enable this option, please note that you cannot
-	  live migrate a VMI enabled VM to a future VMware product,
-	  which doesn't support VMI. So if you expect your kernel to
-	  seamlessly migrate to newer VMware products, keep this
-	  disabled.
-
 config KVM_CLOCK
 	bool "KVM paravirtualized clock"
 	select PARAVIRT
@@ -590,16 +546,7 @@ config PARAVIRT_DEBUG
 	  a paravirt_op is missing when it is called.
 
 config NO_BOOTMEM
-	default y
-	bool "Disable Bootmem code"
-	---help---
-	  Use early_res directly instead of bootmem before slab is ready.
-		- allocator (buddy) [generic]
-		- early allocator (bootmem) [generic]
-		- very early allocator (reserve_early*()) [x86]
-		- very very early allocator (early brk model) [x86]
-	  So reduce one layer between early allocator to final allocator
-
+	def_bool y
 
 config MEMTEST
 	bool "Memtest"
@@ -670,7 +617,7 @@ config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
-	depends on X86_64 && PCI && K8_NB
+	depends on X86_64 && PCI && AMD_NB
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
@@ -794,6 +741,17 @@ config SCHED_MC
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
+
+config IRQ_TIME_ACCOUNTING
+	bool "Fine granularity task level IRQ time accounting"
+	default n
+	---help---
+	  Select this option to enable fine granularity task irq time
+	  accounting. This is done by reading a timestamp on each
+	  transitions between softirq and hardirq state, so there can be a
+	  small performance impact.
+
+	  If in doubt, say N here.
 
 source "kernel/Kconfig.preempt"
 
@@ -1148,6 +1106,9 @@ config X86_PAE
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool X86_64 || X86_PAE
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool X86_64 || HIGHMEM64G
+
 config DIRECT_GBPAGES
 	bool "Enable 1GB pages for kernel pagetables" if EMBEDDED
 	default y
@@ -1326,25 +1287,34 @@ config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
 	  Set whether the default state of memory_corruption_check is
 	  on or off.
 
-config X86_RESERVE_LOW_64K
-	bool "Reserve low 64K of RAM on AMI/Phoenix BIOSen"
-	default y
+config X86_RESERVE_LOW
+	int "Amount of low memory, in kilobytes, to reserve for the BIOS"
+	default 64
+	range 4 640
 	---help---
-	  Reserve the first 64K of physical RAM on BIOSes that are known
-	  to potentially corrupt that memory range. A numbers of BIOSes are
-	  known to utilize this area during suspend/resume, so it must not
-	  be used by the kernel.
+	  Specify the amount of low memory to reserve for the BIOS.
 
-	  Set this to N if you are absolutely sure that you trust the BIOS
-	  to get all its memory reservations and usages right.
+	  The first page contains BIOS data structures that the kernel
+	  must not use, so that page must always be reserved.
 
-	  If you have doubts about the BIOS (e.g. suspend/resume does not
-	  work or there's kernel crashes after certain hardware hotplug
-	  events) and it's not AMI or Phoenix, then you might want to enable
-	  X86_CHECK_BIOS_CORRUPTION=y to allow the kernel to check typical
-	  corruption patterns.
+	  By default we reserve the first 64K of physical RAM, as a
+	  number of BIOSes are known to corrupt that memory range
+	  during events such as suspend/resume or monitor cable
+	  insertion, so it must not be used by the kernel.
 
-	  Say Y if unsure.
+	  You can set this to 4 if you are absolutely sure that you
+	  trust the BIOS to get all its memory reservations and usages
+	  right.  If you know your BIOS have problems beyond the
+	  default 64K area, you can set this to 640 to avoid using the
+	  entire low memory range.
+
+	  If you have doubts about the BIOS (e.g. suspend/resume does
+	  not work or there's kernel crashes after certain hardware
+	  hotplug events) then you might want to enable
+	  X86_CHECK_BIOS_CORRUPTION=y to allow the kernel to check
+	  typical corruption patterns.
+
+	  Leave this to the default value of 64 if you are unsure.
 
 config MATH_EMULATION
 	bool
@@ -1900,7 +1870,7 @@ config PCI_GODIRECT
 	bool "Direct"
 
 config PCI_GOOLPC
-	bool "OLPC"
+	bool "OLPC XO-1"
 	depends on OLPC
 
 config PCI_GOANY
@@ -2061,14 +2031,21 @@ config SCx200HR_TIMER
 config OLPC
 	bool "One Laptop Per Child support"
 	select GPIOLIB
+	select OLPC_OPENFIRMWARE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
 
+config OLPC_XO1
+	tristate "OLPC XO-1 support"
+	depends on OLPC && PCI
+	---help---
+	  Add support for non-essential features of the OLPC XO-1 laptop.
+
 config OLPC_OPENFIRMWARE
 	bool "Support for OLPC's Open Firmware"
 	depends on !X86_64 && !X86_PAE
-	default y if OLPC
+	default n
 	help
 	  This option adds support for the implementation of Open Firmware
 	  that is used on the OLPC XO-1 Children's Machine.
@@ -2076,7 +2053,7 @@ config OLPC_OPENFIRMWARE
 
 endif # X86_32
 
-config K8_NB
+config AMD_NB
 	def_bool y
 	depends on CPU_SUP_AMD && PCI
 
@@ -2124,6 +2101,10 @@ endmenu
 config HAVE_ATOMIC_IOMAP
 	def_bool y
 	depends on X86_32
+
+config HAVE_TEXT_POKE_SMP
+	bool
+	select STOP_MACHINE if SMP
 
 source "net/Kconfig"
 

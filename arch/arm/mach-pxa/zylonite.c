@@ -30,7 +30,7 @@
 #include <mach/zylonite.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "devices.h"
@@ -411,10 +411,9 @@ static void __init zylonite_init(void)
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ZYLONITE_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zylonite_init,

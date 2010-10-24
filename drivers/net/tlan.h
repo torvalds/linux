@@ -442,7 +442,7 @@ typedef struct tlan_private_tag {
 static inline u8 TLan_DioRead8(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
-	return (inb((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x3)));
+	return inb((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x3));
 
 } /* TLan_DioRead8 */
 
@@ -452,7 +452,7 @@ static inline u8 TLan_DioRead8(u16 base_addr, u16 internal_addr)
 static inline u16 TLan_DioRead16(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
-	return (inw((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x2)));
+	return inw((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x2));
 
 } /* TLan_DioRead16 */
 
@@ -462,7 +462,7 @@ static inline u16 TLan_DioRead16(u16 base_addr, u16 internal_addr)
 static inline u32 TLan_DioRead32(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
-	return (inl(base_addr + TLAN_DIO_DATA));
+	return inl(base_addr + TLAN_DIO_DATA);
 
 } /* TLan_DioRead32 */
 
@@ -537,6 +537,6 @@ static inline u32 TLan_HashFunc( const u8 *a )
         hash ^= ((a[2]^a[5])<<4);       /* & 060 */
         hash ^= ((a[2]^a[5])>>2);       /* & 077 */
 
-        return (hash & 077);
+        return hash & 077;
 }
 #endif

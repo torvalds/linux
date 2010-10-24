@@ -627,8 +627,6 @@ void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 
 	pcmcia_unregister_socket(&skt->socket);
 
-	flush_scheduled_work();
-
 	skt->ops->hw_shutdown(skt);
 
 	soc_common_pcmcia_config_skt(skt, &dead_socket);
@@ -720,8 +718,6 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	pcmcia_unregister_socket(&skt->socket);
 
  out_err_7:
-	flush_scheduled_work();
-
 	skt->ops->hw_shutdown(skt);
  out_err_6:
 	list_del(&skt->node);

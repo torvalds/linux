@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/jump_label.h>
 
 extern struct tracepoint __start___tracepoints[];
 extern struct tracepoint __stop___tracepoints[];
@@ -263,7 +264,13 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 	 * is used.
 	 */
 	rcu_assign_pointer(elem->funcs, (*entry)->funcs);
-	elem->state = active;
+	if (!elem->state && active) {
+		jump_label_enable(&elem->state);
+		elem->state = active;
+	} else if (elem->state && !active) {
+		jump_label_disable(&elem->state);
+		elem->state = active;
+	}
 }
 
 /*
@@ -277,7 +284,10 @@ static void disable_tracepoint(struct tracepoint *elem)
 	if (elem->unregfunc && elem->state)
 		elem->unregfunc();
 
-	elem->state = 0;
+	if (elem->state) {
+		jump_label_disable(&elem->state);
+		elem->state = 0;
+	}
 	rcu_assign_pointer(elem->funcs, NULL);
 }
 

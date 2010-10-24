@@ -24,10 +24,12 @@
 #include <linux/swapops.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/lzo.h>
+#include <linux/vmalloc.h>
 
 #include "power.h"
 
-#define SWSUSP_SIG	"S1SUSPEND"
+#define HIBERNATE_SIG	"LINHIB0001"
 
 /*
  *	The swap map is a data structure used for keeping track of each page
@@ -193,7 +195,7 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 	if (!memcmp("SWAP-SPACE",swsusp_header->sig, 10) ||
 	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
-		memcpy(swsusp_header->sig,SWSUSP_SIG, 10);
+		memcpy(swsusp_header->sig, HIBERNATE_SIG, 10);
 		swsusp_header->image = handle->first_sector;
 		swsusp_header->flags = flags;
 		error = hib_bio_write_page(swsusp_resume_block,
@@ -357,6 +359,18 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 	return error;
 }
 
+/* We need to remember how much compressed data we need to read. */
+#define LZO_HEADER	sizeof(size_t)
+
+/* Number of pages/bytes we'll compress at one time. */
+#define LZO_UNC_PAGES	32
+#define LZO_UNC_SIZE	(LZO_UNC_PAGES * PAGE_SIZE)
+
+/* Number of pages/bytes we need for compressed data (worst case). */
+#define LZO_CMP_PAGES	DIV_ROUND_UP(lzo1x_worst_compress(LZO_UNC_SIZE) + \
+			             LZO_HEADER, PAGE_SIZE)
+#define LZO_CMP_SIZE	(LZO_CMP_PAGES * PAGE_SIZE)
+
 /**
  *	save_image - save the suspend image data
  */
@@ -404,6 +418,137 @@ static int save_image(struct swap_map_handle *handle,
 	return ret;
 }
 
+
+/**
+ * save_image_lzo - Save the suspend image data compressed with LZO.
+ * @handle: Swap mam handle to use for saving the image.
+ * @snapshot: Image to read data from.
+ * @nr_to_write: Number of pages to save.
+ */
+static int save_image_lzo(struct swap_map_handle *handle,
+                          struct snapshot_handle *snapshot,
+                          unsigned int nr_to_write)
+{
+	unsigned int m;
+	int ret = 0;
+	int nr_pages;
+	int err2;
+	struct bio *bio;
+	struct timeval start;
+	struct timeval stop;
+	size_t off, unc_len, cmp_len;
+	unsigned char *unc, *cmp, *wrk, *page;
+
+	page = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
+	if (!page) {
+		printk(KERN_ERR "PM: Failed to allocate LZO page\n");
+		return -ENOMEM;
+	}
+
+	wrk = vmalloc(LZO1X_1_MEM_COMPRESS);
+	if (!wrk) {
+		printk(KERN_ERR "PM: Failed to allocate LZO workspace\n");
+		free_page((unsigned long)page);
+		return -ENOMEM;
+	}
+
+	unc = vmalloc(LZO_UNC_SIZE);
+	if (!unc) {
+		printk(KERN_ERR "PM: Failed to allocate LZO uncompressed\n");
+		vfree(wrk);
+		free_page((unsigned long)page);
+		return -ENOMEM;
+	}
+
+	cmp = vmalloc(LZO_CMP_SIZE);
+	if (!cmp) {
+		printk(KERN_ERR "PM: Failed to allocate LZO compressed\n");
+		vfree(unc);
+		vfree(wrk);
+		free_page((unsigned long)page);
+		return -ENOMEM;
+	}
+
+	printk(KERN_INFO
+		"PM: Compressing and saving image data (%u pages) ...     ",
+		nr_to_write);
+	m = nr_to_write / 100;
+	if (!m)
+		m = 1;
+	nr_pages = 0;
+	bio = NULL;
+	do_gettimeofday(&start);
+	for (;;) {
+		for (off = 0; off < LZO_UNC_SIZE; off += PAGE_SIZE) {
+			ret = snapshot_read_next(snapshot);
+			if (ret < 0)
+				goto out_finish;
+
+			if (!ret)
+				break;
+
+			memcpy(unc + off, data_of(*snapshot), PAGE_SIZE);
+
+			if (!(nr_pages % m))
+				printk(KERN_CONT "\b\b\b\b%3d%%", nr_pages / m);
+			nr_pages++;
+		}
+
+		if (!off)
+			break;
+
+		unc_len = off;
+		ret = lzo1x_1_compress(unc, unc_len,
+		                       cmp + LZO_HEADER, &cmp_len, wrk);
+		if (ret < 0) {
+			printk(KERN_ERR "PM: LZO compression failed\n");
+			break;
+		}
+
+		if (unlikely(!cmp_len ||
+		             cmp_len > lzo1x_worst_compress(unc_len))) {
+			printk(KERN_ERR "PM: Invalid LZO compressed length\n");
+			ret = -1;
+			break;
+		}
+
+		*(size_t *)cmp = cmp_len;
+
+		/*
+		 * Given we are writing one page at a time to disk, we copy
+		 * that much from the buffer, although the last bit will likely
+		 * be smaller than full page. This is OK - we saved the length
+		 * of the compressed data, so any garbage at the end will be
+		 * discarded when we read it.
+		 */
+		for (off = 0; off < LZO_HEADER + cmp_len; off += PAGE_SIZE) {
+			memcpy(page, cmp + off, PAGE_SIZE);
+
+			ret = swap_write_page(handle, page, &bio);
+			if (ret)
+				goto out_finish;
+		}
+	}
+
+out_finish:
+	err2 = hib_wait_on_bio_chain(&bio);
+	do_gettimeofday(&stop);
+	if (!ret)
+		ret = err2;
+	if (!ret)
+		printk(KERN_CONT "\b\b\b\bdone\n");
+	else
+		printk(KERN_CONT "\n");
+	swsusp_show_speed(&start, &stop, nr_to_write, "Wrote");
+
+	vfree(cmp);
+	vfree(unc);
+	vfree(wrk);
+	free_page((unsigned long)page);
+
+	return ret;
+}
+
 /**
  *	enough_swap - Make sure we have enough swap to save the image.
  *
@@ -411,12 +556,16 @@ static int save_image(struct swap_map_handle *handle,
  *	space avaiable from the resume partition.
  */
 
-static int enough_swap(unsigned int nr_pages)
+static int enough_swap(unsigned int nr_pages, unsigned int flags)
 {
 	unsigned int free_swap = count_swap_pages(root_swap, 1);
+	unsigned int required;
 
 	pr_debug("PM: Free swap pages: %u\n", free_swap);
-	return free_swap > nr_pages + PAGES_FOR_IO;
+
+	required = PAGES_FOR_IO + ((flags & SF_NOCOMPRESS_MODE) ?
+		nr_pages : (nr_pages * LZO_CMP_PAGES) / LZO_UNC_PAGES + 1);
+	return free_swap > required;
 }
 
 /**
@@ -443,7 +592,7 @@ int swsusp_write(unsigned int flags)
 		printk(KERN_ERR "PM: Cannot get swap writer\n");
 		return error;
 	}
-	if (!enough_swap(pages)) {
+	if (!enough_swap(pages, flags)) {
 		printk(KERN_ERR "PM: Not enough free swap\n");
 		error = -ENOSPC;
 		goto out_finish;
@@ -458,8 +607,11 @@ int swsusp_write(unsigned int flags)
 	}
 	header = (struct swsusp_info *)data_of(snapshot);
 	error = swap_write_page(&handle, header, NULL);
-	if (!error)
-		error = save_image(&handle, &snapshot, pages - 1);
+	if (!error) {
+		error = (flags & SF_NOCOMPRESS_MODE) ?
+			save_image(&handle, &snapshot, pages - 1) :
+			save_image_lzo(&handle, &snapshot, pages - 1);
+	}
 out_finish:
 	error = swap_writer_finish(&handle, flags, error);
 	return error;
@@ -590,6 +742,127 @@ static int load_image(struct swap_map_handle *handle,
 }
 
 /**
+ * load_image_lzo - Load compressed image data and decompress them with LZO.
+ * @handle: Swap map handle to use for loading data.
+ * @snapshot: Image to copy uncompressed data into.
+ * @nr_to_read: Number of pages to load.
+ */
+static int load_image_lzo(struct swap_map_handle *handle,
+                          struct snapshot_handle *snapshot,
+                          unsigned int nr_to_read)
+{
+	unsigned int m;
+	int error = 0;
+	struct timeval start;
+	struct timeval stop;
+	unsigned nr_pages;
+	size_t off, unc_len, cmp_len;
+	unsigned char *unc, *cmp, *page;
+
+	page = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
+	if (!page) {
+		printk(KERN_ERR "PM: Failed to allocate LZO page\n");
+		return -ENOMEM;
+	}
+
+	unc = vmalloc(LZO_UNC_SIZE);
+	if (!unc) {
+		printk(KERN_ERR "PM: Failed to allocate LZO uncompressed\n");
+		free_page((unsigned long)page);
+		return -ENOMEM;
+	}
+
+	cmp = vmalloc(LZO_CMP_SIZE);
+	if (!cmp) {
+		printk(KERN_ERR "PM: Failed to allocate LZO compressed\n");
+		vfree(unc);
+		free_page((unsigned long)page);
+		return -ENOMEM;
+	}
+
+	printk(KERN_INFO
+		"PM: Loading and decompressing image data (%u pages) ...     ",
+		nr_to_read);
+	m = nr_to_read / 100;
+	if (!m)
+		m = 1;
+	nr_pages = 0;
+	do_gettimeofday(&start);
+
+	error = snapshot_write_next(snapshot);
+	if (error <= 0)
+		goto out_finish;
+
+	for (;;) {
+		error = swap_read_page(handle, page, NULL); /* sync */
+		if (error)
+			break;
+
+		cmp_len = *(size_t *)page;
+		if (unlikely(!cmp_len ||
+		             cmp_len > lzo1x_worst_compress(LZO_UNC_SIZE))) {
+			printk(KERN_ERR "PM: Invalid LZO compressed length\n");
+			error = -1;
+			break;
+		}
+
+		memcpy(cmp, page, PAGE_SIZE);
+		for (off = PAGE_SIZE; off < LZO_HEADER + cmp_len; off += PAGE_SIZE) {
+			error = swap_read_page(handle, page, NULL); /* sync */
+			if (error)
+				goto out_finish;
+
+			memcpy(cmp + off, page, PAGE_SIZE);
+		}
+
+		unc_len = LZO_UNC_SIZE;
+		error = lzo1x_decompress_safe(cmp + LZO_HEADER, cmp_len,
+		                              unc, &unc_len);
+		if (error < 0) {
+			printk(KERN_ERR "PM: LZO decompression failed\n");
+			break;
+		}
+
+		if (unlikely(!unc_len ||
+		             unc_len > LZO_UNC_SIZE ||
+		             unc_len & (PAGE_SIZE - 1))) {
+			printk(KERN_ERR "PM: Invalid LZO uncompressed length\n");
+			error = -1;
+			break;
+		}
+
+		for (off = 0; off < unc_len; off += PAGE_SIZE) {
+			memcpy(data_of(*snapshot), unc + off, PAGE_SIZE);
+
+			if (!(nr_pages % m))
+				printk("\b\b\b\b%3d%%", nr_pages / m);
+			nr_pages++;
+
+			error = snapshot_write_next(snapshot);
+			if (error <= 0)
+				goto out_finish;
+		}
+	}
+
+out_finish:
+	do_gettimeofday(&stop);
+	if (!error) {
+		printk("\b\b\b\bdone\n");
+		snapshot_write_finalize(snapshot);
+		if (!snapshot_image_loaded(snapshot))
+			error = -ENODATA;
+	} else
+		printk("\n");
+	swsusp_show_speed(&start, &stop, nr_to_read, "Read");
+
+	vfree(cmp);
+	vfree(unc);
+	free_page((unsigned long)page);
+
+	return error;
+}
+
+/**
  *	swsusp_read - read the hibernation image.
  *	@flags_p: flags passed by the "frozen" kernel in the image header should
  *		  be written into this memeory location
@@ -612,8 +885,11 @@ int swsusp_read(unsigned int *flags_p)
 		goto end;
 	if (!error)
 		error = swap_read_page(&handle, header, NULL);
-	if (!error)
-		error = load_image(&handle, &snapshot, header->pages - 1);
+	if (!error) {
+		error = (*flags_p & SF_NOCOMPRESS_MODE) ?
+			load_image(&handle, &snapshot, header->pages - 1) :
+			load_image_lzo(&handle, &snapshot, header->pages - 1);
+	}
 	swap_reader_finish(&handle);
 end:
 	if (!error)
@@ -640,7 +916,7 @@ int swsusp_check(void)
 		if (error)
 			goto put;
 
-		if (!memcmp(SWSUSP_SIG, swsusp_header->sig, 10)) {
+		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
 			/* Reset swap signature now */
 			error = hib_bio_write_page(swsusp_resume_block,
@@ -653,13 +929,13 @@ put:
 		if (error)
 			blkdev_put(hib_resume_bdev, FMODE_READ);
 		else
-			pr_debug("PM: Signature found, resuming\n");
+			pr_debug("PM: Image signature found, resuming\n");
 	} else {
 		error = PTR_ERR(hib_resume_bdev);
 	}
 
 	if (error)
-		pr_debug("PM: Error %d checking image file\n", error);
+		pr_debug("PM: Image not found (code %d)\n", error);
 
 	return error;
 }

@@ -26,9 +26,14 @@ struct callchain_node {
 	u64			children_hit;
 };
 
+struct callchain_root {
+	u64			max_depth;
+	struct callchain_node	node;
+};
+
 struct callchain_param;
 
-typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_node *,
+typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_root *,
 				 u64, struct callchain_param *);
 
 struct callchain_param {
@@ -44,15 +49,16 @@ struct callchain_list {
 	struct list_head	list;
 };
 
-static inline void callchain_init(struct callchain_node *node)
+static inline void callchain_init(struct callchain_root *root)
 {
-	INIT_LIST_HEAD(&node->brothers);
-	INIT_LIST_HEAD(&node->children);
-	INIT_LIST_HEAD(&node->val);
+	INIT_LIST_HEAD(&root->node.brothers);
+	INIT_LIST_HEAD(&root->node.children);
+	INIT_LIST_HEAD(&root->node.val);
 
-	node->children_hit = 0;
-	node->parent = NULL;
-	node->hit = 0;
+	root->node.parent = NULL;
+	root->node.hit = 0;
+	root->node.children_hit = 0;
+	root->max_depth = 0;
 }
 
 static inline u64 cumul_hits(struct callchain_node *node)
@@ -61,8 +67,9 @@ static inline u64 cumul_hits(struct callchain_node *node)
 }
 
 int register_callchain_param(struct callchain_param *param);
-int append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		 struct map_symbol *syms, u64 period);
+int callchain_append(struct callchain_root *root, struct ip_callchain *chain,
+		     struct map_symbol *syms, u64 period);
+int callchain_merge(struct callchain_root *dst, struct callchain_root *src);
 
 bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event);
 #endif	/* __PERF_CALLCHAIN_H */

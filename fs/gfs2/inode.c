@@ -359,8 +359,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	 * to do that.
 	 */
 	ip->i_inode.i_nlink = be32_to_cpu(str->di_nlink);
-	ip->i_disksize = be64_to_cpu(str->di_size);
-	i_size_write(&ip->i_inode, ip->i_disksize);
+	i_size_write(&ip->i_inode, be64_to_cpu(str->di_size));
 	gfs2_set_inode_blocks(&ip->i_inode, be64_to_cpu(str->di_blocks));
 	atime.tv_sec = be64_to_cpu(str->di_atime);
 	atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
@@ -1055,7 +1054,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
 	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
 	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
-	str->di_size = cpu_to_be64(ip->i_disksize);
+	str->di_size = cpu_to_be64(i_size_read(&ip->i_inode));
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
 	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
 	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
@@ -1085,8 +1084,8 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	       (unsigned long long)ip->i_no_formal_ino);
 	printk(KERN_INFO "  no_addr = %llu\n",
 	       (unsigned long long)ip->i_no_addr);
-	printk(KERN_INFO "  i_disksize = %llu\n",
-	       (unsigned long long)ip->i_disksize);
+	printk(KERN_INFO "  i_size = %llu\n",
+	       (unsigned long long)i_size_read(&ip->i_inode));
 	printk(KERN_INFO "  blocks = %llu\n",
 	       (unsigned long long)gfs2_get_inode_blocks(&ip->i_inode));
 	printk(KERN_INFO "  i_goal = %llu\n",

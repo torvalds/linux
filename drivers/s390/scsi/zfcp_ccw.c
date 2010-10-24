@@ -46,8 +46,7 @@ static int zfcp_ccw_activate(struct ccw_device *cdev)
 	if (!adapter)
 		return 0;
 
-	zfcp_erp_modify_adapter_status(adapter, "ccresu1", NULL,
-				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 				"ccresu2", NULL);
 	zfcp_erp_wait(adapter);
@@ -164,14 +163,7 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 	BUG_ON(!zfcp_reqlist_isempty(adapter->req_list));
 	adapter->req_no = 0;
 
-	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,
-				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
-	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-				"ccsonl2", NULL);
-	zfcp_erp_wait(adapter);
-
-	flush_work(&adapter->scan_work);
-
+	zfcp_ccw_activate(cdev);
 	zfcp_ccw_adapter_put(adapter);
 	return 0;
 }
@@ -224,9 +216,8 @@ static int zfcp_ccw_notify(struct ccw_device *cdev, int event)
 		break;
 	case CIO_OPER:
 		dev_info(&cdev->dev, "The FCP device is operational again\n");
-		zfcp_erp_modify_adapter_status(adapter, "ccnoti3", NULL,
-					       ZFCP_STATUS_COMMON_RUNNING,
-					       ZFCP_SET);
+		zfcp_erp_set_adapter_status(adapter,
+					    ZFCP_STATUS_COMMON_RUNNING);
 		zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 					"ccnoti4", NULL);
 		break;

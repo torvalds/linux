@@ -139,7 +139,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		return -EINVAL;
 
 	if (usin->sin6_family != AF_INET6)
-		return(-EAFNOSUPPORT);
+		return -EAFNOSUPPORT;
 
 	memset(&fl, 0, sizeof(fl));
 
@@ -1409,7 +1409,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
-		goto out;
+		goto out_nonewsk;
 
 	/*
 	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
@@ -1497,18 +1497,22 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
+	if (__inet_inherit_port(sk, newsk) < 0) {
+		sock_put(newsk);
+		goto out;
+	}
 	__inet6_hash(newsk, NULL);
-	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
 out_overflow:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
-out:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+out_nonewsk:
 	if (opt && opt != np->opt)
 		sock_kfree_s(sk, opt, opt->tot_len);
 	dst_release(dst);
+out:
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 }
 

@@ -200,7 +200,6 @@ static void __init bootmem_init_one_node(unsigned int nid)
 	unsigned long total_pages, paddr;
 	unsigned long end_pfn;
 	struct pglist_data *p;
-	int i;
 
 	p = NODE_DATA(nid);
 
@@ -226,11 +225,12 @@ static void __init bootmem_init_one_node(unsigned int nid)
 	 * reservations in other nodes.
 	 */
 	if (nid == 0) {
+		struct memblock_region *reg;
+
 		/* Reserve the sections we're already using. */
-		for (i = 0; i < memblock.reserved.cnt; i++)
-			reserve_bootmem(memblock.reserved.region[i].base,
-					memblock_size_bytes(&memblock.reserved, i),
-					BOOTMEM_DEFAULT);
+		for_each_memblock(reserved, reg) {
+			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
+		}
 	}
 
 	sparse_memory_present_with_active_regions(nid);
@@ -238,13 +238,14 @@ static void __init bootmem_init_one_node(unsigned int nid)
 
 static void __init do_init_bootmem(void)
 {
+	struct memblock_region *reg;
 	int i;
 
 	/* Add active regions with valid PFNs. */
-	for (i = 0; i < memblock.memory.cnt; i++) {
+	for_each_memblock(memory, reg) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 		__add_active_range(0, start_pfn, end_pfn);
 	}
 

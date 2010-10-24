@@ -56,7 +56,7 @@ static void ieee80211_free_tid_rx(struct rcu_head *h)
 }
 
 void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-				     u16 initiator, u16 reason)
+				     u16 initiator, u16 reason, bool tx)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
@@ -81,20 +81,21 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				"aggregation for tid %d\n", tid);
 
 	/* check if this is a self generated aggregation halt */
-	if (initiator == WLAN_BACK_RECIPIENT)
+	if (initiator == WLAN_BACK_RECIPIENT && tx)
 		ieee80211_send_delba(sta->sdata, sta->sta.addr,
 				     tid, 0, reason);
 
 	del_timer_sync(&tid_rx->session_timer);
+	del_timer_sync(&tid_rx->reorder_timer);
 
 	call_rcu(&tid_rx->rcu_head, ieee80211_free_tid_rx);
 }
 
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-				    u16 initiator, u16 reason)
+				    u16 initiator, u16 reason, bool tx)
 {
 	mutex_lock(&sta->ampdu_mlme.mtx);
-	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
+	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason, tx);
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
@@ -118,6 +119,20 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 #endif
 	set_bit(*ptid, sta->ampdu_mlme.tid_rx_timer_expired);
 	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
+}
+
+static void sta_rx_agg_reorder_timer_expired(unsigned long data)
+{
+	u8 *ptid = (u8 *)data;
+	u8 *timer_to_id = ptid - *ptid;
+	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
+			timer_to_tid[0]);
+
+	rcu_read_lock();
+	spin_lock(&sta->lock);
+	ieee80211_release_reorder_timeout(sta, *ptid);
+	spin_unlock(&sta->lock);
+	rcu_read_unlock();
 }
 
 static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *da, u16 tid,
@@ -251,10 +266,17 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		goto end;
 	}
 
+	spin_lock_init(&tid_agg_rx->reorder_lock);
+
 	/* rx timer */
 	tid_agg_rx->session_timer.function = sta_rx_agg_session_timer_expired;
 	tid_agg_rx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
 	init_timer(&tid_agg_rx->session_timer);
+
+	/* rx reorder timer */
+	tid_agg_rx->reorder_timer.function = sta_rx_agg_reorder_timer_expired;
+	tid_agg_rx->reorder_timer.data = (unsigned long)&sta->timer_to_tid[tid];
+	init_timer(&tid_agg_rx->reorder_timer);
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
