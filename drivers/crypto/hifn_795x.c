@@ -2700,8 +2700,7 @@ static void __devexit hifn_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		cancel_delayed_work(&dev->work);
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&dev->work);
 
 		hifn_unregister_rng(dev);
 		hifn_unregister_alg(dev);
