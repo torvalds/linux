@@ -684,6 +684,9 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno);
 
+	for (i = 0; i < 16; i++)
+		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
+
 	if (error->active_bo)
 		print_error_buffers(m, "Active",
 				    error->active_bo,

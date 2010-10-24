@@ -166,6 +166,7 @@ struct drm_i915_error_state {
 	u32 instdone1;
 	u32 seqno;
 	u64 bbaddr;
+	u64 fence[16];
 	struct timeval time;
 	struct drm_i915_error_object {
 		int page_count;

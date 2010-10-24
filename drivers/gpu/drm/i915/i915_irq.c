@@ -581,6 +581,35 @@ static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 	return i;
 }
 
+static void i915_gem_record_fences(struct drm_device *dev,
+				   struct drm_i915_error_state *error)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	/* Fences */
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		for (i = 0; i < 16; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
+		break;
+	case 5:
+	case 4:
+		for (i = 0; i < 16; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
+		break;
+	case 3:
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				error->fence[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
+	case 2:
+		for (i = 0; i < 8; i++)
+			error->fence[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
+		break;
+
+	}
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -656,6 +685,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->acthd = I915_READ(ACTHD);
 		error->bbaddr = 0;
 	}
+	i915_gem_record_fences(dev, error);
 
 	bbaddr = i915_ringbuffer_last_batch(dev, &dev_priv->render_ring);
 
