@@ -101,3 +101,8 @@ extern void put_super(struct super_block *sb);
 struct nameidata;
 extern struct file *nameidata_to_filp(struct nameidata *);
 extern void release_open_intent(struct nameidata *);
+
+/*
+ * inode.c
+ */
+extern int invalidate_inodes(struct super_block *);

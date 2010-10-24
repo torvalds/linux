@@ -417,7 +417,6 @@ int invalidate_inodes(struct super_block *sb)
 
 	return busy;
 }
-EXPORT_SYMBOL(invalidate_inodes);
 
 static int can_unuse(struct inode *inode)
 {
