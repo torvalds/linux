@@ -37,6 +37,7 @@
 
 #include "board.h"
 #include "clock.h"
+#include "power.h"
 
 #define RTC_SECONDS		0x08
 #define RTC_SHADOW_SECONDS	0x0c
@@ -104,12 +105,15 @@ static cycle_t tegra_clocksource_us_read(struct clocksource *cs)
 
 void tegra_clocksource_us_suspend(struct clocksource *cs)
 {
-	tegra_us_resume_offset = tegra_clocksource_us_read(cs);
+	tegra_us_resume_offset = tegra_clocksource_us_read(cs) -
+		tegra_rtc_read_ms() * 1000;
 }
 
 void tegra_clocksource_us_resume(struct clocksource *cs)
 {
-	tegra_us_clocksource_offset = tegra_us_resume_offset;
+	tegra_us_clocksource_offset += tegra_us_resume_offset +
+		tegra_rtc_read_ms() * 1000 -
+		tegra_clocksource_us_read(cs);
 }
 
 static struct clock_event_device tegra_clockevent = {
