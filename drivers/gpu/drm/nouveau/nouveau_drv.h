@@ -257,6 +257,7 @@ struct nouveau_channel {
 
 	struct {
 		struct nouveau_gpuobj *vblsem;
+		uint32_t vblsem_head;
 		uint32_t vblsem_offset;
 		uint32_t vblsem_rval;
 		struct list_head vbl_wait;

@@ -432,6 +432,9 @@ nv50_display_vblank_crtc_handler(struct drm_device *dev, int crtc)
 
 	list_for_each_entry_safe(chan, tmp, &dev_priv->vbl_waiting,
 				 nvsw.vbl_wait) {
+		if (chan->nvsw.vblsem_head != crtc)
+			continue;
+
 		nouveau_bo_wr32(chan->notifier_bo, chan->nvsw.vblsem_offset,
 						chan->nvsw.vblsem_rval);
 		list_del(&chan->nvsw.vbl_wait);

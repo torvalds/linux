@@ -387,7 +387,10 @@ nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan,
 		return -EINVAL;
 
 	drm_vblank_get(dev, data);
+
+	chan->nvsw.vblsem_head = data;
 	list_add(&chan->nvsw.vbl_wait, &dev_priv->vbl_waiting);
+
 	return 0;
 }
 
