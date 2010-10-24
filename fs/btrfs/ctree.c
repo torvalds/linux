@@ -1577,13 +1577,33 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	blocksize = btrfs_level_size(root, level - 1);
 
 	tmp = btrfs_find_tree_block(root, blocknr, blocksize);
-	if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
-		/*
-		 * we found an up to date block without sleeping, return
-		 * right away
-		 */
-		*eb_ret = tmp;
-		return 0;
+	if (tmp) {
+		if (btrfs_buffer_uptodate(tmp, 0)) {
+			if (btrfs_buffer_uptodate(tmp, gen)) {
+				/*
+				 * we found an up to date block without
+				 * sleeping, return
+				 * right away
+				 */
+				*eb_ret = tmp;
+				return 0;
+			}
+			/* the pages were up to date, but we failed
+			 * the generation number check.  Do a full
+			 * read for the generation number that is correct.
+			 * We must do this without dropping locks so
+			 * we can trust our generation number
+			 */
+			free_extent_buffer(tmp);
+			tmp = read_tree_block(root, blocknr, blocksize, gen);
+			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+				*eb_ret = tmp;
+				return 0;
+			}
+			free_extent_buffer(tmp);
+			btrfs_release_path(NULL, p);
+			return -EIO;
+		}
 	}
 
 	/*
@@ -1596,8 +1616,7 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	btrfs_unlock_up_safe(p, level + 1);
 	btrfs_set_path_blocking(p);
 
-	if (tmp)
-		free_extent_buffer(tmp);
+	free_extent_buffer(tmp);
 	if (p->reada)
 		reada_for_search(root, p, level, slot, key->objectid);
 
