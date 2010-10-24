@@ -49,6 +49,7 @@
 #ifndef __ASSEMBLY__
 extern void *tegra_context_area;
 
+u64 tegra_rtc_read_ms(void);
 void tegra_lp2_set_trigger(unsigned long cycles);
 unsigned long tegra_lp2_timer_remain(void);
 void __cortex_a9_save(unsigned int mode);
