@@ -14,7 +14,6 @@
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
-#include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/icmp.h>
@@ -22,7 +21,12 @@
 #include <net/inet_sock.h>
 #include <net/netfilter/nf_tproxy_core.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
+
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#define XT_SOCKET_HAVE_IPV6 1
+#include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#endif
 
 #include <linux/netfilter/xt_socket.h>
 
@@ -186,7 +190,7 @@ socket_mt4_v1(const struct sk_buff *skb, struct xt_action_param *par)
 	return socket_match(skb, par, par->matchinfo);
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#ifdef XT_SOCKET_HAVE_IPV6
 
 static int
 extract_icmp6_fields(const struct sk_buff *skb,
@@ -331,7 +335,7 @@ static struct xt_match socket_mt_reg[] __read_mostly = {
 				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#ifdef XT_SOCKET_HAVE_IPV6
 	{
 		.name		= "socket",
 		.revision	= 1,
@@ -348,7 +352,7 @@ static struct xt_match socket_mt_reg[] __read_mostly = {
 static int __init socket_mt_init(void)
 {
 	nf_defrag_ipv4_enable();
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#ifdef XT_SOCKET_HAVE_IPV6
 	nf_defrag_ipv6_enable();
 #endif
 
