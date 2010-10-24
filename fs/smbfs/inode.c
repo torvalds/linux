@@ -229,7 +229,6 @@ smb_invalidate_inodes(struct smb_sb_info *server)
 {
 	VERBOSE("\n");
 	shrink_dcache_sb(SB_of(server));
-	invalidate_inodes(SB_of(server));
 }
 
 /*
