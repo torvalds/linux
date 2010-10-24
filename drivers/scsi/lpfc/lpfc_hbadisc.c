@@ -5509,7 +5509,7 @@ lpfc_get_rec_conf23(uint8_t *buff, uint32_t size, uint8_t rec_type)
  * @buff: Buffer containing config region 23 data.
  * @size: Size of the data buffer.
  *
- * This fuction parse the FCoE config parameters in config region 23 and
+ * This function parses the FCoE config parameters in config region 23 and
  * populate driver data structure with the parameters.
  */
 void

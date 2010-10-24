@@ -5,7 +5,7 @@
  *  Originally sktr.c: Written 1997 by Christoph Goos
  *
  *  A fine result of the Linux Systems Network Architecture Project.
- *  http://www.linux-sna.org
+ *  http://www.vanheusden.com/sna/ 
  *
  *  This software may be used and distributed according to the terms
  *  of the GNU General Public License, incorporated herein by reference.

@@ -5,7 +5,7 @@
  *      and modifications by SBZ <sbz@spgui.org> and
  *      Weibing <http://weibing.blogbus.com>
  *
- * For product information, visit http://www.arm9e.com/
+ * For product information, visit http://www.arm.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

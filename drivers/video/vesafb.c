@@ -253,7 +253,7 @@ static int __init vesafb_probe(struct platform_device *dev)
 	size_vmode = vesafb_defined.yres * vesafb_fix.line_length;
 
 	/*   size_total -- all video memory we have. Used for mtrr
-	 *                 entries, ressource allocation and bounds
+	 *                 entries, resource allocation and bounds
 	 *                 checking. */
 	size_total = screen_info.lfb_size * 65536;
 	if (vram_total)

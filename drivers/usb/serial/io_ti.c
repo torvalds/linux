@@ -1571,8 +1571,6 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 msr)
 		}
 	}
 	tty_kref_put(tty);
-
-	return;
 }
 
 static void handle_new_lsr(struct edgeport_port *edge_port, int lsr_data,
@@ -2424,7 +2422,6 @@ static void change_port_settings(struct tty_struct *tty,
 		dbg("%s - error %d when trying to write config to device",
 		     __func__, status);
 	kfree(config);
-	return;
 }
 
 static void edge_set_termios(struct tty_struct *tty,
@@ -2445,7 +2442,6 @@ static void edge_set_termios(struct tty_struct *tty,
 		return;
 	/* change the port settings to the new ones specified */
 	change_port_settings(tty, edge_port, old_termios);
-	return;
 }
 
 static int edge_tiocmset(struct tty_struct *tty, struct file *file,

@@ -43,7 +43,7 @@
 #include <asm/sibyte/sb1250_scd.h>
 #include <asm/sibyte/sb1250_int.h>
 #else
-#error invalid SiByte UART configuation
+#error invalid SiByte UART configuration
 #endif
 
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)

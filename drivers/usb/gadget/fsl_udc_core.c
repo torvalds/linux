@@ -287,8 +287,6 @@ static void dr_controller_run(struct fsl_udc *udc)
 	temp = fsl_readl(&dr_regs->usbcmd);
 	temp |= USB_CMD_RUN_STOP;
 	fsl_writel(temp, &dr_regs->usbcmd);
-
-	return;
 }
 
 static void dr_controller_stop(struct fsl_udc *udc)
@@ -308,8 +306,6 @@ static void dr_controller_stop(struct fsl_udc *udc)
 	tmp = fsl_readl(&dr_regs->usbcmd);
 	tmp &= ~USB_CMD_RUN_STOP;
 	fsl_writel(tmp, &dr_regs->usbcmd);
-
-	return;
 }
 
 static void dr_ep_setup(unsigned char ep_num, unsigned char dir,
@@ -416,8 +412,6 @@ static void struct_ep_qh_setup(struct fsl_udc *udc, unsigned char ep_num,
 	p_QH->max_pkt_length = cpu_to_le32(tmp);
 	p_QH->next_dtd_ptr = 1;
 	p_QH->size_ioc_int_sts = 0;
-
-	return;
 }
 
 /* Setup qh structure and ep register for ep0. */

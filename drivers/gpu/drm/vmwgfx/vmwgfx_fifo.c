@@ -545,7 +545,7 @@ int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *file_priv;
 	struct vmw_private *dev_priv;
 
-	file_priv = (struct drm_file *)filp->private_data;
+	file_priv = filp->private_data;
 	dev_priv = vmw_priv(file_priv->minor->dev);
 
 	if (vma->vm_pgoff != (dev_priv->mmio_start >> PAGE_SHIFT) ||

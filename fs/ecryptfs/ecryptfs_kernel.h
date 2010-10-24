@@ -477,7 +477,7 @@ ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
 {
-	return (struct ecryptfs_file_info *)file->private_data;
+	return file->private_data;
 }
 
 static inline void

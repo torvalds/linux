@@ -114,7 +114,8 @@ static void mac_init_asc( void )
 			 *   16-bit I/O functionality.  The PowerBook 500 series computers
 			 *   support 16-bit stereo output, but only mono input."
 			 *
-			 *   http://til.info.apple.com/techinfo.nsf/artnum/n16405
+			 *   Technical Information Library (TIL) article number 16405. 
+			 *   http://support.apple.com/kb/TA32601 
 			 *
 			 * --David Kilzer
 			 */

@@ -2,7 +2,7 @@
  *  ipmi_bt_sm.c
  *
  *  The state machine for an Open IPMI BT sub-driver under ipmi_si.c, part
- *  of the driver architecture at http://sourceforge.net/project/openipmi
+ *  of the driver architecture at http://sourceforge.net/projects/openipmi 
  *
  *  Author:	Rocky Craig <first.last@hp.com>
  *

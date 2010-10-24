@@ -115,7 +115,7 @@ struct mesh_path {
  * @hash_rnd: random value used for hash computations
  * @entries: number of entries in the table
  * @free_node: function to free nodes of the table
- * @copy_node: fuction to copy nodes of the table
+ * @copy_node: function to copy nodes of the table
  * @size_order: determines size of the table, there will be 2^size_order hash
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is

@@ -1467,8 +1467,6 @@ static void edge_throttle(struct tty_struct *tty)
 		if (status != 0)
 			return;
 	}
-
-	return;
 }
 
 
@@ -1775,8 +1773,6 @@ static void edge_break(struct tty_struct *tty, int break_state)
 			dbg("%s - error sending break set/clear command.",
 				__func__);
 	}
-
-	return;
 }
 
 
@@ -2047,7 +2043,6 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 		dbg("%s - Unrecognized IOSP status code %u", __func__, code);
 		break;
 	}
-	return;
 }
 
 
@@ -2100,8 +2095,6 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr)
 
 	/* Save the new modem status */
 	edge_port->shadowMSR = newMsr & 0xf0;
-
-	return;
 }
 
 
@@ -2148,8 +2141,6 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 		icount->parity++;
 	if (newLsr & LSR_FRM_ERR)
 		icount->frame++;
-
-	return;
 }
 
 
@@ -2725,7 +2716,6 @@ static void change_port_settings(struct tty_struct *tty,
 		baud = tty_termios_baud_rate(old_termios);
 		tty_encode_baud_rate(tty, baud, baud);
 	}
-	return;
 }
 
 
@@ -2927,7 +2917,6 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 				    0x40, 0x4000, 0x0001, NULL, 0, 3000);
 
 	release_firmware(fw);
-	return;
 }
 
 

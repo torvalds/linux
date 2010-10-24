@@ -827,7 +827,6 @@ exit:
 		dev_err(&urb->dev->dev,
 			"%s - Error %d submitting control urb\n",
 			__func__, result);
-	return;
 }
 
 /*
@@ -907,7 +906,6 @@ exit:
 		dev_err(&urb->dev->dev,
 			"%s - Error %d submitting control urb\n",
 			__func__, result);
-	return;
 }
 
 /*
@@ -1227,8 +1225,6 @@ static void mos7720_break(struct tty_struct *tty, int break_state)
 	mos7720_port->shadowLCR  = data;
 	write_mos_reg(serial, port->number - port->serial->minor,
 		      LCR, mos7720_port->shadowLCR);
-
-	return;
 }
 
 /*
@@ -1746,7 +1742,6 @@ static void change_port_settings(struct tty_struct *tty,
 			dbg("usb_submit_urb(read bulk) failed, status = %d",
 			    status);
 	}
-	return;
 }
 
 /*
@@ -1803,7 +1798,6 @@ static void mos7720_set_termios(struct tty_struct *tty,
 			dbg("usb_submit_urb(read bulk) failed, status = %d",
 			    status);
 	}
-	return;
 }
 
 /*

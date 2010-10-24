@@ -3540,7 +3540,7 @@ enum latency_range {
  *      Stores a new ITR value based on strictly on packet size.  This
  *      algorithm is less sophisticated than that used in igb_update_itr,
  *      due to the difficulty of synchronizing statistics across multiple
- *      receive rings.  The divisors and thresholds used by this fuction
+ *      receive rings.  The divisors and thresholds used by this function
  *      were determined based on theoretical maximum wire speed and testing
  *      data, in order to minimize response time while increasing bulk
  *      throughput.

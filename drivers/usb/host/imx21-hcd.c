@@ -27,8 +27,8 @@
   *    * 32 transfer descriptors (called ETDs)
   *    * 4Kb of Data memory
   *
-  * The data memory is shared between the host and fuction controlers
-  * (but this driver only supports the host controler)
+  * The data memory is shared between the host and function controllers
+  * (but this driver only supports the host controller)
   *
   * So setting up a transfer involves:
   *    * Allocating a ETD

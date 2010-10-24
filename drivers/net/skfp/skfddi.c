@@ -33,7 +33,7 @@
  *   The driver architecture is based on the DEC FDDI driver by
  *   Lawrence V. Stefani and several ethernet drivers.
  *   I also used an existing Windows NT miniport driver.
- *   All hardware dependent fuctions are handled by the SysKonnect
+ *   All hardware dependent functions are handled by the SysKonnect
  *   Hardware Module.
  *   The only headerfiles that are directly related to this source
  *   are skfddi.c, h/types.h, h/osdef1st.h, h/targetos.h.

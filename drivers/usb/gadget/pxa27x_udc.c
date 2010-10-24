@@ -1394,8 +1394,6 @@ static void pxa_ep_fifo_flush(struct usb_ep *_ep)
 	}
 
 	spin_unlock_irqrestore(&ep->lock, flags);
-
-	return;
 }
 
 /**

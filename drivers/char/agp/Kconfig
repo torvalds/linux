@@ -34,7 +34,7 @@ config AGP_ALI
 	  X on the following ALi chipsets.  The supported chipsets
 	  include M1541, M1621, M1631, M1632, M1641,M1647,and M1651.
 	  For the ALi-chipset question, ALi suggests you refer to
-	  <http://www.ali.com.tw/eng/support/index.shtml>.
+	  <http://www.ali.com.tw/>.
 
 	  The M1541 chipset can do AGP 1x and 2x, but note that there is an
 	  acknowledged incompatibility with Matrox G200 cards. Due to

@@ -274,7 +274,7 @@ static int __devinit nuc900_rtc_probe(struct platform_device *pdev)
 	nuc900_rtc->rtcdev = rtc_device_register(pdev->name, &pdev->dev,
 						&nuc900_rtc_ops, THIS_MODULE);
 	if (IS_ERR(nuc900_rtc->rtcdev)) {
-		dev_err(&pdev->dev, "rtc device register faild\n");
+		dev_err(&pdev->dev, "rtc device register failed\n");
 		err = PTR_ERR(nuc900_rtc->rtcdev);
 		goto fail3;
 	}

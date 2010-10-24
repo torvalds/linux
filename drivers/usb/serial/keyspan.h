@@ -9,7 +9,7 @@
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
 
-  See http://misc.nu/hugh/keyspan.html for more information.
+  See http://blemings.org/hugh/keyspan.html for more information.
   
   Code in this driver inspired by and in a number of places taken
   from Brian Warner's original Keyspan-PDA driver.

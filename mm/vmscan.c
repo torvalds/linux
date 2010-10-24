@@ -79,8 +79,8 @@ struct scan_control {
 	int order;
 
 	/*
-	 * Intend to reclaim enough contenious memory rather than to reclaim
-	 * enough amount memory. I.e, it's the mode for high order allocation.
+	 * Intend to reclaim enough continuous memory rather than reclaim
+	 * enough amount of memory. i.e, mode for high order allocation.
 	 */
 	bool lumpy_reclaim_mode;
 

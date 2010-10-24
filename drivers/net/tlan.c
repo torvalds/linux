@@ -78,7 +78,7 @@
  * 			     - Updated tlan.txt accordingly.
  * 			     - Adjusted minimum/maximum frame length.
  * 			     - There is now a TLAN website up at
- * 			       http://tlan.kernel.dk
+ * 			       http://hp.sourceforge.net/ 
  *
  * 	v1.7 April 07, 2000  - Started to implement custom ioctls. Driver now
  * 			       reports PHY information when used with Donald

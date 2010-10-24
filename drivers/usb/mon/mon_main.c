@@ -90,7 +90,6 @@ static void mon_bus_submit(struct mon_bus *mbus, struct urb *urb)
 		r->rnf_submit(r->r_data, urb);
 	}
 	spin_unlock_irqrestore(&mbus->lock, flags);
-	return;
 }
 
 static void mon_submit(struct usb_bus *ubus, struct urb *urb)
@@ -117,7 +116,6 @@ static void mon_bus_submit_error(struct mon_bus *mbus, struct urb *urb, int erro
 		r->rnf_error(r->r_data, urb, error);
 	}
 	spin_unlock_irqrestore(&mbus->lock, flags);
-	return;
 }
 
 static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int error)

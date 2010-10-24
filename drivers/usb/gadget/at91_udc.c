@@ -1266,7 +1266,6 @@ write_in:
 	csr |= AT91_UDP_TXPKTRDY;
 	__raw_writel(csr, creg);
 	udc->req_pending = 0;
-	return;
 }
 
 static void handle_ep0(struct at91_udc *udc)
