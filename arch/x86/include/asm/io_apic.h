@@ -186,7 +186,7 @@ extern void __init pre_init_apic_IRQ0(void);
 #define io_apic_assign_pci_irqs 0
 #define setup_ioapic_ids_from_mpc x86_init_noop
 static const int timer_through_8259 = 0;
-static inline void ioapic_init_mappings(void)	{ }
+static inline void ioapic_and_gsi_init(void) { }
 static inline void ioapic_insert_resources(void) { }
 #define gsi_top (NR_IRQS_LEGACY)
 static inline int mp_find_ioapic(u32 gsi) { return 0; }
