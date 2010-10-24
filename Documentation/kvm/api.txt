@@ -320,13 +320,13 @@ struct kvm_translation {
 4.15 KVM_INTERRUPT
 
 Capability: basic
-Architectures: x86
+Architectures: x86, ppc
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
 Returns: 0 on success, -1 on error
 
 Queues a hardware interrupt vector to be injected.  This is only
-useful if in-kernel local APIC is not used.
+useful if in-kernel local APIC or equivalent is not used.
 
 /* for KVM_INTERRUPT */
 struct kvm_interrupt {
@@ -334,7 +334,36 @@ struct kvm_interrupt {
 	__u32 irq;
 };
 
+X86:
+
 Note 'irq' is an interrupt vector, not an interrupt pin or line.
+
+PPC:
+
+Queues an external interrupt to be injected. This ioctl is overleaded
+with 3 different irq values:
+
+a) KVM_INTERRUPT_SET
+
+  This injects an edge type external interrupt into the guest once it's ready
+  to receive interrupts. When injected, the interrupt is done.
+
+b) KVM_INTERRUPT_UNSET
+
+  This unsets any pending interrupt.
+
+  Only available with KVM_CAP_PPC_UNSET_IRQ.
+
+c) KVM_INTERRUPT_SET_LEVEL
+
+  This injects a level type external interrupt into the guest context. The
+  interrupt stays pending until a specific ioctl with KVM_INTERRUPT_UNSET
+  is triggered.
+
+  Only available with KVM_CAP_PPC_IRQ_LEVEL.
+
+Note that any value for 'irq' other than the ones stated above is invalid
+and incurs unexpected behavior.
 
 4.16 KVM_DEBUG_GUEST
 
@@ -1013,8 +1042,9 @@ number is just right, the 'nent' field is adjusted to the number of valid
 entries in the 'entries' array, which is then filled.
 
 The entries returned are the host cpuid as returned by the cpuid instruction,
-with unknown or unsupported features masked out.  The fields in each entry
-are defined as follows:
+with unknown or unsupported features masked out.  Some features (for example,
+x2apic), may not be present in the host cpu, but are exposed by kvm if it can
+emulate them efficiently. The fields in each entry are defined as follows:
 
   function: the eax value used to obtain the entry
   index: the ecx value used to obtain the entry (for entries that are
@@ -1031,6 +1061,29 @@ are defined as follows:
            the first entry to be read by a cpu
    eax, ebx, ecx, edx: the values returned by the cpuid instruction for
          this function/index combination
+
+4.46 KVM_PPC_GET_PVINFO
+
+Capability: KVM_CAP_PPC_GET_PVINFO
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_pvinfo (out)
+Returns: 0 on success, !0 on error
+
+struct kvm_ppc_pvinfo {
+	__u32 flags;
+	__u32 hcall[4];
+	__u8  pad[108];
+};
+
+This ioctl fetches PV specific information that need to be passed to the guest
+using the device tree or other means from vm context.
+
+For now the only implemented piece of information distributed here is an array
+of 4 instructions that make up a hypercall.
+
+If any additional field gets added to this structure later on, a bit for that
+additional piece of information will be set in the flags bitmap.
 
 5. The kvm_run structure
 

@@ -299,6 +299,12 @@ slb_miss_user_pseries:
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
 
+/* KVM's trampoline code needs to be close to the interrupt handlers */
+
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include "../kvm/book3s_rmhandlers.S"
+#endif
+
 	.align	7
 	.globl	__end_interrupts
 __end_interrupts:

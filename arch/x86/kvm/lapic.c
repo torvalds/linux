@@ -5,7 +5,7 @@
  * Copyright (C) 2006 Qumranet, Inc.
  * Copyright (C) 2007 Novell
  * Copyright (C) 2007 Intel
- * Copyright 2009 Red Hat, Inc. and/or its affilates.
+ * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
  * Authors:
  *   Dor Laor <dor.laor@qumranet.com>
@@ -259,9 +259,10 @@ static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 
 static void apic_update_ppr(struct kvm_lapic *apic)
 {
-	u32 tpr, isrv, ppr;
+	u32 tpr, isrv, ppr, old_ppr;
 	int isr;
 
+	old_ppr = apic_get_reg(apic, APIC_PROCPRI);
 	tpr = apic_get_reg(apic, APIC_TASKPRI);
 	isr = apic_find_highest_isr(apic);
 	isrv = (isr != -1) ? isr : 0;
@@ -274,7 +275,10 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 	apic_debug("vlapic %p, ppr 0x%x, isr 0x%x, isrv 0x%x",
 		   apic, ppr, isr, isrv);
 
-	apic_set_reg(apic, APIC_PROCPRI, ppr);
+	if (old_ppr != ppr) {
+		apic_set_reg(apic, APIC_PROCPRI, ppr);
+		kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
+	}
 }
 
 static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
@@ -391,6 +395,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			break;
 		}
 
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
 		kvm_vcpu_kick(vcpu);
 		break;
 
@@ -416,6 +421,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 				       "INIT on a runnable vcpu %d\n",
 				       vcpu->vcpu_id);
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
+			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		} else {
 			apic_debug("Ignoring de-assert INIT to vcpu %d\n",
@@ -430,6 +436,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			result = 1;
 			vcpu->arch.sipi_vector = vector;
 			vcpu->arch.mp_state = KVM_MP_STATE_SIPI_RECEIVED;
+			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		}
 		break;
@@ -475,6 +482,7 @@ static void apic_set_eoi(struct kvm_lapic *apic)
 		trigger_mode = IOAPIC_EDGE_TRIG;
 	if (!(apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI))
 		kvm_ioapic_update_eoi(apic->vcpu->kvm, vector, trigger_mode);
+	kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
 }
 
 static void apic_send_ipi(struct kvm_lapic *apic)
@@ -1151,6 +1159,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 	update_divide_count(apic);
 	start_apic_timer(apic);
 	apic->irr_pending = true;
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 
 void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)

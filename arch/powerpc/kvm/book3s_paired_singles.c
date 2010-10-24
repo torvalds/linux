@@ -165,14 +165,15 @@ static inline void kvmppc_sync_qpr(struct kvm_vcpu *vcpu, int rt)
 static void kvmppc_inject_pf(struct kvm_vcpu *vcpu, ulong eaddr, bool is_store)
 {
 	u64 dsisr;
+	struct kvm_vcpu_arch_shared *shared = vcpu->arch.shared;
 
-	vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 33, 36, 0);
-	vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 42, 47, 0);
-	vcpu->arch.dear = eaddr;
+	shared->msr = kvmppc_set_field(shared->msr, 33, 36, 0);
+	shared->msr = kvmppc_set_field(shared->msr, 42, 47, 0);
+	shared->dar = eaddr;
 	/* Page Fault */
 	dsisr = kvmppc_set_field(0, 33, 33, 1);
 	if (is_store)
-		to_book3s(vcpu)->dsisr = kvmppc_set_field(dsisr, 38, 38, 1);
+		shared->dsisr = kvmppc_set_field(dsisr, 38, 38, 1);
 	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
 }
 
@@ -658,7 +659,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	if (!kvmppc_inst_is_paired_single(vcpu, inst))
 		return EMULATE_FAIL;
 
-	if (!(vcpu->arch.msr & MSR_FP)) {
+	if (!(vcpu->arch.shared->msr & MSR_FP)) {
 		kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL);
 		return EMULATE_AGAIN;
 	}
