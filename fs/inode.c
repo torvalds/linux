@@ -477,15 +477,24 @@ static void dispose_list(struct list_head *head)
 	}
 }
 
-/*
- * Invalidate all inodes for a device.
+/**
+ * invalidate_inodes	- attempt to free all inodes on a superblock
+ * @sb:		superblock to operate on
+ *
+ * Attempts to free all inodes for a given superblock.  If there were any
+ * busy inodes return a non-zero value, else zero.
  */
-static int invalidate_list(struct list_head *head, struct list_head *dispose)
+int invalidate_inodes(struct super_block *sb)
 {
-	struct inode *inode, *next;
 	int busy = 0;
+	struct inode *inode, *next;
+	LIST_HEAD(dispose);
 
-	list_for_each_entry_safe(inode, next, head, i_sb_list) {
+	down_write(&iprune_sem);
+
+	spin_lock(&inode_lock);
+	fsnotify_unmount_inodes(&sb->s_inodes);
+	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
 		if (inode->i_state & I_NEW)
 			continue;
 		if (atomic_read(&inode->i_count)) {
@@ -499,34 +508,14 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 		 * Move the inode off the IO lists and LRU once I_FREEING is
 		 * set so that it won't get moved back on there if it is dirty.
 		 */
-		list_move(&inode->i_lru, dispose);
+		list_move(&inode->i_lru, &dispose);
 		list_del_init(&inode->i_wb_list);
 		if (!(inode->i_state & (I_DIRTY | I_SYNC)))
 			percpu_counter_dec(&nr_inodes_unused);
 	}
-	return busy;
-}
-
-/**
- *	invalidate_inodes	- discard the inodes on a device
- *	@sb: superblock
- *
- *	Discard all of the inodes for a given superblock. If the discard
- *	fails because there are busy inodes then a non zero value is returned.
- *	If the discard is successful all the inodes have been discarded.
- */
-int invalidate_inodes(struct super_block *sb)
-{
-	int busy;
-	LIST_HEAD(throw_away);
-
-	down_write(&iprune_sem);
-	spin_lock(&inode_lock);
-	fsnotify_unmount_inodes(&sb->s_inodes);
-	busy = invalidate_list(&sb->s_inodes, &throw_away);
 	spin_unlock(&inode_lock);
 
-	dispose_list(&throw_away);
+	dispose_list(&dispose);
 	up_write(&iprune_sem);
 
 	return busy;
