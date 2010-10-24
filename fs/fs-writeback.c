@@ -487,10 +487,16 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 			return 0;
 		}
 
-		if (inode->i_state & (I_NEW | I_WILL_FREE)) {
+		/*
+		 * Don't bother with new inodes or inodes beeing freed, first
+		 * kind does not need peridic writeout yet, and for the latter
+		 * kind writeout is handled by the freer.
+		 */
+		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
 			requeue_io(inode);
 			continue;
 		}
+
 		/*
 		 * Was this inode dirtied after sync_sb_inodes was called?
 		 * This keeps sync from extra jobs and livelock.
@@ -498,7 +504,6 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 		if (inode_dirtied_after(inode, wbc->wb_start))
 			return 1;
 
-		BUG_ON(inode->i_state & I_FREEING);
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
 		writeback_single_inode(inode, wbc);
