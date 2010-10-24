@@ -158,7 +158,6 @@ struct hrtimer_clock_base {
  * @lock:		lock protecting the base and associated clock bases
  *			and timers
  * @clock_base:		array of clock bases for this cpu
- * @curr_timer:		the timer which is executing a callback right now
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
  * @hres_active:	State of high resolution mode
