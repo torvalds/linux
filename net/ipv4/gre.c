@@ -22,7 +22,7 @@
 #include <net/gre.h>
 
 
-static const struct gre_protocol *gre_proto[GREPROTO_MAX] __read_mostly;
+static const struct gre_protocol __rcu *gre_proto[GREPROTO_MAX] __read_mostly;
 static DEFINE_SPINLOCK(gre_proto_lock);
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version)
@@ -51,7 +51,8 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version)
 		goto err_out;
 
 	spin_lock(&gre_proto_lock);
-	if (gre_proto[version] != proto)
+	if (rcu_dereference_protected(gre_proto[version],
+			lockdep_is_held(&gre_proto_lock)) != proto)
 		goto err_out_unlock;
 	rcu_assign_pointer(gre_proto[version], NULL);
 	spin_unlock(&gre_proto_lock);

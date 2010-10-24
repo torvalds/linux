@@ -16,7 +16,7 @@ struct ip_tunnel_6rd_parm {
 };
 
 struct ip_tunnel {
-	struct ip_tunnel	*next;
+	struct ip_tunnel __rcu	*next;
 	struct net_device	*dev;
 
 	int			err_count;	/* Number of arrived ICMP errors */
