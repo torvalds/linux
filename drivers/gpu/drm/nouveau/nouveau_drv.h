@@ -70,6 +70,8 @@ struct nouveau_tile_reg {
 	uint32_t addr;
 	uint32_t limit;
 	uint32_t pitch;
+	uint32_t zcomp;
+	struct drm_mm_node *tag_mem;
 	struct nouveau_fence *fence;
 };
 
@@ -306,6 +308,7 @@ struct nouveau_timer_engine {
 
 struct nouveau_fb_engine {
 	int num_tiles;
+	struct drm_mm tag_heap;
 
 	int  (*init)(struct drm_device *dev);
 	void (*takedown)(struct drm_device *dev);

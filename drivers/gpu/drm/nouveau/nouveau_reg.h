@@ -45,6 +45,11 @@
 #	define NV04_PFB_REF_CMD_REFRESH				(1 << 0)
 #define NV04_PFB_PRE						0x001002d4
 #	define NV04_PFB_PRE_CMD_PRECHARGE			(1 << 0)
+#define NV20_PFB_ZCOMP(i)                              (0x00100300 + 4*(i))
+#	define NV20_PFB_ZCOMP_MODE_32				(4 << 24)
+#	define NV20_PFB_ZCOMP_EN				(1 << 31)
+#	define NV25_PFB_ZCOMP_MODE_16				(1 << 20)
+#	define NV25_PFB_ZCOMP_MODE_32				(2 << 20)
 #define NV10_PFB_CLOSE_PAGE2					0x0010033c
 #define NV04_PFB_SCRAMBLE(i)                         (0x00100400 + 4 * (i))
 #define NV40_PFB_TILE(i)                              (0x00100600 + (i*16))
@@ -379,6 +384,7 @@
 #define NV20_PGRAPH_TLIMIT(i)                              (0x00400904 + (i*16))
 #define NV20_PGRAPH_TSIZE(i)                               (0x00400908 + (i*16))
 #define NV20_PGRAPH_TSTATUS(i)                             (0x0040090C + (i*16))
+#define NV20_PGRAPH_ZCOMP(i)                               (0x00400980 + 4*(i))
 #define NV10_PGRAPH_TILE(i)                                (0x00400B00 + (i*16))
 #define NV10_PGRAPH_TLIMIT(i)                              (0x00400B04 + (i*16))
 #define NV10_PGRAPH_TSIZE(i)                               (0x00400B08 + (i*16))

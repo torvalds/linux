@@ -526,6 +526,12 @@ nv20_graph_set_tile_region(struct drm_device *dev, int i)
 	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, tile->pitch);
 	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
 	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, tile->addr);
+
+	if (dev_priv->card_type == NV_20) {
+		nv_wr32(dev, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
+		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00ea0090 + 4 * i);
+		nv_wr32(dev, NV10_PGRAPH_RDI_DATA, tile->zcomp);
+	}
 }
 
 int
@@ -589,16 +595,17 @@ nv20_graph_init(struct drm_device *dev)
 	nv_wr32(dev, 0x40009C           , 0x00000040);
 
 	if (dev_priv->chipset >= 0x25) {
-		nv_wr32(dev, 0x400890, 0x00080000);
+		nv_wr32(dev, 0x400890, 0x00a8cfff);
 		nv_wr32(dev, 0x400610, 0x304B1FB6);
-		nv_wr32(dev, 0x400B80, 0x18B82880);
+		nv_wr32(dev, 0x400B80, 0x1cbd3883);
 		nv_wr32(dev, 0x400B84, 0x44000000);
 		nv_wr32(dev, 0x400098, 0x40000080);
 		nv_wr32(dev, 0x400B88, 0x000000ff);
+
 	} else {
-		nv_wr32(dev, 0x400880, 0x00080000); /* 0x0008c7df */
+		nv_wr32(dev, 0x400880, 0x0008c7df);
 		nv_wr32(dev, 0x400094, 0x00000005);
-		nv_wr32(dev, 0x400B80, 0x45CAA208); /* 0x45eae20e */
+		nv_wr32(dev, 0x400B80, 0x45eae20e);
 		nv_wr32(dev, 0x400B84, 0x24000000);
 		nv_wr32(dev, 0x400098, 0x00000040);
 		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00E00038);
@@ -611,12 +618,6 @@ nv20_graph_init(struct drm_device *dev)
 	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
 		nv20_graph_set_tile_region(dev, i);
 
-	for (i = 0; i < 8; i++) {
-		nv_wr32(dev, 0x400980 + i * 4, nv_rd32(dev, 0x100300 + i * 4));
-		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0090 + i * 4);
-		nv_wr32(dev, NV10_PGRAPH_RDI_DATA,
-					nv_rd32(dev, 0x100300 + i * 4));
-	}
 	nv_wr32(dev, 0x4009a0, nv_rd32(dev, 0x100324));
 	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA000C);
 	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, nv_rd32(dev, 0x100324));
