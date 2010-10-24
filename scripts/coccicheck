@@ -32,7 +32,7 @@ if [ "$MODE" = "" ] ; then
     fi
     MODE="chain"
 elif [ "$MODE" = "report" -o "$MODE" = "org" ] ; then
-    FLAGS="$FLAGS -no_show_diff"    
+    FLAGS="$FLAGS -no_show_diff"
 fi
 
 if [ "$ONLINE" = "0" ] ; then
@@ -47,7 +47,7 @@ coccinelle () {
 
     OPT=`grep "Option" $COCCI | cut -d':' -f2`
 
-#   The option '-parse_cocci' can be used to syntaxically check the SmPL files.
+#   The option '-parse_cocci' can be used to syntactically check the SmPL files.
 #
 #    $SPATCH -D $MODE $FLAGS -parse_cocci $COCCI $OPT > /dev/null
 
@@ -62,7 +62,17 @@ coccinelle () {
 
 	sed -ne 's|^///||p' $COCCI
 
-	echo ' The semantic patch that makes this change is available'
+	if [ "$MODE" = "patch" ] ; then
+	    echo ' The semantic patch that makes this change is available'
+	elif [ "$MODE" = "report" ] ; then
+	    echo ' The semantic patch that makes this report is available'
+	elif [ "$MODE" = "context" ] ; then
+	    echo ' The semantic patch that spots this code is available'
+	elif [ "$MODE" = "org" ] ; then
+	    echo ' The semantic patch that makes this Org report is available'
+	else
+	    echo ' The semantic patch that makes this output is available'
+	fi
 	echo " in $FILE."
 	echo ''
 	echo ' More information about semantic patching is available at'
