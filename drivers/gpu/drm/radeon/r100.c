@@ -2270,6 +2270,9 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
 		 * Novell bug 204882 + along with lots of ubuntu ones
 		 */
+		if (rdev->mc.aper_size > config_aper_size)
+			config_aper_size = rdev->mc.aper_size;
+
 		if (config_aper_size > rdev->mc.real_vram_size)
 			rdev->mc.mc_vram_size = config_aper_size;
 		else
