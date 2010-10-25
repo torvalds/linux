@@ -21,6 +21,7 @@ obj-$(CONFIG_TEGRA_PWM)                 += pwm.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += clock.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_clocks.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_dvfs.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_fuse.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += suspend-t2.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= tegra2_save.o
 obj-$(CONFIG_CPU_V7)			+= cortex-a9.o
