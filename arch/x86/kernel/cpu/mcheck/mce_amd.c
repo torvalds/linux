@@ -622,9 +622,9 @@ static __cpuinit int threshold_create_device(unsigned int cpu)
 			continue;
 		err = threshold_create_bank(cpu, bank);
 		if (err)
-			goto out;
+			return err;
 	}
-out:
+
 	return err;
 }
 
