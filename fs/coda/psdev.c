@@ -108,15 +108,8 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	        return -EFAULT;
 
         if (DOWNCALL(hdr.opcode)) {
-		struct super_block *sb = NULL;
-                union outputArgs *dcbuf;
+		union outputArgs *dcbuf;
 		int size = sizeof(*dcbuf);
-
-		sb = vcp->vc_sb;
-		if ( !sb ) {
-                        count = nbytes;
-                        goto out;
-		}
 
 		if  ( nbytes < sizeof(struct coda_out_hdr) ) {
 		        printk("coda_downcall opc %d uniq %d, not enough!\n",
@@ -137,9 +130,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 		}
 
 		/* what downcall errors does Venus handle ? */
-		lock_kernel();
-		error = coda_downcall(hdr.opcode, dcbuf, sb);
-		unlock_kernel();
+		error = coda_downcall(vcp, hdr.opcode, dcbuf);
 
 		CODA_FREE(dcbuf, nbytes);
 		if (error) {

@@ -150,8 +150,6 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	int error;
 	int idx;
 
-	lock_kernel();
-
 	idx = get_device_index((struct coda_mount_data *) data);
 
 	/* Ignore errors in data, for backward compatibility */
@@ -161,23 +159,26 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	printk(KERN_INFO "coda_read_super: device index: %i\n", idx);
 
 	vc = &coda_comms[idx];
+	lock_kernel();
+
 	if (!vc->vc_inuse) {
 		printk("coda_read_super: No pseudo device\n");
-		unlock_kernel();
-		return -EINVAL;
+		error = -EINVAL;
+		goto unlock_out;
 	}
 
-        if ( vc->vc_sb ) {
+	if (vc->vc_sb) {
 		printk("coda_read_super: Device already mounted\n");
-		unlock_kernel();
-		return -EBUSY;
+		error = -EBUSY;
+		goto unlock_out;
 	}
 
 	error = bdi_setup_and_register(&vc->bdi, "coda", BDI_CAP_MAP_COPY);
 	if (error)
-		goto bdi_err;
+		goto unlock_out;
 
 	vc->vc_sb = sb;
+	unlock_kernel();
 
 	sb->s_fs_info = vc;
 	sb->s_flags |= MS_NOATIME;
@@ -206,21 +207,23 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	printk("coda_read_super: rootinode is %ld dev %s\n", 
 	       root->i_ino, root->i_sb->s_id);
 	sb->s_root = d_alloc_root(root);
-	if (!sb->s_root)
+	if (!sb->s_root) {
+		error = -EINVAL;
 		goto error;
-	unlock_kernel();
+	}
 	return 0;
 
- error:
-	bdi_destroy(&vc->bdi);
- bdi_err:
+error:
 	if (root)
 		iput(root);
-	if (vc)
-		vc->vc_sb = NULL;
 
+	lock_kernel();
+	bdi_destroy(&vc->bdi);
+	vc->vc_sb = NULL;
+	sb->s_fs_info = NULL;
+unlock_out:
 	unlock_kernel();
-	return -EINVAL;
+	return error;
 }
 
 static void coda_put_super(struct super_block *sb)
@@ -253,8 +256,6 @@ int coda_setattr(struct dentry *de, struct iattr *iattr)
 	struct coda_vattr vattr;
 	int error;
 
-	lock_kernel();
-	
 	memset(&vattr, 0, sizeof(vattr)); 
 
 	inode->i_ctime = CURRENT_TIME_SEC;
@@ -264,13 +265,10 @@ int coda_setattr(struct dentry *de, struct iattr *iattr)
 	/* Venus is responsible for truncating the container-file!!! */
 	error = venus_setattr(inode->i_sb, coda_i2f(inode), &vattr);
 
-	if ( !error ) {
+	if (!error) {
 	        coda_vattr_to_iattr(inode, &vattr); 
 		coda_cache_clear_inode(inode);
 	}
-
-	unlock_kernel();
-
 	return error;
 }
 
@@ -284,11 +282,7 @@ static int coda_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int error;
 	
-	lock_kernel();
-
 	error = venus_statfs(dentry, buf);
-
-	unlock_kernel();
 
 	if (error) {
 		/* fake something like AFS does */

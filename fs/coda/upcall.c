@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/vfs.h>
@@ -667,18 +668,23 @@ static int coda_upcall(struct venus_comm *vcp,
 {
 	union outputArgs *out;
 	union inputArgs *sig_inputArgs;
-	struct upc_req *req, *sig_req;
-	int error = 0;
+	struct upc_req *req = NULL, *sig_req;
+	int error;
+
+	lock_kernel();
 
 	if (!vcp->vc_inuse) {
 		printk(KERN_NOTICE "coda: Venus dead, not sending upcall\n");
-		return -ENXIO;
+		error = -ENXIO;
+		goto exit;
 	}
 
 	/* Format the request message. */
 	req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	if (!req) {
+		error = -ENOMEM;
+		goto exit;
+	}
 
 	req->uc_data = (void *)buffer;
 	req->uc_flags = 0;
@@ -759,6 +765,7 @@ static int coda_upcall(struct venus_comm *vcp,
 
 exit:
 	kfree(req);
+	unlock_kernel();
 	return error;
 }
 
@@ -796,21 +803,24 @@ exit:
  *
  * CODA_REPLACE -- replace one CodaFid with another throughout the name cache */
 
-int coda_downcall(int opcode, union outputArgs * out, struct super_block *sb)
+int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out)
 {
 	struct inode *inode = NULL;
 	struct CodaFid *fid, *newfid;
+	struct super_block *sb;
 
 	/* Handle invalidation requests. */
-	if ( !sb || !sb->s_root)
-		return 0;
+	lock_kernel();
+	sb = vcp->vc_sb;
+	if (!sb || !sb->s_root)
+		goto unlock_out;
 
 	switch (opcode) {
 	case CODA_FLUSH:
 		coda_cache_clear_all(sb);
 		shrink_dcache_sb(sb);
 		if (sb->s_root->d_inode)
-		    coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
+			coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
 		break;
 
 	case CODA_PURGEUSER:
@@ -855,9 +865,11 @@ int coda_downcall(int opcode, union outputArgs * out, struct super_block *sb)
 		break;
 	}
 
+unlock_out:
+	unlock_kernel();
+
 	if (inode)
 		iput(inode);
-
 	return 0;
 }
 

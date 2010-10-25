@@ -15,7 +15,6 @@
 #include <linux/stat.h>
 #include <linux/cred.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -144,8 +143,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	if (!cfi)
 		return -ENOMEM;
 
-	lock_kernel();
-
 	error = venus_open(coda_inode->i_sb, coda_i2f(coda_inode), coda_flags,
 			   &host_file);
 	if (!host_file)
@@ -153,7 +150,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 
 	if (error) {
 		kfree(cfi);
-		unlock_kernel();
 		return error;
 	}
 
@@ -165,8 +161,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 
 	BUG_ON(coda_file->private_data != NULL);
 	coda_file->private_data = cfi;
-
-	unlock_kernel();
 	return 0;
 }
 
@@ -177,9 +171,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	struct coda_file_info *cfi;
 	struct coda_inode_info *cii;
 	struct inode *host_inode;
-	int err = 0;
-
-	lock_kernel();
+	int err;
 
 	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
@@ -203,8 +195,6 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	kfree(coda_file->private_data);
 	coda_file->private_data = NULL;
 
-	unlock_kernel();
-
 	/* VFS fput ignores the return value from file_operations->release, so
 	 * there is no use returning an error here */
 	return 0;
@@ -215,7 +205,7 @@ int coda_fsync(struct file *coda_file, int datasync)
 	struct file *host_file;
 	struct inode *coda_inode = coda_file->f_path.dentry->d_inode;
 	struct coda_file_info *cfi;
-	int err = 0;
+	int err;
 
 	if (!(S_ISREG(coda_inode->i_mode) || S_ISDIR(coda_inode->i_mode) ||
 	      S_ISLNK(coda_inode->i_mode)))
@@ -226,11 +216,8 @@ int coda_fsync(struct file *coda_file, int datasync)
 	host_file = cfi->cfi_container;
 
 	err = vfs_fsync(host_file, datasync);
-	if ( !err && !datasync ) {
-		lock_kernel();
+	if (!err && !datasync)
 		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));
-		unlock_kernel();
-	}
 
 	return err;
 }
