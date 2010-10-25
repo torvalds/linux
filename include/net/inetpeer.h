@@ -15,7 +15,7 @@
 
 struct inet_peer {
 	/* group together avl_left,avl_right,v4daddr to speedup lookups */
-	struct inet_peer	*avl_left, *avl_right;
+	struct inet_peer __rcu	*avl_left, *avl_right;
 	__be32			v4daddr;	/* peer's address */
 	__u32			avl_height;
 	struct list_head	unused;
