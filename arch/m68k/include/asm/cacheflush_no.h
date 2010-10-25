@@ -29,7 +29,7 @@
 
 static inline void __flush_cache_all(void)
 {
-#ifdef CONFIG_M5407
+#if defined(CONFIG_M5407) || defined(CONFIG_M548x)
 	/*
 	 *	Use cpushl to push and invalidate all cache lines.
 	 *	Gas doesn't seem to know how to generate the ColdFire
