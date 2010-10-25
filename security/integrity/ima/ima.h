@@ -106,6 +106,7 @@ struct ima_iint_cache {
 	unsigned char flags;
 	u8 digest[IMA_DIGEST_SIZE];
 	struct mutex mutex;	/* protects: version, flags, digest */
+	/* protected by inode->i_lock */
 	unsigned int readcount;	/* measured files readcount */
 	unsigned int writecount;/* measured files writecount */
 	struct kref refcount;	/* ima_iint_cache reference count */
