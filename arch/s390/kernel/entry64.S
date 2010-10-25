@@ -727,8 +727,11 @@ ext_int_handler:
 ext_no_vtime:
 	HANDLE_SIE_INTERCEPT
 	TRACE_IRQS_OFF
+	lghi	%r1,4096
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
-	llgh	%r3,__LC_EXT_INT_CODE	# get interruption code
+	llgf	%r3,__LC_CPU_ADDRESS	# get cpu address + interruption code
+	llgf	%r4,__LC_EXT_PARAMS	# get external parameter
+	lg	%r5,__LC_EXT_PARAMS2-4096(%r1)	# get 64 bit external parameter
 	brasl	%r14,do_extint
 	j	io_return
 

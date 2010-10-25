@@ -722,7 +722,8 @@ ext_no_vtime:
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
-	lh	%r3,__LC_EXT_INT_CODE	# get interruption code
+	l	%r3,__LC_CPU_ADDRESS	# get cpu address + interruption code
+	l	%r4,__LC_EXT_PARAMS	# get external parameters
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1
 	b	BASED(io_return)

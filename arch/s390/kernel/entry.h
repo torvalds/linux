@@ -19,7 +19,7 @@ void do_signal(struct pt_regs *regs);
 int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
 
-void do_extint(struct pt_regs *regs, unsigned short code);
+void do_extint(struct pt_regs *regs, unsigned int, unsigned int, unsigned long);
 int __cpuinit start_secondary(void *cpuvoid);
 void __init startup_init(void);
 void die(const char * str, struct pt_regs * regs, long err);

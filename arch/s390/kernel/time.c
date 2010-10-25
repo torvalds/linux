@@ -155,7 +155,9 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(__u16 code)
+static void clock_comparator_interrupt(unsigned int ext_int_code,
+				       unsigned int param32,
+				       unsigned long param64)
 {
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
@@ -164,14 +166,13 @@ static void clock_comparator_interrupt(__u16 code)
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(__u16 code)
+static void timing_alert_interrupt(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
-	if (S390_lowcore.ext_params & 0x00c40000)
-		etr_timing_alert((struct etr_irq_parm *)
-				 &S390_lowcore.ext_params);
-	if (S390_lowcore.ext_params & 0x00038000)
-		stp_timing_alert((struct stp_irq_parm *)
-				 &S390_lowcore.ext_params);
+	if (param32 & 0x00c40000)
+		etr_timing_alert((struct etr_irq_parm *) &param32);
+	if (param32 & 0x00038000)
+		stp_timing_alert((struct stp_irq_parm *) &param32);
 }
 
 static void etr_reset(void);

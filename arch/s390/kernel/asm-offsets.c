@@ -143,10 +143,8 @@ int main(void)
 	DEFINE(__LC_GPREGS_SAVE_AREA, offsetof(struct _lowcore, gpregs_save_area));
 	DEFINE(__LC_CREGS_SAVE_AREA, offsetof(struct _lowcore, cregs_save_area));
 #ifdef CONFIG_32BIT
-	DEFINE(__LC_PFAULT_INTPARM, offsetof(struct _lowcore, ext_params));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
 #else /* CONFIG_32BIT */
-	DEFINE(__LC_PFAULT_INTPARM, offsetof(struct _lowcore, ext_params2));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));

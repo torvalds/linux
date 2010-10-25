@@ -156,7 +156,8 @@ void smp_send_stop(void)
  * cpus are handled.
  */
 
-static void do_ext_call_interrupt(__u16 code)
+static void do_ext_call_interrupt(unsigned int ext_int_code,
+				  unsigned int param32, unsigned long param64)
 {
 	unsigned long bits;
 

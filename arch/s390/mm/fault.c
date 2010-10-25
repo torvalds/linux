@@ -542,7 +542,8 @@ void pfault_fini(void)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
-static void pfault_interrupt(__u16 int_code)
+static void pfault_interrupt(unsigned int ext_int_code,
+			     unsigned int param32, unsigned long param64)
 {
 	struct task_struct *tsk;
 	__u16 subcode;
@@ -553,14 +554,18 @@ static void pfault_interrupt(__u16 int_code)
 	 * in the 'cpu address' field associated with the
          * external interrupt. 
 	 */
-	subcode = S390_lowcore.cpu_addr;
+	subcode = ext_int_code >> 16;
 	if ((subcode & 0xff00) != __SUBCODE_MASK)
 		return;
 
 	/*
 	 * Get the token (= address of the task structure of the affected task).
 	 */
-	tsk = *(struct task_struct **) __LC_PFAULT_INTPARM;
+#ifdef CONFIG_64BIT
+	tsk = *(struct task_struct **) param64;
+#else
+	tsk = *(struct task_struct **) param32;
+#endif
 
 	if (subcode & 0x0080) {
 		/* signal bit is set -> a page has been swapped in by VM */
