@@ -577,7 +577,7 @@ static int __unset_registered(struct device *dev, void *data)
 	return 0;
 }
 
-void css_schedule_eval_all_unreg(void)
+static void css_schedule_eval_all_unreg(void)
 {
 	unsigned long flags;
 	struct idset *unreg_set;
