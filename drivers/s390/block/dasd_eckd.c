@@ -3093,16 +3093,20 @@ dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
 			 char *reason)
 {
 	u64 *sense;
+	u32 stat;
 
 	sense = (u64 *) dasd_get_sense(irb);
+	stat = scsw_cstat(&irb->scsw);
+	stat <<= 8;
+	stat |=	scsw_dstat(&irb->scsw);
+	stat <<= 8;
+	stat |= scsw_cc(&irb->scsw);
+
 	if (sense) {
 		DBF_DEV_EVENT(DBF_EMERG, device,
-			      "%s: %s %02x%02x%02x %016llx %016llx %016llx "
-			      "%016llx", reason,
-			      scsw_is_tm(&irb->scsw) ? "t" : "c",
-			      scsw_cc(&irb->scsw), scsw_cstat(&irb->scsw),
-			      scsw_dstat(&irb->scsw), sense[0], sense[1],
-			      sense[2], sense[3]);
+			      "%s: %s %06x %016llx %016llx %016llx %016llx",
+			      reason, scsw_is_tm(&irb->scsw) ? "t" : "c", stat,
+			      sense[0], sense[1], sense[2], sense[3]);
 	} else {
 		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
 			      "SORRY - NO VALID SENSE AVAILABLE\n");
