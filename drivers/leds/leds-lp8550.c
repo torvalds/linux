@@ -41,6 +41,9 @@
 #define LP8550_TEMP_MSB		0x05
 #define LP8550_TEMP_LSB		0x06
 
+#define LP8550_BRT_MODE_PWM	0x02
+#define LP8550_BRT_MODE_BRIGHT	0x04
+
 /* EEPROM Register address */
 #define LP8550_EEPROM_CTRL	0x72
 #define LP8550_EEPROM_A0	0xa0
@@ -60,6 +63,7 @@ struct lp8550_data {
 	struct lp8550_platform_data *led_pdata;
 	uint8_t last_requested_brightness;
 	int brightness;
+	atomic_t enabled;
 };
 
 #ifdef DEBUG
@@ -191,7 +195,7 @@ static int ld_lp8550_init_registers(struct lp8550_data *led_data)
 	}
 
 	if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-		led_data->led_pdata->dev_ctrl_config)) {
+		(led_data->led_pdata->dev_ctrl_config | 0x01))) {
 		pr_err("%s:Register initialization failed\n", __func__);
 		return -EINVAL;
 	}
@@ -236,13 +240,29 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 			pr_err("%s:writing failed while setting brightness:%d\n",
 				__func__, error);
 		}
+		atomic_set(&led_data->enabled, 0);
 	} else {
-		if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-				led_data->led_pdata->dev_ctrl_config | 0x01)) {
-			pr_err("%s:writing failed while setting brightness:%d\n",
+		if (!atomic_cmpxchg(&led_data->enabled, 0, 1)) {
+			if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
+				led_data->led_pdata->dev_ctrl_config | 0x01))
+				pr_err("%s:writing failed while setting brightness:%d\n",
+					__func__, error);
+			else
+				atomic_set(&led_data->enabled, 1);
+		}
+
+		if (led_data->led_pdata->dev_ctrl_config ==
+			 LP8550_BRT_MODE_BRIGHT) {
+			if (lp8550_write_reg(led_data, LP8550_BRIGHTNESS_CTRL,
+				 brightness))
+				pr_err("%s:Failed to set brightness:%d\n",
 				__func__, error);
 		}
-		if (lp8550_write_reg(led_data, LP8550_BRIGHTNESS_CTRL, brightness)) {
+
+		if (led_data->led_pdata->dev_ctrl_config ==
+			 LP8550_BRT_MODE_PWM) {
+			if (lp8550_write_reg(led_data, LP8550_EEPROM_A0,
+				 brightness))
 				pr_err("%s:Failed to set brightness:%d\n",
 				__func__, error);
 		}
@@ -352,14 +372,22 @@ static int ld_lp8550_probe(struct i2c_client *client,
 		goto err_reg_init_failed;
 	}
 
-	error = lp8550_write_reg(led_data, LP8550_BRIGHTNESS_CTRL,
+	if (led_data->led_pdata->dev_ctrl_config == LP8550_BRT_MODE_BRIGHT) {
+		error = lp8550_write_reg(led_data, LP8550_BRIGHTNESS_CTRL,
 				 pdata->power_up_brightness);
+	} else if (led_data->led_pdata->dev_ctrl_config == LP8550_BRT_MODE_PWM) {
+		error = lp8550_write_reg(led_data, LP8550_EEPROM_A0,
+				 pdata->power_up_brightness);
+	}
+
 	if (error) {
 		pr_err("%s:Setting power up brightness failed %d\n",
 		       __func__, error);
 		error = -ENODEV;
 		goto err_reg_init_failed;
 	}
+
+	atomic_set(&led_data->enabled, 0);
 
 	INIT_WORK(&led_data->wq, lp8550_brightness_work);
 
