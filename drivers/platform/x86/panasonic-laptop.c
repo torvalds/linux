@@ -128,6 +128,7 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 
 
 #ifndef ACPI_HOTKEY_COMPONENT
@@ -200,30 +201,29 @@ static struct acpi_driver acpi_pcc_driver = {
 			},
 };
 
-#define KEYMAP_SIZE		11
-static const unsigned int initial_keymap[KEYMAP_SIZE] = {
-	/*  0 */ KEY_RESERVED,
-	/*  1 */ KEY_BRIGHTNESSDOWN,
-	/*  2 */ KEY_BRIGHTNESSUP,
-	/*  3 */ KEY_DISPLAYTOGGLE,
-	/*  4 */ KEY_MUTE,
-	/*  5 */ KEY_VOLUMEDOWN,
-	/*  6 */ KEY_VOLUMEUP,
-	/*  7 */ KEY_SLEEP,
-	/*  8 */ KEY_PROG1, /* Change CPU boost */
-	/*  9 */ KEY_BATTERY,
-	/* 10 */ KEY_SUSPEND,
+static const struct key_entry panasonic_keymap[] = {
+	{ KE_KEY, 0, { KEY_RESERVED } },
+	{ KE_KEY, 1, { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY, 2, { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, 3, { KEY_DISPLAYTOGGLE } },
+	{ KE_KEY, 4, { KEY_MUTE } },
+	{ KE_KEY, 5, { KEY_VOLUMEDOWN } },
+	{ KE_KEY, 6, { KEY_VOLUMEUP } },
+	{ KE_KEY, 7, { KEY_SLEEP } },
+	{ KE_KEY, 8, { KEY_PROG1 } }, /* Change CPU boost */
+	{ KE_KEY, 9, { KEY_BATTERY } },
+	{ KE_KEY, 10, { KEY_SUSPEND } },
+	{ KE_END, 0 }
 };
 
 struct pcc_acpi {
 	acpi_handle		handle;
 	unsigned long		num_sifr;
 	int			sticky_mode;
-	u32 			*sinf;
+	u32			*sinf;
 	struct acpi_device	*device;
 	struct input_dev	*input_dev;
 	struct backlight_device	*backlight;
-	unsigned int		keymap[KEYMAP_SIZE];
 };
 
 struct pcc_keyinput {
@@ -267,7 +267,7 @@ static inline int acpi_pcc_get_sqty(struct acpi_device *device)
 	}
 }
 
-static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
+static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -285,6 +285,7 @@ static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
 	hkey = buffer.pointer;
 	if (!hkey || (hkey->type != ACPI_TYPE_PACKAGE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid HKEY.SINF\n"));
+		status = AE_ERROR;
 		goto end;
 	}
 
@@ -298,12 +299,12 @@ static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
 	for (i = 0; i < hkey->package.count; i++) {
 		union acpi_object *element = &(hkey->package.elements[i]);
 		if (likely(element->type == ACPI_TYPE_INTEGER)) {
-			sinf[i] = element->integer.value;
+			pcc->sinf[i] = element->integer.value;
 		} else
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					 "Invalid HKEY.SINF data\n"));
 	}
-	sinf[hkey->package.count] = -1;
+	pcc->sinf[hkey->package.count] = -1;
 
 end:
 	kfree(buffer.pointer);
@@ -321,7 +322,7 @@ static int bl_get(struct backlight_device *bd)
 {
 	struct pcc_acpi *pcc = bl_get_data(bd);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return pcc->sinf[SINF_AC_CUR_BRIGHT];
@@ -333,7 +334,7 @@ static int bl_set_status(struct backlight_device *bd)
 	int bright = bd->props.brightness;
 	int rc;
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	if (bright < pcc->sinf[SINF_AC_MIN_BRIGHT])
@@ -367,7 +368,7 @@ static ssize_t show_numbatt(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
@@ -379,7 +380,7 @@ static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
@@ -391,7 +392,7 @@ static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_MUTE]);
@@ -403,7 +404,7 @@ static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
 	struct acpi_device *acpi = to_acpi_device(dev);
 	struct pcc_acpi *pcc = acpi_driver_data(acpi);
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
+	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
@@ -446,56 +447,10 @@ static struct attribute_group pcc_attr_group = {
 
 /* hotkey input device driver */
 
-static int pcc_getkeycode(struct input_dev *dev,
-			  unsigned int scancode, unsigned int *keycode)
-{
-	struct pcc_acpi *pcc = input_get_drvdata(dev);
-
-	if (scancode >= ARRAY_SIZE(pcc->keymap))
-		return -EINVAL;
-
-	*keycode = pcc->keymap[scancode];
-
-	return 0;
-}
-
-static int keymap_get_by_keycode(struct pcc_acpi *pcc, unsigned int keycode)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pcc->keymap); i++) {
-		if (pcc->keymap[i] == keycode)
-			return i+1;
-	}
-
-	return 0;
-}
-
-static int pcc_setkeycode(struct input_dev *dev,
-			  unsigned int scancode, unsigned int keycode)
-{
-	struct pcc_acpi *pcc = input_get_drvdata(dev);
-	int oldkeycode;
-
-	if (scancode >= ARRAY_SIZE(pcc->keymap))
-		return -EINVAL;
-
-	oldkeycode = pcc->keymap[scancode];
-	pcc->keymap[scancode] = keycode;
-
-	set_bit(keycode, dev->keybit);
-
-	if (!keymap_get_by_keycode(pcc, oldkeycode))
-		clear_bit(oldkeycode, dev->keybit);
-
-	return 0;
-}
-
 static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 {
 	struct input_dev *hotk_input_dev = pcc->input_dev;
 	int rc;
-	int key_code, hkey_num;
 	unsigned long long result;
 
 	rc = acpi_evaluate_integer(pcc->handle, METHOD_HKEY_QUERY,
@@ -508,25 +463,10 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 
 	acpi_bus_generate_proc_event(pcc->device, HKEY_NOTIFY, result);
 
-	hkey_num = result & 0xf;
-
-	if (hkey_num < 0 || hkey_num >= ARRAY_SIZE(pcc->keymap)) {
+	if (!sparse_keymap_report_event(hotk_input_dev,
+					result & 0xf, result & 0x80, false))
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "hotkey number out of range: %d\n",
-				  hkey_num));
-		return;
-	}
-
-	key_code = pcc->keymap[hkey_num];
-
-	if (key_code != KEY_RESERVED) {
-		int pushed = (result & 0x80) ? TRUE : FALSE;
-
-		input_report_key(hotk_input_dev, key_code, pushed);
-		input_sync(hotk_input_dev);
-	}
-
-	return;
+				  "Unknown hotkey event: %d\n", result));
 }
 
 static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
@@ -545,40 +485,55 @@ static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
 
 static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 {
-	int i, rc;
+	struct input_dev *input_dev;
+	int error;
 
-	pcc->input_dev = input_allocate_device();
-	if (!pcc->input_dev) {
+	input_dev = input_allocate_device();
+	if (!input_dev) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Couldn't allocate input device for hotkey"));
 		return -ENOMEM;
 	}
 
-	pcc->input_dev->evbit[0] = BIT(EV_KEY);
+	input_dev->name = ACPI_PCC_DRIVER_NAME;
+	input_dev->phys = ACPI_PCC_INPUT_PHYS;
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
 
-	pcc->input_dev->name = ACPI_PCC_DRIVER_NAME;
-	pcc->input_dev->phys = ACPI_PCC_INPUT_PHYS;
-	pcc->input_dev->id.bustype = BUS_HOST;
-	pcc->input_dev->id.vendor = 0x0001;
-	pcc->input_dev->id.product = 0x0001;
-	pcc->input_dev->id.version = 0x0100;
-	pcc->input_dev->getkeycode = pcc_getkeycode;
-	pcc->input_dev->setkeycode = pcc_setkeycode;
+	error = sparse_keymap_setup(input_dev, panasonic_keymap, NULL);
+	if (error) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Unable to setup input device keymap\n"));
+		goto err_free_dev;
+	}
 
-	/* load initial keymap */
-	memcpy(pcc->keymap, initial_keymap, sizeof(pcc->keymap));
+	error = input_register_device(input_dev);
+	if (error) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Unable to register input device\n"));
+		goto err_free_keymap;
+	}
 
-	for (i = 0; i < ARRAY_SIZE(pcc->keymap); i++)
-		__set_bit(pcc->keymap[i], pcc->input_dev->keybit);
-	__clear_bit(KEY_RESERVED, pcc->input_dev->keybit);
+	pcc->input_dev = input_dev;
+	return 0;
 
-	input_set_drvdata(pcc->input_dev, pcc);
+ err_free_keymap:
+	sparse_keymap_free(input_dev);
+ err_free_dev:
+	input_free_device(input_dev);
+	return error;
+}
 
-	rc = input_register_device(pcc->input_dev);
-	if (rc < 0)
-		input_free_device(pcc->input_dev);
-
-	return rc;
+static void acpi_pcc_destroy_input(struct pcc_acpi *pcc)
+{
+	sparse_keymap_free(pcc->input_dev);
+	input_unregister_device(pcc->input_dev);
+	/*
+	 * No need to input_free_device() since core input API refcounts
+	 * and free()s the device.
+	 */
 }
 
 /* kernel module interface */
@@ -636,12 +591,13 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Error installing keyinput handler\n"));
-		goto out_hotkey;
+		goto out_sinf;
 	}
 
-	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf)) {
+	if (!acpi_pcc_retrieve_biosdata(pcc)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				 "Couldn't retrieve BIOS data\n"));
+		result = -EIO;
 		goto out_input;
 	}
 	/* initialize backlight */
@@ -651,7 +607,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 						   &pcc_backlight_ops, &props);
 	if (IS_ERR(pcc->backlight)) {
 		result = PTR_ERR(pcc->backlight);
-		goto out_sinf;
+		goto out_input;
 	}
 
 	/* read the initial brightness setting from the hardware */
@@ -669,12 +625,10 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 
 out_backlight:
 	backlight_device_unregister(pcc->backlight);
+out_input:
+	acpi_pcc_destroy_input(pcc);
 out_sinf:
 	kfree(pcc->sinf);
-out_input:
-	input_unregister_device(pcc->input_dev);
-	/* no need to input_free_device() since core input API refcount and
-	 * free()s the device */
 out_hotkey:
 	kfree(pcc);
 
@@ -709,9 +663,7 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type)
 
 	backlight_device_unregister(pcc->backlight);
 
-	input_unregister_device(pcc->input_dev);
-	/* no need to input_free_device() since core input API refcount and
-	 * free()s the device */
+	acpi_pcc_destroy_input(pcc);
 
 	kfree(pcc->sinf);
 	kfree(pcc);
