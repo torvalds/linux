@@ -577,16 +577,10 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 	return ret;
 }
 
-static int ar_context_add_page(struct ar_context *ctx)
+static void ar_context_link_page(struct ar_context *ctx,
+				 struct ar_buffer *ab, dma_addr_t ab_bus)
 {
-	struct device *dev = ctx->ohci->card.device;
-	struct ar_buffer *ab;
-	dma_addr_t uninitialized_var(ab_bus);
 	size_t offset;
-
-	ab = dma_alloc_coherent(dev, PAGE_SIZE, &ab_bus, GFP_ATOMIC);
-	if (ab == NULL)
-		return -ENOMEM;
 
 	ab->next = NULL;
 	memset(&ab->descriptor, 0, sizeof(ab->descriptor));
@@ -606,6 +600,19 @@ static int ar_context_add_page(struct ar_context *ctx)
 
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
+}
+
+static int ar_context_add_page(struct ar_context *ctx)
+{
+	struct device *dev = ctx->ohci->card.device;
+	struct ar_buffer *ab;
+	dma_addr_t uninitialized_var(ab_bus);
+
+	ab = dma_alloc_coherent(dev, PAGE_SIZE, &ab_bus, GFP_ATOMIC);
+	if (ab == NULL)
+		return -ENOMEM;
+
+	ar_context_link_page(ctx, ab, ab_bus);
 
 	return 0;
 }
@@ -730,7 +737,6 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 static void ar_context_tasklet(unsigned long data)
 {
 	struct ar_context *ctx = (struct ar_context *)data;
-	struct fw_ohci *ohci = ctx->ohci;
 	struct ar_buffer *ab;
 	struct descriptor *d;
 	void *buffer, *end;
@@ -799,9 +805,7 @@ static void ar_context_tasklet(unsigned long data)
 			ctx->current_buffer = ab;
 			ctx->pointer = end;
 
-			dma_free_coherent(ohci->card.device, PAGE_SIZE,
-					  start, start_bus);
-			ar_context_add_page(ctx);
+			ar_context_link_page(ctx, start, start_bus);
 		} else {
 			ctx->pointer = start + PAGE_SIZE;
 		}
