@@ -1562,9 +1562,8 @@ F:	net/ceph
 F:	include/linux/ceph
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
-M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/usb/WUSB-Design-overview.txt
 F:	Documentation/usb/wusb-cbaf
 F:	drivers/usb/host/hwa-hc.c
@@ -5991,9 +5990,8 @@ F:	Documentation/filesystems/ufs.txt
 F:	fs/ufs/
 
 ULTRA-WIDEBAND (UWB) SUBSYSTEM:
-M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	drivers/uwb/
 F:	include/linux/uwb.h
 F:	include/linux/uwb/
