@@ -24,29 +24,15 @@ static int s5pv210_cfg_i2s(struct platform_device *pdev)
 	/* configure GPIO for i2s port */
 	switch (pdev->id) {
 	case 1:
-		s3c_gpio_cfgpin(S5PV210_GPC0(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC0(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC0(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC0(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC0(4), S3C_GPIO_SFN(2));
+		s3c_gpio_cfgpin_range(S5PV210_GPC0(0), 5, S3C_GPIO_SFN(2));
 		break;
 
 	case 2:
-		s3c_gpio_cfgpin(S5PV210_GPC1(0), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PV210_GPC1(1), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PV210_GPC1(2), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PV210_GPC1(3), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PV210_GPC1(4), S3C_GPIO_SFN(4));
+		s3c_gpio_cfgpin_range(S5PV210_GPC1(0), 5, S3C_GPIO_SFN(4));
 		break;
 
 	case -1:
-		s3c_gpio_cfgpin(S5PV210_GPI(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPI(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPI(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPI(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPI(4), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPI(5), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPI(6), S3C_GPIO_SFN(2));
+		s3c_gpio_cfgpin_range(S5PV210_GPI(0), 7, S3C_GPIO_SFN(2));
 		break;
 
 	default:
@@ -151,25 +137,13 @@ static int s5pv210_pcm_cfg_gpio(struct platform_device *pdev)
 {
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5PV210_GPI(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPI(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPI(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPI(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPI(4), S3C_GPIO_SFN(3));
+		s3c_gpio_cfgpin_range(S5PV210_GPI(0), 5, S3C_GPIO_SFN(3));
 		break;
 	case 1:
-		s3c_gpio_cfgpin(S5PV210_GPC0(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPC0(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPC0(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPC0(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PV210_GPC0(4), S3C_GPIO_SFN(3));
+		s3c_gpio_cfgpin_range(S5PV210_GPC0(0), 5, S3C_GPIO_SFN(3));
 		break;
 	case 2:
-		s3c_gpio_cfgpin(S5PV210_GPC1(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC1(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC1(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC1(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PV210_GPC1(4), S3C_GPIO_SFN(2));
+		s3c_gpio_cfgpin_range(S5PV210_GPC1(0), 5, S3C_GPIO_SFN(2));
 		break;
 	default:
 		printk(KERN_DEBUG "Invalid PCM Controller number!");
@@ -271,13 +245,7 @@ struct platform_device s5pv210_device_pcm2 = {
 
 static int s5pv210_ac97_cfg_gpio(struct platform_device *pdev)
 {
-	s3c_gpio_cfgpin(S5PV210_GPC0(0), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PV210_GPC0(1), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PV210_GPC0(2), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PV210_GPC0(3), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PV210_GPC0(4), S3C_GPIO_SFN(4));
-
-	return 0;
+	return s3c_gpio_cfgpin_range(S5PV210_GPC0(0), 5, S3C_GPIO_SFN(4));
 }
 
 static struct resource s5pv210_ac97_resource[] = {

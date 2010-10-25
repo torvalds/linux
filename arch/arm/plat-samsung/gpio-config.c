@@ -41,6 +41,37 @@ int s3c_gpio_cfgpin(unsigned int pin, unsigned int config)
 }
 EXPORT_SYMBOL(s3c_gpio_cfgpin);
 
+int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
+			  unsigned int cfg)
+{
+	int ret;
+
+	for (; nr > 0; nr--, start++) {
+		ret = s3c_gpio_cfgpin(start, cfg);
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(s3c_gpio_cfgpin_range);
+
+int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
+			  unsigned int cfg, s3c_gpio_pull_t pull)
+{
+	int ret;
+
+	for (; nr > 0; nr--, start++) {
+		s3c_gpio_setpull(start, pull);
+		ret = s3c_gpio_cfgpin(start, cfg);
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(s3c_gpio_cfgall_range);
+
 unsigned s3c_gpio_getcfg(unsigned int pin)
 {
 	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);

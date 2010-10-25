@@ -21,33 +21,21 @@
 #include <mach/regs-clock.h>
 #include <plat/gpio-cfg.h>
 
+static void s5pv210_fb_cfg_gpios(unsigned int base, unsigned int nr)
+{
+	s3c_gpio_cfgrange_nopull(base, nr, S3C_GPIO_SFN(2));
+
+	for (; nr > 0; nr--, base++)
+		s5p_gpio_set_drvstr(base, S5P_GPIO_DRVSTR_LV4);
+}
+
+
 void s5pv210_fb_gpio_setup_24bpp(void)
 {
-	unsigned int gpio = 0;
-
-	for (gpio = S5PV210_GPF0(0); gpio <= S5PV210_GPF0(7); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-		s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV4);
-	}
-
-	for (gpio = S5PV210_GPF1(0); gpio <= S5PV210_GPF1(7); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-		s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV4);
-	}
-
-	for (gpio = S5PV210_GPF2(0); gpio <= S5PV210_GPF2(7); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-		s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV4);
-	}
-
-	for (gpio = S5PV210_GPF3(0); gpio <= S5PV210_GPF3(3); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-		s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV4);
-	}
+	s5pv210_fb_cfg_gpios(S5PV210_GPF0(0), 8);
+	s5pv210_fb_cfg_gpios(S5PV210_GPF1(0), 8);
+	s5pv210_fb_cfg_gpios(S5PV210_GPF2(0), 8);
+	s5pv210_fb_cfg_gpios(S5PV210_GPF3(0), 4);
 
 	/* Set DISPLAY_CONTROL register for Display path selection.
 	 *

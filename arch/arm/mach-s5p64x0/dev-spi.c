@@ -39,58 +39,48 @@ static char *s5p64x0_spi_src_clks[] = {
  */
 static int s5p6440_spi_cfg_gpio(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5P6440_GPC(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPC(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPC(2), S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(S5P6440_GPC(0), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6440_GPC(1), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6440_GPC(2), S3C_GPIO_PULL_UP);
+		base = S5P6440_GPC(0);
 		break;
 
 	case 1:
-		s3c_gpio_cfgpin(S5P6440_GPC(4), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPC(5), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPC(6), S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(S5P6440_GPC(4), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6440_GPC(5), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6440_GPC(6), S3C_GPIO_PULL_UP);
+		base = S5P6440_GPC(4);
 		break;
 
 	default:
 		dev_err(&pdev->dev, "Invalid SPI Controller number!");
 		return -EINVAL;
 	}
+
+	s3c_gpio_cfgall_range(base, 3,
+			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 
 	return 0;
 }
 
 static int s5p6450_spi_cfg_gpio(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5P6450_GPC(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6450_GPC(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6450_GPC(2), S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(S5P6450_GPC(0), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6450_GPC(1), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6450_GPC(2), S3C_GPIO_PULL_UP);
+		base = S5P6450_GPC(0);
 		break;
 
 	case 1:
-		s3c_gpio_cfgpin(S5P6450_GPC(4), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6450_GPC(5), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6450_GPC(6), S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(S5P6450_GPC(4), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6450_GPC(5), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6450_GPC(6), S3C_GPIO_PULL_UP);
+		base = S5P6450_GPC(4);
 		break;
 
 	default:
 		dev_err(&pdev->dev, "Invalid SPI Controller number!");
 		return -EINVAL;
 	}
+
+	s3c_gpio_cfgall_range(base, 3,
+			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 
 	return 0;
 }
