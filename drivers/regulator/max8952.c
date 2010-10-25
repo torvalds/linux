@@ -212,9 +212,11 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	max8952->rdev = regulator_register(&regulator, max8952->dev,
 			&pdata->reg_data, max8952);
 
-	ret = IS_ERR(max8952->rdev);
-	if (ret)
+	if (IS_ERR(max8952->rdev)) {
+		ret = PTR_ERR(max8952->rdev);
 		dev_err(max8952->dev, "regulator init failed (%d)\n", ret);
+		goto err_reg;
+	}
 
 	max8952->en = !!(pdata->reg_data.constraints.boot_on);
 	max8952->vid0 = (pdata->default_mode % 2) == 1;
@@ -309,6 +311,10 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, max8952);
 
+	return 0;
+
+err_reg:
+	kfree(max8952);
 	return ret;
 }
 
