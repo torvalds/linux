@@ -20,42 +20,9 @@
 #include <asm/s390_ext.h>
 #include <asm/sysinfo.h>
 
-#define CPU_BITS 64
-#define NR_MAG 6
-
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
 #define PTF_CHECK	(2UL)
-
-struct tl_cpu {
-	unsigned char reserved0[4];
-	unsigned char :6;
-	unsigned char pp:2;
-	unsigned char reserved1;
-	unsigned short origin;
-	unsigned long mask[CPU_BITS / BITS_PER_LONG];
-};
-
-struct tl_container {
-	unsigned char reserved[7];
-	unsigned char id;
-};
-
-union tl_entry {
-	unsigned char nl;
-	struct tl_cpu cpu;
-	struct tl_container container;
-};
-
-struct tl_info {
-	unsigned char reserved0[2];
-	unsigned short length;
-	unsigned char mag[NR_MAG];
-	unsigned char reserved1;
-	unsigned char mnest;
-	unsigned char reserved2[4];
-	union tl_entry tle[0];
-};
 
 struct mask_info {
 	struct mask_info *next;
@@ -65,7 +32,7 @@ struct mask_info {
 
 static int topology_enabled = 1;
 static void topology_work_fn(struct work_struct *work);
-static struct tl_info *tl_info;
+static struct sysinfo_15_1_x *tl_info;
 static struct timer_list topology_timer;
 static void set_topology_timer(void);
 static DECLARE_WORK(topology_work, topology_work_fn);
@@ -101,18 +68,18 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 	return mask;
 }
 
-static void add_cpus_to_mask(struct tl_cpu *tl_cpu, struct mask_info *book,
-			     struct mask_info *core)
+static void add_cpus_to_mask(struct topology_cpu *tl_cpu,
+			     struct mask_info *book, struct mask_info *core)
 {
 	unsigned int cpu;
 
-	for (cpu = find_first_bit(&tl_cpu->mask[0], CPU_BITS);
-	     cpu < CPU_BITS;
-	     cpu = find_next_bit(&tl_cpu->mask[0], CPU_BITS, cpu + 1))
+	for (cpu = find_first_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS);
+	     cpu < TOPOLOGY_CPU_BITS;
+	     cpu = find_next_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS, cpu + 1))
 	{
 		unsigned int rcpu, lcpu;
 
-		rcpu = CPU_BITS - 1 - cpu + tl_cpu->origin;
+		rcpu = TOPOLOGY_CPU_BITS - 1 - cpu + tl_cpu->origin;
 		for_each_present_cpu(lcpu) {
 			if (cpu_logical_map(lcpu) != rcpu)
 				continue;
@@ -145,15 +112,14 @@ static void clear_masks(void)
 #endif
 }
 
-static union tl_entry *next_tle(union tl_entry *tle)
+static union topology_entry *next_tle(union topology_entry *tle)
 {
-	if (tle->nl)
-		return (union tl_entry *)((struct tl_container *)tle + 1);
-	else
-		return (union tl_entry *)((struct tl_cpu *)tle + 1);
+	if (!tle->nl)
+		return (union topology_entry *)((struct topology_cpu *)tle + 1);
+	return (union topology_entry *)((struct topology_container *)tle + 1);
 }
 
-static void tl_to_cores(struct tl_info *info)
+static void tl_to_cores(struct sysinfo_15_1_x *info)
 {
 #ifdef CONFIG_SCHED_BOOK
 	struct mask_info *book = &book_info;
@@ -161,13 +127,13 @@ static void tl_to_cores(struct tl_info *info)
 	struct mask_info *book = NULL;
 #endif
 	struct mask_info *core = &core_info;
-	union tl_entry *tle, *end;
+	union topology_entry *tle, *end;
 
 
 	spin_lock_irq(&topology_lock);
 	clear_masks();
 	tle = info->tle;
-	end = (union tl_entry *)((unsigned long)info + info->length);
+	end = (union topology_entry *)((unsigned long)info + info->length);
 	while (tle < end) {
 		switch (tle->nl) {
 #ifdef CONFIG_SCHED_BOOK
@@ -263,7 +229,7 @@ static void store_topology(struct tl_info *info)
 
 int arch_update_cpu_topology(void)
 {
-	struct tl_info *info = tl_info;
+	struct sysinfo_15_1_x *info = tl_info;
 	struct sys_device *sysdev;
 	int cpu;
 
@@ -333,13 +299,14 @@ out:
 }
 __initcall(init_topology_update);
 
-static void alloc_masks(struct tl_info *info, struct mask_info *mask, int offset)
+static void alloc_masks(struct sysinfo_15_1_x *info, struct mask_info *mask,
+			int offset)
 {
 	int i, nr_masks;
 
-	nr_masks = info->mag[NR_MAG - offset];
+	nr_masks = info->mag[TOPOLOGY_NR_MAG - offset];
 	for (i = 0; i < info->mnest - offset; i++)
-		nr_masks *= info->mag[NR_MAG - offset - 1 - i];
+		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
 	nr_masks = max(nr_masks, 1);
 	for (i = 0; i < nr_masks; i++) {
 		mask->next = alloc_bootmem(sizeof(struct mask_info));
@@ -349,7 +316,7 @@ static void alloc_masks(struct tl_info *info, struct mask_info *mask, int offset
 
 void __init s390_init_cpu_topology(void)
 {
-	struct tl_info *info;
+	struct sysinfo_15_1_x *info;
 	int i;
 
 	if (!MACHINE_HAS_TOPOLOGY)
@@ -358,7 +325,7 @@ void __init s390_init_cpu_topology(void)
 	info = tl_info;
 	store_topology(info);
 	pr_info("The CPU configuration topology of the machine is:");
-	for (i = 0; i < NR_MAG; i++)
+	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		printk(" %d", info->mag[i]);
 	printk(" / %d\n", info->mnest);
 	alloc_masks(info, &core_info, 2);
