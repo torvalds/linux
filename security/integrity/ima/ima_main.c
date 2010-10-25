@@ -112,15 +112,15 @@ void ima_counts_get(struct file *file)
 	if (!ima_initialized)
 		goto out;
 
-	rc = ima_must_measure(NULL, inode, MAY_READ, FILE_CHECK);
-	if (rc < 0)
-		goto out;
-
 	if (mode & FMODE_WRITE) {
-		if (inode->i_readcount)
+		if (inode->i_readcount && IS_IMA(inode))
 			send_tomtou = true;
 		goto out;
 	}
+
+	rc = ima_must_measure(NULL, inode, MAY_READ, FILE_CHECK);
+	if (rc < 0)
+		goto out;
 
 	if (atomic_read(&inode->i_writecount) > 0)
 		send_writers = true;
@@ -128,6 +128,7 @@ out:
 	/* remember the vfs deals with i_writecount */
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		inode->i_readcount++;
+
 	spin_unlock(&inode->i_lock);
 
 	if (send_tomtou)
