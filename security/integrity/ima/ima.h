@@ -70,6 +70,7 @@ int ima_init(void);
 void ima_cleanup(void);
 int ima_fs_init(void);
 void ima_fs_cleanup(void);
+int ima_inode_alloc(struct inode *inode);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode);
 int ima_calc_hash(struct file *file, char *digest);
@@ -106,8 +107,6 @@ struct ima_iint_cache {
 	unsigned char flags;
 	u8 digest[IMA_DIGEST_SIZE];
 	struct mutex mutex;	/* protects: version, flags, digest */
-	/* protected by inode->i_lock */
-	unsigned int readcount;	/* measured files readcount */
 	struct kref refcount;	/* ima_iint_cache reference count */
 };
 

@@ -86,17 +86,6 @@ out:
 }
 
 /*
- * Update the counts given an fmode_t
- */
-static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
-{
-	assert_spin_locked(&iint->inode->i_lock);
-
-	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		iint->readcount++;
-}
-
-/*
  * ima_counts_get - increment file counts
  *
  * Maintain read/write counters for all files, but only
@@ -112,27 +101,23 @@ void ima_counts_get(struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	fmode_t mode = file->f_mode;
-	struct ima_iint_cache *iint;
 	int rc;
 	bool send_tomtou = false, send_writers = false;
 
-	if (!iint_initialized || !S_ISREG(inode->i_mode))
+	if (!S_ISREG(inode->i_mode))
 		return;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return;
-	mutex_lock(&iint->mutex);
+
 	spin_lock(&inode->i_lock);
 
 	if (!ima_initialized)
 		goto out;
 
-	rc = ima_must_measure(iint, inode, MAY_READ, FILE_CHECK);
+	rc = ima_must_measure(NULL, inode, MAY_READ, FILE_CHECK);
 	if (rc < 0)
 		goto out;
 
 	if (mode & FMODE_WRITE) {
-		if (iint->readcount)
+		if (inode->i_readcount)
 			send_tomtou = true;
 		goto out;
 	}
@@ -140,10 +125,10 @@ void ima_counts_get(struct file *file)
 	if (atomic_read(&inode->i_writecount) > 0)
 		send_writers = true;
 out:
-	ima_inc_counts(iint, file->f_mode);
+	/* remember the vfs deals with i_writecount */
+	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
+		inode->i_readcount++;
 	spin_unlock(&inode->i_lock);
-	mutex_unlock(&iint->mutex);
-	kref_put(&iint->refcount, iint_free);
 
 	if (send_tomtou)
 		ima_add_violation(inode, dentry->d_name.name, "invalid_pcr",
@@ -166,9 +151,9 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 	assert_spin_locked(&inode->i_lock);
 
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
-		if (unlikely(iint->readcount == 0))
+		if (unlikely(inode->i_readcount == 0))
 			dump = true;
-		iint->readcount--;
+		inode->i_readcount--;
 	}
 	if (mode & FMODE_WRITE) {
 		if (atomic_read(&inode->i_writecount) <= 0)
@@ -180,7 +165,7 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 
 	if (dump && !ima_limit_imbalance(file)) {
 		printk(KERN_INFO "%s: open/free imbalance (r:%u)\n",
-		       __func__, iint->readcount);
+		       __func__, inode->i_readcount);
 		dump_stack();
 	}
 }

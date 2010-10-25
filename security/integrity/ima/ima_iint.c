@@ -124,11 +124,6 @@ void iint_free(struct kref *kref)
 						   refcount);
 	iint->version = 0;
 	iint->flags = 0UL;
-	if (iint->readcount != 0) {
-		printk(KERN_INFO "%s: readcount: %u\n", __func__,
-		       iint->readcount);
-		iint->readcount = 0;
-	}
 	kref_init(&iint->refcount);
 	kmem_cache_free(iint_cache, iint);
 }
@@ -142,6 +137,11 @@ void iint_free(struct kref *kref)
 void ima_inode_free(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
+
+	if (inode->i_readcount)
+		printk(KERN_INFO "%s: readcount: %u\n", __func__, inode->i_readcount);
+
+	inode->i_readcount = 0;
 
 	spin_lock(&ima_iint_lock);
 	iint = __ima_iint_find(inode);
@@ -160,7 +160,6 @@ static void init_once(void *foo)
 	iint->version = 0;
 	iint->flags = 0UL;
 	mutex_init(&iint->mutex);
-	iint->readcount = 0;
 	kref_init(&iint->refcount);
 }
 
