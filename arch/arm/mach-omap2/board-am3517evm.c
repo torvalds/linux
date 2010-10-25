@@ -33,11 +33,11 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/usb.h>
 #include <plat/display.h>
 
 #include "mux.h"
+#include "control.h"
 
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
 
@@ -125,7 +125,7 @@ static void am3517_disable_ethernet_int(void)
 	regval = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
 }
 
-void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
+static void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 {
 	unsigned int regval;
 
@@ -160,7 +160,6 @@ void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 static struct i2c_board_info __initdata am3517evm_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("s35390a", 0x30),
-		.type		= "s35390a",
 	},
 };
 
@@ -368,7 +367,7 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 	.default_device	= &am3517_evm_lcd_device,
 };
 
-struct platform_device am3517_evm_dss_device = {
+static struct platform_device am3517_evm_dss_device = {
 	.name		= "omapdss",
 	.id		= -1,
 	.dev		= {

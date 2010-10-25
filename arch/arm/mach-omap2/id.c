@@ -22,10 +22,11 @@
 #include <asm/cputype.h>
 
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/cpu.h>
 
 #include <mach/id.h>
+
+#include "control.h"
 
 static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;
@@ -60,7 +61,7 @@ int omap_type(void)
 	} else if (cpu_is_omap34xx()) {
 		val = omap_ctrl_readl(OMAP343X_CONTROL_STATUS);
 	} else if (cpu_is_omap44xx()) {
-		val = omap_ctrl_readl(OMAP44XX_CONTROL_STATUS);
+		val = omap_ctrl_readl(OMAP4_CTRL_MODULE_CORE_STATUS);
 	} else {
 		pr_err("Cannot detect omap type!\n");
 		goto out;
@@ -298,7 +299,6 @@ static void __init omap4_check_revision(void)
 	u32 idcode;
 	u16 hawkeye;
 	u8 rev;
-	char *rev_name = "ES1.0";
 
 	/*
 	 * The IC rev detection is done with hawkeye and rev.
@@ -309,14 +309,39 @@ static void __init omap4_check_revision(void)
 	hawkeye = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xff;
 
-	if ((hawkeye == 0xb852) && (rev == 0x0)) {
-		omap_revision = OMAP4430_REV_ES1_0;
-		omap_chip.oc |= CHIP_IS_OMAP4430ES1;
-		pr_info("OMAP%04x %s\n", omap_rev() >> 16, rev_name);
-		return;
+	/*
+	 * Few initial ES2.0 samples IDCODE is same as ES1.0
+	 * Use ARM register to detect the correct ES version
+	 */
+	if (!rev) {
+		idcode = read_cpuid(CPUID_ID);
+		rev = (idcode & 0xf) - 1;
 	}
 
-	pr_err("Unknown OMAP4 CPU id\n");
+	switch (hawkeye) {
+	case 0xb852:
+		switch (rev) {
+		case 0:
+			omap_revision = OMAP4430_REV_ES1_0;
+			omap_chip.oc |= CHIP_IS_OMAP4430ES1;
+			break;
+		case 1:
+			omap_revision = OMAP4430_REV_ES2_0;
+			omap_chip.oc |= CHIP_IS_OMAP4430ES2;
+			break;
+		default:
+			omap_revision = OMAP4430_REV_ES2_0;
+			omap_chip.oc |= CHIP_IS_OMAP4430ES2;
+	}
+	break;
+	default:
+		/* Unknown default to latest silicon rev as default*/
+		omap_revision = OMAP4430_REV_ES2_0;
+		omap_chip.oc |= CHIP_IS_OMAP4430ES2;
+	}
+
+	pr_info("OMAP%04x ES%d.0\n",
+			omap_rev() >> 16, ((omap_rev() >> 12) & 0xf) + 1);
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\
@@ -361,30 +386,54 @@ static void __init omap3_cpuinfo(void)
 		strcpy(cpu_name, "OMAP3503");
 	}
 
-	switch (rev) {
-	case OMAP_REVBITS_00:
-		strcpy(cpu_rev, "1.0");
-		break;
-	case OMAP_REVBITS_01:
-		strcpy(cpu_rev, "1.1");
-		break;
-	case OMAP_REVBITS_02:
-		strcpy(cpu_rev, "1.2");
-		break;
-	case OMAP_REVBITS_10:
-		strcpy(cpu_rev, "2.0");
-		break;
-	case OMAP_REVBITS_20:
-		strcpy(cpu_rev, "2.1");
-		break;
-	case OMAP_REVBITS_30:
-		strcpy(cpu_rev, "3.0");
-		break;
-	case OMAP_REVBITS_40:
-	/* FALLTHROUGH */
-	default:
-		/* Use the latest known revision as default */
-		strcpy(cpu_rev, "3.1");
+	if (cpu_is_omap3630()) {
+		switch (rev) {
+		case OMAP_REVBITS_00:
+			strcpy(cpu_rev, "1.0");
+			break;
+		case OMAP_REVBITS_01:
+			strcpy(cpu_rev, "1.1");
+			break;
+		case OMAP_REVBITS_02:
+			/* FALLTHROUGH */
+		default:
+			/* Use the latest known revision as default */
+			strcpy(cpu_rev, "1.2");
+		}
+	} else if (cpu_is_omap3505() || cpu_is_omap3517()) {
+		switch (rev) {
+		case OMAP_REVBITS_00:
+			strcpy(cpu_rev, "1.0");
+			break;
+		case OMAP_REVBITS_01:
+			/* FALLTHROUGH */
+		default:
+			/* Use the latest known revision as default */
+			strcpy(cpu_rev, "1.1");
+		}
+	} else {
+		switch (rev) {
+		case OMAP_REVBITS_00:
+			strcpy(cpu_rev, "1.0");
+			break;
+		case OMAP_REVBITS_01:
+			strcpy(cpu_rev, "2.0");
+			break;
+		case OMAP_REVBITS_02:
+			strcpy(cpu_rev, "2.1");
+			break;
+		case OMAP_REVBITS_03:
+			strcpy(cpu_rev, "3.0");
+			break;
+		case OMAP_REVBITS_04:
+			strcpy(cpu_rev, "3.1");
+			break;
+		case OMAP_REVBITS_05:
+			/* FALLTHROUGH */
+		default:
+			/* Use the latest known revision as default */
+			strcpy(cpu_rev, "3.1.2");
+		}
 	}
 
 	/* Print verbose information */

@@ -32,6 +32,7 @@
 
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_ON		(1 << PWRDM_POWER_ON)
+#define PWRSTS_OFF		(1 << PWRDM_POWER_OFF)
 #define PWRSTS_OFF_ON		((1 << PWRDM_POWER_OFF) | \
 				 (1 << PWRDM_POWER_ON))
 
@@ -161,5 +162,6 @@ int pwrdm_state_switch(struct powerdomain *pwrdm);
 int pwrdm_clkdm_state_switch(struct clockdomain *clkdm);
 int pwrdm_pre_transition(void);
 int pwrdm_post_transition(void);
+int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm);
 
 #endif

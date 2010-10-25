@@ -1410,6 +1410,33 @@ config SERIAL_OF_PLATFORM
 	  Currently, only 8250 compatible ports are supported, but
 	  others can easily be added.
 
+config SERIAL_OMAP
+	tristate "OMAP serial port support"
+	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
+	select SERIAL_CORE
+	help
+	  If you have a machine based on an Texas Instruments OMAP CPU you
+	  can enable its onboard serial ports by enabling this option.
+
+	  By enabling this option you take advantage of dma feature available
+	  with the omap-serial driver. DMA support can be enabled from platform
+	  data.
+
+config SERIAL_OMAP_CONSOLE
+	bool "Console on OMAP serial port"
+	depends on SERIAL_OMAP
+	select SERIAL_CORE_CONSOLE
+	help
+	  Select this option if you would like to use omap serial port as
+	  console.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyOx". (Try "man bootparam" or see the documentation of
+	  your boot loader about how to pass options to the kernel at
+	  boot time.)
+
 config SERIAL_OF_PLATFORM_NWPSERIAL
 	tristate "NWP serial port driver"
 	depends on PPC_OF && PPC_DCR

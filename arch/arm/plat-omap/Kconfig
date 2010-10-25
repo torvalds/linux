@@ -19,7 +19,7 @@ config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4"
 	select COMMON_CLKDEV
 	help
-	  "Systems based on omap24xx, omap34xx or omap44xx"
+	  "Systems based on OMAP2, OMAP3 or OMAP4"
 
 endchoice
 

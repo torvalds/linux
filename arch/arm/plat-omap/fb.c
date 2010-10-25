@@ -36,6 +36,8 @@
 #include <plat/board.h>
 #include <plat/sram.h>
 
+#include "fb.h"
+
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 
 static struct omapfb_platform_data omapfb_config;

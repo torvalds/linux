@@ -31,6 +31,7 @@
 #include <linux/smsc911x.h>
 
 #include <linux/regulator/machine.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -370,7 +371,7 @@ static struct regulator_init_data omap3evm_vsim = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 63,
 	},
@@ -446,7 +447,7 @@ static struct twl4030_usb_data omap3evm_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_DOWN),
 	KEY(0, 2, KEY_ENTER),
@@ -584,7 +585,7 @@ static int ads7846_get_pendown_state(void)
 	return !gpio_get_value(OMAP3_EVM_TS_GPIO);
 }
 
-struct ads7846_platform_data ads7846_config = {
+static struct ads7846_platform_data ads7846_config = {
 	.x_max			= 0x0fff,
 	.y_max			= 0x0fff,
 	.x_plate_ohms		= 180,
@@ -603,7 +604,7 @@ static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.single_channel	= 1,	/* 0: slave, 1: master */
 };
 
-struct spi_board_info omap3evm_spi_board_info[] = {
+static struct spi_board_info omap3evm_spi_board_info[] = {
 	[0] = {
 		.modalias		= "ads7846",
 		.bus_num		= 1,

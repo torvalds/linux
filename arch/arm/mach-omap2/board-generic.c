@@ -48,10 +48,22 @@ static void __init omap_generic_init(void)
 
 static void __init omap_generic_map_io(void)
 {
-	omap2_set_globals_242x(); /* should be 242x, 243x, or 343x */
-	omap242x_map_common_io();
+	if (cpu_is_omap242x()) {
+		omap2_set_globals_242x();
+		omap242x_map_common_io();
+	} else if (cpu_is_omap243x()) {
+		omap2_set_globals_243x();
+		omap243x_map_common_io();
+	} else if (cpu_is_omap34xx()) {
+		omap2_set_globals_3xxx();
+		omap34xx_map_common_io();
+	} else if (cpu_is_omap44xx()) {
+		omap2_set_globals_443x();
+		omap44xx_map_common_io();
+	}
 }
 
+/* XXX This machine entry name should be updated */
 MACHINE_START(OMAP_GENERIC, "Generic OMAP24xx")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
 	.boot_params	= 0x80000100,

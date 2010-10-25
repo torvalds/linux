@@ -16,6 +16,8 @@
 
 #include <plat/gpmc.h>
 
+#include <mach/board-zoom.h>
+
 #define ZOOM_SMSC911X_CS	7
 #define ZOOM_SMSC911X_GPIO	158
 #define ZOOM_QUADUART_CS	3

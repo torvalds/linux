@@ -36,6 +36,7 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
+#include "io.h"
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
@@ -323,6 +324,9 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		omap2430_hwmod_init();
 	else if (cpu_is_omap34xx())
 		omap3xxx_hwmod_init();
+	else if (cpu_is_omap44xx())
+		omap44xx_hwmod_init();
+
 	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 
@@ -342,9 +346,7 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 #ifndef CONFIG_PM_RUNTIME
 	skip_setup_idle = 1;
 #endif
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())   /* FIXME: OMAP4 */
-		omap_hwmod_late_init(skip_setup_idle);
-
+	omap_hwmod_late_init(skip_setup_idle);
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();
