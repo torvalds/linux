@@ -74,6 +74,13 @@ static int stsi_1_1_1(struct sysinfo_1_1_1 *info, char *page, int len)
 			       "Model Temp. Capacity: %-16.16s %08u\n",
 			       info->model_temp_cap,
 			       *(u32 *) info->model_temp_cap_rating);
+	if (info->cai) {
+		len += sprintf(page + len,
+			       "Capacity Adj. Ind.:   %d\n",
+			       info->cai);
+		len += sprintf(page + len, "Capacity Ch. Reason:  %d\n",
+			       info->ccr);
+	}
 	return len;
 }
 

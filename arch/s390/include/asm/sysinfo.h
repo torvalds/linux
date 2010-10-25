@@ -15,7 +15,10 @@
 #define __ASM_S390_SYSINFO_H
 
 struct sysinfo_1_1_1 {
-	char reserved_0[32];
+	unsigned short :16;
+	unsigned char ccr;
+	unsigned char cai;
+	char reserved_0[28];
 	char manufacturer[16];
 	char type[4];
 	char reserved_1[12];
