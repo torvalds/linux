@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <linux/freezer.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Serio abstraction core");
@@ -56,7 +55,7 @@ static struct bus_type serio_bus;
 static void serio_add_port(struct serio *serio);
 static int serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
-static void serio_reconnect_chain(struct serio *serio);
+static void serio_reconnect_subtree(struct serio *serio);
 static void serio_attach_driver(struct serio_driver *drv);
 
 static int serio_connect_driver(struct serio *serio, struct serio_driver *drv)
@@ -152,7 +151,7 @@ static void serio_find_driver(struct serio *serio)
 enum serio_event_type {
 	SERIO_RESCAN_PORT,
 	SERIO_RECONNECT_PORT,
-	SERIO_RECONNECT_CHAIN,
+	SERIO_RECONNECT_SUBTREE,
 	SERIO_REGISTER_PORT,
 	SERIO_ATTACH_DRIVER,
 };
@@ -292,8 +291,8 @@ static void serio_handle_event(void)
 			serio_find_driver(event->object);
 			break;
 
-		case SERIO_RECONNECT_CHAIN:
-			serio_reconnect_chain(event->object);
+		case SERIO_RECONNECT_SUBTREE:
+			serio_reconnect_subtree(event->object);
 			break;
 
 		case SERIO_ATTACH_DRIVER:
@@ -330,12 +329,10 @@ static void serio_remove_pending_events(void *object)
 }
 
 /*
- * Destroy child serio port (if any) that has not been fully registered yet.
+ * Locate child serio port (if any) that has not been fully registered yet.
  *
- * Note that we rely on the fact that port can have only one child and therefore
- * only one child registration request can be pending. Additionally, children
- * are registered by driver's connect() handler so there can't be a grandchild
- * pending registration together with a child.
+ * Children are registered by driver's connect() handler so there can't be a
+ * grandchild pending registration together with a child.
  */
 static struct serio *serio_get_pending_child(struct serio *parent)
 {
@@ -449,7 +446,7 @@ static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *
 	if (!strncmp(buf, "none", count)) {
 		serio_disconnect_port(serio);
 	} else if (!strncmp(buf, "reconnect", count)) {
-		serio_reconnect_chain(serio);
+		serio_reconnect_subtree(serio);
 	} else if (!strncmp(buf, "rescan", count)) {
 		serio_disconnect_port(serio);
 		serio_find_driver(serio);
@@ -516,6 +513,8 @@ static void serio_init_port(struct serio *serio)
 	__module_get(THIS_MODULE);
 
 	INIT_LIST_HEAD(&serio->node);
+	INIT_LIST_HEAD(&serio->child_node);
+	INIT_LIST_HEAD(&serio->children);
 	spin_lock_init(&serio->lock);
 	mutex_init(&serio->drv_mutex);
 	device_initialize(&serio->dev);
@@ -538,12 +537,13 @@ static void serio_init_port(struct serio *serio)
  */
 static void serio_add_port(struct serio *serio)
 {
+	struct serio *parent = serio->parent;
 	int error;
 
-	if (serio->parent) {
-		serio_pause_rx(serio->parent);
-		serio->parent->child = serio;
-		serio_continue_rx(serio->parent);
+	if (parent) {
+		serio_pause_rx(parent);
+		list_add_tail(&serio->child_node, &parent->children);
+		serio_continue_rx(parent);
 	}
 
 	list_add_tail(&serio->node, &serio_list);
@@ -559,15 +559,14 @@ static void serio_add_port(struct serio *serio)
 }
 
 /*
- * serio_destroy_port() completes deregistration process and removes
+ * serio_destroy_port() completes unregistration process and removes
  * port from the system
  */
 static void serio_destroy_port(struct serio *serio)
 {
 	struct serio *child;
 
-	child = serio_get_pending_child(serio);
-	if (child) {
+	while ((child = serio_get_pending_child(serio)) != NULL) {
 		serio_remove_pending_events(child);
 		put_device(&child->dev);
 	}
@@ -577,7 +576,7 @@ static void serio_destroy_port(struct serio *serio)
 
 	if (serio->parent) {
 		serio_pause_rx(serio->parent);
-		serio->parent->child = NULL;
+		list_del_init(&serio->child_node);
 		serio_continue_rx(serio->parent);
 		serio->parent = NULL;
 	}
@@ -609,46 +608,82 @@ static int serio_reconnect_port(struct serio *serio)
 }
 
 /*
- * Reconnect serio port and all its children (re-initialize attached devices)
+ * Reconnect serio port and all its children (re-initialize attached
+ * devices).
  */
-static void serio_reconnect_chain(struct serio *serio)
+static void serio_reconnect_subtree(struct serio *root)
 {
+	struct serio *s = root;
+	int error;
+
 	do {
-		if (serio_reconnect_port(serio)) {
-			/* Ok, old children are now gone, we are done */
-			break;
+		error = serio_reconnect_port(s);
+		if (!error) {
+			/*
+			 * Reconnect was successful, move on to do the
+			 * first child.
+			 */
+			if (!list_empty(&s->children)) {
+				s = list_first_entry(&s->children,
+						     struct serio, child_node);
+				continue;
+			}
 		}
-		serio = serio->child;
-	} while (serio);
+
+		/*
+		 * Either it was a leaf node or reconnect failed and it
+		 * became a leaf node. Continue reconnecting starting with
+		 * the next sibling of the parent node.
+		 */
+		while (s != root) {
+			struct serio *parent = s->parent;
+
+			if (!list_is_last(&s->child_node, &parent->children)) {
+				s = list_entry(s->child_node.next,
+					       struct serio, child_node);
+				break;
+			}
+
+			s = parent;
+		}
+	} while (s != root);
 }
 
 /*
  * serio_disconnect_port() unbinds a port from its driver. As a side effect
- * all child ports are unbound and destroyed.
+ * all children ports are unbound and destroyed.
  */
 static void serio_disconnect_port(struct serio *serio)
 {
-	struct serio *s, *parent;
+	struct serio *s = serio;
 
-	if (serio->child) {
+	/*
+	 * Children ports should be disconnected and destroyed
+	 * first; we travel the tree in depth-first order.
+	 */
+	while (!list_empty(&serio->children)) {
+
+		/* Locate a leaf */
+		while (!list_empty(&s->children))
+			s = list_first_entry(&s->children,
+					     struct serio, child_node);
+
 		/*
-		 * Children ports should be disconnected and destroyed
-		 * first, staring with the leaf one, since we don't want
-		 * to do recursion
+		 * Prune this leaf node unless it is the one we
+		 * started with.
 		 */
-		for (s = serio; s->child; s = s->child)
-			/* empty */;
-
-		do {
-			parent = s->parent;
+		if (s != serio) {
+			struct serio *parent = s->parent;
 
 			device_release_driver(&s->dev);
 			serio_destroy_port(s);
-		} while ((s = parent) != serio);
+
+			s = parent;
+		}
 	}
 
 	/*
-	 * Ok, no children left, now disconnect this port
+	 * OK, no children left, now disconnect this port.
 	 */
 	device_release_driver(&serio->dev);
 }
@@ -661,7 +696,7 @@ EXPORT_SYMBOL(serio_rescan);
 
 void serio_reconnect(struct serio *serio)
 {
-	serio_queue_event(serio, NULL, SERIO_RECONNECT_CHAIN);
+	serio_queue_event(serio, NULL, SERIO_RECONNECT_SUBTREE);
 }
 EXPORT_SYMBOL(serio_reconnect);
 
@@ -689,14 +724,16 @@ void serio_unregister_port(struct serio *serio)
 EXPORT_SYMBOL(serio_unregister_port);
 
 /*
- * Safely unregisters child port if one is present.
+ * Safely unregisters children ports if they are present.
  */
 void serio_unregister_child_port(struct serio *serio)
 {
+	struct serio *s, *next;
+
 	mutex_lock(&serio_mutex);
-	if (serio->child) {
-		serio_disconnect_port(serio->child);
-		serio_destroy_port(serio->child);
+	list_for_each_entry_safe(s, next, &serio->children, child_node) {
+		serio_disconnect_port(s);
+		serio_destroy_port(s);
 	}
 	mutex_unlock(&serio_mutex);
 }

@@ -139,8 +139,6 @@ source "drivers/staging/adis16255/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
-source "drivers/staging/mrst-touchscreen/Kconfig"
-
 source "drivers/staging/msm/Kconfig"
 
 source "drivers/staging/lirc/Kconfig"

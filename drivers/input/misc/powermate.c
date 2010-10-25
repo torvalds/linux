@@ -280,7 +280,7 @@ static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_dev
 
 	pm->configcr = kmalloc(sizeof(*(pm->configcr)), GFP_KERNEL);
 	if (!pm->configcr)
-		return -1;
+		return -ENOMEM;
 
 	return 0;
 }

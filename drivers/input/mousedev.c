@@ -867,7 +867,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 	spin_lock_init(&mousedev->client_lock);
 	mutex_init(&mousedev->mutex);
 	lockdep_set_subclass(&mousedev->mutex,
-			     minor == MOUSEDEV_MIX ? MOUSEDEV_MIX : 0);
+			     minor == MOUSEDEV_MIX ? SINGLE_DEPTH_NESTING : 0);
 	init_waitqueue_head(&mousedev->wait);
 
 	if (minor == MOUSEDEV_MIX)
