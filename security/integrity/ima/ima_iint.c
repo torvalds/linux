@@ -12,21 +12,48 @@
  * File: ima_iint.c
  * 	- implements the IMA hooks: ima_inode_alloc, ima_inode_free
  *	- cache integrity information associated with an inode
- *	  using a radix tree.
+ *	  using a rbtree tree.
  */
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 #include "ima.h"
 
-RADIX_TREE(ima_iint_store, GFP_ATOMIC);
-DEFINE_SPINLOCK(ima_iint_lock);
+static struct rb_root ima_iint_tree = RB_ROOT;
+static DEFINE_SPINLOCK(ima_iint_lock);
 static struct kmem_cache *iint_cache __read_mostly;
 
 int iint_initialized = 0;
 
-/* ima_iint_find_get - return the iint associated with an inode
+/*
+ * __ima_iint_find - return the iint associated with an inode
+ */
+static struct ima_iint_cache *__ima_iint_find(struct inode *inode)
+{
+	struct ima_iint_cache *iint;
+	struct rb_node *n = ima_iint_tree.rb_node;
+
+	assert_spin_locked(&ima_iint_lock);
+
+	while (n) {
+		iint = rb_entry(n, struct ima_iint_cache, rb_node);
+
+		if (inode < iint->inode)
+			n = n->rb_left;
+		else if (inode > iint->inode)
+			n = n->rb_right;
+		else
+			break;
+	}
+	if (!n)
+		return NULL;
+
+	return iint;
+}
+
+/*
+ * ima_iint_find_get - return the iint associated with an inode
  *
  * ima_iint_find_get gets a reference to the iint. Caller must
  * remember to put the iint reference.
@@ -35,13 +62,12 @@ struct ima_iint_cache *ima_iint_find_get(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
 
-	rcu_read_lock();
-	iint = radix_tree_lookup(&ima_iint_store, (unsigned long)inode);
-	if (!iint)
-		goto out;
-	kref_get(&iint->refcount);
-out:
-	rcu_read_unlock();
+	spin_lock(&ima_iint_lock);
+	iint = __ima_iint_find(inode);
+	if (iint)
+		kref_get(&iint->refcount);
+	spin_unlock(&ima_iint_lock);
+
 	return iint;
 }
 
@@ -51,25 +77,43 @@ out:
  */
 int ima_inode_alloc(struct inode *inode)
 {
-	struct ima_iint_cache *iint = NULL;
-	int rc = 0;
+	struct rb_node **p;
+	struct rb_node *new_node, *parent = NULL;
+	struct ima_iint_cache *new_iint, *test_iint;
+	int rc;
 
-	iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
-	if (!iint)
+	new_iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
+	if (!new_iint)
 		return -ENOMEM;
 
-	rc = radix_tree_preload(GFP_NOFS);
-	if (rc < 0)
-		goto out;
+	new_iint->inode = inode;
+	new_node = &new_iint->rb_node;
 
 	spin_lock(&ima_iint_lock);
-	rc = radix_tree_insert(&ima_iint_store, (unsigned long)inode, iint);
-	spin_unlock(&ima_iint_lock);
-	radix_tree_preload_end();
-out:
-	if (rc < 0)
-		kmem_cache_free(iint_cache, iint);
 
+	p = &ima_iint_tree.rb_node;
+	while (*p) {
+		parent = *p;
+		test_iint = rb_entry(parent, struct ima_iint_cache, rb_node);
+
+		rc = -EEXIST;
+		if (inode < test_iint->inode)
+			p = &(*p)->rb_left;
+		else if (inode > test_iint->inode)
+			p = &(*p)->rb_right;
+		else
+			goto out_err;
+	}
+
+	rb_link_node(new_node, parent, p);
+	rb_insert_color(new_node, &ima_iint_tree);
+
+	spin_unlock(&ima_iint_lock);
+
+	return 0;
+out_err:
+	spin_unlock(&ima_iint_lock);
+	kref_put(&new_iint->refcount, iint_free);
 	return rc;
 }
 
@@ -99,13 +143,6 @@ void iint_free(struct kref *kref)
 	kmem_cache_free(iint_cache, iint);
 }
 
-void iint_rcu_free(struct rcu_head *rcu_head)
-{
-	struct ima_iint_cache *iint = container_of(rcu_head,
-						   struct ima_iint_cache, rcu);
-	kref_put(&iint->refcount, iint_free);
-}
-
 /**
  * ima_inode_free - called on security_inode_free
  * @inode: pointer to the inode
@@ -117,10 +154,12 @@ void ima_inode_free(struct inode *inode)
 	struct ima_iint_cache *iint;
 
 	spin_lock(&ima_iint_lock);
-	iint = radix_tree_delete(&ima_iint_store, (unsigned long)inode);
+	iint = __ima_iint_find(inode);
+	if (iint)
+		rb_erase(&iint->rb_node, &ima_iint_tree);
 	spin_unlock(&ima_iint_lock);
 	if (iint)
-		call_rcu(&iint->rcu, iint_rcu_free);
+		kref_put(&iint->refcount, iint_free);
 }
 
 static void init_once(void *foo)
