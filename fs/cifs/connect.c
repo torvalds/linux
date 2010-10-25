@@ -1067,7 +1067,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 			}
 			i = cifs_convert_address((struct sockaddr *)&vol->srcaddr,
 						 value, strlen(value));
-			if (i < 0) {
+			if (i == 0) {
 				printk(KERN_WARNING "CIFS:  Could not parse"
 				       " srcaddr: %s\n",
 				       value);
