@@ -447,7 +447,6 @@ static inline void do_fp_trap(struct pt_regs *regs, void __user *location,
 		else if (fpc & 0x0800) /* inexact */
 			si.si_code = FPE_FLTRES;
 	}
-	current->thread.ieee_instruction_pointer = (addr_t) location;
 	do_trap(pgm_int_code, SIGFPE,
 		"floating point exception", regs, &si);
 }

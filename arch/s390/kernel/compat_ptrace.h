@@ -51,8 +51,7 @@ struct user_regs_struct32
 	 * watchpoints. This is the way intel does it.
 	 */
 	per_struct32 per_info;
-	u32  ieee_instruction_pointer; 
-	/* Used to give failing instruction back to user for ieee exceptions */
+	u32  ieee_instruction_pointer;	/* obsolete, always 0 */
 };
 
 struct user32 {

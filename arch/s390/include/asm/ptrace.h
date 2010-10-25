@@ -481,8 +481,7 @@ struct user_regs_struct
 	 * watchpoints. This is the way intel does it.
 	 */
 	per_struct per_info;
-	unsigned long ieee_instruction_pointer; 
-	/* Used to give failing instruction back to user for ieee exceptions */
+	unsigned long ieee_instruction_pointer;	/* obsolete, always 0 */
 };
 
 #ifdef __KERNEL__

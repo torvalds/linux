@@ -82,8 +82,6 @@ struct thread_struct {
         unsigned long prot_addr;        /* address of protection-excep.     */
         unsigned int trap_no;
         per_struct per_info;
-	/* Used to give failing instruction back to user for ieee exceptions */
-	unsigned long ieee_instruction_pointer; 
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 };
