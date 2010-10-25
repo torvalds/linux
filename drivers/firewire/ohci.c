@@ -740,11 +740,13 @@ static void ar_context_tasklet(unsigned long data)
 	struct ar_buffer *ab;
 	struct descriptor *d;
 	void *buffer, *end;
+	__le16 res_count;
 
 	ab = ctx->current_buffer;
 	d = &ab->descriptor;
 
-	if (d->res_count == 0) {
+	res_count = ACCESS_ONCE(d->res_count);
+	if (res_count == 0) {
 		size_t size, size2, rest, pktsize, size3, offset;
 		dma_addr_t start_bus;
 		void *start;
@@ -812,7 +814,7 @@ static void ar_context_tasklet(unsigned long data)
 	} else {
 		buffer = ctx->pointer;
 		ctx->pointer = end =
-			(void *) ab + PAGE_SIZE - le16_to_cpu(d->res_count);
+			(void *) ab + PAGE_SIZE - le16_to_cpu(res_count);
 
 		while (buffer < end)
 			buffer = handle_ar_packet(ctx, buffer);
