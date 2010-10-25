@@ -93,37 +93,37 @@ struct thresh_restart {
 static void threshold_restart_bank(void *_tr)
 {
 	struct thresh_restart *tr = _tr;
-	u32 mci_misc_hi, mci_misc_lo;
+	u32 hi, lo;
 
-	rdmsr(tr->b->address, mci_misc_lo, mci_misc_hi);
+	rdmsr(tr->b->address, lo, hi);
 
-	if (tr->b->threshold_limit < (mci_misc_hi & THRESHOLD_MAX))
+	if (tr->b->threshold_limit < (hi & THRESHOLD_MAX))
 		tr->reset = 1;	/* limit cannot be lower than err count */
 
 	if (tr->reset) {		/* reset err count and overflow bit */
-		mci_misc_hi =
-		    (mci_misc_hi & ~(MASK_ERR_COUNT_HI | MASK_OVERFLOW_HI)) |
+		hi =
+		    (hi & ~(MASK_ERR_COUNT_HI | MASK_OVERFLOW_HI)) |
 		    (THRESHOLD_MAX - tr->b->threshold_limit);
 	} else if (tr->old_limit) {	/* change limit w/o reset */
-		int new_count = (mci_misc_hi & THRESHOLD_MAX) +
+		int new_count = (hi & THRESHOLD_MAX) +
 		    (tr->old_limit - tr->b->threshold_limit);
 
-		mci_misc_hi = (mci_misc_hi & ~MASK_ERR_COUNT_HI) |
+		hi = (hi & ~MASK_ERR_COUNT_HI) |
 		    (new_count & THRESHOLD_MAX);
 	}
 
 	if (tr->set_lvt_off) {
 		/* set new lvt offset */
-		mci_misc_hi &= ~MASK_LVTOFF_HI;
-		mci_misc_hi |= tr->lvt_off << 20;
+		hi &= ~MASK_LVTOFF_HI;
+		hi |= tr->lvt_off << 20;
 	}
 
 	tr->b->interrupt_enable ?
-	    (mci_misc_hi = (mci_misc_hi & ~MASK_INT_TYPE_HI) | INT_TYPE_APIC) :
-	    (mci_misc_hi &= ~MASK_INT_TYPE_HI);
+	    (hi = (hi & ~MASK_INT_TYPE_HI) | INT_TYPE_APIC) :
+	    (hi &= ~MASK_INT_TYPE_HI);
 
-	mci_misc_hi |= MASK_COUNT_EN_HI;
-	wrmsr(tr->b->address, mci_misc_lo, mci_misc_hi);
+	hi |= MASK_COUNT_EN_HI;
+	wrmsr(tr->b->address, lo, hi);
 }
 
 static void mce_threshold_block_init(struct threshold_block *b, int offset)
