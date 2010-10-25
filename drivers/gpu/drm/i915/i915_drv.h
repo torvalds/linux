@@ -206,7 +206,6 @@ struct intel_device_info {
 	u8 is_pineview : 1;
 	u8 is_broadwater : 1;
 	u8 is_crestline : 1;
-	u8 is_ironlake : 1;
 	u8 has_fbc : 1;
 	u8 has_rc6 : 1;
 	u8 has_pipe_cxsr : 1;
@@ -216,6 +215,7 @@ struct intel_device_info {
 	u8 overlay_needs_physical : 1;
 	u8 supports_tv : 1;
 	u8 has_bsd_ring : 1;
+	u8 has_blt_ring : 1;
 };
 
 enum no_fbc_reason {
@@ -255,6 +255,7 @@ typedef struct drm_i915_private {
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer render_ring;
 	struct intel_ring_buffer bsd_ring;
+	struct intel_ring_buffer blt_ring;
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
@@ -339,17 +340,18 @@ typedef struct drm_i915_private {
 	unsigned int int_crt_support:1;
 	unsigned int lvds_use_ssc:1;
 	int lvds_ssc_freq;
-
 	struct {
-		u8 rate:4;
-		u8 lanes:4;
-		u8 preemphasis:4;
-		u8 vswing:4;
+		int rate;
+		int lanes;
+		int preemphasis;
+		int vswing;
 
-		u8 initialized:1;
-		u8 support:1;
-		u8 bpp:6;
+		bool initialized;
+		bool support;
+		int bpp;
+		struct edp_power_seq pps;
 	} edp;
+	bool no_aux_handshake;
 
 	struct notifier_block lid_notifier;
 
@@ -547,6 +549,17 @@ typedef struct drm_i915_private {
 		struct list_head shrink_list;
 
 		/**
+		 * List of objects currently involved in rendering.
+		 *
+		 * Includes buffers having the contents of their GPU caches
+		 * flushed, not necessarily primitives.  last_rendering_seqno
+		 * represents when the rendering involved will be completed.
+		 *
+		 * A reference is held on the buffer while on this list.
+		 */
+		struct list_head active_list;
+
+		/**
 		 * List of objects which are not in the ringbuffer but which
 		 * still have a write_domain which needs to be flushed before
 		 * unbinding.
@@ -556,15 +569,6 @@ typedef struct drm_i915_private {
 		 * A reference is held on the buffer while on this list.
 		 */
 		struct list_head flushing_list;
-
-		/**
-		 * List of objects currently pending a GPU write flush.
-		 *
-		 * All elements on this list will belong to either the
-		 * active_list or flushing_list, last_rendering_seqno can
-		 * be used to differentiate between the two elements.
-		 */
-		struct list_head gpu_write_list;
 
 		/**
 		 * LRU list of objects which are not in the ringbuffer and
@@ -713,7 +717,8 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *gtt_space;
 
 	/** This object's place on the active/flushing/inactive lists */
-	struct list_head list;
+	struct list_head ring_list;
+	struct list_head mm_list;
 	/** This object's place on GPU write list */
 	struct list_head gpu_write_list;
 	/** This object's place on eviction list */
@@ -1136,6 +1141,15 @@ static inline void intel_opregion_gse_intr(struct drm_device *dev) { return; }
 static inline void intel_opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
 
+/* intel_acpi.c */
+#ifdef CONFIG_ACPI
+extern void intel_register_dsm_handler(void);
+extern void intel_unregister_dsm_handler(void);
+#else
+static inline void intel_register_dsm_handler(void) { return; }
+static inline void intel_unregister_dsm_handler(void) { return; }
+#endif /* CONFIG_ACPI */
+
 /* modesetting */
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
@@ -1268,7 +1282,6 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
 #define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
-#define IS_IRONLAKE(dev)	(INTEL_INFO(dev)->is_ironlake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
 #define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
@@ -1278,6 +1291,7 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
 
 #define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
+#define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)
@@ -1289,8 +1303,8 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define HAS_128_BYTE_Y_TILING(dev) (!IS_GEN2(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
 #define SUPPORTS_DIGITAL_OUTPUTS(dev)	(!IS_GEN2(dev) && !IS_PINEVIEW(dev))
-#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
-#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_GEN5(dev))
+#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_GEN5(dev))
 #define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
 #define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
 #define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
@@ -1302,9 +1316,8 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 #define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
 
-#define HAS_PCH_SPLIT(dev) (IS_IRONLAKE(dev) ||	\
-			    IS_GEN6(dev))
-#define HAS_PIPE_CONTROL(dev) (IS_IRONLAKE(dev) || IS_GEN6(dev))
+#define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev))
+#define HAS_PIPE_CONTROL(dev) (IS_GEN5(dev) || IS_GEN6(dev))
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)

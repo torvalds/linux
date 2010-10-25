@@ -1211,13 +1211,13 @@ static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 	u32 pte_flags;
 
 	if (type_mask == AGP_USER_UNCACHED_MEMORY)
-		pte_flags = GEN6_PTE_UNCACHED;
+		pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
 	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
-		pte_flags = GEN6_PTE_LLC;
+		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
 		if (gfdt)
 			pte_flags |= GEN6_PTE_GFDT;
 	} else { /* set 'normal'/'cached' to LLC by default */
-		pte_flags = GEN6_PTE_LLC_MLC;
+		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
 		if (gfdt)
 			pte_flags |= GEN6_PTE_GFDT;
 	}

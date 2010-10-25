@@ -263,6 +263,7 @@
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
+#define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		((base)+0x30)
 #define RING_HEAD(base)		((base)+0x34)
 #define RING_START(base)	((base)+0x38)
@@ -660,13 +661,6 @@
 #define DVOC_ON			(1<<31)
 #define LVDS			0x61180
 #define LVDS_ON			(1<<31)
-
-#define ADPA			0x61100
-#define ADPA_DPMS_MASK		(~(3<<10))
-#define ADPA_DPMS_ON		(0<<10)
-#define ADPA_DPMS_SUSPEND	(1<<10)
-#define ADPA_DPMS_STANDBY	(2<<10)
-#define ADPA_DPMS_OFF		(3<<10)
 
 /* Scratch pad debug 0 reg:
  */
@@ -1200,6 +1194,7 @@
 #define   ADPA_DPMS_STANDBY	(2<<10)
 #define   ADPA_DPMS_OFF		(3<<10)
 
+
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		0x61110
 #define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
@@ -1358,6 +1353,22 @@
 #define   LVDS_B0B3_POWER_DOWN		(0 << 2)
 #define   LVDS_B0B3_POWER_UP		(3 << 2)
 
+/* Video Data Island Packet control */
+#define VIDEO_DIP_DATA		0x61178
+#define VIDEO_DIP_CTL		0x61170
+#define   VIDEO_DIP_ENABLE		(1 << 31)
+#define   VIDEO_DIP_PORT_B		(1 << 29)
+#define   VIDEO_DIP_PORT_C		(2 << 29)
+#define   VIDEO_DIP_ENABLE_AVI		(1 << 21)
+#define   VIDEO_DIP_ENABLE_VENDOR	(2 << 21)
+#define   VIDEO_DIP_ENABLE_SPD		(8 << 21)
+#define   VIDEO_DIP_SELECT_AVI		(0 << 19)
+#define   VIDEO_DIP_SELECT_VENDOR	(1 << 19)
+#define   VIDEO_DIP_SELECT_SPD		(3 << 19)
+#define   VIDEO_DIP_FREQ_ONCE		(0 << 16)
+#define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
+#define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
+
 /* Panel power sequencing */
 #define PP_STATUS	0x61200
 #define   PP_ON		(1 << 31)
@@ -1373,6 +1384,9 @@
 #define   PP_SEQUENCE_ON	(1 << 28)
 #define   PP_SEQUENCE_OFF	(2 << 28)
 #define   PP_SEQUENCE_MASK	0x30000000
+#define   PP_CYCLE_DELAY_ACTIVE	(1 << 27)
+#define   PP_SEQUENCE_STATE_ON_IDLE (1 << 3)
+#define   PP_SEQUENCE_STATE_MASK 0x0000000f
 #define PP_CONTROL	0x61204
 #define   POWER_TARGET_ON	(1 << 0)
 #define PP_ON_DELAYS	0x61208
@@ -2564,6 +2578,7 @@
 #define GT_USER_INTERRUPT       (1 << 0)
 #define GT_BSD_USER_INTERRUPT   (1 << 5)
 #define GT_GEN6_BSD_USER_INTERRUPT	(1 << 12)
+#define GT_BLT_USER_INTERRUPT	(1 << 22)
 
 #define GTISR   0x44010
 #define GTIMR   0x44014
@@ -2598,6 +2613,10 @@
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
+#define SDE_HOTPLUG_MASK_CPT	(SDE_CRT_HOTPLUG_CPT |		\
+				 SDE_PORTD_HOTPLUG_CPT |	\
+				 SDE_PORTC_HOTPLUG_CPT |	\
+				 SDE_PORTB_HOTPLUG_CPT)
 
 #define SDEISR  0xc4000
 #define SDEIMR  0xc4004
@@ -2779,6 +2798,10 @@
 #define FDI_RXA_CHICKEN         0xc200c
 #define FDI_RXB_CHICKEN         0xc2010
 #define  FDI_RX_PHASE_SYNC_POINTER_ENABLE       (1)
+#define FDI_RX_CHICKEN(pipe) _PIPE(pipe, FDI_RXA_CHICKEN, FDI_RXB_CHICKEN)
+
+#define SOUTH_DSPCLK_GATE_D	0xc2020
+#define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
 
 /* CPU: FDI_TX */
 #define FDI_TXA_CTL             0x60100

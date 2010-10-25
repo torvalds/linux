@@ -345,8 +345,11 @@ intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
 static inline u32 /* units of 100MHz */
 intel_fdi_link_freq(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	return (I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2;
+	if (IS_GEN5(dev)) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+		return (I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2;
+	} else
+		return 27;
 }
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
@@ -931,10 +934,6 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
-
-	/* return directly when it is eDP */
-	if (HAS_eDP)
-		return true;
 
 	if (target < 200000) {
 		clock.n = 1;
@@ -1719,6 +1718,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(150);
 
+	/* Ironlake workaround, enable clock pointer after FDI enable*/
+	I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_ENABLE);
+
 	reg = FDI_RX_IIR(pipe);
 	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(reg);
@@ -1764,6 +1766,28 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 		DRM_ERROR("FDI train 2 fail!\n");
 
 	DRM_DEBUG_KMS("FDI train done\n");
+
+	/* enable normal train */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
+	I915_WRITE(reg, temp);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
+	} else {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_NONE;
+	}
+	I915_WRITE(reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
+
+	/* wait one idle pattern time */
+	POSTING_READ(reg);
+	udelay(1000);
 }
 
 static const int const snb_b_fdi_train_param [] = {
@@ -2002,8 +2026,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
-	     || HAS_eDP || intel_pch_has_edp(crtc))) {
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
@@ -2022,7 +2045,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	if ((temp & PIPECONF_ENABLE) == 0) {
 		I915_WRITE(reg, temp | PIPECONF_ENABLE);
 		POSTING_READ(reg);
-		udelay(100);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
 	/* configure and enable CPU plane */
@@ -2066,28 +2089,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VTOTAL(pipe), I915_READ(VTOTAL(pipe)));
 	I915_WRITE(TRANS_VBLANK(pipe), I915_READ(VBLANK(pipe)));
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
-
-	/* enable normal train */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
-	I915_WRITE(reg, temp);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
-		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
-	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_NONE;
-	}
-	I915_WRITE(reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
-
-	/* wait one idle pattern time */
-	POSTING_READ(reg);
-	udelay(100);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
@@ -2134,7 +2135,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	temp |= I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK;
 	I915_WRITE(reg, temp | TRANS_ENABLE);
 	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
-		DRM_ERROR("failed to enable transcoder\n");
+		DRM_ERROR("failed to enable transcoder %d\n", pipe);
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
@@ -2174,9 +2175,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	temp = I915_READ(reg);
 	if (temp & PIPECONF_ENABLE) {
 		I915_WRITE(reg, temp & ~PIPECONF_ENABLE);
+		POSTING_READ(reg);
 		/* wait for cpu pipe off, pipe state */
-		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0, 50))
-			DRM_ERROR("failed to turn off cpu pipe\n");
+		intel_wait_for_pipe_off(dev, intel_crtc->pipe);
 	}
 
 	/* Disable PF */
@@ -2197,6 +2198,11 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	POSTING_READ(reg);
 	udelay(100);
+
+	/* Ironlake workaround, disable clock pointer after downing FDI */
+	I915_WRITE(FDI_RX_CHICKEN(pipe),
+		   I915_READ(FDI_RX_CHICKEN(pipe) &
+			     ~FDI_RX_PHASE_SYNC_POINTER_ENABLE));
 
 	/* still set train pattern 1 */
 	reg = FDI_TX_CTL(pipe);
@@ -3623,7 +3629,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			      refclk / 1000);
 	} else if (!IS_GEN2(dev)) {
 		refclk = 96000;
-		if (HAS_PCH_SPLIT(dev))
+		if (HAS_PCH_SPLIT(dev) &&
+		    (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)))
 			refclk = 120000; /* 120Mhz refclk */
 	} else {
 		refclk = 48000;
@@ -3685,16 +3692,16 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* FDI link */
 	if (HAS_PCH_SPLIT(dev)) {
 		int lane = 0, link_bw, bpp;
-		/* eDP doesn't require FDI link, so just set DP M/N
+		/* CPU eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
-		if (has_edp_encoder) {
+		if (has_edp_encoder && !intel_encoder_is_pch_edp(&encoder->base)) {
 			target_clock = mode->clock;
 			intel_edp_link_config(has_edp_encoder,
 					      &lane, &link_bw);
 		} else {
-			/* DP over FDI requires target mode clock
+			/* [e]DP over FDI requires target mode clock
 			   instead of link clock */
-			if (is_dp)
+			if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
 				target_clock = mode->clock;
 			else
 				target_clock = adjusted_mode->clock;
@@ -3718,7 +3725,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
-		} else if (has_edp_encoder || (is_dp && intel_pch_has_edp(crtc))) {
+		} else if (has_edp_encoder) {
 			switch (dev_priv->edp.bpp/3) {
 			case 8:
 				temp |= PIPE_8BPC;
@@ -3794,13 +3801,25 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 				POSTING_READ(PCH_DREF_CONTROL);
 				udelay(200);
+			}
+			temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
-				temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+			/* Enable CPU source on CPU attached eDP */
+			if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+				if (dev_priv->lvds_use_ssc)
+					temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+				else
+					temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 			} else {
-				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				/* Enable SSC on PCH eDP if needed */
+				if (dev_priv->lvds_use_ssc) {
+					DRM_ERROR("enabling SSC on PCH\n");
+					temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
+				}
 			}
 			I915_WRITE(PCH_DREF_CONTROL, temp);
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
 		}
 	}
 
@@ -3835,7 +3854,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			}
 			dpll |= DPLL_DVO_HIGH_SPEED;
 		}
-		if (is_dp)
+		if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
 			dpll |= DPLL_DVO_HIGH_SPEED;
 
 		/* compute bitmask from p1 value */
@@ -3934,7 +3953,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		dpll_reg = DPLL(pipe);
 	}
 
-	if (!has_edp_encoder) {
+	/* PCH eDP needs FDI, but CPU eDP does not */
+	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 
@@ -4011,9 +4031,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (is_dp)
+	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
-	else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev)) {
 		/* For non-DP output, clear any trans DP clock recovery setting.*/
 		if (pipe == 0) {
 			I915_WRITE(TRANSA_DATA_M1, 0);
@@ -4028,7 +4048,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!has_edp_encoder) {
+	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll);
 
@@ -4122,29 +4142,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
 		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
 
-		if (has_edp_encoder) {
+		if (has_edp_encoder && !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
-		} else {
-			/* enable FDI RX PLL too */
-			reg = FDI_RX_CTL(pipe);
-			temp = I915_READ(reg);
-			I915_WRITE(reg, temp | FDI_RX_PLL_ENABLE);
-
-			POSTING_READ(reg);
-			udelay(200);
-
-			/* enable FDI TX PLL too */
-			reg = FDI_TX_CTL(pipe);
-			temp = I915_READ(reg);
-			I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
-
-			/* enable FDI RX PCDCLK */
-			reg = FDI_RX_CTL(pipe);
-			temp = I915_READ(reg);
-			I915_WRITE(reg, temp | FDI_PCDCLK);
-
-			POSTING_READ(reg);
-			udelay(200);
 		}
 	}
 
@@ -4153,7 +4152,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_wait_for_vblank(dev, pipe);
 
-	if (IS_IRONLAKE(dev)) {
+	if (IS_GEN5(dev)) {
 		/* enable address swizzle for tiling buffer */
 		temp = I915_READ(DISP_ARB_CTL);
 		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
@@ -4992,11 +4991,10 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	obj_priv = to_intel_bo(work->pending_flip_obj);
-
-	/* Initial scanout buffer will have a 0 pending flip count */
-	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
-	    atomic_dec_and_test(&obj_priv->pending_flip))
+	obj_priv = to_intel_bo(work->old_fb_obj);
+	atomic_clear_mask(1 << intel_crtc->plane,
+			  &obj_priv->pending_flip.counter);
+	if (atomic_read(&obj_priv->pending_flip) == 0)
 		wake_up(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 
@@ -5092,9 +5090,14 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_objs;
 
-	obj_priv = to_intel_bo(obj);
-	atomic_inc(&obj_priv->pending_flip);
+	/* Block clients from rendering to the new back buffer until
+	 * the flip occurs and the object is no longer visible.
+	 */
+	atomic_add(1 << intel_crtc->plane,
+		   &to_intel_bo(work->old_fb_obj)->pending_flip);
+
 	work->pending_flip_obj = obj;
+	obj_priv = to_intel_bo(obj);
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
 		u32 flip_mask;
@@ -5736,7 +5739,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
 
-		if (IS_IRONLAKE(dev)) {
+		if (IS_GEN5(dev)) {
 			/* Required for FBC */
 			dspclk_gate |= DPFDUNIT_CLOCK_GATE_DISABLE;
 			/* Required for CxSR */
@@ -5750,13 +5753,20 @@ void intel_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
 
 		/*
+		 * On Ibex Peak and Cougar Point, we need to disable clock
+		 * gating for the panel power sequencer or it will fail to
+		 * start up when no ports are active.
+		 */
+		I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+
+		/*
 		 * According to the spec the following bits should be set in
 		 * order to enable memory self-refresh
 		 * The bit 22/21 of 0x42004
 		 * The bit 5 of 0x42020
 		 * The bit 15 of 0x45000
 		 */
-		if (IS_IRONLAKE(dev)) {
+		if (IS_GEN5(dev)) {
 			I915_WRITE(ILK_DISPLAY_CHICKEN2,
 					(I915_READ(ILK_DISPLAY_CHICKEN2) |
 					ILK_DPARB_GATE | ILK_VSDPFD_FULL));
@@ -5932,7 +5942,7 @@ static void intel_init_display(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
-		if (IS_IRONLAKE(dev)) {
+		if (IS_GEN5(dev)) {
 			if (I915_READ(MLTR_ILK) & ILK_SRLT_MASK)
 				dev_priv->display.update_wm = ironlake_update_wm;
 			else {
@@ -6130,6 +6140,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	drm_kms_helper_poll_fini(dev);
 	mutex_lock(&dev->struct_mutex);
+
+	intel_unregister_dsm_handler();
+
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */

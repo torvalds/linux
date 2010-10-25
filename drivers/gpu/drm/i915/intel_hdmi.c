@@ -42,6 +42,9 @@ struct intel_hdmi {
 	u32 sdvox_reg;
 	int ddc_bus;
 	bool has_hdmi_sink;
+	bool has_audio;
+	int force_audio;
+	struct drm_property *force_audio_property;
 };
 
 static struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
@@ -53,6 +56,60 @@ static struct intel_hdmi *intel_attached_hdmi(struct drm_connector *connector)
 {
 	return container_of(intel_attached_encoder(connector),
 			    struct intel_hdmi, base);
+}
+
+void intel_dip_infoframe_csum(struct dip_infoframe *avi_if)
+{
+	uint8_t *data = (uint8_t *)avi_if;
+	uint8_t sum = 0;
+	unsigned i;
+
+	avi_if->checksum = 0;
+	avi_if->ecc = 0;
+
+	for (i = 0; i < sizeof(*avi_if); i++)
+		sum += data[i];
+
+	avi_if->checksum = 0x100 - sum;
+}
+
+static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
+{
+	struct dip_infoframe avi_if = {
+		.type = DIP_TYPE_AVI,
+		.ver = DIP_VERSION_AVI,
+		.len = DIP_LEN_AVI,
+	};
+	uint32_t *data = (uint32_t *)&avi_if;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 port;
+	unsigned i;
+
+	if (!intel_hdmi->has_hdmi_sink)
+		return;
+
+	/* XXX first guess at handling video port, is this corrent? */
+	if (intel_hdmi->sdvox_reg == SDVOB)
+		port = VIDEO_DIP_PORT_B;
+	else if (intel_hdmi->sdvox_reg == SDVOC)
+		port = VIDEO_DIP_PORT_C;
+	else
+		return;
+
+	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | port |
+		   VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC);
+
+	intel_dip_infoframe_csum(&avi_if);
+	for (i = 0; i < sizeof(avi_if); i += 4) {
+		I915_WRITE(VIDEO_DIP_DATA, *data);
+		data++;
+	}
+
+	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | port |
+		   VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC |
+		   VIDEO_DIP_ENABLE_AVI);
 }
 
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
@@ -72,10 +129,13 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 
-	if (intel_hdmi->has_hdmi_sink) {
+	/* Required on CPT */
+	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
+		sdvox |= HDMI_MODE_SELECT;
+
+	if (intel_hdmi->has_audio) {
 		sdvox |= SDVO_AUDIO_ENABLE;
-		if (HAS_PCH_CPT(dev))
-			sdvox |= HDMI_MODE_SELECT;
+		sdvox |= SDVO_NULL_PACKETS_DURING_VSYNC;
 	}
 
 	if (intel_crtc->pipe == 1) {
@@ -87,6 +147,8 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
 	POSTING_READ(intel_hdmi->sdvox_reg);
+
+	intel_hdmi_set_avi_infoframe(encoder);
 }
 
 static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
@@ -154,6 +216,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status = connector_status_disconnected;
 
 	intel_hdmi->has_hdmi_sink = false;
+	intel_hdmi->has_audio = false;
 	edid = drm_get_edid(connector,
 			    &dev_priv->gmbus[intel_hdmi->ddc_bus].adapter);
 
@@ -161,9 +224,15 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
 			intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+			intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
 		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
+	}
+
+	if (status == connector_status_connected) {
+		if (intel_hdmi->force_audio)
+			intel_hdmi->has_audio = intel_hdmi->force_audio > 0;
 	}
 
 	return status;
@@ -180,6 +249,46 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 
 	return intel_ddc_get_modes(connector,
 				   &dev_priv->gmbus[intel_hdmi->ddc_bus].adapter);
+}
+
+static int
+intel_hdmi_set_property(struct drm_connector *connector,
+		      struct drm_property *property,
+		      uint64_t val)
+{
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	int ret;
+
+	ret = drm_connector_property_set_value(connector, property, val);
+	if (ret)
+		return ret;
+
+	if (property == intel_hdmi->force_audio_property) {
+		if (val == intel_hdmi->force_audio)
+			return 0;
+
+		intel_hdmi->force_audio = val;
+
+		if (val > 0 && intel_hdmi->has_audio)
+			return 0;
+		if (val < 0 && !intel_hdmi->has_audio)
+			return 0;
+
+		intel_hdmi->has_audio = val > 0;
+		goto done;
+	}
+
+	return -EINVAL;
+
+done:
+	if (intel_hdmi->base.base.crtc) {
+		struct drm_crtc *crtc = intel_hdmi->base.base.crtc;
+		drm_crtc_helper_set_mode(crtc, &crtc->mode,
+					 crtc->x, crtc->y,
+					 crtc->fb);
+	}
+
+	return 0;
 }
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
@@ -201,6 +310,7 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = intel_hdmi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = intel_hdmi_set_property,
 	.destroy = intel_hdmi_destroy,
 };
 
@@ -213,6 +323,20 @@ static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs
 static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 	.destroy = intel_encoder_destroy,
 };
+
+static void
+intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	intel_hdmi->force_audio_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE, "force_audio", 2);
+	if (intel_hdmi->force_audio_property) {
+		intel_hdmi->force_audio_property->values[0] = -1;
+		intel_hdmi->force_audio_property->values[1] = 1;
+		drm_connector_attach_property(connector, intel_hdmi->force_audio_property, 0);
+	}
+}
 
 void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 {
@@ -274,6 +398,8 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	intel_hdmi->sdvox_reg = sdvox_reg;
 
 	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
+
+	intel_hdmi_add_properties(intel_hdmi, connector);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_sysfs_connector_add(connector);

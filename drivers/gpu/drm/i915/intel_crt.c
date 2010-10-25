@@ -191,7 +191,8 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 
 	if (turn_off_dac) {
-		I915_WRITE(PCH_ADPA, temp);
+		/* Make sure hotplug is enabled */
+		I915_WRITE(PCH_ADPA, temp | ADPA_CRT_HOTPLUG_ENABLE);
 		(void)I915_READ(PCH_ADPA);
 	}
 

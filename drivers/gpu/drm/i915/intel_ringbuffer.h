@@ -22,6 +22,7 @@ struct  intel_ring_buffer {
 	enum intel_ring_id {
 		RING_RENDER = 0x1,
 		RING_BSD = 0x2,
+		RING_BLT = 0x4,
 	} id;
 	u32		mmio_base;
 	unsigned long	size;
@@ -45,9 +46,9 @@ struct  intel_ring_buffer {
 	int		(*init)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
 
-	void		(*set_tail)(struct drm_device *dev,
-				    struct intel_ring_buffer *ring,
-				    u32 value);
+	void		(*write_tail)(struct drm_device *dev,
+				      struct intel_ring_buffer *ring,
+				      u32 value);
 	void		(*flush)(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
 			u32	invalidate_domains,
@@ -80,6 +81,15 @@ struct  intel_ring_buffer {
 	 * outstanding.
 	 */
 	struct list_head request_list;
+
+	/**
+	 * List of objects currently pending a GPU write flush.
+	 *
+	 * All elements on this list will belong to either the
+	 * active_list or flushing_list, last_rendering_seqno can
+	 * be used to differentiate between the two elements.
+	 */
+	struct list_head gpu_write_list;
 
 	/**
 	 * Do we have some not yet emitted requests outstanding?
@@ -116,10 +126,6 @@ static inline void intel_ring_emit(struct drm_device *dev,
 	ring->tail += 4;
 }
 
-void intel_fill_struct(struct drm_device *dev,
-		struct intel_ring_buffer *ring,
-		void *data,
-		unsigned int len);
 void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring);
 
@@ -128,6 +134,7 @@ u32 intel_ring_get_seqno(struct drm_device *dev,
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
+int intel_init_blt_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct drm_device *dev,
 			       struct intel_ring_buffer *ring);

@@ -132,8 +132,8 @@ static int i915_dma_cleanup(struct drm_device * dev)
 
 	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
-	if (HAS_BSD(dev))
-		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(dev, &dev_priv->blt_ring);
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
@@ -499,7 +499,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 	}
 
 
-	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+	if (IS_G4X(dev) || IS_GEN5(dev)) {
 		BEGIN_LP_RING(2);
 		OUT_RING(MI_FLUSH | MI_NO_WRITE_FLUSH | MI_INVALIDATE_ISP);
 		OUT_RING(MI_NOOP);
@@ -763,6 +763,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_BSD:
 		value = HAS_BSD(dev);
+		break;
+	case I915_PARAM_HAS_BLT:
+		value = HAS_BLT(dev);
 		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
@@ -1199,9 +1202,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	/* Basic memrange allocator for stolen space (aka mm.vram) */
 	drm_mm_init(&dev_priv->mm.vram, 0, prealloc_size);
 
-	/* We're off and running w/KMS */
-	dev_priv->mm.suspended = 0;
-
 	/* Let GEM Manage from end of prealloc space to end of aperture.
 	 *
 	 * However, leave one page at the end still bound to the scratch page.
@@ -1235,7 +1235,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 */
 	dev_priv->allow_batchbuffer = 1;
 
-	ret = intel_init_bios(dev);
+	ret = intel_parse_bios(dev);
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
 
@@ -1243,6 +1243,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
 	if (ret)
 		goto cleanup_ringbuffer;
+
+	intel_register_dsm_handler();
 
 	ret = vga_switcheroo_register_client(dev->pdev,
 					     i915_switcheroo_set_state,
@@ -1269,6 +1271,10 @@ static int i915_load_modeset_init(struct drm_device *dev,
 		goto cleanup_irq;
 
 	drm_kms_helper_poll_init(dev);
+
+	/* We're off and running w/KMS */
+	dev_priv->mm.suspended = 0;
+
 	return 0;
 
 cleanup_irq:
@@ -1989,7 +1995,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev)) {
+	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
@@ -1998,6 +2004,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_setup_mchbar(dev);
 	intel_setup_gmbus(dev);
 	intel_opregion_setup(dev);
+
+	/* Make sure the bios did its job and set up vital registers */
+	intel_setup_bios(dev);
 
 	i915_gem_load(dev);
 
@@ -2010,7 +2019,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	if (IS_PINEVIEW(dev))
 		i915_pineview_get_mem_freq(dev);
-	else if (IS_IRONLAKE(dev))
+	else if (IS_GEN5(dev))
 		i915_ironlake_get_mem_freq(dev);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -2062,9 +2071,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	i915_mch_dev = dev_priv;
 	dev_priv->mchdev_lock = &mchdev_lock;
 	spin_unlock(&mchdev_lock);
-
-	/* XXX Prevent module unload due to memory corruption bugs. */
-	__module_get(THIS_MODULE);
 
 	return 0;
 
@@ -2134,9 +2140,6 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
-	if (dev_priv->regs != NULL)
-		iounmap(dev_priv->regs);
-
 	intel_opregion_fini(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -2153,7 +2156,13 @@ int i915_driver_unload(struct drm_device *dev)
 		drm_mm_takedown(&dev_priv->mm.vram);
 
 		intel_cleanup_overlay(dev);
+
+		if (!I915_NEED_GFX_HWS(dev))
+			i915_free_hws(dev);
 	}
+
+	if (dev_priv->regs != NULL)
+		iounmap(dev_priv->regs);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);

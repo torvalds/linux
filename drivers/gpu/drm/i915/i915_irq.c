@@ -293,13 +293,26 @@ static void i915_handle_rps_change(struct drm_device *dev)
 	return;
 }
 
+static void notify_ring(struct drm_device *dev,
+			struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 seqno = ring->get_seqno(dev, ring);
+	ring->irq_gem_seqno = seqno;
+	trace_i915_gem_request_complete(dev, seqno);
+	wake_up_all(&ring->irq_queue);
+	dev_priv->hangcheck_count = 0;
+	mod_timer(&dev_priv->hangcheck_timer,
+		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+}
+
 static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir;
+	u32 hotplug_mask;
 	struct drm_i915_master_private *master_priv;
-	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 	u32 bsd_usr_interrupt = GT_BSD_USER_INTERRUPT;
 
 	if (IS_GEN6(dev))
@@ -317,6 +330,11 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
 		goto done;
 
+	if (HAS_PCH_CPT(dev))
+		hotplug_mask = SDE_HOTPLUG_MASK_CPT;
+	else
+		hotplug_mask = SDE_HOTPLUG_MASK;
+
 	ret = IRQ_HANDLED;
 
 	if (dev->primary->master) {
@@ -326,17 +344,12 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 				READ_BREADCRUMB(dev_priv);
 	}
 
-	if (gt_iir & GT_PIPE_NOTIFY) {
-		u32 seqno = render_ring->get_seqno(dev, render_ring);
-		render_ring->irq_gem_seqno = seqno;
-		trace_i915_gem_request_complete(dev, seqno);
-		wake_up_all(&dev_priv->render_ring.irq_queue);
-		dev_priv->hangcheck_count = 0;
-		mod_timer(&dev_priv->hangcheck_timer,
-			  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
-	}
+	if (gt_iir & GT_PIPE_NOTIFY)
+		notify_ring(dev, &dev_priv->render_ring);
 	if (gt_iir & bsd_usr_interrupt)
-		wake_up_all(&dev_priv->bsd_ring.irq_queue);
+		notify_ring(dev, &dev_priv->bsd_ring);
+	if (HAS_BLT(dev) && gt_iir & GT_BLT_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->blt_ring);
 
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
@@ -358,10 +371,8 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
-	if ((de_iir & DE_PCH_EVENT) &&
-	    (pch_iir & SDE_HOTPLUG_MASK)) {
+	if ((de_iir & DE_PCH_EVENT) && (pch_iir & hotplug_mask))
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-	}
 
 	if (de_iir & DE_PCU_EVENT) {
 		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
@@ -604,9 +615,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	batchbuffer[0] = NULL;
 	batchbuffer[1] = NULL;
 	count = 0;
-	list_for_each_entry(obj_priv,
-			&dev_priv->render_ring.active_list, list) {
-
+	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
 		struct drm_gem_object *obj = &obj_priv->base;
 
 		if (batchbuffer[0] == NULL &&
@@ -623,7 +632,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 	/* Scan the other lists for completeness for those bizarre errors. */
 	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, mm_list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			if (batchbuffer[0] == NULL &&
@@ -641,7 +650,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		}
 	}
 	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, mm_list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			if (batchbuffer[0] == NULL &&
@@ -660,7 +669,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 
 	/* We need to copy these to an anonymous buffer as the simplest
-	 * method to avoid being overwritten by userpace.
+	 * method to avoid being overwritten by userspace.
 	 */
 	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
 	if (batchbuffer[1] != batchbuffer[0])
@@ -682,8 +691,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	if (error->active_bo) {
 		int i = 0;
-		list_for_each_entry(obj_priv,
-				&dev_priv->render_ring.active_list, list) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			error->active_bo[i].size = obj->size;
@@ -880,6 +888,8 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 		wake_up_all(&dev_priv->render_ring.irq_queue);
 		if (HAS_BSD(dev))
 			wake_up_all(&dev_priv->bsd_ring.irq_queue);
+		if (HAS_BLT(dev))
+			wake_up_all(&dev_priv->blt_ring.irq_queue);
 	}
 
 	queue_work(dev_priv->wq, &dev_priv->error_work);
@@ -940,7 +950,6 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	unsigned long irqflags;
 	int irq_received;
 	int ret = IRQ_NONE;
-	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1017,18 +1026,10 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 					READ_BREADCRUMB(dev_priv);
 		}
 
-		if (iir & I915_USER_INTERRUPT) {
-			u32 seqno = render_ring->get_seqno(dev, render_ring);
-			render_ring->irq_gem_seqno = seqno;
-			trace_i915_gem_request_complete(dev, seqno);
-			wake_up_all(&dev_priv->render_ring.irq_queue);
-			dev_priv->hangcheck_count = 0;
-			mod_timer(&dev_priv->hangcheck_timer,
-				  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
-		}
-
+		if (iir & I915_USER_INTERRUPT)
+			notify_ring(dev, &dev_priv->render_ring);
 		if (HAS_BSD(dev) && (iir & I915_BSD_USER_INTERRUPT))
-			wake_up_all(&dev_priv->bsd_ring.irq_queue);
+			notify_ring(dev, &dev_priv->bsd_ring);
 
 		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 0);
@@ -1357,6 +1358,12 @@ void i915_hangcheck_elapsed(unsigned long data)
 			missed_wakeup = true;
 		}
 
+		if (dev_priv->blt_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->blt_ring.irq_queue)) {
+			wake_up_all(&dev_priv->blt_ring.irq_queue);
+			missed_wakeup = true;
+		}
+
 		if (missed_wakeup)
 			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
 		return;
@@ -1431,8 +1438,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
 	u32 render_mask = GT_PIPE_NOTIFY | GT_BSD_USER_INTERRUPT;
-	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
-			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
+	u32 hotplug_mask;
 
 	dev_priv->irq_mask_reg = ~display_mask;
 	dev_priv->de_irq_enable_reg = display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK;
@@ -1443,8 +1449,12 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(DEIER, dev_priv->de_irq_enable_reg);
 	(void) I915_READ(DEIER);
 
-	if (IS_GEN6(dev))
-		render_mask = GT_PIPE_NOTIFY | GT_GEN6_BSD_USER_INTERRUPT;
+	if (IS_GEN6(dev)) {
+		render_mask =
+			GT_PIPE_NOTIFY |
+			GT_GEN6_BSD_USER_INTERRUPT |
+			GT_BLT_USER_INTERRUPT;
+	}
 
 	dev_priv->gt_irq_mask_reg = ~render_mask;
 	dev_priv->gt_irq_enable_reg = render_mask;
@@ -1454,10 +1464,19 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	if (IS_GEN6(dev)) {
 		I915_WRITE(GEN6_RENDER_IMR, ~GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT);
 		I915_WRITE(GEN6_BSD_IMR, ~GEN6_BSD_IMR_USER_INTERRUPT);
+		I915_WRITE(GEN6_BLITTER_IMR, ~GEN6_BLITTER_USER_INTERRUPT);
 	}
 
 	I915_WRITE(GTIER, dev_priv->gt_irq_enable_reg);
 	(void) I915_READ(GTIER);
+
+	if (HAS_PCH_CPT(dev)) {
+		hotplug_mask = SDE_CRT_HOTPLUG_CPT | SDE_PORTB_HOTPLUG_CPT  |
+			       SDE_PORTC_HOTPLUG_CPT | SDE_PORTD_HOTPLUG_CPT ;
+	} else {
+		hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
+			       SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
+	}
 
 	dev_priv->pch_irq_mask_reg = ~hotplug_mask;
 	dev_priv->pch_irq_enable_reg = hotplug_mask;
@@ -1515,9 +1534,10 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	u32 error_mask;
 
 	DRM_INIT_WAITQUEUE(&dev_priv->render_ring.irq_queue);
-
 	if (HAS_BSD(dev))
 		DRM_INIT_WAITQUEUE(&dev_priv->bsd_ring.irq_queue);
+	if (HAS_BLT(dev))
+		DRM_INIT_WAITQUEUE(&dev_priv->blt_ring.irq_queue);
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 

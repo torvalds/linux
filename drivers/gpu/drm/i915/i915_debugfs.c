@@ -41,8 +41,7 @@
 #if defined(CONFIG_DEBUG_FS)
 
 enum {
-	RENDER_LIST,
-	BSD_LIST,
+	ACTIVE_LIST,
 	FLUSHING_LIST,
 	INACTIVE_LIST,
 	PINNED_LIST,
@@ -72,7 +71,6 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(is_pineview);
 	B(is_broadwater);
 	B(is_crestline);
-	B(is_ironlake);
 	B(has_fbc);
 	B(has_rc6);
 	B(has_pipe_cxsr);
@@ -81,6 +79,8 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(has_overlay);
 	B(overlay_needs_physical);
 	B(supports_tv);
+	B(has_bsd_ring);
+	B(has_blt_ring);
 #undef B
 
 	return 0;
@@ -125,6 +125,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	if (obj->gtt_space != NULL)
 		seq_printf(m, " (gtt_offset: %08x)", obj->gtt_offset);
+	if (obj->ring != NULL)
+		seq_printf(m, " (%s)", obj->ring->name);
 }
 
 static int i915_gem_object_list_info(struct seq_file *m, void *data)
@@ -143,13 +145,9 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		return ret;
 
 	switch (list) {
-	case RENDER_LIST:
-		seq_printf(m, "Render:\n");
-		head = &dev_priv->render_ring.active_list;
-		break;
-	case BSD_LIST:
-		seq_printf(m, "BSD:\n");
-		head = &dev_priv->bsd_ring.active_list;
+	case ACTIVE_LIST:
+		seq_printf(m, "Active:\n");
+		head = &dev_priv->mm.active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_printf(m, "Inactive:\n");
@@ -173,7 +171,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj_priv, head, list) {
+	list_for_each_entry(obj_priv, head, mm_list) {
 		seq_printf(m, "   ");
 		describe_obj(m, obj_priv);
 		seq_printf(m, "\n");
@@ -460,8 +458,7 @@ static int i915_batchbuffer_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(obj_priv, &dev_priv->render_ring.active_list,
-			list) {
+	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
 		obj = &obj_priv->base;
 		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
 		    seq_printf(m, "--- gtt_offset = 0x%08x\n",
@@ -797,7 +794,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool sr_enabled = false;
 
-	if (IS_IRONLAKE(dev))
+	if (IS_GEN5(dev))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
 	else if (IS_CRESTLINE(dev) || IS_I945G(dev) || IS_I945GM(dev))
 		sr_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
@@ -1020,8 +1017,7 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
-	{"i915_gem_render_active", i915_gem_object_list_info, 0, (void *) RENDER_LIST},
-	{"i915_gem_bsd_active", i915_gem_object_list_info, 0, (void *) BSD_LIST},
+	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_pinned", i915_gem_object_list_info, 0, (void *) PINNED_LIST},

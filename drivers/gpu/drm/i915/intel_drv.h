@@ -178,6 +178,38 @@ struct intel_crtc {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
+#define DIP_TYPE_AVI    0x82
+#define DIP_VERSION_AVI 0x2
+#define DIP_LEN_AVI     13
+
+struct dip_infoframe {
+	uint8_t type;		/* HB0 */
+	uint8_t ver;		/* HB1 */
+	uint8_t len;		/* HB2 - body len, not including checksum */
+	uint8_t ecc;		/* Header ECC */
+	uint8_t checksum;	/* PB0 */
+	union {
+		struct {
+			/* PB1 - Y 6:5, A 4:4, B 3:2, S 1:0 */
+			uint8_t Y_A_B_S;
+			/* PB2 - C 7:6, M 5:4, R 3:0 */
+			uint8_t C_M_R;
+			/* PB3 - ITC 7:7, EC 6:4, Q 3:2, SC 1:0 */
+			uint8_t ITC_EC_Q_SC;
+			/* PB4 - VIC 6:0 */
+			uint8_t VIC;
+			/* PB5 - PR 3:0 */
+			uint8_t PR;
+			/* PB6 to PB13 */
+			uint16_t top_bar_end;
+			uint16_t bottom_bar_start;
+			uint16_t left_bar_end;
+			uint16_t right_bar_start;
+		} avi;
+		uint8_t payload[27];
+	} __attribute__ ((packed)) body;
+} __attribute__((packed));
+
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
@@ -200,6 +232,7 @@ extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
+void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
@@ -209,9 +242,9 @@ extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
-extern bool intel_pch_has_edp(struct drm_crtc *crtc);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
+extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
