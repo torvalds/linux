@@ -668,8 +668,10 @@ static bool wait_till_stopped(struct audio_stream *as)
 {
 	int rc;
 	pr_debug("%s: wait for completion\n", __func__);
-	rc = wait_for_completion_interruptible(
-			&as->stop_completion);
+	rc = wait_for_completion_interruptible_timeout(
+			&as->stop_completion, HZ);
+	if (!rc)
+		pr_err("%s: wait timed out", __func__);
 	allow_suspend(as);
 	pr_debug("%s: done: %d\n", __func__, rc);
 	return true;
