@@ -1059,14 +1059,13 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
 	if (!test_bit(XPT_DEFERRED, &xprt->xpt_flags))
 		return NULL;
 	spin_lock(&xprt->xpt_lock);
-	clear_bit(XPT_DEFERRED, &xprt->xpt_flags);
 	if (!list_empty(&xprt->xpt_deferred)) {
 		dr = list_entry(xprt->xpt_deferred.next,
 				struct svc_deferred_req,
 				handle.recent);
 		list_del_init(&dr->handle.recent);
-		set_bit(XPT_DEFERRED, &xprt->xpt_flags);
-	}
+	} else
+		clear_bit(XPT_DEFERRED, &xprt->xpt_flags);
 	spin_unlock(&xprt->xpt_lock);
 	return dr;
 }
