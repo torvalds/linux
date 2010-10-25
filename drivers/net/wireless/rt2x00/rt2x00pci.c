@@ -105,7 +105,7 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	 */
 	addr = dma_alloc_coherent(rt2x00dev->dev,
 				  queue->limit * queue->desc_size,
-				  &dma, GFP_KERNEL | GFP_DMA);
+				  &dma, GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 
