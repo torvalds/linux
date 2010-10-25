@@ -1264,7 +1264,7 @@ struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, u32 info);
 
-	struct xfrm_tunnel *next;
+	struct xfrm_tunnel __rcu *next;
 	int priority;
 };
 
