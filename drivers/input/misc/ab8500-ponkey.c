@@ -107,7 +107,7 @@ static int __devinit ab8500_ponkey_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_dbr_irq:
-	free_irq(ponkey->irq_dbf, ponkey);
+	free_irq(ponkey->irq_dbr, ponkey);
 err_free_dbf_irq:
 	free_irq(ponkey->irq_dbf, ponkey);
 err_free_mem:
