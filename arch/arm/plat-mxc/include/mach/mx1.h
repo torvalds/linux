@@ -19,7 +19,6 @@
  */
 #define MX1_IO_BASE_ADDR	0x00200000
 #define MX1_IO_SIZE		SZ_1M
-#define MX1_IO_BASE_ADDR_VIRT	VMALLOC_END
 
 #define MX1_CS0_PHYS		0x10000000
 #define MX1_CS0_SIZE		0x02000000
@@ -73,8 +72,7 @@
 #define MX1_CSI_BASE_ADDR		(0x24000 + MX1_IO_BASE_ADDR)
 
 /* macro to get at IO space when running virtually */
-#define MX1_IO_P2V(x)	(						\
-	IMX_IO_P2V_MODULE(x, MX1_IO))
+#define MX1_IO_P2V(x)			IMX_IO_P2V(x)
 #define MX1_IO_ADDRESS(x)		IOMEM(MX1_IO_P2V(x))
 
 /* fixed interrput numbers */
@@ -171,7 +169,6 @@
 /* these should go away */
 #define IMX_IO_PHYS MX1_IO_BASE_ADDR
 #define IMX_IO_SIZE MX1_IO_SIZE
-#define IMX_IO_BASE MX1_IO_BASE_ADDR_VIRT
 #define IMX_CS0_PHYS MX1_CS0_PHYS
 #define IMX_CS0_SIZE MX1_CS0_SIZE
 #define IMX_CS1_PHYS MX1_CS1_PHYS

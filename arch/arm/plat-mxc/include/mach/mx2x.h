@@ -27,7 +27,7 @@
 
 /* Register offsets */
 #define MX2x_AIPI_BASE_ADDR		0x10000000
-#define MX2x_AIPI_BASE_ADDR_VIRT	0xf4000000
+#define MX2x_AIPI_BASE_ADDR_VIRT	0xf4400000
 #define MX2x_AIPI_SIZE			SZ_1M
 #define MX2x_DMA_BASE_ADDR			(MX2x_AIPI_BASE_ADDR + 0x01000)
 #define MX2x_WDOG_BASE_ADDR			(MX2x_AIPI_BASE_ADDR + 0x02000)
@@ -65,42 +65,11 @@
 #define MX2x_AVIC_BASE_ADDR		0x10040000
 
 #define MX2x_SAHB1_BASE_ADDR		0x80000000
-#define MX2x_SAHB1_BASE_ADDR_VIRT	0xf4100000
 #define MX2x_SAHB1_SIZE			SZ_1M
 #define MX2x_CSI_BASE_ADDR			(MX2x_SAHB1_BASE_ADDR + 0x0000)
 
-/*
- * This macro defines the physical to virtual address mapping for all the
- * peripheral modules. It is used by passing in the physical address as x
- * and returning the virtual address. If the physical address is not mapped,
- * it returns 0xDEADBEEF
- */
-#define IO_ADDRESS(x)   \
-	(void __force __iomem *) \
-	(((x >= AIPI_BASE_ADDR) && (x < (AIPI_BASE_ADDR + AIPI_SIZE))) ? \
-		AIPI_IO_ADDRESS(x) : \
-	((x >= SAHB1_BASE_ADDR) && (x < (SAHB1_BASE_ADDR + SAHB1_SIZE))) ? \
-		SAHB1_IO_ADDRESS(x) : \
-	((x >= X_MEMC_BASE_ADDR) && (x < (X_MEMC_BASE_ADDR + X_MEMC_SIZE))) ? \
-		X_MEMC_IO_ADDRESS(x) : 0xDEADBEEF)
-
-/* define the address mapping macros: in physical address order */
-#define AIPI_IO_ADDRESS(x)  \
+#define AIPI_IO_ADDRESS(x)	\
 	(((x) - AIPI_BASE_ADDR) + AIPI_BASE_ADDR_VIRT)
-
-#define AVIC_IO_ADDRESS(x)	AIPI_IO_ADDRESS(x)
-
-#define SAHB1_IO_ADDRESS(x)  \
-	(((x) - SAHB1_BASE_ADDR) + SAHB1_BASE_ADDR_VIRT)
-
-#define CS4_IO_ADDRESS(x)  \
-	(((x) - CS4_BASE_ADDR) + CS4_BASE_ADDR_VIRT)
-
-#define X_MEMC_IO_ADDRESS(x)  \
-	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
-
-#define PCMCIA_IO_ADDRESS(x) \
-	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
 
 /* fixed interrupt numbers */
 #define MX2x_INT_CSPI3		6
@@ -215,7 +184,6 @@
 #define MAX_BASE_ADDR MX2x_MAX_BASE_ADDR
 #define AVIC_BASE_ADDR MX2x_AVIC_BASE_ADDR
 #define SAHB1_BASE_ADDR MX2x_SAHB1_BASE_ADDR
-#define SAHB1_BASE_ADDR_VIRT MX2x_SAHB1_BASE_ADDR_VIRT
 #define SAHB1_SIZE MX2x_SAHB1_SIZE
 #define CSI_BASE_ADDR MX2x_CSI_BASE_ADDR
 #define MXC_INT_CSPI3 MX2x_INT_CSPI3

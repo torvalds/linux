@@ -44,7 +44,7 @@
  * AIPS 1
  */
 #define MX3x_AIPS1_BASE_ADDR		0x43f00000
-#define MX3x_AIPS1_BASE_ADDR_VIRT	0xfc000000
+#define MX3x_AIPS1_BASE_ADDR_VIRT	0xf5300000
 #define MX3x_AIPS1_SIZE			SZ_1M
 #define MX3x_MAX_BASE_ADDR			(MX3x_AIPS1_BASE_ADDR + 0x04000)
 #define MX3x_EVTMON_BASE_ADDR			(MX3x_AIPS1_BASE_ADDR + 0x08000)
@@ -69,7 +69,6 @@
  * SPBA global module enabled #0
  */
 #define MX3x_SPBA0_BASE_ADDR		0x50000000
-#define MX3x_SPBA0_BASE_ADDR_VIRT	0xfc100000
 #define MX3x_SPBA0_SIZE			SZ_1M
 #define MX3x_UART3_BASE_ADDR			(MX3x_SPBA0_BASE_ADDR + 0x0c000)
 #define MX3x_CSPI2_BASE_ADDR			(MX3x_SPBA0_BASE_ADDR + 0x10000)
@@ -82,7 +81,6 @@
  * AIPS 2
  */
 #define MX3x_AIPS2_BASE_ADDR		0x53f00000
-#define MX3x_AIPS2_BASE_ADDR_VIRT	0xfc200000
 #define MX3x_AIPS2_SIZE			SZ_1M
 #define MX3x_CCM_BASE_ADDR			(MX3x_AIPS2_BASE_ADDR + 0x80000)
 #define MX3x_GPT1_BASE_ADDR			(MX3x_AIPS2_BASE_ADDR + 0x90000)
@@ -105,11 +103,9 @@
  * ROMP and AVIC
  */
 #define MX3x_ROMP_BASE_ADDR		0x60000000
-#define MX3x_ROMP_BASE_ADDR_VIRT	0xfc500000
 #define MX3x_ROMP_SIZE			SZ_1M
 
 #define MX3x_AVIC_BASE_ADDR		0x68000000
-#define MX3x_AVIC_BASE_ADDR_VIRT	0xfc400000
 #define MX3x_AVIC_SIZE			SZ_1M
 
 /*
@@ -125,18 +121,17 @@
 #define MX3x_CS3_BASE_ADDR		0xb2000000
 
 #define MX3x_CS4_BASE_ADDR		0xb4000000
-#define MX3x_CS4_BASE_ADDR_VIRT		0xf4000000
+#define MX3x_CS4_BASE_ADDR_VIRT		0xf6000000
 #define MX3x_CS4_SIZE			SZ_32M
 
 #define MX3x_CS5_BASE_ADDR		0xb6000000
-#define MX3x_CS5_BASE_ADDR_VIRT		0xf6000000
+#define MX3x_CS5_BASE_ADDR_VIRT		0xf8000000
 #define MX3x_CS5_SIZE			SZ_32M
 
 /*
  * NAND, SDRAM, WEIM, M3IF, EMI controllers
  */
 #define MX3x_X_MEMC_BASE_ADDR		0xb8000000
-#define MX3x_X_MEMC_BASE_ADDR_VIRT	0xfc320000
 #define MX3x_X_MEMC_SIZE		SZ_64K
 #define MX3x_ESDCTL_BASE_ADDR			(MX3x_X_MEMC_BASE_ADDR + 0x1000)
 #define MX3x_WEIM_BASE_ADDR			(MX3x_X_MEMC_BASE_ADDR + 0x2000)
@@ -146,55 +141,8 @@
 
 #define MX3x_PCMCIA_MEM_BASE_ADDR	0xbc000000
 
-/*!
- * This macro defines the physical to virtual address mapping for all the
- * peripheral modules. It is used by passing in the physical address as x
- * and returning the virtual address. If the physical address is not mapped,
- * it returns 0xDEADBEEF
- */
-#define IO_ADDRESS(x)   \
-	(void __force __iomem *) \
-	(((x >= AIPS1_BASE_ADDR) && (x < (AIPS1_BASE_ADDR + AIPS1_SIZE))) ? AIPS1_IO_ADDRESS(x):\
-	((x >= SPBA0_BASE_ADDR) && (x < (SPBA0_BASE_ADDR + SPBA0_SIZE))) ? SPBA0_IO_ADDRESS(x):\
-	((x >= AIPS2_BASE_ADDR) && (x < (AIPS2_BASE_ADDR + AIPS2_SIZE))) ? AIPS2_IO_ADDRESS(x):\
-	((x >= ROMP_BASE_ADDR) && (x < (ROMP_BASE_ADDR + ROMP_SIZE))) ? ROMP_IO_ADDRESS(x):\
-	((x >= AVIC_BASE_ADDR) && (x < (AVIC_BASE_ADDR + AVIC_SIZE))) ? AVIC_IO_ADDRESS(x):\
-	((x >= CS4_BASE_ADDR) && (x < (CS4_BASE_ADDR + CS4_SIZE))) ? CS4_IO_ADDRESS(x):\
-	((x >= X_MEMC_BASE_ADDR) && (x < (X_MEMC_BASE_ADDR + X_MEMC_SIZE))) ? X_MEMC_IO_ADDRESS(x):\
-	0xDEADBEEF)
-
-/*
- * define the address mapping macros: in physical address order
- */
-#define L2CC_IO_ADDRESS(x)  \
-	(((x) - L2CC_BASE_ADDR) + L2CC_BASE_ADDR_VIRT)
-
 #define AIPS1_IO_ADDRESS(x)  \
 	(((x) - AIPS1_BASE_ADDR) + AIPS1_BASE_ADDR_VIRT)
-
-#define SPBA0_IO_ADDRESS(x)  \
-	(((x) - SPBA0_BASE_ADDR) + SPBA0_BASE_ADDR_VIRT)
-
-#define AIPS2_IO_ADDRESS(x)  \
-	(((x) - AIPS2_BASE_ADDR) + AIPS2_BASE_ADDR_VIRT)
-
-#define ROMP_IO_ADDRESS(x)  \
-	(((x) - ROMP_BASE_ADDR) + ROMP_BASE_ADDR_VIRT)
-
-#define AVIC_IO_ADDRESS(x)  \
-	(((x) - AVIC_BASE_ADDR) + AVIC_BASE_ADDR_VIRT)
-
-#define CS4_IO_ADDRESS(x)  \
-	(((x) - CS4_BASE_ADDR) + CS4_BASE_ADDR_VIRT)
-
-#define CS5_IO_ADDRESS(x)  \
-	(((x) - CS5_BASE_ADDR) + CS5_BASE_ADDR_VIRT)
-
-#define X_MEMC_IO_ADDRESS(x)  \
-	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
-
-#define PCMCIA_IO_ADDRESS(x) \
-	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
 
 /*
  * Interrupt numbers
@@ -303,7 +251,6 @@ static inline int mx35_revision(void)
 #define ECT_IP1_BASE_ADDR MX3x_ECT_IP1_BASE_ADDR
 #define ECT_IP2_BASE_ADDR MX3x_ECT_IP2_BASE_ADDR
 #define SPBA0_BASE_ADDR MX3x_SPBA0_BASE_ADDR
-#define SPBA0_BASE_ADDR_VIRT MX3x_SPBA0_BASE_ADDR_VIRT
 #define SPBA0_SIZE MX3x_SPBA0_SIZE
 #define UART3_BASE_ADDR MX3x_UART3_BASE_ADDR
 #define CSPI2_BASE_ADDR MX3x_CSPI2_BASE_ADDR
@@ -312,7 +259,6 @@ static inline int mx35_revision(void)
 #define MSHC1_BASE_ADDR MX3x_MSHC1_BASE_ADDR
 #define SPBA_CTRL_BASE_ADDR MX3x_SPBA_CTRL_BASE_ADDR
 #define AIPS2_BASE_ADDR MX3x_AIPS2_BASE_ADDR
-#define AIPS2_BASE_ADDR_VIRT MX3x_AIPS2_BASE_ADDR_VIRT
 #define AIPS2_SIZE MX3x_AIPS2_SIZE
 #define CCM_BASE_ADDR MX3x_CCM_BASE_ADDR
 #define GPT1_BASE_ADDR MX3x_GPT1_BASE_ADDR
@@ -331,10 +277,8 @@ static inline int mx35_revision(void)
 #define PWM_BASE_ADDR MX3x_PWM_BASE_ADDR
 #define RTIC_BASE_ADDR MX3x_RTIC_BASE_ADDR
 #define ROMP_BASE_ADDR MX3x_ROMP_BASE_ADDR
-#define ROMP_BASE_ADDR_VIRT MX3x_ROMP_BASE_ADDR_VIRT
 #define ROMP_SIZE MX3x_ROMP_SIZE
 #define AVIC_BASE_ADDR MX3x_AVIC_BASE_ADDR
-#define AVIC_BASE_ADDR_VIRT MX3x_AVIC_BASE_ADDR_VIRT
 #define AVIC_SIZE MX3x_AVIC_SIZE
 #define IPU_MEM_BASE_ADDR MX3x_IPU_MEM_BASE_ADDR
 #define CSD0_BASE_ADDR MX3x_CSD0_BASE_ADDR
@@ -344,13 +288,10 @@ static inline int mx35_revision(void)
 #define CS2_BASE_ADDR MX3x_CS2_BASE_ADDR
 #define CS3_BASE_ADDR MX3x_CS3_BASE_ADDR
 #define CS4_BASE_ADDR MX3x_CS4_BASE_ADDR
-#define CS4_BASE_ADDR_VIRT MX3x_CS4_BASE_ADDR_VIRT
 #define CS4_SIZE MX3x_CS4_SIZE
 #define CS5_BASE_ADDR MX3x_CS5_BASE_ADDR
-#define CS5_BASE_ADDR_VIRT MX3x_CS5_BASE_ADDR_VIRT
 #define CS5_SIZE MX3x_CS5_SIZE
 #define X_MEMC_BASE_ADDR MX3x_X_MEMC_BASE_ADDR
-#define X_MEMC_BASE_ADDR_VIRT MX3x_X_MEMC_BASE_ADDR_VIRT
 #define X_MEMC_SIZE MX3x_X_MEMC_SIZE
 #define ESDCTL_BASE_ADDR MX3x_ESDCTL_BASE_ADDR
 #define WEIM_BASE_ADDR MX3x_WEIM_BASE_ADDR
