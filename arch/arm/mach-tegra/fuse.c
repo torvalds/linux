@@ -119,6 +119,16 @@ static inline void fuse_writel(u32 value, unsigned long offset)
 }
 #endif
 
+u32 tegra_fuse_readl(unsigned long offset)
+{
+	return fuse_readl(offset);
+}
+
+void tegra_fuse_writel(u32 value, unsigned long offset)
+{
+	fuse_writel(value, offset);
+}
+
 void tegra_init_fuse(void)
 {
 	u32 reg = readl(IO_TO_VIRT(TEGRA_CLK_RESET_BASE + 0x48));
