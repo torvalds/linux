@@ -382,6 +382,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
 	if (test_facility(8))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
+	if (test_facility(11))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
 	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))

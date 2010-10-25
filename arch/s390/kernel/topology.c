@@ -66,7 +66,6 @@ struct mask_info {
 static int topology_enabled = 1;
 static void topology_work_fn(struct work_struct *work);
 static struct tl_info *tl_info;
-static int machine_has_topology;
 static struct timer_list topology_timer;
 static void set_topology_timer(void);
 static DECLARE_WORK(topology_work, topology_work_fn);
@@ -88,7 +87,7 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 	cpumask_t mask;
 
 	cpus_clear(mask);
-	if (!topology_enabled || !machine_has_topology)
+	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY)
 		return cpu_possible_map;
 	while (info) {
 		if (cpu_isset(cpu, info->mask)) {
@@ -186,7 +185,6 @@ static void tl_to_cores(struct tl_info *info)
 			break;
 		default:
 			clear_masks();
-			machine_has_topology = 0;
 			goto out;
 		}
 		tle = next_tle(tle);
@@ -223,7 +221,7 @@ int topology_set_cpu_management(int fc)
 	int cpu;
 	int rc;
 
-	if (!machine_has_topology)
+	if (!MACHINE_HAS_TOPOLOGY)
 		return -EOPNOTSUPP;
 	if (fc)
 		rc = ptf(PTF_VERTICAL);
@@ -269,7 +267,7 @@ int arch_update_cpu_topology(void)
 	struct sys_device *sysdev;
 	int cpu;
 
-	if (!machine_has_topology) {
+	if (!MACHINE_HAS_TOPOLOGY) {
 		update_cpu_core_map();
 		topology_update_polarization_simple();
 		return 0;
@@ -323,7 +321,7 @@ static int __init init_topology_update(void)
 	int rc;
 
 	rc = 0;
-	if (!machine_has_topology) {
+	if (!MACHINE_HAS_TOPOLOGY) {
 		topology_update_polarization_simple();
 		goto out;
 	}
@@ -354,10 +352,8 @@ void __init s390_init_cpu_topology(void)
 	struct tl_info *info;
 	int i;
 
-	if (!test_facility(2) || !test_facility(11))
+	if (!MACHINE_HAS_TOPOLOGY)
 		return;
-	machine_has_topology = 1;
-
 	tl_info = alloc_bootmem_pages(PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
