@@ -5,29 +5,33 @@
 # Displays system-wide system call totals, broken down by syscall.
 # If a [comm] arg is specified, only syscalls called by [comm] are displayed.
 
-import os
-import sys
+import os, sys
 
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
 from perf_trace_context import *
 from Core import *
+from Util import syscall_name
 
 usage = "perf trace -s syscall-counts-by-pid.py [comm]\n";
 
 for_comm = None
+for_pid = None
 
 if len(sys.argv) > 2:
 	sys.exit(usage)
 
 if len(sys.argv) > 1:
-	for_comm = sys.argv[1]
+	try:
+		for_pid = int(sys.argv[1])
+	except:
+		for_comm = sys.argv[1]
 
 syscalls = autodict()
 
 def trace_begin():
-	pass
+	print "Press control+C to stop and show the summary"
 
 def trace_end():
 	print_syscall_totals()
@@ -35,9 +39,10 @@ def trace_end():
 def raw_syscalls__sys_enter(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
 	id, args):
-	if for_comm is not None:
-		if common_comm != for_comm:
-			return
+
+	if (for_comm and common_comm != for_comm) or \
+	   (for_pid  and common_pid  != for_pid ):
+		return
 	try:
 		syscalls[common_comm][common_pid][id] += 1
 	except TypeError:
@@ -61,4 +66,4 @@ def print_syscall_totals():
 		    id_keys = syscalls[comm][pid].keys()
 		    for id, val in sorted(syscalls[comm][pid].iteritems(), \
 				  key = lambda(k, v): (v, k),  reverse = True):
-			    print "  %-38d  %10d\n" % (id, val),
+			    print "  %-38s  %10d\n" % (syscall_name(id), val),
