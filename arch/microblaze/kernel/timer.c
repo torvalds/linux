@@ -38,6 +38,9 @@ static unsigned int timer_baseaddr;
 #define TIMER_BASE	timer_baseaddr
 #endif
 
+unsigned int freq_div_hz;
+unsigned int timer_clock_freq;
+
 #define TCSR0	(0x00)
 #define TLR0	(0x04)
 #define TCR0	(0x08)
@@ -115,7 +118,7 @@ static void microblaze_timer_set_mode(enum clock_event_mode mode,
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		printk(KERN_INFO "%s: periodic\n", __func__);
-		microblaze_timer0_start_periodic(cpuinfo.freq_div_hz);
+		microblaze_timer0_start_periodic(freq_div_hz);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		printk(KERN_INFO "%s: oneshot\n", __func__);
@@ -168,7 +171,7 @@ static struct irqaction timer_irqaction = {
 static __init void microblaze_clockevent_init(void)
 {
 	clockevent_microblaze_timer.mult =
-		div_sc(cpuinfo.cpu_clock_freq, NSEC_PER_SEC,
+		div_sc(timer_clock_freq, NSEC_PER_SEC,
 				clockevent_microblaze_timer.shift);
 	clockevent_microblaze_timer.max_delta_ns =
 		clockevent_delta2ns((u32)~0, &clockevent_microblaze_timer);
@@ -201,7 +204,7 @@ static struct cyclecounter microblaze_cc = {
 
 int __init init_microblaze_timecounter(void)
 {
-	microblaze_cc.mult = div_sc(cpuinfo.cpu_clock_freq, NSEC_PER_SEC,
+	microblaze_cc.mult = div_sc(timer_clock_freq, NSEC_PER_SEC,
 				microblaze_cc.shift);
 
 	timecounter_init(&microblaze_tc, &microblaze_cc, sched_clock());
@@ -221,7 +224,7 @@ static struct clocksource clocksource_microblaze = {
 static int __init microblaze_clocksource_init(void)
 {
 	clocksource_microblaze.mult =
-			clocksource_hz2mult(cpuinfo.cpu_clock_freq,
+			clocksource_hz2mult(timer_clock_freq,
 						clocksource_microblaze.shift);
 	if (clocksource_register(&clocksource_microblaze))
 		panic("failed to register clocksource");
@@ -247,6 +250,7 @@ void __init time_init(void)
 	u32 irq, i = 0;
 	u32 timer_num = 1;
 	struct device_node *timer = NULL;
+	const void *prop;
 #ifdef CONFIG_SELFMOD_TIMER
 	unsigned int timer_baseaddr = 0;
 	int arr_func[] = {
@@ -258,12 +262,10 @@ void __init time_init(void)
 				0
 			};
 #endif
-	char *timer_list[] = {
-				"xlnx,xps-timer-1.00.a",
-				"xlnx,opb-timer-1.00.b",
-				"xlnx,opb-timer-1.00.a",
-				NULL
-			};
+	const char * const timer_list[] = {
+		"xlnx,xps-timer-1.00.a",
+		NULL
+	};
 
 	for (i = 0; timer_list[i] != NULL; i++) {
 		timer = of_find_compatible_node(NULL, NULL, timer_list[i]);
@@ -272,13 +274,13 @@ void __init time_init(void)
 	}
 	BUG_ON(!timer);
 
-	timer_baseaddr = *(int *) of_get_property(timer, "reg", NULL);
+	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
 	timer_baseaddr = (unsigned long) ioremap(timer_baseaddr, PAGE_SIZE);
-	irq = *(int *) of_get_property(timer, "interrupts", NULL);
-	timer_num =
-		*(int *) of_get_property(timer, "xlnx,one-timer-only", NULL);
+	irq = be32_to_cpup(of_get_property(timer, "interrupts", NULL));
+	timer_num = be32_to_cpup(of_get_property(timer,
+						"xlnx,one-timer-only", NULL));
 	if (timer_num) {
-		printk(KERN_EMERG "Please enable two timers in HW\n");
+		eprintk(KERN_EMERG "Please enable two timers in HW\n");
 		BUG();
 	}
 
@@ -288,7 +290,14 @@ void __init time_init(void)
 	printk(KERN_INFO "%s #0 at 0x%08x, irq=%d\n",
 		timer_list[i], timer_baseaddr, irq);
 
-	cpuinfo.freq_div_hz = cpuinfo.cpu_clock_freq / HZ;
+	/* If there is clock-frequency property than use it */
+	prop = of_get_property(timer, "clock-frequency", NULL);
+	if (prop)
+		timer_clock_freq = be32_to_cpup(prop);
+	else
+		timer_clock_freq = cpuinfo.cpu_clock_freq;
+
+	freq_div_hz = timer_clock_freq / HZ;
 
 	setup_irq(irq, &timer_irqaction);
 #ifdef CONFIG_HEART_BEAT

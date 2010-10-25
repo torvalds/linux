@@ -57,6 +57,13 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 #define pgprot_noncached_wc(prot)	prot
 
+/*
+ * All 32bit addresses are effectively valid for vmalloc...
+ * Sort of meaningless for non-VM targets.
+ */
+#define	VMALLOC_START	0
+#define	VMALLOC_END	0xffffffff
+
 #else /* CONFIG_MMU */
 
 #include <asm-generic/4level-fixup.h>

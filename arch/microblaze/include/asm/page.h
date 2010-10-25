@@ -205,9 +205,6 @@ extern int page_is_ram(unsigned long pfn);
 #define TOPHYS(addr)  __virt_to_phys(addr)
 
 #ifdef CONFIG_MMU
-#ifdef CONFIG_CONTIGUOUS_PAGE_ALLOC
-#define WANT_PAGE_VIRTUAL 1 /* page alloc 2 relies on this */
-#endif
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)

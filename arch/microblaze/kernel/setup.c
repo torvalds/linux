@@ -92,12 +92,6 @@ inline unsigned get_romfs_len(unsigned *addr)
 }
 #endif	/* CONFIG_MTD_UCLINUX_EBSS */
 
-#if defined(CONFIG_EARLY_PRINTK) && defined(CONFIG_SERIAL_UARTLITE_CONSOLE)
-#define eprintk early_printk
-#else
-#define eprintk printk
-#endif
-
 void __init machine_early_init(const char *cmdline, unsigned int ram,
 		unsigned int fdt, unsigned int msr)
 {
