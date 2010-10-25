@@ -431,6 +431,9 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
 		SOFT_GEMINI_SENSE_EVENT_ID;
 
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl->event_mask |= STA_REMOVE_COMPLETE_EVENT_ID;
+
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
 		wl1271_error("EVENT mask setting failed");
