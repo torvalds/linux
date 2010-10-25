@@ -83,8 +83,8 @@ struct clk {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*dent;
 	struct dentry		*parent_dent;
-	bool			set;
 #endif
+	bool			set;
 	struct clk_ops		*ops;
 	unsigned long		dvfs_rate;
 	unsigned long		rate;
