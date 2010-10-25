@@ -365,8 +365,8 @@ xfs_iget(
 	xfs_perag_t	*pag;
 	xfs_agino_t	agino;
 
-	/* the radix tree exists only in inode capable AGs */
-	if (XFS_INO_TO_AGNO(mp, ino) >= mp->m_maxagi)
+	/* reject inode numbers outside existing AGs */
+	if (XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return EINVAL;
 
 	/* get the perag structure and ensure that it's inode capable */

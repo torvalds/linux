@@ -30,15 +30,13 @@
 #define TTB_IRGN_WT	((1 << 0) | (0 << 6))
 #define TTB_IRGN_WB	((1 << 0) | (1 << 6))
 
-#ifndef CONFIG_SMP
 /* PTWs cacheable, inner WB not shareable, outer WB not shareable */
-#define TTB_FLAGS	TTB_IRGN_WB|TTB_RGN_OC_WB
-#define PMD_FLAGS	PMD_SECT_WB
-#else
+#define TTB_FLAGS_UP	TTB_IRGN_WB|TTB_RGN_OC_WB
+#define PMD_FLAGS_UP	PMD_SECT_WB
+
 /* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
-#define TTB_FLAGS	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
-#define PMD_FLAGS	PMD_SECT_WBWA|PMD_SECT_S
-#endif
+#define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
+#define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
 ENTRY(cpu_v7_proc_init)
 	mov	pc, lr
@@ -105,7 +103,8 @@ ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-	orr	r0, r0, #TTB_FLAGS
+	ALT_SMP(orr	r0, r0, #TTB_FLAGS_SMP)
+	ALT_UP(orr	r0, r0, #TTB_FLAGS_UP)
 #ifdef CONFIG_ARM_ERRATA_430973
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 #endif
@@ -169,7 +168,7 @@ cpu_v7_name:
 	.ascii	"ARMv7 Processor"
 	.align
 
-	__INIT
+	__CPUINIT
 
 /*
  *	__v7_setup
@@ -188,7 +187,8 @@ cpu_v7_name:
  */
 __v7_ca9mp_setup:
 #ifdef CONFIG_SMP
-	mrc	p15, 0, r0, c1, c0, 1
+	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
+	ALT_UP(mov	r0, #(1 << 6))		@ fake it for UP
 	tst	r0, #(1 << 6)			@ SMP/nAMP mode enabled?
 	orreq	r0, r0, #(1 << 6) | (1 << 0)	@ Enable SMP/nAMP mode and
 	mcreq	p15, 0, r0, c1, c0, 1		@ TLB ops broadcasting
@@ -270,7 +270,8 @@ __v7_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r10, c2, c0, 2		@ TTB control register
-	orr	r4, r4, #TTB_FLAGS
+	ALT_SMP(orr	r4, r4, #TTB_FLAGS_SMP)
+	ALT_UP(orr	r4, r4, #TTB_FLAGS_UP)
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
@@ -332,6 +333,8 @@ v7_crval:
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
 
+	__INITDATA
+
 	.type	v7_processor_functions, #object
 ENTRY(v7_processor_functions)
 	.word	v7_early_abort
@@ -344,6 +347,8 @@ ENTRY(v7_processor_functions)
 	.word	cpu_v7_switch_mm
 	.word	cpu_v7_set_pte_ext
 	.size	v7_processor_functions, . - v7_processor_functions
+
+	.section ".rodata"
 
 	.type	cpu_arch_name, #object
 cpu_arch_name:
@@ -362,10 +367,16 @@ cpu_elf_name:
 __v7_ca9mp_proc_info:
 	.long	0x410fc090		@ Required ID value
 	.long	0xff0ffff0		@ Mask for ID
-	.long   PMD_TYPE_SECT | \
+	ALT_SMP(.long \
+		PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | \
-		PMD_FLAGS
+		PMD_FLAGS_SMP)
+	ALT_UP(.long \
+		PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ | \
+		PMD_FLAGS_UP)
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_XN | \
 		PMD_SECT_AP_WRITE | \
@@ -388,10 +399,16 @@ __v7_ca9mp_proc_info:
 __v7_proc_info:
 	.long	0x000f0000		@ Required ID value
 	.long	0x000f0000		@ Mask for ID
-	.long   PMD_TYPE_SECT | \
+	ALT_SMP(.long \
+		PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | \
-		PMD_FLAGS
+		PMD_FLAGS_SMP)
+	ALT_UP(.long \
+		PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ | \
+		PMD_FLAGS_UP)
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_XN | \
 		PMD_SECT_AP_WRITE | \

@@ -28,7 +28,7 @@ struct evdev {
 	int minor;
 	struct input_handle handle;
 	wait_queue_head_t wait;
-	struct evdev_client *grab;
+	struct evdev_client __rcu *grab;
 	struct list_head client_list;
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
@@ -669,6 +669,9 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 		if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
 
+			if (!dev->absinfo)
+				return -EINVAL;
+
 			t = _IOC_NR(cmd) & ABS_MAX;
 			abs = dev->absinfo[t];
 
@@ -680,9 +683,12 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		}
 	}
 
-	if (_IOC_DIR(cmd) == _IOC_READ) {
+	if (_IOC_DIR(cmd) == _IOC_WRITE) {
 
 		if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
+
+			if (!dev->absinfo)
+				return -EINVAL;
 
 			t = _IOC_NR(cmd) & ABS_MAX;
 
@@ -761,7 +767,8 @@ static const struct file_operations evdev_fops = {
 	.compat_ioctl	= evdev_ioctl_compat,
 #endif
 	.fasync		= evdev_fasync,
-	.flush		= evdev_flush
+	.flush		= evdev_flush,
+	.llseek		= no_llseek,
 };
 
 static int evdev_install_chrdev(struct evdev *evdev)

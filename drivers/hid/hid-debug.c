@@ -570,6 +570,8 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
+
+	wake_up_interruptible(&hdev->debug_wait);
 }
 EXPORT_SYMBOL_GPL(hid_debug_event);
 
@@ -1051,6 +1053,7 @@ static const struct file_operations hid_debug_events_fops = {
 	.read           = hid_debug_events_read,
 	.poll		= hid_debug_events_poll,
 	.release        = hid_debug_events_release,
+	.llseek		= noop_llseek,
 };
 
 

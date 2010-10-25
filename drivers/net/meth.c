@@ -461,7 +461,7 @@ static int meth_tx_full(struct net_device *dev)
 {
 	struct meth_private *priv = netdev_priv(dev);
 
-	return (priv->tx_count >= TX_RING_ENTRIES - 1);
+	return priv->tx_count >= TX_RING_ENTRIES - 1;
 }
 
 static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)

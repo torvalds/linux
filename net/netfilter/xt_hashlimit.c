@@ -448,6 +448,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 {
 	__be16 _ports[2], *ports;
 	u8 nexthdr;
+	int poff;
 
 	memset(dst, 0, sizeof(*dst));
 
@@ -492,19 +493,13 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		return 0;
 	}
 
-	switch (nexthdr) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-	case IPPROTO_UDPLITE:
-	case IPPROTO_SCTP:
-	case IPPROTO_DCCP:
-		ports = skb_header_pointer(skb, protoff, sizeof(_ports),
+	poff = proto_ports_offset(nexthdr);
+	if (poff >= 0) {
+		ports = skb_header_pointer(skb, protoff + poff, sizeof(_ports),
 					   &_ports);
-		break;
-	default:
+	} else {
 		_ports[0] = _ports[1] = 0;
 		ports = _ports;
-		break;
 	}
 	if (!ports)
 		return -1;

@@ -349,7 +349,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
 	/* wait for phy to become ready, if necessary */
 	do {
-		msleep(200);
+		ata_msleep(link->ap, 200);
 		svia_scr_read(link, SCR_STATUS, &sstatus);
 		if ((sstatus & 0xf) != 1)
 			break;

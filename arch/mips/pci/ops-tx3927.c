@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/addrspace.h>
 #include <asm/txx9irq.h>

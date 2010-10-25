@@ -716,6 +716,7 @@ static const struct file_operations rtas_flash_operations = {
 	.write		= rtas_flash_write,
 	.open		= rtas_excl_open,
 	.release	= rtas_flash_release,
+	.llseek		= default_llseek,
 };
 
 static const struct file_operations manage_flash_operations = {
@@ -724,6 +725,7 @@ static const struct file_operations manage_flash_operations = {
 	.write		= manage_flash_write,
 	.open		= rtas_excl_open,
 	.release	= rtas_excl_release,
+	.llseek		= default_llseek,
 };
 
 static const struct file_operations validate_flash_operations = {
@@ -732,6 +734,7 @@ static const struct file_operations validate_flash_operations = {
 	.write		= validate_flash_write,
 	.open		= rtas_excl_open,
 	.release	= validate_flash_release,
+	.llseek		= default_llseek,
 };
 
 static int __init rtas_flash_init(void)

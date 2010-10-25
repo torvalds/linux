@@ -22,6 +22,7 @@ This file contains
       4.1.2 RAW socket option CAN_RAW_ERR_FILTER
       4.1.3 RAW socket option CAN_RAW_LOOPBACK
       4.1.4 RAW socket option CAN_RAW_RECV_OWN_MSGS
+      4.1.5 RAW socket returned message flags
     4.2 Broadcast Manager protocol sockets (SOCK_DGRAM)
     4.3 connected transport protocols (SOCK_SEQPACKET)
     4.4 unconnected transport protocols (SOCK_DGRAM)
@@ -470,6 +471,17 @@ solution for a couple of reasons:
 
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS,
                &recv_own_msgs, sizeof(recv_own_msgs));
+
+  4.1.5 RAW socket returned message flags
+
+  When using recvmsg() call, the msg->msg_flags may contain following flags:
+
+    MSG_DONTROUTE: set when the received frame was created on the local host.
+
+    MSG_CONFIRM: set when the frame was sent via the socket it is received on.
+      This flag can be interpreted as a 'transmission confirmation' when the
+      CAN driver supports the echo of frames on driver level, see 3.2 and 6.2.
+      In order to receive such messages, CAN_RAW_RECV_OWN_MSGS must be set.
 
   4.2 Broadcast Manager protocol sockets (SOCK_DGRAM)
   4.3 connected transport protocols (SOCK_SEQPACKET)

@@ -5,7 +5,7 @@
  * Copyright (c) 2006 Intel Corporation
  * Copyright (c) 2007 Keir Fraser, XenSource Inc
  * Copyright (c) 2008 Intel Corporation
- * Copyright 2009 Red Hat, Inc. and/or its affilates.
+ * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -230,15 +230,6 @@ static void pit_latch_status(struct kvm *kvm, int channel)
 				c->bcd);
 		c->status_latched = 1;
 	}
-}
-
-int pit_has_pending_timer(struct kvm_vcpu *vcpu)
-{
-	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
-
-	if (pit && kvm_vcpu_is_bsp(vcpu) && pit->pit_state.irq_ack)
-		return atomic_read(&pit->pit_state.pit_timer.pending);
-	return 0;
 }
 
 static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)

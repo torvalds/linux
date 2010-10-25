@@ -549,9 +549,12 @@ static void mct_u232_close(struct usb_serial_port *port)
 {
 	dbg("%s port %d", __func__, port->number);
 
-	usb_serial_generic_close(port);
-	if (port->serial->dev)
+	if (port->serial->dev) {
+		/* shutdown our urbs */
+		usb_kill_urb(port->write_urb);
+		usb_kill_urb(port->read_urb);
 		usb_kill_urb(port->interrupt_in_urb);
+	}
 } /* mct_u232_close */
 
 

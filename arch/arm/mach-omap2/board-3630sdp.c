@@ -217,8 +217,6 @@ static void __init omap_sdp_init(void)
 }
 
 MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,

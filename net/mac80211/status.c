@@ -58,6 +58,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	info->control.vif = &sta->sdata->vif;
 	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING |
 		       IEEE80211_TX_INTFL_RETRANSMISSION;
+	info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 
 	sta->tx_filtered_count++;
 
@@ -114,11 +115,10 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit())
-		printk(KERN_DEBUG "%s: dropped TX filtered frame, "
-		       "queue_len=%d PS=%d @%lu\n",
-		       wiphy_name(local->hw.wiphy),
-		       skb_queue_len(&sta->tx_filtered),
-		       !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
+		wiphy_debug(local->hw.wiphy,
+			    "dropped TX filtered frame, queue_len=%d PS=%d @%lu\n",
+			    skb_queue_len(&sta->tx_filtered),
+			    !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
 #endif
 	dev_kfree_skb(skb);
 }
@@ -176,7 +176,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		/* the HW cannot have attempted that rate */
-		if (i >= hw->max_rates) {
+		if (i >= hw->max_report_rates) {
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
 		} else if (info->status.rates[i].idx >= 0) {
@@ -296,7 +296,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX)
-		cfg80211_action_tx_status(
+		cfg80211_mgmt_tx_status(
 			skb->dev, (unsigned long) skb, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
 

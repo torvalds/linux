@@ -84,7 +84,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(rt2x00dev, entry);
+		rt2x00lib_rxdone(entry);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);

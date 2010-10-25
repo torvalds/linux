@@ -101,7 +101,7 @@
 #define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
-#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_10_OR_LATER(ah) && \
+#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
@@ -266,6 +266,8 @@ enum eeprom_param {
 	EEP_INTERNAL_REGULATOR,
 	EEP_SWREG,
 	EEP_PAPRD,
+	EEP_MODAL_VER,
+	EEP_ANT_DIV_CTL1,
 };
 
 enum ar5416_rates {
@@ -670,7 +672,8 @@ struct eeprom_ops {
 	bool (*fill_eeprom)(struct ath_hw *hw);
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
-	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
+	u8 (*get_num_ant_config)(struct ath_hw *hw,
+				 enum ath9k_hal_freq_band band);
 	u32 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
 				      struct ath9k_channel *chan);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);

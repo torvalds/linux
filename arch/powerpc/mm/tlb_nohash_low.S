@@ -367,7 +367,7 @@ _GLOBAL(set_context)
 #error Unsupported processor type !
 #endif
 
-#if defined(CONFIG_FSL_BOOKE)
+#if defined(CONFIG_PPC_FSL_BOOK3E)
 /*
  * extern void loadcam_entry(unsigned int index)
  *

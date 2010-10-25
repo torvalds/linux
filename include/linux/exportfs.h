@@ -67,6 +67,19 @@ enum fid_type {
 	 * 32 bit parent block number, 32 bit parent generation number
 	 */
 	FILEID_UDF_WITH_PARENT = 0x52,
+
+	/*
+	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 32 bit generation number.
+	 */
+	FILEID_NILFS_WITHOUT_PARENT = 0x61,
+
+	/*
+	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 32 bit generation number, 32 bit parent generation.
+	 * 64 bit parent inode number.
+	 */
+	FILEID_NILFS_WITH_PARENT = 0x62,
 };
 
 struct fid {

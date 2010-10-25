@@ -43,7 +43,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static int pcm038_pins[] = {
+static const int pcm038_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -173,7 +173,6 @@ pcm038_nand_board_info __initconst = {
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&mxc_w1_master_device,
-	&mxc_fec_device,
 	&pcm038_sram_mtd_device,
 	&mxc_wdt,
 };
@@ -257,7 +256,7 @@ static struct regulator_init_data cam_data = {
 	.consumer_supplies = cam_consumers,
 };
 
-struct mc13783_regulator_init_data pcm038_regulators[] = {
+static struct mc13783_regulator_init_data pcm038_regulators[] = {
 	{
 		.id = MC13783_REGU_VCAM,
 		.init_data = &cam_data,
@@ -309,7 +308,7 @@ static void __init pcm038_init(void)
 	i2c_register_board_info(1, pcm038_i2c_devices,
 				ARRAY_SIZE(pcm038_i2c_devices));
 
-	imx27_add_i2c_imx1(&pcm038_i2c1_data);
+	imx27_add_imx_i2c(1, &pcm038_i2c1_data);
 
 	/* PE18 for user-LED D40 */
 	mxc_gpio_mode(GPIO_PORTE | 18 | GPIO_GPIO | GPIO_OUT);
@@ -325,6 +324,7 @@ static void __init pcm038_init(void)
 
 	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD
@@ -342,8 +342,6 @@ static struct sys_timer pcm038_timer = {
 };
 
 MACHINE_START(PCM038, "phyCORE-i.MX27")
-	.phys_io        = MX27_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX27_PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
 	.init_irq       = mx27_init_irq,

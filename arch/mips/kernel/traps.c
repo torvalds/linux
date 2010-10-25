@@ -28,6 +28,7 @@
 #include <linux/kprobes.h>
 #include <linux/notifier.h>
 #include <linux/kdb.h>
+#include <linux/irq.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -51,7 +52,6 @@
 #include <asm/mmu_context.h>
 #include <asm/types.h>
 #include <asm/stacktrace.h>
-#include <asm/irq.h>
 #include <asm/uasm.h>
 
 extern void check_wait(void);

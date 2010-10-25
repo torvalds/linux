@@ -1,4 +1,3 @@
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -23,6 +22,7 @@
 #define IDE_GD_VERSION	"1.18"
 
 /* module parameters */
+static DEFINE_MUTEX(ide_gd_mutex);
 static unsigned long debug_mask;
 module_param(debug_mask, ulong, 0644);
 
@@ -242,9 +242,9 @@ static int ide_gd_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ide_gd_mutex);
 	ret = ide_gd_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&ide_gd_mutex);
 
 	return ret;
 }
@@ -257,7 +257,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
 
-	lock_kernel();
+	mutex_lock(&ide_gd_mutex);
 	if (idkp->openers == 1)
 		drive->disk_ops->flush(drive);
 
@@ -269,7 +269,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 	idkp->openers--;
 
 	ide_disk_put(idkp);
-	unlock_kernel();
+	mutex_unlock(&ide_gd_mutex);
 
 	return 0;
 }

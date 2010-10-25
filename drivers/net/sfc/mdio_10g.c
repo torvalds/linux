@@ -286,46 +286,24 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
  */
 void efx_mdio_an_reconfigure(struct efx_nic *efx)
 {
-	bool xnp = (efx->link_advertising & ADVERTISED_10000baseT_Full
-		    || EFX_WORKAROUND_13204(efx));
 	int reg;
 
 	WARN_ON(!(efx->mdio.mmds & MDIO_DEVS_AN));
 
 	/* Set up the base page */
-	reg = ADVERTISE_CSMA;
-	if (efx->link_advertising & ADVERTISED_10baseT_Half)
-		reg |= ADVERTISE_10HALF;
-	if (efx->link_advertising & ADVERTISED_10baseT_Full)
-		reg |= ADVERTISE_10FULL;
-	if (efx->link_advertising & ADVERTISED_100baseT_Half)
-		reg |= ADVERTISE_100HALF;
-	if (efx->link_advertising & ADVERTISED_100baseT_Full)
-		reg |= ADVERTISE_100FULL;
-	if (xnp)
-		reg |= ADVERTISE_RESV;
-	else if (efx->link_advertising & (ADVERTISED_1000baseT_Half |
-					  ADVERTISED_1000baseT_Full))
-		reg |= ADVERTISE_NPAGE;
+	reg = ADVERTISE_CSMA | ADVERTISE_RESV;
 	if (efx->link_advertising & ADVERTISED_Pause)
 		reg |= ADVERTISE_PAUSE_CAP;
 	if (efx->link_advertising & ADVERTISED_Asym_Pause)
 		reg |= ADVERTISE_PAUSE_ASYM;
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
 
-	/* Set up the (extended) next page if necessary */
-	if (efx->phy_op->set_npage_adv)
-		efx->phy_op->set_npage_adv(efx, efx->link_advertising);
+	/* Set up the (extended) next page */
+	efx->phy_op->set_npage_adv(efx, efx->link_advertising);
 
 	/* Enable and restart AN */
 	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_CTRL1);
-	reg |= MDIO_AN_CTRL1_ENABLE;
-	if (!(EFX_WORKAROUND_15195(efx) && LOOPBACK_EXTERNAL(efx)))
-		reg |= MDIO_AN_CTRL1_RESTART;
-	if (xnp)
-		reg |= MDIO_AN_CTRL1_XNP;
-	else
-		reg &= ~MDIO_AN_CTRL1_XNP;
+	reg |= MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART | MDIO_AN_CTRL1_XNP;
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_CTRL1, reg);
 }
 

@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <net/caif/caif_layer.h>
@@ -17,7 +19,7 @@ struct cflayer *cfdbgl_create(u8 channel_id, struct dev_info *dev_info)
 {
 	struct cfsrvl *dbg = kmalloc(sizeof(struct cfsrvl), GFP_ATOMIC);
 	if (!dbg) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return NULL;
 	}
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);

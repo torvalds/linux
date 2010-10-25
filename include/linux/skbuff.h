@@ -129,8 +129,13 @@ typedef struct skb_frag_struct skb_frag_t;
 
 struct skb_frag_struct {
 	struct page *page;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
 	__u32 page_offset;
 	__u32 size;
+#else
+	__u16 page_offset;
+	__u16 size;
+#endif
 };
 
 #define HAVE_HW_TIME_STAMP
@@ -163,26 +168,19 @@ struct skb_shared_hwtstamps {
 	ktime_t	syststamp;
 };
 
-/**
- * struct skb_shared_tx - instructions for time stamping of outgoing packets
- * @hardware:		generate hardware time stamp
- * @software:		generate software time stamp
- * @in_progress:	device driver is going to provide
- *			hardware time stamp
- * @prevent_sk_orphan:	make sk reference available on driver level
- * @flags:		all shared_tx flags
- *
- * These flags are attached to packets as part of the
- * &skb_shared_info. Use skb_tx() to get a pointer.
- */
-union skb_shared_tx {
-	struct {
-		__u8	hardware:1,
-			software:1,
-			in_progress:1,
-			prevent_sk_orphan:1;
-	};
-	__u8 flags;
+/* Definitions for tx_flags in struct skb_shared_info */
+enum {
+	/* generate hardware time stamp */
+	SKBTX_HW_TSTAMP = 1 << 0,
+
+	/* generate software time stamp */
+	SKBTX_SW_TSTAMP = 1 << 1,
+
+	/* device driver is going to provide hardware time stamp */
+	SKBTX_IN_PROGRESS = 1 << 2,
+
+	/* ensure the originating sk reference is available on driver level */
+	SKBTX_DRV_NEEDS_SK_REF = 1 << 3,
 };
 
 /* This data is invariant across clones and lives at
@@ -195,7 +193,7 @@ struct skb_shared_info {
 	unsigned short	gso_segs;
 	unsigned short  gso_type;
 	__be32          ip6_frag_id;
-	union skb_shared_tx tx_flags;
+	__u8		tx_flags;
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
 
@@ -462,19 +460,7 @@ static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
 	skb->_skb_refdst = (unsigned long)dst;
 }
 
-/**
- * skb_dst_set_noref - sets skb dst, without a reference
- * @skb: buffer
- * @dst: dst entry
- *
- * Sets skb dst, assuming a reference was not taken on dst
- * skb_dst_drop() should not dst_release() this dst
- */
-static inline void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
-{
-	WARN_ON(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
-	skb->_skb_refdst = (unsigned long)dst | SKB_DST_NOREF;
-}
+extern void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst);
 
 /**
  * skb_dst_is_noref - Test if skb dst isnt refcounted
@@ -498,13 +484,13 @@ extern struct sk_buff *__alloc_skb(unsigned int size,
 static inline struct sk_buff *alloc_skb(unsigned int size,
 					gfp_t priority)
 {
-	return __alloc_skb(size, priority, 0, -1);
+	return __alloc_skb(size, priority, 0, NUMA_NO_NODE);
 }
 
 static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 					       gfp_t priority)
 {
-	return __alloc_skb(size, priority, 1, -1);
+	return __alloc_skb(size, priority, 1, NUMA_NO_NODE);
 }
 
 extern bool skb_recycle_check(struct sk_buff *skb, int skb_size);
@@ -558,6 +544,15 @@ extern unsigned int   skb_find_text(struct sk_buff *skb, unsigned int from,
 				    unsigned int to, struct ts_config *config,
 				    struct ts_state *state);
 
+extern __u32 __skb_get_rxhash(struct sk_buff *skb);
+static inline __u32 skb_get_rxhash(struct sk_buff *skb)
+{
+	if (!skb->rxhash)
+		skb->rxhash = __skb_get_rxhash(skb);
+
+	return skb->rxhash;
+}
+
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 {
@@ -576,11 +571,6 @@ static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 static inline struct skb_shared_hwtstamps *skb_hwtstamps(struct sk_buff *skb)
 {
 	return &skb_shinfo(skb)->hwtstamps;
-}
-
-static inline union skb_shared_tx *skb_tx(struct sk_buff *skb)
-{
-	return &skb_shinfo(skb)->tx_flags;
 }
 
 /**
@@ -604,7 +594,7 @@ static inline int skb_queue_empty(const struct sk_buff_head *list)
 static inline bool skb_queue_is_last(const struct sk_buff_head *list,
 				     const struct sk_buff *skb)
 {
-	return (skb->next == (struct sk_buff *) list);
+	return skb->next == (struct sk_buff *)list;
 }
 
 /**
@@ -617,7 +607,7 @@ static inline bool skb_queue_is_last(const struct sk_buff_head *list,
 static inline bool skb_queue_is_first(const struct sk_buff_head *list,
 				      const struct sk_buff *skb)
 {
-	return (skb->prev == (struct sk_buff *) list);
+	return skb->prev == (struct sk_buff *)list;
 }
 
 /**
@@ -1123,7 +1113,7 @@ extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
 			    int off, int size);
 
 #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
-#define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frags(skb))
+#define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frag_list(skb))
 #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
@@ -1561,13 +1551,25 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
 	return skb;
 }
 
-extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
+/**
+ *	__netdev_alloc_page - allocate a page for ps-rx on a specific device
+ *	@dev: network device to receive on
+ *	@gfp_mask: alloc_pages_node mask
+ *
+ * 	Allocate a new page. dev currently unused.
+ *
+ * 	%NULL is returned if there is no free memory.
+ */
+static inline struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
+{
+	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
+}
 
 /**
  *	netdev_alloc_page - allocate a page for ps-rx on a specific device
  *	@dev: network device to receive on
  *
- * 	Allocate a new page node local to the specified device.
+ * 	Allocate a new page. dev currently unused.
  *
  * 	%NULL is returned if there is no free memory.
  */
@@ -1787,7 +1789,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		     skb = skb->prev)
 
 
-static inline bool skb_has_frags(const struct sk_buff *skb)
+static inline bool skb_has_frag_list(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->frag_list != NULL;
 }
@@ -1987,8 +1989,8 @@ extern void skb_tstamp_tx(struct sk_buff *orig_skb,
 
 static inline void sw_tx_timestamp(struct sk_buff *skb)
 {
-	union skb_shared_tx *shtx = skb_tx(skb);
-	if (shtx->software && !shtx->in_progress)
+	if (skb_shinfo(skb)->tx_flags & SKBTX_SW_TSTAMP &&
+	    !(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))
 		skb_tstamp_tx(skb, NULL);
 }
 
@@ -2159,7 +2161,7 @@ static inline u16 skb_get_rx_queue(const struct sk_buff *skb)
 
 static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 {
-	return (skb->queue_mapping != 0);
+	return skb->queue_mapping != 0;
 }
 
 extern u16 skb_tx_hash(const struct net_device *dev,
@@ -2207,6 +2209,21 @@ static inline void skb_forward_csum(struct sk_buff *skb)
 	/* Unfortunately we don't support this one.  Any brave souls? */
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
+}
+
+/**
+ * skb_checksum_none_assert - make sure skb ip_summed is CHECKSUM_NONE
+ * @skb: skb to check
+ *
+ * fresh skbs have their ip_summed set to CHECKSUM_NONE.
+ * Instead of forcing ip_summed to CHECKSUM_NONE, we can
+ * use this helper, to document places where we make this assertion.
+ */
+static inline void skb_checksum_none_assert(struct sk_buff *skb)
+{
+#ifdef DEBUG
+	BUG_ON(skb->ip_summed != CHECKSUM_NONE);
+#endif
 }
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);

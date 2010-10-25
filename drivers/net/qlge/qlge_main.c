@@ -1566,7 +1566,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 	rx_ring->rx_packets++;
 	rx_ring->rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	if (qdev->rx_csum &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
@@ -1676,7 +1676,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	rx_ring->rx_packets++;
 	rx_ring->rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* If rx checksum is on, and there are no
 	 * csum or frame errors.
@@ -1996,7 +1996,7 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 	}
 
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* If rx checksum is on, and there are no
 	 * csum or frame errors.
@@ -2222,10 +2222,11 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 		ql_update_cq(rx_ring);
 		prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	}
+	if (!net_rsp)
+		return 0;
 	ql_write_cq_idx(rx_ring);
 	tx_ring = &qdev->tx_ring[net_rsp->txq_idx];
-	if (__netif_subqueue_stopped(qdev->ndev, tx_ring->wq_id) &&
-					net_rsp != NULL) {
+	if (__netif_subqueue_stopped(qdev->ndev, tx_ring->wq_id)) {
 		if (atomic_read(&tx_ring->queue_stopped) &&
 		    (atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
 			/*
@@ -2571,7 +2572,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 
 	mac_iocb_ptr->frame_len = cpu_to_le16((u16) skb->len);
 
-	if (qdev->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		netif_printk(qdev, tx_queued, KERN_DEBUG, qdev->ndev,
 			     "Adding a vlan tag %d.\n", vlan_tx_tag_get(skb));
 		mac_iocb_ptr->flags3 |= OB_MAC_IOCB_V;
@@ -3888,11 +3889,8 @@ int ql_wol(struct ql_adapter *qdev)
 	return status;
 }
 
-static int ql_adapter_down(struct ql_adapter *qdev)
+static void ql_cancel_all_work_sync(struct ql_adapter *qdev)
 {
-	int i, status = 0;
-
-	ql_link_off(qdev);
 
 	/* Don't kill the reset worker thread if we
 	 * are in the process of recovery.
@@ -3904,6 +3902,15 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	cancel_delayed_work_sync(&qdev->mpi_idc_work);
 	cancel_delayed_work_sync(&qdev->mpi_core_to_log);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
+}
+
+static int ql_adapter_down(struct ql_adapter *qdev)
+{
+	int i, status = 0;
+
+	ql_link_off(qdev);
+
+	ql_cancel_all_work_sync(qdev);
 
 	for (i = 0; i < qdev->rss_ring_count; i++)
 		napi_disable(&qdev->rx_ring[i].napi);
@@ -4726,6 +4733,7 @@ static void __devexit qlge_remove(struct pci_dev *pdev)
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	del_timer_sync(&qdev->timer);
+	ql_cancel_all_work_sync(qdev);
 	unregister_netdev(ndev);
 	ql_release_all(pdev);
 	pci_disable_device(pdev);
@@ -4745,13 +4753,7 @@ static void ql_eeh_close(struct net_device *ndev)
 
 	/* Disabling the timer */
 	del_timer_sync(&qdev->timer);
-	if (test_bit(QL_ADAPTER_UP, &qdev->flags))
-		cancel_delayed_work_sync(&qdev->asic_reset_work);
-	cancel_delayed_work_sync(&qdev->mpi_reset_work);
-	cancel_delayed_work_sync(&qdev->mpi_work);
-	cancel_delayed_work_sync(&qdev->mpi_idc_work);
-	cancel_delayed_work_sync(&qdev->mpi_core_to_log);
-	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
+	ql_cancel_all_work_sync(qdev);
 
 	for (i = 0; i < qdev->rss_ring_count; i++)
 		netif_napi_del(&qdev->rx_ring[i].napi);

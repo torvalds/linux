@@ -806,11 +806,6 @@ static void ethoc_tx_timeout(struct net_device *dev)
 		ethoc_interrupt(dev->irq, dev);
 }
 
-static struct net_device_stats *ethoc_stats(struct net_device *dev)
-{
-	return &dev->stats;
-}
-
 static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
@@ -863,7 +858,6 @@ static const struct net_device_ops ethoc_netdev_ops = {
 	.ndo_set_multicast_list = ethoc_set_multicast_list,
 	.ndo_change_mtu = ethoc_change_mtu,
 	.ndo_tx_timeout = ethoc_tx_timeout,
-	.ndo_get_stats = ethoc_stats,
 	.ndo_start_xmit = ethoc_start_xmit,
 };
 

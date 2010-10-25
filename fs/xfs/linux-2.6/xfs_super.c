@@ -44,7 +44,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_vnodeops.h"
-#include "xfs_version.h"
 #include "xfs_log_priv.h"
 #include "xfs_trans_priv.h"
 #include "xfs_filestream.h"
@@ -645,7 +644,7 @@ xfs_barrier_test(
 	XFS_BUF_ORDERED(sbp);
 
 	xfsbdstrat(mp, sbp);
-	error = xfs_iowait(sbp);
+	error = xfs_buf_iowait(sbp);
 
 	/*
 	 * Clear all the flags we set and possible error state in the
@@ -693,8 +692,7 @@ void
 xfs_blkdev_issue_flush(
 	xfs_buftarg_t		*buftarg)
 {
-	blkdev_issue_flush(buftarg->bt_bdev, GFP_KERNEL, NULL,
-			BLKDEV_IFL_WAIT);
+	blkdev_issue_flush(buftarg->bt_bdev, GFP_KERNEL, NULL);
 }
 
 STATIC void
@@ -758,18 +756,20 @@ xfs_open_devices(
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(ddev, 0, mp->m_fsname);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev, 0, mp->m_fsname);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
 	if (rtdev) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(rtdev, 1, mp->m_fsname);
+		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev, 1,
+							mp->m_fsname);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
 	if (logdev && logdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(logdev, 1, mp->m_fsname);
+		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev, 1,
+							mp->m_fsname);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
@@ -972,12 +972,7 @@ xfs_fs_inode_init_once(
 
 /*
  * Dirty the XFS inode when mark_inode_dirty_sync() is called so that
- * we catch unlogged VFS level updates to the inode. Care must be taken
- * here - the transaction code calls mark_inode_dirty_sync() to mark the
- * VFS inode dirty in a transaction and clears the i_update_core field;
- * it must clear the field after calling mark_inode_dirty_sync() to
- * correctly indicate that the dirty state has been propagated into the
- * inode log item.
+ * we catch unlogged VFS level updates to the inode.
  *
  * We need the barrier() to maintain correct ordering between unlogged
  * updates and the transaction commit code that clears the i_update_core
@@ -1521,8 +1516,9 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_fsname;
 
-	if (xfs_icsb_init_counters(mp))
-		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
+	error = xfs_icsb_init_counters(mp);
+	if (error)
+		goto out_close_devices;
 
 	error = xfs_readsb(mp, flags);
 	if (error)
@@ -1583,6 +1579,7 @@ xfs_fs_fill_super(
 	xfs_freesb(mp);
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
+ out_close_devices:
 	xfs_close_devices(mp);
  out_free_fsname:
 	xfs_free_fsname(mp);

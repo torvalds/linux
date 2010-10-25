@@ -533,18 +533,20 @@ void nilfs_bmap_init_gc(struct nilfs_bmap *bmap)
 	nilfs_btree_init_gc(bmap);
 }
 
-void nilfs_bmap_init_gcdat(struct nilfs_bmap *gcbmap, struct nilfs_bmap *bmap)
+void nilfs_bmap_save(const struct nilfs_bmap *bmap,
+		     struct nilfs_bmap_store *store)
 {
-	memcpy(gcbmap, bmap, sizeof(*bmap));
-	init_rwsem(&gcbmap->b_sem);
-	lockdep_set_class(&bmap->b_sem, &nilfs_bmap_dat_lock_key);
-	gcbmap->b_inode = &NILFS_BMAP_I(gcbmap)->vfs_inode;
+	memcpy(store->data, bmap->b_u.u_data, sizeof(store->data));
+	store->last_allocated_key = bmap->b_last_allocated_key;
+	store->last_allocated_ptr = bmap->b_last_allocated_ptr;
+	store->state = bmap->b_state;
 }
 
-void nilfs_bmap_commit_gcdat(struct nilfs_bmap *gcbmap, struct nilfs_bmap *bmap)
+void nilfs_bmap_restore(struct nilfs_bmap *bmap,
+			const struct nilfs_bmap_store *store)
 {
-	memcpy(bmap, gcbmap, sizeof(*bmap));
-	init_rwsem(&bmap->b_sem);
-	lockdep_set_class(&bmap->b_sem, &nilfs_bmap_dat_lock_key);
-	bmap->b_inode = &NILFS_BMAP_I(bmap)->vfs_inode;
+	memcpy(bmap->b_u.u_data, store->data, sizeof(store->data));
+	bmap->b_last_allocated_key = store->last_allocated_key;
+	bmap->b_last_allocated_ptr = store->last_allocated_ptr;
+	bmap->b_state = store->state;
 }

@@ -239,7 +239,7 @@ struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
 				      struct device *dev);
 void ath9k_htc_hw_free(struct htc_target *htc);
 int ath9k_htc_hw_init(struct htc_target *target,
-		      struct device *dev, u16 devid);
+		      struct device *dev, u16 devid, char *product);
 void ath9k_htc_hw_deinit(struct htc_target *target, bool hot_unplug);
 
 #endif /* HTC_HST_H */

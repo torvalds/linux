@@ -152,8 +152,11 @@ _ENTRY(__early_start)
 	/* Check to see if we're the second processor, and jump
 	 * to the secondary_start code if so
 	 */
-	mfspr	r24,SPRN_PIR
-	cmpwi	r24,0
+	lis	r24, boot_cpuid@h
+	ori	r24, r24, boot_cpuid@l
+	lwz	r24, 0(r24)
+	cmpwi	r24, -1
+	mfspr   r24,SPRN_PIR
 	bne	__secondary_start
 #endif
 
@@ -174,6 +177,9 @@ _ENTRY(__early_start)
 	ori	r1,r1,init_thread_union@l
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
+
+	rlwinm  r22,r1,0,0,31-THREAD_SHIFT      /* current thread_info */
+	stw	r24, TI_CPU(r22)
 
 	bl	early_init
 

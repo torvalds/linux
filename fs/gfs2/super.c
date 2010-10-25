@@ -85,6 +85,7 @@ static const match_table_t tokens = {
 	{Opt_locktable, "locktable=%s"},
 	{Opt_hostdata, "hostdata=%s"},
 	{Opt_spectator, "spectator"},
+	{Opt_spectator, "norecovery"},
 	{Opt_ignore_local_fs, "ignore_local_fs"},
 	{Opt_localflocks, "localflocks"},
 	{Opt_localcaching, "localcaching"},
@@ -159,13 +160,13 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_spectator = 1;
 			break;
 		case Opt_ignore_local_fs:
-			args->ar_ignore_local_fs = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_localflocks:
 			args->ar_localflocks = 1;
 			break;
 		case Opt_localcaching:
-			args->ar_localcaching = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_debug:
 			if (args->ar_errors == GFS2_ERRORS_PANIC) {
@@ -179,7 +180,7 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_debug = 0;
 			break;
 		case Opt_upgrade:
-			args->ar_upgrade = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_acl:
 			args->ar_posix_acl = 1;
@@ -342,15 +343,14 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	u64 size = i_size_read(jd->jd_inode);
 
-	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
-	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
-		gfs2_consist_inode(ip);
+	if (gfs2_check_internal_file_size(jd->jd_inode, 8 << 20, 1 << 30))
 		return -EIO;
-	}
-	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	if (gfs2_write_alloc_required(ip, 0, ip->i_disksize)) {
+	jd->jd_blocks = size >> sdp->sd_sb.sb_bsize_shift;
+
+	if (gfs2_write_alloc_required(ip, 0, size)) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
@@ -1129,9 +1129,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	/* Some flags must not be changed */
 	if (args_neq(&args, &sdp->sd_args, spectator) ||
-	    args_neq(&args, &sdp->sd_args, ignore_local_fs) ||
 	    args_neq(&args, &sdp->sd_args, localflocks) ||
-	    args_neq(&args, &sdp->sd_args, localcaching) ||
 	    args_neq(&args, &sdp->sd_args, meta))
 		return -EINVAL;
 
@@ -1234,16 +1232,10 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",hostdata=%s", args->ar_hostdata);
 	if (args->ar_spectator)
 		seq_printf(s, ",spectator");
-	if (args->ar_ignore_local_fs)
-		seq_printf(s, ",ignore_local_fs");
 	if (args->ar_localflocks)
 		seq_printf(s, ",localflocks");
-	if (args->ar_localcaching)
-		seq_printf(s, ",localcaching");
 	if (args->ar_debug)
 		seq_printf(s, ",debug");
-	if (args->ar_upgrade)
-		seq_printf(s, ",upgrade");
 	if (args->ar_posix_acl)
 		seq_printf(s, ",acl");
 	if (args->ar_quota != GFS2_QUOTA_DEFAULT) {

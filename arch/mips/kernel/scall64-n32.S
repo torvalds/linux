@@ -65,8 +65,9 @@ NESTED(handle_sysn32, PT_SIZE, sp)
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
 
+	ld	t1, PT_R2(sp)		# syscall number
 	dnegu	v0			# error
-	sd	v0, PT_R0(sp)		# set flag for syscall restarting
+	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
 	local_irq_disable		# make sure need_resched and
@@ -106,8 +107,9 @@ n32_syscall_trace_entry:
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
 
+	ld	t1, PT_R2(sp)		# syscall number
 	dnegu	v0			# error
-	sd	v0, PT_R0(sp)		# set flag for syscall restarting
+	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
 	j	syscall_exit
@@ -320,10 +322,10 @@ EXPORT(sysn32_call_table)
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
 	PTR	sys_sysmips
-	PTR	sys_io_setup			/* 6200 */
+	PTR	compat_sys_io_setup			/* 6200 */
 	PTR	sys_io_destroy
-	PTR	sys_io_getevents
-	PTR	sys_io_submit
+	PTR	compat_sys_io_getevents
+	PTR	compat_sys_io_submit
 	PTR	sys_io_cancel
 	PTR	sys_exit_group			/* 6205 */
 	PTR	sys_lookup_dcookie

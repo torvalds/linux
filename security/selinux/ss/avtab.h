@@ -71,6 +71,8 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		    void *p);
 
 int avtab_read(struct avtab *a, void *fp, struct policydb *pol);
+int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp);
+int avtab_write(struct policydb *p, struct avtab *a, void *fp);
 
 struct avtab_node *avtab_insert_nonunique(struct avtab *h, struct avtab_key *key,
 					  struct avtab_datum *datum);
@@ -85,7 +87,6 @@ void avtab_cache_destroy(void);
 #define MAX_AVTAB_HASH_BITS 11
 #define MAX_AVTAB_HASH_BUCKETS (1 << MAX_AVTAB_HASH_BITS)
 #define MAX_AVTAB_HASH_MASK (MAX_AVTAB_HASH_BUCKETS-1)
-#define MAX_AVTAB_SIZE MAX_AVTAB_HASH_BUCKETS
 
 #endif	/* _SS_AVTAB_H_ */
 

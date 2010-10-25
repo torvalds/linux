@@ -34,45 +34,52 @@
 #include <net/sock.h>
 #include <linux/in.h>
 #include <linux/if_arp.h>
+#include <linux/jhash.h>
 #include "rds.h"
 
-/*
- * XXX this probably still needs more work.. no INADDR_ANY, and rbtrees aren't
- * particularly zippy.
- *
- * This is now called for every incoming frame so we arguably care much more
- * about it than we used to.
- */
+#define BIND_HASH_SIZE 1024
+static struct hlist_head bind_hash_table[BIND_HASH_SIZE];
 static DEFINE_SPINLOCK(rds_bind_lock);
-static struct rb_root rds_bind_tree = RB_ROOT;
 
-static struct rds_sock *rds_bind_tree_walk(__be32 addr, __be16 port,
-					   struct rds_sock *insert)
+static struct hlist_head *hash_to_bucket(__be32 addr, __be16 port)
 {
-	struct rb_node **p = &rds_bind_tree.rb_node;
-	struct rb_node *parent = NULL;
+	return bind_hash_table + (jhash_2words((u32)addr, (u32)port, 0) &
+				  (BIND_HASH_SIZE - 1));
+}
+
+static struct rds_sock *rds_bind_lookup(__be32 addr, __be16 port,
+					struct rds_sock *insert)
+{
 	struct rds_sock *rs;
+	struct hlist_node *node;
+	struct hlist_head *head = hash_to_bucket(addr, port);
 	u64 cmp;
 	u64 needle = ((u64)be32_to_cpu(addr) << 32) | be16_to_cpu(port);
 
-	while (*p) {
-		parent = *p;
-		rs = rb_entry(parent, struct rds_sock, rs_bound_node);
-
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(rs, node, head, rs_bound_node) {
 		cmp = ((u64)be32_to_cpu(rs->rs_bound_addr) << 32) |
 		      be16_to_cpu(rs->rs_bound_port);
 
-		if (needle < cmp)
-			p = &(*p)->rb_left;
-		else if (needle > cmp)
-			p = &(*p)->rb_right;
-		else
+		if (cmp == needle) {
+			rcu_read_unlock();
 			return rs;
+		}
 	}
+	rcu_read_unlock();
 
 	if (insert) {
-		rb_link_node(&insert->rs_bound_node, parent, p);
-		rb_insert_color(&insert->rs_bound_node, &rds_bind_tree);
+		/*
+		 * make sure our addr and port are set before
+		 * we are added to the list, other people
+		 * in rcu will find us as soon as the
+		 * hlist_add_head_rcu is done
+		 */
+		insert->rs_bound_addr = addr;
+		insert->rs_bound_port = port;
+		rds_sock_addref(insert);
+
+		hlist_add_head_rcu(&insert->rs_bound_node, head);
 	}
 	return NULL;
 }
@@ -86,15 +93,13 @@ static struct rds_sock *rds_bind_tree_walk(__be32 addr, __be16 port,
 struct rds_sock *rds_find_bound(__be32 addr, __be16 port)
 {
 	struct rds_sock *rs;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rds_bind_lock, flags);
-	rs = rds_bind_tree_walk(addr, port, NULL);
+	rs = rds_bind_lookup(addr, port, NULL);
+
 	if (rs && !sock_flag(rds_rs_to_sk(rs), SOCK_DEAD))
 		rds_sock_addref(rs);
 	else
 		rs = NULL;
-	spin_unlock_irqrestore(&rds_bind_lock, flags);
 
 	rdsdebug("returning rs %p for %pI4:%u\n", rs, &addr,
 		ntohs(port));
@@ -121,21 +126,14 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 	do {
 		if (rover == 0)
 			rover++;
-		if (rds_bind_tree_walk(addr, cpu_to_be16(rover), rs) == NULL) {
-			*port = cpu_to_be16(rover);
+		if (!rds_bind_lookup(addr, cpu_to_be16(rover), rs)) {
+			*port = rs->rs_bound_port;
 			ret = 0;
+			rdsdebug("rs %p binding to %pI4:%d\n",
+			  rs, &addr, (int)ntohs(*port));
 			break;
 		}
 	} while (rover++ != last);
-
-	if (ret == 0)  {
-		rs->rs_bound_addr = addr;
-		rs->rs_bound_port = *port;
-		rds_sock_addref(rs);
-
-		rdsdebug("rs %p binding to %pI4:%d\n",
-		  rs, &addr, (int)ntohs(*port));
-	}
 
 	spin_unlock_irqrestore(&rds_bind_lock, flags);
 
@@ -153,7 +151,7 @@ void rds_remove_bound(struct rds_sock *rs)
 		  rs, &rs->rs_bound_addr,
 		  ntohs(rs->rs_bound_port));
 
-		rb_erase(&rs->rs_bound_node, &rds_bind_tree);
+		hlist_del_init_rcu(&rs->rs_bound_node);
 		rds_sock_put(rs);
 		rs->rs_bound_addr = 0;
 	}
@@ -184,7 +182,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 
 	trans = rds_trans_get_preferred(sin->sin_addr.s_addr);
-	if (trans == NULL) {
+	if (!trans) {
 		ret = -EADDRNOTAVAIL;
 		rds_remove_bound(rs);
 		if (printk_ratelimit())
@@ -198,5 +196,9 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 out:
 	release_sock(sk);
+
+	/* we might have called rds_remove_bound on error */
+	if (ret)
+		synchronize_rcu();
 	return ret;
 }

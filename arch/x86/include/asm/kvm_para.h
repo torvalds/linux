@@ -158,6 +158,12 @@ static inline unsigned int kvm_arch_para_features(void)
 	return cpuid_eax(KVM_CPUID_FEATURES);
 }
 
+#ifdef CONFIG_KVM_GUEST
+void __init kvm_guest_init(void);
+#else
+#define kvm_guest_init() do { } while (0)
 #endif
+
+#endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_KVM_PARA_H */

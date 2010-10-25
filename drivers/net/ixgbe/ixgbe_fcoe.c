@@ -304,12 +304,13 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if (!ixgbe_rx_is_fcoe(rx_desc))
 		goto ddp_out;
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	sterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	fcerr = (sterr & IXGBE_RXDADV_ERR_FCERR);
 	fceofe = (sterr & IXGBE_RXDADV_ERR_FCEOFE);
 	if (fcerr == IXGBE_FCERR_BADCRC)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
+	else
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (eth_hdr(skb)->h_proto == htons(ETH_P_8021Q))
 		fh = (struct fc_frame_header *)(skb->data +
@@ -471,7 +472,7 @@ int ixgbe_fso(struct ixgbe_adapter *adapter,
 
 	/* write context desc */
 	i = tx_ring->next_to_use;
-	context_desc = IXGBE_TX_CTXTDESC_ADV(*tx_ring, i);
+	context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
 	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
 	context_desc->seqnum_seed	= cpu_to_le32(fcoe_sof_eof);
 	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
@@ -603,11 +604,13 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 {
 	int rc = -EINVAL;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 
 
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_CAPABLE))
 		goto out_enable;
 
+	atomic_inc(&fcoe->refcnt);
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
 		goto out_enable;
 
@@ -647,11 +650,15 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 {
 	int rc = -EINVAL;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_CAPABLE))
 		goto out_disable;
 
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
+		goto out_disable;
+
+	if (!atomic_dec_and_test(&fcoe->refcnt))
 		goto out_disable;
 
 	e_info(drv, "Disabling FCoE offload features.\n");

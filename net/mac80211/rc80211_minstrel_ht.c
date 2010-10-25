@@ -397,8 +397,9 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	if (!info->status.ampdu_len) {
-		info->status.ampdu_ack_len = 1;
+	if (!(info->flags & IEEE80211_TX_STAT_AMPDU)) {
+		info->status.ampdu_ack_len =
+			(info->flags & IEEE80211_TX_STAT_ACK ? 1 : 0);
 		info->status.ampdu_len = 1;
 	}
 
@@ -426,7 +427,7 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		group = minstrel_ht_get_group_idx(&ar[i]);
 		rate = &mi->groups[group].rates[ar[i].idx % 8];
 
-		if (last && (info->flags & IEEE80211_TX_STAT_ACK))
+		if (last)
 			rate->success += info->status.ampdu_ack_len;
 
 		rate->attempts += ar[i].count * info->status.ampdu_len;

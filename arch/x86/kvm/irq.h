@@ -60,7 +60,7 @@ struct kvm_kpic_state {
 };
 
 struct kvm_pic {
-	raw_spinlock_t lock;
+	spinlock_t lock;
 	bool wakeup_needed;
 	unsigned pending_acks;
 	struct kvm *kvm;

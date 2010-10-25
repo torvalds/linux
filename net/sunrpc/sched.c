@@ -376,7 +376,7 @@ int rpc_queue_empty(struct rpc_wait_queue *queue)
 	spin_lock_bh(&queue->lock);
 	res = queue->qlen;
 	spin_unlock_bh(&queue->lock);
-	return (res == 0);
+	return res == 0;
 }
 EXPORT_SYMBOL_GPL(rpc_queue_empty);
 

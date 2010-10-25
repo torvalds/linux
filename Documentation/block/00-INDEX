@@ -1,7 +1,5 @@
 00-INDEX
 	- This file
-barrier.txt
-	- I/O Barriers
 biodoc.txt
 	- Notes on the Generic Block Layer Rewrite in Linux 2.5
 capability.txt
@@ -16,3 +14,5 @@ stat.txt
 	- Block layer statistics in /sys/block/<dev>/stat
 switching-sched.txt
 	- Switching I/O schedulers at runtime
+writeback_cache_control.txt
+	- Control of volatile write back caches

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2009 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
  * All rights reserved
  * www.brocade.com
  *
@@ -15,15 +15,15 @@
  * General Public License for more details.
  */
 
-#include <bfa_priv.h>
-#include <bfi/bfi_cbreg.h>
+#include "bfa_modules.h"
+#include "bfi_cbreg.h"
 
 void
 bfa_hwcb_reginit(struct bfa_s *bfa)
 {
 	struct bfa_iocfc_regs_s	*bfa_regs = &bfa->iocfc.bfa_regs;
 	bfa_os_addr_t		kva = bfa_ioc_bar0(&bfa->ioc);
-	int             	i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
+	int			i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
 
 	if (fn == 0) {
 		bfa_regs->intr_status = (kva + HOSTFN0_INT_STATUS);

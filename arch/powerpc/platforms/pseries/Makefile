@@ -1,14 +1,9 @@
-ifeq ($(CONFIG_PPC64),y)
-EXTRA_CFLAGS		+= -mno-minimal-toc
-endif
-
-ifeq ($(CONFIG_PPC_PSERIES_DEBUG),y)
-EXTRA_CFLAGS		+= -DDEBUG
-endif
+ccflags-$(CONFIG_PPC64)			:= -mno-minimal-toc
+ccflags-$(CONFIG_PPC_PSERIES_DEBUG)	+= -DDEBUG
 
 obj-y			:= lpar.o hvCall.o nvram.o reconfig.o \
 			   setup.o iommu.o event_sources.o ras.o \
-			   firmware.o power.o dlpar.o
+			   firmware.o power.o dlpar.o mobility.o
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_XICS)	+= xics.o
 obj-$(CONFIG_SCANLOG)	+= scanlog.o
@@ -23,7 +18,7 @@ obj-$(CONFIG_MEMORY_HOTPLUG)	+= hotplug-memory.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 obj-$(CONFIG_HCALL_STATS)	+= hvCall_inst.o
-obj-$(CONFIG_PHYP_DUMP)	+= phyp_dump.o
+obj-$(CONFIG_PHYP_DUMP)		+= phyp_dump.o
 obj-$(CONFIG_CMM)		+= cmm.o
 obj-$(CONFIG_DTL)		+= dtl.o
 

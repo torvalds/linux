@@ -46,7 +46,7 @@ ENTRY(cpu_arm9tdmi_proc_fin)
 ENTRY(cpu_arm9tdmi_reset)
 		mov	pc, r0
 
-		__INIT
+		__CPUINIT
 
 		.type	__arm9tdmi_setup, #function
 __arm9tdmi_setup:

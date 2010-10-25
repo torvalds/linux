@@ -113,11 +113,10 @@ static void rfcomm_session_del(struct rfcomm_session *s);
 #define __get_rpn_stop_bits(line) (((line) >> 2) & 0x1)
 #define __get_rpn_parity(line)    (((line) >> 3) & 0x7)
 
-static inline void rfcomm_schedule(uint event)
+static inline void rfcomm_schedule(void)
 {
 	if (!rfcomm_thread)
 		return;
-	//set_bit(event, &rfcomm_event);
 	set_bit(RFCOMM_SCHED_WAKEUP, &rfcomm_event);
 	wake_up_process(rfcomm_thread);
 }
@@ -179,13 +178,13 @@ static unsigned char rfcomm_crc_table[256] = {
 /* FCS on 2 bytes */
 static inline u8 __fcs(u8 *data)
 {
-	return (0xff - __crc(data));
+	return 0xff - __crc(data);
 }
 
 /* FCS on 3 bytes */
 static inline u8 __fcs2(u8 *data)
 {
-	return (0xff - rfcomm_crc_table[__crc(data) ^ data[2]]);
+	return 0xff - rfcomm_crc_table[__crc(data) ^ data[2]];
 }
 
 /* Check FCS */
@@ -203,13 +202,13 @@ static inline int __check_fcs(u8 *data, int type, u8 fcs)
 static void rfcomm_l2state_change(struct sock *sk)
 {
 	BT_DBG("%p state %d", sk, sk->sk_state);
-	rfcomm_schedule(RFCOMM_SCHED_STATE);
+	rfcomm_schedule();
 }
 
 static void rfcomm_l2data_ready(struct sock *sk, int bytes)
 {
 	BT_DBG("%p bytes %d", sk, bytes);
-	rfcomm_schedule(RFCOMM_SCHED_RX);
+	rfcomm_schedule();
 }
 
 static int rfcomm_l2sock_create(struct socket **sock)
@@ -255,7 +254,7 @@ static void rfcomm_session_timeout(unsigned long arg)
 	BT_DBG("session %p state %ld", s, s->state);
 
 	set_bit(RFCOMM_TIMED_OUT, &s->flags);
-	rfcomm_schedule(RFCOMM_SCHED_TIMEO);
+	rfcomm_schedule();
 }
 
 static void rfcomm_session_set_timer(struct rfcomm_session *s, long timeout)
@@ -283,7 +282,7 @@ static void rfcomm_dlc_timeout(unsigned long arg)
 
 	set_bit(RFCOMM_TIMED_OUT, &d->flags);
 	rfcomm_dlc_put(d);
-	rfcomm_schedule(RFCOMM_SCHED_TIMEO);
+	rfcomm_schedule();
 }
 
 static void rfcomm_dlc_set_timer(struct rfcomm_dlc *d, long timeout)
@@ -465,7 +464,7 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 	case BT_CONFIG:
 		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
 			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
-			rfcomm_schedule(RFCOMM_SCHED_AUTH);
+			rfcomm_schedule();
 			break;
 		}
 		/* Fall through */
@@ -485,7 +484,7 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 	case BT_CONNECT2:
 		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
 			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
-			rfcomm_schedule(RFCOMM_SCHED_AUTH);
+			rfcomm_schedule();
 			break;
 		}
 		/* Fall through */
@@ -533,7 +532,7 @@ int rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb)
 	skb_queue_tail(&d->tx_queue, skb);
 
 	if (!test_bit(RFCOMM_TX_THROTTLED, &d->flags))
-		rfcomm_schedule(RFCOMM_SCHED_TX);
+		rfcomm_schedule();
 	return len;
 }
 
@@ -545,7 +544,7 @@ void __rfcomm_dlc_throttle(struct rfcomm_dlc *d)
 		d->v24_sig |= RFCOMM_V24_FC;
 		set_bit(RFCOMM_MSC_PENDING, &d->flags);
 	}
-	rfcomm_schedule(RFCOMM_SCHED_TX);
+	rfcomm_schedule();
 }
 
 void __rfcomm_dlc_unthrottle(struct rfcomm_dlc *d)
@@ -556,7 +555,7 @@ void __rfcomm_dlc_unthrottle(struct rfcomm_dlc *d)
 		d->v24_sig &= ~RFCOMM_V24_FC;
 		set_bit(RFCOMM_MSC_PENDING, &d->flags);
 	}
-	rfcomm_schedule(RFCOMM_SCHED_TX);
+	rfcomm_schedule();
 }
 
 /*
@@ -577,7 +576,7 @@ int rfcomm_dlc_set_modem_status(struct rfcomm_dlc *d, u8 v24_sig)
 	d->v24_sig = v24_sig;
 
 	if (!test_and_set_bit(RFCOMM_MSC_PENDING, &d->flags))
-		rfcomm_schedule(RFCOMM_SCHED_TX);
+		rfcomm_schedule();
 
 	return 0;
 }
@@ -816,7 +815,7 @@ static int rfcomm_queue_disc(struct rfcomm_dlc *d)
 	cmd->fcs  = __fcs2((u8 *) cmd);
 
 	skb_queue_tail(&d->tx_queue, skb);
-	rfcomm_schedule(RFCOMM_SCHED_TX);
+	rfcomm_schedule();
 	return 0;
 }
 
@@ -1415,8 +1414,8 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 		return 0;
 
 	if (len == 1) {
-		/* This is a request, return default settings */
-		bit_rate  = RFCOMM_RPN_BR_115200;
+		/* This is a request, return default (according to ETSI TS 07.10) settings */
+		bit_rate  = RFCOMM_RPN_BR_9600;
 		data_bits = RFCOMM_RPN_DATA_8;
 		stop_bits = RFCOMM_RPN_STOP_1;
 		parity    = RFCOMM_RPN_PARITY_NONE;
@@ -1431,9 +1430,9 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 
 	if (rpn->param_mask & cpu_to_le16(RFCOMM_RPN_PM_BITRATE)) {
 		bit_rate = rpn->bit_rate;
-		if (bit_rate != RFCOMM_RPN_BR_115200) {
+		if (bit_rate > RFCOMM_RPN_BR_230400) {
 			BT_DBG("RPN bit rate mismatch 0x%x", bit_rate);
-			bit_rate = RFCOMM_RPN_BR_115200;
+			bit_rate = RFCOMM_RPN_BR_9600;
 			rpn_mask ^= RFCOMM_RPN_PM_BITRATE;
 		}
 	}
@@ -1698,7 +1697,7 @@ static int rfcomm_recv_frame(struct rfcomm_session *s, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type 0x%02x\n", type);
+		BT_ERR("Unknown packet type 0x%02x", type);
 		break;
 	}
 	kfree_skb(skb);
@@ -1884,7 +1883,7 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 		 * L2CAP MTU minus UIH header and FCS. */
 		s->mtu = min(l2cap_pi(nsock->sk)->omtu, l2cap_pi(nsock->sk)->imtu) - 5;
 
-		rfcomm_schedule(RFCOMM_SCHED_RX);
+		rfcomm_schedule();
 	} else
 		sock_release(nsock);
 }
@@ -2093,7 +2092,7 @@ static void rfcomm_security_cfm(struct hci_conn *conn, u8 status, u8 encrypt)
 
 	rfcomm_session_put(s);
 
-	rfcomm_schedule(RFCOMM_SCHED_AUTH);
+	rfcomm_schedule();
 }
 
 static struct hci_cb rfcomm_cb = {

@@ -36,13 +36,12 @@
 #include <mach/hardware.h>
 #include <mach/mmc.h>
 #include <mach/spi.h>
-#include <mach/ssi.h>
 #include <mach/audmux.h>
 
 #include "devices-imx27.h"
 #include "devices.h"
 
-static int eukrea_mbimx27_pins[] = {
+static const int eukrea_mbimx27_pins[] __initconst = {
 	/* UART2 */
 	PE3_PF_UART2_CTS,
 	PE4_PF_UART2_RTS,
@@ -311,7 +310,8 @@ static struct imxmmc_platform_data sdhc_pdata = {
 	.dat3_card_detect = 1,
 };
 
-struct imx_ssi_platform_data eukrea_mbimx27_ssi_pdata = {
+static const
+struct imx_ssi_platform_data eukrea_mbimx27_ssi_pdata __initconst = {
 	.flags = IMX_SSI_DMA | IMX_SSI_USE_I2S_SLAVE,
 };
 
@@ -357,7 +357,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	i2c_register_board_info(0, eukrea_mbimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_mbimx27_i2c_devices));
 
-	mxc_register_device(&imx_ssi_device0, &eukrea_mbimx27_ssi_pdata);
+	imx27_add_imx_ssi(0, &eukrea_mbimx27_ssi_pdata);
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) \
 	|| defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)

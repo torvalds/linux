@@ -584,7 +584,8 @@ static const struct file_operations wdm_fops = {
 	.open =		wdm_open,
 	.flush =	wdm_flush,
 	.release =	wdm_release,
-	.poll =		wdm_poll
+	.poll =		wdm_poll,
+	.llseek =	noop_llseek,
 };
 
 static struct usb_class_driver wdm_class = {

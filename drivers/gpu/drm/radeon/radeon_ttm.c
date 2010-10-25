@@ -631,7 +631,7 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 		return drm_mmap(filp, vma);
 	}
 
-	file_priv = (struct drm_file *)filp->private_data;
+	file_priv = filp->private_data;
 	rdev = file_priv->minor->dev->dev_private;
 	if (rdev == NULL) {
 		return -EINVAL;

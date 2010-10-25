@@ -43,7 +43,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/pxa2xx_spi.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/littleton.h>
 #include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
@@ -437,10 +437,9 @@ static void __init littleton_init(void)
 }
 
 MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleton)")
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= LITTLETON_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= littleton_init,

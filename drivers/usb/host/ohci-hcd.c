@@ -370,7 +370,6 @@ sanitize:
 	}
 	ep->hcpriv = NULL;
 	spin_unlock_irqrestore (&ohci->lock, flags);
-	return;
 }
 
 static int ohci_get_frame (struct usb_hcd *hcd)
@@ -398,7 +397,14 @@ ohci_shutdown (struct usb_hcd *hcd)
 
 	ohci = hcd_to_ohci (hcd);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
-	ohci_usb_reset (ohci);
+	ohci->hc_control = ohci_readl(ohci, &ohci->regs->control);
+
+	/* If the SHUTDOWN quirk is set, don't put the controller in RESET */
+	ohci->hc_control &= (ohci->flags & OHCI_QUIRK_SHUTDOWN ?
+			OHCI_CTRL_RWC | OHCI_CTRL_HCFS :
+			OHCI_CTRL_RWC);
+	ohci_writel(ohci, ohci->hc_control, &ohci->regs->control);
+
 	/* flush the writes */
 	(void) ohci_readl (ohci, &ohci->regs->control);
 }
@@ -1269,6 +1275,9 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
+#endif
+#ifdef OMAP3_PLATFORM_DRIVER
+	platform_driver_unregister(&OMAP3_PLATFORM_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);

@@ -617,6 +617,7 @@ static const struct file_operations i2c_fops = {
 	.unlocked_ioctl	= i2c_ioctl,
 	.open		= i2c_open,
 	.release	= i2c_release,
+	.llseek		= noop_llseek,
 };
 
 int __init

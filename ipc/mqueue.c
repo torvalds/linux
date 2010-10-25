@@ -1219,6 +1219,7 @@ static const struct file_operations mqueue_file_operations = {
 	.flush = mqueue_flush_file,
 	.poll = mqueue_poll_file,
 	.read = mqueue_read_file,
+	.llseek = default_llseek,
 };
 
 static const struct super_operations mqueue_super_ops = {

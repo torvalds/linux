@@ -136,7 +136,7 @@ static struct platform_device smartq_usb_otg_vbus_dev = {
 	.dev.platform_data	= &smartq_usb_otg_vbus_pdata,
 };
 
-static int __init smartq_bl_init(struct device *dev)
+static int smartq_bl_init(struct device *dev)
 {
     s3c_gpio_cfgpin(S3C64XX_GPF(15), S3C_GPIO_SFN(2));
 

@@ -343,7 +343,7 @@ void iwl3945_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 s
 	int i;
 
 	IWL_DEBUG_INFO(priv, "enter\n");
-	if (sta_id == priv->hw_params.bcast_sta_id)
+	if (sta_id == priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id)
 		goto out;
 
 	psta = (struct iwl3945_sta_priv *) sta->drv_priv;
@@ -873,6 +873,7 @@ static ssize_t iwl3945_sta_dbgfs_stats_table_read(struct file *file,
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.read = iwl3945_sta_dbgfs_stats_table_read,
 	.open = iwl3945_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static void iwl3945_add_debugfs(void *priv, void *priv_sta,
@@ -932,7 +933,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta = ieee80211_find_sta(priv->vif,
+	sta = ieee80211_find_sta(priv->contexts[IWL_RXON_CTX_BSS].vif,
 				 priv->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		IWL_DEBUG_RATE(priv, "Unable to find station to initialize rate scaling.\n");
@@ -949,7 +950,8 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	switch (priv->band) {
 	case IEEE80211_BAND_2GHZ:
 		/* TODO: this always does G, not a regression */
-		if (priv->active_rxon.flags & RXON_FLG_TGG_PROTECT_MSK) {
+		if (priv->contexts[IWL_RXON_CTX_BSS].active.flags &
+						RXON_FLG_TGG_PROTECT_MSK) {
 			rs_sta->tgg = 1;
 			rs_sta->expected_tpt = iwl3945_expected_tpt_g_prot;
 		} else

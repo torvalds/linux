@@ -565,12 +565,12 @@ pfkey_proto2satype(uint16_t proto)
 
 static uint8_t pfkey_proto_to_xfrm(uint8_t proto)
 {
-	return (proto == IPSEC_PROTO_ANY ? 0 : proto);
+	return proto == IPSEC_PROTO_ANY ? 0 : proto;
 }
 
 static uint8_t pfkey_proto_from_xfrm(uint8_t proto)
 {
-	return (proto ? proto : IPSEC_PROTO_ANY);
+	return proto ? proto : IPSEC_PROTO_ANY;
 }
 
 static inline int pfkey_sockaddr_len(sa_family_t family)

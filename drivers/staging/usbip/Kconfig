@@ -1,6 +1,6 @@
 config USB_IP_COMMON
 	tristate "USB IP support (EXPERIMENTAL)"
-	depends on USB && NET && EXPERIMENTAL
+	depends on USB && NET && EXPERIMENTAL && BKL
 	default N
 	---help---
 	  This enables pushing USB packets over IP to allow remote

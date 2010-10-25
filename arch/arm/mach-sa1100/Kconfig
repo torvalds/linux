@@ -90,8 +90,8 @@ config SA1100_JORNADA720
 	# FIXME: select CPU_FREQ_SA11x0
 	help
 	  Say Y here if you want to build a kernel for the HP Jornada 720
-	  handheld computer.  See <http://www.hp.com/jornada/products/720>
-	  for details.
+	  handheld computer.  See 
+	  <http://h10025.www1.hp.com/ewfrf/wc/product?product=61677&cc=us&lc=en&dlc=en&product=61677#> 
 
 config SA1100_JORNADA720_SSP
 	bool "HP Jornada 720 Extended SSP driver"
@@ -145,7 +145,7 @@ config SA1100_SIMPAD
 	  FLASH. The SL4 version got 64 MB RAM and 32 MB FLASH and a
 	  PCMCIA-Slot. The version for the Germany Telecom (DTAG) is the same
 	  like CL4 in additional it has a PCMCIA-Slot. For more information
-	  visit <http://www.my-siemens.com/> or <http://www.siemens.ch/>.
+	  visit <http://www.usa.siemens.com/> or <http://www.siemens.ch/>.
 
 config SA1100_SSP
 	tristate "Generic PIO SSP"

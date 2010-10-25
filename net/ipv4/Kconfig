@@ -84,7 +84,7 @@ config IP_FIB_TRIE
 
 	  An experimental study of compression methods for dynamic tries
 	  Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
-	  http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
+	  <http://www.csc.kth.se/~snilsson/software/dyntrie2/>
 
 endchoice
 
@@ -215,9 +215,15 @@ config NET_IPIP
 	  be inserted in and removed from the running kernel whenever you
 	  want). Most people won't need this and can say N.
 
+config NET_IPGRE_DEMUX
+	tristate "IP: GRE demultiplexer"
+	help
+	 This is helper module to demultiplex GRE packets on GRE version field criteria.
+	 Required by ip_gre and pptp modules.
+
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
-	depends on IPV6 || IPV6=n
+	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -556,7 +562,7 @@ config TCP_CONG_VENO
 	distinguishing to circumvent the difficult judgment of the packet loss
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
-	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"

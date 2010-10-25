@@ -296,12 +296,12 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
 		eecd_reg = IXGB_READ_REG(hw, EECD);
 
 		if (eecd_reg & IXGB_EECD_DO)
-			return (true);
+			return true;
 
 		udelay(50);
 	}
 	ASSERT(0);
-	return (false);
+	return false;
 }
 
 /******************************************************************************
@@ -327,9 +327,9 @@ ixgb_validate_eeprom_checksum(struct ixgb_hw *hw)
 		checksum += ixgb_read_eeprom(hw, i);
 
 	if (checksum == (u16) EEPROM_SUM)
-		return (true);
+		return true;
 	else
-		return (false);
+		return false;
 }
 
 /******************************************************************************
@@ -439,7 +439,7 @@ ixgb_read_eeprom(struct ixgb_hw *hw,
 	/*  End this read operation  */
 	ixgb_standby_eeprom(hw);
 
-	return (data);
+	return data;
 }
 
 /******************************************************************************
@@ -476,16 +476,16 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 		/* clear the init_ctrl_reg_1 to signify that the cache is
 		 * invalidated */
 		ee_map->init_ctrl_reg_1 = cpu_to_le16(EEPROM_ICW1_SIGNATURE_CLEAR);
-		return (false);
+		return false;
 	}
 
 	if ((ee_map->init_ctrl_reg_1 & cpu_to_le16(EEPROM_ICW1_SIGNATURE_MASK))
 		 != cpu_to_le16(EEPROM_ICW1_SIGNATURE_VALID)) {
 		pr_debug("Signature invalid\n");
-		return(false);
+		return false;
 	}
 
-	return(true);
+	return true;
 }
 
 /******************************************************************************
@@ -505,7 +505,7 @@ ixgb_check_and_get_eeprom_data (struct ixgb_hw* hw)
 
 	if ((ee_map->init_ctrl_reg_1 & cpu_to_le16(EEPROM_ICW1_SIGNATURE_MASK))
 	    == cpu_to_le16(EEPROM_ICW1_SIGNATURE_VALID)) {
-		return (true);
+		return true;
 	} else {
 		return ixgb_get_eeprom_data(hw);
 	}
@@ -526,10 +526,10 @@ ixgb_get_eeprom_word(struct ixgb_hw *hw, u16 index)
 
 	if ((index < IXGB_EEPROM_SIZE) &&
 		(ixgb_check_and_get_eeprom_data(hw) == true)) {
-	   return(hw->eeprom[index]);
+	   return hw->eeprom[index];
 	}
 
-	return(0);
+	return 0;
 }
 
 /******************************************************************************
@@ -570,10 +570,10 @@ u32
 ixgb_get_ee_pba_number(struct ixgb_hw *hw)
 {
 	if (ixgb_check_and_get_eeprom_data(hw) == true)
-		return (le16_to_cpu(hw->eeprom[EEPROM_PBA_1_2_REG])
-			| (le16_to_cpu(hw->eeprom[EEPROM_PBA_3_4_REG])<<16));
+		return le16_to_cpu(hw->eeprom[EEPROM_PBA_1_2_REG])
+			| (le16_to_cpu(hw->eeprom[EEPROM_PBA_3_4_REG])<<16);
 
-	return(0);
+	return 0;
 }
 
 
@@ -591,8 +591,8 @@ ixgb_get_ee_device_id(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if (ixgb_check_and_get_eeprom_data(hw) == true)
-		return (le16_to_cpu(ee_map->device_id));
+		return le16_to_cpu(ee_map->device_id);
 
-	return (0);
+	return 0;
 }
 

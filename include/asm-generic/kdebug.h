@@ -3,7 +3,7 @@
 
 enum die_val {
 	DIE_UNUSED,
-	DIE_OOPS=1
+	DIE_OOPS = 1,
 };
 
 #endif /* _ASM_GENERIC_KDEBUG_H */

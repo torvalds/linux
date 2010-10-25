@@ -35,6 +35,7 @@
 
 /* SIC Registers */
 
+#define                        SIC_RVECT  0xffc00108
 #define                       SIC_IMASK0  0xffc0010c   /* System Interrupt Mask Register 0 */
 #define                       SIC_IMASK1  0xffc00110   /* System Interrupt Mask Register 1 */
 #define                       SIC_IMASK2  0xffc00114   /* System Interrupt Mask Register 2 */
@@ -2060,56 +2061,6 @@
 #define                  HIGH_ODD  0xff00     /* Upper Limit for Odd Bytes (Chroma) */
 #define                  LOW_EVEN  0xff0000   /* Lower Limit for Even Bytes (Luma) */
 #define                 HIGH_EVEN  0xff000000 /* Upper Limit for Even Bytes (Luma) */
-
-/* Bit masks for SPIx_BAUD */
-
-#define                  SPI_BAUD  0xffff     /* Baud Rate */
-
-/* Bit masks for SPIx_CTL */
-
-#define                       SPE  0x4000     /* SPI Enable */
-#define                       WOM  0x2000     /* Write Open Drain Master */
-#define                      MSTR  0x1000     /* Master Mode */
-#define                      CPOL  0x800      /* Clock Polarity */
-#define                      CPHA  0x400      /* Clock Phase */
-#define                      LSBF  0x200      /* LSB First */
-#define                      SIZE  0x100      /* Size of Words */
-#define                     EMISO  0x20       /* Enable MISO Output */
-#define                      PSSE  0x10       /* Slave-Select Enable */
-#define                        GM  0x8        /* Get More Data */
-#define                        SZ  0x4        /* Send Zero */
-#define                     TIMOD  0x3        /* Transfer Initiation Mode */
-
-/* Bit masks for SPIx_FLG */
-
-#define                      FLS1  0x2        /* Slave Select Enable 1 */
-#define                      FLS2  0x4        /* Slave Select Enable 2 */
-#define                      FLS3  0x8        /* Slave Select Enable 3 */
-#define                      FLG1  0x200      /* Slave Select Value 1 */
-#define                      FLG2  0x400      /* Slave Select Value 2 */
-#define                      FLG3  0x800      /* Slave Select Value 3 */
-
-/* Bit masks for SPIx_STAT */
-
-#define                     TXCOL  0x40       /* Transmit Collision Error */
-#define                       RXS  0x20       /* RDBR Data Buffer Status */
-#define                      RBSY  0x10       /* Receive Error */
-#define                       TXS  0x8        /* TDBR Data Buffer Status */
-#define                       TXE  0x4        /* Transmission Error */
-#define                      MODF  0x2        /* Mode Fault Error */
-#define                      SPIF  0x1        /* SPI Finished */
-
-/* Bit masks for SPIx_TDBR */
-
-#define                      TDBR  0xffff     /* Transmit Data Buffer */
-
-/* Bit masks for SPIx_RDBR */
-
-#define                      RDBR  0xffff     /* Receive Data Buffer */
-
-/* Bit masks for SPIx_SHADOW */
-
-#define                    SHADOW  0xffff     /* RDBR Shadow */
 
 /* ************************************************ */
 /* The TWI bit masks fields are from the ADSP-BF538 */

@@ -2,7 +2,6 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
 #include <linux/hdreg.h>
 #include <linux/virtio.h>
 #include <linux/virtio_blk.h>
@@ -128,9 +127,6 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		}
 	}
 
-	if (vbr->req->cmd_flags & REQ_HARDBARRIER)
-		vbr->out_hdr.type |= VIRTIO_BLK_T_BARRIER;
-
 	sg_set_buf(&vblk->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
 
 	/*
@@ -222,8 +218,8 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	return err;
 }
 
-static int virtblk_locked_ioctl(struct block_device *bdev, fmode_t mode,
-			 unsigned cmd, unsigned long data)
+static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long data)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct virtio_blk *vblk = disk->private_data;
@@ -236,18 +232,6 @@ static int virtblk_locked_ioctl(struct block_device *bdev, fmode_t mode,
 
 	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd,
 			      (void __user *)data);
-}
-
-static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
-			     unsigned int cmd, unsigned long param)
-{
-	int ret;
-
-	lock_kernel();
-	ret = virtblk_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
-
-	return ret;
 }
 
 /* We provide getgeo only to please some old bootloader/partitioning tools */
@@ -392,31 +376,9 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->driverfs_dev = &vdev->dev;
 	index++;
 
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH)) {
-		/*
-		 * If the FLUSH feature is supported we do have support for
-		 * flushing a volatile write cache on the host.  Use that
-		 * to implement write barrier support.
-		 */
-		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH);
-	} else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER)) {
-		/*
-		 * If the BARRIER feature is supported the host expects us
-		 * to order request by tags.  This implies there is not
-		 * volatile write cache on the host, and that the host
-		 * never re-orders outstanding I/O.  This feature is not
-		 * useful for real life scenarious and deprecated.
-		 */
-		blk_queue_ordered(q, QUEUE_ORDERED_TAG);
-	} else {
-		/*
-		 * If the FLUSH feature is not supported we must assume that
-		 * the host does not perform any kind of volatile write
-		 * caching. We still need to drain the queue to provider
-		 * proper barrier semantics.
-		 */
-		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN);
-	}
+	/* configure queue flush support */
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
+		blk_queue_flush(q, REQ_FLUSH);
 
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
@@ -535,9 +497,9 @@ static const struct virtio_device_id id_table[] = {
 };
 
 static unsigned int features[] = {
-	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
-	VIRTIO_BLK_F_GEOMETRY, VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
-	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_FLUSH, VIRTIO_BLK_F_TOPOLOGY
+	VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX, VIRTIO_BLK_F_GEOMETRY,
+	VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE, VIRTIO_BLK_F_SCSI,
+	VIRTIO_BLK_F_FLUSH, VIRTIO_BLK_F_TOPOLOGY
 };
 
 /*

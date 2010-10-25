@@ -64,7 +64,6 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -77,6 +76,7 @@
 
 /* Globals */
 #define TW_DRIVER_VERSION "3.26.02.000"
+static DEFINE_MUTEX(twl_chrdev_mutex);
 static TW_Device_Extension *twl_device_extension_list[TW_MAX_SLOT];
 static unsigned int twl_device_extension_count;
 static int twl_major = -1;
@@ -764,7 +764,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	int retval = -EFAULT;
 	void __user *argp = (void __user *)arg;
 
-	lock_kernel();
+	mutex_lock(&twl_chrdev_mutex);
 
 	/* Only let one of these through at a time */
 	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
@@ -861,7 +861,7 @@ out3:
 out2:
 	mutex_unlock(&tw_dev->ioctl_lock);
 out:
-	unlock_kernel();
+	mutex_unlock(&twl_chrdev_mutex);
 	return retval;
 } /* End twl_chrdev_ioctl() */
 
@@ -876,7 +876,6 @@ static int twl_chrdev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	cycle_kernel_lock();
 	minor_number = iminor(inode);
 	if (minor_number >= twl_device_extension_count)
 		goto out;
@@ -890,7 +889,8 @@ static const struct file_operations twl_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= twl_chrdev_ioctl,
 	.open		= twl_chrdev_open,
-	.release	= NULL
+	.release	= NULL,
+	.llseek		= noop_llseek,
 };
 
 /* This function passes sense data from firmware to scsi layer */

@@ -7,4 +7,4 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define VMALLOC_END       (PAGE_OFFSET + 0x1f000000)
+#define VMALLOC_END       0xdf000000

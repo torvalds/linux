@@ -314,14 +314,12 @@ static int mi1_mdio_write(struct net_device *dev, int phy_addr, int mmd_addr,
 	return 0;
 }
 
-#if defined(CONFIG_CHELSIO_T1_1G)
 static const struct mdio_ops mi1_mdio_ops = {
 	.init = mi1_mdio_init,
 	.read = mi1_mdio_read,
 	.write = mi1_mdio_write,
 	.mode_support = MDIO_SUPPORTS_C22
 };
-#endif
 
 #endif
 

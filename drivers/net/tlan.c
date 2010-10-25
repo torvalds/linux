@@ -78,7 +78,7 @@
  * 			     - Updated tlan.txt accordingly.
  * 			     - Adjusted minimum/maximum frame length.
  * 			     - There is now a TLAN website up at
- * 			       http://tlan.kernel.dk
+ * 			       http://hp.sourceforge.net/ 
  *
  * 	v1.7 April 07, 2000  - Started to implement custom ioctls. Driver now
  * 			       reports PHY information when used with Donald
@@ -393,7 +393,7 @@ TLan_SetTimer( struct net_device *dev, u32 ticks, u32 type )
 			spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
-	priv->timer.function = &TLan_Timer;
+	priv->timer.function = TLan_Timer;
 	if (!in_irq())
 		spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1453,7 +1453,7 @@ static u32 TLan_HandleTxEOF( struct net_device *dev, u16 host_int )
 		TLan_DioWrite8( dev->base_addr,
 				TLAN_LED_REG, TLAN_LED_LINK | TLAN_LED_ACT );
 		if ( priv->timer.function == NULL ) {
-			 priv->timer.function = &TLan_Timer;
+			 priv->timer.function = TLan_Timer;
 			 priv->timer.data = (unsigned long) dev;
 			 priv->timer.expires = jiffies + TLAN_TIMER_ACT_DELAY;
 			 priv->timerSetAt = jiffies;
@@ -1601,7 +1601,7 @@ drop_and_reuse:
 		TLan_DioWrite8( dev->base_addr,
 				TLAN_LED_REG, TLAN_LED_LINK | TLAN_LED_ACT );
 		if ( priv->timer.function == NULL )  {
-			priv->timer.function = &TLan_Timer;
+			priv->timer.function = TLan_Timer;
 			priv->timer.data = (unsigned long) dev;
 			priv->timer.expires = jiffies + TLAN_TIMER_ACT_DELAY;
 			priv->timerSetAt = jiffies;
@@ -1897,7 +1897,7 @@ static void TLan_Timer( unsigned long data )
 					TLan_DioWrite8( dev->base_addr,
 							TLAN_LED_REG, TLAN_LED_LINK );
 				} else  {
-					priv->timer.function = &TLan_Timer;
+					priv->timer.function = TLan_Timer;
 					priv->timer.expires = priv->timerSetAt
 						+ TLAN_TIMER_ACT_DELAY;
 					spin_unlock_irqrestore(&priv->lock, flags);
@@ -3187,7 +3187,7 @@ static int TLan_EeSendByte( u16 io_base, u8 data, int stop )
 		TLan_SetBit( TLAN_NET_SIO_EDATA, sio );
 	}
 
-	return ( err );
+	return err;
 
 } /* TLan_EeSendByte */
 

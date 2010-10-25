@@ -26,7 +26,6 @@
  * Atheros presentations and papers like these:
  *
  * 5210 - http://nova.stanford.edu/~bbaas/ps/isscc2002_slides.pdf
- *        http://www.it.iitb.ac.in/~janak/wifire/01222734.pdf
  *
  * 5211 - http://www.hotchips.org/archives/hc14/3_Tue/16_mcfarland.pdf
  *
@@ -1387,10 +1386,9 @@
 
 
 /*
- * PCU control register
+ * PCU Diagnostic register
  *
- * Only DIS_RX is used in the code, the rest i guess are
- * for tweaking/diagnostics.
+ * Used for tweaking/diagnostics.
  */
 #define AR5K_DIAG_SW_5210		0x8068			/* Register Address [5210] */
 #define AR5K_DIAG_SW_5211		0x8048			/* Register Address [5211+] */
@@ -1399,22 +1397,22 @@
 #define AR5K_DIAG_SW_DIS_WEP_ACK	0x00000001	/* Disable ACKs if WEP key is invalid */
 #define AR5K_DIAG_SW_DIS_ACK		0x00000002	/* Disable ACKs */
 #define AR5K_DIAG_SW_DIS_CTS		0x00000004	/* Disable CTSs */
-#define AR5K_DIAG_SW_DIS_ENC		0x00000008	/* Disable encryption */
-#define AR5K_DIAG_SW_DIS_DEC		0x00000010	/* Disable decryption */
-#define AR5K_DIAG_SW_DIS_TX		0x00000020	/* Disable transmit [5210] */
-#define AR5K_DIAG_SW_DIS_RX_5210	0x00000040	/* Disable recieve */
+#define AR5K_DIAG_SW_DIS_ENC		0x00000008	/* Disable HW encryption */
+#define AR5K_DIAG_SW_DIS_DEC		0x00000010	/* Disable HW decryption */
+#define AR5K_DIAG_SW_DIS_TX_5210	0x00000020	/* Disable transmit [5210] */
+#define AR5K_DIAG_SW_DIS_RX_5210	0x00000040	/* Disable receive */
 #define AR5K_DIAG_SW_DIS_RX_5211	0x00000020
 #define	AR5K_DIAG_SW_DIS_RX		(ah->ah_version == AR5K_AR5210 ? \
 					AR5K_DIAG_SW_DIS_RX_5210 : AR5K_DIAG_SW_DIS_RX_5211)
-#define AR5K_DIAG_SW_LOOP_BACK_5210	0x00000080	/* Loopback (i guess it goes with DIS_TX) [5210] */
+#define AR5K_DIAG_SW_LOOP_BACK_5210	0x00000080	/* TX Data Loopback (i guess it goes with DIS_TX) [5210] */
 #define AR5K_DIAG_SW_LOOP_BACK_5211	0x00000040
 #define AR5K_DIAG_SW_LOOP_BACK		(ah->ah_version == AR5K_AR5210 ? \
 					AR5K_DIAG_SW_LOOP_BACK_5210 : AR5K_DIAG_SW_LOOP_BACK_5211)
-#define AR5K_DIAG_SW_CORR_FCS_5210	0x00000100	/* Corrupted FCS */
+#define AR5K_DIAG_SW_CORR_FCS_5210	0x00000100	/* Generate invalid TX FCS */
 #define AR5K_DIAG_SW_CORR_FCS_5211	0x00000080
 #define AR5K_DIAG_SW_CORR_FCS		(ah->ah_version == AR5K_AR5210 ? \
 					AR5K_DIAG_SW_CORR_FCS_5210 : AR5K_DIAG_SW_CORR_FCS_5211)
-#define AR5K_DIAG_SW_CHAN_INFO_5210	0x00000200	/* Dump channel info */
+#define AR5K_DIAG_SW_CHAN_INFO_5210	0x00000200	/* Add 56 bytes of channel info before the frame data in the RX buffer */
 #define AR5K_DIAG_SW_CHAN_INFO_5211	0x00000100
 #define AR5K_DIAG_SW_CHAN_INFO		(ah->ah_version == AR5K_AR5210 ? \
 					AR5K_DIAG_SW_CHAN_INFO_5210 : AR5K_DIAG_SW_CHAN_INFO_5211)
@@ -1426,17 +1424,17 @@
 #define AR5K_DIAG_SW_SCVRAM_SEED	0x0003f800	/* [5210] */
 #define AR5K_DIAG_SW_SCRAM_SEED_M	0x0001fc00	/* Scrambler seed mask */
 #define AR5K_DIAG_SW_SCRAM_SEED_S	10
-#define AR5K_DIAG_SW_DIS_SEQ_INC	0x00040000	/* Disable seqnum increment (?)[5210] */
+#define AR5K_DIAG_SW_DIS_SEQ_INC_5210	0x00040000	/* Disable seqnum increment (?)[5210] */
 #define AR5K_DIAG_SW_FRAME_NV0_5210	0x00080000
 #define AR5K_DIAG_SW_FRAME_NV0_5211	0x00020000	/* Accept frames of non-zero protocol number */
 #define	AR5K_DIAG_SW_FRAME_NV0		(ah->ah_version == AR5K_AR5210 ? \
 					AR5K_DIAG_SW_FRAME_NV0_5210 : AR5K_DIAG_SW_FRAME_NV0_5211)
 #define AR5K_DIAG_SW_OBSPT_M		0x000c0000	/* Observation point select (?) */
 #define AR5K_DIAG_SW_OBSPT_S		18
-#define AR5K_DIAG_SW_RX_CLEAR_HIGH	0x0010000	/* Force RX Clear high */
-#define AR5K_DIAG_SW_IGNORE_CARR_SENSE	0x0020000	/* Ignore virtual carrier sense */
-#define AR5K_DIAG_SW_CHANEL_IDLE_HIGH	0x0040000	/* Force channel idle high */
-#define AR5K_DIAG_SW_PHEAR_ME		0x0080000	/* ??? */
+#define AR5K_DIAG_SW_RX_CLEAR_HIGH	0x00100000	/* Ignore carrier sense */
+#define AR5K_DIAG_SW_IGNORE_CARR_SENSE	0x00200000	/* Ignore virtual carrier sense */
+#define AR5K_DIAG_SW_CHANNEL_IDLE_HIGH	0x00400000	/* Force channel idle high */
+#define AR5K_DIAG_SW_PHEAR_ME		0x00800000	/* ??? */
 
 /*
  * TSF (clock) register (lower 32 bits)
@@ -1822,50 +1820,8 @@
 
 /*===5212 end===*/
 
-/*
- * Key table (WEP) register
- */
-#define AR5K_KEYTABLE_0_5210		0x9000
-#define AR5K_KEYTABLE_0_5211		0x8800
-#define AR5K_KEYTABLE_5210(_n)		(AR5K_KEYTABLE_0_5210 + ((_n) << 5))
-#define AR5K_KEYTABLE_5211(_n)		(AR5K_KEYTABLE_0_5211 + ((_n) << 5))
-#define	AR5K_KEYTABLE(_n)		(ah->ah_version == AR5K_AR5210 ? \
-					AR5K_KEYTABLE_5210(_n) : AR5K_KEYTABLE_5211(_n))
-#define AR5K_KEYTABLE_OFF(_n, x)	(AR5K_KEYTABLE(_n) + (x << 2))
-#define AR5K_KEYTABLE_TYPE(_n)		AR5K_KEYTABLE_OFF(_n, 5)
-#define AR5K_KEYTABLE_TYPE_40		0x00000000
-#define AR5K_KEYTABLE_TYPE_104		0x00000001
-#define AR5K_KEYTABLE_TYPE_128		0x00000003
-#define AR5K_KEYTABLE_TYPE_TKIP		0x00000004	/* [5212+] */
-#define AR5K_KEYTABLE_TYPE_AES		0x00000005	/* [5211+] */
-#define AR5K_KEYTABLE_TYPE_CCM		0x00000006	/* [5212+] */
-#define AR5K_KEYTABLE_TYPE_NULL		0x00000007	/* [5211+] */
-#define AR5K_KEYTABLE_ANTENNA		0x00000008	/* [5212+] */
-#define AR5K_KEYTABLE_MAC0(_n)		AR5K_KEYTABLE_OFF(_n, 6)
-#define AR5K_KEYTABLE_MAC1(_n)		AR5K_KEYTABLE_OFF(_n, 7)
-#define AR5K_KEYTABLE_VALID		0x00008000
-
-/* If key type is TKIP and MIC is enabled
- * MIC key goes in offset entry + 64 */
-#define	AR5K_KEYTABLE_MIC_OFFSET	64
-
-/* WEP 40-bit	= 40-bit  entered key + 24 bit IV = 64-bit
- * WEP 104-bit	= 104-bit entered key + 24-bit IV = 128-bit
- * WEP 128-bit	= 128-bit entered key + 24 bit IV = 152-bit
- *
- * Some vendors have introduced bigger WEP keys to address
- * security vulnerabilities in WEP. This includes:
- *
- * WEP 232-bit = 232-bit entered key + 24 bit IV = 256-bit
- *
- * We can expand this if we find ar5k Atheros cards with a larger
- * key table size.
- */
 #define AR5K_KEYTABLE_SIZE_5210		64
 #define AR5K_KEYTABLE_SIZE_5211		128
-#define	AR5K_KEYTABLE_SIZE		(ah->ah_version == AR5K_AR5210 ? \
-					AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211)
-
 
 /*===PHY REGISTERS===*/
 
@@ -1911,7 +1867,7 @@
 #define	AR5K_PHY_TURBO			0x9804			/* Register Address */
 #define	AR5K_PHY_TURBO_MODE		0x00000001	/* Enable turbo mode */
 #define	AR5K_PHY_TURBO_SHORT		0x00000002	/* Set short symbols to turbo mode */
-#define	AR5K_PHY_TURBO_MIMO		0x00000004	/* Set turbo for mimo mimo */
+#define	AR5K_PHY_TURBO_MIMO		0x00000004	/* Set turbo for mimo */
 
 /*
  * PHY agility command register

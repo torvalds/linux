@@ -1439,6 +1439,7 @@ static const struct file_operations fb_fops = {
 #ifdef CONFIG_FB_DEFERRED_IO
 	.fsync =	fb_deferred_io_fsync,
 #endif
+	.llseek =	default_llseek,
 };
 
 struct class *fb_class;

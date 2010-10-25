@@ -70,6 +70,25 @@ int mx51_revision(void)
 }
 EXPORT_SYMBOL(mx51_revision);
 
+#ifdef CONFIG_NEON
+
+/*
+ * All versions of the silicon before Rev. 3 have broken NEON implementations.
+ * Dependent on link order - so the assumption is that vfp_init is called
+ * before us.
+ */
+static int __init mx51_neon_fixup(void)
+{
+	if (mx51_revision() < MX51_CHIP_REV_3_0 && (elf_hwcap & HWCAP_NEON)) {
+		elf_hwcap &= ~HWCAP_NEON;
+		pr_info("Turning off NEON support, detected broken NEON implementation\n");
+	}
+	return 0;
+}
+
+late_initcall(mx51_neon_fixup);
+#endif
+
 static int __init post_cpu_init(void)
 {
 	unsigned int reg;

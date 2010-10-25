@@ -56,9 +56,16 @@ static int qstat_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "DSCI: %d   nr_used: %d\n",
 		   *(u32 *)q->irq_ptr->dsci, atomic_read(&q->nr_buf_used));
-	seq_printf(m, "ftc: %d  last_move: %d\n", q->first_to_check, q->last_move);
-	seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
-		   q->u.in.polling, q->u.in.ack_start, q->u.in.ack_count);
+	seq_printf(m, "ftc: %d  last_move: %d\n",
+		   q->first_to_check, q->last_move);
+	if (q->is_input_q) {
+		seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
+			   q->u.in.polling, q->u.in.ack_start,
+			   q->u.in.ack_count);
+		seq_printf(m, "IRQs disabled: %u\n",
+			   test_bit(QDIO_QUEUE_IRQS_DISABLED,
+			   &q->u.in.queue_irq_state));
+	}
 	seq_printf(m, "SBAL states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
 
@@ -113,22 +120,6 @@ static int qstat_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static ssize_t qstat_seq_write(struct file *file, const char __user *buf,
-			       size_t count, loff_t *off)
-{
-	struct seq_file *seq = file->private_data;
-	struct qdio_q *q = seq->private;
-
-	if (!q)
-		return 0;
-	if (q->is_input_q)
-		xchg(q->irq_ptr->dsci, 1);
-	local_bh_disable();
-	tasklet_schedule(&q->tasklet);
-	local_bh_enable();
-	return count;
-}
-
 static int qstat_seq_open(struct inode *inode, struct file *filp)
 {
 	return single_open(filp, qstat_show,
@@ -139,7 +130,6 @@ static const struct file_operations debugfs_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = qstat_seq_open,
 	.read	 = seq_read,
-	.write	 = qstat_seq_write,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
@@ -166,7 +156,8 @@ static char *qperf_names[] = {
 	"QEBSM eqbs",
 	"QEBSM eqbs partial",
 	"QEBSM sqbs",
-	"QEBSM sqbs partial"
+	"QEBSM sqbs partial",
+	"Discarded interrupts"
 };
 
 static int qperf_show(struct seq_file *m, void *v)

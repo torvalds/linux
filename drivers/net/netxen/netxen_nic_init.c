@@ -346,7 +346,7 @@ static u32 netxen_decode_crb_addr(u32 addr)
 	if (pci_base == NETXEN_ADDR_ERROR)
 		return pci_base;
 	else
-		return (pci_base + offset);
+		return pci_base + offset;
 }
 
 #define NETXEN_MAX_ROM_WAIT_USEC	100
@@ -1763,14 +1763,10 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 
 		smp_mb();
 
-		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
-			__netif_tx_lock(tx_ring->txq, smp_processor_id());
-			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH) {
+		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev))
+			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
 				netif_wake_queue(netdev);
-				adapter->tx_timeo_cnt = 0;
-			}
-			__netif_tx_unlock(tx_ring->txq);
-		}
+		adapter->tx_timeo_cnt = 0;
 	}
 	/*
 	 * If everything is freed up to consumer then check if the ring is full
@@ -1789,7 +1785,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	done = (sw_consumer == hw_consumer);
 	spin_unlock(&adapter->tx_clean_lock);
 
-	return (done);
+	return done;
 }
 
 void

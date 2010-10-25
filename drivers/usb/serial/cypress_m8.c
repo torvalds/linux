@@ -1320,8 +1320,6 @@ continue_read:
 			cypress_set_dead(port);
 		}
 	}
-
-	return;
 } /* cypress_read_int_callback */
 
 

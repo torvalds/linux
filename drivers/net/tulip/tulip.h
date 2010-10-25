@@ -417,7 +417,6 @@ struct tulip_private {
 	int revision;
 	int flags;
 	struct napi_struct napi;
-	struct net_device_stats stats;
 	struct timer_list timer;	/* Media selection timer. */
 	struct timer_list oom_timer;    /* Out of memory timer. */
 	u32 mc_filter[2];
@@ -570,7 +569,7 @@ static inline void tulip_tx_timeout_complete(struct tulip_private *tp, void __io
 	/* Trigger an immediate transmit demand. */
 	iowrite32(0, ioaddr + CSR1);
 
-	tp->stats.tx_errors++;
+	tp->dev->stats.tx_errors++;
 }
 
 #endif /* __NET_TULIP_H__ */

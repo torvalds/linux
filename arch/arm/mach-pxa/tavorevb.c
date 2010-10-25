@@ -25,7 +25,7 @@
 
 #include <mach/pxa930.h>
 #include <mach/pxafb.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -489,9 +489,7 @@ static void __init tavorevb_init(void)
 
 MACHINE_START(TAVOREVB, "PXA930 Evaluation Board (aka TavorEVB)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
-	.phys_io        = 0x40000000,
 	.boot_params    = 0xa0000100,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.timer          = &pxa_timer,

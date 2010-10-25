@@ -115,8 +115,6 @@ subsys_initcall(rd88f6281_pci_init);
 
 MACHINE_START(RD88F6281, "Marvell RD-88F6281 Reference Board")
 	/* Maintainer: Saeed Bishara <saeed@marvell.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f6281_init,
 	.map_io		= kirkwood_map_io,

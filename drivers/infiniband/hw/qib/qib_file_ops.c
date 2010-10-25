@@ -63,7 +63,8 @@ static const struct file_operations qib_file_ops = {
 	.open = qib_open,
 	.release = qib_close,
 	.poll = qib_poll,
-	.mmap = qib_mmapf
+	.mmap = qib_mmapf,
+	.llseek = noop_llseek,
 };
 
 /*
@@ -1722,7 +1723,7 @@ static int qib_close(struct inode *in, struct file *fp)
 
 	mutex_lock(&qib_mutex);
 
-	fd = (struct qib_filedata *) fp->private_data;
+	fd = fp->private_data;
 	fp->private_data = NULL;
 	rcd = fd->rcd;
 	if (!rcd) {
@@ -1808,7 +1809,7 @@ static int qib_ctxt_info(struct file *fp, struct qib_ctxt_info __user *uinfo)
 	struct qib_ctxtdata *rcd = ctxt_fp(fp);
 	struct qib_filedata *fd;
 
-	fd = (struct qib_filedata *) fp->private_data;
+	fd = fp->private_data;
 
 	info.num_active = qib_count_active_units();
 	info.unit = rcd->dd->unit;

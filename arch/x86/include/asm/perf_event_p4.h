@@ -36,19 +36,6 @@
 #define P4_ESCR_EMASK(v)	((v) << P4_ESCR_EVENTMASK_SHIFT)
 #define P4_ESCR_TAG(v)		((v) << P4_ESCR_TAG_SHIFT)
 
-/* Non HT mask */
-#define P4_ESCR_MASK			\
-	(P4_ESCR_EVENT_MASK	|	\
-	P4_ESCR_EVENTMASK_MASK	|	\
-	P4_ESCR_TAG_MASK	|	\
-	P4_ESCR_TAG_ENABLE	|	\
-	P4_ESCR_T0_OS		|	\
-	P4_ESCR_T0_USR)
-
-/* HT mask */
-#define P4_ESCR_MASK_HT			\
-	(P4_ESCR_MASK |	P4_ESCR_T1_OS | P4_ESCR_T1_USR)
-
 #define P4_CCCR_OVF			0x80000000U
 #define P4_CCCR_CASCADE			0x40000000U
 #define P4_CCCR_OVF_PMI_T0		0x04000000U
@@ -69,23 +56,6 @@
 
 #define P4_CCCR_THRESHOLD(v)		((v) << P4_CCCR_THRESHOLD_SHIFT)
 #define P4_CCCR_ESEL(v)			((v) << P4_CCCR_ESCR_SELECT_SHIFT)
-
-/* Non HT mask */
-#define P4_CCCR_MASK				\
-	(P4_CCCR_OVF			|	\
-	P4_CCCR_CASCADE			|	\
-	P4_CCCR_OVF_PMI_T0		|	\
-	P4_CCCR_FORCE_OVF		|	\
-	P4_CCCR_EDGE			|	\
-	P4_CCCR_THRESHOLD_MASK		|	\
-	P4_CCCR_COMPLEMENT		|	\
-	P4_CCCR_COMPARE			|	\
-	P4_CCCR_ESCR_SELECT_MASK	|	\
-	P4_CCCR_ENABLE)
-
-/* HT mask */
-#define P4_CCCR_MASK_HT				\
-	(P4_CCCR_MASK | P4_CCCR_OVF_PMI_T1 | P4_CCCR_THREAD_ANY)
 
 #define P4_GEN_ESCR_EMASK(class, name, bit)	\
 	class##__##name = ((1 << bit) << P4_ESCR_EVENTMASK_SHIFT)
@@ -126,6 +96,28 @@
 
 #define P4_CONFIG_HT_SHIFT		63
 #define P4_CONFIG_HT			(1ULL << P4_CONFIG_HT_SHIFT)
+
+/*
+ * The bits we allow to pass for RAW events
+ */
+#define P4_CONFIG_MASK_ESCR		\
+	P4_ESCR_EVENT_MASK	|	\
+	P4_ESCR_EVENTMASK_MASK	|	\
+	P4_ESCR_TAG_MASK	|	\
+	P4_ESCR_TAG_ENABLE
+
+#define P4_CONFIG_MASK_CCCR		\
+	P4_CCCR_EDGE		|	\
+	P4_CCCR_THRESHOLD_MASK	|	\
+	P4_CCCR_COMPLEMENT	|	\
+	P4_CCCR_COMPARE		|	\
+	P4_CCCR_THREAD_ANY	|	\
+	P4_CCCR_RESERVED
+
+/* some dangerous bits are reserved for kernel internals */
+#define P4_CONFIG_MASK				  	  \
+	(p4_config_pack_escr(P4_CONFIG_MASK_ESCR))	| \
+	(p4_config_pack_cccr(P4_CONFIG_MASK_CCCR))
 
 static inline bool p4_is_event_cascaded(u64 config)
 {

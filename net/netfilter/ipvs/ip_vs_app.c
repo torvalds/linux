@@ -103,8 +103,8 @@ ip_vs_app_inc_new(struct ip_vs_app *app, __u16 proto, __u16 port)
 		goto out;
 
 	list_add(&inc->a_list, &app->incs_list);
-	IP_VS_DBG(9, "%s application %s:%u registered\n",
-		  pp->name, inc->name, inc->port);
+	IP_VS_DBG(9, "%s App %s:%u registered\n",
+		  pp->name, inc->name, ntohs(inc->port));
 
 	return 0;
 
@@ -130,7 +130,7 @@ ip_vs_app_inc_release(struct ip_vs_app *inc)
 		pp->unregister_app(inc);
 
 	IP_VS_DBG(9, "%s App %s:%u unregistered\n",
-		  pp->name, inc->name, inc->port);
+		  pp->name, inc->name, ntohs(inc->port));
 
 	list_del(&inc->a_list);
 

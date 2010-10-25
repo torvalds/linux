@@ -62,6 +62,7 @@ extern void xfs_qm_exit(void);
 # define XFS_DBG_STRING		"no debug"
 #endif
 
+#define XFS_VERSION_STRING	"SGI XFS"
 #define XFS_BUILD_OPTIONS	XFS_ACL_STRING \
 				XFS_SECURITY_STRING \
 				XFS_REALTIME_STRING \

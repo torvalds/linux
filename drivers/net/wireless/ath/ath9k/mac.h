@@ -660,32 +660,11 @@ struct ath9k_11n_rate_series {
 	u32 RateFlags;
 };
 
-struct ath9k_keyval {
-	u8 kv_type;
-	u8 kv_pad;
-	u16 kv_len;
-	u8 kv_val[16]; /* TK */
-	u8 kv_mic[8]; /* Michael MIC key */
-	u8 kv_txmic[8]; /* Michael MIC TX key (used only if the hardware
-			 * supports both MIC keys in the same key cache entry;
-			 * in that case, kv_mic is the RX key) */
-};
-
 enum ath9k_key_type {
 	ATH9K_KEY_TYPE_CLEAR,
 	ATH9K_KEY_TYPE_WEP,
 	ATH9K_KEY_TYPE_AES,
 	ATH9K_KEY_TYPE_TKIP,
-};
-
-enum ath9k_cipher {
-	ATH9K_CIPHER_WEP = 0,
-	ATH9K_CIPHER_AES_OCB = 1,
-	ATH9K_CIPHER_AES_CCM = 2,
-	ATH9K_CIPHER_CKIP = 3,
-	ATH9K_CIPHER_TKIP = 4,
-	ATH9K_CIPHER_CLR = 5,
-	ATH9K_CIPHER_MIC = 127
 };
 
 struct ath_hw;

@@ -65,8 +65,3 @@ void vnic_intr_clean(struct vnic_intr *intr)
 {
 	iowrite32(0, &intr->ctrl->int_credits);
 }
-
-void vnic_intr_raise(struct vnic_intr *intr)
-{
-	vnic_dev_raise_intr(intr->vdev, (u16)intr->index);
-}

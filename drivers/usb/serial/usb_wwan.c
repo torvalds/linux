@@ -234,7 +234,6 @@ static void usb_wwan_indat_callback(struct urb *urb)
 		}
 
 	}
-	return;
 }
 
 static void usb_wwan_outdat_callback(struct urb *urb)

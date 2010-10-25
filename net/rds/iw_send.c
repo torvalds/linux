@@ -36,7 +36,6 @@
 #include <linux/dmapool.h>
 
 #include "rds.h"
-#include "rdma.h"
 #include "iw.h"
 
 static void rds_iw_send_rdma_complete(struct rds_message *rm,
@@ -64,13 +63,13 @@ static void rds_iw_send_rdma_complete(struct rds_message *rm,
 }
 
 static void rds_iw_send_unmap_rdma(struct rds_iw_connection *ic,
-				   struct rds_rdma_op *op)
+				   struct rm_rdma_op *op)
 {
-	if (op->r_mapped) {
+	if (op->op_mapped) {
 		ib_dma_unmap_sg(ic->i_cm_id->device,
-			op->r_sg, op->r_nents,
-			op->r_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		op->r_mapped = 0;
+			op->op_sg, op->op_nents,
+			op->op_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		op->op_mapped = 0;
 	}
 }
 
@@ -83,11 +82,11 @@ static void rds_iw_send_unmap_rm(struct rds_iw_connection *ic,
 	rdsdebug("ic %p send %p rm %p\n", ic, send, rm);
 
 	ib_dma_unmap_sg(ic->i_cm_id->device,
-		     rm->m_sg, rm->m_nents,
+		     rm->data.op_sg, rm->data.op_nents,
 		     DMA_TO_DEVICE);
 
-	if (rm->m_rdma_op != NULL) {
-		rds_iw_send_unmap_rdma(ic, rm->m_rdma_op);
+	if (rm->rdma.op_active) {
+		rds_iw_send_unmap_rdma(ic, &rm->rdma);
 
 		/* If the user asked for a completion notification on this
 		 * message, we can implement three different semantics:
@@ -111,10 +110,10 @@ static void rds_iw_send_unmap_rm(struct rds_iw_connection *ic,
 		 */
 		rds_iw_send_rdma_complete(rm, wc_status);
 
-		if (rm->m_rdma_op->r_write)
-			rds_stats_add(s_send_rdma_bytes, rm->m_rdma_op->r_bytes);
+		if (rm->rdma.op_write)
+			rds_stats_add(s_send_rdma_bytes, rm->rdma.op_bytes);
 		else
-			rds_stats_add(s_recv_rdma_bytes, rm->m_rdma_op->r_bytes);
+			rds_stats_add(s_recv_rdma_bytes, rm->rdma.op_bytes);
 	}
 
 	/* If anyone waited for this message to get flushed out, wake
@@ -556,25 +555,27 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	}
 
 	/* map the message the first time we see it */
-	if (ic->i_rm == NULL) {
+	if (!ic->i_rm) {
 		/*
 		printk(KERN_NOTICE "rds_iw_xmit prep msg dport=%u flags=0x%x len=%d\n",
 				be16_to_cpu(rm->m_inc.i_hdr.h_dport),
 				rm->m_inc.i_hdr.h_flags,
 				be32_to_cpu(rm->m_inc.i_hdr.h_len));
 		   */
-		if (rm->m_nents) {
-			rm->m_count = ib_dma_map_sg(dev,
-					 rm->m_sg, rm->m_nents, DMA_TO_DEVICE);
-			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->m_count);
-			if (rm->m_count == 0) {
+		if (rm->data.op_nents) {
+			rm->data.op_count = ib_dma_map_sg(dev,
+							  rm->data.op_sg,
+							  rm->data.op_nents,
+							  DMA_TO_DEVICE);
+			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.op_count);
+			if (rm->data.op_count == 0) {
 				rds_iw_stats_inc(s_iw_tx_sg_mapping_failure);
 				rds_iw_ring_unalloc(&ic->i_send_ring, work_alloc);
 				ret = -ENOMEM; /* XXX ? */
 				goto out;
 			}
 		} else {
-			rm->m_count = 0;
+			rm->data.op_count = 0;
 		}
 
 		ic->i_unsignaled_wrs = rds_iw_sysctl_max_unsig_wrs;
@@ -590,10 +591,10 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		/* If it has a RDMA op, tell the peer we did it. This is
 		 * used by the peer to release use-once RDMA MRs. */
-		if (rm->m_rdma_op) {
+		if (rm->rdma.op_active) {
 			struct rds_ext_header_rdma ext_hdr;
 
-			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->m_rdma_op->r_key);
+			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.op_rkey);
 			rds_message_add_extension(&rm->m_inc.i_hdr,
 					RDS_EXTHDR_RDMA, &ext_hdr, sizeof(ext_hdr));
 		}
@@ -621,7 +622,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &rm->m_sg[sg];
+	scat = &rm->data.op_sg[sg];
 	sent = 0;
 	i = 0;
 
@@ -631,7 +632,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	 * or when requested by the user. Right now, we let
 	 * the application choose.
 	 */
-	if (rm->m_rdma_op && rm->m_rdma_op->r_fence)
+	if (rm->rdma.op_active && rm->rdma.op_fence)
 		send_flags = IB_SEND_FENCE;
 
 	/*
@@ -650,7 +651,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	}
 
 	/* if there's data reference it with a chain of work reqs */
-	for (; i < work_alloc && scat != &rm->m_sg[rm->m_count]; i++) {
+	for (; i < work_alloc && scat != &rm->data.op_sg[rm->data.op_count]; i++) {
 		unsigned int len;
 
 		send = &ic->i_sends[pos];
@@ -728,7 +729,7 @@ add_header:
 		sent += sizeof(struct rds_header);
 
 	/* if we finished the message then send completion owns it */
-	if (scat == &rm->m_sg[rm->m_count]) {
+	if (scat == &rm->data.op_sg[rm->data.op_count]) {
 		prev->s_rm = ic->i_rm;
 		prev->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
 		ic->i_rm = NULL;
@@ -784,7 +785,7 @@ static void rds_iw_build_send_fastreg(struct rds_iw_device *rds_iwdev, struct rd
 	ib_update_fast_reg_key(send->s_mr, send->s_remap_count++);
 }
 
-int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
+int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 {
 	struct rds_iw_connection *ic = conn->c_transport_data;
 	struct rds_iw_send_work *send = NULL;
@@ -794,7 +795,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	struct rds_iw_device *rds_iwdev;
 	struct scatterlist *scat;
 	unsigned long len;
-	u64 remote_addr = op->r_remote_addr;
+	u64 remote_addr = op->op_remote_addr;
 	u32 pos, fr_pos;
 	u32 work_alloc;
 	u32 i;
@@ -806,21 +807,21 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	rds_iwdev = ib_get_client_data(ic->i_cm_id->device, &rds_iw_client);
 
 	/* map the message the first time we see it */
-	if (!op->r_mapped) {
-		op->r_count = ib_dma_map_sg(ic->i_cm_id->device,
-					op->r_sg, op->r_nents, (op->r_write) ?
-					DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		rdsdebug("ic %p mapping op %p: %d\n", ic, op, op->r_count);
-		if (op->r_count == 0) {
+	if (!op->op_mapped) {
+		op->op_count = ib_dma_map_sg(ic->i_cm_id->device,
+					     op->op_sg, op->op_nents, (op->op_write) ?
+					     DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		rdsdebug("ic %p mapping op %p: %d\n", ic, op, op->op_count);
+		if (op->op_count == 0) {
 			rds_iw_stats_inc(s_iw_tx_sg_mapping_failure);
 			ret = -ENOMEM; /* XXX ? */
 			goto out;
 		}
 
-		op->r_mapped = 1;
+		op->op_mapped = 1;
 	}
 
-	if (!op->r_write) {
+	if (!op->op_write) {
 		/* Alloc space on the send queue for the fastreg */
 		work_alloc = rds_iw_ring_alloc(&ic->i_send_ring, 1, &fr_pos);
 		if (work_alloc != 1) {
@@ -835,7 +836,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	 * Instead of knowing how to return a partial rdma read/write we insist that there
 	 * be enough work requests to send the entire message.
 	 */
-	i = ceil(op->r_count, rds_iwdev->max_sge);
+	i = ceil(op->op_count, rds_iwdev->max_sge);
 
 	work_alloc = rds_iw_ring_alloc(&ic->i_send_ring, i, &pos);
 	if (work_alloc != i) {
@@ -846,17 +847,17 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	}
 
 	send = &ic->i_sends[pos];
-	if (!op->r_write) {
+	if (!op->op_write) {
 		first = prev = &ic->i_sends[fr_pos];
 	} else {
 		first = send;
 		prev = NULL;
 	}
-	scat = &op->r_sg[0];
+	scat = &op->op_sg[0];
 	sent = 0;
-	num_sge = op->r_count;
+	num_sge = op->op_count;
 
-	for (i = 0; i < work_alloc && scat != &op->r_sg[op->r_count]; i++) {
+	for (i = 0; i < work_alloc && scat != &op->op_sg[op->op_count]; i++) {
 		send->s_wr.send_flags = 0;
 		send->s_queued = jiffies;
 
@@ -873,13 +874,13 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 		 * for local access after RDS is finished with it, using
 		 * IB_WR_RDMA_READ_WITH_INV will invalidate it after the read has completed.
 		 */
-		if (op->r_write)
+		if (op->op_write)
 			send->s_wr.opcode = IB_WR_RDMA_WRITE;
 		else
 			send->s_wr.opcode = IB_WR_RDMA_READ_WITH_INV;
 
 		send->s_wr.wr.rdma.remote_addr = remote_addr;
-		send->s_wr.wr.rdma.rkey = op->r_key;
+		send->s_wr.wr.rdma.rkey = op->op_rkey;
 		send->s_op = op;
 
 		if (num_sge > rds_iwdev->max_sge) {
@@ -893,7 +894,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 		if (prev)
 			prev->s_wr.next = &send->s_wr;
 
-		for (j = 0; j < send->s_wr.num_sge && scat != &op->r_sg[op->r_count]; j++) {
+		for (j = 0; j < send->s_wr.num_sge && scat != &op->op_sg[op->op_count]; j++) {
 			len = ib_sg_dma_len(ic->i_cm_id->device, scat);
 
 			if (send->s_wr.opcode == IB_WR_RDMA_READ_WITH_INV)
@@ -927,7 +928,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	}
 
 	/* if we finished the message then send completion owns it */
-	if (scat == &op->r_sg[op->r_count])
+	if (scat == &op->op_sg[op->op_count])
 		first->s_wr.send_flags = IB_SEND_SIGNALED;
 
 	if (i < work_alloc) {
@@ -941,9 +942,9 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	 * adapters do not allow using the lkey for this at all.  To bypass this use a
 	 * fastreg_mr (or possibly a dma_mr)
 	 */
-	if (!op->r_write) {
+	if (!op->op_write) {
 		rds_iw_build_send_fastreg(rds_iwdev, ic, &ic->i_sends[fr_pos],
-			op->r_count, sent, conn->c_xmit_rm->m_rs->rs_user_addr);
+			op->op_count, sent, conn->c_xmit_rm->m_rs->rs_user_addr);
 		work_alloc++;
 	}
 

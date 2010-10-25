@@ -410,7 +410,7 @@ static inline u32 *emac_xaht_base(struct emac_instance *dev)
 	else
 		offset = offsetof(struct emac_regs, u0.emac4.iaht1);
 
-	return ((u32 *)((ptrdiff_t)p + offset));
+	return (u32 *)((ptrdiff_t)p + offset);
 }
 
 static inline u32 *emac_gaht_base(struct emac_instance *dev)
@@ -418,7 +418,7 @@ static inline u32 *emac_gaht_base(struct emac_instance *dev)
 	/* GAHT registers always come after an identical number of
 	 * IAHT registers.
 	 */
-	return (emac_xaht_base(dev) + EMAC_XAHT_REGS(dev));
+	return emac_xaht_base(dev) + EMAC_XAHT_REGS(dev);
 }
 
 static inline u32 *emac_iaht_base(struct emac_instance *dev)
@@ -426,7 +426,7 @@ static inline u32 *emac_iaht_base(struct emac_instance *dev)
 	/* IAHT registers always come before an identical number of
 	 * GAHT registers.
 	 */
-	return (emac_xaht_base(dev));
+	return emac_xaht_base(dev);
 }
 
 /* Ethtool get_regs complex data.

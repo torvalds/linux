@@ -311,8 +311,6 @@ static void __init qnap_ts409_init(void)
 
 MACHINE_START(TS409, "QNAP TS-409")
 	/* Maintainer:  Sylver Bruneau <sylver.bruneau@gmail.com> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts409_init,
 	.map_io		= orion5x_map_io,

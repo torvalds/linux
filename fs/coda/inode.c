@@ -148,6 +148,8 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	int error;
 	int idx;
 
+	lock_kernel();
+
 	idx = get_device_index((struct coda_mount_data *) data);
 
 	/* Ignore errors in data, for backward compatibility */
@@ -159,11 +161,13 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	vc = &coda_comms[idx];
 	if (!vc->vc_inuse) {
 		printk("coda_read_super: No pseudo device\n");
+		unlock_kernel();
 		return -EINVAL;
 	}
 
         if ( vc->vc_sb ) {
 		printk("coda_read_super: Device already mounted\n");
+		unlock_kernel();
 		return -EBUSY;
 	}
 
@@ -202,7 +206,8 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root)
 		goto error;
-        return 0;
+	unlock_kernel();
+	return 0;
 
  error:
 	bdi_destroy(&vc->bdi);
@@ -212,6 +217,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	if (vc)
 		vc->vc_sb = NULL;
 
+	unlock_kernel();
 	return -EINVAL;
 }
 

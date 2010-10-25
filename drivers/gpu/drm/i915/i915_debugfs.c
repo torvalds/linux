@@ -782,6 +782,7 @@ static const struct file_operations i915_wedged_fops = {
 	.open = i915_wedged_open,
 	.read = i915_wedged_read,
 	.write = i915_wedged_write,
+	.llseek = default_llseek,
 };
 
 /* As the drm_debugfs_init() routines are called before dev->dev_private is

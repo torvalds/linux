@@ -542,8 +542,8 @@ static void cfm_fsm(struct s_smc *smc, int cmd)
  */
 int cfm_get_mac_input(struct s_smc *smc)
 {
-	return((smc->mib.fddiSMTCF_State == SC10_C_WRAP_B ||
-		smc->mib.fddiSMTCF_State == SC5_THRU_B) ? PB : PA) ;
+	return (smc->mib.fddiSMTCF_State == SC10_C_WRAP_B ||
+		smc->mib.fddiSMTCF_State == SC5_THRU_B) ? PB : PA;
 }
 
 /*
@@ -553,8 +553,8 @@ int cfm_get_mac_input(struct s_smc *smc)
  */
 int cfm_get_mac_output(struct s_smc *smc)
 {
-	return((smc->mib.fddiSMTCF_State == SC10_C_WRAP_B ||
-		smc->mib.fddiSMTCF_State == SC4_THRU_A) ? PB : PA) ;
+	return (smc->mib.fddiSMTCF_State == SC10_C_WRAP_B ||
+		smc->mib.fddiSMTCF_State == SC4_THRU_A) ? PB : PA;
 }
 
 static char path_iso[] = {
@@ -623,5 +623,5 @@ int cem_build_path(struct s_smc *smc, char *to, int path_index)
 
 	LINT_USE(path_index);
 
-	return(len) ;
+	return len;
 }

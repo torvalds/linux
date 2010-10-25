@@ -143,12 +143,12 @@ static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 	np_clock = of_find_matching_node(NULL, mpc512x_clock_ids);
 	if (!np_clock) {
 		dev_err(&ofdev->dev, "couldn't find clock node\n");
-		return -ENODEV;
+		return 0;
 	}
 	clockctl = of_iomap(np_clock, 0);
 	if (!clockctl) {
 		dev_err(&ofdev->dev, "couldn't map clock registers\n");
-		return 0;
+		goto exit_put;
 	}
 
 	/* Determine the MSCAN device index from the physical address */
@@ -233,9 +233,9 @@ static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 		clocksrc == 1 ? "ref_clk" : "sys_clk", clockdiv);
 
 exit_unmap:
-	of_node_put(np_clock);
 	iounmap(clockctl);
-
+exit_put:
+	of_node_put(np_clock);
 	return freq;
 }
 #else /* !CONFIG_PPC_MPC512x */

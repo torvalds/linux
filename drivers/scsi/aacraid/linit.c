@@ -38,7 +38,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
@@ -76,6 +76,7 @@ MODULE_DESCRIPTION("Dell PERC2, 2/Si, 3/Si, 3/Di, "
 MODULE_LICENSE("GPL");
 MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 
+static DEFINE_MUTEX(aac_mutex);
 static LIST_HEAD(aac_devices);
 static int aac_cfg_major = -1;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
@@ -678,7 +679,7 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 	unsigned minor_number = iminor(inode);
 	int err = -ENODEV;
 
-	lock_kernel();  /* BKL pushdown: nothing else protects this list */
+	mutex_lock(&aac_mutex);  /* BKL pushdown: nothing else protects this list */
 	list_for_each_entry(aac, &aac_devices, entry) {
 		if (aac->id == minor_number) {
 			file->private_data = aac;
@@ -686,7 +687,7 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 			break;
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&aac_mutex);
 
 	return err;
 }
@@ -711,9 +712,9 @@ static long aac_cfg_ioctl(struct file *file,
 	int ret;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	lock_kernel();
+	mutex_lock(&aac_mutex);
 	ret = aac_do_ioctl(file->private_data, cmd, (void __user *)arg);
-	unlock_kernel();
+	mutex_unlock(&aac_mutex);
 
 	return ret;
 }
@@ -722,7 +723,7 @@ static long aac_cfg_ioctl(struct file *file,
 static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&aac_mutex);
 	switch (cmd) {
 	case FSACTL_MINIPORT_REV_CHECK:
 	case FSACTL_SENDFIB:
@@ -756,7 +757,7 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&aac_mutex);
 	return ret;
 }
 
@@ -770,7 +771,7 @@ static long aac_compat_cfg_ioctl(struct file *file, unsigned cmd, unsigned long 
 {
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	return aac_compat_do_ioctl((struct aac_dev *)file->private_data, cmd, arg);
+	return aac_compat_do_ioctl(file->private_data, cmd, arg);
 }
 #endif
 
@@ -1039,6 +1040,7 @@ static const struct file_operations aac_cfg_fops = {
 	.compat_ioctl   = aac_compat_cfg_ioctl,
 #endif
 	.open		= aac_cfg_open,
+	.llseek		= noop_llseek,
 };
 
 static struct scsi_host_template aac_driver_template = {

@@ -46,30 +46,28 @@ struct ocfs2_inode_info
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
-	u32				ip_clusters;
 	struct list_head		ip_io_markers;
+	u32				ip_clusters;
 
+	u16				ip_dyn_features;
 	struct mutex			ip_io_mutex;
-
 	u32				ip_flags; /* see below */
 	u32				ip_attr; /* inode attributes */
-	u16				ip_dyn_features;
 
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
 
-	u32				ip_dir_start_lookup;
-
 	struct ocfs2_caching_info	ip_metadata_cache;
-
 	struct ocfs2_extent_map		ip_extent_map;
-
 	struct inode			vfs_inode;
 	struct jbd2_inode		ip_jinode;
+
+	u32				ip_dir_start_lookup;
 
 	/* Only valid if the inode is the dir. */
 	u32				ip_last_used_slot;
 	u64				ip_last_used_group;
+	u32				ip_dir_lock_gen;
 
 	struct ocfs2_alloc_reservation	ip_la_data_resv;
 };

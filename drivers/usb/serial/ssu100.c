@@ -416,12 +416,34 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
+static int ssu100_get_icount(struct tty_struct *tty,
+			struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
+	struct async_icount cnow = priv->icount;
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
+}
+
+
+
 static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
-	void __user *user_arg = (void __user *)arg;
 
 	dbg("%s cmd 0x%04x", __func__, cmd);
 
@@ -432,27 +454,6 @@ static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
 
 	case TIOCMIWAIT:
 		return wait_modem_info(port, arg);
-
-	case TIOCGICOUNT:
-	{
-		struct serial_icounter_struct icount;
-		struct async_icount cnow = priv->icount;
-		memset(&icount, 0, sizeof(icount));
-		icount.cts = cnow.cts;
-		icount.dsr = cnow.dsr;
-		icount.rng = cnow.rng;
-		icount.dcd = cnow.dcd;
-		icount.rx = cnow.rx;
-		icount.tx = cnow.tx;
-		icount.frame = cnow.frame;
-		icount.overrun = cnow.overrun;
-		icount.parity = cnow.parity;
-		icount.brk = cnow.brk;
-		icount.buf_overrun = cnow.buf_overrun;
-		if (copy_to_user(user_arg, &icount, sizeof(icount)))
-			return -EFAULT;
-		return 0;
-	}
 
 	default:
 		break;
@@ -726,6 +727,7 @@ static struct usb_serial_driver ssu100_device = {
 	.process_read_urb    = ssu100_process_read_urb,
 	.tiocmget            = ssu100_tiocmget,
 	.tiocmset            = ssu100_tiocmset,
+	.get_icount	     = ssu100_get_icount,
 	.ioctl               = ssu100_ioctl,
 	.set_termios         = ssu100_set_termios,
 	.disconnect          = usb_serial_generic_disconnect,

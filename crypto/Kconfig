@@ -23,13 +23,12 @@ comment "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on CRYPTO_ANSI_CPRNG
+	depends on CRYPTO_ANSI_CPRNG && !CRYPTO_MANAGER_DISABLE_TESTS
 	help
 	  This options enables the fips boot option which is
 	  required if you want to system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
-	  this is. Note that CRYPTO_ANSI_CPRNG is required if this
-	  option is selected
+	  this is.
 
 config CRYPTO_ALGAPI
 	tristate
@@ -365,7 +364,7 @@ config CRYPTO_RMD128
 	  RIPEMD-160 should be used.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD160
 	tristate "RIPEMD-160 digest algorithm"
@@ -382,7 +381,7 @@ config CRYPTO_RMD160
 	  against RIPEMD-160.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD256
 	tristate "RIPEMD-256 digest algorithm"
@@ -394,7 +393,7 @@ config CRYPTO_RMD256
 	  (than RIPEMD-128).
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD320
 	tristate "RIPEMD-320 digest algorithm"
@@ -406,7 +405,7 @@ config CRYPTO_RMD320
 	  (than RIPEMD-160).
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
@@ -461,7 +460,7 @@ config CRYPTO_WP512
 	  Whirlpool will be part of the ISO/IEC 10118-3:2003(E) standard
 
 	  See also:
-	  <http://planeta.terra.com.br/informatica/paulobarreto/WhirlpoolPage.html>
+	  <http://www.larc.usp.br/~pbarreto/WhirlpoolPage.html>
 
 config CRYPTO_GHASH_CLMUL_NI_INTEL
 	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
@@ -579,8 +578,8 @@ config CRYPTO_ANUBIS
 	  in the NESSIE competition.
 
 	  See also:
-	  <https://www.cosic.esat.kuleuven.ac.be/nessie/reports/>
-	  <http://planeta.terra.com.br/informatica/paulobarreto/AnubisPage.html>
+	  <https://www.cosic.esat.kuleuven.be/nessie/reports/>
+	  <http://www.larc.usp.br/~pbarreto/AnubisPage.html>
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
@@ -659,7 +658,7 @@ config CRYPTO_KHAZAD
 	  on 32-bit processors.  Khazad uses an 128 bit key size.
 
 	  See also:
-	  <http://planeta.terra.com.br/informatica/paulobarreto/KhazadPage.html>
+	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
 
 config CRYPTO_SALSA20
 	tristate "Salsa20 stream cipher algorithm (EXPERIMENTAL)"

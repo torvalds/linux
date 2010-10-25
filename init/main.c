@@ -424,7 +424,6 @@ static void __init setup_command_line(char *command_line)
 static __initdata DECLARE_COMPLETION(kthreadd_done);
 
 static noinline void __init_refok rest_init(void)
-	__releases(kernel_lock)
 {
 	int pid;
 
@@ -556,7 +555,6 @@ asmlinkage void __init start_kernel(void)
 
 	local_irq_disable();
 	early_boot_irqs_off();
-	early_init_irq_lock_class();
 
 /*
  * Interrupts are still disabled. Do necessary setups, then
@@ -819,7 +817,6 @@ static void run_init_process(const char *init_filename)
  * makes it inline to init() and it becomes part of init.text section
  */
 static noinline int init_post(void)
-	__releases(kernel_lock)
 {
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();

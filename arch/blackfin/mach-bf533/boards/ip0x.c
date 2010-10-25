@@ -22,6 +22,7 @@
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
+#include <mach/fio_flag.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -231,7 +232,7 @@ static struct resource isp1362_hcd_resources[] = {
 	},{
 		.start = IRQ_PF11,
 		.end   = IRQ_PF11,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 

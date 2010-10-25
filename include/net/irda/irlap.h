@@ -282,7 +282,7 @@ static inline int irlap_is_primary(struct irlap_cb *self)
 	default:
 		ret = -1;
 	}
-	return(ret);
+	return ret;
 }
 
 /* Clear a pending IrLAP disconnect. - Jean II */

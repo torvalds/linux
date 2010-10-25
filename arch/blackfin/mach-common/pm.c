@@ -25,7 +25,7 @@ void bfin_pm_suspend_standby_enter(void)
 {
 	unsigned long flags;
 
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	bfin_pm_standby_setup();
 
 #ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
@@ -56,7 +56,7 @@ void bfin_pm_suspend_standby_enter(void)
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
 
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 }
 
 int bf53x_suspend_l1_mem(unsigned char *memptr)
@@ -149,12 +149,12 @@ int bfin_pm_suspend_mem_enter(void)
 	wakeup |= GPWE;
 #endif
 
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 
 	ret = blackfin_dma_suspend();
 
 	if (ret) {
-		local_irq_restore_hw(flags);
+		hard_local_irq_restore(flags);
 		kfree(memptr);
 		return ret;
 	}
@@ -178,7 +178,7 @@ int bfin_pm_suspend_mem_enter(void)
 	bfin_gpio_pm_hibernate_restore();
 	blackfin_dma_resume();
 
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 	kfree(memptr);
 
 	return 0;

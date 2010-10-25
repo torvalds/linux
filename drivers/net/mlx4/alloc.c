@@ -74,7 +74,7 @@ void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj)
 
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 {
-	u32 obj, i;
+	u32 obj;
 
 	if (likely(cnt == 1 && align == 1))
 		return mlx4_bitmap_alloc(bitmap);
@@ -91,8 +91,7 @@ u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 	}
 
 	if (obj < bitmap->max) {
-		for (i = 0; i < cnt; i++)
-			set_bit(obj + i, bitmap->table);
+		bitmap_set(bitmap->table, obj, cnt);
 		if (obj == bitmap->last) {
 			bitmap->last = (obj + cnt);
 			if (bitmap->last >= bitmap->max)
@@ -109,13 +108,10 @@ u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 
 void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
 {
-	u32 i;
-
 	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
-	for (i = 0; i < cnt; i++)
-		clear_bit(obj + i, bitmap->table);
+	bitmap_clear(bitmap->table, obj, cnt);
 	bitmap->last = min(bitmap->last, obj);
 	bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
 			& bitmap->mask;
@@ -125,8 +121,6 @@ void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 reserved_top)
 {
-	int i;
-
 	/* num must be a power of 2 */
 	if (num != roundup_pow_of_two(num))
 		return -EINVAL;
@@ -142,8 +136,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 	if (!bitmap->table)
 		return -ENOMEM;
 
-	for (i = 0; i < reserved_bot; ++i)
-		set_bit(i, bitmap->table);
+	bitmap_set(bitmap->table, 0, reserved_bot);
 
 	return 0;
 }
@@ -188,7 +181,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		buf->nbufs       = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 		buf->npages      = buf->nbufs;
 		buf->page_shift  = PAGE_SHIFT;
-		buf->page_list   = kzalloc(buf->nbufs * sizeof *buf->page_list,
+		buf->page_list   = kcalloc(buf->nbufs, sizeof(*buf->page_list),
 					   GFP_KERNEL);
 		if (!buf->page_list)
 			return -ENOMEM;

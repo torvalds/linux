@@ -127,8 +127,8 @@ struct padata_cpumask {
  */
 struct parallel_data {
 	struct padata_instance		*pinst;
-	struct padata_parallel_queue	*pqueue;
-	struct padata_serial_queue	*squeue;
+	struct padata_parallel_queue	__percpu *pqueue;
+	struct padata_serial_queue	__percpu *squeue;
 	atomic_t			seq_nr;
 	atomic_t			reorder_objects;
 	atomic_t			refcnt;

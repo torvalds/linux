@@ -824,6 +824,7 @@ static struct file_operations audio_qcelp_fops = {
 	.read = audqcelp_read,
 	.write = audqcelp_write,
 	.unlocked_ioctl = audqcelp_ioctl,
+	.llseek = noop_llseek,
 };
 
 struct miscdevice audio_qcelp_misc = {

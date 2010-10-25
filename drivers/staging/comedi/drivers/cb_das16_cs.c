@@ -37,7 +37,6 @@ Status: experimental
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -692,10 +691,6 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/* Initialize the pcmcia_device structure */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	cur_dev = link;
 
 	das16cs_pcmcia_config(link);
@@ -715,37 +710,12 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 
 
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
-	if (cfg->index == 0)
+	if (p_dev->config_index == 0)
 		return -EINVAL;
 
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-			pcmcia_io_cfg_data_width(io->flags);
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-		/* This reserves IO space but doesn't actually enable it */
-		return pcmcia_request_io(p_dev);
-	}
-
-	return 0;
+	return pcmcia_request_io(p_dev);
 }
 
 static void das16cs_pcmcia_config(struct pcmcia_device *link)
@@ -753,6 +723,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	int ret;
 
 	dev_dbg(&link->dev, "das16cs_pcmcia_config\n");
+
+	/* Do we need to allocate an interrupt? */
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
 	if (ret) {
@@ -763,24 +736,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
-
-	/* Finally, report what we've done */
-	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq);
-	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(", io %pR", link->resource[1]);
-	printk("\n");
 
 	return;
 
@@ -832,9 +790,7 @@ struct pcmcia_driver das16cs_driver = {
 	.resume = das16cs_pcmcia_resume,
 	.id_table = das16cs_id_table,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "cb_das16_cs",
-		},
+	.name = "cb_das16_cs",
 };
 
 static int __init init_das16cs_pcmcia_cs(void)

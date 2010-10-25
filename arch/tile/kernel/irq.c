@@ -208,7 +208,7 @@ static void tile_irq_chip_eoi(unsigned int irq)
 }
 
 static struct irq_chip tile_irq_chip = {
-	.typename = "tile_irq_chip",
+	.name = "tile_irq_chip",
 	.ack = tile_irq_chip_ack,
 	.eoi = tile_irq_chip_eoi,
 	.mask = tile_irq_chip_mask,
@@ -288,7 +288,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action = action->next; action; action = action->next)

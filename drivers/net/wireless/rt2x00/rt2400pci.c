@@ -321,7 +321,8 @@ static void rt2400pci_config_intf(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2400pci_config_erp(struct rt2x00_dev *rt2x00dev,
-				 struct rt2x00lib_erp *erp)
+				 struct rt2x00lib_erp *erp,
+				 u32 changed)
 {
 	int preamble_mask;
 	u32 reg;
@@ -329,59 +330,72 @@ static void rt2400pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * When short preamble is enabled, we should set bit 0x08
 	 */
-	preamble_mask = erp->short_preamble << 3;
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
+		preamble_mask = erp->short_preamble << 3;
 
-	rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT, 0x1ff);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME, 0x13a);
-	rt2x00_set_field32(&reg, TXCSR1_TSF_OFFSET, IEEE80211_HEADER);
-	rt2x00_set_field32(&reg, TXCSR1_AUTORESPONDER, 1);
-	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
+		rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
+		rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT, 0x1ff);
+		rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME, 0x13a);
+		rt2x00_set_field32(&reg, TXCSR1_TSF_OFFSET, IEEE80211_HEADER);
+		rt2x00_set_field32(&reg, TXCSR1_AUTORESPONDER, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
 
-	rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
-	rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00);
-	rt2x00_set_field32(&reg, ARCSR2_SERVICE, 0x04);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 10));
-	rt2x00pci_register_write(rt2x00dev, ARCSR2, reg);
+		rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
+		rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00);
+		rt2x00_set_field32(&reg, ARCSR2_SERVICE, 0x04);
+		rt2x00_set_field32(&reg, ARCSR2_LENGTH,
+				   GET_DURATION(ACK_SIZE, 10));
+		rt2x00pci_register_write(rt2x00dev, ARCSR2, reg);
 
-	rt2x00pci_register_read(rt2x00dev, ARCSR3, &reg);
-	rt2x00_set_field32(&reg, ARCSR3_SIGNAL, 0x01 | preamble_mask);
-	rt2x00_set_field32(&reg, ARCSR3_SERVICE, 0x04);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 20));
-	rt2x00pci_register_write(rt2x00dev, ARCSR3, reg);
+		rt2x00pci_register_read(rt2x00dev, ARCSR3, &reg);
+		rt2x00_set_field32(&reg, ARCSR3_SIGNAL, 0x01 | preamble_mask);
+		rt2x00_set_field32(&reg, ARCSR3_SERVICE, 0x04);
+		rt2x00_set_field32(&reg, ARCSR2_LENGTH,
+				   GET_DURATION(ACK_SIZE, 20));
+		rt2x00pci_register_write(rt2x00dev, ARCSR3, reg);
 
-	rt2x00pci_register_read(rt2x00dev, ARCSR4, &reg);
-	rt2x00_set_field32(&reg, ARCSR4_SIGNAL, 0x02 | preamble_mask);
-	rt2x00_set_field32(&reg, ARCSR4_SERVICE, 0x04);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 55));
-	rt2x00pci_register_write(rt2x00dev, ARCSR4, reg);
+		rt2x00pci_register_read(rt2x00dev, ARCSR4, &reg);
+		rt2x00_set_field32(&reg, ARCSR4_SIGNAL, 0x02 | preamble_mask);
+		rt2x00_set_field32(&reg, ARCSR4_SERVICE, 0x04);
+		rt2x00_set_field32(&reg, ARCSR2_LENGTH,
+				   GET_DURATION(ACK_SIZE, 55));
+		rt2x00pci_register_write(rt2x00dev, ARCSR4, reg);
 
-	rt2x00pci_register_read(rt2x00dev, ARCSR5, &reg);
-	rt2x00_set_field32(&reg, ARCSR5_SIGNAL, 0x03 | preamble_mask);
-	rt2x00_set_field32(&reg, ARCSR5_SERVICE, 0x84);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 110));
-	rt2x00pci_register_write(rt2x00dev, ARCSR5, reg);
+		rt2x00pci_register_read(rt2x00dev, ARCSR5, &reg);
+		rt2x00_set_field32(&reg, ARCSR5_SIGNAL, 0x03 | preamble_mask);
+		rt2x00_set_field32(&reg, ARCSR5_SERVICE, 0x84);
+		rt2x00_set_field32(&reg, ARCSR2_LENGTH,
+				   GET_DURATION(ACK_SIZE, 110));
+		rt2x00pci_register_write(rt2x00dev, ARCSR5, reg);
+	}
 
-	rt2x00pci_register_write(rt2x00dev, ARCSR1, erp->basic_rates);
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		rt2x00pci_register_write(rt2x00dev, ARCSR1, erp->basic_rates);
 
-	rt2x00pci_register_read(rt2x00dev, CSR11, &reg);
-	rt2x00_set_field32(&reg, CSR11_SLOT_TIME, erp->slot_time);
-	rt2x00pci_register_write(rt2x00dev, CSR11, reg);
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		rt2x00pci_register_read(rt2x00dev, CSR11, &reg);
+		rt2x00_set_field32(&reg, CSR11_SLOT_TIME, erp->slot_time);
+		rt2x00pci_register_write(rt2x00dev, CSR11, reg);
 
-	rt2x00pci_register_read(rt2x00dev, CSR12, &reg);
-	rt2x00_set_field32(&reg, CSR12_BEACON_INTERVAL, erp->beacon_int * 16);
-	rt2x00_set_field32(&reg, CSR12_CFP_MAX_DURATION, erp->beacon_int * 16);
-	rt2x00pci_register_write(rt2x00dev, CSR12, reg);
+		rt2x00pci_register_read(rt2x00dev, CSR18, &reg);
+		rt2x00_set_field32(&reg, CSR18_SIFS, erp->sifs);
+		rt2x00_set_field32(&reg, CSR18_PIFS, erp->pifs);
+		rt2x00pci_register_write(rt2x00dev, CSR18, reg);
 
-	rt2x00pci_register_read(rt2x00dev, CSR18, &reg);
-	rt2x00_set_field32(&reg, CSR18_SIFS, erp->sifs);
-	rt2x00_set_field32(&reg, CSR18_PIFS, erp->pifs);
-	rt2x00pci_register_write(rt2x00dev, CSR18, reg);
+		rt2x00pci_register_read(rt2x00dev, CSR19, &reg);
+		rt2x00_set_field32(&reg, CSR19_DIFS, erp->difs);
+		rt2x00_set_field32(&reg, CSR19_EIFS, erp->eifs);
+		rt2x00pci_register_write(rt2x00dev, CSR19, reg);
+	}
 
-	rt2x00pci_register_read(rt2x00dev, CSR19, &reg);
-	rt2x00_set_field32(&reg, CSR19_DIFS, erp->difs);
-	rt2x00_set_field32(&reg, CSR19_EIFS, erp->eifs);
-	rt2x00pci_register_write(rt2x00dev, CSR19, reg);
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		rt2x00pci_register_read(rt2x00dev, CSR12, &reg);
+		rt2x00_set_field32(&reg, CSR12_BEACON_INTERVAL,
+				   erp->beacon_int * 16);
+		rt2x00_set_field32(&reg, CSR12_CFP_MAX_DURATION,
+				   erp->beacon_int * 16);
+		rt2x00pci_register_write(rt2x00dev, CSR12, reg);
+	}
 }
 
 static void rt2400pci_config_ant(struct rt2x00_dev *rt2x00dev,
@@ -1007,12 +1021,11 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *txd = entry_priv->desc;
 	u32 word;
 
@@ -1091,12 +1104,12 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 
-	rt2x00queue_map_txskb(rt2x00dev, entry->skb);
+	rt2x00queue_map_txskb(entry);
 
 	/*
 	 * Write the TX descriptor for the beacon.
 	 */
-	rt2400pci_write_tx_desc(rt2x00dev, entry->skb, txdesc);
+	rt2400pci_write_tx_desc(entry, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.
@@ -1112,24 +1125,24 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 }
 
-static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid queue)
+static void rt2400pci_kick_tx_queue(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
-	rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, (queue == QID_AC_BE));
-	rt2x00_set_field32(&reg, TXCSR0_KICK_TX, (queue == QID_AC_BK));
-	rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, (queue == QID_ATIM));
+	rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, (queue->qid == QID_AC_BE));
+	rt2x00_set_field32(&reg, TXCSR0_KICK_TX, (queue->qid == QID_AC_BK));
+	rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, (queue->qid == QID_ATIM));
 	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
 }
 
-static void rt2400pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid qid)
+static void rt2400pci_kill_tx_queue(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	u32 reg;
 
-	if (qid == QID_BEACON) {
+	if (queue->qid == QID_BEACON) {
 		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
 	} else {
 		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
@@ -1481,15 +1494,17 @@ static int rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Create channel information array
 	 */
-	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
+	info = kcalloc(spec->num_channels, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	spec->channels_info = info;
 
 	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
-	for (i = 0; i < 14; i++)
-		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	for (i = 0; i < 14; i++) {
+		info[i].max_power = TXPOWER_FROM_DEV(MAX_TXPOWER);
+		info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	}
 
 	return 0;
 }

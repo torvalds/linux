@@ -973,6 +973,7 @@ static void dump_fw_registers(struct zd_chip *chip)
 
 static int print_fw_version(struct zd_chip *chip)
 {
+	struct wiphy *wiphy = zd_chip_to_mac(chip)->hw->wiphy;
 	int r;
 	u16 version;
 
@@ -982,6 +983,10 @@ static int print_fw_version(struct zd_chip *chip)
 		return r;
 
 	dev_info(zd_chip_dev(chip),"firmware version %04hx\n", version);
+
+	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version),
+			"%04hx", version);
+
 	return 0;
 }
 

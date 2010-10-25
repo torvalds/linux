@@ -1,8 +1,8 @@
 /*
  * Definitions for PCDP-defined console devices
  *
- * v1.0a: http://www.dig64.org/specifications/DIG64_HCDPv10a_01.pdf
- * v2.0:  http://www.dig64.org/specifications/DIG64_PCDPv20.pdf
+ * For DIG64_HCDPv10a_01.pdf and DIG64_PCDPv20.pdf (v1.0a and v2.0 resp.),
+ * please see <http://www.dig64.org/specifications/>
  *
  * (c) Copyright 2002, 2004 Hewlett-Packard Development Company, L.P.
  *	Khalid Aziz <khalid.aziz@hp.com>

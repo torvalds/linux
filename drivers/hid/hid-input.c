@@ -149,6 +149,83 @@ static int hidinput_setkeycode(struct input_dev *dev,
 }
 
 
+/**
+ * hidinput_calc_abs_res - calculate an absolute axis resolution
+ * @field: the HID report field to calculate resolution for
+ * @code: axis code
+ *
+ * The formula is:
+ *                         (logical_maximum - logical_minimum)
+ * resolution = ----------------------------------------------------------
+ *              (physical_maximum - physical_minimum) * 10 ^ unit_exponent
+ *
+ * as seen in the HID specification v1.11 6.2.2.7 Global Items.
+ *
+ * Only exponent 1 length units are processed. Centimeters are converted to
+ * inches. Degrees are converted to radians.
+ */
+static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
+{
+	__s32 unit_exponent = field->unit_exponent;
+	__s32 logical_extents = field->logical_maximum -
+					field->logical_minimum;
+	__s32 physical_extents = field->physical_maximum -
+					field->physical_minimum;
+	__s32 prev;
+
+	/* Check if the extents are sane */
+	if (logical_extents <= 0 || physical_extents <= 0)
+		return 0;
+
+	/*
+	 * Verify and convert units.
+	 * See HID specification v1.11 6.2.2.7 Global Items for unit decoding
+	 */
+	if (code == ABS_X || code == ABS_Y || code == ABS_Z) {
+		if (field->unit == 0x11) {		/* If centimeters */
+			/* Convert to inches */
+			prev = logical_extents;
+			logical_extents *= 254;
+			if (logical_extents < prev)
+				return 0;
+			unit_exponent += 2;
+		} else if (field->unit != 0x13) {	/* If not inches */
+			return 0;
+		}
+	} else if (code == ABS_RX || code == ABS_RY || code == ABS_RZ) {
+		if (field->unit == 0x14) {		/* If degrees */
+			/* Convert to radians */
+			prev = logical_extents;
+			logical_extents *= 573;
+			if (logical_extents < prev)
+				return 0;
+			unit_exponent += 1;
+		} else if (field->unit != 0x12) {	/* If not radians */
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+
+	/* Apply negative unit exponent */
+	for (; unit_exponent < 0; unit_exponent++) {
+		prev = logical_extents;
+		logical_extents *= 10;
+		if (logical_extents < prev)
+			return 0;
+	}
+	/* Apply positive unit exponent */
+	for (; unit_exponent > 0; unit_exponent--) {
+		prev = physical_extents;
+		physical_extents *= 10;
+		if (physical_extents < prev)
+			return 0;
+	}
+
+	/* Calculate resolution */
+	return logical_extents / physical_extents;
+}
+
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
 {
@@ -334,6 +411,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case 0x44: /* BarrelSwitch */
 			map_key_clear(BTN_STYLUS);
+			break;
+
+		case 0x46: /* TabletPick */
+			map_key_clear(BTN_STYLUS2);
 			break;
 
 		default:  goto unknown;
@@ -537,6 +618,9 @@ mapped:
 			input_set_abs_params(input, usage->code, a, b, (b - a) >> 8, (b - a) >> 4);
 		else	input_set_abs_params(input, usage->code, a, b, 0, 0);
 
+		input_abs_set_res(input, usage->code,
+				  hidinput_calc_abs_res(field, usage->code));
+
 		/* use a larger default input buffer for MT devices */
 		if (usage->code == ABS_MT_POSITION_X && input->hint_events_per_packet == 0)
 			input_set_events_per_packet(input, 60);
@@ -658,6 +742,9 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
 {
 	struct hid_input *hidinput;
+
+	if (hid->quirks & HID_QUIRK_NO_INPUT_SYNC)
+		return;
 
 	list_for_each_entry(hidinput, &hid->inputs, list)
 		input_sync(hidinput->input);

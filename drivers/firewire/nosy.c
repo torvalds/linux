@@ -405,6 +405,7 @@ static const struct file_operations nosy_ops = {
 	.poll =			nosy_poll,
 	.open =			nosy_open,
 	.release =		nosy_release,
+	.llseek =		noop_llseek,
 };
 
 #define PHY_PACKET_SIZE 12 /* 1 payload, 1 inverse, 1 ack = 3 quadlets */

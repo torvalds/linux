@@ -24,7 +24,7 @@
  *
  *
  *  Asus OLED support is based on asusoled program taken from
- *  https://launchpad.net/asusoled/.
+ *  <http://lapsus.berlios.de/asus_oled.html>.
  *
  *
  */

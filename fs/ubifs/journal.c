@@ -122,11 +122,12 @@ static int reserve_space(struct ubifs_info *c, int jhead, int len)
 	 * better to try to allocate space at the ends of eraseblocks. This is
 	 * what the squeeze parameter does.
 	 */
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 	squeeze = (jhead == BASEHD);
 again:
 	mutex_lock_nested(&wbuf->io_mutex, wbuf->jhead);
 
-	if (c->ro_media) {
+	if (c->ro_error) {
 		err = -EROFS;
 		goto out_unlock;
 	}

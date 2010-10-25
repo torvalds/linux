@@ -351,6 +351,7 @@ static const struct file_operations chd_dec_fops = {
 	.unlocked_ioctl = chd_dec_ioctl,
 	.open    = chd_dec_open,
 	.release = chd_dec_close,
+	.llseek = noop_llseek,
 };
 
 static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)

@@ -66,6 +66,7 @@
 int __initdata iommu_is_off;
 int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
+u64 ppc64_rma_size;
 #endif
 
 static int __init early_parse_mem(char *p)
@@ -98,7 +99,7 @@ static void __init move_device_tree(void)
 
 	if ((memory_limit && (start + size) > memory_limit) ||
 			overlaps_crashkernel(start, size)) {
-		p = __va(memblock_alloc_base(size, PAGE_SIZE, memblock.rmo_size));
+		p = __va(memblock_alloc(size, PAGE_SIZE));
 		memcpy(p, initial_boot_params, size);
 		initial_boot_params = (struct boot_param_header *)p;
 		DBG("Moved device tree to 0x%p\n", p);
@@ -492,7 +493,7 @@ static int __init early_init_dt_scan_memory_ppc(unsigned long node,
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-#if defined(CONFIG_PPC64)
+#ifdef CONFIG_PPC64
 	if (iommu_is_off) {
 		if (base >= 0x80000000ul)
 			return;
@@ -501,9 +502,13 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	}
 #endif
 
-	memblock_add(base, size);
-
+	/* First MEMBLOCK added, do some special initializations */
+	if (memstart_addr == ~(phys_addr_t)0)
+		setup_initial_memory_limit(base, size);
 	memstart_addr = min((u64)memstart_addr, base);
+
+	/* Add the chunk to the MEMBLOCK list */
+	memblock_add(base, size);
 }
 
 u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -655,7 +660,6 @@ static void __init phyp_dump_reserve_mem(void)
 static inline void __init phyp_dump_reserve_mem(void) {}
 #endif /* CONFIG_PHYP_DUMP  && CONFIG_PPC_RTAS */
 
-
 void __init early_init_devtree(void *params)
 {
 	phys_addr_t limit;
@@ -683,6 +687,7 @@ void __init early_init_devtree(void *params)
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	memblock_init();
+
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 

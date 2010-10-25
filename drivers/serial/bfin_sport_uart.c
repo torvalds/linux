@@ -10,7 +10,7 @@
 
 /*
  * This driver and the hardware supported are in term of EE-191 of ADI.
- * http://www.analog.com/UploadedFiles/Application_Notes/399447663EE191.pdf
+ * http://www.analog.com/static/imported-files/application_notes/EE191.pdf 
  * This application note describe how to implement a UART on a Sharc DSP,
  * but this driver is implemented on Blackfin Processor.
  * Transmit Frame Sync is not used by this driver to transfer data out.
@@ -131,7 +131,12 @@ static int sport_uart_setup(struct sport_uart_port *up, int size, int baud_rate)
 	pr_debug("%s RCR1:%x, RCR2:%x\n", __func__, SPORT_GET_RCR1(up), SPORT_GET_RCR2(up));
 
 	tclkdiv = sclk / (2 * baud_rate) - 1;
-	rclkdiv = sclk / (2 * baud_rate * 2) - 1;
+	/* The actual uart baud rate of devices vary between +/-2%. The sport
+	 * RX sample rate should be faster than the double of the worst case,
+	 * otherwise, wrong data are received. So, set sport RX clock to be
+	 * 3% faster.
+	 */
+	rclkdiv = sclk / (2 * baud_rate * 2 * 97 / 100) - 1;
 	SPORT_PUT_TCLKDIV(up, tclkdiv);
 	SPORT_PUT_RCLKDIV(up, rclkdiv);
 	SSYNC();

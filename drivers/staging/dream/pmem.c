@@ -180,6 +180,7 @@ const struct file_operations pmem_fops = {
 	.mmap = pmem_mmap,
 	.open = pmem_open,
 	.unlocked_ioctl = pmem_ioctl,
+	.llseek = noop_llseek,
 };
 
 static int get_id(struct file *file)
@@ -1204,6 +1205,7 @@ static ssize_t debug_read(struct file *file, char __user *buf, size_t count,
 static struct file_operations debug_fops = {
 	.read = debug_read,
 	.open = debug_open,
+	.llseek = default_llseek,
 };
 #endif
 

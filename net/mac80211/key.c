@@ -49,7 +49,7 @@ static const u8 bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 static void assert_key_lock(struct ieee80211_local *local)
 {
-	WARN_ON(!mutex_is_locked(&local->key_mtx));
+	lockdep_assert_held(&local->key_mtx);
 }
 
 static struct ieee80211_sta *get_sta_for_key(struct ieee80211_key *key)
@@ -60,7 +60,7 @@ static struct ieee80211_sta *get_sta_for_key(struct ieee80211_key *key)
 	return NULL;
 }
 
-static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
+static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_sta *sta;
@@ -69,11 +69,19 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	might_sleep();
 
 	if (!key->local->ops->set_key)
-		return;
+		goto out_unsupported;
 
 	assert_key_lock(key->local);
 
 	sta = get_sta_for_key(key);
+
+	/*
+	 * If this is a per-STA GTK, check if it
+	 * is supported; if not, return.
+	 */
+	if (sta && !(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE) &&
+	    !(key->local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK))
+		goto out_unsupported;
 
 	sdata = key->sdata;
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -83,14 +91,28 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
 
-	if (!ret)
+	if (!ret) {
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
+		return 0;
+	}
 
-	if (ret && ret != -ENOSPC && ret != -EOPNOTSUPP)
-		printk(KERN_ERR "mac80211-%s: failed to set key "
-		       "(%d, %pM) to hardware (%d)\n",
-		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+	if (ret != -ENOSPC && ret != -EOPNOTSUPP)
+		wiphy_err(key->local->hw.wiphy,
+			  "failed to set key (%d, %pM) to hardware (%d)\n",
+			  key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+
+ out_unsupported:
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		/* all of these we can do in software */
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
@@ -121,13 +143,32 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 			  sta, &key->conf);
 
 	if (ret)
-		printk(KERN_ERR "mac80211-%s: failed to remove key "
-		       "(%d, %pM) from hardware (%d)\n",
-		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+		wiphy_err(key->local->hw.wiphy,
+			  "failed to remove key (%d, %pM) from hardware (%d)\n",
+			  key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
 
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 }
+
+void ieee80211_key_removed(struct ieee80211_key_conf *key_conf)
+{
+	struct ieee80211_key *key;
+
+	key = container_of(key_conf, struct ieee80211_key, conf);
+
+	might_sleep();
+	assert_key_lock(key->local);
+
+	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
+
+	/*
+	 * Flush TX path to avoid attempts to use this key
+	 * after this function returns. Until then, drivers
+	 * must be prepared to handle the key.
+	 */
+	synchronize_rcu();
+}
+EXPORT_SYMBOL_GPL(ieee80211_key_removed);
 
 static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 					int idx)
@@ -184,6 +225,7 @@ void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
 
 static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				    struct sta_info *sta,
+				    bool pairwise,
 				    struct ieee80211_key *old,
 				    struct ieee80211_key *new)
 {
@@ -192,8 +234,14 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	if (new)
 		list_add(&new->list, &sdata->key_list);
 
-	if (sta) {
-		rcu_assign_pointer(sta->key, new);
+	if (sta && pairwise) {
+		rcu_assign_pointer(sta->ptk, new);
+	} else if (sta) {
+		if (old)
+			idx = old->conf.keyidx;
+		else
+			idx = new->conf.keyidx;
+		rcu_assign_pointer(sta->gtk[idx], new);
 	} else {
 		WARN_ON(new && old && new->conf.keyidx != old->conf.keyidx);
 
@@ -227,20 +275,18 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
-					  int idx,
-					  size_t key_len,
+struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 					  const u8 *key_data,
 					  size_t seq_len, const u8 *seq)
 {
 	struct ieee80211_key *key;
-	int i, j;
+	int i, j, err;
 
 	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS);
 
 	key = kzalloc(sizeof(struct ieee80211_key) + key_len, GFP_KERNEL);
 	if (!key)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Default to software encryption; we'll later upload the
@@ -249,15 +295,16 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	key->conf.flags = 0;
 	key->flags = 0;
 
-	key->conf.alg = alg;
+	key->conf.cipher = cipher;
 	key->conf.keyidx = idx;
 	key->conf.keylen = key_len;
-	switch (alg) {
-	case ALG_WEP:
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		key->conf.iv_len = WEP_IV_LEN;
 		key->conf.icv_len = WEP_ICV_LEN;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		key->conf.iv_len = TKIP_IV_LEN;
 		key->conf.icv_len = TKIP_ICV_LEN;
 		if (seq) {
@@ -269,7 +316,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 			}
 		}
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
 		if (seq) {
@@ -278,42 +325,38 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 					key->u.ccmp.rx_pn[i][j] =
 						seq[CCMP_PN_LEN - j - 1];
 		}
-		break;
-	case ALG_AES_CMAC:
-		key->conf.iv_len = 0;
-		key->conf.icv_len = sizeof(struct ieee80211_mmie);
-		if (seq)
-			for (j = 0; j < 6; j++)
-				key->u.aes_cmac.rx_pn[j] = seq[6 - j - 1];
-		break;
-	}
-	memcpy(key->conf.key, key_data, key_len);
-	INIT_LIST_HEAD(&key->list);
-
-	if (alg == ALG_CCMP) {
 		/*
 		 * Initialize AES key state here as an optimization so that
 		 * it does not need to be initialized for every packet.
 		 */
 		key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(key_data);
-		if (!key->u.ccmp.tfm) {
+		if (IS_ERR(key->u.ccmp.tfm)) {
+			err = PTR_ERR(key->u.ccmp.tfm);
 			kfree(key);
-			return NULL;
+			key = ERR_PTR(err);
 		}
-	}
-
-	if (alg == ALG_AES_CMAC) {
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		key->conf.iv_len = 0;
+		key->conf.icv_len = sizeof(struct ieee80211_mmie);
+		if (seq)
+			for (j = 0; j < 6; j++)
+				key->u.aes_cmac.rx_pn[j] = seq[6 - j - 1];
 		/*
 		 * Initialize AES key state here as an optimization so that
 		 * it does not need to be initialized for every packet.
 		 */
 		key->u.aes_cmac.tfm =
 			ieee80211_aes_cmac_key_setup(key_data);
-		if (!key->u.aes_cmac.tfm) {
+		if (IS_ERR(key->u.aes_cmac.tfm)) {
+			err = PTR_ERR(key->u.aes_cmac.tfm);
 			kfree(key);
-			return NULL;
+			key = ERR_PTR(err);
 		}
+		break;
 	}
+	memcpy(key->conf.key, key_data, key_len);
+	INIT_LIST_HEAD(&key->list);
 
 	return key;
 }
@@ -326,9 +369,9 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 	if (key->local)
 		ieee80211_key_disable_hw_accel(key);
 
-	if (key->conf.alg == ALG_CCMP)
+	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
-	if (key->conf.alg == ALG_AES_CMAC)
+	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
 	if (key->local)
 		ieee80211_debugfs_key_remove(key);
@@ -336,12 +379,13 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 	kfree(key);
 }
 
-void ieee80211_key_link(struct ieee80211_key *key,
-			struct ieee80211_sub_if_data *sdata,
-			struct sta_info *sta)
+int ieee80211_key_link(struct ieee80211_key *key,
+		       struct ieee80211_sub_if_data *sdata,
+		       struct sta_info *sta)
 {
 	struct ieee80211_key *old_key;
-	int idx;
+	int idx, ret;
+	bool pairwise = key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE;
 
 	BUG_ON(!sdata);
 	BUG_ON(!key);
@@ -358,13 +402,6 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		 */
 		if (test_sta_flags(sta, WLAN_STA_WME))
 			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
-
-		/*
-		 * This key is for a specific sta interface,
-		 * inform the driver that it should try to store
-		 * this key as pairwise key.
-		 */
-		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
 	} else {
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			struct sta_info *ap;
@@ -386,19 +423,23 @@ void ieee80211_key_link(struct ieee80211_key *key,
 
 	mutex_lock(&sdata->local->key_mtx);
 
-	if (sta)
-		old_key = sta->key;
+	if (sta && pairwise)
+		old_key = sta->ptk;
+	else if (sta)
+		old_key = sta->gtk[idx];
 	else
 		old_key = sdata->keys[idx];
 
-	__ieee80211_key_replace(sdata, sta, old_key, key);
+	__ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
 	__ieee80211_key_destroy(old_key);
 
 	ieee80211_debugfs_key_add(key);
 
-	ieee80211_key_enable_hw_accel(key);
+	ret = ieee80211_key_enable_hw_accel(key);
 
 	mutex_unlock(&sdata->local->key_mtx);
+
+	return ret;
 }
 
 static void __ieee80211_key_free(struct ieee80211_key *key)
@@ -408,7 +449,8 @@ static void __ieee80211_key_free(struct ieee80211_key *key)
 	 */
 	if (key->sdata)
 		__ieee80211_key_replace(key->sdata, key->sta,
-					key, NULL);
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
 	__ieee80211_key_destroy(key);
 }
 

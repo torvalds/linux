@@ -183,9 +183,7 @@ static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
 static ssize_t show_address(struct device *tty_dev, struct device_attribute *attr, char *buf)
 {
 	struct rfcomm_dev *dev = dev_get_drvdata(tty_dev);
-	bdaddr_t bdaddr;
-	baswap(&bdaddr, &dev->dst);
-	return sprintf(buf, "%s\n", batostr(&bdaddr));
+	return sprintf(buf, "%s\n", batostr(&dev->dst));
 }
 
 static ssize_t show_channel(struct device *tty_dev, struct device_attribute *attr, char *buf)
@@ -842,10 +840,6 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, struct file *filp, unsigned 
 
 	case TIOCMIWAIT:
 		BT_DBG("TIOCMIWAIT");
-		break;
-
-	case TIOCGICOUNT:
-		BT_DBG("TIOCGICOUNT");
 		break;
 
 	case TIOCGSERIAL:

@@ -50,6 +50,30 @@ EXPORT_SYMBOL_GPL(dccp_hashinfo);
 /* the maximum queue length for tx in packets. 0 is no limit */
 int sysctl_dccp_tx_qlen __read_mostly = 5;
 
+#ifdef CONFIG_IP_DCCP_DEBUG
+static const char *dccp_state_name(const int state)
+{
+	static const char *const dccp_state_names[] = {
+	[DCCP_OPEN]		= "OPEN",
+	[DCCP_REQUESTING]	= "REQUESTING",
+	[DCCP_PARTOPEN]		= "PARTOPEN",
+	[DCCP_LISTEN]		= "LISTEN",
+	[DCCP_RESPOND]		= "RESPOND",
+	[DCCP_CLOSING]		= "CLOSING",
+	[DCCP_ACTIVE_CLOSEREQ]	= "CLOSEREQ",
+	[DCCP_PASSIVE_CLOSE]	= "PASSIVE_CLOSE",
+	[DCCP_PASSIVE_CLOSEREQ]	= "PASSIVE_CLOSEREQ",
+	[DCCP_TIME_WAIT]	= "TIME_WAIT",
+	[DCCP_CLOSED]		= "CLOSED",
+	};
+
+	if (state >= DCCP_MAX_STATES)
+		return "INVALID STATE!";
+	else
+		return dccp_state_names[state];
+}
+#endif
+
 void dccp_set_state(struct sock *sk, const int state)
 {
 	const int oldstate = sk->sk_state;
@@ -145,30 +169,6 @@ const char *dccp_packet_name(const int type)
 }
 
 EXPORT_SYMBOL_GPL(dccp_packet_name);
-
-const char *dccp_state_name(const int state)
-{
-	static const char *const dccp_state_names[] = {
-	[DCCP_OPEN]		= "OPEN",
-	[DCCP_REQUESTING]	= "REQUESTING",
-	[DCCP_PARTOPEN]		= "PARTOPEN",
-	[DCCP_LISTEN]		= "LISTEN",
-	[DCCP_RESPOND]		= "RESPOND",
-	[DCCP_CLOSING]		= "CLOSING",
-	[DCCP_ACTIVE_CLOSEREQ]	= "CLOSEREQ",
-	[DCCP_PASSIVE_CLOSE]	= "PASSIVE_CLOSE",
-	[DCCP_PASSIVE_CLOSEREQ]	= "PASSIVE_CLOSEREQ",
-	[DCCP_TIME_WAIT]	= "TIME_WAIT",
-	[DCCP_CLOSED]		= "CLOSED",
-	};
-
-	if (state >= DCCP_MAX_STATES)
-		return "INVALID STATE!";
-	else
-		return dccp_state_names[state];
-}
-
-EXPORT_SYMBOL_GPL(dccp_state_name);
 
 int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 {
@@ -944,7 +944,7 @@ void dccp_close(struct sock *sk, long timeout)
 
 	if (data_was_unread) {
 		/* Unread data was tossed, send an appropriate Reset Code */
-		DCCP_WARN("DCCP: ABORT -- %u bytes unread\n", data_was_unread);
+		DCCP_WARN("ABORT with %u bytes unread\n", data_was_unread);
 		dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
 		dccp_set_state(sk, DCCP_CLOSED);
 	} else if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {

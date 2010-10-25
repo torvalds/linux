@@ -182,7 +182,7 @@ static int neo1973_gta02_voice_hw_params(
 	if (ret < 0)
 		return ret;
 
-	/* configue and enable PLL for 12.288MHz output */
+	/* configure and enable PLL for 12.288MHz output */
 	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0,
 		iis_clkrate / 4, 12288000);
 	if (ret < 0)

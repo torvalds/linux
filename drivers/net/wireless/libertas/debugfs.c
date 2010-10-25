@@ -696,6 +696,7 @@ out_unlock:
 	.open = open_file_generic, \
 	.read = (fread), \
 	.write = (fwrite), \
+	.llseek = generic_file_llseek, \
 }
 
 struct lbs_debugfs_files {
@@ -961,6 +962,7 @@ static const struct file_operations lbs_debug_fops = {
 	.open = open_file_generic,
 	.write = lbs_debugfs_write,
 	.read = lbs_debugfs_read,
+	.llseek = default_llseek,
 };
 
 /**

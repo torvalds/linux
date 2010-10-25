@@ -184,7 +184,8 @@ static int snd_open(struct inode *inode, struct file *file)
 static const struct file_operations snd_fops =
 {
 	.owner =	THIS_MODULE,
-	.open =		snd_open
+	.open =		snd_open,
+	.llseek =	noop_llseek,
 };
 
 #ifdef CONFIG_SND_DYNAMIC_MINORS

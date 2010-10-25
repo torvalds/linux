@@ -83,8 +83,6 @@ static void __init smdk6442_machine_init(void)
 
 MACHINE_START(SMDK6442, "SMDK6442")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= s5p6442_init_irq,
 	.map_io		= smdk6442_map_io,

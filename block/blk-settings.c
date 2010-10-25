@@ -111,6 +111,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 void blk_set_default_limits(struct queue_limits *lim)
 {
 	lim->max_segments = BLK_MAX_SEGMENTS;
+	lim->max_integrity_segments = 0;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
@@ -213,7 +214,7 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 	 */
 	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
-	q->limits.bounce_pfn = max_low_pfn;
+	q->limits.bounce_pfn = max(max_low_pfn, b_pfn);
 #else
 	if (b_pfn < blk_max_low_pfn)
 		dma = 1;
@@ -343,7 +344,7 @@ EXPORT_SYMBOL(blk_queue_logical_block_size);
  *   hardware can operate on without reverting to read-modify-write
  *   operations.
  */
-void blk_queue_physical_block_size(struct request_queue *q, unsigned short size)
+void blk_queue_physical_block_size(struct request_queue *q, unsigned int size)
 {
 	q->limits.physical_block_size = size;
 
@@ -455,11 +456,6 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
 
-/*
- * Returns the minimum that is _not_ zero, unless both are zero.
- */
-#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
-
 /**
  * blk_queue_stack_limits - inherit underlying queue limits for stacked drivers
  * @t:	the stacking driver (top)
@@ -514,6 +510,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					    b->seg_boundary_mask);
 
 	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
+	t->max_integrity_segments = min_not_zero(t->max_integrity_segments,
+						 b->max_integrity_segments);
 
 	t->max_segment_size = min_not_zero(t->max_segment_size,
 					   b->max_segment_size);
@@ -793,6 +791,26 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 		q->dma_alignment = mask;
 }
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
+
+/**
+ * blk_queue_flush - configure queue's cache flush capability
+ * @q:		the request queue for the device
+ * @flush:	0, REQ_FLUSH or REQ_FLUSH | REQ_FUA
+ *
+ * Tell block layer cache flush capability of @q.  If it supports
+ * flushing, REQ_FLUSH should be set.  If it supports bypassing
+ * write cache for individual writes, REQ_FUA should be set.
+ */
+void blk_queue_flush(struct request_queue *q, unsigned int flush)
+{
+	WARN_ON_ONCE(flush & ~(REQ_FLUSH | REQ_FUA));
+
+	if (WARN_ON_ONCE(!(flush & REQ_FLUSH) && (flush & REQ_FUA)))
+		flush &= ~REQ_FUA;
+
+	q->flush_flags = flush & (REQ_FLUSH | REQ_FUA);
+}
+EXPORT_SYMBOL_GPL(blk_queue_flush);
 
 static int __init blk_settings_init(void)
 {

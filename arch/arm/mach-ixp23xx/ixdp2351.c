@@ -328,8 +328,6 @@ static void __init ixdp2351_init(void)
 
 MACHINE_START(IXDP2351, "Intel IXDP2351 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_io	= IXP23XX_PERIPHERAL_PHYS,
-	.io_pg_offst	= ((IXP23XX_PERIPHERAL_VIRT >> 18)) & 0xfffc,
 	.map_io		= ixdp2351_map_io,
 	.init_irq	= ixdp2351_init_irq,
 	.timer		= &ixp23xx_timer,

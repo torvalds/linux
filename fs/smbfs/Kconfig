@@ -1,5 +1,6 @@
 config SMB_FS
 	tristate "SMB file system support (OBSOLETE, please use CIFS)"
+	depends on BKL # probably unfixable
 	depends on INET
 	select NLS
 	help

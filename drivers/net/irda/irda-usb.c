@@ -1124,11 +1124,11 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
                  * The actual image starts after the "STMP" keyword
                  * so forward to the firmware header tag
                  */
-                for (i = 0; (fw->data[i] != STIR421X_PATCH_END_OF_HDR_TAG) &&
-			     (i < fw->size); i++) ;
+                for (i = 0; i < fw->size && fw->data[i] !=
+			     STIR421X_PATCH_END_OF_HDR_TAG; i++) ;
                 /* here we check for the out of buffer case */
-                if ((STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i]) &&
-                    (i < STIR421X_PATCH_CODE_OFFSET)) {
+                if (i < STIR421X_PATCH_CODE_OFFSET && i < fw->size &&
+				STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i]) {
                         if (!memcmp(fw->data + i + 1, STIR421X_PATCH_STMP_TAG,
                                     sizeof(STIR421X_PATCH_STMP_TAG) - 1)) {
 
@@ -1514,7 +1514,7 @@ static inline int irda_usb_parse_endpoints(struct irda_usb_cb *self, struct usb_
 	IRDA_DEBUG(0, "%s(), And our endpoints are : in=%02X, out=%02X (%d), int=%02X\n",
 		__func__, self->bulk_in_ep, self->bulk_out_ep, self->bulk_out_mtu, self->bulk_int_ep);
 
-	return((self->bulk_in_ep != 0) && (self->bulk_out_ep != 0));
+	return (self->bulk_in_ep != 0) && (self->bulk_out_ep != 0);
 }
 
 #ifdef IU_DUMP_CLASS_DESC

@@ -1038,7 +1038,7 @@ void deferred_smtc_ipi(void)
 		 * but it's more efficient, given that we're already
 		 * running down the IPI queue.
 		 */
-		__raw_local_irq_restore(flags);
+		__arch_local_irq_restore(flags);
 	}
 }
 
@@ -1190,7 +1190,7 @@ void smtc_ipi_replay(void)
 		/*
 		 ** But use a raw restore here to avoid recursion.
 		 */
-		__raw_local_irq_restore(flags);
+		__arch_local_irq_restore(flags);
 
 		if (pipi) {
 			self_ipi(pipi);

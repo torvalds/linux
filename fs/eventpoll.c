@@ -674,7 +674,8 @@ static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
 /* File callbacks that implement the eventpoll file behaviour */
 static const struct file_operations eventpoll_fops = {
 	.release	= ep_eventpoll_release,
-	.poll		= ep_eventpoll_poll
+	.poll		= ep_eventpoll_poll,
+	.llseek		= noop_llseek,
 };
 
 /* Fast test to see if the file is an evenpoll file */

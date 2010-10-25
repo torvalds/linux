@@ -42,7 +42,6 @@
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
-#include <mach/ssi.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -141,7 +140,6 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
-	&mxc_fec_device,
 	&imx_wdt_device0,
 };
 
@@ -217,6 +215,13 @@ static struct pad_desc pcm043_pads[] = {
 	/* CAN2 */
 	MX35_PAD_TX5_RX0__CAN2_TXCAN,
 	MX35_PAD_TX4_RX1__CAN2_RXCAN,
+	/* esdhc */
+	MX35_PAD_SD1_CMD__ESDHC1_CMD,
+	MX35_PAD_SD1_CLK__ESDHC1_CLK,
+	MX35_PAD_SD1_DATA0__ESDHC1_DAT0,
+	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
+	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
+	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 };
 
 #define AC97_GPIO_TXFS	(1 * 32 + 31)
@@ -293,7 +298,7 @@ err1:
 	mdelay(1);
 }
 
-static struct imx_ssi_platform_data pcm043_ssi_pdata = {
+static const struct imx_ssi_platform_data pcm043_ssi_pdata __initconst = {
 	.ac97_reset = pcm043_ac97_cold_reset,
 	.ac97_warm_reset = pcm043_ac97_warm_reset,
 	.flags = IMX_SSI_USE_AC97,
@@ -357,11 +362,12 @@ static void __init mxc_board_init(void)
 			MXC_AUDMUX_V2_PTCR_TCLKDIR, /* clock is output */
 			MXC_AUDMUX_V2_PDCR_RXDSEL(3));
 
+	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&pcm037_nand_board_info);
-	mxc_register_device(&imx_ssi_device0, &pcm043_ssi_pdata);
+	imx35_add_imx_ssi(0, &pcm043_ssi_pdata);
 
 	imx35_add_imx_uart1(&uart_pdata);
 
@@ -389,6 +395,7 @@ static void __init mxc_board_init(void)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
+	imx35_add_esdhc(0, NULL);
 }
 
 static void __init pcm043_timer_init(void)
@@ -402,8 +409,6 @@ struct sys_timer pcm043_timer = {
 
 MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	/* Maintainer: Pengutronix */
-	.phys_io	= MX35_AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((MX35_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
 	.map_io         = mx35_map_io,
 	.init_irq       = mx35_init_irq,

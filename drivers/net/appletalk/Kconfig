@@ -3,6 +3,7 @@
 #
 config ATALK
 	tristate "Appletalk protocol support"
+	depends on BKL # waiting to be removed from net/appletalk/ddp.c
 	select LLC
 	---help---
 	  AppleTalk is the protocol that Apple computers can use to communicate
@@ -18,7 +19,7 @@ config ATALK
 
 	  General information about how to connect Linux, Windows machines and
 	  Macs is on the WWW at <http://www.eats.com/linux_mac_win.html>.  The
-	  NET-3-HOWTO, available from
+	  NET3-4-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, contains valuable
 	  information as well.
 

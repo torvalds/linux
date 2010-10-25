@@ -203,7 +203,7 @@ static void print_regs(struct udc *dev)
 		DBG(dev, "DMA mode       = PPBNDU (packet per buffer "
 			"WITHOUT desc. update)\n");
 		dev_info(&dev->pdev->dev, "DMA mode (%s)\n", "PPBNDU");
-	} else if (use_dma && use_dma_ppb_du && use_dma_ppb_du) {
+	} else if (use_dma && use_dma_ppb && use_dma_ppb_du) {
 		DBG(dev, "DMA mode       = PPBDU (packet per buffer "
 			"WITH desc. update)\n");
 		dev_info(&dev->pdev->dev, "DMA mode (%s)\n", "PPBDU");
@@ -1954,13 +1954,14 @@ static int setup_ep0(struct udc *dev)
 }
 
 /* Called by gadget driver to register itself */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct udc		*dev = udc;
 	int			retval;
 	u32 tmp;
 
-	if (!driver || !driver->bind || !driver->setup
+	if (!driver || !bind || !driver->setup
 			|| driver->speed != USB_SPEED_HIGH)
 		return -EINVAL;
 	if (!dev)
@@ -1972,7 +1973,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
 
-	retval = driver->bind(&dev->gadget);
+	retval = bind(&dev->gadget);
 
 	/* Some gadget drivers use both ep0 directions.
 	 * NOTE: to gadget driver, ep0 is just one endpoint...
@@ -2000,7 +2001,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /* shutdown requests and disconnect from gadget */
 static void
@@ -3382,8 +3383,10 @@ static int udc_probe(struct udc *dev)
 	udc = dev;
 
 	retval = device_register(&dev->gadget.dev);
-	if (retval)
+	if (retval) {
+		put_device(&dev->gadget.dev);
 		goto finished;
+	}
 
 	/* timer init */
 	init_timer(&udc_timer);

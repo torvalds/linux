@@ -16,7 +16,6 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include "affs.h"
 
@@ -46,8 +45,6 @@ affs_put_super(struct super_block *sb)
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	pr_debug("AFFS: put_super()\n");
 
-	lock_kernel();
-
 	if (!(sb->s_flags & MS_RDONLY) && sb->s_dirt)
 		affs_commit_super(sb, 1, 1);
 
@@ -56,8 +53,6 @@ affs_put_super(struct super_block *sb)
 	affs_brelse(sbi->s_root_bh);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static void
@@ -109,8 +104,8 @@ static void init_once(void *foo)
 {
 	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
 
-	init_MUTEX(&ei->i_link_lock);
-	init_MUTEX(&ei->i_ext_lock);
+	sema_init(&ei->i_link_lock, 1);
+	sema_init(&ei->i_ext_lock, 1);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -302,6 +297,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
+
 	sb->s_fs_info = sbi;
 	mutex_init(&sbi->s_bmlock);
 	spin_lock_init(&sbi->symlink_lock);
@@ -527,7 +523,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		kfree(new_opts);
 		return -EINVAL;
 	}
-	lock_kernel();
+
 	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
@@ -543,17 +539,15 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	memcpy(sbi->s_volume, volume, 32);
 	spin_unlock(&sbi->symlink_lock);
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
-		unlock_kernel();
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
-	}
+
 	if (*flags & MS_RDONLY) {
 		affs_write_super(sb);
 		affs_free_bitmap(sb);
 	} else
 		res = affs_init_bitmap(sb, flags);
 
-	unlock_kernel();
 	return res;
 }
 

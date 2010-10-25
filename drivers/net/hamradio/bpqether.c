@@ -168,7 +168,7 @@ static inline struct net_device *bpq_get_ax25_dev(struct net_device *dev)
 
 static inline int dev_is_ethdev(struct net_device *dev)
 {
-	return (dev->type == ARPHRD_ETHER && strncmp(dev->name, "dummy", 5));
+	return dev->type == ARPHRD_ETHER && strncmp(dev->name, "dummy", 5);
 }
 
 /* ------------------------------------------------------------------------ */

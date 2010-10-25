@@ -76,7 +76,7 @@ EXPORT_SYMBOL(drm_mode_debug_printmodeline);
  * according to the hdisplay, vdisplay, vrefresh.
  * It is based from the VESA(TM) Coordinated Video Timing Generator by
  * Graham Loveridge April 9, 2003 available at
- * http://www.vesa.org/public/CVT/CVTd6r1.xls
+ * http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls 
  *
  * And it is copied from xf86CVTmode in xserver/hw/xfree86/modes/xf86cvt.c.
  * What I have done is to translate it by using integer calculation.

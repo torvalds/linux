@@ -170,33 +170,31 @@ static void msix_mask_irq(struct msi_desc *desc, u32 flag)
 	desc->masked = __msix_mask_irq(desc, flag);
 }
 
-static void msi_set_mask_bit(unsigned irq, u32 flag)
+static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 {
-	struct msi_desc *desc = get_irq_msi(irq);
+	struct msi_desc *desc = irq_data_get_msi(data);
 
 	if (desc->msi_attrib.is_msix) {
 		msix_mask_irq(desc, flag);
 		readl(desc->mask_base);		/* Flush write to device */
 	} else {
-		unsigned offset = irq - desc->dev->irq;
+		unsigned offset = data->irq - desc->dev->irq;
 		msi_mask_irq(desc, 1 << offset, flag << offset);
 	}
 }
 
-void mask_msi_irq(unsigned int irq)
+void mask_msi_irq(struct irq_data *data)
 {
-	msi_set_mask_bit(irq, 1);
+	msi_set_mask_bit(data, 1);
 }
 
-void unmask_msi_irq(unsigned int irq)
+void unmask_msi_irq(struct irq_data *data)
 {
-	msi_set_mask_bit(irq, 0);
+	msi_set_mask_bit(data, 0);
 }
 
-void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
+void __read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_desc_msi(desc);
-
 	BUG_ON(entry->dev->current_state != PCI_D0);
 
 	if (entry->msi_attrib.is_msix) {
@@ -227,15 +225,13 @@ void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 
-	read_msi_msg_desc(desc, msg);
+	__read_msi_msg(entry, msg);
 }
 
-void get_cached_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
+void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_desc_msi(desc);
-
 	/* Assert that the cache is valid, assuming that
 	 * valid messages are not all-zeroes. */
 	BUG_ON(!(entry->msg.address_hi | entry->msg.address_lo |
@@ -246,15 +242,13 @@ void get_cached_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 
-	get_cached_msi_msg_desc(desc, msg);
+	__get_cached_msi_msg(entry, msg);
 }
 
-void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
+void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_desc_msi(desc);
-
 	if (entry->dev->current_state != PCI_D0) {
 		/* Don't touch the hardware now */
 	} else if (entry->msi_attrib.is_msix) {
@@ -292,9 +286,9 @@ void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 
 void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 
-	write_msi_msg_desc(desc, msg);
+	__write_msi_msg(entry, msg);
 }
 
 static void free_msi_irqs(struct pci_dev *dev)

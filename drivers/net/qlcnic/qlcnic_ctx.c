@@ -556,32 +556,6 @@ void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter)
 	}
 }
 
-/* Set MAC address of a NIC partition */
-int qlcnic_set_mac_address(struct qlcnic_adapter *adapter, u8* mac)
-{
-	int err = 0;
-	u32 arg1, arg2, arg3;
-
-	arg1 = adapter->ahw.pci_func | BIT_9;
-	arg2 = mac[0] | (mac[1] << 8) | (mac[2] << 16) | (mac[3] << 24);
-	arg3 = mac[4] | (mac[5] << 16);
-
-	err = qlcnic_issue_cmd(adapter,
-			adapter->ahw.pci_func,
-			adapter->fw_hal_version,
-			arg1,
-			arg2,
-			arg3,
-			QLCNIC_CDRP_CMD_MAC_ADDRESS);
-
-	if (err != QLCNIC_RCODE_SUCCESS) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to set mac address%d\n", err);
-		err = -EIO;
-	}
-
-	return err;
-}
 
 /* Get MAC address of a NIC partition */
 int qlcnic_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
@@ -742,15 +716,15 @@ int qlcnic_get_pci_info(struct qlcnic_adapter *adapter,
 
 	if (err == QLCNIC_RCODE_SUCCESS) {
 		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++, npar++, pci_info++) {
-			pci_info->id = le32_to_cpu(npar->id);
-			pci_info->active = le32_to_cpu(npar->active);
-			pci_info->type = le32_to_cpu(npar->type);
+			pci_info->id = le16_to_cpu(npar->id);
+			pci_info->active = le16_to_cpu(npar->active);
+			pci_info->type = le16_to_cpu(npar->type);
 			pci_info->default_port =
-				le32_to_cpu(npar->default_port);
+				le16_to_cpu(npar->default_port);
 			pci_info->tx_min_bw =
-				le32_to_cpu(npar->tx_min_bw);
+				le16_to_cpu(npar->tx_min_bw);
 			pci_info->tx_max_bw =
-				le32_to_cpu(npar->tx_max_bw);
+				le16_to_cpu(npar->tx_max_bw);
 			memcpy(pci_info->mac, npar->mac, ETH_ALEN);
 		}
 	} else {
@@ -761,150 +735,6 @@ int qlcnic_get_pci_info(struct qlcnic_adapter *adapter,
 
 	pci_free_consistent(adapter->pdev, pci_size, pci_info_addr,
 		pci_info_dma_t);
-	return err;
-}
-
-/* Reset a NIC partition */
-
-int qlcnic_reset_partition(struct qlcnic_adapter *adapter, u8 func_no)
-{
-	int err = -EIO;
-
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
-		return err;
-
-	err = qlcnic_issue_cmd(adapter,
-			adapter->ahw.pci_func,
-			adapter->fw_hal_version,
-			func_no,
-			0,
-			0,
-			QLCNIC_CDRP_CMD_RESET_NPAR);
-
-	if (err != QLCNIC_RCODE_SUCCESS) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to issue reset partition%d\n", err);
-		err = -EIO;
-	}
-
-	return err;
-}
-
-/* Get eSwitch Capabilities */
-int qlcnic_get_eswitch_capabilities(struct qlcnic_adapter *adapter, u8 port,
-					struct qlcnic_eswitch *eswitch)
-{
-	int err = -EIO;
-	u32 arg1, arg2;
-
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
-		return err;
-
-	err = qlcnic_issue_cmd(adapter,
-			adapter->ahw.pci_func,
-			adapter->fw_hal_version,
-			port,
-			0,
-			0,
-			QLCNIC_CDRP_CMD_GET_ESWITCH_CAPABILITY);
-
-	if (err == QLCNIC_RCODE_SUCCESS) {
-		arg1 = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-		arg2 = QLCRD32(adapter, QLCNIC_ARG2_CRB_OFFSET);
-
-		eswitch->port = arg1 & 0xf;
-		eswitch->active_vports = LSB(arg2);
-		eswitch->max_ucast_filters = MSB(arg2);
-		eswitch->max_active_vlans = LSB(MSW(arg2));
-		if (arg1 & BIT_6)
-			eswitch->flags |= QLCNIC_SWITCH_VLAN_FILTERING;
-		if (arg1 & BIT_7)
-			eswitch->flags |= QLCNIC_SWITCH_PROMISC_MODE;
-		if (arg1 & BIT_8)
-			eswitch->flags |= QLCNIC_SWITCH_PORT_MIRRORING;
-	} else {
-		dev_err(&adapter->pdev->dev,
-			"Failed to get eswitch capabilities%d\n", err);
-	}
-
-	return err;
-}
-
-/* Get current status of eswitch */
-int qlcnic_get_eswitch_status(struct qlcnic_adapter *adapter, u8 port,
-				struct qlcnic_eswitch *eswitch)
-{
-	int err = -EIO;
-	u32 arg1, arg2;
-
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
-		return err;
-
-	err = qlcnic_issue_cmd(adapter,
-			adapter->ahw.pci_func,
-			adapter->fw_hal_version,
-			port,
-			0,
-			0,
-			QLCNIC_CDRP_CMD_GET_ESWITCH_STATUS);
-
-	if (err == QLCNIC_RCODE_SUCCESS) {
-		arg1 = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-		arg2 = QLCRD32(adapter, QLCNIC_ARG2_CRB_OFFSET);
-
-		eswitch->port = arg1 & 0xf;
-		eswitch->active_vports = LSB(arg2);
-		eswitch->active_ucast_filters = MSB(arg2);
-		eswitch->active_vlans = LSB(MSW(arg2));
-		if (arg1 & BIT_6)
-			eswitch->flags |= QLCNIC_SWITCH_VLAN_FILTERING;
-		if (arg1 & BIT_8)
-			eswitch->flags |= QLCNIC_SWITCH_PORT_MIRRORING;
-
-	} else {
-		dev_err(&adapter->pdev->dev,
-			"Failed to get eswitch status%d\n", err);
-	}
-
-	return err;
-}
-
-/* Enable/Disable eSwitch */
-int qlcnic_toggle_eswitch(struct qlcnic_adapter *adapter, u8 id, u8 enable)
-{
-	int err = -EIO;
-	u32 arg1, arg2;
-	struct qlcnic_eswitch *eswitch;
-
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
-		return err;
-
-	eswitch = &adapter->eswitch[id];
-	if (!eswitch)
-		return err;
-
-	arg1 = eswitch->port | (enable ? BIT_4 : 0);
-	arg2 = eswitch->active_vports | (eswitch->max_ucast_filters << 8) |
-		(eswitch->max_active_vlans << 16);
-	err = qlcnic_issue_cmd(adapter,
-			adapter->ahw.pci_func,
-			adapter->fw_hal_version,
-			arg1,
-			arg2,
-			0,
-			QLCNIC_CDRP_CMD_TOGGLE_ESWITCH);
-
-	if (err != QLCNIC_RCODE_SUCCESS) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to enable eswitch%d\n", eswitch->port);
-		eswitch->flags &= ~QLCNIC_SWITCH_ENABLE;
-		err = -EIO;
-	} else {
-		eswitch->flags |= QLCNIC_SWITCH_ENABLE;
-		dev_info(&adapter->pdev->dev,
-			"Enabled eSwitch for port %d\n", eswitch->port);
-	}
-
 	return err;
 }
 
@@ -943,43 +773,284 @@ int qlcnic_config_port_mirroring(struct qlcnic_adapter *adapter, u8 id,
 	return err;
 }
 
-/* Configure eSwitch port */
-int qlcnic_config_switch_port(struct qlcnic_adapter *adapter, u8 id,
-		int vlan_tagging, u8 discard_tagged, u8 promsc_mode,
-		u8 mac_learn, u8 pci_func, u16 vlan_id)
-{
-	int err = -EIO;
+int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
+		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
+
+	size_t stats_size = sizeof(struct __qlcnic_esw_statistics);
+	struct __qlcnic_esw_statistics *stats;
+	dma_addr_t stats_dma_t;
+	void *stats_addr;
 	u32 arg1;
-	struct qlcnic_eswitch *eswitch;
+	int err;
 
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
-		return err;
+	if (esw_stats == NULL)
+		return -ENOMEM;
 
-	eswitch = &adapter->eswitch[id];
-	if (!(eswitch->flags & QLCNIC_SWITCH_ENABLE))
-		return err;
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC &&
+	    func != adapter->ahw.pci_func) {
+		dev_err(&adapter->pdev->dev,
+			"Not privilege to query stats for func=%d", func);
+		return -EIO;
+	}
 
-	arg1 = eswitch->port | (discard_tagged ? BIT_4 : 0);
-	arg1 |= (promsc_mode ? BIT_6 : 0) | (mac_learn ? BIT_7 : 0);
-	arg1 |= pci_func << 8;
-	if (vlan_tagging)
-		arg1 |= BIT_5 | (vlan_id << 16);
+	stats_addr = pci_alloc_consistent(adapter->pdev, stats_size,
+			&stats_dma_t);
+	if (!stats_addr) {
+		dev_err(&adapter->pdev->dev, "Unable to allocate memory\n");
+		return -ENOMEM;
+	}
+	memset(stats_addr, 0, stats_size);
+
+	arg1 = func | QLCNIC_STATS_VERSION << 8 | QLCNIC_STATS_PORT << 12;
+	arg1 |= rx_tx << 15 | stats_size << 16;
 
 	err = qlcnic_issue_cmd(adapter,
 			adapter->ahw.pci_func,
 			adapter->fw_hal_version,
 			arg1,
+			MSD(stats_dma_t),
+			LSD(stats_dma_t),
+			QLCNIC_CDRP_CMD_GET_ESWITCH_STATS);
+
+	if (!err) {
+		stats = (struct __qlcnic_esw_statistics *)stats_addr;
+		esw_stats->context_id = le16_to_cpu(stats->context_id);
+		esw_stats->version = le16_to_cpu(stats->version);
+		esw_stats->size = le16_to_cpu(stats->size);
+		esw_stats->multicast_frames =
+				le64_to_cpu(stats->multicast_frames);
+		esw_stats->broadcast_frames =
+				le64_to_cpu(stats->broadcast_frames);
+		esw_stats->unicast_frames = le64_to_cpu(stats->unicast_frames);
+		esw_stats->dropped_frames = le64_to_cpu(stats->dropped_frames);
+		esw_stats->local_frames = le64_to_cpu(stats->local_frames);
+		esw_stats->errors = le64_to_cpu(stats->errors);
+		esw_stats->numbytes = le64_to_cpu(stats->numbytes);
+	}
+
+	pci_free_consistent(adapter->pdev, stats_size, stats_addr,
+		stats_dma_t);
+	return err;
+}
+
+int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
+		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
+
+	struct __qlcnic_esw_statistics port_stats;
+	u8 i;
+	int ret = -EIO;
+
+	if (esw_stats == NULL)
+		return -ENOMEM;
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+		return -EIO;
+	if (adapter->npars == NULL)
+		return -EIO;
+
+	memset(esw_stats, 0, sizeof(u64));
+	esw_stats->unicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->multicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->broadcast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->dropped_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->errors = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->local_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->numbytes = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->context_id = eswitch;
+
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
+		if (adapter->npars[i].phy_port != eswitch)
+			continue;
+
+		memset(&port_stats, 0, sizeof(struct __qlcnic_esw_statistics));
+		if (qlcnic_get_port_stats(adapter, i, rx_tx, &port_stats))
+			continue;
+
+		esw_stats->size = port_stats.size;
+		esw_stats->version = port_stats.version;
+		QLCNIC_ADD_ESW_STATS(esw_stats->unicast_frames,
+						port_stats.unicast_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->multicast_frames,
+						port_stats.multicast_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->broadcast_frames,
+						port_stats.broadcast_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->dropped_frames,
+						port_stats.dropped_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->errors,
+						port_stats.errors);
+		QLCNIC_ADD_ESW_STATS(esw_stats->local_frames,
+						port_stats.local_frames);
+		QLCNIC_ADD_ESW_STATS(esw_stats->numbytes,
+						port_stats.numbytes);
+		ret = 0;
+	}
+	return ret;
+}
+
+int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, const u8 func_esw,
+		const u8 port, const u8 rx_tx)
+{
+
+	u32 arg1;
+
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+		return -EIO;
+
+	if (func_esw == QLCNIC_STATS_PORT) {
+		if (port >= QLCNIC_MAX_PCI_FUNC)
+			goto err_ret;
+	} else if (func_esw == QLCNIC_STATS_ESWITCH) {
+		if (port >= QLCNIC_NIU_MAX_XG_PORTS)
+			goto err_ret;
+	} else {
+		goto err_ret;
+	}
+
+	if (rx_tx > QLCNIC_QUERY_TX_COUNTER)
+		goto err_ret;
+
+	arg1 = port | QLCNIC_STATS_VERSION << 8 | func_esw << 12;
+	arg1 |= BIT_14 | rx_tx << 15;
+
+	return qlcnic_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			adapter->fw_hal_version,
+			arg1,
 			0,
+			0,
+			QLCNIC_CDRP_CMD_GET_ESWITCH_STATS);
+
+err_ret:
+	dev_err(&adapter->pdev->dev, "Invalid argument func_esw=%d port=%d"
+		"rx_ctx=%d\n", func_esw, port, rx_tx);
+	return -EIO;
+}
+
+static int
+__qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
+					u32 *arg1, u32 *arg2)
+{
+	int err = -EIO;
+	u8 pci_func;
+	pci_func = (*arg1 >> 8);
+	err = qlcnic_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			adapter->fw_hal_version,
+			*arg1,
+			0,
+			0,
+			QLCNIC_CDRP_CMD_GET_ESWITCH_PORT_CONFIG);
+
+	if (err == QLCNIC_RCODE_SUCCESS) {
+		*arg1 = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
+		*arg2 = QLCRD32(adapter, QLCNIC_ARG2_CRB_OFFSET);
+		dev_info(&adapter->pdev->dev,
+			"eSwitch port config for pci func %d\n", pci_func);
+	} else {
+		dev_err(&adapter->pdev->dev,
+			"Failed to get eswitch port config for pci func %d\n",
+								pci_func);
+	}
+	return err;
+}
+/* Configure eSwitch port
+op_mode = 0 for setting default port behavior
+op_mode = 1 for setting  vlan id
+op_mode = 2 for deleting vlan id
+op_type = 0 for vlan_id
+op_type = 1 for port vlan_id
+*/
+int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
+		struct qlcnic_esw_func_cfg *esw_cfg)
+{
+	int err = -EIO;
+	u32 arg1, arg2 = 0;
+	u8 pci_func;
+
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+		return err;
+	pci_func = esw_cfg->pci_func;
+	arg1 = (adapter->npars[pci_func].phy_port & BIT_0);
+	arg1 |= (pci_func << 8);
+
+	if (__qlcnic_get_eswitch_port_config(adapter, &arg1, &arg2))
+		return err;
+	arg1 &= ~(0x0ff << 8);
+	arg1 |= (pci_func << 8);
+	arg1 &= ~(BIT_2 | BIT_3);
+	switch (esw_cfg->op_mode) {
+	case QLCNIC_PORT_DEFAULTS:
+		arg1 |= (BIT_4 | BIT_6 | BIT_7);
+		arg2 |= (BIT_0 | BIT_1);
+		if (adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO)
+			arg2 |= (BIT_2 | BIT_3);
+		if (!(esw_cfg->discard_tagged))
+			arg1 &= ~BIT_4;
+		if (!(esw_cfg->promisc_mode))
+			arg1 &= ~BIT_6;
+		if (!(esw_cfg->mac_override))
+			arg1 &= ~BIT_7;
+		if (!(esw_cfg->mac_anti_spoof))
+			arg2 &= ~BIT_0;
+		if (!(esw_cfg->offload_flags & BIT_0))
+			arg2 &= ~(BIT_1 | BIT_2 | BIT_3);
+		if (!(esw_cfg->offload_flags & BIT_1))
+			arg2 &= ~BIT_2;
+		if (!(esw_cfg->offload_flags & BIT_2))
+			arg2 &= ~BIT_3;
+		break;
+	case QLCNIC_ADD_VLAN:
+			arg1 |= (BIT_2 | BIT_5);
+			arg1 |= (esw_cfg->vlan_id << 16);
+			break;
+	case QLCNIC_DEL_VLAN:
+			arg1 |= (BIT_3 | BIT_5);
+			arg1 &= ~(0x0ffff << 16);
+			break;
+	default:
+		return err;
+	}
+
+	err = qlcnic_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			adapter->fw_hal_version,
+			arg1,
+			arg2,
 			0,
 			QLCNIC_CDRP_CMD_CONFIGURE_ESWITCH);
 
 	if (err != QLCNIC_RCODE_SUCCESS) {
 		dev_err(&adapter->pdev->dev,
-			"Failed to configure eswitch port%d\n", eswitch->port);
+			"Failed to configure eswitch pci func %d\n", pci_func);
 	} else {
 		dev_info(&adapter->pdev->dev,
-			"Configured eSwitch for port %d\n", eswitch->port);
+			"Configured eSwitch for pci func %d\n", pci_func);
 	}
 
 	return err;
+}
+
+int
+qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
+			struct qlcnic_esw_func_cfg *esw_cfg)
+{
+	u32 arg1, arg2;
+	u8 phy_port;
+	if (adapter->op_mode == QLCNIC_MGMT_FUNC)
+		phy_port = adapter->npars[esw_cfg->pci_func].phy_port;
+	else
+		phy_port = adapter->physical_port;
+	arg1 = phy_port;
+	arg1 |= (esw_cfg->pci_func << 8);
+	if (__qlcnic_get_eswitch_port_config(adapter, &arg1, &arg2))
+		return -EIO;
+
+	esw_cfg->discard_tagged = !!(arg1 & BIT_4);
+	esw_cfg->host_vlan_tag = !!(arg1 & BIT_5);
+	esw_cfg->promisc_mode = !!(arg1 & BIT_6);
+	esw_cfg->mac_override = !!(arg1 & BIT_7);
+	esw_cfg->vlan_id = LSW(arg1 >> 16);
+	esw_cfg->mac_anti_spoof = (arg2 & 0x1);
+	esw_cfg->offload_flags = ((arg2 >> 1) & 0x7);
+
+	return 0;
 }

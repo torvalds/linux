@@ -25,7 +25,7 @@
 #include "common.h"
 
 static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
-			       struct dma_desc *p, unsigned long ioaddr)
+			       struct dma_desc *p, void __iomem *ioaddr)
 {
 	int ret = 0;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
@@ -174,22 +174,7 @@ static void ndesc_release_tx_desc(struct dma_desc *p)
 {
 	int ter = p->des01.tx.end_ring;
 
-	/* clean field used within the xmit */
-	p->des01.tx.first_segment = 0;
-	p->des01.tx.last_segment = 0;
-	p->des01.tx.buffer1_size = 0;
-
-	/* clean status reported */
-	p->des01.tx.error_summary = 0;
-	p->des01.tx.underflow_error = 0;
-	p->des01.tx.no_carrier = 0;
-	p->des01.tx.loss_carrier = 0;
-	p->des01.tx.excessive_deferral = 0;
-	p->des01.tx.excessive_collisions = 0;
-	p->des01.tx.late_collision = 0;
-	p->des01.tx.heartbeat_fail = 0;
-	p->des01.tx.deferred = 0;
-
+	memset(p, 0, offsetof(struct dma_desc, des2));
 	/* set termination field */
 	p->des01.tx.end_ring = ter;
 }
@@ -217,7 +202,7 @@ static int ndesc_get_rx_frame_len(struct dma_desc *p)
 	return p->des01.rx.frame_length;
 }
 
-struct stmmac_desc_ops ndesc_ops = {
+const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
 	.get_tx_len = ndesc_get_tx_len,

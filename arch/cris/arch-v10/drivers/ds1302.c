@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/bcd.h>
 #include <linux/capability.h>
 
@@ -34,6 +34,7 @@
 
 #define RTC_MAJOR_NR 121 /* local major, change later */
 
+static DEFINE_MUTEX(ds1302_mutex);
 static const char ds1302_name[] = "ds1302";
 
 /* The DS1302 might be connected to different bits on different products. 
@@ -357,9 +358,9 @@ static long rtc_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lon
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ds1302_mutex);
 	ret = rtc_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ds1302_mutex);
 
 	return ret;
 }
@@ -387,6 +388,7 @@ print_rtc_status(void)
 static const struct file_operations rtc_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl = rtc_unlocked_ioctl,
+	.llseek		= noop_llseek,
 }; 
 
 /* Probe for the chip by writing something to its RAM and try reading it back. */

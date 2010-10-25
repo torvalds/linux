@@ -14,25 +14,39 @@ to /proc/cpuinfo.
 	identifier (rather than the kernel's).  The actual value is
 	architecture and platform dependent.
 
-3) /sys/devices/system/cpu/cpuX/topology/thread_siblings:
+3) /sys/devices/system/cpu/cpuX/topology/book_id:
+
+	the book ID of cpuX. Typically it is the hardware platform's
+	identifier (rather than the kernel's).	The actual value is
+	architecture and platform dependent.
+
+4) /sys/devices/system/cpu/cpuX/topology/thread_siblings:
 
 	internel kernel map of cpuX's hardware threads within the same
 	core as cpuX
 
-4) /sys/devices/system/cpu/cpuX/topology/core_siblings:
+5) /sys/devices/system/cpu/cpuX/topology/core_siblings:
 
 	internal kernel map of cpuX's hardware threads within the same
 	physical_package_id.
 
+6) /sys/devices/system/cpu/cpuX/topology/book_siblings:
+
+	internal kernel map of cpuX's hardware threads within the same
+	book_id.
+
 To implement it in an architecture-neutral way, a new source file,
-drivers/base/topology.c, is to export the 4 attributes.
+drivers/base/topology.c, is to export the 4 or 6 attributes. The two book
+related sysfs files will only be created if CONFIG_SCHED_BOOK is selected.
 
 For an architecture to support this feature, it must define some of
 these macros in include/asm-XXX/topology.h:
 #define topology_physical_package_id(cpu)
 #define topology_core_id(cpu)
+#define topology_book_id(cpu)
 #define topology_thread_cpumask(cpu)
 #define topology_core_cpumask(cpu)
+#define topology_book_cpumask(cpu)
 
 The type of **_id is int.
 The type of siblings is (const) struct cpumask *.
@@ -44,6 +58,9 @@ not defined by include/asm-XXX/topology.h:
 2) core_id: 0
 3) thread_siblings: just the given CPU
 4) core_siblings: just the given CPU
+
+For architectures that don't support books (CONFIG_SCHED_BOOK) there are no
+default definitions for topology_book_id() and topology_book_cpumask().
 
 Additionally, CPU topology information is provided under
 /sys/devices/system/cpu and includes these files.  The internal

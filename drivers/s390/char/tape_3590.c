@@ -31,7 +31,7 @@ debug_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
 /*******************************************************************
- * Error Recovery fuctions:
+ * Error Recovery functions:
  * - Read Opposite:		 implemented
  * - Read Device (buffered) log: BRA
  * - Read Library log:		 BRA
@@ -798,7 +798,7 @@ tape_3590_done(struct tape_device *device, struct tape_request *request)
 }
 
 /*
- * This fuction is called, when error recovery was successfull
+ * This function is called, when error recovery was successful
  */
 static inline int
 tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
@@ -809,7 +809,7 @@ tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
 }
 
 /*
- * This fuction is called, when error recovery was not successfull
+ * This function is called, when error recovery was not successful
  */
 static inline int
 tape_3590_erp_failed(struct tape_device *device, struct tape_request *request,

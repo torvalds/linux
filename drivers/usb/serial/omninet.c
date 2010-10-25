@@ -246,8 +246,6 @@ static void omninet_read_bulk_callback(struct urb *urb)
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
 			__func__, result);
-
-	return;
 }
 
 static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,

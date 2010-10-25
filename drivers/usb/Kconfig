@@ -59,6 +59,7 @@ config USB_ARCH_HAS_OHCI
 config USB_ARCH_HAS_EHCI
 	boolean
 	default y if PPC_83xx
+	default y if PPC_MPC512x
 	default y if SOC_AU1200
 	default y if ARCH_IXP4XX
 	default y if ARCH_W90X900

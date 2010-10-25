@@ -711,7 +711,7 @@ static u32 qe_get_link(struct net_device *dev)
 	phyconfig = sbus_readb(mregs + MREGS_PHYCONFIG);
 	spin_unlock_irq(&qep->lock);
 
-	return (phyconfig & MREGS_PHYCONFIG_LSTAT);
+	return phyconfig & MREGS_PHYCONFIG_LSTAT;
 }
 
 static const struct ethtool_ops qe_ethtool_ops = {

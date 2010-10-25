@@ -2017,6 +2017,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 	struct ioc3_port *port;
 	struct ioc3_port *ports[PORTS_PER_CARD];
 	int phys_port;
+	int cnt;
 
 	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __func__, is, idd));
 
@@ -2044,6 +2045,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 		if (!port) {
 			printk(KERN_WARNING
 			       "IOC3 serial memory not available for port\n");
+			ret = -ENOMEM;
 			goto out4;
 		}
 		spin_lock_init(&port->ip_lock);
@@ -2146,6 +2148,9 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 	/* error exits that give back resources */
 out4:
+	for (cnt = 0; cnt < phys_port; cnt++)
+		kfree(ports[cnt]);
+
 	kfree(card_ptr);
 	return ret;
 }

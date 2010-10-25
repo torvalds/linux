@@ -1042,11 +1042,11 @@ vmxnet3_rx_csum(struct vmxnet3_adapter *adapter,
 				skb->csum = htons(gdesc->rcd.csum);
 				skb->ip_summed = CHECKSUM_PARTIAL;
 			} else {
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 			}
 		}
 	} else {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 	}
 }
 
@@ -1548,23 +1548,6 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 	}
 }
 
-
-inline void set_flag_le16(__le16 *data, u16 flag)
-{
-	*data = cpu_to_le16(le16_to_cpu(*data) | flag);
-}
-
-inline void set_flag_le64(__le64 *data, u64 flag)
-{
-	*data = cpu_to_le64(le64_to_cpu(*data) | flag);
-}
-
-inline void reset_flag_le64(__le64 *data, u64 flag)
-{
-	*data = cpu_to_le64(le64_to_cpu(*data) & ~flag);
-}
-
-
 static void
 vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
@@ -1634,7 +1617,7 @@ vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
 		u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
 		bool activeVlan = false;
 
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (vlan_group_get_device(adapter->vlan_grp, vid)) {
 				VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
 				activeVlan = true;

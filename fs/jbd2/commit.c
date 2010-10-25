@@ -134,25 +134,11 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !JBD2_HAS_INCOMPAT_FEATURE(journal,
-				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
-		ret = submit_bh(WRITE_SYNC_PLUG | WRITE_BARRIER, bh);
-		if (ret == -EOPNOTSUPP) {
-			printk(KERN_WARNING
-			       "JBD2: Disabling barriers on %s, "
-			       "not supported by device\n", journal->j_devname);
-			write_lock(&journal->j_state_lock);
-			journal->j_flags &= ~JBD2_BARRIER;
-			write_unlock(&journal->j_state_lock);
-
-			/* And try again, without the barrier */
-			lock_buffer(bh);
-			set_buffer_uptodate(bh);
-			clear_buffer_dirty(bh);
-			ret = submit_bh(WRITE_SYNC_PLUG, bh);
-		}
-	} else {
+				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT))
+		ret = submit_bh(WRITE_SYNC_PLUG | WRITE_FLUSH_FUA, bh);
+	else
 		ret = submit_bh(WRITE_SYNC_PLUG, bh);
-	}
+
 	*cbh = bh;
 	return ret;
 }
@@ -166,29 +152,8 @@ static int journal_wait_on_commit_record(journal_t *journal,
 {
 	int ret = 0;
 
-retry:
 	clear_buffer_dirty(bh);
 	wait_on_buffer(bh);
-	if (buffer_eopnotsupp(bh) && (journal->j_flags & JBD2_BARRIER)) {
-		printk(KERN_WARNING
-		       "JBD2: %s: disabling barries on %s - not supported "
-		       "by device\n", __func__, journal->j_devname);
-		write_lock(&journal->j_state_lock);
-		journal->j_flags &= ~JBD2_BARRIER;
-		write_unlock(&journal->j_state_lock);
-
-		lock_buffer(bh);
-		clear_buffer_dirty(bh);
-		set_buffer_uptodate(bh);
-		bh->b_end_io = journal_end_buffer_io_sync;
-
-		ret = submit_bh(WRITE_SYNC_PLUG, bh);
-		if (ret) {
-			unlock_buffer(bh);
-			return ret;
-		}
-		goto retry;
-	}
 
 	if (unlikely(!buffer_uptodate(bh)))
 		ret = -EIO;
@@ -360,7 +325,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int tag_bytes = journal_tag_bytes(journal);
 	struct buffer_head *cbh = NULL; /* For transactional checksums */
 	__u32 crc32_sum = ~0;
-	int write_op = WRITE;
+	int write_op = WRITE_SYNC;
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -701,29 +666,6 @@ start_journal_io:
 		}
 	}
 
-	/* 
-	 * If the journal is not located on the file system device,
-	 * then we must flush the file system device before we issue
-	 * the commit record
-	 */
-	if (commit_transaction->t_flushed_data_blocks &&
-	    (journal->j_fs_dev != journal->j_dev) &&
-	    (journal->j_flags & JBD2_BARRIER))
-		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL,
-			BLKDEV_IFL_WAIT);
-
-	/* Done it all: now write the commit record asynchronously. */
-	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
-				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
-		err = journal_submit_commit_record(journal, commit_transaction,
-						 &cbh, crc32_sum);
-		if (err)
-			__jbd2_journal_abort_hard(journal);
-		if (journal->j_flags & JBD2_BARRIER)
-			blkdev_issue_flush(journal->j_dev, GFP_KERNEL, NULL,
-				BLKDEV_IFL_WAIT);
-	}
-
 	err = journal_finish_inode_data_buffers(journal, commit_transaction);
 	if (err) {
 		printk(KERN_WARNING
@@ -732,6 +674,25 @@ start_journal_io:
 		if (journal->j_flags & JBD2_ABORT_ON_SYNCDATA_ERR)
 			jbd2_journal_abort(journal, err);
 		err = 0;
+	}
+
+	/* 
+	 * If the journal is not located on the file system device,
+	 * then we must flush the file system device before we issue
+	 * the commit record
+	 */
+	if (commit_transaction->t_flushed_data_blocks &&
+	    (journal->j_fs_dev != journal->j_dev) &&
+	    (journal->j_flags & JBD2_BARRIER))
+		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
+
+	/* Done it all: now write the commit record asynchronously. */
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
+				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+		err = journal_submit_commit_record(journal, commit_transaction,
+						 &cbh, crc32_sum);
+		if (err)
+			__jbd2_journal_abort_hard(journal);
 	}
 
 	/* Lo and behold: we have just managed to send a transaction to
@@ -845,6 +806,11 @@ wait_for_iobuf:
 	}
 	if (!err && !is_journal_aborted(journal))
 		err = journal_wait_on_commit_record(journal, cbh);
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
+				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT) &&
+	    journal->j_flags & JBD2_BARRIER) {
+		blkdev_issue_flush(journal->j_dev, GFP_KERNEL, NULL);
+	}
 
 	if (err)
 		jbd2_journal_abort(journal, err);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 Advanced Micro Devices, Inc.
+ * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <joerg.roedel@amd.com>
  *         Leo Duran <leo.duran@amd.com>
  *
@@ -31,7 +31,7 @@
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
-
+#include <asm/iommu_table.h>
 /*
  * definitions for the ACPI scanning code
  */
@@ -192,6 +192,39 @@ static inline unsigned long tbl_size(int entry_size)
 			 get_order(((int)amd_iommu_last_bdf + 1) * entry_size);
 
 	return 1UL << shift;
+}
+
+/* Access to l1 and l2 indexed register spaces */
+
+static u32 iommu_read_l1(struct amd_iommu *iommu, u16 l1, u8 address)
+{
+	u32 val;
+
+	pci_write_config_dword(iommu->dev, 0xf8, (address | l1 << 16));
+	pci_read_config_dword(iommu->dev, 0xfc, &val);
+	return val;
+}
+
+static void iommu_write_l1(struct amd_iommu *iommu, u16 l1, u8 address, u32 val)
+{
+	pci_write_config_dword(iommu->dev, 0xf8, (address | l1 << 16 | 1 << 31));
+	pci_write_config_dword(iommu->dev, 0xfc, val);
+	pci_write_config_dword(iommu->dev, 0xf8, (address | l1 << 16));
+}
+
+static u32 iommu_read_l2(struct amd_iommu *iommu, u8 address)
+{
+	u32 val;
+
+	pci_write_config_dword(iommu->dev, 0xf0, address);
+	pci_read_config_dword(iommu->dev, 0xf4, &val);
+	return val;
+}
+
+static void iommu_write_l2(struct amd_iommu *iommu, u8 address, u32 val)
+{
+	pci_write_config_dword(iommu->dev, 0xf0, (address | 1 << 8));
+	pci_write_config_dword(iommu->dev, 0xf4, val);
 }
 
 /****************************************************************************
@@ -619,6 +652,7 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 {
 	int cap_ptr = iommu->cap_ptr;
 	u32 range, misc;
+	int i, j;
 
 	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_CAP_HDR_OFFSET,
 			      &iommu->cap);
@@ -633,12 +667,29 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 					MMIO_GET_LD(range));
 	iommu->evt_msi_num = MMIO_MSI_NUM(misc);
 
-	if (is_rd890_iommu(iommu->dev)) {
-		pci_read_config_dword(iommu->dev, 0xf0, &iommu->cache_cfg[0]);
-		pci_read_config_dword(iommu->dev, 0xf4, &iommu->cache_cfg[1]);
-		pci_read_config_dword(iommu->dev, 0xf8, &iommu->cache_cfg[2]);
-		pci_read_config_dword(iommu->dev, 0xfc, &iommu->cache_cfg[3]);
-	}
+	if (!is_rd890_iommu(iommu->dev))
+		return;
+
+	/*
+	 * Some rd890 systems may not be fully reconfigured by the BIOS, so
+	 * it's necessary for us to store this information so it can be
+	 * reprogrammed on resume
+	 */
+
+	pci_read_config_dword(iommu->dev, iommu->cap_ptr + 4,
+			      &iommu->stored_addr_lo);
+	pci_read_config_dword(iommu->dev, iommu->cap_ptr + 8,
+			      &iommu->stored_addr_hi);
+
+	/* Low bit locks writes to configuration space */
+	iommu->stored_addr_lo &= ~1;
+
+	for (i = 0; i < 6; i++)
+		for (j = 0; j < 0x12; j++)
+			iommu->stored_l1[i][j] = iommu_read_l1(iommu, i, j);
+
+	for (i = 0; i < 0x83; i++)
+		iommu->stored_l2[i] = iommu_read_l2(iommu, i);
 }
 
 /*
@@ -1127,14 +1178,53 @@ static void iommu_init_flags(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_COHERENT_EN);
 }
 
-static void iommu_apply_quirks(struct amd_iommu *iommu)
+static void iommu_apply_resume_quirks(struct amd_iommu *iommu)
 {
-	if (is_rd890_iommu(iommu->dev)) {
-		pci_write_config_dword(iommu->dev, 0xf0, iommu->cache_cfg[0]);
-		pci_write_config_dword(iommu->dev, 0xf4, iommu->cache_cfg[1]);
-		pci_write_config_dword(iommu->dev, 0xf8, iommu->cache_cfg[2]);
-		pci_write_config_dword(iommu->dev, 0xfc, iommu->cache_cfg[3]);
-	}
+	int i, j;
+	u32 ioc_feature_control;
+	struct pci_dev *pdev = NULL;
+
+	/* RD890 BIOSes may not have completely reconfigured the iommu */
+	if (!is_rd890_iommu(iommu->dev))
+		return;
+
+	/*
+	 * First, we need to ensure that the iommu is enabled. This is
+	 * controlled by a register in the northbridge
+	 */
+	pdev = pci_get_bus_and_slot(iommu->dev->bus->number, PCI_DEVFN(0, 0));
+
+	if (!pdev)
+		return;
+
+	/* Select Northbridge indirect register 0x75 and enable writing */
+	pci_write_config_dword(pdev, 0x60, 0x75 | (1 << 7));
+	pci_read_config_dword(pdev, 0x64, &ioc_feature_control);
+
+	/* Enable the iommu */
+	if (!(ioc_feature_control & 0x1))
+		pci_write_config_dword(pdev, 0x64, ioc_feature_control | 1);
+
+	pci_dev_put(pdev);
+
+	/* Restore the iommu BAR */
+	pci_write_config_dword(iommu->dev, iommu->cap_ptr + 4,
+			       iommu->stored_addr_lo);
+	pci_write_config_dword(iommu->dev, iommu->cap_ptr + 8,
+			       iommu->stored_addr_hi);
+
+	/* Restore the l1 indirect regs for each of the 6 l1s */
+	for (i = 0; i < 6; i++)
+		for (j = 0; j < 0x12; j++)
+			iommu_write_l1(iommu, i, j, iommu->stored_l1[i][j]);
+
+	/* Restore the l2 indirect regs */
+	for (i = 0; i < 0x83; i++)
+		iommu_write_l2(iommu, i, iommu->stored_l2[i]);
+
+	/* Lock PCI setup registers */
+	pci_write_config_dword(iommu->dev, iommu->cap_ptr + 4,
+			       iommu->stored_addr_lo | 1);
 }
 
 /*
@@ -1147,7 +1237,6 @@ static void enable_iommus(void)
 
 	for_each_iommu(iommu) {
 		iommu_disable(iommu);
-		iommu_apply_quirks(iommu);
 		iommu_init_flags(iommu);
 		iommu_set_device_table(iommu);
 		iommu_enable_command_buffer(iommu);
@@ -1173,6 +1262,11 @@ static void disable_iommus(void)
 
 static int amd_iommu_resume(struct sys_device *dev)
 {
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu)
+		iommu_apply_resume_quirks(iommu);
+
 	/* re-load the hardware */
 	enable_iommus();
 
@@ -1405,13 +1499,13 @@ static int __init early_amd_iommu_detect(struct acpi_table_header *table)
 	return 0;
 }
 
-void __init amd_iommu_detect(void)
+int __init amd_iommu_detect(void)
 {
 	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
-		return;
+		return -ENODEV;
 
 	if (amd_iommu_disabled)
-		return;
+		return -ENODEV;
 
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
@@ -1420,7 +1514,9 @@ void __init amd_iommu_detect(void)
 
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
+		return 1;
 	}
+	return -ENODEV;
 }
 
 /****************************************************************************
@@ -1451,3 +1547,8 @@ static int __init parse_amd_iommu_options(char *str)
 
 __setup("amd_iommu_dump", parse_amd_iommu_dump);
 __setup("amd_iommu=", parse_amd_iommu_options);
+
+IOMMU_INIT_FINISH(amd_iommu_detect,
+		  gart_iommu_hole_init,
+		  0,
+		  0);

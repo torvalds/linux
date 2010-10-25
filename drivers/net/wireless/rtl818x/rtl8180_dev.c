@@ -783,6 +783,7 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl8180_vif *vif_priv;
 	int i;
+	u8 reg;
 
 	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
 
@@ -791,12 +792,14 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
 					 info->bssid[i]);
 
-		if (is_valid_ether_addr(info->bssid))
-			rtl818x_iowrite8(priv, &priv->map->MSR,
-					 RTL818X_MSR_INFRA);
-		else
-			rtl818x_iowrite8(priv, &priv->map->MSR,
-					 RTL818X_MSR_NO_LINK);
+		if (is_valid_ether_addr(info->bssid)) {
+			if (vif->type == NL80211_IFTYPE_ADHOC)
+				reg = RTL818X_MSR_ADHOC;
+			else
+				reg = RTL818X_MSR_INFRA;
+		} else
+			reg = RTL818X_MSR_NO_LINK;
+		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)

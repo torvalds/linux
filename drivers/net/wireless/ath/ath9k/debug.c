@@ -71,7 +71,8 @@ static const struct file_operations fops_debug = {
 	.read = read_file_debug,
 	.write = write_file_debug,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 #endif
@@ -116,7 +117,8 @@ static const struct file_operations fops_tx_chainmask = {
 	.read = read_file_tx_chainmask,
 	.write = write_file_tx_chainmask,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -158,7 +160,8 @@ static const struct file_operations fops_rx_chainmask = {
 	.read = read_file_rx_chainmask,
 	.write = write_file_rx_chainmask,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -259,7 +262,8 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 static const struct file_operations fops_dma = {
 	.read = read_file_dma,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -375,96 +379,8 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 static const struct file_operations fops_interrupt = {
 	.read = read_file_interrupt,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
-};
-
-void ath_debug_stat_rc(struct ath_softc *sc, int final_rate)
-{
-	struct ath_rc_stats *stats;
-
-	stats = &sc->debug.stats.rcstats[final_rate];
-	stats->success++;
-}
-
-void ath_debug_stat_retries(struct ath_softc *sc, int rix,
-			    int xretries, int retries, u8 per)
-{
-	struct ath_rc_stats *stats = &sc->debug.stats.rcstats[rix];
-
-	stats->xretries += xretries;
-	stats->retries += retries;
-	stats->per = per;
-}
-
-static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
-				size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	char *buf;
-	unsigned int len = 0, max;
-	int i = 0;
-	ssize_t retval;
-
-	if (sc->cur_rate_table == NULL)
-		return 0;
-
-	max = 80 + sc->cur_rate_table->rate_cnt * 1024 + 1;
-	buf = kmalloc(max, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	len += sprintf(buf, "%6s %6s %6s "
-		       "%10s %10s %10s %10s\n",
-		       "HT", "MCS", "Rate",
-		       "Success", "Retries", "XRetries", "PER");
-
-	for (i = 0; i < sc->cur_rate_table->rate_cnt; i++) {
-		u32 ratekbps = sc->cur_rate_table->info[i].ratekbps;
-		struct ath_rc_stats *stats = &sc->debug.stats.rcstats[i];
-		char mcs[5];
-		char htmode[5];
-		int used_mcs = 0, used_htmode = 0;
-
-		if (WLAN_RC_PHY_HT(sc->cur_rate_table->info[i].phy)) {
-			used_mcs = snprintf(mcs, 5, "%d",
-				sc->cur_rate_table->info[i].ratecode);
-
-			if (WLAN_RC_PHY_40(sc->cur_rate_table->info[i].phy))
-				used_htmode = snprintf(htmode, 5, "HT40");
-			else if (WLAN_RC_PHY_20(sc->cur_rate_table->info[i].phy))
-				used_htmode = snprintf(htmode, 5, "HT20");
-			else
-				used_htmode = snprintf(htmode, 5, "????");
-		}
-
-		mcs[used_mcs] = '\0';
-		htmode[used_htmode] = '\0';
-
-		len += snprintf(buf + len, max - len,
-			"%6s %6s %3u.%d: "
-			"%10u %10u %10u %10u\n",
-			htmode,
-			mcs,
-			ratekbps / 1000,
-			(ratekbps % 1000) / 100,
-			stats->success,
-			stats->retries,
-			stats->xretries,
-			stats->per);
-	}
-
-	if (len > max)
-		len = max;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-	return retval;
-}
-
-static const struct file_operations fops_rcstat = {
-	.read = read_file_rcstat,
-	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static const char * ath_wiphy_state_str(enum ath_wiphy_state state)
@@ -488,26 +404,20 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
+	struct ath_wiphy *aphy = sc->pri_wiphy;
+	struct ieee80211_channel *chan = aphy->hw->conf.channel;
 	char buf[512];
 	unsigned int len = 0;
 	int i;
 	u8 addr[ETH_ALEN];
+	u32 tmp;
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"primary: %s (%s chan=%d ht=%d)\n",
 			wiphy_name(sc->pri_wiphy->hw->wiphy),
 			ath_wiphy_state_str(sc->pri_wiphy->state),
-			sc->pri_wiphy->chan_idx, sc->pri_wiphy->chan_is_ht);
-	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
-			continue;
-		len += snprintf(buf + len, sizeof(buf) - len,
-				"secondary: %s (%s chan=%d ht=%d)\n",
-				wiphy_name(aphy->hw->wiphy),
-				ath_wiphy_state_str(aphy->state),
-				aphy->chan_idx, aphy->chan_is_ht);
-	}
+			ieee80211_frequency_to_channel(chan->center_freq),
+			aphy->chan_is_ht);
 
 	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
@@ -517,7 +427,51 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"addrmask: %pM\n", addr);
+	tmp = ath9k_hw_getrxfilter(sc->sc_ah);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"rfilt: 0x%x", tmp);
+	if (tmp & ATH9K_RX_FILTER_UCAST)
+		len += snprintf(buf + len, sizeof(buf) - len, " UCAST");
+	if (tmp & ATH9K_RX_FILTER_MCAST)
+		len += snprintf(buf + len, sizeof(buf) - len, " MCAST");
+	if (tmp & ATH9K_RX_FILTER_BCAST)
+		len += snprintf(buf + len, sizeof(buf) - len, " BCAST");
+	if (tmp & ATH9K_RX_FILTER_CONTROL)
+		len += snprintf(buf + len, sizeof(buf) - len, " CONTROL");
+	if (tmp & ATH9K_RX_FILTER_BEACON)
+		len += snprintf(buf + len, sizeof(buf) - len, " BEACON");
+	if (tmp & ATH9K_RX_FILTER_PROM)
+		len += snprintf(buf + len, sizeof(buf) - len, " PROM");
+	if (tmp & ATH9K_RX_FILTER_PROBEREQ)
+		len += snprintf(buf + len, sizeof(buf) - len, " PROBEREQ");
+	if (tmp & ATH9K_RX_FILTER_PHYERR)
+		len += snprintf(buf + len, sizeof(buf) - len, " PHYERR");
+	if (tmp & ATH9K_RX_FILTER_MYBEACON)
+		len += snprintf(buf + len, sizeof(buf) - len, " MYBEACON");
+	if (tmp & ATH9K_RX_FILTER_COMP_BAR)
+		len += snprintf(buf + len, sizeof(buf) - len, " COMP_BAR");
+	if (tmp & ATH9K_RX_FILTER_PSPOLL)
+		len += snprintf(buf + len, sizeof(buf) - len, " PSPOLL");
+	if (tmp & ATH9K_RX_FILTER_PHYRADAR)
+		len += snprintf(buf + len, sizeof(buf) - len, " PHYRADAR");
+	if (tmp & ATH9K_RX_FILTER_MCAST_BCAST_ALL)
+		len += snprintf(buf + len, sizeof(buf) - len, " MCAST_BCAST_ALL\n");
+	else
+		len += snprintf(buf + len, sizeof(buf) - len, "\n");
 
+	/* Put variable-length stuff down here, and check for overflows. */
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (aphy == NULL)
+			continue;
+		chan = aphy->hw->conf.channel;
+		len += snprintf(buf + len, sizeof(buf) - len,
+			"secondary: %s (%s chan=%d ht=%d)\n",
+			wiphy_name(aphy->hw->wiphy),
+			ath_wiphy_state_str(aphy->state),
+			ieee80211_frequency_to_channel(chan->center_freq),
+			aphy->chan_is_ht);
+	}
 	if (len > sizeof(buf))
 		len = sizeof(buf);
 
@@ -623,7 +577,8 @@ static const struct file_operations fops_wiphy = {
 	.read = read_file_wiphy,
 	.write = write_file_wiphy,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 #define PR(str, elem)							\
@@ -663,6 +618,8 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("DESC CFG Error:  ", desc_cfg_err);
 	PR("DATA Underrun:   ", data_underrun);
 	PR("DELIM Underrun:  ", delim_underrun);
+	PR("TX-Pkts-All:     ", tx_pkts_all);
+	PR("TX-Bytes-All:    ", tx_bytes_all);
 
 	if (len > size)
 		len = size;
@@ -676,6 +633,9 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 		       struct ath_buf *bf, struct ath_tx_status *ts)
 {
+	TX_STAT_INC(txq->axq_qnum, tx_pkts_all);
+	sc->debug.stats.txstats[txq->axq_qnum].tx_bytes_all += bf->bf_mpdu->len;
+
 	if (bf_isampdu(bf)) {
 		if (bf_isxretried(bf))
 			TX_STAT_INC(txq->axq_qnum, a_xretries);
@@ -702,7 +662,8 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
@@ -770,6 +731,13 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
 	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
 
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "RX-Pkts-All",
+			sc->debug.stats.rxstats.rx_pkts_all);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "RX-Bytes-All",
+			sc->debug.stats.rxstats.rx_bytes_all);
+
 	if (len > size)
 		len = size;
 
@@ -787,6 +755,9 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 
 	u32 phyerr;
+
+	RX_STAT_INC(rx_pkts_all);
+	sc->debug.stats.rxstats.rx_bytes_all += rs->rs_datalen;
 
 	if (rs->rs_status & ATH9K_RXERR_CRC)
 		RX_STAT_INC(crc_err);
@@ -814,7 +785,8 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 static const struct file_operations fops_recv = {
 	.read = read_file_recv,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
@@ -852,7 +824,8 @@ static const struct file_operations fops_regidx = {
 	.read = read_file_regidx,
 	.write = write_file_regidx,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_regval(struct file *file, char __user *user_buf,
@@ -894,7 +867,8 @@ static const struct file_operations fops_regval = {
 	.read = read_file_regval,
 	.write = write_file_regval,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 int ath9k_init_debug(struct ath_hw *ah)
@@ -922,10 +896,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	if (!debugfs_create_file("interrupt", S_IRUSR, sc->debug.debugfs_phy,
 			sc, &fops_interrupt))
-		goto err;
-
-	if (!debugfs_create_file("rcstat", S_IRUSR, sc->debug.debugfs_phy,
-			sc, &fops_rcstat))
 		goto err;
 
 	if (!debugfs_create_file("wiphy", S_IRUSR | S_IWUSR,

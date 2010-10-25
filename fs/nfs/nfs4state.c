@@ -40,7 +40,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/fs.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_idmap.h>
 #include <linux/kthread.h>
@@ -970,13 +970,13 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 	/* Guard against delegation returns and new lock/unlock calls */
 	down_write(&nfsi->rwsem);
 	/* Protect inode->i_flock using the BKL */
-	lock_kernel();
+	lock_flocks();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file)->state != state)
 			continue;
-		unlock_kernel();
+		unlock_flocks();
 		status = ops->recover_lock(state, fl);
 		switch (status) {
 			case 0:
@@ -1003,9 +1003,9 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 				status = 0;
 		}
-		lock_kernel();
+		lock_flocks();
 	}
-	unlock_kernel();
+	unlock_flocks();
 out:
 	up_write(&nfsi->rwsem);
 	return status;

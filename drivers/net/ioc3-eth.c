@@ -827,7 +827,7 @@ static void ioc3_mii_start(struct ioc3_private *ip)
 {
 	ip->ioc3_timer.expires = jiffies + (12 * HZ)/10;  /* 1.2 sec. */
 	ip->ioc3_timer.data = (unsigned long) ip;
-	ip->ioc3_timer.function = &ioc3_timer;
+	ip->ioc3_timer.function = ioc3_timer;
 	add_timer(&ip->ioc3_timer);
 }
 

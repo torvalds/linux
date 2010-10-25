@@ -972,7 +972,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		if (debug & DEBUG_L1OIP_SOCKET)
 			printk(KERN_DEBUG "%s: got new ip address from user "
 				"space.\n", __func__);
-			l1oip_socket_open(hc);
+		l1oip_socket_open(hc);
 		break;
 	case MISDN_CTRL_UNSETPEER:
 		if (debug & DEBUG_L1OIP_SOCKET)

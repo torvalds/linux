@@ -2360,6 +2360,7 @@ static const struct file_operations sonypi_misc_fops = {
 	.release	= sonypi_misc_release,
 	.fasync		= sonypi_misc_fasync,
 	.unlocked_ioctl	= sonypi_misc_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice sonypi_misc_device = {

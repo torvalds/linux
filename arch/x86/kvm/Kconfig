@@ -64,6 +64,13 @@ config KVM_AMD
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-amd.
 
+config KVM_MMU_AUDIT
+	bool "Audit KVM MMU"
+	depends on KVM && TRACEPOINTS
+	---help---
+	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
+	 audit  KVM MMU at runtime.
+
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/vhost/Kconfig

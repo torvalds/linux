@@ -146,7 +146,7 @@ static int (*drives[4])[6] = {&drive0, &drive1, &drive2, &drive3};
 #include <linux/mtio.h>
 #include <linux/device.h>
 #include <linux/sched.h>	/* current, TASK_*, schedule_timeout() */
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 
@@ -189,6 +189,7 @@ module_param_array(drive3, int, NULL, 0);
 #define ATAPI_MODE_SENSE	0x1a
 #define ATAPI_LOG_SENSE		0x4d
 
+static DEFINE_MUTEX(pt_mutex);
 static int pt_open(struct inode *inode, struct file *file);
 static long pt_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int pt_release(struct inode *inode, struct file *file);
@@ -239,6 +240,7 @@ static const struct file_operations pt_fops = {
 	.unlocked_ioctl = pt_ioctl,
 	.open = pt_open,
 	.release = pt_release,
+	.llseek = noop_llseek,
 };
 
 /* sysfs class support */
@@ -650,9 +652,9 @@ static int pt_open(struct inode *inode, struct file *file)
 	struct pt_unit *tape = pt + unit;
 	int err;
 
-	lock_kernel();
+	mutex_lock(&pt_mutex);
 	if (unit >= PT_UNITS || (!tape->present)) {
-		unlock_kernel();
+		mutex_unlock(&pt_mutex);
 		return -ENODEV;
 	}
 
@@ -681,12 +683,12 @@ static int pt_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = tape;
-	unlock_kernel();
+	mutex_unlock(&pt_mutex);
 	return 0;
 
 out:
 	atomic_inc(&tape->available);
-	unlock_kernel();
+	mutex_unlock(&pt_mutex);
 	return err;
 }
 
@@ -704,15 +706,15 @@ static long pt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		switch (mtop.mt_op) {
 
 		case MTREW:
-			lock_kernel();
+			mutex_lock(&pt_mutex);
 			pt_rewind(tape);
-			unlock_kernel();
+			mutex_unlock(&pt_mutex);
 			return 0;
 
 		case MTWEOF:
-			lock_kernel();
+			mutex_lock(&pt_mutex);
 			pt_write_fm(tape);
-			unlock_kernel();
+			mutex_unlock(&pt_mutex);
 			return 0;
 
 		default:

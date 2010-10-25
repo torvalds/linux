@@ -46,7 +46,7 @@
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-int boot_cpuid;
+int boot_cpuid = -1;
 EXPORT_SYMBOL_GPL(boot_cpuid);
 int boot_cpuid_phys;
 
@@ -246,7 +246,7 @@ static void __init irqstack_early_init(void)
 	unsigned int i;
 
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
-	 * as the memblock is limited to lowmem by MEMBLOCK_REAL_LIMIT */
+	 * as the memblock is limited to lowmem by default */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
 			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));

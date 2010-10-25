@@ -36,8 +36,8 @@
 #include "glops.h"
 
 
-static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
-				   unsigned int from, unsigned int to)
+void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
+			    unsigned int from, unsigned int to)
 {
 	struct buffer_head *head = page_buffers(page);
 	unsigned int bsize = head->b_size;
@@ -615,7 +615,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
 	int alloc_required;
 	int error = 0;
-	struct gfs2_alloc *al;
+	struct gfs2_alloc *al = NULL;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	unsigned to = from + len;
@@ -663,6 +663,8 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		rblocks += RES_STATFS + RES_QUOTA;
 	if (&ip->i_inode == sdp->sd_rindex)
 		rblocks += 2 * RES_STATFS;
+	if (alloc_required)
+		rblocks += gfs2_rg_blocks(al);
 
 	error = gfs2_trans_begin(sdp, rblocks,
 				 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);
@@ -696,13 +698,11 @@ out:
 
 	page_cache_release(page);
 
-	/*
-	 * XXX(truncate): the call below should probably be replaced with
-	 * a call to the gfs2-specific truncate blocks helper to actually
-	 * release disk blocks..
-	 */
+	gfs2_trans_end(sdp);
 	if (pos + len > ip->i_inode.i_size)
-		truncate_setsize(&ip->i_inode, ip->i_inode.i_size);
+		gfs2_trim_blocks(&ip->i_inode);
+	goto out_trans_fail;
+
 out_endtrans:
 	gfs2_trans_end(sdp);
 out_trans_fail:
@@ -802,10 +802,8 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	page_cache_release(page);
 
 	if (copied) {
-		if (inode->i_size < to) {
+		if (inode->i_size < to)
 			i_size_write(inode, to);
-			ip->i_disksize = inode->i_size;
-		}
 		gfs2_dinode_out(ip, di);
 		mark_inode_dirty(inode);
 	}
@@ -876,8 +874,6 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	if (ret > 0) {
-		if (inode->i_size > ip->i_disksize)
-			ip->i_disksize = inode->i_size;
 		gfs2_dinode_out(ip, dibh->b_data);
 		mark_inode_dirty(inode);
 	}

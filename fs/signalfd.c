@@ -206,6 +206,7 @@ static const struct file_operations signalfd_fops = {
 	.release	= signalfd_release,
 	.poll		= signalfd_poll,
 	.read		= signalfd_read,
+	.llseek		= noop_llseek,
 };
 
 SYSCALL_DEFINE4(signalfd4, int, ufd, sigset_t __user *, user_mask,

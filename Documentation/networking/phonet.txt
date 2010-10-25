@@ -112,6 +112,22 @@ However, connect() and getpeername() are not supported, as they did
 not seem useful with Phonet usages (could be added easily).
 
 
+Resource subscription
+---------------------
+
+A Phonet datagram socket can be subscribed to any number of 8-bits
+Phonet resources, as follow:
+
+  uint32_t res = 0xXX;
+  ioctl(fd, SIOCPNADDRESOURCE, &res);
+
+Subscription is similarly cancelled using the SIOCPNDELRESOURCE I/O
+control request, or when the socket is closed.
+
+Note that no more than one socket can be subcribed to any given
+resource at a time. If not, ioctl() will return EBUSY.
+
+
 Phonet Pipe protocol
 --------------------
 
@@ -164,6 +180,46 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
   PNPIPE_IFINDEX is a read-only integer value. It contains the
     interface index of the network interface created by PNPIPE_ENCAP,
     or zero if encapsulation is off.
+
+
+Phonet Pipe-controller Implementation
+-------------------------------------
+
+Phonet Pipe-controller is enabled by selecting the CONFIG_PHONET_PIPECTRLR Kconfig
+option. It is useful when communicating with those Nokia Modems which do not
+implement Pipe controller in them e.g. Nokia Slim Modem used in ST-Ericsson
+U8500 platform.
+
+The implementation is based on the Data Connection Establishment Sequence
+depicted in 'Nokia Wireless Modem API - Wireless_modem_user_guide.pdf'
+document.
+
+It allows a phonet sequenced socket (host-pep) to initiate a Pipe connection
+between itself and a remote pipe-end point (e.g. modem).
+
+The implementation adds socket options at SOL_PNPIPE level:
+
+ PNPIPE_PIPE_HANDLE
+	It accepts an integer argument for setting value of pipe handle.
+
+  PNPIPE_ENABLE accepts one integer value (int). If set to zero, the pipe
+    is disabled. If the value is non-zero, the pipe is enabled. If the pipe
+    is not (yet) connected, ENOTCONN is error is returned.
+
+The implementation also adds socket 'connect'. On calling the 'connect', pipe
+will be created between the source socket and the destination, and the pipe
+state will be set to PIPE_DISABLED.
+
+After a pipe has been created and enabled successfully, the Pipe data can be
+exchanged between the host-pep and remote-pep (modem).
+
+User-space would typically follow below sequence with Pipe controller:-
+-socket
+-bind
+-setsockopt for PNPIPE_PIPE_HANDLE
+-connect
+-setsockopt for PNPIPE_ENCAP_IP
+-setsockopt for PNPIPE_ENABLE
 
 
 Authors

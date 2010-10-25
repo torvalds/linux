@@ -125,7 +125,7 @@ int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
 	struct fsl_pq_mdio __iomem *regs = fsl_pq_mdio_get_regs(bus);
 
 	/* Write to the local MII regs */
-	return(fsl_pq_local_mdio_write(regs, mii_id, regnum, value));
+	return fsl_pq_local_mdio_write(regs, mii_id, regnum, value);
 }
 
 /*
@@ -137,7 +137,7 @@ int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	struct fsl_pq_mdio __iomem *regs = fsl_pq_mdio_get_regs(bus);
 
 	/* Read the local MII regs */
-	return(fsl_pq_local_mdio_read(regs, mii_id, regnum));
+	return fsl_pq_local_mdio_read(regs, mii_id, regnum);
 }
 
 /* Reset the MIIM registers, and wait for the bus to free */

@@ -264,7 +264,7 @@ ENTRY(arm940_cache_fns)
 	.long	arm940_dma_unmap_area
 	.long	arm940_dma_flush_range
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm940_setup, #function
 __arm940_setup:

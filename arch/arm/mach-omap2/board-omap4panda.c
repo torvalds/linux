@@ -294,8 +294,6 @@ static void __init omap4_panda_map_io(void)
 
 MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	/* Maintainer: David Anders - Texas Instruments Inc */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap4_panda_map_io,
 	.init_irq	= omap4_panda_init_irq,

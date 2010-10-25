@@ -2,7 +2,7 @@ This file contains brief information about the SCSI tape driver.
 The driver is currently maintained by Kai Mäkisara (email
 Kai.Makisara@kolumbus.fi)
 
-Last modified: Sun Feb 24 21:59:07 2008 by kai.makisara
+Last modified: Sun Aug 29 18:25:47 2010 by kai.makisara
 
 
 BASICS
@@ -84,6 +84,17 @@ By default the driver writes one filemark when the device is closed after
 writing and the last operation has been a write. Two filemarks can be
 optionally written. In both cases end of data is signified by
 returning zero bytes for two consecutive reads.
+
+Writing filemarks without the immediate bit set in the SCSI command block acts
+as a synchronization point, i.e., all remaining data form the drive buffers is
+written to tape before the command returns. This makes sure that write errors
+are caught at that point, but this takes time. In some applications, several
+consecutive files must be written fast. The MTWEOFI operation can be used to
+write the filemarks without flushing the drive buffer. Writing filemark at
+close() is always flushing the drive buffers. However, if the previous
+operation is MTWEOFI, close() does not write a filemark. This can be used if
+the program wants to close/open the tape device between files and wants to
+skip waiting.
 
 If rewind, offline, bsf, or seek is done and previous tape operation was
 write, a filemark is written before moving tape.
@@ -301,6 +312,8 @@ MTBSR   Space backward over count records.
 MTFSS   Space forward over count setmarks.
 MTBSS   Space backward over count setmarks.
 MTWEOF  Write count filemarks.
+MTWEOFI	Write count filemarks with immediate bit set (i.e., does not
+	wait until data is on tape)
 MTWSM   Write count setmarks.
 MTREW   Rewind tape.
 MTOFFL  Set device off line (often rewind plus eject).

@@ -807,12 +807,14 @@ static struct file_operations audio_fops = {
 	.read		= audio_read,
 	.write		= audio_write,
 	.unlocked_ioctl	= audio_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct file_operations audpp_fops = {
 	.owner		= THIS_MODULE,
 	.open		= audpp_open,
 	.unlocked_ioctl	= audpp_ioctl,
+	.llseek		= noop_llseek,
 };
 
 struct miscdevice audio_misc = {

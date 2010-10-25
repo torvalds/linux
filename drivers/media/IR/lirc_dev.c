@@ -163,6 +163,7 @@ static struct file_operations fops = {
 	.unlocked_ioctl	= lirc_dev_fop_ioctl,
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
+	.llseek		= noop_llseek,
 };
 
 static int lirc_cdev_add(struct irctl *ir)
@@ -459,6 +460,8 @@ error:
 			ir->d.name, ir->d.minor, retval);
 
 	mutex_unlock(&lirc_dev_lock);
+
+	nonseekable_open(inode, file);
 
 	return retval;
 }

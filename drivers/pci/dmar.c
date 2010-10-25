@@ -36,6 +36,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <asm/iommu_table.h>
 
 #define PREFIX "DMAR: "
 
@@ -687,7 +688,7 @@ failed:
 	return 0;
 }
 
-void __init detect_intel_iommu(void)
+int __init detect_intel_iommu(void)
 {
 	int ret;
 
@@ -723,6 +724,8 @@ void __init detect_intel_iommu(void)
 	}
 	early_acpi_os_unmap_memory(dmar_tbl, dmar_tbl_size);
 	dmar_tbl = NULL;
+
+	return ret ? 1 : -ENODEV;
 }
 
 
@@ -1221,9 +1224,9 @@ const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 	}
 }
 
-void dmar_msi_unmask(unsigned int irq)
+void dmar_msi_unmask(struct irq_data *data)
 {
-	struct intel_iommu *iommu = get_irq_data(irq);
+	struct intel_iommu *iommu = irq_data_get_irq_data(data);
 	unsigned long flag;
 
 	/* unmask it */
@@ -1234,10 +1237,10 @@ void dmar_msi_unmask(unsigned int irq)
 	spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-void dmar_msi_mask(unsigned int irq)
+void dmar_msi_mask(struct irq_data *data)
 {
 	unsigned long flag;
-	struct intel_iommu *iommu = get_irq_data(irq);
+	struct intel_iommu *iommu = irq_data_get_irq_data(data);
 
 	/* mask it */
 	spin_lock_irqsave(&iommu->register_lock, flag);
@@ -1455,3 +1458,4 @@ int __init dmar_ir_support(void)
 		return 0;
 	return dmar->flags & 0x1;
 }
+IOMMU_INIT_POST(detect_intel_iommu);

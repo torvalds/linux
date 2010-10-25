@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <linux/kvm_para.h>
 #include <asm/kvm_asm.h>
 
 #define KVM_MAX_VCPUS 1
@@ -41,11 +42,16 @@
 
 #define HPTEG_CACHE_NUM			(1 << 15)
 #define HPTEG_HASH_BITS_PTE		13
+#define HPTEG_HASH_BITS_PTE_LONG	12
 #define HPTEG_HASH_BITS_VPTE		13
 #define HPTEG_HASH_BITS_VPTE_LONG	5
 #define HPTEG_HASH_NUM_PTE		(1 << HPTEG_HASH_BITS_PTE)
+#define HPTEG_HASH_NUM_PTE_LONG		(1 << HPTEG_HASH_BITS_PTE_LONG)
 #define HPTEG_HASH_NUM_VPTE		(1 << HPTEG_HASH_BITS_VPTE)
 #define HPTEG_HASH_NUM_VPTE_LONG	(1 << HPTEG_HASH_BITS_VPTE_LONG)
+
+/* Physical Address Mask - allowed range of real mode RAM access */
+#define KVM_PAM			0x0fffffffffffffffULL
 
 struct kvm;
 struct kvm_run;
@@ -159,8 +165,10 @@ struct kvmppc_mmu {
 
 struct hpte_cache {
 	struct hlist_node list_pte;
+	struct hlist_node list_pte_long;
 	struct hlist_node list_vpte;
 	struct hlist_node list_vpte_long;
+	struct rcu_head rcu_head;
 	u64 host_va;
 	u64 pfn;
 	ulong slot;
@@ -210,28 +218,20 @@ struct kvm_vcpu_arch {
 	u32 cr;
 #endif
 
-	ulong msr;
 #ifdef CONFIG_PPC_BOOK3S
 	ulong shadow_msr;
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
 	u32 mmucr;
-	ulong sprg0;
-	ulong sprg1;
-	ulong sprg2;
-	ulong sprg3;
 	ulong sprg4;
 	ulong sprg5;
 	ulong sprg6;
 	ulong sprg7;
-	ulong srr0;
-	ulong srr1;
 	ulong csrr0;
 	ulong csrr1;
 	ulong dsrr0;
 	ulong dsrr1;
-	ulong dear;
 	ulong esr;
 	u32 dec;
 	u32 decar;
@@ -290,12 +290,17 @@ struct kvm_vcpu_arch {
 	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
 	unsigned long pending_exceptions;
+	struct kvm_vcpu_arch_shared *shared;
+	unsigned long magic_page_pa; /* phys addr to map the magic page to */
+	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
 
 #ifdef CONFIG_PPC_BOOK3S
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
+	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
 	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
 	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
 	int hpte_cache_count;
+	spinlock_t mmu_lock;
 #endif
 };
 

@@ -316,7 +316,6 @@ static void u132_ring_requeue_work(struct u132 *u132, struct u132_ring *ring,
 	} else if (queue_delayed_work(workqueue, &ring->scheduler, 0))
 		return;
 	kref_put(&u132->kref, u132_hcd_delete);
-	return;
 }
 
 static void u132_ring_queue_work(struct u132 *u132, struct u132_ring *ring,
@@ -324,7 +323,6 @@ static void u132_ring_queue_work(struct u132 *u132, struct u132_ring *ring,
 {
 	kref_get(&u132->kref);
 	u132_ring_requeue_work(u132, ring, delta);
-	return;
 }
 
 static void u132_ring_cancel_work(struct u132 *u132, struct u132_ring *ring)
@@ -543,7 +541,6 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
 	mutex_unlock(&u132->scheduler_lock);
 	u132_endp_put_kref(u132, endp);
 	usb_hcd_giveback_urb(hcd, urb, status);
-	return;
 }
 
 static void u132_hcd_forget_urb(struct u132 *u132, struct u132_endp *endp,
@@ -574,8 +571,8 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
 		endp->active = 0;
 		spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
 		kfree(urbq);
-	} usb_hcd_giveback_urb(hcd, urb, status);
-	return;
+	}
+	usb_hcd_giveback_urb(hcd, urb, status);
 }
 
 static inline int edset_input(struct u132 *u132, struct u132_ring *ring,
@@ -3085,7 +3082,6 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 		u132->endp[endps] = NULL;
 
 	mutex_unlock(&u132->sw_lock);
-	return;
 }
 
 static int __devinit u132_probe(struct platform_device *pdev)

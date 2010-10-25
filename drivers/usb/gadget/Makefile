@@ -1,9 +1,7 @@
 #
 # USB peripheral controller drivers
 #
-ifeq ($(CONFIG_USB_GADGET_DEBUG),y)
-	EXTRA_CFLAGS		+= -DDEBUG
-endif
+ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
 
 obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
 obj-$(CONFIG_USB_NET2280)	+= net2280.o
@@ -18,10 +16,8 @@ obj-$(CONFIG_USB_S3C2410)	+= s3c2410_udc.o
 obj-$(CONFIG_USB_AT91)		+= at91_udc.o
 obj-$(CONFIG_USB_ATMEL_USBA)	+= atmel_usba_udc.o
 obj-$(CONFIG_USB_FSL_USB2)	+= fsl_usb2_udc.o
-fsl_usb2_udc-objs		:= fsl_udc_core.o
-ifeq ($(CONFIG_ARCH_MXC),y)
-fsl_usb2_udc-objs		+= fsl_mxc_udc.o
-endif
+fsl_usb2_udc-y			:= fsl_udc_core.o
+fsl_usb2_udc-$(CONFIG_ARCH_MXC)	+= fsl_mxc_udc.o
 obj-$(CONFIG_USB_M66592)	+= m66592-udc.o
 obj-$(CONFIG_USB_R8A66597)	+= r8a66597-udc.o
 obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
@@ -32,21 +28,21 @@ obj-$(CONFIG_USB_LANGWELL)	+= langwell_udc.o
 #
 # USB gadget drivers
 #
-g_zero-objs			:= zero.o
-g_audio-objs			:= audio.o
-g_ether-objs			:= ether.o
-g_serial-objs			:= serial.o
-g_midi-objs			:= gmidi.o
-gadgetfs-objs			:= inode.o
-g_file_storage-objs		:= file_storage.o
-g_mass_storage-objs		:= mass_storage.o
-g_printer-objs			:= printer.o
-g_cdc-objs			:= cdc2.o
-g_multi-objs			:= multi.o
-g_hid-objs			:= hid.o
-g_dbgp-objs			:= dbgp.o
-g_nokia-objs			:= nokia.o
-g_webcam-objs			:= webcam.o
+g_zero-y			:= zero.o
+g_audio-y			:= audio.o
+g_ether-y			:= ether.o
+g_serial-y			:= serial.o
+g_midi-y			:= gmidi.o
+gadgetfs-y			:= inode.o
+g_file_storage-y		:= file_storage.o
+g_mass_storage-y		:= mass_storage.o
+g_printer-y			:= printer.o
+g_cdc-y				:= cdc2.o
+g_multi-y			:= multi.o
+g_hid-y				:= hid.o
+g_dbgp-y			:= dbgp.o
+g_nokia-y			:= nokia.o
+g_webcam-y			:= webcam.o
 
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
@@ -64,4 +60,3 @@ obj-$(CONFIG_USB_G_DBGP)	+= g_dbgp.o
 obj-$(CONFIG_USB_G_MULTI)	+= g_multi.o
 obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
 obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
-

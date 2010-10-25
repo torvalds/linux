@@ -144,7 +144,7 @@ fib_rules_register(const struct fib_rules_ops *tmpl, struct net *net)
 }
 EXPORT_SYMBOL_GPL(fib_rules_register);
 
-void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
+static void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 {
 	struct fib_rule *rule, *tmp;
 
@@ -153,7 +153,6 @@ void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 		fib_rule_put(rule);
 	}
 }
-EXPORT_SYMBOL_GPL(fib_rules_cleanup_ops);
 
 static void fib_rules_put_rcu(struct rcu_head *head)
 {
@@ -182,7 +181,8 @@ static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 {
 	int ret = 0;
 
-	if (rule->iifindex && (rule->iifindex != fl->iif))
+	if (rule->iifindex && (rule->iifindex != fl->iif) &&
+	    !(fl->flags & FLOWI_FLAG_MATCH_ANY_IIF))
 		goto out;
 
 	if (rule->oifindex && (rule->oifindex != fl->oif))
@@ -225,9 +225,12 @@ jumped:
 			err = ops->action(rule, fl, flags, arg);
 
 		if (err != -EAGAIN) {
-			fib_rule_get(rule);
-			arg->rule = rule;
-			goto out;
+			if ((arg->flags & FIB_LOOKUP_NOREF) ||
+			    likely(atomic_inc_not_zero(&rule->refcnt))) {
+				arg->rule = rule;
+				goto out;
+			}
+			break;
 		}
 	}
 
@@ -491,7 +494,6 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 			}
 		}
 
-		synchronize_rcu();
 		notify_rule_change(RTM_DELRULE, rule, ops, nlh,
 				   NETLINK_CB(skb).pid);
 		fib_rule_put(rule);

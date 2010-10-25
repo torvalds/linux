@@ -147,8 +147,8 @@ choice
 	default MACH_EUKREA_MBIMX27_BASEBOARD
 
 config MACH_EUKREA_MBIMX27_BASEBOARD
-	prompt "Eukrea MBIMX27 development board"
-	bool
+	bool "Eukrea MBIMX27 development board"
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
@@ -164,6 +164,15 @@ config MACH_MX27_3DS
 	  Include support for MX27PDK platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_IMX27_VISSTRIM_M10
+	bool "Vista Silicon i.MX27 Visstrim_m10"
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for Visstrim_m10 platform and its different variants.
+	  This includes specific configurations for the board and its
+	  peripherals.
+
 config MACH_IMX27LITE
 	bool "LogicPD MX27 LITEKIT platform"
 	select IMX_HAVE_PLATFORM_IMX_UART
@@ -174,6 +183,7 @@ config MACH_IMX27LITE
 config MACH_PCA100
 	bool "Phytec phyCARD-s (pca100)"
 	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SPI_IMX

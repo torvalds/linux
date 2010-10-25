@@ -67,7 +67,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/atafd.h>
 #include <asm/atafdreg.h>
@@ -79,8 +79,9 @@
 
 #undef DEBUG
 
-static struct request_queue *floppy_queue;
+static DEFINE_MUTEX(ataflop_mutex);
 static struct request *fd_request;
+static int fdc_queue;
 
 /* Disk types: DD, HD, ED */
 static struct atari_disk_type {
@@ -1391,6 +1392,29 @@ static void setup_req_params( int drive )
 			ReqTrack, ReqSector, (unsigned long)ReqData ));
 }
 
+/*
+ * Round-robin between our available drives, doing one request from each
+ */
+static struct request *set_next_request(void)
+{
+	struct request_queue *q;
+	int old_pos = fdc_queue;
+	struct request *rq;
+
+	do {
+		q = unit[fdc_queue].disk->queue;
+		if (++fdc_queue == FD_MAX_UNITS)
+			fdc_queue = 0;
+		if (q) {
+			rq = blk_fetch_request(q);
+			if (rq)
+				break;
+		}
+	} while (fdc_queue != old_pos);
+
+	return rq;
+}
+
 
 static void redo_fd_request(void)
 {
@@ -1405,7 +1429,7 @@ static void redo_fd_request(void)
 
 repeat:
 	if (!fd_request) {
-		fd_request = blk_fetch_request(floppy_queue);
+		fd_request = set_next_request();
 		if (!fd_request)
 			goto the_end;
 	}
@@ -1671,9 +1695,9 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ataflop_mutex);
 	ret = fd_locked_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ataflop_mutex);
 
 	return ret;
 }
@@ -1854,9 +1878,9 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ataflop_mutex);
 	ret = floppy_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&ataflop_mutex);
 
 	return ret;
 }
@@ -1864,14 +1888,14 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct atari_floppy_struct *p = disk->private_data;
-	lock_kernel();
+	mutex_lock(&ataflop_mutex);
 	if (p->ref < 0)
 		p->ref = 0;
 	else if (!p->ref--) {
 		printk(KERN_ERR "floppy_release with fd_ref == 0");
 		p->ref = 0;
 	}
-	unlock_kernel();
+	mutex_unlock(&ataflop_mutex);
 	return 0;
 }
 
@@ -1932,10 +1956,6 @@ static int __init atari_floppy_init (void)
 	PhysTrackBuffer = virt_to_phys(TrackBuffer);
 	BufferDrive = BufferSide = BufferTrack = -1;
 
-	floppy_queue = blk_init_queue(do_fd_request, &ataflop_lock);
-	if (!floppy_queue)
-		goto Enomem;
-
 	for (i = 0; i < FD_MAX_UNITS; i++) {
 		unit[i].track = -1;
 		unit[i].flags = 0;
@@ -1944,7 +1964,10 @@ static int __init atari_floppy_init (void)
 		sprintf(unit[i].disk->disk_name, "fd%d", i);
 		unit[i].disk->fops = &floppy_fops;
 		unit[i].disk->private_data = &unit[i];
-		unit[i].disk->queue = floppy_queue;
+		unit[i].disk->queue = blk_init_queue(do_fd_request,
+					&ataflop_lock);
+		if (!unit[i].disk->queue)
+			goto Enomem;
 		set_capacity(unit[i].disk, MAX_DISK_SIZE * 2);
 		add_disk(unit[i].disk);
 	}
@@ -1959,10 +1982,14 @@ static int __init atari_floppy_init (void)
 
 	return 0;
 Enomem:
-	while (i--)
+	while (i--) {
+		struct request_queue *q = unit[i].disk->queue;
+
 		put_disk(unit[i].disk);
-	if (floppy_queue)
-		blk_cleanup_queue(floppy_queue);
+		if (q)
+			blk_cleanup_queue(q);
+	}
+
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 	return -ENOMEM;
 }
@@ -2011,12 +2038,14 @@ static void __exit atari_floppy_exit(void)
 	int i;
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);
 	for (i = 0; i < FD_MAX_UNITS; i++) {
+		struct request_queue *q = unit[i].disk->queue;
+
 		del_gendisk(unit[i].disk);
 		put_disk(unit[i].disk);
+		blk_cleanup_queue(q);
 	}
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 
-	blk_cleanup_queue(floppy_queue);
 	del_timer_sync(&fd_timer);
 	atari_stram_free( DMABuffer );
 }

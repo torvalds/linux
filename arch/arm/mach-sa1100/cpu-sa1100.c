@@ -13,7 +13,7 @@
  * This software has been developed while working on the LART
  * computing board (http://www.lartmaker.nl/), which is
  * sponsored by the Mobile Multi-media Communications
- * (http://www.mmc.tudelft.nl/) and Ubiquitous Communications
+ * (http://www.mobimedia.org/) and Ubiquitous Communications
  * (http://www.ubicom.tudelft.nl/) projects.
  *
  * The authors can be reached at:

@@ -50,9 +50,8 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 
 	write_sequnlock(&xtime_lock);
 
-#ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
-#endif
+
 	return(IRQ_HANDLED);
 }
 #endif

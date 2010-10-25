@@ -658,13 +658,16 @@ static u64 maybe_change_configuration(struct cpu_hw_events *cpuc, u64 pcr)
 
 		enc = perf_event_get_enc(cpuc->events[i]);
 		pcr &= ~mask_for_index(idx);
-		pcr |= event_encoding(enc, idx);
+		if (hwc->state & PERF_HES_STOPPED)
+			pcr |= nop_for_index(idx);
+		else
+			pcr |= event_encoding(enc, idx);
 	}
 out:
 	return pcr;
 }
 
-void hw_perf_enable(void)
+static void sparc_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 pcr;
@@ -691,7 +694,7 @@ void hw_perf_enable(void)
 	pcr_ops->write(cpuc->pcr);
 }
 
-void hw_perf_disable(void)
+static void sparc_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
@@ -710,48 +713,6 @@ void hw_perf_disable(void)
 	pcr_ops->write(cpuc->pcr);
 }
 
-static void sparc_pmu_disable(struct perf_event *event)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct hw_perf_event *hwc = &event->hw;
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	perf_disable();
-
-	for (i = 0; i < cpuc->n_events; i++) {
-		if (event == cpuc->event[i]) {
-			int idx = cpuc->current_idx[i];
-
-			/* Shift remaining entries down into
-			 * the existing slot.
-			 */
-			while (++i < cpuc->n_events) {
-				cpuc->event[i - 1] = cpuc->event[i];
-				cpuc->events[i - 1] = cpuc->events[i];
-				cpuc->current_idx[i - 1] =
-					cpuc->current_idx[i];
-			}
-
-			/* Absorb the final count and turn off the
-			 * event.
-			 */
-			sparc_pmu_disable_event(cpuc, hwc, idx);
-			barrier();
-			sparc_perf_event_update(event, hwc, idx);
-
-			perf_event_update_userpage(event);
-
-			cpuc->n_events--;
-			break;
-		}
-	}
-
-	perf_enable();
-	local_irq_restore(flags);
-}
-
 static int active_event_index(struct cpu_hw_events *cpuc,
 			      struct perf_event *event)
 {
@@ -765,6 +726,74 @@ static int active_event_index(struct cpu_hw_events *cpuc,
 	return cpuc->current_idx[i];
 }
 
+static void sparc_pmu_start(struct perf_event *event, int flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int idx = active_event_index(cpuc, event);
+
+	if (flags & PERF_EF_RELOAD) {
+		WARN_ON_ONCE(!(event->hw.state & PERF_HES_UPTODATE));
+		sparc_perf_event_set_period(event, &event->hw, idx);
+	}
+
+	event->hw.state = 0;
+
+	sparc_pmu_enable_event(cpuc, &event->hw, idx);
+}
+
+static void sparc_pmu_stop(struct perf_event *event, int flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int idx = active_event_index(cpuc, event);
+
+	if (!(event->hw.state & PERF_HES_STOPPED)) {
+		sparc_pmu_disable_event(cpuc, &event->hw, idx);
+		event->hw.state |= PERF_HES_STOPPED;
+	}
+
+	if (!(event->hw.state & PERF_HES_UPTODATE) && (flags & PERF_EF_UPDATE)) {
+		sparc_perf_event_update(event, &event->hw, idx);
+		event->hw.state |= PERF_HES_UPTODATE;
+	}
+}
+
+static void sparc_pmu_del(struct perf_event *event, int _flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	unsigned long flags;
+	int i;
+
+	local_irq_save(flags);
+	perf_pmu_disable(event->pmu);
+
+	for (i = 0; i < cpuc->n_events; i++) {
+		if (event == cpuc->event[i]) {
+			/* Absorb the final count and turn off the
+			 * event.
+			 */
+			sparc_pmu_stop(event, PERF_EF_UPDATE);
+
+			/* Shift remaining entries down into
+			 * the existing slot.
+			 */
+			while (++i < cpuc->n_events) {
+				cpuc->event[i - 1] = cpuc->event[i];
+				cpuc->events[i - 1] = cpuc->events[i];
+				cpuc->current_idx[i - 1] =
+					cpuc->current_idx[i];
+			}
+
+			perf_event_update_userpage(event);
+
+			cpuc->n_events--;
+			break;
+		}
+	}
+
+	perf_pmu_enable(event->pmu);
+	local_irq_restore(flags);
+}
+
 static void sparc_pmu_read(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
@@ -772,15 +801,6 @@ static void sparc_pmu_read(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	sparc_perf_event_update(event, hwc, idx);
-}
-
-static void sparc_pmu_unthrottle(struct perf_event *event)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	int idx = active_event_index(cpuc, event);
-	struct hw_perf_event *hwc = &event->hw;
-
-	sparc_pmu_enable_event(cpuc, hwc, idx);
 }
 
 static atomic_t active_events = ATOMIC_INIT(0);
@@ -877,7 +897,7 @@ static int sparc_check_constraints(struct perf_event **evts,
 	if (!n_ev)
 		return 0;
 
-	if (n_ev > perf_max_events)
+	if (n_ev > MAX_HWEVENTS)
 		return -1;
 
 	msk0 = perf_event_get_msk(events[0]);
@@ -984,22 +1004,26 @@ static int collect_events(struct perf_event *group, int max_count,
 	return n;
 }
 
-static int sparc_pmu_enable(struct perf_event *event)
+static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int n0, ret = -EAGAIN;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	n0 = cpuc->n_events;
-	if (n0 >= perf_max_events)
+	if (n0 >= MAX_HWEVENTS)
 		goto out;
 
 	cpuc->event[n0] = event;
 	cpuc->events[n0] = event->hw.event_base;
 	cpuc->current_idx[n0] = PIC_NO_INDEX;
+
+	event->hw.state = PERF_HES_UPTODATE;
+	if (!(ef_flags & PERF_EF_START))
+		event->hw.state |= PERF_HES_STOPPED;
 
 	/*
 	 * If group events scheduling transaction was started,
@@ -1020,12 +1044,12 @@ nocheck:
 
 	ret = 0;
 out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 	return ret;
 }
 
-static int __hw_perf_event_init(struct perf_event *event)
+static int sparc_pmu_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
 	struct perf_event *evts[MAX_HWEVENTS];
@@ -1038,22 +1062,33 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
 
-	pmap = NULL;
-	if (attr->type == PERF_TYPE_HARDWARE) {
+	switch (attr->type) {
+	case PERF_TYPE_HARDWARE:
 		if (attr->config >= sparc_pmu->max_events)
 			return -EINVAL;
 		pmap = sparc_pmu->event_map(attr->config);
-	} else if (attr->type == PERF_TYPE_HW_CACHE) {
+		break;
+
+	case PERF_TYPE_HW_CACHE:
 		pmap = sparc_map_cache_event(attr->config);
 		if (IS_ERR(pmap))
 			return PTR_ERR(pmap);
-	} else if (attr->type != PERF_TYPE_RAW)
-		return -EOPNOTSUPP;
+		break;
+
+	case PERF_TYPE_RAW:
+		pmap = NULL;
+		break;
+
+	default:
+		return -ENOENT;
+
+	}
 
 	if (pmap) {
 		hwc->event_base = perf_event_encode(pmap);
 	} else {
-		/* User gives us "(encoding << 16) | pic_mask" for
+		/*
+		 * User gives us "(encoding << 16) | pic_mask" for
 		 * PERF_TYPE_RAW events.
 		 */
 		hwc->event_base = attr->config;
@@ -1071,7 +1106,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	n = 0;
 	if (event->group_leader != event) {
 		n = collect_events(event->group_leader,
-				   perf_max_events - 1,
+				   MAX_HWEVENTS - 1,
 				   evts, events, current_idx_dmy);
 		if (n < 0)
 			return -EINVAL;
@@ -1107,10 +1142,11 @@ static int __hw_perf_event_init(struct perf_event *event)
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
  */
-static void sparc_pmu_start_txn(const struct pmu *pmu)
+static void sparc_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
+	perf_pmu_disable(pmu);
 	cpuhw->group_flag |= PERF_EVENT_TXN;
 }
 
@@ -1119,11 +1155,12 @@ static void sparc_pmu_start_txn(const struct pmu *pmu)
  * Clear the flag and pmu::enable() will perform the
  * schedulability test.
  */
-static void sparc_pmu_cancel_txn(const struct pmu *pmu)
+static void sparc_pmu_cancel_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
+	perf_pmu_enable(pmu);
 }
 
 /*
@@ -1131,7 +1168,7 @@ static void sparc_pmu_cancel_txn(const struct pmu *pmu)
  * Perform the group schedulability test as a whole
  * Return 0 if success
  */
-static int sparc_pmu_commit_txn(const struct pmu *pmu)
+static int sparc_pmu_commit_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int n;
@@ -1147,27 +1184,23 @@ static int sparc_pmu_commit_txn(const struct pmu *pmu)
 		return -EAGAIN;
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN;
+	perf_pmu_enable(pmu);
 	return 0;
 }
 
-static const struct pmu pmu = {
-	.enable		= sparc_pmu_enable,
-	.disable	= sparc_pmu_disable,
+static struct pmu pmu = {
+	.pmu_enable	= sparc_pmu_enable,
+	.pmu_disable	= sparc_pmu_disable,
+	.event_init	= sparc_pmu_event_init,
+	.add		= sparc_pmu_add,
+	.del		= sparc_pmu_del,
+	.start		= sparc_pmu_start,
+	.stop		= sparc_pmu_stop,
 	.read		= sparc_pmu_read,
-	.unthrottle	= sparc_pmu_unthrottle,
 	.start_txn	= sparc_pmu_start_txn,
 	.cancel_txn	= sparc_pmu_cancel_txn,
 	.commit_txn	= sparc_pmu_commit_txn,
 };
-
-const struct pmu *hw_perf_event_init(struct perf_event *event)
-{
-	int err = __hw_perf_event_init(event);
-
-	if (err)
-		return ERR_PTR(err);
-	return &pmu;
-}
 
 void perf_event_print_debug(void)
 {
@@ -1244,7 +1277,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			sparc_pmu_disable_event(cpuc, hwc, idx);
+			sparc_pmu_stop(event, 0);
 	}
 
 	return NOTIFY_STOP;
@@ -1285,28 +1318,21 @@ void __init init_hw_perf_events(void)
 
 	pr_cont("Supported PMU type is '%s'\n", sparc_pmu_type);
 
-	/* All sparc64 PMUs currently have 2 events.  */
-	perf_max_events = 2;
-
+	perf_pmu_register(&pmu);
 	register_die_notifier(&perf_event_nmi_notifier);
 }
 
-static inline void callchain_store(struct perf_callchain_entry *entry, u64 ip)
-{
-	if (entry->nr < PERF_MAX_STACK_DEPTH)
-		entry->ip[entry->nr++] = ip;
-}
-
-static void perf_callchain_kernel(struct pt_regs *regs,
-				  struct perf_callchain_entry *entry)
+void perf_callchain_kernel(struct perf_callchain_entry *entry,
+			   struct pt_regs *regs)
 {
 	unsigned long ksp, fp;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	int graph = 0;
 #endif
 
-	callchain_store(entry, PERF_CONTEXT_KERNEL);
-	callchain_store(entry, regs->tpc);
+	stack_trace_flush();
+
+	perf_callchain_store(entry, regs->tpc);
 
 	ksp = regs->u_regs[UREG_I6];
 	fp = ksp + STACK_BIAS;
@@ -1330,13 +1356,13 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			pc = sf->callers_pc;
 			fp = (unsigned long)sf->fp + STACK_BIAS;
 		}
-		callchain_store(entry, pc);
+		perf_callchain_store(entry, pc);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
 			int index = current->curr_ret_stack;
 			if (current->ret_stack && index >= graph) {
 				pc = current->ret_stack[index - graph].ret;
-				callchain_store(entry, pc);
+				perf_callchain_store(entry, pc);
 				graph++;
 			}
 		}
@@ -1344,13 +1370,12 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
-static void perf_callchain_user_64(struct pt_regs *regs,
-				   struct perf_callchain_entry *entry)
+static void perf_callchain_user_64(struct perf_callchain_entry *entry,
+				   struct pt_regs *regs)
 {
 	unsigned long ufp;
 
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, regs->tpc);
+	perf_callchain_store(entry, regs->tpc);
 
 	ufp = regs->u_regs[UREG_I6] + STACK_BIAS;
 	do {
@@ -1363,17 +1388,16 @@ static void perf_callchain_user_64(struct pt_regs *regs,
 
 		pc = sf.callers_pc;
 		ufp = (unsigned long)sf.fp + STACK_BIAS;
-		callchain_store(entry, pc);
+		perf_callchain_store(entry, pc);
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
-static void perf_callchain_user_32(struct pt_regs *regs,
-				   struct perf_callchain_entry *entry)
+static void perf_callchain_user_32(struct perf_callchain_entry *entry,
+				   struct pt_regs *regs)
 {
 	unsigned long ufp;
 
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, regs->tpc);
+	perf_callchain_store(entry, regs->tpc);
 
 	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
@@ -1386,34 +1410,16 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 
 		pc = sf.callers_pc;
 		ufp = (unsigned long)sf.fp;
-		callchain_store(entry, pc);
+		perf_callchain_store(entry, pc);
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
-/* Like powerpc we can't get PMU interrupts within the PMU handler,
- * so no need for separate NMI and IRQ chains as on x86.
- */
-static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
-
-struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
+void
+perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
-	struct perf_callchain_entry *entry = &__get_cpu_var(callchain);
-
-	entry->nr = 0;
-	if (!user_mode(regs)) {
-		stack_trace_flush();
-		perf_callchain_kernel(regs, entry);
-		if (current->mm)
-			regs = task_pt_regs(current);
-		else
-			regs = NULL;
-	}
-	if (regs) {
-		flushw_user();
-		if (test_thread_flag(TIF_32BIT))
-			perf_callchain_user_32(regs, entry);
-		else
-			perf_callchain_user_64(regs, entry);
-	}
-	return entry;
+	flushw_user();
+	if (test_thread_flag(TIF_32BIT))
+		perf_callchain_user_32(entry, regs);
+	else
+		perf_callchain_user_64(entry, regs);
 }

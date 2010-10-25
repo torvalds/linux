@@ -50,7 +50,7 @@
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -624,10 +624,9 @@ static void __init mainstone_map_io(void)
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	/* Maintainer: MontaVista Software Inc. */
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,	/* BLOB boot parameter setting */
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= mainstone_map_io,
+	.nr_irqs	= MAINSTONE_NR_IRQS,
 	.init_irq	= mainstone_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= mainstone_init,

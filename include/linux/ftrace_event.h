@@ -191,8 +191,8 @@ struct ftrace_event_call {
 	unsigned int		flags;
 
 #ifdef CONFIG_PERF_EVENTS
-	int			perf_refcount;
-	struct hlist_head	*perf_events;
+	int				perf_refcount;
+	struct hlist_head __percpu	*perf_events;
 #endif
 };
 
@@ -252,8 +252,8 @@ DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
 
 extern int  perf_trace_init(struct perf_event *event);
 extern void perf_trace_destroy(struct perf_event *event);
-extern int  perf_trace_enable(struct perf_event *event);
-extern void perf_trace_disable(struct perf_event *event);
+extern int  perf_trace_add(struct perf_event *event, int flags);
+extern void perf_trace_del(struct perf_event *event, int flags);
 extern int  ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);

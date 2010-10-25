@@ -1010,15 +1010,13 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
 		 * option 2 - shutdown file systems
 		 *	      associated with log ?
 		 * option 3 - extend log ?
-		 */
-		/*
 		 * option 4 - second chance
 		 *
 		 * mark log wrapped, and continue.
 		 * when all active transactions are completed,
-		 * mark log vaild for recovery.
+		 * mark log valid for recovery.
 		 * if crashed during invalid state, log state
-		 * implies invald log, forcing fsck().
+		 * implies invalid log, forcing fsck().
 		 */
 		/* mark log state log wrap in log superblock */
 		/* log->state = LOGWRAP; */

@@ -890,6 +890,7 @@ static ssize_t mdesc_read(struct file *file, char __user *buf,
 static const struct file_operations mdesc_fops = {
 	.read	= mdesc_read,
 	.owner	= THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice mdesc_misc = {

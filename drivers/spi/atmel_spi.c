@@ -654,6 +654,8 @@ static int atmel_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	struct spi_transfer	*xfer;
 	unsigned long		flags;
 	struct device		*controller = spi->master->dev.parent;
+	u8			bits;
+	struct atmel_spi_device	*asd;
 
 	as = spi_master_get_devdata(spi->master);
 
@@ -672,8 +674,18 @@ static int atmel_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 			return -EINVAL;
 		}
 
+		if (xfer->bits_per_word) {
+			asd = spi->controller_state;
+			bits = (asd->csr >> 4) & 0xf;
+			if (bits != xfer->bits_per_word - 8) {
+				dev_dbg(&spi->dev, "you can't yet change "
+					 "bits_per_word in transfers\n");
+				return -ENOPROTOOPT;
+			}
+		}
+
 		/* FIXME implement these protocol options!! */
-		if (xfer->bits_per_word || xfer->speed_hz) {
+		if (xfer->speed_hz) {
 			dev_dbg(&spi->dev, "no protocol options yet\n");
 			return -ENOPROTOOPT;
 		}

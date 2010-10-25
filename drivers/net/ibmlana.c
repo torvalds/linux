@@ -23,7 +23,7 @@ paper sources:
   'LAN Technical Reference Ethernet Adapter Interface Version 1 Release 1.0
    Document Number SC30-3661-00' by IBM for info on the adapter itself
 
-  Also see http://www.natsemi.com/
+  Also see http://www.national.com/analog 
 
 special acknowledgements to:
   - Bob Eager for helping me out with documentation from IBM
@@ -602,7 +602,7 @@ static void irqrx_handler(struct net_device *dev)
 				/* set up skb fields */
 
 				skb->protocol = eth_type_trans(skb, dev);
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 
 				/* bookkeeping */
 				dev->stats.rx_packets++;
