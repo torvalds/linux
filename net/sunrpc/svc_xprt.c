@@ -941,16 +941,16 @@ void svc_close_all(struct list_head *xprt_list)
 	struct svc_xprt *xprt;
 	struct svc_xprt *tmp;
 
+	/*
+	 * The server is shutting down, and no more threads are running.
+	 * svc_xprt_enqueue() might still be running, but at worst it
+	 * will re-add the xprt to sp_sockets, which will soon get
+	 * freed.  So we don't bother with any more locking, and don't
+	 * leave the close to the (nonexistent) server threads:
+	 */
 	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
-		if (test_bit(XPT_BUSY, &xprt->xpt_flags)) {
-			/* Waiting to be processed, but no threads left,
-			 * So just remove it from the waiting list
-			 */
-			list_del_init(&xprt->xpt_ready);
-			clear_bit(XPT_BUSY, &xprt->xpt_flags);
-		}
-		svc_close_xprt(xprt);
+		svc_delete_xprt(xprt);
 	}
 }
 
