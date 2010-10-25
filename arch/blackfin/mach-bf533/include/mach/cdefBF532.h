@@ -66,16 +66,10 @@
 #define bfin_write_RTC_PREN(val)             bfin_write16(RTC_PREN,val)
 
 /* DMA Traffic controls */
-#define bfin_read_DMA_TCPER()                bfin_read16(DMA_TCPER)
-#define bfin_write_DMA_TCPER(val)            bfin_write16(DMA_TCPER,val)
-#define bfin_read_DMA_TCCNT()                bfin_read16(DMA_TCCNT)
-#define bfin_write_DMA_TCCNT(val)            bfin_write16(DMA_TCCNT,val)
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define bfin_read_DMA_TC_PER()               bfin_read16(DMA_TC_PER)
-#define bfin_write_DMA_TC_PER(val)           bfin_write16(DMA_TC_PER,val)
-#define bfin_read_DMA_TC_CNT()               bfin_read16(DMA_TC_CNT)
-#define bfin_write_DMA_TC_CNT(val)           bfin_write16(DMA_TC_CNT,val)
+#define bfin_read_DMAC_TC_PER()              bfin_read16(DMAC_TC_PER)
+#define bfin_write_DMAC_TC_PER(val)          bfin_write16(DMAC_TC_PER,val)
+#define bfin_read_DMAC_TC_CNT()              bfin_read16(DMAC_TC_CNT)
+#define bfin_write_DMAC_TC_CNT(val)          bfin_write16(DMAC_TC_CNT,val)
 
 /* General Purpose IO (0xFFC0 2400-0xFFC0 27FF) */
 #define bfin_read_FIO_DIR()                  bfin_read16(FIO_DIR)

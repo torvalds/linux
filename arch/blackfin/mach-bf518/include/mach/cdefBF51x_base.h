@@ -377,16 +377,10 @@
 
 
 /* DMA Traffic Control Registers													*/
-#define bfin_read_DMA_TC_PER()			bfin_read16(DMA_TC_PER)
-#define bfin_write_DMA_TC_PER(val)		bfin_write16(DMA_TC_PER, val)
-#define bfin_read_DMA_TC_CNT()			bfin_read16(DMA_TC_CNT)
-#define bfin_write_DMA_TC_CNT(val)		bfin_write16(DMA_TC_CNT, val)
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define bfin_read_DMA_TCPER()			bfin_read16(DMA_TCPER)
-#define bfin_write_DMA_TCPER(val)		bfin_write16(DMA_TCPER, val)
-#define bfin_read_DMA_TCCNT()			bfin_read16(DMA_TCCNT)
-#define bfin_write_DMA_TCCNT(val)		bfin_write16(DMA_TCCNT, val)
+#define bfin_read_DMAC_TC_PER()			bfin_read16(DMAC_TC_PER)
+#define bfin_write_DMAC_TC_PER(val)		bfin_write16(DMAC_TC_PER, val)
+#define bfin_read_DMAC_TC_CNT()			bfin_read16(DMAC_TC_CNT)
+#define bfin_write_DMAC_TC_CNT(val)		bfin_write16(DMAC_TC_CNT, val)
 
 /* DMA Controller																	*/
 #define bfin_read_DMA0_CONFIG()			bfin_read16(DMA0_CONFIG)

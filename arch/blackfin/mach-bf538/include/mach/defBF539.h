@@ -200,9 +200,6 @@
 #define	DMAC0_TC_PER			0xFFC00B0C	/* DMA Controller 0 Traffic Control Periods Register */
 #define	DMAC0_TC_CNT			0xFFC00B10	/* DMA Controller 0 Traffic Control Current Counts Register */
 
-/* Alternate deprecated	register names (below) provided	for backwards code compatibility */
-#define	DMA0_TCPER			DMAC0_TC_PER
-#define	DMA0_TCCNT			DMAC0_TC_CNT
 
 
 /* DMA Controller 0 (0xFFC00C00	- 0xFFC00FFF)							 */
@@ -319,117 +316,61 @@
 #define	DMA7_CURR_X_COUNT		0xFFC00DF0	/* DMA Channel 7 Current X Count Register */
 #define	DMA7_CURR_Y_COUNT		0xFFC00DF8	/* DMA Channel 7 Current Y Count Register */
 
-#define	MDMA0_D0_NEXT_DESC_PTR	0xFFC00E00	/* MemDMA0 Stream 0 Destination	Next Descriptor	Pointer	Register */
-#define	MDMA0_D0_START_ADDR		0xFFC00E04	/* MemDMA0 Stream 0 Destination	Start Address Register */
-#define	MDMA0_D0_CONFIG			0xFFC00E08	/* MemDMA0 Stream 0 Destination	Configuration Register */
-#define	MDMA0_D0_X_COUNT		0xFFC00E10	/* MemDMA0 Stream 0 Destination	X Count	Register */
-#define	MDMA0_D0_X_MODIFY		0xFFC00E14	/* MemDMA0 Stream 0 Destination	X Modify Register */
-#define	MDMA0_D0_Y_COUNT		0xFFC00E18	/* MemDMA0 Stream 0 Destination	Y Count	Register */
-#define	MDMA0_D0_Y_MODIFY		0xFFC00E1C	/* MemDMA0 Stream 0 Destination	Y Modify Register */
-#define	MDMA0_D0_CURR_DESC_PTR	0xFFC00E20	/* MemDMA0 Stream 0 Destination	Current	Descriptor Pointer Register */
-#define	MDMA0_D0_CURR_ADDR		0xFFC00E24	/* MemDMA0 Stream 0 Destination	Current	Address	Register */
-#define	MDMA0_D0_IRQ_STATUS		0xFFC00E28	/* MemDMA0 Stream 0 Destination	Interrupt/Status Register */
-#define	MDMA0_D0_PERIPHERAL_MAP	0xFFC00E2C	/* MemDMA0 Stream 0 Destination	Peripheral Map Register */
-#define	MDMA0_D0_CURR_X_COUNT	0xFFC00E30	/* MemDMA0 Stream 0 Destination	Current	X Count	Register */
-#define	MDMA0_D0_CURR_Y_COUNT	0xFFC00E38	/* MemDMA0 Stream 0 Destination	Current	Y Count	Register */
+#define	MDMA_D0_NEXT_DESC_PTR	0xFFC00E00	/* MemDMA0 Stream 0 Destination	Next Descriptor	Pointer	Register */
+#define	MDMA_D0_START_ADDR		0xFFC00E04	/* MemDMA0 Stream 0 Destination	Start Address Register */
+#define	MDMA_D0_CONFIG			0xFFC00E08	/* MemDMA0 Stream 0 Destination	Configuration Register */
+#define	MDMA_D0_X_COUNT		0xFFC00E10	/* MemDMA0 Stream 0 Destination	X Count	Register */
+#define	MDMA_D0_X_MODIFY		0xFFC00E14	/* MemDMA0 Stream 0 Destination	X Modify Register */
+#define	MDMA_D0_Y_COUNT		0xFFC00E18	/* MemDMA0 Stream 0 Destination	Y Count	Register */
+#define	MDMA_D0_Y_MODIFY		0xFFC00E1C	/* MemDMA0 Stream 0 Destination	Y Modify Register */
+#define	MDMA_D0_CURR_DESC_PTR	0xFFC00E20	/* MemDMA0 Stream 0 Destination	Current	Descriptor Pointer Register */
+#define	MDMA_D0_CURR_ADDR		0xFFC00E24	/* MemDMA0 Stream 0 Destination	Current	Address	Register */
+#define	MDMA_D0_IRQ_STATUS		0xFFC00E28	/* MemDMA0 Stream 0 Destination	Interrupt/Status Register */
+#define	MDMA_D0_PERIPHERAL_MAP	0xFFC00E2C	/* MemDMA0 Stream 0 Destination	Peripheral Map Register */
+#define	MDMA_D0_CURR_X_COUNT	0xFFC00E30	/* MemDMA0 Stream 0 Destination	Current	X Count	Register */
+#define	MDMA_D0_CURR_Y_COUNT	0xFFC00E38	/* MemDMA0 Stream 0 Destination	Current	Y Count	Register */
 
-#define	MDMA0_S0_NEXT_DESC_PTR	0xFFC00E40	/* MemDMA0 Stream 0 Source Next	Descriptor Pointer Register */
-#define	MDMA0_S0_START_ADDR		0xFFC00E44	/* MemDMA0 Stream 0 Source Start Address Register */
-#define	MDMA0_S0_CONFIG			0xFFC00E48	/* MemDMA0 Stream 0 Source Configuration Register */
-#define	MDMA0_S0_X_COUNT		0xFFC00E50	/* MemDMA0 Stream 0 Source X Count Register */
-#define	MDMA0_S0_X_MODIFY		0xFFC00E54	/* MemDMA0 Stream 0 Source X Modify Register */
-#define	MDMA0_S0_Y_COUNT		0xFFC00E58	/* MemDMA0 Stream 0 Source Y Count Register */
-#define	MDMA0_S0_Y_MODIFY		0xFFC00E5C	/* MemDMA0 Stream 0 Source Y Modify Register */
-#define	MDMA0_S0_CURR_DESC_PTR	0xFFC00E60	/* MemDMA0 Stream 0 Source Current Descriptor Pointer Register */
-#define	MDMA0_S0_CURR_ADDR		0xFFC00E64	/* MemDMA0 Stream 0 Source Current Address Register */
-#define	MDMA0_S0_IRQ_STATUS		0xFFC00E68	/* MemDMA0 Stream 0 Source Interrupt/Status Register */
-#define	MDMA0_S0_PERIPHERAL_MAP	0xFFC00E6C	/* MemDMA0 Stream 0 Source Peripheral Map Register */
-#define	MDMA0_S0_CURR_X_COUNT	0xFFC00E70	/* MemDMA0 Stream 0 Source Current X Count Register */
-#define	MDMA0_S0_CURR_Y_COUNT	0xFFC00E78	/* MemDMA0 Stream 0 Source Current Y Count Register */
+#define	MDMA_S0_NEXT_DESC_PTR	0xFFC00E40	/* MemDMA0 Stream 0 Source Next	Descriptor Pointer Register */
+#define	MDMA_S0_START_ADDR		0xFFC00E44	/* MemDMA0 Stream 0 Source Start Address Register */
+#define	MDMA_S0_CONFIG			0xFFC00E48	/* MemDMA0 Stream 0 Source Configuration Register */
+#define	MDMA_S0_X_COUNT		0xFFC00E50	/* MemDMA0 Stream 0 Source X Count Register */
+#define	MDMA_S0_X_MODIFY		0xFFC00E54	/* MemDMA0 Stream 0 Source X Modify Register */
+#define	MDMA_S0_Y_COUNT		0xFFC00E58	/* MemDMA0 Stream 0 Source Y Count Register */
+#define	MDMA_S0_Y_MODIFY		0xFFC00E5C	/* MemDMA0 Stream 0 Source Y Modify Register */
+#define	MDMA_S0_CURR_DESC_PTR	0xFFC00E60	/* MemDMA0 Stream 0 Source Current Descriptor Pointer Register */
+#define	MDMA_S0_CURR_ADDR		0xFFC00E64	/* MemDMA0 Stream 0 Source Current Address Register */
+#define	MDMA_S0_IRQ_STATUS		0xFFC00E68	/* MemDMA0 Stream 0 Source Interrupt/Status Register */
+#define	MDMA_S0_PERIPHERAL_MAP	0xFFC00E6C	/* MemDMA0 Stream 0 Source Peripheral Map Register */
+#define	MDMA_S0_CURR_X_COUNT	0xFFC00E70	/* MemDMA0 Stream 0 Source Current X Count Register */
+#define	MDMA_S0_CURR_Y_COUNT	0xFFC00E78	/* MemDMA0 Stream 0 Source Current Y Count Register */
 
-#define	MDMA0_D1_NEXT_DESC_PTR	0xFFC00E80	/* MemDMA0 Stream 1 Destination	Next Descriptor	Pointer	Register */
-#define	MDMA0_D1_START_ADDR		0xFFC00E84	/* MemDMA0 Stream 1 Destination	Start Address Register */
-#define	MDMA0_D1_CONFIG			0xFFC00E88	/* MemDMA0 Stream 1 Destination	Configuration Register */
-#define	MDMA0_D1_X_COUNT		0xFFC00E90	/* MemDMA0 Stream 1 Destination	X Count	Register */
-#define	MDMA0_D1_X_MODIFY		0xFFC00E94	/* MemDMA0 Stream 1 Destination	X Modify Register */
-#define	MDMA0_D1_Y_COUNT		0xFFC00E98	/* MemDMA0 Stream 1 Destination	Y Count	Register */
-#define	MDMA0_D1_Y_MODIFY		0xFFC00E9C	/* MemDMA0 Stream 1 Destination	Y Modify Register */
-#define	MDMA0_D1_CURR_DESC_PTR	0xFFC00EA0	/* MemDMA0 Stream 1 Destination	Current	Descriptor Pointer Register */
-#define	MDMA0_D1_CURR_ADDR		0xFFC00EA4	/* MemDMA0 Stream 1 Destination	Current	Address	Register */
-#define	MDMA0_D1_IRQ_STATUS		0xFFC00EA8	/* MemDMA0 Stream 1 Destination	Interrupt/Status Register */
-#define	MDMA0_D1_PERIPHERAL_MAP	0xFFC00EAC	/* MemDMA0 Stream 1 Destination	Peripheral Map Register */
-#define	MDMA0_D1_CURR_X_COUNT	0xFFC00EB0	/* MemDMA0 Stream 1 Destination	Current	X Count	Register */
-#define	MDMA0_D1_CURR_Y_COUNT	0xFFC00EB8	/* MemDMA0 Stream 1 Destination	Current	Y Count	Register */
+#define	MDMA_D1_NEXT_DESC_PTR	0xFFC00E80	/* MemDMA0 Stream 1 Destination	Next Descriptor	Pointer	Register */
+#define	MDMA_D1_START_ADDR		0xFFC00E84	/* MemDMA0 Stream 1 Destination	Start Address Register */
+#define	MDMA_D1_CONFIG			0xFFC00E88	/* MemDMA0 Stream 1 Destination	Configuration Register */
+#define	MDMA_D1_X_COUNT		0xFFC00E90	/* MemDMA0 Stream 1 Destination	X Count	Register */
+#define	MDMA_D1_X_MODIFY		0xFFC00E94	/* MemDMA0 Stream 1 Destination	X Modify Register */
+#define	MDMA_D1_Y_COUNT		0xFFC00E98	/* MemDMA0 Stream 1 Destination	Y Count	Register */
+#define	MDMA_D1_Y_MODIFY		0xFFC00E9C	/* MemDMA0 Stream 1 Destination	Y Modify Register */
+#define	MDMA_D1_CURR_DESC_PTR	0xFFC00EA0	/* MemDMA0 Stream 1 Destination	Current	Descriptor Pointer Register */
+#define	MDMA_D1_CURR_ADDR		0xFFC00EA4	/* MemDMA0 Stream 1 Destination	Current	Address	Register */
+#define	MDMA_D1_IRQ_STATUS		0xFFC00EA8	/* MemDMA0 Stream 1 Destination	Interrupt/Status Register */
+#define	MDMA_D1_PERIPHERAL_MAP	0xFFC00EAC	/* MemDMA0 Stream 1 Destination	Peripheral Map Register */
+#define	MDMA_D1_CURR_X_COUNT	0xFFC00EB0	/* MemDMA0 Stream 1 Destination	Current	X Count	Register */
+#define	MDMA_D1_CURR_Y_COUNT	0xFFC00EB8	/* MemDMA0 Stream 1 Destination	Current	Y Count	Register */
 
-#define	MDMA0_S1_NEXT_DESC_PTR	0xFFC00EC0	/* MemDMA0 Stream 1 Source Next	Descriptor Pointer Register */
-#define	MDMA0_S1_START_ADDR		0xFFC00EC4	/* MemDMA0 Stream 1 Source Start Address Register */
-#define	MDMA0_S1_CONFIG			0xFFC00EC8	/* MemDMA0 Stream 1 Source Configuration Register */
-#define	MDMA0_S1_X_COUNT		0xFFC00ED0	/* MemDMA0 Stream 1 Source X Count Register */
-#define	MDMA0_S1_X_MODIFY		0xFFC00ED4	/* MemDMA0 Stream 1 Source X Modify Register */
-#define	MDMA0_S1_Y_COUNT		0xFFC00ED8	/* MemDMA0 Stream 1 Source Y Count Register */
-#define	MDMA0_S1_Y_MODIFY		0xFFC00EDC	/* MemDMA0 Stream 1 Source Y Modify Register */
-#define	MDMA0_S1_CURR_DESC_PTR	0xFFC00EE0	/* MemDMA0 Stream 1 Source Current Descriptor Pointer Register */
-#define	MDMA0_S1_CURR_ADDR		0xFFC00EE4	/* MemDMA0 Stream 1 Source Current Address Register */
-#define	MDMA0_S1_IRQ_STATUS		0xFFC00EE8	/* MemDMA0 Stream 1 Source Interrupt/Status Register */
-#define	MDMA0_S1_PERIPHERAL_MAP	0xFFC00EEC	/* MemDMA0 Stream 1 Source Peripheral Map Register */
-#define	MDMA0_S1_CURR_X_COUNT	0xFFC00EF0	/* MemDMA0 Stream 1 Source Current X Count Register */
-#define	MDMA0_S1_CURR_Y_COUNT	0xFFC00EF8	/* MemDMA0 Stream 1 Source Current Y Count Register */
-
-#define MDMA_D0_NEXT_DESC_PTR MDMA0_D0_NEXT_DESC_PTR
-#define MDMA_D0_START_ADDR MDMA0_D0_START_ADDR
-#define MDMA_D0_CONFIG MDMA0_D0_CONFIG
-#define MDMA_D0_X_COUNT MDMA0_D0_X_COUNT
-#define MDMA_D0_X_MODIFY MDMA0_D0_X_MODIFY
-#define MDMA_D0_Y_COUNT MDMA0_D0_Y_COUNT
-#define MDMA_D0_Y_MODIFY MDMA0_D0_Y_MODIFY
-#define MDMA_D0_CURR_DESC_PTR MDMA0_D0_CURR_DESC_PTR
-#define MDMA_D0_CURR_ADDR MDMA0_D0_CURR_ADDR
-#define MDMA_D0_IRQ_STATUS MDMA0_D0_IRQ_STATUS
-#define MDMA_D0_PERIPHERAL_MAP MDMA0_D0_PERIPHERAL_MAP
-#define MDMA_D0_CURR_X_COUNT MDMA0_D0_CURR_X_COUNT
-#define MDMA_D0_CURR_Y_COUNT MDMA0_D0_CURR_Y_COUNT
-
-#define MDMA_S0_NEXT_DESC_PTR MDMA0_S0_NEXT_DESC_PTR
-#define MDMA_S0_START_ADDR MDMA0_S0_START_ADDR
-#define MDMA_S0_CONFIG MDMA0_S0_CONFIG
-#define MDMA_S0_X_COUNT MDMA0_S0_X_COUNT
-#define MDMA_S0_X_MODIFY MDMA0_S0_X_MODIFY
-#define MDMA_S0_Y_COUNT MDMA0_S0_Y_COUNT
-#define MDMA_S0_Y_MODIFY MDMA0_S0_Y_MODIFY
-#define MDMA_S0_CURR_DESC_PTR MDMA0_S0_CURR_DESC_PTR
-#define MDMA_S0_CURR_ADDR MDMA0_S0_CURR_ADDR
-#define MDMA_S0_IRQ_STATUS MDMA0_S0_IRQ_STATUS
-#define MDMA_S0_PERIPHERAL_MAP MDMA0_S0_PERIPHERAL_MAP
-#define MDMA_S0_CURR_X_COUNT MDMA0_S0_CURR_X_COUNT
-#define MDMA_S0_CURR_Y_COUNT MDMA0_S0_CURR_Y_COUNT
-
-#define MDMA_D1_NEXT_DESC_PTR MDMA0_D1_NEXT_DESC_PTR
-#define MDMA_D1_START_ADDR MDMA0_D1_START_ADDR
-#define MDMA_D1_CONFIG MDMA0_D1_CONFIG
-#define MDMA_D1_X_COUNT MDMA0_D1_X_COUNT
-#define MDMA_D1_X_MODIFY MDMA0_D1_X_MODIFY
-#define MDMA_D1_Y_COUNT MDMA0_D1_Y_COUNT
-#define MDMA_D1_Y_MODIFY MDMA0_D1_Y_MODIFY
-#define MDMA_D1_CURR_DESC_PTR MDMA0_D1_CURR_DESC_PTR
-#define MDMA_D1_CURR_ADDR MDMA0_D1_CURR_ADDR
-#define MDMA_D1_IRQ_STATUS MDMA0_D1_IRQ_STATUS
-#define MDMA_D1_PERIPHERAL_MAP MDMA0_D1_PERIPHERAL_MAP
-#define MDMA_D1_CURR_X_COUNT MDMA0_D1_CURR_X_COUNT
-#define MDMA_D1_CURR_Y_COUNT MDMA0_D1_CURR_Y_COUNT
-
-#define MDMA_S1_NEXT_DESC_PTR MDMA0_S1_NEXT_DESC_PTR
-#define MDMA_S1_START_ADDR MDMA0_S1_START_ADDR
-#define MDMA_S1_CONFIG MDMA0_S1_CONFIG
-#define MDMA_S1_X_COUNT MDMA0_S1_X_COUNT
-#define MDMA_S1_X_MODIFY MDMA0_S1_X_MODIFY
-#define MDMA_S1_Y_COUNT MDMA0_S1_Y_COUNT
-#define MDMA_S1_Y_MODIFY MDMA0_S1_Y_MODIFY
-#define MDMA_S1_CURR_DESC_PTR MDMA0_S1_CURR_DESC_PTR
-#define MDMA_S1_CURR_ADDR MDMA0_S1_CURR_ADDR
-#define MDMA_S1_IRQ_STATUS MDMA0_S1_IRQ_STATUS
-#define MDMA_S1_PERIPHERAL_MAP MDMA0_S1_PERIPHERAL_MAP
-#define MDMA_S1_CURR_X_COUNT MDMA0_S1_CURR_X_COUNT
-#define MDMA_S1_CURR_Y_COUNT MDMA0_S1_CURR_Y_COUNT
+#define	MDMA_S1_NEXT_DESC_PTR	0xFFC00EC0	/* MemDMA0 Stream 1 Source Next	Descriptor Pointer Register */
+#define	MDMA_S1_START_ADDR		0xFFC00EC4	/* MemDMA0 Stream 1 Source Start Address Register */
+#define	MDMA_S1_CONFIG			0xFFC00EC8	/* MemDMA0 Stream 1 Source Configuration Register */
+#define	MDMA_S1_X_COUNT		0xFFC00ED0	/* MemDMA0 Stream 1 Source X Count Register */
+#define	MDMA_S1_X_MODIFY		0xFFC00ED4	/* MemDMA0 Stream 1 Source X Modify Register */
+#define	MDMA_S1_Y_COUNT		0xFFC00ED8	/* MemDMA0 Stream 1 Source Y Count Register */
+#define	MDMA_S1_Y_MODIFY		0xFFC00EDC	/* MemDMA0 Stream 1 Source Y Modify Register */
+#define	MDMA_S1_CURR_DESC_PTR	0xFFC00EE0	/* MemDMA0 Stream 1 Source Current Descriptor Pointer Register */
+#define	MDMA_S1_CURR_ADDR		0xFFC00EE4	/* MemDMA0 Stream 1 Source Current Address Register */
+#define	MDMA_S1_IRQ_STATUS		0xFFC00EE8	/* MemDMA0 Stream 1 Source Interrupt/Status Register */
+#define	MDMA_S1_PERIPHERAL_MAP	0xFFC00EEC	/* MemDMA0 Stream 1 Source Peripheral Map Register */
+#define	MDMA_S1_CURR_X_COUNT	0xFFC00EF0	/* MemDMA0 Stream 1 Source Current X Count Register */
+#define	MDMA_S1_CURR_Y_COUNT	0xFFC00EF8	/* MemDMA0 Stream 1 Source Current Y Count Register */
 
 
 /* Parallel Peripheral Interface (PPI) (0xFFC01000 - 0xFFC010FF) */
@@ -500,9 +441,6 @@
 #define	DMAC1_TC_PER			0xFFC01B0C	/* DMA Controller 1 Traffic Control Periods Register */
 #define	DMAC1_TC_CNT			0xFFC01B10	/* DMA Controller 1 Traffic Control Current Counts Register */
 
-/* Alternate deprecated	register names (below) provided	for backwards code compatibility */
-#define	DMA1_TCPER			DMAC1_TC_PER
-#define	DMA1_TCCNT			DMAC1_TC_CNT
 
 
 /* DMA Controller 1 (0xFFC01C00	- 0xFFC01FFF)							 */
@@ -674,61 +612,61 @@
 #define	DMA19_CURR_X_COUNT		0xFFC01EF0	/* DMA Channel 19 Current X Count Register */
 #define	DMA19_CURR_Y_COUNT		0xFFC01EF8	/* DMA Channel 19 Current Y Count Register */
 
-#define	MDMA1_D0_NEXT_DESC_PTR	0xFFC01F00	/* MemDMA1 Stream 0 Destination	Next Descriptor	Pointer	Register */
-#define	MDMA1_D0_START_ADDR		0xFFC01F04	/* MemDMA1 Stream 0 Destination	Start Address Register */
-#define	MDMA1_D0_CONFIG			0xFFC01F08	/* MemDMA1 Stream 0 Destination	Configuration Register */
-#define	MDMA1_D0_X_COUNT		0xFFC01F10	/* MemDMA1 Stream 0 Destination	X Count	Register */
-#define	MDMA1_D0_X_MODIFY		0xFFC01F14	/* MemDMA1 Stream 0 Destination	X Modify Register */
-#define	MDMA1_D0_Y_COUNT		0xFFC01F18	/* MemDMA1 Stream 0 Destination	Y Count	Register */
-#define	MDMA1_D0_Y_MODIFY		0xFFC01F1C	/* MemDMA1 Stream 0 Destination	Y Modify Register */
-#define	MDMA1_D0_CURR_DESC_PTR	0xFFC01F20	/* MemDMA1 Stream 0 Destination	Current	Descriptor Pointer Register */
-#define	MDMA1_D0_CURR_ADDR		0xFFC01F24	/* MemDMA1 Stream 0 Destination	Current	Address	Register */
-#define	MDMA1_D0_IRQ_STATUS		0xFFC01F28	/* MemDMA1 Stream 0 Destination	Interrupt/Status Register */
-#define	MDMA1_D0_PERIPHERAL_MAP	0xFFC01F2C	/* MemDMA1 Stream 0 Destination	Peripheral Map Register */
-#define	MDMA1_D0_CURR_X_COUNT	0xFFC01F30	/* MemDMA1 Stream 0 Destination	Current	X Count	Register */
-#define	MDMA1_D0_CURR_Y_COUNT	0xFFC01F38	/* MemDMA1 Stream 0 Destination	Current	Y Count	Register */
+#define	MDMA_D2_NEXT_DESC_PTR	0xFFC01F00	/* MemDMA1 Stream 0 Destination	Next Descriptor	Pointer	Register */
+#define	MDMA_D2_START_ADDR		0xFFC01F04	/* MemDMA1 Stream 0 Destination	Start Address Register */
+#define	MDMA_D2_CONFIG			0xFFC01F08	/* MemDMA1 Stream 0 Destination	Configuration Register */
+#define	MDMA_D2_X_COUNT		0xFFC01F10	/* MemDMA1 Stream 0 Destination	X Count	Register */
+#define	MDMA_D2_X_MODIFY		0xFFC01F14	/* MemDMA1 Stream 0 Destination	X Modify Register */
+#define	MDMA_D2_Y_COUNT		0xFFC01F18	/* MemDMA1 Stream 0 Destination	Y Count	Register */
+#define	MDMA_D2_Y_MODIFY		0xFFC01F1C	/* MemDMA1 Stream 0 Destination	Y Modify Register */
+#define	MDMA_D2_CURR_DESC_PTR	0xFFC01F20	/* MemDMA1 Stream 0 Destination	Current	Descriptor Pointer Register */
+#define	MDMA_D2_CURR_ADDR		0xFFC01F24	/* MemDMA1 Stream 0 Destination	Current	Address	Register */
+#define	MDMA_D2_IRQ_STATUS		0xFFC01F28	/* MemDMA1 Stream 0 Destination	Interrupt/Status Register */
+#define	MDMA_D2_PERIPHERAL_MAP	0xFFC01F2C	/* MemDMA1 Stream 0 Destination	Peripheral Map Register */
+#define	MDMA_D2_CURR_X_COUNT	0xFFC01F30	/* MemDMA1 Stream 0 Destination	Current	X Count	Register */
+#define	MDMA_D2_CURR_Y_COUNT	0xFFC01F38	/* MemDMA1 Stream 0 Destination	Current	Y Count	Register */
 
-#define	MDMA1_S0_NEXT_DESC_PTR	0xFFC01F40	/* MemDMA1 Stream 0 Source Next	Descriptor Pointer Register */
-#define	MDMA1_S0_START_ADDR		0xFFC01F44	/* MemDMA1 Stream 0 Source Start Address Register */
-#define	MDMA1_S0_CONFIG			0xFFC01F48	/* MemDMA1 Stream 0 Source Configuration Register */
-#define	MDMA1_S0_X_COUNT		0xFFC01F50	/* MemDMA1 Stream 0 Source X Count Register */
-#define	MDMA1_S0_X_MODIFY		0xFFC01F54	/* MemDMA1 Stream 0 Source X Modify Register */
-#define	MDMA1_S0_Y_COUNT		0xFFC01F58	/* MemDMA1 Stream 0 Source Y Count Register */
-#define	MDMA1_S0_Y_MODIFY		0xFFC01F5C	/* MemDMA1 Stream 0 Source Y Modify Register */
-#define	MDMA1_S0_CURR_DESC_PTR	0xFFC01F60	/* MemDMA1 Stream 0 Source Current Descriptor Pointer Register */
-#define	MDMA1_S0_CURR_ADDR		0xFFC01F64	/* MemDMA1 Stream 0 Source Current Address Register */
-#define	MDMA1_S0_IRQ_STATUS		0xFFC01F68	/* MemDMA1 Stream 0 Source Interrupt/Status Register */
-#define	MDMA1_S0_PERIPHERAL_MAP	0xFFC01F6C	/* MemDMA1 Stream 0 Source Peripheral Map Register */
-#define	MDMA1_S0_CURR_X_COUNT	0xFFC01F70	/* MemDMA1 Stream 0 Source Current X Count Register */
-#define	MDMA1_S0_CURR_Y_COUNT	0xFFC01F78	/* MemDMA1 Stream 0 Source Current Y Count Register */
+#define	MDMA_S2_NEXT_DESC_PTR	0xFFC01F40	/* MemDMA1 Stream 0 Source Next	Descriptor Pointer Register */
+#define	MDMA_S2_START_ADDR		0xFFC01F44	/* MemDMA1 Stream 0 Source Start Address Register */
+#define	MDMA_S2_CONFIG			0xFFC01F48	/* MemDMA1 Stream 0 Source Configuration Register */
+#define	MDMA_S2_X_COUNT		0xFFC01F50	/* MemDMA1 Stream 0 Source X Count Register */
+#define	MDMA_S2_X_MODIFY		0xFFC01F54	/* MemDMA1 Stream 0 Source X Modify Register */
+#define	MDMA_S2_Y_COUNT		0xFFC01F58	/* MemDMA1 Stream 0 Source Y Count Register */
+#define	MDMA_S2_Y_MODIFY		0xFFC01F5C	/* MemDMA1 Stream 0 Source Y Modify Register */
+#define	MDMA_S2_CURR_DESC_PTR	0xFFC01F60	/* MemDMA1 Stream 0 Source Current Descriptor Pointer Register */
+#define	MDMA_S2_CURR_ADDR		0xFFC01F64	/* MemDMA1 Stream 0 Source Current Address Register */
+#define	MDMA_S2_IRQ_STATUS		0xFFC01F68	/* MemDMA1 Stream 0 Source Interrupt/Status Register */
+#define	MDMA_S2_PERIPHERAL_MAP	0xFFC01F6C	/* MemDMA1 Stream 0 Source Peripheral Map Register */
+#define	MDMA_S2_CURR_X_COUNT	0xFFC01F70	/* MemDMA1 Stream 0 Source Current X Count Register */
+#define	MDMA_S2_CURR_Y_COUNT	0xFFC01F78	/* MemDMA1 Stream 0 Source Current Y Count Register */
 
-#define	MDMA1_D1_NEXT_DESC_PTR	0xFFC01F80	/* MemDMA1 Stream 1 Destination	Next Descriptor	Pointer	Register */
-#define	MDMA1_D1_START_ADDR		0xFFC01F84	/* MemDMA1 Stream 1 Destination	Start Address Register */
-#define	MDMA1_D1_CONFIG			0xFFC01F88	/* MemDMA1 Stream 1 Destination	Configuration Register */
-#define	MDMA1_D1_X_COUNT		0xFFC01F90	/* MemDMA1 Stream 1 Destination	X Count	Register */
-#define	MDMA1_D1_X_MODIFY		0xFFC01F94	/* MemDMA1 Stream 1 Destination	X Modify Register */
-#define	MDMA1_D1_Y_COUNT		0xFFC01F98	/* MemDMA1 Stream 1 Destination	Y Count	Register */
-#define	MDMA1_D1_Y_MODIFY		0xFFC01F9C	/* MemDMA1 Stream 1 Destination	Y Modify Register */
-#define	MDMA1_D1_CURR_DESC_PTR	0xFFC01FA0	/* MemDMA1 Stream 1 Destination	Current	Descriptor Pointer Register */
-#define	MDMA1_D1_CURR_ADDR		0xFFC01FA4	/* MemDMA1 Stream 1 Destination	Current	Address	Register */
-#define	MDMA1_D1_IRQ_STATUS		0xFFC01FA8	/* MemDMA1 Stream 1 Destination	Interrupt/Status Register */
-#define	MDMA1_D1_PERIPHERAL_MAP	0xFFC01FAC	/* MemDMA1 Stream 1 Destination	Peripheral Map Register */
-#define	MDMA1_D1_CURR_X_COUNT	0xFFC01FB0	/* MemDMA1 Stream 1 Destination	Current	X Count	Register */
-#define	MDMA1_D1_CURR_Y_COUNT	0xFFC01FB8	/* MemDMA1 Stream 1 Destination	Current	Y Count	Register */
+#define	MDMA_D3_NEXT_DESC_PTR	0xFFC01F80	/* MemDMA1 Stream 1 Destination	Next Descriptor	Pointer	Register */
+#define	MDMA_D3_START_ADDR		0xFFC01F84	/* MemDMA1 Stream 1 Destination	Start Address Register */
+#define	MDMA_D3_CONFIG			0xFFC01F88	/* MemDMA1 Stream 1 Destination	Configuration Register */
+#define	MDMA_D3_X_COUNT		0xFFC01F90	/* MemDMA1 Stream 1 Destination	X Count	Register */
+#define	MDMA_D3_X_MODIFY		0xFFC01F94	/* MemDMA1 Stream 1 Destination	X Modify Register */
+#define	MDMA_D3_Y_COUNT		0xFFC01F98	/* MemDMA1 Stream 1 Destination	Y Count	Register */
+#define	MDMA_D3_Y_MODIFY		0xFFC01F9C	/* MemDMA1 Stream 1 Destination	Y Modify Register */
+#define	MDMA_D3_CURR_DESC_PTR	0xFFC01FA0	/* MemDMA1 Stream 1 Destination	Current	Descriptor Pointer Register */
+#define	MDMA_D3_CURR_ADDR		0xFFC01FA4	/* MemDMA1 Stream 1 Destination	Current	Address	Register */
+#define	MDMA_D3_IRQ_STATUS		0xFFC01FA8	/* MemDMA1 Stream 1 Destination	Interrupt/Status Register */
+#define	MDMA_D3_PERIPHERAL_MAP	0xFFC01FAC	/* MemDMA1 Stream 1 Destination	Peripheral Map Register */
+#define	MDMA_D3_CURR_X_COUNT	0xFFC01FB0	/* MemDMA1 Stream 1 Destination	Current	X Count	Register */
+#define	MDMA_D3_CURR_Y_COUNT	0xFFC01FB8	/* MemDMA1 Stream 1 Destination	Current	Y Count	Register */
 
-#define	MDMA1_S1_NEXT_DESC_PTR	0xFFC01FC0	/* MemDMA1 Stream 1 Source Next	Descriptor Pointer Register */
-#define	MDMA1_S1_START_ADDR		0xFFC01FC4	/* MemDMA1 Stream 1 Source Start Address Register */
-#define	MDMA1_S1_CONFIG			0xFFC01FC8	/* MemDMA1 Stream 1 Source Configuration Register */
-#define	MDMA1_S1_X_COUNT		0xFFC01FD0	/* MemDMA1 Stream 1 Source X Count Register */
-#define	MDMA1_S1_X_MODIFY		0xFFC01FD4	/* MemDMA1 Stream 1 Source X Modify Register */
-#define	MDMA1_S1_Y_COUNT		0xFFC01FD8	/* MemDMA1 Stream 1 Source Y Count Register */
-#define	MDMA1_S1_Y_MODIFY		0xFFC01FDC	/* MemDMA1 Stream 1 Source Y Modify Register */
-#define	MDMA1_S1_CURR_DESC_PTR	0xFFC01FE0	/* MemDMA1 Stream 1 Source Current Descriptor Pointer Register */
-#define	MDMA1_S1_CURR_ADDR		0xFFC01FE4	/* MemDMA1 Stream 1 Source Current Address Register */
-#define	MDMA1_S1_IRQ_STATUS		0xFFC01FE8	/* MemDMA1 Stream 1 Source Interrupt/Status Register */
-#define	MDMA1_S1_PERIPHERAL_MAP	0xFFC01FEC	/* MemDMA1 Stream 1 Source Peripheral Map Register */
-#define	MDMA1_S1_CURR_X_COUNT	0xFFC01FF0	/* MemDMA1 Stream 1 Source Current X Count Register */
-#define	MDMA1_S1_CURR_Y_COUNT	0xFFC01FF8	/* MemDMA1 Stream 1 Source Current Y Count Register */
+#define	MDMA_S3_NEXT_DESC_PTR	0xFFC01FC0	/* MemDMA1 Stream 1 Source Next	Descriptor Pointer Register */
+#define	MDMA_S3_START_ADDR		0xFFC01FC4	/* MemDMA1 Stream 1 Source Start Address Register */
+#define	MDMA_S3_CONFIG			0xFFC01FC8	/* MemDMA1 Stream 1 Source Configuration Register */
+#define	MDMA_S3_X_COUNT		0xFFC01FD0	/* MemDMA1 Stream 1 Source X Count Register */
+#define	MDMA_S3_X_MODIFY		0xFFC01FD4	/* MemDMA1 Stream 1 Source X Modify Register */
+#define	MDMA_S3_Y_COUNT		0xFFC01FD8	/* MemDMA1 Stream 1 Source Y Count Register */
+#define	MDMA_S3_Y_MODIFY		0xFFC01FDC	/* MemDMA1 Stream 1 Source Y Modify Register */
+#define	MDMA_S3_CURR_DESC_PTR	0xFFC01FE0	/* MemDMA1 Stream 1 Source Current Descriptor Pointer Register */
+#define	MDMA_S3_CURR_ADDR		0xFFC01FE4	/* MemDMA1 Stream 1 Source Current Address Register */
+#define	MDMA_S3_IRQ_STATUS		0xFFC01FE8	/* MemDMA1 Stream 1 Source Interrupt/Status Register */
+#define	MDMA_S3_PERIPHERAL_MAP	0xFFC01FEC	/* MemDMA1 Stream 1 Source Peripheral Map Register */
+#define	MDMA_S3_CURR_X_COUNT	0xFFC01FF0	/* MemDMA1 Stream 1 Source Current X Count Register */
+#define	MDMA_S3_CURR_Y_COUNT	0xFFC01FF8	/* MemDMA1 Stream 1 Source Current Y Count Register */
 
 
 /* UART1 Controller		(0xFFC02000 - 0xFFC020FF)	 */

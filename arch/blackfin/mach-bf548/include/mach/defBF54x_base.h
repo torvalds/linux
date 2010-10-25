@@ -1615,14 +1615,14 @@
 #define                     CTYPE  0x40       /* DMA Channel Type */
 #define                      PMAP  0xf000     /* Peripheral Mapped To This Channel */
 
-/* Bit masks for DMACx_TCPER */
+/* Bit masks for DMACx_TC_PER */
 
 #define        DCB_TRAFFIC_PERIOD  0xf        /* DCB Traffic Control Period */
 #define        DEB_TRAFFIC_PERIOD  0xf0       /* DEB Traffic Control Period */
 #define        DAB_TRAFFIC_PERIOD  0x700      /* DAB Traffic Control Period */
 #define   MDMA_ROUND_ROBIN_PERIOD  0xf800     /* MDMA Round Robin Period */
 
-/* Bit masks for DMACx_TCCNT */
+/* Bit masks for DMACx_TC_CNT */
 
 #define         DCB_TRAFFIC_COUNT  0xf        /* DCB Traffic Control Count */
 #define         DEB_TRAFFIC_COUNT  0xf0       /* DEB Traffic Control Count */

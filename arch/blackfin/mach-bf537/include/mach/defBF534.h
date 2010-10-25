@@ -193,12 +193,8 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register                                                */
 
 /* DMA Traffic Control Registers													*/
-#define DMA_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
-#define DMA_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define DMA_TCPER			0xFFC00B0C	/* Traffic Control Periods Register			*/
-#define DMA_TCCNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
+#define DMAC_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
+#define DMAC_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF)															*/
 #define DMA0_NEXT_DESC_PTR		0xFFC00C00	/* DMA Channel 0 Next Descriptor Pointer Register               */
