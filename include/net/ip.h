@@ -59,7 +59,7 @@ struct ipcm_cookie {
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
 
 struct ip_ra_chain {
-	struct ip_ra_chain	*next;
+	struct ip_ra_chain __rcu *next;
 	struct sock		*sk;
 	union {
 		void			(*destructor)(struct sock *);
@@ -68,7 +68,7 @@ struct ip_ra_chain {
 	struct rcu_head		rcu;
 };
 
-extern struct ip_ra_chain *ip_ra_chain;
+extern struct ip_ra_chain __rcu *ip_ra_chain;
 
 /* IP flags. */
 #define IP_CE		0x8000		/* Flag: "Congestion"		*/
