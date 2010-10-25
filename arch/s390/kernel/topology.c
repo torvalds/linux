@@ -18,7 +18,6 @@
 #include <linux/cpuset.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
-#include <asm/sysinfo.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -215,7 +214,7 @@ static void update_cpu_core_map(void)
 	spin_unlock_irqrestore(&topology_lock, flags);
 }
 
-static void store_topology(struct tl_info *info)
+void store_topology(struct sysinfo_15_1_x *info)
 {
 #ifdef CONFIG_SCHED_BOOK
 	int rc;
