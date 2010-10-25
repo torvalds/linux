@@ -153,7 +153,7 @@ struct nouveau_gpuobj {
 
 	struct drm_mm_node *im_pramin;
 	struct nouveau_bo *im_backing;
-	uint32_t *im_backing_suspend;
+	u32 *suspend;
 	int im_bound;
 
 	uint32_t flags;
@@ -865,7 +865,6 @@ extern int  nouveau_gpuobj_early_init(struct drm_device *);
 extern int  nouveau_gpuobj_init(struct drm_device *);
 extern void nouveau_gpuobj_takedown(struct drm_device *);
 extern int  nouveau_gpuobj_suspend(struct drm_device *dev);
-extern void nouveau_gpuobj_suspend_cleanup(struct drm_device *dev);
 extern void nouveau_gpuobj_resume(struct drm_device *dev);
 extern int  nouveau_gpuobj_class_new(struct drm_device *, u32 class, u32 eng);
 extern int  nouveau_gpuobj_mthd_new(struct drm_device *, u32 class, u32 mthd,

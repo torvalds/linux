@@ -222,17 +222,17 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	pfifo->unload_context(dev);
 	pgraph->unload_context(dev);
 
-	NV_INFO(dev, "Suspending GPU objects...\n");
-	ret = nouveau_gpuobj_suspend(dev);
+	ret = pinstmem->suspend(dev);
 	if (ret) {
 		NV_ERROR(dev, "... failed: %d\n", ret);
 		goto out_abort;
 	}
 
-	ret = pinstmem->suspend(dev);
+	NV_INFO(dev, "Suspending GPU objects...\n");
+	ret = nouveau_gpuobj_suspend(dev);
 	if (ret) {
 		NV_ERROR(dev, "... failed: %d\n", ret);
-		nouveau_gpuobj_suspend_cleanup(dev);
+		pinstmem->resume(dev);
 		goto out_abort;
 	}
 
@@ -297,6 +297,9 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		}
 	}
 
+	NV_INFO(dev, "Restoring GPU objects...\n");
+	nouveau_gpuobj_resume(dev);
+
 	NV_INFO(dev, "Reinitialising engines...\n");
 	engine->instmem.resume(dev);
 	engine->mc.init(dev);
@@ -305,9 +308,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	engine->graph.init(dev);
 	engine->crypt.init(dev);
 	engine->fifo.init(dev);
-
-	NV_INFO(dev, "Restoring GPU objects...\n");
-	nouveau_gpuobj_resume(dev);
 
 	nouveau_irq_postinstall(dev);
 
