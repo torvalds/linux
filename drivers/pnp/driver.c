@@ -236,7 +236,7 @@ void pnp_unregister_driver(struct pnp_driver *drv)
  * @dev: pointer to the desired device
  * @id: pointer to an EISA id string
  */
-struct pnp_id *pnp_add_id(struct pnp_dev *dev, char *id)
+struct pnp_id *pnp_add_id(struct pnp_dev *dev, const char *id)
 {
 	struct pnp_id *dev_id, *ptr;
 

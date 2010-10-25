@@ -124,7 +124,8 @@ static void pnp_release_device(struct device *dmdev)
 	kfree(dev);
 }
 
-struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid)
+struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id,
+			      const char *pnpid)
 {
 	struct pnp_dev *dev;
 	struct pnp_id *dev_id;
