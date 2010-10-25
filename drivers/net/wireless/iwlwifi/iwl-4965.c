@@ -1377,13 +1377,9 @@ static int iwl4965_send_tx_power(struct iwl_priv *priv)
 	u8 ctrl_chan_high = 0;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		/* If this gets hit a lot, switch it to a BUG() and catch
-		 * the stack trace to find out who is calling this during
-		 * a scan. */
-		IWL_WARN(priv, "TX Power requested while scanning!\n");
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
-	}
 
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
