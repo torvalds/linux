@@ -251,9 +251,9 @@ static void __init mxc_board_init(void)
 	mx31_3ds_usbotg_init();
 	mxc_register_device(&mxc_otg_udc_device, &usbotg_pdata);
 
-	if (!mxc_expio_init(CS5_BASE_ADDR, EXPIO_PARENT_INT))
-		printk(KERN_WARNING "Init of the debugboard failed, all "
-				    "devices on the board are unusable.\n");
+	if (mxc_expio_init(MX31_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+		printk(KERN_WARNING "Init of the debug board failed, all "
+				    "devices on the debug board are unusable.\n");
 }
 
 static void __init mx31_3ds_timer_init(void)
