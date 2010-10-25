@@ -338,6 +338,21 @@ static struct resource ab8500_rtc_resources[] = {
 	},
 };
 
+static struct resource ab8500_poweronkey_db_resources[] = {
+	{
+		.name	= "ONKEY_DBF",
+		.start	= AB8500_INT_PON_KEY1DB_F,
+		.end	= AB8500_INT_PON_KEY1DB_F,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "ONKEY_DBR",
+		.start	= AB8500_INT_PON_KEY1DB_R,
+		.end	= AB8500_INT_PON_KEY1DB_R,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct mfd_cell ab8500_devs[] = {
 	{
 		.name = "ab8500-gpadc",
@@ -354,6 +369,11 @@ static struct mfd_cell ab8500_devs[] = {
 	{ .name = "ab8500-usb", },
 	{ .name = "ab8500-pwm", },
 	{ .name = "ab8500-regulator", },
+	{
+		.name = "ab8500-poweron-key",
+		.num_resources = ARRAY_SIZE(ab8500_poweronkey_db_resources),
+		.resources = ab8500_poweronkey_db_resources,
+	},
 };
 
 int __devinit ab8500_init(struct ab8500 *ab8500)

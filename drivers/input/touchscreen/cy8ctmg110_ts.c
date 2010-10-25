@@ -206,9 +206,9 @@ static int __devinit cy8ctmg110_probe(struct i2c_client *client,
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	input_set_abs_params(input_dev, ABS_X,
-			CY8CTMG110_X_MIN, CY8CTMG110_X_MAX, 0, 0);
+			CY8CTMG110_X_MIN, CY8CTMG110_X_MAX, 4, 0);
 	input_set_abs_params(input_dev, ABS_Y,
-			CY8CTMG110_Y_MIN, CY8CTMG110_Y_MAX, 0, 0);
+			CY8CTMG110_Y_MIN, CY8CTMG110_Y_MAX, 4, 0);
 
 	if (ts->reset_pin) {
 		err = gpio_request(ts->reset_pin, NULL);

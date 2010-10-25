@@ -21,6 +21,7 @@
 #define WACOM_PKGLEN_INTUOS	10
 #define WACOM_PKGLEN_TPC1FG	 5
 #define WACOM_PKGLEN_TPC2FG	14
+#define WACOM_PKGLEN_BBTOUCH	20
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -37,6 +38,13 @@
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
 
+/* device quirks */
+#define WACOM_QUIRK_MULTI_INPUT		0x0001
+#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
+
+/* largest reported tracking id */
+#define MAX_TRACKING_ID			0xfff
+
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -44,6 +52,7 @@ enum {
 	PTU,
 	PL,
 	DTU,
+	BAMBOO_PT,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,
@@ -73,6 +82,11 @@ struct wacom_features {
 	int y_phy;
 	unsigned char unit;
 	unsigned char unitExpo;
+	int x_fuzz;
+	int y_fuzz;
+	int pressure_fuzz;
+	int distance_fuzz;
+	unsigned quirks;
 };
 
 struct wacom_shared {
@@ -86,6 +100,7 @@ struct wacom_wac {
 	int id[3];
 	__u32 serial[2];
 	int last_finger;
+	int trk_id;
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;

@@ -1766,6 +1766,11 @@ static bool hid_ignore(struct hid_device *hdev)
 		    hdev->product <= USB_DEVICE_ID_SOUNDGRAPH_IMON_LAST)
 			return true;
 		break;
+	case USB_VENDOR_ID_HANWANG:
+		if (hdev->product >= USB_DEVICE_ID_HANWANG_TABLET_FIRST &&
+		    hdev->product <= USB_DEVICE_ID_HANWANG_TABLET_LAST)
+			return true;
+		break;
 	}
 
 	if (hdev->type == HID_TYPE_USBMOUSE &&
