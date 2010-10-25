@@ -275,11 +275,11 @@ static struct platform_device stingray_panel_bl_driver = {
 };
 
 struct lp8550_eeprom_data stingray_lp8550_eeprom_data[] = {
-	/* Set the backlight current to 15mA each step is .12mA */
-	{0x7f},
-	/* Boost freq 625khz, PWM controled w/constant current,
+	/* Set the backlight current to 19mA each step is .12mA */
+	{0xa1},
+	/* Boost freq 312khz, PWM controled w/constant current,
 	thermal deration disabled, no brightness slope */
-	{0xa0},
+	{0x60},
 	/* Adaptive mode for light loads, No advanced slope, 50% mode selected,
 	Adaptive mode enabled, Boost is enabled, Boost Imax is 2.5A */
 	{0x9f},
@@ -298,7 +298,7 @@ struct lp8550_eeprom_data stingray_lp8550_eeprom_data[] = {
 
 struct lp8550_platform_data stingray_lp8550_backlight_data = {
 	.power_up_brightness = 0x80,
-	.dev_ctrl_config = 0x05,
+	.dev_ctrl_config = 0x04,
 	.brightness_control = 0x80,
 	.dev_id = 0xfc,
 	.direct_ctrl = 0x01,
