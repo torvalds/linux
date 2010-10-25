@@ -211,6 +211,7 @@ void ima_file_free(struct file *file)
 
 	if (!iint_initialized || !S_ISREG(inode->i_mode))
 		return;
+
 	iint = ima_iint_find(inode);
 
 	if (iint)

@@ -59,6 +59,9 @@ struct ima_iint_cache *ima_iint_find(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
 
+	if (!IS_IMA(inode))
+		return NULL;
+
 	spin_lock(&ima_iint_lock);
 	iint = __ima_iint_find(inode);
 	spin_unlock(&ima_iint_lock);
@@ -91,6 +94,7 @@ int ima_inode_alloc(struct inode *inode)
 	new_iint->inode = inode;
 	new_node = &new_iint->rb_node;
 
+	mutex_lock(&inode->i_mutex); /* i_flags */
 	spin_lock(&ima_iint_lock);
 
 	p = &ima_iint_tree.rb_node;
@@ -107,14 +111,17 @@ int ima_inode_alloc(struct inode *inode)
 			goto out_err;
 	}
 
+	inode->i_flags |= S_IMA;
 	rb_link_node(new_node, parent, p);
 	rb_insert_color(new_node, &ima_iint_tree);
 
 	spin_unlock(&ima_iint_lock);
+	mutex_unlock(&inode->i_mutex); /* i_flags */
 
 	return 0;
 out_err:
 	spin_unlock(&ima_iint_lock);
+	mutex_unlock(&inode->i_mutex); /* i_flags */
 	iint_free(new_iint);
 
 	return rc;
@@ -135,14 +142,13 @@ void ima_inode_free(struct inode *inode)
 
 	inode->i_readcount = 0;
 
+	if (!IS_IMA(inode))
+		return;
+
 	spin_lock(&ima_iint_lock);
 	iint = __ima_iint_find(inode);
-	if (iint)
-		rb_erase(&iint->rb_node, &ima_iint_tree);
+	rb_erase(&iint->rb_node, &ima_iint_tree);
 	spin_unlock(&ima_iint_lock);
-
-	if (!iint)
-		return;
 
 	iint_free(iint);
 }
