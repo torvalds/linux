@@ -455,6 +455,11 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
         flush_tlb_all();
 }
 
+void __flush_tlb_global(void)
+{
+	flush_tlb_all();
+}
+
 void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 }

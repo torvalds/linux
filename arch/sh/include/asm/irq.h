@@ -9,7 +9,7 @@
  * advised to cap this at the hard limit that they're interested in
  * through the machvec.
  */
-#define NR_IRQS			256
+#define NR_IRQS			512
 #define NR_IRQS_LEGACY		8	/* Legacy external IRQ0-7 */
 
 /*

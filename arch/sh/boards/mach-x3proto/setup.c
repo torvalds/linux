@@ -1,9 +1,9 @@
 /*
- * arch/sh/boards/renesas/x3proto/setup.c
+ * arch/sh/boards/mach-x3proto/setup.c
  *
  * Renesas SH-X3 Prototype Board Support.
  *
- * Copyright (C) 2007 - 2008 Paul Mundt
+ * Copyright (C) 2007 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -16,9 +16,13 @@
 #include <linux/smc91x.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/input.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/m66592.h>
-#include <asm/ilsel.h>
+#include <linux/gpio.h>
+#include <linux/gpio_keys.h>
+#include <mach/ilsel.h>
+#include <mach/hardware.h>
 #include <asm/smp-ops.h>
 
 static struct resource heartbeat_resources[] = {
@@ -122,15 +126,128 @@ static struct platform_device m66592_usb_peripheral_device = {
 	.resource	= m66592_usb_peripheral_resources,
 };
 
+static struct gpio_keys_button baseboard_buttons[NR_BASEBOARD_GPIOS] = {
+	{
+		.desc		= "key44",
+		.code		= KEY_POWER,
+		.active_low	= 1,
+		.wakeup		= 1,
+	}, {
+		.desc		= "key43",
+		.code		= KEY_SUSPEND,
+		.active_low	= 1,
+		.wakeup		= 1,
+	}, {
+		.desc		= "key42",
+		.code		= KEY_KATAKANAHIRAGANA,
+		.active_low	= 1,
+	}, {
+		.desc		= "key41",
+		.code		= KEY_SWITCHVIDEOMODE,
+		.active_low	= 1,
+	}, {
+		.desc		= "key34",
+		.code		= KEY_F12,
+		.active_low	= 1,
+	}, {
+		.desc		= "key33",
+		.code		= KEY_F11,
+		.active_low	= 1,
+	}, {
+		.desc		= "key32",
+		.code		= KEY_F10,
+		.active_low	= 1,
+	}, {
+		.desc		= "key31",
+		.code		= KEY_F9,
+		.active_low	= 1,
+	}, {
+		.desc		= "key24",
+		.code		= KEY_F8,
+		.active_low	= 1,
+	}, {
+		.desc		= "key23",
+		.code		= KEY_F7,
+		.active_low	= 1,
+	}, {
+		.desc		= "key22",
+		.code		= KEY_F6,
+		.active_low	= 1,
+	}, {
+		.desc		= "key21",
+		.code		= KEY_F5,
+		.active_low	= 1,
+	}, {
+		.desc		= "key14",
+		.code		= KEY_F4,
+		.active_low	= 1,
+	}, {
+		.desc		= "key13",
+		.code		= KEY_F3,
+		.active_low	= 1,
+	}, {
+		.desc		= "key12",
+		.code		= KEY_F2,
+		.active_low	= 1,
+	}, {
+		.desc		= "key11",
+		.code		= KEY_F1,
+		.active_low	= 1,
+	},
+};
+
+static struct gpio_keys_platform_data baseboard_buttons_data = {
+	.buttons	= baseboard_buttons,
+	.nbuttons	= ARRAY_SIZE(baseboard_buttons),
+};
+
+static struct platform_device baseboard_buttons_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &baseboard_buttons_data,
+	},
+};
+
 static struct platform_device *x3proto_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_device,
 	&r8a66597_usb_host_device,
 	&m66592_usb_peripheral_device,
+	&baseboard_buttons_device,
 };
+
+static void __init x3proto_init_irq(void)
+{
+	plat_irq_setup_pins(IRQ_MODE_IRL3210);
+
+	/* Set ICR0.LVLMODE */
+	__raw_writel(__raw_readl(0xfe410000) | (1 << 21), 0xfe410000);
+}
 
 static int __init x3proto_devices_setup(void)
 {
+	int ret, i;
+
+	/*
+	 * IRLs are only needed for ILSEL mappings, so flip over the INTC
+	 * pins at a later point to enable the GPIOs to settle.
+	 */
+	x3proto_init_irq();
+
+	/*
+	 * Now that ILSELs are available, set up the baseboard GPIOs.
+	 */
+	ret = x3proto_gpio_setup();
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * Propagate dynamic GPIOs for the baseboard button device.
+	 */
+	for (i = 0; i < ARRAY_SIZE(baseboard_buttons); i++)
+		baseboard_buttons[i].gpio = x3proto_gpio_chip.base + i;
+
 	r8a66597_usb_host_resources[1].start =
 		r8a66597_usb_host_resources[1].end = ilsel_enable(ILSEL_USBH_I);
 
@@ -145,14 +262,6 @@ static int __init x3proto_devices_setup(void)
 }
 device_initcall(x3proto_devices_setup);
 
-static void __init x3proto_init_irq(void)
-{
-	plat_irq_setup_pins(IRQ_MODE_IRL3210);
-
-	/* Set ICR0.LVLMODE */
-	__raw_writel(__raw_readl(0xfe410000) | (1 << 21), 0xfe410000);
-}
-
 static void __init x3proto_setup(char **cmdline_p)
 {
 	register_smp_ops(&shx3_smp_ops);
@@ -161,5 +270,4 @@ static void __init x3proto_setup(char **cmdline_p)
 static struct sh_machine_vector mv_x3proto __initmv = {
 	.mv_name		= "x3proto",
 	.mv_setup		= x3proto_setup,
-	.mv_init_irq		= x3proto_init_irq,
 };

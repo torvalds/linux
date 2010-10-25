@@ -126,24 +126,18 @@ static int __init cache_debugfs_init(void)
 {
 	struct dentry *dcache_dentry, *icache_dentry;
 
-	dcache_dentry = debugfs_create_file("dcache", S_IRUSR, sh_debugfs_root,
+	dcache_dentry = debugfs_create_file("dcache", S_IRUSR, arch_debugfs_dir,
 					    (unsigned int *)CACHE_TYPE_DCACHE,
 					    &cache_debugfs_fops);
 	if (!dcache_dentry)
 		return -ENOMEM;
-	if (IS_ERR(dcache_dentry))
-		return PTR_ERR(dcache_dentry);
 
-	icache_dentry = debugfs_create_file("icache", S_IRUSR, sh_debugfs_root,
+	icache_dentry = debugfs_create_file("icache", S_IRUSR, arch_debugfs_dir,
 					    (unsigned int *)CACHE_TYPE_ICACHE,
 					    &cache_debugfs_fops);
 	if (!icache_dentry) {
 		debugfs_remove(dcache_dentry);
 		return -ENOMEM;
-	}
-	if (IS_ERR(icache_dentry)) {
-		debugfs_remove(dcache_dentry);
-		return PTR_ERR(icache_dentry);
 	}
 
 	return 0;

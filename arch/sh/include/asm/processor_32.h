@@ -13,7 +13,6 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/ptrace.h>
 #include <asm/hw_breakpoint.h>
 
 /*
@@ -193,8 +192,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
-
-#define user_stack_pointer(_regs)	((_regs)->regs[15])
 
 #if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH4)
 #define PREFETCH_STRIDE		L1_CACHE_BYTES

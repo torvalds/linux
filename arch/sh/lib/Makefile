@@ -30,4 +30,4 @@ lib-$(CONFIG_MMU)		+= copy_page.o __clear_user.o
 lib-$(CONFIG_MCOUNT)		+= mcount.o
 lib-y				+= $(memcpy-y) $(memset-y) $(udivsi3-y)
 
-EXTRA_CFLAGS += -Werror
+ccflags-y := -Werror

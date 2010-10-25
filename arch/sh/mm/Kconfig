@@ -168,6 +168,10 @@ config IOREMAP_FIXED
 config UNCACHED_MAPPING
 	bool
 
+config HAVE_SRAM_POOL
+	bool
+	select GENERIC_ALLOCATOR
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB

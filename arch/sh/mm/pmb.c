@@ -40,7 +40,7 @@ struct pmb_entry {
 	unsigned long flags;
 	unsigned long size;
 
-	spinlock_t lock;
+	raw_spinlock_t lock;
 
 	/*
 	 * 0 .. NR_PMB_ENTRIES for specific entry selection, or
@@ -265,7 +265,7 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 
 	memset(pmbe, 0, sizeof(struct pmb_entry));
 
-	spin_lock_init(&pmbe->lock);
+	raw_spin_lock_init(&pmbe->lock);
 
 	pmbe->vpn	= vpn;
 	pmbe->ppn	= ppn;
@@ -327,9 +327,9 @@ static void set_pmb_entry(struct pmb_entry *pmbe)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&pmbe->lock, flags);
+	raw_spin_lock_irqsave(&pmbe->lock, flags);
 	__set_pmb_entry(pmbe);
-	spin_unlock_irqrestore(&pmbe->lock, flags);
+	raw_spin_unlock_irqrestore(&pmbe->lock, flags);
 }
 #endif /* CONFIG_PM */
 
@@ -368,7 +368,7 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 				return PTR_ERR(pmbe);
 			}
 
-			spin_lock_irqsave(&pmbe->lock, flags);
+			raw_spin_lock_irqsave(&pmbe->lock, flags);
 
 			pmbe->size = pmb_sizes[i].size;
 
@@ -383,9 +383,10 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 			 * entries for easier tear-down.
 			 */
 			if (likely(pmbp)) {
-				spin_lock(&pmbp->lock);
+				raw_spin_lock_nested(&pmbp->lock,
+						     SINGLE_DEPTH_NESTING);
 				pmbp->link = pmbe;
-				spin_unlock(&pmbp->lock);
+				raw_spin_unlock(&pmbp->lock);
 			}
 
 			pmbp = pmbe;
@@ -398,7 +399,7 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 			i--;
 			mapped++;
 
-			spin_unlock_irqrestore(&pmbe->lock, flags);
+			raw_spin_unlock_irqrestore(&pmbe->lock, flags);
 		}
 	} while (size >= SZ_16M);
 
@@ -627,15 +628,14 @@ static void __init pmb_synchronize(void)
 			continue;
 		}
 
-		spin_lock_irqsave(&pmbe->lock, irqflags);
+		raw_spin_lock_irqsave(&pmbe->lock, irqflags);
 
 		for (j = 0; j < ARRAY_SIZE(pmb_sizes); j++)
 			if (pmb_sizes[j].flag == size)
 				pmbe->size = pmb_sizes[j].size;
 
 		if (pmbp) {
-			spin_lock(&pmbp->lock);
-
+			raw_spin_lock_nested(&pmbp->lock, SINGLE_DEPTH_NESTING);
 			/*
 			 * Compare the previous entry against the current one to
 			 * see if the entries span a contiguous mapping. If so,
@@ -644,13 +644,12 @@ static void __init pmb_synchronize(void)
 			 */
 			if (pmb_can_merge(pmbp, pmbe))
 				pmbp->link = pmbe;
-
-			spin_unlock(&pmbp->lock);
+			raw_spin_unlock(&pmbp->lock);
 		}
 
 		pmbp = pmbe;
 
-		spin_unlock_irqrestore(&pmbe->lock, irqflags);
+		raw_spin_unlock_irqrestore(&pmbe->lock, irqflags);
 	}
 }
 
@@ -757,7 +756,7 @@ static void __init pmb_resize(void)
 		/*
 		 * Found it, now resize it.
 		 */
-		spin_lock_irqsave(&pmbe->lock, flags);
+		raw_spin_lock_irqsave(&pmbe->lock, flags);
 
 		pmbe->size = SZ_16M;
 		pmbe->flags &= ~PMB_SZ_MASK;
@@ -767,7 +766,7 @@ static void __init pmb_resize(void)
 
 		__set_pmb_entry(pmbe);
 
-		spin_unlock_irqrestore(&pmbe->lock, flags);
+		raw_spin_unlock_irqrestore(&pmbe->lock, flags);
 	}
 
 	read_unlock(&pmb_rwlock);
@@ -866,11 +865,9 @@ static int __init pmb_debugfs_init(void)
 	struct dentry *dentry;
 
 	dentry = debugfs_create_file("pmb", S_IFREG | S_IRUGO,
-				     sh_debugfs_root, NULL, &pmb_debugfs_fops);
+				     arch_debugfs_dir, NULL, &pmb_debugfs_fops);
 	if (!dentry)
 		return -ENOMEM;
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
 
 	return 0;
 }

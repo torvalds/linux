@@ -387,10 +387,13 @@
 #define __NR_perf_event_open	364
 #define __NR_recvmmsg		365
 #define __NR_accept4		366
+#define __NR_fanotify_init	367
+#define __NR_fanotify_mark	368
+#define __NR_prlimit64		369
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 367
+#define NR_syscalls 370
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

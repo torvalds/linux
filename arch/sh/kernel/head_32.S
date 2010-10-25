@@ -330,7 +330,7 @@ ENTRY(_stext)
 #if defined(CONFIG_CPU_SH2)
 1:	.long	0x000000F0		! IMASK=0xF
 #else
-1:	.long	0x400080F0		! MD=1, RB=0, BL=0, FD=1, IMASK=0xF
+1:	.long	0x500080F0		! MD=1, RB=0, BL=1, FD=1, IMASK=0xF
 #endif
 ENTRY(stack_start)
 2:	.long	init_thread_union+THREAD_SIZE
