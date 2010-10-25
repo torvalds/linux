@@ -246,7 +246,6 @@ sysc_saveall:
 	CREATE_STACK_FRAME __LC_SAVE_AREA
 	mvc	SP_PSW(16,%r15),__LC_SVC_OLD_PSW
 	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
-	stg	%r7,SP_ARGS(%r15)
 	lg	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 sysc_vtime:
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
@@ -274,6 +273,7 @@ sysc_nr_ok:
 sysc_noemu:
 #endif
 	tm	__TI_flags+6(%r12),_TIF_SYSCALL
+	mvc	SP_ARGS(8,%r15),SP_R7(%r15)
 	lgf	%r8,0(%r7,%r10) # load address of system call routine
 	jnz	sysc_tracesys
 	basr	%r14,%r8	# call sys_xxxx
@@ -387,6 +387,7 @@ sysc_tracesys:
 	lgf	%r8,0(%r7,%r10)
 sysc_tracego:
 	lmg	%r3,%r6,SP_R3(%r15)
+	mvc	SP_ARGS(8,%r15),SP_R7(%r15)
 	lg	%r2,SP_ORIG_R2(%r15)
 	basr	%r14,%r8		# call sys_xxx
 	stg	%r2,SP_R2(%r15)		# store return value
@@ -953,7 +954,6 @@ cleanup_system_call:
 	CREATE_STACK_FRAME __LC_SAVE_AREA
 	mvc	SP_PSW(16,%r15),__LC_SVC_OLD_PSW
 	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
-	stg	%r7,SP_ARGS(%r15)
 	mvc	8(8,%r12),__LC_THREAD_INFO
 cleanup_vtime:
 	clc	__LC_RETURN_PSW+8(8),BASED(cleanup_system_call_insn+24)

@@ -254,12 +254,11 @@ sysc_do_svc:
 	bnl	BASED(sysc_nr_ok)
 	lr	%r7,%r1 	  # copy svc number to %r7
 sysc_nr_ok:
-	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
-sysc_do_restart:
 	sth	%r7,SP_SVCNR(%r15)
 	sll	%r7,2		  # svc number *4
 	l	%r8,BASED(.Lsysc_table)
 	tm	__TI_flags+2(%r9),_TIF_SYSCALL
+	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 	l	%r8,0(%r7,%r8)	  # get system call addr.
 	bnz	BASED(sysc_tracesys)
 	basr	%r14,%r8	  # call sys_xxxx
@@ -347,7 +346,7 @@ sysc_restart:
 	l	%r7,SP_R2(%r15) 	# load new svc number
 	mvc	SP_R2(4,%r15),SP_ORIG_R2(%r15) # restore first argument
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
-	b	BASED(sysc_do_restart)	# restart svc
+	b	BASED(sysc_nr_ok)	# restart svc
 
 #
 # _TIF_SINGLE_STEP is set, call do_single_step
@@ -380,6 +379,7 @@ sysc_tracesys:
 	l	%r8,0(%r7,%r8)
 sysc_tracego:
 	lm	%r3,%r6,SP_R3(%r15)
+	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 	l	%r2,SP_ORIG_R2(%r15)
 	basr	%r14,%r8		# call sys_xxx
 	st	%r2,SP_R2(%r15)		# store return value
