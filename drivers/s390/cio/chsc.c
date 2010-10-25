@@ -680,9 +680,10 @@ int chsc_determine_base_channel_path_desc(struct chp_id chpid,
 {
 	struct chsc_response_struct *chsc_resp;
 	struct chsc_scpd *scpd_area;
+	unsigned long flags;
 	int ret;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	scpd_area = chsc_page;
 	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, scpd_area);
 	if (ret)
@@ -690,7 +691,7 @@ int chsc_determine_base_channel_path_desc(struct chp_id chpid,
 	chsc_resp = (void *)&scpd_area->response;
 	memcpy(desc, &chsc_resp->data, sizeof(*desc));
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 
