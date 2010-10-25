@@ -74,7 +74,8 @@ static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 /* NOTE: change this value only with kprobe_mutex held */
 static bool kprobes_all_disarmed;
 
-static DEFINE_MUTEX(kprobe_mutex);	/* Protects kprobe_table */
+/* This protects kprobe_table and optimizing_list */
+static DEFINE_MUTEX(kprobe_mutex);
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 static struct {
 	spinlock_t lock ____cacheline_aligned_in_smp;
@@ -595,6 +596,7 @@ static __kprobes void try_to_optimize_kprobe(struct kprobe *p)
 }
 
 #ifdef CONFIG_SYSCTL
+/* This should be called with kprobe_mutex locked */
 static void __kprobes optimize_all_kprobes(void)
 {
 	struct hlist_head *head;
@@ -607,17 +609,16 @@ static void __kprobes optimize_all_kprobes(void)
 		return;
 
 	kprobes_allow_optimization = true;
-	mutex_lock(&text_mutex);
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist)
 			if (!kprobe_disabled(p))
 				optimize_kprobe(p);
 	}
-	mutex_unlock(&text_mutex);
 	printk(KERN_INFO "Kprobes globally optimized\n");
 }
 
+/* This should be called with kprobe_mutex locked */
 static void __kprobes unoptimize_all_kprobes(void)
 {
 	struct hlist_head *head;
