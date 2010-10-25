@@ -124,6 +124,7 @@ struct nfs_server {
 
 	struct nfs_fsid		fsid;
 	__u64			maxfilesize;	/* maximum file size */
+	struct timespec		time_delta;	/* smallest time granularity */
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
 

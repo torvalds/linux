@@ -360,10 +360,13 @@ extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
+extern struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct rpc_cred *cred, fmode_t f_mode);
+extern void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx);
 extern struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx);
 extern void nfs_put_lock_context(struct nfs_lock_context *l_ctx);
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
+extern unsigned long nfs_inc_attr_generation_counter(void);
 
 extern struct nfs_fattr *nfs_alloc_fattr(void);
 
@@ -379,9 +382,12 @@ static inline void nfs_free_fhandle(const struct nfs_fh *fh)
 	kfree(fh);
 }
 
+/*
+ * linux/fs/nfs/nfsroot.c
+ */
+extern int  nfs_root_data(char **root_device, char **root_data); /*__init*/
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
-extern unsigned long nfs_inc_attr_generation_counter(void);
 
 /*
  * linux/fs/nfs/file.c
@@ -479,10 +485,10 @@ extern void nfs_release_automount_timer(void);
 /*
  * linux/fs/nfs/unlink.c
  */
-extern int  nfs_async_unlink(struct inode *dir, struct dentry *dentry);
 extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
 extern void nfs_block_sillyrename(struct dentry *dentry);
 extern void nfs_unblock_sillyrename(struct dentry *dentry);
+extern int  nfs_sillyrename(struct inode *dir, struct dentry *dentry);
 
 /*
  * linux/fs/nfs/write.c
@@ -583,10 +589,6 @@ nfs_fileid_to_ino_t(u64 fileid)
 		ino ^= fileid >> (sizeof(u64)-sizeof(ino_t)) * 8;
 	return ino;
 }
-
-/* NFS root */
-
-extern void * nfs_root_data(void);
 
 #define nfs_wait_event(clnt, wq, condition)				\
 ({									\

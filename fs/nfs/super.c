@@ -100,6 +100,7 @@ enum {
 	Opt_addr, Opt_mountaddr, Opt_clientaddr,
 	Opt_lookupcache,
 	Opt_fscache_uniq,
+	Opt_local_lock,
 
 	/* Special mount options */
 	Opt_userspace, Opt_deprecated, Opt_sloppy,
@@ -171,6 +172,7 @@ static const match_table_t nfs_mount_option_tokens = {
 
 	{ Opt_lookupcache, "lookupcache=%s" },
 	{ Opt_fscache_uniq, "fsc=%s" },
+	{ Opt_local_lock, "local_lock=%s" },
 
 	{ Opt_err, NULL }
 };
@@ -234,6 +236,22 @@ static match_table_t nfs_lookupcache_tokens = {
 	{ Opt_lookupcache_none, "none" },
 
 	{ Opt_lookupcache_err, NULL }
+};
+
+enum {
+	Opt_local_lock_all, Opt_local_lock_flock, Opt_local_lock_posix,
+	Opt_local_lock_none,
+
+	Opt_local_lock_err
+};
+
+static match_table_t nfs_local_lock_tokens = {
+	{ Opt_local_lock_all, "all" },
+	{ Opt_local_lock_flock, "flock" },
+	{ Opt_local_lock_posix, "posix" },
+	{ Opt_local_lock_none, "none" },
+
+	{ Opt_local_lock_err, NULL }
 };
 
 
@@ -622,6 +640,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	const struct proc_nfs_info *nfs_infop;
 	struct nfs_client *clp = nfss->nfs_client;
 	u32 version = clp->rpc_ops->version;
+	int local_flock, local_fcntl;
 
 	seq_printf(m, ",vers=%u", version);
 	seq_printf(m, ",rsize=%u", nfss->rsize);
@@ -670,6 +689,18 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		else
 			seq_printf(m, ",lookupcache=pos");
 	}
+
+	local_flock = nfss->flags & NFS_MOUNT_LOCAL_FLOCK;
+	local_fcntl = nfss->flags & NFS_MOUNT_LOCAL_FCNTL;
+
+	if (!local_flock && !local_fcntl)
+		seq_printf(m, ",local_lock=none");
+	else if (local_flock && local_fcntl)
+		seq_printf(m, ",local_lock=all");
+	else if (local_flock)
+		seq_printf(m, ",local_lock=flock");
+	else
+		seq_printf(m, ",local_lock=posix");
 }
 
 /*
@@ -1017,9 +1048,13 @@ static int nfs_parse_mount_options(char *raw,
 			break;
 		case Opt_lock:
 			mnt->flags &= ~NFS_MOUNT_NONLM;
+			mnt->flags &= ~(NFS_MOUNT_LOCAL_FLOCK |
+					NFS_MOUNT_LOCAL_FCNTL);
 			break;
 		case Opt_nolock:
 			mnt->flags |= NFS_MOUNT_NONLM;
+			mnt->flags |= (NFS_MOUNT_LOCAL_FLOCK |
+				       NFS_MOUNT_LOCAL_FCNTL);
 			break;
 		case Opt_v2:
 			mnt->flags &= ~NFS_MOUNT_VER3;
@@ -1419,6 +1454,34 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(mnt->fscache_uniq);
 			mnt->fscache_uniq = string;
 			mnt->options |= NFS_OPTION_FSCACHE;
+			break;
+		case Opt_local_lock:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			token = match_token(string, nfs_local_lock_tokens,
+					args);
+			kfree(string);
+			switch (token) {
+			case Opt_local_lock_all:
+				mnt->flags |= (NFS_MOUNT_LOCAL_FLOCK |
+					       NFS_MOUNT_LOCAL_FCNTL);
+				break;
+			case Opt_local_lock_flock:
+				mnt->flags |= NFS_MOUNT_LOCAL_FLOCK;
+				break;
+			case Opt_local_lock_posix:
+				mnt->flags |= NFS_MOUNT_LOCAL_FCNTL;
+				break;
+			case Opt_local_lock_none:
+				mnt->flags &= ~(NFS_MOUNT_LOCAL_FLOCK |
+						NFS_MOUNT_LOCAL_FCNTL);
+				break;
+			default:
+				dfprintk(MOUNT, "NFS:	invalid	"
+						"local_lock argument\n");
+				return 0;
+			};
 			break;
 
 		/*
@@ -1825,6 +1888,12 @@ static int nfs_validate_mount_data(void *options,
 		if (!args->nfs_server.hostname)
 			goto out_nomem;
 
+		if (!(data->flags & NFS_MOUNT_NONLM))
+			args->flags &= ~(NFS_MOUNT_LOCAL_FLOCK|
+					 NFS_MOUNT_LOCAL_FCNTL);
+		else
+			args->flags |= (NFS_MOUNT_LOCAL_FLOCK|
+					NFS_MOUNT_LOCAL_FCNTL);
 		/*
 		 * The legacy version 6 binary mount data from userspace has a
 		 * field used only to transport selinux information into the
@@ -2441,7 +2510,8 @@ static void nfs4_fill_super(struct super_block *sb)
 
 static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *args)
 {
-	args->flags &= ~(NFS_MOUNT_NONLM|NFS_MOUNT_NOACL|NFS_MOUNT_VER3);
+	args->flags &= ~(NFS_MOUNT_NONLM|NFS_MOUNT_NOACL|NFS_MOUNT_VER3|
+			 NFS_MOUNT_LOCAL_FLOCK|NFS_MOUNT_LOCAL_FCNTL);
 }
 
 static int nfs4_validate_text_mount_data(void *options,

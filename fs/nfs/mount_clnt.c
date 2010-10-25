@@ -436,7 +436,7 @@ static int decode_auth_flavors(struct xdr_stream *xdr, struct mountres *res)
 
 	for (i = 0; i < entries; i++) {
 		flavors[i] = ntohl(*p++);
-		dprintk("NFS:\tflavor %u: %d\n", i, flavors[i]);
+		dprintk("NFS:   auth flavor[%u]: %d\n", i, flavors[i]);
 	}
 	*count = i;
 

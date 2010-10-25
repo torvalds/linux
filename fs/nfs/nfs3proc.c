@@ -313,7 +313,7 @@ static void nfs3_free_createdata(struct nfs3_createdata *data)
  */
 static int
 nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-		 int flags, struct nameidata *nd)
+		 int flags, struct nfs_open_context *ctx)
 {
 	struct nfs3_createdata *data;
 	mode_t mode = sattr->ia_mode;
@@ -438,19 +438,38 @@ nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	return 1;
 }
 
+static void
+nfs3_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+{
+	msg->rpc_proc = &nfs3_procedures[NFS3PROC_RENAME];
+}
+
+static int
+nfs3_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
+		      struct inode *new_dir)
+{
+	struct nfs_renameres *res;
+
+	if (nfs3_async_handle_jukebox(task, old_dir))
+		return 0;
+	res = task->tk_msg.rpc_resp;
+
+	nfs_post_op_update_inode(old_dir, res->old_fattr);
+	nfs_post_op_update_inode(new_dir, res->new_fattr);
+	return 1;
+}
+
 static int
 nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		 struct inode *new_dir, struct qstr *new_name)
 {
-	struct nfs3_renameargs	arg = {
-		.fromfh		= NFS_FH(old_dir),
-		.fromname	= old_name->name,
-		.fromlen	= old_name->len,
-		.tofh		= NFS_FH(new_dir),
-		.toname		= new_name->name,
-		.tolen		= new_name->len
+	struct nfs_renameargs	arg = {
+		.old_dir	= NFS_FH(old_dir),
+		.old_name	= old_name,
+		.new_dir	= NFS_FH(new_dir),
+		.new_name	= new_name,
 	};
-	struct nfs3_renameres res;
+	struct nfs_renameres res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_RENAME],
 		.rpc_argp	= &arg,
@@ -460,17 +479,17 @@ nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 
 	dprintk("NFS call  rename %s -> %s\n", old_name->name, new_name->name);
 
-	res.fromattr = nfs_alloc_fattr();
-	res.toattr = nfs_alloc_fattr();
-	if (res.fromattr == NULL || res.toattr == NULL)
+	res.old_fattr = nfs_alloc_fattr();
+	res.new_fattr = nfs_alloc_fattr();
+	if (res.old_fattr == NULL || res.new_fattr == NULL)
 		goto out;
 
 	status = rpc_call_sync(NFS_CLIENT(old_dir), &msg, 0);
-	nfs_post_op_update_inode(old_dir, res.fromattr);
-	nfs_post_op_update_inode(new_dir, res.toattr);
+	nfs_post_op_update_inode(old_dir, res.old_fattr);
+	nfs_post_op_update_inode(new_dir, res.new_fattr);
 out:
-	nfs_free_fattr(res.toattr);
-	nfs_free_fattr(res.fromattr);
+	nfs_free_fattr(res.old_fattr);
+	nfs_free_fattr(res.new_fattr);
 	dprintk("NFS reply rename: %d\n", status);
 	return status;
 }
@@ -611,7 +630,7 @@ out:
  */
 static int
 nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
-		  u64 cookie, struct page *page, unsigned int count, int plus)
+		  u64 cookie, struct page **pages, unsigned int count, int plus)
 {
 	struct inode		*dir = dentry->d_inode;
 	__be32			*verf = NFS_COOKIEVERF(dir);
@@ -621,7 +640,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.verf		= {verf[0], verf[1]},
 		.plus		= plus,
 		.count		= count,
-		.pages		= &page
+		.pages		= pages
 	};
 	struct nfs3_readdirres	res = {
 		.verf		= verf,
@@ -652,7 +671,8 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 
 	nfs_free_fattr(res.dir_attr);
 out:
-	dprintk("NFS reply readdir: %d\n", status);
+	dprintk("NFS reply readdir%s: %d\n",
+			plus? "plus" : "", status);
 	return status;
 }
 
@@ -722,7 +742,7 @@ nfs3_proc_statfs(struct nfs_server *server, struct nfs_fh *fhandle,
 	dprintk("NFS call  fsstat\n");
 	nfs_fattr_init(stat->fattr);
 	status = rpc_call_sync(server->client, &msg, 0);
-	dprintk("NFS reply statfs: %d\n", status);
+	dprintk("NFS reply fsstat: %d\n", status);
 	return status;
 }
 
@@ -844,6 +864,8 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.unlink_setup	= nfs3_proc_unlink_setup,
 	.unlink_done	= nfs3_proc_unlink_done,
 	.rename		= nfs3_proc_rename,
+	.rename_setup	= nfs3_proc_rename_setup,
+	.rename_done	= nfs3_proc_rename_done,
 	.link		= nfs3_proc_link,
 	.symlink	= nfs3_proc_symlink,
 	.mkdir		= nfs3_proc_mkdir,

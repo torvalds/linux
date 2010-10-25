@@ -816,7 +816,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 	if (iap->ia_valid & ATTR_MODE)
 		len += 4;
 	if (iap->ia_valid & ATTR_UID) {
-		owner_namelen = nfs_map_uid_to_name(server->nfs_client, iap->ia_uid, owner_name);
+		owner_namelen = nfs_map_uid_to_name(server->nfs_client, iap->ia_uid, owner_name, IDMAP_NAMESZ);
 		if (owner_namelen < 0) {
 			dprintk("nfs: couldn't resolve uid %d to string\n",
 					iap->ia_uid);
@@ -828,7 +828,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		len += 4 + (XDR_QUADLEN(owner_namelen) << 2);
 	}
 	if (iap->ia_valid & ATTR_GID) {
-		owner_grouplen = nfs_map_gid_to_group(server->nfs_client, iap->ia_gid, owner_group);
+		owner_grouplen = nfs_map_gid_to_group(server->nfs_client, iap->ia_gid, owner_group, IDMAP_NAMESZ);
 		if (owner_grouplen < 0) {
 			dprintk("nfs: couldn't resolve gid %d to string\n",
 					iap->ia_gid);
@@ -1385,24 +1385,35 @@ static void encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args,
 
 static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req, struct compound_hdr *hdr)
 {
-	uint32_t attrs[2] = {
-		FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID,
-		FATTR4_WORD1_MOUNTED_ON_FILEID,
-	};
+	uint32_t attrs[2] = {0, 0};
+	uint32_t dircount = readdir->count >> 1;
 	__be32 *p;
 
-	p = reserve_space(xdr, 12+NFS4_VERIFIER_SIZE+20);
-	*p++ = cpu_to_be32(OP_READDIR);
-	p = xdr_encode_hyper(p, readdir->cookie);
-	p = xdr_encode_opaque_fixed(p, readdir->verifier.data, NFS4_VERIFIER_SIZE);
-	*p++ = cpu_to_be32(readdir->count >> 1);  /* We're not doing readdirplus */
-	*p++ = cpu_to_be32(readdir->count);
-	*p++ = cpu_to_be32(2);
+	if (readdir->plus) {
+		attrs[0] |= FATTR4_WORD0_TYPE|FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE|
+			FATTR4_WORD0_FSID|FATTR4_WORD0_FILEHANDLE;
+		attrs[1] |= FATTR4_WORD1_MODE|FATTR4_WORD1_NUMLINKS|FATTR4_WORD1_OWNER|
+			FATTR4_WORD1_OWNER_GROUP|FATTR4_WORD1_RAWDEV|
+			FATTR4_WORD1_SPACE_USED|FATTR4_WORD1_TIME_ACCESS|
+			FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
+		dircount >>= 1;
+	}
+	attrs[0] |= FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID;
+	attrs[1] |= FATTR4_WORD1_MOUNTED_ON_FILEID;
 	/* Switch to mounted_on_fileid if the server supports it */
 	if (readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
 		attrs[0] &= ~FATTR4_WORD0_FILEID;
 	else
 		attrs[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
+
+	p = reserve_space(xdr, 12+NFS4_VERIFIER_SIZE+20);
+	*p++ = cpu_to_be32(OP_READDIR);
+	p = xdr_encode_hyper(p, readdir->cookie);
+	p = xdr_encode_opaque_fixed(p, readdir->verifier.data, NFS4_VERIFIER_SIZE);
+	*p++ = cpu_to_be32(dircount);
+	*p++ = cpu_to_be32(readdir->count);
+	*p++ = cpu_to_be32(2);
+
 	*p++ = cpu_to_be32(attrs[0] & readdir->bitmask[0]);
 	*p = cpu_to_be32(attrs[1] & readdir->bitmask[1]);
 	hdr->nops++;
@@ -1823,7 +1834,7 @@ static int nfs4_xdr_enc_remove(struct rpc_rqst *req, __be32 *p, const struct nfs
 /*
  * Encode RENAME request
  */
-static int nfs4_xdr_enc_rename(struct rpc_rqst *req, __be32 *p, const struct nfs4_rename_arg *args)
+static int nfs4_xdr_enc_rename(struct rpc_rqst *req, __be32 *p, const struct nfs_renameargs *args)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -2676,7 +2687,10 @@ out_overflow:
 static int decode_attr_supported(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *bitmask)
 {
 	if (likely(bitmap[0] & FATTR4_WORD0_SUPPORTED_ATTRS)) {
-		decode_attr_bitmap(xdr, bitmask);
+		int ret;
+		ret = decode_attr_bitmap(xdr, bitmask);
+		if (unlikely(ret < 0))
+			return ret;
 		bitmap[0] &= ~FATTR4_WORD0_SUPPORTED_ATTRS;
 	} else
 		bitmask[0] = bitmask[1] = 0;
@@ -2842,6 +2856,56 @@ static int decode_attr_lease_time(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		bitmap[0] &= ~FATTR4_WORD0_LEASE_TIME;
 	}
 	dprintk("%s: file size=%u\n", __func__, (unsigned int)*res);
+	return 0;
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return -EIO;
+}
+
+static int decode_attr_error(struct xdr_stream *xdr, uint32_t *bitmap)
+{
+	__be32 *p;
+
+	if (unlikely(bitmap[0] & (FATTR4_WORD0_RDATTR_ERROR - 1U)))
+		return -EIO;
+	if (likely(bitmap[0] & FATTR4_WORD0_RDATTR_ERROR)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
+		bitmap[0] &= ~FATTR4_WORD0_RDATTR_ERROR;
+	}
+	return 0;
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return -EIO;
+}
+
+static int decode_attr_filehandle(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_fh *fh)
+{
+	__be32 *p;
+	int len;
+
+	if (fh != NULL)
+		memset(fh, 0, sizeof(*fh));
+
+	if (unlikely(bitmap[0] & (FATTR4_WORD0_FILEHANDLE - 1U)))
+		return -EIO;
+	if (likely(bitmap[0] & FATTR4_WORD0_FILEHANDLE)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
+		len = be32_to_cpup(p);
+		if (len > NFS4_FHSIZE)
+			return -EIO;
+		p = xdr_inline_decode(xdr, len);
+		if (unlikely(!p))
+			goto out_overflow;
+		if (fh != NULL) {
+			memcpy(fh->data, p, len);
+			fh->size = len;
+		}
+		bitmap[0] &= ~FATTR4_WORD0_FILEHANDLE;
+	}
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -3521,6 +3585,24 @@ static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, s
 	return status;
 }
 
+static int decode_attr_time_delta(struct xdr_stream *xdr, uint32_t *bitmap,
+				  struct timespec *time)
+{
+	int status = 0;
+
+	time->tv_sec = 0;
+	time->tv_nsec = 0;
+	if (unlikely(bitmap[1] & (FATTR4_WORD1_TIME_DELTA - 1U)))
+		return -EIO;
+	if (likely(bitmap[1] & FATTR4_WORD1_TIME_DELTA)) {
+		status = decode_attr_time(xdr, time);
+		bitmap[1] &= ~FATTR4_WORD1_TIME_DELTA;
+	}
+	dprintk("%s: time_delta=%ld %ld\n", __func__, (long)time->tv_sec,
+		(long)time->tv_nsec);
+	return status;
+}
+
 static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
 {
 	int status = 0;
@@ -3744,29 +3826,14 @@ xdr_error:
 	return status;
 }
 
-static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
+static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
+		struct nfs_fattr *fattr, struct nfs_fh *fh,
 		const struct nfs_server *server, int may_sleep)
 {
-	__be32 *savep;
-	uint32_t attrlen,
-		 bitmap[2] = {0},
-		 type;
 	int status;
 	umode_t fmode = 0;
 	uint64_t fileid;
-
-	status = decode_op_hdr(xdr, OP_GETATTR);
-	if (status < 0)
-		goto xdr_error;
-
-	status = decode_attr_bitmap(xdr, bitmap);
-	if (status < 0)
-		goto xdr_error;
-
-	status = decode_attr_length(xdr, &attrlen, &savep);
-	if (status < 0)
-		goto xdr_error;
-
+	uint32_t type;
 
 	status = decode_attr_type(xdr, bitmap, &type);
 	if (status < 0)
@@ -3791,6 +3858,14 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 	if (status < 0)
 		goto xdr_error;
 	fattr->valid |= status;
+
+	status = decode_attr_error(xdr, bitmap);
+	if (status < 0)
+		goto xdr_error;
+
+	status = decode_attr_filehandle(xdr, bitmap, fh);
+	if (status < 0)
+		goto xdr_error;
 
 	status = decode_attr_fileid(xdr, bitmap, &fattr->fileid);
 	if (status < 0)
@@ -3862,12 +3937,46 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 		fattr->valid |= status;
 	}
 
+xdr_error:
+	dprintk("%s: xdr returned %d\n", __func__, -status);
+	return status;
+}
+
+static int decode_getfattr_generic(struct xdr_stream *xdr, struct nfs_fattr *fattr,
+		struct nfs_fh *fh, const struct nfs_server *server, int may_sleep)
+{
+	__be32 *savep;
+	uint32_t attrlen,
+		 bitmap[2] = {0};
+	int status;
+
+	status = decode_op_hdr(xdr, OP_GETATTR);
+	if (status < 0)
+		goto xdr_error;
+
+	status = decode_attr_bitmap(xdr, bitmap);
+	if (status < 0)
+		goto xdr_error;
+
+	status = decode_attr_length(xdr, &attrlen, &savep);
+	if (status < 0)
+		goto xdr_error;
+
+	status = decode_getfattr_attrs(xdr, bitmap, fattr, fh, server, may_sleep);
+	if (status < 0)
+		goto xdr_error;
+
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
 	dprintk("%s: xdr returned %d\n", __func__, -status);
 	return status;
 }
 
+static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
+		const struct nfs_server *server, int may_sleep)
+{
+	return decode_getfattr_generic(xdr, fattr, NULL, server, may_sleep);
+}
 
 static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 {
@@ -3894,6 +4003,9 @@ static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 	if ((status = decode_attr_maxwrite(xdr, bitmap, &fsinfo->wtmax)) != 0)
 		goto xdr_error;
 	fsinfo->wtpref = fsinfo->wtmax;
+	status = decode_attr_time_delta(xdr, bitmap, &fsinfo->time_delta);
+	if (status != 0)
+		goto xdr_error;
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
@@ -3950,13 +4062,13 @@ static int decode_lock_denied (struct xdr_stream *xdr, struct file_lock *fl)
 	__be32 *p;
 	uint32_t namelen, type;
 
-	p = xdr_inline_decode(xdr, 32);
+	p = xdr_inline_decode(xdr, 32); /* read 32 bytes */
 	if (unlikely(!p))
 		goto out_overflow;
-	p = xdr_decode_hyper(p, &offset);
+	p = xdr_decode_hyper(p, &offset); /* read 2 8-byte long words */
 	p = xdr_decode_hyper(p, &length);
-	type = be32_to_cpup(p++);
-	if (fl != NULL) {
+	type = be32_to_cpup(p++); /* 4 byte read */
+	if (fl != NULL) { /* manipulate file lock */
 		fl->fl_start = (loff_t)offset;
 		fl->fl_end = fl->fl_start + (loff_t)length - 1;
 		if (length == ~(uint64_t)0)
@@ -3966,9 +4078,9 @@ static int decode_lock_denied (struct xdr_stream *xdr, struct file_lock *fl)
 			fl->fl_type = F_RDLCK;
 		fl->fl_pid = 0;
 	}
-	p = xdr_decode_hyper(p, &clientid);
-	namelen = be32_to_cpup(p);
-	p = xdr_inline_decode(xdr, namelen);
+	p = xdr_decode_hyper(p, &clientid); /* read 8 bytes */
+	namelen = be32_to_cpup(p); /* read 4 bytes */  /* have read all 32 bytes now */
+	p = xdr_inline_decode(xdr, namelen); /* variable size field */
 	if (likely(p))
 		return -NFS4ERR_DENIED;
 out_overflow:
@@ -4200,12 +4312,9 @@ out_overflow:
 static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs4_readdir_res *readdir)
 {
 	struct xdr_buf	*rcvbuf = &req->rq_rcv_buf;
-	struct page	*page = *rcvbuf->pages;
 	struct kvec	*iov = rcvbuf->head;
 	size_t		hdrlen;
 	u32		recvd, pglen = rcvbuf->page_len;
-	__be32		*end, *entry, *p, *kaddr;
-	unsigned int	nr = 0;
 	int		status;
 
 	status = decode_op_hdr(xdr, OP_READDIR);
@@ -4225,71 +4334,8 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 		pglen = recvd;
 	xdr_read_pages(xdr, pglen);
 
-	BUG_ON(pglen + readdir->pgbase > PAGE_CACHE_SIZE);
-	kaddr = p = kmap_atomic(page, KM_USER0);
-	end = p + ((pglen + readdir->pgbase) >> 2);
-	entry = p;
 
-	/* Make sure the packet actually has a value_follows and EOF entry */
-	if ((entry + 1) > end)
-		goto short_pkt;
-
-	for (; *p++; nr++) {
-		u32 len, attrlen, xlen;
-		if (end - p < 3)
-			goto short_pkt;
-		dprintk("cookie = %Lu, ", *((unsigned long long *)p));
-		p += 2;			/* cookie */
-		len = ntohl(*p++);	/* filename length */
-		if (len > NFS4_MAXNAMLEN) {
-			dprintk("NFS: giant filename in readdir (len 0x%x)\n",
-					len);
-			goto err_unmap;
-		}
-		xlen = XDR_QUADLEN(len);
-		if (end - p < xlen + 1)
-			goto short_pkt;
-		dprintk("filename = %*s\n", len, (char *)p);
-		p += xlen;
-		len = ntohl(*p++);	/* bitmap length */
-		if (end - p < len + 1)
-			goto short_pkt;
-		p += len;
-		attrlen = XDR_QUADLEN(ntohl(*p++));
-		if (end - p < attrlen + 2)
-			goto short_pkt;
-		p += attrlen;		/* attributes */
-		entry = p;
-	}
-	/*
-	 * Apparently some server sends responses that are a valid size, but
-	 * contain no entries, and have value_follows==0 and EOF==0. For
-	 * those, just set the EOF marker.
-	 */
-	if (!nr && entry[1] == 0) {
-		dprintk("NFS: readdir reply truncated!\n");
-		entry[1] = 1;
-	}
-out:
-	kunmap_atomic(kaddr, KM_USER0);
 	return 0;
-short_pkt:
-	/*
-	 * When we get a short packet there are 2 possibilities. We can
-	 * return an error, or fix up the response to look like a valid
-	 * response and return what we have so far. If there are no
-	 * entries and the packet was short, then return -EIO. If there
-	 * are valid entries in the response, return them and pretend that
-	 * the call was successful, but incomplete. The caller can retry the
-	 * readdir starting at the last cookie.
-	 */
-	dprintk("%s: short packet at entry %d\n", __func__, nr);
-	entry[0] = entry[1] = 0;
-	if (nr)
-		goto out;
-err_unmap:
-	kunmap_atomic(kaddr, KM_USER0);
-	return -errno_NFSERR_IO;
 }
 
 static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
@@ -4299,7 +4345,6 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 	size_t hdrlen;
 	u32 len, recvd;
 	__be32 *p;
-	char *kaddr;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_READLINK);
@@ -4330,9 +4375,7 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 	 * and and null-terminate the text (the VFS expects
 	 * null-termination).
 	 */
-	kaddr = (char *)kmap_atomic(rcvbuf->pages[0], KM_USER0);
-	kaddr[len+rcvbuf->page_base] = '\0';
-	kunmap_atomic(kaddr, KM_USER0);
+	xdr_terminate_string(rcvbuf, len);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -4668,7 +4711,6 @@ static int decode_sequence(struct xdr_stream *xdr,
 			   struct rpc_rqst *rqstp)
 {
 #if defined(CONFIG_NFS_V4_1)
-	struct nfs4_slot *slot;
 	struct nfs4_sessionid id;
 	u32 dummy;
 	int status;
@@ -4700,15 +4742,14 @@ static int decode_sequence(struct xdr_stream *xdr,
 		goto out_overflow;
 
 	/* seqid */
-	slot = &res->sr_session->fc_slot_table.slots[res->sr_slotid];
 	dummy = be32_to_cpup(p++);
-	if (dummy != slot->seq_nr) {
+	if (dummy != res->sr_slot->seq_nr) {
 		dprintk("%s Invalid sequence number\n", __func__);
 		goto out_err;
 	}
 	/* slot id */
 	dummy = be32_to_cpup(p++);
-	if (dummy != res->sr_slotid) {
+	if (dummy != res->sr_slot - res->sr_session->fc_slot_table.slots) {
 		dprintk("%s Invalid slot id\n", __func__);
 		goto out_err;
 	}
@@ -4873,7 +4914,7 @@ out:
 /*
  * Decode RENAME response
  */
-static int nfs4_xdr_dec_rename(struct rpc_rqst *rqstp, __be32 *p, struct nfs4_rename_res *res)
+static int nfs4_xdr_dec_rename(struct rpc_rqst *rqstp, __be32 *p, struct nfs_renameres *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -5760,23 +5801,35 @@ static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp, uint32_t *p,
 }
 #endif /* CONFIG_NFS_V4_1 */
 
-__be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
+__be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
+			   struct nfs_server *server, int plus)
 {
 	uint32_t bitmap[2] = {0};
 	uint32_t len;
-
-	if (!*p++) {
-		if (!*p)
+	__be32 *p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	if (!ntohl(*p++)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
+		if (!ntohl(*p++))
 			return ERR_PTR(-EAGAIN);
 		entry->eof = 1;
 		return ERR_PTR(-EBADCOOKIE);
 	}
 
+	p = xdr_inline_decode(xdr, 12);
+	if (unlikely(!p))
+		goto out_overflow;
 	entry->prev_cookie = entry->cookie;
 	p = xdr_decode_hyper(p, &entry->cookie);
 	entry->len = ntohl(*p++);
+
+	p = xdr_inline_decode(xdr, entry->len);
+	if (unlikely(!p))
+		goto out_overflow;
 	entry->name = (const char *) p;
-	p += XDR_QUADLEN(entry->len);
 
 	/*
 	 * In case the server doesn't return an inode number,
@@ -5784,32 +5837,33 @@ __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 	 * since glibc seems to choke on it...)
 	 */
 	entry->ino = 1;
+	entry->fattr->valid = 0;
 
-	len = ntohl(*p++);		/* bitmap length */
-	if (len-- > 0) {
-		bitmap[0] = ntohl(*p++);
-		if (len-- > 0) {
-			bitmap[1] = ntohl(*p++);
-			p += len;
-		}
-	}
-	len = XDR_QUADLEN(ntohl(*p++));	/* attribute buffer length */
-	if (len > 0) {
-		if (bitmap[0] & FATTR4_WORD0_RDATTR_ERROR) {
-			bitmap[0] &= ~FATTR4_WORD0_RDATTR_ERROR;
-			/* Ignore the return value of rdattr_error for now */
-			p++;
-			len--;
-		}
-		if (bitmap[0] == 0 && bitmap[1] == FATTR4_WORD1_MOUNTED_ON_FILEID)
-			xdr_decode_hyper(p, &entry->ino);
-		else if (bitmap[0] == FATTR4_WORD0_FILEID)
-			xdr_decode_hyper(p, &entry->ino);
-		p += len;
-	}
+	if (decode_attr_bitmap(xdr, bitmap) < 0)
+		goto out_overflow;
 
-	entry->eof = !p[0] && p[1];
+	if (decode_attr_length(xdr, &len, &p) < 0)
+		goto out_overflow;
+
+	if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh, server, 1) < 0)
+		goto out_overflow;
+	if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
+		entry->ino = entry->fattr->fileid;
+
+	if (verify_attr_len(xdr, p, len) < 0)
+		goto out_overflow;
+
+	p = xdr_inline_peek(xdr, 8);
+	if (p != NULL)
+		entry->eof = !p[0] && p[1];
+	else
+		entry->eof = 0;
+
 	return p;
+
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return ERR_PTR(-EIO);
 }
 
 /*
