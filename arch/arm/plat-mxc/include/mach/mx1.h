@@ -73,8 +73,9 @@
 #define MX1_CSI_BASE_ADDR		(0x24000 + MX1_IO_BASE_ADDR)
 
 /* macro to get at IO space when running virtually */
-#define MX1_IO_ADDRESS(x) (						\
-	IMX_IO_ADDRESS(x, MX1_IO))
+#define MX1_IO_P2V(x)	(						\
+	IMX_IO_P2V_MODULE(x, MX1_IO))
+#define MX1_IO_ADDRESS(x)		IOMEM(MX1_IO_P2V(x))
 
 /* fixed interrput numbers */
 #define MX1_INT_SOFTINT		0

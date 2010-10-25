@@ -163,12 +163,13 @@
 #define MX51_GPU2D_BASE_ADDR		0xd0000000
 #define MX51_TZIC_BASE_ADDR		0xe0000000
 
-#define MX51_IO_ADDRESS(x) (						\
-	IMX_IO_ADDRESS(x, MX51_IRAM) ?:					\
-	IMX_IO_ADDRESS(x, MX51_DEBUG) ?:				\
-	IMX_IO_ADDRESS(x, MX51_SPBA0) ?:				\
-	IMX_IO_ADDRESS(x, MX51_AIPS1) ?:				\
-	IMX_IO_ADDRESS(x, MX51_AIPS2))
+#define MX51_IO_P2V(x)	(						\
+	IMX_IO_P2V_MODULE(x, MX51_IRAM) ?:				\
+	IMX_IO_P2V_MODULE(x, MX51_DEBUG) ?:				\
+	IMX_IO_P2V_MODULE(x, MX51_SPBA0) ?:				\
+	IMX_IO_P2V_MODULE(x, MX51_AIPS1) ?:				\
+	IMX_IO_P2V_MODULE(x, MX51_AIPS2))
+#define MX51_IO_ADDRESS(x)		IOMEM(MX51_IO_P2V(x))
 
 /* This is currently used in <mach/debug-macro.S>, but should go away */
 #define MX51_AIPS1_IO_ADDRESS(x)  \

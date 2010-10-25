@@ -121,12 +121,13 @@
 
 #define MX31_PCMCIA_MEM_BASE_ADDR	0xbc000000
 
-#define MX31_IO_ADDRESS(x) (						\
-	IMX_IO_ADDRESS(x, MX31_AIPS1) ?:				\
-	IMX_IO_ADDRESS(x, MX31_AIPS2) ?:				\
-	IMX_IO_ADDRESS(x, MX31_AVIC) ?:					\
-	IMX_IO_ADDRESS(x, MX31_X_MEMC) ?:				\
-	IMX_IO_ADDRESS(x, MX31_SPBA0))
+#define MX31_IO_P2V(x)	(						\
+	IMX_IO_P2V_MODULE(x, MX31_AIPS1) ?:				\
+	IMX_IO_P2V_MODULE(x, MX31_AIPS2) ?:				\
+	IMX_IO_P2V_MODULE(x, MX31_AVIC) ?:				\
+	IMX_IO_P2V_MODULE(x, MX31_X_MEMC) ?:				\
+	IMX_IO_P2V_MODULE(x, MX31_SPBA0))
+#define MX31_IO_ADDRESS(x)		IOMEM(MX31_IO_P2V(x))
 
 #ifndef __ASSEMBLER__
 static inline void mx31_setup_weimcs(size_t cs,

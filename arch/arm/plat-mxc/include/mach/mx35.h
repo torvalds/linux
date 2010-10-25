@@ -114,12 +114,13 @@
 #define MX35_NFC_BASE_ADDR		0xbb000000
 #define MX35_PCMCIA_MEM_BASE_ADDR	0xbc000000
 
-#define MX35_IO_ADDRESS(x) (						\
-	IMX_IO_ADDRESS(x, MX35_AIPS1) ?:				\
-	IMX_IO_ADDRESS(x, MX35_AIPS2) ?:				\
-	IMX_IO_ADDRESS(x, MX35_AVIC) ?:					\
-	IMX_IO_ADDRESS(x, MX35_X_MEMC) ?:				\
-	IMX_IO_ADDRESS(x, MX35_SPBA0))
+#define MX35_IO_P2V(x)	(						\
+	IMX_IO_P2V_MODULE(x, MX35_AIPS1) ?:				\
+	IMX_IO_P2V_MODULE(x, MX35_AIPS2) ?:				\
+	IMX_IO_P2V_MODULE(x, MX35_AVIC) ?:				\
+	IMX_IO_P2V_MODULE(x, MX35_X_MEMC) ?:				\
+	IMX_IO_P2V_MODULE(x, MX35_SPBA0))
+#define MX35_IO_ADDRESS(x)		IOMEM(MX35_IO_P2V(x))
 
 /*
  * Interrupt numbers

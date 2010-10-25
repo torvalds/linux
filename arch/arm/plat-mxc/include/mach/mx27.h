@@ -123,10 +123,11 @@
 /* IRAM */
 #define MX27_IRAM_BASE_ADDR		0xffff4c00	/* internal ram */
 
-#define MX27_IO_ADDRESS(x) (						\
-	IMX_IO_ADDRESS(x, MX27_AIPI) ?:					\
-	IMX_IO_ADDRESS(x, MX27_SAHB1) ?:				\
-	IMX_IO_ADDRESS(x, MX27_X_MEMC))
+#define MX27_IO_P2V(x)	(						\
+	IMX_IO_P2V_MODULE(x, MX27_AIPI) ?:				\
+	IMX_IO_P2V_MODULE(x, MX27_SAHB1) ?:				\
+	IMX_IO_P2V_MODULE(x, MX27_X_MEMC))
+#define MX27_IO_ADDRESS(x)		IOMEM(MX27_IO_P2V(x))
 
 #ifndef __ASSEMBLER__
 static inline void mx27_setup_weimcs(size_t cs,

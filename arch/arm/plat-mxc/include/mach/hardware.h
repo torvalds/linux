@@ -22,10 +22,15 @@
 
 #include <asm/sizes.h>
 
-#define IMX_IO_ADDRESS(addr, module)					\
-	((void __force __iomem *)					\
-	 (((unsigned long)((addr) - (module ## _BASE_ADDR)) < module ## _SIZE) ?\
-	 (addr) - (module ## _BASE_ADDR) + (module ## _BASE_ADDR_VIRT) : 0))
+#ifdef __ASSEMBLER__
+#define IOMEM(addr)	(addr)
+#else
+#define IOMEM(addr)	((void __force __iomem *)(addr))
+#endif
+
+#define IMX_IO_P2V_MODULE(addr, module)					\
+	(((addr) - module ## _BASE_ADDR) < module ## _SIZE ?		\
+	 (addr) - (module ## _BASE_ADDR) + (module ## _BASE_ADDR_VIRT) : 0)
 
 #ifdef CONFIG_ARCH_MX5
 #include <mach/mx51.h>
