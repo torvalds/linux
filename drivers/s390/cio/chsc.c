@@ -639,36 +639,18 @@ chsc_secm(struct channel_subsystem *css, int enable)
 }
 
 int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
-				     int c, int m,
-				     struct chsc_response_struct *resp)
+				     int c, int m, void *page)
 {
+	struct chsc_scpd *scpd_area;
 	int ccode, ret;
-
-	struct {
-		struct chsc_header request;
-		u32 : 2;
-		u32 m : 1;
-		u32 c : 1;
-		u32 fmt : 4;
-		u32 cssid : 8;
-		u32 : 4;
-		u32 rfmt : 4;
-		u32 first_chpid : 8;
-		u32 : 24;
-		u32 last_chpid : 8;
-		u32 zeroes1;
-		struct chsc_header response;
-		u8 data[PAGE_SIZE - 20];
-	} __attribute__ ((packed)) *scpd_area;
 
 	if ((rfmt == 1) && !css_general_characteristics.fcs)
 		return -EINVAL;
 	if ((rfmt == 2) && !css_general_characteristics.cib)
 		return -EINVAL;
 
-	spin_lock_irq(&chsc_page_lock);
-	memset(chsc_page, 0, PAGE_SIZE);
-	scpd_area = chsc_page;
+	memset(page, 0, PAGE_SIZE);
+	scpd_area = page;
 	scpd_area->request.length = 0x0010;
 	scpd_area->request.code = 0x0002;
 	scpd_area->cssid = chpid.cssid;
@@ -680,20 +662,13 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 	scpd_area->rfmt = rfmt;
 
 	ccode = chsc(scpd_area);
-	if (ccode > 0) {
-		ret = (ccode == 3) ? -ENODEV : -EBUSY;
-		goto out;
-	}
+	if (ccode > 0)
+		return (ccode == 3) ? -ENODEV : -EBUSY;
 
 	ret = chsc_error_from_response(scpd_area->response.code);
-	if (ret == 0)
-		/* Success. */
-		memcpy(resp, &scpd_area->response, scpd_area->response.length);
-	else
+	if (ret)
 		CIO_CRW_EVENT(2, "chsc: scpd failed (rc=%04x)\n",
 			      scpd_area->response.code);
-out:
-	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(chsc_determine_channel_path_desc);
@@ -702,17 +677,18 @@ int chsc_determine_base_channel_path_desc(struct chp_id chpid,
 					  struct channel_path_desc *desc)
 {
 	struct chsc_response_struct *chsc_resp;
+	struct chsc_scpd *scpd_area;
 	int ret;
 
-	chsc_resp = kzalloc(sizeof(*chsc_resp), GFP_KERNEL);
-	if (!chsc_resp)
-		return -ENOMEM;
-	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, chsc_resp);
+	spin_lock_irq(&chsc_page_lock);
+	scpd_area = chsc_page;
+	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, scpd_area);
 	if (ret)
-		goto out_free;
+		goto out;
+	chsc_resp = (void *)&scpd_area->response;
 	memcpy(desc, &chsc_resp->data, sizeof(*desc));
-out_free:
-	kfree(chsc_resp);
+out:
+	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
 
