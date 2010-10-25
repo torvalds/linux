@@ -502,16 +502,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ----------------------------
 
-What:	old ieee1394 subsystem (CONFIG_IEEE1394)
-When:	2.6.37
-Files:	drivers/ieee1394/ except init_ohci1394_dma.c
-Why:	superseded by drivers/firewire/ (CONFIG_FIREWIRE) which offers more
-	features, better performance, and better security, all with smaller
-	and more modern code base
-Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
-
-----------------------------
-
 What:	The acpi_sleep=s4_nonvs command line option
 When:	2.6.37
 Files:	arch/x86/kernel/acpi/sleep.c
