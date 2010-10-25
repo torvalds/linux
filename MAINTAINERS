@@ -3765,6 +3765,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/sym53c8xx_2/
 
+LTC4261 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/ltc4261
+F:	drivers/hwmon/ltc4261.c
+
 LTP (Linux Test Project)
 M:	Rishikesh K Rajak <risrajak@linux.vnet.ibm.com>
 M:	Garrett Cooper <yanegomi@gmail.com>
