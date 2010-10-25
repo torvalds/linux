@@ -85,14 +85,18 @@ static inline void restore_access_regs(unsigned int *acrs)
 	asm volatile("lam 0,15,%0" : : "Q" (*acrs));
 }
 
-#define switch_to(prev,next,last) do {					     \
-	if (prev == next)						     \
-		break;							     \
-	save_fp_regs(&prev->thread.fp_regs);				     \
-	restore_fp_regs(&next->thread.fp_regs);				     \
-	save_access_regs(&prev->thread.acrs[0]);			     \
-	restore_access_regs(&next->thread.acrs[0]);			     \
-	prev = __switch_to(prev,next);					     \
+#define switch_to(prev,next,last) do {					\
+	if (prev == next)						\
+		break;							\
+	if (prev->mm) {							\
+		save_fp_regs(&prev->thread.fp_regs);			\
+		save_access_regs(&prev->thread.acrs[0]);		\
+	}								\
+	if (next->mm) {							\
+		restore_fp_regs(&next->thread.fp_regs);			\
+		restore_access_regs(&next->thread.acrs[0]);		\
+	}								\
+	prev = __switch_to(prev,next);					\
 } while (0)
 
 extern void account_vtime(struct task_struct *, struct task_struct *);
