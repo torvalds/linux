@@ -849,20 +849,16 @@ static void be_rx_stats_update(struct be_rx_obj *rxo,
 		stats->rx_mcast_pkts++;
 }
 
-static inline bool do_pkt_csum(struct be_eth_rx_compl *rxcp, bool cso)
+static inline bool csum_passed(struct be_eth_rx_compl *rxcp)
 {
-	u8 l4_cksm, ip_version, ipcksm, tcpf = 0, udpf = 0, ipv6_chk;
+	u8 l4_cksm, ipv6, ipcksm;
 
 	l4_cksm = AMAP_GET_BITS(struct amap_eth_rx_compl, l4_cksm, rxcp);
 	ipcksm = AMAP_GET_BITS(struct amap_eth_rx_compl, ipcksm, rxcp);
-	ip_version = AMAP_GET_BITS(struct amap_eth_rx_compl, ip_version, rxcp);
-	if (ip_version) {
-		tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl, tcpf, rxcp);
-		udpf = AMAP_GET_BITS(struct amap_eth_rx_compl, udpf, rxcp);
-	}
-	ipv6_chk = (ip_version && (tcpf || udpf));
+	ipv6 = AMAP_GET_BITS(struct amap_eth_rx_compl, ip_version, rxcp);
 
-	return ((l4_cksm && ipv6_chk && ipcksm) && cso) ? false : true;
+	/* Ignore ipcksm for ipv6 pkts */
+	return l4_cksm && (ipcksm || ipv6);
 }
 
 static struct be_rx_page_info *
@@ -1017,10 +1013,10 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	skb_fill_rx_data(adapter, rxo, skb, rxcp, num_rcvd);
 
-	if (do_pkt_csum(rxcp, adapter->rx_csum))
-		skb_checksum_none_assert(skb);
-	else
+	if (likely(adapter->rx_csum && csum_passed(rxcp)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	else
+		skb_checksum_none_assert(skb);
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
