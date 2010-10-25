@@ -1043,26 +1043,17 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		input_sync(wacom_wac->input);
 }
 
-static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
+static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
 {
 	struct input_dev *input_dev = wacom_wac->input;
 
 	input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-	input_set_capability(input_dev, EV_REL, REL_WHEEL);
-
-	__set_bit(BTN_LEFT, input_dev->keybit);
-	__set_bit(BTN_RIGHT, input_dev->keybit);
-	__set_bit(BTN_MIDDLE, input_dev->keybit);
-	__set_bit(BTN_SIDE, input_dev->keybit);
-	__set_bit(BTN_EXTRA, input_dev->keybit);
 
 	__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 	__set_bit(BTN_TOOL_PEN, input_dev->keybit);
-	__set_bit(BTN_TOOL_MOUSE, input_dev->keybit);
 	__set_bit(BTN_TOOL_BRUSH, input_dev->keybit);
 	__set_bit(BTN_TOOL_PENCIL, input_dev->keybit);
 	__set_bit(BTN_TOOL_AIRBRUSH, input_dev->keybit);
-	__set_bit(BTN_TOOL_LENS, input_dev->keybit);
 	__set_bit(BTN_STYLUS, input_dev->keybit);
 	__set_bit(BTN_STYLUS2, input_dev->keybit);
 
@@ -1071,10 +1062,27 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
 	input_set_abs_params(input_dev, ABS_TILT_X, 0, 127, 0, 0);
 	input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127, 0, 0);
+}
+
+static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
+{
+	struct input_dev *input_dev = wacom_wac->input;
+
+	input_set_capability(input_dev, EV_REL, REL_WHEEL);
+
+	wacom_setup_cintiq(wacom_wac);
+
+	__set_bit(BTN_LEFT, input_dev->keybit);
+	__set_bit(BTN_RIGHT, input_dev->keybit);
+	__set_bit(BTN_MIDDLE, input_dev->keybit);
+	__set_bit(BTN_SIDE, input_dev->keybit);
+	__set_bit(BTN_EXTRA, input_dev->keybit);
+	__set_bit(BTN_TOOL_MOUSE, input_dev->keybit);
+	__set_bit(BTN_TOOL_LENS, input_dev->keybit);
+
 	input_set_abs_params(input_dev, ABS_RZ, -900, 899, 0, 0);
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
 }
-
 
 void wacom_setup_device_quirks(struct wacom_features *features)
 {
@@ -1168,9 +1176,19 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_9, input_dev->keybit);
 		/* fall through */
 
+	case CINTIQ:
+		for (i = 0; i < 8; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+		__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
+		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
+		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+		wacom_setup_cintiq(wacom_wac);
+		break;
+
 	case INTUOS3:
 	case INTUOS3L:
-	case CINTIQ:
 		__set_bit(BTN_4, input_dev->keybit);
 		__set_bit(BTN_5, input_dev->keybit);
 		__set_bit(BTN_6, input_dev->keybit);
