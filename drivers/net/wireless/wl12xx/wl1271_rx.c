@@ -184,10 +184,14 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 		while (pkt_offset < buf_size) {
 			pkt_length = wl1271_rx_get_buf_size(status,
 					drv_rx_counter);
-			if (wl1271_rx_handle_data(wl,
-					wl->aggr_buf + pkt_offset,
-					pkt_length) < 0)
-				break;
+			/*
+			 * the handle data call can only fail in memory-outage
+			 * conditions, in that case the received frame will just
+			 * be dropped.
+			 */
+			wl1271_rx_handle_data(wl,
+					      wl->aggr_buf + pkt_offset,
+					      pkt_length);
 			wl->rx_counter++;
 			drv_rx_counter++;
 			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
