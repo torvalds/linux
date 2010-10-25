@@ -44,6 +44,7 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/pll.h>
+#include <plat/nand-core.h>
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
@@ -68,7 +69,7 @@ void __init s3c244x_map_io(void)
 
 	s3c_device_sdi.name  = "s3c2440-sdi";
 	s3c_device_i2c0.name  = "s3c2440-i2c";
-	s3c_device_nand.name = "s3c2440-nand";
+	s3c_nand_setname("s3c2440-nand");
 	s3c_device_ts.name = "s3c2440-ts";
 	s3c_device_usbgadget.name = "s3c2440-usbgadget";
 }
