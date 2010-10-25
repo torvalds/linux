@@ -12,8 +12,7 @@ menuconfig UWB
 	  technology using a wide spectrum (3.1-10.6GHz). It is
 	  optimized for in-room use (480Mbps at 2 meters, 110Mbps at
 	  10m). It serves as the transport layer for other protocols,
-	  such as Wireless USB (WUSB), IP (WLP) and upcoming
-	  Bluetooth and 1394
+	  such as Wireless USB (WUSB).
 
 	  The topology is peer to peer; however, higher level
 	  protocols (such as WUSB) might impose a master/slave
@@ -58,13 +57,6 @@ config UWB_WHCI
           To compile this driver select Y (built in) or M (module). It
           is safe to select any even if you do not have the hardware.
 
-config UWB_WLP
-	tristate "Support WiMedia Link Protocol (Ethernet/IP over UWB)"
-	depends on UWB && NET
-	help
-	  This is a common library for drivers that implement
-	  networking over UWB.
-
 config UWB_I1480U
         tristate "Support for Intel Wireless UWB Link 1480 HWA"
         depends on UWB_HWA
@@ -76,15 +68,5 @@ config UWB_I1480U
 
          To compile this driver select Y (built in) or M (module). It
          is safe to select any even if you do not have the hardware.
-
-config UWB_I1480U_WLP
-        tristate "Support for Intel Wireless UWB Link 1480 HWA's WLP interface"
-        depends on UWB_I1480U &&  UWB_WLP && NET
-        help
-         This driver enables WLP support for the i1480 when connected via
-         USB. WLP is the WiMedia Link Protocol, or IP over UWB.
-
-         To compile this driver select Y (built in) or M (module). It
-         is safe to select any even if you don't have the hardware.
 
 endif # UWB

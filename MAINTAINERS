@@ -1562,9 +1562,8 @@ F:	net/ceph
 F:	include/linux/ceph
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
-M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/usb/WUSB-Design-overview.txt
 F:	Documentation/usb/wusb-cbaf
 F:	drivers/usb/host/hwa-hc.c
@@ -5991,13 +5990,9 @@ F:	Documentation/filesystems/ufs.txt
 F:	fs/ufs/
 
 ULTRA-WIDEBAND (UWB) SUBSYSTEM:
-M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	drivers/uwb/
-X:	drivers/uwb/wlp/
-X:	drivers/uwb/i1480/i1480u-wlp/
-X:	drivers/uwb/i1480/i1480-wlp.h
 F:	include/linux/uwb.h
 F:	include/linux/uwb/
 
@@ -6532,15 +6527,6 @@ F:	include/linux/wimax.h
 F:	include/linux/wimax/debug.h
 F:	include/net/wimax.h
 F:	net/wimax/
-
-WIMEDIA LLC PROTOCOL (WLP) SUBSYSTEM
-M:	David Vrabel <david.vrabel@csr.com>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	include/linux/wlp.h
-F:	drivers/uwb/wlp/
-F:	drivers/uwb/i1480/i1480u-wlp/
-F:	drivers/uwb/i1480/i1480-wlp.h
 
 WISTRON LAPTOP BUTTON DRIVER
 M:	Miloslav Trmac <mitr@volny.cz>
