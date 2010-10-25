@@ -75,16 +75,19 @@ again:
 		return workspace;
 
 	}
-	spin_unlock(&workspace_lock);
 	if (atomic_read(&alloc_workspace) > cpus) {
 		DEFINE_WAIT(wait);
+
+		spin_unlock(&workspace_lock);
 		prepare_to_wait(&workspace_wait, &wait, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&alloc_workspace) > cpus)
+		if (atomic_read(&alloc_workspace) > cpus && !num_workspace)
 			schedule();
 		finish_wait(&workspace_wait, &wait);
 		goto again;
 	}
 	atomic_inc(&alloc_workspace);
+	spin_unlock(&workspace_lock);
+
 	workspace = kzalloc(sizeof(*workspace), GFP_NOFS);
 	if (!workspace) {
 		ret = -ENOMEM;
