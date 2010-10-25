@@ -94,8 +94,6 @@ static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
 
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		iint->readcount++;
-	if (mode & FMODE_WRITE)
-		iint->writecount++;
 }
 
 /*
@@ -173,18 +171,16 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 		iint->readcount--;
 	}
 	if (mode & FMODE_WRITE) {
-		if (unlikely(iint->writecount == 0))
+		if (atomic_read(&inode->i_writecount) <= 0)
 			dump = true;
-		iint->writecount--;
-		if (iint->writecount == 0) {
-			if (iint->version != inode->i_version)
-				iint->flags &= ~IMA_MEASURED;
-		}
+		if (atomic_read(&inode->i_writecount) == 1 &&
+		    iint->version != inode->i_version)
+			iint->flags &= ~IMA_MEASURED;
 	}
 
 	if (dump && !ima_limit_imbalance(file)) {
-		printk(KERN_INFO "%s: open/free imbalance (r:%u w:%u)\n",
-		       __func__, iint->readcount, iint->writecount);
+		printk(KERN_INFO "%s: open/free imbalance (r:%u)\n",
+		       __func__, iint->readcount);
 		dump_stack();
 	}
 }

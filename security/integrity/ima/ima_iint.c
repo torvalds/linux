@@ -129,11 +129,6 @@ void iint_free(struct kref *kref)
 		       iint->readcount);
 		iint->readcount = 0;
 	}
-	if (iint->writecount != 0) {
-		printk(KERN_INFO "%s: writecount: %u\n", __func__,
-		       iint->writecount);
-		iint->writecount = 0;
-	}
 	kref_init(&iint->refcount);
 	kmem_cache_free(iint_cache, iint);
 }
@@ -166,7 +161,6 @@ static void init_once(void *foo)
 	iint->flags = 0UL;
 	mutex_init(&iint->mutex);
 	iint->readcount = 0;
-	iint->writecount = 0;
 	kref_init(&iint->refcount);
 }
 
