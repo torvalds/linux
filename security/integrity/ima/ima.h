@@ -96,14 +96,14 @@ static inline unsigned long ima_hash_key(u8 *digest)
 }
 
 /* iint cache flags */
-#define IMA_MEASURED		1
+#define IMA_MEASURED		0x01
 
 /* integrity data associated with an inode */
 struct ima_iint_cache {
 	struct rb_node rb_node; /* rooted in ima_iint_tree */
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
-	unsigned long flags;
+	unsigned char flags;
 	u8 digest[IMA_DIGEST_SIZE];
 	struct mutex mutex;	/* protects: version, flags, digest */
 	unsigned int readcount;	/* measured files readcount */
