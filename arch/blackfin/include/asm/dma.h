@@ -116,7 +116,7 @@ void blackfin_dma_resume(void);
 *	DMA API's
 *******************************************************************************/
 extern struct dma_channel dma_ch[MAX_DMA_CHANNELS];
-extern struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS];
+extern struct dma_register * const dma_io_base_addr[MAX_DMA_CHANNELS];
 extern int channel2irq(unsigned int channel);
 
 static inline void set_dma_start_addr(unsigned int channel, unsigned long addr)
