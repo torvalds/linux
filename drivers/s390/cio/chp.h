@@ -52,6 +52,12 @@ struct channel_path {
 	void *cmg_chars;
 };
 
+/* Return channel_path struct for given chpid. */
+static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
+{
+	return channel_subsystems[chpid.cssid]->chps[chpid.id];
+}
+
 int chp_get_status(struct chp_id chpid);
 u8 chp_get_sch_opm(struct subchannel *sch);
 int chp_is_registered(struct chp_id chpid);

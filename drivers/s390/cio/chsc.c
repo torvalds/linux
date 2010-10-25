@@ -495,6 +495,7 @@ __s390_vary_chpid_on(struct subchannel_id schid, void *data)
  */
 int chsc_chp_vary(struct chp_id chpid, int on)
 {
+	struct channel_path *chp = chpid_to_chp(chpid);
 	struct chp_link link;
 
 	memset(&link, 0, sizeof(struct chp_link));
@@ -504,11 +505,12 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 	/*
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
-
-	if (on)
+	if (on) {
+		/* Try to update the channel path descritor. */
+		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
 					   __s390_vary_chpid_on, &link);
-	else
+	} else
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_off,
 					   NULL, &link);
 

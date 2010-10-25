@@ -54,12 +54,6 @@ static struct work_struct cfg_work;
 /* Wait queue for configure completion events. */
 static wait_queue_head_t cfg_wait_queue;
 
-/* Return channel_path struct for given chpid. */
-static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
-{
-	return channel_subsystems[chpid.cssid]->chps[chpid.id];
-}
-
 /* Set vary state for given chpid. */
 static void set_chp_logically_online(struct chp_id chpid, int onoff)
 {
