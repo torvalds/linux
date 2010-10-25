@@ -225,6 +225,9 @@ static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 {
 	struct net_device *dev = arg;
 
+	if (!net_eq(dev_net(dev), &init_net))
+		return 0;
+
 	switch (what) {
 	case NETDEV_REGISTER:
 		if (dev->type == ARPHRD_PHONET)
