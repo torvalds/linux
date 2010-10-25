@@ -108,9 +108,13 @@ typedef pte_t *pgtable_t;
 #define __pgprot(x)     ((pgprot_t) { (x) } )
 
 static inline void
-page_set_storage_key(unsigned long addr, unsigned int skey)
+page_set_storage_key(unsigned long addr, unsigned int skey, int mapped)
 {
-	asm volatile("sske %0,%1" : : "d" (skey), "a" (addr));
+	if (!mapped)
+		asm volatile(".insn rrf,0xb22b0000,%0,%1,8,0"
+			     : : "d" (skey), "a" (addr));
+	else
+		asm volatile("sske %0,%1" : : "d" (skey), "a" (addr));
 }
 
 static inline unsigned int

@@ -627,7 +627,8 @@ setup_memory(void)
 		add_active_range(0, start_chunk, end_chunk);
 		pfn = max(start_chunk, start_pfn);
 		for (; pfn < end_chunk; pfn++)
-			page_set_storage_key(PFN_PHYS(pfn), PAGE_DEFAULT_KEY);
+			page_set_storage_key(PFN_PHYS(pfn),
+					     PAGE_DEFAULT_KEY, 0);
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);

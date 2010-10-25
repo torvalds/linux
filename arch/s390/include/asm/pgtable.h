@@ -590,7 +590,7 @@ static inline void rcp_unlock(pte_t *ptep)
 }
 
 /* forward declaration for SetPageUptodate in page-flags.h*/
-static inline void page_clear_dirty(struct page *page);
+static inline void page_clear_dirty(struct page *page, int mapped);
 #include <linux/page-flags.h>
 
 static inline void ptep_rcp_copy(pte_t *ptep)
@@ -800,7 +800,7 @@ static inline int kvm_s390_test_and_clear_page_dirty(struct mm_struct *mm,
 	}
 	dirty = test_and_clear_bit_simple(KVM_UD_BIT, pgste);
 	if (skey & _PAGE_CHANGED)
-		page_clear_dirty(page);
+		page_clear_dirty(page, 1);
 	rcp_unlock(ptep);
 	return dirty;
 }
@@ -975,9 +975,9 @@ static inline int page_test_dirty(struct page *page)
 }
 
 #define __HAVE_ARCH_PAGE_CLEAR_DIRTY
-static inline void page_clear_dirty(struct page *page)
+static inline void page_clear_dirty(struct page *page, int mapped)
 {
-	page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY);
+	page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY, mapped);
 }
 
 /*

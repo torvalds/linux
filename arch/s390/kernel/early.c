@@ -208,7 +208,8 @@ static noinline __init void init_kernel_storage_key(void)
 	end_pfn = PFN_UP(__pa(&_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
-		page_set_storage_key(init_pfn << PAGE_SHIFT, PAGE_DEFAULT_KEY);
+		page_set_storage_key(init_pfn << PAGE_SHIFT,
+				     PAGE_DEFAULT_KEY, 0);
 }
 
 static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
