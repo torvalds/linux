@@ -556,7 +556,6 @@ asmlinkage void __init start_kernel(void)
 
 	local_irq_disable();
 	early_boot_irqs_off();
-	early_init_irq_lock_class();
 
 /*
  * Interrupts are still disabled. Do necessary setups, then

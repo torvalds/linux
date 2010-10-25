@@ -2,7 +2,6 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
 #include <linux/hdreg.h>
 #include <linux/virtio.h>
 #include <linux/virtio_blk.h>
@@ -222,8 +221,8 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	return err;
 }
 
-static int virtblk_locked_ioctl(struct block_device *bdev, fmode_t mode,
-			 unsigned cmd, unsigned long data)
+static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long data)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct virtio_blk *vblk = disk->private_data;
@@ -236,18 +235,6 @@ static int virtblk_locked_ioctl(struct block_device *bdev, fmode_t mode,
 
 	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd,
 			      (void __user *)data);
-}
-
-static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
-			     unsigned int cmd, unsigned long param)
-{
-	int ret;
-
-	lock_kernel();
-	ret = virtblk_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
-
-	return ret;
 }
 
 /* We provide getgeo only to please some old bootloader/partitioning tools */

@@ -262,6 +262,34 @@ int trace_graph_thresh_entry(struct ftrace_graph_ent *trace)
 		return trace_graph_entry(trace);
 }
 
+static void
+__trace_graph_function(struct trace_array *tr,
+		unsigned long ip, unsigned long flags, int pc)
+{
+	u64 time = trace_clock_local();
+	struct ftrace_graph_ent ent = {
+		.func  = ip,
+		.depth = 0,
+	};
+	struct ftrace_graph_ret ret = {
+		.func     = ip,
+		.depth    = 0,
+		.calltime = time,
+		.rettime  = time,
+	};
+
+	__trace_graph_entry(tr, &ent, flags, pc);
+	__trace_graph_return(tr, &ret, flags, pc);
+}
+
+void
+trace_graph_function(struct trace_array *tr,
+		unsigned long ip, unsigned long parent_ip,
+		unsigned long flags, int pc)
+{
+	__trace_graph_function(tr, ip, flags, pc);
+}
+
 void __trace_graph_return(struct trace_array *tr,
 				struct ftrace_graph_ret *trace,
 				unsigned long flags,
@@ -888,11 +916,19 @@ check_irq_entry(struct trace_iterator *iter, u32 flags,
 		unsigned long addr, int depth)
 {
 	int cpu = iter->cpu;
+	int *depth_irq;
 	struct fgraph_data *data = iter->private;
-	int *depth_irq = &(per_cpu_ptr(data->cpu_data, cpu)->depth_irq);
 
-	if (flags & TRACE_GRAPH_PRINT_IRQS)
+	/*
+	 * If we are either displaying irqs, or we got called as
+	 * a graph event and private data does not exist,
+	 * then we bypass the irq check.
+	 */
+	if ((flags & TRACE_GRAPH_PRINT_IRQS) ||
+	    (!data))
 		return 0;
+
+	depth_irq = &(per_cpu_ptr(data->cpu_data, cpu)->depth_irq);
 
 	/*
 	 * We are inside the irq code
@@ -926,11 +962,19 @@ static int
 check_irq_return(struct trace_iterator *iter, u32 flags, int depth)
 {
 	int cpu = iter->cpu;
+	int *depth_irq;
 	struct fgraph_data *data = iter->private;
-	int *depth_irq = &(per_cpu_ptr(data->cpu_data, cpu)->depth_irq);
 
-	if (flags & TRACE_GRAPH_PRINT_IRQS)
+	/*
+	 * If we are either displaying irqs, or we got called as
+	 * a graph event and private data does not exist,
+	 * then we bypass the irq check.
+	 */
+	if ((flags & TRACE_GRAPH_PRINT_IRQS) ||
+	    (!data))
 		return 0;
+
+	depth_irq = &(per_cpu_ptr(data->cpu_data, cpu)->depth_irq);
 
 	/*
 	 * We are not inside the irq code.
@@ -1163,7 +1207,7 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 
 
 enum print_line_t
-print_graph_function_flags(struct trace_iterator *iter, u32 flags)
+__print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 {
 	struct ftrace_graph_ent_entry *field;
 	struct fgraph_data *data = iter->private;
@@ -1226,7 +1270,18 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 static enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
-	return print_graph_function_flags(iter, tracer_flags.val);
+	return __print_graph_function_flags(iter, tracer_flags.val);
+}
+
+enum print_line_t print_graph_function_flags(struct trace_iterator *iter,
+					     u32 flags)
+{
+	if (trace_flags & TRACE_ITER_LATENCY_FMT)
+		flags |= TRACE_GRAPH_PRINT_DURATION;
+	else
+		flags |= TRACE_GRAPH_PRINT_ABS_TIME;
+
+	return __print_graph_function_flags(iter, flags);
 }
 
 static enum print_line_t
@@ -1258,7 +1313,7 @@ static void print_lat_header(struct seq_file *s, u32 flags)
 	seq_printf(s, "#%.*s|||| /                     \n", size, spaces);
 }
 
-void print_graph_headers_flags(struct seq_file *s, u32 flags)
+static void __print_graph_headers_flags(struct seq_file *s, u32 flags)
 {
 	int lat = trace_flags & TRACE_ITER_LATENCY_FMT;
 
@@ -1297,6 +1352,23 @@ void print_graph_headers_flags(struct seq_file *s, u32 flags)
 void print_graph_headers(struct seq_file *s)
 {
 	print_graph_headers_flags(s, tracer_flags.val);
+}
+
+void print_graph_headers_flags(struct seq_file *s, u32 flags)
+{
+	struct trace_iterator *iter = s->private;
+
+	if (trace_flags & TRACE_ITER_LATENCY_FMT) {
+		/* print nothing if the buffers are empty */
+		if (trace_empty(iter))
+			return;
+
+		print_trace_header(s, iter);
+		flags |= TRACE_GRAPH_PRINT_DURATION;
+	} else
+		flags |= TRACE_GRAPH_PRINT_ABS_TIME;
+
+	__print_graph_headers_flags(s, flags);
 }
 
 void graph_trace_open(struct trace_iterator *iter)

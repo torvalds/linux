@@ -42,9 +42,9 @@ static void gdlm_ast(void *arg)
 		ret |= LM_OUT_CANCELED;
 		goto out;
 	case -EAGAIN: /* Try lock fails */
+	case -EDEADLK: /* Deadlock detected */
 		goto out;
-	case -EINVAL: /* Invalid */
-	case -ENOMEM: /* Out of memory */
+	case -ETIMEDOUT: /* Canceled due to timeout */
 		ret |= LM_OUT_ERROR;
 		goto out;
 	case 0: /* Success */

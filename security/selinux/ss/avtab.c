@@ -266,8 +266,8 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	if (shift > 2)
 		shift = shift - 2;
 	nslot = 1 << shift;
-	if (nslot > MAX_AVTAB_SIZE)
-		nslot = MAX_AVTAB_SIZE;
+	if (nslot > MAX_AVTAB_HASH_BUCKETS)
+		nslot = MAX_AVTAB_HASH_BUCKETS;
 	mask = nslot - 1;
 
 	h->htable = kcalloc(nslot, sizeof(*(h->htable)), GFP_KERNEL);
@@ -501,6 +501,48 @@ bad:
 	goto out;
 }
 
+int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp)
+{
+	__le16 buf16[4];
+	__le32 buf32[1];
+	int rc;
+
+	buf16[0] = cpu_to_le16(cur->key.source_type);
+	buf16[1] = cpu_to_le16(cur->key.target_type);
+	buf16[2] = cpu_to_le16(cur->key.target_class);
+	buf16[3] = cpu_to_le16(cur->key.specified);
+	rc = put_entry(buf16, sizeof(u16), 4, fp);
+	if (rc)
+		return rc;
+	buf32[0] = cpu_to_le32(cur->datum.data);
+	rc = put_entry(buf32, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+	return 0;
+}
+
+int avtab_write(struct policydb *p, struct avtab *a, void *fp)
+{
+	unsigned int i;
+	int rc = 0;
+	struct avtab_node *cur;
+	__le32 buf[1];
+
+	buf[0] = cpu_to_le32(a->nel);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < a->nslot; i++) {
+		for (cur = a->htable[i]; cur; cur = cur->next) {
+			rc = avtab_write_item(p, cur, fp);
+			if (rc)
+				return rc;
+		}
+	}
+
+	return rc;
+}
 void avtab_cache_init(void)
 {
 	avtab_node_cachep = kmem_cache_create("avtab_node",

@@ -575,7 +575,7 @@ static int cosa_probe(int base, int irq, int dma)
 
 		/* Initialize the chardev data structures */
 		mutex_init(&chan->rlock);
-		init_MUTEX(&chan->wsem);
+		sema_init(&chan->wsem, 1);
 
 		/* Register the network interface */
 		if (!(chan->netdev = alloc_hdlcdev(chan))) {

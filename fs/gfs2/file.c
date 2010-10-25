@@ -382,8 +382,10 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	rblocks = RES_DINODE + ind_blocks;
 	if (gfs2_is_jdata(ip))
 		rblocks += data_blocks ? data_blocks : 1;
-	if (ind_blocks || data_blocks)
+	if (ind_blocks || data_blocks) {
 		rblocks += RES_STATFS + RES_QUOTA;
+		rblocks += gfs2_rg_blocks(al);
+	}
 	ret = gfs2_trans_begin(sdp, rblocks, 0);
 	if (ret)
 		goto out_trans_fail;
@@ -491,7 +493,7 @@ static int gfs2_open(struct inode *inode, struct file *file)
 			goto fail;
 
 		if (!(file->f_flags & O_LARGEFILE) &&
-		    ip->i_disksize > MAX_NON_LFS) {
+		    i_size_read(inode) > MAX_NON_LFS) {
 			error = -EOVERFLOW;
 			goto fail_gunlock;
 		}

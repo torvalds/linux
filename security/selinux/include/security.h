@@ -9,6 +9,7 @@
 #define _SELINUX_SECURITY_H_
 
 #include <linux/magic.h>
+#include <linux/types.h>
 #include "flask.h"
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
@@ -82,6 +83,8 @@ extern int selinux_policycap_openperm;
 int security_mls_enabled(void);
 
 int security_load_policy(void *data, size_t len);
+int security_read_policy(void **data, ssize_t *len);
+size_t security_policydb_len(void);
 
 int security_policycap_supported(unsigned int req_cap);
 
@@ -190,6 +193,26 @@ static inline int security_netlbl_sid_to_secattr(u32 sid,
 #endif /* CONFIG_NETLABEL */
 
 const char *security_get_initial_sid_context(u32 sid);
+
+/*
+ * status notifier using mmap interface
+ */
+extern struct page *selinux_kernel_status_page(void);
+
+#define SELINUX_KERNEL_STATUS_VERSION	1
+struct selinux_kernel_status {
+	u32	version;	/* version number of thie structure */
+	u32	sequence;	/* sequence number of seqlock logic */
+	u32	enforcing;	/* current setting of enforcing mode */
+	u32	policyload;	/* times of policy reloaded */
+	u32	deny_unknown;	/* current setting of deny_unknown */
+	/*
+	 * The version > 0 supports above members.
+	 */
+} __attribute__((packed));
+
+extern void selinux_status_update_setenforce(int enforcing);
+extern void selinux_status_update_policyload(int seqno);
 
 #endif /* _SELINUX_SECURITY_H_ */
 

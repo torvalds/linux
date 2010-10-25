@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/string.h>
+#include <linux/platform_device.h>
 
 #include <asm/geode.h>
 #include <asm/setup.h>
@@ -114,6 +115,7 @@ int olpc_ec_cmd(unsigned char cmd, unsigned char *inbuf, size_t inlen,
 	unsigned long flags;
 	int ret = -EIO;
 	int i;
+	int restarts = 0;
 
 	spin_lock_irqsave(&ec_lock, flags);
 
@@ -169,7 +171,9 @@ restart:
 			if (wait_on_obf(0x6c, 1)) {
 				printk(KERN_ERR "olpc-ec:  timeout waiting for"
 						" EC to provide data!\n");
-				goto restart;
+				if (restarts++ < 10)
+					goto restart;
+				goto err;
 			}
 			outbuf[i] = inb(0x68);
 			pr_devel("olpc-ec:  received 0x%x\n", outbuf[i]);
@@ -183,8 +187,21 @@ err:
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
-#ifdef CONFIG_OLPC_OPENFIRMWARE
-static void __init platform_detect(void)
+static bool __init check_ofw_architecture(void)
+{
+	size_t propsize;
+	char olpc_arch[5];
+	const void *args[] = { NULL, "architecture", olpc_arch, (void *)5 };
+	void *res[] = { &propsize };
+
+	if (olpc_ofw("getprop", args, res)) {
+		printk(KERN_ERR "ofw: getprop call failed!\n");
+		return false;
+	}
+	return propsize == 5 && strncmp("OLPC", olpc_arch, 5) == 0;
+}
+
+static u32 __init get_board_revision(void)
 {
 	size_t propsize;
 	__be32 rev;
@@ -193,45 +210,43 @@ static void __init platform_detect(void)
 
 	if (olpc_ofw("getprop", args, res) || propsize != 4) {
 		printk(KERN_ERR "ofw: getprop call failed!\n");
-		rev = cpu_to_be32(0);
+		return cpu_to_be32(0);
 	}
-	olpc_platform_info.boardrev = be32_to_cpu(rev);
+	return be32_to_cpu(rev);
 }
-#else
-static void __init platform_detect(void)
+
+static bool __init platform_detect(void)
 {
-	/* stopgap until OFW support is added to the kernel */
-	olpc_platform_info.boardrev = olpc_board(0xc2);
+	if (!check_ofw_architecture())
+		return false;
+	olpc_platform_info.flags |= OLPC_F_PRESENT;
+	olpc_platform_info.boardrev = get_board_revision();
+	return true;
 }
-#endif
+
+static int __init add_xo1_platform_devices(void)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_simple("xo1-rfkill", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	pdev = platform_device_register_simple("olpc-xo1", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
 
 static int __init olpc_init(void)
 {
-	unsigned char *romsig;
+	int r = 0;
 
-	/* The ioremap check is dangerous; limit what we run it on */
-	if (!is_geode() || cs5535_has_vsa2())
+	if (!olpc_ofw_present() || !platform_detect())
 		return 0;
 
 	spin_lock_init(&ec_lock);
-
-	romsig = ioremap(0xffffffc0, 16);
-	if (!romsig)
-		return 0;
-
-	if (strncmp(romsig, "CL1   Q", 7))
-		goto unmap;
-	if (strncmp(romsig+6, romsig+13, 3)) {
-		printk(KERN_INFO "OLPC BIOS signature looks invalid.  "
-				"Assuming not OLPC\n");
-		goto unmap;
-	}
-
-	printk(KERN_INFO "OLPC board with OpenFirmware %.16s\n", romsig);
-	olpc_platform_info.flags |= OLPC_F_PRESENT;
-
-	/* get the platform revision */
-	platform_detect();
 
 	/* assume B1 and above models always have a DCON */
 	if (olpc_board_at_least(olpc_board(0xb1)))
@@ -242,8 +257,10 @@ static int __init olpc_init(void)
 			(unsigned char *) &olpc_platform_info.ecver, 1);
 
 #ifdef CONFIG_PCI_OLPC
-	/* If the VSA exists let it emulate PCI, if not emulate in kernel */
-	if (!cs5535_has_vsa2())
+	/* If the VSA exists let it emulate PCI, if not emulate in kernel.
+	 * XO-1 only. */
+	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0) &&
+			!cs5535_has_vsa2())
 		x86_init.pci.arch_init = pci_olpc_init;
 #endif
 
@@ -252,8 +269,12 @@ static int __init olpc_init(void)
 			olpc_platform_info.boardrev >> 4,
 			olpc_platform_info.ecver);
 
-unmap:
-	iounmap(romsig);
+	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0)) { /* XO-1 */
+		r = add_xo1_platform_devices();
+		if (r)
+			return r;
+	}
+
 	return 0;
 }
 

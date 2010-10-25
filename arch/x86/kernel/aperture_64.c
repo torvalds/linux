@@ -27,7 +27,7 @@
 #include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 #include <asm/x86_init.h>
 
 int gart_iommu_aperture;
@@ -307,7 +307,7 @@ void __init early_gart_iommu_check(void)
 				continue;
 
 			ctl = read_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL);
-			aper_enabled = ctl & AMD64_GARTEN;
+			aper_enabled = ctl & GARTEN;
 			aper_order = (ctl >> 1) & 7;
 			aper_size = (32 * 1024 * 1024) << aper_order;
 			aper_base = read_pci_config(bus, slot, 3, AMD64_GARTAPERTUREBASE) & 0x7fff;
@@ -362,7 +362,7 @@ void __init early_gart_iommu_check(void)
 				continue;
 
 			ctl = read_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL);
-			ctl &= ~AMD64_GARTEN;
+			ctl &= ~GARTEN;
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, ctl);
 		}
 	}
@@ -505,8 +505,13 @@ out:
 
 	/* Fix up the north bridges */
 	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
-		int bus;
-		int dev_base, dev_limit;
+		int bus, dev_base, dev_limit;
+
+		/*
+		 * Don't enable translation yet but enable GART IO and CPU
+		 * accesses and set DISTLBWALKPRB since GART table memory is UC.
+		 */
+		u32 ctl = DISTLBWALKPRB | aper_order << 1;
 
 		bus = bus_dev_ranges[i].bus;
 		dev_base = bus_dev_ranges[i].dev_base;
@@ -515,10 +520,7 @@ out:
 			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
-			/* Don't enable translation yet. That is done later.
-			   Assume this BIOS didn't initialise the GART so
-			   just overwrite all previous bits */
-			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, aper_order << 1);
+			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, ctl);
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTUREBASE, aper_alloc >> 25);
 		}
 	}

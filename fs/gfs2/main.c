@@ -24,6 +24,7 @@
 #include "glock.h"
 #include "quota.h"
 #include "recovery.h"
+#include "dir.h"
 
 static struct shrinker qd_shrinker = {
 	.shrink = gfs2_shrink_qd_memory,
@@ -77,6 +78,9 @@ static void gfs2_init_gl_aspace_once(void *foo)
 static int __init init_gfs2_fs(void)
 {
 	int error;
+
+	gfs2_str2qstr(&gfs2_qdot, ".");
+	gfs2_str2qstr(&gfs2_qdotdot, "..");
 
 	error = gfs2_sys_init();
 	if (error)
@@ -140,7 +144,7 @@ static int __init init_gfs2_fs(void)
 
 	error = -ENOMEM;
 	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
-					  WQ_NON_REENTRANT | WQ_RESCUER, 0);
+					  WQ_RESCUER | WQ_FREEZEABLE, 0);
 	if (!gfs_recovery_wq)
 		goto fail_wq;
 

@@ -39,10 +39,12 @@ static inline void gfs2_alloc_put(struct gfs2_inode *ip)
 	ip->i_alloc = NULL;
 }
 
-extern int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file,
-				  unsigned int line);
+extern int gfs2_inplace_reserve_i(struct gfs2_inode *ip, int hold_rindex,
+				  char *file, unsigned int line);
 #define gfs2_inplace_reserve(ip) \
-gfs2_inplace_reserve_i((ip), __FILE__, __LINE__)
+	gfs2_inplace_reserve_i((ip), 1, __FILE__, __LINE__)
+#define gfs2_inplace_reserve_ri(ip) \
+	gfs2_inplace_reserve_i((ip), 0, __FILE__, __LINE__)
 
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 
