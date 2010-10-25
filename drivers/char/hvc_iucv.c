@@ -1303,13 +1303,11 @@ static int __init hvc_iucv_init(void)
 	if (rc) {
 		pr_err("Registering IUCV handlers failed with error code=%d\n",
 			rc);
-		goto out_error_iucv;
+		goto out_error_hvc;
 	}
 
 	return 0;
 
-out_error_iucv:
-	iucv_unregister(&hvc_iucv_handler, 0);
 out_error_hvc:
 	for (i = 0; i < hvc_iucv_devices; i++)
 		if (hvc_iucv_table[i])
