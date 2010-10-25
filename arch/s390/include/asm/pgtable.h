@@ -46,11 +46,27 @@ extern void vmem_map_init(void);
 #define update_mmu_cache(vma, address, ptep)     do { } while (0)
 
 /*
- * ZERO_PAGE is a global shared page that is always zero: used
+ * ZERO_PAGE is a global shared page that is always zero; used
  * for zero-mapped memory areas etc..
  */
-extern char empty_zero_page[PAGE_SIZE];
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+
+extern unsigned long empty_zero_page;
+extern unsigned long zero_page_mask;
+
+#define ZERO_PAGE(vaddr) \
+	(virt_to_page((void *)(empty_zero_page + \
+	 (((unsigned long)(vaddr)) &zero_page_mask))))
+
+#define is_zero_pfn is_zero_pfn
+static inline int is_zero_pfn(unsigned long pfn)
+{
+	extern unsigned long zero_pfn;
+	unsigned long offset_from_zero_pfn = pfn - zero_pfn;
+	return offset_from_zero_pfn <= (zero_page_mask >> PAGE_SHIFT);
+}
+
+#define my_zero_pfn(addr)	page_to_pfn(ZERO_PAGE(addr))
+
 #endif /* !__ASSEMBLY__ */
 
 /*
