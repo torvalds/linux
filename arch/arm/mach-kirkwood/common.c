@@ -903,10 +903,16 @@ static struct platform_device kirkwood_i2s_device = {
 	},
 };
 
+static struct platform_device kirkwood_pcm_device = {
+	.name		= "kirkwood-pcm-audio",
+	.id		= -1,
+};
+
 void __init kirkwood_audio_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_AUDIO;
 	platform_device_register(&kirkwood_i2s_device);
+	platform_device_register(&kirkwood_pcm_device);
 }
 
 /*****************************************************************************

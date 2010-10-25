@@ -32,21 +32,18 @@ static struct snd_soc_dai_link imx_phycore_dai_ac97[] = {
 	{
 		.name		= "HiFi",
 		.stream_name	= "HiFi",
-		.codec_dai	= &wm9712_dai[WM9712_DAI_AC97_HIFI],
+		.codec_dai_name		= "wm9712-hifi",
+		.codec_name	= "wm9712-codec",
+		.cpu_dai_name	= "imx-ssi.0",
+		.platform_name	= "imx-fiq-pcm-audio.0",
 		.ops		= &imx_phycore_hifi_ops,
 	},
 };
 
 static struct snd_soc_card imx_phycore = {
 	.name		= "PhyCORE-audio",
-	.platform	= &imx_soc_platform,
 	.dai_link	= imx_phycore_dai_ac97,
 	.num_links	= ARRAY_SIZE(imx_phycore_dai_ac97),
-};
-
-static struct snd_soc_device imx_phycore_snd_devdata = {
-	.card		= &imx_phycore,
-	.codec_dev	= &soc_codec_dev_wm9712,
 };
 
 static struct platform_device *imx_phycore_snd_device;
@@ -63,10 +60,12 @@ static int __init imx_phycore_init(void)
 	if (!imx_phycore_snd_device)
 		return -ENOMEM;
 
-	imx_phycore_dai_ac97[0].cpu_dai = &imx_ssi_pcm_dai[0];
+	platform_set_drvdata(imx_phycore_snd_device, &imx_phycore);
+	ret = platform_device_add(imx_phycore_snd_device);
 
-	platform_set_drvdata(imx_phycore_snd_device, &imx_phycore_snd_devdata);
-	imx_phycore_snd_devdata.dev = &imx_phycore_snd_device->dev;
+	imx_phycore_snd_device = platform_device_alloc("wm9712-codec", -1);
+	if (!imx_phycore_snd_device)
+		return -ENOMEM;
 	ret = platform_device_add(imx_phycore_snd_device);
 
 	if (ret) {

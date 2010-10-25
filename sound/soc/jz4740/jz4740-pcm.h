@@ -11,8 +11,6 @@
 #include <linux/dma-mapping.h>
 #include <asm/mach-jz4740/dma.h>
 
-/* platform data */
-extern struct snd_soc_platform jz4740_soc_platform;
 
 struct jz4740_pcm_config {
 	struct jz4740_dma_config dma_config;

@@ -1,11 +1,11 @@
 # i.MX Platform Support
-snd-soc-imx-objs := imx-ssi.o imx-pcm-fiq.o
-
-ifdef CONFIG_MACH_MX27
-snd-soc-imx-objs += imx-pcm-dma-mx2.o
-endif
+snd-soc-imx-objs := imx-ssi.o
+snd-soc-imx-fiq-objs := imx-pcm-fiq.o
+snd-soc-imx-mx2-objs := imx-pcm-dma-mx2.o
 
 obj-$(CONFIG_SND_IMX_SOC) += snd-soc-imx.o
+obj-$(CONFIG_SND_MXC_SOC_FIQ) += snd-soc-imx-fiq.o
+obj-$(CONFIG_SND_MXC_SOC_MX2) += snd-soc-imx-mx2.o
 
 # i.MX Machine Support
 snd-soc-eukrea-tlv320-objs := eukrea-tlv320.o

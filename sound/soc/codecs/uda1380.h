@@ -76,7 +76,4 @@
 #define UDA1380_DAI_PLAYBACK	1 /* playback DAI */
 #define UDA1380_DAI_CAPTURE	2 /* capture DAI */
 
-extern struct snd_soc_dai uda1380_dai[3];
-extern struct snd_soc_codec_device soc_codec_dev_uda1380;
-
 #endif /* _UDA1380_H */

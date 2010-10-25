@@ -60,6 +60,4 @@
 
 #define AD1836_NUM_REGS                16
 
-extern struct snd_soc_dai ad1836_dai;
-extern struct snd_soc_codec_device soc_codec_dev_ad1836;
 #endif

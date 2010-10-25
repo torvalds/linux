@@ -19,54 +19,44 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include "../codecs/ac97.h"
 #include "txx9aclc.h"
 
 static struct snd_soc_dai_link txx9aclc_generic_dai = {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai = &txx9aclc_ac97_dai,
-	.codec_dai = &ac97_dai,
+	.cpu_dai_name = "txx9aclc-ac97",
+	.codec_dai_name = "ac97-hifi",
+	.platform_name	= "txx9aclc-pcm-audio",
+	.codec_name	= "ac97-codec",
 };
 
 static struct snd_soc_card txx9aclc_generic_card = {
 	.name		= "Generic TXx9 ACLC Audio",
-	.platform	= &txx9aclc_soc_platform,
 	.dai_link	= &txx9aclc_generic_dai,
 	.num_links	= 1,
 };
 
-static struct txx9aclc_soc_device txx9aclc_generic_soc_device = {
-	.soc_dev = {
-		.card		= &txx9aclc_generic_card,
-		.codec_dev	= &soc_codec_dev_ac97,
-	},
-};
+static struct platform_device *soc_pdev;
 
 static int __init txx9aclc_generic_probe(struct platform_device *pdev)
 {
-	struct txx9aclc_soc_device *dev = &txx9aclc_generic_soc_device;
-	struct platform_device *soc_pdev;
 	int ret;
 
 	soc_pdev = platform_device_alloc("soc-audio", -1);
 	if (!soc_pdev)
 		return -ENOMEM;
-	platform_set_drvdata(soc_pdev, &dev->soc_dev);
-	dev->soc_dev.dev = &soc_pdev->dev;
+	platform_set_drvdata(soc_pdev, &txx9aclc_generic_card);
 	ret = platform_device_add(soc_pdev);
 	if (ret) {
 		platform_device_put(soc_pdev);
 		return ret;
 	}
-	platform_set_drvdata(pdev, soc_pdev);
+
 	return 0;
 }
 
 static int __exit txx9aclc_generic_remove(struct platform_device *pdev)
 {
-	struct platform_device *soc_pdev = platform_get_drvdata(pdev);
-
 	platform_device_unregister(soc_pdev);
 	return 0;
 }

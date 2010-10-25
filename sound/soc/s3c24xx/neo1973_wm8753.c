@@ -57,8 +57,8 @@ static int neo1973_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0, bclk = 0;
 	int ret = 0;
 	unsigned long iis_clkrate;
@@ -147,7 +147,7 @@ static int neo1973_hifi_hw_params(struct snd_pcm_substream *substream,
 static int neo1973_hifi_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -167,7 +167,7 @@ static int neo1973_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int pcmdiv = 0;
 	int ret = 0;
 	unsigned long iis_clkrate;
@@ -213,7 +213,7 @@ static int neo1973_voice_hw_params(struct snd_pcm_substream *substream,
 static int neo1973_voice_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -499,8 +499,9 @@ static const struct snd_kcontrol_new wm8753_neo1973_controls[] = {
  * neo1973 II. It is missing logic to detect hp/mic insertions and logic
  * to re-route the audio in such an event.
  */
-static int neo1973_wm8753_init(struct snd_soc_codec *codec)
+static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	pr_debug("Entered %s\n", __func__);
@@ -538,8 +539,7 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
  * BT Codec DAI
  */
 static struct snd_soc_dai bt_dai = {
-	.name = "Bluetooth",
-	.id = 0,
+	.name = "bluetooth-dai",
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 1,
@@ -556,30 +556,28 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 { /* Hifi Playback - for similatious use with voice below */
 	.name = "WM8753",
 	.stream_name = "WM8753 HiFi",
-	.cpu_dai = &s3c24xx_i2s_dai,
-	.codec_dai = &wm8753_dai[WM8753_DAI_HIFI],
+	.platform_name = "s3c24xx-pcm-audio",
+	.cpu_dai_name = "s3c24xx-i2s",
+	.codec_dai_name = "wm8753-hifi",
+	.codec_name = "wm8753-codec.0-0x1a",
 	.init = neo1973_wm8753_init,
 	.ops = &neo1973_hifi_ops,
 },
 { /* Voice via BT */
 	.name = "Bluetooth",
 	.stream_name = "Voice",
-	.cpu_dai = &bt_dai,
-	.codec_dai = &wm8753_dai[WM8753_DAI_VOICE],
+	.platform_name = "s3c24xx-pcm-audio",
+	.cpu_dai_name = "bluetooth-dai",
+	.codec_dai_name = "wm8753-voice",
+	.codec_name = "wm8753-codec.0-0x1a",
 	.ops = &neo1973_voice_ops,
 },
 };
 
 static struct snd_soc_card neo1973 = {
 	.name = "neo1973",
-	.platform = &s3c24xx_soc_platform,
 	.dai_link = neo1973_dai,
 	.num_links = ARRAY_SIZE(neo1973_dai),
-};
-
-static struct snd_soc_device neo1973_snd_devdata = {
-	.card = &neo1973,
-	.codec_dev = &soc_codec_dev_wm8753,
 };
 
 static int lm4857_i2c_probe(struct i2c_client *client,
@@ -673,8 +671,7 @@ static int __init neo1973_init(void)
 	if (!neo1973_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(neo1973_snd_device, &neo1973_snd_devdata);
-	neo1973_snd_devdata.dev = &neo1973_snd_device->dev;
+	platform_set_drvdata(neo1973_snd_device, &neo1973);
 	ret = platform_device_add(neo1973_snd_device);
 
 	if (ret) {

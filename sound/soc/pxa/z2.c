@@ -30,7 +30,6 @@
 #include <mach/z2.h>
 
 #include "../codecs/wm8750.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
 
 static struct snd_soc_card snd_soc_z2;
@@ -39,8 +38,8 @@ static int z2_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int clk = 0;
 	int ret = 0;
 
@@ -138,8 +137,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 /*
  * Logic for a wm8750 as connected on a Z2 Device
  */
-static int z2_wm8750_init(struct snd_soc_codec *codec)
+static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int ret;
 
 	/* NC codec pins */
@@ -160,7 +160,7 @@ static int z2_wm8750_init(struct snd_soc_codec *codec)
 		goto err;
 
 	/* Jack detection API stuff */
-	ret = snd_soc_jack_new(&snd_soc_z2, "Headset Jack", SND_JACK_HEADSET,
+	ret = snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
 				&hs_jack);
 	if (ret)
 		goto err;
@@ -189,8 +189,10 @@ static struct snd_soc_ops z2_ops = {
 static struct snd_soc_dai_link z2_dai = {
 	.name		= "wm8750",
 	.stream_name	= "WM8750",
-	.cpu_dai	= &pxa_i2s_dai,
-	.codec_dai	= &wm8750_dai,
+	.cpu_dai_name	= "pxa2xx-i2s",
+	.codec_dai_name	= "wm8750-hifi",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name	= "wm8750-codec.0-001a",
 	.init		= z2_wm8750_init,
 	.ops		= &z2_ops,
 };
@@ -198,15 +200,8 @@ static struct snd_soc_dai_link z2_dai = {
 /* z2 audio machine driver */
 static struct snd_soc_card snd_soc_z2 = {
 	.name		= "Z2",
-	.platform	= &pxa2xx_soc_platform,
 	.dai_link	= &z2_dai,
 	.num_links	= 1,
-};
-
-/* z2 audio subsystem */
-static struct snd_soc_device z2_snd_devdata = {
-	.card		= &snd_soc_z2,
-	.codec_dev	= &soc_codec_dev_wm8750,
 };
 
 static struct platform_device *z2_snd_device;
@@ -222,8 +217,7 @@ static int __init z2_init(void)
 	if (!z2_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(z2_snd_device, &z2_snd_devdata);
-	z2_snd_devdata.dev = &z2_snd_device->dev;
+	platform_set_drvdata(z2_snd_device, &snd_soc_z2);
 	ret = platform_device_add(z2_snd_device);
 
 	if (ret)

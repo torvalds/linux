@@ -119,46 +119,19 @@ config SND_HDA_CODEC_VIA
 	  snd-hda-codec-via.
 	  This module is automatically loaded at probing.
 
-config SND_HDA_CODEC_ATIHDMI
-	bool "Build ATI HDMI HD-audio codec support"
-	default y
-	help
-	  Say Y here to include ATI HDMI HD-audio codec support in
-	  snd-hda-intel driver, such as ATI RS600 HDMI.
-
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-atihdmi.
-	  This module is automatically loaded at probing.
-
-config SND_HDA_CODEC_NVHDMI
-	bool "Build NVIDIA HDMI HD-audio codec support"
-	default y
-	help
-	  Say Y here to include NVIDIA HDMI HD-audio codec support in
-	  snd-hda-intel driver, such as NVIDIA MCP78 HDMI.
-
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-nvhdmi.
-	  This module is automatically loaded at probing.
-
-config SND_HDA_CODEC_INTELHDMI
-	bool "Build INTEL HDMI HD-audio codec support"
+config SND_HDA_CODEC_HDMI
+	bool "Build HDMI/DisplayPort HD-audio codec support"
 	select SND_DYNAMIC_MINORS
 	default y
 	help
-	  Say Y here to include INTEL HDMI HD-audio codec support in
-	  snd-hda-intel driver, such as Eaglelake integrated HDMI.
+	  Say Y here to include HDMI and DisplayPort HD-audio codec
+	  support in snd-hda-intel driver.  This includes all AMD/ATI,
+	  Intel and Nvidia HDMI/DisplayPort codecs.
 
 	  When the HD-audio driver is built as a module, the codec
 	  support code is also built as another module,
-	  snd-hda-codec-intelhdmi.
+	  snd-hda-codec-hdmi.
 	  This module is automatically loaded at probing.
-
-config SND_HDA_ELD
-	def_bool y
-	depends on SND_HDA_CODEC_INTELHDMI || SND_HDA_CODEC_NVHDMI
 
 config SND_HDA_CODEC_CIRRUS
 	bool "Build Cirrus Logic codec support"

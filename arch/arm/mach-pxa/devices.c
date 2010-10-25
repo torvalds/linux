@@ -382,6 +382,31 @@ struct platform_device pxa_device_i2s = {
 	.num_resources	= ARRAY_SIZE(pxai2s_resources),
 };
 
+struct platform_device pxa_device_asoc_ssp1 = {
+	.name		= "pxa-ssp-dai",
+	.id		= 0,
+};
+
+struct platform_device pxa_device_asoc_ssp2= {
+	.name		= "pxa-ssp-dai",
+	.id		= 1,
+};
+
+struct platform_device pxa_device_asoc_ssp3 = {
+	.name		= "pxa-ssp-dai",
+	.id		= 2,
+};
+
+struct platform_device pxa_device_asoc_ssp4 = {
+	.name		= "pxa-ssp-dai",
+	.id		= 3,
+};
+
+struct platform_device pxa_device_asoc_platform = {
+	.name		= "pxa-pcm-audio",
+	.id		= -1,
+};
+
 static u64 pxaficp_dmamask = ~(u32)0;
 
 struct platform_device pxa_device_ficp = {

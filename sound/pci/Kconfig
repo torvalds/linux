@@ -207,12 +207,12 @@ config SND_CMIPCI
 
 config SND_OXYGEN_LIB
         tristate
-	select SND_PCM
-	select SND_MPU401_UART
 
 config SND_OXYGEN
 	tristate "C-Media 8788 (Oxygen)"
 	select SND_OXYGEN_LIB
+	select SND_PCM
+	select SND_MPU401_UART
 	help
 	  Say Y here to include support for sound cards based on the
 	  C-Media CMI8788 (Oxygen HD Audio) chip:
@@ -581,6 +581,8 @@ config SND_HDSPM
 config SND_HIFIER
 	tristate "TempoTec HiFier Fantasia"
 	select SND_OXYGEN_LIB
+	select SND_PCM
+	select SND_MPU401_UART
 	help
 	  Say Y here to include support for the MediaTek/TempoTec HiFier
 	  Fantasia sound card.
@@ -815,14 +817,17 @@ config SND_VIA82XX_MODEM
 	  will be called snd-via82xx-modem.
 
 config SND_VIRTUOSO
-	tristate "Asus Virtuoso 100/200 (Xonar)"
+	tristate "Asus Virtuoso 66/100/200 (Xonar)"
 	select SND_OXYGEN_LIB
+	select SND_PCM
+	select SND_MPU401_UART
+	select SND_JACK if INPUT=y || INPUT=SND
 	help
 	  Say Y here to include support for sound cards based on the
-	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X,
+	  Asus AV66/AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, DS,
 	  Essence ST (Deluxe), and Essence STX.
-	  Support for the DS is experimental.
-	  Support for the HDAV1.3 (Deluxe) is very experimental.
+	  Support for the HDAV1.3 (Deluxe) is incomplete; for the
+	  HDAV1.3 Slim and Xense, missing.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virtuoso.

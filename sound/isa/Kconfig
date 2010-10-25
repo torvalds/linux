@@ -77,6 +77,32 @@ config SND_ALS100
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-als100.
 
+config SND_AZT1605
+	tristate "Aztech AZT1605 Driver"
+	depends on SND
+	select SND_WSS_LIB
+	select SND_MPU401_UART
+	select SND_OPL3_LIB
+	help
+	  Say Y here to include support for Aztech Sound Galaxy cards
+	  based on the AZT1605 chipset.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-azt1605.
+
+config SND_AZT2316
+	tristate "Aztech AZT2316 Driver"
+	depends on SND
+	select SND_WSS_LIB
+	select SND_MPU401_UART
+	select SND_OPL3_LIB
+	help
+	  Say Y here to include support for Aztech Sound Galaxy cards
+	  based on the AZT2316 chipset.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-azt2316.
+
 config SND_AZT2320
 	tristate "Aztech Systems AZT2320"
 	depends on PNP
@@ -350,16 +376,6 @@ config SND_SB16_CSP
 	  Say Y here to include support for the CSP core.  This special
 	  coprocessor can do variable tasks like various compression and
 	  decompression algorithms.
-
-config SND_SGALAXY
-	tristate "Aztech Sound Galaxy"
-	select SND_WSS_LIB
-	help
-	  Say Y here to include support for Aztech Sound Galaxy
-	  soundcards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-sgalaxy.
 
 config SND_SSCAPE
 	tristate "Ensoniq SoundScape driver"

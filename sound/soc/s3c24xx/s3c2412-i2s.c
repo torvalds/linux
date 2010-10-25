@@ -65,26 +65,20 @@ static struct s3c_dma_params s3c2412_i2s_pcm_stereo_in = {
 
 static struct s3c_i2sv2_info s3c2412_i2s;
 
-static inline struct s3c_i2sv2_info *to_info(struct snd_soc_dai *cpu_dai)
-{
-	return cpu_dai->private_data;
-}
-
-static int s3c2412_i2s_probe(struct platform_device *pdev,
-			     struct snd_soc_dai *dai)
+static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 {
 	int ret;
 
 	pr_debug("Entered %s\n", __func__);
 
-	ret = s3c_i2sv2_probe(pdev, dai, &s3c2412_i2s, S3C2410_PA_IIS);
+	ret = s3c_i2sv2_probe(dai, &s3c2412_i2s, S3C2410_PA_IIS);
 	if (ret)
 		return ret;
 
 	s3c2412_i2s.dma_capture = &s3c2412_i2s_pcm_stereo_in;
 	s3c2412_i2s.dma_playback = &s3c2412_i2s_pcm_stereo_out;
 
-	s3c2412_i2s.iis_cclk = clk_get(&pdev->dev, "i2sclk");
+	s3c2412_i2s.iis_cclk = clk_get(dai->dev, "i2sclk");
 	if (s3c2412_i2s.iis_cclk == NULL) {
 		pr_err("failed to get i2sclk clock\n");
 		iounmap(s3c2412_i2s.regs);
@@ -108,11 +102,20 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
+static int s3c2412_i2s_remove(struct snd_soc_dai *dai)
+{
+	clk_disable(s3c2412_i2s.iis_cclk);
+	clk_put(s3c2412_i2s.iis_cclk);
+	iounmap(s3c2412_i2s.regs);
+
+	return 0;
+}
+
 static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
+	struct s3c_i2sv2_info *i2s = snd_soc_dai_get_drvdata(cpu_dai);
 	struct s3c_dma_params *dma_data;
 	u32 iismod;
 
@@ -152,10 +155,9 @@ static struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
 	.hw_params	= s3c2412_i2s_hw_params,
 };
 
-struct snd_soc_dai s3c2412_i2s_dai = {
-	.name		= "s3c2412-i2s",
-	.id		= 0,
+static struct snd_soc_dai_driver s3c2412_i2s_dai = {
 	.probe		= s3c2412_i2s_probe,
+	.remove	= s3c2412_i2s_remove,
 	.playback = {
 		.channels_min	= 2,
 		.channels_max	= 2,
@@ -170,17 +172,36 @@ struct snd_soc_dai s3c2412_i2s_dai = {
 	},
 	.ops = &s3c2412_i2s_dai_ops,
 };
-EXPORT_SYMBOL_GPL(s3c2412_i2s_dai);
+
+static __devinit int s3c2412_iis_dev_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_dai(&pdev->dev, &s3c2412_i2s_dai);
+}
+
+static __devexit int s3c2412_iis_dev_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver s3c2412_iis_driver = {
+	.probe  = s3c2412_iis_dev_probe,
+	.remove = s3c2412_iis_dev_remove,
+	.driver = {
+		.name = "s3c2412-iis",
+		.owner = THIS_MODULE,
+	},
+};
 
 static int __init s3c2412_i2s_init(void)
 {
-	return  s3c_i2sv2_register_dai(&s3c2412_i2s_dai);
+	return platform_driver_register(&s3c2412_iis_driver);
 }
 module_init(s3c2412_i2s_init);
 
 static void __exit s3c2412_i2s_exit(void)
 {
-	snd_soc_unregister_dai(&s3c2412_i2s_dai);
+	platform_driver_unregister(&s3c2412_iis_driver);
 }
 module_exit(s3c2412_i2s_exit);
 
@@ -188,3 +209,4 @@ module_exit(s3c2412_i2s_exit);
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C2412 I2S SoC Interface");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c2412-iis");

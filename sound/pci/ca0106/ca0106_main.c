@@ -227,7 +227,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "Audigy SE [SB0570]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1,
-	   .spi_dac = 1 } ,
+	   .spi_dac = 0x4021 } ,
 	 /* New Audigy LS. Has a different DAC. */
 	 /* SB0570:
 	  * CTRL:CA0106-DAT
@@ -238,7 +238,17 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "Audigy SE OEM [SB0570a]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1,
-	   .spi_dac = 1 } ,
+	   .spi_dac = 0x4021 } ,
+	/* Sound Blaster 5.1vx
+	 * Tested: Playback on front, rear, center/lfe speakers
+	 * Not-Tested: Capture
+	 */
+	{ .serial = 0x10041102,
+	  .name   = "Sound Blaster 5.1vx [SB1070]",
+	  .gpio_type = 1,
+	  .i2c_adc = 0,
+	  .spi_dac = 0x0124
+	 } ,
 	 /* MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97 */
 	 /* SB0438
 	  * CTRL:CA0106-DAT
@@ -254,7 +264,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "MSI K8N Diamond MB",
 	   .gpio_type = 2,
 	   .i2c_adc = 1,
-	   .spi_dac = 1 } ,
+	   .spi_dac = 0x4021 } ,
 	/* Giga-byte GA-G1975X mobo
 	 * Novell bnc#395807
 	 */
@@ -483,16 +493,18 @@ static void snd_ca0106_pcm_free_substream(struct snd_pcm_runtime *runtime)
 }
 
 static const int spi_dacd_reg[] = {
-	[PCM_FRONT_CHANNEL]	= SPI_DACD4_REG,
-	[PCM_REAR_CHANNEL]	= SPI_DACD0_REG,
-	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_REG,
-	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_REG,
+	SPI_DACD0_REG,
+	SPI_DACD1_REG,
+	SPI_DACD2_REG,
+	0,
+	SPI_DACD4_REG,
 };
 static const int spi_dacd_bit[] = {
-	[PCM_FRONT_CHANNEL]	= SPI_DACD4_BIT,
-	[PCM_REAR_CHANNEL]	= SPI_DACD0_BIT,
-	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_BIT,
-	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_BIT,
+	SPI_DACD0_BIT,
+	SPI_DACD1_BIT,
+	SPI_DACD2_BIT,
+	0,
+	SPI_DACD4_BIT,
 };
 
 static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
@@ -502,6 +514,45 @@ static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
 		snd_ca0106_ptr_write(chip, SPCS0 + idx, 0,
 				     chip->spdif_str_bits[idx]);
 	}
+}
+
+static int snd_ca0106_channel_dac(struct snd_ca0106_details *details,
+				  int channel_id)
+{
+	switch (channel_id) {
+	case PCM_FRONT_CHANNEL:
+		return (details->spi_dac & 0xf000) >> (4 * 3);
+	case PCM_REAR_CHANNEL:
+		return (details->spi_dac & 0x0f00) >> (4 * 2);
+	case PCM_CENTER_LFE_CHANNEL:
+		return (details->spi_dac & 0x00f0) >> (4 * 1);
+	case PCM_UNKNOWN_CHANNEL:
+		return (details->spi_dac & 0x000f) >> (4 * 0);
+	default:
+		snd_printk(KERN_DEBUG "ca0106: unknown channel_id %d\n",
+			   channel_id);
+	}
+	return 0;
+}
+
+static int snd_ca0106_pcm_power_dac(struct snd_ca0106 *chip, int channel_id,
+				    int power)
+{
+	if (chip->details->spi_dac) {
+		const int dac = snd_ca0106_channel_dac(chip->details,
+						       channel_id);
+		const int reg = spi_dacd_reg[dac];
+		const int bit = spi_dacd_bit[dac];
+
+		if (power)
+			/* Power up */
+			chip->spi_dac_reg[reg] &= ~bit;
+		else
+			/* Power down */
+			chip->spi_dac_reg[reg] |= bit;
+		return snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	}
+	return 0;
 }
 
 /* open_playback callback */
@@ -543,12 +594,9 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
                 return err;
 	snd_pcm_set_sync(substream);
 
-	if (chip->details->spi_dac && channel_id != PCM_FRONT_CHANNEL) {
-		const int reg = spi_dacd_reg[channel_id];
-
-		/* Power up dac */
-		chip->spi_dac_reg[reg] &= ~spi_dacd_bit[channel_id];
-		err = snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	/* Front channel dac should already be on */
+	if (channel_id != PCM_FRONT_CHANNEL) {
+		err = snd_ca0106_pcm_power_dac(chip, channel_id, 1);
 		if (err < 0)
 			return err;
 	}
@@ -568,13 +616,14 @@ static int snd_ca0106_pcm_close_playback(struct snd_pcm_substream *substream)
 
 	restore_spdif_bits(chip, epcm->channel_id);
 
-	if (chip->details->spi_dac && epcm->channel_id != PCM_FRONT_CHANNEL) {
-		const int reg = spi_dacd_reg[epcm->channel_id];
-
-		/* Power down DAC */
-		chip->spi_dac_reg[reg] |= spi_dacd_bit[epcm->channel_id];
-		snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	/* Front channel dac should stay on */
+	if (epcm->channel_id != PCM_FRONT_CHANNEL) {
+		int err;
+		err = snd_ca0106_pcm_power_dac(chip, epcm->channel_id, 0);
+		if (err < 0)
+			return err;
 	}
+
 	/* FIXME: maybe zero others */
 	return 0;
 }
@@ -1002,29 +1051,27 @@ snd_ca0106_pcm_pointer_playback(struct snd_pcm_substream *substream)
 	struct snd_ca0106 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ca0106_pcm *epcm = runtime->private_data;
-	snd_pcm_uframes_t ptr, ptr1, ptr2,ptr3,ptr4 = 0;
+	unsigned int ptr, prev_ptr;
 	int channel = epcm->channel_id;
+	int timeout = 10;
 
 	if (!epcm->running)
 		return 0;
 
-	ptr3 = snd_ca0106_ptr_read(emu, PLAYBACK_LIST_PTR, channel);
-	ptr1 = snd_ca0106_ptr_read(emu, PLAYBACK_POINTER, channel);
-	ptr4 = snd_ca0106_ptr_read(emu, PLAYBACK_LIST_PTR, channel);
-	if (ptr3 != ptr4) ptr1 = snd_ca0106_ptr_read(emu, PLAYBACK_POINTER, channel);
-	ptr2 = bytes_to_frames(runtime, ptr1);
-	ptr2+= (ptr4 >> 3) * runtime->period_size;
-	ptr=ptr2;
-        if (ptr >= runtime->buffer_size)
-		ptr -= runtime->buffer_size;
-	/*
-	printk(KERN_DEBUG "ptr1 = 0x%lx, ptr2=0x%lx, ptr=0x%lx, "
-	       "buffer_size = 0x%x, period_size = 0x%x, bits=%d, rate=%d\n",
-	       ptr1, ptr2, ptr, (int)runtime->buffer_size,
-	       (int)runtime->period_size, (int)runtime->frame_bits,
-	       (int)runtime->rate);
-	*/
-	return ptr;
+	prev_ptr = -1;
+	do {
+		ptr = snd_ca0106_ptr_read(emu, PLAYBACK_LIST_PTR, channel);
+		ptr = (ptr >> 3) * runtime->period_size;
+		ptr += bytes_to_frames(runtime,
+			snd_ca0106_ptr_read(emu, PLAYBACK_POINTER, channel));
+		if (ptr >= runtime->buffer_size)
+			ptr -= runtime->buffer_size;
+		if (prev_ptr == ptr)
+			return ptr;
+		prev_ptr = ptr;
+	} while (--timeout);
+	snd_printk(KERN_WARNING "ca0106: unstable DMA pointer!\n");
+	return 0;
 }
 
 /* pointer_capture callback */
@@ -1362,7 +1409,7 @@ static unsigned int spi_dac_init[] = {
 	SPI_REG(12,		0x00),
 	SPI_REG(SPI_LDA4_REG,	SPI_DA_BIT_0dB),
 	SPI_REG(SPI_RDA4_REG,	SPI_DA_BIT_0dB | SPI_DA_BIT_UPDATE),
-	SPI_REG(SPI_DACD4_REG,	0x00),
+	SPI_REG(SPI_DACD4_REG,	SPI_DACD4_BIT),
 };
 
 static unsigned int i2c_adc_init[][2] = {
@@ -1541,7 +1588,7 @@ static void ca0106_init_chip(struct snd_ca0106 *chip, int resume)
 		/* snd_ca0106_i2c_write(chip, ADC_MUX, ADC_MUX_LINEIN); */
 	}
 
-	if (chip->details->spi_dac == 1) {
+	if (chip->details->spi_dac) {
 		/* The SB0570 use SPI to control DAC. */
 		int size, n;
 
@@ -1553,6 +1600,9 @@ static void ca0106_init_chip(struct snd_ca0106 *chip, int resume)
 			if (reg < ARRAY_SIZE(chip->spi_dac_reg))
 				chip->spi_dac_reg[reg] = spi_dac_init[n];
 		}
+
+		/* Enable front dac only */
+		snd_ca0106_pcm_power_dac(chip, PCM_FRONT_CHANNEL, 1);
 	}
 }
 

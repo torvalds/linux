@@ -110,8 +110,4 @@ struct nuc900_audio {
 
 };
 
-extern struct nuc900_audio *nuc900_ac97_data;
-extern struct snd_soc_dai nuc900_ac97_dai;
-extern struct snd_soc_platform nuc900_soc_platform;
-
 #endif /*end _NUC900_AUDIO_H */

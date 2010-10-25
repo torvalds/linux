@@ -62,8 +62,6 @@ struct omap_mcbsp_data {
 	int				wlen;
 };
 
-#define to_mcbsp(priv)	container_of((priv), struct omap_mcbsp_data, bus_id)
-
 static struct omap_mcbsp_data mcbsp_data[NUM_LINKS];
 
 /*
@@ -153,13 +151,13 @@ static const unsigned long omap34xx_mcbsp_port[][2] = {};
 static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_pcm_dma_data *dma_data;
 	int dma_op_mode = omap_mcbsp_get_dma_op_mode(mcbsp_data->bus_id);
 	int words;
 
-	dma_data = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
 	if (dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
@@ -203,11 +201,9 @@ static int omap_mcbsp_hwrule_min_buffersize(struct snd_pcm_hw_params *params,
 }
 
 static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
-				  struct snd_soc_dai *dai)
+				  struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	int bus_id = mcbsp_data->bus_id;
 	int err = 0;
 
@@ -249,11 +245,9 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 }
 
 static void omap_mcbsp_dai_shutdown(struct snd_pcm_substream *substream,
-				    struct snd_soc_dai *dai)
+				    struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (!cpu_dai->active) {
 		omap_mcbsp_free(mcbsp_data->bus_id);
@@ -262,11 +256,9 @@ static void omap_mcbsp_dai_shutdown(struct snd_pcm_substream *substream,
 }
 
 static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd,
-				  struct snd_soc_dai *dai)
+				  struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	int err = 0, play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	switch (cmd) {
@@ -295,8 +287,8 @@ static snd_pcm_sframes_t omap_mcbsp_dai_delay(
 			struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	u16 fifo_use;
 	snd_pcm_sframes_t delay;
 
@@ -317,11 +309,9 @@ static snd_pcm_sframes_t omap_mcbsp_dai_delay(
 
 static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
-				    struct snd_soc_dai *dai)
+				    struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 	struct omap_pcm_dma_data *dma_data;
 	int dma, bus_id = mcbsp_data->bus_id;
@@ -496,7 +486,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				      unsigned int fmt)
 {
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 	unsigned int temp_fmt = fmt;
 
@@ -596,7 +586,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 static int omap_mcbsp_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 				     int div_id, int div)
 {
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 
 	if (div_id != OMAP_MCBSP_CLKGDV)
@@ -699,7 +689,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 					 int clk_id, unsigned int freq,
 					 int dir)
 {
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 	int err = 0;
 
@@ -733,7 +723,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	return err;
 }
 
-static struct snd_soc_dai_ops omap_mcbsp_dai_ops = {
+static struct snd_soc_dai_ops mcbsp_dai_ops = {
 	.startup	= omap_mcbsp_dai_startup,
 	.shutdown	= omap_mcbsp_dai_shutdown,
 	.trigger	= omap_mcbsp_dai_trigger,
@@ -744,43 +734,32 @@ static struct snd_soc_dai_ops omap_mcbsp_dai_ops = {
 	.set_sysclk	= omap_mcbsp_dai_set_dai_sysclk,
 };
 
-#define OMAP_MCBSP_DAI_BUILDER(link_id)				\
-{								\
-	.name = "omap-mcbsp-dai-"#link_id,			\
-	.id = (link_id),					\
-	.playback = {						\
-		.channels_min = 1,				\
-		.channels_max = 16,				\
-		.rates = OMAP_MCBSP_RATES,			\
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |		\
-			   SNDRV_PCM_FMTBIT_S32_LE,		\
-	},							\
-	.capture = {						\
-		.channels_min = 1,				\
-		.channels_max = 16,				\
-		.rates = OMAP_MCBSP_RATES,			\
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |		\
-			   SNDRV_PCM_FMTBIT_S32_LE,		\
-	},							\
-	.ops = &omap_mcbsp_dai_ops,				\
-	.private_data = &mcbsp_data[(link_id)].bus_id,		\
+static int mcbsp_dai_probe(struct snd_soc_dai *dai)
+{
+	mcbsp_data[dai->id].bus_id = dai->id;
+	snd_soc_dai_set_drvdata(dai, &mcbsp_data[dai->id].bus_id);
+	return 0;
 }
 
-struct snd_soc_dai omap_mcbsp_dai[] = {
-	OMAP_MCBSP_DAI_BUILDER(0),
-	OMAP_MCBSP_DAI_BUILDER(1),
-#if NUM_LINKS >= 3
-	OMAP_MCBSP_DAI_BUILDER(2),
-#endif
-#if NUM_LINKS == 5
-	OMAP_MCBSP_DAI_BUILDER(3),
-	OMAP_MCBSP_DAI_BUILDER(4),
-#endif
+static struct snd_soc_dai_driver omap_mcbsp_dai =
+{
+	.probe = mcbsp_dai_probe,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 16,
+		.rates = OMAP_MCBSP_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 16,
+		.rates = OMAP_MCBSP_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+	},
+	.ops = &mcbsp_dai_ops,
 };
 
-EXPORT_SYMBOL_GPL(omap_mcbsp_dai);
-
-int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
+static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
 	struct soc_mixer_control *mc =
@@ -910,16 +889,36 @@ int omap_mcbsp_st_add_controls(struct snd_soc_codec *codec, int mcbsp_id)
 }
 EXPORT_SYMBOL_GPL(omap_mcbsp_st_add_controls);
 
+static __devinit int asoc_mcbsp_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_dai(&pdev->dev, &omap_mcbsp_dai);
+}
+
+static int __devexit asoc_mcbsp_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver asoc_mcbsp_driver = {
+	.driver = {
+			.name = "omap-mcbsp-dai",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = asoc_mcbsp_probe,
+	.remove = __devexit_p(asoc_mcbsp_remove),
+};
+
 static int __init snd_omap_mcbsp_init(void)
 {
-	return snd_soc_register_dais(omap_mcbsp_dai,
-				     ARRAY_SIZE(omap_mcbsp_dai));
+	return platform_driver_register(&asoc_mcbsp_driver);
 }
 module_init(snd_omap_mcbsp_init);
 
 static void __exit snd_omap_mcbsp_exit(void)
 {
-	snd_soc_unregister_dais(omap_mcbsp_dai, ARRAY_SIZE(omap_mcbsp_dai));
+	platform_driver_unregister(&asoc_mcbsp_driver);
 }
 module_exit(snd_omap_mcbsp_exit);
 

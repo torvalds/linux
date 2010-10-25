@@ -16,7 +16,6 @@
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
 
-#include "pxa2xx-pcm.h"
 #include "../../arm/pxa2xx-pcm.h"
 
 static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -28,7 +27,7 @@ static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct pxa2xx_pcm_dma_params *dma;
 	int ret;
 
-	dma = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+	dma = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
@@ -95,14 +94,14 @@ static int pxa2xx_soc_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -112,25 +111,44 @@ static int pxa2xx_soc_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	return ret;
 }
 
-struct snd_soc_platform pxa2xx_soc_platform = {
-	.name		= "pxa2xx-audio",
-	.pcm_ops 	= &pxa2xx_pcm_ops,
+static struct snd_soc_platform_driver pxa2xx_soc_platform = {
+	.ops 	= &pxa2xx_pcm_ops,
 	.pcm_new	= pxa2xx_soc_pcm_new,
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
 
-static int __init pxa2xx_soc_platform_init(void)
+static int __devinit pxa2xx_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&pxa2xx_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &pxa2xx_soc_platform);
 }
-module_init(pxa2xx_soc_platform_init);
 
-static void __exit pxa2xx_soc_platform_exit(void)
+static int __devexit pxa2xx_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&pxa2xx_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
-module_exit(pxa2xx_soc_platform_exit);
+
+static struct platform_driver pxa_pcm_driver = {
+	.driver = {
+			.name = "pxa-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = pxa2xx_soc_platform_probe,
+	.remove = __devexit_p(pxa2xx_soc_platform_remove),
+};
+
+static int __init snd_pxa_pcm_init(void)
+{
+	return platform_driver_register(&pxa_pcm_driver);
+}
+module_init(snd_pxa_pcm_init);
+
+static void __exit snd_pxa_pcm_exit(void)
+{
+	platform_driver_unregister(&pxa_pcm_driver);
+}
+module_exit(snd_pxa_pcm_exit);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx PCM DMA module");

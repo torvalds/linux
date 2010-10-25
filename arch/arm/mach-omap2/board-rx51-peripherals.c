@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
+#include <sound/tlv320aic3x.h>
 
 #include <plat/mcspi.h>
 #include <plat/board.h>
@@ -689,7 +690,6 @@ static struct twl4030_power_data rx51_t2scripts_data __initdata = {
 };
 
 
-
 static struct twl4030_platform_data rx51_twldata __initdata = {
 	.irq_base		= TWL4030_IRQ_BASE,
 	.irq_end		= TWL4030_IRQ_END,
@@ -710,10 +710,6 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vio			= &rx51_vio,
 };
 
-static struct aic3x_pdata rx51_aic3x_data __initdata = {
-	.gpio_reset		= 60,
-};
-
 static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata = {
 	.id			= TPA6130A2,
 	.power_gpio		= 98,
@@ -726,6 +722,17 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 		.irq = INT_34XX_SYS_NIRQ,
 		.platform_data = &rx51_twldata,
 	},
+};
+
+/* Audio setup data */
+static struct aic3x_setup_data rx51_aic34_setup = {
+	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
+	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,
+};
+
+static struct aic3x_pdata rx51_aic3x_data = {
+	.setup = &rx51_aic34_setup,
+	.gpio_reset = 60,
 };
 
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {

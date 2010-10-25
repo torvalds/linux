@@ -36,7 +36,6 @@
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
 #include "mcpdm.h"
-#include "omap-mcpdm.h"
 #include "omap-pcm.h"
 
 struct omap_mcpdm_data {
@@ -89,11 +88,9 @@ static struct omap_pcm_dma_data omap_mcpdm_dai_dma_params[] = {
 static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int err = 0;
 
-	if (!cpu_dai->active)
+	if (!dai->active)
 		err = omap_mcpdm_request();
 
 	return err;
@@ -102,19 +99,14 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-
-	if (!cpu_dai->active)
+	if (!dai->active)
 		omap_mcpdm_free();
 }
 
 static int omap_mcpdm_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcpdm_data *mcpdm_priv = cpu_dai->private_data;
+	struct omap_mcpdm_data *mcpdm_priv = snd_soc_dai_get_drvdata(dai);
 	int stream = substream->stream;
 	int err = 0;
 
@@ -143,14 +135,12 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcpdm_data *mcpdm_priv = cpu_dai->private_data;
+	struct omap_mcpdm_data *mcpdm_priv = snd_soc_dai_get_drvdata(dai);
 	struct omap_mcpdm_link *mcpdm_links = mcpdm_priv->links;
 	int stream = substream->stream;
 	int channels, err, link_mask = 0;
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream,
+	snd_soc_dai_set_dma_data(dai, substream,
 				 &omap_mcpdm_dai_dma_params[stream]);
 
 	channels = params_channels(params);
@@ -189,9 +179,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 static int omap_mcpdm_dai_hw_free(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcpdm_data *mcpdm_priv = cpu_dai->private_data;
+	struct omap_mcpdm_data *mcpdm_priv = snd_soc_dai_get_drvdata(dai);
 	struct omap_mcpdm_link *mcpdm_links = mcpdm_priv->links;
 	int stream = substream->stream;
 	int err;
@@ -215,9 +203,14 @@ static struct snd_soc_dai_ops omap_mcpdm_dai_ops = {
 #define OMAP_MCPDM_RATES	(SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 #define OMAP_MCPDM_FORMATS	(SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_dai omap_mcpdm_dai = {
-	.name = "omap-mcpdm",
-	.id = -1,
+static int omap_mcpdm_dai_probe(struct snd_soc_dai *dai)
+{
+	snd_soc_dai_set_drvdata(dai, &mcpdm_data);
+	return 0;
+}
+
+static struct snd_soc_dai_driver omap_mcpdm_dai = {
+	.probe = omap_mcpdm_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 4,
@@ -231,19 +224,47 @@ struct snd_soc_dai omap_mcpdm_dai = {
 		.formats = OMAP_MCPDM_FORMATS,
 	},
 	.ops = &omap_mcpdm_dai_ops,
-	.private_data = &mcpdm_data,
 };
-EXPORT_SYMBOL_GPL(omap_mcpdm_dai);
+
+static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = omap_mcpdm_probe(pdev);
+	if (ret < 0)
+		return ret;
+	ret = snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
+	if (ret < 0)
+		omap_mcpdm_remove(pdev);
+	return ret;
+}
+
+static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&pdev->dev);
+	omap_mcpdm_remove(pdev);
+	return 0;
+}
+
+static struct platform_driver asoc_mcpdm_driver = {
+	.driver = {
+			.name = "omap-mcpdm-dai",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = asoc_mcpdm_probe,
+	.remove = __devexit_p(asoc_mcpdm_remove),
+};
 
 static int __init snd_omap_mcpdm_init(void)
 {
-	return snd_soc_register_dai(&omap_mcpdm_dai);
+	return platform_driver_register(&asoc_mcpdm_driver);
 }
 module_init(snd_omap_mcpdm_init);
 
 static void __exit snd_omap_mcpdm_exit(void)
 {
-	snd_soc_unregister_dai(&omap_mcpdm_dai);
+	platform_driver_unregister(&asoc_mcpdm_driver);
 }
 module_exit(snd_omap_mcpdm_exit);
 

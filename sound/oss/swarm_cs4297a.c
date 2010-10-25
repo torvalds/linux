@@ -68,7 +68,6 @@
 #include <linux/delay.h>
 #include <linux/sound.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/soundcard.h>
 #include <linux/ac97_codec.h>
 #include <linux/pci.h>
@@ -94,6 +93,7 @@
 
 struct cs4297a_state;
 
+static DEFINE_MUTEX(swarm_cs4297a_mutex);
 static void stop_dac(struct cs4297a_state *s);
 static void stop_adc(struct cs4297a_state *s);
 static void start_dac(struct cs4297a_state *s);
@@ -1535,7 +1535,7 @@ static int cs4297a_open_mixdev(struct inode *inode, struct file *file)
 	CS_DBGOUT(CS_FUNCTION | CS_OPEN, 4,
 		  printk(KERN_INFO "cs4297a: cs4297a_open_mixdev()+\n"));
 
-	lock_kernel();
+	mutex_lock(&swarm_cs4297a_mutex);
 	list_for_each(entry, &cs4297a_devs)
 	{
 		s = list_entry(entry, struct cs4297a_state, list);
@@ -1547,7 +1547,7 @@ static int cs4297a_open_mixdev(struct inode *inode, struct file *file)
 		CS_DBGOUT(CS_FUNCTION | CS_OPEN | CS_ERROR, 2,
 			printk(KERN_INFO "cs4297a: cs4297a_open_mixdev()- -ENODEV\n"));
 
-		unlock_kernel();
+		mutex_unlock(&swarm_cs4297a_mutex);
 		return -ENODEV;
 	}
 	VALIDATE_STATE(s);
@@ -1555,7 +1555,7 @@ static int cs4297a_open_mixdev(struct inode *inode, struct file *file)
 
 	CS_DBGOUT(CS_FUNCTION | CS_OPEN, 4,
 		  printk(KERN_INFO "cs4297a: cs4297a_open_mixdev()- 0\n"));
-	unlock_kernel();
+	mutex_unlock(&swarm_cs4297a_mutex);
 
 	return nonseekable_open(inode, file);
 }
@@ -1575,10 +1575,10 @@ static int cs4297a_ioctl_mixdev(struct file *file,
 			       unsigned int cmd, unsigned long arg)
 {
 	int ret;
-	lock_kernel();
+	mutex_lock(&swarm_cs4297a_mutex);
 	ret = mixer_ioctl((struct cs4297a_state *) file->private_data, cmd,
 			   arg);
-	unlock_kernel();
+	mutex_unlock(&swarm_cs4297a_mutex);
 	return ret;
 }
 
@@ -2350,9 +2350,9 @@ static long cs4297a_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swarm_cs4297a_mutex);
 	ret = cs4297a_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&swarm_cs4297a_mutex);
 
 	return ret;
 }
@@ -2509,9 +2509,9 @@ static int cs4297a_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swarm_cs4297a_mutex);
 	ret = cs4297a_open(inode, file);
-	unlock_kernel();
+	mutex_unlock(&swarm_cs4297a_mutex);
 
 	return ret;
 }

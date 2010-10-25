@@ -364,8 +364,7 @@ static void snd_pcm_stream_proc_info_read(struct snd_info_entry *entry,
 static void snd_pcm_substream_proc_info_read(struct snd_info_entry *entry,
 					     struct snd_info_buffer *buffer)
 {
-	snd_pcm_proc_info_read((struct snd_pcm_substream *)entry->private_data,
-			       buffer);
+	snd_pcm_proc_info_read(entry->private_data, buffer);
 }
 
 static void snd_pcm_substream_proc_hw_params_read(struct snd_info_entry *entry,

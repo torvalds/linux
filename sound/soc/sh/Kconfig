@@ -47,7 +47,7 @@ config SND_SH7760_AC97
 	  AC97 unit of the SH7760.
 
 config SND_FSI_AK4642
-	bool "FSI-AK4642 sound support"
+	tristate "FSI-AK4642 sound support"
 	depends on SND_SOC_SH4_FSI && I2C_SH_MOBILE
 	select SND_SOC_AK4642
 	help
@@ -55,12 +55,19 @@ config SND_FSI_AK4642
 	  FSI - AK4642 unit
 
 config SND_FSI_DA7210
-	bool "FSI-DA7210 sound support"
+	tristate "FSI-DA7210 sound support"
 	depends on SND_SOC_SH4_FSI && I2C_SH_MOBILE
 	select SND_SOC_DA7210
 	help
 	  This option enables generic sound support for the
 	  FSI - DA7210 unit
+
+config SND_FSI_HDMI
+	tristate "FSI-HDMI sound support"
+	depends on SND_SOC_SH4_FSI && FB_SH_MOBILE_HDMI
+	help
+	  This option enables generic sound support for the
+	  FSI - HDMI unit
 
 config SND_SIU_MIGOR
 	tristate "SIU sound support on Migo-R"

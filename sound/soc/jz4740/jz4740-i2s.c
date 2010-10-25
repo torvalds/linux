@@ -106,15 +106,10 @@ static inline void jz4740_i2s_write(const struct jz4740_i2s *i2s,
 	writel(value, i2s->base + reg);
 }
 
-static inline struct jz4740_i2s *jz4740_dai_to_i2s(struct snd_soc_dai *dai)
-{
-	return dai->private_data;
-}
-
 static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf, ctrl;
 
 	if (dai->active)
@@ -136,7 +131,7 @@ static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 static void jz4740_i2s_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
 	if (!dai->active)
@@ -152,7 +147,7 @@ static void jz4740_i2s_shutdown(struct snd_pcm_substream *substream,
 static int jz4740_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct snd_soc_dai *dai)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	uint32_t ctrl;
 	uint32_t mask;
@@ -186,7 +181,7 @@ static int jz4740_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int jz4740_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	uint32_t format = 0;
 	uint32_t conf;
@@ -238,7 +233,7 @@ static int jz4740_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int jz4740_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	enum jz4740_dma_width dma_width;
 	struct jz4740_pcm_config *pcm_config;
 	unsigned int sample_size;
@@ -288,7 +283,7 @@ static int jz4740_i2s_hw_params(struct snd_pcm_substream *substream,
 static int jz4740_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned int freq, int dir)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	struct clk *parent;
 	int ret = 0;
 
@@ -312,7 +307,7 @@ static int jz4740_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 static int jz4740_i2s_suspend(struct snd_soc_dai *dai)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
 	if (dai->active) {
@@ -330,7 +325,7 @@ static int jz4740_i2s_suspend(struct snd_soc_dai *dai)
 
 static int jz4740_i2s_resume(struct snd_soc_dai *dai)
 {
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
 	clk_enable(i2s->clk_aic);
@@ -346,58 +341,7 @@ static int jz4740_i2s_resume(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int jz4740_i2s_probe(struct platform_device *pdev, struct snd_soc_dai *dai)
-{
-	struct jz4740_i2s *i2s = jz4740_dai_to_i2s(dai);
-	uint32_t conf;
-
-	conf = (7 << JZ_AIC_CONF_FIFO_RX_THRESHOLD_OFFSET) |
-		(8 << JZ_AIC_CONF_FIFO_TX_THRESHOLD_OFFSET) |
-		JZ_AIC_CONF_OVERFLOW_PLAY_LAST |
-		JZ_AIC_CONF_I2S |
-		JZ_AIC_CONF_INTERNAL_CODEC;
-
-	jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, JZ_AIC_CONF_RESET);
-	jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, conf);
-
-	return 0;
-}
-
-static struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
-	.startup = jz4740_i2s_startup,
-	.shutdown = jz4740_i2s_shutdown,
-	.trigger = jz4740_i2s_trigger,
-	.hw_params = jz4740_i2s_hw_params,
-	.set_fmt = jz4740_i2s_set_fmt,
-	.set_sysclk = jz4740_i2s_set_sysclk,
-};
-
-#define JZ4740_I2S_FMTS (SNDRV_PCM_FMTBIT_S8 | \
-		SNDRV_PCM_FMTBIT_S16_LE)
-
-struct snd_soc_dai jz4740_i2s_dai = {
-	.name = "jz4740-i2s",
-	.probe = jz4740_i2s_probe,
-	.playback = {
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_48000,
-		.formats = JZ4740_I2S_FMTS,
-	},
-	.capture = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_48000,
-		.formats = JZ4740_I2S_FMTS,
-	},
-	.symmetric_rates = 1,
-	.ops = &jz4740_i2s_dai_ops,
-	.suspend = jz4740_i2s_suspend,
-	.resume = jz4740_i2s_resume,
-};
-EXPORT_SYMBOL_GPL(jz4740_i2s_dai);
-
-static void __devinit jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
+static void jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 {
 	struct jz4740_dma_config *dma_config;
 
@@ -419,6 +363,68 @@ static void __devinit jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 	dma_config->mode = JZ4740_DMA_MODE_SINGLE;
 	i2s->pcm_config_capture.fifo_addr = i2s->phys_base + JZ_REG_AIC_FIFO;
 }
+
+static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
+{
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	uint32_t conf;
+
+	clk_enable(i2s->clk_aic);
+
+	jz4740_i2c_init_pcm_config(i2s);
+
+	conf = (7 << JZ_AIC_CONF_FIFO_RX_THRESHOLD_OFFSET) |
+		(8 << JZ_AIC_CONF_FIFO_TX_THRESHOLD_OFFSET) |
+		JZ_AIC_CONF_OVERFLOW_PLAY_LAST |
+		JZ_AIC_CONF_I2S |
+		JZ_AIC_CONF_INTERNAL_CODEC;
+
+	jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, JZ_AIC_CONF_RESET);
+	jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, conf);
+
+	return 0;
+}
+
+static int jz4740_i2s_dai_remove(struct snd_soc_dai *dai)
+{
+	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+
+	clk_disable(i2s->clk_aic);
+	return 0;
+}
+
+static struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
+	.startup = jz4740_i2s_startup,
+	.shutdown = jz4740_i2s_shutdown,
+	.trigger = jz4740_i2s_trigger,
+	.hw_params = jz4740_i2s_hw_params,
+	.set_fmt = jz4740_i2s_set_fmt,
+	.set_sysclk = jz4740_i2s_set_sysclk,
+};
+
+#define JZ4740_I2S_FMTS (SNDRV_PCM_FMTBIT_S8 | \
+		SNDRV_PCM_FMTBIT_S16_LE)
+
+static struct snd_soc_dai_driver jz4740_i2s_dai = {
+	.probe = jz4740_i2s_dai_probe,
+	.remove = jz4740_i2s_dai_remove,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_48000,
+		.formats = JZ4740_I2S_FMTS,
+	},
+	.capture = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_48000,
+		.formats = JZ4740_I2S_FMTS,
+	},
+	.symmetric_rates = 1,
+	.ops = &jz4740_i2s_dai_ops,
+	.suspend = jz4740_i2s_suspend,
+	.resume = jz4740_i2s_resume,
+};
 
 static int __devinit jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
@@ -463,24 +469,17 @@ static int __devinit jz4740_i2s_dev_probe(struct platform_device *pdev)
 		goto err_clk_put_aic;
 	}
 
-	clk_enable(i2s->clk_aic);
-
-	jz4740_i2c_init_pcm_config(i2s);
-
-	jz4740_i2s_dai.private_data = i2s;
-	ret = snd_soc_register_dai(&jz4740_i2s_dai);
+	platform_set_drvdata(pdev, i2s);
+	ret = snd_soc_register_dai(&pdev->dev, &jz4740_i2s_dai);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
 		goto err_clk_put_i2s;
 	}
 
-	platform_set_drvdata(pdev, i2s);
-
 	return 0;
 
 err_clk_put_i2s:
-	clk_disable(i2s->clk_aic);
 	clk_put(i2s->clk_i2s);
 err_clk_put_aic:
 	clk_put(i2s->clk_aic);
@@ -498,9 +497,8 @@ static int __devexit jz4740_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&jz4740_i2s_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 
-	clk_disable(i2s->clk_aic);
 	clk_put(i2s->clk_i2s);
 	clk_put(i2s->clk_aic);
 

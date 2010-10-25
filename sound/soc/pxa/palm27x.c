@@ -29,7 +29,6 @@
 #include <mach/palmasoc.h>
 
 #include "../codecs/wm9712.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
 
 static struct snd_soc_jack hs_jack;
@@ -75,8 +74,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static struct snd_soc_card palm27x_asoc;
 
-static int palm27x_ac97_init(struct snd_soc_codec *codec)
+static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* add palm27x specific widgets */
@@ -112,7 +112,7 @@ static int palm27x_ac97_init(struct snd_soc_codec *codec)
 		return err;
 
 	/* Jack detection API stuff */
-	err = snd_soc_jack_new(&palm27x_asoc, "Headphone Jack",
+	err = snd_soc_jack_new(codec, "Headphone Jack",
 				SND_JACK_HEADPHONE, &hs_jack);
 	if (err)
 		return err;
@@ -132,28 +132,26 @@ static struct snd_soc_dai_link palm27x_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
-	.codec_dai = &wm9712_dai[WM9712_DAI_AC97_HIFI],
+	.cpu_dai_name = "pxa-ac97.0",
+	.codec_dai_name =  "wm9712-hifi",
+	.codec_name = "wm9712-codec",
+	.platform_name = "pxa-pcm-audio",
 	.init = palm27x_ac97_init,
 },
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_AUX],
-	.codec_dai = &wm9712_dai[WM9712_DAI_AC97_AUX],
+	.cpu_dai_name = "pxa-ac97.1",
+	.codec_dai_name = "wm9712-aux",
+	.codec_name = "wm9712-codec",
+	.platform_name = "pxa-pcm-audio",
 },
 };
 
 static struct snd_soc_card palm27x_asoc = {
 	.name = "Palm/PXA27x",
-	.platform = &pxa2xx_soc_platform,
 	.dai_link = palm27x_dai,
 	.num_links = ARRAY_SIZE(palm27x_dai),
-};
-
-static struct snd_soc_device palm27x_snd_devdata = {
-	.card = &palm27x_asoc,
-	.codec_dev = &soc_codec_dev_wm9712,
 };
 
 static struct platform_device *palm27x_snd_device;
@@ -178,8 +176,7 @@ static int palm27x_asoc_probe(struct platform_device *pdev)
 	if (!palm27x_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(palm27x_snd_device, &palm27x_snd_devdata);
-	palm27x_snd_devdata.dev = &palm27x_snd_device->dev;
+	platform_set_drvdata(palm27x_snd_device, &palm27x_asoc);
 	ret = platform_device_add(palm27x_snd_device);
 
 	if (ret != 0)

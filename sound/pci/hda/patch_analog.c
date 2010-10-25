@@ -1276,6 +1276,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->multiout.no_share_stream = 1;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -1463,6 +1464,7 @@ static int patch_ad1983(struct hda_codec *codec)
 	codec->patch_ops = ad198x_patch_ops;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -1917,6 +1919,7 @@ static int patch_ad1981(struct hda_codec *codec)
 	}
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -2880,7 +2883,7 @@ static int ad1988_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 
 /* create input playback/capture controls for the given pin */
 static int new_analog_input(struct ad198x_spec *spec, hda_nid_t pin,
-			    const char *ctlname, int boost)
+			    const char *ctlname, int ctlidx, int boost)
 {
 	char name[32];
 	int err, idx;
@@ -2909,25 +2912,27 @@ static int new_analog_input(struct ad198x_spec *spec, hda_nid_t pin,
 }
 
 /* create playback/capture controls for input pins */
-static int ad1988_auto_create_analog_input_ctls(struct ad198x_spec *spec,
+static int ad1988_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
+	struct ad198x_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux;
-	int i, err;
+	int i, err, type, type_idx;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		err = new_analog_input(spec, cfg->input_pins[i],
-				       auto_pin_cfg_labels[i],
-				       i <= AUTO_PIN_FRONT_MIC);
+	for (i = 0; i < cfg->num_inputs; i++) {
+		const char *label;
+		type = cfg->inputs[i].type;
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		snd_hda_add_imux_item(imux, label,
+				      ad1988_pin_to_adc_idx(cfg->inputs[i].pin),
+				      &type_idx);
+		err = new_analog_input(spec, cfg->inputs[i].pin,
+				       label, type_idx,
+				       type == AUTO_PIN_MIC);
 		if (err < 0)
 			return err;
-		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
-		imux->items[imux->num_items].index = ad1988_pin_to_adc_idx(cfg->input_pins[i]);
-		imux->num_items++;
 	}
-	imux->items[imux->num_items].label = "Mix";
-	imux->items[imux->num_items].index = 9;
-	imux->num_items++;
+	snd_hda_add_imux_item(imux, "Mix", 9, NULL);
 
 	if ((err = add_control(spec, AD_CTL_WIDGET_VOL,
 			       "Analog Mix Playback Volume",
@@ -2994,12 +2999,11 @@ static void ad1988_auto_init_extra_out(struct hda_codec *codec)
 static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, idx;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (! nid)
-			continue;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		switch (nid) {
 		case 0x15: /* port-C */
 			snd_hda_codec_write(codec, 0x33, 0, AC_VERB_SET_CONNECT_SEL, 0x0);
@@ -3009,7 +3013,7 @@ static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 			break;
 		}
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    i <= AUTO_PIN_FRONT_MIC ? PIN_VREF80 : PIN_IN);
+				    i == AUTO_PIN_MIC ? PIN_VREF80 : PIN_IN);
 		if (nid != AD1988_PIN_CD_NID)
 			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_OUT_MUTE);
@@ -3040,7 +3044,7 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 						"Speaker")) < 0 ||
 	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.hp_pins[0],
 						"Headphone")) < 0 ||
-	    (err = ad1988_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	    (err = ad1988_auto_create_analog_input_ctls(codec, &spec->autocfg)) < 0)
 		return err;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
@@ -3235,6 +3239,7 @@ static int patch_ad1988(struct hda_codec *codec)
 	spec->vmaster_nid = 0x04;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -3449,6 +3454,7 @@ static int patch_ad1884(struct hda_codec *codec)
 	codec->patch_ops = ad198x_patch_ops;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -4422,6 +4428,7 @@ static int patch_ad1884a(struct hda_codec *codec)
 	}
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -4761,6 +4768,7 @@ static int patch_ad1882(struct hda_codec *codec)
 	}
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }

@@ -332,7 +332,6 @@ int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid)
 	return snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_HDMI_DIP_SIZE,
 						 AC_DIPSIZE_ELD_BUF);
 }
-EXPORT_SYMBOL_HDA(snd_hdmi_get_eld_size);
 
 int snd_hdmi_get_eld(struct hdmi_eld *eld,
 		     struct hda_codec *codec, hda_nid_t nid)
@@ -368,7 +367,6 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	kfree(buf);
 	return ret;
 }
-EXPORT_SYMBOL_HDA(snd_hdmi_get_eld);
 
 static void hdmi_show_short_audio_desc(struct cea_sad *a)
 {
@@ -407,7 +405,6 @@ void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 	}
 	buf[j] = '\0';	/* necessary when j == 0 */
 }
-EXPORT_SYMBOL_HDA(snd_print_channel_allocation);
 
 void snd_hdmi_show_eld(struct hdmi_eld *e)
 {
@@ -426,7 +423,6 @@ void snd_hdmi_show_eld(struct hdmi_eld *e)
 	for (i = 0; i < e->sad_count; i++)
 		hdmi_show_short_audio_desc(e->sad + i);
 }
-EXPORT_SYMBOL_HDA(snd_hdmi_show_eld);
 
 #ifdef CONFIG_PROC_FS
 
@@ -585,7 +581,6 @@ int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld,
 
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_eld_proc_new);
 
 void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
 {
@@ -594,7 +589,6 @@ void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
 		eld->proc_entry = NULL;
 	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_eld_proc_free);
 
 #endif /* CONFIG_PROC_FS */
 
@@ -645,4 +639,3 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 	pcm->channels_max = min(pcm->channels_max, codec_pars->channels_max);
 	pcm->maxbps = min(pcm->maxbps, codec_pars->maxbps);
 }
-EXPORT_SYMBOL_HDA(hdmi_eld_update_pcm_info);
