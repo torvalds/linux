@@ -134,8 +134,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 		/* go to extremely low power mode */
 		wl1271_ps_elp_sleep(wl);
-		if (ret < 0)
-			break;
 		break;
 	case EVENT_EXIT_POWER_SAVE_FAIL:
 		wl1271_debug(DEBUG_PSM, "PSM exit failed");
