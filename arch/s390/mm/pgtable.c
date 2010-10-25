@@ -449,6 +449,8 @@ int s390_enable_sie(void)
 	tsk->mm = tsk->active_mm = mm;
 	preempt_disable();
 	update_mm(mm, tsk);
+	atomic_inc(&mm->context.attach_count);
+	atomic_dec(&old_mm->context.attach_count);
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 	preempt_enable();
 	task_unlock(tsk);
