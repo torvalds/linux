@@ -159,22 +159,22 @@ struct platform_device imx_usb_device = {
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{
 		.chip.label = "gpio-0",
-		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR),
+		.base = MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR),
 		.irq = MX1_GPIO_INT_PORTA,
 		.virtual_irq_start = MXC_GPIO_IRQ_START,
 	}, {
 		.chip.label = "gpio-1",
-		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x100),
+		.base = MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x100),
 		.irq = MX1_GPIO_INT_PORTB,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
 	}, {
 		.chip.label = "gpio-2",
-		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x200),
+		.base = MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x200),
 		.irq = MX1_GPIO_INT_PORTC,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
 	}, {
 		.chip.label = "gpio-3",
-		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x300),
+		.base = MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x300),
 		.irq = MX1_GPIO_INT_PORTD,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
 	}

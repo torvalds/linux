@@ -56,7 +56,7 @@ int imx25_register_gpios(void);
 
 void __init mx25_init_irq(void)
 {
-	mxc_init_irq((void __iomem *)MX25_AVIC_BASE_ADDR_VIRT);
+	mxc_init_irq(MX25_IO_ADDRESS(MX25_AVIC_BASE_ADDR));
 	imx25_register_gpios();
 }
 
