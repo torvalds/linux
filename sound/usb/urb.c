@@ -244,7 +244,7 @@ int snd_usb_init_substream_urbs(struct snd_usb_substream *subs,
 	else
 		subs->curpacksize = maxsize;
 
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
+	if (snd_usb_get_speed(subs->dev) != USB_SPEED_FULL)
 		packs_per_ms = 8 >> subs->datainterval;
 	else
 		packs_per_ms = 1;

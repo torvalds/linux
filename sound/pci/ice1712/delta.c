@@ -563,6 +563,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 	case ICE1712_SUBDEVICE_MEDIASTATION:
+	case ICE1712_SUBDEVICE_EDIROLDA2496:
 		ice->num_total_dacs = 8;
 		ice->num_total_adcs = 8;
 		break;
@@ -635,6 +636,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_init(ak, &akm_delta410, &akm_delta410_priv, ice);
 		break;
 	case ICE1712_SUBDEVICE_DELTA1010LT:
+	case ICE1712_SUBDEVICE_EDIROLDA2496:
 		err = snd_ice1712_akm4xxx_init(ak, &akm_delta1010lt, &akm_delta1010lt_priv, ice);
 		break;
 	case ICE1712_SUBDEVICE_DELTA66:
@@ -734,6 +736,7 @@ static int __devinit snd_ice1712_delta_add_controls(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_DELTA66:
 	case ICE1712_SUBDEVICE_VX442:
 	case ICE1712_SUBDEVICE_DELTA66E:
+	case ICE1712_SUBDEVICE_EDIROLDA2496:
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
@@ -810,6 +813,13 @@ struct snd_ice1712_card_info snd_ice1712_delta_cards[] __devinitdata = {
 		.subvendor = ICE1712_SUBDEVICE_MEDIASTATION,
 		.name = "Lionstracs Mediastation",
 		.model = "mediastation",
+		.chip_init = snd_ice1712_delta_init,
+		.build_controls = snd_ice1712_delta_add_controls,
+	},
+	{
+		.subvendor = ICE1712_SUBDEVICE_EDIROLDA2496,
+		.name = "Edirol DA2496",
+		.model = "da2496",
 		.chip_init = snd_ice1712_delta_init,
 		.build_controls = snd_ice1712_delta_add_controls,
 	},

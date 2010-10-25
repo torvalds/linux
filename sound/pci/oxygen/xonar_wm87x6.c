@@ -25,16 +25,24 @@
  * SPI 0 -> WM8766 (surround, center/LFE, back)
  * SPI 1 -> WM8776 (front, input)
  *
- * GPIO 4 <- headphone detect
- * GPIO 6 -> route input jack to input 1/2 (1/0)
- * GPIO 7 -> enable output to speakers
- * GPIO 8 -> enable output to speakers
+ * GPIO 4 <- headphone detect, 0 = plugged
+ * GPIO 6 -> route input jack to mic-in (0) or line-in (1)
+ * GPIO 7 -> enable output to front L/R speaker channels
+ * GPIO 8 -> enable output to other speaker channels and front panel headphone
+ *
+ * WM8766:
+ *
+ * input 1 <- line
+ * input 2 <- mic
+ * input 3 <- front mic
+ * input 4 <- aux
  */
 
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
@@ -44,7 +52,8 @@
 
 #define GPIO_DS_HP_DETECT	0x0010
 #define GPIO_DS_INPUT_ROUTE	0x0040
-#define GPIO_DS_OUTPUT_ENABLE	0x0180
+#define GPIO_DS_OUTPUT_FRONTLR	0x0080
+#define GPIO_DS_OUTPUT_ENABLE	0x0100
 
 #define LC_CONTROL_LIMITER	0x40000000
 #define LC_CONTROL_ALC		0x20000000
@@ -56,6 +65,7 @@ struct xonar_wm87x6 {
 	struct snd_kcontrol *line_adcmux_control;
 	struct snd_kcontrol *mic_adcmux_control;
 	struct snd_kcontrol *lc_controls[13];
+	struct snd_jack *hp_jack;
 };
 
 static void wm8776_write(struct oxygen *chip,
@@ -97,8 +107,12 @@ static void wm8766_write(struct oxygen *chip,
 			 (0 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
-	if (reg < ARRAY_SIZE(data->wm8766_regs))
+	if (reg < ARRAY_SIZE(data->wm8766_regs)) {
+		if ((reg >= WM8766_LDA1 && reg <= WM8766_RDA1) ||
+		    (reg >= WM8766_LDA2 && reg <= WM8766_MASTDA))
+			value &= ~WM8766_UPDATE;
 		data->wm8766_regs[reg] = value;
+	}
 }
 
 static void wm8766_write_cached(struct oxygen *chip,
@@ -107,12 +121,8 @@ static void wm8766_write_cached(struct oxygen *chip,
 	struct xonar_wm87x6 *data = chip->model_data;
 
 	if (reg >= ARRAY_SIZE(data->wm8766_regs) ||
-	    value != data->wm8766_regs[reg]) {
-		if ((reg >= WM8766_LDA1 && reg <= WM8766_RDA1) ||
-		    (reg >= WM8766_LDA2 && reg <= WM8766_MASTDA))
-			value &= ~WM8766_UPDATE;
+	    value != data->wm8766_regs[reg])
 		wm8766_write(chip, reg, value);
-	}
 }
 
 static void wm8776_registers_init(struct oxygen *chip)
@@ -141,7 +151,10 @@ static void wm8776_registers_init(struct oxygen *chip)
 
 static void wm8766_registers_init(struct oxygen *chip)
 {
+	struct xonar_wm87x6 *data = chip->model_data;
+
 	wm8766_write(chip, WM8766_RESET, 0);
+	wm8766_write(chip, WM8766_DAC_CTRL, data->wm8766_regs[WM8766_DAC_CTRL]);
 	wm8766_write(chip, WM8766_INT_CTRL, WM8766_FMT_LJUST | WM8766_IWL_24);
 	wm8766_write(chip, WM8766_DAC_CTRL2,
 		     WM8766_ZCD | (chip->dac_mute ? WM8766_DMUTE_MASK : 0));
@@ -170,6 +183,40 @@ static void wm8776_init(struct oxygen *chip)
 	wm8776_registers_init(chip);
 }
 
+static void wm8766_init(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+
+	data->wm8766_regs[WM8766_DAC_CTRL] =
+		WM8766_PL_LEFT_LEFT | WM8766_PL_RIGHT_RIGHT;
+	wm8766_registers_init(chip);
+}
+
+static void xonar_ds_handle_hp_jack(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	bool hp_plugged;
+	unsigned int reg;
+
+	mutex_lock(&chip->mutex);
+
+	hp_plugged = !(oxygen_read16(chip, OXYGEN_GPIO_DATA) &
+		       GPIO_DS_HP_DETECT);
+
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      hp_plugged ? 0 : GPIO_DS_OUTPUT_FRONTLR,
+			      GPIO_DS_OUTPUT_FRONTLR);
+
+	reg = data->wm8766_regs[WM8766_DAC_CTRL] & ~WM8766_MUTEALL;
+	if (hp_plugged)
+		reg |= WM8766_MUTEALL;
+	wm8766_write_cached(chip, WM8766_DAC_CTRL, reg);
+
+	snd_jack_report(data->hp_jack, hp_plugged ? SND_JACK_HEADPHONE : 0);
+
+	mutex_unlock(&chip->mutex);
+}
+
 static void xonar_ds_init(struct oxygen *chip)
 {
 	struct xonar_wm87x6 *data = chip->model_data;
@@ -178,15 +225,21 @@ static void xonar_ds_init(struct oxygen *chip)
 	data->generic.output_enable_bit = GPIO_DS_OUTPUT_ENABLE;
 
 	wm8776_init(chip);
-	wm8766_registers_init(chip);
+	wm8766_init(chip);
 
-	oxygen_write16_masked(chip, OXYGEN_GPIO_CONTROL, GPIO_DS_INPUT_ROUTE,
-			      GPIO_DS_HP_DETECT | GPIO_DS_INPUT_ROUTE);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_DS_INPUT_ROUTE | GPIO_DS_OUTPUT_FRONTLR);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
+			    GPIO_DS_HP_DETECT);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_DS_INPUT_ROUTE);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_INTERRUPT_MASK, GPIO_DS_HP_DETECT);
 	chip->interrupt_mask |= OXYGEN_INT_GPIO;
 
 	xonar_enable_output(chip);
+
+	snd_jack_new(chip->card, "Headphone",
+		     SND_JACK_HEADPHONE, &data->hp_jack);
+	xonar_ds_handle_hp_jack(chip);
 
 	snd_component_add(chip->card, "WM8776");
 	snd_component_add(chip->card, "WM8766");
@@ -208,6 +261,7 @@ static void xonar_ds_resume(struct oxygen *chip)
 	wm8776_registers_init(chip);
 	wm8766_registers_init(chip);
 	xonar_enable_output(chip);
+	xonar_ds_handle_hp_jack(chip);
 }
 
 static void wm8776_adc_hardware_filter(unsigned int channel,
@@ -323,12 +377,27 @@ static void update_wm87x6_mute(struct oxygen *chip)
 			    (chip->dac_mute ? WM8766_DMUTE_MASK : 0));
 }
 
+static void update_wm8766_center_lfe_mix(struct oxygen *chip, bool mixed)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	unsigned int reg;
+
+	/*
+	 * The WM8766 can mix left and right channels, but this setting
+	 * applies to all three stereo pairs.
+	 */
+	reg = data->wm8766_regs[WM8766_DAC_CTRL] &
+		~(WM8766_PL_LEFT_MASK | WM8766_PL_RIGHT_MASK);
+	if (mixed)
+		reg |= WM8766_PL_LEFT_LRMIX | WM8766_PL_RIGHT_LRMIX;
+	else
+		reg |= WM8766_PL_LEFT_LEFT | WM8766_PL_RIGHT_RIGHT;
+	wm8766_write_cached(chip, WM8766_DAC_CTRL, reg);
+}
+
 static void xonar_ds_gpio_changed(struct oxygen *chip)
 {
-	u16 bits;
-
-	bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
-	snd_printk(KERN_INFO "HP detect: %d\n", !!(bits & GPIO_DS_HP_DETECT));
+	xonar_ds_handle_hp_jack(chip);
 }
 
 static int wm8776_bit_switch_get(struct snd_kcontrol *ctl,
@@ -896,7 +965,10 @@ static const struct snd_kcontrol_new ds_controls[] = {
 		.put = wm8776_input_mux_put,
 		.private_value = 1 << 1,
 	},
-	WM8776_BIT_SWITCH("Aux", WM8776_ADCMUX, 1 << 2, 0, 0),
+	WM8776_BIT_SWITCH("Front Mic Capture Switch",
+			  WM8776_ADCMUX, 1 << 2, 0, 0),
+	WM8776_BIT_SWITCH("Aux Capture Switch",
+			  WM8776_ADCMUX, 1 << 3, 0, 0),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "ADC Filter Capture Enum",
@@ -956,13 +1028,6 @@ static const struct snd_kcontrol_new lc_controls[] = {
 				LC_CONTROL_ALC, wm8776_ngth_db_scale),
 };
 
-static int xonar_ds_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strncmp(template->name, "CD Capture ", 11))
-		return 1; /* no CD input */
-	return 0;
-}
-
 static int xonar_ds_mixer_init(struct oxygen *chip)
 {
 	struct xonar_wm87x6 *data = chip->model_data;
@@ -999,10 +1064,9 @@ static int xonar_ds_mixer_init(struct oxygen *chip)
 
 static const struct oxygen_model model_xonar_ds = {
 	.shortname = "Xonar DS",
-	.longname = "Asus Virtuoso 200",
+	.longname = "Asus Virtuoso 66",
 	.chip = "AV200",
 	.init = xonar_ds_init,
-	.control_filter = xonar_ds_control_filter,
 	.mixer_init = xonar_ds_mixer_init,
 	.cleanup = xonar_ds_cleanup,
 	.suspend = xonar_ds_suspend,
@@ -1013,6 +1077,7 @@ static const struct oxygen_model model_xonar_ds = {
 	.set_adc_params = set_wm8776_adc_params,
 	.update_dac_volume = update_wm87x6_volume,
 	.update_dac_mute = update_wm87x6_mute,
+	.update_center_lfe_mix = update_wm8766_center_lfe_mix,
 	.gpio_changed = xonar_ds_gpio_changed,
 	.dac_tlv = wm87x6_dac_db_scale,
 	.model_data_size = sizeof(struct xonar_wm87x6),
