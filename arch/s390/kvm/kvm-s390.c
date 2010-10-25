@@ -741,7 +741,7 @@ static int __init kvm_s390_init(void)
 		return -ENOMEM;
 	}
 	stfle(facilities, 1);
-	facilities[0] &= 0xff00fff3f0700000ULL;
+	facilities[0] &= 0xff00fff3f47c0000ULL;
 	return 0;
 }
 
