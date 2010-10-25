@@ -86,8 +86,6 @@ static inline void restore_access_regs(unsigned int *acrs)
 }
 
 #define switch_to(prev,next,last) do {					\
-	if (prev == next)						\
-		break;							\
 	if (prev->mm) {							\
 		save_fp_regs(&prev->thread.fp_regs);			\
 		save_access_regs(&prev->thread.acrs[0]);		\
