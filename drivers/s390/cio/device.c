@@ -1205,6 +1205,7 @@ static void io_subchannel_quiesce(struct subchannel *sch)
 		cdev->handler(cdev, cdev->private->intparm, ERR_PTR(-EIO));
 	while (ret == -EBUSY) {
 		cdev->private->state = DEV_STATE_QUIESCE;
+		cdev->private->iretry = 255;
 		ret = ccw_device_cancel_halt_clear(cdev);
 		if (ret == -EBUSY) {
 			ccw_device_set_timeout(cdev, HZ/10);

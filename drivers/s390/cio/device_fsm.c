@@ -174,7 +174,10 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 		ret = cio_clear (sch);
 		return (ret == 0) ? -EBUSY : ret;
 	}
-	panic("Can't stop i/o on subchannel.\n");
+	/* Function was unsuccessful */
+	CIO_MSG_EVENT(0, "0.%x.%04x: could not stop I/O\n",
+		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno);
+	return -EIO;
 }
 
 void ccw_device_update_sense_data(struct ccw_device *cdev)
@@ -766,13 +769,14 @@ ccw_device_online_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	ccw_device_set_timeout(cdev, 0);
+	cdev->private->iretry = 255;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
 		cdev->private->state = DEV_STATE_TIMEOUT_KILL;
 		return;
 	}
-	if (ret == -ENODEV)
+	if (ret)
 		dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 	else if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
@@ -869,6 +873,7 @@ void ccw_device_kill_io(struct ccw_device *cdev)
 {
 	int ret;
 
+	cdev->private->iretry = 255;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
