@@ -125,12 +125,12 @@ void iint_free(struct kref *kref)
 	iint->version = 0;
 	iint->flags = 0UL;
 	if (iint->readcount != 0) {
-		printk(KERN_INFO "%s: readcount: %ld\n", __func__,
+		printk(KERN_INFO "%s: readcount: %u\n", __func__,
 		       iint->readcount);
 		iint->readcount = 0;
 	}
 	if (iint->writecount != 0) {
-		printk(KERN_INFO "%s: writecount: %ld\n", __func__,
+		printk(KERN_INFO "%s: writecount: %u\n", __func__,
 		       iint->writecount);
 		iint->writecount = 0;
 	}
