@@ -20,10 +20,12 @@
 #include <linux/gps-gpio-brcm4750.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include "board-stingray.h"
 #include "gpio-names.h"
 
 #define STINGRAY_GPS_RESET	TEGRA_GPIO_PH0
 #define STINGRAY_GPS_STANDBY  TEGRA_GPIO_PH1
+#define STINGRAY_GPS_UART_CTS  TEGRA_GPIO_PY6
 
 static void stingray_gps_reset_gpio(unsigned int gpio_val)
 {
@@ -52,6 +54,13 @@ static void stingray_gps_gpio_init(void)
 	tegra_gpio_enable(STINGRAY_GPS_STANDBY);
 	gpio_request(STINGRAY_GPS_STANDBY, "gps_stdby");
 	gpio_direction_output(STINGRAY_GPS_STANDBY, 0);
+
+	if (stingray_revision() < STINGRAY_REVISION_P3) {
+		tegra_gpio_enable(STINGRAY_GPS_UART_CTS);
+		gpio_request(STINGRAY_GPS_UART_CTS, "uarte_cts");
+		gpio_direction_output(STINGRAY_GPS_UART_CTS, 0);
+		gpio_set_value(STINGRAY_GPS_UART_CTS, 0);
+	}
 }
 
 struct gps_gpio_brcm4750_platform_data stingray_gps_gpio_data = {
