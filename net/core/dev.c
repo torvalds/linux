@@ -2213,7 +2213,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 }
 
 static DEFINE_PER_CPU(int, xmit_recursion);
-#define RECURSION_LIMIT 3
+#define RECURSION_LIMIT 10
 
 /**
  *	dev_queue_xmit - transmit a buffer
