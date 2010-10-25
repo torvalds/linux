@@ -68,7 +68,7 @@ EXPORT_SYMBOL(prom_apply_obio_ranges);
 
 void __init prom_ranges_init(void)
 {
-	int node, obio_node;
+	phandle node, obio_node;
 	int success;
 
 	num_obio_ranges = 0;
@@ -89,8 +89,8 @@ void __init prom_ranges_init(void)
 		prom_printf("PROMLIB: obio_ranges %d\n", num_obio_ranges);
 }
 
-void
-prom_apply_generic_ranges (int node, int parent, struct linux_prom_registers *regs, int nregs)
+void prom_apply_generic_ranges(phandle node, phandle parent,
+		struct linux_prom_registers *regs, int nregs)
 {
 	int success;
 	int num_ranges;

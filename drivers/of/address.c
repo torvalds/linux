@@ -163,7 +163,7 @@ static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
 const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 			unsigned int *flags)
 {
-	const u32 *prop;
+	const __be32 *prop;
 	unsigned int psize;
 	struct device_node *parent;
 	struct of_bus *bus;

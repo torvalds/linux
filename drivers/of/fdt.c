@@ -533,8 +533,6 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 #endif /* CONFIG_CMDLINE */
 
-	early_init_dt_scan_chosen_arch(node);
-
 	pr_debug("Command line is: %s\n", cmd_line);
 
 	/* break now */

@@ -364,9 +364,14 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-void __init early_init_dt_scan_chosen_arch(unsigned long node)
+int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
+					 int depth, void *data)
 {
 	unsigned long *lprop;
+
+	/* Use common scan routine to determine if this is the chosen node */
+	if (early_init_dt_scan_chosen(node, uname, depth, data) == 0)
+		return 0;
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
@@ -399,6 +404,9 @@ void __init early_init_dt_scan_chosen_arch(unsigned long node)
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
+
+	/* break now */
+	return 1;
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -683,7 +691,7 @@ void __init early_init_devtree(void *params)
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen, NULL);
+	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, NULL);
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	memblock_init();

@@ -88,7 +88,7 @@ static void __init read_obp_memory(const char *property,
 				   struct linux_prom64_registers *regs,
 				   int *num_ents)
 {
-	int node = prom_finddevice("/memory");
+	phandle node = prom_finddevice("/memory");
 	int prop_size = prom_getproplen(node, property);
 	int ents, ret, i;
 
