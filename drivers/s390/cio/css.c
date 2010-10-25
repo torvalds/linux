@@ -1191,6 +1191,7 @@ static int css_pm_restore(struct device *dev)
 	struct subchannel *sch = to_subchannel(dev);
 	struct css_driver *drv;
 
+	css_update_ssd_info(sch);
 	if (!sch->dev.driver)
 		return 0;
 	drv = to_cssdriver(sch->dev.driver);
