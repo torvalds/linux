@@ -108,7 +108,6 @@ struct ima_iint_cache {
 	struct mutex mutex;	/* protects: version, flags, digest */
 	long readcount;		/* measured files readcount */
 	long writecount;	/* measured files writecount */
-	long opencount;		/* opens reference count */
 	struct kref refcount;	/* ima_iint_cache reference count */
 };
 

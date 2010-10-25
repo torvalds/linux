@@ -122,7 +122,6 @@ static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
 {
 	BUG_ON(!mutex_is_locked(&iint->mutex));
 
-	iint->opencount++;
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		iint->readcount++;
 	if (mode & FMODE_WRITE)
@@ -181,7 +180,6 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 	mode_t mode = file->f_mode;
 	BUG_ON(!mutex_is_locked(&iint->mutex));
 
-	iint->opencount--;
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		iint->readcount--;
 	if (mode & FMODE_WRITE) {
@@ -192,13 +190,11 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 		}
 	}
 
-	if (((iint->opencount < 0) ||
-	     (iint->readcount < 0) ||
+	if (((iint->readcount < 0) ||
 	     (iint->writecount < 0)) &&
 	    !ima_limit_imbalance(file)) {
-		printk(KERN_INFO "%s: open/free imbalance (r:%ld w:%ld o:%ld)\n",
-		       __func__, iint->readcount, iint->writecount,
-		       iint->opencount);
+		printk(KERN_INFO "%s: open/free imbalance (r:%ld w:%ld)\n",
+		       __func__, iint->readcount, iint->writecount);
 		dump_stack();
 	}
 }
