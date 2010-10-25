@@ -1276,6 +1276,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->multiout.no_share_stream = 1;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -1463,6 +1464,7 @@ static int patch_ad1983(struct hda_codec *codec)
 	codec->patch_ops = ad198x_patch_ops;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -1917,6 +1919,7 @@ static int patch_ad1981(struct hda_codec *codec)
 	}
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -3236,6 +3239,7 @@ static int patch_ad1988(struct hda_codec *codec)
 	spec->vmaster_nid = 0x04;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -3450,6 +3454,7 @@ static int patch_ad1884(struct hda_codec *codec)
 	codec->patch_ops = ad198x_patch_ops;
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -4423,6 +4428,7 @@ static int patch_ad1884a(struct hda_codec *codec)
 	}
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }
@@ -4762,6 +4768,7 @@ static int patch_ad1882(struct hda_codec *codec)
 	}
 
 	codec->no_trigger_sense = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }

@@ -1284,6 +1284,9 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 	if (!nid)
 		return;
 
+	if (codec->no_sticky_stream)
+		do_now = 1;
+
 	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
 	p = get_hda_cvt_setup(codec, nid);
 	if (p) {
