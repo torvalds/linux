@@ -420,30 +420,21 @@ extern void smp_ctl_clear_bit(int cr, int bit);
 
 #endif /* CONFIG_SMP */
 
-static inline unsigned int stfl(void)
-{
-	asm volatile(
-		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
-		"0:\n"
-		EX_TABLE(0b,0b));
-	return S390_lowcore.stfl_fac_list;
-}
+#define MAX_FACILITY_BIT (256*8)	/* stfle_fac_list has 256 bytes */
 
-static inline int __stfle(unsigned long long *list, int doublewords)
+/*
+ * The test_facility function uses the bit odering where the MSB is bit 0.
+ * That makes it easier to query facility bits with the bit number as
+ * documented in the Principles of Operation.
+ */
+static inline int test_facility(unsigned long nr)
 {
-	typedef struct { unsigned long long _[doublewords]; } addrtype;
-	register unsigned long __nr asm("0") = doublewords - 1;
+	unsigned char *ptr;
 
-	asm volatile(".insn s,0xb2b00000,%0" /* stfle */
-		     : "=m" (*(addrtype *) list), "+d" (__nr) : : "cc");
-	return __nr + 1;
-}
-
-static inline int stfle(unsigned long long *list, int doublewords)
-{
-	if (!(stfl() & (1UL << 24)))
-		return -EOPNOTSUPP;
-	return __stfle(list, doublewords);
+	if (nr >= MAX_FACILITY_BIT)
+		return 0;
+	ptr = (unsigned char *) &S390_lowcore.stfle_fac_list + (nr >> 3);
+	return (*ptr & (0x80 >> (nr & 7))) != 0;
 }
 
 static inline unsigned short stap(void)

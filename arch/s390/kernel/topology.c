@@ -351,13 +351,10 @@ static void alloc_masks(struct tl_info *info, struct mask_info *mask, int offset
 
 void __init s390_init_cpu_topology(void)
 {
-	unsigned long long facility_bits;
 	struct tl_info *info;
 	int i;
 
-	if (stfle(&facility_bits, 1) <= 0)
-		return;
-	if (!(facility_bits & (1ULL << 52)) || !(facility_bits & (1ULL << 61)))
+	if (!test_facility(2) || !test_facility(11))
 		return;
 	machine_has_topology = 1;
 

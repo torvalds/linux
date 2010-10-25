@@ -56,12 +56,7 @@ static unsigned long store_indication;
 
 void fault_init(void)
 {
-	unsigned long long facility_list[2];
-
-	if (stfle(facility_list, 2) < 2)
-		return;
-	if ((facility_list[0] & (1ULL << 61)) &&
-	    (facility_list[1] & (1ULL << 52)))
+	if (test_facility(2) && test_facility(75))
 		store_indication = 0xc00;
 }
 
