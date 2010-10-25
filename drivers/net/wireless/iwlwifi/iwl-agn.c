@@ -4838,10 +4838,7 @@ static struct pci_driver iwl_driver = {
 	.id_table = iwl_hw_card_ids,
 	.probe = iwl_pci_probe,
 	.remove = __devexit_p(iwl_pci_remove),
-#ifdef CONFIG_PM
-	.suspend = iwl_pci_suspend,
-	.resume = iwl_pci_resume,
-#endif
+	.driver.pm = IWL_PM_OPS,
 };
 
 static int __init iwl_init(void)

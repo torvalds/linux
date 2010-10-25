@@ -2592,8 +2592,9 @@ EXPORT_SYMBOL(iwl_add_beacon_time);
 
 #ifdef CONFIG_PM
 
-int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+int iwl_pci_suspend(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
 
 	/*
@@ -2605,18 +2606,14 @@ int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 */
 	iwl_apm_stop(priv);
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
 	return 0;
 }
 EXPORT_SYMBOL(iwl_pci_suspend);
 
-int iwl_pci_resume(struct pci_dev *pdev)
+int iwl_pci_resume(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
-	int ret;
 	bool hw_rfkill = false;
 
 	/*
@@ -2625,11 +2622,6 @@ int iwl_pci_resume(struct pci_dev *pdev)
 	 */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_device(pdev);
-	if (ret)
-		return ret;
-	pci_restore_state(pdev);
 	iwl_enable_interrupts(priv);
 
 	if (!(iwl_read32(priv, CSR_GP_CNTRL) &
@@ -2646,5 +2638,15 @@ int iwl_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 EXPORT_SYMBOL(iwl_pci_resume);
+
+const struct dev_pm_ops iwl_pm_ops = {
+	.suspend = iwl_pci_suspend,
+	.resume = iwl_pci_resume,
+	.freeze = iwl_pci_suspend,
+	.thaw = iwl_pci_resume,
+	.poweroff = iwl_pci_suspend,
+	.restore = iwl_pci_resume,
+};
+EXPORT_SYMBOL(iwl_pm_ops);
 
 #endif /* CONFIG_PM */

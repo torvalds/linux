@@ -615,9 +615,17 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
-int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);
-int iwl_pci_resume(struct pci_dev *pdev);
-#endif /* CONFIG_PM */
+int iwl_pci_suspend(struct device *device);
+int iwl_pci_resume(struct device *device);
+extern const struct dev_pm_ops iwl_pm_ops;
+
+#define IWL_PM_OPS	(&iwl_pm_ops)
+
+#else /* !CONFIG_PM */
+
+#define IWL_PM_OPS	NULL
+
+#endif /* !CONFIG_PM */
 
 /*****************************************************
 *  Error Handling Debugging
