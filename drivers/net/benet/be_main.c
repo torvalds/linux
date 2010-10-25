@@ -2556,7 +2556,6 @@ static void be_netdev_init(struct net_device *netdev)
 	netif_napi_add(netdev, &adapter->tx_eq.napi, be_poll_tx_mcc,
 		BE_NAPI_WEIGHT);
 
-	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 }
 
@@ -2865,6 +2864,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	status = register_netdev(netdev);
 	if (status != 0)
 		goto unsetup;
+	netif_carrier_off(netdev);
 
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
 	return 0;
