@@ -585,15 +585,15 @@ static inline void rps_reset_sock_flow(struct rps_sock_flow_table *table,
 		table->ents[hash & table->mask] = RPS_NO_CPU;
 }
 
-extern struct rps_sock_flow_table *rps_sock_flow_table;
+extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
 
 /* This structure contains an instance of an RX queue. */
 struct netdev_rx_queue {
-	struct rps_map *rps_map;
-	struct rps_dev_flow_table *rps_flow_table;
-	struct kobject kobj;
-	struct netdev_rx_queue *first;
-	atomic_t count;
+	struct rps_map __rcu		*rps_map;
+	struct rps_dev_flow_table __rcu	*rps_flow_table;
+	struct kobject			kobj;
+	struct netdev_rx_queue		*first;
+	atomic_t			count;
 } ____cacheline_aligned_in_smp;
 #endif /* CONFIG_RPS */
 

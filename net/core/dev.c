@@ -2413,7 +2413,7 @@ EXPORT_SYMBOL(__skb_get_rxhash);
 #ifdef CONFIG_RPS
 
 /* One global table that all flow-based protocols share. */
-struct rps_sock_flow_table *rps_sock_flow_table __read_mostly;
+struct rps_sock_flow_table __rcu *rps_sock_flow_table __read_mostly;
 EXPORT_SYMBOL(rps_sock_flow_table);
 
 /*
@@ -2425,7 +2425,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		       struct rps_dev_flow **rflowp)
 {
 	struct netdev_rx_queue *rxqueue;
-	struct rps_map *map = NULL;
+	struct rps_map *map;
 	struct rps_dev_flow_table *flow_table;
 	struct rps_sock_flow_table *sock_flow_table;
 	int cpu = -1;
@@ -2444,15 +2444,15 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	} else
 		rxqueue = dev->_rx;
 
-	if (rxqueue->rps_map) {
-		map = rcu_dereference(rxqueue->rps_map);
-		if (map && map->len == 1) {
+	map = rcu_dereference(rxqueue->rps_map);
+	if (map) {
+		if (map->len == 1) {
 			tcpu = map->cpus[0];
 			if (cpu_online(tcpu))
 				cpu = tcpu;
 			goto done;
 		}
-	} else if (!rxqueue->rps_flow_table) {
+	} else if (!rcu_dereference_raw(rxqueue->rps_flow_table)) {
 		goto done;
 	}
 
