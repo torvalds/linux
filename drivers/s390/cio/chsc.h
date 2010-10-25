@@ -60,8 +60,8 @@ struct chsc_ssd_info {
 extern int chsc_get_ssd_info(struct subchannel_id schid,
 			     struct chsc_ssd_info *ssd);
 extern int chsc_determine_css_characteristics(void);
-extern int chsc_alloc_sei_area(void);
-extern void chsc_free_sei_area(void);
+extern int chsc_init(void);
+extern void chsc_init_cleanup(void);
 
 extern int chsc_enable_facility(int);
 struct channel_subsystem;

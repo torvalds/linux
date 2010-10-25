@@ -2,7 +2,7 @@
  *  drivers/s390/cio/chsc.c
  *   S/390 common I/O routines -- channel subsystem call
  *
- *    Copyright IBM Corp. 1999,2008
+ *    Copyright IBM Corp. 1999,2010
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
@@ -813,7 +813,7 @@ out:
 	return ret;
 }
 
-int __init chsc_alloc_sei_area(void)
+int __init chsc_init(void)
 {
 	int ret;
 
@@ -825,14 +825,14 @@ int __init chsc_alloc_sei_area(void)
 	}
 	ret = crw_register_handler(CRW_RSC_CSS, chsc_process_crw);
 	if (ret)
-		kfree(sei_page);
+		free_page((unsigned long)sei_page);
 	return ret;
 }
 
-void __init chsc_free_sei_area(void)
+void __init chsc_init_cleanup(void)
 {
 	crw_unregister_handler(CRW_RSC_CSS);
-	kfree(sei_page);
+	free_page((unsigned long)sei_page);
 }
 
 int chsc_enable_facility(int operation_code)
@@ -895,7 +895,7 @@ chsc_determine_css_characteristics(void)
 		struct chsc_header response;
 		u32 reserved4;
 		u32 general_char[510];
-		u32 chsc_char[518];
+		u32 chsc_char[508];
 	} __attribute__ ((packed)) *scsc_area;
 
 	scsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);

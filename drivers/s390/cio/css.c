@@ -1,7 +1,7 @@
 /*
  * driver for channel subsystem
  *
- * Copyright IBM Corp. 2002, 2009
+ * Copyright IBM Corp. 2002, 2010
  *
  * Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *	      Cornelia Huck (cornelia.huck@de.ibm.com)
@@ -863,12 +863,12 @@ static int __init css_bus_init(void)
 {
 	int ret, i;
 
+	ret = chsc_init();
+	if (ret)
+		return ret;
+
 	ret = chsc_determine_css_characteristics();
 	if (ret == -ENOMEM)
-		goto out;
-
-	ret = chsc_alloc_sei_area();
-	if (ret)
 		goto out;
 
 	/* Try to enable MSS. */
@@ -956,9 +956,9 @@ out_unregister:
 	}
 	bus_unregister(&css_bus_type);
 out:
-	crw_unregister_handler(CRW_RSC_CSS);
-	chsc_free_sei_area();
+	crw_unregister_handler(CRW_RSC_SCH);
 	idset_free(slow_subchannel_set);
+	chsc_init_cleanup();
 	pr_alert("The CSS device driver initialization failed with "
 		 "errno=%d\n", ret);
 	return ret;
@@ -978,9 +978,9 @@ static void __init css_bus_cleanup(void)
 		device_unregister(&css->device);
 	}
 	bus_unregister(&css_bus_type);
-	crw_unregister_handler(CRW_RSC_CSS);
-	chsc_free_sei_area();
+	crw_unregister_handler(CRW_RSC_SCH);
 	idset_free(slow_subchannel_set);
+	chsc_init_cleanup();
 	isc_unregister(IO_SCH_ISC);
 }
 
