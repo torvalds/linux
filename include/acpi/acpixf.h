@@ -315,6 +315,8 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 acpi_status acpi_remove_gpe_block(acpi_handle gpe_device);
 
+acpi_status acpi_update_gpes(void);
+
 /*
  * Resource interfaces
  */

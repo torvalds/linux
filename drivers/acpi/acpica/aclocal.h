@@ -413,6 +413,7 @@ struct acpi_handler_info {
 	void *context;		/* Context to be passed to handler */
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level (saved) */
 	u8 orig_flags;		/* Original misc info about this GPE */
+	u8 orig_enabled;	/* Set if the GPE was originally enabled */
 };
 
 union acpi_gpe_dispatch_info {
@@ -457,6 +458,7 @@ struct acpi_gpe_block_info {
 	u32 register_count;	/* Number of register pairs in block */
 	u16 gpe_count;		/* Number of individual GPEs in block */
 	u8 block_base_number;	/* Base GPE number for this block */
+	u8 initialized;         /* If set, the GPE block has been initialized */
 };
 
 /* Information about GPE interrupt handlers, one per each interrupt level used for GPEs */
@@ -473,7 +475,6 @@ struct acpi_gpe_walk_info {
 	struct acpi_gpe_block_info *gpe_block;
 	u16 count;
 	acpi_owner_id owner_id;
-	u8 enable_this_gpe;
 	u8 execute_by_owner_id;
 };
 
