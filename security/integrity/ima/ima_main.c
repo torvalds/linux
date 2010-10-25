@@ -186,8 +186,6 @@ static void ima_file_free_iint(struct ima_iint_cache *iint, struct inode *inode,
 
 	spin_unlock(&inode->i_lock);
 	mutex_unlock(&iint->mutex);
-
-	kref_put(&iint->refcount, iint_free);
 }
 
 static void ima_file_free_noiint(struct inode *inode, struct file *file)
@@ -213,7 +211,7 @@ void ima_file_free(struct file *file)
 
 	if (!iint_initialized || !S_ISREG(inode->i_mode))
 		return;
-	iint = ima_iint_find_get(inode);
+	iint = ima_iint_find(inode);
 
 	if (iint)
 		ima_file_free_iint(iint, inode, file);
@@ -236,7 +234,7 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	if (rc != 0)
 		return rc;
 retry:
-	iint = ima_iint_find_get(inode);
+	iint = ima_iint_find(inode);
 	if (!iint) {
 		rc = ima_inode_alloc(inode);
 		if (!rc || rc == -EEXIST)
@@ -255,7 +253,6 @@ retry:
 		ima_store_measurement(iint, file, filename);
 out:
 	mutex_unlock(&iint->mutex);
-	kref_put(&iint->refcount, iint_free);
 	return rc;
 }
 

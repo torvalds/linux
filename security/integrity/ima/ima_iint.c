@@ -53,22 +53,24 @@ static struct ima_iint_cache *__ima_iint_find(struct inode *inode)
 }
 
 /*
- * ima_iint_find_get - return the iint associated with an inode
- *
- * ima_iint_find_get gets a reference to the iint. Caller must
- * remember to put the iint reference.
+ * ima_iint_find - return the iint associated with an inode
  */
-struct ima_iint_cache *ima_iint_find_get(struct inode *inode)
+struct ima_iint_cache *ima_iint_find(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
 
 	spin_lock(&ima_iint_lock);
 	iint = __ima_iint_find(inode);
-	if (iint)
-		kref_get(&iint->refcount);
 	spin_unlock(&ima_iint_lock);
 
 	return iint;
+}
+
+static void iint_free(struct ima_iint_cache *iint)
+{
+	iint->version = 0;
+	iint->flags = 0UL;
+	kmem_cache_free(iint_cache, iint);
 }
 
 /**
@@ -113,19 +115,9 @@ int ima_inode_alloc(struct inode *inode)
 	return 0;
 out_err:
 	spin_unlock(&ima_iint_lock);
-	kref_put(&new_iint->refcount, iint_free);
-	return rc;
-}
+	iint_free(new_iint);
 
-/* iint_free - called when the iint refcount goes to zero */
-void iint_free(struct kref *kref)
-{
-	struct ima_iint_cache *iint = container_of(kref, struct ima_iint_cache,
-						   refcount);
-	iint->version = 0;
-	iint->flags = 0UL;
-	kref_init(&iint->refcount);
-	kmem_cache_free(iint_cache, iint);
+	return rc;
 }
 
 /**
@@ -148,8 +140,11 @@ void ima_inode_free(struct inode *inode)
 	if (iint)
 		rb_erase(&iint->rb_node, &ima_iint_tree);
 	spin_unlock(&ima_iint_lock);
-	if (iint)
-		kref_put(&iint->refcount, iint_free);
+
+	if (!iint)
+		return;
+
+	iint_free(iint);
 }
 
 static void init_once(void *foo)
@@ -160,7 +155,6 @@ static void init_once(void *foo)
 	iint->version = 0;
 	iint->flags = 0UL;
 	mutex_init(&iint->mutex);
-	kref_init(&iint->refcount);
 }
 
 static int __init ima_iintcache_init(void)

@@ -107,7 +107,6 @@ struct ima_iint_cache {
 	unsigned char flags;
 	u8 digest[IMA_DIGEST_SIZE];
 	struct mutex mutex;	/* protects: version, flags, digest */
-	struct kref refcount;	/* ima_iint_cache reference count */
 };
 
 /* LIM API function definitions */
@@ -125,8 +124,7 @@ void ima_template_show(struct seq_file *m, void *e,
  * integrity data associated with an inode.
  */
 struct ima_iint_cache *ima_iint_insert(struct inode *inode);
-struct ima_iint_cache *ima_iint_find_get(struct inode *inode);
-void iint_free(struct kref *kref);
+struct ima_iint_cache *ima_iint_find(struct inode *inode);
 
 /* IMA policy related functions */
 enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
