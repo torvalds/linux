@@ -8,6 +8,7 @@
 
 #ifdef __KERNEL__
 #include <linux/backing-dev.h>
+#include <linux/mutex.h>
 
 struct kstatfs;
 
@@ -20,6 +21,7 @@ struct venus_comm {
 	int                 vc_inuse;
 	struct super_block *vc_sb;
 	struct backing_dev_info bdi;
+	struct mutex	    vc_mutex;
 };
 
 

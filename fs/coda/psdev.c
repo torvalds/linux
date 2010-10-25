@@ -35,7 +35,7 @@
 #include <linux/poll.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/device.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -67,8 +67,10 @@ static unsigned int coda_psdev_poll(struct file *file, poll_table * wait)
 	unsigned int mask = POLLOUT | POLLWRNORM;
 
 	poll_wait(file, &vcp->vc_waitq, wait);
+	mutex_lock(&vcp->vc_mutex);
 	if (!list_empty(&vcp->vc_pending))
                 mask |= POLLIN | POLLRDNORM;
+	mutex_unlock(&vcp->vc_mutex);
 
 	return mask;
 }
@@ -143,7 +145,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	}
         
 	/* Look for the message on the processing queue. */
-	lock_kernel();
+	mutex_lock(&vcp->vc_mutex);
 	list_for_each(lh, &vcp->vc_processing) {
 		tmp = list_entry(lh, struct upc_req , uc_chain);
 		if (tmp->uc_unique == hdr.unique) {
@@ -152,7 +154,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 			break;
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&vcp->vc_mutex);
 
 	if (!req) {
 		printk("psdev_write: msg (%d, %d) not found\n", 
@@ -207,7 +209,7 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	if (nbytes == 0)
 		return 0;
 
-	lock_kernel();
+	mutex_lock(&vcp->vc_mutex);
 
 	add_wait_queue(&vcp->vc_waitq, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -221,7 +223,9 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 			retval = -ERESTARTSYS;
 			break;
 		}
+		mutex_unlock(&vcp->vc_mutex);
 		schedule();
+		mutex_lock(&vcp->vc_mutex);
 	}
 
 	set_current_state(TASK_RUNNING);
@@ -254,7 +258,7 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	CODA_FREE(req->uc_data, sizeof(struct coda_in_hdr));
 	kfree(req);
 out:
-	unlock_kernel();
+	mutex_unlock(&vcp->vc_mutex);
 	return (count ? count : retval);
 }
 
@@ -267,10 +271,10 @@ static int coda_psdev_open(struct inode * inode, struct file * file)
 	if (idx < 0 || idx >= MAX_CODADEVS)
 		return -ENODEV;
 
-	lock_kernel();
-
 	err = -EBUSY;
 	vcp = &coda_comms[idx];
+	mutex_lock(&vcp->vc_mutex);
+
 	if (!vcp->vc_inuse) {
 		vcp->vc_inuse++;
 
@@ -284,7 +288,7 @@ static int coda_psdev_open(struct inode * inode, struct file * file)
 		err = 0;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&vcp->vc_mutex);
 	return err;
 }
 
@@ -299,7 +303,7 @@ static int coda_psdev_release(struct inode * inode, struct file * file)
 		return -1;
 	}
 
-	lock_kernel();
+	mutex_lock(&vcp->vc_mutex);
 
 	/* Wakeup clients so they can return. */
 	list_for_each_entry_safe(req, tmp, &vcp->vc_pending, uc_chain) {
@@ -324,7 +328,7 @@ static int coda_psdev_release(struct inode * inode, struct file * file)
 
 	file->private_data = NULL;
 	vcp->vc_inuse--;
-	unlock_kernel();
+	mutex_unlock(&vcp->vc_mutex);
 	return 0;
 }
 
@@ -353,9 +357,11 @@ static int init_coda_psdev(void)
 		err = PTR_ERR(coda_psdev_class);
 		goto out_chrdev;
 	}		
-	for (i = 0; i < MAX_CODADEVS; i++)
+	for (i = 0; i < MAX_CODADEVS; i++) {
+		mutex_init(&(&coda_comms[i])->vc_mutex);
 		device_create(coda_psdev_class, NULL,
 			      MKDEV(CODA_PSDEV_MAJOR, i), NULL, "cfs%d", i);
+	}
 	coda_sysctl_init();
 	goto out;
 

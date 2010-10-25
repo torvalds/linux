@@ -15,7 +15,7 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/file.h>
 #include <linux/vfs.h>
@@ -145,7 +145,7 @@ static int get_device_index(struct coda_mount_data *data)
 static int coda_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *root = NULL;
-	struct venus_comm *vc = NULL;
+	struct venus_comm *vc;
 	struct CodaFid fid;
 	int error;
 	int idx;
@@ -159,7 +159,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	printk(KERN_INFO "coda_read_super: device index: %i\n", idx);
 
 	vc = &coda_comms[idx];
-	lock_kernel();
+	mutex_lock(&vc->vc_mutex);
 
 	if (!vc->vc_inuse) {
 		printk("coda_read_super: No pseudo device\n");
@@ -178,7 +178,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		goto unlock_out;
 
 	vc->vc_sb = sb;
-	unlock_kernel();
+	mutex_unlock(&vc->vc_mutex);
 
 	sb->s_fs_info = vc;
 	sb->s_flags |= MS_NOATIME;
@@ -217,20 +217,23 @@ error:
 	if (root)
 		iput(root);
 
-	lock_kernel();
+	mutex_lock(&vc->vc_mutex);
 	bdi_destroy(&vc->bdi);
 	vc->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 unlock_out:
-	unlock_kernel();
+	mutex_unlock(&vc->vc_mutex);
 	return error;
 }
 
 static void coda_put_super(struct super_block *sb)
 {
-	bdi_destroy(&coda_vcp(sb)->bdi);
-	coda_vcp(sb)->vc_sb = NULL;
+	struct venus_comm *vcp = coda_vcp(sb);
+	mutex_lock(&vcp->vc_mutex);
+	bdi_destroy(&vcp->bdi);
+	vcp->vc_sb = NULL;
 	sb->s_fs_info = NULL;
+	mutex_unlock(&vcp->vc_mutex);
 
 	printk("Coda: Bye bye.\n");
 }
