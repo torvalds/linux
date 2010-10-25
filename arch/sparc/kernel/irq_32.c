@@ -365,7 +365,7 @@ static int request_fast_irq(unsigned int irq,
 	unsigned long flags;
 	unsigned int cpu_irq;
 	int ret;
-#ifdef CONFIG_SMP
+#if defined CONFIG_SMP && !defined CONFIG_SPARC_LEON
 	struct tt_entry *trap_table;
 	extern struct tt_entry trapbase_cpu1, trapbase_cpu2, trapbase_cpu3;
 #endif
@@ -425,7 +425,7 @@ static int request_fast_irq(unsigned int irq,
 	table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_four = SPARC_NOP;
 
 	INSTANTIATE(sparc_ttable)
-#ifdef CONFIG_SMP
+#if defined CONFIG_SMP && !defined CONFIG_SPARC_LEON
 	trap_table = &trapbase_cpu1; INSTANTIATE(trap_table)
 	trap_table = &trapbase_cpu2; INSTANTIATE(trap_table)
 	trap_table = &trapbase_cpu3; INSTANTIATE(trap_table)
